@@ -252,14 +252,14 @@ async function flowCheck(np) {
   // ALL PLANES (PLANE-LISTS, the user 4 Nov): the lists grouped, a press opens through the garage; nothing built or loaded before it
   {
     const opened = [];
-    store.planeLists = () => Promise.resolve([{ n: 1, list: 'official', name: 'A', thumb: 'cand:a.json' }, { n: 2, list: 'candidates', name: 'B' }]);
+    store.planeLists = () => Promise.resolve([{ n: 1, list: 'reproduction', name: 'A', thumb: 'cand:a.json' }, { n: 2, list: 'original', name: 'B' }]);
     store.openListed = p => { opened.push(p.name); };
     W.PLANE_THUMB = { get: k => (k === 'cand:a.json' ? 'media/thumbs/a.webp' : null) };
     UI.open({ all: true }); await new Promise(r => setTimeout(r, 0));
     const wrap = doc.body.children.find(c => c.id === 'npWrap');
     const listT = tilesIn(wrap.querySelector('.npBody')).filter(b => b.dataset.list);
-    t(UI._state().page === 'all' && cnt.hold === true && listT.length === 2 && listT[0].dataset.list === 'official' && listT[1].dataset.list === 'candidates' && /official/.test(listT[0].innerHTML) && /candidate/.test(listT[1].innerHTML),
-      'All planes: full-screen, the render held, the lists grouped, each row its word');
+    t(UI._state().page === 'all' && cnt.hold === true && listT.length === 2 && listT[0].dataset.list === 'reproduction' && listT[1].dataset.list === 'original' && /reproduction/.test(listT[0].innerHTML) && /original/.test(listT[1].innerHTML),
+      'All planes: full-screen, the render held, the classes grouped, each row its word (PLANE-LIST)');
     t(listT[0].children.some(c => c.className === 'npThumb') && !listT[1].children.some(c => c.className === 'npThumb'), 'All planes: the baked picture when there is one, a name alone when not');
     t(cnt.set === 0 && cnt.bake === 0 && !opened.length, 'All planes: nothing built or loaded before a press');
     listT[1].click();

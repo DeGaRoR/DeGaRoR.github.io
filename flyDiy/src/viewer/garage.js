@@ -737,7 +737,7 @@ function garageInit(api) {
   const candidates = () => {
     if (!candP) {
       candP = (typeof fetch === 'function' ? fetch(CAND_DIR + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
-        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && !p.official && labOk(p) && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),   // official: true = on the Official list, not a candidate (All planes opens it)
+        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && !p.official && !p.hide && labOk(p) && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),   // official: true = on the Official list, not a candidate (All planes opens it)
               () => []);
       candP.then(l => { if (!l.length) candP = null; });
     }
@@ -751,9 +751,13 @@ function garageInit(api) {
     .then(t => { const g = unwrap(t); loadSpec(g.spec, ''); })
     .catch(e => alert('That candidate could not be loaded: ' + c.file + ' (' + ((e && e.message) || e) + ')'));
   // PLANE-LISTS (the user 4 Nov, off the all-planes sheet: "so we have an exhaustive list"): builds/lists/plane_lists.json, every
-  // aeroplane we have in three lists. The All planes screen (new_plane.js) reads it. A row opens like a candidate, unnamed with
-  // no plaque and an empty log; a stock row as a stock design. INTERNAL and the developer's notes: dev only (dev.html, the dev career)
+  // aeroplane we have. PLANE-LIST (the user 10 Nov, the classes): REPRODUCTIONS (the types REAL-FIGURES tests against the real
+  // aircraft), STORY (the story's planes and the career's fleet), ORIGINALS (the game's own designs), WIP - the player's four;
+  // NEXT (a reproduction's next version, until it replaces its type), LEGACY (the test planes the gates fly) and ARCHIVE: the
+  // developer's only. The All planes screen (new_plane.js) reads it. A row opens like a candidate, unnamed with no plaque and an
+  // empty log; a stock row as a stock design. A lab row (the seaplane switch, SEA-OFF) shows when the lab is on.
   const LISTS_FILE = 'builds/lists/plane_lists.json';
+  const PLAYER_CLASSES = ['reproduction', 'story', 'original', 'wip'];
   let listsP = null;
   const planeLists = () => {
     if (!listsP) {
@@ -762,7 +766,7 @@ function garageInit(api) {
       listsP.then(l => { if (!l.length) listsP = null; });
     }
     const dev = /dev\.html/.test((window.location && window.location.pathname) || '') || !!(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev);
-    return listsP.then(l => l.filter(p => p && (dev || p.list !== 'internal')).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
+    return listsP.then(l => l.filter(p => p && (dev || (PLAYER_CLASSES.includes(p.list) && labOk(p)))).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
   };
   const openListed = p => {
     if (p.stock) { loadStock(p.stock); return; }
@@ -1100,9 +1104,10 @@ function garageInit(api) {
         '<div class="gfSub"></div>' +
         '<div class="gfGroupH">your aeroplanes</div>' +
         '<div class="gfMine"></div>' +
-        '<div class="gfGroupH">stock designs</div>' +
-        '<div class="gfStock"></div>' +
-        '<div class="gfGroupH gfCandH">candidate official — built, not validated</div>' +
+        // PLANE-LIST (the user 10 Nov: "I do not want to see duplicated planes anymore"): no stock-designs shelf - its six
+        // presets were older copies of the listed planes (piper cub, jodel, jodel D112, cessna 172, chinook, sailplane);
+        // every listed plane is behind "all planes" (stockByName stays: a stock door still opens a test plane for the dev)
+        '<div class="gfGroupH gfCandH">built here, not yet certified</div>' +
         '<div class="gfCand"></div>' +
         '<div class="gfFoot">' +
           '<span class="gfHint">import and export are on the ribbon' +
@@ -1127,14 +1132,13 @@ function garageInit(api) {
   function renderFleet() {
     if (!fleetEl) return;
     const mine = fleetEl.querySelector('.gfMine');
-    const stockBox = fleetEl.querySelector('.gfStock');
-    if (!mine || !stockBox) return;
+    if (!mine) return;
     // G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
     // money"): a career's rack is its own builds (api.ownSlots); the shelf's others are the sandbox's, bought in below
     const shelf = slotNames(), names = api.ownSlots ? api.ownSlots(shelf) : shelf;
     const bring = api.importable ? api.importable(shelf) : [];
     const label = n => (api.slotLabel ? api.slotLabel(n) : n);
-    mine.innerHTML = ''; stockBox.innerHTML = '';
+    mine.innerHTML = '';
     if (!names.length) {
       const d = document.createElement('div');
       d.className = 'gfEmpty';
@@ -1250,15 +1254,6 @@ function garageInit(api) {
         row.appendChild(b);
         mine.appendChild(row);
       }
-    }
-    for (const s of STOCK) {          // stock is not yours to delete: no ✕
-      const row = document.createElement('div');
-      row.className = 'gfRow';
-      const b = rowBtn(s.name, 'stock design');
-      thumbOn(b, 'stock:' + s.name);
-      b.addEventListener('click', () => { closeFleet(); loadStock(s.name); });
-      row.appendChild(b);
-      stockBox.appendChild(row);
     }
     // CANDIDATE OFFICIAL: the pool's files, drawn when the index answers (the rack is usable before it does)
     const candBox = fleetEl.querySelector('.gfCand');
