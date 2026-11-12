@@ -123,8 +123,12 @@ async function runPage(page) {
     await cmd('Page.navigate', { url: 'http://localhost:' + SPORT + '/flyDiy/' + page });
     await sleep(1500);
     try { await ev("Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 18500)), new Promise(r => setTimeout(() => r('timeout'), 150000))])"); } catch (e) {}
+    // (A0 13 Nov, PACE-ON since 11 Nov: the boot cover stays up until every program links, ~96 s and longer under load; a Go
+    //  clicked under it never reaches a flight) - wait for the cover to be gone first, and stop if the flight never comes
+    for (let i = 0; i < 150; i++) { const bs = await ev("(()=>{const c=document.getElementById('boot');return (window.BOOT&&BOOT.state==='gone')||!c||c.classList.contains('gone')||c.offsetParent===null;})()"); if (bs) break; await sleep(1000); }
     let flying = false;
     for (let a = 0; a < 8 && !flying; a++) { await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); await sleep(6000); flying = await ev("/TAXI|DOWNWIND|FINAL|DEPART|HOLD|PARK/.test(document.body.innerText)"); }
+    if (!flying) throw new Error('never flying after 8 Go clicks (the boot cover?) - not shot');
     for (let i = 0; i < 150; i++) { const bs = await ev("window.BOOT ? BOOT.state : 'none'"); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
     const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
     for (let i = 0; i < 20; i++) { const n = await ev(KEEP); await sleep(500); if (!n && i > 4) break; }
