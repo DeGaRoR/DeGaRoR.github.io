@@ -1129,6 +1129,11 @@ function garageInit(api) {
         thumb: 'mine:' + n,
         // LIVERY MANAGER (AIRCRAFT-LOOKS): a save may hold several liveries; the tile names how many (it shows the worn one)
         liveries: env && Array.isArray(env.liveries) ? env.liveries.length : 0,
+        // VEHICLES (A0 13 Nov, agreed with the car session): a saved car carries spec.kind = 'car' (absent = a plane); the car
+        // part's older marks (cage.isCar, meta.car) read the same
+        // (TOW-LAUNCH's window.VEHICLE_KIND - vehicle_kind.js, the rule's one owner - when it is in the build; the same rule inline before)
+        kind: window.VEHICLE_KIND ? window.VEHICLE_KIND(spec || {})
+          : spec && (spec.kind === 'car' || (spec.cage && +spec.cage.isCar > 0) || (spec.meta && spec.meta.car)) ? 'car' : 'plane',
       };
     });
     const bring = (api.importable && api.importSlot ? api.importable(shelf) : []).map(n => {

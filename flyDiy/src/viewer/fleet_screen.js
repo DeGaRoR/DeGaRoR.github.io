@@ -6,7 +6,10 @@
 //
 // TWO TABS: YOUR HANGAR (the saved builds - a career's own airframes - garage.js GARAGE_SPEC.fleet()) and ALL PLANES
 // (the plane list's player classes, builds/lists/plane_lists.json through GARAGE_SPEC.planeLists, and the candidate
-// pool). It replaces the LOAD popup (#gFleet) and the New-aeroplane screen's "all planes" page.
+// pool). It replaces the LOAD popup (#gFleet) and the New-aeroplane screen's "all planes" page. VEHICLES (A0 13 Nov: cars put
+// apart): a third tab lists builds/lists/vehicles.json (the car session's list; GARAGE_SPEC.vehicleLists when the garage reads
+// it, else the file), shown only when there is one; a saved car (spec.kind 'car') is filtered apart in Your hangar; a car's
+// Load says Drive.
 // THE CONTRACT:
 //   1 CHOOSING COSTS NOTHING. The screen is opaque and holds the garage's render loop (FLYDIY_UI_HOLD, as NEW_PLANE
 //     does) for as long as it is up; a click selects, sorts or filters this screen's own DOM. Nothing is built or loaded
@@ -37,23 +40,25 @@
   const SORTS = {
     mine: [['flown', 'Last flown'], ['name', 'Name'], ['place', 'Where it stands'], ['state', 'Certificate'], ['price', 'Price']],
     all: [['class', 'By class'], ['name', 'Name'], ['number', 'List number']],
+    veh: [['name', 'Name']],
   };
+  const TABS = ['mine', 'all', 'veh'];
   const LOG = { opened: 0, renders: 0, loads: 0, asked: 0 };
 
   let el = null, tab = 'mine', sel = { mine: null, all: null }, busy = false, sheet = false;
   let ask = null;            // { k, text, yes, go } - the one tile asking a question
   let menu = null;           // the key of the tile whose ⋯ is open
   let model = null;          // GARAGE_SPEC.fleet(), read on open and on refresh
-  let lists = null, cands = null, listsAsked = false;
+  let lists = null, cands = null, vehicles = null, listsAsked = false;
   let fiches = null, ficheAsked = false, mineFiches = null;
 
   // ---- what is remembered (per device; a missing or blocked store is today's defaults) ----------------------------
   const ui = (() => {
-    const d = { tab: 'mine', view: 'tiles', mine: { sort: 'flown', q: '', off: [] }, all: { sort: 'class', q: '', off: [], fiche: false } };
+    const d = { tab: 'mine', view: 'tiles', mine: { sort: 'flown', q: '', off: [] }, all: { sort: 'class', q: '', off: [], fiche: false }, veh: { sort: 'name', q: '', off: [] } };
     try { const j = JSON.parse(W.localStorage.getItem(PREF) || 'null'); if (j && typeof j === 'object') {
       if (j.view === 'list' || j.view === 'tiles') d.view = j.view;
-      if (j.tab === 'all' || j.tab === 'mine') d.tab = j.tab;
-      for (const t of ['mine', 'all']) if (j[t]) {
+      if (TABS.indexOf(j.tab) >= 0) d.tab = j.tab;
+      for (const t of TABS) if (j[t]) {
         if (SORTS[t].some(s => s[0] === j[t].sort)) d[t].sort = j[t].sort;
         if (Array.isArray(j[t].off)) d[t].off = j[t].off.filter(x => typeof x === 'string');
         if (t === 'all') d.all.fiche = !!j.all.fiche;
@@ -62,7 +67,7 @@
     return d;
   })();
   const keep = () => { try { W.localStorage.setItem(PREF, JSON.stringify({ tab: ui.tab, view: ui.view,
-    mine: { sort: ui.mine.sort, off: ui.mine.off }, all: { sort: ui.all.sort, off: ui.all.off, fiche: ui.all.fiche } })); } catch (e) {} };
+    mine: { sort: ui.mine.sort, off: ui.mine.off }, all: { sort: ui.all.sort, off: ui.all.off, fiche: ui.all.fiche }, veh: { sort: ui.veh.sort, off: ui.veh.off } })); } catch (e) {} };
   const phone = () => { try { return document.documentElement.classList.contains('phone') || (W.matchMedia && W.matchMedia('(max-width: 700px)').matches); } catch (e) { return false; } };
 
   // ---- the data, as tiles ----------------------------------------------------------------------------------------
@@ -79,6 +84,12 @@
     else lists = [];
     if (g.candidates) g.candidates().then(l => { cands = l || []; redraw(); }, () => { cands = []; redraw(); });
     else cands = [];
+    // the vehicles: the garage's door when it has one, else the car session's file itself
+    const vOk = l => (l || []).filter(v => v && typeof v.file === 'string');
+    if (g.vehicleLists) g.vehicleLists().then(l => { vehicles = vOk(l); redraw(); }, () => { vehicles = []; redraw(); });
+    else if (typeof fetch === 'function') fetch('builds/lists/vehicles.json').then(r => (r.ok ? r.json() : null))
+      .then(j => { vehicles = vOk(j && j.vehicles); redraw(); }, () => { vehicles = []; redraw(); });
+    else vehicles = [];
   }
   // the fiches: the official planes' baked index (media/fiches/index.json, keyed by the list's picture key or list:N;
   // a newer bake also names its row: listRow) and the player's own (PLANE_FICHE.names)
@@ -96,7 +107,7 @@
   }
   function tilesMine() {
     const m = model || readModel(), out = [];
-    for (const r of m.rows) out.push({ k: 'mine:' + r.slot, kind: 'mine', r, name: r.name, reg: r.reg, thumb: r.thumb,
+    for (const r of m.rows) out.push({ k: 'mine:' + r.slot, kind: 'mine', r, name: r.name, reg: r.reg, thumb: r.thumb, car: r.kind && r.kind !== 'plane',
       state: r.cert, fiche: mineFiches && mineFiches.has(r.slot) ? r.slot : null });
     for (const b of m.bring) out.push({ k: 'bring:' + b.slot, kind: 'bring', r: b, name: b.name, reg: '', thumb: b.thumb, state: null, fiche: null });
     return out;
@@ -118,11 +129,22 @@
     }
     return out;
   }
+  function tilesVeh() {
+    return (vehicles || []).map(v => {
+      const key = v.thumb || '', fk = key ? bakedOf(key, null) : null;
+      return { k: 'veh:' + v.file, kind: 'veh', v, name: v.name || v.file, reg: v.reg || '', thumb: key || null, cls: (W.VEHICLE_KIND && W.VEHICLE_KIND.row ? W.VEHICLE_KIND.row(v) : v.kind) || 'car', car: true,
+        note: v.note || '', fiche: fk ? fk.key : null, baked: fk ? fk.rec : null };
+    });
+  }
+  const tilesOf = tb => (tb === 'mine' ? tilesMine() : tb === 'veh' ? tilesVeh() : tilesAll());
   const matchQ = (t, q) => !q || (t.name + ' ' + (t.reg || '') + ' ' + (t.r && t.r.slot || '')).toLowerCase().indexOf(q.toLowerCase()) >= 0;
   const facetOf = t => (tab === 'mine' ? (t.kind === 'bring' ? 'bring' : t.state) : t.cls);
+  // Your hangar's second facet: planes and cars apart (a car is a saved build with spec.kind 'car')
+  const kindOf = t => (t.car ? 'kind:car' : 'kind:plane');
   function shown() {
-    const all = tab === 'mine' ? tilesMine() : tilesAll(), U = ui[tab];
-    return all.filter(t => matchQ(t, U.q) && U.off.indexOf(facetOf(t)) < 0 && (tab !== 'all' || !U.fiche || t.fiche));
+    const all = tilesOf(tab), U = ui[tab];
+    return all.filter(t => matchQ(t, U.q) && U.off.indexOf(facetOf(t)) < 0 && (tab !== 'mine' || U.off.indexOf(kindOf(t)) < 0) &&
+      (tab !== 'all' || !U.fiche || t.fiche));
   }
   const clsIdx = c => { const i = CLASSES.findIndex(x => x[0] === c); return i < 0 ? 99 : i; };
   const certIdx = c => { const i = CERT.findIndex(x => x[0] === c); return i < 0 ? 99 : i; };
@@ -131,7 +153,7 @@
     const s = ui[tab].sort, a = ts.slice();
     if (tab === 'mine') {
       // the bought-in shelf stays last whatever the sort
-      const k = t => (t.kind === 'bring' ? 1 : 0);
+      const k = t => (t.kind === 'bring' ? 2 : t.car ? 1 : 0);
       if (s === 'flown') a.sort((x, y) => k(x) - k(y) || String(y.r.flown || '').localeCompare(String(x.r.flown || '')) || byName(x, y));
       else if (s === 'place') a.sort((x, y) => k(x) - k(y) || (x.r.away === y.r.away ? 0 : x.r.away ? 1 : -1) ||
         String(x.r.place ? x.r.place.text : '').localeCompare(String(y.r.place ? y.r.place.text : '')) || byName(x, y));
@@ -147,7 +169,8 @@
   }
   // the headings the sort draws: All planes by class -> one per class; Your hangar -> the bought-in shelf apart
   function headOf(t) {
-    if (tab === 'mine') return t.kind === 'bring' ? 'From the sandbox: buy into this career' : 'Your aeroplanes';
+    if (tab === 'mine') return t.kind === 'bring' ? 'From the sandbox: buy into this career' : t.car ? 'Your cars' : 'Your aeroplanes';
+    if (tab === 'veh') return '';
     if (ui.all.sort !== 'class') return '';
     const c = CLASSES.find(x => x[0] === t.cls);
     return c ? (t.cls === 'cand' ? 'Candidates: built here, not yet certified' : c[1]) : '';
@@ -164,7 +187,8 @@
       '<div class="flBar">' +
         '<span class="flTitle">FLEET</span>' +
         '<div class="flSeg" role="tablist"><button type="button" role="tab" data-tab="mine">Your hangar<b></b></button>' +
-          '<button type="button" role="tab" data-tab="all">All planes<b></b></button></div>' +
+          '<button type="button" role="tab" data-tab="all">All planes<b></b></button>' +
+          '<button type="button" role="tab" data-tab="veh" hidden>Vehicles<b></b></button></div>' +
         '<input class="flSearch" type="search" placeholder="Search name or registration" aria-label="Search the fleet">' +
         '<span class="flSp"></span>' +
         '<label class="flSortL"><span>Sort</span><select class="flSort" aria-label="Sort"></select></label>' +
@@ -216,6 +240,7 @@
   }
   function stateHtml(t) {
     if (t.kind === 'bring') return '<span class="flState">buy in · ' + esc(t.r.text) + '</span>';
+    if (t.kind === 'veh') return '<span class="flCls">' + esc(t.cls === 'car' ? 'Car' : t.cls) + '</span>';
     if (t.kind === 'mine') { const c = CERT_OF[t.state] || CERT_OF.none; return '<span class="flState ' + (c[2] ? 'st-' + c[2] : '') + '">' + esc(c[1]) + '</span>'; }
     return '<span class="flCls">' + esc(CLASS_WORD[t.cls] || t.cls || '') + '</span>';
   }
@@ -229,7 +254,8 @@
     h += '<div class="flMeta"><b class="flName" title="' + esc(t.name) + '">' + esc(t.name) + '</b>' +
       '<div class="flRow2"><span class="flReg">' + esc(t.reg || '') + '</span>' + stateHtml(t) + '</div>' +
       (t.kind === 'mine' && (r.meta || r.liveries > 1) ? '<span class="flNote">' + esc([r.meta, r.liveries > 1 ? r.liveries + ' liveries' : ''].filter(Boolean).join(' · ')) + '</span>' : '') +
-      (t.kind === 'cand' && t.note ? '<span class="flNote">' + esc(t.note) + '</span>' : '') +
+      ((t.kind === 'cand' || t.kind === 'veh') && t.note ? '<span class="flNote" title="' + esc(t.note) + '">' + esc(t.note) + '</span>' : '') +
+      (t.kind === 'mine' && t.car ? '<span class="flNote">car</span>' : '') +
       (t.why ? '<span class="flNote flWhy">' + esc(t.why) + '</span>' : '') + '</div>';
     if (ask && ask.k === t.k) {
       h += '<div class="flAsk"><span>' + esc(ask.text) + '</span><div class="flActs">' +
@@ -242,7 +268,7 @@
       const load = t.kind === 'bring' ? '<button type="button" class="flBtn flPri" data-a="buy"' + (r.price == null ? ' disabled' : '') + '>Buy in</button>'
         : r.cur ? '<button type="button" class="flBtn flPri" data-a="load" disabled>On the stand</button>'
         : t.why ? '<button type="button" class="flBtn flPri" data-a="load" disabled title="' + esc(t.why) + '">Load</button>'
-        : '<button type="button" class="flBtn flPri" data-a="load"' + (r.away ? ' title="at ' + esc(r.place && r.place.aero) + ': fly from there?"' : '') + '>Load</button>';
+        : '<button type="button" class="flBtn flPri" data-a="load"' + (r.away ? ' title="at ' + esc(r.place && r.place.aero) + ': fly from there?"' : '') + '>' + (t.car ? 'Drive' : 'Load') + '</button>';
       h += '<div class="flActs">' + load +
         (t.kind === 'bring' ? '' : '<button type="button" class="flBtn" data-a="fiche"' + (t.fiche ? '' : ' disabled title="No fiche yet: it is drawn at its airworthiness certificate"') + '>Fiche</button>') +
         (moreRows(t).length ? '<button type="button" class="flBtn flMore" data-a="more" aria-label="More">⋯</button>' : '') + '</div>';
@@ -258,7 +284,7 @@
     return out;
   }
   function facetsHtml() {
-    const U = ui[tab], all = tab === 'mine' ? tilesMine() : tilesAll(), cnt = {};
+    const U = ui[tab], all = tilesOf(tab), cnt = {};
     for (const t of all) if (matchQ(t, U.q)) { const f = facetOf(t); cnt[f] = (cnt[f] || 0) + 1; }
     const ck = (key, label, n, on) => '<button type="button" class="flCk' + (on ? ' on' : '') + (n ? '' : ' none') + '" data-f="' + esc(key) + '"><i></i><span>' + esc(label) + '</span><em>' + (n || 0) + '</em></button>';
     let h = '';
@@ -266,7 +292,12 @@
       h += '<div class="flGrp"><span class="flGh">Certificate</span>';
       for (const c of CERT) if (cnt[c[0]] || U.off.indexOf(c[0]) >= 0) h += ck(c[0], c[1], cnt[c[0]], U.off.indexOf(c[0]) < 0);
       h += '</div>';
+      const nk = { plane: 0, car: 0 }; for (const x of all) if (x.kind === 'mine' && matchQ(x, U.q)) nk[x.car ? 'car' : 'plane']++;
+      if (nk.car || U.off.indexOf('kind:car') >= 0) h += '<div class="flGrp"><span class="flGh">Kind</span>' + ck('kind:plane', 'Planes', nk.plane, U.off.indexOf('kind:plane') < 0) +
+        ck('kind:car', 'Cars', nk.car, U.off.indexOf('kind:car') < 0) + '</div>';
       if (cnt.bring || U.off.indexOf('bring') >= 0) h += '<div class="flGrp"><span class="flGh">Owned</span>' + ck('bring', 'Sandbox builds to buy in', cnt.bring, U.off.indexOf('bring') < 0) + '</div>';
+    } else if (tab === 'veh') {
+      h += '';
     } else {
       h += '<div class="flGrp"><span class="flGh">Class</span>';
       for (const c of CLASSES) if (cnt[c[0]] || U.off.indexOf(c[0]) >= 0) h += ck(c[0], c[1], cnt[c[0]], U.off.indexOf(c[0]) < 0);
@@ -312,20 +343,22 @@
     h += '<dl class="flFacts">' + rows.map(x => '<dt>' + esc(x[0]) + '</dt><dd>' + esc(x[1]) + '</dd>').join('') + '</dl>';
     h += '<div class="flPeekActs" data-k="' + esc(t.k) + '"><button type="button" class="flBtn" data-a="fiche"' + (t.fiche ? '' : ' disabled title="No fiche yet"') + '>Open fiche</button>' +
       (t.kind === 'bring' ? '<button type="button" class="flBtn flPri" data-a="buy">Buy in</button>'
-        : '<button type="button" class="flBtn flPri" data-a="load"' + (r.cur ? ' disabled' : '') + '>' + (r.cur ? 'On the stand' : 'Load') + '</button>') + '</div>';
+        : '<button type="button" class="flBtn flPri" data-a="load"' + (r.cur ? ' disabled' : '') + '>' + (r.cur ? 'On the stand' : t.car ? 'Drive' : 'Load') + '</button>') + '</div>';
     return h;
   }
   function render() {
     if (!el) return;
     LOG.renders++;
     readModelOnce();
-    const ts = sorted(shown()); last = (tab === 'mine' ? tilesMine() : tilesAll());
+    const ts = sorted(shown()); last = tilesOf(tab);
     if (sel[tab] && !last.some(t => t.k === sel[tab])) sel[tab] = null;
     if (!sel[tab] && ts.length && !phone()) sel[tab] = ts[0].k;
     // the bar
     for (const b of el.querySelectorAll('.flSeg button')) {
       const on = b.dataset.tab === tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
-      const n = b.dataset.tab === 'mine' ? (model ? model.rows.length : 0) : (lists ? lists.length + (cands ? cands.length : 0) : 0);
+      const n = b.dataset.tab === 'mine' ? (model ? model.rows.length : 0) : b.dataset.tab === 'veh' ? (vehicles ? vehicles.length : 0)
+        : (lists ? lists.length + (cands ? cands.length : 0) : 0);
+      if (b.dataset.tab === 'veh') b.hidden = !n && tab !== 'veh';
       b.querySelector('b').textContent = n ? String(n) : '';
     }
     const q = el.querySelector('.flSearch'); if (q.value !== ui[tab].q) q.value = ui[tab].q;
@@ -359,6 +392,7 @@
   const readModelOnce = () => { if (!modelFresh) { readModel(); modelFresh = true; } };
   function emptyLine() {
     if (tab === 'all' && !lists) return 'Reading the plane list…';
+    if (tab === 'veh') return vehicles ? 'No vehicles listed.' : 'Reading the vehicles…';
     if (ui[tab].q || ui[tab].off.length || (tab === 'all' && ui.all.fiche)) return 'Nothing matches: clear the search or the filters.';
     if (tab === 'mine') return model && model.storage === false
       ? 'Browser storage is unavailable, so nothing can be saved. All planes still load.'
@@ -406,6 +440,7 @@
     }
     if (t.kind === 'cand') return loadNow(() => (g.openCandidate ? g.openCandidate(t.c) : g.fleetDo.candidate(t.c)));
     if (t.kind === 'list') { if (t.why) return; return loadNow(() => g.openListed(t.p)); }
+    if (t.kind === 'veh') return loadNow(() => (g.openVehicle ? g.openVehicle(t.v) : g.openListed(t.v)));
   }
   // ONE PRESS, BEHIND A SPINNER: painted first (two frames), then the load, then the screen closes; the load's own
   // failures say so through their own doors (garage.js), and the screen closes either way
@@ -424,9 +459,9 @@
     try { W.FICHE_BOARD.show(t.fiche); } catch (e) { console.warn('flyDiy (fleet): the fiche -', e && e.message); }
   }
   function setTab(t) {
-    if (t !== 'mine' && t !== 'all') return;
+    if (TABS.indexOf(t) < 0) return;
     tab = ui.tab = t; ask = null; menu = null; keep();
-    if (t === 'all') askLists();
+    if (t !== 'mine') askLists();
     render();
     try { el.querySelector('.flGridW').scrollTop = 0; } catch (e) {}
   }
@@ -436,7 +471,7 @@
   function open(opts) {
     if (!GS()) return false;
     if (!el) build();
-    const t = opts && (opts.tab === 'all' || opts.tab === 'mine') ? opts.tab : ui.tab;
+    const t = opts && TABS.indexOf(opts.tab) >= 0 ? opts.tab : ui.tab;
     tab = ui.tab = t; ask = null; menu = null; sheet = false; busy = false; modelFresh = false;
     el.hidden = false;
     document.documentElement.classList.add('flOpen');

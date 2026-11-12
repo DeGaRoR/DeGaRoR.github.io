@@ -48,7 +48,7 @@ function makeDom() {
       setAttribute(k, v) { this.attrs[k] = v; }, addEventListener(k, f) { (this.on[k] = this.on[k] || []).push(f); },
       querySelector(sel) { return this._q[sel] || (this._q[sel] = mk('q:' + sel)); },
       querySelectorAll(sel) {
-        if (sel === '.flSeg button') return this._qa[sel] || (this._qa[sel] = ['mine', 'all'].map(t => { const b = mk('button'); b.dataset.tab = t; return b; }));
+        if (sel === '.flSeg button') return this._qa[sel] || (this._qa[sel] = ['mine', 'all', 'veh'].map(t => { const b = mk('button'); b.dataset.tab = t; return b; }));
         return [];
       } };
     return e;
@@ -60,13 +60,14 @@ function makeDom() {
 async function flow(fleetSrc) {
   const bad = [], t = (ok, what) => { if (!ok) bad.push(what); };
   const doc = makeDom(), store = new Map(), winOn = {};
-  const calls = { hold: [], fleet: 0, load: [], sell: [], del: [], home: [], buy: [], listed: [], cand: [], show: [] };
+  const calls = { hold: [], fleet: 0, load: [], sell: [], del: [], home: [], buy: [], listed: [], cand: [], show: [], veh: [] };
   let sellAnswer = { ok: false, why: 'not today: the market is shut' };
   const MODEL = () => ({ stand: 'Cub', storage: true, bring: [{ slot: 'Sandy', name: 'Sandy', price: 5000, text: '5 000 $', thumb: 'mine:Sandy' }],
     rows: [
       { slot: 'Cub', name: 'Cub', reg: 'F-BCUB', cur: true, meta: 'on the stand', place: { text: 'in HOME', kind: 'in', aero: 'HOME', wear: 0 }, away: false, broken: false, cert: 'certified', flights: 3, hours: 1.2, flown: '2026-11-10', sale: null, home: false, thumb: 'mine:Cub', liveries: 0 },
       { slot: 'Jodel', name: 'Jodel', reg: 'F-PJDL', cur: false, meta: 'tested', place: { text: 'out at w3', kind: 'out', aero: 'w3', wear: 0 }, away: true, broken: false, cert: 'changed', flights: 1, hours: 0.4, flown: '2026-11-12', sale: { value: 30000, text: '30 000 $', why: '', cap: false, ok: true }, home: true, thumb: 'mine:Jodel', liveries: 3 },
       { slot: 'Twin', name: 'Twin', reg: 'F-FORE', cur: false, meta: '', place: null, away: false, broken: true, cert: 'grounded', flights: 0, hours: 0, flown: '', sale: null, home: false, thumb: 'mine:Twin', liveries: 0 },
+      { slot: 'Roadster', name: 'Roadster', reg: '28', cur: false, meta: '', place: null, away: false, broken: false, cert: 'none', flights: 0, hours: 0, flown: '2026-11-13', sale: null, home: false, thumb: 'mine:Roadster', liveries: 0, kind: 'car' },
     ] });
   const LISTS = [{ n: 6, list: 'original', name: 'Twin busher floats 4b', reg: 'F-FORE', file: 'builds/candidates/Twin_busher_floats_4b.json', thumb: 'cand:Twin_busher_floats_4b.json' },
                  { n: 1, list: 'reproduction', name: 'Piper Cub', reg: 'F-BCUB', file: 'builds/cub.json', thumb: 'design:cub' },
@@ -88,11 +89,12 @@ async function flow(fleetSrc) {
       fleetDo: { load: n => calls.load.push(n), sell: n => { calls.sell.push(n); return sellAnswer; }, del: n => { calls.del.push(n); return { ok: true }; },
                  home: n => calls.home.push(n), buyIn: n => { calls.buy.push(n); return { ok: true }; }, candidate: c => calls.cand.push(c.file) },
       planeLists: () => Promise.resolve(LISTS), candidates: () => Promise.resolve(CANDS),
-      openListed: p => calls.listed.push(p.n), openCandidate: c => calls.cand.push(c.file),
+      openListed: p => calls.listed.push(p.n), openCandidate: c => calls.cand.push(c.file), openVehicle: v => calls.veh.push(v.file),
     },
   };
   const ctx = { window: W, document: doc, console, setTimeout, clearTimeout, Promise, JSON, Math, String, Set, Map, Object, Array,
-    fetch: u => Promise.resolve({ ok: true, json: () => Promise.resolve(/fiches\/index\.json$/.test(u) ? { fiches: FICHES } : {}) }) };
+    fetch: u => Promise.resolve({ ok: true, json: () => Promise.resolve(/fiches\/index\.json$/.test(u) ? { fiches: FICHES }
+      : /vehicles\.json$/.test(u) ? { vehicles: [{ name: 'Boat-tail roadster (car)', file: 'builds/candidates/roadster_2026-11.json', thumb: 'cand:roadster_2026-11.json', kind: 'car' }] } : {}) }) };
   vm.createContext(ctx);
   vm.runInContext(fleetSrc, ctx, { filename: 'fleet_screen.js' });
   const F = W.FLEET_SCREEN;
@@ -106,7 +108,11 @@ async function flow(fleetSrc) {
   t(F.open() === true && F.isOpen() && calls.hold[calls.hold.length - 1] === true, 'open: full screen, the render loop held');
   await tick(); await tick();
   t(F._state().tab === 'mine' && calls.fleet === 1, 'open: Your hangar first, the hangar read once (' + calls.fleet + ')');
-  t(names() === 'Jodel,Cub,Twin,Sandy', 'Your hangar sorted by last flown, the bought-in shelf last: ' + names());
+  t(names() === 'Jodel,Cub,Twin,Roadster,Sandy', 'Your hangar sorted by last flown, the cars after the planes, the bought-in shelf last: ' + names());
+  t(/Drive<\/button>/.test(tile('mine:Roadster')) && !/Drive/.test(tile('mine:Jodel')), "a saved car's Load says Drive");
+  F._facet('kind:car');
+  t(!/Roadster/.test(names()) && /Jodel/.test(names()), 'the Kind filter puts the cars apart');
+  F._facet('kind:car');
   t(/On the stand<\/button>/.test(tile('mine:Cub')) && /data-a="load" disabled/.test(tile('mine:Cub')), "the stand's plane says so and offers no Load");
   t(/flAway/.test(tile('mine:Jodel')) && /out at w3/.test(tile('mine:Jodel')) && /Changed since cert/.test(tile('mine:Jodel')), 'an aeroplane away: greyed, its place and its certificate on the tile');
   t(/3 liveries/.test(tile('mine:Jodel')), 'a plane with several liveries says how many (LIVERY MANAGER)');
@@ -174,6 +180,15 @@ async function flow(fleetSrc) {
   F.open({ tab: 'all' }); await tick();
   F._act('cand:c.json', 'load'); await settle();
   t(calls.cand.join() === 'c.json', 'a candidate loads through openCandidate');
+  // ---- Vehicles ----
+  F.open({ tab: 'veh' }); await tick(); await tick();
+  t(names() === 'Boat-tail roadster (car)' && /Drive<\/button>/.test(tile('veh:builds/candidates/roadster_2026-11.json')), 'the Vehicles tab lists vehicles.json, Drive on the tile');
+  F._tab('all'); await tick();
+  t(!/roadster/i.test(names()), 'no car in All planes');
+  F._tab('veh');
+  const nListed = calls.listed.length;
+  F._act('veh:builds/candidates/roadster_2026-11.json', 'load'); await settle();
+  t(calls.listed.length === nListed && calls.veh.join() === 'builds/candidates/roadster_2026-11.json', 'a vehicle loads through the garage (openVehicle)');
   // Escape
   F.open(); await tick();
   for (const f of winOn.keydown || []) f({ key: 'Escape', stopPropagation() {}, preventDefault() {} });
