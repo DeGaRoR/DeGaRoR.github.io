@@ -14,6 +14,9 @@
 // A. THE SPEC: fuselage.hang reaches the spec from the cage's row (the join's), with its station and chord on the root
 //    chord and the drawn mast's stations (hangX, measured), only under a wing above the cabin (high or parasol); gone when
 //    off, under a low wing.
+// B2 (12 Nov, v1): the keel both ways - the single beam (hangKeels 1: its frame members, its drawing straight and level
+//    at the mast's foot, the nose hanging on it) and the card's twin tubes (hangKeels 2: two tubes at the window's sill,
+//    each station on its ring's corners on its side, laddered across, both ends on the mast; drawn level, nose to mast).
 // B. THE FRAME: one mast (GEN_HANG's lattice) from the root chord down to the keel where the drawn one stands - its head tied to
 //    every root-bay node of the hub (in the rod's rigid cluster when the rod is rooted there), its foot's two lowest
 //    levels tied to the keel corners of the rings round it; the wing has no other tie to the cabin's rings (the rod's
@@ -47,7 +50,9 @@ const build = sp => C.buildGen(JSON.parse(JSON.stringify(sp)));
 const PARA = { wgPos: 3, wgParaH: 0.35, rodY: 1.2677 };
 // (the card hangs since 11 Nov: off is the row at 0)
 const s0 = born({ hangOn: 0 }), s1 = born({ hangOn: 1 }), sP = born(Object.assign({ hangOn: 1 }, PARA)), sP0 = born(Object.assign({ hangOn: 0 }, PARA));
-const d0 = build(s0), d1 = build(s1), dP = build(sP), dP0 = build(sP0);
+// THE TWO KEELS (12 Nov): the card flies the twin tubes (hangKeels 2); the single beam is the row at 1
+const s1s = born({ hangOn: 1, hangKeels: 1 });
+const d0 = build(s0), d1 = build(s1), dP = build(sP), dP0 = build(sP0), d1s = build(s1s);
 
 console.log('A. THE SPEC');
 ok(s1.fuselage.hang === true && !('hang' in s0.fuselage) && d1.spec.fuse.hang === true && !('hang' in d0.spec.fuse),
@@ -92,13 +97,34 @@ for (const [lab, d, dOff] of [['high wing', d1, d0], ['parasol', dP, dP0]]) {
 }
 
 console.log('B2. THE KEEL BEAM');
-{ const d = d1, K = d.refs.keel, M = d.refs.mast, tied = (a, b) => d.beams.some(q => (q.a === a && q.b === b) || (q.a === b && q.b === a));
+{ const d = d1s, K = d.refs.keel, M = d.refs.mast, tied = (a, b) => d.beams.some(q => (q.a === a && q.b === b) || (q.a === b && q.b === a));
   const ring = t => d.nodes.findIndex(n => n.tag === t);
   const ok1 = K && M && Math.abs(K.x[1] - M.x[0]) < 1e-9 && K.rings[0] === 0 && K.rings.every((i, k) => ['BL', 'BR'].every(s => tied(K.bottom[k], ring('S' + i + s)) && tied(K.top[k], ring('S' + i + s))));
   const lb = K ? K.bottom[K.bottom.length - 1] : -1, ok2 = K && M && [M.foot[0], M.foot[1]].every(q => tied(lb, q));
   ok(ok1 && ok2 && Math.abs(K.kg - C.GEN_HANG.keelKgM * K.len) < 1e-6,
      `B2 the keel beam from the nose's ring to the mast's front (${K ? K.x.map(r3).join(' - ') : '-'} m, ${K ? K.bottom.length : 0} stations, ${K ? K.kg.toFixed(2) : '-'} kg), every station on its ring's bottom corners, its end on the mast's foot`);
   ok(!d0.refs.keel, 'B2 none without the hanging nacelle'); }
+// THE TWIN KEEL (hangKeels 2, the card's; the user 12 Nov: "2 of them and the pilot fits between, mounted at the level of
+// the bottom of the pilot window ... tubes ... they anchor on the nose part, they're straight"): a tube a side at the
+// sill (hangKeelK of the ring's height), each station tied to its ring's two corners on its side, laddered across, both
+// ends on the mast's levels, the tubes' mass GEN_HANG.tubeKgM a metre each
+{ const d = d1, K = d.refs.keel, M = d.refs.mast, P = d.nodes.map(n => n.p), tied = (a, b) => d.beams.some(q => (q.a === a && q.b === b) || (q.a === b && q.b === a));
+  const ring = t => d.nodes.findIndex(n => n.tag === t);
+  const ok1 = K && K.twin === 1 && M && K.left.length === K.rings.length && K.right.length === K.rings.length && K.rings.length >= 2
+    && K.rings.every((i, q) => tied(K.left[q], ring('S' + i + 'BL')) && tied(K.left[q], ring('S' + i + 'TL'))
+                            && tied(K.right[q], ring('S' + i + 'BR')) && tied(K.right[q], ring('S' + i + 'TR')) && tied(K.left[q], K.right[q]))
+    && K.left.every(n => d.nodes[n].tag === 'KEELL') && K.right.every(n => d.nodes[n].tag === 'KEELR');
+  // STRAIGHT: each tube's stations on one line (the frame takes the sill at hangKeelK of each ring's own height, so the
+  // tube rakes with the rings; the drawn tubes are level - D)
+  const dev = side => { if (!K || side.length < 3) return 0; const a = P[side[0]], b = P[side[side.length - 1]];
+    return Math.max(...side.map(n => { const t = (P[n][0] - a[0]) / ((b[0] - a[0]) || 1); return Math.hypot(...[0, 1, 2].map(c => P[n][c] - (a[c] + (b[c] - a[c]) * t))); })); };
+  const sp = K ? Math.max(dev(K.left), dev(K.right)) : NaN, rake = K ? P[K.left[K.left.length - 1]][1] - P[K.left[0]][1] : NaN;
+  const lE = K ? K.left[K.left.length - 1] : -1, rE = K ? K.right[K.right.length - 1] : -1;
+  const ok2 = K && M && M.nodes.some(m => tied(lE, m)) && M.nodes.some(m => tied(rE, m)) && Math.abs(K.x[1] - M.x[0]) < 1e-9;
+  ok(ok1 && ok2 && Math.abs(K.kg - 2 * C.GEN_HANG.tubeKgM * K.len) < 1e-6,
+     `B2 the twin keel: two tubes (${K ? K.left.length : 0} stations a side, ${K ? K.x.map(r3).join(' - ') : '-'} m, ${K ? K.kg.toFixed(2) : '-'} kg), each station on its ring's corners on its side and laddered across, both ends on the mast`);
+  ok(sp < 0.02, `B2 the twin keel's tubes straight (stations within ${r3(sp)} m of the line; ${r3(rake)} m of rake nose to mast, the rings' own sill)`);
+  ok(!d1.refs.keel.bottom && d1s.refs.keel && !d1s.refs.keel.twin, 'B2 the twin and the single beam are the row\'s two answers'); }
 
 console.log('C. THE AEROPLANE STANDS');
 { const flat = { terrainH: () => 0, waterH: () => -1e9, surface: () => 0, trees: [], treesNear: (x, z, q) => { q.length = 0; return q; } };
@@ -150,15 +176,26 @@ console.log('D. THE DRAWING');
   ok(H.rodLow === 0, `D the sunk wheel's square cut leaves the rod over it whole (${H.rodLow} rod faces below the rod)`);
   // the keel beam drawn STRAIGHT (12 Nov, the user: "make it straight"): from the cabin's first floor station, on its
   // floor, to the mast's foot, a finger into it - two stations and nothing between
-  { const S1 = scene(s1), HG = S1.W.CAGE_HANG; let K = null, V = null;
+  { const S1 = scene(s1s), HG = S1.W.CAGE_HANG; let K = null, V = null;
     S1.scene.traverse(o => { if (o.name === 'hangKeel') { K = o.userData.keel; const pa = o.geometry.attributes.position; V = []; for (let i = 0; i < pa.count; i++) V.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } });
     const CG2 = S1.W.CAGE2, RR = CG2.cageResolve(CG2.cageSpec(S1.P)), FS = S1.FS;
     const fl = RR.rings.map(r => r.lv && r.lv.floor).filter(f => f && Math.abs(f.z * FS - (K ? K.z0 : NaN)) < 1e-6)[0];
     const zs = V ? [...new Set(V.map(v => v[2].toFixed(5)))] : [];
     const top = V ? Math.max(...V.filter(v => Math.abs(v[2] - K.z1) < 1e-6).map(v => v[1])) : NaN;
     const bot0 = V ? Math.min(...V.filter(v => Math.abs(v[2] - K.z0) < 1e-6).map(v => v[1])) : NaN;
-    ok(K && HG && zs.length === 2 && Math.abs(K.z1 - HG.zF) < 1e-6 && fl && Math.abs(bot0 - (fl.y * FS - 0.02)) < 1e-3 && Math.abs(top - (HG.yFoot + 0.04)) < 1e-3,
-       `D the keel beam drawn straight (${zs.length} stations) from the cabin's first floor station (${K ? r3(K.z0) : '-'} m, on its floor) to the mast's foot (${K ? r3(K.z1) : '-'} m, ${r3(top - HG.yFoot)} into it)`); }
+    // LEVEL (the user: "completely straight, keep it anchored where it is ... just anchor the nose ... the nose goes a
+    // little bit further down"): its height is the mast's foot's, so the floor at its front is wherever the cabin puts it
+    // - read and reported, the nose's to follow (the card flies the twin tubes, its cabin tuned to them)
+    const bot1 = V ? Math.min(...V.filter(v => Math.abs(v[2] - K.z1) < 1e-6).map(v => v[1])) : NaN;
+    ok(K && HG && zs.length === 2 && Math.abs(K.z1 - HG.zF) < 1e-6 && fl && Math.abs(bot0 - bot1) < 1e-6 && Math.abs(top - (HG.yFoot + 0.04)) < 1e-3,
+       `D the keel beam drawn straight and level (${zs.length} stations) from the cabin's first floor station (${K ? r3(K.z0) : '-'} m; its floor ${fl ? r3(bot0 - (fl.y * FS - 0.02)) : '-'} m under the beam) to the mast's foot (${K ? r3(K.z1) : '-'} m, ${r3(top - HG.yFoot)} into it)`); }
+  // the twin keel drawn: two straight tubes at the sill from where the nose closes in on them to the mast's front
+  { const S1 = scene(s1), HG = S1.W.CAGE_HANG; let K = null;
+    S1.scene.traverse(o => { if (o.name === 'hangKeel') K = o.userData.keel; });
+    const CG2 = S1.W.CAGE2, RR = CG2.cageResolve(CG2.cageSpec(S1.P)), rg = RR.rings.find(q => q.name === 'ring');
+    const ysill = rg && rg.lv && rg.lv.waist ? rg.lv.waist.y * S1.FS : NaN;
+    ok(K && K.twin === 1 && HG && Math.abs(K.z1 - HG.zF) < 1e-6 && K.z0 - K.z1 > 0.5 && Math.abs(K.y - ysill) < 1e-6 && K.x > 0.1,
+       `D the twin keel drawn: two tubes ${K ? r3(2 * K.x) : '-'} m apart at the window's sill (${K ? r3(K.y) : '-'} m), straight from the nose (${K ? r3(K.z0) : '-'} m) to the mast's front (${K ? r3(K.z1) : '-'} m)`); }
   ok(H.mast && reach(H) && H.cuts === 0 && Math.abs(H.foot - sunk) < 0.005,
      `D high wing: the mast drawn from the wheel's fork (${H.mast ? r3(H.mast.min.y) : '-'} m, ${r3(H.foot)} over the keel) up into the wing (${H.mast ? r3(H.mast.max.y) : '-'}), no roof to cut (${H.cuts})`);
   ok(Pp.mast && !Pp.cab, `D parasol: the mast drawn (${Pp.mast ? r3(Pp.mast.min.y) + ' to ' + r3(Pp.mast.max.y) + ' m' : '-'}), no cabane strut (${Pp.cab})`);

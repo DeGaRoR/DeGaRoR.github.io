@@ -211,3 +211,10 @@ Left open:
 - **Winglet and skid together.** A wing has ONE tip kind, and the three-view's Archaeopteryx has winglets. Either a
   second appended type, "winglet + skid" (the skid shoe under the winglet's root), or the skid drawn under any tip
   through a tip-shape number. The study proposes the first: two rows, no new mechanism.
+
+## 11. v1 (12 Nov 2026)
+
+The user froze the card as **v1**: the hub and the hanging nacelle on the drawing (the mast at the back of the wing,
+the twin keel tubes at the sill, the monowheel on the mast, the aero aft over a small pusher, the fin, rudder and stab
+on the three-view), the two aft windows, white with its registration. Stage 4 (masses) continues as
+`WEIGHT_STUDY.md`: rated structure, so that weight has a price.

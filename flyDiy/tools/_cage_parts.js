@@ -805,7 +805,7 @@ const CAGE_PARTS = [
       // 'root', not a second 'fitted' heading under the trunk's own: what is
       // left here once the trunk has taken its rows is the root fillet
       ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal', 'finDorsalTube',
-                'finKeel']],
+                'finKeel', 'finRudBelow']],
       ['ventral', ['finVentralOn', 'finVentralShape', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],

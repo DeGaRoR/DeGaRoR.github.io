@@ -314800,3 +314800,17 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   spinR x 0.34)), so it thins with it (20 -> 14 mm); blades 0.07 / 0.03 m of chord, t/c 0.12 / 0.06, shank 20 mm;
   engY -0.343 -> -0.29; the shaft 0.41 -> 0.50 m - a shorter cone puts the blade plane further forward, and at 0.46 the
   join still reported "prop: through the body" (the aft pod's tip). The cheat line gone; the registration kept.
+- ARCHAEOPTERYX v1 (12 Nov, the user: "We can commit this version as v1"): the card frozen as validated. GATE NACELLE
+  learns the twin keel (B2 / D both ways: the single beam on hangKeels 1, the card's twin tubes); the fin's new row
+  finRudBelow is claimed by its part (GATE PARTS); FRAMES re-recorded for this card only (the record changed no other
+  item). Run green on this tree: NACELLE HUB MONOWHEEL DEFAULT WEIGHT PILLAR KNIFE QUADWIN FIN COWL NACLAG ENGMESH JOIN
+  DESIGN NEWPLANE PARTS FRAMES CLIP SEATS CABIN CREWLOAD LIVERYREACH LIGHT FLAPS WINGROWS BLUEPRINT SAVE DASH. Red,
+  and red the same way on master 6f1497d72 (pre-existing, not this branch's): LIVERY (builds/cub_2026-09-20 strut
+  paint), DESIGNCHECK (200 N at the carbon mosquito's post, 4.2 vs 1.8 mm), JOINPARITY (the Jodel's node / page mass,
+  471.8 / 468.0). The fleet against master: every other card's def (nodes, beams, params, refs) identical; their specs
+  carry two neutral keys more (cage.aeroAftOver 0, gear.mono false - this branch's earlier rows). The full --all battery
+  NOT run.
+- THE WEIGHT STUDY (futureDesigns/archaeopteryx/WEIGHT_STUDY.md, study only): rated structure - each part carries the
+  gross and the g it was built for; mass, strength (the section without its floor) and stiffness (KS per part) from the
+  rating; the certificate unchanged, so a light part on a heavier aeroplane breaks at n_ult x R / W. Seventeen
+  suggestions, the plumbing, the Archaeopteryx's path to ~72 kg, six decisions for the user.
