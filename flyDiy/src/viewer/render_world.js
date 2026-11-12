@@ -499,20 +499,57 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (rockParts) return rockParts;
     if (typeof treeList !== 'function' || typeof treeBuild !== 'function') return (rockParts = []);
     const out = [];
+    // THE FOOT (DIRT-STRIP, the user 9 Nov 21:15: "all rocks need to be ... a third buried ... a little dark gradient at the
+    // base where they are buried, black towards transparent at the top ... a cheap simulation of ambient occlusion"): each
+    // part's copy carries aRockH, its height in the subject's own box (0 its floor, 1 its top); a stone stands `bury` of its
+    // height in the ground (standRocks) and its colour runs from 0.3 at that line to itself 0.22 of its height above. The
+    // stones' record is their own (scope 'stripstone'): the cliffs keep theirs, without the attribute
+    const bury = 0.33;
+    const foot = function (sh) {   // (String.fromCharCode(10): the line break, as the cover ring's cut writes it)
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'attribute float aRockH;' + String.fromCharCode(10) + 'varying float vRockH;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>' + String.fromCharCode(10) + 'vRockH = aRockH;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockH;')
+        .replace('#include <map_fragment>', '#include <map_fragment>' + String.fromCharCode(10) + 'diffuseColor.rgb *= mix(0.3, 1.0, smoothstep(' + bury.toFixed(2) + ', ' + (bury + 0.22).toFixed(2) + ', vRockH));');
+    };
+    foot.toString = () => 'dirtstrip.rockfoot.' + bury;
+    const footed = m => { m.onBeforeCompile = foot; return m; };   // (the game's ATMO wraps it, its key the hook's text)
     for (const e of treeList('rock')) {
       let b = null; try { const ladder = e.sub.rungs || []; b = treeBuild(THREE, e.key, Math.max(0, ladder.length - 1), 'rungs'); } catch (err) { continue; }
       if (!b || !b.parts.length) continue;
       const bb = e.sub.bb || [-0.5, 0, -0.5, 0.5, 1, 0.5];
-      out.push({ key: e.key, bb, parts: b.parts.map(q => ({ geo: q.geo, mat: MATLIB.shared(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 }) })) });
+      out.push({ key: e.key, bb, parts: b.parts.map(q => {
+        const geo = q.geo.clone(), P = geo.attributes.position, H = new Array(P.count), h0 = Math.max(1e-3, bb[4] - bb[1]);
+        for (let i = 0; i < P.count; i++) H[i] = (P.getY(i) - bb[1]) / h0;
+        geo.setAttribute('aRockH', new THREE.Float32BufferAttribute(H, 1));   // (three's own typed array: GATE MATLIB's realm)
+        return { geo, mat: footed(MATLIB.shared(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 }, 'stripstone')) };
+      }) });
+    }
+    out.bury = bury; out.footed = footed;
+    // THE RING ON THE GROUND (the user, 9 Nov 21:50: "a little dark edge on the ground where the stones lie ... retrofit that
+    // for the ones on the border of the runway"): a disc draped on the ground under each stone, black, opaque to its foot and
+    // gone at 1.6 x its half-width - the ground's own share of the occlusion (the foot on the stone is the stone's share)
+    {
+      const N = 64, d = new Uint8Array(N * N * 4);
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const r = Math.hypot((x + 0.5) / N * 2 - 1, (y + 0.5) / N * 2 - 1), s = Math.min(1, Math.max(0, (r - 0.5) / 0.5));
+        const a = r >= 1 ? 0 : Math.pow(1 - s * s * (3 - 2 * s), 1.5), k = (y * N + x) * 4;
+        d[k] = d[k + 1] = d[k + 2] = Math.round(255 * a); d[k + 3] = 255;
+      }
+      const tex = new THREE.DataTexture(d, N, N, THREE.RGBAFormat, THREE.UnsignedByteType); tex.needsUpdate = true;
+      out.ring = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.5, depthWrite: false, // pre-ok: a black shade ring under the stones (alpha only), writes no light
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+      out.ring.name = 'rocks:ring';
     }
     return (rockParts = out);
   };
   const standRocks = (field, o, keep) => {
     const parts = rockPartsOf(); if (!parts.length) return;
+    const groundH = world.stoneH ? (x, z) => world.terrainH(x, z) - world.stoneH(x, z) : world.terrainH;   // (DIRT-STRIP: the drawn ground, not a stone's body)
     const PO = world.premises && world.premises.overlay, pavedNear = PO && PO.pavedNear ? PO.pavedNear : null;   // G1003
     let seed = (o.seed * 7919 + 17) >>> 0; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     const rr = (a, b) => a + (b - a) * rnd();
     const band = Math.max(o.band, 0.6), N = Math.min(3000, Math.round(o.len * 1.4));
+    const padL = typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.padOf ? STRIP_MICRO.padOf(o.id) : 0;
     const rows = [];
     for (let i = 0; i < N * 3 && rows.length < N; i++) {
       const u = rr(-2, o.len + 2), v = (rnd() < 0.5 ? -1 : 1) * rr(o.wid / 2 + 0.2, o.wid / 2 + band + 1.5);
@@ -523,6 +560,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the ground under the DEM lake's plane
       { const wy = waterDrawY(w[0], w[1]); if (wy !== null && Number.isFinite(wy) && wy > world.terrainH(w[0], w[1]) - 0.05) continue; }
       if (rnd() > 0.35 + 0.65 * Math.min(1, d / band)) continue;
+      // (DIRT-STRIP, the Pilot 10 Nov: a bumpy strip's turnaround pads - the C172's U-turn swings 0.3 m past the edge there) no border
+      // stone within 1.2 m of the edge along a pad (the stones are drawn only; nothing felt, but no wheel should run through one)
+      if (padL > 0 && d < 1.2 && (u < padL || u > o.len - padL)) continue;
       const size = rr(0.07, 0.3) * (rnd() < 0.05 ? 2.5 : 1);
       // G1003 (A6-GROUND, the playtest: "rocks and debris lie on the taxiway and runway"): not on ANOTHER pavement, nor
       // within its own size + 0.5 m of one - a crossing strip, a taxiway, an apron butting on this band (Jolene's 24 m
@@ -530,7 +570,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (pavedNear && pavedNear(w[0], w[1], size + 0.5, o.id)) continue;
       rows.push([w[0], w[1], rr(0, 6.3), size, Math.floor(rnd() * parts.length)]);
     }
+    // (DIRT-STRIP) a bumpy strip's own stones on it, [x, z, size] (STRIP_MICRO.rocksOf: toward its edges, none in a rut)
+    if (o.extra) for (const e of o.extra) { if (pavedNear && pavedNear(e[0], e[1], e[2] + 0.5, o.id)) continue; rows.push([e[0], e[1], rr(0, 6.3), e[2], Math.floor(rnd() * parts.length), e[3]]); }   // (e[3]: its width, the body's 2R)   // (G1003: not on a crossing pavement)
     const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sv = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    // a field stone (r[5]: 2R) is drawn as wide as its body - the part's footprint stretched to it, its height r[3] - so
+    // the wheels' paraboloid (26b stoneUV) lies inside the drawn stone
+    const svOf = (P, r, sc) => r[5] ? sv.set(r[5] / Math.max(0.05, P.bb[3] - P.bb[0]), sc, r[5] / Math.max(0.05, P.bb[5] - P.bb[2])) : sv.set(sc, sc, sc);
     // IN CELLS, CULLED, AND GONE UNDER A PIXEL (PERF 2026-09-23). The strip's stones were one
     // InstancedMesh a part a strip with frustumCulled off - every stone of every strip in the main
     // pass and in BOTH shadow passes, whatever the eye saw: 57 draws and 14 M triangles a frame on
@@ -547,11 +592,30 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const ROCK_CELL = 400, cellsOf = new Map();
     for (const r of rows) { const k = Math.floor(r[0] / ROCK_CELL) + ',' + Math.floor(r[1] / ROCK_CELL); let a = cellsOf.get(k); if (!a) cellsOf.set(k, a = []); a.push(r); }
     for (const cellRows of cellsOf.values()) {
-      const yOf = r => { const P = parts[r[4]], h0 = Math.max(0.05, P.bb[4] - P.bb[1]), sc = r[3] / h0; return world.terrainH(r[0], r[1]) - P.bb[1] * sc - r[3] * 0.15; };
+      const yOf = r => { const P = parts[r[4]], h0 = Math.max(0.05, P.bb[4] - P.bb[1]), sc = r[3] / h0; return groundH(r[0], r[1]) - P.bb[1] * sc - r[3] * (parts.bury || 0.15); };   // a third in the ground (the user, 9 Nov)
       let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity, big = 0;
       const ys = cellRows.map(r => { const y = yOf(r); x0 = Math.min(x0, r[0]); x1 = Math.max(x1, r[0]); z0 = Math.min(z0, r[1]); z1 = Math.max(z1, r[1]); y0 = Math.min(y0, y); y1 = Math.max(y1, y); big = Math.max(big, r[3]); return y; });
       const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2, reach = Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2;
       const grp = new THREE.Group();
+      // the rings (THE RING ON THE GROUND, rockPartsOf): one mesh a cell, each a 3 x 3 grid draped on terrainH, 2 cm over it,
+      // drawn after the strips (their renderOrder ~2: the pavement is a blended draw)
+      if (parts.ring) {
+        const pos = [], uv = [], idx = [];
+        cellRows.forEach(r => {
+          const P = parts[r[4]], h0 = Math.max(0.05, P.bb[4] - P.bb[1]), sc = r[3] / h0;
+          const R = 1.6 * (r[5] ? r[5] / 2 : Math.max(P.bb[3] - P.bb[0], P.bb[5] - P.bb[2]) / 2 * sc), b = pos.length / 3;
+          for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
+            const x = r[0] + (i - 1) * R, z = r[1] + (j - 1) * R;
+            pos.push(x - cx, groundH(x, z) + 0.02 - cy, z - cz); uv.push(i / 2, j / 2);
+          }
+          for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) { const a = b + j * 3 + i; idx.push(a, a + 3, a + 1, a + 1, a + 3, a + 4); }
+        });
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+        g.computeBoundingSphere();
+        const ringM = new THREE.Mesh(g, parts.ring); ringM.renderOrder = 3; ringM.name = 'rocks:ring:' + o.id; ringM.castShadow = false; ringM.receiveShadow = false;
+        grp.add(ringM);
+      }
       // NO SHADOW UNDER HALF A METRE (G667, the playtest's cut list): a 7-30 cm stone's shadow is a few texels
       // of either map, and every stone was a caster in both - the ones of 0.5 m and more (the 5 % drawn 2.5x,
       // about 2 % of them) keep theirs, in a mesh of their own
@@ -559,7 +623,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const bat = new Map();   // (material, casts) -> { mat, cast, geos: Set, list: [[geo, matrix]] }
         cellRows.forEach((r, ri) => {
           const P = parts[r[4]], h0 = Math.max(0.05, P.bb[4] - P.bb[1]), sc = r[3] / h0, cast = r[3] >= 0.5;
-          q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); sv.set(sc, sc, sc); mtx.compose(p, q, sv);
+          q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); svOf(P, r, sc); mtx.compose(p, q, sv);
           for (const part of P.parts) {
             const k = part.mat.uuid + (cast ? '|c' : '|n');
             let B = bat.get(k); if (!B) bat.set(k, B = { mat: part.mat, cast, geos: [], list: [] });
@@ -570,7 +634,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const made = [];
         for (const B of bat.values()) {
           let nv = 0, ni = 0; for (const g of B.geos) { nv += g.attributes.position.count; ni += g.index ? g.index.count : 0; }
-          const bm = new THREE.BatchedMesh(B.list.length, nv, ni, MATLIB.variant(THREE, B.mat, 'batch'));
+          const bm = new THREE.BatchedMesh(B.list.length, nv, ni, parts.footed ? parts.footed(MATLIB.variant(THREE, B.mat, 'batch')) : MATLIB.variant(THREE, B.mat, 'batch'));
           const ids = new Map(B.geos.map(g => [g, bm.addGeometry(g)]));
           for (const [g, m4] of B.list) bm.setMatrixAt(bm.addInstance(ids.get(g)), m4);
           bm.perObjectFrustumCulled = true; bm.sortObjects = false;   // three's per-stone culling, each camera; opaque, no sort
@@ -586,7 +650,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const idx = []; cellRows.forEach((r, i) => { if (r[4] === pi && (r[3] >= 0.5) === bigSet) idx.push(i); }); if (!idx.length) continue;
         for (const part of P.parts) {
           const im = new THREE.InstancedMesh(part.geo, part.mat, idx.length);
-          idx.forEach((ri, i) => { const r = cellRows[ri], sc = r[3] / h0; q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); sv.set(sc, sc, sc); im.setMatrixAt(i, mtx.compose(p, q, sv)); });
+          idx.forEach((ri, i) => { const r = cellRows[ri], sc = r[3] / h0; q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); svOf(P, r, sc); im.setMatrixAt(i, mtx.compose(p, q, sv)); });
           im.instanceMatrix.needsUpdate = true; im.castShadow = bigSet; im.receiveShadow = true; im.name = 'rocks:' + o.id;
           if (THREE.Sphere) im.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), reach + 3 * Math.max(0.5, big));
           else im.frustumCulled = false;
@@ -6505,6 +6569,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // genHangarBuild's exterior had ({ group, mats by hangar.js's names, dims }) or null (the caller builds the bare one).
     const POLISH_PRESET = { field: 'field shed', club: 'club hangar', works: 'works hangar' };
     function polishedShell(H, dims, shell) {
+      const DG = typeof window !== 'undefined' ? window.DERELICT_GEN : null;
+      if (shell === 'works' && DG && DG.build && SHELL.polish && typeof document !== 'undefined') { const d = derelictShell(DG, H, dims); if (d) return d; }
       const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
       if (!SHELL.polish || !HGN || !HGN.build || !HGN.PRESETS || typeof document === 'undefined' || !POLISH_PRESET[shell]) return null;
       const P = Object.assign({}, HGN.DEF, HGN.PRESETS[POLISH_PRESET[shell]],
@@ -6530,7 +6596,59 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (pad) inner.add(pad);
       const mats = {};
       for (const k in built.MAT) if (k.slice(0, 2) === 'h_') mats[k.slice(2)] = built.MAT[k];
+      if (shell === 'club') { const nb = nameBoard('HANGAR 2', P); if (nb) inner.add(nb); }   // DERELICT-HANGAR: the medium one is Hangar 2
       return { group, mats, flat, pad, dims: { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, RIDGE: dims.EAVE + 2.6 }, polished: true, stats: built.stats };
+    }
+    // DERELICT-HANGAR (the user 9 Nov: "the large hangar ... restoring it, from the state of the actual Metlakatla or Annette
+    // Island World War II hangar"; the room is this mesh too): THE LARGE HANGAR OUTSIDE is DERELICT_GEN's - at the stage the
+    // shed holds (dims.stage: 0 derelict .. 3 restored, the story's; a player's works is the restored hangar), its galleries
+    // the shell's, on the world's ground (the house frame turned under the shed's as polishedShell's), its own finish. No
+    // player dress (its cladding is its own), the coarse rung's casters its cladding and its roof.
+    // THE NAME BOARD (the user 9 Nov: "if you call that hangar 2 ... maybe this one should be called hangar 1, the other one
+    // should be called hangar 2"): the large hangar's board's style (white on a deep blue, a border), on the wall pier right
+    // of the door seen from the apron - the gable over the door is the plot's own painted sign's - 2.1 x 0.62 m, 3.2 m up
+    let NAME_TEX = null;
+    function nameBoard(text, P) {
+      if (typeof document === 'undefined' || typeof MATLIB === 'undefined') return null;
+      if (!NAME_TEX) {
+        const c = document.createElement('canvas'); c.width = 512; c.height = 152; const g = c.getContext('2d');
+        g.fillStyle = '#1d3557'; g.fillRect(0, 0, 512, 152); g.strokeStyle = '#e8e6df'; g.lineWidth = 6; g.strokeRect(9, 9, 494, 134);
+        g.fillStyle = '#efede6'; g.font = 'bold 78px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 80);
+        NAME_TEX = new THREE.CanvasTexture(c); NAME_TEX.colorSpace = THREE.SRGBColorSpace; NAME_TEX.anisotropy = 8;
+      }
+      const HW = P.HW, HD = P.HD, door = P.doorW > 0 ? P.doorW : Math.max(6, 2 * HW - 5), pier = HW - door / 2;
+      if (pier < 2.3) return null;                                   // no wall beside the door to take it
+      const w = Math.min(2.1, pier - 0.3), h = w * 152 / 512, m = MATLIB.shared(THREE, 'std', { map: NAME_TEX, roughness: 0.6, metalness: 0.05 }, 'namebrd');
+      const geo = new THREE.BoxGeometry(w, h, 0.03), mesh = new THREE.Mesh(geo, m);
+      mesh.position.set(door / 2 + pier / 2, (P.floorY || 0) + 3.2, HD + 0.14); mesh.castShadow = false; mesh.receiveShadow = true; mesh.name = 'shed:nameboard';
+      return mesh;
+    }
+    function derelictShell(DG, H, dims) {
+      const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 1.0, left: 1.0, lean: 6 };
+      const stage = Number.isFinite(+dims.stage) ? Math.max(0, Math.min(3, Math.round(+dims.stage))) : 3;
+      const P = Object.assign({}, DG.DEF, { stage, HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, gallery: gal.lean, galleryL: gal.left, pierR: gal.right,
+                                            apron: 0, lamps: 0, doorOpen: 0, backOpen: 0, aoGround: 1 });
+      const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
+      P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };
+      let F = null, built = null;
+      // each stage its own materials (MATLIB's scope): a held shed (restored) and a closed one (derelict) side by side - the
+      // career's HANGAR 1 beside HOME.2 - never re-dress each other's shared records
+      try { F = DG.makeFinish('world' + stage); DG.applyFinish(P, F); built = DG.build(P, 0, F); }
+      catch (e) { console.warn('the large hangar outside:', e && e.message); return null; }
+      if (!built || !built.stats || !built.MAT) return null;
+      const group = new THREE.Group(), inner = new THREE.Group();
+      inner.rotation.y = -Math.PI / 2; inner.position.y = -fy; group.add(inner);
+      const flat = [];
+      for (const k of built.BAGS) {
+        const b = built.bags[k], m0 = built.MAT[k];
+        if (!b || !b.tris || !m0) continue;
+        const m = b.mesh(inner, m0);
+        if (!m) continue;
+        if (/^(glass|lamp|stain|decal|water|weed|aoskirt)$/.test(k)) { m.castShadow = false; if (k === 'aoskirt' || k === 'stain') { m.renderOrder = k === 'aoskirt' ? 5 : 3; flat.push(m); } }
+      }
+      if (F.SHADE_U && F.SHADE_U.uDirtY0) F.SHADE_U.uDirtY0.value = y0 - fy;   // (G581: the dirt line where it stands)
+      return { group, mats: {}, coarseCast: [built.MAT.sheetPale, built.stats.stage >= 2 ? built.MAT.sheetNew : built.MAT.steel].filter(Boolean),
+               flat, pad: null, dims: { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, RIDGE: dims.EAVE + 2.6 }, polished: true, derelict: true, stats: built.stats };
     }
     // the merged shell's coarse rung (G1398): its meshes of at least `share` of the surface, sharing their geometry and
     // material (nothing copied); null when that keeps nothing. `cast` (a Set of materials): only those cast - the outer
@@ -6675,7 +6793,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const D0 = dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE };
       const shell = (dims && dims.shell) || 'club';
       const shed = polishedShell(H, D0, shell) || genHangarBuild(THREE, D0, { exterior: true, shell: dims && dims.shell });
-      if (dress) dressExterior(shed.mats, shell, dress);
+      if (dress) dressExterior(shed.mats, shell, dress);   // (DERELICT-HANGAR: the large hangar hands no mats - it wears its own cladding)
       shed.group.traverse(o => {
         if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
@@ -6716,7 +6834,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // clone keeps the building the same building across the switch;
         // the box's 0..1 uv is the same grammar the sheeting bands wear
         // (wallOutAlb repeats 4 x 1 per piece), so nothing else changes.
-        const skin = (MT.wallOut || MT.wall).clone(); skin.side = THREE.FrontSide;   // (G3532: a polished timber shed bakes no wallOut piece)
+        const CC = shed.coarseCast || [];   // (DERELICT-HANGAR: the large hangar hands its cladding and its roof here, no mats)
+        const skin = (MT.wallOut || MT.wall || CC[0]).clone(); skin.side = THREE.FrontSide;   // (G3532: a polished timber shed bakes no wallOut piece)
         if (skin.userData && skin.userData.houseShaded) { skin.onBeforeCompile = () => {}; skin.userData = {}; }   // (a box has no aHouseAO: plain)
         const body = new THREE.Mesh(
           new THREE.BoxGeometry(2 * D.HD, D.EAVE, 2 * D.HW), skin);
@@ -6753,7 +6872,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           0, 0, 6, 0, 0, 6, 6, 6, 0, 6, 6, 6], 2));
         rgeo.computeVertexNormals();
         const plainOf = m => { if (!m || !(m.userData && m.userData.houseShaded)) return m; const q = m.clone(); q.onBeforeCompile = () => {}; q.userData = {}; return q; };   // G3532
-        const roof = new THREE.Mesh(rgeo, plainOf(MT.roofOut));
+        const roof = new THREE.Mesh(rgeo, plainOf(MT.roofOut || CC[1] || CC[0]));
         coarse.add(body, roof);
         coarse.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
       }
@@ -6763,7 +6882,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the stem - the same geometry and materials as the near rung, shared, not copied: past the switch only the
       // steel, the gutters, the trims and the glass go. The box above stays for a shell that did not merge.
       const wears = m => !!m && merged.children.some(o => o.material === m);   // (the timber shed has no wallOut piece: its cladding is wall)
-      const coarseOf = merged ? shellCoarse(merged, SHELL.coarseShare, new Set([wears(shed.mats.wallOut) ? shed.mats.wallOut : shed.mats.wall, shed.mats.roofOut].filter(Boolean))) : null;
+      const coarseOf = merged ? shellCoarse(merged, SHELL.coarseShare, new Set(shed.coarseCast || [wears(shed.mats.wallOut) ? shed.mats.wallOut : shed.mats.wall, shed.mats.roofOut].filter(Boolean))) : null;
       let node = shed.group;
       if (THREE.LOD) {
         const lod = new THREE.LOD();
@@ -7369,10 +7488,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const shW = PAV.shoulderFor(RS.band, RS.recipe);
         // G660: on the premises' patch the ground is sunk under the strip's opaque interior, and the strip is
         // drawn at terrainH there (the wheels' surface); elsewhere (the analytic world's ground) it keeps its lift
-        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.terrainH, lift: 0.07, resU: 6, resV: 3,
+        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.stoneH && typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? (x, z) => world.terrainH(x, z) - world.stoneH(x, z) : world.terrainH, lift: 0.07, resU: 6, resV: 3,
           sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
           liftAt: onPatch && a.premises && premisesR.pavedAt && PAV.liftOver ? PAV.liftOver(premisesR.pavedAt, a.id) : null,   // G2115: no lift over another pavement
-          refineMin: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN : 0 };   // DIRT-STRIP: a bumpy strip's rows down to its bumps
+          refineMin: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN : 0,
+          refineMinV: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN_V : 0 };   // (and 5 cm across: the ruts' walls)   // DIRT-STRIP: a bumpy strip's rows down to its bumps
         const pgeo = PAV.stripGeometry(THREE, sd);
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
@@ -7389,7 +7509,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         scene.add(keep(pm));
         geo.dispose();
         const F = PAV.field(sd);
-        rocksWhenReady(() => standRocks(F, { id: a.id, seed: pavSeed(a.id) * 37, len: a.len, wid: a.wid, band: RS.band, toWorld: F.frame.toWorld }, keep));
+        // (DIRT-STRIP) a bumpy strip's stones on it: the field's [u, v, R] (its v the ribbon's flipped), a stone R wide stands 1.1 R tall
+        const extra = typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.rocksOf ? STRIP_MICRO.rocksOf(a.id).map(r => { const w = F.frame.toWorld(r[0], -r[1]); return [w[0], w[1], 1.1 * r[2], 2 * r[2]]; }) : null;
+        rocksWhenReady(() => standRocks(F, { id: a.id, seed: pavSeed(a.id) * 37, len: a.len, wid: a.wid, band: RS.band, toWorld: F.frame.toWorld, extra }, keep));
       } else if (LK && (a.look === 'none' || LK.set)) {
         const lookTex = LK.set ? mkLook(LK.set, a.len, a.wid) : null;
         if (lookTex) {

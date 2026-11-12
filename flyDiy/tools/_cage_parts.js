@@ -315,7 +315,7 @@ const CAGE_PARTS = [
       // (the nose frame has no waist: its width is the deck's half-width)
       ['nose frame', ['frNoseTopY', 'frNoseTopW', 'frNoseBotY', 'noseLen']],
       ['nose frame, detail', ['frNoseBotW', 'frNoseBotZ'], EXPERT],
-      ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown',
+      ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown', 'noseKeelSq',
                  'wsBaseLift', 'crSillNose']],
       ['tip', ['noseTip', 'noseTipV', 'crNoseCap', 'crFrontCap']],
       // WHAT THE FRONT IS (2026-09-11, the user: the aero-nose choice
@@ -416,19 +416,22 @@ const CAGE_PARTS = [
       ['row 1', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch', 'paxWinY', 'paxWinW',
                  'paxWinH', 'paxWinTopK', 'paxWinSkew', 'paxWinR', 'paxWinR1', 'paxWinR2',
                  'paxWinR3', 'paxWinR4', 'paxWinDepth', 'paxWinBulge',
-                 'paxWinQ1Z', 'paxWinQ1Y', 'paxWinQ2Z', 'paxWinQ2Y', 'paxWinQ3Z', 'paxWinQ3Y', 'paxWinQ4Z', 'paxWinQ4Y']],
+                 'paxWinQ1Z', 'paxWinQ1Y', 'paxWinQ2Z', 'paxWinQ2Y', 'paxWinQ3Z', 'paxWinQ3Y', 'paxWinQ4Z', 'paxWinQ4Y', 'paxWinQ5On', 'paxWinQ5Z', 'paxWinQ5Y', 'paxWinR5']],
       ['row 2', ['win2N', 'win2Shape', 'win2Z', 'win2Pitch', 'win2Y', 'win2W', 'win2H',
                  'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth', 'win2Bulge',
-                 'win2Q1Z', 'win2Q1Y', 'win2Q2Z', 'win2Q2Y', 'win2Q3Z', 'win2Q3Y', 'win2Q4Z', 'win2Q4Y']],
+                 'win2Q1Z', 'win2Q1Y', 'win2Q2Z', 'win2Q2Y', 'win2Q3Z', 'win2Q3Y', 'win2Q4Z', 'win2Q4Y', 'win2Q5On', 'win2Q5Z', 'win2Q5Y', 'win2R5']],
       ['row 3', ['win3N', 'win3Shape', 'win3Z', 'win3Pitch', 'win3Y', 'win3W', 'win3H',
                  'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth', 'win3Bulge',
-                 'win3Q1Z', 'win3Q1Y', 'win3Q2Z', 'win3Q2Y', 'win3Q3Z', 'win3Q3Y', 'win3Q4Z', 'win3Q4Y']],
+                 'win3Q1Z', 'win3Q1Y', 'win3Q2Z', 'win3Q2Y', 'win3Q3Z', 'win3Q3Y', 'win3Q4Z', 'win3Q4Y', 'win3Q5On', 'win3Q5Z', 'win3Q5Y', 'win3R5']],
+      // (11 Nov: rows 4-6, win4*-win6*, row 3's controls)
+      ...[4, 5, 6].map(n => ['row ' + n, ['N', 'Shape', 'Z', 'Pitch', 'Y', 'W', 'H', 'TopK', 'Skew', 'R', 'R1', 'R2', 'R3', 'R4',
+        'Depth', 'Bulge', 'Q1Z', 'Q1Y', 'Q2Z', 'Q2Y', 'Q3Z', 'Q3Y', 'Q4Z', 'Q4Y', 'Q5On', 'Q5Z', 'Q5Y', 'R5'].map(k => 'win' + n + k)]),
     ] },
 
   { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
     sections: ['pilotWindow', 'pillarWindow'],
     place: { up: 'winSillPilot', at: 'in the cabin side' },
-    groups: [['glazing', ['winSillPilot']]] },
+    groups: [['glazing', ['winSillPilot', 'winPilotPanel']]] },
 
   { key: 'skylight', name: 'skylight', parent: 'glazing', layer: 'cage',
     sections: ['skyWindows'],
@@ -501,7 +504,7 @@ const CAGE_PARTS = [
     place: { count: 'paxCount', type: 'doorPax', len: 'paxLen',
              at: 'aft of the cabin' },
     groups: [
-      ['bays', ['paxCount', 'paxLen', 'paxAbreast']],       // T2.3 (132)
+      ['bays', ['paxCount', 'paxLen', 'paxLen2', 'paxLen3', 'paxLen4', 'paxLen5', 'paxLen6', 'paxAbreast']],       // T2.3 (132)
       // G3573 (DC3-2): the rows of seats in each bay, their pitch, the aisle and the seat's width
       ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
@@ -520,7 +523,7 @@ const CAGE_PARTS = [
       // (the aft bulkhead's lean = the passenger FRAME's fore/aft rows, T2.1)
       ['glazing', ['winSillPax']],
       // (the drawn windows are their own part under Glazing since T2.2)
-      ['doors', ['doorPax', 'doorSillPax']],
+      ['doors', ['doorPax', 'doorPaxFront', 'doorSillPax']],
       ['pillars', ['paxPillarW'], EXPERT],
     ] },
 
@@ -535,7 +538,7 @@ const CAGE_PARTS = [
              at: 'aft of the last bay; on a rod, the boom’s first stretch' },
     groups: [
       // (taperW = the boom FRAME's widths since T2.1)
-      ['tightening', ['taperOn', 'taperLen', 'taperPanels']],
+      ['tightening', ['taperOn', 'boomMatch', 'taperLen', 'taperPanels']],
     ] },
 
   // G267 (the user: "the tail cone options appear under boom, while it has
@@ -818,7 +821,7 @@ const CAGE_PARTS = [
       // forward the root starts).
       // THE MACRO TIER (TAIL CHANTIER 2 P3): what a builder sizes the fin
       // with — the wing's words over the drawn outline
-      ['size', ['finHeight', 'finChord', 'finChordTip', 'finSweep', 'finHinge']],
+      ['size', ['finHeight', 'finChord', 'finChordTip', 'finSweep', 'finHinge', 'finZ', 'finDorsalFwd', 'finDorsalH']],
       // EXPERT (TAIL CHANTIER 2 P2): the outline's corners, rows, edges and
       // sharpness are the CAGE's own vertices — the tier a builder reaches
       // last (TAIL-ARCHETYPES §3). The trunk keeps the height and the root
@@ -936,13 +939,15 @@ const CAGE_PARTS = [
                     'eng_stroke', 'eng_rpm', 'eng_stagger']],
       // the blower rows (2026-09-05): what holds the rating, and to where
       ['architecture', ['eng_twoStroke', 'eng_liquid', 'eng_geared',
-                        'eng_blower', 'eng_boost', 'eng_critAlt', 'eng_bmepK', 'eng_massK']],
+                        'eng_blower', 'eng_boost', 'eng_critAlt', 'eng_bmepK', 'eng_massK',
+                        // ENGINE-DIALS A: the gearbox's ratio, the drive's maximum rpm, a governed propeller
+                        'eng_gearRatio', 'eng_rpmMax', 'eng_cs']],
       ['electric', ['eng_eStyle', 'eng_canD', 'eng_canL', 'eng_volts',
                     'eng_eFins', 'eng_escOn']],
       // the turboprop's own keys (2026-09-05, TURBOPROP §3), so no row is
       // rendered twice
       ['turbine', ['eng_tStyle', 'eng_tCanD', 'eng_tCanL', 'eng_gearK',
-                   'eng_flatK', 'eng_tRpm', 'eng_stackStyle']],
+                   'eng_flatK', 'eng_tRpm', 'eng_stackStyle', 'eng_stackOut', 'eng_stackLen', 'eng_stackFlat', 'eng_stackR', 'eng_stackDrop', 'eng_stackSplit']],
       ['cylinder dress', ['eng_finN', 'eng_finR', 'eng_headFins',
                           'eng_rockerW', 'eng_rockerH', 'eng_rockerR',
                           'eng_rockerBoss', 'eng_rockerBossW',
@@ -1010,7 +1015,7 @@ const CAGE_PARTS = [
       ['inlet lip', ['cw_lipMode', 'cw_lipThick', 'cw_lipDepth',
                      'cw_lipRound', 'cw_lipProtrude', 'cw_lipInset',
                      'cw_ductLen', 'cw_ductFlare']],
-      ['chin scoop', ['cw_scoopOn', 'cw_scoopRev', 'cw_scoopTop', 'cw_scoopAft', 'cw_scoopFollow', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
+      ['chin scoop', ['cw_scoopOn', 'cw_scoopRev', 'cw_scoopTop', 'cw_scoopAft', 'cw_scoopFollow', 'cw_scoopHold', 'cw_scoopWFit', 'cw_scoopTaperH', 'cw_scoopTaperW', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
                       'cw_scoopH', 'cw_scoopSq', 'cw_scoopDrop',
                       'cw_scoopRake', 'cw_scoopAp', 'cw_scoopLipH',
                       'cw_scoopLipDepth', 'cw_scoopDuct']],
@@ -1043,6 +1048,8 @@ const CAGE_PARTS = [
       // G2770 (the user: "For the nose cone, put blades and design point
       // under expert"): the trunk keeps the blade count, the diameter and
       // the material; the blade's shape and the design point are expert
+      // ENGINE-DIALS B: the pitch (a view of spec.prop.pitch, _cage_eng.js PROP_PITCHES) - physics, on the trunk
+      ['pitch', ['propPitch']],
       ['blades', ['cw_bladeN', 'cw_propD', 'cw_material', 'cw_rootChord',
                   'cw_tipChord', 'cw_chordBulge', 'cw_sweep',
                   'cw_thickRoot', 'cw_thickTip', 'cw_camb', 'cw_tipRound',
@@ -1112,7 +1119,7 @@ const CAGE_PARTS = [
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW',
                    's1_linkVee', 's1_linkSpread', 's1_linkX',
                    's1_linkPanel', 's1_linkAxle', 's1_linkAxleX']],
-      ['shock', ['s1_shockKind', 's1_shockAt', 's1_shockZ', 's1_shockAng',
+      ['shock', ['s1_shockKind', 's1Stiff', 's1_shockAt', 's1_shockZ', 's1_shockAng',
                  's1_bungeeSpan']],
       ['oleo', ['s1_oleoAng', 's1_oleoDia', 's1_oleoCyl', 's1_oleoScissor',
                 's1_oleoBrace', 's1_oleoBraceZ']],

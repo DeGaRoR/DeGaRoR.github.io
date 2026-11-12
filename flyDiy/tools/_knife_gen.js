@@ -60,6 +60,20 @@ const lerpN = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
 // ---------------------------------------------------------------------------
 // a window with no corner rows set is the rectangle every build drew before
 // T2.2: topK 1, no skew, one radius on all four corners
+// THE WINDOW'S UP, ON BOTH FLANKS (11 Nov, FIT-PROCEDURE, found fitting the PC-6's door windows; the user: "your
+// windows are the wrong way around ... upside down in shape"): knifeCut lays the outline in the skin's tangent frame
+// (t1 along the body, t2 = n0 x t1), and on the STARBOARD flank (n0 +x) that t2 points DOWN - so a window that is not
+// symmetric top to bottom (its corner radii R1/R2 against R4/R3, its top width, its top shift) was cut upside down
+// there and the right way up to port: "radius - fwd top" rounded the forward BOTTOM corner on the starboard side.
+// A window symmetric top to bottom reads the same either way and is left exactly as it was cut (no point moves).
+function knifeUpDownAsym(w) {
+  if (w.shape === 'ellipse' || w.shape === 'quad') return false;
+  const topK = w.topK == null ? 1 : +w.topK;
+  if (Math.abs(topK - 1) > 1e-12 || Math.abs(+w.skew || 0) > 1e-12) return true;
+  if (!Array.isArray(w.rr) || w.rr.length !== 4) return false;
+  const r = k => Math.max(0, +w.rr[k] || 0);
+  return Math.abs(r(0) - r(3)) > 1e-12 || Math.abs(r(1) - r(2)) > 1e-12;
+}
 function knifeIsPlainRect(w) {
   const topK = w.topK == null ? 1 : +w.topK;
   if (Math.abs(topK - 1) > 1e-12 || Math.abs(+w.skew || 0) > 1e-12) return false;
@@ -105,9 +119,9 @@ function knifeOutline(w) {
     const sk = +w.skew || 0;
     const Wt = W * topK;
     let corners, radii;
-    const rr = Array.isArray(w.rr) && w.rr.length === 4
+    const rr = Array.isArray(w.rr) && w.rr.length >= 4
       ? w.rr.map(v => Math.max(0, +v || 0)) : [w.r, w.r, w.r, w.r].map(v => Math.max(0, +v || 0));
-    if (w.shape === 'quad' && Array.isArray(w.q) && w.q.length === 4) {
+    if (w.shape === 'quad' && Array.isArray(w.q) && w.q.length >= 4) {      // (12 Nov: 4 or 5 corners, a radius each)
       // WINDOWS-FREE: THE FREE QUAD - its four corners as placed (cageQuadWindow: side-view offsets from the
       // window's centre, Q1..Q4 the rectangle's own order), each rounded by its own radius. Wound CCW like every
       // outline here: a quad whose corners were dragged round the other way is turned back, its radii with it
@@ -369,6 +383,8 @@ function knifeCut(m, win, opt) {
             d[0]*t2[0] + d[1]*t2[1] + d[2]*t2[2]];
   };
   let outline = opt.outline ? opt.outline.map(p => [p[0], p[1]]) : knifeOutline(Object.assign({}, win, { z: 0, y: 0 }));
+  // the window's top kept UP on the flank whose t2 points down (knifeUpDownAsym): mirrored in v, re-wound CCW
+  if (!opt.outline && !FR && t2[1] < 0 && knifeUpDownAsym(win)) outline = outline.map(p => [p[0], -p[1]]).reverse();
   // WINDOWS-FREE: A QUAD IS PLACED IN THE SIDE VIEW, corner by corner, and each corner must land where it was put
   // (the Cub's wing-line edge): its outline is in side-view offsets, so it is laid on the tangent plane by the
   // plane's own relation - the point of the plane at side-view offset (dz, dy) is c0 + (dx, dy, dz) with

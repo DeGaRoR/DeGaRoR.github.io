@@ -73,7 +73,7 @@ const P={
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
   // before them is drawn to the bit.
-  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, deckShoulder:null, deckRound:null, scoopFollow:0, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, scoopTaperH:1, scoopTaperW:1, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
   // PROPER-COWLS: the side gills (the Carbon Cub's): off by default
   // PROPER-COWLS: a radial's helmets as the engine draws them - how many (0 = lobeN) and every other one's station (a
   // two-row radial's rear row; null = lobeT)
@@ -1016,9 +1016,21 @@ function buildScoop(group,mats){
   // the skin's winding stays outward; absent / 0 is the scoop it always was, bit for bit
   const rev=!!P.scoopRev, sg=rev?-1:1;
   for(let i=0;i<NS;i++){
-    const t=i/(NS-1), e=smooth(t);
-    const a=P.scoopW*lerp(0.5,1,e), b=P.scoopH*lerp(0.30,1,e);
+    // THE HELD SECTION (11 Nov, FIT-PROCEDURE; the user on the PC-6: "the chin scoop, which is very square and large, and
+    // runs all along the cowl"): scoopHold, the share of the length from the mouth aft at the FULL section - 1 a box
+    // of one section to its aft end; absent / 0 the taper every scoop before it had (to the bit)
+    const hold=clamp(+P.scoopHold||0,0,1);
+    const t=i/(NS-1), e=hold>0?(t>=1-hold?1:smooth(t/(1-hold))):smooth(t);
+    // (ENGINE-COOLING: a turned scoop runs the other way, its mouth at the firewall end)
     const z=rev?lerp(z1,z0,t):lerp(z0,z1,t);
+    // THE COWL'S OWN TAPER (12 Nov, FIT-PROCEDURE; the user: "the profile of the chin scoop should follow the one from
+    // the cowl when viewed from the bottom ... same taper over the length of the cowl"): scoopWFit > 0, the scoop's
+    // half-width is that share of the cowl's bottom half-width at its station; absent / 0 the fixed scoopW (to the bit)
+    const wFit=+P.scoopWFit||0, skW=wFit>0?sectionAtZ(clamp(z,0,ze)):null;
+    // (12 Nov) THE TAPER, mouth -> aft end: the aft end's height and width as a share of the mouth's (1 / absent: none)
+    const tH=P.scoopTaperH==null?1:+P.scoopTaperH, tW=P.scoopTaperW==null?1:+P.scoopTaperW;
+    const a0=wFit>0?wFit*skW.a*(skW.wB||1):P.scoopW*lerp(0.5,1,e), b0=P.scoopH*lerp(0.30,1,e);
+    const a=tW===1?a0:a0*lerp(tW,1,t), b=tH===1?b0:b0*lerp(tH,1,t);
     // V5 scoopFollow: the scoop rides the keel - its top a third of its height inside the skin at every station, so a
     // keel that rounds up into the face carries it (absent / 0: the straight raked line it always was)
     let y=top?baseY+P.scoopH*P.scoopRake*e:baseY-P.scoopH*P.scoopRake*e;
@@ -1832,7 +1844,7 @@ function coolOpenings(aps){
     out.face+=A; });
   if(P.scoopOn){
     const th0=Math.max(0.002,P.scoopLipH), inset=Math.max(0,(1-clamp(P.scoopAp,0.05,0.99))*P.scoopH-th0);
-    const aI=Math.max(0,P.scoopW-th0-inset), bI=Math.max(0,P.scoopH-th0-inset), nn=sqExp(P.scoopSq);
+    const bI=Math.max(0,P.scoopH-th0-inset), nn=sqExp(P.scoopSq);
     // ONLY THE PART OF THE MOUTH OUTSIDE THE SKIN is open to the air (the user 12 Nov: a scoop drawn into a deep cowl is
     // a notch, whatever its rows say): the mouth's station and centre as buildScoop draws them (the turned mouth at the
     // firewall end, a top scoop above the spine, a following one on the keel or the deck line), its opening sampled
@@ -1840,9 +1852,14 @@ function coolOpenings(aps){
     // (`scoopAlt`: the same scoop with its mouth at the OTHER end - what a push-pull's aft cowl wears when its scoop is
     // turned on its own, cw_scoopAft)
     const ze=zEnd(), top=!!P.scoopTop, zM0=P.cowlLen+P.lidLen*0.35, z1=zM0-(P.scoopZ||0)*(zM0-P.scoopLen);
-    const sm=sectionAtZ(P.cowlLen*0.5), H=P.scoopH, A0=area(aI,bI,nn);
+    const sm=sectionAtZ(P.cowlLen*0.5), H=P.scoopH;
+    // the mouth's half-width as buildScoop draws it: the fixed scoopW, or (FIT-PROCEDURE's scoopWFit) that share of the
+    // cowl's bottom half-width at the mouth's station (the taper is 1 at the mouth)
+    const wFit=+P.scoopWFit||0;
     const openAt=rev=>{
       const zm=rev?z1-P.scoopLen:z1;
+      const skM=wFit>0?sectionAtZ(clamp(zm,0,ze)):null, aM=wFit>0?wFit*skM.a*(skM.wB||1):P.scoopW;
+      const aI=Math.max(0,aM-th0-inset), A0=area(aI,bI,nn);
       let cy;
       if(P.scoopFollow>0){ const sk=sectionAtZ(clamp(zm,0,ze)); cy=top?(sk.cy+sk.bT)-H/3+H:(sk.cy-sk.bB)+H/3-H; }
       else cy=top?spineY(ze*0.6)+sm.bT*P.scoopDrop+H*P.scoopRake:spineY(ze*0.6)-sm.bB*P.scoopDrop-H*P.scoopRake;

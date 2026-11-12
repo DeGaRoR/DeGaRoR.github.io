@@ -550,8 +550,8 @@
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
     let vs = sh.vertexShader
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRoot = 1.0 - uRoot.x + uRoot.x * position.y / max(uRoot.z * uRoot.y, 1e-4);')   // G2571: the model's height, before any bend
-      .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS + '\n' + ROOT_KEY_VS)
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRoot = 1.0 - uRoot.x + uRoot.x * position.y / max(uRoot.z * uRoot.y, 1e-4);\n' + ROOT_KEY_VS)   // G2571: the model's height, before any bend (12 Nov: the field's key AFTER the law - three's color_vertex comes before begin_vertex, so placed at color_vertex the law overwrote it and the key changed nothing; vColor is set by then)
+      .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS)
       .replace('#include <project_vertex>', FADE_VS + '\n#include <project_vertex>\n' + FADE_CUT_VS)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
     // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase `aRand` already

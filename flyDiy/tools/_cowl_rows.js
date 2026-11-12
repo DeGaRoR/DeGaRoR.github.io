@@ -216,9 +216,18 @@ const COWL_ROWS = [
     // 0 is the lip (every cowl drawn before this row), 1 is the firewall,
     // which is where a PT6 breathes
     { k: 'scoopZ', label: 'station (nose ring → firewall)', lo: 0, hi: 1, step: 0.01, when: 'P.scoopOn>0' },
-    { k: 'scoopLen', label: 'length', lo: 0.05, hi: 0.8, step: 0.01, when: 'P.scoopOn>0' },
-    { k: 'scoopW', label: 'half-width', lo: 0.03, hi: 0.3, step: 0.005, when: 'P.scoopOn>0' },
-    { k: 'scoopH', label: 'half-height', lo: 0.02, hi: 0.2, step: 0.002, when: 'P.scoopOn>0' },
+    // (11 Nov, FIT-PROCEDURE: the PC-6's chin runs the whole cowl, 2 m, and is nearly as wide as it - the ranges reach
+    // it; a range widening, nothing drawn moves)
+    { k: 'scoopLen', label: 'length', lo: 0.05, hi: 2.2, step: 0.01, when: 'P.scoopOn>0' },
+    { k: 'scoopW', label: 'half-width', lo: 0.03, hi: 0.6, step: 0.005, when: 'P.scoopOn>0' },
+    { k: 'scoopH', label: 'half-height', lo: 0.02, hi: 0.3, step: 0.002, when: 'P.scoopOn>0' },
+    // (11 Nov) the share of the length held at the FULL section, from the mouth aft (0 = the taper it always had)
+    { k: 'scoopHold', label: 'full section held (share of the length)', lo: 0, hi: 1, step: 0.01, when: 'P.scoopOn>0' },
+    // (12 Nov) the half-width as a share of the cowl's own bottom half-width at each station (0 = scoopW, fixed)
+    { k: 'scoopWFit', label: 'width follows the cowl (share of its width)', lo: 0, hi: 1, step: 0.01, when: 'P.scoopOn>0' },
+    // (12 Nov) the taper from the mouth to the aft end: the aft end's height / width as a share of the mouth's
+    { k: 'scoopTaperH', label: 'taper: aft-end height (× the mouth)', lo: 0.2, hi: 1.5, step: 0.01, when: 'P.scoopOn>0' },
+    { k: 'scoopTaperW', label: 'taper: aft-end width (× the mouth)', lo: 0.2, hi: 1.5, step: 0.01, when: 'P.scoopOn>0' },
     { k: 'scoopSq', label: 'angularity (round → box)', lo: 0, hi: 1, step: 0.01, when: 'P.scoopOn>0' },
     { k: 'scoopDrop', label: 'distance from the axis', lo: 0.2, hi: 1.2, step: 0.02, when: 'P.scoopOn>0' },
     { k: 'scoopRake', label: 'mouth rake', lo: 0, hi: 1.2, step: 0.02, when: 'P.scoopOn>0' },

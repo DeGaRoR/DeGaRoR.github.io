@@ -56,7 +56,7 @@ const PAVEMENT = (() => {
     gravel:   { base: 'gravelG',   damage: 'rockG',     shoulder: 'gravelB', grass: 'grassG', tracks: 'gravelF', moss: 'gravelB',   macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 2.5, soft: [0.6, 0.6, 0.55, 0.8] },
     dirt:     { base: 'dirtS',     damage: 'trailR',    shoulder: 'dry',     grass: 'grassG', tracks: 'dirtG',   moss: 'tracksM',   macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 1.5, soft: [0.6, 0.7, 0.8, 1.0] },
     sand:     { base: 'sandC',     damage: 'gravelS',   shoulder: 'sandC',   grass: 'grassG', tracks: 'dirtG',   moss: 'mudAir',    macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 1.0, soft: [0.5, 0.5, 0.6, 1.0] },
-    grass:    { base: 'fieldgrass', damage: 'grassS',   shoulder: 'grassG',  grass: 'lush',   tracks: 'grassP', moss: 'grassG',     macro: 'fieldgrass',   lanes: 0, hexRot: 90, rut: 1, marks: 1, rubber: 0, band: 1.5, soft: [0.6, 0.3, 0.85, 0.7] },
+    grass:    { base: 'fieldgrass', damage: 'gravelF',  shoulder: 'grassG',  grass: 'lush',   tracks: 'grassP', moss: 'grassG',     macro: 'fieldgrass',   lanes: 0, hexRot: 90, rut: 1, marks: 1, rubber: 0, band: 1.5, soft: [0.6, 0.3, 0.85, 0.7] },
   };
 
   const SLOTS = ['base', 'damage', 'shoulder', 'grass', 'tracks', 'moss', 'macro'];
@@ -355,7 +355,7 @@ const PAVEMENT = (() => {
       const H = memo2((u, v) => { const w = F.toWorld(u, v); return o.heightAt(w[0], w[1]); }), Hv = (v, u) => H(u, v);
       // (DIRT-STRIP) a bumpy strip (o.refineMin, render_world: STRIP_MICRO.has) earns rows down to its bumps' scale
       U = refineAxis(U, V, H, (u, v) => sdBox(u, v, halfL, halfW, len) >= 0, 0, o.refineMin);
-      V = refineAxis(V, U, Hv, (v, u) => sdBox(u, v, halfL, halfW, len) >= 0, 0, o.refineMin);
+      V = refineAxis(V, U, Hv, (v, u) => sdBox(u, v, halfL, halfW, len) >= 0, 0, o.refineMinV || o.refineMin);   // (DIRT-STRIP: finer across - a rut's wall)
     }
     const nV = V.length, nU = U.length, n = nU * nV;
     const pos = new Float32Array(n * 3), pav = new Float32Array(n * 4), pk = new Float32Array(n * 4), pt = new Float32Array(n * 3), uv = new Float32Array(n * 2);
@@ -708,7 +708,7 @@ varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; v
 precision highp sampler2DArray;
 uniform highp sampler2DArray uPavA, uPavN;
 uniform float uPavOn, uPavDbg, uPavWet;
-uniform vec4 uMicro, uMicro2;
+uniform vec4 uMicro, uMicro2, uMicro3;
 uniform vec4 uLayer, uLayer2, uTile, uTile2, uHex, uMacro, uLane, uLane2, uCrack, uPatch, uMoss, uStain, uWet, uMark, uPaint0, uPaint1, uRubber, uRubber2, uRut, uRut2, uRoad, uEdge, uEdge2, uDist, uSpec, uClass, uSoft, uSoft2;
 uniform vec4 uGrade[8], uTint[8];
 uniform vec4 uMean;
@@ -716,7 +716,7 @@ uniform int uMarkN, uSegN;
 uniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];
 uniform vec4 uSide, uRoadEnd; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];
 varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; varying vec3 vPavNg; varying float vPavSh;
-vec4 gMicH; float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
+vec4 gMicH; vec3 gMicDbg; float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
 struct Smp { vec4 c; vec4 n; };
 float pvHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 vec2 pvHash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
@@ -907,6 +907,7 @@ const vec3 PV_FLEET0 = vec3(0.89, 0.10, 0.0);
 const vec3 PV_FLEET1 = vec3(0.98, 0.09, 0.0);
 const vec3 PV_FLEET2 = vec3(1.27, 0.085, 1.0);
 const float PV_FLEET_MEAN = 1.098;
+const float PV_MICRO_NRM = 1.5;   // (DIRT-STRIP) a bumpy strip's slope drawn per pixel, x this, on top of the rows' own
 // ONE TYRE'S TRACK across x (from its centre), half-width w: the rut's own law at a tyre's size - a flat-bottomed trough
 // and the ground it pushed up beside it; returns (coverage, slope across) as pvRuts2 does for each of its pair
 vec2 pvTyre(float x, float w) {
@@ -942,7 +943,8 @@ vec4 pvHazard(int j, float halfW, float len, int sd) {
   float room = halfW - 0.5 - 0.3 - 2.0 * R;
   if (room < 0.0) R = (halfW - 0.8) / 2.0;
   if (R < 0.6) return vec4(0.0);
-  float hu = max(4.0 + R, min(len - 4.0 - R, len * (0.05 + 0.9 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)));
+  float aH = 1.0 + 0.6 * pmH(j, 0, sd + 37);
+  float hu = max(4.0 + aH * R, min(len - 4.0 - aH * R, len * (0.05 + 0.9 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)));
   float hv = (pmH(j, 0, sd + 35) < 0.5 ? -1.0 : 1.0) * (0.3 + R + max(0.0, room) * pmH(j, 0, sd + 36));
   float hh = uMicro2.z * (0.7 + 0.3 * pmH(j, 0, sd + 34)) * (pmH(j, 0, sd + 33) < 0.6 ? 1.0 : -1.0);
   return vec4(hu, hv, R, hh);
@@ -960,12 +962,18 @@ vec4 pvHoles(float u, float v, float halfW, float len, float fill) {
       for (int m = 0; m < 2; m++) {
         if (pmH(i, m, sd + 11) >= uMicro.y) continue;
         float R = 0.5 + 0.6 * pmH(i, m, sd + 12), hu = (float(i) + 0.15 + 0.7 * pmH(i, m, sd + 13)) * 6.0;
-        float lim = halfW - 2.5 - R;
-        if (lim <= 0.0 || hu < 4.0 + R || hu > len - 4.0 - R) continue;
+        // THE SHAPE (26b hole, holeRho): stretched along a turned axis, the outline pushed in by a noise
+        float ea = 1.0 + 1.2 * pmH(i, m, sd + 18), th = (pmH(i, m, sd + 19) - 0.5) * 1.05, cth = cos(th), sth = sin(th);
+        float eV = R * sqrt(ea * ea * sth * sth + cth * cth), eU = R * sqrt(ea * ea * cth * cth + sth * sth);
+        float lim = halfW - 2.5 - eV;
+        if (lim <= 0.0 || hu < 4.0 + eU || hu > len - 4.0 - eU) continue;
         float hv = pmH(i, m, sd + 14) < 0.667 ? (pmH(i, m, sd + 15) < 0.5 ? -1.0 : 1.0) * 1.098 + (pmH(i, m, sd + 16) - 0.5) * 2.0 * sig : (pmH(i, m, sd + 16) - 0.5) * 2.0 * lim;
         hv = clamp(hv, -lim, lim);
         float D = uMicro.z * (0.5 + 0.5 * pmH(i, m, sd + 17));
-        float r = length(vec2(u - hu, v - hv));
+        vec2 dd = vec2(u - hu, v - hv);
+        if (abs(dd.x) > eU + 1.1 || abs(dd.y) > eV + 1.1) continue;
+        vec2 xy = vec2(dd.x * cth + dd.y * sth, -dd.x * sth + dd.y * cth);
+        float r = length(vec2(xy.x / ea, xy.y)) * (1.0 + 0.32 * (0.5 + 0.5 * pmNoise(dd / R * 1.7 + vec2(float(i) * 7.3, float(m) * 3.1), sd + 21)));   // (rho x R)
         if (r < R) { float b = D * 0.5 * (1.0 + cos(3.14159265 * r / R)); bowl = max(bowl, b); d = max(d, b - (1.0 - fill) * D); }
         // the damp ring: the shore's wet soil, a hand's width to a stride past the water's edge (the water's radius off the bowl)
         float rw = R / 3.14159265 * acos(clamp(1.0 - 2.0 * fill, -1.0, 1.0));
@@ -977,7 +985,8 @@ vec4 pvHoles(float u, float v, float halfW, float len, float fill) {
     if (float(j) >= uMicro2.y) break;
     vec4 H = pvHazard(j, halfW, len, sd);
     if (H.z <= 0.0) continue;
-    float r = length(vec2(u - H.x, v - H.y));
+    vec2 dh = vec2(u - H.x, v - H.y);
+    float r = length(vec2(dh.x / (1.0 + 0.6 * pmH(j, 0, sd + 37)), dh.y)) * (1.0 + 0.25 * (0.5 + 0.5 * pmNoise(dh / H.z * 1.4 + vec2(float(j) * 5.7, 11.0), sd + 38)));   // (THE SHAPE)
     if (r < H.z) { float b = H.w * 0.5 * (1.0 + cos(3.14159265 * r / H.z)); hz += b; if (H.w < 0.0) d = max(d, -b - (1.0 - fill) * -H.w); }
     if (H.w < 0.0 && fill > 0.0) { float rw = H.z / 3.14159265 * acos(clamp(1.0 - 2.0 * fill, -1.0, 1.0)); ring = max(ring, 1.0 - smoothstep(rw, rw + 0.15 + 0.3 * H.z * fill, r)); }
   }
@@ -996,9 +1005,62 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     }
     float swA = uMicro2.w - 1.0;                                          // the swell (26b): 25 m and 12 m rolls
     if (swA > 0.0) r += swA * (0.7 * pmNoise(vec2(u, v) / 25.0, sd + 201) + 0.3 * pmNoise(vec2(u, v) / 12.0, sd + 202));
+    if (uMicro3.y > 0.0) r += uMicro3.y * (0.65 * pmNoise(vec2(u, v) / 3.5, sd + 301) + 0.35 * pmNoise(vec2(u, v) / 1.8, sd + 302));   // the lumps (26b lumpsAt)
     r = dT * (r - holes.x);
   }
   return (r + smoothstep(0.0, 0.5, halfW - abs(v)) * holes.w) * eT;
+}
+// two neighbouring octaves of pvRelief's roughness (k0: 32 / 2^k0 m and its half), untapered - the shape's curvature
+// and slope off its four neighbours (the map's THE SHAPE, READ)
+float pvBand(vec2 q, int k0, int sd) {
+  float r = 0.0;
+  for (int b = 0; b < 2; b++) { int k = k0 + b; float lam = 32.0 / exp2(float(k)); r += uMicro2.x * sqrt(lam) * pmNoise(q / lam, sd + 101 + k); }
+  if (uMicro3.y > 0.0) r += k0 == 4 ? uMicro3.y * 0.35 * pmNoise(q / 1.8, sd + 302) : uMicro3.y * 0.65 * pmNoise(q / 3.5, sd + 301);   // the lumps
+  return r;
+}
+// THE WAYS (26b WAYS / waysAt, line for line; uMicro3 x the ruts m, z cart + 2 path): (dh m - the troughs down, the berms
+// up; the deepest trough's share 0..1; its way: 0 the vehicles, 1 a cart's wheel, 1.5 its horse, 2 the path, -1 none; the
+// point's place across that trough / its half-width). (u, v) the field's frame
+vec4 pvWays(float u, float v, float halfW, int sd) {
+  float rutsD = uMicro3.x;
+  if (rutsD <= 0.0) return vec4(0.0, 0.0, -1.0, 9.0);
+  float room = max(0.0, halfW - 2.5 - 0.9 - 0.4);
+  float vc = (pmH(0, 0, sd + 401) - 0.5) * 2.0 * room * 0.35;
+  int fl = int(uMicro3.z + 0.5);
+  float cc = vc + (pmH(1, 1, sd + 401) - 0.5) * 0.4;
+  float side = pmH(2, 1, sd + 401) < 0.5 ? -1.0 : 1.0, pv = max(0.0, halfW - 2.5 - 0.3 - 0.8 * pmH(2, 2, sd + 401));
+  float dMax = 0.0, tMax = 0.0, bm = 0.0, kind = -1.0, xq = 9.0;
+  for (int i = 0; i < 4; i++) {
+    vec4 W = vec4(0.0); float c0 = 0.0, a1 = 0.0, a2 = 0.0; int key = 0;
+    if (i == 0) { W = vec4(0.78 + 0.10 * pmH(0, 1, sd + 401), 0.15, rutsD, 0.35); c0 = vc; a1 = 0.30; a2 = 0.08; key = 0; }
+    else if (i == 1) { if ((fl & 1) == 0) continue; W = vec4(0.68, 0.10, 0.35 * rutsD, 0.25); c0 = cc; a1 = 0.25; a2 = 0.06; key = 1; }
+    else if (i == 2) { if ((fl & 1) == 0) continue; W = vec4(0.0, 0.18, 0.22 * rutsD, 0.0); c0 = cc; a1 = 0.25; a2 = 0.06; key = 1; }
+    else { if ((fl & 2) == 0) continue; W = vec4(0.0, 0.17, 0.35 * rutsD, 0.2); c0 = side * pv; a1 = 0.30; a2 = 0.10; key = 2; }
+    float c = c0 + a1 * pmNoise(vec2(u / 60.0, float(key)), sd + 411) + a2 * pmNoise(vec2(u / 15.0, float(key)), sd + 421);
+    float dep = W.z * (0.75 + 0.25 * pmNoise(vec2(u / 9.0, float(key + 3)), sd + 431));
+    for (int s = -1; s <= 1; s += 2) {
+      if (W.x <= 0.0 && s < 0) continue;
+      float x = v - c - float(s) * W.x + 0.03 * pmNoise(vec2(u / 0.7, float(key * 2 + s)), sd + 441), q = x / W.y, t = exp(-q * q * q * q);
+      float bq = (abs(x) - 1.7 * W.y - 0.06) / (0.6 * W.y + 0.05);
+      if (dep * t > dMax) { dMax = dep * t; kind = float(key) + (i == 2 ? 0.5 : 0.0); xq = q; }
+      tMax = max(tMax, t);
+      bm += W.w * dep * exp(-bq * bq);
+    }
+  }
+  return vec4(-dMax + bm * (1.0 - tMax), tMax, kind, xq);
+}
+// THE ROCKS (26b rockIn, line for line; uMicro3.w the stones' chance): a stone in the point's own cell - (its offset from
+// the stone / R, the field's frame; R m (0: none); the stone's hash)
+vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
+  float M = big ? 1.2 : 0.3; int sk = sd + (big ? 501 : 511);
+  int i = int(floor(u / M)), j = int(floor(v / M));
+  float vC = (float(j) + 0.5) * M, edge = smoothstep(0.3, 0.9, abs(vC) / halfW);
+  float p = big ? uMicro3.w * edge * edge : min(0.6, 0.1 + 0.9 * uMicro3.w) * (0.6 + 0.4 * edge);
+  if (pmH(i, j, sk) >= p) return vec4(9.0, 9.0, 0.0, 0.0);
+  float a = pmH(i, j, sk + 1), b = pmH(i, j, sk + 2), e = pmH(i, j, sk + 3);
+  float R = big ? 0.07 + 0.2 * e * e : 0.01 + 0.015 * e;
+  vec2 C = vec2((float(i) + 0.25 + 0.5 * a) * M, (float(j) + 0.25 + 0.5 * b) * M);
+  return vec4((vec2(u, v) - C) / R, R, pmH(i, j, sk + 4));
 }`;
   // THE CHAIN, spliced after map_fragment. Inputs: vPav (u, v, dEdge, shoulderW), vPavK (class, seed, halfW, halfL).
   GLSL.map = `
@@ -1012,6 +1074,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     float cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5) / 37.0, halfW = vPavK.z, halfL = vPavK.w;
     vec2 P = vec2(u, v);
     gMicH = vec4(0.0);                                                  // (DIRT-STRIP) a flat strip has no holes
+    gMicDbg = vec3(0.0);
     vec2 uvS = P + vec2(seed * 37.0, seed * 91.0);
     vec2 pdx = dFdx(P), pdy = dFdy(P);                              // one pair of derivatives for both footprints (G1047)
     vec2 fw = abs(pdx) + abs(pdy) + 1e-5;                              // = fwidth(P)
@@ -1181,7 +1244,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
         // the compacted ground (the expected density), which is also what the far view reads - a track thinner than its
         // pixel's footprint hands over to them (PV_THIN). uRubber2.w: the run-up's prop-blast scour at each end.
         float L = 2.0 * halfL, sd = seed * 37.0;
-        float imp = uSoft.w * detail * PV_THIN(0.16) * (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35);
+        float imp = uSoft.w * detail * PV_THIN(0.16) * (grassy ? 0.0 : (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35));   // (no lugs pressed in turf: DIRT-STRIP 10 Nov)
         // (16 passes at most, as 4 x 4: the loop rule's small constants - no texture read inside, uRoad.x the count)
         for (int ka = 0; ka < 4; ka++) for (int kb = 0; kb < 4; kb++) {
           float fk = float(ka * 4 + kb);
@@ -1250,7 +1313,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
         wheel = wb * uSoft.z * (0.75 + 0.25 * pvNoise(uvS / 3.0));
         float streak = pvFbm(vec2(u / 6.0, v / 0.35) + seed * 3.0);
         tread = rubberPre * smoothstep(0.42, 0.7, streak) * uSoft.w * 0.5;
-        float imp = uSoft.w * detail * PV_THIN(0.16) * (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35);
+        float imp = uSoft.w * detail * PV_THIN(0.16) * (grassy ? 0.0 : (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35));   // (no lugs pressed in turf: DIRT-STRIP 10 Nov)
         for (int k = 0; k < 2; k++) {
           float fk = float(k);
           float c = (pvNoise(vec2(u / (uRut2.x * 2.5) + fk * 13.0, seed + fk)) - 0.5) * halfW * 0.5;
@@ -1286,11 +1349,123 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
         float fillM = uMicro.w > 0.0 ? clamp((uPavWet - 0.25) / 0.6, 0.0, 1.0) * uMicro.w : 0.0;
         gMicH = pvHoles(u, -v, halfW, 2.0 * halfL, fillM);
         float rel = pvRelief(u, -v, halfW, 2.0 * halfL, gMicH);
-        float rs = uMicro2.x * 3.4 + 0.3 * (uMicro2.w - 1.0) + 0.02, rn = clamp(rel / rs, -1.5, 1.5), cueK = 1.0 - smoothstep(uDist.x, uDist.y * 0.7, dist);
-        float crown = smoothstep(0.1, 1.2, rn) * cueK, hollow = smoothstep(0.1, 1.2, -rn) * cueK;
-        col *= 1.0 + 0.10 * crown - 0.18 * hollow; rough += 0.03 * crown - 0.06 * hollow;
-        if (hollow > 0.02) { Smp g = pvSet(1, uvS); float gk = 0.5 * hollow; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
+        float rs = uMicro2.x * 3.4 + 0.3 * (uMicro2.w - 1.0) + 0.4 * uMicro3.y + 0.02, rn = clamp(rel / rs, -1.5, 1.5), cueK = 1.0 - smoothstep(uDist.x, uDist.y * 0.7, dist);
+        // THE SHAPE, READ (the user, 9 Nov 16:40: "I can't see any difference ... lightening the dry zones and the tops, and
+        // darkening the bottoms, the micro valleys ... there is little pairing between topology and texture"). The height
+        // alone (rn) shades the long rolls; the bumps themselves are read by their CURVATURE - the field minus the mean of
+        // its four neighbours, the same octaves the wheels stand on (pvBand = pvRelief's): a convex crown is dry, its fines
+        // blown and rolled off, the stones left (the coarse set, lighter, paler); a concave micro valley is where the fines
+        // and the water collect (the compacted fine set, darker, browner, smoother, darker still when the soil is wet).
+        // Two bands, each fading as the pixel's footprint outgrows it (no sparkle): the 1-2 m bumps (+-0.25 m) up close,
+        // the 4-8 m ones (+-1 m) to short final; the rolls and the hazards past that. The same four neighbours give the
+        // bumps' slope, drawn x uMicroNrm between the rows (PV_MICRO_NRM). The worn lanes' trough (26b ruts, the field's
+        // own law) is read the same way: dark in its concave bottom, light on its convex shoulders.
+        int sdM = int(uMicro.x + 0.5);
+        float LM = 2.0 * halfL, tM = smoothstep(0.0, 4.0, u) * smoothstep(0.0, 4.0, LM - u) * smoothstep(0.5, 2.5, halfW - abs(v));
+        float a1 = max(uMicro2.x, 1e-5), sK = clamp(a1 / 0.009, 0.3, 1.0);           // a little chaos reads a little
+        float kF = (1.0 - smoothstep(0.10, 0.40, fwm)) * cueK * tM, kM = (1.0 - smoothstep(0.6, 2.5, fwm)) * cueK * tM;
+        vec2 qM = vec2(u, -v); float cF = 0.0, cM = 0.0; vec2 gR = vec2(0.0);       // (qM: the field's frame, v = -the ribbon's)
+        if (kF > 0.01) {
+          float c0 = pvBand(qM, 4, sdM), xp = pvBand(qM + vec2(0.25, 0.0), 4, sdM), xm = pvBand(qM - vec2(0.25, 0.0), 4, sdM);
+          float yp = pvBand(qM + vec2(0.0, 0.25), 4, sdM), ym = pvBand(qM - vec2(0.0, 0.25), 4, sdM);
+          cF = (c0 - 0.25 * (xp + xm + yp + ym)) / (0.55 * a1 + 0.03 * uMicro3.y);
+          gR += kF * vec2(xp - xm, -(yp - ym)) / 0.5;                                  // dh/du, dh/dv (the ribbon's v)
+        }
+        if (kM > 0.01) {
+          float c0 = pvBand(qM, 2, sdM), xp = pvBand(qM + vec2(1.0, 0.0), 2, sdM), xm = pvBand(qM - vec2(1.0, 0.0), 2, sdM);
+          float yp = pvBand(qM + vec2(0.0, 1.0), 2, sdM), ym = pvBand(qM - vec2(0.0, 1.0), 2, sdM);
+          cM = (c0 - 0.25 * (xp + xm + yp + ym)) / (0.9 * a1 + 0.17 * uMicro3.y);
+          gR += 0.5 * kM * vec2(xp - xm, -(yp - ym)) / 2.0;
+        }
+        // the aeroplanes' lanes: h = -rut x L(v), L the lanes' Gaussian (26b lanes; rut 4 chaos cm, chaos off a1: 26b's ISO law)
         float sigM = 0.35 + 0.05 * halfW, l1 = (abs(v) - PV_FLEET_MEAN) / sigM, l2 = v / (sigM * 0.8);
+        float chM = clamp(log2(max(pow(a1 * 0.428, 2.0) / 0.00707 / 16e-6, 1.0)) / 10.0, 0.0, 1.0), rutM = 0.04 * chM;
+        float e1 = exp(-l1 * l1), e2 = 0.55 * exp(-l2 * l2);
+        float lc = e1 > e2 ? (2.0 - 4.0 * l1 * l1) * e1 / (sigM * sigM) : (2.0 - 4.0 * l2 * l2) * e2 / (sigM * sigM * 0.64);   // -L''
+        float ld = e1 > e2 ? -2.0 * l1 / sigM * e1 * sign(v) : -2.0 * l2 / (sigM * 0.8) * e2;                                   // L'
+        float kR = kM * clamp(rutM / 0.03, 0.0, 1.0);
+        gR.y += kR * -rutM * ld;
+        float cR = -kR * lc * sigM * sigM * 0.6;                                        // concave bottom < 0, convex shoulders > 0
+        float sM = clamp(0.5 * kF * cF + 0.45 * kM * cM + 0.8 * cueK * rn + cR, -1.6, 1.6);
+        float crown = smoothstep(0.05, 1.0, sM) * sK, hollow = smoothstep(0.05, 1.0, -sM) * sK;
+        crown = max(crown, 0.8 * smoothstep(0.03, 0.10, gMicH.w) * cueK);              // a hazard's mound: dry, stony
+        hollow = max(hollow, smoothstep(0.01, 0.05, gMicH.x) * cueK);                  // a pothole, a hazard's hole: mud
+        hollow = max(hollow, smoothstep(0.03, 0.10, -gMicH.w) * cueK);
+        // THE WAYS, READ (RUTS FIRST - the user, 9 Nov 17:00: "the main relief should come from the ruts themselves ... used by
+        // the planes, but also by other vehicles, pedestrians, animals, carriages ... too clean"): pvWays = 26b waysAt. Its
+        // berms are loose and dry (the crown's look); its troughs are their own look below; the slope across them per pixel
+        // (two more reads, 2 cm apart, only near a way)
+        vec4 wy = pvWays(u, -v, halfW, sdM); float tW = wy.y * tM, bermW = 0.0, gW = 0.0;
+        if (uMicro3.x > 0.0 && (wy.y > 0.002 || wy.x > 0.0005)) {
+          float wp = pvWays(u, -v + 0.02, halfW, sdM).x, wm = pvWays(u, -v - 0.02, halfW, sdM).x;
+          gW = (wp - wm) / 0.04 * tM;                                                     // dh / dv, the field's v
+          bermW = clamp(wy.x / (0.35 * uMicro3.x + 1e-4), 0.0, 1.0) * (1.0 - wy.y) * tM;
+        }
+        crown = max(crown, 0.9 * bermW * cueK); hollow *= 1.0 - tW;
+        // THE RUTS' WATER (26b rutWater): the vehicles' rut deeper than (1 - 0.35 fill) of its depth, into the puddles' own
+        // water and damp ring (11b draws it - the same muddy water)
+        if (fillM > 0.0 && wy.z > -0.5 && wy.z < 0.25 && wy.y > 0.3) {
+          gMicH.y = max(gMicH.y, tM * max(0.0, max(-wy.x, 0.0) - uMicro3.x * (1.0 - 0.35 * fillM)));
+          gMicH.z = max(gMicH.z, smoothstep(0.3, 0.8, wy.y) * tM);
+        }
+        if (crown > 0.02) { Smp g = pvSet(1, uvS); float gk = 0.45 * crown; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
+        if (hollow > 0.02) { Smp g = pvSet(4, uvS); float gk = 0.55 * hollow; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y * 0.7; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
+        float lumM = dot(col, vec3(0.299, 0.587, 0.114));
+        col = mix(col, mix(col, vec3(lumM), 0.25) * 1.24 + vec3(0.02, 0.018, 0.015), crown); rough += 0.08 * crown;
+        col = mix(col, col * vec3(0.66, 0.58, 0.48) * (1.0 - 0.18 * clamp(uPavWet, 0.0, 1.0)), hollow); rough -= (0.10 + 0.15 * clamp(uPavWet, 0.0, 1.0)) * hollow;
+        nT.xy -= gR * PV_MICRO_NRM;                                                     // the bumps' slope between the rows (after the blends)
+        nT.y += gW;                                                                     // the ways' walls (the ribbon's v = -the field's)
+        gMicDbg = mix(mix(vec3(0.5), vec3(0.95, 0.72, 0.2), crown), vec3(0.2, 0.35, 0.95), hollow);
+        // the troughs: packed fines, darker, smoother (wet: darker, glossy); a cart's grooves sharp and dark, the path pale
+        // trodden; and the marks in them up close - a vehicle's tread on the rut's floor, the horse's hooves between the
+        // cart's grooves, the walkers' and the animals' prints along the path
+        if (tW > 0.01) {
+          float wetW = clamp(uPavWet, 0.0, 1.0);
+          bool cartW = wy.z > 0.75 && wy.z < 1.25, horse = wy.z > 1.25 && wy.z < 1.75, pathW = wy.z > 1.75;
+          Smp tf = pvSet(4, uvS); float tk = tW * (cartW ? 0.4 : 0.75);
+          vec2 w2 = pvHw2(hgt, 1.0 - tk, tf.c.a, tk, uHex.x); col = col * w2.x + tf.c.rgb * w2.y; nT = nT * w2.x + tf.n.xyz * w2.y * 0.5; rough = rough * w2.x + (tf.n.a - 0.08) * w2.y; hgt = hgt * w2.x + tf.c.a * w2.y;
+          col *= 1.0 - tW * (cartW ? 0.42 : (pathW ? 0.12 : 0.26)) * (1.0 + 0.5 * wetW);
+          rough -= tW * (0.06 + 0.3 * wetW);
+          float pk = (1.0 - smoothstep(0.006, 0.025, fwm)) * cueK * tW;
+          if (pk > 0.01) {
+            if (wy.z < 0.25) { float tr = pvTread(u, wy.w * 0.15, 0.15, float(sdM) + 3.0) * pk; col *= 1.0 - 0.18 * tr; rough += 0.05 * tr; }
+            else if (horse || pathW) {
+              float per = horse ? 0.38 : 0.33, cu = floor(u / per), fu = fract(u / per), hs = pmH(int(cu), horse ? 7 : 8, sdM + 451);
+              vec2 sz = horse ? vec2(0.065, 0.055) : (hs < 0.55 ? vec2(0.13, 0.05) : vec2(0.04, 0.035));   // a hoof; a boot; a paw
+              vec2 hp = vec2((fu - 0.5) * per, wy.w * (horse ? 0.18 : 0.17) - (mod(cu, 2.0) - 0.5) * (horse ? 0.14 : 0.18) - (hs - 0.5) * 0.06);
+              float pr = length(hp / sz), mk = (1.0 - smoothstep(0.7, 1.0, pr)) * step(horse ? 0.15 : 0.3, hs) * pk;
+              col *= 1.0 - 0.32 * mk; rough += 0.04 * mk; nT.xy += vec2(hp.x, -hp.y) / sz * mk * 0.25;
+            }
+          }
+          if (tW > 0.4) gMicDbg = wy.z < 0.25 ? vec3(0.85, 0.15, 0.15) : (cartW ? vec3(0.8, 0.15, 0.8) : (horse ? vec3(0.55, 0.3, 0.1) : vec3(0.15, 0.75, 0.25)));
+        }
+        // THE ROCKS (26b rockIn; the user, 9 Nov 17:05: "don't forget the little and medium rocks in there, they will also change
+        // the looks. Not for the grass strip"): a stone, 7-27 cm, in a 1.2 m cell or a pebble, 1.5-6.5 cm, in a 0.3 m one, more
+        // toward the edges, none in a trough; drawn per pixel - a dome's light, its own grey, the soil darkened round its foot -
+        // and gone once smaller than the pixel. Drawn only: the rocks the wheels hit are their own work
+        float rkK = uMicro3.w > 0.0 ? (1.0 - clamp(wy.y * 1.5, 0.0, 1.0)) * cueK * smoothstep(0.3, 0.6, halfW - abs(v)) : 0.0;
+        if (rkK > 0.01) for (int bI = 1; bI < 2; bI++) {   // (bI 0, the 7-27 cm stones: the rock pack's meshes now, render_world standRocks)
+          vec4 RK = pvRockIn(u, -v, halfW, bI == 0, sdM);
+          if (RK.z <= 0.0) continue;
+          float vis = rkK * smoothstep(0.5, 1.5, RK.z / max(fwm, 1e-4));
+          if (vis < 0.01) continue;
+          // not a disc (9 Nov 20:50 stills: pale coins): turned, flattened up to 1.7:1, a knobbly outline off the noise round it
+          float ca = cos(RK.w * 6.283), sa = sin(RK.w * 6.283);
+          vec2 q = vec2(ca * RK.x + sa * RK.y, -sa * RK.x + ca * RK.y) * vec2(1.0, 1.0 + 0.7 * fract(RK.w * 7.13));
+          float r0 = length(q), r = r0 * (1.0 + 0.32 * (pvNoise(q / max(r0, 1e-3) * 1.4 + RK.w * 53.0) - 0.5));
+          if (r < 1.0) {
+            float top = sqrt(max(1.0 - r * r, 0.0));
+            // the island's own rock, grey-brown, darker than the dry soil's crowns - and dusted with the soil it lies in, most at its foot
+            vec3 sc = mix(vec3(0.24, 0.225, 0.2), vec3(0.46, 0.43, 0.385), RK.w) * (0.75 + 0.5 * pvNoise(uvS / 0.05 + RK.w * 37.0));   // (the user 10 Nov: the pebbles back - a grey that reads, not the 9 Nov pale coins)
+            sc = mix(sc, col, 0.12 + 0.3 * (1.0 - top));
+            // WET (the user, 9 Nov 21:20: "they do not look wet"): a wet stone is darker and glossy - its own 0.6 gave it the dry
+            // soil's matt where the wet soil around it shone
+            float wetS = clamp(uPavWet, 0.0, 1.0);
+            col = mix(col, sc * (0.78 + 0.3 * top) * (1.0 - 0.35 * wetS), vis); rough = mix(rough, mix(0.6, 0.15, wetS), vis);
+            nT.xy += vec2(RK.x, -RK.y) / max(length(RK.xy), 1e-3) * (0.6 * r / max(top, 0.25)) * vis;
+            gMicDbg = vec3(1.0);
+          } else if (r < 1.35) col *= 1.0 - 0.3 * vis * (1.0 - smoothstep(1.0, 1.35, r));   // its foot: the soil it sits in
+        }
         float worn = max(exp(-l1 * l1), 0.55 * exp(-l2 * l2));
         float wild = clamp(uMicro2.z / 0.26, 0.0, 1.0);                                // a rough strip is a less tended one
         float grassK = (1.0 - clamp(worn * 1.4, 0.0, 1.0)) * (0.25 + 0.75 * (1.0 - smoothstep(0.5, 2.0, dE))) * wild;
@@ -1455,13 +1630,27 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
       float fill = clamp((uPavWet - 0.25) / 0.6, 0.0, 1.0) * uMicro.w;
       vec2 pw = gMicH.yz;                                                 // (the relief's pvHoles: the same water, the same ring)
       float ringK = pw.y * wPav * fill;
-      col *= 1.0 - 0.3 * ringK; rough = mix(rough, 0.4, ringK);
-      pudA = smoothstep(0.0, max(fwidth(pw.x) * 1.5, 0.0015), pw.x) * wPav;
+      col *= 1.0 - 0.3 * ringK; rough = mix(rough, 0.6, ringK);   // (the user 10 Nov: damp earth darkens, it does not shine - 0.4 mirrored the low sun)
+      // THE SHORE, SOFT (the user, 9 Nov 17:20: "make sure the border is not too harsh. That should be muddy water"): the
+      // water comes in over its first 8 mm of depth, the line broken by a 6 cm noise, after a band of wet, glossy mud
+      float shore = pw.x + 0.003 * (pvNoise(P / 0.06 + seed * 5.0) - 0.5);
+      float mudK = smoothstep(-0.004, 0.004, shore) * (1.0 - smoothstep(0.004, 0.012, shore)) * wPav;
+      col *= 1.0 - 0.32 * mudK; rough = mix(rough, 0.5, mudK);    // (10 Nov: 0.18 made the wall above the water a bright wavy band - "water with bumps")
+      // THE WATERLINE (10 Nov): a thin dark wet line on the earth side of the shore, 2 mm of depth wide - the edge reads as water meeting earth
+      float wl = (1.0 - smoothstep(0.0, 0.002 + fwidth(shore), -shore)) * step(shore, 0.0) * wPav;
+      col *= 1.0 - 0.35 * wl;
+      pudA = smoothstep(0.0, max(fwidth(pw.x) * 1.5, 0.003), shore) * wPav;   // (10 Nov: a crisper edge, 8 -> 3 mm of depth)
       if (pudA > 0.0) {
-        float dz = clamp(pw.x / 0.06, 0.0, 1.0);
-        vec3 murk = vec3(0.13, 0.11, 0.085);                                  // silty water over mud
-        col = mix(col, mix(col * 0.5, murk, 0.3 + 0.55 * dz), pudA);
-        rough = mix(rough, 0.03, pudA);
+        float dz = clamp(pw.x / 0.05, 0.0, 1.0);
+        // WATER, NOT MUD (the user, 9 Nov 21:40: the puddles "do not look wet ... make them a little bit more reflective"): the
+        // wet strip around already shines, so a puddle reads only by being what water is - dark under (the light goes in, the
+        // silt swallows it: 0.16 read as wet earth) and a near-mirror, the sky's reflection its whole look
+        vec3 murk = vec3(0.065, 0.05, 0.035);                                 // muddy water, deep: brown-black, the bed gone within 5 cm
+        col = mix(col, mix(col * 0.35, murk, 0.55 + 0.45 * dz), pudA);
+        // (11 Nov stills: a film under ~3 mm took the mirror with the ground's grain still in its normal - a glitter, neither wet earth
+        //  nor flat water) the mirror and the level normal come in only as the water deepens: pudA cubed
+        float pdk = pudA * pudA * pudA;
+        rough = mix(rough, 0.015, pdk);
       }
     }
     // ---- the normal into the world, the roughness, the alpha
@@ -1471,10 +1660,12 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     // (11b) the water is LEVEL: its normal the world's up, a breath of ripple (a 25 cm and an 8 cm noise, 1-2 %) so the sky
     // it mirrors is not glass
     if (pudA > 0.0) {
-      vec2 rp = vec2(pvNoise(P / 0.25 + seed * 13.0), pvNoise(P / 0.25 + seed * 13.0 + 7.3)) - 0.5 + 0.5 * (vec2(pvNoise(P / 0.08 + 3.1), pvNoise(P / 0.08 + 9.7)) - 0.5);
-      gPavN = normalize(mix(gPavN, normalize(vec3(rp.x * 0.03, 1.0, rp.y * 0.03)), pudA));
+      // (10 Nov, the user: "water is flat by definition, and yours is wavy": 3 % from a 25 and an 8 cm noise broke a low sun's
+      //  mirror into streaks - now 0.4 % over 40 cm: still water, a breath of air)
+      vec2 rp = vec2(pvNoise(P / 0.4 + seed * 13.0), pvNoise(P / 0.4 + seed * 13.0 + 7.3)) - 0.5;
+      gPavN = normalize(mix(gPavN, normalize(vec3(rp.x * 0.004, 1.0, rp.y * 0.004)), pudA * pudA * pudA));
     }
-    gPavR = clamp(rough, 0.03, 1.0);
+    gPavR = clamp(rough, mix(0.03, 0.015, pudA * pudA * pudA), 1.0);   // (11b: the water smoother than any ground)
     // THE SPECULAR ANTI-ALIAS (G1047, the ground's: splat_ground uSFilt.y): the roughness floor grows with the
     // pixel's footprint (sqrt of metres a pixel), so a relief finer than the pixel cannot throw the sun's lobe about
     if (uSpec.z > 0.0) gPavR = max(gPavR, min(1.0, uSpec.z * sqrt(length(fw))));
@@ -1507,16 +1698,45 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     // G2570: A GRASS STRIP WEARS THE GROUND (pavement.js grMatch): its lawn gives way to the island's ground under it, the mesh keeping
     // its worn tracks (their own grass-with-soil colour) and a faint mown wash over its width - the strip's luminance, warmed
     // (lighter, yellower, less saturated) at uStain.w alpha. uMacro.w 0: the strip's own lawn, as before
+    // A GRASS STRIP IS A TRAIL THROUGH THE TUNDRA (DIRT-STRIP; the user 10 Nov on Skyline Altiport: "green in the ruts, it makes no
+    // sense ... wouldn't be plowed fully with tyre marks ... more like bare, with some rocks, and a little greenery", then with two
+    // tundra photos: "a lot of little grassy plants ... the bicycle image is interesting because you see a dirt trail"): where the
+    // wheels go the plants are worn away to the gravel - two bare tracks at the fleet's wheels (the compacted lanes), their edges
+    // ragged where the plants creep back (a 35 cm and a 2.2 m noise); between and beside them the island's own ground. No lawn,
+    // no mown wash; the coarse slot (gravelF) is the trail's grit
     if (grassy && !road && uMacro.w > 0.0) {
-      float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0);
-      vec3 mown = vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))) * vec3(1.12, 1.06, 0.78) * 1.15;
-      col = mix(col, mown, (1.0 - worn) * uMacro.w);
-      gPavA = mix(gPavA, max(worn * gPavA, uStain.w * wPav), uMacro.w);
+      float edgeN = pvNoise(uvS / 0.35 + 31.0) * 0.6 + pvNoise(uvS / 2.2 + 17.0) * 0.4;
+      // (10 Nov 03:50 stills: the first trail read as a white road of many streaks with a dashed tail-wheel line) - only the
+      // MAIN lanes (the fainter passes and the tail wheel stay under the threshold), and the gravel at the ground's own
+      // brightness, grey-brown: the set's detail scaled to the luminance under it
+      // (10 Nov, the user: "the ruts don't blend in nicely and they lack detail, readability and individuality") ALONG the strip the
+      // worn lanes widen and narrow (a 45 m and a 140 m noise), run together into one bare patch where both are high (a turning
+      // spot), go grassed-over for short stretches (a 9 m noise); ACROSS, a band of dark bare soil (the plants worn off) round the
+      // packed gravel, so a track fades into the tundra instead of ending on a cut line; IN it small stones (2-5 cm, 0.22 m cells)
+      float wv = pvNoise(vec2(u / 45.0, seed + 21.0)) * 0.65 + pvNoise(vec2(u / 140.0, seed + 23.0)) * 0.35;
+      float gap = smoothstep(0.62, 0.8, pvNoise(vec2(u / 9.0, seed + 29.0)));
+      float merge = smoothstep(0.62, 0.82, wv) * exp(-v * v / 3.2);
+      float trS = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) + 0.45 * (wv - 0.5) + 0.6 * merge - 0.35 * gap + 0.35 * (edgeN - 0.5);
+      float soil = smoothstep(0.3, 0.58, trS), trail = smoothstep(0.55, 0.85, trS);
+      if (soil > 0.004) { const vec3 LW = vec3(0.2126, 0.7152, 0.0722); float lum = dot(col, LW);
+        Smp f = pvSet(4, uvS); float sk = soil * (1.0 - trail);
+        vec3 dirt = f.c.rgb * (lum / max(dot(f.c.rgb, LW), 0.02)) * vec3(0.9, 0.8, 0.66) * 0.8;   // bare soil: the ground's brightness, browner, darker
+        col = mix(col, dirt, sk); nT = mix(nT, f.n.xyz, sk * 0.7); rough = mix(rough, f.n.a, sk);
+        Smp g = pvSet(1, uvS);
+        vec3 grit = g.c.rgb * (lum / max(dot(g.c.rgb, LW), 0.02)) * vec3(1.06, 0.98, 0.86) * (0.85 + 0.3 * edgeN);
+        col = mix(col, grit, trail); nT = mix(nT, g.n.xyz, trail); rough = mix(rough, g.n.a, trail);
+        vec2 pc = floor(uvS / 0.22), ph = pvHash2(pc + seed * 3.1);
+        if (ph.x < 0.4 * trail) { vec2 pq = (pc + 0.25 + 0.5 * pvHash2(pc + seed * 5.7 + 11.0)) * 0.22 - uvS; float pr = 0.01 + 0.015 * ph.y;
+          float pbV = (1.0 - smoothstep(0.7 * pr, pr, length(pq * vec2(1.0, 1.0 + 0.6 * ph.y)))) * smoothstep(0.5, 1.5, pr / max(fwidth(uvS.x), 1e-4));
+          col = mix(col, vec3(0.3, 0.285, 0.26) * (0.7 + 0.6 * ph.x / 0.4) * min(lum / 0.18, 1.6), pbV * 0.9); }
+      }
+      gPavA = mix(gPavA, soil * gPavA, uMacro.w);
     }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
       : uPavDbg < 5.5 ? vec3(wp, wb, wg) : uPavDbg < 6.5 ? vec3(clamp(dE / 10.0, 0.0, 1.0), clamp(-dE / shW, 0.0, 1.0), gPavA) : uPavDbg < 7.5 ? vec3(fract(laneTone * 4.0), joint, spall)
-      : uPavDbg < 8.5 ? vec3(crack, dmg, pch) : uPavDbg < 9.5 ? vec3(rut, grassStripe, moss) : uPavDbg < 10.5 ? vec3(rubber, paint, damp) : uPavDbg < 11.5 ? vec3(wheel, tread, coarse + mixW * 0.5) : col;
+      : uPavDbg < 8.5 ? vec3(crack, dmg, pch) : uPavDbg < 9.5 ? vec3(rut, grassStripe, moss) : uPavDbg < 10.5 ? vec3(rubber, paint, damp) : uPavDbg < 11.5 ? vec3(wheel, tread, coarse + mixW * 0.5)
+      : uPavDbg < 12.5 ? (dot(gMicDbg, vec3(1.0)) > 0.0 ? gMicDbg : col * 0.35) : col;   // (12: DIRT-STRIP's false colour - crowns orange, hollows blue, the ways' troughs red / magenta / brown / green, the stones white)
   }`;
   GLSL.rough = `  float roughnessFactor = gPavR;`;
   GLSL.normal = `
@@ -1545,7 +1765,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
   // become globals, pvLoad() fills them from the row at the top of the chain, the array reads become texel reads), so
   // `?pave=old` draws exactly the pre-G925 program and the two cannot drift apart silently (GATE PAVEMENT 12).
   const PV_VEC = ['uLayer', 'uLayer2', 'uTile', 'uTile2', 'uHex', 'uMacro', 'uLane', 'uLane2', 'uCrack', 'uPatch', 'uMoss', 'uStain', 'uWet', 'uMark',
-    'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd', 'uMicro', 'uMicro2'];   // (uMicro: DIRT-STRIP's puddles, a row's last)
+    'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd', 'uMicro', 'uMicro2', 'uMicro3'];   // (uMicro: DIRT-STRIP's puddles, a row's last)
   const PV = { K: PV_VEC.length, N: PV_VEC.length + 1, G: PV_VEC.length + 2 };
   PV.T = PV.G + 8; PV.KA = PV.T + 8; PV.KB = PV.KA + NKEEP; PV.S = PV.KB + NKEEP; PV.SK = PV.S + NSEG; PV.MR = PV.SK + NSEG; PV.MK = PV.MR + NMARK; PV.W = PV.MK + NMARK;
   // ?pave=old: every pavement its own material and mesh, as shipped before G925 (the A/B); default: the table
@@ -1567,7 +1787,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     c = rep(c, '\nuniform vec4 ' + PV_VEC.slice(0, 28).join(', ') + ';', '');
     c = rep(c, '\nuniform vec4 uGrade[8], uTint[8];', '');
     c = rep(c, '\nuniform vec4 uMean;', '');
-    c = rep(c, '\nuniform vec4 uMicro, uMicro2;', '');   // (DIRT-STRIP) a row's texel like the rest
+    c = rep(c, '\nuniform vec4 uMicro, uMicro2, uMicro3;', '');   // (DIRT-STRIP) a row's texel like the rest
     c = rep(c, '\nuniform int uMarkN, uSegN;', '\nint uMarkN, uSegN;');
     c = rep(c, `\nuniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];`,
       '\nuniform highp sampler2D uPavT;\nint gPavRow; float gSegHW;\n#define PVT(i) texelFetch(uPavT, ivec2(i, gPavRow), 0)\n' + PV_VEC.map((n, i) => '#define ' + n + ' PVT(' + i + ')').join('\n'));
@@ -1773,7 +1993,8 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     U.uSoft.value.set(r.softMix * sk[0], r.coarseK * sk[1], r.wheelBand * sk[2], r.treadK * sk[3]);
     U.uSoft2.value.set(r.paintRelief, r.mow, r.edgeSoft, r.grassRough);
     { const q = m.userData.pavMicro; if (U.uMicro) U.uMicro.value.set(q ? q[0] : 0, q ? q[1] : 0, q ? q[2] : 0, q ? q[3] : 0);   // DIRT-STRIP: 0 = a flat strip
-      if (U.uMicro2) U.uMicro2.value.set(q ? q[4] : 0, q ? q[5] : 0, q ? q[6] : 0, q ? q[7] : 0); }
+      if (U.uMicro2) U.uMicro2.value.set(q ? q[4] : 0, q ? q[5] : 0, q ? q[6] : 0, q ? q[7] : 0);
+      if (U.uMicro3) U.uMicro3.value.set(q && q.length > 8 ? q[8] : 0, q && q.length > 9 ? q[9] : 0, q && q.length > 10 ? q[10] : 0, q && q.length > 11 ? q[11] : 0); }
     U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, lk.sideW, lk.sideA, d.road ? 1 : 0);   // .w: the surface hands over inside a strip's box (roads, aprons); .yz the surface type's side (G1392)
     if (m.isPavPart) pack(m);
   }
@@ -2030,7 +2251,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     for (let i = 0; i < NMARK; i++) { const r = marks.rects[i]; mR.push(new THREE.Vector4(r ? r[0] : 0, r ? r[1] : 0, r ? r[2] : 0, r ? r[3] : 0)); mK.push(new THREE.Vector4(r ? r[4] : 0, r ? r[5] : 0, r ? r[6] : 0, r ? r[7] : 0)); }
     const sg = [], sk = [];
     for (let i = 0; i < NSEG; i++) { const s = marks.segs[i]; sg.push(new THREE.Vector4(s ? s[0] : 0, s ? s[1] : 0, s ? s[2] : 0, s ? s[3] : 0)); sk.push(new THREE.Vector4(s ? s[4] : 0, s ? s[5] : 0, 0, 0)); }
-    m.uniforms = { uPavA: { value: lib.texA }, uPavN: { value: lib.texN }, uPavOn: { value: (lib.ready || lib.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavWet: WET, uMicro: v4(), uMicro2: v4(),
+    m.uniforms = { uPavA: { value: lib.texA }, uPavN: { value: lib.texN }, uPavOn: { value: (lib.ready || lib.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavWet: WET, uMicro: v4(), uMicro2: v4(), uMicro3: v4(),
       uLayer: v4(), uLayer2: v4(), uTile: v4(), uTile2: v4(), uClass: v4(), uHex: v4(), uMacro: v4(), uLane: v4(), uLane2: v4(), uCrack: v4(), uPatch: v4(),
       uMoss: v4(), uStain: v4(), uWet: v4(), uMark: v4(), uPaint0: { value: new THREE.Vector4(0.62, 0.60, 0.55, 1) }, uPaint1: { value: new THREE.Vector4(0.70, 0.54, 0.14, 1) },
       uRubber: v4(), uRubber2: v4(), uRut: v4(), uRut2: v4(), uRoad: v4(), uEdge: v4(), uEdge2: v4(), uDist: v4(), uSpec: v4(), uSoft: v4(), uSoft2: v4(),
@@ -2039,7 +2260,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
       uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk },
       uSide: v4(), uRoadEnd: { value: new THREE.Vector4(+o.fadeA || 0, +o.fadeB || 0, 0, 0) }, uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
     // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, a road's only when the caller says (a taxiway, G980)
-    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null; m.userData.pavMicro = Array.isArray(o.micro) ? o.micro.slice(0, 8) : null;   // (DIRT-STRIP) STRIP_MICRO.glslRow: a bumpy strip's puddles   // a resolved recipe of its own (the game), or the module's (the bench)
+    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null; m.userData.pavMicro = Array.isArray(o.micro) ? o.micro.slice(0, 12) : null;   // (DIRT-STRIP) STRIP_MICRO.glslRow: a bumpy strip's puddles   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     if (table) {
       // THE ROW: cls, seed, halfW, halfL off the geometry's aPavK (constant over a part), the row id on every vertex

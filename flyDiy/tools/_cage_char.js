@@ -739,6 +739,8 @@ function animate(inst, spec) {
   if (!ticking) { ticking = true; requestAnimationFrame(tick); }
 }
 function clearAnims() { LIVE.clear(); }
+// G2715 (CREW-SEATS): one instance off the ticker (an occupant the job left out: posed for the tank fit, never drawn)
+function unanimate(inst) { if (inst) LIVE.delete(inst); }
 // ONE INSTANCE, ONE MOMENT (live crew): the clip's deviation from its mean,
 // layered over `baseQ` — what `tick` does for the editor's LIVE set on rAF,
 // and what the flown pilot's loop calls synchronously AFTER its IK and
@@ -840,5 +842,5 @@ function flatMaterial(key, mi) {
 const RACER = 'ch20';
 window.CAGE_CHAR = { CHAIN, RACER, list: () => REG().order.map(k => REG().chars[k]),
   rig, load, ready, instance, dress, dispose, flatMaterial, fistAt, hollowAt, soleAt, pickBody,
-  animLoad, animate, animStep, clearAnims, anims: () => ANIMS().order.slice() };
+  animLoad, animate, animStep, clearAnims, unanimate, anims: () => ANIMS().order.slice() };
 })();
