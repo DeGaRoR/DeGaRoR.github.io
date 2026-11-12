@@ -122,5 +122,6 @@ if (res['Rufus']) {
   ok(sees, 'negative control: the Rufus with its rod read at the closure must fail HEIGHT');
 } else ok(false, 'negative control: the Rufus is not on the official list');
 for (const b of bad) say('  FAIL ' + b);
-say(`GATE AEROBODY: ${bad.length ? 'FAIL' : 'PASS'} (${LIST.length} official planes, ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+say(`(${LIST.length} official planes, ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+say(`GATE AEROBODY: ${bad.length ? 'FAIL' : 'PASS'}`);   // (run_gates reads the verdict line exactly)
 process.exit(bad.length ? 1 : 0);

@@ -315,9 +315,14 @@ if (MAIN) (async () => {
         // drawn - vX 5.14 -> 4.30 m, 0.84 m nearer the boom root) the root reaches 0.962 of its limit here and HOLDS (it was
         // 1.003 when this row was written, 7 Oct). The overload still lands where the structure says: the worst cut of the
         // airframe is the boom's root, in bending, held to a band round the measured 0.962 - under 0.93 or a part = red
+        // AERO-BODY re-pin (12 Nov, the user's rod row): the twin's rod is now the tube it is - the user's call, 6061 at
+        // 2.4 mm (cage rodMat 3 / rodWallMm 2.4 on the fixture): its root's limit is that tube's, its mass the tube's
+        // (5.6 kg against the 5.9 kg of lattice it replaced). The overload still lands where the structure says - the
+        // ROD root, in bending, nothing parts - at 0.762 of its limit (was 0.962 on the lattice): the band keeps its width
+        // relative to the measure (0.93 / 0.962), 0.73-1.00
         else if (w.boom) { const wb = worst(w.pk);
-          yes(w.finite && wb.tag === 'ROD' && wb.kind === 'root' && wb.mode === 'bend' && wb.r >= 0.93 && w.cl.length === 0 && wb.r < 1,
-              msg + ' - the overload lands on the boom (ROD) root, in bending, at 0.93-1.00 of its limit (0.962 since G2640 drew the fin where it is), nothing parts'); }
+          yes(w.finite && wb.tag === 'ROD' && wb.kind === 'root' && wb.mode === 'bend' && wb.r >= 0.73 && w.cl.length === 0 && wb.r < 1,
+              msg + ' - the overload lands on the boom (ROD) root, in bending, at 0.73-1.00 of its limit (0.762 on the 6061 2.4 mm rod; 0.962 on the lattice), nothing parts'); }
         else { yes(w.finite, msg + ' - finite'); rep(w.lab + ': the float fittings ' + (w.cl.some(c => /^FLT/.test(c.tag)) || w.groups.some(g => /^float/.test(g)) ? 'LET GO' : 'held') + ' (§7.4)'); }
       }
     }
