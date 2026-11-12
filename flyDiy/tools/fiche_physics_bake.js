@@ -25,15 +25,19 @@ if (argv[0] === '--one') {
   console.log(`${dir.padEnd(36)} ${(JSON.stringify(D).length / 1024).toFixed(0)} KB  ${D.load && D.load.verdict}  ${D.destroy && D.destroy.verdict}  ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   process.exit(0);
 }
-const L = JSON.parse(fs.readFileSync(path.join(FLY, 'builds', 'lists', 'plane_lists.json'), 'utf8'));
+// EVERY BAKED FICHE (the board's index, media/fiches/index.json: its key, its pictures' folder, the list row's build file),
+// not only the official list: the strip shows the physics sections on every baked fiche (12 Nov, 24 of them)
+const IX = JSON.parse(fs.readFileSync(path.join(OUT, 'index.json'), 'utf8')).fiches || {};
 const only = opt('only', '') ? opt('only').split(',') : null;
-const rows = L.planes.filter(p => p.list === 'official' && p.file && p.thumb && (!only || only.includes(p.thumb)));
-if (argv.includes('--dry')) { for (const r of rows) console.log(r.thumb.padEnd(40), safe(r.thumb).padEnd(36), r.file); process.exit(0); }
+const rows = Object.entries(IX).map(([k, f]) => ({ thumb: k, dir: ((f.pics && f.pics.side) || '').split('/')[0], file: f.listFile }))
+  .filter(r => r.dir && r.file && fs.existsSync(path.join(FLY, r.file)) && (!only || only.includes(r.thumb)));
+for (const [k, f] of Object.entries(IX)) if (!rows.find(r => r.thumb === k) && (!only || only.includes(k))) console.log(k.padEnd(40), 'SKIPPED: no build file (' + (f.listFile || 'none') + ')');
+if (argv.includes('--dry')) { for (const r of rows) console.log(r.thumb.padEnd(40), r.dir.padEnd(36), r.file); process.exit(0); }
 const jobs = +opt('jobs', '3');
 let next = 0, bad = 0;
 const one = () => { if (next >= rows.length) return Promise.resolve();
   const r = rows[next++];
-  return new Promise(res => { const p = spawn(process.execPath, [__filename, '--one', r.file, safe(r.thumb)], { cwd: FLY, stdio: ['ignore', 'inherit', 'pipe'] });
+  return new Promise(res => { const p = spawn(process.execPath, [__filename, '--one', r.file, r.dir], { cwd: FLY, stdio: ['ignore', 'inherit', 'pipe'] });
     let err = ''; p.stderr.on('data', d => { err += d; });
-    p.on('close', c => { if (c) { bad++; console.log(`${safe(r.thumb).padEnd(36)} FAILED: ${err.trim().split('\n').pop()}`); } res(); }); }).then(one); };
+    p.on('close', c => { if (c) { bad++; console.log(`${r.dir.padEnd(36)} FAILED: ${err.trim().split('\n').pop()}`); } res(); }); }).then(one); };
 Promise.all(Array.from({ length: Math.min(jobs, rows.length) }, one)).then(() => { console.log(`fiche_physics_bake: ${rows.length - bad} of ${rows.length}`); process.exit(bad ? 1 : 0); });

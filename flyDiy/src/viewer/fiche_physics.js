@@ -215,17 +215,24 @@
       const gMax = Math.max(7, Ds.brokeAt * 1.08), lx0 = 48, lx1 = 760, ly = 718, gx = g => lx0 + (lx1 - lx0) * g / gMax;
       out.push(K.L([lx0, ly], [lx1, ly], th.lead, 1));
       for (let g = 0; g <= gMax; g += (gMax > 10 ? 2 : 1)) out.push(K.L([gx(g), ly - 3], [gx(g), ly + 3], th.faint, 1) + K.T(gx(g), ly + 17, g + ' g', { sz: 11, c: th.faint, a: 'middle' }));
-      const mk = (g, lab, col, up, anc) => { if (g == null) return; const x = gx(g);
-        out.push(`<circle cx="${x.toFixed(1)}" cy="${ly}" r="4.5" fill="${col}"/>` + K.L([x, ly - 6], [x, ly - (up ? 34 : 20)], col, 1) +
-          K.T(x + (anc === 'end' ? -5 : anc === 'start' ? 5 : 0), ly - (up ? 38 : 24), lab, { sz: 12.5, c: col, a: anc || 'middle', w: 500 })); };
-      const near = g => g != null && Math.abs(g - 5.7) < 1.2;
+      // the markers, then their labels stacked: each takes the first height (above the ladder, then below the g numbers)
+      // where its text clears every label already placed - events a tenth of a g apart (a Stearman's bend, break and
+      // let-go) used to print on one another
       const same = Ds.yieldAt != null && Ds.breakAt != null && Math.abs(Ds.yieldAt - Ds.breakAt) < 0.05;
-      const bk = Ds.breakAt != null && Math.abs(Ds.brokeAt - Ds.breakAt) > 0.05 && Math.abs(Ds.breakAt - (Ds.yieldAt || 0)) < 1.2;
-      mk(3.8, 'limit 3.8', th.dim, false, Ds.yieldAt != null && Math.abs(Ds.yieldAt - 3.8) < 0.8 ? 'end' : null);
-      mk(5.7, 'ultimate 5.7', th.dim, true, near(Ds.brokeAt) || near(Ds.breakAt) || near(Ds.yieldAt) ? 'end' : null);
-      if (!same && Ds.yieldAt != null) mk(Ds.yieldAt, 'first bend ' + Ds.yieldAt.toFixed(2), th.warn, false, Math.abs(Ds.yieldAt - 3.8) < 0.8 || near(Ds.yieldAt) ? 'start' : bk ? 'end' : null);
-      if (Ds.breakAt != null && Math.abs(Ds.brokeAt - Ds.breakAt) > 0.05) mk(Ds.breakAt, 'first ' + (Ds.firstBreak && Ds.firstBreak.how === 'kink' ? 'buckle ' : 'break ') + Ds.breakAt.toFixed(1), th.bad, bk, bk ? 'start' : null);
-      mk(Ds.brokeAt, (same ? 'bends and breaks ' : 'lets go ') + Ds.brokeAt.toFixed(2), th.bad, true, near(Ds.brokeAt) ? 'start' : null);
+      const M = [[3.8, 'limit 3.8', th.dim], [5.7, 'ultimate 5.7', th.dim]];
+      if (!same && Ds.yieldAt != null) M.push([Ds.yieldAt, 'first bend ' + Ds.yieldAt.toFixed(2), th.warn]);
+      if (Ds.breakAt != null && Math.abs(Ds.brokeAt - Ds.breakAt) > 0.05) M.push([Ds.breakAt, 'first ' + (Ds.firstBreak && Ds.firstBreak.how === 'kink' ? 'buckle ' : 'break ') + Ds.breakAt.toFixed(1), th.bad]);
+      M.push([Ds.brokeAt, (same ? 'bends and breaks ' : 'lets go ') + Ds.brokeAt.toFixed(2), th.bad]);
+      const LV = [-24, -42, 38, -60, 56], placed = [];
+      for (const [g, lab, col] of M.sort((a, b) => a[0] - b[0])) {
+        const x = gx(g), w = lab.length * 6.9, x0 = Math.max(lx0, Math.min(lx1 + 40 - w, x - w / 2));
+        let lv = LV.find(dy => placed.every(p => p.dy !== dy || x0 > p.x1 + 8 || x0 + w < p.x0 - 8));
+        if (lv == null) lv = LV[LV.length - 1];
+        placed.push({ dy: lv, x0, x1: x0 + w });
+        const ty = ly + lv, stem = lv < 0 ? [ly - 6, ty + 4] : [ly + 6, ty - 13];
+        out.push(`<circle cx="${x.toFixed(1)}" cy="${ly}" r="4.5" fill="${col}"/>` + K.L([x, stem[0]], [x, stem[1]], col, 1) +
+          K.T(x0, ty, lab, { sz: 12.5, c: col, w: 500 }));
+      }
     }
     return out;
   }
@@ -690,13 +697,16 @@
     })).then(() => out);
   }
   const sigOf = () => { try { return (root.FICHE_BOARD && root.FICHE_BOARD.sig) ? root.FICHE_BOARD.sig() : ''; } catch (e) { return ''; } };
+  // a page's data: Reference needs only the references' index (never the physics: a baked fiche without its physics.json,
+  // or a plane off the stand, still shows its reference - the live test of 12 Nov); the others the physics data
+  const dataOf = (rec, page, o) => page === 'reference' ? refsLoad().then(() => { const R = refOf(rec, o); return R ? { reference: R } : null; }) : dataFor(rec, o);
   // draw `page` of `rec` into `el` (theme 'sheet' on the board); resolves false when there is no data
   function mount(el, rec, page, opts) {
     const o = opts || {};
     el.textContent = 'Working out the physics pages…';
-    return dataFor(rec, o).then(D => {
+    return dataOf(rec, page, o).then(D => {
       if (!D) { el.textContent = 'Put this aeroplane on the stand to draw its physics pages.'; return false; }
-      return picsFor(rec, D.model, false).then(pics => {
+      return (D.model ? picsFor(rec, D.model, false) : Promise.resolve({})).then(pics => {
         el.innerHTML = svg(page, D, { theme: o.theme || 'sheet', name: o.title || (rec.data && rec.data.name) || rec.name, reg: rec.data && rec.data.reg, pics, sig: sigOf() });
         const sv = el.querySelector('svg'); if (sv) { sv.style.width = '100%'; sv.style.height = 'auto'; sv.style.display = 'block'; }
         return true;
@@ -706,8 +716,8 @@
   // the share's picture of a page: 2400 x 1600 PNG (the fiche's own share size), the pictures inlined so the canvas can read them
   function compose(rec, page, opts) {
     const o = opts || {};
-    return dataFor(rec, o).then(D => { if (!D) return null;
-      return picsFor(rec, D.model, true).then(pics => new Promise((res, rej) => {
+    return dataOf(rec, page, o).then(D => { if (!D) return null;
+      return (D.model ? picsFor(rec, D.model, true) : Promise.resolve({})).then(pics => new Promise((res, rej) => {
         const text = svg(page, D, { theme: o.theme || 'sheet', name: o.title || (rec.data && rec.data.name) || rec.name, reg: rec.data && rec.data.reg, pics, sig: sigOf() });
         const im = new Image(), url = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));
         im.onload = () => { const c = document.createElement('canvas'); c.width = 2 * W; c.height = 2 * H; c.getContext('2d').drawImage(im, 0, 0, 2 * W, 2 * H); URL.revokeObjectURL(url); c.toBlob(res, 'image/png'); };
@@ -723,8 +733,10 @@
     for (const p of PAGES) FB.pages.add(Object.assign({ id: p.id, label: p.name,
       mount: (sheet, rec, ctx) => mount(sheet, rec, p.id, ctx || {}),
       compose: (rec, ctx) => compose(rec, p.id, ctx || {}) },
-      // Reference only where REAL-FIGURES flew this very card (the registry's visible(rec), run as each fiche opens)
-      p.id === 'reference' ? { visible: rec => !!refOf(rec) } : {}));
+      // Reference only where REAL-FIGURES flew this very card; the others on every baked fiche (their data beside its
+      // pictures) and on a plane while it stands in the garage (worked out on the bench's thread) - the registry's
+      // visible(rec, ctx), run as each fiche opens
+      p.id === 'reference' ? { visible: (rec, ctx) => !!refOf(rec, ctx) } : { visible: (rec, ctx) => !!(rec && (rec.baked || rec.physics)) || !!(ctx && ctx.spec) }));
     return (registered = true);
   }
   if (root && !register() && typeof root.addEventListener === 'function') root.addEventListener('load', register);
