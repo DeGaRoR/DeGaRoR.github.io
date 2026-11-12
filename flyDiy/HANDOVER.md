@@ -314861,3 +314861,9 @@ the next steps).
   windscreen top 2.45 / 2.451, the A-pillar foot 3.04 / 3.040, the firewall 3.34 / 3.340, the cowl face 4.38 / 4.37
   (pilotLen 0.2, paxLen 0.933, paxLenLast 1.29, noseLen 0.333, cw_cowlLen 0.97). The detail (grille, lamps in inlets,
   windows on the doors, fairings, the front suspension) is next, after the user's look.
+- **CAR-3, THE USER'S ROUND (cabin +40 cm, the firewall top and bonnet line -15 cm, the nose and cowl lengths kept, every
+  windscreen crown / bubble / bow at 0, the rear wheel 20 cm and the front wheel 15 cm forward)**: pilotLen 0.644 (the
+  cabin 0.86 -> 1.26 m; the body grows aft in the garage's frame), wsBaseBow / wsCeilBow / bubble / noseCrown / dashCrown
+  0, the bonnet top 0.352 -> 0.193 (frNoseTopY 0.2, cw_aftH 0.473; its bottom on the floor line), the rear axle 1.02 m
+  from the rear wall (s1Z 0.5), the front 0.25 m behind the bonnet face (s2AxZ 1.15). The body's own corner rounding
+  (topRound / botRound) left as it was.
