@@ -945,7 +945,7 @@ const CAGE_PARTS = [
       // the turboprop's own keys (2026-09-05, TURBOPROP §3), so no row is
       // rendered twice
       ['turbine', ['eng_tStyle', 'eng_tCanD', 'eng_tCanL', 'eng_gearK',
-                   'eng_flatK', 'eng_tRpm', 'eng_stackStyle', 'eng_stackOut', 'eng_stackLen', 'eng_stackFlat', 'eng_stackR', 'eng_stackDrop']],
+                   'eng_flatK', 'eng_tRpm', 'eng_stackStyle', 'eng_stackOut', 'eng_stackLen', 'eng_stackFlat', 'eng_stackR', 'eng_stackDrop', 'eng_stackSplit']],
       ['cylinder dress', ['eng_finN', 'eng_finR', 'eng_headFins',
                           'eng_rockerW', 'eng_rockerH', 'eng_rockerR',
                           'eng_rockerBoss', 'eng_rockerBossW',

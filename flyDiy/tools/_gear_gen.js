@@ -1667,6 +1667,16 @@ function legLink(bags, AF, P, st, sgn) {
     }
     sweep(bags.dark, resample(path, path.length * 2),
           () => secRound(0.0072, 8), true);
+  } else if (mode === 3) {
+    // THE PISTON (12 Nov, FIT-PROCEDURE; the user: "a proper shock option ... these wrappings don't convince me ... a
+    // proper piston, like the Wilga, you can take it from there"): the trailing-link leg's strut, verbatim in its
+    // shapes - the cylinder hung from the upper pin, a rubber boot at its gland, the polished rod rising from the foot
+    // into it. It flies as the oleo it is (the join maps it with the rubber stack's).
+    const Rc = 0.028, cylL = 0.52 * L, rodL = L - cylL + 0.035;
+    revolve(bags.alloy, top, dir, [[0.016, -0.014], [0.020, 0], [Rc, 0.030], [Rc, cylL - 0.012], [Rc * 0.86, cylL]], 20, true);
+    revolve(bags.dark, off(top, dir, cylL - 0.004), dir,
+            [[Rc * 0.70, 0], [Rc * 0.92, 0.010], [Rc * 0.74, 0.020], [Rc * 0.92, 0.030], [Rc * 0.74, 0.040], [Rc * 0.92, 0.050], [Rc * 0.70, 0.060]], 18, true);
+    revolve(bags.chrome, foot, mul(dir, -1), [[0.015, -0.012], [0.018, 0], [0.0215, 0.020], [0.0215, rodL]], 16, true);
   } else {                              // RUBBER DONUT STACK
     revolve(bags.chrome, top, dir, [[0.008, 0], [0.008, L]], 12, true);
     for (let k = 0; k < 5; k++)
