@@ -214,7 +214,13 @@ function buildTrailerModel(THREE, Tr, o) {
       tube(M.galv, outer.map(([x, y]) => [x, y, s * (wZ + gw / 2 + 0.01)]), 0.006, 64);
       // the tread plate on the flat top, the stays
       boxAt(M.galvDk, 2 * ax + 0.02, 0.004, gw - 0.04, [0, wheelR + Rf + 0.006, s * (wZ + 0.01)]);
-      for (const xs of [-ax - 0.05, ax + 0.05, 0]) member(M.galvDk, angle(0.03, 0.003), [xs, railY - 0.02, s * zR], [xs, wheelR + Rf - 0.01, s * (wZ - gw / 2 + 0.03)], [1, 0, 0]);
+      // its mounting (12 Nov, the user: "your wheel arches are poking through" - the three 30 mm angle stays ran up into
+      // the guard's skin and, over the wheels, into the tyres' shoulders): over each wheel a flat bar from the rail's
+      // outer face out under the skin, above the tyre and inboard of it; between the tyres, where there is no tyre, one
+      // angle stay from the rail's foot up to under the skin
+      const yUnder = wheelR + Rf - 0.006, zIn = s * (wZ - gw / 2 + 0.035);
+      for (const xw of [-ax + spX, ax + spX]) boxAt(M.galvDk, 0.04, 0.006, Math.abs(zIn - s * (zR + 0.025)), [xw, yUnder, (zIn + s * (zR + 0.025)) / 2]);
+      member(M.galvDk, angle(0.03, 0.003), [spX, railY - railH / 2, s * (zR + 0.025)], [spX, yUnder - 0.035, zIn], [1, 0, 0]);
       // the mud flap
       boxAt(M.rubber, 0.006, 0.26, gw - 0.02, [-ax - Rf - 0.035, 0.215, s * (wZ + 0.01)], [0, 0, -0.08]);
       // the amber side reflector on the guard's front
