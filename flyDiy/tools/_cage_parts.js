@@ -313,7 +313,7 @@ const CAGE_PARTS = [
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
       // (the nose frame has no waist: its width is the deck's half-width)
-      ['nose frame', ['frNoseTopY', 'frNoseTopW', 'frNoseBotY', 'noseLen']],
+      ['nose frame', ['frNoseTopY', 'frNoseTopW', 'frNoseBotY', 'noseLen', 'noseDeck']],
       ['nose frame, detail', ['frNoseBotW', 'frNoseBotZ'], EXPERT],
       ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown', 'noseKeelSq',
                  'wsBaseLift', 'crSillNose']],

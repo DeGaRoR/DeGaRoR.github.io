@@ -271,6 +271,9 @@ window.CAGE_PAGE = {
         // is really the section's LENGTH"): the nose's size row, labelled so
         ['noseLen',    'length', 0.20, 2.50, 0.01, { dim: 'len' }],
         ['frNoseBotZ', 'bottom fore/aft', -0.60, 0.60, 0.005, { dim: 'len' }],
+        // NOSE-DECK (the user 10 Nov, the Ruckus): an open frame (fuselage skin off) keeps the nose's top skin, firewall
+        // bar to windscreen-base bar, on the surface the cage computes (cageNoseDeck)
+        ['noseDeck',   'deck skin (open frame)', 0, 1, 1, { when: P => P.skinOn != null && !+P.skinOn }],
       ], 'open'],
       ['windscreen frame', [
         ['frWinTopY',   'top height',      -1.60, 1.80, 0.005, { dim: 'len', follow: 'win.topY' }],

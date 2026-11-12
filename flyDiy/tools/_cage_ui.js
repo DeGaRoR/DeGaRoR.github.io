@@ -1717,7 +1717,8 @@ function wellCutOf(sh, cuts) {
 // the drawn fuselage of this build (set where it is made): its sheet and how it was culled; null in a diagnostic view
 let WELL_SRC = null;
 const wellSd = (sh, src) => {
-  const s0 = src.skin ? sh : { ...sh, F: sh.F.filter(f => !src.cull(f.m)) };
+  const dk = !src.skin && src.deck ? src.deck(sh) : null;      // NOSE-DECK: the open frame's kept deck, of THIS sheet's faces
+  const s0 = src.skin ? sh : { ...sh, F: sh.F.filter(f => !src.cull(f.m) || (dk && dk(f))) };
   return src.glaze ? s0 : { ...s0, F: s0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') };
 };
 // after the chain: the standing fuselage cut as the gear layer now says (nothing to do when it already is)
@@ -2161,7 +2162,7 @@ function drainLate() {
 // layers published in), a chain that threw or never recorded, `?garage=old`, CAGE_UI.releaseFast = false.
 // GATE INSTANT drags and releases each row, then builds the same rows the long way: SAME.
 // the P keys the build reads outside the layers (grep `P.` in this file) and the view's switches the mesh is made by
-const PRE_KEYS = ['planeScale', 'hgFinish', 'explodeD', 'intOn', 'intDash', 'skinOn', 'glazeOn', 'glazeMat', 'whProfile',
+const PRE_KEYS = ['planeScale', 'hgFinish', 'explodeD', 'intOn', 'intDash', 'skinOn', 'noseDeck', 'glazeOn', 'glazeMat', 'whProfile',
   'skylight', 'mirror', 'memRise', 'memPitch', 'memFast', 'memDia', 'intCons', 'doorPax', 'doorOn'];
 const preKey = () => {
   try {
@@ -2418,8 +2419,13 @@ function* buildSteps() {
   const skinCull = name => !GLASSM.has(name)
     && !INTSTRUCT.has(name) && name !== 'joint' && name !== 'doorSeal'
     && name !== 'paneEdge';
+  // NOSE-DECK (the user 10 Nov): an open frame may keep the nose zone's top skin, bar to bar (cageNoseDeck) - a
+  // builder per sheet, since the eye sheet and the wells' cut sheet carry their own faces
+  const deckOf = (P.skinOn == null || P.skinOn) || !+P.noseDeck || !G.cageNoseDeck || !G.cageBodyZones ? null
+    : (sh => G.cageNoseDeck(sh, spec));
+  const deckS = deckOf ? deckOf(s) : null;
   const sd0 = (P.skinOn == null || P.skinOn) ? s
-    : { ...s, F: s.F.filter(f => !skinCull(f.m)) };
+    : { ...s, F: s.F.filter(f => !skinCull(f.m) || (deckS && deckS(f))) };
   // GLAZING OFF (2026-09-04): the glass faces go the same way the skin does
   const sd = (P.glazeOn == null || +P.glazeOn) ? sd0
     : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') };
@@ -2434,7 +2440,7 @@ function* buildSteps() {
   const zones = G.cageBodyZones ? G.cageBodyZones(spec) : null;
   const diag = surfSel !== 'off' || ($('curv') && $('curv').checked) || ($('wire') && $('wire').checked);
   const eyeV = EYE_VARIANT();
-  EYE_SRC = (eyeV >= 2 && !diag && G.cageEyeLevel) ? { s, P: Object.assign({}, P), step, L, v: eyeV, cull: skinCull,
+  EYE_SRC = (eyeV >= 2 && !diag && G.cageEyeLevel) ? { s, P: Object.assign({}, P), step, L, v: eyeV, cull: skinCull, deck: deckOf,
     skin: P.skinOn == null || !!P.skinOn, glaze: P.glazeOn == null || !!+P.glazeOn } : null;
   if (window.CAGE_UI) window.CAGE_UI.eyeVariant = eyeV;
   if (EYE_SRC) eyeWatch();
@@ -2443,7 +2449,7 @@ function* buildSteps() {
     : ($('wire') && $('wire').checked) ? quadWire(sd) : meshFrom(sd);
   meshObj.userData.eye = null;
   // RETRACT G4: what the wells' cut is made from (wellApply after the chain); none in a diagnostic view
-  WELL_SRC = diag ? null : { s, cull: skinCull, skin: P.skinOn == null || !!P.skinOn, glaze: P.glazeOn == null || !!+P.glazeOn };
+  WELL_SRC = diag ? null : { s, cull: skinCull, deck: deckOf, skin: P.skinOn == null || !!P.skinOn, glaze: P.glazeOn == null || !!+P.glazeOn };
   meshObj.userData.wellSig = '';
   // THE UNIT (see CAGE_UNIT in _cage_gen.js): metres = cage x CAGE_UNIT
   // x planeScale. The cage scales; crew scenery is already metric and
