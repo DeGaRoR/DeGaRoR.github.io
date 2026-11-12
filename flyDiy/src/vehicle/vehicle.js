@@ -116,7 +116,7 @@ const vehWrapPi = a => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * 
 //         tyre, aero, proxy: [[x, y, z] body points], wb, track, rMin, foot: { front, rear, half } }
 // `contacts` and `propulsion` name the providers: today 'wheels' + 'proxy' and 'wheels'; a boat: 'hull', 'thrust'.
 function vehicleDef(sheet, tune) {
-  tune = tune || VEH_TUNES[sheet.car];
+  tune = tune || sheet.tune || VEH_TUNES[sheet.car];   // (13 Nov: a garage car's sheet carries its own tune - tools/car_sheet.js)
   if (!tune) throw new Error('vehicleDef: no tune for ' + sheet.car);
   const E = sheet.estimates || {};
   const mass = E.mass_kg, cg = E.cg.slice(), I = E.inertia_kgm2.slice();

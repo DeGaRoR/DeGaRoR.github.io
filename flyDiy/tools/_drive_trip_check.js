@@ -20,6 +20,8 @@
 //          hard ground; Fishing Village and back (its approach r40 an even ramp since the composer's junction ease)
 //   TOWNOFF the town not built (the laptop / potato budgets, software rendering - G590, G1526; ON by default): Cedar
 //          Harbour unreachable, said so in the To picker
+//   CARPLACES (13 Nov) the car's own places (harbour front, village, tramway, cannery) reachable from HOME, the car's To list
+//          without the runway ends, a GARAGE car (the roadster's measured sheet) driven HOME -> the village
 //   PAGE   the drive mode's wiring by its source: the lazy pack, nothing in MANIFEST.core, app.js's hooks
 // ~25 s (the island composed: 5 s). node tools/_drive_trip_check.js [--track out.json]
 'use strict';
@@ -193,6 +195,31 @@ const turns = D.log.filter(l => l.what === 'uturn').map(l => l.msg.replace(/: .*
   const DMsrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'drive_mode.js'), 'utf8');
   row('TOWNOFF', !ids.includes('mk_hall') && !ids.includes('mk_sea') && ids.includes('HOME') && /not built at this graphics budget/.test(DMsrc),
     'the town not built (laptop / potato budget, software rendering; ' + Dp.n + ' entries dropped): the car\'s places ' + ids.join(', ') + ' - Cedar Harbour unreachable, the To picker lists it greyed ("not built at this graphics budget"); the town is on by default');
+}
+// ---- CARPLACES (13 Nov, the user's usable car: "put the car in the garage, roll out, pick a destination, drive there"; "a few
+// CAR-ONLY destinations"): the car's own places on HOME's network, a car's To list without the runway ends (the tow's and the
+// trailer's), and A GARAGE CAR - the roadster's sheet as tools/car_sheet.js measured its drawing (src/cars/car_roadster.json),
+// not the stock pickup - driven by the AI from HOME to the village ----
+{
+  const want = VI.VI_CAR_PLACES.map(c => c.id), got = want.filter(id => G.places[id]);
+  const L0 = Dr.vehGraphLocate(G, G.places.HOME.x, G.places.HOME.z, 0), DA = Dr.vehDijkstra(G, L0.ahead, null), DB = Dr.vehDijkstra(G, L0.behind, null);
+  const km = id => Math.min(DA.dist[G.places[id].node], DB.dist[G.places[id].node]) / 1000;
+  const reach = got.filter(id => isFinite(km(id)));
+  const DMsrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'drive_mode.js'), 'utf8');
+  const noRwy = /p\.kind === 'stop' && p\.what !== 'runway'/.test(DMsrc), useCar = /DM\.useCar = useCar/.test(DMsrc) && /await useCar\(ctx\)/.test(DMsrc);
+  const RS = require(path.join(ROOT, 'src/cars/car_roadster.json'));
+  const car2 = V.makeVehicle(V.vehicleDef(RS), W), P = G.places.HOME;
+  car2.place(P.x, P.z, Dr.vehFaceToward(G, P.x, P.z, Math.atan2(P.dz, P.dx), 'car:village'));
+  for (let i = 0; i < 30; i++) car2.step(1 / 60);
+  const D2 = Dr.makeDriver(car2, G, { vCruise: 20 }); D2.setDest('car:village');
+  let t = 0, off = 0, vmax = 0; while (t < 1800 && !['ARRIVED', 'STUCK', 'IDLE'].includes(D2.phase)) { D2.step(1 / 60); car2.step(1 / 60); t += 1 / 60;
+    vmax = Math.max(vmax, car2.speed ? Math.abs(car2.speed()) : 0); if (((t * 60) | 0) % 15 === 0) { const e = car2.refPoint(); off = Math.max(off, offRoad(e[0], e[2])); } }
+  const e = car2.refPoint(), dV = Math.hypot(e[0] - G.places['car:village'].x, e[2] - G.places['car:village'].z);
+  row('CARPLACES', got.length === want.length && reach.length === want.length && noRwy && useCar && D2.phase === 'ARRIVED' && dV < 2 && off < 1,
+    'the car\'s own places on HOME\'s network: ' + got.map(id => G.places[id].name + ' ' + f(km(id), 1) + ' km (' + f(G.places[id].off, 0) + ' m off a road)').join(', ') +
+    ' (' + reach.length + ' of ' + want.length + ' reachable); the car\'s To list without the runway ends: ' + (noRwy ? 'yes' : 'NO') + '; drive mode takes a given car (useCar): ' + (useCar ? 'yes' : 'NO') +
+    '; THE GARAGE ROADSTER (' + (RS.car && RS.car.name || 'car_roadster.json') + ', its measured sheet) HOME -> the village: ' + D2.phase + ' in ' + f(t / 60, 1) + ' min, ' + f(dV, 2) + ' m from the stop, ' +
+    f(vmax * 3.6, 0) + ' km/h at most, ' + f(off, 2) + ' m off the road at worst');
 }
 // ---- PAGE: the drive mode's wiring, by its source (the browser rig is tools/drive_shot.js) ----
 {

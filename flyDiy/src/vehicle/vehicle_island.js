@@ -240,6 +240,23 @@ function vehIslandSpec(RG, opts) {
 // h: { siteOf, fieldName (the core's), town: { id, site, name } (the town hall's site id), from: [x, z] (where the vehicle
 // starts: the places on its network) }
 const VI_DRIVABLE = { 0: 1, 5: 1, 6: 1, 7: 1 };   // the world's SURFACE: grass, paved, gravel, sand (not rock, scree, forest, water)
+// THE CAR'S OWN PLACES (the user, 13 Nov via A0: "a few CAR-ONLY destinations"): places a car goes and an aeroplane does
+// not - each from the premises record (a site's `at`, or a zone's centre), by id, so a record without one simply has no such
+// place; a stop on the vehicle's road network like the town's (600 m off a road at most, else reported, not listed)
+const VI_CAR_PLACES = [
+  { id: 'car:harbour', site: 'mk_harbormaster', name: 'Cedar Harbour harbour front' },
+  { id: 'car:village', zone: 'z_village', name: 'the village' },
+  { id: 'car:tramway', site: 'tw_s_valley', name: 'Skyline Tramway valley station' },   // (Copperhead Mine: its streets are a network of their own - no road to it from the rest of the island, 9.1 km off one)
+  { id: 'car:cannery', site: 's7', name: 'the cannery at Cannery Runway' },
+];
+function viCarSites(rec) {
+  const L = (rec && rec.layers) || {}, out = [];
+  for (const C of VI_CAR_PLACES) {
+    if (C.site) { const s = (L.sites || []).find(q => q.id === C.site); if (s && s.at) out.push({ id: C.id, name: C.name, x: s.at.x, z: s.at.z, kind: 'car' }); }
+    else if (C.zone) { const z = (L.zones || []).find(q => q.id === C.zone), P = z && z.poly; if (P && P.length) { let x = 0, y = 0; for (const q of P) { x += q.x ?? q[0]; y += q.z ?? q.y ?? q[1]; } out.push({ id: C.id, name: C.name, x: x / P.length, z: y / P.length, kind: 'car' }); } }
+  }
+  return out;
+}
 function vehIslandFromWorld(world, h) {
   const P = world.premises, O = P && P.overlay;
   if (!O || typeof O.roadGraph !== 'function') return null;
@@ -250,6 +267,7 @@ function vehIslandFromWorld(world, h) {
     .map(a => { const s = site(a.id); return { id: a.id, name: nm(a.id, a.name), x: a.x, z: a.z, hdg: a.hdg, len: a.len, wid: a.wid, surface: a.surface, stand: s.stand, taxiOut: s.taxiOut, taxiOut1: s.taxiOut1 }; });
   const sites = [];
   const T = h.town; if (T) { const hall = ((P.rec && P.rec.layers && P.rec.layers.sites) || []).find(s => s.id === T.site); if (hall && hall.at) sites.push({ id: T.id, name: T.name, x: hall.at.x, z: hall.at.z, kind: 'town' }); }
+  if (h.carPlaces !== false) for (const c of viCarSites(P.rec)) sites.push(c);
   const RG = O.roadGraph();
   const I = vehIslandSpec(RG, { rec: P.rec, toWorld: (x, z) => O.frame.toWorld(x, z), aerodromes: aero, sites, from: h.from, runways,
     ground: (x, z) => !!VI_DRIVABLE[world.surface(x, z)], height: (x, z) => world.terrainH(x, z), joinCrossings: h.joinCrossings, tTol: h.tTol });
@@ -257,4 +275,4 @@ function vehIslandFromWorld(world, h) {
   return I;
 }
 
-if (typeof module !== 'undefined') module.exports = { vehIslandSpec, vehIslandFromWorld, viCross, viSegFoot };
+if (typeof module !== 'undefined') module.exports = { vehIslandSpec, vehIslandFromWorld, viCross, viSegFoot, VI_CAR_PLACES, viCarSites };

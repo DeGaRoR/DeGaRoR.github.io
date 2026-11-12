@@ -25,6 +25,7 @@
     on: false, paused: false, name: "Conquer '89 pickup", chaseDist: 10, to: null, from: null, ms: 0,
   };
   let THREE_ = null, scene_ = null, world_ = null, sheet = null, def = null, car = null, G = null, D = null, rig = null, rep = null;
+  let stockSheet = null, carCtx = null;   // the Conquer pickup's sheet (fetched once); the car in use (useCar)
   let start = null, odo = 0, last = null, track = [], hudSaved = null;
   const $ = id => document.getElementById(id);
 
@@ -34,6 +35,17 @@
   function buildRig() {
     const T = THREE_, g = new T.Group(); g.name = 'drive:car'; g.matrixAutoUpdate = false;
     const pm = k => (typeof propMesh === 'function' ? propMesh(T, k) : new T.Group());
+    const own = carCtx && carCtx.mesh;
+    if (own) {
+      // A GARAGE CAR (useCar): its own drawn mesh in the sheet's body frame (x forward, y up, z right, the origin the sheet's -
+      // car_sheet.js measures the drawing into that frame); meshMatrix places it there when the drawing's frame differs.
+      // Its wheels: its own per-wheel meshes (wheels: { <sheet wheel id>: Object3D }, each about the wheel's centre) turn and
+      // steer; without them the drawn wheels stay part of the body (they do not spin - the MVP)
+      if (carCtx.meshMatrix) { own.matrixAutoUpdate = false; own.matrix.copy(carCtx.meshMatrix); }
+      g.add(own);
+      const wheels = def.wheels.map(w => { const o = new T.Group(); o.rotation.order = 'YXZ'; const m = carCtx.wheels && carCtx.wheels[w.id]; if (m) o.add(m); g.add(o); return o; });
+      return { g, wheels, lamps: {}, M: new T.Matrix4(), a: new T.Vector3(), b: new T.Vector3(), c: new T.Vector3() };
+    }
     g.add(pm('car_conquer_body'));
     const lamps = {};
     for (const k of ['head', 'brake', 'reverse']) { const L = sheet.lamps && sheet.lamps[k]; if (!L || !L.prop) continue; lamps[k] = pm(L.prop); g.add(lamps[k]); }
@@ -65,13 +77,28 @@
   }
   const placeName = id => (G && G.places[id] && G.places[id].name) || id;
 
+  // ---- THE CAR IN USE (13 Nov, the user's "put the car in the garage, roll out, pick a destination, drive there"): the
+  //      stock Conquer '89 pickup unless the caller hands one - ctx.sheet (a car sheet: tools/car_sheet.js's, the shell's
+  //      format - src/cars/car_*.json) or ctx.sheetUrl, and ctx.mesh (its drawing, THREE.Object3D in the sheet's body frame;
+  //      ctx.meshMatrix, ctx.wheels, ctx.name optional). A new car drops the old one's rig; the same car keeps it ----
+  async function useCar(ctx) {
+    let sh = ctx.sheet || null;
+    if (!sh && ctx.sheetUrl) { const r = await fetch(ctx.sheetUrl); if (!r.ok) throw new Error('the car sheet ' + ctx.sheetUrl + ': ' + r.status); sh = await r.json(); }
+    if (!sh) { if (!stockSheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); stockSheet = await r.json(); } sh = stockSheet; }
+    const next = sh === stockSheet ? null : { mesh: ctx.mesh || null, meshMatrix: ctx.meshMatrix || null, wheels: ctx.wheels || null };
+    if (sh === sheet && (next ? !!carCtx && carCtx.mesh === next.mesh : !carCtx)) return;   // the same car: its def and rig stand
+    if (rig && rig.g.parent) rig.g.parent.remove(rig.g);
+    rig = null; sheet = sh; carCtx = next; def = vehicleDef(sheet);
+    DM.name = ctx.name || sheet.name || (next ? 'the car' : "Conquer '89 pickup");
+  }
+  DM.useCar = useCar;
+
   // ---- THE GRAPH: the island's roads (vehicle_island.js) and the places a vehicle can be sent to ----
   // (the graph: vehicle_island.js vehIslandFromWorld - the gate's recipe: the roads, the runways and their taxi routes, the
   //  stands' links, the steep stretches closed; buildGraph was this file's own until phase 2)
   DM.enter = async function (ctx) {
     THREE_ = ctx.THREE; scene_ = ctx.scene; world_ = ctx.world;
-    if (!sheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); sheet = await r.json(); }
-    def = vehicleDef(sheet);
+    await useCar(ctx);
     const t0 = performance.now();
     const at = ctx.at || [0, 0, 0];
     const I = vehIslandFromWorld(world_, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null,
@@ -83,7 +110,7 @@
     start = placeNear(at[0], at[2], 1e9);
     if (!start) throw new Error('no place on the roads');
     car = makeVehicle(def, world_);
-    rig = buildRig(); scene_.add(rig.g);
+    if (!rig) rig = buildRig(); if (!rig.g.parent) scene_.add(rig.g);
     DM.on = true; DM.paused = false;
     const to0 = ctx.to && G.places[ctx.to] ? ctx.to : (G.places[TOWN.id] ? TOWN.id : start.id);
     place(start, to0);
@@ -121,7 +148,9 @@
     // (a place the car cannot reach from where it stands - a closed steep stretch, a network of its own - greyed, saying so)
     let reach = null;
     try { const p = car.refPoint(), Lc = vehGraphLocate(G, p[0], p[2], car.heading()), D1 = vehDijkstra(G, Lc.ahead, null), D2 = vehDijkstra(G, Lc.behind, null); reach = n => D1.dist[n] < Infinity || D2.dist[n] < Infinity; } catch (e) {}
-    const L = Object.values(G.places).filter(p => p.kind === 'stop').sort((a, b) => a.name.localeCompare(b.name))
+    // (a car's list: the fields' stands, the town, the car's own places - not the runway ends: those are the tow's and
+    //  the trailer's, which pick their own end; the user, 13 Nov: "the list of reachable destinations differs for a car")
+    const L = Object.values(G.places).filter(p => p.kind === 'stop' && p.what !== 'runway').sort((a, b) => a.name.localeCompare(b.name))
       .map(p => (!reach || reach(p.node) ? { id: p.id, label: p.name, ok: true } : { id: p.id, label: p.name + ' - no drivable road there', ok: false }));
     if (!G.places[TOWN.id] && window.FLYDIY_TOWN && !window.FLYDIY_TOWN.all)
       L.push({ id: TOWN.id, label: ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town') + ' - not built at this graphics budget', ok: false });
@@ -234,8 +263,7 @@
   DM.towStart = async function (ctx) {
     TW.kind = 'line';
     THREE_ = ctx.THREE; scene_ = ctx.scene; world_ = ctx.world;
-    if (!sheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); sheet = await r.json(); }
-    def = def || vehicleDef(sheet);
+    await useCar(ctx);
     const sim = ctx.sim, cg = sim.cgPos();
     if (!G) {
       const I = vehIslandFromWorld(world_, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null, town: null, from: [cg[0], cg[2]] });
@@ -274,8 +302,7 @@
   //      (GATE TRAILER's PERF), the trailer's pose and loads ~2 us, the car 0.1 ms, the model's 14 draw calls ----
   DM.trailerStart = async function (ctx) {
     THREE_ = ctx.THREE; scene_ = ctx.scene; world_ = ctx.world;
-    if (!sheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); sheet = await r.json(); }
-    def = def || vehicleDef(sheet);
+    await useCar(ctx);
     const sim = ctx.sim, cg0 = sim.cgPos();
     if (!G) {
       const I = vehIslandFromWorld(world_, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null, town: null, from: [cg0[0], cg0[2]] });
