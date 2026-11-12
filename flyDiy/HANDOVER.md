@@ -315075,3 +315075,9 @@ READY for the GAME COORDINATOR
 - Standing reds (master's, same checks): GEN, TREECRASH, DMGGEAR, DMGDRIVE, DMGINST, DMGSCAR (liner's named edge), FRAMECOST, ROUNDTRIP, LIVERY, JOINPARITY, NEWPLANE-BUILDS, ENGCONFIG, FLIGHTREC, DESTTO, SIMWORKER-EDGES, SCENERYED, NODUMMY, TECH.
 - PAVEMENT's timing row went 102 vs 87 ms under load and passed alone.
 - TIMED GATE: timed out again on its last rows (boot 134-244 s class, shader-cache misses). It is the perf round's first item.
+
+## PLAY-PLAN (Game, ready claude/ready/play-plan, 12 Nov)
+
+- The user 10 Nov ~20:55 via A0: "play the plan" - remove the dead method (no visible row exists), keep ?plan=1.
+- day_clock.js: DAY_CLOCK.plan(on) removed (no caller in src or tools); the ?plan=1 read at the clock's start stays, with a line saying so.
+- Gates: BUILT, CLOCK, WEATHERPLAN, HONESTY, HANGAR (the files that read day_clock.js; no Chrome). Reds: named in the push line if any.
