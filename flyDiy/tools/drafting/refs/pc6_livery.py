@@ -3,11 +3,15 @@ import json,sys
 src,out=sys.argv[1],sys.argv[2]
 ov=json.loads(sys.argv[3]) if len(sys.argv)>3 else {}
 d=json.load(open(src)); s=d['spec']
-T=0x1fb3c2; O=0xf5862a; C=0xf7f1e3; N=0x163047; Y=0xffc23d; Wh=0xf6f6f1; Om=0xf7a03e
+T=0x1fb3c2; O=0xf5862a; C=0xf7f1e3; N=0x163047; Y=0xffc23d; Wh=0xf6f6f1
+# (12 Nov, the colour fix: a tint is decoded ONCE now, as a decal is) Tb, the body's teal, is the colour the user approved
+# as it showed under the double decode (T decoded once: #03738a); the decals keep T (the streak's lighter turquoise, as
+# seen). The orange surfaces take the decals' own O: the earlier Om (0xf7a03e) was the eye compensating for the bug
+Tb=0x03738a; Om=O
 body=['body','taper','taperPanel','waistband','ceilingLoop','floorLoop','pillarWindow','pillarCabin','pillarPassenger','pillarTail','pillarFront','pillarTaper']
-sec={k:{'tint':T} for k in body}
-sec.update({'cowlSkin':{'tint':T},'spinner':{'tint':O},'wingSkin':{'tint':T},'wingTip':{'tint':O},
- 'finSkin':{'tint':T},'finRud':{'tint':Om},'stabSkin':{'tint':Om},'stabElev':{'tint':Om},'wingAil':{'tint':Om}})   # struts and gear legs: no override - the body's turquoise by the parent chain (r13)
+sec={k:{'tint':Tb} for k in body}
+sec.update({'cowlSkin':{'tint':Tb},'spinner':{'tint':O},'wingSkin':{'tint':Tb},'wingTip':{'tint':O},
+ 'finSkin':{'tint':Tb},'finRud':{'tint':Om},'stabSkin':{'tint':Om},'stabElev':{'tint':Om},'wingAil':{'tint':Om}})   # struts and gear legs: no override - the body's turquoise by the parent chain (r13)
 dec={
  # m1/m2: the swoosh (craft frame; curve.py gives the line along the body) - a cream sweep and, 8 cm under it, the
  # orange one with its thin navy line = a fat cream keyline
@@ -31,6 +35,6 @@ dec={
 }
 dec.update(ov)
 s['finish']={'sections':sec,'decals':dec}
-s['paint']={'job':'full','sweep':0.65,'base':T,'trim':N}
+s['paint']={'job':'full','sweep':0.65,'base':Tb,'trim':N}
 s.setdefault('meta',{}); s['meta']['reg']='HB-FDY'; s['meta'].setdefault('name','PC-6 Turbo Porter')
 json.dump(d,open(out,'w'))
