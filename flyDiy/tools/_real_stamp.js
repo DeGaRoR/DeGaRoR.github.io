@@ -6,7 +6,8 @@
 //                           tools/_cage_design.js, which holds the ARCHETYPES rows - coarse: any card edit stales every card)
 //   core   'd0af9a5bd665064a' flight_core.js's body-sha256 (its header line, written by tools/build.js)
 //   harness  the blob of tools/real_check.js (the flight rig; a change is shown, not counted stale)
-//   ref    { key, hash }    a hash of the REFS row (sorted keys) - the figures the result is scored against
+//   ref    { key, hash }    a hash of the REFS row (sorted keys) - the figures the result is scored against, without the
+//                           row's trail (its sources and notes: refFlown)
 //   plane  { key, hash }    a hash of the PLANES row without its labels (file, loads, water/land, sweep options...)
 //   at     ISO date the result was flown;  backfilled: <commit> when the stamp was written afterwards (see --backfill)
 //
@@ -43,7 +44,17 @@ function canon(v) {
 const PLANE_LABELS = ['label', 'short', 'note', 'listRow', 'supersededBy', 'next', 'dropped', 'test', 'group', 'official',
                       'provisional', 'engineNote', 'light', 'branch'];
 const planeHash = P => { const q = {}; for (const k of Object.keys(P || {})) if (!PLANE_LABELS.includes(k)) q[k] = P[k]; return hashOf(canon(q)); };
-const refHash = R => hashOf(canon(R || {}));
+// the REFS row's TRAIL - where a figure comes from (src, sources, from, note...) and a row's flaps, which no code reads -
+// is left out, and a range [lo, hi] read in order, so documenting a row (tools/_realrefs_lint.js) does not stale the
+// results flown against it
+const REF_TRAIL = ['src', 'sources', 'from', 'note', 'geoSrc', 'lengthNote', 'variant'];
+function refFlown(R) {
+  const q = {};
+  for (const k of Object.keys(R || {})) if (!REF_TRAIL.includes(k)) q[k] = R[k];
+  if (q.rows) { const rows = {}; for (const k of Object.keys(q.rows)) { const r = Object.assign({}, q.rows[k]); for (const t of REF_TRAIL.concat(['flaps'])) delete r[t]; if (Array.isArray(r.v)) r.v = r.v.slice().sort((x, y) => x - y); rows[k] = r; } q.rows = rows; }
+  return q;
+}
+const refHash = R => hashOf(canon(refFlown(R)));
 const coreIdOf = text => { const m = String(text).match(/^\/\/ body-sha256: (\w+)$/m); return m ? m[1] : null; };
 
 // a reader of files: now (the working tree) or at a commit
@@ -120,4 +131,7 @@ function main() {
   }
 }
 if (require.main === module) main();
-module.exports = { stampOf, check, blobOf, planeHash, refHash, coreIdOf, canon };
+// THE LIVE SET: the PLANES rows the report stands behind - not taken out (dropped), replaced (supersededBy) or waiting
+// (next); a row flown from another branch (branch:) only with o.branch
+const liveKeys = (PLANES, o = {}) => Object.keys(PLANES).filter(k => (o.every || !(PLANES[k].dropped || PLANES[k].supersededBy || PLANES[k].next)) && (o.branch || !PLANES[k].branch));
+module.exports = { liveKeys, stampOf, check, blobOf, planeHash, refHash, coreIdOf, canon };

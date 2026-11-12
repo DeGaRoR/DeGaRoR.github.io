@@ -525,6 +525,15 @@ const GATES = [
   // nothing deleted; the pool agrees, the Market's files stay; the All planes screen's source rows, internal for the dev only;
   // the empty stand's R1 and R2 (EMPTY-STAND-RELOOK). ~1 s
   { id: 'PLANELISTS', file: '_planelists_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },
+  // REALBAND (REAL-FIGURES made perennial, 12 Nov): the live set of tools/real_refs.js PLANES (the planes the REAL-CHECK
+  // report stands behind) still flies its quick band - the airframe at MIN / TYP / MTOW, the shape, the empty mass - against
+  // tools/realband_baseline.json. A meant move (physics, a refit) is accepted with `node tools/_realband_check.js --write`,
+  // then the set re-flown for the report. Two children (weight 2), ~4 min
+  // REALREFS: every reference figure states what it is, its conditions (weight, flaps, surface) and - for a reference made
+  // from 12 Nov - its trail (variant, sources with url / date read / quality, each row's source); every PLANES row resolves.
+  // Pure node, ~0.1 s
+  { id: 'REALREFS', file: '_realrefs_lint.js', argv: ['--selftest'], tier: 'core', wall: 3 },
+  { id: 'REALBAND', file: '_realband_check.js', argv: ['--selftest', '--jobs=2'], tier: 'core', weight: 2, wall: 300 },
   // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
   // (every card-like id draggable or allow-listed with its reason), the manifest (before app.js), the gesture in a stub DOM
   // (threshold, save per key, buttons never drag, re-render / re-made cards put back, on screen, the double-click). ~1 s

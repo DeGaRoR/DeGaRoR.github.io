@@ -111,9 +111,9 @@ const REFS = {
       empty: { v: [721 + 76, 744 + 76], tol: 0.02, src: 'the 172R standard empty 721-744 kg + Wipaire\'s seaplane exchange weight 76 kg (168 lb; the guide rev 1/18)' },
       Vs1:  { v: 51 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: 'the landplane 51 KCAS (floats add ~nothing to CLmax)' },
       roc:  { v: [660 * FPM, 749 * FPM], tol: 0.05, kg: 'unknown', src: 'Wipaire 749 fpm; 660 fpm on another Wipaire page' },
-      TOW:  { v: [335, 501], tol: 0.05, kg: 'unknown', surface: 'water', src: 'Wipaire ~335-365 m (160-180 hp) to 1645 ft (unstated)' },
-      TOWs: { v: [20, 35], tol: 0.05, kg: 'unknown', surface: 'water', src: 'HYDROTRIM brief 20-35 s' },
-      TOW50: { v: 2463 * FT, tol: 0.10, kg: 'unknown', surface: 'water', src: 'Wipaire 2463 ft (unstated)' },
+      TOW:  { v: [335, 501], tol: 0.05, kg: 'unknown', flaps: 'unknown', surface: 'water', src: 'Wipaire ~335-365 m (160-180 hp) to 1645 ft (unstated)' },
+      TOWs: { v: [20, 35], tol: 0.05, kg: 'unknown', flaps: 'unknown', surface: 'water', src: 'HYDROTRIM brief 20-35 s' },
+      TOW50: { v: 2463 * FT, tol: 0.10, kg: 'unknown', flaps: 'unknown', surface: 'water', src: 'Wipaire 2463 ft (unstated)' },
     } },
   // PIPER PA-18 SUPER CUB ON FLOATS - Wipaire's PA-18/PA-12 guide, Wipline 2100 AMPHIBIANS, O-320 160 hp: two columns,
   // the standard gross (1776 lb with the floats) and the 2000 lb kit. The build is an O-320 150 hp on EDO-style floats
@@ -126,9 +126,9 @@ const REFS = {
       Vs1:  { v: 43 * MPH, tol: 0.05, kg: 'gross', flaps: 'up', src: 'PA-18-150 landplane 43 mph flaps up (Piper sheet)' },
       roc:  { v: 925 * FPM, tol: 0.05, kg: 806, src: 'Wipaire 925 fpm at 1776 lb (amphibian, 160 hp)' },
       roc2: { v: 756 * FPM, tol: 0.05, kg: 907, key: 'roc', src: 'Wipaire 756 fpm at 2000 lb' },
-      TOW:  { v: 776 * FT, tol: 0.05, kg: 806, surface: 'water', src: 'Wipaire 776 ft at 1776 lb' },
-      TOW2: { v: 1174 * FT, tol: 0.05, kg: 907, key: 'TOW', surface: 'water', src: 'Wipaire 1174 ft at 2000 lb' },
-      TOW50: { v: 1294 * FT, tol: 0.05, kg: 806, surface: 'water', src: 'Wipaire 1294 ft at 1776 lb' },
+      TOW:  { v: 776 * FT, tol: 0.05, kg: 806, flaps: 'unknown', surface: 'water', src: 'Wipaire 776 ft at 1776 lb' },
+      TOW2: { v: 1174 * FT, tol: 0.05, kg: 907, key: 'TOW', flaps: 'unknown', surface: 'water', src: 'Wipaire 1174 ft at 2000 lb' },
+      TOW50: { v: 1294 * FT, tol: 0.05, kg: 806, flaps: 'unknown', surface: 'water', src: 'Wipaire 1294 ft at 1776 lb' },
     } },
   // EDRA / SCODA SUPER PETREL LS (912 iS). Brochure figures - the maker's own and the web summaries disagree on the
   // stall (56 km/h Wikipedia / 37 kt = 68 km/h maker) and quote 1000-1400 fpm: all solo-ish (HULL-B76 found the stall
@@ -147,7 +147,7 @@ const REFS = {
       roc:   { v: 1000 * FPM, tol: 0.05, kg: 'unknown', src: 'max climb rate 1000 ft/min (912iS; the 914 Turbo is 1400) - maker sheet' },
       LD:    { v: 10, tol: 0.10, kg: 'unknown', src: 'glide ratio 10:1 - maker sheet' },
       TO:    { v: 262 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'paved', src: 'take-off ground 262 ft - maker sheet' },
-      TOW:   { v: 394 * FT, tol: 0.10, kg: 'unknown', surface: 'water', src: 'take-off water 394 ft - maker sheet' },
+      TOW:   { v: 394 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'water', src: 'take-off water 394 ft - maker sheet' },
       LDG:   { v: 394 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'paved', src: 'landing ground 394 ft (water 328 ft) - maker sheet' },
     } },
   // CHINOOK PLUS 2 (582) - an ultralight sheet, flown one-up (perf_study REAL.chinook's ruling)
@@ -262,7 +262,7 @@ Object.assign(REFS, {
       Vs1:   { v: 57 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: '57 kt clean' },
       Vmax:  { v: 172 * KT, tol: 0.08, kg: 'gross', src: '172 kt (conditions unstated)' },
       roc:   { v: 940 * FPM, tol: 0.05, kg: 'gross', src: '940 fpm' },
-      TO50:  { v: 1435 * FT, tol: 0.10, kg: 'gross', surface: 'paved', src: '1435 ft over 50 ft (337/337A)' },
+      TO50:  { v: 1435 * FT, tol: 0.10, kg: 'gross', flaps: 'unknown', surface: 'paved', src: '1435 ft over 50 ft (337/337A)' },
     } },
 });
 
@@ -279,7 +279,7 @@ Object.assign(REFS, {
     rows: {
       empty: { v: 408, tol: 0.05, src: '900 lb (Plane & Pilot)' },
       Vs1:   { v: 35 * KT, tol: 0.05, kg: 'unknown', flaps: 'up', src: '35 kt flaps up (Wikipedia, THIN)' },
-      V75:   { v: [104 * KT, 110 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 105-110 mph (Plane & Pilot) / 104 kt (Wikipedia); NOTE the POH cruise is power-limited to 80 hp' },
+      V75:   { v: [110 * MPH, 104 * KT], tol: 0.05, kg: 'unknown', src: 'cruise 105-110 mph (Plane & Pilot) / 104 kt (Wikipedia); NOTE the POH cruise is power-limited to 80 hp' },
       roc:   { v: [1500 * FPM, 2100 * FPM], tol: 0.05, kg: 'unknown', src: '2100 fpm (CubCrafters via Plane & Pilot), 1500 fpm (AvPay)' },
       // (the user, 9 Nov: "18 m take-off roll is not reasonable. Let's go for 40-50, which seems like decent STOL performance under
       // reasonable take-off conditions" - aeropedia's 60 ft, single-source and listed for the EX2 too, read as a demonstration)

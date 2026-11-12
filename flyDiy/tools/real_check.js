@@ -26,7 +26,8 @@
 //      game - best = the PILOT'S SHARE; best - reference (at the reference's weight) = the AIRFRAME'S.
 //
 //   node tools/real_check.js cub                    one plane (keys: tools/real_refs.js PLANES)
-//   node tools/real_check.js --all [--jobs=4]       the whole set, one child process per plane
+//   node tools/real_check.js --all [--jobs=4]       the live set (not dropped / supersededBy / next / branch rows; --every,
+//                                                   --branch for those), one child process per plane
 //   node tools/real_check.js cub --quick            the analytic band only (no flights, ~20 s a plane)
 //   node tools/real_check.js --build=f.json --ref=c172r [--water]   any build against any reference row
 //   options: --json=<file> (the results), --md=<file> (the report section), --svg=<file> (the band chart),
@@ -746,8 +747,7 @@ function main() {
   const t0 = Date.now();
   if (has('all') || keys.length > 1) {
     // --all: the live set - not the rows taken out (dropped), replaced (supersededBy) or waiting (next); --every flies them too
-    const inSet = k => has('every') || !(PLANES[k].dropped || PLANES[k].supersededBy || PLANES[k].next);
-    const list = has('all') ? Object.keys(PLANES).filter(k => (!PLANES[k].branch || has('branch')) && inSet(k)) : keys;
+    const list = has('all') ? require(path.join(T, '_real_stamp.js')).liveKeys(PLANES, { every: has('every'), branch: has('branch') }) : keys;
     const jobs = +opt('jobs', 4), { spawn } = require('child_process');
     const dir = opt('dir', path.join(T, 'perf', 'real_check'));
     fs.mkdirSync(dir, { recursive: true });

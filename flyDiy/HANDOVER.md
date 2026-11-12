@@ -314132,3 +314132,50 @@ before; c172v2 / c172v2f keep their 9 Nov alloy-frame evidence (their files are 
 
 PHASE 2 (open): the hump trim / tail dip; the water roll oscillation; the pusher wake and the missing drag items; the
 rotation; the hinge line; the LE tank bay to the real spar line.
+
+## REAL-FIGURES PERENNIAL - STAMPS, GATE REALBAND, GATE REALREFS, THE HOW-TO (2026-11-12, REAL-FIGURES, cloud; branch claude/practical-cerf-7fjpwp)
+
+The REAL-CHECK report can no longer quietly show a number flown on another aeroplane, core or reference, and a new
+reference cannot go in without its conditions and its sources. The how-to: tools/FIT_AND_VALIDATE.md section 12.
+- STAMPS (tools/_real_stamp.js). Every real_check result carries `stamp`: the build file's git blob, the core's
+  body-sha256, real_check.js's blob, and hashes of the PLANES row (without its labels) and of the REFS row (without its
+  trail: src, sources, notes, a row's flaps). `check()` reads fresh / stale (the build, core or PLANES row moved: re-fly)
+  / rescored (only the reference moved) / unstamped. real_report prints a freshness block at the top and a chip on each
+  plane. `node tools/_real_stamp.js` lists the state of every result; `--backfill=<dir> --at=<commit>` stamps an older
+  folder from the files at the commit it was flown on. REAL-CHECK-2026-11-11 (dc6b3e550) and -12 (c6eedb0b1) are
+  backfilled: all 14 fresh on core d0af9a5bd665064a. The V2-172s (9 Nov, claude/alloy-frame) stay unstamped; their PLANES
+  rows now say `branch: 'claude/alloy-frame'`.
+- THE LIVE SET (_real_stamp.liveKeys): the PLANES rows that are not dropped, supersededBy, next or on another branch.
+  `real_check --all` flies only those (`--every` / `--branch` for the rest). Today: cub jodelg pa18f ruckus dc3r chinookm
+  tigermothm camelm stearman petrel42 carboncubss (the user's 13 minus the two V2-172s on alloy-frame).
+- GATE REALBAND (tools/_realband_check.js, core, weight 2, ~2-4 min): `real_check --quick` of the live set against
+  tools/realband_baseline.json - per load MIN / TYP / MTOW the mass, Vs, V75, Vmax, climb, L/D, grass take-off, CG and
+  margin, plus the shape and the empty mass. Red on a move past its tolerance (1 % on a speed, 0.5 point on a CG), naming
+  whether the build file or the core moved. A meant move: `--write`, then re-fly and regenerate the report. The note
+  line says how fresh the report's evidence is (not red).
+- GATE REALREFS (tools/_realrefs_lint.js, core, 0.1 s). Every row must give:
+  - its indicator, v, tol and src;
+  - its conditions, stated even when unknown: kg on every performance row, flaps on the stall and the distances,
+    surface on the distances (a water row: water).
+
+  A reference made from now on must also carry `variant`, `sources` ({what, quality, read, url | noUrl}) and each row's
+  `from`. The 14 references made before are LEGACY, listed in the lint and printed as a note until each is sourced.
+  Every PLANES row must resolve. The lint found three things, now fixed:
+  - 8 distance rows with no flaps, now stated: 7 'unknown', the Petrel's water take-off 0 (the type has no flaps);
+  - the Carbon Cub's V75 range written high-to-low (the scores read it min / max: unchanged);
+  - the stamp's ref hash now reads a range in order.
+- real_report grades a sourced row's confidence by its sources' quality (poh 1, maker / typeSheet 0.9, review 0.6,
+  encyclopedia / ruling 0.5, thin 0.3), else by its src text as before.
+- TOOLS from the scratch scripts:
+  - tools/lattice_overlay.js (+ .py): the flown nodes, beams and strips over quickshot's pictures, on the game's load
+    path, with the join's datum. ~15 s. Checked on the Cub and the Super Petrel.
+  - tools/fleet_scan.js: every build's mass, margin, CG / NP and tail taper per tree, then `--diff=base,new`.
+- REAL-CHECK-2026-11-12.html regenerated: the scores unchanged (Jodel 94 ... Ruckus 63), the freshness block naming the
+  two V2-172s.
+Gates: REALREFS, REALBAND, PLANELISTS PASS (run_gates --only, no core change on this commit: no (built) commit).
+Open:
+- the 14 references' trail (url, date read, quality per source; no row records a url today, so it needs reading the
+  sources again, not inventing them);
+- the three-view drawing overlay as a tool;
+- the lattice overlay's CG / NP marks;
+- the trim check's keel pitch and boom / rudder split (SEAPLANES' tools/_petrel_trim_check.js).

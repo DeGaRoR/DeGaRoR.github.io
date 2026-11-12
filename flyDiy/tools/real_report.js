@@ -194,6 +194,14 @@ function srcQuality(src) {
   if (/Wikipedia|aeropedia|AvPay|encyclop/i.test(t)) return 0.5;
   return 0.6;
 }
+// a row with its trail (tools/_realrefs_lint.js: `from` naming REFS[k].sources) is graded by its sources' quality, the best
+// of them; a row from before the trail by its src text, as above
+const Q_OF = { poh: 1.0, typeSheet: 0.9, maker: 0.9, review: 0.6, encyclopedia: 0.5, ruling: 0.5, thin: 0.3 };
+function rowQuality(R, row) {
+  const fr = [].concat((row && row.from) || []).map(id => R.sources && R.sources[id]).filter(Boolean);
+  if (!fr.length) return srcQuality(row && row.src);
+  return Math.max(...fr.map(s => Q_OF[s.quality] != null ? Q_OF[s.quality] : 0.6));
+}
 const CONF_BANDS = [[70, 'solid'], [45, 'fair'], [0, 'thin']];
 function scorePlane(o) {
   const v1 = scorePlaneV1(o);
@@ -211,7 +219,7 @@ function scorePlane(o) {
     const row = R.rows && R.rows[it.k];
     const x = itemV2(it.k, it.ours, it.ref, row && row.tol);
     if (!x) continue;
-    x.src = it.src; x.verdict = it.verdict; x.extrap = it.extrap; x.err = it.err; x.q = srcQuality(row && row.src); E += x.q;
+    x.src = it.src; x.verdict = it.verdict; x.extrap = it.extrap; x.err = it.err; x.q = rowQuality(R, row); E += x.q;
     out.items.performance.push(x);
   }
   out.performance = agg(out.items.performance, W_PERF);

@@ -14,9 +14,9 @@ Each phase is finished before the next starts; a later phase never quietly chang
 | A. References | the maker's figures, their conditions, the drawings | every row sourced, its conditions stated | `tools/real_refs.js` (REFS, PLANES, NOTES) |
 | B. Geometry | shape fitted to drawings / photos / 3D model | the overlay matches, the user signs it off | `REF_MATCH.md`, photo / three-view overlays, `quickshot.js`, edits recipes |
 | C. Internals | fuel, seats, systems, mass, balance | where the real ones are; CG computed with the pilot in | the garage rows, `real_check --quick` |
-| D. Physics check | the flown lattice over the drawing | no visible mismatch; `geoparity` rows small | lattice overlay (scratch, to commit), `_geoparity_*.js` |
+| D. Physics check | the flown lattice over the drawing | no visible mismatch; `geoparity` rows small | `tools/lattice_overlay.js`, `_geoparity_*.js` |
 | E. Fly and measure | min / typ / MTOW, land and water, game pilot vs handbook vs sweep | numbers inside bands or explained | `real_check.js` (quick, full), `_petrel_trim_check.js` |
-| F. Report and land | evidence, report, commit, HANDOVER | the final build files committed; the report regenerated on the shipped core | `real_report.js`, `reports/evidence/REAL-CHECK-<date>/` |
+| F. Report and land | evidence, report, commit, HANDOVER | the final build files committed; the report regenerated on the shipped core, every result fresh | `real_report.js`, `reports/evidence/REAL-CHECK-<date>/`, `_real_stamp.js`, GATE REALBAND |
 
 ## 2. References (phase A)
 
@@ -110,6 +110,8 @@ Each phase is finished before the next starts; a later phase never quietly chang
 - **Explain what the picture shows.** The rudder and the elevators are not lattice members: they are the aft fraction
   of the strips. The user read the fin truss as the stab.
 - **Pair the picture with numbers:** `_geoparity_lib` (dx, dh, dc per strip, and the area centres).
+- **The tool:** `node tools/lattice_overlay.js <build.json> <out-prefix> [--views side,top,front] [--crop z0,z1,y0,y1]`
+  (about 15 s).
 
 ## 7. Fly and measure (phase E)
 
@@ -135,8 +137,9 @@ Each phase is finished before the next starts; a later phase never quietly chang
 ## 8. Physics changes and gates
 
 - **Physics changes are the user's decision.** Present each with its fleet impact.
-- **Fleet scan before landing.** Every build in base vs new: stability margin, the trigger of each new rule, the moved
-  parameters. 43 builds took ~30 min. Build this as a tool (today a scratch script).
+- **Fleet scan before landing.** Every build in base vs new: stability margin, mass, the tail's fitted taper and post
+  gap. Run `node tools/fleet_scan.js --json=<x>.json` in each tree, then `--diff=<base>.json,<new>.json`. A new rule's
+  trigger (which builds it fires on) is still a one-off probe per rule.
 - **Run the same gates on the baseline** (a clean worktree at HEAD) to separate pre-existing reds from yours.
   On 10 Nov all six red gates were already red on the baseline; two new findings hid among them.
 - **Never edit sources while gates run.** Every gate then fails on a stale core.
@@ -144,7 +147,8 @@ Each phase is finished before the next starts; a later phase never quietly chang
 
 ## 9. Land and report (phase F)
 
-- **The runner reads PLANES and skips `dropped` and `supersededBy` rows.** Today's ran four dropped planes by mistake.
+- **The runner flies the live set** (`real_check --all`: not `dropped`, `supersededBy`, `next` or `branch:` rows; `--every`
+  for all). Before 12 Nov it ran four dropped planes by mistake.
 - **Re-run everything after a core change lands.** A pilot or physics change makes every flown row stale.
 - **Commit:**
   - sources, then "(built)";
@@ -167,14 +171,48 @@ Each phase is finished before the next starts; a later phase never quietly chang
    `fit <key>` does: the overlay of the drawings → the quick check → the lattice overlay → the trim check (water).
    `validate <key>` does: the full check → the report row.
 2. **Commit the scratch tools as tools:**
-   - the lattice overlay (nodes, beams and strips on quickshot frames with the join's datum; colour by class, mass
-     dots, CG / NP marks);
-   - the three-view drawing overlay (scale per view, outlines, the bubble footprint);
-   - the fleet scan (base vs new).
-3. **Stamps on every result:** build file hash, core build id, reference row version. The report flags stale rows
-   itself.
-4. **GATE REALBAND:** quick check of the validated set against a committed baseline, accepted with `--write`.
-5. **Reference row schema + lint:** URL, date, variant / engine, weight / flap / surface / distance conditions,
-   quality, second source. Refuse incomplete rows.
-6. **Trim check:** read pitch on the keel, not the nose-to-post line, and split "boom" from "rudder" clearance.
-7. **A short how-to:** add a plane = reference row + PLANES row + recipe + quick + overlays + full + report.
+   - ~~the lattice overlay~~ **done 12 Nov** (`tools/lattice_overlay.js`; the CG / NP marks are still to add);
+   - the three-view drawing overlay (scale per view, outlines, the bubble footprint): still a scratch script;
+   - ~~the fleet scan~~ **done 12 Nov** (`tools/fleet_scan.js`).
+3. ~~Stamps on every result~~ **done 12 Nov** (`tools/_real_stamp.js`): the build's blob, the core's id, the PLANES and
+   REFS rows' hashes; the report's freshness block and per-plane chip.
+4. ~~GATE REALBAND~~ **done 12 Nov** (`tools/_realband_check.js`, baseline `tools/realband_baseline.json`).
+5. ~~Reference row schema + lint~~ **done 12 Nov** (GATE REALREFS, `tools/_realrefs_lint.js`). Still open: the trail
+   (url, date read, quality) of the 14 references made before it; the lint lists them.
+6. **Trim check:** read pitch on the keel, not the nose-to-post line, and split "boom" from "rudder" clearance. This is
+   SEAPLANES' `tools/_petrel_trim_check.js` (not committed on this branch), so it is theirs to change.
+7. ~~A short how-to~~ **done 12 Nov:** section 12.
+
+## 12. Add a plane, and keep it honest (the perennial loop, 12 Nov 2026)
+
+Every step names its tool; each one's usage is at the top of its file.
+
+1. **The reference row** (`tools/real_refs.js` REFS). Give it:
+   - `variant`: the exact type, variant and engine;
+   - `sources`: `{ id: { what, quality, read: 'YYYY-MM-DD', url | noUrl } }`;
+   - `rows`: each with `v`, `tol` and `src`, its conditions (`kg`, `flaps`, `surface`) and `from: '<source id>'`;
+   - `dims`, `specs`, and `poh` (the handbook technique).
+
+   Then run `node tools/_realrefs_lint.js`. It refuses a row with no conditions and a reference with no trail.
+2. **The build.** Write a recipe, `builds/edits/<plane>.edits.json`, and run `tools/_rejoin_build.js` to get
+   `builds/candidates/<plane>_Vn.json`. Fit it to drawings (sections 3 and 6) or to a GLB (`REF_MATCH.md`).
+3. **The PLANES row:** `file`, `ref`, `label`, `short` and `listRow` (the plane list's row; null if none), plus `water` /
+   `land` for an amphibian.
+   - A refit gets a new file and a new row. The old row gets `supersededBy`.
+   - A candidate waiting behind the list's file gets `next: true`.
+   - A plane the user takes out gets `dropped: '<why>'`.
+4. **Quick:** `node tools/real_check.js <key> --quick` (about 30 s). Run it, look at the overlays and the lattice
+   (section 6), and repeat until the shape and the specs hold.
+5. **Full:** `node tools/real_check.js <key> --json=reports/evidence/REAL-CHECK-<date>/<key>.json`. It takes 10 to 45
+   min, and about 2 h for an amphibian. Every result is stamped with what it was flown on.
+6. **The report:** `node tools/real_report.js`. Its freshness block lists every result that is not on the current tree.
+   Re-fly those before quoting their numbers (`node tools/_real_stamp.js` lists them too).
+7. **The baseline:** `node tools/_realband_check.js --write` takes the new plane into GATE REALBAND. Commit it with the
+   build, the PLANES row, the evidence and the report.
+
+**When the core or a card moves on purpose** (a physics change, a refit):
+- GATE REALBAND goes red and names the planes, the numbers and the cause (the build file or the core).
+- Accept the move with `--write`, then re-fly the moved planes (`real_check --all` for the live set) and regenerate the
+  report. Until then, the report marks those results stale.
+- Results flown before the stamps are stamped from the commit they were flown on, as the evidence README states it:
+  `node tools/_real_stamp.js --backfill=<dir> --at=<commit>`.

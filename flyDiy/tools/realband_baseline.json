@@ -1,0 +1,643 @@
+{
+ "_note": "GATE REALBAND baseline: real_check --quick of the live set (tools/_realband_check.js --write). Written 2026-11-12.",
+ "planes": {
+  "cub": {
+   "stamp": {
+    "file": "builds/cub_2026-09-20_corrected.json",
+    "blob": "ba66a5a8e968ae23b28c001ad866d4a82e8e8b62",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 354.587,
+    "fuelKg": 31.68
+   },
+   "dims": {
+    "S": 17.5698,
+    "Sh": 2.47818,
+    "Sv": 0.982858,
+    "cRoot": 1.7,
+    "cTip": 1.7,
+    "hSpan": 2.83914,
+    "height": 2.08202,
+    "length": 6.93,
+    "span": 10.7,
+    "track": 1.78
+   },
+   "cases": {
+    "min": {
+     "mass": 432.507,
+     "Vs": 54.707,
+     "V75": 127.847,
+     "Vmax": 144.913,
+     "roc": 3.61542,
+     "LD": 9.40562,
+     "TOgrass": 87,
+     "cgMAC": 24.0436,
+     "sm": 16.1249
+    },
+    "typ": {
+     "mass": 450.427,
+     "Vs": 55.8288,
+     "V75": 127.31,
+     "Vmax": 144.599,
+     "roc": 3.39813,
+     "LD": 9.40562,
+     "TOgrass": 91,
+     "cgMAC": 23.0549,
+     "sm": 17.1423
+    },
+    "mtow": {
+     "mass": 550,
+     "Vs": 61.6918,
+     "V75": 123.525,
+     "Vmax": 142.5,
+     "roc": 2.39786,
+     "LD": 9.40562,
+     "TOgrass": 119,
+     "cgMAC": 35.1141,
+     "sm": 5.33943
+    }
+   }
+  },
+  "ruckus": {
+   "stamp": {
+    "file": "builds/candidates/ruckus_std_2026-11-09.json",
+    "blob": "7c9f54b1388bf4648494dcd32e273450643462f0",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 155.479,
+    "fuelKg": 13.68
+   },
+   "dims": {
+    "S": 11.3446,
+    "Sh": 1.63978,
+    "Sv": 0.690931,
+    "cRoot": 1.31,
+    "cTip": 1.31,
+    "hSpan": 2.17401,
+    "height": 2.21727,
+    "length": 5.33,
+    "span": 8.72,
+    "track": 1.6
+   },
+   "cases": {
+    "min": {
+     "mass": 228.899,
+     "Vs": 43.2257,
+     "V75": 77.1539,
+     "Vmax": 91.2398,
+     "roc": 2.48319,
+     "LD": 5.22671,
+     "TOgrass": 46,
+     "cgMAC": 35.2537,
+     "sm": 17.9692
+    },
+    "typ": {
+     "mass": 242.319,
+     "Vs": 44.4748,
+     "V75": 76.068,
+     "Vmax": 90.6928,
+     "roc": 2.20698,
+     "LD": 5.22671,
+     "TOgrass": 54,
+     "cgMAC": 35.5047,
+     "sm": 19.0369
+    },
+    "mtow": {
+     "mass": 249,
+     "Vs": 45.0837,
+     "V75": 75.4543,
+     "Vmax": 90.404,
+     "roc": 2.07756,
+     "LD": 5.22671,
+     "TOgrass": 58,
+     "cgMAC": 35.4912,
+     "sm": 19.2702
+    }
+   }
+  },
+  "pa18f": {
+   "stamp": {
+    "file": "builds/pa18_floats_2026-10-23.json",
+    "blob": "e26c73535d82d96d830acc93bd7aa2e7f857677e",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 563.091,
+    "fuelKg": 97.92
+   },
+   "dims": {
+    "S": 17.5698,
+    "Sh": 2.47818,
+    "Sv": 1.05777,
+    "cRoot": 1.7,
+    "cTip": 1.7,
+    "hSpan": 2.83914,
+    "height": 3.46279,
+    "length": 7.72,
+    "span": 10.7,
+    "track": 1.78
+   },
+   "cases": {
+    "min": {
+     "mass": 657.571,
+     "Vs": 67.4779,
+     "V75": 163.247,
+     "Vmax": 184.907,
+     "roc": 5.51615,
+     "LD": 8.88087,
+     "TOgrass": 708,
+     "cgMAC": 19.1196,
+     "sm": 21.6323
+    },
+    "typ": {
+     "mass": 692.051,
+     "Vs": 69.2244,
+     "V75": 162.578,
+     "Vmax": 184.503,
+     "roc": 5.12486,
+     "LD": 8.88087,
+     "TOgrass": 719,
+     "cgMAC": 19.6903,
+     "sm": 20.975
+    },
+    "mtow": {
+     "mass": 806,
+     "Vs": 74.7064,
+     "V75": 159.883,
+     "Vmax": 182.963,
+     "roc": 4.04101,
+     "LD": 8.88087,
+     "TOgrass": 746,
+     "cgMAC": 29.3414,
+     "sm": 11.3658
+    }
+   }
+  },
+  "jodelg": {
+   "stamp": {
+    "file": "builds/candidates/jodel_geo.json",
+    "blob": "3591c61756298a02ed16156082afc00c80375ae0",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 321.428,
+    "fuelKg": 44.64
+   },
+   "dims": {
+    "S": 12.7649,
+    "Sh": 2.20784,
+    "Sv": 1.02731,
+    "cRoot": 1.72,
+    "cTip": 1.2,
+    "hSpan": 2.71369,
+    "height": 2.00863,
+    "length": 6.21,
+    "span": 8.2,
+    "track": 1.96
+   },
+   "cases": {
+    "min": {
+     "mass": 402.588,
+     "Vs": 64.8874,
+     "V75": 145.247,
+     "Vmax": 166.109,
+     "roc": 3.58096,
+     "LD": 9.10563,
+     "TOgrass": 124,
+     "cgMAC": 29.1842,
+     "sm": 3.10896
+    },
+    "typ": {
+     "mass": 423.748,
+     "Vs": 66.5708,
+     "V75": 144.1,
+     "Vmax": 165.447,
+     "roc": 3.27785,
+     "LD": 9.10563,
+     "TOgrass": 132,
+     "cgMAC": 27.8329,
+     "sm": 4.42862
+    },
+    "mtow": {
+     "mass": 530,
+     "Vs": 74.4506,
+     "V75": 136.098,
+     "Vmax": 161.307,
+     "roc": 2.05745,
+     "LD": 9.10563,
+     "TOgrass": 196,
+     "cgMAC": 26.4677,
+     "sm": 5.40275
+    }
+   }
+  },
+  "chinookm": {
+   "stamp": {
+    "file": "builds/chinook_2026-09-21_corrected.json",
+    "blob": "ccb461685c62616f8a895cd9fb70a3ad6e876601",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 196.371,
+    "fuelKg": 27.36
+   },
+   "dims": {
+    "S": 13.132,
+    "Sh": 2.85519,
+    "Sv": 1.46121,
+    "cRoot": 1.47,
+    "cTip": 1.47,
+    "hSpan": 3.12433,
+    "height": 2.31762,
+    "length": 5.26,
+    "span": 9.76,
+    "track": 1.6
+   },
+   "cases": {
+    "min": {
+     "mass": 273.211,
+     "Vs": 51.6285,
+     "V75": 143.685,
+     "Vmax": 158.507,
+     "roc": 7.71113,
+     "LD": 9.19121,
+     "TOgrass": 38,
+     "cgMAC": 41.3001,
+     "sm": 2.20737
+    },
+    "typ": {
+     "mass": 290.051,
+     "Vs": 53.1959,
+     "V75": 143.368,
+     "Vmax": 158.295,
+     "roc": 7.17497,
+     "LD": 9.19121,
+     "TOgrass": 44,
+     "cgMAC": 38.9278,
+     "sm": 4.8006
+    },
+    "mtow": {
+     "mass": 476,
+     "Vs": 68.1466,
+     "V75": 137.972,
+     "Vmax": 154.91,
+     "roc": 3.57835,
+     "LD": 9.19121,
+     "TOgrass": 141,
+     "cgMAC": 38.5329,
+     "sm": 8.3635
+    }
+   }
+  },
+  "tigermothm": {
+   "stamp": {
+    "file": "builds/candidates/tigermoth_2026-10.json",
+    "blob": "08c6b9bbf88aedef7161a1e22f21e8f674e45957",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 519.897,
+    "fuelKg": 62.64
+   },
+   "dims": {
+    "S": 23.8497,
+    "Sh": 2.80256,
+    "Sv": 0.99241,
+    "cRoot": 1.37,
+    "cTip": 1.37,
+    "hSpan": 3.18812,
+    "height": 2.5837,
+    "length": 7.24,
+    "span": 8.98,
+    "track": 1.38
+   },
+   "cases": {
+    "min": {
+     "mass": 605.557,
+     "Vs": 59.6161,
+     "V75": 151.238,
+     "Vmax": 172.201,
+     "roc": 4.93397,
+     "LD": 8.44374,
+     "TOgrass": 79,
+     "cgMAC": 29.7445,
+     "sm": 3.71958
+    },
+    "typ": {
+     "mass": 631.217,
+     "Vs": 60.866,
+     "V75": 150.599,
+     "Vmax": 171.813,
+     "roc": 4.63587,
+     "LD": 8.44374,
+     "TOgrass": 86,
+     "cgMAC": 29.9907,
+     "sm": 3.47646
+    },
+    "mtow": {
+     "mass": 828,
+     "Vs": 69.7109,
+     "V75": 144.038,
+     "Vmax": 168.1,
+     "roc": 2.88872,
+     "LD": 8.44374,
+     "TOgrass": 166,
+     "cgMAC": 36.7017,
+     "sm": -2.11873
+    }
+   }
+  },
+  "dc3r": {
+   "stamp": {
+    "file": "builds/candidates/dc3_2026-10.json",
+    "blob": "82364be1b3611ef774e1dfb1f9b2d69f9b984fb8",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 7424.03,
+    "fuelKg": 2239.2
+   },
+   "dims": {
+    "S": 97.1352,
+    "Sh": 15.043,
+    "Sv": 8.79903,
+    "cRoot": 4.63,
+    "cTip": 1.4,
+    "hSpan": 7.81496,
+    "height": 5.40015,
+    "length": 19.6,
+    "span": 29,
+    "track": 5.64
+   },
+   "cases": {
+    "min": {
+     "mass": 8053.83,
+     "Vs": 104.991,
+     "V75": 324.297,
+     "Vmax": 369.87,
+     "roc": 10.5301,
+     "LD": 13.8904,
+     "TOgrass": 208,
+     "cgMAC": 54.3985,
+     "sm": 11.1476
+    },
+    "typ": {
+     "mass": 8623.63,
+     "Vs": 108.641,
+     "V75": 323.695,
+     "Vmax": 369.266,
+     "roc": 9.68495,
+     "LD": 13.8904,
+     "TOgrass": 226,
+     "cgMAC": 53.6125,
+     "sm": 12.0457
+    },
+    "mtow": {
+     "mass": 11431,
+     "Vs": 125.081,
+     "V75": 319.797,
+     "Vmax": 365.385,
+     "roc": 6.63602,
+     "LD": 13.8904,
+     "TOgrass": 380,
+     "cgMAC": 63.0057,
+     "sm": 4.82494
+    }
+   }
+  },
+  "stearman": {
+   "stamp": {
+    "file": "builds/candidates/stearman_2026-10.json",
+    "blob": "07aaf87d1792107c95659942f7d20a118493ac99",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 879.587,
+    "fuelKg": 125.28
+   },
+   "dims": {
+    "S": 27.9157,
+    "Sh": 3.60257,
+    "Sv": 1.06395,
+    "cRoot": 1.52,
+    "cTip": 1.52,
+    "hSpan": 3.93757,
+    "height": 2.58879,
+    "length": 7.73,
+    "span": 9.84,
+    "track": 1.74
+   },
+   "cases": {
+    "min": {
+     "mass": 980.907,
+     "Vs": 70.9088,
+     "V75": 163.479,
+     "Vmax": 185.202,
+     "roc": 5.93698,
+     "LD": 7.46704,
+     "TOgrass": 105,
+     "cgMAC": 25.9058,
+     "sm": 7.89401
+    },
+    "typ": {
+     "mass": 1022.23,
+     "Vs": 72.3869,
+     "V75": 162.759,
+     "Vmax": 184.768,
+     "roc": 5.57433,
+     "LD": 7.46704,
+     "TOgrass": 115,
+     "cgMAC": 26.4765,
+     "sm": 7.30487
+    },
+    "mtow": {
+     "mass": 1195,
+     "Vs": 78.2655,
+     "V75": 159.144,
+     "Vmax": 182.651,
+     "roc": 4.28867,
+     "LD": 7.46704,
+     "TOgrass": 167,
+     "cgMAC": 30.9532,
+     "sm": 3.51631
+    }
+   }
+  },
+  "camelm": {
+   "stamp": {
+    "file": "builds/candidates/camel_2026-10.json",
+    "blob": "70abe61f919da341987c94b4b44ea645ad09f594",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 551.348,
+    "fuelKg": 69.12
+   },
+   "dims": {
+    "S": 22.0833,
+    "Sh": 2.20222,
+    "Sv": 0.698785,
+    "cRoot": 1.37,
+    "cTip": 1.37,
+    "hSpan": 2.45854,
+    "height": 2.74159,
+    "length": 5.73,
+    "span": 8.56,
+    "track": 1.05
+   },
+   "cases": {
+    "min": {
+     "mass": 638.628,
+     "Vs": 64.215,
+     "V75": 152.401,
+     "Vmax": 172.66,
+     "roc": 4.97866,
+     "LD": 8.15888,
+     "TOgrass": 87,
+     "cgMAC": 28.1007,
+     "sm": 2.53675
+    },
+    "typ": {
+     "mass": 665.908,
+     "Vs": 65.5722,
+     "V75": 151.71,
+     "Vmax": 172.242,
+     "roc": 4.66623,
+     "LD": 8.15888,
+     "TOgrass": 96,
+     "cgMAC": 27.9127,
+     "sm": 2.85219
+    },
+    "mtow": {
+     "mass": 668.628,
+     "Vs": 65.7059,
+     "V75": 151.641,
+     "Vmax": 172.199,
+     "roc": 4.63674,
+     "LD": 8.15888,
+     "TOgrass": 97,
+     "cgMAC": 30.2006,
+     "sm": 0.73123
+    }
+   }
+  },
+  "carboncubss": {
+   "stamp": {
+    "file": "builds/candidates/carbon_cub_ss.json",
+    "blob": "3d51ef934adf9fd9142436ea251665fe8b3db190",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 407.756,
+    "fuelKg": 65.52
+   },
+   "dims": {
+    "S": 16.1546,
+    "Sh": 2.78567,
+    "Sv": 0.982858,
+    "cRoot": 1.6,
+    "cTip": 1.6,
+    "hSpan": 3.1866,
+    "height": 2.27158,
+    "length": 7.02,
+    "span": 10.44,
+    "track": 1.78
+   },
+   "cases": {
+    "min": {
+     "mass": 494.136,
+     "Vs": 57.1124,
+     "V75": 174.626,
+     "Vmax": 195.683,
+     "roc": 10.8541,
+     "LD": 8.03913,
+     "TOgrass": 39,
+     "cgMAC": 17.3848,
+     "sm": 27.4167
+    },
+    "typ": {
+     "mass": 520.516,
+     "Vs": 58.6171,
+     "V75": 174.353,
+     "Vmax": 195.516,
+     "roc": 10.2128,
+     "LD": 8.03913,
+     "TOgrass": 41,
+     "cgMAC": 17.9901,
+     "sm": 26.7762
+    },
+    "mtow": {
+     "mass": 599,
+     "Vs": 62.8812,
+     "V75": 173.438,
+     "Vmax": 194.953,
+     "roc": 8.613,
+     "LD": 8.03913,
+     "TOgrass": 49,
+     "cgMAC": 31.1101,
+     "sm": 13.9717
+    }
+   }
+  },
+  "petrel42": {
+   "stamp": {
+    "file": "builds/candidates/superpetrel_V4_2.json",
+    "blob": "9e95f67c31e6c4c5bc9b77c245d367d6d4deae87",
+    "core": "d0af9a5bd665064a"
+   },
+   "facts": {
+    "empty": 388.487,
+    "fuelKg": 68.4
+   },
+   "dims": {
+    "S": 14.5085,
+    "Sh": 1.74978,
+    "Sv": 1.17371,
+    "cRoot": 1,
+    "cTip": 1,
+    "hSpan": 2.70448,
+    "height": 3.09219,
+    "length": 6.37,
+    "span": 8.86,
+    "track": 1.72
+   },
+   "cases": {
+    "min": {
+     "mass": 475.587,
+     "Vs": 65.2009,
+     "V75": 199.829,
+     "Vmax": 220.166,
+     "roc": 7.32297,
+     "LD": 11.6291,
+     "TOgrass": 87,
+     "cgMAC": 37.4266,
+     "sm": 0.867426
+    },
+    "typ": {
+     "mass": 502.687,
+     "Vs": 67.0328,
+     "V75": 199.246,
+     "Vmax": 219.783,
+     "roc": 6.82253,
+     "LD": 11.6291,
+     "TOgrass": 93,
+     "cgMAC": 36.39,
+     "sm": 2.11556
+    },
+    "mtow": {
+     "mass": 649,
+     "Vs": 76.1659,
+     "V75": 195.342,
+     "Vmax": 217.286,
+     "roc": 4.77221,
+     "LD": 11.6291,
+     "TOgrass": 128,
+     "cgMAC": 26.0323,
+     "sm": 13.8055
+    }
+   }
+  }
+ }
+}
