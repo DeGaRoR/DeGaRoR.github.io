@@ -315264,3 +315264,95 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+
+## AERO-BODY - THE PHYSICS FLIES THE DRAWN BODY (12 Nov 2026, for A0; branch claude/aero-body-1; NOT READY: one user decision open)
+
+The user's ruling (11 Nov): WYSIWYG, no phantom bodies. A short cabin with nothing behind it, a pusher's back cowl and a
+real aft pod each get a body model; a taper with panels is an aero body closing onto the rod, one without panels (Rufus)
+is "a tube of its real diameter, nothing more"; rods and booms take their real section. Stability is honest: Cn_beta, the
+NP and the margin before and after on every official plane. Lifting the engine-not-at-back restriction is NOT done.
+A0's additions: rods first (structure + aero body), and COWL-BILL. The plan page (Artifact) carries the derivations.
+
+**What it does**
+- THE RECORD. The join (`_cage_join.js` aeroBodyOf) measures the drawn body from the layers (`layerColumns`: the cabin, the
+  cowl as PROPER-COWLS draws it - the ONE cowl path, read, never regenerated - the taper, the rod) and writes
+  `fuselage.aeroBody` { rows, closeX, base, rod: {x0, x1, d}, tailOnBody }. `clampSpec` validates it. A save the load door
+  has not seen carries none and flies exactly as on master (def to the bit; GATE AEROBODY's negative control).
+- MODEL B (62_gen_aero genAeroBody, GEN_DRAG.body): the body's wetted area to where its closing slope passes 20 deg
+  (thetaSep), Hoerner's forebody form factor 1 + 1.5 / f^1.5, a base there at Cd 0.14 on its area, and the rod behind
+  as a tube (Cf 0.004 x pi d L). The cross-flow blobs: fusCdA on the body, fusCdAAft only on what is drawn aft; the
+  twin booms get their own blob (refs.boomDrag, boomCdAAft; 30_solver).
+- THE ROD WEIGHS ITS TUBE (61_gen_frame): behind closeX the lattice still stands for the solver (the G314 tube element
+  holds the tube's EI and GJ) but bills no member or panel mass; the tube is billed pi d t rho per bay (GEN_RULES.rodWall
+  1.2 mm, the fuselage material). Its limits carry the thin-tube caps: torsional buckling 0.272 E / (1-nu^2)^0.75 (t/r)^1.5
+  and bending 0.3 E t / r (rodDmg.tauB / sigB; 30_solver caps the material's limits by them).
+- COWL-BILL (A0 for the user, 12 Nov): `cage.cowlOn` says whether a cowl is billed, the drag build-up's own rule; absent,
+  `cowl.on` as before.
+- The tail-arm floor (genSpec) is skipped for pods / rods that carry the record (their tail arm is the drawn one).
+- PHYSICS_V 7 -> 8 (60_gen_spec, with its history line).
+
+**Before -> after (the official planes, joined; plan page and reports/evidence/AERO-BODY/ on claude/laughing-dijkstra-f3jv2l)**
+
+| plane | CdA m2 | cruise km/h | empty kg | static margin | Cn_beta |
+|---|---|---|---|---|---|
+| Chinook | 0.185 -> 0.174 | 130.0 -> 131.0 | 235.4 -> 227.3 | 0.073 -> 0.085 | 0.095 -> 0.087 |
+| Rufus | 0.211 -> 0.176 | 119.2 -> 118.4 | 275.2 -> 270.6 | 0.176 -> 0.154 | 0.119 -> 0.105 |
+| Twin | 0.189 -> 0.181 | 170.6 -> 172.1 | 577.8 -> 570.3 | 0.277 -> 0.333 | 0.115 -> 0.119 |
+
+The Twin's tail arm 3.47 -> 2.43 m (the drawn one), its substeps 161 -> 132. Conventional planes move under 0.4 km/h (the
+Cub's axial CdA +0.0001 m2, the Jodel's -0.002, the metal Cessna's -0.003; their mass unchanged). The Super Petrel's
+pitch.sm fail -> warn.
+
+**GATE AEROBODY** (tools/_aerobody_check.js, core, after JOINPARITY): 10 planes against tools/_aerobody_probe.js; the
+negative controls (the Chinook and the Twin without the record) fail as they must. PASS.
+
+**The battery** (core, on 5cce2de4, compared BY CHECK NAME with master 1f5b8219 run in a worktree, the 30 non-standing
+reds): master's own, the same checks: RADIALDIV, ALTIPORT, DMGCERT, DMGINTEGRITY, DMGLOOK, DMGDAMP, DMGTYRE, DMGFABRIC
+(the base's bits since train 41: the hashes move here too, the checks are master's), DMGDETERMINISM, SHADOWSKY,
+DESIGNCHECK ("200 N sideways at the post"), NODUMMY, ENERGYBASE, ENGTORQUE, FLEX, LOAD, LAZY, plus the L38b standing 18.
+Timing, green on a re-run alone: BENCHTIME, BIOME, HITBOX (alone: PASS here and on master, the Jodel's shape 35 / 37 ms). HOUSEWORKER: the stale parked cook of a local
+rebuild (A0's ruling, not a red; master's own worktree reads the same pending set o1-o3).
+
+**Re-pinned, each with its reason in the source (commits b0af7622, 697cc31a)**
+- POD (tools/_pod_base.json): the six certificate digests. The def, the shakedown and the 300 flown steps are the base's to
+  the bit; the certificate differs ONLY in its key (genCertKey folds PHYSICS_V).
+- AIDS: the user's first twin-boom pusher on floats - the pod closes at its drawn end (-8.4 kg; aft cross-flow 1.31 ->
+  0.19 m2, the booms' own 0.93), the NP 0.068 m aft, the margin -0.162 -> -0.108, the remedy 0.547 -> 0.404 m; band
+  0.4-0.8 -> 0.35-0.8 (the user's own 0.45 m still covers it).
+- DESIGNCHECK: the Rufus is less nose-heavy (CG 0.662 -> 0.691 m: the rod's tube +0.019, COWL-BILL's unworn cowl +0.010);
+  ctl.flare 1.09 -> 1.07; flown on both cores with one probe (tools/_aerobody_flare_probe.js) 1.266 -> 1.239 Vs, so the
+  flown reference 1.16 -> 1.135; the 0.08 holds.
+- STOL: the baseline re-captured on this tree (_stol_samebits.js --capture, cff0eafee), the build rows' neutral engine
+  dials stripped as FLOAT-DECK L38a did. Every card's joined spec now carries its record (def and 4 s move: the measured
+  body); the drawing moves on the COWL-BILL cards (Stearman -9.8 kg, Chinook -3.1, pusher pod -8.5, MW5 -6.1,
+  Archaeopteryx -4.9: cowlOn 0) and the rod / boom / pod cards (ul1, floatplane, Skymaster, P-38, push-pull); the twin
+  floatplane's float station 2.1 cm aft (the join stands it off the CG, which the rod's mass moves). The automatic slat's
+  seam (Savannah): 4.2 N on a body 2.5 % lower in drag, 1.0099 (master, on the edge) -> 1.0105, bound 1.01 -> 1.012.
+- 62_gen_aero: the separation slope was the page's Math.tan; now CORE_MATH (DMGDETERMINISM's census).
+
+**A0's actions**
+- BENCH: the shipped Rufus certificate is stamped under physics 7 and its door body moved (52c3b92c, recorded 24e2e238):
+  the re-stamp on the GPU box (load, bench run-all, the game's save, both hashes).
+- DMGCERTCOST: 1790 frames against the 1789 budget - the stored reference recomputes on PHYSICS_V 8 (--write-ref).
+- JOINPARITY: the twin floatplane's float station and node masses move with the record (a recapture, A0's call; its
+  other rows are master's standing reds).
+
+**Named reds, mine, NOT re-pinned (never weaken a gate)**
+- DMGCLUSTERS, the twin floatplane (VALIDATED twinFloats): the rod now weighs its tube (113 mm, 4130, 1.2 mm: 3.35 kg/m,
+  8.1 kg against the 5.9 kg of lattice it replaces), its root moment at 5 g 3806 -> 4191 N.m. The FAR float nose-in at its
+  V_S0 (51 km/h, 2.8 m/s, 20 deg) reaches 1.025 of the root's bend limit (master 0.930) - it parts; the SEVERE row (90
+  km/h, held to 0.93-1.00) reads 0.915 (master 0.962). The bend limit is the tube's own ultimate (10.31 kN.m); the torque
+  limit is the buckling cap (9.35 -> 4.53 kN.m). Measured walls: 1.4 mm 0.909 / 0.844, 1.6 mm 0.815 / 0.833. THE USER'S
+  DECISION (asked, Default: a per-build rod-wall garage row, the twin at 1.4 mm).
+- TAKEOFF, the same aeroplane on wheels: the stab's roll against the mains through the taxi, -z 2 m/s crosswind, 2.418 ->
+  2.609 deg (bound 2.5). The tail is heavier on the same tube: master's aft blob put back changes nothing (2.603), a
+  thicker wall barely (1.4 mm 2.584, 1.6 mm 2.545). Held with the decision above.
+- DMGWRECK: the metal Cessna's 30 m/s trunk crash - the cowl's debris rests 21.8 cm apart at 12 and 60 fps (bound 5 cm).
+  With the record stripped the crash is master's to the bit (6e421926); the 0.7 % axial CdA moves the crash, which shows
+  the wreck layer's frame-rate sensitivity. For the wreck's owner.
+- DMGSCAR 2J: the edge L38b accepted (Deform) moves from "2.5 m out" (master) to "the centreline" (here): the Cub's crash
+  is the chaotic one it was.
+
+**Files**: src/core/30_solver.js, 60_gen_spec.js, 61_gen_frame.js, 62_gen_aero.js; tools/_cage_join.js,
+_aerobody_check.js, _aerobody_probe.js, _aerobody_flare_probe.js, run_gates.js (AEROBODY), _pod_base.json, _aids_check.js,
+_designcheck_check.js, _stol_check.js, fixtures/stol_baseline.json.gz. Built: 5cce2de4, cff0eafe (no src change since).
