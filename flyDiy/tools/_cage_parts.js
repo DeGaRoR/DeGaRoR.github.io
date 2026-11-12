@@ -821,7 +821,7 @@ const CAGE_PARTS = [
       // forward the root starts).
       // THE MACRO TIER (TAIL CHANTIER 2 P3): what a builder sizes the fin
       // with — the wing's words over the drawn outline
-      ['size', ['finHeight', 'finChord', 'finChordTip', 'finSweep', 'finHinge']],
+      ['size', ['finHeight', 'finChord', 'finChordTip', 'finSweep', 'finHinge', 'finZ', 'finDorsalFwd', 'finDorsalH']],
       // EXPERT (TAIL CHANTIER 2 P2): the outline's corners, rows, edges and
       // sharpness are the CAGE's own vertices — the tier a builder reaches
       // last (TAIL-ARCHETYPES §3). The trunk keeps the height and the root
