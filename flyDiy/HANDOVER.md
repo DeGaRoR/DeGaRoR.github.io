@@ -314714,3 +314714,54 @@ TOWN-1 STEP 1, THE COST (HW-COVERAGE, 8 Nov, metla_ab P,B,B,P, Cub, approach 100
 - sea-on: one 2045 ms first-visit task; the Petrel not measured.
 - town-trees: measured on L35d, no measurable cost.
 - **BOOT: the timed gate timed out on its last row (c172 cockpit).** Garage-ready 134-244 s (one boot timeout at 243.7 s) against L38a 150-185 s and L37b 119-149 s, with long tasks up to 32 s. It is mixed with the box's shader-cache misses (worst link 47.8 s), so it is not attributed to an item. First item of the Friday perf round.
+
+## ENGINE-COOLING - the drawn openings cool the engine (12 Nov 2026, claude/festive-faraday-w3w40x)
+
+The study (futureDesigns/ENGINE-COOLING-2026-11.md, its page beside it as .html) landed on the user's call, 12 Nov: "OK
+with your defaults. I think you should code that." The defaults: the hot case is 38 C at sea level (FAR 23.1043); the
+climb row is safety tier and the taxi row commercial, both PROPOSED; certificates already signed are kept (R3: a game
+update is not a change to the aeroplane), the openings stay out of the fingerprint; the gauge and a power pull-back in v1,
+no damage; cowl flaps v2; the turned scoop now, a NACA flush inlet later; an undrawn outlet is "sized for you".
+
+- **The model (62_gen_aero genCoolOpen / genCooling, GEN_COOL in 60_gen_spec).** dT = eps (Tlim - Tamb), the air the
+  engine needs m = Q / (cp dT); the air the openings pass = kappa rho V_inlet A_in, capped by a drawn outlet (A_out / 1.3).
+  V_inlet = the flight plus 0.6 of the actuator-disc slipstream on a tractor; a pusher's inlets get only its inflow
+  (0.25), on the ground. Kinds: 'bare' (no cowl: passes, the old kCool per kW), 'legacy' (openings not measured: the old
+  per-kW kCool, byte for byte), 'measured' (the momentum drag CdA = 2 kappa A_eff (1 - r) minus the Meredith credit on
+  radiator ducts, x the nose / pusher engine count). Radiators come from the cage rad* rows.
+- **The measurement (tools/_cowl_gen.js coolOpenings).** The cowl's face apertures, the chin scoop, the nacelle inlet (the
+  Super Petrel's forward mouth through the nacelle), the exit gap, the gills, in m2, carried by window.CAGE_COOL_OPEN
+  (its own global: _load_build replaces CAGE_UI after the scene build) into spec.cooling at the join. Facing: the cowl's
+  +z faces the prop, so a pusher's face apertures face AFT and are outlets; a scoop faces the flight when scoopRev ===
+  pushes.
+- **The pusher scoop (cw_scoopRev, "mouth faces: the propeller / the firewall").** Default 0 = as before.
+- **The certificate rows (64c genCoolRows, 64b GEN_CERT_TIER).** cool.climb (safe: fail < 1.0, warn < 1.15) and
+  cool.taxi (comm, warn < 1), both `proposed`: a proposed fail reads as a WARN on both certificates until the user rules.
+  The remedy sizes to the x1.15 pass line and names the step (turn the scoop; size its mouth; give the air a way out).
+- **Out of the fingerprint.** CERT_MEASURED_BLOCKS ['cooling'] (66b certStrip), BENCH_COSMETIC and PROCURE_READOUTS gain
+  'cooling'. No signature moves for this chantier.
+- **The fiche.** Physics, after 'cooling duty': cooling air (bare) / hot-day climb air, cooling openings, cooling drag;
+  their PLAQUE_WHY lines in plaque.js.
+- **The needle.** The oil temperature on the cockpit gauge from genCoolOilC (the air the openings pass now against the air
+  needed now, red line GEN_COOL.oilRed 118 C): DISPLAY ONLY. An unmeasured cowl reads its old 82 C. list:1 Cub 60 C cruise, 95 C
+  in a 38 C climb; list:6 Twin busher 168 C (the dial's stop).
+- **GATE COOL (tools/_cool_check.js, core).** FACING, CALIBRATION, THE PUSHER (the remedy walked to a pass), DRAG,
+  CERTIFICATE, THE SCOOP, THE NEEDLE.
+
+The fleet at 38 C, full-power climb (margin = air passed / air needed): list:1 Cub 1.63, list:50 V2-172 1.66, list:2 Jodel
+5.18, list:10 Tiger Moth-alike 1.81 (bare heads), list:47 Carbon Cub SS 1.65, list:41 Super Petrel 0.81 (its nacelle
+inlet 0.038 m2 counted; the row asks for ~0.054), list:6 Twin busher 0 (a cowled pusher, nothing faces the flight; the
+remedy walks it to a pass), list:7 Rufus bare. Cooling drag CdA: Cub 0.0087 -> 0.0114, V2-172 0.0213 -> 0.0178, Jodel
+0.0087 -> 0.0100, Twin busher 0.0295 -> 0.0182.
+
+- **Gates (each run on the branch and on the pre-change baseline 594a1a05 side by side; the full battery does not fit
+  this container's wall: 12 of 327 jobs in 30 min).** COOL, BENCH, AIDS, STORY, DRAG, ACCEPT, PROCURE, UISMOKE, PANEL,
+  GPSFACE: PASS. GEN: the same single standing red on both sides ("cruise is quiet in wind"), SHAKEDOWN lines identical,
+  no anchor moved. JOINPARITY: the same standing Jodel mass red on both sides. ACCEPT re-flew its evidence: the
+  fingerprints equal the baseline's (no certificate moves), cruise Cub 113 -> 112.7 km/h, C172 185.4 -> 185.8.
+  The --all delivery verdict was NOT run here.
+
+- **Open, waiting on the user.** (1) the proposed rows: rule them in (the Twin busher's safety certificate then FAILs)
+  or tune them; (2) the power pull-back over the red line - it changes how the official list:6 flies, so it lands with
+  (1); (3) sign.rules for kept signatures; (4) cowl flaps (v2), scoop azimuth and NACA inlets. A0 not told: the
+  cross-session send was refused (untrusted device). No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.

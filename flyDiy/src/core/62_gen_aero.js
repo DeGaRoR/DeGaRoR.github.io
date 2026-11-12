@@ -714,6 +714,12 @@ function genCooling(S, o) {
              outNeed: Math.max(0, need - bare) / (K.kappa * rho * Vin) * K.outRatio,
              limit: capOut < capIn ? 'outlet' : 'inlet' };
   };
+  // the case the caller is IN (the cockpit's needle: o.at = { air: an atmosphere, h, pFrac, Veas, ground })
+  if (oo.at && oo.at.air) {
+    const a = oo.at;
+    out.at = caseAt(a.air, a.h || 0, Math.max(0, Math.min(1, +a.pFrac || 0)), Math.max(0, +a.Veas || 0), !!a.ground);
+    if (oo.atOnly) return out;
+  }
   const VC = oo.VClimb > 0 ? oo.VClimb : 30, VCr = oo.VCruise > 0 ? oo.VCruise : VC * 1.24;
   const HOT = makeAtmos({ dISA: K.hot.dISA });
   out.hot = caseAt(HOT, K.hot.h, 1, VC, false);
@@ -754,6 +760,20 @@ function genCoolSummary(def) {
   return { kind: C.kind, pushes: C.pushes, inA: r3(C.inA), outA: C.exitSized ? null : r3(C.outA), bareA: r3(C.bareA),
            needA: r3(C.hot.inNeed), needKgS: r2(C.hot.need), passKgS: r2(C.hot.pass), margin: r2(C.hot.margin),
            taxi: r2(C.taxi.margin), cruise: r2(C.cruise.margin), cdA: r3(C.cdA), limit: C.hot.limit };
+}
+
+// THE OIL TEMPERATURE NOW (the cockpit's needle; display only - nothing in the solver reads it, and the power is not
+// pulled back over the red line until the proposed rows are ruled): the hot side's rise grows as the air needed over the
+// air passed, to the red line (GEN_COOL.oilRed) at exactly enough air. A bare engine reads as if it had twice the air
+// it needs; an unmeasured cowl returns null (the needle keeps the 82 C it always showed). `at` as genCooling's o.at.
+function genCoolOilC(S, at) {
+  const K = GEN_COOL;
+  const C = genCooling(S, { at, atOnly: true });
+  if (C.kind === 'legacy' && !(C.radA > 0)) return null;
+  const T = at.air.T(at.h || 0) - 273.15;
+  const x = C.kind === 'bare' || !C.at ? 0.5 : (C.at.pass > 0 ? Math.min(2, C.at.need / C.at.pass) : 2);
+  const oil = Math.max(T + 20, T + (K.oilRed - T) * Math.pow(x, 0.7));
+  return { oilC: oil, margin: x > 0 ? 1 / x : Infinity };
 }
 
 function genFusCdA(S, fr, o) {

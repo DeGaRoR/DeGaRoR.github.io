@@ -410,7 +410,8 @@ remedy's own steps take it to a pass: turn the scoop, size it, draw an exit), li
 Not in this landing (said, not hidden):
 - **the power pull-back over the red line** (default 4): it would change how the official list:6 flies on every flight;
   it lands with the user's ruling on the proposed rows. The oil needle is live (display only): parked until the gate
-  battery had run, then landed with the same GATE COOL section.
+  battery had run, then landed with the same GATE COOL section (THE NEEDLE: list:1 Cub 60 C in the cruise, 95 C in a
+  38 C climb, under the 118 C red line; list:6 Twin busher 168 C, the needle on its stop).
 - **the kept signature** (§7.3 step 2: `sign.rules`): not needed while the rows are proposed (they withdraw nothing);
   it lands with the ruling.
 - **cowl flaps** (default: v2), the scoop's azimuth (cheeks / dorsal) and a NACA flush inlet (default: later).

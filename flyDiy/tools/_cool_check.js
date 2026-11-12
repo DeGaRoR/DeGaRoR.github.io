@@ -158,5 +158,19 @@ console.log('THE SCOOP (turned round)');
   delete CW.P.scoopRev;
   ok(shot(undefined).bytes === a.bytes, 'absent = 0: the scoop as it always was, bit for bit');
 }
+console.log('THE NEEDLE (the oil temperature now, display only)');
+{
+  const ISA = C.ATMOS_ISA, HOT = C.makeAtmos({ dISA: 23 });
+  const cub = C.genCoolOilC(CUB.def.spec, { air: ISA, h: 300, pFrac: 0.75, Veas: CUB.def.params.ap.VCruise });
+  const cubHot = C.genCoolOilC(CUB.def.spec, { air: HOT, h: 0, pFrac: 1, Veas: CUB.def.params.ap.VClimb });
+  ok(cub && cub.oilC > 55 && cub.oilC < 100 && cubHot.oilC > cub.oilC && cubHot.oilC < C.GEN_COOL.oilRed,
+     'list:1 Cub: cruise ' + Math.round(cub.oilC) + ' C, a 38 C climb ' + Math.round(cubHot.oilC) + ' C, under the red line ' + C.GEN_COOL.oilRed);
+  const BU = card('builds/candidates/Twin_busher_floats_4b.json');
+  const bu = C.genCoolOilC(BU.def.spec, { air: HOT, h: 0, pFrac: 1, Veas: BU.def.params.ap.VClimb });
+  ok(bu && bu.oilC >= C.GEN_COOL.oilRed, 'list:6 Twin busher, a 38 C climb: ' + Math.round(bu.oilC) + ' C, at or over the red line');
+  ok(C.genCoolOilC(RUF.def.spec, { air: ISA, h: 0, pFrac: 0.75, Veas: 30 }).oilC < 100, 'list:7 Rufus (bare): a normal reading');
+  const ck = require('fs').readFileSync(path.join(ROOT, 'src/viewer/cockpit.js'), 'utf8');
+  ok(/genCoolOilC\(CK\.coolS/.test(ck), 'the cockpit\'s needle reads it');
+}
 console.log(`GATE COOL: ${fails ? 'FAIL' : 'PASS'}`);
 process.exit(fails ? 1 : 0);

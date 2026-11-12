@@ -2002,6 +2002,8 @@ const GEN_COOL = {
   meredith: 0.1,
   radMouth: 0.8,
   pass: 1.0, warn: 1.15,
+  // the oil's red line, C (a light aero engine's 118 C / 245 F): the cockpit's needle reaches it at exactly enough air
+  oilRed: 118,
 };
 
 const GEN_GAUGE = {
