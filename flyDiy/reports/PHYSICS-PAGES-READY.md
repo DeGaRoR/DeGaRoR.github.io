@@ -34,8 +34,8 @@ air drag, the metal Cessna takes a set at 3.85 g (its limit is 3.8). Evidence on
 - Reference: tools/fiche_reference_bake.js --from <REAL-FIGURES' flyDiy checkout> writes media/fiches/references.json:
   REAL-FIGURES' latest report (REAL-CHECK-2026-11-11's 12 planes + the two V2-172s on their 9 Nov run = 14), scored by
   its own real_report.js scorePlane on its own references, one entry per build FILE, plus the canon's alias list:50.
-  fiche_physics.js loads it once; a record finds its entry by ctx.file / rec.listFile / rec.row.file / rec.file (or the
-  alias); 'reference' registers with visible(rec) = has an entry (the metal Cessna, legacy, has none). Re-bake it when
+  fiche_physics.js loads it once; a record finds its entry by rec.listFile (the list row's build path), else rec.listRow
+  through the alias; 'reference' registers with visible(rec) = has an entry (the metal Cessna, legacy, has none). Re-bake it when
   REAL-FIGURES reports again (A0's call at landing: from the branch that holds the report).
 - Physics: a true three-view at one scale (plan over front on the span's axis, side beside the front on the height's).
 - GATE PHYSPAGES: + the reference's scores against scorePlane and its drawing (41 checks a plane).

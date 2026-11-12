@@ -662,8 +662,8 @@
     }), refsLoad()]).then(([D]) => (D ? Object.assign(D, { reference: refOf(rec, o) }) : null)));
   }
   // THE REFERENCES (tools/fiche_reference_bake.js -> media/fiches/references.json): REAL-FIGURES' latest report, one entry
-  // per build file it flew, loaded once. A fiche record finds its entry by the file its list row names (the board's
-  // ctx.file or the record's own), or by a canon alias ('list:50'); none -> no Reference page (visible(rec) false).
+  // per build file it flew, loaded once. A fiche record finds its entry by its list row's build path (rec.listFile), else
+  // by the row's id through the canon's aliases (rec.listRow, 'list:50'); none -> no Reference page (visible(rec) false).
   let REFS = null, refsP = null;
   const refsUrl = () => (root && root.FICHE_REFS_URL) || 'media/fiches/references.json';
   function refsLoad() {
@@ -673,7 +673,9 @@
   }
   function refOf(rec, ctx) {
     if (!REFS || !rec) return null;
-    const c = ctx || {}, cand = [c.file, rec.listFile, rec.row && rec.row.file, rec.file, rec.key, rec.id, rec.thumb, rec.name];
+    // the record's (and ctx's) list row (AIRCRAFT-LOOKS, L39b): listFile, its build path; listRow, e.g. 'list:50'. A
+    // self-built plane carries neither, and has no Reference
+    const c = ctx || {}, cand = [rec.listFile, c.listFile, rec.listRow, c.listRow];
     for (const k of cand) { if (!k || typeof k !== 'string') continue;
       const f = REFS.byFile[k] ? k : (REFS.alias && REFS.alias[k]); if (f && REFS.byFile[f]) return REFS.byFile[f]; }
     return null;
