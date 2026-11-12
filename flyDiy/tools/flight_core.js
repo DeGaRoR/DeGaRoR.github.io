@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a7c720b1682287e5
+// body-sha256: 836972b9e585b4c6
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8848,7 +8848,7 @@ function hangarWants(S) {
     if (m === 'wood') want.add('wood');
     else if (m === 'tubeFabric') want.add('tube');
     else if (m === 'alloy' || m === 'fabricAlu') want.add('metal');   // (the aluminium spar under fabric: metal ribs)
-    else if (m === 'carbon' || m === 'glass') want.add('composite');   // G2047: glass is moulded in the same shop
+    else if (m === 'carbon' || m === 'glass' || m === 'dtube') want.add('composite');   // G2047: glass is moulded in the same shop
     else if (m === 'aluTube' || m === 'aluFabric') want.add('tube');   // G466: bolted tube wants the tube shop
     // G213: the surfaces' own tokens — fabric over wood wants the wood shop,
     // fabric over tube the tube shop
@@ -22187,7 +22187,7 @@ const WB_CP = 1.0, WB_CF = 0.006, WB_CD_TYRE = 1.0, WB_CD_SIDE = 1.2, WB_TYRE_W 
 const WB_MAT = { tubeFabric: { air: 0.85, tau: 40, breach: 60e3 }, aluTube: { air: 0.85, tau: 40, breach: 60e3 },
                  wood: { air: 0.85, tau: 150, breach: 120e3 }, alloy: { air: 0.9, tau: 300, breach: 200e3 },
                  carbon: { air: 0.9, tau: 900, breach: 250e3 }, glass: { air: 0.9, tau: 900, breach: 200e3 } };   // G2047: glass, the carbon's sandwich, a softer skin
-const WB_WING = { fabric: { air: 0.5, tau: 60 }, steel: { air: 0.5, tau: 60 }, aluFabric: { air: 0.5, tau: 60 }, fabricAlu: { air: 0.5, tau: 60 },
+const WB_WING = { fabric: { air: 0.5, tau: 60 }, steel: { air: 0.5, tau: 60 }, aluFabric: { air: 0.5, tau: 60 }, fabricAlu: { air: 0.5, tau: 60 }, dtube: { air: 0.5, tau: 60 },
                   alloy: { air: 0.9, tau: 600 }, carbon: { air: 0.9, tau: 900 }, glass: { air: 0.9, tau: 900 } };
 const WB_DRAIN = 30;            // s: a slice out of the water drains (its flooding decays) on this time
 const WB_BREACH_K = 10;         // a holed slice floods this much faster
@@ -33243,6 +33243,22 @@ const GEN_SURF_MATERIALS = {
   // the fuselage rows' (GEN_MATERIALS.glass)
   glass:  Object.assign({}, GEN_MATERIALS.glass,  { shop: 'composite', cover: 2.0,
             tail: { cover: 0.70, section: 0.10 } }),
+  // THE FOOT-LAUNCH D-TUBE (WEIGHT STUDY, 12 Nov; the user: "offer the ultralight options, but with the cost in terms of
+  // rigidity ... if I put such a lightweight wing on another plane, it should probably break"): the Archaeopteryx's,
+  // the Swift's, the Atos's wing - a carbon D-box leading edge, carbon ribs, a film / fabric aft. Carbon's phys, its
+  // members at 0.3 of the moulded row's rate and its cover at 0.6 kg/m2 (1.6), its springs at half. BUILT FOR A WEIGHT:
+  // `buildKg` is the aeroplane it was designed for, and three things follow (the frame, the certificate):
+  //   - its gauge thins below it but never grows past it ((buildKg / refGross)^e caps GEN_GAUGE.hi);
+  //   - its members' section has no floor (`noFloor`: the section is what was paid for), its springs no gain past it;
+  //   - it is CERTIFIED as if its aeroplane weighed buildKg (66_gen_cert: its members' limit loads x min(1, buildKg /
+  //     W0)), so on a heavier aeroplane it breaks where its physics says. Measured (weight_proto/, the garage's destroy
+  //     bench): the Archaeopteryx 6.3 g (certified), a Cub 3.7 g, a C172 2.7 g, a Caravan 1.6 g - the spar folding at
+  //     its root. Without the certificate's part, a 31 kg wing on the C172 held 6 g: the exploit GATE LIGHTWING keeps shut.
+  dtube:  Object.assign({}, GEN_MATERIALS.carbon, { name: 'foot-launch D-tube', shop: 'composite', cover: 0.6,
+            lin: Object.assign({}, GEN_MATERIALS.carbon.lin, { wing: GEN_MATERIALS.carbon.lin.wing * 0.3 }),
+            k: Object.assign({}, GEN_MATERIALS.carbon.k, { wing: GEN_MATERIALS.carbon.k.wing * 0.5 }),
+            refGross: 190, buildKg: 250, noFloor: true,
+            tail: { cover: 0.70, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
 // THE WING: fabric over a wooden structure on both a wood and a tube
@@ -33450,6 +33466,8 @@ GEN_BUILD_GRAMMAR.fabricAlu = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: 'aluminium spar + fabric', alias: 'tubeFabric' });
 // G2047: a glass moulding reads as the carbon one - no fasteners, no seams, the mould's parting line
 GEN_BUILD_GRAMMAR.glass = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'glass + epoxy', alias: 'carbon' });
+// the foot-launch D-tube: its moulded D-box is what shows (the film aft is taut, no rib print at this scale)
+GEN_BUILD_GRAMMAR.dtube = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'foot-launch D-tube', alias: 'carbon' });
 
 
 // ===========================================================================
@@ -37774,7 +37792,7 @@ const GEN_FIELDS = {
                                          v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
                                              'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
                                          twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
-  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'] } },
   'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
   'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
   'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },
@@ -40964,6 +40982,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   let MB = M;                                   // what the open section BILLS
   const KS = kScale || 1;                       // structure sized for the mass
+  // ...but a wing BUILT FOR a weight (the foot-launch D-tube) is no stiffer than at that weight: kScale's own law at buildKg
+  const KSB = MW => Math.min(4, Math.max(0.45, CORE_MATH.pow(MW.buildKg / ((M && M.refMass) || 390), 0.85)));
   const ARCH = GEN_SUSPENSION[S.gear.suspension] || GEN_SUSPENSION.bungee;
   const SUS = (S.gear.stiffness == null ? 1 : S.gear.stiffness) * ARCH.k;
   // Damping does NOT scale with stiffness the way stiffness does. Critical
@@ -41350,7 +41370,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // weigh what they did (so the aeroplane does not move); the new pair is built weightless
     const ghost = !!(opt && opt.ghost);
     if (!ghost) {
-    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
+    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : (cls === 'wing' && MM.buildKg > 0 ? Math.min(KS, KSB(MM)) : KS)) * kGain * mK * bK * kMul,
                  c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
@@ -41373,7 +41393,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // aft taper, the gauge under 1 - has the rest of its strength in the skin, which the lattice bills under
       // `cover`, not `lin`. Measured: on the metal Cessna its own billed area put a wing member at 133 % of yield
       // at the 3.8 g limit (a 172's wing holds it), the class's at 52 % - the load test's own figure.
-      bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, lin) / MM.phys.rho : 0;
+      bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, MM.noFloor ? 0 : lin) / MM.phys.rho : 0;   // (noFloor: the foot-launch D-tube - its section is what was paid for)
       // G3505 (DC3-BUILD, 2026-10-23): AN AIRLINER'S MEMBERS HOLD ITS STRESS. The gauge above is Raymer's mass rule,
       // sub-linear in the gross (fus 0.30, wing 0.49, tail 0.41, gear 0.75, capped at 3) - right for what the structure
       // WEIGHS, and on the fleet the members' strength is calibrated with it. But one lattice member stands for what an
@@ -45111,7 +45131,11 @@ function genDesignGross(S, a, cg) {
     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
   const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
-  const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
+  // THE BUILD WEIGHT (the foot-launch D-tube, GEN_SURF_MATERIALS.dtube): a wing built for buildKg thins below it but
+  // never grows past it
+  const WROW = genSurfMaterial(S, 'wing', 0) || {};
+  const hiOf = c => c === 'wing' && WROW.buildKg > 0 ? Math.min(G.hi, CORE_MATH.pow(WROW.buildKg / ref(c), G.e[c])) : G.hi;
+  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
   const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)
@@ -45122,7 +45146,7 @@ function genDesignGross(S, a, cg) {
     for (const c in GD) { if (!(GD[c].m > 0)) continue; const g = gOf(c, W);
       f += GD[c].m * g;
       const raw = CORE_MATH.pow(W / ref(c), G.e[c]);
-      if (raw > G.lo && raw < G.hi) df += GD[c].m * G.e[c] * g / W; }
+      if (raw > G.lo && raw < hiOf(c)) df += GD[c].m * G.e[c] * g / W; }
     W = Math.max(Mfix, W - f / df);
   }
   const gauge = { W0: W }, dm = {}; let mAdd = furnOf(W), xAdd = 0, yAdd = 0, zAdd = 0;
@@ -52795,6 +52819,16 @@ function* genCertifySteps(def, opt) {
   GEN_CERT_HOOK.name = '';
   const tD = (typeof performance !== 'undefined' ? performance : Date).now();
   const { Ft, Fc, byT, byC, names } = genCertCombine(def, cases);
+  // THE BUILD WEIGHT (WEIGHT STUDY, 12 Nov): a wing built for a weight (GEN_SURF_MATERIALS.dtube.buildKg) is certified
+  // as if its aeroplane weighed that - its members' limit loads (and so their fittings') x min(1, buildKg / W0). The
+  // certificate otherwise sizes every member to THIS aeroplane's own loads, and a light wing on a heavy aeroplane held 6 g
+  // (weight_proto/, run 1): with this, it breaks where its physics says (a C172 2.7 g)
+  { const S = def.spec || {}, WR = (typeof genSurfMaterial === 'function' && S.wings) ? genSurfMaterial(S, 'wing', 0) : null;
+    const W0 = def.parts && def.parts.gauge && def.parts.gauge.W0;
+    if (WR && WR.buildKg > 0 && W0 > WR.buildKg) {
+      const f = WR.buildKg / W0;
+      def.beams.forEach((b, i) => { if (b.sec === 'wings') { Ft[i] *= f; Fc[i] *= f; } });
+    } }
   return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
            sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
            Ft, Fc, byT, byC, names, cases, speeds: VS, aero, nw: ground && ground.nw != null ? ground.nw : null,
@@ -64484,7 +64518,7 @@ const TECH_SEGS = {
 const TECH_TABLE = {
   // ---- materials
   'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3,
-  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3, 'surf:fabricAlu': 2,
+  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3, 'surf:fabricAlu': 2, 'surf:dtube': 3,
   // ---- engines
   'eng:a65_sensenich74': 1, 'eng:vw2180_wood': 1, 'eng:rotax277_pusher': 1, 'eng:rotax503_wood': 1, 'eng:rotax582_ivo': 1,
   'eng:jabiru2200_std': 1, 'eng:rotax912_warp': 1, 'eng:o200_eprops': 1, 'eng:mikron3_wood': 1, 'eng:gipsymajor1_wood': 1,
@@ -64656,9 +64690,13 @@ function careerTechUnlock(doc, seg) {
 // nacelle mount, the powertrain). Two rows read the page's tables, handed in by the editor: `engPreset` (the row's
 // names through CAGE_JOIN_ENGINES) and `cw_material` (CAGE_JOIN_PROP_MATS). GATE TECH holds every list to the join.
 const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass', 'surf:fabricAlu'];
+// the WING's row has a ninth stop the tail's do not: the foot-launch D-tube (WEIGHT STUDY) - built for a weight, and the
+// certificate holds only the wing to it (66_gen_cert), so a tail in it would be a light part with no price
+const TECH_WING_ROW = TECH_SURF_ROW.concat(['surf:dtube']);
 const TECH_ROWS = {
   intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
-  wgCons: TECH_SURF_ROW, w2Cons: TECH_SURF_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
+  // (the second plane's row is the wing row's own: its options, the D-tube's with them)
+  wgCons: TECH_WING_ROW, w2Cons: TECH_WING_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
   glazeMat: ['glaze:acrylic', 'glaze:polycarbonate', 'glaze:glass'],
   canopy: ['canopy:screen', 'canopy:screen', 'canopy:screen', 'canopy:bubble'],
   fairCons: ['fair:glass', 'fair:carbon', 'fair:alloy'],
