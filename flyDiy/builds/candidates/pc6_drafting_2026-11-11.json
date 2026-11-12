@@ -938,10 +938,10 @@
    "wgStrutPil": 2,
    "cw_scoopTaperH": 0.85,
    "eng_stackOut": 2.2,
-   "eng_stackLen": 1.4,
+   "eng_stackLen": 1.15,
    "eng_stackFlat": 0.55,
    "eng_stackR": 1.5,
-   "eng_stackDrop": -0.4,
+   "eng_stackDrop": -0.2,
    "winPilotPanel": 1,
    "win4N": 1,
    "win4Shape": 2,
@@ -1804,6 +1804,12 @@
     "who": "session",
     "step": "fit",
     "line": "r7: the shock tops 7 cm lower (the user's blue marks) {\"s1_shockAng\":118}"
+   },
+   {
+    "date": "2026-11-12T02:56",
+    "who": "session",
+    "step": "fit",
+    "line": "r11: the stacks' twist halved, a shorter run; both now rooted at the same height (garage: mirrored about the root) {\"eng_stackDrop\":-0.2,\"eng_stackLen\":1.15}"
    }
   ],
   "datumLE": 3000,
