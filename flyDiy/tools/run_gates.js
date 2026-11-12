@@ -753,7 +753,7 @@ const GATES = [
   // ENGINE COOLING (ENGINE-COOLING, 12 Nov; futureDesigns/ENGINE-COOLING-2026-11.md): the drawn openings' facing, the
   // reference-fitted cowls' hot-day margins, the cowled pusher's remedy path, the momentum drag, the proposed rows and
   // the fingerprint, the turned scoop. ~75 s (six cards through the load door)
-  { id: 'COOL', file: '_cool_check.js', tier: 'core', wall: 90 },
+  { id: 'COOL', file: '_cool_check.js', tier: 'core', wall: 420 },
   // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
   // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
   // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,

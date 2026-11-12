@@ -1158,9 +1158,7 @@
     "dumSize": 1,
     "paxSize": 1,
     "dumMarkers": 1
-   },
-   "cw_inletW": 0.47,
-   "cw_inletH": 0.47
+   }
   },
   "wings": [
    {

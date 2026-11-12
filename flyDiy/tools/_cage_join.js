@@ -633,9 +633,17 @@ function cageJoinSpec(P, M, T) {
   // keeps the per-kW cooling drag (62_gen_aero genCoolOpen 'legacy'). MEASURED, never the player's: certStrip drops it
   {
     const co = typeof window !== 'undefined' ? window.CAGE_COOL_OPEN : null;
+    // ENGINE-COOLING 3: the heads in the wind (the engine layer, CAGE_COOL_HEADS: m2 out of the drawn skin, m2 in all),
+    // the scoop's other end (a push-pull's aft cowl, cw_scoopAft) and each unit's area factor; an uncowled engine
+    // writes its heads alone (all in the wind: the bare engine's own figure)
+    const hd = typeof window !== 'undefined' ? window.CAGE_COOL_HEADS : null;
+    const heads = hd && typeof hd === 'object' ? { headsOut: +hd.out || 0, headsAll: +hd.all || 0 } : { headsOut: null, headsAll: null };
     if (co && typeof co === 'object')
-      spec.cooling = { face: +co.face || 0, scoop: +co.scoop || 0, scoopRev: co.scoopRev ? 1 : 0,
-                       nacInlet: +co.nacInlet || 0, exit: +co.exit || 0, gills: +co.gills || 0 };
+      spec.cooling = Object.assign({ face: +co.face || 0, scoop: +co.scoop || 0, scoopAlt: +co.scoopAlt || 0, scoopRev: co.scoopRev ? 1 : 0,
+                       nacInlet: +co.nacInlet || 0, exit: +co.exit || 0, gills: +co.gills || 0,
+                       units: Array.isArray(co.units) ? co.units.map(u => ({ aft: u.aft ? 1 : 0, k: +u.k || 1, turned: u.scoopTurned ? 1 : 0 })) : null }, heads);
+    else if (hd && typeof hd === 'object' && (P.cowlOn != null && !+P.cowlOn))
+      spec.cooling = Object.assign({ face: 0, scoop: 0, scoopAlt: 0, scoopRev: 0, nacInlet: 0, exit: 0, gills: 0, units: null }, heads);
   }
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE)) {

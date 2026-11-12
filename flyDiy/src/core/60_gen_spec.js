@@ -1973,10 +1973,15 @@ const GEN_DRAG = {
 //   path      the air may warm by dT = eps (Tlim - T_ambient) before the hot side is at its limit: a hot day shrinks
 //             the gap, which is why a hot climb is the sizing case. PROPOSED constants, calibrated so the cowls fitted
 //             to real reference models (the Cub, the V2-172, the Jodel) pass the hot climb with a real margin (GATE COOL)
-//   kappa     the inlet's velocity ratio V_inlet / V_free behind a fixed exit (0.3-0.5 for a diffusing inlet); bare
-//             heads and fins in the stream at kappaBare
+//   ivr       the inlet's BEST velocity ratio V_inlet / V_free (ENGINE-COOLING 3): a small inlet, the engine's passages
+//             pulling hard behind it, runs near it (0.6-0.9 in a climb); a big one spills (the passages limit it)
+//   passages  the engine's own fins and baffles: `passages` x the air its hot climb needs, at that climb's inlet speed,
+//             with nothing ahead of them (an engine is built to be cooled); in series with the inlet and a drawn outlet,
+//             mdot = 1 / sqrt(sum 1 / mdot_i^2). Calibrated so the reference-fitted cowls (the Cub, the V2-172, the
+//             Jodel) keep a real margin and a big inlet stops buying air past ~3 x (it spills round the cowl)
+//   kappaBare the heads and fins left in the stream (the Cub's, a bare engine's), beside the cowl's air
 //   r         the exit velocity over the free stream: the momentum the air keeps (a baffled cowl 0.7, a radiator duct
-//             with a diffuser 0.8): cooling drag D = mdot V (1 - r), CdA = 2 kappa A (1 - r)
+//             with a diffuser 0.8): cooling drag D = mdot V (1 - r), CdA = 2 (mdot / rho V) (1 - r)
 //   outRatio  the drawn outlet that passes the inlet's flow (the heated air is thinner: the classic 1.3 x)
 //   slip      the slipstream's share at a nose inlet (behind the propeller's roots), of the actuator disc's velocity
 //             ratio; a pusher's own inlets on the ground get `pushInflow` of the disc's static velocity (the prop sucks)
@@ -1997,7 +2002,7 @@ const GEN_COOL = {
           liquid:   { Tlim: 110, eps: 0.55 },
           electric: { Tlim: 70,  eps: 0.50 },
           turbine:  { Tlim: 90,  eps: 0.50 } },
-  kappa: 0.45, kappaBare: 0.5,
+  ivr: 0.8, passages: 3.0, kappaBare: 0.5,
   r: { cowl: 0.70, duct: 0.80 },
   outRatio: 1.3,
   slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25, suck: 0.6,

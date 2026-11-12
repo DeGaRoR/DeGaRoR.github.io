@@ -205,6 +205,8 @@ const COWL_ROWS = [
     { k: 'scoopOn', label: 'chin scoop', lo: 0, hi: 1, step: 1 },
     // ENGINE-COOLING (12 Nov): the same scoop on the cowl's top (absent 0: under it, as every scoop was)
     { k: 'scoopTop', label: 'sits', lo: 0, hi: 1, step: 1, names: ['under the cowl (a chin scoop)', 'on top of the cowl'], when: 'P.scoopOn>0' },
+    // ENGINE-COOLING 3: a push-pull's AFT cowl (the nose cowl turned round) with its scoop turned on its own (absent 0)
+    { k: 'scoopAft', label: 'the rear engine\'s scoop (push-pull)', lo: 0, hi: 1, step: 1, names: ['as the nose cowl\'s', 'turned: into the air'], when: 'P.scoopOn>0' },
     // ENGINE-COOLING (12 Nov): the mouth turned round - on a pusher the cowl runs from the firewall to the propeller, so
     // only a turned scoop faces the air (absent 0: every scoop as it was)
     { k: 'scoopRev', label: 'mouth faces', lo: 0, hi: 1, step: 1, names: ['the propeller', 'the firewall (a pusher: into the air)'], when: 'P.scoopOn>0' },

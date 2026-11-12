@@ -157,7 +157,9 @@ const PLAQUE_WHY = {
       + 'carries it away. A cowl has to swallow this.' },
   // ENGINE-COOLING (12 Nov): what the drawn openings do with that heat
   'cooling air': { what: 'an engine with no cowl round it: the propeller wash '
-      + 'and the flight blow straight over its fins, nothing to size.' },
+      + 'and the flight blow straight over its fins - the frontal of its '
+      + 'cylinders in the wind, and the air that passes them on a 38 C '
+      + 'climb against the air the engine needs.' },
   'hot-day climb air': { what: 'the air the drawn openings pass on a 38 C day at '
       + 'sea level, climbing at full power, against the air the engine needs to '
       + 'stay under its limit. Under 1 the engine overheats in the climb.',

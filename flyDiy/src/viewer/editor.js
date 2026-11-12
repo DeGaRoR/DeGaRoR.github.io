@@ -3739,7 +3739,7 @@ function editorInit(api) {
       scoopOn: 'scoop', scoopLen: 'scoop', scoopW: 'scoop', scoopH: 'scoop',
       scoopSq: 'scoop', scoopLipH: 'scoop', scoopDrop: 'scoop',
       scoopRake: 'scoop', scoopAp: 'scoop', scoopLipDepth: 'scoop',
-      scoopDuct: 'scoop', scoopRev: 'scoop', scoopTop: 'scoop',
+      scoopDuct: 'scoop', scoopRev: 'scoop', scoopTop: 'scoop', scoopAft: 'scoop',
       oilOn: 'oil', oilZ: 'oil', oilW: 'oil', oilL: 'oil', oilSq: 'oil',
       partOn: 'part', partY: 'part', partW: 'part',
       apMode: 'aps', apW: 'aps', apH: 'aps', apSq: 'aps',

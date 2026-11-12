@@ -12933,7 +12933,8 @@
         (s.engineCooling === 'liquid' ? 'by radiator' : 'by fins'));
       // ENGINE-COOLING (12 Nov): what the drawn openings do with it - the hot-day climb (38 C at sea level, full power)
       const CO = s.cooling;
-      if (CO && CO.kind === 'bare') R('cooling air', 'no cowl: the engine stands in the air');
+      if (CO && CO.kind === 'bare') R('cooling air', 'no cowl: heads in the wind ' + n1(CO.bareA, 3) + ' m2 · ' +
+        (CO.margin != null ? n1(CO.margin, 2) + ' x what a 38 C climb needs' : 'the engine stands in the air'), CO.margin != null && CO.margin < 1 ? 'bad' : '');
       else if (CO && CO.margin != null) {
         R('hot-day climb air', n1(CO.passKgS, 2) + ' / ' + n1(CO.needKgS, 2) + ' kg/s · ' + n1(CO.margin, 2) + ' x what it needs',
           CO.margin < 1 ? 'bad' : '');

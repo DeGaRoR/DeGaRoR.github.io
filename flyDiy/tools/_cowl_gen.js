@@ -87,7 +87,7 @@ const P={
   // chin scoop
   // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
   // ENGINE-COOLING (12 Nov, the user: "let's have at least a top scoop"): scoopTop 1 puts it on the cowl's TOP
-  scoopOn:1, scoopRev:0, scoopTop:0, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
+  scoopOn:1, scoopRev:0, scoopTop:0, scoopAft:0, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
   scoopLipH:0.011, scoopLipDepth:0.032, scoopDuct:0.125,
   // aft — the fuselage is a given; the cowl inherits its section by default
@@ -1825,7 +1825,7 @@ function coolOpenings(aps){
   const area=(a,b,n)=>{ if(!(a>0&&b>0)) return 0; let s=0; const N=96;
     for(let i=0;i<N;i++){ const p=superPt(i/N*TAU,a,b,n), q=superPt((i+1)/N*TAU,a,b,n); s+=p[0]*q[1]-q[0]*p[1]; }
     return Math.abs(s)/2; };
-  const out={face:0,scoop:0,scoopRev:P.scoopRev?1:0,nacInlet:0,exit:0,gills:0};
+  const out={face:0,scoop:0,scoopAlt:0,scoopRev:P.scoopRev?1:0,nacInlet:0,exit:0,gills:0};
   const L=aps||apertureList();
   L.forEach((o,i)=>{ let A=area(o.w,o.h,o.n);
     if(i===0&&(P.apMode===1||P.apMode===3)) A=Math.max(0,A-Math.PI*Math.pow(Math.max(0,+P.spinR||0),2));
@@ -1837,18 +1837,24 @@ function coolOpenings(aps){
     // a notch, whatever its rows say): the mouth's station and centre as buildScoop draws them (the turned mouth at the
     // firewall end, a top scoop above the spine, a following one on the keel or the deck line), its opening sampled
     // against the cowl's own section there
+    // (`scoopAlt`: the same scoop with its mouth at the OTHER end - what a push-pull's aft cowl wears when its scoop is
+    // turned on its own, cw_scoopAft)
     const ze=zEnd(), top=!!P.scoopTop, zM0=P.cowlLen+P.lidLen*0.35, z1=zM0-(P.scoopZ||0)*(zM0-P.scoopLen);
-    const zm=P.scoopRev?z1-P.scoopLen:z1, sm=sectionAtZ(P.cowlLen*0.5), H=P.scoopH;
-    let cy;
-    if(P.scoopFollow>0){ const sk=sectionAtZ(clamp(zm,0,ze)); cy=top?(sk.cy+sk.bT)-H/3+H:(sk.cy-sk.bB)+H/3-H; }
-    else cy=top?spineY(ze*0.6)+sm.bT*P.scoopDrop+H*P.scoopRake:spineY(ze*0.6)-sm.bB*P.scoopDrop-H*P.scoopRake;
-    const inSkin=zm>=0&&zm<=ze, G=48; let tot=0, open=0;
-    for(let i=0;i<G;i++) for(let j=0;j<G;j++){
-      const u=(i+0.5)/G*2-1, v=(j+0.5)/G*2-1;
-      if(Math.pow(Math.abs(u),nn)+Math.pow(Math.abs(v),nn)>1) continue;
-      tot++; if(!inSkin||sectF(u*aI,cy+v*bI,zm)>=1) open++;
-    }
-    out.scoop=area(aI,bI,nn)*(tot?open/tot:0);
+    const sm=sectionAtZ(P.cowlLen*0.5), H=P.scoopH, A0=area(aI,bI,nn);
+    const openAt=rev=>{
+      const zm=rev?z1-P.scoopLen:z1;
+      let cy;
+      if(P.scoopFollow>0){ const sk=sectionAtZ(clamp(zm,0,ze)); cy=top?(sk.cy+sk.bT)-H/3+H:(sk.cy-sk.bB)+H/3-H; }
+      else cy=top?spineY(ze*0.6)+sm.bT*P.scoopDrop+H*P.scoopRake:spineY(ze*0.6)-sm.bB*P.scoopDrop-H*P.scoopRake;
+      const inSkin=zm>=0&&zm<=ze, G=48; let tot=0, open=0;
+      for(let i=0;i<G;i++) for(let j=0;j<G;j++){
+        const u=(i+0.5)/G*2-1, v=(j+0.5)/G*2-1;
+        if(Math.pow(Math.abs(u),nn)+Math.pow(Math.abs(v),nn)>1) continue;
+        tot++; if(!inSkin||sectF(u*aI,cy+v*bI,zm)>=1) open++;
+      }
+      return A0*(tot?open/tot:0);
+    };
+    out.scoop=openAt(!!P.scoopRev); out.scoopAlt=openAt(!P.scoopRev);
   }
   if(Math.round(P.aftMode)===1&&P.inletOn){
     const s0=sectionAtZ(0);
@@ -1859,10 +1865,36 @@ function coolOpenings(aps){
   }
   if(P.exitGap>0) out.exit=Math.max(0,+P.aftW||0)*P.exitGap;
   if(P.gillOn>0){ const F=gillsFit(); if(F.ok) out.gills=2*Math.max(2,Math.round(P.gillN))*Math.max(0.002,P.gillLip)*F.H*0.8; }
-  for(const k of ['face','scoop','nacInlet','exit','gills']) out[k]=+out[k].toFixed(5);
+  for(const k of ['face','scoop','scoopAlt','nacInlet','exit','gills']) out[k]=+out[k].toFixed(5);
   return out;
 }
 
-const COWL_API = { coolOpenings, gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+// THE HEADS IN THE WIND (ENGINE-COOLING 3, the user 12 Nov: "on the Client Cub the cylinder heads themselves stick out of
+// the cowl ... we should account for them"): the engine's cylinders (_eng_gen engResolve's `place`) as THIS cowl's skin
+// sees them - each cylinder's frontal strip (its base on the case to its head's tip, a head's width across) sampled; a
+// point outside the skin, or ahead of the cowl's end, is in the air (behind the firewall it is in the fuselage).
+// `toCowl(x, y, z)` maps the engine's own frame (z 0 the flange, aft negative) into the cowl's; with none (no cowl at
+// all) every head is out. Returns m2 of frontal: { out, all }; null for an engine with no cylinders.
+function coolHeads(R, toCowl){
+  const L=R&&R.place;
+  if(!L||!L.ang||!L.ang.length||!(L.cylLen>0)||!(L.headR>0)) return null;
+  const ze=toCowl?zEnd():0, NR=12, NT=6;
+  let out=0, all=0;
+  for(let i=0;i<L.ang.length;i++){
+    const a=L.ang[i], s=Math.sin(a), c=Math.cos(a), px=Math.cos(a), py=-Math.sin(a), z=L.zOf(L.stn[i]);
+    const dA=(L.cylLen/NR)*(2*L.headR/NT);
+    for(let u=0;u<NR;u++) for(let v=0;v<NT;v++){
+      const r=L.r0+(u+0.5)/NR*L.cylLen, t=-L.headR+(v+0.5)/NT*2*L.headR;
+      all+=dA;
+      if(!toCowl){ out+=dA; continue; }
+      const q=toCowl(s*r+px*t, c*r+py*t, z);
+      if(q[2]<0) continue;
+      if(q[2]>ze||sectF(q[0],q[1],q[2])>=1) out+=dA;
+    }
+  }
+  return { out:+out.toFixed(5), all:+all.toFixed(5) };
+}
+
+const COWL_API = { coolOpenings, coolHeads, gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

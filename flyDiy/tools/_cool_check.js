@@ -21,10 +21,16 @@
 //                 charged five times over (the per-kW law against the momentum one on the Merlin's numbers)
 //   CERTIFICATE   the rows land PROPOSED: a fail withdraws neither certificate (genCertTiers); spec.cooling never
 //                 moves the major fingerprint (certStrip) nor the bench's old f2 body (R3)
+//   THE SERIES    (ENGINE-COOLING 3) the inlet, the engine's passages and a drawn outlet in series: a tiny inlet runs at
+//                 its best velocity ratio, a huge one stops at the passages, more inlet never passes less
+//   THE HEADS     the cylinders measured against the DRAWN skin: list:26 Client Cub's poke through (counted), list:1 Cub's
+//                 are covered, list:7 Rufus (no cowl) gets its own figure, list:10 Tiger Moth-alike's are inside
+//   THE BIRTH     the archetypes' birth rule (designCoolBirth): never shrinks, opens what each kind of mount needs
+//   THE PUSH-PULL every engine on the body judged; the rear one breathes through its own turned scoop (cw_scoopAft)
 //   THE SCOOP     turned round, its mouth at the firewall end and its skin still facing out; on TOP of the cowl
 //                 (scoopTop), above the spine, skin out; absent = as it was, bit for bit
 //
-//   node tools/_cool_check.js   (~2 min: six cards through the load door)
+//   node tools/_cool_check.js   (~5 min: nine cards and an archetype through the load door)
 'use strict';
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
@@ -46,9 +52,16 @@ console.log('FACING (genCoolOpen on a hand-made resolved spec)');
   const t = O(base);
   ok(t.kind === 'measured' && r3(t.inA) === 0.06 && r3(t.outA) === 0.054, 'a tractor: the face and the scoop in (0.06), the cone, the exit and the gills out (' + r3(t.inA) + ' / ' + r3(t.outA) + ')');
   const p = O(Object.assign({}, base, { engAt: [{ mount: 'pusher', pushes: true }] }));
-  ok(r3(p.inA) === 0.02 && r3(p.outA) === 0.094, 'a pusher: only the nacelle cone faces the air (0.02 in, 0.094 out: ' + r3(p.inA) + ' / ' + r3(p.outA) + ')');
+  ok(r3(p.inA) === 0.054 && r3(p.outA) === 0.06, 'a pusher (its cowl turned round): the cone, the lowered bottom and the gills face the flight, the face and the scoop are its way out (' + r3(p.inA) + ' / ' + r3(p.outA) + ')');
   const pr = O(Object.assign({}, base, { engAt: [{ mount: 'pusher', pushes: true }], cooling: Object.assign({}, base.cooling, { scoopRev: 1 }) }));
-  ok(r3(pr.inA) === 0.03, 'a pusher with its scoop turned round: the scoop faces the flight (' + r3(pr.inA) + ')');
+  ok(r3(pr.inA) === 0.064, 'a pusher with its scoop turned round: the scoop faces the flight (' + r3(pr.inA) + ')');
+  // a push-pull: unit 1 is the nose cowl turned round on the rear engine; its scoop turned on its own (scoopAft) faces
+  // the flight there with the mouth at its other end (scoopAlt), its area x the unit's factor
+  const pp = Object.assign({}, base, { engAt: [{ mount: 'nose', pushes: false }, { mount: 'pusher', pushes: true }],
+    cooling: Object.assign({}, base.cooling, { scoopAlt: 0.012, units: [{ aft: 0, k: 1, turned: 0 }, { aft: 1, k: 0.5, turned: 1 }] }) });
+  const r0 = C.genCoolOpen(pp, 0), r1 = C.genCoolOpen(pp, 1);
+  ok(r3(r0.inA) === 0.06 && r3(r1.inA) === r3(0.5 * (0.02 + 0.03 + 0.004 + 0.012)),
+     'a push-pull: the nose as a tractor (' + r3(r0.inA) + '), the rear engine through its own turned scoop and the turned shell, at its unit\'s size (' + r3(r1.inA) + ')');
   const tr = O(Object.assign({}, base, { cooling: Object.assign({}, base.cooling, { scoopRev: 1 }) }));
   ok(r3(tr.inA) === 0.05, 'a tractor with its scoop turned round: it faces aft (' + r3(tr.inA) + ')');
   ok(O(Object.assign({}, base, { cage: { cowlOn: 0 } })).kind === 'bare', 'no cowl: bare');
@@ -63,20 +76,44 @@ const JOD = card('builds/jodel_2026-09-20_corrected.json');
 const TM = card('builds/candidates/tigermoth_2026-10.json');
 const PET = card('builds/candidates/superpetrel_V4_1.json');
 const RUF = card('builds/rufus_2026-10-18_certified.json');
-for (const [n, X, lo, hi] of [['list:1 Cub', CUB, 1.2, 2.5], ['list:50 V2-172', C172, 1.2, 2.5], ['list:2 Jodel', JOD, 1.2, 8]]) {
+for (const [n, X, lo, hi] of [['list:1 Cub', CUB, 1.5, 3], ['list:50 V2-172', C172, 1.5, 3], ['list:2 Jodel', JOD, 1.5, 3.2]]) {
   const K = coolOf(X.def), row = rowOf(X.def, 'cool.climb');
   ok(K.kind === 'measured' && K.hot.margin >= lo && K.hot.margin <= hi && row && row.level === 'pass',
-     n + ': ' + r2(K.hot.margin) + ' x the air at 38 C (band ' + lo + '-' + hi + '), in ' + r3(K.inA) + ' m2 (needs ' + r3(K.hot.inNeed) + '), the row ' + (row && row.level));
+     n + ': ' + r2(K.hot.margin) + ' x the air at 38 C (band ' + lo + '-' + hi + '), in ' + r3(K.inA) + ' m2 (needs ' + r3(K.hot.inNeed) + ', ' + r3(K.hot.inPass) + ' to the pass line), the row ' + (row && row.level));
 }
 {
-  const K = coolOf(TM.def);
-  ok(K.bareA > 0.05 && K.hot.margin > 1.15, 'list:10 Tiger Moth-alike passes on its heads in the wind (' + r3(K.bareA) + ' m2 bare, ' + r2(K.hot.margin) + ' x)');
   const P = coolOf(PET.def), pr = rowOf(PET.def, 'cool.climb');
   ok(P.kind === 'measured' && P.pushes && P.inA > 0.03 && P.parts.some(q => q.what === 'the nacelle\'s inlet' && q.faces === 'fwd'),
      'list:41 Super Petrel: its nacelle inlet faces the air and is counted (' + r3(P.inA) + ' m2, ' + r2(P.hot.margin) + ' x)');
-  ok(pr && pr.level === 'pass', 'list:41 Super Petrel as saved (its inlet 0.47 of the nacelle, 12 Nov): the hot climb passes (' + (pr && pr.value) + ')');
-  const R = C.genCoolRows(RUF.def);
-  ok(R.length === 1 && R[0].level === 'pass' && coolOf(RUF.def).kind === 'bare', 'list:7 Rufus (no cowl): bare, passes');
+  ok(pr && pr.level === 'pass', 'list:41 Super Petrel as the user drew it (its inlet 0.42 of the nacelle): the hot climb passes (' + (pr && pr.value) + ')');
+}
+
+console.log('THE SERIES (the inlet, the engine\'s passages, the outlet)');
+{
+  // the Cub's own engine and speeds, its front opening scaled: a small inlet runs near its best velocity ratio, a big one
+  // stops buying air at the engine's passages
+  const at = f => { const S = JSON.parse(JSON.stringify(CUB.def.spec)); S.cooling.face *= f; S.cooling.scoop *= f; S.cooling.headsOut = 0;
+                    return C.genCooling(S, { VClimb: CUB.def.params.ap.VClimb, VCruise: CUB.def.params.ap.VCruise }); };
+  const tiny = at(0.02), big = at(30), K0 = C.GEN_COOL;
+  const vr = tiny.hot.flow / (tiny.hot.rho * tiny.hot.Vin * tiny.inA);
+  ok(vr > 0.97 * K0.ivr && vr <= K0.ivr, 'a tiny inlet runs at its best velocity ratio (' + r3(vr) + ' of ' + K0.ivr + ')');
+  ok(big.hot.margin < K0.passages && big.hot.margin > 0.95 * K0.passages && big.hot.limit === 'engine',
+     'a huge inlet stops at the engine\'s passages (' + r2(big.hot.margin) + ' x, limit ' + big.hot.limit + ')');
+  const m = [0.25, 0.5, 1, 2, 4].map(f => at(f).hot.margin);
+  ok(m.every((v, i) => !i || v > m[i - 1]), 'more inlet, more air, never less (' + m.map(r2).join(' < ') + ')');
+}
+
+console.log('THE HEADS (measured against the drawn cowl; a bare engine\'s figure)');
+{
+  const CC = card('builds/cub_2026-09-20.json'), Kc = coolOf(CC.def), rc = rowOf(CC.def, 'cool.climb');
+  ok(CC.spec.cooling.headsOut > 0.03 && Math.abs(Kc.bareA - CC.spec.cooling.headsOut) < 1e-9 && rc && rc.level === 'pass',
+     'list:26 Client Cub: its heads poke through the drawn skin (' + r3(CC.spec.cooling.headsOut) + ' m2), counted, the row passes (' + (rc && rc.value) + ')');
+  ok(CUB.spec.cooling.headsOut === 0 && CUB.spec.cooling.headsAll > 0.1, 'list:1 Cub: its cowl covers its heads (0 of ' + r3(CUB.spec.cooling.headsAll) + ' m2 out)');
+  const R = C.genCoolRows(RUF.def), Kr = coolOf(RUF.def);
+  ok(R.length === 1 && Kr.kind === 'bare' && R[0].value > 1.5 && R[0].level === 'pass',
+     'list:7 Rufus (no cowl): its own figure, ' + R[0].value + ' x on ' + r3(Kr.bareA) + ' m2 of cylinders in the wind');
+  const K = coolOf(TM.def);
+  ok(TM.spec.cooling.headsOut === 0, 'list:10 Tiger Moth-alike: its cylinders inside its drawn cowl (0 out; the generator\'s loft said ' + r3(C.genHeadsFrontal(TM.def.spec)) + ') - ' + r2(K.hot.margin) + ' x');
 }
 
 console.log('THE SUCTION (a pusher\'s prop on its outlet, in flight)');
@@ -91,7 +128,7 @@ console.log('THE SUCTION (a pusher\'s prop on its outlet, in flight)');
 }
 
 // the Twin busher as drawn before the user's ruling (12 Nov): a small chin scoop facing the propeller, no exit
-const BU_OLD = { cw_scoopRev: 0, cw_scoopFollow: 0, cw_scoopW: 0.065, cw_scoopH: 0.055, cw_scoopAp: 0.68, cw_exitGap: 0 };
+const BU_OLD = { cw_scoopRev: 0, cw_scoopFollow: 0, cw_scoopW: 0.065, cw_scoopH: 0.055, cw_scoopAp: 0.68, cw_apW: 0.108, cw_apH: 0.108 };
 console.log('THE PUSHER (list:6 Twin busher floats 4b, from its old drawing by the remedy\'s own steps)');
 {
   const F = 'builds/candidates/Twin_busher_floats_4b.json';
@@ -99,7 +136,7 @@ console.log('THE PUSHER (list:6 Twin busher floats 4b, from its old drawing by t
   const steps = [['the old drawing', ov({})], ['the scoop turned', ov({ cw_scoopRev: 1 })],
                  ['+ sized (buried)', ov({ cw_scoopRev: 1, cw_scoopW: 0.2, cw_scoopH: 0.15, cw_scoopAp: 0.9 })],
                  ['+ out of the skin', ov({ cw_scoopRev: 1, cw_scoopW: 0.2, cw_scoopH: 0.15, cw_scoopAp: 0.9, cw_scoopFollow: 1 })],
-                 ['+ an exit', ov({ cw_scoopRev: 1, cw_scoopW: 0.2, cw_scoopH: 0.15, cw_scoopAp: 0.9, cw_scoopFollow: 1, cw_exitGap: 0.22 })]];
+                 ['+ a way out (the face)', ov({ cw_scoopRev: 1, cw_scoopW: 0.2, cw_scoopH: 0.15, cw_scoopAp: 0.9, cw_scoopFollow: 1, cw_apW: 0.2, cw_apH: 0.2 })]];
   let prev = -1, last = null, first = null, buried = null;
   for (const [n, over] of steps) {
     const X = card(F, j => { Object.assign(j.spec.cage, over); return j; });
@@ -128,7 +165,7 @@ console.log('DRAG (the momentum figure)');
   }
   const BU = card('builds/candidates/Twin_busher_floats_4b.json', j => { Object.assign(j.spec.cage, BU_OLD); return j; });
   const K = coolOf(BU.def);
-  ok(K.cdA > 0.01 && Math.abs(K.Aeff - K.hot.inNeed) < 1e-9, 'a starved engine pays the drag of the air it needs (' + r3(K.cdA) + ' m2), not none');
+  ok(K.cdA > 0.01 && Math.abs(K.Aeff - Math.max(0, K.hot.need - K.hot.bare) / (K.hot.rho * K.hot.Vin)) < 1e-9, 'a starved engine pays the drag of the air it needs (' + r3(K.cdA) + ' m2), not none');
   // the per-kW law on a 1283 kW liquid engine (a Merlin's 539 kW of heat) climbing at 72 m/s against the momentum one:
   // the air it needs is Q / cp dT; the drag of that air through a duct is 2 m (1 - r) / rho V
   const K0 = C.GEN_COOL, Q = 0.42 * 1283e3, rho = 1.225, dT = K0.path.liquid.eps * (K0.path.liquid.Tlim - 15);
@@ -194,6 +231,36 @@ console.log('THE SCOOP (turned round)');
   delete CW.P.scoopTop;
   ok(shot(0).bytes === a.bytes, 'scoopTop absent = 0: the chin scoop, bit for bit');
 }
+console.log('THE BIRTH (_cage_design designCoolBirth: an archetype born with the openings its engine needs)');
+{
+  const BJ = require('./_bake_joined.js'), { D } = BJ.loadPanel();
+  const bake = k => { const a = D.ARCHETYPES.find(x => x.key === k); return D.designFull(a.sel, a.over).full; };
+  const cub = bake('cub');
+  ok(Math.round(cub.cw_apMode) === 2 && !+cub.cw_scoopFollow, 'cub: its front already holds it - left as its card draws it (the rule never shrinks, never adds)');
+  const fp = bake('floatplane');
+  ok(+fp.cw_scoopOn && +fp.cw_scoopFollow && !+fp.cw_scoopRev && fp.cw_scoopW > 0.1, 'floatplane (wing nacelles): a chin scoop into the air on each nacelle (' + fp.cw_scoopW + ' x ' + fp.cw_scoopH + ')');
+  const sk = bake('skymaster');
+  ok(+sk.cw_scoopAft && +sk.cw_scoopFollow && Math.round(sk.cw_apMode) >= 1, 'skymaster (push-pull): the nose\'s front opened, the rear engine\'s own scoop turned into the air');
+  const sp = bake('spitfire');
+  ok(Math.round(sp.radMode) > 0 && sp.radW > 0, 'spitfire (liquid, wing radiators): the radiators take the air (' + sp.radW + ' x ' + sp.radH + ')');
+  const cv = bake('caravan');
+  ok(+cv.cw_scoopOn && +cv.cw_scoopFollow, 'caravan (turbine): the oil cooler\'s scoop stands out of the skin');
+}
+
+console.log('THE PUSH-PULL (every engine on the body judged; the rear one through its own turned scoop)');
+{
+  const BJ = require('./_bake_joined.js'), { D } = BJ.loadPanel();
+  const a = D.ARCHETYPES.find(x => x.key === 'skymaster'), s0 = D.designBake(a.sel, a.over);
+  const sp = LB.gameSpecFull({ v: s0.v, birth: 1, spec: s0 }).spec, def = C.buildGen(sp), K = coolOf(def);
+  const U = sp.cooling && sp.cooling.units;
+  ok(Array.isArray(K.engines) && K.engines.length === 2 && K.engines[1].pushes, 'two engines judged, the rear one a pusher (' + (K.engines || []).map(e => r2(e.margin)).join(' / ') + ')');
+  ok(U && U[1] && U[1].aft === 1 && U[1].turned === 1, 'the rear cowl is the nose cowl turned round, its scoop turned on its own');
+  const r1 = C.genCoolOpen(def.spec, 1);
+  ok(r1.parts.some(q => q.what === 'the scoop' && q.faces === 'fwd'), 'the rear engine\'s scoop faces the flight (' + r1.parts.map(q => q.what + ' ' + q.faces).join(', ') + ')');
+  const row = rowOf(def, 'cool.climb');
+  ok(row && row.level === 'pass', 'the row: the worst engine passes (' + (row && row.value) + ')');
+}
+
 console.log('THE NEEDLE (the oil temperature now, display only)');
 {
   const ISA = C.ATMOS_ISA, HOT = C.makeAtmos({ dISA: 23 });
