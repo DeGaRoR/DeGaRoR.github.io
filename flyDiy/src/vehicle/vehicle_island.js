@@ -104,8 +104,13 @@ function vehIslandSpec(RG, opts) {
     const P = [+best.F.x.toFixed(3), +best.F.z.toFixed(3)];
     if (best.F.t > 1e-6 && best.F.t < 1 - 1e-6) best.e.ins.push({ k: best.k, t: best.F.t, p: P });
     else { const q = best.F.t <= 1e-6 ? best.e.pts[best.k] : best.e.pts[best.k + 1]; P[0] = q[0]; P[1] = q[1]; }
-    if (L > 0.5) mkRoad('link:' + A.R.id, [[S.x, S.z], P], 8, 'link', 5);
-    links.push({ id: A.R.id, ok: true, to: best.e.road, m: +L.toFixed(1) });
+    // (a stand whose own taxi route already passes through that point needs no straight link: the taxi route IS the way -
+    //  HOME's final layout (L39, HOME-LAYOUT) put the stand so that r_taxi_ne's nearest point is a vertex of taxi:HOME:0,
+    //  and the straight link beside the bent taxi route - 3 m apart - left a car 3.7 m off its route leaving the stand and
+    //  3.2 m off the stop arriving)
+    const viaTaxi = A.taxis.some(T => T.pts.slice(1).some(q => Math.hypot(q[0] - P[0], q[1] - P[1]) < 1));
+    if (L > 0.5 && !viaTaxi) mkRoad('link:' + A.R.id, [[S.x, S.z], P], 8, 'link', 5);
+    links.push(Object.assign({ id: A.R.id, ok: true, to: best.e.road, m: +L.toFixed(1) }, viaTaxi ? { viaTaxi: true } : {}));
   }
   const deg = new Map(); for (const e of E) { deg.set(e.a, (deg.get(e.a) || 0) + 1); deg.set(e.b, (deg.get(e.b) || 0) + 1); }
   // 2. the segment grid
@@ -210,8 +215,10 @@ function vehIslandSpec(RG, opts) {
   for (const T of targets) {
     const n = nearest(T.x, T.z, comp);
     if (!n || n.d > maxOff) { placeRep.push({ id: T.id, name: T.name, ok: false, off: n ? +n.d.toFixed(0) : null }); continue; }
-    // a stop at least 6 m in from a road's end (the stop is ON the road, its end may be a dead end)
-    const s = Math.max(Math.min(6, n.len / 2), Math.min(n.s, n.len - Math.min(6, n.len / 2)));
+    // a stop at least 6 m in from a road's end (the stop is ON the road, its end may be a dead end) - a field's, 15 m: its
+    // stand is where the taxi routes meet, a corner (HOME's final layout, L39: 96 deg from taxi:HOME:0 onto taxi:HOME:1), and a
+    // car pulling away 6 m short of it cut it by 3.7 m
+    const e0 = T.kind === 'field' ? 15 : 6, s = Math.max(Math.min(e0, n.len / 2), Math.min(n.s, n.len - Math.min(e0, n.len / 2)));
     places.push({ id: T.id, name: T.name, road: n.ri, s, kind: 'stop', side: 1, target: [T.x, T.z], off: +n.d.toFixed(1), what: T.kind });
     placeRep.push({ id: T.id, name: T.name, ok: true, off: +n.d.toFixed(0), road: roads[n.ri].road });
   }

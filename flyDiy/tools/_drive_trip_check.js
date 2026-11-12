@@ -116,6 +116,13 @@ const timed = fn => { const a = process.hrtime.bigint(); const r = fn(); perf.de
 const answers = [timed(() => D.setDest('mk_hall'))];
 let u1 = 0, odo1 = 0, t = 0, odo = 0, last = car.refPoint(), pen = 0, vmax = 0, offMax = 0, offN = 0, offAt = null, nextChk = 0, did = 0;
 const track = [];
+// (13 Nov: the cross-track split by WHERE - the 2.5 m bar is the streets' (the town's 90 deg corners); on the airfield's own
+//  12 m taxiways, runways and stand links the rule is the body on the pavement (offMax). HOME's final layout (L39,
+//  HOME-LAYOUT) put the stand at the corner of its two taxi routes, and the trip now leaves through it: 3.2 m off the
+//  taxiway's centreline, the body on the pavement - the airfield legs already flew 3.8 m before it, unbounded)
+const FIELD = I.spec.roads.filter(r => r.cls === 'taxiway' || r.cls === 'runway' || r.cls === 'link');
+const onField = (x, z) => FIELD.some(r => { for (let k = 0; k + 1 < r.pts.length; k++) if (VI.viSegFoot([x, z], r.pts[k], r.pts[k + 1]).d < r.w / 2 + 1) return true; return false; });
+let xtStreet = 0, xtField = 0;
 while (t < 3600 && !['ARRIVED', 'STUCK', 'IDLE'].includes(D.phase)) {
   // (the start's answer is the island's: facing away from the town at HOME's stand the car may U-turn, or go round by the
   //  taxi route and the runway - 'uturn' or 'replan'. Then the two re-routes BEHIND it, each a U-turn by construction)
@@ -123,6 +130,7 @@ while (t < 3600 && !['ARRIVED', 'STUCK', 'IDLE'].includes(D.phase)) {
   if (did === 1 && D.phase === 'DRIVE' && D.stats.uturns > u1 && odo > odo1 + 1200) { did = 2; answers.push(timed(() => D.setDest('mk_hall'))); }
   if (did === 1 && !odo1 && D.phase === 'DRIVE' && D.stats.uturns > u1) odo1 = odo;
   let a = process.hrtime.bigint(); D.step(DT); perf.drv += Number(process.hrtime.bigint() - a);
+  if (D.stats.ey != null) { const q0 = car.refPoint(), e = Math.abs(D.stats.ey); if (onField(q0[0], q0[2])) xtField = Math.max(xtField, e); else xtStreet = Math.max(xtStreet, e); }
   a = process.hrtime.bigint(); car.step(DT); perf.car += Number(process.hrtime.bigint() - a); perf.n++;
   t += DT;
   const q = car.refPoint(); odo += Math.hypot(q[0] - last[0], q[2] - last[2]); last = q;
@@ -139,9 +147,9 @@ const turns = D.log.filter(l => l.what === 'uturn').map(l => l.msg.replace(/: .*
 {
   const rms = Math.sqrt(D.stats.xtSq / Math.max(1, D.stats.xtN));
   const ok = D.phase === 'ARRIVED' && dEnd < 1 && /^(uturn|replan),uturn,uturn$/.test(answers.join()) && D.stats.uturns >= 2 && odo > 10000 &&
-    D.stats.xtMax < 2.5 && rms < 0.3 && D.stats.manXt < 0.15 && pen < 0.02 && offMax < 0.6 && !D.log.some(l => l.what === 'stuck');
+    xtStreet < 2.5 && rms < 0.3 && D.stats.manXt < 0.15 && pen < 0.02 && offMax < 0.6 && !D.log.some(l => l.what === 'stuck');
   row('TRIP', ok, 'HOME -> ' + TOWN.name + ': ' + D.phase + ' in ' + f(t / 60, 1) + ' min, ' + f(odo / 1000, 2) + ' km, ' + f(vmax * 3.6, 0) + ' km/h at most, ' + f(dEnd, 2) + ' m from the stop; setDest ' +
-    answers.join(' / ') + '; U-turns: ' + turns.join(', ') + ' (tracked within ' + f(D.stats.manXt * 100, 0) + ' cm); ' + D.stats.windows + ' windows; cross-track ' + f(D.stats.xtMax) + ' m max (the town\'s 90 deg corners), ' +
+    answers.join(' / ') + '; U-turns: ' + turns.join(', ') + ' (tracked within ' + f(D.stats.manXt * 100, 0) + ' cm); ' + D.stats.windows + ' windows; cross-track ' + f(xtStreet) + ' m max on the streets (the town\'s 90 deg corners; < 2.5), ' + f(xtField) + ' m on the airfield\'s taxiways (the body on the pavement rules there), ' +
     f(rms, 3) + ' m rms; the body\'s corners off the road ' + f(offMax) + ' m at most (' + offN + ' corner-samples past 0.3 m' + (offAt ? ', the worst at ' + f(offAt[0], 0) + ', ' + f(offAt[1], 0) + ' ' + offAt[2] : '') +
     '); the body into the ground ' + f(pen * 1000, 0) + ' mm at most (the sheet\'s box on a junction\'s crease)');
 }
