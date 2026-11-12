@@ -3980,7 +3980,9 @@ function makeSim(def, world) {
           : GROUND_DEF;
         // G1938: the differential brake, per main (its side of the built pose); brakeD 0 is the old line exactly
         const bkI = !isMain ? 0 : ctl.brakeD ? Math.max(0, Math.min(1, ctl.brake + (def.nodes[i].p[2] > 0 ? 1 : -1) * ctl.brakeD)) : ctl.brake;
-        const muR = su[0] + (isMain ? bkI * su[1] : 0);
+        // THE BRAKES' HOLD (GEN_BRAKES): a main's braking friction is the surface's or what its brake can hold at this load,
+        // the lesser; no `brakeN` (every build without brakes chosen) is the surface's, the old line exactly
+        const muR = su[0] + (isMain ? bkI * (P_.brakeN ? Math.min(su[1], P_.brakeN / Math.max(Fn, 1)) : su[1]) : 0);
         // G121.3: BELOW WALKING PACE THE COEFFICIENT IS A DAMPER, NOT A
         // RESISTANCE. The 0.2 m/s regularization means the sub-0.2 regime
         // was never physical rolling — and it turned out to be load-bearing
