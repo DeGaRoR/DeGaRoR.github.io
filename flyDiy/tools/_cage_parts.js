@@ -315,7 +315,7 @@ const CAGE_PARTS = [
       // (the nose frame has no waist: its width is the deck's half-width)
       ['nose frame', ['frNoseTopY', 'frNoseTopW', 'frNoseBotY', 'noseLen']],
       ['nose frame, detail', ['frNoseBotW', 'frNoseBotZ'], EXPERT],
-      ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown',
+      ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown', 'noseKeelSq',
                  'wsBaseLift', 'crSillNose']],
       ['tip', ['noseTip', 'noseTipV', 'crNoseCap', 'crFrontCap']],
       // WHAT THE FRONT IS (2026-09-11, the user: the aero-nose choice

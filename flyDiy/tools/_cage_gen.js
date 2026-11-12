@@ -8859,6 +8859,13 @@ function cageFrameTable(P, S, F, A) {
   // moved them; the deck lift rides S.nose.lift into noseLv) ----
   const dn = S.frames.nose.d;
   S.nose.lift = dn.topY;
+  // THE NOSE'S BOTTOM SQUARENESS (12 Nov, FIT-PROCEDURE; the user: "the problem is the rounding of the nose section ...
+  // these are pretty difficult parameters to access ... surfaced as being simply the roundness of the nose and the
+  // bottom roundness of the nose"): the nose ring's keel point stands 0.21 inboard of its floor point - a chamfer at
+  // every bottom corner that no frame row reaches (botW moves both). noseKeelSq 0..1 brings the keel point out under
+  // the floor one (1: a square bottom corner, the box a square cowl seals onto). Absent / 0: the chamfer, to the bit.
+  { const sq = Math.max(0, Math.min(1, +P.noseKeelSq || 0));
+    if (sq > 0) for (const n of [S.nose.ring, S.nose.twin]) n.keel.x += (n.floor.x - n.keel.x) * sq; }
   if (dn.topW || dn.botY || dn.botW || dn.botZ)
     for (const n of [S.nose.ring, S.nose.twin]) {
       n.deck.x += dn.topW;
