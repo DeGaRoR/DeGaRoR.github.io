@@ -219,7 +219,7 @@ const GATES = [
   // TOW-LAUNCH phase 3: THE GLIDER AUTO-TOW - the motorglider (engine off) on 400 m of line behind the Conquer down Jolene
   // AFB's 13/31 (src/vehicle/tow.js: the line through sim.onSubstep + sim.impulse, no solver change): lift-off, the climb,
   // the release at the top, the glide; the pilot's key; a weak link that breaks; the line's cost a frame; ~1 min
-  { id: 'TOW', file: '_tow_check.js', tier: 'core', wall: 520 },
+  { id: 'TOW', file: '_tow_check.js', tier: 'core', wall: 900 },
   { id: 'TRAILER', file: '_trailer_check.js', tier: 'core', wall: 140 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin

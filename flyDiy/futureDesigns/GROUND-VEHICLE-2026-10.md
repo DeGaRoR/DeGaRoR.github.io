@@ -492,3 +492,24 @@ landWayFrom: the way, the aim, the circuit's side) flown on energy (gliderCircui
   on the runway 794 m in, 8.5 m off, 1343 m left).
 - Open: the aim is still 280-380 m short of where it touches (no airbrakes in the model; a slip on the glider's final
   would trim it); a wind's drift on the downwind; a circuit joined from far (the key's approach is a straight line).
+
+### 12.3 The altiport push start (12 Nov)
+The user: "if you would just slightly push the glider, it should be able to take off on its own very easily ... from there
+it could probably try and land on Jolene, or at least the village strip". Skyline Altiport (tw_ski, 696 m, 380 m of grass,
+flat for its top 95 m, ~10 % below, the ground falling away past its low end).
+- FOUND: THE SOLVER'S GROUND PUSHES STRAIGHT UP (30_solver.js: f[y] += Fn, the friction horizontal) - a slope never rolls
+  an aeroplane downhill; pushed off on the 10 % the glider stopped in 13 s, and set down there it never moves. Every
+  sloped strip shares it (a landing uphill gets no braking from the slope, a take-off downhill no help). Making the
+  ground push along its normal is a core change with every anchored ground gate to re-pin - THE USER'S CALL.
+- Meanwhile tow.js slopePull: a launch down a slope adds the slope's pull (g x the grade along the roll, on every
+  node's mass, while a wheel is on the ground). With it: pushed 400 N for 4 s at the slope's head, the motorglider rolls
+  to 22.4 m/s and lifts off over the edge 225 m down (18.9 s); the hands to 30 m, then the pilot.
+- 43_pilot: A GLIDER GOES WHERE IT WAS SENT - the route's To when the cone reaches it (0.9 the sheet's L/D or a glider's
+  15 over that field's height: set off for the goal), else the nearest on 0.7 (the field just left skipped when the flight
+  was going elsewhere); from 12 s the final glide is checked at the ratio flown and diverts (or glides ahead). The
+  circuit's 'direct' waits for the glide to be measured and goes back to the key when the glide proves better; a final
+  100 m too high (400 m out at least) goes round from the key.
+- Measured: to Jolene (7.6 km, 12:1) - downwind 163 m, base 97, final 71; on the runway 952 m in, 5.3 m off the
+  centreline, 1 km left (GATE TOW ALTIPORT). To the Fishing Village Strip (5.1 km) - on its 543 m, 277 m in, 14 m off,
+  78 m left.
+- Open: the page has no push-start yet (a base at the altiport and the launch's choice); the slope in the solver.

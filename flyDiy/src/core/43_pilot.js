@@ -3326,10 +3326,13 @@ function makePilot(sim, def, world, opts) {
         // checked again once it is flown (GLIDE: gliderDivert)
         if (glider) {
           const ldG = (SH && SH.LDbest > 0) ? SH.LDbest : 15, ok = a => a && !(typeof stripAllows === 'function' && !stripAllows(gearK, a).ok);
-          const cone = a => Math.hypot(a.x - cg[0], a.z - cg[2]) < 0.7 * ldG * Math.max(0, cg[1] - (a.elev || 0));
+          // (the To on 0.9 of it - set off for the goal, the glide checked as it is flown and a divert if it does not
+          //  make it, as a glider pilot does; the fallback on 0.7: off Skyline Altiport 0.7 x 15 kept the pilot from
+          //  Jolene's 12:1, which the motorglider's flown 14.5 makes)
+          const cone = (a, k) => Math.hypot(a.x - cg[0], a.z - cg[2]) < k * ldG * Math.max(0, cg[1] - (a.elev || 0));
           const to = ap.route && ap.route.to;
           const from = ap.route && ap.route.from;
-          if (ok(to) && cone(to)) { best = to; reach = true; }
+          if (ok(to) && cone(to, 0.9)) { best = to; reach = true; }
           else { best = gliderPick(ldG * 0.7, to && to.id, from && to && from.id !== to.id ? from.id : null); reach = !!best; }
           if (best) bestD = Math.hypot(best.x - cg[0], best.z - cg[2]);
         }
@@ -3561,7 +3564,7 @@ function makePilot(sim, def, world, opts) {
           }
           if (G.stage === 'key') {
             const K = wp(F, sKey, cD), dK = Math.hypot(K[0] - cg[0], K[1] - cg[2]);
-            if (h < need(dK + dMin) - 40 && h < need(Math.hypot(G.sAim - sN, cN) + Rt)) next('direct');
+            if (ap.t - G.t0 > 12 && h < need(dK + dMin) - 40 && h < need(Math.hypot(G.sAim - sN, cN) + Rt)) next('direct');   // (once the glide is measured)
             else if (dK < Rt + 120) next(h > need(dMin) + 120 ? 'burn' : 'downwind');
             else trk = K;
           }
@@ -3582,11 +3585,19 @@ function makePilot(sim, def, world, opts) {
             if (Math.abs(cN) < 1.1 * Rt) next('final');
           }
           if (G.stage === 'direct') {
-            // too low for the circuit: onto the centreline 300 m short of the aim (or here, past it), then the final
+            // too low for the circuit: onto the centreline 300 m short of the aim (or here, past it), then the final - back
+            // to the key when the glide turns out better than feared (80 m over what the circuit asks)
+            { const K = wp(F, sKey, cD); if (h > need(Math.hypot(K[0] - cg[0], K[1] - cg[2]) + dMin) + 80) next('key'); }
+          }
+          if (G.stage === 'direct') {
             const sJ = Math.max(G.sAim - 300, Math.min(sN + 2 * Rt, G.sAim + 200));
             trk = wp(F, sJ, 0);
             if (Math.abs(cN) < 1.1 * Rt && sN < sJ) next('final');
           }
+          // (a final far too high - 100 m over the glide still to fly, 400 m out at least: no airbrakes to lose it - goes
+          //  round the circuit again from the key; off Skyline Altiport a direct arrival came over Jolene 156 m high and
+          //  rolled 775 m past the end)
+          if (G.stage === 'final' && h > need(G.sAim - sN) + 100 && sN < G.sAim - 400) next('key');
           if (G.stage === 'final') {
             trk = wp(F, Math.max(sN, G.sAim - 300) + 600, 0);
             ias = Vap;

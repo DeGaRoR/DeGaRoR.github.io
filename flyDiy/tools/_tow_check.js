@@ -11,6 +11,7 @@
 //   WEAK    a weak link of 1.2 kN: it breaks in the roll's snatch, said so - never a glider dragged past its link
 //   AUTOPILOT the hands up the line, then the game's pilot re-engaged 2 s after the release glides on (the page's handover)
 //   CIRCUIT the glider's circuit to a landing on the runway: the motorglider and the Archaeopteryx card, motors off
+//   ALTIPORT a push start down Skyline Altiport's slope, the glide to Jolene (7.6 km), the circuit, the landing
 //   PERF    the line's cost a frame (the aeroplane's frame with it against without it)
 // ~2 min. node tools/_tow_check.js
 'use strict';
@@ -121,6 +122,36 @@ for (const key of ['motorglider', 'archaeopteryx']) {
   const ok = !R.bad && st.includes('downwind') && st.includes('base') && st.includes('final') && R.phases.includes('STOPPED') && Ld && Ld.onStrip && Math.abs(Ld.offCentre) < 20 && Ld.stopLeft > 0 && Ld.sink < 1.5 && ap.report.outcome === 'completed';
   row('CIRCUIT', ok, key + ': released at ' + (R.relH != null ? f(R.relH, 0) + ' m' : '-') + '; ' + (Gd ? Gd.side + '-hand at ' + Gd.field + ', ' + Gd.way + ', downwind ' + Gd.W + ' m out, glide ratio flown ' + Gd.Em + ': ' + Gd.stages.map(q => q.stage + ' ' + q.h + ' m').join(', ') : 'NO CIRCUIT') +
     '; ' + (Ld ? 'landed ' + (Ld.onStrip ? 'on the runway' : 'OFF it') + ', ' + f(Ld.tdIn, 0) + ' m in (' + f(Ld.pastAim, 0) + ' past the aim), ' + f(Math.abs(Ld.offCentre), 1) + ' m off the centreline, sink ' + f(Ld.sink, 2) + ' m/s, ' + f(Ld.stopLeft, 0) + ' m left' : 'NO LANDING') + ' (' + (ap ? ap.report.outcome : '-') + ')');
+}
+// ---- ALTIPORT: A PUSH START (the user, 12 Nov: "if you would just slightly push the glider, it should be able to take
+//      off on its own ... from there it could probably try and land on Jolene"): the motorglider, motor off, at the
+//      head of Skyline Altiport's slope (696 m, 380 m of grass, ~10 %), pushed 400 N for 4 s, rolls down (tow.js
+//      slopePull: the solver's ground has no along-slope force), lifts off over the edge on the hands; the pilot from
+//      30 m with the route's To Jolene AFB 13/31 - 7.6 km at 12:1 - glides there, flies the circuit, lands ----
+{
+  const def = DEF0, alt = W.aerodromes.find(a => a.id === 'tw_ski');
+  const ux = Math.cos(alt.hdg), uz = Math.sin(alt.hdg), fx = -ux, fz = -uz, x0 = alt.x + ux * (alt.len / 2 - 120), z0 = alt.z + uz * (alt.len / 2 - 120);
+  const sim = C.makeSim(def, W); sim.reset(0); C.placeAtLineup(sim, alt, { x: x0, z: z0, hdg: alt.hdg + Math.PI }, W, def.refs);
+  for (let i = 0; i < 60; i++) sim.step(1 / 60);
+  for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+  const ap = C.makePilot(sim, def, W); ap.setRoute(alt, aH);
+  const hands = TW.makeTowHands(sim, { ground: alt.elev });
+  let lift = null, handed = null, bad = false;
+  for (let fr = 0; fr < 60 * 900; fr++) {
+    const t = fr / 60, cg = sim.cgPos(), agl = cg[1] - W.terrainH(cg[0], cg[2]), V = Math.hypot(...sim.cgVel());
+    TW.slopePull(sim, W, fx, fz, 1 / 60);
+    if (t < 4) { const J = 400 / sim.totalM / 60; for (let i = 0; i < sim.n; i++) sim.impulse(i, fx * J * sim.m[i], 0, fz * J * sim.m[i]); }   // the push
+    if (!lift && !sim.wheelsOnGround() && t > 1) lift = { t, V, x: Math.hypot(cg[0] - x0, cg[2] - z0) };
+    if (!handed && lift && agl > 30) { handed = { t }; ap.reEngage({ phase: 'CLIMB' }); }
+    if (handed) ap.update(1 / 60); else hands(null, 1 / 60);
+    sim.step(1 / 60);
+    if (sim.stats().bad) { bad = true; break; }
+    if (handed && ap.phase === 'STOPPED') break;
+  }
+  const Gd = ap.report.glider, Ld = ap.report.landing;
+  const ok = !bad && lift && handed && Gd && Gd.field === aH.name && Ld && Ld.onStrip && Math.abs(Ld.offCentre) < 20 && Ld.stopLeft > 0 && ap.report.outcome === 'completed';
+  row('ALTIPORT', ok, 'pushed off Skyline Altiport: lift-off ' + (lift ? f(lift.t) + ' s, ' + f(lift.V) + ' m/s, ' + f(lift.x, 0) + ' m down the slope' : 'NONE') + '; to ' + (Gd ? Gd.field + ' (' + Gd.stages.map(q => q.stage + ' ' + q.h + ' m').join(', ') + ')' : '-') +
+    '; ' + (Ld ? 'landed ' + (Ld.onStrip ? 'on the runway' : 'OFF it') + ' ' + f(Ld.tdIn, 0) + ' m in, ' + f(Math.abs(Ld.offCentre), 1) + ' m off the centreline, ' + f(Ld.stopLeft, 0) + ' m left' : 'NO LANDING') + ' (' + ap.report.outcome + ')');
 }
 // ---- PERF: the aeroplane's frame with the line and without ----
 {
