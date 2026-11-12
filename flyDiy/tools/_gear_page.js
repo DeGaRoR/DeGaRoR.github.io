@@ -90,7 +90,9 @@ const LEG_ROWS = {
     ['shockKind', 'shock', 0, 2, 1, ['coil-over', 'bungee', 'rubber stack']],
     ['shockAt', 'shock on arm', 0.15, 0.95, 0.01],
     ['shockZ', 'shock top z', -0.6, 1.0, 0.01],
-    ['shockAng', 'shock top ang', 0, 90, 1],
+    // (12 Nov, FIT-PROCEDURE: to 170 - the PC-6's shock is anchored high on the side, below the windscreen; the
+    // fitting is a ray from the section's centre, 0 the keel, so past 90 it climbs the flank; a range widening)
+    ['shockAng', 'shock top ang', 0, 170, 1],
     ['bungeeSpan', 'bungee wrap', 0.10, 0.70, 0.01],
   ],
   2: [

@@ -218,6 +218,9 @@ const COWL_ROWS = [
     { k: 'scoopHold', label: 'full section held (share of the length)', lo: 0, hi: 1, step: 0.01, when: 'P.scoopOn>0' },
     // (12 Nov) the half-width as a share of the cowl's own bottom half-width at each station (0 = scoopW, fixed)
     { k: 'scoopWFit', label: 'width follows the cowl (share of its width)', lo: 0, hi: 1, step: 0.01, when: 'P.scoopOn>0' },
+    // (12 Nov) the taper from the mouth to the aft end: the aft end's height / width as a share of the mouth's
+    { k: 'scoopTaperH', label: 'taper: aft-end height (× the mouth)', lo: 0.2, hi: 1.5, step: 0.01, when: 'P.scoopOn>0' },
+    { k: 'scoopTaperW', label: 'taper: aft-end width (× the mouth)', lo: 0.2, hi: 1.5, step: 0.01, when: 'P.scoopOn>0' },
     { k: 'scoopSq', label: 'angularity (round → box)', lo: 0, hi: 1, step: 0.01, when: 'P.scoopOn>0' },
     { k: 'scoopDrop', label: 'drop below the axis', lo: 0.2, hi: 1.2, step: 0.02, when: 'P.scoopOn>0' },
     { k: 'scoopRake', label: 'mouth rake', lo: 0, hi: 1.2, step: 0.02, when: 'P.scoopOn>0' },
