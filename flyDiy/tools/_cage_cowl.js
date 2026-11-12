@@ -77,7 +77,7 @@ for (const g of ROWS) {
 // G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
 const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
   faceRing: 0, waistF: null,
-  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 0, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
+  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopRev: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 0, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
   gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
@@ -1382,6 +1382,8 @@ function cowlPlace(ctx, again) {
   if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: a thrown build's dial
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
+  // ENGINE-COOLING: what the cowl opens to the air (CW.coolOpenings, below), the join's spec.cooling; no cowl, no openings
+  window.CAGE_COOL_OPEN = null;
   if (!P.cowlOn) { birthPreset = null; return null; }
 
   LIVE_P = P;
@@ -1517,6 +1519,10 @@ function cowlPlace(ctx, again) {
   const XRAY = !!(window.CAGE_VIEW && window.CAGE_VIEW.xray);
   if (XRAY) cA = Math.min(cA, window.CAGE_VIEW.xrayA || 0.12);
   const M = cowlMats(cA), aps = CW.apertureList();
+  // ENGINE-COOLING (futureDesigns/ENGINE-COOLING-2026-11.md): the openings, measured off the cowl this frame draws (m2,
+  // per cowl: every engine wears the same one); its own global (CAGE_COOL_OPEN, as CAGE_BOOMS), the join carries them to spec.cooling, the core decides which way each
+  // faces (genCoolOpen) and what air they pass (genCooling)
+  if (CW.coolOpenings) { try { window.CAGE_COOL_OPEN = CW.coolOpenings(aps); } catch (e) { window.CAGE_COOL_OPEN = null; } }
 
   group = new THREE.Group();
   // NAMED for the editor (G76/G77): the part table says which layer a

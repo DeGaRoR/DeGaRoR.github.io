@@ -813,7 +813,7 @@ async function tutorRun() {
   const rufusEnv = JSON.parse(prefs.get('flydiy.build.Rufus') || 'null');
   ok(rufusEnv && rufusEnv.spec.meta.reg === M.STORY_REG && /^N\d{1,5}[A-Z]{0,2}$/.test(M.STORY_REG) && M.STORY_REG !== 'F-PGAR',
      "Rufus's own registration: " + M.STORY_REG + ' (a fictional US mark, not the generator\'s F-PGAR) - meta, cosmetic to the bench', rufusEnv && rufusEnv.spec.meta.reg);
-  ok(/const BENCH_COSMETIC = \['paint', 'finish', 'meta'\];/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'bench.js'), 'utf8')), "meta is one of the bench's cosmetic blocks: the certificate's fingerprint does not move");
+  ok(/const BENCH_COSMETIC = \['paint', 'finish', 'meta'(, 'cooling')?\];/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'bench.js'), 'utf8')), "meta is one of the bench's cosmetic blocks: the certificate's fingerprint does not move");
   let spec = JSON.parse(JSON.stringify(rufusEnv.spec));
   P.standSet('Rufus'); P.specSet(spec);
   const tim = () => { X.storyTimSync(); return X.tim(); };

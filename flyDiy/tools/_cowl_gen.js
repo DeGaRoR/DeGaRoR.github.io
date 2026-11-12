@@ -85,7 +85,8 @@ const P={
   lidRW:null, lidRTop:null, lidRBot:null,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
   // chin scoop
-  scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
+  // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
+  scoopOn:1, scoopRev:0, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
   scoopLipH:0.011, scoopLipDepth:0.032, scoopDuct:0.125,
   // aft — the fuselage is a given; the cowl inherits its section by default
@@ -1002,10 +1003,15 @@ function buildScoop(group,mats){
   const zMouth0=P.cowlLen+P.lidLen*0.35;
   const z1=zMouth0-(P.scoopZ||0)*(zMouth0-P.scoopLen), z0=z1-P.scoopLen;
   const n=sqExp(P.scoopSq);
+  // ENGINE-COOLING (12 Nov): THE SCOOP TURNED ROUND (scoopRev 1): the same scoop over the same stretch, its mouth at
+  // the FIREWALL end facing -z - on a pusher, whose cowl runs from the firewall towards the propeller, that is the
+  // direction of flight (a cowled pusher had no opening that faced the air). Every ring runs the other way round so
+  // the skin's winding stays outward; absent / 0 is the scoop it always was, bit for bit
+  const rev=!!P.scoopRev, sg=rev?-1:1;
   for(let i=0;i<NS;i++){
     const t=i/(NS-1), e=smooth(t);
     const a=P.scoopW*lerp(0.5,1,e), b=P.scoopH*lerp(0.30,1,e);
-    const z=lerp(z0,z1,t);
+    const z=rev?lerp(z1,z0,t):lerp(z0,z1,t);
     // V5 scoopFollow: the scoop rides the keel - its top a third of its height inside the skin at every station, so a
     // keel that rounds up into the face carries it (absent / 0: the straight raked line it always was)
     let y=baseY-P.scoopH*P.scoopRake*e;
@@ -1023,6 +1029,7 @@ function buildScoop(group,mats){
       }
       ins.push(isIn); ring.push(new THREE.Vector3(vx,vy,z));
     }
+    if(rev){ ring.reverse(); ins.reverse(); }
     rings.push(ring); inside.push(ins);
   }
   const skip=(i,j)=>{const j2=(j+1)%SS;
@@ -1035,7 +1042,7 @@ function buildScoop(group,mats){
   const cyF=P.scoopFollow>0?yC[NS-1]:baseY-P.scoopH*P.scoopRake, mouth=rings[NS-1];
   const off=(d,dz)=>mouth.map(v=>{
     const dx=v.x, dy=v.y-cyF, r=Math.hypot(dx,dy)||1e-6, f=Math.max(0.06,(r-d)/r);
-    return new THREE.Vector3(dx*f, cyF+dy*f, v.z+dz);
+    return new THREE.Vector3(dx*f, cyF+dy*f, v.z+sg*dz);
   });
   const th0=Math.max(0.002,P.scoopLipH);
   const inset=Math.max(0,(1-clamp(P.scoopAp,0.05,0.99))*P.scoopH-th0);
@@ -1801,6 +1808,38 @@ function cowlSizeToEngine(env, opt) {
   return r;
 }
 
-const COWL_API = { gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+// THE COOLING OPENINGS (ENGINE-COOLING, futureDesigns/ENGINE-COOLING-2026-11.md): what this cowl, as drawn, opens to the
+// air, in m2 - read off the same P, apertures, scoop, cone and gills the builders draw, after prepareLid. Which way each
+// one faces is the core's question (genCoolOpen: the cowl's +z is the propeller's side, a pusher's faces aft); this only
+// measures. `face` the front apertures (the central one net of the spinner's disc), `scoop` the scoop's open mouth
+// inside its lip and inset, `scoopRev` 1 when its mouth is turned round (faces -z), `nacInlet` a nacelle cone's inlet
+// (G3914, faces -z), `exit` the lowered bottom's crescent at the aft edge, `gills` the side gills' slots, both sides.
+function coolOpenings(aps){
+  const area=(a,b,n)=>{ if(!(a>0&&b>0)) return 0; let s=0; const N=96;
+    for(let i=0;i<N;i++){ const p=superPt(i/N*TAU,a,b,n), q=superPt((i+1)/N*TAU,a,b,n); s+=p[0]*q[1]-q[0]*p[1]; }
+    return Math.abs(s)/2; };
+  const out={face:0,scoop:0,scoopRev:P.scoopRev?1:0,nacInlet:0,exit:0,gills:0};
+  const L=aps||apertureList();
+  L.forEach((o,i)=>{ let A=area(o.w,o.h,o.n);
+    if(i===0&&(P.apMode===1||P.apMode===3)) A=Math.max(0,A-Math.PI*Math.pow(Math.max(0,+P.spinR||0),2));
+    out.face+=A; });
+  if(P.scoopOn){
+    const th0=Math.max(0.002,P.scoopLipH), inset=Math.max(0,(1-clamp(P.scoopAp,0.05,0.99))*P.scoopH-th0);
+    out.scoop=area(Math.max(0,P.scoopW-th0-inset),Math.max(0,P.scoopH-th0-inset),sqExp(P.scoopSq));
+  }
+  if(Math.round(P.aftMode)===1&&P.inletOn){
+    const s0=sectionAtZ(0);
+    const IW=clamp(P.inletW,0.12,0.85), IH=clamp(P.inletH,0.12,0.85), kc=Math.max(IW,IH);
+    const e=Math.pow(Math.max(0,1-kc*kc),1/2.2);
+    const a=Math.max(s0.a*IW,0.012), bT=Math.max(s0.bT*IH,0.012), bB=Math.max(s0.bB*IH,0.012);
+    out.nacInlet=0.5*(area(a,bT,lerp(s0.nT,2,e))+area(a,bB,lerp(s0.nB,2,e)));
+  }
+  if(P.exitGap>0) out.exit=Math.max(0,+P.aftW||0)*P.exitGap;
+  if(P.gillOn>0){ const F=gillsFit(); if(F.ok) out.gills=2*Math.max(2,Math.round(P.gillN))*Math.max(0.002,P.gillLip)*F.H*0.8; }
+  for(const k of ['face','scoop','nacInlet','exit','gills']) out[k]=+out[k].toFixed(5);
+  return out;
+}
+
+const COWL_API = { coolOpenings, gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

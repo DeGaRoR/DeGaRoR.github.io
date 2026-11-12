@@ -627,6 +627,16 @@ function cageJoinSpec(P, M, T) {
   if (typeof M.seats === 'number' && M.seats >= 1) cabin.seats = M.seats;
   if (Array.isArray(M.occupied) && M.occupied.length) cabin.occupied = M.occupied;
   if (Object.keys(cabin).length) spec.cabin = cabin;
+  // ENGINE-COOLING: THE COWL'S OPENINGS, measured by the cowl layer off the cowl it drew (CAGE_COOL_OPEN, m2: the
+  // face, the scoop and its facing, a nacelle's inlet, the exit, the gills). Every key written every time, so the
+  // garage's per-key merge takes a closed opening back to 0; a headless join (no layer) says nothing, and the core then
+  // keeps the per-kW cooling drag (62_gen_aero genCoolOpen 'legacy'). MEASURED, never the player's: certStrip drops it
+  {
+    const co = typeof window !== 'undefined' ? window.CAGE_COOL_OPEN : null;
+    if (co && typeof co === 'object')
+      spec.cooling = { face: +co.face || 0, scoop: +co.scoop || 0, scoopRev: co.scoopRev ? 1 : 0,
+                       nacInlet: +co.nacInlet || 0, exit: +co.exit || 0, gills: +co.gills || 0 };
+  }
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE)) {
     spec.wings[0].xLE = M.wingXLE;

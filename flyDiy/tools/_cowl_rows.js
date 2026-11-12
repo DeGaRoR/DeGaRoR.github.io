@@ -203,6 +203,9 @@ const COWL_ROWS = [
   // ---- Chin scoop ----
   { id: 'g_scoop', name: 'Chin scoop', rows: [
     { k: 'scoopOn', label: 'chin scoop', lo: 0, hi: 1, step: 1 },
+    // ENGINE-COOLING (12 Nov): the mouth turned round - on a pusher the cowl runs from the firewall to the propeller, so
+    // only a turned scoop faces the air (absent 0: every scoop as it was)
+    { k: 'scoopRev', label: 'mouth faces', lo: 0, hi: 1, step: 1, names: ['the propeller', 'the firewall (a pusher: into the air)'], when: 'P.scoopOn>0' },
     // PROPER-COWLS V5: the scoop rides the keel (absent 0)
     { k: 'scoopFollow', label: 'rides the bottom line', lo: 0, hi: 1, step: 1, when: 'P.scoopOn>0' },
     // 2026-09-05 (TURBOPROP §7): where along the cowl the scoop sits —

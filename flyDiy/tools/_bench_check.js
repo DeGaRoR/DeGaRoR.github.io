@@ -142,7 +142,7 @@ console.log('THE WORD');
   ok(BE.benchFingerprint(cg) !== f0, 'a cage row changes it');
   ok(/^[0-9a-f]{8}$/.test(f0) && BE.benchFingerprint(spec) === f0, 'the hash is eight hex digits and stable');
   ok(BE.benchHash('') === '811c9dc5' && BE.benchHash('a') === 'e40c292c', 'FNV-1a reference values');
-  ok(JSON.stringify(BE.BENCH_COSMETIC) === '["paint","finish","meta"]', 'the cosmetic set is paint, finish, meta');
+  ok(JSON.stringify(BE.BENCH_COSMETIC) === '["paint","finish","meta","cooling"]', 'the cosmetic set is paint, finish, meta (+ ENGINE-COOLING\'s measured cooling)');
   // THE SECOND SCHEME (A9): what weighs nothing and what a builder did not
   // move is not the aeroplane
   {

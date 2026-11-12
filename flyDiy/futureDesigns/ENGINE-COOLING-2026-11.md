@@ -378,3 +378,41 @@ pushers (they were overcharged), nothing on the bare engines; the Spitfire WIP's
 Probe scripts (the session's scratchpad, not committed): `probe2.js` (build files), `probe3.js` (archetype births —
 the node birth lacks the engine page, so its engines are placeholders: not used for figures), `cowlarea.js` (the
 cowl's openings via `_cowl_gen.js`), `margins.js` (1000 m ISA+20), `margins_far.js` (38 °C sea level).
+
+---------------------------------------------------------------------------------------------------------------------
+
+## 10. IMPLEMENTED (12 Nov, same day; the user: "OK with your defaults ... code that")
+
+The user's correction first: **list:41 Super Petrel has a forward inlet, modelled through the nacelle** (the tail cone's
+inlet, G3914 `cw_inletOn`: on a pusher the cone is the nacelle's NOSE). It is now measured and counted: 0.038 m2, which
+at 38 C gives 0.81 x the air its 912 iS needs (a proposed warning, sized remedy: 0.054 m2). The Twin busher has nothing.
+
+What landed (the study's §8, session 1 + the scoop of session 2):
+
+| piece | where |
+|---|---|
+| `GEN_COOL` (the constants, as §2) | `src/core/60_gen_spec.js`, after GEN_DRAG |
+| `genHeadsFrontal`, `genCoolOpen` (which way each measured opening faces), `genCooling` (the cases, the drag, Meredith), `genCoolSummary` | `src/core/62_gen_aero.js`, before genFusCdA |
+| the drag build-up's `cool` = the momentum figure when the cowl is MEASURED (or radiators are drawn); bare and unmeasured engines keep the per-kW figure bit for bit; the climb / cruise speeds GEN_VRATIO x Vs (genFusCdA gets Vs: no circularity); one engine on the body row as before (wing nacelles pay in the nacelle rule); never less than the needed air's drag (a starved engine does not fly faster); `drag.coolBy` says which | `62_gen_aero.js` genFusCdA |
+| the measurement: `CW.coolOpenings()` (face apertures net of the spinner, the scoop's mouth, `scoopRev`, the nacelle cone's inlet, the lowered bottom, the gills) published as `window.CAGE_COOL_OPEN` by the cowl layer; the join writes `spec.cooling` (every key, every time) | `tools/_cowl_gen.js`, `tools/_cage_cowl.js` cowlPlace, `tools/_cage_join.js` |
+| R3: `spec.cooling` is a MEASURED block - `CERT_MEASURED_BLOCKS` in certStrip, `BENCH_COSMETIC` (the old f2 body), `PROCURE_READOUTS` (p1) | `66b_cert_rule.js`, `bench.js`, `76_procure.js` |
+| the scoop turned round: `cw_scoopRev` (absent 0, bit for bit), the mouth at the firewall end, rings reversed so the skin stays outward; the row "mouth faces: the propeller / the firewall (a pusher: into the air)" | `_cowl_gen.js` buildScoop, `_cowl_rows.js`, `_cage_cowl.js` ABSENT_AT, `_cage_parts.js` |
+| `cool.climb` (safe) and `cool.taxi` (comm), PROPOSED, with the remedy sized to the pass line (1.15 x): which openings, how big, a mouth in cm, the outlet when the air cannot leave | `64c_gen_aids.js` genCoolRows (in genDesignAids), `64b` GEN_CERT_TIER |
+| `genCertTiers`: a PROPOSED fail is a warning on BOTH certificates (it failed the commercial one before; no row was proposed until these) | `64b_gen_design.js` |
+| the fiche's powerplant block: hot-day climb air, the openings, the cooling drag | `64_gen_build.js` (shakedown `cooling`), `src/viewer/app.js` |
+| GATE COOL (core) | `tools/_cool_check.js`, `run_gates.js` |
+
+Measured after (the load door, 38 C at sea level): list:1 Cub 1.63, list:50 V2-172 1.66, list:2 Jodel 5.18, list:10 Tiger
+Moth-alike 1.81 (heads), list:47 Carbon Cub SS 1.65 (heads), list:41 Super Petrel 0.81, list:6 Twin busher 0 (and the
+remedy's own steps take it to a pass: turn the scoop, size it, draw an exit), list:7 Rufus bare. Cooling drag: Cub 0.0087
+-> 0.0114, V2-172 0.0213 -> 0.0178, Jodel 0.0087 -> 0.0100 m2.
+
+Not in this landing (said, not hidden):
+- **the power pull-back over the red line** (default 4): it would change how the official list:6 flies on every flight;
+  it lands with the user's ruling on the proposed rows. The oil needle is live (display only): parked until the gate
+  battery had run, then landed with the same GATE COOL section.
+- **the kept signature** (§7.3 step 2: `sign.rules`): not needed while the rows are proposed (they withdraw nothing);
+  it lands with the ruling.
+- **cowl flaps** (default: v2), the scoop's azimuth (cheeks / dorsal) and a NACA flush inlet (default: later).
+- **radials**: a cowled radial is judged on its drawn front; the DC-3-alike candidate's saved front is a 0.70 x 0.24 m
+  slot (0.10 m2 for two 895 kW engines' worth: 0.25 x) - the card's drawing, not the model.

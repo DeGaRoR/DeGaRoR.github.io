@@ -537,16 +537,21 @@ const GEN_CERT_TIER = { 'pitch.sm': 'safe', 'pitch.Vh': 'comm', 'pitch.short': '
   'yaw.Vv': 'comm', 'yaw.cnb': 'safe', 'roll.clb': 'safe', 'roll.spiral': 'safe', 'yaw.dutch': 'safe', 'roll.mode': 'safe',
   'ctl.aileron': 'safe', 'ctl.droop': 'safe', 'ctl.rudder': 'safe',
   'aid.step': 'safe', 'aid.reserve': 'safe', 'aid.prop': 'safe', 'aid.range': 'comm', 'aid.thrust': 'comm', 'aid.stance': 'comm',
-  'aid.doors': 'comm' };
+  'aid.doors': 'comm',
+  // ENGINE-COOLING (12 Nov; the user: defaults OK): the hot-day climb is a safety row, the ground a commercial one - both
+  // land PROPOSED (64c genCoolRows)
+  'cool.climb': 'safe', 'cool.taxi': 'comm' };
 function genCertTierOf(id) { return GEN_CERT_TIER[id] || 'safe'; }
 // a row list -> the two certificates' verdicts: the airworthiness one fails only on a safe, non-proposed fail; every
 // other non-pass is a warning on it; the commercial one fails on any fail (the safe tier's included: an aeroplane
-// that is not safe is not commercial either)
+// that is not safe is not commercial either) - except a PROPOSED row's (ENGINE-COOLING, 12 Nov): a new check awaiting
+// the user's ruling is a warning on BOTH certificates, so a game update never withdraws one (R3: the bench re-signs at
+// every roll-out). The first proposed rows are the cooling rows; none was proposed before them
 function genCertTiers(rows) {
   const R = (rows || []).map(r => Object.assign({}, r, { tier: r.tier || genCertTierOf(r.id) }));
   const safeFail = R.filter(r => r.tier === 'safe' && r.level === 'fail' && !r.proposed);
   const warns = R.filter(r => r.level !== 'pass' && safeFail.indexOf(r) < 0);
-  const commFail = R.filter(r => r.level === 'fail');
+  const commFail = R.filter(r => r.level === 'fail' && !r.proposed);
   return { safe: safeFail.length ? 'fail' : warns.length ? 'warn' : 'pass', safeFail, warns,
-           comm: commFail.length ? 'fail' : R.some(r => r.level === 'warn') ? 'warn' : 'pass', commFail };
+           comm: commFail.length ? 'fail' : R.some(r => r.level !== 'pass') ? 'warn' : 'pass', commFail };
 }

@@ -105,6 +105,64 @@ function genAidWaterline(F, massKg, rho) {
   return 0.5 * (lo + hi);
 }
 
+// THE COOLING ROWS (ENGINE-COOLING; 62_gen_aero genCooling). Two rows, PROPOSED (64b GEN_CERT_TIER's door: a new check
+// is a warning until the user rules - and it withdraws neither certificate meanwhile, genCertTiers):
+//   cool.climb  safe   the hot-day climb (FAR 23.1043: 38 C at sea level, full power at Vy): fail under 1.00 x the air
+//                      the engine needs, warn under 1.15
+//   cool.taxi   comm   the hot strip at taxi power: a warning under 1.00 (it runs hot waiting at the hold)
+// A bare engine (no cowl) passes, the air is all round it; a cowled spec the join never measured has no row.
+function genCoolRows(def) {
+  const S = def.spec || {}, ap = (def.params && def.params.ap) || {};
+  if (typeof genCooling !== 'function') return [];
+  const K = GEN_COOL, r2 = v => Math.round(v * 100) / 100, r3 = v => Math.round(v * 1000) / 1000;
+  const C = genCooling(S, { VClimb: ap.VClimb, VCruise: ap.VCruise });
+  if (C.kind === 'legacy') return [];
+  const lim = 'FAR 23.1043\'s climb cooling day: 38 C at sea level, full power at Vy. Fail under ' + K.pass.toFixed(2) +
+              ' x the air the engine needs, warn under ' + K.warn.toFixed(2);
+  if (C.kind === 'bare')
+    return [{ id: 'cool.climb', group: 'power', tier: 'safe', proposed: true, label: 'Engine cooling, hot-day climb', value: null, unit: '',
+              level: 'pass', limit: lim, why: 'no cowl: the engine and its cooling stand in the air', fix: '' }];
+  const H = C.hot, T = C.taxi, m = H.margin;
+  const lvl = m < K.pass ? 'fail' : m < K.warn ? 'warn' : 'pass';
+  const cm = v => Math.round(v * 100);
+  // the mouth to draw, as width x height (an oval 1.2 x as wide as tall)
+  const mouth = A => { const h = Math.sqrt(4 * A / (Math.PI * 1.2)); return cm(1.2 * h) + ' x ' + cm(h) + ' cm'; };
+  // the sizes to draw are the PASS line's (K.warn x the need: a design drawn to exactly 1.00 runs hot)
+  const need = r3(H.inNeed * K.warn), have = r3(C.inA), outNeed = r3(H.outNeed * K.warn);
+  const fwd = C.parts.filter(p => p.faces === 'fwd').map(p => p.what), aftIn = C.parts.filter(p => p.faces === 'aft' && /front|scoop|inlet/.test(p.what));
+  let why, fix = '';
+  const air = r2(H.need) + ' kg/s of air at ' + Math.round(H.oatC) + ' C to carry ' + Math.round(H.Q) + ' kW';
+  if (!(C.inA > 0) && !(C.bareA > 0)) {
+    why = 'no opening faces the air' + (C.pushes && aftIn.length ? ': this cowl\'s openings face the propeller, which on a pusher is backwards' : '') +
+          ' - in a hot climb the engine gets none of the ' + air;
+    // ...and the air needs a way out: a pusher's aft face round the spinner is its outlet, often a sliver
+    const outFix = !C.exitSized && C.outA < outNeed ? '; and give the air a way out: about ' + outNeed + ' m2 of outlet (now ' + r3(C.outA) +
+                   ') - lower the cowl\'s bottom (exit gap) or add gills' : '';
+    fix = (C.pushes ? 'turn the scoop round (cowl page, chin scoop: mouth faces the firewall) and size its mouth to about ' + need + ' m2 (about ' + mouth(need) + ')'
+                    : 'open the cowl\'s front (inlets) or fit a scoop: about ' + need + ' m2 in all (about ' + mouth(need) + ')') + outFix;
+  } else {
+    const by = H.limit === 'outlet' ? 'the outlet' : 'the inlets';
+    why = by + ' pass ' + r2(m) + ' of the ' + air + (C.bareA > 0 ? ' (the cylinder heads in the wind count)' : '') +
+          (fwd.length ? '; in: ' + fwd.join(', ') + ', ' + have + ' m2' : '') + (C.exitSized ? '' : '; out: ' + r3(C.outA) + ' m2');
+    if (lvl !== 'pass') {
+      if (H.limit === 'outlet') fix = (C.inA >= need ? 'the inlet is big enough but the air cannot leave: ' : 'the air cannot leave: ') +
+        'give it about ' + outNeed + ' m2 of outlet (now ' + r3(C.outA) + ') - lower the cowl\'s bottom (exit gap) or add gills' +
+        (C.inA < need ? '; then enlarge ' + (fwd.length ? fwd.join(' / ') : 'the inlets') + ' to about ' + need + ' m2 (now ' + have + ')' : '');
+      else if (C.radA > 0 && C.radA >= C.inA - C.radA) fix = 'grow the radiators\' mouths to about ' + need + ' m2 in all (now ' + have + '), or open their exit flaps';
+      else fix = 'enlarge ' + (fwd.length ? fwd.join(' / ') : 'the inlets') + ' to about ' + need + ' m2 (now ' + have + ')';
+    }
+  }
+  const rows = [{ id: 'cool.climb', group: 'power', tier: 'safe', proposed: true, label: 'Engine cooling, hot-day climb',
+                  value: r2(m), unit: 'x the air needed', level: lvl, limit: lim, why, fix }];
+  const tl = T.margin < K.pass ? 'warn' : 'pass';
+  rows.push({ id: 'cool.taxi', group: 'power', tier: 'comm', proposed: true, label: 'Engine cooling on the ground (hot strip, taxi)',
+              value: r2(T.margin), unit: 'x the air needed', level: tl,
+              limit: 'the hot strip (38 C), 5 m/s at 20 % power, the slipstream doing the work: a warning under ' + K.pass.toFixed(2),
+              why: (C.pushes ? 'a pusher\'s inlets get only the propeller\'s inflow on the ground' : 'the slipstream alone') + ': ' + r2(T.margin) + ' x the ' + r2(T.need) + ' kg/s needed',
+              fix: tl === 'pass' ? '' : 'it runs hot waiting at the hold: a bigger inlet, or keep ground runs short' });
+  return rows;
+}
+
 function genDesignAids(def, bal, opts) {
   const o = opts || {};
   const S = def.spec || {}, P = def.parts || {};
@@ -344,6 +402,9 @@ function genDesignAids(def, bal, opts) {
           why: (trike ? 'tip-back ' : 'the mains ') + r2(ang) + ' deg' + (sh2 != null && trike ? ', nose wheel ' + Math.round(sh2 * 100) + ' %' : ''),
           fix: lvl === 'pass' ? '' : ang < W[0] ? 'the mains ' + r2(Math.abs(moveM)) + ' m ' + (trike ? 'aft' : 'forward') : ang > W[1] ? 'the mains a little ' + (trike ? 'forward' : 'aft') : 'the mains ' + (sh2 < GEN_AIDS.noseShare[0] ? 'forward' : 'aft') + ' to share the weight' });
   }
+  // ---- ENGINE COOLING (ENGINE-COOLING, 12 Nov; the user via A0: "the cooling requirements will need to be part of the
+  // CERTIFICATE ... if something fails for it, it should be CLEAR") -----------------------------------------------------
+  for (const r of genCoolRows(def)) row(r);
   return out;
 }
 // the drawn loading's CG by the same ledger arithmetic (the corners' reference)
