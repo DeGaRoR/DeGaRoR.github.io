@@ -777,6 +777,16 @@ const POWERPLANTS = {
     engine: { name: 'P&W PT6A-60A', mass: 218, powerW: 783000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.20, length: 1.85, rpm: 1700, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.67 m', D: 2.67, Tstatic: 10767, kV2: 0.5355 },
   },
+  // THE PC-6's PT6A-27 (12 Nov, FIT-PROCEDURE; the user: "create your engine"), off the locked reference
+  // tools/drafting/refs/pc6.json: 550 shp take-off and max continuous (FOCA TCDS F 56-10), 680 shp thermodynamic
+  // (flatK 680/550), the P&WC dry mass ~149 kg (thin: the reference marks it so), the Hartzell HC-B3TN-3D three-blade
+  // of 99-101 in (2.54 m, the middle) turning 2 200 rpm; the prop is genPropSynth's output (alu, standard) like every
+  // PT6 row; length the -34's frame (62 in). PRICE: P&WC's 2026 flat-rate overhaul for the -27, $372k (capped $450k)
+  pt6a27_hartzell3: {
+    price: 410000,   // P&WC flat rate $372-450k (2026), the middle as the -114A / -34 rows take theirs
+    engine: { name: 'P&W PT6A-27', mass: 149, powerW: 410135, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.236, length: 1.57, rpm: 2200, cs: true },
+    prop:   { name: 'Hartzell 3-blade 2.54 m', D: 2.54, Tstatic: 6432, kV2: 0.4161 },
+  },
 };
 // ============================================================
 // ENGINE THERMO LAWS (G134). Two numbers per family, both quoted at RATED
@@ -963,7 +973,7 @@ const GEN_ENG_CG = {
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
   fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
   sp260d_class: 0.31, emrax268_carbon: 0.14,
-  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71,
+  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71, pt6a27_hartzell3: 0.65,   // (the -27: the -34's frame)
   pt6a60a_hartzell4: 0.78,
 };
 // the one reader: a custom row's own number outranks the table's

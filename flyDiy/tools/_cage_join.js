@@ -75,6 +75,7 @@ const CAGE_JOIN_ENGINES = {
   // A-65 through the fallback below, which is the four-orphan trap
   'P&W PT6A-114A': 'pt6a114a_hartzell3',
   'P&W PT6A-34': 'pt6a34_hartzell4',
+  'P&W PT6A-27': 'pt6a27_hartzell3',   // (12 Nov, FIT-PROCEDURE: the PC-6's)
 };
 
 // G132: THE DRAWN BLADE IS THE PHYSICS' AUTHOR. cw_material indexes the cowl
