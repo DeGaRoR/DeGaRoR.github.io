@@ -3380,7 +3380,7 @@ function designFull(sel, over) {
 // COOL's sweep checks every archetype the shed births then passes).
 // (the climb's inlet speed grows with the engine: a light aeroplane's 32 m/s at 100 kW, a fighter's twice it - a fixed
 // light-aeroplane speed sized the Spitfire-alike's radiators three times too big; Vy x the slipstream, roughly kW^0.3)
-const COOL_BIRTH = { target: 1.4, V100: 32, Vexp: 0.3, Vmin: 28, Vmax: 75, push: 0.88, rho: 1.134, lip: 0.015, follow: 0.67 };
+const COOL_BIRTH = { target: 1.4, V100: 32, Vexp: 0.3, Vmin: 28, Vmax: 75, push: 0.88, rho: 1.134, lip: 0.015, follow: 0.67, lenK: 3.2, hold: 0.33, slot: 2.2 };
 function designCoolBirth(full) {
   const out = {};
   if (full.cowlOn != null && !+full.cowlOn) return out;
@@ -3417,8 +3417,9 @@ function designCoolBirth(full) {
     const n = sqExp(full.cw_apSq != null ? full.cw_apSq : 0.47);
     return (mode === 1 || mode === 3 ? Math.max(0, sArea(Math.max(0.02, g('cw_apW')), Math.max(0.02, g('cw_apH')), n) - Math.PI * Math.pow(g('cw_spinR'), 2)) : 0) + pairs;
   };
-  // the cowl's front, round the spinner, opened to `A` m2 (grown, never shrunk; the pair kept)
-  const openFace = A => {
+  // the cowl's front, round the spinner, opened to `A` m2 (grown, never shrunk; the pair kept); `tall` a slot that
+  // many times as tall as it is wide (a narrow inline's or vee's nose: a round opening is fitted down to its width)
+  const openFace = (A, tall) => {
     const mode = Math.round(g('cw_apMode'));
     const pairs = mode === 2 || mode === 3 ? 2 * sArea(g('cw_pairW'), g('cw_pairH'), sqExp(full.cw_pairSq)) : 0;
     const spin = Math.PI * Math.pow(g('cw_spinR'), 2);
@@ -3427,7 +3428,13 @@ function designCoolBirth(full) {
     const have = faceHave();
     if (have >= A) return;
     if (mode === 0) set('cw_apMode', 1); else if (mode === 2) set('cw_apMode', 3);
-    const want = A - pairs + spin, f = Math.sqrt(want / Math.max(1e-6, sArea(w0, h0, n)));
+    const want = A - pairs + spin;
+    if (tall > 0) {
+      const w = Math.sqrt(want / Math.max(1e-6, sArea(1, tall, n)));
+      set('cw_apW', +Math.min(0.7, Math.max(w0 > 0.1 ? 0 : w0, w)).toFixed(3)); set('cw_apH', +Math.min(0.7, tall * w).toFixed(3));
+      return;
+    }
+    const f = Math.sqrt(want / Math.max(1e-6, sArea(w0, h0, n)));
     set('cw_apW', +Math.min(0.7, w0 * f).toFixed(3)); set('cw_apH', +Math.min(0.7, h0 * f).toFixed(3));
   };
   // the chin scoop into the air, riding the bottom line, its open mouth (about two thirds of it stands out) `A` m2; `how`
@@ -3441,6 +3448,11 @@ function designCoolBirth(full) {
     set('cw_scoopOn', 1); set('cw_scoopFollow', 1); set('cw_scoopAp', Math.max(0.9, g('cw_scoopAp')));
     if (how === 'aft') set('cw_scoopAft', 1); else if (how === 'push') set('cw_scoopRev', 1); else if (+full.cw_scoopRev) set('cw_scoopRev', 0);
     set('cw_scoopW', +Math.max(g('cw_scoopW'), Wd).toFixed(3)); set('cw_scoopH', +Math.max(g('cw_scoopH'), H).toFixed(3));
+    // AN INLET, NOT A DISC (the user 12 Nov: "most of them have no length and look like a disc"): the length about 3.2 x
+    // its height, within the cowl's barrel, its full section held over the front third (FIT-PROCEDURE's scoopHold)
+    const Hn = g('cw_scoopH'), barrel = Math.max(0.3, 0.95 * (g('cw_cowlLen') || 0.6));
+    set('cw_scoopLen', +Math.min(barrel, Math.max(g('cw_scoopLen'), COOL_BIRTH.lenK * Hn)).toFixed(3));
+    if (!(g('cw_scoopHold') > 0)) set('cw_scoopHold', COOL_BIRTH.hold);
   };
   // the wing radiators' mouths (mode 1 a pair, 2 one and an oil cooler), grown to `A` m2 in all (cage metres x planeScale)
   const radiators = A => {
@@ -3462,10 +3474,12 @@ function designCoolBirth(full) {
   }
   const pushes = mK === 1 || (mK === 2 && aim !== 1) || ((mK === 3 || mK === 6) && aim === 2);
   if (!pushes) {
-    openFace(pullA);
-    // a face that cannot hold it: a wing nacelle's (small, round its spinner), a narrow inline's or vee's
-    const narrow = mK === 3 || mK === 5 || mK === 6 || (R.arch === 'inline' || R.arch === 'vee');
-    if (narrow) scoop(pullA, 'pull');
+    // a narrow inline's or vee's nose: a proper front opening, a tall slot (the user 12 Nov, the Tiger Moth: "a proper
+    // cowl front opening rather than this scoop")
+    const inline = R.arch === 'inline' || R.arch === 'vee';
+    openFace(pullA, inline ? COOL_BIRTH.slot : 0);
+    // a wing nacelle's face is small and round its spinner, whatever the engine: a chin scoop as well
+    if (mK === 3 || mK === 5 || mK === 6) scoop(pullA, 'pull');
     return out;
   }
   if ((mK === 2 || mK === 3 || mK === 6) && Math.round(g('cw_aftMode')) === 1) {   // a nacelle's tail cone: its inlet

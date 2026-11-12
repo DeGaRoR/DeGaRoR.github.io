@@ -67,6 +67,9 @@ console.log('FACING (genCoolOpen on a hand-made resolved spec)');
   ok(O(Object.assign({}, base, { cage: { cowlOn: 0 } })).kind === 'bare', 'no cowl: bare');
   ok(O(Object.assign({}, base, { cooling: undefined })).kind === 'legacy', 'no measurement: legacy');
   ok(O(Object.assign({}, base, { cooling: { face: 0.05 } })).exitSized === true, 'no outlet drawn: the outlet is sized for you');
+  // the side gills (the "shark fins") on a tractor ADD to the exit sized for you, never cap it; the lowered bottom draws it
+  const gl = O(Object.assign({}, base, { cooling: { face: 0.05, gills: 0.004 } }));
+  ok(gl.exitSized === true && r3(gl.outA) === 0.004, 'a tractor\'s gills alone: still sized for you (they add, 0.004 m2 out), they never become the only way out');
 }
 
 console.log('CALIBRATION (the reference-fitted cowls, the hot-day climb)');
@@ -198,6 +201,9 @@ console.log('THE BIRTH (_cage_design designCoolBirth: an archetype born with the
   ok(Math.round(cub.cw_apMode) === 2 && !+cub.cw_scoopFollow, 'cub: its front already holds it - left as its card draws it (the rule never shrinks, never adds)');
   const fp = bake('floatplane');
   ok(+fp.cw_scoopOn && +fp.cw_scoopFollow && !+fp.cw_scoopRev && fp.cw_scoopW > 0.1, 'floatplane (wing nacelles): a chin scoop into the air on each nacelle (' + fp.cw_scoopW + ' x ' + fp.cw_scoopH + ')');
+  ok(fp.cw_scoopLen >= 2 * fp.cw_scoopH && fp.cw_scoopHold > 0, 'an inlet, not a disc: ' + fp.cw_scoopLen + ' m long for ' + fp.cw_scoopH + ' high, its section held over ' + fp.cw_scoopHold + ' of it');
+  const tm = bake('tigermoth');
+  ok(Math.round(tm.cw_apMode) >= 1 && tm.cw_apH > 2 * tm.cw_apW && !+tm.cw_scoopFollow, 'tigermoth (a narrow inline): a proper front opening, a tall slot (' + tm.cw_apW + ' x ' + tm.cw_apH + '), no scoop added');
   const sk = bake('skymaster');
   ok(+sk.cw_scoopAft && +sk.cw_scoopFollow && Math.round(sk.cw_apMode) >= 1, 'skymaster (push-pull): the nose\'s front opened, the rear engine\'s own scoop turned into the air');
   const sp = bake('spitfire');

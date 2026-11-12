@@ -686,7 +686,12 @@ function genCoolOpen(S, k) {
   put(kf * n(C.exit), pushes ? 'fwd' : 'aft', 'the lowered bottom (the exit)');
   put(kf * n(C.gills), pushes ? 'fwd' : 'aft', 'the gills');
   const bareA = C.headsOut != null ? n(C.headsOut) : genHeadsFrontal(S);
-  return { kind: 'measured', k: ki, pushes, nEng, nBody, inA, outA, bareA, radA: radA / nEng, exitSized: !(outA > 0), parts };
+  // WHICH OUTLET IS THE WAY OUT (ENGINE-COOLING 3; the user 12 Nov on the side gills, "the shark fins"): a tractor's
+  // cowl always has its exit at the firewall end, sized for you until the lowered bottom (the exit gap) draws it - the
+  // gills, an aft-facing scoop or cone ADD to it and never cap the air (a few small gills drawn used to become the only
+  // way out); a pusher's way out is what faces aft (its face round the spinner, an unturned scoop)
+  const capOut = pushes ? outA : kf * n(C.exit);
+  return { kind: 'measured', k: ki, pushes, nEng, nBody, inA, outA, bareA, radA: radA / nEng, exitSized: !(capOut > 0), parts };
 }
 function genCooling(S, o) {
   const ks = genCoolBodyEngines(S);
