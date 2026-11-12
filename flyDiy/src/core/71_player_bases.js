@@ -1184,6 +1184,8 @@ function playerAcquire(doc, aero, plotId, shell, tenure) {
     shell, kits: (P.kits || HANGAR_KITS_DEFAULT).slice(), base: aero, tenure,
     dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}), price, since: Math.round(d.clock || 0),
   };
+  // RESTORE (13 Nov): a building with a restoration track is bought AS IT STANDS (the story's stage, else the plot's own)
+  if (P.closedTrack && shell === P.shells[0]) d.sheds[plotId].dims.stage = Math.max(Number.isFinite(P.closedStage) ? P.closedStage : 0, restoreTrack(doc, P));
   playerCharge(d, cost, 'acquire', plotId);
   return { ok: true, doc: d, hangar: plotId, cost, why: '' };
 }
@@ -1328,7 +1330,9 @@ function playerWorldSheds(doc) {
   const S = (doc && doc.sheds) || {}, out = [];
   const one = (id, main) => {
     const s = S[id]; if (!s || typeof s !== 'object') return;
-    out.push({ id, base: typeof s.base === 'string' ? s.base : id, shell: s.shell || 'club', dims: hangarDims(s),
+    const dims = hangarDims(s);
+    const rs = restoreStage(doc, id); if (rs != null) dims.stage = rs;   // (RESTORE: its own stage or the story's, the higher)
+    out.push({ id, base: typeof s.base === 'string' ? s.base : id, shell: s.shell || 'club', dims,
                kits: Array.isArray(s.kits) ? s.kits.slice() : [], parts: s.parts ? pbClone(s.parts) : null, main: !!main });
   };
   if (S[PREM_MAIN]) one(PREM_MAIN, true);
@@ -1355,6 +1359,83 @@ function playerClosedSheds(doc) {
     }
   }
   return out;
+}
+// ---- RESTORE: THE OLD HANGAR, STEP BY STEP (HOME-DERELICT; the user 13 Nov, via A0: "the old hangar ... the mechanics for its
+// STEP-BY-STEP RESTORATION. Not yet to be included in the story, just have the assets ready and clear") ----------------------
+// A plot whose building has a restoration track (BASE_OFFERS closedTrack: HOME.2, DERELICT_GEN's four stages) keeps its
+// STAGE once it is held: bought as it stands (playerAcquire writes dims.stage), it is restored one step at a time - a step is
+// STARTED here (its price paid, its days counted on the career's clock: routeNow) and FINISHED when its days are up
+// (playerRestoreSettle, pure: the page calls it where it reads the document). The building the world draws is the higher of
+// its own stage and the story's track (the field arc still raises it: 76_stages / careerComplete), so the story can drive
+// the same four stages later without a second path. The sandbox (doc.mode !== 'career', nothing is charged) finishes a step
+// at once. The prices are shares of the plot's price; the days are the works' - both a first guess, tuned in one place.
+const RESTORE_WORDS = ['derelict', 'made safe', 'roofed', 'restored'];
+const RESTORE_STEPS = [
+  { to: 1, share: 0.06, days: 2, what: 'the rubble cleared, the holes fenced, the dead wiring cut' },
+  { to: 2, share: 0.18, days: 5, what: 'a new roof and gutters, the doors freed and hung' },
+  { to: 3, share: 0.30, days: 9, what: 'the walls clad, the floor poured, the lamps and the old tower lit' },
+];
+const RESTORE_DAY_S = 86400;
+// the plot's offer when its HELD building restores (its track, and the shell the derelict is: the offer's first)
+function restorePlot(doc, id) {
+  const s = doc && doc.sheds && doc.sheds[id];
+  if (!s) return null;
+  for (const aero of Object.keys(BASE_OFFERS)) {
+    const P = BASE_OFFERS[aero].plots[id];
+    if (P && P.closedTrack && P.shells && s.shell === P.shells[0]) return P;
+  }
+  return null;
+}
+const restoreNow = (doc, now) => (typeof now === 'number' && isFinite(now) ? now
+  : typeof routeNow === 'function' ? routeNow(doc) : ((doc && doc.clock) || 0));
+const restoreTrack = (doc, P) => {
+  const T = P && P.closedTrack, tr = (T && typeof stageTracksOf === 'function') ? stageTracksOf(doc) : null;
+  return T && tr && Array.isArray(T.stages) && T.stages.length ? T.stages[Math.max(0, Math.min(T.stages.length - 1, tr[T.track] || 0))] : 0;
+};
+// the stage a held building stands at: its own (dims.stage; absent = an older document's, restored) or the story's, the higher
+function restoreStage(doc, id) {
+  const P = restorePlot(doc, id), s = doc.sheds[id];
+  if (!P) return null;
+  const own = s.dims && Number.isFinite(s.dims.stage) ? s.dims.stage : 3;
+  return Math.max(0, Math.min(3, Math.max(own, restoreTrack(doc, P))));
+}
+// what the hangar's card says: null (nothing to restore here) | { stage, word, max, next: { to, word, price, days, what } | null,
+// works: { to, word, until, left (s) } | null, why: '' (why the next step cannot start now) }
+function playerRestoreState(doc, id, now) {
+  const P = restorePlot(doc, id);
+  if (!P) return null;
+  const stage = restoreStage(doc, id), s = doc.sheds[id], t = restoreNow(doc, now);
+  const step = RESTORE_STEPS.find(x => x.to === stage + 1) || null;
+  const aero = s.base || id, plotP = plotPrice(aero, id, s.shell);
+  const next = step ? { to: step.to, word: RESTORE_WORDS[step.to], price: Math.round((plotP || 0) * step.share), days: step.days, what: step.what } : null;
+  const w = s.restore && Number.isFinite(s.restore.until) ? s.restore : null;
+  const works = w ? { to: w.to, word: RESTORE_WORDS[w.to] || '', until: w.until, left: Math.max(0, w.until - t) } : null;
+  let why = '';
+  if (!next) why = 'restored';
+  else if (works) why = 'the works are under way';
+  else if (!pbAfford(doc, next.price)) why = 'the wallet holds ' + Math.round(doc.wallet) + ', the step costs ' + next.price;
+  return { stage, word: RESTORE_WORDS[stage], max: 3, next, works, why };
+}
+// START the next step: paid now, finished when its days are up (the sandbox: at once) -> { ok, doc, cost, why }
+function playerRestoreStart(doc, id, now) {
+  const st = playerRestoreState(doc, id, now);
+  if (!st) return pbNo(doc, id + ' has nothing to restore');
+  if (st.why) return pbNo(doc, st.why);
+  const d = pbClone(doc), s = d.sheds[id], t = restoreNow(doc, now);
+  s.dims = Object.assign({}, s.dims, { stage: st.stage });           // (the story's stage, if higher, becomes the building's own)
+  const career = d.mode === 'career';
+  s.restore = { to: st.next.to, since: t, until: t + (career ? st.next.days * RESTORE_DAY_S : 0), price: st.next.price };
+  playerLedger(d, 'restore', st.next.price, id);
+  return { ok: true, doc: playerRestoreSettle(d, t).doc, cost: career ? st.next.price : 0, why: '' };
+}
+// FINISH every step whose days are up (pure): -> { doc (the same object when nothing changed), done: [ids] }
+function playerRestoreSettle(doc, now) {
+  const S = (doc && doc.sheds) || {}, t = restoreNow(doc, now), due = [];
+  for (const id of Object.keys(S)) { const w = S[id] && S[id].restore; if (w && Number.isFinite(w.until) && w.until <= t) due.push(id); }
+  if (!due.length) return { doc, done: [] };
+  const d = pbClone(doc);
+  for (const id of due) { const s = d.sheds[id]; s.dims = Object.assign({}, s.dims, { stage: Math.max(0, Math.min(3, s.restore.to)) }); delete s.restore; }
+  return { doc: d, done: due };
 }
 // may a shed's residents be drawn? (GAME §4.4: an open door and the camera within 60 m; a shut shed costs nothing)
 function premResidentsDrawn(doorOpen, camDist) {
