@@ -12,10 +12,12 @@
 //                                      lamp, the fuel bay and its tank; the power budget beside it
 //   model   WHAT THE SIM FLIES         plan above side: the masses, the members, the lifting panels and their control
 //                                      surfaces, the body's two drag points, the propeller disc, the contacts
-// One layout, 1200 x 800 (the share picture's 3:2), ONE theme - the fiche is cream only (the user, 12 Nov):
+// One layout, 1200 x 800 (the share picture's 3:2), two themes, picked by the SCREEN (the user via A0, 13 Nov: the fiche in
+// the fleet screen - cream on the desktop, BLACK on the phone; 12 Nov's "cream only" stands for the desktop):
 //   sheet   the fiche's cream sheet (#f3ede0, ink #2b2924): printable; every fill outlined and named, labels in dark ink,
-//           colour never the only cue (AIRCRAFT-LOOKS via A0, 11 Nov). (The dark 'screen' variant is gone; opts.theme is
-//           ignored.)
+//           colour never the only cue (AIRCRAFT-LOOKS via A0, 11 Nov)
+//   dark    the phone's black page: the same drawing, light ink on black
+// opts.theme 'dark' | 'phone' (or opts.screen 'phone') draws dark; anything else cream.
 // The category colours are the fiche pages' shared set (A0, 11 Nov): one colour per Mass & price category.
 //
 // WHERE A PART IS ON A PICTURE: the fiche's ortho pictures carry their scale (data.pxPerM) but not their offset; the frame is
@@ -44,7 +46,12 @@
              lead: 'rgba(43,41,36,.38)', member: 'rgba(43,41,36,.22)', ghost: 0.55, fillOp: 0.42, edge: 'rgba(43,41,36,.55)',
              ramp: [[0, [201, 191, 174]], [0.3, [176, 160, 134]], [0.6, [208, 138, 79]], [1, [181, 70, 42]]], bad: '#b5462a', warn: '#c27a3e',
              frame: true },
+    dark: { bg: '#000000', ink: '#f2ece2', dim: '#bdb5a8', faint: '#8d877b', hair: 'rgba(255,248,236,.18)', rule: 'rgba(255,248,236,.16)',
+            lead: 'rgba(244,239,230,.38)', member: 'rgba(214,206,194,.26)', ghost: 0.36, fillOp: 0.4, edge: null,
+            ramp: [[0, [74, 69, 64]], [0.25, [151, 144, 127]], [0.5, [216, 160, 122]], [1, [232, 112, 72]]], bad: '#ec6f49', warn: '#e0a070',
+            frame: true },
   };
+  const themeOf = o => (o && (o.theme === 'dark' || o.theme === 'phone' || o.screen === 'phone')) ? THEMES.dark : THEMES.sheet;
   const W = 1200, H = 800;
   const r1 = x => (Math.round(x * 10) / 10).toFixed(1), r0 = x => String(Math.round(x));
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -313,6 +320,7 @@
   // ===================================================================================================================
   const WIRE = {
     sheet:  { power: '#b23a2a', charge: '#c47a2c', light: '#a8861a', panel: '#3d7a4a', av: '#2f6aa3' },
+    dark:   { power: '#ee7258', charge: '#f2a85c', light: '#e8d06a', panel: '#8fd08a', av: '#80b4ea' },
   };
   const LOADNAME = { aiE: 'attitude indicator', turn: 'turn coordinator', fuel: 'fuel gauges', volts: 'voltmeter', hobbs: 'hour meter',
     oilP: 'oil pressure', oilT: 'oil temperature', com: 'radio (COM)', xpdr: 'transponder', nav: 'NAV receiver', gps: 'GPS', gps2: 'second display',
@@ -332,7 +340,7 @@
     batt: (x, y, c) => [0, 1].map(i => `<path d="M${x - 9 + i * 10} ${y - 10} L${x - 9 + i * 10} ${y + 10} M${x - 5 + i * 10} ${y - 5} L${x - 5 + i * 10} ${y + 5}" stroke="${c}" stroke-width="2"/>`).join(''),
   };
   function schematic(E, th, K, x0, y0, y1, lampNo) {
-    const out = [], Wc = WIRE.sheet, BX = x0 + 118, ink = th.ink, bg = th.bg;
+    const out = [], Wc = th === THEMES.sheet ? WIRE.sheet : WIRE.dark, BX = x0 + 118, ink = th.ink, bg = th.bg;
     const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : '';
     const part = k => E.parts.find(p => p.key === k);
     const bat = part('battery'), alt = part('alternator'), st = part('starter'), busP = part('bus'), wire = part('wire');
@@ -394,7 +402,7 @@
     return out;
   }
   function pageXray(D, o, th, K) {
-    const M = D.model, E = D.elec, Tk = D.tanks, pic = o.pics && o.pics.plan, Wc = WIRE.sheet;
+    const M = D.model, E = D.elec, Tk = D.tanks, pic = o.pics && o.pics.plan, Wc = th === THEMES.sheet ? WIRE.sheet : WIRE.dark;
     const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : 'battery';
     const out = head(th, K, o, 'Electrics · and the fuel',
       E.hasBus ? 'Every light on: ' + r1(E.night.A) + ' A of the ' + (E.altA ? E.altA + ' A ' + words : 'battery') : 'No battery, no lights: hand-propped',
@@ -626,7 +634,7 @@
 
   let svgSeq = 0;
   function svg(page, data, opts) {
-    const o = opts || {}, th = THEMES.sheet, K = kit(th);   // cream only
+    const o = opts || {}, th = themeOf(o), K = kit(th);
     // (the first prototypes' ids stay understood: load, xray, model)
     const f = { integrity: pageLoad, load: pageLoad, drag: pageDrag, electrics: pageXray, xray: pageXray, physics: pageModel, model: pageModel, reference: pageReference }[page];
     if (!f) throw new Error('no physics page ' + page);
@@ -702,7 +710,7 @@
     return dataOf(rec, page, o).then(D => {
       if (!D) { el.textContent = 'Put this aeroplane on the stand to draw its physics pages.'; return false; }
       return (D.model ? picsFor(rec, D.model, false) : Promise.resolve({})).then(pics => {
-        el.innerHTML = svg(page, D, { theme: o.theme || 'sheet', name: o.title || (rec.data && rec.data.name) || rec.name, reg: rec.data && rec.data.reg, pics, sig: sigOf() });
+        el.innerHTML = svg(page, D, { theme: o.theme, screen: o.screen, name: o.title || (rec.data && rec.data.name) || rec.name, reg: rec.data && rec.data.reg, pics, sig: sigOf() });
         const sv = el.querySelector('svg'); if (sv) { sv.style.width = '100%'; sv.style.height = 'auto'; sv.style.display = 'block'; }
         return true;
       });
@@ -713,7 +721,7 @@
     const o = opts || {};
     return dataOf(rec, page, o).then(D => { if (!D) return null;
       return (D.model ? picsFor(rec, D.model, true) : Promise.resolve({})).then(pics => new Promise((res, rej) => {
-        const text = svg(page, D, { theme: o.theme || 'sheet', name: o.title || (rec.data && rec.data.name) || rec.name, reg: rec.data && rec.data.reg, pics, sig: sigOf() });
+        const text = svg(page, D, { theme: o.theme, screen: o.screen, name: o.title || (rec.data && rec.data.name) || rec.name, reg: rec.data && rec.data.reg, pics, sig: sigOf() });
         const im = new Image(), url = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));
         im.onload = () => { const c = document.createElement('canvas'); c.width = 2 * W; c.height = 2 * H; c.getContext('2d').drawImage(im, 0, 0, 2 * W, 2 * H); URL.revokeObjectURL(url); c.toBlob(res, 'image/png'); };
         im.onerror = e => { URL.revokeObjectURL(url); rej(e); }; im.src = url; })); });
