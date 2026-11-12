@@ -44,7 +44,7 @@ const t0 = Date.now();
 const BUILDS = [
   ['cub', path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json')],
   ['jodel', path.join(ROOT, 'builds', 'jodel_2026-09-20_corrected.json')],
-  ['c172', path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json')],
+  ['c172', path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json')],   // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
   ['c172w', path.join(ROOT, 'builds', 'cessna172_2026-09-20_corrected.json')],
 ];
 const FLOATS = [['floats', path.join(ROOT, 'bugReports', 'cessnaFloatsWOrks.json')], ['pa18f', path.join(ROOT, 'builds', 'pa18_floats_2026-10-23.json')]];
