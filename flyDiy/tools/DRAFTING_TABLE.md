@@ -598,9 +598,35 @@ The chin scoop's width 0.95 of the cowl's (it read narrow at its aft end at 0.8)
   * a section tint and the same colour in a decal do not render alike (the tint reads redder): match by eye.
   * plane_shot's hero portraits level the model by turning it, and the side-box paint does not follow: the paint slides.
     Judge a livery on `profile`, `orbit:` and `close:` views only (the camera moves, the model does not).
-- DOES IT FLY: the drafting file is pre-join; `_bake_joined.js` bakeJoined(spec) gives the flown spec. perf_study (the
-  new `pc6` row: Pilatus fact sheet) on it: empty 1297 / 1270 kg, S 30.6 / 30.15, Vs 109 / 107 km/h - all within 2 %;
-  TO roll 238 / 197; flown: the pilot's circuit to a full stop, TO 235 m, climb 8.1 m/s, landing roll 383 m. FAST and
-  STRONG: Vmax 293 / 232, ROC 7.9 / 5.0 - the registry has no PT6A-27 (550 shp), the join flies the PT6A-114A (675
-  hp), and the drag (CdS 1.0 m2) reads low for a strutted box. GARAGE GAPS: a PT6A-27 row; the flown tail envelope
-  (hSpan 1.5-4.5 m, vHeight 0.6-2.2 m) clamps the PC-6's real 5.14 m stab and 2.51 m fin.
+- DOES IT FLY - SUPERSEDED BY ROUND 12 (the first comparison used web figures, not the locked reference).
+
+## ROUND 12 (12 Nov): the comparison against the LOCKED reference, done rigorously
+
+The user: "at the beginning of this session, we spent a few messages just gathering really good reference data for the
+PC6 ... be cautious and be rigorous". Round 11 compared against a web search (an empty mass of 1270, a 197 m ground roll,
+232 km/h read as a top speed) - none of which is in `refs/pc6.json`. RULE: the reference block is the only truth a
+comparison may use; a figure it does not state is not compared (printed "-"), never filled from elsewhere.
+- perf_study's `pc6` row now READS refs/pc6.json (no retyped number). Null where the block is silent: no sea-level
+  level speed (232 km/h is max cruise at an unstated altitude; VNE 280 is the hard check), no ground roll (only the
+  distances over 15 m: TO 440, LDG 315, STOL, mass unknown); `empty` = the factsheet's basic operating 1250 kg.
+- Two geometry reds the table had and round 11 did not report: the chord 1.922 vs the TCDS 1.900 (fixed: wgChord 1.91,
+  measures 1.906) and the section - the TCDS says NACA 64-514, the build flew a 2412; the garage has the 4-digit family
+  only, so the nearest: CLi 0.5 on the a=1.0 mean line = 2.8 % camber, 14 % thick -> NACA 3414 (an approximation,
+  said as one). Score 135 / 175.
+- Static height measured the TCDS way (tail down, the ground line under the wheels, the propeller excluded): 3.10 vs
+  3.20 m (-3 %). perf_study's "height" is the flight model's node cloud in the body frame - a different measure.
+- THE ENGINE: the registry has no PT6A-27 (550 shp); the join flies the PT6A-114A (675 hp, 2.69 m propeller). A scratch
+  row (the -114A scaled to 410 kW, 149 kg, 2.54 m, T0 by (P*D)^(2/3)) is VALID FOR THE PROBES ONLY: any powerplant row
+  added at runtime flies ZERO thrust in the flown circuit (an unchanged copy of the -114A under a new key does too; the
+  stock key through the same --engine path flies) - a bench gap, so no flown 550 shp figure exists yet.
+- Results (MTOW 2800, ISA SL; probe = the bench's sweeps, flown = the test pilot's circuit):
+  empty 1293 / 1250 (+3 %; 1272 with the -27's 149 kg); S 30.3 / 30.15; Vs1 107 / 107 (0 %, both engines);
+  ROC 7.9 probe, 8.0 flown (-114A) and 6.0 probe (550 shp) / 5.13 (+54 % / +17 %);
+  TO over 15 m 314 (-114A) / 382 (550 shp) vs 440 STOL (-29 % / -13 %);
+  top speed 292 (-114A) ABOVE VNE 280 - impossible for the real aeroplane; 271 (550 shp) under it;
+  flown landing ROLL 382 m vs the reference's 315 m TOTAL over 15 m (STOL) - our ground roll alone is longer: a red
+  (the pilot's landing is not a STOL technique; braking and approach speed to examine).
+  Not measured by the bench: Vs0 (96 km/h, full flaps), the distances over 15 m on landing.
+- Garage gaps (REF_MATCH section 7): a PT6A-27 registry row (550 shp, 149 kg, HC-B3TN-3D 2.54 m); a runtime-added
+  powerplant flies no thrust (benches cannot try an engine); 6-series sections; the flown tail envelope (hSpan <= 4.5,
+  vHeight <= 2.2 clamps the 5.13 m stab and the 2.51 m fin); the bench has no Vs0 and no landing-over-15 m.
