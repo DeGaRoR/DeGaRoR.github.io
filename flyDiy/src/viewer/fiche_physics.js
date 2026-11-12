@@ -12,10 +12,10 @@
 //                                      lamp, the fuel bay and its tank; the power budget beside it
 //   model   WHAT THE SIM FLIES         plan above side: the masses, the members, the lifting panels and their control
 //                                      surfaces, the body's two drag points, the propeller disc, the contacts
-// One layout, 1200 x 800 (the share picture's 3:2), two themes:
+// One layout, 1200 x 800 (the share picture's 3:2), ONE theme - the fiche is cream only (the user, 12 Nov):
 //   sheet   the fiche's cream sheet (#f3ede0, ink #2b2924): printable; every fill outlined and named, labels in dark ink,
-//           colour never the only cue (AIRCRAFT-LOOKS via A0, 11 Nov)
-//   screen  the garage's dark --ed-* panel: devlog / Steam pictures
+//           colour never the only cue (AIRCRAFT-LOOKS via A0, 11 Nov). (The dark 'screen' variant is gone; opts.theme is
+//           ignored.)
 // The category colours are the fiche pages' shared set (A0, 11 Nov): one colour per Mass & price category.
 //
 // WHERE A PART IS ON A PICTURE: the fiche's ortho pictures carry their scale (data.pxPerM) but not their offset; the frame is
@@ -44,10 +44,6 @@
              lead: 'rgba(43,41,36,.38)', member: 'rgba(43,41,36,.22)', ghost: 0.55, fillOp: 0.42, edge: 'rgba(43,41,36,.55)',
              ramp: [[0, [201, 191, 174]], [0.3, [176, 160, 134]], [0.6, [208, 138, 79]], [1, [181, 70, 42]]], bad: '#b5462a', warn: '#c27a3e',
              frame: true },
-    screen: { bg: '#201d1a', ink: '#f4efe6', dim: '#c0b8ac', faint: '#97907f', hair: 'rgba(255,248,236,.16)', rule: 'rgba(255,248,236,.14)',
-              lead: 'rgba(244,239,230,.35)', member: 'rgba(192,184,172,.24)', ghost: 0.3, fillOp: 0.38, edge: null,
-              ramp: [[0, [74, 69, 64]], [0.25, [151, 144, 127]], [0.5, [216, 160, 122]], [1, [224, 110, 70]]], bad: '#e06e46', warn: '#d8a07a',
-              frame: false },
   };
   const W = 1200, H = 800;
   const r1 = x => (Math.round(x * 10) / 10).toFixed(1), r0 = x => String(Math.round(x));
@@ -317,7 +313,6 @@
   // ===================================================================================================================
   const WIRE = {
     sheet:  { power: '#b23a2a', charge: '#c47a2c', light: '#a8861a', panel: '#3d7a4a', av: '#2f6aa3' },
-    screen: { power: '#e8705a', charge: '#f0a65a', light: '#e6cf6a', panel: '#8fcf8a', av: '#7fb2e6' },
   };
   const LOADNAME = { aiE: 'attitude indicator', turn: 'turn coordinator', fuel: 'fuel gauges', volts: 'voltmeter', hobbs: 'hour meter',
     oilP: 'oil pressure', oilT: 'oil temperature', com: 'radio (COM)', xpdr: 'transponder', nav: 'NAV receiver', gps: 'GPS', gps2: 'second display',
@@ -337,7 +332,7 @@
     batt: (x, y, c) => [0, 1].map(i => `<path d="M${x - 9 + i * 10} ${y - 10} L${x - 9 + i * 10} ${y + 10} M${x - 5 + i * 10} ${y - 5} L${x - 5 + i * 10} ${y + 5}" stroke="${c}" stroke-width="2"/>`).join(''),
   };
   function schematic(E, th, K, x0, y0, y1, lampNo) {
-    const out = [], Wc = th === THEMES.sheet ? WIRE.sheet : WIRE.screen, BX = x0 + 118, ink = th.ink, bg = th.bg;
+    const out = [], Wc = WIRE.sheet, BX = x0 + 118, ink = th.ink, bg = th.bg;
     const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : '';
     const part = k => E.parts.find(p => p.key === k);
     const bat = part('battery'), alt = part('alternator'), st = part('starter'), busP = part('bus'), wire = part('wire');
@@ -399,7 +394,7 @@
     return out;
   }
   function pageXray(D, o, th, K) {
-    const M = D.model, E = D.elec, Tk = D.tanks, pic = o.pics && o.pics.plan, Wc = th === THEMES.sheet ? WIRE.sheet : WIRE.screen;
+    const M = D.model, E = D.elec, Tk = D.tanks, pic = o.pics && o.pics.plan, Wc = WIRE.sheet;
     const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : 'battery';
     const out = head(th, K, o, 'Electrics · and the fuel',
       E.hasBus ? 'Every light on: ' + r1(E.night.A) + ' A of the ' + (E.altA ? E.altA + ' A ' + words : 'battery') : 'No battery, no lights: hand-propped',
@@ -631,7 +626,7 @@
 
   let svgSeq = 0;
   function svg(page, data, opts) {
-    const o = opts || {}, th = THEMES[o.theme] || THEMES.sheet, K = kit(th);
+    const o = opts || {}, th = THEMES.sheet, K = kit(th);   // cream only
     // (the first prototypes' ids stay understood: load, xray, model)
     const f = { integrity: pageLoad, load: pageLoad, drag: pageDrag, electrics: pageXray, xray: pageXray, physics: pageModel, model: pageModel, reference: pageReference }[page];
     if (!f) throw new Error('no physics page ' + page);
