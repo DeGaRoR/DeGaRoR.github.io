@@ -191,6 +191,9 @@ const MANIFEST = {
     // THE CERTIFICATE'S RULE (G3780 CERT-RULE): the major/minor row list and the `f3` major fingerprint, ONE list read by
     // the bench (bench.js), the career's factory certificate (76_procure procureFp) and the acceptance legs; pure
     '66b_cert_rule.js',
+    // THE FICHE'S PHYSICS PAGES (PHYSICS-PAGES): readouts of the load test, the bench to destruction, the drag build-up,
+    // the electrics and the tanks for the fiche's pages - no physics of its own; after the certificate it reads
+    '66c_gen_fiche_pages.js',
     // THE PLAYER (HANGARS S1): the player's property as one document — its
     // own version and migrator walk beside the spec's (G105: state that is
     // not the aeroplane costs no spec version). References 26_'s default kit
@@ -623,7 +626,7 @@ const MANIFEST = {
     // stands its planes in app.js's REF_MOUNT.bpGroup.
     // blueprint_library.js before it (G573.2): the prepared sheets, a plain
     // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
-              'wing_struct.js', 'garage.js', 'plane_thumb.js', 'plane_fiche.js', 'fiche_board.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
+              'wing_struct.js', 'garage.js', 'plane_thumb.js', 'plane_fiche.js', 'fiche_board.js', 'fiche_physics.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
               'sim_host.js', 'sim_view.js', 'sim_link.js', 'sheet_link.js',
     // plane_thumb.js (G3800, the user's VIGNETTE) after garage.js: window.PLANE_THUMB, the plane cards' side profile -
     // drawn by the page's renderer once a saved build stands still (garage.js saveAs / loadSlot), the stock / candidate

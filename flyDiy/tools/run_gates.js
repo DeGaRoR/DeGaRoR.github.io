@@ -1012,6 +1012,10 @@ const GATES = [
   { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   // AIRCRAFT-BOARD (the user 4 Nov: the fiche, awarded on passed certification): plane_fiche.js's views, award, matte, clone, target. ~1 s
   { id: 'PLANEFICHE', file: '_plane_fiche_check.js', argv: ['--selftest'], tier: 'core', wall: 2 },
+  // PHYSICS-PAGES (the user 11 Nov: the physics a player never sees, as fiche pages): 66c genFichePages' data held to the
+  // functions it reads (a second load test, bench_worker's own test to destruction, the drag rows, genSystemsResolve and
+  // makeBus, the tanks, the model) on the Cub, the Cessna and the Twin; fiche_physics.js's fit and its pages in both themes. ~90 s
+  { id: 'PHYSPAGES', file: '_physpages_check.js', argv: ['--selftest'], tier: 'full', wall: 100 },
   // WING-STRUCTURE (the user 9 Nov: the cutaway's missing wing, its structure in its place): wing_struct.js on the validated
   // aeroplanes - the spars on their nodes and the printed rails, the ribs at the field's stations, the wires on the
   // solver's members, the stringers at the grammar's pitch, the budget, inside the covering, no physics. ~10 s
