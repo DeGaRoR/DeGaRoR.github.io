@@ -3852,6 +3852,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         for (let i = 1; i < ST.length; i++) { if (ST[i].x <= cr + 1e-6) continue; const d = Math.abs(ST[i].x - AB.aftX); if (d < bd) { bd = d; k = i; } } }
       return [F[k].BL, F[k].BR, F[k].TL, F[k].TR];
     })(),
+    // AERO-BODY (12 Nov, the rod's height): the aft row's force line at the DRAWN centroid height (genAeroBody aftY - the
+    // rod on its own drawn line, rodY and rodIncl), not the blob ring's middle: the ring's bottom and top pairs share the
+    // force so that its line passes there (clamped to the ring). The solver's blob reads the weights; absent: 1/4 each
+    ...(() => {
+      const AB = S.fuse.aeroBody && !S.fuse.aeroBody.tailOnBody && typeof genAeroBody === 'function' ? genAeroBody(S) : null;
+      if (!AB || AB.aftY == null) return {};
+      let k = F.length - 2; { const cr = S.cab.noseGap + S.cab.len; let bd = 1e9;
+        for (let i = 1; i < ST.length; i++) { if (ST[i].x <= cr + 1e-6) continue; const d = Math.abs(ST[i].x - AB.aftX); if (d < bd) { bd = d; k = i; } } }
+      const yB = 0.5 * (P[F[k].BL][1] + P[F[k].BR][1]), yT = 0.5 * (P[F[k].TL][1] + P[F[k].TR][1]);
+      if (!(yT - yB > 1e-3)) return {};
+      const b = Math.max(0, Math.min(0.5, (AB.aftY - yB) / (2 * (yT - yB))));
+      return { fusDragAftW: [0.5 - b, 0.5 - b, b, b] };
+    })(),
     // AERO-BODY: the twin booms' own side-force point (the solver's third blob): each boom's top and inner node at the
     // station nearest the booms' middle - only with the drawn body measured (genFusCdA writes the row then)
     ...(S.fuse.aeroBody && BOOMS && BOOMS.L && BOOMS.R && Array.isArray(BOOMS.xs) ? (() => {

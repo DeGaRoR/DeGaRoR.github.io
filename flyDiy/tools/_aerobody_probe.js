@@ -21,4 +21,24 @@ if (grp) {
   });
   if (z1 > z0) out.cowl = { z0, z1, aft: !!(window.CAGE_COWL && window.CAGE_COWL.units && window.CAGE_COWL.units[0] && window.CAGE_COWL.units[0].aft) };
 }
+// (12 Nov, the rod's height) THE FIN'S ROOT, read off the fin layer's own mesh: the lowest point of a vertical ray through
+// the fin every 5 cm along the body (mount frame -> x from the firewall, y over the keel datum) - a fin standing on a rod
+// stands on its top, so the drawn rod's height is checked against the drawing and not against the record
+{
+  let mnt = null; __scene.traverse(o => { if (!mnt && o.name && /^cageLayer:/.test(o.name) && o.parent) mnt = o.parent; });
+  let fin = null; __scene.traverse(o => { if (!fin && o.name === 'cageLayer:fin') fin = o; });
+  if (mnt && fin && isFinite(D.yD)) {
+    __scene.updateMatrixWorld(true);
+    const vis = o => { let p = o; while (p) { if (p.visible === false) return false; p = p.parent; } return true; };
+    const ms = []; fin.traverse(o => { if (o.isMesh && vis(o) && o.geometry) ms.push(o); });
+    const inv = new THREE.Matrix4().copy(mnt.matrixWorld).invert(), RC = new THREE.Raycaster(), fr = [];
+    for (let x = -1; x <= 9; x += 0.05) {
+      const a = new THREE.Vector3(0, 20, D.zFw - x).applyMatrix4(mnt.matrixWorld), b = new THREE.Vector3(0, -20, D.zFw - x).applyMatrix4(mnt.matrixWorld);
+      RC.set(a, b.clone().sub(a).normalize()); RC.far = 40;
+      const ys = RC.intersectObjects(ms, false).map(h => h.point.clone().applyMatrix4(inv).y - D.yD);
+      if (ys.length) fr.push([+x.toFixed(2), +Math.min(...ys).toFixed(4)]);
+    }
+    out.finRoot = fr;
+  }
+}
 return JSON.stringify(out);

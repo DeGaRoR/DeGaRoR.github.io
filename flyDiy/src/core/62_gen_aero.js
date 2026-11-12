@@ -602,19 +602,25 @@ function genAeroBody(S) {
       if (iS === T.length - 1 && !AB.base) fore.Ab = 0;                  // drawn closed to its end: no base
     }
   } finally { if (S.cowl) S.cowl.len = cl; }
-  const rod = AB.rod ? { d: AB.rod.d, L: AB.rod.x1 - AB.rod.x0, x0: AB.rod.x0, x1: AB.rod.x1 } : null;
+  const rod = AB.rod ? { d: AB.rod.d, L: AB.rod.x1 - AB.rod.x0, x0: AB.rod.x0, x1: AB.rod.x1,
+                         ym: Number.isFinite(AB.rod.y0) && Number.isFinite(AB.rod.y1) ? 0.5 * (AB.rod.y0 + AB.rod.y1) : null } : null;
   // the side areas off the drawn rows (projected depth x length), split at the cabin's rear ring
   const cabR = S.cab.noseGap + S.cab.len, xc = AB.closeX;
-  const side = (a, b) => { let Ar = 0, Mx = 0;
+  const side = (a, b) => { let Ar = 0, Mx = 0, My = 0;
     for (let i = 0; i < T.length - 1; i++) { const p = T[i], q = T[i + 1], x0 = Math.max(a, p.x), x1 = Math.min(b, q.x); if (!(x1 > x0)) continue;
-      const h = x => (p.yt - p.yb) + ((q.yt - q.yb) - (p.yt - p.yb)) * (x - p.x) / Math.max(1e-9, q.x - p.x);
-      const s0 = 0.5 * (h(x0) + h(x1)) * (x1 - x0); Ar += s0; Mx += s0 * 0.5 * (x0 + x1); }
-    return { A: Ar, Mx }; };
+      const lerp = (u, v, x) => u + (v - u) * (x - p.x) / Math.max(1e-9, q.x - p.x);
+      const h = x => lerp(p.yt - p.yb, q.yt - q.yb, x), ym = x => 0.5 * (lerp(p.yb, q.yb, x) + lerp(p.yt, q.yt, x));
+      const s0 = 0.5 * (h(x0) + h(x1)) * (x1 - x0); Ar += s0; Mx += s0 * 0.5 * (x0 + x1); My += s0 * 0.5 * (ym(x0) + ym(x1)); }
+    return { A: Ar, Mx, My }; };
   const fw = side(0, Math.min(cabR, xc)), af = side(Math.min(cabR, xc), xc);
-  let aft = af.A, mx = af.Mx;
-  if (rod) { aft += rod.d * rod.L; mx += rod.d * rod.L * 0.5 * (rod.x0 + rod.x1); }
+  let aft = af.A, mx = af.Mx, my = af.My, hOk = true;
+  if (rod) { aft += rod.d * rod.L; mx += rod.d * rod.L * 0.5 * (rod.x0 + rod.x1);
+    if (rod.ym != null) my += rod.d * rod.L * rod.ym; else hOk = false; }
+  // aftY (12 Nov, the rod's height - the user: "the model ignores that setting and positions it in the middle"): the
+  // aft row's centroid height over the keel datum, the rod at its own drawn line; null on a record without the rod's
+  // heights (the ring's middle, as before)
   return { closed: !!AB.tailOnBody, full, fore, xSep: T[iS].x, rod, rodCdA: rod ? B.cfRod * Math.PI * rod.d * rod.L : 0,
-           sFwd: fw.A, sAft: aft, aftX: aft > 1e-6 ? mx / aft : xc };
+           sFwd: fw.A, sAft: aft, aftX: aft > 1e-6 ? mx / aft : xc, aftY: hOk && aft > 1e-6 ? my / aft : null };
 }
 
 // Body-axis CdA for the two fuselage blobs. Coefficients calibrated so the

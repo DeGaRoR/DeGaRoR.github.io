@@ -11,6 +11,9 @@
 //   FLOOR   a twin-boom pod's lattice ends at its drawn pod (60_gen_spec: no conventional tail-arm floor on booms); a
 //           rod's tail arm is the joined one
 //   COWL    the outfit bills a cowl only where the editor fits one (cage.cowlOn) - COWL-BILL
+//   HEIGHT  (12 Nov) the rod's drawn line in the record, checked against the fin's drawn root (it stands on the rod's
+//           top), and the aft row's side force acting at the drawn centroid's height; negative control: the Rufus's rod
+//           read at the closure's middle (9-19 cm) must fail
 // NEGATIVE CONTROL: the Chinook and the Twin with the record removed fly the frame's body (the phantom cone) and the
 // LENGTH row must fail on both - the gate can see what it was written for.
 //   node tools/_aerobody_check.js  -> "GATE AEROBODY: PASS|FAIL"   (cold ~2-3 min: one page load per plane, cached after)
@@ -58,6 +61,24 @@ function judge(name, r, opts) {
       f(AB.rod && Math.abs(D.rod - C.GEN_DRAG.body.cfRod * Math.PI * AB.rod.d * (AB.rod.x1 - AB.rod.x0)) < 1e-9, 'RODS: its row is the tube\'s');
       f(AB.rows.every(q => q.x <= AB.closeX + 1e-6), 'RODS: no aero row behind the closure');
       f(Math.abs(S.fuse.tailArm - r.spec.fuselage.tailArm) < 1e-9 || r.spec.fuselage.tailArm == null, 'FLOOR: a rod\'s tail arm is the joined one');
+      // HEIGHT (12 Nov, the user: "the model ignores that setting and positions it in the middle"): the record carries
+      // the drawn rod's line, and where the fin stands on the rod its root is the rod's top (median within 3 cm)
+      const R0 = AB.rod;
+      f(R0 && Number.isFinite(R0.y0) && Number.isFinite(R0.y1), 'HEIGHT: the record carries the drawn rod\'s line (y0, y1)');
+      if (R0 && Number.isFinite(R0.y0) && pr.finRoot) {
+        const top = x => R0.y0 + (R0.y1 - R0.y0) * (x - R0.x0) / (R0.x1 - R0.x0) + R0.d / 2;
+        const g = pr.finRoot.filter(q => q[0] > R0.x0 + 0.05 && q[0] < R0.x1 - 0.05).map(q => Math.abs(top(q[0]) - q[1])).sort((a, b) => a - b);
+        out.hGap = g.length ? g[g.length >> 1] : null;
+        f(g.length >= 4 && out.hGap <= 0.03, `HEIGHT: the fin's drawn root sits on the rod's top (median ${out.hGap != null ? (100 * out.hGap).toFixed(1) : '-'} cm over ${g.length} stations)`);
+      }
+      // ...and the aft row's force line is at the drawn centroid's height (61_gen_frame fusDragAftW, the solver's blob)
+      const AE = C.genAeroBody(S), W = def.refs.fusDragAftW, ids = def.refs.fusDragAft;
+      if (AE && AE.aftY != null) {
+        const yl = W ? ids.reduce((a, i, j) => a + W[j] * def.nodes[i].p[1], 0) : null;
+        const yB = 0.5 * (def.nodes[ids[0]].p[1] + def.nodes[ids[1]].p[1]), yT = 0.5 * (def.nodes[ids[2]].p[1] + def.nodes[ids[3]].p[1]);
+        const want = Math.max(yB, Math.min(yT, AE.aftY));
+        f(W && Math.abs(yl - want) < 1e-3, `HEIGHT: the aft side force acts at the drawn centroid (${yl != null ? yl.toFixed(3) : '-'} m against ${AE.aftY.toFixed(3)})`);
+      }
     }
     if (S.tail.type === 'twinBoom') {
       f(def.parts.ST[def.parts.ST.length - 1].x <= AB.closeX + 0.05, `FLOOR: the pod's lattice ends at its drawn pod (${def.parts.ST[def.parts.ST.length - 1].x.toFixed(2)} against ${AB.closeX.toFixed(2)})`);
@@ -92,6 +113,14 @@ for (const n of ['Chinook', 'Twin busher floats 4b']) {
   say(`  ${sees ? 'ok  ' : 'FAIL'} negative control: ${n} without the record flies ${o.fL.toFixed(2)} m against ${o.dL.toFixed(2)} drawn (${(100 * o.err).toFixed(1)} %) - LENGTH ${sees ? 'fails, as it must' : 'PASSES: the gate is blind'}`);
   ok(sees, `negative control: ${n} without the record must fail LENGTH`);
 }
+// the HEIGHT row's negative control: the Rufus's rod read at the closure's middle (the first record's mistake, 9-19 cm)
+if (res['Rufus']) {
+  const r = JSON.parse(JSON.stringify(res['Rufus'])), A = r.spec.fuselage.aeroBody;
+  const q = A.rows[A.rows.length - 1]; A.rod.y0 = 0.5 * (q.yb + q.yt);
+  const o = judge('Rufus', r), sees = o.fails.some(m => /^HEIGHT: the fin/.test(m));
+  say(`  ${sees ? 'ok  ' : 'FAIL'} negative control: the Rufus's rod read at the closure's middle - its fin root ${o.hGap != null ? (100 * o.hGap).toFixed(1) : '-'} cm off - HEIGHT ${sees ? 'fails, as it must' : 'DOES NOT FAIL'}`);
+  ok(sees, 'negative control: the Rufus with its rod read at the closure must fail HEIGHT');
+} else ok(false, 'negative control: the Rufus is not on the official list');
 for (const b of bad) say('  FAIL ' + b);
 say(`GATE AEROBODY: ${bad.length ? 'FAIL' : 'PASS'} (${LIST.length} official planes, ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
 process.exit(bad.length ? 1 : 0);

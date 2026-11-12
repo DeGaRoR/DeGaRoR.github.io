@@ -6021,7 +6021,9 @@ function clampSpec(spec) {
     if (ok) {
       const base = genIsPlain(A.base) && A.base.w > 0 && A.base.h > 0 ? { w: genClamp(A.base.w, 0, 6), h: genClamp(A.base.h, 0, 8) } : null;
       const rod = genIsPlain(A.rod) && [A.rod.x0, A.rod.x1, A.rod.d].every(Number.isFinite) && A.rod.x1 > A.rod.x0 && A.rod.d > 0
-        ? { x0: A.rod.x0, x1: A.rod.x1, d: genClamp(A.rod.d, 0.01, 0.6) } : null;
+        ? Object.assign({ x0: A.rod.x0, x1: A.rod.x1, d: genClamp(A.rod.d, 0.01, 0.6) },
+          // (12 Nov) the drawn rod's centreline height at each end (keel datum); absent on an older record: the stations'
+          [A.rod.y0, A.rod.y1].every(Number.isFinite) ? { y0: genClamp(A.rod.y0, -3, 6), y1: genClamp(A.rod.y1, -3, 6) } : {}) : null;
       fu.aeroBody = { rows, closeX: genClamp(A.closeX, rows[0].x, rows[rows.length - 1].x + 0.05), base, rod, tailOnBody: !!A.tailOnBody };
     } else delete fu.aeroBody;
   }

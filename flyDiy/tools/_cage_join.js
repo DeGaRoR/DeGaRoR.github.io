@@ -1361,7 +1361,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   // bigger than the drawn rod it is the rod; an unpanelled taper is the rod's truss, not a body (the user: "a tube of its
   // real diameter, nothing more"). The record the core flies (60_gen_spec clampSpec, 62_gen_aero genAeroBody):
   //   rows [{ x, w (half), yb, yt }], closeX, base { w, h } (the section the drawing ends on; null = closed),
-  //   rod { x0, x1, d } (null = none), tailOnBody (a conventional fuselage: the tail on the body, closed)
+  //   rod { x0, x1, d, y0, y1 } (null = none; y0 / y1 the drawn rod's centreline over the keel datum at x0 / x1 - the user,
+  //   12 Nov: "the model ignores that setting and positions it in the middle"), tailOnBody (a conventional fuselage: the
+  //   tail on the body, closed)
   const aeroBodyOf = (AF, zFw, yD, P) => {
     if (!AF || !isFinite(AF.z0) || !isFinite(AF.z1) || typeof AF.halfWAt !== 'function') return null;
     const NS = 120, af = [];
@@ -1408,6 +1410,19 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       } else {
         const head = cols.filter(r => r.x < rows[0].x + 0.02);
         if (head.length) rows = head.concat(rows.filter(r => r.x > head[head.length - 1].x + 1e-6));
+      }
+    }
+    // AERO-BODY (12 Nov, the rod's height): the drawn rod's centreline at its two ends, off the drawn skin itself (the rod
+    // is in AF: rodY and rodIncl are what it draws)
+    // (the line fitted through the skin's ROD-SIZED rows behind the closure - at the closure itself the section is still
+    // the pod's or the taper's, and its middle is not the rod's: GATE AEROBODY's fin-root row caught 9-19 cm there)
+    if (rod) {
+      const rr = af.filter(r => r.x >= rod.x0 - 1e-6 && 2 * r.w < 1.6 * d && r.yt - r.yb < 1.6 * d);
+      if (rr.length >= 2) {
+        let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+        for (const r of rr) { const y = 0.5 * (r.yb + r.yt); n++; sx += r.x; sy += y; sxx += r.x * r.x; sxy += r.x * y; }
+        const den = n * sxx - sx * sx, m = Math.abs(den) > 1e-12 ? (n * sxy - sx * sy) / den : 0, c = (sy - m * sx) / n;
+        rod.y0 = c + m * rod.x0; rod.y1 = c + m * rod.x1;
       }
     }
     const T = [];

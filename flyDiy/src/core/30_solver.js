@@ -3339,7 +3339,7 @@ function makeSim(def, world) {
     }
     // fuselage blobs: anisotropic CdA in body axes; side/vertical area split
     // between cabin and aft fuselage so yaw and pitch damping are physical
-    const blob = (ids, CdA) => {
+    const blob = (ids, CdA, W4) => {
       let vx=0, vy=0, vz=0, bx=0, by=0, bz=0;
       for (const i of ids) {
         vx+=v[i*3]; vy+=v[i*3+1]; vz+=v[i*3+2];
@@ -3354,15 +3354,18 @@ function makeSim(def, world) {
       const cb = [rx*xAft[0]+ry*xAft[1]+rz*xAft[2],
                   rx*yUp[0]+ry*yUp[1]+rz*yUp[2],
                   rx*zRt[0]+ry*zRt[1]+rz*zRt[2]];
-      const k = 0.5 * rho * Vr * 0.25;
-      for (const i of ids) {
+      const k0 = 0.5 * rho * Vr * 0.25;
+      for (let j = 0; j < ids.length; j++) {
+        // AERO-BODY (12 Nov): W4 the nodes' shares (the force line at the drawn height, 61_gen_frame fusDragAftW);
+        // absent: a quarter each, as ever (k0 x 1, the same bits)
+        const i = ids[j], k = W4 ? k0 * 4 * W4[j] : k0;
         f[i*3]   += k*(CdA[0]*cb[0]*xAft[0] + CdA[1]*cb[1]*yUp[0] + CdA[2]*cb[2]*zRt[0]);
         f[i*3+1] += k*(CdA[0]*cb[0]*xAft[1] + CdA[1]*cb[1]*yUp[1] + CdA[2]*cb[2]*zRt[1]);
         f[i*3+2] += k*(CdA[0]*cb[0]*xAft[2] + CdA[1]*cb[1]*yUp[2] + CdA[2]*cb[2]*zRt[2]);
       }
     };
     blob(def.refs.fusDrag,    GR === null ? P_.fusCdA : GR.cda);   // RETRACT-1: the gear's drag by its position
-    blob(def.refs.fusDragAft, P_.fusCdAAft);
+    blob(def.refs.fusDragAft, P_.fusCdAAft, def.refs.fusDragAftW || null);
     // AERO-BODY: the twin booms' side and vertical cross-flow on the booms (62_gen_aero genFusCdA boomCdAAft; absent: none)
     if (def.refs.boomDrag && P_.boomCdAAft) blob(def.refs.boomDrag, P_.boomCdAAft);
     // G461: THE BODY'S OWN PITCHING MOMENT (Munk). A closed body in potential
