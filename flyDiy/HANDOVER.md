@@ -315310,7 +315310,9 @@ reports/evidence/SKIS/README.md.
   starts the cutout forward of the axle by the tyre's chord at the deck's and the skins' top at its lowest (skis up)
   + 3 cm + the fillet, the tyre's inner wall 15 mm off the beam's skins, the tyre's width the drawn carcass's
   (skiTyreW); GATE SKIS 4 walks the tyre through every height. The Carbon Cub's SS2300s are WHEEL-SKIS (gearSki 3).
-- THE CONTROLS: input action `ski` (key 0; under the AP too, the gear key's rule); the dashboard's selector in the
-  switch row (_panel_gen skiSwitch, _cage_panel skiSelAt, law 'ski' in cockpit.js, clickable); unset = the surface's.
+- THE CONTROLS: input action `ski` (key 0; under the AP too, the gear key's rule); THE CONTROL BOX, an ADD-ON (the
+  user: "clearly bolted on after the fact"): _cage_panel skiAddonAt - a 64 x 36 mm bent aluminium box hung under the
+  panel's lower edge on a screwed flange, the toggle (law 'ski', clickable), amber PUMP / green DN lamps (law
+  'skiLamp' off out.ski), a breaker, tape labels, its loom (after Wipaire's Fli-Lite 4000 ICA and Airglas' manuals).
 - THE LOAD DOOR AND THE POD: tools/_load_build.js now hands the spec to the pod layer (CAGE_POD.fromSpec) where the
   page's applySpec does - every headless look (quick_view, quickshot, the gates' scenes) drew no belly pod before.

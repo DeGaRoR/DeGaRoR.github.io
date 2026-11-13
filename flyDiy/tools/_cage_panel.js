@@ -1351,35 +1351,85 @@ function flapAt(parent, x, y, z) {
   arm.mesh(g, matFor('lever')); knob.mesh(g, matFor('needle'));
   return g;
 }
-// SKIS (13 Nov): THE WHEEL-SKIS' SELECTOR - a gear handle's grammar for the skis: a black escutcheon 22 x 44 with its
-// slot, DOWN at the bottom (the skis under the tyres: the aeroplane on its skis) and UP at the top (the tyres through
-// the cutouts), the two marks and a green and an amber lens beside them; the lever pivots inside the dash and its knob is
-// a little SKI (a white paddle, its toe turned up) - law 'ski': the command on ctl.ski, 0.9 rad over its two places
-function skiSelAt(parent, x, y, z) {
+// SKIS (13 Nov): THE WHEEL-SKIS' CONTROL BOX - AN ADD-ON, BOLTED ON AFTER THE FACT (the user: "very few planes are
+// coming with this straight ... clearly bolted on after the fact on the dashboard, relatively small, but realistic").
+// The kits' own cockpit side (Wipaire's Fli-Lite 4000 ICA: a cockpit-mounted UP / DN gear switch, a PUMP ON lamp, the
+// pump's breakers; Airglas LH4000 / GLH3000: a toggle on the panel, a yellow lamp while the pump runs, a green one when
+// the skis are locked down): a bent aluminium box 64 x 36 mm hung under the panel's lower edge on a flange screwed to
+// the panel's face (three pan heads, a shim's gap), its face tilted up to the pilot, carrying the toggle (law 'ski':
+// up = SKIS UP, on the wheels; down = SKIS DN), the amber PUMP lamp and the green DN lamp (law 'skiLamp': lit off the
+// solver's out.ski), a push-pull breaker, black embossed tape labels, and its loom of three wires and a tie running
+// back under the dash. Local frame: the plate's face at z 0, the pilot at -z, +y up the plate.
+function skiAddonAt(parent) {
   const K = KIT();
-  const esc = K.Bag(), marks = K.Bag(), lensG = K.Bag(), lensA = K.Bag();
   const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
-  K.boxIn(esc, [x - 0.0075, y, z - 0.00075], [0.0035, 0.022, 0.00075], X, Y, Z);
-  K.boxIn(esc, [x + 0.0075, y, z - 0.00075], [0.0035, 0.022, 0.00075], X, Y, Z);
-  K.boxIn(esc, [x, y + 0.019, z - 0.00075], [0.011, 0.003, 0.00075], X, Y, Z);
-  K.boxIn(esc, [x, y - 0.019, z - 0.00075], [0.011, 0.003, 0.00075], X, Y, Z);
-  K.boxIn(esc, [x, y, z + 0.006], [0.0035, 0.015, 0.006], X, Y, Z);
-  esc.mesh(parent, matFor('plate'));
-  for (const yy of [0.014, -0.014]) K.boxIn(marks, [x + 0.0145, y + yy, z - 0.0004], [0.0032, 0.0006, 0.0003], X, Y, Z);
-  marks.mesh(parent, matFor('needle'));
-  // the two lenses (a green DOWN, an amber UP), small domes beside the marks
-  K.revolve(lensG, [x - 0.0150, y - 0.014, z - 0.0002], [0, 0, -1], [[0.0026, 0], [0.0022, 0.0012], [0.0010, 0.0018], [0, 0.0019]], 14, true);
-  K.revolve(lensA, [x - 0.0150, y + 0.014, z - 0.0002], [0, 0, -1], [[0.0026, 0], [0.0022, 0.0012], [0.0010, 0.0018], [0, 0.0019]], 14, true);
-  lensG.mesh(parent, matFor('green')); lensA.mesh(parent, matFor('amber'));
-  const g = gaugeAt(parent, 'edGauge_ski', [x, y + 0.010, z + 0.012], [1, 0, 0], 'ski', 'ski', { k: 0.9, sgn: -1 });
-  const arm = K.Bag(), knob = K.Bag();
-  K.revolve(arm, [0, 0, 0.002], [0, 0, -1], [[0.0022, 0], [0.0022, 0.036]], 14, true);
-  // the knob: a small ski - a flat paddle 26 x 9 mm, its toe turned up, on the arm's end
-  const zk = -0.034;
-  K.boxIn(knob, [0, -0.002, zk], [0.0045, 0.012, 0.0022], X, Y, Z);
-  K.boxIn(knob, [0, 0.0115, zk - 0.0025], [0.0045, 0.0028, 0.0018], X, [0, 0.8, -0.6], [0, 0.6, 0.8]);
-  K.revolve(knob, [0, -0.002, zk + 0.0022], [0, 0, 1], [[0.0026, 0], [0.0026, 0.004]], 12, true);
-  arm.mesh(g, matFor('lever')); knob.mesh(g, matFor('needle'));
+  const W = 0.064, H = 0.036, Dp = 0.024, tilt = 0.26;                 // the box: width, face height, depth; the face's tilt
+  const box = K.Bag(), screws = K.Bag(), tape = K.Bag(), tapeT = K.Bag(), wireR = K.Bag(), wireW = K.Bag(), wireK = K.Bag(), tie = K.Bag();
+  // the flange on the panel's face (2 mm sheet, 16 mm tall above the edge) and its three pan heads; the shim's gap
+  K.boxIn(box, [0, 0.006, -0.0022], [W / 2, 0.009, 0.001], X, Y, Z);
+  for (const sx of [-0.024, 0, 0.024]) K.revolve(screws, [sx, 0.010, -0.0032], [0, 0, -1], [[0.0030, 0], [0.0027, 0.0010], [0.0012, 0.0017], [0, 0.0018]], 10, true);
+  // the box below the edge: its top, two cheeks, the tilted face (a bent sheet: each 1.5 mm)
+  const cT = Math.cos(tilt), sT = Math.sin(tilt);
+  const FY = [0, cT, -sT], FZ = [0, sT, cT];                          // the face's up and its normal (toward the panel)
+  const fc = [0, -0.003 - 0.5 * H * cT, -Dp - 0.5 * H * sT];          // the face's centre (its top edge under the flange's foot)
+  K.boxIn(box, fc, [W / 2, H / 2, 0.00075], X, FY, FZ);
+  K.boxIn(box, [0, -0.0015, -Dp / 2 - 0.001], [W / 2, 0.00075, Dp / 2 + 0.001], X, Y, Z);
+  for (const sx of [-1, 1]) {
+    const c = [sx * (W / 2 - 0.00075), -0.003 - 0.5 * H * cT, -0.5 * (Dp + 0.5 * H * sT)];
+    K.boxIn(box, c, [0.00075, 0.5 * H * cT + 0.0015, 0.5 * (Dp + 0.5 * H * sT)], X, Y, Z);
+  }
+  box.mesh(parent, matFor('barrel'));                                  // bare aluminium, not the panel's paint
+  screws.mesh(parent, matFor('screw'));
+  // a point on the face: u across, v up the face, out toward the pilot
+  // (u is the PILOT'S right-hand way: the plate's local +x is port - the pilot's left - so u runs along -x)
+  const on = (u, v, out) => [-u, fc[1] + v * FY[1] - out * FZ[1], fc[2] + v * FY[2] - out * FZ[2]];
+  // the embossed tape labels (black tape, its letters as raised white strokes): "SKIS" over the toggle, "UP" and "DN"
+  // beside its two places, "PUMP" and "DN" under the lamps
+  const label = (u, v, w, nL) => {
+    K.boxIn(tape, on(u, v, 0.0009), [w / 2, 0.0028, 0.00035], X, FY, FZ);
+    for (let i = 0; i < nL; i++) K.boxIn(tapeT, on(u - w / 2 + (i + 0.5) * w / nL, v, 0.0013), [0.32 * w / nL, 0.0014, 0.0001], X, FY, FZ);
+  };
+  label(-0.018, 0.0125, 0.020, 4); label(-0.006, 0.0065, 0.008, 2); label(-0.006, -0.0065, 0.008, 2);
+  label(0.006, -0.0055, 0.011, 4); label(0.0165, -0.0055, 0.008, 2);
+  tape.mesh(parent, matFor('hub')); tapeT.mesh(parent, matFor('needle'));
+  // the toggle: its bushing and nut, the bat on a pivot (law 'ski': -0.45 rad up = UP, +0.45 down = DN)
+  const tb = K.Bag(), nut = K.Bag();
+  K.revolve(nut, on(-0.018, 0, 0.0008), FZ.map(v => -v), [[0.0052, 0], [0.0052, 0.0022], [0.0034, 0.0030], [0.0034, 0.0070]], 6, true);
+  nut.mesh(parent, matFor('barrel'));
+  const g = gaugeAt(parent, 'edGauge_ski', on(-0.018, 0, 0.0075), [1, 0, 0], 'ski', 'ski', { k: 0.45, sgn: -1 });
+  // (drawn in its rest pose along the face's normal - the flight sets the group's turn about the plate's x, the face's
+  // tilt axis, so the bat swings in the face's plane)
+  K.revolve(tb, [0, 0, 0], FZ.map(v => -v), [[0.0016, 0], [0.0013, 0.0115], [0.0021, 0.0122], [0.0021, 0.0142], [0, 0.0150]], 12, true);
+  tb.mesh(g, matFor('lever'));
+  // the two lamps: a knurled cap on a bezel, the dull lens always, its LIT lens shown by the solver's state (amber: the
+  // pump running - the skis in transit; green: the skis down and locked)
+  for (const [u, drv, col, colLit] of [[0.006, 'skiPump', 'amber', 0xffb733], [0.0165, 'skiDn', 'green', 0x52ff7a]]) {
+    const bz = K.Bag(), ln = K.Bag(), lit = K.Bag();
+    K.revolve(bz, on(u, 0.0045, 0.0008), FZ.map(v => -v), [[0.0043, 0], [0.0043, 0.0026], [0.0036, 0.0035], [0.0030, 0.0040]], 18, true);
+    bz.mesh(parent, matFor('hub'));
+    K.revolve(ln, on(u, 0.0045, 0.0045), FZ.map(v => -v), [[0.0029, 0], [0.0024, 0.0014], [0.0010, 0.0021], [0, 0.0022]], 14, true);
+    ln.mesh(parent, matFor(col));
+    const lg = gaugeAt(parent, 'edGauge_' + drv, on(u, 0.0045, 0.0045), [1, 0, 0], drv, 'skiLamp', { k: 0 });
+    K.revolve(lit, FZ.map(v => -0.0002 * v), FZ.map(v => -v), [[0.0030, 0], [0.0025, 0.0014], [0.0011, 0.0022], [0, 0.0023]], 14, true);
+    lit.mesh(lg, new THREE.MeshBasicMaterial({ color: colLit }));   // pre-ok: a lit lamp's lens (self-lit, as the dash's own)
+    lg.visible = false;
+  }
+  // the pump's breaker: a push-pull button (black, its white collar)
+  const cb = K.Bag(), cbW = K.Bag();
+  K.revolve(cb, on(0.0265, 0.001, 0.0008), FZ.map(v => -v), [[0.0044, 0], [0.0044, 0.0020], [0.0026, 0.0024], [0.0026, 0.0060], [0.0030, 0.0062], [0.0030, 0.0078], [0, 0.0080]], 14, true);
+  K.revolve(cbW, on(0.0265, 0.001, 0.0062), FZ.map(v => -v), [[0.0031, 0], [0.0031, 0.0007]], 14, true);
+  void cbW;
+  cb.mesh(parent, matFor('knob'));
+  // the loom: three wires (red, white, black) out of the box's back under the edge, dressed back into the dash, a tie
+  const path = (dx, sag) => { const p0 = [-dx, -0.006, -0.004], p3 = [-(dx * 0.4 - 0.010), -0.050, 0.030];
+    const out = []; for (let k = 0; k <= 16; k++) { const t = k / 16, m = 1 - t;
+      out.push([p0[0] * m + p3[0] * t, p0[1] * m * m + (p0[1] - sag) * 2 * m * t + p3[1] * t * t, p0[2] * m * m + (-0.002) * 2 * m * t + p3[2] * t * t]); }
+    return out; };
+  K.sweep(wireR, path(-0.0040, 0.026), () => K.secRound(0.0011, 6), true);
+  K.sweep(wireW, path(-0.0016, 0.028), () => K.secRound(0.0011, 6), true);
+  K.sweep(wireK, path(0.0008, 0.030), () => K.secRound(0.0011, 6), true);
+  K.boxIn(tie, [0.0016, -0.026, 0.004], [0.0045, 0.0012, 0.0030], X, Y, Z);
+  wireR.mesh(parent, matFor('cap')); wireW.mesh(parent, matFor('needle')); wireK.mesh(parent, matFor('hub')); tie.mesh(parent, matFor('knob'));
   return g;
 }
 function keyAt(parent, x, y, z, pos) {
@@ -2082,6 +2132,13 @@ function build(parent, A, P, pilotX) {
     hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * nH, r * 0.10);   // G442.2: the cap hides the tails
     meshDial();
   }
+  // ---- SKIS: the wheel-skis' control box, an add-on hung under the panel's lower edge on the pilot's right
+  const skiAddon = P && Math.round(+P.gearSki || 0) === 3 && !+P.gearRetract && !+P.gearFloats;
+  if (skiAddon) {
+    const ag = standOn(-0.55 * L.xLim, L.yBot - 0.004, 0.03);
+    ag.name = 'edSwitch_ski';                          // the shed's click finds it (G305)
+    skiAddonAt(ag);
+  }
   // ---- the switch row, each on the plate under it
   for (const s of L.switches) {
     const sg = standOn(s.x, s.y, 0.012);
@@ -2093,7 +2150,6 @@ function build(parent, A, P, pilotX) {
     }
     if (s.kind === 'key') keyAt(sg, 0, 0, 0, 'both');
     else if (s.kind === 'flap') flapAt(sg, 0, 0, 0);
-    else if (s.kind === 'ski') skiSelAt(sg, 0, 0, 0);
     else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, +P[{ alt: 'swAlt', avionics: 'swAvionics' }[s.k] || 'swMaster'] > 0.5);
     else if (s.kind === 'toggle') toggleAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);
     else if (s.kind === 'pushpull') pushPullAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);   // G371
