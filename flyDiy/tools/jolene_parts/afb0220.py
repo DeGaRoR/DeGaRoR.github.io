@@ -145,22 +145,40 @@ WOOD = {'mode': 'new', 'density': 190, 'under': 3, 'cover': 1, 'species': dict({
 
 AREAS, OBJ = [], []
 
-# ---- 1. THE GROUND: dirt over the sides and the middle, every edge torn ---------------------------------------------
-# The west side's floor: dirt from the band's edge out to 18-30 m, its inner edge wandering 0.5-4.5 m ONTO the concrete
-# (the band's west edge is v 7.5) - the drift a strip collects when no sweeper comes. A dirt look is soft: its edge is
-# torn over ~8 m (PAVE_SIDE_SOFT), so nothing here meets anything along a line.
-AREAS.append(area('west_dirt', band_poly(70, 1665, lambda u: 5.0 + wob(u / 400, 3, 2.2), lambda u: 23.0 + wob(u / 260, 4, 7.0)),
-                  draw={'look': 'dirt', 'band': 1, 'z': 1}))
-# the drifts ON the band: sand and soil blown and washed over the concrete, never a full sheet - a few cross it whole
-for k, (u, v, ru, rv) in enumerate([(120, -3, 16, 5), (265, 4, 22, 6), (410, -1, 30, 9), (560, 5, 14, 4), (705, -4, 26, 6),
-                                     (860, 1, 40, 8.5), (1010, 4.5, 18, 5), (1150, -4, 22, 5.5), (1290, 0, 34, 9), (1445, 3, 26, 7),
-                                     (1590, -2.5, 20, 6)]):
-    AREAS.append(area('drift%d' % k, blob(u, v, ru, rv, 20 + k, n=16, rough=0.35, rot=(h01(k, 31) - 0.5) * 0.3), draw={'look': 'dirt', 'band': 0.5, 'z': 2}))
-# the east verge between the lane's ends and the strip's ends: grass gone to dirt in tongues, the old shoulder
-AREAS.append(area('east_verge_n', band_poly(40, LANE_U0 + 20, lambda u: -21.0 + wob(u / 120, 8, 4.0), lambda u: -6.5 + wob(u / 90, 9, 1.5)),
-                  draw={'look': 'dirt', 'band': 1, 'z': 1}))
-AREAS.append(area('east_verge_s', band_poly(LANE_U1 - 20, 1660, lambda u: -22.0 + wob(u / 130, 10, 4.0), lambda u: -6.5 + wob(u / 95, 11, 1.5)),
-                  draw={'look': 'dirt', 'band': 1, 'z': 1}))
+# ---- 1. THE GROUND: the old band crumbled into dirt, a clean concrete core, mud on the sides --------------------------
+# THE USER (13 Nov ~19:00 via A0, choosing this variant): "the CLEAN concrete part narrower: between 3 and 5 metres, so you
+# can put the wheels, not much more. The rest of the old band crumbles into dirt/moss with the gradual transitions", and MUD
+# from SNOW-MUD (claude/snow-mud-surfaces: looks 'mud' firm / 'softmud' soft) on the sides.
+# HOW: w2 stays the 15 m strip of old concrete (its record, its aerodrome, its contracts and gear rules unchanged) and is
+# dressed in three layers over it:
+#   CRUMBLE  one dirt polygon over the whole old band (|v| <= ~9, its outer edge wandering out over the sides' mud): a soft
+#            look, its torn edge ~8 m (PAVE_SIDE_SOFT) - the band's own straight edge never shows
+#   CORE     the clean concrete on top, a 'worn' polygon down the centreline whose half width wanders 1.5..2.5 m (3-5 m across,
+#            GATE AFB0220 holds it): a paved polygon's edge is the crisp chipped one (edgeChip), so the core keeps its width
+#            where a soft edge's noise would close it - the wheels' strip
+#   REMNANTS broken slabs of the old concrete showing through the dirt either side of the core (small 'worn' polygons, off
+#            the grid): the band does not end at the core's edge, it breaks up toward the sides
+# The paved polygons feel PAVED and the crumble GRAVEL (a look's surface, its z over the strip's): the wheels feel the core
+CORE_HW = lambda u: 2.0 + wob(u / 260, 120, 0.5)          # 1.5 .. 2.5 m: the core 3..5 m across
+AREAS.append(area('crumble', band_poly(2, LEN - 60, lambda u: -9.0 + wob(u / 170, 121, 1.5), lambda u: 9.0 + wob(u / 190, 122, 1.5), step=10),
+                  draw={'look': 'dirt', 'band': 0.5, 'z': 2}))
+AREAS.append(area('core', band_poly(0, LEN - 40, lambda u: -CORE_HW(u), lambda u: CORE_HW(u), step=8),
+                  draw={'look': 'worn', 'band': 0, 'z': 3, 'yaw': HDG}))
+for k in range(26):
+    u = 40 + k * 63 + h01(k, 130) * 40
+    if u > LEN - 70: break
+    side = 1 if h01(k, 131) < 0.5 else -1
+    v = side * (3.4 + 3.6 * h01(k, 132))                    # either side of the core, inside the old band
+    lu, lv = 2.5 + 5.0 * h01(k, 133), 1.8 + 2.4 * h01(k, 134)
+    AREAS.append(area('remnant%d' % k, rect(u, v, lu, lv, (h01(k, 135) - 0.5) * 0.5), draw={'look': 'worn', 'band': 0, 'z': 3, 'yaw': round(HDG + (h01(k, 135) - 0.5) * 0.5, 4)}))
+# THE SIDES, MUD: the west playground's floor soft mud (the wheels go in: a crash playground's ground) from the old band's edge
+# out to 18-30 m; the east verges where the lane is not firm mud
+AREAS.append(area('west_mud', band_poly(70, 1665, lambda u: 7.0 + wob(u / 400, 3, 1.5), lambda u: 23.0 + wob(u / 260, 4, 7.0)),
+                  draw={'look': 'softmud', 'band': 1, 'z': 1}))
+AREAS.append(area('east_verge_n', band_poly(40, LANE_U0 + 20, lambda u: -21.0 + wob(u / 120, 8, 4.0), lambda u: -7.0 + wob(u / 90, 9, 1.0)),
+                  draw={'look': 'mud', 'band': 1, 'z': 1}))
+AREAS.append(area('east_verge_s', band_poly(LANE_U1 - 20, 1660, lambda u: -22.0 + wob(u / 130, 10, 4.0), lambda u: -7.0 + wob(u / 95, 11, 1.0)),
+                  draw={'look': 'mud', 'band': 1, 'z': 1}))
 
 # ---- 2. THE HEAVED SLABS: frost has lifted the old concrete in blocks (u 330-430, v 14-34) --------------------------
 # Each a `raise` of 0.25-0.55 m with a 0.4 m feather - a step in the ground itself, which the wheels and the gear's
@@ -256,15 +274,15 @@ LANE_C = P((LANE_U0 + LANE_U1) / 2, LANE_V)
 # after two passes), then held. Its falloff 6 m stops 2.25 m short of the band's centreline (10 m moved the band too)
 LANE_PROFILE = [[0, -1.085], [0.25, -0.936], [0.5, -0.804], [0.75, -0.699], [1, -0.615]]
 RUNWAYS = [{'id': PREFIX + 'rough', 'name': 'Jolene AFB 02/20 rough side', 'c': list(LANE_C), 'hdg': HDG, 'len': LANE_U1 - LANE_U0, 'wid': LANE_W,
-            'surface': 6, 'look': 'dirt', 'band': 1.5, 'pav': {'wet': 0.7}, 'crossfall': 0, 'disp': [0, 0], 'papi': [False, False],
+            'surface': 11, 'look': 'mud', 'band': 1.5, 'pav': {'wet': 0.7}, 'crossfall': 0, 'disp': [0, 0], 'papi': [False, False],
             'falloff': 6, 'site': None, 'pattern': None, 'profile': LANE_PROFILE, 'approach': None,
             'clear': {'side': 3, 'beyond': 10, 'taper': 0, 'bushes': True},
             # unmaintained: no windsock on its mast (the user's toppled one), no tie-down spots (the fleet's cook put them on the
             # heaved slabs) - the stage keys 27_premises stageAero reads off any runway entry
             'sock': False, 'ties': False,
             # the bumps (26b_strip_micro.js): chaos 0.55 - between w8's 0.4 (Pilot-vetted) and a rough bush strip's 0.8; class
-            # D roughness, ruts ~6.6 cm, lumps ~4.4 cm, two hazards to see and avoid, the swell's long rolls ~16 cm. MUD: the
-            # snow-mud branch's wet clay is not on master - a wet dirt look stands in (pav.wet 0.7); swap the look when it lands
+            # D roughness, ruts ~6.6 cm, lumps ~4.4 cm, two hazards to see and avoid, the swell's long rolls ~16 cm. FIRM MUD
+            # (SNOW-MUD's 'mud' look, surface 11 MUD_FIRM - the user 13 Nov: mud on the sides)
             'micro': {'chaos': 0.55, 'seed': 20}}]
 
 # ---- 8. w2 ITSELF (the user's entry): applied by the splice as a fieldPatch, never a part entry ---------------------
