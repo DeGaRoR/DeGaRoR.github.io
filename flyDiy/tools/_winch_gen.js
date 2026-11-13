@@ -87,7 +87,14 @@ function build(P0) {
   const paint = PAINTS[Math.max(0, Math.min(PAINTS.length - 1, Math.round(P.paint)))];
   const wear = P.wx ? 0 : Math.max(0, Math.min(1, +P.wear || 0));   // the weathering (_winch_weather.js) ages it when on
   const dull = c => { const col = new T.Color(c); const g = (col.r + col.g + col.b) / 3; col.lerp(new T.Color(g, g, g), 0.25 * wear).multiplyScalar(1 - 0.22 * wear); return col; };
-  const std = (c, o) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.75, metalness: 0 }, o || {}));
+  // THE MATERIALS ARE THE GAME'S (A0, 13 Nov: "PBR materials, reusing the game's existing ones"): every one a PBR
+  // MeshStandardMaterial made by MATLIB (src/viewer/matlib.js, the one place a material is made - GATE ASSETS), in the
+  // `winch` scope so the weathering's hook (tools/_winch_weather.js) can never reach a building's or an aeroplane's
+  // shared material; the surfaces are the house library's scans and the aeroplanes' weathering (the weather module)
+  const ML = root.MATLIB || (typeof MATLIB !== 'undefined' ? MATLIB : null);
+  if (!ML) throw new Error('_winch_gen: load src/viewer/matlib.js first (MATLIB makes the winch\'s materials)');
+  const std = (c, o) => { const q = Object.assign({ color: new T.Color(c), roughness: 0.75, metalness: 0 }, o || {});
+    return ML.shared(T, q.transparent ? 'glass' : 'std', q, 'winch'); };
   const MAT = {
     body: std(dull(paint.body), { roughness: 0.55 + 0.3 * wear }),
     trim: std(dull(paint.trim), { roughness: 0.6 }),
@@ -103,9 +110,9 @@ function build(P0) {
     amber: std(0xffa400, { emissive: 0xff8a00, emissiveIntensity: 0.6, roughness: 0.3 }),
     chute: std(0xff5a1f, { roughness: 0.85, side: T.DoubleSide }),
     lamp: std(0xd01010, { emissive: 0x400000, roughness: 0.3 }),
-    mesh: new T.LineBasicMaterial({ color: 0x1d1f21 }),
   };
   for (const k in MAT) MAT[k].userData.wxRole = k;   // the weathering's substrate, by the bag the part was made in
+  MAT.mesh = MAT.trim;   // the cage's welded mesh: painted steel bars (PBR, weathered), never unlit lines (an alias, after the roles)
   const G = new T.Group(); G.name = 'winch';
   const parts = {};
   const part = n => parts[n] || (parts[n] = Object.assign(new T.Group(), { name: n }), G.add(parts[n]), parts[n]);
@@ -139,14 +146,26 @@ function build(P0) {
     const m = new T.Mesh(new T.TorusGeometry(R, r, 10, 28), MAT[mat]);
     m.position.set(x, y, z); m.rotation.x = rotX || 0; m.rotation.y = rotY || 0; part(grp).add(m); return m;
   }
-  function meshPanel(grp, corner, u, v, du, dv) {           // a welded mesh panel as line segments: corner + s*u + t*v
-    const pts = [], add = (p, q) => pts.push(p[0], p[1], p[2], q[0], q[1], q[2]);
+  // a welded mesh panel (corner + s*u + t*v): its wires as thin square bars, one merged geometry - PBR steel that takes
+  // the light, the shadows and the weathering like every other part
+  function meshPanel(grp, corner, u, v, du, dv) {
+    const pts = [], add = (p, q) => pts.push([p, q]);
     const at = (s, t) => [corner[0] + u[0] * s + v[0] * t, corner[1] + u[1] * s + v[1] * t, corner[2] + u[2] * s + v[2] * t];
     const nu = Math.max(1, Math.round(1 / du)), nv = Math.max(1, Math.round(1 / dv));
     for (let i = 0; i <= nu; i++) add(at(i / nu, 0), at(i / nu, 1));
     for (let j = 0; j <= nv; j++) add(at(0, j / nv), at(1, j / nv));
-    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pts, 3));
-    const L = new T.LineSegments(g, MAT.mesh); part(grp).add(L); return L;
+    const pos = [], nor = [], idx = [], r = 0.003;
+    for (const [a, b] of pts) {
+      const d = new T.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize();
+      const e1 = new T.Vector3().crossVectors(d, Math.abs(d.y) < 0.9 ? new T.Vector3(0, 1, 0) : new T.Vector3(1, 0, 0)).normalize(), e2 = new T.Vector3().crossVectors(d, e1);
+      for (const [n, m] of [[e1, e2], [e2, e1.clone().negate()], [e1.clone().negate(), e2.clone().negate()], [e2.clone().negate(), e1]]) {
+        const o = pos.length / 3;   // one face of the bar: its outward normal n, its width along m
+        for (const [P, s] of [[a, -1], [a, 1], [b, 1], [b, -1]]) { pos.push(P[0] + (n.x + m.x * s) * r, P[1] + (n.y + m.y * s) * r, P[2] + (n.z + m.z * s) * r); nor.push(n.x, n.y, n.z); }
+        idx.push(o, o + 1, o + 2, o, o + 2, o + 3);
+      }
+    }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); g.setIndex(idx);
+    const L = new T.Mesh(g, MAT.mesh); part(grp).add(L); return L;
   }
 
   // ---- THE TRAILER ----
@@ -348,14 +367,22 @@ function build(P0) {
   wx.grease.push([0, Y + 0.3, D.engZ0 - 0.3, 0.45]);                           // the gearbox
   wx.grease.push([0, D.hitchY, D.drawZ - 0.15, 0.25]);                         // the hitch
   wx.grease = wx.grease.slice(0, 8);
-  G.userData = { dims: DIM, P, parts: Object.keys(parts), wx };
+  G.userData = { dims: DIM, P, parts: Object.keys(parts), wx, winchProp: true, drums: drumXs.slice() };
   return G;
 }
 
 // the bounding numbers a placer reads (the YARD_KIT shape: L along z, W along x, H up), with the cable wound in
 const KIT = { L: DIM.drawZ - DIM.deckZ0 + 0.1, W: DIM.deckW, H: DIM.deckY + DIM.cabH + 0.3 };
 
-const API = { DEF, ROWS, PRESETS, PAINTS, POWERS, DIM, KIT, VAN_WHEEL, build };
+// THE FAIRLEAD a cable runs through, in the world: a built winch (placed anywhere, any heading) and its drum (0 the left,
+// 1 the right of a twin; a single-drum winch has the one) - where winch_mode.js's line ends
+function fairlead(group, drum) {
+  const T = THREE_(), xs = (group.userData && group.userData.drums) || [0], x = xs[Math.max(0, Math.min(xs.length - 1, drum || 0))];
+  group.updateMatrixWorld(true);
+  return group.localToWorld(new T.Vector3(x, DIM.deckY + 0.36, DIM.fairZ));
+}
+
+const API = { DEF, ROWS, PRESETS, PAINTS, POWERS, DIM, KIT, VAN_WHEEL, build, fairlead };
 root.WINCH_GEN = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);

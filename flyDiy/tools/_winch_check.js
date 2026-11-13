@@ -133,6 +133,7 @@ if (want('MODULE')) {
   Object.assign(globalThis, TW, WI);                                  // (the lazy scripts' globals: tow.js, winch.js)
   globalThis.machineSheet = C.machineSheet;
   globalThis.AEROWX = require(path.join(ROOT, 'src', 'viewer', 'aeroweather.js'));
+  globalThis.MATLIB = window.MATLIB = require(path.join(ROOT, 'src', 'viewer', 'matlib.js'));
   for (const fl of ['_gear_kit.js', '_gear_gen.js', '_winch_gen.js', '_winch_weather.js']) require(path.join(__dirname, fl));
   require(path.join(ROOT, 'src', 'viewer', 'winch_mode.js'));
   const WMd = window.WINCH_MODE, scene = new THREE.Scene(), def = DEF0, sim = C.makeSim(def, W); sim.reset(0);
@@ -157,10 +158,19 @@ if (want('MODULE')) {
       }
       WMd.towDraw(); res.ropeAfter = T.rope.visible; res.words.push(WMd.towWords());
       WMd.towStop(); res.stopped = !WMd.tow.active && !mdl.parent && sim.onSubstep == null;
+      // A PERMANENT WINCH (the AFB's, placed by the scenery): one standing 900 m ahead on the centreline - the cable runs
+      // to it, no second winch is built, and it stays when the launch ends
+      const perm = window.WINCH_GEN.build({ wx: 1, cableLen: 0, chute: 0 }), pd = 900 + WI.WINCH_FAIRLEAD.back, px = P0.x + dx * pd, pz = P0.z + dz * pd;
+      perm.position.set(px, W.terrainH(px, pz), pz); perm.rotation.y = Math.atan2(dx, dz); scene.add(perm); window.WINCH_WX.apply(perm, { macro: window.WINCH_WX.PRESETS.club });
+      const sim2 = C.makeSim(def, W); sim2.reset(0); C.placeAtLineup(sim2, aH, { x: P0.x, z: P0.z, hdg: Math.atan2(dz, dx) }, W, def.refs); for (let i = 0; i < 60; i++) sim2.step(1 / 60); sim2.setEngine(0, { key: 'off' });
+      const n0 = scene.children.length, to2 = await WMd.winchStart({ THREE, scene, world: W, sim: sim2, def, hands: true });
+      res.perm = { to: to2, reused: WMd.tow.model === perm && !WMd.tow.own, built: scene.children.length - n0 - 1, L: WMd.tow.L };
+      WMd.towStop(); res.perm.stays = perm.parent === scene;
     } catch (e) { res.err = e.message; }
-    const ok = !res.err && res.inScene && res.meshes > 150 && res.hooked > 0 && res.rel && /top of the launch/.test(res.rel) && res.relH > 150 && res.stopped && /^on the winch: /.test(res.words[1] || '') && /^off the cable/.test(res.words[2] || '');
+    const ok = !res.err && res.inScene && res.meshes > 150 && res.hooked > 0 && res.rel && /top of the launch/.test(res.rel) && res.relH > 150 && res.stopped && /^on the winch: /.test(res.words[1] || '') && /^off the cable/.test(res.words[2] || '') &&
+      res.perm && res.perm.reused && res.perm.built === 0 && res.perm.stays && Math.abs(res.perm.L - 900) < 5;
     row('MODULE', ok, res.err ? 'THREW: ' + res.err : 'winch_mode.js in node: ' + res.to + '; the winch in the scene (' + res.meshes + ' meshes, the club\'s weathering on ' + res.hooked + ' of them, the fairlead ' + f(res.far, 0) + ' m from the start), the cable drawn; ' +
-      'the launch by the hands: ' + (res.rel ? res.rel + ' at ' + f(res.relH, 0) + ' m' : 'NEVER RELEASED') + '; the plate: "' + res.words.join('" / "') + '"; towStop ' + (res.stopped ? 'cleared it' : 'LEFT IT'));
+      'the launch by the hands: ' + (res.rel ? res.rel + ' at ' + f(res.relH, 0) + ' m' : 'NEVER RELEASED') + '; the plate: "' + res.words.join('" / "') + '"; towStop ' + (res.stopped ? 'cleared it' : 'LEFT IT') + '; a PERMANENT winch 900 m ahead: ' + (res.perm ? (res.perm.reused ? 'the cable to it (' + f(res.perm.L, 0) + ' m, ' + res.perm.built + ' built)' : 'NOT USED') + ', ' + (res.perm.stays ? 'still standing after the launch' : 'REMOVED') : '-'));
     finish();
   })();
 } else setImmediate(() => finish());

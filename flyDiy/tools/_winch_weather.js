@@ -246,9 +246,21 @@ function grungeTex(T) {
   return (GTEX = t);
 }
 const TEXC = new Map();
-function texOf(T, url, srgb) {
+// a scan: in the game THE HOUSE LIBRARY'S OWN IMAGE (src/viewer/house_tex.js HOUSE_TEX_SETS - the same Image the
+// buildings read, fetched once), on a bench or the phone page the file or its data: URI
+function texOf(T, url, srgb, key, map) {
   if (!url || typeof document === 'undefined') return null;   // (node - a gate's scene: no images; the substrate reads the grunge)
-  if (TEXC.has(url)) return TEXC.get(url);
+  const HS = (typeof HOUSE_TEX_SETS !== 'undefined' && HOUSE_TEX_SETS) || root.HOUSE_TEX_SETS || null;
+  const img = HS && key && HS[key] && HS[key][map];
+  const ck = img && img.src ? 'house:' + key + ':' + map : url;
+  if (TEXC.has(ck)) return TEXC.get(ck);
+  if (img && img.src) {
+    const t = new T.Texture(img); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8;
+    if (srgb) { if ('colorSpace' in t) t.colorSpace = T.SRGBColorSpace; else t.encoding = T.sRGBEncoding; }
+    const ok = () => { t.needsUpdate = true; if (WX.onLoad) WX.onLoad(); };
+    if (img.complete && img.naturalWidth) ok(); else img.addEventListener('load', ok);
+    TEXC.set(ck, t); return t;
+  }
   const t = new T.TextureLoader().load(url, () => { if (WX.onLoad) WX.onLoad(); });
   t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8;
   if (srgb) { if ('colorSpace' in t) t.colorSpace = T.SRGBColorSpace; else t.encoding = T.sRGBEncoding; }
@@ -284,7 +296,10 @@ function apply(group, o) {
   const T = root.THREE || THREE; o = o || {};
   const U = sharedU(T), wx = (group.userData && group.userData.wx) || {};
   group.updateMatrixWorld(true);
-  U.uWxInv.value.copy(group.matrixWorld).invert();
+  // PROP SPACE PER WINCH: each placed winch keeps its own inverse world matrix, set on the shared uniform before each of
+  // its meshes draws (a permanent winch at the runway's end and a bench's both right - one uniform, many winches)
+  const inv = group.userData.wxInv = new T.Matrix4().copy(group.matrixWorld).invert();
+  U.uWxInv.value.copy(inv);
   if (wx.exhaust) U.uWxE.value.set(wx.exhaust[0], wx.exhaust[1], wx.exhaust[2], 1); else U.uWxE.value.set(0, 0, 0, 0);
   (wx.wheels || []).slice(0, 4).forEach((w, i) => U.uWxW.value[i].set(w[0], w[1], w[2], w[3]));
   for (let i = 0; i < 8; i++) { const g = (wx.grease || [])[i]; if (g) U.uWxGr.value[i].set(g[0], g[1], g[2], g[3]); else U.uWxGr.value[i].set(0, -99, 0, 0); }
@@ -293,15 +308,18 @@ function apply(group, o) {
   const tex = o.tex || WX.tex || TEX_REPO, base = o.base || '';
   const seen = new Set();
   group.traverse(m => {
+    if (m.isMesh && m.material && ROLE[m.material.userData.wxRole]) m.onBeforeRender = () => { U.uWxInv.value.copy(inv); m.material.uniformsNeedUpdate = true; };
+  });
+  group.traverse(m => {
     if (!m.isMesh || !m.material || seen.has(m.material)) return;
     const mat = m.material; seen.add(mat);
     const R = ROLE[mat.userData.wxRole]; if (!R || !mat.isMeshStandardMaterial) return;
     const set = R.tex && tex[R.tex], rset = tex.steelrust;
     const PU = {
-      tWxD: { value: (set && texOf(T, base + set.diff, true)) || U.tWxG.value },
-      tWxR: { value: (set && texOf(T, base + set.rough, false)) || U.tWxG.value },
-      tWxRD: { value: (rset && texOf(T, base + rset.diff, true)) || U.tWxG.value },
-      tWxRR: { value: (rset && texOf(T, base + rset.rough, false)) || U.tWxG.value },
+      tWxD: { value: (set && texOf(T, base + set.diff, true, R.tex, 'diff')) || U.tWxG.value },
+      tWxR: { value: (set && texOf(T, base + set.rough, false, R.tex, 'rough')) || U.tWxG.value },
+      tWxRD: { value: (rset && texOf(T, base + rset.diff, true, 'steelrust', 'diff')) || U.tWxG.value },
+      tWxRR: { value: (rset && texOf(T, base + rset.rough, false, 'steelrust', 'rough')) || U.tWxG.value },
       uWxS: { value: new T.Vector4(set ? 1 : 0, set ? SETS[R.tex].tile : 1, R.paint || 0, R.chip || 0) },
       uWxS2: { value: new T.Vector4(R.rust || 0, R.dirt || 0, R.polish || 0, R.glass || 0) },
       uWxK: { value: new T.Vector4(R.mud == null ? 1 : R.mud, 0, 0, 0) },

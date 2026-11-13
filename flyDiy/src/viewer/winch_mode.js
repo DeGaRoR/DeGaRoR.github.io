@@ -40,29 +40,39 @@
     const R = runwayAhead(world_, sim);
     if (!R) throw new Error('not lined up on a runway');
     const hook = winchHookNodes(sim); let hx = 0, hz = 0; hook.nodes.forEach((i, k) => { hx += sim.p[i * 3] * hook.w[k]; hz += sim.p[i * 3 + 2] * hook.w[k]; });
-    const L = Math.min(ctx.L || 1000, R.ahead - 60);
-    if (L < 300) throw new Error('only ' + Math.round(R.ahead) + ' m of runway ahead: a winch launch wants 360 m at least');
-    // THE WINCH: its fairlead L along the centreline, the drawbar away from the glider (the model's +z), on the ground
-    const F = WINCH_FAIRLEAD, wx = hx + R.dx * (L + F.back), wz = hz + R.dz * (L + F.back), gy = world_.terrainH(wx, wz);
-    const model = window.WINCH_GEN.build({ wx: 1, cableLen: 0, chute: 0 });
-    model.position.set(wx, gy, wz); model.rotation.y = Math.atan2(R.dx, R.dz);
-    model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-    model.updateMatrixWorld(true);
-    if (window.WINCH_WX) window.WINCH_WX.apply(model, { macro: window.WINCH_WX.PRESETS.club, base: (typeof FLYDIY_ASSET_BASE !== 'undefined' ? FLYDIY_ASSET_BASE : '') });
-    scene_.add(model);
-    // the fairlead the cable runs through: the left drum's (a twin-drum winch launches on one cable at a time)
-    const dX = window.WINCH_GEN.DIM.drumX2, fl = model.localToWorld(new THREE_.Vector3(-dX, window.WINCH_GEN.DIM.deckY + 0.36, window.WINCH_GEN.DIM.fairZ));
+    // THE WINCH: A PERMANENT ONE when the runway has it (the AFB's own, placed by the scenery - any group WINCH_GEN built
+    // (userData.winchProp) standing within 25 m of the centreline ahead, its fairlead 300 m or more away): the cable runs
+    // to it and it stays when the launch ends. Else one is built for this launch at the end of up to 1000 m of cable (the
+    // fairlead on the centreline, the drawbar away from the glider), weathered, and taken away by towStop
+    let model = null, own = false, fl = null;
+    scene_.traverse(o => {
+      if (model || !o.userData || !o.userData.winchProp || !o.parent) return;
+      const f = window.WINCH_GEN.fairlead(o, 0), rx = f.x - hx, rz = f.z - hz, along = rx * R.dx + rz * R.dz, side = Math.abs(-rx * R.dz + rz * R.dx);
+      if (along >= 300 && along <= R.ahead + 40 && side < 25) { model = o; fl = f; }
+    });
+    const L = model ? Math.hypot(fl.x - hx, fl.z - hz) : Math.min(ctx.L || 1000, R.ahead - 60);
+    if (!model) {
+      if (L < 300) throw new Error('only ' + Math.round(R.ahead) + ' m of runway ahead: a winch launch wants 360 m at least');
+      const F = WINCH_FAIRLEAD, wx = hx + R.dx * (L + F.back), wz = hz + R.dz * (L + F.back), gy = world_.terrainH(wx, wz);
+      model = window.WINCH_GEN.build({ wx: 1, cableLen: 0, chute: 0 }); own = true;
+      model.position.set(wx, gy, wz); model.rotation.y = Math.atan2(R.dx, R.dz);
+      model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      model.updateMatrixWorld(true);
+      if (window.WINCH_WX) window.WINCH_WX.apply(model, { macro: window.WINCH_WX.PRESETS.club, base: (typeof FLYDIY_ASSET_BASE !== 'undefined' ? FLYDIY_ASSET_BASE : '') });
+      scene_.add(model);
+      fl = window.WINCH_GEN.fairlead(model, 0);   // the left drum's (a twin-drum winch launches on one cable at a time)
+    }
     const sheet = typeof machineSheet === 'function' ? machineSheet(def) : null, Vs = (sheet && sheet.Vs) || 15;
     const vT = Math.max(1.6 * Vs, ((def.params && def.params.ap && def.params.ap.VClimb) || 20) * 1.15);
     const winch = makeWinch({ anchor: [fl.x, fl.y, fl.z], hold: true });
     const line = makeWinchLine(sim, winch, { hook, vTarget: vT, groundAt: (x, z) => world_.terrainH(x, z) });
     // the cable: a line of ROPE_N points, the fairlead to the hook; laid on the grass once released, reeled in
     const gm = new THREE_.BufferGeometry(); gm.setAttribute('position', new THREE_.BufferAttribute(new Float32Array((ROPE_N + 1) * 3), 3));
-    const rope = new THREE_.Line(gm, new THREE_.LineBasicMaterial({ color: 0x2b2b2b })); rope.frustumCulled = false; scene_.add(rope);
-    Object.assign(TW, { active: true, go: false, t: 0, line, winch, model, rope, sim, L, why: null, vT, rel: null,
+    const rope = new THREE_.Line(gm, window.MATLIB.shared(THREE_, 'line', { color: new THREE_.Color(0x2b2b2b) }, 'winch')); rope.frustumCulled = false; scene_.add(rope);
+    Object.assign(TW, { active: true, go: false, t: 0, line, winch, model, own, rope, sim, L, why: null, vT, rel: null,
       hands: ctx.hands || /[?&]towhands=1/.test(location.search || '') ? makeWinchHands(sim, { ground: world_.terrainH(hx, hz), vMin: 1.25 * Vs }) : null });
     WM.towDraw();
-    return Math.round(L) + ' m of cable to the winch at ' + (R.a.name || R.a.id) + '\'s far end';
+    return Math.round(L) + ' m of cable to ' + (own ? 'a winch set up at ' : 'the winch standing at ') + (R.a.name || R.a.id) + '\'s far end';
   };
   // the launch called: the driver takes up the slack (app.js starts it 3 s after the roll-out, as the car tow's)
   TW.start = () => { if (TW.active && !TW.go) { TW.go = true; TW.winch.hold = false; } };
@@ -104,8 +114,8 @@
   };
   WM.towStop = () => {
     if (TW.line) TW.line.detach();
-    if (TW.model && TW.model.parent) TW.model.parent.remove(TW.model);
+    if (TW.model && TW.own && TW.model.parent) TW.model.parent.remove(TW.model);   // (a permanent winch stays)
     if (TW.rope && TW.rope.parent) TW.rope.parent.remove(TW.rope);
-    Object.assign(TW, { active: false, go: false, line: null, winch: null, model: null, rope: null, hands: null, rel: null });
+    Object.assign(TW, { active: false, go: false, line: null, winch: null, model: null, own: false, rope: null, hands: null, rel: null });
   };
 })();

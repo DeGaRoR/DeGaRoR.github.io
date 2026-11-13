@@ -315606,3 +315606,14 @@ study before it: futureDesigns/glider-launch/STUDY.md (aerotow / car tow / the t
   half in node, PAGE checks app.js by source); no collision with the winch (the glider is released short of it); one
   cable of the two used; no winch sound; the winch not in the world outside a winch launch (a scenery placement - the
   KIT numbers are ready); a pure 0-engine sailplane card still owed (the motorglider flies with its motor off).
+- **WINCH 2 (A0, 13 Nov: "installed PERMANENTLY at Jolene AFB ... PBR materials, reusing the game's existing ones")**:
+  every winch material is a PBR MeshStandardMaterial made by MATLIB.shared in the `winch` scope (GATE ASSETS' rule; the
+  scope keeps the weathering hook off every other family's shared material); the cage's mesh was unlit LineSegments - now
+  thin square bars, one merged geometry, painted steel (it casts its grid's shadow); the scans in the game are the house
+  library's own Images (HOUSE_TEX_SETS - fetched once, shared with the buildings); the weathering's prop space is per
+  placed winch (an inverse world matrix on the group, set before each of its meshes draws). FOUND: the cage's alias
+  (MAT.mesh = MAT.trim) set before the role loop re-tagged trim 'mesh' - 63 meshes unweathered; the alias after the loop.
+  A PERMANENT WINCH: winch_mode.js uses any WINCH_GEN group standing on the centreline ahead (userData.winchProp, its
+  fairlead 300 m+ away) instead of setting one up, and leaves it standing (MODULE row). WINCH_GEN.fairlead(group, drum).
+  The placing session's notes: futureDesigns/glider-launch/WINCH-PLACEMENT.md. GATE ASSETS is red on master's merge of
+  the car branch (tools/_cowl_gen.js, 2 material sites) - not the winch's.

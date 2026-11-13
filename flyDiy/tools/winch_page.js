@@ -10,7 +10,7 @@ const T = __dirname, ROOT = path.join(T, '..');
 const out = process.argv[2]; if (!out) { console.error('usage: node tools/winch_page.js <out.html>'); process.exit(1); }
 let html = fs.readFileSync(path.join(T, '_winch.html'), 'utf8');
 const gen = fs.readFileSync(path.join(T, '_winch_gen.js'), 'utf8');
-const gearKit = fs.readFileSync(path.join(T, '_gear_kit.js'), 'utf8'), gearGen = fs.readFileSync(path.join(T, '_gear_gen.js'), 'utf8');   // the van's wheels
+const matlib = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'matlib.js'), 'utf8'), gearKit = fs.readFileSync(path.join(T, '_gear_kit.js'), 'utf8'), gearGen = fs.readFileSync(path.join(T, '_gear_gen.js'), 'utf8');   // the van's wheels
 const wxSrc = fs.readFileSync(path.join(T, '_winch_weather.js'), 'utf8');
 const awSrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'aeroweather.js'), 'utf8');
 const WXM = require(path.join(T, '_winch_weather.js'));
@@ -25,6 +25,7 @@ const swap = (a, b) => { if (!html.includes(a)) throw new Error('missing: ' + a)
 swap('<script src="../vendor/three.min.js"></script>', '<script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>');
 swap('<script src="../src/viewer/aeroweather.js"></script>', '<script>\n' + awSrc + '\n</script>');
 swap('<script src="_winch_gen.js"></script>', '<script>\n' + gen + '\n</script>\n<script>window.WINCH_STILLS = ' + JSON.stringify(stills) + ';\nwindow.WINCH_TEX = ' + JSON.stringify(TEX) + ';</script>');
+swap('<script src="../src/viewer/matlib.js"></script>', '<script>\n' + matlib + '\n</script>');
 swap('<script src="_gear_kit.js"></script>', '<script>\n' + gearKit + '\n</script>');
 swap('<script src="_gear_gen.js"></script>', '<script>\n' + gearGen + '\n</script>');
 swap('<script src="_winch_weather.js"></script>', '<script>\n' + wxSrc + '\n</script>');
