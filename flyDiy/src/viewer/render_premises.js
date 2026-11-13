@@ -4683,6 +4683,24 @@ function make(THREE, scene, world, rec0, opts) {
     TREE_DEPTH.set(mat, d);
     return d;
   }
+  // AFB-0220 (the user 13 Nov: fallen trees, stumps, boulders "with REAL COLLISION ... the damage system reacts as it does to
+  // trees"): A GROUND PIECE is a placed record tree whose key names the tree pack's DEBRIS or ROCK kind (a fallen trunk, a
+  // branch heap, a stump, a boulder group). It lies along the ground: its hitbox is TREE_HITS.lying's chain of low cylinders
+  // down its long axis (29_obstacles.js - the solver meets it as it meets a trunk, every beam, the damage's tree law), and it
+  // is drawn by the cells below (the forest's fill draws trees only).
+  let GP = null;
+  function groundPiece(k) {
+    if (GP === null) { if (typeof treeList !== 'function' || typeof treeReady !== 'function' || !treeReady()) return false;
+      GP = new Map(); for (const kind of ['debris', 'rock']) for (const e of treeList(kind)) GP.set(e.key, { bb: e.sub.bb, h: e.sub.h, rungs: (e.sub.rungs || []).length || 1, sticks: /sticks|branches/i.test(e.col.name) }); }
+    return GP.has(k) ? GP.get(k) : false;
+  }
+  function groundChain(t, F) {
+    const g = groundPiece(t.key); if (!g || !g.bb || typeof TREE_HITS === 'undefined') return [];
+    const w = F.toWorld(t.x, t.z), s = t.size || 1;
+    return TREE_HITS.lying(g.bb, s, g.sticks, w[0], w[1], t.y - 0.05 - (t.sink || 0) * s, (t.yaw || 0) + F.yaw);   // (29_obstacles.js: the one law)
+  }
+  function groundHits(t, F, a) { for (const q of groundChain(t, F)) a.push(q[0], q[1], q[2], q[3], q[4]); }
+  if (typeof window !== 'undefined') window.PREMISES_GROUND_CHAIN = (t, F) => groundChain(t, F || O.frame);   // (GATE AFB0220 / the probes)
   // G1330 (TREE-HITBOX): THE RECORD TREES' TRUNKS for the solver (world.treeHits 'prem', 29_obstacles.js TREE_HITS):
   // the drawn tree's - the subject's height (treeTrunk, the pack's) x its size, the foot where it is drawn (its sink
   // included). Only what the game draws: a stub cone is the bench's, and nothing is drawn before the pack is in
@@ -4692,12 +4710,55 @@ function make(THREE, scene, world, rec0, opts) {
     const F = O.frame, a = [], tk = [0, 0];
     if (ready && typeof treeTrunk === 'function') for (const t of O.records.trees) {
       if (!t.key || t.key === 'stub|tree') continue;
+      if (groundPiece(t.key)) { groundHits(t, F, a); continue; }   // AFB-0220: a log, a stump, a boulder lies, it is not a trunk
       const tt = treeTrunk(t.key); if (!tt) continue;
       const w = F.toWorld(t.x, t.z), foot = t.y - 0.05 - (t.sink || 0) * t.size;
       TREE_HITS.trunkOf(tt.h * t.size, tt.wf, tk);
       a.push(w[0], w[1], foot, tk[0], foot + tk[1]);
     }
     if (a.length) TH.set('prem', a); else TH.drop('prem');
+  }
+  // THE RECORD TREES BY CELL (G556; AFB-0220 made it a function: the whole list when the fill is not there, the ground
+  // pieces alone when it is): a 64 m cell's trees per species, one InstancedMesh per rung part, the cell a THREE.LOD
+  function treeCells(trees) {
+    let tris = 0;
+    const F = O.frame;
+    const CELL = 64, cells = new Map(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    for (const t of trees) {
+      if (!t.key || t.key === 'stub|tree') continue;
+      const w = F.toWorld(t.x, t.z), ck = Math.floor(w[0] / CELL) + ',' + Math.floor(w[1] / CELL);
+      let c = cells.get(ck); if (!c) cells.set(ck, c = { x: (Math.floor(w[0] / CELL) + 0.5) * CELL, z: (Math.floor(w[1] / CELL) + 0.5) * CELL, keys: new Map() });
+      let l = c.keys.get(t.key); if (!l) c.keys.set(t.key, l = []);
+      l.push([w[0], t.y - 0.05 - (t.sink || 0) * t.size, w[1], t.yaw + F.yaw, t.size]);
+    }
+    const rungs = new Map();
+    const rungOf = (key, r) => { const k = key + '#' + r; if (!rungs.has(k)) { let B = null; try { B = treeBuild(THREE, key, r, 'rungs'); } catch (e) {} rungs.set(k, B); } return rungs.get(k); };
+    for (const c of cells.values()) {
+      const lod = new THREE.LOD(); lod.name = 'trees:cell'; lod.position.set(c.x, 0, c.z);
+      // (AFB-0220) a ladder shorter than the bands (a ground piece's one rung) is not built again per band: its last rung
+      // holds to TREE_GONE
+      const nR = key => { const g = groundPiece(key); return g ? g.rungs : 3; }, top = Math.max(...Array.from(c.keys.keys()).map(nR), 1);
+      for (let r = 0; r < Math.min(3, top); r++) {
+        const g = new THREE.Group();
+        for (const [key, list] of c.keys) {
+          if (r >= nR(key)) continue;
+          const B = rungOf(key, r); if (!B || !B.parts) continue;
+          if (r === 0) tris += B.tris * list.length;
+          for (const p of B.parts) {
+            const m = new THREE.InstancedMesh(p.geo, p.mat, list.length);
+            list.forEach((e, i) => { pos.set(e[0] - c.x, e[1], e[2] - c.z); q.setFromAxisAngle(up, e[3]); sc.setScalar(e[4]); m.setMatrixAt(i, mtx.compose(pos, q, sc)); });
+            m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere();
+            m.castShadow = r < 2; m.receiveShadow = true; m.userData.sharedGeo = true;   // the far rung (132-900 m) casts none (G557)
+            if (p.cutout) m.customDepthMaterial = treeDepth(p.mat);
+            g.add(m);
+          }
+        }
+        lod.addLevel(g, TREE_BANDS[r]);
+      }
+      lod.addLevel(new THREE.Group(), TREE_GONE);
+      G.trees.add(lod);
+    }
+    return { tris, cells: cells.size };
   }
   function buildTrees() {
     hitTrees(typeof treeBuild === 'function' && typeof treeReady === 'function' && treeReady());
@@ -4721,49 +4782,22 @@ function make(THREE, scene, world, rec0, opts) {
       && !(typeof location !== 'undefined' && /[?&]towntrees=0(&|$)/.test(location.search || ''))) ? window.TREE_FILL : null;
     if (TF) {
       const list = [];
+      const ground = [];
       for (const t of O.records.trees) {
         if (!t.key || t.key === 'stub|tree') continue;
+        if (groundPiece(t.key)) { ground.push(t); continue; }   // AFB-0220: the fill draws trees; a ground piece goes to the cells
         const w = F.toWorld(t.x, t.z);
         list.push({ key: t.key, x: w[0], y: t.y, z: w[1], yaw: t.yaw + F.yaw, size: t.size, sink: t.sink || 0 });
       }
       const r = TF.town(list); townHanded = TF;
       stats.trees = O.records.trees.length; stats.treeTris = 0; stats.treeCells = 0; stats.townFill = r;
+      if (ground.length) { const gc = treeCells(ground); stats.treeTris = gc.tris; stats.treeCells = gc.cells; stats.groundPieces = ground.length; }
       return;
     }
     if (townHanded) { townHanded.town([]); townHanded = null; }   // (the forest gives them back: the cells draw them)
     if (o.game && ready) {
-      const CELL = 64, cells = new Map(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
-      for (const t of O.records.trees) {
-        if (!t.key || t.key === 'stub|tree') continue;
-        const w = F.toWorld(t.x, t.z), ck = Math.floor(w[0] / CELL) + ',' + Math.floor(w[1] / CELL);
-        let c = cells.get(ck); if (!c) cells.set(ck, c = { x: (Math.floor(w[0] / CELL) + 0.5) * CELL, z: (Math.floor(w[1] / CELL) + 0.5) * CELL, keys: new Map() });
-        let l = c.keys.get(t.key); if (!l) c.keys.set(t.key, l = []);
-        l.push([w[0], t.y - 0.05 - (t.sink || 0) * t.size, w[1], t.yaw + F.yaw, t.size]);
-      }
-      const rungs = new Map();
-      const rungOf = (key, r) => { const k = key + '#' + r; if (!rungs.has(k)) { let B = null; try { B = treeBuild(THREE, key, r, 'rungs'); } catch (e) {} rungs.set(k, B); } return rungs.get(k); };
-      for (const c of cells.values()) {
-        const lod = new THREE.LOD(); lod.name = 'trees:cell'; lod.position.set(c.x, 0, c.z);
-        for (let r = 0; r < 3; r++) {
-          const g = new THREE.Group();
-          for (const [key, list] of c.keys) {
-            const B = rungOf(key, r); if (!B || !B.parts) continue;
-            if (r === 0) tris += B.tris * list.length;
-            for (const p of B.parts) {
-              const m = new THREE.InstancedMesh(p.geo, p.mat, list.length);
-              list.forEach((e, i) => { pos.set(e[0] - c.x, e[1], e[2] - c.z); q.setFromAxisAngle(up, e[3]); sc.setScalar(e[4]); m.setMatrixAt(i, mtx.compose(pos, q, sc)); });
-              m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere();
-              m.castShadow = r < 2; m.receiveShadow = true; m.userData.sharedGeo = true;   // the far rung (132-900 m) casts none (G557)
-              if (p.cutout) m.customDepthMaterial = treeDepth(p.mat);
-              g.add(m);
-            }
-          }
-          lod.addLevel(g, TREE_BANDS[r]);
-        }
-        lod.addLevel(new THREE.Group(), TREE_GONE);
-        G.trees.add(lod);
-      }
-      stats.trees = O.records.trees.length; stats.treeTris = tris; stats.treeCells = cells.size;
+      const gc = treeCells(O.records.trees);
+      stats.trees = O.records.trees.length; stats.treeTris = gc.tris; stats.treeCells = gc.cells;
       return;
     }
     for (const t of O.records.trees) {
