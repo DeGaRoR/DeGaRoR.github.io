@@ -106,7 +106,11 @@
   function designators(a) {
     const ux = Math.cos(a.hdg), uz = Math.sin(a.hdg);
     const num = s => { const b = (Math.atan2(-s * ux, s * uz) * 180 / Math.PI + 360) % 360; return String(Math.round(b / 10) || 36).padStart(2, '0'); };
-    return [num(-1), num(1)];
+    // (AFB-0220: a PARALLEL runway's side letter - L, C, R - is its name's: the numbers stay the heading's, and a name ending
+    // in those numbers with a letter on them ("Jolene AFB 02R/20L") lends it; baseName already reads it so)
+    const D = [num(-1), num(1)], m = /(\d{2})([LRC]?)\/(\d{2})([LRC]?)$/.exec(String(a.name || ''));
+    if (m && (m[2] || m[4])) { if (m[1] === D[0] && m[3] === D[1]) { D[0] += m[2]; D[1] += m[4]; } else if (m[1] === D[1] && m[3] === D[0]) { D[1] += m[2]; D[0] += m[4]; } }
+    return D;
   }
   // "250 × 18 m gravel", "1 500 m water lane", "380 × 18 m grass, 696 m up"
   const stripWord = a => !a ? '' : (a.surface.cls === 'water' ? fmt(a.len) + ' m water lane' : fmt(a.len) + ' × ' + fmt(a.wid) + ' m ' + a.surface.word) + (a.elev > 150 ? ', ' + fmt(a.elev) + ' m up' : '');

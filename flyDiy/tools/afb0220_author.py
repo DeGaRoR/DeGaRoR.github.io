@@ -30,13 +30,16 @@ FIX = os.path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json')
 
 # ---- 02/20 ---------------------------------------------------------------------------------------------------------
 # THE CENTRAL BAND (w2, kept as 'Jolene AFB 02/20': the names table, the coordinator's events): the old concrete, 45 m
+# (the user 13 Nov: "wavy, progressive blending, only 2-3 meters of real clean concrete, tops, irregular": tearIn 8: a median 2 m of clean concrete, irregular -
+# the concrete torn inward from both edges by the soft edge's noise, pavement.js; the wheels still roll on the old
+# concrete over its whole 18 m: the drawn cover is dirt and grass over it, the surface under them PAVED)
 # -> 18 m (a Cub's 10.7 m span with 3.6 m either side; the C172's 11 m), its whole 1 758 m, straight. Moss and grass
 # creep in from both edges (mossEdge, grassReach), the edge chipped and ragged (edgeChip, bandNoise), heavy cracking with
 # weeds in the joints (crackK, jointDirt, mossJoint) and old patches (patchK); no rubber, no paint left to speak of
 W2 = {'wid': 18, 'band': 5, 'falloff': 60,
       'pav': {'rubberK': 0, 'laneW': 6.0, 'mossK': 1.0, 'crackK': 0.9, 'patchK': 0.22, 'paintAge': 1.15, 'wet': 0.5,
               'mossEdge': 7.0, 'grassReach': 6.0, 'edgeChip': 1.6, 'bandNoise': 0.95, 'jointDirt': 0.85, 'mossJoint': 0.9,
-              'damageK': 0.85, 'stainK': 0.7, 'sideW': 6.0, 'sideA': 0.35},
+              'damageK': 0.85, 'stainK': 0.7, 'sideW': 6.0, 'sideA': 0.2, 'tearIn': 8.0},
       'clear': {'side': 4, 'beyond': 5, 'taper': 0, 'bushes': False}}
 # THE ROUGH SIDE (w2r, 'Jolene AFB 02R/20L': on the RIGHT of a pilot landing 02 - toward the NE end - the SE side, v < 0):
 # FIRM MUD (SNOW-MUD's surface 11, 'a drying clay strip') with the DIRT-STRIP micro-relief at chaos 0.65 (ISO 8608 class

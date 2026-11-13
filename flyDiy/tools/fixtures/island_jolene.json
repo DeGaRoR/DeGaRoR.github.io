@@ -15240,7 +15240,8 @@
      "damageK": 0.85,
      "stainK": 0.7,
      "sideW": 6.0,
-     "sideA": 0.35
+     "sideA": 0.2,
+     "tearIn": 8.0
     },
     "crossfall": 0,
     "disp": [

@@ -118,6 +118,10 @@ const PAVEMENT = (() => {
     // Two levers, both here: the grass reaches FURTHER in over the band and its edge is raggeder
     // (below), and the `dry` set's own grade is pulled down and turned toward the ground (in `grade`).
     edgeChip: 0.6, band: -1, grassReach: 13, fadeW: 6, bandNoise: 0.85,
+    // (AFB-0220, the user 13 Nov on 02/20: "the middle concrete lane ... wavy, progressive blending, only 2-3 meters of real
+    // clean concrete, tops, irregular"): a PAVED strip's edge torn INWARD over tearIn metres from each side, by the soft
+    // edge's own noise (15 m bays, 4 m tongues, 1 m crumbs) - the concrete thins out into the ground; 0 = off (every strip)
+    tearIn: 0,
     // THE SIDES FADE TO THE GROUND (G660, the user after the 2026-09-26 playtest: "do not touch the runways
     // (their surface looks good), just their sides ... maybe transparent for now"). A strip's and a paved
     // polygon's band - the gravel, the grass creeping in, the shoulder's vehicle paths - is no longer drawn:
@@ -201,7 +205,7 @@ const PAVEMENT = (() => {
     ['edgeSoft', 'soft edge spread (m)', 0.3, 5, 0.1], ['mow', 'mowing stripes (grass)', 0, 1, 0.05], ['grassRough', 'soft roughness floor', 0.5, 1, 0.02],
     ['— edge zone —'],
     ['sideFade', 'strip sides fade to the ground (0/1)', 0, 1, 1], ['sideW', 'side fade width (m)', 0.5, 10, 0.5], ['sideA', 'side fade from alpha', 0, 1, 0.05], ['roadSide', "roads' sides fade like the strips' (1) / draw their band (0)", 0, 1, 1],
-    ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
+    ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['tearIn', 'paved edge torn inward (m, 0 = off)', 0, 15, 0.5], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
     ...Object.keys(LOOK_GROUPS).flatMap(g => [['— runway look: ' + LOOK_NAMES[g] + ' —'],
       ...(g === 'gr' ? [['grMatch', 'a grass strip shows the ground under it (1) / its own lawn (0)', 0, 1, 0.05], ['grMowA', 'the mown tint over it (lighter, yellower)', 0, 0.5, 0.01]] : []),
       [g + 'Bright', 'surface brightness', 0.3, 2, 0.02], [g + 'Hue', 'surface tint hue (0 red, .17 yellow, .33 green, .67 blue)', 0, 1, 0.01], [g + 'Tint', 'surface tint amount', 0, 1, 0.02],
@@ -219,7 +223,7 @@ const PAVEMENT = (() => {
   // ragged edge, the weeds in the joints, the damp stains, the side's fade into the ground; RECIPE keys, so a strip's
   // row carries them like the seven before; 27_premises PAV_KEYS is the same list + 'marks', GATE PAVEMENT holds it)
   const ENTRY_KNOBS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK',
-    'mossEdge', 'grassReach', 'edgeChip', 'bandNoise', 'jointDirt', 'mossJoint', 'damageK', 'stainK', 'sideW', 'sideA'];
+    'mossEdge', 'grassReach', 'edgeChip', 'bandNoise', 'jointDirt', 'mossJoint', 'damageK', 'stainK', 'sideW', 'sideA', 'tearIn'];
   // THE PRESETS: a runway look is a class + one of these (the bench's judged exports)
   const PRESETS = {
     fresh: { crackK: 0.12, damageK: 0.3, paintAge: 0.3, chalk: 0.3, mossK: 0.15, patchK: 0.02, laneW: 7.5, stainK: 0.25 },
@@ -1594,7 +1598,17 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     // loose stuff spreads out over a couple of metres and the grass comes in through it
     float eEdge = dE + uEdge.x * (pvNoise(vec2(u / 1.5, seed + 9.0)) - 0.5) * 2.0;
     float wPav;
-    if (paved) wPav = smoothstep(-fwm - 0.05, fwm + 0.05, eEdge);
+    if (paved) {
+      wPav = smoothstep(-fwm - 0.05, fwm + 0.05, eEdge);
+      // AFB-0220: TORN INWARD (uRoadEnd.z = tearIn, a strip's only): the concrete thins out toward the edge through the soft
+      // edge's three octaves - on average 0.74 T in from the edge, wandering +-0.6 T - over a progressive 0.7 T, never past
+      // half a metre from the centreline; T 8 on a 9 m half-width leaves a median 2 m of clean concrete (p90 5 m; a fifth of the length none), irregular
+      float tT = min(uRoadEnd.z, halfW - 0.5);
+      if (tT > 0.05) {
+        float tn = 0.9 * (pvNoise(vec2(u / 15.0, seed + 19.0)) - 0.5) * 2.0 + 0.7 * (pvFbm(uvS / 4.0 + 23.0) - 0.5) * 2.0 + 0.35 * (pvNoise(uvS / 1.0) - 0.5) * 2.0;
+        wPav = min(wPav, smoothstep(-tT * 0.35, tT * 0.35, dE - tT * (0.74 + 0.3 * tn)));
+      }
+    }
     else {
       // a soft road has no edge: the loose stuff thins out through three octaves of noise (15 m, 4 m, 1 m) - islands of
       // dirt in the grass, tongues of grass in the dirt. G1391 (RUNWAY-LOOK, the user: "the grass runway is very thin at
@@ -1959,7 +1973,14 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     const seed = Math.round((o.seed || 0) * 37) / 37, us = u + seed * 37, vs = v + seed * 91, dE = halfW - Math.abs(v);
     const eEdge = dE + r.edgeChip * (tNoise(u / 1.5, seed + 9) - 0.5) * 2;
     let wPav;
-    if (paved) wPav = ss01(-0.05, 0.05, eEdge);
+    if (paved) {
+      wPav = ss01(-0.05, 0.05, eEdge);
+      const tT = Math.min(+r.tearIn || 0, halfW - 0.5);   // AFB-0220: the shader's TORN INWARD, line for line
+      if (tT > 0.05 && !o.road) {
+        const tn = 0.9 * (tNoise(u / 15, seed + 19) - 0.5) * 2 + 0.7 * (tFbm(us / 4 + 23, vs / 4 + 23) - 0.5) * 2 + 0.35 * (tNoise(us, vs) - 0.5) * 2;
+        wPav = Math.min(wPav, ss01(-tT * 0.35, tT * 0.35, dE - tT * (0.74 + 0.3 * tn)));
+      }
+    }
     else {
       const tc = Math.max(r.edgeChip, 0.1), soft = Math.max(0.3, Math.min(6, Math.min(lk.sideW, halfW * 0.6)));
       const e2 = dE + soft * (0.9 * (tNoise(u / 15, seed + 19) - 0.5) * 2 + 0.7 * (tFbm(us / 4 + 23, vs / 4 + 23) - 0.5) * 2 + 0.35 * (tNoise(us, vs) - 0.5) * 2);
@@ -2021,7 +2042,8 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     { const q = m.userData.pavMicro; if (U.uMicro) U.uMicro.value.set(q ? q[0] : 0, q ? q[1] : 0, q ? q[2] : 0, q ? q[3] : 0);   // DIRT-STRIP: 0 = a flat strip
       if (U.uMicro2) U.uMicro2.value.set(q ? q[4] : 0, q ? q[5] : 0, q ? q[6] : 0, q ? q[7] : 0);
       if (U.uMicro3) U.uMicro3.value.set(q && q.length > 8 ? q[8] : 0, q && q.length > 9 ? q[9] : 0, q && q.length > 10 ? q[10] : 0, q && q.length > 11 ? q[11] : 0); }
-    U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, lk.sideW, lk.sideA, d.road ? 1 : 0);   // .w: the surface hands over inside a strip's box (roads, aprons); .yz the surface type's side (G1392)
+    U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, lk.sideW, lk.sideA, d.road ? 1 : 0);
+    U.uRoadEnd.value.z = d.road || d.poly ? 0 : Math.max(0, +r.tearIn || 0);   // AFB-0220: a strip's edge torn inward (the ends' .xy are the road's)   // .w: the surface hands over inside a strip's box (roads, aprons); .yz the surface type's side (G1392)
     if (m.isPavPart) pack(m);
   }
   // setKeep(m, boxes): the pavements this one's side must not lie over (G664) - [{ cx, cz, hdg, halfL, halfW }],
