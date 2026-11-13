@@ -708,6 +708,25 @@
      123.9
     ]
    ]
+  },
+  "wheel.bottom": {
+   "view": "side",
+   "pts": [
+    [
+     536.4,
+     311.1
+    ]
+   ]
+  },
+  "nosewheel.bottom": {
+   "view": "side",
+   "pts": [
+    [
+     284.1,
+     322.1
+    ]
+   ],
+   "note": "the ground line drawn 2 deg nose-up (rising aft) under a level airframe"
   }
  },
  "lines": [],
