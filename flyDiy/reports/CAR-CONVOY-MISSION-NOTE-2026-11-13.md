@@ -29,6 +29,7 @@ as a change." They asked me only to tell you the intention and when the final mo
 ## When the final models are ready
 On `claude/fly-diy-car-build-uu6e6w`:
 - **Now:** the van's three liveries, the roadster and the car-deck trailer, all final in shape and livery.
-- **In progress:** the user's last request, professional tyre and rim texturing (PBR rubber, tread and sidewall normals,
-  rim UVs, wear and dirt, rotation-safe), done on the cars and as an option for the planes.
-- **Final, with the tyres:** by Saturday 14 Nov, 12:00, ahead of the agreed Saturday 19:30 tip for L40c.
+- **Landed 13 Nov (4b595127):** the textured tyres and rims (rows whTex / whTexPat / whTexDirt; the vans all-season,
+  the roadster vintage ribs). These are the FINAL models: the three vans in builds/vehicles/, the roadster in
+  builds/candidates/roadster_2026-11.json, the trailer in src/vehicle/trailer_model.js. They're ready for the Saturday
+  19:30 tip for L40c.
