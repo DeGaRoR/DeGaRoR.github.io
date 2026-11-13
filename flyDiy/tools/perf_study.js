@@ -85,6 +85,25 @@ const REAL = {
                      propD: (v('geometry.propDia')[0] + v('geometry.propDia')[1]) / 2,
                      src: 'refs/pc6.json (TCDS / factsheet); height static tail-down, fuel the standard 128 US gal usable' } };
   })(),
+  // (13 Nov, FIT-PROCEDURE: the Cessna 337D Super Skymaster off the drafting table) READ FROM THE LOCKED REFERENCE,
+  // tools/drafting/refs/c337.json: the 1969 Owner's Manual's specifications page (the 4400 lb column) and its Principal
+  // Dimensions sheet. Two IO-360-C of 210 BHP (powerKW is the pair's). Vs1 is the airspeed indicator's green arc
+  // bottom (no flaps-up stall is stated); the 191 mph cruise is at 5500 ft (printed apart, not as V75); the S is the
+  // manual's wing loading over its gross weight. The single-engine climbs (front 300 / rear 385 fpm) are in the
+  // reference for the engine-out check (tools/c337_oei.js), not in this table
+  c337: (() => {
+    const F = JSON.parse(require('fs').readFileSync(path.join(__dirname, 'drafting', 'refs', 'c337.json'), 'utf8')).figures;
+    const v = k => F[k] ? F[k].v : null;
+    return { name: 'Cessna 337D Super Skymaster (2 x IO-360-C, 210 BHP) - refs/c337.json', mtow: v('specs.mtow'), empty: v('specs.empty'),
+             S: v('geometry.wingArea'), b: v('geometry.span'), powerKW: 2 * 210 * 0.7457,
+             Vs1: v('perf.Vs1'), V75: null, Vmax: v('perf.Vmax'), roc: v('perf.roc'), TO: v('perf.TO'), TO50: v('perf.TO50'),
+             LDG: v('perf.LDG'), LD: null, engineMatch: true, cruise: v('perf.cruise'), VNE: v('perf.VNE'), LDG50: v('perf.LDG50'),
+             Vs0: v('perf.Vs0'),
+             src: 'refs/c337.json: ' + ['specs.mtow', 'perf.Vmax', 'perf.roc', 'perf.TO50'].map(k => k + ' ' + F[k].src).join(', '),
+             dims: { length: v('geometry.length'), height: v('geometry.height'), AR: v('geometry.span') ** 2 / v('geometry.wingArea'),
+                     track: v('geometry.track'), fuelL: v('specs.fuel')[0] * 3.785, engineHP: 210, propD: v('geometry.propDia'),
+                     src: 'refs/c337.json (the 1969 Owner\'s Manual); fuel the standard 93 US gal total' } };
+  })(),
   cub:       { name: 'Piper J-3C-65 Cub', mtow: 550, empty: 345, S: 16.6, b: 10.7, powerKW: 48,
                Vs1: 61, V75: 120, Vmax: 140, roc: 2.3, TO: 113, LDG: 88, LD: 9.5, T0: 1200, CdS: 0.75, engineMatch: true,
                src: 'POH J-3C-65: stall 38 mph, cruise 75 mph, Vmax 87 mph, 450 fpm, TO run 370 ft, ldg 290 ft',

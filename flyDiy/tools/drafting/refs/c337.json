@@ -127,10 +127,9 @@
    "cond": "normal category"
   },
   "specs.cg": {
-   "v": null,
-   "unit": "",
+   "v": "arms 134.3-142.8 in at 2800 lb, 137.1-142.6 in at 4400 lb (straight lines in moment / weight)",
    "src": "poh",
-   "cond": "Section IV Center of Gravity Moment Envelope: to read off the PDF (asked)"
+   "cond": "the Center of Gravity Moment Envelope, p 4-7, read off the chart (+-0.3 in)"
   },
   "specs.flapTrim": {
    "v": "extending flaps rotates the elevator trim nose-down (mechanical interconnect)",
@@ -280,6 +279,25 @@
    "unit": "km/h",
    "src": "poh",
    "cond": "gear extended 155 mph"
+  },
+  "specs.datum": {
+   "v": "65 in ahead of the front firewall (the cargo pack diagram, p 4-8: the front firewall at fuselage station 65; \"the c.g. arm is the same as the station\")",
+   "src": "poh"
+  },
+  "specs.cargoPack": {
+   "v": {
+    "len": 92,
+    "width": 36,
+    "depth": 10.5,
+    "stations": [
+     68,
+     160
+    ],
+    "maxLb": 300
+   },
+   "unit": "in",
+   "src": "poh",
+   "cond": "Cargo Pack, p 4-8: nose at ~68, aft end ~160, deepest 10-10.5 in from 90 to 130"
   }
  },
  "image": {
@@ -302,10 +320,10 @@
    ],
    "ox": 160,
    "oy": 202,
-   "k": 99.09,
+   "k": 100.1,
    "rot": 0,
    "flip": false,
-   "scaleBy": "geometry.length (901 px spinner tip to rudder aft-most = 9.093 m)",
+   "scaleBy": "geometry.length (910 px, the spinner tip 160 to the fin top aft corner 1070 on the extension line = 9.093 m)",
    "note": "drawn level, the ground line tilted 2 deg; origin = the spinner tip; the extension lines sit 2 and 9 px outside the drawn ends"
   },
   "top": {
@@ -645,6 +663,51 @@
      1125.2
     ]
    ]
+  },
+  "fin.top": {
+   "view": "side",
+   "pts": [
+    [
+     1069.9,
+     21.8
+    ]
+   ]
+  },
+  "fin.te": {
+   "view": "side",
+   "pts": [
+    [
+     1069.9,
+     21.8
+    ]
+   ]
+  },
+  "fin.le.at": {
+   "view": "side",
+   "pts": [
+    [
+     956.8,
+     71.9
+    ]
+   ]
+  },
+  "fin.te.at": {
+   "view": "side",
+   "pts": [
+    [
+     1035.9,
+     101.9
+    ]
+   ]
+  },
+  "stab.top": {
+   "view": "side",
+   "pts": [
+    [
+     940.8,
+     123.9
+    ]
+   ]
   }
  },
  "lines": [],
@@ -692,7 +755,28 @@
   }
  ],
  "datumLE": null,
- "cgEnvelope": [],
+ "cgEnvelope": [
+  {
+   "lb": 2800,
+   "kg": 1270,
+   "fwdIn": 134.3,
+   "aftIn": 142.8,
+   "fwdX": 3.265,
+   "fwd": 17.2,
+   "aftX": 3.481,
+   "aft": 29.8
+  },
+  {
+   "lb": 4400,
+   "kg": 1996,
+   "fwdIn": 137.1,
+   "aftIn": 142.6,
+   "fwdX": 3.336,
+   "fwd": 21.3,
+   "aftX": 3.476,
+   "aft": 29.5
+  }
+ ],
  "pillars": {
   "note": "side view, metres aft of the spinner tip (read on a metric grid over the sheet, 13 Nov)",
   "firewall": 1.52,
@@ -713,5 +797,68 @@
    6.25,
    0.5
   ]
+ },
+ "tailRead": {
+  "note": "side view, k 100.1 (13 Nov)",
+  "fin.le": [
+   [
+    7.52,
+    0.82
+   ],
+   [
+    8.4,
+    1.78
+   ]
+  ],
+  "fin.te": [
+   [
+    9.09,
+    1.8
+   ],
+   [
+    8.53,
+    0.5
+   ]
+  ],
+  "rudder.hinge": [
+   [
+    8.68,
+    1.66
+   ],
+   [
+    8.21,
+    0.5
+   ]
+  ],
+  "ventral": [
+   [
+    7.47,
+    0.62
+   ],
+   [
+    8.1,
+    0.17
+   ],
+   [
+    8.65,
+    0.28
+   ]
+  ],
+  "stab.side": [
+   7.3,
+   8.3,
+   0.72,
+   0.78
+  ],
+  "stab.top.view": "LE 7.39 TE 8.47 on the top view (its stations short), chord 1.08; span fin to fin ~3.0",
+  "wing": "side LE 2.97 TE 4.90 (chord 1.93 at the root); the top view: constant chord pod to boom, tapered outboard to 1.17 x (1.93/1.80) = 1.25 at the tip"
+ },
+ "datumX": -0.146,
+ "datumNote": "the manual datum in the table frame (metres aft of the spinner tip): firewall 1.505 - 65 in",
+ "mac": {
+  "len": 1.716,
+  "S": 19.52,
+  "le": 2.97,
+  "note": "from the planform read off the sheet (1.93 to the boom, 1.25 at the tip, LE straight); S checks the manual 18.7"
  }
 }
