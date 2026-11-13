@@ -1714,7 +1714,6 @@ const WATER = (() => {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
       const tN = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - 1.5) / 3.5)), kN = NIGHT_SEA.k * tN * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
       U.uWNight.value.set(NIGHT_SEA.col[0] * kN, NIGHT_SEA.col[1] * kN, NIGHT_SEA.col[2] * kN, NIGHT_SEA.flat);
-      if (U.uWGlint) U.uWGlint.value.set(GLINT_OFF ? 1 : GLINT.vis, GLINT_OFF ? 1 : GLINT.gain, GLINT.cap, GLINT_OFF ? 0 : 1 - tN);
       // NIGHT-BRIGHT, the user 4 Nov: "more ripples on the water, because they make the beautiful reflections": up to 5 x at night, capped at the level seen in the shot (3.1).
       // NIGHT-RIPPLE: here, every frame, eased with the sheen: in setWind (which runs when the wind CHANGES) it latched through the next day or never came on at a calm dusk. The day's to the bit
       const zD = S.detailK * Math.min(1, 0.12 + IN.wind[0] / 8), zC = GLINT_OFF ? zD : S.detailK * Math.min(1, Math.max(0.12, GLINT.calm) + IN.wind[0] / 8);   // LOOK-GLINT: the day's calm floor, faded out on the night's ramp
@@ -1722,6 +1721,9 @@ const WATER = (() => {
       // NIGHT-SHINE: the stretch, its cap, the far glint's fade and the lamps' streaks on the deep-night ramp tS: by day and at dusk all four are off to the bit
       const tS = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - NIGHT_SEA.shine[0]) / (NIGHT_SEA.shine[1] - NIGHT_SEA.shine[0])));
       const kE = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
+      // LOOK-GLINT r4 (t53 17:54: the column stood under the hidden sun at every cap and with the mirror off): the day's weight is 1 - the DEEP
+      // night's ramp tS - on the sheen's tN (from dusk) the golden hour was half night, the path half hidden and half its old sharp lobe
+      if (U.uWGlint) U.uWGlint.value.set(GLINT_OFF ? 1 : GLINT.vis, GLINT_OFF ? 1 : GLINT.gain, GLINT.cap, GLINT_OFF ? 0 : 1 - tS);
       if (U.uWStretch) { U.uWStretch.value = NIGHT_SEA.stretch * tS; U.uWMirMax.value = tS > 0 ? NIGHT_SEA.cap * kE : 1e9; U.uWDirN.value.x = NIGHT_SEA.glintFar * tS; if (U.uWStrL) U.uWStrL.value.set(NIGHT_SEA.slod, NIGHT_SEA.rmip); U.uWLampK.value.w = NIGHT_SEA.lamps ? tS : 0; }
     }
     if (!T.set) T.t += (dt || 0); else T.seen++;
