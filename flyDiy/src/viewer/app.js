@@ -19977,7 +19977,7 @@
     // later (under load, after the roll-out screen has lifted) - it used to rebuild the aeroplane and
     // walk the flight back into the shed. Measured on Jolene headless: every roll-out ended in the
     // garage 5 s after it began. A late spec waits for the next visit to the garage.
-    apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
+    apply(spec) { genSpec = spec; LAST_BAL = null; if (typeof carPreload === 'function') carPreload(); $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
     ledger: () => (curKey === 'gen' && def && def.parts ? def.parts.ledger : null),   // G2806: the bill by section
     shake: () => shakeOf(),
@@ -21946,6 +21946,23 @@
   // stand first (src/vehicle/car_sheet_core.js carFromGarage: its sheet, its tune, a rig of its own meshes), then rolled
   // out, then handed to the drive mode as its vehicle (DRIVE_MODE.vehicleSource); any other build drives the pickup
   function carBuild() { try { return curKey === 'gen' && !!genSpec && typeof window.VEHICLE_KIND === 'function' && window.VEHICLE_KIND(genSpec) === 'car'; } catch (e) { return false; } }
+  // the car's measure and its shell fetched as soon as a car stands in the garage (so a synchronous ask - the start
+  // chooser's FLYDIY_GARAGE_CAR - finds them loaded)
+  function carPreload() { try { if (window.FLYDIY_LAZY && typeof window.VEHICLE_KIND === 'function' && genSpec && window.VEHICLE_KIND(genSpec) === 'car') window.FLYDIY_LAZY(['vehicle', 'car_sheet_core']); } catch (e) {} }
+  // TOW-LAUNCH's start chooser (window.FLYDIY_START, its go() without a car) asks the garage for THE CAR ON THE STAND:
+  // { sheet (with its tune), mesh (the body, in the sheet's frame), wheels { <sheet wheel id>: Object3D about its hub },
+  // name } - carFromGarage's own pieces (a fresh rig each call: the drive owns what it is handed); null when the stand
+  // holds no car or its measure is not loaded yet
+  window.FLYDIY_GARAGE_CAR = () => {
+    if (!carBuild()) return null;
+    const C = window.CAR_SHEET; if (!C || typeof vehicleDef !== 'function') { carPreload(); return null; }
+    try {
+      const src = C.carFromGarage(window), def = vehicleDef(src.sheet, src.tune), rig = src.buildRig(THREE, def), wheels = {};
+      def.wheels.forEach((w, i) => { wheels[w.id] = rig.wheels[i]; rig.g.remove(rig.wheels[i]); });
+      const mesh = rig.g.children[0]; rig.g.remove(mesh);
+      return { sheet: Object.assign({}, src.sheet, { tune: src.tune }), mesh, wheels, name: src.name };
+    } catch (e) { console.warn('flyDiy: the car on the stand cannot drive -', e && e.message); return null; }
+  };
   const DRIVE = { busy: false, car: null,
     enter(to) {
       if (driveOn() || DRIVE.busy || !window.FLYDIY_LAZY) return;
