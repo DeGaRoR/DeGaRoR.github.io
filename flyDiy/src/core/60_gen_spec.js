@@ -2669,6 +2669,28 @@ const GEN_PRICES = {
 // for it. NOTE `paint.gloss` is NOT touched here: it is a spec field nothing
 // currently reads, and wiring a dead field would be a second change wearing
 // this one's clothes.
+// THE BRAKES (the user, 9 Nov: "we have to account for the power of brakes as well ... if you want better brakes, then
+// it's gonna add weight to your plane"). The solver's wheel brake was the surface's friction only (GROUND_SURF's brake mu
+// x the brake command x the wheel's load): every aeroplane's brakes could lock its wheels. A real light aeroplane's
+// often cannot - the J-3's and the D.112's heel drums are why their books' landing rolls are long. `perWheelN` is the
+// most a main's brake holds (N, at the tyre): the braking friction becomes min(the surface's, perWheelN / the wheel's
+// load). `kg` the pair with their lines and master cylinders, billed on the mains; `price` the pair, new.
+// ABSENT IS AS IT WAS: a gear without `brakes` brakes to the surface's friction (no cap, no mass), so every saved build
+// flies bit for bit and keeps its certificate. Values (estimates, stated as such):
+//   drum    a cable / heel drum in a 6 in wheel (J-3, D.112): ~0.2 g on a 550 kg aeroplane
+//   disc    one Cleveland 30-9 class caliper a wheel: about the grass friction limit of a 600 kg aeroplane
+//   double  two calipers / a double-puck heavy-duty disc (Beringer, Grove class: the bush builds), past it
+const GEN_BRAKES = {
+  drum:   { name: 'heel drum brakes',            perWheelN: 600,  kg: 2.4, price: 400,
+            note: 'cable or heel-operated drums in 6 in wheels: the J-3 and D.112 era' },
+  disc:   { name: 'single-caliper discs',        perWheelN: 1400, kg: 3.6, price: 1300,
+            note: 'Cleveland 30-9 class, one caliper a wheel' },
+  double: { name: 'double-caliper heavy discs',  perWheelN: 2600, kg: 5.4, price: 3200,
+            note: 'Beringer / Grove class, two pucks a wheel: the bush builds' },
+};
+// the build's brake row, or null (absent / unknown: the surface's friction, as it always was)
+function genBrakeOf(S) { const k = S && S.gear && S.gear.brakes; return (k && GEN_BRAKES[k]) || null; }
+
 const GEN_FINISH = {
   // `kgM2` is the COLOUR COATS ONLY, and the distinction matters. The covering
   // system itself -- fabric and its dope, or the alloy skin -- is already
@@ -3031,7 +3053,7 @@ function genEngPropD0(S, e0, PP0) {
   if (e0 && e0.custom) return (S.prop && S.prop.D > 0) ? S.prop.D : 1.80;
   return PP0.prop.D;
 }
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1 };
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1, brkHold: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -5864,6 +5886,7 @@ function clampSpec(spec) {
   S.gear.twFairTail = genClamp(S.gear.twFairTail == null ? 1 : S.gear.twFairTail,
                                0.70, 1.60);
   if (!GEN_FAIR_MATS[S.gear.fairMat]) S.gear.fairMat = 'glass';
+  if (S.gear.brakes != null && !GEN_BRAKES[S.gear.brakes]) delete S.gear.brakes;   // (the brakes: absent is as it was)
   // G121 (the review's B8): ONE ENGINE UNTIL THE MOUNTS ARE REAL. `engines`
   // is an array by design and `nEngines` multiplies thrust honestly — but
   // every mount today is the one nose pair, so a second entry would fly as

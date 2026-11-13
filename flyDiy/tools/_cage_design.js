@@ -1097,6 +1097,18 @@ function iconSteer(mode) {
     { d: 'M32 6 a2.4 2.4 0 1 0 0.1 0', w: 1 }, { d: 'M32 8.4 L35 16', w: 1.6 },
     { d: box(37, 24, 0.4) }] };
 }
+
+// THE BRAKES (GEN_BRAKES): a wheel seen from the side; 0 none drawn, 1 a drum (an inner ring), 2 a disc with one
+// caliper, 3 a disc with two calipers
+function iconBrake(mode) {
+  const ring = r => 'M' + P2(32 - r, 20) + ' a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0 a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0 Z';
+  const cal = (x, y) => ({ d: 'M' + P2(x - 3, y - 4) + ' L' + P2(x + 3, y - 4) + ' L' + P2(x + 3, y + 4) + ' L' + P2(x - 3, y + 4) + ' Z', w: 1 });
+  const paths = [{ d: ring(16) }, { d: ring(4) }];
+  if (mode === 1) paths.push({ d: ring(10), w: 1 });
+  if (mode >= 2) { paths.push({ d: ring(9), w: 1 }); paths.push(cal(32, 11)); }
+  if (mode === 3) paths.push(cal(32, 29));
+  return { vb: '0 0 64 40', paths };
+}
 // THE CARCASS in section, as the tyre meets the ground: a standard tyre, the
 // tundra's fat round balloon, a slim one — each round its rim
 function iconCarcass(mode) {
@@ -2187,6 +2199,23 @@ const DESIGN_ROWS = [
       { value: 4, label: 'Skid', icon: iconSteer(4),
         note: 'a sprung skid on a steel shoe: it drags, and that is the brake', writes: { cage: { s2Steer: 4 } } },
     ] },
+  // THE BRAKES (GEN_BRAKES, the user 9 Nov: "if you want better brakes, then it's gonna add weight to your plane"): the
+  // brakes' hold row's twin - and the drawn brake follows (drums drawn as drums, discs as discs)
+  { key: 'brakesT', label: 'Brakes', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['brkHold'],
+    help: 'how hard the brakes can hold: stronger brakes stop shorter, weigh more and cost more',
+    read: P => Math.round(P.brkHold || 0),
+    options: () => [['as it was', 'locks the wheels on any surface (the old law, no mass)', 0],
+                    ['Heel drums', 'about 0.2 g on a 550 kg aeroplane: the J-3, the D.112', 1],
+                    ['Single-caliper discs', 'Cleveland class: about the grass grip of a 600 kg aeroplane', 0],
+                    ['Double-caliper discs', 'Beringer / Grove class: the bush builds', 0]]
+      .map(([label, note, drum], i) => {
+        const B = typeof GEN_BRAKES !== 'undefined' ? GEN_BRAKES : (W.GEN_BRAKES || null), k = [null, 'drum', 'disc', 'double'][i];
+        const R = B && k ? B[k] : null;
+        // (a slot tile writes its own row only, GATE DESIGN: the drawn brake stays the gear page's whBrake row)
+        void drum;
+        return { value: i, label, icon: iconBrake(i), note: R ? note + ' - ' + R.kg + ' kg, ' + R.perWheelN + ' N a wheel' : note,
+                 writes: { cage: { brkHold: i } } }; }) },
   { key: 'carcassT', label: 'Tyre carcass', kind: 'discriminator',
     group: 'undercarriage', status: 'live', slot: true, twin: ['whProfile'],
     read: P => Math.round(P.whProfile || 0),
