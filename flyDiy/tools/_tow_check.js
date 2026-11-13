@@ -125,8 +125,8 @@ for (const key of ['motorglider', 'archaeopteryx']) {
 }
 // ---- ALTIPORT: A PUSH START (the user, 12 Nov: "if you would just slightly push the glider, it should be able to take
 //      off on its own ... from there it could probably try and land on Jolene"): the motorglider, motor off, at the
-//      head of Skyline Altiport's slope (696 m, 380 m of grass, ~10 %), pushed 400 N for 4 s, rolls down (tow.js
-//      slopePull: the solver's ground has no along-slope force), lifts off over the edge on the hands; the pilot from
+//      head of Skyline Altiport's slope (696 m, 380 m of grass, ~10 %), pushed 400 N for 4 s, rolls down (the solver's
+//      own slope reaction, GATE SLOPE - tow.js slopePull, its stopgap, is gone), lifts off over the edge on the hands; the pilot from
 //      30 m with the route's To Jolene AFB 13/31 - 7.6 km at 12:1 - glides there, flies the circuit, lands ----
 {
   const def = DEF0, alt = W.aerodromes.find(a => a.id === 'tw_ski');
@@ -139,7 +139,6 @@ for (const key of ['motorglider', 'archaeopteryx']) {
   let lift = null, handed = null, bad = false;
   for (let fr = 0; fr < 60 * 900; fr++) {
     const t = fr / 60, cg = sim.cgPos(), agl = cg[1] - W.terrainH(cg[0], cg[2]), V = Math.hypot(...sim.cgVel());
-    TW.slopePull(sim, W, fx, fz, 1 / 60);
     if (t < 4) { const J = 400 / sim.totalM / 60; for (let i = 0; i < sim.n; i++) sim.impulse(i, fx * J * sim.m[i], 0, fz * J * sim.m[i]); }   // the push
     if (!lift && !sim.wheelsOnGround() && t > 1) lift = { t, V, x: Math.hypot(cg[0] - x0, cg[2] - z0) };
     if (!handed && lift && agl > 30) { handed = { t }; ap.reEngage({ phase: 'CLIMB' }); }

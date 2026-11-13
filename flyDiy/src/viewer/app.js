@@ -21988,8 +21988,8 @@
     },
   };
   // THE PUSH START IN THE PAGE (GATE TOW's ALTIPORT row, flown the same way): the glider at the head of Skyline Altiport's
-  // slope, its motor off, pushed 400 N for 4 s, rolled down on tow.js slopePull (the solver's ground has no along-slope
-  // force until the slope reaction lands - both go together), lifted off over the edge on the launch hands; the pilot from
+  // slope, its motor off, pushed 400 N for 4 s, rolled down by the solver's own slope reaction (GATE SLOPE; tow.js slopePull,
+  // its stopgap, is gone), lifted off over the edge on the launch hands; the pilot from
   // 30 m (setManual(false): CLIMB, then the glide to the To, the circuit, the landing - GATE GLIDE)
   function pushTick() {
     const P = START.push;
@@ -22016,7 +22016,6 @@
   function pushStep() {
     const P = START.push, dt = 1 / 60;
     P.t += dt;
-    if (!P.lift) slopePull(sim, world, P.fx, P.fz, dt);
     if (P.t < 4) { const J = 400 / sim.totalM * dt; for (let i = 0; i < sim.n; i++) sim.impulse(i, P.fx * J * sim.m[i], 0, P.fz * J * sim.m[i]); }
     if (!P.lift && P.t > 1 && !sim.wheelsOnGround()) P.lift = true;
     P.hands(null, dt);
