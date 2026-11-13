@@ -410,7 +410,7 @@ async function pageRun() {
     ok(/player = playerFleetReconcile\(player, fleetSlotNames\(player\)\)\.doc;/.test(APP) && !/playerFleetReconcile\([^)]*playerSlotNames\(\)/.test(APP) &&
        /fleetSlotNames\(playerLoad\(\), names, info\.saved\)/.test(APP) && /ownSlots: names => fleetSlotNames\(playerLoad\(\), names\),/.test(APP) &&
        /const copy = careerCopyName\(playerLoad\(\), name, playerSlotNames\(\)\);/.test(APP) && /prefSet\('flydiy\.build\.' \+ copy, JSON\.stringify\(env\)\);/.test(APP) &&
-       /const shelf = slotNames\(\), names = api\.ownSlots \? api\.ownSlots\(shelf\) : shelf;/.test(G) && /const bring = api\.importable \? api\.importable\(shelf\) : \[\];/.test(G),
+       /const shelf = slotNames\(\), names = api\.ownSlots \? api\.ownSlots\(shelf\) : shelf;/.test(G) && /const bring = \(api\.importable && api\.importSlot \? api\.importable\(shelf\) : \[\]\)/.test(G),   // (FLEET 13 Nov: garage.js fleetModel)
        'every lift is handed the career\'s own slots (the save just made with them); the purchase writes the copy\'s own envelope; the rack lists its own, the designs bought in (G3612)');
   }
   ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");
