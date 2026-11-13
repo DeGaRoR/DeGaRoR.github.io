@@ -161,10 +161,20 @@ AREAS, OBJ = [], []
 #            the grid): the band does not end at the core's edge, it breaks up toward the sides
 # The paved polygons feel PAVED and the crumble GRAVEL (a look's surface, its z over the strip's): the wheels feel the core
 CORE_HW = lambda u: 2.0 + wob(u / 260, 120, 0.5)          # 1.5 .. 2.5 m: the core 3..5 m across
-AREAS.append(area('crumble', band_poly(2, LEN - 60, lambda u: -9.0 + wob(u / 170, 121, 1.5), lambda u: 9.0 + wob(u / 190, 122, 1.5), step=10),
-                  draw={'look': 'dirt', 'band': 0.5, 'z': 2}))
-AREAS.append(area('core', band_poly(0, LEN - 40, lambda u: -CORE_HW(u), lambda u: CORE_HW(u), step=8),
-                  draw={'look': 'worn', 'band': 0, 'z': 3, 'yaw': HDG}))
+# SEGMENTS, NOT ONE LONG POLYGON: pavement.js polyGeometry lays a WORLD-axis 2 m grid over a polygon's whole bounding box and
+# draws every cell of it - a 1.7 km polygon lying diagonal (02/20 runs at 23 deg off north) is a 720 x 1560 m box, ~570 k
+# triangles, nearly all outside it (GATE TERRAINMATCH's HOME count went 1.43 M -> 5.4 M). So both are cut every 36 m (two of the
+# concrete's 18 m slabs: the core's segment ends read as its joints), overlapping 4 m so the crumble's torn ends never leave a gap
+SEG, LAP = 36.0, 4.0
+def segs(u0, u1):
+    n = int(math.ceil((u1 - u0) / SEG))
+    return [(u0 + (u1 - u0) * k / n - (LAP / 2 if k else 0), u0 + (u1 - u0) * (k + 1) / n + (LAP / 2 if k + 1 < n else 0)) for k in range(n)]
+for k, (a0, a1) in enumerate(segs(2, LEN - 60)):
+    AREAS.append(area('crumble%d' % k, band_poly(a0, a1, lambda u: -7.0 + wob(u / 170, 121, 0.3), lambda u: 7.0 + wob(u / 190, 122, 0.3), step=6),
+                      draw={'look': 'dirt', 'band': 0.5, 'z': 2, 'yaw': HDG}))
+for k, (a0, a1) in enumerate(segs(0, LEN - 40)):
+    AREAS.append(area('core%d' % k, band_poly(a0, a1, lambda u: -CORE_HW(u), lambda u: CORE_HW(u), step=6),
+                      draw={'look': 'worn', 'band': 0, 'z': 3, 'yaw': HDG}))
 for k in range(26):
     u = 40 + k * 63 + h01(k, 130) * 40
     if u > LEN - 70: break
@@ -176,11 +186,11 @@ for k in range(26):
 # out to 18-30 m; the east verges where the lane is not firm mud - stopping 60 m short of the lane's ends, whose overruns are
 # the ground as it lies (GATE TERRAINMATCH: a mud polygon over the lane's falloff crease drew 5.2 mm off at p95)
 AREAS.append(area('west_mud', band_poly(70, 1665, lambda u: 7.0 + wob(u / 400, 3, 1.5), lambda u: 23.0 + wob(u / 260, 4, 7.0)),
-                  draw={'look': 'softmud', 'band': 1, 'z': 1}))
+                  draw={'set': 'mud', 'fade': 6, 'z': 1}, wheels={'surface': 12}))
 AREAS.append(area('east_verge_n', band_poly(40, LANE_U0 - 60, lambda u: -21.0 + wob(u / 120, 8, 4.0), lambda u: -7.0 + wob(u / 90, 9, 1.0)),
-                  draw={'look': 'mud', 'band': 1, 'z': 1}))
+                  draw={'set': 'mud', 'fade': 5, 'z': 1}, wheels={'surface': 11}))
 AREAS.append(area('east_verge_s', band_poly(LANE_U1 + 60, 1660, lambda u: -22.0 + wob(u / 130, 10, 4.0), lambda u: -7.0 + wob(u / 95, 11, 1.0)),
-                  draw={'look': 'mud', 'band': 1, 'z': 1}))
+                  draw={'set': 'mud', 'fade': 5, 'z': 1}, wheels={'surface': 11}))
 
 # ---- 2. THE HEAVED SLABS: frost has lifted the old concrete in blocks (u 330-430, v 14-34) --------------------------
 # Each a `raise` of 0.25-0.55 m with a 0.4 m feather - a step in the ground itself, which the wheels and the gear's

@@ -79,13 +79,17 @@ console.log('2. the runways');
   yes(lane.micro && +lane.micro.chaos >= 0.4 && +lane.micro.chaos <= 0.7 && lane.surface === 11 && lane.look === 'mud', 'its bumps are on: micro chaos ' + (lane.micro && lane.micro.chaos) + ' (w8 0.4 vetted, a rough bush strip 0.8), firm mud (look ' + lane.look + ', surface ' + lane.surface + ' MUD_FIRM - the user: mud on the sides)');
   // THE CLEAN CORE (the user 13 Nov ~19:00: "the CLEAN concrete part ... between 3 and 5 metres, so you can put the wheels"): the
   // core polygon's width across, every 5 m along the band, and the crumble over the rest of the old band
-  const core = AREAS.find(q => q.id === 'xw_a_core'), crumble = AREAS.find(q => q.id === 'xw_a_crumble');
+  // (the core and the crumble are SEGMENTS - xw_a_core<k>, xw_a_crumble<k>: polyGeometry draws a polygon's whole bounding box -
+  //  at a station, the segment that holds it)
+  const cores = AREAS.filter(q => /^xw_a_core\d+$/.test(q.id)), crumbles = AREAS.filter(q => /^xw_a_crumble\d+$/.test(q.id));
+  const core = cores.length ? { props: cores[0].props, many: cores } : null, crumble = crumbles.length ? { props: crumbles[0].props, many: crumbles } : null;
   const widthAt = (poly, u) => { const xs = []; for (let i = 0; i < poly.length; i++) { const A = uv(...poly[i]), B = uv(...poly[(i + 1) % poly.length]); if ((A[0] - u) * (B[0] - u) < 0) xs.push(A[1] + (B[1] - A[1]) * (u - A[0]) / (B[0] - A[0])); } return xs.length === 2 ? Math.abs(xs[1] - xs[0]) : null; };
-  const ws = []; if (core) for (let u = 10; u < w2.len - 50; u += 5) { const w = widthAt(core.poly, u); if (w !== null) ws.push(w); }
+  const wOf = (S, u) => { for (const q of S.many) { const w = widthAt(q.poly, u); if (w !== null) return w; } return null; };
+  const ws = []; if (core) for (let u = 10; u < w2.len - 50; u += 5) { const w = wOf(core, u); if (w !== null) ws.push(w); }
   const wMin = Math.min(...ws), wMax = Math.max(...ws);
   yes(!!core && core.props.draw.look === 'worn' && ws.length > 300 && wMin >= 3 && wMax <= 5, 'the clean concrete core is ' + wMin.toFixed(2) + '-' + wMax.toFixed(2) + ' m across (3-5 m, the user\'s) at ' + ws.length + ' stations, a paved polygon (its crisp chipped edge)');
-  const cw = []; if (crumble) for (let u = 10; u < w2.len - 70; u += 25) { const w = widthAt(crumble.poly, u); if (w !== null) cw.push(w); }
-  yes(!!crumble && /dirt|mud/.test(crumble.props.draw.look) && cw.length > 50 && Math.min(...cw) >= w2.wid, 'the rest of the old band crumbles: a ' + (crumble && crumble.props.draw.look) + ' polygon ' + Math.min(...cw).toFixed(1) + '-' + Math.max(...cw).toFixed(1) + ' m across over the ' + w2.wid + ' m band, its torn edge on the sides\' mud');
+  const cw = []; if (crumble) for (let u = 10; u < w2.len - 70; u += 25) { const w = wOf(crumble, u); if (w !== null) cw.push(w); }
+  yes(!!crumble && /dirt|mud/.test(crumble.props.draw.look) && cw.length > 50 && Math.min(...cw) >= w2.wid - 1.5, 'the rest of the old band crumbles: ' + (crumble ? crumble.many.length : 0) + ' ' + (crumble && crumble.props.draw.look) + ' segments ' + Math.min(...cw).toFixed(1) + '-' + Math.max(...cw).toFixed(1) + ' m across inside the ' + w2.wid + ' m band (its torn edge over the band\'s own)');
   const rec = PG.expandAreas(PG.unwrap(FIXTXT).rec), I = PG.issues(rec);
   yes(!I.some(s => /\bw2\b|xw_/.test(s)), 'issues() names neither w2 nor any xw_ entry (' + I.length + ' issues on the record)', I.filter(s => /\bw2\b|xw_/.test(s)).slice(0, 3).join('; '));
   const onBand = AREAS.filter(a => a.props && a.props.terraform && a.poly.some(p => { const q = uv(p[0], p[1]); return q[0] > 0 && q[0] < w2.len && Math.abs(q[1]) < w2.wid / 2; }));
