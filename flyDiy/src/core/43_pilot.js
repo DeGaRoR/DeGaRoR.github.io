@@ -2740,9 +2740,16 @@ function makePilot(sim, def, world, opts) {
     // the brake off - the throttle ramps from the governor's at 0.25 / s toward full (never past the nose-over cap GP.cap)
     // until it rolls; the power that broke it away is held (the slope still pulls) until the taxi speed is reached, then the
     // governor's again
+    // WATER-TAXI (FIT-PROCEDURE, 13 Nov; the PC-6 on Wipline 6100s at mk_sea, the 5 kt day): AFLOAT THERE IS NO BRAKE, AND
+    // THE RUDDERS STEER ONLY IN THE SLIPSTREAM. The governor took the wind's 1.2 m/s drift for overspeed - power 0.00, brake
+    // 0.60 for minutes - so the hull weathervaned, drifted off the lane, timed out three line-ups and gave up near 820 s. A
+    // seaplane is taxied on power, never on a brake (FAA-H-8083-23 ch. 6: the displacement taxi at idle-to-low power,
+    // steered with the water rudders and the air rudder in the propwash): while the hull is wet the brake is released and
+    // the throttle never under A.waterTaxiThrMin (0.12); the governor trims above it. The break-away power stays the land's
     const taxi = (Vtgt) => {
       const brk0 = c.brake || 0;
       SV.taxi(Vtgt, taxiFF(), taxiCap());
+      if (sim.hydro) { c.brake = 0; c.thr = Math.max(c.thr, Math.min(taxiCap(), A.waterTaxiThrMin ?? 0.12)); }
       if (sim.hydro || !(Vtgt > 0.5) || brk0 > 0.01 || (c.brake || 0) > 0.01 || SV.Vg >= Vtgt) { ap.breakAwayT = 0; ap.breakAwayThr = 0; return; }
       if (SV.Vg < 0.2) ap.breakAwayT = (ap.breakAwayT || 0) + dt;
       else if (SV.Vg > 0.5) ap.breakAwayT = 0;
