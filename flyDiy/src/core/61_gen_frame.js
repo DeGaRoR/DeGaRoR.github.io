@@ -1381,6 +1381,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
             const yR = Math.max(P[F[i].TL][1], P[F[i].TR][1]), b = N(ST[i].x, yR, s * CABPY_HW, 'CPB');
             B(b, F[i].TL, 'cabane', false, 'inner'); B(b, F[i].TR, 'cabane', false, 'inner');
             const m = cabPyBase.get(i + '_' + (-s)); if (m != null) B(b, m, 'cabane', false, 'inner');
+            // PYLON-FOOT (Deform's certificate lookup, 13 Nov): a base sits ON its ring's top cross line, so its ties
+            // (both top longerons, its mirror) are one straight line; a base under ONE root has a single strut up, and the
+            // plane they span leaves a direction with no member at all - the certificate's static solve filled it with
+            // 1e8-4e8 N (the Petrel's cabane in every flight case). Each base is also tied fore and aft along the roof,
+            // to the neighbouring rings' top longeron on its side (the pylon's own longerons, inside the fairing)
+            const topSd = s > 0 ? 'TR' : 'TL';
+            // (massless: the fairing's own skin and the pylon's frame are billed above - these stand for its stiffness)
+            for (const j of [i - 1, i + 1]) if (F[j] && F[j][topSd] != null) B(b, F[j][topSd], 'cabane', false, 'inner', undefined, { noMass: true });
             pt(b, 1.5 * 2 * Math.max(0.1, P[nd][1] - yR) * 0.3);
             cabPyBase.set(key, b);
           }
@@ -3204,6 +3212,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           B(Lt[1], W.F[j], 'gear', true, undefined, undefined, KMh); B(Rt[1], W.F[j], 'gear', true, undefined, undefined, KMh);
           B(Lt[2], W.R[j], 'gear', true, undefined, undefined, KMh); B(Rt[2], W.R[j], 'gear', true, undefined, undefined, KMh);
           B(Lt[0], W.F[j], 'gear', true, 'wire', undefined, KMh); B(Rt[0], W.R[j], 'gear', true, 'wire', undefined, KMh);
+          // TIP-FLOAT ROLL (Deform's certificate lookup, 13 Nov): every strut above lands on ONE spar station, its front
+          // and rear nodes, so the float could roll about that chord line as a rigid body (the outrigger's own note); the
+          // certificate's static solve filled that freedom with 1e7-1e8 N in every flight case (the Petrel's TFD-TFD). The
+          // struts' root fittings are clamped: the deck edges at the step and aft also tie to the next station inboard
+          // (hidden and massless, NMh: the fitting's stiffness, not a drawn member)
+          const jIn = j > 1 ? j - 1 : (j + 1 < W.F.length ? j + 1 : null);
+          if (jIn != null) { B(Lt[1], W.F[jIn], 'gear', false, 'inner', undefined, NMh); B(Rt[1], W.F[jIn], 'gear', false, 'inner', undefined, NMh);
+                             B(Lt[2], W.R[jIn], 'gear', false, 'inner', undefined, NMh); B(Rt[2], W.R[jIn], 'gear', false, 'inner', undefined, NMh); }
         }
         const slabT = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
           K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
