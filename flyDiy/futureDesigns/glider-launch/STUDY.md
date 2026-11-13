@@ -251,3 +251,18 @@ stills of all three looks are in `reports/evidence/WINCH-LAUNCH/`.
 
 **Tuning finding.** Fade, age tone and rain streaks together washed the yellow out to cream at the club setting. Each
 was halved and the fade now bleaches toward the paint's own lighter colour, never toward grey.
+
+## Addendum 2026-11-13: the winch, built
+
+Scenario B' is now in the game, on the tow-launch branch's plumbing.
+- **The physics:** `src/vehicle/winch.js`, the line to a fixed drum with the drum, its driver and the CG hook.
+- **The page:** `src/viewer/winch_mode.js`. The start chooser's "A winch launch" places the winch at the far end of
+  Jolene AFB 13/31.
+- **The gate:** GATE WINCH, `tools/_winch_check.js`.
+- **The record:** HANDOVER.md "WINCH".
+
+**What the launch showed:**
+- On the probe's nose hook the climb could not hold its pitch, and the launch made 187 m off 1000 m. The CG hook (a
+  point on the belly 0.25 m ahead of the CG) gives **275 m**, close to the club figures (about a third of the cable).
+- The driver must cap the pull on the ground run. Full power at once snatched the 249 kg glider off its weak link in
+  3 s.

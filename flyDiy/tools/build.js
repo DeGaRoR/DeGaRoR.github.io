@@ -439,7 +439,11 @@ const MANIFEST = {
          // the aeroplane's core and the first load carry none of it
          ['src/cars', 'cars_car.js'], ['src/cars', 'cars_lods.js'],
          ['src/vehicle', 'vehicle.js'], ['src/vehicle', 'vehicle_drive.js'], ['src/vehicle', 'vehicle_island.js'], ['src/vehicle', 'tow.js'], ['src/vehicle', 'trailer.js'], ['src/vehicle', 'trailer_model.js'],
-         ['src/viewer', 'drive_mode.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'drive_mode.js'],
+         // WINCH (2026-11-13): THE WINCH LAUNCH - the line, the drum and its driver (src/vehicle/winch.js, GATE WINCH), the
+         // winch drawn (tools/_winch_gen.js) and weathered (tools/_winch_weather.js), the page's half (winch_mode.js) -
+         // fetched with tow.js when the start chooser's winch launch is picked, never before
+         ['src/vehicle', 'winch.js'], ['tools', '_winch_gen.js'], ['tools', '_winch_weather.js'], ['src/viewer', 'winch_mode.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both

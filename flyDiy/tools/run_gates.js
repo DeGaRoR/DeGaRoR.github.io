@@ -221,6 +221,12 @@ const GATES = [
   // the release at the top, the glide; the pilot's key; a weak link that breaks; the line's cost a frame; ~1 min
   { id: 'TOW', file: '_tow_check.js', tier: 'core', wall: 900 },
   { id: 'TRAILER', file: '_trailer_check.js', tier: 'core', wall: 140 },
+  // WINCH (2026-11-13): THE GLIDER WINCH LAUNCH - the motorglider (motor off) on 1000 m of cable to a fixed drum at the far
+  // end of Jolene AFB 13/31 (src/vehicle/winch.js: tow.js's line with the far end fixed and its rest length reeled in, the
+  // drum's engine and driver, the CG hook): lift-off, the climb at the speed the driver holds, the back-release at the
+  // top; the glide; the pilot's key; the weak link; the guillotine; 600 m; the autopilot's handover; the circuit to a
+  // landing; the line's cost; the page's wiring (winch_mode.js, the start chooser); ~6 min
+  { id: 'WINCH', file: '_winch_check.js', tier: 'core', wall: 600 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },

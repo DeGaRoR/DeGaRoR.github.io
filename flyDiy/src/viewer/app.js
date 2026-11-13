@@ -21780,12 +21780,16 @@
   // TOW-LAUNCH phase 3: THE GLIDER TOW - the car on the line ahead of an engineless aeroplane (drive_mode.js DM.tow*, tow.js).
   // towOn(): the tow's module while its car stands / runs, else null. towWanted(): the flight is a tow - the build has no
   // engine (def.params.nEngines 0: the engineless card), its card's motor is off (genSpec.motorOff), or ?tow=1 (the test)
-  function towOn() { const D = typeof window !== 'undefined' && window.DRIVE_MODE; return D && D.tow && D.tow.active ? D : null; }
+  // (WINCH: the winch launch's module answers first while its cable is laid out - winch_mode.js, the same tow hooks)
+  function towOn() {
+    const Wm = typeof window !== 'undefined' && window.WINCH_MODE; if (Wm && Wm.tow && Wm.tow.active) return Wm;
+    const D = typeof window !== 'undefined' && window.DRIVE_MODE; return D && D.tow && D.tow.active ? D : null;
+  }
   function towWanted() {
     if (curKey !== 'gen' || !def) return false;
     if (def.params && def.params.nEngines === 0) return true;
     if (genSpec && genSpec.motorOff === true) return true;
-    if (START.mode === 'cartow') return true;   // (the sandbox's start chooser: the car tow picked)
+    if (START.mode === 'cartow' || START.mode === 'winch') return true;   // (the sandbox's start chooser: the car tow or the winch picked)
     try { return /[?&]tow(=1|=on|&|$)/.test(location.search); } catch (e) { return false; }
   }
   // TOW-LAUNCH phase 4: THE LAUNCH TRAILER - a float or hull build carried down the runway on a trailer behind the car and
@@ -21869,6 +21873,17 @@
     if (TOWS.busy || TOWS.failed || !towWanted() || !window.FLYDIY_LAZY || !sim || sim.wheelsOnGround() === 0) return;
     TOWS.busy = true;
     if (skipAble()) skipToLineup();
+    // WINCH: the winch launch - lined up, the motor off, the winch and its cable laid out at the runway's far end
+    if (START.mode === 'winch') {
+      if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+      const byAp = launchArm();
+      setManual(true, 'tow');
+      window.FLYDIY_LAZY(['tow', 'winch', '_winch_gen', '_winch_weather', 'winch_mode'])
+        .then(() => window.WINCH_MODE.winchStart({ THREE, scene, world, sim, def, hands: byAp }))
+        .then(to => { TOWS.busy = false; console.info('flyDiy winch: on the cable, ' + to); })
+        .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the winch launch could not start -', TOWS.failed); });
+      return;
+    }
     if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
     const byAp = launchArm();
     setManual(true, 'tow');
@@ -21878,10 +21893,10 @@
       .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the tow could not start -', TOWS.failed); });
   }
   function towHud() {
-    const T = towOn(), tr = T ? T.tow.kind === 'trailer' : trailerWanted();
-    const w = T ? T.towWords() : (TOWS.failed && started && (towWanted() || trailerWanted()) ? 'no ' + (tr ? 'trailer' : 'tow') + ': ' + TOWS.failed : null), n = $('flNotice');
+    const T = towOn(), tr = T ? T.tow.kind === 'trailer' : trailerWanted(), wi = T ? T.tow.kind === 'winch' : START.mode === 'winch';
+    const w = T ? T.towWords() : (TOWS.failed && started && (towWanted() || trailerWanted()) ? 'no ' + (tr ? 'trailer' : wi ? 'winch' : 'tow') + ': ' + TOWS.failed : null), n = $('flNotice');
     if (!n) return;
-    if (w) { n.hidden = false; $('flNoticeK').textContent = tr ? 'trailer launch' : 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
+    if (w) { n.hidden = false; $('flNoticeK').textContent = tr ? 'trailer launch' : wi ? 'winch launch' : 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
     else if (n.dataset.tow) { delete n.dataset.tow; $('flNoticeK').textContent = 'not certified'; n.hidden = true; flRender(); }
   }
   // ---- THE SANDBOX'S START CHOOSER (the user, 13 Nov via A0: in sandbox the garage's button is "Fly" (a plane) / "Drive" (a
@@ -21891,7 +21906,7 @@
   //   vehicle()              'plane' | 'car' (window.VEHICLE_KIND of the garage's build)
   //   powered()              a plane with an engine and its motor on
   //   starts()               Promise<[{ id, mode, label, sub, ok, why? }]> - mode 'field' | 'water' | 'trailer' (powered) |
-  //                          'push' | 'cartow' | 'winch' (unpowered; the winch not built yet) | 'place' (a car)
+  //                          'push' | 'cartow' | 'winch' (unpowered: winch_mode.js) | 'place' (a car)
   //   destinations(startId)  Promise<[{ id, label, ok, why? }]> - a plane: the aerodromes its gear may land on (and the
   //                          circuit); a car: 'random' (Surprise me: a reachable place picked at go()), 'LOOP' (out to one
   //                          and back here), then the places its roads reach from that start
@@ -21934,7 +21949,7 @@
       return [   // (the car tow first: the user's glider start, 13 Nov - at HOME, Jolene AFB 13/31's 2.3 km)
         { id: 'cartow:HOME', mode: 'cartow', label: 'The car tow', sub: 'on a line behind the car down Jolene AFB 13/31, released at height', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
         { id: 'push:tw_ski', mode: 'push', label: 'A push off Skyline Altiport', sub: 'down its 10 % slope, lifted off over the edge', ok: !!alt && pa.ok, why: !alt ? 'no altiport on this island' : pa.ok ? undefined : pa.why },
-        { id: 'winch', mode: 'winch', label: 'A winch launch', sub: 'the cable and its drum', ok: false, why: 'not built yet' },
+        { id: 'winch:HOME', mode: 'winch', label: 'A winch launch', sub: 'up to 1000 m of cable to the winch at the far end of Jolene AFB 13/31, released at the top', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
       ];
     },
     async destinations(startId) {
@@ -21974,10 +21989,9 @@
           return DRIVE.enter(to === 'CIRCUIT' ? null : dest, { at: [P.x, P.y, P.z], car, loop });
         });
       }
-      if (mode === 'winch') return Promise.reject(new Error('the winch launch is not built yet'));
       const where = mode === 'field' || mode === 'water' ? id : mode === 'push' ? 'tw_ski' : 'HOME';
       if (!startAero(where)) return Promise.reject(new Error('no such field: ' + where));
-      START.mode = mode === 'push' || mode === 'cartow' ? mode : null; START.push = null;
+      START.mode = mode === 'push' || mode === 'cartow' || mode === 'winch' ? mode : null; START.push = null;
       TRAILER.want = mode === 'trailer'; TOWS.failed = null;
       if (START.spawnBack === undefined) START.spawnBack = spawnId;   // (this roll-out's start only: put back once it rolled out)
       spawnId = where !== baseAeroId() ? where : null;

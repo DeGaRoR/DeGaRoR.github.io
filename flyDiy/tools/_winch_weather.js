@@ -237,7 +237,8 @@ const FS_METAL = [
 let GTEX = null;
 function grungeTex(T) {
   if (GTEX) return GTEX;
-  const S = 256, data = root.aeroWxGrunge ? root.aeroWxGrunge(S) : (typeof aeroWxGrunge === 'function' ? aeroWxGrunge(S) : null);
+  const AW = root.AEROWX || null;   // (the game exposes aeroweather.js as window.AEROWX; a bench page has its globals)
+  const S = 256, data = AW && AW.aeroWxGrunge ? AW.aeroWxGrunge(S) : root.aeroWxGrunge ? root.aeroWxGrunge(S) : (typeof aeroWxGrunge === 'function' ? aeroWxGrunge(S) : null);
   if (!data) throw new Error('_winch_weather: load src/viewer/aeroweather.js first (aeroWxGrunge)');
   const t = new T.DataTexture(data, S, S, T.RGBAFormat);
   t.wrapS = t.wrapT = T.RepeatWrapping; t.magFilter = T.LinearFilter; t.minFilter = T.LinearMipmapLinearFilter;
@@ -246,7 +247,7 @@ function grungeTex(T) {
 }
 const TEXC = new Map();
 function texOf(T, url, srgb) {
-  if (!url) return null;
+  if (!url || typeof document === 'undefined') return null;   // (node - a gate's scene: no images; the substrate reads the grunge)
   if (TEXC.has(url)) return TEXC.get(url);
   const t = new T.TextureLoader().load(url, () => { if (WX.onLoad) WX.onLoad(); });
   t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8;
@@ -254,7 +255,7 @@ function texOf(T, url, srgb) {
   TEXC.set(url, t); return t;
 }
 const COLS = () => {
-  const C = root.AERO_WX_COL || (typeof AERO_WX_COL !== 'undefined' ? AERO_WX_COL : null);
+  const C = (root.AEROWX && root.AEROWX.AERO_WX_COL) || root.AERO_WX_COL || (typeof AERO_WX_COL !== 'undefined' ? AERO_WX_COL : null);
   if (!C) throw new Error('_winch_weather: load src/viewer/aeroweather.js first (AERO_WX_COL)');
   return C;
 };

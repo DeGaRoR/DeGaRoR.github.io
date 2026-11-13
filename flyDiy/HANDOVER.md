@@ -315554,3 +315554,55 @@ the next steps).
   lip (lipMode 1), the grille five horizontal rows on two uprights set 2 cm back (grilleN 2, grilleRows 5, grilleBar
   0.014), ductLen 0.05; the pair round (pairSq 0.5 - 0 is a diamond), pairX 0.47, r 0.105, level with the grille
   (pairY 0), the headlamps in them (lampOn, lampIn, lampBack 0.03). A radiator cap tried and left off (a dark knob).
+
+## WINCH - THE GLIDER WINCH LAUNCH: THE WINCH DRAWN AND WEATHERED, THE LINE TO A FIXED DRUM, THE START CHOOSER'S 'winch' (13 Nov 2026, cloud; branch claude/sailplane-launch-study-176kdv, master 23ce68c1f + claude/tow-launch-onmaster 480ea6df merged in)
+
+The user (13 Nov, via A0): "why wouldn't you plan for the winch, and why wouldn't we do a 3D model for that? ... a very
+specialized piece of equipment"; then "full weathering ... the plane or the building methods, or both"; "middle option,
+and take the wheels from the cars sessions, get the ones from the van"; "you may start on the implementation". The
+study before it: futureDesigns/glider-launch/STUDY.md (aerotow / car tow / the trailer / the winch, the probes).
+
+- **THE WINCH, A PROP** (`tools/_winch_gen.js`, WINCH_GEN; the tower generator's grammar: DEF / ROWS / PRESETS / PAINTS /
+  build(P) -> THREE.Group, DIM / KIT for a placer): a twin-drum trailer winch - tandem chassis on leaf springs, the deck at
+  1.0 m, A-frame drawbar and jockey wheel, four stabiliser legs; the engine housing (V8 / diesel / electric) with its
+  grille, louvres and stack; two narrow drums (core 0.80 m, flanges 1.16 m) on one shaft with disc brakes; a levelwind per
+  drum; the rear fairleads with their GUILLOTINES; the mesh cage; the driver's cab facing aft down the cable, its window
+  grilled, the amber beacon; the cable out to the drogue, strop, weak link and rings. THE VAN'S WHEELS: the CAR session's
+  Field Wagon (builds/vehicles/utility_2026-11.json) drawn by GEAR_GEN.wheel with its saved rows (VAN_WHEEL: TYRE 2 x 1.4
+  wide, rim 0.5, six bolts, cap, valve, R 0.45); plain discs when the gear kit is not on the page. Each part carries
+  `aBox` (its half extents and kind) for the weathering's edges; `userData.wx` the weather's sources.
+- **THE WEATHERING, BOTH METHODS** (`tools/_winch_weather.js`, WINCH_WX): the BUILDINGS' scans (house_tex.js's steelgrey
+  / steelrust / rust / galv, triplanar at their own tile; paint as a neutral-map grain under the tint), the house's
+  DIRT_EXPR splash line and age tone; the AEROPLANES' four macros (age / use / field / rain, aeroWxResolve's rule), the
+  grunge sheet (aeroWxGrunge) and AERO_WX_COL, sources placed (the stack's plume, the wheels' mud, grease at the drums,
+  rollers, gearbox and hitch), chips at each part's own edges down to primer and rusting steel, no shiny dirt (grease the
+  one glossy). THE CLUB LOOK on every build (the user's "middle option"). Found tuning it: fade + age tone + rain streaks
+  together washed the yellow to cream - each halved, and the fade bleaches toward the paint's own lighter colour.
+- **THE PHYSICS** (`src/vehicle/winch.js`, pure): tow.js's line with the far end FIXED (the fairlead) and its rest length
+  reeled in at the drum's speed (stretch rate -v_hook.u + v_drum; per-substep exact - nothing moves at the far end); THE
+  CG HOOK (winchHookNodes: a point 0.25 m ahead of the CG on the belly, the pull shared by the belly's two bracketing
+  frame stations) - ON THE NOSE HOOK THE LAUNCH FAILED: the pull held the nose down, the elevator full up, the pitch
+  falling from 30 to 7 deg, 187 m off 1000 m; the DRUM (150 kW, 9 kN cap, 350 kg equivalent, 32 m/s) and its DRIVER (the
+  slack taken up at 2 m/s, the ground run opened over 1.5 s but never pulling past 1.1 x the glider's weight - full power
+  at once snatched the 249 kg glider off a 3.9 kN link in 3 s - the glider's airspeed held in the climb by a PI, the pull
+  capped at 1.3 W, easing off past 50 deg, the brake after the release, the GUILLOTINE past 80 deg or 2.2 W); the
+  releases (the back-release at 70 deg, slack at the top, the cable wound in, the weak link 1.6 W, the key); the hands
+  (makeWinchHands: the ground run, 7 deg off the ground, the climb to 42 deg by height, the nose lowered when slow and as
+  the line steepens). Same surface as tow.js's line, so the page's tow plumbing drives it.
+- **THE PAGE** (`src/viewer/winch_mode.js`, WINCH_MODE, lazy with winch.js / tow.js / the two tools): the start chooser's
+  `winch:HOME` (ok on Jolene AFB, was "not built yet"), START.mode 'winch'; towTick lines the glider up, the motor off,
+  and calls winchStart: the winch built and weathered at the end of up to 1000 m of cable along the runway (the fairlead
+  on the centreline, the drawbar away), the cable drawn with its sag, laid on the grass and reeled in after the release.
+  app.js: towOn() answers WINCH_MODE first (its tow hooks: towPre / towPost / towDraw / towWords / towRelease / towStop
+  and `tow` with kind 'winch'), so the R key, the plate ('winch launch'), the inline flight, the restart and the
+  autopilot's handover (launchHandOver) are the car tow's. MANIFEST.lazy +4.
+- **GATE WINCH** (`tools/_winch_check.js`, core, ~6 min; run_gates row after TRAILER): LAUNCH (1000 m: lift-off 3.9 s,
+  the climb at 22.4-23.8 m/s against 23.5, released at 275 m by the back-release, 2.79 kN at most), GLIDE, RELEASE (the
+  key at 100 m, the drum braked), WEAK (1.5 kN breaks in the roll), CUT (no back-release: the guillotine at 274 m),
+  SHORT (600 m: 135 m), AUTOPILOT (CLIMB -> GLIDE), CIRCUIT (released at 275 m, the glider's circuit, landed on the
+  runway 7.4 m off the centreline, sink 0.40), PERF, MODULE (winch_mode.js run in node on a three scene: the winch drawn
+  and weathered at the far end, a launch by the hands, the plate's words, towStop clean), PAGE (the wiring by source).
+- **NOT DONE / OWED**: the page not flown in a browser (the island boots ~9 min under SwiftShader; MODULE runs the page's
+  half in node, PAGE checks app.js by source); no collision with the winch (the glider is released short of it); one
+  cable of the two used; no winch sound; the winch not in the world outside a winch launch (a scenery placement - the
+  KIT numbers are ready); a pure 0-engine sailplane card still owed (the motorglider flies with its motor off).
