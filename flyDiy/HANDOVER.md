@@ -315913,3 +315913,18 @@ reports/evidence/SKIS/README.md.
   'skiLamp' off out.ski), a breaker, tape labels, its loom (after Wipaire's Fli-Lite 4000 ICA and Airglas' manuals).
 - THE LOAD DOOR AND THE POD: tools/_load_build.js now hands the spec to the pod layer (CAGE_POD.fromSpec) where the
   page's applySpec does - every headless look (quick_view, quickshot, the gates' scenes) drew no belly pod before.
+- READY (13 Nov, for L40d): claude/ready/skis = master 6a8d705c (train L40a) + the SKIS commits rebased (the conflicts:
+  60_gen_spec / 61_gen_frame - L40a's GEN_BRAKES and the skis side by side, a straight ski drops the brakes with its
+  wheel; 90_node_exports - the ski exports on L40a's list; this file - master's bytes + this block, CRLF). The PC-6
+  validation card is FIT-PROCEDURE's card as landed (fuel 1257 L) + the ski rows; GATE SKIS's no-ski witnesses
+  re-blessed on 6a8d705c (tools/fixtures/skis/base.json).
+- GATES on the rebased tree (cloud, 4 cores, no GPU; --all does not finish here: 18 of 363 jobs in 2 h): PASS SKIS,
+  PANEL, INPUT, PARTS, UISMOKE, UISMOKE-PHONE, DRAFTING, GROUNDQUERY, TAILWHEEL, DRAG, MASS, GEARFALL, WILGAGEAR,
+  CARDDRAG, GROUNDLIB, JOIN, GEOPARITY, SPECFIX, GEAR, FLOATS, FLOATSCLASSIC, PODEDITOR, CERTGATES, PRICE, FREIGHT,
+  AERO, STRIPGROUND, GENPAIRS. RED AND MASTER'S (the same checks, the same bytes, on a clean 6a8d705c worktree in this
+  container): STOL (spitfire fly vs dea18da34), POD (pod off vs its base's bytes), CANDIDATES (pc6_drafting not in
+  builds/candidates/index.json), GEN (cruise is quiet in wind), DESIGNCHECK (the carbon boom's post), CREWLOAD (the
+  clock's retry), LOAD (the glass cantilever), JOINPARITY. FRAMECOST: the stale PARKED COOK - the parked packs' sig
+  holds FLYDIY_BUILD, a new core refuses them and the census captures live (+124 draws, shadows, uniforms); with
+  FRAMECOST_QUERY='parkcook=0' on both trees the stand and the taxi are identical (two boot counters fall). The train's
+  cook (node tools/parked_cook.js, under the gpu lock) clears it. --all is the integrator's.
