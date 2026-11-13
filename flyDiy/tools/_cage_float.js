@@ -1220,13 +1220,16 @@ PAGE.post = ctx => {
   }
   // FLOAT-LADDER (the row above): on each side, rails at 1/(n+1) .. n/(n+1) of the front strut's rise, each from the
   // front strut to the rear strut at the same height, run on 0.30 m ahead of the front strut and 0.06 m past the rear
-  // (the user's drawing on the sheet, 13 Nov). Round tubes in the struts' paint. DRAWN, NOT FLOWN: their ends sit mid-strut, never on
+  // (the user's drawing on the sheet, 13 Nov). Angle section (L) in the struts' paint. DRAWN, NOT FLOWN: their ends sit mid-strut, never on
   // a physics node, so they are not in rec.members (the join's contract: every member two-ended on nodes); a few kg
   const nLad = Math.max(0, Math.min(3, Math.round(+P.fltLadder || 0)));
   if (nLad) {
     const lerp = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
     const at = (a, b, y) => lerp(a, b, Math.max(0, Math.min(1, (y - a[1]) / ((b[1] - a[1]) || 1e-9))));
-    const rr = Math.max(0.010, 0.7 * t), ovF = 0.30 * sc, ovA = 0.06 * sc;
+    // ANGLE SECTION (13 Nov, the user: "I think that there are slight L profiles"): two legs of 1.2 x the strut's
+    // thickness (36 mm on the PC-6's 30 mm struts), 12 % of a leg thick, the corner on the rail's line
+    const lg = Math.max(0.025, 1.2 * t), th = Math.max(0.003, 0.12 * lg), ovF = 0.30 * sc, ovA = 0.06 * sc;
+    const Lsect = [[0, 0], [lg, 0], [lg, th], [th, th], [th, lg], [0, lg]].map(q => [q[0] - lg / 3, q[1] - lg / 3]);
     rec.ladder = [];
     for (const sd of [-1, 1]) {
       const tag = sd > 0 ? 'L' : 'R', d = rec.deck[tag], R0 = roots[tag];
@@ -1236,7 +1239,7 @@ PAGE.post = ctx => {
         const v = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], L = Math.hypot(v[0], v[1], v[2]) || 1;
         const a = [p[0] - v[0] / L * ovF, p[1] - v[1] / L * ovF, p[2] - v[2] / L * ovF];
         const b = [q[0] + v[0] / L * ovA, q[1] + v[1] / L * ovA, q[2] + v[2] / L * ovA];
-        GK.tube(sg, a, b, rr, 10);
+        GK.sweep(sg, [a, b], () => Lsect, true, [0, 1, 0]);
         rec.ladder.push({ side: tag, y: +y.toFixed(3), len: +(L + ovF + ovA).toFixed(3) });
       }
     }

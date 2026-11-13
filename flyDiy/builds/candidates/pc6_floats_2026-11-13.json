@@ -885,7 +885,7 @@
    "fltDrop": 1.75,
    "fltInc": 3,
    "fltTrack": 1.4,
-   "fltStrutR": 0.018,
+   "fltStrutR": 0.03,
    "fltWires": 1,
    "fltStrutAng": 55,
    "fltFrontRing": 1,
@@ -1536,6 +1536,12 @@
     "who": "session",
     "step": "fit",
     "line": "the amphibian installation +407 kg over the wheels (the user): the hull mass row at 159.1 kg each (the garage weighs a hull's row ~2.4x in the pair's total) {\"fltMass\":159.1}"
+   },
+   {
+    "date": "2026-11-13T02:02",
+    "who": "session",
+    "step": "fit",
+    "line": "the user: the float struts want a bigger section (30 mm thick, 78 mm chord; was 18 / 47) {\"fltStrutR\":0.03}"
    }
   ],
   "gaps": []
