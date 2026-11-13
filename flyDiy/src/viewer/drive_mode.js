@@ -143,6 +143,7 @@
     const to0 = ctx.to && G.places[ctx.to] ? ctx.to : (G.places[TOWN.id] ? TOWN.id : start.id);
     place(start, to0);
     DM.setDest(to0);
+    DM.loop = ctx.loop && to0 !== start.id ? { back: start.id } : null;   // (the start chooser's LOOP: out to `to`, then back here)
     return true;
   };
   // (the car stands facing the way its route leaves: a trip sets off without a U-turn - vehFaceToward)
@@ -194,6 +195,8 @@
       DM.ms += ((performance.now() - t) - DM.ms) * 0.05;
       const q = car.refPoint(); odo += Math.hypot(q[0] - last[0], q[2] - last[2]); last = q;
       const L = track[track.length - 1]; if (Math.hypot(q[0] - L[0], q[2] - L[1]) > 15) track.push([q[0], q[2]]);
+      // (a LOOP - the start chooser's "out and back": arrived at the turning place, the start is the next To, once)
+      if (DM.loop && D.phase === 'ARRIVED' && DM.to !== DM.loop.back) { const back = DM.loop.back; DM.loop = null; DM.setDest(back); }
     }
     poseRig();
   };

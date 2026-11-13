@@ -21893,9 +21893,11 @@
   //   starts()               Promise<[{ id, mode, label, sub, ok, why? }]> - mode 'field' | 'water' | 'trailer' (powered) |
   //                          'push' | 'cartow' | 'winch' (unpowered; the winch not built yet) | 'place' (a car)
   //   destinations(startId)  Promise<[{ id, label, ok, why? }]> - a plane: the aerodromes its gear may land on (and the
-  //                          circuit); a car: the places its roads reach from that start
+  //                          circuit); a car: 'random' (Surprise me: a reachable place picked at go()), 'LOOP' (out to one
+  //                          and back here), then the places its roads reach from that start
   //   go({ start, to, car }) Promise - rolls out from the garage, the autopilot on, from start to to; `car` (a car's start):
-  //                          { sheet | sheetUrl, mesh, meshMatrix, wheels, name } - the garage car (drive_mode useCar) ----
+  //                          { sheet | sheetUrl, mesh, meshMatrix, wheels, name } - absent, THE CAR ON THE STAND as the
+  //                          garage hands it (window.FLYDIY_GARAGE_CAR(), the car session's), else the stock pickup ----
   const START = { mode: null, push: null };
   const startStory = () => { try { return !!(typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.isCareer && DAY_CLOCK.isCareer()); } catch (e) { return false; } };
   const startKind = () => (window.VEHICLE_KIND ? window.VEHICLE_KIND(genSpec || null) : 'plane');
@@ -21929,9 +21931,9 @@
       }
       const alt = startAero('tw_ski'), home = startAero('HOME'), al = a => (a && typeof stripAllows === 'function' ? stripAllows(gear, a) : { ok: !!a, why: 'no such field' });
       const pa = al(alt), ta = al(home);
-      return [
-        { id: 'push:tw_ski', mode: 'push', label: 'A push off Skyline Altiport', sub: 'down its 10 % slope, lifted off over the edge', ok: !!alt && pa.ok, why: !alt ? 'no altiport on this island' : pa.ok ? undefined : pa.why },
+      return [   // (the car tow first: the user's glider start, 13 Nov - at HOME, Jolene AFB 13/31's 2.3 km)
         { id: 'cartow:HOME', mode: 'cartow', label: 'The car tow', sub: 'on a line behind the car down Jolene AFB 13/31, released at height', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
+        { id: 'push:tw_ski', mode: 'push', label: 'A push off Skyline Altiport', sub: 'down its 10 % slope, lifted off over the edge', ok: !!alt && pa.ok, why: !alt ? 'no altiport on this island' : pa.ok ? undefined : pa.why },
         { id: 'winch', mode: 'winch', label: 'A winch launch', sub: 'the cable and its drum', ok: false, why: 'not built yet' },
       ];
     },
@@ -21941,7 +21943,11 @@
       if (startKind() === 'car') {
         await window.FLYDIY_LAZY(CAR_PACK);
         const from = m && m[1] === 'place' ? m[2] : null, R = from ? window.DRIVE_MODE.reachFrom(world, from) : new Set();
-        return window.DRIVE_MODE.placeList(world).filter(p => p.id !== from).map(p => ({ id: 'place:' + p.id, label: p.name, ok: R.has(p.id), why: R.has(p.id) ? undefined : 'no road from there' }));
+        const any = R.size > 0, none = any ? undefined : 'no road from there';
+        // (the user, 13 Nov: a car with no destination - "Surprise me", a reachable place picked at go(); or a loop out to one
+        //  and back to the start)
+        return [{ id: 'random', label: 'Surprise me - a place its roads reach', ok: any, why: none }, { id: 'LOOP', label: 'A loop out and back here', ok: any, why: none }]
+          .concat(window.DRIVE_MODE.placeList(world).filter(p => p.id !== from).map(p => ({ id: 'place:' + p.id, label: p.name, ok: R.has(p.id), why: R.has(p.id) ? undefined : 'no road from there' })));
       }
       const L = startPlaneFields(routeGear(true), true).map(d => ({ id: d.id, label: d.label, ok: d.ok, why: d.why }));
       return [{ id: 'CIRCUIT', label: 'A circuit, back where it started', ok: true }].concat(L);
@@ -21951,13 +21957,21 @@
       if (startStory()) return Promise.reject(new Error('the story starts at its hangar'));
       if (!inGarage) return Promise.reject(new Error('the chooser starts from the garage'));
       const m = /^([a-z]+):?(.*)$/.exec(String(o.start || '')), mode = m ? m[1] : null, id = m ? m[2] : null;
-      const to = String(o.to || 'CIRCUIT').replace(/^place:/, '');
+      const to = String(o.to || 'CIRCUIT').replace(/^place:/, '');   // (a car: a place id, 'random', 'LOOP'; a plane: a field id or 'CIRCUIT')
       if (mode === 'place') {
         return window.FLYDIY_LAZY(CAR_PACK).then(() => {
           const P = window.DRIVE_MODE.placeList(world).find(p => p.id === id);
           if (!P) throw new Error('no such place: ' + id);
-          if (to !== 'CIRCUIT' && !window.DRIVE_MODE.reachFrom(world, id).has(to)) throw new Error('no road from ' + P.name + ' to ' + to);
-          return DRIVE.enter(to === 'CIRCUIT' ? null : to, { at: [P.x, P.y, P.z], car: o.car || null });
+          const R = window.DRIVE_MODE.reachFrom(world, id), loop = to === 'LOOP';
+          let dest = to;
+          if (to === 'random' || loop) { const L = [...R]; if (!L.length) throw new Error('no road from ' + P.name); dest = L[Math.floor(Math.random() * L.length)]; }
+          else if (to !== 'CIRCUIT' && !R.has(to)) throw new Error('no road from ' + P.name + ' to ' + to);
+          // the car: the caller's, else THE CAR ON THE STAND (the garage's hook, the car session's: { sheet | sheetUrl, mesh,
+          // name }), else the stock pickup (said)
+          const car = o.car || (typeof window.FLYDIY_GARAGE_CAR === 'function' ? window.FLYDIY_GARAGE_CAR() : null);
+          if (!car) console.warn('flyDiy start: no garage car handed over (window.FLYDIY_GARAGE_CAR) - the stock pickup drives');
+          if (to === 'random' || loop) console.info('flyDiy start: ' + (loop ? 'a loop out to ' : 'surprise - ') + dest + (loop ? ' and back to ' + id : ''));
+          return DRIVE.enter(to === 'CIRCUIT' ? null : dest, { at: [P.x, P.y, P.z], car, loop });
         });
       }
       if (mode === 'winch') return Promise.reject(new Error('the winch launch is not built yet'));
@@ -22076,7 +22090,7 @@
       const go = () => {
         const cg = sim.cgPos(), at = o && o.at ? o.at : [cg[0], cg[1], cg[2]];
         window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'drive_mode'])
-          .then(() => window.DRIVE_MODE.enter(Object.assign({ THREE, scene, world, at, to }, (o && o.car) || {})))
+          .then(() => window.DRIVE_MODE.enter(Object.assign({ THREE, scene, world, at, to }, (o && o.car) || {}, o && o.loop ? { loop: true } : {})))
           .then(() => {
             DRIVE.busy = false; running = false; started = false;
             if (craft && craft.parent) craft.parent.remove(craft);
