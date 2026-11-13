@@ -185,4 +185,15 @@ This session cannot message a session on the user's computer, so the answer is h
    every certificate key moves. Master is still at 7. PROP-CLASSES (claude/practical-cerf-7fjpwp) also takes 8:
    whichever lands second takes 9. A latent-only L40 means the harness rule behind a flag, defaulting to the old rule.
    That would undo the user's ruling, so it is the user's call, not mine.
-3. **The gate table by check name, master 23ce68c1f against this branch:** below, when the run finishes.
+3. **The gate table by check name, master 23ce68c1f against this branch** (31 gates, same box, `--jobs=3`; 13 Nov):
+
+| gate | master | branch | by check name |
+|---|---|---|---|
+| ELEC, PANEL, PRICE, NEWPLANE, ENGID, PARTS, UISMOKE, LIGHT, STARTER, DASH, GPSFACE, ROLLSND, ENGMESH, MASS, WEIGHT, DEFAULT, SAVE, BUILD, DESIGN, CERTGATES, ACCEPT, PILOTCANFLY, PLANELISTS, CANDIDATES | PASS | PASS | |
+| TECH | FAIL | **PASS** | fixed here: the ELT rows get their segment (none 1, fitted 2) |
+| GEN | FAIL | FAIL | the same check: "cruise is quiet in wind" |
+| DESIGNCHECK | FAIL | FAIL | the same three rows: the mosquito's boom post, the Cub's and the mosquito's spiral prediction |
+| DESIGNSIM | FAIL | FAIL | the same level rows (c172, jodel, mosquito); **rufus level passes here**, fails on master |
+| APSMOOTH | FAIL | FAIL | the same |
+| DMGCERTCOST | FAIL | FAIL | the same check ("the worker's certificate is node's", 2.1e-8 / 2.2e-8). The Petrel's frames 1789 -> 1790 went over its exact budget: the budget moved by that frame, the file's own precedent (G2470), commit below |
+| JOINPARITY | 2 FAIL | 3 FAIL | the same two (the Jodel's node = page, a tool flying a validated build raw) **plus the twin floatplane** at 4.2e-9 (see above: the page capture is stale; re-capture after landing) |
