@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7c6e1e65dd0797c8
+// body-sha256: a1c2d1716ba94014
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -38302,7 +38302,9 @@ const GEN_TAIL_ENVELOPE = {
   // stock); the thin-airfoil tau formula holds to 0.70
   elevChord: [0.15, 0.65], rudChord: [0.15, 0.65],
   // P4: the trapezoid the truss stands on — tip over root chord
-  hTaper: [0.15, 1.0], vTaper: [0.15, 1.0],
+  hTaper: [0.35, 1.0], vTaper: [0.35, 1.0],
+  // (REAL-CANON, A0 13 Nov: PETREL-LS's floor, 0.15, holds only for a tail stated `drawn` - its card's tailDrawn row)
+  drawnTaperLo: 0.15,
 };
 
 // THE FIELD REGISTRY (SPEC-FIXPOINT G1550-G1559, the 2026-10-04 review's E3).
@@ -38971,8 +38973,11 @@ function clampSpec(spec) {
   dr.len    = genClamp(dr.len    == null ? 0.34 : dr.len,    0, 2.00);
   if (S.tail.tipV != null && !GEN_TIPS[S.tail.tipV]) S.tail.tipV = null;
   if (S.tail.tipH != null && !GEN_TIPS[S.tail.tipH]) S.tail.tipH = null;
-  S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, ...GEN_TAIL_ENVELOPE.hTaper);
-  S.tail.vTaper = genClamp(S.tail.vTaper == null ? 1 : S.tail.vTaper, ...GEN_TAIL_ENVELOPE.vTaper);
+  // REAL-CANON (A0 13 Nov): `drawn` - PETREL-LS's drawn-tail rules - is stated (1) or absent, never false
+  if (S.tail.drawn) S.tail.drawn = 1; else delete S.tail.drawn;
+  const tapLo = S.tail.drawn ? GEN_TAIL_ENVELOPE.drawnTaperLo : GEN_TAIL_ENVELOPE.hTaper[0];
+  S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, tapLo, GEN_TAIL_ENVELOPE.hTaper[1]);
+  S.tail.vTaper = genClamp(S.tail.vTaper == null ? 1 : S.tail.vTaper, tapLo, GEN_TAIL_ENVELOPE.vTaper[1]);
   if (!['conventional', 'v', 'twinBoom'].includes(S.tail.type)) S.tail.type = 'conventional';
   S.tail.boomX = genClampN(S.tail.boomX, 0.3, 4.0);
   S.tail.boomLen = genClampN(S.tail.boomLen, 0.5, 8.0);
@@ -39237,7 +39242,7 @@ function clampSpec(spec) {
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
   fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
-  fu.postGap = genClamp(fu.postGap, 0.05, 1.10);
+  fu.postGap = genClamp(fu.postGap, S.tail && S.tail.drawn ? 0.05 : 0.35, 1.10);   // (PETREL-LS's 0.05: a drawn tail's, latent)
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
   // The TAIL-END SECTION. These were in the spec from the start but had no
@@ -44066,7 +44071,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // through the rudder. Raised clear of the post's top (more than 0.15 m), the fin gets a row AT the stab's height
   // and the stab's roots tie to that row, its tips' up-and-down wires to the rows above and below (the Cub's own
   // brace, carried up the fin). On the cone (every stab under that line): the rule below, to the bit.
-  const stabOnFin = (stabY - P[TPT][1]) > 0.15;
+  // (REAL-CANON, A0 13 Nov: latent - a tail stated `drawn` only, its card's tailDrawn row: the Super Petrel V4.2's)
+  const stabOnFin = !!t.drawn && (stabY - P[TPT][1]) > 0.15;
   const stabTips = [];
   const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
   for (const [sd, sg] of [['L', -1], ['R', 1]]) {
@@ -44173,7 +44179,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const xn = P[nd][0];
     let k = -1;
     if (xn < lastST.x - 0.02) for (let i = ST.length - 2; i >= 0; i--) if (ST[i].x <= xn) { k = i; break; }
-    if (k >= 0 && F[k] && F[k] !== last) { B(nd, F[k].TL, 'tail'); B(nd, F[k].TR, 'tail'); }
+    if (t.drawn && k >= 0 && F[k] && F[k] !== last) { B(nd, F[k].TL, 'tail'); B(nd, F[k].TR, 'tail'); }   // (latent, as above)
     B(nd, TPT, 'tail'); B(nd, TPB, 'tail');                   // the root, the keel row to TPB
     B(nd, last.TL, 'tail'); B(nd, last.TR, 'tail');
   }
