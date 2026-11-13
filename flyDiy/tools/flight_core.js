@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5a3c40d5598b2288
+// body-sha256: 6c5e6072886330a5
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1130,6 +1130,8 @@ var GAME_NAMES = {
     w8:       'Hiking Strip',                 // in a little valley east of the Cabin Strip (was strip 13)
     w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
+    lg_sea:   'Hook Lagoon',                  // (DOCKS-LODGE 13 Nov: the lodge's lane, in the bay off the hooked spit - a placeholder: the Game coordinator names it)
+    lg_strip: 'Hook Lagoon Strip',            // (DOCKS-LODGE: the lodge's strip on the flats above the lagoon - lodge:3 a 380 m muddy strip, lodge:4 1000 m of gravel)
   },
 };
 
@@ -55990,6 +55992,9 @@ const CONTRACT_FIELDS = {
   // (G2745, the user's save 17, 18 Oct: the Cabin Strip - the story's start, an S of gravel up a lake valley)
   w1:       { id: 'w1',       name: GAME_NAMES.fields.w1,        x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true },   // (22 Oct, the user: no PAPI at the Cabin Strip - a bush strip, no glideslope lights)
   cb_sea:   { id: 'cb_sea',   name: GAME_NAMES.fields.cb_sea,          x: 1890,  z: -17804, len: 1400, surf: 'water', lit: false },   // (CABIN-LAKE 26 Oct: the lake below the Cabin Strip; no job flies there yet - CABIN-LAKE-JOBS)
+  // (DOCKS-LODGE 13 Nov: Hook Lagoon's lane and strip - staged on the track `lodge`; the sandbox's record, as every field)
+  lg_sea:   { id: 'lg_sea',   name: GAME_NAMES.fields.lg_sea,          x: 6300,  z: -19450, len: 1400, surf: 'water', lit: false },
+  lg_strip: { id: 'lg_strip', name: GAME_NAMES.fields.lg_strip,        x: 4250,  z: -20450, len: 1000, surf: 'gravel', lit: true },
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
