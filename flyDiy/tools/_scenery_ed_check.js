@@ -1494,6 +1494,13 @@ if (plots.length) {
       check(v1 === 'version 38' && m1 !== 'version 38' && nameOf() === w1, '42 each loads: the version, master, the last autosave', [v1, m1, nameOf(), w1].join(' / ')); }
     ed38.close(); }
 }
+// 43 THE STAND'S PAD (STAND-PAD, the user 13 Nov: a pad setting on every stand, automatic only over 2 %): the stand's inspector
+//    carries the pad row (auto / never / always at a size, and what the composed field did); a stand edit is a GROUND edit
+//    when a pad was there, its setting changed, a forced pad moves, or the new place is steeper than the pad's grade - else it
+//    stays G1400's groundless edit (no patch re-sample)
+check(/standPadRows\(insp, e, id, ed\);/.test(UI_SRC) && /rows\.select\(p, 'pad under the stand', \[\['auto'/.test(UI_SRC) && /x\.stand\.pad = 'off'/.test(UI_SRC), '43 the stand\'s inspector has its pad row: automatic / never / always at a size');
+check(/if \(layer === 'runways' && JSON\.stringify\(a\.stand\) !== JSON\.stringify\(b\.stand\) && standMovesGround\(a, b\)\) return undefined;/.test(UI_SRC)
+  && /if \(s && s\.standPad\) return true;/.test(UI_SRC) && /return !\(g <= D\.grade\);/.test(UI_SRC), '43 a stand edit that makes, moves or drops a pad re-samples the ground; any other stays groundless (G1400)');
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

@@ -7265,6 +7265,8 @@
     } catch (e) { return null; }
   }
   function arriveSet(q, A) { if (q && typeof q.setArriveSite === 'function') q.setArriveSite(A ? A.fieldId : null, A ? A.site : null, A ? A.plotId : null); }
+  let startWhy = null;   // how the last roll-out began: 'front' | 'parking' | 'lineup' | 'spot' (window.FLYDIY_START_WHY)
+  window.FLYDIY_START_WHY = () => startWhy;
   function applyRoute() {
     arriveSet(ap, null);   // TAXI-HOME: every route starts with no arrival stand
     // the build being placed decides; in the shed (a stale def under the bench's new build) the pickers keep the
@@ -7337,7 +7339,14 @@
     // G2701: an apron aeroplane on its own tie-down spot (its ground read under it), else today's stand
     const spot = (ssNow && ssNow.start === 'stand' && ssNow.spot && ssNow.spot.aero === from.id) ? ssNow.spot : null;
     const spotStand = spot ? Object.assign({ x: spot.x, z: spot.z, hdg: spot.hdg }, stGround && Number.isFinite(+stGround(spot.x, spot.z)) ? { elev: +(+stGround(spot.x, spot.z)).toFixed(2) } : {}) : null;
-    const stand = (st && taxiStart) ? (spotStand || ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand)) : null;
+    // START-CHAIN (the user 13 Nov): in front of the hangar (or the field's stand) when it is free, else the field's parking
+    // (its first free cooked spot, the parking areas' first), else the line-up below (startChain)
+    const front0 = (st && taxiStart && !spotStand) ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : st.stand) : null;
+    const chain = front0 ? startChain(from.id, st, front0, slotOnStand()) : null;
+    const chained = chain && chain.stand && chain.why === 'parking' && stGround && Number.isFinite(+stGround(chain.stand.x, chain.stand.z))
+      ? Object.assign({}, chain.stand, { elev: +(+stGround(chain.stand.x, chain.stand.z)).toFixed(2) }) : (chain && chain.stand);
+    startWhy = spotStand ? 'spot' : chain ? chain.why : null;
+    const stand = (st && taxiStart) ? (spotStand || chained || null) : null;
     const stSite = (st && stand && stand !== st.stand) ? Object.assign({}, st, { stand }) : st;
     patternVisFor(from, stSite);
     // G771: how this flight began - the skip reads it (the stand it would taxi from, the site it plans on)
@@ -7369,6 +7378,29 @@
   // tyres meet (40_autopilot placeAtLineup), engine running, and the pilot handed the HOLD (departFrom
   // { atHold }) - STOP / HOLD / ROLL, the state the taxi ends in, not a mid-air teleport. Only from a
   // taxi start, on the wheels, before the hold; never once the aeroplane has flown. GATE LINEUP.
+  // START-CHAIN (the user 13 Nov, the editor GO: "a hangar has ONE spawn point in front of it; when you start at a location,
+  // spawn in front of its hangar if it has one and it's free; else in its parking area; else straight on the runway"). The
+  // front: the hangar's door walked out (standFor) or, at a field with no hangar, its stand - today's start. Free: no
+  // aeroplane of the player's standing within START_FREE_R of it (FLEET_STAND's plan at this field, the flown one aside) and
+  // no parked aeroplane of the scenery (the site's `parked`). Else the field's first free cooked spot, its parking areas'
+  // ('park:') first; else null - the line-up (placeLinedUp). Water lanes never come here (the hydro branch above).
+  const START_FREE_R = 12;
+  function startChain(aeroId, st, front, flown) {
+    if (!front) return { stand: null, why: 'none' };
+    const taken = [];
+    try {
+      const F = window.FLEET_STAND, isl = world && world.island && world.island.id;
+      if (F && F.plan && isl) for (const q of F.plan(playerLoad(), flown || null, window.FLEET_SPOTS_PACK, isl, null, aeroId, null).stand)
+        if (q.slot !== flown && Number.isFinite(q.x) && Number.isFinite(q.z)) taken.push([q.x, q.z]);
+    } catch (e) {}
+    if (st && Array.isArray(st.parked)) for (const p of st.parked) if (Number.isFinite(+p.x) && Number.isFinite(+p.z)) taken.push([+p.x, +p.z]);
+    const busy = (x, z, r) => taken.some(q => Math.hypot(q[0] - x, q[1] - z) < r);
+    if (!busy(front.x, front.z, START_FREE_R)) return { stand: front, why: 'front' };
+    const P = window.FLEET_SPOTS_PACK, L = (P && P.aero && P.aero[aeroId]) || [];
+    const order = L.filter(s => /^park:/.test(String(s[3]))).concat(L.filter(s => !/^park:/.test(String(s[3]))));
+    for (const s of order) if (!busy(s[0], s[1], 3)) return { stand: { x: s[0], z: s[1], hdg: -s[2], spot: s[3] }, why: 'parking' };
+    return { stand: null, why: 'lineup' };
+  }
   let lastStart = null, skipAir = false;
   function placeLinedUp() {
     const S = lastStart;
