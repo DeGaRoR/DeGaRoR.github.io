@@ -14547,18 +14547,18 @@
     ],
     "w": 3.6,
     "cls": "gravel",
+    "graded": true,
+    "falloff": 6,
+    "curve": "spline",
+    "clear": 2,
+    "band": 4,
     "stage": {
      "track": "lodge",
      "show": [
       3,
       null
      ]
-    },
-    "graded": true,
-    "falloff": 6,
-    "curve": "spline",
-    "clear": 2,
-    "band": 4
+    }
    }
   ],
   "runways": [

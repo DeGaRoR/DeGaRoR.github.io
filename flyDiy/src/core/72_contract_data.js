@@ -50,6 +50,9 @@ const CONTRACT_FIELDS = {
   // (G2745, the user's save 17, 18 Oct: the Cabin Strip - the story's start, an S of gravel up a lake valley)
   w1:       { id: 'w1',       name: GAME_NAMES.fields.w1,        x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true },   // (22 Oct, the user: no PAPI at the Cabin Strip - a bush strip, no glideslope lights)
   cb_sea:   { id: 'cb_sea',   name: GAME_NAMES.fields.cb_sea,          x: 1890,  z: -17804, len: 1400, surf: 'water', lit: false },   // (CABIN-LAKE 26 Oct: the lake below the Cabin Strip; no job flies there yet - CABIN-LAKE-JOBS)
+  // (DOCKS-LODGE 13 Nov: Hook Lagoon's lane and strip - staged on the track `lodge`; the sandbox's record, as every field)
+  lg_sea:   { id: 'lg_sea',   name: GAME_NAMES.fields.lg_sea,          x: 6300,  z: -19450, len: 1400, surf: 'water', lit: false },
+  lg_strip: { id: 'lg_strip', name: GAME_NAMES.fields.lg_strip,        x: 4250,  z: -20450, len: 1000, surf: 'gravel', lit: true },
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------

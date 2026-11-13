@@ -52,6 +52,8 @@ var GAME_NAMES = {
     w8:       'Hiking Strip',                 // in a little valley east of the Cabin Strip (was strip 13)
     w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
+    lg_sea:   'Hook Lagoon',                  // (DOCKS-LODGE 13 Nov: the lodge's lane, in the bay off the hooked spit - a placeholder: the Game coordinator names it)
+    lg_strip: 'Hook Lagoon Strip',            // (DOCKS-LODGE: the lodge's strip on the flats above the lagoon - lodge:3 a 380 m muddy strip, lodge:4 1000 m of gravel)
   },
 };
 
