@@ -53,6 +53,7 @@ var GAME_NAMES = {
     w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
     mt_strip: 'Ardent Altiport',              // (OBSERVATORY-SITE 13 Nov: the observatory's strip on Mount Ardent's north-east spur, landed uphill)
+    xw_rough: 'Jolene AFB 02/20 rough side',  // (AFB-0220, 13 Nov: 02/20's bumpy dirt lane beside the old concrete band - STOL practice)
   },
 };
 
