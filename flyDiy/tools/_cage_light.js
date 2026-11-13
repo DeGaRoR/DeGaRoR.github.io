@@ -1275,7 +1275,10 @@ function sites(scene, group, P) {
       // curved roof the lowest face of the band is its flank, at the window head, which is where the twin's and the
       // Cessnas' lamps went - "funny". So a face is the liner when nothing of the band lies under it within 4 cm
       // across; of those, flat enough and clear of glass, the one nearest over the seat)
-      const band = near.filter(q => q.y > crown - 0.06);
+      // (CAR-3, 13 Nov: a PADDED headliner, hdlDepth - its underside lies the slab's depth and the shell's under the
+      // crown; the band reaches it, or the lamp hung on the skin inside the slab and the cabin went dark)
+      const padD = (+P.hdlOn && +P.hdlDepth > 0) ? (+P.hdlDepth + Math.max(0, +P.skinT || 0)) * k : 0;
+      const band = near.filter(q => q.y > crown - 0.06 - padD);
       let best = null, bd = 1e9;
       for (const q of band) {
         if (q.flat < CEIL_FLAT) continue;

@@ -26,9 +26,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   page.on('pageerror', e => logs.push('PAGEERROR ' + e.message.slice(0, 400)));
   page.on('dialog', d => { logs.push('DIALOG ' + d.message()); d.dismiss().catch(() => {}); });
   const t0 = Date.now(), el = () => ((Date.now() - t0) / 1000).toFixed(0) + ' s';
-  await page.goto('http://127.0.0.1:8765/flyDiy/' + PAGE, { waitUntil: 'load', timeout: 300000 });
-  for (let i = 0; i < 300; i++) {
-    const ok = await page.evaluate(() => !!(document.getElementById('gFile') && window.GARAGE_SPEC && window.CAGE_JOIN && window.DRIVE)).catch(() => false);
+  await page.goto('http://127.0.0.1:8765/flyDiy/' + PAGE + '?town=1', { waitUntil: 'load', timeout: 300000 });
+  for (let i = 0; i < 600; i++) {
+    // the boot's screen GONE first (13 Nov: an import under it left the screen up and the drive drawn under it - a blank still)
+    const ok = await page.evaluate(() => !!(document.getElementById('gFile') && window.GARAGE_SPEC && window.CAGE_JOIN && window.DRIVE && window.BOOT && BOOT.state === 'gone')).catch(() => false);
     if (ok) break; await sleep(2000);
   }
   console.log('garage up', el());
