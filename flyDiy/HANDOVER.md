@@ -315352,3 +315352,7 @@ brand-new lodge "on the sea, in a bay, a nice place for a lodge, preferably far 
   (MAPBAKE: projection 95.6 KB <= 96, infra 20.0 KB gzipped <= 20). Stage 2 is now the main house, three cabins, the boathouse,
   the fire pit, the tables and the boats; stage 3 the short strip alone (its stand reached by its taxi line). The map smoke is back
   to 117 roads; the premises and the fleet spots re-cooked on it.
+- FINAL VERDICTS on the lighter pass (13 Nov, this container, 26 gates; the --all delivery run NOT made): DOCKS STAGES CONTRACTS
+  PREMISES PREMCOOK PREMRASTER TAXICLEAR (4 shards) UISMOKE MAPBAKE MEDIA SITE PARKING PARKED STORESPOT GAMEPREM MISSIONS STORY
+  NAMES ROUTES SCENERY SCENERYLIGHTS STAND WATER WORLD AERO PASS; SCENERYED FAIL (1) = 20b's timing row only (3051 ms vs 2500 here;
+  2874 ms on the untouched claude/stand-pad in the same container). Ready: claude/ready/docks-lodge.
