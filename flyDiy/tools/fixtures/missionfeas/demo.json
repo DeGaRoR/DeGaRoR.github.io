@@ -1,0 +1,29 @@
+{
+ "what": "flydiy-missions",
+ "v": 1,
+ "id": "feasdemo",
+ "title": "ms.feasdemo.title",
+ "campaigns": [
+  {"id": "feasdemo", "title": "ms.feasdemo.title", "provider": "clients", "order": "any", "chapters": [
+   {"id": "feasdemo.all", "title": "ms.feasdemo.title", "order": "any", "missions": ["feas.ok", "feas.heavy", "feas.broken"]}
+  ]}
+ ],
+ "missions": [
+  {"id": "feas.ok", "provider": "clients", "kind": "contract", "title": "ms.feas.ok.title", "brief": "ms.feas.ok.brief", "client": "adam",
+   "legs": [{"steps": [{"do": "carry", "from": "HOME", "place": "w3", "load": {"kg": 20, "pax": 0}}]}, {"steps": [{"do": "land", "place": "HOME"}]}],
+   "pay": {"base": 100}, "rep": {"provider": "clients", "gain": 0.1}},
+  {"id": "feas.heavy", "provider": "clients", "kind": "contract", "title": "ms.feas.heavy.title", "brief": "ms.feas.heavy.brief", "client": "adam",
+   "legs": [{"steps": [{"do": "carry", "from": "HOME", "place": "w3", "load": {"kg": 900, "pax": 0}}]}],
+   "pay": {"base": 100}, "rep": {"provider": "clients", "gain": 0.1}},
+  {"id": "feas.broken", "provider": "clients", "kind": "contract", "title": "ms.feas.broken.title", "brief": "ms.feas.broken.brief", "client": "adam",
+   "legs": [{"steps": [{"do": "land", "place": "w99"}]}],
+   "pay": {"base": 100}, "rep": {"provider": "clients", "gain": 0.1}}
+ ],
+ "sites": [],
+ "text": {
+  "ms.feasdemo.title": {"t": "Feasibility harness demo (GATE MISSIONFEAS)", "draft": true},
+  "ms.feas.ok.title": {"t": "Feasible on purpose", "draft": true}, "ms.feas.ok.brief": {"t": "20 kg to the Fishing Village Strip, then home to the stand.", "draft": true},
+  "ms.feas.heavy.title": {"t": "Infeasible on purpose", "draft": true}, "ms.feas.heavy.brief": {"t": "900 kg to the Fishing Village Strip: no official plane lifts it.", "draft": true},
+  "ms.feas.broken.title": {"t": "Broken on purpose", "draft": true}, "ms.feas.broken.brief": {"t": "Land at an aerodrome that does not exist.", "draft": true}
+ }
+}
