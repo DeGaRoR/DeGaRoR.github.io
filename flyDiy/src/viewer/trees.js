@@ -666,7 +666,7 @@
       // chunk that reads it, is the material's own choice.
       sh.fragmentShader = '#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' +
         'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\n' +
-        'uniform float uHue, uSat, uLight, uCut, uSharp, uFlat, uFlatMean;\nuniform vec4 uSoft;\nvarying float vAoV;\n' +
+        'uniform float uHue, uSat, uLight, uCut, uSharp, uFlat, uFlatMean, uCrownN;\nuniform vec4 uSoft;\nvarying float vAoV;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>',
             '#include <map_fragment>\n' + TINT_LIVE + (isLeaf ? '\n' + EDGE_GLSL : ''))
