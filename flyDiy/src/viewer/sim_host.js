@@ -248,12 +248,13 @@ const SIM_DMG_SET_MIN = 1e-4;
 function simDmgSigs(sim) {
   const D = sim.damage && sim.damage();
   if (!D) return null;
-  // (G2040: a cover tie torn is a break event of the covering - its count joins the signature once one has been made)
+  // (G2040: a cover tie torn is a break event of the covering - its count joins the signature once one has been made;
+  // G4103: a kinked member's tether torn parts the pieces - its count joins once one has torn)
   // G2001 (DMG-SCUFF): the slide work, a FOURTH signature of its own in coarse steps (each ~19 % more work, from 1 J) -
   // never in the sets' (sS: the sets' timing, and DMG-WALL's wall key, stay the base's); '0' with nothing slid. (The
   // third is DMG-SCAR's G2357 version: the scuff took it on its own branch, 6 Oct, before the scar came)
   const q = D.scW >= 1 ? Math.floor(4 * Math.log2(D.scW)) + 1 : 0;
-  return [D.breaks + ':' + (D.cl ? D.cl.length : 0) + (D.tieN ? ':' + D.tieT : ''), D.yields + ':' + D.dents, D.scar ? D.scar.v : 0, String(q)];
+  return [D.breaks + ':' + (D.cl ? D.cl.length : 0) + (D.tieN ? ':' + D.tieT : '') + (D.tetherT ? ':t' + D.tetherT : ''), D.yields + ':' + D.dents, D.scar ? D.scar.v : 0, String(q)];
 }
 // G2001 (DMG-SCUFF): WHAT THE SKIN'S DAMAGE RECORDS READ, beside the sets - each member's plastic work (D0's DMG.wB, J)
 // and each node's slide work with its direction, the side it was pushed from (both in the body frame) and its share on
@@ -277,7 +278,7 @@ function simDmgPieces(sim, coreNode) {
   const n = sim.n, P = new Int32Array(n);
   for (let i = 0; i < n; i++) P[i] = i;
   const f = i => { while (P[i] !== i) { P[i] = P[P[i]]; i = P[i]; } return i; };
-  for (const b of sim.beams) { if (b.broken) continue; const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }
+  for (const b of sim.beams) { if (b.broken && b.tt !== 1) continue; const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }   // (G4103: a kinked member's live tether joins)
   const CL = sim.clusterCuts ? sim.clusterCuts().clusters : [];
   for (const C of CL) if (!C.off && C.nodes.length) { const r0 = f(C.nodes[0]); for (const i of C.nodes) { const x = f(i); if (x !== r0) P[x] = r0; } }
   const core = f(coreNode >= 0 && coreNode < n ? coreNode : 0), lab = new Int32Array(n), id = new Map([[core, 0]]);
