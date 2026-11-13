@@ -3061,7 +3061,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else { B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire'); }
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
-    pt(TW, (GUL && SKID && GUL.skidKg > 0 ? GUL.skidKg : CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);   // (L6: the ultralight monowheel's nose skid, its own)        // the nosewheel with its fork, by size (a bicycle wheel's own)
+    pt(TW, (GUL && SKID && GUL.skidKg > 0 ? (mFairTw > 0 ? 0 : GUL.skidKg) : CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);   // (L6: the ultralight monowheel's nose skid, its own)        // the nosewheel with its fork, by size (a bicycle wheel's own)
     // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
     // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
     if (S.gear.retract) {
