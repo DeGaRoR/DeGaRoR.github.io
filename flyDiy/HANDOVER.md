@@ -315745,3 +315745,16 @@ the next steps).
     cargo snapshot from its garage load - levelled: the garage tilts the GROUND to a stance, so its axles' ground points
     differ in the cage frame - its tyres measured from the drawn wheel groups; the trailer on the tow's drawn ball;
     plane_shot's PORTRAIT routine).
+- **CAR-3, THE GUARDS ARE THE BODY'S SKIN (the user: "just give it exactly the same material as the fuselage, then it can
+  be reached by the livery, it can be reached by the weathering system ... You are reinventing the wheel")**: a new
+  AEROSKIN section `fenderSkin` { parent: 'body', role: 'skin', layer: 'gear' } (aeroskin.js AERO_SEC, beside
+  boomSkin; markings ALLOWED), owned by the Car part (_cage_parts.js sections) - fenderBuild asks CAGE_SECMAT for it
+  the booms' way (surf 0, fieldM 1, struct 1). The livery's markings project onto the guards and the step as onto the
+  body; the Retro's navy band (m1) reaches 25 cm lower (C -0.41, H 1.20) so the step is navy too. (The detour: a
+  hand-tuned colour can never match - the join rebuilds a layer's plain material keeping only its COLOUR, so metal,
+  gloss and coat changed nothing.) GATE LIVERY's 2 fails (the Cub's strut, castAlu) are master's own, unchanged.
+- **CONVOY: THE CARGO KEEPS ITS LIVERY** (the user: "the car has lost its livery"): the garage caches materials across
+  builds (64 of the roadster's 106 came back on the van) and the skin's hook reads the build-wide uniforms by reference,
+  so the next load repainted the snapshot. tools/convoy_shot.js gives the cargo its own: AEROSKIN.aeroDupe per material,
+  both uniform sets deep-copied, every texture redrawn into a canvas of its own - with a NEW THREE.Source (r186: a
+  texture's clone shares its Source; setting the copy's image repointed the original and the van wore the roadster's).

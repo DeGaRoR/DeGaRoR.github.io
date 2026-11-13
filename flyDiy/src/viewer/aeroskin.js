@@ -873,6 +873,11 @@ const AERO_SEC = {
   // cage section this table never had, and fell back to bare white)
   boomSkin: { parent: 'body',     role: 'skin', label: 'the twin booms',
               layer: 'boom', noDec: true },
+  // CAR-3 (the user, 13 Nov: "just give it exactly the same material as the fuselage, then it can be reached by the
+  // livery, it can be reached by the weathering system"): the mud guards and the step are the BODY'S skin - its paint,
+  // its finish, its wear, its markings - until repainted
+  fenderSkin: { parent: 'body',   role: 'skin', label: 'the mud guards and step',
+              layer: 'gear' },
   // the wing radiators (27 Oct, the Spitfire's): the wing's paint until repainted
   radSkin:  { parent: 'wingSkin', role: 'skin', label: 'the wing radiators',
               layer: 'rad', noDec: true },

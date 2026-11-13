@@ -1106,6 +1106,8 @@ const CAGE_PARTS = [
   // part's rows show with it on. What a car only is lives here; what a plane can use too (rear windows, the outside
   // relief, wingless booms, the tyres and rims) stays with its own part
   { key: 'car', name: 'Car', parent: null, layer: 'gear',
+    // (13 Nov: the mud guards and the step wear the body's skin as their own section - clicking one selects the Car)
+    sections: ['fenderSkin'],
     groups: [
       ['this build is a car', ['isCar']],
       ['drive', ['carDrive', 'carChassisKg', 'carBeamR']],

@@ -55,11 +55,32 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const inv = new THREE.Matrix4().copy((gear || root).matrixWorld).invert();
     const g = new THREE.Group(); g.name = 'convoy:cargo';
     const vis = o => { for (let a = o; a && a !== root; a = a.parent) if (!a.visible) return false; return true; };
+    // ITS OWN MATERIALS (the user: "the car has lost its livery"): the garage CACHES materials across builds (64 of
+    // the roadster's 106 came back on the van) and the skin's hook reads the build-wide uniforms BY REFERENCE
+    // (userData.aeroD - the livery's), so the next load repainted the snapshot. Each material is duplicated the
+    // skin's own way (AEROSKIN.aeroDupe: the hook and its cache key kept) with DEEP copies of both uniform sets, their
+    // textures redrawn into canvases of their own
+    // (r186: a clone SHARES its Source - setting the copy's image repointed the original, and the van wore the
+    // roadster's livery: the copy gets a Source of its own)
+    const cpTex = t => { const t2 = t.clone(), im = t.image; let img = null;
+      if (im && im.getContext) { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; c.getContext('2d').drawImage(im, 0, 0); img = c; }
+      else if (im && im.data && im.width) img = { data: im.data.slice(), width: im.width, height: im.height, depth: im.depth };
+      if (img) { if (THREE.Source) t2.source = new THREE.Source(img); else t2.image = img; }
+      t2.needsUpdate = true; return t2; };
+    const cpVal = v => v && v.isTexture ? cpTex(v) : (v && typeof v.clone === 'function') ? v.clone() : Array.isArray(v) ? v.map(cpVal) : (v && v.buffer && v.slice) ? v.slice() : v;
+    const cpU = U => { if (!U) return U; const o = {}; for (const k in U) o[k] = { value: cpVal(U[k] && U[k].value) }; return o; };
+    const dupe = window.AEROSKIN && AEROSKIN.aeroDupe, made = new Map();
+    const own = m => { if (!m) return m; if (made.has(m)) return made.get(m);
+      let m2;
+      if (dupe && m.userData && (m.userData.aeroU || m.userData.aeroD)) { m2 = dupe(m); m2.userData.aeroU = cpU(m.userData.aeroU); m2.userData.aeroD = cpU(m.userData.aeroD); }
+      else { m2 = m.clone(); if (m.onBeforeCompile) m2.onBeforeCompile = m.onBeforeCompile; }
+      for (const k of ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'bumpMap', 'alphaMap', 'aoMap']) if (m[k] && m[k].isTexture) m2[k] = cpTex(m[k]);
+      made.set(m, m2); return m2; };
     let n = 0; const box = new THREE.Box3(), gb = new THREE.Box3();
     root.traverse(o => {
       if (!o.isMesh || o.isSkinnedMesh || !o.geometry || !vis(o) || o.isInstancedMesh) return;
       const M = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
-      const c = new THREE.Mesh(o.geometry.clone(), o.material); c.matrixAutoUpdate = false; c.matrix.copy(M);
+      const c = new THREE.Mesh(o.geometry.clone(), Array.isArray(o.material) ? o.material.map(own) : own(o.material)); c.matrixAutoUpdate = false; c.matrix.copy(M);
       c.castShadow = o.castShadow; c.receiveShadow = o.receiveShadow; g.add(c); n++;
       if (!c.geometry.boundingBox) c.geometry.computeBoundingBox(); gb.copy(c.geometry.boundingBox).applyMatrix4(M); box.union(gb);
     });

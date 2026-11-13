@@ -2703,8 +2703,12 @@ function fenderBuild(group, P, AF, units) {
   const style = Math.round(+P.carFender || 0);
   if (!(style === 1 || style === 2) || !units || units.length < 4) return;
   const gap = +P.carFenderGap > 0 ? +P.carFenderGap : 0.07, STEP = +P.carStep === 1;
-  let trim = 0x22262b; try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); if (S && S.paint && S.paint.trim != null) trim = S.paint.trim; } catch (e) {}
-  const paint = new THREE.MeshStandardMaterial({ color: new THREE.Color(trim).multiplyScalar(0.62), metalness: 0.4, roughness: 0.3, side: THREE.DoubleSide });   // (the trim a shade down: lit flat it read lighter than the body's own)
+  // THE BODY'S OWN SKIN (the user: "just give it exactly the same material as the fuselage, then it can be reached by
+  // the livery, it can be reached by the weathering system"): AEROSKIN's `fenderSkin` section, a child of the body -
+  // its paint, finish, wear and markings - the twin booms' recipe; a bench without the livery UI gets a plain paint
+  let paint = null;
+  try { if (window.CAGE_SECMAT) paint = window.CAGE_SECMAT('fenderSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
+  if (!paint) paint = new THREE.MeshStandardMaterial({ color: 0xd9d4c6, metalness: 0.3, roughness: 0.35, side: THREE.DoubleSide });
   const tread = new THREE.MeshStandardMaterial({ color: 0x1c1d1f, metalness: 0.2, roughness: 0.75, side: THREE.DoubleSide });
   const dark = GG.gearMat('dark');
   const root = new THREE.Group(); root.name = 'edFenders';
