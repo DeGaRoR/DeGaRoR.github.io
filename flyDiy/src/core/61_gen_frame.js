@@ -3022,6 +3022,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
   const mWheel = CYCLE ? R.wheelCycleKg(S.gear.wheelR) : R.wheelKg(S.gear.wheelR);
   pt(GAL, mWheel + mFairMain); if (!MONO) pt(GAR, mWheel + mFairMain);
+  // (THE ULTRALIGHT MONOWHEEL'S RETRACTION, GEN_RULES.ulGear: the lever, the push rod, the over-centre link, the gas strut
+  //  and the doors' hinges - on its axle)
+  if (S.gear.retract && GUL && GUL.retractKg > 0) { pt(GAL, GUL.retractKg); spend(GUL.retractPrice || 0); }
   // THE TOW HOOK (GEN_RULES.towHook; gear.towHook 'nose' | 'cg'): the release's node on the centreline - at the nose
   // ring's keel (aerotow), or on the belly `ahead` of the mains (winch, auto-tow) - tied to the HARD structure round it
   // (weightless members, a soft shell's hard row: the keel tubes and, on a hanging nacelle, the mast's foot; the line
@@ -3095,7 +3098,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     pt(TW, (GUL && SKID && GUL.skidKg > 0 ? (mFairTw > 0 ? 0 : GUL.skidKg) : CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);   // (L6: the ultralight monowheel's nose skid, its own)        // the nosewheel with its fork, by size (a bicycle wheel's own)
     // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
     // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
-    if (S.gear.retract) {
+    if (S.gear.retract && !GUL) {                   // (the ultralight monowheel's own kit: below)
       const kit = R.retractKg(gross);
       pt(GAL, kit / 3); pt(GAR, kit / 3); pt(TW, kit / 3);
       spend(GEN_PRICES.retract);

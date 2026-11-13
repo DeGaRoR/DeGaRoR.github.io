@@ -1576,7 +1576,7 @@ function makeSim(def, world) {
   const RFRAC = RET ? (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1) : 1, RSEMI = RFRAC < 1;
   if (RET) {
     const isMainN = new Set(def.refs.mains || []);
-    for (const i of [...(def.refs.mains || []), def.refs.tw]) {
+    for (const i of [...(def.refs.mains || []), ...(RET.fixedTw ? [] : [def.refs.tw])]) {   // (the ultralight monowheel: the tail wheel stays down)
       if (!(i >= 0 && i < n)) continue;
       GW[i] = 1;
       const meas = RET.lift ? (isMainN.has(i) ? RET.lift.mains : RET.lift.nose) : null;
@@ -3963,7 +3963,7 @@ function makeSim(def, world) {
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
-      if ((isMain || (isTW && TWM !== 4)) && (GR === null || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
+      if ((isMain || (isTW && TWM !== 4)) && (GR === null || (isTW && RET.fixedTw) || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {

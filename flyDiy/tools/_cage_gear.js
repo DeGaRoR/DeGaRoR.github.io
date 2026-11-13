@@ -465,7 +465,9 @@ function liftD(C, g) {
 // THE CHAIN of one unit, its senses probed: u the leg unit (root, axle, the moving end, the wheel's axis), key L / R / T
 function foldChain(u, key, P, SP) {
   const h = (u.root || u.moving || u.axle).slice(), ax = u.axle, top = u.moving || u.axle;
-  const F = foldOf(P, key === 'T'), side = key === 'R' ? -1 : 1;
+  // (a main on the CENTRELINE - the ultralight monowheel - swings as a nose wheel does: up about the lateral axis)
+  const mono = key !== 'T' && Math.abs(h[0]) < 0.02;
+  const F = foldOf(P, key === 'T' || mono), side = key === 'R' ? -1 : 1;
   const leg = fNrm([top[0] - h[0], top[1] - h[1], top[2] - h[2]]);
   const C = { hinge: h, leg, twist: side * (F.twist || 0) * D2R, turns: [], frac: Math.max(0.3, Math.min(1, +P.gearRetFrac || 1)),
               R: u.R || 0.2, wAx: u.waxis ? fNrm(u.waxis) : [1, 0, 0], axle: ax.slice(), legR: u.legR || 0.05 };
@@ -489,7 +491,7 @@ function foldChain(u, key, P, SP) {
   // TRIMMED (-15..+25 degrees, further on) so the stowed wheel's centre sits at the structure's mid-depth over its plan
   // place (the wing's between its skins outside the body, else half way from the keel to the floor) - a wheel riding its
   // stub outboard of the leg folds inward ~ its offset UNDER the pin otherwise. A custom fold, a partial one: as set
-  const preset = (key === 'T' ? FOLD_NOSE_KEYS[Math.round(+P.gearFoldNose || 0)] : FOLD_KEYS[Math.round(+P.gearFold || 0)]) !== 'custom';
+  const preset = (key === 'T' || mono ? FOLD_NOSE_KEYS[Math.round(+P.gearFoldNose || 0)] : FOLD_KEYS[Math.round(+P.gearFold || 0)]) !== 'custom';
   C.trim = 0;
   // (into the nacelle: forward when the nacelle runs further ahead of the pin than behind it, else aft)
   if (key !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'nacelle' && C.turns.length === 1) {
@@ -576,6 +578,7 @@ function foldChain(u, key, P, SP) {
       if (Nn) { const zc = Math.max(Nn.z0 + 0.02, Math.min(Nn.z1 - 0.02, c[2]));
         mid = (Nn.AF.keelAt(zc) + Nn.AF.surf(zc, Math.PI)[1]) / 2;
         over = Math.max(0, c[2] + C.R - (Nn.z1 - 0.02)) + Math.max(0, (Nn.z0 + 0.02) - (c[2] - C.R)); }
+      else if (mono && MONO_UL(P) && SP.keelY) { const k = SP.keelY(c[2]); mid = k == null ? null : k + C.R + 0.03; }   // (the sailplane's box: the wheel just in, under the seat's back)
       else mid = SP.midAt(c[0], c[2]);
       if (mid == null) continue;
       const e = Math.abs(c[1] - mid) + 10 * over + 0.0004 * Math.abs(d);
@@ -814,7 +817,9 @@ function structProbe(AF, W, P) {
     if (AF && z >= AF.z0 && z <= AF.z1) return (AF.keelAt(z) + floorY) / 2;
     return null;
   };
-  return { bodyIn, wingIn, nacIn, inside: p => Math.max(bodyIn(p), wingIn(p), nacIn(p)), midAt, floorY };
+  // (the keel's height at a station - the ultralight monowheel's trim stows its wheel just inside the belly)
+  const keelY = z => AF && z >= AF.z0 && z <= AF.z1 ? AF.keelAt(z) : null;
+  return { bodyIn, wingIn, nacIn, inside: p => Math.max(bodyIn(p), wingIn(p), nacIn(p)), midAt, floorY, keelY };
 }
 // ---- G2 (RETRACT-STUDY §8.2): DOES IT FIT? ------------------------------------------------------------------------------
 // The unit's points - the tyre (two faces x two rings x 12, the hub) and the leg (from a quarter of the way down: its
@@ -869,10 +874,13 @@ function foldFit(P, swing, AF, W, MX) {
   // metres, z forward) - the floor test stands forward of it; null on any other build
   // (and at its front, the windscreen's front ring wsFront: ahead of it is the bow - the nose wheel folds forward into
   // the nose there, as an EDO amphibian float's does)
-  const [zCabA, zCabF] = !+P.hullOn ? [null, null] : (() => { try {
+  // (and the ultralight monowheel's - a sailplane's: the pilot sits on the keel and the wheel stows in the box behind the
+  // seat, aft of the cabin's back ring - the floor test stands forward of it only)
+  const ulMono = MONO_UL(P) && !+P.hullOn;
+  const [zCabA, zCabF] = !+P.hullOn && !ulMono ? [null, null] : (() => { try {
     const RR = CG2.cageResolve(CG2.cageSpec(P)), zOf = (...nm) => { for (const n of nm) { const rr = RR.rings.find(q => q.name === n);
       const lv = rr && rr.lv && (rr.lv.floor || rr.lv.waist); if (lv && isFinite(lv.z)) return lv.z * FSm; } return null; };
-    return [zOf('pilPaxA', 'pilCabA'), zOf('wsFront')]; } catch (e) { return [null, null]; } })();
+    return ulMono ? [zOf('pilPaxA', 'pilCabA', 'pilCabB'), null] : [zOf('pilPaxA', 'pilCabA'), zOf('wsFront')]; } catch (e) { return [null, null]; } })();
   const leTe = new Map();
   const chordFrac = p => {
     if (!W || !W.leAt || !W.teAt) return null;
@@ -1444,7 +1452,10 @@ const fitNote = () => { const B = window.CAGE_ROW_BAD ? window.CAGE_ROW_BAD() : 
 
 // RETRACT-1: the build may retract its gear - the switch on, wheels (not floats), a nose wheel, a low wing
 // (GR: any wing - a low wing's mains root on the wing, any other's on the body: the Catalina's hull)
-const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && +P.s2On && Math.round(+P.s2Leg) !== 3);
+// (the ULTRALIGHT MONOWHEEL's retraction, the LS4's: one centreline main with the ultralight wheel (s1Ul) swings up into
+//  the belly; the tail wheel stays down - its own unit is not in the swing)
+const MONO_UL = P => !!(+P.s1On && !(+P.s1X > 0.01) && +P.s1Ul);
+const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && ((+P.s2On && Math.round(+P.s2Leg) !== 3) || MONO_UL(P)));
 // RETRACT-LAB (SEAPLANES-LAND 7 Nov; the user: the retract wheels are "not great yet ... not final"): THE RETRACT
 // OPTIONS STAND BEHIND ONE SWITCH until a retract quality pass - the developer's toggle (the flight rail's "dev ›",
 // pref flydiy.flDev), ?retract=lab, or window.FLYDIY_RETRACT_LAB (the headless rigs set it: they see every row). Off,
@@ -1483,7 +1494,7 @@ window.CAGE_LAB_ROWS = {
 // (A0 7 Nov: "fixing gearRetract shows on every build is welcome"): the switch is offered where it can act -
 // GEAR_RETRACTABLE's own wheels (a nose wheel, not floats: the group's own when) - and stays while it is on, so a
 // build saved retractable on a tailwheel can still switch it off
-const RETRACT_CAN = P => !!(+P.s2On && Math.round(+P.s2Leg) !== 3);
+const RETRACT_CAN = P => !!((+P.s2On && Math.round(+P.s2Leg) !== 3) || MONO_UL(P));
 const GROUP = ['9 · undercarriage', [
   ['gearOn',  'undercarriage', 0, 1, 1],
   ['gearSit', 'stand it on the ground', 0, 1, 1,
@@ -2335,7 +2346,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
       // they don't close. They close only for the retracted position"): with NO leg door the down leg stands in the
       // opening, so the well's doors stay open while it is down - two split doors had shut on it, the leg running along
       // their seam and crossing neither half; with a leg door, a door the down gear does not pass through shuts down)
-      const name = 'edMechDoor' + tag + ci + '_' + (di + 1), seq = { k: DOOR_SEQ, closedDown: !through && !!+P.gearLegDoor };
+      const name = 'edMechDoor' + tag + ci + '_' + (di + 1), seq = { k: DOOR_SEQ, closedDown: !through && !!+P.gearLegDoor && !MONO_UL(P) };   // (the ultralight monowheel's: its WHEEL stands in the opening, down - the doors hang open beside it, a sailplane's)
       // drawn as it stands gear down (every part's rest): a door the down gear passes through stands open
       const Rd = CM.gearRot(axis, DOOR_ANG * CM.gearDoorOpen(seq, 1));
       panel(name, hp, mat, v => { const q = CM.gearApp(Rd, [v[0] - hinge[0], v[1] - hinge[1], v[2] - hinge[2]]); return [hinge[0] + q[0], hinge[1] + q[1], hinge[2] + q[2]]; });
@@ -2753,7 +2764,11 @@ PAGE.post = ctx => {
     const yA = k + st.R * (2 * st.sink - 1), prof = GG.TYRE[Math.round(+st.P.whProfile || 0)] || GG.TYRE[0];
     // (THE HANGING NACELLE: the fork rises to the mast's foot, which stands on it - the wing layer's CAGE_HANG)
     const HGf = +P.hangOn && P.wingOn && st.id === 1 && !(st.x > 0.01) ? window.CAGE_HANG : null;
-    const hw = st.R * prof.hw * 1.05, top = HGf && isFinite(HGf.yFoot) ? Math.max(k + 0.06, HGf.yFoot + 0.01) : k + 0.06, clr = 0.02;
+    // (RETRACT, the ultralight monowheel - a sailplane's: the fork's arms rise to a PIVOT a radius and 40 mm over the
+    // axle, on the belly's bulkhead; the fork swings aft about it, ~105 deg, and the wheel's centre rises ~1.26 x that arm -
+    // the whole wheel into the box behind the seat, the doors closing under it. Its knee brace locks over centre)
+    const ulR = RETR && MONO_UL(P);
+    const hw = st.R * prof.hw * 1.05, top = HGf && isFinite(HGf.yFoot) ? Math.max(k + 0.06, HGf.yFoot + 0.01) : ulR ? yA + st.R + 0.04 : k + 0.06, clr = 0.02;
     for (const s of [-1, 1]) {
       const xp = x + s * (hw + 0.012), yc = 0.5 * (yA + top);
       K.boxIn(lb.steel, [xp, yc, z], [0.003, 0.5 * (top - yA) + 0.02, 0.045], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
@@ -2874,7 +2889,7 @@ PAGE.post = ctx => {
                     if (catS) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: Math.min(+st.P.oleoCyl || 0.55, 0.42) }); }
                     else if (shortRow(P, !!st.single) > 0) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: cylFOf(st.P.oleoCyl, P, !!st.single) }); }
                     retMounts.push({ key: st.single ? 'T' : (sgn > 0 ? 'L' : 'R'), wing: !!m, depth: 2 * st.ret.in, z: st.z }); }
-        if (st.sink > 0 && !RETR) r = sunkFork(lb, st, sgn);   // MONOWHEEL: the sunk wheel's fork
+        if (st.sink > 0 && (!RETR || MONO_UL(P))) r = sunkFork(lb, st, sgn);   // MONOWHEEL: the sunk wheel's fork (the ultralight monowheel retracts on it: its pivot up in the belly)
         else if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
         // WILGA-GEAR: the trailing-link leg - its arm and the strut's two halves in their own bags (each posed apart)
@@ -2886,7 +2901,7 @@ PAGE.post = ctx => {
         // G133: spats ride their UNITS now, not the static shared bags —
         // a nose spat sits on its fork, a main spat on its own leg, so
         // the flown aeroplane carries them with the moving parts
-        if (st.steer > 0 && st.x < 0.01 && !(st.sink > 0 && !RETR)) {
+        if (st.steer > 0 && st.x < 0.01 && !(st.sink > 0 && (!RETR || MONO_UL(P)))) {
           // 2026-09-04 (the user: "the tricycle configuration tries strange
           // things for the front wheel"): the nose castor used to be drawn
           // INTO THE LEG'S bags, so the join stretched fork and spat with the
@@ -3082,6 +3097,7 @@ PAGE.post = ctx => {
     swing = {};
     for (const u of legUnits) {
       const key = u.kind === 'T' ? 'T' : u.kind;
+      if (key === 'T' && Math.round(+P.s2Leg) === 3) continue;   // (a tail wheel stays down: the ultralight monowheel's)
       if (!swing[key] && (u.axle || u.moving)) swing[key] = foldChain(u, key, P, SPx);
     }
     // GM2: the brace and the actuator, drawn at rest (gear down) in their own named groups - before the fit: the wells'

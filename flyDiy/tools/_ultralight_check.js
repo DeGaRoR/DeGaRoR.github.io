@@ -29,6 +29,10 @@
 //      cleanly (finite); on their own constructions they stand (nothing broken).
 //   F. THE ULTRALIGHT WHEEL ON A HEAVIER AEROPLANE FOLDS: a Cub on one centreline main dropped at the limit sink loses
 //      its gear's members on the ultralight monowheel, and keeps them on the standard one.
+//   G. THE ULTRALIGHT MONOWHEEL RETRACTS (the user, 13 Nov, the LS4: "a new ultra light retractable mecanism ... part of
+//      the ultra-light wheel train selection, with a retractable option, that can be billed as ultra light too, no need
+//      for a user choice"): on a taildragger's monowheel, gearRetract writes a manual 3 s gear.retract (none on the
+//      standard monowheel), the kit billed at GEN_RULES.ulGear.retractKg, flown as a retract with its tail wheel fixed.
 'use strict';
 const path = require('path');
 const T = __dirname;
@@ -128,6 +132,20 @@ console.log('F. THE ULTRALIGHT WHEEL ON A HEAVIER AEROPLANE FOLDS');
   const a = ground(ul.def, 0.22, 4), b = ground(st.def, 0.22, 4);
   ok(ul.def0.spec.gear.ul === true && a.finite && (a.br.gear || 0) > 0 && !(b.br.gear > 0),
      `F a Cub on one centreline main (W0 ${ul.def0.parts.gauge.W0.toFixed(0)} kg) dropped at the limit sink: the ultralight wheel's gear loses ${a.br.gear || 0} members, the standard's ${b.br.gear || 0}`); }
+
+console.log('G. THE ULTRALIGHT MONOWHEEL RETRACTS');
+// (on a taildragger's monowheel - a sailplane's: the Cub on one centreline main, its tail wheel kept; fairings off on the
+// fixed one, as a retracting gear wears none)
+{ const G0 = { s1X: 0, s1Ul: 1, s1Fair: 0, s1LegFair: 0, s2Fair: 0 };
+  const rt = born('cub', Object.assign({ gearRetract: 1 }, G0)), fx = born('cub', G0), st = born('cub', Object.assign({ gearRetract: 1 }, G0, { s1Ul: 0 }));
+  const d1 = C.buildGen(JSON.parse(JSON.stringify(rt))), d0 = C.buildGen(JSON.parse(JSON.stringify(fx)));
+  const R = rt.gear.retract, gk = ledger(d1).gear - ledger(d0).gear;
+  ok(!!R && R.act === 'manual' && R.time === 3 && rt.gear.ul === true && rt.gear.mono === true && rt.gear.type === 'taildragger' && !('retract' in fx.gear) && !('retract' in st.gear),
+     `G gearRetract on the ultralight monowheel writes gear.retract (${JSON.stringify(R && { time: R.time, act: R.act })}: the lever, no choice); none without it, none on the standard taildragger monowheel`);
+  ok(Math.abs(gk - UG.retractKg) < 0.05, `G the kit billed ultralight: +${r2(gk)} kg on the gear's row (GEN_RULES.ulGear.retractKg ${UG.retractKg})`);
+  const W = C.makeWorld(), sm = C.makeSim(d1, W);
+  ok(d1.params.retract && d1.params.retract.fixedTw === true && sm.gear() !== null,
+     `G it flies as a retract: params.retract with the tail wheel fixed (fixedTw ${d1.params.retract && d1.params.retract.fixedTw}), the sim's gear ${sm.gear() ? 'present' : 'missing'}`); }
 
 console.log(fails.length ? 'GATE ULTRALIGHT: FAIL (' + fails.length + ')' : 'GATE ULTRALIGHT: PASS');
 process.exit(fails.length ? 1 : 0);

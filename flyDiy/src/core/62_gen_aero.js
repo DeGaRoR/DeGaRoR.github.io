@@ -1787,7 +1787,7 @@ function genParams(S, fr, strips) {
     // RETRACT-1 (RETRACT-STUDY §3.1): the retractable gear - the key only when chosen. `cdA` is the gear's own drag area
     // (genGearCdA, inside fusCdA[0] as on every build: every design-time number - the plaque, the AP's speeds - stays the
     // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)
-    ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg,
+    ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg, ...(S.gear.type === 'taildragger' ? { fixedTw: true } : {}),
                                        cdA: cda.drag.gear || 0,
                                        // G1: the fraction (1 unless partial) and the measured lift (null: the frame's rule)
                                        frac: S.gear.retract.frac || 1, lift: S.gear.retract.lift || null } } : {}),
