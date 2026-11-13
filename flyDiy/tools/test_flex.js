@@ -671,6 +671,15 @@ function statTail(def) {
   if (P.HTL == null || P.HTR == null) return null;
   const free = new Set();
   def.nodes.forEach((n, i) => { if (/^(BM|HT|HF|HR|HB|FIN|VF|VR|VX|TP|F$)/.test(n.tag)) free.add(i); });
+  // AERO-BODY (13 Nov, A0's FLEX red): since G3800 (TAILWHEELS, train L31c) a twin boom's tail wheel hangs on the
+  // booms' tips (tag TW, its legs to BM*I / BM*O / HT*), so the trestles were holding the tail at its own tip: the truss
+  // read 1 mm / 0.09 % / 0.14 deg against 9 mm / 0.62 % / 15.7 deg before L31c, and the tube factor's negative control
+  // could not bite. A TW on the booms is the tail's and goes free with it; a TW on the pod's tail post (TP*, every
+  // other tail) stays pinned as before, so the stock row reads as it did.
+  def.nodes.forEach((n, i) => {
+    if (n.tag === 'TW' && def.beams.some(b => (b.a === i && /^BM/.test(def.nodes[b.b].tag)) ||
+                                                (b.b === i && /^BM/.test(def.nodes[b.a].tag)))) free.add(i);
+  });
   const pin = [];
   const reset = () => {
     pin.length = 0;
