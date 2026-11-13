@@ -242,5 +242,6 @@ const t0 = Date.now();
 const o = Object.assign(live(), { sideTables: sideTables(), rolls: legacyRolls(), absent: absentCase(), runs: allRuns() });
 const fail = run(o);
 for (const f of fail) console.log('  FAIL ' + f);
-console.log('GATE SOFTGROUND: ' + (fail.length ? 'FAIL (' + fail.length + ')' : 'PASS') + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+console.log('  (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+console.log('GATE SOFTGROUND: ' + (fail.length ? 'FAIL (' + fail.length + ')' : 'PASS'));
 process.exit(fail.length ? 1 : 0);
