@@ -315844,3 +315844,19 @@ lines - builds/cub_2026-09-20.json's strut pin ("resolves to its painted pin tri
 paint"), the same 2 of 328 on a clean master 23ce68c1f worktree: master's.
 GATE LIVERYSTICKERS: 153 checks (+1: the worst case with six text pieces on), --selftest 15 probes all red.
 
+
+# L40a (Fri 13 Nov 19:00, full battery 275 PASS / 42 FAIL)
+
+LANDED (merged): see the merge list in this train's log; L40m folded in. DROPPED for real conflicts (re-made on this master for L40c, Sat 20:15): fleet-screen, chooser-alikes-onfleet2 (garage.js), archaeopteryx (30_solver/60_gen_spec/61_gen_frame/_gear_page), livery-manager (build.js), pilot-unify + pilot-jumbo + tow-launch-l40a-2 (the cowl tools/_gear_page/build.js after fit-procedure-fixes). ABSENT: dirt-faults, photo-mode-2.
+
+STANDING (master's, unchanged list): FLIGHTREC GEN RADIALDIV ALTIPORT DESTTO TREECRASH DMGCERT DMGGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGDAMP DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY LIVERY DESIGNCHECK JOINPARITY ENGINE ENGCONFIG FLEX LOAD TECH NODUMMY.
+NEW REDS, NAMED with owners (fix or re-pin with reason in L40c):
+- STOL "spitfire fly" + REALBAND (dc3/camel moved, core hash changed): a core physics change in this batch -> REAL-FIGURES identifies the ref and re-pins with the reason.
+- POD (pod-off def/shakedown bytes, 6 builds): ENGINE-COOLING 56c8800a (inside physics-pages-cooling) -> re-pin with reason.
+- ENERGYBASE + ENGTORQUE "carbon: cg0 / node masses moved": a card changed in the batch -> FIT-PROCEDURE / ENGINE-COOLING check.
+- DMGSKINGPU, DMGWALL (metal nosein 2.28 % > 2 %), DMGTYRE (angular momentum), DMGPOD (gear-up pod torn at 3 m/s), ROLLANIM (64.1 > 64 bytes/frame) -> Deform (crash-look / flex-gearfalls).
+- ROOMMERGE (8 tris unmatched) -> Game (restore-steps).
+- FLOATLETTERS (the weight drops the letters at 0.5) -> AIRCRAFT-LOOKS / fit-procedure-paint shader.
+- CANDIDATES (pc6_drafting not in index.json) -> FIT-PROCEDURE.
+- NAMES ("Alaska" in the twelve marks text) -> LIVERY-STICKERS (livery-stickers-3).
+- MEDIA (index.html +0.34 MiB > 0.3 one-build bound): the sum of 24 readies in one train; re-pin per train, A0.
