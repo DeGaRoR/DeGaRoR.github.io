@@ -791,7 +791,7 @@ function competePack() {
         { stol: [{ id: 'sp', kind: 'spot', line: [[1000, -10], [1000, 10]], dir: 90, stop: 's1', medals: [{ medal: 'gold', le: 2 }, { medal: 'silver', le: 5 }, { medal: 'bronze', le: 10 }] }] }),
       cm('c.aero', [{ order: 'seq', steps: [
           { id: 'k1', do: 'pass', place: Object.assign(gate(-1000), { att: { roll: 90 } }) },
-          { id: 'lp', do: 'pass', place: { ring: [0, 300, -2000], r: 10, dir: 0, pitch: 90, att: { pitch: 90 } } },
+          { id: 'lp', do: 'pass', place: { ring: [0, 300, -2000], r: 10, dir: 0, pitch: 90, att: { pitch: 90, hdg: 0 } } },
           { id: 'inv', do: 'pass', place: { ring: [0, 300, -3000], r: 10, dir: 0, att: { roll: 180, pen: 4 } } },
           { do: 'land', place: 'HOME' }] }],
         { timers: [{ id: 'aero', start: 'k1', stop: 'inv', target: 90, ghost: { s: 50, who: 'adam', splits: { lp: 20 } } }] }),
