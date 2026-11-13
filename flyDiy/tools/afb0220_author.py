@@ -43,8 +43,10 @@ W2 = {'wid': 18, 'band': 5, 'falloff': 60,
       'clear': {'side': 4, 'beyond': 5, 'taper': 0, 'bushes': False}}
 # THE ROUGH SIDE (w2r, 'Jolene AFB 02R/20L': on the RIGHT of a pilot landing 02 - toward the NE end - the SE side, v < 0):
 # FIRM MUD (SNOW-MUD's surface 11, 'a drying clay strip') with the DIRT-STRIP micro-relief at chaos 0.65 (ISO 8608 class
-# D-E: ruts, lumps, holes with puddles, 2 avoidable hazards per 100 m), 820 x 15 m, its edges 7.5 m off the concrete's
-W2R = {'id': 'w2r', 'name': 'Jolene AFB 02R/20L', 'u': -160.0, 'v': -24.0, 'len': 820.0, 'wid': 15,
+# D-E: ruts, lumps, holes with puddles, 2 avoidable hazards per 100 m), 450 x 15 m, its edges 7.5 m off the concrete's
+# (450 m, not 820: a bumpy strip is drawn refined to its bumps' ~9 cm rows - 820 m cost 630 k triangles in HOME's 3 km,
+# GATE TERRAINMATCH's budget; a Cub's STOL roll is ~150 m)
+W2R = {'id': 'w2r', 'name': 'Jolene AFB 02R/20L', 'u': -135.0, 'v': -24.0, 'len': 450.0, 'wid': 15,
        'look': 'mud', 'surface': 11, 'band': 3, 'falloff': 30,
        'micro': {'chaos': 0.65, 'seed': 220, 'puddles': 0.7, 'hazards': 2},
        'pav': {'marks': 'none', 'mossK': 0.7, 'wet': 0.6},
@@ -191,11 +193,30 @@ def build(rec):
     W = lambda pts: [[R(x), R(z)] for (x, z) in (P(u, v) for (u, v) in pts)]
     g0, g1 = MUD['gap']
     mudP = {'draw': {'look': MUD['look'], 'z': 0, 'band': MUD['band'], 'fade': MUD['fade']}, 'wheels': {'surface': MUD['surface']}}
-    # the mud's inner edge straight-ish (1 m off the concrete, the concrete's own side fade does the blend), its outer ragged
-    for k, (a, b) in enumerate([(MUD['u0'], g0), (g1, MUD['u1'])]):
-        pts = [(a, MUD['v0']), (b, MUD['v0']), (b, MUD['v1'] - 4), (a, MUD['v1'])]
-        poly = ragged(pts, 11 + k, 5.0, keep=(0,))   # the inner edge (0) straight along the concrete
-        L['areas'].append({'id': 'afb_mud%d' % k, 'name': '02/20 mud side %s' % ('NE' if k == 0 else 'SW'), 'poly': W(poly), 'props': json.loads(json.dumps(mudP))})
+    # the mud's inner edge straight (past the concrete's band), its outer ragged. IN PIECES of ~120 m overlapping 4 m: a
+    # polygon pavement is a 2 m grid over its WORLD-AXIS box (pavement.js polyGeometry), and one 1.25 km piece lying at
+    # 114 deg was a 550 x 1 150 m grid - 509 k triangles, most of them past its fade (GATE TERRAINMATCH's budget)
+    # the outer edge: every ~35 m along, broken by up to 5 m (the same hash as ragged), the v1 - 4 .. v1 slope kept
+    outer = []
+    for i in range(int((MUD['u1'] - MUD['u0']) // 35) + 1):
+        u = MUD['u0'] + i * 35.0
+        j1 = (math.sin((i + 1) * 12.9898 + 11 * 78.233) * 43758.5453) % 1.0
+        outer.append((u, MUD['v1'] - 4 * (u - MUD['u0']) / (MUD['u1'] - MUD['u0']) + (j1 - 0.5) * 10.0))
+    def outer_v(u):
+        P2 = outer + [(MUD['u1'], MUD['v1'] - 4)]
+        for (ua, va), (ub, vb) in zip(P2, P2[1:]):
+            if ua <= u <= ub: return va + (vb - va) * (u - ua) / ((ub - ua) or 1)
+        return MUD['v1']
+    k = 0
+    for (a, b) in [(MUD['u0'], g0), (g1, MUD['u1'])]:
+        n = max(1, int(round((b - a) / 120.0)))
+        for i in range(n):
+            pa, pb = a + (b - a) * i / n - (4 if i > 0 else 0), a + (b - a) * (i + 1) / n + (4 if i < n - 1 else 0)
+            ins = [u for (u, v) in outer if pa < u < pb]
+            top = [(pb, outer_v(pb))] + [(u, outer_v(u)) for u in sorted(ins, reverse=True)] + [(pa, outer_v(pa))]
+            poly = [(pa, MUD['v0']), (pb, MUD['v0'])] + top
+            L['areas'].append({'id': 'afb_mud%02d' % k, 'name': '02/20 mud side', 'poly': W(poly), 'props': json.loads(json.dumps(mudP))})
+            k += 1
     T = TRACK
     L['areas'].append({'id': 'afb_track', 'name': '02/20 track to road r4', 'poly': W([(T['u'] - T['w'] / 2, T['v0']), (T['u'] + T['w'] / 2, T['v0']), (T['u'] + T['w'] / 2 + 1, T['v1']), (T['u'] - T['w'] / 2 - 1, T['v1'])]),
                        'props': {'draw': {'look': 'dirt', 'z': 1, 'band': 2, 'fade': 3}, 'wheels': {'surface': 6}}})

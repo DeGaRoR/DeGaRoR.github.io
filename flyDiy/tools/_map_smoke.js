@@ -198,7 +198,10 @@ module.exports = function mapSmoke(html, phone) {
     const a = M.aeros[id], d = MM.designators(a).slice().sort().join('/'), named = /(\d{2}[LRC]?\/\d{2}[LRC]?)$/.exec(a.name)[1];   // (AFB-0220: a parallel's side letters, 02R/20L)
     need(d === named, a.id + '\'s designators ' + d + ' are not its name\'s ' + named);
     const g = (new RegExp('<g class="mmRwy" data-place="HOME" data-rwy="' + id + '"[\\s\\S]*?</g>').exec(o8.svg) || [''])[0];
-    need(g && MM.designators(a).every(n => g.includes('>' + n + '</text>')) && (g.match(/<line /g) || []).length >= (a.surface.key === 'concrete' || a.surface.key === 'asphalt' ? 9 : 2), id + ' is not drawn close up with its centreline, threshold bars and designators (a soft strip: its two edges)');   // (AFB-0220: 02R/20L, firm mud, at the HOME place)
+    // (AFB-0220: the designators where the map's own LOD rule labels a strip - its length on screen over LOD.desigPx at this
+    //  zoom, near = s / mpp - so a short parallel (02R/20L, 450 m) is drawn without them; a soft strip draws its two edges)
+    const labelled = a.len * (fit * 8 / pack.mpp) > MM.LOD.desigPx;
+    need(g && (!labelled || MM.designators(a).every(n => g.includes('>' + n + '</text>'))) && (g.match(/<line /g) || []).length >= (a.surface.key === 'concrete' || a.surface.key === 'asphalt' ? 9 : 2), id + ' is not drawn close up with its centreline, threshold bars and designators (a soft strip: its two edges)');
   }
   for (const a of Object.values(M.aeros)) if (/\d{2}[LRC]?\/\d{2}[LRC]?$/.test(a.name)) need(MM.designators(a).slice().sort().join('/') === /(\d{2}[LRC]?\/\d{2}[LRC]?)$/.exec(a.name)[1], a.id + ' designators');
   const wet = MM.overlayOf(M, st, pack, { s: 2.4, fit, tx: 800 - ((360 - pack.x0) / 12) * 2.4, ty: 450 - ((-3661 - pack.z0) / 12) * 2.4 });
