@@ -315767,3 +315767,8 @@ the next steps).
 - **LIGHT WEATHERING, TRIED** (the user: "try light weathering too"): spec.finish.wear 0.25 on the Retro van and the
   roadster renders a fine streaking and a dulled gloss, the livery readable; NOT saved into the builds (the van's is 0,
   the roadster's absent) - a one-key change when wanted.
+- **RECONCILE NOTE (TOW-LAUNCH, 13 Nov 16:24)**: the car deck (fit.kind 'car', folding ramps, Tr.ramp 'down', from
+  42881221c) now lives in TOW-LAUNCH's reworked src/vehicle/trailer_model.js on claude/tow-launch-trailer-look
+  522f7c7b8 (house-kit materials, UVs in metres, an atlas UV set, baked AO; the planks real boards through trlPlankUV;
+  GATE TRAILER's MODEL row builds the deck). At the reconcile TAKE THEIRS for trailer_model.js; a later deck change goes
+  on top of it (a new plank through trlPlankUV). tools/convoy_shot.js stays this branch's.
