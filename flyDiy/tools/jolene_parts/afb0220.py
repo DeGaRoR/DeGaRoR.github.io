@@ -179,13 +179,14 @@ for k, (u, rc) in enumerate([(640, 11.0), (1120, 9.0)]):
     AREAS.append(area('clearing%d' % k, blob(u, -78.0 - rc * 0.8, rc, rc, 50 + k, n=14, rough=0.3), draw={'look': 'dirt', 'band': 1, 'z': 1}, exclude={'what': ['trees']}))
 
 # ---- 4. THE FOREST TAKING OVER: the tree system's planting, scrub first, then the wood ------------------------------
-AREAS.append(area('east_scrub', band_poly(40, 1660, lambda u: -48.0 + wob(u / 300, 60, 5.0), lambda u: (-27.5 if LANE_U0 - 10 < u < LANE_U1 + 10 else -15.0) + wob(u / 150, 61, 1.5), step=20),
+# (from u 90: w2's own tie-down rings round its NE end stay clear of it - fleet_spots.js --cook)
+AREAS.append(area('east_scrub', band_poly(90, 1660, lambda u: -48.0 + wob(u / 300, 60, 5.0), lambda u: (-27.5 if LANE_U0 - 10 < u < LANE_U1 + 10 else -15.0) + wob(u / 150, 61, 1.5), step=20),
                   cover={'code': None, 'veg': SCRUB}))
-AREAS.append(area('east_wood', band_poly(40, 1660, lambda u: -95.0 + wob(u / 280, 62, 6.0), lambda u: -48.0 + wob(u / 300, 60, 5.0), step=20),
+AREAS.append(area('east_wood', band_poly(90, 1660, lambda u: -95.0 + wob(u / 280, 62, 6.0), lambda u: -48.0 + wob(u / 300, 60, 5.0), step=20),
                   cover={'code': None, 'veg': WOOD}))
-AREAS.append(area('west_scrub', band_poly(60, 1640, lambda u: 42.0 + wob(u / 260, 63, 5.0), lambda u: 58.0 + wob(u / 320, 64, 5.0), step=20),
+AREAS.append(area('west_scrub', band_poly(90, 1640, lambda u: 42.0 + wob(u / 260, 63, 5.0), lambda u: 58.0 + wob(u / 320, 64, 5.0), step=20),
                   cover={'code': None, 'veg': SCRUB}))
-AREAS.append(area('west_wood', band_poly(60, 1640, lambda u: 58.0 + wob(u / 320, 64, 5.0), lambda u: 100.0 + wob(u / 280, 65, 6.0), step=20),
+AREAS.append(area('west_wood', band_poly(90, 1640, lambda u: 58.0 + wob(u / 320, 64, 5.0), lambda u: 100.0 + wob(u / 280, 65, 6.0), step=20),
                   cover={'code': None, 'veg': WOOD}))
 
 # ---- 5. THE CRASH PLAYGROUND, NE to SW (the west side) --------------------------------------------------------------
@@ -257,6 +258,9 @@ RUNWAYS = [{'id': PREFIX + 'rough', 'name': 'Jolene AFB 02/20 rough side', 'c': 
             'surface': 6, 'look': 'dirt', 'band': 1.5, 'pav': {'wet': 0.7}, 'crossfall': 0, 'disp': [0, 0], 'papi': [False, False],
             'falloff': 6, 'site': None, 'pattern': None, 'profile': LANE_PROFILE, 'approach': None,
             'clear': {'side': 3, 'beyond': 10, 'taper': 0, 'bushes': True},
+            # unmaintained: no windsock on its mast (the user's toppled one), no tie-down spots (the fleet's cook put them on the
+            # heaved slabs) - the stage keys 27_premises stageAero reads off any runway entry
+            'sock': False, 'ties': False,
             # the bumps (26b_strip_micro.js): chaos 0.55 - between w8's 0.4 (Pilot-vetted) and a rough bush strip's 0.8; class
             # D roughness, ruts ~6.6 cm, lumps ~4.4 cm, two hazards to see and avoid, the swell's long rolls ~16 cm. MUD: the
             # snow-mud branch's wet clay is not on master - a wet dirt look stands in (pav.wet 0.7); swap the look when it lands
