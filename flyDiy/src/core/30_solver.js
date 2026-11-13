@@ -502,6 +502,17 @@ function makeSim(def, world) {
     const i3 = i * 3, vn = v[i3] * nx + v[i3+2] * nz, tx = v[i3] - vn * nx, ty = v[i3+1], tz = v[i3+2] - vn * nz;
     const st = Math.sqrt(tx * tx + ty * ty + tz * tz);
     if (st > 0.05) scuffAdd(i, 0.5 * F * st * dt, tx / st, ty / st, tz / st, -nx, 0, -nz, false);
+    // G4101 (CRASH-LOOK, the user 13 Nov: "if it touches anything, the scuff goes on"): the PRESS - the work of the
+    // approach into the bark (F x the speed into it), no direction (a mark, not a streak: it lowers the record's coherence)
+    if (vn < -0.05) scuffAdd(i, F * -vn * dt, 0, 0, 0, -nx, 0, -nz, false);
+  }
+  // G4101: THE NOSE'S MARK - the crushable nose (nosePass) pushes on its thrust nodes and never touched the record: a
+  // nose into a trunk or ploughing the ground left no scuff on the cowl (a 3 m/s taxi into a trunk: nothing drawn). Its
+  // work - the approach (F x the speed into the obstacle) and the slide (F x mu x the slip) - on each thrust node by its
+  // share, the slide's direction where it slid, pushed from the obstacle's side
+  function scuffNose(i, w, F, vin, sx, sy, sz, sp, nx, ny, nz, soft, dt) {
+    const wk = w * F * ((vin > 0 ? vin : 0) + GEN_NOSE.mu * sp) * dt;
+    if (wk > 0) scuffAdd(i, wk, sp > 0.05 ? sx / sp : 0, sp > 0.05 ? sy / sp : 0, sp > 0.05 ? sz / sp : 0, -nx, -ny, -nz, soft);
   }
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
@@ -2055,6 +2066,12 @@ function makeSim(def, world) {
         const i = TN[j], i3 = i * 3, w = NZ.wt[j];
         f[i3] += fx * w; f[i3+1] += fy * w; f[i3+2] += fz * w;
         if (tkPush !== null && onT) tkPush[i] += F * w;
+        if (DMG_ON) {                                // G4101: the nose's mark (the record only: no force, no state the step reads)
+          let sx = _nzV[0], sy = _nzV[1], sz = _nzV[2];
+          if (onT) { const vt = -sx * nz + sz * nx; sx = -vt * nz; sy = 0; sz = vt * nx; } else sy = 0;
+          scuffNose(i, w, F, vin, sx, sy, sz, Math.sqrt(sx * sx + sy * sy + sz * sz), nx, ny, nz,
+            !onT && SCUFF_SOFT[world && world.surface ? world.surface(gx, gz) : 0] === 1, dt);
+        }
       }
       cIx += fx * dt; cIy += fy * dt; cIz += fz * dt;
       if (onT) _tkHits++;
