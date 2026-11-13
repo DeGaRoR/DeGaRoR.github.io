@@ -174,6 +174,11 @@ const GROUP = ['9b · floats', [
     ['fltSpread',  'spreader bars',       0, 1, 1, on],
     ['fltSpreadAft','aft spreader (aft of the step)', 0.10, 2.40, 0.01, onM],
     ['fltWires',   'cross wires',         0, 1, 1, on],
+    // FLOAT-LADDER (13 Nov, the user on the PC-6's Wiplines: "an option for generating these reinforcements on the floats
+    // struts, I guess doubling as a ladder"): fore-and-aft rails a side, front strut to rear strut, the steps up from the
+    // float to the cabin. ABSENT at 0 (no saved build gains the key)
+    ['fltLadder',  'step rails on the struts (a ladder)', 0, 3, 1, ['none', 'one rail', 'two rails', 'three rails'],
+     { absent: 0, when: P => +P.gearFloats }],
   ], on],
 ]];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
@@ -1206,6 +1211,29 @@ PAGE.post = ctx => {
     // the fuselage fittings: a lug pair at each root
     for (const r of (rFf === rF ? [rF, rA] : [rFf, rF, rA])) GK.boxIn(hg, r, [0.03, 0.012, 0.03], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
     if (+P.fltWires) wire(d.fwdIn, rA);    // the drag wire
+  }
+  // FLOAT-LADDER (the row above): on each side, rails at 1/(n+1) .. n/(n+1) of the front strut's rise, each from the
+  // front strut to the rear strut at the same height, run on 0.12 m past both (the photographs: the rails overhang
+  // the struts fore and aft). Round tubes in the struts' paint. DRAWN, NOT FLOWN: their ends sit mid-strut, never on
+  // a physics node, so they are not in rec.members (the join's contract: every member two-ended on nodes); a few kg
+  const nLad = Math.max(0, Math.min(3, Math.round(+P.fltLadder || 0)));
+  if (nLad) {
+    const lerp = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+    const at = (a, b, y) => lerp(a, b, Math.max(0, Math.min(1, (y - a[1]) / ((b[1] - a[1]) || 1e-9))));
+    const rr = Math.max(0.010, 0.7 * t), ov = 0.12 * sc;
+    rec.ladder = [];
+    for (const sd of [-1, 1]) {
+      const tag = sd > 0 ? 'L' : 'R', d = rec.deck[tag], R0 = roots[tag];
+      for (let i = 1; i <= nLad; i++) {
+        const y = d.fwdIn[1] + (R0.rFf[1] - d.fwdIn[1]) * i / (nLad + 1);
+        const p = at(d.fwdIn, R0.rFf, y), q = at(d.aftIn, R0.rA, y);
+        const v = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], L = Math.hypot(v[0], v[1], v[2]) || 1;
+        const a = [p[0] - v[0] / L * ov, p[1] - v[1] / L * ov, p[2] - v[2] / L * ov];
+        const b = [q[0] + v[0] / L * ov, q[1] + v[1] / L * ov, q[2] + v[2] / L * ov];
+        GK.tube(sg, a, b, rr, 10);
+        rec.ladder.push({ side: tag, y: +y.toFixed(3), len: +(L + 2 * ov).toFixed(3) });
+      }
+    }
   }
   if (+P.fltWires) {
     // the wire pulls: crossed in the transverse plane at each bar
