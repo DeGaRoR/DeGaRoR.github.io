@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 126f7fb20ca9b1e0
+// body-sha256: 4b58c16309f0f952
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36255,7 +36255,7 @@ function genEngPropD0(S, e0, PP0) {
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
-                               ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0 };
+                               ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -36832,6 +36832,14 @@ const GEN_RULES = {
   // fairing: the moulded nose shell with a rubber shoe bonded under it - the shell's mass (the fairing row) and no more
   // (the user, 13 Nov: "for real this is almost just the fairing")
   ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4 },
+  // THE TOW HOOK (A0 for the user, 13 Nov: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and make
+  // the TOW-LAUNCH car tow use it"): gear.towHook 'nose' | 'cg' (the gear page's towHook). A NOSE release (Tost E 85
+  // class: aerotow - the line pulls from ahead, the glider stays in line behind the tug) at the nose's keel; a CG release
+  // (Tost Europa G 88 class: winch and auto-tow - the pull near the CG lets the glider rotate into the climb, and it
+  // back-releases itself when overrun) `ahead` of the main wheel on the belly. kg / price per release INFERRED (as
+  // recalled: ~0.4 / ~0.6 kg with the ring and the cable). 61_gen_frame builds the hook's node on the hard structure and
+  // names it refs.towHook - what TOW-LAUNCH's line (src/vehicle/tow.js makeTowLine, `o.hook`) pulls on
+  towHook: { nose: { kg: 0.4, price: 450 }, cg: { kg: 0.6, ahead: 0.25, price: 650 } },
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
@@ -38972,6 +38980,10 @@ function clampSpec(spec) {
     if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';
     if (S.gear.ul !== true) delete S.gear.ul;     // (L6: the ultralight monowheel, GEN_RULES.ulGear - the key only when on)
   } else { delete S.gear.mono; delete S.gear.ul; }
+  // (THE TOW HOOK, GEN_RULES.towHook: a nose or a CG release on a wheeled gear - the key only when one is fitted; a spec
+  //  built from its cage without the join - a design bake - reads the cage's row, as the frame reads whProfile)
+  if (S.gear.towHook == null && S.cage && Math.round(+S.cage.towHook || 0) > 0) S.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+S.cage.towHook)) - 1];
+  if (!((S.gear.towHook === 'nose' || S.gear.towHook === 'cg') && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))) delete S.gear.towHook;
   // MONOWHEEL: THE SUNK MAINS - the share of the wheel's diameter inside the body (the cage's s1Sink, the join's); the
   // drag counts the rest, no leg in the stream. Absent at 0
   if (+S.gear.sink > 0) S.gear.sink = genClamp(+S.gear.sink, 0, 0.7); else delete S.gear.sink;
@@ -41583,6 +41595,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // WEIGHT STUDY L5: a HANGING NACELLE's wing sits on a hub (the mast's head): its carry-through is the hub fitting
   // (GEN_HANG.hubKg, billed in 3d) and its 'bracing' box the wing's own, built at GEN_HANG.boxK of its mass and springs
   const HUBPIN = !!(S.fuse && S.fuse.hang && S.wings && S.wings[0]);
+  let TOWH = -1;                                  // (the tow hook's node, built with the gear: refs.towHook)
   const HUBF = typeof GEN_HANG !== 'undefined' && GEN_HANG.boxK > 0 ? GEN_HANG.boxK : 1;
   // WEIGHT STUDY L6: THE ULTRALIGHT MONOWHEEL (gear.ul, on a monowheel only): its members at GEN_RULES.ulGear.linK
   const GUL = S.gear && S.gear.mono && S.gear.ul && GEN_RULES.ulGear && GEN_RULES.ulGear.linK > 0 ? GEN_RULES.ulGear : null;
@@ -44527,6 +44540,36 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
   const mWheel = CYCLE ? R.wheelCycleKg(S.gear.wheelR) : R.wheelKg(S.gear.wheelR);
   pt(GAL, mWheel + mFairMain); if (!MONO) pt(GAR, mWheel + mFairMain);
+  // THE TOW HOOK (GEN_RULES.towHook; gear.towHook 'nose' | 'cg'): the release's node on the centreline - at the nose
+  // ring's keel (aerotow), or on the belly `ahead` of the mains (winch, auto-tow) - tied to the HARD structure round it
+  // (weightless members, a soft shell's hard row: the keel tubes and, on a hanging nacelle, the mast's foot; the line
+  // pulls kN there, not on the poles), the release billed on it. refs.towHook names it for the tow line (tow.js)
+  TOWH = -1;
+  const HOOK = S.gear.towHook === 'nose' || S.gear.towHook === 'cg' ? S.gear.towHook : null;
+  if (HOOK && R.towHook && R.towHook[HOOK]) {
+    const K = R.towHook[HOOK], HB = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true, hard: true });
+    let hx, hy, anch;
+    if (HOOK === 'nose') {
+      const r0 = F[0], r1 = F[Math.min(1, F.length - 1)];
+      hx = ST[0].x + 0.05; hy = Math.min(P[r0.BL][1], P[r0.BR][1]) - 0.02;
+      anch = [r0.BL, r0.BR, r0.TL, r0.TR, r1.BL, r1.BR];
+      const kl = keelRef && keelRef.twin ? [keelRef.left[0], keelRef.right[0], keelRef.left[1], keelRef.right[1]]
+               : keelRef && keelRef.bottom ? [keelRef.bottom[0], keelRef.top[0], keelRef.bottom[1], keelRef.top[1]] : [];
+      // (on a SOFT shell - a fuselage row naming a hard one - the release bolts to the keel tubes alone: the pod's nose
+      //  ring is poles, and an aerotow's pull tore it (62 members on a 130 m car tow, scratch, 13 Nov))
+      if (M && M.hard && kl.filter(q => q != null).length) anch = kl.filter(q => q != null);
+      else anch = anch.concat(kl.filter(q => q != null));
+    } else {
+      hx = P[GAL][0] - (K.ahead || 0.25);
+      const ir = nearestRing(hx), rg = F[ir];
+      hy = 0.5 * (P[rg.BL][1] + P[rg.BR][1]) - 0.02;
+      anch = [rg.BL, rg.BR, rg.TL, rg.TR];
+      if (mastRef) anch = anch.concat(mastRef.foot, mastRef.nodes.slice(4, 8));
+    }
+    TOWH = N(hx, hy, 0, 'TOWH');
+    for (const a of [...new Set(anch)]) HB(TOWH, a);
+    pt(TOWH, K.kg); spend(K.price || 0);
+  }
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -45618,6 +45661,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     engine: engNodes, engineOf: engIdx, mains: GAL === GAR ? [GAL] : [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,   // (MONOWHEEL: one main)
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     ...(SKIDS.length ? { skids: SKIDS } : {}),       // TIP-SKID: the wingtip skids' shoes (the key only then)
+    ...(TOWH >= 0 ? { towHook: [TOWH] } : {}),       // THE TOW HOOK: the release's node, for the tow line (the key only then)
     ...(mastRef ? { mast: mastRef } : {}),          // THE HANGING NACELLE: the mast (3d; the key only then)
     ...(keelRef ? { keel: keelRef } : {}),          // ...and its keel beam (3e)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
