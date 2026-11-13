@@ -259,7 +259,7 @@ async function page() {
   const outside = (app.slice(0, i0) + app.slice(i1)).split('\n').filter(l => /\bstory[A-Z]\w*\(/.test(l.replace(/\/\/.*$/, '')));
   const loose = outside.filter(l => !/CAREER_DEV/.test(l));
   ok(outside.length >= 4 && !loose.length, 'every call into the story outside its half is behind CAREER_DEV', outside.length + ' calls' + (loose.length ? '; loose: ' + loose.map(l => l.trim().slice(0, 60)).join(' | ') : ''));
-  ok(/if \(CAREER_DEV && born && STORY_PAGE\)[\s\S]{0,400}storyNewCareer\(player/.test(app), 'a New career (careerNew in playerLoad) calls storyNewCareer, before the lift');
+  ok(/if \(CAREER_DEV && born && STORY_PAGE\)[\s\S]{0,900}storyNewCareer\(player, args\)/.test(app) && /\(skip \? storySkip\(player, args\) : storyNewCareer\(player, args\)\)/.test(app), 'a New career (careerNew in playerLoad) calls storyNewCareer (or storySkip: TUTORIAL-LOCK), before the lift');
   ok(/careerStopApply\(d, how, W, wrecked\); d = c\.doc; out\.career = c; \}\n[^\n]*\n\s*if \(CAREER_DEV && STORY_PAGE && d\.career && out\.career\) d = storyOnFlightEnd\(d, out\);/.test(app), 'the stop meets the story where careerOnStop runs (right after careerStopApply)');
   ok(/if \(STORY_PAGE\) window\.BENCH_CERTIFIED = storyCertified;/.test(half) && /typeof window\.BENCH_CERTIFIED === 'function'\) \{ try \{ window\.BENCH_CERTIFIED\(\); \}/.test(bench), "the bench's airworthiness certificate reaches the story (its hook set only under STORY_PAGE)");
   // STORY-1 (the user 29 Oct): nothing over the loading screen - Tim's band and the new UI's layers above #boot wait for
@@ -514,8 +514,8 @@ async function introRun() {
   const css = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
   const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'story_intro.js'), 'utf8');
   // ---- the source
-  ok((app.match(/stIntroArm = true/g) || []).length === 1 && /if \(CAREER_DEV && born && STORY_PAGE\)[\s\S]{0,600}if \(r\.ok\) \{ player = r\.doc; stIntroArm = true; \}/.test(app),
-     'the opening is armed by a New career alone (careerNew -> storyNewCareer in playerLoad); a Continue loads its saved document and never arms it');
+  ok(!/stIntroArm = true/.test(app) && (app.match(/stIntroArm = !skip/g) || []).length === 1 && /if \(CAREER_DEV && born && STORY_PAGE\)[\s\S]{0,1000}if \(r\.ok\) \{ player = r\.doc; stIntroArm = !skip; \}/.test(app),
+     'the opening is armed by a New career alone (careerNew -> storyNewCareer in playerLoad; never a skipped one: TUTORIAL-LOCK); a Continue loads its saved document and never arms it');
   ok(/if \(CAREER_DEV && STORY_PAGE\) storyIntroBoot\(\);/.test(app) && /const introAt = CAREER_DEV && STORY_PAGE && inGarage \? storyIntroFrame\(fdt\) : null;/.test(app) && /if \(introAt && WF\) WF\.worldUpdate\(introAt\);/.test(app),
      "it plays as the boot's screen lifts; the loop draws the world from the shed on the cabin's point (no second world)");
   ok(/if \(!GARAGE_ONLY && CAREER_DEV && STORY_PAGE && stIntroEl\) bootStep\('intro', 'the opening', \d+, \(\) => \(CAREER_DEV \? storyIntroPrepare\(\) : null\)\);/.test(app) &&

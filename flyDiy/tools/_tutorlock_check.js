@@ -65,6 +65,10 @@ ok(C.storyEditDiff(cub, JSON.parse(JSON.stringify(cub))).length === 0, '4 a file
 // the source rows
 const SRC = fs.readFileSync(path.join(ROOT, 'src', 'core', '79_story.js'), 'utf8');
 ok(/const STORY_JOB = 'field\.02';/.test(SRC) && /function storyCheckpoint\(doc, o\)/.test(SRC) && /function storySkip\(doc, o\)/.test(SRC), '5 the lock\'s pieces in 79_story.js');
+// 6 the page: the welcome's "New career, no tutorial" row sets the skip; the career's birth takes storySkip then (no opening)
+const WEL = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'welcome.js'), 'utf8'), APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+ok(/row\('careerSkip', '⏭', 'New career, no tutorial'/.test(WEL) && /W\.FLYDIY_CAREER_SKIP = true; done\('career'\);/.test(WEL), '6 the welcome offers "New career, no tutorial" (the skip flag set)');
+ok(/const skip = !!window\.FLYDIY_CAREER_SKIP/.test(APP) && /\(skip \? storySkip\(player, args\) : storyNewCareer\(player, args\)\)/.test(APP) && /stIntroArm = !skip;/.test(APP), '6 a skipped career is born on the checkpoint (storySkip), without the opening');
 if (process.argv.includes('--selftest')) {
   const bad = JSON.parse(JSON.stringify(d)); bad.wallet += 1;
   console.log('  selftest a wallet off by one: ' + (JSON.stringify(strip(bad)) !== JSON.stringify(strip(B)) ? 'red (ok)' : 'GREEN'));

@@ -584,8 +584,11 @@
     if (CAREER_DEV && born && STORY_PAGE) try {
       const taken = new Set(playerSlotNames());
       let slot = STORY_SLOTS.starter, i = 2; while (taken.has(slot)) slot = STORY_SLOTS.starter + ' ' + i++;
-      const r = CAREER_DEV ? storyNewCareer(player, { aeros: (world && world.aerodromes) || [], starter: slot }) : { ok: false, why: 'not a career' };
-      if (r.ok) { player = r.doc; stIntroArm = true; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
+      // TUTORIAL-LOCK: "New career, no tutorial" (welcome.js FLYDIY_CAREER_SKIP) starts on the tutorial's one checkpoint
+      // (storySkip), no opening; else the story from its first beat
+      const skip = !!window.FLYDIY_CAREER_SKIP, args = { aeros: (world && world.aerodromes) || [], starter: slot };
+      const r = CAREER_DEV ? (skip ? storySkip(player, args) : storyNewCareer(player, args)) : { ok: false, why: 'not a career' };
+      if (r.ok) { player = r.doc; stIntroArm = !skip; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
     } catch (e) { console.warn('flyDiy (story): the story did not start -', e && e.message); }
     // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
