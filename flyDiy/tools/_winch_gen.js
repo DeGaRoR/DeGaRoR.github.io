@@ -25,7 +25,8 @@
 // FRAME (the house frame, as every placed prop): metres, y up, the trailer's LENGTH along z with the drawbar at +z
 // (the end that points away from the launch point), the cable leaving at -z; the origin on the ground under the
 // middle of the deck. Overall dimensions are estimates for a twin-drum trailer winch (no manufacturer sheet was
-// reachable): deck 5.6 x 2.3 m, 7.1 m with the drawbar, the cab roof at ~2.9 m, ~3.5 t.
+// reachable): deck 5.6 x 2.3 m at 1.0 m (over the van's 0.9 m wheels), 7.2 m with the drawbar, the cab roof at ~3.0 m,
+// ~3.5 t.
 //
 // Browser: window.WINCH_GEN. Node: module.exports (needs a THREE: global.THREE or require('../vendor/three.min.js')).
 'use strict';
@@ -64,9 +65,13 @@ const PRESETS = {
 };
 
 // THE DIMENSIONS (m) - one place, so a placer, a gate and the physics read the same numbers
+// THE VAN'S WHEEL (the CAR session's Field Wagon, builds/vehicles/utility_2026-11.json spec.cage wh*): the slim carcass
+// (TYRE 2) widened 1.4 x, the rim at half the wheel's diameter, a pressed disc with six bolts, the cap and the valve
+const VAN_WHEEL = { whProfile: 2, whTread: 0, whRibs: 3, whRim: 4, whBolts: 6, whCap: 1, whValve: 1, whBrake: 0, whSlick: 0,
+                    whBulge: 1, whWide: 1.4, whRimD: 0.5 };
 const DIM = {
-  deckY: 0.80, deckT: 0.05, deckW: 2.30, deckZ0: -2.90, deckZ1: 2.70,
-  wheelR: 0.36, wheelW: 0.21, wheelX: 0.93, axleZ: [-0.55, 0.30],
+  deckY: 1.00, deckT: 0.05, deckW: 2.30, deckZ0: -2.90, deckZ1: 2.70, railX: 0.60,
+  wheelR: 0.45, wheelW: 0.21, wheelX: 0.95, axleZ: [-0.80, 0.22],
   drawZ: 4.20, hitchY: 0.52,
   engZ0: 1.10, engZ1: 2.62, engW: 1.40, engH: 1.25,
   drumZ: -1.55, drumHub: 0.62, drumCoreR: 0.40, drumFlangeR: 0.58, drumW: 0.32, drumX2: 0.47,
@@ -146,25 +151,40 @@ function build(P0) {
 
   // ---- THE TRAILER ----
   const hw = D.deckW / 2;
-  for (const s of [-1, 1]) box('chassis', 'steel', s * 0.78 - 0.05, Y - 0.26, D.deckZ0 + 0.05, s * 0.78 + 0.05, Y - D.deckT, D.deckZ1 - 0.05);
-  for (let z = D.deckZ0 + 0.15; z < D.deckZ1; z += 0.8) box('chassis', 'steel', -0.78, Y - 0.2, z - 0.04, 0.78, Y - D.deckT, z + 0.04);
+  const RX = D.railX;
+  for (const s of [-1, 1]) box('chassis', 'steel', s * RX - 0.05, Y - 0.26, D.deckZ0 + 0.05, s * RX + 0.05, Y - D.deckT, D.deckZ1 - 0.05);
+  for (let z = D.deckZ0 + 0.15; z < D.deckZ1; z += 0.8) box('chassis', 'steel', -hw + 0.05, Y - 0.12, z - 0.04, hw - 0.05, Y - D.deckT, z + 0.04);
   box('chassis', 'deck', -hw, Y - D.deckT, D.deckZ0, hw, Y, D.deckZ1);
   for (const s of [-1, 1]) box('chassis', 'trim', s * hw - 0.03, Y - 0.16, D.deckZ0, s * hw + 0.03, Y + 0.02, D.deckZ1);   // the side rails
   // the drawbar: an A-frame to the hitch eye, the jockey wheel, the safety chains' post
-  for (const s of [-1, 1]) tube('chassis', 'steel', [s * 0.72, Y - 0.15, D.deckZ1 - 0.1], [0, D.hitchY + 0.04, D.drawZ - 0.25], 0.055);
+  for (const s of [-1, 1]) tube('chassis', 'steel', [s * RX, Y - 0.15, D.deckZ1 - 0.1], [0, D.hitchY + 0.04, D.drawZ - 0.25], 0.055);
   box('chassis', 'steel', -0.08, D.hitchY - 0.04, D.drawZ - 0.45, 0.08, D.hitchY + 0.1, D.drawZ - 0.12);
   torus('chassis', 'steel', 0, D.hitchY + 0.03, D.drawZ - 0.05, 0.075, 0.022, Math.PI / 2);
   cyl('chassis', 'steel', 0.18, 0.55, D.drawZ - 0.75, 0.04, 0.75, 'y');
   cyl('chassis', 'rubber', 0.18, 0.11, D.drawZ - 0.75, 0.1, 0.07, 'x');
   cyl('chassis', 'trim', 0.18, 0.86, D.drawZ - 0.75, 0.025, 0.12, 'x');
-  // the tandem axles and their four wheels (the deck overhangs them, no mudguards)
+  // the tandem axles and their four wheels (the deck overhangs them, no mudguards). THE VAN'S WHEELS (the user, 13 Nov:
+  // "take the wheels from the cars sessions, get the ones from the van"): the CAR session's Field Wagon
+  // (builds/vehicles/utility_2026-11.json), drawn by the garage's own wheel builder (tools/_gear_gen.js GEAR_GEN.wheel)
+  // with the van's saved rows - VAN_WHEEL below, at its 0.45 m radius. Without the gear kit on the page, plain discs.
+  const GG = root.GEAR_GEN, GK = root.GEAR_KIT, VAN = P.vanWheels !== 0 && GG && GK && GG.wheel && GK.Bag;
+  const WMAT = { tyre: 'rubber', dark: 'rubber', hub: 'rim', alloy: 'rim', chrome: 'bright', brake: 'steel', brakefix: 'steel', fair: 'body', bronze: 'steel', steel: 'steel' };
   for (const az of D.axleZ) {
     box('chassis', 'steel', -D.wheelX, D.wheelR - 0.04, az - 0.04, D.wheelX, D.wheelR + 0.04, az + 0.04);
     for (const s of [-1, 1]) {
-      cyl('chassis', 'rubber', s * D.wheelX, D.wheelR, az, D.wheelR, D.wheelW, 'x', 28);
-      cyl('chassis', 'rim', s * (D.wheelX + D.wheelW / 2 + 0.002), D.wheelR, az, D.wheelR * 0.6, 0.012, 'x', 20);
-      box('chassis', 'steel', s * 0.78 - 0.04, D.wheelR + 0.04, az - 0.45, s * 0.78 + 0.04, D.wheelR + 0.1, az + 0.45);   // the leaf springs
+      if (VAN) {
+        const bags = {}; for (const k in WMAT) bags[k] = GK.Bag();
+        GG.wheel(bags, [s * D.wheelX, D.wheelR, az], [s, 0, 0], D.wheelR, { P: VAN_WHEEL });
+        for (const k in WMAT) bags[k].mesh(part('wheels'), MAT[WMAT[k]]);
+      } else {
+        cyl('wheels', 'rubber', s * D.wheelX, D.wheelR, az, D.wheelR, D.wheelW, 'x', 28);
+        cyl('wheels', 'rim', s * (D.wheelX + D.wheelW / 2 + 0.002), D.wheelR, az, D.wheelR * 0.6, 0.012, 'x', 20);
+      }
     }
+  }
+  for (const s of [-1, 1]) {   // the leaf springs along each rail, over both axles, hung on their shackles
+    box('chassis', 'steel', s * RX - 0.04, D.wheelR + 0.06, D.axleZ[0] - 0.45, s * RX + 0.04, D.wheelR + 0.12, D.axleZ[1] + 0.45);
+    for (const z of [D.axleZ[0] - 0.45, D.axleZ[1] + 0.45, (D.axleZ[0] + D.axleZ[1]) / 2]) box('chassis', 'steel', s * RX - 0.03, D.wheelR + 0.1, z - 0.03, s * RX + 0.03, Y - 0.24, z + 0.03);
   }
   // rear lamp bar, lamps and the number plate under the fairleads; the stabiliser legs dropped at the four corners
   box('chassis', 'steel', -hw + 0.1, Y - 0.32, D.deckZ0 - 0.04, hw - 0.1, Y - 0.22, D.deckZ0 + 0.02);
@@ -335,7 +355,7 @@ function build(P0) {
 // the bounding numbers a placer reads (the YARD_KIT shape: L along z, W along x, H up), with the cable wound in
 const KIT = { L: DIM.drawZ - DIM.deckZ0 + 0.1, W: DIM.deckW, H: DIM.deckY + DIM.cabH + 0.3 };
 
-const API = { DEF, ROWS, PRESETS, PAINTS, POWERS, DIM, KIT, build };
+const API = { DEF, ROWS, PRESETS, PAINTS, POWERS, DIM, KIT, VAN_WHEEL, build };
 root.WINCH_GEN = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);

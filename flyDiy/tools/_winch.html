@@ -42,7 +42,7 @@ button.chip { font: 500 14px var(--f-body); color: var(--fg); background: transp
 button.chip:hover { border-color: var(--accent) }
 button.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent) }
 button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
-.stills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
+.stills { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
 .stills figure { margin: 0; display: grid; gap: 4px }
 .stills img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border: 1px solid var(--rule); border-radius: 4px; display: block; background: var(--panel) }
 .stills figcaption { font: 12px var(--f-mono); color: var(--muted) }
@@ -91,7 +91,7 @@ body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .h
     <section>
       <h2>What you are looking at</h2>
       <ul class="parts">
-        <li><b>Trailer</b><p>Tandem-axle chassis with chequer-plate deck, A-frame drawbar, jockey wheel and four stabiliser legs. It is parked with the drawbar pointing away from the launch point.</p></li>
+        <li><b>Trailer</b><p>Tandem-axle chassis on leaf springs, chequer-plate deck, A-frame drawbar, jockey wheel and four stabiliser legs. The wheels are the Field Wagon van's, from the garage's own wheel builder. It is parked with the drawbar pointing away from the launch point.</p></li>
         <li><b>Engine</b><p>Up front in a louvred housing, radiator grille forward, exhaust stack up the side. Classic club winches run a big petrol V8; the presets also show a diesel and an electric build. A propshaft and gearbox drive the drum shaft.</p></li>
         <li><b>Drums</b><p>Two narrow, large-diameter drums on one transverse shaft, each with its own disc brake. One drum launches while the other cable is towed back out, so launches alternate.</p></li>
         <li><b>Levelwinds</b><p>A carriage behind each drum that runs side to side on two bars, laying the cable evenly as it comes in.</p></li>
@@ -106,7 +106,8 @@ body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .h
       <table>
         <tr><td>Deck, length × width</td><td>5.6 × 2.3 m</td></tr>
         <tr><td>Overall, with drawbar</td><td>7.2 m</td></tr>
-        <tr><td>Cab roof height</td><td>2.8 m</td></tr>
+        <tr><td>Cab roof height</td><td>3.0 m</td></tr>
+        <tr><td>Wheels</td><td>Ø 0.90 m, the Field Wagon van's</td></tr>
         <tr><td>Drum core / flange</td><td>Ø 0.80 / 1.16 m</td></tr>
         <tr><td>Cable</td><td>steel or synthetic, ≤ 10 mm</td></tr>
         <tr><td>Cable laid out</td><td>about 1 km</td></tr>
@@ -131,6 +132,8 @@ body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .h
 
 <script src="../vendor/three.min.js"></script>
 <script src="../src/viewer/aeroweather.js"></script>
+<script src="_gear_kit.js"></script>
+<script src="_gear_gen.js"></script>
 <script src="_winch_gen.js"></script>
 <script src="_winch_weather.js"></script>
 <script>
@@ -175,7 +178,8 @@ body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .h
   const WX = window.WINCH_WX;
   let PIN = {}; try { PIN = JSON.parse(QS.get('pin') || '{}'); } catch (e) { PIN = {}; }   // ?pin={"dust":0} forces layers (a bench read)
   // which weathering a build comes with (the old club winch is tired, the new electric is new)
-  const WX_OF = { 'club twin-drum': 'club', 'single-drum': 'club', 'electric': 'new', 'old club winch': 'tired' };
+  // THE WINCH'S LOOK (the user, 13 Nov: "middle option"): every build comes as the club's, a few seasons on the field
+  const WX_OF = { 'club twin-drum': 'club', 'single-drum': 'club', 'electric': 'club', 'old club winch': 'club' };
   let macro = Object.assign({}, WX.PRESETS[QS.get('wx')] || WX.PRESETS.club);
   WX.onLoad = () => draw();
   function rebuild() {
