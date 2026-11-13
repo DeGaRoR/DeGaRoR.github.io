@@ -37,9 +37,9 @@
    "len": 1000,
    "wid": 18,
    "surface": {
-    "key": "dirt",
-    "word": "dirt",
-    "cls": "hard"
+    "key": "mud",
+    "word": "mud",
+    "cls": "mud"
    },
    "elev": 29,
    "altiport": false
