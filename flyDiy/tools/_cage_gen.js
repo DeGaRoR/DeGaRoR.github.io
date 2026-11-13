@@ -5004,8 +5004,26 @@ function cageInterior(m, S) {
       const l = Math.hypot(n[0], n[1], n[2]) || 1;
       return [n[0]/l, n[1]/l, n[2]/l];
     };
+    // THE LINER GOES IN (PETREL-SKIN 13 Nov, the user: "I don't want the black part on the Petrel"): a face's normal is its
+    // winding's, and a section wound the other way (the Super Petrel's taper, aft of the cabin) pushed its liner OUTWARD -
+    // the carbon monocoque's shell stood 2-6 cm outside the skin it lines and hid it (and its livery) behind raw twill. Each
+    // face is turned to look away from the fuselage's axis at its own station (x = 0, the selection's mid height there)
+    // before the extrusion; a face already looking out - every section wound as the body is - is unchanged, and a face
+    // whose normal is mostly fore-aft (a cap) or that sits on the axis keeps its winding's.
+    const stY = new Map(), stK = z => Math.round(z * 10);
+    for (const fi of sel) for (const vi of F[fi].v) {
+      const p = V[vi], k = stK(p[2]), r = stY.get(k) || [1e9, -1e9];
+      stY.set(k, [Math.min(r[0], p[1]), Math.max(r[1], p[1])]);
+    }
+    const outward = (fi, n) => {
+      const p = F[fi].v.map(i => V[i]), c = [0, 1, 2].map(a => (p[0][a] + p[1][a] + p[2][a] + p[3][a]) / 4);
+      const r = stY.get(stK(c[2])); if (!r) return n;
+      const rx = c[0], ry = c[1] - (r[0] + r[1]) / 2;
+      if (Math.hypot(rx, ry) < 0.05 || Math.hypot(n[0], n[1]) < 0.3) return n;
+      return (n[0] * rx + n[1] * ry) < 0 ? [-n[0], -n[1], -n[2]] : n;
+    };
     for (const fi of sel) {
-      const n = fN(fi);
+      const n = outward(fi, fN(fi));
       for (const vi of F[fi].v) {
         const s = vN.get(vi) || [0, 0, 0];
         vN.set(vi, [s[0]+n[0], s[1]+n[1], s[2]+n[2]]);
