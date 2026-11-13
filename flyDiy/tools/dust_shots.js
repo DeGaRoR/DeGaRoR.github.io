@@ -143,9 +143,24 @@ async function runup(ev, cmd, shot, rec) {
     const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
     const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
       if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && ((r.result.exceptionDetails.exception && r.result.exceptionDetails.exception.description) || r.result.exceptionDetails.text))); return r.result.result.value; };
-    let shot = async v => { if (!STILLS) return; const s = await cmd('Page.captureScreenshot', { format: 'png' });
+    // (13 Nov, DIRT-STRIP/LOOK-1: on master 23ce68c1f the CDP screenshot of headless Chrome shows only the page's #cfe0ec - the
+    //  AA resolve pass's output composites see-through - so the frame is read by gl.readPixels right after FLYDIY_AA.render,
+    //  alpha forced opaque, as tools/dirt_strip_stills.js does; the CDP screenshot only if that grab fails)
+    const GRAB = `new Promise((res, rej) => { const R = (window.WORLD && WORLD.renderer) || (window.FLIGHT_PROBE && FLIGHT_PROBE.renderer && FLIGHT_PROBE.renderer()), AA = window.FLYDIY_AA; if (!R || !AA || !AA.render) return rej(new Error('no WORLD.renderer / FLYDIY_AA'));
+      const gl = R.getContext(), orig = AA.render; let done = false;
+      AA.render = function () { const r = orig.apply(this, arguments); if (done) return r; done = true; AA.render = orig;
+        try { const c = R.domElement, w = c.width, h = c.height, px = new Uint8Array(w * h * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+          const k = document.createElement('canvas'); k.width = w; k.height = h; const x = k.getContext('2d'), im = x.createImageData(w, h), D = im.data;
+          for (let y = 0; y < h; y++) { const so = (h - 1 - y) * w * 4, d = y * w * 4; for (let i = 0; i < w * 4; i += 4) { D[d + i] = px[so + i]; D[d + i + 1] = px[so + i + 1]; D[d + i + 2] = px[so + i + 2]; D[d + i + 3] = 255; } }
+          x.putImageData(im, 0, 0); res(k.toDataURL('image/png').split(',')[1]); } catch (e) { rej(e); }
+        return r; };
+      setTimeout(() => { if (!done) { done = true; AA.render = orig; rej(new Error('no FLYDIY_AA frame in 5 s')); } }, 5000); })`;
+    let shot = async v => { if (!STILLS) return;
+      let b64 = await ev(GRAB).catch(e => { say('grab failed (' + String(e.message || e).slice(0, 80) + '), the CDP screenshot'); return null; });
+      if (!b64) b64 = (await cmd('Page.captureScreenshot', { format: 'png' })).result.data;
       fs.mkdirSync(path.dirname(OUT), { recursive: true });
-      const f = OUT + '_' + ARM + '_' + v + '.png'; fs.writeFileSync(f, Buffer.from(s.result.data, 'base64')); say('wrote ' + f); };
+      const f = OUT + '_' + ARM + '_' + v + '.png', buf = Buffer.from(b64, 'base64'); fs.writeFileSync(f, buf);
+      say('wrote ' + f + (buf.length < 20000 ? ' - WARNING ' + buf.length + ' bytes, one colour? (a blank frame)' : '')); };
     await cmd('Page.enable'); await cmd('Runtime.enable');
     await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
     await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{localStorage.clear();' + (FROM ? 'localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');' : '') + '}catch(e){}' });
