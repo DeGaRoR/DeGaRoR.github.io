@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a283701a012871d6
+// body-sha256: 5227e5c9d1d627dd
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36981,6 +36981,15 @@ const PHYSICS_V = 7;
 // GATE ENERGYBASE caught this the moment the list landed: three of its cases
 // stopped differing from each other, because "panel tank", "dry" and "brimmed"
 // were all writing to a field that had stopped listening.
+// ENGINELESS (the LS4, 13 Nov - A0 for the user: "remove the engine completely ... engineless support"): A SAILPLANE.
+// `engines[0].none` (the cage's engine switch off, engOn 0: tools/_cage_join.js) - the aeroplane carries no powerplant:
+// resolveSpec resolves it to GEN_NO_POWERPLANT (no mass, no power, no price) and a propeller of nothing (no blades' mass,
+// no thrust, no price), the energy section holds no vessel (no tank, no pack), the frame bills no cowl and no exhaust
+// (no power). The entry stays (every reader of engines[0] keeps its shape: the mount, the station); absent, every build
+// is the bit it was.
+const GEN_NO_POWERPLANT = { price: 0, engine: { name: 'none (sailplane)', mass: 0, powerW: 0, rpm: 2300, aspiration: 'na', family: 'four', cooling: 'air', none: true },
+                            prop: { D: 0.20 } };
+function genUnpowered(S) { const e0 = S && S.engines && S.engines[0]; return !!(e0 && e0.none === true); }
 function genEnergyLift(S) {
   const f = S.fuel || {};
   const E = S.energy || (S.energy = {});
@@ -38667,6 +38676,7 @@ function clampSpec(spec) {
   fu.tailY = 0;
 
   for (const e of S.engines) {
+    if (!(e.none === true && e === S.engines[0])) delete e.none;   // (ENGINELESS: the first entry's flag, true or absent)
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
     if (e.pylonForm !== 'blade') delete e.pylonForm;  // HULL-B14: 'blade' or absent (the V legs)
     if (e.pylonAt !== 'roof' || !isFinite(+e.pylonFwd) || !+e.pylonFwd) delete e.pylonFwd; else e.pylonFwd = Math.max(-0.6, Math.min(0.8, +e.pylonFwd));   // HULL-B52
@@ -38817,7 +38827,8 @@ function clampSpec(spec) {
     // NO LIST? BUILD ONE FROM THE CAPACITY THE SPEC NAMES. genEnergyLift is
     // that rule, shared with the v6 migrator, so a lifted save and a
     // hand-written spec land on the same aeroplane.
-    if (!Array.isArray(E.vessels) || !E.vessels.length) genEnergyLift(S);
+    if (genUnpowered(S)) E.vessels = [];               // (ENGINELESS: no tank, no pack - nothing to feed)
+    else if (!Array.isArray(E.vessels) || !E.vessels.length) genEnergyLift(S);
     let total = 0;
     // TANK-FIT (Part 3): A POD ON A STRUT THE AEROPLANE DOES NOT HAVE IS NOT FITTED. It stays in the list (the
     // builder's fuel is never dropped silently: the editor says so, red, and a strut put back hangs it again), but it
@@ -39852,8 +39863,8 @@ function resolveSpec(spec) {
   const CU = S.engines[0] && S.engines[0].custom;
   // (ENGINE-DIALS: a custom row's default propeller is the generic 1.80 m, never the registry row's it fell back to -
   // the A-65's 1.88 for every custom engine; a drawn build always states its own D, so only a bare spec reads it)
-  const PP = CU
-    ? { price: CU.price, engine: CU, prop: { D: 1.80 } }
+  const PP = genUnpowered(S) ? GEN_NO_POWERPLANT
+    : CU ? { price: CU.price, engine: CU, prop: { D: 1.80 } }
     : REG;
   S.pplant = PP;
   // WHERE THE ENGINE'S MASS SITS (2026-09-05, the cgFwd half-session): the CG
@@ -39861,7 +39872,7 @@ function resolveSpec(spec) {
   // measured table (GEN_ENG_CG); null = no entry = the frame hangs the lump
   // on the mount nodes as it always did. A READING on the spec, never
   // written into the registry row (a registry dict is shared by every build).
-  S.engCgAft = (typeof genEngineCgAft === 'function' && PP)
+  S.engCgAft = genUnpowered(S) ? null : (typeof genEngineCgAft === 'function' && PP)   // (ENGINELESS: no engine's CG - the frame's old rig, no CG node of nothing)
     ? genEngineCgAft(S.engine, PP.engine) : null;
   // G445.8 (the MASS chantier, the forward item): THE INSTALLATION. A
   // registry row's `mass` is the DRY engine — the number a Lycoming sheet
@@ -39902,6 +39913,8 @@ function resolveSpec(spec) {
     pr.autoPitch = (pr.pitch === 'auto');
     pr.powerW = P;
     genPropSynth(pr, pr.autoPitch ? 'standard' : pr.pitch);
+    // (ENGINELESS: a propeller of nothing - no blades, no thrust, no price; the disc's D stays the clamp's least, unread)
+    if (genUnpowered(S)) { pr.powerW = 0; pr.Tstatic = 0; pr.kV2 = 0; pr.V0 = 0; pr.VPeak = 0; pr.mass = 0; pr.price = 0; pr.none = true; pr.name = 'none'; }
   }
   const propR = S.prop.D / 2;
   S.propR = propR;
@@ -46616,7 +46629,8 @@ function genFusCdA(S, fr) {
   const cw = S.cowl || {}, covers = cw.covers || {};
   const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
   let cool = 0, heads = 0;
-  if (!electric) {
+  const none = typeof genUnpowered === 'function' && genUnpowered(S);   // (ENGINELESS: no engine to cool, no stacks)
+  if (!electric && !none) {
     const k = th.family === 'turbine' ? D.kCool.turbine
             : th.cooling === 'liquid' ? D.kCool.liquid
             : radial ? (cowlOn ? D.kCool.radialRing : D.kCool.radialBare) : D.kCool.pressureCowl;
@@ -46645,7 +46659,7 @@ function genFusCdA(S, fr) {
   }
   junct += 3 * D.junct.tail;
   const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
-  const exh = electric ? 0 : D.exhStack * (radial ? 4 : 2) * nEng;
+  const exh = electric || none ? 0 : D.exhStack * (radial ? 4 : 2) * nEng;
   const out = {
     fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
