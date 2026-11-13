@@ -207,7 +207,8 @@
   "spareY": -0.222,
   "spareK": 0.85,
   "carTailAt": 1,
-  "spareStrap": 0
+  "spareStrap": 0,
+  "carBeamR": 1
  },
  "fuel": {
   "litres": 80,

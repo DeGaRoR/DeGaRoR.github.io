@@ -2575,6 +2575,117 @@ function carTailLamps(group, P, AF) {
   }
   group.add(root);
 }
+// CAR-3 (the user, 13 Nov: "rear suspension clips through rear tyre. Anchor it better, realistic"): carBeamR 1 - the
+// rear station drawn as a car's BEAM AXLE ON LEAF SPRINGS instead of the aeroplane's swinging-link V (whose tubes ran
+// from the flank, outboard of a wheel tucked into its arch, through the tyre to the hub). Per side, into that side's
+// leg group (a rigid unit: it rides its wheel as the leg did): the axle tube from the hub's back to the centre, a leaf
+// spring inboard of the brake plate (a pack of leaves of falling length on one curve through its two eyes and its seat,
+// underslung - under the axle - when the floor is too low for the pack on top), its front eye on a hanger and its rear
+// on a shackle to brackets on the floor, the two U-bolts and their plate clamping pack and tube, a telescopic shock
+// from an axle bracket up and forward to the floor; on the left side the differential (the banjo, its rear cover and
+// bolts, the pinion snout forward) and, driven, the propeller shaft forward with its universal joint. All from the
+// wheel's own box, the airframe's floor (AF.surf) and the unit's axle.
+function beamAxleSide(lg, lu, P, AF, wheelBox) {
+  const [hx, hy, hz] = lu.axle, sg = Math.sign(hx) || 1, R = lu.R || 0.3;
+  const dark = GG.gearMat('dark'), alloy = GG.gearMat('alloy'), chrome = GG.gearMat('chrome');
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const add = (geo, mat, pos, q) => { const m = new THREE.Mesh(geo, mat); if (pos) m.position.copy(pos); if (q) m.quaternion.copy(q); m.name = 'edBeamAxle'; lg.add(m); return m; };
+  const qY = (d) => new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.clone().normalize());
+  const rod = (a, b, r, mat, seg) => { const d = b.clone().sub(a), L = d.length(); if (L < 1e-4) return null;
+    return add(new THREE.CylinderGeometry(r, r, L, seg || 14), mat, a.clone().add(b).multiplyScalar(0.5), qY(d)); };
+  const X = V(1, 0, 0);
+  const botAt = z => { let b = Infinity; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(z, a * D2R); if (q && isFinite(q[1])) b = Math.min(b, q[1]); } return b; };
+  // the wheel's inboard face (its brake plate) and the spring's line just inboard of it
+  const xIn = wheelBox ? Math.min(Math.abs(wheelBox.min.x), Math.abs(wheelBox.max.x)) : Math.abs(hx) - 0.2;
+  const tubeR = Math.max(0.03, Math.min(0.045, 0.09 * R)), w = 0.055, t = 0.009, NL = 4, pad = 0.012;
+  const xs = Math.max(0.15, xIn - 0.06), Xs = sg * xs;
+  const Ls = Math.max(0.8, Math.min(1.3, 2.4 * R));
+  const zF = hz + Ls / 2, zR = hz - Ls / 2;
+  const ybF = botAt(zF), ybR = botAt(zR), ybC = botAt(hz);
+  const yEF = ybF - 0.07, yER = ybR - 0.11;                 // the front eye on its hanger, the rear on its shackle
+  // overslung (the pack on the axle) when the floor leaves the main leaf a camber of 1 cm or more, else under it
+  const packH = NL * t;
+  const yOver = hy + tubeR + pad + packH - t / 2;
+  const over = Math.min(yEF, yER) - yOver >= 0.01;
+  const yMC = over ? yOver : hy - tubeR - pad - t / 2;      // the main leaf's centre, at the seat
+  // the main leaf: the quadratic through the front eye, the seat and the rear eye
+  const quad = (z0, y0, z1, y1, z2, y2) => z => y0 * (z - z1) * (z - z2) / ((z0 - z1) * (z0 - z2)) + y1 * (z - z0) * (z - z2) / ((z1 - z0) * (z1 - z2)) + y2 * (z - z0) * (z - z1) / ((z2 - z0) * (z2 - z1));
+  const yMain = quad(zF, yEF, hz, yMC, zR, yER);
+  const leaf = (L, dy) => {           // a leaf of length L, dy under the main leaf, on the main leaf's curve
+    const n = 24, pos = [], idx = [];
+    for (let k = 0; k <= n; k++) { const z = hz - L / 2 + L * k / n, y = yMain(z) - dy;
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) pos.push(Xs + sx * w / 2, y + sy * t / 2, z); }
+    for (let k = 0; k < n; k++) { const a = k * 4, b = (k + 1) * 4;
+      for (let e = 0; e < 4; e++) { const e1 = (e + 1) % 4; idx.push(a + e, a + e1, b + e1, a + e, b + e1, b + e); } }
+    idx.push(0, 2, 1, 0, 3, 2); const l4 = n * 4; idx.push(l4, l4 + 1, l4 + 2, l4, l4 + 2, l4 + 3);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, dark); m.name = 'edBeamAxle'; lg.add(m); };
+  for (let i = 0; i < NL; i++) leaf(i === 0 ? Ls : Ls * (0.86 - 0.17 * (i - 1)), i * t);
+  // the rolled eyes, their rubber bushes and bolts
+  const qX = qY(X);
+  for (const [z, y] of [[zF, yEF], [zR, yER]]) {
+    const c = V(Xs, y + 0.018, z);
+    add(new THREE.TorusGeometry(0.019, 0.0055, 8, 20), dark, c, new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), X));
+    add(new THREE.CylinderGeometry(0.0135, 0.0135, w, 14), GG.gearMat('tyre'), c, qX);
+    add(new THREE.CylinderGeometry(0.007, 0.007, w + 0.04, 10), alloy, c, qX);
+    for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(0.011, 0.011, 0.008, 6), alloy, V(Xs + sx * (w / 2 + 0.017), c.y, z), qX);
+  }
+  // the front hanger: two cheeks either side of the eye, a plate on the floor
+  const cheeks = (z, yTop, yBot, dz) => { for (const sx of [-1, 1])
+      add(new THREE.BoxGeometry(0.006, yTop - yBot, dz), dark, V(Xs + sx * (w / 2 + 0.007), (yTop + yBot) / 2, z));
+    add(new THREE.BoxGeometry(w + 0.05, 0.008, dz + 0.04), dark, V(Xs, yTop - 0.004, z)); };
+  cheeks(zF, ybF, yEF - 0.005, 0.05);
+  // the rear shackle: a bracket on the floor, its upper pin, two links down and aft to the eye
+  const pinU = V(Xs, ybR - 0.035, zR + 0.03), pinL = V(Xs, yER + 0.018, zR);
+  cheeks(zR + 0.03, ybR, pinU.y - 0.02, 0.05);
+  for (const sx of [-1, 1]) { const o = V(sx * (w / 2 + 0.016), 0, 0);
+    const a = pinU.clone().add(o), b = pinL.clone().add(o), d = b.clone().sub(a);
+    add(new THREE.BoxGeometry(0.006, d.length() + 0.036, 0.03), dark, a.clone().add(b).multiplyScalar(0.5), qY(d)); }
+  add(new THREE.CylinderGeometry(0.007, 0.007, w + 0.05, 10), alloy, pinU, qX);
+  // the axle tube, the hub's back to the centre, a collar at the brake plate
+  rod(V(sg * (xIn + 0.004), hy, hz), V(0, hy, hz), tubeR, dark, 20);
+  add(new THREE.CylinderGeometry(tubeR * 1.9, tubeR * 1.25, 0.05, 20), dark, V(sg * (xIn - 0.02), hy, hz), qX);
+  // the seat and the U-bolts round pack and tube, their plate and nuts
+  const packTop = over ? yMC + t / 2 : hy + tubeR, packBot = over ? hy - tubeR : yMC - t / 2 - (NL - 1) * t;
+  add(new THREE.BoxGeometry(w + 0.012, pad, 0.08), dark, V(Xs, over ? hy + tubeR + pad / 2 : hy - tubeR - pad / 2, hz));
+  for (const dz of [-0.045, 0.045]) {
+    for (const sx of [-1, 1]) rod(V(Xs + sx * (w / 2 + 0.008), packTop + 0.008, hz + dz), V(Xs + sx * (w / 2 + 0.008), packBot - 0.03, hz + dz), 0.0065, alloy, 8);
+    rod(V(Xs - (w / 2 + 0.008), packTop + 0.008, hz + dz), V(Xs + (w / 2 + 0.008), packTop + 0.008, hz + dz), 0.0075, alloy, 8);
+    for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(0.011, 0.011, 0.012, 6), alloy, V(Xs + sx * (w / 2 + 0.008), packBot - 0.024, hz + dz));
+  }
+  add(new THREE.BoxGeometry(w + 0.04, 0.01, 0.13), dark, V(Xs, packBot - 0.013, hz));
+  // the shock: inboard of the spring, from a bracket behind the axle up and forward to the floor
+  const xk = sg * Math.max(0.1, xs - 0.10);
+  const lo = V(xk, hy - 0.035, hz - 0.06), zUp = hz + 0.24, hi = V(xk, botAt(zUp) - 0.035, zUp);
+  if (hi.y - lo.y > 0.12) {
+    const d = hi.clone().sub(lo), u = d.clone().normalize(), L = d.length();
+    const at = f => lo.clone().add(u.clone().multiplyScalar(L * f));
+    rod(at(0.06), at(0.52), 0.023, dark, 16);              // the body
+    rod(at(0.46), at(0.62), 0.008, chrome, 10);            // the rod
+    rod(at(0.56), at(0.94), 0.027, dark, 16);              // the dust shield
+    for (const c of [lo, hi]) { add(new THREE.CylinderGeometry(0.016, 0.016, 0.034, 12), dark, c, qX);
+      add(new THREE.CylinderGeometry(0.006, 0.006, 0.06, 8), alloy, c, qX); }
+    add(new THREE.BoxGeometry(0.05, 0.008, 0.07), dark, V(xk, hi.y + 0.031, zUp));                  // its floor bracket
+    rod(V(xk, hy, hz), lo.clone().add(V(0, -0.0, 0)), 0.012, dark, 8);                                 // its axle bracket
+  }
+  // the differential, the pinion snout, the propeller shaft (the left side draws them once)
+  if (sg > 0) {
+    const ry = Math.max(0.07, Math.min(0.11, ybC - hy - 0.012)), rz = 0.12;
+    const banjo = add(new THREE.SphereGeometry(1, 28, 18), dark, V(0, hy, hz)); banjo.scale.set(0.11, ry, rz);
+    const cover = add(new THREE.CylinderGeometry(0.085, 0.09, 0.02, 28), dark, V(0, hy - 0.005, hz - rz * 0.9), new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), V(0, 0, -1)));
+    for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2;
+      add(new THREE.CylinderGeometry(0.006, 0.006, 0.012, 6), alloy, V(0.078 * Math.cos(a), hy - 0.005 + 0.078 * Math.sin(a), hz - rz * 0.9 - 0.012), cover.quaternion); }
+    const z1 = hz + rz * 0.8, z2 = z1 + 0.13;
+    add(new THREE.CylinderGeometry(0.042, 0.06, z2 - z1, 20), dark, V(0, hy + 0.01, (z1 + z2) / 2), new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), V(0, 0, 1)));
+    add(new THREE.CylinderGeometry(0.05, 0.05, 0.014, 20), dark, V(0, hy + 0.01, z2 + 0.007), new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), V(0, 0, 1)));
+    // the universal joint and the shaft forward, rising gently to the gearbox under the floor
+    const uj = V(0, hy + 0.01, z2 + 0.035);
+    add(new THREE.BoxGeometry(0.05, 0.012, 0.012), alloy, uj); add(new THREE.BoxGeometry(0.012, 0.05, 0.012), alloy, uj);
+    const zEnd = hz + Math.min(1.6, Math.max(0.8, 3.2 * R)), yEnd = Math.min(botAt(zEnd) - 0.06, hy + 0.10);
+    rod(uj, V(0, yEnd, zEnd), 0.033, dark, 18);
+  }
+}
+
 function spareBuild(group, P, AF) {
   const localBox = o => { const b2 = new THREE.Box3(); o.updateMatrixWorld(true);
     o.traverse(m => { if (!m.isMesh || !m.geometry) return; if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
@@ -3279,6 +3390,14 @@ PAGE.post = ctx => {
   // distance (a centreline unit's forward), the leg and the wheel stay.
   // Display only: the join resets explodeD before it reads the layers.
   const exG = Math.max(0, P.explodeD || 0) * FS;
+  // CAR-3: carBeamR - the rearmost PAIR of units drawn as a beam axle on leaf springs (beamAxleSide)
+  const beamOn = Math.round(+P.carBeamR || 0) === 1 && AF && typeof AF.surf === 'function';
+  let beamU = [];
+  if (beamOn && legUnits.length) {
+    const zMin = Math.min(...legUnits.map(u => u.axle[2]));
+    beamU = legUnits.filter(u => Math.abs(u.axle[2] - zMin) < 0.03 && Math.abs(u.axle[0]) > 0.05 && !u.lever && !u.low);
+    if (beamU.length !== 2) beamU = [];
+  }
   for (const lu of legUnits) {
     // GR: the piston's own group (it slides up the leg as it retracts - the core's rule 'rigid' with `slide`)
     if (lu.low) { const lw = new THREE.Group(); lw.name = 'edMechLow' + lu.kind;
@@ -3286,6 +3405,12 @@ PAGE.post = ctx => {
       group.add(lw); }
     const lg = new THREE.Group();
     lg.name = 'edLeg' + lu.kind;
+    if (beamU.includes(lu)) {
+      let wg = null; group.children.forEach(o => { if (o.name === 'edWheel' + lu.kind) wg = o; });
+      beamAxleSide(lg, lu, P, AF, wg ? new THREE.Box3().setFromObject(wg) : null);
+      group.add(lg);
+      continue;
+    }
     for (const k in lu.bags) {
       if (k === 'lever') continue;                       // (WILGA-GEAR: the moving parts' own bags, meshed below)
       const mf = lu.bags[k].mesh(lg, legM(k, lu.bags[k]));

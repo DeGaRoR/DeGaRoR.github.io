@@ -1108,7 +1108,7 @@ const CAGE_PARTS = [
   { key: 'car', name: 'Car', parent: null, layer: 'gear',
     groups: [
       ['this build is a car', ['isCar']],
-      ['drive', ['carDrive', 'carChassisKg']],
+      ['drive', ['carDrive', 'carChassisKg', 'carBeamR']],
       ['wheel arches', ['archOn', 'archGap']],
       ['lamps', ['carTail', 'carTailAt']],
       ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],

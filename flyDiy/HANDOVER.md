@@ -315697,3 +315697,16 @@ the next steps).
   plane and its body fills the radius. The van: carTailAt 1 (x 0.873..0.950, just outboard of the lower hinges).
 - **CAR-3, NO STRAP ON THE VAN'S SPARE (the user: "drop the leather")**: NEW ROW spareStrap (absent 1 = the leather
   strap and buckle as before; 0 = none - the wheel on its carrier, stub and wing nut alone). The van: spareStrap 0.
+- **CAR-3, A BEAM AXLE ON LEAF SPRINGS (the user: "rear suspension clips through rear tyre. Anchor it better,
+  realistic")**: the van's rear station was the aeroplane's swinging-link V (s1Leg 1) - with the wheels tucked into
+  their arches its tubes ran from the flank, outboard of the tyre, to the hub inboard of it: 1376 of the leg's 2149
+  vertices inside each tyre. NEW ROW carBeamR (_gear_page.js after carDrive, claimed in 'drive'; absent 0 = the leg as
+  drawn): the rearmost PAIR of units (not a lever, not a retracting leg) drawn by _cage_gear.js beamAxleSide INTO each
+  side's own edLeg group (a rigid unit: it rides its wheel as the leg did; the physics, contacts and sheet unchanged):
+  the axle tube from the brake plate's back to the centre with its collar; a leaf spring 6 cm inboard of the plate, 4
+  leaves on one quadratic through the front eye (a hanger 7 cm under the floor), the seat and the rear eye (a shackle
+  11 cm under it), UNDERSLUNG when the floor leaves the pack on top less than 1 cm of camber (the van: under); rolled
+  eyes with rubber bushes and bolts; two U-bolts and their plate and nuts; a telescopic shock inboard, from behind the
+  axle up and forward to a floor bracket; on the left side the differential (banjo, rear cover and 10 bolts, pinion
+  snout, flange, universal joint) and the propeller shaft forward under the floor. Measured: 0 vertices inside either
+  tyre. The van: carBeamR 1; src/cars/car_utility.json rewritten (the spare's 5 cm on the box).

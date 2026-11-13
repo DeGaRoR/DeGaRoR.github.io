@@ -177,6 +177,8 @@ const WHEEL_ROWS = [
   // CAR (12 Nov): THE CAR SWITCH and the car-only rows (absent = an aeroplane; nothing changes for one)
   ['isCar', 'this build is a car', 0, 1, 1, ['no (an aeroplane)', 'yes (a car)']],
   ['carDrive', 'driven wheels', 0, 1, 1, ['rear', 'all four (4WD)'], { when: P => +P.isCar }],
+  // CAR-3: the rear station as a car's beam axle on leaf springs (absent = the leg as drawn)
+  ['carBeamR', 'rear suspension', 0, 1, 1, ['the leg as drawn', 'beam axle on leaf springs'], { when: P => +P.isCar || +P.carBeamR, absent: 0 }],
   ['carChassisKg', 'chassis mass (frame, axles, transfer case) kg', 0, 600, 5, { when: P => +P.isCar }],
   ['archOn', 'wheel arches (cut in the body)', 0, 3, 1, ['none', 'rear', 'front', 'rear and front'], { when: P => +P.isCar || +P.archOn }],
   ['archGap', 'wheel arch clearance (m)', 0.01, 0.15, 0.005, { when: P => +P.archOn }],
