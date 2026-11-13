@@ -147,6 +147,22 @@
    "scaleBy": "geometry.length (1368 px (the x3 sheet) = 10.90 m: the spinner tip to the elevator trailing edge)",
    "check": "float deck-to-keel 32 px = 0.77 m vs the 6100 row 0.78; the drawn hull 288 px = 6.9 m vs Wipaire 7.49 (-8 %): the sheet places the floats, Wipaire sizes them; the propeller is drawn short",
    "note": "origin = the spinner tip; the plan views are drawn at 45 deg (not read); the sheet is registered at 3.0 deg (clockwise, about the spinner tip): the drawing shows the airframe 3.0 deg nose-up on its floats (the user, 13 Nov: \"tilted ... 2 degrees ... anchored from your nose point\", then +0.5), then +0.5 again: 3.0 deg, the floats-to-fuselage angle too"
+  },
+  "top": {
+   "box": [
+    660,
+    645,
+    1500,
+    1500
+   ],
+   "ox": 1288,
+   "oy": 842,
+   "k": 67.2,
+   "rot": 135,
+   "flip": false,
+   "scaleBy": "geometry.span (356 px = 15.87 m on the 500 px sheet: the plan views are drawn at ~0.54 the side view scale)",
+   "note": "the right-hand plan (top) view, drawn at 45 deg: nose to the upper right",
+   "check": "at fltTrack 1.40 both drawn floats sit under ours (centrelines 2.8 m apart)"
   }
  },
  "marks": {
