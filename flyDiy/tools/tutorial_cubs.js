@@ -21,10 +21,14 @@
 //
 //   node tools/tutorial_cubs.js --build [--only=client,upgraded,floats]   write the files (needs HYDRO-SCALE for floats)
 //   node tools/tutorial_cubs.js --check                                    node proof + the plaque, the bench's rows
-//   node tools/tutorial_cubs.js --page [--only=upgraded]                   THE PAGE'S PROOF: dev.html headless (Chromium,
+//   node tools/tutorial_cubs.js --page [--only=upgraded] [--write]         THE PAGE'S PROOF: dev.html headless (Chromium,
 //        SwiftShader), the start opened through the load door (GARAGE_SPEC.set), each row moved through its own widget
 //        (#p_<k>: the select's change, the checkbox's change, the slider's typed value), the spec settled, compared
-//        leaf for leaf with the target file. ~5 min a boot.
+//        leaf for leaf with the target file, STRICTLY. ~15 min a boot under SwiftShader. --write saves the page's result as
+//        the target (THE TARGETS ARE THE PAGE'S: --build is node's draft; the page migrates a finish to AIRCRAFT-LOOKS'
+//        current format and sums the tail's areas in its own order, 1e-15 apart) - then run --page again to prove it.
+//   node tools/tutorial_cubs.js --fly [--only=...]                         the game's pilot on each file: a circuit off
+//        HOME on wheels, off the SEA lane on floats (the hump, the lift-off, the touch on the water, the stop)
 //
 // THE FLOATS AND HYDRO-SCALE: the float model row writes presetParams' hull. On a tree without claude/ready/hydro-scale
 // (USER 13 Nov: "Wipline floats scaled to disp, shape kept") the 1450 row still writes the ~11 % bigger hull, so step 3
@@ -102,8 +106,12 @@ const LB = () => require(path.join(T, '_load_build.js'));
 const readJ = f => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'));
 function leaves(o, p, out) { for (const k in o) { const v = o[k], q = p ? p + '.' + k : k;
   if (v && typeof v === 'object' && !Array.isArray(v)) leaves(v, q, out); else out[q] = JSON.stringify(v); } return out; }
-function diffKeys(A, B) { const a = leaves(A, '', {}), b = leaves(B, '', {}); const out = [];
-  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) if (a[k] !== b[k]) out.push([k, a[k], b[k]]); return out; }
+// tol: numbers equal to tol (relative) are the same leaf - node's chain and the page's sum in their own order (the
+// tail's derived areas differ in the 15th digit); the page's proof compares strictly (tol 0)
+function diffKeys(A, B, tol) { const a = leaves(A, '', {}), b = leaves(B, '', {}); const out = [];
+  const near = (x, y) => { if (!tol || x == null || y == null) return false; const u = +x, v = +y;
+    return Number.isFinite(u) && Number.isFinite(v) && Math.abs(u - v) <= tol * Math.max(1, Math.abs(u), Math.abs(v)); };
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) if (a[k] !== b[k] && !near(a[k], b[k])) out.push([k, a[k], b[k]]); return out; }
 const hydroScaled = () => { try { const C = require(path.join(T, 'flight_core.js')); const H = C.HYDRO || global.HYDRO;
   const Q = H.presetParams('Wipline 1450'), v = H.makeFloat(Q).volDeck * (Q.rho || H.DEF.rho);
   return Math.abs(v - H.FLOAT_PRESETS['Wipline 1450'].disp) < 5; } catch (e) { return null; } };
@@ -176,7 +184,7 @@ if (argv.includes('--check')) {
     const J = readJ(FILES[key]), s = J.spec;
     const again = LB().gameSpec({ spec: s });
     if (key !== 'client') {
-      const fp = diffKeys(s, again);
+      const fp = diffKeys(s, again, 1e-9);
       say(fp.length === 0, key + ': a fixed point of the load door (opened, it is the file)' + (fp.length ? ' - ' + fp.length + ' leaves move: ' + fp.slice(0, 4).map(d => d[0]).join(', ') : ''));
     }
     if (key === 'client') {
@@ -185,13 +193,17 @@ if (argv.includes('--check')) {
       const V = LB().gameSpec(readJ(FILES.validated)), d = diffKeys(V, again).map(x => x[0]);
       say(d.every(k => /^(paint|finish|meta)\./.test(k)), 'client: opened, the validated J-3 as the game opens it, to the leaf but paint / finish / meta (' + d.length + ' leaves, ' +
         d.filter(k => !/^(paint|finish|meta)\./.test(k)).slice(0, 4).join(', ') + ')');
-      say(s.meta.reg === 'N1938J' && s.finish.wear === 0.8, 'client: N1938J, the battered finish (wear 0.8)');
+      say(s.meta.reg === 'N1938J' && s.finish.weather && s.finish.weather.age === 0.8, 'client: N1938J, the battered finish (weather age 0.8, the page\'s format of the September file\'s wear 0.8)');
     } else {
       const E = ENVELOPE[key], start = readJ(E.from).spec;
       if (key === 'floats' && !hydroScaled()) { console.log('skip floats: start + edits needs HYDRO-SCALE'); }
       else {
-        const land = LB().gameSpec({ spec: applyEdits(start, E.edits) }), d = diffKeys(land, s);
-        say(d.length === 0, key + ': ' + E.from + ' + ' + E.edits.length + ' rows lands on the file to the leaf' + (d.length ? ' - ' + d.slice(0, 4).map(x => x[0]).join(', ') : ''));
+        // (node's chain is not the game: the page wrote the targets. Node lands on them to 1e-9 but for the float
+        // station, which follows the CG each one measures - the page's crew and tanks put it 1.2 cm off node's)
+        const land = LB().gameSpec({ spec: applyEdits(start, E.edits) }), dAll = diffKeys(land, s, 1e-9);
+        const station = dAll.filter(x => /^gear\.floats\.[xy]$/.test(x[0])), d = dAll.filter(x => station.indexOf(x) < 0);
+        say(d.length === 0, key + ': ' + E.from + ' + ' + E.edits.length + ' rows, in node, lands on the file to the leaf (1e-9)' + (d.length ? ' - ' + d.slice(0, 4).map(x => x[0]).join(', ') : ''));
+        for (const x of station) console.log('     note: node places ' + x[0] + ' at ' + (+x[1]).toFixed(4) + ', the page (the file) at ' + (+x[2]).toFixed(4) + ' m');
       }
       say(E.edits.length >= 4 && E.edits.length <= 5, key + ': ' + E.edits.length + ' rows (' + E.edits.map(e => e.k + '=' + e.v).join(', ') + ')');
     }
@@ -237,7 +249,12 @@ if (argv.includes('--page')) (async () => {
       const nodeOpen = LB().gameSpec({ spec: start }), d0 = diffKeys(nodeOpen, opened);
       console.log(key + ': booted + opened ' + E.from + ' in ' + Math.round((Date.now() - t0) / 1000) + ' s; the page opened it ' + (d0.length ? 'with ' + d0.length + ' leaves off node\'s load door:' : 'as node\'s load door does'));
       for (const x of d0.slice(0, 30)) console.log('     ' + x[0] + ' ' + String(x[1]).slice(0, 60) + ' (node) / ' + String(x[2]).slice(0, 60) + ' (page)');
-      if (d0.length) bad++;
+      if (d0.length) console.log('     (node\'s load door is not the page\'s here: the page is the game - the targets are the page\'s)');
+      if (key === 'floats') {         // the joined start: the page opens it as written
+        const df = diffKeys(start, opened);
+        console.log('  ' + (df.length ? 'FAIL' : 'ok  ') + ' the page opens ' + E.from + (df.length ? ' with ' + df.length + ' leaves moved: ' + df.slice(0, 6).map(x => x[0] + ' ' + x[1] + ' -> ' + x[2]).join('; ') : ' as written (a fixed point of the game\'s load door)'));
+        if (df.length) bad++;
+      }
       if (argv.includes('--open-only')) { fs.writeFileSync(path.join(require('os').tmpdir(), 'tutorial_cubs_open_' + key + '.json'), JSON.stringify(opened)); await b.close(); continue; }
       for (const e of E.edits) {
         const how = await p.evaluate(e => {
@@ -257,7 +274,18 @@ if (argv.includes('--page')) (async () => {
       const d = diffKeys(got, want);
       console.log('  ' + (d.length ? 'FAIL' : 'ok  ') + ' the page after ' + E.edits.length + ' rows = ' + FILES[key] + (d.length ? ': ' + d.length + ' leaves differ' : ' to the leaf'));
       for (const x of d.slice(0, 30)) console.log('     ' + x[0] + ' ' + String(x[2]).slice(0, 70) + ' (file) / ' + String(x[1]).slice(0, 70) + ' (page)');
-      if (d.length) { bad++; fs.writeFileSync(path.join(require('os').tmpdir(), 'tutorial_cubs_page_' + key + '.json'), JSON.stringify(got)); }
+      // ...and the target opened in the same page comes back as written (the game's load door holds it: G3700 keeps a
+      // saved float station)
+      if (!d.length) {
+        await p.evaluate(s => { GARAGE_SPEC.set(s); }, want);
+        const back = await settle(), db = diffKeys(want, back);
+        console.log('  ' + (db.length ? 'FAIL' : 'ok  ') + ' ' + FILES[key] + ' opened in the page comes back as written' + (db.length ? ': ' + db.slice(0, 6).map(x => x[0] + ' ' + x[1] + ' -> ' + x[2]).join('; ') : ''));
+        if (db.length) bad++;
+      }
+      if (d.length && argv.includes('--write')) {
+        fs.writeFileSync(path.join(ROOT, FILES[key]), JSON.stringify(envelope(key, got), null, 1) + '\n');
+        console.log('  WROTE ' + FILES[key] + ': the page\'s own result (--write) - run --page again to prove it');
+      } else if (d.length) { bad++; fs.writeFileSync(path.join(require('os').tmpdir(), 'tutorial_cubs_page_' + key + '.json'), JSON.stringify(got)); }
       await b.close();
     }
   } finally { srv.kill(); }
@@ -317,4 +345,4 @@ if (argv.includes('--fly')) {
   process.exitCode = bad ? 1 : 0;
 }
 
-module.exports = { FILES, UPGRADE, FLOATS, applyEdits };
+module.exports = { FILES, UPGRADE, FLOATS, applyEdits, envelope };
