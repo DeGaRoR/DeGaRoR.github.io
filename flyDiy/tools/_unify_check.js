@@ -7,11 +7,11 @@
 //             bush pilot: both; the club pilot, the student, the ham-fist: neither)
 //   STRIP     the strip decides, flown the game's way (TOUR's gameHost: the game's day, the shakedown, the line-up skip):
 //             HOME > tw_ski (Skyline Altiport, short) > HOME (long). The user's Cub (list:1) and the archetype cub, the
-//             expert: the FEEL short field at tw_ski (a no-device taildragger, a qualified person), the normal landing at
-//             HOME; the bush pilot: the feel short field; the club pilot (not qualified): G1936's short law, neither STOL
-//             nor feel - each on its To, NO GROUND LOOP (the strip-decides STOL technique ground-looped both Cubs there:
-//             FIT-PROCEDURE 25a25817), no fault. The Cessna 172 (list:50 F-HCSN, a trike), the expert, HOME > nv_strip
-//             (East Point): the strip-decides STOL technique, no ground loop, landed there or a clean divert
+//             expert: G1936's short law at tw_ski (a no-device taildragger: the feel stop ground-looped both Cubs there on
+//             the td_probe of 13 Nov, so it is no default), the normal landing at HOME; the bush pilot and the club pilot
+//             the same short law, neither STOL nor feel - each on its To, NO GROUND LOOP (the strip-decides STOL technique ground-looped both Cubs there:
+//             FIT-PROCEDURE 25a25817), no fault. The Cessna 172 (list:50 F-HCSN, a trike), the expert, HOME > tw_ski
+//             (380 m: short for it, longer than its landing run - East Point's 150 m is declined, G2450): the strip-decides STOL technique, no ground loop, landed there or a clean divert
 //   GLIDE     the glider rating decides: the motorglider, its motor off 280 m over Jolene, sent to Jolene - the expert
 //             (rated) flies the glider's circuit to its To ('completed'); the club pilot (unrated) has an EMERGENCY
 //             (said so, 'forced-landing') and lands on the field the glide reaches
@@ -74,11 +74,11 @@ const clean = x => x.L.ok && x.L.landedOn === x.L.to && !x.L.groundLoop;
 // (list:50, a trike) flies East Point (nv_strip), where a clean divert passes (the user: "if it can land it's good")
 // [what, build, person, order, the plan asked per leg, must land on its To]
 const STRIP = [
-  ['the user\'s Cub, the expert (Stig)', CUB, undefined, ['HOME', 'tw_ski', 'HOME'], [{ technique: 'short', stol: false, feel: true }, { technique: 'normal', stol: false, feel: false }], true],
-  ['the archetype cub, the expert', 'cub', undefined, ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: true }], true],
-  ['the user\'s Cub, the bush pilot (Megan)', CUB, 'bush', ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: true }], true],
+  ['the user\'s Cub, the expert (Stig)', CUB, undefined, ['HOME', 'tw_ski', 'HOME'], [{ technique: 'short', stol: false, feel: false }, { technique: 'normal', stol: false, feel: false }], true],
+  ['the archetype cub, the expert', 'cub', undefined, ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: false }], true],
+  ['the user\'s Cub, the bush pilot (Megan)', CUB, 'bush', ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: false }], true],
   ['the user\'s Cub, the club pilot (Brian)', CUB, 'club', ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: false }], true],
-  ['the Cessna 172 (list:50), the expert', C172, undefined, ['HOME', 'nv_strip'], [{ technique: 'short', stol: true, feel: false }], false],
+  ['the Cessna 172 (list:50), the expert', C172, undefined, ['HOME', 'tw_ski'], [{ technique: 'short', stol: true, feel: false }], false],
 ];
 for (const [what, file, prof, order, want, mustLand] of STRIP) {
   if (!go('STRIP')) continue;

@@ -576,7 +576,10 @@ function makePilot(sim, def, world, opts) {
   const stolOn = () => stolQual && !!(stolSheet() && stolSheet().on);
   // THE FEEL STOP's gate: a taildragger on wheels, the short-field technique, the law asked for
   // PILOT-UNIFY: the feel stop follows the feel arrival (ap.feelFld, planned in planArrival); A.tailStop 'law' turns both off
-  const feelLaw = () => (A.tailStop ?? 'feel') === 'feel';
+  // FEEL PROOF FAILED (td_probe 13 Nov 01:08, HOME,tw_ski,HOME: the user's Cub and the archetype cub on 'feel' touched down
+  // banked 28 / 25 deg and ground-looped, the roll 90 deg off the strip; on 'law' 0.8 deg, axis 7 deg, both legs clean):
+  // the G1936 short law stays the default, 'feel' is asked for by name
+  const feelLaw = () => (A.tailStop ?? 'law') === 'feel';
   const feelOn = () => feelLaw() && !!ap.feelFld && !trike && !sim.hydro && !!ap.appr && ap.appr.technique === 'short';
   let vAppr;                                  // G1302: the approach speed, the sheet's once first read
   const ap = {
@@ -625,6 +628,10 @@ function makePilot(sim, def, world, opts) {
   let wrHold = false, wrUp = false, wrLanded = false;   // wrLanded: G3329, the blades lowered on this landing run
   const go = (ph) => {
     if (ph !== ap.phase) ap.report.phases.push({ t: Math.round(ap.t * 10) / 10, phase: ph });
+    // PATIENCE FROM THE TAKE-OFF (Game, the HOME.2 page legs 13 Nov: list:50 w3>HOME taxied 227 s at w3, then 'gave-up,
+    // still in ROLLOUT at t=685 s' 210 m short of its stand - departFrom's route budget had been spent on the ground): the
+    // take-off roll gives the route its whole budget again, from now
+    if (ph === 'ROLL' && ap.phase !== 'ROLL' && ap.route && ap.budget) ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap.route.from, ap.route.to));
     ap.phase = ph; phaseT = 0;
     if (wrHold) { sim.ctl.wr = null; wrHold = false; }
     if (ph === 'ROLLOUT') wrLanded = false;
