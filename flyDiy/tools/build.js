@@ -432,7 +432,14 @@ const MANIFEST = {
          ['src/viewer', 'freight_strap.js'],
          // G2970 (CHARACTERS): THE CROWD - the passengers who walk to the door and board; fetched with the first
          // passengers at a stand (its cast and clips from src/chars/crowd_pack.json, media/), never before
-         ['src/viewer', 'crowd.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'crowd.js'],
+         // TOW-LAUNCH phase 1: THE DRIVE MODE - the Conquer '89 pickup's pack (src/cars/, its LODs), the vehicle (the shell,
+         // the driver, the island's roads as its graph: src/vehicle/, node-gated by GATE VEHICLE / DRIVE-TRIP) and the
+         // page's half (drive_mode.js) - fetched when the player asks to drive (the menu's Drive row, ?drive=1), never before:
+         // the aeroplane's core and the first load carry none of it
+         ['src/cars', 'cars_car.js'], ['src/cars', 'cars_lods.js'],
+         ['src/vehicle', 'vehicle.js'], ['src/vehicle', 'vehicle_drive.js'], ['src/vehicle', 'vehicle_island.js'], ['src/vehicle', 'tow.js'], ['src/vehicle', 'trailer.js'], ['src/vehicle', 'trailer_model.js'],
+         ['src/viewer', 'drive_mode.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
@@ -623,7 +630,7 @@ const MANIFEST = {
     // stands its planes in app.js's REF_MOUNT.bpGroup.
     // blueprint_library.js before it (G573.2): the prepared sheets, a plain
     // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
-              'wing_struct.js', 'garage.js', 'plane_thumb.js', 'plane_fiche.js', 'fiche_board.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
+              'wing_struct.js', 'vehicle_kind.js', 'garage.js', 'plane_thumb.js', 'plane_fiche.js', 'fiche_board.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
               'sim_host.js', 'sim_view.js', 'sim_link.js', 'sheet_link.js',
     // plane_thumb.js (G3800, the user's VIGNETTE) after garage.js: window.PLANE_THUMB, the plane cards' side profile -
     // drawn by the page's renderer once a saved build stands still (garage.js saveAs / loadSlot), the stock / candidate

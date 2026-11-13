@@ -304,6 +304,8 @@ const SIM_LINK = (() => {
     // ---- A FLIGHT: asked for, checked, then live ---------------------------------------------------
     function eligible(S) {
       if (S.curKey !== 'gen') return 'not the garage aeroplane (' + S.curKey + ')';
+      // TOW-LAUNCH: a glider on the tow flies inline - the line acts in the solver's substeps (sim.onSubstep), on the page's sim
+      if (typeof window !== 'undefined' && typeof window.FLYDIY_TOW_WANTED === 'function' && window.FLYDIY_TOW_WANTED()) return 'the glider tow (the line acts in the page\'s substeps)';
       if (!S.sim.hydro && !S.lastStart) return 'no start recorded (applyRoute never ran)';
       return null;
     }

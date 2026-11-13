@@ -76,9 +76,10 @@ const COWL_ROWS = [
   // ---- PROPER-COWLS: the side gills (the Carbon Cub's) ----
   { id: 'g_gill', name: 'Side gills', rows: [
     { k: 'gillOn', label: 'side gills (a raised panel of slanted slots, each flank)', lo: 0, hi: 1, step: 1 },
-    { k: 'gillN', label: 'slots', lo: 2, hi: 12, step: 1, when: 'P.gillOn>0' },
+    { k: 'gillN', label: 'slots', lo: 2, hi: 40, step: 1, when: 'P.gillOn>0' },   // (CAR-1: 12 -> 40, a car bonnet's louvres)
     { k: 'gillZ', label: 'station (in the clear band, aft → forward)', lo: 0, hi: 1, step: 0.01, when: 'P.gillOn>0' },
-    { k: 'gillL', label: 'panel length (m)', lo: 0.06, hi: 0.5, step: 0.005, when: 'P.gillOn>0' },
+    { k: 'gillL', label: 'panel length (m)', lo: 0.06, hi: 1.2, step: 0.005, when: 'P.gillOn>0' },   // (CAR-1: 0.5 -> 1.2)
+    { k: 'gillUp', label: 'height in the clear band (foot → under the split)', lo: 0, hi: 1, step: 0.01, when: 'P.gillOn>0' },   // CAR-1
     { k: 'gillH', label: 'panel height (m)', lo: 0.04, hi: 0.3, step: 0.005, when: 'P.gillOn>0' },
     { k: 'gillSlant', label: 'slant (deg, the top leaning aft)', lo: -45, hi: 45, step: 1, when: 'P.gillOn>0' },
     { k: 'gillLip', label: 'hood height (m)', lo: 0.003, hi: 0.03, step: 0.0005, when: 'P.gillOn>0' },
@@ -183,6 +184,7 @@ const COWL_ROWS = [
     { k: 'apSq', label: 'squareness (round → rect)', lo: 0, hi: 1, step: 0.01, when: 'P.apMode===1||P.apMode===3' },
     { k: 'apOffX', label: 'off the axis, sideways', lo: -0.3, hi: 0.3, step: 0.002, when: 'P.apMode===1||P.apMode===3' },
     { k: 'apOffY', label: 'off the axis, up / down', lo: -0.3, hi: 0.3, step: 0.002, when: 'P.apMode===1||P.apMode===3' },
+    { k: 'apLift', label: 'inlets up / down (the engine stays)', lo: -0.3, hi: 0.6, step: 0.005, when: 'P.apMode>0' },   // CAR-3
     { k: 'pairX', label: 'pair: spacing from the axis', lo: 0.03, hi: 0.55, step: 0.005, when: 'P.apMode>=2' },
     { k: 'pairW', label: 'pair: half-width', lo: 0.012, hi: 0.3, step: 0.002, when: 'P.apMode>=2' },
     { k: 'pairH', label: 'pair: half-height', lo: 0.012, hi: 0.3, step: 0.002, when: 'P.apMode>=2' },
@@ -199,6 +201,26 @@ const COWL_ROWS = [
     { k: 'lipInset', label: 'throat inset', lo: 0, hi: 0.2, step: 0.002, when: 'P.lipMode===1' },
     { k: 'ductLen', label: 'duct length inside', lo: 0, hi: 0.5, step: 0.005 },
     { k: 'ductFlare', label: 'duct flare', lo: -0.4, hi: 0.4, step: 0.01 },
+  ] },
+  // ---- CAR-1: the grille and the radiator cap ----
+  { id: 'g_grille', name: 'Grille, radiator cap, lamps', rows: [
+    { k: 'grilleOn', label: 'grille in the inlet', lo: 0, hi: 1, step: 1 },
+    { k: 'grilleN', label: 'bars', lo: 2, hi: 30, step: 1, when: 'P.grilleOn>0' },
+    { k: 'grilleBar', label: 'bar width (m)', lo: 0.004, hi: 0.04, step: 0.001, when: 'P.grilleOn>0' },
+    { k: 'grilleSet', label: 'set back from the face (m)', lo: 0, hi: 0.15, step: 0.002, when: 'P.grilleOn>0' },
+    { k: 'grilleHBar', label: 'cross bar', lo: 0, hi: 1, step: 1, when: 'P.grilleOn>0' },
+    { k: 'grilleRows', label: 'cross rows (a fine mesh; 0 = none)', lo: 0, hi: 40, step: 1, when: 'P.grilleOn>0' },   // CAR-1
+    { k: 'grilleNum', label: 'number on the grille (0 = none)', lo: 0, hi: 99, step: 1, when: 'P.grilleOn>0' },
+    { k: 'grilleNumH', label: 'number height (x the opening)', lo: 0.2, hi: 0.9, step: 0.01, when: 'P.grilleOn>0&&P.grilleNum>0' },
+    { k: 'capOn', label: 'radiator cap', lo: 0, hi: 1, step: 1 },
+    { k: 'capR', label: 'cap radius (m)', lo: 0.015, hi: 0.08, step: 0.001, when: 'P.capOn>0' },
+    { k: 'capBack', label: 'cap behind the face (m)', lo: 0.01, hi: 0.4, step: 0.005, when: 'P.capOn>0' },
+    { k: 'lampOn', label: 'headlamps beside the radiator', lo: 0, hi: 1, step: 1 },
+    { k: 'lampR', label: 'lamp radius (m)', lo: 0.03, hi: 0.15, step: 0.001, when: 'P.lampOn>0' },
+    { k: 'lampGap', label: 'lamp off the side (m)', lo: 0, hi: 0.3, step: 0.005, when: 'P.lampOn>0' },
+    { k: 'lampY', label: 'lamp height over the axis (m)', lo: -0.4, hi: 0.4, step: 0.005, when: 'P.lampOn>0' },
+    { k: 'lampBack', label: 'lamp behind the face (m)', lo: 0, hi: 0.6, step: 0.005, when: 'P.lampOn>0' },
+    { k: 'lampIn', label: 'lamps in the side inlets', lo: 0, hi: 1, step: 1, when: 'P.lampOn>0' },   // CAR-3
   ] },
   // ---- Chin scoop ----
   { id: 'g_scoop', name: 'Chin scoop', rows: [
