@@ -2903,8 +2903,10 @@ const ARCHETYPES = [
                     s1_shockKind: 0, s2_shockKind: 0, s1_linkSwing: 0, s2_linkSwing: 0, s1_linkPanel: 0, s2_linkPanel: 0,
                     s1_linkAng: 55, s2_linkAng: 55, s1_linkSpread: 0.5, s2_linkSpread: 0.5, s1_linkX: 0, s2_linkX: 0,
                     s1_shockAng: 90, s2_shockAng: 90, s1_shockAt: 0.85, s2_shockAt: 0.85, s1_shockZ: 0, s2_shockZ: 0,
-                    // THE CONTROLS ("give it a yoke for now"): the yoke stands in for the steering wheel; the pedals stay
-                    ctlStick: 1,
+                    // THE CONTROLS ("give it a yoke for now"; then, 13 Nov: "let's also model a full wheel ... for both the van
+                    // and the roadster", "for a car, we'll deactivate the throttle control, and we'll keep the pedals"):
+                    // the steering wheel (ctlStick 4), no throttle lever (ctlThr 3); the pedals stay
+                    ctlStick: 4, ctlThr: 3,
                     s1Fair: 0, s2Fair: 0, whProfile: 2,
                     // (the user: "can we increase the rim size?"): spoked, the rim 0.64 of the wheel - an 18" wire wheel in a
                     // 28" tyre (whRimD, the new row)

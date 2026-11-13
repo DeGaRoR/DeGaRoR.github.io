@@ -47,9 +47,10 @@
   "aeroAftTip": 0.2,
   "s1AxZ": -0.2,
   "s2AxZ": 0.5,
-  "ctlStick": 1,
+  "ctlStick": 4,
   "isCar": 1,
-  "carDrive": 0
+  "carDrive": 0,
+  "ctlThr": 3
  },
  "meta": {
   "class": "ul1",

@@ -173,7 +173,7 @@ const WHEEL_ROWS = [
   ['whBolts', 'rim bolts', 3, 10, 1],
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
   ['whValve', 'valve stem', 0, 1, 1],
-  ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum']],
+  ['whBrake', 'brake type', 0, 2, 1, ['disc', 'drum', 'car drum (inside the rim)']],
   // CAR (12 Nov): THE CAR SWITCH and the car-only rows (absent = an aeroplane; nothing changes for one)
   ['isCar', 'this build is a car', 0, 1, 1, ['no (an aeroplane)', 'yes (a car)']],
   ['carDrive', 'driven wheels', 0, 1, 1, ['rear', 'all four (4WD)'], { when: P => +P.isCar }],
@@ -184,6 +184,10 @@ const WHEEL_ROWS = [
   ['archGap', 'wheel arch clearance (m)', 0.01, 0.15, 0.005, { when: P => +P.archOn }],
   // CAR-3: the trailer's tail lamps on the rear corners (absent = none)
   ['carTail', 'tail lamps (stop, indicator, reverse) on the rear corners', 0, 1, 1, { when: P => +P.isCar || +P.carTail }],
+  // CAR-3: mud guards (rounded 1940s / square military), their clearance over the tyres, the running board
+  ['carFender', 'mud guards', 0, 2, 1, ['none', 'rounded (1940s)', 'square (military)'], { when: P => +P.isCar || +P.carFender, absent: 0 }],
+  ['carFenderGap', 'mud guard clearance over the tyre (m)', 0.02, 0.25, 0.005, { when: P => +P.carFender > 0, absent: 0.07 }],
+  ['carStep', 'running board (step) between the guards', 0, 1, 1, { when: P => +P.carFender > 0, absent: 0 }],
   ['carTailAt', 'tail lamps\' face', 0, 1, 1, ['on the corner (45 degrees)', 'flat on the back'], { when: P => +P.carTail, absent: 0 }],
   // CAR-1: a spare wheel on the body's flank (absent = none)
   ['spareOn', 'spare wheel', 0, 1, 1, { when: P => +P.isCar || +P.spareOn }],

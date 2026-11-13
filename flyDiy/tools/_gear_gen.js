@@ -625,7 +625,30 @@ function wheel(bags, ctr, axis, R, opt) {
     // brake — and the valve — on the wrong face.
     const s = 1;
     const kind = Math.round(P.whBrake == null ? 0 : P.whBrake);
-    if (kind === 1) {
+    if (kind === 2) {
+      // CAR-3 (the user, 13 Nov: "resize the brake disc and the inside of the wheels so they look good"): A CAR'S DRUM,
+      // INSIDE THE RIM. The disc (kind 0) is an aeroplane's, sized off Rh - on a car's big rim (whRimD) it stood 0.3 m
+      // proud of the wheel's inner face, larger than the rim itself. Here the drum sits in the rim's well (its radius the
+      // well's, less a clearance), from the inner bead to the wheel's middle, three cooling ribs round it; a pressed
+      // BACKING PLATE closes the rim's inner opening (a dish from the hub out to just inside the bead flange), its ring
+      // of bolts - what the inside of a car wheel shows. No caliper.
+      const wellR = Rh * 0.335 - wall, dRd = Math.max(0.02, Math.min(wellR - 0.008, bead * 0.82));
+      const h0 = -s * beadH * 0.92, h1 = -s * beadH * 0.12, hb = Rh * 0.17;
+      revolve(bags.brake, ctr, ax, [[hb, h1], [dRd * 0.97, h1], [dRd, h1 - s * 0.008], [dRd, h0], [hb, h0]], 32);
+      for (const f of [0.3, 0.5, 0.7]) {
+        const hh = h1 + (h0 - h1) * f;
+        revolve(bags.brake, ctr, ax, [[dRd, hh - s * 0.006], [dRd + Math.max(0.004, 0.025 * dRd), hh - s * 0.004],
+          [dRd + Math.max(0.004, 0.025 * dRd), hh + s * 0.004], [dRd, hh + s * 0.006]], 32);
+      }
+      const rB = Math.min(bead * 1.04, dRd + 0.04), hp = -s * beadH * 1.02;
+      revolve(bags.brakefix || bags.brake, ctr, ax, [[hb * 0.55, hp - s * 0.012], [dRd * 0.55, hp - s * 0.014],
+        [dRd * 1.04, hp - s * 0.006], [rB, hp + s * 0.004], [rB, hp + s * 0.012]], 36);
+      for (let k = 0; k < 8; k++) {
+        const an = 2 * Math.PI * (k + 0.5) / 8;
+        revolve(bags.hub, at(dRd * 0.78, hp - s * 0.012, an), ax,
+                [[Math.max(0.003, 0.03 * dRd), 0], [Math.max(0.003, 0.03 * dRd), -s * 0.010]], 6, true);
+      }
+    } else if (kind === 1) {
       revolve(bags.brake, off(ctr, ax, -s * hw * 1.02), ax,
         [[Rh * 0.20, 0], [Rh * 0.60, 0], [Rh * 0.60, -s * hw * 0.44],
          [Rh * 0.54, -s * hw * 0.52], [Rh * 0.20, -s * hw * 0.52]], 30, true);

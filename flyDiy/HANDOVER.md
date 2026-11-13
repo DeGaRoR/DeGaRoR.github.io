@@ -315710,3 +315710,38 @@ the next steps).
   axle up and forward to a floor bracket; on the left side the differential (banjo, rear cover and 10 bolts, pinion
   snout, flange, universal joint) and the propeller shaft forward under the floor. Measured: 0 vertices inside either
   tyre. The van: carBeamR 1; src/cars/car_utility.json rewritten (the spare's 5 cm on the box).
+- **CAR-3, THE VAN FINISHED (13 Nov evening; the user, with a 1940s carryall and a military truck for reference)** -
+  every change a row, absent = as before:
+  - **whBrake 2, a car's drum INSIDE the rim** (_gear_gen.js wheel): the aeroplane disc (kind 0) is sized off Rh - on a
+    car's big rim (whRimD) it stood 0.3 m across, outside the wheel's inner face. The drum sits in the rim's well (its
+    radius the well's less 8 mm), three cooling ribs; a pressed backing plate closes the rim's inner opening, 8 bolts.
+    The van: whBrake 2, s2Brake 1 (the front wheels drummed too). The beam axle (carBeamR) now runs its tube INTO the
+    backing plate (the wheel's 'brake' mesh) and its springs 4.5 cm in from the wheel's back ("closer to the actual
+    drivetrains").
+  - **carFender 1 rounded / 2 square, carFenderGap (absent 0.07), carStep** (_gear_page.js, claimed 'mud guards and step';
+    _cage_gear.js fenderBuild, NEW meshes only, group edFenders): a sheet swept along a path round each wheel (the
+    foremost and the aftmost pairs of units) - rounded: a crowned section with a skirt and a rolled bead, the front
+    guard from 52 deg (above the bumper) over to 150 deg then down and aft into the step, the rear rising out of it to
+    165 deg; square: flat top, raked front, a straight slope to the step, a deep square skirt (mitred corners). The
+    step: a ribbed plate with rubber strips on three brackets to the floor. In the livery's TRIM colour (spec.paint.trim
+    x 0.62 - lit flat it read lighter than the body). The van: rounded, with the step.
+  - **ctlStick 4, a STEERING WHEEL** (_cage_crew.js buildSteerWheel; rows steerD 0.42, steerRake 22 deg, steerReach
+    0.34): the yoke's collar on the plate, a raked column and shroud, a column-shift lever, the wheel turning about the
+    column (roll input, 2.2 rad): cast hub dished 4 cm with horn button and plated ring, three spokes, a bakelite rim
+    with finger grips. Hands at a quarter to three; with no throttle lever BOTH hands on the rim; ONE station only (no
+    dual controls - the passenger takes the passenger's pose). The cars: ctlStick 4, ctlThr 3 (no throttle; "for a
+    car, we'll deactivate the throttle control, and we'll keep the pedals"): the van, the UTV, the buggy, the roadster
+    (card and build). The van: consoleOn 1.
+  - **THE REAR CORNERS' SHARDS** ("protruding things at the back"): the padded headliner's pillar trim on the rear
+    corner's faces (within 15 cm of the cabin's aft end) folded round the door frame and, inset 5 cm, came out through
+    the skin - those faces stay bare; the liner's outer sheet now sits 1 cm under the skin (was LIN_EPS 1.5 mm with no
+    shell thickness). TRAP: _cage_light ceilAt's band (crown - 0.06 - hdlDepth - skinT) still reaches the slab, now 1 cm
+    deeper.
+  - **THE TRAILER'S CAR DECK** (src/vehicle/trailer_model.js fit.kind 'car', fit.car { xR, xF, track[F/R], tyreR, tyreW,
+    x0, x1 }): a hardwood deck over the guards (deckY = max(rail + 0.12, 2 wheelR + 0.13)) on outriggers and posts,
+    angle edges with stake pockets and D-rings, a ladder headboard, chocks at the front tyres, a ratchet strap over each
+    tyre's crown, two FOLDING ladder ramps on the tracks (two sections; up for the road, Tr.ramp 'down' to the ground at
+    20 deg). The floats and hull cradles untouched. tools/convoy_shot.js: tow + trailer + cargo in one portrait (the
+    cargo snapshot from its garage load - levelled: the garage tilts the GROUND to a stance, so its axles' ground points
+    differ in the cage frame - its tyres measured from the drawn wheel groups; the trailer on the tow's drawn ball;
+    plane_shot's PORTRAIT routine).

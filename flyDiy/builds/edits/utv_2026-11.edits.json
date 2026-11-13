@@ -108,12 +108,13 @@
   "hitchOn": 1,
   "bumpY": 0.05,
   "bumpW": 0.95,
-  "ctlStick": 1,
+  "ctlStick": 4,
   "hdlOn": 1,
   "wallTrimOn": 1,
   "isCar": 1,
   "carDrive": 1,
-  "carChassisKg": 150
+  "carChassisKg": 150,
+  "ctlThr": 3
  },
  "wings": {
   "span": 2.2,

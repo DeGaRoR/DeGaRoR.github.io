@@ -7766,13 +7766,25 @@ function cageInterior(m, S) {
       // and the pillar bands from the sill up, a moulded trim (the upper wall trim's material) min(hdlDepth, 5 cm) deep
       let crown = -1e9; for (const i of sel) for (const k of F[i].v) crown = Math.max(crown, V[k][1]);
       const pil = [];
-      for (const [i, cy] of hoop) (cy > crown - 0.12 ? sel : pil).push(i);
+      for (const [i, cy] of hoop) {
+        if (cy > crown - 0.12) { sel.push(i); continue; }
+        // (13 Nov, the user: "there are protruding things at the back"): the rear corner's pillar faces (within 15 cm
+        // of the cabin's aft end) fold round the door frame; inset 5 cm they came out through the skin - left bare
+        const czF = F[i].v.reduce((a, k) => a + V[k][2], 0) / 4;
+        if (czF < zA + 0.15 / (S.FS || 1)) continue;
+        pil.push(i);
+      }
+      // (13 Nov, the user: "there are protruding things at the back"): the liner closes each piece with an OUTER sheet
+      // facing out, LIN_EPS (1.5 mm) under its base - with no shell thickness (t0 0, the van) that is 1.5 mm under the
+      // painted skin, and from outside the brown sheet and the skin fought for the depth buffer: jagged dark shards on
+      // the rear corners. The base sits a centimetre under the skin instead (the trim's own back, never seen)
+      const tB = Math.max(t0, 0.01);
       if (pil.length) { const n1 = add.length;
-        liner(pil, t0 + Math.min(I.hdlD, 0.05), () => 'cabWall', t0);
+        liner(pil, tB + Math.min(I.hdlD, 0.05), () => 'cabWall', tB);
         for (let k = n1; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'cabWall') { f.v = f.v.slice().reverse(); f.back = 1; } } }
       if (sel.length) {
         const n0 = add.length;
-        liner(sel, t0 + I.hdlD, () => 'headliner', t0);
+        liner(sel, tB + I.hdlD, () => 'headliner', tB);
         // the slab's UNDERSIDE drawn as the skin liner's copies are (LINER-BACK): the skin's winding, flagged back - the
         // headliner's lit path (a front-facing underside took the interior's shade unlit: a black ceiling)
         for (let k = n0; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'headliner') { f.v = f.v.slice().reverse(); f.back = 1; } }

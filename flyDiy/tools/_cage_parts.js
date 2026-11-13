@@ -1111,6 +1111,7 @@ const CAGE_PARTS = [
       ['drive', ['carDrive', 'carChassisKg', 'carBeamR']],
       ['wheel arches', ['archOn', 'archGap']],
       ['lamps', ['carTail', 'carTailAt']],
+      ['mud guards and step', ['carFender', 'carFenderGap', 'carStep']],
       ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],
       ['spare wheel', ['spareOn', 'spareAt', 'spareZ', 'spareSide', 'spareX', 'spareY', 'spareK', 'spareStrap']],
     ] },
@@ -1244,7 +1245,7 @@ const CAGE_PARTS = [
     when: P => +P.crewOn,
     sections: ['cabFloor'],                 // G2795: the floor's boards (its rows are here)
     groups: [
-      ['pitch & roll', ['ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank']],
+      ['pitch & roll', ['ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank', 'steerD', 'steerRake', 'steerReach']],
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
       ['rudder', ['ctlPed', 'pedalZ', 'pedalH', 'pedalSpread', 'pedalAngle']],
       ['console', ['consoleOn']],

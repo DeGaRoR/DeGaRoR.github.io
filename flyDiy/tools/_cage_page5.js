@@ -891,9 +891,16 @@ window.CAGE_PAGE = {
       // the auto-laced place: +x pilot's left, +y up, +z toward the
       // nose. 0 = as laced.
       ['controls', [
-        ['ctlStick',  'pitch/roll',     0, 3, 1, ['stick between legs',
+        ['ctlStick',  'pitch/roll',     0, 4, 1, ['stick between legs',
                                                   'yoke', 'side stick R',
-                                                  'none']],
+                                                  'none', 'steering wheel (car)']],
+        // CAR-3: the steering wheel's size, its column's rake up toward the driver, the hub's reach off the dash
+        ['steerD',    'steering wheel diameter', 0.25, 0.60, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick === 4, absent: 0.42, dim: 'len' }],
+        ['steerRake', 'steering column rake (deg up)', 0, 70, 1,
+         { when: P => +P.crewOn && +P.ctlStick === 4, absent: 22 }],
+        ['steerReach', 'steering hub off the dash', 0.08, 0.80, 0.005,
+         { when: P => +P.crewOn && +P.ctlStick === 4, absent: 0.34, dim: 'len' }],
         // (G3573: the controls follow a seat that may now stand a metre higher and further: their ranges doubled)
         ['stickX',    'stick left',    -0.90, 0.90, 0.005,
          { when: P => +P.crewOn && +P.ctlStick !== 3 }],

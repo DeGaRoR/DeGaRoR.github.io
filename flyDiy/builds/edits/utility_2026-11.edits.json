@@ -159,7 +159,7 @@
   "extReliefH": 0.014,
   "intBulk": 0,
   "wsBaseLift": 0.06,
-  "ctlStick": 1,
+  "ctlStick": 4,
   "hdlOn": 1,
   "wallTrimOn": 1,
   "extDoorTop": 0.03,
@@ -208,7 +208,13 @@
   "spareK": 0.85,
   "carTailAt": 1,
   "spareStrap": 0,
-  "carBeamR": 1
+  "carBeamR": 1,
+  "whBrake": 2,
+  "s2Brake": 1,
+  "carFender": 1,
+  "carStep": 1,
+  "ctlThr": 3,
+  "consoleOn": 1
  },
  "fuel": {
   "litres": 80,

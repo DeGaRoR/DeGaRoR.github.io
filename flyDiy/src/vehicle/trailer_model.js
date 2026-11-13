@@ -49,6 +49,9 @@ function buildTrailerModel(THREE, Tr, o) {
     strap: std(0xe2b21c, 0.0, 0.8),          // the latch's webbing strap, the winch strap
     drum: std(0x3d4043, 0.6, 0.6),            // the brake drums (cast iron, painted)
   };
+  // (CAR-3: the car deck's own: oiled hardwood planks, the ramps' extruded aluminium)
+  if (!M.timber) M.timber = std(0x6f4a2c, 0.0, 0.78);
+  if (!M.alu) M.alu = std(0xc9ced3, 0.85, 0.3);
   const bins = new Map();   // material -> [geometries, in the trailer's frame]
   const put = (mat, g) => { if (!bins.has(mat)) bins.set(mat, []); bins.get(mat).push(g); return g; };
   const V3 = (x, y, z) => new T.Vector3(x, y, z);
@@ -93,15 +96,22 @@ function buildTrailerModel(THREE, Tr, o) {
   const tube = (mat, pts, r, n, closed) => put(mat, new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p => V3(...p))), n || 48, r, S(6), !!closed));
 
   // ---- the layout, from the fit ----
-  const isF = fit.kind === 'floats', Ld = fit.Ld, ballY = Tr.ballH ?? 0.48;   // (the coupling at the car's ball height)
+  const isF = fit.kind === 'floats', isC = fit.kind === 'car', Ld = fit.Ld, ballY = Tr.ballH ?? 0.48;   // (the coupling at the car's ball height)
   const wheelR = Tr.wheelR, wZ = Tr.wheelZ, ax = Tr.axleDx / 2;
   const railH = 0.125, railB = 0.05, railT = 0.004;
   const railTop = 0.585, railY = railTop - railH / 2;
   const zR = isF ? Math.max(...fit.floats.map(f => Math.abs(f.z))) : Math.max(0.45, Math.min(0.55, wZ - 0.42));
-  const pads = fit.pads;
+  // CAR-3 (the user, 13 Nov: "the tow's trailer, adapted for cars (with a foldable ramp), with the roadster on the
+  // trailer"): fit.kind 'car' - fit.car { xR, xF (the carried car's rear and front axles, the trailer's x), track
+  // (trackF / trackR when the axles differ),
+  // tyreR, tyreW, x0, x1 (its tail and nose) }. The deck stands over the trailer's own guards; the pads are the deck's ends
+  const C = isC ? fit.car : null;
+  const deckY = isC ? Math.max(railTop + 0.12, 2 * wheelR + 0.13) : 0;
+  const pads = isC ? [{ kind: 'deck', at: [Math.min(C.x0, C.xR - C.tyreR) - 0.15, deckY, 0] }, { kind: 'deck', at: [Math.max(C.x1 - 0.2, C.xF + C.tyreR) + 0.05, deckY, 0] }] : fit.pads;
   const keelOf = side => pads.filter(p => p.kind === 'keel' && p.float === side).sort((a, b) => b.at[0] - a.at[0]);
   // the bows: the float's (the hull's) most forward keel station, the trailer's frame
-  const bows = isF ? fit.floats.map(f => { const k = f.keel.slice().sort((a, b) => b[0] - a[0])[0]; return { z: f.z, x: k[0], y: k[1], B: f.B, beta: f.beta, side: f.side }; })
+  const bows = isC ? [{ z: 0, x: C.x1, y: deckY + 0.3, B: 1, beta: 0, side: 0 }]
+             : isF ? fit.floats.map(f => { const k = f.keel.slice().sort((a, b) => b[0] - a[0])[0]; return { z: f.z, x: k[0], y: k[1], B: f.B, beta: f.beta, side: f.side }; })
                    : [(k => ({ z: 0, x: k[0], y: k[1], B: fit.hull.B, beta: fit.hull.beta, side: 0 }))(fit.hull.keel.slice().sort((a, b) => b[0] - a[0])[0])];
   const xBow = Math.max(...bows.map(b => b.x));
   const xPadMin = Math.min(...pads.map(p => p.at[0])), xPadMax = Math.max(...pads.map(p => p.at[0]));
@@ -303,6 +313,75 @@ function buildTrailerModel(THREE, Tr, o) {
       latchAt(xs - 0.05, bw.y + 0.02, f.z, [bw.x - 0.02, bw.y + 0.07, f.z]);
       member(M.galvDk, angle(0.04, 0.004), [xs - 0.25, railTop, f.z], [xs - 0.02, yTop - 0.15, f.z], [0, 0, 1]);   // its brace
     }
+  } else if (isC) {
+    // ---- THE CAR DECK: outriggers on posts off the rails at every station, a full deck of hardwood planks along the
+    // trailer, galvanised angle along both edges with stake pockets and D-rings, a ladder headboard at the front, rubber
+    // chocks fore and aft of the front tyres, a yellow ratchet strap over each tyre's crown to the rings either side,
+    // and THE RAMPS: two aluminium ladder ramps hinged at the deck's tail on the car's wheel tracks - folded up for the
+    // road (Tr.ramp 'down': lowered to the ground, the loading slope)
+    const xd0 = xRear + 0.02, xd1 = xFront - 0.02, half = Math.max(C.track / 2 + C.tyreW / 2 + 0.14, wZ + 0.16), pt = 0.035;
+    const yb = deckY - pt;                                     // the outriggers' top
+    const st = [xd0 + 0.04, ...stations.filter(x => x > xd0 + 0.2 && x < xd1 - 0.2), xd1 - 0.04];
+    for (const x of st) {
+      member(M.galv, rrect(0.05, 0.08, 0.005), [x, yb - 0.04, -half], [x, yb - 0.04, half], [0, 1, 0]);
+      for (const s of [-1, 1]) {
+        member(M.galv, rrect(0.05, 0.05, 0.005), [x, railTop, s * zR], [x, yb - 0.08, s * zR], [1, 0, 0]);
+        member(M.galvDk, angle(0.03, 0.003), [x, railTop, s * zR], [x, yb - 0.08, s * Math.min(half - 0.05, zR + 0.32)], [1, 0, 0]);
+      }
+    }
+    // the planks: along the trailer, 14 cm wide, 6 mm apart
+    const nP = Math.max(4, Math.round((2 * half) / 0.146));
+    for (let k = 0; k < nP; k++) { const z = -half + (k + 0.5) * (2 * half / nP); boxAt(M.timber, xd1 - xd0, pt, 2 * half / nP - 0.006, [(xd0 + xd1) / 2, deckY - pt / 2, z]); }
+    // the edges, their stake pockets and the D-rings
+    for (const s of [-1, 1]) {
+      member(M.galv, angle(0.05, 0.005), [xd0, deckY, s * half], [xd1, deckY, s * half], [0, 1, 0]);
+      for (let k = 0; k <= 4; k++) { const x = xd0 + 0.2 + (xd1 - xd0 - 0.4) * k / 4;
+        boxAt(M.galvDk, 0.06, 0.08, 0.04, [x, deckY - 0.05, s * (half + 0.02)]);
+        const ring = new T.TorusGeometry(0.022, 0.005, S(6), S(12)); ring.rotateY(Math.PI / 2); ring.translate(x, deckY + 0.012, s * (half - 0.04)); put(M.chrome, ring); }
+    }
+    // the headboard: three posts, two rails, a mesh of flat bars
+    { const xh = xd1 - 0.03, hH = 0.5;
+      for (const z of [-half + 0.03, 0, half - 0.03]) member(M.galv, rrect(0.05, 0.05, 0.005), [xh, deckY, z], [xh, deckY + hH, z], [1, 0, 0]);
+      for (const y of [deckY + 0.2, deckY + hH]) member(M.galv, rrect(0.04, 0.04, 0.004), [xh, y, -half + 0.03], [xh, y, half - 0.03], [0, 1, 0]);
+      for (let k = 1; k < 9; k++) { const z = -half + 0.03 + (2 * half - 0.06) * k / 9; boxAt(M.galvDk, 0.006, hH - 0.02, 0.012, [xh, deckY + hH / 2, z]); } }
+    // the chocks and the straps on the car's wheels
+    const tyreTop = deckY + 2 * C.tyreR;
+    const trF = C.trackF || C.track, trR = C.trackR || C.track;   // (each axle its own track)
+    for (const s of [-1, 1]) {
+      const z = s * trF / 2;
+      for (const sx of [-1, 1]) {      // a chock ahead of and behind each front tyre
+        const xc = C.xF + sx * (C.tyreR * 0.78), w = new T.Shape();
+        w.moveTo(0, 0); w.lineTo(0.16 * sx, 0); w.lineTo(0, 0.11); w.closePath();
+        const g = new T.ExtrudeGeometry(w, { depth: Math.min(0.2, C.tyreW), bevelEnabled: false }); g.translate(xc, deckY, z - Math.min(0.2, C.tyreW) / 2); put(M.rubber, g);
+      }
+      for (const [xa, zw] of [[C.xF, s * trF / 2], [C.xR, s * trR / 2]]) {   // the strap: the ring ahead, over the crown, the ring behind; its ratchet
+        const z = zw, pts = [];
+        for (let i = 0; i <= 12; i++) { const a = Math.PI * i / 12; pts.push([xa + Math.cos(a) * (C.tyreR + 0.012), deckY + C.tyreR + Math.sin(a) * (C.tyreR + 0.012), z]); }
+        pts.unshift([xa + C.tyreR + 0.22, deckY + 0.01, z]); pts.push([xa - C.tyreR - 0.22, deckY + 0.01, z]);
+        tube(M.strap, pts, 0.006, 48);
+        rbox(M.black, 0.09, 0.04, 0.05, 0.006, [xa - C.tyreR - 0.08, deckY + 0.08, z], 0.6);
+      }
+    }
+    void tyreTop;
+    // THE RAMPS: FOLDING ladders - two sections hinged in the middle, each two side rails with rungs every 8 cm - on the
+    // wheel tracks, hinged at the deck's tail. Up for the road: the first section stands up off the hinge, the second
+    // folded back down against it (a low tailgate); Tr.ramp 'down': the two in line to the ground, the loading slope
+    const rampL = Math.max(1.2, Math.min(2.4, deckY / Math.tan(20 * Math.PI / 180))), rW = Math.max(0.26, C.tyreW + 0.08);
+    const down = Tr.ramp === 'down', hx = xd0 - 0.01, hy = deckY;
+    const ladder = (p0, p1, z) => {
+      for (const sz of [-1, 1]) member(M.alu, rrect(0.035, 0.06, 0.004), [p0[0], p0[1], z + sz * rW / 2], [p1[0], p1[1], z + sz * rW / 2], [0, 0, 1]);
+      const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+      for (let t = 0.05; t < L - 0.03; t += 0.08) { const f = t / L; cyl(M.alu, 0.011, 0.011, rW, [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f, z], 'z', S(8)); }
+    };
+    for (const s of [-1, 1]) {
+      const z = s * (trF + trR) / 4, h = rampL / 2;
+      let A1, B1;
+      if (down) { const run = Math.sqrt(Math.max(0.01, rampL * rampL - hy * hy)); A1 = [hx - run / 2, hy / 2]; B1 = [hx - run, 0.01]; ladder([hx, hy], A1, z); ladder(A1, B1, z); }
+      else { const lean = 0.10; A1 = [hx - Math.sin(lean) * h, hy + Math.cos(lean) * h]; B1 = [A1[0] - 0.075 + Math.sin(lean) * (h - 0.08), A1[1] - (h - 0.08) * Math.cos(lean)]; ladder([hx, hy], A1, z); ladder([A1[0] - 0.075, A1[1]], B1, z); }
+      cyl(M.galvDk, 0.012, 0.012, rW + 0.06, [hx, hy, z], 'z', S(10));                                    // the tail hinge's pin
+      cyl(M.galvDk, 0.014, 0.014, rW + 0.05, [down ? A1[0] : A1[0] - 0.037, A1[1], z], 'z', S(10));        // the fold's
+      for (const sz of [-1, 1]) boxAt(M.galvDk, 0.06, 0.05, 0.008, [hx + 0.02, hy - 0.02, z + sz * (rW / 2 + 0.03)]);   // its knuckles
+    }
   } else {
     const H = fit.hull, b = Math.tan(H.beta * Math.PI / 180);
     // the keel rollers on their brackets, on bolsters across the rails
@@ -427,7 +506,7 @@ function buildTrailerModel(THREE, Tr, o) {
     poseWheels(Tp.spin || 0);
     if (strap) strap.visible = latched !== false;
   }
-  return { group, update, strap, materials: M, stats: { tris: Math.round(tris), draws, materials: bins.size, x: [xRear, Ld + 0.06], width: 2 * (wZ + 0.15), xFront, xRear } };
+  return { group, update, strap, materials: M, stats: { tris: Math.round(tris), draws, materials: bins.size, x: [xRear, Ld + 0.06], width: 2 * (wZ + 0.15), xFront, xRear, deckY: isC ? deckY : null } };
 }
 
 // THE CAR'S HALF: the tow bar's ball mount for the pickup's receiver (50 mm square shank, the drop plate, the 50 mm ball

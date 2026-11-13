@@ -2585,7 +2585,7 @@ function carTailLamps(group, P, AF) {
 // from an axle bracket up and forward to the floor; on the left side the differential (the banjo, its rear cover and
 // bolts, the pinion snout forward) and, driven, the propeller shaft forward with its universal joint. All from the
 // wheel's own box, the airframe's floor (AF.surf) and the unit's axle.
-function beamAxleSide(lg, lu, P, AF, wheelBox) {
+function beamAxleSide(lg, lu, P, AF, wheelBox, plateX) {
   const [hx, hy, hz] = lu.axle, sg = Math.sign(hx) || 1, R = lu.R || 0.3;
   const dark = GG.gearMat('dark'), alloy = GG.gearMat('alloy'), chrome = GG.gearMat('chrome');
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -2598,7 +2598,7 @@ function beamAxleSide(lg, lu, P, AF, wheelBox) {
   // the wheel's inboard face (its brake plate) and the spring's line just inboard of it
   const xIn = wheelBox ? Math.min(Math.abs(wheelBox.min.x), Math.abs(wheelBox.max.x)) : Math.abs(hx) - 0.2;
   const tubeR = Math.max(0.03, Math.min(0.045, 0.09 * R)), w = 0.055, t = 0.009, NL = 4, pad = 0.012;
-  const xs = Math.max(0.15, xIn - 0.06), Xs = sg * xs;
+  const xs = Math.max(0.15, xIn - 0.045), Xs = sg * xs;     // (13 Nov, the user: "closer to the actual drivetrains": 4.5 cm in from the wheel's back)
   const Ls = Math.max(0.8, Math.min(1.3, 2.4 * R));
   const zF = hz + Ls / 2, zR = hz - Ls / 2;
   const ybF = botAt(zF), ybR = botAt(zR), ybC = botAt(hz);
@@ -2643,8 +2643,11 @@ function beamAxleSide(lg, lu, P, AF, wheelBox) {
     add(new THREE.BoxGeometry(0.006, d.length() + 0.036, 0.03), dark, a.clone().add(b).multiplyScalar(0.5), qY(d)); }
   add(new THREE.CylinderGeometry(0.007, 0.007, w + 0.05, 10), alloy, pinU, qX);
   // the axle tube, the hub's back to the centre, a collar at the brake plate
-  rod(V(sg * (xIn + 0.004), hy, hz), V(0, hy, hz), tubeR, dark, 20);
-  add(new THREE.CylinderGeometry(tubeR * 1.9, tubeR * 1.25, 0.05, 20), dark, V(sg * (xIn - 0.02), hy, hz), qX);
+  // (the tube runs INTO the brake's backing plate when the wheel has one inside its rim - whBrake 2 - else to the
+  // wheel's back; the flared end, the axle's brake flange, against it)
+  const xEnd = plateX != null && plateX > xIn ? plateX : xIn + 0.004;
+  rod(V(sg * xEnd, hy, hz), V(0, hy, hz), tubeR, dark, 20);
+  add(new THREE.CylinderGeometry(tubeR * 1.9, tubeR * 1.2, 0.05, 20), dark, V(sg * (xEnd - 0.025), hy, hz), qX);
   // the seat and the U-bolts round pack and tube, their plate and nuts
   const packTop = over ? yMC + t / 2 : hy + tubeR, packBot = over ? hy - tubeR : yMC - t / 2 - (NL - 1) * t;
   add(new THREE.BoxGeometry(w + 0.012, pad, 0.08), dark, V(Xs, over ? hy + tubeR + pad / 2 : hy - tubeR - pad / 2, hz));
@@ -2684,6 +2687,130 @@ function beamAxleSide(lg, lu, P, AF, wheelBox) {
     const zEnd = hz + Math.min(1.6, Math.max(0.8, 3.2 * R)), yEnd = Math.min(botAt(zEnd) - 0.06, hy + 0.10);
     rod(uj, V(0, yEnd, zEnd), 0.033, dark, 18);
   }
+}
+
+// CAR-3 (the user, 13 Nov: "model some professional, good looking mud guards for the front wheels ... do 1 for the front,
+// one for the back, and a step on the side like the attached one [a 1940s carryall] ... The other option (both offered
+// in the editor) would be the straight style from the military pickup truck I attached, very square"; NEW parts, no
+// existing geometry changed): carFender 1 ROUNDED - a crowned sheet swept over each wheel on an arc carFenderGap clear
+// of the tyre, its outer edge turned down into a skirt with a rolled bead, the front one sweeping down and aft into the
+// running board, the rear one rising out of it; 2 SQUARE - flat panels (a flat top over the wheel, a raked front, a
+// slope down to the step) with a deep square skirt. carStep 1: the running board between them - a ribbed tread plate
+// with a turned-down edge on brackets to the floor. Painted in the livery's TRIM colour (spec.paint.trim). From the
+// units' axles and radii, the tyres' own boxes, the floor (AF.surf) - the front pair the foremost units, the rear the
+// aftmost.
+function fenderBuild(group, P, AF, units) {
+  const style = Math.round(+P.carFender || 0);
+  if (!(style === 1 || style === 2) || !units || units.length < 4) return;
+  const gap = +P.carFenderGap > 0 ? +P.carFenderGap : 0.07, STEP = +P.carStep === 1;
+  let trim = 0x22262b; try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); if (S && S.paint && S.paint.trim != null) trim = S.paint.trim; } catch (e) {}
+  const paint = new THREE.MeshStandardMaterial({ color: new THREE.Color(trim).multiplyScalar(0.62), metalness: 0.4, roughness: 0.3, side: THREE.DoubleSide });   // (the trim a shade down: lit flat it read lighter than the body's own)
+  const tread = new THREE.MeshStandardMaterial({ color: 0x1c1d1f, metalness: 0.2, roughness: 0.75, side: THREE.DoubleSide });
+  const dark = GG.gearMat('dark');
+  const root = new THREE.Group(); root.name = 'edFenders';
+  const zs = units.map(u => u.axle[2]), zF = Math.max(...zs), zR = Math.min(...zs);
+  const front = units.filter(u => Math.abs(u.axle[2] - zF) < 0.03), rear = units.filter(u => Math.abs(u.axle[2] - zR) < 0.03);
+  if (front.length !== 2 || rear.length !== 2) return;
+  // a tyre's lateral extent: its wheel group's box (by the unit's kind and side)
+  const tyreX = u => { let lo = Math.abs(u.axle[0]) - 0.18, hi = Math.abs(u.axle[0]) + 0.18;
+    group.children.forEach(o => { if (o.name !== 'edWheel' + u.kind || !o.children[0]) return; const b = new THREE.Box3().setFromObject(o.children[0]);
+      if (Math.sign(b.min.x + b.max.x) !== Math.sign(u.axle[0]) || Math.abs((b.min.z + b.max.z) / 2 - u.axle[2]) > 0.3) return;
+      lo = Math.min(Math.abs(b.min.x), Math.abs(b.max.x)); hi = Math.max(Math.abs(b.min.x), Math.abs(b.max.x)); });
+    return [lo, hi]; };
+  const botAt = z => { let b = Infinity; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(Math.max(AF.z0, Math.min(AF.z1, z)), a * D2R); if (q && isFinite(q[1])) b = Math.min(b, q[1]); } return b; };
+  const halfAt = z => { let h = 0; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(Math.max(AF.z0, Math.min(AF.z1, z)), a * D2R); if (q && isFinite(q[0])) h = Math.max(h, Math.abs(q[0])); } return h; };
+  // ---- the sweep: a profile [[|x|, d]] (d along the path's normal, + away from the wheel / up) along a path of
+  // {z, y, nz, ny} points; one sheet, drawn both sides
+  const sheet = (sg, path, prof, mat) => {
+    const pos = [], idx = [], np = prof.length;
+    for (const q of path) for (const [x, d] of prof) pos.push(sg * x, q.y + q.ny * d, q.z + q.nz * d);
+    for (let i = 0; i + 1 < path.length; i++) for (let j = 0; j + 1 < np; j++) {
+      const a = i * np + j, b = a + 1, c = a + np, e = c + 1; idx.push(a, c, b, b, c, e); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, mat); m.name = 'edFender'; root.add(m); return m; };
+  const bead = (sg, path, x, d, r) => {
+    if (path.length < 2) return;
+    const pts = path.map(q => new THREE.Vector3(sg * x, q.y + q.ny * d, q.z + q.nz * d));
+    const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.1), Math.max(8, pts.length * 3), r, 8, false), paint);
+    m.name = 'edFender'; root.add(m); };
+  // path builders (the path runs AFT: its normal (ty, -tz) points up / out of the wheel)
+  const withN = pts => pts.map((p, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    let tz = b[0] - a[0], ty = b[1] - a[1]; const l = Math.hypot(tz, ty) || 1; tz /= l; ty /= l;
+    // a sharp corner (the square style): the mitre - the two segments' normals' mean, stretched to keep the offset
+    let nz = ty, ny = -tz;
+    if (i > 0 && i < pts.length - 1 && p.corner) {
+      const s1 = [p[0] - a[0], p[1] - a[1]], s2 = [b[0] - p[0], b[1] - p[1]], l1 = Math.hypot(...s1) || 1, l2 = Math.hypot(...s2) || 1;
+      const n1 = [s1[1] / l1, -s1[0] / l1], n2 = [s2[1] / l2, -s2[0] / l2], m = [n1[0] + n2[0], n1[1] + n2[1]], lm = Math.hypot(...m) || 1;
+      const k = 1 / Math.max(0.35, (m[0] * n1[0] + m[1] * n1[1]) / lm); nz = m[0] / lm * k; ny = m[1] / lm * k;
+    }
+    return { z: p[0], y: p[1], nz, ny }; });
+  const arc = (zc, yc, r, f0, f1, n) => { const o = []; for (let k = 0; k <= n; k++) { const f = (f0 + (f1 - f0) * k / n) * D2R; o.push([zc + r * Math.cos(f), yc + r * Math.sin(f)]); } return o; };
+  const bez = (A, C1, C2, B, n) => { const o = []; for (let k = 1; k <= n; k++) { const t = k / n, u = 1 - t;
+    o.push([u*u*u*A[0] + 3*u*u*t*C1[0] + 3*u*t*t*C2[0] + t*t*t*B[0], u*u*u*A[1] + 3*u*u*t*C1[1] + 3*u*t*t*C2[1] + t*t*t*B[1]]); } return o; };
+  const seg = (A, B, n) => { const o = []; for (let k = 1; k <= n; k++) { const t = k / n; o.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); } return o; };
+  const crowned = (xi, xo, c, skirt) => { const o = [[xi, -0.035], [xi, 0]];
+    for (let k = 1; k <= 10; k++) { const x = xi + (xo - xi) * k / 10, u = 2 * (x - xi) / (xo - xi) - 1; o.push([x, c * (1 - u * u) * (k < 10 ? 1 : 0.5)]); }
+    o.push([xo + 0.006, -0.012], [xo + 0.009, -skirt * 0.6], [xo + 0.006, -skirt]); return o; };
+  const square = (xi, xo, skirt) => [[xi, -0.03], [xi, 0], [xo - 0.012, 0], [xo, -0.004], [xo + 0.002, -0.02], [xo + 0.002, -skirt], [xo - 0.006, -skirt - 0.004]];
+  for (const sg of [-1, 1]) {
+    const uF = front.find(u => Math.sign(u.axle[0]) === sg), uR = rear.find(u => Math.sign(u.axle[0]) === sg);
+    if (!uF || !uR) continue;
+    const [fLo, fHi] = tyreX(uF), [rLo, rHi] = tyreX(uR);
+    const zcF = uF.axle[2], ycF = uF.axle[1], RF = uF.R || 0.4, zcR = uR.axle[2], ycR = uR.axle[1], RR = uR.R || 0.4;
+    const xoF = fHi + 0.055, xiF = Math.max(0.2, fLo - 0.06), xoR = rHi + 0.055;
+    const xiR = Math.min(rHi - 0.02, Math.max(rLo, halfAt(zcR) - 0.03));
+    const yB = Math.min(botAt((zcF + zcR) / 2), botAt(zcF - RF), botAt(zcR + RR)) - 0.05;   // the step's height
+    const xBi = Math.max(0.2, Math.min(halfAt((zcF + zcR) / 2) - 0.12, xoR - 0.25)), xBo = Math.max(xoF, xoR) + 0.005;
+    const rAF = RF + gap, rAR = RR + gap;
+    let pF, pR, zBF, zBR;
+    if (style === 1) {
+      // ROUNDED: the front over its wheel from ahead (52 deg, above the bumper) to behind (150), then down and aft
+      // to the step; the rear out of the step, up and over to behind its wheel (165)
+      const aF = arc(zcF, ycF, rAF, 52, 150, 26), A = aF[aF.length - 1], tA = [-Math.sin(150 * D2R), Math.cos(150 * D2R)];
+      zBF = A[0] - 0.42; const Bf = [zBF, yB];
+      pF = aF.concat(bez(A, [A[0] + tA[0] * 0.2, A[1] + tA[1] * 0.2], [Bf[0] + 0.2, Bf[1]], Bf, 12));
+      const D = [zcR + rAR * Math.cos(35 * D2R), ycR + rAR * Math.sin(35 * D2R)], tD = [-Math.sin(35 * D2R), Math.cos(35 * D2R)];
+      zBR = D[0] + 0.3; const Br = [zBR, yB];
+      pR = [Br].concat(bez(Br, [Br[0] - 0.16, Br[1]], [D[0] - tD[0] * 0.16, D[1] - tD[1] * 0.16], D, 12), arc(zcR, ycR, rAR, 35, 165, 26).slice(1));
+      const PF = withN(pF), PR = withN(pR);
+      sheet(sg, PF, crowned(xiF, xoF, 0.045, 0.10), paint); bead(sg, PF, xoF + 0.006, -0.098, 0.009);
+      sheet(sg, PR, crowned(xiR, xoR, 0.02, 0.08), paint); bead(sg, PR, xoR + 0.006, -0.078, 0.008);
+    } else {
+      // SQUARE: flat top over the wheel, raked front, a straight slope down and aft to the step; the rear the same
+      // mirrored, its back a short raked face
+      const yTF = ycF + rAF, yTR = ycR + rAR;
+      const F = [[zcF + RF + 0.06, Math.max(yTF - 0.14, ycF + 0.3)], [zcF + RF * 0.92, yTF], [zcF - RF * 0.6, yTF]];
+      zBF = zcF - RF - 0.30; F.push([zBF, yB]);
+      F[1].corner = F[2].corner = true;
+      pF = [F[0]].concat(seg(F[0], F[1], 3), seg(F[1], F[2], 10), seg(F[2], F[3], 8));
+      zBR = zcR + RR + 0.30;
+      const G = [[zBR, yB], [zcR + RR * 0.6, yTR], [zcR - RR * 0.95, yTR], [zcR - RR - 0.08, yTR - 0.18]];
+      G[1].corner = G[2].corner = true;
+      pR = [G[0]].concat(seg(G[0], G[1], 8), seg(G[1], G[2], 10), seg(G[2], G[3], 3));
+      // mark the corner points on the resampled paths (their mitres)
+      for (const P0 of [pF, pR]) for (const q of P0) for (const c of (P0 === pF ? F : G)) if (c.corner && Math.abs(q[0] - c[0]) < 1e-9 && Math.abs(q[1] - c[1]) < 1e-9) q.corner = true;
+      sheet(sg, withN(pF), square(xiF, xoF, 0.12), paint);
+      sheet(sg, withN(pR), square(xiR, xoR, 0.10), paint);
+    }
+    // THE STEP: a ribbed tread plate from the front fender's foot to the rear's, its edge turned down, on brackets
+    if (STEP && zBF - zBR > 0.3) {
+      const PB = withN(seg([zBF + 0.02, yB], [zBR - 0.02, yB], 1).length ? [[zBF + 0.02, yB], [zBR - 0.02, yB]] : []);
+      const prof = [[xBi, -0.02], [xBi, 0]];
+      const nR = 5; for (let k = 0; k < nR; k++) { const xm = xBi + (xBo - xBi) * (k + 0.75) / (nR + 0.5);
+        prof.push([xm - 0.012, 0], [xm - 0.008, 0.007], [xm + 0.008, 0.007], [xm + 0.012, 0]); }
+      prof.push([xBo - 0.006, 0], [xBo, -0.006], [xBo + 0.002, -0.035], [xBo - 0.004, -0.038]);
+      sheet(sg, PB, prof, paint);
+      // the rubber tread strips on top
+      for (let k = 0; k < nR; k++) { const xm = xBi + (xBo - xBi) * (k + 0.75) / (nR + 0.5);
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.004, zBF - zBR - 0.1), tread);
+        m.position.set(sg * xm, yB + 0.009, (zBF + zBR) / 2); m.name = 'edFender'; root.add(m); }
+      // the brackets: an angle from the plate's underside up to the floor
+      for (const f of [0.2, 0.5, 0.8]) { const z = zBR + (zBF - zBR) * f, yb = botAt(z), xb = Math.max(0.2, Math.min(xBi + 0.05, halfAt(z) - 0.05));
+        if (yb - yB > 0.01) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.006, yb - yB, 0.05), dark); m.position.set(sg * xb, (yb + yB) / 2, z); m.name = 'edFender'; root.add(m);
+          const m2 = new THREE.Mesh(new THREE.BoxGeometry(xBo - xb - 0.02, 0.006, 0.05), dark); m2.position.set(sg * (xb + xBo - 0.02) / 2, yB - 0.006, z); m2.name = 'edFender'; root.add(m2); } }
+    }
+  }
+  group.add(root);
 }
 
 function spareBuild(group, P, AF) {
@@ -3374,6 +3501,7 @@ PAGE.post = ctx => {
     if (+P.bumpR) bumperBuild(group, P, AF, scene, false);
     if (Math.round(+P.extRelief || 0) === 4) rearDoorHardware(group, P, mesh);
     if (+P.carTail) carTailLamps(group, P, AF);
+    if (Math.round(+P.carFender || 0) > 0) fenderBuild(group, P, AF, legUnits);
   }
   // the LEGS take a livery section too (phase C): steel tube by default,
   // following nobody — but a builder can paint a leg without repainting the
@@ -3407,7 +3535,10 @@ PAGE.post = ctx => {
     lg.name = 'edLeg' + lu.kind;
     if (beamU.includes(lu)) {
       let wg = null; group.children.forEach(o => { if (o.name === 'edWheel' + lu.kind) wg = o; });
-      beamAxleSide(lg, lu, P, AF, wg ? new THREE.Box3().setFromObject(wg) : null);
+      let plateX = null; const bm = GG.gearMat('brake');
+      if (wg) wg.traverse(o => { if (o.isMesh && o.material === bm) { const b = new THREE.Box3().setFromObject(o);
+        plateX = Math.min(Math.abs(b.min.x), Math.abs(b.max.x)); } });
+      beamAxleSide(lg, lu, P, AF, wg ? new THREE.Box3().setFromObject(wg) : null, plateX);
       group.add(lg);
       continue;
     }
