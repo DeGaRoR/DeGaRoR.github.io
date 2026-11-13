@@ -315758,3 +315758,12 @@ the next steps).
   so the next load repainted the snapshot. tools/convoy_shot.js gives the cargo its own: AEROSKIN.aeroDupe per material,
   both uniform sets deep-copied, every texture redrawn into a canvas of its own - with a NEW THREE.Source (r186: a
   texture's clone shares its Source; setting the copy's image repointed the original and the van wore the roadster's).
+- **CONVOY: THE CARGO'S SIDE / PLAN MARKINGS FOLLOW IT** (the user: "the nose of the speedster is not silver like it used
+  to be, in the trailer"): the roadster's polished radiator shell (and its tail's pinstripes) are markings projected in
+  the CRAFT's frame - vCraftPos = uCraftInv x modelMatrix x p; the snapshot moved the meshes onto the deck (T = cargo
+  world x G^-1, G the gear layer's world at the snapshot) and kept the garage's uCraftInv, so those markings landed off
+  the car. convoy_shot multiplies each copy's uCraftInv by G x world^-1 (68 materials on the roadster). Surface (field)
+  markings - the script name, the roundels - never moved, which is why they had survived.
+- **LIGHT WEATHERING, TRIED** (the user: "try light weathering too"): spec.finish.wear 0.25 on the Retro van and the
+  roadster renders a fine streaking and a dulled gloss, the livery readable; NOT saved into the builds (the van's is 0,
+  the roadster's absent) - a one-key change when wanted.

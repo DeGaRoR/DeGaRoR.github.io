@@ -85,6 +85,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       if (!c.geometry.boundingBox) c.geometry.computeBoundingBox(); gb.copy(c.geometry.boundingBox).applyMatrix4(M); box.union(gb);
     });
     window.__convoyCargo = g;
+    window.__convoyMats = [...made.values()]; window.__convoyG = (gear || root).matrixWorld.clone();
     // the tyres as DRAWN: each wheel group's first mesh (the tyre) - its centre and radius (a contact's point is the
     // axle's hub, not the tyre's mid-plane)
     const C = [];
@@ -127,7 +128,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const rot = (y, z) => [y * Math.cos(-a) - z * Math.sin(-a), y * Math.sin(-a) + z * Math.cos(-a)];
     const [yr2] = rot(yr, zr), [, zAx2] = rot(rearC[0].p[1], rearC[0].p[2]);
     const cg = window.__convoyCargo; cg.rotation.x = -a; cg.position.set(0, yG + T.stats.deckY - yr2, z0 + xR - zAx2); hold.add(cg);
-    return { levelDeg: +(a * 180 / Math.PI).toFixed(2), rear: rearC.map(q => q.p.map(v => +v.toFixed(3)).concat([+q.R.toFixed(3)])), front: frontC.map(q => q.p.map(v => +v.toFixed(3)).concat([+q.R.toFixed(3)])), yG, ball, Ld, deckY: T.stats.deckY, car, tris: T.stats.tris };
+    // THE SIDE AND PLAN MARKINGS FOLLOW (the user: "the nose of the speedster is not silver like it used to be"): a
+    // marking projected in the craft's frame (the roadster's polished radiator shell) reads vCraftPos = uCraftInv x
+    // modelMatrix x p; the copy moved by T = cargo's world x G^-1, so its uCraftInv becomes uCraftInv x G x world^-1
+    root.updateMatrixWorld(true);
+    const fix = new THREE.Matrix4().copy(window.__convoyG).multiply(new THREE.Matrix4().copy(cg.matrixWorld).invert());
+    let nFix = 0;
+    for (const m of window.__convoyMats) for (const set of [m.userData && m.userData.aeroD, m.userData && m.userData.aeroU])
+      if (set && set.uCraftInv && set.uCraftInv.value && set.uCraftInv.value.isMatrix4) { set.uCraftInv.value.multiply(fix); nFix++; }
+    return { craftFix: nFix, levelDeg: +(a * 180 / Math.PI).toFixed(2), rear: rearC.map(q => q.p.map(v => +v.toFixed(3)).concat([+q.R.toFixed(3)])), front: frontC.map(q => q.p.map(v => +v.toFixed(3)).concat([+q.R.toFixed(3)])), yG, ball, Ld, deckY: T.stats.deckY, car, tris: T.stats.tris };
   }, [cargo, RAMP]);
   console.log('convoy', el(), JSON.stringify(lay));
   for (const [yaw, elv, fov] of views) {
