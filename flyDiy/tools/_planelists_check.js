@@ -71,7 +71,7 @@ const RF = require('./real_refs.js').PLANES;
 // planes REAL-FIGURES may test before their rows land (A0 12 Nov: named, never a red train): file -> why
 const PENDING = {
   // (REAL-CANON, 12 Nov: the Ruckus rows landed as 53 / 54; the struts card is a test plane in review/, not a PLANES row)
-  'builds/candidates/jodel_geo.json': 'the Jodel D112 to the D.112 drawings and its 60 L tank (REAL-FIGURES canon): its row is FLAGSHIP\'s call (CANON-CLEAN, L40b), the list carries jodel_2026-09-20_corrected',
+  'builds/candidates/jodel_geo.json': 'the Jodel D112 to the D.112 drawings and its 60 L tank (REAL-FIGURES canon): it REPLACES list:2 (the user 13 Nov, "ok default": one Jodel, like the Cessna) - FLAGSHIP re-points list:2 and drops this entry in the same commit (L40c)',
 };
 
 function listRows(lists, index, thumbs, exists, contractFiles, refs = RF) {
