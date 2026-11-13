@@ -142,7 +142,8 @@ function fly(def, sim, from, to, T, profile, fail) {
   const said = (ap.report.verdicts || []).find(v => v.code === 'out-of-energy');
   return { ap, bad, G: ap.report.glider, L: ap.report.landing, out: ap.report.outcome, said: said ? String(said.msg || said.text || said.note || JSON.stringify(said)).slice(0, 140) : null, broken: sim.damage ? sim.damage().broken.length : 0 };
 }
-const onRwy = R => !R.bad && R.L && R.L.onStrip && Math.abs(R.L.offCentre) < 20 && R.L.stopLeft > 0 && R.broken === 0;
+// (the sink at the touch: GATE GLIDE's own limits - a glider's landing under 1.5 m/s, an emergency's under 3; ARCH passed at 7.16 without it)
+const onRwy = (R, sinkMax) => !R.bad && R.L && R.L.onStrip && Math.abs(R.L.offCentre) < 20 && R.L.stopLeft > 0 && R.broken === 0 && R.L.sink < (sinkMax || 3);
 const glideLine = R => (R.G ? R.G.field + ' (' + R.G.side + '-hand)' : 'no circuit') + '; ' + (R.L ? (R.L.onStrip ? 'on the runway' : 'OFF it') + ' ' + f(Math.abs(R.L.offCentre)) + ' m off, sink ' + f(R.L.sink, 2) : 'NO LANDING') +
   ', ' + R.out + (R.said ? ' - "' + R.said + '"' : '') + (R.broken ? ', ' + R.broken + ' broken' : '');
 const archDef = key => { const A = DS.ARCHETYPES.find(x => x.key === key); return C.buildGen(DS.designBake(A.sel, A.over)); };
@@ -152,7 +153,7 @@ const H = AD('HOME');
 for (const [who, prof] of [['the expert (rated)', undefined], ['the club pilot (unrated)', 'club']]) {
   if (!go('GLIDE')) continue;
   const def = archDef('motorglider'), R = fly(def, airborne(def, H, H.x, H.z, 280, H.hdg, 27, true), H, H, 600, prof);
-  const ok = onRwy(R) && (prof ? R.out === 'forced-landing' && !!R.said : R.out === 'completed' && !!R.G);
+  const ok = onRwy(R, prof ? 3 : 1.5) && (prof ? R.out === 'forced-landing' && !!R.said : R.out === 'completed' && !!R.G);
   row('GLIDE', ok, 'the motorglider, motor off 280 m over Jolene, sent to Jolene, ' + who + ': ' + glideLine(R));
 }
 // ---- EMERG: every person glides a powered aeroplane that loses its engine ----
@@ -170,7 +171,7 @@ if (go('ARCH')) {
   if (!fs.existsSync(ARCHF)) console.log('owed   ARCH    builds/archaeopteryx_2026-11-10.json is not on this tree (its branch: claude/archaeopteryx-sailplane-study-q8tzz2)');
   else {
     const def = TR.defOf(C, PT, ARCHF), R = fly(def, airborne(def, H, H.x, H.z, 360, H.hdg, 25, true), H, H, 600);
-    row('ARCH', onRwy(R) && R.out === 'completed' && !!R.G, 'the Archaeopteryx card, motor off 360 m over Jolene, the expert: ' + glideLine(R));
+    row('ARCH', onRwy(R, 1.5) && R.out === 'completed' && !!R.G, 'the Archaeopteryx card, motor off 360 m over Jolene, the expert: ' + glideLine(R));
   }
 }
 console.log('GATE UNIFY: ' + (fails ? 'FAIL' : 'PASS'));
