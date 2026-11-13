@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5814ebdca449cae6
+// body-sha256: 122a20405563bed1
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -19977,6 +19977,9 @@ function makeBus(cfg) {
   const altA = Math.max(0, +cfg.altA || 0);
   const cutIn = cfg.altCutIn > 0 ? +cfg.altCutIn : 1100;
   const starterA = cfg.starterA > 0 ? +cfg.starterA : 150;
+  // ELEC-SYSTEMS: a self-exciting machine (a DC generator, a permanent-magnet one) carries the bus with no battery; an
+  // alternator, whose field the battery excites, does not. Absent = true: the bus as it always was.
+  const altSelf = cfg.altSelf !== false;
   const loads = (cfg.loads || []).map(l => ({ key: l.key, amps: Math.max(0, +l.amps || 0),
                                               av: !!l.av, cb: l.cb != null ? String(l.cb) : null }));
   const byKey = {};
@@ -20031,7 +20034,7 @@ function makeBus(cfg) {
       if (!bus.master || battAh <= 0) {
         // no master: nothing flows. A running alternator with no battery
         // (a generator-only aeroplane) still carries its loads
-        bus.altOn = !!(bus.alt && field && altA > 0 && rpm >= cutIn && battAh <= 0 && bus.master);
+        bus.altOn = !!(bus.alt && field && altA > 0 && rpm >= cutIn && battAh <= 0 && bus.master && altSelf);
         bus.V = bus.altOn ? ELEC_V_ALT : 0;
         bus.amps = 0;
       } else if (bus.altOn) {
@@ -35153,18 +35156,44 @@ const GEN_ELEC = {
                note: 'Odyssey PC680 class' },
     lithium: { name: 'lithium 12 V, 13 Ah',   kg: 2.3, price: 520, Ah: 13,
                note: 'EarthX ETX900 class' },
+    // ELEC-SYSTEMS (9 Nov, futureDesigns/ELEC-SYSTEMS-2026-11.md): the CLASS rows, additive - no tier names them, so a
+    // build that never picked one resolves exactly as before. `set` is the engine's set the row belongs to (GEN_ELEC_SETS).
+    lifeSmall: { name: 'small lithium 12 V, 5 Ah', kg: 1.0, price: 260, Ah: 5, set: 'ultralight',
+                 note: 'LiFePO4 4A2P class, 0.91 kg - what a Rotax 912 iS is wired for' },
+    leadSmall: { name: 'small sealed lead 12 V, 9 Ah', kg: 3.2, price: 90, Ah: 9, set: 'ultralight',
+                 note: 'a powersport AGM (YTX9 class) - the two-stroke ultralights\' usual' },
+    leadHeavy: { name: 'heavy lead-acid 12 V, 35 Ah', kg: 12.5, price: 420, Ah: 35, set: 'heavy',
+                 note: 'Gill G-35 class for a radial\'s cranking (ESTIMATE: mass and price not sourced; 12 V - a DC-3 / C-47 bus is really 24 V, the game keeps one 12 V bus)' },
   },
   alternator: {
     none:  { name: 'no alternator',   kg: 0,   price: 0,   A: 0 },
-    gen20: { name: '20 A generator',  kg: 4.0, price: 450, A: 20,
+    // ELEC-SYSTEMS: `selfExcited` a machine that makes its own field - a DC generator off its iron's residual magnetism,
+    // a permanent-magnet generator - and so carries the bus with NO battery once the engine turns above its cut-in
+    // (a Rotax's regulator wants a 22 000 uF capacitor in place of the battery). An alternator excites its field from
+    // the battery: with none it never comes on line (FAA AC 20-40), so its dials stay refused.
+    gen20: { name: '20 A generator',  kg: 4.0, price: 450, A: 20, selfExcited: true, cableKgM: 0.055,
              note: 'the small Continentals\' belt generator; cuts in above idle' },
-    alt60: { name: '60 A alternator', kg: 4.5, price: 1150, A: 60,   // PRICE-CAL: 800 -> 1 150 (Plane-Power, $1 057-1 287)
+    alt60: { name: '60 A alternator', kg: 4.5, price: 1150, A: 60, cableKgM: 0.13,   // PRICE-CAL: 800 -> 1 150 (Plane-Power, $1 057-1 287)
              note: 'Plane-Power class, with its regulator' },
+    // ELEC-SYSTEMS: `cutIn` the PROP rpm the row starts charging at (absent = 1100, the bus's own default: a geared Rotax
+    // turns its prop ~2.4x slower than its crank, and its coil makes current from idle); `internal` the machine is inside
+    // the engine's dry weight (the bill is the regulator; nothing is drawn on the case)
+    coil12: { name: 'lighting coil + regulator, 12 A', kg: 0.8, price: 250, A: 12, cutIn: 500, internal: true, selfExcited: true, cableKgM: 0.055,
+              set: 'ultralight', note: 'the two-stroke\'s own lighting coil and a rectifier-regulator (Rotax 503 / 582)' },
+    int18:  { name: 'integrated generator, 18 A', kg: 0.9, price: 350, A: 18, cutIn: 700, internal: true, selfExcited: true, cableKgM: 0.055,
+              set: 'ultralight', note: 'the Rotax 912\'s 250 W internal generator and its external regulator' },
+    genHeavy: { name: 'heavy generator, 50 A', kg: 15.0, price: 2600, A: 50, selfExcited: true, set: 'heavy', cableKgM: 0.09,
+                note: 'engine-driven, on a radial\'s accessory pad (ESTIMATE: ~15-18 kg for the period units; 12 V here, 24 V on a DC-3)' },
   },
   starter: {
     none: { name: 'hand-propped',      kg: 0,   price: 0,   amps: 0 },
-    yes:  { name: 'electric starter',  kg: 4.0, price: 1100, amps: 150,   // PRICE-CAL: 700 -> 1 100 (Sky-Tec, $1 086-1 120)
+    yes:  { name: 'electric starter',  kg: 4.0, price: 1100, amps: 150, cableKgM: 0.33,   // (2 AWG copper)   // PRICE-CAL: 700 -> 1 100 (Sky-Tec, $1 086-1 120)
             note: 'Sky-Tec class; 150 A while cranking' },
+    // ELEC-SYSTEMS: `amps` is the bus's draw while cranking (cockpit.js reads it; `yes`'s 150 is the constant it had)
+    ul:    { name: 'ultralight electric starter', kg: 3.5, price: 650, amps: 80, cableKgM: 0.13,   // (6 AWG) set: 'ultralight',
+             note: 'Rotax 582 / 912 class (3.4-4.5 kg; 0.6 kW)' },
+    heavy: { name: 'heavy direct-cranking starter', kg: 15.0, price: 2800, amps: 300, cableKgM: 0.55,   // (1/0 AWG) set: 'heavy',
+             note: 'a radial\'s starter (DC-3: two Eclipse 12 V with brackets, 67 lb)' },
   },
   vac: {
     none:    { name: 'no suction',            kg: 0,   price: 0,   minV: 0 },
@@ -35173,8 +35202,20 @@ const GEN_ELEC = {
     pump:    { name: 'engine-driven vacuum pump', kg: 1.2, price: 600, minV: 0,
                note: 'dry pump on the accessory pad; suction whenever the engine turns' },
   },
-  // the harness: master + breakers + the wire, once, plus a little per item
-  harness: { kg: 1.2, kgPerItem: 0.15, price: 1200 },   // PRICE-CAL: 250 -> 1 200 (wire, master, breakers; $500-3 000, est.)
+  // the harness: master + breakers + the wire. ELEC-SYSTEMS (9 Nov, the user: "go cable runs"; MASS-BUDGET.md): the
+  // wire is BILLED BY ITS RUNS, not a lump - it follows where the current goes, not how heavy the structure is:
+  //   the starter cable  battery -> contactor -> starter and its return, sized by the starter row's `cableKgM`
+  //   the charging lead  generator -> bus, by the charging row's `cableKgM`
+  //   a run per powered dial / radio (two 22 AWG conductors, `loadRunM` long)
+  //   the outside lights  every bus aeroplane carries them (GEN_PRICES.lights bills them so): the nav lights out to
+  //                      both tips, the tail light / beacon down the tail arm, the landing light a third out along
+  //                      each wing - two conductors each at their gauge
+  //   x `install` for the connectors, the clamps, the sleeving and the grommets
+  // A 172 reads 3.7 kg of wire against the 5-7 kg REAL-FIGURES calls real: `install` is the one knob to calibrate when a
+  // real harness weight is found. `kg` / `kgPerItem` are the rule this replaced (1.2 kg + 0.15 kg per powered item),
+  // kept for the record. The bus parts (master contactor, bus bar, breakers) are GEN_ELEC_PARTS.bus, billed with it.
+  harness: { kg: 1.2, kgPerItem: 0.15, price: 1200,   // PRICE-CAL: 250 -> 1 200 (wire, master, breakers; $500-3 000, est.)
+             runs: { loadRunM: 2, loadKgM: 0.006, navKgM: 0.012, landKgM: 0.025, minFeedM: 0.6, install: 1.6 } },
 };
 // THE ELECTRICS AS INSTALLED PARTS (G2801, AVIONICS-GPS phase 2; futureDesigns/AVIONICS-STATUS-2026-10.md §1B, §1G).
 // The rows above BILL; this table says what each billed thing IS once it is bolted in: its size, and where it hangs.
@@ -35188,12 +35229,18 @@ const GEN_ELEC_PARTS = {
   battery: {
     lead:    { dims: [0.178, 0.079, 0.168], note: 'Odyssey PC680: 178 x 79 x 168 mm' },
     lithium: { dims: [0.150, 0.086, 0.132], note: 'EarthX ETX900: 150 x 86 x 132 mm' },
+    lifeSmall: { dims: [0.113, 0.070, 0.105], note: 'a 4-cell LiFePO4 brick' },
+    leadSmall: { dims: [0.150, 0.087, 0.105], note: 'YTX9 class: 150 x 87 x 105 mm' },
+    leadHeavy: { dims: [0.260, 0.170, 0.220], note: 'a heavy cranking battery' },
   },
   alternator: {
     gen20: { len: 0.21, dia: 0.11, note: 'a belt generator on the case top' },
     alt60: { len: 0.16, dia: 0.13, note: 'Plane-Power class, gear-driven on the accessory pad' },
+    genHeavy: { len: 0.30, dia: 0.16, note: 'a radial\'s engine-driven generator' },
   },
-  starter: { yes: { len: 0.19, dia: 0.09, note: 'Sky-Tec class, on the ring gear' } },
+  starter: { yes: { len: 0.19, dia: 0.09, note: 'Sky-Tec class, on the ring gear' },
+             ul: { len: 0.15, dia: 0.08, note: 'a Rotax-class starter' },
+             heavy: { len: 0.30, dia: 0.17, note: 'a radial\'s direct-cranking starter' } },
   // the bus: the master contactor and the bus bar (`kg`), plus a breaker each (`perBreaker`) - the share of the
   // harness row that is not wire. The wire is the rest of the row, so the two always add up to it exactly.
   bus: { kg: 0.45, perBreaker: 0.03 },
@@ -35202,6 +35249,48 @@ const GEN_ELEC_PARTS = {
   breakerSizes: [1, 2, 3, 5, 7.5, 10, 15, 20, 25, 30, 35],
   breakerMargin: 1.4, fieldA: 5,
 };
+// THE ENGINE'S SETS (ELEC-SYSTEMS, 9 Nov; futureDesigns/ELEC-SYSTEMS-2026-11.md). Not a new kind of choice: each set is
+// the three catalogue rows (battery, charging, starter) an engine of that size usually carries, so the garage can mark
+// them on the parts' own tiles and fit them in one press. 'light' is the basic tier's own set (the Cub's, the Jodel's),
+// so the tiers and every saved build stay where they were. The engine only SUGGESTS (genElecSetOf); nothing applies it.
+//   ultralight  a Rotax 503 / 582 / 912: a small battery, the engine's own coil or generator, a 3.5 kg starter (~6 kg)
+//   light       a Continental / Lycoming flat four or six: PC680, 20 A generator, Sky-Tec (~15 kg, as every build had)
+//   heavy       a radial: a cranking battery, an engine-driven generator, a direct-cranking starter (~43 kg)
+// (the vacuum source is not in a set: it follows the gyros, not the engine)
+const GEN_ELEC_SETS = {
+  ultralight: { name: 'Ultralight', battery: 'leadSmall', alternator: 'coil12', starter: 'ul',
+                note: 'two-stroke or Rotax 912 class: a small battery, the engine\'s own coil, a light starter' },
+  light:      { name: 'Light', battery: 'lead', alternator: 'gen20', starter: 'yes',
+                note: 'flat four or six (Continental, Lycoming): what the basic fit carries' },
+  heavy:      { name: 'Heavy', battery: 'leadHeavy', alternator: 'genHeavy', starter: 'heavy',
+                note: 'a radial or a big piston: cranking battery, engine-driven generator, heavy starter' },
+};
+// AS BUILT (REAL-FIGURES, 9 Nov: "engine mass cannot tell a 1940 trainer from a 1950 Beaver"): where history says what an
+// engine's aeroplanes carried, that wins over the mass rule. Kept OUT of POWERPLANTS (its rows ride into the build's
+// params, so a field there would move every build's fingerprint). Keyed by the powerplant row.
+const GEN_ELEC_AS_BUILT = {
+  a65_sensenich74:  { set: 'none', why: 'the A-65-8 of the J-3 Cub and the Jodel D.11: no starter, no generator - hand-propped' },
+  clerget9b_wood:   { set: 'none', why: 'a 1917 rotary (the Camel): magnetos only, swung by hand' },
+  gipsymajor1_wood: { set: 'none', why: 'the Tiger Moth as built: no electrics (some post-war ones got a wind generator for lights)' },
+  w670_hs2b:        { set: 'none', why: 'the PT-17 as delivered: no electrical system, a hand-cranked inertia starter' },
+  mikron3_wood:     { set: 'none', why: 'a 1930s light engine: magnetos only, swung by hand' },
+};
+// the set the engine suggests: none for a motor or a turbine (a pack or its own starter-generator), ultralight for a
+// two-stroke or anything under 70 kg dry (a Rotax 912 is 57-61 kg), heavy over 200 kg (the radials), light between.
+// A Rotax 912's own coil is the 18 A integrated generator, a two-stroke's the 12 A lighting coil: `alternator` says which.
+function genElecSetOf(engine, key) {
+  const E = engine || {};
+  const AB = key && GEN_ELEC_AS_BUILT[key];
+  if (AB) return { set: AB.set, why: (E.name || key) + ': ' + AB.why };
+  if (E.family === 'electric') return { set: null, why: 'an electric motor: the pack starts it, no 12 V starter' };
+  if (E.family === 'turbine') return { set: 'heavy', why: 'a turbine: a heavy starter-generator' };
+  const kg = +E.mass || 0;
+  if (E.family === 'two' || (kg > 0 && kg < 70))
+    return { set: 'ultralight', alternator: E.family === 'two' ? 'coil12' : 'int18',
+             why: (E.name || 'the engine') + ', ' + Math.round(kg) + ' kg: an ultralight\'s electrics' };
+  if (kg > 200) return { set: 'heavy', why: (E.name || 'the engine') + ', ' + Math.round(kg) + ' kg: a heavy engine\'s electrics' };
+  return { set: 'light', why: (E.name || 'the engine') + ', ' + Math.round(kg) + ' kg: a light aeroplane\'s electrics' };
+}
 // THE LAMPS' DRAWS (A at 12 V) - cockpit.js's LIGHT_AMPS moved into the core (E6): the bus, the breaker sizes and
 // GATE ELEC read one table. The beacon draws half its rating on average (the lamp is pulsed).
 const GEN_LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
@@ -35339,6 +35428,30 @@ const GEN_SYSTEMS_SIDES = ['pilot', 'centre'];
 //                   opts.lights, the light keys the build has FITTED) one per outside light and one for the cabin's
 //   parts[]         {key, kind, name, kg, at, dims | len/dia} - the electrics as installed things (GEN_ELEC_PARTS);
 //                   the bus and the wire split the harness row and add up to it exactly
+// THE HARNESS BY ITS RUNS (ELEC-SYSTEMS, 9 Nov; GEN_ELEC.harness above). Pure on the spec, so the frame, the ledger and
+// the column bill one number: the bus parts (contactor, bar, a breaker per powered load and the field's - the lights'
+// breakers are 30 g each and left out, so the number does not depend on the lights the caller names) plus the wire.
+// Lengths from the spec: the engine's station (the firewall is x = 0; a pusher's engine aft of it), the widest wing's
+// span, the tail arm.
+function genHarnessKg(S, elec, nPowered) {
+  const H = GEN_ELEC.harness.runs, PT = GEN_ELEC_PARTS.bus;
+  const eng = S && S.engines && S.engines[0];
+  // (lengths to the centimetre: a wire run is an estimate, and the join measures the engine's station to a few 1e-9 m
+  // differently from node - GATE JOINPARITY - which an unrounded length carried into every node of the build)
+  const cm = x => Math.round(x * 100) / 100;
+  const feed = Math.max(H.minFeedM, cm(Math.abs((eng && +eng.x) || 0) + 0.2));
+  let span = 0;
+  for (const w of (S && S.wings) || []) if (w && +w.span > span) span = cm(+w.span);
+  const arm = cm((S && S.fuselage && +S.fuselage.tailArm) || 0);
+  const st = GEN_ELEC.starter[elec.starter], al = GEN_ELEC.alternator[elec.alternator];
+  let w = 0;
+  if (st && st.cableKgM) w += 2 * feed * st.cableKgM;
+  if (al && al.cableKgM) w += (feed + 0.4) * al.cableKgM;
+  w += nPowered * 2 * H.loadRunM * H.loadKgM;
+  w += 2 * (span / 2) * 2 * H.navKgM + (arm + 0.5) * 2 * H.navKgM + 2 * (span / 6 + 1) * 2 * H.landKgM;
+  const bus = PT.kg + PT.perBreaker * (nPowered + (al && al.A > 0 ? 1 : 0));
+  return +(bus + H.install * w).toFixed(3);
+}
 function genSystemsResolve(S, opts) {
   const sy = (S && S.systems) || {};
   const tier = GEN_SYSTEMS[sy.fit] ? sy.fit : 'basic';
@@ -35365,7 +35478,9 @@ function genSystemsResolve(S, opts) {
   const src = (custom ? sy.items
             : (T.items || GEN_SYSTEMS.basic.items)).map(k => (battery && k === 'fuelSight') ? 'fuel' : k);
   const seen = new Set(), items = [], dropped = [];
-  const hasBus = elec.battery !== 'none';
+  // a bus: a battery, or a self-exciting generator with none (it lives only above its cut-in - the cockpit's bus says
+  // so in flight; the dials, the radios and the harness are fitted and billed as on any bus)
+  const hasBus = elec.battery !== 'none' || !!(GEN_ELEC.alternator[elec.alternator] && GEN_ELEC.alternator[elec.alternator].selfExcited);
   const vacOn = elec.vac !== 'none';
   // NO ROOM ON THE DASH (G2808, the user: "Wysiwyg, and as billed for all"): what the panel's layout could not place
   // (a dial, a radio head, the GPS, a breaker - the join writes `noRoom` from the layout the dash was drawn with) is
@@ -35423,7 +35538,7 @@ function genSystemsResolve(S, opts) {
   if (hasBus) {
     const H = GEN_ELEC.harness;
     rows.push({ key: 'harness', group: 'elec', name: 'master, breakers and harness',
-                kg: +(H.kg + H.kgPerItem * nPowered).toFixed(3), price: H.price, amps: 0 });
+                kg: genHarnessKg(S, elec, nPowered), price: H.price, amps: 0 });
   }
   // THE BREAKERS (G2801): a load is fed through its own, the radios' through theirs on the avionics bus
   const breakers = [];
@@ -35459,6 +35574,7 @@ function genSystemsResolve(S, opts) {
     const cleanPart = g => { const o = {}; for (const q of ['dims', 'len', 'dia']) if (g[q] != null) o[q] = g[q]; return o; };
     put('battery', 'firewallLow');
     put('alternator', 'engine');
+    { const a = parts.find(q => q.key === 'alternator'); if (a && GEN_ELEC.alternator[elec.alternator].internal) a.internal = true; }
     put('starter', 'engine');
     put('vac', 'engine');
     const hr = rows.find(r => r.key === 'harness');
@@ -35468,6 +35584,26 @@ function genSystemsResolve(S, opts) {
                    kg: busKg, at: 'panel', breakers: breakers.length });
       parts.push({ key: 'wire', kind: 'wire', name: 'the wire', kg: hr.kg - busKg, at: 'panel' });
     }
+  }
+  // THE REFUSALS THAT ARE NOT DROPS (ELEC-SYSTEMS, 9 Nov): what the fit carries and bills but can never work. Said, not
+  // removed - removing them would move the mass of every saved build that carries them. The column paints them red.
+  const warnings = [];
+  const motor = !!(S && S.energy && S.energy.kind === 'battery');
+  if (elec.starter !== 'none' && motor)
+    warnings.push({ key: 'starterOnMotor', why: 'an electric motor is started by its pack: the 12 V starter is dead weight' });
+  else if (elec.starter !== 'none' && elec.battery === 'none')
+    warnings.push({ key: 'starterNoBatt', why: 'a starter with no battery cannot crank: the prop is swung by hand' });
+  if (elec.alternator !== 'none' && !hasBus)
+    warnings.push({ key: 'altNoBatt', why: 'an alternator with no battery never comes on line (its field is excited from the battery): nothing electric can be fed' });
+  else if (elec.alternator !== 'none' && elec.battery === 'none')
+    warnings.push({ key: 'genOnly', why: 'no battery: the generator feeds the bus only while the engine turns above its cut-in - every electric dial, radio and lamp is dead on the ground and at idle' });
+  // the engine's set the three rows make together, or null for a mix
+  let elecSet = null;
+  if (elec.battery === 'none' && elec.alternator === 'none' && elec.starter === 'none') elecSet = 'none';
+  else for (const c of Object.keys(GEN_ELEC_SETS)) {
+    const C = GEN_ELEC_SETS[c];
+    if (elec.battery === C.battery && elec.starter === C.starter &&
+        (elec.alternator === C.alternator || (c === 'ultralight' && elec.alternator === 'int18'))) { elecSet = c; break; }
   }
   const sum = g => rows.filter(r => r.group === g)
     .reduce((a, r) => ({ kg: a.kg + r.kg, price: a.price + r.price }), { kg: 0, price: 0 });
@@ -35480,7 +35616,13 @@ function genSystemsResolve(S, opts) {
     kg: panel.kg + el.kg + av.kg, price: panel.price + el.price + av.price,
     loads, breakers, parts, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
     altA: GEN_ELEC.alternator[elec.alternator].A,
-    starter: elec.starter === 'yes', vac: elec.vac,
+    starter: elec.starter !== 'none', vac: elec.vac,
+    // ELEC-SYSTEMS: the bus's catalogue numbers (absent on a row = the bus's old constants, 1100 rpm and 150 A)
+    altCutIn: GEN_ELEC.alternator[elec.alternator].cutIn || 1100,
+    starterA: GEN_ELEC.starter[elec.starter].amps || 150,
+    altInternal: !!GEN_ELEC.alternator[elec.alternator].internal,
+    altSelf: !!GEN_ELEC.alternator[elec.alternator].selfExcited,
+    warnings, elecSet,
     // A3: what the `fuel` slot measures on this build - 'fuel' (litres, a
     // sender per tank, on the bus) or 'battery' (the pack's state of charge,
     // fed by the pack). The dash paints it and the cockpit reads it by this.
@@ -36874,12 +37016,17 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      wheel's springs in series with its tyre and its breakout past the pawl's arc, the lockable / fixed / skid kinds,
 //      a twin boom's wheel a boom - so a certificate's ground cases (the taxi, the roll-out, the drops onto the tail)
 //      move; the plaque's probes in the air do not
-//   8  (taken twice, unmerged: ELEC-SYSTEMS' cable runs and PROP-CLASSES - left to them)
-//   9  2026-11-10, PHYS-SCALE (the REAL-FIGURES study, the user's 8-10 Nov approvals): DRAG-SCALE (a radial's NACA cowl
-//      by its length, skin friction at the Reynolds number of bodies over 8 m and chords over 2 m), MASS-SCALE (the gear's
-//      own gauge ceiling, 8), BIPLANE-SIZING (a wired plane's spar caps by their braced moment), BUSH-WHEELS (a balloon
-//      carcass R^1.6), SLAT-KG (slats 1.2 / slots 0.8 kg/m), UL-WING (the aluminium-tube wing's stand-ins at 0.25) - the
-//      mass, the drag and so the certificate of every build they reach move; a light aeroplane none reaches does not
+//   8  (never on master: claimed by ELEC-SYSTEMS and PROP-CLASSES while unmerged; ELEC-SYSTEMS lands inside 9 below)
+//   9  2026-11-13, REAL-CANON (L40b; A0: one bump, one certificate re-pin for both):
+//      PHYS-SCALE (the REAL-FIGURES study, the user's 8-10 Nov approvals): DRAG-SCALE (a radial's NACA cowl by its length,
+//      skin friction at the Reynolds number of bodies over 8 m and chords over 2 m), MASS-SCALE (the gear's own gauge
+//      ceiling, 8), BIPLANE-SIZING (a wired plane's spar caps by their braced moment), BUSH-WHEELS (a balloon carcass
+//      R^1.6), SLAT-KG (slats 1.2 / slots 0.8 kg/m), UL-WING (the aluminium-tube wing's stand-ins at 0.25) - the mass, the
+//      drag and so the certificate of every build they reach move; a light aeroplane none reaches does not.
+//      + ELEC-SYSTEMS (the user's ruling "go cable runs, no need of latent"): the wiring harness is billed by its cable runs
+//      (genHarnessKg: the starter cable, the charging lead, a run per powered load, the outside lights over the span and
+//      the tail arm) where it was 1.2 kg + 0.15 kg per item - every aeroplane with a bus weighs a little more (the Cub
+//      +1.7 kg empty, MASS-BUDGET.md)
 const PHYSICS_V = 9;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
@@ -65005,9 +65152,17 @@ const TECH_TABLE = {
   'elec.battery:none': 1, 'elec.battery:lead': 1, 'elec.battery:lithium': 3,
   'elec.alternator:none': 1, 'elec.alternator:gen20': 1, 'elec.alternator:alt60': 2,
   'elec.starter:none': 1, 'elec.starter:yes': 1,
+  // ELEC-SYSTEMS (9 Nov): the class rows - lead and copper are wood-and-fabric technology, a lithium brick electronics,
+  // the 912's integrated generator rides with the 912 UL (1)
+  'elec.battery:leadSmall': 1, 'elec.battery:leadHeavy': 1, 'elec.battery:lifeSmall': 3,
+  'elec.alternator:coil12': 1, 'elec.alternator:int18': 1, 'elec.alternator:genHeavy': 1,
+  'elec.starter:ul': 1, 'elec.starter:heavy': 1,
   'elec.vac:none': 1, 'elec.vac:venturi': 1, 'elec.vac:pump': 2,
   'av.com:none': 1, 'av.com:compact': 1,
   'av.xpdr:none': 1, 'av.xpdr:modeS': 2,
+  // ELEC-SYSTEMS (9 Nov, the user: "do what you think is best"): the ELT is certified avionics on its own battery, the
+  // transponder's tier - not GPS-era electronics
+  'av.elt:none': 1, 'av.elt:fitted': 2,
   'av.nav:none': 1, 'av.nav:vor': 2,
   'av.gps:none': 1, 'av.gps:portable': 3, 'av.gps:panel': 3, 'av.gps:glass': 3, 'av.gps:flat': 3, 'av.gps:flatPair': 3,   // G2815
   // ---- gear
@@ -65256,7 +65411,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_BRAKES, genBrakeOf, GEN_STRUT_OPT, genStrutOpts, genStrutOptCdA };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_BRAKES, genBrakeOf, GEN_STRUT_OPT, genStrutOpts, genStrutOptCdA, GEN_ELEC_AS_BUILT, GEN_ELEC_SETS, genElecSetOf, genHarnessKg };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
