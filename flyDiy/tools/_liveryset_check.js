@@ -28,7 +28,10 @@ const BUILDS = {
   twin: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', rufus: 'builds/rufus_2026-10-18_certified.json',
 };
 const DONOR = 'builds/candidates/carbon_cub_ss.json';
-const specOf = f => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); return j.spec || j; };
+// the validated builds through the game's load door (tools/_load_build.js, GATE JOINPARITY); the donor is a candidate card
+const LB = require('./_load_build.js');
+const rawSpec = f => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); return j.spec || j; };
+const specOf = f => f === DONOR ? rawSpec(f) : LB.loadBuild(f).spec;
 const clone = o => JSON.parse(JSON.stringify(o));
 const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; return h.toString(16); };
 // the aeroplane, without its look: every node's place and mass, every member, the empty mass
