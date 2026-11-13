@@ -120,16 +120,8 @@ function makeTowHands(sim, o) {
   };
 }
 
-// THE SLOPE'S PULL (TOW-LAUNCH, 12 Nov - a push start down Skyline Altiport): the solver's ground pushes each contact
-// STRAIGHT UP (30_solver.js: f[y] += Fn; the friction horizontal), so a slope never rolls an aeroplane downhill - a
-// glider pushed off on Skyline's 10 % stopped in 13 s. Until the solver's ground knows its normal (a core change, the
-// user's call), a launch down a slope adds it: while a wheel is on the ground, g x the terrain's grade along the roll
-// direction (dx, dz), on every node's mass, one frame's impulse. The cost: 3 terrain reads and n impulses a frame
-function slopePull(sim, world, dx, dz, dt) {
-  if (!(sim.wheelsOnGround() > 0)) return 0;
-  const q = sim.cgPos(), gr = (world.terrainH(q[0] + dx, q[2] + dz) - world.terrainH(q[0] - dx, q[2] - dz)) / 2;
-  for (let i = 0; i < sim.n; i++) { const J = -9.81 * gr * sim.m[i] * dt; sim.impulse(i, dx * J, 0, dz * J); }
-  return gr;
-}
+// (THE SLOPE'S PULL, 12 Nov - the stopgap that rolled a push start down Skyline Altiport while the solver's ground pushed
+//  straight up - is gone: the solver's ground pushes along the terrain's normal now (TOW-LAUNCH slope reaction, 30_solver.js,
+//  GATE SLOPE), and the two together would have doubled the slope)
 
-if (typeof module !== 'undefined') module.exports = { towHookNodes, makeTowLine, makeTowHands, slopePull };
+if (typeof module !== 'undefined') module.exports = { towHookNodes, makeTowLine, makeTowHands };

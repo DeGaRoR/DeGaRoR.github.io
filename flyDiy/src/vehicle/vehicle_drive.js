@@ -788,6 +788,7 @@ function makeDriver(car, G, tune) {
     // the measured errors (the gate's)
     if (!man) { const a = Math.abs(loc.ey); if (a > D.stats.xtMax) D.stats.xtAt = [+p.x.toFixed(1), +p.z.toFixed(1), +u.toFixed(2), D.i]; D.stats.xtMax = Math.max(D.stats.xtMax, a); D.stats.xtSq += a * a; D.stats.xtN++; }   // (xtAt: where the worst was - the gate prints it)
     else D.stats.manXt = Math.max(D.stats.manXt, Math.abs(loc.ey));
+    D.stats.ey = man ? null : loc.ey;   // (the last one: a gate may split the max by where the car is - GATE DRIVE-TRIP's streets / airfield)
     // a manoeuvre's move begins at rest, in its gear, the wheels steered to its first arc (dry steering)
     if (man && D.wait >= 0) {
       const k0 = path.pts[0].kap, d0 = Math.atan(dir > 0 ? def.wb * k0 : -def.wb * k0);

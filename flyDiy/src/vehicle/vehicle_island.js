@@ -104,8 +104,13 @@ function vehIslandSpec(RG, opts) {
     const P = [+best.F.x.toFixed(3), +best.F.z.toFixed(3)];
     if (best.F.t > 1e-6 && best.F.t < 1 - 1e-6) best.e.ins.push({ k: best.k, t: best.F.t, p: P });
     else { const q = best.F.t <= 1e-6 ? best.e.pts[best.k] : best.e.pts[best.k + 1]; P[0] = q[0]; P[1] = q[1]; }
-    if (L > 0.5) mkRoad('link:' + A.R.id, [[S.x, S.z], P], 8, 'link', 5);
-    links.push({ id: A.R.id, ok: true, to: best.e.road, m: +L.toFixed(1) });
+    // (a stand whose own taxi route already passes through that point needs no straight link: the taxi route IS the way -
+    //  HOME's final layout (L39, HOME-LAYOUT) put the stand so that r_taxi_ne's nearest point is a vertex of taxi:HOME:0,
+    //  and the straight link beside the bent taxi route - 3 m apart - left a car 3.7 m off its route leaving the stand and
+    //  3.2 m off the stop arriving)
+    const viaTaxi = A.taxis.some(T => T.pts.slice(1).some(q => Math.hypot(q[0] - P[0], q[1] - P[1]) < 1));
+    if (L > 0.5 && !viaTaxi) mkRoad('link:' + A.R.id, [[S.x, S.z], P], 8, 'link', 5);
+    links.push(Object.assign({ id: A.R.id, ok: true, to: best.e.road, m: +L.toFixed(1) }, viaTaxi ? { viaTaxi: true } : {}));
   }
   const deg = new Map(); for (const e of E) { deg.set(e.a, (deg.get(e.a) || 0) + 1); deg.set(e.b, (deg.get(e.b) || 0) + 1); }
   // 2. the segment grid
@@ -210,11 +215,11 @@ function vehIslandSpec(RG, opts) {
   for (const T of targets) {
     const n = nearest(T.x, T.z, comp);
     if (!n || n.d > (T.max != null ? T.max : maxOff)) { placeRep.push({ id: T.id, name: T.name, ok: false, off: n ? +n.d.toFixed(0) : null }); continue; }
-    // a stop at least VI_STOP_IN in from a road's end (the stop is ON the road, its end may be a dead end - or a square
-    // junction: CAR, 13 Nov - master's HOME-DERELICT put HOME's stand on one, 6 m in, and a car coming round the corner
-    // could not line up in 6 m: it stopped 3.2 m off, still turning; 12 m holds a 90-degree fillet at 1.15 rMin and the
-    // straightening after it), never past the road's middle
-    const s = Math.max(Math.min(VI_STOP_IN, n.len / 2), Math.min(n.s, n.len - Math.min(VI_STOP_IN, n.len / 2)));
+    // a stop VI_STOP_IN (12 m) in from a road's end, a FIELD's 15 m - the stop is ON the road, its end a dead end or a
+    // corner (CAR, 13 Nov: master's HOME-DERELICT put HOME's stand on a square junction - 6 m in, a car coming round could
+    // not line up and stopped 3.2 m off; TOW-LAUNCH, L39: 96 deg from taxi:HOME:0 onto taxi:HOME:1, a car pulling away 6 m
+    // short cut it by 3.7 m), never past the road's middle
+    const e0 = T.kind === 'field' ? 15 : VI_STOP_IN, s = Math.max(Math.min(e0, n.len / 2), Math.min(n.s, n.len - Math.min(e0, n.len / 2)));
     places.push({ id: T.id, name: T.name, road: n.ri, s, kind: 'stop', side: 1, target: [T.x, T.z], off: +n.d.toFixed(1), what: T.kind });
     placeRep.push({ id: T.id, name: T.name, ok: true, off: +n.d.toFixed(0), road: roads[n.ri].road });
   }
@@ -244,6 +249,23 @@ function vehIslandSpec(RG, opts) {
 // starts: the places on its network) }
 const VI_STOP_IN = 12;   // a place's stop, metres in from its road's end (was 6)
 const VI_DRIVABLE = { 0: 1, 5: 1, 6: 1, 7: 1 };   // the world's SURFACE: grass, paved, gravel, sand (not rock, scree, forest, water)
+// THE CAR'S OWN PLACES (the user, 13 Nov via A0: "a few CAR-ONLY destinations"): places a car goes and an aeroplane does
+// not - each from the premises record (a site's `at`, or a zone's centre), by id, so a record without one simply has no such
+// place; a stop on the vehicle's road network like the town's (600 m off a road at most, else reported, not listed)
+const VI_CAR_PLACES = [
+  { id: 'car:harbour', site: 'mk_harbormaster', name: 'Cedar Harbour harbour front' },
+  { id: 'car:village', zone: 'z_village', name: 'the village' },
+  { id: 'car:tramway', site: 'tw_s_valley', name: 'Skyline Tramway valley station' },   // (Copperhead Mine: its streets are a network of their own - no road to it from the rest of the island, 9.1 km off one)
+  { id: 'car:cannery', site: 's7', name: 'the cannery at Cannery Runway' },
+];
+function viCarSites(rec) {
+  const L = (rec && rec.layers) || {}, out = [];
+  for (const C of VI_CAR_PLACES) {
+    if (C.site) { const s = (L.sites || []).find(q => q.id === C.site); if (s && s.at) out.push({ id: C.id, name: C.name, x: s.at.x, z: s.at.z, kind: 'car' }); }
+    else if (C.zone) { const z = (L.zones || []).find(q => q.id === C.zone), P = z && z.poly; if (P && P.length) { let x = 0, y = 0; for (const q of P) { x += q.x ?? q[0]; y += q.z ?? q.y ?? q[1]; } out.push({ id: C.id, name: C.name, x: x / P.length, z: y / P.length, kind: 'car' }); } }
+  }
+  return out;
+}
 function vehIslandFromWorld(world, h) {
   const P = world.premises, O = P && P.overlay;
   if (!O || typeof O.roadGraph !== 'function') return null;
@@ -260,6 +282,7 @@ function vehIslandFromWorld(world, h) {
   for (const q of h.sites || []) { const S = ((P.rec && P.rec.layers && P.rec.layers.sites) || []).find(s => s.id === (q.id || q));
     if (S && S.at) sites.push({ id: S.id, name: S.name || S.id, x: S.at.x, z: S.at.z, kind: 'site', max: q.max != null ? q.max : 80 }); }
   const T = h.town; if (T) { const hall = ((P.rec && P.rec.layers && P.rec.layers.sites) || []).find(s => s.id === T.site); if (hall && hall.at) sites.push({ id: T.id, name: T.name, x: hall.at.x, z: hall.at.z, kind: 'town' }); }
+  if (h.carPlaces !== false) for (const c of viCarSites(P.rec)) sites.push(c);
   const RG = O.roadGraph();
   const I = vehIslandSpec(RG, { rec: P.rec, toWorld: (x, z) => O.frame.toWorld(x, z), aerodromes: aero, sites, from: h.from, runways,
     ground: (x, z) => !!VI_DRIVABLE[world.surface(x, z)], height: (x, z) => world.terrainH(x, z), joinCrossings: h.joinCrossings, tTol: h.tTol });
@@ -267,4 +290,4 @@ function vehIslandFromWorld(world, h) {
   return I;
 }
 
-if (typeof module !== 'undefined') module.exports = { vehIslandSpec, vehIslandFromWorld, viCross, viSegFoot };
+if (typeof module !== 'undefined') module.exports = { vehIslandSpec, vehIslandFromWorld, viCross, viSegFoot, VI_CAR_PLACES, viCarSites };

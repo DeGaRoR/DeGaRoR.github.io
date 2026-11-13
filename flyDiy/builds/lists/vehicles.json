@@ -1,9 +1,10 @@
 {
  "what": "flydiy-vehicles",
  "v": 1,
- "note": "THE VEHICLES (FLAGSHIP's choice (b), 12 Nov, via A0): a car is not a plane - no registration, no class, no REAL-FIGURES check - so the cars live here, not in plane_lists.json or the candidates pool. Moved here at the TOW-LAUNCH x master merge from the car branch's plane-list rows 50/51 and pool entries; the CAR session owns this list (what the garage reads from it is theirs).",
+ "note": "THE VEHICLES (FLAGSHIP's choice (b), 12 Nov, via A0): a car is not a plane - no registration, no class, no REAL-FIGURES check - so the cars live here, not in plane_lists.json or the candidates pool. Moved here at the TOW-LAUNCH x master merge from the car branch's plane-list rows 50/51 and pool entries; the CAR session owns this list (what the garage reads from it is theirs). Each row carries its kind ('car'; the trailer 'trailer'): window.VEHICLE_KIND (src/viewer/vehicle_kind.js) is the one rule for a build.",
  "vehicles": [
   {
+   "kind": "car",
    "name": "Boat-tail roadster (car)",
    "file": "builds/candidates/roadster_2026-11.json",
    "thumb": "cand:roadster_2026-11.json",
@@ -12,6 +13,7 @@
    "kind": "car"
   },
   {
+   "kind": "car",
    "name": "Dune Bug (buggy)",
    "file": "builds/candidates/buggy_2026-11.json",
    "thumb": "cand:buggy_2026-11.json",
