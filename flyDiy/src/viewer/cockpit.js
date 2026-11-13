@@ -508,7 +508,10 @@ function make(THREE) {
         case 'flap': { const sm = CK.sim; a1 = (c.k || 0.75) * clamp(sm && sm.ctl ? +sm.ctl.flap || 0 : 0, 0, 1); break; }
         // SKIS: the wheel-skis' selector follows its command (the hand's or the AP's on ctl.ski; unset, where the skis are)
         case 'ski': { const sm = CK.sim, cmd = sm && sm.ctl && (sm.ctl.ski === 0 || sm.ctl.ski === 1) ? sm.ctl.ski
-                        : (sm && sm.out && sm.out.ski > 0.5 ? 1 : 0); a1 = (c.k || 0.9) * cmd; break; }
+                        : (sm && sm.out && sm.out.ski > 0.5 ? 1 : 0); a1 = (c.k || 0.45) * (2 * cmd - 1); break; }   // (UP up, DN down)
+        // SKIS: the add-on box's lamps - amber while the pump runs (the skis in transit), green down and locked
+        case 'skiLamp': { const sm = CK.sim, ps = sm && sm.out && typeof sm.out.ski === 'number' ? sm.out.ski : null;
+                          o.visible = ps !== null && (drv === 'skiDn' ? ps > 0.98 : ps > 0.02 && ps < 0.98); a1 = 0; break; }
         default: a1 = 0;
       }
       // A3: THE LAW IS ABSOLUTE, THE GEOMETRY IS NOT - the snapshot holds the

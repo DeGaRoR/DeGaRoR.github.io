@@ -14,6 +14,7 @@ belly pod). Every picture below is the game's own load chain headless (the edito
 | carbon_cub_pod_side / q.png | the Carbon Cub with the belly pod (2.1 x 0.48 x 0.30 m, 116 L, rated 65 kg) |
 | quickview_cub_skis_pod_q / q2.png | tools/quick_view.js (the perspective viewer): the Carbon Cub on its SS2300 wheel-skis WITH the belly pod (tools/fixtures/skis/carbon_cub_ss_skis_pod.json) - the user's look before the phone render |
 | carbon_cub_skis_down_up.png / _front.png | the wheel-ski's two places side by side (the preview row skiPos 1 / 0): down, the ski under the tyre; up, the tyre 3 cm through the cutout - the tyre passes the cutout, no clip (GATE SKIS 4 measures it) |
+| addon_control_box_panel / _close.png | the wheel-skis' control box, an ADD-ON (quick_view, the panel layer alone): 64 x 36 mm of bent aluminium hung under the Carbon Cub's panel edge on a screwed flange - the UP / DN toggle, the amber PUMP and green DN lamps, a breaker, tape labels, its loom (after Wipaire's Fli-Lite 4000 ICA and Airglas' LH4000 / GLH3000 manuals) |
 
 The flights (the game's pilot, tools/_skis_check.js; a powder layer = SOFT_GROUND.powder handed to a world shim over
 HOME - no snow surface exists on master yet: the SNOW-MUD interface, design note section 3):
