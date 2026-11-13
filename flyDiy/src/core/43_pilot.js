@@ -4694,7 +4694,13 @@ function makePilot(sim, def, world, opts) {
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
         // 45 m on the cub, "it turns really low"), never above hCruise - 15
         const routeArmed = !!(ap.drawn && ap.drawn.state === 'armed');   // G2120: the drawn route takes over at the crosswind turn's height
-        const hTurn = (ap.xc && !routeArmed) ? ap.hCruise - 8
+        // PILOT-UNIFY (CANON-C172, GATE TOUR on list:50 13 Nov): A DESTINATION BEHIND THE CLIMB-OUT IS TURNED FOR AT THE
+        // CIRCUIT'S HEIGHT. w2 > HOME (HOME 1 km behind the take-off from 773 m down 02/20): the cross-country climb held the
+        // runway heading to the cruise height, 4 km away from HOME, over the valley to the ridge, and broke up on it turning
+        // back. A To more than 90 deg off the climb-out: the crosswind turn's height, then the route from there
+        const toB = ap.route && ap.route.to;
+        const behind = !!(ap.xc && toB && ((toB.x - cg[0]) * climbDir0[0] + (toB.z - cg[2]) * climbDir0[1]) < 0);
+        const hTurn = (ap.xc && !routeArmed && !behind) ? ap.hCruise - 8
                     : Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
         pubH = ap.refAlt + hTurn; pubN = ap.xc ? 'CRUISE HEIGHT' : 'CROSSWIND TURN'; pubX = null; pubZ = null;
         const stalled = phaseT > 60 && vsSlow < 0.15, marginal = phaseT > 75 && vsSlow < 0.4;
@@ -4770,7 +4776,13 @@ function makePilot(sim, def, world, opts) {
           // (40 m at least) over it, a terrain closer than that raises the target and is said (ap.vpReact counts them)
           if (L.vp) {
             const hP = VPROFILE.at(L.vp, r.s + 5 * Math.max(Vg, 10));
-            const react = terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500) + Math.max(2 * A.hSafe, 40);
+            // PILOT-UNIFY (list:50, w2 > HOME 13 Nov): ...AND ALONG THE TRACK FLOWN while it is over 30 deg off the leg - the
+            // turn onto the leg swings ~800 m beside it (41-47 m/s, 0.45 bank): the leg's line read the low ground toward
+            // HOME, the turn crossed the ridge, levelled at 268 m over 227 m rising and broke up on it
+            const vh_ = Math.hypot(vcg[0], vcg[2]);
+            const offLeg = vh_ > 5 && (vcg[0] * g.ux + vcg[2] * g.uz) / vh_ < Math.cos(Math.PI / 6);
+            const react = Math.max(terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500),
+                                   offLeg ? terrainAhead(cg[0], cg[2], vcg[0] / vh_, vcg[2] / vh_, 1500) : -1e9) + Math.max(2 * A.hSafe, 40);
             if (react > hP + 1) {
               if (!vpReact) { vpReact = true; ap.vpReact = (ap.vpReact || 0) + 1; say('terrain-react', 'the ground ahead stands within ' + Math.round(Math.max(2 * A.hSafe, 40)) + ' m of the plan on ' + L.name + ' - climbing to ' + Math.round(react) + ' m (planned ' + Math.round(hP) + ')'); }
               hTgt = react;
