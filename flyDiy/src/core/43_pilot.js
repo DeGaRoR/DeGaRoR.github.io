@@ -4630,13 +4630,17 @@ function makePilot(sim, def, world, opts) {
           // Only when the straight way out is too steep for the aeroplane: every other departure is the old one to the bit.
           // THE GROUND, NOT THE TREES: read with the canopy, the trees just past HOME's end (150 m on, 15 m clear, from the
           // lift-off's 2 m) asked more than the C172's 8 % and turned it off the line into an en-route join (GATE PLAN 3) -
-          // the Vx climb (depNeed) clears trees; a valley is the TERRAIN's: the ground alone, 15 m clear, every 150 m to 1.5 km
-          const gTerr = (dx, dz) => { let g = -1; for (let k = 1; k <= 10; k++) { const d = 150 * k; g = Math.max(g, (groundH(cg[0] + dx * d, cg[2] + dz * d) + 15 - cg[1]) / d); } return g; };
+          // the Vx climb (depNeed) clears trees; a valley is the TERRAIN's: the ground alone, 15 m clear, every 150 m to 750 m.
+          // AND THE NEAR GROUND ONLY: HOME's rise 1-1.5 km out (10 % from the lift-off, the C172's 7) is CLIMB's terrain turn's,
+          // from hSafe + 10 (~340 m of an 8 % climb) - the valley departure is for ground nearer than that turn can be flown
+          const gTerr = (dx, dz) => { let g = -1; for (let k = 1; k <= 5; k++) { const d = 150 * k; g = Math.max(g, (groundH(cg[0] + dx * d, cg[2] + dz * d) + 15 - cg[1]) / d); } return g; };
           if (!ap.valleyChecked && onG === 0) {
             ap.valleyChecked = true;
             const tdV = [F.ux * ap.dirX, F.uz * ap.dirX], gG = gammaGA();
             const n0 = gTerr(tdV[0], tdV[1]);
-            if (n0 > gG) {
+            // (CLEARLY BEYOND THE CLIMB: 1.5 x the sheet's full climb gradient, gG / 0.8 - HOME's 10 % from the lift-off is a climb the C172
+            //  makes on Vx and CLIMB's turn, Jumbo Mine's mountain way 27 % is not)
+            if (n0 > 1.5 * gG / 0.8) {
               let best = null;
               for (const deg of [15, -15, 30, -30, 45, -45]) {
                 const r = deg * Math.PI / 180, dx = tdV[0] * CORE_MATH.cos(r) - tdV[1] * CORE_MATH.sin(r), dz = tdV[0] * CORE_MATH.sin(r) + tdV[1] * CORE_MATH.cos(r);
