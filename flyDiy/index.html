@@ -3134,6 +3134,8 @@ body.rollShot #flActs { display:none !important; }
   background:#2b3138; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12); }
 #ui .rd b .gl.g { background:#35c46a; box-shadow:0 0 6px rgba(53,196,106,0.7); }
 #ui .rd b .gl.r { background:#e04a33; box-shadow:0 0 6px rgba(224,74,51,0.7); }
+/* GEAR-LEVER: an amphibian's wheels up - blue (Wipline's advisory: water) */
+#ui .rd b .gl.b { background:#3a86ff; box-shadow:0 0 6px rgba(58,134,255,0.7); }
 
 #ui .rd[hidden] { display:none; }
 
@@ -4713,7 +4715,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='e4db3663b937';window.FLYDIY_BUILD_DATE='2026-11-12T20:32:25.726Z';</script>
+<script>window.FLYDIY_BUILD='96c9c3472549';window.FLYDIY_BUILD_DATE='2026-11-13T16:34:52.584Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -19224,6 +19226,7 @@ function stripGear(x) {
   if (g) {
     const t = String(g.type || '');
     if (t === 'amphibian' || (g.floats && g.floats.amphibian === true)) return 'amphibian';
+    if (t === 'floats' && g.floats && g.floats.amph && typeof g.floats.amph === 'object' && g.retract) return 'amphibian';   // AMPH-FLOATS (GEAR-LEVER): floats with their wheels
     if (t === 'skis' || g.skis === true) return 'skis';
     if (t === 'floats') return 'floats';
     if (t === 'tricycle' && g.hull && Array.isArray(g.hull.sta)) return 'amphibian';   // HULL-B55: a boat hull on retracting wheels
@@ -27206,6 +27209,37 @@ function snapPut(t, s, seen) {
   for (const k of Object.keys(t)) if (!(k in s) && typeof t[k] !== 'function') delete t[k];
   for (const k of Object.keys(s)) put(t, k, s[k]);
 }
+// GEAR-LEVER (the user's ruling, 8 Nov: "red with horn"): THE GEAR WARNING, one law for the horn (audio_params gearWarn)
+// and the dash's red lamp (cockpit.js): a retractable gear (out.gear a number) NOT down and locked with the throttle
+// back or the flap past the approach, in the air; on the ground (the squat switch) the SELECTOR UP. An amphibian
+// (out.gearAmph) has no horn: its gear may rightly be up on the approach - it has the advisory (gearAdvisoryOf) instead.
+// 1 / 0; 0 on every fixed build (no out.gear)
+function gearWarnOf(o, ctl) {
+  const g = o ? o.gear : undefined;
+  if (typeof g !== 'number' || (o.gearAmph > 0)) return 0;
+  const c = ctl || {};
+  if (o.gearWow > 0) return c.gear === 0 ? 1 : 0;
+  const thr = +c.thr || 0, fl = +c.flap || 0;
+  return g <= 0.98 && (thr < 0.25 || fl > 0.35) ? 1 : 0;
+}
+// GEAR-LEVER (the user, 13 Nov: "the real amphibian advisory ... as Wipline's advisory does"): AN AMPHIBIAN'S GEAR
+// ADVISORY. Wipaire's announces the gear's state as the aeroplane slows for a landing - "gear is UP for water landing",
+// "gear is DOWN for runway landing" - whatever the surface: the pilot checks it against the one ahead. Here: armed
+// in the air under ARM m/s (equivalent) and descending, once per approach (re-armed over REARM m/s or on the surface);
+// returns 'up' / 'down' / 'transit' at the moment it speaks, else null. `st` is the caller's state ({ armed, said }).
+// No out.gearAmph: null always.
+const GEAR_ADV = { ARM: 1.30, REARM: 1.55 };      // x the build's Vs (out.vs1g / the caller's vs) [inferred: a pattern]
+// (armed only in the air past REARM x Vs - a take-off run, on the water or the runway, never speaks; the surface -
+// the squat switch, a wet hull - disarms it)
+function gearAdvisoryOf(o, st, vs) {
+  if (!o || !(o.gearAmph > 0) || typeof o.gear !== 'number' || !st) return null;
+  const V = o.Veas != null ? o.Veas : (o.V || 0), Vs = vs > 0 ? vs : 20;
+  if (o.gearWow > 0 || o.hydroWet > 0) { st.armed = false; st.said = false; return null; }
+  if (V > GEAR_ADV.REARM * Vs) { st.armed = true; st.said = false; return null; }
+  if (!st.armed || st.said || V > GEAR_ADV.ARM * Vs || !((o.vs || 0) < 0.3)) return null;
+  st.said = true;
+  return o.gear > 0.98 ? 'down' : o.gear < 0.02 ? 'up' : 'transit';
+}
 function makeSim(def, world) {
   const P_ = def.params;
   const PP = POWERPLANTS[P_.powerplant];
@@ -28694,9 +28728,11 @@ function makeSim(def, world) {
   // drawn fold's MEASURED rise of the wheel's lowest point (params.retract.lift, the join's) - else the frame's rule,
   // the lift to the highest of the wheel's members' anchors plus its radius, times the fraction
   const RFRAC = RET ? (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1) : 1, RSEMI = RFRAC < 1;
+  const GAMPH = !!(RET && def.parts && def.parts.amph);
   if (RET) {
     const isMainN = new Set(def.refs.mains || []);
-    for (const i of [...(def.refs.mains || []), def.refs.tw]) {
+    // (AMPH-FLOATS: a quadricycle's second nose wheel, refs.tw2, retracts with the first - no land retract has a tw2)
+    for (const i of [...(def.refs.mains || []), def.refs.tw].concat(def.refs.tw2 != null && def.refs.tw2 >= 0 ? [def.refs.tw2] : [])) {
       if (!(i >= 0 && i < n)) continue;
       GW[i] = 1;
       const meas = RET.lift ? (isMainN.has(i) ? RET.lift.mains : RET.lift.nose) : null;
@@ -28708,6 +28744,47 @@ function makeSim(def, world) {
   }
   // the effective contact radius: a wheel node's plane rises with the wheel (rC itself is the reset's, untouched)
   const rCe = i => (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]);
+  // GEAR-LEVER (the user, 13 Nov: "a wheels-down water landing is a real hazard in the physics (it noses over)"): AN
+  // AMPHIBIAN'S WHEELS IN THE WATER. Its hull (a boat's, the floats') is the water's (32_hydro hydroSolverPass); its
+  // wheels were not - a wheels-down alighting ran on the hull as if they were up. Each tyre under the surface is the
+  // wet body's bluff plate (32_hydro WB_*: Cd 1.0 on the immersed chord x half the radius across the flow in the wheel's
+  // plane, Cd 1.2 on the immersed disc across it, its displaced volume), at the contact plane the retraction leaves
+  // it (rCe: stowed it rides up into the hull). Low under the CG, its drag is the nose-over moment every gear-down
+  // amphibian landing shows. Explicit as the wet body's is: a node's force against its own velocity stops it at most
+  // over the step (the slamCap). Only an amphibian (parts.amph with a retraction and a hull or floats): every other
+  // build runs nothing here
+  // (only the tyre's EXPOSED part ploughs: the drop below its stowed place, GH x pos - stowed flush in the float, none;
+  // AMPH-FLOATS only for now: the hull amphibian's (the Super Petrel's, validated) water runs keep their numbers until
+  // its baselines are re-blessed with it)
+  const AW_CD = 1.0, AW_CDS = 1.2, AW_W = 0.5, AW_RHO = 1000;
+  const AW_ON = GAMPH && !!(def.spec && def.spec.gear && def.spec.gear.type === 'floats');
+  let AWI = null;
+  function amphWheelWater(dtS) {
+    if (AWI === null) { AWI = []; for (let i = 0; i < n; i++) if (GW[i] && def.nodes[i].r > 0) AWI.push(i); }
+    const Mn = def.refs.mains || [];
+    let ax = 0, ay = 0, az = 1;
+    if (Mn.length === 2) { const a = Mn[0] * 3, b = Mn[1] * 3; ax = p[b] - p[a]; ay = p[b+1] - p[a+1]; az = p[b+2] - p[a+2];
+      const L = Math.sqrt(ax * ax + ay * ay + az * az) || 1; ax /= L; ay /= L; az /= L; }
+    let drag = 0;
+    for (const i of AWI) {
+      const i3 = i * 3, R = def.nodes[i].r, wy = world.waterH(p[i3], p[i3+2], simT);
+      if (!(wy > -1e8)) continue;
+      const d = Math.min(2 * R, wy - (p[i3+1] - R) - (GR ? GR.lift * GH[i] : 0), GR ? GH[i] * GR.pos : 2 * R);
+      if (!(d > 0)) continue;
+      const wT = AW_W * R, th = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - d / R))), seg = 0.5 * R * R * (th - CORE_MATH.sin(th));
+      const vx = v[i3], vy = v[i3+1], vz = v[i3+2], va = vx * ax + vy * ay + vz * az;
+      const px = vx - va * ax, py = vy - va * ay, pz = vz - va * az, Vm = Math.sqrt(vx * vx + vy * vy + vz * vz);
+      const kP = 0.5 * AW_RHO * AW_CD * wT * d * Vm, kS = 0.5 * AW_RHO * AW_CDS * seg * Vm;
+      let Fx = -kP * px - kS * va * ax, Fy = -kP * py - kS * va * ay, Fz = -kP * pz - kS * va * az;
+      if (Vm > 1e-6) {
+        const fa = (Fx * vx + Fy * vy + Fz * vz) / Vm, cap = m[i] * Vm / dtS;
+        if (fa < -cap) { const k = (-fa - cap) / Vm; Fx += k * vx; Fy += k * vy; Fz += k * vz; }
+      }
+      f[i3] += Fx; f[i3+1] += Fy + AW_RHO * 9.81 * seg * wT; f[i3+2] += Fz;
+      drag += Math.hypot(Fx, Fz);
+    }
+    out.amphWheelDrag = drag;
+  }
   function gearStep(dtF) {
     // the squat switch: any wheel within 3 cm of its (effective) ground
     let wow = false;
@@ -28726,6 +28803,7 @@ function makeSim(def, world) {
     if (WB) WB.lift = GH.map((h, i) => GW[i] ? GR.lift * h : 0);
     // published on `out` (the physics worker's snapshot carries out whole: the page's lamps, horn and swing read these)
     out.gear = GR.pos; out.gearMov = GR.moving; out.gearWow = wow ? 1 : 0; out.gearEmerg = GR.emerg ? 1 : 0;
+    if (GAMPH) out.gearAmph = 1;   // GEAR-LEVER: an amphibian (the dash's blue lamps, the advisory; no horn) - the key only then
   }
   // THE CRASH (G1470): when a member other than the nose's BREAKS (noseB: the nose crushing round a trunk is a dent), when
   // the contacts' push passes CRASH_G (the impact's g above, over 50 ms; FAR 23.561's 9 g forward ultimate is what the
@@ -31161,6 +31239,7 @@ function makeSim(def, world) {
     // THE WATER (H1): every wet panel of every float, onto the frame
     const wIn = DMG_ON && (HY || wetOn()) ? waterSum0() : false;   // G1470: the water's push, for the impact's g
     if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt, ctl);
+    if (HY && AW_ON && world && typeof world.waterH === 'function') amphWheelWater(dt);   // GEAR-LEVER: the amphibian's tyres
     else if (wetArm) { out.hydroWet = HYDRO.wetSolverPass(WB, world, f, simT, dt); out.wetDrag = WB.drag; out.wetBuoy = WB.buoy; out.wetFlood = WB.flood; }
     if (wIn) waterSum1(dt);
     // tree collisions: cheap cylinder push-out, only when low and near trees
@@ -31420,7 +31499,7 @@ function makeSim(def, world) {
     for (const i of [...def.refs.mains, def.refs.tw]) {
       if (!(i >= 0)) continue;   // REVIEW 2026-10-04: no third wheel (tw null) read p[NaN]
       if (i === def.refs.tw && t2 >= 0) { const gh2 = world ? world.terrainH(p[t2*3], p[t2*3+2]) : 0;
-        if (p[t2*3+1] - rC[t2] - gh2 < 0.03) { c++; continue; } }
+        if (p[t2*3+1] - rCe(t2) - gh2 < 0.03) { c++; continue; } }   // (GEAR-LEVER: rCe - a quadricycle's second nose; rC on every other)
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
       if (p[i*3+1] - rCe(i) - gh < 0.03) c++;
     }
@@ -38808,6 +38887,9 @@ function makePilot(sim, def, world, opts) {
   // water lane: surface 4 / water, stripAllows' own test); on the surface, the one under the aeroplane (the world's
   // water over its terrain). Every other build - a fixed gear, a land retract - is untouched (AMPHG false)
   const AMPHG = GEAR && !!(def.parts && def.parts.amph);
+  // GEAR-LEVER: an amphibian on FLOATS (the take-off from the water waits for the wheels up; the hull amphibian keeps its
+  // validated run)
+  const AMPHF_TO = AMPHG && !!(def.spec && def.spec.gear && def.spec.gear.type === 'floats');
   // (no destination - a glide with nowhere picked: null, and the surface under the aeroplane decides)
   const gearWetDest = () => { const to = ap.route && ap.route.to; return to ? !!(to.surface === 4 || to.water || to.kind === 'water') : null; };
   const gearWetUnder = (x, z) => { try { return typeof world.waterH === 'function' && typeof world.terrainH === 'function' && world.waterH(x, z) > world.terrainH(x, z) + 0.2; } catch (e) { return false; } };
@@ -41879,6 +41961,10 @@ function makePilot(sim, def, world, opts) {
           // 20.9 m/s), the Wipline C172 unchanged (27.7 m/s, 345 m). Back stick through the hump changed nothing
           // (G396.4 measured why it is neutral)
           if (sim.hydro) { if (rollS0 === null) thrRollW = 0; thrRollW = Math.min(capT, thrRollW + dt / (A.waterThrRampS ?? 4)); thrRoll = thrRollW; }
+          // GEAR-LEVER (AMPH-FLOATS): AN AMPHIBIAN'S FLOATS TAKE OFF FROM THE WATER WHEELS UP - the checklist's "gear UP for
+          // water" before the power (Wipline's advisory says it): the run waits at idle, its clock held, until the wheels
+          // are stowed (the gear block above has asked for them). Every other build: nothing here
+          if (AMPHF_TO && sim.hydro.floats.some(fx => fx.wet > 0.05) && !(sim.gear() && sim.gear().up)) { thrRoll = 0; thrRollW = 0; phaseT = 0; }
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
@@ -50448,6 +50534,15 @@ function clampSpec(spec) {
     f.inc = genClamp(f.inc == null ? 0 : f.inc, -5, 10);   // G396.3: the keel's incidence, deg, bow down positive (0: measured no unstick gain at 3 or 5 on the card, and the fixture's approach went around at 3 — a row, not a default)
     f.x = f.x == null ? null : genClamp(f.x, -3, big ? 12 : 6);
     f.y = f.y == null ? null : genClamp(f.y, big ? -4.5 : -2.5, 0.5);
+    // AMPH-FLOATS (GEAR-LEVER, 13 Nov): THE AMPHIBIAN'S WHEELS (the join's, as drawn: the float's own frame, x aft of
+    // the step, y up from its keel) - a nose wheel in each bow, the mains aft of each step; their tyres, the mains'
+    // count, the system's kg over the seaplane's (absent: the frame estimates it). The key only on an amphibian
+    if (f.amph && typeof f.amph === 'object' && Array.isArray(f.amph.main) && Array.isArray(f.amph.nose)) {
+      const a = f.amph, xy = v => [genClamp(+v[0] || 0, -0.8 * f.L, f.L), genClamp(+v[1] || 0, -1.5, 1.5)];
+      f.amph = { main: xy(a.main), nose: xy(a.nose), rM: genClamp(+a.rM || 0.18, 0.08, 0.6), rN: genClamp(+a.rN || 0.12, 0.05, 0.5),
+                 wM: genClamp(+a.wM || 0.13, 0.04, 0.4), wN: genClamp(+a.wN || 0.10, 0.03, 0.4), mainN: a.mainN === 2 ? 2 : 1,
+                 ...(a.kg != null && isFinite(+a.kg) ? { kg: genClamp(+a.kg, 5, 1500) } : {}), ...(a.est ? { est: 1 } : {}) };
+    } else delete f.amph;
   } else S.gear.floats = null;
   // HULL-B2: THE BOAT'S MEASURED LINES (the join's cageHullTable): rows { x, yk, b, yc, bd, yd } in the water's frame
   // (x aft of the step, y up from its keel, metres), plus the step keel's place (x aft of the firewall, y over the keel
@@ -50500,7 +50595,9 @@ function clampSpec(spec) {
   // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
   // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
   // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
-  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
+  // (AMPH-FLOATS: an amphibian's floats retract their wheels too - floats with gear.floats.amph; never plain floats)
+  const AMPH_FLOATS = S.gear.type === 'floats' && !!(S.gear.floats && S.gear.floats.amph);
+  if (S.gear.retract && typeof S.gear.retract === 'object' && (S.gear.type === 'tricycle' || AMPH_FLOATS)) {
     const r = S.gear.retract;
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
@@ -55570,6 +55667,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // (HULL-B55: an AMPHIBIAN - a tricycle that carries the hull's lines (the join's, a retracting gear on a boat hull):
   // the wheels below AND the hull after them; its mains / nose refs stay the wheels', the water's record rides FLOATS)
   const AMPH = S.gear.type === 'tricycle' && !!(S.gear.hull && Array.isArray(S.gear.hull.sta)) && typeof HYDRO !== 'undefined';
+  // AMPH-FLOATS (GEAR-LEVER): floats with their amphibian wheels (gear.floats.amph, which clampSpec keeps only with the
+  // retraction) - the floats block hangs the wheels; the refs are the wheels'
+  const AMPH_FLOATS = S.gear.type === 'floats' && !!(S.gear.floats && S.gear.floats.amph && S.gear.retract) && typeof HYDRO !== 'undefined';
   const hullGear = (S.gear.type === 'hull' || AMPH) && S.gear.hull && Array.isArray(S.gear.hull.sta) && typeof HYDRO !== 'undefined';
   // G3800 (TAILWHEELS): THE SKID's shoe is a hand-sized contact where the wheel's tyre would touch (its contact point,
   // and so the three-point attitude, unchanged): a 3 cm radius at the tyre's bottom, half the wheel assembly's mass
@@ -56074,6 +56174,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // system weight, 0.40 a hull) and every family key; the family scaled to
     // its length supplies what an older record lacks
     const FM = S.gear.floats;
+    const AMPHF = FM && FM.amph && S.gear.retract ? FM.amph : null, AMPHW = [];   // AMPH-FLOATS (below)
     const FP = FM ? Object.assign(HYDRO.scaleParams(HYDRO.DEF, (FM.L || HYDRO.DEF.L) / HYDRO.DEF.L), FM,
                                   { mFloat: FM.mFloat != null ? FM.mFloat : HYDRO.DEF.mFloat * Math.pow(FM.L / HYDRO.DEF.L, 2),
                                     mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0], scale: FM.L / HYDRO.DEF.L })
@@ -56140,6 +56241,28 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         B(DL[i], DR[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DL[i + 1], 'gear', false, 'inner', undefined, NM);
       }
       for (let i = 0; i < NS; i++) { B(K[i], DL[i], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i], 'gear', false, 'inner', undefined, NM); B(DL[i], DR[i], 'gear', false, 'inner', undefined, NM); }
+      // AMPH-FLOATS (GEAR-LEVER, 13 Nov; the backlog's AMPHIB-FLOATS): THE AMPHIBIAN'S WHEELS. A wheel node at each
+      // axle the float layer drew (gear.floats.amph, the float's frame, turned by the same rigging), its radius the
+      // tyre's, held to the float's nearest station by four members and IN the float's rigid body (a drag link and a
+      // spring leg on a float are stiff next to the tyre: the tyre's own spring is the contact's). The system's weight
+      // (Wipaire's, the pair over the seaplane's; a row with none: 0.5 of the hulls' [inferred off the published rows,
+      // 0.3-0.9]) on the axles - the mains 0.70 of a float's, the nose 0.30 [inferred]. The solver's contact plane rises
+      // with the retraction (params.retract.lift); its ROLL and the land / water split are the hull amphibian's
+      // (parts.amph): the wheels on land, the floats on the water
+      if (AMPHF) {
+        const at = (xy, nm, r) => { const [x, y] = rig(xy[0], xy[1]); return N(gx + x, yK + y, zc, nm, r); };
+        const near = x => { let b = 0; for (let i = 1; i < NS; i++) if (Math.abs(stas[i] - x) < Math.abs(stas[b] - x)) b = i; return b; };
+        const kgF = (AMPHF.kg != null ? AMPHF.kg : 0.5 * 2 * FP.mFloat) / 2;
+        const iM = at(AMPHF.main, sd < 0 ? 'AXLEL' : 'AXLER', AMPHF.rM), iN = at(AMPHF.nose, 'TW', AMPHF.rN);
+        pt(iM, 0.70 * kgF); pt(iN, 0.30 * kgF);
+        for (const [w, x] of [[iM, AMPHF.main[0]], [iN, AMPHF.nose[0]]]) {
+          const b = near(x), b2 = x > stas[b] ? Math.min(NS - 1, b + 1) : Math.max(0, b - 1);
+          B(w, K[b], 'gear', false, 'inner', undefined, NM); B(w, DL[b], 'gear', false, 'inner', undefined, NM);
+          B(w, DR[b], 'gear', false, 'inner', undefined, NM); B(w, K[b2], 'gear', false, 'inner', undefined, NM);
+        }
+        all.push(iM, iN);
+        AMPHW.push({ sd, main: iM, nose: iN });
+      }
       // G1840 (DMG-D3): a rigid float is BeamNG's 'prop' - its root is its attachment (the struts and the spreader
       // bars that end on it: the solver reads them off the members), its axis the keel, its lateral the deck's beam
       clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all,
@@ -56180,6 +56303,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const [FL, FR] = FLOATS;
     for (const i of [1, 3]) { B(FL.DR[i], FR.DL[i], 'gear', true, undefined, undefined, { kMul: 8 }); B(FL.DR[i], FR.DL[i === 1 ? 3 : 1], 'gear', true, 'wire', undefined, { kMul: 8 }); }
     GAL = FL.K[2]; GAR = FR.K[2]; TW = -1; twX = gx; twY = yK;
+    // AMPH-FLOATS: an amphibian's refs are its WHEELS (the hull amphibian's rule, HULL-B55): the mains the two main
+    // axles, the nose the port bow's wheel and tw2 the starboard's (the second contact rolls the first's law)
+    if (AMPHF && AMPHW.length === 2) {
+      const [WL, WR] = AMPHW[0].sd < 0 ? AMPHW : [AMPHW[1], AMPHW[0]];
+      GAL = WL.main; GAR = WR.main; TW = WL.nose; TW2 = WR.nose;
+      twX = nodes[TW].p[0]; twY = nodes[TW].p[1];
+    }
   }
 
   // ---- 6. payload, fuel, systems --------------------------------------
@@ -56748,7 +56878,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
     floats: FLOATS,             // H1: the float records, or null
-    ...(AMPH ? { amph: true } : {}),   // HULL-B55: an amphibian - the wheels are its contacts on land, the hull on the water
+    ...(AMPH || AMPH_FLOATS ? { amph: true } : {}),   // HULL-B55: an amphibian - the wheels are its contacts on land, the hull on the water (AMPH-FLOATS: the floats on the water)
     // PERF STUDY chantier 1: what the pass measured for the gauge (pass 1)
     // and the gauge it was billed at (pass 2)
     gauged, gaugeRef, gauge: GG,
@@ -58572,6 +58702,13 @@ function genParams(S, fr, strips) {
   const gearCdA = genGearCdA(S, S.geom.semi);
   cda.fusCdA[0] += gearCdA;
   cda.drag.gear = gearCdA;
+  // AMPH-FLOATS (GEAR-LEVER): AN AMPHIBIAN'S FLOAT WHEELS IN THE STREAM - four tyres (the mains single or dual) at the
+  // bare tyre's Cd on diameter x width, and four short legs; in the body row like every gear (the design numbers are
+  // the gear-DOWN aeroplane's) and the retraction's own cdA (30_solver takes it off as the wheels come up). Only an
+  // amphibian: every other build adds nothing
+  const AFw = S.gear.type === 'floats' && S.gear.floats && S.gear.floats.amph && S.gear.retract ? S.gear.floats.amph : null;
+  const amphCdA = AFw ? 2 * (0.55 * 2 * AFw.rM * AFw.wM * (AFw.mainN || 1) + 0.55 * 2 * AFw.rN * AFw.wN) + 4 * 1.0 * 0.30 * 0.05 : 0;
+  if (AFw) { cda.fusCdA[0] += amphCdA; cda.drag.amph = amphCdA; }
   // THE NACELLES (G179.5, the user: "add the nacelle drag for wing-mounted
   // engines"). A nose engine is inside the frontal area the fuselage row
   // already prices; every other mount hangs its engine in the airstream and
@@ -58785,7 +58922,7 @@ function genParams(S, fr, strips) {
     tailEta: GEN_RULES.tailEta == null ? 1 : GEN_RULES.tailEta,
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
-    twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
+    twSteer: S.gear.type === 'tricycle' || AFw ? -0.35 : 0.5,   // (AMPH-FLOATS: the bows' nose wheels steer as a tricycle's)
     // G3800 (TAILWHEELS): a taildragger's tail contact, 30_solver twLine's law: 2 lockable, 3 fixed, 4 skid - the key
     // only when chosen (absent: 1, the steerable Scott-type wheel, every taildragger's default)
     ...(S.gear.type !== 'tricycle' && S.gear.twMode ? { twMode: { lock: 2, fixed: 3, skid: 4 }[S.gear.twMode] } : {}),
@@ -58793,7 +58930,7 @@ function genParams(S, fr, strips) {
     // (genGearCdA, inside fusCdA[0] as on every build: every design-time number - the plaque, the AP's speeds - stays the
     // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)
     ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg,
-                                       cdA: cda.drag.gear || 0,
+                                       cdA: AFw ? amphCdA : cda.drag.gear || 0,   // (AMPH-FLOATS: the float wheels' own)
                                        // G1: the fraction (1 unless partial) and the measured lift (null: the frame's rule)
                                        frac: S.gear.retract.frac || 1, lift: S.gear.retract.lift || null } } : {}),
     // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel
@@ -67917,7 +68054,7 @@ function freightStrapNext(doc, slot, card) {
   return { doc: r.doc, rec: r.rec, how: 'proposed', why: '' };
 }
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, gearWarnOf, gearAdvisoryOf, GEAR_ADV, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
@@ -67934,7 +68071,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='22f5c8c8d1d9';window.FLYDIY_BUILD='e4db3663b937';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='4c29c175bc45';window.FLYDIY_BUILD='96c9c3472549';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -98817,6 +98954,15 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     const dx2 = thr.twinDx || 0;                         // G446: the twin's second rod, inboard
     A.keepOut.push({ x0: Math.min(p.x, p.x + dx2) - m, x1: Math.max(p.x, p.x + dx2) + m, y0: p.y - m, y1: p.y + m + out * 0.5, what: 'throttle' });
   }
+  // GEAR-LEVER: WHERE THE THROTTLE IS, in the plate's x, for the gear selector's default place ("low, beside the
+  // throttle"): the push-pull's collar, the console's centre line, else the wall the lever stands on (off the plate:
+  // the layout takes the plate's nearest edge). Read only by _panel_gen placeGear, which only a retracting gear runs
+  {
+    const px = thr && thr.obj && thr.obj.parent && thr.obj.parent.position ? thr.obj.parent.position.x : null;
+    A.thrX = thrMode === 1 && px != null ? px + (thr.twinDx || 0) / 2
+           : thrMode === 2 ? (sbs ? 0 : pilot.x + (stickMode === 1 ? -0.28 : 0.28))
+           : (pilot.x >= 0 ? 1 : -1) * (A.halfW || 0.5);
+  }
   let pedals = st1.pedals;
   // G318: the flap lever, the brake, the fuel selector and the trim wheel —
   // the pilot's, drawn with the controls so the join carries them
@@ -99772,12 +99918,94 @@ function dialLayout(A, o) {
 // o.screens [{k, w, h, sw, sh, cradle}] (the GPS's GEN_AVIONICS face; cradle: a portable may stand on the
 // glareshield), o.breakers [keys] (genSystemsResolve's breakers).
 const CB_PITCH = 0.016, CB_PITCH_MIN = 0.013, CB_HALF = 0.009, CB_UP = 0.022;   // a 9 mm collar, its tape above it
+// GEAR-LEVER (the user's ruling of 8 Nov; GEAR-LEVER 13 Nov): THE LANDING GEAR SELECTOR, a Piper Arrow's (PA-28R): a
+// lever with a wheel-shaped knob in an UP / DOWN gate, and beside it the gear's lamps - one GREEN per leg (down and
+// locked, all together), a RED one over them (IN TRANSIT, and with the horn: the gear not down with the throttle back,
+// or the selector up on the ground), all dark with the gear up. An AMPHIBIAN (o.gearLever.amph) adds a BLUE per leg
+// under the greens (Wipline's advisory: blue = wheels UP for the water, green = DOWN for the runway). Only a build
+// whose gear retracts asks for it (o.gearLever); a fixed gear's layout is the layout it was, to the bit.
+// The unit in the plate's frame (cage metres, +x the pilot's left), about the gate's centre: the gate 24 x 66 mm, its
+// UP / DOWN tapes over and under it, the lamps' column GEAR_LAMP_DX to the side `s` (+1 port, -1 starboard).
+const GEAR_GATE = { w: 0.024, h: 0.066, slot: 0.044, tapeY: 0.041, tapeW: 0.022, tapeH: 0.0068, half: 0.047 };
+const GEAR_LAMP_DX = 0.030, GEAR_LAMP_R = 0.0034;
+// the lamps: k (the lamp's key: gearG green, gearB blue, gearR red), unit (N nose, L / R mains; a quadricycle's LN / RN
+// noses), x / y off the gate's centre on side s. n = the legs (3 a tricycle, 4 an amphibian's floats)
+function gearLamps(n, amph, s) {
+  const lx = (s || -1) * GEAR_LAMP_DX, out = [{ k: 'gearR', unit: 'T', x: lx, y: 0.026 }];
+  const row = (k, y0) => {
+    if (n === 4) for (const [u, dx, dy] of [['LN', 0.0055, 0], ['RN', -0.0055, 0], ['L', 0.0055, -0.014], ['R', -0.0055, -0.014]])
+      out.push({ k, unit: u, x: lx + dx, y: y0 + dy });
+    else for (const [u, dx, dy] of [['N', 0, 0], ['L', 0.009, -0.014], ['R', -0.009, -0.014]])
+      out.push({ k, unit: u, x: lx + dx, y: y0 + dy });
+  };
+  row('gearG', 0.010);
+  if (amph) row('gearB', -0.016);
+  return out;
+}
+// where the selector goes: `at` throttle (default: low, beside the throttle - the crew's A.thrX, the lever's or the
+// push-pull's station in the plate's x; the pilot's outboard edge when the throttle is on the wall), pilot, centre,
+// copilot. ON THE PLATE ALWAYS (the user: "never overflowing the panel"): inside the outline, inset, clear of every dial,
+// switch, screen and keep-out; the score its distance from the wanted x plus half its height over the plate's foot (a
+// gear lever lives low); nowhere -> `gear` in extraOverflow (named in the column, the key and the PFD lamps remain)
+function placeGear(A, o, L) {
+  const G = o && o.gearLever;
+  if (!G) return L;
+  const F = A && A.face ? A.face : null;
+  const KO = Array.isArray(A && A.keepOut) ? A.keepOut : [];
+  const yTop = L.yTop, yBot = L.yBot, xLim = L.xLim, pX = o.pilotX || 0;
+  const thrX = A && typeof A.thrX === 'number' && isFinite(A.thrX) ? A.thrX : null;
+  const at = ['throttle', 'pilot', 'centre', 'copilot'].includes(G.at) ? G.at : 'throttle';
+  const xT = at === 'centre' ? 0 : at === 'copilot' ? (Math.abs(pX) > 0.05 ? -pX : -0.20)
+           : at === 'pilot' ? pX : thrX != null ? thrX : pX;
+  const boxes = [];
+  for (const d of L.dials) if (!d.coaming) boxes.push({ circle: true, cx: d.cx, cy: d.cy, r: d.r + 0.006 });
+  for (const s of L.switches) {
+    const hw = s.kind === 'key' ? 0.022 : 0.013;
+    boxes.push({ x0: s.x - hw, x1: s.x + hw, y0: s.y - (s.kind === 'flap' ? 0.024 : 0.016), y1: s.y + (s.kind === 'flap' ? 0.046 : 0.032) });
+  }
+  for (const k of KO) boxes.push({ x0: k.x0 - 0.004, x1: k.x1 + 0.004, y0: k.y0 - 0.004, y1: k.y1 + 0.004 });
+  for (const q of (L.screens || [])) if (!q.coaming) boxes.push({ x0: q.cx - q.w / 2 - 0.006, x1: q.cx + q.w / 2 + 0.006, y0: q.cy - q.h / 2 - 0.006, y1: q.cy + q.h / 2 + 0.006 });
+  const hits = (x0, x1, y0, y1) => boxes.some(b => {
+    if (b.circle) { const nx = Math.max(x0, Math.min(b.cx, x1)), ny = Math.max(y0, Math.min(b.cy, y1)); return Math.hypot(nx - b.cx, ny - b.cy) < b.r; }
+    return x1 > b.x0 && x0 < b.x1 && y1 > b.y0 && y0 < b.y1;
+  });
+  const onPlate = (x0, x1, y0, y1) => {
+    if (x0 < -xLim - 1e-6 || x1 > xLim + 1e-6 || y1 > yTop + 1e-6 || y0 < yBot - 1e-6) return false;
+    if (!F) return true;
+    const ns = Math.max(1, Math.ceil((x1 - x0) / 0.01));
+    for (let i = 0; i <= ns; i++) {
+      const x = x0 + (x1 - x0) * i / ns, c = F.at(x);
+      if (!c || Math.abs(c.x - x) > 0.03) return false;
+      if (y1 > c.y1 - PAN_INSET + 1e-6 || y0 < c.y0 + PAN_INSET - 1e-6) return false;
+    }
+    return true;
+  };
+  const ext = s => ({ x0: Math.min(-GEAR_GATE.w / 2 - 0.001, s * GEAR_LAMP_DX - 0.014), x1: Math.max(GEAR_GATE.w / 2 + 0.001, s * GEAR_LAMP_DX + 0.014),
+                      y0: -GEAR_GATE.half, y1: GEAR_GATE.half });
+  let best = null;
+  for (let cx = -xLim; cx <= xLim + 1e-9; cx += 0.005)
+    for (let cy = yBot + GEAR_GATE.half; cy + GEAR_GATE.half <= yTop + 1e-9; cy += 0.005) {
+      // the lamps toward the panel's middle (and toward the throttle when it stands beside the plate's edge)
+      for (const s of cx > 1e-9 ? [-1, 1] : [1, -1]) {
+        const e = ext(s), x0 = cx + e.x0, x1 = cx + e.x1, y0 = cy + e.y0, y1 = cy + e.y1;
+        if (!onPlate(x0, x1, y0, y1) || hits(x0 - 0.004, x1 + 0.004, y0 - 0.004, y1 + 0.004)) continue;
+        const score = Math.abs(cx - xT) + 0.5 * (y0 - yBot) + (s === (cx > 1e-9 ? -1 : 1) ? 0 : 0.002);
+        if (!best || score < best.score - 1e-12) best = { cx, cy, s, score, x0, x1, y0, y1 };
+      }
+    }
+  if (!best) { L.extraOverflow.push('gear'); return L; }
+  const n = G.n === 4 ? 4 : 3, amph = !!G.amph;
+  L.gear = { x: best.cx, y: best.cy, s: best.s, at, n, amph, lamps: gearLamps(n, amph, best.s),
+             box: { x0: best.x0 - 0.004, x1: best.x1 + 0.004, y0: best.y0 - 0.004, y1: best.y1 + 0.004 } };
+  return L;
+}
 function placeExtras(A, o, L) {
   o = o || {};
   const screensWant = Array.isArray(o.screens) ? o.screens : [];
   const cbWant = Array.isArray(o.breakers) ? o.breakers : [];
   const placed = Array.isArray(L.screens) ? L.screens : [];        // the glass layout's own (G2808)
   L.screens = placed.slice(); L.breakers = { row: [], pitch: CB_PITCH }; L.extraOverflow = [];
+  placeGear(A, o, L);                                               // GEAR-LEVER: before the GPS and the breakers
   if (!screensWant.length && !cbWant.length) return L;
   const F = A && A.face ? A.face : null;
   const KO = Array.isArray(A && A.keepOut) ? A.keepOut : [];
@@ -99791,6 +100019,7 @@ function placeExtras(A, o, L) {
                  y1: s.y + (s.kind === 'flap' ? 0.046 : 0.032) });
   }
   for (const k of KO) boxes.push({ x0: k.x0 - 0.004, x1: k.x1 + 0.004, y0: k.y0 - 0.004, y1: k.y1 + 0.004 });
+  if (L.gear) boxes.push(L.gear.box);                               // GEAR-LEVER: the lever's unit, with its gap
   for (const q of placed) boxes.push({ x0: q.cx - q.w / 2 - 0.006, x1: q.cx + q.w / 2 + 0.006, y0: q.cy - q.h / 2 - 0.006, y1: q.cy + q.h / 2 + 0.006 });
   const hitsBox = (x0, x1, y0, y1) => boxes.some(b => {
     if (b.circle) {
@@ -100850,7 +101079,7 @@ function paintAtlas(g, faces, units, o) {
   }
 }
 
-const API = { UNITS, FACES, REST, scaleOf, angleOf, angleOfDisp, layout, placeExtras, ATLAS_W, ATLAS_H, SLOT, COLS, slotRect, faceUV,
+const API = { UNITS, FACES, REST, scaleOf, angleOf, angleOfDisp, layout, placeExtras, placeGear, gearLamps, GEAR_GATE, GEAR_LAMP_DX, GEAR_LAMP_R, ATLAS_W, ATLAS_H, SLOT, COLS, slotRect, faceUV,
               PAINT, paintAtlas, postIrrAt, D_BIG, D_SMALL, GAP, niceStep, dispToSI };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PANEL_GEN = API;
@@ -100904,6 +101133,18 @@ const SY = { fit: 'basic', units: 'aviation', items: null,  // pre-ok: a fit nam
              look: { bezel: 'plastic', sw: 'toggle' } };   // G371: cosmetic, the panel's own (not the core's)
 const LOOK_BEZEL = [['plastic', 'new black plastic'], ['metal', 'old painted metal']];
 const LOOK_SW = [['toggle', 'metal toggles'], ['pushpull', 'push-pull buttons']];
+// GEAR-LEVER: where the landing gear selector stands (a retracting gear's only); 'throttle' the default, absent
+const LOOK_GEAR = [['throttle', 'low, beside the throttle'], ['pilot', "in front of the pilot"], ['centre', 'the panel\'s middle'], ['copilot', "the passenger's side"]];
+// the build's selector: a gear that retracts (the gear layer's own test, the join's) - a hull amphibian's tricycle,
+// three legs; amphibious floats (fltAmph), a quadricycle, four, and the amphibian's blue lamps
+function gearLeverOf(P) {
+  if (!P) return null;
+  const RT = window.CAGE_GEAR_RETRACTABLE;
+  const floatsAmph = +P.gearFloats > 0 && +P.fltAmph > 0;
+  const retr = floatsAmph || (RT ? !!RT(P) : !!(+P.gearRetract && !+P.gearFloats && +P.s2On));
+  if (!retr) return null;
+  return { at: (SY.look && SY.look.gear) || 'throttle', n: floatsAmph ? 4 : 3, amph: floatsAmph || !!(+P.hullOn) };
+}
 const lookBezel = () => (SY.look && SY.look.bezel === 'metal') ? 'bezelOld' : 'bezel';
 let seeded = false;
 
@@ -100923,6 +101164,8 @@ function fromSpec(sy) {
   if (s.avionics && s.avionics.elt === 'fitted') SY.avionics.elt = 'fitted'; else delete SY.avionics.elt;
   SY.look = { bezel: s.look && LOOK_BEZEL.some(q => q[0] === s.look.bezel) ? s.look.bezel : 'plastic',
               sw: s.look && LOOK_SW.some(q => q[0] === s.look.sw) ? s.look.sw : 'toggle' };   // G371
+  // GEAR-LEVER: the selector's place - in the spec only off its default ('throttle'), so every build keeps its bytes
+  if (s.look && LOOK_GEAR.some(q => q[0] === s.look.gear) && s.look.gear !== 'throttle') SY.look.gear = s.look.gear;
   seeded = true;
   if (panelBody) renderPanel();
 }
@@ -101127,6 +101370,11 @@ function renderPanel() {
   select(looks, 'light switches', 'the on/off switches of the light row: plated toggles, or knurled ' +
     'push-pull knobs that stand out when on',
     LOOK_SW, SY.look.sw, v => { SY.look.sw = v; renderPanel(); commit(); });
+  // GEAR-LEVER: the selector's place, shown on a build whose gear retracts
+  if (gearLeverOf((window.CAGE_UI && window.CAGE_UI.P) || null))
+    select(looks, 'gear selector', 'where the landing gear lever and its lamps stand: low beside the throttle (an ' +
+      'Arrow\'s), in front of the pilot, in the middle, or on the passenger\'s side - always on the panel',
+      LOOK_GEAR, SY.look.gear || 'throttle', v => { if (v === 'throttle') delete SY.look.gear; else SY.look.gear = v; renderPanel(); commit(); });
 
   // ---- the dials -----------------------------------------------------------
   const dials = fold(B, 'dials · ' + RB.items.length + ' fitted', true);
@@ -102209,6 +102457,92 @@ function flapAt(parent, x, y, z) {
   arm.mesh(g, matFor('lever')); knob.mesh(g, matFor('needle'));
   return g;
 }
+// GEAR-LEVER (the user's ruling, 8 Nov: "Arrow/RG style; red with horn; greens together; no press-to-test in v1; the
+// lever only on retract builds"): THE LANDING GEAR SELECTOR, a Piper Arrow's. A black escutcheon 24 x 66 on the plate
+// with a 7 x 44 slot, UP over it and DOWN under it on tapes; the lever pivots 30 mm INSIDE the dash on a lateral axis
+// and comes out through the slot to a knob shaped as a little WHEEL (a black tyre on a white hub, its axle across the
+// cockpit) - up in the gate is gear up, down is gear down (law 'gear': the handle ctl.gear, +-0.5 rad, the editor's
+// pose down). Beside it the lamps (PANEL_GEN.gearLamps): a bezel and a lens per lamp, the lens a lamp CUP keyed
+// gearG / gearR / gearB (the join buckets each key with its colour; the cockpit lights them off out.gear on the bus)
+const GEAR_K = 0.50;
+const GEAR_LAMP_COL = { gearG: 0x38ff5c, gearR: 0xff2a18, gearB: 0x3a86ff };
+const gearLampMats = {};
+function gearLampMat(key) {
+  if (gearLampMats[key]) return gearLampMats[key];
+  const Lg = window.CAGE_LIGHT;
+  const m = Lg && Lg.cupMat ? Lg.cupMat(0, GEAR_LAMP_COL[key], true, key, 3) : matFor('amber');
+  return (gearLampMats[key] = m);
+}
+const GEAR_TAPE = ['UP', 'DOWN'];
+let gearTapeMat = null;
+function gearTapeMaterial() {
+  if (gearTapeMat) return gearTapeMat;
+  const n = GEAR_TAPE.length;
+  const cv = HAS_DOM ? document.createElement('canvas') : null;
+  if (cv) { cv.width = 512; cv.height = 160 * n; }
+  const tex = cv ? new THREE.CanvasTexture(cv) : null;
+  if (tex) { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }
+  gearTapeMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
+    transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
+  gearTapeMat.userData.aeroskin = 1;
+  gearTapeMat.userData.panelSet = 'geartape';        // the join buckets it, the flight rebuilds it (material('geartape'))
+  gearTapeMat.userData.inside = 1;
+  const paint = () => {
+    if (!cv) return;
+    const g = cv.getContext('2d'), sh = labelSheet();
+    if (!g || !g.clearRect) return;
+    g.clearRect(0, 0, 512, 160 * n);
+    const bi = sh ? sh.names.indexOf('blank') : -1;
+    GEAR_TAPE.forEach((word, i) => {
+      if (sh && sh.img && sh.img.complete && sh.img.naturalWidth && bi >= 0)
+        g.drawImage(sh.img, 0, bi * sh.h, sh.w, sh.h, 0, i * 160, 512, 160);
+      else { g.fillStyle = '#e6e1d5'; g.fillRect(24, i * 160 + 30, 464, 100); }
+      g.fillStyle = '#1b1b1d'; g.font = `700 84px ${FONT_REG}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(word, 256, i * 160 + 84);
+    });
+    if (tex) tex.needsUpdate = true;
+  };
+  paint();
+  const sh = labelSheet();
+  if (sh && sh.img && !(sh.img.complete && sh.img.naturalWidth)) sh.img.addEventListener('load', paint);
+  return gearTapeMat;
+}
+// the unit at the stand group's origin (the gate's centre); Lg = the layout's record (lamps, side), down = the pose
+function gearLeverAt(parent, Lg, down) {
+  const K = KIT(), PGn = PG();
+  const GG = (PGn && PGn.GEAR_GATE) || { w: 0.024, h: 0.066, slot: 0.044, tapeY: 0.041, tapeW: 0.022, tapeH: 0.0068 };
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+  // the escutcheon: four bars round the slot, 1.5 mm proud, a dark well behind the slot
+  const esc = K.Bag(), well = K.Bag();
+  const hw = GG.w / 2, hh = GG.h / 2, sw = 0.0035, sh = GG.slot / 2;
+  K.boxIn(esc, [hw - (hw - sw) / 2, 0, -0.00075], [(hw - sw) / 2, hh, 0.00075], X, Y, Z);
+  K.boxIn(esc, [-hw + (hw - sw) / 2, 0, -0.00075], [(hw - sw) / 2, hh, 0.00075], X, Y, Z);
+  K.boxIn(esc, [0, sh + (hh - sh) / 2, -0.00075], [sw, (hh - sh) / 2, 0.00075], X, Y, Z);
+  K.boxIn(esc, [0, -sh - (hh - sh) / 2, -0.00075], [sw, (hh - sh) / 2, 0.00075], X, Y, Z);
+  K.boxIn(well, [0, 0, 0.010], [sw, sh, 0.010], X, Y, Z);
+  esc.mesh(parent, matFor('plate')); well.mesh(parent, matFor('hub'));
+  // the lever: the arm from the pivot through the slot, the wheel on its end
+  const g = gaugeAt(parent, 'edGauge_gear', [0, 0, 0.030], [1, 0, 0], 'gear', 'gear', { k: GEAR_K, sgn: 1, padR: 0.022 });
+  const arm = K.Bag(), tyre = K.Bag(), hub = K.Bag();
+  K.revolve(arm, [0, 0, 0.004], [0, 0, -1], [[0.0024, 0], [0.0024, 0.074]], 14, true);
+  const kc = [0, 0, -0.070];
+  K.revolve(tyre, kc, [1, 0, 0], [[0.0062, -0.0058], [0.0098, -0.0060], [0.0119, -0.0045], [0.0127, 0], [0.0119, 0.0045],
+                                   [0.0098, 0.0060], [0.0062, 0.0058], [0.0062, -0.0058]], 32, false);
+  K.revolve(hub, kc, [1, 0, 0], [[0, -0.0050], [0.0064, -0.0050], [0.0064, 0.0050], [0, 0.0050]], 24, true);
+  arm.mesh(g, matFor('lever')); tyre.mesh(g, matFor('knob')); hub.mesh(g, matFor('needle'));
+  g.rotation.x = (down ? -1 : 1) * GEAR_K;
+  // the lamps: a bezel ring and a domed lens, each lens its key's lamp cup
+  const bez = K.Bag(), R0 = (PGn && PGn.GEAR_LAMP_R) || 0.0034;
+  const lens = {};
+  for (const l of Lg.lamps || []) {
+    K.revolve(bez, [l.x, l.y, 0], [0, 0, -1], [[R0, 0.0002], [R0 + 0.0013, 0.0004], [R0 + 0.0011, 0.0024], [R0, 0.0026]], 20, false);
+    const b = lens[l.k] || (lens[l.k] = K.Bag());
+    K.revolve(b, [l.x, l.y, 0], [0, 0, -1], [[R0, 0.0010], [R0 * 0.8, 0.0028], [R0 * 0.45, 0.0036], [0, 0.0038]], 20, false);
+  }
+  bez.mesh(parent, matFor('bezel'));
+  for (const k of Object.keys(lens)) lens[k].mesh(parent, gearLampMat(k));
+  return g;
+}
 function keyAt(parent, x, y, z, pos) {
   const K = KIT();
   // THE KIT'S KEY when it is in, in the lock the user described: "a simple
@@ -102617,6 +102951,8 @@ function build(parent, A, P, pilotX) {
     // G2802 / G2803: the breaker row and the GPS unit, placed in what the dials and switches left free
     breakers: (R.breakers || []).map(b => b.key),
     screens: gpsScreens(R),
+    // GEAR-LEVER: the selector and its lamps, a retracting gear's only (the key absent on every other build)
+    ...(gearLeverOf(P) ? { gearLever: gearLeverOf(P) } : {}),
   });
   const grp = new THREE.Group();
   grp.name = 'edPanel';
@@ -102976,6 +103312,28 @@ function build(parent, A, P, pilotX) {
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     }
   }
+  // ---- GEAR-LEVER: the gear selector and its lamps (L.gear: placed by PANEL_GEN.placeGear, on the plate always)
+  if (L.gear) {
+    const gg = standOn(L.gear.x, L.gear.y, 0.03);
+    gg.name = 'edSwitch_gear';                         // the shed's click finds it (G305)
+    {
+      const sb = UVBag(aoMaterial());
+      aoDiscInto(sb, 0, 0, 0, 0.024);
+      const m = sb.mesh(gg, 'edGauge_ao'); if (m) m.renderOrder = 2;
+    }
+    gearLeverAt(gg, L.gear, !(P && P.gearPos != null && +P.gearPos < 0.5));
+    if (HAS_DOM && labelSheet()) {
+      const GGt = G.GEAR_GATE;
+      for (let i = 0; i < GEAR_TAPE.length; i++) {
+        const lg = new THREE.Group();
+        lg.position.set(0, (i ? -1 : 1) * GGt.tapeY, -0.0006);
+        gg.add(lg);
+        const lb = UVBag(gearTapeMaterial());
+        labelInto(lb, i, GEAR_TAPE.length, 0, 0, 0, GGt.tapeW, GGt.tapeH);
+        const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
+      }
+    }
+  }
   // ---- G2802: THE BREAKERS - a push-to-reset button per circuit on the plate, pulled (or tripped) out 4 mm, law
   // 'switch' with no turn and a slide on `cb_<key>` (the push-pull's contract): the flight's click pulls and
   // pushes it, the bus opens its loads (31_elec.js). One tape over the row names each and its rating.
@@ -103081,7 +103439,8 @@ window.CAGE_PANEL = {
                   : k === 'label' ? labelMaterial() : k === 'needle' ? needleMaterial()
                   : k === 'reg' ? regMaterial() : k === 'keytape' ? keyTapeMaterial()
                   : k === 'cbtape' ? cbTapeMaterial() : k === 'gps' ? gpsMaterial()            // G2802 / G2803
-                  : k === 'wordtape' ? wordTapeMaterial() : matFor(k)),                          // G2808
+                  : k === 'wordtape' ? wordTapeMaterial()                                         // G2808
+                  : k === 'geartape' ? gearTapeMaterial() : matFor(k)),                          // GEAR-LEVER
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   tape, setReg,                                // G318: a tape for any surface; the registration
   atlas: () => atlasCv, last: () => LAST, faceDim,
@@ -125320,6 +125679,7 @@ const RETRACT_LAB = () => {
   } catch (e) { return true; }
 };
 window.CAGE_RETRACT_LAB = RETRACT_LAB;
+window.CAGE_GEAR_RETRACTABLE = GEAR_RETRACTABLE;   // GEAR-LEVER: the dash asks it (the selector only on a gear that retracts)
 // SEA-OFF (SEAPLANES-LAND 8 Nov; the user: seaplanes + retract land on master SWITCHED OFF first, then a thorough
 // testing round): THE SAME SWITCH HIDES THE MERGE'S OTHER NEW ROWS from the player's garage - the boat hull (hullOn:
 // every hull row hangs off it), the pylon / fin / nacelle-over engine rows, the cabane's pylon and drawn rows, the tip's
@@ -128687,6 +129047,14 @@ function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out) {
     if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8, side: THREE.DoubleSide })); wm.name = 'edFloatWell' + tag; ug.add(wm); }
   }
   rec.amph = rec.amph || { style: Math.round(+P.fltAmph) === 2 ? 'EDO (photographs)' : 'Wipline', model: A.name, est: A.est, main: A.main, mainN: A.mainN, nose: A.nose, dKg: A.dKg, assumed: ['stowFlush', 'trunnionH', 'noseTravel', 'noseRake'], measured: { keelClearance: +(ykS - yg).toFixed(3) }, fitWhy };
+  // AMPH-FLOATS (GEAR-LEVER 13 Nov): THE WHEELS FOR THE PHYSICS, in the float's own frame BEFORE the rigging's incidence
+  // (x aft of the step, y up from the step's keel - the frame's stations' frame; the frame turns them by the same
+  // incidence): the axles down and stowed, the tyres' radii and widths, the mains' count. The join writes them to
+  // gear.floats.amph; the frame hangs a wheel node on each float at each axle
+  rec.amph.local = rec.amph.local || { main: [+xm.toFixed(4), +(ax0[1] - ykS).toFixed(4)], mainUp: [+qUp[0].toFixed(4), +(qUp[1] - ykS).toFixed(4)],
+    nose: [+(edoNose || wipNose).noseAxle[0].toFixed(4), +((edoNose || wipNose).noseAxle[1] - ykS).toFixed(4)],
+    noseUp: [+(edoNose || wipNose).noseUp[0].toFixed(4), +((edoNose || wipNose).noseUp[1] - ykS).toFixed(4)],
+    rM: +Rm.toFixed(4), rN: +Rn.toFixed(4), wM: +Wm.toFixed(4), wN: +Wn.toFixed(4), mainN: A.mainN || 1, dKg: A.dKg != null ? +A.dKg.toFixed(1) : null, est: !!A.est };
   rec.amph[tag] = { edoPivot: edoNose ? C3(edoNose.pivot) : null, edoRake: edoNose ? edoNose.rake : null, capY: C3([0, yCap, 0])[1], mainAxle: C3(ax0), mainUp: C3(rot(ax0, T, thM)), trunnion: C3(T), noseAxle: C3((edoNose || wipNose).noseAxle), noseUp: C3((edoNose || wipNose).noseUp), thM: +(thM / D2R).toFixed(1) };
 }
 const prevPost = PAGE.post;
@@ -142699,6 +143067,20 @@ function cageJoinSpec(P, M, T) {
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
       if (typeof M.floats.preset === 'string') spec.gear.floats.preset = M.floats.preset;
       if (M.floats.style === 'edo') spec.gear.floats.style = 'edo';   // FLOATS-CLASSIC (a Wipline names none)
+      // AMPH-FLOATS (GEAR-LEVER, 13 Nov; the backlog's AMPHIB-FLOATS): THE AMPHIBIAN'S WHEELS REACH THE PHYSICS - a
+      // quadricycle, a nose wheel in each bow and the mains (single or dual) aft of each step, as drawn (the float
+      // layer's amphib, in the float's own frame), the system's weight (Wipaire's, 32_hydro WIPLINE_AMPHIB dKg: the pair
+      // over the seaplane's; a row with none, estimated - est), and the retraction: Wipline's electro-hydraulic pump,
+      // its hand pump the emergency; the cycle 12 s [inferred: no Wipaire figure], the lift each axle's drawn rise.
+      // Written only on an amphibian: every float build keeps its spec to the bit
+      const AL = M.floats.amph;
+      if (AL && Array.isArray(AL.main) && Array.isArray(AL.nose)) {
+        const r4 = v => +(+v).toFixed(4);
+        spec.gear.floats.amph = { main: AL.main.map(r4), nose: AL.nose.map(r4), rM: r4(AL.rM), rN: r4(AL.rN), wM: r4(AL.wM), wN: r4(AL.wN),
+                                  mainN: AL.mainN === 2 ? 2 : 1, ...(AL.dKg != null ? { kg: +AL.dKg } : {}), ...(AL.est ? { est: 1 } : {}) };
+        spec.gear.retract = { time: 12, act: 'hydraulic', emerg: 'pump',
+                              lift: { mains: r4(Math.max(0, AL.mainUp[1] - AL.main[1])), nose: r4(Math.max(0, AL.noseUp[1] - AL.nose[1])) } };
+      }
     }
     // HULL-B2: the boat's measured lines ride the gear record as the floats' do
     if (M.hull) spec.gear.hull = Object.assign({ sta: M.hull.sta, x: M.hull.x, y: M.hull.y, steps: M.hull.steps, tips: M.hull.tips }, M.hull.spon ? { spon: M.hull.spon } : {});
@@ -143800,6 +144182,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         if (CF && CF.P && +P.gearFloats) {
           M.floats = Object.assign({}, CF.P, {
             x: fwOk ? zFw - CF.zStep : null, y: CF.keelY - yD, track: CF.track, volDeck: CF.vol });
+          // AMPH-FLOATS (GEAR-LEVER): the amphibian's wheels as the float layer drew them (its own frame)
+          if (+P.fltAmph && CF.amph && CF.amph.local) M.floats.amph = CF.amph.local;
           if (!fwOk) NOTES.push('floats: no firewall anchor — the step station keeps the rule');
         }
       }
@@ -212694,7 +213078,9 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
     while (body.firstChild) body.removeChild(body.firstChild);
     const L = inp.state().listening;
     for (const [g, title] of GROUPS) {
-      const acts = inp.ACTIONS.filter(a => a.group === g && (!a.lab || labOn()));
+      // GEAR-LEVER: the gear handle is listed off the lab too whenever the aeroplane flown has a gear that retracts
+      // (app.js hudGear publishes it: out.gear is a number) - a fixed build keeps the old list
+      const acts = inp.ACTIONS.filter(a => a.group === g && (!a.lab || labOn() || (a.id === 'gear' && window.FLYDIY_GEAR_RETRACTS === true)));
       if (!acts.length) continue;
       body.appendChild(el('h3', null, title));
       if (LIVE[g]) { const lv = el('div', 'live'); lv.dataset.g = g; lv.textContent = LIVE[g](inp.state()); body.appendChild(lv); }
@@ -219157,9 +219543,12 @@ function make(THREE) {
     if (!model || !model.gauges || !THREE.SphereGeometry) return;
     const padMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { transparent: true, opacity: 0, depthWrite: false, colorWrite: false });  // pre-ok: colorWrite false
     for (const g of model.gauges) {
-      if (!/^(switch|knob|key|flap|gpskey)$/.test(g.c.law) || !g.obj.add) continue;
+      if (!/^(switch|knob|key|flap|gpskey|gear)$/.test(g.c.law) || !g.obj.add) continue;
       const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.padR || (g.c.law === 'key' ? 0.022 : g.c.law === 'flap' ? 0.024 : 0.016), 8, 6), padMat);
       if (g.c.law === 'flap') pad.position.set(0, -0.012, -0.030);   // G335: on the knob, not the buried pivot
+      // GEAR-LEVER: on the wheel-shaped knob as drawn (the selector down: 70 mm out from a pivot 30 mm in the dash, turned
+      // 0.5 rad down); the pad rides the lever's group, so it follows the knob up and down
+      if (g.c.law === 'gear') pad.position.set(0, -0.034, -0.061);
       if (g.c.slide) pad.position.set(0, 0, g.c.padR ? -0.004 : -0.012);   // G371: a push-pull's knob (G2802: a breaker's button)
       pad.userData.pickPad = 1;
       // C4b (G875): answered, never drawn - three's Raycaster tests every layer-0 object, shown or not; drawn, the
@@ -219429,9 +219818,10 @@ function make(THREE) {
       // avionics master's cap is its own switch's too, lights fitted or not;
       // a lamp whose breaker is out is dark
       const fitted = CK.lightOn || l.key === 'master' || l.key === 'alt' || l.key === 'avionics';
-      const v = fitted && busOk && CK.pw(LS[i]) ? clamp(+CK.sw[LS[i]] || 0, 0, 1) : 0;
+      const gl = l.key === 'gearG' || l.key === 'gearR' || l.key === 'gearB';   // GEAR-LEVER: the gear's own law
+      const v = gl ? (busOk ? CK.gearLamp(l.key) : 0) : fitted && busOk && CK.pw(LS[i]) ? clamp(+CK.sw[LS[i]] || 0, 0, 1) : 0;
       const gain = l.key === 'beacon' ? beacon : 1;
-      const inside = l.key === 'flood' || l.key === 'pedal' || l.key === 'instr' || l.key === 'master' || l.key === 'alt';
+      const inside = l.key === 'flood' || l.key === 'pedal' || l.key === 'instr' || l.key === 'master' || l.key === 'alt' || gl;
       if (l.mesh.material && l.mesh.material.emissive)
         l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (l.k || 1) * (inside ? kIn : kOut);   // G468: the socket's third  pre-ok: kIn / kOut carry P
     }
@@ -219493,6 +219883,9 @@ function make(THREE) {
         // G335: the dash flap switch follows the flap COMMAND (the linkage's
         // own number on ctl — the AP's or the hand's)
         case 'flap': { const sm = CK.sim; a1 = (c.k || 0.75) * clamp(sm && sm.ctl ? +sm.ctl.flap || 0 : 0, 0, 1); break; }
+        // GEAR-LEVER: the gear selector follows the HANDLE (ctl.gear: 1 down, 0 up - the hand's, the key's or the AP's),
+        // not the gear: the lever is where the pilot put it, the lamps say where the gear is
+        case 'gear': { const sm = CK.sim, h = sm && sm.ctl && sm.ctl.gear === 0 ? 0 : 1; a1 = (c.k || 0.5) * (1 - 2 * h); break; }
         default: a1 = 0;
       }
       // A3: THE LAW IS ABSOLUTE, THE GEOMETRY IS NOT - the snapshot holds the
@@ -219573,7 +219966,7 @@ function make(THREE) {
       let a = h.part || h.object;
       while (a && a !== model.grp) {
         const g = model.gauges.find(q => q.obj === a);
-        if (g) return g.c.law === 'flap' ? Object.assign({ pick: 'flap' }, g) : g;   // G335: the dash switch is the lever's click
+        if (g) return g.c.law === 'flap' ? Object.assign({ pick: 'flap' }, g) : g.c.law === 'gear' ? Object.assign({ pick: 'gear' }, g) : g;   // G335: the dash switch is the lever's click
         // G318: the flap lever, the brake, the fuel selector, the trim wheel
         const pk = model.picks && model.picks.find(q => q.obj === a);
         if (pk) return { pick: pk.key, obj: pk.obj, c: { law: 'pick:' + pk.key, drive: pk.key } };
@@ -219609,6 +220002,7 @@ function make(THREE) {
       else if (g.pick === 'fuel') { const i = clamp(Math.round(+CK.sw.fuel || 0), 0, 3); CK.sw.fuel = (i + 1) % 4; did = true; }
       else if (g.pick === 'trim' && INP3 && INP3.setTrim) { INP3.setTrim((INP3.trim() || 0) + 0.05); did = true; }
       else if (g.pick === 'thr') did = true;               // G364: a click holds it; the drag moves it
+      else if (g.pick === 'gear') did = CK.gearSet(null);  // GEAR-LEVER: a click throws the selector to its other end
       else if (g.pick === 'gps') {                         // G2813: a tap on the GPS's glass (gps_face.js touch)
         const GP = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
         did = !!(GP && GP.touch && CK.gpsOn && GP.touch(g.u, g.v, g.unit || 0));
@@ -219651,6 +220045,7 @@ function make(THREE) {
     if (!g || !g.c) return false;
     // G318: the trim wheel, the fuel selector and the flap lever move under
     // the mouse too (the 4e idiom: up is clockwise / a notch up / lever up)
+    if (g.pick === 'gear') { CK.grab = { g, y0: y, v0: 0, moved: false }; return true; }   // GEAR-LEVER: up or down by the hand
     if (g.pick === 'trim' || g.pick === 'fuel' || g.pick === 'flap' || g.pick === 'thr') {
       const W4 = typeof window !== 'undefined' ? window : {};
       const INP4 = W4.FLYDIY_INPUT;
@@ -219678,6 +220073,9 @@ function make(THREE) {
     else if (G.g.pick === 'thr') {                      // G364: the lever follows the hand, 150 px the travel
       const W7 = typeof window !== 'undefined' ? window : {};
       if (W7.FLYDIY_INPUT && W7.FLYDIY_INPUT.setAxis) W7.FLYDIY_INPUT.setAxis('throttle', clamp(G.v0 + dy / 150, 0, 1));
+    }
+    else if (G.g.pick === 'gear') {                     // GEAR-LEVER: the lever moved up is gear UP, down is DOWN (20 px)
+      if (Math.abs(dy) > 20) CK.gearSet(dy > 0 ? 0 : 1);
     }
     else if (G.g.pick === 'flap') {                     // the lever pulled up is a notch of flap
       const W6 = typeof window !== 'undefined' ? window : {};
@@ -219726,6 +220124,30 @@ function make(THREE) {
     else if (id === 'fuelSel') { const i = clamp(Math.round(+CK.sw.fuel || 0), 0, 3); CK.sw.fuel = (i + 1) % 4; did = true; }
     if (did) CK.glow(0);
     return did;
+  };
+  // GEAR-LEVER: THE SELECTOR BY HAND - the same door the gear key (Digit9) uses: the input's handle (INP.fire('gear')
+  // toggles it; under the AP app.js gearKeyUnderAP turns the press into sim.ctl.gear). want: 0 up, 1 down, null the
+  // other end. Nothing on a fixed build (no ctl.gear). True when the hand moved it
+  CK.gearSet = want => {
+    const sm = CK.sim; if (!sm || !sm.ctl || !('gear' in sm.ctl)) return false;
+    const now = sm.ctl.gear === 0 ? 0 : 1, to = want == null ? 1 - now : want;
+    if (to === now) return false;
+    const W8 = typeof window !== 'undefined' ? window : {}, I8 = W8.FLYDIY_INPUT;
+    if (I8 && I8.fire) I8.fire('gear'); else sm.ctl.gear = to;
+    return true;
+  };
+  // GEAR-LEVER: THE GEAR'S LAMPS (the user's ruling: greens together, red with the horn, dark up; an amphibian's blue up),
+  // read off the solver's out.gear on the bus (the master on, the bus alive - a dead bus, dark lamps): GREEN down and
+  // locked, BLUE (an amphibian) up and stowed, RED in transit or with the warning (30_solver gearWarnOf: the horn's law)
+  CK.gearLamp = key => {
+    const sm = CK.sim, o = sm && sm.out;
+    if (!o || typeof o.gear !== 'number') return 0;
+    if (CK.bus && !(CK.busOk !== false && CK.pw('sw_' + key))) return 0;
+    const pos = o.gear;
+    if (key === 'gearG') return pos > 0.98 ? 1 : 0;
+    if (key === 'gearB') return o.gearAmph > 0 && pos < 0.02 ? 1 : 0;   // (an amphibian's only)
+    if (key === 'gearR') return (pos >= 0.02 && pos <= 0.98) || (typeof gearWarnOf === 'function' && gearWarnOf(o, sm.ctl)) ? 1 : 0;
+    return 0;
   };
   CK.setKey = pos => {
     const i = KEY_STEPS.indexOf(pos); if (i < 0) return;
@@ -222182,7 +222604,10 @@ var AUDIO_PARAMS = (function () {
     s[I.thrMaster] = thr;
     s[I.flap] = num(ctl.flap, 0); s[I.brake] = num(ctl.brake, 0);
     s[I.de] = num(ctl.de, 0); s[I.da] = num(ctl.da, 0); s[I.dr] = num(ctl.dr, 0);
-    { const g = o.gear; s[I.gearWarn] = (typeof g === 'number' && g <= 0.98 && !(o.gearWow > 0) && (thr < 0.25 || s[I.flap] > 0.35)) ? 1 : 0; }   // RETRACT-1
+    // RETRACT-1 / GEAR-LEVER: the core's one law (30_solver gearWarnOf: the dash's red lamp reads the same); the
+    // inline line is the same law for a node rig without the core
+    { const g = o.gear; s[I.gearWarn] = typeof gearWarnOf === 'function' ? gearWarnOf(o, ctl)
+        : (typeof g === 'number' && !(o.gearAmph > 0) && (o.gearWow > 0 ? ctl.gear === 0 : g <= 0.98 && (thr < 0.25 || s[I.flap] > 0.35))) ? 1 : 0; }
     // the stall alpha at this flap: toward the measured landing stall over the landing notch, else the polar's delta
     const st = out.stall, fl = s[I.flap];
     s[I.aStall] = st[0] <= 0 ? 0 : st[2] > 0 ? st[0] + (st[1] - st[0]) * Math.min(1, fl / st[2]) : st[0] - st[3] * fl;
@@ -242164,6 +242589,14 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // shed (no bus, no engine) and stay parts.
   const edSwitchClick = hit => {
     if (!edEye || !hit || !hit.name || !window.CAGE_UI || !window.CAGE_UI.P) return false;
+    // GEAR-LEVER: the gear selector in the shed throws the gear's preview (the retraction's `gearPos` row: the units, the
+    // doors and the lever all follow it, as the flight's handle does)
+    if ((hit.name === 'edGauge_gear' || hit.name === 'edSwitch_gear') && 'gearPos' in window.CAGE_UI.P) {
+      const PG2 = window.CAGE_UI.P; PG2.gearPos = +PG2.gearPos > 0.5 ? 0 : 1;
+      if (typeof window.CAGE_UI.syncSliders === 'function') try { window.CAGE_UI.syncSliders(); } catch (e2) {}
+      window.CAGE_UI.build();
+      return true;
+    }
     const m = /^(?:edGauge_sw_|edSwitch_)([A-Za-z0-9]+)$/.exec(hit.name);
     if (!m) return false;
     const k = m[1], P = window.CAGE_UI.P;
@@ -250421,19 +250854,30 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // and the gear is not yet), EMERG once the emergency extension was pulled. The cell exists only on such a build
   // (hudGearOn: flInstApply reads it); written only when it changes
   let hudGearOn = false, hudGearK = '';
+  const hudGearAdv = { said: false, text: '', t0: 0 };   // GEAR-LEVER: the amphibian's advisory state
   function hudGear() {
     const o = sim && sim.out, on = !!(o && typeof o.gear === 'number');
-    if (on !== hudGearOn) { hudGearOn = on; hudGearK = ''; flInstApply(); }
+    if (on !== hudGearOn) { hudGearOn = on; hudGearK = ''; flInstApply(); window.FLYDIY_GEAR_RETRACTS = on; }   // GEAR-LEVER: the controls panel lists the handle
     if (!on || !R.gear) return;
     const pos = o.gear, locked = pos > 0.98, up = pos < 0.02, hd = sim.ctl && sim.ctl.gear === 0 ? 0 : 1;
-    const lamp = locked ? 'g' : up ? '' : 'r';
-    const lab = (o.gearEmerg ? 'EMERG · ' : '') + (locked ? 'gear down' : up ? (hd ? 'gear DOWN?' : 'gear up') : (o.gearMov > 0 ? 'gear coming down' : o.gearMov < 0 ? 'gear going up' : 'gear UNSAFE'));
+    // GEAR-LEVER: an amphibian's wheels UP are BLUE (the water), DOWN green (the runway) - Wipline's advisory lamps
+    const amph = o.gearAmph > 0;
+    const lamp = locked ? 'g' : up ? (amph ? 'b' : '') : 'r';
+    let lab = (o.gearEmerg ? 'EMERG · ' : '') + (locked ? 'gear down' : up ? (hd && !amph ? 'gear DOWN?' : 'gear up') : (o.gearMov > 0 ? 'gear coming down' : o.gearMov < 0 ? 'gear going up' : 'gear UNSAFE'));
+    // GEAR-LEVER: THE AMPHIBIAN'S ADVISORY (30_solver gearAdvisoryOf: once an approach, slowing through 1.3 Vs) -
+    // "gear is UP for water landing" / "gear is DOWN for runway landing" on the gear line for 6 s
+    if (amph && typeof gearAdvisoryOf === 'function') {
+      let vs = 0; try { const sh = ap && ap.sheet; vs = (sh && (sh.Vs || sh.Vs1 || sh.Vs0)) || 0; } catch (e) {}
+      const said = gearAdvisoryOf(o, hudGearAdv, vs);
+      if (said) { hudGearAdv.text = said === 'up' ? 'gear is UP for water landing' : said === 'down' ? 'gear is DOWN for runway landing' : 'gear is in TRANSIT'; hudGearAdv.t0 = performance.now(); window.FLYDIY_GEAR_ADVISORY = { said, text: hudGearAdv.text }; }
+      if (hudGearAdv.text && performance.now() - (hudGearAdv.t0 || 0) < 6000) lab = hudGearAdv.text;
+    }
     const k = lamp + '|' + lab;
     if (k === hudGearK) return;
     hudGearK = k;
     for (const s of R.gear.children || []) s.className = 'gl' + (lamp ? ' ' + lamp : '');
     if (R.gearU) R.gearU.textContent = lab;
-    if (RD.gear) RD.gear.classList.toggle('warn', !locked && !up);
+    if (RD.gear) RD.gear.classList.toggle('warn', (!locked && !up) || /landing$/.test(lab));
   }
   // the netto's state: a 3 s needle and a 20 s ring, as a vario has
   let nettoF = 0, nettoI = 0;
