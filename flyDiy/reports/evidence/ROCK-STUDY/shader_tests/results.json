@@ -1,0 +1,1129 @@
+{
+ "base_face": {
+  "qs": "",
+  "view": "face",
+  "ms": {
+   "median": 5123.199999999953,
+   "min": 5099.300000000047,
+   "max": 5511.40000000014
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7775043402777778,
+   "fetchesPerPx": 38.58776522996366,
+   "maxFetches": 126
+  },
+  "loadMs": 36297,
+  "faceSlope": 56.75298159567755
+ },
+ "base_near": {
+  "qs": "",
+  "view": "near",
+  "ms": {
+   "median": 4773.40000000014,
+   "min": 4706.600000000093,
+   "max": 5138
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.8003841145833334,
+   "fetchesPerPx": 23.072857270678956,
+   "maxFetches": 126
+  },
+  "loadMs": 36077,
+  "faceSlope": 56.75298159567755
+ },
+ "base_high": {
+  "qs": "",
+  "view": "high",
+  "ms": {
+   "median": 4702.100000000093,
+   "min": 4670.600000000093,
+   "max": 4753.899999999907
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7187890625,
+   "fetchesPerPx": 25.891292139919933,
+   "maxFetches": 126
+  },
+  "loadMs": 36218,
+  "faceSlope": 56.75298159567755
+ },
+ "base_slope": {
+  "qs": "",
+  "view": "slope",
+  "ms": {
+   "median": 4961.899999999907,
+   "min": 4432.100000000093,
+   "max": 5112.199999999953
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 1,
+   "fetchesPerPx": 28.0141796875,
+   "maxFetches": 54
+  },
+  "loadMs": 34954,
+  "faceSlope": 56.75298159567755
+ },
+ "a_detail_face": {
+  "qs": "rock=detail",
+  "view": "face",
+  "ms": {
+   "median": 4983.899999999907,
+   "min": 4828.90000000014,
+   "max": 5385.899999999907
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7775043402777778,
+   "fetchesPerPx": 43.40236802000703,
+   "maxFetches": 126
+  },
+  "loadMs": 36317,
+  "faceSlope": 56.75298159567755
+ },
+ "a_detail_near": {
+  "qs": "rock=detail",
+  "view": "near",
+  "ms": {
+   "median": 4231.100000000093,
+   "min": 4179.699999999953,
+   "max": 4501.800000000047
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.8003841145833334,
+   "fetchesPerPx": 28.447273308985213,
+   "maxFetches": 126
+  },
+  "loadMs": 30995,
+  "faceSlope": 56.75298159567755
+ },
+ "a_detail_high": {
+  "qs": "rock=detail",
+  "view": "high",
+  "ms": {
+   "median": 4244.5,
+   "min": 4199.199999999953,
+   "max": 4253.300000000047
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7187890625,
+   "fetchesPerPx": 25.891292139919933,
+   "maxFetches": 126
+  },
+  "loadMs": 31924,
+  "faceSlope": 56.75298159567755
+ },
+ "b_biplanar_face": {
+  "qs": "tri=bi",
+  "view": "face",
+  "ms": {
+   "median": 4194.699999999953,
+   "min": 4072.6999999999534,
+   "max": 4277.399999999907
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7775043402777778,
+   "fetchesPerPx": 31.392291932989835,
+   "maxFetches": 84
+  },
+  "loadMs": 31016,
+  "faceSlope": 56.75298159567755
+ },
+ "b_biplanar_near": {
+  "qs": "tri=bi",
+  "view": "near",
+  "ms": {
+   "median": 4252.90000000014,
+   "min": 4174,
+   "max": 5028.5
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.8003841145833334,
+   "fetchesPerPx": 20.750900853268693,
+   "maxFetches": 84
+  },
+  "loadMs": 31799,
+  "faceSlope": 56.75298159567755
+ },
+ "b_oneplane_near": {
+  "qs": "tri=one",
+  "view": "near",
+  "ms": {
+   "median": 4027.7000000001863,
+   "min": 4015.2999999998137,
+   "max": 4211
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.8003841145833334,
+   "fetchesPerPx": 15.267921489519193,
+   "maxFetches": 84
+  },
+  "loadMs": 30851,
+  "faceSlope": 56.75298159567755
+ },
+ "b_nohex_near": {
+  "qs": "hex=0",
+  "view": "near",
+  "ms": {
+   "median": 1436.8000000000466,
+   "min": 1393.5,
+   "max": 1463.3000000000466
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.8003841145833334,
+   "fetchesPerPx": 7.690952423559652,
+   "maxFetches": 42
+  },
+  "loadMs": 12340,
+  "faceSlope": 56.75298159567755
+ },
+ "c_expo_face": {
+  "qs": "expo=1",
+  "view": "face",
+  "ms": {
+   "median": 4698,
+   "min": 4537.299999999814,
+   "max": 4712.600000000093
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7775043402777778,
+   "fetchesPerPx": 42.16264646611253,
+   "maxFetches": 126
+  },
+  "loadMs": 34303,
+  "faceSlope": 56.75298159567755
+ },
+ "c_expo_high": {
+  "qs": "expo=1",
+  "view": "high",
+  "ms": {
+   "median": 5632,
+   "min": 5389.899999999907,
+   "max": 5696.199999999721
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7187890625,
+   "fetchesPerPx": 29.951524373675344,
+   "maxFetches": 162
+  },
+  "loadMs": 39258,
+  "faceSlope": 56.75298159567755
+ },
+ "c_strata_face": {
+  "qs": "strata=1",
+  "view": "face",
+  "ms": {
+   "median": 4973,
+   "min": 4599.4000000003725,
+   "max": 5281.699999999721
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 94044,
+   "lines": 2310,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7775043402777778,
+   "fetchesPerPx": 38.58776522996366,
+   "maxFetches": 126
+  },
+  "loadMs": 35049,
+  "faceSlope": 56.75298159567755
+ },
+ "c_strata_near": {
+  "qs": "strata=1",
+  "view": "near",
+  "ms": {
+   "median": 4446.600000000093,
+   "min": 4391.100000000093,
+   "max": 4631.600000000093
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 94044,
+   "lines": 2310,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.8003841145833334,
+   "fetchesPerPx": 23.072857270678956,
+   "maxFetches": 126
+  },
+  "loadMs": 32461,
+  "faceSlope": 56.75298159567755
+ },
+ "c_expo_strata_face": {
+  "qs": "expo=1&strata=1",
+  "view": "face",
+  "ms": {
+   "median": 5294.199999999721,
+   "min": 5200.100000000093,
+   "max": 5347.700000000186
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 94044,
+   "lines": 2310,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7775043402777778,
+   "fetchesPerPx": 42.16264646611253,
+   "maxFetches": 126
+  },
+  "loadMs": 36485,
+  "faceSlope": 56.75298159567755
+ },
+ "c_expo_strata_near": {
+  "qs": "expo=1&strata=1",
+  "view": "near",
+  "ms": {
+   "median": 5102.800000000279,
+   "min": 4867,
+   "max": 5379.5
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.8003841145833334,
+   "fetchesPerPx": 24.044542415344196,
+   "maxFetches": 126
+  },
+  "loadMs": 37091,
+  "faceSlope": 56.75298159567755
+ },
+ "c_expo_strata_high": {
+  "qs": "expo=1&strata=1",
+  "view": "high",
+  "ms": {
+   "median": 4679.300000000279,
+   "min": 4639.800000000279,
+   "max": 4932.199999999721
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7187890625,
+   "fetchesPerPx": 29.951524373675344,
+   "maxFetches": 162
+  },
+  "loadMs": 33583,
+  "faceSlope": 56.75298159567755
+ },
+ "d_scatter_face": {
+  "qs": "scatter=1",
+  "view": "face",
+  "ms": {
+   "median": 5545.0999999996275,
+   "min": 5046.200000000186,
+   "max": 5589.300000000279
+  },
+  "calls": 31,
+  "tris": 2902814,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 2264,
+   "rockTris": 1131406,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7380848524305555,
+   "fetchesPerPx": 37.533838366761294,
+   "maxFetches": 126
+  },
+  "loadMs": 36132,
+  "faceSlope": 56.75298159567755
+ },
+ "d_scatter_near": {
+  "qs": "scatter=1",
+  "view": "near",
+  "ms": {
+   "median": 5907.5999999996275,
+   "min": 5767.800000000279,
+   "max": 6294.300000000279
+  },
+  "calls": 31,
+  "tris": 3315862,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 2683,
+   "rockTris": 1337930,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7765201822916666,
+   "fetchesPerPx": 22.322116815554168,
+   "maxFetches": 126
+  },
+  "loadMs": 41136,
+  "faceSlope": 56.75298159567755
+ },
+ "d_scatter_slope": {
+  "qs": "scatter=1",
+  "view": "slope",
+  "ms": {
+   "median": 5150.100000000093,
+   "min": 4982.5,
+   "max": 5306.5999999996275
+  },
+  "calls": 31,
+  "tris": 3047682,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 2417,
+   "rockTris": 1203840,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.9542057291666667,
+   "fetchesPerPx": 27.52088478910525,
+   "maxFetches": 54
+  },
+  "loadMs": 37002,
+  "faceSlope": 56.75298159567755
+ },
+ "d_scatter_high": {
+  "qs": "scatter=1",
+  "view": "high",
+  "ms": {
+   "median": 5717.800000000279,
+   "min": 5064.5,
+   "max": 6051.899999999907
+  },
+  "calls": 31,
+  "tris": 2300746,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 1714,
+   "rockTris": 830372,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7072493489583334,
+   "fetchesPerPx": 25.464861207638528,
+   "maxFetches": 126
+  },
+  "loadMs": 39656,
+  "faceSlope": 56.75298159567755
+ },
+ "e_skirt_face": {
+  "qs": "skirt=1.25",
+  "view": "face",
+  "ms": {
+   "median": 6872.600000000093,
+   "min": 6466.699999999721,
+   "max": 7184.800000000279
+  },
+  "calls": 5,
+  "tris": 2062242,
+  "stat": {
+   "skirtCells": 23704,
+   "skirtTris": 758528,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7774696180555556,
+   "fetchesPerPx": 37.76432068509287,
+   "maxFetches": 126
+  },
+  "loadMs": 47849,
+  "faceSlope": 56.75298159567755
+ },
+ "e_skirt_near": {
+  "qs": "skirt=1.25",
+  "view": "near",
+  "ms": {
+   "median": 6210.100000000093,
+   "min": 6159.699999999721,
+   "max": 6368.600000000093
+  },
+  "calls": 5,
+  "tris": 2242302,
+  "stat": {
+   "skirtCells": 26705,
+   "skirtTris": 854560,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.8004144965277777,
+   "fetchesPerPx": 23.190507305513908,
+   "maxFetches": 126
+  },
+  "loadMs": 45050,
+  "faceSlope": 56.75298159567755
+ },
+ "e_skirt_plain_near": {
+  "qs": "skirt=1.25&plain=1",
+  "view": "near",
+  "ms": {
+   "median": 461.59999999962747,
+   "min": 460.60000000009313,
+   "max": 498.5
+  },
+  "calls": 5,
+  "tris": 2242302,
+  "stat": {
+   "skirtCells": 26705,
+   "skirtTris": 854560,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.8004144965277777,
+   "fetchesPerPx": 0,
+   "maxFetches": 0
+  },
+  "loadMs": 4811,
+  "faceSlope": 56.75298159567755
+ },
+ "base_plain_near": {
+  "qs": "plain=1",
+  "view": "near",
+  "ms": {
+   "median": 194.10000000009313,
+   "min": 181,
+   "max": 195.39999999990687
+  },
+  "calls": 3,
+  "tris": 640002,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.8003841145833334,
+   "fetchesPerPx": 0,
+   "maxFetches": 0
+  },
+  "loadMs": 1814,
+  "faceSlope": 56.75298159567755
+ },
+ "e_skirt25_face": {
+  "qs": "skirt=2.5",
+  "view": "face",
+  "ms": {
+   "median": 5113.200000000186,
+   "min": 4846.600000000093,
+   "max": 5140.699999999721
+  },
+  "calls": 5,
+  "tris": 924450,
+  "stat": {
+   "skirtCells": 23704,
+   "skirtTris": 189632,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7774761284722222,
+   "fetchesPerPx": 37.25193085487955,
+   "maxFetches": 126
+  },
+  "loadMs": 35573,
+  "faceSlope": 56.75298159567755
+ },
+ "e_skirt25_near": {
+  "qs": "skirt=2.5",
+  "view": "near",
+  "ms": {
+   "median": 4705.699999999721,
+   "min": 4658.5,
+   "max": 5271
+  },
+  "calls": 5,
+  "tris": 960462,
+  "stat": {
+   "skirtCells": 26705,
+   "skirtTris": 213640,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.80037109375,
+   "fetchesPerPx": 22.48870559717579,
+   "maxFetches": 126
+  },
+  "loadMs": 34565,
+  "faceSlope": 56.75298159567755
+ },
+ "e_skirt25_high": {
+  "qs": "skirt=2.5",
+  "view": "high",
+  "ms": {
+   "median": 4823.200000000186,
+   "min": 4691,
+   "max": 5045.799999999814
+  },
+  "calls": 5,
+  "tris": 884010,
+  "stat": {
+   "skirtCells": 20334,
+   "skirtTris": 162672,
+   "rocks": 0,
+   "rockTris": 0,
+   "rockDraws": 0
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7187391493055556,
+   "fetchesPerPx": 25.140841498211024,
+   "maxFetches": 126
+  },
+  "loadMs": 34423,
+  "faceSlope": 56.75298159567755
+ },
+ "best_face": {
+  "qs": "rock=detail&tri=bi&expo=1&strata=1&scatter=1",
+  "view": "face",
+  "ms": {
+   "median": 5065.299999999814,
+   "min": 5014.4000000003725,
+   "max": 5398.199999999721
+  },
+  "calls": 31,
+  "tris": 2902814,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 2264,
+   "rockTris": 1131406,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7380848524305555,
+   "fetchesPerPx": 37.26940588251725,
+   "maxFetches": 92
+  },
+  "loadMs": 36744,
+  "faceSlope": 56.75298159567755
+ },
+ "best_near": {
+  "qs": "rock=detail&tri=bi&expo=1&strata=1&scatter=1",
+  "view": "near",
+  "ms": {
+   "median": 4704,
+   "min": 4661.600000000093,
+   "max": 4997.600000000093
+  },
+  "calls": 31,
+  "tris": 3315862,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 2683,
+   "rockTris": 1337930,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7765201822916666,
+   "fetchesPerPx": 25.62520034486565,
+   "maxFetches": 92
+  },
+  "loadMs": 35082,
+  "faceSlope": 56.75298159567755
+ },
+ "best_high": {
+  "qs": "rock=detail&tri=bi&expo=1&strata=1&scatter=1",
+  "view": "high",
+  "ms": {
+   "median": 5255.100000000093,
+   "min": 5219.700000000186,
+   "max": 5287.199999999721
+  },
+  "calls": 31,
+  "tris": 2300746,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 1714,
+   "rockTris": 830372,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7072493489583334,
+   "fetchesPerPx": 22.584359336668708,
+   "maxFetches": 108
+  },
+  "loadMs": 36547,
+  "faceSlope": 56.75298159567755
+ },
+ "best_slope": {
+  "qs": "rock=detail&tri=bi&expo=1&strata=1&scatter=1",
+  "view": "slope",
+  "ms": {
+   "median": 5211.199999999721,
+   "min": 5210.200000000186,
+   "max": 5452.799999999814
+  },
+  "calls": 31,
+  "tris": 3047682,
+  "stat": {
+   "skirtCells": 0,
+   "skirtTris": 0,
+   "rocks": 2417,
+   "rockTris": 1203840,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.9542057291666667,
+   "fetchesPerPx": 24.167706016402168,
+   "maxFetches": 56
+  },
+  "loadMs": 37277,
+  "faceSlope": 56.75298159567755
+ },
+ "best_skirt_face": {
+  "qs": "rock=detail&tri=bi&expo=1&scatter=1&skirt=2.5",
+  "view": "face",
+  "ms": {
+   "median": 6709.600000000093,
+   "min": 6036.199999999721,
+   "max": 6899.600000000093
+  },
+  "calls": 33,
+  "tris": 3187262,
+  "stat": {
+   "skirtCells": 23704,
+   "skirtTris": 189632,
+   "rocks": 2264,
+   "rockTris": 1131406,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7374533420138889,
+   "fetchesPerPx": 36.126202664069204,
+   "maxFetches": 138
+  },
+  "loadMs": 44853,
+  "faceSlope": 56.75298159567755
+ },
+ "best_skirt_near": {
+  "qs": "rock=detail&tri=bi&expo=1&scatter=1&skirt=2.5",
+  "view": "near",
+  "ms": {
+   "median": 5624.299999999814,
+   "min": 5573.100000000093,
+   "max": 5815.0999999996275
+  },
+  "calls": 33,
+  "tris": 3636322,
+  "stat": {
+   "skirtCells": 26705,
+   "skirtTris": 213640,
+   "rocks": 2683,
+   "rockTris": 1337930,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7757931857638889,
+   "fetchesPerPx": 24.1451527404608,
+   "maxFetches": 138
+  },
+  "loadMs": 41198,
+  "faceSlope": 56.75298159567755
+ },
+ "best_skirt_high": {
+  "qs": "rock=detail&tri=bi&expo=1&scatter=1&skirt=2.5",
+  "view": "high",
+  "ms": {
+   "median": 6106.5,
+   "min": 5498.399999999907,
+   "max": 6458.5
+  },
+  "calls": 33,
+  "tris": 2544754,
+  "stat": {
+   "skirtCells": 20334,
+   "skirtTris": 162672,
+   "rocks": 1714,
+   "rockTris": 830372,
+   "rockDraws": 14,
+   "placed": 6585
+  },
+  "frag": {
+   "chars": 93776,
+   "lines": 2308,
+   "textureSites": 19,
+   "translated": false
+  },
+  "count": {
+   "groundPx": 0.7068934461805556,
+   "fetchesPerPx": 22.402718147950875,
+   "maxFetches": 126
+  },
+  "loadMs": 42143,
+  "faceSlope": 56.75298159567755
+ }
+}
