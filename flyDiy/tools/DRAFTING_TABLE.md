@@ -693,3 +693,93 @@ to forget". A first cut (a declared `wgStolFly` row) was dropped for exactly tha
   already reads its sheets at +-10 %.
 - THE TOOL FOR EVERY SESSION: CLAUDE.md now points at this file; tools/drafting/KICKOFF.md is the message to paste with
   a new plane's blueprint; GATE DRAFTING (tools/drafting/dt_check.js, 4 s) joins the core battery.
+
+## THE SECOND PLANE: the Cessna 337D Super Skymaster (13 Nov)
+
+A0's task (from the user): the 337D as a reproduction, with this table, for the garage features no validated plane
+covered (twin booms, a stab between them, push-pull centreline thrust, a retractable tricycle). The user's own rules,
+in order: **born from the C172, not from the Skymaster-alike card**; **measure, don't chase the match - show first**;
+**cowl - nose - cabin - pax 1 - pax 2 (another length) - aft bulkhead - back cowl, no baggage bay**; **the stabs start
+from the twin busher's**; **no new scope** (finish it landable and gated).
+
+### The dossier (the user: "keep all reference images as part of a plane's dossier")
+
+Every reference the user hands over is kept, private, in the session's dossier folder (never committed: the images
+and the manual are the user's), with a line in the committed reference block (`refs/c337.json` `dossier`: file, what,
+use). The 337's: the 1969 Owner's Manual (PDF, 51 pages), the user's clean copy of its Principal Dimensions sheet (the
+drafting sheet), the "Skymaster '72" brochure cover (the default livery) and a photo of VH-AZW (weathering, the belly
+cargo pod). **Copyright:** the repository is the public Pages site - the manual stays in the dossier unless the user
+says otherwise; what the table needs from it is copied into the reference as figures with their page.
+
+### What the manual gave, and where
+
+- Figures: the specifications page (4400 lb column), the limitations (section IV), the 3-view (span, length 29 ft
+  10 in, boom spacing at the wing and the tail, 76 in props, track 8 ft 2 in, the 2 deg ground line).
+- **The datum is not in the text.** The cargo-pack diagram (p 4-8) puts the front firewall at fuselage station 65 and
+  says "the c.g. arm is the same as the station": the datum is 65 in ahead of the firewall (0.15 m ahead of the
+  spinner tip). The CG moment envelope (p 4-7) read off its grid: 134.3-142.8 in at 2800 lb, 137.1-142.6 at 4400 -
+  17-30 % of the MAC drawn off the sheet's planform (1.72 m).
+- The belly cargo pod: the manual's Cargo Pack, 92 x 36 x 10.5 in, 300 lb, stations 68-160.
+
+### The sheet's own inconsistency
+
+The top view's stations run 3-6 % short of the side view's aft of the wing (wing LE 2.82 against 3.00, rear spinner
+5.95 against 6.25), while its span and boom spacings agree with the figures. **Stations are read on the side view
+(scaled by the stated length), widths on the top and front views.** And read the aft-most point on the extension
+line: the fin's top corner sits ON the 29 ft 10 in line - the first scale missed it by 9 px (1 %).
+
+### planeScale
+
+Every saved card carries one (27 at 0.745 - the C172 family -, 8 at 0.68, the DC-3 1.6, the sailplane 0.595; the
+generator's own default 1). It scales the body rows only (bays, frames, widths, heights in cage units); the wing, the
+cowl, the gear are metres. The 337 keeps the C172's 0.745: a converter to 1 (rescaling the body rows, checked by the
+table's measurements and pillars unchanged) is the clean answer and was set aside under the no-new-scope rule.
+
+### The steps (what moved, with the rows)
+
+| step | rows | result |
+|---|---|---|
+| born | `table.js new --key c172` + the tiles' own writes: `engMount 4 boomTwin 1 stMount 3 gearRetract 1 boomX 1.629` | push-pull on twin booms, retractable |
+| engine | `eng_rpm 2800 eng_bmepK 1.158 eng_cs 1` (the custom-engine dials) | 156.6 kW = 210 BHP a side, constant speed - no new registry row |
+| nose | `cw_noseOff 0.31` | cowl face and firewall to 1 cm |
+| pillars | `noseLen 0.38 wsRun 0.87 pilotLen 1.2 paxCount 2 paxLen2 0.772 paxLen 0.785` (cage units at 0.745) | cabin 2.45, B 3.38, C 4.03, aft bulkhead 4.73, the rear spinner tip 6.24 / 6.25 |
+| sections | `roofY 1.14 keelY -0.62 halfW 0.72 frPaxTopY 1.16 frPaxBotY -0.4 frPaxBias 1` (frPostBotY dropped) | the belly within 5-7 cm |
+| wing | `wgChord 1.93 wgCrankChord 1.93 wgCrankAt 0.28 wgChordTip 1.25 wgDx -0.81 boomLen 4.35` | LE / TE within 5 cm, the tail held at 9.09 |
+| tail | the busher's `st*` / `fin*` rows, then `stMount 3 stOver 0`; fit `finSweep finChord finChordTip finZ finTipZ` | between the booms; the fin within 12 cm |
+| gear | `s1Z 0.613 s2Z 2.945 s1Drop 0.25 s2Drop 0.62` | the wheels on their stations; see the strike below |
+| scoop | `cw_scoopTop 1 cw_scoopAft 1` (ENGINE-COOLING merged) | the rear engine's dorsal scoop; the nose cowl wears one too (the rows are shared) |
+| livery | `refs/c337_livery_brochure.py` | lime green over white, the dark cheat line, N1799M |
+
+### The strike that grounded it (a lesson for every push-pull)
+
+The first flights rejected every take-off at under 1 m/s2: the REAR ENGINE WAS SEIZED 0.7 s after the reset. The sheet's
+stance (the nose leg 0.76) bounced the 2-tonne aeroplane onto its tail as it settled on its wheels (15 deg nose-up),
+the rear disc dug in and its mount tore off. The check (`settle.js` in the session: three seconds on the ground, the
+pitch, the engines' `seized`) belongs in front of any bench run on a pusher: a 0.62 leg settles at -1 deg with both
+engines alive. (Our rear thrust line sits ~0.4 m under the sheet's +0.50: the real rear cowl sweeps up - see the gap.)
+
+### Does it fly (`perf_study --build=<joined> --vs=c337 --fly`, `tools/c337_oei.js`)
+
+| | ours | manual | |
+|---|---|---|---|
+| take-off run | 266 m | 273 | -3 % (match) |
+| take-off over 50 ft | 340 m | 471 | -28 % |
+| climb, both | 5.6 m/s (bench) / 6.07 (c337_oei) | 6.10 | -9 % / -1 % |
+| climb, front engine only | 1.14 m/s (224 fpm) | 1.52 (300) | -25 % |
+| climb, rear engine only | 1.22 m/s (241 fpm) | 1.96 (385) | -38 %; the rear is the better one, as in the manual |
+| yaw with an engine out | beta 0.00 deg | none | centreline thrust |
+| landing over 50 ft | 459 m | 503 | -9 % (match) |
+| landing roll | 266 m | 213 | +25 % |
+| top speed | 268 km/h | 320 | -16 % |
+| empty mass | 1035 kg | 1204 | -14 % (the mass model, as the DC-3 and the PC-6) |
+
+The wing holds the sandbags but over yield (190 % at the worst member): the C172's structure carries twice the weight.
+
+### Gaps (REF_MATCH section 7)
+
+- **The rear cowl's own axis rise**: the aft cowl is the nose cowl's clone turned round; `cw_lidRise` / `cw_faceRise`
+  move both - the 337's rear thrust line (+0.50 on the sheet) cannot rise without dropping the nose cowl.
+- **The rear-only scoop**: `cw_scoopTop` is shared; the 337 has the dorsal scoop on the rear cowl only.
+- **The single-engine climb's asymmetry**: the solver gives the two discs the same efficiency; the manual's rear-only
+  is 28 % better than front-only (the pusher in the pod's wake, the front slipstream scrubbing the pod).
+- **The flap-trim interconnect** (the manual's): missing.

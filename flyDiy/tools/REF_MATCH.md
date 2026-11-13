@@ -270,6 +270,10 @@ the body aft for exactly this reason.
 | the engine auto-fit: a type's engine from its power, mass and kind (the PC-6's PT6A-27, 550 shp / 149 kg, is not in the catalogue) | the -27 itself CLOSED 12 Nov (pt6a27_hartzell3, catalogue 46); the auto-fit OPEN |
 | `topRound` 0 is the PITCHED roof mode, not a sharp corner: a square cabin wants 0.05 (DRAFTING_TABLE.md round 3) | OPEN: label it in the row |
 | a square cowl's split line opens to a dark wedge in its default mode (`cw_partLevel` 0: the width is in the section's parameter) | the answer exists: `cw_partLevel` 1; OPEN: make it the default for a boxy section |
+| a push-pull's REAR cowl with its own axis rise (the 337's rear thrust line sweeps up to +0.50 m; the aft cowl is the nose cowl's clone turned round, `cw_lidRise` / `cw_faceRise` move both) (DRAFTING_TABLE.md, the Skymaster) | OPEN |
+| a scoop on the rear cowl only (`cw_scoopTop` is shared: the 337's dorsal scoop puts one on the nose cowl too) | OPEN |
+| the pusher disc's own efficiency in the pod's wake (the 337's manual: rear-only climbs 28 % better than front-only; ours +7 %) | OPEN |
+| a flap - elevator trim interconnect (the 337's: flaps down rotate the trim nose-down) | OPEN |
 
 ## 8. The Camel log (27 Oct 2026)
 
