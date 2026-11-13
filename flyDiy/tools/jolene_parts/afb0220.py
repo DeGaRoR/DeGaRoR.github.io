@@ -19,10 +19,11 @@
 # THE LAYOUT (v, metres):
 #   east forest    v < -48               tree-system vegetation (areas, `cover.veg`), denser outward
 #   east scrub     -48 .. -27            young spruce / saplings / shrubs; two dirt side tracks to clearings
-#   ROUGH LANE     -26.25 .. -8.25       xw_rough, 18 m dirt, micro chaos 0.55 (u 330 .. 1330)
+#   ROUGH LANE     -26.25 .. -8.25       xw_rough, 18 m FIRM MUD, micro chaos 0.55 (u 330 .. 1330) - Pilot-vetted
 #   gap            -8.25 .. -7.5         0.75 m of graded ground (two strips' boxes must not overlap: issues())
-#   CENTRAL BAND   -7.5 .. +7.5          w2 itself, 15 m of the old concrete (fieldPatch: wid 45 -> 15, falloff 60 -> 8)
-#   playground     +7.5 .. ~55           dirt floor spilling onto the band, heaved slabs, wrecks, the blowdown, the pond
+#   CENTRAL BAND   -7.5 .. +7.5          w2 itself, 15 m of the old concrete (fieldPatch: wid 45 -> 15, falloff 60 -> 8),
+#                                        crumbled to dirt but a CLEAN CORE 3-5 m down the middle (the user's choice, 13 Nov)
+#   playground     +7.5 .. ~55           a soft-mud floor, heaved slabs, wrecks, the blowdown, the pond
 #   west scrub     42 .. 58              (overlapping the playground's outer edge: the fence line stands in it)
 #   west forest    58 .. 100
 # Nothing over 0.5 m tall stands inside |v| < 18 (a DC-3's half span 14.5 m off the band's edge, 3.5 m to spare); the
