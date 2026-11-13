@@ -121,7 +121,8 @@ console.log('GATE RWYTREES - the trees by the runways (' + (FULL ? 'core + full'
   //  shoulders y_sh13_0/1, y_sh02_0/1 + the fan x_fan02_0 (the 40 m tree cut at HOME) - 5 fans, no shoulder)
   // (G3097: + w1 the Cabin Strip - 12 boxes; its approach over end 0 cleared by the fan x_fan_w1_0 - 6 fans: the pilot's cone
   //  met the drawn woods 25 m before the threshold, 19 Oct)
-  check(by('fan').length === 6 && by('box').length === 12 && by('shoulder').join() === '',
+  // (AFB-0220, 13 Nov: + xw_rough, 02/20's rough lane - 13 boxes)
+  check(by('fan').length === 6 && by('box').length === 13 && by('shoulder').join() === '',
     '1 Jolene\'s runway clearances are named', 'fans ' + by('fan').join(' ') + ' | boxes ' + by('box').length + ' | shoulders ' + by('shoulder').join(' '));
   for (const v of VARIANTS) {
     const O = worlds[v].premises.overlay, off = O.rwyClearances().filter(c => c.off), kinds = [...new Set(off.map(c => c.kind))].sort().join('+') || 'none';
@@ -244,8 +245,15 @@ if (FULL) {
     check(!P.errors.length, '7 ' + v + ': the page threw nothing', P.errors.join(' | '));
     if (P.kinds) check(Object.values(P.kinds).every(m => m > 0), '7 ' + v + ': no visible tree on a taxiway, an apron or a road round HOME\'s field', Object.entries(P.kinds).map(([k, m]) => k + ' ' + m.toFixed(1)).join(' '));
   }
-  const nearer = ['HOME L', 'HOME R', 'w2 L', 'w2 R'].filter(k => page.map && page.today && table[k].vis.map && table[k].vis.today && table[k].vis.map[0] < table[k].vis.today[0]);
-  check(nearer.length === 4, '7 map: the visible forest of 13/31 and 02/20 nearer than today on every side', nearer.join(', '));
+  // (AFB-0220, 13 Nov, RE-PIN with its reason: 02/20's sides now carry AUTHORED vegetation - the record's own cover areas, which
+  //  both variants plant (the user: "the forest taking over"). On a side where such an area stands within 60 m of the strip's
+  //  edge, the nearest visible tree is that planting in 'today' and 'map' alike (w2 L: 44.5 m both, the west scrub), so 'map'
+  //  cannot be nearer: there it must be AS NEAR (never farther - row 4 holds that too); every other side strictly nearer, as before)
+  const vegNear = k => { const [id, sd] = k.split(' '), r = land.find(q => q.id === id); if (!r) return false; const toF = frame(r), sg = sd === 'L' ? 1 : -1;
+    return (O0.rec.layers.ttype || []).some(t => t.veg && t.veg.mode && t.veg.mode !== 'none' && t.poly && t.poly.some(p => { const q = toF(p); return Math.abs(q[0]) < r.len / 2 && sg * q[1] > r.wid / 2 && sg * q[1] < r.wid / 2 + 60; })); };
+  const four = ['HOME L', 'HOME R', 'w2 L', 'w2 R'], vis = k => page.map && page.today && table[k].vis.map && table[k].vis.today;
+  const nearer = four.filter(k => vis(k) && (table[k].vis.map[0] < table[k].vis.today[0] || (vegNear(k) && table[k].vis.map[0] <= table[k].vis.today[0])));
+  check(nearer.length === 4, '7 map: the visible forest of 13/31 and 02/20 nearer than today on every side (as near where the record plants its own: ' + (four.filter(vegNear).join(', ') || 'none') + ')', nearer.join(', ') + ' | ' + four.map(k => vis(k) ? k + ' ' + table[k].vis.today[0].toFixed(1) + ' -> ' + table[k].vis.map[0].toFixed(1) : k + ' ?').join(', '));
 }
 
 // 8 the circuit flown in 'map' (full)
@@ -309,7 +317,8 @@ if (FULL) {
   // (G3014: the user's rev 26 / 27 strips carry their OWN authored clearances - w5 side 0 / beyond 0, w6 side 0 / taper 0.21, w7
   //  side 4 / taper -0.5; every other strip keeps today's box; no collidable tree stands inside any own clearance)
   // (G3020 rev 28: HOME 0 / 60, w2 4 / 5, w3 6 / 150, w4 0 / 20, w8 12 / 150 - every own clear as authored)
-  const OWN = ['HOME', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7', 'w8'], ownNow = (env.premises || env).layers.runways.filter(q => q.clear).map(q => q.id).sort();
+  // (AFB-0220, 13 Nov: + xw_rough, 02/20's rough lane, side 3 / beyond 10 - authored by AFB-0220, not the user; no tree inside it either)
+  const OWN = ['HOME', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7', 'w8', 'xw_rough'], ownNow = (env.premises || env).layers.runways.filter(q => q.clear).map(q => q.id).sort();
   const inOwn = OWN.map(id => { const q = land.find(z => z.id === id), a = W0.aerodromes.find(z => z.id === id); if (!q || !a || !a.treeClear) return id + ' none';
     const c = q.clear, Eq = [Math.cos(q.hdg), Math.sin(q.hdg)]; let n = 0;
     for (const Tr of W0.trees) { const dx = Tr.x - q.c[0], dz = Tr.z - q.c[1], u = Math.abs(dx * Eq[0] + dz * Eq[1]), v = Math.abs(-dx * Eq[1] + dz * Eq[0]);

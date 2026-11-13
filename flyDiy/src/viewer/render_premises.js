@@ -4717,6 +4717,12 @@ function make(THREE, scene, world, rec0, opts) {
       a.push(w[0], w[1], foot, tk[0], foot + tk[1]);
     }
     if (a.length) TH.set('prem', a); else TH.drop('prem');
+    // AFB-0220: the poles whose record says `trunk: true` - a trunk cylinder each (TREE_HITS.pole), met by the beams as a tree is;
+    // their own set, so the trees' census reads 'prem' as before
+    const pl = [];
+    for (const ob of O.records.objects || []) if (ob.kind === 'prop' && ob.trunk && typeof TREE_HITS !== 'undefined' && TREE_HITS.pole) {
+      const w = F.toWorld(ob.x, ob.z), q = TREE_HITS.pole(ob.key, w[0], w[1], ob.y, +ob.s || 1); if (q) pl.push(...q); }
+    if (pl.length) TH.set('prem:poles', pl); else TH.drop('prem:poles');
   }
   // THE RECORD TREES BY CELL (G556; AFB-0220 made it a function: the whole list when the fill is not there, the ground
   // pieces alone when it is): a 64 m cell's trees per species, one InstancedMesh per rung part, the cell a THREE.LOD

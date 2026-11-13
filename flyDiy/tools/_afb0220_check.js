@@ -27,7 +27,9 @@
 //     game registers them with): its middle is hit, a point past its end or over its top is not
 //   8 THE SOLVER MEETS THEM (the stock build, a flat world): taxied at a fallen trunk lying across its track and at a
 //     boulder group (TREE_HITS, the trunk law), and at the crashed car (OBSTACLES): each contact stops it or damages it -
-//     with nothing there it rolls on through
+//     with nothing there it rolls on through; its wing past the dead power line's pole, 3.5 m off the track: the pole as
+//     the trunk its record makes it (`trunk: true`, TREE_HITS.pole - the beams) holds it within 5 m (TREEHIT's wing rule), where
+//     the prop's columns alone (the nodes) let it on
 //   9 THE COST: the part's triangles at full detail and its batches (a repeated prop key is one instanced batch, G934; the
 //     ground pieces one InstancedMesh per subject a 64 m cell), bounded; the planting's trees estimated; nothing that
 //     ticks (every piece static: props, cells, the pavement's polygons) - the frame-time measure is FRAMECOST's, on a GPU
@@ -130,6 +132,8 @@ console.log('4. the assets');
   for (const a of AREAS) { const v = a.props && a.props.cover && a.props.cover.veg; if (v && v.species) for (const k of Object.keys(v.species)) if (!cols.has(k)) sp.push(a.id + ':' + k); }
   yes(!sp.length, 'every species the vegetation areas plant is a tree-pack collection (' + AREAS.filter(a => a.props && a.props.cover).length + ' areas)', sp.join(', '));
   yes(!L.objects.some(o => /^xw_/.test(o.id) && o.kind === 'prop' && /(^|_)(tree|pine|spruce|fir|log|stump)(_|$)/i.test(o.key)), 'no tree is a prop: every tree, log and stump goes through the tree system');
+  const poles = props.filter(o => C.TREE_HITS.POLES[o.key]);
+  yes(poles.length > 0 && poles.every(o => o.trunk === true), poles.length + ' poles, every one a trunk too (`trunk: true`, TREE_HITS.pole: the beams meet it - the nodes alone miss a 0.3 m pole)', poles.filter(o => o.trunk !== true).map(o => o.id).join(', '));
 }
 
 // ---- 5 ---------------------------------------------------------------------------------------------------------------
@@ -251,6 +255,18 @@ console.log('8. the solver meets them (the stock build, a flat world at 28 m)');
   const carAt = (c0, at, TH2, OB2) => { OB2.add({ x: c0[0] + at[0] + fx * 2, z: c0[2] + at[1] + fz * 2, yaw: across, y0: elev, shape: SHAPES.get('car_crashed'), tag: 'prop' }); };
   if (car) verdict(run(carAt, { D: Dd, at: free.at }), 'taxied at the trailer camp\'s crashed car (OBSTACLES, its own 0.5 m columns)');
   else yes(false, 'the crashed car is in the part');
+  // the old power line: a pole_b 3.5 m off the track (the stock build's wing passes it) - as a prop alone (its 0.5 m columns, the
+  // NODES) it is missed; as the trunk the record makes it (TREE_HITS.pole, the BEAMS) the wing meets it
+  const poleAt = trunk => (c0, at, TH2, OB2) => { const x = c0[0] + at[0] - fz * 3.5, z = c0[2] + at[1] + fx * 3.5;
+    OB2.add({ x, z, yaw: 0, y0: elev, shape: SHAPES.get('pole_b'), tag: 'prop' }); if (trunk) TH2.set('prem:poles', C.TREE_HITS.pole('pole_b', x, z, elev, 1)); };
+  if (SHAPES.get('pole_b')) {
+    const bare = run(poleAt(false), { D: Dd, at: free.at }), withT = run(poleAt(true), { D: Dd, at: free.at });
+    console.log('     (the pole as a prop alone: ' + bare.hits + ' contacts, the CG to ' + bare.reach.toFixed(1) + ' m' + (bare.crashed ? ', a crash' : '') + ')');
+    // (a wing on a trunk: GATE TREEHIT's own rule - the aeroplane held within 5 m past the trunk's line, or the wing broken on it)
+    yes(!withT.isBad && withT.hits > 0 && (withT.reach < Dd + 5 || withT.crashed || withT.broke > 0) && withT.reach < bare.reach,
+      'taxied with its wing past the dead power line\'s pole, 3.5 m off the track: ' + withT.hits + ' contacts, the aeroplane slews round it, the CG ' + (withT.reach - Dd).toFixed(1) + ' m past its line' +
+      (withT.crashed || withT.broke ? ' (' + withT.broke + ' members broken' + (withT.crashed ? ', a crash' : '') + ')' : '') + ' - as a prop alone ' + bare.hits + ' contacts and ' + (bare.reach - Dd).toFixed(1) + ' m past (free: ' + (free.reach - Dd).toFixed(1) + ')');
+  } else yes(false, 'the power line\'s pole_b is in the part');
 }
 
 // ---- 9 ---------------------------------------------------------------------------------------------------------------

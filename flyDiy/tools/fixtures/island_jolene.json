@@ -24042,7 +24042,8 @@
     "x": 648.51,
     "z": -300.13,
     "yaw": 0.13,
-    "on": "ground"
+    "on": "ground",
+    "trunk": true
    },
    {
     "id": "xw_o_line_pole3",
@@ -24051,7 +24052,8 @@
     "x": 615.8,
     "z": -290.64,
     "yaw": 0.18,
-    "on": "ground"
+    "on": "ground",
+    "trunk": true
    },
    {
     "id": "xw_o_camp_trailer",
