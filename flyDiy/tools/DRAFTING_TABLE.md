@@ -728,3 +728,15 @@ EACH, maximum flotation 2,781 / 2,854 kg for the pair, FAR 23.751), a three-view
   sweep with a flash, a cross trail and the flag, and a German jump ship with twin cheat lines and red tips. A
   side-projected text set high on a cowl smears over its top (seen from above): keep a cowl's lettering on the flat
   flank.
+- THE USER'S CORRECTIONS, same day: (1) "check the spacing between the floats, that's where you make a big mistake ...
+  do a projection": the sheet's PLAN view registered at 135 deg (the any-angle turn) - the drawn floats sit under ours
+  at `fltTrack` 1.40 (the garage's 0.80 gave a 1.6 m stance); the cramped stance had also BENT the forward fuselage on
+  the water take-off (1516 members yielded at 19 m/s on the step; at 1.40, none). (2) The tail end 5 cm wide
+  (`frTailTopW` / `tailHalfW` / `frTailBotW` 0.0336: 0.050 m measured). (3) "reinforcements on the floats struts ...
+  doubling as a ladder": `fltLadder` (new row, 0-3 rails a side, front strut to rear strut; drawn, not flown). (4) The
+  struts drawn on the sheet by the user (marks float.frontStrut / vApex / vRoots / rails): an upright front strut
+  further forward and a V to ONE aft fitting, the rails tying them; measured with the 3-deg registration: the step at
+  4.59 m (ours was 4.93: `fltZ` 0.59), the V apex 4.98 (`fltSpreadAft` 0.24), the front fitting 3.36 (`fltRigFwd` 0.50,
+  new row: the drawing, gear.floats.rigFwd and 61_gen_frame's station together). The main wheel then sits on the
+  drawn main wheel. LESSON: re-measure a station after a turn of the sheet - the 3 deg moved the drawn step 0.34 m in
+  our frame, and an earlier "aligned by eye" was off by that much.

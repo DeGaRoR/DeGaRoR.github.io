@@ -228,6 +228,72 @@
      597
     ]
    ]
+  },
+  "float.frontStrut": {
+   "view": "side",
+   "pts": [
+    [
+     497.7,
+     381.2
+    ],
+    [
+     486.4,
+     506.2
+    ]
+   ],
+   "by": "the user, 13 Nov"
+  },
+  "float.vApex": {
+   "view": "side",
+   "pts": [
+    [
+     690.9,
+     517.5
+    ]
+   ],
+   "by": "the user, 13 Nov"
+  },
+  "float.vRoots": {
+   "view": "side",
+   "pts": [
+    [
+     593.5,
+     389.3
+    ],
+    [
+     837.0,
+     403.2
+    ]
+   ],
+   "by": "the user, 13 Nov"
+  },
+  "float.railUpper": {
+   "view": "side",
+   "pts": [
+    [
+     440.9,
+     425.0
+    ],
+    [
+     840.3,
+     436.4
+    ]
+   ],
+   "by": "the user, 13 Nov"
+  },
+  "float.railLower": {
+   "view": "side",
+   "pts": [
+    [
+     463.6,
+     475.3
+    ],
+    [
+     781.8,
+     481.2
+    ]
+   ],
+   "by": "the user, 13 Nov"
   }
  },
  "architecture": {
@@ -243,10 +309,5 @@
    "what": "birth: the land PC-6 reference + the Wipline 6100 figures (user) + the float sheet (user upload)"
   }
  ],
- "gaps": [
-  {
-   "d": "2026-11-13",
-   "what": "the float rigging's front strut station: the sheet draws the front strut ~0.9 m ahead of the deck fitting the garage hangs it on (Wipline 2350 parts-manual stations); no row moves it"
-  }
- ]
+ "gaps": []
 }

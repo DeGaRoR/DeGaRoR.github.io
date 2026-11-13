@@ -270,7 +270,7 @@ the body aft for exactly this reason.
 | the engine auto-fit: a type's engine from its power, mass and kind (the PC-6's PT6A-27, 550 shp / 149 kg, is not in the catalogue) | the -27 itself CLOSED 12 Nov (pt6a27_hartzell3, catalogue 46); the auto-fit OPEN |
 | `topRound` 0 is the PITCHED roof mode, not a sharp corner: a square cabin wants 0.05 (DRAFTING_TABLE.md round 3) | OPEN: label it in the row |
 | a square cowl's split line opens to a dark wedge in its default mode (`cw_partLevel` 0: the width is in the section's parameter) | the answer exists: `cw_partLevel` 1; OPEN: make it the default for a boxy section |
-| the float rigging's FRONT STRUT station: it rises from the float's front deck fitting (the Wipline 2350 parts-manual stations); the PC-6 float sheet draws it ~0.9 m further forward and no row moves it (`fltFrontRing` 1 only stands it upright) | OPEN (13 Nov, the PC-6 on Wiplines) |
+| the float rigging's FRONT STRUT station: it rises from the float's front deck fitting (the Wipline 2350 parts-manual stations); the PC-6 float sheet draws it ~0.9 m further forward and no row moved it (`fltFrontRing` 1 only stands it upright) | CLOSED 13 Nov: `fltRigFwd` (the fitting moved forward: the drawing, gear.floats.rigFwd and the flown truss together), and `fltLadder` (the step rails) |
 | the fin flag: no Brazil (or Bahamas) in AERO_FLAGS - the yellow PC-6 on Wiplines flies without its fin flag; a rhombus primitive draws Brazil | OPEN (13 Nov) |
 
 ## 8. The Camel log (27 Oct 2026)
