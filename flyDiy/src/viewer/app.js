@@ -21932,10 +21932,12 @@
       }
       const alt = startAero('tw_ski'), home = startAero('HOME'), al = a => (a && typeof stripAllows === 'function' ? stripAllows(gear, a) : { ok: !!a, why: 'no such field' });
       const pa = al(alt), ta = al(home);
-      return [   // (the car tow first: the user's glider start, 13 Nov - at HOME, Jolene AFB 13/31's 2.3 km)
+      // (THE USER'S LAUNCH RULE, 13 Nov: from the altiport a glider starts by a simple PUSH only; the car tow and the winch
+      //  only on a flat, long runway - Jolene AFB, HOME, alone. The car tow first: the user's glider start)
+      return [
         { id: 'cartow:HOME', mode: 'cartow', label: 'The car tow', sub: 'on a line behind the car down Jolene AFB 13/31, released at height', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
         { id: 'push:tw_ski', mode: 'push', label: 'A push off Skyline Altiport', sub: 'down its 10 % slope, lifted off over the edge', ok: !!alt && pa.ok, why: !alt ? 'no altiport on this island' : pa.ok ? undefined : pa.why },
-        { id: 'winch', mode: 'winch', label: 'A winch launch', sub: 'the cable and its drum', ok: false, why: 'not built yet' },
+        { id: 'winch:HOME', mode: 'winch', label: 'A winch launch', sub: 'the cable and its drum on Jolene AFB 13/31', ok: false, why: 'not built yet' },
       ];
     },
     async destinations(startId) {
@@ -21953,11 +21955,20 @@
       const L = startPlaneFields(routeGear(true), true).map(d => ({ id: d.id, label: d.label, ok: d.ok, why: d.why }));
       return [{ id: 'CIRCUIT', label: 'A circuit, back where it started', ok: true }].concat(L);
     },
+    // a start as starts() gives it -> { mode, id }: 'mode:id', or a bare aerodrome id (a field / water start: 'w3', 'SEA' -
+    // Game found starts() giving fields bare and go() reading 'w3' as mode 'w', rolling out at HOME)
+    parse(start) {
+      const s = String(start || ''), a = startAero(s);
+      if (a) return { mode: a.kind === 'water' ? 'water' : 'field', id: s };
+      const m = /^([a-z]+):(.+)$/.exec(s);
+      return m ? { mode: m[1], id: m[2] } : { mode: s === 'winch' ? 'winch' : null, id: s === 'winch' ? 'HOME' : null };
+    },
     go(o) {
       o = o || {};
       if (startStory()) return Promise.reject(new Error('the story starts at its hangar'));
       if (!inGarage) return Promise.reject(new Error('the chooser starts from the garage'));
-      const m = /^([a-z]+):?(.*)$/.exec(String(o.start || '')), mode = m ? m[1] : null, id = m ? m[2] : null;
+      const { mode, id } = window.FLYDIY_START.parse(o.start);
+      if (!['field', 'water', 'trailer', 'push', 'cartow', 'winch', 'place'].includes(mode)) return Promise.reject(new Error('no such start: ' + o.start));
       const to = String(o.to || 'CIRCUIT').replace(/^place:/, '');   // (a car: a place id, 'random', 'LOOP'; a plane: a field id or 'CIRCUIT')
       if (mode === 'place') {
         return window.FLYDIY_LAZY(CAR_PACK).then(() => {
