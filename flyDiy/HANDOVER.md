@@ -315772,3 +315772,17 @@ the next steps).
   522f7c7b8 (house-kit materials, UVs in metres, an atlas UV set, baked AO; the planks real boards through trlPlankUV;
   GATE TRAILER's MODEL row builds the deck). At the reconcile TAKE THEIRS for trailer_model.js; a later deck change goes
   on top of it (a new plank through trlPlankUV). tools/convoy_shot.js stays this branch's.
+- **CAR-3, 13 Nov late afternoon** (the user): "0,2 for the van; 0,01 for roadster" - finish.wear in the three van
+  liveries' edit sets and the roadster's saved build (a card's finish carries no wear: GATE DESIGN); TOW-LAUNCH's
+  textured trailer MERGED (claude/tow-launch-trailer-look 522f7c7b) and on it the deck: "remove the yellow links and
+  remodel the wheel blocks" - no straps; each tyre fore and aft a moulded chock CUT TO THE TYRE (the arc 8 mm off the
+  tread), a stepped back with three ribs, a grab loop - the profile mirrored in its own coordinates (a scale -1 on a
+  non-indexed extrusion left the faces inside out: "issue with normals on the wheel blocks"); "make the saturation of the
+  wooden planks half" - a map_fragment step chained on the AO patch, cache key 'trl-ao-direct-desat50'. "redo the brake
+  sizing for the speedster too": whBrake 2 on the roadster (card and build). "give the van a proper licence plate": NEW
+  ROW carPlate (Car > lamps) - _cage_gear.js plateBuild, a 12 x 6 in pressed plate (spec.meta.plate { top, main,
+  bottom, bg, fg }; the vans: JOLENE ISLAND / HF 1003 / 46), its drawing its own bump map, on the right rear door's
+  lower panel with a plate lamp; its material marked aeroskin (the understudy greyed it blank) and propMat (its own join
+  bucket). "the wheel well ... a little tight": archGap 0.05 -> 0.10, carFenderGap 0.11 (the guards follow).
+  convoy_shot: the PAGE's trailer model (FLYDIY_LAZY - an injected copy drew white), the house textures read and waited
+  for, the AO bake waited for, the convoy hung off the cage root (a gear-layer rebuild took it away).

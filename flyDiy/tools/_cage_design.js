@@ -2907,6 +2907,7 @@ const ARCHETYPES = [
                     // and the roadster", "for a car, we'll deactivate the throttle control, and we'll keep the pedals"):
                     // the steering wheel (ctlStick 4), no throttle lever (ctlThr 3); the pedals stay
                     ctlStick: 4, ctlThr: 3,
+                    whBrake: 2,   // (13 Nov, the user: "redo the brake sizing for the speedster too": the car's drum inside the rim)
                     s1Fair: 0, s2Fair: 0, whProfile: 2,
                     // (the user: "can we increase the rim size?"): spoked, the rim 0.64 of the wheel - an 18" wire wheel in a
                     // 28" tyre (whRimD, the new row)
@@ -2935,7 +2936,7 @@ const ARCHETYPES = [
                     // in copper on the flank behind the bonnet, its number in black. (The markings' stations run aft from the
                     // FIREWALL: the first placement, 2.35 m, landed on the boat tail; the cheat line's band is m2P of its H)
                     paint: { job: 'full', sweep: 0, base: 0x7fa8c9, trim: 0xc96f2a },
-                    finish: { wear: 0.01, decals: {   // (13 Nov, the user: "0,01 for roadster" - a whisper of weathering)
+                    finish: { decals: {   // (the roadster's 0.01 weathering rides its saved build, builds/candidates/roadster_2026-11.json: a card's finish carries no wear - GATE DESIGN)
                       regL: 0.45, regC: -0.10, regH: 0.26, regCol: 0x20211f, regOutOn: 0,
                       // THE RADIATOR SHELL POLISHED, THE BONNET BLUE (the user, 12 Nov: "the blue up till the end ... restore
                       // the metallic only for the tip, like in the attached picture. Maybe make this part a little less long"):

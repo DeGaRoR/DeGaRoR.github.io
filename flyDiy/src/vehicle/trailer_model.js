@@ -646,14 +646,15 @@ function buildTrailerModel(THREE, Tr, o) {
     const chockW = Math.min(0.26, C.tyreW + 0.05), Rk = C.tyreR + 0.008, hK = Math.min(0.15, Math.max(0.08, 0.3 * C.tyreR));
     const chock = (xa, z, sx) => {
       // the profile in (u, y): u out from the tyre's centre line along the trailer, y up from the deck
-      const sh = new T.Shape(), arc = [];
+      const arc = [];
       for (let i = 0; i <= 10; i++) { const y = 0.004 + (hK - 0.004) * i / 10, dy = C.tyreR - y; arc.push([Math.sqrt(Math.max(0, Rk * Rk - dy * dy)), y]); }
       const uT = arc[arc.length - 1][0], uF = uT + 0.035, uB = uT + 0.17;
-      sh.moveTo(arc[0][0], 0); for (const [u, y] of arc) sh.lineTo(u, y);
-      sh.lineTo(uF, hK); sh.lineTo(uF + 0.04, hK * 0.68); sh.lineTo(uF + 0.08, hK * 0.62); sh.lineTo(uB, 0.012); sh.lineTo(uB, 0); sh.closePath();
+      // (the profile MIRRORED IN ITS OWN COORDINATES for the chock behind the tyre - ExtrudeGeometry winds a clockwise outline
+      //  itself; a mirrored geometry (scale -1, non-indexed) kept its faces inside out: the dark chocks)
+      const pts = [[arc[0][0], 0], ...arc, [uF, hK], [uF + 0.04, hK * 0.68], [uF + 0.08, hK * 0.62], [uB, 0.012], [uB, 0]];
+      const sh = new T.Shape(pts.map(([u, y]) => new T.Vector2(sx * u, y)));
       const g = new T.ExtrudeGeometry(sh, { depth: chockW - 0.012, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.005, bevelSegments: 2, curveSegments: 6 });
       g.translate(0, 0, -(chockW - 0.012) / 2);
-      if (sx < 0) { g.scale(-1, 1, 1); const ix = g.index; if (ix) { const A = ix.array; for (let i = 0; i < A.length; i += 3) { const t = A[i + 1]; A[i + 1] = A[i + 2]; A[i + 2] = t; } } }
       g.translate(xa, deckY, z); put(M.rubber, g);
       // the ribs across the slope, the handle on the crown
       for (let k = 0; k < 3; k++) { const f = (k + 0.5) / 3, u = uF + 0.08 + (uB - uF - 0.08) * f, y = hK * 0.62 * (1 - f) + 0.012 * f;
@@ -793,6 +794,12 @@ function buildTrailerModel(THREE, Tr, o) {
     '#include <aomap_fragment>\n#ifdef USE_AOMAP\n\treflectedLight.directDiffuse *= mix( 1.0, ambientOcclusion, ' + TRL_AO.direct.toFixed(2) + ' );\n#endif'); };
     m.customProgramCacheKey = () => 'trl-ao-direct'; };
   for (const m of Object.values(M)) if (m && m.isMaterial) { m.aoMap = AO.map; m.aoMapIntensity = 1; aoDirect(m); m.needsUpdate = true; }
+  // (CAR-3, the user 13 Nov: "make the saturation of the wooden planks half what it is"): the car deck's boards - the
+  // map's colour taken half way to its own grey after the map is read, chained on the AO patch, its own cache key
+  if (M.timber && isC) { const f0 = M.timber.onBeforeCompile;
+    M.timber.onBeforeCompile = sh => { if (f0) f0(sh); sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>',
+      '#include <map_fragment>\n\tdiffuseColor.rgb = mix( vec3( dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ) ), diffuseColor.rgb, 0.5 );'); };
+    M.timber.customProgramCacheKey = () => 'trl-ao-direct-desat50'; M.timber.needsUpdate = true; }
   function merge(list) {
     let n = 0; for (const q of list) n += q.attributes.position.count;
     const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), uv1 = new Float32Array(n * 2); let k = 0;

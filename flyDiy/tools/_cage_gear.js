@@ -2699,6 +2699,61 @@ function beamAxleSide(lg, lu, P, AF, wheelBox, plateX) {
 // with a turned-down edge on brackets to the floor. Painted in the livery's TRIM colour (spec.paint.trim). From the
 // units' axles and radii, the tyres' own boxes, the floor (AF.surf) - the front pair the foremost units, the rear the
 // aftmost.
+// CAR-3 (the user, 13 Nov: "give the van a proper licence plate"): carPlate 1 - a 12 x 6 inch (305 x 152 mm) pressed
+// plate in the period's manner: the state's name across the top, the number large, the year below, a rolled rim -
+// painted in the plate's colours (spec.meta.plate { top, main, bottom, bg, fg }; absent: the island's name, the build's
+// registration, '46', navy and cream) and EMBOSSED (the same drawing as its bump map); on a bracket in the right rear
+// door's lower panel (the left carries the spare), two plated bolts, a chrome plate lamp over it. In the gear layer's
+// frame (metres); the door from the cage mesh (rearDoors), else the rear wall's centre.
+function plateBuild(group, P, AF, mesh) {
+  let meta = {}; try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); meta = (S && S.meta) || {}; } catch (e) {}
+  const pl = Object.assign({ top: 'JOLENE ISLAND', main: String(meta.reg || 'HF 1003').toUpperCase(), bottom: '46', bg: '#1d2a44', fg: '#efe4c8' }, meta.plate || {});
+  const W = 0.305, H = 0.152;
+  // the drawing: a 512 x 256 canvas - the colour, and a grey-scale twin for the relief
+  const draw = relief => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+    g.fillStyle = relief ? '#000' : pl.bg; g.fillRect(0, 0, 512, 256);
+    const ink = relief ? '#fff' : pl.fg;
+    g.strokeStyle = ink; g.lineWidth = 10; g.beginPath(); g.roundRect ? g.roundRect(9, 9, 494, 238, 22) : g.rect(9, 9, 494, 238); g.stroke();
+    g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '700 34px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; g.fillText(pl.top, 256, 46);
+    g.font = '800 128px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; g.fillText(pl.main, 256, 140, 470);
+    g.font = '700 30px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; g.fillText(pl.bottom, 256, 218);
+    for (const x of [70, 442]) { g.beginPath(); g.arc(x, 46, 9, 0, Math.PI * 2); g.fillStyle = relief ? '#444' : '#0c1220'; g.fill(); g.fillStyle = ink; }   // the bolt holes
+    return c; };
+  if (typeof document === 'undefined') return;
+  const map = new THREE.CanvasTexture(draw(false)), bump = new THREE.CanvasTexture(draw(true));
+  if (THREE.SRGBColorSpace) map.colorSpace = THREE.SRGBColorSpace;
+  const face = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 1.5, metalness: 0.35, roughness: 0.42 });
+  face.userData.propMat = 'carPlate';          // (its own bucket in the join: a textured piece keeps its map and uv)
+  face.userData.aeroskin = 1;                   // (the garage's understudy greys every lit material not so marked: the plate drew blank)
+  const steel = GG.gearMat('steel'), chrome = GG.gearMat('chrome'), dark = GG.gearMat('dark');
+  // where: the right door's lower panel (cage units x FS), else the rear wall's centre
+  const C2 = window.CAGE2, FS = ((C2 && C2.CAGE_UNIT) || 1) * (+P.planeScale || 1), RD = mesh && mesh.rearDoors;
+  let x, y, z;
+  if (RD) { const xr = Math.min(RD.x0, RD.x1) * FS, xm = (RD.xm != null ? RD.xm : 0) * FS, yA = RD.y0 * FS, yB = RD.y1 * FS;
+            x = (xr + xm) / 2; y = yA + (yB - yA) * 0.2; z = RD.z * FS - 0.004; }
+  else { let bot = Infinity; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(AF.z0 + 0.05, a * D2R); if (q) bot = Math.min(bot, q[1]); } x = 0; y = bot + 0.35; z = AF.z0 - 0.004; }
+  const root = new THREE.Group(); root.name = 'edPlate'; root.position.set(x, y, z); root.rotation.y = Math.PI;   // (facing aft)
+  const add = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.name = 'edPlate'; root.add(m); return m; };
+  add(new THREE.BoxGeometry(W + 0.03, H + 0.02, 0.006), dark, 0, 0, 0.003);                 // the bracket
+  const sh = new THREE.Shape(), r = 0.012; sh.moveTo(-W / 2 + r, -H / 2); sh.lineTo(W / 2 - r, -H / 2); sh.quadraticCurveTo(W / 2, -H / 2, W / 2, -H / 2 + r);
+  sh.lineTo(W / 2, H / 2 - r); sh.quadraticCurveTo(W / 2, H / 2, W / 2 - r, H / 2); sh.lineTo(-W / 2 + r, H / 2); sh.quadraticCurveTo(-W / 2, H / 2, -W / 2, H / 2 - r);
+  sh.lineTo(-W / 2, -H / 2 + r); sh.quadraticCurveTo(-W / 2, -H / 2, -W / 2 + r, -H / 2);
+  const back = new THREE.ExtrudeGeometry(sh, { depth: 0.0015, bevelEnabled: true, bevelThickness: 0.0012, bevelSize: 0.0015, bevelSegments: 2 });
+  add(back, steel, 0, 0, 0.007);
+  const fg = new THREE.ShapeGeometry(sh, 6); const pa = fg.attributes.position, uv = new Float32Array(pa.count * 2);
+  for (let i = 0; i < pa.count; i++) { uv[i * 2] = pa.getX(i) / W + 0.5; uv[i * 2 + 1] = pa.getY(i) / H + 0.5; }
+  fg.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  add(fg, face, 0, 0, 0.0115);
+  for (const bx of [-W * 0.363, W * 0.363]) add(new THREE.CylinderGeometry(0.008, 0.008, 0.006, 12), chrome, bx, H * 0.32, 0.014).rotation.x = Math.PI / 2;
+  // the plate lamp: a chrome hood over the plate's top edge, its lens down
+  const hood = add(new THREE.CylinderGeometry(0.035, 0.035, 0.09, 16, 1, false, 0, Math.PI), chrome, 0, H / 2 + 0.022, 0.03);
+  hood.rotation.z = Math.PI / 2; hood.rotation.y = Math.PI / 2;
+  const lensM = new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0x332a18, roughness: 0.3 }); lensM.userData.aeroskin = 1;
+  add(new THREE.BoxGeometry(0.07, 0.006, 0.03), lensM, 0, H / 2 + 0.006, 0.03);
+  group.add(root);
+}
+
 function fenderBuild(group, P, AF, units) {
   const style = Math.round(+P.carFender || 0);
   if (!(style === 1 || style === 2) || !units || units.length < 4) return;
@@ -3506,6 +3561,7 @@ PAGE.post = ctx => {
     if (Math.round(+P.extRelief || 0) === 4) rearDoorHardware(group, P, mesh);
     if (+P.carTail) carTailLamps(group, P, AF);
     if (Math.round(+P.carFender || 0) > 0) fenderBuild(group, P, AF, legUnits);
+    if (+P.carPlate) plateBuild(group, P, AF, mesh);
   }
   // the LEGS take a livery section too (phase C): steel tube by default,
   // following nobody — but a builder can paint a leg without repainting the

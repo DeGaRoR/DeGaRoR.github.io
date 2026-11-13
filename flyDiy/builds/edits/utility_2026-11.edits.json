@@ -178,7 +178,7 @@
   "paxSeatZ": 0.2,
   "seatGap": 0.4,
   "archOn": 1,
-  "archGap": 0.05,
+  "archGap": 0.1,
   "noseW": 0.8,
   "cw_pairX": 0.47,
   "cw_pairW": 0.105,
@@ -214,7 +214,9 @@
   "carFender": 1,
   "carStep": 1,
   "ctlThr": 3,
-  "consoleOn": 1
+  "consoleOn": 1,
+  "carPlate": 1,
+  "carFenderGap": 0.11
  },
  "fuel": {
   "litres": 80,
@@ -222,7 +224,12 @@
  },
  "meta": {
   "name": "Field Wagon",
-  "reg": "TOW 1"
+  "reg": "TOW 1",
+  "plate": {
+   "top": "JOLENE ISLAND",
+   "main": "HF 1003",
+   "bottom": "46"
+  }
  },
  "energy": {
   "kind": "fuel",
