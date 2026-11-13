@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 0a16ee748c266714
+// body-sha256: 88eeec90c4eb0082
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -10996,7 +10996,7 @@ const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, 
 // which GATE PAVEMENT holds equal): the record is validated against these so a misspelt key is an
 // ISSUE and not a silent no-op - `pav: { mark: 'none' }` used to be read, ignored and never reported
 const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK',
-  'mossEdge', 'grassReach', 'edgeChip', 'bandNoise', 'jointDirt', 'mossJoint', 'damageK', 'stainK', 'sideW', 'sideA', 'marks'];   // (AFB-0220: the edges' knobs, pavement.js ENTRY_KNOBS)
+  'mossEdge', 'grassReach', 'edgeChip', 'bandNoise', 'jointDirt', 'mossJoint', 'damageK', 'stainK', 'sideW', 'sideA', 'tearIn', 'marks'];   // (AFB-0220: the edges' knobs, pavement.js ENTRY_KNOBS)
 // THE PARKING STANDS (v1.21, 2026-09-23, the user: "you may also further design a parking area for
 // planes, with clear ground markings"): a material polygon may carry `stands` - a row of aircraft
 // stands painted on it, each a lead-in line with a nose-stop bar across its end, drawn in the
