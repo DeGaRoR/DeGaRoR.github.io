@@ -315337,3 +315337,13 @@ brand-new lodge "on the sea, in a bay, a nice place for a lodge, preferably far 
   stages. The premises re-cooked (premises_cook --island jolene: the lodge's cells, Greywater's dock cell, and East Point's
   cell r_39_m46 - East Point's automatic stand pad: claude/stand-pad changed the composition with no re-cook). The plan: reports/evidence/DOCKS-LODGE/
   lodge_plan.png (off the composed data; the headless SwiftShader page showed only the far terrain - no in-game still yet).
+- VERDICTS (13 Nov, this container, core-tier subset; the --all delivery run NOT made): DOCKS STAGES CONTRACTS PREMISES PREMCOOK
+  PREMRASTER TAXICLEAR (4 shards) UISMOKE SITE PARKING PARKED STORESPOT GAMEPREM MISSIONS STORY NAMES ROUTES ROUTE (3) MEDIA
+  SCENERY SCENERYLIGHTS STAND WATER WORLD AERO PASS. RED, NAMED: (1) MAPBAKE - the map's two size budgets, both ruled by the user
+  by name before (G3014, JOLENE-FOLD): the projection 96.1 KB <= 96 and the infra 20.1 KB gzipped <= 20 (two fields, the lodge's
+  road and seven site footprints). Not raised here: the user's / A0's call (dropping the lodge's track road alone reads 20.0 KB:
+  no margin). (2) SCENERYED 20b, "Metlakatla put back under 2500 ms" (2824-3317 ms here) - a timing row, red on the untouched
+  claude/stand-pad in this container too (2874 ms). RE-PINNED, each named in its comment: TAXICLEAR 10 (17 runways), CONTRACTS
+  (six tracks: + lodge; 17 fields; the new career's tracks + lodge: 0), MAPBAKE (17 runways in the projection), the MAP smoke
+  (+ Hook Lagoon and its strip as places, 118 roads). RE-COOKED: the premises, the fleet spots (fleet_spots.js --cook: lg_sea 12,
+  lg_strip 12), the map (map_bake.js).
