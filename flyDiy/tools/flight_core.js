@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b69df42357f573a4
+// body-sha256: 49bfbf2a9c4d1e25
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -17025,7 +17025,8 @@ function makeSim(def, world) {
   const RFRAC = RET ? (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1) : 1, RSEMI = RFRAC < 1;
   if (RET) {
     const isMainN = new Set(def.refs.mains || []);
-    for (const i of [...(def.refs.mains || []), def.refs.tw]) {
+    // (TAIL-RETRACT: a taildragger's tailwheel stays down - only its mains swing)
+    for (const i of [...(def.refs.mains || []), ...(RET.tail ? [] : [def.refs.tw])]) {
       if (!(i >= 0 && i < n)) continue;
       GW[i] = 1;
       const meas = RET.lift ? (isMainN.has(i) ? RET.lift.mains : RET.lift.nose) : null;
@@ -38949,7 +38950,8 @@ function clampSpec(spec) {
   // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
   // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
   // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
-  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
+  // TAIL-RETRACT (2026-11-09): ...and a taildragger's MAINS (the DC-3's into its nacelles): its tailwheel stays down, fixed
+  if (S.gear.retract && typeof S.gear.retract === 'object' && (S.gear.type === 'tricycle' || S.gear.type === 'taildragger')) {
     const r = S.gear.retract;
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
@@ -44404,6 +44406,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
     pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
   }
+  // TAIL-RETRACT (2026-11-09): A TAILDRAGGER'S RETRACTION KIT, on the mains' axles (their actuators, locks and
+  // trunnions; the tailwheel stays fixed); priced once, as the tricycle's
+  if (!trike && S.gear.retract && GAL != null && GAR != null) {
+    const kit = R.retractKg(gross);
+    pt(GAL, kit / 2); pt(GAR, kit / 2);
+    spend(GEN_PRICES.retract);
+  }
   } if (hullGear) {   // (HULL-B55: after the wheels on an amphibian - was `else if`)
     // ---- THE BOAT HULL (HULL-B3, futureDesigns/HULL-TYPES-2026-11.md §3.5). ONE centreline hull record: the drawn
     // fuselage's keel / chine / gunwale lines as 32_hydro's station table (hullParamsFromTable), so the water pushes
@@ -46433,6 +46442,16 @@ function genStrutOptCdA(S, fr) {
   if (O.round && lift > 0) cda += lift * T.cdRound * T.tubeD - 2 * 0.10 * (0.55 * S.geom.semi * 1.12) * 0.06;
   return { cda, lift, jury };
 }
+// TAIL-RETRACT (2026-11-09): the mains' own share of genGearCdA - the two wheels and their legs (what a taildragger's
+// retraction takes up)
+function genGearCdAMains(S) {
+  const G = S.gear;
+  const wCd = (G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55)
+            * (G.fairing && G.fairing !== 'none' ? genFairDroplet(G.fairTail) : 1);
+  const R = G.wheelR || 0.20, drop = G.legDrop || 0.42;
+  const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
+  return 2 * wCd * (2 * R * 0.76 * R) + 2 * legCd * drop * 0.05;
+}
 // THE CALIBRATION IS PRESERVED BY A DELTA. genFusCdA's 0.75 was fitted so the
 // Cub's GEOMETRY reproduces its hand-tuned totals — totals that implicitly
 // INCLUDE a bare-wheeled, strut-braced undercarriage. Adding gear drag on top
@@ -47479,7 +47498,9 @@ function genParams(S, fr, strips) {
     // (genGearCdA, inside fusCdA[0] as on every build: every design-time number - the plaque, the AP's speeds - stays the
     // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)
     ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg,
-                                       cdA: cda.drag.gear || 0,
+                                       // (TAIL-RETRACT: a taildragger's mains only - its tailwheel and its lift struts stay out)
+                                       cdA: S.gear.type === 'taildragger' ? genGearCdAMains(S) : (cda.drag.gear || 0),
+                                       ...(S.gear.type === 'taildragger' ? { tail: true } : {}),
                                        // G1: the fraction (1 unless partial) and the measured lift (null: the frame's rule)
                                        frac: S.gear.retract.frac || 1, lift: S.gear.retract.lift || null } } : {}),
     // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel
