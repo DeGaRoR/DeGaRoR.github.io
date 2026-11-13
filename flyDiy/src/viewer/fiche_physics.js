@@ -689,8 +689,9 @@
   function coolNose(Cd, th, K, BX, out, lsz) {
     const H = Cd.cases.hot, cm2 = a => r0(a * 1e4) + ' cm²';
     // ---- THE NOSE, CUT OPEN (side view, the flight to the left), true to scale ----
-    // (a pusher's nacelle has no fuselage ring at its firewall end: its cowl's own top and bottom)
-    const G = Cd.geom, ey = G.y, top = ey + (G.top || 0.25), bot = ey - (G.bot || 0.4), fus = (!Cd.pushes && G.fus) || { yb: bot, yt: top };
+    // (only a nose engine sits in the fuselage's first ring: a pusher, a wing nacelle, a pod or a fin engine has its cowl's
+    // own top and bottom at its firewall end)
+    const G = Cd.geom, ey = G.y, top = ey + (G.top || 0.25), bot = ey - (G.bot || 0.4), fus = (!Cd.pushes && G.fus && (G.mount || 'nose') === 'nose' && Math.abs(G.z || 0) < 0.3 && ey > G.fus.yb && ey < G.fus.yt && G.fus) || { yb: bot, yt: top };
     const xA = Math.min(G.face, G.fw), xB = Math.max(G.face, G.fw), disc = Cd.pushes ? G.face + 0.12 : G.face - 0.12, Dp = G.D || 1.8;
     const x0 = Math.min(xA, disc) - 0.55, x1 = Math.max(xB, disc) + 0.55, yLo = Math.min(bot, fus.yb) - 0.22, yHi = Math.max(top, fus.yt) + 0.22;
     const s = Math.min(BX.w / (x1 - x0), BX.h / (yHi - yLo));
