@@ -91,8 +91,9 @@ def author(rec):
     yard = P(UM, -50)
     items = []
     def item(iid, key, u, v, rot, band, Pp=None):
-        # the site's frame: at the yard's centre, its local +x along the strip, +z south (away from the strip)
-        items.append({'id': iid, 'key': key, 'x': R(u - UM), 'z': R(-(v + 50)), 'yaw': R(rot, 4), 'onRoad': False, 'bottomOnRoad': False,
+        # the site's frame: at the yard's centre, its local +x along the strip (toward end 1), +z the runway's n (north,
+        # toward the strip): the placement law's local +z is world (sin yaw, cos yaw) = n
+        items.append({'id': iid, 'key': key, 'x': R(u - UM), 'z': R(v + 50), 'yaw': R(rot, 4), 'onRoad': False, 'bottomOnRoad': False,
                       'P': Pp or {}, 'stage': band})
     # 0 (stands from the first day): the strip hut, the lean-to of split logs
     item('hut', 'shed/trapper cabin', UM - 8, -52, math.pi, st(0))
