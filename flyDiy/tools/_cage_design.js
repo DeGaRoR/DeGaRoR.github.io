@@ -1114,8 +1114,8 @@ function iconBrake(mode) {
 function iconCarcass(mode) {
   const ell = (rx, ry) => 'M' + P2(32 - rx, 20) + ' a' + rx + ' ' + ry +
     ' 0 1 0 ' + (2 * rx) + ' 0 a' + rx + ' ' + ry + ' 0 1 0 ' + (-2 * rx) + ' 0 Z';
-  const rx = mode === 1 ? 17 : mode === 2 ? 5 : 9;
-  const ry = mode === 1 ? 17 : 15;
+  const rx = mode === 1 ? 17 : mode === 2 ? 5 : mode === 3 ? 8 : 9;
+  const ry = mode === 1 ? 17 : mode === 3 ? 18 : 15;
   return { vb: '0 0 64 40', paths: [{ d: ell(rx, ry) },
     { d: 'M' + P2(32 - Math.min(rx - 2, 6), 14) + ' L' + P2(32 + Math.min(rx - 2, 6), 14) +
          ' L' + P2(32 + Math.min(rx - 2, 6), 26) + ' L' + P2(32 - Math.min(rx - 2, 6), 26) + ' Z', w: 1 }] };
@@ -2224,6 +2224,9 @@ const DESIGN_ROWS = [
       { value: 1, label: 'Tundra balloon', icon: iconCarcass(1),
         note: 'a fat low-pressure tyre for rough strips', writes: { cage: { whProfile: 1 } } },
       { value: 2, label: 'Slim', icon: iconCarcass(2), writes: { cage: { whProfile: 2 } } },
+      // CAR-3: the 1940s truck's military lug tyre (the van's)
+      { value: 3, label: 'Military lug', icon: iconCarcass(3),
+        note: 'a tall 1940s truck tyre, chevron lugs', writes: { cage: { whProfile: 3 } } },
     ] },
 
   // THE COWL PRESETS (G2760, the user: "we need presets for the cowl shape,
@@ -2812,6 +2815,177 @@ const ARCHETYPES = [
                     cw_bladeN: 4, cw_material: 0 },
             spec: { prop: { blades: 4, material: 'wood', pitch: 'cruise' },
                     fuel: { litres: 386 } } } },          // 85 imp gal, the two fuselage tanks
+  // CAR-1 (the user, 12 Nov 2026: "build a car in Fly DIY ... one of these 1930 cars ... start from the Flying Moth ...
+  // get rid of the propeller, get rid of the wings, reuse the mechanics that we have for powering the wheels from the
+  // engine ... four wheels and directional wheels ... the front face of these old cars ... avoid having to do wheel wells
+  // ... no boom at all, an aeropod instead, and that would be the trunk"). THE FIRST CAR: the Tiger Moth-alike's body
+  // (its sections and its tandem open cockpits, aeroscreens and all) with no wing, no tail, no propeller and no cone; a
+  // ROD-AND-POD body whose tube is off (rodOn 0) so the pod ends at its bulkhead and the AERO AFT closes it - the
+  // boat-tail trunk; the nose a long bonnet ending in a tall square radiator opening (the cowl's own inlet, squared);
+  // FOUR WHEELS - the mains are the rear axle, the third station is the FRONT AXLE drawn as a pair (s2X off the
+  // centreline), short spring-blade stubs, open wheels (no wells, no fairings); the Argus As 10C, a 1930s inverted V8.
+  // It DRIVES, it does not fly: its physics is the ground vehicle's shell (src/vehicle/vehicle.js, the AI car's - the
+  // driven rear wheels, Ackermann front, tyres, springs), fed from this card by tools/car_sheet.js
+  // (futureDesigns/CAR-1-2026-11.md). Blocked from the birth list and the flying gates.
+  { key: 'roadster', kind: 'fiction', name: 'Boat-tail roadster (car, WIP)', note: '1930s single-seat roadster: the ' +
+      'Moth\'s body on four wheels, a V8 under a long bonnet, an aeropod trunk - drives, does not fly',
+    blocked: 'WIP: a car (CAR-1) - it drives on the ground vehicle\'s physics (tools/car_sheet.js), it does not fly',
+    sel: { class: 'eab', role: 'trainer', seatLayout: 0, paxCount: 0,
+           canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 1, section: 1,
+           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'mono',
+           engFamily: 'vee', engModel: 'Argus As 10C', engMount: 'nose',
+           gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x7fa8c9, trim: 0xc96f2a },
+    over: { cage: { ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0, cabOcc: 1,   // ONE SEAT ("do a 1 seater"), the driver in
+                    // it (OPEN_TANDEM's cabOcc 0 is the Moth's empty front seat)
+                    // THE BODY: the Tiger Moth-alike's section (its card, MEASURED off the DH.82 reference) HELD STRAIGHT -
+                    // the user (12 Nov): "straighten all the lines you can. The cabin bottom is wavy": one keel, one roof
+                    // and one width from the firewall to the bulkhead (the Moth's frames step them station by station)
+                    halfW: 0.54, roofHalfW: 0.42, roofY: 0.66, keelY: -0.56, waistY: 0.22, floorY: -0.32,
+                    aftRoofY: 0.66, aftKeelY: -0.56, taperW: 1, pilotLen: 1.04, paxLen: 1.06,
+                    frCabTopY: 0.66, frCabBotY: -0.56, frCabWaistW: 0.54, frCabBotW: 0.5, frPaxTopY: 0.66,
+                    frPaxBotY: -0.56, frPaxWaistW: 0.54, frPaxBotW: 0.5, frBoomWaistW: 0.54, frBoomTopW: 0.42,
+                    frBoomBotW: 0.5, boomLen: 3.36, boomMidPinch: 1, boomMidPinchW: 1.55,
+                    tailRoofY: 0.38, tailKeelY: 0.03, tailHalfW: 0.12, cw_keelSweep: 0,
+                    // the nose section between the cockpit and the cowl: the Moth's length (the class's runs a long closed
+                    // cone), its pinch and droop held STRAIGHT (1, 1, 0) - the body meets the bonnet at its own section
+                    aeroWsLen: 0.59, aeroLen: 0.24, aeroTipW: 1, aeroTipH: 1, aeroDroop: 0,
+                    // THE PILLARS' BREAKS (the user: "chase the little breaks in the profile ... around your pillars"): the
+                    // windscreen frame's keel was 6.6 cm over the others (-0.494: the bottom stepped at the front pillar,
+                    // measured -0.425 against -0.416 m) - -0.481 lands it on the line; the pillar and frame rings drawn
+                    // without their creases (crPillar / crFrame 3 -> 0: a ring crease folds the subdivided skin at every
+                    // pillar even when the sections agree). Measured after: the bottom -0.415 +- 0.001 m from the rear
+                    // pillar to the firewall, the top 0.499
+                    frWinBotY: -0.481, crPillar: 0, crFrame: 0,
+                    // NOTHING THAT FLIES: no wing, no fin, no stab, no blades, no cone, no tube
+                    wingOn: 0, w2On: 0, finOn: 0, stOn: 0, propOn: 0, spinOn: 0, rodOn: 0,
+                    // THE TRUNK: the pod's aero aft, a long teardrop drooping to a low boat tail
+                    boomStyle: 1, aeroAftOn: 1, aeroAftLen: 1.9, aeroAftTip: 0.35, aeroAftDroop: 0.15,   // (one seat: the trunk longer, past the rear axle)
+                    // THE BONNET AND THE RADIATOR: the user (12 Nov): "ensure that the cowl keeps a constant shape over its
+                    // profile ... a constant cross section until the radiator part" - the barrel end's section IS the
+                    // firewall's (taper 1 x 1, the fitted squareness carried forward, no rise, no sweep, the widest line
+                    // held), the nose bowl short and blunt, carrying the barrel line to the radiator's face; the inlet a
+                    // tall rectangle in it
+                    cw_cowlLen: 1.2, cw_taperW: 1, cw_taperH: 1, cw_lidRise: 0, cw_faceRise: 0, cw_lidMode: 0,
+                    cw_deckSweep: 0, cw_waistSweep: 0, cw_lidLen: 0.06, cw_lidShoulder: 0.92, cw_lidRound: 1,
+                    // THE BONNET'S SECTION IS THE BODY'S, SET, NOT FITTED (the user, 12 Nov: "disable the auto fitting of the
+                    // cowl at the firewall ... You have raised the waist at the front, not at the firewall"): the birth fit
+                    // (fitNose 1) wrote its own firewall waist (-0.59) over the card's, so the widest line sloped up along
+                    // the bonnet. Off; the firewall section given: the body's half-width and height there (0.398 / 0.460 m,
+                    // measured off the drawn airframe), its widest line at the body's waistline (0.263 of the half-height
+                    // over the middle = y 0.162 m, waistY 0.22 x the plane's scale), held to the front; the squareness
+                    // searched against the body's own section at the joint (top 0.38 round like the body's turtle deck,
+                    // bottom 0.92 boxy like its floor: a mean 7-8 mm apart, from 22-50); the Gipsy's two head lobes off
+                    // (they swelled the bonnet 2.5 cm mid-length)
+                    fitNose: 0, cw_aftW: 0.3977, cw_aftH: 0.457, cw_lobeN: 0,
+                    cw_waist: 0.263, cw_waistF: 0.263,
+                    cw_sqAftTop: 0.38, cw_sqFrontTop: 0.38, cw_lidSqTop: 0.38,
+                    cw_sqAftBot: 0.92, cw_sqFrontBot: 0.92, cw_lidSqBot: 0.92,
+                    // THE CUT AT THE WAISTLINE, STRAIGHT ("an option so the cut at the bonnet waistline is drawn straight
+                    // and nice"): the split held LEVEL (partLevel, PROPER-COWLS' option) with an even groove, ON the widest
+                    // line (partY 0) - the waistline
+                    cw_partOn: 1, cw_partLevel: 1, cw_partArc: 1, cw_partY: 0,
+                    // THE LOUVRES under the cut, each flank ("shark fins on the cowls"): the side gills, a long panel of
+                    // slanted slots
+                    // (the user: "the side grill higher up, and if you can straight and longer, like the cars of that era"):
+                    // upright slots, a long panel, high in the band under the cut (gillUp, gillL / gillN's wider ranges)
+                    cw_gillOn: 1, cw_gillN: 22, cw_gillZ: 0.85, cw_gillL: 0.72, cw_gillH: 0.24, cw_gillSlant: 0, cw_gillUp: 0.8,
+                    // THE FACE (the user, 12 Nov: "the front face ... looks a little goofy. Look at the inlet options,
+                    // especially a lip ... another shape of opening, and the modeling of a grill, and maybe a radiator cap"):
+                    // a tall rounded opening, a ROLLED LIP standing proud round it (the shell's surround), a grille of
+                    // upright chrome bars with a cross bar over a dark core (grilleOn, new), a filler cap on top (capOn, new)
+                    cw_apMode: 1, cw_apW: 0.26, cw_apH: 0.37, cw_apSq: 0.78, cw_apOffY: -0.01,
+                    cw_lipMode: 1, cw_lipThick: 0.014, cw_lipDepth: 0.06, cw_lipRound: 0.85, cw_lipProtrude: 1.2, cw_lipInset: 0.025,
+                    cw_grilleOn: 1, cw_grilleN: 30, cw_grilleBar: 0.007, cw_grilleSet: 0.04, cw_grilleHBar: 0, cw_grilleRows: 22,
+                    // ("a simple grill with a number will do the trick"): nine bars, the race number on a plate over them
+                    cw_grilleNum: 28, cw_grilleNumH: 0.42,   // (the number painted ON the grille, the user's '28': a sticker on a fine open mesh)
+                    // ("little lamps like the ones in the wing of the aircraft, just give them a backface in fuselage
+                    // material"): a pair beside the radiator, their shells in the body's livery section
+                    cw_lampOn: 1, cw_lampR: 0.085, cw_lampGap: 0.07, cw_lampY: 0.10, cw_lampBack: 0.12,
+                    // the radiator shell shorter ("make this part a little less long"): the bonnet's panel joint forward
+                    cw_seamPos: 0.81,
+                    cw_capOn: 1, cw_capR: 0.03, cw_capBack: 0.08,
+                    // THE ENGINE (the user, 12 Nov: "an enormous engine for that car ... an engine that would be more
+                    // appropriate"): the CUSTOM engine on the Argus's V8 layout (90 deg, eight cylinders) at a 1930s car
+                    // V8's size - a 3.6 L flathead's 77.8 x 95.3 mm - turning 3000 rpm: the engine model gives ~86 kW and
+                    // 89 kg (an air-cooled aero model: a cast-iron car V8 of the size is ~65 kW and ~250 kg - a GAP: no
+                    // car-engine family)
+                    engPreset: 41, eng_arch: 3, eng_cyl: 8, eng_vee: 90, eng_inlineAim: 0, eng_exStyle: 2,   // (the Argus's layout dials:
+                    eng_bore: 0.0778, eng_stroke: 0.0953, eng_rpm: 3000, engY: 0.05,                   //  the custom's own defaults are a twin)
+                    // FOUR WHEELS (metres): the rear axle on the mains, the front axle on the third station as a pair;
+                    // 0.72 m wheels on short spring stubs, the body low between them (track 1.5 m, wheelbase 2.8 m). THE
+                    // FRONT AXLE UNDER THE RADIATOR, the rear 0.3 m ahead of the Moth's tail: at 3.05 / 0.15 the car stood
+                    // 64 % on its front wheels, the driven axle's tyres filled their friction ellipse at a third of the
+                    // throttle and a 0.9 g lane change spun it (car_sheet.js LANE); the period's cars put the axle there
+                    // THE SUSPENSION (the user, 12 Nov: "a triangle suspension with shocks"): the swinging link - a
+                    // triangle (the arm and its V strut) on a coil-over shock - at all four, swinging level
+                    s1On: 1, s1Leg: 1, s1Z: 0.55, s1X: 0.75, s1R: 0.40, s1Drop: 0.08, s1Brake: 1, s1Steer: 0,
+                    s2On: 1, s2Leg: 1, s2Z: 3.45, s2AxZ: 0.30,   // ("push the wheels max to the front": the axle at the radiator's
+                    // face, 3.75 - its mounts just behind the polished shell, the arm reaching forward: "stay clear with the
+                    // support of the metallic part")
+                    s2X: 0.75, s2R: 0.40, s2Drop: 0.08, s2Brake: 1, s2Steer: 1,
+                    // (the user: "put the shock mount point on the sides of the body, not below ... a proper triangle
+                    // suspension setup, with the shock anchoring higher up"): the wishbone's two feet on the body's lower
+                    // side (linkAng 55, spread 0.5 m), the coil-over's top on the body's SIDE at the same station
+                    // (shockAng 90, the row's limit: the side at mid-height), its foot near the wheel end of the arm, on
+                    // its own side (linkX 0: the Cub's crossed X put the tops under the belly)
+                    s1_shockKind: 0, s2_shockKind: 0, s1_linkSwing: 0, s2_linkSwing: 0, s1_linkPanel: 0, s2_linkPanel: 0,
+                    s1_linkAng: 55, s2_linkAng: 55, s1_linkSpread: 0.5, s2_linkSpread: 0.5, s1_linkX: 0, s2_linkX: 0,
+                    s1_shockAng: 90, s2_shockAng: 90, s1_shockAt: 0.85, s2_shockAt: 0.85, s1_shockZ: 0, s2_shockZ: 0,
+                    // THE CONTROLS ("give it a yoke for now"): the yoke stands in for the steering wheel; the pedals stay
+                    ctlStick: 1,
+                    s1Fair: 0, s2Fair: 0, whProfile: 2,
+                    // (the user: "can we increase the rim size?"): spoked, the rim 0.64 of the wheel - an 18" wire wheel in a
+                    // 28" tyre (whRimD, the new row)
+                    whRim: 1, whRimD: 0.64, whWide: 0.8,   // ("a little bigger and a little narrower": 0.80 m wheels, 80 % of the slim tyre's width)
+                    // ("put a spare wheel on one of the sides, at the back, like the ref picture"): behind the cockpit
+                    isCar: 1, carDrive: 0, spareOn: 1, spareZ: 1.15, spareSide: 1, spareY: 0.0 },   // (a little lower: its crown under the body's top line)
+            // THE TANK (the user, 12 Nov: "Where did you place the tank? Let's do something realistic"): none was
+            // drawn - the 60 L rode the ledger at the firewall's station. A 1930s racer carries it in the tail: one
+            // box tank in the 'behind the cabin' bay, the boat tail just aft of the seat
+            // (50 L: the 60 L box, refitted to 57 L, stood 12 mm into the skin - GATE TANKMOUNT)
+            tanks: [{ bay: 'aftCabin', capacity: 50, rot: 0, form: 'box' }],
+            spec: { fuel: { litres: 50 },
+                    // THE DASH (the user, 12 Nov: "make a dashboard that makes sense for a car out of what we have"): a custom
+                    // fit, centred, metric - the speedometer (the airspeed dial's face reads km/h; a car's would read the
+                    // wheels - a gap), the tachometer, oil pressure and temperature, the fuel gauge, the volt / ammeter, the
+                    // clock; a battery, a generator and a starter, no vacuum, no radios
+                    systems: { fit: 'custom', units: 'metric', side: 'centre',
+                               items: ['asi', 'tacho', 'oilP', 'oilT', 'fuel', 'volts', 'clock'],
+                               elec: { battery: 'lead', alternator: 'gen20', starter: 'yes', vac: 'none' },
+                               avionics: { com: 'none', xpdr: 'none', nav: 'none', gps: 'none' } },
+                    cabin: { baggage: 40 },
+                    // THE LIVERY (the user, 12 Nov: "a nice livery ... some metallic shades in there please, and not too
+                    // dark"): a light METALLIC STEEL-BLUE body (half metal: a full metal mirrors the dark studio navy - the first
+                    // phone render), the bonnet POLISHED ALUMINIUM, a METALLIC COPPER cheat line
+                    // along the waistline (on the bonnet's level cut and on along the body), an ivory racing roundel ringed
+                    // in copper on the flank behind the bonnet, its number in black. (The markings' stations run aft from the
+                    // FIREWALL: the first placement, 2.35 m, landed on the boat tail; the cheat line's band is m2P of its H)
+                    paint: { job: 'full', sweep: 0, base: 0x7fa8c9, trim: 0xc96f2a },
+                    finish: { decals: {
+                      regL: 0.45, regC: -0.10, regH: 0.26, regCol: 0x20211f, regOutOn: 0,
+                      // THE RADIATOR SHELL POLISHED, THE BONNET BLUE (the user, 12 Nov: "the blue up till the end ... restore
+                      // the metallic only for the tip, like in the attached picture. Maybe make this part a little less long"):
+                      // the bonnet section takes the body's blue (below), the shell - the face back to the panel joint, now at
+                      // z 3.58 - a polished-metal marking in SIDE projection (side / plan markings live in the craft's frame,
+                      // along = aft from the craft root, the garage's -z)
+                      m1On: 1, m1Pat: 0, m1A: 0xd5d9de, m1B: 0xd5d9de, m1D: 0xd5d9de, m1P: 1, m1Q: 0, m1Metal: 1,
+                      m1Tgt: 0, m1Mode: 1, m1L: -3.76, m1C: 0.04, m1W: 0.36, m1H: 1.4,
+                      // the copper cheat line at the waistline, the radiator nose to the boat tail
+                      m2On: 1, m2Pat: 0, m2A: 0xb87333, m2B: 0xb87333, m2D: 0xb87333, m2Metal: 1,
+                      m2Tgt: 0, m2Mode: 1, m2L: 0.9, m2C: 0.0, m2W: 5.0, m2H: 0.07, m2P: 0.6, m2Q: 0.25,
+                      // the racing roundel behind the number
+                      m3On: 1, m3Pat: 8, m3A: 0xb87333, m3B: 0xefe6cf, m3D: 0xefe6cf, m3P: 1, m3Q: 0.9, m3R: 0.333,
+                      m3Tgt: 0, m3Mode: 0, m3L: 0.45, m3C: -0.10, m3W: 0.56, m3H: 0.56,
+                      // twin copper pinstripes along the top, bonnet to tail
+                      m4On: 1, m4Pat: 1, m4A: 0xb87333, m4B: 0xb87333, m4D: 0xefe6cf, m4Metal: 1,
+                      m4Tgt: 0, m4Mode: 2, m4L: 0.9, m4C: 0.0, m4W: 5.0, m4H: 0.30,
+                      // her name, in script, on the tail's flank (LIVERY-TEXT; the user: "it should be american, call it something in english")
+                      t1On: 1, t1Txt: 'Lady Luck', t1Face: 'greatvibes', t1B: 0, t1I: 0, t1Col: 0xefe6cf, t1Line: 0xb87333,
+                      t1H: 0.20, t1L: 1.45, t1C: 0.12, t1Tgt: 0, t1Mode: 0 },
+                      sections: { ...Object.fromEntries(Object.keys(BODY_PAINT(0)).map(k => [k, { tint: 0x8fb0d4, metal: 1, rough: 0.32 }])),
+                                  cowlSkin: { tint: 0x8fb0d4, metal: 1, rough: 0.32 } } },   // (the bonnet blue to the shell)
+                    meta: { reg: '28' } } } },
   { key: 'savannah', kind: 'recreation', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
     sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 0,

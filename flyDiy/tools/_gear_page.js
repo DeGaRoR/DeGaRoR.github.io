@@ -164,19 +164,51 @@ const TW_STEERS = ['steerable', 'steerable', 'lockable', 'fixed', 'skid'];
 // entirely; the port-the-full-surface rule again). Lifted verbatim from
 // the bench's own group + the new sidewall bulge.
 const WHEEL_ROWS = [
-  ['whProfile', 'carcass', 0, 2, 1, ['standard', 'tundra balloon', 'slim']],
+  ['whProfile', 'carcass', 0, 3, 1, ['standard', 'tundra balloon', 'slim', 'military lug (1940s)']],
   // G3852: the 'tread' row (ribbed / smooth / blocked) is gone - each carcass draws its own; whTread stays in DEF
   // and in every file as loaded (a hashed cage row); the tundra keeps a choice of its own (the user: "a Tundra tyre
   // with no pattern"), shown only on that carcass
   ['whSlick', 'tundra tread', 0, 2, 1, ['bush lugs', 'smooth', 'bevelled lugs'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
   ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
   ['whRibs', 'ribs', 1, 5, 1],
-  ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],
+  ['whRim', 'rim', 0, 3, 1, ['cast disc', 'spoked', 'lightened', 'steel disc + lock ring']],
+  ['whRimD', 'rim diameter (× the wheel\'s; 0 = the carcass\'s own)', 0, 0.85, 0.01],   // CAR-1
+  ['whWide', 'tyre width (× the carcass\'s; 0 = its own)', 0, 1.5, 0.01],   // CAR-1
   ['whBolts', 'rim bolts', 3, 10, 1],
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
   ['whValve', 'valve stem', 0, 1, 1],
   ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum']],
   ['brkHold', 'brakes (hold, mass)', 0, 3, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs']],
+  // CAR (12 Nov): THE CAR SWITCH and the car-only rows (absent = an aeroplane; nothing changes for one)
+  ['isCar', 'this build is a car', 0, 1, 1, ['no (an aeroplane)', 'yes (a car)']],
+  ['carDrive', 'driven wheels', 0, 1, 1, ['rear', 'all four (4WD)'], { when: P => +P.isCar }],
+  ['carChassisKg', 'chassis mass (frame, axles, transfer case) kg', 0, 600, 5, { when: P => +P.isCar }],
+  ['archOn', 'wheel arches (cut in the body)', 0, 3, 1, ['none', 'rear', 'front', 'rear and front'], { when: P => +P.isCar || +P.archOn }],
+  ['archGap', 'wheel arch clearance (m)', 0.01, 0.15, 0.005, { when: P => +P.archOn }],
+  // CAR-1: a spare wheel on the body's flank (absent = none)
+  ['spareOn', 'spare wheel on the flank', 0, 1, 1, { when: P => +P.isCar || +P.spareOn }],
+  ['spareZ', 'spare wheel station (m, the layers\' z)', -4, 4, 0.01, { when: P => +P.spareOn }],
+  ['spareSide', 'spare wheel side', -1, 1, 2, ['left', 'right'], { when: P => +P.spareOn }],
+  ['spareY', 'spare wheel up / down (m)', -0.4, 0.4, 0.005, { when: P => +P.spareOn }],
+  // CAR-4: the twin booms' wheels outboard of the booms (m; absent 0 = under the boom)
+  ['twBoomOut', 'boom wheels outboard of the booms (m)', 0, 0.8, 0.005, { when: P => +P.boomTwin }],
+  // CAR-3/4: the bumpers and the hitch (absent = none)
+  ['bumpF', 'front bumper', 0, 1, 1, { when: P => +P.isCar || +P.bumpF }],
+  ['bumpR', 'rear bumper', 0, 1, 1, { when: P => +P.isCar || +P.bumpR }],
+  ['bumpY', 'bumper height over the body\'s bottom (m)', -0.4, 0.5, 0.005, { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpYF', 'front bumper height, its own (m)', -0.4, 0.6, 0.005, { when: P => +P.bumpF }],
+  ['bumpGap', 'bumper off the face (m)', 0, 0.3, 0.005, { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpW', 'bumper span (x the body)', 0.4, 1.3, 0.01, { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpH', 'bumper blade height (m)', 0.06, 0.3, 0.005, { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpFin', 'bumper finish', 0, 1, 1, ['chrome', 'black'], { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpGuards', 'bumper overriders', 0, 1, 1, { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpStyle', 'bumper style', 0, 1, 1, ['blade', 'light tube'], { when: P => +P.bumpF || +P.bumpR }],
+  ['hitchOn', 'tow hitch (rear)', 0, 1, 1, { when: P => +P.bumpR }],
+  // CAR-4: the bulkhead's bas-relief on the OUTSIDE of the rear wall (absent = none)
+  ['extRelief', 'rear wall bas-relief', 0, 4, 1, ['none', 'pressed beads', 'rolled', 'framed panel', 'rear doors (framed, split, hinged)']],
+  ['extReliefH', 'rear relief depth (m)', 0.003, 0.03, 0.001, { when: P => +P.extRelief }],
+  ['extDoorTop', 'rear doors: top edge up (m)', -0.2, 0.2, 0.005, { when: P => +P.extRelief === 4 }],
+  ['extDoorOut', 'rear doors: outline outward (m)', -0.2, 0.2, 0.005, { when: P => +P.extRelief === 4 }],
 ];
 
 const PRESETS = {

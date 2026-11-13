@@ -558,7 +558,9 @@ function knifeCut(m, win, opt) {
     const quad0 = () => recs.map((r, k) =>
       ({ rec: r, car: edgeCar(r.key, recs[(k + 1) % nV].key) }));
     const facing = (n[0]*n0[0] + n[1]*n0[1] + n[2]*n0[2]) / (nl || 1);
-    if (nl < 1e-12 || facing < nMin) {
+    // CAR-4: opt.only(f, V) - a face the caller excludes is never cut (the rear window: the rear wall only, not every
+    // aft-facing face the projection meets along the body); absent = every facing face, as before
+    if (nl < 1e-12 || facing < nMin || (opt.only && !opt.only(f, V))) {
       untouched.push({ pg: quad0(), f }); continue;
     }
     let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;

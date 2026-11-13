@@ -187,6 +187,10 @@ const GATES = [
   // onto the hold, at every land aerodrome of both worlds; the take-off roll completes (the Cub default and
   // the user's aluminium C172 at Jolene HOME); the skip's roll begins where the taxi's did (~4.5 min)
   { id: 'LINEUP', file: '_lineup_check.js', tier: 'core', wall: 270 },
+  // TOW-LAUNCH SLOPE: the ground pushes along its normal - the motorglider at Skyline Altiport (tw_ski, ~9 % grass),
+  // engine off: it rolls downhill at g (sin - Crr cos), pushed uphill it slows at g (sin + Crr cos) and rolls back,
+  // parked under Crr (3 %) it holds, braked on 9 % it holds, across 9 % its side grip holds (~1 min)
+  { id: 'SLOPE', file: '_slope_check.js', tier: 'core', wall: 60 },
   // G3800 TAILWHEELS: the tail contact's four laws (the steerable Scott kind's pivot and re-lock, a brake-free 180 deg,
   // no breakout on the autopilot's runway; the lockable DC-3 locked straight and pivoting unlocked; the skid's stop; the
   // fixed wheel), a twin boom's wheel a boom, the inverted V on its tip wheels flying HOME's circuit, its controls'
@@ -212,6 +216,15 @@ const GATES = [
   // Conquer's sheet as a generic vehicle, flat / brake / reverse / airborne / turn / 10 % hill, a 300 m traced road
   // followed, U-turns at a gravel apron off a re-route, one of the world's roads out and back, the path traps; ~15 s
   { id: 'VEHICLE', file: '_vehicle_check.js', tier: 'core', wall: 15 },
+  // TOW-LAUNCH phase 1: THE CAR DRIVES FROM HOME TO CEDAR HARBOUR on Jolene as shipped - the island's road graph as the
+  // driver's (drawn crossings joined vehicle-side, no scenery edited), facing away at the start, two re-routes behind,
+  // three U-turns at a road's end and at junctions (no drawn apron on Jolene), the body on the road; ~20 s
+  { id: 'DRIVE-TRIP', file: '_drive_trip_check.js', tier: 'core', wall: 25 },
+  // TOW-LAUNCH phase 3: THE GLIDER AUTO-TOW - the motorglider (engine off) on 400 m of line behind the Conquer down Jolene
+  // AFB's 13/31 (src/vehicle/tow.js: the line through sim.onSubstep + sim.impulse, no solver change): lift-off, the climb,
+  // the release at the top, the glide; the pilot's key; a weak link that breaks; the line's cost a frame; ~1 min
+  { id: 'TOW', file: '_tow_check.js', tier: 'core', wall: 900 },
+  { id: 'TRAILER', file: '_trailer_check.js', tier: 'core', wall: 140 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },

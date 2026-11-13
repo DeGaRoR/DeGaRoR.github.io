@@ -504,7 +504,7 @@ const CAGE_PARTS = [
     place: { count: 'paxCount', type: 'doorPax', len: 'paxLen',
              at: 'aft of the cabin' },
     groups: [
-      ['bays', ['paxCount', 'paxLen', 'paxLen2', 'paxLen3', 'paxLen4', 'paxLen5', 'paxLen6', 'paxAbreast']],       // T2.3 (132)
+      ['bays', ['paxCount', 'paxLen', 'paxLen2', 'paxLen3', 'paxLen4', 'paxLen5', 'paxLen6', 'paxSeatBays', 'paxAbreast']],       // T2.3 (132)
       // G3573 (DC3-2): the rows of seats in each bay, their pitch, the aisle and the seat's width
       ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
@@ -565,8 +565,9 @@ const CAGE_PARTS = [
              at: 'aft of the taper; twin, off the wing’s trailing edge' },
     groups: [
       // boomStyle -> `design`; these shape the rod once it is chosen
-      ['rod', ['rodY', 'rodD', 'rodIncl']],
+      ['rod', ['rodOn', 'rodY', 'rodD', 'rodIncl']],
       ['twin booms', ['boomTwin', 'boomX', 'boomDy', 'boomDz']],
+      ['booms on the body (no wing)', ['boomBodyZ', 'boomBodyY']],   // CAR-4
       ['section', ['boomWf', 'boomHf', 'boomWa', 'boomHa', 'boomSquare', 'boomIncl', 'boomCollar']],
       ['wing end', ['boomNoseLen', 'boomNoseK', 'boomNoseCap']],
       ['tail end', ['boomTailLen', 'boomTailK', 'boomTailCap']],
@@ -647,6 +648,8 @@ const CAGE_PARTS = [
       ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
       // AFT-BULKHEAD (3 Nov): the aft wall's own rows, absent at default
       ['aft wall', ['bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhRelief', 'bhReliefH', 'bhFast', 'bhNet', 'bhLamp', 'bhLampY', 'bhSling']],
+      // CAR-3/4: the rear wall seen from OUTSIDE - its cut windows and its bas-relief (rear doors included)
+      ['rear wall (outside)', ['rearWinOn', 'rearWinN', 'rearWinGap', 'rearWinW', 'rearWinH', 'rearWinY', 'rearWinR', 'extRelief', 'extReliefH', 'extDoorTop', 'extDoorOut']],
       // (the 'cutting' group — `cutParts` — retired 2026-09-14: always on)
     ] },
 
@@ -924,7 +927,7 @@ const CAGE_PARTS = [
     groups: [
       // (G2760: what the trunk leaves here is the thrust line and the mount's
       // own dials — no second 'fitted' heading under the trunk's)
-      ['thrust line & mounting', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engNacAt2', 'engNacOver', 'engNacLift', 'engRotate', 'engPylonH', 'engFinAt', 'engFinFwd', 'engPylonAt', 'engPylonAft', 'engPylonFwd', 'engPylonForm', 'engPylonFair',
+      ['thrust line & mounting', ['engOn', 'spinOn', 'engMount', 'engAim', 'engNacAt', 'engNacAt2', 'engNacOver', 'engNacLift', 'engRotate', 'engPylonH', 'engFinAt', 'engFinFwd', 'engPylonAt', 'engPylonAft', 'engPylonFwd', 'engPylonForm', 'engPylonFair',
                   'engBlockZ', 'engBlockY', 'engTilt', 'engPower', 'engPreset', 'engY']],   // G477: the thrust line's tilt
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat
@@ -997,7 +1000,9 @@ const CAGE_PARTS = [
       ['section at the firewall', ['cw_waist', 'cw_deckH', 'cw_keelH',
                                    'cw_sqAftTop', 'cw_sqAftBot',
                                    'cw_wAftTop', 'cw_wAftBot', 'cw_waistF']],   // CABIN-CRAFT: the width by level; PROPER-COWLS: the front's waist
-      ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillL', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
+      ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillL', 'cw_gillUp', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
+      ['grille & radiator cap', ['cw_grilleOn', 'cw_grilleN', 'cw_grilleBar', 'cw_grilleSet', 'cw_grilleHBar', 'cw_grilleRows', 'cw_grilleNum', 'cw_grilleNumH', 'cw_capOn', 'cw_capR', 'cw_capBack',
+                                 'cw_lampOn', 'cw_lampR', 'cw_lampGap', 'cw_lampY', 'cw_lampBack', 'cw_lampIn']],   // CAR-1
       ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
                      'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',
@@ -1010,7 +1015,7 @@ const CAGE_PARTS = [
                             'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig', 'cw_lobeT2', 'cw_lobeCount', 'cw_lobeStream', 'cw_lobeNose', 'cw_lobeTail',
                             'cw_cutSpan', 'cw_cutAz']],
       ['inlets', ['cw_apMode', 'cw_apW', 'cw_apH', 'cw_apSq',
-                  'cw_apOffX', 'cw_apOffY', 'cw_pairX', 'cw_pairW',
+                  'cw_apOffX', 'cw_apOffY', 'cw_apLift', 'cw_pairX', 'cw_pairW',
                   'cw_pairH', 'cw_pairY', 'cw_pairSq']],
       ['inlet lip', ['cw_lipMode', 'cw_lipThick', 'cw_lipDepth',
                      'cw_lipRound', 'cw_lipProtrude', 'cw_lipInset',
@@ -1096,6 +1101,18 @@ const CAGE_PARTS = [
   // kit shared between them.
   // =========================================================================
   { key: 'gear', name: 'Running gear', parent: null, layer: 'gear' },
+  // CAR (the user, 12 Nov: "mark them as cars ... an option so that we can mark it as car as a player ... a new car
+  // section ... with all the controls which are very specific to cars"): the switch, always shown; the rest of the
+  // part's rows show with it on. What a car only is lives here; what a plane can use too (rear windows, the outside
+  // relief, wingless booms, the tyres and rims) stays with its own part
+  { key: 'car', name: 'Car', parent: null, layer: 'gear',
+    groups: [
+      ['this build is a car', ['isCar']],
+      ['drive', ['carDrive', 'carChassisKg']],
+      ['wheel arches', ['archOn', 'archGap']],
+      ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],
+      ['spare wheel', ['spareOn', 'spareZ', 'spareSide', 'spareY']],
+    ] },
 
   { key: 'mains', name: 'Main gear', parent: 'gear', layer: 'gear',
     // S1 (G451.1): one gear kind — a float build has no wheel stations (a
@@ -1195,7 +1212,8 @@ const CAGE_PARTS = [
       // the radii, one per station — the wheel's own size, filed with the wheel
       ['size', ['s1R', 's2R']],
       ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
-      ['rim', ['whRim', 'whBolts', 'whCap', 'whValve', 'whBrake', 'brkHold']],
+      ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake', 'brkHold']],
+      ['boom wheels outboard', ['twBoomOut']],   // CAR-4
       ['fairing build', ['fairCons']],
     ] },
 
