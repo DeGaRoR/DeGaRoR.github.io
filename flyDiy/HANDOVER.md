@@ -315327,3 +315327,26 @@ Known to come: AERO-BODY (PHYSICS_V 8), the Archaeopteryx rod row, TOW-LAUNCH's 
   - tools/lattice_overlay.js (+ .py, needs python3 + Pillow): the flown nodes, beams and strips over quickshot's
     pictures, on the game's load path, with the join's datum. ~15 s;
   - tools/fleet_scan.js: every build's mass, margin, CG / NP and tail taper per tree, then `--diff=base,new`.
+
+## ELEC-SYSTEMS — THE ELECTRICS, AUDITED, TILED, AND SAID (2026-11-09)
+
+The user: "Where do we set that? ... Do we even compute the discharge? Do we refuse lamps without electrics? And
+electrical instruments? If we need to manage that, we need to manage that well." The audit, the plan and the sources:
+futureDesigns/ELEC-SYSTEMS-2026-11.md; the hand-over: ELEC-SYSTEMS-READY.md.
+- WHERE: Fit > Instruments (_cage_panel.js), its `electrics` fold - TILES (`.dfTile`, the design tiles' one look), one
+  row per part (battery, charging, starter, suction), the system on one line (Ah, charge A, day / night load, endurance
+  on the battery alone), the engine's usual set marked "for this engine" on each part's tiles with one button to fit it,
+  every refusal said there in red. NO 'class' choice (the user: classes were a new concept nobody asked for).
+- GEN_ELEC_SETS / GEN_ELEC_AS_BUILT / genElecSetOf(engine, key): a suggestion only. As-built history first (the A-65,
+  Clerget, Gipsy Major, W-670, Mikron: no electrics), else the registry's mass/family. Kept OUT of POWERPLANTS: its rows
+  ride into the build's params, a field there moves every fingerprint. RULE: a per-engine row is never put in a tier
+  without the user's ruling (GATE ELEC 7a and its selftest catch it).
+- A GENERATOR WITH NO BATTERY: a self-exciting machine (`selfExcited`: the DC generators, the Rotax coil and integrated
+  generator) is a bus - live only above cut-in (31_elec.js altSelf); the 60 A alternator, whose field the battery
+  excites (FAA AC 20-40), is not. The dash's MASTER / ALT rockers follow hasBus / altA (_panel_gen.js).
+- THE BUS was already real (31_elec.js, cockpit.js): soc, discharge, cut-in, starter draw, breakers, a flat battery
+  refusing the crank. New: the catalogue's `cutIn` / starter `amps` reach it (absent = the old 1100 / 150), and
+  cockpit.js elecAlarms says LOW VOLTS / NOT CHARGING / BATTERY FLAT / a refused start on the flight's #flElec line.
+- genSystemsResolve `warnings[]`: said, never re-billed (the player's problem, the user's ruling).
+- PARKED: the harness as a fraction of empty mass (REAL-FIGURES: no-go on the Cub / Jodel / 172 until the user rules;
+  the total there stays). 12 V everywhere (the user).

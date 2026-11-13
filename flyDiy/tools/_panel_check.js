@@ -69,9 +69,11 @@ function run() {
   check(T.custom.items === null, 'the custom tier derives nothing itself');
 
   // ---- 2. THE RESOLVER ------------------------------------------------------
-  const rMin = C.genSystemsResolve({ systems: { fit: 'minimal' } });
-  const rBas = C.genSystemsResolve({ systems: { fit: 'basic' } });
-  const rIfr = C.genSystemsResolve({ systems: { fit: 'ifr' } });
+  // (ELEC-SYSTEMS: on the stock aeroplane, not a bare `systems` - the harness is billed by its cable runs over the
+  // build's span, tail arm and engine station, so a spec with no airframe bills a shorter wire than the one flown)
+  const rMin = C.genSystemsResolve(withSys({ fit: 'minimal' }));
+  const rBas = C.genSystemsResolve(withSys({ fit: 'basic' }));
+  const rIfr = C.genSystemsResolve(withSys({ fit: 'ifr' }));
   if (SHOW) for (const [n, r] of [['minimal', rMin], ['basic', rBas], ['ifr', rIfr]]) {
     console.log('  ' + n + ': ' + r.items.length + ' dials · ' + r.kg.toFixed(1) + ' kg · ' + r.price + ' cr' +
       (r.hasBus ? ' · bus ' + r.loads.reduce((a, l) => a + l.amps, 0).toFixed(2) + ' A' : ' · no bus'));
@@ -172,8 +174,10 @@ function run() {
     const dBL = at(dB, 'S0BL') - at(dN, 'S0BL'), dTL = at(dB, 'S0TL') - at(dN, 'S0TL');
     check(dBL != null && near(dBL, 0.5 * E.battery.lead.kg, 0.05),
       'the battery\'s kilos land on the firewall\'s lower pair', dBL);
-    check(dTL != null && near(dTL, 0.5 * E.harness.kg, 0.05),
-      'and the harness alone on the top pair', dTL);
+    // (ELEC-SYSTEMS: the harness is billed by its cable runs - genHarnessKg - so the expected kilos are the resolver's row)
+    const hRow = C.genSystemsResolve(withSys({ fit: 'minimal', elec: { battery: 'lead' } })).rows.find(r => r.key === 'harness');
+    check(dTL != null && hRow && near(dTL, 0.5 * hRow.kg, 0.05),
+      'and the harness alone on the top pair', dTL + ' vs ' + (hRow && 0.5 * hRow.kg));
   }
   // an unchanged spec answers differently than before: PHYSICS_V says so
   check(C.PHYSICS_V >= 3, 'PHYSICS_V was bumped for the itemised ledger');

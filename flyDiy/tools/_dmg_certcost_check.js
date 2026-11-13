@@ -50,7 +50,9 @@ const BUDGET = {
   // SEAPLANES-LAND 8 Nov: the Super Petrel (LB.VALIDATED.petrel) - 1789 frames (the uncut certificate 3049), 40.7 s in
   // node beside other sessions' work. Re-measured 9 Nov 04:50-04:55, the box quiet (the GPU lock, one build,
   // DMGCERTCOST_JOBS=1, 3 runs): 35.0 / 34.6 / 34.9 s, median 34.9 s (the uncut 54.0 s); the ceiling twice that, as above
-  petrel:     { frames: 1789, s: 70 },
+  // ELEC-SYSTEMS (PHYSICS_V 8, the harness billed by its cable runs): the Petrel's ~1.7 kg of wire settles one frame later,
+  // 1789 -> 1790; the other five unchanged (cub 1807, jodel 1797, metal 1797, floats 1762, twinFloats 1784)
+  petrel:     { frames: 1790, s: 70 },
 };
 const TARGET_S = 5;
 const f64 = a => Buffer.from(new Float64Array(a).buffer).toString('base64');

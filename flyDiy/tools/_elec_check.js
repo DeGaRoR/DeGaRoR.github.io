@@ -155,6 +155,110 @@ function run() {
     bus.step(1, 2000, false);
     check(bus.V === 14.1 && bus.ok, 'generator only: the loads are carried above cut-in');
   }
+
+  // ---- 7. THE ENGINE'S SETS (ELEC-SYSTEMS, 9 Nov; futureDesigns/ELEC-SYSTEMS-2026-11.md) ------------------------------
+  // (a) ADDITIVE: the tiers' electrics are what they were, so the Cub, the Jodel and the C172 do not move
+  {
+    const T = C.GEN_SYSTEMS;
+    const was = { minimal: 'none/none/none/none', basic: 'lead/gen20/yes/venturi', ifr: 'lead/alt60/yes/pump', custom: 'lead/gen20/yes/venturi' };
+    for (const t of Object.keys(was)) {
+      const e = T[t].elec, k = [e.battery, e.alternator, e.starter, e.vac].join('/');
+      check(k === was[t], 'sets: the ' + t + ' tier\'s electrics are unchanged', k);
+    }
+    const L = E.battery.lead, G = E.alternator.gen20, S = E.starter.yes;
+    check(L.kg === 7 && L.Ah === 16 && G.kg === 4 && G.A === 20 && !G.cutIn && S.kg === 4 && S.amps === 150,
+          'sets: the light rows are the rows every build had (no cutIn on gen20: the bus\'s 1100 stands)');
+  }
+  // (b) every class resolves to rows that exist, and its mass sits in its band (the real anchors: ultralight 4-9 kg,
+  //     light 12-18 kg - the 17 kg the basic fit always carried with its harness -, heavy 35-55 kg)
+  {
+    const CL = C.GEN_ELEC_SETS;
+    check(CL && CL.ultralight && CL.light && CL.heavy, 'sets: ultralight / light / heavy declared');
+    const band = { ultralight: [4, 9], light: [12, 18], heavy: [35, 55] };
+    for (const k of Object.keys(CL || {})) {
+      const c = CL[k];
+      const ok = E.battery[c.battery] && E.alternator[c.alternator] && E.starter[c.starter];
+      check(!!ok, 'sets: ' + k + ' names catalogue rows', [c.battery, c.alternator, c.starter].join('/'));
+      if (!ok) continue;
+      const kg = E.battery[c.battery].kg + E.alternator[c.alternator].kg + E.starter[c.starter].kg + E.harness.kg;
+      const b = band[k];
+      check(!b || (kg >= b[0] && kg <= b[1]), 'sets: ' + k + ' weighs ' + kg.toFixed(1) + ' kg with the harness', b && b.join('-'));
+      const S = cl(C.GEN_DEFAULT); S.systems = { fit: 'basic', elec: { battery: c.battery, alternator: c.alternator, starter: c.starter } };
+      const R = C.genSystemsResolve(S);
+      check(R.elecSet === k, 'sets: a fit of the ' + k + ' rows reads back as that class', R.elecSet);
+      check(R.starter === true && R.starterA === (E.starter[c.starter].amps || 150), 'sets: ' + k + '\'s starter cranks at its own amps', R.starterA);
+    }
+    // the new rows carry what the bus reads: Ah, A, a cut-in for the engine-driven coils, the starter's crank
+    check(E.alternator.coil12.cutIn < 1100 && E.alternator.int18.cutIn < 1100, 'sets: the engine\'s own coils charge below 1100 prop rpm');
+    for (const k of Object.keys(E.battery)) if (k !== 'none') check(E.battery[k].Ah > 0 && E.battery[k].kg > 0, 'sets: battery ' + k + ' has Ah and mass');
+  }
+  // (c) the engine suggests, by the registry: a Rotax two-stroke and a 912 ultralight, an A-65 light, the radials heavy,
+  //     a motor none
+  {
+    const PP = C.POWERPLANTS, sug = k => (C.genElecSetOf(PP[k].engine, k) || {}).set;
+    // (REAL-FIGURES, 9 Nov: as built wins over mass - the A-65 Cub / Jodel, the Camel's Clerget, the Tiger Moth's Gipsy and
+    // the PT-17's W-670 had no electrics; the W-670 at 211 kg would otherwise read 'heavy')
+    const want = { rotax503_wood: 'ultralight', rotax582_ivo: 'ultralight', rotax912_warp: 'ultralight', a65_sensenich74: 'none',
+                   o200_eprops: 'light', io360_mccauley: 'light', r1830_hs23e50: 'heavy', r985_hs2b20: 'heavy', e811_velis: null,
+                   clerget9b_wood: 'none', gipsymajor1_wood: 'none', w670_hs2b: 'none' };
+    for (const k of Object.keys(C.GEN_ELEC_AS_BUILT)) check(!!PP[k], 'suggest: the as-built table names a registry row', k);
+    for (const k of Object.keys(want)) check(PP[k] && sug(k) === want[k], 'suggest: ' + k + ' -> ' + want[k], PP[k] ? String(sug(k)) : 'no row');
+    check(C.genElecSetOf(PP.rotax582_ivo.engine, 'rotax582_ivo').alternator === 'coil12' && C.genElecSetOf(PP.rotax912_warp.engine, 'rotax912_warp').alternator === 'int18',
+          'suggest: a two-stroke\'s coil, a 912\'s integrated generator');
+  }
+  // (d) THE REFUSALS ARE SAID: a starter with no battery, a generator-only bus, an alternator with no battery, a 12 V
+  //     starter on a motor; nothing re-billed. A self-exciting generator (a DC generator, a PM coil) feeds the dials with
+  //     no battery; an alternator, whose field the battery excites, feeds nothing (FAA AC 20-40)
+  {
+    const S = cl(C.GEN_DEFAULT); S.systems = { fit: 'basic', elec: { battery: 'none' } };
+    const R = C.genSystemsResolve(S), keys = (R.warnings || []).map(w => w.key);
+    check(keys.includes('starterNoBatt') && keys.includes('genOnly'), 'refusals: a starter with no battery and a generator-only bus are said', keys.join(','));
+    check(R.rows.some(r => r.key === 'starter:yes'), 'refusals: ...and still billed (the player\'s choice keeps its mass)');
+    check(R.hasBus && !R.dropped.some(d => d.why === 'no battery') && R.items.includes('fuel'), 'generator only: a DC generator feeds the dials with no battery');
+    const A = cl(C.GEN_DEFAULT); A.systems = { fit: 'basic', elec: { battery: 'none', alternator: 'alt60' } };
+    const RA = C.genSystemsResolve(A);
+    check(!RA.hasBus && RA.warnings.some(w => w.key === 'altNoBatt') && RA.dropped.some(d => d.why === 'no battery'),
+          'alternator only: no bus, the dials refused with their reason, the alternator said');
+    const ba = C.makeBus({ battAh: 0, altA: 60, altSelf: false, loads: [{ key: 'x', amps: 1 }] });
+    ba.step(1, 2000, false);
+    check(!ba.altOn && ba.V === 0, 'alternator only: the bus never comes up');
+    const B = C.genSystemsResolve(cl(C.GEN_DEFAULT));
+    check(Array.isArray(B.warnings) && B.warnings.length === 0, 'refusals: the stock build has nothing to say', (B.warnings || []).map(w => w.key).join(','));
+    const M = cl(C.GEN_DEFAULT); M.energy = Object.assign({}, M.energy, { kind: 'battery' });
+    check(C.genSystemsResolve(M).warnings.some(w => w.key === 'starterOnMotor'), 'refusals: a 12 V starter on a motor is said');
+  }
+  // (e) the bus on the class rows: an ultralight's 9 Ah under the basic panel's day load lasts hours; its 12 A coil
+  //     charges at a geared Rotax's cruise prop rpm (~2100) and not at idle (~550)
+  {
+    const S = cl(C.GEN_DEFAULT); S.systems = { fit: 'basic', elec: { battery: 'leadSmall', alternator: 'int18', starter: 'ul' } };
+    const R = C.genSystemsResolve(S);
+    const bus = C.makeBus({ battAh: R.battAh, altA: R.altA, loads: R.loads, altCutIn: R.altCutIn, starterA: R.starterA });
+    bus.step(1, 550, false);
+    check(!bus.altOn, 'ul bus: no charge at idle prop rpm', 'altOn at 550');
+    bus.step(1, 2100, false);
+    check(bus.altOn && bus.V === 14.1, 'ul bus: the integrated generator carries the bus at cruise');
+    const b2 = C.makeBus({ battAh: R.battAh, altA: 0, loads: R.loads });
+    const h = runDown(b2, 0, 11.8, 30 * 3600) / 3600;
+    check(h > 3, 'ul bus: the 9 Ah battery runs the basic panel by day over 3 h', h.toFixed(1) + ' h');
+  }
+  // ---- 8. THE HARNESS BY ITS RUNS (ELEC-SYSTEMS, the user 9 Nov: "go cable runs"; MASS-BUDGET.md) -----------------
+  {
+    const H = C.genHarnessKg, base = C.resolveSpec(cl(C.GEN_DEFAULT)).spec;
+    const el = { battery: 'lead', alternator: 'gen20', starter: 'yes', vac: 'venturi' };
+    const at = (mut, e, n) => { const S = cl(base); mut(S); return H(S, e || el, n == null ? 4 : n); };
+    const k0 = at(() => {});
+    check(at(S => { for (const w of S.wings) w.span *= 1.5; }) > k0, 'harness: a wider wing carries more wire (the nav lights\' runs)');
+    check(at(S => { S.fuselage.tailArm *= 1.5; }) > k0, 'harness: a longer tail arm carries more wire (the tail light\'s)');
+    check(at(() => {}, Object.assign({}, el, { starter: 'heavy' })) > k0 && at(() => {}, Object.assign({}, el, { starter: 'ul' })) < k0,
+          'harness: the starter cable is sized by the starter (1/0 > 2 > 6 AWG)');
+    check(at(() => {}, null, 10) > k0, 'harness: each powered load is a run');
+    check(k0 > 1.65 && k0 < 6, 'harness: a Cub-sized stock build carries 1.7-6 kg (connectors and clamps included)', k0.toFixed(2));
+    const noBus = C.genSystemsResolve(Object.assign(cl(base), { systems: { fit: 'minimal' } }));
+    check(!noBus.rows.some(r => r.key === 'harness'), 'harness: no bus, no harness');
+    const R = C.genSystemsResolve(base), hr = R.rows.find(r => r.key === 'harness'), bus = R.parts.find(p => p.key === 'bus'), wire = R.parts.find(p => p.key === 'wire');
+    check(hr && bus && wire && Math.abs(bus.kg + wire.kg - hr.kg) < 1e-9, 'harness: the bus and the wire still add up to the row');
+    check(C.PHYSICS_V >= 8, 'harness: PHYSICS_V says an unchanged spec weighs differently (8)');
+  }
   return fail.length === 0;
 }
 
@@ -166,10 +270,13 @@ if (SELFTEST) {
   // (b) the generator's amps lost: the cut-in / charge checks must catch it
   const g = C.GEN_ELEC.alternator.gen20, a0 = g.A; g.A = 0;
   const bb = !run(); g.A = a0;
+  // (c) ELEC-SYSTEMS: a class row moved into a tier (the additive rule broken) must be caught
+  const t = C.GEN_SYSTEMS.basic.elec, b0 = t.battery; t.battery = 'leadSmall';
+  const cc = !run(); t.battery = b0;
   ok = run();
   console.log('selftest: capacity drift ' + (a ? 'caught' : 'MISSED') +
-              ', dead generator ' + (bb ? 'caught' : 'MISSED'));
-  if (!a || !bb) ok = false;
+              ', dead generator ' + (bb ? 'caught' : 'MISSED') + ', a tier moved ' + (cc ? 'caught' : 'MISSED'));
+  if (!a || !bb || !cc) ok = false;
 }
 if (!ok) for (const f of fail) console.log('  FAIL ' + f);
 console.log('GATE ELEC: ' + (ok ? 'PASS' : 'FAIL'));
