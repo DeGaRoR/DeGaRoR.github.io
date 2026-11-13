@@ -2829,37 +2829,37 @@
     "r": "822,1557,25,16,131"
    },
    {
-    "id": "sg_ca_yard/hut",
+    "id": "sg_ca_y/hut",
     "key": "shed/trapper cabin",
     "r": "622,277,4,3,168"
    },
    {
-    "id": "sg_ca_yard/leanto",
+    "id": "sg_ca_y/lean",
     "key": "shed/lean-to",
     "r": "623,277,3,2,168"
    },
    {
-    "id": "sg_ca_yard/woodshed",
+    "id": "sg_ca_y/wood",
     "key": "shed/wood shed",
     "r": "624,277,4,3,168"
    },
    {
-    "id": "sg_ca_yard/toolshed",
+    "id": "sg_ca_y/tool",
     "key": "shed/tool shed",
     "r": "620,278,3,2,168"
    },
    {
-    "id": "sg_ca_yard/smokehouse",
+    "id": "sg_ca_y/smoke",
     "key": "house/fish shack",
     "r": "619,279,4,3,78"
    },
    {
-    "id": "sg_ca_yard/hangar",
+    "id": "sg_ca_y/hang",
     "key": "hangar/field shed, small",
     "r": "618,278,16,13,78"
    },
    {
-    "id": "sg_ca_yard/outhouse",
+    "id": "sg_ca_y/wc",
     "key": "house/outhouse",
     "r": "625,278,1,1,168"
    }
