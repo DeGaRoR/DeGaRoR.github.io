@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a1c2d1716ba94014
+// body-sha256: f173392710c9d24f
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -779,6 +779,16 @@ const POWERPLANTS = {
     engine: { name: 'P&W PT6A-60A', mass: 218, powerW: 783000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.20, length: 1.85, rpm: 1700, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.67 m', D: 2.67, Tstatic: 10767, kV2: 0.5355 },
   },
+  // THE PC-6's PT6A-27 (12 Nov, FIT-PROCEDURE; the user: "create your engine"), off the locked reference
+  // tools/drafting/refs/pc6.json: 550 shp take-off and max continuous (FOCA TCDS F 56-10), 680 shp thermodynamic
+  // (flatK 680/550), the P&WC dry mass ~149 kg (thin: the reference marks it so), the Hartzell HC-B3TN-3D three-blade
+  // of 99-101 in (2.54 m, the middle) turning 2 200 rpm; the prop is genPropSynth's output (alu, standard) like every
+  // PT6 row; length the -34's frame (62 in). PRICE: P&WC's 2026 flat-rate overhaul for the -27, $372k (capped $450k)
+  pt6a27_hartzell3: {
+    price: 410000,   // P&WC flat rate $372-450k (2026), the middle as the -114A / -34 rows take theirs
+    engine: { name: 'P&W PT6A-27', mass: 149, powerW: 410135, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.236, length: 1.57, rpm: 2200, cs: true },
+    prop:   { name: 'Hartzell 3-blade 2.54 m', D: 2.54, Tstatic: 6432, kV2: 0.4161 },
+  },
 };
 // ============================================================
 // ENGINE THERMO LAWS (G134). Two numbers per family, both quoted at RATED
@@ -949,8 +959,11 @@ function genEnginePrice(family, powerW) {
 // _eng_page.js preset, through CAGE_JOIN_ENGINES), which is the sum of the
 // resolve's mass items along the crank. GATE ENGID §10 re-measures each one
 // against the bench and goes red at 2 cm, so this table cannot drift from the
-// engine it describes. A row without an entry (no preset behind it) hangs its
-// mass where it always did — absent means today, byte for byte.
+// engine it describes. A row whose entry is null (no preset behind it: the
+// 3548 outrunner) hangs its mass where it always did, byte for byte. A row with
+// NO entry at all (a row added later, in this file or at runtime) is not left
+// at the flange: genEngineCgAft below reads the same engine's measurement
+// under another key, else the table's own law (2026-11-12, the runtime-row fix).
 const GEN_ENG_CG = {
   a65_sensenich74: 0.20, o200_eprops: 0.21, io360_mccauley: 0.24,
   jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23, rotax912is_warp: 0.23,
@@ -965,14 +978,61 @@ const GEN_ENG_CG = {
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
   fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
   sp260d_class: 0.31, emrax268_carbon: 0.14,
-  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71,
+  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71, pt6a27_hartzell3: 0.61,   // (the -27: measured on its preset, 0.606 - GATE ENGID's bench)
   pt6a60a_hartzell4: 0.78,
+  outrunner3548_12x6: null,
 };
-// the one reader: a custom row's own number outranks the table's
+// THE SAME ENGINE UNDER ANOTHER KEY (2026-11-12). The per-key tables (GEN_ENG_CG
+// here, GEN_DRIVE.eng in 33_drive) are keyed by the registry key, so a row they
+// were never told about read NOTHING off them. Measured: a PC-6 on a runtime copy
+// of the PT6A-114A row (the row unchanged, a new key) hung its 160 kg on the
+// flange nodes instead of 0.63 m behind them, its prop bit the ground 0.5 s into
+// the settle (the strike seized the engine) and the pilot rejected the take-off
+// at 0 thrust, while every probe, which flies no settle, saw the full power.
+// `genEngineRowKey(table, key, engine)` is the key a table knows for this row:
+// the key itself when the table has it (every registry row today: no number
+// moves), else the first key of the table whose registry engine is the SAME
+// ENGINE (GEN_ENG_SAME: what fixes the block - name, dry mass, family, layout,
+// length; power, rpm and the prop move neither its CG nor its cylinders), else
+// the key (absent stays absent).
+const GEN_ENG_SAME = ['name', 'mass', 'family', 'layout', 'length'];
+function genEngineRowKey(table, key, engine) {
+  if (!table || key == null || Object.prototype.hasOwnProperty.call(table, key)) return key;
+  const E = engine || (POWERPLANTS[key] && POWERPLANTS[key].engine);
+  if (!E) return key;
+  for (const k of Object.keys(table)) {
+    const R = POWERPLANTS[k] && POWERPLANTS[k].engine;
+    if (R && GEN_ENG_SAME.every(f => R[f] === E[f])) return k;
+  }
+  return key;
+}
+// THE LAW FOR AN ENGINE NOBODY MEASURED: the CG aft of the flange goes as the
+// block's size, mass^(1/3), with the coefficient the median of the measured
+// rows of its class (a radial; else its family) - read off the table itself,
+// so it cannot drift from it. Leave-one-out over the 43 measured rows: within
+// 5 cm on most, 18 cm at worst (the inverted Ranger) - hanging the lump on the
+// flange is wrong by the whole cgAft (0.63 m on a PT6). null when the class has
+// no measured row.
+function genEngineCgLaw(engine) {
+  if (!engine || !(engine.mass > 0)) return null;
+  const cls = e => (e.layout === 'radial' ? 'radial' : e.family);
+  const c = cls(engine), cs = [];
+  for (const k of Object.keys(GEN_ENG_CG)) {
+    const v = GEN_ENG_CG[k], R = POWERPLANTS[k] && POWERPLANTS[k].engine;
+    if (v != null && R && R.mass > 0 && cls(R) === c) cs.push(v / CORE_MATH.pow(R.mass, 1 / 3));
+  }
+  if (!cs.length) return null;
+  cs.sort((a, b) => a - b);
+  const n = cs.length, med = n % 2 ? cs[(n - 1) / 2] : (cs[n / 2 - 1] + cs[n / 2]) / 2;
+  return Math.round(med * CORE_MATH.pow(engine.mass, 1 / 3) * 100) / 100;
+}
+// the one reader: a custom row's own number outranks the table's; a key the
+// table does not know reads the same engine's entry, else the law
 function genEngineCgAft(key, engine) {
   if (engine && engine.cgAft != null && isFinite(engine.cgAft)) return engine.cgAft;
-  const v = GEN_ENG_CG[key];
-  return v == null ? null : v;
+  const k = genEngineRowKey(GEN_ENG_CG, key, engine);
+  if (Object.prototype.hasOwnProperty.call(GEN_ENG_CG, k)) { const v = GEN_ENG_CG[k]; return v == null ? null : v; }
+  return genEngineCgLaw(engine || (POWERPLANTS[key] && POWERPLANTS[key].engine));
 }
 
 const POLARS = {
@@ -9170,7 +9230,7 @@ const STRIP_MICRO = (() => {
       const p = big ? K.rocks * edge * edge : Math.min(0.6, 0.1 + 0.9 * K.rocks) * (0.6 + 0.4 * edge);
       if (ih(i, j, sk) >= p) return null;
       const a = ih(i, j, sk + 1), b = ih(i, j, sk + 2), e = ih(i, j, sk + 3);
-      return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.01 + 0.015 * e];
+      return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e];
     }
     // the stones for the meshes: a 1.2 m cell's, whole inside the strip clear of its ends, none in a way's trough or a hole
     // -> [u, v, R] or null. A stone's footprint (R <= 0.27) stays inside the middle of its own cell (0.3 m clear of its sides)
@@ -15951,6 +16011,17 @@ function makeSim(def, world) {
     const i3 = i * 3, vn = v[i3] * nx + v[i3+2] * nz, tx = v[i3] - vn * nx, ty = v[i3+1], tz = v[i3+2] - vn * nz;
     const st = Math.sqrt(tx * tx + ty * ty + tz * tz);
     if (st > 0.05) scuffAdd(i, 0.5 * F * st * dt, tx / st, ty / st, tz / st, -nx, 0, -nz, false);
+    // G4101 (CRASH-LOOK, the user 13 Nov: "if it touches anything, the scuff goes on"): the PRESS - the work of the
+    // approach into the bark (F x the speed into it), no direction (a mark, not a streak: it lowers the record's coherence)
+    if (vn < -0.05) scuffAdd(i, F * -vn * dt, 0, 0, 0, -nx, 0, -nz, false);
+  }
+  // G4101: THE NOSE'S MARK - the crushable nose (nosePass) pushes on its thrust nodes and never touched the record: a
+  // nose into a trunk or ploughing the ground left no scuff on the cowl (a 3 m/s taxi into a trunk: nothing drawn). Its
+  // work - the approach (F x the speed into the obstacle) and the slide (F x mu x the slip) - on each thrust node by its
+  // share, the slide's direction where it slid, pushed from the obstacle's side
+  function scuffNose(i, w, F, vin, sx, sy, sz, sp, nx, ny, nz, soft, dt) {
+    const wk = w * F * ((vin > 0 ? vin : 0) + GEN_NOSE.mu * sp) * dt;
+    if (wk > 0) scuffAdd(i, wk, sp > 0.05 ? sx / sp : 0, sp > 0.05 ? sy / sp : 0, sp > 0.05 ? sz / sp : 0, -nx, -ny, -nz, soft);
   }
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
@@ -17025,8 +17096,7 @@ function makeSim(def, world) {
   const RFRAC = RET ? (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1) : 1, RSEMI = RFRAC < 1;
   if (RET) {
     const isMainN = new Set(def.refs.mains || []);
-    // (TAIL-RETRACT: a taildragger's tailwheel stays down - only its mains swing)
-    for (const i of [...(def.refs.mains || []), ...(RET.tail ? [] : [def.refs.tw])]) {
+    for (const i of [...(def.refs.mains || []), def.refs.tw]) {
       if (!(i >= 0 && i < n)) continue;
       GW[i] = 1;
       const meas = RET.lift ? (isMainN.has(i) ? RET.lift.mains : RET.lift.nose) : null;
@@ -17395,6 +17465,22 @@ function makeSim(def, world) {
     NOSE.forEach((N, k) => { if (!N) return; for (const i of N.body) { NZ.node[i] = k + 1; NZ.K[k] += KGn0(i); } NZ.C[k] = 1.6 * Math.sqrt(NZ.K[k] * N.m); });
     for (let bi = 0; bi < nb; bi++) { const a = NZ.node[beams[bi].a], b = NZ.node[beams[bi].b]; NZ.beam[bi] = a && a === b ? 2 : (a || b) ? 1 : 0; }
   }
+  // ENGINE-LUMP (33_drive GEN_NOSE.lumpZ): per member inside one engine's body (NZ.beam 2), its extra damping along its
+  // length - lumpZ x 2 sqrt(k mu), mu the pair's reduced mass - held under 0.5 mu / dt (the substep's, set on first use)
+  const ENGLUMP = NOSE && GEN_NOSE.lumpZ > 0 ? { bi: [], c: [], mu: [], dt: 0 } : null;
+  if (ENGLUMP) for (let bi = 0; bi < nb; bi++) if (NZ.beam[bi] === 2) { const b = beams[bi], ma = def.nodes[b.a].m || 1, mb = def.nodes[b.b].m || 1; ENGLUMP.bi.push(bi); ENGLUMP.mu.push(ma * mb / (ma + mb)); ENGLUMP.c.push(0); }
+  function lumpPass(dt) {
+    const E = ENGLUMP;
+    if (E.dt !== dt) { E.dt = dt; for (let j = 0; j < E.bi.length; j++) { const b = beams[E.bi[j]], mu = E.mu[j];
+      E.c[j] = Math.min(GEN_NOSE.lumpZ * 2 * Math.sqrt(Math.max(0, b.k) * mu), 0.5 * mu / dt); } }
+    for (let j = 0; j < E.bi.length; j++) {
+      const b = beams[E.bi[j]]; if (b.broken) continue;
+      const ia = b.a * 3, ib = b.b * 3, ex = p[ib] - p[ia], ey = p[ib+1] - p[ia+1], ez = p[ib+2] - p[ia+2], L = Math.sqrt(ex*ex + ey*ey + ez*ez);
+      if (!(L > 1e-6)) continue;
+      const ux = ex / L, uy = ey / L, uz = ez / L, dv = (v[ib] - v[ia]) * ux + (v[ib+1] - v[ia+1]) * uy + (v[ib+2] - v[ia+2]) * uz, F = E.c[j] * dv;
+      f[ia] += F * ux; f[ia+1] += F * uy; f[ia+2] += F * uz; f[ib] -= F * ux; f[ib+1] -= F * uy; f[ib+2] -= F * uz;
+    }
+  }
   // the node contact's spring as rigGround sets it (the core's: the engine's nodes against the obstacle)
   function KGn0(i) { const mi = def.nodes[i].m; return mi <= 6 ? Math.min(9e4, 2.5e5 * mi) : 1.5e4 * mi; }
   // engine k's nose now: its centre (the spinner's tip less Rn along the engine's own axis - its mass centre to its thrust
@@ -17494,8 +17580,9 @@ function makeSim(def, world) {
       // across the engine (the contact point's station on the line between them, clamped: a corner hit is the corner
       // case). (By mass share it went 81 % to the Cub's 90 kg crankcase node, whose tubes no case loads that way: they
       // crushed at their floor and the mount's bottom fittings tore, 10 of 49 winds)
-      const TN = N.thrust;
-      if (TN.length === 2) {
+      const TN = GEN_NOSE.pushCg && N.body.length <= 8 ? N.body : N.thrust;   // (ENGINE-LUMP's A/B: on the body's CG by its mass shares)
+      if (TN === N.body) for (let j = 0; j < TN.length; j++) NZ.wt[j] = N.w[j];
+      else if (TN.length === 2) {
         const a3 = TN[0] * 3, b3 = TN[1] * 3, ex = p[b3] - p[a3], ez = p[b3+2] - p[a3+2], e2 = ex * ex + ez * ez;
         const px = gx - nx * Rn, pz = gz - nz * Rn;
         let t = e2 > 1e-9 ? ((px - p[a3]) * ex + (pz - p[a3+2]) * ez) / e2 : 0.5; t = t < 0 ? 0 : t > 1 ? 1 : t;
@@ -17505,6 +17592,12 @@ function makeSim(def, world) {
         const i = TN[j], i3 = i * 3, w = NZ.wt[j];
         f[i3] += fx * w; f[i3+1] += fy * w; f[i3+2] += fz * w;
         if (tkPush !== null && onT) tkPush[i] += F * w;
+        if (DMG_ON) {                                // G4101: the nose's mark (the record only: no force, no state the step reads)
+          let sx = _nzV[0], sy = _nzV[1], sz = _nzV[2];
+          if (onT) { const vt = -sx * nz + sz * nx; sx = -vt * nz; sy = 0; sz = vt * nx; } else sy = 0;
+          scuffNose(i, w, F, vin, sx, sy, sz, Math.sqrt(sx * sx + sy * sy + sz * sz), nx, ny, nz,
+            !onT && SCUFF_SOFT[world && world.surface ? world.surface(gx, gz) : 0] === 1, dt);
+        }
       }
       cIx += fx * dt; cIy += fy * dt; cIz += fz * dt;
       if (onT) _tkHits++;
@@ -17521,6 +17614,7 @@ function makeSim(def, world) {
     const dx = p[ia] + t * (p[ib] - p[ia]) - NZ.g[o], dz = p[ia+2] + t * (p[ib+2] - p[ia+2]) - NZ.g[o+2];
     return dx * dx + dz * dz < NZ.g[o+3] * NZ.g[o+3];
   }
+  const GEN_DRIVE_SEP_RIGID = 0.01;   // ENGINE-LUMP: a separated prop's rigid allowance past the bite it lost (m: the hard 1 cm)
   // A STRIKE on engine k: `bite` m into the disc, on a surface 'soft' (the ground), 'water' or 'rigid' (a trunk); the tier
   // only ever rises (genDriveStrikeTier: the bite over R, the tip speed now against the blade's)
   function driveStrike(k, what, bite, surf) {
@@ -17535,8 +17629,14 @@ function makeSim(def, world) {
       // takes the mount. Only a prop that lost its blade TO THE GROUND is stopped by the ground it digs on into (the 172's
       // tip on the turf, full power): a trunk's separation keeps turning when the shake then drops the nose on the turf -
       // run 2's metal Cessna graze; run 3's 'hard ground only' let the 172 on the turf run on again)
-      const sepOnGround = st.strikeAt && st.strikeAt.surf !== 'rigid' && st.strikeAt.surf !== 'water';
-      if (!(cur === 4 && tier === 4 && surf !== 'rigid' && sepOnGround && !e.seized && bite / S.R > stopR0)) return;
+      // ENGINE-LUMP (13 Nov, the user: "if the prop is going through anything, I do mind"): the lump holds the engine on its
+      // mount, so a separated prop keeps turning where before its engine tore off first - it turns on SHORT of what it
+      // struck, by the bite it lost there (strikeAt.bite), never through: anything rigid reaching past that bite by more than
+      // the hard surface's 1 cm (NOSE-STRIKE's allowance) stops it, and so does the ground past its stop whatever took the
+      // blade (before: only after a separation ON the ground - a trunk's separated prop dug on into the turf unseen)
+      const sepBite = st.strikeAt && st.strikeAt.bite > 0 ? st.strikeAt.bite : 0;
+      const past = surf === 'rigid' ? bite > sepBite + GEN_DRIVE_SEP_RIGID : (tier === 4 && bite / S.R > stopR0);
+      if (!(cur === 4 && past && !e.seized)) return;
       st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0, stopAfterSep: true };
       st.imbN = 0;
       if (S.gear > 1 && e.running && thrEffOf(k) > GEN_DRIVE.gear.stopPow) { st.gearbox = 'failed'; DK[k] = 0; }
@@ -18809,9 +18909,6 @@ function makeSim(def, world) {
     };
     blob(def.refs.fusDrag,    GR === null ? P_.fusCdA : GR.cda);   // RETRACT-1: the gear's drag by its position
     blob(def.refs.fusDragAft, P_.fusCdAAft);
-    // STRUT-OPTIONS (2026-11-10): the lift struts' optional drag (a round tube, a jury), one blob a side on the
-    // struts' own nodes (61_gen_frame refs.strutDrag) - absent on every build without the wing's strut rows
-    if (P_.strutCdA && def.refs.strutDrag) for (const ids of def.refs.strutDrag) blob(ids, P_.strutCdA);
     // G461: THE BODY'S OWN PITCHING MOMENT (Munk). A closed body in potential
     // flow feels no lift and a pure couple, 2 q (k2 - k1) Vol per radian of
     // incidence, NOSE-UP with the nose up — destabilising, the term every
@@ -19534,6 +19631,7 @@ function makeSim(def, world) {
       // hold a taxiing aeroplane inside a 0.3 m radius - the axis crossed the beam and pushed it on through
     }
     if (noseArm) nosePass(dt);                       // G2013 (DMG-NOSE): the crushable nose (an armed frame only)
+    if (ENGLUMP !== null && (noseArm || DMG.crashed)) lumpPass(dt);   // ENGINE-LUMP: the crankcase a lump (armed / a crash only)
     if (_prN) trunkPass(dt);                         // G1883: its own function (the hot substep stays the base's size)
     // G1470: DEBRIS (a node every member of which broke - an engine torn off its mount) meets the trunks as a point:
     // with no beam left to test it would fly through the tree it was torn off on
@@ -19977,9 +20075,6 @@ function makeBus(cfg) {
   const altA = Math.max(0, +cfg.altA || 0);
   const cutIn = cfg.altCutIn > 0 ? +cfg.altCutIn : 1100;
   const starterA = cfg.starterA > 0 ? +cfg.starterA : 150;
-  // ELEC-SYSTEMS: a self-exciting machine (a DC generator, a permanent-magnet one) carries the bus with no battery; an
-  // alternator, whose field the battery excites, does not. Absent = true: the bus as it always was.
-  const altSelf = cfg.altSelf !== false;
   const loads = (cfg.loads || []).map(l => ({ key: l.key, amps: Math.max(0, +l.amps || 0),
                                               av: !!l.av, cb: l.cb != null ? String(l.cb) : null }));
   const byKey = {};
@@ -20034,7 +20129,7 @@ function makeBus(cfg) {
       if (!bus.master || battAh <= 0) {
         // no master: nothing flows. A running alternator with no battery
         // (a generator-only aeroplane) still carries its loads
-        bus.altOn = !!(bus.alt && field && altA > 0 && rpm >= cutIn && battAh <= 0 && bus.master && altSelf);
+        bus.altOn = !!(bus.alt && field && altA > 0 && rpm >= cutIn && battAh <= 0 && bus.master);
         bus.V = bus.altOn ? ELEC_V_ALT : 0;
         bus.amps = 0;
       } else if (bus.altOn) {
@@ -22089,24 +22184,9 @@ function propDiscs(def) {
   const Q = EN && EN.powerW > 0 && EN.rpm > 0 ? EN.powerW / (EN.rpm * 2 * Math.PI / 60) * (EN.gear || 1) : 0;
   return acc.filter(Boolean).map(a => ({ x: a[0] / a[3], y: a[1] / a[3], z: a[2] / a[3], R: PR.D / 2, Q }));
 }
-// ...and THE SMALL FLOATS' own hull for a displacement (tip floats, outriggers, float sponsons): the family scaled so
-// ONE float displaces `kg` to its deck. PETREL-LS (the user, 10 Nov: "there's absolutely no reason to have such a
-// stupid limit on the little floats"): these no longer go through floatParamsFor, whose 60 kg gross floor is the MAIN
-// floats' (a pair for an aeroplane) - it made every tip float under 54 kg displacement a 2.0 m, 54 kg float.
-// `len` (m, the row hullTipLen; 0 = the family's own proportions) sets the float's length AT THE SAME DISPLACEMENT:
-// the length and step station by s, the section by 1/sqrt(s), the shell's mass by sqrt(s) (its skin, L x girth).
-const tipFloatParams = (kg, len) => {
-  if (!DEF_VOL) DEF_VOL = makeFloat(DEF).volDeck * DEF.rho;
-  const k = Math.cbrt(Math.max(1, kg) / DEF_VOL);
-  const P = scaleParams(DEF, k); P.scale = k; delete P._keel;
-  if (len > 0 && Math.abs(len - P.L) > 1e-6) {
-    const s = len / P.L, c = 1 / Math.sqrt(s);
-    for (const key of FLOAT_METRIC) if (typeof P[key] === 'number') P[key] *= (key === 'L' || key === 'xs') ? s : c;
-    P.wrArea *= c * c; P.mFloat *= Math.sqrt(s);
-    if (Array.isArray(P.cgFloat)) P.cgFloat = [P.cgFloat[0] * s, P.cgFloat[1] * c, P.cgFloat[2] * c];
-  }
-  return P;
-};
+// ...and the tip float's own hull for a displacement (the family scaled: floatParamsFor's pair displaces 1.8 x what
+// it is sized for, so one float sized for kg / 0.9 displaces kg)
+const tipFloatParams = kg => { const P = floatParamsFor(Math.max(5, kg / 0.9)); delete P._keel; return P; };
 const FLOAT_METRIC = ['L', 'xs', 'B', 'H', 'hs', 'rChine', 'rGun', 'rLip', 'rTransom', 'railW', 'railT',
                       'keelW', 'keelH', 'skW', 'skH', 'wrDepth'];
 function scaleParams(base, k, over) {
@@ -22143,10 +22223,20 @@ function floatParamsFor(grossKg, over) {
 // their mass interpolated between neighbours — stated as estimates, not
 // facts. Displacement is per FLOAT; mSys per PAIR with rigging. The
 // model number is roughly the float's buoyancy in pounds.
-// `disp` is the catalogue's "displacement in fresh water", `flot` its
-// "maximum flotation" (the whole watertight hull, ~10 % more): the hull is
-// CALIBRATED so its volume to the deck is `flot`, and `disp` is the number
-// the plaque quotes.
+// `disp` is the catalogue's "displacement in fresh water" - ONE float's
+// watertight volume (kg of fresh water). `flot` is its "maximum flotation",
+// which Wipaire footnotes "per FAR 23.751 with 80 % reserve buoyancy (2
+// floats)": the heaviest AEROPLANE the PAIR may carry, 2 x disp / 1.8 =
+// disp / 0.9 on every row - NOT a hull's volume. presetParams fits the
+// family's fineness to `flot` (the bottom's shape, as it always was), then
+// SCALES the hull to `disp` with its shape kept (HYDRO-SCALE, USER 13 Nov):
+// ~8 % off the width, ~4 % off the length, the height the catalogue's. So a
+// catalogue pick is drawn a stated ~8 % narrower and ~4 % shorter than the
+// sheet's L and B: the family fills its box more fully than a Wipline does.
+// (Found by FIT-PROCEDURE's PC-6 fit via A0; flydiy-notes
+// HYDRO-DISP-DESIGN-2026-11-13.) A saved card keeps its own dials until it is
+// re-fitted. (EDO rows: `flot` IS one float's buoyancy, the EDO convention -
+// right as it stands.)
 const FLOAT_PRESETS = {
   'Wipline 1450':  { L: 4.60, B: 0.64, H: 0.50, disp: 658,  flot: 724,  mSys: 68,  gross: 650,  est: true,
                      for: 'light sport (Carbon Cub SS, Legend Cub)' },
@@ -22417,10 +22507,27 @@ function presetParams(name, over) {
   let f;
   if (R.flot >= vLo) f = lo; else if (R.flot <= vHi) f = 1;
   else { for (let i = 0; i < 18; i++) { const m = 0.5 * (lo + hi); if (volOf(m) > R.flot) lo = m; else hi = m; } f = 0.5 * (lo + hi); }
-  const P = fineParams(P0, f);
-  delete P._keel;
-  P.scale = k;
-  P.volRes = volOf(f) / R.flot - 1;      // the residual the range left (0 inside it)
+  const fitRes = volOf(f) / R.flot - 1;   // the residual the range left (0 inside it)
+  // HYDRO-SCALE (USER 13 Nov: "scaled to disp, shape kept"): the hull fitted to `flot` above is ~11 % too big (`flot`
+  // is the pair's FAR maximum aeroplane, disp / 0.9). It is SCALED to the row's `disp`, its shape kept: the width
+  // takes two thirds of the cut, the length a third, the height stays the catalogue's (ln sB = 2 ln sL; ~-8 % width,
+  // ~-4 % length). The bottom's angles (deadrise, sternpost, the plan's law) and the fineness stay as fitted; the
+  // details follow the new length, the shell's mass stays the catalogue's. Built as the garage rebuilds a hull from
+  // its rows (scaleParams at the new length), so a pick and its saved rows are the same hull. Tow-tank measured on
+  // 1450 / 2100 / 2350 / 3000 / 6100 (flydiy-notes HYDRO-DISP-DESIGN-2026-11-13 section 6): the hump R/W +1-3 % free,
+  // +7-8 % held at 5 deg, every float over its hump; 1-2.4 cm deeper at rest.
+  const atS = s => {
+    const L = R.L * s, Q = fineParams(scaleParams(DEF, L / DEF.L, Object.assign({}, WIPLINE_AFT, { B: R.B * s * s, H: P0.H,
+      hs: P0.hs, mFloat: P0.mFloat, preset: name, disp: R.disp })), f);   // (the step's depth is a height: kept)
+    delete Q._keel;
+    Q.scale = L / DEF.L;
+    return Q;
+  };
+  let sLo = 0.85, sHi = 1;
+  for (let i = 0; i < 30; i++) { const m = 0.5 * (sLo + sHi); if (makeFloat(atS(m)).volDeck * DEF.rho > R.disp) sHi = m; else sLo = m; }
+  const P = atS(0.5 * (sLo + sHi));
+  P.fitRes = fitRes;
+  P.volRes = makeFloat(P).volDeck * P.rho / R.disp - 1;
   return Object.assign(P, over || {});
 }
 
@@ -23252,7 +23359,9 @@ function genDriveSpec(def) {
   // ENGINE-DIALS (2026-11-09): A CUSTOM ENGINE READS NOTHING OFF THE TABLE'S ROW - its powerplant key is the join's
   // fallback (the A-65's: four cylinders), never its engine; its own row carries its cylinders and its maximum
   const custom = !!(def && def.spec && Array.isArray(def.spec.engines) && def.spec.engines[0] && def.spec.engines[0].custom);
-  const row = custom ? {} : (GEN_DRIVE.eng[P.powerplant] || {});
+  // (a key the table does not know reads the same engine's row: 00_registry genEngineRowKey - a runtime copy of the
+  // 582's row keeps its 6 800 rpm maximum and its two cylinders, not the 6 500 rated as its limit)
+  const row = custom ? {} : (GEN_DRIVE.eng[genEngineRowKey(GEN_DRIVE.eng, P.powerplant, PP && PP.engine)] || {});
   const rated = E.rpm > 0 ? E.rpm : 2300, gear = E.gear > 0 ? E.gear : 1;
   const cyl = (custom && E.cyl > 0 ? E.cyl : row.cyl) || (E.layout === 'radial' ? 7 : GEN_DRIVE.famCyl[E.family] || 4);
   const D = PR.D > 0 ? PR.D : 1.8, R = D / 2;
@@ -23388,6 +23497,17 @@ const GEN_NOSE = {
   muBark: 0.3,                                  // ...and sliding on a trunk: aluminium and a stopped prop on bark (GAME: dry
                                                 // wood on metal 0.2-0.6, as recalled; measured on the Cub's five
                                                 // worst winds: 0.2-0.4 hold, 0 and 0.5 each lose one - HANDOVER G2013)
+  // ENGINE-LUMP (10 Nov; the user's "crazy parts"; Deform's substep trace: the metal Cessna's 238 kg engine body, three
+  // nodes, took a 30 m/s trunk and turned 62 of its 107 kJ into its own ringing and spin - its corners 50 m/s off its CG,
+  // its members 8 cm stretched - instead of the crush): a crankcase is a rigid lump. In an armed frame (a trunk or the
+  // ground at the nose) and through a crash, the members inside one engine's body are damped along their length at
+  // lumpZ x critical for the pair (on top of their own), held under half the explicit bound (c dt / mu < 0.5). 0: off
+  lumpZ: 1,
+  // ...and the nose's push on the body's CG (its nodes' mass shares) in place of the two thrust nodes: ON - the A/B (Deform
+  // 11 Nov, the substep trace, 30 m/s into a trunk): the torn engine's peak internal energy (spin and ringing) metal 73.9 kJ
+  // (master) -> 33.7 (the lump alone) -> 3.5 kJ (the lump + this); the Jodel 29.5 -> 22.2 -> 0.7 kJ. G2014's reason (the
+  // Cub's crankcase tubes crushed at their floor, 10 of 49 winds) is GATE DMGNOSE's to judge
+  pushCg: true,
 };
 // Alexander's mean crush load of a shell of diameter D
 function genNoseShell(S, D) { return GEN_NOSE.alex * S.s0 * CORE_MATH.pow(S.t, 1.5) * Math.sqrt(Math.max(0, D)); }
@@ -33648,11 +33768,7 @@ const GEN_SURF_MATERIALS = {
             lin: GEN_MATERIALS.aluTube.lin, k: GEN_MATERIALS.aluTube.k,
             c: GEN_MATERIALS.aluTube.c,
             cover: 0.20, price: 30, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
-            refGross: 476, coverGauged: false,
-            // UL-WING (9 Nov): the lattice's stand-ins (the strut fan's hidden members, the plan's drag diagonals and rib
-            // members) bill 0.25 of the row's density: a tube-and-cable wing's compression tubes and drag wires. [TUNE] on
-            // the Chinook (172-209 kg) and the Ruckus's wing (the user's internals model: two tube spars, formed ribs)
-            standInK: 0.25 },
+            refGross: 476, coverGauged: false },
   // A WING'S SKIN IS NOT A FUSELAGE'S (PERF STUDY chantier 1, 2026-09-15):
   // the fuselage rows' cover carries frames, doors, floors and windows in
   // its 4.5 kg/m2; a wing panel is skin, stringers and ribs — a GA alloy
@@ -35027,21 +35143,8 @@ const GEN_DRAG = {
   // radial is a wall of cylinders (Hoerner: a nine-cylinder bare radial
   // ~ 0.5 m2 on a 450 hp engine's ~170 kW of heat), a Townend ring or a
   // NACA cowl takes two thirds of it off
-  // A RADIAL'S COWL BY ITS LENGTH (DRAG-SCALE 2026-11-09): a Townend ring is a short band (its chord ~0.3 of the
-  // engine's diameter) and keeps the 0.0009; a NACA cowl encloses the cylinders (chord 0.6 D and more) with baffles and
-  // cowl flaps, and its cooling drag falls to about a baffled flat engine's - a round face's 25 % over the pressure cowl
-  // (NACA TR 592, Theodorsen et al. 1937: the full cowling with baffles; Hoerner ch. 9). Between, by the cowl's chord
-  // over the engine's diameter (the cage's cw_cowlLen over 2 x engBox.cylReach), linear from ringLD to nacaLD.
   kCool: { pressureCowl: 0.0004, liquid: 0.0006, turbine: 0.0002,
-           radialBare: 0.0030, radialRing: 0.0009, radialNaca: 0.0005, ringLD: 0.35, nacaLD: 0.60 },
-  // THE REYNOLDS NUMBER ABOVE THE CALIBRATED SIZES (DRAG-SCALE 2026-11-09). Every skin coefficient (the materials'
-  // cdWet, the polars' 0.0055 + 0.018 t) was fitted on light aeroplanes: bodies to 7 m (the garage's default reads
-  // 7.6, hence lBody 8), chords to 1.6 m. A bigger body or chord flies at a higher Reynolds number, where turbulent skin friction is lower (Schlichting's
-  // Cf = 0.455 / (log10 Re)^2.58). Beyond the calibrated length its friction scales by Cf(Re) / Cf(Re at the
-  // calibrated length), at one reference speed (vRef: conservative, a big aeroplane flies faster). Up to lBody and
-  // cSurf the factor is 1: every light aeroplane is as calibrated. The finish's own penalty (matCd0: laps, rivets,
-  // roughness) does not scale: a rough skin is in the fully rough regime.
-  reynolds: { vRef: 60, nu: 1.46e-5, lBody: 8.0, cSurf: 2.0 },
+           radialBare: 0.0030, radialRing: 0.0009 },
   // the cylinders that stand outside the cowl: a bare finned block's Cd on
   // its own frontal (the nacelle rule's 0.9)
   cdBlock: 0.9,
@@ -35058,15 +35161,60 @@ const GEN_DRAG = {
   exhStack: 0.003,
 };
 
+// ENGINE COOLING (ENGINE-COOLING, the user 12 Nov: "planes look the way they look because they need these things ...
+// I'd rather that be encoded in physics"; futureDesigns/ENGINE-COOLING-2026-11.md, its defaults ruled "OK"). The heat
+// genEngineThermo says the engine rejects is carried off by AIR, and the air comes in through what is DRAWN: the cowl's
+// forward-facing openings, a scoop that faces the flight, a pusher nacelle's nose inlet, the wing radiators' mouths, the
+// cylinder heads left in the wind. Read by 62_gen_aero genCooling; the join measures the openings (spec.cooling).
+//   path      the air may warm by dT = eps (Tlim - T_ambient) before the hot side is at its limit: a hot day shrinks
+//             the gap, which is why a hot climb is the sizing case. PROPOSED constants, calibrated so the cowls fitted
+//             to real reference models (the Cub, the V2-172, the Jodel) pass the hot climb with a real margin (GATE COOL)
+//   ivr       the inlet's BEST velocity ratio V_inlet / V_free (ENGINE-COOLING 3): a small inlet, the engine's passages
+//             pulling hard behind it, runs near it (0.6-0.9 in a climb); a big one spills (the passages limit it)
+//   passages  the engine's own fins and baffles: `passages` x the air its hot climb needs, at that climb's inlet speed,
+//             with nothing ahead of them (an engine is built to be cooled); in series with the inlet and a drawn outlet,
+//             mdot = 1 / sqrt(sum 1 / mdot_i^2). Calibrated so the reference-fitted cowls (the Cub, the V2-172, the
+//             Jodel) keep a real margin and a big inlet stops buying air past ~3 x (it spills round the cowl)
+//   kappaBare the heads and fins left in the stream (the Cub's, a bare engine's), beside the cowl's air
+//   r         the exit velocity over the free stream: the momentum the air keeps (a baffled cowl 0.7, a radiator duct
+//             with a diffuser 0.8): cooling drag D = mdot V (1 - r), CdA = 2 (mdot / rho V) (1 - r)
+//   outRatio  the drawn outlet that passes the inlet's flow (the heated air is thinner: the classic 1.3 x)
+//   slip      the slipstream's share at a nose inlet (behind the propeller's roots), of the actuator disc's velocity
+//             ratio; a pusher's own inlets on the ground get `pushInflow` of the disc's static velocity (the prop sucks)
+//   suck      IN FLIGHT a pusher's prop sucks on the cowl's OUTLET, just ahead of the disc (the user 12 Nov, the Super
+//             Petrel: "it has quite a large opening"): the static pressure there falls by rho/2 ((V + v)^2 - V^2) of
+//             the disc's induced velocity v, so the pressure that drives the air through the engine grows and the flow
+//             with its root: V_in = V sqrt(1 + suck (f^2 - 1)), f = (V + v) / V the actuator disc's ratio; `suck` the
+//             share of v at the outlet (the hub's inner disc, like `slip`)
+//   hot       FAR 23.1043's climb cooling day: 38 C (100 F) at sea level, ISA + 23, full power at Vy
+//   taxi      the hot strip: 5 m/s, 20 % power, the slipstream does the work
+//   meredith  the heat added in a radiator DUCT is a little ramjet: thrust power ~ k M^2 Q (Meredith, RAE 1935); none on
+//             a cowl
+//   pass/warn the margin (air passed / air needed) the design check reads: under `pass` the engine overheats, under
+//             `warn` it runs hot
+const GEN_COOL = {
+  cp: 1005,
+  path: { air:      { Tlim: 160, eps: 0.30 },
+          liquid:   { Tlim: 110, eps: 0.55 },
+          electric: { Tlim: 70,  eps: 0.50 },
+          turbine:  { Tlim: 90,  eps: 0.50 } },
+  ivr: 0.8, passages: 3.0, kappaBare: 0.5,
+  r: { cowl: 0.70, duct: 0.80 },
+  outRatio: 1.3,
+  slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25, suck: 0.6,
+  hot: { dISA: 23, h: 0 },
+  taxi: { V: 5, power: 0.2 },
+  cruisePower: 0.75,
+  meredith: 0.1,
+  radMouth: 0.8,
+  pass: 1.0, warn: 1.15,
+  // the oil's red line, C (a light aero engine's 118 C / 245 F): the cockpit's needle reaches it at exactly enough air
+  oilRed: 118,
+};
+
 const GEN_GAUGE = {
   e: { fus: 0.30, wing: 0.49, tail: 0.41, gear: 0.75 },
   lo: 0.6, hi: 3.0,
-  // MASS-SCALE (2026-11-09): THE GEAR'S OWN CEILING. The 3.0 cap kept the gear of a Twin Wasp aeroplane at 3x a light
-  // one's while its gross is 10x: the DC-3's gear billed 2.4 % of its gross where a transport's is 4-5 % (Torenbeek,
-  // Synthesis of Subsonic Airplane Design 8.4; Raymer's transport gear law runs on (Nl Wl)^0.888, steeper than the
-  // GA 0.768 used here). The GA law, uncapped to 8, puts the DC-3's at 4.7 %. Only a gear whose raw gauge passes 3
-  // moves (a design gross over 4.3x its row's refGross: no light aeroplane)
-  hiBy: { gear: 8.0 },
   iterations: 20,        // Newton steps on the fixed point; fixed, so a double generate is byte-equal
 };
 
@@ -35156,44 +35304,18 @@ const GEN_ELEC = {
                note: 'Odyssey PC680 class' },
     lithium: { name: 'lithium 12 V, 13 Ah',   kg: 2.3, price: 520, Ah: 13,
                note: 'EarthX ETX900 class' },
-    // ELEC-SYSTEMS (9 Nov, futureDesigns/ELEC-SYSTEMS-2026-11.md): the CLASS rows, additive - no tier names them, so a
-    // build that never picked one resolves exactly as before. `set` is the engine's set the row belongs to (GEN_ELEC_SETS).
-    lifeSmall: { name: 'small lithium 12 V, 5 Ah', kg: 1.0, price: 260, Ah: 5, set: 'ultralight',
-                 note: 'LiFePO4 4A2P class, 0.91 kg - what a Rotax 912 iS is wired for' },
-    leadSmall: { name: 'small sealed lead 12 V, 9 Ah', kg: 3.2, price: 90, Ah: 9, set: 'ultralight',
-                 note: 'a powersport AGM (YTX9 class) - the two-stroke ultralights\' usual' },
-    leadHeavy: { name: 'heavy lead-acid 12 V, 35 Ah', kg: 12.5, price: 420, Ah: 35, set: 'heavy',
-                 note: 'Gill G-35 class for a radial\'s cranking (ESTIMATE: mass and price not sourced; 12 V - a DC-3 / C-47 bus is really 24 V, the game keeps one 12 V bus)' },
   },
   alternator: {
     none:  { name: 'no alternator',   kg: 0,   price: 0,   A: 0 },
-    // ELEC-SYSTEMS: `selfExcited` a machine that makes its own field - a DC generator off its iron's residual magnetism,
-    // a permanent-magnet generator - and so carries the bus with NO battery once the engine turns above its cut-in
-    // (a Rotax's regulator wants a 22 000 uF capacitor in place of the battery). An alternator excites its field from
-    // the battery: with none it never comes on line (FAA AC 20-40), so its dials stay refused.
-    gen20: { name: '20 A generator',  kg: 4.0, price: 450, A: 20, selfExcited: true, cableKgM: 0.055,
+    gen20: { name: '20 A generator',  kg: 4.0, price: 450, A: 20,
              note: 'the small Continentals\' belt generator; cuts in above idle' },
-    alt60: { name: '60 A alternator', kg: 4.5, price: 1150, A: 60, cableKgM: 0.13,   // PRICE-CAL: 800 -> 1 150 (Plane-Power, $1 057-1 287)
+    alt60: { name: '60 A alternator', kg: 4.5, price: 1150, A: 60,   // PRICE-CAL: 800 -> 1 150 (Plane-Power, $1 057-1 287)
              note: 'Plane-Power class, with its regulator' },
-    // ELEC-SYSTEMS: `cutIn` the PROP rpm the row starts charging at (absent = 1100, the bus's own default: a geared Rotax
-    // turns its prop ~2.4x slower than its crank, and its coil makes current from idle); `internal` the machine is inside
-    // the engine's dry weight (the bill is the regulator; nothing is drawn on the case)
-    coil12: { name: 'lighting coil + regulator, 12 A', kg: 0.8, price: 250, A: 12, cutIn: 500, internal: true, selfExcited: true, cableKgM: 0.055,
-              set: 'ultralight', note: 'the two-stroke\'s own lighting coil and a rectifier-regulator (Rotax 503 / 582)' },
-    int18:  { name: 'integrated generator, 18 A', kg: 0.9, price: 350, A: 18, cutIn: 700, internal: true, selfExcited: true, cableKgM: 0.055,
-              set: 'ultralight', note: 'the Rotax 912\'s 250 W internal generator and its external regulator' },
-    genHeavy: { name: 'heavy generator, 50 A', kg: 15.0, price: 2600, A: 50, selfExcited: true, set: 'heavy', cableKgM: 0.09,
-                note: 'engine-driven, on a radial\'s accessory pad (ESTIMATE: ~15-18 kg for the period units; 12 V here, 24 V on a DC-3)' },
   },
   starter: {
     none: { name: 'hand-propped',      kg: 0,   price: 0,   amps: 0 },
-    yes:  { name: 'electric starter',  kg: 4.0, price: 1100, amps: 150, cableKgM: 0.33,   // (2 AWG copper)   // PRICE-CAL: 700 -> 1 100 (Sky-Tec, $1 086-1 120)
+    yes:  { name: 'electric starter',  kg: 4.0, price: 1100, amps: 150,   // PRICE-CAL: 700 -> 1 100 (Sky-Tec, $1 086-1 120)
             note: 'Sky-Tec class; 150 A while cranking' },
-    // ELEC-SYSTEMS: `amps` is the bus's draw while cranking (cockpit.js reads it; `yes`'s 150 is the constant it had)
-    ul:    { name: 'ultralight electric starter', kg: 3.5, price: 650, amps: 80, cableKgM: 0.13,   // (6 AWG) set: 'ultralight',
-             note: 'Rotax 582 / 912 class (3.4-4.5 kg; 0.6 kW)' },
-    heavy: { name: 'heavy direct-cranking starter', kg: 15.0, price: 2800, amps: 300, cableKgM: 0.55,   // (1/0 AWG) set: 'heavy',
-             note: 'a radial\'s starter (DC-3: two Eclipse 12 V with brackets, 67 lb)' },
   },
   vac: {
     none:    { name: 'no suction',            kg: 0,   price: 0,   minV: 0 },
@@ -35202,20 +35324,8 @@ const GEN_ELEC = {
     pump:    { name: 'engine-driven vacuum pump', kg: 1.2, price: 600, minV: 0,
                note: 'dry pump on the accessory pad; suction whenever the engine turns' },
   },
-  // the harness: master + breakers + the wire. ELEC-SYSTEMS (9 Nov, the user: "go cable runs"; MASS-BUDGET.md): the
-  // wire is BILLED BY ITS RUNS, not a lump - it follows where the current goes, not how heavy the structure is:
-  //   the starter cable  battery -> contactor -> starter and its return, sized by the starter row's `cableKgM`
-  //   the charging lead  generator -> bus, by the charging row's `cableKgM`
-  //   a run per powered dial / radio (two 22 AWG conductors, `loadRunM` long)
-  //   the outside lights  every bus aeroplane carries them (GEN_PRICES.lights bills them so): the nav lights out to
-  //                      both tips, the tail light / beacon down the tail arm, the landing light a third out along
-  //                      each wing - two conductors each at their gauge
-  //   x `install` for the connectors, the clamps, the sleeving and the grommets
-  // A 172 reads 3.7 kg of wire against the 5-7 kg REAL-FIGURES calls real: `install` is the one knob to calibrate when a
-  // real harness weight is found. `kg` / `kgPerItem` are the rule this replaced (1.2 kg + 0.15 kg per powered item),
-  // kept for the record. The bus parts (master contactor, bus bar, breakers) are GEN_ELEC_PARTS.bus, billed with it.
-  harness: { kg: 1.2, kgPerItem: 0.15, price: 1200,   // PRICE-CAL: 250 -> 1 200 (wire, master, breakers; $500-3 000, est.)
-             runs: { loadRunM: 2, loadKgM: 0.006, navKgM: 0.012, landKgM: 0.025, minFeedM: 0.6, install: 1.6 } },
+  // the harness: master + breakers + the wire, once, plus a little per item
+  harness: { kg: 1.2, kgPerItem: 0.15, price: 1200 },   // PRICE-CAL: 250 -> 1 200 (wire, master, breakers; $500-3 000, est.)
 };
 // THE ELECTRICS AS INSTALLED PARTS (G2801, AVIONICS-GPS phase 2; futureDesigns/AVIONICS-STATUS-2026-10.md §1B, §1G).
 // The rows above BILL; this table says what each billed thing IS once it is bolted in: its size, and where it hangs.
@@ -35229,18 +35339,12 @@ const GEN_ELEC_PARTS = {
   battery: {
     lead:    { dims: [0.178, 0.079, 0.168], note: 'Odyssey PC680: 178 x 79 x 168 mm' },
     lithium: { dims: [0.150, 0.086, 0.132], note: 'EarthX ETX900: 150 x 86 x 132 mm' },
-    lifeSmall: { dims: [0.113, 0.070, 0.105], note: 'a 4-cell LiFePO4 brick' },
-    leadSmall: { dims: [0.150, 0.087, 0.105], note: 'YTX9 class: 150 x 87 x 105 mm' },
-    leadHeavy: { dims: [0.260, 0.170, 0.220], note: 'a heavy cranking battery' },
   },
   alternator: {
     gen20: { len: 0.21, dia: 0.11, note: 'a belt generator on the case top' },
     alt60: { len: 0.16, dia: 0.13, note: 'Plane-Power class, gear-driven on the accessory pad' },
-    genHeavy: { len: 0.30, dia: 0.16, note: 'a radial\'s engine-driven generator' },
   },
-  starter: { yes: { len: 0.19, dia: 0.09, note: 'Sky-Tec class, on the ring gear' },
-             ul: { len: 0.15, dia: 0.08, note: 'a Rotax-class starter' },
-             heavy: { len: 0.30, dia: 0.17, note: 'a radial\'s direct-cranking starter' } },
+  starter: { yes: { len: 0.19, dia: 0.09, note: 'Sky-Tec class, on the ring gear' } },
   // the bus: the master contactor and the bus bar (`kg`), plus a breaker each (`perBreaker`) - the share of the
   // harness row that is not wire. The wire is the rest of the row, so the two always add up to it exactly.
   bus: { kg: 0.45, perBreaker: 0.03 },
@@ -35249,48 +35353,6 @@ const GEN_ELEC_PARTS = {
   breakerSizes: [1, 2, 3, 5, 7.5, 10, 15, 20, 25, 30, 35],
   breakerMargin: 1.4, fieldA: 5,
 };
-// THE ENGINE'S SETS (ELEC-SYSTEMS, 9 Nov; futureDesigns/ELEC-SYSTEMS-2026-11.md). Not a new kind of choice: each set is
-// the three catalogue rows (battery, charging, starter) an engine of that size usually carries, so the garage can mark
-// them on the parts' own tiles and fit them in one press. 'light' is the basic tier's own set (the Cub's, the Jodel's),
-// so the tiers and every saved build stay where they were. The engine only SUGGESTS (genElecSetOf); nothing applies it.
-//   ultralight  a Rotax 503 / 582 / 912: a small battery, the engine's own coil or generator, a 3.5 kg starter (~6 kg)
-//   light       a Continental / Lycoming flat four or six: PC680, 20 A generator, Sky-Tec (~15 kg, as every build had)
-//   heavy       a radial: a cranking battery, an engine-driven generator, a direct-cranking starter (~43 kg)
-// (the vacuum source is not in a set: it follows the gyros, not the engine)
-const GEN_ELEC_SETS = {
-  ultralight: { name: 'Ultralight', battery: 'leadSmall', alternator: 'coil12', starter: 'ul',
-                note: 'two-stroke or Rotax 912 class: a small battery, the engine\'s own coil, a light starter' },
-  light:      { name: 'Light', battery: 'lead', alternator: 'gen20', starter: 'yes',
-                note: 'flat four or six (Continental, Lycoming): what the basic fit carries' },
-  heavy:      { name: 'Heavy', battery: 'leadHeavy', alternator: 'genHeavy', starter: 'heavy',
-                note: 'a radial or a big piston: cranking battery, engine-driven generator, heavy starter' },
-};
-// AS BUILT (REAL-FIGURES, 9 Nov: "engine mass cannot tell a 1940 trainer from a 1950 Beaver"): where history says what an
-// engine's aeroplanes carried, that wins over the mass rule. Kept OUT of POWERPLANTS (its rows ride into the build's
-// params, so a field there would move every build's fingerprint). Keyed by the powerplant row.
-const GEN_ELEC_AS_BUILT = {
-  a65_sensenich74:  { set: 'none', why: 'the A-65-8 of the J-3 Cub and the Jodel D.11: no starter, no generator - hand-propped' },
-  clerget9b_wood:   { set: 'none', why: 'a 1917 rotary (the Camel): magnetos only, swung by hand' },
-  gipsymajor1_wood: { set: 'none', why: 'the Tiger Moth as built: no electrics (some post-war ones got a wind generator for lights)' },
-  w670_hs2b:        { set: 'none', why: 'the PT-17 as delivered: no electrical system, a hand-cranked inertia starter' },
-  mikron3_wood:     { set: 'none', why: 'a 1930s light engine: magnetos only, swung by hand' },
-};
-// the set the engine suggests: none for a motor or a turbine (a pack or its own starter-generator), ultralight for a
-// two-stroke or anything under 70 kg dry (a Rotax 912 is 57-61 kg), heavy over 200 kg (the radials), light between.
-// A Rotax 912's own coil is the 18 A integrated generator, a two-stroke's the 12 A lighting coil: `alternator` says which.
-function genElecSetOf(engine, key) {
-  const E = engine || {};
-  const AB = key && GEN_ELEC_AS_BUILT[key];
-  if (AB) return { set: AB.set, why: (E.name || key) + ': ' + AB.why };
-  if (E.family === 'electric') return { set: null, why: 'an electric motor: the pack starts it, no 12 V starter' };
-  if (E.family === 'turbine') return { set: 'heavy', why: 'a turbine: a heavy starter-generator' };
-  const kg = +E.mass || 0;
-  if (E.family === 'two' || (kg > 0 && kg < 70))
-    return { set: 'ultralight', alternator: E.family === 'two' ? 'coil12' : 'int18',
-             why: (E.name || 'the engine') + ', ' + Math.round(kg) + ' kg: an ultralight\'s electrics' };
-  if (kg > 200) return { set: 'heavy', why: (E.name || 'the engine') + ', ' + Math.round(kg) + ' kg: a heavy engine\'s electrics' };
-  return { set: 'light', why: (E.name || 'the engine') + ', ' + Math.round(kg) + ' kg: a light aeroplane\'s electrics' };
-}
 // THE LAMPS' DRAWS (A at 12 V) - cockpit.js's LIGHT_AMPS moved into the core (E6): the bus, the breaker sizes and
 // GATE ELEC read one table. The beacon draws half its rating on average (the lamp is pulsed).
 const GEN_LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
@@ -35428,30 +35490,6 @@ const GEN_SYSTEMS_SIDES = ['pilot', 'centre'];
 //                   opts.lights, the light keys the build has FITTED) one per outside light and one for the cabin's
 //   parts[]         {key, kind, name, kg, at, dims | len/dia} - the electrics as installed things (GEN_ELEC_PARTS);
 //                   the bus and the wire split the harness row and add up to it exactly
-// THE HARNESS BY ITS RUNS (ELEC-SYSTEMS, 9 Nov; GEN_ELEC.harness above). Pure on the spec, so the frame, the ledger and
-// the column bill one number: the bus parts (contactor, bar, a breaker per powered load and the field's - the lights'
-// breakers are 30 g each and left out, so the number does not depend on the lights the caller names) plus the wire.
-// Lengths from the spec: the engine's station (the firewall is x = 0; a pusher's engine aft of it), the widest wing's
-// span, the tail arm.
-function genHarnessKg(S, elec, nPowered) {
-  const H = GEN_ELEC.harness.runs, PT = GEN_ELEC_PARTS.bus;
-  const eng = S && S.engines && S.engines[0];
-  // (lengths to the centimetre: a wire run is an estimate, and the join measures the engine's station to a few 1e-9 m
-  // differently from node - GATE JOINPARITY - which an unrounded length carried into every node of the build)
-  const cm = x => Math.round(x * 100) / 100;
-  const feed = Math.max(H.minFeedM, cm(Math.abs((eng && +eng.x) || 0) + 0.2));
-  let span = 0;
-  for (const w of (S && S.wings) || []) if (w && +w.span > span) span = cm(+w.span);
-  const arm = cm((S && S.fuselage && +S.fuselage.tailArm) || 0);
-  const st = GEN_ELEC.starter[elec.starter], al = GEN_ELEC.alternator[elec.alternator];
-  let w = 0;
-  if (st && st.cableKgM) w += 2 * feed * st.cableKgM;
-  if (al && al.cableKgM) w += (feed + 0.4) * al.cableKgM;
-  w += nPowered * 2 * H.loadRunM * H.loadKgM;
-  w += 2 * (span / 2) * 2 * H.navKgM + (arm + 0.5) * 2 * H.navKgM + 2 * (span / 6 + 1) * 2 * H.landKgM;
-  const bus = PT.kg + PT.perBreaker * (nPowered + (al && al.A > 0 ? 1 : 0));
-  return +(bus + H.install * w).toFixed(3);
-}
 function genSystemsResolve(S, opts) {
   const sy = (S && S.systems) || {};
   const tier = GEN_SYSTEMS[sy.fit] ? sy.fit : 'basic';
@@ -35478,9 +35516,7 @@ function genSystemsResolve(S, opts) {
   const src = (custom ? sy.items
             : (T.items || GEN_SYSTEMS.basic.items)).map(k => (battery && k === 'fuelSight') ? 'fuel' : k);
   const seen = new Set(), items = [], dropped = [];
-  // a bus: a battery, or a self-exciting generator with none (it lives only above its cut-in - the cockpit's bus says
-  // so in flight; the dials, the radios and the harness are fitted and billed as on any bus)
-  const hasBus = elec.battery !== 'none' || !!(GEN_ELEC.alternator[elec.alternator] && GEN_ELEC.alternator[elec.alternator].selfExcited);
+  const hasBus = elec.battery !== 'none';
   const vacOn = elec.vac !== 'none';
   // NO ROOM ON THE DASH (G2808, the user: "Wysiwyg, and as billed for all"): what the panel's layout could not place
   // (a dial, a radio head, the GPS, a breaker - the join writes `noRoom` from the layout the dash was drawn with) is
@@ -35538,7 +35574,7 @@ function genSystemsResolve(S, opts) {
   if (hasBus) {
     const H = GEN_ELEC.harness;
     rows.push({ key: 'harness', group: 'elec', name: 'master, breakers and harness',
-                kg: genHarnessKg(S, elec, nPowered), price: H.price, amps: 0 });
+                kg: +(H.kg + H.kgPerItem * nPowered).toFixed(3), price: H.price, amps: 0 });
   }
   // THE BREAKERS (G2801): a load is fed through its own, the radios' through theirs on the avionics bus
   const breakers = [];
@@ -35574,7 +35610,6 @@ function genSystemsResolve(S, opts) {
     const cleanPart = g => { const o = {}; for (const q of ['dims', 'len', 'dia']) if (g[q] != null) o[q] = g[q]; return o; };
     put('battery', 'firewallLow');
     put('alternator', 'engine');
-    { const a = parts.find(q => q.key === 'alternator'); if (a && GEN_ELEC.alternator[elec.alternator].internal) a.internal = true; }
     put('starter', 'engine');
     put('vac', 'engine');
     const hr = rows.find(r => r.key === 'harness');
@@ -35584,26 +35619,6 @@ function genSystemsResolve(S, opts) {
                    kg: busKg, at: 'panel', breakers: breakers.length });
       parts.push({ key: 'wire', kind: 'wire', name: 'the wire', kg: hr.kg - busKg, at: 'panel' });
     }
-  }
-  // THE REFUSALS THAT ARE NOT DROPS (ELEC-SYSTEMS, 9 Nov): what the fit carries and bills but can never work. Said, not
-  // removed - removing them would move the mass of every saved build that carries them. The column paints them red.
-  const warnings = [];
-  const motor = !!(S && S.energy && S.energy.kind === 'battery');
-  if (elec.starter !== 'none' && motor)
-    warnings.push({ key: 'starterOnMotor', why: 'an electric motor is started by its pack: the 12 V starter is dead weight' });
-  else if (elec.starter !== 'none' && elec.battery === 'none')
-    warnings.push({ key: 'starterNoBatt', why: 'a starter with no battery cannot crank: the prop is swung by hand' });
-  if (elec.alternator !== 'none' && !hasBus)
-    warnings.push({ key: 'altNoBatt', why: 'an alternator with no battery never comes on line (its field is excited from the battery): nothing electric can be fed' });
-  else if (elec.alternator !== 'none' && elec.battery === 'none')
-    warnings.push({ key: 'genOnly', why: 'no battery: the generator feeds the bus only while the engine turns above its cut-in - every electric dial, radio and lamp is dead on the ground and at idle' });
-  // the engine's set the three rows make together, or null for a mix
-  let elecSet = null;
-  if (elec.battery === 'none' && elec.alternator === 'none' && elec.starter === 'none') elecSet = 'none';
-  else for (const c of Object.keys(GEN_ELEC_SETS)) {
-    const C = GEN_ELEC_SETS[c];
-    if (elec.battery === C.battery && elec.starter === C.starter &&
-        (elec.alternator === C.alternator || (c === 'ultralight' && elec.alternator === 'int18'))) { elecSet = c; break; }
   }
   const sum = g => rows.filter(r => r.group === g)
     .reduce((a, r) => ({ kg: a.kg + r.kg, price: a.price + r.price }), { kg: 0, price: 0 });
@@ -35616,13 +35631,7 @@ function genSystemsResolve(S, opts) {
     kg: panel.kg + el.kg + av.kg, price: panel.price + el.price + av.price,
     loads, breakers, parts, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
     altA: GEN_ELEC.alternator[elec.alternator].A,
-    starter: elec.starter !== 'none', vac: elec.vac,
-    // ELEC-SYSTEMS: the bus's catalogue numbers (absent on a row = the bus's old constants, 1100 rpm and 150 A)
-    altCutIn: GEN_ELEC.alternator[elec.alternator].cutIn || 1100,
-    starterA: GEN_ELEC.starter[elec.starter].amps || 150,
-    altInternal: !!GEN_ELEC.alternator[elec.alternator].internal,
-    altSelf: !!GEN_ELEC.alternator[elec.alternator].selfExcited,
-    warnings, elecSet,
+    starter: elec.starter === 'yes', vac: elec.vac,
     // A3: what the `fuel` slot measures on this build - 'fuel' (litres, a
     // sender per tank, on the bus) or 'battery' (the pack's state of charge,
     // fed by the pack). The dash paints it and the cockpit reads it by this.
@@ -35841,7 +35850,8 @@ const GEN_SEAPLANE_PROPS = {
                     for: 'Cessna 172 / 172R / 172S on Wipline 2350 (Wipaire STC)' },
 };
 
-// COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
+// COWL INTAKES. Texture only, deliberately (and still: ENGINE-COOLING measures the cowl's DRAWN openings - its
+// apertures, its scoop, its exits - not these louvres; 62_gen_aero genCoolOpen): a grill drawn on the cover reads at
 // every distance the aeroplane is ever seen from, and a modelled duct would cost
 // a hole in the one panel whose whole job since G1.7 has been to have no holes
 // in it ("a big opening… either the prop attachment or an air intake").
@@ -36244,11 +36254,9 @@ const GEN_STOL = {
   // into the ledger's own 'stol' row (61_gen_frame, per plane, onto the wing nodes the device hangs on - the mass
   // flies where it is, and the damage layer takes it with its wing). Kit catalogue and type-data figures as recalled,
   // +-30 %, in the game's credits (dollar-like: the Cub's A-65 bills ~10 000, the whole Cub ~30 000):
-  //   slot   a fixed aluminium slat on its brackets: ~0.8 kg per metre of span (SLAT-KG, was 1.2), ~280 / m (the Zenith 701 slat pair
+  //   slot   a fixed aluminium slat on its brackets: ~1.2 kg per metre of span, ~280 / m (the Zenith 701 slat pair
   //          ~1500 for ~5.5 m)
-  //   auto   the Handley Page slat on tracks and rollers: ~1.2 kg/m, ~420 / m (the tracks are the weight and the money)
-  //          (SLAT-KG, the user 9 Nov: "recalibrate the slats weight" - 1.8 billed a Ruckus's full-span pair 18.6 kg; a
-  //          SuperSTOL-class aluminium slat on its tracks ~1.1-1.3 kg/m, a fixed slot ~0.8: estimates, +-30 %)
+  //   auto   the Handley Page slat on tracks and rollers: ~1.8 kg/m, ~420 / m (the tracks are the weight and the money)
   //   vg     a vortex-generator row: ~80 g per metre of span (the vanes are a few grams each, glued), the kit ~1100
   //          for an aeroplane (Micro AeroDynamics' Cub / Cessna kits ~1000-1400)
   //   cuff   a moulded leading-edge glove: ~0.6 kg/m, ~200 / m
@@ -36257,7 +36265,7 @@ const GEN_STOL = {
   //   grow   the Fowler's longer tracks and carriage: ~1.0 kg per metre of flap span, ~250 / m
   //   plate  an endplate (formed sheet, its doubler): ~1.5 kg, ~350 each
   //   tipD   a drooped glassfibre tip over a plain one: +0.6 kg, ~300 each (Super Cub drooped tips ~600-800 a pair)
-  cost: { slot: { kgM: 0.8, perM: 280 }, auto: { kgM: 1.2, perM: 420 }, vg: { kgM: 0.08, kit: 1100 },
+  cost: { slot: { kgM: 1.2, perM: 280 }, auto: { kgM: 1.8, perM: 420 }, vg: { kgM: 0.08, kit: 1100 },
           cuff: { kgM: 0.6, perM: 200 }, fence: { kg: 0.25, each: 90 }, droop: { kg: 3.0, kit: 900 },
           grow: { kgM: 1.0, perM: 250 }, plate: { kg: 1.5, each: 350 }, tipD: { kg: 0.6, each: 300 } },
 };
@@ -36293,36 +36301,7 @@ function genEngPropD0(S, e0, PP0) {
   if (e0 && e0.custom) return (S.prop && S.prop.D > 0) ? S.prop.D : 1.80;
   return PP0.prop.D;
 }
-// STRUT-OPTIONS (2026-11-10): the wing's lift-strut section (wgStrutSec 0 = profiled) and jury strut (wgJury 0 = none)
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1, brkHold: 0, wgStrutSec: 0, wgJury: 0 };
-// STRUT-OPTIONS (2026-11-10): THE LIFT STRUT'S OPTIONS - the figures the frame (61_gen_frame, the jury strut's members)
-// and the aero (62_gen_aero genStrutOptCdA, the drag of a round strut and of the jury) read. None is read by a build
-// without bracing.section / bracing.jury.
-//   juryAt     the jury's clamp, the fraction of the lift strut's length from its foot ("from the middle of the
-//              truss", the user; the J-3's and PA-18's jury struts clamp near mid-strut, Piper's parts drawings)
-//   juryMassK  the drawn jury member's mass against the wing class's per metre. MEASURED on the Ruckus (fabric on
-//              aluminium): the class bills 0.50 kg/m on its lift strut; a 1 in x .035 4130 jury tube is 0.53 kg/m
-//              (25.4 x 0.89 mm, 7.85 t/m3) and a 25 x 1.2 mm 6061 one 0.24 kg/m - the class's own figure sits in
-//              that band, so 1 (the jury is billed as the lift strut's own tube per metre)
-//   cdStream   a streamline strut's drag coefficient on its frontal thickness: the figure the model already bills
-//              the lift strut and the truss at (62_gen_aero genGearCdA, G185), kept
-//   cdRound    a round tube's, on its diameter: a circular cylinder across the flow below the drag crisis (Re =
-//              V D / nu ~ 3e4-1e5 for a 25-50 mm tube at 15-35 m/s) is Cd 1.0-1.2 (Hoerner, Fluid-Dynamic Drag,
-//              1965, ch. 3 fig. 1 / Table: 1.17 two-dimensional, ~1.0 at a finite length-to-diameter of 20-40); 1.1
-//              taken. The streamline section is ~0.06-0.10 on its thickness (Hoerner ch. 6, strut sections at t/c
-//              0.25-0.33): a round strut of the same frontal is ~11x the drag
-//   tubeD      a round lift strut's diameter: 1.75 in (44.5 mm) 6061-T6, the ultralight class's (the Ruckus's and
-//              the Kolb / Quicksilver lift struts are 1.5-2 in round tube)
-//   juryT      a jury strut's frontal: 1 in (25 mm), round or streamline (the J-3's are small streamline tubes)
-const GEN_STRUT_OPT = { juryAt: 0.5, juryMassK: 1, cdStream: 0.10, cdRound: 1.1, tubeD: 0.045, juryT: 0.025 };
-// the options a spec asks of its lift struts: { round, jury, lift } - `lift` the member option a whole lift strut
-// carries (null when it carries none: the bytes every build had)
-function genStrutOpts(S) {
-  const Bq = (S && S.bracing) || {};
-  const round = Bq.section === 'tube';
-  const jury = Bq.jury === 'wing' || Bq.jury === 'cabin' ? Bq.jury : null;
-  return { round, jury, lift: round ? { strut: 'lift', round: true } : null };
-}
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1, brkHold: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -36350,7 +36329,7 @@ const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFai
                            engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
 // WILGA-GEAR: the trailing-link leg's rows per station (tools/_gear_page.js LEG_ROWS[4]) at the value a build without them
 // draws (_cage_gen CAGE_DEFAULT_ABSENT holds the same)
-const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0 }, o = {};
+const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0, lvJoint: 0 }, o = {};
   for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the flat base copy too)
   return o; })();
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
@@ -36880,11 +36859,7 @@ const GEN_RULES = {
   // a 26" bush tyre (0.33) 12, a 4" microlight wheel (0.13) 1.2 — the
   // exponent sits between area and volume. The stock Cub (R 0.20 / 0.10)
   // reproduces the 3.5 / 2.0 literals it had.
-  // BUSH-WHEELS (the user 9 Nov: "we need big bush wheels that work"): a low-pressure BALLOON carcass (the cage's whProfile
-  // 1, tundra) is light for its size - a thin carcass on a small hub: an Aero Classic / Airstreak 26" (R 0.33) tyre ~5 kg,
-  // with its tube and a 6" wheel ~8 kg; a 31" bushwheel assembly (R 0.39) ~9-10 kg (makers' listings, as recalled). Its own
-  // law, R^1.6 off the same 3.5 kg anchor: 7.8 / 10.2 kg (the standard carcass's R^2.5 billed 12.2 / 18.6)
-  wheelKg:     (R, prof) => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, prof === 1 ? 1.6 : 2.5),
+  wheelKg:     R => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, 2.5),
   wheelTwKg:   R => 2.0 * CORE_MATH.pow(Math.max(0.03, R) / 0.10, 1.5),
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
@@ -36919,15 +36894,6 @@ const GEN_RULES = {
   // material's cover is the load-bearing skin. The stiffness is the
   // member's own either way.
   boxWebK:     0.30,
-  // BIPLANE-SIZING (2026-11-09, 61_gen_frame buildPlane): a wired plane's spar caps bill their braced moment over a
-  // Cub-like strut monoplane's, ^2/3, held in [0.35, 1]. Its cantilever box on a cloth wing may bill a fraction of its
-  // density (trussBoxK) - MEASURED and left at 1: the box at 0.10 put the Tiger Moth at -10 % and the PT-17 at -25 %
-  // against their books (0.30: -5 / -19), where at 1 with the spar relief they read 520 kg (book 506-535) and 831 (876):
-  // the box's density stands in for what the lattice bills nowhere else on a wired wing - the deep spars' webs, the
-  // compression ribs, the strut and wire fittings. The Camel's surplus (+31 %) is its own (a 1917 fighter's
-  // featherweight build: no construction row for it yet). reports/evidence/MASS-SCALE-2026-11-09/biplane_sweep.txt
-  trussSparK:  [0.35, 1],
-  trussBoxK:   1,
 };
 
 // SECTIONS (G3). The spec is organised the way the aeroplane is, and the way
@@ -37016,18 +36982,7 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      wheel's springs in series with its tyre and its breakout past the pawl's arc, the lockable / fixed / skid kinds,
 //      a twin boom's wheel a boom - so a certificate's ground cases (the taxi, the roll-out, the drops onto the tail)
 //      move; the plaque's probes in the air do not
-//   8  (never on master: claimed by ELEC-SYSTEMS and PROP-CLASSES while unmerged; ELEC-SYSTEMS lands inside 9 below)
-//   9  2026-11-13, REAL-CANON (L40b; A0: one bump, one certificate re-pin for both):
-//      PHYS-SCALE (the REAL-FIGURES study, the user's 8-10 Nov approvals): DRAG-SCALE (a radial's NACA cowl by its length,
-//      skin friction at the Reynolds number of bodies over 8 m and chords over 2 m), MASS-SCALE (the gear's own gauge
-//      ceiling, 8), BIPLANE-SIZING (a wired plane's spar caps by their braced moment), BUSH-WHEELS (a balloon carcass
-//      R^1.6), SLAT-KG (slats 1.2 / slots 0.8 kg/m), UL-WING (the aluminium-tube wing's stand-ins at 0.25) - the mass, the
-//      drag and so the certificate of every build they reach move; a light aeroplane none reaches does not.
-//      + ELEC-SYSTEMS (the user's ruling "go cable runs, no need of latent"): the wiring harness is billed by its cable runs
-//      (genHarnessKg: the starter cable, the charging lead, a run per powered load, the outside lights over the span and
-//      the tail arm) where it was 1.2 kg + 0.15 kg per item - every aeroplane with a bus weighs a little more (the Cub
-//      +1.7 kg empty, MASS-BUDGET.md)
-const PHYSICS_V = 9;
+const PHYSICS_V = 7;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -38291,8 +38246,14 @@ function clampWing(w, S, k) {
 // that hid every over-size drawing until 2026-09-07. Metres, and chord
 // FRACTIONS for the controls. Widen here, nowhere else.
 const GEN_TAIL_ENVELOPE = {
-  hSpan: [1.50, 4.50], hChord: [0.40, 1.60],
-  vHeight: [0.60, 2.20], vChord: [0.40, 1.80],
+  // PC6-TAIL (2026-11-12): the stab's span to 6.0 m and the fin's height to 3.0 m (were 4.5 / 2.2). A 2.8 t STOL
+  // utility aeroplane under 18 m of wing - the Pilatus PC-6/B2-H4, a 5.13 m tailplane and a ~2.5 m fin - flew
+  // clamped. Nothing downstream was sized to the old ceiling: the stab truss takes 2..4 bays on any span, the fin the
+  // same up the post, the polars read hSpan^2/Sh and vHeight^2/Sv, mass and inertia are billed per bay off the area,
+  // and the big envelope below already flies an 8 m stab and a 4.3 m fin. A tail inside the old bounds is not touched
+  // (the clamp is the identity there); only a value the old ceiling cut moves.
+  hSpan: [1.50, 6.00], hChord: [0.40, 1.60],
+  vHeight: [0.60, 3.00], vChord: [0.40, 1.80],
   // G3503 (DC3-BUILD): A BIG AEROPLANE'S TAIL (genBig: a wing over 18 m) - the
   // DC-3's 8.2 m x 2.25 m stab and its 3 m fin of 2.9 m chord, with headroom
   // (DC3-EDITABLE: the ~40 m class's - a 12 m x 4 m stab, a 5.5 m fin of 4.5 m chord)
@@ -38303,8 +38264,6 @@ const GEN_TAIL_ENVELOPE = {
   elevChord: [0.15, 0.65], rudChord: [0.15, 0.65],
   // P4: the trapezoid the truss stands on — tip over root chord
   hTaper: [0.35, 1.0], vTaper: [0.35, 1.0],
-  // (REAL-CANON, A0 13 Nov: PETREL-LS's floor, 0.15, holds only for a tail stated `drawn` - its card's tailDrawn row)
-  drawnTaperLo: 0.15,
 };
 
 // THE FIELD REGISTRY (SPEC-FIXPOINT G1550-G1559, the 2026-10-04 review's E3).
@@ -38800,12 +38759,7 @@ function clampSpec(spec) {
   // T2.3 (83): the lift struts drawn per side — the V pair (2, every build
   // before) or a single front strut (1); the truss is the same either way
   S.bracing.struts = Math.round(+S.bracing.struts) === 1 ? 1 : 2;
-  if (+S.bracing.cabPylon === 1) S.bracing.cabPylon = 1; else delete S.bracing.cabPylon;
-  // STRUT-OPTIONS (2026-11-10): the lift strut's section ('tube'; absent = the streamline section every build before
-  // had) and its jury strut ('wing' | 'cabin'; absent = none). Anything else, null included (the join STATES a row back
-  // at its default as null, so the garage's merge can take it off), is deleted: absent is the old bytes
-  if (S.bracing.section !== 'tube') delete S.bracing.section;
-  if (S.bracing.jury !== 'wing' && S.bracing.jury !== 'cabin') delete S.bracing.jury;   // HULL-B78: the central pylon (absent = struts)
+  if (+S.bracing.cabPylon === 1) S.bracing.cabPylon = 1; else delete S.bracing.cabPylon;   // HULL-B78: the central pylon (absent = struts)
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
@@ -38973,11 +38927,8 @@ function clampSpec(spec) {
   dr.len    = genClamp(dr.len    == null ? 0.34 : dr.len,    0, 2.00);
   if (S.tail.tipV != null && !GEN_TIPS[S.tail.tipV]) S.tail.tipV = null;
   if (S.tail.tipH != null && !GEN_TIPS[S.tail.tipH]) S.tail.tipH = null;
-  // REAL-CANON (A0 13 Nov): `drawn` - PETREL-LS's drawn-tail rules - is stated (1) or absent, never false
-  if (S.tail.drawn) S.tail.drawn = 1; else delete S.tail.drawn;
-  const tapLo = S.tail.drawn ? GEN_TAIL_ENVELOPE.drawnTaperLo : GEN_TAIL_ENVELOPE.hTaper[0];
-  S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, tapLo, GEN_TAIL_ENVELOPE.hTaper[1]);
-  S.tail.vTaper = genClamp(S.tail.vTaper == null ? 1 : S.tail.vTaper, tapLo, GEN_TAIL_ENVELOPE.vTaper[1]);
+  S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, ...GEN_TAIL_ENVELOPE.hTaper);
+  S.tail.vTaper = genClamp(S.tail.vTaper == null ? 1 : S.tail.vTaper, ...GEN_TAIL_ENVELOPE.vTaper);
   if (!['conventional', 'v', 'twinBoom'].includes(S.tail.type)) S.tail.type = 'conventional';
   S.tail.boomX = genClampN(S.tail.boomX, 0.3, 4.0);
   S.tail.boomLen = genClampN(S.tail.boomLen, 0.5, 8.0);
@@ -39102,8 +39053,7 @@ function clampSpec(spec) {
   // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
   // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
   // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
-  // TAIL-RETRACT (2026-11-09): ...and a taildragger's MAINS (the DC-3's into its nacelles): its tailwheel stays down, fixed
-  if (S.gear.retract && typeof S.gear.retract === 'object' && (S.gear.type === 'tricycle' || S.gear.type === 'taildragger')) {
+  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
     const r = S.gear.retract;
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
@@ -39242,7 +39192,7 @@ function clampSpec(spec) {
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
   fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
-  fu.postGap = genClamp(fu.postGap, S.tail && S.tail.drawn ? 0.05 : 0.35, 1.10);   // (PETREL-LS's 0.05: a drawn tail's, latent)
+  fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
   // The TAIL-END SECTION. These were in the spec from the start but had no
@@ -40838,14 +40788,6 @@ const GEN_BAYS = {
     serves: 'the second plane’s outboard spar bay',
     span: [0.55, 0.88], feed: 'pumped',
   },
-  // PETREL-LS (the user, 10 Nov: "ensure that we have put the fuel tank where it actually is" - the Super Petrel's
-  // tanks are in the LEADING EDGE of the lower wings): the second plane's D-box, nose to front spar, root to the outer
-  // panel; its kilos ride the front spar's nodes only (the frame has no node ahead of the spar)
-  wing2LE: {
-    name: 'Second wing leading edge', on: 'wing', plane: 1, le: true,
-    serves: 'the second plane’s leading-edge D-box, nose to front spar',
-    span: [0.12, 0.88], feed: 'gravity', chord: [0.02, null],
-  },
   // G477 (the Chinook's blueprint, the user: "it carries what I believe are
   // reservoirs on its struts ... Strut-mounted tanks, ogival"): A POD ON EACH
   // FRONT LIFT STRUT, one tank a side, the pair sharing the vessel's litres.
@@ -40907,13 +40849,11 @@ function genBayResolve(S, key, ST) {
     // G185: a bay on the second plane measures the second plane
     const wk = (B.plane && S.wings && S.wings[B.plane]) || S.wing;
     if (B.plane && !(S.wings && S.wings[B.plane])) return null;
-    let litres = genWingBay(wk, { spanLo: B.span[0], spanHi: B.span[1],
-      ...(B.chord ? { cLo: B.chord[0], cHi: B.chord[1] != null ? B.chord[1] : GEN_RULES.sparFront } : {}) });   // (PETREL-LS: a leading-edge bay's chord)
+    let litres = genWingBay(wk, { spanLo: B.span[0], spanHi: B.span[1] });
     const wellL = genBayWellL(S, B);                        // G3: the gear's wells in this span
     if (wellL > 0) litres = Math.max(0, litres - wellL);
     return { key, name: B.name, on: 'wing', feed: B.feed, free: !!B.free,
              plane: B.plane || 0,                    // G185: which plane holds it
-             ...(B.le ? { le: true } : {}),          // (PETREL-LS: on the front spar's nodes)
              span: B.span.slice(), litres, ...(wellL > 0 ? { wellL } : {}),
              // where its mass acts: the mid-span of the bay, both sides
              zFrac: 0.5 * (B.span[0] + B.span[1]) };
@@ -41620,9 +41560,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const D = Math.PI / 180;
   const nodes = [], beams = [];
   const degenerate = [];                            // B10: the members B() refused (zero length)
-  // STRUT-OPTIONS (2026-11-10): where the lift struts' optional drag acts - one 4-node blob a side on the struts' own
-  // ends (refs.strutDrag), only when the spec asks for a strut option (the bytes every build had otherwise)
-  const strutDragRefs = [];
   const clusters = [];                              // G294: rigid node groups (the tube)
   // G327: a fin's cluster — its truss and the station it stands on — with
   // its stiffness declared as a K_tip for the end-of-lattice resolution
@@ -41982,12 +41919,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
-    // STRUT-OPTIONS (2026-11-10): what a lift-strut member IS, only where the wing's strut rows asked for it
-    // (bracing.section / bracing.jury): 'lift' a whole lift strut, 'half' one of its two halves at a jury strut's
-    // clamp, 'jury' the jury strut, 'tie' the hidden fore-and-aft tie between the pair's clamps; `round` the tube
-    // section. Absent on every member of every build without the rows (the bytes they were).
-    if (opt && opt.strut) bm.strut = opt.strut;
-    if (opt && opt.round) bm.round = true;
     if (opt && opt.pre) bm.pre = opt.pre;
     // G1803 (DMG-D0): THE LEDGER SECTION open as the member is built (sec(): 'fuselage', 'wings', 'bracing', 'tail', 'gear',
     // 'engines', ...) - the one its mass and money are billed to below, so the repair bill (DEFORM §10) sums a beam's
@@ -42077,10 +42008,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const bk = bucketOf(cls, mnt);
       const g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
-      // BIPLANE-SIZING (2026-11-09): a member's own MASS factor (opt.massK: a braced spar's relief, a truss plane's box
-      // stand-in) - the mass and the bill only; its stiffness, damping and section are the member's as before
-      const mKm = (opt && opt.massK > 0) ? opt.massK : 1;
-      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK * mKm, h = h0 * g1;
+      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK, h = h0 * g1;
       if (bk && !GG) { const G = gauged[bk]; G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
         if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
@@ -42145,6 +42073,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // would be noise. Structure is priced by its own mass; things that are BOUGHT
   // rather than built (engine, wheels, instruments, paint) call spend().
   const ledger = {};
+  // the outfit row's own items as billed (PHYSICS-PAGES, the mass page: "what is in Fittings?"); a record, no mass of its own
+  let outfitKg = null;
+  // ...and the gear row's kilos by node as billed (PHYSICS-PAGES: main gear / tail or nose wheel / floats on the page)
+  let gearDm = null;
   let SEC = 'fuselage';
   // WHAT IS THE AEROPLANE AND WHAT IS THE LOAD. `pt()` bills crew, fuel and
   // freight into the same node masses the structure uses — it has to, the
@@ -42179,7 +42111,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const trace = (typeof globalThis !== 'undefined' && globalThis.GEN_MASS_TRACE) ? (e.nodeM || (e.nodeM = [])) : null;
     for (let i = 0; i < nodes.length; i++) {
       const dm = nodes[i].m - (secSnap[i] || 0);
-      if (dm) { e.mx += dm * P[i][0]; if (trace) trace.push([i, dm]); }
+      if (dm) { e.mx += dm * P[i][0]; if (trace) trace.push([i, dm]); if (SEC === 'gear') (gearDm || (gearDm = [])).push([i, dm]); }
     }
   };
   const secOpen = () => { secSnap = nodes.map(n => n.m); };
@@ -42664,7 +42596,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const cH = w.position === 'parasol' ? (w.cabaneH == null ? 0.55 : w.cabaneH) : 0;
     return cab.h * POSk + (cH > 0 ? cH : R.wingStandoff * (POSk >= 0.75 ? 1 : POSk <= 0.25 ? -1 : 0));
   };
-  const sparKs = [];            // BIPLANE-SIZING: each plane's braced-spar mass factor (parts.sparK)
   const buildPlane = (k) => {
   sec('wings');
   curPlane = k;
@@ -42729,37 +42660,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // cantilever depth and cantilever cap stiffness; a lighter braced-spar
   // row (spruce I-beam sized for the braced case) is owed.
 
-  // BIPLANE-SIZING (2026-11-09, the user: "go ahead with the biplane wing sizing pass"; the owed braced-spar row above).
-  // THE BRACED SPAR'S MASS. The wing class's linear density was fitted on the Cub's spar: a strut monoplane carrying the
-  // whole lift, its worst moment the overhang's (0.45 of the semispan, w a^2 / 2 = 0.101 w s^2). A wired plane carries its
-  // SHARE of the lift (its area's) and its worst moment is the larger of its own overhang beyond the interplane station
-  // (a^2 / 2) and its bay between the root and that station (b^2 / 8, the wires and the strut its supports). Its spar caps
-  // bill (that moment over the Cub-like monoplane's) ^ 2/3 - a section of similar shape sized to its moment - between
-  // GEN_RULES.trussSparK's floor and 1. The stiffness stays the cantilever lattice's (GATE BIPLANE flies it).
-  // ...AND ITS BOX IS A STAND-IN: the cantilever box below gives the planar two-spar wing the depth its real spar has
-  // inside its own section - the lower caps and the webs are not a second spar - and its lower plan diagonals repeat the
-  // drag bracing the upper plane's diagonals already bill. On a CLOTH wing (a skinned wing's webs are its skin, boxWebK)
-  // the box's members bill GEN_RULES.trussBoxK of their density: the compression ribs' and the fittings' share.
-  const TRK = R.trussSparK || [0.35, 1];
-  let sparK = 1;
-  if (trussHere) {
-    const Sw0 = (S.geom.planes || []).reduce((t, p) => t + (p.Sw || 0), 0);
-    const phi = Sw0 > 0 && G.Sw > 0 ? G.Sw / Sw0 : 0.5;
-    const s0 = G.semi, a = Math.max(0, s0 - zIP), b = Math.max(0, zIP - zRoot);
-    const Mk = phi * Math.max(a * a / 2, b * b / 8), Mref = 0.10125 * s0 * s0;
-    sparK = Math.min(TRK[1], Math.max(TRK[0], CORE_MATH.pow(Mk / Mref, 2 / 3)));
-  }
-  const SPAR = sparK < 1 ? { massK: sparK } : undefined;
-  // UL-WING (the user 9 Nov: "we overestimate the wing weight by a factor 2 ... that's the kind of wing we should support
-  // easy"): a surface row may say how much of a member's density its STAND-INS bill - the strut fan's hidden members (the
-  // two drawn lift struts stay whole) and the wing plan's drag diagonals and rib members (a real tube-and-cable wing's are
-  // compression tubes and drag wires, not spar caps). `standInK` on the row; absent = 1, every row but the ultralight's
-  const MWk = genSurfMaterial(S, 'wing', k), SIK = MWk && MWk.standInK > 0 && MWk.standInK < 1 ? MWk.standInK : 1;
-  const STAND = SIK < 1 ? { massK: SIK } : undefined;
-  const boxCloth = trussHere && !(GEN_SURF_MATERIALS && genSurfMaterial(S, 'wing', k).coverGauged);
-  const boxK = R.trussBoxK == null ? 1 : R.trussBoxK;
-  const TBOX = boxCloth && boxK !== 1 ? { massK: boxK } : undefined, TWEB = boxCloth && boxK !== 1 ? { web: true, massK: boxK } : null;
-  sparKs[k] = sparK;
   // is this the UPPER plane of the pair (the box caps go on the far side)
   const upperHere = !S.biplane || S.wings.length < 2
     || (k === 0 ? yOfPlane(S.wings[0]) >= yOfPlane(S.wings[1])
@@ -42877,8 +42777,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // PILLAR-ANCHORS (P4): a PICKED pillar (S.bracing.strutAt, its ring's station, the join's) roots the strut on
     // that ring - the C pillar's included, the box clamp being the auto rule's; absent, the rule above, unchanged
     const strutAt = S.bracing && S.bracing.strutAt != null ? +S.bracing.strutAt : null;
-    const iStrutRing = strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox);
-    const strutRoot = F[iStrutRing][opposeTag + sd];
+    const strutRoot = F[strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox)][opposeTag + sd];
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
@@ -42904,14 +42803,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
             const yR = Math.max(P[F[i].TL][1], P[F[i].TR][1]), b = N(ST[i].x, yR, s * CABPY_HW, 'CPB');
             B(b, F[i].TL, 'cabane', false, 'inner'); B(b, F[i].TR, 'cabane', false, 'inner');
             const m = cabPyBase.get(i + '_' + (-s)); if (m != null) B(b, m, 'cabane', false, 'inner');
-            // PYLON-FOOT (Deform's certificate lookup, 13 Nov): a base sits ON its ring's top cross line, so its ties
-            // (both top longerons, its mirror) are one straight line; a base under ONE root has a single strut up, and the
-            // plane they span leaves a direction with no member at all - the certificate's static solve filled it with
-            // 1e8-4e8 N (the Petrel's cabane in every flight case). Each base is also tied fore and aft along the roof,
-            // to the neighbouring rings' top longeron on its side (the pylon's own longerons, inside the fairing)
-            const topSd = s > 0 ? 'TR' : 'TL';
-            // (massless: the fairing's own skin and the pylon's frame are billed above - these stand for its stiffness)
-            for (const j of [i - 1, i + 1]) if (F[j] && F[j][topSd] != null) B(b, F[j][topSd], 'cabane', false, 'inner', undefined, { noMass: true });
             pt(b, 1.5 * 2 * Math.max(0.1, P[nd][1] - yR) * 0.3);
             cabPyBase.set(key, b);
           }
@@ -42942,10 +42833,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const WR = zs.map(z => N(xRat(z), yF(z) - sparSpacing * Math.tan(incAt(z)), s * z, 'WR'));
     const cF = [rootF, ...WF], cR = [rootR, ...WR];
     for (let i = 0; i < zs.length; i++) {
-      B(cF[i], cF[i + 1], 'wing', 0, 0, 0, SPAR); B(cR[i], cR[i + 1], 'wing', 0, 0, 0, SPAR);   // the spars (BIPLANE-SIZING)
-      B(cF[i + 1], cR[i + 1], 'wing', 0, 0, 0, STAND);         // rib (UL-WING: a stand-in's share on the ultralight row)
+      B(cF[i], cF[i + 1], 'wing'); B(cR[i], cR[i + 1], 'wing');
+      B(cF[i + 1], cR[i + 1], 'wing');                       // rib
       // rule 4 again: the wing plan bay is a quad and gets its diagonals
-      B(cF[i], cR[i + 1], 'wing', 0, 0, 0, STAND); B(cR[i], cF[i + 1], 'wing', 0, 0, 0, STAND);
+      B(cF[i], cR[i + 1], 'wing'); B(cR[i], cF[i + 1], 'wing');
       const zi = i === 0 ? zRoot : zs[i - 1], zo = zs[i];
       cover(1.9 * (zo - zi) * 0.5 * (chordAt(zi) + chordAt(zo)),
             [cF[i], cF[i + 1], cR[i], cR[i + 1]]);
@@ -43004,63 +42895,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // T2.3 (83): ONE strut (bracing.struts 1) draws only the front member;
       // the rear one stays as a hidden fan member, so the truss the physics
       // flies is the same aeroplane — the drawing is what changes
-      // STRUT-OPTIONS (2026-11-10, the user on the Ruckus and the Cub: "an option so that these are simply tubes ...
-      // from the middle of the truss, you got another half one going back towards the cabin ... we model this little
-      // one as well"). Neither option touches a build without its row: no `section`, no `jury` -> the two lines as
-      // they always were.
-      const SOPT = genStrutOpts(S);
-      // THE DRAG ACTS WHERE THE STRUTS ARE (REAL-FIGURES' finding on the first cut, 10 Nov: billed on the body's
-      // axial row it acted at the cabin ring's blob, well aft of the CG on a rod-boom ultralight, and weathercocked
-      // the Ruckus - SM 7.6 -> 17.1 %, the spiral 12.6 s -> a 4.5 s fail). The blob's four nodes are the strut's
-      // foot and its wing end(s): their mean is the drawn strut's (or the V pair's) middle, on this side, so each
-      // side's drag reads its own air (a yaw rate drags the advancing side's harder: the damping a real strut gives)
-      if (SOPT.round || SOPT.jury)
-        strutDragRefs.push((S.bracing && S.bracing.struts) === 1
-          ? [strutRoot, WF[iStrut], strutRoot, WF[iStrut]]
-          : [strutRoot, WF[iStrut], strutRoot, WR[iStrut]]);
-      if (!SOPT.jury) {
-        B(strutRoot, WF[iStrut], 'wing', true, 0, 0, SOPT.lift || undefined);
-        B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1, 0, 0, SOPT.lift || undefined);
-      } else {
-        // THE JURY STRUT. A clamp node on each lift strut at GEN_STRUT_OPT.juryAt of its length from the foot; the
-        // strut is the two halves either side of it, each at TWICE the class k so the pair in series is the one
-        // strut's axial spring it was (30_solver: F = k dL, a member's k does not scale with its length), and
-        // their masses sum to the whole strut's (half L each). From the clamp:
-        //   'wing'   the J-3 / PA-18 arrangement: a short strut UP to the wing's spar at the station nearest the
-        //            clamp, inboard of the lift strut's own (the front clamp to the front spar, the rear to the rear);
-        //   'cabin'  the Ruckus's (the user: "going back towards the cabin"): a strut AFT and in to the fuselage's
-        //            wing-side longeron one ring behind the strut's foot.
-        // A clamp on a straight strut with one brace off it is a hinge (two directions at the node), so the pair's
-        // clamps are joined by a HIDDEN fore-and-aft tie and a diagonal, massless: the jury fitting's own stiffness
-        // across the pair (GATE GEN's rank test is the proof they are needed and enough: GATE STRUTOPT). On a single strut (bracing.struts 1) the
-        // rear member is still in the truss, hidden, and so are its halves, its jury and the tie.
-        const tops = [WF[iStrut], WR[iStrut]], spars = [cF, cR];
-        const drawn = [true, (S.bracing && S.bracing.struts) !== 1];
-        const f = GEN_STRUT_OPT.juryAt, rp = P[strutRoot];
-        const iTo = SOPT.jury === 'cabin' ? Math.min(F.length - 1, iStrutRing + 1) : -1;
-        const zMid = Math.abs(rp[2]) + f * (Math.abs(P[tops[0]][2]) - Math.abs(rp[2]));
-        let jSt = 0;                                  // the spar station nearest the clamp, inboard of the strut's
-        for (let j = 0; j <= iStrut; j++)
-          if (Math.abs(Math.abs(P[cF[j]][2]) - zMid) < Math.abs(Math.abs(P[cF[jSt]][2]) - zMid)) jSt = j;
-        const mids = [];
-        for (let m = 0; m < 2; m++) {
-          const tp = P[tops[m]];
-          const md = N(rp[0] + f * (tp[0] - rp[0]), rp[1] + f * (tp[1] - rp[1]), rp[2] + f * (tp[2] - rp[2]), 'JS');
-          mids.push(md);
-          const HALF = { kx: 2, strut: 'half', ...(SOPT.round ? { round: true } : {}) };
-          B(strutRoot, md, 'wing', drawn[m], 0, 0, HALF);
-          B(md, tops[m], 'wing', drawn[m], 0, 0, HALF);
-          const to = SOPT.jury === 'cabin' ? F[iTo][side] : spars[m][jSt];
-          // (a hidden jury - the single strut's rear - is massless: it stands for the clamp's stiffness, not for a tube)
-          B(md, to, 'wing', drawn[m], 0, 0, { strut: 'jury', ...(drawn[m] ? { massK: GEN_STRUT_OPT.juryMassK } : { noMass: true }),
-                                              ...(SOPT.round ? { round: true } : {}) });
-        }
-        B(mids[0], mids[1], 'wing', 0, 0, 0, { strut: 'tie', noMass: true });
-        // ...and its diagonal, the front clamp to the rear strut's wing end: two clamps on two straight struts are six
-        // freedoms, held by the two struts, the two juries and the tie - five; the diagonal is the sixth (the rank
-        // test's 3n - 6 found the hinge without it)
-        B(mids[0], tops[1], 'wing', 0, 0, 0, { strut: 'tie', noMass: true });
-      }
+      B(strutRoot, WF[iStrut], 'wing', true);
+      B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1);
       // fan ends: station 0 always; the TIP pair only where the fan may
       // reach it — an uncranked wing (byte-identical emissions). On a
       // cranked wing nothing reaches past the crank; the outer panel's
@@ -43071,7 +42907,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         ? (iStrut === 0 ? [] : [WF[0], WR[0]])
         : [WF[0], WR[0], WF[WF.length - 1], WR[WR.length - 1]];
       for (const t of ends)
-        B(strutRoot, t, 'wing', 0, 0, 0, STAND);                // (UL-WING: the fan, a stand-in)
+        B(strutRoot, t, 'wing');
       // ...AND EVERY STATION IN BETWEEN (2026-08-11, GATE FLEX matrix).
       // The four lines above reach exactly three stations: 0, mid=1 and the
       // last. `wing.panels` is a PLAYER SLIDER clamped 2..5, so at 4 panels the
@@ -43108,7 +42944,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         // G140: the crank station already carries the REAL struts — a fan
         // pair on top would be the panels-2 double-stiffness case, chosen
         if (zCrank && i === iStrut) continue;
-        B(strutRoot, WF[i], 'wing', 0, 0, 0, STAND); B(strutRoot, WR[i], 'wing', 0, 0, 0, STAND);
+        B(strutRoot, WF[i], 'wing'); B(strutRoot, WR[i], 'wing');
       }
       // G140: THE OUTER PANEL OF A CRANKED STRUTTED WING IS A BOX — the
       // C172's construction: strut to the crank joint, cantilever box from
@@ -43172,18 +43008,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         cFB.push(mkLower(cF[i], z, xFat(z), sparFront));
         cRB.push(mkLower(cR[i], z, xRat(z), sparRear));
         // station cell: webs down from each cap, lower rib, and its diagonals
-        // (BIPLANE-SIZING: on a wired cloth plane the box is the spar's own depth - TWEB / TBOX bill trussBoxK)
-        const WB_ = TWEB || WEB;
-        B(cF[i], cFB[i], 'wing', 0, 0, 0, WB_); B(cR[i], cRB[i], 'wing', 0, 0, 0, WB_);
-        B(cFB[i], cRB[i], 'wing', 0, 0, 0, WB_);
-        B(cF[i], cRB[i], 'wing', 0, 0, 0, WB_); B(cR[i], cFB[i], 'wing', 0, 0, 0, WB_);
+        B(cF[i], cFB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cRB[i], 'wing', 0, 0, 0, WEB);
+        B(cFB[i], cRB[i], 'wing', 0, 0, 0, WEB);
+        B(cF[i], cRB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cFB[i], 'wing', 0, 0, 0, WEB);
       }
       for (let i = 0; i < zs.length; i++) {
-        const WB_ = TWEB || WEB;
-        B(cFB[i], cFB[i+1], 'wing', 0, 0, 0, TBOX); B(cRB[i], cRB[i+1], 'wing', 0, 0, 0, TBOX);   // lower caps
-        B(cFB[i], cRB[i+1], 'wing', 0, 0, 0, WB_); B(cRB[i], cFB[i+1], 'wing', 0, 0, 0, WB_);   // lower plan
-        B(cF[i], cFB[i+1], 'wing', 0, 0, 0, WB_); B(cFB[i], cF[i+1], 'wing', 0, 0, 0, WB_);     // front web
-        B(cR[i], cRB[i+1], 'wing', 0, 0, 0, WB_); B(cRB[i], cR[i+1], 'wing', 0, 0, 0, WB_);     // rear web
+        B(cFB[i], cFB[i+1], 'wing'); B(cRB[i], cRB[i+1], 'wing');   // lower caps
+        B(cFB[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cFB[i+1], 'wing', 0, 0, 0, WEB);   // lower plan
+        B(cF[i], cFB[i+1], 'wing', 0, 0, 0, WEB); B(cFB[i], cF[i+1], 'wing', 0, 0, 0, WEB);     // front web
+        B(cR[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cR[i+1], 'wing', 0, 0, 0, WEB);     // rear web
       }
       // and the box has to carry through the fuselage too, or the whole
       // bending moment still arrives at a point (rule 3)
@@ -44065,22 +43898,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // drops by the spar spacing x tan(hInc) (LE up +, x aft +); the aero
   // reads the stab's chord off these nodes, so the tail flies its setting
   const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
-  // FIN-MOUNT (10 Nov, the user on the Petrel's tail: "the rudder really ... gets completely confused"): A STAB RAISED
-  // UP THE FIN HANGS ON THE FIN. Its root and tip ties ran to the post and the last ring whatever its height - right
-  // for a Cub's stab on the cone, but a cruciform stab 0.37 m up the fin drew them as long diagonals and wires down
-  // through the rudder. Raised clear of the post's top (more than 0.15 m), the fin gets a row AT the stab's height
-  // and the stab's roots tie to that row, its tips' up-and-down wires to the rows above and below (the Cub's own
-  // brace, carried up the fin). On the cone (every stab under that line): the rule below, to the bit.
-  // (REAL-CANON, A0 13 Nov: latent - a tail stated `drawn` only, its card's tailDrawn row: the Super Petrel V4.2's)
-  const stabOnFin = !!t.drawn && (stabY - P[TPT][1]) > 0.15;
-  const stabTips = [];
   const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
   for (const [sd, sg] of [['L', -1], ['R', 1]]) {
     HF[sd] = zsH.map(z => N(xFH(z), stabY, sg * z, 'HF'));
     HR[sd] = zsH.map(z => N(xRH(z), stabY - (xRH(z) - xFH(z)) * tanI, sg * z, 'HR'));
     HB[sd] = zsH.map(z => SO(N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'), dep * chordH(z) - stHalf));
     const ring = sd === 'L' ? [last.TL, last.BL] : [last.TR, last.BR];
-    if (!stabOnFin) for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
+    for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
       B(nd, TPB, 'tail'); B(nd, TPT, 'tail');
       for (const r of ring) B(nd, r, 'tail');
     }
@@ -44123,9 +43947,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // with steel WIRES from the tips up to the fin post and down to its foot
     // — tension-only, the G185 wire law, drawn — and the tip still ties to
     // the last ring's pair as the old tips did (the lattice's own roll path)
-    // (FIN-MOUNT: the tip's wires go up and down the fin, below; its ties to the last ring stay - they are the stab's
-    // roll path, G199.5: hung on the fin alone the v7 ultralight's stab rolled 5.4 deg on its mains through the taxi)
-    if (stabOnFin) { stabTips.push([H, sd]); for (const r of ring) B(H, r, 'tail'); continue; }
     B(H, TPT, 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
     B(H, TPB, 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
     for (const r of ring) B(H, r, 'tail');
@@ -44152,34 +43973,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const xFV = u => t.vX + rakeV * hV * u + (sparF - 0.5) * chordV(u);
   const xRV = u => t.vX + rakeV * hV * u + (0.5 - CR) * chordV(u);
   const nV = Math.max(2, Math.min(3, Math.round(hV / 0.55)));
-  // (FIN-MOUNT: the interior row nearest the raised stab moves to its height - the stab's roots land on it)
-  const uV = []; for (let i = 0; i <= nV; i++) uV.push(i / nV);
-  let jStab = -1;
-  if (stabOnFin) {
-    const us = (stabY - yV0) / hV;
-    if (us > 0.5 / nV && us < 1 - 0.5 / nV) {
-      jStab = 1; for (let i = 1; i < nV; i++) if (Math.abs(uV[i] - us) < Math.abs(uV[jStab] - us)) jStab = i;
-      uV[jStab] = us;
-    }
-  }
   const VF = [], VR = [], VX = [], VX2 = [];
   for (let i = 0; i <= nV; i++) {
-    const u = uV[i], y = yV0 + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
+    const u = i / nV, y = yV0 + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
     VF.push(N(xFV(u), y, 0, 'VF')); VR.push(N(xRV(u), y, 0, 'VR'));
     // the pair either side: the fin's own thickness, a diamond section
     VX.push(SO(N(xm, y, 0.5 * dep * chordV(u), 'VX'), 0.5 * dep * chordV(u) - finHalf));
     VX2.push(SO(N(xm, y, -0.5 * dep * chordV(u), 'VX'), 0.5 * dep * chordV(u) - finHalf));
   }
   for (const nd of [VF[0], VR[0], VX[0], VX2[0]]) {
-    // FIN-MOUNT (10 Nov): A ROOT AHEAD OF THE LAST RING STANDS ON THE BAY UNDER IT TOO. A swept fin's root runs forward
-    // along the boom (the Petrel's front spar 0.8 m ahead of the post) and hung on the post alone. Ahead of the last
-    // ring, the root node also ties to the top pair of the ring before it (the last ring's pair it already has). The post
-    // ties stay: they are what holds the post's top square for a stab on the cone (GATE TAKEOFF's stab roll, G199.5:
-    // taken off, the stand's stab rolled 5-6 deg on its post through the taxi). Over the last ring or aft of it: to the bit
-    const xn = P[nd][0];
-    let k = -1;
-    if (xn < lastST.x - 0.02) for (let i = ST.length - 2; i >= 0; i--) if (ST[i].x <= xn) { k = i; break; }
-    if (t.drawn && k >= 0 && F[k] && F[k] !== last) { B(nd, F[k].TL, 'tail'); B(nd, F[k].TR, 'tail'); }   // (latent, as above)
     B(nd, TPT, 'tail'); B(nd, TPB, 'tail');                   // the root, the keel row to TPB
     B(nd, last.TL, 'tail'); B(nd, last.TR, 'tail');
   }
@@ -44212,37 +44014,20 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       B(VF[i], X[i + 1], 'tail'); B(X[i], VF[i + 1], 'tail');
       B(VR[i], X[i + 1], 'tail'); B(X[i], VR[i + 1], 'tail');
     }
-    const bayV = hV * (uV[i + 1] - uV[i]) * 0.5 * (chordV(uV[i]) + chordV(uV[i + 1]));
+    const bayV = (hV / nV) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV));
     cover(1.9 * bayV, [VF[i], VF[i + 1], VR[i], VR[i + 1], VX[i], VX[i + 1], VX2[i], VX2[i + 1]]
                         .concat(i === nV - 1 ? [FIN] : []));
-    const ribV = Math.max(1, Math.round((hV * (uV[i + 1] - uV[i])) / 0.4)) * 0.5 * (chordV(uV[i]) + chordV(uV[i + 1])) * 0.30;
+    const ribV = Math.max(1, Math.round((hV / nV) / 0.4)) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV)) * 0.30;
     pt(VF[i + 1], 0.5 * ribV); pt(VR[i + 1], 0.5 * ribV);
   }
   for (const nd of [VF[nV], VR[nV], VX[nV], VX2[nV]]) B(FIN, nd, 'tail');   // the apex on the last section
   pt(FIN, 1.15 * cTipV * 0.30);              // the apex's bow (G235), as the tips'
   B(FIN, VF[nV - 1], 'tail'); B(FIN, VR[nV - 1], 'tail');   // ...and out of its plane (the same mechanism)
-  // FIN-MOUNT: the raised stab's roots on the fin's row at its height (its own side's section node, both spars, the
-  // rows above and below for depth), its tips braced up and down the fin as a Cub's to its post (tension wires)
-  if (stabOnFin) {
-    const j = jStab >= 1 ? jStab : 1;
-    for (const sd of ['L', 'R']) {
-      const XS = sd === 'R' ? VX : VX2;
-      for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
-        B(nd, VF[j], 'tail'); B(nd, VR[j], 'tail'); B(nd, XS[j], 'tail');
-        B(nd, XS[j - 1], 'tail'); B(nd, XS[Math.min(nV, j + 1)], 'tail');
-      }
-    }
-    for (const [H, sd] of stabTips) {
-      const XS = sd === 'R' ? VX : VX2;
-      B(H, XS[Math.min(nV, j + 1)], 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
-      B(H, XS[j - 1], 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
-    }
-  }
   // G327: the fin as one cluster with the post and the last ring it stands on
   finCluster('FIN', [...VF, ...VR, ...VX, ...VX2, FIN], [TPT, TPB, last.TL, last.TR],
              hV, chordV(0), MB, { front: VF[0], rear: VR[0], tip: FIN });
   TAIL = { HF, HR, HB, VF, VR, VX, VX2, zsH, semiH, zRootH, chordH, hV, chordV, nV,
-           fins: [{ VF, VR, VX, VX2, FIN, side: 1, hV, chordV, nV, uV }],   // G268: one fin here, two on a twin boom (FIN-MOUNT: its rows' heights)
+           fins: [{ VF, VR, VX, VX2, FIN, side: 1, hV, chordV, nV }],   // G268: one fin here, two on a twin boom
            sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };
   }
 
@@ -44439,8 +44224,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // THE BRAKES (GEN_BRAKES): the pair's mass on the mains, its price with the wheels; absent: nothing (as it was)
   const BRK = genBrakeOf(S), mBrk = BRK ? 0.5 * BRK.kg : 0;
   if (BRK) spend(BRK.price);
-  const whProf = Math.round(+((S.cage && S.cage.whProfile) || 0));    // (BUSH-WHEELS: the carcass's own law)
-  pt(GAL, R.wheelKg(S.gear.wheelR, whProf) + mFairMain + mBrk); pt(GAR, R.wheelKg(S.gear.wheelR, whProf) + mFairMain + mBrk);
+  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk);
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -44567,13 +44351,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
     pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
   }
-  // TAIL-RETRACT (2026-11-09): A TAILDRAGGER'S RETRACTION KIT, on the mains' axles (their actuators, locks and
-  // trunnions; the tailwheel stays fixed); priced once, as the tricycle's
-  if (!trike && S.gear.retract && GAL != null && GAR != null) {
-    const kit = R.retractKg(gross);
-    pt(GAL, kit / 2); pt(GAR, kit / 2);
-    spend(GEN_PRICES.retract);
-  }
   } if (hullGear) {   // (HULL-B55: after the wheels on an amphibian - was `else if`)
     // ---- THE BOAT HULL (HULL-B3, futureDesigns/HULL-TYPES-2026-11.md §3.5). ONE centreline hull record: the drawn
     // fuselage's keel / chine / gunwale lines as 32_hydro's station table (hullParamsFromTable), so the water pushes
@@ -44695,7 +44472,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // unset, the same rule off this build's gross (HYDRO.hullTipFit)
       const fit0 = (TP.kg > 0 && TP.y > -0.999) ? null : HYDRO.hullTipFit(HR, gross || 400);
       const kgT = TP.kg > 0 ? TP.kg : fit0.kg, yRel = TP.y > -0.999 ? TP.y : fit0.y;
-      const TPP = HYDRO.tipFloatParams(kgT, TP.len);   // (PETREL-LS: the row's length, unset the family's own)
+      const TPP = HYDRO.tipFloatParams(kgT);
       const tAt = TP.at != null ? TP.at : 0.85;
       for (const [sd, W] of [[-1, WFT.L], [1, WFT.R]]) {
         // the spar station nearest tAt of the semispan
@@ -44736,14 +44513,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           B(Lt[1], W.F[j], 'gear', true, undefined, undefined, KMh); B(Rt[1], W.F[j], 'gear', true, undefined, undefined, KMh);
           B(Lt[2], W.R[j], 'gear', true, undefined, undefined, KMh); B(Rt[2], W.R[j], 'gear', true, undefined, undefined, KMh);
           B(Lt[0], W.F[j], 'gear', true, 'wire', undefined, KMh); B(Rt[0], W.R[j], 'gear', true, 'wire', undefined, KMh);
-          // TIP-FLOAT ROLL (Deform's certificate lookup, 13 Nov): every strut above lands on ONE spar station, its front
-          // and rear nodes, so the float could roll about that chord line as a rigid body (the outrigger's own note); the
-          // certificate's static solve filled that freedom with 1e7-1e8 N in every flight case (the Petrel's TFD-TFD). The
-          // struts' root fittings are clamped: the deck edges at the step and aft also tie to the next station inboard
-          // (hidden and massless, NMh: the fitting's stiffness, not a drawn member)
-          const jIn = j > 1 ? j - 1 : (j + 1 < W.F.length ? j + 1 : null);
-          if (jIn != null) { B(Lt[1], W.F[jIn], 'gear', false, 'inner', undefined, NMh); B(Rt[1], W.F[jIn], 'gear', false, 'inner', undefined, NMh);
-                             B(Lt[2], W.R[jIn], 'gear', false, 'inner', undefined, NMh); B(Rt[2], W.R[jIn], 'gear', false, 'inner', undefined, NMh); }
         }
         const slabT = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
           K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
@@ -44881,7 +44650,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // the bow station sits where the hull still has a beam: the Wipline's
     // bow closes to a POINT at -xs, and three coincident nodes made a
     // zero-length beam (strain Infinity in GATE FLOATS)
-    const stas = [-0.93 * FP.xs, -FP.flatK * FP.xs, 0, xAft, FP.L - FP.xs];
+    const stas = [-0.93 * FP.xs, -Math.min(0.9 * FP.xs, FP.flatK * FP.xs + (+FP.rigFwd || 0)), 0, xAft, FP.L - FP.xs];   // FLOAT-RIG-FWD: the front fitting moved (absent: the keel flat's end)
     // THE RIGGING (G396.3): the keel incidence, bow down positive, about the
     // step keel — the layer draws the hull through the same rotation. The
     // tetra and the slab stay float-local (the pose is read off the nodes).
@@ -45162,12 +44931,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
-      // (PETREL-LS: the second plane's panel is an outboard bay too - it sat at the root; a leading-edge bay, the
-      // span's middle, on the front spar alone)
       const frac = v.along != null ? v.along
-                 : (v.bay === 'wingPanel' || v.bay === 'wing2Panel' ? 0.34 : BAY.le ? 0.17 : 0);
+                 : (v.bay === 'wingPanel' ? 0.34 : 0);
       const [wl, wr] = wingPair(frac, BAY.plane || 0);
-      const rr = BAY.le ? null : wingPairRear(frac, BAY.plane || 0);
+      const rr = wingPairRear(frac, BAY.plane || 0);
       pair = rr ? [[wl, 0.3], [wr, 0.3], [rr[0], 0.2], [rr[1], 0.2]]
                 : [[wl, 0.5], [wr, 0.5]];
     } else {
@@ -45390,6 +45157,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     half(F[1].TL, F[1].TR, glassM);
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * ctlM);         // G3504: the cabin's rear ring
+    { const nCowl = (noseEng && engOn) ? 1 + engCowl.length : engCowl.length ? engCowl.length : 1;
+      outfitKg = { panel: panelM, plumbing: plumbM, cowl: nCowl * cowlM, exhaust: nCowl * exhM, glazing: glassM, controls: ctlM }; }
     // the furnishing on the cabin floor, both rings (G3570: the floor is in it - at the raised floor's height)
     sec('furnish');
     if (floorUp > 0) for (const rg of [F[1], F[iCabR]]) { onRing(rg, 'L', 0.25 * furnM); onRing(rg, 'R', 0.25 * furnM); }
@@ -45515,7 +45284,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
     fusDrag: [F[iCabR].BL, F[iCabR].BR, F[iCabR].TL, F[iCabR].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
-    ...(strutDragRefs.length ? { strutDrag: strutDragRefs } : {}),   // STRUT-OPTIONS (the key only then)
     engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
@@ -45540,7 +45308,16 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
 
     bracing: useStrut ? (w.crankAt > 0 ? 'strut + boxed outer' : 'strut')
                       : 'cantilever box', strutOffset, trike,
-    ledger,
+    ledger, outfitKg,
+    // the gear row split as billed: each node's kilos to the nearer of the mains and the third wheel, a float's or a
+    // hull's nodes to the floats; [kg, centroid x] each (a record: no mass moves)
+    gearKg: (() => { if (!gearDm) return null;
+      const mm = [GAL, GAR].filter(i => typeof i === 'number' && i >= 0), xm = mm.length ? mm.reduce((a, i) => a + P[i][0], 0) / mm.length : null;
+      const xt = typeof TW === 'number' && TW >= 0 ? P[TW][0] : null, acc = { main: [0, 0], third: [0, 0], floats: [0, 0] };
+      for (const [i, dm] of gearDm) { const x = P[i][0], k = /^(FL|HULL|PON)/.test(nodes[i].tag || '') ? 'floats'
+        : (xt == null || xm == null || Math.abs(x - xm) <= Math.abs(x - xt)) ? 'main' : 'third'; acc[k][0] += dm; acc[k][1] += dm * x; }
+      for (const k in acc) acc[k] = [acc[k][0], acc[k][0] ? acc[k][1] / acc[k][0] : 0];
+      return acc; })(),
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
     floats: FLOATS,             // H1: the float records, or null
     ...(AMPH ? { amph: true } : {}),   // HULL-B55: an amphibian - the wheels are its contacts on land, the hull on the water
@@ -45689,8 +45466,7 @@ function genDesignGross(S, a, cg) {
     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
   const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
-  const hiOf = c => (G.hiBy && G.hiBy[c]) || G.hi;      // MASS-SCALE: a class's own ceiling (the gear's)
-  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
+  const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
   const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)
@@ -45701,7 +45477,7 @@ function genDesignGross(S, a, cg) {
     for (const c in GD) { if (!(GD[c].m > 0)) continue; const g = gOf(c, W);
       f += GD[c].m * g;
       const raw = CORE_MATH.pow(W / ref(c), G.e[c]);
-      if (raw > G.lo && raw < hiOf(c)) df += GD[c].m * G.e[c] * g / W; }
+      if (raw > G.lo && raw < G.hi) df += GD[c].m * G.e[c] * g / W; }
     W = Math.max(Mfix, W - f / df);
   }
   const gauge = { W0: W }, dm = {}; let mAdd = furnOf(W), xAdd = 0, yAdd = 0, zAdd = 0;
@@ -46262,10 +46038,9 @@ function genStrips(S, fr) {
     // G268: every fin the truss built — one on a post, one a boom on a twin
     for (const fn of (T.fins || [T])) {
       for (let b = 0; b < fn.nV; b++) {
-        // (FIN-MOUNT: the rows where the truss put them - one moves to a raised stab's height; uniform otherwise)
-        const u0 = fn.uV ? fn.uV[b] : b / fn.nV, u1 = fn.uV ? fn.uV[b + 1] : (b + 1) / fn.nV;
+        const u0 = b / fn.nV, u1 = (b + 1) / fn.nV;
         strips.push({ kind: 'fin', side: 1, t: 0.5, chord: fn.chordV(0.5 * (u0 + u1)),
-          area: fn.hV * (u1 - u0) * 0.5 * (fn.chordV(u0) + fn.chordV(u1)),
+          area: (fn.hV / fn.nV) * 0.5 * (fn.chordV(u0) + fn.chordV(u1)),
           fIn: fn.VF[b], fOut: fn.VF[b + 1], rIn: fn.VR[b], rOut: fn.VR[b + 1],
           w: [[fn.VF[b], cfV * 0.5], [fn.VF[b + 1], cfV * 0.5],
               [fn.VR[b], crV * 0.5], [fn.VR[b + 1], crV * 0.5]],
@@ -46422,23 +46197,252 @@ function genFusSwet(S, ST) {
 // body row reads what the fiche calibrated; the other rows are literature
 // and the clean cards check them (GATE DRAG). The pieces are published as
 // gen.drag for the plaque and the study.
-// DRAG-SCALE (2026-11-09): a cowled radial's cooling constant, a Townend ring's to a NACA cowl's by the cowl's chord
-// over the engine's diameter (GEN_DRAG.kCool; a spec without the cage's cowl length reads as a ring, as before)
-function radialCowlK(K, S) {
-  const len = S.cage && +S.cage.cw_cowlLen, E = S.engBox;
-  if (!(len > 0) || !E || !(E.cylReach > 0) || K.radialNaca == null) return K.radialRing;
-  const t = Math.min(1, Math.max(0, (len / (2 * E.cylReach) - K.ringLD) / (K.nacaLD - K.ringLD)));
-  return K.radialRing + t * (K.radialNaca - K.radialRing);
+// ENGINE COOLING (ENGINE-COOLING, futureDesigns/ENGINE-COOLING-2026-11.md; GEN_COOL's header in 60_gen_spec says what
+// each constant is). Pure, no sim: the heat (genEngineThermo) -> the air it needs (Q = mdot cp dT) -> the air the drawn
+// geometry passes -> a MARGIN per case (the hot-day climb, the taxi, the cruise), and the cooling DRAG from the momentum
+// the air loses (CdA = 2 mdot (1 - r) / rho V).
+// THE AIR PASSED (ENGINE-COOLING 3, the user 12 Nov: "if you recalibrate something, that should be your coefficients
+// around the opening or the geometry of the opening"): three resistances IN SERIES - the drawn inlet (ivr rho V A_in: a
+// small inlet runs near its best velocity ratio), the engine's own passages (its fins and baffles: `passages` x the air
+// its hot climb needs, at that climb's inlet speed - an engine is built to be cooled; past that the air spills round the
+// cowl), and a drawn outlet (ivr rho V A_out / outRatio) - mdot = 1 / sqrt(sum 1 / mdot_i^2). The cylinder heads in the
+// wind pass beside it (kappaBare rho V A_heads).
+// WHAT IS READ: spec.cooling (the join's measurement of the drawn cowl, m2: `face` the front apertures net of the
+// spinner, `scoop` the scoop's open mouth and `scoopRev` its facing, `scoopAlt` its mouth at the other end, `nacInlet` a
+// nacelle cone's inlet, `exit` the lowered bottom, `gills` the side gills, `headsOut` / `headsAll` the cylinders' frontal
+// outside the drawn skin / in all, `units` each engine unit's cowl: turned round (aft), its area factor, its scoop turned
+// on its own), the cage's wing radiators (rad* rows), the engine's facing (engAt.pushes). The cowl's +z faces the
+// propeller: on a tractor the face apertures take the air in, on a pusher they face aft and let it out.
+// THREE ANSWERS (`kind`): 'bare' - no cowl, the engine in the wind: its heads alone (headsAll); 'legacy' - a cowled spec
+// nobody measured (a headless build, an old fiche): no margin, today's GEN_DRAG.kCool; 'measured' - the model.
+// EVERY ENGINE ON THE BODY is judged (a push-pull's nose and rear: the rear one wears the nose cowl turned round); the
+// answer is the worst one's, its drag the sum. Wing and pylon nacelles all wear one cowl: engine 0 speaks for them.
+//   o.VClimb, o.VCruise  EAS, m/s (the aeroplane's own: GEN_VRATIO x Vs at build, def.params.ap after)
+function genHeadsFrontal(S) {
+  const E = S.engBox, cw = S.cowl || {}, covers = cw.covers || {};
+  const PP = S.pplant || POWERPLANTS[((S.engines && S.engines[0]) || {}).type] || POWERPLANTS.a65_sensenich74;
+  const eng = (PP && PP.engine) || {};
+  const th = genEngineThermo(eng);
+  const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
+  if (!E || eng.layout === 'radial' || eng.aspiration === 'electric' || th.family === 'turbine' || th.cooling === 'liquid' ||
+      (cowlOn && covers.sides)) return 0;
+  const at = cw.atEngine || {};
+  const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
+  return 2 * out * (2 * E.cylR) * 2;                    // both banks, each bank's reach x its height
 }
-// DRAG-SCALE (2026-11-09): the skin-friction factor of a body or a chord of length L against the calibrated length
-// lCal (GEN_DRAG.reynolds): 1 up to lCal, Schlichting's turbulent Cf ratio beyond
-function genReK(L, lCal) {
-  const R = GEN_DRAG.reynolds;
-  if (!R || !(L > lCal)) return 1;
-  const cf = l => 0.455 / Math.pow(Math.log10(R.vRef * l / R.nu), 2.58);
-  return cf(L) / cf(lCal);
+// the body's engines (a nose, a pusher), by their index in engAt; none: engine 0 speaks for every nacelle
+function genCoolBodyEngines(S) {
+  const ks = (S.engAt || []).map((e, i) => e && (e.mount === 'nose' || e.mount === 'pusher') ? i : -1).filter(i => i >= 0);
+  return ks.length ? ks : [0];
 }
-function genFusCdA(S, fr) {
+function genCoolOpen(S, k) {
+  const K = GEN_COOL, cg = S.cage || {}, cw = S.cowl || {};
+  const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
+  const EA = S.engAt || [], ki = k > 0 ? k : 0;
+  const at = EA[ki] || EA[0] || {};
+  const pushes = !!at.pushes;
+  const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
+  // the engines whose cooling the BODY row pays: those on the body (a nose, a pusher); a wing or pylon nacelle's is in
+  // the nacelle rule's 0.30 x frontal ("cylinders, radiator, exhaust, the lot"), and the per-kW term before this charged
+  // one engine whatever the count - so one at least, as it did
+  const nBody = Math.max(1, EA.filter(e => e && (e.mount === 'nose' || e.mount === 'pusher')).length);
+  // the wing radiators (27 Oct): a ducted radiator's mouth under each wing (or one and an oil cooler) - the duct is drawn
+  // with its exit flap, so its outlet is the duct's own; shared between the engines when there are several
+  const rm = Math.round(+cg.radMode || 0), ps = +cg.planeScale > 0 ? +cg.planeScale : 1;
+  const mouth = Math.max(0, +cg.radW || 0) * Math.max(0, +cg.radH || 0) * K.radMouth * ps * ps;
+  const oilK = Math.max(0, +cg.radOilK || 0.55);
+  const radA = rm === 1 ? 2 * mouth : rm === 2 ? mouth * (1 + oilK * oilK) : 0;
+  const parts = [];
+  const C = S.cooling && typeof S.cooling === 'object' ? S.cooling : null;
+  const n = v => Math.max(0, +v || 0);
+  // the heads in the wind: measured against the drawn skin when the join could (headsOut / headsAll), else the
+  // generator's own reach against its cowl loft (genHeadsFrontal)
+  if (!cowlOn) return { kind: 'bare', k: ki, pushes, nEng, nBody, inA: 0, outA: 0, radA: radA / nEng, exitSized: true, parts,
+                        bareA: C && C.headsAll != null ? n(C.headsAll) : genHeadsFrontal(S) };
+  if (!C) return { kind: 'legacy', k: ki, pushes, nEng, nBody, inA: 0, outA: 0, bareA: 0, radA: radA / nEng, exitSized: true, parts };
+  // this engine's unit: its cowl's area factor (a clone scaled to another kind of face) and its scoop turned on its own
+  const U = (Array.isArray(C.units) && C.units[ki]) || {}, kf = +U.k > 0 ? +U.k : 1, turned = !!+U.turned;
+  let inA = 0, outA = 0;
+  const put = (A, faces, what) => { if (!(A > 0)) return; parts.push({ what, A, faces }); if (faces === 'fwd') inA += A; else outA += A; };
+  put(kf * n(C.face), pushes ? 'aft' : 'fwd', 'the cowl\'s front openings');
+  // a scoop's mouth faces the cowl's +z (the propeller) unless it is turned round (on this unit: cw_scoopAft)
+  const rev = turned ? !+C.scoopRev : !!+C.scoopRev;
+  put(kf * n(turned ? C.scoopAlt : C.scoop), rev === pushes ? 'fwd' : 'aft', 'the scoop');
+  // a nacelle cone's inlet faces -z: the flight on a pusher, aft on a tractor
+  put(kf * n(C.nacInlet), pushes ? 'fwd' : 'aft', 'the nacelle\'s inlet');
+  // the lowered bottom's crescent and the gills' hoods open towards the cowl's FIREWALL end: aft on a tractor (the way
+  // out), into the flight on a pusher, whose cowl is turned round (ENGINE-COOLING 3: there they are inlets, and a
+  // pusher's way out is its face, round the spinner at the propeller's end)
+  put(kf * n(C.exit), pushes ? 'fwd' : 'aft', 'the lowered bottom (the exit)');
+  put(kf * n(C.gills), pushes ? 'fwd' : 'aft', 'the gills');
+  const bareA = C.headsOut != null ? n(C.headsOut) : genHeadsFrontal(S);
+  // WHICH OUTLET IS THE WAY OUT (ENGINE-COOLING 3; the user 12 Nov on the side gills, "the shark fins"): a tractor's
+  // cowl always has its exit at the firewall end, sized for you until the lowered bottom (the exit gap) draws it - the
+  // gills, an aft-facing scoop or cone ADD to it and never cap the air (a few small gills drawn used to become the only
+  // way out); a pusher's way out is what faces aft (its face round the spinner, an unturned scoop)
+  const capOut = pushes ? outA : kf * n(C.exit);
+  return { kind: 'measured', k: ki, pushes, nEng, nBody, inA, outA, bareA, radA: radA / nEng, exitSized: !(capOut > 0), parts };
+}
+function genCooling(S, o) {
+  const ks = genCoolBodyEngines(S);
+  const per = ks.map(k => genCoolingOne(S, o, k));
+  // the worst engine answers; the drag is every body engine's (wing nacelles: engine 0's alone, as the body row always
+  // paid one)
+  let w = per[0];
+  for (const p of per) if (p.hot && w.hot && p.hot.margin < w.hot.margin) w = p;
+  const out = Object.assign({}, w);
+  if (per.length > 1) {
+    out.cdA = per.reduce((s, p) => s + (p.cdA || 0), 0);
+    out.engines = per.map(p => ({ k: p.k, pushes: p.pushes, margin: p.hot ? p.hot.margin : null, limit: p.hot ? p.hot.limit : null }));
+  }
+  return out;
+}
+function genCoolingOne(S, o, k) {
+  const K = GEN_COOL, oo = o || {};
+  const EN = (S.engines && S.engines[0]) || {};
+  const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
+  const eng = (PP && PP.engine) || {};
+  const th = genEngineThermo(eng);
+  const path = th.family === 'turbine' ? 'turbine' : th.family === 'electric' ? 'electric' : th.cooling;
+  const op = genCoolOpen(S, k);
+  const kW = (eng.powerW || 0) / 1000, D = (S.prop && S.prop.D) || (PP.prop && PP.prop.D) || 1.8;
+  const Adisc = Math.PI * D * D / 4;
+  const asp = eng.aspiration || 'na';
+  const crit = (asp === 'turbo' || asp === 'super') && eng.critAlt > 0 ? ATMOS_ISA.sigma(eng.critAlt) : 1;
+  // the heads' air: a bare engine's (any piston: its cylinders, its radiator, in the wind); a cowled one's air-cooled
+  // heads only (a liquid head's barrel is not what the cowl is sized for)
+  const bareA = op.kind === 'bare' ? (path === 'turbine' || path === 'electric' ? 0 : op.bareA) : (path === 'air' ? op.bareA : 0);
+  const out = { kind: op.kind, k: op.k, path, coolKW: th.coolKW, pushes: op.pushes, nEng: op.nEng,
+                inA: op.inA + op.radA, outA: op.outA, bareA, radA: op.radA, exitSized: op.exitSized, parts: op.parts };
+  if (op.kind === 'legacy' && !(op.radA > 0)) return out;
+  if (op.kind === 'legacy') out.kind = 'measured';                // the radiators are measured whatever the cowl
+  const duct = op.radA > 0 && op.radA >= op.inA;                  // the air goes through a radiator duct
+  const r = duct ? K.r.duct : K.r.cowl;
+  const dT = Tamb => K.path[path].eps * (K.path[path].Tlim - Tamb);
+  // the inlet's speed: the true airspeed plus the slipstream's share (a nose inlet behind the roots), from the actuator
+  // disc at the thrust eta x P / V; a pusher's inlets are ahead of it, but its prop SUCKS on the outlet (GEN_COOL.suck:
+  // the pressure the air is driven by grows, the flow with its root); the ground keeps its own inflow law
+  const slip = (Pw, V, rho) => {
+    const T = K.etaClimb * Pw / Math.max(1, V);
+    return (1 + Math.sqrt(1 + 2 * T / (rho * Adisc * V * V))) / 2;
+  };
+  const air = (A, h, pFrac, Veas, ground) => {
+    const rho = A.rho(h), sig = A.sigma(h), Tc = A.T(h) - 273.15;
+    const pr = pFrac * atmosPowerRatio(sig, asp, eng.flatK || 1, crit);
+    const Q = th.coolKW * pr * 1000;                              // W, per engine
+    const need = Q / (K.cp * dT(Tc));
+    let Vin;
+    if (ground) {
+      const P = pr * kW * 1000;
+      const Ts = Math.pow(K.FM * P, 2 / 3) * Math.pow(2 * rho * Adisc, 1 / 3), vd = Math.sqrt(Ts / (2 * rho * Adisc));
+      Vin = K.taxi.V + (op.pushes ? K.pushInflow : K.slip) * vd;
+    } else {
+      const V = Veas / Math.sqrt(sig), f = slip(pr * kW * 1000, V, rho);
+      Vin = V * (op.pushes ? Math.sqrt(1 + K.suck * (f * f - 1)) : 1 + K.slip * (f - 1));
+    }
+    return { rho, Tc, Q, need, Vin };
+  };
+  const VC = oo.VClimb > 0 ? oo.VClimb : 30, VCr = oo.VCruise > 0 ? oo.VCruise : VC * 1.24;
+  const HOT = makeAtmos({ dISA: K.hot.dISA });
+  // THE ENGINE'S PASSAGES, an equivalent area (m2 at the free stream): `passages` x what its hot climb needs there
+  const h0 = air(HOT, K.hot.h, 1, VC, false);
+  const Aeng = K.passages * h0.need / (h0.rho * h0.Vin);
+  const inv2 = f => f > 0 && isFinite(f) ? 1 / (f * f) : (f === Infinity ? 0 : Infinity);
+  const caseAt = (A, h, pFrac, Veas, ground) => {
+    const { rho, Tc, Q, need, Vin } = air(A, h, pFrac, Veas, ground);
+    const fIn = K.ivr * rho * Vin * out.inA, fEng = rho * Vin * Aeng;
+    const fOut = op.exitSized ? Infinity : K.ivr * rho * Vin * op.outA / K.outRatio;
+    const rIn = inv2(fIn), rEng = inv2(fEng), rOut = inv2(fOut), sum = rIn + rEng + rOut;
+    const flow = isFinite(sum) && sum > 0 ? 1 / Math.sqrt(sum) : 0;
+    const bare = K.kappaBare * rho * Vin * bareA;
+    const pass = flow + bare;
+    // the inlet that would pass `m` x the need, the outlet sized for it (through the engine's passages); the outlet that
+    // would, through the inlet AS DRAWN (Infinity: the inlet must grow first)
+    const T = m => m * need - bare;
+    const inAt = m => {
+      const t = T(m); if (!(t > 0)) return 0;
+      const rhs = 1 / (t * t) - rEng;
+      return rhs > 0 ? 1 / Math.sqrt(rhs) / (K.ivr * rho * Vin) : Infinity;
+    };
+    const outAt = m => {
+      const t = T(m); if (!(t > 0)) return 0;
+      const rhs = 1 / (t * t) - rEng - rIn;
+      return rhs > 0 ? K.outRatio / Math.sqrt(rhs) / (K.ivr * rho * Vin) : Infinity;
+    };
+    const inNeed = inAt(1), inPass = inAt(K.warn);
+    return { rho, oatC: Tc, Q: Q / 1000, dT: dT(Tc), need, pass, flow, bare, margin: need > 0 ? pass / need : Infinity,
+             Vin, inNeed, inPass, outNeed: outAt(1), outPass: outAt(K.warn),
+             limit: rOut >= rIn && rOut >= rEng ? 'outlet' : rEng > rIn ? 'engine' : 'inlet' };
+  };
+  // the case the caller is IN (the cockpit's needle: o.at = { air: an atmosphere, h, pFrac, Veas, ground })
+  if (oo.at && oo.at.air) {
+    const a = oo.at;
+    out.at = caseAt(a.air, a.h || 0, Math.max(0, Math.min(1, +a.pFrac || 0)), Math.max(0, +a.Veas || 0), !!a.ground);
+    if (oo.atOnly) return out;
+  }
+  out.hot = caseAt(HOT, K.hot.h, 1, VC, false);
+  out.taxi = caseAt(HOT, K.hot.h, K.taxi.power, 0, true);
+  out.cruise = caseAt(ATMOS_ISA, 0, K.cruisePower, VCr, false);
+  out.Aeng = Aeng;
+  if (op.kind === 'bare') { out.cdA = 0; out.margin = out.hot.margin; return out; }   // (a bare engine's drag: the heads term)
+  // THE DRAG: the momentum of the air the geometry passes - with no outlet drawn, the outlet is SIZED FOR YOU to the hot
+  // climb's need (the default every saved build reads: its drag follows what its engine needs, not how big its face is
+  // drawn); a drawn outlet passes what the series passes; never less than the air it NEEDS (an engine starved of air
+  // overheats - the margin says so - and does not fly faster for it). Net of the heads' air (the heads term bills it).
+  // Equivalent free-stream areas (m2): the air over rho V_inlet
+  const H = out.hot;
+  const needEq = Math.max(0, H.need - H.bare) / (H.rho * H.Vin), flowEq = H.flow / (H.rho * H.Vin);
+  const Aeff = op.exitSized ? needEq : Math.max(needEq, flowEq);
+  // the cruise's dynamic pressure over the inlet's: the flow rides the slipstream, the momentum is lost on the free stream
+  const fC = out.cruise.Vin / (VCr / Math.sqrt(ATMOS_ISA.sigma(0)));
+  let cda = 2 * Aeff * fC * (1 - r);
+  // MEREDITH: a radiator duct's heat as thrust, k M^2 Q at the cruise (a cowl gets none)
+  let meredithN = 0;
+  if (duct) {
+    const V = VCr, M = V / ATMOS_ISA.a(0), q = 0.5 * ATMOS_ISA.rho(0) * V * V;
+    meredithN = K.meredith * M * M * out.cruise.Q * 1000 / Math.max(1, V);
+    cda = Math.max(0, cda - meredithN / q);
+  }
+  out.Aeff = Aeff; out.r = r; out.duct = duct; out.meredithN = meredithN;
+  // one engine's; genCooling sums the body's (a single engine's body row: x nBody as it always was - one)
+  out.cdA = ks1(S) ? cda * op.nBody : cda;
+  out.margin = H.margin;
+  return out;
+}
+// the body row's old count: one engine's cooling x nBody when ONE engine speaks for the body (a single, or wing
+// nacelles: nBody 1); with several body engines genCooling sums them each once
+function ks1(S) { return genCoolBodyEngines(S).length <= 1; }
+
+// the plaque's few numbers (genShakedown's `cooling`): null for a cowled spec never measured
+function genCoolSummary(def) {
+  const S = def && def.spec, ap = (def && def.params && def.params.ap) || {};
+  if (!S || typeof genCooling !== 'function') return null;
+  const C = genCooling(S, { VClimb: ap.VClimb, VCruise: ap.VCruise });
+  if (C.kind === 'legacy') return null;
+  const r3 = v => Math.round(v * 1000) / 1000, r2 = v => Math.round(v * 100) / 100;
+  // (ENGINE-COOLING 3: a bare engine's own figure - its heads in the wind)
+  if (C.kind === 'bare') return { kind: 'bare', bareA: r3(C.bareA), needKgS: r2(C.hot.need), passKgS: r2(C.hot.pass),
+                                  margin: r2(C.hot.margin), taxi: r2(C.taxi.margin) };
+  return { kind: C.kind, pushes: C.pushes, inA: r3(C.inA), outA: C.exitSized ? null : r3(C.outA), bareA: r3(C.bareA),
+           needA: r3(C.hot.inNeed), needKgS: r2(C.hot.need), passKgS: r2(C.hot.pass), margin: r2(C.hot.margin),
+           taxi: r2(C.taxi.margin), cruise: r2(C.cruise.margin), cdA: r3(C.cdA), limit: C.hot.limit };
+}
+
+// THE OIL TEMPERATURE NOW (the cockpit's needle; display only - nothing in the solver reads it, and the power is not
+// pulled back over the red line until the proposed rows are ruled): the hot side's rise grows as the air needed over the
+// air passed, to the red line (GEN_COOL.oilRed) at exactly enough air. A bare engine reads as if it had twice the air
+// it needs; an unmeasured cowl returns null (the needle keeps the 82 C it always showed). `at` as genCooling's o.at.
+function genCoolOilC(S, at) {
+  const K = GEN_COOL;
+  const C = genCooling(S, { at, atOnly: true });
+  if (C.kind === 'legacy' && !(C.radA > 0)) return null;
+  const T = at.air.T(at.h || 0) - 273.15;
+  const x = !C.at ? 0.5 : (C.at.pass > 0 ? Math.min(2, C.at.need / C.at.pass) : 2);
+  const oil = Math.max(T + 20, T + (K.oilRed - T) * Math.pow(x, 0.7));
+  return { oilC: oil, margin: x > 0 ? 1 / x : Infinity };
+}
+
+function genFusCdA(S, fr, o) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
   for (const s of ST) frontal = Math.max(frontal, 2 * s.w * (s.yt - s.yb));
@@ -46460,8 +46464,7 @@ function genFusCdA(S, fr) {
   const crown = 0.5 * ((fu.crownTop == null ? 0.72 : fu.crownTop) +
                        Math.min(1, (fu.crownSide == null ? 0.07 : fu.crownSide) / 0.6));
   const boxK = 1 + D.boxK * (1 - crown);
-  const reK = genReK(wet.L, D.reynolds.lBody);
-  const body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK * reK;
+  const body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK;
   // the cooling, by the engine and its cowl
   const EN = (S.engines && S.engines[0]) || {};
   const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
@@ -46475,9 +46478,10 @@ function genFusCdA(S, fr) {
   if (!electric) {
     const k = th.family === 'turbine' ? D.kCool.turbine
             : th.cooling === 'liquid' ? D.kCool.liquid
-            : radial ? (cowlOn ? radialCowlK(D.kCool, S) : D.kCool.radialBare) : D.kCool.pressureCowl;
+            : radial ? (cowlOn ? D.kCool.radialRing : D.kCool.radialBare) : D.kCool.pressureCowl;
     cool = k * th.coolKW;
-    // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal
+    // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal (genHeadsFrontal counts the
+    // same reach as a bare inlet; the expression stays here as it was, bit for bit)
     const E = S.engBox;
     if (E && !radial && th.family !== 'turbine' && th.cooling !== 'liquid' &&
         (!cowlOn || !covers.sides)) {
@@ -46485,6 +46489,14 @@ function genFusCdA(S, fr) {
       const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
       heads = D.cdBlock * 2 * out * (2 * E.cylR) * 2;      // both banks, each bank's reach x its height
     }
+  }
+  // ENGINE-COOLING: a MEASURED cowl (the join's spec.cooling) or drawn wing radiators pay the momentum the cooling air
+  // loses (genCooling), at the aeroplane's own climb and cruise speeds (GEN_VRATIO x Vs, the speeds genAP gives it); a
+  // bare engine and an unmeasured spec keep the per-kW figure above
+  let coolSheet = null;
+  if (o && o.Vs > 0) {
+    coolSheet = genCooling(S, { VClimb: GEN_VRATIO.VClimb * o.Vs, VCruise: GEN_VRATIO.VCruise * o.Vs });
+    if (coolSheet.kind === 'measured') cool = coolSheet.cdA;
   }
   // the windscreen
   const cb = S.cab || {}, cn = cb.canopy || {};
@@ -46506,7 +46518,8 @@ function genFusCdA(S, fr) {
     fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
     drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
-            body, cool, heads, screen, junct, exh, ...(reK !== 1 ? { reK } : {}) },
+            body, cool, heads, screen, junct, exh,
+            coolBy: coolSheet && coolSheet.kind === 'measured' ? 'momentum' : 'perKW' },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
   // wind. Priced as a DELTA on the covered figure — the gear model's own rule
@@ -46587,39 +46600,6 @@ function genGearCdA(S, semi) {
   if (S.bracing.type === 'strut')
     cda += 2 * 0.10 * (0.55 * semi * 1.12) * 0.06;  // two lift struts
   return cda;
-}
-// STRUT-OPTIONS (2026-11-10): the drag the lift strut's options add, off the frame's own members (bm.strut, 61_gen_frame),
-// axial only (the gear model's rule) - or null when the spec asks for neither (no section, no jury).
-//   A ROUND STRUT REPLACES THE STREAMLINE BILL: genGearCdA prices the lift struts as a streamline section (Cd 0.10 on
-//   0.06 m a side over 0.55 x semispan x 1.12); a tube strut takes that bill back and pays its DRAWN members (a whole
-//   lift strut, or both halves of one at a jury clamp) at GEN_STRUT_OPT.cdRound on tubeD - a circular cylinder below
-//   the drag crisis (Hoerner, Fluid-Dynamic Drag, ch. 3). Hidden members (the single strut's rear, the fan) pay nothing:
-//   they stand for structure that is not in the air.
-//   A JURY STRUT pays its drawn length on juryT at its section's coefficient (round: cdRound; streamline: cdStream).
-function genStrutOptCdA(S, fr) {
-  const O = genStrutOpts(S);
-  if (!O.round && !O.jury) return null;
-  if (!(S.bracing && S.bracing.type === 'strut') || !fr || !fr.beams) return null;
-  const T = GEN_STRUT_OPT;
-  let lift = 0, jury = 0;
-  for (const b of fr.beams) {
-    if (!b.ext || b.cls !== 'wing' || !b.strut) continue;
-    if (b.strut === 'lift' || b.strut === 'half') lift += b.L;
-    else if (b.strut === 'jury') jury += b.L;
-  }
-  let cda = jury * T.juryT * (O.round ? T.cdRound : T.cdStream);
-  if (O.round && lift > 0) cda += lift * T.cdRound * T.tubeD - 2 * 0.10 * (0.55 * S.geom.semi * 1.12) * 0.06;
-  return { cda, lift, jury };
-}
-// TAIL-RETRACT (2026-11-09): the mains' own share of genGearCdA - the two wheels and their legs (what a taildragger's
-// retraction takes up)
-function genGearCdAMains(S) {
-  const G = S.gear;
-  const wCd = (G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55)
-            * (G.fairing && G.fairing !== 'none' ? genFairDroplet(G.fairTail) : 1);
-  const R = G.wheelR || 0.20, drop = G.legDrop || 0.42;
-  const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
-  return 2 * wCd * (2 * R * 0.76 * R) + 2 * legCd * drop * 0.05;
 }
 // THE CALIBRATION IS PRESERVED BY A DELTA. genFusCdA's 0.75 was fitted so the
 // Cub's GEOMETRY reproduces its hand-tuned totals — totals that implicitly
@@ -47337,12 +47317,6 @@ function genParams(S, fr, strips) {
   // G140: sweepEff — the legacy field verbatim, or the area-weighted |LE
   // sweep| the three-station law derives (resolveSpec sets it either way)
   // G185: ONE POLAR PER PLANE — its own aspect ratio, section, sweep and tip;
-  // DRAG-SCALE (2026-11-09): a surface's profile drag at its own chord's Reynolds number (genReK; the finish's own
-  // matCd0 kept) - 1 on every chord up to GEN_DRAG.reynolds.cSurf, so the light aeroplanes' polars are as before
-  const reP = (P, chord, matCd0) => {
-    const k = genReK(chord, GEN_DRAG.reynolds.cSurf);
-    return k === 1 || !P ? P : Object.assign({}, P, { Cd0: (P.Cd0 - matCd0) * k + matCd0 });
-  };
   // the bracing penalty on Oswald is the fuselage strut's for plane 0 and
   // the interplane strut's for both planes of a biplane. genOswald itself is
   // untouched: it is the plane's SELF term, and the mutual term between the
@@ -47353,17 +47327,16 @@ function genParams(S, fr, strips) {
   const polarWings = S.wings.map((wk, k) => {
     const Gk = (G.planes && G.planes[k]) || G;
     const MW = genSurfMaterial(S, 'wing', k);
-    return reP(genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, MW.cd0, MW.clmaxK,
+    return genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, MW.cd0, MW.clmaxK,
                     wk.sweepEff != null ? wk.sweepEff : wk.sweep,
-                    (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e), Gk.cBar, MW.cd0);
+                    (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e);
   });
   // PRICE-CAL step 2: an old airframe's surfaces (GEN_AGING dragK on each polar's Cd0; absent spec.aging: x1)
   const AGk = genAgingOf(S).dragK, aged = P => (AGk === 1 || !P ? P : Object.assign({}, P, { Cd0: P.Cd0 * AGk }));
   for (let k = 0; k < polarWings.length; k++) polarWings[k] = aged(polarWings[k]);
   const polarWing = polarWings[0];
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
-  const polarTail = aged(reP(genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0), S.tail.Sh / Math.max(1e-6, S.tail.hSpan),
-                             genSurfMaterial(S, 'stab').cd0));   // G213
+  const polarTail = aged(genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0));   // G213
   // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
   // the stabiliser's for its whole life — hAR 3.7 against a real vAR of 1.9 —
   // which overstated directional stiffness and rudder power by ~25% and made
@@ -47381,8 +47354,7 @@ function genParams(S, fr, strips) {
            : (S.tail.stabH || 0) >= 0.8 ? 't'
            : (S.tail.stabH || 0) >= 0.3 ? 'cruci' : 'conv';
   const vARe = vAR * (EP[tt] == null ? 1 : EP[tt]);
-  const polarFin = aged(reP(genTailPolar(vARe, genSurfMaterial(S, 'fin').cd0), S.tail.Sv / Math.max(1e-6, S.tail.vHeight),
-                            genSurfMaterial(S, 'fin').cd0));     // G213
+  const polarFin = aged(genTailPolar(vARe, genSurfMaterial(S, 'fin').cd0));     // G213
   const mass = fr.cg0[3];
   // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
   // is exactly its own)
@@ -47416,7 +47388,12 @@ function genParams(S, fr, strips) {
     ClMax3Dx = ClMax3D + gainS / G.Sw;
   }
   const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3Dx));
-  const cda = genFusCdA(S, fr);
+  // ENGINE-COOLING: the cooling drag's climb and cruise speeds hang off the CLEAN wing's Vs - a slat or a VG kit is the
+  // wing's, it does not redraw the cowl (the outlet "sized for you" is the engine's, sized on the aeroplane's own clean
+  // climb; GATE STOL: the auto slat pays only its seam, the body's axial term is the clean one). The margin rows read the
+  // climb the aeroplane flies (def.params.ap)
+  const VsClean = ClMax3Dx === ClMax3D ? Vs : Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3D));
+  const cda = genFusCdA(S, fr, { Vs: VsClean });
   // G115: the undercarriage and bracing join the drag build-up. PERF STUDY
   // chantier 2 (2026-09-15): ADDED AS THEY ARE — the body row is a wetted
   // build-up now and contains no reference gear to subtract from; the delta
@@ -47470,21 +47447,6 @@ function genParams(S, fr, strips) {
   }
   cda.fusCdA[0] += braceDCdA + tailBraceDCdA;
   cda.drag.brace = braceDCdA + tailBraceDCdA;
-  // STRUT-OPTIONS (2026-11-10): THE LIFT STRUT'S SECTION AND ITS JURY STRUT PAY THEIR DRAG. Absent rows: not a key,
-  // not a term (the bytes every build had).
-  // ...NOT on the body's row: on the struts' own blobs (fr.refs.strutDrag, one a side; params.strutCdA, each side's
-  // axial CdA - 30_solver's blob), so the drag acts where the struts are (REAL-FIGURES, 10 Nov: on the body's row it
-  // acted at the cabin ring and weathercocked a rod-boom ultralight). cda.drag.strutOpt keeps the whole for the ledger
-  let strutCdA = null;
-  {
-    const so = genStrutOptCdA(S, fr);
-    if (so) {
-      cda.drag.strutOpt = so.cda;
-      const nb = (fr.refs && fr.refs.strutDrag && fr.refs.strutDrag.length) || 0;
-      if (nb) strutCdA = [so.cda / nb, 0, 0];
-      else cda.fusCdA[0] += so.cda;              // (no strut nodes: never on a strut-braced frame - the old row)
-    }
-  }
   // THE BELLY POD (G2410, 60d_gen_pod genPodCdA): its parasite area (Raymer's component build-up on its own wetted
   // area, the interference of a store on the fuselage in it) on the axial row; its plan and side areas on the
   // forward blob's cross-flow (it hangs under the cabin, where that blob sits); its volume joins the body's (Munk).
@@ -47544,7 +47506,6 @@ function genParams(S, fr, strips) {
   // PRICE-CAL step 2: an old airframe's drag (60_gen_spec GEN_AGING; absent spec.aging: x1, as before)
   const AGd = genAgingOf(S).dragK;
   if (AGd !== 1) { cda.fusCdA[0] *= AGd; cda.fusCdA[1] *= AGd; cda.fusCdA[2] *= AGd; for (const k of [0, 1, 2]) if (cda.fusCdAAft && cda.fusCdAAft[k]) cda.fusCdAAft[k] *= AGd; }
-  if (AGd !== 1 && strutCdA) strutCdA[0] *= AGd;   // STRUT-OPTIONS: the struts' own blobs age as the body's row does
   cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
@@ -47642,7 +47603,6 @@ function genParams(S, fr, strips) {
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
-    ...(strutCdA ? { strutCdA } : {}),   // STRUT-OPTIONS: the struts' own blobs (the key only then)
     // G461 (the 172's neutral point): THE BODY'S OWN PITCHING MOMENT and the
     // TAIL'S DYNAMIC-PRESSURE EFFICIENCY, the two textbook terms the probe
     // had no word for. A body in potential flow carries a destabilising
@@ -47667,9 +47627,7 @@ function genParams(S, fr, strips) {
     // (genGearCdA, inside fusCdA[0] as on every build: every design-time number - the plaque, the AP's speeds - stays the
     // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)
     ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg,
-                                       // (TAIL-RETRACT: a taildragger's mains only - its tailwheel and its lift struts stay out)
-                                       cdA: S.gear.type === 'taildragger' ? genGearCdAMains(S) : (cda.drag.gear || 0),
-                                       ...(S.gear.type === 'taildragger' ? { tail: true } : {}),
+                                       cdA: cda.drag.gear || 0,
                                        // G1: the fraction (1 unless partial) and the measured lift (null: the frame's rule)
                                        frac: S.gear.retract.frac || 1, lift: S.gear.retract.lift || null } } : {}),
     // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel
@@ -48647,14 +48605,10 @@ function genBeamInto(M, b, N, B) {
     let e1 = genV3.norm(genV3.cross(ax, up)), e2 = genV3.cross(ax, e1);
     // 9 mm across for a wire: still about twice a real tie rod, so it reads at
     // distance, but 12 mm left the tailwheel looking braced by scaffolding poles
-    // STRUT-OPTIONS (2026-11-10): a round lift strut (b.round, the wing's 'strut section' row) is a tube of the drag's
-    // own diameter, and a jury strut (b.strut 'jury') the jury's frontal; absent, the lines they always were
-    const r = b.vis === 'wire' ? 0.0045
-      : b.round ? 0.5 * (b.strut === 'jury' ? GEN_STRUT_OPT.juryT : GEN_STRUT_OPT.tubeD)
-      : GEN_TUBE_R[b.cls] * (b.ext ? 1.15 : 1);
+    const r = b.vis === 'wire' ? 0.0045 : GEN_TUBE_R[b.cls] * (b.ext ? 1.15 : 1);
     // Only a wing's external member is a lift strut. Every `vis === 'wire'` beam
     // 61_gen_frame.js emits is `cls: 'gear'`, so no wire reaches this branch.
-    const lift = !b.round && b.ext && (b.cls === 'wing' || b.cls === 'cabane' || b.cls === 'interplane');
+    const lift = b.ext && (b.cls === 'wing' || b.cls === 'cabane' || b.cls === 'interplane');
     if (lift) {
       // chord fore-and-aft: body x, projected perpendicular to the strut axis
       const d = ax[0];
@@ -50234,6 +50188,9 @@ function genShakedown(def, opts) {
     engineName: ENr.name, hp, engineMass: ENr.mass,
     engineFamily: THr.family, engineCooling: THr.cooling,
     coolKW: THr.coolKW, burnKgH: THr.burnKgH, drawKW: THr.drawKW,
+    // ENGINE-COOLING (12 Nov): what the drawn openings make of that duty - the hot-day climb's air needed and passed,
+    // the margin, the cooling drag (62_gen_aero genCooling; null when the cowl was never measured)
+    cooling: genCoolSummary(def),
     powerLoad: sim.totalM / Math.max(1e-6, hp),
     onWheels, restsOn: lowTag, gearStrain, restChassisStrain: chassisStrain,
     springStrain, susTravel, susShift, gearFolded: susShift > 0.5,
@@ -51478,18 +51435,23 @@ const GEN_CERT_TIER = { 'pitch.sm': 'safe', 'pitch.Vh': 'comm', 'pitch.short': '
   'yaw.Vv': 'comm', 'yaw.cnb': 'safe', 'roll.clb': 'safe', 'roll.spiral': 'safe', 'yaw.dutch': 'safe', 'roll.mode': 'safe',
   'ctl.aileron': 'safe', 'ctl.droop': 'safe', 'ctl.rudder': 'safe',
   'aid.step': 'safe', 'aid.reserve': 'safe', 'aid.prop': 'safe', 'aid.range': 'comm', 'aid.thrust': 'comm', 'aid.stance': 'comm',
-  'aid.doors': 'comm' };
+  'aid.doors': 'comm',
+  // ENGINE-COOLING (12 Nov; the user: defaults OK): the hot-day climb is a safety row, the ground a commercial one -
+  // landed PROPOSED, ruled the same day (64c genCoolRows)
+  'cool.climb': 'safe', 'cool.taxi': 'comm' };
 function genCertTierOf(id) { return GEN_CERT_TIER[id] || 'safe'; }
 // a row list -> the two certificates' verdicts: the airworthiness one fails only on a safe, non-proposed fail; every
 // other non-pass is a warning on it; the commercial one fails on any fail (the safe tier's included: an aeroplane
-// that is not safe is not commercial either)
+// that is not safe is not commercial either) - except a PROPOSED row's (ENGINE-COOLING, 12 Nov): a new check awaiting
+// the user's ruling is a warning on BOTH certificates, so a game update never withdraws one (R3: the bench re-signs at
+// every roll-out). The first proposed rows were the cooling rows (ruled 12 Nov); none is proposed now
 function genCertTiers(rows) {
   const R = (rows || []).map(r => Object.assign({}, r, { tier: r.tier || genCertTierOf(r.id) }));
   const safeFail = R.filter(r => r.tier === 'safe' && r.level === 'fail' && !r.proposed);
   const warns = R.filter(r => r.level !== 'pass' && safeFail.indexOf(r) < 0);
-  const commFail = R.filter(r => r.level === 'fail');
+  const commFail = R.filter(r => r.level === 'fail' && !r.proposed);
   return { safe: safeFail.length ? 'fail' : warns.length ? 'warn' : 'pass', safeFail, warns,
-           comm: commFail.length ? 'fail' : R.some(r => r.level === 'warn') ? 'warn' : 'pass', commFail };
+           comm: commFail.length ? 'fail' : R.some(r => r.level !== 'pass') ? 'warn' : 'pass', commFail };
 }
 // ============================================================
 // THE DESIGN AIDS (DESIGN-AIDS, the user 3 Nov: "I think we miss helpers in the garage. CG and neutral point are good,
@@ -51596,6 +51558,87 @@ function genAidWaterline(F, massKg, rho) {
   let lo = 0, hi = H;
   for (let i = 0; i < 22; i++) { const m = 0.5 * (lo + hi); if (HYDRO.levelVolume(F, m, 160) < need) lo = m; else hi = m; }
   return 0.5 * (lo + hi);
+}
+
+// THE COOLING ROWS (ENGINE-COOLING; 62_gen_aero genCooling). Two rows, RULED (the user 12 Nov: "we can make the row,
+// but we have to modify the twin busher and the superpetrel at once" - done, and every official card and every
+// archetype the shed births passes; they landed PROPOSED first, 64b genCertTiers' door). A certificate already signed
+// keeps its stored bench check until the aeroplane changes or the bench runs again (R3: no version bump):
+//   cool.climb  safe   the hot-day climb (FAR 23.1043: 38 C at sea level, full power at Vy): fail under 1.00 x the air
+//                      the engine needs, warn under 1.15
+//   cool.taxi   comm   the hot strip at taxi power: a warning under 1.00 (it runs hot waiting at the hold)
+// A bare engine (no cowl) passes, the air is all round it; a cowled spec the join never measured has no row.
+function genCoolRows(def) {
+  const S = def.spec || {}, ap = (def.params && def.params.ap) || {};
+  if (typeof genCooling !== 'function') return [];
+  const K = GEN_COOL, r2 = v => Math.round(v * 100) / 100, r3 = v => Math.round(v * 1000) / 1000;
+  const C = genCooling(S, { VClimb: ap.VClimb, VCruise: ap.VCruise });
+  if (C.kind === 'legacy') return [];
+  const lim = 'FAR 23.1043\'s climb cooling day: 38 C at sea level, full power at Vy. Fail under ' + K.pass.toFixed(2) +
+              ' x the air the engine needs, warn under ' + K.warn.toFixed(2);
+  const H = C.hot, T = C.taxi, m = H.margin;
+  const lvlOf = v => v < K.pass ? 'fail' : v < K.warn ? 'warn' : 'pass';
+  // ENGINE-COOLING 3 (the user: "check Rufus ... completely open engines, what kind of figure we get"): a bare engine's
+  // own figure - its cylinders' frontal in the wind
+  if (C.kind === 'bare' && (C.path === 'electric' || C.path === 'turbine'))
+    return [{ id: 'cool.climb', group: 'power', tier: 'safe', label: 'Engine cooling, hot-day climb', value: null, unit: '',
+              level: 'pass', limit: lim, why: 'no cowl: an ' + (C.path === 'electric' ? 'electric motor' : 'engine') + ' in the open air cools itself', fix: '' }];
+  if (C.kind === 'bare') {
+    const bl = lvlOf(m);
+    return [{ id: 'cool.climb', group: 'power', tier: 'safe', label: 'Engine cooling, hot-day climb', value: r2(m),
+              unit: 'x the air needed', level: bl, limit: lim,
+              why: 'no cowl: ' + r3(C.bareA) + ' m2 of cylinders in the wind pass ' + r2(m) + ' x the ' + r2(H.need) + ' kg/s the engine needs at ' + Math.round(H.oatC) + ' C',
+              fix: bl === 'pass' ? '' : 'a bare engine this hot needs a cowl with an inlet (or a bigger engine is the wrong fix: it heats more)' }];
+  }
+  const lvl = lvlOf(m);
+  const cm = v => Math.round(v * 100);
+  // the mouth to draw, as width x height (an oval 1.2 x as wide as tall)
+  const mouth = A => { const h = Math.sqrt(4 * A / (Math.PI * 1.2)); return cm(1.2 * h) + ' x ' + cm(h) + ' cm'; };
+  // the sizes to draw are the PASS line's (K.warn x the need: a design drawn to exactly 1.00 runs hot)
+  const need = r3(H.inPass), have = r3(C.inA), outNeed = r3(H.outPass);
+  // a push-pull: the engine that answers (the worst), named
+  const who = Array.isArray(C.engines) && C.engines.length > 1 ? (C.pushes ? 'the rear engine: ' : 'the nose engine: ') : '';
+  // the way out: a tractor's at its firewall end (the lowered bottom, the gills); a pusher's cowl is turned round, so
+  // its way out is its face, round the spinner at the propeller's end
+  const wayOut = C.pushes ? 'open the cowl\'s face round the spinner (inlets: one, round the spinner - on a pusher it is the way out)'
+                          : 'lower the cowl\'s bottom (exit gap) or add gills';
+  const fwd = C.parts.filter(p => p.faces === 'fwd').map(p => p.what), aftIn = C.parts.filter(p => p.faces === 'aft' && /front|scoop|inlet/.test(p.what));
+  let why, fix = '';
+  const air = r2(H.need) + ' kg/s of air at ' + Math.round(H.oatC) + ' C to carry ' + Math.round(H.Q) + ' kW';
+  // a scoop drawn but buried in the skin: its rows say a mouth, the drawing has none (the cowl measures what is open)
+  const cg = S.cage || {}, buried = +cg.cw_scoopOn > 0 && S.cooling && !(+S.cooling.scoop > 0);
+  const buriedNote = buried ? ' (the scoop is drawn inside the cowl\'s skin: none of its mouth faces the air - let it ride the bottom line or drop it further)' : '';
+  if (!(C.inA > 0) && !(C.bareA > 0)) {
+    why = 'no opening faces the air' + (C.pushes && aftIn.length ? ': this cowl\'s openings face the propeller, which on a pusher is backwards' : '') +
+          ' - in a hot climb the engine gets none of the ' + air + buriedNote;
+    // ...and the air needs a way out: a pusher's aft face round the spinner is its outlet, often a sliver
+    const outFix = !C.exitSized && (!isFinite(outNeed) || C.outA < outNeed) ? '; and give the air a way out: about ' + (isFinite(outNeed) ? outNeed : r3(need * K.outRatio)) + ' m2 of outlet (now ' + r3(C.outA) +
+                   ') - ' + wayOut : '';
+    fix = (C.pushes ? (who ? 'turn the rear cowl\'s scoop into the air (cowl page, scoop: the rear engine\'s scoop), ' : 'turn the scoop round (cowl page, chin scoop: mouth faces the firewall), ') +
+                      'let it stand out of the skin (rides the bottom line, or sits on top of the cowl) and size its mouth to about ' + need + ' m2 (about ' + mouth(need) + ')'
+                    : 'open the cowl\'s front (inlets) or fit a scoop: about ' + need + ' m2 in all (about ' + mouth(need) + ')') + outFix;
+  } else {
+    const by = H.limit === 'outlet' ? 'the outlet' : 'the inlets';
+    why = by + ' pass ' + r2(m) + ' of the ' + air + buriedNote + (C.bareA > 0 ? ' (the cylinder heads in the wind count)' : '') +
+          (fwd.length ? '; in: ' + fwd.join(', ') + ', ' + have + ' m2' : '') + (C.exitSized ? '' : '; out: ' + r3(C.outA) + ' m2');
+    if (lvl !== 'pass') {
+      if (H.limit === 'outlet') fix = (C.inA >= need ? 'the inlet is big enough but the air cannot leave: ' : 'the air cannot leave: ') +
+        'give it about ' + (isFinite(outNeed) ? outNeed : r3(need * K.outRatio)) + ' m2 of outlet (now ' + r3(C.outA) + ') - ' + wayOut +
+        (C.inA < need ? '; then enlarge ' + (fwd.length ? fwd.join(' / ') : 'the inlets') + ' to about ' + need + ' m2 (now ' + have + ')' : '');
+      else if (C.radA > 0 && C.radA >= C.inA - C.radA) fix = 'grow the radiators\' mouths to about ' + need + ' m2 in all (now ' + have + '), or open their exit flaps';
+      else fix = 'enlarge ' + (fwd.length ? fwd.join(' / ') : 'the inlets') + ' to about ' + need + ' m2 (now ' + have + ')';
+    }
+  }
+  if (who) { why = who + why + ' (the other engine ' + C.engines.filter(e => e.k !== C.k).map(e => r2(e.margin) + ' x').join(', ') + ')'; if (fix) fix = who + fix; }
+  const rows = [{ id: 'cool.climb', group: 'power', tier: 'safe', label: 'Engine cooling, hot-day climb',
+                  value: r2(m), unit: 'x the air needed', level: lvl, limit: lim, why, fix }];
+  const tl = T.margin < K.pass ? 'warn' : 'pass';
+  rows.push({ id: 'cool.taxi', group: 'power', tier: 'comm', label: 'Engine cooling on the ground (hot strip, taxi)',
+              value: r2(T.margin), unit: 'x the air needed', level: tl,
+              limit: 'the hot strip (38 C), 5 m/s at 20 % power, the slipstream doing the work: a warning under ' + K.pass.toFixed(2),
+              why: (C.pushes ? 'a pusher\'s inlets get only the propeller\'s inflow on the ground' : 'the slipstream alone') + ': ' + r2(T.margin) + ' x the ' + r2(T.need) + ' kg/s needed',
+              fix: tl === 'pass' ? '' : 'it runs hot waiting at the hold: a bigger inlet, or keep ground runs short' });
+  return rows;
 }
 
 function genDesignAids(def, bal, opts) {
@@ -51837,6 +51880,9 @@ function genDesignAids(def, bal, opts) {
           why: (trike ? 'tip-back ' : 'the mains ') + r2(ang) + ' deg' + (sh2 != null && trike ? ', nose wheel ' + Math.round(sh2 * 100) + ' %' : ''),
           fix: lvl === 'pass' ? '' : ang < W[0] ? 'the mains ' + r2(Math.abs(moveM)) + ' m ' + (trike ? 'aft' : 'forward') : ang > W[1] ? 'the mains a little ' + (trike ? 'forward' : 'aft') : 'the mains ' + (sh2 < GEN_AIDS.noseShare[0] ? 'forward' : 'aft') + ' to share the weight' });
   }
+  // ---- ENGINE COOLING (ENGINE-COOLING, 12 Nov; the user via A0: "the cooling requirements will need to be part of the
+  // CERTIFICATE ... if something fails for it, it should be CLEAR") -----------------------------------------------------
+  for (const r of genCoolRows(def)) row(r);
   return out;
 }
 // the drawn loading's CG by the same ledger arithmetic (the corners' reference)
@@ -52541,11 +52587,7 @@ function genCertKey(def) {
   const mix = s => { for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; };
   mix('cert' + GEN_CERT_V + JSON.stringify(GEN_CERT) + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : ''));
   // (G2827: the cage's STOL rows at "off" are the absent rows - the key every build had before the STOL wing)
-  // CERT-KEY-BITS (REAL-CANON, 13 Nov): the resolved spec's numbers at 12 significant digits - an angle the build derives
-  // through atan / pow can differ in its last bit between the page's V8 and node's (the Cub's tail.dorsal.angle,
-  // 25.201123645475068 in Chromium, ...075 in node), and the certificate store's key must be one key everywhere
-  if (def.spec) mix(JSON.stringify(def.spec, (k, v) => k === 'cage' && typeof genStolCageOff === 'function' ? genStolCageOff(v)
-    : (typeof v === 'number' && isFinite(v) && !Number.isInteger(v) ? +v.toPrecision(12) : v)));
+  if (def.spec) mix(JSON.stringify(def.spec, (k, v) => k === 'cage' && typeof genStolCageOff === 'function' ? genStolCageOff(v) : v));
   if (def.spec) { const mt = genCertMatTag(def.spec); if (mt) mix(mt); }   // (HULL-B50: a carbon / glass frame's rows)
   else {
     for (const nd of def.nodes) mix(nd.p.join(',') + ':' + nd.m);
@@ -53670,6 +53712,10 @@ const CERT_BOLT_ONS = ['pod'];
 // by age (the annual inspection keeps an aeroplane airworthy). Ageing, an overhaul, a restore never withdraw. Before
 // this, `aging` hashed with the structure group (an unnamed block): procureOnSaveCert re-signs those (WEAR-PRICE M4)
 const CERT_CONDITION = ['aging'];
+// MEASURED BLOCKS (ENGINE-COOLING, 12 Nov): a whole block the join measures off the drawing - the cowl's cooling openings
+// (spec.cooling, off the cowl rows the structure group already hashes). Dropped whole: a certificate signed before the
+// join measured them hashes the same (R3: a game update is not a change to the aeroplane)
+const CERT_MEASURED_BLOCKS = ['cooling'];
 // the cage's STATE and MINOR rows - views, the explode, who is aboard and whether the crew is shown, the lamps'
 // switches and dimmers, the lamps FITTED (li_*Fit: minor, a W&B update), the reflector glow, the fastener density
 // (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).
@@ -53706,7 +53752,7 @@ function certHash(str) {
 function certStrip(spec, o) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));
-  for (const k of CERT_COSMETIC.concat(CERT_MINOR_BLOCKS, CERT_BOLT_ONS, o && o.condition ? [] : CERT_CONDITION)) delete c[k];
+  for (const k of CERT_COSMETIC.concat(CERT_MINOR_BLOCKS, CERT_BOLT_ONS, CERT_MEASURED_BLOCKS, o && o.condition ? [] : CERT_CONDITION)) delete c[k];
   if (c.energy && typeof c.energy === 'object') {
     for (const k of CERT_LOOK.energy) delete c.energy[k];
     if (Array.isArray(c.energy.vessels)) for (const v of c.energy.vessels) if (v && typeof v === 'object') for (const k of CERT_LOOK.vessel) delete v[k];
@@ -53751,6 +53797,280 @@ function certChangeLine(keys) {
   if (!keys || !keys.length) return 'the aeroplane changed';
   const L = keys.map(k => (CERT_GROUPS[k] || {}).label || k);
   return (L.length > 1 ? L.slice(0, -1).join(', ') + ' and ' + L[L.length - 1] : L[0]) + ' changed';
+}
+// ============================================================
+// THE FICHE'S PHYSICS PAGES (PHYSICS-PAGES, 11 Nov 2026) - the data behind the fiche pages that show what a player never
+// sees: the LOAD TEST and its BREAKING POINT, the DRAG, the X-RAY (electrics and tanks) and WHAT THE SIM FLIES.
+//
+// NO PHYSICS HERE. Every number is read off a function the game already runs, the way it runs it:
+//   load     makeLoadTest on the stand's airframe (app.js startLoadTest's cfg), the shape and each member's force at the
+//            limit load, each force over that member's own yield (fy0 in tension, fc0 in compression, the damage
+//            model's figures)
+//   destroy  the bench to destruction (bench_worker.js benchLoadRun with destroy: the certified airframe, the damage
+//            layer on, the bags to three times the ultimate at the load test's own rate), the shape when the first part
+//            lets go and the damage record (sim.damage(): firstYield, firstBreak, broken, groups)
+//   drag     def.params.gen.drag (genFusCdA's build-up, genGearCdA, the truss, the pod), the gear row split by
+//            genGearCdA's own terms (the sum checked against the row), and each row's cost in km/h by the cruise rule
+//            64_gen_build solves the belly pod's cost with (drag = 65 % of the thrust, from the best-glide speed to
+//            4 Vs) run again with that row's drag area off the same probe
+//   elec     genSystemsResolve with the lights the build has fitted (the light layer's li_<key>Fit rows), and the bus
+//            (makeBus) run with the alternator switched off until it can no longer feed an instrument
+//   tanks    the vessels' resolved records (genVesselResolve's _res) and their bays (genBayResolve)
+//   model    def.nodes (masses), def.beams, def.strips with the control chords, the two body drag points
+//            (refs.fusDrag / fusDragAft with params.fusCdA / fusCdAAft), the propeller disc (params.prop.D at
+//            refs.engine), the ground contacts
+//
+//   genFichePages(def, { destroy: true|false, load: true|false, propOff }) -> { v, model, load, destroy, drag, elec, tanks }
+//            (propOff: genAidPropOff(CAGE_ENG), the drawn hubs; the model's propeller discs stand there)
+//
+// Heavy parts: the load test steps the sim (seconds), the bench to destruction longer (up to a minute on a strong wing):
+// the page asks for them on the bench's thread; each part can be left out ({ load: false, destroy: false }).
+// GATE PHYSPAGES (tools/_physpages_check.js) holds every part to the function it reads.
+// ============================================================
+const GEN_FICHE_PAGES_V = 1;
+const GEN_FICHE_CRUISE_K = 0.65;   // 64_gen_build's pod rule: cruise where the drag is 65 % of the thrust
+
+const GEN_FICHE_TEN = [1, 10, 100, 1000, 1e4, 1e5];
+function genFicheR(x, k) { const m = GEN_FICHE_TEN[k == null ? 3 : k]; return Math.round(x * m) / m; }
+
+// the airframe as the solver holds it: what the model page draws, and what every other page places its callouts by
+function genFicheModel(def, opts) {
+  const S = def.spec || {}, CT = S.controls || {}, P = def.params || {};
+  const tags = [], tagIx = {};
+  const tagOf = t => { t = t || ''; if (!(t in tagIx)) { tagIx[t] = tags.length; tags.push(t); } return tagIx[t]; };
+  const nodes = def.nodes.map(n => [genFicheR(n.p[0]), genFicheR(n.p[1]), genFicheR(n.p[2]), genFicheR(n.m, 2), tagOf(n.tag)]);
+  const CLS = ['fus', 'wing', 'tail', 'wire', 'gear'];
+  const beams = def.beams.map(b => [b.a, b.b, Math.max(0, CLS.indexOf(b.cls || (b.gear ? 'gear' : 'fus'))), b.vis === 'inner' ? 1 : 0]);
+  const share = st => st.kind === 'stab' ? (CT.elevator && CT.elevator.chord) || 0 : st.kind === 'fin' ? (CT.rudder && CT.rudder.chord) || 0
+    : st.ail ? (CT.aileron && CT.aileron.chord) || 0 : st.flap ? (CT.flap && CT.flap.chord) || 0 : 0;
+  const KIND = ['wing', 'stab', 'fin'];
+  const strips = def.strips.map(st => [st.fIn, st.fOut, st.rIn, st.rOut, genFicheR(st.chord), Math.max(0, KIND.indexOf(st.kind)),
+                                       genFicheR(share(st)), st.ail ? 1 : st.flap ? 2 : 0, genFicheR(st.area)]);
+  const mid = ix => { const a = [].concat(ix || []); if (!a.length) return null; const c = [0, 0, 0]; for (const i of a) for (let k = 0; k < 3; k++) c[k] += def.nodes[i].p[k] / a.length; return c.map(v => genFicheR(v)); };
+  const engI = [].concat((def.refs && def.refs.engine) || []);
+  const engAt = Array.isArray(S.engAt) ? S.engAt : [];
+  return {
+    tags, nodes, beams, strips, CLS, KIND,
+    drag: { fwd: mid(def.refs && def.refs.fusDrag), aft: mid(def.refs && def.refs.fusDragAft),
+            cda: (P.fusCdA || []).map(v => genFicheR(v, 4)), cdaAft: (P.fusCdAAft || []).map(v => genFicheR(v, 4)) },
+    prop: { D: genFicheR((P.prop && P.prop.D) || 0), at: mid(engI), pusher: engAt.some(e => e && e.mount === 'pusher'),
+            mounts: engAt.map(e => e && e.mount),
+            // the discs where the blades are DRAWN: each engine station (the mount's flange) moved by the editor's own
+            // measure of its hub (64c genAidPropOff off CAGE_ENG, handed in as opts.propOff); [x, y, z, drawn 1|0] - a
+            // disc without that measure stays at its flange (drawn 0)
+            discs: engAt.map((e, i) => { if (!e) return null; const PO = opts && Array.isArray(opts.propOff) ? opts.propOff : null, off = PO && PO[i];
+              return [genFicheR(e.x + (off ? off[0] : 0)), genFicheR(e.y + (off ? off[1] : 0)), genFicheR(e.z || 0), off ? 1 : 0]; }).filter(Boolean) },
+    engineKg: genFicheR(engI.reduce((a, i) => a + def.nodes[i].m, 0) + def.nodes.filter(n => n.tag === 'CGE').reduce((a, n) => a + n.m, 0), 1),
+    contacts: [].concat((def.refs && def.refs.mains) || [], def.refs && def.refs.tw >= 0 ? [def.refs.tw] : []),
+    floats: !!(def.parts && def.parts.floats),
+    semi: genFicheR((S.geom && S.geom.semi) || 0),
+  };
+}
+
+// the shape of a run against its jig, in the body frame (x aft, y up, z right), metres
+function genFicheShape(sim, def, base, now) {
+  const out = [];
+  for (let i = 0; i < def.nodes.length; i++) {
+    const d = [0, 1, 2].map(q => now.p[i * 3 + q] - base.p[i * 3 + q]);
+    out.push([0, 1, 2].map(a => genFicheR(d[0] * now.ax[a][0] + d[1] * now.ax[a][1] + d[2] * now.ax[a][2], 4)));
+  }
+  return out;
+}
+const genFicheSnap = sim => ({ p: Float64Array.from(sim.p), ax: sim.axes().map(a => a.slice()) });
+
+// THE LOAD TEST at the limit: app.js startLoadTest's cfg on a fresh sim of this def
+function genFicheLoad(def) {
+  const S = def.spec || {};
+  const sim = makeSim(def, null); sim.reset(0);
+  const cfg = { material: (S.fuselage && S.fuselage.material) || undefined,
+                wingMaterial: typeof genSurfKey === 'function' ? genSurfKey(S, 'wing', 0) : undefined };
+  const rig = makeLoadTest(sim, def, cfg);
+  if (!rig.state.ok) return { ok: false, why: rig.state.why };
+  let base = null, lim = null, F = null, frames = 0;
+  while (!rig.state.done && frames < 60 * 30) {
+    const ph = rig.state.phase; rig.step(1 / 60); frames++;
+    if (ph === 'settle' && rig.state.phase !== 'settle') base = genFicheSnap(sim);
+    if (!lim && rig.state.n >= rig.limit) {
+      lim = genFicheSnap(sim);
+      F = sim.beams.map(b => ((b.tens && b.strain < 0) ? 0 : b.k * b.strain * b.L0));
+    }
+  }
+  const st = rig.state;
+  const util = sim.beams.map((b, i) => { const f = F ? F[i] : 0, cap = f >= 0 ? (b.fy0 || b.fu) : (b.fc0 || b.fy0 || b.fu); return cap > 0 ? genFicheR(Math.abs(f) / cap, 4) : 0; });
+  let worst = 0; util.forEach((u, i) => { if (u > util[worst]) worst = i; });
+  return { ok: true, limit: rig.limit, ult: rig.ult, W: genFicheR(rig.W, 1), semi: genFicheR(rig.semi), bags: rig.bags.length,
+           verdict: st.verdict, limitPct: st.limitPct, ultPct: st.ultPct,
+           tipM: genFicheR(st.limitPct / 100 * rig.semi, 4), ultTipM: genFicheR(st.ultPct / 100 * rig.semi, 4),
+           shape: lim && base ? genFicheShape(sim, def, base, lim) : null, util, comp: F ? F.map(f => (f < 0 ? 1 : 0)) : null,
+           worst, worstU: util[worst], worstComp: F ? F[worst] < 0 : false, frames };
+}
+
+// THE BENCH TO DESTRUCTION: bench_worker.js benchLoadRun's destroy path (its setup restated here; GATE PHYSPAGES holds
+// the verdict, the loads and the damage record to benchLoadRun's own)
+function genFicheDestroy(def0, opts) {
+  const S = def0.spec || {}, U = GEN_LOAD_ULT;
+  const def = Object.assign({}, def0, { params: Object.assign({}, def0.params, { damage: true }) });
+  if (opts && opts.cert && opts.cert.Ft && opts.cert.nb === def.beams.length) def.cert = opts.cert;
+  else if (typeof genCertAttach === 'function')
+    genCertAttach(def, { world: def.parts && def.parts.floats && typeof makeWorld === 'function' ? makeWorld() : null });
+  const sim = makeSim(def, null); sim.reset(0);
+  const cfg = { material: (S.fuselage && S.fuselage.material) || undefined,
+                wingMaterial: typeof genSurfKey === 'function' ? genSurfKey(S, 'wing', 0) : undefined,
+                destroy: true, ult: 3 * U, rampS: 4 * 3 };
+  const rig = makeLoadTest(sim, def, cfg);
+  if (!rig.state.ok) return { ok: false, why: rig.state.why };
+  let base = null, atBreak = null, frames = 0;
+  while (!rig.state.done && frames < 60 * 120) {
+    const ph = rig.state.phase; rig.step(1 / 60); frames++;
+    if (ph === 'settle' && rig.state.phase !== 'settle') base = genFicheSnap(sim);
+    if (!atBreak && rig.state.brokeAt != null) atBreak = genFicheSnap(sim);
+  }
+  const st = rig.state, D = sim.damage();
+  const yielded = [], broken = [];
+  sim.beams.forEach((b, i) => { if (b.broken) broken.push(i); else if (b.yielded) yielded.push(i); });
+  return { ok: true, verdict: st.verdict, yieldAt: st.yieldAt, breakAt: st.breakAt, brokeAt: st.brokeAt,
+           brokeKey: st.brokeKey, brokeSeam: st.brokeSeam, breakFirst: st.breakFirst || null,
+           firstBreak: D.firstBreak ? { beam: D.firstBreak.beam, how: D.firstBreak.how, seam: D.firstBreak.seam, cls: D.firstBreak.cls } : null,
+           firstYield: D.firstYield && typeof D.firstYield === 'object' ? { beam: D.firstYield.beam, cls: D.firstYield.cls } : null,
+           groups: (D.groups || []).map(G => ({ key: G.key, seam: G.seam })), broken, yielded,
+           shape: atBreak && base ? genFicheShape(sim, def, base, atBreak) : null, frames };
+}
+
+// THE DRAG: the rows, the gear's terms, each one's km/h
+function genFicheGearTerms(S) {
+  // genGearCdA's own terms, one by one (62_gen_aero.js); GATE PHYSPAGES checks the sum against genGearCdA
+  const G = S.gear, semi = S.geom.semi;
+  const fd = t => 1 - 0.18 * (Math.max(0.70, Math.min(1.60, t || 1)) - 1);
+  const wCd = (G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55) * (G.fairing && G.fairing !== 'none' ? fd(G.fairTail) : 1);
+  const tCd = (G.twFairing === 'full' ? 0.15 : G.twFairing === 'spat' ? 0.22 : 0.55) * (G.twFairing && G.twFairing !== 'none' ? fd(G.twFairTail) : 1);
+  const R = G.wheelR || 0.20, Rt = G.twR || 0.10, legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
+  let lever = 0;
+  if (G.suspension === 'lever') {
+    const lv = G.lever, dx = lv && lv.horn && lv.top ? [0, 1, 2].map(k => lv.horn[k] - lv.top[k]) : null;
+    lever = 2 * legCd * (dx ? Math.hypot(dx[0], dx[1], dx[2]) : 0.50) * 0.060;
+  }
+  return { wheels: 2 * wCd * (2 * R * 0.76 * R), third: tCd * (2 * Rt * 0.76 * Rt), legs: 2 * legCd * (G.legDrop || 0.42) * 0.05, lever,
+           thirdLeg: (G.twFairing === 'full' || G.twLegFair === 'fair' ? 0.30 : 1.0) * (G.twLeg || 0.20) * 0.05,
+           struts: S.bracing && S.bracing.type === 'strut' ? 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0 };
+}
+const GEN_FICHE_DRAG_GROUPS = { fuselage: ['body'], cooling: ['cool', 'heads', 'exh'], screen: ['screen'], junct: ['junct'],
+  mainGear: ['g:wheels', 'g:legs', 'g:lever'], third: ['g:third', 'g:thirdLeg'], struts: ['g:struts'], wires: ['brace'],
+  nacelles: ['nacelles'], pod: ['pod'], strutPods: ['strutPods'] };
+function genFicheDrag(def) {
+  const S = def.spec, g = def.params.gen || {}, D = g.drag || {};
+  const sim = makeSim(def, null); sim.reset(0);
+  const W = sim.totalM * 9.81, aMax = 0.85 * genStallAngle(def), Vs0 = g.Vs || 10;
+  const sh = genShakedown(def);
+  const dragAt = (v, cda) => genProbeAt(sim, v, genAlphaForLift(sim, v, W, aMax)).drag - 0.5 * RHO * v * v * cda;
+  const cruise = cda => {
+    let lo = Math.max(1.05 * Vs0, sh.VbestLD || 0), hi = 4 * Vs0;
+    if (dragAt(lo, cda) >= GEN_FICHE_CRUISE_K * sim.thrustAt(lo, 1)) return lo;
+    for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (dragAt(m, cda) < GEN_FICHE_CRUISE_K * sim.thrustAt(m, 1)) lo = m; else hi = m; }
+    return 0.5 * (lo + hi);
+  };
+  const v0 = cruise(0);
+  const terms = genFicheGearTerms(S);
+  const rows = {};
+  let known = 0;
+  for (const r of ['body', 'cool', 'heads', 'screen', 'junct', 'exh', 'gear', 'brace', 'pod', 'strutPods']) {
+    if (D[r] > 0) rows[r] = D[r];
+    known += D[r] || 0;
+  }
+  // what the axial row carries with no row of its own: the off-nose nacelles (62_gen_aero's G179.5 block)
+  if (D.axial - known > 1e-6) rows.nacelles = D.axial - known;
+  const groups = {};
+  for (const k in GEN_FICHE_DRAG_GROUPS) {
+    let c = 0;
+    for (const r of GEN_FICHE_DRAG_GROUPS[k]) c += r.startsWith('g:') ? (terms[r.slice(2)] || 0) : (rows[r] || 0);
+    if (c > 0) groups[k] = { cda: genFicheR(c, 4), dV: genFicheR(cruise(c) - v0, 3) };
+  }
+  const a = genAlphaForLift(sim, v0, W, aMax), pr = genProbeAt(sim, v0, a), q = 0.5 * RHO * v0 * v0;
+  return { Vc: genFicheR(v0, 3), axial: genFicheR(D.axial, 4), surf: genFicheR((pr.drag - q * D.axial) / q, 4),
+           rows: Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, genFicheR(v, 4)])),
+           gear: Object.fromEntries(Object.entries(terms).map(([k, v]) => [k, genFicheR(v, 5)])), groups,
+           floats: S.gear.type === 'floats', gearType: S.gear.type };
+}
+
+// THE ELECTRICS: the record, the lamps fitted, the bus with the alternator off
+function genFicheElec(def) {
+  const S = def.spec || {}, cg = S.cage || {};
+  const LK = Object.keys(GEN_LIGHT_AMPS);
+  const lights = cg.lightOn ? LK.filter(k => cg['li_' + k + 'Fit'] == null || !!+cg['li_' + k + 'Fit']) : [];
+  const sy = genSystemsResolve(S, { lights });
+  const lamps = lights.map(k => ({ key: k, amps: GEN_LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1), cb: GEN_LIGHT_BREAKER[k] }));
+  const run = (loads, alt) => {
+    const bus = makeBus({ battAh: sy.battAh, altA: sy.altA, loads, breakers: sy.breakers });
+    bus.master = true; bus.alt = alt; bus.avionics = true;
+    bus.step(0.5, 2300, false);
+    const r = { A: genFicheR(bus.loadA, 3) };
+    if (!alt && sy.battAh > 0) { let t = 0; while (bus.ok && t < 6 * 3600) { bus.step(5, 2300, false); t += 5; } r.min = genFicheR(t / 60, 1); r.capped = t >= 6 * 3600; }
+    return r;
+  };
+  const night = sy.loads.concat(lamps.map(l => ({ key: 'lt_' + l.key, amps: l.amps, cb: l.cb })));
+  return { hasBus: sy.hasBus, elec: sy.elec, battAh: sy.battAh, altA: sy.altA, starter: sy.starter, vac: sy.vac,
+           parts: sy.parts, breakers: sy.breakers, loads: sy.loads, lamps, bill: sy.bill.elec,
+           day: run(sy.loads.slice(), true), night: run(night, true), dark: run(night, false),
+           litePos: { bayFrac: cg.li_bayFrac != null ? +cg.li_bayFrac : 0.24 } };
+}
+
+// THE TANKS: the vessels as resolved, each with its bay
+function genFicheTanks(def) {
+  const S = def.spec || {}, E = S.energy || {};
+  return { kind: E.kind || 'fuel', vessels: (E.vessels || []).map(v => {
+    const R = v._res || {}, B = typeof genBayResolve === 'function' ? genBayResolve(S, v.bay, def.parts && def.parts.ST) : null;
+    return { bay: v.bay, form: v.form, litres: R.litres, installedL: R.installedL, contentsKg: R.contentsKg, vesselKg: R.vesselKg,
+             vessel: R.vessel && R.vessel.name, kWh: R.kWh,
+             bayRes: B && { on: B.on, name: B.name, span: B.span || null, x0: B.x0, x1: B.x1, litres: B.litres } };
+  }) };
+}
+
+// THE COOLING (the user, 12 Nov: "a page for the engine cooling ... something nice that shows cooling ... a balance ...
+// on the plane"): ENGINE-COOLING's model as it judges the aeroplane - genCooling's three cases (the 38 C climb, the taxi,
+// the cruise: the heat, the air it needs, the air the drawn openings pass, the margin, what limits the flow, the opening
+// that would pass), its cooling drag, and the oil needle (genCoolOilC) at each case - plus where the cowl and the engine
+// stand, to draw the air through them. Nothing restated: each case's conditions are GEN_COOL's own (hot / taxi /
+// cruisePower) at the aeroplane's own climb and cruise speeds (def.params.ap), as genCoolSummary reads them.
+function genFicheCooling(def) {
+  if (typeof genCooling !== 'function' || typeof GEN_COOL === 'undefined') return null;
+  const S = def.spec || {}, ap = (def.params && def.params.ap) || {}, K = GEN_COOL;
+  const C = genCooling(S, { VClimb: ap.VClimb, VCruise: ap.VCruise });
+  const R = v => (typeof v === 'number' && isFinite(v)) ? genFicheR(v, 4) : (v === Infinity ? 'inf' : null);
+  const VC = ap.VClimb > 0 ? ap.VClimb : 30, VCr = ap.VCruise > 0 ? ap.VCruise : VC * 1.24;
+  const HOT = makeAtmos({ dISA: K.hot.dISA });
+  const AT = { hot: { air: HOT, h: K.hot.h, pFrac: 1, Veas: VC, ground: false },
+               taxi: { air: HOT, h: K.hot.h, pFrac: K.taxi.power, Veas: 0, ground: true },
+               cruise: { air: ATMOS_ISA, h: 0, pFrac: K.cruisePower, Veas: VCr, ground: false } };
+  const cases = {};
+  for (const k of ['taxi', 'hot', 'cruise']) {
+    const c = C[k]; if (!c) continue;
+    const oil = typeof genCoolOilC === 'function' ? genCoolOilC(S, AT[k]) : null;
+    cases[k] = { Q: R(c.Q), need: R(c.need), pass: R(c.pass), flow: R(c.flow), bare: R(c.bare), margin: R(c.margin), Vin: R(c.Vin),
+                 dT: R(c.dT), oatC: R(c.oatC), limit: c.limit, inNeed: R(c.inNeed), inPass: R(c.inPass), outNeed: R(c.outNeed),
+                 outPass: R(c.outPass), oilC: oil ? R(oil.oilC) : null, V: R(AT[k].Veas), pFrac: AT[k].pFrac };
+  }
+  // where the air goes: the body engine the answer is about, its cowl (len along x from the face to its firewall end; top /
+  // bot about the engine's axis), the engine box, the propeller's disc
+  const EA = S.engAt || [], e = EA[C.k > 0 ? C.k : 0] || EA[0] || {}, cw = S.cowl || {}, E = S.engBox || {};
+  const len = cw.len > 0 ? cw.len : 0.7, face = C.pushes ? e.x + 0.1 : e.x - 0.1;
+  const PP = S.pplant || POWERPLANTS[((S.engines && S.engines[0]) || {}).type] || {}, eng = (PP && PP.engine) || {};
+  const ST0 = def.parts && def.parts.ST && def.parts.ST[0];
+  return { v: 1, kind: C.kind, path: C.path, pushes: !!C.pushes, coolKW: R(C.coolKW), kW: R((eng.powerW || 0) / 1000),
+           layout: eng.layout || null, nEng: C.nEng || 1,
+           parts: (C.parts || []).map(p => ({ what: p.what, A: R(p.A), faces: p.faces })),
+           inA: R(C.inA), outA: R(C.outA), bareA: R(C.bareA), radA: R(C.radA), exitSized: !!C.exitSized, duct: !!C.duct,
+           cdA: R(C.cdA), meredithN: R(C.meredithN || 0), cases,
+           lines: { pass: K.pass, warn: K.warn, oilRed: K.oilRed, hotOat: R(cases.hot ? cases.hot.oatC : null) },
+           geom: { x: R(e.x), y: R(e.y), z: R(e.z || 0), mount: e.mount || 'nose', face: R(face), fw: R(C.pushes ? face - len : face + len), top: R(cw.top), bot: R(cw.bot),
+                   halfH: R(E.halfH), cylZ: R(E.cylZ), cylR: R(E.cylR), D: R((S.prop && S.prop.D) || 0),
+                   fus: ST0 ? { yb: R(ST0.yb), yt: R(ST0.yt) } : null } };
+}
+
+function genFichePages(def, opts) {
+  const o = opts || {};
+  return { v: GEN_FICHE_PAGES_V, model: genFicheModel(def, o),
+           load: o.load === false ? null : genFicheLoad(def),
+           destroy: o.destroy === false ? null : genFicheDestroy(def, o),
+           drag: genFicheDrag(def), elec: genFicheElec(def), tanks: genFicheTanks(def), cooling: genFicheCooling(def) };
 }
 // ===========================================================================
 // THE PLAYER — the player's property as ONE document, one key, one version.
@@ -55191,6 +55511,8 @@ function playerAcquire(doc, aero, plotId, shell, tenure) {
     shell, kits: (P.kits || HANGAR_KITS_DEFAULT).slice(), base: aero, tenure,
     dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}), price, since: Math.round(d.clock || 0),
   };
+  // RESTORE (13 Nov): a building with a restoration track is bought AS IT STANDS (the story's stage, else the plot's own)
+  if (P.closedTrack && shell === P.shells[0]) d.sheds[plotId].dims.stage = Math.max(Number.isFinite(P.closedStage) ? P.closedStage : 0, restoreTrack(doc, P));
   playerCharge(d, cost, 'acquire', plotId);
   return { ok: true, doc: d, hangar: plotId, cost, why: '' };
 }
@@ -55335,7 +55657,9 @@ function playerWorldSheds(doc) {
   const S = (doc && doc.sheds) || {}, out = [];
   const one = (id, main) => {
     const s = S[id]; if (!s || typeof s !== 'object') return;
-    out.push({ id, base: typeof s.base === 'string' ? s.base : id, shell: s.shell || 'club', dims: hangarDims(s),
+    const dims = hangarDims(s);
+    const rs = restoreStage(doc, id); if (rs != null) dims.stage = rs;   // (RESTORE: its own stage or the story's, the higher)
+    out.push({ id, base: typeof s.base === 'string' ? s.base : id, shell: s.shell || 'club', dims,
                kits: Array.isArray(s.kits) ? s.kits.slice() : [], parts: s.parts ? pbClone(s.parts) : null, main: !!main });
   };
   if (S[PREM_MAIN]) one(PREM_MAIN, true);
@@ -55362,6 +55686,86 @@ function playerClosedSheds(doc) {
     }
   }
   return out;
+}
+// ---- RESTORE: THE OLD HANGAR, STEP BY STEP (HOME-DERELICT; the user 13 Nov, via A0: "the old hangar ... the mechanics for its
+// STEP-BY-STEP RESTORATION. Not yet to be included in the story, just have the assets ready and clear") ----------------------
+// A plot whose building has a restoration track (BASE_OFFERS closedTrack: HOME.2, DERELICT_GEN's four stages) keeps its
+// STAGE once it is held: bought as it stands (playerAcquire writes dims.stage), it is restored one step at a time - a step is
+// STARTED here (its price paid, its days counted on the career's clock: routeNow) and FINISHED when its days are up
+// (playerRestoreSettle, pure: the page calls it where it reads the document). The building the world draws is the higher of
+// its own stage and the story's track (the field arc still raises it: 76_stages / careerComplete), so the story can drive
+// the same four stages later without a second path. The sandbox (doc.mode !== 'career', nothing is charged) finishes a step
+// at once. The prices are shares of the plot's price; the days are the works' - both a first guess, tuned in one place.
+const RESTORE_WORDS = ['derelict', 'made safe', 'roofed', 'restored'];
+const RESTORE_STEPS = [
+  { to: 1, share: 0.06, days: 2, what: 'the rubble cleared, the holes fenced, the dead wiring cut' },
+  { to: 2, share: 0.18, days: 5, what: 'a new roof and gutters, the doors freed and hung' },
+  { to: 3, share: 0.30, days: 9, what: 'the walls clad, the floor poured, the lamps and the old tower lit' },
+];
+const RESTORE_DAY_S = 86400;
+// the plot's offer when its HELD building restores (its track, and the shell the derelict is: the offer's first)
+function restorePlot(doc, id) {
+  const s = doc && doc.sheds && doc.sheds[id];
+  if (!s) return null;
+  for (const aero of Object.keys(BASE_OFFERS)) {
+    const P = BASE_OFFERS[aero].plots[id];
+    if (P && P.closedTrack && P.shells && s.shell === P.shells[0]) return P;
+  }
+  return null;
+}
+const restoreNow = (doc, now) => (typeof now === 'number' && isFinite(now) ? now
+  : typeof routeNow === 'function' ? routeNow(doc) : ((doc && doc.clock) || 0));
+const restoreTrack = (doc, P) => {
+  const T = P && P.closedTrack, tr = (T && typeof stageTracksOf === 'function') ? stageTracksOf(doc) : null;
+  return T && tr && Array.isArray(T.stages) && T.stages.length ? T.stages[Math.max(0, Math.min(T.stages.length - 1, tr[T.track] || 0))] : 0;
+};
+// the stage a held building stands at: its own (dims.stage; absent = an older document's, restored) or the story's, the higher
+function restoreStage(doc, id) {
+  const P = restorePlot(doc, id), s = doc.sheds[id];
+  if (!P) return null;
+  const own = s.dims && Number.isFinite(s.dims.stage) ? s.dims.stage : 3;
+  return Math.max(0, Math.min(3, Math.max(own, restoreTrack(doc, P))));
+}
+// what the hangar's card says: null (nothing to restore here) | { stage, word, max, next: { to, word, price, days, what } | null,
+// works: { to, word, until, left (s) } | null, why: '' (why the next step cannot start now) }
+function playerRestoreState(doc, id, now) {
+  const P = restorePlot(doc, id);
+  if (!P) return null;
+  const stage = restoreStage(doc, id), s = doc.sheds[id], t = restoreNow(doc, now);
+  const step = RESTORE_STEPS.find(x => x.to === stage + 1) || null;
+  // the price paid for the plot, on the hangar's own record (playerAcquire); the price book only when an older record has
+  // none (the sandbox page loads no economy - 76_economy's econShellPrice is the career's lazy pack: the page check, 13 Nov)
+  let plotP = Number.isFinite(s.price) ? s.price : 0;
+  if (!plotP) try { plotP = plotPrice(s.base || id, id, s.shell) || 0; } catch (e) { plotP = 0; }
+  const next = step ? { to: step.to, word: RESTORE_WORDS[step.to], price: Math.round((plotP || 0) * step.share), days: step.days, what: step.what } : null;
+  const w = s.restore && Number.isFinite(s.restore.until) ? s.restore : null;
+  const works = w ? { to: w.to, word: RESTORE_WORDS[w.to] || '', until: w.until, left: Math.max(0, w.until - t) } : null;
+  let why = '';
+  if (!next) why = 'restored';
+  else if (works) why = 'the works are under way';
+  else if (!pbAfford(doc, next.price)) why = 'the wallet holds ' + Math.round(doc.wallet) + ', the step costs ' + next.price;
+  return { stage, word: RESTORE_WORDS[stage], max: 3, next, works, why };
+}
+// START the next step: paid now, finished when its days are up (the sandbox: at once) -> { ok, doc, cost, why }
+function playerRestoreStart(doc, id, now) {
+  const st = playerRestoreState(doc, id, now);
+  if (!st) return pbNo(doc, id + ' has nothing to restore');
+  if (st.why) return pbNo(doc, st.why);
+  const d = pbClone(doc), s = d.sheds[id], t = restoreNow(doc, now);
+  s.dims = Object.assign({}, s.dims, { stage: st.stage });           // (the story's stage, if higher, becomes the building's own)
+  const career = d.mode === 'career';
+  s.restore = { to: st.next.to, since: t, until: t + (career ? st.next.days * RESTORE_DAY_S : 0), price: st.next.price };
+  playerLedger(d, 'restore', st.next.price, id);
+  return { ok: true, doc: playerRestoreSettle(d, t).doc, cost: career ? st.next.price : 0, why: '' };
+}
+// FINISH every step whose days are up (pure): -> { doc (the same object when nothing changed), done: [ids] }
+function playerRestoreSettle(doc, now) {
+  const S = (doc && doc.sheds) || {}, t = restoreNow(doc, now), due = [];
+  for (const id of Object.keys(S)) { const w = S[id] && S[id].restore; if (w && Number.isFinite(w.until) && w.until <= t) due.push(id); }
+  if (!due.length) return { doc, done: [] };
+  const d = pbClone(doc);
+  for (const id of due) { const s = d.sheds[id]; s.dims = Object.assign({}, s.dims, { stage: Math.max(0, Math.min(3, s.restore.to)) }); delete s.restore; }
+  return { doc: d, done: due };
 }
 // may a shed's residents be drawn? (GAME §4.4: an open door and the camera within 60 m; a shut shed costs nothing)
 function premResidentsDrawn(doorOpen, camDist) {
@@ -61477,7 +61881,7 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 // ...and the READOUTS the editor derives a frame after a load: `fuel` (the energy arc's legacy litres, re-derived from
 // energy.vessels by the energy layer - measured on the page, G2280: the stock Cub's 45 came back 29 a frame after the
 // load with no edit). A readout is not a choice, so it never signs or withdraws a certificate.
-const PROCURE_READOUTS = ['fuel'];
+const PROCURE_READOUTS = ['fuel', 'cooling'];   // ENGINE-COOLING: the join's measurement of the cowl's openings (66b CERT_MEASURED_BLOCKS)
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
 // G3852: whSlick (a tundra's lugs or smooth) is drawing only, as bench.js counts it
 const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|accBeacon|whSlick)$|^hgDr[A-Z]/;
@@ -65151,7 +65555,7 @@ const TECH_TABLE = {
   'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3, 'eng:rotax912is_warp': 2,
   'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
   'eng:fes_folding_100': 3, 'eng:outrunner2212_9x47': 3, 'eng:outrunner3548_12x6': 3, 'eng:outrunner6374_18x10': 3,
-  'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3,
+  'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3, 'eng:pt6a27_hartzell3': 3,
   'cfg:twin': 2,
   'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
   'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,
@@ -65162,17 +65566,9 @@ const TECH_TABLE = {
   'elec.battery:none': 1, 'elec.battery:lead': 1, 'elec.battery:lithium': 3,
   'elec.alternator:none': 1, 'elec.alternator:gen20': 1, 'elec.alternator:alt60': 2,
   'elec.starter:none': 1, 'elec.starter:yes': 1,
-  // ELEC-SYSTEMS (9 Nov): the class rows - lead and copper are wood-and-fabric technology, a lithium brick electronics,
-  // the 912's integrated generator rides with the 912 UL (1)
-  'elec.battery:leadSmall': 1, 'elec.battery:leadHeavy': 1, 'elec.battery:lifeSmall': 3,
-  'elec.alternator:coil12': 1, 'elec.alternator:int18': 1, 'elec.alternator:genHeavy': 1,
-  'elec.starter:ul': 1, 'elec.starter:heavy': 1,
   'elec.vac:none': 1, 'elec.vac:venturi': 1, 'elec.vac:pump': 2,
   'av.com:none': 1, 'av.com:compact': 1,
   'av.xpdr:none': 1, 'av.xpdr:modeS': 2,
-  // ELEC-SYSTEMS (9 Nov, the user: "do what you think is best"): the ELT is certified avionics on its own battery, the
-  // transponder's tier - not GPS-era electronics
-  'av.elt:none': 1, 'av.elt:fitted': 2,
   'av.nav:none': 1, 'av.nav:vor': 2,
   'av.gps:none': 1, 'av.gps:portable': 3, 'av.gps:panel': 3, 'av.gps:glass': 3, 'av.gps:flat': 3, 'av.gps:flatPair': 3,   // G2815
   // ---- gear
@@ -65421,7 +65817,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_BRAKES, genBrakeOf, GEN_STRUT_OPT, genStrutOpts, genStrutOptCdA, GEN_ELEC_AS_BUILT, GEN_ELEC_SETS, genElecSetOf, genHarnessKg };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_BRAKES, genBrakeOf, GEN_FICHE_PAGES_V, genFichePages, genFicheModel, genFicheLoad, genFicheDestroy, genFicheDrag, genFicheGearTerms, genFicheElec, genFicheTanks, GEN_COOL, genCooling, genCoolOpen, genCoolOilC, genCoolSummary, genHeadsFrontal, genCoolRows, genFicheCooling, RESTORE_WORDS, RESTORE_STEPS, restoreStage, playerRestoreState, playerRestoreStart, playerRestoreSettle };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh

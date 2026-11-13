@@ -624,7 +624,252 @@ function genReK(L, lCal) {
   const cf = l => 0.455 / Math.pow(Math.log10(R.vRef * l / R.nu), 2.58);
   return cf(L) / cf(lCal);
 }
-function genFusCdA(S, fr) {
+// ENGINE COOLING (ENGINE-COOLING, futureDesigns/ENGINE-COOLING-2026-11.md; GEN_COOL's header in 60_gen_spec says what
+// each constant is). Pure, no sim: the heat (genEngineThermo) -> the air it needs (Q = mdot cp dT) -> the air the drawn
+// geometry passes -> a MARGIN per case (the hot-day climb, the taxi, the cruise), and the cooling DRAG from the momentum
+// the air loses (CdA = 2 mdot (1 - r) / rho V).
+// THE AIR PASSED (ENGINE-COOLING 3, the user 12 Nov: "if you recalibrate something, that should be your coefficients
+// around the opening or the geometry of the opening"): three resistances IN SERIES - the drawn inlet (ivr rho V A_in: a
+// small inlet runs near its best velocity ratio), the engine's own passages (its fins and baffles: `passages` x the air
+// its hot climb needs, at that climb's inlet speed - an engine is built to be cooled; past that the air spills round the
+// cowl), and a drawn outlet (ivr rho V A_out / outRatio) - mdot = 1 / sqrt(sum 1 / mdot_i^2). The cylinder heads in the
+// wind pass beside it (kappaBare rho V A_heads).
+// WHAT IS READ: spec.cooling (the join's measurement of the drawn cowl, m2: `face` the front apertures net of the
+// spinner, `scoop` the scoop's open mouth and `scoopRev` its facing, `scoopAlt` its mouth at the other end, `nacInlet` a
+// nacelle cone's inlet, `exit` the lowered bottom, `gills` the side gills, `headsOut` / `headsAll` the cylinders' frontal
+// outside the drawn skin / in all, `units` each engine unit's cowl: turned round (aft), its area factor, its scoop turned
+// on its own), the cage's wing radiators (rad* rows), the engine's facing (engAt.pushes). The cowl's +z faces the
+// propeller: on a tractor the face apertures take the air in, on a pusher they face aft and let it out.
+// THREE ANSWERS (`kind`): 'bare' - no cowl, the engine in the wind: its heads alone (headsAll); 'legacy' - a cowled spec
+// nobody measured (a headless build, an old fiche): no margin, today's GEN_DRAG.kCool; 'measured' - the model.
+// EVERY ENGINE ON THE BODY is judged (a push-pull's nose and rear: the rear one wears the nose cowl turned round); the
+// answer is the worst one's, its drag the sum. Wing and pylon nacelles all wear one cowl: engine 0 speaks for them.
+//   o.VClimb, o.VCruise  EAS, m/s (the aeroplane's own: GEN_VRATIO x Vs at build, def.params.ap after)
+function genHeadsFrontal(S) {
+  const E = S.engBox, cw = S.cowl || {}, covers = cw.covers || {};
+  const PP = S.pplant || POWERPLANTS[((S.engines && S.engines[0]) || {}).type] || POWERPLANTS.a65_sensenich74;
+  const eng = (PP && PP.engine) || {};
+  const th = genEngineThermo(eng);
+  const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
+  if (!E || eng.layout === 'radial' || eng.aspiration === 'electric' || th.family === 'turbine' || th.cooling === 'liquid' ||
+      (cowlOn && covers.sides)) return 0;
+  const at = cw.atEngine || {};
+  const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
+  return 2 * out * (2 * E.cylR) * 2;                    // both banks, each bank's reach x its height
+}
+// the body's engines (a nose, a pusher), by their index in engAt; none: engine 0 speaks for every nacelle
+function genCoolBodyEngines(S) {
+  const ks = (S.engAt || []).map((e, i) => e && (e.mount === 'nose' || e.mount === 'pusher') ? i : -1).filter(i => i >= 0);
+  return ks.length ? ks : [0];
+}
+function genCoolOpen(S, k) {
+  const K = GEN_COOL, cg = S.cage || {}, cw = S.cowl || {};
+  const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
+  const EA = S.engAt || [], ki = k > 0 ? k : 0;
+  const at = EA[ki] || EA[0] || {};
+  const pushes = !!at.pushes;
+  const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
+  // the engines whose cooling the BODY row pays: those on the body (a nose, a pusher); a wing or pylon nacelle's is in
+  // the nacelle rule's 0.30 x frontal ("cylinders, radiator, exhaust, the lot"), and the per-kW term before this charged
+  // one engine whatever the count - so one at least, as it did
+  const nBody = Math.max(1, EA.filter(e => e && (e.mount === 'nose' || e.mount === 'pusher')).length);
+  // the wing radiators (27 Oct): a ducted radiator's mouth under each wing (or one and an oil cooler) - the duct is drawn
+  // with its exit flap, so its outlet is the duct's own; shared between the engines when there are several
+  const rm = Math.round(+cg.radMode || 0), ps = +cg.planeScale > 0 ? +cg.planeScale : 1;
+  const mouth = Math.max(0, +cg.radW || 0) * Math.max(0, +cg.radH || 0) * K.radMouth * ps * ps;
+  const oilK = Math.max(0, +cg.radOilK || 0.55);
+  const radA = rm === 1 ? 2 * mouth : rm === 2 ? mouth * (1 + oilK * oilK) : 0;
+  const parts = [];
+  const C = S.cooling && typeof S.cooling === 'object' ? S.cooling : null;
+  const n = v => Math.max(0, +v || 0);
+  // the heads in the wind: measured against the drawn skin when the join could (headsOut / headsAll), else the
+  // generator's own reach against its cowl loft (genHeadsFrontal)
+  if (!cowlOn) return { kind: 'bare', k: ki, pushes, nEng, nBody, inA: 0, outA: 0, radA: radA / nEng, exitSized: true, parts,
+                        bareA: C && C.headsAll != null ? n(C.headsAll) : genHeadsFrontal(S) };
+  if (!C) return { kind: 'legacy', k: ki, pushes, nEng, nBody, inA: 0, outA: 0, bareA: 0, radA: radA / nEng, exitSized: true, parts };
+  // this engine's unit: its cowl's area factor (a clone scaled to another kind of face) and its scoop turned on its own
+  const U = (Array.isArray(C.units) && C.units[ki]) || {}, kf = +U.k > 0 ? +U.k : 1, turned = !!+U.turned;
+  let inA = 0, outA = 0;
+  const put = (A, faces, what) => { if (!(A > 0)) return; parts.push({ what, A, faces }); if (faces === 'fwd') inA += A; else outA += A; };
+  put(kf * n(C.face), pushes ? 'aft' : 'fwd', 'the cowl\'s front openings');
+  // a scoop's mouth faces the cowl's +z (the propeller) unless it is turned round (on this unit: cw_scoopAft)
+  const rev = turned ? !+C.scoopRev : !!+C.scoopRev;
+  put(kf * n(turned ? C.scoopAlt : C.scoop), rev === pushes ? 'fwd' : 'aft', 'the scoop');
+  // a nacelle cone's inlet faces -z: the flight on a pusher, aft on a tractor
+  put(kf * n(C.nacInlet), pushes ? 'fwd' : 'aft', 'the nacelle\'s inlet');
+  // the lowered bottom's crescent and the gills' hoods open towards the cowl's FIREWALL end: aft on a tractor (the way
+  // out), into the flight on a pusher, whose cowl is turned round (ENGINE-COOLING 3: there they are inlets, and a
+  // pusher's way out is its face, round the spinner at the propeller's end)
+  put(kf * n(C.exit), pushes ? 'fwd' : 'aft', 'the lowered bottom (the exit)');
+  put(kf * n(C.gills), pushes ? 'fwd' : 'aft', 'the gills');
+  const bareA = C.headsOut != null ? n(C.headsOut) : genHeadsFrontal(S);
+  // WHICH OUTLET IS THE WAY OUT (ENGINE-COOLING 3; the user 12 Nov on the side gills, "the shark fins"): a tractor's
+  // cowl always has its exit at the firewall end, sized for you until the lowered bottom (the exit gap) draws it - the
+  // gills, an aft-facing scoop or cone ADD to it and never cap the air (a few small gills drawn used to become the only
+  // way out); a pusher's way out is what faces aft (its face round the spinner, an unturned scoop)
+  const capOut = pushes ? outA : kf * n(C.exit);
+  return { kind: 'measured', k: ki, pushes, nEng, nBody, inA, outA, bareA, radA: radA / nEng, exitSized: !(capOut > 0), parts };
+}
+function genCooling(S, o) {
+  const ks = genCoolBodyEngines(S);
+  const per = ks.map(k => genCoolingOne(S, o, k));
+  // the worst engine answers; the drag is every body engine's (wing nacelles: engine 0's alone, as the body row always
+  // paid one)
+  let w = per[0];
+  for (const p of per) if (p.hot && w.hot && p.hot.margin < w.hot.margin) w = p;
+  const out = Object.assign({}, w);
+  if (per.length > 1) {
+    out.cdA = per.reduce((s, p) => s + (p.cdA || 0), 0);
+    out.engines = per.map(p => ({ k: p.k, pushes: p.pushes, margin: p.hot ? p.hot.margin : null, limit: p.hot ? p.hot.limit : null }));
+  }
+  return out;
+}
+function genCoolingOne(S, o, k) {
+  const K = GEN_COOL, oo = o || {};
+  const EN = (S.engines && S.engines[0]) || {};
+  const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
+  const eng = (PP && PP.engine) || {};
+  const th = genEngineThermo(eng);
+  const path = th.family === 'turbine' ? 'turbine' : th.family === 'electric' ? 'electric' : th.cooling;
+  const op = genCoolOpen(S, k);
+  const kW = (eng.powerW || 0) / 1000, D = (S.prop && S.prop.D) || (PP.prop && PP.prop.D) || 1.8;
+  const Adisc = Math.PI * D * D / 4;
+  const asp = eng.aspiration || 'na';
+  const crit = (asp === 'turbo' || asp === 'super') && eng.critAlt > 0 ? ATMOS_ISA.sigma(eng.critAlt) : 1;
+  // the heads' air: a bare engine's (any piston: its cylinders, its radiator, in the wind); a cowled one's air-cooled
+  // heads only (a liquid head's barrel is not what the cowl is sized for)
+  const bareA = op.kind === 'bare' ? (path === 'turbine' || path === 'electric' ? 0 : op.bareA) : (path === 'air' ? op.bareA : 0);
+  const out = { kind: op.kind, k: op.k, path, coolKW: th.coolKW, pushes: op.pushes, nEng: op.nEng,
+                inA: op.inA + op.radA, outA: op.outA, bareA, radA: op.radA, exitSized: op.exitSized, parts: op.parts };
+  if (op.kind === 'legacy' && !(op.radA > 0)) return out;
+  if (op.kind === 'legacy') out.kind = 'measured';                // the radiators are measured whatever the cowl
+  const duct = op.radA > 0 && op.radA >= op.inA;                  // the air goes through a radiator duct
+  const r = duct ? K.r.duct : K.r.cowl;
+  const dT = Tamb => K.path[path].eps * (K.path[path].Tlim - Tamb);
+  // the inlet's speed: the true airspeed plus the slipstream's share (a nose inlet behind the roots), from the actuator
+  // disc at the thrust eta x P / V; a pusher's inlets are ahead of it, but its prop SUCKS on the outlet (GEN_COOL.suck:
+  // the pressure the air is driven by grows, the flow with its root); the ground keeps its own inflow law
+  const slip = (Pw, V, rho) => {
+    const T = K.etaClimb * Pw / Math.max(1, V);
+    return (1 + Math.sqrt(1 + 2 * T / (rho * Adisc * V * V))) / 2;
+  };
+  const air = (A, h, pFrac, Veas, ground) => {
+    const rho = A.rho(h), sig = A.sigma(h), Tc = A.T(h) - 273.15;
+    const pr = pFrac * atmosPowerRatio(sig, asp, eng.flatK || 1, crit);
+    const Q = th.coolKW * pr * 1000;                              // W, per engine
+    const need = Q / (K.cp * dT(Tc));
+    let Vin;
+    if (ground) {
+      const P = pr * kW * 1000;
+      const Ts = Math.pow(K.FM * P, 2 / 3) * Math.pow(2 * rho * Adisc, 1 / 3), vd = Math.sqrt(Ts / (2 * rho * Adisc));
+      Vin = K.taxi.V + (op.pushes ? K.pushInflow : K.slip) * vd;
+    } else {
+      const V = Veas / Math.sqrt(sig), f = slip(pr * kW * 1000, V, rho);
+      Vin = V * (op.pushes ? Math.sqrt(1 + K.suck * (f * f - 1)) : 1 + K.slip * (f - 1));
+    }
+    return { rho, Tc, Q, need, Vin };
+  };
+  const VC = oo.VClimb > 0 ? oo.VClimb : 30, VCr = oo.VCruise > 0 ? oo.VCruise : VC * 1.24;
+  const HOT = makeAtmos({ dISA: K.hot.dISA });
+  // THE ENGINE'S PASSAGES, an equivalent area (m2 at the free stream): `passages` x what its hot climb needs there
+  const h0 = air(HOT, K.hot.h, 1, VC, false);
+  const Aeng = K.passages * h0.need / (h0.rho * h0.Vin);
+  const inv2 = f => f > 0 && isFinite(f) ? 1 / (f * f) : (f === Infinity ? 0 : Infinity);
+  const caseAt = (A, h, pFrac, Veas, ground) => {
+    const { rho, Tc, Q, need, Vin } = air(A, h, pFrac, Veas, ground);
+    const fIn = K.ivr * rho * Vin * out.inA, fEng = rho * Vin * Aeng;
+    const fOut = op.exitSized ? Infinity : K.ivr * rho * Vin * op.outA / K.outRatio;
+    const rIn = inv2(fIn), rEng = inv2(fEng), rOut = inv2(fOut), sum = rIn + rEng + rOut;
+    const flow = isFinite(sum) && sum > 0 ? 1 / Math.sqrt(sum) : 0;
+    const bare = K.kappaBare * rho * Vin * bareA;
+    const pass = flow + bare;
+    // the inlet that would pass `m` x the need, the outlet sized for it (through the engine's passages); the outlet that
+    // would, through the inlet AS DRAWN (Infinity: the inlet must grow first)
+    const T = m => m * need - bare;
+    const inAt = m => {
+      const t = T(m); if (!(t > 0)) return 0;
+      const rhs = 1 / (t * t) - rEng;
+      return rhs > 0 ? 1 / Math.sqrt(rhs) / (K.ivr * rho * Vin) : Infinity;
+    };
+    const outAt = m => {
+      const t = T(m); if (!(t > 0)) return 0;
+      const rhs = 1 / (t * t) - rEng - rIn;
+      return rhs > 0 ? K.outRatio / Math.sqrt(rhs) / (K.ivr * rho * Vin) : Infinity;
+    };
+    const inNeed = inAt(1), inPass = inAt(K.warn);
+    return { rho, oatC: Tc, Q: Q / 1000, dT: dT(Tc), need, pass, flow, bare, margin: need > 0 ? pass / need : Infinity,
+             Vin, inNeed, inPass, outNeed: outAt(1), outPass: outAt(K.warn),
+             limit: rOut >= rIn && rOut >= rEng ? 'outlet' : rEng > rIn ? 'engine' : 'inlet' };
+  };
+  // the case the caller is IN (the cockpit's needle: o.at = { air: an atmosphere, h, pFrac, Veas, ground })
+  if (oo.at && oo.at.air) {
+    const a = oo.at;
+    out.at = caseAt(a.air, a.h || 0, Math.max(0, Math.min(1, +a.pFrac || 0)), Math.max(0, +a.Veas || 0), !!a.ground);
+    if (oo.atOnly) return out;
+  }
+  out.hot = caseAt(HOT, K.hot.h, 1, VC, false);
+  out.taxi = caseAt(HOT, K.hot.h, K.taxi.power, 0, true);
+  out.cruise = caseAt(ATMOS_ISA, 0, K.cruisePower, VCr, false);
+  out.Aeng = Aeng;
+  if (op.kind === 'bare') { out.cdA = 0; out.margin = out.hot.margin; return out; }   // (a bare engine's drag: the heads term)
+  // THE DRAG: the momentum of the air the geometry passes - with no outlet drawn, the outlet is SIZED FOR YOU to the hot
+  // climb's need (the default every saved build reads: its drag follows what its engine needs, not how big its face is
+  // drawn); a drawn outlet passes what the series passes; never less than the air it NEEDS (an engine starved of air
+  // overheats - the margin says so - and does not fly faster for it). Net of the heads' air (the heads term bills it).
+  // Equivalent free-stream areas (m2): the air over rho V_inlet
+  const H = out.hot;
+  const needEq = Math.max(0, H.need - H.bare) / (H.rho * H.Vin), flowEq = H.flow / (H.rho * H.Vin);
+  const Aeff = op.exitSized ? needEq : Math.max(needEq, flowEq);
+  // the cruise's dynamic pressure over the inlet's: the flow rides the slipstream, the momentum is lost on the free stream
+  const fC = out.cruise.Vin / (VCr / Math.sqrt(ATMOS_ISA.sigma(0)));
+  let cda = 2 * Aeff * fC * (1 - r);
+  // MEREDITH: a radiator duct's heat as thrust, k M^2 Q at the cruise (a cowl gets none)
+  let meredithN = 0;
+  if (duct) {
+    const V = VCr, M = V / ATMOS_ISA.a(0), q = 0.5 * ATMOS_ISA.rho(0) * V * V;
+    meredithN = K.meredith * M * M * out.cruise.Q * 1000 / Math.max(1, V);
+    cda = Math.max(0, cda - meredithN / q);
+  }
+  out.Aeff = Aeff; out.r = r; out.duct = duct; out.meredithN = meredithN;
+  // one engine's; genCooling sums the body's (a single engine's body row: x nBody as it always was - one)
+  out.cdA = ks1(S) ? cda * op.nBody : cda;
+  out.margin = H.margin;
+  return out;
+}
+// the body row's old count: one engine's cooling x nBody when ONE engine speaks for the body (a single, or wing
+// nacelles: nBody 1); with several body engines genCooling sums them each once
+function ks1(S) { return genCoolBodyEngines(S).length <= 1; }
+
+// the plaque's few numbers (genShakedown's `cooling`): null for a cowled spec never measured
+function genCoolSummary(def) {
+  const S = def && def.spec, ap = (def && def.params && def.params.ap) || {};
+  if (!S || typeof genCooling !== 'function') return null;
+  const C = genCooling(S, { VClimb: ap.VClimb, VCruise: ap.VCruise });
+  if (C.kind === 'legacy') return null;
+  const r3 = v => Math.round(v * 1000) / 1000, r2 = v => Math.round(v * 100) / 100;
+  // (ENGINE-COOLING 3: a bare engine's own figure - its heads in the wind)
+  if (C.kind === 'bare') return { kind: 'bare', bareA: r3(C.bareA), needKgS: r2(C.hot.need), passKgS: r2(C.hot.pass),
+                                  margin: r2(C.hot.margin), taxi: r2(C.taxi.margin) };
+  return { kind: C.kind, pushes: C.pushes, inA: r3(C.inA), outA: C.exitSized ? null : r3(C.outA), bareA: r3(C.bareA),
+           needA: r3(C.hot.inNeed), needKgS: r2(C.hot.need), passKgS: r2(C.hot.pass), margin: r2(C.hot.margin),
+           taxi: r2(C.taxi.margin), cruise: r2(C.cruise.margin), cdA: r3(C.cdA), limit: C.hot.limit };
+}
+
+// THE OIL TEMPERATURE NOW (the cockpit's needle; display only - nothing in the solver reads it, and the power is not
+// pulled back over the red line until the proposed rows are ruled): the hot side's rise grows as the air needed over the
+// air passed, to the red line (GEN_COOL.oilRed) at exactly enough air. A bare engine reads as if it had twice the air
+// it needs; an unmeasured cowl returns null (the needle keeps the 82 C it always showed). `at` as genCooling's o.at.
+function genCoolOilC(S, at) {
+  const K = GEN_COOL;
+  const C = genCooling(S, { at, atOnly: true });
+  if (C.kind === 'legacy' && !(C.radA > 0)) return null;
+  const T = at.air.T(at.h || 0) - 273.15;
+  const x = !C.at ? 0.5 : (C.at.pass > 0 ? Math.min(2, C.at.need / C.at.pass) : 2);
+  const oil = Math.max(T + 20, T + (K.oilRed - T) * Math.pow(x, 0.7));
+  return { oilC: oil, margin: x > 0 ? 1 / x : Infinity };
+}
+
+function genFusCdA(S, fr, o) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
   for (const s of ST) frontal = Math.max(frontal, 2 * s.w * (s.yt - s.yb));
@@ -663,7 +908,8 @@ function genFusCdA(S, fr) {
             : th.cooling === 'liquid' ? D.kCool.liquid
             : radial ? (cowlOn ? radialCowlK(D.kCool, S) : D.kCool.radialBare) : D.kCool.pressureCowl;
     cool = k * th.coolKW;
-    // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal
+    // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal (genHeadsFrontal counts the
+    // same reach as a bare inlet; the expression stays here as it was, bit for bit)
     const E = S.engBox;
     if (E && !radial && th.family !== 'turbine' && th.cooling !== 'liquid' &&
         (!cowlOn || !covers.sides)) {
@@ -671,6 +917,14 @@ function genFusCdA(S, fr) {
       const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
       heads = D.cdBlock * 2 * out * (2 * E.cylR) * 2;      // both banks, each bank's reach x its height
     }
+  }
+  // ENGINE-COOLING: a MEASURED cowl (the join's spec.cooling) or drawn wing radiators pay the momentum the cooling air
+  // loses (genCooling), at the aeroplane's own climb and cruise speeds (GEN_VRATIO x Vs, the speeds genAP gives it); a
+  // bare engine and an unmeasured spec keep the per-kW figure above
+  let coolSheet = null;
+  if (o && o.Vs > 0) {
+    coolSheet = genCooling(S, { VClimb: GEN_VRATIO.VClimb * o.Vs, VCruise: GEN_VRATIO.VCruise * o.Vs });
+    if (coolSheet.kind === 'measured') cool = coolSheet.cdA;
   }
   // the windscreen
   const cb = S.cab || {}, cn = cb.canopy || {};
@@ -692,7 +946,8 @@ function genFusCdA(S, fr) {
     fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
     drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
-            body, cool, heads, screen, junct, exh, ...(reK !== 1 ? { reK } : {}) },
+            body, cool, heads, screen, junct, exh, ...(reK !== 1 ? { reK } : {}),
+            coolBy: coolSheet && coolSheet.kind === 'measured' ? 'momentum' : 'perKW' },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
   // wind. Priced as a DELTA on the covered figure — the gear model's own rule
@@ -1602,7 +1857,12 @@ function genParams(S, fr, strips) {
     ClMax3Dx = ClMax3D + gainS / G.Sw;
   }
   const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3Dx));
-  const cda = genFusCdA(S, fr);
+  // ENGINE-COOLING: the cooling drag's climb and cruise speeds hang off the CLEAN wing's Vs - a slat or a VG kit is the
+  // wing's, it does not redraw the cowl (the outlet "sized for you" is the engine's, sized on the aeroplane's own clean
+  // climb; GATE STOL: the auto slat pays only its seam, the body's axial term is the clean one). The margin rows read the
+  // climb the aeroplane flies (def.params.ap)
+  const VsClean = ClMax3Dx === ClMax3D ? Vs : Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3D));
+  const cda = genFusCdA(S, fr, { Vs: VsClean });
   // G115: the undercarriage and bracing join the drag build-up. PERF STUDY
   // chantier 2 (2026-09-15): ADDED AS THEY ARE — the body row is a wetted
   // build-up now and contains no reference gear to subtract from; the delta

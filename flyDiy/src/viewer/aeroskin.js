@@ -1308,8 +1308,16 @@ function aeroPlaneRepaint(swap, scene) {
 // against the unconverted path AND they are a DIAGNOSTIC palette (magenta
 // waistband, green pillars) rather than a livery. New pickers convert;
 // legacy hexes stay bit-exact until deliberately re-picked.
+//
+// THE r186 CORRECTION (12 Nov, FIT-PROCEDURE; the user on the PC-6: "the colour applied to the fin is not exactly the
+// colour applied to the fuselage"). Everything above is r128's story. Under r186 and the MANAGED ruling
+// (tools/vendor_three.js), `new THREE.Color(hex)` ALREADY decodes the hex as sRGB, so converting again decoded every
+// tint TWICE - darker and redder than picked - while the decal atlas (decoded once since W0.5a) showed the picked
+// colour: the same 0xf5862a measured (242,71,23) as a tint against (237,155,56) as a decal on one panel. Convert here
+// only when colour management is OFF (the GRAPHICS menu's "as authored", flydiy.cm = '0'): once, in either mode.
 function aeroLinear(THREE, hex) {
-  return new THREE.Color(hex).convertSRGBToLinear();
+  const c = new THREE.Color(hex);
+  return THREE.ColorManagement && THREE.ColorManagement.enabled ? c : c.convertSRGBToLinear();
 }
 
 // ---------------------------------------------------------------------------
@@ -1602,13 +1610,18 @@ function aeroDetailTex(THREE, key) {
 // marking needs a one-sided mask, which the field cannot supply.
 // NINE, and the number is not a guess (LIVERY-5, 4 Nov): five kit layers, the
 // registration, the registration on the wing, the certification strip and the
-// master. The image channels are gone (the user: "everything procedural and
+// master. FIFTEEN since LIVERY-STICKERS (9 Nov), AND A CAP, NOT A SUM (the user: "19 slots seems like a lot ... let's
+// try 15"): the four fixed markings (the registration, its wing copy, the strip, the master) are always kept and the
+// player's pieces - the kit's layers, the stickers (and LIVERY-TEXT's pieces when they land) - share the other eleven;
+// aeroDecalsFor's trim decides what gives way. LIVERY-TEXT planned the same 15, so the two branches agree on this line. The image channels are gone (the user: "everything procedural and
 // nothing rasterized"); their two pages carry kit layers 4 and 5. Every one of these is an unrolled iteration of a
 // texture fetch in the fragment shader, so the array is sized to what the
 // panel can actually turn on and not to a round number.
 // LIVERY-TEXT (9 Nov, the user: several pieces of text a plane - a name, a slogan): +6, one slot a text piece. The
 // loop breaks at uDecN (a uniform), so a plane wearing fewer pays for the slots it uses, not for fifteen.
-const AERO_MAXD = 15;            // G208: +1, the certification stickers' strip; A9: +1, the master; LIVERY-5: 5 kit layers; LIVERY-TEXT: 6 text pieces
+// LIVERY-STICKERS (9 Nov, the user: "19 slots seems like a lot ... let's try 15"): the four stickers do NOT add slots - fifteen
+// is a CAP, shared: the fixed markings and the text pieces are kept, the kit then the stickers give way (aeroDecalsFor).
+const AERO_MAXD = 15;            // G208: +1, the certification stickers' strip; A9: +1, the master; LIVERY-5: 5 kit layers; LIVERY-TEXT: 6 text pieces; LIVERY-STICKERS: the same 15, a cap
 const AERO_ATLAS_N = 4;              // 4x4 pages
 // 1024 -> 4096 (G207, the user: "the current decals are too low resolution,
 // the pixels are clearly visible"). A page was 256 px, stretched over a
@@ -1880,6 +1893,8 @@ function aeroAtlasRepaint() {
       else if (L.kind === 'kit') { delete AERO_KIT_SIG[p]; aeroKitDraw.apply(null, L.args); }
     } catch (e) {}
   }
+  // LIVERY-STICKERS: the sticker cells too (page 15's four, kept by slot)
+  for (const p of Object.keys(AERO_VINYL_LAST)) try { delete AERO_VINYL_SIG[p]; aeroVinylDraw.apply(null, AERO_VINYL_LAST[p]); } catch (e) {}
   if (AERO_ATLAS) AERO_ATLAS.needsUpdate = true;
 }
 
@@ -2040,6 +2055,14 @@ function aeroSharedU(THREE) {
   aeroLabGains(THREE);           // the saved gains, once the block exists
   return AERO_DEC;
 }
+// CANOPY-CRACKS: the crack sheet's stand-in, one texel of no crack (R 255: as far as the sheet reads; G 255: never arrives)
+let AERO_CRACK_NONE = null;
+function aeroCrackNone(THREE) {
+  if (AERO_CRACK_NONE) return AERO_CRACK_NONE;
+  const t = new THREE.DataTexture(new Uint8Array([255, 255, 128, 0]), 1, 1, THREE.RGBAFormat);
+  t.needsUpdate = true;
+  return (AERO_CRACK_NONE = t);
+}
 function aeroSharedU0(THREE, z4) {
   return ({
     tAtlas: { value: aeroAtlas(THREE) },
@@ -2071,6 +2094,11 @@ function aeroSharedU0(THREE, z4) {
     uCrackN: { value: 0 },
     uCrackP: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 0, 0)) },
     uCrackQ: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 1, 0)) },
+    // CANOPY-CRACKS (12 Nov): the crack sheet (dmg_glass.js SHEET_*; app.js binds the flown aeroplane's own at the flight's
+    // start) - until then a texel of no crack (R: far, G: never arrives), so a sampler is always bound and nothing shows;
+    // uCrackMat which sheet it is (0 acrylic, 1 laminated: the whitened core's size)
+    tCrack: { value: aeroCrackNone(THREE) },
+    uCrackMat: { value: 0 },
     uInset: { value: 0.02 },
     // THE WEATHERING (G345, src/viewer/aeroweather.js). uWear carries the
     // FOUR MACROS now — x age, y flight, z bush, w rain — and the module
@@ -2999,6 +3027,237 @@ function aeroKitDraw(THREE, L) {
   return true;
 }
 
+// ===========================================================================
+// THE LIVERY STICKERS (LIVERY-STICKERS, 9 Nov 2026) — THE TWELVE ALASKA MARKS
+// ===========================================================================
+// The user approved twelve vinyl marks (assets-src/stickers: bold logo marks, one colour, no text) and wants them on
+// the aeroplanes. A sticker is THE SAME KIND OF PIECE AS THE REGISTRATION and a kit layer, through the same door:
+//   - a crisp mask per mark as a DISTANCE FIELD (the registration's G212 field: alpha 0.5 at the edge, the shader's
+//     threshold one screen pixel wide at any zoom; `sdf: 2`, the field that is not lettering: floats take it), the ink's
+//     own colour under the whole ramp;
+//   - ONE colour the player picks (null follows the paint's trim, like the registration's ink);
+//   - placed like a livery layer: goes on, projected as, station, height on side, turn (the kit's own rows and the
+//     same AERO_DEC_ON / AERO_DEC_MODES), a size (the ink's height in metres; the width follows the mark), and
+//   - SIDES: both, the right flank only, the left flank only (uDecE.z 0 / 2 / 1 - LIVERY-TEXT's code: 1 the +x side, 2
+//     the -x side, on the certification strip's one-side test), and MIRROR: off, a sticker reads as drawn on both flanks, as letters do; on, the left flank
+//     wears the mirror image (the same physical direction both sides: a bear walks to the nose on both).
+// THE ATLAS: page 15, cut in four cells (2 x 2), one per sticker slot - each slot draws its mark, in its colour, into
+// its own cell, and the decal's rect is the cell's ink box (uDecB is any rect, not only a page). Pages 8-13 are
+// LIVERY-TEXT's (AIRCRAFT-LOOKS, claude/livery-text) and 14 stays free; nothing here touches 0-7.
+// THE GEOMETRY IS LAZY: src/viewer/livery_marks.js (tools/livery_marks_prep.js) is asked for the first time a sticker is
+// drawn (window.FLYDIY_LAZY); the names and the ink boxes below are inline, so a placement never waits on the file and
+// an absent file draws an empty cell - the sticker appears when the file lands (aeroVinylReady repaints the cells).
+// DEFAULTS ABSENT: every row below is off / its default in AERO_DEC_DEF, `finish.decals` stores deviations, so a build
+// saved before this - every official plane - carries none of them and is bit-identical.
+const AERO_VINYL_N = 4;                // the sticker slots
+const AERO_VINYL_PAGE = 15;            // the atlas page they share (2 x 2 cells)
+// THE MARKS, inline: id, name, the ink box in the mark's own units (x0, y0, x1, y1) - livery_marks.js's own, held to
+// it by GATE LIVERYSTICKERS (a mark added there and not here, or moved, is red)
+const AERO_VINYL_MARKS = [
+  { id: 'stol-river', name: 'Off the river bar', b: [4, 20, 240, 200.5] },
+  { id: 'grizzly-range', name: 'Grizzly range', b: [8, 48, 229.3, 186] },
+  { id: 'orca', name: 'Orca', b: [4, 58.1, 236, 224] },
+  { id: 'winged-prop', name: 'Winged prop', b: [8, 10, 272, 138] },
+  { id: 'midnight-valley', name: 'Midnight valley', b: [2, 2, 238, 238] },
+  { id: 'northern-shield', name: 'Northern shield', b: [0, 0, 200, 262] },
+  { id: 'bear-paw', name: 'Bear paw', b: [12.3, 11.6, 190.5, 208.9] },
+  { id: 'true-north', name: 'True north', b: [18, 4, 222, 256] },
+  { id: 'bull-moose', name: 'Bull moose', b: [29.7, 35, 234, 196] },
+  { id: 'lighthouse', name: 'Lighthouse', b: [2, 26, 198, 244] },
+  { id: 'glassy-panorama', name: 'Glassy panorama', b: [2, 14, 318, 148.8] },
+  { id: 'alaska', name: 'Alaska', b: [9, 6, 256, 161.9] },
+];
+// A SLOT'S ROWS (`vn<i><field>` in AERO_DEC_DEF; 'stk' is the certification strip's prefix). Off by default. THE FIRST
+// PLACE (the user, 9 Nov: "in the middle of the fuselage"): the editor puts a slot it switches on at the middle of the
+// build's own fuselage (its field box's mid-length) on the waist line, in the field frame, 350 mm; these numbers are only
+// the fallback when there is no geometry to measure.
+const AERO_VINYL_LDEF = {
+  On: 0, Mk: 0, Col: null,
+  L: 2.5, C: 0, H: 0.35, Rot: 0,      // the editor places a slot switched on at ITS fuselage's middle (decVinylFirstPlace)
+  Tgt: 0, Mode: 0,
+  Side: 0,        // 0 both flanks, 1 the right flank only, 2 the left flank only
+  Mir: 0,         // 1: the left flank wears the mirror image
+};
+const AERO_VINYL_FIELDS = Object.keys(AERO_VINYL_LDEF);
+const AERO_VINYL_SIDES = ['both sides', 'the right side only', 'the left side only'];
+for (let i = 1; i <= AERO_VINYL_N; i++)
+  for (const k of AERO_VINYL_FIELDS) AERO_DEC_DEF['vn' + i + k] = AERO_VINYL_LDEF[k];
+// WHICH FLANK IS WHICH, in craft space (x lateral, y aft, z up): +x is the LEFT (port) flank - MEASURED on the stand,
+// not derived (the cage frame's handedness got the registration wrong twice): a sticker with uDecE.z = +1 on the stock
+// Cub showed only on the view whose nose points LEFT, i.e. the aeroplane's left side (stickers_shot.js --probe, 9 Nov;
+// reports/evidence/LIVERY-STICKERS/probe_*.jpg; LIVERY-TEXT's comment agrees: "1 is the +x side, the cage's port"). So the
+// RIGHT flank's sign is -1 (uDecE.z code 2).
+const AERO_VINYL_RIGHT = -1;
+// ...and which flank reads a noMirror decal AS DRAWN (the other wears the mirror image): +x, the left one - measured in
+// the same probe (the grizzly, head to the right in its art: noMirror 1 showed it head-right on the left flank and
+// head-left on the right). The cell is drawn flipped when this is not the right flank (aeroVinylLayers' `flip`), so
+// "mirror on the left" means exactly that: the right flank reads as drawn, the left wears the mirror.
+const AERO_VINYL_TRUE = 1;
+
+// THE STICKERS OF A PLACEMENT, resolved and nothing drawn (node can prove it): one per slot that is on
+function aeroVinylLayers(D, trim) {
+  const out = [];
+  if (!D) return out;
+  const onOf = t => AERO_DEC_ON[Math.max(0, Math.min(AERO_DEC_ON.length - 1, +t || 0))];
+  const modeOf = m => AERO_DEC_MODES[Math.max(0, Math.min(2, +m || 0))];
+  for (let i = 0; i < AERO_VINYL_N; i++) {
+    const q = 'vn' + (i + 1);
+    if (!D[q + 'On']) continue;
+    const mk = Math.max(0, Math.min(AERO_VINYL_MARKS.length - 1, Math.round(+D[q + 'Mk'] || 0)));
+    const M = AERO_VINYL_MARKS[mk];
+    const side = Math.max(0, Math.min(2, Math.round(+D[q + 'Side'] || 0)));
+    const mir = D[q + 'Mir'] ? 1 : 0;
+    const col = D[q + 'Col'] != null ? (+D[q + 'Col'] >>> 0) : (trim != null ? trim >>> 0 : 0x1b3a5c);
+    const h = Math.max(0.03, +D[q + 'H'] || 0.03);
+    const asp = (M.b[2] - M.b[0]) / (M.b[3] - M.b[1]);
+    // MIRROR = the paint's rule (noMirror 1: one physical direction on both flanks). The cell is drawn flipped when the
+    // flank that reads a noMirror decal as drawn is the LEFT one, so that "mirror" always means the LEFT flank's copy.
+    const flip = mir && AERO_VINYL_TRUE !== AERO_VINYL_RIGHT ? 1 : 0;
+    out.push({
+      slot: i, page: AERO_VINYL_PAGE, mk, id: M.id, name: M.name, col, flip, asp,
+      place: {
+        page: AERO_VINYL_PAGE, rect: null,                 // the cell's ink box, filled by aeroVinylRect
+        sL: +D[q + 'L'] || 0, sC: +D[q + 'C'] || 0,
+        w: h * asp, h,                                     // the INK's size; aeroVinylRect grows it by the cell's margin
+        rot: +D[q + 'Rot'] || 0,
+        // vinyl: the registration's ink. sdf 2 = a distance field that is NOT lettering - a float (aeroDecOk 0.5, `noLetters`)
+        // declines the registration but takes a sticker (the user, 9 Nov: "I would like stickers to go to floats")
+        rough: -0.06, sdf: 2, metal: 0,
+        noMirror: mir,
+        // LIVERY-TEXT's code for uDecE.z: 1 the +x side, 2 the -x side (the flank's sign -> its code)
+        one: side === 0 ? 0 : ((side === 1 ? AERO_VINYL_RIGHT : -AERO_VINYL_RIGHT) > 0 ? 1 : 2),
+        on: onOf(D[q + 'Tgt']), mode: modeOf(D[q + 'Mode']),
+      },
+    });
+  }
+  return out;
+}
+// THE CELL: slot i's quarter of page 15, and inside it the box the ink is drawn in (aspect kept, a margin all round
+// for the distance field's ramp and the mips). Pure arithmetic on the atlas size, so node can hold it.
+function aeroVinylCell(slot, asp, S) {
+  S = S || AERO_ATLAS_PX;
+  const N = AERO_ATLAS_N, P = S / N, C = P / 2;
+  const px = (AERO_VINYL_PAGE % N) * P + (slot % 2) * C, py = Math.floor(AERO_VINYL_PAGE / N) * P + Math.floor(slot / 2) * C;
+  const M = AERO_SDF_SPREAD(C) + Math.max(2, Math.round(C * 0.03));
+  const inner = C - 2 * M;
+  const dw = asp >= 1 ? inner : inner * asp, dh = asp >= 1 ? inner / asp : inner;
+  return { px, py, C, M, dw, dh, x: px + M, y: py + M,
+           // the rect handed to the shader (atlas uv, flipY once - as aeroPageRect): the ink box plus its margin
+           rect: [(px) / S, 1 - (py + dh + 2 * M) / S, (dw + 2 * M) / S, (dh + 2 * M) / S],
+           grow: [(dw + 2 * M) / dw, (dh + 2 * M) / dh] };
+}
+function aeroVinylRect(L, S) {
+  const c = aeroVinylCell(L.slot, L.asp, S);
+  L.place.rect = c.rect;
+  L.place.w = L.place.w * c.grow[0]; L.place.h = L.place.h * c.grow[1];
+  return L.place;
+}
+// THE GEOMETRY: window.LIVERY_MARKS (the lazy file), or node's require
+let AERO_VINYL_GEO = null, AERO_VINYL_ASKED = false;
+function aeroVinylGeo() {
+  if (AERO_VINYL_GEO) return AERO_VINYL_GEO;
+  const W = typeof window !== 'undefined' ? window : null;
+  if (W && W.LIVERY_MARKS) return (AERO_VINYL_GEO = W.LIVERY_MARKS);
+  if (W && typeof W.FLYDIY_LAZY === 'function' && !AERO_VINYL_ASKED) {
+    AERO_VINYL_ASKED = true;
+    try { W.FLYDIY_LAZY('livery_marks').then(() => aeroVinylReady()); } catch (e) {}
+  }
+  return null;
+}
+// the file landed: every cell drawn while it was away is drawn again (the placements did not wait - same rects)
+function aeroVinylReady() {
+  if (!aeroVinylGeo()) return false;
+  for (const p of Object.keys(AERO_VINYL_LAST)) {
+    try { delete AERO_VINYL_SIG[p]; aeroVinylDraw.apply(null, AERO_VINYL_LAST[p]); } catch (e) {}
+  }
+  if (AERO_ATLAS) AERO_ATLAS.needsUpdate = true;
+  return true;
+}
+// THE BAKES WAIT FOR IT: a spec that wears a sticker resolves once the geometry is in (at once when it is, or when the
+// spec wears none, or with no lazy loader) - flown_bake.js awaits it before it draws, so a cached bake of the flown
+// aeroplane (keyed by the build's content) never holds an empty sticker cell
+function aeroVinylWait(spec) {
+  const D = aeroDecalMerge(spec);
+  let any = false;
+  for (let i = 1; i <= AERO_VINYL_N; i++) if (D['vn' + i + 'On']) any = true;
+  if (!any || aeroVinylGeo()) return Promise.resolve(true);
+  const W = typeof window !== 'undefined' ? window : null;
+  if (!W || typeof W.FLYDIY_LAZY !== 'function') return Promise.resolve(false);
+  return W.FLYDIY_LAZY('livery_marks').then(() => aeroVinylReady(), () => false);
+}
+// a mark's rings in its own units, decoded (the lazy file's deltas)
+function aeroVinylRings(G, mk) {
+  const m = G && G.marks && G.marks[mk];
+  if (!m) return null;
+  if (m._rings) return m._rings;
+  const u = G.unit || 0.1;
+  return (m._rings = m.r.map(r => { let x = 0, y = 0;
+    return r.split(' ').map((p, i) => { const [a, b] = p.split(',').map(Number);
+      x = i ? x + a : a; y = i ? y + b : b; return [x * u, y * u]; }); }));
+}
+function aeroVinylPath(g, rings, b, sc, ox, oy, flip, dw) {
+  g.beginPath();
+  for (const r of rings) r.forEach(([x, y], i) => {
+    let X = (x - b[0]) * sc; const Y = oy + (y - b[1]) * sc;
+    X = ox + (flip ? dw - X : X);
+    if (i) g.lineTo(X, Y); else g.moveTo(X, Y);
+  });
+  g.closePath();
+}
+// ONE BAKE PER STICKER, not per slider: the cell is redrawn only when its mark, colour or flip changes
+const AERO_VINYL_SIG = {}, AERO_VINYL_LAST = {}, AERO_VINYL_FIELD = {};
+function aeroVinylDraw(THREE, L) {
+  const t = aeroAtlas(THREE), S = AERO_ATLAS_PX;
+  const c = aeroVinylCell(L.slot, L.asp, S);
+  const G = aeroVinylGeo();
+  const sig = [L.mk, L.col, L.flip, S, G ? 1 : 0].join('|');
+  if (AERO_VINYL_SIG[L.slot] === sig) return false;
+  AERO_VINYL_SIG[L.slot] = sig;
+  AERO_VINYL_LAST[L.slot] = [THREE, L];
+  const g = AERO_ATLAS_CV.getContext('2d');
+  g.save();
+  g.beginPath(); g.rect(c.px, c.py, c.C, c.C); g.clip();
+  g.clearRect(c.px, c.py, c.C, c.C);
+  const rings = aeroVinylRings(G, L.mk);
+  if (!rings) { g.restore(); t.needsUpdate = true; return true; }    // the file is on its way: an empty cell
+  const b = AERO_VINYL_MARKS[L.mk].b, sc = c.dw / (b[2] - b[0]);
+  const hex = '#' + (L.col >>> 0).toString(16).padStart(6, '0');
+  const R = AERO_SDF_SPREAD(c.C);
+  // THE COLOUR UNDER THE RAMP (G212's underlay): a stroke 2R wide in the ink's colour, then the fill
+  aeroVinylPath(g, rings, b, sc, c.x, c.y, L.flip, c.dw);
+  g.lineJoin = 'round'; g.lineWidth = 2 * R + 2; g.strokeStyle = hex; g.stroke();
+  g.fillStyle = hex; g.fill('evenodd');
+  g.restore();
+  // THE FIELD over the ink box and its margin: the coverage on a scratch canvas, a distance transform each way. KEPT per
+  // slot by its shape (mark, flip, atlas size): the transform is ~130 ms at 4096 (a 1024 px cell), and the colour well
+  // fires on every step of a drag - a colour change repaints the colour and lays the kept field back
+  const X0 = c.px, Y0 = c.py, w = Math.ceil(c.dw + 2 * c.M), h = Math.ceil(c.dh + 2 * c.M);
+  const fk = [L.mk, L.flip, S].join('|');
+  let F = AERO_VINYL_FIELD[L.slot];
+  if (!F || F.key !== fk) {
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const m = cv.getContext('2d');
+    m.fillStyle = '#fff';
+    aeroVinylPath(m, rings, b, sc, c.M, c.M, L.flip, c.dw);
+    m.fill('evenodd');
+    const cov = m.getImageData(0, 0, w, h).data;
+    const inside = new Uint8Array(w * h), outside = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) { const on = cov[i * 4 + 3] > 127; inside[i] = on ? 1 : 0; outside[i] = on ? 0 : 1; }
+    const dIn = aeroEDT(outside, w, h), dOut = aeroEDT(inside, w, h);
+    const al = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+      const sd = Math.sqrt(dIn[i]) - Math.sqrt(dOut[i]);
+      al[i] = Math.round(Math.max(0, Math.min(1, 0.5 + sd / (2 * R))) * 255);
+    }
+    F = AERO_VINYL_FIELD[L.slot] = { key: fk, al };
+  }
+  const img = g.getImageData(X0, Y0, w, h), d = img.data;
+  for (let i = 0; i < w * h; i++) d[i * 4 + 3] = F.al[i];
+  g.putImageData(img, X0, Y0);
+  t.needsUpdate = true;
+  return true;
+}
+
 // D is a placement in AERO_DEC_DEF's shape; `opts` carries what the placement
 // does NOT own — the registration string and the paint it defaults its colour
 // to. Returns { list, aspect }: the caller gets the aspect back because the
@@ -3038,8 +3297,8 @@ function aeroDecalsFor(THREE, D, opts) {
   // layer is paint, and a registration painted under its own cheat line is a
   // registration you cannot read.
   // LIVERY-5: THE KIT IS WHAT GIVES WAY. aeroSetDecals keeps the first AERO_MAXD of the list, so the kit is trimmed
-  // HERE to what the slots leave after the registration, its wing copy and the stickers: an overflow drops the
-  // LAST kit layer, never a registration or a certificate (9 slots hold the worst case today: 5 + 2 + 2)
+  // HERE to what the slots leave after the registration, its wing copy and the certification stickers: an overflow drops
+  // the LAST kit layer, never a registration or a certificate (and then the last livery sticker - the budget, below)
   const kit = [], list = [];
   for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); kit.push(L.place); }
   // LIVERY-TEXT: THE PIECES, over the kit (letters are read, paint is under them) and under the registration; each its
@@ -3057,6 +3316,10 @@ function aeroDecalsFor(THREE, D, opts) {
                 rot: +D[q + 'Rot'] || 0, rough: -0.06, sdf: 1, metal: +D[q + 'Metal'] || 0,
                 on: onOf(D[q + 'Tgt']), mode: modeOf(D[q + 'Mode']), one: Math.max(0, Math.min(2, Math.round(+D[q + 'Side'] || 0))) });
   }
+  // LIVERY-STICKERS: THE STICKERS, over the kit (vinyl on paint) and under the text pieces and the registration; collected
+  // here, placed in the list by the budget below
+  const vinyl = [];
+  for (const L of aeroVinylLayers(D, trim)) { aeroVinylDraw(THREE, L); vinyl.push(aeroVinylRect(L)); }
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode), one: Math.max(0, Math.min(2, Math.round(+D.regSide || 0))) });
@@ -3074,7 +3337,14 @@ function aeroDecalsFor(THREE, D, opts) {
             ? window.AERO_EXTRA_DECALS(THREE, D) : null;
     if (X) for (const p of X) list.push(p);
   } catch (e) {}
-  const out = { list: kit.slice(0, Math.max(0, AERO_MAXD - list.length)).concat(list), aspect };
+  // THE BUDGET (LIVERY-STICKERS, the user's cap of 15): the fixed markings and LIVERY-TEXT's pieces first (`list`, never
+  // dropped), then in what is left THE STICKERS, then THE KIT - so THE KIT GIVES WAY FIRST (its last layers), THEN THE
+  // STICKERS (their last slots). Worst case today: 4 fixed + 6 text = 10, leaving 5: all four stickers and one kit layer.
+  // `dropped` says how many pieces found no slot, so a panel can say it. Paint order: the kit, the stickers, the rest.
+  const room = Math.max(0, AERO_MAXD - list.length);
+  const keepV = Math.min(vinyl.length, room), keepK = Math.min(kit.length, room - keepV);
+  const out = { list: kit.slice(0, keepK).concat(vinyl.slice(0, keepV), list), aspect,
+                dropped: (kit.length - keepK) + (vinyl.length - keepV) };
   AERO_LAST_FOR = { THREE, D, opts, list: out.list };   // (a face that arrives later makes this list again: aeroTxtArrived)
   return out;
 }
@@ -3132,7 +3402,7 @@ function aeroSetDecals(THREE, list) {
   U.uDecN.value = n;
   AERO_LAST_LIST = list || null;
   for (let i = 0; i < n; i++) {
-    const d = list[i], r = aeroPageRect(d.page || 0);
+    const d = list[i], r = d.rect || aeroPageRect(d.page || 0);   // LIVERY-STICKERS: a sticker hands its cell's rect
     U.uDecA.value[i].set(d.sL || 0, d.sC || 0,
       Math.max(1e-4, (d.w || 0.5) * 0.5), Math.max(1e-4, (d.h || 0.3) * 0.5));
     U.uDecB.value[i].set(r[0], r[1], r[2], r[3]);
@@ -3141,7 +3411,7 @@ function aeroSetDecals(THREE, list) {
     const on = d.on || { body: 1 };
     U.uDecD.value[i].set(AERO_DEC_MODE[d.mode] || 0,
       on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
-    U.uDecE.value[i].set(d.sdf ? 1 : 0,
+    U.uDecE.value[i].set(d.sdf === 2 ? 2 : d.sdf ? 1 : 0,   // LIVERY-STICKERS: 2 a field that is not letters (a sticker)
       Math.max(0, Math.min(1, +d.metal || 0)),
       d.one === true ? 1 : Math.max(0, Math.min(2, Math.round(+d.one || 0))),   // LIVERY-TEXT: 2 = the other side
       (on.stab != null ? on.stab : on.tail) ? 1 : 0);   // y: metallic (G215)  z: one side only (1 +x, 2 -x)  w: the stabiliser (class 3)
@@ -4021,14 +4291,17 @@ const AERO_ALBEDO_FS = `
     // twin boom the first is what keeps the port boom bare. The -0.02 slack
     // is the centreline fin's own half thickness, so a fin ON the centreline
     // is not cut in half by a rounding error.
+    // LIVERY-STICKERS: a SIGN - uDecE.z -1 keeps the other flank (the same two tests, mirrored); +1 is the strip's own
     float aOne = uDecE[di].z;
     // LIVERY-TEXT (9 Nov, the user: "both sides reading right, plus a one-side switch"): 1 is the +x side (the
     // stickers' own, the cage's port), 2 the -x side - the same two tests, the sign turned
     float aSg = (aOne > 1.5) ? -1.0 : 1.0;
     float aSide = step(-0.02, aeroA.x * aSg) * step(0.0, vCraftNrm.x * aSg);
     // (uDecE.x marks the letters: the one sdf page. uDecOk 0.5, a float: paint yes, letters no)
+    // LIVERY-STICKERS: uDecE.x 1 = letters (a distance field a float declines), 2 = a sticker's field (a float takes it)
+    float aLet = step(0.5, uDecE[di].x) * step(uDecE[di].x, 1.5);
     float w = ib.x * ib.y * uDecC[di].z * onMe
-            * (1.0 - uDecE[di].x * step(uDecOk, 0.75))
+            * (1.0 - aLet * step(uDecOk, 0.75))
             * mix(1.0, aSide, step(0.5, aOne));
     // INSET against mip bleed: at low mip a page averages into its
     // neighbours, and a gutter costs a page of atlas where an inset costs
@@ -4050,7 +4323,7 @@ const AERO_ALBEDO_FS = `
     // the threshold falls — at any zoom, one screen pixel wide (fwidth), and
     // the texels behind it can be as coarse as they like. MIXED, not
     // branched: the loop is uniform and fwidth wants every lane.
-    float aSdf = uDecE[di].x;
+    float aSdf = step(0.5, uDecE[di].x);   // 1 or 2: a distance field
     float aSw = max(fwidth(tx.a) * 0.75, 0.003);
     float aCov = mix(tx.a, smoothstep(0.5 - aSw, 0.5 + aSw, tx.a), aSdf);
     float a = aCov * w;
@@ -4451,52 +4724,35 @@ const aeroGlassMat = m => GLASS_MATS[m] || GLASS_MATS.acrylic;
 // loads after it
 const AERO_GLASS_CRACK_FS = [
   "float dgU1(int i, int seed) { uint x = (uint(i) * 0x27d4eb2du) ^ (uint(seed) * 0x165667b1u); x ^= x >> 15u; x *= 0x85ebca6bu; x ^= x >> 13u; x *= 0xc2b2ae35u; x ^= x >> 16u; return float(x) / 4294967296.0; }",
-  "float dgU2(int i, int j, int seed) { return dgU1(int(uint(i) * 73856093u ^ uint(j) * 19349663u), seed); }",
-  "float dgV1(float x, int seed) { float fi = floor(x); int i = int(fi); float f = x - fi; float s = f * f * (3.0 - 2.0 * f); float a = dgU1(i, seed); return a + (dgU1(i + 1, seed) - a) * s; }",
-  "float dgFbm(float x, int seed) { float s = 0.0, a = 0.5, f = 1.0, n = 0.0; for (int o = 0; o < 3; o++) { s += a * (dgV1(x * f, seed + o * 31) * 2.0 - 1.0); n += a; a *= 0.5; f *= 2.03; } return s / n; }",
   "float dgSm(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }",
   "float dgLine(float dist, float w, float pw) { float we = max(w, pw); return (1.0 - dgSm(we * 0.5, we, dist)) * (w / we); }",
-  "float dgVor(vec2 p, int seed) { vec2 fl = floor(p); int ix = int(fl.x), iy = int(fl.y); float md = 9.0, mx = 0.0, my = 0.0;",
-  "  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { float px = float(i) + dgU2(ix + i, iy + j, seed), py = float(j) + dgU2(ix + i, iy + j, seed + 1); float dx = px - (p.x - fl.x), dy = py - (p.y - fl.y), d = dx * dx + dy * dy; if (d < md) { md = d; mx = dx; my = dy; } }",
-  "  float e = 9.0;",
-  "  for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) { float px = float(i) + dgU2(ix + i, iy + j, seed), py = float(j) + dgU2(ix + i, iy + j, seed + 1); float dx = px - (p.x - fl.x), dy = py - (p.y - fl.y), qx = dx - mx, qy = dy - my, ql = qx * qx + qy * qy;",
-  "    if (ql > 1e-5) e = min(e, ((mx + dx) * 0.5 * qx + (my + dy) * 0.5 * qy) / sqrt(ql)); }",
-  "  return e; }",
-  "vec2 dgCrack(vec2 q, float sev, int seed, float px) {",
-  "  float reach = 0.06 + 0.30 * sev, r = length(q) + 1e-6;",
-  "  if (r > reach * 1.05) return vec2(0.0);",
-  "  float th = atan(q.y, q.x); if (th < 0.0) th += 6.2831853;",
-  "  int NR = 5 + int(floor(dgU1(1, seed) * 5.0)); float cell = th / 6.2831853 * float(NR); int c0 = int(floor(cell));",
-  "  float line = 0.0, haze = 0.0;",
-  "  for (int o = -1; o <= 1; o++) {",
-  "    int k = c0 + o; if (k < 0) k += NR; if (k >= NR) k -= NR;",
-  "    float base = (float(k) + 0.5 + 0.7 * (dgU1(k, seed + 3) - 0.5)) / float(NR) * 6.2831853;",
-  "    float ang = base + 0.10 * dgFbm(r * 9.0 + float(k) * 7.1, seed + 5) + 0.12 * dgFbm(r * 2.3 + float(k), seed + 6) * min(1.0, r / 0.1);",
-  "    float d = th - ang; d -= 6.2831853 * floor(d / 6.2831853 + 0.5);",
-  "    float len = reach * (0.45 + 0.55 * dgU1(k, seed + 9)), dist = abs(d) * r;",
-  "    float w = 0.0009 * (1.0 - min(1.0, r / len)) + 0.00025;",
-  "    if (r < len) { line = max(line, dgLine(dist, w, px)); haze = max(haze, 0.55 * (1.0 - dgSm(w, max(w * 6.0, px * 2.0), dist))); }",
-  "  }",
-  "  if (sev >= 0.5) {",
-  "    int NG = 1 + int(floor(dgU1(2, seed) * 3.0));",
-  "    for (int j = 0; j < 3; j++) { if (j >= NG) break;",
-  "      float R = (0.03 + 0.02 * dgU1(j, seed + 13)) * pow(2.0, float(j)) * (0.6 + sev);",
-  "      if (dgU2(c0, j, seed + 17) > 0.55 || R > reach) continue;",
-  "      float Rw = R * (1.0 + 0.08 * dgFbm(th * 5.0 + float(j), seed + 19)), dist = abs(r - Rw);",
-  "      line = max(line, dgLine(dist, 0.0004, px)); haze = max(haze, 0.45 * (1.0 - dgSm(0.001, max(0.004, px * 2.0), dist))); }",
-  "  }",
-  "  if (sev >= 0.85) {",
-  "    float cz = 0.9 * (1.0 - dgSm(0.02, 0.06 + 0.06 * sev, r));",
-  "    if (cz > 0.0) { float e = dgVor(q * 60.0, seed + 23); haze = max(haze, cz * (1.0 - dgSm(0.02, 0.07, e)) * 0.8); }",
-  "  }",
-  "  return vec2(line, haze);",
+  "vec2 dgCrack(vec2 q, float sev, int seed, float px, vec2 vt) {",
+  "  float r = length(q);",
+  "  if (r > 0.44) return vec2(0.0);",
+  "  float a = 6.2831853 * dgU1(1, seed), ca = cos(a), sa = sin(a);",
+  "  vec2 p = vec2(ca * q.x - sa * q.y, sa * q.x + ca * q.y);",
+  "  if (dgU1(2, seed) < 0.5) p.x = -p.x;",
+  "  vec4 t = textureLod(tCrack, p / 0.9 + 0.5, max(0.0, log2(px / 0.00087890625)));",
+  "  float d = max(0.0, t.r * 0.008 - 0.000263671875);",
+  "  float vis = clamp((sev - t.g) * 40.0 + 1.0, 0.0, 1.0);",
+  "  float tap = clamp(t.g / max(sev, 0.05), 0.0, 1.0);",
+  "  float gl = 0.12 + 0.88 * pow(abs(sin(6.2831853 * t.b + 5.0 * vt.x + 3.0 * vt.y)), 10.0);",
+  "  float line = dgLine(d, px * mix(1.3, 0.55, tap), px) * vis * gl * min(1.0, 0.0012 / px);",
+  "  float rc = uCrackMat > 0.5 ? 0.010 + 0.016 * sev : 0.006 + 0.020 * sev;",
+  "  float wh = t.a * (1.0 - dgSm(0.7 * rc, 1.6 * rc, r));",
+  "  return vec2(line, wh);",
   "}",
 ].join('\n');
-// ...its uniforms (aeroSharedU) and the fragment's mark, (line, haze) 0..1
+// ...its uniforms (aeroSharedU) and the fragment's mark, (line, haze) 0..1. CANOPY-CRACKS (12 Nov): the crack is READ from
+// the flown aeroplane's crack sheet (tCrack: tools/crack_sheet_bake.js, bound by app.js glassMarks; uCrackMat 0 acrylic,
+// 1 laminated), and the glint wants the eye in craft space (uCraftInv: the vertex side's, declared here for the fragment)
 const AERO_GLASS_CRACK_PARS = `
 uniform float uCrackN;
 uniform vec4 uCrackP[4];
 uniform vec4 uCrackQ[4];
+uniform sampler2D tCrack;
+uniform float uCrackMat;
+uniform mat4 uCraftInv;
 vec2 aeroCrack = vec2(0.0);
 ` + AERO_GLASS_CRACK_FS + '\n';
 
@@ -4563,6 +4819,7 @@ const AEROGLASS_HOOK = function (shader) {
     if (uCrackN > 0.5) {
       float dgPx = max(fwidth(vCraftPos.x), max(fwidth(vCraftPos.y), fwidth(vCraftPos.z)));
       vec3 dgNf = normalize(vCraftNrm);
+      vec3 dgE = normalize((uCraftInv * vec4(cameraPosition, 1.0)).xyz - vCraftPos);   // the eye, for the glint
       for (int i = 0; i < 4; i++) {
         if (float(i) >= uCrackN) break;
         vec3 dgD = vCraftPos - uCrackP[i].xyz;
@@ -4571,7 +4828,7 @@ const AEROGLASS_HOOK = function (shader) {
         vec3 dgA = abs(dgN.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
         vec3 dgT1 = normalize(cross(dgN, dgA));
         vec3 dgT2 = cross(dgN, dgT1);
-        aeroCrack = max(aeroCrack, dgCrack(vec2(dot(dgD, dgT1), dot(dgD, dgT2)), uCrackP[i].w, int(uCrackQ[i].w), dgPx));
+        aeroCrack = max(aeroCrack, dgCrack(vec2(dot(dgD, dgT1), dot(dgD, dgT2)), uCrackP[i].w, int(uCrackQ[i].w), dgPx, vec2(dot(dgE, dgT1), dot(dgE, dgT2))));
       }
       roughnessFactor += 0.6 * aeroCrack.x + 0.5 * aeroCrack.y;
     }
@@ -4638,9 +4895,10 @@ const AEROGLASS_HOOK = function (shader) {
   vec3 aeroDiff = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse
                 + totalEmissiveRadiance;
   // G3623 (DMG-GLASS): a crack scatters what the pane receives - the diffuse light over the pane's own colour is its
-  // irradiance (over pi): added near-white along the lines and, fainter, over the crazed haze. Zero without a mark
+  // irradiance (over pi): added near-white along the lines and over the whitened core (CANOPY-CRACKS: the crushed spot,
+  // 0.55 - it was the crazed haze at 0.30). Zero without a mark
   vec3 aeroIrr = (reflectedLight.directDiffuse + reflectedLight.indirectDiffuse) / max(diffuseColor.rgb, vec3(0.02));
-  vec3 aeroCrk = aeroIrr * (0.85 * aeroCrack.x + 0.30 * aeroCrack.y) * vec3(0.93, 0.95, 0.97);
+  vec3 aeroCrk = aeroIrr * (0.85 * aeroCrack.x + 0.55 * aeroCrack.y) * vec3(0.93, 0.95, 0.97);
   // (the back face - the pane seen from the seat: the crack alone, nothing where there is none)
   if (!gl_FrontFacing && aeroCrack.x + aeroCrack.y <= 0.0) discard;
   gl_FragColor = vec4(gl_FrontFacing ? aeroDiff * (1.0 - aeroT) * uGlassB.y + aeroSpec + aeroCrk : aeroCrk, 1.0);`);
@@ -5608,6 +5866,11 @@ if (typeof window !== 'undefined')
                       AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0, AERO_KIT_PAGES, AERO_FLAGS,
                       AERO_KIT_LDEF, AERO_KIT_FIELDS,
                       aeroKitKnob, aeroKitLayers, aeroKitDraw, aeroKitArgs, AERO_KIT_CLEAR,
+                      // LIVERY-STICKERS
+                      AERO_VINYL_N, AERO_VINYL_PAGE, AERO_VINYL_MARKS, AERO_VINYL_LDEF, AERO_VINYL_FIELDS, AERO_VINYL_SIDES,
+                      AERO_VINYL_RIGHT, aeroDecalMerge,
+                      aeroVinylLayers, aeroVinylCell, aeroVinylRect, aeroVinylDraw, aeroVinylGeo, aeroVinylReady, aeroVinylRings,
+                      aeroVinylWait,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
                       AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint, aeroDupe,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,
@@ -5636,6 +5899,9 @@ if (typeof module !== 'undefined')
                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0, AERO_KIT_PAGES, AERO_FLAGS,
                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
                      aeroKitKnob, aeroKitLayers, aeroKitArgs, AERO_KIT_CLEAR,
+                     // LIVERY-STICKERS: the placement half (the draw needs a canvas)
+                     AERO_VINYL_N, AERO_VINYL_PAGE, AERO_VINYL_MARKS, AERO_VINYL_LDEF, AERO_VINYL_FIELDS, AERO_VINYL_SIDES,
+                     AERO_VINYL_RIGHT, aeroVinylLayers, aeroVinylCell, aeroVinylRect, aeroVinylRings,
                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint, aeroDupe,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
                      AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,

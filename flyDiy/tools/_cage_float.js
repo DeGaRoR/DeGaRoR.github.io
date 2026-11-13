@@ -99,7 +99,13 @@ const rowsOfParams = Q => Object.assign({
   // FLOATS-CLASSIC: a catalogue row says its own style (an EDO row the classic deck, a Wipline row the flat one)
   fltStyle: Q.style === 'edo' ? 1 : 0,
 }, Q.style === 'edo' ? { finVentralShape: 1 } : null);   // ...and an EDO kit's ventral is the plan's vintage lobe (once, like every row here)
-const DEF_ROWS = HY0 ? rowsOfParams(HY0.presetParams('Wipline 1450')) : {};
+// HYDRO-SCALE (USER 13 Nov): the defaults are the 1450's dials AS THEY STOOD before the catalogue was scaled to `disp`,
+// written out, so a saved build missing a float row comes back exactly as saved (G3700: WYSIWYG on a load). The scaled
+// hull reaches a plane only when the player picks a catalogue row (or a card is re-fitted on purpose).
+const DEF_ROWS = HY0 ? { fltL: 4.6, fltStep: 0.5543478260869565, fltB: 0.64, fltH: 0.45454545454545453, fltBeta: 26.829720306396485,
+  fltBetaBow: 33.21981353759766, fltBetaA: 20.41486015319824, fltHs: 0.075, fltAft: 5.9, fltAftCurve: 0, fltFlat: 0.3792569923400879,
+  fltStem: 0.12780186462402343, fltRake: 12, fltNoseR: 0.1, fltPlan: 2.9535606002807615, fltStern: 0.5, fltFlare: 4,
+  fltMass: 27.200000000000003, fltSpreadAft: 0.28, fltStyle: 0 } : {};
 // (the preset row itself boots at `custom`: a build saved before G451 must
 // not come back labelled as a catalogue row its dials never were)
 Object.assign(PAGE.defaults = PAGE.defaults || {}, {
@@ -174,6 +180,15 @@ const GROUP = ['9b · floats', [
     ['fltSpread',  'spreader bars',       0, 1, 1, on],
     ['fltSpreadAft','aft spreader (aft of the step)', 0.10, 2.40, 0.01, onM],
     ['fltWires',   'cross wires',         0, 1, 1, on],
+    // FLOAT-RIG-FWD (13 Nov, the user on the PC-6's Wiplines: "the anchors on the floats does not seem completely correct,
+    // if you may move these"): the FRONT strut's deck fitting moved forward (+) of its station (the keel flat's forward
+    // end) - the drawing, the spec (gear.floats.rigFwd) and the flown truss (61_gen_frame) together. ABSENT at 0
+    ['fltRigFwd',  'front strut fitting (+ forward)', -1.0, 2.0, 0.01, { absent: 0, when: P => +P.gearFloats, dim: 'm' }],
+    // FLOAT-LADDER (13 Nov, the user on the PC-6's Wiplines: "an option for generating these reinforcements on the floats
+    // struts, I guess doubling as a ladder"): fore-and-aft rails a side, front strut to rear strut, the steps up from the
+    // float to the cabin. ABSENT at 0 (no saved build gains the key)
+    ['fltLadder',  'step rails on the struts (a ladder)', 0, 3, 1, ['none', 'one rail', 'two rails', 'three rails'],
+     { absent: 0, when: P => +P.gearFloats }],
   ], on],
 ]];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
@@ -199,6 +214,8 @@ function hullParams(P) {
   Q.scale = k;
   // TWIN4B-STRUTS: the front strut pair on the ring over its deck fitting (61_gen_frame; absent: on the step's ring)
   if (Math.round(+P.fltFrontRing || 0) === 1) Q.frontRing = 1;
+  // FLOAT-RIG-FWD: present only when moved (a record without it is the one it was)
+  if (+P.fltRigFwd) Q.rigFwd = +P.fltRigFwd;
   const name = PRESET_NAMES[Math.round(P.fltPreset)];
   if (name && name !== CUSTOM) Q.preset = name;
   return Q;
@@ -1111,7 +1128,7 @@ PAGE.post = ctx => {
     rec.tetraC[tag] = [K, KB, DL, DR].map(v => toCage(v, at));
     // the deck fitting points at the two rigging stations (the same
     // stations FLOAT_GEN put its fitting plates on): inboard and outboard
-    const rig = out ? out.rig : { fwd: -HP.flatK * HP.xs, aft: HP.xAft };
+    const rig = out ? out.rig : { fwd: -Math.min(0.9 * HP.xs, HP.flatK * HP.xs + (+HP.rigFwd || 0)), aft: HP.xAft };
     const fit = (x, inb) => {
       const s = HY.sectionOf(HP, x === 0 ? -1e-9 : x);
       // (FLOATS-CLASSIC: an EDO's fittings sit on the arc just inside its shoulder, FLOAT_GEN's EDO_FIT of it -
@@ -1206,6 +1223,48 @@ PAGE.post = ctx => {
     // the fuselage fittings: a lug pair at each root
     for (const r of (rFf === rF ? [rF, rA] : [rFf, rF, rA])) GK.boxIn(hg, r, [0.03, 0.012, 0.03], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
     if (+P.fltWires) wire(d.fwdIn, rA);    // the drag wire
+  }
+  // FLOAT-LADDER (the row above): on each side, rails at 1/(n+1) .. n/(n+1) of the front strut's rise, each from the
+  // front strut to the rear strut at the same height, run on 0.30 m ahead of the front strut and 0.06 m past the rear
+  // (the user's drawing on the sheet, 13 Nov). Angle section (L) in the struts' paint. DRAWN, NOT FLOWN: their ends sit mid-strut, never on
+  // a physics node, so they are not in rec.members (the join's contract: every member two-ended on nodes); a few kg
+  const nLad = Math.max(0, Math.min(3, Math.round(+P.fltLadder || 0)));
+  if (nLad) {
+    const lerp = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+    const at = (a, b, y) => lerp(a, b, Math.max(0, Math.min(1, (y - a[1]) / ((b[1] - a[1]) || 1e-9))));
+    // ANGLE SECTION, ON THE STRUTS' FACE (13 Nov, the user: "slight L profiles", then "the horizontal pieces are put
+    // ... on top of the struts ... taking the orientation of the struts, it comes flat on it"): each side's rails lie
+    // on the OUTBOARD face of that side's struts - the plane through the front strut and the deck line, its normal
+    // outboard - one leg flat on the struts (in the plane, centred on the rail's line), the other standing out of the
+    // plane along its top edge (the step). Legs 1.2 x the strut thickness, 12 % of a leg thick
+    const lg = Math.max(0.025, 1.2 * t), th = Math.max(0.003, 0.12 * lg), hl = 0.5 * lg, ovF = 0.30 * sc, ovA = 0.06 * sc;
+    const cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const nz = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+    rec.ladder = [];
+    for (const sd of [-1, 1]) {
+      const tag = sd > 0 ? 'L' : 'R', d = rec.deck[tag], R0 = roots[tag];
+      // the side's strut plane: the front strut and the deck line; outboard = away from the centreline
+      let n = nz(cr([R0.rFf[0] - d.fwdIn[0], R0.rFf[1] - d.fwdIn[1], R0.rFf[2] - d.fwdIn[2]],
+                    [d.aftIn[0] - d.fwdIn[0], d.aftIn[1] - d.fwdIn[1], d.aftIn[2] - d.fwdIn[2]]));
+      if (n[0] * Math.sign(d.fwdIn[0] || sd) < 0) n = [-n[0], -n[1], -n[2]];
+      const off = 0.5 * t;                       // the strut's half thickness: the rail sits ON its face
+      for (let i = 1; i <= nLad; i++) {
+        const y = d.fwdIn[1] + (R0.rFf[1] - d.fwdIn[1]) * i / (nLad + 1);
+        const p0 = at(d.fwdIn, R0.rFf, y), q0 = at(d.aftIn, R0.rA, y);
+        const p = [p0[0] + n[0] * off, p0[1] + n[1] * off, p0[2] + n[2] * off];
+        const q = [q0[0] + n[0] * off, q0[1] + n[1] * off, q0[2] + n[2] * off];
+        const v = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], L = Math.hypot(v[0], v[1], v[2]) || 1;
+        const a = [p[0] - v[0] / L * ovF, p[1] - v[1] / L * ovF, p[2] - v[2] / L * ovF];
+        const b = [q[0] + v[0] / L * ovA, q[1] + v[1] / L * ovA, q[2] + v[2] / L * ovA];
+        // the sweep's frame: u along the hint (n: out of the struts' plane), v = T x n (in the plane, across the
+        // rail) - flipped so the standing leg is on the TOP edge (the polygon reversed with it: the same winding)
+        const T = nz(v), B = cr(T, n), up = B[1] >= 0 ? 1 : -1;
+        let S = [[0, -hl], [th, -hl], [th, hl - th], [lg, hl - th], [lg, hl], [0, hl]].map(q2 => [q2[0], q2[1] * up]);
+        if (up < 0) S = S.reverse();
+        GK.sweep(sg, [a, b], () => S, true, n);
+        rec.ladder.push({ side: tag, y: +y.toFixed(3), len: +(L + ovF + ovA).toFixed(3) });
+      }
+    }
   }
   if (+P.fltWires) {
     // the wire pulls: crossed in the transverse plane at each bar

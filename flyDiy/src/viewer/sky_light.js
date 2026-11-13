@@ -41,6 +41,7 @@ var SKY_LIGHT = (function () {
   }
   const _T = [0, 0, 0], _E = [0, 0, 0], _Em = [0, 0, 0];
   let isMoon = false, lastEx = -1;
+  const LOWSUN_OFF = typeof location !== 'undefined' && /[?&]lowsun=0/.test(location.search);   // the A/B dial
 
   // applyDay(day, o): o = { key, hemi, scene, renderer, unit (LIGHT_UNIT or 1), roomGain, sunGain, hemiBoost,
   //                         gndAlb (the world's mean albedo, linear rgb - the ground half is derived from it),
@@ -124,7 +125,12 @@ var SKY_LIGHT = (function () {
         // atmosphere's transmittance like the sun, which at 10 deg is (0.92, 0.62, 0.32): gold specks on the crowns that face the moon.
         // The sun's key stays physical; the intensity above still carries mT
         if (isMoon) key.color.setRGB(0.80, 0.86, 1);
-        else key.color.setRGB(_T[0] / mT, _T[1] / mT, _T[2] / mT);
+        else {
+          // LOOK-1-LOWSUN (the user 6 Nov, a forest "fully orange"; the day sheet: smooth above ~13 deg, then the blue goes): the sun's colour eased near the horizon, as an eye adapts.
+          // Its transmittance to a power, 1 from 20 deg up (nothing moves by day), 0.6 at 5 deg and below. A tree's side takes this key square on, the ground at a grazing angle
+          const lg = LOWSUN_OFF ? 1 : 0.6 + 0.4 * Math.max(0, Math.min(1, (el - 5) / 15));
+          key.color.setRGB(Math.pow(_T[0] / mT, lg), Math.pow(_T[1] / mT, lg), Math.pow(_T[2] / mT, lg));
+        }
       }
       if (key.position && key.target) {
         // the world places the key by SUN each frame (its shadow follow); a room that does not gets it here

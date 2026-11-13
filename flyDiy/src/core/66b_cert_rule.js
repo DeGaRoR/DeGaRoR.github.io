@@ -39,6 +39,10 @@ const CERT_BOLT_ONS = ['pod'];
 // by age (the annual inspection keeps an aeroplane airworthy). Ageing, an overhaul, a restore never withdraw. Before
 // this, `aging` hashed with the structure group (an unnamed block): procureOnSaveCert re-signs those (WEAR-PRICE M4)
 const CERT_CONDITION = ['aging'];
+// MEASURED BLOCKS (ENGINE-COOLING, 12 Nov): a whole block the join measures off the drawing - the cowl's cooling openings
+// (spec.cooling, off the cowl rows the structure group already hashes). Dropped whole: a certificate signed before the
+// join measured them hashes the same (R3: a game update is not a change to the aeroplane)
+const CERT_MEASURED_BLOCKS = ['cooling'];
 // the cage's STATE and MINOR rows - views, the explode, who is aboard and whether the crew is shown, the lamps'
 // switches and dimmers, the lamps FITTED (li_*Fit: minor, a W&B update), the reflector glow, the fastener density
 // (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).
@@ -75,7 +79,7 @@ function certHash(str) {
 function certStrip(spec, o) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));
-  for (const k of CERT_COSMETIC.concat(CERT_MINOR_BLOCKS, CERT_BOLT_ONS, o && o.condition ? [] : CERT_CONDITION)) delete c[k];
+  for (const k of CERT_COSMETIC.concat(CERT_MINOR_BLOCKS, CERT_BOLT_ONS, CERT_MEASURED_BLOCKS, o && o.condition ? [] : CERT_CONDITION)) delete c[k];
   if (c.energy && typeof c.energy === 'object') {
     for (const k of CERT_LOOK.energy) delete c.energy[k];
     if (Array.isArray(c.energy.vessels)) for (const v of c.energy.vessels) if (v && typeof v === 'object') for (const k of CERT_LOOK.vessel) delete v[k];

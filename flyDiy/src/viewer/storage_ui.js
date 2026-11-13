@@ -21,7 +21,7 @@
 (function () {
   'use strict';
   const W = window;
-  const ST = { el: null, sel: null, msg: '', confirm: null, drag: null, renders: 0, rt: null };
+  const ST = { el: null, sel: null, msg: '', confirm: null, drag: null, renders: 0, rt: null, rsAsk: false };
   const API = () => W.FLYDIY_STORE || null;
   const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const WORDS = {
@@ -41,6 +41,10 @@
 #hsStore .hsSub { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim); margin:6px 0 10px; }
 #hsStore .hsMsg { font:500 11px/1.4 'IBM Plex Sans'; color:var(--ed-warn); min-height:16px; margin:0 0 8px; }
 #hsStore .hsMsg.ok { color:var(--ed-acc); }
+#hsStore .hsRestore { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:0 0 10px; padding:9px 12px; border:1px solid var(--ed-border); border-radius:8px; background:var(--ed-btn-bg); font:400 12px/1.4 'IBM Plex Sans'; color:var(--ed-dim); }
+#hsStore .hsRestore b { color:var(--ed-ink); font-weight:600; }
+#hsStore .hsRestore .hsRsWhat { flex:1 1 220px; min-width:0; }
+#hsStore .hsRestore .hsRsWorks { color:var(--ed-acc); }
 #hsStore .hsFloor { border:1px dashed var(--ed-border); border-radius:8px; padding:8px 10px; margin-bottom:12px;
   background:var(--ed-board); display:flex; align-items:center; gap:12px; min-height:64px; }
 #hsStore .hsFloor .hsColH { margin:0; border:0; padding:0; flex:0 0 auto; }
@@ -295,6 +299,30 @@
     bt.appendChild(no); bt.appendChild(go); b.appendChild(bt);
     return b;
   }
+  const money = v => Math.round(+v || 0).toLocaleString('en-GB').replace(/,/g, ' ');
+  const daysLeft = s => (s >= 86400 ? Math.ceil(s / 86400) + (s > 86400 ? ' days' : ' day') : Math.max(1, Math.ceil(s / 3600)) + ' h');
+  function restoreStrip(RS) {
+    const A = API(), r = mk('div', 'hsRestore');
+    const st = mk('span'); st.appendChild(document.createTextNode('This building: ')); st.appendChild(mk('b', null, RS.word)); st.appendChild(document.createTextNode(' · stage ' + RS.stage + ' of ' + RS.max));
+    r.appendChild(st);
+    if (RS.works) { r.appendChild(mk('span', 'hsRsWorks', 'Works under way: ' + RS.works.word + ', ready in ' + daysLeft(RS.works.left))); return r; }
+    if (!RS.next) { r.appendChild(mk('span', 'hsRsWhat', 'Fully restored.')); return r; }
+    const cost = RS.sandbox ? 'free and instant in the sandbox' : money(RS.next.price) + ' · ' + RS.next.days + (RS.next.days === 1 ? ' day' : ' days');
+    if (ST.rsAsk) {
+      r.appendChild(mk('span', 'hsRsWhat', 'Restore to "' + RS.next.word + '": ' + RS.next.what + ' (' + cost + ')?'));
+      const no = mk('button', 'dfPill', 'Cancel'); no.type = 'button'; no.addEventListener('click', () => { ST.rsAsk = false; render(); });
+      const yes = mk('button', 'dfPill on', 'Start the works'); yes.type = 'button';
+      yes.addEventListener('click', () => { ST.rsAsk = false; const q = A.restoreStart(); ST.msg = q.ok ? '✓ the works started' + (q.cost ? ': ' + money(q.cost) : '') : q.why; render(); });
+      r.appendChild(no); r.appendChild(yes);
+      return r;
+    }
+    r.appendChild(mk('span', 'hsRsWhat', 'Next: ' + RS.next.word + ' · ' + cost));
+    const go = mk('button', 'dfPill', 'Restore'); go.type = 'button';
+    go.disabled = !!RS.why; if (RS.why) go.title = RS.why;
+    go.addEventListener('click', () => { if (go.disabled) return; ST.rsAsk = true; render(); });
+    r.appendChild(go);
+    return r;
+  }
   function render() {
     const A = API(), el = ST.el;
     if (!el || el.hidden) return;
@@ -311,6 +339,9 @@
     const msg = mk('div', 'hsMsg' + (/^✓/.test(ST.msg) ? ' ok' : ''), ST.msg || '');
     msg.setAttribute('role', 'status');
     box.appendChild(msg);
+    // RESTORE (13 Nov): the old hangar's restoration, one step at a time (this building; none = nothing to restore here)
+    let RS = null; try { RS = A && A.restore ? A.restore() : null; } catch (e) { RS = null; }
+    if (RS) box.appendChild(restoreStrip(RS));
     if (!V) { box.appendChild(mk('div', 'hsEmpty', 'no hangar here')); return; }
     const tgt = ST.sel ? ' hsTarget' : '';
     // THE FLOOR
