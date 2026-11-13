@@ -5,14 +5,16 @@
 // other a crash playground "with REAL COLLISION and damage interaction (wingtip, gear, prop: the damage system reacts as
 // it does to trees and poles)", the forest taking over; "be wary when choosing assets ... no new per-frame cost".
 //
-//   1 THE SPLICE: the shipped fixture and the ship manifest are the part, byte for byte (afb0220_splice.py --check)
+//   1 THE SPLICE: the shipped fixture and the ship manifest are the part, byte for byte (afb0220_splice.py --check - it NEEDS
+//     PYTHON 3 on the box: python3, python or py; without one this row is red, the environment's, not the record's)
 //   2 THE RUNWAYS: w2 the 15 m band (the manifest's fieldPatch = the fixture's), the rough lane beside it - parallel,
 //     its box 0.5 m+ clear of the band's (issues() refuses a stack), long enough, its bumps on; the band one straight
 //     strip end to end with nothing of the part on it; issues() names neither
 //   3 THE CLEARANCES: no object on the band or the lane; nothing over 0.5 m tall within 18 m of the centreline (a DC-3's
 //     half span off the band's edge, 3.5 m to spare); nothing past the strip's ends but the turnaround's young trees,
 //     28 m+ off the extended centreline and 5.5 m at most
-//   4 THE ASSETS: every prop key is a baked prop (PROP_REG) and every heavy one (over 2 000 triangles) has its LODs;
+//   4 THE ASSETS: every prop key is a baked prop (PROP_REG) and every heavy one (over 2 000 triangles) has its LODs; a
+//     GENERATED prop's key ('gen:<name>', the winch) one the page builds with its generator on disk;
 //     every tree key is the tree pack's, of the kind its role says (a ground piece debris or rock, a snag dead, a young
 //     tree a tree or a shrub); every species a vegetation names is a collection - the TREE SYSTEM only, no mesh tree
 //   5 THE GROUND (the island composed in node): the lane's centreline on the band's (2 cm at its five profile points);
@@ -44,7 +46,10 @@ const FIXTXT = fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.json'), '
 const FIX = JSON.parse(FIXTXT), L = FIX.layers;
 const MAN = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'scenery_ship_afb19.json'), 'utf8'));
 const w2 = Object.assign({}, PG.RUNWAY_DEF, L.runways.find(r => r.id === 'w2')), lane = Object.assign({}, PG.RUNWAY_DEF, L.runways.find(r => r.id === 'xw_rough') || {});
-const OBJ = L.objects.filter(o => /^xw_/.test(o.id)), AREAS = L.areas.filter(a => /^xw_/.test(a.id));
+// the part's own objects (xw_o_* props, xw_t_* tree-system pieces) - the glider winch's xw_winch* (claude/afb-0220-winch, a
+// GENERATED prop, key 'gen:winch') shares the prefix and is judged by its own gate (GATE WINCH) and by row 4's generated keys
+const OBJ = L.objects.filter(o => /^xw_(o|t)_/.test(o.id)), AREAS = L.areas.filter(a => /^xw_a_/.test(a.id));
+const GENP = L.objects.filter(o => o.kind === 'prop' && /^gen:/.test(String(o.key)));
 const E2 = PG.runwayEnds(w2), D = E2.d, N = E2.n;
 const uv = (x, z) => { const dx = x - E2.end0[0], dz = z - E2.end0[1]; return [dx * D[0] + dz * D[1], dx * N[0] + dz * N[1]]; };
 
@@ -53,7 +58,7 @@ console.log('1. the splice');
 {
   let r = null;
   for (const py of ['python3', 'python', 'py']) { const q = cp.spawnSync(py, [path.join(T, 'afb0220_splice.py'), '--check'], { encoding: 'utf8' }); if (!q.error) { r = q; break; } }
-  yes(!!r && r.status === 0, 'the shipped fixture and scenery_ship_afb19.json are the part, byte for byte', r ? (r.stdout || r.stderr || '').trim().slice(0, 200) : 'no python');
+  yes(!!r && r.status === 0, 'the shipped fixture and scenery_ship_afb19.json are the part, byte for byte', r ? (r.stdout || r.stderr || '').trim().slice(0, 200) : 'NO PYTHON on this box (python3 / python / py): the splice check cannot run - install Python 3');
 }
 
 // ---- 2 ---------------------------------------------------------------------------------------------------------------
@@ -111,6 +116,11 @@ console.log('4. the assets');
   const props = OBJ.filter(o => o.kind === 'prop'), trees = OBJ.filter(o => o.kind === 'tree');
   const missing = props.filter(o => !REG.props[o.key]);
   yes(!missing.length && props.length > 0, props.length + ' props, every key a baked prop (' + new Set(props.map(o => o.key)).size + ' keys)', missing.map(o => o.key).join(', '));
+  // GENERATED PROPS (A0, 13 Nov: the winch lands with this): a key 'gen:<name>' is no baked prop - it passes only when the page
+  // builds it (render_premises.js names the key) AND its generator is on disk (tools/_<name>_gen.js); any other gen: key fails
+  const RPS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  const genBad = GENP.filter(o => { const nm = String(o.key).slice(4); return !/^[a-z0-9_]+$/.test(nm) || RPS.indexOf("'" + o.key + "'") < 0 || !fs.existsSync(path.join(T, '_' + nm + '_gen.js')); });
+  yes(!genBad.length, GENP.length + ' generated prop(s) in the record (' + ([...new Set(GENP.map(o => o.key))].join(', ') || 'none') + '): every key one the page builds, its generator on disk', genBad.map(o => o.id + ':' + o.key).join(', '));
   const heavy = [...new Set(props.map(o => o.key))].filter(k => REG.props[k] && REG.props[k].nt > 2000 && !REG.props[k + '_l1']);
   yes(!heavy.length, 'every prop over 2 000 triangles has its LODs (the _l1.. rungs)', heavy.join(', '));
   const role = o => /_t_(blow\d|blow_stump|pond_lodge|pond_trunk|pond_fallen|pond_stump|slide_rock)/.test(o.id) ? ['debris', 'rock'] : /snag/.test(o.id) ? ['dead'] : ['tree', 'shrub'];

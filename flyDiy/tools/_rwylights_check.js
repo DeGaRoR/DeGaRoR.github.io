@@ -96,16 +96,23 @@ if (check(!!J, 'Jolene composes in node (island_node + its premises fixture)')) 
   const R = places('jolene', J);
   // THE CROSSING IS SEEN: the old placement (no other strip, no premises) stands HOME's lights on w2's concrete and w2's on
   // HOME's - elevated; now those are flush
+  // (AFB-0220, 13 Nov: w2 is 02/20's 15 m central band now, ending on 13/31 - HOME's edge row crosses it in a ~16 m window
+  //  its 60 m spacing can miss, and does: no HOME light stands on w2's pavement. The crossing is still SEEN - w2's own lights
+  //  on HOME's pavement - and every direction that stands a light on the other strip must have it flush; the law on a
+  //  crossing of its own is the synthetic pair's below)
+  let seen = 0;
   for (const [id, other] of [['HOME', 'w2'], ['w2', 'HOME']]) {
     const a = R.strips.find(s => s.id === id), b = R.strips.find(s => s.id === other);
     if (!check(!!a && !!b, 'jolene: ' + id + ' and ' + other + ' are strips')) continue;
     const old = C.runwayLightPoints(a, [a], null), pts = old.edge.concat(old.thr);
     const inside = pts.filter(([x, z, fl]) => !fl && inRect(b, x, z, 0)).length;
-    check(inside > 0 && old.inset.length === 0 && old.cut.length === 0, 'jolene: the old placement stood ' + inside + ' of ' + id + '\'s lights ELEVATED on ' + other + '\'s pavement (the check sees the bug)', inside);
-    check(R.per[id].insetWhys.includes('strip ' + other), 'jolene: ' + id + '\'s lights on ' + other + ' are flush now', R.per[id].insetWhys.join('; '));
+    seen += inside;
+    check(old.inset.length === 0 && old.cut.length === 0, 'jolene: the old placement stood ' + inside + ' of ' + id + '\'s lights ELEVATED on ' + other + '\'s pavement' + (inside ? ' (the check sees the bug)' : ' (none on this crossing since AFB-0220\'s 15 m band)'), inside);
+    if (inside) check(R.per[id].insetWhys.includes('strip ' + other), 'jolene: ' + id + '\'s lights on ' + other + ' are flush now', R.per[id].insetWhys.join('; '));
     // the threshold rows stand on the turn pads' concrete: flush, all of them kept (the night's green bars)
     check(R.per[id].thr === 2 * C.RWY_LIGHTS.thrN, 'jolene: ' + id + ' keeps both green threshold rows (' + R.per[id].thr + ', flush on the turn pads)', R.per[id].thr);
   }
+  check(seen > 0, 'jolene: the 13/31 x 02/20 crossing is seen - the old placement stood ' + seen + ' light(s) elevated on the other strip', seen);
   // A GRASS POLYGON IS NOT A PAVEMENT: nv_strip lies on its grass meadow polygon and keeps every light, elevated
   if (R.per.nv_strip) check(R.per.nv_strip.cut === 0 && R.per.nv_strip.inset === 0, 'jolene: nv_strip (on the grass nv_meadow polygon) keeps all its lights elevated', JSON.stringify(R.per.nv_strip));
 }

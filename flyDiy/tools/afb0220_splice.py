@@ -6,7 +6,8 @@
 
 The fixture is not regenerated (jolene_author.py needs a local Metlakatla source this cloud lacks; ED-2's rule since
 G3663: splice in place, the file's own json.dumps form, every other byte kept). What it does, idempotently:
-  * every `xw_` entry is taken out of every layer and the part's put back (tools/jolene_parts/afb0220.py): the rough
+  * every entry of the PART'S OWN (xw_rough, xw_a_*, xw_o_*, xw_t_* - not the winch's xw_winch*) is taken out and the part's
+    put back where the first one stood (tools/jolene_parts/afb0220.py): the rough
     lane right AFTER w2 in `runways` (two strips' grades compose in record order; 13/31 stays last of the three), the
     areas and objects at their layers' ends;
   * w2 - the user's own entry - takes the part's W2_PATCH (the band 15 m, falloff 8, the worn pavement's knobs), and
@@ -14,7 +15,7 @@ G3663: splice in place, the file's own json.dumps form, every other byte kept). 
     SCENERYED 15 (shipped == the user's save + the named patches) holds and a re-ship applies it again.
 The xw_ entries are ship-only: the save does not carry them (row 15 keeps them as 'not in the save', never a red).
 """
-import json, os, runpy, sys
+import json, os, re, runpy, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIX = os.path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json')
@@ -33,19 +34,32 @@ def load():
     return ns['PREFIX'], ns['PART'], ns['W2_PATCH']
 
 
+# THE PART'S OWN ENTRIES (not every xw_ id: the glider winch, claude/afb-0220-winch, carries xw_winch13 / xw_winch31 in the
+# same prefix - a splice must never take another piece's entries out): the lane, the areas, the objects and trees
+OWN = re.compile(r'^xw_(rough$|a_|o_|t_)')
+
+
 def spliced(rec, prefix, part, patch):
     L = rec['layers']
-    for k in L: L[k] = [e for e in L[k] if not str((e or {}).get('id', '')).startswith(prefix)]
     for k, rows in part.items():
         if k not in L: raise SystemExit('afb0220: no layer %r' % k)
         for e in rows:
-            if not str(e.get('id', '')).startswith(prefix): raise SystemExit('afb0220: %r does not carry %r' % (e.get('id'), prefix))
-        if k == 'runways':
-            i = next((n for n, e in enumerate(L[k]) if e.get('id') == 'w2'), None)
-            if i is None: raise SystemExit('afb0220: no w2 in the record')
-            L[k][i + 1:i + 1] = json.loads(json.dumps(rows))
-        else:
-            L[k].extend(json.loads(json.dumps(rows)))
+            if not OWN.match(str(e.get('id', ''))): raise SystemExit('afb0220: %r is not one of the part\'s own ids (%s)' % (e.get('id'), OWN.pattern))
+    for k in L:
+        # the part's entries go back WHERE THEY STOOD (the first one's place), so a re-splice of a merged record - other
+        # entries appended after them - moves nothing; a first splice: the lane right after w2 (two strips' grades compose
+        # in record order; 13/31 stays last of the three), the rest at the layer's end
+        at = next((n for n, e in enumerate(L[k]) if OWN.match(str((e or {}).get('id', '')))), None)
+        L[k] = [e for e in L[k] if not OWN.match(str((e or {}).get('id', '')))]
+        rows = json.loads(json.dumps(part.get(k, [])))
+        if not rows: continue
+        if at is None:
+            if k == 'runways':
+                i = next((n for n, e in enumerate(L[k]) if e.get('id') == 'w2'), None)
+                if i is None: raise SystemExit('afb0220: no w2 in the record')
+                at = i + 1
+            else: at = len(L[k])
+        L[k][at:at] = rows
     w2 = next(e for e in L['runways'] if e.get('id') == 'w2')
     for k, v in patch.items(): w2[k] = json.loads(json.dumps(v))      # in place: an existing key keeps its position
     ids = [e.get('id') for rows in L.values() for e in rows if isinstance(e, dict)]
