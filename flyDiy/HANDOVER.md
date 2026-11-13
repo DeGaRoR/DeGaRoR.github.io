@@ -315268,3 +315268,67 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - SNOW-MUD (the user 13 Nov: "if we develop snow, maybe we just develop mud"; the observatory's altiport, the community field), claude/ready/snow-mud: five soft SURFACE codes, placed ONLY by a record (the premises looks `snow` `powder` `slush` `mud` `softmud` - the strip SURFACE pills and the area DRAW select list them by themselves): 8 SNOW_PACKED, 9 SNOW_POWDER, 10 SNOW_WET, 11 MUD_FIRM, 12 MUD_SOFT. PHYSICS (00_registry): GROUND_SURF 8-12 = the firm base (Raymer 17.1, ICAO GRF bands); GROUND_SOFT = the LAYER, Bekker p = k z^n with its depth zMax, k FIT so the stock wheel reads the operational rules (soft field +20-50 %, powder / wet snow 2-3 x or no-go); the tyre presses its load over its FOOTPRINT (TYRE_SOFT / tyreFootprint: carcass width and rated deflection on the wheel's own diameter) and flattens rather than press harder; groundSinkWheel's compaction drag F / N is added to the wheel's rolling coefficient (30_solver, a soft code only: one integer compare on every hard one). Heavier, narrower, smaller, softer all sink and drag more; tundra tyres float. SKIS' INTERFACE: groundSinkPlate (a plate's sink and plough), GROUND_SKI_MU (kinetic / breakout per code, SKI-REFERENCES 4.1/4.6), GROUND_SINK (z, p, F, cap) - futureDesigns/SNOW-MUD-2026-11-13.md section 3. Readouts sim.out.softZ / softF exist only on a frame that met a layer. RUNS (stock taildragger to 0.9 Vs, x grass): packed 0.95, powder 1.87, wet 1.49, firm mud 1.10, soft mud 1.55; tundra 0.94-1.32; the tricycle's small nose wheel STUCK in powder, wet snow, soft mud (stick back frees it from soft mud, slowly). LOOK: pavement classes `snow` (RECOLOURS fine grain to snow per slot through the existing grade uniforms - no new uniform or program; the far tier, surfaceColor and the dust follow) and `mud` (the library's mudAir / tracksM, a wet film always); the shader's `grassy` is class 5 alone now; dust classes `mud` (clods) and `snow` (white powder), their water their own; GROUND_ALBEDO, AF_SURF / AF_ROUGH (the worklet's row bound is the table's length), VEH_SURF, SCAR_SURF, turfS, SCUFF_SOFT, TW_SKID_MU carry 8-12. A snow / mud area keeps trees and plots out (FEEL_HARD). CUTS: the contact does not move down (the sink is a drag and a readout); no speed effect (no slush planing, no ski lift); one power law per layer (a light ski sinks only cm into powder - a two-regime snow is SKIS' to add if its gates need it). GATES: SOFTGROUND (new, core ~100 s, --selftest 9/9 red, --bless): the eight hard rows frozen, 16 legacy rolls BIT-IDENTICAL to master 23ce68c1 (tools/fixtures/softground_legacy_rolls.json), sinking with pressure, the runs, the vocabulary; HONEST's exact row count 8 -> 13. PICTURED (the pavement bench, headless Chromium on SwiftShader): the snow strip white with its tread imprints; the mud strip re-based on plain dirt recoloured to wet clay (aerial mud's tyre fans everywhere and a sky-pink film on the first still).
 
 - SNOW-MUD FX (the user 13 Nov: "a professional looking particle system ... first a literature scouting ... snow clouds, particularly in the powder snow ... mud doesn't have a cloud, but it should have projection, maybe inspired by what we have for the water"), claude/ready/snow-mud: futureDesigns/SNOW-MUD-FX-2026-11-13.md (the scout's sources, the decision, as built, what the stills taught). ONE SYSTEM: the dust's (dust.js), one draw and one program, its pools and its overdraw budget. Four soft classes (mud 5, packed snow 6, powder 7, slush 8) with their own laws on the class row (lum, fall, g, drift, plough, rise, proj; absent on the dust's five, which fly and draw as before - GATE DUST 52/52). SNOW: powder lifts at a low threshold (u*t 0.07-0.25 m/s, Pomeroy & Gray), clouds ~2.4 x dirt at a run-up, billows up (rise) and SETTLES in seconds (fall); packed snow drifts (a saltation skin of sparkling streaks under 15 cm) and hardly clouds; snow puffs scatter forward (g 0.8) with a multiple-scattering fill and a blue shade; powder's plough throws clumps off a sinking wheel (the solver's out.softZ, handed in as wheels[k].sink). MUD / SLUSH: never a cloud; clods (6-24 mm, tumbling, lumpy-lit) and drop clusters from the touchdown's spin-up, the tread (v^2/R over the adhesion: held at a walk, shed at speed - aeroplane wheels are not driven, no rooster tail), the bow wave (x the sinkage) and the prop wash; their rise held to 5 m/s (~1.3 m); landed ones SPLAT (5-18 cm, wet then drying, alpha-eroded, a ring per tier that never overwrites a fresh one). THE BENCH (tools/_dust.html): was broken on master (no matlib.js - MATLIB is not defined); fixed, + Mud / Packed snow / Powder / Wet snow, a Wheel camera, ?scen=&cls=&cam=&sun=&t=&still=1 for stills; the stills drove six fixes (the doc's list: dark backlit snow, flat cloud, invisible mud, sparkler streaks, ember clods, the mud pavement). GATE SNOWMUDFX (new, core, ~1 s, --selftest 7/7 red). NOT DONE: no full-screen whiteout fog inside a cloud; no mud on the airframe from a roll on mud (aeroweather's BUSH is career wear); per-wheel sinkage (the frame's deepest serves all).
+
+## COMMUNITY-AIRPORT - THE COMMUNITY FIELD AT w7 IN THREE STAGES (13 Nov 2026, cloud, claude/ready/community-airport)
+
+The user (13 Nov): the community airport at w7 New Community Runway - today's strip (1 020 m dirt, 9 m) the MIDDLE stage;
+before it shorter, narrower, bumpier, on sticky mud, joined at both ends by a plain path on its axis; the last pass wider,
+smoother, gravel, minimal infrastructure; scenery for an isolated community with little money but time and hands, staged so
+each project step's reveal shows the progress. futureDesigns/COMMUNITY-AIRPORT-2026-11-13.md has the whole of it.
+
+WHERE: not the north-east - the island's far north, WEST side: w7 centre (-3 554, -23 721), 42.6 m, level; its west end's
+road r37 runs ~500 m to the shore village (zone z1, the seaplane float s29), r38 leaves its east end; both begin on the axis.
+w6 (311 m, 132 m up) is 1.7 km SSW on higher ground, not beside it.
+
+THE TRACK: `community`, a SITE's track (76_stages.js STAGE_SITE_TRACKS, max 2): its value is career.sites.community - the
+state a mission-pack project's step writes (73b careerProjectsTick, step `site: { id: 'community', state }`); absent 0;
+stageMaxes carries it, so the sandbox is the last stage. STAGE_REVEALS community:1 / community:2 at w7; their captions
+(trk.community.1/2) are placeholders for the Game coordinator. CONTRACT_TRACKS untouched. `micro` joins STAGE_RUNWAY_VARY.
+
+THE STAGES (tools/jolene_stages.json runways:w7 + sg_ca_*, written by tools/community_author.py; read off the COMPOSED
+world by GATE COMMUNITY - the physics, not the record):
+
+| stage | w7 | surface (wheels) | look | bumps (chaos) | 2 m bump | solid things |
+|---|---|---|---|---:|---:|---:|
+| 0 the first strip | 600 x 8 m, the middle of the axis; a track on the axis to both full ends | MUD_FIRM 11 | mud | 0.45 (rocks 0) | 13.3 mm | 38 |
+| 1 one pass = today's | 1 020 x 9 m | GRAVEL 6 | dirt | 0.25 | 6.3 mm | 54 |
+| 2 the last pass = the SANDBOX | 1 020 x 15 m | GRAVEL 6 | gravel | none (graded) | 0.9 mm | 53 |
+
+THE SANDBOX MOVED: every track at its max is the last stage, so the shipped island's w7 is now 15 m gravel with the
+finished yard (the four cooks re-run: premises, fleet spots, map; the city's untouched - w7 is no town cell). GATE STAGES 1's
+hash is the new cook's. The w7 row of 72_contract_data (1 020 m dirt) and 79_story's 'client' strip ("long and easy") are
+true from stage 1: a career whose project has not begun stands the 600 m mud strip (the Game coordinator's call).
+
+THE SCENERY (existing assets only; the yard at the strip's middle, south side, >= 25 m off the centreline; trees only by the
+tree system - an exclude clears the yard): 0 the hut (trapper cabin), a lean-to of split logs, the fire barrel and stools,
+a fenced garden plot, a salvaged car; at 0 only the tractor with a tyre drag, people at work, drum markers 8 m off the mud strip's edges (none on the last 200 m of either end).
+1 the woodshed, tool shed, smokehouse (fish shack, smoking), the fuel point, a picnic table, a pickup; at 1 only the
+salvaged rusty loader and the tractor's drag, drum markers likewise. 2 a small field hangar (raw planks), the outhouse, a
+gravel apron (its wheels' surface too), two gravel heaps (raise + gravel look), the skid-steer and tractor parked, people at
+rest; drum markers at the 15 m edge. GAPS (no asset): a small wind turbine, solar panels, a hand-painted sign.
+The reveals land by the yard: tools/stages_shot.js lists community_1/2 before / after / sandbox for A0's GPU box.
+
+THE PILOT (43_pilot.js not edited; GATE COMMUNITYFLY, the game's flight, damage on: w6 > w7, then a circuit w7 > w7):
+| stage | the Cub (w6 > w7, circuit w7 > w7) | the metal Cessna |
+|---|---|---|
+| 0 mud 600 x 8 | in: td 0.78 m/s, run 83 m; out: lift-off 68 m, back on | REFUSES it: goes round on its final, diverts to Jolene AFB whole (KNOWN; takes off from it at 149 m in a test) |
+| 1 dirt 1 020 x 9 | in: td 0.60 m/s, run 205 m; out: lift-off 131 m, back on | in: td 0.36 m/s, run 459 m; out: lift-off 148 m, back on |
+| 2 gravel 1 020 x 15 | in: td 0.58 m/s, run 204 m; out: lift-off 131 m, back on | in: td 0.37 m/s, run 460 m; out: lift-off 149 m, back on |
+- w6 is no return leg: both builds go round at w6 and divert, at every stage (the first instrument run, w6 > w7 > w6).
+- The Cub's two go-arounds before landing on the 1 020 m strip happen on master's own w7 too (baseline, same numbers).
+- FINDING for the Pilot coordinator: firm mud's base row rolls 0.050, under the pilot's 0.10 "soft" threshold (43 ~1414 /
+  ~3963): it departs the mud strip with the NORMAL technique; GROUND_SOFT's sinkage drag is not part of that choice.
+
+GATES: the 44 gates this change touches, --no-build --jobs=3 (the full core battery was not run: 3 of 333 jobs in an hour on this
+box; COMMUNITYFLY's full-tier run alone): 40 PASS - GE STRIPSURF SOFTGROUND TAXICLEAR (4 shards) UISMOKE MAPBAKE SCENERY
+ASSETBUDGET ANIMALS TREES GRASSSIDES STAND CONTACT TERRAINMATCH LOOKS MEDIA SPLAT SIMWORKER SITE HONESTY PREMISES PREMRASTER
+PREMCOOK CITYCOOK PARKED DUST SNOWMUDFX PAVEMENT MICRO RWYTREES LIFE GAMEPREM CONTRACTS MISSIONS STAGES COMMUNITY STORY NAMES
+ROUTES STRIPGROUND BUILT; + COMMUNITYFLY PASS (full, 6 jobs). RED AS ON THE BASE (claude/snow-mud-surfaces ae0c1260, run
+here, the same rows): PILOTPAGE (4), SCENERYED (1: 20b Metlakatla's compose over 2 500 ms on a loaded box), LAZY (1:
+ROUTE_DRAW's first demand). COMMUNITY --selftest 18/18 red.
+WHAT THE GATES TAUGHT (and changed): the axis paths are ground bands, not roads (MAPBAKE draws every road; normalise appends
+a road's defaults after its stage - STAGES 7's restore); no drum marker on the last 200 m of either end (TAXICLEAR 11a's
+turn-arounds); staged area-layer entries before the layer's first foldable one (PREMISES 20b; community_author.py and
+jolene_author.py apply_stages); short yard ids (MAPBAKE's 20 KB gzipped: 20 479 bytes on the base, 20 473 with the yard -
+THE MAP'S BUDGET IS FULL for the next scenery); CONTRACT_FIELDS.w7 surf gravel (the sandbox); GATE MICRO's bench strip
+pinned to the 1 020 x 9 m dirt it was budgeted on (community:1) - its thresholds unchanged (A0 to confirm).

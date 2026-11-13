@@ -85,9 +85,9 @@ Stage 2 - the last pass (the sandbox):
 - the skid-steer and the tractor parked; two people at rest round the picnic table
 - drum markers 8 m off the 15 m strip's edges, 200 m in from each end
 
-Solid things standing: COUNTS (stage 0 / 1 / 2) - instanced registry props and the catalogue's buildings with their
+Solid things standing: 38 / 54 / 53 (stage 0 / 1 / 2) - instanced registry props and the catalogue's buildings with their
 own LODs; static; nothing per frame. The reveals (stageReveal, the centre of what changes) land beside the yard:
-community:1 -> eye (-3 498, -23 661), community:2 -> (-3 505, -23 663) (tools/stages_shot.js lists the before / after /
+community:1 -> eye (-3 496, -23 657), community:2 -> (-3 504, -23 658) (tools/stages_shot.js lists the before / after /
 sandbox stills for A0's GPU box - the cloud cannot render the world).
 
 The yard is the site `sg_ca_y`, its items with short ids (hut, lean, wood, tool, smoke, hang, wc): the map lists every
