@@ -502,6 +502,8 @@ window.CAGE_PAGE = {
         ['fireSealW', 'fire seal',       0, 0.04, 0.002,
          { dim: 'len', when: P => +P.intOn && +P.intFire }],
         ['intDash',   'dashboard',       0, 1, 1],
+        // WEIGHT STUDY: no dash, the dials (57 mm) on a small pod on a stalk ahead of the stick (GEN_INSTR_POD)
+        ['instPod',   'instrument pod (no dash)', 0, 1, 1, ['off', 'on'], { when: P => +P.intOn && !+P.intDash, absent: 0 }],
         // moved from "7 · boom" (user, G28): a conception concern
         ['intBulk',   'aft bulkhead',    0, 1, 1],
         // WITHIN THE PILLAR, as a fraction of it: -1 the forward face,

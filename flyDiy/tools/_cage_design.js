@@ -3048,6 +3048,8 @@ const ARCHETYPES = [
                     wgCons: 8,
                     // (WEIGHT STUDY L4: the rod's own row named - carbon, as it was - so the soft shell is the pod's alone)
                     rodMat: 1,
+                    // (WEIGHT STUDY, the user 13 Nov: no dashboard - the three gauges in glider size, 57 mm, on a small pod)
+                    intDash: 0, instPod: 1,
                     // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its

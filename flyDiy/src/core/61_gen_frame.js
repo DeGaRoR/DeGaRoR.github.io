@@ -3870,7 +3870,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE PANEL BOARD, from its own geometry. `cab.panel` carries the depth
     // and how far the coaming wraps; the board spans the cabin.
     let panelM = 0;
-    if (cb.panel && cb.panel.on) {
+    // (the instrument pod, GEN_INSTR_POD: no board - the pod on its stalk, billed where the board was)
+    if (S.systems && S.systems.mount === 'pod') panelM = GEN_INSTR_POD.podKg;
+    else if (cb.panel && cb.panel.on) {
       const pw = 2 * cb.halfW * (0.6 + 0.8 * (cb.panel.wrap || 0));
       panelM = pw * (cb.panel.depth || 0.25) * O.panelKgM2;
     }

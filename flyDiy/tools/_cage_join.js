@@ -873,6 +873,8 @@ function cageJoinSpec(P, M, T) {
   // the panel arc, session 2: the fit, the same way (a null inside it is
   // 'the tier's answer' and must survive — garage.js's merge keeps nulls)
   if (M.systems !== undefined) spec.systems = M.systems;
+  // WEIGHT STUDY: the instrument pod (the cage's instPod) - no dash, the dials on a pod (GEN_INSTR_POD)
+  if (+P.instPod) spec.systems = Object.assign({}, spec.systems || {}, { mount: 'pod' });
   return spec;
 }
 

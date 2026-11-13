@@ -315684,3 +315684,16 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   GATE NACELLE C reads the parked settle at 8 s (was 6): since L9 (no paint on the wing) the parasol variant's lighter
   wingtip is still rocking on its skid at 6 s (0.87 m/s) after the monowheel goes down on it at ~4 s; at rest by 8 s
   (0.07; 0.00 at 13 s) - a settle, not a ringing.
+- L10 OF THE PATH: THE SMALL THINGS (13 Nov, the user: "the skid ... for real this is almost just the fairing";
+  "nothing from the dash and the instrument which are still built"; instruments option 2 and the tip skids, yes):
+  81.9 -> 79.7 kg. (1) GEN_RULES.ulGear: a FAIRED nose skid is its fairing (twFairing's shell, no separate 0.4 kg
+  shoe). (2) GEN_TIP_SKID.kg 0.30 -> 0.10 (a moulded shoe under a sailplane's tip; only this card flies tip skids:
+  fleet hash). (3) THE INSTRUMENT POD (new cage row instPod, the interior page beside the dashboard, shown with the
+  dash off; CAGE_DEFAULT_ABSENT / GEN_CAGE_ROW_NEUTRAL 0): the join writes systems.mount 'pod'; GEN_INSTR_POD
+  { d 0.0572, kgK 0.6, podKg 0.2 }: genSystemsResolve bills an 80 mm dial at 0.6 (57 mm glider instruments), the
+  frame bills the pod in the dash board's place and no board. _cage_panel build: the fitted dials in one row of 57 mm
+  faces, the frame upright at the PILOT's station (instPodZ 0.80 ahead of the seat back, instPodY 0.42 over the floor -
+  absent rows, the dash's own place is outside the skin on this long nose), a pod shell behind them and a stalk to the
+  floor. The card: intDash 0, instPod 1. GARAGE GAP FOUND: intDash 0 alone (no pod) still bills the board
+  (cabin.panel.on is never written false) - every card with the dash off is billed ~1 kg it does not draw; not fixed
+  here (it moves those cards and the saved builds' parity), owed.

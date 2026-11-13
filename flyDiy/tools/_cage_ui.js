@@ -152,6 +152,7 @@ const BASE_GROUPS = [
     ['intPillars','pillar bodies', 0, 1, 1],
     ['shellT',    'shell thickness', 0.01, 0.10, 0.002],
     ['intDash',   'dashboard',     0, 1, 1],
+    ['instPod',   'instrument pod (no dash)', 0, 1, 1, ['off', 'on']],
     ['dashBack',  'dash setback',  0.01, 0.30, 0.005,
      { when: P => +P.intOn && +P.intDash }],
     ['dashLip',   'dash lip height', 0.01, 0.10, 0.002,

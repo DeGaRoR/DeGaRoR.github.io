@@ -8751,6 +8751,7 @@ const CAGE_PARAMS = {
   // truss), 2 wood (plywood bathtub + pillar posts + floorboards)
   intCons: 0,
   intDash: 1, dashBack: 0.05, dashLip: 0.035, dashDepth: 0.35,
+  instPod: 0,                          // (WEIGHT STUDY: no instrument pod - the dials on the dash)
   dashCrease: 1.5,
   // DASH CROWN (G26.4): the panel face's top arc rises in the middle
   // above the windshield base line — the rounded instrument panel of
@@ -9277,7 +9278,7 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
 // (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
-const CAGE_DEFAULT_ABSENT = { s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+const CAGE_DEFAULT_ABSENT = { instPod: 0, s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)

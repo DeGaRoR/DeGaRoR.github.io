@@ -1759,6 +1759,22 @@ function build(parent, A, P, pilotX) {
     breakers: (R.breakers || []).map(b => b.key),
     screens: gpsScreens(R),
   });
+  // WEIGHT STUDY (the user, 13 Nov: no dashboard, the gauges in glider size on a small mount): THE INSTRUMENT POD
+  // (cage instPod, the dash off): the fitted dials in ONE ROW of 57 mm faces (GEN_INSTR_POD.d) centred on the pilot's
+  // line at the band's middle, on a moulded pod drawn below with its stalk to the floor. No switch row: a pod build has
+  // no electrics to switch (the key stays, a pack's)
+  const POD = !!(P && +P.instPod && !+P.intDash);
+  if (POD) {
+    const DS = (typeof GEN_INSTR_POD !== 'undefined' && GEN_INSTR_POD.d) || 0.0572, GP = 0.008;
+    const row = L.dials.filter(d => !d.coaming), n = row.length, x0 = Number.isFinite(pilotX) ? pilotX : 0;
+    // WHERE: not the dash's place (a long nose puts that outside the skin, ahead of the screen) - the pilot's: podZ
+    // ahead of the seat back, podY over the floor there (the cage's instPodZ / instPodY, absent at these)
+    const zP = (A.zBack != null ? A.zBack : L.zFace - 0.8) + (P.instPodZ != null ? +P.instPodZ : 0.80);
+    const fl = A.floorAt ? A.floorAt(zP) : null;
+    const yP = (Number.isFinite(fl) ? fl : L.yMid - 0.4) + (P.instPodY != null ? +P.instPodY : 0.42);
+    row.forEach((d, i) => { d.cx = x0 + (i - (n - 1) / 2) * (DS + GP); d.cy = yP; d.r = DS / 2; });
+    L.pod = { x: x0, y: yP, z: zP, w: n * (DS + GP) - GP, h: DS };
+  }
   const grp = new THREE.Group();
   grp.name = 'edPanel';
   parent.add(grp);
@@ -1770,13 +1786,26 @@ function build(parent, A, P, pilotX) {
   // dial's cage y becomes a distance along the plate; z = 0 IS the plate.
   // Without a measured plate (the bench's flat dash, an older crew record)
   // the frame sits at the band's face, unrotated, as before.
-  const PL = L.plane;
+  const PL = POD ? null : L.plane;                         // (the pod: its own upright frame at its own station)
   const face = new THREE.Group();
   face.name = 'edPanelFace';
   if (PL) { face.position.set(0, PL.yTop, PL.zTop); face.rotation.x = -PL.tilt; }
-  else face.position.set(0, 0, L.zFace);
+  else face.position.set(0, 0, POD && L.pod ? L.pod.z : L.zFace);
   grp.add(face);
   const cosT = PL ? Math.cos(PL.tilt) : 1;
+  // (the instrument pod's shell and stalk, in the face's frame: +z into where the dash was, y up)
+  if (POD && L.pod) {
+    const Q = L.pod, mg = 0.012, dep = 0.035, sh = K.Bag(), st = K.Bag();
+    const yc = PL ? (Q.y - PL.yTop) / cosT : Q.y;
+    K.boxIn(sh, [Q.x, yc, dep], [Q.w / 2 + mg, Q.h / 2 + mg, dep], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    sh.mesh(face, matFor('plate'));
+    const zCage = Q.z + dep, yF = A.floorAt ? A.floorAt(zCage) : null;
+    const yBot = Number.isFinite(yF) ? (PL ? (yF - PL.yTop) / cosT : yF) : yc - 0.30;
+    if (yBot < yc - Q.h / 2 - mg - 0.02) {
+      K.tube(st, [Q.x, yc - Q.h / 2 - mg, dep + 0.01], [Q.x, yBot, dep + 0.05], 0.011, 10);
+      st.mesh(face, matFor('plate'));
+    }
+  }
   const ly = cy => PL ? (cy - PL.yTop) / cosT : cy;       // cage y → along the plate
   // ...and the plate's own depth there (session 4c): the fitted plane is
   // within millimetres of the plate, and millimetres are what a face's
