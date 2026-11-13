@@ -373,10 +373,26 @@ function mount(host, ctx) {
   //  8 s of it the fine patch re-sampled along r1's whole corridor) nor its WEAR: `pav` is carried to the renderer's pavement
   //  and read by nothing of the ground (27_premises: roadObjs.pav, the issues; the patch's sink reads the premises' recipe)
   const ROAD_FREE = { traffic: 1, rail: 1, poles: 1, life: 1, name: 1, nodes: 1, pav: 1 };   // (G2950: nor its junction ids - the graph's alone)
+  const standMovesGround = (a, b) => {
+    try {
+      const sa = a.stand || null, sb = b.stand || null;
+      if (JSON.stringify(sa && sa.pad) !== JSON.stringify(sb && sb.pad)) return true;
+      if (sb && sb.pad && typeof sb.pad === 'object') return true;   // a forced pad moves with its stand
+      const s = typeof siteOf === 'function' ? siteOf(b.id || a.id) : null;
+      if (s && s.standPad) return true;                              // the pad that was there moves (or goes)
+      if (!sb || sb.pad === 'off') return false;
+      const D = PG.STAND_PAD || { grade: 0.02 }, w = R.overlay.frame.toWorld(+sb.x, +sb.z), h = (x, z) => R.heightAt(x, z);
+      const g = Math.hypot((h(w[0] + 3, w[1]) - h(w[0] - 3, w[1])) / 6, (h(w[0], w[1] + 3) - h(w[0], w[1] - 3)) / 6);
+      return !(g <= D.grade);
+    } catch (err) { return true; }   // unsure: re-sample (the safe side; only slower)
+  };
   const groundOf = (layer, a, b) => {
     if (layer === 'sounds') return false;   // G1656: a sound moves no ground (and the game skips its ground re-sample)
     if (layer === 'sites') { if (!a || !b) return undefined; for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) if (k !== 'name' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined; return false; }   // (G3005: a site's name moves no ground)
     if ((layer !== 'runways' && layer !== 'roads') || !a || !b) return undefined;
+    // (STAND-PAD, 13 Nov) a stand can now carry ground: its pad (27_premises standPadOf). A stand edit stays groundless only
+    // when no pad was there, its setting did not change, and the new place is within the pad's grade (read here, 5 heights)
+    if (layer === 'runways' && JSON.stringify(a.stand) !== JSON.stringify(b.stand) && standMovesGround(a, b)) return undefined;
     const free = layer === 'runways' ? WAY_KEYS : ROAD_FREE;
     const keys = new Set(Object.keys(a).concat(Object.keys(b)));
     for (const k of keys) if (!free[k] && JSON.stringify(a[k]) !== JSON.stringify(b[k])) return undefined;
@@ -1707,6 +1723,7 @@ function mount(host, ctx) {
         numRow(insp, 'stand x (m)', () => e.stand.x, v => ed(x => { x.stand.x = +v.toFixed(2); }, 'stand of ' + id, 'sx'), metres);
         numRow(insp, 'stand z (m)', () => e.stand.z, v => ed(x => { x.stand.z = +v.toFixed(2); }, 'stand of ' + id, 'sz'), metres);
         standHeading(insp, e.stand, e.taxiOut, f => ed(x => f(x.stand), 'heading of the stand of ' + id, 'shdg'));
+        standPadRows(insp, e, id, ed);
         wayRows(insp, e, 'taxiOut', 'the way out toward end 0', id, ed);
         if (e.taxiOut1) wayRows(insp, e, 'taxiOut1', 'the way out toward end 1', id, ed);
         else rows.button(insp, 'add a way out toward end 1', () => ed(x => { x.taxiOut1 = wayToward(x, x.stand, 1); }, 'way out of ' + id));
@@ -2472,6 +2489,23 @@ function mount(host, ctx) {
     pre = pre || '';
     rows.slider(p, pre + 'parked heading (°)', -180, 180, 1, () => wrapDeg(standHdg(st, way) * DEG), v => apply(s => { s.hdg = +(v / DEG).toFixed(4); }), v => v.toFixed(0) + '°' + (st.hdg === null || st.hdg === undefined ? ' (toward the way out)' : ''));
     if (st.hdg !== null && st.hdg !== undefined) rows.button(p, pre + 'parked heading: toward the way out', () => apply(s => { s.hdg = null; }));
+  }
+  // THE STAND'S PAD (STAND-PAD, the user 13 Nov: a pad setting on every stand, automatic only where the ground is steeper than
+  // 2 %; 27_premises standPadOf): auto (absent) / never ('off') / always at a size ({ w, l, falloff }); the line under it says
+  // what the composed field did (its site's standPad: a pad made, at the strip's level)
+  function standPadRows(p, e, id, ed) {
+    const P = e.stand && e.stand.pad, mode = P === 'off' ? 'off' : (P && typeof P === 'object') ? 'custom' : 'auto';
+    const D = PG.STAND_PAD || { w: 22, l: 26, falloff: 12, grade: 0.02 };
+    rows.select(p, 'pad under the stand', [['auto', 'automatic (only over ' + Math.round(D.grade * 100) + ' %)'], ['off', 'never'], ['custom', 'always, at this size']], () => mode,
+      v => ed(x => { if (v === 'auto') delete x.stand.pad; else if (v === 'off') x.stand.pad = 'off'; else x.stand.pad = { w: D.w, l: D.l, falloff: D.falloff }; }, 'pad of the stand of ' + id));
+    if (mode === 'custom') {
+      rows.slider(p, 'pad across (m)', 8, 40, 1, () => +P.w || D.w, v => ed(x => { x.stand.pad = Object.assign({}, x.stand.pad, { w: v }); }, 'pad of the stand of ' + id, 'spw'), v => v.toFixed(0) + ' m');
+      rows.slider(p, 'pad along (m)', 8, 40, 1, () => +P.l || D.l, v => ed(x => { x.stand.pad = Object.assign({}, x.stand.pad, { l: v }); }, 'pad of the stand of ' + id, 'spl'), v => v.toFixed(0) + ' m');
+      rows.slider(p, 'pad bank (m)', 4, 20, 1, () => +P.falloff || D.falloff, v => ed(x => { x.stand.pad = Object.assign({}, x.stand.pad, { falloff: v }); }, 'pad of the stand of ' + id, 'spf'), v => v.toFixed(0) + ' m');
+    }
+    let made = null; try { const s = typeof siteOf === 'function' ? siteOf(id) : null; made = s && s.standPad ? s.standPad : null; } catch (err) { made = null; }
+    rows.note(p, made ? 'a pad levels this stand and its way in, at the strip\'s level (' + made.level.toFixed(2) + ' m); the runway itself is untouched'
+      : mode === 'off' ? 'no pad: the stand sits on the ground as it is' : 'no pad: the ground under the stand is within ' + Math.round(D.grade * 100) + ' % (or shaped by hand nearby)', made ? 'ok' : undefined);
   }
   // A WAY OUT's points, typed; the last is the entry, on the centreline (a typed entry is taken to its nearest centreline point,
   // as its drag is); a point added after any but the entry (half way to the next), removed (never the entry)
