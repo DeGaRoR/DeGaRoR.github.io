@@ -7816,10 +7816,12 @@
   // strength; window.DUST_FX the rig's handle.
   const DUST_Q = (() => { try { const m = /[?&]dust=([0-9.]+)/.exec(location.search || ''); return m ? +m[1] : null; } catch (e) { return null; } })();
   let dustFx = null;
-  // (SNOW-MUD, 13 Nov: 8-10 snow, 11-12 mud - dust.js's own classes: the snow's powder thrown up, the mud's clods)
-  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand', 'snow', 'snow', 'snow', 'mud', 'mud'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
-  const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4, mud: 5, snow: 6 };
-  const DUST_GROUND = ['dirt', 'sand', 'gravel', 'dirt', null, 'mud', 'snow'];   // a dust class -> the pavement surface whose colour it takes
+  // (SNOW-MUD, 13 Nov: dust.js's soft classes - 8 packed snow, 9 powder, 10 wet snow (slush), 11-12 mud; the pavement's
+  // snow and mud looks name one class for their three / two kinds, so under them the SURFACE code decides - DUST_BY_CODE)
+  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand', 'snow', 'powder', 'slush', 'mud', 'mud'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
+  const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4, mud: 5, snow: 6, powder: 7, slush: 8 };
+  const DUST_BY_CODE = { snow: 1, mud: 1 };   // the pavement classes whose dust class is the surface code's
+  const DUST_GROUND = ['dirt', 'sand', 'gravel', 'dirt', null, 'mud', 'snow', 'snow', null];   // a dust class -> the pavement surface whose colour it takes
   // THE SOIL'S WATER, ONCE A FRAME, FOR EVERYONE WHO SHOWS IT (DIRT-STRIP's ask, 9 Nov): SOIL_WET off the day, handed to the
   // pavement (PAVEMENT.setSoilWet: one shared uniform - the strip's damp tint and its drawn puddles) and to the dust (the same
   // R: the water drawn is the water splashed in). Runs with the dust off too (?dust=0 is the dust's lever, not the puddles').
@@ -7841,7 +7843,7 @@
       cls(x, z) {
         const O = world && world.premises && world.premises.overlay;
         const q = O && O.pavedAt ? O.pavedAt(x, z, 0) : null;
-        if (q && q.cls != null && DUST_CLS[q.cls] != null) return DUST_CLS[q.cls];
+        if (q && q.cls != null && DUST_CLS[q.cls] != null && !DUST_BY_CODE[q.cls]) return DUST_CLS[q.cls];
         const s = world && world.surface ? world.surface(x, z) : 0, c = DUST_SURF[s];
         return c === -1 || c == null ? -1 : DUST_CLS[c];
       },
@@ -7874,7 +7876,8 @@
       if (pv) { pv[0] = x; pv[1] = y; pv[2] = z; } else F.prev.set(i, [x, y, z]);
       const on = !airborneAll && (k < (refs.mains || []).length ? !!(WC.mains && WC.mains[k]) : !!WC.tw);
       let R = 0.2; if (model && model.wheelParts) for (const w of model.wheelParts) if (w.idx === i && w.R > 0) { R = w.R; break; }
-      st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0 });
+      st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0,
+                       sink: sim.out && sim.out.softZ > 0 ? sim.out.softZ : 0 });   // (SNOW-MUD: the solver's sinkage this frame - the plough's, the bow wave's)
     }
     // the props: one disc a thrust node (the mean disc's wash - the solver's out.wash), the axis forward = -xAft
     st.props.length = 0;

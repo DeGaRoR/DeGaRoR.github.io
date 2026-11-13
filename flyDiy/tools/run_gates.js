@@ -974,6 +974,10 @@ const GATES = [
   { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
   { id: 'WATER', file: '_water_check.js', tier: 'core' },   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
   { id: 'DUST', file: '_dust_check.js', tier: 'core' },   // DIRT-DUST (2026-11-09): the strip's dust - the weather, the sources, the pools, the batch, the cost
+  // SNOW-MUD FX (13 Nov): the snow's cloud and the mud's projection on the dust's one system - the dust's five classes
+  // unchanged; powder clouds (>= 1.5 x dirt) and settles, packed snow drifts; mud and slush never cloud, throw clods and
+  // drops no higher than 2 m, shed at speed not at a walk, plough with the sinkage, splat and lie (~1 s; --selftest, --show)
+  { id: 'SNOWMUDFX', file: '_snowmud_fx_check.js', tier: 'core', wall: 10 },
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)
