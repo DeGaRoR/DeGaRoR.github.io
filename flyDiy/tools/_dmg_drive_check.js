@@ -72,7 +72,7 @@ if (argv[0] === '--part') {
         return Object.assign({}, c, { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }); });
     }
     for (const thr of [1, 0]) { const r = D.tipStrike(k, Object.assign({ thr, bite: 0.03, secs: 3 }, o));
-      (out.graze = out.graze || []).push({ thr, rpm0: r.rpm0, d: (r.drive || []).map(slim), mountAt: r.mountAt, imbMax: r.imbMax, running: r.running, groups: r.groups, finite: r.finite }); }
+      (out.graze = out.graze || []).push({ thr, rpm0: r.rpm0, d: (r.drive || []).map(slim), mountAt: r.mountAt, imbMax: r.imbMax, running: r.running, groups: r.groups, finite: r.finite, sepBite: r.sepBite, pastMax: r.pastMax, sepStop: r.sepStop }); }
     if (C.genDriveSpec(def).gear > 1) for (const thr of [1, 0.1]) { const r = D.tipStrike(k, Object.assign({ thr, bite: 0.6, secs: 4 }, o));
       (out.gear = out.gear || []).push({ thr, rpm0: r.rpm0, d: (r.drive || []).map(slim), failAt: r.failAt, peakEng: r.peakEng, running: r.running, finite: r.finite }); }
   } else if (part === 'mount') {
