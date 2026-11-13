@@ -315713,3 +315713,25 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   hook it climbs clean to ~120 m and over-speeds to 36 m/s (the card's VNE, 130 km/h) - the pod's nose poles, then the
   tail, go - and the link breaks near 100 m. Both are the hands' (a CG hook wants the rotation held, the speed held under
   VNE) and the weak link's (6 kN on a 160 kg glider - a real one is ~1.3-2 x its weight) - TOW-LAUNCH's to tune.
+
+- LS4 (13 Nov, the Archaeopteryx branch; A0 for the user, then the user's own steering): THE PROTOTYPE, saved as
+  builds/ls4_2026-11-13.json ("LS4 (light 15 m, WIP)"; its cage rows and the birth script in
+  tools/ref_match/refs/ls4/). The motorglider card under the cage page's sailplane preset, engineless (engines[0].none,
+  GATE ENGINELESS), the ultralight monowheel retracting (GATE ULTRALIGHT G), the 15 m double-taper wing (the 0.35 taper
+  floor), the T-tail seated on a straight fin, the controls inside, the reclined tub seat, the canopy arch drawn clear
+  (canClear), the tip skids. Matched to the factory sheet 1U-87 at its TRUE scale (17.65 / 17.45 mm a pixel, nose row 766,
+  rudder tip 377 - an earlier read at 15.4 along stretched it 13 %); the front view is drawn level, the side three-view at
+  the ground attitude (6.5 deg). KNOWN LIMITS (the user: "commit as is, I know the limitations"): 135 kg empty against the
+  LS4-b's 238 (the structure is sized for one pilot and no water, ~215 kg, at a light aeroplane's load factor; the LS4 is
+  built for 472-525 kg with 140 L of water at +5.3 g) - it is a LIGHT 15 m glider in the LS4's outline (the Apis class's
+  mass), not an LS4; best glide 28 at 57 km/h against ~40 (the body bills ~0.13 m2 of drag area, ~3x a sailplane pod's:
+  a glass homebuilt's skin friction, unfaired junctions, the T-tail's stab brace wires carried from the Cub-style tail);
+  the CG far forward (static margin 0.46 MAC: full up elevator holds 1.29 Vs), spiral mode doubling in ~10 s. THE FLIGHT
+  TEST (ftest_ls4.js, a crude scripted pilot): with the gear up, wings held, it cruises at ~24 m/s and 1.0-1.3 m/s sink
+  for a minute, undamaged; hands off it rolls into the spiral, and in the dive the glass wing yields from ~2.6 g (~1.8 g
+  with the ultralight wheel down) and breaks up; the scripted pilot did not land it (no rudder coordination, the forward
+  CG); no take-off of its own (no engine: the tow is TOW-LAUNCH's). NEXT (each its own chantier): water ballast in the
+  design gross + the sailplane load factor (the LS4 proper, ~200-210 kg, a ballast the player fills and dumps); the
+  sailplane's drag (laminar skin, faired junctions, a cantilever T stab without wires); the CG; the card in ARCHETYPES.
+  PRE-EXISTING REDS seen on the way, not this branch's: ENERGYBASE's carbon case (since the L39b merge), LIVERY's two
+  builds/cub_2026-09-20.json strut checks.
