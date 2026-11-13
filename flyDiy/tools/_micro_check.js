@@ -40,6 +40,8 @@ const world = J => IN.islandWorld('jolene', { premises: JSON.stringify(J) });
 {
   // (AFB-0220, 13 Nov, Pilot via A0: xw_rough - Jolene 02/20's rough lane, firm mud - at 0.55 VETTED "for the stock build, Cub, C172
   //  (list:50) and Jodel only (the four tools/afb0220_ap_probe.js flew); a card that hasn't flown it isn't vetted")
+  //  (A0's RULING, 13 Nov: on its firm mud the C172 REJECTS a take-off off the lane - ROLL > ABORT > STOPPED, no damage - and lands
+  //  there fine off w2: correct behaviour for the STOL-practice side, the same rule as the TAIL / TOUR refusals; GATE AFB0220 10)
   const VET = { w3: 0.2, w8: 0.4, xw_rough: 0.55 };
   const recs = FIX.layers.runways.filter(r => r.micro).map(r => r.id + ':' + r.micro.chaos).sort().join(', ');
   world(FIX); const pub = [...SM.live.values()].flat().map(s => s.id).sort().join(', ');

@@ -30,6 +30,7 @@
 //     with nothing there it rolls on through; its wing past the dead power line's pole, 3.5 m off the track: the pole as
 //     the trunk its record makes it (`trunk: true`, TREE_HITS.pole - the beams) holds it within 5 m (TREEHIT's wing rule), where
 //     the prop's columns alone (the nodes) let it on
+//  10 THE C172 ON THE MUD LANE (A0's ruling): it rejects the take-off off the lane, said, and stops on it; it lands there fine
 //   9 THE COST: the part's triangles at full detail and its batches (a repeated prop key is one instanced batch, G934; the
 //     ground pieces one InstancedMesh per subject a 64 m cell), bounded; the planting's trees estimated; nothing that
 //     ticks (every piece static: props, cells, the pavement's polygons) - the frame-time measure is FRAMECOST's, on a GPU
@@ -295,6 +296,23 @@ console.log('9. the cost (static: what the part draws; FRAMECOST measures the fr
   let ha = 0, est = 0; for (const a of AREAS) { const v = a.props && a.props.cover && a.props.cover.veg; if (!v) continue; let A = 0; for (let i = 0, p = a.poly; i < p.length; i++) { const q = p[(i + 1) % p.length]; A += p[i][0] * q[1] - q[0] * p[i][1]; } A = Math.abs(A) / 2e4; ha += A; est += A * (v.density || 100); }
   yes(est < 6000, 'the planting: ' + ha.toFixed(1) + ' ha of scrub and wood, ~' + Math.round(est) + ' trees by density - the forest fill\'s own instanced rungs and impostors, not a draw each');
   yes(tCompose < 60000, 'the island composes in ' + (tCompose / 1000).toFixed(1) + ' s in node with the part (the premises cook carries it in play)');
+}
+
+// ---- 10 --------------------------------------------------------------------------------------------------------------
+// THE MUD LANE AND THE C172 (A0's RULING, 13 Nov: keep chaos 0.55 + firm mud - the STOL-practice side): the pilot's own circuit
+// off xw_rough with the C172 REJECTS its take-off (said, no damage) and stops on the lane; flown off w2 onto it, it lands on the
+// lane's centreline and stops, undamaged. tools/afb0220_ap_probe.js, the composed island, every bump (two children, ~3 min)
+console.log('10. the C172 on the mud lane (the pilot, the composed island)');
+{
+  const probe = args => cp.spawnSync(process.execPath, [path.join(T, 'afb0220_ap_probe.js')].concat(args), { encoding: 'utf8', maxBuffer: 64 << 20, timeout: 1200000 });
+  const off = probe(['arch:c172', 'xw_rough']), on = probe(['arch:c172', 'w2', 'xw_rough']);
+  const line = (r, k) => ((r.stdout || '').split('\n').find(l => l.indexOf(k) >= 0) || '').trim();
+  const phOff = line(off, 'phases'), endOff = line(off, 'end:'), dmgOff = line(off, 'damage:');
+  yes(/ABORT/.test(phOff) && /STOPPED/.test(phOff) && !/LIFTOFF/.test(phOff) && /ON xw_rough/.test(endOff) && /none crashed, 0 members/.test(dmgOff),
+    'the C172 rejects the take-off from the mud lane, said, and stops on it (' + phOff.replace(/^.*phases /, '') + '; ' + endOff.replace(/^end: /, '') + '; ' + dmgOff.replace(/^damage: /, '') + ')', (off.stderr || '').slice(-200));
+  const phOn = line(on, 'phases'), td = line(on, 'touchdown:'), dmgOn = line(on, 'damage:'), vOn = line(on, 'verdict:');
+  yes(/STOPPED/.test(phOn) && /ON xw_rough'S CENTRELINE/.test(vOn) && /none crashed, 0 members/.test(dmgOn),
+    'flown off w2 onto the mud lane, the C172 lands fine (' + td.replace(/^touchdown: /, '') + '; ' + dmgOn.replace(/^damage: /, '') + ')', (on.stderr || '').slice(-200));
 }
 
 console.log(n + ' checks, ' + bad + ' failed');
