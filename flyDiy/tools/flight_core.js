@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: bb6ce91aadc4e24b
+// body-sha256: b58787d75c211551
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -33774,7 +33774,9 @@ function genSurfKey(S, which, k) {
   if (!key && which !== 'wing') {
     const w0 = S.wings && S.wings[0] && S.wings[0].material;
     const wk = w0 == null ? null : (GEN_SURF_MATERIALS[w0] ? w0 : (GEN_SURF_LEGACY[w0] || null));
-    if (wk) return wk;
+    // (...a wing CHOSEN, not named: the wing's own default said out loud is the aeroplane's, and the tail stays the
+    //  aeroplane's too - GATE BUILD G116/G213/G117: naming the default changes nothing)
+    if (wk && wk !== GEN_SURF_DEFAULT[fus]) return wk;
   }
   return key || D[fus] || 'fabric';
 }
@@ -36235,7 +36237,7 @@ function genEngPropD0(S, e0, PP0) {
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
-                               ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0 };
+                               ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -37713,7 +37715,7 @@ const GEN_DEFAULT = {
   // genNormaliseSpec is the migration path, no version bump (the G85 rule).
   gear: { type: 'taildragger', fairing: 'none', twFairing: 'none',
           // MONOWHEEL: one main on the centreline - false here, and the clamp DELETES it unless true (a resolved spec
-          // carries the key only on a monowheel)
+          // carries the key only on a monowheel; genNormaliseSpec drops the false the defaults fill in)
           mono: false,
           legFair: 'none', twLegFair: 'none',
           fairTail: 1.0, twFairTail: 1.0, fairMat: 'glass',
@@ -37813,7 +37815,14 @@ function genNormaliseSpec(raw) {
   // list at RESOLVE time, which is derivation and the right place for it.
   // GATE BUILD caught the first cut doing it here: the stock spec came back
   // from a round trip carrying a vessel list it never had.
-  if (genIsSectioned(r)) return genDefaults(r, GEN_DEFAULT);
+  if (genIsSectioned(r)) {
+    const monoSaid = !!(r.gear && typeof r.gear === 'object' && 'mono' in r.gear);   // (before the fill: genDefaults fills in place)
+    const d = genDefaults(r, GEN_DEFAULT);
+    // (MONOWHEEL: the false the defaults fill in is the absent key - a two-wheel spec carries none, as before the row;
+    //  GATE STOL's join-to-master parity read the filled `gear.mono: false` on every saved build as a moved spec)
+    if (d && d.gear && d.gear.mono === false && !monoSaid) delete d.gear.mono;
+    return d;
+  }
   // --- pre-G3 flat shape ---
   const p = r.place || {}, w = r.wing || {}, f = r.fuse || {};
   const out = {
