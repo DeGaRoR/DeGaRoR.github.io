@@ -1087,6 +1087,7 @@ const GATES = [
   // preferences, the client's airframe, the failure rules + restart, the in-flight tracker, timers, markers. ~40 s.
   // `--selftest`: 37 doctored rules, each red (~25 min)
   { id: 'MISSIONS', file: '_missions_check.js', tier: 'core', wall: 45 },
+  { id: 'PROJECTS', file: '_projects_check.js', tier: 'core', wall: 15 },   // PROJECTS (13 Nov): a pack's projects - steps, works, site states, abilities (73b_missions.js, 74_career.js)
   // THE MISSION PROPS (MISSIONS-PROPS): tools/_mission_gen.js - the air-race pylon, the balloon column, the ring, the marker
   // flag, the tie-down spot, the site's stages; their strike dimensions are the core's (73c MISSION_PROP_DIMS)
   { id: 'MISSIONPROPS', file: '_mission_props_check.js', tier: 'core' },

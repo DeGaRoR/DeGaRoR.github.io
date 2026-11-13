@@ -238,6 +238,10 @@ function missionPackNormalise(p) {
     return C;
   });
   o.missions = o.missions.map(missionNormalise);
+  // PROJECTS (13 Nov, the user: projects = ordered steps tied to a site and its meshes, configuration not coding):
+  // { id, name, client, requires: { projects, rep: { provider: n }, abilities }, offer, steps: [{ id, order, missions,
+  //   works: { cost, days } | null, site: { id, state } | null }], onDone: { abilities, projects, missions, clients } }
+  o.projects = (Array.isArray(o.projects) ? o.projects : []).map(missionProjectNormalise);
   return o;
 }
 
@@ -496,6 +500,8 @@ function missionPackValidate(pack, opts) {
   if (P.what !== MISSION_PACK_WHAT) why.push('what must be ' + MISSION_PACK_WHAT);
   if (P.v !== MISSION_PACK_V) why.push('v must be ' + MISSION_PACK_V + ' (got ' + P.v + ')');
   for (const k of ['campaigns', 'missions']) if (!Array.isArray(P[k])) why.push(k + ' is not a list');
+  if (P.projects != null && !Array.isArray(P.projects)) why.push('projects is not a list');
+  else if (Array.isArray(P.projects)) why.push(...missionProjectsWhy(Object.assign({}, P, { projects: P.projects.map(missionProjectNormalise) })));
   if (why.length) return why;
   const T = missionText(P), F = opts.fields || CONTRACT_FIELDS;
   for (const k of Object.keys(P.text || {})) if (!msObj(P.text[k]) || typeof P.text[k].t !== 'string') why.push('text ' + k + ' is not { t }');
@@ -609,15 +615,19 @@ function missionPackContracts(pack) {
 function missionPackInstall(pack, providers) {
   const P = missionPackNormalise(pack), base = providers || CONTRACT_PROVIDERS, out = {}, held = [];
   const recs = missionPackContracts(P);
+  const PN = missionProjectNeeds(P);   // PROJECTS: a step's missions offered while their project stands at that step
+  // ...installed as one campaign per project (its steps as chapters, any order: needs.project does the gating)
+  const CAMPS = P.campaigns.concat((P.projects || []).map(pj => ({ id: 'project:' + pj.id, provider: pj.client || '', order: 'any', needs: null,
+    chapters: pj.steps.map(s => ({ id: 'project:' + pj.id + ':' + s.id, order: 'any', missions: s.missions.slice() })) })));
   for (const p of Object.keys(base)) out[p] = Object.assign({}, base[p], { arc: [], builds: [], night: [] });
   const boxes = {};
-  for (const c of P.campaigns) { boxes[c.id] = c; for (const h of c.chapters) boxes[h.id] = h; }
+  for (const c of CAMPS) { boxes[c.id] = c; for (const h of c.chapters) boxes[h.id] = h; }
   // a container's DONE as conditions [{ ids, n }] (null: not expressible - a choose:N campaign)
   const chDone = h => { const O = missionOrder(h.order); return [{ ids: h.missions.slice(), n: O && O.kind === 'choose' ? O.n : h.missions.length }]; };
   const doneOf = id => { const B = boxes[id]; if (!B) return []; if (!B.chapters) return chDone(B);
     const O = missionOrder(B.order); return O && O.kind === 'choose' ? null : [].concat(...B.chapters.map(chDone)); };
   const needsOf = N => { if (!N || !Array.isArray(N.after)) return []; const L = N.after.map(doneOf); return L.some(x => x == null) ? null : [].concat(...L); };
-  for (const c of P.campaigns) {
+  for (const c of CAMPS) {
     if (c.tutorial) continue;
     const all = [].concat(...c.chapters.map(h => h.missions)), CO = missionOrder(c.order);
     if (CO && CO.kind === 'choose') { for (const id of all) held.push({ id, why: 'campaign ' + c.id + ' is ' + c.order + ' (N chapters of many: no runtime yet)' }); continue; }
@@ -634,6 +644,7 @@ function missionPackInstall(pack, providers) {
         if (rw) { held.push({ id, why: rw }); continue; }
         const T = out[r.provider];
         if (!T) { held.push({ id, why: 'no provider ' + r.provider }); continue; }
+        if (PN[id]) { r = msClone(r); r.needs = Object.assign({}, r.needs || { after: [], rep: 0 }, PN[id]); }
         if (conds.length || closed) {
           r = msClone(r);
           if (conds.length) r.needs = Object.assign({}, r.needs || { after: [], rep: 0 }, { of: msClone(conds) });
@@ -645,6 +656,84 @@ function missionPackInstall(pack, providers) {
     });
   }
   return { providers: out, held, text: Object.assign({}, MISSION_TEXT, msClone(P.text || {})) };
+}
+
+// ---- PROJECTS (13 Nov) ---------------------------------------------------------------------------------------------------
+const MISSION_PROJECT_ORDERS = ['any', 'seq'];
+function missionProjectNormalise(p) {
+  const P = msObj(p) ? msClone(p) : {}, arr = v => (Array.isArray(v) ? v.filter(x => typeof x === 'string') : []);
+  const R = msObj(P.requires) ? P.requires : {}, D = msObj(P.onDone) ? P.onDone : {};
+  return { id: typeof P.id === 'string' ? P.id : '', name: typeof P.name === 'string' ? P.name : '', client: typeof P.client === 'string' ? P.client : '',
+    requires: { projects: arr(R.projects), rep: msObj(R.rep) ? msClone(R.rep) : {}, abilities: arr(R.abilities) },
+    offer: msObj(P.offer) ? msClone(P.offer) : null,
+    steps: (Array.isArray(P.steps) ? P.steps : []).map((s, i) => { const S = msObj(s) ? s : {};
+      const W = msObj(S.works) && msNum(S.works.days) ? { cost: msNum(S.works.cost) ? +S.works.cost : 0, days: +S.works.days } : null;
+      const st = msObj(S.site) && typeof S.site.id === 'string' ? { id: S.site.id, state: S.site.state } : null;
+      return { id: typeof S.id === 'string' && S.id ? S.id : 's' + (i + 1), order: MISSION_PROJECT_ORDERS.includes(S.order) ? S.order : 'any', missions: arr(S.missions), works: W, site: st }; }),
+    onDone: { abilities: arr(D.abilities), projects: arr(D.projects), missions: arr(D.missions), clients: arr(D.clients) } };
+}
+// the projects' own refusals (missionPackValidate adds them): ids, steps, missions that exist, projects named that exist
+function missionProjectsWhy(P) {
+  const why = [], ids = new Set((P.missions || []).map(m => m.id)), pids = new Set();
+  for (const p of P.projects || []) {
+    if (!p.id) { why.push('a project without an id'); continue; }
+    if (pids.has(p.id)) why.push('project ' + p.id + ' twice');
+    pids.add(p.id);
+    if (!p.steps.length) why.push('project ' + p.id + ' has no step');
+    for (const s of p.steps) for (const m of s.missions) if (!ids.has(m)) why.push('project ' + p.id + ' step ' + s.id + ' names no mission ' + m);
+  }
+  for (const p of P.projects || []) for (const r of p.requires.projects.concat(p.onDone.projects)) if (!pids.has(r)) why.push('project ' + p.id + ' names no project ' + r);
+  return why;
+}
+// a project step's missions, as the install marks them: needs.project { id, step } (offered while the project stands at
+// that step) and needs.projects (the projects it requires, done) - 74_ careerNeedsOk reads both
+function missionProjectNeeds(P) {
+  const out = {};
+  for (const p of P.projects || []) p.steps.forEach((s, k) => { for (const m of s.missions) out[m] = { project: { id: p.id, step: k }, projects: p.requires.projects.slice() }; });
+  return out;
+}
+// careerProjectsTick(doc, projects, now) -> { doc, events }: each open project's current step - its missions all done:
+// its works start (their cost charged, ready `days` later on the career's clock); the works ready (or none): the step is
+// done, its site takes its state (career.sites), the next step opens; the last step done: the project is done and its
+// onDone applies (abilities into career.abilities; the projects it opens and its missions follow from being done).
+// Pure; `now` the career's clock (seconds). A project is open when its requires are met (projects done, rep, abilities).
+const MISSION_DAY_S = 86400;
+function careerProjectsTick(doc, projects, now) {
+  const d = msClone(doc), c = d.career, events = [];
+  if (!c) return { doc, events };
+  c.projects = msObj(c.projects) ? c.projects : {}; c.sites = msObj(c.sites) ? c.sites : {};
+  c.abilities = Array.isArray(c.abilities) ? c.abilities : [];
+  const done = new Set(((c.contracts && c.contracts.done) || []).map(r => r.id)), t = +now || 0;
+  const open = p => p.requires.projects.every(id => (c.projects[id] || {}).done) && p.requires.abilities.every(a => c.abilities.includes(a))
+    && Object.keys(p.requires.rep).every(k => ((c.providers && c.providers[k]) || { rep: 0 }).rep + 1e-9 >= +p.requires.rep[k]);
+  let moved = true, guard = 0;
+  while (moved && guard++ < 64) {
+    moved = false;
+    for (const p of projects || []) {
+      const S = c.projects[p.id] || (c.projects[p.id] = { step: 0 });
+      if (S.done || !open(p)) continue;
+      const st = p.steps[S.step | 0];
+      if (!st) { S.done = true; moved = true; continue; }
+      if (!st.missions.every(id => done.has(id))) continue;
+      if (st.works && !S.works) {
+        S.works = { start: t, ready: t + st.works.days * MISSION_DAY_S, cost: st.works.cost };
+        if (st.works.cost && typeof playerCharge === 'function') playerCharge(d, st.works.cost, 'works', p.id + ':' + st.id);
+        events.push({ k: 'works', project: p.id, step: st.id, ready: S.works.ready, cost: st.works.cost });
+        moved = true; continue;
+      }
+      if (st.works && t < S.works.ready) continue;
+      S.step = (S.step | 0) + 1; S.works = null;
+      if (st.site) { c.sites[st.site.id] = st.site.state; events.push({ k: 'site', id: st.site.id, state: st.site.state, project: p.id }); }
+      events.push({ k: 'step', project: p.id, step: st.id });
+      if (S.step >= p.steps.length) {
+        S.done = true;
+        for (const a of p.onDone.abilities) if (!c.abilities.includes(a)) c.abilities.push(a);
+        events.push({ k: 'projectDone', project: p.id, abilities: p.onDone.abilities.slice(), projects: p.onDone.projects.slice(), missions: p.onDone.missions.slice(), clients: p.onDone.clients.slice() });
+      }
+      moved = true;
+    }
+  }
+  return { doc: d, events };
 }
 
 // ---- THE PACK IN USE (MISSIONS-LIVE switch, 13 Nov: "the switch to mission packs: the loader") ----------------------------

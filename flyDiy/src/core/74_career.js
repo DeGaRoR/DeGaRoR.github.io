@@ -320,6 +320,11 @@ function careerNeedsOk(doc, rec) {
   const nOf = c => (c.ids || []).filter(i => done.includes(i)).length;
   if ((N.of || []).some(c => nOf(c) < c.n)) return false;
   if (rec.closed && nOf(rec.closed) >= rec.closed.n) return false;
+  // (PROJECTS, 13 Nov) a project step's mission (73b missionPackInstall from a pack's projects): offered while its project
+  // stands at that step (career.projects[id].step === the step's index: the steps before done, their works finished), and
+  // once the projects it requires are done
+  if (N.project) { const S = (doc.career.projects || {})[N.project.id] || { step: 0 }; if (S.done || (S.step | 0) !== (N.project.step | 0)) return false; }
+  if ((N.projects || []).some(id => !((doc.career.projects || {})[id] || {}).done)) return false;
   return (N.after || []).every(a => done.includes(a));
 }
 
