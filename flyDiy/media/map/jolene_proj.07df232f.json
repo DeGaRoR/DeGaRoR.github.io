@@ -264,6 +264,40 @@
    },
    "elev": 103,
    "altiport": false
+  },
+  {
+   "id": "lg_sea",
+   "name": "Hook Lagoon",
+   "kind": "water",
+   "x": 6300,
+   "z": -19450,
+   "hdg": 0,
+   "len": 1400,
+   "wid": 150,
+   "surface": {
+    "key": "water",
+    "word": "water",
+    "cls": "water"
+   },
+   "elev": 0,
+   "altiport": false
+  },
+  {
+   "id": "lg_strip",
+   "name": "Hook Lagoon Strip",
+   "kind": "strip",
+   "x": 4250,
+   "z": -20450,
+   "hdg": 0.349,
+   "len": 1000,
+   "wid": 18,
+   "surface": {
+    "key": "gravel",
+    "word": "gravel",
+    "cls": "hard"
+   },
+   "elev": 26,
+   "altiport": false
   }
  ],
  "plots": [
@@ -1952,6 +1986,19 @@
      "1101,859 1088,859 1094,877 1099,884 1103,886 1111,886 1115,882 1115,867 1119,868",
      "1101,859 1100,860 1094,860 1094,859 1091,859 1091,858 1089,858 1089,859 1088,859 1088,860 1089,860 1089,863 1090,863 1090,865 1091,866 1091,868 1092,868 1092,871 1093,872 1093,874 1094,874 1094,877 1095,877 1095,879 1096,879 1096,880 1097,881 1097,882 1098,882 1098,883 1099,883 1099,884 1101,884 1101,885 1103,885 1103,886 1111,886 1111,885 1112,885 1112,884 1113,884 1113,883 1114,883 1114,882 1115,882 1115,867 1118,867 1118,868 1119,868"
     ]
+   },
+   {
+    "id": "lg_r_track",
+    "cls": "gravel",
+    "look": null,
+    "w": 3.6,
+    "main": true,
+    "p": [
+     "1303,585 1301,561",
+     "1303,585 1305,579 1301,561",
+     "1303,585 1304,585 1304,582 1305,581 1305,579 1304,579 1304,574 1303,574 1303,570 1302,569 1302,564 1301,561"
+    ],
+    "name": "the lodge track"
    }
   ],
   "zones": [
@@ -2827,6 +2874,41 @@
     "id": "hy_s_bayside/i1",
     "key": "utility/hydro powerhouse",
     "r": "822,1557,25,16,131"
+   },
+   {
+    "id": "lg_s_lodge/lodge",
+    "key": "house/log cabin",
+    "r": "1304,587,15,9,34"
+   },
+   {
+    "id": "lg_s_lodge/cabin1",
+    "key": "house/log cabin",
+    "r": "1297,588,7,5,17"
+   },
+   {
+    "id": "lg_s_lodge/cabin2",
+    "key": "house/log cabin",
+    "r": "1293,589,7,5,6"
+   },
+   {
+    "id": "lg_s_lodge/cabin3",
+    "key": "house/log cabin",
+    "r": "1290,590,7,5,171"
+   },
+   {
+    "id": "lg_s_lodge/boathouse",
+    "key": "house/net loft",
+    "r": "1300,591,14,6,90"
+   },
+   {
+    "id": "lg_s_lodge/woodshed",
+    "key": "house/woodshed",
+    "r": "1300,585,4,3,23"
+   },
+   {
+    "id": "lg_s_lodge/outhouse",
+    "key": "house/outhouse",
+    "r": "1295,585,1,1,79"
    }
   ],
   "links": [
@@ -2894,9 +2976,9 @@
   }
  },
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
- "img": "media/map/jolene_map.af898cb5.png",
- "imgBytes": 715115,
- "imgHash": "af898cb5",
+ "img": "media/map/jolene_map.15a9514b.png",
+ "imgBytes": 715170,
+ "imgHash": "15a9514b",
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
