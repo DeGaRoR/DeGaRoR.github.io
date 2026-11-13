@@ -291,6 +291,28 @@
   if (typeof window !== 'undefined') window.FLYDIY_INPUT = INP;
   let manual = false, inpEv = null;
   const glareDir = new THREE.Vector3(0, 1, 0);      // SKY S7: the light's direction handed to the flare
+  // LOOK-GLINT (13 Nov, water.js GLINT): the share of the sun seen from the water that carries its glitter path. The path's centre is
+  // where the mirrored eye's line to the sun meets the water - D = (eye height over the water) / tan(sun elevation) out along the sun's
+  // azimuth; from there and at D/2 and 2D (on water only) the terrain's profile is walked toward the sun (20 m, x1.55, 16 steps: to 14 km).
+  // A sun behind the ridge draws no path. Eased (0.15 a frame) so a crest crossing the disc fades the path, never blinks it
+  function glintVis(c, d, v) {
+    const hz = Math.hypot(d.x, d.z);
+    if (d.y <= 0 || hz < 1e-4) return v - v * 0.15;
+    const ax = d.x / hz, az = d.z / hz, wet = (x, z) => { const h = world.waterH(x, z); return Number.isFinite(h) && h > world.terrainH(x, z) ? h : NaN; };
+    let wy = NaN;
+    for (let t = 0; t <= 3000 && !Number.isFinite(wy); t = t ? t * 1.6 : 8) wy = wet(c.x + ax * t, c.z + az * t);
+    if (!Number.isFinite(wy) || c.y <= wy) return v;
+    const D = Math.min(6000, (c.y - wy) / Math.max(d.y / hz, 1e-3));
+    let seen = 0, n = 0;
+    for (const k of [0.5, 1, 2]) {
+      const px = c.x + ax * D * k, pz = c.z + az * D * k, hw = wet(px, pz);
+      if (!Number.isFinite(hw)) continue;
+      n++; let clear = 1, t = 20;
+      for (let i = 0; i < 16; i++) { if (world.terrainH(px + d.x * t, pz + d.z * t) > hw + 0.5 + d.y * t) { clear = 0; break; } t *= 1.55; }
+      seen += clear;
+    }
+    return n ? v + (seen / n - v) * 0.15 : v;
+  }
   // THE COCKPIT (the panel arc, session 4): cockpit.js's one instance —
   // null under the smoke gate, which never runs the RENDER block
   const CK = (window.FLYDIY_COCKPIT && window.FLYDIY_COCKPIT.make)
@@ -20939,6 +20961,7 @@
         SKY_GLARE.update(camera, glareDir, { lum: (0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2]) * cT, isMoon: L.isMoon, phase: L.phase,
                                              aspect: renderer.domElement.width / Math.max(1, renderer.domElement.height), tint: [L.T[0] / mT, L.T[1] / mT, L.T[2] / mT] });
         SKY_GLARE.render(renderer);
+        if (!inShed && window.WATER && WATER.glint && typeof world.waterH === 'function' && typeof world.terrainH === 'function') WATER.glint.vis = glintVis(camera.position, glareDir, WATER.glint.vis);   // LOOK-GLINT
       }
     }
     if (photoGrab && framePresented) { const g = photoGrab; photoGrab = null; try { g(renderer.domElement); } catch (e) { console.warn('flyDiy: the photo -', e && e.message); } }   // G3741

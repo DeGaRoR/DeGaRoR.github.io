@@ -276,8 +276,14 @@ const POST_FX = (() => {
   // of the intensity would feel better"). Measured as the mean display increment over bloom off, the same paused
   // frame, 2216 x 1023, into the sun from 300 m: soft (0.35 -> 0.12) x0.31 at golden hour, x0.36 at noon; strong at
   // 0.2 was x0.45 / x0.40, so 0.16. clamp: the luminance the threshold pass lets in (display values stop at 1).
-  const BLOOM = { display: { soft: { thr: 0.82, knee: 0.15, gain: 0.11, clamp: 4 }, strong: { thr: 0.66, knee: 0.25, gain: 0.2, clamp: 4 } },
-                  linear:  { soft: { thr: 1.6, knee: 0.6, gain: 0.12, clamp: 16 }, strong: { thr: 0.9, knee: 0.6, gain: 0.16, clamp: 16 } } };
+  // LOOK-GLOW (the user 13 Nov, the golden lake: "our glow is too harsh, and it lacks detail. It sort of glows things up in big blotches"):
+  // spread = each coarser level's weight as it is added into the finer one (level k counts spread^k). It was 1: the five levels (1/2 .. 1/32)
+  // counted alike, and the 1/16 and 1/32 levels - a sixth and a third of the frame wide - were most of the glow round the sun, a blotch over
+  // the hills and the water. Lower, the glow is the fine levels': tight round what is bright, the scene beside it keeps its detail.
+  // OFF SWITCH: ?bloomfine=0 = spread 1 (master to the bit). POST_FX.BLOOM.<mode>.<preset>.spread live.
+  const BLOOM_FINE_OFF = typeof location !== 'undefined' && /[?&]bloomfine=0/.test(location.search || '');
+  const BLOOM = { display: { soft: { thr: 0.82, knee: 0.15, gain: 0.11, clamp: 4, spread: 0.6 }, strong: { thr: 0.66, knee: 0.25, gain: 0.2, clamp: 4, spread: 0.6 } },
+                  linear:  { soft: { thr: 1.6, knee: 0.6, gain: 0.12, clamp: 16, spread: 0.6 }, strong: { thr: 0.9, knee: 0.6, gain: 0.16, clamp: 16, spread: 0.6 } } };
   const LOOKS = {
     punchy: { lift: [0, 0, 0], gain: [1, 1, 1], contrast: 1.14, sat: 1.15 },
     soft:   { lift: [0.015, 0.012, 0.01], gain: [0.985, 0.985, 0.985], contrast: 0.93, sat: 0.96 },
@@ -382,7 +388,7 @@ const POST_FX = (() => {
     renderer.autoClear = false;
     for (let i = 3; i >= 0; i--) {
       const src = i === 3 ? T.b4 : T['b' + (i + 1)];
-      M.up.uniforms.tSrc.value = src.texture; M.up.uniforms.uTexel.value.set(1 / src.width, 1 / src.height); M.up.uniforms.uGain.value = 1;
+      M.up.uniforms.tSrc.value = src.texture; M.up.uniforms.uTexel.value.set(1 / src.width, 1 / src.height); M.up.uniforms.uGain.value = BLOOM_FINE_OFF || P.spread == null ? 1 : P.spread;   // LOOK-GLOW
       draw(M.up, T['b' + i]);
     }
     M.upOut.uniforms.tSrc.value = T.b0.texture; M.upOut.uniforms.uTexel.value.set(1 / T.b0.width, 1 / T.b0.height); M.upOut.uniforms.uGain.value = P.gain;
