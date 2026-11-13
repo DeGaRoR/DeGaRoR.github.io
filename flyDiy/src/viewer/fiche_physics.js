@@ -686,6 +686,10 @@
     'the lowered bottom (the exit)': 'exit at the bottom', 'the gills': 'gills' };
   // THE NOSE CUT OPEN, into the box BX (the desktop's 660 x 376, the phone's column): the cowl, the engine, the propeller,
   // the climb's air through them; lsz the labels' size. Returns where the cowl stands (the plane picture's box)
+  // what the cooling costs, named: the flow's drag area, or (no flow drag: a bare engine, or heads in the wind beside an
+  // opening that costs nothing) the cylinders' own drag - the km/h beside it is the Drag page's, heads and exhaust in
+  const coolCostLabel = Cd => (Cd.kind === 'bare' || ((Cd.cdA || 0) * 1e4 < 0.5 && (Cd.bareA || 0) > 0)) ? 'the cylinders\' own drag'
+    : 'cooling drag, ' + r0((Cd.cdA || 0) * 1e4) + ' cm² of drag area';
   function coolNose(Cd, th, K, BX, out, lsz) {
     const H = Cd.cases.hot, cm2 = a => r0(a * 1e4) + ' cm²';
     // ---- THE NOSE, CUT OPEN (side view, the flight to the left), true to scale ----
@@ -801,7 +805,7 @@
     for (const [a, b, c] of rows.slice(0, 5)) { out.push(K.T(RX, ry, a, { sz: 13.5 }) + K.T(RX + 250, ry, b, { sz: 13.5, w: 600, a: 'end' }) + K.T(RX + 262, ry, c, { sz: 12, c: th.dim })); ry += 21; }
     ry += 14; out.push(K.T(RX, ry, 'WHAT IT COSTS', { sz: 11, c: th.faint, w: 600, ls: 1.2 })); ry += 24;
     const dg = D.drag && D.drag.groups && D.drag.groups.cooling;
-    out.push(K.T(RX, ry, Cd.kind === 'bare' ? 'the cylinders\' own drag' : 'cooling drag, ' + r0((Cd.cdA || 0) * 1e4) + ' cm² of drag area', { sz: 15, w: 600 }));
+    out.push(K.T(RX, ry, coolCostLabel(Cd), { sz: 15, w: 600 }));
     if (dg && dg.dV > 0) out.push(K.T(RX + 400, ry, '−' + r1(dg.dV * 3.6) + ' km/h at cruise', { sz: 13.5, w: 600, c: COOL.hot, a: 'end' }));
     ry += 18; if (dg && dg.dV > 0) { out.push(K.T(RX, ry, 'with the heads and the exhaust, on the Drag page', { sz: 12, c: th.dim })); ry += 16; }
     if (H.margin < L.warn && Cd.kind !== 'bare') {
@@ -905,7 +909,7 @@
     C.rows(rows.length ? rows : [['none', '']]);
     C.label('What it costs');
     const dg = D.drag && D.drag.groups && D.drag.groups.cooling;
-    C.rows([[Cd.kind === 'bare' ? 'the cylinders\' own drag' : 'cooling drag, ' + r0((Cd.cdA || 0) * 1e4) + ' cm² of drag area', dg && dg.dV > 0 ? '−' + r1(dg.dV * 3.6) + ' km/h' : '', 'at cruise, with the heads and the exhaust (the Drag page)']]);
+    C.rows([[coolCostLabel(Cd), dg && dg.dV > 0 ? '−' + r1(dg.dV * 3.6) + ' km/h' : '', 'at cruise, with the heads and the exhaust (the Drag page)']]);
     if (H.margin < L.warn && Cd.kind !== 'bare') {
       C.label('To pass the climb (' + L.warn.toFixed(2) + ' ×)');
       C.text(H.limit === 'outlet' && H.outPass !== 'inf' && H.outPass > 0 ? 'An outlet of ' + cm2(H.outPass) + ' (now ' + cm2(Cd.outA) + ')'
