@@ -454,6 +454,16 @@ const GEN_DAMAGE_DEFAULT = true;
 //     like it loses a connection, a wheel, a leg"): NOT a wheel's gear. One load member of a leg or a tailwheel, severed or
 //     kinked, lets its joint go whole (30_solver gearGrp); its wires only snap. A float's struts keep the third.
 const GEN_DMG_GROUP = { rel: 1 / 3 };
+// G4103 (JOINT-TETHER; the user 13 Nov: "usually a couple of large parts stay together" - the nose-down wrecks held 24-44 %
+// of their mass on the main body, real ones two blocks): A KINKED TUBE STILL HOLDS. A member crushed past its kink
+// (G1813) kept only its floor (push); its pull was gone, so a buckled longeron parted the fuselage as if cut. It now
+// keeps a TETHER: tension only, the floor's stiffness to `ft` x its strength (the folded tube's wall still in one piece),
+// PLASTIC past that (it stretches, it never springs back - G1898.6's lesson), torn once stretched `et` past its crushed
+// length (the fold opened, the wall ripped). While it holds, its two ends are ONE piece (pieces(): the verdict, the
+// strips, the drawing's unparted kink); its tear is a parting (the piece event again). Measured (node, 13 Nov, the
+// user's reference cases): nose-down 60 deg at 40 m/s, the main body's share Cub 24 -> 82 %, Jodel 44 -> 75 %, c172r
+// 28 -> 60 %, Petrel 59 -> 95 %; a tree at 100 km/h unchanged (88-95 % already)
+const GEN_DMG_TETHER = { on: true, ft: 0.3, et: 0.3 };
 // G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK - a cover tie per pair of frame nodes a covered panel spans
 // once the frame under it has parted (the solver's tieEvent; 61_gen_frame parts.dmg.cover the panels). The covering is
 // a MEMBRANE: tension only, no compression, no bending; slack until stretched past the length the covering has between
