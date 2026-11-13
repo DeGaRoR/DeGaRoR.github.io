@@ -172,11 +172,17 @@ function causeOf(x, z, d) {
 }
 
 // ---- the sites ---------------------------------------------------------------------------------------------------
+// EACH RUNWAY ITS OWN SAMPLE (AFB-0220, 13 Nov): the jitter was ONE stream for every site in record order, so a strip added
+// anywhere moved every later site's points - Jolene's 02/20 rough lane (xw_rough, second in the record) moved tw_ski's
+// overrun-end worst 29.6 -> 34.3 mm on its concrete rim 7 km away, a rim whose real worst sits at the 30 mm bound (the same lesson
+// as GATE MICRO 7's shared rng, DIRT-STRIP 10 Nov). Each aerodrome's stream is seeded off its id: a site's sample is its own
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const seedOf = id => { let h = 2166136261; for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return 1 + h % 2147483646; };
 const sites = [];
 const liftIn = PAV.SINK.liftIn;
 for (const a of W.aerodromes) {
   if (!a.len || !a.wid || a.kind === 'water' || !a.premises) continue;
+  seed = seedOf(a.id);   // (its own stream: see above)
   const c = Math.cos(a.hdg), s = Math.sin(a.hdg), at = (u, v) => [a.x + u * c + v * s, a.z + u * s - v * c];
   const site = C.siteOf(a.id);
   if (site && site.stand) { const P = []; for (let i = -24; i <= 24; i++) for (let j = -24; j <= 24; j++) P.push([site.stand.x + i * 0.5, site.stand.z + j * 0.5]); sites.push({ id: a.id + ' stand', kind: 'stand', P }); }
