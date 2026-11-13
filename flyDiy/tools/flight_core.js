@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b58787d75c211551
+// body-sha256: d2d2075800b90f30
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -35842,6 +35842,14 @@ const GEN_FINISH = {
           kgM2: 0.12 },
   bare: { name: 'Bare / primer', perM2: 0,                  sweep: 0,
           kgM2: 0.03 },
+  // WEIGHT STUDY (the user, 13 Nov: "if we say 0 kilo, I guess that's fine, but then it's got to be white ... and if you
+  // put a livery onto it, then it's a little bit more"): WHITE FROM THE MATERIAL - a moulding's gelcoat as it leaves the
+  // mould (the white of every sailplane: the gelcoat is in the composite rows' cover), a pre-dyed covering (Oratex), a
+  // ripstop skin. No colour coats: kgM2 0, nothing to pay a painter. The base IS white (clampSpec holds it); a trim line
+  // or a sweep on it is colour coats on its share only - liveryKgM2 x sweep over the covered area (the full job's
+  // 0.12 kg/m2 x the share the scheme paints). The registration's vinyl is grams
+  self: { name: 'White (self-coloured)', perM2: 0, sweep: 1,
+          kgM2: 0, liveryKgM2: 0.12, base: 0xf3f4f1 },
 };
 
 // Cabin box per seating layout: half-width, height above the lower longeron,
@@ -38613,6 +38621,7 @@ function clampSpec(spec) {
 
   S.paint.regX = genClamp(S.paint.regX == null ? 0.30 : S.paint.regX, 0, 1);
   if (!GEN_FINISH[S.paint.job]) S.paint.job = 'full';
+  if (S.paint.job === 'self') S.paint.base = GEN_FINISH.self.base;   // (the self-coloured finish: the material's own white)
 
   // G296: the birth flow's labels are retired (see GEN_DEFAULT.meta); an
   // older save still carrying them is tidied here, on the clone.
@@ -40632,8 +40641,13 @@ const GEN_VESSELS = {
   wet:     { name: 'Wet wing (sealed structure)', holds: 'fuel',
              // no shell at all: the sealant and the ribs' extra work only
              shapeK: 6.6, kgM2: 0.55, fixed: 1.2, priceM2: 1600, priceFixed: 420 },
+  // (WEIGHT STUDY, the pack case: its `fixed` - the BMS, the contactors, the fuse, the connectors - is sized for the
+  //  current a pack delivers, so it SCALES with the pack below fixedKWh (x kWh / fixedKWh, never under fixedMin): a 2 kWh
+  //  glider pack's BMS board and its connector are ~0.5 kg, not a car pack's 3. Not a choice - every pack follows it,
+  //  so a light case is had only by carrying a small pack. Unchanged at fixedKWh and above. Known overlap, left as it
+  //  is: the cells' packK (0.70) already counts some of the case and the BMS)
   packCase:{ name: 'Pack case',        holds: 'battery',
-             shapeK: 6.2, kgM2: 4.1, fixed: 3.0, priceM2: 2300, priceFixed: 300 },
+             shapeK: 6.2, kgM2: 4.1, fixed: 3.0, fixedKWh: 10, fixedMin: 0.3, priceM2: 2300, priceFixed: 300 },
 };
 
 // The volume a vessel needs, and what it and its contents weigh. ONE function,
@@ -40663,7 +40677,8 @@ function genVesselResolve(kind, capacity, vesselKey, mediumKey) {
   }
   const m3 = litres / 1000;
   const surface = ves.shapeK * CORE_MATH.pow(Math.max(1e-9, m3), 2 / 3);
-  const vesselKg = m3 > 1e-9 ? surface * ves.kgM2 + ves.fixed : 0;
+  const fixed = battery && ves.fixedKWh > 0 && V < ves.fixedKWh ? Math.max(ves.fixedMin || 0, ves.fixed * V / ves.fixedKWh) : ves.fixed;
+  const vesselKg = m3 > 1e-9 ? surface * ves.kgM2 + fixed : 0;
   return {
     kind, capacity: V, vessel: ves, litres, battery,
     // the space it actually occupies: cells and case, or fuel and ullage
@@ -45498,7 +45513,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // rode on the tail cone and the empennage, whose many small panels put
     // the 172's 7 kg of paint at 3.6 m — 2.3 m behind the wing that carries
     // half the wetted surface
-    const pm = coverA * (FIN.kgM2 || 0);
+    // (the self-coloured white, WEIGHT STUDY: its colour coats are the scheme's share only, GEN_FINISH.self)
+    const pm = coverA * ((FIN.kgM2 || 0) + (FIN.liveryKgM2 > 0 ? FIN.liveryKgM2 * Math.max(0, Math.min(1, +S.paint.sweep || 0)) : 0));
     if (pm > 0 && coverIds.length && coverA > 0) {
       for (const i of coverIds) nodes[i].m += pm * (coverAt[i] || 0) / coverA;
       bill(pm, 0);
