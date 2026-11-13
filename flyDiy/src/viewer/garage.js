@@ -773,11 +773,14 @@ function garageInit(api) {
     if (p.gen) { loadSpec(api.defaults(), ''); return; }
     return fetch(p.file.split('/').map(encodeURIComponent).join('/'))
       .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-      .then(t => { const g = unwrap(t); for (const k in p.over || {}) g.spec[k] = Object.assign({}, g.spec[k], p.over[k]); loadSpec(g.spec, ''); })
+      .then(t => { const g = unwrap(t); for (const k in p.over || {}) g.spec[k] = Object.assign({}, g.spec[k], p.over[k]); loadSpec(g.spec, '');
+        // the fiche's rec.listFile / listRow (FICHE_BOARD's ctx): the row this plane was opened from, while it is the one on the stand
+        listedRow = { file: p.file, row: p.thumb || (p.n != null ? 'list:' + p.n : ''), spec }; })
       .catch(e => alert('That aeroplane could not be loaded: ' + p.file + ' (' + ((e && e.message) || e) + ')'));
   };
 
   let spec = api.defaults();
+  let listedRow = null;
   let slotName = '';
   let plaque = null, log = newLog();
   // RESTORE THE WORKING BUILD. A reload used to be destructive — the spec lived
@@ -1650,7 +1653,7 @@ function garageInit(api) {
       touch, commit, onCommit, exportFile,
       // CANDIDATE OFFICIAL: the pool's index (a promise of its planes), one onto the stand (unnamed, no plaque), and
       // every saved build in one file - the design flow's new-aeroplane cards read the first two
-      planeLists, openListed, officialPool,
+      planeLists, openListed, officialPool, listed: () => (listedRow && listedRow.spec === spec ? { file: listedRow.file, row: listedRow.row } : null),
       candidates, openCandidate: loadCandidate, exportAll: exportAllFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },

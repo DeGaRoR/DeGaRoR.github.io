@@ -64,6 +64,23 @@ function nodeHydro(file) {
     return { lift, t, why: lift ? '' : 'stayed on the water' };
   } catch (e) { return { lift: null, t: 0, why: 'threw: ' + String(e && e.message || e).slice(0, 80) }; }
 }
+// THE MASS PAGE (fiche_mass.js, the user's sunburst 12 Nov): an official plane's weights ride in its index entry (data.mass),
+// weighed here in node from its card (the load door's spec) - the page draws them without a build; --mass-only refills them
+// for every entry that names its card (listFile), no Chrome
+function massOf(file) {
+  try {
+    CORE = CORE || require(path.join(FLY, 'tools', 'flight_core.js')); LBD = LBD || require(path.join(FLY, 'tools', '_load_build.js'));
+    const FM = require(path.join(FLY, 'src', 'viewer', 'fiche_mass.js'));
+    return FM.data(LBD.gameSpecFull(JSON.parse(fs.readFileSync(path.join(FLY, file), 'utf8'))).spec, CORE);
+  } catch (e) { console.log('fiche_bake: the weights of ' + file + ' failed: ' + String(e && e.message || e).slice(0, 120)); return null; }
+}
+if (flag('mass-only')) {
+  const ip = path.join(OUT, 'index.json'), ix = JSON.parse(fs.readFileSync(ip, 'utf8')); let n = 0, all = 0;
+  for (const e of Object.values(ix.fiches || {})) { if (!e || !e.listFile) continue; all++; const m = massOf(e.listFile); if (m) { e.data = Object.assign({}, e.data, { mass: m }); n++; } }
+  fs.writeFileSync(ip, JSON.stringify(ix, null, 1) + '\n');
+  console.log('fiche_bake: weights for ' + n + ' of ' + all + ' fiche(s) with a card');
+  process.exit(n === all ? 0 : 2);
+}
 const HYDRO_MS = 1000 * +opt('hydro-secs', '150');   // the hydroplane run's wait inside one plane's probe (its --probe-secs is 300)
 const BUSY_MS = 1000 * +opt('busy-secs', '60');      // a float build's wait for a busy bench to take the row
 // the probe: the plane on the stand, its fiche drawn (no store), its pictures and numbers handed back
@@ -114,6 +131,7 @@ for (const r of rows) {
   fs.mkdirSync(path.join(OUT, dir), { recursive: true });
   for (const [view, b] of Object.entries(v.files)) { const f = dir + '/' + view + '.webp', buf = Buffer.from(b, 'base64'); fs.writeFileSync(path.join(OUT, f), buf); pics[view] = f; kb += buf.length / 1024; }
   const data = Object.assign({}, v.data, { name: r.name });
+  { const ms = massOf(r.file); if (ms) data.mass = ms; }
   // a float build the page could not run (the phone profile): the node run's lift-off on the fiche
   let nh = null;
   if (data.sea && !(v.hydro && v.hydro.lift)) {

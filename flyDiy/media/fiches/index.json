@@ -34,7 +34,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 84.132,
-    "heroWingY": 0.321
+    "heroWingY": 0.321,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 40.8,
+       "x": 1.808,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 80,
+       "x": -0.693,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 10.4,
+       "x": -0.693,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 4.99,
+       "x": -0.693,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 4,
+       "x": -0.693,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 72.2,
+       "x": 0.972,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 27.08,
+       "x": 0.977,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 16.08,
+       "x": 4.961,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 20.55,
+       "x": 0.333,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 6.53,
+       "x": 5.338,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.62,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 5.04,
+       "x": -0.17,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 32.4,
+       "x": -0.17,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.439,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 31.07,
+       "x": 0.754,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 6,
+       "x": 1.312,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 6.05,
+       "x": 1.816,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 10,
+       "x": 2.153,
+       "payload": true
+      }
+     ],
+     "M": 475.74,
+     "cg": 0.678,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 353.34,
+        "x": 0.7272
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 433.34,
+        "x": 0.7074
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 465.74,
+        "x": 0.6464
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 475.74,
+        "x": 0.678
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 443.34,
+      "x": 0.74
+     },
+     "mtow": 555.7,
+     "bal": {
+      "npX": 0.9659,
+      "cBar": 1.7,
+      "sm": 0.1694,
+      "cgX": 0.6779
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 32.4,
+     "xNodes": [
+      -0.892,
+      5.488
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "design_cub/hero.webp",
@@ -78,7 +297,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 108.146,
-    "heroWingY": 0.448
+    "heroWingY": 0.448,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 43.11,
+       "x": 1.45,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 80,
+       "x": -0.783,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 10.4,
+       "x": -0.783,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 4.49,
+       "x": -0.783,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 4.35,
+       "x": -0.783,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 69.08,
+       "x": 0.704,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 25.98,
+       "x": 0.674,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 17.83,
+       "x": 3.895,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 19.31,
+       "x": 0.196,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 6.24,
+       "x": 4.21,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.392,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 5.29,
+       "x": -0.257,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 36.72,
+       "x": -0.257,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.486,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 24.77,
+       "x": 0.404,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 3.62,
+       "x": 0.522,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 5.44,
+       "x": 1.424,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 10,
+       "x": 0.924,
+       "payload": true
+      }
+     ],
+     "M": 469.18,
+     "cg": 0.4084,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 342.46,
+        "x": 0.4685
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 422.46,
+        "x": 0.454
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 459.18,
+        "x": 0.3972
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 469.18,
+        "x": 0.4084
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 432.46,
+      "x": 0.4649
+     },
+     "mtow": 549.2,
+     "bal": {
+      "npX": 0.5001,
+      "cBar": 1.672,
+      "sm": 0.0549,
+      "cgX": 0.4083
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 36.72,
+     "xNodes": [
+      -0.986,
+      4.346
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "design_jodel/hero.webp",
@@ -128,6 +566,217 @@
      "t": 23.4,
      "V": 26.2,
      "dist": 305
+    },
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 80.3,
+       "x": 1.396,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 85.8,
+       "x": 2.151,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 11.15,
+       "x": 2.151,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 4.99,
+       "x": 2.151,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 3.81,
+       "x": 2.151,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 105.59,
+       "x": 1.863,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 24.62,
+       "x": 1.555,
+       "payload": false
+      },
+      {
+       "key": "stol",
+       "name": "STOL kit",
+       "cat": "structure",
+       "kg": 1.2,
+       "x": 2.208,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 84.93,
+       "x": 4.218,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 10.24,
+       "x": 1.969,
+       "payload": false
+      },
+      {
+       "key": "floats",
+       "name": "Floats",
+       "cat": "gear",
+       "kg": 89.28,
+       "x": 1.885,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 160,
+       "x": 0.566,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 7.48,
+       "x": 1.618,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 82.08,
+       "x": 1.618,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 2.1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 12.2,
+       "x": 0.778,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 41.38,
+       "x": 1.618,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 6,
+       "x": 0.566,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 6.76,
+       "x": 2.941,
+       "payload": false
+      }
+     ],
+     "M": 819.91,
+     "cg": 1.7796,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 577.83,
+        "x": 2.1386
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 737.83,
+        "x": 1.7976
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 819.91,
+        "x": 1.7796
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 819.91,
+        "x": 1.7796
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 737.83,
+      "x": 1.7976
+     },
+     "mtow": 981,
+     "bal": {
+      "npX": 2.1771,
+      "cBar": 1.438,
+      "sm": 0.2765,
+      "cgX": 1.7794
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 4,
+     "occKg": 80,
+     "fuelFull": 82.08,
+     "xNodes": [
+      -0.46,
+      6.341
+     ],
+     "v": 1
     }
    },
    "pics": {
@@ -146,7 +795,7 @@
    "listRow": "list:7",
    "data": {
     "name": "Rufus",
-    "reg": "N47RF",
+    "reg": "F-PGAR",
     "dims": {
      "span": 9.87,
      "length": 6.17,
@@ -172,7 +821,210 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 91.23,
-    "heroWingY": 0.286
+    "heroWingY": 0.286,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 27.93,
+       "x": 1.583,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 58,
+       "x": -0.555,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 7.54,
+       "x": -0.555,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 3.33,
+       "x": -0.555,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 3.32,
+       "x": -0.555,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 65.23,
+       "x": 0.971,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 21.17,
+       "x": 0.958,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 19.81,
+       "x": 4.443,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 15.13,
+       "x": 0.428,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 5.15,
+       "x": 4.774,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.691,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 3.62,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 11.52,
+       "x": 0,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 3,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 16.6,
+       "x": -0.395,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 19.63,
+       "x": 0.44,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 4.5,
+       "x": 0.691,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 1.2,
+       "x": 1.765,
+       "payload": false
+      }
+     ],
+     "M": 366.68,
+     "cg": 0.7348,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 275.16,
+        "x": 0.7783
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 355.16,
+        "x": 0.7586
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 366.68,
+        "x": 0.7348
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 366.68,
+        "x": 0.7348
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 355.16,
+      "x": 0.7586
+     },
+     "mtow": 366.7,
+     "bal": {
+      "npX": 1.0254,
+      "cBar": 1.65,
+      "sm": 0.1761,
+      "cgX": 0.7348
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 1,
+     "occKg": 80,
+     "fuelFull": 11.52,
+     "xNodes": [
+      -0.781,
+      5.207
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "list_7/hero.webp",
@@ -216,7 +1068,218 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 92.248,
-    "heroWingY": 0.289
+    "heroWingY": 0.289,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 24.45,
+       "x": 1.706,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 43,
+       "x": 1.911,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 3.44,
+       "x": 1.911,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 5.85,
+       "x": 1.911,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 4.79,
+       "x": 1.911,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 35.37,
+       "x": 1.527,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 16.4,
+       "x": 1.313,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 14.28,
+       "x": 4.267,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 15.17,
+       "x": 0.886,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 5.25,
+       "x": 4.707,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.811,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 1.61,
+       "x": 1.127,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 27.36,
+       "x": 1.127,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 3.95,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 16.75,
+       "x": 1.034,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 31.24,
+       "x": 1.377,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 9,
+       "x": 1.119,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 4.88,
+       "x": 2.143,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 10,
+       "x": 1.599,
+       "payload": true
+      }
+     ],
+     "M": 352.79,
+     "cg": 1.4734,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 235.43,
+        "x": 1.7334
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 315.43,
+        "x": 1.4995
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 342.79,
+        "x": 1.4697
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 352.79,
+        "x": 1.4734
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 325.43,
+      "x": 1.5025
+     },
+     "mtow": 432.8,
+     "bal": {
+      "npX": 1.5815,
+      "cBar": 1.47,
+      "sm": 0.0734,
+      "cgX": 1.4736
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 27.36,
+     "xNodes": [
+      0,
+      5.192
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "stock_chinook/hero.webp",
@@ -260,7 +1323,234 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 84.914,
-    "heroWingY": 0.306
+    "heroWingY": 0.306,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 41.71,
+       "x": 1.807,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 84,
+       "x": -0.646,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 10.92,
+       "x": -0.646,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 4.31,
+       "x": -0.646,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 3.98,
+       "x": -0.646,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 73.85,
+       "x": 0.972,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 28.23,
+       "x": 0.977,
+       "payload": false
+      },
+      {
+       "key": "stol",
+       "name": "STOL kit",
+       "cat": "structure",
+       "kg": 17.84,
+       "x": 0.711,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 18.17,
+       "x": 4.89,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 49.98,
+       "x": 0.313,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 8.52,
+       "x": 5.339,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.62,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 4.12,
+       "x": -0.117,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 18,
+       "x": -0.117,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.435,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 33.84,
+       "x": 0.581,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 8.86,
+       "x": 1.42,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 6.22,
+       "x": 1.886,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 10,
+       "x": 2.153,
+       "payload": true
+      }
+     ],
+     "M": 525.1,
+     "cg": 0.7157,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 417.1,
+        "x": 0.7356
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 497.1,
+        "x": 0.717
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 515.1,
+        "x": 0.6878
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 525.1,
+        "x": 0.7157
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 507.1,
+      "x": 0.7453
+     },
+     "mtow": 605.1,
+     "bal": {
+      "npX": 1.0381,
+      "cBar": 1.7,
+      "sm": 0.1897,
+      "cgX": 0.7156
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 18,
+     "xNodes": [
+      -0.883,
+      5.488
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_stol_cub_showcase.json/hero.webp",
@@ -310,6 +1600,225 @@
      "t": 22.7,
      "V": 22.1,
      "dist": 236
+    },
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 45.23,
+       "x": 1.806,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 122,
+       "x": -0.739,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 15.86,
+       "x": -0.739,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 4.99,
+       "x": -0.739,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 4.25,
+       "x": -0.739,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 80.46,
+       "x": 0.972,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 32.86,
+       "x": 0.977,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 18.19,
+       "x": 4.957,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 19.73,
+       "x": 1.148,
+       "payload": false
+      },
+      {
+       "key": "floats",
+       "name": "Floats",
+       "cat": "gear",
+       "kg": 127.66,
+       "x": 0.671,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.62,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 8.13,
+       "x": 0.88,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 97.92,
+       "x": 0.88,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.482,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 40.38,
+       "x": 0.604,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 15.26,
+       "x": 1.515,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 6.07,
+       "x": 1.824,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 10,
+       "x": 2.153,
+       "payload": true
+      }
+     ],
+     "M": 751.54,
+     "cg": 0.6608,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 563.62,
+        "x": 0.602
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 643.62,
+        "x": 0.6042
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 741.54,
+        "x": 0.6406
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 751.54,
+        "x": 0.6608
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 653.62,
+      "x": 0.6279
+     },
+     "mtow": 825.2,
+     "bal": {
+      "npX": 0.9707,
+      "cBar": 1.7,
+      "sm": 0.1824,
+      "cgX": 0.6607
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 97.92,
+     "xNodes": [
+      -1.772,
+      5.363
+     ],
+     "v": 1
     }
    },
    "pics": {
@@ -354,7 +1863,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 83.898,
-    "heroWingY": 0.321
+    "heroWingY": 0.321,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 40.3,
+       "x": 1.808,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 80,
+       "x": -0.693,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 10.4,
+       "x": -0.693,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 4.99,
+       "x": -0.693,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 4,
+       "x": -0.693,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 71.3,
+       "x": 0.972,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 26.45,
+       "x": 0.977,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 13.1,
+       "x": 4.965,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 20.13,
+       "x": 0.333,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 5.6,
+       "x": 5.351,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.62,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 3.91,
+       "x": -0.117,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 15.12,
+       "x": -0.117,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.439,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 29.24,
+       "x": 0.739,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 6.66,
+       "x": 1.345,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 5.89,
+       "x": 1.732,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 10,
+       "x": 2.153,
+       "payload": true
+      }
+     ],
+     "M": 449.64,
+     "cg": 0.6739,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 344.52,
+        "x": 0.6782
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 424.52,
+        "x": 0.6673
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 439.64,
+        "x": 0.6403
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 449.64,
+        "x": 0.6739
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 434.52,
+      "x": 0.7015
+     },
+     "mtow": 529.6,
+     "bal": {
+      "npX": 0.8919,
+      "cBar": 1.7,
+      "sm": 0.1282,
+      "cgX": 0.6739
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 15.12,
+     "xNodes": [
+      -0.892,
+      5.488
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "list_26/hero.webp",
@@ -398,7 +2126,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 91.5,
-    "heroWingY": 0.826
+    "heroWingY": 0.826,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 60.97,
+       "x": 2.113,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 211,
+       "x": -0.757,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 27.43,
+       "x": -0.757,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 17.13,
+       "x": -0.757,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 4.33,
+       "x": -0.757,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 181.12,
+       "x": 1.01,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 207.72,
+       "x": 1.004,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 28.29,
+       "x": 5.63,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 40.33,
+       "x": 0.336,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 13.32,
+       "x": 5.832,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 160,
+       "x": 1.806,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 9.19,
+       "x": 0.633,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 125.28,
+       "x": 0.633,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.444,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 42.94,
+       "x": 0.47,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 26.97,
+       "x": 1.671,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 9.01,
+       "x": 1.989,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 40,
+       "x": 2.165,
+       "payload": true
+      }
+     ],
+     "M": 1227.58,
+     "cg": 0.9045,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 902.3,
+        "x": 0.7265
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 1062.3,
+        "x": 0.8891
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 1187.58,
+        "x": 0.8621
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 1227.58,
+        "x": 0.9045
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 1102.3,
+      "x": 0.9354
+     },
+     "mtow": 1227.6,
+     "bal": {
+      "npX": 0.9723,
+      "cBar": 1.52,
+      "sm": 0.0446,
+      "cgX": 0.9045
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 125.28,
+     "xNodes": [
+      -0.901,
+      6.273
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_stearman_2026-10.json/hero.webp",
@@ -442,7 +2389,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 100.196,
-    "heroWingY": 0.836
+    "heroWingY": 0.836,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 50.84,
+       "x": 1.94,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 139,
+       "x": -0.681,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 18.07,
+       "x": -0.681,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 4.99,
+       "x": -0.681,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 4.55,
+       "x": -0.681,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 138.1,
+       "x": 0.836,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 77.73,
+       "x": 0.856,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 21.29,
+       "x": 5.195,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 23.96,
+       "x": 0.346,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 8.75,
+       "x": 5.424,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 160,
+       "x": 1.191,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 6.61,
+       "x": 0.364,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 62.64,
+       "x": 0.364,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.523,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 31.1,
+       "x": 0.486,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 14.89,
+       "x": 1.417,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 7.13,
+       "x": 1.714,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 20,
+       "x": 1.831,
+       "payload": true
+      }
+     ],
+     "M": 812.2,
+     "cg": 0.77,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 569.56,
+        "x": 0.6592
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 729.56,
+        "x": 0.7758
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 792.2,
+        "x": 0.7432
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 812.2,
+        "x": 0.77
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 749.56,
+      "x": 0.804
+     },
+     "mtow": 812.2,
+     "bal": {
+      "npX": 0.8371,
+      "cBar": 1.37,
+      "sm": 0.0488,
+      "cgX": 0.7703
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 62.64,
+     "xNodes": [
+      -1.062,
+      5.654
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_tigermoth_2026-10.json/hero.webp",
@@ -486,7 +2652,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 105.2,
-    "heroWingY": 0.589
+    "heroWingY": 0.589,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 44,
+       "x": 1.549,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 173,
+       "x": -0.474,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 22.49,
+       "x": -0.474,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 10.69,
+       "x": -0.474,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 3.27,
+       "x": -0.474,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 134.87,
+       "x": 0.537,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 68.6,
+       "x": 0.523,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 16.82,
+       "x": 4.208,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 42.77,
+       "x": 0.19,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 7.73,
+       "x": 4.492,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.7,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 7.03,
+       "x": 0.113,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 72,
+       "x": 0.113,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.3,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 27.95,
+       "x": 0.443,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 10.69,
+       "x": 1.203,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 6.58,
+       "x": 1.181,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 20,
+       "x": 1.2,
+       "payload": true
+      }
+     ],
+     "M": 771.04,
+     "cg": 0.399,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 599.04,
+        "x": 0.3664
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 679.04,
+        "x": 0.4057
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 751.04,
+        "x": 0.3777
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 771.04,
+        "x": 0.399
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 699.04,
+      "x": 0.4284
+     },
+     "mtow": 771.1,
+     "bal": {
+      "npX": 0.4375,
+      "cBar": 1.37,
+      "sm": 0.0281,
+      "cgX": 0.399
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 1,
+     "occKg": 80,
+     "fuelFull": 72,
+     "xNodes": [
+      -0.609,
+      4.621
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_camel_2026-10.json/hero.webp",
@@ -530,7 +2915,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 31.037,
-    "heroWingY": 0.232
+    "heroWingY": 0.232,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 1304.48,
+       "x": 6.284,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engines",
+       "cat": "engine",
+       "kg": 1500,
+       "x": 1.608,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 195,
+       "x": 1.608,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propellers",
+       "cat": "engine",
+       "kg": 110.84,
+       "x": 1.608,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 39.71,
+       "x": 1.608,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 1749.96,
+       "x": 5.586,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 283.75,
+       "x": 5.469,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 275.72,
+       "x": 16.013,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 210,
+       "x": 3.909,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 62.63,
+       "x": 16.068,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 160,
+       "x": 0.77,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 64.64,
+       "x": 4.596,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 2239.2,
+       "x": 4.596,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 8.3,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 19.1,
+       "x": 0.716,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 3.3,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 292.71,
+       "x": 1.583,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 319.7,
+       "x": 6.046,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 41.72,
+       "x": 7.483,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 40,
+       "x": 11.34,
+       "payload": true
+      }
+     ],
+     "M": 8920.76,
+     "cg": 4.7778,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 6481.56,
+        "x": 4.8991
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 6641.56,
+        "x": 4.7996
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 8880.76,
+        "x": 4.7483
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 8920.76,
+        "x": 4.7778
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 6681.56,
+      "x": 4.8388
+     },
+     "mtow": 11080.8,
+     "bal": {
+      "npX": 5.4479,
+      "cBar": 3.655,
+      "sm": 0.1833,
+      "cgX": 4.778
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 29,
+     "occKg": 80,
+     "fuelFull": 2239.2,
+     "xNodes": [
+      0,
+      17.584
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_dc3_2026-10.json/hero.webp",
@@ -580,6 +3184,225 @@
      "t": 24.6,
      "V": 23.5,
      "dist": 273
+    },
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 45.75,
+       "x": 1.66,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 63.6,
+       "x": 2.178,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 8.27,
+       "x": 2.178,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 3.21,
+       "x": 2.178,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 3.8,
+       "x": 2.178,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 78.97,
+       "x": 1.614,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 19.52,
+       "x": 1.583,
+       "payload": false
+      },
+      {
+       "key": "stol",
+       "name": "STOL kit",
+       "cat": "structure",
+       "kg": 2.4,
+       "x": 1.614,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 12.71,
+       "x": 4.709,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 46.24,
+       "x": 1.831,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Nose gear",
+       "cat": "gear",
+       "kg": 19.49,
+       "x": -0.24,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 160,
+       "x": 0.424,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 6.08,
+       "x": 2.822,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 51.84,
+       "x": 2.822,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 8,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 19.1,
+       "x": 1.221,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 3.3,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 28.53,
+       "x": 1.444,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 5.23,
+       "x": 0.746,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 5.74,
+       "x": 2.149,
+       "payload": false
+      }
+     ],
+     "M": 591.78,
+     "cg": 1.4564,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 379.94,
+        "x": 1.7048
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 539.94,
+        "x": 1.3253
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 591.78,
+        "x": 1.4564
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 591.78,
+        "x": 1.4564
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 539.94,
+      "x": 1.3253
+     },
+     "mtow": 583.4,
+     "bal": {
+      "npX": 1.5995,
+      "cBar": 0.924,
+      "sm": 0.1547,
+      "cgX": 1.4565
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 51.84,
+     "xNodes": [
+      -0.707,
+      5.142
+     ],
+     "v": 1
     }
    },
    "pics": {
@@ -624,7 +3447,234 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 86.227,
-    "heroWingY": 0.31
+    "heroWingY": 0.31,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 42.64,
+       "x": 1.807,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 120.49,
+       "x": -0.738,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 15.66,
+       "x": -0.738,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 3.88,
+       "x": -0.738,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 4.26,
+       "x": -0.738,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 56.72,
+       "x": 0.949,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 24.02,
+       "x": 0.964,
+       "payload": false
+      },
+      {
+       "key": "stol",
+       "name": "STOL kit",
+       "cat": "structure",
+       "kg": 0.78,
+       "x": 0.54,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 17.55,
+       "x": 4.949,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 45.8,
+       "x": 0.31,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 8.2,
+       "x": 5.337,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.62,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 6.74,
+       "x": 0.86,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 65.52,
+       "x": 0.86,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 3.15,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 12.75,
+       "x": -0.654,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 5.2,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 39.19,
+       "x": 0.521,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 10.42,
+       "x": 1.454,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 5.84,
+       "x": 1.879,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 10,
+       "x": 2.153,
+       "payload": true
+      }
+     ],
+     "M": 578.81,
+     "cg": 0.6293,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 423.29,
+        "x": 0.5594
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 503.29,
+        "x": 0.569
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 568.81,
+        "x": 0.6025
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 578.81,
+        "x": 0.6293
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 513.29,
+      "x": 0.5999
+     },
+     "mtow": 658.8,
+     "bal": {
+      "npX": 1.0143,
+      "cBar": 1.6,
+      "sm": 0.2405,
+      "cgX": 0.6295
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 65.52,
+     "xNodes": [
+      -0.981,
+      5.488
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "list_47/hero.webp",
@@ -668,7 +3718,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 81.654,
-    "heroWingY": 0.229
+    "heroWingY": 0.229,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 113.06,
+       "x": 2.038,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 144.14,
+       "x": -0.372,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 18.74,
+       "x": -0.372,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 8.68,
+       "x": -0.372,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 3.71,
+       "x": -0.372,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 138.29,
+       "x": 1.341,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 33.37,
+       "x": 1.288,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 27.99,
+       "x": 5.935,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 32.3,
+       "x": 1.628,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Nose gear",
+       "cat": "gear",
+       "kg": 11.22,
+       "x": 0.038,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 160,
+       "x": 1.001,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 10.18,
+       "x": 1.227,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 152.64,
+       "x": 1.227,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 8,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 19.1,
+       "x": -0.306,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 3.3,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 50.7,
+       "x": 0.663,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 98.76,
+       "x": 1.528,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 7.42,
+       "x": 2.438,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 40,
+       "x": 1.994,
+       "payload": true
+      }
+     ],
+     "M": 1081.6,
+     "cg": 1.155,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 728.96,
+        "x": 1.1277
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 888.96,
+        "x": 1.1049
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 1041.6,
+        "x": 1.1228
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 1081.6,
+        "x": 1.155
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 928.96,
+      "x": 1.1432
+     },
+     "mtow": 1241.6,
+     "bal": {
+      "npX": 1.5324,
+      "cBar": 1.509,
+      "sm": 0.2501,
+      "cgX": 1.155
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 4,
+     "occKg": 80,
+     "fuelFull": 152.64,
+     "xNodes": [
+      -0.604,
+      6.747
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "list_50/hero.webp",
@@ -686,7 +3955,7 @@
    "listRow": "list:4",
    "data": {
     "name": "Cessna 172 floats (career)",
-    "reg": "B-CESF",
+    "reg": "F-PGAR",
     "dims": {
      "span": 11.02,
      "length": 9.07,
@@ -714,6 +3983,225 @@
     "heroProp": "disc",
     "pxPerM": 81.654,
     "heroWingY": 0.208,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 115.76,
+       "x": 1.861,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 176,
+       "x": -0.843,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 22.88,
+       "x": -0.843,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 10.56,
+       "x": -0.843,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 5.38,
+       "x": -0.843,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 133.3,
+       "x": 1.156,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 31.85,
+       "x": 1.113,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 24.87,
+       "x": 5.51,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 18,
+       "x": 1.337,
+       "payload": false
+      },
+      {
+       "key": "floats",
+       "name": "Floats",
+       "cat": "gear",
+       "kg": 80.56,
+       "x": 0.593,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 160,
+       "x": 0.499,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 4.12,
+       "x": -0.116,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 18,
+       "x": -0.116,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 8,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 19.1,
+       "x": -0.59,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 3.3,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 47.05,
+       "x": 0.24,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 23.5,
+       "x": 1.17,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 7.26,
+       "x": 2.153,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 40,
+       "x": 1.685,
+       "payload": true
+      }
+     ],
+     "M": 949.49,
+     "cg": 0.6536,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 731.49,
+        "x": 0.6499
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 891.49,
+        "x": 0.6228
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 909.49,
+        "x": 0.6082
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 949.49,
+        "x": 0.6536
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 931.49,
+      "x": 0.6685
+     },
+     "mtow": 1108.2,
+     "bal": {
+      "npX": 1.1772,
+      "cBar": 1.68,
+      "sm": 0.3117,
+      "cgX": 0.6537
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 4,
+     "occKg": 80,
+     "fuelFull": 18,
+     "xNodes": [
+      -2.197,
+      6.245
+     ],
+     "v": 1
+    },
     "hydroNode": {
      "t": 23.7,
      "V": 28.4,
@@ -762,7 +4250,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 81.654,
-    "heroWingY": 0.257
+    "heroWingY": 0.257,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 113.77,
+       "x": 1.861,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 176,
+       "x": -0.843,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 22.88,
+       "x": -0.843,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 10.56,
+       "x": -0.843,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 5.38,
+       "x": -0.843,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 140.08,
+       "x": 1.153,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 30.94,
+       "x": 1.113,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 23.97,
+       "x": 5.514,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 25.7,
+       "x": 1.351,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Nose gear",
+       "cat": "gear",
+       "kg": 10.55,
+       "x": -0.432,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 160,
+       "x": 0.499,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 4.12,
+       "x": -0.116,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 18,
+       "x": -0.116,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 8,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 19.1,
+       "x": -0.59,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 3.3,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 44.07,
+       "x": 0.192,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 21.68,
+       "x": 1.151,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 7.73,
+       "x": 2.08,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 40,
+       "x": 1.685,
+       "payload": true
+      }
+     ],
+     "M": 885.83,
+     "cg": 0.6455,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 667.83,
+        "x": 0.6389
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 827.83,
+        "x": 0.6118
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 845.83,
+        "x": 0.5964
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 885.83,
+        "x": 0.6455
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 867.83,
+      "x": 0.6613
+     },
+     "mtow": 1045.8,
+     "bal": {
+      "npX": 1.0496,
+      "cBar": 1.68,
+      "sm": 0.2406,
+      "cgX": 0.6456
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 4,
+     "occKg": 80,
+     "fuelFull": 18,
+     "xNodes": [
+      -1.162,
+      6.245
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "list_40/hero.webp",
@@ -806,7 +4513,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 112.534,
-    "heroWingY": 0.768
+    "heroWingY": 0.768,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 52.37,
+       "x": 1.44,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 85,
+       "x": -0.879,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 11.05,
+       "x": -0.879,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 4.99,
+       "x": -0.879,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 4.9,
+       "x": -0.879,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 131.67,
+       "x": 0.868,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 67.18,
+       "x": 0.828,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 23.94,
+       "x": 3.922,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 25.1,
+       "x": 0.276,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 7.78,
+       "x": 4.284,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.616,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 11.39,
+       "x": 0.448,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 88.56,
+       "x": 0.459,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.8,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.538,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 34.34,
+       "x": 0.416,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 10.32,
+       "x": 1.063,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 6.95,
+       "x": 1.538,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 10,
+       "x": 1.081,
+       "payload": true
+      }
+     ],
+     "M": 678.39,
+     "cg": 0.6176,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 499.83,
+        "x": 0.6367
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 579.83,
+        "x": 0.6338
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 668.39,
+        "x": 0.6107
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 678.39,
+        "x": 0.6176
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 589.83,
+      "x": 0.6414
+     },
+     "mtow": 758.4,
+     "bal": {
+      "npX": 0.8143,
+      "cBar": 1.6,
+      "sm": 0.123,
+      "cgX": 0.6175
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 88.56,
+     "xNodes": [
+      -1.092,
+      4.413
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_ugly_bi.json/hero.webp",
@@ -850,7 +4776,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 96.132,
-    "heroWingY": 0.348
+    "heroWingY": 0.348,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 35.24,
+       "x": 1.482,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 214,
+       "x": -0.644,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 27.82,
+       "x": -0.644,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 12.44,
+       "x": -0.644,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 3.63,
+       "x": -0.644,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 63.12,
+       "x": 0.403,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 9.14,
+       "x": 0.386,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 13.03,
+       "x": 4.578,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 17.51,
+       "x": 0.26,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 3.52,
+       "x": 4.912,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.569,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 7.78,
+       "x": 1.449,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 89.28,
+       "x": 1.449,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.385,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 50.13,
+       "x": 0.339,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 10.9,
+       "x": 1.064,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 5.07,
+       "x": 1.457,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 10,
+       "x": 1.258,
+       "payload": true
+      }
+     ],
+     "M": 675.16,
+     "cg": 0.3329,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 495.88,
+        "x": 0.0752
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 575.88,
+        "x": 0.1438
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 665.16,
+        "x": 0.319
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 675.16,
+        "x": 0.3329
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 585.88,
+      "x": 0.1628
+     },
+     "mtow": 675.2,
+     "bal": {
+      "npX": 0.6418,
+      "cBar": 1.45,
+      "sm": 0.2131,
+      "cgX": 0.3328
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 1,
+     "occKg": 80,
+     "fuelFull": 89.28,
+     "xNodes": [
+      -0.781,
+      5.035
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_mosquito.json/hero.webp",
@@ -894,7 +5039,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 97.499,
-    "heroWingY": 0.872
+    "heroWingY": 0.872,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 32.9,
+       "x": 1.695,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 43,
+       "x": 1.615,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 3.44,
+       "x": 1.615,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 2.1,
+       "x": 1.615,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 3.63,
+       "x": 1.615,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 49.43,
+       "x": 0.98,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 19.26,
+       "x": 1.04,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 14.97,
+       "x": 4.719,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 8.63,
+       "x": 1.362,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Nose gear",
+       "cat": "gear",
+       "kg": 5.26,
+       "x": -0.119,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.595,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 3.74,
+       "x": -0.212,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 12.96,
+       "x": -0.212,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": 0.871,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 23.24,
+       "x": 1.42,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 3,
+       "x": 0.595,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 4.45,
+       "x": 1.836,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 10,
+       "x": 1.147,
+       "payload": true
+      }
+     ],
+     "M": 342.56,
+     "cg": 1.1782,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 239.6,
+        "x": 1.4494
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 319.6,
+        "x": 1.2355
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 332.56,
+        "x": 1.1791
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 342.56,
+        "x": 1.1782
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 329.6,
+      "x": 1.2328
+     },
+     "mtow": 342.6,
+     "bal": {
+      "npX": 1.1038,
+      "cBar": 1.35,
+      "sm": -0.0551,
+      "cgX": 1.1781
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 1,
+     "occKg": 80,
+     "fuelFull": 12.96,
+     "xNodes": [
+      -0.212,
+      5.46
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_build_v8_pusher_2026-09-11.json/hero.webp",
@@ -938,7 +5302,202 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 86.282,
-    "heroWingY": 0.29
+    "heroWingY": 0.29,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 31.43,
+       "x": 1.199,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 30,
+       "x": -0.555,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 1.8,
+       "x": -0.555,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 2.21,
+       "x": -0.555,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 3.51,
+       "x": -0.555,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 52.25,
+       "x": 1.005,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 54.44,
+       "x": 0.988,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 52.42,
+       "x": 2.553,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 20.73,
+       "x": 1.448,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Nose gear",
+       "cat": "gear",
+       "kg": 8.03,
+       "x": -0.026,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.491,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 27.49,
+       "x": 1.216,
+       "payload": false
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 1.85,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 14.78,
+       "x": 0.577,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 4.5,
+       "x": 0.491,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 4.53,
+       "x": 1.832,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 15,
+       "x": 1.019,
+       "payload": true
+      }
+     ],
+     "M": 404.97,
+     "cg": 0.9725,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 309.97,
+        "x": 1.0945
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 389.97,
+        "x": 0.9707
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 389.97,
+        "x": 0.9707
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 404.97,
+        "x": 0.9725
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 404.97,
+      "x": 0.9725
+     },
+     "mtow": 405,
+     "bal": {
+      "npX": 0.9155,
+      "cBar": 1.241,
+      "sm": -0.0459,
+      "cgX": 0.9724
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 1,
+     "occKg": 80,
+     "fuelFull": 0,
+     "xNodes": [
+      -0.748,
+      4.958
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_flydiy-build_4_.json/hero.webp",
@@ -982,7 +5541,226 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 91.375,
-    "heroWingY": 0.313
+    "heroWingY": 0.313,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 72.18,
+       "x": 1.502,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 138,
+       "x": -0.749,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 17.94,
+       "x": -0.749,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 6.44,
+       "x": -0.749,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 4.43,
+       "x": -0.749,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 79.01,
+       "x": 1.093,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 21.44,
+       "x": 1.041,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 13.36,
+       "x": 4.303,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 18.82,
+       "x": 1.286,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Nose gear",
+       "cat": "gear",
+       "kg": 8.12,
+       "x": -0.053,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.572,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 3.96,
+       "x": -0.12,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 15.84,
+       "x": -0.12,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": -0.485,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 34.5,
+       "x": 0.208,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 7.12,
+       "x": 1.051,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 4.83,
+       "x": 1.718,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 20,
+       "x": 1.136,
+       "payload": true
+      }
+     ],
+     "M": 568.54,
+     "cg": 0.4471,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 452.7,
+        "x": 0.4145
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 532.7,
+        "x": 0.4381
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 548.54,
+        "x": 0.422
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 568.54,
+        "x": 0.4471
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 552.7,
+      "x": 0.4634
+     },
+     "mtow": 648.6,
+     "bal": {
+      "npX": 0.922,
+      "cBar": 1.278,
+      "sm": 0.3715,
+      "cgX": 0.4472
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 2,
+     "occKg": 80,
+     "fuelFull": 15.84,
+     "xNodes": [
+      -0.985,
+      4.659
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_B-ITES.json/hero.webp",
@@ -1032,6 +5810,217 @@
      "t": 8.9,
      "V": 20.6,
      "dist": 79
+    },
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 30.54,
+       "x": 1.572,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engines",
+       "cat": "engine",
+       "kg": 86,
+       "x": 0.609,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 6.88,
+       "x": 0.609,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propellers",
+       "cat": "engine",
+       "kg": 6.66,
+       "x": 0.609,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 11.15,
+       "x": 0.609,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 76.44,
+       "x": 1.079,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 27.84,
+       "x": 1.015,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 21.38,
+       "x": 4.44,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 8.41,
+       "x": 1.171,
+       "payload": false
+      },
+      {
+       "key": "floats",
+       "name": "Floats",
+       "cat": "gear",
+       "kg": 67.87,
+       "x": 1.016,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.491,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 3.1,
+       "x": -0.104,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 5.76,
+       "x": -0.104,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 17.05,
+       "x": 0.209,
+       "payload": false
+      },
+      {
+       "key": "avionics",
+       "name": "Radios",
+       "cat": "systems",
+       "kg": 1,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 17.71,
+       "x": 0.839,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 3,
+       "x": 0.491,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 1.3,
+       "x": 1.808,
+       "payload": false
+      }
+     ],
+     "M": 476.59,
+     "cg": 0.9662,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 390.83,
+        "x": 1.0793
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 470.83,
+        "x": 0.9793
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 476.59,
+        "x": 0.9662
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 476.59,
+        "x": 0.9662
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 470.83,
+      "x": 0.9793
+     },
+     "mtow": 477.5,
+     "bal": {
+      "npX": 1.1076,
+      "cBar": 1.5,
+      "sm": 0.0943,
+      "cgX": 0.9662
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 1,
+     "occKg": 80,
+     "fuelFull": 5.76,
+     "xNodes": [
+      -1.138,
+      5.207
+     ],
+     "v": 1
     }
    },
    "pics": {
@@ -1076,7 +6065,218 @@
     "sea": false,
     "heroProp": "disc",
     "pxPerM": 80.084,
-    "heroWingY": 0.43
+    "heroWingY": 0.43,
+    "mass": {
+     "rows": [
+      {
+       "key": "fuselage",
+       "name": "Fuselage",
+       "cat": "structure",
+       "kg": 27.71,
+       "x": 1,
+       "payload": false
+      },
+      {
+       "key": "engine",
+       "name": "Engine",
+       "cat": "engine",
+       "kg": 80,
+       "x": -1.733,
+       "payload": false
+      },
+      {
+       "key": "install",
+       "name": "Installation",
+       "cat": "engine",
+       "kg": 10.4,
+       "x": -1.733,
+       "payload": false
+      },
+      {
+       "key": "prop",
+       "name": "Propeller",
+       "cat": "engine",
+       "kg": 2.82,
+       "x": -1.733,
+       "payload": false
+      },
+      {
+       "key": "mount",
+       "name": "Engine mount",
+       "cat": "engine",
+       "kg": 7.33,
+       "x": -1.733,
+       "payload": false
+      },
+      {
+       "key": "wings",
+       "name": "Wings",
+       "cat": "structure",
+       "kg": 65.74,
+       "x": -0.474,
+       "payload": false
+      },
+      {
+       "key": "bracing",
+       "name": "Struts & bracing",
+       "cat": "structure",
+       "kg": 21.35,
+       "x": -0.254,
+       "payload": false
+      },
+      {
+       "key": "tail",
+       "name": "Tail",
+       "cat": "structure",
+       "kg": 17.35,
+       "x": 2.996,
+       "payload": false
+      },
+      {
+       "key": "gearMain",
+       "name": "Main gear",
+       "cat": "gear",
+       "kg": 19.01,
+       "x": -0.694,
+       "payload": false
+      },
+      {
+       "key": "gearAux",
+       "name": "Tail wheel",
+       "cat": "gear",
+       "kg": 6.11,
+       "x": 3.261,
+       "payload": false
+      },
+      {
+       "key": "cabin",
+       "name": "Crew & passengers",
+       "cat": "load",
+       "kg": 80,
+       "x": 0.487,
+       "payload": true
+      },
+      {
+       "key": "vessel",
+       "name": "Tank",
+       "cat": "engine",
+       "kg": 3.74,
+       "x": -0.12,
+       "payload": false
+      },
+      {
+       "key": "fuel",
+       "name": "Fuel",
+       "cat": "load",
+       "kg": 12.96,
+       "x": -0.12,
+       "payload": true
+      },
+      {
+       "key": "panel",
+       "name": "Instruments",
+       "cat": "systems",
+       "kg": 4.5,
+       "x": 0,
+       "payload": false
+      },
+      {
+       "key": "elec",
+       "name": "Electrics",
+       "cat": "systems",
+       "kg": 16.9,
+       "x": -0.986,
+       "payload": false
+      },
+      {
+       "key": "outfit",
+       "name": "Cowl, windows, controls",
+       "cat": "outfit",
+       "kg": 18.63,
+       "x": -0.052,
+       "payload": false
+      },
+      {
+       "key": "furnish",
+       "name": "Seats & trim",
+       "cat": "interior",
+       "kg": 4.5,
+       "x": 0.487,
+       "payload": false
+      },
+      {
+       "key": "paint",
+       "name": "Paint",
+       "cat": "finish",
+       "kg": 1.3,
+       "x": 0.367,
+       "payload": false
+      },
+      {
+       "key": "cargo",
+       "name": "Cargo",
+       "cat": "load",
+       "kg": 20,
+       "x": 0.774,
+       "payload": true
+      }
+     ],
+     "M": 420.35,
+     "cg": -0.2068,
+     "steps": [
+      [
+       "empty",
+       {
+        "m": 307.39,
+        "x": -0.4549
+       }
+      ],
+      [
+       "+ crew",
+       {
+        "m": 387.39,
+        "x": -0.2604
+       }
+      ],
+      [
+       "+ fuel",
+       {
+        "m": 400.35,
+        "x": -0.2558
+       }
+      ],
+      [
+       "+ cargo",
+       {
+        "m": 420.35,
+        "x": -0.2068
+       }
+      ]
+     ],
+     "noFuel": {
+      "m": 407.39,
+      "x": -0.2096
+     },
+     "mtow": 420.4,
+     "bal": {
+      "npX": -0.54,
+      "cBar": 1.55,
+      "sm": -0.2149,
+      "cgX": -0.2068
+     },
+     "bands": {
+      "comfy": 0.05,
+      "noseHeavy": 0.4
+     },
+     "seats": 1,
+     "occKg": 80,
+     "fuelFull": 12.96,
+     "xNodes": [
+      -1.984,
+      3.346
+     ],
+     "v": 1
+    }
    },
    "pics": {
     "hero": "cand_pawnee_1_.json/hero.webp",
