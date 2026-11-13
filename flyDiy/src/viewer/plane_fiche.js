@@ -489,7 +489,7 @@
       if (metal) { try { S.environment = studioEnvOf(T, R).texture; if (envI0 != null) S.environmentIntensity = 1; tm.metalStudio = 1; } catch (e) { tm.metalStudioErr = String(e && e.message || e).slice(0, 120); } }
       S.traverse(m => {
         if (!m.visible) return;
-        if (/^studio:pool$/.test(m.name || '') || m.name === 'edCanopyLoops' || (m.userData && m.userData.edHi)) { m.visible = false; hid.push(m); }
+        if (/^studio:pool$/.test(m.name || '') || m.name === 'edCanopyLoops' || m.name === 'edWellGhost' || (m.userData && m.userData.edHi)) { m.visible = false; hid.push(m); }   // (edWellGhost: every view, not only the cutaway - the Petrel's yellow wells, 13 Nov)
       });
       R.shadowMap.autoUpdate = false;
       root.rotation.x = 0;   // the air's attitude
