@@ -1,1 +1,2594 @@
-{"what": "flydiy-build", "v": 8, "name": "Cessna 337D Super Skymaster", "spec": {"cage": {"planeScale": 0.745, "paxCount": 2, "paxLen": 0.785, "pilotLen": 1.2, "boomLen": 4.35, "tailLen": 0.169815, "cabPillarW": 0.095, "paxPillarW": 0.085, "pillarW": 0.1, "halfW": 0.72, "roofHalfW": 0.64, "roofY": 1.14, "keelY": -0.62, "floorY": -0.54, "ceilInset": 1, "waistY": 0.125, "bandH": 0.032, "aftRoofY": 0.295, "aftKeelY": -0.92, "tailHalfW": 0.122, "tailRoofY": 0.1, "tailKeelY": -0.5, "ringPullIn": 0.023043, "wsRun": 0.87, "wsTopOff": 0.081824, "wsBaseBow": 0.35, "wsCeilBow": 0.545, "apilW": 0.92, "apilPerp": 1, "noseLen": 0.38, "noseW": 1, "pfW": 0.3, "topRound": 0.17, "topAngCeil": 41, "topAngRoof": 78, "topComp": 1.15, "bubble": 1, "skylight": 0, "skyExt": 1, "winSillPilot": 0, "winSillPax": 0, "paxWinN": 2, "paxWinShape": 0, "paxWinZ": 0.75, "paxWinPitch": 0.75, "paxWinY": 0.5, "paxWinW": 0.52, "paxWinH": 0.4, "paxWinR": 0.08, "paxWinDepth": 0.006, "paxWinTopK": 1, "paxWinSkew": 0, "paxWinR1": -1, "paxWinR2": -1, "paxWinR3": -1, "paxWinR4": -1, "win2N": 0, "win2Shape": 0, "win2Z": -0.6, "win2Pitch": 0.75, "win2Y": 0.4, "win2W": 0.4, "win2H": 0.32, "win2R": 0.06, "win2Depth": 0.006, "win2TopK": 1, "win2Skew": 0, "win2R1": -1, "win2R2": -1, "win2R3": -1, "win2R4": -1, "win3N": 0, "win3Shape": 0, "win3Z": 1.6, "win3Pitch": 0.75, "win3Y": 0.4, "win3W": 0.4, "win3H": 0.32, "win3R": 0.06, "win3Depth": 0.006, "win3TopK": 1, "win3Skew": 0, "win3R1": -1, "win3R2": -1, "win3R3": -1, "win3R4": -1, "glazeMat": 0, "crPillar": 3, "crSill": 3, "crBand": 0, "crCeil": 0, "crFrame": 3, "crCap": 0, "crFrontCap": 0.3, "crNoseCap": 3, "crKeel": 0, "botRound": 0.16, "noseCrown": 0.475, "noseH": 1.1, "noseDroop": 0, "wsBaseLift": 0.01, "cowlLoops": 0, "cowlEase": 0.29, "cowlBulge": 0.99, "noseFinish": 0, "aeroNose": 0, "aeroWsLen": 0.9, "aeroLen": 1.5, "aeroDroop": 0.3, "aeroTipW": 0.1, "aeroTipH": 0.12, "rearAperture": 0, "boomMidOn": 0, "boomMidT": 0.35, "boomMidPinch": 0.6, "taperOn": 1, "taperLen": 0.99, "taperPanels": 0, "boomStyle": 0, "rodY": 0, "rodD": 0.12, "rodIncl": 0, "boomTwin": 1, "boomX": 1.629, "boomWf": 0.16, "boomHf": 0.24, "boomWa": 0.112, "boomHa": 0.168, "boomSquare": 0, "boomIncl": 0, "boomCollar": 0.5, "boomDy": 0, "boomDz": 0, "boomNoseLen": 0.35, "boomNoseK": 0.7, "boomNoseCap": 2, "boomTailLen": 0.45, "boomTailK": 0.7, "boomTailCap": 2, "aeroAftOn": 0, "aeroAftLen": 0.9, "aeroAftDroop": 0, "aeroAftTip": 0.5, "aeroAftShape": 0, "aeroAftEdge": 0.6, "crestH": 0, "crestAt": 0.55, "crestLoops": 1, "canopy": 0, "bubH": 0.79, "bubAt": 0.45, "bubW": 1, "canLoops": 1, "bubH2": 0.7, "bubAt2": 0.25, "bubW2": 1, "bubH3": 0.6, "bubAt3": 0.7, "bubW3": 1, "arcFit": 1, "noseTip": 0.25, "aftNoseTip": -1, "noseTipV": -1, "aftNoseTipV": -1, "cowlEaseBot": -1, "aftCowlEaseBot": -1, "noseJointOn": 1, "crSillNose": -1, "aftCrSillNose": -1, "ringCowl1W": 0, "ringCowl2W": -0.02, "aftRingWinW": -1, "aftRingScrW": -1, "aftRingCowl1W": -1, "aftRingCowl2W": -1, "mirror": 0, "aftPilotLen": -1, "aftWsRun": -1, "aftNoseLen": -1, "aftNoseW": -1, "aftNoseH": -1, "aftDroop": -1, "aftNoseCrown": -1, "aftCowlEase": -1, "aftCowlBulge": -1, "aftWsBaseLift": -1, "aftWsTopOff": -1, "aftWsBaseBow": -1, "aftWsCeilBow": -1, "aftCowlLoops": -1, "aftRingNoseTop": -1, "aftRingNoseBot": -1, "frNoseTopY": null, "frNoseBotY": null, "frNoseTopW": null, "frNoseBotW": null, "frNoseBotZ": 0, "frWinTopY": null, "frWinWaistY": null, "frWinBotY": null, "frWinTopW": null, "frWinWaistW": null, "frWinBotW": null, "frWinBotZ": 0, "frPostTopY": null, "frPostWaistY": null, "frPostTopW": null, "frPostWaistW": null, "frPostBotW": null, "frPostTopZ": 0, "frPostWaistZ": 0, "frPostBotZ": 0, "frCabTopY": null, "frCabWaistY": null, "frCabBotY": null, "frCabTopW": null, "frCabWaistW": null, "frCabBotW": null, "frCabTopZ": 0, "frCabWaistZ": 0, "frCabBotZ": 0, "frPaxTopY": 1.16, "frPaxWaistY": null, "frPaxBotY": -0.4, "frPaxTopW": null, "frPaxWaistW": null, "frPaxBotW": null, "frPaxTopZ": 0, "frPaxWaistZ": 0, "frPaxBotZ": 0, "frBoomWaistY": null, "frBoomTopW": 0.5376, "frBoomWaistW": 0.5628, "frBoomBotW": 0.5628, "frBoomTopZ": 0, "frBoomWaistZ": 0, "frBoomBotZ": 0, "frTailWaistY": null, "frTailTopW": null, "frTailBotW": null, "frTailTopZ": 0, "frTailWaistZ": 0, "frTailBotZ": 0, "frPaxProfile": 0, "frPaxEase": 0, "frPaxBias": 1, "frPaxBulgeH": 0, "frPaxBulgeW": 0, "frPaxLoops": 0, "winFrameW": 0, "winDepth": 0.015, "winBlow": 0, "crGlass": 3, "rimW": 0.012, "rimWin": 1, "rimWs": 1, "rimDoor": 0, "rimSides": 8, "rimArc": 3, "rimRise": 0.22, "paneInset": 0.0025, "rimRivet": 0.04, "memFast": 1, "memPitch": 0.03, "memDia": 0.0025, "memRise": 0.0004, "paneThick": 0.004, "doorOn": 1, "doorPax": 0, "doorDeep": 1, "doorSill": 0.146, "doorSillPax": 0.088, "doorDepth": 0.004, "doorRim": 0.02, "bulkZ": 0, "doorGone": 0, "skinOn": 1, "glazeOn": 1, "intOn": 1, "intBulk": 1, "intFire": 1, "intPillars": 1, "shellT": 0.035, "fireSealW": 0.018, "skinT": 0.015, "intCons": 3, "intDash": 1, "dashBack": 0.115, "dashLip": 0.035, "dashDepth": 0.35, "dashCrease": 3, "dashCrown": 0.03, "dashStyle": 1, "dashLegs": 1, "dashV": 1, "shoulderOn": 1, "shoulderW": 0.07, "shoulderH": 0.135, "shoulderT": 0.003, "shoulderLip": 0.027, "shoulderRun": 0, "doorPanelOn": 1, "doorPanelT": 0.008, "doorPanelGap": 0.008, "doorPanelMargin": 0.04, "doorPanelPocket": 1, "cutParts": 1, "stOn": 1, "stCut": 1, "stCutGap": 0.012, "stSolid": 1, "stThick": 0.05, "stThickTE": 0.012, "stX": 0, "stY": 0.06, "stZ": -0.045, "stCons": 0, "stOver": 0, "stMount": 3, "stCant": 0, "stInc": 0, "stRootGuard": 1, "stTipZ": -0.005, "stTipY": -0.33, "stAftZ": 0, "stAftY": -0.3, "stBaseZ": 0, "stBaseY": 0, "stMidY": -0.2, "stUY": 0, "stRootFwd": -0.205, "stLEZ": 0, "stLEY": 0, "stShoulderZ": 0.5, "stShoulderY": 0.3, "stTopY": 0, "stTERoot": 0, "stTEU": 0, "stTEMid": 0, "stSharpTip": 3, "stSharpAft": 3, "stSharpBase": 3, "stSharpShoulder": 3, "stSharpLE": 3, "stSpan": 1, "stChord": 1, "stChordTip": 1, "stSweep": 0, "stHinge": 0.45, "finOn": 1, "finProject": 1, "finCut": 1, "finVentralOn": 1, "finVentralH": 0.5, "finVentralC": 1.6, "finVentralZ": 0.08, "finVentralTip": 0.14, "finCutGap": 0.012, "finSolid": 1, "finThick": 0.06, "finThickTE": 0.015, "tailRimN": 4, "finFillet": 0.035, "finCons": 0, "finDorsal": 1, "finRootGuard": 1, "finKeel": 1, "finCrA": 0, "finCrB": 0, "finTipZ": -0.325, "finTipY": -0.3, "finAftZ": 0, "finAftY": -0.3, "finBaseZ": 0, "finBaseY": 0, "finMidY": -0.2, "finUY": -0.025, "finRootFwd": 0, "finLEZ": -0.1, "finLEY": 0, "finShoulderZ": 0.305521, "finShoulderY": 0, "finTopY": 0, "finTERoot": 0, "finTEU": 0, "finTEMid": 0, "finSharpTip": 3, "finSharpAft": 3, "finSharpBase": 3, "finSharpShoulder": 0, "finSharpLE": 3, "finHeight": 0.8, "finChord": 0.96, "finChordTip": 1.12, "finSweep": 6, "finHinge": 0.20742366048889416, "mass": 620, "cgZ": 1.17, "cgY": 0.05, "propR": 0.875, "propZ": 2.96, "s1On": 1, "s1Z": 0.613, "s1X": 1.255, "s1Leg": 0, "s1R": 0.185, "s1Drop": 0.25, "s1Brake": 1, "s1Steer": 0, "s1Fair": 1, "s1FairSkirt": 0, "s1FairTail": 1, "s1FairRake": 0, "s1FairW": 1, "s1LegFair": 1, "s2On": 1, "s2Z": 2.945, "s2X": 0, "s2Leg": 2, "s2R": 0.14, "s2Drop": 0.76, "s2Brake": 0, "s2Steer": 1, "s2Fair": 1, "s2FairSkirt": 0, "s2FairTail": 1, "s2FairRake": 0, "s2FairW": 1, "s2LegFair": 1, "s1AxZ": 0, "s2AxZ": 0.24, "fairCons": 0, "whProfile": 0, "whTread": 0, "whRibs": 3, "whRim": 0, "whBolts": 6, "whCap": 1, "whValve": 1, "whBrake": 0, "whSlick": 0, "whBulge": 1, "beamAng": 62, "beamW": 0.075, "beamT": 0.02, "beamTaper": 0.72, "beamBow": 1.06, "beamRake": 0.1, "linkAng": 58, "linkArmW": 0.042, "linkSwing": -42, "linkVee": 1, "linkSpread": 0.46, "linkX": 0, "linkPanel": 1, "linkPanelT": 0.004, "shockKind": 1, "shockAt": 0.72, "shockZ": 0.34, "shockAng": 30, "bungeeSpan": 0.26, "oleoAng": 40, "oleoDia": 0.058, "oleoCyl": 0.55, "oleoScissor": 0.052, "oleoBrace": 1, "oleoBraceZ": 0.42, "twR": 0.1, "twSpringLen": 0.52, "twSpringDrop": 0.3, "twSpringW": 0.052, "twSpringT": 0.009, "twLeaves": 3, "twRake": 18, "twTrail": 0.052, "twLegDrop": 0.1, "twSteer": 0, "twSteerVis": 1, "s1_beamAng": 38, "s1_beamW": 0.075, "s1_beamT": 0.02, "s1_beamTaper": 0.72, "s1_beamBow": 0.6, "s1_beamRake": 0.1, "s1_linkAng": 25, "s1_linkSwing": 17, "s1_linkArmW": 0.042, "s1_linkVee": 1, "s1_linkSpread": 0.49, "s1_linkX": 1, "s1_linkPanel": 0, "s1_shockKind": 0, "s1_shockAt": 0.72, "s1_shockZ": 0.17, "s1_shockAng": 30, "s1_bungeeSpan": 0.26, "s1_oleoAng": 40, "s1_oleoDia": 0.058, "s1_oleoCyl": 0.55, "s1_oleoScissor": 0.052, "s1_oleoBrace": 1, "s1_oleoBraceZ": 0.42, "s1_twSpringLen": 0.55, "s1_twSpringDrop": 0.3, "s1_twSpringW": 0.052, "s1_twSpringT": 0.009, "s1_twLeaves": 3, "s1_twRake": 18, "s1_twTrail": 0.052, "s1_twLegDrop": 0.1, "s1_twSteer": 0, "s1_twSteerVis": 1, "s2_beamAng": 62, "s2_beamW": 0.075, "s2_beamT": 0.02, "s2_beamTaper": 0.72, "s2_beamBow": 1.06, "s2_beamRake": 0.1, "s2_linkAng": 58, "s2_linkSwing": -42, "s2_linkArmW": 0.042, "s2_linkVee": 1, "s2_linkSpread": 0.46, "s2_linkX": 0, "s2_linkPanel": 1, "s2_shockKind": 1, "s2_shockAt": 0.72, "s2_shockZ": 0.34, "s2_shockAng": 30, "s2_bungeeSpan": 0.26, "s2_oleoAng": 32, "s2_oleoDia": 0.058, "s2_oleoCyl": 0.55, "s2_oleoScissor": 0.056, "s2_oleoBrace": 1, "s2_oleoBraceZ": 0.14, "s2_twSpringLen": 0.32, "s2_twSpringDrop": 0.09, "s2_twSpringW": 0.072, "s2_twSpringT": 0.008, "s2_twLeaves": 1, "s2_twRake": 0, "s2_twTrail": 0.048, "s2_twLegDrop": 0.09, "s2_twSteer": 0, "s2_twSteerVis": 1, "gearOn": 1, "gearSit": 1, "gearFloats": 0, "gearRetract": 1, "gearRetT": 6, "gearRetAct": 1, "gearFold": 0, "gearFoldNose": 0, "gearRetFrac": 1, "gearWellCut": 0, "gearDoors": 2, "gearLegDoor": 1, "gearNacFit": 1, "gearNacPod": 0, "gearShort": 0, "gearShortNose": 0, "gearKneeDoor": 0, "gm1Ax": 0, "gm1Ang": 90, "gm2Ax": 1, "gm2Ang": 0, "gmTwist": 0, "gn1Ax": 1, "gn1Ang": 90, "gn2Ax": 0, "gn2Ang": 0, "gnTwist": 0, "bpCabane": 0, "bpStrutZ": 0, "bpStrutX": 0, "bpInter": 0, "bpInterAt": 0.62, "bpInterZ": 0, "bpWires": 1, "bpWireD": 5, "bpStrutK": 1, "bpCabDraw": 1, "bpCabPylon": 0, "wingOn": 1, "wgSpan": 11.58, "wgChord": 1.93, "wgChordTip": 1.25, "wgTipX": 0.15, "wgCrankChord": 1.93, "wgCrankX": 0, "wgPlan": 0, "wgPlanAxis": 0.3, "radMode": 0, "radX": 0.75, "radAt": 0.35, "radLen": 1.3, "radW": 0.42, "radH": 0.24, "radFlap": 8, "radOilK": 0.55, "wgDihedral": 1.7, "wgIncidence": 1.5, "wgWashout": 3, "wgCamber": 2, "wgThick": 14, "wgTip": 0, "wgPos": 0, "wgCentre": 2, "wgCentreW": 1.05, "wgBrace": 0, "wgCrankAt": 0.28, "wgDihedralOut": 1.7, "wgStruts": 1, "wgBeam": 1, "wgPanels": 3, "wgDx": -0.81, "wgDy": -0.1, "wgParaH": 0.45, "wgStrutZ": 0.2, "wgStrutX": -0.06, "wgFlapType": 2, "wgFlapSpan": 0.55, "wgFlapChord": 0.2, "wgAilOn": 1, "wgAilSpan": 0.35, "wgAilChord": 0.22, "wgCons": 0, "wgSlat": 0, "wgSlatSpan": 1, "wgVG": 0, "wgFence": 0, "wgCuff": 0, "wgCuffSpan": 0.4, "wgDroop": 0, "wgFowlerGrow": 0, "w2On": 0, "w2Pos": 2, "w2ParaH": 0.45, "w2Stagger": 0.35, "w2Dy": 0, "w2Span": 10, "w2Chord": 1.6, "w2ChordTip": 1.6, "w2TipX": 0, "w2Plan": 0, "w2PlanAxis": 0.3, "w2CrankAt": 0, "w2CrankChord": 1.6, "w2CrankX": 0, "w2DihedralOut": 6, "w2Dihedral": 3, "w2Incidence": 1.5, "w2Washout": 1.5, "w2Camber": 2, "w2Thick": 12, "w2Tip": 2, "w2Centre": 0, "w2Panels": 3, "w2Cons": 0, "w2FlapType": 0, "w2FlapSpan": 0.5, "w2FlapChord": 0.2, "w2AilOn": 1, "w2AilSpan": 0.38, "w2AilChord": 0.22, "engOn": 1, "engPreset": 41, "engPower": 0, "engDetail": 0.8, "eng_screws": 1, "engY": 0, "propOn": 1, "engMount": 4, "engNacAt": 0.35, "engNacAt2": 0.62, "engPylonH": 0.3, "engPylonFair": 0, "engPylonForm": 0, "engPylonAt": 0, "engPylonAft": 0.15, "engPylonFwd": 0, "engFinAt": 0.55, "engFinFwd": 0, "engNacOver": 0, "engNacLift": 0, "engBlockZ": 0, "engBlockY": 0, "engAim": 0, "engTilt": 0, "engRotate": 0, "eng_tStyle": 0, "eng_tCanD": 0.4, "eng_tCanL": 1.05, "eng_gearK": 1.2, "eng_flatK": 1.26, "eng_tRpm": 1900, "eng_stackStyle": 0, "eng_eStyle": 0, "eng_canD": 0.0278, "eng_canL": 0.026, "eng_rpm": 2800, "eng_volts": 11.1, "eng_eFins": 0, "eng_escOn": 1, "eng_leads": 1, "eng_plumb": 1, "eng_liquid": 0, "eng_geared": 0, "eng_arch": 0, "eng_cyl": 2, "eng_radialRows": 1, "eng_inlineAim": 1, "eng_vee": 60, "eng_bore": 0.13017499999999999, "eng_stroke": 0.111125, "eng_stagger": 0.5, "eng_twoStroke": 0, "eng_blower": 0, "eng_boost": 1, "eng_critAlt": 0, "eng_finN": 14, "eng_finR": 1.34, "eng_headFins": 8, "eng_rockerW": 0.95, "eng_rockerH": 0.66, "eng_rockerR": 0.24, "eng_rockerBoss": 0.05, "eng_rockerBossW": 0.52, "eng_rodPos": 1, "eng_finShape": 0, "eng_rockerSpan": 0, "eng_baseFins": 1, "eng_injected": 1, "eng_airStyle": 0, "eng_airbox": 1, "eng_intake": 1, "eng_exStyle": 2, "eng_exDrop": 1.5, "eng_exPair": 0, "eng_exOut": 0, "eng_exAim": 0, "eng_exOutX": 0, "eng_exOutY": 0, "eng_exOutZ": 0, "eng_leadR": 0.034, "eng_mags": 1, "eng_genOn": 1, "eng_oilFill": 1, "eng_radX": 0, "eng_radY": 0.55, "eng_radZ": 0.55, "eng_radW": 2, "eng_radH": 0.75, "eng_radD": 0.42, "eng_starter": 1, "eng_oilFilter": 1, "eng_battOn": 1, "eng_ecuOn": 0, "eng_fuelX": 0, "eng_fuelY": 0, "eng_thrX": 0, "eng_thrY": 0, "eng_mount": 1, "eng_mountX": 1, "eng_mountGap": 1.76, "eng_mountR": 1.88, "eng_fwSpread": 2.4, "spinMat": 0, "cowlOn": 1, "fitNose": 0, "cowlGap": 0, "cw_fwLipOn": 1, "cw_fwLipR": 0.004, "cw_fwLipRise": 0, "cw_fwLipIn": 0.025, "cw_cowlLen": 0.9, "cw_aftW": 0.5706504994905939, "cw_aftH": 0.445, "cw_taperW": 0.76, "cw_taperH": 0.69, "cw_lidRise": 0.22, "cw_lidLen": 0.095, "cw_lidShoulder": 0.13, "cw_lidRound": 0.06, "cw_faceRise": -0.026, "cw_deckSweep": 0.95, "cw_keelSweep": 0.3, "cw_waistSweep": 0.95, "cw_lidMode": 1, "cw_lidR": 0.17, "cw_lidGap": 0.013, "cw_deckH": 1.09, "cw_keelH": 1.13, "cw_waist": 0.54, "cw_sqAftTop": 0.42, "cw_sqAftBot": 0.57, "cw_sqFrontTop": 0.71, "cw_sqFrontBot": 0.69, "cw_lidSqTop": 0.74, "cw_lidSqBot": 0.28, "cw_detail": 1, "cw_lobeN": 2, "cw_lobeAmp": 0.024, "cw_lobeT": 0.56, "cw_lobeAz": 0, "cw_lobeSig": 34, "cw_lobeTSig": 0.31, "cw_cutSpan": 0, "cw_cutAz": 270, "cw_apMode": 1, "cw_apW": 0.35, "cw_apH": 0.12, "cw_apSq": 0.48, "cw_apOffX": 0, "cw_apOffY": 0, "cw_pairX": 0.2, "cw_pairW": 0.08, "cw_pairH": 0.048, "cw_pairY": 0.012, "cw_pairSq": 0.625, "cw_lipMode": 0, "cw_lipThick": 0.009, "cw_lipDepth": 0.055, "cw_lipRound": 0.55, "cw_lipProtrude": 0.5, "cw_lipInset": 0.028, "cw_ductLen": 0.12, "cw_ductFlare": 0, "cw_scoopOn": 1, "cw_scoopZ": 0, "cw_scoopLen": 0.22, "cw_scoopW": 0.065, "cw_scoopH": 0.055, "cw_scoopSq": 0.5, "cw_scoopDrop": 0.7, "cw_scoopRake": 0.18, "cw_scoopAp": 0.68, "cw_scoopLipH": 0.011, "cw_scoopLipDepth": 0.032, "cw_scoopDuct": 0.125, "cw_seamOn": 1, "cw_seamType": 1, "cw_seamPos": 0.745, "cw_seamWidth": 0.005, "cw_seamDepth": 0.0024, "cw_partOn": 1, "cw_partY": 0, "cw_partW": 0.0022, "cw_fastOn": 1, "cw_fastPitch": 0.11, "cw_fastD": 0.016, "cw_oilOn": 1, "cw_oilZ": 0.42, "cw_oilW": 0.13, "cw_oilL": 0.16, "cw_oilSq": 1, "cw_noseOff": 0.31, "cw_spinR": 0.101, "cw_spinLen": 0.44, "cw_spinRound": 1, "cw_bladeStation": 0.42, "cw_shaftR": 0.045, "cw_shaftLen": 0.3, "cw_bladeN": 2, "cw_propD": 1.93, "cw_material": 2, "cw_rpm": 2800, "cw_tas": 205, "cw_power": 210, "cw_rootChord": 0.165, "cw_tipChord": 0.105, "cw_chordBulge": 0.04, "cw_sweep": 0, "cw_thickRoot": 0.2, "cw_thickTip": 0.09, "cw_camb": 0.044, "cw_tipRound": 0.1, "cw_cuff": 0.22, "cw_shankR": 0.045, "cw_slip": 12, "cw_aftMode": 0, "cw_tailLen": 1.5, "cw_tailDrop": 0.02, "crewOn": 1, "seatLayout": 1, "seatTilt": 3, "seatBelt": 0, "seatType": 0, "seatZ": 0.205, "seatH": 0.15, "seatRake": 13, "seatGap": 0.18, "seat2H": -1, "seat2Rake": -1, "seat2Tilt": -1, "ctlStick": 1, "ctlThr": 1, "ctlPed": 1, "consoleOn": 0, "stickX": 0, "stickY": 0, "stickZ": 0, "yokeGap": 0.16, "floorOn": 1, "floorLift": 0, "trimX": 0, "trimY": 0, "trimZ": 0, "parkX": 0, "parkY": 0, "parkZ": 0, "fselX": 0, "fselY": 0, "fselZ": 0, "flapCtl": 1, "stickLen": 0.44, "stickCrank": 0, "thrX": 0, "thrY": 0, "thrZ": 0, "thrLen": 0.16, "pedalZ": 0.9, "pedalH": 0.18, "pedalSpread": 0.1, "pedalAngle": 25, "pilOn": 1, "pilElbows": 0.08, "pilKnees": 0, "pilRecline": 0, "cabWho": 4, "pilFist": 0.5, "pilIdle": 1, "swMaster": 0, "swAlt": 0, "swAvionics": 0, "paxFeetOn": 1, "paxFeetZ": 0.55, "paxFeetY": 0, "paxFeetX": 0.14, "paxIdle": 1, "pilHandGrip": 0.075, "pilStickFwd": 0, "pilHandsApart": 0, "pilFistL": 0.5, "pilFistR": 0.5, "pilGripL": 0.075, "pilGripR": 0.075, "cabOcc": 1, "paxOcc1": 0, "paxOcc2": 0, "paxOcc3": 0, "paxOcc4": 0, "paxAbreast": 0, "flapX": 0, "flapZ": 0, "paxSeatZ": 0, "paxRecline": 0, "fltPreset": 1, "fltDetail": 1, "fltPaddle": 1, "fltRudder": 1, "fltL": 6.95, "fltStep": 0.53, "fltB": 0.68, "fltH": 0.5, "fltBeta": 29, "fltBetaBow": 48, "fltBetaA": 12.5, "fltHs": 0.115, "fltAft": 8.5, "fltAftCurve": 0.08, "fltFlat": 0.59, "fltStem": 0.34, "fltRake": 12, "fltNoseR": 0.17, "fltPlan": 2.7, "fltStern": 0.73, "fltFlare": 4, "fltMass": 27, "fltZ": -0.22, "fltDrop": 1.08, "fltInc": -0.5, "fltTrack": 0.8, "fltStrutR": 0.018, "fltWires": 1, "fltStrutAng": 55, "fltFrontRing": 0, "fltSpread": 1, "fltSpreadAft": 0.36, "fltStyle": 0, "fltBoard": 0, "fltKit": 0, "fltKitPrevD": 0, "fltKitPrevN": 0, "fltKitPrevMat": 0, "fltKitPrevPitch": -1, "hgOn": 1, "hgFamily": 0, "hgCount": 0, "hgOut": 0.06, "hgHorn": 1, "hgHornAt": 0, "hgHornLen": 0.085, "hgSize": 1, "hgFair": 0, "hgLink": 1, "hgDetail": 1, "hgDoor": 1, "hgDoorEdge": 0, "lightOn": 1, "lightSw": 1, "li_bayFrac": 0.24, "li_bayHalf": 0.17, "li_bayChord": 0.13, "li_bayDepth": 0.06, "li_lampSize": 1, "li_beaconRpm": 45, "li_podLen": 1, "li_podGirth": 1, "li_beaconSink": 0.04, "li_navSpan": 0, "li_navChord": 0, "li_navRise": 0, "li_plane": 0, "li_reflect": 1, "li_taxi": 0, "li_beacon": 0, "li_land": 0, "li_nav": 0, "li_flood": 0, "li_instr": 0, "li_pedal": 0, "li_pax": 0, "accOn": 1, "accFluids": 1, "accAccess": 1, "accInstr": 1, "accAerials": 1, "accHandling": 1, "accDetail": 1, "fpLegacy": {"pilotWho": 2}, "fltBow": 0.43, "fltBowB": 0.39, "fltSide": 0.5, "acc_fuelCap_sL": 0, "acc_fuelCap_lv": 0, "acc_fuelCapWing_sL": 0, "acc_fuelCapWing_lv": 0, "acc_fuelDrain_sL": 0, "acc_fuelDrain_lv": 0, "acc_oilDoor_sL": 0, "acc_oilDoor_lv": 0, "acc_staticDrain_sL": 0, "acc_staticDrain_lv": 0, "acc_inspTail_sL": 0, "acc_inspTail_lv": 0, "acc_inspBelly_sL": 0, "acc_inspBelly_lv": 0, "acc_inspAileron_sL": 0, "acc_inspAileron_lv": 0, "acc_fuelCapWing2_sL": 0, "acc_fuelCapWing2_lv": 0, "acc_inspAileron2_sL": 0, "acc_inspAileron2_lv": 0, "acc_baggageDoor_sL": 0, "acc_baggageDoor_lv": 0, "acc_staticPort_sL": 0, "acc_staticPort_lv": 0, "acc_venturi_sL": 0, "acc_venturi_lv": 0, "acc_oatProbe_sL": 0, "acc_oatProbe_lv": 0, "acc_commAerial_sL": 0, "acc_commAerial_lv": 0, "acc_navAerial_sL": 0, "acc_navAerial_lv": 0, "acc_xpdrAerial_sL": 0, "acc_xpdrAerial_lv": 0, "acc_beacon_sL": 0, "acc_beacon_lv": 0, "acc_step_sL": 0, "acc_step_lv": 0, "acc_doorHandle_sL": 0, "acc_doorHandle_lv": 0, "acc_grabHandle_sL": 0, "acc_grabHandle_lv": 0, "acc_tieDownTail_sL": 0, "acc_tieDownTail_lv": 0, "cw_stubDeckH": 1.27, "cw_stubWaist": -0.07, "cw_stubKeelH": 0.83, "cw_stubSqTop": 0.53, "cw_stubSqBot": 0.35, "eng_bmepK": 1.158, "eng_cs": 1, "paxLen2": 0.772, "cw_scoopTop": 1, "cw_scoopAft": 1, "finZ": 0.325}, "wings": [{"span": 11, "chord": 1.63, "taper": 0.687116564417178, "sweep": null, "dihedral": 1.7, "position": "high", "tip": "square", "incidence": 1.5, "washout": 3, "naca": 2414, "panels": 3, "crankAt": 0.45, "dihedralOut": 1.7, "crankChord": 1.63, "crankX": 0, "tipX": 0.15, "cuts": [1.15, 1.49], "centre": "open", "cabaneH": null, "xLE": 0.15444999999999984, "place": {"dx": 0, "dy": 0}, "centreW": 1.05, "yRoot": 1.4203374513171196}], "bracing": {"type": "strut", "struts": 1, "interplane": "none", "interplaneAt": 0.62, "wires": "both", "cabane": "N"}, "controls": {"flap": {"type": "slotted", "span": 0.55, "chord": 0.2}, "aileron": {"span": 0.35, "chord": 0.22}, "elevator": {"chord": 0.43955146126067945}, "rudder": {"chord": 0.5546841611226784}}, "engines": [{"type": "a65_sensenich74", "mount": "nose", "place": {"dx": 0, "dy": 0}, "x": -1.1015481419851607, "custom": {"mass": 144.1447732668502, "powerW": 118366.20763871097, "rpm": 2450, "gear": 1, "torque": 461.3526622222656, "aspiration": "na", "family": "four", "cooling": "air", "cgAft": 0.243, "name": "custom Flat (boxer) 4-cyl 5.9 L"}, "sense": 1}], "fuselage": {"material": "alloy", "shape": "straight", "covering": "skin", "tailArm": 5.7514, "postGap": 0.12641217500000002, "tailBays": 4, "tailW": 0.0894607724513216, "tailBot": 0.3679362687224861, "tailTop": 0.8255364705444412, "boom": "loft", "profile": [{"t": 0, "w": 0.495234508044387, "yb": -0.009343480978522556, "yt": 1.501328981758137}, {"t": 0.125, "w": 0.43817835932765725, "yb": 0.032196769670364, "yt": 1.1545020346241868}, {"t": 0.25, "w": 0.3895401514315414, "yb": 0.07065278666412778, "yt": 0.9647111634219824}, {"t": 0.375, "w": 0.33978229966227325, "yb": 0.12024939548359592, "yt": 0.9414922723069288}, {"t": 0.5, "w": 0.28993247194995575, "yb": 0.16984600430306407, "yt": 0.9182733811918751}, {"t": 0.625, "w": 0.23997202602227002, "yb": 0.21944261312253233, "yt": 0.8950544900768215}, {"t": 0.75, "w": 0.18987842249487194, "yb": 0.2690392219420005, "yt": 0.8718355989617678}, {"t": 0.875, "w": 0.13962023792697975, "yb": 0.3186358307614686, "yt": 0.8486167078467141}, {"t": 1, "w": 0.0894607724513216, "yb": 0.3679362687224861, "yt": 0.8255364705444412}], "tailY": 0, "cowlDeck": 0.7691804744677179, "windRun": 0.26, "crownTop": 0.72, "crownSide": 0.07}, "cabin": {"canopy": {"style": "screen", "height": 0, "sill": 0.3, "skew": 0.42, "bubble": 0.7, "lid": 1, "width": 1, "x0": null, "x1": null, "reach": null, "joint": "square", "jointRun": 3, "facet": false, "sun": 0, "sunStart": 0.38, "sides": false, "sideTop": 0.34, "sideDepth": 0.5, "sideReach": 1, "sideGap": 0.1, "wsAngle": null, "wsCurve": 1}, "baggage": 40, "seating": "side2", "glazing": "bubble", "pilots": 2, "pax": 0, "halfW": 0.4923159414290095, "h": 1.5103374513171195, "len": 0.894, "noseGap": 0.9535999999999998, "seatX": 0, "seatY": 0.1, "seatPitch": 0.86, "seatsX": [0.49859999999999965, 0.49859999999999965, 1.5231, 1.5231], "seats": 4, "occupied": [1, 1, 0, 0], "panel": {"on": true, "depth": 0.27, "inset": 0.06, "wrap": 0.5}, "pilot": {"show": true, "stature": 1.75, "lean": 17, "thigh": -9, "shank": 10, "armDown": 40, "fore": 6, "head": -11, "armIn": 26, "ankle": 40, "toeOut": 7, "hipOut": 0, "kneeOut": 3}}, "gear": {"fairing": "spat", "twFairing": "spat", "legFair": "fair", "twLegFair": "fair", "type": "tricycle", "suspension": "spring", "fairTail": 1, "twFairTail": 1, "fairMat": "glass", "track": 2.54, "x": 1.272364295, "y": -0.3404224458240612, "wheelR": 0.185, "twX": -0.33663570499999995, "twY": -0.36318158922768484, "twR": 0.14, "stiffness": 1, "legDrop": null, "twLeg": null, "camber": 0, "place": {"dx": 0, "dtrack": 0}, "floats": {"L": 6.95, "xs": 3.6835000000000004, "B": 0.68, "beta": 29, "betaA": 12.5, "hs": 0.115, "aftAngle": 8.5, "xFlat": 2.1732650000000002, "yBow": 0.43, "bBow": 0.26520000000000005, "bStern": 0.73, "hSide": 0.5, "y": -1.0904224458240612, "track": 0.8, "volDeck": 1.887071424779946, "inc": -0.5, "x": 1.6374914473618898}}, "fuel": {"litres": 352, "tank": "wing"}, "systems": {"fit": "custom", "units": "aviation", "items": ["asi", "alt", "vsi", "ai", "aiE", "dg", "turn", "tacho", "gmeter", "oilP", "oilT", "fuel", "fuelSight", "volts", "clock", "hobbs", "compass"], "elec": {"battery": "lead", "alternator": "alt60", "starter": "yes", "vac": "pump"}, "avionics": {"com": "compact", "xpdr": "modeS", "nav": "vor", "gps": "none"}, "side": "pilot", "look": {"bezel": "plastic", "sw": "toggle"}}, "paint": {"job": "full", "sweep": 0, "base": 10798138, "trim": 15987694}, "meta": {"class": "n23", "role": "touring", "name": "Cessna 337D Super Skymaster", "reg": "N1799M"}, "finish": {"sections": {"body": {"tint": 10798138}, "taper": {"tint": 10798138}, "taperPanel": {"tint": 10798138}, "waistband": {"tint": 10798138}, "ceilingLoop": {"tint": 10798138}, "floorLoop": {"tint": 10798138}, "pillarWindow": {"tint": 10798138}, "pillarCabin": {"tint": 10798138}, "pillarPassenger": {"tint": 10798138}, "pillarTail": {"tint": 10798138}, "pillarFront": {"tint": 10798138}, "pillarTaper": {"tint": 10798138}, "cowlSkin": {"tint": 10798138}, "spinner": {"tint": 10798138}, "wingSkin": {"tint": 10798138}, "wingTip": {"tint": 10798138}, "wingAil": {"tint": 10798138}, "finSkin": {"tint": 10798138}, "finRud": {"tint": 10798138}, "stabSkin": {"tint": 10798138}, "stabElev": {"tint": 10798138}, "boomSkin": {"tint": 10798138}, "strut": {"tint": 15987694}, "pod": {"tint": 15987694}}, "decals": {"m1On": 1, "m1Pat": 2, "m1A": 15987694, "m1B": 15987694, "m1D": 10798138, "m1Mode": 1, "m1Tgt": 0, "m1L": -0.2, "m1C": -0.45, "m1W": 7.2, "m1H": 0.9, "m1P": 0.62, "m1Q": 0.04, "m1Rot": 0, "m2On": 1, "m2Pat": 1, "m2A": 1980954, "m2B": 1980954, "m2D": 10798138, "m2Mode": 1, "m2Tgt": 0, "m2L": 0.4, "m2C": -0.05, "m2W": 6.4, "m2H": 0.16, "m2P": 0.45, "m2Q": 0, "m2Rot": 0, "regH": 0.28, "regCol": 2829099, "regMode": 1, "regL": 4.2, "regC": 0.3, "regTarget": 0, "regFace": "barlow", "regB": 1, "regI": 1, "wregOn": 0, "spiralOn": 0, "m3On": 0, "m4On": 0, "m5On": 0, "t1On": 0, "t2On": 0, "t3On": 0, "t4On": 0, "t5On": 0, "t6On": 0}}, "cargo": {"len": 0, "kg": 0}, "energy": {"kind": "fuel", "fuel": "avgas100LL", "cell": "lifepo4", "kWh": 0, "vessel": null, "finish": null, "hue": 0, "tint": null, "vessels": [{"bay": "wingRoot", "capacity": 212, "along": 0.28, "lv": null, "rot": 0, "form": "box", "finish": null, "hue": null, "tint": null}]}, "outfit": {"seats": "sling"}, "cowl": {"fillet": 0.1, "taper": 0.94, "halfW": null, "top": null, "bot": null, "intake": "chin"}, "prop": {"D": 1.905, "blades": 2, "material": "alu", "pitch": "standard", "chord": 0.1, "root": 0.16, "spinner": {"shape": "ogive", "len": 2.2, "dia": 0.17}}, "tail": {"type": "conventional", "vAngle": 33, "Sh": 3.11198165656872, "Sv": 1.4579166647690527, "Svt": null, "hSpan": 3.4092135429382324, "hChord": 0.9128151162648078, "hX": 5.443862079137726, "hTaper": 0.733686780215239, "tip": "rounded", "tipV": null, "tipH": null, "vSweep": 0, "stabH": 0.04673885555395872, "dorsal": {"len": 0.34, "height": 0.16, "width": 0.55, "angle": null, "area": 0.11896522017949966}, "vHeight": 1.4041700990346622, "vChord": 1.0382763924195082, "vX": 5.821198721879883, "vTaper": 0.6733361264080304, "place": {"dx": 0}, "boomX": null, "boomLen": null, "boomR": null, "boomX0": null, "boomTaper": null, "boomOval": null, "boomIncl": 0, "boomDy": 0, "stabY": null}}, "ref": {"what": "drafting-ref", "v": 1, "identity": {"name": "Cessna 337D Super Skymaster", "maker": "Cessna Aircraft Company", "variant": "337D (1969), unpressurised, normal category", "engine": "2 x Teledyne Continental IO-360-C, 210 BHP at 2800 RPM, fuel injected; constant-speed full-feathering propellers, 76 in, front tractor + rear pusher on the centreline", "locked": null, "notes": ["Not the P337 (pressurised) nor the O-2 (military).", "The card is born from the C172 (the user, 13 Nov), not the Skymaster-alike recreation card."]}, "sources": {"poh": "Cessna 337D Owner's Manual, 1969 (the user's copy; facts extracted by A0 into futureDesigns/SKYMASTER-337D-FIGURES-2026-11-13.md, branch claude/design-refs)", "3view": "the manufacturer's 'Principal Dimensions' 3-view in the same manual"}, "figures": {"geometry.span": {"v": 11.58, "unit": "m", "src": "3view", "cond": "38 ft 0 in"}, "geometry.length": {"v": 9.093, "unit": "m", "src": "3view", "cond": "29 ft 10 in overall (the clean Principal Dimensions sheet; the PDF's scanned page reads 29 ft 9 in)"}, "geometry.height": {"v": 2.84, "unit": "m", "src": "3view", "cond": "9 ft 4 in max, on the ground"}, "geometry.boomSpacingTail": {"v": 3.058, "unit": "m", "src": "3view", "cond": "boom centrelines at the tail: 10 ft 0 3/8 in"}, "geometry.boomSpacingWing": {"v": 3.258, "unit": "m", "src": "3view", "cond": "boom centrelines at the wing: 10 ft 8 1/4 in"}, "geometry.propDia": {"v": 1.93, "unit": "m", "src": "3view", "cond": "76 in, front and rear"}, "geometry.track": {"v": 2.49, "unit": "m", "src": "3view", "cond": "main gear, 8 ft 2 in"}, "geometry.groundAttitude": {"v": 2, "unit": "deg", "src": "3view", "cond": "nose up, side view"}, "geometry.wingArea": {"v": 18.7, "unit": "m2", "src": "poh", "cond": "derived: 4400 lb / 21.9 lb/sq ft = 201 sq ft", "quality": "derived"}, "specs.mtow": {"v": 1996, "unit": "kg", "src": "poh", "cond": "4400 lb"}, "specs.empty": {"v": 1204, "unit": "kg", "src": "poh", "cond": "approx. 2655 lb"}, "specs.baggage": {"v": 166, "unit": "kg", "src": "poh", "cond": "365 lb"}, "specs.power": {"v": [210, 210], "unit": "bhp", "src": "poh", "cond": "2 x IO-360-C at 2800 RPM"}, "specs.fuel": {"v": [93, 131], "unit": "US gal total", "src": "poh", "cond": "two 46 gal wing mains + boom sump tanks; 131 with the optional auxiliaries; usable not stated"}, "specs.oil": {"v": 5, "unit": "US gal per engine (as printed)", "src": "poh", "quality": "thin"}, "specs.loadFactor": {"v": {"flapsUp": [3.8, -1.52], "flapsDown": 2}, "unit": "g", "src": "poh", "cond": "normal category"}, "specs.cg": {"v": "arms 134.3-142.8 in at 2800 lb, 137.1-142.6 in at 4400 lb (straight lines in moment / weight)", "src": "poh", "cond": "the Center of Gravity Moment Envelope, p 4-7, read off the chart (+-0.3 in)"}, "specs.flapTrim": {"v": "extending flaps rotates the elevator trim nose-down (mechanical interconnect)", "unit": "", "src": "poh"}, "perf.Vmax": {"v": 320, "unit": "km/h", "src": "poh", "kg": 1996, "cond": "199 mph, sea level"}, "perf.cruise": {"v": 307, "unit": "km/h", "src": "poh", "kg": 1996, "cond": "191 mph, 75 % power at 5500 ft"}, "perf.range": {"v": 1223, "unit": "km", "src": "poh", "cond": "760 mi, 92 gal, 75 %, no reserve; optimum 1345 mi at 144 mph, 10 000 ft"}, "perf.Vs0": {"v": 111, "unit": "km/h", "src": "poh", "kg": 1996, "flaps": "full", "cond": "69 mph, power off"}, "perf.Vs1": {"v": 127, "unit": "km/h", "src": "poh", "flaps": "up", "cond": "79 mph CAS: the green arc's bottom (no stated flaps-up stall)", "quality": "marking"}, "perf.roc": {"v": 6.1, "unit": "m/s", "src": "poh", "kg": 1996, "cond": "1200 fpm, sea level, both engines"}, "perf.rocFrontOnly": {"v": 1.52, "unit": "m/s", "src": "poh", "kg": 1996, "cond": "300 fpm, rear engine out (feathered)"}, "perf.rocRearOnly": {"v": 1.96, "unit": "m/s", "src": "poh", "kg": 1996, "cond": "385 fpm, front engine out (feathered)"}, "perf.ceiling": {"v": 5944, "unit": "m", "src": "poh", "cond": "19 500 ft both; front only 6800 ft (2073 m); rear only 8800 ft (2682 m)"}, "perf.TO": {"v": 273, "unit": "m", "src": "poh", "kg": 1996, "flaps": "1/3", "cond": "895 ft ground run"}, "perf.TO50": {"v": 471, "unit": "m", "src": "poh", "kg": 1996, "flaps": "1/3", "cond": "1545 ft over 50 ft"}, "perf.LDG": {"v": 213, "unit": "m", "src": "poh", "kg": 1996, "cond": "700 ft ground roll"}, "perf.LDG50": {"v": 503, "unit": "m", "src": "poh", "kg": 1996, "cond": "1650 ft over 50 ft"}, "perf.Vy": {"v": 182, "unit": "km/h", "src": "poh", "cond": "113 mph flaps up gear up (97 flaps 1/3 gear down; 84 full)"}, "perf.Vx": {"v": 132, "unit": "km/h", "src": "poh", "cond": "82 mph flaps up gear up (79 flaps 1/3; 73 full)"}, "perf.Vyse": {"v": 161, "unit": "km/h", "src": "poh", "cond": "100 mph IAS, best single-engine rate (blue line)"}, "perf.VNE": {"v": 362, "unit": "km/h", "src": "poh", "cond": "225 mph CAS"}, "perf.VNO": {"v": 306, "unit": "km/h", "src": "poh", "cond": "190 mph CAS"}, "perf.VFE": {"v": {"third": 257, "full": 193}, "unit": "km/h", "src": "poh", "cond": "160 mph to 1/3, 120 mph 1/3 to full"}, "perf.VLO": {"v": 225, "unit": "km/h", "src": "poh", "cond": "gear operating 140 mph"}, "perf.VLE": {"v": 249, "unit": "km/h", "src": "poh", "cond": "gear extended 155 mph"}, "specs.datum": {"v": "65 in ahead of the front firewall (the cargo pack diagram, p 4-8: the front firewall at fuselage station 65; \"the c.g. arm is the same as the station\")", "src": "poh"}, "specs.cargoPack": {"v": {"len": 92, "width": 36, "depth": 10.5, "stations": [68, 160], "maxLb": 300}, "unit": "in", "src": "poh", "cond": "Cargo Pack, p 4-8: nose at ~68, aft end ~160, deepest 10-10.5 in from 90 to 130"}}, "image": {"file": "c337_3view_clean.png", "sha256": "a4dcf151a3c8c4d23db67f1340ffb7bd0005c41894942a152527d95e46e87d04", "size": [1223, 1777], "how": "the user's clean copy of the manual's 'Principal Dimensions' page (13 Nov)", "local": "never committed: the sheet stays in the session dossier / the page's IndexedDB"}, "views": {"side": {"box": [0, 0, 1223, 372], "ox": 160, "oy": 202, "k": 100.1, "rot": 0, "flip": false, "scaleBy": "geometry.length (910 px, the spinner tip 160 to the fin top aft corner 1070 on the extension line = 9.093 m)", "note": "drawn level, the ground line tilted 2 deg; origin = the spinner tip; the extension lines sit 2 and 9 px outside the drawn ends"}, "top": {"box": [0, 375, 1223, 1372], "ox": 608, "oy": 1308, "k": 102.7, "rot": 270, "flip": false, "scaleBy": "geometry.span (1189 px tip to tip = 11.58 m)", "check": "boom spacing 335 px at the wing = 3.26 m (3.258), 313 px at the tail = 3.05 m (3.058); props 198 px = 1.93 m", "note": "nose DOWN the sheet (aft is up): turned 270; origin = the front spinner tip; ITS STATIONS RUN SHORT AFT of the side view's (wing LE 2.82 vs 3.00, wing TE 4.62 vs 4.95, rear spinner 5.95 vs 6.25: the sheet's own inconsistency) - stations are read on the side view (scaled by the stated length), widths on the top and front views"}, "front": {"box": [0, 1372, 1223, 1777], "ox": 607, "oy": 1497, "k": 102.05, "rot": 0, "flip": false, "scaleBy": "geometry.span (1182 px = 11.58 m)", "note": "upright; origin = the centreline at the spinner (to refine on the overlay)"}}, "marks": {"profile.0": {"view": "side", "pts": [[259.1, 172.3], [259.1, 263.4]]}, "profileW.0": {"view": "top", "pts": [[553.6, 1205.3]]}, "profile.1": {"view": "side", "pts": [[310.6, 164.3], [310.6, 264.4]]}, "profileW.1": {"view": "top", "pts": [[549.5, 1154]]}, "profile.2": {"view": "side", "pts": [[402.8, 127.7], [402.8, 266.4]]}, "profileW.2": {"view": "top", "pts": [[547.9, 1061.5]]}, "profile.3": {"view": "side", "pts": [[496.9, 122.7], [496.9, 267.4]]}, "profileW.3": {"view": "top", "pts": [[548.9, 974.2]]}, "profile.4": {"view": "side", "pts": [[559.3, 122.7], [559.3, 259.5]]}, "profileW.4": {"view": "top", "pts": [[551.5, 912.6]]}, "profile.5": {"view": "side", "pts": [[685.2, 125.7], [685.2, 208.9]]}, "profileW.5": {"view": "top", "pts": [[559.7, 794.5]]}, "profile.6": {"view": "side", "pts": [[729.8, 132.6], [729.8, 187.1]]}, "profileW.6": {"view": "top", "pts": [[577.2, 748.3]]}, "body.front": {"view": "side", "pts": [[211.5, 202]]}, "cowl.back": {"view": "side", "pts": [[310.6, 202]]}, "wing.le": {"view": "side", "pts": [[457.3, 114.8]]}, "wing.te": {"view": "side", "pts": [[650.5, 122.7]]}, "wheel": {"view": "side", "pts": [[536.5, 301.1]]}, "nosewheel": {"view": "side", "pts": [[283.9, 301.1]]}, "window.door1": {"view": "side", "pts": [[405.7, 142.5], [485, 184.2]]}, "window.cabin2": {"view": "side", "pts": [[504.8, 147.5], [556.4, 182.2]]}, "window.cabin3": {"view": "side", "pts": [[562.3, 149.5], [603.9, 182.2]]}, "door.aft": {"view": "side", "pts": [[643.6, 150.5], [683.2, 195.1]], "note": "a rounded rectangle with no glass hatching: the access / baggage door, not a window"}, "profile.7": {"view": "side", "pts": [[625.7, 123.7], [625.7, 248.6]]}, "profileW.7": {"view": "top", "pts": [[556.6, 851]]}, "profile.8": {"view": "side", "pts": [[338.4, 160.4], [338.4, 265.4]]}, "profileW.8": {"view": "top", "pts": [[548.4, 1125.2]]}, "fin.top": {"view": "side", "pts": [[1069.9, 21.8]]}, "fin.te": {"view": "side", "pts": [[1069.9, 21.8]]}, "fin.le.at": {"view": "side", "pts": [[956.8, 71.9]]}, "fin.te.at": {"view": "side", "pts": [[1035.9, 101.9]]}, "stab.top": {"view": "side", "pts": [[940.8, 123.9]]}, "wheel.bottom": {"view": "side", "pts": [[536.4, 311.1]]}, "nosewheel.bottom": {"view": "side", "pts": [[284.1, 322.1]], "note": "the ground line drawn 2 deg nose-up (rising aft) under a level airframe"}}, "lines": [], "architecture": {"candidates": ["c172"], "why": "the user, 13 Nov: start from the 172 (high wing, the Cessna cabin), not the Skymaster-alike card; the twin booms, the between-booms stab and push-pull come from the garage's own rows (booms twin, stMount 3, engMount 4)"}, "dossier": [{"file": "(inline in chat, 13 Nov)", "what": "Cessna 'Skymaster 72' brochure cover, N1799M in flight", "use": "the DEFAULT LIVERY: lime green over white, a dark cheat line on the pod"}, {"file": "vh-azw_ground_weathering.jpg", "what": "VH-AZW on the ground (aeropedia), white and ochre, the factory belly cargo pod", "use": "WEATHERING; the belly pod's shape; gear, rear-prop clearance, ground attitude"}, {"file": "c337_3view_clean.png", "what": "the manual's 'Principal Dimensions' 3-view, clean copy", "use": "the sheet"}, {"file": "c337d_1969_poh.pdf", "what": "the 1969 337D Owner's Manual (the whole PDF, 51 pages)", "use": "figures, CG envelope (4-7), loading graph (4-6), cargo pack (4-8), performance tables (6-x)"}], "gaps": ["ENGINE: the registry has the Lycoming IO-360-L2A 180 hp with a fixed-pitch prop; the IO-360-C is 210 hp at 2800 RPM - an engine row (as the PT6A-27 row)", "PROP: constant speed is a flag the thrust law does not read, and there is NO FEATHERING (a dead engine windmills): the single-engine climbs (front 300 / rear 385 fpm, feathered) cannot be matched honestly without it", "FLAP-TRIM INTERCONNECT: missing (the flaps' own pitching moment only)", "POD LENGTH on twin booms: the pod ends where pilotLen + paxLen*bays puts it; taperLen / aeroAftLen do not lengthen it (RETRACT-STUDY 1755-1800) - to check against the 3-view", "RETRACT: the skymaster fold exists but is marked \"to check on a reference\"; belly-well doors rough"], "history": [{"date": "2026-11-13", "who": "session FIT-PROCEDURE", "step": "references", "line": "figures from the 1969 owner's manual (A0's extract); no sheet yet; the dossier started"}, {"date": "2026-11-13T18:27", "who": "session", "step": "fit", "line": "the sheet's ground line: the nose wheel's bottom 1.20 below the thrust line, the mains' 1.09 (2 deg nose-up on the ground, the manual's 3-view) {\"s2Drop\":0.76,\"s1Drop\":0.25}"}], "datumLE": null, "cgEnvelope": [{"lb": 2800, "kg": 1270, "fwdIn": 134.3, "aftIn": 142.8, "fwdX": 3.265, "fwd": 17.2, "aftX": 3.481, "aft": 29.8}, {"lb": 4400, "kg": 1996, "fwdIn": 137.1, "aftIn": 142.6, "fwdX": 3.336, "fwd": 21.3, "aftX": 3.476, "aft": 29.5}], "pillars": {"note": "side view, metres aft of the spinner tip (read on a metric grid over the sheet, 13 Nov)", "firewall": 1.52, "windscreen.base": [1.8, 0.42], "windscreen.top": [2.45, 0.77], "door.front": 2.45, "B (strut post)": 3.38, "C": 4.03, "D (cabin aft bulkhead)": 4.63, "rear cowl front": 5.77, "rear spinner tip": [6.25, 0.5]}, "tailRead": {"note": "side view, k 100.1 (13 Nov)", "fin.le": [[7.52, 0.82], [8.4, 1.78]], "fin.te": [[9.09, 1.8], [8.53, 0.5]], "rudder.hinge": [[8.68, 1.66], [8.21, 0.5]], "ventral": [[7.47, 0.62], [8.1, 0.17], [8.65, 0.28]], "stab.side": [7.3, 8.3, 0.72, 0.78], "stab.top.view": "LE 7.39 TE 8.47 on the top view (its stations short), chord 1.08; span fin to fin ~3.0", "wing": "side LE 2.97 TE 4.90 (chord 1.93 at the root); the top view: constant chord pod to boom, tapered outboard to 1.17 x (1.93/1.80) = 1.25 at the tip"}, "datumX": -0.146, "datumNote": "the manual datum in the table frame (metres aft of the spinner tip): firewall 1.505 - 65 in", "mac": {"len": 1.716, "S": 19.52, "le": 2.97, "note": "from the planform read off the sheet (1.93 to the boom, 1.25 at the tip, LE straight); S checks the manual 18.7"}}, "history": [{"date": "2026-11-13", "why": "the user: start the stabs from the twin busher's (Twin_busher_floats_4b) - its st* / fin* rows copied", "rows": {"finCutGap": 0.012, "stSpan": 1, "stOver": 0.84, "finSweep": 6, "stBaseZ": 0, "finChordTip": 0.99, "finHeight": 0.8, "finVentralC": 1.6, "finSharpLE": 3, "stSharpShoulder": 3, "stTipY": -0.33, "stMount": 0, "finVentralShape": null, "finCut": 1, "stSweep": 0, "finChord": 0.78, "stShoulderZ": 0.5, "stHinge": 0.45, "stShoulderY": 0.3, "finTipZ": -0.2, "finUY": -0.025, "finVentralTip": 0.14, "finMidY": -0.2, "stChord": 1, "stLEZ": 0, "finDorsalTube": null, "stZ": -0.045, "finVentralH": 0.5, "stBaseY": 0, "stTipZ": -0.005, "stRootFwd": -0.205, "finHinge": 0.20742366048889416, "stChordTip": 1, "finShoulderZ": 0.305521, "finShoulderY": 0, "stY": 0.06}}]}
+{
+ "what": "flydiy-build",
+ "v": 8,
+ "name": "Cessna 337D Super Skymaster",
+ "spec": {
+  "cage": {
+   "planeScale": 0.745,
+   "paxCount": 2,
+   "paxLen": 0.785,
+   "pilotLen": 1.2,
+   "boomLen": 4.35,
+   "tailLen": 0.169815,
+   "cabPillarW": 0.095,
+   "paxPillarW": 0.085,
+   "pillarW": 0.1,
+   "halfW": 0.72,
+   "roofHalfW": 0.64,
+   "roofY": 1.14,
+   "keelY": -0.62,
+   "floorY": -0.54,
+   "ceilInset": 1,
+   "waistY": 0.125,
+   "bandH": 0.032,
+   "aftRoofY": 0.295,
+   "aftKeelY": -0.92,
+   "tailHalfW": 0.122,
+   "tailRoofY": 0.1,
+   "tailKeelY": -0.5,
+   "ringPullIn": 0.023043,
+   "wsRun": 0.87,
+   "wsTopOff": 0.081824,
+   "wsBaseBow": 0.35,
+   "wsCeilBow": 0.545,
+   "apilW": 0.92,
+   "apilPerp": 1,
+   "noseLen": 0.38,
+   "noseW": 1,
+   "pfW": 0.3,
+   "topRound": 0.17,
+   "topAngCeil": 41,
+   "topAngRoof": 78,
+   "topComp": 1.15,
+   "bubble": 1,
+   "skylight": 0,
+   "skyExt": 1,
+   "winSillPilot": 0,
+   "winSillPax": 0,
+   "paxWinN": 2,
+   "paxWinShape": 0,
+   "paxWinZ": 0.75,
+   "paxWinPitch": 0.75,
+   "paxWinY": 0.5,
+   "paxWinW": 0.52,
+   "paxWinH": 0.4,
+   "paxWinR": 0.08,
+   "paxWinDepth": 0.006,
+   "paxWinTopK": 1,
+   "paxWinSkew": 0,
+   "paxWinR1": -1,
+   "paxWinR2": -1,
+   "paxWinR3": -1,
+   "paxWinR4": -1,
+   "win2N": 0,
+   "win2Shape": 0,
+   "win2Z": -0.6,
+   "win2Pitch": 0.75,
+   "win2Y": 0.4,
+   "win2W": 0.4,
+   "win2H": 0.32,
+   "win2R": 0.06,
+   "win2Depth": 0.006,
+   "win2TopK": 1,
+   "win2Skew": 0,
+   "win2R1": -1,
+   "win2R2": -1,
+   "win2R3": -1,
+   "win2R4": -1,
+   "win3N": 0,
+   "win3Shape": 0,
+   "win3Z": 1.6,
+   "win3Pitch": 0.75,
+   "win3Y": 0.4,
+   "win3W": 0.4,
+   "win3H": 0.32,
+   "win3R": 0.06,
+   "win3Depth": 0.006,
+   "win3TopK": 1,
+   "win3Skew": 0,
+   "win3R1": -1,
+   "win3R2": -1,
+   "win3R3": -1,
+   "win3R4": -1,
+   "glazeMat": 0,
+   "crPillar": 3,
+   "crSill": 3,
+   "crBand": 0,
+   "crCeil": 0,
+   "crFrame": 3,
+   "crCap": 0,
+   "crFrontCap": 0.3,
+   "crNoseCap": 3,
+   "crKeel": 0,
+   "botRound": 0.16,
+   "noseCrown": 0.475,
+   "noseH": 1.1,
+   "noseDroop": 0,
+   "wsBaseLift": 0.01,
+   "cowlLoops": 0,
+   "cowlEase": 0.29,
+   "cowlBulge": 0.99,
+   "noseFinish": 0,
+   "aeroNose": 0,
+   "aeroWsLen": 0.9,
+   "aeroLen": 1.5,
+   "aeroDroop": 0.3,
+   "aeroTipW": 0.1,
+   "aeroTipH": 0.12,
+   "rearAperture": 0,
+   "boomMidOn": 0,
+   "boomMidT": 0.35,
+   "boomMidPinch": 0.6,
+   "taperOn": 1,
+   "taperLen": 0.99,
+   "taperPanels": 0,
+   "boomStyle": 0,
+   "rodY": 0,
+   "rodD": 0.12,
+   "rodIncl": 0,
+   "boomTwin": 1,
+   "boomX": 1.629,
+   "boomWf": 0.16,
+   "boomHf": 0.24,
+   "boomWa": 0.112,
+   "boomHa": 0.168,
+   "boomSquare": 0,
+   "boomIncl": 0,
+   "boomCollar": 0.5,
+   "boomDy": 0,
+   "boomDz": 0,
+   "boomNoseLen": 0.35,
+   "boomNoseK": 0.7,
+   "boomNoseCap": 2,
+   "boomTailLen": 0.45,
+   "boomTailK": 0.7,
+   "boomTailCap": 2,
+   "aeroAftOn": 0,
+   "aeroAftLen": 0.9,
+   "aeroAftDroop": 0,
+   "aeroAftTip": 0.5,
+   "aeroAftShape": 0,
+   "aeroAftEdge": 0.6,
+   "crestH": 0,
+   "crestAt": 0.55,
+   "crestLoops": 1,
+   "canopy": 0,
+   "bubH": 0.79,
+   "bubAt": 0.45,
+   "bubW": 1,
+   "canLoops": 1,
+   "bubH2": 0.7,
+   "bubAt2": 0.25,
+   "bubW2": 1,
+   "bubH3": 0.6,
+   "bubAt3": 0.7,
+   "bubW3": 1,
+   "arcFit": 1,
+   "noseTip": 0.25,
+   "aftNoseTip": -1,
+   "noseTipV": -1,
+   "aftNoseTipV": -1,
+   "cowlEaseBot": -1,
+   "aftCowlEaseBot": -1,
+   "noseJointOn": 1,
+   "crSillNose": -1,
+   "aftCrSillNose": -1,
+   "ringCowl1W": 0,
+   "ringCowl2W": -0.02,
+   "aftRingWinW": -1,
+   "aftRingScrW": -1,
+   "aftRingCowl1W": -1,
+   "aftRingCowl2W": -1,
+   "mirror": 0,
+   "aftPilotLen": -1,
+   "aftWsRun": -1,
+   "aftNoseLen": -1,
+   "aftNoseW": -1,
+   "aftNoseH": -1,
+   "aftDroop": -1,
+   "aftNoseCrown": -1,
+   "aftCowlEase": -1,
+   "aftCowlBulge": -1,
+   "aftWsBaseLift": -1,
+   "aftWsTopOff": -1,
+   "aftWsBaseBow": -1,
+   "aftWsCeilBow": -1,
+   "aftCowlLoops": -1,
+   "aftRingNoseTop": -1,
+   "aftRingNoseBot": -1,
+   "frNoseTopY": null,
+   "frNoseBotY": null,
+   "frNoseTopW": null,
+   "frNoseBotW": null,
+   "frNoseBotZ": 0,
+   "frWinTopY": null,
+   "frWinWaistY": null,
+   "frWinBotY": null,
+   "frWinTopW": null,
+   "frWinWaistW": null,
+   "frWinBotW": null,
+   "frWinBotZ": 0,
+   "frPostTopY": null,
+   "frPostWaistY": null,
+   "frPostTopW": null,
+   "frPostWaistW": null,
+   "frPostBotW": null,
+   "frPostTopZ": 0,
+   "frPostWaistZ": 0,
+   "frPostBotZ": 0,
+   "frCabTopY": null,
+   "frCabWaistY": null,
+   "frCabBotY": null,
+   "frCabTopW": null,
+   "frCabWaistW": null,
+   "frCabBotW": null,
+   "frCabTopZ": 0,
+   "frCabWaistZ": 0,
+   "frCabBotZ": 0,
+   "frPaxTopY": 1.16,
+   "frPaxWaistY": null,
+   "frPaxBotY": -0.4,
+   "frPaxTopW": null,
+   "frPaxWaistW": null,
+   "frPaxBotW": null,
+   "frPaxTopZ": 0,
+   "frPaxWaistZ": 0,
+   "frPaxBotZ": 0,
+   "frBoomWaistY": null,
+   "frBoomTopW": 0.5376,
+   "frBoomWaistW": 0.5628,
+   "frBoomBotW": 0.5628,
+   "frBoomTopZ": 0,
+   "frBoomWaistZ": 0,
+   "frBoomBotZ": 0,
+   "frTailWaistY": null,
+   "frTailTopW": null,
+   "frTailBotW": null,
+   "frTailTopZ": 0,
+   "frTailWaistZ": 0,
+   "frTailBotZ": 0,
+   "frPaxProfile": 0,
+   "frPaxEase": 0,
+   "frPaxBias": 1,
+   "frPaxBulgeH": 0,
+   "frPaxBulgeW": 0,
+   "frPaxLoops": 0,
+   "winFrameW": 0,
+   "winDepth": 0.015,
+   "winBlow": 0,
+   "crGlass": 3,
+   "rimW": 0.012,
+   "rimWin": 1,
+   "rimWs": 1,
+   "rimDoor": 0,
+   "rimSides": 8,
+   "rimArc": 3,
+   "rimRise": 0.22,
+   "paneInset": 0.0025,
+   "rimRivet": 0.04,
+   "memFast": 1,
+   "memPitch": 0.03,
+   "memDia": 0.0025,
+   "memRise": 0.0004,
+   "paneThick": 0.004,
+   "doorOn": 1,
+   "doorPax": 0,
+   "doorDeep": 1,
+   "doorSill": 0.146,
+   "doorSillPax": 0.088,
+   "doorDepth": 0.004,
+   "doorRim": 0.02,
+   "bulkZ": 0,
+   "doorGone": 0,
+   "skinOn": 1,
+   "glazeOn": 1,
+   "intOn": 1,
+   "intBulk": 1,
+   "intFire": 1,
+   "intPillars": 1,
+   "shellT": 0.035,
+   "fireSealW": 0.018,
+   "skinT": 0.015,
+   "intCons": 3,
+   "intDash": 1,
+   "dashBack": 0.115,
+   "dashLip": 0.035,
+   "dashDepth": 0.35,
+   "dashCrease": 3,
+   "dashCrown": 0.03,
+   "dashStyle": 1,
+   "dashLegs": 1,
+   "dashV": 1,
+   "shoulderOn": 1,
+   "shoulderW": 0.07,
+   "shoulderH": 0.135,
+   "shoulderT": 0.003,
+   "shoulderLip": 0.027,
+   "shoulderRun": 0,
+   "doorPanelOn": 1,
+   "doorPanelT": 0.008,
+   "doorPanelGap": 0.008,
+   "doorPanelMargin": 0.04,
+   "doorPanelPocket": 1,
+   "cutParts": 1,
+   "stOn": 1,
+   "stCut": 1,
+   "stCutGap": 0.012,
+   "stSolid": 1,
+   "stThick": 0.05,
+   "stThickTE": 0.012,
+   "stX": 0,
+   "stY": 0.06,
+   "stZ": -0.045,
+   "stCons": 0,
+   "stOver": 0,
+   "stMount": 3,
+   "stCant": 0,
+   "stInc": 0,
+   "stRootGuard": 1,
+   "stTipZ": -0.005,
+   "stTipY": -0.33,
+   "stAftZ": 0,
+   "stAftY": -0.3,
+   "stBaseZ": 0,
+   "stBaseY": 0,
+   "stMidY": -0.2,
+   "stUY": 0,
+   "stRootFwd": -0.205,
+   "stLEZ": 0,
+   "stLEY": 0,
+   "stShoulderZ": 0.5,
+   "stShoulderY": 0.3,
+   "stTopY": 0,
+   "stTERoot": 0,
+   "stTEU": 0,
+   "stTEMid": 0,
+   "stSharpTip": 3,
+   "stSharpAft": 3,
+   "stSharpBase": 3,
+   "stSharpShoulder": 3,
+   "stSharpLE": 3,
+   "stSpan": 1,
+   "stChord": 1,
+   "stChordTip": 1,
+   "stSweep": 0,
+   "stHinge": 0.45,
+   "finOn": 1,
+   "finProject": 1,
+   "finCut": 1,
+   "finVentralOn": 1,
+   "finVentralH": 0.5,
+   "finVentralC": 1.6,
+   "finVentralZ": 0.08,
+   "finVentralTip": 0.14,
+   "finCutGap": 0.012,
+   "finSolid": 1,
+   "finThick": 0.06,
+   "finThickTE": 0.015,
+   "tailRimN": 4,
+   "finFillet": 0.035,
+   "finCons": 0,
+   "finDorsal": 1,
+   "finRootGuard": 1,
+   "finKeel": 1,
+   "finCrA": 0,
+   "finCrB": 0,
+   "finTipZ": -0.325,
+   "finTipY": -0.3,
+   "finAftZ": 0,
+   "finAftY": -0.3,
+   "finBaseZ": 0,
+   "finBaseY": 0,
+   "finMidY": -0.2,
+   "finUY": -0.025,
+   "finRootFwd": 0,
+   "finLEZ": -0.1,
+   "finLEY": 0,
+   "finShoulderZ": 0.305521,
+   "finShoulderY": 0,
+   "finTopY": 0,
+   "finTERoot": 0,
+   "finTEU": 0,
+   "finTEMid": 0,
+   "finSharpTip": 3,
+   "finSharpAft": 3,
+   "finSharpBase": 3,
+   "finSharpShoulder": 0,
+   "finSharpLE": 3,
+   "finHeight": 0.8,
+   "finChord": 0.96,
+   "finChordTip": 1.12,
+   "finSweep": 6,
+   "finHinge": 0.20742366048889416,
+   "mass": 620,
+   "cgZ": 1.17,
+   "cgY": 0.05,
+   "propR": 0.875,
+   "propZ": 2.96,
+   "s1On": 1,
+   "s1Z": 0.613,
+   "s1X": 1.255,
+   "s1Leg": 0,
+   "s1R": 0.185,
+   "s1Drop": 0.25,
+   "s1Brake": 1,
+   "s1Steer": 0,
+   "s1Fair": 1,
+   "s1FairSkirt": 0,
+   "s1FairTail": 1,
+   "s1FairRake": 0,
+   "s1FairW": 1,
+   "s1LegFair": 1,
+   "s2On": 1,
+   "s2Z": 2.945,
+   "s2X": 0,
+   "s2Leg": 2,
+   "s2R": 0.14,
+   "s2Drop": 0.62,
+   "s2Brake": 0,
+   "s2Steer": 1,
+   "s2Fair": 1,
+   "s2FairSkirt": 0,
+   "s2FairTail": 1,
+   "s2FairRake": 0,
+   "s2FairW": 1,
+   "s2LegFair": 1,
+   "s1AxZ": 0,
+   "s2AxZ": 0.24,
+   "fairCons": 0,
+   "whProfile": 0,
+   "whTread": 0,
+   "whRibs": 3,
+   "whRim": 0,
+   "whBolts": 6,
+   "whCap": 1,
+   "whValve": 1,
+   "whBrake": 0,
+   "whSlick": 0,
+   "whBulge": 1,
+   "beamAng": 62,
+   "beamW": 0.075,
+   "beamT": 0.02,
+   "beamTaper": 0.72,
+   "beamBow": 1.06,
+   "beamRake": 0.1,
+   "linkAng": 58,
+   "linkArmW": 0.042,
+   "linkSwing": -42,
+   "linkVee": 1,
+   "linkSpread": 0.46,
+   "linkX": 0,
+   "linkPanel": 1,
+   "linkPanelT": 0.004,
+   "shockKind": 1,
+   "shockAt": 0.72,
+   "shockZ": 0.34,
+   "shockAng": 30,
+   "bungeeSpan": 0.26,
+   "oleoAng": 40,
+   "oleoDia": 0.058,
+   "oleoCyl": 0.55,
+   "oleoScissor": 0.052,
+   "oleoBrace": 1,
+   "oleoBraceZ": 0.42,
+   "twR": 0.1,
+   "twSpringLen": 0.52,
+   "twSpringDrop": 0.3,
+   "twSpringW": 0.052,
+   "twSpringT": 0.009,
+   "twLeaves": 3,
+   "twRake": 18,
+   "twTrail": 0.052,
+   "twLegDrop": 0.1,
+   "twSteer": 0,
+   "twSteerVis": 1,
+   "s1_beamAng": 38,
+   "s1_beamW": 0.075,
+   "s1_beamT": 0.02,
+   "s1_beamTaper": 0.72,
+   "s1_beamBow": 0.6,
+   "s1_beamRake": 0.1,
+   "s1_linkAng": 25,
+   "s1_linkSwing": 17,
+   "s1_linkArmW": 0.042,
+   "s1_linkVee": 1,
+   "s1_linkSpread": 0.49,
+   "s1_linkX": 1,
+   "s1_linkPanel": 0,
+   "s1_shockKind": 0,
+   "s1_shockAt": 0.72,
+   "s1_shockZ": 0.17,
+   "s1_shockAng": 30,
+   "s1_bungeeSpan": 0.26,
+   "s1_oleoAng": 40,
+   "s1_oleoDia": 0.058,
+   "s1_oleoCyl": 0.55,
+   "s1_oleoScissor": 0.052,
+   "s1_oleoBrace": 1,
+   "s1_oleoBraceZ": 0.42,
+   "s1_twSpringLen": 0.55,
+   "s1_twSpringDrop": 0.3,
+   "s1_twSpringW": 0.052,
+   "s1_twSpringT": 0.009,
+   "s1_twLeaves": 3,
+   "s1_twRake": 18,
+   "s1_twTrail": 0.052,
+   "s1_twLegDrop": 0.1,
+   "s1_twSteer": 0,
+   "s1_twSteerVis": 1,
+   "s2_beamAng": 62,
+   "s2_beamW": 0.075,
+   "s2_beamT": 0.02,
+   "s2_beamTaper": 0.72,
+   "s2_beamBow": 1.06,
+   "s2_beamRake": 0.1,
+   "s2_linkAng": 58,
+   "s2_linkSwing": -42,
+   "s2_linkArmW": 0.042,
+   "s2_linkVee": 1,
+   "s2_linkSpread": 0.46,
+   "s2_linkX": 0,
+   "s2_linkPanel": 1,
+   "s2_shockKind": 1,
+   "s2_shockAt": 0.72,
+   "s2_shockZ": 0.34,
+   "s2_shockAng": 30,
+   "s2_bungeeSpan": 0.26,
+   "s2_oleoAng": 32,
+   "s2_oleoDia": 0.058,
+   "s2_oleoCyl": 0.55,
+   "s2_oleoScissor": 0.056,
+   "s2_oleoBrace": 1,
+   "s2_oleoBraceZ": 0.14,
+   "s2_twSpringLen": 0.32,
+   "s2_twSpringDrop": 0.09,
+   "s2_twSpringW": 0.072,
+   "s2_twSpringT": 0.008,
+   "s2_twLeaves": 1,
+   "s2_twRake": 0,
+   "s2_twTrail": 0.048,
+   "s2_twLegDrop": 0.09,
+   "s2_twSteer": 0,
+   "s2_twSteerVis": 1,
+   "gearOn": 1,
+   "gearSit": 1,
+   "gearFloats": 0,
+   "gearRetract": 1,
+   "gearRetT": 6,
+   "gearRetAct": 1,
+   "gearFold": 0,
+   "gearFoldNose": 0,
+   "gearRetFrac": 1,
+   "gearWellCut": 0,
+   "gearDoors": 2,
+   "gearLegDoor": 1,
+   "gearNacFit": 1,
+   "gearNacPod": 0,
+   "gearShort": 0,
+   "gearShortNose": 0,
+   "gearKneeDoor": 0,
+   "gm1Ax": 0,
+   "gm1Ang": 90,
+   "gm2Ax": 1,
+   "gm2Ang": 0,
+   "gmTwist": 0,
+   "gn1Ax": 1,
+   "gn1Ang": 90,
+   "gn2Ax": 0,
+   "gn2Ang": 0,
+   "gnTwist": 0,
+   "bpCabane": 0,
+   "bpStrutZ": 0,
+   "bpStrutX": 0,
+   "bpInter": 0,
+   "bpInterAt": 0.62,
+   "bpInterZ": 0,
+   "bpWires": 1,
+   "bpWireD": 5,
+   "bpStrutK": 1,
+   "bpCabDraw": 1,
+   "bpCabPylon": 0,
+   "wingOn": 1,
+   "wgSpan": 11.58,
+   "wgChord": 1.93,
+   "wgChordTip": 1.25,
+   "wgTipX": 0.15,
+   "wgCrankChord": 1.93,
+   "wgCrankX": 0,
+   "wgPlan": 0,
+   "wgPlanAxis": 0.3,
+   "radMode": 0,
+   "radX": 0.75,
+   "radAt": 0.35,
+   "radLen": 1.3,
+   "radW": 0.42,
+   "radH": 0.24,
+   "radFlap": 8,
+   "radOilK": 0.55,
+   "wgDihedral": 1.7,
+   "wgIncidence": 1.5,
+   "wgWashout": 3,
+   "wgCamber": 2,
+   "wgThick": 14,
+   "wgTip": 0,
+   "wgPos": 0,
+   "wgCentre": 2,
+   "wgCentreW": 1.05,
+   "wgBrace": 0,
+   "wgCrankAt": 0.28,
+   "wgDihedralOut": 1.7,
+   "wgStruts": 1,
+   "wgBeam": 1,
+   "wgPanels": 3,
+   "wgDx": -0.81,
+   "wgDy": -0.1,
+   "wgParaH": 0.45,
+   "wgStrutZ": 0.2,
+   "wgStrutX": -0.06,
+   "wgFlapType": 2,
+   "wgFlapSpan": 0.55,
+   "wgFlapChord": 0.2,
+   "wgAilOn": 1,
+   "wgAilSpan": 0.35,
+   "wgAilChord": 0.22,
+   "wgCons": 0,
+   "wgSlat": 0,
+   "wgSlatSpan": 1,
+   "wgVG": 0,
+   "wgFence": 0,
+   "wgCuff": 0,
+   "wgCuffSpan": 0.4,
+   "wgDroop": 0,
+   "wgFowlerGrow": 0,
+   "w2On": 0,
+   "w2Pos": 2,
+   "w2ParaH": 0.45,
+   "w2Stagger": 0.35,
+   "w2Dy": 0,
+   "w2Span": 10,
+   "w2Chord": 1.6,
+   "w2ChordTip": 1.6,
+   "w2TipX": 0,
+   "w2Plan": 0,
+   "w2PlanAxis": 0.3,
+   "w2CrankAt": 0,
+   "w2CrankChord": 1.6,
+   "w2CrankX": 0,
+   "w2DihedralOut": 6,
+   "w2Dihedral": 3,
+   "w2Incidence": 1.5,
+   "w2Washout": 1.5,
+   "w2Camber": 2,
+   "w2Thick": 12,
+   "w2Tip": 2,
+   "w2Centre": 0,
+   "w2Panels": 3,
+   "w2Cons": 0,
+   "w2FlapType": 0,
+   "w2FlapSpan": 0.5,
+   "w2FlapChord": 0.2,
+   "w2AilOn": 1,
+   "w2AilSpan": 0.38,
+   "w2AilChord": 0.22,
+   "engOn": 1,
+   "engPreset": 41,
+   "engPower": 0,
+   "engDetail": 0.8,
+   "eng_screws": 1,
+   "engY": 0,
+   "propOn": 1,
+   "engMount": 4,
+   "engNacAt": 0.35,
+   "engNacAt2": 0.62,
+   "engPylonH": 0.3,
+   "engPylonFair": 0,
+   "engPylonForm": 0,
+   "engPylonAt": 0,
+   "engPylonAft": 0.15,
+   "engPylonFwd": 0,
+   "engFinAt": 0.55,
+   "engFinFwd": 0,
+   "engNacOver": 0,
+   "engNacLift": 0,
+   "engBlockZ": 0,
+   "engBlockY": 0,
+   "engAim": 0,
+   "engTilt": 0,
+   "engRotate": 0,
+   "eng_tStyle": 0,
+   "eng_tCanD": 0.4,
+   "eng_tCanL": 1.05,
+   "eng_gearK": 1.2,
+   "eng_flatK": 1.26,
+   "eng_tRpm": 1900,
+   "eng_stackStyle": 0,
+   "eng_eStyle": 0,
+   "eng_canD": 0.0278,
+   "eng_canL": 0.026,
+   "eng_rpm": 2800,
+   "eng_volts": 11.1,
+   "eng_eFins": 0,
+   "eng_escOn": 1,
+   "eng_leads": 1,
+   "eng_plumb": 1,
+   "eng_liquid": 0,
+   "eng_geared": 0,
+   "eng_arch": 0,
+   "eng_cyl": 2,
+   "eng_radialRows": 1,
+   "eng_inlineAim": 1,
+   "eng_vee": 60,
+   "eng_bore": 0.13017499999999999,
+   "eng_stroke": 0.111125,
+   "eng_stagger": 0.5,
+   "eng_twoStroke": 0,
+   "eng_blower": 0,
+   "eng_boost": 1,
+   "eng_critAlt": 0,
+   "eng_finN": 14,
+   "eng_finR": 1.34,
+   "eng_headFins": 8,
+   "eng_rockerW": 0.95,
+   "eng_rockerH": 0.66,
+   "eng_rockerR": 0.24,
+   "eng_rockerBoss": 0.05,
+   "eng_rockerBossW": 0.52,
+   "eng_rodPos": 1,
+   "eng_finShape": 0,
+   "eng_rockerSpan": 0,
+   "eng_baseFins": 1,
+   "eng_injected": 1,
+   "eng_airStyle": 0,
+   "eng_airbox": 1,
+   "eng_intake": 1,
+   "eng_exStyle": 2,
+   "eng_exDrop": 1.5,
+   "eng_exPair": 0,
+   "eng_exOut": 0,
+   "eng_exAim": 0,
+   "eng_exOutX": 0,
+   "eng_exOutY": 0,
+   "eng_exOutZ": 0,
+   "eng_leadR": 0.034,
+   "eng_mags": 1,
+   "eng_genOn": 1,
+   "eng_oilFill": 1,
+   "eng_radX": 0,
+   "eng_radY": 0.55,
+   "eng_radZ": 0.55,
+   "eng_radW": 2,
+   "eng_radH": 0.75,
+   "eng_radD": 0.42,
+   "eng_starter": 1,
+   "eng_oilFilter": 1,
+   "eng_battOn": 1,
+   "eng_ecuOn": 0,
+   "eng_fuelX": 0,
+   "eng_fuelY": 0,
+   "eng_thrX": 0,
+   "eng_thrY": 0,
+   "eng_mount": 1,
+   "eng_mountX": 1,
+   "eng_mountGap": 1.76,
+   "eng_mountR": 1.88,
+   "eng_fwSpread": 2.4,
+   "spinMat": 0,
+   "cowlOn": 1,
+   "fitNose": 0,
+   "cowlGap": 0,
+   "cw_fwLipOn": 1,
+   "cw_fwLipR": 0.004,
+   "cw_fwLipRise": 0,
+   "cw_fwLipIn": 0.025,
+   "cw_cowlLen": 0.9,
+   "cw_aftW": 0.5706504994905939,
+   "cw_aftH": 0.445,
+   "cw_taperW": 0.76,
+   "cw_taperH": 0.69,
+   "cw_lidRise": 0.22,
+   "cw_lidLen": 0.095,
+   "cw_lidShoulder": 0.13,
+   "cw_lidRound": 0.06,
+   "cw_faceRise": -0.026,
+   "cw_deckSweep": 0.95,
+   "cw_keelSweep": 0.3,
+   "cw_waistSweep": 0.95,
+   "cw_lidMode": 1,
+   "cw_lidR": 0.17,
+   "cw_lidGap": 0.013,
+   "cw_deckH": 1.09,
+   "cw_keelH": 1.13,
+   "cw_waist": 0.54,
+   "cw_sqAftTop": 0.42,
+   "cw_sqAftBot": 0.57,
+   "cw_sqFrontTop": 0.71,
+   "cw_sqFrontBot": 0.69,
+   "cw_lidSqTop": 0.74,
+   "cw_lidSqBot": 0.28,
+   "cw_detail": 1,
+   "cw_lobeN": 2,
+   "cw_lobeAmp": 0.024,
+   "cw_lobeT": 0.56,
+   "cw_lobeAz": 0,
+   "cw_lobeSig": 34,
+   "cw_lobeTSig": 0.31,
+   "cw_cutSpan": 0,
+   "cw_cutAz": 270,
+   "cw_apMode": 1,
+   "cw_apW": 0.35,
+   "cw_apH": 0.12,
+   "cw_apSq": 0.48,
+   "cw_apOffX": 0,
+   "cw_apOffY": 0,
+   "cw_pairX": 0.2,
+   "cw_pairW": 0.08,
+   "cw_pairH": 0.048,
+   "cw_pairY": 0.012,
+   "cw_pairSq": 0.625,
+   "cw_lipMode": 0,
+   "cw_lipThick": 0.009,
+   "cw_lipDepth": 0.055,
+   "cw_lipRound": 0.55,
+   "cw_lipProtrude": 0.5,
+   "cw_lipInset": 0.028,
+   "cw_ductLen": 0.12,
+   "cw_ductFlare": 0,
+   "cw_scoopOn": 1,
+   "cw_scoopZ": 0,
+   "cw_scoopLen": 0.22,
+   "cw_scoopW": 0.065,
+   "cw_scoopH": 0.055,
+   "cw_scoopSq": 0.5,
+   "cw_scoopDrop": 0.7,
+   "cw_scoopRake": 0.18,
+   "cw_scoopAp": 0.68,
+   "cw_scoopLipH": 0.011,
+   "cw_scoopLipDepth": 0.032,
+   "cw_scoopDuct": 0.125,
+   "cw_seamOn": 1,
+   "cw_seamType": 1,
+   "cw_seamPos": 0.745,
+   "cw_seamWidth": 0.005,
+   "cw_seamDepth": 0.0024,
+   "cw_partOn": 1,
+   "cw_partY": 0,
+   "cw_partW": 0.0022,
+   "cw_fastOn": 1,
+   "cw_fastPitch": 0.11,
+   "cw_fastD": 0.016,
+   "cw_oilOn": 1,
+   "cw_oilZ": 0.42,
+   "cw_oilW": 0.13,
+   "cw_oilL": 0.16,
+   "cw_oilSq": 1,
+   "cw_noseOff": 0.31,
+   "cw_spinR": 0.101,
+   "cw_spinLen": 0.44,
+   "cw_spinRound": 1,
+   "cw_bladeStation": 0.42,
+   "cw_shaftR": 0.045,
+   "cw_shaftLen": 0.3,
+   "cw_bladeN": 2,
+   "cw_propD": 1.93,
+   "cw_material": 2,
+   "cw_rpm": 2800,
+   "cw_tas": 205,
+   "cw_power": 210,
+   "cw_rootChord": 0.165,
+   "cw_tipChord": 0.105,
+   "cw_chordBulge": 0.04,
+   "cw_sweep": 0,
+   "cw_thickRoot": 0.2,
+   "cw_thickTip": 0.09,
+   "cw_camb": 0.044,
+   "cw_tipRound": 0.1,
+   "cw_cuff": 0.22,
+   "cw_shankR": 0.045,
+   "cw_slip": 12,
+   "cw_aftMode": 0,
+   "cw_tailLen": 1.5,
+   "cw_tailDrop": 0.02,
+   "crewOn": 1,
+   "seatLayout": 1,
+   "seatTilt": 3,
+   "seatBelt": 0,
+   "seatType": 0,
+   "seatZ": 0.205,
+   "seatH": 0.15,
+   "seatRake": 13,
+   "seatGap": 0.18,
+   "seat2H": -1,
+   "seat2Rake": -1,
+   "seat2Tilt": -1,
+   "ctlStick": 1,
+   "ctlThr": 1,
+   "ctlPed": 1,
+   "consoleOn": 0,
+   "stickX": 0,
+   "stickY": 0,
+   "stickZ": 0,
+   "yokeGap": 0.16,
+   "floorOn": 1,
+   "floorLift": 0,
+   "trimX": 0,
+   "trimY": 0,
+   "trimZ": 0,
+   "parkX": 0,
+   "parkY": 0,
+   "parkZ": 0,
+   "fselX": 0,
+   "fselY": 0,
+   "fselZ": 0,
+   "flapCtl": 1,
+   "stickLen": 0.44,
+   "stickCrank": 0,
+   "thrX": 0,
+   "thrY": 0,
+   "thrZ": 0,
+   "thrLen": 0.16,
+   "pedalZ": 0.9,
+   "pedalH": 0.18,
+   "pedalSpread": 0.1,
+   "pedalAngle": 25,
+   "pilOn": 1,
+   "pilElbows": 0.08,
+   "pilKnees": 0,
+   "pilRecline": 0,
+   "cabWho": 4,
+   "pilFist": 0.5,
+   "pilIdle": 1,
+   "swMaster": 0,
+   "swAlt": 0,
+   "swAvionics": 0,
+   "paxFeetOn": 1,
+   "paxFeetZ": 0.55,
+   "paxFeetY": 0,
+   "paxFeetX": 0.14,
+   "paxIdle": 1,
+   "pilHandGrip": 0.075,
+   "pilStickFwd": 0,
+   "pilHandsApart": 0,
+   "pilFistL": 0.5,
+   "pilFistR": 0.5,
+   "pilGripL": 0.075,
+   "pilGripR": 0.075,
+   "cabOcc": 1,
+   "paxOcc1": 0,
+   "paxOcc2": 0,
+   "paxOcc3": 0,
+   "paxOcc4": 0,
+   "paxAbreast": 0,
+   "flapX": 0,
+   "flapZ": 0,
+   "paxSeatZ": 0,
+   "paxRecline": 0,
+   "fltPreset": 1,
+   "fltDetail": 1,
+   "fltPaddle": 1,
+   "fltRudder": 1,
+   "fltL": 6.95,
+   "fltStep": 0.53,
+   "fltB": 0.68,
+   "fltH": 0.5,
+   "fltBeta": 29,
+   "fltBetaBow": 48,
+   "fltBetaA": 12.5,
+   "fltHs": 0.115,
+   "fltAft": 8.5,
+   "fltAftCurve": 0.08,
+   "fltFlat": 0.59,
+   "fltStem": 0.34,
+   "fltRake": 12,
+   "fltNoseR": 0.17,
+   "fltPlan": 2.7,
+   "fltStern": 0.73,
+   "fltFlare": 4,
+   "fltMass": 27,
+   "fltZ": -0.22,
+   "fltDrop": 1.08,
+   "fltInc": -0.5,
+   "fltTrack": 0.8,
+   "fltStrutR": 0.018,
+   "fltWires": 1,
+   "fltStrutAng": 55,
+   "fltFrontRing": 0,
+   "fltSpread": 1,
+   "fltSpreadAft": 0.36,
+   "fltStyle": 0,
+   "fltBoard": 0,
+   "fltKit": 0,
+   "fltKitPrevD": 0,
+   "fltKitPrevN": 0,
+   "fltKitPrevMat": 0,
+   "fltKitPrevPitch": -1,
+   "hgOn": 1,
+   "hgFamily": 0,
+   "hgCount": 0,
+   "hgOut": 0.06,
+   "hgHorn": 1,
+   "hgHornAt": 0,
+   "hgHornLen": 0.085,
+   "hgSize": 1,
+   "hgFair": 0,
+   "hgLink": 1,
+   "hgDetail": 1,
+   "hgDoor": 1,
+   "hgDoorEdge": 0,
+   "lightOn": 1,
+   "lightSw": 1,
+   "li_bayFrac": 0.24,
+   "li_bayHalf": 0.17,
+   "li_bayChord": 0.13,
+   "li_bayDepth": 0.06,
+   "li_lampSize": 1,
+   "li_beaconRpm": 45,
+   "li_podLen": 1,
+   "li_podGirth": 1,
+   "li_beaconSink": 0.04,
+   "li_navSpan": 0,
+   "li_navChord": 0,
+   "li_navRise": 0,
+   "li_plane": 0,
+   "li_reflect": 1,
+   "li_taxi": 0,
+   "li_beacon": 0,
+   "li_land": 0,
+   "li_nav": 0,
+   "li_flood": 0,
+   "li_instr": 0,
+   "li_pedal": 0,
+   "li_pax": 0,
+   "accOn": 1,
+   "accFluids": 1,
+   "accAccess": 1,
+   "accInstr": 1,
+   "accAerials": 1,
+   "accHandling": 1,
+   "accDetail": 1,
+   "fpLegacy": {
+    "pilotWho": 2
+   },
+   "fltBow": 0.43,
+   "fltBowB": 0.39,
+   "fltSide": 0.5,
+   "acc_fuelCap_sL": 0,
+   "acc_fuelCap_lv": 0,
+   "acc_fuelCapWing_sL": 0,
+   "acc_fuelCapWing_lv": 0,
+   "acc_fuelDrain_sL": 0,
+   "acc_fuelDrain_lv": 0,
+   "acc_oilDoor_sL": 0,
+   "acc_oilDoor_lv": 0,
+   "acc_staticDrain_sL": 0,
+   "acc_staticDrain_lv": 0,
+   "acc_inspTail_sL": 0,
+   "acc_inspTail_lv": 0,
+   "acc_inspBelly_sL": 0,
+   "acc_inspBelly_lv": 0,
+   "acc_inspAileron_sL": 0,
+   "acc_inspAileron_lv": 0,
+   "acc_fuelCapWing2_sL": 0,
+   "acc_fuelCapWing2_lv": 0,
+   "acc_inspAileron2_sL": 0,
+   "acc_inspAileron2_lv": 0,
+   "acc_baggageDoor_sL": 0,
+   "acc_baggageDoor_lv": 0,
+   "acc_staticPort_sL": 0,
+   "acc_staticPort_lv": 0,
+   "acc_venturi_sL": 0,
+   "acc_venturi_lv": 0,
+   "acc_oatProbe_sL": 0,
+   "acc_oatProbe_lv": 0,
+   "acc_commAerial_sL": 0,
+   "acc_commAerial_lv": 0,
+   "acc_navAerial_sL": 0,
+   "acc_navAerial_lv": 0,
+   "acc_xpdrAerial_sL": 0,
+   "acc_xpdrAerial_lv": 0,
+   "acc_beacon_sL": 0,
+   "acc_beacon_lv": 0,
+   "acc_step_sL": 0,
+   "acc_step_lv": 0,
+   "acc_doorHandle_sL": 0,
+   "acc_doorHandle_lv": 0,
+   "acc_grabHandle_sL": 0,
+   "acc_grabHandle_lv": 0,
+   "acc_tieDownTail_sL": 0,
+   "acc_tieDownTail_lv": 0,
+   "cw_stubDeckH": 1.27,
+   "cw_stubWaist": -0.07,
+   "cw_stubKeelH": 0.83,
+   "cw_stubSqTop": 0.53,
+   "cw_stubSqBot": 0.35,
+   "eng_bmepK": 1.158,
+   "eng_cs": 1,
+   "paxLen2": 0.772,
+   "cw_scoopTop": 1,
+   "cw_scoopAft": 1,
+   "finZ": 0.325
+  },
+  "wings": [
+   {
+    "span": 11,
+    "chord": 1.63,
+    "taper": 0.687116564417178,
+    "sweep": null,
+    "dihedral": 1.7,
+    "position": "high",
+    "tip": "square",
+    "incidence": 1.5,
+    "washout": 3,
+    "naca": 2414,
+    "panels": 3,
+    "crankAt": 0.45,
+    "dihedralOut": 1.7,
+    "crankChord": 1.63,
+    "crankX": 0,
+    "tipX": 0.15,
+    "cuts": [
+     1.15,
+     1.49
+    ],
+    "centre": "open",
+    "cabaneH": null,
+    "xLE": 0.15444999999999984,
+    "place": {
+     "dx": 0,
+     "dy": 0
+    },
+    "centreW": 1.05,
+    "yRoot": 1.4203374513171196
+   }
+  ],
+  "bracing": {
+   "type": "strut",
+   "struts": 1,
+   "interplane": "none",
+   "interplaneAt": 0.62,
+   "wires": "both",
+   "cabane": "N"
+  },
+  "controls": {
+   "flap": {
+    "type": "slotted",
+    "span": 0.55,
+    "chord": 0.2
+   },
+   "aileron": {
+    "span": 0.35,
+    "chord": 0.22
+   },
+   "elevator": {
+    "chord": 0.43955146126067945
+   },
+   "rudder": {
+    "chord": 0.5546841611226784
+   }
+  },
+  "engines": [
+   {
+    "type": "a65_sensenich74",
+    "mount": "nose",
+    "place": {
+     "dx": 0,
+     "dy": 0
+    },
+    "x": -1.1015481419851607,
+    "custom": {
+     "mass": 144.1447732668502,
+     "powerW": 118366.20763871097,
+     "rpm": 2450,
+     "gear": 1,
+     "torque": 461.3526622222656,
+     "aspiration": "na",
+     "family": "four",
+     "cooling": "air",
+     "cgAft": 0.243,
+     "name": "custom Flat (boxer) 4-cyl 5.9 L"
+    },
+    "sense": 1
+   }
+  ],
+  "fuselage": {
+   "material": "alloy",
+   "shape": "straight",
+   "covering": "skin",
+   "tailArm": 5.7514,
+   "postGap": 0.12641217500000002,
+   "tailBays": 4,
+   "tailW": 0.0894607724513216,
+   "tailBot": 0.3679362687224861,
+   "tailTop": 0.8255364705444412,
+   "boom": "loft",
+   "profile": [
+    {
+     "t": 0,
+     "w": 0.495234508044387,
+     "yb": -0.009343480978522556,
+     "yt": 1.501328981758137
+    },
+    {
+     "t": 0.125,
+     "w": 0.43817835932765725,
+     "yb": 0.032196769670364,
+     "yt": 1.1545020346241868
+    },
+    {
+     "t": 0.25,
+     "w": 0.3895401514315414,
+     "yb": 0.07065278666412778,
+     "yt": 0.9647111634219824
+    },
+    {
+     "t": 0.375,
+     "w": 0.33978229966227325,
+     "yb": 0.12024939548359592,
+     "yt": 0.9414922723069288
+    },
+    {
+     "t": 0.5,
+     "w": 0.28993247194995575,
+     "yb": 0.16984600430306407,
+     "yt": 0.9182733811918751
+    },
+    {
+     "t": 0.625,
+     "w": 0.23997202602227002,
+     "yb": 0.21944261312253233,
+     "yt": 0.8950544900768215
+    },
+    {
+     "t": 0.75,
+     "w": 0.18987842249487194,
+     "yb": 0.2690392219420005,
+     "yt": 0.8718355989617678
+    },
+    {
+     "t": 0.875,
+     "w": 0.13962023792697975,
+     "yb": 0.3186358307614686,
+     "yt": 0.8486167078467141
+    },
+    {
+     "t": 1,
+     "w": 0.0894607724513216,
+     "yb": 0.3679362687224861,
+     "yt": 0.8255364705444412
+    }
+   ],
+   "tailY": 0,
+   "cowlDeck": 0.7691804744677179,
+   "windRun": 0.26,
+   "crownTop": 0.72,
+   "crownSide": 0.07
+  },
+  "cabin": {
+   "canopy": {
+    "style": "screen",
+    "height": 0,
+    "sill": 0.3,
+    "skew": 0.42,
+    "bubble": 0.7,
+    "lid": 1,
+    "width": 1,
+    "x0": null,
+    "x1": null,
+    "reach": null,
+    "joint": "square",
+    "jointRun": 3,
+    "facet": false,
+    "sun": 0,
+    "sunStart": 0.38,
+    "sides": false,
+    "sideTop": 0.34,
+    "sideDepth": 0.5,
+    "sideReach": 1,
+    "sideGap": 0.1,
+    "wsAngle": null,
+    "wsCurve": 1
+   },
+   "baggage": 40,
+   "seating": "side2",
+   "glazing": "bubble",
+   "pilots": 2,
+   "pax": 0,
+   "halfW": 0.4923159414290095,
+   "h": 1.5103374513171195,
+   "len": 0.894,
+   "noseGap": 0.9535999999999998,
+   "seatX": 0,
+   "seatY": 0.1,
+   "seatPitch": 0.86,
+   "seatsX": [
+    0.49859999999999965,
+    0.49859999999999965,
+    1.5231,
+    1.5231
+   ],
+   "seats": 4,
+   "occupied": [
+    1,
+    1,
+    0,
+    0
+   ],
+   "panel": {
+    "on": true,
+    "depth": 0.27,
+    "inset": 0.06,
+    "wrap": 0.5
+   },
+   "pilot": {
+    "show": true,
+    "stature": 1.75,
+    "lean": 17,
+    "thigh": -9,
+    "shank": 10,
+    "armDown": 40,
+    "fore": 6,
+    "head": -11,
+    "armIn": 26,
+    "ankle": 40,
+    "toeOut": 7,
+    "hipOut": 0,
+    "kneeOut": 3
+   }
+  },
+  "gear": {
+   "fairing": "spat",
+   "twFairing": "spat",
+   "legFair": "fair",
+   "twLegFair": "fair",
+   "type": "tricycle",
+   "suspension": "spring",
+   "fairTail": 1,
+   "twFairTail": 1,
+   "fairMat": "glass",
+   "track": 2.54,
+   "x": 1.272364295,
+   "y": -0.3404224458240612,
+   "wheelR": 0.185,
+   "twX": -0.33663570499999995,
+   "twY": -0.36318158922768484,
+   "twR": 0.14,
+   "stiffness": 1,
+   "legDrop": null,
+   "twLeg": null,
+   "camber": 0,
+   "place": {
+    "dx": 0,
+    "dtrack": 0
+   },
+   "floats": {
+    "L": 6.95,
+    "xs": 3.6835000000000004,
+    "B": 0.68,
+    "beta": 29,
+    "betaA": 12.5,
+    "hs": 0.115,
+    "aftAngle": 8.5,
+    "xFlat": 2.1732650000000002,
+    "yBow": 0.43,
+    "bBow": 0.26520000000000005,
+    "bStern": 0.73,
+    "hSide": 0.5,
+    "y": -1.0904224458240612,
+    "track": 0.8,
+    "volDeck": 1.887071424779946,
+    "inc": -0.5,
+    "x": 1.6374914473618898
+   }
+  },
+  "fuel": {
+   "litres": 352,
+   "tank": "wing"
+  },
+  "systems": {
+   "fit": "custom",
+   "units": "aviation",
+   "items": [
+    "asi",
+    "alt",
+    "vsi",
+    "ai",
+    "aiE",
+    "dg",
+    "turn",
+    "tacho",
+    "gmeter",
+    "oilP",
+    "oilT",
+    "fuel",
+    "fuelSight",
+    "volts",
+    "clock",
+    "hobbs",
+    "compass"
+   ],
+   "elec": {
+    "battery": "lead",
+    "alternator": "alt60",
+    "starter": "yes",
+    "vac": "pump"
+   },
+   "avionics": {
+    "com": "compact",
+    "xpdr": "modeS",
+    "nav": "vor",
+    "gps": "none"
+   },
+   "side": "pilot",
+   "look": {
+    "bezel": "plastic",
+    "sw": "toggle"
+   }
+  },
+  "paint": {
+   "job": "full",
+   "sweep": 0,
+   "base": 10798138,
+   "trim": 15987694
+  },
+  "meta": {
+   "class": "n23",
+   "role": "touring",
+   "name": "Cessna 337D Super Skymaster",
+   "reg": "N1799M"
+  },
+  "finish": {
+   "sections": {
+    "body": {
+     "tint": 10798138
+    },
+    "taper": {
+     "tint": 10798138
+    },
+    "taperPanel": {
+     "tint": 10798138
+    },
+    "waistband": {
+     "tint": 10798138
+    },
+    "ceilingLoop": {
+     "tint": 10798138
+    },
+    "floorLoop": {
+     "tint": 10798138
+    },
+    "pillarWindow": {
+     "tint": 10798138
+    },
+    "pillarCabin": {
+     "tint": 10798138
+    },
+    "pillarPassenger": {
+     "tint": 10798138
+    },
+    "pillarTail": {
+     "tint": 10798138
+    },
+    "pillarFront": {
+     "tint": 10798138
+    },
+    "pillarTaper": {
+     "tint": 10798138
+    },
+    "cowlSkin": {
+     "tint": 10798138
+    },
+    "spinner": {
+     "tint": 10798138
+    },
+    "wingSkin": {
+     "tint": 10798138
+    },
+    "wingTip": {
+     "tint": 10798138
+    },
+    "wingAil": {
+     "tint": 10798138
+    },
+    "finSkin": {
+     "tint": 10798138
+    },
+    "finRud": {
+     "tint": 10798138
+    },
+    "stabSkin": {
+     "tint": 10798138
+    },
+    "stabElev": {
+     "tint": 10798138
+    },
+    "boomSkin": {
+     "tint": 10798138
+    },
+    "strut": {
+     "tint": 15987694
+    },
+    "pod": {
+     "tint": 15987694
+    }
+   },
+   "decals": {
+    "m1On": 1,
+    "m1Pat": 2,
+    "m1A": 15987694,
+    "m1B": 15987694,
+    "m1D": 10798138,
+    "m1Mode": 1,
+    "m1Tgt": 0,
+    "m1L": -0.2,
+    "m1C": -0.45,
+    "m1W": 7.2,
+    "m1H": 0.9,
+    "m1P": 0.62,
+    "m1Q": 0.04,
+    "m1Rot": 0,
+    "m2On": 1,
+    "m2Pat": 1,
+    "m2A": 1980954,
+    "m2B": 1980954,
+    "m2D": 10798138,
+    "m2Mode": 1,
+    "m2Tgt": 0,
+    "m2L": 0.4,
+    "m2C": -0.05,
+    "m2W": 6.4,
+    "m2H": 0.16,
+    "m2P": 0.45,
+    "m2Q": 0,
+    "m2Rot": 0,
+    "regH": 0.28,
+    "regCol": 2829099,
+    "regMode": 1,
+    "regL": 4.2,
+    "regC": 0.3,
+    "regTarget": 0,
+    "regFace": "barlow",
+    "regB": 1,
+    "regI": 1,
+    "wregOn": 0,
+    "spiralOn": 0,
+    "m3On": 0,
+    "m4On": 0,
+    "m5On": 0,
+    "t1On": 0,
+    "t2On": 0,
+    "t3On": 0,
+    "t4On": 0,
+    "t5On": 0,
+    "t6On": 0
+   }
+  },
+  "cargo": {
+   "len": 0,
+   "kg": 0
+  },
+  "energy": {
+   "kind": "fuel",
+   "fuel": "avgas100LL",
+   "cell": "lifepo4",
+   "kWh": 0,
+   "vessel": null,
+   "finish": null,
+   "hue": 0,
+   "tint": null,
+   "vessels": [
+    {
+     "bay": "wingRoot",
+     "capacity": 212,
+     "along": 0.28,
+     "lv": null,
+     "rot": 0,
+     "form": "box",
+     "finish": null,
+     "hue": null,
+     "tint": null
+    }
+   ]
+  },
+  "outfit": {
+   "seats": "sling"
+  },
+  "cowl": {
+   "fillet": 0.1,
+   "taper": 0.94,
+   "halfW": null,
+   "top": null,
+   "bot": null,
+   "intake": "chin"
+  },
+  "prop": {
+   "D": 1.905,
+   "blades": 2,
+   "material": "alu",
+   "pitch": "standard",
+   "chord": 0.1,
+   "root": 0.16,
+   "spinner": {
+    "shape": "ogive",
+    "len": 2.2,
+    "dia": 0.17
+   }
+  },
+  "tail": {
+   "type": "conventional",
+   "vAngle": 33,
+   "Sh": 3.11198165656872,
+   "Sv": 1.4579166647690527,
+   "Svt": null,
+   "hSpan": 3.4092135429382324,
+   "hChord": 0.9128151162648078,
+   "hX": 5.443862079137726,
+   "hTaper": 0.733686780215239,
+   "tip": "rounded",
+   "tipV": null,
+   "tipH": null,
+   "vSweep": 0,
+   "stabH": 0.04673885555395872,
+   "dorsal": {
+    "len": 0.34,
+    "height": 0.16,
+    "width": 0.55,
+    "angle": null,
+    "area": 0.11896522017949966
+   },
+   "vHeight": 1.4041700990346622,
+   "vChord": 1.0382763924195082,
+   "vX": 5.821198721879883,
+   "vTaper": 0.6733361264080304,
+   "place": {
+    "dx": 0
+   },
+   "boomX": null,
+   "boomLen": null,
+   "boomR": null,
+   "boomX0": null,
+   "boomTaper": null,
+   "boomOval": null,
+   "boomIncl": 0,
+   "boomDy": 0,
+   "stabY": null
+  }
+ },
+ "ref": {
+  "what": "drafting-ref",
+  "v": 1,
+  "identity": {
+   "name": "Cessna 337D Super Skymaster",
+   "maker": "Cessna Aircraft Company",
+   "variant": "337D (1969), unpressurised, normal category",
+   "engine": "2 x Teledyne Continental IO-360-C, 210 BHP at 2800 RPM, fuel injected; constant-speed full-feathering propellers, 76 in, front tractor + rear pusher on the centreline",
+   "locked": null,
+   "notes": [
+    "Not the P337 (pressurised) nor the O-2 (military).",
+    "The card is born from the C172 (the user, 13 Nov), not the Skymaster-alike recreation card."
+   ]
+  },
+  "sources": {
+   "poh": "Cessna 337D Owner's Manual, 1969 (the user's copy; facts extracted by A0 into futureDesigns/SKYMASTER-337D-FIGURES-2026-11-13.md, branch claude/design-refs)",
+   "3view": "the manufacturer's 'Principal Dimensions' 3-view in the same manual"
+  },
+  "figures": {
+   "geometry.span": {
+    "v": 11.58,
+    "unit": "m",
+    "src": "3view",
+    "cond": "38 ft 0 in"
+   },
+   "geometry.length": {
+    "v": 9.093,
+    "unit": "m",
+    "src": "3view",
+    "cond": "29 ft 10 in overall (the clean Principal Dimensions sheet; the PDF's scanned page reads 29 ft 9 in)"
+   },
+   "geometry.height": {
+    "v": 2.84,
+    "unit": "m",
+    "src": "3view",
+    "cond": "9 ft 4 in max, on the ground"
+   },
+   "geometry.boomSpacingTail": {
+    "v": 3.058,
+    "unit": "m",
+    "src": "3view",
+    "cond": "boom centrelines at the tail: 10 ft 0 3/8 in"
+   },
+   "geometry.boomSpacingWing": {
+    "v": 3.258,
+    "unit": "m",
+    "src": "3view",
+    "cond": "boom centrelines at the wing: 10 ft 8 1/4 in"
+   },
+   "geometry.propDia": {
+    "v": 1.93,
+    "unit": "m",
+    "src": "3view",
+    "cond": "76 in, front and rear"
+   },
+   "geometry.track": {
+    "v": 2.49,
+    "unit": "m",
+    "src": "3view",
+    "cond": "main gear, 8 ft 2 in"
+   },
+   "geometry.groundAttitude": {
+    "v": 2,
+    "unit": "deg",
+    "src": "3view",
+    "cond": "nose up, side view"
+   },
+   "geometry.wingArea": {
+    "v": 18.7,
+    "unit": "m2",
+    "src": "poh",
+    "cond": "derived: 4400 lb / 21.9 lb/sq ft = 201 sq ft",
+    "quality": "derived"
+   },
+   "specs.mtow": {
+    "v": 1996,
+    "unit": "kg",
+    "src": "poh",
+    "cond": "4400 lb"
+   },
+   "specs.empty": {
+    "v": 1204,
+    "unit": "kg",
+    "src": "poh",
+    "cond": "approx. 2655 lb"
+   },
+   "specs.baggage": {
+    "v": 166,
+    "unit": "kg",
+    "src": "poh",
+    "cond": "365 lb"
+   },
+   "specs.power": {
+    "v": [
+     210,
+     210
+    ],
+    "unit": "bhp",
+    "src": "poh",
+    "cond": "2 x IO-360-C at 2800 RPM"
+   },
+   "specs.fuel": {
+    "v": [
+     93,
+     131
+    ],
+    "unit": "US gal total",
+    "src": "poh",
+    "cond": "two 46 gal wing mains + boom sump tanks; 131 with the optional auxiliaries; usable not stated"
+   },
+   "specs.oil": {
+    "v": 5,
+    "unit": "US gal per engine (as printed)",
+    "src": "poh",
+    "quality": "thin"
+   },
+   "specs.loadFactor": {
+    "v": {
+     "flapsUp": [
+      3.8,
+      -1.52
+     ],
+     "flapsDown": 2
+    },
+    "unit": "g",
+    "src": "poh",
+    "cond": "normal category"
+   },
+   "specs.cg": {
+    "v": "arms 134.3-142.8 in at 2800 lb, 137.1-142.6 in at 4400 lb (straight lines in moment / weight)",
+    "src": "poh",
+    "cond": "the Center of Gravity Moment Envelope, p 4-7, read off the chart (+-0.3 in)"
+   },
+   "specs.flapTrim": {
+    "v": "extending flaps rotates the elevator trim nose-down (mechanical interconnect)",
+    "unit": "",
+    "src": "poh"
+   },
+   "perf.Vmax": {
+    "v": 320,
+    "unit": "km/h",
+    "src": "poh",
+    "kg": 1996,
+    "cond": "199 mph, sea level"
+   },
+   "perf.cruise": {
+    "v": 307,
+    "unit": "km/h",
+    "src": "poh",
+    "kg": 1996,
+    "cond": "191 mph, 75 % power at 5500 ft"
+   },
+   "perf.range": {
+    "v": 1223,
+    "unit": "km",
+    "src": "poh",
+    "cond": "760 mi, 92 gal, 75 %, no reserve; optimum 1345 mi at 144 mph, 10 000 ft"
+   },
+   "perf.Vs0": {
+    "v": 111,
+    "unit": "km/h",
+    "src": "poh",
+    "kg": 1996,
+    "flaps": "full",
+    "cond": "69 mph, power off"
+   },
+   "perf.Vs1": {
+    "v": 127,
+    "unit": "km/h",
+    "src": "poh",
+    "flaps": "up",
+    "cond": "79 mph CAS: the green arc's bottom (no stated flaps-up stall)",
+    "quality": "marking"
+   },
+   "perf.roc": {
+    "v": 6.1,
+    "unit": "m/s",
+    "src": "poh",
+    "kg": 1996,
+    "cond": "1200 fpm, sea level, both engines"
+   },
+   "perf.rocFrontOnly": {
+    "v": 1.52,
+    "unit": "m/s",
+    "src": "poh",
+    "kg": 1996,
+    "cond": "300 fpm, rear engine out (feathered)"
+   },
+   "perf.rocRearOnly": {
+    "v": 1.96,
+    "unit": "m/s",
+    "src": "poh",
+    "kg": 1996,
+    "cond": "385 fpm, front engine out (feathered)"
+   },
+   "perf.ceiling": {
+    "v": 5944,
+    "unit": "m",
+    "src": "poh",
+    "cond": "19 500 ft both; front only 6800 ft (2073 m); rear only 8800 ft (2682 m)"
+   },
+   "perf.TO": {
+    "v": 273,
+    "unit": "m",
+    "src": "poh",
+    "kg": 1996,
+    "flaps": "1/3",
+    "cond": "895 ft ground run"
+   },
+   "perf.TO50": {
+    "v": 471,
+    "unit": "m",
+    "src": "poh",
+    "kg": 1996,
+    "flaps": "1/3",
+    "cond": "1545 ft over 50 ft"
+   },
+   "perf.LDG": {
+    "v": 213,
+    "unit": "m",
+    "src": "poh",
+    "kg": 1996,
+    "cond": "700 ft ground roll"
+   },
+   "perf.LDG50": {
+    "v": 503,
+    "unit": "m",
+    "src": "poh",
+    "kg": 1996,
+    "cond": "1650 ft over 50 ft"
+   },
+   "perf.Vy": {
+    "v": 182,
+    "unit": "km/h",
+    "src": "poh",
+    "cond": "113 mph flaps up gear up (97 flaps 1/3 gear down; 84 full)"
+   },
+   "perf.Vx": {
+    "v": 132,
+    "unit": "km/h",
+    "src": "poh",
+    "cond": "82 mph flaps up gear up (79 flaps 1/3; 73 full)"
+   },
+   "perf.Vyse": {
+    "v": 161,
+    "unit": "km/h",
+    "src": "poh",
+    "cond": "100 mph IAS, best single-engine rate (blue line)"
+   },
+   "perf.VNE": {
+    "v": 362,
+    "unit": "km/h",
+    "src": "poh",
+    "cond": "225 mph CAS"
+   },
+   "perf.VNO": {
+    "v": 306,
+    "unit": "km/h",
+    "src": "poh",
+    "cond": "190 mph CAS"
+   },
+   "perf.VFE": {
+    "v": {
+     "third": 257,
+     "full": 193
+    },
+    "unit": "km/h",
+    "src": "poh",
+    "cond": "160 mph to 1/3, 120 mph 1/3 to full"
+   },
+   "perf.VLO": {
+    "v": 225,
+    "unit": "km/h",
+    "src": "poh",
+    "cond": "gear operating 140 mph"
+   },
+   "perf.VLE": {
+    "v": 249,
+    "unit": "km/h",
+    "src": "poh",
+    "cond": "gear extended 155 mph"
+   },
+   "specs.datum": {
+    "v": "65 in ahead of the front firewall (the cargo pack diagram, p 4-8: the front firewall at fuselage station 65; \"the c.g. arm is the same as the station\")",
+    "src": "poh"
+   },
+   "specs.cargoPack": {
+    "v": {
+     "len": 92,
+     "width": 36,
+     "depth": 10.5,
+     "stations": [
+      68,
+      160
+     ],
+     "maxLb": 300
+    },
+    "unit": "in",
+    "src": "poh",
+    "cond": "Cargo Pack, p 4-8: nose at ~68, aft end ~160, deepest 10-10.5 in from 90 to 130"
+   }
+  },
+  "image": {
+   "file": "c337_3view_clean.png",
+   "sha256": "a4dcf151a3c8c4d23db67f1340ffb7bd0005c41894942a152527d95e46e87d04",
+   "size": [
+    1223,
+    1777
+   ],
+   "how": "the user's clean copy of the manual's 'Principal Dimensions' page (13 Nov)",
+   "local": "never committed: the sheet stays in the session dossier / the page's IndexedDB"
+  },
+  "views": {
+   "side": {
+    "box": [
+     0,
+     0,
+     1223,
+     372
+    ],
+    "ox": 160,
+    "oy": 202,
+    "k": 100.1,
+    "rot": 0,
+    "flip": false,
+    "scaleBy": "geometry.length (910 px, the spinner tip 160 to the fin top aft corner 1070 on the extension line = 9.093 m)",
+    "note": "drawn level, the ground line tilted 2 deg; origin = the spinner tip; the extension lines sit 2 and 9 px outside the drawn ends"
+   },
+   "top": {
+    "box": [
+     0,
+     375,
+     1223,
+     1372
+    ],
+    "ox": 608,
+    "oy": 1308,
+    "k": 102.7,
+    "rot": 270,
+    "flip": false,
+    "scaleBy": "geometry.span (1189 px tip to tip = 11.58 m)",
+    "check": "boom spacing 335 px at the wing = 3.26 m (3.258), 313 px at the tail = 3.05 m (3.058); props 198 px = 1.93 m",
+    "note": "nose DOWN the sheet (aft is up): turned 270; origin = the front spinner tip; ITS STATIONS RUN SHORT AFT of the side view's (wing LE 2.82 vs 3.00, wing TE 4.62 vs 4.95, rear spinner 5.95 vs 6.25: the sheet's own inconsistency) - stations are read on the side view (scaled by the stated length), widths on the top and front views"
+   },
+   "front": {
+    "box": [
+     0,
+     1372,
+     1223,
+     1777
+    ],
+    "ox": 607,
+    "oy": 1497,
+    "k": 102.05,
+    "rot": 0,
+    "flip": false,
+    "scaleBy": "geometry.span (1182 px = 11.58 m)",
+    "note": "upright; origin = the centreline at the spinner (to refine on the overlay)"
+   }
+  },
+  "marks": {
+   "profile.0": {
+    "view": "side",
+    "pts": [
+     [
+      259.1,
+      172.3
+     ],
+     [
+      259.1,
+      263.4
+     ]
+    ]
+   },
+   "profileW.0": {
+    "view": "top",
+    "pts": [
+     [
+      553.6,
+      1205.3
+     ]
+    ]
+   },
+   "profile.1": {
+    "view": "side",
+    "pts": [
+     [
+      310.6,
+      164.3
+     ],
+     [
+      310.6,
+      264.4
+     ]
+    ]
+   },
+   "profileW.1": {
+    "view": "top",
+    "pts": [
+     [
+      549.5,
+      1154
+     ]
+    ]
+   },
+   "profile.2": {
+    "view": "side",
+    "pts": [
+     [
+      402.8,
+      127.7
+     ],
+     [
+      402.8,
+      266.4
+     ]
+    ]
+   },
+   "profileW.2": {
+    "view": "top",
+    "pts": [
+     [
+      547.9,
+      1061.5
+     ]
+    ]
+   },
+   "profile.3": {
+    "view": "side",
+    "pts": [
+     [
+      496.9,
+      122.7
+     ],
+     [
+      496.9,
+      267.4
+     ]
+    ]
+   },
+   "profileW.3": {
+    "view": "top",
+    "pts": [
+     [
+      548.9,
+      974.2
+     ]
+    ]
+   },
+   "profile.4": {
+    "view": "side",
+    "pts": [
+     [
+      559.3,
+      122.7
+     ],
+     [
+      559.3,
+      259.5
+     ]
+    ]
+   },
+   "profileW.4": {
+    "view": "top",
+    "pts": [
+     [
+      551.5,
+      912.6
+     ]
+    ]
+   },
+   "profile.5": {
+    "view": "side",
+    "pts": [
+     [
+      685.2,
+      125.7
+     ],
+     [
+      685.2,
+      208.9
+     ]
+    ]
+   },
+   "profileW.5": {
+    "view": "top",
+    "pts": [
+     [
+      559.7,
+      794.5
+     ]
+    ]
+   },
+   "profile.6": {
+    "view": "side",
+    "pts": [
+     [
+      729.8,
+      132.6
+     ],
+     [
+      729.8,
+      187.1
+     ]
+    ]
+   },
+   "profileW.6": {
+    "view": "top",
+    "pts": [
+     [
+      577.2,
+      748.3
+     ]
+    ]
+   },
+   "body.front": {
+    "view": "side",
+    "pts": [
+     [
+      211.5,
+      202
+     ]
+    ]
+   },
+   "cowl.back": {
+    "view": "side",
+    "pts": [
+     [
+      310.6,
+      202
+     ]
+    ]
+   },
+   "wing.le": {
+    "view": "side",
+    "pts": [
+     [
+      457.3,
+      114.8
+     ]
+    ]
+   },
+   "wing.te": {
+    "view": "side",
+    "pts": [
+     [
+      650.5,
+      122.7
+     ]
+    ]
+   },
+   "wheel": {
+    "view": "side",
+    "pts": [
+     [
+      536.5,
+      301.1
+     ]
+    ]
+   },
+   "nosewheel": {
+    "view": "side",
+    "pts": [
+     [
+      283.9,
+      301.1
+     ]
+    ]
+   },
+   "window.door1": {
+    "view": "side",
+    "pts": [
+     [
+      405.7,
+      142.5
+     ],
+     [
+      485,
+      184.2
+     ]
+    ]
+   },
+   "window.cabin2": {
+    "view": "side",
+    "pts": [
+     [
+      504.8,
+      147.5
+     ],
+     [
+      556.4,
+      182.2
+     ]
+    ]
+   },
+   "window.cabin3": {
+    "view": "side",
+    "pts": [
+     [
+      562.3,
+      149.5
+     ],
+     [
+      603.9,
+      182.2
+     ]
+    ]
+   },
+   "door.aft": {
+    "view": "side",
+    "pts": [
+     [
+      643.6,
+      150.5
+     ],
+     [
+      683.2,
+      195.1
+     ]
+    ],
+    "note": "a rounded rectangle with no glass hatching: the access / baggage door, not a window"
+   },
+   "profile.7": {
+    "view": "side",
+    "pts": [
+     [
+      625.7,
+      123.7
+     ],
+     [
+      625.7,
+      248.6
+     ]
+    ]
+   },
+   "profileW.7": {
+    "view": "top",
+    "pts": [
+     [
+      556.6,
+      851
+     ]
+    ]
+   },
+   "profile.8": {
+    "view": "side",
+    "pts": [
+     [
+      338.4,
+      160.4
+     ],
+     [
+      338.4,
+      265.4
+     ]
+    ]
+   },
+   "profileW.8": {
+    "view": "top",
+    "pts": [
+     [
+      548.4,
+      1125.2
+     ]
+    ]
+   },
+   "fin.top": {
+    "view": "side",
+    "pts": [
+     [
+      1069.9,
+      21.8
+     ]
+    ]
+   },
+   "fin.te": {
+    "view": "side",
+    "pts": [
+     [
+      1069.9,
+      21.8
+     ]
+    ]
+   },
+   "fin.le.at": {
+    "view": "side",
+    "pts": [
+     [
+      956.8,
+      71.9
+     ]
+    ]
+   },
+   "fin.te.at": {
+    "view": "side",
+    "pts": [
+     [
+      1035.9,
+      101.9
+     ]
+    ]
+   },
+   "stab.top": {
+    "view": "side",
+    "pts": [
+     [
+      940.8,
+      123.9
+     ]
+    ]
+   },
+   "wheel.bottom": {
+    "view": "side",
+    "pts": [
+     [
+      536.4,
+      311.1
+     ]
+    ]
+   },
+   "nosewheel.bottom": {
+    "view": "side",
+    "pts": [
+     [
+      284.1,
+      322.1
+     ]
+    ],
+    "note": "the ground line drawn 2 deg nose-up (rising aft) under a level airframe"
+   }
+  },
+  "lines": [],
+  "architecture": {
+   "candidates": [
+    "c172"
+   ],
+   "why": "the user, 13 Nov: start from the 172 (high wing, the Cessna cabin), not the Skymaster-alike card; the twin booms, the between-booms stab and push-pull come from the garage's own rows (booms twin, stMount 3, engMount 4)"
+  },
+  "dossier": [
+   {
+    "file": "(inline in chat, 13 Nov)",
+    "what": "Cessna 'Skymaster 72' brochure cover, N1799M in flight",
+    "use": "the DEFAULT LIVERY: lime green over white, a dark cheat line on the pod"
+   },
+   {
+    "file": "vh-azw_ground_weathering.jpg",
+    "what": "VH-AZW on the ground (aeropedia), white and ochre, the factory belly cargo pod",
+    "use": "WEATHERING; the belly pod's shape; gear, rear-prop clearance, ground attitude"
+   },
+   {
+    "file": "c337_3view_clean.png",
+    "what": "the manual's 'Principal Dimensions' 3-view, clean copy",
+    "use": "the sheet"
+   },
+   {
+    "file": "c337d_1969_poh.pdf",
+    "what": "the 1969 337D Owner's Manual (the whole PDF, 51 pages)",
+    "use": "figures, CG envelope (4-7), loading graph (4-6), cargo pack (4-8), performance tables (6-x)"
+   }
+  ],
+  "gaps": [
+   "ENGINE: the registry has the Lycoming IO-360-L2A 180 hp with a fixed-pitch prop; the IO-360-C is 210 hp at 2800 RPM - an engine row (as the PT6A-27 row)",
+   "PROP: constant speed is a flag the thrust law does not read, and there is NO FEATHERING (a dead engine windmills): the single-engine climbs (front 300 / rear 385 fpm, feathered) cannot be matched honestly without it",
+   "FLAP-TRIM INTERCONNECT: missing (the flaps' own pitching moment only)",
+   "POD LENGTH on twin booms: the pod ends where pilotLen + paxLen*bays puts it; taperLen / aeroAftLen do not lengthen it (RETRACT-STUDY 1755-1800) - to check against the 3-view",
+   "RETRACT: the skymaster fold exists but is marked \"to check on a reference\"; belly-well doors rough"
+  ],
+  "history": [
+   {
+    "date": "2026-11-13",
+    "who": "session FIT-PROCEDURE",
+    "step": "references",
+    "line": "figures from the 1969 owner's manual (A0's extract); no sheet yet; the dossier started"
+   },
+   {
+    "date": "2026-11-13T18:27",
+    "who": "session",
+    "step": "fit",
+    "line": "the sheet's ground line: the nose wheel's bottom 1.20 below the thrust line, the mains' 1.09 (2 deg nose-up on the ground, the manual's 3-view) {\"s2Drop\":0.76,\"s1Drop\":0.25}"
+   },
+   {
+    "date": "2026-11-13T18:53",
+    "who": "session",
+    "step": "fit",
+    "line": "the nose leg a little shorter than the sheet's stance: the 0.76 leg bounced the 337 onto its tail as it settled (the rear prop struck, its mount tore); 0.62 settles at about -1 deg, no strike {\"s2Drop\":0.62}"
+   }
+  ],
+  "datumLE": null,
+  "cgEnvelope": [
+   {
+    "lb": 2800,
+    "kg": 1270,
+    "fwdIn": 134.3,
+    "aftIn": 142.8,
+    "fwdX": 3.265,
+    "fwd": 17.2,
+    "aftX": 3.481,
+    "aft": 29.8
+   },
+   {
+    "lb": 4400,
+    "kg": 1996,
+    "fwdIn": 137.1,
+    "aftIn": 142.6,
+    "fwdX": 3.336,
+    "fwd": 21.3,
+    "aftX": 3.476,
+    "aft": 29.5
+   }
+  ],
+  "pillars": {
+   "note": "side view, metres aft of the spinner tip (read on a metric grid over the sheet, 13 Nov)",
+   "firewall": 1.52,
+   "windscreen.base": [
+    1.8,
+    0.42
+   ],
+   "windscreen.top": [
+    2.45,
+    0.77
+   ],
+   "door.front": 2.45,
+   "B (strut post)": 3.38,
+   "C": 4.03,
+   "D (cabin aft bulkhead)": 4.63,
+   "rear cowl front": 5.77,
+   "rear spinner tip": [
+    6.25,
+    0.5
+   ]
+  },
+  "tailRead": {
+   "note": "side view, k 100.1 (13 Nov)",
+   "fin.le": [
+    [
+     7.52,
+     0.82
+    ],
+    [
+     8.4,
+     1.78
+    ]
+   ],
+   "fin.te": [
+    [
+     9.09,
+     1.8
+    ],
+    [
+     8.53,
+     0.5
+    ]
+   ],
+   "rudder.hinge": [
+    [
+     8.68,
+     1.66
+    ],
+    [
+     8.21,
+     0.5
+    ]
+   ],
+   "ventral": [
+    [
+     7.47,
+     0.62
+    ],
+    [
+     8.1,
+     0.17
+    ],
+    [
+     8.65,
+     0.28
+    ]
+   ],
+   "stab.side": [
+    7.3,
+    8.3,
+    0.72,
+    0.78
+   ],
+   "stab.top.view": "LE 7.39 TE 8.47 on the top view (its stations short), chord 1.08; span fin to fin ~3.0",
+   "wing": "side LE 2.97 TE 4.90 (chord 1.93 at the root); the top view: constant chord pod to boom, tapered outboard to 1.17 x (1.93/1.80) = 1.25 at the tip"
+  },
+  "datumX": -0.146,
+  "datumNote": "the manual datum in the table frame (metres aft of the spinner tip): firewall 1.505 - 65 in",
+  "mac": {
+   "len": 1.716,
+   "S": 19.52,
+   "le": 2.97,
+   "note": "from the planform read off the sheet (1.93 to the boom, 1.25 at the tip, LE straight); S checks the manual 18.7"
+  }
+ },
+ "history": [
+  {
+   "date": "2026-11-13",
+   "why": "the user: start the stabs from the twin busher's (Twin_busher_floats_4b) - its st* / fin* rows copied",
+   "rows": {
+    "finCutGap": 0.012,
+    "stSpan": 1,
+    "stOver": 0.84,
+    "finSweep": 6,
+    "stBaseZ": 0,
+    "finChordTip": 0.99,
+    "finHeight": 0.8,
+    "finVentralC": 1.6,
+    "finSharpLE": 3,
+    "stSharpShoulder": 3,
+    "stTipY": -0.33,
+    "stMount": 0,
+    "finVentralShape": null,
+    "finCut": 1,
+    "stSweep": 0,
+    "finChord": 0.78,
+    "stShoulderZ": 0.5,
+    "stHinge": 0.45,
+    "stShoulderY": 0.3,
+    "finTipZ": -0.2,
+    "finUY": -0.025,
+    "finVentralTip": 0.14,
+    "finMidY": -0.2,
+    "stChord": 1,
+    "stLEZ": 0,
+    "finDorsalTube": null,
+    "stZ": -0.045,
+    "finVentralH": 0.5,
+    "stBaseY": 0,
+    "stTipZ": -0.005,
+    "stRootFwd": -0.205,
+    "finHinge": 0.20742366048889416,
+    "stChordTip": 1,
+    "finShoulderZ": 0.305521,
+    "finShoulderY": 0,
+    "stY": 0.06
+   }
+  }
+ ]
+}
