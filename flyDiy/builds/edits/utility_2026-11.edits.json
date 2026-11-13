@@ -205,7 +205,8 @@
   "spareSide": 1,
   "spareX": 0.427,
   "spareY": -0.222,
-  "spareK": 0.85
+  "spareK": 0.85,
+  "carTailAt": 1
  },
  "fuel": {
   "litres": 80,

@@ -182,6 +182,7 @@ const WHEEL_ROWS = [
   ['archGap', 'wheel arch clearance (m)', 0.01, 0.15, 0.005, { when: P => +P.archOn }],
   // CAR-3: the trailer's tail lamps on the rear corners (absent = none)
   ['carTail', 'tail lamps (stop, indicator, reverse) on the rear corners', 0, 1, 1, { when: P => +P.isCar || +P.carTail }],
+  ['carTailAt', 'tail lamps\' face', 0, 1, 1, ['on the corner (45 degrees)', 'flat on the back'], { when: P => +P.carTail, absent: 0 }],
   // CAR-1: a spare wheel on the body's flank (absent = none)
   ['spareOn', 'spare wheel', 0, 1, 1, { when: P => +P.isCar || +P.spareOn }],
   ['spareZ', 'spare wheel station (m, the layers\' z)', -4, 4, 0.01, { when: P => +P.spareOn && +P.spareAt !== 1 }],

@@ -315688,3 +315688,10 @@ the next steps).
   C172, the lamp 5.1 cm lower (on the slab's underside, 0.704 vs the skin 0.761). The dark close-up was plane_shot's:
   rendered in the other order the PLAIN one is dark - the SECOND build of a plane_shot run renders its cabin lamps off.
   TRAP (named, not fixed): compare lamps across builds one run per build.
+- **CAR-3, THE TAIL LAMPS FLAT ON THE BACK (the user: "place the backlights flat on the flat back surface ... not at 45
+  degrees")**: NEW ROW carTailAt (_gear_page.js after carTail; absent 0 = the corner's 45-degree station as before,
+  1 = flat). _cage_gear.js carTailLamps: the lens in the back's plane z0 facing aft, centred between the flat wall's
+  edge (halfX at z0 + 1 mm: the van's door edges, 0.855) and the full width (z0 + 12 cm, 0.976), width min(0.11, gap -
+  4.6 cm); the black housing runs forward until the corner's skin passes its outer edge (+12 mm). There is no flat
+  wall OUTBOARD of the van's doors - the corner's radius starts at their edges - so the lamp's face is in the back's
+  plane and its body fills the radius. The van: carTailAt 1 (x 0.873..0.950, just outboard of the lower hinges).

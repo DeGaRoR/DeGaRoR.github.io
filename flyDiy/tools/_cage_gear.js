@@ -2528,11 +2528,38 @@ function carTailLamps(group, P, AF) {
     if (h0 == null || h1 == null) continue;
     if ((h1 - h0) / 0.004 <= 1) { dc = d; xc = h0; break; }
   }
+  // (CAR-3, the user 13 Nov: "place the backlights flat on the flat back surface ... not at 45 degrees like this"):
+  // carTailAt 1 = FLAT - the lens in the back's own plane (z0), facing straight aft, between the flat wall's edge (the
+  // van's door edges, +-0.855) and the body's full width; its black housing runs forward into the rounded corner to meet
+  // the skin, so the lamp reads as part of the flat back. Absent = on the corner's 45-degree station, as before.
+  const FLAT = Math.round(+P.carTailAt || 0) === 1;
+  let flat = null;
+  if (FLAT) {
+    const xF = halfX(yc, z0 + 0.001), xO = halfX(yc, z0 + 0.12);
+    if (xF != null && xO != null && xO - xF > 0.05) {
+      const w = Math.min(0.11, xO - xF - 0.03 - 0.016), xm = (xF + xO) / 2;
+      let dep = 0.03; for (let d = 0.004; d < 0.2; d += 0.004) { const h = halfX(yc, z0 + d); if (h != null && h >= xm + w / 2 + 0.008) { dep = d; break; } }
+      flat = { x: xm, w, dep: dep + 0.012 };
+    }
+  }
   const root = new THREE.Group(); root.name = 'edTailLamps';
   const black = GG.gearMat('dark'), chrome = GG.gearMat('chrome');
   const red = carLensMat(0xb3141c, 0x5a0408), amber = carLensMat(0xe08a1e, 0x4a2404), white = carLensMat(0xf2f0e8, 0x2a2a26);
   for (const sg of [-1, 1]) {
     let pos, nrm;
+    if (flat) {
+      const lamp = new THREE.Group(), Wf = flat.w;
+      const add = (w, h, d, mat, y, out) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(0, y, out); lamp.add(m); };
+      add(Wf + 0.016, H + 0.016, flat.dep, black, 0, 0.013 - flat.dep / 2);   // the housing, forward into the corner
+      add(Wf + 0.006, H + 0.006, 0.006, chrome, 0, 0.012);                    // the bezel
+      add(Wf, H * 0.58, 0.01, red, H * 0.21, 0.016);                          // stop / tail
+      add(Wf, H * 0.24, 0.01, amber, -H * 0.2, 0.016);                        // the indicator
+      add(Wf, H * 0.14, 0.01, white, -H * 0.415, 0.016);                      // reverse
+      lamp.position.set(sg * flat.x, yc, z0);
+      lamp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1));
+      root.add(lamp);
+      continue;
+    }
     if (dc != null) { pos = new THREE.Vector3(sg * xc, yc, z0 + dc); nrm = new THREE.Vector3(sg, 0, -1).normalize(); }
     else { const h = halfX(yc, z0 + 0.01); if (h == null) continue; pos = new THREE.Vector3(sg * (h - 0.06), yc, z0); nrm = new THREE.Vector3(0, 0, -1); }
     const lamp = new THREE.Group();
