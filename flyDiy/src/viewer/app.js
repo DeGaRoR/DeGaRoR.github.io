@@ -9686,8 +9686,28 @@
       return { ok: !!r.ok, why: r.why || '' }; } catch (e) { return { ok: false, why: String((e && e.message) || e) }; } },
     onStand: () => slotOnStand(),
     start: () => storeStartNow(),
+    // RESTORE (HOME-DERELICT, the user 13 Nov: the old hangar restored step by step): the building the garage is in - its
+    // stage, the next step (price, days, what), the works under way (71_ playerRestoreState; a finished step settled first);
+    // Start pays and starts it (playerRestoreStart: the sandbox at once and free). The world draws the new stage at the next
+    // roll-out ('restore' step below): in the garage the world is not drawn
+    restore: () => { if (typeof playerRestoreState !== 'function') return null;
+      restoreSettleNow(); const d = playerLoad(), s = playerRestoreState(d, roomId());
+      return s ? Object.assign(s, { sandbox: d.mode !== 'career' }) : null; },
+    restoreStart: () => { try { const r = playerRestoreStart(playerLoad(), roomId());
+      if (r.ok) { player = r.doc; playerSave(); try { if (CAREER_DEV) econWalletSync(); } catch (e) {} }
+      return { ok: !!r.ok, why: r.why || '', cost: r.cost || 0 }; } catch (e) { return { ok: false, why: String((e && e.message) || e) }; } },
     onChange: null,
   };
+  // RESTORE: a step whose days are up is finished where the document is read (the storage screen, the roll-out)
+  function restoreSettleNow() {
+    if (typeof playerRestoreSettle !== 'function') return [];
+    const r = playerRestoreSettle(playerLoad());
+    if (r.done.length) { player = r.doc; playerSave(); }
+    return r.done;
+  }
+  // ...and the key the roll-out's 'restore' step runs on: every held building's stage as it stands once settled
+  const restoreKey = () => { try { const r = playerRestoreSettle(playerLoad()), S = r.doc.sheds || {};
+    return Object.keys(S).map(id => id + ':' + restoreStage(r.doc, id)).join(','); } catch (e) { return ''; } };
   // ---- G2300 (STAGES): THE BUILDINGS THE MISSIONS PUT UP - composed at the load (world_boot.js) and at a ROLL-OUT, never
   // in flight (76_stages.js stageHost: a change noted in 'flight' waits, queued). The roll-out's 'stages' trip step
   // recomposes the world on the WHOLE record's view at the new tracks through the world editor's own path - the
@@ -15345,6 +15365,10 @@
     // screen (stageCompose), never in flight; absent in the sandbox (no host), and a no-op while nothing is queued
     { id: 'stages', part: 'world', label: 'the new buildings', w: 4, key: () => (WF ? 'stages ' + stageWantKey() : null), deps: ['world'],
       when: () => !!STAGE_Q, fn: () => stageCompose('rollout') },
+    // RESTORE (13 Nov): a restoration step finished (or a sandbox step taken) since the world stood its hangars - the side
+    // hangars re-stood at their stages (setPlayerSheds rebuilds only the one whose dims changed), under the loading screen
+    { id: 'restore', part: 'world', label: 'the old hangar', w: 2, key: () => (WF && typeof playerRestoreSettle === 'function' ? 'restore ' + restoreKey() : null), deps: ['world'],
+      fn: () => { restoreSettleNow(); if (WF && WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); } } },
     // THE TOWN ROUND THE STAND (G591): the premises within 4 km of the aeroplane, built in 40 ms slices - they were one
     // synchronous drain inside the world step (the 15-18 s task behind "page unresponsive"); the rest streams in flight
     { id: 'town', part: 'world', label: 'building the field', w: 8, key: () => WF ? 'at ' + anchorStr() : null, deps: ['world', 'stages'], fn: () => {
