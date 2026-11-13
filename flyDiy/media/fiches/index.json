@@ -795,7 +795,7 @@
    "listRow": "list:7",
    "data": {
     "name": "Rufus",
-    "reg": "N47RF",
+    "reg": "F-PGAR",
     "dims": {
      "span": 9.87,
      "length": 6.17,
@@ -3955,7 +3955,7 @@
    "listRow": "list:4",
    "data": {
     "name": "Cessna 172 floats (career)",
-    "reg": "B-CESF",
+    "reg": "F-PGAR",
     "dims": {
      "span": 11.02,
      "length": 9.07,
@@ -3983,11 +3983,6 @@
     "heroProp": "disc",
     "pxPerM": 81.654,
     "heroWingY": 0.208,
-    "hydroNode": {
-     "t": 23.7,
-     "V": 28.4,
-     "dist": 350
-    },
     "mass": {
      "rows": [
       {
@@ -4206,6 +4201,11 @@
       6.245
      ],
      "v": 1
+    },
+    "hydroNode": {
+     "t": 23.7,
+     "V": 28.4,
+     "dist": 350
     }
    },
    "pics": {
