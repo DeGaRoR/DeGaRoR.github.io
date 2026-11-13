@@ -17,7 +17,7 @@ function pieces(sim) {
   const n = sim.n, P = new Int32Array(n);
   for (let i = 0; i < n; i++) P[i] = i;
   const f = i => { while (P[i] !== i) { P[i] = P[P[i]]; i = P[i]; } return i; };
-  for (const b of sim.beams) { if (b.broken) continue; const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }
+  for (const b of sim.beams) { if (b.broken && b.tt !== 1) continue; const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }
   return f;
 }
 function spanning(sim) {
