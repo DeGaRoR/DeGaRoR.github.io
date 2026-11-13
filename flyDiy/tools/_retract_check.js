@@ -66,7 +66,8 @@ console.log('1 THE SPEC');
   check(cl(specOf({ time: 99, act: 'electric' })).gear.retract.time === 20 && cl(specOf({ time: 99, act: 'electric' })).gear.retract.emerg === 'crank',
         'the cycle clamped to 20 s; an electric gear cranks down');
   const td = specOf({ time: 6 }); td.gear.type = 'taildragger';
-  check(!('retract' in cl(td).gear), 'a taildragger drops it');
+  // TAIL-RETRACT (2026-11-09, the user): a taildragger keeps it - its MAINS retract, the tailwheel stays down
+  check('retract' in cl(td).gear, 'a taildragger keeps it (its mains; the tailwheel stays down)');
   const fl = specOf({ time: 6 }); fl.gear.type = 'floats';
   check(!('retract' in cl(fl).gear), 'floats drop it');
 }
