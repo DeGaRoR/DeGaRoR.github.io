@@ -5,7 +5,8 @@
 // w, nothing clipped. Colours ONLY from the sheet's five tokens (--fi-paper, --fi-ink, --fi-dim, --fi-line, --fi-acc), with
 // a fallback per theme when a page is drawn off the board (a test, a picture tool).
 //
-// Loaded by tools/build.js right after fiche_board.js, before the sections (fiche_mass.js, fiche_physics.js). SVG strings
+// Loaded by tools/build.js after fiche_board.js and fiche_mass.js (GATE PLANEFICHE keeps plane_fiche, fiche_board and
+// fiche_mass adjacent; fiche_mass finds the kit when it draws, not when it loads), before fiche_physics.js. SVG strings
 // only: no DOM but the token read, so node draws the same thing (the gates).
 //
 // THE API

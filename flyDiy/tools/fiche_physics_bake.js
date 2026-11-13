@@ -4,7 +4,7 @@
 // the game's load door (tools/_load_build.js), then genFichePages (66c), written beside the plane's fiche pictures:
 //   media/fiches/<key>/physics.json        (fiche_physics.js dataFor reads it from its side picture's folder)
 // The pictures' frames are not baked: the page fits them on its own pictures (fitFrame).
-//   node tools/fiche_physics_bake.js [--only <key,key>] [--jobs N] [--dry]
+//   node tools/fiche_physics_bake.js [--only <key,key>] [--jobs N] [--dry] [--prune]   (a full bake prunes the fiches gone from the index; --prune alone only prunes)
 'use strict';
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
 const T = __dirname, FLY = path.join(T, '..'), OUT = path.join(FLY, 'media', 'fiches');
@@ -35,6 +35,16 @@ const fileOf = (k, f) => f.listFile || ((LROWS.find(p => p.thumb === k && p.file
 const rows = Object.entries(IX).map(([k, f]) => ({ thumb: k, dir: ((f.pics && f.pics.side) || '').split('/')[0], file: fileOf(k, f) }))
   .filter(r => r.dir && r.file && fs.existsSync(path.join(FLY, r.file)) && (!only || only.includes(r.thumb)));
 for (const [k, f] of Object.entries(IX)) if (!rows.find(r => r.thumb === k) && (!only || only.includes(k))) console.log(k.padEnd(40), 'SKIPPED: no build file (' + (fileOf(k, f) || 'none') + ')');
+// THE PRUNE: a fiche gone from the index takes its physics.json with it (and its folder, when nothing else is left in it) -
+// after every full bake, or alone with --prune (GATE MEDIA calls a file no manifest names an orphan)
+function prune() {
+  const keep = new Set(Object.values(IX).map(f => ((f.pics && f.pics.side) || '').split('/')[0]).filter(Boolean));
+  for (const d of fs.readdirSync(OUT)) { const f = path.join(OUT, d, 'physics.json');
+    if (keep.has(d) || !fs.existsSync(f)) continue;
+    fs.unlinkSync(f); if (!fs.readdirSync(path.join(OUT, d)).length) fs.rmdirSync(path.join(OUT, d));
+    console.log(d.padEnd(36), 'PRUNED: no longer in the index'); }
+}
+if (argv.includes('--prune')) { prune(); process.exit(0); }
 if (argv.includes('--dry')) { for (const r of rows) console.log(r.thumb.padEnd(40), r.dir.padEnd(36), r.file); process.exit(0); }
 const jobs = +opt('jobs', '3');
 let next = 0, bad = 0;
@@ -43,4 +53,4 @@ const one = () => { if (next >= rows.length) return Promise.resolve();
   return new Promise(res => { const p = spawn(process.execPath, [__filename, '--one', r.file, r.dir], { cwd: FLY, stdio: ['ignore', 'inherit', 'pipe'] });
     let err = ''; p.stderr.on('data', d => { err += d; });
     p.on('close', c => { if (c) { bad++; console.log(`${r.dir.padEnd(36)} FAILED: ${err.trim().split('\n').pop()}`); } res(); }); }).then(one); };
-Promise.all(Array.from({ length: Math.min(jobs, rows.length) }, one)).then(() => { console.log(`fiche_physics_bake: ${rows.length - bad} of ${rows.length}`); process.exit(bad ? 1 : 0); });
+Promise.all(Array.from({ length: Math.min(jobs, rows.length) }, one)).then(() => { if (!only && !bad) prune(); console.log(`fiche_physics_bake: ${rows.length - bad} of ${rows.length}`); process.exit(bad ? 1 : 0); });
