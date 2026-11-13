@@ -5012,7 +5012,8 @@ function genPlanePair(pos0, pos1) {
 // the DC-3 sits inside the old big box, so nothing it flies moves; the small box is unchanged.
 const GEN_WING_ENVELOPE = {
   chord: [0.80, 3.00], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
-  taper: [0.45, 1.0], xLE: [-1.20, 3.00],
+  // (the LS4, 13 Nov: a sailplane's outer panel to 0.40 of the root - 0.36 m on 0.90; 0.45 held it at 0.405)
+  taper: [0.35, 1.0], xLE: [-1.20, 3.00],
   placeDx: [-1.2, 1.8], placeDy: [-1.0, 1.5],
   // G3579 (DC3-2, the reference model's fit): a big wing's taper to 0.25 (the DC-3's outer panel, 4.63 -> 1.4 m) and its
   // crank chord to the big chord (its constant-chord centre section, 4.63 m) - past 18 m only: every validated build's

@@ -226,7 +226,7 @@ const WING_ITEMS = [
   // DC3-EDITABLE: to its ~40 m class's 40 m and 6 m (the user, 7 Nov: "allowing us to build wider planes")
   ['wgSpan',   'span',           6.5, 40, 0.1, { ...on, dim: 'm', note: spanNote }],
   ['wgChord',  'root chord',     0.80, 6.00, 0.05, { ...on, dim: 'm' }],
-  ['wgChordTip', 'tip chord',    0.55, 6.00, 0.05, { when: P => +P.wingOn && !+P.wgPlan, dim: 'm', note: tipNote }],
+  ['wgChordTip', 'tip chord',    0.30, 6.00, 0.01, { when: P => +P.wingOn && !+P.wgPlan, dim: 'm', note: tipNote }],   // (the LS4: 0.36 m - 0.55 was the floor)
   // THE ELLIPTIC PLANFORM (the user, 27 Oct, the Spitfire: "a truly elliptic wing"): the chord follows one
   // ellipse over the whole semispan from the root chord on the centreline, the line at `straight line at` of
   // the chord runs straight (swept by `tip aft`); the tip chord, the crank and the tip type stand down
