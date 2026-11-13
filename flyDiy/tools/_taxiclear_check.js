@@ -66,8 +66,8 @@ const check = (ok, what, detail) => {
   return ok;
 };
 const FX = path.join(T, 'fixtures', 'island_jolene.json');
-const METAL = path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json');
-const BUILDS = [{ key: 'stock', name: 'stock build' }, { key: METAL, name: 'aluminium C172' }];
+const METAL = path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json');   // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
+const BUILDS = [{ key: 'stock', name: 'stock build' }, { key: METAL, name: 'Cessna 172 (F-HCSN)' }];
 // G3074: THE METAL CESSNA BY THE MILL'S HOUSES (house3 / house4) - its rotation swings 2.9 deg right as the nosewheel unloads
 // since JODEL-PITCH G2470 measured the Munk body couple along the body: the wing reads 1.49 m off (the base's 1.5+ was a
 // fictitious couple's margin). The user, 13 Oct, BY NAME: "the 2 first issues are simple margins to recalibrate" - 1.45 m
@@ -235,7 +235,12 @@ for (const seed of [0, 1, 6, 12, 42]) {
   const a = WI.aerodromes.find(q => q.id === 'mn_strip'), s = C.siteOf('mn_strip');
   const put = L.intoWorld(C, WI, SH, a.x, a.z, 600);
   check(put.obstacles > 150 && WI.obstacles.count >= put.obstacles, '9 the mill\'s obstacles are in the world', put.obstacles + ' obstacles, ' + put.trunks + ' trunks');
-  for (const B of VB.filter(b => b.key !== 'stock')) {
+  // PILOT-UNIFY (the user, 13 Nov via A0: "It doesn't matter that the Cessna can't take off from Jumbo Mine. But the CUB must be
+  // able to do it, and the JODEL must be able to do it"): THE JODEL FLIES FROM THE MILL TOO - the validated Jodel
+  // (builds/jodel_2026-09-20_corrected.json), the same three rows, by the one autopilot. (The Cessna's case becomes its said
+  // decline at the hold once the go / no-go reads the surface and the slope - L40c)
+  const JODEL = (() => { const key = path.join(T, '..', 'builds', 'jodel_2026-09-20_corrected.json'); return { key, name: 'the Jodel', def: C.buildGen(PT.specOf(key).spec) }; })();
+  for (const B of VB.filter(b => b.key !== 'stock').concat([JODEL])) {
     const F = L.flyOut(C, WI, IX, B.def, a, s);
     check(F.air, '9 ' + B.name + ' taxied from the mill and took off', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, '9 ' + B.name + ' touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
@@ -314,7 +319,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
   const t0 = Date.now();
   const LB = [{ key: path.join(T, '..', 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub" },
               { key: path.join(T, '..', 'builds', 'jodel_2026-09-20_corrected.json'), name: 'the Jodel' },
-              { key: METAL, name: 'the metal Cessna' }]
+              { key: METAL, name: 'the Cessna 172 (F-HCSN)' }]
     .map(B => { const sp = PT.specOf(B.key).spec; return Object.assign({}, B, { def: C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(sp) : sp) }); });
   // the solid things near every land strip into the world (9, in shard 0, put the mill's: the rest, and every strip's
   // trunks again - intoWorld's trunks are one set)

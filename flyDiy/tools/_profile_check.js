@@ -32,7 +32,7 @@ const arg = (k, d) => { const a = process.argv.find(s => s.startsWith('--' + k +
 const BUILDS = {
   jodel: path.join(T, '..', 'builds', 'jodel_2026-09-20_corrected.json'),
   cub: path.join(T, '..', 'builds', 'cub_2026-09-20_corrected.json'),
-  cessnaMetal: path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'),
+  cessnaMetal: path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json'),   // (the key kept: the pins read it) CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
 };
 const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
 // the core under test: PILOT_CORE (pilot_trace's own switch) for a before / after on another build
@@ -135,11 +135,12 @@ function caseTrees() {
   const ap = C.makePilot(sim, def, world, { style: 'normal' });
   ap.setRoute(a, a); ap.departFrom(a, a, site);
   const out = [];
-  let contact = 0, contactAt = null, minNear = Infinity, minVert = Infinity, vertAt = null, appr = null, gaN = 0;
+  let contact = 0, contactAt = null, minNear = Infinity, minVert = Infinity, vertAt = null, appr = null, gaN = 0, aglMax = 0;
   for (let k = 0; k < 60 * 900; k++) {
     ap.update(1 / 60); sim.step(1 / 60);
     if (k % 6) continue;
     const cg = sim.cgPos();
+    aglMax = Math.max(aglMax, cg[1] - world.terrainH(cg[0], cg[2]));
     const near = world.treesNear(cg[0], cg[2], out);
     // the threshold the aeroplane lands over: 60 m short of it the final is still over the approach's ground
     let toThr = null;
@@ -165,7 +166,7 @@ function caseTrees() {
     if (ap.phase === 'STOPPED') break;
   }
   gaN = ap.report.verdicts.filter(v => v.code === 'go-around').length;
-  return { phase: ap.phase, t: Math.round(ap.t), outcome: ap.report.outcome, contact, contactAt, minNear: r1(minNear), minVert: Number.isFinite(minVert) ? r1(minVert) : null, vertAt,
+  return { phase: ap.phase, t: Math.round(ap.t), outcome: ap.report.outcome, aglMax: r1(aglMax), contact, contactAt, minNear: r1(minNear), minVert: Number.isFinite(minVert) ? r1(minVert) : null, vertAt,
            goArounds: gaN, appr: appr ? { technique: appr.technique, gs: appr.gs, reqGs: appr.reqGs, aimIn: appr.aimIn, displaced: appr.displaced || null } : null,
            verdicts: ap.report.verdicts.filter(v => /aim-displaced|go-around|divert|vx-climb|terrain/.test(v.code)).map(v => v.code + '@' + v.t) };
 }
@@ -224,8 +225,10 @@ if (one) {
   console.log('3 AN APPROACH OVER TREES (Jolene \'' + TREES + '\', East Point Clearing, the Cub\'s circuit to a stop)');
   if (c3.error) check(false, '3 ran', c3.error);
   else {
-    check(c3.phase === 'STOPPED' && c3.contact === 0, '3 the Cub flies East Point\'s circuit to a stop and touches no tree',
-      c3.phase + ' at ' + c3.t + ' s, ' + c3.contact + ' contacts' + (c3.contactAt ? ' (first ' + c3.contactAt + ')' : '') + ', nearest node to a cylinder ' + c3.minNear + ' m; ' + c3.goArounds + ' go-arounds; ' + c3.verdicts.join(' '));
+    // PILOT-UNIFY (13 Nov, TOW-LAUNCH's slope reaction): A CIRCUIT IS FLOWN - a Cub that never left East Point's stand
+    // ('taxi-lost', 0.00 m/s on its 15 % grade) stopped there touching no tree and passed: it must have been airborne (>= 30 m)
+    check(c3.phase === 'STOPPED' && c3.contact === 0 && c3.aglMax >= 30, '3 the Cub flies East Point\'s circuit (airborne >= 30 m) to a stop and touches no tree',
+      c3.phase + ' at ' + c3.t + ' s, highest ' + c3.aglMax + ' m over the ground, ' + c3.outcome + ', ' + c3.contact + ' contacts' + (c3.contactAt ? ' (first ' + c3.contactAt + ')' : '') + ', nearest node to a cylinder ' + c3.minNear + ' m; ' + c3.goArounds + ' go-arounds; ' + c3.verdicts.join(' '));
     check(c3.minVert == null || c3.minVert >= 10, '3 on final the lowest node >= 10 m over every tree top within 15 m of the track',
       (c3.minVert == null ? 'no tree under the final' : c3.minVert + ' m (' + c3.vertAt + ')') + '; the approach ' + JSON.stringify(c3.appr));
   }
