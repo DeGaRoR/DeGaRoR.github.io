@@ -20,6 +20,9 @@
 //                74_ careerComplete hands the airframe over (contractDelivery) and states the profit (contractProfit)
 //   the map      missionMarkers(rec, live) -> what the map and the 3-D world draw (a local session draws them)
 // HEADINGS are compass degrees on the island's map: 0 = north = -z, 90 = east = +x (MAP_PACK's rule: -z is north).
+// (COMPETE, 13 Nov) the scoring: STOL lines (msrStolStep, missionScoreOnSub), 3-D gates (a ring's pitch, the attitude
+// asked at a pass: missionAttJudge), regularity laps, the multi-leg course, the fixed ghost - HANDOVER COMPETE-SCORE.
+// The sample may also carry gnd (the wheels on the ground), v (m/s), hdg / pitch / roll (deg).
 // ===========================================================================
 
 const MISSION_RUN_V = 1;
@@ -132,6 +135,11 @@ function missionTimerTarget(rec, t, fields) {
 // ONE STEP a timer STOPS on, done at a stop, judged from the flight's lap (stop.tracks[rec.id].timers): the medal (its
 // best band), or the target to beat (no medals) - over it, or no lap timed, the step is NOT done (fly it again).
 // r: contractSubOnStop's result -> the result (r itself when no timer stops on the step)
+// (COMPETE) a timer may be a REGULARITY lap (regularity: true: the score is the deviation from its target, the medals'
+// le in seconds off it; with no medals, within tol), and may race a FIXED GHOST (ghost { s, who?, splits? }: an authored
+// rival lap, the same for every player - timer.ghost { s, beat, by }, by + behind it). A stop step also judges the
+// mission's STOL lines and its COURSE (missionScoreOnSub).
+const msrBand = (medals, v) => medals.slice().sort((a, b) => a.le - b.le).find(x => v <= x.le) || null;
 function missionTimerOnSub(rec, sub, r, stop, fields) {
   if (!r || r.st !== 'done' || !sub || !sub.id) return r;
   const ev = stop && stop.tracks && stop.tracks[rec.id];
@@ -140,13 +148,76 @@ function missionTimerOnSub(rec, sub, r, stop, fields) {
     const E = ev && ev.timers && ev.timers[t.id];
     if (!E || !msrNum(E.s)) return { st: 'no', why: 'the ' + t.id + ' timer ran no lap (' + t.start + ' to ' + t.stop + ' in one flight)' };
     const target = missionTimerTarget(rec, t, fields), timer = Object.assign({ id: t.id, s: E.s, target, splits: E.splits || [] },
-      E.pen ? { raw: E.raw, pen: E.pen, strikes: E.strikes || 0 } : {});
-    if (Array.isArray(t.medals) && t.medals.length) {
-      const m = t.medals.slice().sort((a, b) => a.le - b.le).find(x => E.s <= x.le);
-      if (!m) return { st: 'no', why: t.id + ': ' + E.s + ' s, ' + Math.max(...t.medals.map(x => x.le)) + ' s or less for a medal' };
+      E.pen ? Object.assign({ raw: E.raw, pen: E.pen, strikes: E.strikes || 0 }, E.atts ? { atts: E.atts } : {}) : {});
+    const medals = Array.isArray(t.medals) && t.medals.length ? t.medals : null;
+    if (t.regularity) {
+      if (!msrNum(target)) return { st: 'no', why: t.id + ': a regularity lap with no target' };
+      const dev = msrR1(Math.abs(E.s - target));
+      timer.dev = dev;
+      if (t.ghost && msrNum(t.ghost.s)) { const gd = msrR1(Math.abs(t.ghost.s - target)); timer.ghost = { s: t.ghost.s, dev: gd, beat: dev < gd, by: msrR1(dev - gd) }; }
+      if (medals) {
+        const m = msrBand(medals, dev);
+        if (!m) return { st: 'no', why: t.id + ': ' + E.s + ' s, ' + dev + ' s off the ' + target + ' s asked; ' + Math.max(...medals.map(x => x.le)) + ' s off or less for a medal' };
+        r = Object.assign({}, r, { medal: m.medal, timer });
+      } else if (dev > t.tol) return { st: 'no', why: t.id + ': ' + E.s + ' s, ' + dev + ' s off the ' + target + ' s asked (' + t.tol + ' s allowed)' };
+      else r = Object.assign({}, r, { timer });
+      continue;
+    }
+    if (t.ghost && msrNum(t.ghost.s)) timer.ghost = { s: t.ghost.s, beat: E.s < t.ghost.s, by: msrR1(E.s - t.ghost.s) };
+    if (medals) {
+      const m = msrBand(medals, E.s);
+      if (!m) return { st: 'no', why: t.id + ': ' + E.s + ' s, ' + Math.max(...medals.map(x => x.le)) + ' s or less for a medal' };
       r = Object.assign({}, r, { medal: m.medal, timer });
     } else if (msrNum(target) && E.s > target) return { st: 'no', why: t.id + ': ' + E.s + ' s, the target is ' + target + ' s' };
     else r = Object.assign({}, r, { timer });
+  }
+  return missionScoreOnSub(rec, sub, r, stop);
+}
+// (COMPETE) is a record scored at its stops beyond its timers (a STOL line, a course): the career's seam keys on
+// rec.timers, and missionToContract gives such a record its (empty) timers list so the stop judges it
+const missionScored = rec => !!rec && ((Array.isArray(rec.stol) && rec.stol.length > 0) || !!rec.course);
+// ONE STEP a STOL line or the COURSE stops on, done at a stop: judged from the flight's evidence -> the result (r itself
+// when nothing stops on the step). STOL: the measure (not measured, or a foul: not done - fly it again), its medal
+// (le metres; none: not done) or its max, the ghost (smaller is better), r.scores [{ id, kind, m, short?, ghost? }]. THE
+// COURSE (rec.course { timers: [one lap per leg, in leg order], medals?, ghost?: { s, who?, legs? } }): on the last
+// lap's stop step, the result is the SUM of the legs' laps (each with its penalties) - this flight's lap, the earlier
+// ones carried in the evidence (missionTrackNew's live.timers) - with its per-leg splits; the course's medal replaces the
+// leg's; r.course { s, legs: [{ id, s, ghost? }], ghost? }
+function missionScoreOnSub(rec, sub, r, stop) {
+  if (!r || r.st !== 'done' || !sub || !sub.id || !rec) return r;
+  const ev = stop && stop.tracks && stop.tracks[rec.id];
+  for (const S of Array.isArray(rec.stol) ? rec.stol : []) {
+    if (!S || S.stop !== sub.id) continue;
+    const E = ev && ev.stol && ev.stol[S.id], what = S.kind === 'takeoff' ? 'take-off' : S.kind === 'spot' ? 'spot landing' : 'landing';
+    if (!E) return { st: 'no', why: 'the ' + what + ' on the ' + S.id + ' line was not measured' };
+    if (E.foul) return { st: 'no', why: 'the ' + what + ' on the ' + S.id + ' line touched down ' + Math.abs(E.td) + ' m short of it' };
+    const score = Object.assign({ id: S.id, kind: S.kind, m: E.m }, E.short ? { short: true } : {});
+    if (S.ghost && msrNum(S.ghost.m)) score.ghost = { m: S.ghost.m, beat: E.m < S.ghost.m, by: msrR1(E.m - S.ghost.m) };
+    if (Array.isArray(S.medals) && S.medals.length) {
+      const m = msrBand(S.medals, E.m);
+      if (!m) return { st: 'no', why: S.id + ': ' + E.m + ' m, ' + Math.max(...S.medals.map(x => x.le)) + ' m or less for a medal' };
+      r = Object.assign({}, r, { medal: m.medal, scores: (r.scores || []).concat([score]) });
+    } else if (msrNum(S.max) && E.m > S.max) return { st: 'no', why: S.id + ': ' + E.m + ' m, ' + S.max + ' m allowed' };
+    else r = Object.assign({}, r, { scores: (r.scores || []).concat([score]) });
+  }
+  const C = rec.course, ids = C && Array.isArray(C.timers) ? C.timers : [];
+  const last = ids.length && (rec.timers || []).find(t => t.id === ids[ids.length - 1]);
+  if (last && last.stop === sub.id) {
+    const legs = [];
+    for (let i = 0; i < ids.length; i++) {
+      const E = ev && ev.timers && ev.timers[ids[i]], s = E && msrNum(E.s) ? E.s : ev && ev.course && msrNum(ev.course[ids[i]]) ? ev.course[ids[i]] : null;
+      if (s == null) return { st: 'no', why: 'the course: leg ' + (i + 1) + ' (' + ids[i] + ') has no time' };
+      const L = { id: ids[i], s }, G = C.ghost && Array.isArray(C.ghost.legs) ? C.ghost.legs[i] : null;
+      if (msrNum(G)) L.ghost = msrR1(s - G);
+      legs.push(L);
+    }
+    const course = { s: msrR1(legs.reduce((a, L) => a + L.s, 0)), legs };
+    if (C.ghost && msrNum(C.ghost.s)) course.ghost = { s: C.ghost.s, beat: course.s < C.ghost.s, by: msrR1(course.s - C.ghost.s) };
+    if (Array.isArray(C.medals) && C.medals.length) {
+      const m = msrBand(C.medals, course.s);
+      if (!m) return { st: 'no', why: 'the course: ' + course.s + ' s, ' + Math.max(...C.medals.map(x => x.le)) + ' s or less for a medal' };
+      r = Object.assign({}, r, { medal: m.medal, course });
+    } else r = Object.assign({}, r, { course });
   }
   return r;
 }
@@ -182,7 +253,24 @@ function msrAltWhy(alt, smp) {
   return '';
 }
 const msrLerp = (a, b, u) => { const o = { t: a.t + (b.t - a.t) * u, x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u };
-  for (const k of ['y', 'agl']) if (msrNum(a[k]) && msrNum(b[k])) o[k] = a[k] + (b[k] - a[k]) * u; else if (msrNum(b[k])) o[k] = b[k]; return o; };
+  for (const k of ['y', 'agl']) if (msrNum(a[k]) && msrNum(b[k])) o[k] = a[k] + (b[k] - a[k]) * u; else if (msrNum(b[k])) o[k] = b[k];
+  // (COMPETE) the attitude, when the page gives it: pitch straight, heading and roll the short way round
+  for (const k of ['hdg', 'pitch', 'roll']) {
+    if (!(msrNum(a[k]) && msrNum(b[k]))) { if (msrNum(b[k])) o[k] = b[k]; continue; }
+    const d = k === 'pitch' ? b[k] - a[k] : ((b[k] - a[k]) % 360 + 540) % 360 - 180, v = a[k] + d * u;
+    o[k] = k === 'pitch' ? v : k === 'hdg' ? (v % 360 + 360) % 360 : ((v + 180) % 360 + 360) % 360 - 180;
+  }
+  return o; };
+// (COMPETE) A RING'S FRAME: it faces its heading `dir` tilted up by `pitch` (deg; 90 = flown straight up through it, the
+// loop's vertical gate); n its facing, l across it level (the wing's way at roll 0), u its own up (n x l)
+function msrRingFrame(p) {
+  const r = p.dir * Math.PI / 180, e = (msrNum(p.pitch) ? p.pitch : 0) * Math.PI / 180;
+  const z = v => (Math.abs(v) < 1e-12 ? 0 : v);                 // cos 90 is 6e-17: a vertical ring is exactly vertical
+  const sr = z(CORE_MATH.sin(r)), cr = z(CORE_MATH.cos(r)), se = z(CORE_MATH.sin(e)), ce = z(CORE_MATH.cos(e));
+  return { c: p.ring.map(Number), pitched: msrNum(p.pitch) && p.pitch !== 0,
+           n: [sr * ce, se, -cr * ce], l: [-cr, 0, -sr], u: [-sr * se, ce, cr * se] };
+}
+const msrDot3 = (v, x, y, z) => v[0] * x + v[1] * y + v[2] * z;
 // one objective between two samples a -> b: the crossing (an interpolated sample) or null
 function missionHitTest(p, a, b) {
   const k = msrKind(p), dx = b.x - a.x, dz = b.z - a.z, L2 = dx * dx + dz * dz;
@@ -210,11 +298,13 @@ function missionHitTest(p, a, b) {
       const u = M2 > 0 ? Math.max(0, Math.min(1, ((cx - a.x) * dx + (cy - ya) * dy + (cz - a.z) * dz) / M2)) : 1, q = msrLerp(a, b, u);
       return Math.hypot(q.x - cx, (msrNum(q.y) ? q.y : cy) - cy, q.z - cz) <= p.r ? q : null;
     }
-    const r = p.dir * Math.PI / 180, nx = CORE_MATH.sin(r), nz = -CORE_MATH.cos(r);       // the ring faces its heading
-    const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
+    // the ring faces its heading (COMPETE: tilted by its pitch - a tilted ring needs the heights of both samples)
+    const R = msrRingFrame(p);
+    if (R.pitched && !(msrNum(a.y) && msrNum(b.y))) return null;
+    const sa = msrDot3(R.n, a.x - cx, ya - cy, a.z - cz), sb = msrDot3(R.n, b.x - cx, yb - cy, b.z - cz);
     if (!(sa < 0 && sb >= 0)) return null;                                     // through it, the way it faces
-    const u = sa / (sa - sb), q = msrLerp(a, b, u);
-    const lat = (q.x - cx) * nz - (q.z - cz) * nx, up = (msrNum(q.y) ? q.y : cy) - cy;
+    const u = sa / (sa - sb), q = msrLerp(a, b, u), qy = (msrNum(q.y) ? q.y : cy) - cy;
+    const lat = msrDot3(R.l, q.x - cx, qy, q.z - cz), up = msrDot3(R.u, q.x - cx, qy, q.z - cz);
     return Math.hypot(lat, up) <= p.r ? q : null;
   }
   return null;
@@ -256,19 +346,23 @@ function missionStrikeTest(p, a, b, reach) {
         const v = msl ? q.y : h;
         if (!msrNum(v) || v > top || d > D.r + R) return;
       } else {
-        const D = MISSION_PROP_DIMS.pylons;
-        if (!msrNum(h) || h > D.h || d > D.r0 + (D.r1 - D.r0) * Math.max(0, h) / D.h + R) return;
+        const D = MISSION_PROP_DIMS.pylons, Rh = msrNum(q.roll) ? R * Math.abs(CORE_MATH.cos(q.roll * Math.PI / 180)) : R;   // (COMPETE) a knife-edge wing reaches up, not out
+        if (!msrNum(h) || h > D.h || d > D.r0 + (D.r1 - D.r0) * Math.max(0, h) / D.h + Rh) return;
       }
       out.push({ post: i, t: q.t, x: q.x, z: q.z, y: msrNum(q.y) ? q.y : null });
     });
     return out;
   }
   if (k === 'ring' && msrNum(p.dir)) {
-    const [cx, cy, cz] = p.ring.map(Number), r = p.dir * Math.PI / 180, nx = CORE_MATH.sin(r), nz = -CORE_MATH.cos(r);
-    const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
-    if ((sa < 0) === (sb < 0) || !msrNum(a.y) || !msrNum(b.y)) return out;   // not across its plane (or no height known)
+    const [cx, cy, cz] = p.ring.map(Number), F = msrRingFrame(p);
+    if (!msrNum(a.y) || !msrNum(b.y)) return out;                              // no height known
+    const sa = msrDot3(F.n, a.x - cx, a.y - cy, a.z - cz), sb = msrDot3(F.n, b.x - cx, b.y - cy, b.z - cz);
+    if ((sa < 0) === (sb < 0)) return out;                                     // not across its plane
     const u = sa / (sa - sb), q = msrLerp(a, b, u);
-    const lat = (q.x - cx) * nz - (q.z - cz) * nx, up = q.y - cy, tube = MISSION_PROP_DIMS.donut.tube, Rc = p.r + tube;
+    // (COMPETE) in the ring's own frame, the wing turned by the roll (level: as before; knife-edge: it reaches along u)
+    const l0 = msrDot3(F.l, q.x - cx, q.y - cy, q.z - cz), u0 = msrDot3(F.u, q.x - cx, q.y - cy, q.z - cz);
+    const ph = msrNum(q.roll) ? q.roll * Math.PI / 180 : 0, cph = ph ? CORE_MATH.cos(ph) : 1, sph = ph ? CORE_MATH.sin(ph) : 0;
+    const lat = l0 * cph + u0 * sph, up = -l0 * sph + u0 * cph, tube = MISSION_PROP_DIMS.donut.tube, Rc = p.r + tube;
     // the wing: lat - R .. lat + R across the ring's plane at height up; its nearest and farthest reach from the centre
     const lo = lat - R, hi = lat + R, xn = lo <= 0 && hi >= 0 ? 0 : Math.min(Math.abs(lo), Math.abs(hi)), xf = Math.max(Math.abs(lo), Math.abs(hi));
     const dn = Math.hypot(xn, up), df = Math.hypot(xf, up);
@@ -277,6 +371,126 @@ function missionStrikeTest(p, a, b, reach) {
   }
   return out;
 }
+// a penalty of `pen` s on every lap running at t (started at or before it, not stopped before it), counted under `what`
+// ('strikes' | 'atts') -> the laps' ids
+function msrPenalise(T, t, pen, what) {
+  const ids = [];
+  for (const lid of Object.keys(T.laps)) {
+    const L = T.laps[lid];
+    if (L.t0 > t || (L.t1 != null && L.t1 < t)) continue;
+    L.pen = Math.round(((L.pen || 0) + pen) * 10) / 10; L[what] = (L[what] || 0) + 1;
+    if (L.s != null) L.s = Math.round((L.raw + L.pen) * 10) / 10;
+    ids.push(lid);
+  }
+  return ids;
+}
+// a lap's stop event (COMPETE: against the fixed ghost, + behind it)
+function msrStopEv(tm, lap) {
+  const e = { k: 'timer', id: tm.id, state: 'stop', s: lap.s };
+  if (tm.ghost && msrNum(tm.ghost.s)) e.ghost = Math.round((lap.s - tm.ghost.s) * 10) / 10;
+  return e;
+}
+
+// ---- THE ATTITUDE AT A PASS (COMPETE: 3-D gates - a knife-edge, inverted, a loop) ----------------------------------------
+// A gate or a ring may ask an attitude at the pass, att { hdg?, pitch?, roll?, tol?, pen? } (deg; pitch nose-up +, in
+// -90..90; roll right wing down +, inverted 180, knife-edge +-90 - the page's convention): each asked angle within tol
+// (20) of the sample's at the crossing, else a SOFT penalty of pen s (2) on the laps running - never a miss, never a fail.
+// The heading of a near-vertical line (|pitch| > 70) is no heading: not judged there.
+const MISSION_ATT = { tol: 20, pen: 2, vertical: 70 };
+// -> null (nothing asked) | { err: { k: deg }, miss } | { unknown: [k] } (the sample lacks an angle asked: not judged)
+function missionAttJudge(att, q) {
+  if (!att || typeof att !== 'object' || !q) return null;
+  const tol = msrNum(att.tol) ? att.tol : MISSION_ATT.tol, err = {}, unknown = [];
+  let miss = false, asked = false;
+  for (const k of ['hdg', 'pitch', 'roll']) {
+    if (!msrNum(att[k])) continue;
+    asked = true;
+    if (k === 'hdg' && ((msrNum(att.pitch) && Math.abs(att.pitch) > MISSION_ATT.vertical) || (msrNum(q.pitch) && Math.abs(q.pitch) > MISSION_ATT.vertical))) continue;
+    if (!msrNum(q[k])) { unknown.push(k); continue; }
+    const e = k === 'pitch' ? Math.abs(q.pitch - att.pitch) : msrDiff(q[k], att[k]);
+    err[k] = Math.round(e * 10) / 10;
+    if (e > tol) miss = true;
+  }
+  if (!asked) return null;
+  if (unknown.length) return { unknown };
+  return { err, miss };
+}
+
+// ---- STOL: THE SHORTEST TAKE-OFF, THE SHORTEST LANDING, THE SPOT (COMPETE) -----------------------------------------------
+// A mission's stol: [{ id, kind: 'takeoff' | 'landing' | 'spot', line: [[x1, z1], [x2, z2]], dir, stop: <step id>,
+// medals?: [{ medal, le: m }], max?: m, ghost?: { m, who? } }] - a line marked across a strip, run the way `dir` faces.
+// The measure is the tour's (tools/_tour_lib.js, the take-off from the roll to the lift-off, the landing from the
+// touchdown to the stop - the retired CHINOOK gate's), read off the page's samples: `gnd` (the wheels on the ground:
+// true | a count of wheels), `v` (m/s over the ground; else the samples' own), x z the aeroplane's position (the page
+// feeds the main wheels' when it can).
+//   takeoff  stopped (v < 1 m/s) with the wheels on the line (0-3 m behind it, inside its length): the distance from
+//            the line to the lift-off (the midpoint of the last sample on the ground and the first off it), the
+//            lift-off held 1 s (a hop: the roll goes on)
+//   landing  the first touchdown inside the line's length, 0-300 m either side of it, after 5 s in the air: before
+//            the line a FOUL (Valdez: touched short); past it, the distance from the line to the stop (v < 1 m/s). Up
+//            again for 5 s: a go-around, the attempt dropped
+//   spot     the distance from the line at the first touchdown (short or long, the same; `short` says which)
+// The first measure of a flight stands (the step is flown again on the next flight when it is not good enough).
+const MISSION_STOL = { gap: 3, still: 1, hold: 1, flown: 5, zone: 300 };
+const MISSION_STOL_KINDS = ['takeoff', 'landing', 'spot'];
+// a line's frame: s the distance from the line the way dir runs (+ past it), c along the line from its middle
+function msrLineFrame(S) {
+  const [[x1, z1], [x2, z2]] = S.line, mx = (x1 + x2) / 2, mz = (z1 + z2) / 2, L = Math.hypot(x2 - x1, z2 - z1) || 1;
+  const ux = (x2 - x1) / L, uz = (z2 - z1) / L, r = S.dir * Math.PI / 180;
+  let nx = -uz, nz = ux;
+  if (nx * CORE_MATH.sin(r) - nz * CORE_MATH.cos(r) < 0) { nx = -nx; nz = -nz; }
+  return { s: (x, z) => (x - mx) * nx + (z - mz) * nz, c: (x, z) => (x - mx) * ux + (z - mz) * uz, half: L / 2 };
+}
+const msrGnd = q => (q.gnd == null ? null : msrNum(q.gnd) ? q.gnd > 0 : !!q.gnd);
+const msrR1 = v => Math.round(v * 10) / 10;
+function msrStolStep(T, a, b, out) {
+  const ga = msrGnd(a), gb = msrGnd(b);
+  if (ga == null || gb == null) return;
+  const K = MISSION_STOL, dt = b.t - a.t, v = msrNum(b.v) ? b.v : (dt > 0 ? Math.hypot(b.x - a.x, b.z - a.z) / dt : 0);
+  const m = { t: (a.t + b.t) / 2, x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 };   // a transition's moment: midway
+  if (ga === false && T.airSince == null) T.airSince = a.t;
+  const lift = ga && !gb, tdn = !ga && gb, flown = tdn && T.airSince != null ? m.t - T.airSince : 0;
+  const along = S => Math.hypot(b.x - a.x, b.z - a.z) > 0 && msrDiff(msrDeg(b.x - a.x, b.z - a.z), S.dir) <= 90;
+  const put = (S, r) => { T.stolRes[S.id] = r; out.push(Object.assign({ k: 'stol', id: S.id, kind: S.kind }, r)); };
+  for (const S of T.stol) {
+    if (T.stolRes[S.id]) continue;
+    const F = msrLineFrame(S), st = T.stolSt[S.id] || (T.stolSt[S.id] = { ph: 'wait' });
+    if (S.kind === 'takeoff') {
+      if (gb && v < K.still) {                                  // stopped: on the line, or not
+        const s = F.s(b.x, b.z);
+        st.ph = s >= -K.gap && s <= 0 && Math.abs(F.c(b.x, b.z)) <= F.half ? 'armed' : 'wait'; st.s0 = s; st.lift = null;
+        continue;
+      }
+      if (st.ph === 'armed' && lift) { st.ph = 'lift'; st.lift = m; continue; }
+      if (st.ph === 'lift') {
+        if (gb) { st.ph = 'armed'; st.lift = null; continue; }   // a hop: the roll goes on
+        if (b.t - st.lift.t >= K.hold) {
+          const s = F.s(st.lift.x, st.lift.z);
+          if (s > st.s0) put(S, { m: msrR1(Math.max(0, s)), t: Math.round(st.lift.t * 100) / 100 });
+          else st.ph = 'wait';
+        }
+      }
+      continue;
+    }
+    // landing | spot
+    if (st.ph === 'wait' && tdn && flown >= K.flown && along(S)) {
+      const s = F.s(m.x, m.z);
+      if (Math.abs(F.c(m.x, m.z)) > F.half || Math.abs(s) > K.zone) continue;   // a landing somewhere else
+      const t = Math.round(m.t * 100) / 100;
+      if (S.kind === 'spot') { put(S, Object.assign({ m: msrR1(Math.abs(s)), t }, s < 0 ? { short: true } : {})); continue; }
+      if (s < 0) { put(S, { foul: 'short', td: msrR1(s), t }); continue; }
+      st.ph = 'roll'; st.td = msrR1(s);
+      continue;
+    }
+    if (st.ph === 'roll') {
+      if (!gb && T.airSince != null && b.t - T.airSince >= K.flown) { st.ph = 'wait'; continue; }   // a go-around
+      if (gb && v < K.still) put(S, { m: msrR1(Math.max(0, F.s(b.x, b.z))), td: st.td, t: Math.round(b.t * 100) / 100 });
+    }
+  }
+  if (lift) T.airSince = m.t;
+  if (gb) T.airSince = null;
+}
+
 // the objectives of a contract's CURRENT leg (stage) not done yet -> [{ key, j, do, place, split?, say? }]; `seq` when the
 // leg's steps run in order (only the next one is armed)
 function missionObjectives(rec, live) {
@@ -291,9 +505,21 @@ function missionObjectives(rec, live) {
 // opts.reach: the aeroplane's half-span (m; MISSION_PROP_DIMS.reach when the page gives none)
 function missionTrackNew(rec, live, opts) {
   const O = missionObjectives(rec, live), o = opts || {};
-  return { v: MISSION_RUN_V, id: rec.id, stage: (live && live.stage) || 0, seq: O.seq, objs: O.objs, timers: msrClone(rec.timers || []),
+  const T = { v: MISSION_RUN_V, id: rec.id, stage: (live && live.stage) || 0, seq: O.seq, objs: O.objs, timers: msrClone(rec.timers || []),
            hits: {}, laps: {}, last: null, reach: msrNum(o.reach) && o.reach >= 0 ? o.reach : MISSION_PROP_DIMS.reach,
            strike: missionStrikeRule(rec), strikes: [], torn: {} };
+  // (COMPETE) the STOL lines this leg's open steps are judged on, and the course's earlier legs (live.timers: 74_ keeps
+  // every lap a step was judged on) carried into this flight's evidence
+  const st = rec && rec.stages && rec.stages[T.stage], open = {};
+  if (st) st.subs.forEach((s, j) => { if (s.id && !((live && live.subs) || [])[j]) open[s.id] = 1; });
+  T.stol = (Array.isArray(rec.stol) ? rec.stol : []).filter(S => S && open[S.stop]).map(msrClone);
+  T.stolSt = {}; T.stolRes = {}; T.airSince = null; T.atts = [];
+  if (rec.course && Array.isArray(rec.course.timers)) {
+    T.prior = {};
+    const LT = (live && live.timers) || {};
+    for (const id of rec.course.timers) if (LT[id] && msrNum(LT[id].s)) T.prior[id] = LT[id].s;
+  }
+  return T;
 }
 // one sample of the flight -> the events it made [{ k: 'hit' | 'photo' | 'split' | 'timer', key, ... }]. Mutates T.
 // In a seq leg only the first objective not yet hit is armed; after a hit the REST of the segment is tested against the
@@ -302,7 +528,9 @@ function missionTrackStep(T, smp) {
   if (!T || !smp || !msrNum(smp.t) || !msrNum(smp.x) || !msrNum(smp.z)) return [];
   const a = T.last, out = [];
   T.last = { t: smp.t, x: smp.x, z: smp.z, y: smp.y, agl: smp.agl };
+  for (const k of ['gnd', 'v', 'hdg', 'pitch', 'roll']) if (smp[k] != null) T.last[k] = smp[k];   // (COMPETE) on the ground, the speed, the attitude
   if (!a) return out;
+  if (T.stol && T.stol.length) msrStolStep(T, a, T.last, out);
   let from = a;
   for (const o of T.objs) {
     if (T.hits[o.key]) continue;
@@ -315,8 +543,24 @@ function missionTrackStep(T, smp) {
       for (const tm of T.timers) {
         const lap = T.laps[tm.id];
         if (tm.start === o.key && !lap) { T.laps[tm.id] = { t0: t, splits: [] }; out.push({ k: 'timer', id: tm.id, state: 'start', t }); }
-        else if (lap && lap.s == null && tm.stop === o.key) { lap.raw = Math.round((t - lap.t0) * 10) / 10; lap.t1 = t; lap.s = Math.round((lap.raw + (lap.pen || 0)) * 10) / 10; out.push({ k: 'timer', id: tm.id, state: 'stop', s: lap.s }); }
-        else if (lap && lap.s == null && o.split != null) { const sp = { key: o.key, s: Math.round((t - lap.t0) * 10) / 10, target: o.split }; lap.splits.push(sp); out.push(Object.assign({ k: 'split', id: tm.id }, sp)); }
+        else if (lap && lap.s == null && tm.stop === o.key) { lap.raw = Math.round((t - lap.t0) * 10) / 10; lap.t1 = t; lap.s = Math.round((lap.raw + (lap.pen || 0)) * 10) / 10; out.push(msrStopEv(tm, lap)); }
+        else if (lap && lap.s == null && (o.split != null || (tm.ghost && tm.ghost.splits && msrNum(tm.ghost.splits[o.key])))) {
+          const sp = Object.assign({ key: o.key, s: Math.round((t - lap.t0) * 10) / 10 }, o.split != null ? { target: o.split } : {}), G = tm.ghost && tm.ghost.splits;
+          if (G && msrNum(G[o.key])) sp.ghost = Math.round((sp.s - G[o.key]) * 10) / 10;   // (COMPETE) + behind the ghost, - ahead
+          lap.splits.push(sp); out.push(Object.assign({ k: 'split', id: tm.id }, sp));
+        }
+      }
+      // (COMPETE) THE ATTITUDE ASKED AT THE PASS (a knife-edge, inverted, a loop's vertical gate): outside its tolerance a
+      // soft penalty on every lap running (the timer starting or stopping here among them), never a miss
+      const aj = missionAttJudge(o.place && o.place.att, q);
+      if (aj) {
+        T.hits[o.key].att = aj;
+        if (aj.miss) {
+          const pen = msrNum(o.place.att.pen) ? o.place.att.pen : MISSION_ATT.pen, laps = msrPenalise(T, t, pen, 'atts');
+          T.atts.push({ key: o.key, t, err: aj.err });
+          out.push({ k: 'attitude', key: o.key, t, err: aj.err, pen, laps });
+          for (const e of out) if (e.k === 'timer' && e.state === 'stop' && laps.includes(e.id)) Object.assign(e, msrStopEv(T.timers.find(x => x.id === e.id), T.laps[e.id]));
+        } else out.push({ k: 'attitude', key: o.key, t, err: aj.err, ok: true });
       }
     }
     if (T.seq) from = q;                                       // the rest of the segment, for the next one in order
@@ -330,13 +574,8 @@ function missionTrackStep(T, smp) {
       const e = { k: 'strike', key: o.key, post: h.post, t, prop: msrKind(o.place) === 'ring' ? (o.place.prop || 'donut') : (o.place.prop || MISSION_GATE_PROP), until: T.torn[id] };
       if (T.strike.mode === 'penalty' && T.strike.pen > 0) {
         // every lap running at that moment (started at or before it, not stopped before it) takes the penalty
-        for (const lid of Object.keys(T.laps)) {
-          const L = T.laps[lid];
-          if (L.t0 > t || (L.t1 != null && L.t1 < t)) continue;
-          L.pen = Math.round(((L.pen || 0) + T.strike.pen) * 10) / 10; L.strikes = (L.strikes || 0) + 1;
-          if (L.s != null) L.s = Math.round((L.raw + L.pen) * 10) / 10;
-          e.pen = T.strike.pen; (e.laps = e.laps || []).push(lid);
-        }
+        const laps = msrPenalise(T, t, T.strike.pen, 'strikes');
+        if (laps.length) { e.pen = T.strike.pen; e.laps = laps; }
       }
       if (T.strike.mode === 'fail') e.fail = true;
       T.strikes.push({ key: o.key, post: h.post, t });
@@ -352,6 +591,9 @@ function missionTrackEvidence(T) {
   for (const id of Object.keys(T.laps)) timers[id] = msrClone(T.laps[id]);
   const ev = { v: MISSION_RUN_V, id: T.id, stage: T.stage, hits: msrClone(T.hits), timers };
   if (T.strikes && T.strikes.length) ev.strikes = msrClone(T.strikes);
+  if (T.atts && T.atts.length) ev.atts = msrClone(T.atts);
+  if (T.stolRes && Object.keys(T.stolRes).length) ev.stol = msrClone(T.stolRes);
+  if (T.prior) ev.course = msrClone(T.prior);
   return ev;
 }
 
@@ -442,7 +684,8 @@ function missionMarkers(rec, live, opts) {
       if (q) { m.x = q[0]; m.z = q[1]; }
       if (k === 'pt') { m.r = p.r; if (p.alt) m.alt = msrClone(p.alt); }
       if (k === 'gate') { m.posts = msrClone(p.gate); if (p.alt) m.alt = msrClone(p.alt); m.prop = p.prop || MISSION_GATE_PROP; if (msrNum(p.dir)) m.dir = p.dir; }
-      if (k === 'ring') { m.y = +p.ring[1]; m.r = p.r; if (msrNum(p.dir)) m.dir = p.dir; m.prop = p.prop || 'donut'; }
+      if (k === 'ring') { m.y = +p.ring[1]; m.r = p.r; if (msrNum(p.dir)) m.dir = p.dir; if (msrNum(p.pitch)) m.pitch = p.pitch; m.prop = p.prop || 'donut'; }
+      if ((k === 'gate' || k === 'ring') && p.att) m.att = msrClone(p.att);   // (COMPETE) the attitude asked
       if (k === 'spot') { m.spot = p.spot; const i0 = String(p.spot).indexOf(':'), a = String(p.spot).slice(0, i0), id = String(p.spot).slice(i0 + 1), sp = opts.spots && opts.spots[a] && opts.spots[a].find(z => z[3] === id); if (sp) { m.x = sp[0]; m.z = sp[1]; m.dir = sp[2]; } }
       if (k === 'site') m.site = p.site;
       if (k === 'field') m.field = p.field;
@@ -450,5 +693,15 @@ function missionMarkers(rec, live, opts) {
       out.push(m);
     });
   });
+  // (COMPETE) the STOL lines: a line across the strip, its run's way; its state its stop step's
+  for (const S of Array.isArray(rec && rec.stol) ? rec.stol : []) {
+    let i = -1, j = -1;
+    ((rec && rec.stages) || []).forEach((st, a) => (st.subs || []).forEach((s, b) => { if (s.id === S.stop) { i = a; j = b; } }));
+    if (i < 0) continue;
+    const done = i < L.stage || (i === L.stage && (L.subs || [])[j]);
+    out.push({ key: 'stol:' + S.id, do: 'stol', kind: 'line', stol: S.kind, posts: msrClone(S.line), dir: S.dir,
+               x: (S.line[0][0] + S.line[1][0]) / 2, z: (S.line[0][1] + S.line[1][1]) / 2,
+               state: done ? 'done' : i > L.stage ? 'later' : 'next', label: S.id });
+  }
   return out;
 }

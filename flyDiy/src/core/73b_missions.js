@@ -33,6 +33,13 @@
 //                                                     { fail: <band> } (34_occupant GEN_OCC.bands: the index or the word)
 //                                                     strike: 'penalty' (+3 s on the laps running) | { penalty: s } | 'fail' | 'ignore'
 //   timers?    [ { id, start, stop, target: s | { refKmh }, splits?, medals?: [ { medal, le } ] } ]          §3.3
+//              (COMPETE) regularity?: true (the score is the deviation from the target; medals' le in seconds off it,
+//              or tol: s allowed off it), ghost?: { s, who?, splits?: { <step id>: s } } (a FIXED rival lap, authored,
+//              the same for every player); a lap in a course may name no target
+//   course?    { timers: [timer id, one per leg, in leg order], medals?, ghost?: { s, who?, legs?: [s per leg] } }
+//              (COMPETE) a MULTI-LEG course: the result is the sum of the legs' laps, with per-leg splits
+//   stol?      [ { id, kind: takeoff | landing | spot, line: [[x1, z1], [x2, z2]], dir, stop: <step id>, medals?: [ { medal,
+//              le: m } ], max?: m, ghost?: { m, who? } } ]   (COMPETE) the STOL event over a marked line (73c measures it)
 //   startFrom? 'player' | <CONTRACT_DESIGNS id> | { build: 'path.json' }                                      §3.6
 //   prefs?     [ { k, v, need: 'bonus' | 'mandatory', pct? } ]   a configuration the client would like (bonus: +pct)
 //                                                     or insists on (mandatory: no delivery without it)        §7
@@ -46,8 +53,10 @@
 //     require?: { when, maxMin, depart, plane: [criterion] }, medals?, say?: { who, text }, onDone?, split?, auto? }
 //   do         carry | fly | land | photo | pass | park | deliver | accept | wait | talk
 //   place      { field } | { pt: [x, z], r, alt? } | { gate: [[x1, z1], [x2, z2]], alt?, prop?, dir? }
-//              | { ring: [x, y, z], r, dir?, prop? } | { spot: '<field>:<spot id>' } | { site: '<site id>' }
+//              | { ring: [x, y, z], r, dir?, pitch?, prop? } | { spot: '<field>:<spot id>' } | { site: '<site id>' }
 //              (a field may be written as its id: 'w3'); alt { min?, max?, ref: 'agl' | 'msl' }
+//              (COMPETE) a ring's pitch tilts its facing up (90: a loop's vertical gate); a gate or a ring may ask an
+//              attitude at the pass, att { hdg?, pitch?, roll?, tol?, pen? } (73c missionAttJudge: a soft penalty)
 //   from       where a carry is picked up / a fly or a photo departs (a field)
 //   photo over a FIELD is today's survey (the 450 m overflight); over a point it is phase 1's (the shutter + a line)
 // Pure: no DOM, no storage, no clock, no random. Reads 72_people.js, 72_ / 73_ (and, when present, 79_story.js,
@@ -84,7 +93,8 @@ const MISSION_PREF_KINDS = {
 };
 const MISSION_NEED = ['bonus', 'mandatory'];
 // the record's fields a mission adds (the legacy projection strips them: missionStrip)
-const MISSION_RIDE = { rec: ['client', 'onDone', 'rules', 'timers', 'startFrom', 'prefs', 'delivery', 'route', 'rally', 'order', 'pack', 'campaign', 'chapter'],
+const MISSION_RIDE = { rec: ['client', 'onDone', 'rules', 'timers', 'startFrom', 'prefs', 'delivery', 'route', 'rally', 'order', 'pack', 'campaign', 'chapter',
+                             'stol', 'course'],
                        stage: ['order'], sub: ['id', 'say', 'onDone', 'embark', 'disembark', 'require', 'split', 'auto', 'place'], load: ['who'] };
 // THE PEOPLE are 72_people.js's (GAME_PEOPLE, the one list - §8): a person in a pack is its id, never a free name; the
 // provider's client is peopleClientOf's. '' when `id` names a person, else why not
@@ -162,6 +172,23 @@ function msAltWhy(a) {
   return '';
 }
 const msXZ = q => Array.isArray(q) && q.length === 2 && q.every(v => msNum(v) && Math.abs(v) < 60000);
+// (COMPETE) the attitude asked at a pass: { hdg?: 0-360, pitch?: -90..90, roll?: -180..180, tol?: 1-90, pen?: 0-60 s }
+const MISSION_ATT_KEYS = ['hdg', 'pitch', 'roll', 'tol', 'pen'];
+function msAttWhy(a) {
+  if (a == null) return '';
+  if (!msObj(a)) return 'att must be { hdg?, pitch?, roll?, tol?, pen? }';
+  const bad = Object.keys(a).filter(k => !MISSION_ATT_KEYS.includes(k));
+  if (bad.length) return 'att.' + bad[0] + ' is not one of ' + MISSION_ATT_KEYS.join(' ');
+  if (a.hdg == null && a.pitch == null && a.roll == null) return 'att asks none of hdg, pitch, roll';
+  if (a.hdg != null && !(msNum(a.hdg) && a.hdg >= 0 && a.hdg < 360)) return 'att.hdg is 0-360 degrees';
+  if (a.pitch != null && !(msNum(a.pitch) && a.pitch >= -90 && a.pitch <= 90)) return 'att.pitch is -90..90 degrees';
+  if (a.roll != null && !(msNum(a.roll) && a.roll >= -180 && a.roll <= 180)) return 'att.roll is -180..180 degrees (inverted 180)';
+  if (a.tol != null && !(msNum(a.tol) && a.tol >= 1 && a.tol <= 90)) return 'att.tol is 1-90 degrees';
+  if (a.pen != null && !(msNum(a.pen) && a.pen >= 0 && a.pen <= 60)) return 'att.pen is seconds, 0-60';
+  return '';
+}
+// a medal list: [{ medal: gold|silver|bronze, le > 0 }]
+const msMedalsOk = L => Array.isArray(L) && L.length > 0 && L.every(x => msObj(x) && ['gold', 'silver', 'bronze'].includes(x.medal) && msNum(x.le) && x.le > 0);
 // '' when the place is well formed (a known field, a site of the pack, a spot of the field), else why not.
 // ctx: { fields, sites: { id: site }, spots: { field: [[x, z, ry, id]] } (src/viewer/fleet_spots_pack.js's `aero`) }
 function missionPlaceWhy(p, ctx) {
@@ -181,14 +208,16 @@ function missionPlaceWhy(p, ctx) {
     if (!(w >= 5 && w <= 2000)) return 'a gate is 5-2000 m wide, got ' + Math.round(w);
     if (p.prop != null && !MISSION_PROPS.gate.includes(p.prop)) return 'gate.prop is ' + MISSION_PROPS.gate.join(' | ');
     if (p.dir != null && !msNum(p.dir)) return 'gate.dir is a heading in degrees';
-    return msAltWhy(p.alt);
+    return msAltWhy(p.alt) || msAttWhy(p.att);
   }
   if (k === 'ring') {
     if (!Array.isArray(p.ring) || p.ring.length !== 3 || !p.ring.every(msNum) || !msXZ([p.ring[0], p.ring[2]])) return 'ring must be [x, y, z] (y the altitude, m MSL)';
     if (!(msNum(p.r) && p.r >= 2 && p.r <= 100)) return 'ring.r must be 2-100 m';
     if (p.dir != null && !msNum(p.dir)) return 'ring.dir is a heading in degrees';
+    if (p.pitch != null && !(msNum(p.pitch) && p.pitch >= -90 && p.pitch <= 90)) return 'ring.pitch is -90..90 degrees (its facing tilted up)';
+    if (p.pitch != null && p.dir == null) return 'a tilted ring (pitch) faces a heading (dir)';
     if (p.prop != null && !MISSION_PROPS.ring.includes(p.prop)) return 'ring.prop is ' + MISSION_PROPS.ring.join(' | ');
-    return '';
+    return msAttWhy(p.att);
   }
   if (k === 'spot') {
     const m = /^([^:]+):(.+)$/.exec(String(p.spot));
@@ -290,6 +319,8 @@ function missionToContract(m, ctx) {
   for (const k of ['pay', 'rep', 'unlock', 'needs', 'repeat', 'followUp']) if (M[k] != null) r[k] = msClone(M[k]);
   for (const k of MISSION_RIDE.rec) if (k !== 'order' && M[k] != null) r[k] = msClone(M[k]);
   msSiteTrack(r.onDone, sites);
+  // (COMPETE) a STOL-scored record carries a timers list (empty when it has none): the career's stop seam keys on it
+  if (r.timers == null && Array.isArray(M.stol) && M.stol.length) r.timers = [];
   if (M.order != null && M.order !== 'seq') r.order = M.order;
   return contractNormalise(r);
 }
@@ -325,6 +356,7 @@ function missionFromContract(rec) {
   if (rec.repeat != null && rec.repeat !== MS_REPEAT_DEFAULT(r)) m.repeat = msClone(rec.repeat);
   if (r.kind === 'build' && rec.followUp) { const f = {}; for (const k of ['prefer', 'add']) if (rec.followUp[k] && rec.followUp[k].length) f[k] = msClone(rec.followUp[k]); if (Object.keys(f).length) m.followUp = f; }
   for (const k of MISSION_RIDE.rec) if (r[k] != null) m[k] = msClone(r[k]);
+  if (Array.isArray(m.timers) && !m.timers.length && Array.isArray(m.stol) && m.stol.length) delete m.timers;   // (COMPETE) the seam's, not the author's
   return m;
 }
 // THE LEGACY PROJECTION: a record with the mission's ride-along fields taken off - what today's code reads (the gate
@@ -449,10 +481,95 @@ function missionWhy(m, ctx) {
         // in the same leg, the start first
         if (stepIds[t.start] && stepIds[t.stop] && (stepLeg[t.start] !== stepLeg[t.stop] || stepPos[t.start] > stepPos[t.stop])) why.push(at + ': starts and stops in one leg, the start first');
         if (t.start === t.stop) why.push(at + ': starts and stops on the same step');
-        const tg = t.target;
-        if (!((msNum(tg) && tg > 0) || (msObj(tg) && msNum(tg.refKmh) && tg.refKmh > 0))) why.push(at + ': target is seconds or { refKmh }');
+        const tg = t.target, inCourse = msObj(m.course) && Array.isArray(m.course.timers) && m.course.timers.includes(t.id);
+        if (!(inCourse && tg == null) && !((msNum(tg) && tg > 0) || (msObj(tg) && msNum(tg.refKmh) && tg.refKmh > 0))) why.push(at + ': target is seconds or { refKmh }');
         if (t.medals != null && (!Array.isArray(t.medals) || !t.medals.length || t.medals.some(x => !['gold', 'silver', 'bronze'].includes(x && x.medal) || !(x.le > 0))))
           why.push(at + ': a medal is { medal: gold|silver|bronze, le: seconds }');
+        // (COMPETE) REGULARITY: the deviation from the target scores; medals (seconds off it) or a tolerance
+        if (t.regularity != null && t.regularity !== true) why.push(at + ': regularity is true or absent');
+        if (t.regularity === true) {
+          if (tg == null) why.push(at + ': a regularity lap needs its target');
+          if (t.medals == null && !(msNum(t.tol) && t.tol > 0 && t.tol <= 600)) why.push(at + ': a regularity lap with no medals needs tol (seconds off the target, 0-600)');
+        } else if (t.tol != null) why.push(at + ': tol is a regularity lap\'s');
+        // (COMPETE) A FIXED GHOST: an authored rival lap, the same for every player (no random)
+        if (t.ghost != null) {
+          const G = t.ghost;
+          if (!msObj(G) || !(msNum(G.s) && G.s > 0)) why.push(at + ': ghost is { s > 0, who?, splits? }');
+          else {
+            if (G.who != null) { const w = missionPersonWhy(G.who, 'the ghost'); if (w) why.push(at + ': ' + w); }
+            for (const k of Object.keys(G)) if (!['s', 'who', 'splits'].includes(k)) why.push(at + ': ghost.' + k + ' is not one of s who splits');
+            if (G.splits != null) {
+              if (!msObj(G.splits)) why.push(at + ': ghost.splits is { <step id>: s }');
+              else for (const [k, v] of Object.entries(G.splits)) {
+                const okStep = stepIds[k] && stepLeg[k] === stepLeg[t.start] && stepPos[k] > stepPos[t.start] && stepPos[k] < stepPos[t.stop];
+                if (!okStep) why.push(at + ': ghost.splits.' + k + ' names no step between the lap\'s start and stop');
+                if (!(msNum(v) && v > 0 && v < G.s)) why.push(at + ': ghost.splits.' + k + ' is seconds inside the ghost\'s lap');
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+  // (COMPETE) THE COURSE: one lap per leg, in leg order; the sum is the result
+  if (m.course != null) {
+    const C = m.course, T = Array.isArray(m.timers) ? m.timers : [], at = id + ' course';
+    if (!msObj(C) || !Array.isArray(C.timers) || C.timers.length < 2) why.push(at + ': course is { timers: [2+ timer ids, one per leg], medals?, ghost? }');
+    else {
+      for (const k of Object.keys(C)) if (!['timers', 'medals', 'ghost'].includes(k)) why.push(at + ': course.' + k + ' is not one of timers medals ghost');
+      let prev = -1;
+      for (const tid of C.timers) {
+        const t = T.find(x => x && x.id === tid);
+        if (!t) { why.push(at + ': ' + tid + ' is no timer of the mission'); continue; }
+        const leg = stepLeg[t.start];
+        if (leg == null) continue;
+        if (!(leg > prev)) why.push(at + ': ' + tid + ' is not in a later leg than the lap before it (one lap per leg, in leg order)');
+        prev = Math.max(prev, leg);
+      }
+      if (C.medals != null && !msMedalsOk(C.medals)) why.push(at + ': a medal is { medal: gold|silver|bronze, le: seconds }');
+      if (C.ghost != null) {
+        const G = C.ghost;
+        if (!msObj(G) || !(msNum(G.s) && G.s > 0)) why.push(at + ': ghost is { s > 0, who?, legs? }');
+        else {
+          if (G.who != null) { const w = missionPersonWhy(G.who, 'the ghost'); if (w) why.push(at + ': ' + w); }
+          if (G.legs != null) {
+            if (!Array.isArray(G.legs) || G.legs.length !== C.timers.length || !G.legs.every(v => msNum(v) && v > 0)) why.push(at + ': ghost.legs is one time per leg');
+            else if (Math.abs(G.legs.reduce((a, v) => a + v, 0) - G.s) > 0.5) why.push(at + ': the ghost\'s legs add up to ' + G.legs.reduce((a, v) => a + v, 0) + ' s, not its ' + G.s + ' s');
+          }
+        }
+      }
+    }
+  }
+  // (COMPETE) THE STOL LINES: a line across a strip, run the way dir faces, judged on its stop step
+  if (m.stol != null) {
+    if (!Array.isArray(m.stol)) why.push(id + ': stol is a list');
+    else {
+      const seen = {};
+      m.stol.forEach((S, i) => {
+        const at = id + ' stol ' + ((S && S.id) || i);
+        if (!msObj(S) || typeof S.id !== 'string' || !S.id) { why.push(at + ': a STOL line has an id'); return; }
+        if (seen[S.id]) why.push(at + ': id twice'); seen[S.id] = 1;
+        for (const k of Object.keys(S)) if (!['id', 'kind', 'line', 'dir', 'stop', 'medals', 'max', 'ghost'].includes(k)) why.push(at + ': ' + k + ' is not one of id kind line dir stop medals max ghost');
+        if (!['takeoff', 'landing', 'spot'].includes(S.kind)) why.push(at + ': kind is takeoff | landing | spot');
+        if (!Array.isArray(S.line) || S.line.length !== 2 || !S.line.every(msXZ)) { why.push(at + ': line is two ends [[x1, z1], [x2, z2]]'); return; }
+        const L = Math.hypot(S.line[1][0] - S.line[0][0], S.line[1][1] - S.line[0][1]);
+        if (!(L >= 5 && L <= 200)) why.push(at + ': a line is 5-200 m long, got ' + Math.round(L));
+        if (!(msNum(S.dir) && S.dir >= 0 && S.dir < 360)) why.push(at + ': dir is the run\'s heading, 0-360');
+        else if (L > 0) {
+          // the run crosses the line square: dir within 15 deg of the line's normal
+          const lh = ((Math.atan2(S.line[1][0] - S.line[0][0], -(S.line[1][1] - S.line[0][1])) * 180 / Math.PI) + 360) % 360;
+          const off = Math.abs(((S.dir - lh) % 180 + 180) % 180 - 90);
+          if (off > 15) why.push(at + ': the run (' + S.dir + ') crosses the line ' + Math.round(off) + ' deg off square (15 allowed)');
+        }
+        if (!stepIds[S.stop]) why.push(at + ': stop names no step of the mission (' + S.stop + ')');
+        if (S.medals != null && !msMedalsOk(S.medals)) why.push(at + ': a medal is { medal: gold|silver|bronze, le: metres }');
+        if (S.max != null && !(msNum(S.max) && S.max > 0 && S.max <= 2000)) why.push(at + ': max is metres, 0-2000');
+        if (S.medals != null && S.max != null) why.push(at + ': medals or max, not both');
+        if (S.ghost != null) {
+          const G = S.ghost;
+          if (!msObj(G) || !(msNum(G.m) && G.m >= 0) || Object.keys(G).some(k => !['m', 'who'].includes(k))) why.push(at + ': ghost is { m >= 0, who? }');
+          else if (G.who != null) { const w = missionPersonWhy(G.who, 'the ghost'); if (w) why.push(at + ': ' + w); }
+        }
       });
     }
   }

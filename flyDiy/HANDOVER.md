@@ -315264,3 +315264,37 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+
+## COMPETE-SCORE: THE AERO CLUB'S SCORING (2026-11-13, pure core in 73b/73c + GATE MISSIONS)
+The competition events, all pure (no clock, no random), all in the mission format, each judged on a STOP STEP like a
+timer (73c missionTimerOnSub, which now ends in missionScoreOnSub):
+- STOL (the user's top ask): a mission's `stol: [{ id, kind: takeoff|landing|spot, line, dir, stop, medals?|max?, ghost? }]`.
+  The tracker measures it off the samples (new optional sample fields: `gnd` wheels on the ground, `v` m/s, and the
+  attitude `hdg pitch roll`), with the tour's definitions (tools/_tour_lib.js: roll -> lift-off, touchdown -> stop):
+  take-off = stopped 0-3 m behind the line, the line to the lift-off (held 1 s; a hop is not it); landing = the first
+  touchdown past the line (short: a FOUL, Valdez) to the stop, after 5 s in the air, a go-around (5 s up) drops it;
+  spot = |distance| from the line at the first touchdown (`short` says which side). The first measure of a flight stands.
+  r.scores [{ id, kind, m, short?, ghost? }] on the step's result.
+- 3-D GATES: a ring's `pitch` tilts its facing (90 = a loop's vertical gate; the ring's frame n/l/u, msrRingFrame,
+  pitch 0 = the old ring exactly); a gate or ring may ask `att { hdg?, pitch?, roll?, tol 20, pen 2 }` - outside the
+  tolerance a SOFT penalty on the laps running (msrPenalise, shared with the strike), never a miss. The heading of a
+  near-vertical line is not judged; an angle the samples lack is `unknown`, not judged. A rolled wing changes the
+  strikes: a knife-edge wing reaches up, not out (pylons and rings).
+- REGULARITY: a timer with `regularity: true`: the score is |lap - target| (timer.dev); medals' le are seconds OFF the
+  target, else `tol`. The faster lap does not win.
+- MULTI-LEG COURSE: `course { timers: [one lap per leg, leg order], medals?, ghost? }`: on the last lap's stop step the
+  result is the SUM of the legs (each with its penalties), r.course { s, legs: [{ id, s, ghost? }] }; its medal replaces
+  the leg's. The earlier legs come from live.timers (74_ keeps every judged lap) through missionTrackNew(rec, live) into
+  the evidence (`course: { id: s }`) - so NO new 74_ code.
+- FIXED GHOST: `ghost { s, who?, splits?: { step: s } }` on a timer (`{ m }` on a STOL line, `{ s, legs }` on a course):
+  an authored rival record, the same for every player; split and stop events carry `ghost` (+ behind, - ahead), the
+  judge timer.ghost { s, beat, by }.
+SEAMS FOR A0 / MISSIONS-LIVE: (1) the career's stop seam keys on rec.timers: missionToContract gives a STOL-only record
+an empty timers list (missionScored(rec) says a record is scored), so the career already judges it; 74_ keeps only
+r.medal and r.timer - to show the STOL metres / the course sum on the card, 74_ contractOnStop should also keep
+r.scores / r.course (live.scores, an event); (2) the page's samples should add gnd, v (and the main wheels' x z for a
+fair STOL measure) and hdg/pitch/roll in the stated convention (pitch -90..90, roll right-wing-down +, inverted 180);
+(3) missionMarkers gives `kind: 'line'` markers for the STOL lines and `pitch`/`att` on rings and gates to draw;
+(4) the new functions are not in 90_node_exports.js (the gate loads 73b/73c fresh).
+GATE MISSIONS: +80 rows (the compete pack: 5 tiny missions, no story text), the checker's breaks, the converter's
+round trip, a course and a STOL event flown through careerOnStop; the selftest +37 doctored rules.

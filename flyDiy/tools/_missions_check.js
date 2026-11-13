@@ -369,7 +369,7 @@ function run(mut) {
 
   // ==== THE RUNTIME (MISSIONS-P1/P2: 73c_mission_run.js and its seams in 72_accept / 73_ / 74_ / 75_) ====================
   // a block that throws is a failed row with its reason (a doctored model may leave a mission out: never a crash)
-  for (const [name, f] of [['the runtime (P1/P2)', runtimeRows], ['the bush missions (P3)', p3Rows]]) {
+  for (const [name, f] of [['the runtime (P1/P2)', runtimeRows], ['the bush missions (P3)', p3Rows], ['the competition (COMPETE)', compRows]]) {
     try { f(M, mut); } catch (e) { ok(false, name + ': threw - ' + (e && e.message)); }
   }
 
@@ -774,6 +774,223 @@ function p3Rows(M, mut) {
   ok(!('people' in s0) && !('departHour' in s0) && J(s1.people) === J({ on: ['jody'], off: ['david'] }) && s1.departHour === 1.5, 'the stop record: people (ids only) and the departure hour (0-24), only when handed them');
 }
 
+// ==== THE COMPETITION (COMPETE, 13 Nov): STOL, 3-D gates, regularity, the multi-leg course, the fixed ghost =============
+// THE COMPETE PACK (tiny, no story): a STOL take-off + landing over one line, a spot landing, an aerobatic run (a
+// knife-edge gate, a loop's vertical ring, an inverted ring) raced against a fixed ghost, a regularity lap, a two-leg course
+function competePack() {
+  const t = x => ({ t: x, draft: true }), L = { line: [[0, -10], [0, 10]], dir: 90 };
+  const gate = (z, extra) => ({ gate: [[-50, z], [50, z]], prop: 'pylons', dir: 0 }), cm = (id, legs, extra) => Object.assign({ id, provider: 'clients', kind: 'challenge', title: 'ms.cp', brief: 'ms.cp', client: 'adam', legs, pay: { base: 1000 }, rep: { provider: 'clients', gain: 0.1 } }, extra);
+  return {
+    what: 'flydiy-missions', v: 1, id: 'cp', title: 'ms.cp',
+    campaigns: [{ id: 'cp.c', title: 'ms.cp', provider: 'clients', order: 'any', chapters: [{ id: 'cp.any', title: 'ms.cp', order: 'any', missions: ['c.stol', 'c.spot', 'c.aero', 'c.reg', 'c.course'] }] }],
+    missions: [
+      cm('c.stol', [{ steps: [{ id: 'l1', do: 'land', place: 'HOME' }] }],
+        { stol: [Object.assign({ id: 'to', kind: 'takeoff', stop: 'l1', medals: [{ medal: 'gold', le: 50 }, { medal: 'silver', le: 80 }] }, L),
+                 Object.assign({ id: 'ld', kind: 'landing', stop: 'l1', max: 150, ghost: { m: 100, who: 'adam' } }, L)] }),
+      cm('c.spot', [{ steps: [{ id: 's1', do: 'land', place: 'HOME' }] }],
+        { stol: [{ id: 'sp', kind: 'spot', line: [[1000, -10], [1000, 10]], dir: 90, stop: 's1', medals: [{ medal: 'gold', le: 2 }, { medal: 'silver', le: 5 }, { medal: 'bronze', le: 10 }] }] }),
+      cm('c.aero', [{ order: 'seq', steps: [
+          { id: 'k1', do: 'pass', place: Object.assign(gate(-1000), { att: { roll: 90 } }) },
+          { id: 'lp', do: 'pass', place: { ring: [0, 300, -2000], r: 10, dir: 0, pitch: 90, att: { pitch: 90 } } },
+          { id: 'inv', do: 'pass', place: { ring: [0, 300, -3000], r: 10, dir: 0, att: { roll: 180, pen: 4 } } },
+          { do: 'land', place: 'HOME' }] }],
+        { timers: [{ id: 'aero', start: 'k1', stop: 'inv', target: 90, ghost: { s: 50, who: 'adam', splits: { lp: 20 } } }] }),
+      cm('c.reg', [{ order: 'seq', steps: [{ id: 'r1', do: 'pass', place: gate(-1000) }, { id: 'r2', do: 'pass', place: gate(-4000) }, { do: 'land', place: 'HOME' }] }],
+        { timers: [{ id: 'reg', start: 'r1', stop: 'r2', target: 60, regularity: true, medals: [{ medal: 'gold', le: 1 }, { medal: 'silver', le: 3 }, { medal: 'bronze', le: 5 }], ghost: { s: 61 } }] }),
+      cm('c.course', [
+          { order: 'seq', steps: [{ id: 'a1', do: 'pass', place: gate(-1000) }, { id: 'a2', do: 'pass', place: gate(-4000) }, { id: 'aw', do: 'land', place: 'w3' }] },
+          { order: 'seq', steps: [{ id: 'b1', do: 'pass', place: gate(-1000) }, { id: 'b2', do: 'pass', place: gate(-4000) }, { id: 'bh', do: 'land', place: 'HOME' }] }],
+        { timers: [{ id: 'L1', start: 'a1', stop: 'a2' }, { id: 'L2', start: 'b1', stop: 'b2' }],
+          course: { timers: ['L1', 'L2'], medals: [{ medal: 'gold', le: 100 }, { medal: 'silver', le: 130 }], ghost: { s: 110, who: 'adam', legs: [55, 55] } } }),
+    ],
+    sites: [], text: { 'ms.cp': t('A competition') },
+  };
+}
+// samples every 0.5 s along x (z = zc, the line's middle): `pts` [[x, gnd, v?]]; agl 0 on the ground, 30 off it
+const trackX = (pts, zc) => pts.map(([x, g, v], i) => Object.assign({ t: i * 0.5, x, z: zc || 0, gnd: g, agl: g ? 0 : 30, y: g ? 20 : 50 }, v != null ? { v } : {}));
+const range = (a, b, d) => { const o = []; for (let x = a; d > 0 ? x <= b + 1e-9 : x >= b - 1e-9; x += d) o.push(x); return o; };
+function compRows(M, mut) {
+  const B = competePack(), V = p => M.missionPackValidate(p, { spots: SPOTS });
+  const w0 = V(B);
+  ok(!w0.length, 'COMPETE: the compete pack validates (' + w0.slice(0, 4).join('; ') + ')');
+  // ---- the checker: each rule broken alone, refused with its reason
+  const ms = (p, id) => p.missions.find(m => m.id === id);
+  for (const [name, f, re] of [
+    ['a STOL line of an unknown kind', p => { ms(p, 'c.stol').stol[0].kind = 'hover'; }, /kind is takeoff \| landing \| spot/],
+    ['a STOL line 2 m long', p => { ms(p, 'c.stol').stol[0].line = [[0, -1], [0, 1]]; }, /5-200 m long/],
+    ['a STOL run along its line', p => { ms(p, 'c.stol').stol[0].dir = 0; }, /off square/],
+    ['a STOL line judged on no step', p => { ms(p, 'c.stol').stol[0].stop = 'zz'; }, /stop names no step/],
+    ['a STOL line twice', p => { ms(p, 'c.stol').stol[1].id = 'to'; }, /id twice/],
+    ['a STOL ghost that is a free name', p => { ms(p, 'c.stol').stol[1].ghost.who = 'Bob Jones'; }, /person id/],
+    ['a STOL line with medals and a max', p => { ms(p, 'c.stol').stol[0].max = 100; }, /medals or max/],
+    ['a ring tilted past the vertical', p => { ms(p, 'c.aero').legs[0].steps[1].place.pitch = 120; }, /ring\.pitch/],
+    ['a tilted ring that faces nowhere', p => { delete ms(p, 'c.aero').legs[0].steps[1].place.dir; }, /faces a heading/],
+    ['an attitude that asks nothing', p => { ms(p, 'c.aero').legs[0].steps[0].place.att = { tol: 10 }; }, /asks none/],
+    ['an attitude rolled 270', p => { ms(p, 'c.aero').legs[0].steps[2].place.att.roll = 270; }, /att\.roll/],
+    ['an attitude with a word nobody reads', p => { ms(p, 'c.aero').legs[0].steps[0].place.att.yaw = 0; }, /att\.yaw/],
+    ['a regularity lap with no target', p => { delete ms(p, 'c.reg').timers[0].target; }, /needs its target|target is seconds/],
+    ['a regularity lap with neither medals nor tol', p => { delete ms(p, 'c.reg').timers[0].medals; }, /needs tol/],
+    ['a tol on a lap that is not regularity', p => { ms(p, 'c.aero').timers[0].tol = 3; }, /tol is a regularity/],
+    ['a ghost with no time', p => { delete ms(p, 'c.aero').timers[0].ghost.s; }, /ghost is/],
+    ['a ghost split on a step outside the lap', p => { ms(p, 'c.aero').timers[0].ghost.splits = { k1: 5 }; }, /names no step between/],
+    ['a ghost split past its lap', p => { ms(p, 'c.aero').timers[0].ghost.splits.lp = 70; }, /inside the ghost/],
+    ['a course of one leg', p => { ms(p, 'c.course').course.timers = ['L1']; }, /2\+ timer ids/],
+    ['a course on a timer the mission lacks', p => { ms(p, 'c.course').course.timers = ['L1', 'L9']; }, /L9 is no timer/],
+    ['a course with its legs backwards', p => { ms(p, 'c.course').course.timers = ['L2', 'L1']; }, /later leg/],
+    ['a course ghost whose legs do not add up', p => { ms(p, 'c.course').course.ghost.legs = [55, 80]; }, /add up/],
+    ['a lap outside a course with no target', p => { ms(p, 'c.course').course.timers = ['L1', 'L2']; delete ms(p, 'c.course').course; }, /target is seconds/],
+  ]) {
+    const p = clone(B); f(p); const w = V(p);
+    ok(w.some(x => re.test(x)), 'COMPETE checker: ' + name + ' is refused (' + (w.join('; ').slice(0, 140) || 'valid') + ')');
+  }
+  // ---- the converter: mission -> record -> mission -> record the same; the legacy projection strips the new fields
+  for (const m of B.missions) {
+    const rec = M.missionToContract(m, { pack: B }), back = M.missionFromContract(rec);
+    ok(M.missionCanon(M.missionToContract(back, { pack: B })) === M.missionCanon(rec) && M.missionCanon(back.stol || null) === M.missionCanon(m.stol || null) && M.missionCanon(back.course || null) === M.missionCanon(m.course || null),
+       'COMPETE converter: ' + m.id + ' mission -> record -> mission -> record, the same (stol, course, att, pitch, ghost ride along)');
+    const st = M.missionStrip(rec);
+    ok(st.stol === undefined && st.course === undefined && st.timers === undefined, 'COMPETE converter: ' + m.id + ' - the legacy projection carries no stol, course or timers');
+  }
+  const RS = M.missionToContract(ms(B, 'c.stol'), { pack: B });
+  ok(Array.isArray(RS.timers) && !RS.timers.length && !('timers' in M.missionFromContract(RS)) && M.missionScored(RS) && !M.missionScored(M.missionToContract(ms(B, 'c.reg'), { pack: B })),
+     'COMPETE converter: a STOL-only record carries an empty timers list (the career\'s stop seam keys on it), and the mission gets none back');
+
+  // ---- the runtime: a model with the compete pack installed over the clients
+  const N = loadMissions({ core: true, mut }), NI = N.missionPackInstall(B);
+  ok(!NI.held.length, 'COMPETE: the compete pack installs whole (' + J(NI.held) + ')');
+  for (const k of ['arc', 'builds', 'night']) N.CONTRACT_PROVIDERS.clients[k] = NI.providers.clients[k];
+  Object.assign(N.CONTRACT_TEXT, NI.text);
+  const R = id => N.contractAuthored()[id];
+  const track = (rec, smps, live) => { const T = N.missionTrackNew(rec, live || { stage: 0, subs: [] }), ev = []; for (const q of smps) ev.push(...N.missionTrackStep(T, q)); return { T, ev, E: N.missionTrackEvidence(T) }; };
+  const judge = (rec, sub, E) => N.missionTimerOnSub(rec, rec.stages.flatMap(s => s.subs).find(s => s.id === sub), { st: 'done' }, { tracks: { [rec.id]: E } });
+
+  // ---- 1. STOL: THE TAKE-OFF (stopped on the line, the roll, the lift-off held 1 s)
+  const rs = R('c.stol');
+  const toRun = (x0, liftX, hop) => trackX([[x0, true, 0], [x0, true, 0]].concat(range(x0 + 5, liftX, 5).map(x => [x, !(hop && Math.abs(x - hop) < 1e-9)])).concat(range(liftX + 5, liftX + 80, 5).map(x => [x, false])));
+  let F = track(rs, toRun(-2, 58));
+  ok(F.E.stol && F.E.stol.to && F.E.stol.to.m === 60.5 && F.ev.some(e => e.k === 'stol' && e.id === 'to' && e.m === 60.5), 'STOL take-off: stopped 2 m behind the line, lift-off between 58 and 63 m: 60.5 m (' + J(F.E.stol) + ')');
+  let j = judge(rs, 'l1', Object.assign({}, F.E, { stol: Object.assign({ ld: { m: 90 } }, F.E.stol) }));
+  ok(j.st === 'done' && j.medal === 'silver' && j.scores && j.scores[0].m === 60.5 && j.scores[0].kind === 'takeoff' && j.scores[1].m === 90, 'STOL take-off judged at its stop step: 60.5 m, silver (le 80), beside the landing\'s 90 m (' + J(j) + ')');
+  ok(!track(rs, toRun(-10, 58)).E.stol, 'STOL take-off: stopped 10 m behind the line (3 m allowed): not measured');
+  ok(!track(rs, toRun(2, 58)).E.stol, 'STOL take-off: stopped past the line: not measured');
+  F = track(rs, toRun(-2, 58, 23));
+  ok(F.E.stol && F.E.stol.to.m === 60.5, 'STOL take-off: a hop at 23 m (one sample off the ground) is not the lift-off: still 60.5 m (' + J(F.E.stol) + ')');
+  ok(!track(rs, toRun(-2, 58).map(q => { const o = Object.assign({}, q); delete o.gnd; return o; })).E.stol, 'STOL: samples that do not say the wheels are on the ground measure nothing');
+  ok(/take-off on the to line was not measured/.test(judge(rs, 'l1', { timers: {}, hits: {} }).why || ''), 'STOL: not measured, the step is not done (fly it again)');
+  // ---- STOL: THE LANDING (5 s in the air, the first touchdown past the line, to the stop)
+  const ldRun = (td, stopX, goAround) => {
+    const air = range(-400, td - 1, 20).map(x => [x, false]).concat([[td - 1, false]]), roll = range(td + 1, stopX, 10).map(x => [x, true]);
+    const ga = goAround ? range(td + 11, td + 400, 20).map(x => [x, false]).concat(range(goAround - 1, goAround - 1, 1).map(x => [x, false])).concat(range(goAround + 1, stopX, 10).map(x => [x, true])) : roll;
+    return trackX(air.concat(goAround ? [[td + 1, true]] : []).concat(ga).concat([[stopX, true, 0]]));
+  };
+  F = track(rs, ldRun(20, 120));
+  ok(F.E.stol && F.E.stol.ld && F.E.stol.ld.m === 120 && F.E.stol.ld.td === 20, 'STOL landing: touched down at 20 m, stopped at 120 m: 120 m from the line (' + J(F.E.stol) + ')');
+  j = judge(rs, 'l1', Object.assign({}, F.E, { stol: Object.assign({ to: { m: 40 } }, F.E.stol) }));
+  ok(j.st === 'done' && j.medal === 'gold' && j.scores[1].id === 'ld' && j.scores[1].m === 120 && j.scores[1].ghost.m === 100 && j.scores[1].ghost.beat === false && j.scores[1].ghost.by === 20,
+     'STOL landing judged: 120 m (150 allowed), the fixed ghost 100 m: 20 m behind it; the take-off\'s gold kept (' + J(j) + ')');
+  F = track(rs, ldRun(-5, 120));
+  ok(F.E.stol.ld.foul === 'short' && /touched down 5 m short/.test(judge(rs, 'l1', Object.assign({}, F.E, { stol: Object.assign({ to: { m: 40 } }, F.E.stol) })).why || ''), 'STOL landing: touched 5 m short of the line - a foul, not done');
+  F = track(rs, ldRun(20, 220));
+  ok(F.E.stol.ld.m === 220 && /220 m, 150 m allowed/.test(judge(rs, 'l1', Object.assign({}, F.E, { stol: Object.assign({ to: { m: 40 } }, F.E.stol) })).why || ''), 'STOL landing: 220 m, over its max 150: not done');
+  F = track(rs, ldRun(20, 180, 60));
+  ok(F.E.stol.ld && F.E.stol.ld.td === 60 && F.E.stol.ld.m === 180, 'STOL landing: touched at 20 m, went round (5 s up): dropped; the next touchdown at 60 m counts (' + J(F.E.stol) + ')');
+  ok(!track(rs, ldRun(20, 120).map(q => Object.assign({}, q, { z: 50 }))).E.stol, 'STOL landing: a touchdown beside the line (50 m off its middle, 10 m long): not this line');
+  ok(!track(rs, trackX(range(-40, 20, 20).map(x => [x, false]).concat([[21, true], [60, true, 0]]))).E.stol, 'STOL landing: in the air under 5 s before the touchdown (a hop off the strip): no landing');
+  // ---- STOL: THE SPOT
+  const rp = R('c.spot'), spot = td => track(rp, ldRun(1000 + td, 1000 + td + 80));
+  F = spot(3);
+  ok(F.E.stol.sp.m === 3 && judge(rp, 's1', F.E).medal === 'silver', 'spot landing: touched 3 m past the line - 3 m, silver');
+  F = spot(-1.5);
+  ok(F.E.stol.sp.m === 1.5 && F.E.stol.sp.short === true && judge(rp, 's1', F.E).medal === 'gold' && judge(rp, 's1', F.E).scores[0].short === true, 'spot landing: 1.5 m short - 1.5 m, gold, said short');
+  ok(/12 m, 10 m or less for a medal/.test(judge(rp, 's1', spot(12).E).why || ''), 'spot landing: 12 m off: no medal, not done');
+  ok(N.missionMarkers(rs, { stage: 0, subs: [] }).filter(m => m.kind === 'line').map(m => m.key + ':' + m.stol + ':' + m.state).join() === 'stol:to:takeoff:next,stol:ld:landing:next', 'the markers carry the STOL lines (their kind, their stop step\'s state)');
+
+  // ---- 2. 3-D GATES: A KNIFE-EDGE GATE, A LOOP'S VERTICAL RING, AN INVERTED RING; THE ATTITUDE A SOFT PENALTY
+  const ra = R('c.aero');
+  const aeroRun = (roll1, roll3, noAtt) => {
+    const o = [], push = (x, y, z, a) => o.push(Object.assign({ t: o.length, x, y, z, agl: y - 20 }, noAtt ? {} : a));
+    push(0, 100, -900, { hdg: 0, pitch: 0, roll: roll1 }); push(0, 100, -1100, { hdg: 0, pitch: 0, roll: roll1 });   // k1 at t 0.5
+    for (let i = 0; i < 18; i++) push(0, 100, -1100 - i * 50, { hdg: 0, pitch: 0, roll: 0 });                          // to the loop
+    push(0, 280, -2000, { hdg: 0, pitch: 88, roll: 0 }); push(0, 320, -2000, { hdg: 200, pitch: 89, roll: 0 });          // up through lp
+    for (let i = 0; i < 20; i++) push(0, 300, -2000 - i * 49, { hdg: 0, pitch: 0, roll: 0 });
+    push(0, 300, -2990, { hdg: 0, pitch: 0, roll: roll3 }); push(0, 300, -3010, { hdg: 0, pitch: 0, roll: roll3 });     // inv
+    return o;
+  };
+  F = track(ra, aeroRun(85, -175));
+  const lap = F.E.timers.aero;
+  ok(F.T.hits.k1 && F.T.hits.lp && F.T.hits.inv && !F.E.atts && lap && lap.s === 42 && !lap.pen, 'the aerobatic run: knife-edge (85 deg) through k1, straight up through the loop\'s ring, inverted (-175) through inv: all passed, no penalty, 42 s (' + J(lap) + ')');
+  ok(F.T.hits.lp.att && !F.T.hits.lp.att.miss && F.T.hits.lp.att.err.hdg === undefined, 'the vertical ring: the heading of a vertical line is not judged (pitch 89, heading 200 against 0)');
+  ok(F.ev.some(e => e.k === 'split' && e.key === 'lp' && e.ghost === 0) && F.ev.some(e => e.k === 'timer' && e.state === 'stop' && e.s === 42 && e.ghost === -8), 'the fixed ghost: level at the loop (+0 s), 8 s ahead at the stop (' + J(F.ev.filter(e => e.ghost != null)) + ')');
+  j = judge(ra, 'inv', F.E);
+  ok(j.st === 'done' && j.timer.ghost.beat === true && j.timer.ghost.by === -8 && j.timer.ghost.s === 50, 'the lap against the ghost: 42 s, the ghost 50 s - beaten by 8 s (' + J(j.timer) + ')');
+  F = track(ra, aeroRun(0, 0));
+  const lp2 = F.E.timers.aero;
+  ok(F.T.hits.k1 && F.T.hits.inv && F.E.atts && F.E.atts.length === 2 && lp2.raw === 42 && lp2.pen === 6 && lp2.atts === 2 && lp2.s === 48,
+     'wings level through the knife-edge gate (+2 s) and upright through the inverted ring (its own +4 s): both still passed, the lap 42 + 6 = 48 s (' + J(lp2) + ')');
+  ok(F.ev.some(e => e.k === 'timer' && e.state === 'stop' && e.s === 48 && e.ghost === -2) && judge(ra, 'inv', F.E).timer.atts === 2, 'the stop event and the judge carry the penalised lap (48 s, 2 s ahead of the ghost), the attitude misses counted');
+  F = track(ra, aeroRun(0, 0, true));
+  ok(F.E.timers.aero.s === 42 && F.T.hits.k1.att.unknown && !F.E.atts, 'no attitude in the samples: not judged (said unknown), no penalty');
+  const vr = ra.stages[0].subs[1].place;
+  ok(!!N.missionHitTest(vr, { t: 0, x: 0, y: 290, z: -2000 }, { t: 1, x: 0, y: 310, z: -2000 }) && !N.missionHitTest(vr, { t: 0, x: 0, y: 310, z: -2000 }, { t: 1, x: 0, y: 290, z: -2000 })
+     && !N.missionHitTest(vr, { t: 0, x: 0, y: 300, z: -1990 }, { t: 1, x: 0, y: 300, z: -2010 }) && !N.missionHitTest(vr, { t: 0, x: 0, y: 305, z: -1990 }, { t: 1, x: 0, y: 305, z: -2010 })
+     && !N.missionHitTest(vr, { t: 0, x: 0, z: -2000 }, { t: 1, x: 0, z: -2000 }),
+     'the vertical ring (pitch 90): through it climbing yes; diving, flown level across it (in its plane, or 5 m over its centre), or with no heights, no');
+  const tilt = { ring: [0, 300, 0], r: 8, dir: 0, pitch: 45 };
+  ok(!!N.missionHitTest(tilt, { t: 0, x: 0, y: 290, z: 10 }, { t: 1, x: 0, y: 310, z: -10 }) && !N.missionHitTest(tilt, { t: 0, x: 0, y: 290, z: 10 }, { t: 1, x: 0, y: 290, z: -10 }), 'a ring tilted 45: through it on the climb yes; level under its centre no');
+  // the strikes rolled: a knife-edge wing reaches up, not out
+  const pyl = { gate: [[0, 0], [100, 0]] }, kx = (x, agl, roll) => N.missionStrikeTest(pyl, { t: 0, x, z: 10, agl, roll }, { t: 1, x, z: -10, agl, roll });
+  ok(kx(3, 10, 0).length === 1 && !kx(3, 10, 90).length, 'a pylon 3 m off at 10 m: a strike wings level, none in a knife-edge');
+  const rg = { ring: [0, 120, 0], r: 8, dir: 0 }, rr = (x, roll) => N.missionStrikeTest(rg, { t: 0, x, z: 10, y: 120, roll }, { t: 1, x, z: -10, y: 120, roll });
+  ok(rr(4, 0).length === 1 && !rr(4, 90).length && rr(0, 90).length === 0, 'a ring, 4 m off its centre: the level wing into the tube, the knife-edge wing clear');
+
+  // ---- 3. REGULARITY: THE DEVIATION FROM THE TARGET, ITS MEDAL BANDS, THE GHOST'S DEVIATION
+  const rr2 = R('c.reg'), regRun = v => track(rr2, flightLine(-500, -4500, v, 100, 0));
+  const RG = v => judge(rr2, 'r2', regRun(v).E);
+  let rj = RG(50);
+  ok(rj.st === 'done' && rj.timer.s === 60 && rj.timer.dev === 0 && rj.medal === 'gold' && rj.timer.ghost.dev === 1 && rj.timer.ghost.beat, 'regularity: 60 s on a 60 s target - 0 s off, gold; the ghost was 1 s off, beaten (' + J(rj.timer) + ')');
+  rj = judge(rr2, 'r2', { timers: { reg: { s: 62.5 } } });
+  ok(rj.st === 'done' && rj.timer.dev === 2.5 && rj.medal === 'silver', 'regularity: 62.5 s - 2.5 s off, silver');
+  rj = judge(rr2, 'r2', { timers: { reg: { s: 57.5 } } });
+  ok(rj.st === 'done' && rj.timer.dev === 2.5 && rj.medal === 'silver', 'regularity: early counts as late - 57.5 s, 2.5 s off, silver');
+  ok(/6 s off the 60 s asked; 5 s off or less for a medal/.test(judge(rr2, 'r2', { timers: { reg: { s: 54 } } }).why || ''), 'regularity: 54 s, 6 s off - no medal, not done (the FASTER lap does not win)');
+  const tolR = JSON.parse(J(rr2)); delete tolR.timers[0].medals; tolR.timers[0].tol = 2;
+  ok(judge(tolR, 'r2', { timers: { reg: { s: 61.5 } } }).st === 'done' && /3 s off the 60 s asked \(2 s allowed\)/.test(judge(tolR, 'r2', { timers: { reg: { s: 63 } } }).why || ''), 'regularity with a tolerance: 1.5 s off done, 3 s off not');
+
+  // ---- 4 + 5. THE MULTI-LEG COURSE: THE SUM OF THE LEGS, ITS SPLITS, ITS MEDAL, THE FIXED GHOST - THROUGH THE CAREER
+  const rc = R('c.course'), hooks = { acceptVerdict: () => ({ ok: true, got: {} }) };
+  let d = N.careerNew({ seed: 'cp' }); d.career.providers.clients.rep = 3; d = N.careerNormalise(d); N.careerRefresh(d);
+  ok(d.career.contracts.offered.includes('c.course') && d.career.contracts.offered.includes('c.stol'), 'COMPETE: the course and the STOL event are offered');
+  const stopAt = (aero, o) => N.careerStopRecord(Object.assign({ how: 'stopped', aero, occupants: 1, cargoKg: 0, row: { from: 'HOME', to: aero, t: 300 }, hour: 12 }, o || {}));
+  const legRun = (cid, v, live) => track(rc, flightLine(-500, -4500, v, 100, 0), live).E;
+  let r = N.careerAccept(d, 'c.course'); d = r.doc;
+  const live0 = J(d.career.contracts.live['c.course'] || { stage: 0, subs: [] });
+  r = N.careerOnStop(d, stopAt('w3', { tracks: { 'c.course': legRun('c.course', 60, JSON.parse(live0)) } }), hooks);   // the gates 3000 m apart at 60 m/s: 50 s
+  ok(r.ok && r.doc.career.contracts.live['c.course'] && r.doc.career.contracts.live['c.course'].stage === 1 && r.doc.career.contracts.live['c.course'].timers.L1.s === 50, 'the course, leg 1: 50 s, kept on the career (live.timers) (' + J(r.doc.career.contracts.live['c.course']) + ')');
+  d = r.doc;
+  const E2 = legRun('c.course', 3000 / 55, d.career.contracts.live['c.course']);   // 55 s
+  ok(E2.course && E2.course.L1 === 50 && E2.timers.L2.s === 55, 'the course, leg 2\'s flight carries leg 1\'s 50 s into its evidence (' + J(E2.course) + ')');
+  const cj = N.missionTimerOnSub(rc, rc.stages[1].subs[1], { st: 'done' }, { tracks: { 'c.course': E2 } });
+  ok(cj.st === 'done' && cj.course.s === 105 && J(cj.course.legs) === J([{ id: 'L1', s: 50, ghost: -5 }, { id: 'L2', s: 55, ghost: 0 }]) && cj.medal === 'silver' && cj.course.ghost.beat && cj.course.ghost.by === -5,
+     'the course judged: 50 + 55 = 105 s, per-leg splits against the ghost (-5, 0), silver (gold le 100), the ghost\'s 110 s beaten by 5 s (' + J(cj.course) + ')');
+  r = N.careerOnStop(d, stopAt('HOME', { tracks: { 'c.course': E2 } }), hooks);
+  const done = r.ok && r.events.find(e => e.k === 'done' && e.id === 'c.course');
+  ok(done && done.medal === 'silver', 'the course through the career: completed with the course\'s medal (silver), not the leg\'s (' + J(done) + ')');
+  const noL1 = N.missionTimerOnSub(rc, rc.stages[1].subs[1], { st: 'done' }, { tracks: { 'c.course': legRun('c.course', 3000 / 55, { stage: 1, subs: [] }) } });
+  ok(noL1.st === 'no' && /leg 1 \(L1\) has no time/.test(noL1.why), 'the course: leg 2 flown with no leg 1 on the career - not done (' + noL1.why + ')');
+  ok(N.missionTimerOnSub(rc, rc.stages[1].subs[1], { st: 'done' }, { tracks: { 'c.course': { timers: { L2: { s: 90 } }, course: { L1: 50 } } } }).why === 'the course: 140 s, 130 s or less for a medal', 'the course: 140 s, no medal - not done');
+  // ---- STOL through the career: the converter's empty timers list opens the stop seam
+  r = N.careerAccept(d, 'c.stol'); d = r.doc;
+  const toE = track(rs, toRun(-2, 58)), ldE = track(rs, ldRun(20, 120));
+  const both = Object.assign({}, toE.E, { stol: Object.assign({}, toE.E.stol, ldE.E.stol) });
+  const ns = N.careerOnStop(d, stopAt('HOME', { tracks: { 'c.stol': toE.E } }), hooks);
+  ok(!ns.ok && /landing on the ld line was not measured/.test(ns.untouched['c.stol'] || ''), 'STOL through the career: the take-off alone - the landing not measured, not done (' + (ns.untouched['c.stol'] || '') + ')');
+  const ys = N.careerOnStop(d, stopAt('HOME', { tracks: { 'c.stol': both } }), hooks), ye = ys.ok && ys.events.find(e => e.k === 'done' && e.id === 'c.stol');
+  ok(ye && ye.medal === 'silver', 'STOL through the career: both measured - done, the take-off\'s silver (' + J(ye) + ')');
+  // ---- PURITY: 73c reads no clock and no random (the ghost is authored, the same for every player)
+  const s3 = M.__src['73c_mission_run.js'].replace(/\/\/.*$/gm, '');
+  ok(!/Math\.random|Date\.now|new Date|performance\.now/.test(s3), '73c: no clock, no random (the ghost is a fixed record)');
+}
+
 // THE SELFTEST: the model doctored one rule at a time; each must turn the gate red
 const sub = (a, b) => s => { if (!s.includes(a)) throw new Error('selftest: anchor not found: ' + a.slice(0, 60)); return s.replace(a, b); };
 const MUTS = [
@@ -831,6 +1048,44 @@ const MUTS = [
   ['the containers are not waited for', { '74_career.js': sub('if ((N.of || []).some(c => nOf(c) < c.n)) return false;', '') }],
   ['a step\'s onDone pays nothing', { '74_career.js': sub("{ playerCharge(d, -od.pay, 'contract', rec.id); events.push", '{ events.push') }],
   ['a built site reveals nothing', { '74_career.js': sub("if (m && S.state === 'built') c.tracks[m[1]] = Math.max(c.tracks[m[1]] || 0, +m[2]);", '') }],
+  // (COMPETE) the competition: STOL, 3-D gates, regularity, the course, the ghost
+  ['STOL: a take-off from anywhere', { '73c_mission_run.js': sub("st.ph = s >= -K.gap && s <= 0 && Math.abs(F.c(b.x, b.z)) <= F.half ? 'armed' : 'wait';", "st.ph = 'armed';") }],
+  ['STOL: a hop is the lift-off', { '73c_mission_run.js': sub("if (gb) { st.ph = 'armed'; st.lift = null; continue; }   // a hop", "if (gb) { st.ph = 'lift'; continue; }   // a hop") }],
+  ['STOL: a landing short of the line is no foul', { '73c_mission_run.js': sub("if (s < 0) { put(S, { foul: 'short', td: msrR1(s), t }); continue; }", '') }],
+  ['STOL: a go-around keeps the first touchdown', { '73c_mission_run.js': sub("if (!gb && T.airSince != null && b.t - T.airSince >= K.flown) { st.ph = 'wait'; continue; }", '') }],
+  ['STOL: a hop is a landing', { '73c_mission_run.js': sub('if (st.ph === \'wait\' && tdn && flown >= K.flown && along(S))', 'if (st.ph === \'wait\' && tdn && along(S))') }],
+  ['STOL: a landing anywhere is on the line', { '73c_mission_run.js': sub('if (Math.abs(F.c(m.x, m.z)) > F.half || Math.abs(s) > K.zone) continue;', '') }],
+  ['STOL: the flight began in the air, so it never flew', { '73c_mission_run.js': sub('if (ga === false && T.airSince == null) T.airSince = a.t;', '') }],
+  ['the spot is measured signed', { '73c_mission_run.js': sub('put(S, Object.assign({ m: msrR1(Math.abs(s)), t }', 'put(S, Object.assign({ m: msrR1(s), t }') }],
+  ['STOL: a foul is judged done', { '73c_mission_run.js': sub("if (E.foul) return { st: 'no'", "if (false) return { st: 'no'") }],
+  ['STOL: an unmeasured line is judged done', { '73c_mission_run.js': sub("if (!E) return { st: 'no', why: 'the ' + what", "if (!E) continue; if (0) return { st: 'no', why: 'the ' + what") }],
+  ['STOL: the max is not judged', { '73c_mission_run.js': sub("else if (msrNum(S.max) && E.m > S.max) return { st: 'no'", "else if (false) return { st: 'no'") }],
+  ['STOL: the ghost is beaten backwards', { '73c_mission_run.js': sub('score.ghost = { m: S.ghost.m, beat: E.m < S.ghost.m, by: msrR1(E.m - S.ghost.m) }', 'score.ghost = { m: S.ghost.m, beat: E.m > S.ghost.m, by: msrR1(S.ghost.m - E.m) }') }],
+  ['the attitude costs nothing', { '73c_mission_run.js': sub('if (aj.miss) {', 'if (false) {') }],
+  ['the attitude has no tolerance', { '73c_mission_run.js': sub('if (e > tol) miss = true;', 'if (e > 360) miss = true;') }],
+  ['the roll does not wrap (inverted -175 is 355 off 180)', { '73c_mission_run.js': sub("const e = k === 'pitch' ? Math.abs(q.pitch - att.pitch) : msrDiff(q[k], att[k]);", 'const e = Math.abs(q[k] - att[k]);') }],
+  ['a vertical line has a heading', { '73c_mission_run.js': sub("if (k === 'hdg' && ((msrNum(att.pitch)", "if (false && ((msrNum(att.pitch)") }],
+  ['an unknown attitude is a miss', { '73c_mission_run.js': sub('if (!msrNum(q[k])) { unknown.push(k); continue; }', 'if (!msrNum(q[k])) { miss = true; continue; }') }],
+  ['the penalised lap is not the stop event\'s', { '73c_mission_run.js': sub("for (const e of out) if (e.k === 'timer' && e.state === 'stop' && laps.includes(e.id))", 'for (const e of []) if (e.k') }],
+  ['a ring is never tilted', { '73c_mission_run.js': sub('e = (msrNum(p.pitch) ? p.pitch : 0) * Math.PI / 180', 'e = 0') }],
+  ['a vertical ring is a hair off vertical', { '73c_mission_run.js': sub('const z = v => (Math.abs(v) < 1e-12 ? 0 : v);', 'const z = v => v;') }],
+  ['a knife-edge wing reaches out', { '73c_mission_run.js': sub('Rh = msrNum(q.roll) ? R * Math.abs(CORE_MATH.cos(q.roll * Math.PI / 180)) : R;', 'Rh = R;') }],
+  ['the ring\'s strike ignores the roll', { '73c_mission_run.js': sub('const ph = msrNum(q.roll) ? q.roll * Math.PI / 180 : 0,', 'const ph = 0,') }],
+  ['regularity rewards the faster lap', { '73c_mission_run.js': sub('const dev = msrR1(Math.abs(E.s - target));', 'const dev = msrR1(E.s - target);') }],
+  ['regularity ignores its tolerance', { '73c_mission_run.js': sub("} else if (dev > t.tol) return { st: 'no'", "} else if (false) return { st: 'no'") }],
+  ['the ghost lap is beaten backwards', { '73c_mission_run.js': sub('timer.ghost = { s: t.ghost.s, beat: E.s < t.ghost.s, by: msrR1(E.s - t.ghost.s) };', 'timer.ghost = { s: t.ghost.s, beat: E.s < t.ghost.s, by: msrR1(t.ghost.s - E.s) };') }],
+  ['the ghost\'s splits need a split target', { '73c_mission_run.js': sub('(o.split != null || (tm.ghost && tm.ghost.splits && msrNum(tm.ghost.splits[o.key])))', '(o.split != null)') }],
+  ['the course is its last leg', { '73c_mission_run.js': sub('const course = { s: msrR1(legs.reduce((a, L) => a + L.s, 0)), legs };', 'const course = { s: legs[legs.length - 1].s, legs };') }],
+  ['the course forgets the earlier legs', { '73c_mission_run.js': sub('if (LT[id] && msrNum(LT[id].s)) T.prior[id] = LT[id].s;', '') }],
+  ['the course\'s medal is not the mission\'s', { '73c_mission_run.js': sub('r = Object.assign({}, r, { medal: m.medal, course });', 'r = Object.assign({}, r, { course });') }],
+  ['a STOL-only record never reaches the stop seam', { '73b_missions.js': sub('if (r.timers == null && Array.isArray(M.stol) && M.stol.length) r.timers = [];', '') }],
+  ['the STOL lines do not ride along', { '73b_missions.js': sub("                             'stol', 'course'],", "                             'course'],") }],
+  ['a STOL line of any kind', { '73b_missions.js': sub("if (!['takeoff', 'landing', 'spot'].includes(S.kind))", 'if (false)') }],
+  ['a STOL run at any angle to its line', { '73b_missions.js': sub('if (off > 15) why.push', 'if (off > 90) why.push') }],
+  ['an attitude rolled anywhere', { '73b_missions.js': sub('if (a.roll != null && !(msNum(a.roll) && a.roll >= -180 && a.roll <= 180))', 'if (false)') }],
+  ['a regularity lap judged on nothing', { '73b_missions.js': sub("if (t.medals == null && !(msNum(t.tol) && t.tol > 0 && t.tol <= 600))", 'if (false)') }],
+  ['a course in any leg order', { '73b_missions.js': sub('if (!(leg > prev)) why.push', 'if (false) why.push') }],
+  ['a ghost whose legs add up to anything', { '73b_missions.js': sub("else if (Math.abs(G.legs.reduce((a, v) => a + v, 0) - G.s) > 0.5)", 'else if (false)') }],
   ['a site is flown to nowhere', { '73b_missions.js': sub('if (s.do === \'carry\') { if (from) sub.from = from; if (f) sub.to = f; else if (P) { put(); if (served) sub.to = served; } }', 'if (s.do === \'carry\') { if (from) sub.from = from; if (f) sub.to = f; else if (P) put(); }') }],
 ];
 
