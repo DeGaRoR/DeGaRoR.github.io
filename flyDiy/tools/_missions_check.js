@@ -820,21 +820,21 @@ function compRows(M, mut) {
     ['a STOL line 2 m long', p => { ms(p, 'c.stol').stol[0].line = [[0, -1], [0, 1]]; }, /5-200 m long/],
     ['a STOL run along its line', p => { ms(p, 'c.stol').stol[0].dir = 0; }, /off square/],
     ['a STOL line judged on no step', p => { ms(p, 'c.stol').stol[0].stop = 'zz'; }, /stop names no step/],
-    ['a STOL line twice', p => { ms(p, 'c.stol').stol[1].id = 'to'; }, /id twice/],
+    ['a STOL line twice', p => { ms(p, 'c.stol').stol[1].id = 'to'; }, /an id of its own/],
     ['a STOL ghost that is a free name', p => { ms(p, 'c.stol').stol[1].ghost.who = 'Bob Jones'; }, /person id/],
     ['a STOL line with medals and a max', p => { ms(p, 'c.stol').stol[0].max = 100; }, /medals or max/],
     ['a ring tilted past the vertical', p => { ms(p, 'c.aero').legs[0].steps[1].place.pitch = 120; }, /ring\.pitch/],
-    ['a tilted ring that faces nowhere', p => { delete ms(p, 'c.aero').legs[0].steps[1].place.dir; }, /faces a heading/],
-    ['an attitude that asks nothing', p => { ms(p, 'c.aero').legs[0].steps[0].place.att = { tol: 10 }; }, /asks none/],
+    ['a tilted ring that faces nowhere', p => { delete ms(p, 'c.aero').legs[0].steps[1].place.dir; }, /ring\.pitch/],
+    ['an attitude that asks nothing', p => { ms(p, 'c.aero').legs[0].steps[0].place.att = { tol: 10 }; }, /one angle/],
     ['an attitude rolled 270', p => { ms(p, 'c.aero').legs[0].steps[2].place.att.roll = 270; }, /att\.roll/],
     ['an attitude with a word nobody reads', p => { ms(p, 'c.aero').legs[0].steps[0].place.att.yaw = 0; }, /att\.yaw/],
     ['a regularity lap with no target', p => { delete ms(p, 'c.reg').timers[0].target; }, /needs its target|target is seconds/],
-    ['a regularity lap with neither medals nor tol', p => { delete ms(p, 'c.reg').timers[0].medals; }, /needs tol/],
+    ['a regularity lap with neither medals nor tol', p => { delete ms(p, 'c.reg').timers[0].medals; }, /needs medals or tol/],
     ['a tol on a lap that is not regularity', p => { ms(p, 'c.aero').timers[0].tol = 3; }, /tol is a regularity/],
     ['a ghost with no time', p => { delete ms(p, 'c.aero').timers[0].ghost.s; }, /ghost is/],
-    ['a ghost split on a step outside the lap', p => { ms(p, 'c.aero').timers[0].ghost.splits = { k1: 5 }; }, /names no step between/],
-    ['a ghost split past its lap', p => { ms(p, 'c.aero').timers[0].ghost.splits.lp = 70; }, /inside the ghost/],
-    ['a course of one leg', p => { ms(p, 'c.course').course.timers = ['L1']; }, /2\+ timer ids/],
+    ['a ghost split on a step outside the lap', p => { ms(p, 'c.aero').timers[0].ghost.splits = { k1: 5 }; }, /ghost\.splits\.k1 is no step/],
+    ['a ghost split past its lap', p => { ms(p, 'c.aero').timers[0].ghost.splits.lp = 70; }, /ghost\.splits\.lp is no step/],
+    ['a course of one leg', p => { ms(p, 'c.course').course.timers = ['L1']; }, /2\+ ids/],
     ['a course on a timer the mission lacks', p => { ms(p, 'c.course').course.timers = ['L1', 'L9']; }, /L9 is no timer/],
     ['a course with its legs backwards', p => { ms(p, 'c.course').course.timers = ['L2', 'L1']; }, /later leg/],
     ['a course ghost whose legs do not add up', p => { ms(p, 'c.course').course.ghost.legs = [55, 80]; }, /add up/],
@@ -876,7 +876,7 @@ function compRows(M, mut) {
   F = track(rs, toRun(-2, 58, 23));
   ok(F.E.stol && F.E.stol.to.m === 60.5, 'STOL take-off: a hop at 23 m (one sample off the ground) is not the lift-off: still 60.5 m (' + J(F.E.stol) + ')');
   ok(!track(rs, toRun(-2, 58).map(q => { const o = Object.assign({}, q); delete o.gnd; return o; })).E.stol, 'STOL: samples that do not say the wheels are on the ground measure nothing');
-  ok(/take-off on the to line was not measured/.test(judge(rs, 'l1', { timers: {}, hits: {} }).why || ''), 'STOL: not measured, the step is not done (fly it again)');
+  ok(/the to takeoff was not measured/.test(judge(rs, 'l1', { timers: {}, hits: {} }).why || ''), 'STOL: not measured, the step is not done (fly it again)');
   // ---- STOL: THE LANDING (5 s in the air, the first touchdown past the line, to the stop)
   const ldRun = (td, stopX, goAround) => {
     const air = range(-400, td - 1, 20).map(x => [x, false]).concat([[td - 1, false]]), roll = range(td + 1, stopX, 10).map(x => [x, true]);
@@ -891,7 +891,7 @@ function compRows(M, mut) {
   F = track(rs, ldRun(-5, 120));
   ok(F.E.stol.ld.foul === 'short' && /touched down 5 m short/.test(judge(rs, 'l1', Object.assign({}, F.E, { stol: Object.assign({ to: { m: 40 } }, F.E.stol) })).why || ''), 'STOL landing: touched 5 m short of the line - a foul, not done');
   F = track(rs, ldRun(20, 220));
-  ok(F.E.stol.ld.m === 220 && /220 m, 150 m allowed/.test(judge(rs, 'l1', Object.assign({}, F.E, { stol: Object.assign({ to: { m: 40 } }, F.E.stol) })).why || ''), 'STOL landing: 220 m, over its max 150: not done');
+  ok(F.E.stol.ld.m === 220 && /220 m, 150 allowed/.test(judge(rs, 'l1', Object.assign({}, F.E, { stol: Object.assign({ to: { m: 40 } }, F.E.stol) })).why || ''), 'STOL landing: 220 m, over its max 150: not done');
   F = track(rs, ldRun(20, 180, 60));
   ok(F.E.stol.ld && F.E.stol.ld.td === 60 && F.E.stol.ld.m === 180, 'STOL landing: touched at 20 m, went round (5 s up): dropped; the next touchdown at 60 m counts (' + J(F.E.stol) + ')');
   ok(!track(rs, ldRun(20, 120).map(q => Object.assign({}, q, { z: 50 }))).E.stol, 'STOL landing: a touchdown beside the line (50 m off its middle, 10 m long): not this line');
@@ -902,7 +902,7 @@ function compRows(M, mut) {
   ok(F.E.stol.sp.m === 3 && judge(rp, 's1', F.E).medal === 'silver', 'spot landing: touched 3 m past the line - 3 m, silver');
   F = spot(-1.5);
   ok(F.E.stol.sp.m === 1.5 && F.E.stol.sp.short === true && judge(rp, 's1', F.E).medal === 'gold' && judge(rp, 's1', F.E).scores[0].short === true, 'spot landing: 1.5 m short - 1.5 m, gold, said short');
-  ok(/12 m, 10 m or less for a medal/.test(judge(rp, 's1', spot(12).E).why || ''), 'spot landing: 12 m off: no medal, not done');
+  ok(/12 m, 10 or less for a medal/.test(judge(rp, 's1', spot(12).E).why || ''), 'spot landing: 12 m off: no medal, not done');
   ok(N.missionMarkers(rs, { stage: 0, subs: [] }).filter(m => m.kind === 'line').map(m => m.key + ':' + m.stol + ':' + m.state).join() === 'stol:to:takeoff:next,stol:ld:landing:next', 'the markers carry the STOL lines (their kind, their stop step\'s state)');
 
   // ---- 2. 3-D GATES: A KNIFE-EDGE GATE, A LOOP'S VERTICAL RING, AN INVERTED RING; THE ATTITUDE A SOFT PENALTY
@@ -952,9 +952,9 @@ function compRows(M, mut) {
   ok(rj.st === 'done' && rj.timer.dev === 2.5 && rj.medal === 'silver', 'regularity: 62.5 s - 2.5 s off, silver');
   rj = judge(rr2, 'r2', { timers: { reg: { s: 57.5 } } });
   ok(rj.st === 'done' && rj.timer.dev === 2.5 && rj.medal === 'silver', 'regularity: early counts as late - 57.5 s, 2.5 s off, silver');
-  ok(/6 s off the 60 s asked; 5 s off or less for a medal/.test(judge(rr2, 'r2', { timers: { reg: { s: 54 } } }).why || ''), 'regularity: 54 s, 6 s off - no medal, not done (the FASTER lap does not win)');
+  ok(/6 s off 60 s, 5 or less for a medal/.test(judge(rr2, 'r2', { timers: { reg: { s: 54 } } }).why || ''), 'regularity: 54 s, 6 s off - no medal, not done (the FASTER lap does not win)');
   const tolR = JSON.parse(J(rr2)); delete tolR.timers[0].medals; tolR.timers[0].tol = 2;
-  ok(judge(tolR, 'r2', { timers: { reg: { s: 61.5 } } }).st === 'done' && /3 s off the 60 s asked \(2 s allowed\)/.test(judge(tolR, 'r2', { timers: { reg: { s: 63 } } }).why || ''), 'regularity with a tolerance: 1.5 s off done, 3 s off not');
+  ok(judge(tolR, 'r2', { timers: { reg: { s: 61.5 } } }).st === 'done' && /3 s off 60 s, 2 allowed/.test(judge(tolR, 'r2', { timers: { reg: { s: 63 } } }).why || ''), 'regularity with a tolerance: 1.5 s off done, 3 s off not');
 
   // ---- 4 + 5. THE MULTI-LEG COURSE: THE SUM OF THE LEGS, ITS SPLITS, ITS MEDAL, THE FIXED GHOST - THROUGH THE CAREER
   const rc = R('c.course'), hooks = { acceptVerdict: () => ({ ok: true, got: {} }) };
@@ -977,13 +977,13 @@ function compRows(M, mut) {
   ok(done && done.medal === 'silver', 'the course through the career: completed with the course\'s medal (silver), not the leg\'s (' + J(done) + ')');
   const noL1 = N.missionTimerOnSub(rc, rc.stages[1].subs[1], { st: 'done' }, { tracks: { 'c.course': legRun('c.course', 3000 / 55, { stage: 1, subs: [] }) } });
   ok(noL1.st === 'no' && /leg 1 \(L1\) has no time/.test(noL1.why), 'the course: leg 2 flown with no leg 1 on the career - not done (' + noL1.why + ')');
-  ok(N.missionTimerOnSub(rc, rc.stages[1].subs[1], { st: 'done' }, { tracks: { 'c.course': { timers: { L2: { s: 90 } }, course: { L1: 50 } } } }).why === 'the course: 140 s, 130 s or less for a medal', 'the course: 140 s, no medal - not done');
+  ok(N.missionTimerOnSub(rc, rc.stages[1].subs[1], { st: 'done' }, { tracks: { 'c.course': { timers: { L2: { s: 90 } }, course: { L1: 50 } } } }).why === 'the course: 140 s, 130 or less for a medal', 'the course: 140 s, no medal - not done');
   // ---- STOL through the career: the converter's empty timers list opens the stop seam
   r = N.careerAccept(d, 'c.stol'); d = r.doc;
   const toE = track(rs, toRun(-2, 58)), ldE = track(rs, ldRun(20, 120));
   const both = Object.assign({}, toE.E, { stol: Object.assign({}, toE.E.stol, ldE.E.stol) });
   const ns = N.careerOnStop(d, stopAt('HOME', { tracks: { 'c.stol': toE.E } }), hooks);
-  ok(!ns.ok && /landing on the ld line was not measured/.test(ns.untouched['c.stol'] || ''), 'STOL through the career: the take-off alone - the landing not measured, not done (' + (ns.untouched['c.stol'] || '') + ')');
+  ok(!ns.ok && /the ld landing was not measured/.test(ns.untouched['c.stol'] || ''), 'STOL through the career: the take-off alone - the landing not measured, not done (' + (ns.untouched['c.stol'] || '') + ')');
   const ys = N.careerOnStop(d, stopAt('HOME', { tracks: { 'c.stol': both } }), hooks), ye = ys.ok && ys.events.find(e => e.k === 'done' && e.id === 'c.stol');
   ok(ye && ye.medal === 'silver', 'STOL through the career: both measured - done, the take-off\'s silver (' + J(ye) + ')');
   // ---- PURITY: 73c reads no clock and no random (the ghost is authored, the same for every player)
@@ -1050,42 +1050,42 @@ const MUTS = [
   ['a built site reveals nothing', { '74_career.js': sub("if (m && S.state === 'built') c.tracks[m[1]] = Math.max(c.tracks[m[1]] || 0, +m[2]);", '') }],
   // (COMPETE) the competition: STOL, 3-D gates, regularity, the course, the ghost
   ['STOL: a take-off from anywhere', { '73c_mission_run.js': sub("st.ph = s >= -K.gap && s <= 0 && Math.abs(F.c(b.x, b.z)) <= F.half ? 'armed' : 'wait';", "st.ph = 'armed';") }],
-  ['STOL: a hop is the lift-off', { '73c_mission_run.js': sub("if (gb) { st.ph = 'armed'; st.lift = null; continue; }   // a hop", "if (gb) { st.ph = 'lift'; continue; }   // a hop") }],
-  ['STOL: a landing short of the line is no foul', { '73c_mission_run.js': sub("if (s < 0) { put(S, { foul: 'short', td: msrR1(s), t }); continue; }", '') }],
-  ['STOL: a go-around keeps the first touchdown', { '73c_mission_run.js': sub("if (!gb && T.airSince != null && b.t - T.airSince >= K.flown) { st.ph = 'wait'; continue; }", '') }],
-  ['STOL: a hop is a landing', { '73c_mission_run.js': sub('if (st.ph === \'wait\' && tdn && flown >= K.flown && along(S))', 'if (st.ph === \'wait\' && tdn && along(S))') }],
+  ['STOL: a hop is the lift-off', { '73c_mission_run.js': sub("else if (st.ph === 'lift' && gb) st.ph = 'armed';", "else if (st.ph === 'lift' && gb) {}") }],
+  ['STOL: a landing short of the line is no foul', { '73c_mission_run.js': sub("else if (s < 0) put(S, { foul: 'short', td: msrR1(s), t });", 'else if (false) {}') }],
+  ['STOL: a go-around keeps the first touchdown', { '73c_mission_run.js': sub("if (!gb && T.airSince != null && b.t - T.airSince >= K.flown) st.ph = 'wait';", 'if (false) {}') }],
+  ['STOL: a hop is a landing', { '73c_mission_run.js': sub('tdn && flown >= K.flown &&', 'tdn &&') }],
   ['STOL: a landing anywhere is on the line', { '73c_mission_run.js': sub('if (Math.abs(F.c(m.x, m.z)) > F.half || Math.abs(s) > K.zone) continue;', '') }],
   ['STOL: the flight began in the air, so it never flew', { '73c_mission_run.js': sub('if (ga === false && T.airSince == null) T.airSince = a.t;', '') }],
   ['the spot is measured signed', { '73c_mission_run.js': sub('put(S, Object.assign({ m: msrR1(Math.abs(s)), t }', 'put(S, Object.assign({ m: msrR1(s), t }') }],
   ['STOL: a foul is judged done', { '73c_mission_run.js': sub("if (E.foul) return { st: 'no'", "if (false) return { st: 'no'") }],
-  ['STOL: an unmeasured line is judged done', { '73c_mission_run.js': sub("if (!E) return { st: 'no', why: 'the ' + what", "if (!E) continue; if (0) return { st: 'no', why: 'the ' + what") }],
-  ['STOL: the max is not judged', { '73c_mission_run.js': sub("else if (msrNum(S.max) && E.m > S.max) return { st: 'no'", "else if (false) return { st: 'no'") }],
-  ['STOL: the ghost is beaten backwards', { '73c_mission_run.js': sub('score.ghost = { m: S.ghost.m, beat: E.m < S.ghost.m, by: msrR1(E.m - S.ghost.m) }', 'score.ghost = { m: S.ghost.m, beat: E.m > S.ghost.m, by: msrR1(S.ghost.m - E.m) }') }],
-  ['the attitude costs nothing', { '73c_mission_run.js': sub('if (aj.miss) {', 'if (false) {') }],
-  ['the attitude has no tolerance', { '73c_mission_run.js': sub('if (e > tol) miss = true;', 'if (e > 360) miss = true;') }],
-  ['the roll does not wrap (inverted -175 is 355 off 180)', { '73c_mission_run.js': sub("const e = k === 'pitch' ? Math.abs(q.pitch - att.pitch) : msrDiff(q[k], att[k]);", 'const e = Math.abs(q[k] - att[k]);') }],
-  ['a vertical line has a heading', { '73c_mission_run.js': sub("if (k === 'hdg' && ((msrNum(att.pitch)", "if (false && ((msrNum(att.pitch)") }],
+  ['STOL: an unmeasured line is judged done', { '73c_mission_run.js': sub("if (!E) return { st: 'no', why: 'the ' + S.id", "if (!E) continue; if (0) return { st: 'no', why: 'the ' + S.id") }],
+  ['STOL: the max is not judged', { '73c_mission_run.js': sub('msrJudge(r, S.medals, E.m, S.max,', 'msrJudge(r, S.medals, E.m, null,') }],
+  ['STOL: the ghost is beaten backwards', { '73c_mission_run.js': sub('sc.ghost = msrGhost(S.ghost.m, E.m,', 'sc.ghost = msrGhost(E.m, S.ghost.m,') }],
+  ['the attitude costs nothing', { '73c_mission_run.js': sub('const pen = aj.miss ? (', 'const pen = false ? (') }],
+  ['the attitude has no tolerance', { '73c_mission_run.js': sub('if (e > (msrNum(att.tol) ? att.tol : MISSION_ATT.tol)) miss = true;', 'if (e > 360) miss = true;') }],
+  ['the roll does not wrap (inverted -175 is 355 off 180)', { '73c_mission_run.js': sub("msrR1(k === 'pitch' ? Math.abs(q.pitch - att.pitch) : msrDiff(q[k], att[k]))", 'msrR1(Math.abs(q[k] - att[k]))') }],
+  ['a vertical line has a heading', { '73c_mission_run.js': sub("(k === 'hdg' && (V(att.pitch) || V(q.pitch)))", '(false)') }],
   ['an unknown attitude is a miss', { '73c_mission_run.js': sub('if (!msrNum(q[k])) { unknown.push(k); continue; }', 'if (!msrNum(q[k])) { miss = true; continue; }') }],
-  ['the penalised lap is not the stop event\'s', { '73c_mission_run.js': sub("for (const e of out) if (e.k === 'timer' && e.state === 'stop' && laps.includes(e.id))", 'for (const e of []) if (e.k') }],
+  ['the penalised lap is not the stop event\'s', { '73c_mission_run.js': sub("for (const e of out) if (e.state === 'stop' && laps.includes(e.id))", 'for (const e of []) if (e.k') }],
   ['a ring is never tilted', { '73c_mission_run.js': sub('e = (msrNum(p.pitch) ? p.pitch : 0) * Math.PI / 180', 'e = 0') }],
   ['a vertical ring is a hair off vertical', { '73c_mission_run.js': sub('const z = v => (Math.abs(v) < 1e-12 ? 0 : v);', 'const z = v => v;') }],
   ['a knife-edge wing reaches out', { '73c_mission_run.js': sub('Rh = msrNum(q.roll) ? R * Math.abs(CORE_MATH.cos(q.roll * Math.PI / 180)) : R;', 'Rh = R;') }],
   ['the ring\'s strike ignores the roll', { '73c_mission_run.js': sub('const ph = msrNum(q.roll) ? q.roll * Math.PI / 180 : 0,', 'const ph = 0,') }],
-  ['regularity rewards the faster lap', { '73c_mission_run.js': sub('const dev = msrR1(Math.abs(E.s - target));', 'const dev = msrR1(E.s - target);') }],
-  ['regularity ignores its tolerance', { '73c_mission_run.js': sub("} else if (dev > t.tol) return { st: 'no'", "} else if (false) return { st: 'no'") }],
-  ['the ghost lap is beaten backwards', { '73c_mission_run.js': sub('timer.ghost = { s: t.ghost.s, beat: E.s < t.ghost.s, by: msrR1(E.s - t.ghost.s) };', 'timer.ghost = { s: t.ghost.s, beat: E.s < t.ghost.s, by: msrR1(t.ghost.s - E.s) };') }],
+  ['regularity rewards the faster lap', { '73c_mission_run.js': sub('const dev = timer.dev = msrR1(Math.abs(E.s - target));', 'const dev = timer.dev = msrR1(E.s - target);') }],
+  ['regularity ignores its tolerance', { '73c_mission_run.js': sub('msrJudge(r, t.medals, dev, t.tol,', 'msrJudge(r, t.medals, dev, null,') }],
+  ['the ghost lap is beaten backwards', { '73c_mission_run.js': sub('timer.ghost = msrGhost(G, E.s, { s: G });', 'timer.ghost = msrGhost(E.s, G, { s: G });') }],
   ['the ghost\'s splits need a split target', { '73c_mission_run.js': sub('(o.split != null || (tm.ghost && tm.ghost.splits && msrNum(tm.ghost.splits[o.key])))', '(o.split != null)') }],
   ['the course is its last leg', { '73c_mission_run.js': sub('const course = { s: msrR1(legs.reduce((a, L) => a + L.s, 0)), legs };', 'const course = { s: legs[legs.length - 1].s, legs };') }],
   ['the course forgets the earlier legs', { '73c_mission_run.js': sub('if (LT[id] && msrNum(LT[id].s)) T.prior[id] = LT[id].s;', '') }],
-  ['the course\'s medal is not the mission\'s', { '73c_mission_run.js': sub('r = Object.assign({}, r, { medal: m.medal, course });', 'r = Object.assign({}, r, { course });') }],
+  ['the course\'s medal is not the mission\'s', { '73c_mission_run.js': sub('r = msrJudge(r, C.medals, course.s,', 'r = msrJudge(r, null, course.s,') }],
   ['a STOL-only record never reaches the stop seam', { '73b_missions.js': sub('if (r.timers == null && Array.isArray(M.stol) && M.stol.length) r.timers = [];', '') }],
   ['the STOL lines do not ride along', { '73b_missions.js': sub("                             'stol', 'course'],", "                             'course'],") }],
   ['a STOL line of any kind', { '73b_missions.js': sub("if (!['takeoff', 'landing', 'spot'].includes(S.kind))", 'if (false)') }],
-  ['a STOL run at any angle to its line', { '73b_missions.js': sub('if (off > 15) why.push', 'if (off > 90) why.push') }],
-  ['an attitude rolled anywhere', { '73b_missions.js': sub('if (a.roll != null && !(msNum(a.roll) && a.roll >= -180 && a.roll <= 180))', 'if (false)') }],
-  ['a regularity lap judged on nothing', { '73b_missions.js': sub("if (t.medals == null && !(msNum(t.tol) && t.tol > 0 && t.tol <= 600))", 'if (false)') }],
-  ['a course in any leg order', { '73b_missions.js': sub('if (!(leg > prev)) why.push', 'if (false) why.push') }],
-  ['a ghost whose legs add up to anything', { '73b_missions.js': sub("else if (Math.abs(G.legs.reduce((a, v) => a + v, 0) - G.s) > 0.5)", 'else if (false)') }],
+  ['a STOL run at any angle to its line', { '73b_missions.js': sub('|| off > 15)', '|| off > 90)') }],
+  ['an attitude rolled anywhere', { '73b_missions.js': sub('roll: [-180, 180]', 'roll: [-999, 999]') }],
+  ['a regularity lap judged on nothing', { '73b_missions.js': sub('if (t.regularity && t.medals == null && !msIn(t.tol, 0.1, 600))', 'if (false)') }],
+  ['a course in any leg order', { '73b_missions.js': sub('else if (leg != null && !(leg > prev)) why.push', 'else if (false) why.push') }],
+  ['a ghost whose legs add up to anything', { '73b_missions.js': sub(' || Math.abs(L.reduce((a, v) => a + v, 0) - G.s) > 0.5))', '))') }],
   ['a site is flown to nowhere', { '73b_missions.js': sub('if (s.do === \'carry\') { if (from) sub.from = from; if (f) sub.to = f; else if (P) { put(); if (served) sub.to = served; } }', 'if (s.do === \'carry\') { if (from) sub.from = from; if (f) sub.to = f; else if (P) put(); }') }],
 ];
 

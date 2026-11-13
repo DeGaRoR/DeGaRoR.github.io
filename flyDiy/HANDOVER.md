@@ -315298,3 +315298,6 @@ fair STOL measure) and hdg/pitch/roll in the stated convention (pitch -90..90, r
 (4) the new functions are not in 90_node_exports.js (the gate loads 73b/73c fresh).
 GATE MISSIONS: +80 rows (the compete pack: 5 tiny missions, no story text), the checker's breaks, the converter's
 round trip, a course and a STOL event flown through careerOnStop; the selftest +37 doctored rules.
+BUDGET: the career chunk (GATE MEDIA, CAREER_BUDGET_KB 640) was at 624.9 KB on claude/mission-packs; COMPETE fits at
+639.2 KB only by keeping 73b/73c terse (the explanations live here, not in the code). The next career feature needs
+A0's budget call (rule b), not more squeezing.
