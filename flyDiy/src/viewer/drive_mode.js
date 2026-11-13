@@ -189,7 +189,7 @@
     const lg = D && D.log.length ? D.log[D.log.length - 1].msg : 'parked at ' + placeName(DM.from) + ' - pick a destination (the To)';
     return { phase: 'PARKED', line: lg, left: null };
   };
-  DM.trip = () => placeName(DM.from) + ' → ' + placeName(DM.to);
+  DM.trip = () => placeName(DM.from) + ' → ' + (DM.to ? placeName(DM.to) : 'pick a To');
 
   // ---- THE HUD CARD: the flight's own cells, three of them re-labelled; the rest hidden while driving ----
   const KEEP = ['ias', 'alt', 'vs'];
