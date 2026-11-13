@@ -878,8 +878,15 @@ try {
       throw new Error('FLYDIY_START.starts() for a powered plane: ' + JSON.stringify(st.map(x => x.mode + ':' + x.id + (x.ok ? '' : '!'))));
     const ds = await S.destinations(land[0].id);
     if (!ds.length || ds[0].id !== 'CIRCUIT' || !land.every(a => ds.some(x => x.id === a.id))) throw new Error('FLYDIY_START.destinations(): ' + JSON.stringify(ds.map(x => x.id)));
+    // (go() takes what starts() gives: every start's id parses back to its own mode; a bare field id and 'field:<id>' are
+    //  the same start - Game's browser check: a bare 'w3' read as mode 'w' and rolled out at HOME)
+    if (typeof S.parse !== 'function') throw new Error('FLYDIY_START.parse is missing');
+    const badP = st.filter(x => { const q = S.parse(x.id); return q.mode !== x.mode || (x.mode === 'field' || x.mode === 'water') && q.id !== x.id; });
+    const w = land.find(a => a.id !== 'HOME') || land[0], pb = S.parse(w.id), pp = S.parse('field:' + w.id), wat = W.aerodromes.find(a => a.kind === 'water');
+    if (badP.length || pb.mode !== 'field' || pb.id !== w.id || pp.mode !== 'field' || pp.id !== w.id || (wat && S.parse(wat.id).mode !== 'water') || S.parse('nonsense').mode !== null)
+      throw new Error('FLYDIY_START.parse: ' + JSON.stringify({ badP: badP.map(x => x.id), pb, pp, water: wat && S.parse(wat.id) }));
     let refused = null; try { await S.go({ start: land[0].id, to: 'CIRCUIT' }); } catch (e) { refused = e.message; }
-    console.log('the start chooser (FLYDIY_START): a powered plane, ' + st.filter(x => x.ok).length + ' of ' + st.length + ' starts usable (' + [...modes].join(', ') + '), ' + ds.length + ' destinations; go() ' + (refused ? 'refused out of the garage ("' + refused + '")' : 'ran'));
+    console.log('the start chooser (FLYDIY_START): a powered plane, ' + st.filter(x => x.ok).length + ' of ' + st.length + ' starts usable (' + [...modes].join(', ') + '), ' + ds.length + ' destinations; every start\'s id parses back to its mode (bare field ids too); go() ' + (refused ? 'refused out of the garage ("' + refused + '")' : 'ran'));
   }
   // ---- G3078 FLOATS-FIX: THE PLAYER'S TO SURVIVES A FIT ----
   // A To this build may not fly (a water lane, on wheels) is FITTED to the circuit for the flight, but the player's choice
