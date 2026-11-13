@@ -123,7 +123,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const wheelR = 0.31, axleDx = 0.82, wheelZ = Math.max(0.78, Math.min(0.86, track / 2 - 0.05));
     const Ld = Math.max(car.x1 + 0.1, car.xF + tyreR + 0.5, axleDx / 2 + wheelR + 0.4) + 1.05;
     const Tr = { fit: { kind: 'car', car, Ld }, wheelR, wheelZ, axleDx, ballH: ball[1] - yG, ramp };
-    const T = buildTrailerModel(THREE, Tr);
+    const T = buildTrailerModel(THREE, Tr); window.__convoyT = T;
     // the trailer's frame in the cage's: +x forward = cage +z, +y up, +z right = cage -x; its origin under the axles,
     // the ball (trailer x = Ld) on the tow's ball
     const z0 = ball[2] - Ld;
@@ -154,7 +154,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     return { craftFix: nFix, levelDeg: +(a * 180 / Math.PI).toFixed(2), rear: rearC.map(q => q.p.map(v => +v.toFixed(3)).concat([+q.R.toFixed(3)])), front: frontC.map(q => q.p.map(v => +v.toFixed(3)).concat([+q.R.toFixed(3)])), yG, ball, Ld, deckY: T.stats.deckY, car, tris: T.stats.tris };
   }, [cargo, RAMP]);
   console.log('convoy', el(), JSON.stringify(lay));
-  await sleep(10000);   // (the trailer's AO bake runs in the page's idle slices: a white map for the first seconds)
+  // the trailer's AO bake runs in the page's idle slices (a white map until done; ~8-9 s on SwiftShader), and its
+  // weathering needs aeroweather's AEROWX on the page (TOW-LAUNCH, 13 Nov) - say so if it is missing
+  for (let i = 0; i < 90; i++) {
+    const st = await page.evaluate(() => { const T = window.__convoyT, ao = T && T.stats && T.stats.ao; return { done: !ao || !!ao.done, wx: typeof AEROWX !== 'undefined' && !!AEROWX }; }).catch(() => ({ done: false }));
+    if (i === 0 && !st.wx) console.log('WARNING: no AEROWX on the page - the trailer draws unweathered');
+    if (st.done) { console.log('trailer AO baked', el()); break; } await sleep(1000);
+  }
+  await sleep(1500);
   for (const [yaw, elv, fov] of views) {
     const o = { kind: 'hero', yaw, el: elv, fov: fov || 28, fill: 0.9, w: 1800, h: 1000, ss: 2, bg0: '#2b2724', bg1: '#0a0908', key: 2.2, rim: 2.6 };
     const r = await page.evaluate(`(() => { const body = ${PORTRAIT_BODY}; return body(${JSON.stringify(o)}, window.CAGE_UI_SCENE, null); })()`);
