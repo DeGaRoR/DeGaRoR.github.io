@@ -178,7 +178,9 @@ function run(mut) {
   for (const k of ['tasKmh', 'enduranceMin', 'rangeKm', 'takeoffAt', 'landAt']) ok(M.CONTRACT_CRIT_KINDS[k] && M.CONTRACT_CRIT_KINDS[k].when === 'flown', k + ' must be flown');
   for (const k of ['seats', 'emptyKg', 'powertrain', 'tankL', 'spanM', 'costMax']) ok(M.CONTRACT_CRIT_KINDS[k] && M.CONTRACT_CRIT_KINDS[k].when === 'static', k + ' is static (GQ19: the phone may judge it)');
   ok(eq(Object.keys(PROV).sort(), ['clients', 'field', 'minedock', 'resort', 'survey']), 'five providers (G-PROV: the mine and the dock merged)');
-  ok(eq(Object.keys(M.CONTRACT_TRACKS).sort(), ['clients', 'field', 'minedock', 'resort', 'survey']), 'five tracks, minedock one track');
+  // (OBSERVATORY-SITE 13 Nov: + the observatory PROJECT's track - no provider's, so no arc unlocks it; GATE STAGES maps its bands)
+  ok(eq(Object.keys(M.CONTRACT_TRACKS).sort(), ['clients', 'field', 'minedock', 'observatory', 'resort', 'survey']), 'five providers\' tracks (minedock one track) + the observatory project\'s');
+  ok(!Object.values(PROV).some(P => P.arc.concat(P.builds || []).some(r => r.unlock && /^observatory:/.test(r.unlock.stage))), 'the observatory project\'s track is no provider\'s arc (the project advances it)');
   const HOMEF = { field: ['HOME'], minedock: ['mn_strip', 'SEA', 'mk_sea'], resort: ['tw_ski'], survey: ['HOME'] };
   for (const p of Object.keys(PROV)) {
     const P = PROV[p];
@@ -243,9 +245,9 @@ function run(mut) {
 
   // ==== THE WORLD ============================================================
   const FW = M.contractFieldsOf(RUNWAYS);
-  ok(eq(Object.keys(F).sort(), Object.keys(FW).sort()) && Object.keys(FW).every(k => eq(F[k], FW[k])), 'CONTRACT_FIELDS is Jolene\'s record (15 runways through contractFieldsOf)');
+  ok(eq(Object.keys(F).sort(), Object.keys(FW).sort()) && Object.keys(FW).every(k => eq(F[k], FW[k])), 'CONTRACT_FIELDS is Jolene\'s record (16 runways through contractFieldsOf)');
   // (G3014: the user's rev 26 strips 10 and 11, w5 + w6, added to the career's fields at their word - 8 -> 10)
-  ok(Object.keys(F).length === 15, 'the 15 runways');   // (rev 27: w7; rev 28: w4 strip 9, w8 strip 13; save 17: w1 the Cabin Strip; CABIN-LAKE: cb_sea)
+  ok(Object.keys(F).length === 16, 'the 16 runways');   // (rev 27: w7; rev 28: w4 strip 9, w8 strip 13; save 17: w1 the Cabin Strip; CABIN-LAKE: cb_sea; OBSERVATORY-SITE: mt_strip)
   for (const rw of RUNWAYS) for (const g of ['wheels', 'floats', 'amphibian', 'skis'])
     ok(M.contractGearOk(g, F[rw.id]) === CORE.stripAllows(g, rw).ok, 'the gear rule is stripAllows: ' + g + ' at ' + rw.id);
   for (const k of Object.keys(DS)) {
@@ -478,7 +480,7 @@ function run(mut) {
   ok(D0.wallet === M.careerGrant() && M.CAREER_GRANT === 60000 && M.careerGrant() === CORE.econPay(60000), 'GQ23: the grant is 60 000 (x the pay scale: ' + M.careerGrant() + ')');
   ok(D0.ledger.length === 1 && D0.ledger[0].k === 'grant' && D0.ledger[0].amt === -M.careerGrant(), 'the grant is a ledger line (income)');
   ok(D0.career.voucher && D0.career.voucher.model === 'cub' && D0.career.voucher.kind === 'maker' && D0.career.voucher.used === false, 'GQ23: a Cub voucher, unspent');
-  ok(eq(D0.career.tracks, { field: 0, minedock: 0, resort: 0, survey: 0, clients: 0 }), 'every track starts at 0');
+  ok(eq(D0.career.tracks, { field: 0, minedock: 0, resort: 0, survey: 0, clients: 0, observatory: 0 }), 'every track starts at 0');   // (+ the observatory project's, OBSERVATORY-SITE)
   ok(Object.keys(D0.career.providers).length === 5 && Object.values(D0.career.providers).every(p => p.rep === 0 && p.arc === 0), 'five providers at 0 reputation');
   ok(eq(Object.keys(D0.career.contracts).sort(), ['accepted', 'done', 'live', 'offered', 'sky', 'tracked']), 'contracts: offered / accepted / tracked / done (+ live progress, the offers\' sky)');
   ok(['pilots', 'roster', 'market', 'airframes', 'seed', 'started'].every(k => k in D0.career), 'the career block carries pilots, roster, market, airframes, seed, started');

@@ -59,6 +59,15 @@
 // core is the concrete in charcoal. Same API as the other generators
 // (DEF/ROWS/PRESETS/BAGS/MAT/build/applyFinish/makeFinish/catOf/CATALOGUE);
 // the build itself needs no THREE (the bags are plain arrays), the finish does.
+// OBSERVATORY-SITE (2026-11-13, the user: "the observatory is made of 3 or 4 buildings. Make each its own placeable piece so
+// the observatory PROJECT builds them ONE AT A TIME"): the `part` dial. 0 is the whole station, as before, to the vertex;
+// 1 the two-tier disc (the drum, with its stack and lantern), 2 the flat disc (the hall), 3 the tower (the core and the
+// top saucer), 4 the triangulation pillar - each a preset ('meteo drum', 'meteo hall', 'meteo tower', 'meteo pillar') and
+// so its own catalogue entry. A part keeps the STATION'S FRAME (its origin the drum's centre, the datum its floor): the
+// four stand on one site at one origin and meet exactly as the whole one does, on whatever pad lies under them. A part
+// alone is CLOSED: a wall or a window band that the whole station leaves out where another part buries it is drawn when
+// that part is not in this build (it stands later, or never); the small things on a roof (seams, patches, hatches,
+// vents) still keep off a neighbour's place, which the neighbour covers once it stands.
 (() => {
 'use strict';
 const K = window.HOUSE_KIT;
@@ -124,6 +133,7 @@ function houseP(P) {
 // ---- the dials ----------------------------------------------------------------
 const GROUNDS = ['rubble', 'panels'];
 const SHAFTS = ['battered', 'round'];
+const PARTS = ['the whole station', 'the drum', 'the hall', 'the tower', 'the pillar'];
 const DEF = {
   seed: 7,
   // the two-tier disc, its centre the origin; its floor the datum
@@ -136,6 +146,7 @@ const DEF = {
   topR: 7.0, topGlaze: 1.9, topWin: 22,
   // the fittings
   instruments: 1, stair: 1, stack: 1, obelisk: 1, obX: 15.5, obZ: 6.5, lights: 0,
+  part: 0,
   slopeX: 0, slopeZ: 0,
   // the finish
   roofSet: SET_IDX('roof', 'render'), roofCol: COL('charcoal'), roofTone: 0.5,
@@ -167,7 +178,7 @@ const ROWS = [
   ]],
   ['the fittings', [
     ['instruments', 'roof instruments', 0, 1, 1], ['stair', 'stair to the roof', 0, 1, 1], ['stack', 'stack and vents', 0, 1, 1],
-    ['obelisk', 'the pillar', 0, 1, 1], ['lights', 'lights', 0, 1, 1],
+    ['obelisk', 'the pillar', 0, 1, 1], ['lights', 'lights', 0, 1, 1], ['part', 'which part', 0, 4, 1, PARTS],
     ['slopeZ', 'ground slope z', -8, 8, 0.5], ['slopeX', 'ground slope x', -6, 6, 0.5],
   ]],
   ['finish', [
@@ -196,8 +207,13 @@ const PRESETS = {
     stoneSet: SET_IDX('stone', 'render'), stoneCol: COL('white'), trimSet: 'veneerpale', trimCol: COL('white'),
     rubble: 0, streaks: 0.3, rust: 0.05, dirt: 0.25, clouds: 0.15, roofClouds: 0.08, obelisk: 1,
   },
+  // the parts (OBSERVATORY-SITE): today's finish, one part each
+  'meteo drum': { part: 1 }, 'meteo hall': { part: 2 }, 'meteo tower': { part: 3 }, 'meteo pillar': { part: 4 },
 };
-const CATS = { 'meteo station': 'landmark', 'meteo station 1974': 'landmark' };
+const WHOLE = ['meteo station', 'meteo station 1974'];
+const CATS = { 'meteo station': 'landmark', 'meteo station 1974': 'landmark', 'meteo drum': 'landmark', 'meteo hall': 'landmark', 'meteo tower': 'landmark', 'meteo pillar': 'landmark' };
+// which parts a build draws (part 0: all, as before)
+const partsOf = P => { const k = Math.round(+P.part || 0); return k === 0 ? { d1: true, d2: !!P.d2On, t: true, ob: !!P.obelisk } : { d1: k === 1, d2: k === 2 && !!P.d2On, t: k === 3, ob: k === 4 }; };
 const catOf = name => CATS[name] || null;
 function rng(seed) { let st = ((seed | 0) * 2654435761 + 11) >>> 0; return () => { st = (st + 0x6D2B79F5) >>> 0; let t = st; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
@@ -477,8 +493,14 @@ function build(P0, lod, F) {
   const round = Math.round(P.shaftKind) === 1;
   const shaftFoot = octRing(t, 0, 0, 1, round, 24);
   const inShaft = (x, z, grow) => inPoly(shaftFoot, x, z, grow);
+  // (OBSERVATORY-SITE) the parts this build draws; a wall or a band is left out only where a part OF THIS BUILD buries it
+  const on = partsOf(P);
+  const buriesD1 = (x, z, pad) => on.d1 && inD1(x, z, pad), buriesD2 = (x, z, pad) => on.d2 && inD2(x, z, pad), buriesShaft = (x, z, grow) => on.t && inShaft(x, z, grow);
 
   // ==== THE TWO-TIER DISC ====================================================
+  const membrane = SETS.roof[clamp(Math.round(P.roofSet || 0), 0, SETS.roof.length - 1)] === 'render';
+  let gl1 = { panes: 0, lit: 0 }, lantern1 = null, stack = null;
+  if (on.d1) {   // (OBSERVATORY-SITE: the drum's part; the block keeps the indent it had)
   // THE GROUND STOREY: the kit's wall, facet by facet, walked clockwise (so +N is
   // out), the openings dressed by the house; rubble (or panels) 45 cm thick
   {
@@ -492,7 +514,7 @@ function build(P0, lod, F) {
       const A = [d1.x + rc * Math.cos(ta), d1.z + rc * Math.sin(ta)], B = [d1.x + rc * Math.cos(tb), d1.z + rc * Math.sin(tb)];
       const Lf = Math.hypot(B[0] - A[0], B[1] - A[1]);
       const mx = d1.x + d1.drum * Math.cos(tm), mz = d1.z + d1.drum * Math.sin(tm);
-      const buried = inD2(mx, mz, 0.6) || inShaft(mx, mz, 0.5);
+      const buried = buriesD2(mx, mz, 0.6) || buriesShaft(mx, mz, 0.5);
       const holes = [];
       const isDoor = doorAt.some(a => ((Math.round((TAU - a) / (TAU / n) - 0.5) % n) + n) % n === i);
       if (!buried) {
@@ -537,16 +559,14 @@ function build(P0, lod, F) {
   }
   // THE WINDOW BAND
   const skipD1 = (A, B) => false;
-  const gl1 = glazeBand(bags, Q, d1.x, d1.z, d1.glz, d1.yG0, d1.yG1, Math.round(P.d1Win / 2) * 2, { skip: skipD1, lights: P.lights, litK: 0.45, rnd, transom: 0.8 });
+  gl1 = glazeBand(bags, Q, d1.x, d1.z, d1.glz, d1.yG0, d1.yG1, Math.round(P.d1Win / 2) * 2, { skip: skipD1, lights: P.lights, litK: 0.45, rnd, transom: 0.8 });
   // THE EAVE AND THE ROOF: soffit, the copper edge, the tarred cone with its battens
   revolve(bags.dark, d1.x, d1.z, [[d1.glz - 0.06, d1.ySoff], [d1.R, d1.ySoff]], { segs: SEG, sub: hi ? 0.6 : 0 });
   revolve(bags.copper, d1.x, d1.z, [[d1.R, d1.ySoff], [d1.R, d1.yEave], [d1.R - 0.18, d1.yEave + 0.035]], { segs: SEG });
   revolve(bags.roof, d1.x, d1.z, [[d1.R - 0.18, d1.yEave + 0.035], [d1.rTop, d1.yTop]], { segs: SEG, sub: hi ? 1.1 : 0 });
   if (hi) seams(bags.roof, d1.x, d1.z, d1.R - 0.2, d1.yEave + 0.04, d1.rTop + 0.05, d1.yTop, SEG, 2, 0.018, 0.022, 0.024);
-  const membrane = SETS.roof[clamp(Math.round(P.roofSet || 0), 0, SETS.roof.length - 1)] === 'render';
   if (hi && membrane) patches(bags.patch, rnd, d1.x, d1.z, d1.R - 0.2, d1.rTop, r => d1.roofAt(r) + 0.035 * (1 - 0), 9, SEG / 2, p => Math.hypot(p[0] - 4.6, p[2] + 5.4) < 1.6);
   // THE LANTERN: a curb, a short glazed drum, a shallow cap
-  let lantern1 = null;
   if (P.d1Lantern) {
     const rl = d1.rTop - 0.4, y0 = d1.yTop + 0.18, y1 = y0 + 0.85;
     revolve(bags.dark, d1.x, d1.z, [[d1.rTop, d1.yTop - 0.02], [d1.rTop, d1.yTop + 0.18], [rl - 0.02, d1.yTop + 0.18]], { segs: hi ? 32 : 16 });
@@ -556,7 +576,6 @@ function build(P0, lod, F) {
     lantern1 = { r: rl, top: y1 + 0.42 };
   }
   // the stack, the mast beside it, the vents and the flues
-  let stack = null;
   if (P.stack) {
     const sx = d1.x + 4.6, sz = d1.z - 5.4, sr = Math.hypot(sx - d1.x, sz - d1.z), yb = d1.roofAt(sr + 0.8) - 0.15;
     const yt = d1.yTop + 2.6;
@@ -591,14 +610,16 @@ function build(P0, lod, F) {
     }
   }
 
+  }   // (the drum's part)
+
   // ==== THE FLAT DISC ========================================================
   let gl2 = { panes: 0, lit: 0 };
-  if (d2) {
+  if (d2 && on.d2) {
     const gm = gMinAround(d2.x, d2.z, d2.glz) - 0.45;
     // the plinth: rubble like the ground storey, from below the ground to the sill
     revolve(bags.stone, d2.x, d2.z, [[d2.glz + 0.08, gm], [d2.glz + 0.08, d2.yG0], [d2.glz - 0.1, d2.yG0]], { segs: SEG, sub: hi ? 1.0 : 0, a0: 0 });
     // the window band: skip what is buried in the drum or in the core; the entrance faces south
-    const skip2 = (A, B) => (inD1(A[0], A[2], -0.05) && inD1(B[0], B[2], -0.05)) || (inShaft(A[0], A[2], -0.05) && inShaft(B[0], B[2], -0.05));
+    const skip2 = (A, B) => (buriesD1(A[0], A[2], -0.05) && buriesD1(B[0], B[2], -0.05)) || (buriesShaft(A[0], A[2], -0.05) && buriesShaft(B[0], B[2], -0.05));
     const n2 = Math.round(P.d2Win / 2) * 2;
     gl2 = glazeBand(bags, Q, d2.x, d2.z, d2.glz, d2.yG0, d2.yG1, n2, { skip: skip2, lights: P.lights, litK: 0.15, rnd, doorAt: Math.PI / 2 + 0.12 });
     // the door's step: a concrete slab out from the threshold, down into the ground
@@ -644,6 +665,8 @@ function build(P0, lod, F) {
   }
 
   // ==== THE TOWER ============================================================
+  let gl3 = { panes: 0, lit: 0 }, stairInfo = null, railPostsG = null, railPostsR = null, mastTop = null, beacon = null;
+  if (on.t) {   // (OBSERVATORY-SITE: the tower's part; the block keeps the indent it had)
   // THE CORE: battered octagon (rings every two metres for the bake) with its
   // cladding battens, a few small windows; or the 1974 ribbed cylinder
   {
@@ -710,13 +733,13 @@ function build(P0, lod, F) {
   if (hi) seams(bags.dark, t.x, t.z, t.rIn + 0.05, t.yU + 0.03, t.R - 0.05, t.yR - 0.03, SEGT, 2, 0.012, 0.015, 0.015);
   revolve(bags.dark, t.x, t.z, [[t.R, t.yR], [t.R, t.yDeck]], { segs: SEGT });
   revolve(bags.deck, t.x, t.z, [[t.R, t.yDeck], [t.glz - 0.05, t.yDeck]], { segs: SEGT, sub: hi ? 0.6 : 0 });
-  const gl3 = glazeBand(bags, Q, t.x, t.z, t.glz, t.yG0, t.yG1, Math.round(P.topWin / 2) * 2, { lights: P.lights, litK: 0.7, rnd, transom: 0.0 });
+  gl3 = glazeBand(bags, Q, t.x, t.z, t.glz, t.yG0, t.yG1, Math.round(P.topWin / 2) * 2, { lights: P.lights, litK: 0.7, rnd, transom: 0.0 });
   revolve(bags.dark, t.x, t.z, [[t.glz - 0.06, t.yC], [t.rCap, t.yC], [t.rCap, t.yRoof], [t.rCap - 0.12, t.yRoof]], { segs: SEGT, sub: hi ? 0.5 : 0 });
   revolve(bags.deck, t.x, t.z, [[t.rCap - 0.12, t.yRoof], [0.0, t.yRoof + 0.12]], { segs: SEGT, sub: hi ? 1.0 : 0 });
   const roofY = r => t.yRoof + 0.12 * (1 - clamp(r / (t.rCap - 0.12), 0, 1));
   // the stair: a chord across the gallery, from the deck to the cap's rim, a landing onto the roof
   const sA = 3.35;                                    // where it climbs: the west side, seen from the east road
-  let stairInfo = null, gapsRoof = [];
+  let gapsRoof = [];
   if (P.stair) {
     const rs = t.glz + (t.R - t.glz) * 0.62, half = 1.55 / rs;
     const foot = ring(t.x, t.z, rs, sA - half, t.yDeck), top = ring(t.x, t.z, rs, sA + half, t.yRoof);
@@ -729,11 +752,11 @@ function build(P0, lod, F) {
     gapsRoof.push([sA + half - 0.08, sA + half + 0.22]);
   }
   // the rails: round the gallery, and round the roof deck with the gap where the landing arrives
-  const railPostsG = railRing(bags, t.x, t.z, t.R - 0.12, t.yDeck, 1.1, SEGT, { postEvery: hi ? 2 : 4, lod: Q.lod });
+  railPostsG = railRing(bags, t.x, t.z, t.R - 0.12, t.yDeck, 1.1, SEGT, { postEvery: hi ? 2 : 4, lod: Q.lod });
   const rRail = t.rCap - 0.35;
-  const railPostsR = railRing(bags, t.x, t.z, rRail, roofY(rRail), 1.05, hi ? 48 : 24, { postEvery: hi ? 2 : 4, gaps: gapsRoof, lod: Q.lod });
+  railPostsR = railRing(bags, t.x, t.z, rRail, roofY(rRail), 1.05, hi ? 48 : 24, { postEvery: hi ? 2 : 4, gaps: gapsRoof, lod: Q.lod });
   // the instruments
-  let mastTop = t.yRoof + 0.12, beacon = null;
+  mastTop = t.yRoof + 0.12; beacon = null;
   if (P.instruments) {
     const yr = t.yRoof + 0.12;
     // the mast: a steel pole on a base plate, a thinner top section, crossarms with whips
@@ -798,9 +821,11 @@ function build(P0, lod, F) {
       yawBox(bags.dark, p[0], p[2], p[1] + 0.5, p[1] + 0.56, 0.6, 0.5, a); }
   }
 
+  }   // (the tower's part)
+
   // ==== THE PILLAR ===========================================================
   let pillar = null;
-  if (P.obelisk) {
+  if (on.ob) {
     const x = P.obX, z = P.obZ, gy = g(x, z), H = 5.8;
     const lv = [[gy - 0.4, 0.62], [gy + 1.5, 0.56], [gy + 3.6, 0.47], [gy + H, 0.39]];
     for (let k = 0; k + 1 < lv.length; k++) K.prismRings(bags.conc, K.ringN(x, z, lv[k][1] * Math.SQRT2, 4, Math.PI / 4, lv[k][0]), K.ringN(x, z, lv[k + 1][1] * Math.SQRT2, 4, Math.PI / 4, lv[k + 1][0]), false, false);
@@ -820,6 +845,8 @@ function build(P0, lod, F) {
     pillar = { x, z, top: gy + H + 0.2 };
   }
 
+  // a part without the tower: its own highest point (the drum's mast, the hall's lantern, the pillar's cap)
+  if (mastTop === null) mastTop = Math.max(on.d1 ? (stack ? stack.mast : lantern1 ? lantern1.top : d1.yTop) : -Infinity, on.d2 && d2 ? d2.yTop + 1.45 : -Infinity, pillar ? pillar.top : -Infinity, 0);
   // ==== THE GROUND SKIRT AND THE BAKE =========================================
   for (const o of occ) o.dry = true;
   if (P.aoGround) HG.buildGroundAO(bags.aoskirt, occ.filter(o => o.k > 0), g);
@@ -837,7 +864,7 @@ function build(P0, lod, F) {
     discs: { d1: { R: d1.R, eave: d1.yEave, top: d1.yTop, windows: gl1.panes }, d2: d2 ? { R: d2.R, eave: d2.yEave, top: d2.yTop, windows: gl2.panes } : null,
              top: { R: t.R, underside: t.yU, deck: t.yDeck, roof: t.yRoof, windows: gl3.panes } },
     lantern: lantern1, stack, pillar, stair: stairInfo ? { kind: 'straight', steps: stairInfo.n } : null,
-    rails: { gallery: railPostsG, roof: railPostsR }, openings, doors, battens, mast: P.instruments ? { top: mastTop, beacon: !!beacon } : null,
+    rails: { gallery: railPostsG, roof: railPostsR }, openings, doors, battens, mast: P.instruments && on.t ? { top: mastTop, beacon: !!beacon } : null, part: Math.round(+P.part || 0),
     front: { x: 0, z: d1.drum + 2.5, side: 1, depth: 0 },
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [], people: null, pier: null, lit: LIT, smoke: null, sign: null, yard: [],
   };
@@ -991,7 +1018,7 @@ function finishReport() {
 }
 // the bench's dice: the same building, its proportions nudged
 function randomObservatory(seed) {
-  const r = rng(seed); const names = Object.keys(PRESETS);
+  const r = rng(seed); const names = WHOLE.slice();   // (the whole station's eras; a part is not a random station)
   const P = Object.assign({}, DEF, PRESETS[names[Math.floor(r() * names.length)]]);
   P.d1R = +(P.d1R * (0.9 + r() * 0.2)).toFixed(2); P.d2R = +(P.d2R * (0.85 + r() * 0.25)).toFixed(2);
   P.towerH = +(P.towerH * (0.9 + r() * 0.25)).toFixed(2); P.topR = +(P.topR * (0.9 + r() * 0.2)).toFixed(2);
@@ -999,17 +1026,18 @@ function randomObservatory(seed) {
   return P;
 }
 
-window.METEO_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SETS, SET_IDX, GROUNDS, SHAFTS, CATS, catOf, plan, build, applyFinish, makeFinish, finishReport, randomObservatory };
+window.METEO_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SETS, SET_IDX, GROUNDS, SHAFTS, PARTS, WHOLE, partsOf, CATS, catOf, plan, build, applyFinish, makeFinish, finishReport, randomObservatory };
 // THE CATALOGUE: a landmark complex; its way in is the flat disc's door on the +z side
 window.METEO_GEN.CATALOGUE_V = 1;
 window.METEO_GEN.CATALOGUE_ALIASES = {};
 // G3660 THE PAD'S OUTLINE (27_premises ground need 'ramp'): the convex hull of the drum, the flat disc and the core, each
 // + 1.5 m (the user: "Keep the level pad tight around the building"), and the triangulation pillar with its heap of stones
 // (r 1.6 m): off the pad its stones stood on the generator's ground, not the drawn slope - they floated in the Tue 04:05 still
+// (OBSERVATORY-SITE) a part's outline is its own discs only: the drum, the hall, the core, the pillar
 const outlineOf = p => {
-  const m = 1.5, pts = [];
+  const m = 1.5, pts = [], on = partsOf(p);
   const circ = (x, z, r) => { for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12; pts.push([x + (r + m) * Math.cos(a), z + (r + m) * Math.sin(a)]); } };
-  circ(0, 0, p.d1R); if (p.d2On) circ(p.d2x, p.d2z, p.d2R); circ(p.tx, p.tz, 4.5); if (p.obelisk) circ(p.obX, p.obZ, 1.6);
+  if (on.d1) circ(0, 0, p.d1R); if (on.d2) circ(p.d2x, p.d2z, p.d2R); if (on.t) circ(p.tx, p.tz, 4.5); if (on.ob) circ(p.obX, p.obZ, 1.6);
   pts.sort((u, v) => u[0] - v[0] || u[1] - v[1]);
   const cr = (o, u, v) => (u[0] - o[0]) * (v[1] - o[1]) - (u[1] - o[1]) * (v[0] - o[0]), lo = [], hi = [];
   for (const q of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
@@ -1018,13 +1046,17 @@ const outlineOf = p => {
 };
 window.METEO_GEN.CATALOGUE = Object.keys(PRESETS).map(name => {
   const Pd = Object.assign({}, DEF, PRESETS[name]);
-  const ext = P => { const p = Object.assign({}, Pd, P || {}); const x0 = Math.min(-p.d1R, p.d2On ? p.d2x - p.d2R : 0, p.tx - p.topR) - 2, x1 = Math.max(p.d1R, p.obelisk ? p.obX + 1.5 : 0) + 2;
-    const z0 = Math.min(-p.d1R, p.d2On ? p.d2z - p.d2R : 0, p.tz - p.topR) - 2, z1 = Math.max(p.d1R, p.d2On ? p.d2z + p.d2R : 0, p.obelisk ? p.obZ + 1.5 : 0) + 3; return { x0, x1, z0, z1 }; };
+  // the whole station's box as before; a part's (OBSERVATORY-SITE) the box of its own discs, in the station's frame
+  const ext = P => { const p = Object.assign({}, Pd, P || {}); if (!Math.round(+p.part || 0)) { const x0 = Math.min(-p.d1R, p.d2On ? p.d2x - p.d2R : 0, p.tx - p.topR) - 2, x1 = Math.max(p.d1R, p.obelisk ? p.obX + 1.5 : 0) + 2;
+    const z0 = Math.min(-p.d1R, p.d2On ? p.d2z - p.d2R : 0, p.tz - p.topR) - 2, z1 = Math.max(p.d1R, p.d2On ? p.d2z + p.d2R : 0, p.obelisk ? p.obZ + 1.5 : 0) + 3; return { x0, x1, z0, z1 }; }
+    const on = partsOf(p), c = []; if (on.d1) c.push([0, 0, p.d1R]); if (on.d2) c.push([p.d2x, p.d2z, p.d2R]); if (on.t) c.push([p.tx, p.tz, p.topR]); if (on.ob) c.push([p.obX, p.obZ, 1.5]);
+    if (!c.length) c.push([0, 0, 1]);
+    return { x0: Math.min(...c.map(q => q[0] - q[2])) - 2, x1: Math.max(...c.map(q => q[0] + q[2])) + 2, z0: Math.min(...c.map(q => q[1] - q[2])) - 2, z1: Math.max(...c.map(q => q[1] + q[2])) + 2 }; };
   return { key: 'meteo/' + name, kind: 'complex', gen: 'METEO_GEN', preset: name, P: Object.assign({}, Pd), frame: 'house',
     foot: P => { const e = ext(P); return [[e.x0, e.z0], [e.x1, e.z0], [e.x1, e.z1], [e.x0, e.z1]]; }, keepOut: 4,
     ground: { need: 'ramp', maxSlope: 0.06, falloff: 8, standing: 'slab', outline: P => outlineOf(Object.assign({}, Pd, P || {})) },
     size: P => { const e = ext(P); return { L: e.x1 - e.x0, w: e.z1 - e.z0 }; },
-    hooks: P => [{ name: 'door', kind: 'path', p: [0, 0, ext(P).z1], dir: [0, 0, 1] }], hooksOf: () => [],
+    hooks: P => (Math.round(+(Object.assign({}, Pd, P || {}).part) || 0) > 1 ? [] : [{ name: 'door', kind: 'path', p: [0, 0, ext(P).z1], dir: [0, 0, 1] }]), hooksOf: () => [],
     lod: { dist: [0, 300, 900, 2500] }, slots: { lights: 'stats.lit.lights', ao: 'stats.groundAO' },
     tags: ['landmark', 'meteo', 'observatory', 'mountain'], role: 'meteo', cat: catOf(name), headless: true, gate: 'HOUSE' };
 });
