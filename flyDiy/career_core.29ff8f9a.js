@@ -3549,6 +3549,9 @@ function careerOfferIds(doc) {
     for (const r of P.night || []) if (!taken.has(r.id) && careerNeedsOk(doc, A[r.id]) && contractFlyable(A[r.id])) out.push(r.id);
     for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep, sky })) if (!taken.has(j.id)) out.push(j.id);
   }
+  // TUTORIAL v2 (TUTORIAL-LOCK): the story's own job is offered while its beat holds, whatever its chain's `after` says
+  // (field.02 waits for field.01 in the career; the tutorial teaches it alone) - first on the list
+  if (typeof storyJobIds === 'function') for (const id of storyJobIds(doc).slice().reverse()) if (!taken.has(id) && !out.includes(id)) out.unshift(id);
   // G2260 (ECONOMY, GQ6): no bankruptcy - below the floor the Field Trust offers its loan job (76_ econLoanOffer)
   const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
   if (loan && !taken.has(loan)) out.unshift(loan);
@@ -7718,31 +7721,30 @@ function storyChecklist(spec, base, items) {
 // goal: what moves the beat on. enter / done: the effects handed to the page on entering / completing it. mask: the
 // tutorial mode of the tech mask (TECH-MASK G3230) while the beat stands - 'finish' = the finish only.
 const STORY_BEATS = [
+  // TUTORIAL v2 (TUTORIAL-LOCK, the user 13 Nov): fully deterministic, one day, no choices; the ids stay T0-T7 (the page's
+  // wiring keys on them), their meaning moved: T2 the SWAP (new), T3 the build, T4 the delivery, T5 the gift, T6 ONE job, T7
+  // the floats, and the END writes the one checkpoint (storyCheckpoint). No route, no hire, no occasions any more.
   { id: 'T0', title: 'The cabin', mask: 'finish',
     brief: 'Your ultralight waits in the cabin’s shed. Make it yours - a colour, a name - then come and read the letter.',
     goal: { k: 'ack' } },
   { id: 'T1', title: 'The move', brief: 'The old WWII field is our base now - its hangar is ours already. Fly the ultralight there.',
     goal: { k: 'stop', at: 'home', plane: 'starter' },
     done: [{ k: 'hangar', at: 'home', shell: 'club' }] },
-  { id: 'T2', title: "The client's plane", mask: 'checklist',
-    brief: 'A client brings an unfinished Cub. The checklist is on the bench; keep it on budget.',
-    enter: [{ k: 'clientPlane', at: 'home' }],
-    // costCap (G2742 STORY-PAGE, measured): the page's cost is dm11's edit bill (every ledger line the work rebuilt, at build
-    // price) against the Cub as it arrived. G2741's 9000 could not be met by any finish (the cheapest complete one, on the
-    // Rotax 582, bills 24 248); finished on the Jabiru 2200 35 114, the Rotax 912 38 089, the O-200 44 355, the O-320 48 745
+  { id: 'T2', title: 'The swap', brief: 'A client brought a Cub. Put the ultralight away and bring the Cub onto the floor.',
+    enter: [{ k: 'clientPlane', at: 'home' }], goal: { k: 'ack' } },
+  { id: 'T3', title: "The client's plane", mask: 'checklist',
+    brief: 'The work, step by step: Tim shows each change. Keep it on budget, then certify it at the bench.',
+    // costCap (G2742 STORY-PAGE, measured): the page's cost is dm11's edit bill against the Cub as it arrived
     goal: { k: 'certified', plane: 'client', checklist: ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint'], costCap: 40000 } },
-  { id: 'T3', title: 'The delivery', brief: "Certified. Fly it to its owner's strip.",
+  { id: 'T4', title: 'The delivery', brief: "Certified. Fly it to its owner's strip.",
     goal: { k: 'stop', at: 'client', plane: 'client' } },
-  { id: 'T4', title: 'The gift', brief: '"I can’t pay you. Keep it." The Cub is yours.',
+  { id: 'T5', title: 'The gift', brief: '"I can’t pay you. Keep it." The Cub is yours.',
     enter: [{ k: 'giftPlane', plane: 'client' }], goal: { k: 'ack' } },
-  { id: 'T5', title: 'Cub work', brief: 'A pickup, a survey, a small load: quick, easy jobs.',
-    goal: { k: 'jobs', n: 3 } },
-  { id: 'T6', title: 'The water job', brief: 'A job you promised: fit floats to the Cub and land it at the seaplane base.',
+  { id: 'T6', title: 'A job', brief: 'One job to learn the ropes: tools to bring back from the hill.',
+    goal: { k: 'jobs', n: 1 } },
+  { id: 'T7', title: 'The water job', brief: 'Fit floats to the Cub and land it at the seaplane base. Then, a well-deserved rest.',
     goal: { k: 'stop', at: 'water', plane: 'gift', gear: 'floats' },
-    done: [{ k: 'routeOffer', plane: 'gift', a: 'harbour', b: 'water' }] },   // (b: the Cub's home end - where it landed)
-  { id: 'T7', title: 'The three occasions', brief: 'Back to the ultralight alone - and three planes on offer, once only.',
-    enter: [{ k: 'occasions', n: 3 }], goal: { k: 'ack' },
-    done: [{ k: 'open' }] },
+    done: [{ k: 'open' }, { k: 'checkpoint' }] },
 ];
 const STORY_IDS = STORY_BEATS.map(b => b.id);
 // G3350 (STORY-TIM, the user 19 Oct): TIM - "your friend and business partner" - speaks each beat in the band at the
@@ -7756,12 +7758,14 @@ const STORY_TIM = {
        'It\u2019s pre-certified, so no bench needed here (this shed has none anyway). When it looks right, tap OK on the card.'],
   T1: ['Good news: the old WWII airport is ready for us. It\u2019s our base of operations now. Come and join me there.',
        'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.'],
-  T2: ['Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.'],
-  T3: ['Certified? Then fly it over to its owner.'],
-  T4: ['He can\u2019t pay us... so he\u2019s giving us the Cub. Not a bad trade.'],
-  T5: ['A few quick jobs with the Cub. Nothing fancy, just get them done.'],
-  T6: ['We promised this one: floats on the Cub, and land it at the seaplane base.'],
-  T7: ['The Cub is flying a route now. But look: three planes for sale, once only.'],
+  // TUTORIAL v2 (TUTORIAL-LOCK): the band's lines follow the beats' new meaning (the same words, re-keyed: T2 the swap, T3
+  // the build, T4 the delivery, T5 the gift, T6 one job, T7 the floats and the rest; no route, no occasions)
+  T2: ['A client brought us a Cub. Let’s swap it with the ultralight: Storage keeps every plane you own.'],
+  T3: ['Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.'],
+  T4: ['Certified? Then fly it over to its owner.'],
+  T5: ['He can’t pay us... so he’s giving us the Cub. Not a bad trade.'],
+  T6: ['One quick job with the Cub: tools to bring back from the hill. Nothing fancy, just get it done.'],
+  T7: ['We promised this one: floats on the Cub, and land it at the seaplane base. Then a well-deserved rest.'],
 };
 // G3370 (TUTO-FLIGHT, GAME-PLAN §R2, the user 19 Oct: "a few cards covering the basics of the game, and the basics of
 // building a plane"): THE LADDER on T1's flight - one card per stretch of the flight, in Tim's band (app.js #stTim) as text
@@ -7844,14 +7848,12 @@ const STORY_TUTOR = {
       say: 'Drag the Cub onto the floor, or tap its "work on". The ultralight steps off the stand to make room.' },
     { id: 'park', wait: 'starterInside', allow: 'storeStarter',
       say: 'Now put the ultralight where we can see it: drag it into an INSIDE slot. Storage keeps every plane you own - inside, on the apron, or long-term.' },
-    { id: 'list', say: 'Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.' },
+    { id: 'swapped', ack: true, say: 'That’s the swap: any plane you own goes on the floor the same way. Now the client’s work.' },
   ],
-  // G3585 T6b (the user 25 Oct: "the tutorial must hire"): the water job comes with a route, and a route needs a hired
-  // pilot - the hire screen opens in the garage (the page: storyHireOpen; opened from the story it closes only after a
-  // hire), nothing else held (free: a flight is never locked); the route then goes to the pilot you hired (storyRoutePilot)
-  T6: [
-    { id: 'hire', wait: 'hiredPilot', open: 'hire', free: true,
-      say: 'This job comes with a route, and someone has to fly it while we work. Hire a pilot: pick one and pay the sign-on - the wage comes at the end of each day.' },
+  // T3 THE BUILD (TUTORIAL-LOCK): the exact changes come from storyEditDiff (the start file -> its target) once the
+  // reference files land (TUTORIAL-CUBS); until then the list and the budget
+  T3: [
+    { id: 'list', say: 'Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.' },
   ],
 };
 const storyTutorSteps = id => STORY_TUTOR[id] || null;
@@ -8027,7 +8029,7 @@ function storyStep(doc, ev, ctx) {
   // the beat is done: its done-effects, the next beat and its enter-effects
   const effects = (B.done || []).map(e => Object.assign({ beat: B.id }, e));
   s.done.push(B.id);
-  if (B.id === 'T4' && s.planes.client) s.planes.gift = s.planes.client;          // the gift: the client's Cub is ours
+  if (B.id === 'T5' && s.planes.client) s.planes.gift = s.planes.client;          // the gift (T5 in v2): the client's Cub is ours
   const i = STORY_IDS.indexOf(B.id), next = STORY_IDS[i + 1] || null;
   if (effects.some(e => e.k === 'open') || !next) { s.beat = 'open'; s.open = true; }
   else { s.beat = next; for (const e of storyEnterEffects(next)) effects.push(e); }
@@ -8055,7 +8057,7 @@ const STORY_CABIN_SHED = { shell: 'field', dims: { HW: 9, HD: 10, EAVE: 4.0 }, k
 const STORY_NO_CABIN = 'No strip on the island is the cabin yet (name one "Cabin…" in the scenery editor): the story starts at HOME.';
 // T5 (Q1: the generated list is held, the story's own goals shown instead): the story's three quick jobs are the authored
 // openers of three contractors - a pickup, a survey, a small load (72_contract_data.js; the narrative pack may re-author)
-const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
+const STORY_JOBS = ['field.02'];   // TUTORIAL v2: ONE job (STORY_JOB below), not three
 // T7: THE THREE OCCASIONS - one-time listings in the used market, AUTHORED BY HAND (the user's rule: a missing plane is
 // authored, never generated). PLACEHOLDERS until the user authors the two planes the story names (HANDOVER G2742): the
 // fabric 4-seater stands as the validated metal Cessna (meridian), the Jodel-class one as the validated Jodel (pinson);
@@ -8120,6 +8122,9 @@ function storyNewCareer(doc, o) {
   d.career.story = s;
   // G3230 (TECH-MASK): a new story career opens its machine shop at the first segment, Wood and fabric (79b_tech.js)
   if (typeof techNew === 'function') d.career.tech = techNew();
+  // TUTORIAL-LOCK (the user 13 Nov: "the tutorial fits in ONE DAY"): a story career's first morning, 15 July 08:00 AKDT
+  // (2026-07-15 16:00 UT) - its flights fit in that daylight; the checkpoint ends it on day 3, 08:00
+  if (typeof careerDayNorm === 'function') d.career.day = careerDayNorm(STORY_DAY1);
   d.career.airframes[slot] = { from: 'story', story: 'starter', factory: false, modified: false, paid: 0, at: Math.round(d.clock || 0) };
   return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
 }
@@ -8211,6 +8216,12 @@ function storyApply(doc, e, o) {
     line = 'Three aeroplanes on offer, once only: see the Market.';
   } else if (e.k === 'open') {
     line = 'The island is open: every contractor’s work is on the map.';
+  } else if (e.k === 'checkpoint') {
+    // TUTORIAL v2's END: the one state every career starts from (storyCheckpoint), the client's Cub back to its owner's family
+    d.career.story = s;
+    const K = storyCheckpoint(d);
+    if (!K.ok) return K;
+    return { ok: true, doc: K.doc, why: '', line: 'A well-deserved rest. The Cub went back to its owner’s family; new planes come from the market, or from your own bench.' };
   } else return stNo(doc, 'an unknown effect ' + e.k);
   d.career.story = s;
   return { ok: true, doc: d, why: '', line };
@@ -8252,7 +8263,7 @@ function storyOccasionListings(doc) {
   return out;
 }
 // Q1: THE JOB LIST HELD - the story's own jobs (T5's) are the only ones offered while the rails run
-const storyJobIds = doc => { const s = storyOf(doc); return s && !s.open && s.beat === 'T5' ? STORY_JOBS.filter(id => !doc.career.contracts.done.some(x => x.id === id)) : []; };
+const storyJobIds = doc => { const s = storyOf(doc); return s && !s.open && s.beat === 'T6' ? STORY_JOBS.filter(id => !doc.career.contracts.done.some(x => x.id === id)) : []; };
 const storyJobHeld = (doc, id) => !storyJobsOpen(doc) && !storyJobIds(doc).includes(id);
 // THE BEAT CARD'S WORDS: the beat's title and brief, its goal's state, the button. o: { aeros, spec (the client plane's
 // spec as it stands now, T2), cost (its edit bill), jobs: { id: title } } -> null (no story, or open) | { beat, title,
@@ -8280,6 +8291,84 @@ function storyCard(doc, o) {
   if (s.note) notes.push(s.note);
   return { beat: B.id, title: B.title, brief: B.brief, rows, ack: G.k === 'ack', note: notes.join(' ') || null,
            step: STORY_IDS.indexOf(B.id) + 1, of: STORY_IDS.length };
+}
+
+// ---- THE TUTORIAL LOCK (TUTORIAL-LOCK, the user 13 Nov ~12:40: "now that we want a fixed state, we have to lock all of
+// this; that's the very first task") ------------------------------------------------------------------------------------
+// THE END-OF-TUTORIAL CHECKPOINT: whatever was flown (or skipped), the career starts from ONE state - the story open, every
+// beat done, the one teaching job done, a fixed wallet, a fixed day ("a well-deserved rest": day 3, 08:00 AKDT), the world's
+// one seed (no per-career randomness), the starter alone in the fleet (the client's Cub went back to its owner's family),
+// the first tech segment. What carries over is the player's own: paint, registration, names, the sheds they hold.
+//   storyCheckpoint(doc) -> { ok, doc }   (pure; a second checkpoint of its result is the same document)
+//   storySkip(doc, o)    -> { ok, doc }   storyNewCareer then storyCheckpoint: the New career's "start the career" choice
+const STORY_DAY1 = Object.freeze({ date: '2026-07-15', utc: 57600 });   // a story career's first morning (08:00 AKDT)
+const STORY_JOB = 'field.02';   // the tutorial's ONE job (Tools from the hill: 40 kg Fishing Village -> HOME)
+const STORY_CHECKPOINT = Object.freeze({ day: Object.freeze({ date: '2026-07-17', utc: 57600 }), wallet: 12000, seed: 'jolene', job: STORY_JOB });
+function storyCheckpoint(doc, o) {
+  o = o || {};
+  if (!doc || doc.mode !== 'career' || !doc.career) return stNo(doc, 'not a career');
+  const d = stClone(doc), c = d.career, s = storyNormalise(c.story), K = STORY_CHECKPOINT;
+  const starter = s.planes.starter || STORY_SLOTS.starter;
+  s.beat = 'open'; s.open = true; s.done = STORY_IDS.slice(); s.jobs = 1;
+  delete s.offers; delete s.occasions;
+  s.planes = { starter, client: null, gift: null };
+  c.story = s;
+  c.seed = K.seed;
+  c.day = (typeof careerDayNorm === 'function') ? careerDayNorm(K.day) : Object.assign({}, K.day);
+  // the one job: done once, paid its base, its provider's reputation and arc as a stop would leave them
+  const rec = typeof contractAuthored === 'function' ? (contractAuthored()[K.job] || null) : null;
+  const C = c.contracts || (c.contracts = { offered: [], accepted: [], tracked: null, done: [], live: {} });
+  C.done = [{ id: K.job, at: 0, pay: rec && rec.pay ? (+rec.pay.base || 0) : 0 }];
+  C.accepted = []; C.offered = []; C.tracked = null; C.live = {};
+  for (const p of Object.keys(c.providers || {})) c.providers[p] = { rep: 0, arc: 0 };
+  if (rec && rec.rep && c.providers) { const P = c.providers[rec.rep.provider] || (c.providers[rec.rep.provider] = { rep: 0, arc: 0 }); P.rep = +(+rec.rep.gain || 0).toFixed(3); P.arc = 1; }
+  if (c.tracks) for (const t of Object.keys(c.tracks)) c.tracks[t] = 0;
+  // the fleet: the starter alone (every other airframe row and fleet row of the tutorial goes)
+  if (d.fleet) for (const k of Object.keys(d.fleet)) if (k !== starter) delete d.fleet[k];
+  if (c.airframes) for (const k of Object.keys(c.airframes)) if (k !== starter) delete c.airframes[k];
+  c.pilots = {}; c.roster = []; c.routes = [];
+  if (typeof techNew === 'function') c.tech = techNew();
+  // the wallet: fixed, the difference written to the ledger as the checkpoint's
+  // (a checkpoint already written - its line undone first, so a second checkpoint writes the very same line)
+  if (!Array.isArray(d.ledger)) d.ledger = [];
+  const prev = d.ledger.find(e => e && e.k === 'story' && e.ref === 'checkpoint');
+  const before = (+d.wallet || 0) + (prev ? +prev.amt || 0 : 0), clock0 = prev ? prev.clock : Math.round(d.clock || 0);
+  d.ledger = d.ledger.filter(e => e !== prev);
+  const want = K.wallet, dw = Math.round(want - before);
+  if (dw) d.ledger.push({ k: 'story', amt: -dw, ref: 'checkpoint', clock: clock0, free: false });
+  d.wallet = want;
+  return { ok: true, doc: d };
+}
+function storySkip(doc, o) {
+  const r = storyNewCareer(doc, o);
+  if (!r.ok) return r;
+  return storyCheckpoint(r.doc, o);
+}
+// THE EXACT BUILD: the tutor's build steps are the DIFFERENCES between the build's start file and its target file (the
+// client's J-3 -> toward the Carbon Cub, 4-5 changes; that Cub -> on floats) - one step per changed setting, checked on the
+// live plane by its value. storyEditDiff(start, target, { skip, eps }) -> [{ path: 'a.b.c', from, to }] (sorted by path);
+// a list of objects (wings) walked by index (wings.0.span), any other array whole; the identity and the cosmetic keys are skipped (the player's paint and name are theirs).
+// storyEditDone(spec, steps, eps) -> [true|false per step]: the step's setting at its target value on `spec`.
+const STORY_EDIT_SKIP = /^(meta|log|plaque|what|v|cert|wear|name|finish|paint|thumb)(\.|$)/;
+function storyEditDiff(a, b, o) {
+  o = o || {};
+  const skip = o.skip || STORY_EDIT_SKIP, eps = o.eps === undefined ? 1e-6 : +o.eps, out = [];
+  // a leaf: a value, or an array that is not a same-length list of objects (wings, panels: walked element by element)
+  const leaf = v => v === null || typeof v !== 'object' || (Array.isArray(v) && !v.every(q => q && typeof q === 'object' && !Array.isArray(q)));
+  const same = (x, y) => (typeof x === 'number' && typeof y === 'number') ? Math.abs(x - y) <= eps : JSON.stringify(x) === JSON.stringify(y);
+  (function walk(x, y, p) {
+    if (p && skip.test(p)) return;
+    if (leaf(x) || leaf(y) || (Array.isArray(x) !== Array.isArray(y)) || (Array.isArray(x) && x.length !== y.length)) { if (!same(x === undefined ? null : x, y === undefined ? null : y)) out.push({ path: p, from: x === undefined ? null : x, to: y === undefined ? null : y }); return; }
+    const keys = new Set(Object.keys(x || {}).concat(Object.keys(y || {})));
+    for (const k of [...keys].sort()) walk(x ? x[k] : undefined, y ? y[k] : undefined, p ? p + '.' + k : k);
+  })(a || {}, b || {}, '');
+  return out;
+}
+const storyEditAt = (o, path) => path.split('.').reduce((v, k) => (v === null || v === undefined ? undefined : v[k]), o);
+function storyEditDone(spec, steps, eps) {
+  const e = eps === undefined ? 1e-6 : +eps;
+  return (steps || []).map(s => { const v = storyEditAt(spec, s.path), t = s.to;
+    return (typeof v === 'number' && typeof t === 'number') ? Math.abs(v - t) <= e : JSON.stringify(v === undefined ? null : v) === JSON.stringify(t); });
 }
 // ===========================================================================
 // THE TECH MASK (G3230 TECH-MASK) — the machine shop's three segments, one
