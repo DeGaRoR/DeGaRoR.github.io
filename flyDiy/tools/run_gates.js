@@ -859,6 +859,9 @@ const GATES = [
   // fleet_screen.js on a DOM stub - the render held, the tile asks (no browser pop-up), one load behind the spinner, the fiche's
   // own key, the list's classes in order; and the wiring (garage.js hands the hangar over, no #gFleet); --selftest: 7 reds
   { id: 'FLEET', file: '_fleet_check.js', argv: ['--selftest'], tier: 'core', wall: 10 },
+  // GATE STARTCHOOSER (the user 13 Nov: the sandbox's Fly / Drive with where from and where to, on TOW-LAUNCH's FLYDIY_START):
+  // start_chooser.js on a DOM stub - the story untouched, the remembered start, the greyed reasons, Surprise me only reachable
+  { id: 'STARTCHOOSER', file: '_startchooser_check.js', argv: ['--selftest'], tier: 'core', wall: 10 },
   // ...its joined builds: one per gear kind + the saved failure fixtures (tools/fixtures/newplane/), ~3 min - full
   { id: 'NEWPLANE-BUILDS', file: '_newplane_check.js', argv: ['--builds'], tier: 'full' },
   // ...and the declared canonical builds actually FLY: designBake -> clamp
