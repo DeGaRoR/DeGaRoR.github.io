@@ -22,7 +22,9 @@ function run(f) {
   ok(/\n\s*floatDeck:\s*\{[^}]*noDec: true/.test(A), "the deck still takes no marking at all");
   ok(/row\.noLetters\) return 0\.5;/.test(A), 'aeroDecOk: noLetters answers 0.5');
   ok(/uDecOk < 0\.25\) break;/.test(A), 'the shader: 0.5 stays in the decal loop');
-  ok(/1\.0 - uDecE\[di\]\.x \* step\(uDecOk, 0\.75\)/.test(A), "the shader: the weight drops the letters at 0.5");
+  // (re-pinned 13 Nov for L40c: LIVERY-STICKERS-3 split the sdf flag - uDecE.x 1 = the letters, 2 = a sticker's field -
+  // and the weight now drops only the letters at 0.5 (aLet): a float takes a sticker and still declines the registration)
+  ok(/float aLet = step\(0\.5, uDecE\[di\]\.x\) \* step\(uDecE\[di\]\.x, 1\.5\);[\s\S]{0,300}?\* \(1\.0 - aLet \* step\(uDecOk, 0\.75\)\)/.test(A), "the shader: the weight drops the letters (uDecE.x 1, not a sticker's 2) at 0.5");
   ok(/\+o\.decals === 0\.5\) m\.userData\.aeroNoLet = 1/.test(A), 'the material remembers it');
   ok(/kud\.aeroNoLet \? 'NL'/.test(J), 'the join: its own bucket');
   ok(/ud\.aeroNoLet \? \{ noLet: 1 \}/.test(J), 'the join: noLet crosses');
@@ -42,7 +44,8 @@ const swap = (rel, a, b) => Object.assign({}, files, { [rel]: files[rel].replace
 const BREAKS = [
   ['float row wears letters', swap('src/viewer/aeroskin.js', "wears: 'parent', noLetters: true", "wears: 'parent'")],
   ['floatBare wears letters', swap('src/viewer/aeroskin.js', 'metalOwn: true, noLetters: true', 'metalOwn: true')],
-  ['the shader keeps the letters', swap('src/viewer/aeroskin.js', '* (1.0 - uDecE[di].x * step(uDecOk, 0.75))', '')],
+  ['the shader keeps the letters', swap('src/viewer/aeroskin.js', '* (1.0 - aLet * step(uDecOk, 0.75))', '')],
+  ['a float drops the stickers too', swap('src/viewer/aeroskin.js', 'step(uDecE[di].x, 1.5);', 'step(uDecE[di].x, 2.5);')],
   ['the loop leaves at 0.5', swap('src/viewer/aeroskin.js', 'uDecOk < 0.25) break;', 'uDecOk < 0.5) break;')],
   ['the join drops it', swap('tools/_cage_join.js', '...(ud.aeroNoLet ? { noLet: 1 } : {}),', '')],
   ['the parked door drops it', swap('src/viewer/parked.js', 'm.noLet ? 0.5 : 1', '1')],
