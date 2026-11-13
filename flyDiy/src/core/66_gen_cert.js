@@ -153,7 +153,11 @@ function genCertKey(def) {
   const mix = s => { for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; };
   mix('cert' + GEN_CERT_V + JSON.stringify(GEN_CERT) + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : ''));
   // (G2827: the cage's STOL rows at "off" are the absent rows - the key every build had before the STOL wing)
-  if (def.spec) mix(JSON.stringify(def.spec, (k, v) => k === 'cage' && typeof genStolCageOff === 'function' ? genStolCageOff(v) : v));
+  // CERT-KEY-BITS (REAL-CANON, 13 Nov): the resolved spec's numbers at 12 significant digits - an angle the build derives
+  // through atan / pow can differ in its last bit between the page's V8 and node's (the Cub's tail.dorsal.angle,
+  // 25.201123645475068 in Chromium, ...075 in node), and the certificate store's key must be one key everywhere
+  if (def.spec) mix(JSON.stringify(def.spec, (k, v) => k === 'cage' && typeof genStolCageOff === 'function' ? genStolCageOff(v)
+    : (typeof v === 'number' && isFinite(v) && !Number.isInteger(v) ? +v.toPrecision(12) : v)));
   if (def.spec) { const mt = genCertMatTag(def.spec); if (mt) mix(mt); }   // (HULL-B50: a carbon / glass frame's rows)
   else {
     for (const nd of def.nodes) mix(nd.p.join(',') + ':' + nd.m);

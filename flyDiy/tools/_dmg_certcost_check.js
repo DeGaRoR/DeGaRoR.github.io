@@ -45,7 +45,9 @@ const BUDGET = {
   cub:        { frames: 1809, s: 18 },
   jodel:      { frames: 1797, s: 32 },
   metal:      { frames: 1831, s: 30 },
-  floats:     { frames: 1795, s: 42 },
+  // REAL-CANON (L40b, PHYSICS_V 9: PHYS-SCALE + ELEC-SYSTEMS + PETREL-LS' tail truss): the Cessna on floats' flown cases
+  // settle two frames later, 1795 -> 1797; the others inside theirs (cub 1807, jodel 1797, metal 1798, twin 1755, petrel 1789)
+  floats:     { frames: 1797, s: 42 },
   twinFloats: { frames: 1791, s: 48 },
   // SEAPLANES-LAND 8 Nov: the Super Petrel (LB.VALIDATED.petrel) - 1789 frames (the uncut certificate 3049), 40.7 s in
   // node beside other sessions' work. Re-measured 9 Nov 04:50-04:55, the box quiet (the GPU lock, one build,
