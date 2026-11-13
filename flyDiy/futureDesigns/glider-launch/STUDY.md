@@ -225,3 +225,29 @@ Run any of them with `node futureDesigns/glider-launch/<probe>.js` from `flyDiy/
 - **Release speed is 43.6 m/s, too fast.** The probe's drum holds 24 m/s even as the line steepens. A real driver
   eases off in the second half of the climb; the production law should govern on the glider's airspeed. That is the
   first tuning item.
+
+## Addendum 2026-11-13: the winch's weathering
+
+The user asked for full weathering, using the aeroplane method, the building method, or both. It uses both.
+`tools/_winch_weather.js` (WINCH_WX) hooks every MeshStandardMaterial of a built winch.
+
+**From the buildings:**
+- the house library's scanned sets, read triplanar at their own tile: `steelgrey` for the paint (a neutral-map grain
+  under the tint), `steelrust` and `rust` under the chips, `galv` on the deck and the bright work;
+- DIRT_EXPR, the splash line up from the ground;
+- the age tone (chroma out, value down) and the low-frequency repetition breaker.
+
+**From the aeroplanes:**
+- the four macros, resolved into the layers by aeroWxResolve's rule (age, use = launches, field = grass and mud, rain);
+- the grunge sheet (aeroWxGrunge) and the AERO_WX_COL colours;
+- placed sources: the exhaust plume from the stack, wheel mud, and grease (tar, the one glossy dirt) at the generator's
+  `userData.wx` points;
+- chips at the edges exposing the substrate (primer, then rusting steel). Each part carries `aBox` (its half extents
+  and kind), so a chip finds its own box edge or cylinder rim;
+- the NO-SHINY-DIRT invariants.
+
+**The page:** three looks (new, club, tired) and four dials. `?pin={"layer":v}` forces layers for a bench read. The
+stills of all three looks are in `reports/evidence/WINCH-LAUNCH/`.
+
+**Tuning finding.** Fade, age tone and rain streaks together washed the yellow out to cream at the club setting. Each
+was halved and the fade now bleaches toward the paint's own lighter colour, never toward grey.

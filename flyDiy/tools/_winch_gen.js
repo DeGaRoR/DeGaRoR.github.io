@@ -80,7 +80,7 @@ function build(P0) {
   const T = THREE_();
   const P = Object.assign({}, DEF, P0 || {});
   const paint = PAINTS[Math.max(0, Math.min(PAINTS.length - 1, Math.round(P.paint)))];
-  const wear = Math.max(0, Math.min(1, +P.wear || 0));
+  const wear = P.wx ? 0 : Math.max(0, Math.min(1, +P.wear || 0));   // the weathering (_winch_weather.js) ages it when on
   const dull = c => { const col = new T.Color(c); const g = (col.r + col.g + col.b) / 3; col.lerp(new T.Color(g, g, g), 0.25 * wear).multiplyScalar(1 - 0.22 * wear); return col; };
   const std = (c, o) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.75, metalness: 0 }, o || {}));
   const MAT = {
@@ -100,24 +100,33 @@ function build(P0) {
     lamp: std(0xd01010, { emissive: 0x400000, roughness: 0.3 }),
     mesh: new T.LineBasicMaterial({ color: 0x1d1f21 }),
   };
+  for (const k in MAT) MAT[k].userData.wxRole = k;   // the weathering's substrate, by the bag the part was made in
   const G = new T.Group(); G.name = 'winch';
   const parts = {};
   const part = n => parts[n] || (parts[n] = Object.assign(new T.Group(), { name: n }), G.add(parts[n]), parts[n]);
   const Y = DIM.deckY, D = DIM;
 
   // ---- primitives ----
+  // aBox (the weathering's edge read): xyz the part's half extents in its own frame, w the kind (2 box, 3 cylinder along
+  // its own y; an attribute a geometry does not carry reads (0,0,0,1): no edges)
+  function tagBox(g, hx, hy, hz, kind) {
+    const n = g.attributes.position.count, a = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) { a[i * 4] = hx; a[i * 4 + 1] = hy; a[i * 4 + 2] = hz; a[i * 4 + 3] = kind; }
+    g.setAttribute('aBox', new T.BufferAttribute(a, 4)); return g;
+  }
   function box(grp, mat, x0, y0, z0, x1, y1, z1) {
-    const m = new T.Mesh(new T.BoxGeometry(Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)), MAT[mat]);
+    const W = Math.abs(x1 - x0), H = Math.abs(y1 - y0), L = Math.abs(z1 - z0);
+    const m = new T.Mesh(tagBox(new T.BoxGeometry(W, H, L), W / 2, H / 2, L / 2, 2), MAT[mat]);
     m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); part(grp).add(m); return m;
   }
   function cyl(grp, mat, x, y, z, r, len, axis, seg, r2) {   // axis 'x' | 'y' | 'z'
-    const m = new T.Mesh(new T.CylinderGeometry(r2 == null ? r : r2, r, len, seg || 24), MAT[mat]);
+    const m = new T.Mesh(tagBox(new T.CylinderGeometry(r2 == null ? r : r2, r, len, seg || 24), Math.max(r, r2 || 0), len / 2, Math.max(r, r2 || 0), r2 == null ? 3 : 1), MAT[mat]);
     if (axis === 'x') m.rotation.z = Math.PI / 2; else if (axis === 'z') m.rotation.x = Math.PI / 2;
     m.position.set(x, y, z); part(grp).add(m); return m;
   }
   function tube(grp, mat, a, b, r, seg) {                    // a cylinder from point a to point b
     const A = new T.Vector3(...a), B = new T.Vector3(...b), d = B.clone().sub(A), L = d.length();
-    const m = new T.Mesh(new T.CylinderGeometry(r, r, L, seg || 10), MAT[mat]);
+    const m = new T.Mesh(tagBox(new T.CylinderGeometry(r, r, L, seg || 10), r, L / 2, r, 3), MAT[mat]);
     m.position.copy(A).add(B).multiplyScalar(0.5);
     m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), d.normalize()); part(grp).add(m); return m;
   }
@@ -305,7 +314,21 @@ function build(P0) {
   } else {
     box('cab', 'grille', -0.6, Y, -0.6, -0.1, Y + 0.5, -0.1);
   }
-  G.userData = { dims: DIM, P, parts: Object.keys(parts) };
+  // WHERE THE WEATHER COMES FROM (prop space, metres): the exhaust's mouth, the four wheels (contact centre + R), the
+  // grease points (the drum hubs and brakes, the gearbox, the levelwinds, the fairleads' rollers, the hitch and the
+  // jockey wheel's screw), the deck and the ground
+  const wx = { deckY: Y, exhaust: null, wheels: [], grease: [] };
+  if (P.power !== 2) wx.exhaust = [ex + 0.08, eY1 + 0.6, D.engZ0 + 0.35 - 0.03];
+  for (const az of D.axleZ) for (const s of [-1, 1]) wx.wheels.push([s * D.wheelX, D.wheelR, az, D.wheelR]);
+  for (const x of drumXs) {
+    wx.grease.push([x, hubY, D.drumZ, 0.30]);                                  // the drum's hub and bearing
+    wx.grease.push([x, Y + 0.42, D.lwZ, 0.28]);                                // the levelwind carriage
+    wx.grease.push([x, Y + 0.36, D.fairZ, 0.22]);                              // the fairlead's rollers
+  }
+  wx.grease.push([0, Y + 0.3, D.engZ0 - 0.3, 0.45]);                           // the gearbox
+  wx.grease.push([0, D.hitchY, D.drawZ - 0.15, 0.25]);                         // the hitch
+  wx.grease = wx.grease.slice(0, 8);
+  G.userData = { dims: DIM, P, parts: Object.keys(parts), wx };
   return G;
 }
 

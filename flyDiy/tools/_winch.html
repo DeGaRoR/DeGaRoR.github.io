@@ -32,12 +32,17 @@ h1 { font: 700 clamp(30px, 6vw, 48px)/1 var(--f-display); letter-spacing: .01em;
 .hint { position: absolute; left: 10px; bottom: 8px; font: 12px var(--f-mono); color: #1d2420; background: rgba(255,255,255,.7); padding: 2px 6px; border-radius: 3px; pointer-events: none }
 .controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center }
 .group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
+.sliders { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 18px; width: 100% }
+.sliders label { display: grid; gap: 2px; font: 500 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted) }
+.sliders label b { font-weight: 500; color: var(--fg) }
+.sliders input { width: 100%; accent-color: var(--accent) }
+@media (max-width: 560px) { .sliders { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
 .group > span { font: 500 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 2px }
 button.chip { font: 500 14px var(--f-body); color: var(--fg); background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 5px 12px; cursor: pointer }
 button.chip:hover { border-color: var(--accent) }
 button.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent) }
 button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
-.stills { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.stills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
 .stills figure { margin: 0; display: grid; gap: 4px }
 .stills img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border: 1px solid var(--rule); border-radius: 4px; display: block; background: var(--panel) }
 .stills figcaption { font: 12px var(--f-mono); color: var(--muted) }
@@ -76,6 +81,8 @@ body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .h
     <div class="group" id="views"><span>View</span></div>
     <div class="group" id="presets"><span>Build</span></div>
     <div class="group" id="toggles"><span>Show</span></div>
+    <div class="group" id="wxp"><span>Weather</span></div>
+    <div class="sliders" id="wxs"></div>
   </div>
 
   <div class="stills" id="stills" hidden></div>
@@ -91,6 +98,7 @@ body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .h
         <li><b>Guillotines</b><p>The red boxes on the rear fairleads. If a glider cannot release, the driver fires the guillotine and cuts the cable at the winch.</p></li>
         <li><b>Cage and cab</b><p>Welded mesh over the drums, because a parting cable whips. The driver sits facing aft, behind a grilled window, and watches the cable and the glider. The amber beacon on the roof is lit while a launch is running.</p></li>
         <li><b>Glider end</b><p>The cable ends in a drogue parachute that slows its fall after release, then a strop, the weak link and the two rings that clip onto the glider's release hook.</p></li>
+        <li><b>Weathering</b><p>Four dials: age, launches, grass and mud, rain. Age fades and chalks the paint, chips it at the edges down to primer and steel, and rusts the bare metal. Launches bring exhaust soot from the stack, grease at the drums, rollers and gearbox, and rollers polished bright by the cable. Grass and mud throw dirt from the wheels and leave a splash line up from the ground. Rain runs rust and grime down the sides and washes dust off the tops. The surfaces are the game's scanned painted, rusting and galvanised steel.</p></li>
       </ul>
     </section>
     <section>
@@ -122,7 +130,9 @@ body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .h
 </div>
 
 <script src="../vendor/three.min.js"></script>
+<script src="../src/viewer/aeroweather.js"></script>
 <script src="_winch_gen.js"></script>
+<script src="_winch_weather.js"></script>
 <script>
 (function () {
   'use strict';
@@ -161,10 +171,17 @@ body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .h
   scene.add(sun);
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 900);
 
-  let P = Object.assign({}, WG.DEF), model = null, presetName = 'club twin-drum';
+  let P = Object.assign({}, WG.DEF, { wx: 1 }), model = null, presetName = 'club twin-drum';
+  const WX = window.WINCH_WX;
+  let PIN = {}; try { PIN = JSON.parse(QS.get('pin') || '{}'); } catch (e) { PIN = {}; }   // ?pin={"dust":0} forces layers (a bench read)
+  // which weathering a build comes with (the old club winch is tired, the new electric is new)
+  const WX_OF = { 'club twin-drum': 'club', 'single-drum': 'club', 'electric': 'new', 'old club winch': 'tired' };
+  let macro = Object.assign({}, WX.PRESETS[QS.get('wx')] || WX.PRESETS.club);
+  WX.onLoad = () => draw();
   function rebuild() {
     if (model) { scene.remove(model); model.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
-    model = WG.build(P);
+    model = WG.build(Object.assign({}, P, { wx: 1 }));
+    WX.apply(model, { macro, pin: PIN, base: window.WINCH_TEX ? '' : '../', tex: window.WINCH_TEX || undefined });
     model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     scene.add(model);
   }
@@ -226,7 +243,7 @@ body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .h
   const pbox = document.getElementById('presets');
   for (const name of Object.keys(WG.PRESETS)) chip(pbox, name, name === presetName, e => {
     presetName = name; const keep = { cableLen: P.cableLen, chute: P.chute, cage: P.cage };
-    P = Object.assign({}, WG.DEF, WG.PRESETS[name], keep); rebuild(); draw();
+    P = Object.assign({}, WG.DEF, WG.PRESETS[name], keep); macro = Object.assign({}, WX.PRESETS[WX_OF[name] || 'club']); syncWx(); rebuild(); draw();
     pbox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
   });
   const tbox = document.getElementById('toggles');
@@ -244,8 +261,30 @@ body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .h
     }
   }
 
+  // THE WEATHER: three looks and the four dials (the aeroplane's macros: age, use, field, rain)
+  const wxp = document.getElementById('wxp'), wxs = document.getElementById('wxs');
+  const WXNAMES = { new: 'New', club: 'Club, a few seasons', tired: 'Tired' };
+  const DIALS = [['age', 'Age'], ['use', 'Launches'], ['field', 'Grass and mud'], ['rain', 'Rain']];
+  for (const k of Object.keys(WX.PRESETS)) chip(wxp, WXNAMES[k] || k, false, () => { macro = Object.assign({}, WX.PRESETS[k]); syncWx(); WX.setMacro(macro); draw(); }).dataset.k = k;
+  for (const [k, label] of DIALS) {
+    const l = document.createElement('label'), b = document.createElement('b'), r = document.createElement('input');
+    r.type = 'range'; r.min = 0; r.max = 1; r.step = 0.05; r.id = 'wx_' + k; r.dataset.k = k;
+    r.addEventListener('input', () => { macro[k] = +r.value; b.textContent = Math.round(macro[k] * 100) + ' %'; syncWx(true); WX.setMacro(macro); draw(); });
+    l.append(label + ' ', b, r); wxs.appendChild(l);
+  }
+  function syncWx(fromDial) {
+    wxs.querySelectorAll('input').forEach(r => { if (!fromDial) r.value = macro[r.dataset.k]; r.previousSibling.textContent = Math.round(macro[r.dataset.k] * 100) + ' %'; });
+    wxp.querySelectorAll('button').forEach(b => { const M = WX.PRESETS[b.dataset.k]; b.setAttribute('aria-pressed', String(Object.keys(M).every(k => Math.abs(M[k] - macro[k]) < 1e-6))); });
+  }
+  syncWx();
   if (SHOT && QS.get('preset') && WG.PRESETS[QS.get('preset')]) P = Object.assign({}, WG.DEF, WG.PRESETS[QS.get('preset')]);
   rebuild(); setView(viewKey);
-  if (SHOT) { size(); place(); renderer.render(scene, camera); window.__ready = true; }
+  if (SHOT) {
+    // the stills wait for the scans (the loading manager's onLoad: every texture the weathering asked for has landed)
+    const done = () => { size(); place(); renderer.render(scene, camera); window.__ready = true; };
+    if (THREE.DefaultLoadingManager.itemsTotal === undefined && !THREE.Cache.files) done();
+    let pending = true; THREE.DefaultLoadingManager.onLoad = () => { if (pending) { pending = false; done(); } };
+    setTimeout(() => { if (pending) { pending = false; done(); } }, 8000);
+  }
 })();
 </script>
