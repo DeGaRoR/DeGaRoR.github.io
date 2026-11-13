@@ -829,7 +829,9 @@ function build(P0, lod, F) {
     const x = P.obX, z = P.obZ, gy = g(x, z), H = 5.8;
     const lv = [[gy - 0.4, 0.62], [gy + 1.5, 0.56], [gy + 3.6, 0.47], [gy + H, 0.39]];
     for (let k = 0; k + 1 < lv.length; k++) K.prismRings(bags.conc, K.ringN(x, z, lv[k][1] * Math.SQRT2, 4, Math.PI / 4, lv[k][0]), K.ringN(x, z, lv[k + 1][1] * Math.SQRT2, 4, Math.PI / 4, lv[k + 1][0]), false, false);
-    boxAB(bags.conc, [x - 0.5, gy + H, z - 0.5], [x + 0.5, gy + H + 0.2, z + 0.5]);
+    // the top plate overhangs the shaft's foot (OBSERVATORY-SITE: 0.5 -> 0.66 m half - from above the plate covers the battered
+    // shaft, as a survey pillar's plate does; GATE LODS' roof row on the pillar alone; the whole station's pillar the same)
+    boxAB(bags.conc, [x - 0.66, gy + H, z - 0.66], [x + 0.66, gy + H + 0.2, z + 0.66]);
     // the formwork's joints, a ring every lift
     if (hi) for (const y of [1.2, 2.4, 3.6, 4.8]) {
       const hw = 0.62 + (0.39 - 0.62) * (y / H) + 0.006;
