@@ -27,6 +27,32 @@
   // ...and the wing layer's own lift struts (_cage_wing.js `edFit_liftstrut`: the struts and their fittings)
   const keptStrut = (o, top) => { for (let a = o; a && a !== top; a = a.parent) if (a.name === 'edFit_liftstrut') return true; return false; };
   const VIEWS = ['hero', 'above', 'side', 'plan', 'front', 'cutaway'];
+  // METAL IN THE STUDIO (the user 13 Nov, via PHYSICS-PAGES: "we don't see the Cessna at all anymore in the greyed-out views
+  // ... the Cessna is dark because we don't have a reflective environment when we do the screenshot ... maybe a slightly
+  // different light rig for the ones with metallic parts of the livery. I don't want to regenerate everything"): a metal
+  // surface shows what it reflects, and the shed's environment is its own cube probe - dim steel, a lamp-pooled floor - so a
+  // bare-alloy skin came out near-black on the board's sheets. An aeroplane whose SKIN is metallic (a skin section's metal at
+  // or over METAL_MIN: the Cessna's alclad, the DC-3, the polished showcases; a strut or a spinner alone is not a livery)
+  // is shot in a neutral photo studio instead: an overhead softbox, two side panels, grey walls, a dark floor, made once
+  // (PMREM) and kept. The swap is the scene's environment texture for the shots only, restored before the room's own
+  // programs are compiled back; every other aeroplane is drawn exactly as before.
+  const METAL_MIN = 0.3, METAL_SKIN = ['body', 'wingSkin', 'finSkin', 'stabSkin', 'boomSkin', 'cowlSkin', 'float'];
+  const metallic = spec => { const sec = (spec && spec.finish && spec.finish.sections) || {};
+    return METAL_SKIN.some(k => sec[k] && +sec[k].metal >= METAL_MIN); };
+  let studioEnv = null;
+  function studioEnvOf(T, R) {
+    if (studioEnv) return studioEnv;
+    const sc = new T.Scene(), made = [];
+    const add = (geo, c, side) => { const m = new T.MeshBasicMaterial({ color: new T.Color(c, c, c), side }); const o = new T.Mesh(geo, m); made.push(geo, m); sc.add(o); return o; };
+    add(new T.BoxGeometry(20, 12, 20), 0.30, T.BackSide);                                   // the walls, a mid grey
+    add(new T.PlaneGeometry(20, 20), 0.05, T.DoubleSide).position.set(0, -5.9, 0);         // the floor, dark (a sheen, not a mirror)
+    const panel = (w, h, c, x, y, z) => { const o = add(new T.PlaneGeometry(w, h), c, T.DoubleSide); o.position.set(x, y, z); o.lookAt(0, 0, 0); };
+    panel(10, 7, 4.0, 0, 5.9, 0);                                                           // the overhead softbox
+    panel(7, 4, 2.2, 9.9, 1.5, -2); panel(6, 4, 1.5, -9.9, 1.0, 3); panel(8, 3, 1.0, 0, 1.0, 9.9);   // two side panels, a back strip
+    const pm = new T.PMREMGenerator(R);
+    try { studioEnv = pm.fromScene(sc, 0.04); } finally { pm.dispose(); made.forEach(x => x.dispose()); }
+    return studioEnv;
+  }
   // THE CUTAWAY'S EYE (the user 9 Nov, on the Cub's fiche: "lower the camera angle so it reads wider"; the board puts it
   // where it fits - fiche_board.js cutFit): 50 degrees round from the nose, 15 above (was 28)
   const CUT_YAW = 50, CUT_EL = 15;
@@ -445,6 +471,7 @@
     rt.texture.colorSpace = T.SRGBColorSpace; rt.isXRRenderTarget = true;   // display-space, as the canvas (aa_resolve.js)
     rt.texture.internalFormat = 'RGBA8';   // the shader encodes; sRGB storage would not take the multisampled buffer's resolve (the first run: every picture empty)
     const room = []; S.traverse(o => { if (o.isLight) room.push(o); }); const roomI = room.map(l => l.intensity);   // (uniforms only: no program changes for this)
+    const env0 = S.environment, envI0 = S.environmentIntensity, metal = metallic(spec);   // METAL IN THE STUDIO (above)
     const lights = new T.Group(), key = new T.DirectionalLight(0xfff0dc, STUDIO.key), rim = new T.DirectionalLight(0xe6eeff, STUDIO.rim), amb = new T.AmbientLight(0xfff4e6, 0);
     lights.add(key, key.target, rim, rim.target, amb);
     const hid = [], discs = []; let cut = null, xray0 = null, data = null, held = false;
@@ -459,6 +486,7 @@
       hold(true); held = true;
       await frames(1); tk = nowMs();
       S.add(lights);
+      if (metal) { try { S.environment = studioEnvOf(T, R).texture; if (envI0 != null) S.environmentIntensity = 1; tm.metalStudio = 1; } catch (e) { tm.metalStudioErr = String(e && e.message || e).slice(0, 120); } }
       S.traverse(m => {
         if (!m.visible) return;
         if (/^studio:pool$/.test(m.name || '') || m.name === 'edCanopyLoops' || (m.userData && m.userData.edHi)) { m.visible = false; hid.push(m); }
@@ -555,6 +583,7 @@
       R.localClippingEnabled = lc;
       if (xray0 != null) { const t1 = nowMs(); V.xray = xray0; U.build(); tm.buildBackMs = Math.round(nowMs() - t1); await stable(T, root); }
       R.setRenderTarget(rt0); S.background = bg0; R.shadowMap.autoUpdate = au;
+      S.environment = env0; if (envI0 != null) S.environmentIntensity = envI0;   // the room's own probe back before its programs are compiled back
       S.remove(lights); key.dispose && key.dispose(); rim.dispose && rim.dispose(); amb.dispose && amb.dispose(); rt.dispose();
       for (const m of hid) m.visible = true;
       root.rotation.x = pitch0; root.updateMatrixWorld(true);
@@ -573,7 +602,7 @@
     return { name: opts.name || (spec.meta && spec.meta.name) || '', at: Date.now(), fp: fpNow(), hash: hashOf(spec), data, pics };
   }
   const api = {
-    VIEWS, CUT_YAW, CUT_EL, lastTime: null, _matte: matte, _cutDiffers: cutDiffers, CUT_MIN, _hashOf: hashOf, _wingLine: wingLine,
+    VIEWS, CUT_YAW, CUT_EL, lastTime: null, _metallic: metallic, METAL_MIN, _matte: matte, _cutDiffers: cutDiffers, CUT_MIN, _hashOf: hashOf, _wingLine: wingLine,
     // one at a time: a second ask waits for the first
     generate(opts) {
       const o = opts || {};
