@@ -315671,3 +315671,16 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   (kept: without it the three gauges float - a garage gap). (3) The mast 2.5 kg (GEN_HANG.kgM 2.4 x 1.05 m), the keel
   tubes 1.5, the hub 1.5: fixed numbers on the one hanging nacelle - to scale with the design gross if a second one
   ever flies.
+- THE ARCHAEOPTERYX FLIES PILOT'S UNIFY ARCH (13 Nov, A0: "BALLOONS on landing ... a pitch-up that full forward stick
+  can't stop"): (1) the row flies builds/archaeopteryx_2026-11-10.json, and that save was the 10 Nov aeroplane - 169 kg
+  empty, 252.6 all-up, the E-811 on 5 L of avgas, the carbon pod, its static margin about -0.11 (the CG behind the
+  neutral point: the balloon is that). Re-saved from the card (81.9 kg, margin +3.2 %; GATE FRAMES' corpus entry for the
+  file re-recorded, the only item moved). (2) On the card the row then landed at 0.64 m/s with ONE member broken in the
+  glide (t 3.8 s): the stab-root fitting (HTL-S6TL, a kink). Since L4 the rod's lattice took the POD's springs - the
+  soft shell's, x0.09 of the carbon it had - and the rings the stab stands on went soft. 61_gen_frame B(): a rod of its
+  own row (RODX) springs and damps as that row (its mass and section already did); only the Archaeopteryx names one
+  (fleet hash: it alone moved). The row, with Pilot's 43_pilot / 76_pilots / _unify_check from claude/pilot-unify in a
+  scratch tree: ok ARCH - on the runway 0.4 m off, sink 0.43 m/s, nothing broken (the carbon pod: 0.52).
+  GATE NACELLE C reads the parked settle at 8 s (was 6): since L9 (no paint on the wing) the parasol variant's lighter
+  wingtip is still rocking on its skid at 6 s (0.87 m/s) after the monowheel goes down on it at ~4 s; at rest by 8 s
+  (0.07; 0.00 at 13 s) - a settle, not a ringing.

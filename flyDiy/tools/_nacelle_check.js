@@ -130,7 +130,10 @@ console.log('C. THE AEROPLANE STANDS');
 { const flat = { terrainH: () => 0, waterH: () => -1e9, surface: () => 0, trees: [], treesNear: (x, z, q) => { q.length = 0; return q; } };
   for (const [lab, d] of [['high wing', d1], ['parasol', dP]]) {
     const s = C.makeSim(d, flat); s.reset(0);
-    for (let f = 0; f < 360; f++) s.step(1 / 60);
+    // (8 s, was 6: the monowheel goes down onto a wingtip at ~4 s; since the white-from-the-material finish (WEIGHT STUDY
+    //  L9: no paint on the wing) the parasol's lighter tip is still rocking on its skid at 6 s - 0.87 m/s - and at rest
+    //  by 8 s: 0.22 at 7, 0.07 at 8, 0.00 at 13; measured 13 Nov. A settle, not a ringing)
+    for (let f = 0; f < 480; f++) s.step(1 / 60);
     let vmax = 0; for (let i = 0; i < d.nodes.length; i++) vmax = Math.max(vmax, Math.hypot(s.v[i * 3], s.v[i * 3 + 1], s.v[i * 3 + 2]));
     const broken = s.damageCaps ? 0 : 0;
     // the hub held, 2 g more on every other node: the nose's keel
@@ -147,7 +150,7 @@ console.log('C. THE AEROPLANE STANDS');
     }
     const drop = acc / n;
     ok(isFinite(vmax) && vmax < 0.5 && isFinite(drop) && Math.abs(drop) < 0.025 && !broken,
-       `C ${lab}: parked 6 s it settles (fastest node ${vmax.toFixed(3)} m/s); the hub held, 2 g more: the nose's keel moves ${(1000 * drop).toFixed(1)} mm`);
+       `C ${lab}: parked 8 s it settles (fastest node ${vmax.toFixed(3)} m/s); the hub held, 2 g more: the nose's keel moves ${(1000 * drop).toFixed(1)} mm`);
   } }
 
 console.log('D. THE DRAWING');
