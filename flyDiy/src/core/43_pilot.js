@@ -2732,7 +2732,16 @@ function makePilot(sim, def, world, opts) {
     // water (GATE TOUR mk_sea > SEA, t 672.6; G3072 saw it at 680). Held to 0.5 it taxis at 3.5 m/s and flies the leg (lift-off
     // 174 m, the touch at SEA 0.63 m/s). The water's 0.5 is flat (the land's rolling share is not a hull's)
     const taxiCap = () => Math.min(A.taxiThrMax ?? 0.85, GP.cap, sim.hydro ? 0.5 : Math.abs(SV.e) > 0.10 ? Math.max(0.5, taxiFF() + 0.15) : 1);
-    const taxi = (Vtgt) => SV.taxi(Vtgt, taxiFF(), taxiCap());
+    // WATER-TAXI (FIT-PROCEDURE via A0, 13 Nov: the PC-6 on Wipline 6100s landed at mk_sea and never got back to the lane -
+    // lineup-timeouts, gave up at ~820 s; in TAXI it held thr 0.00 + brake 0.60 for minutes while the 5 m/s breeze drifted it
+    // at 1.2 m/s: the land governor read the drift as speed, took the power off and braked, and with no flow over the water
+    // rudder it weathervaned). AFLOAT: no brake (it does nothing), and a thrust floor - the slipstream on the air rudder and
+    // the way through the water on the water rudders (down by the rule under WR_UP_V) are the only steering a boat has
+    const afloatNow = () => !!(sim.hydro && sim.hydro.floats && sim.hydro.floats.some(fx => fx.out && fx.out.wetA > 0.05));
+    const taxi = (Vtgt) => {
+      SV.taxi(Vtgt, taxiFF(), taxiCap());
+      if (afloatNow()) { c.brake = 0; c.thr = Math.max(c.thr, A.waterTaxiThr ?? 0.12); }
+    };
     const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
     // STRIP-LANE (Pilot, 10 Nov; the DIRT-STRIP re-vet): ON A ROUGH STRIP, TAXI SLOWLY. The Jodel backtracked w3 (chaos 0.2)
     // at ~8 m/s (the long straight's taxiVFast) and a stone it met put the disc in the ground; a bush strip is taxied at a
