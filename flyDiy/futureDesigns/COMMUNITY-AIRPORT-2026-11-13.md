@@ -40,9 +40,11 @@ recomposes at the next roll-out when it is told (app.js `stageNote(doc)` -> the 
 | 1 | one pass = today's strip | 1 020 m | 9 m | GRAVEL (6) - dirt has gravel's friction | `dirt` | 0.25 (w3's class) | 6.3 mm |
 | 2 | the last pass = the sandbox | 1 020 m | 15 m | GRAVEL (6) | `gravel` | none - graded smooth | 0.9 mm (the raster's lattice) |
 
-- One axis: the centre and heading never move. Stage 0 is the middle 600 m; **a plain track** (3.6 m, dirt look, ungraded)
-  runs on the axis from each end of the mud strip to the full length's ends (210 m each side), where r37 and r38 begin -
-  so the axis and the ways to it exist from the start. At 1 and 2 the strip covers the axis.
+- One axis: the centre and heading never move. Stage 0 is the middle 600 m; **a plain track** 3.6 m wide runs on the
+  axis from each end of the mud strip to the full length's ends (208 m each side), where r37 and r38 begin - so the axis
+  and the ways to it exist from the start. It is a GROUND BAND (a dirt-look material + the wheels' gravel surface under
+  it), not a road: a road is a map line (GATE MAPBAKE draws every road of the record) and normalise appends its default
+  keys after the stage (GATE STAGES 7's restore). At 1 and 2 the strip covers the axis.
 - 8 m is the narrowest a strip may be (27_premises stageIssues); 9 -> 8 is therefore the narrowing.
 - The physics follows as Skyline's runway does: the vary rows are composed into the record before compose
   (27_premises stageView), so the wheels' surface (W.surface), the ground (terrainH, with the micro modifier), the
@@ -64,7 +66,8 @@ Stage 0 - the first strip (stands from the first day, kept after):
 
 Stage 0 only - the work on the mud:
 - the farm tractor with a home-made drag of three old tyres, two people at it; a third with the hand truck; pallets, a crate
-- oil-drum markers 5 m off the mud strip's edges every ~100 m (14)
+- oil-drum markers 8 m off the mud strip's edges every ~100 m, none on the last 200 m of either end (the pilot's
+  turn-arounds swing wide there: GATE TAXICLEAR 11a)
 
 Stage 1 - one pass (kept after):
 - the woodshed with its cordwood (`shed/wood shed`), a tool shed, the smokehouse (`house/fish shack`, its chimney smoking)
@@ -73,19 +76,25 @@ Stage 1 - one pass (kept after):
 Stage 1 only:
 - the rusty loader the community salvaged (`machine_loader_rusty`), the tractor and its tyre drag back from grading the
   new length, two people at them
-- drum markers 5 m off the 9 m strip's edges, full length (22)
+- drum markers 8 m off the 9 m strip's edges, 200 m in from each end
 
 Stage 2 - the last pass (the sandbox):
 - a small field hangar (`hangar/field shed, small`: raw planks, a worn corrugated roof - one aeroplane under a roof)
 - the outhouse; a gravel apron beside the strip (material + its wheels' surface, 32 x 20 m)
 - what is left of the gravel heaps: two `raise` mounds (1.3 m, 0.9 m) under a gravel look, by the hangar
 - the skid-steer and the tractor parked; two people at rest round the picnic table
-- drum markers 5 m off the 15 m strip's edges, full length (22)
+- drum markers 8 m off the 15 m strip's edges, 200 m in from each end
 
-Solid things standing: 46 / 62 / 61 (stage 0 / 1 / 2) - instanced registry props and the catalogue's buildings with their
+Solid things standing: COUNTS (stage 0 / 1 / 2) - instanced registry props and the catalogue's buildings with their
 own LODs; static; nothing per frame. The reveals (stageReveal, the centre of what changes) land beside the yard:
 community:1 -> eye (-3 498, -23 661), community:2 -> (-3 505, -23 663) (tools/stages_shot.js lists the before / after /
 sandbox stills for A0's GPU box - the cloud cannot render the world).
+
+The yard is the site `sg_ca_y`, its items with short ids (hut, lean, wood, tool, smoke, hang, wc): the map lists every
+site item by id and its infra block was 1 byte under GATE MAPBAKE's 20 KB gzipped on the base - with the yard it is 20 473
+bytes. **The map's budget is effectively full** for the next scenery anywhere (A0's call).
+Staged polygon entries that stand in the sandbox are written before their layer's first foldable entry (where record v2's
+migration keeps them: GATE PREMISES 20b); community_author.py and jolene_author.py's apply_stages both do it.
 
 ### Garage gaps (no asset today - REF_MATCH-style flags, not built)
 - **A small wind turbine** and **solar panels on a roof**: nothing in the prop tables or the generators' presets. Two

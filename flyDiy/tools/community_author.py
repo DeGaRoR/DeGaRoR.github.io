@@ -43,6 +43,7 @@ VARY = [
     {'show': [1, 1], 'wid': 9, 'look': 'dirt', 'surface': 6, 'micro': {'chaos': 0.25, 'seed': 7}},
 ]
 S0_LEN = 600
+END_CLEAR = 200                                              # no marker on the last 200 m at either end
 MARK_OFF = 8                                                 # the drum markers: metres off the strip's edge
 
 
@@ -183,17 +184,36 @@ def author(rec):
     adds['surface'].append({'id': PFX + 'y_apron', 'poly': ap, 'surface': 6, 'stage': st(2)})
 
     # ---- the oil-drum markers: every ~100 m along both edges, MARK_OFF off the edge of the strip of the stage ---------------
-    # 8 m off the edge, the first and last 40 m in from the strip's ends: the end turn-arounds (TAXICLEAR 11a) swing wide
+    # 8 m off the edge, none on the last 200 m at either end: the pilot's turn-arounds (TAXICLEAR 11a: up to 150 m in from
+    # an end) swing wide of the centreline
     def markers(u0, u1, half_w, band):
         m = int(round((u1 - u0) / 100.0))
         for i in range(m + 1):
             u = u0 + (u1 - u0) * i / m
             for s in (1, -1):
                 obj('drum_steel', u, s * (half_w + MARK_OFF), 0.37 * i, band, on='ground')
-    markers(half + 40, w['len'] - half - 40, VARY[0]['wid'] / 2, st(0, 0))
-    markers(40, w['len'] - 40, VARY[1]['wid'] / 2, st(1, 1))
-    markers(40, w['len'] - 40, FINAL['wid'] / 2, st(2))
+    markers(half + END_CLEAR, w['len'] - half - END_CLEAR, VARY[0]['wid'] / 2, st(0, 0))
+    markers(END_CLEAR, w['len'] - END_CLEAR, VARY[1]['wid'] / 2, st(1, 1))
+    markers(END_CLEAR, w['len'] - END_CLEAR, FINAL['wid'] / 2, st(2))
     return w, adds
+
+
+# THE AREAS' ORDER (record v2, 27_premises foldAreas): an unstaged polygon entry of an area layer folds into an area and
+# composes after every entry that does not fold; a STAGED entry never folds and keeps its place - so it is written before
+# the layer's first foldable entry, where the migrated record has it (GATE PREMISES 20b: the same tree regions, the same
+# record v1 and v2)
+AREA_LAYERS = ('terrain', 'surface', 'material', 'exclude', 'ttype', 'zones')
+AREA_TERRAFORM = ('flatten', 'raise', 'ramp')
+def area_foldable(layer, e):
+    if not isinstance(e, dict) or not isinstance(e.get('id'), str) or e.get('stage') or not isinstance(e.get('poly'), list) or len(e['poly']) < 3: return False
+    if layer == 'terrain': return e.get('kind') in AREA_TERRAFORM
+    if layer == 'zones': return e.get('kind') == 'clear'
+    return layer in AREA_LAYERS
+def put_entry(rows, layer, e):
+    if layer in AREA_LAYERS:
+        k = next((i for i, x in enumerate(rows) if area_foldable(layer, x)), None)
+        if k is not None: rows.insert(k, e); return
+    rows.append(e)
 
 
 def strip_old(rec):
@@ -216,7 +236,8 @@ def main():
     w, adds = author(rec)
     stage = {'track': TRACK, 'show': [0, None], 'vary': VARY}
     w['stage'] = stage                                     # (the key LAST, as apply_stages writes it)
-    for k, rows in adds.items(): rec['layers'][k].extend(rows)
+    for k, rows in adds.items():
+        for e in rows: put_entry(rec['layers'][k], k, e)
     nadd = sum(len(v) for v in adds.values())
     # jolene_stages.json: the w7 band and the sg_ca_ entries
     S = json.load(open(STAGES, encoding='utf-8'))

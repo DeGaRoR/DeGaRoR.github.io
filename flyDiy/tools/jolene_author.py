@@ -284,6 +284,23 @@ def merge_parts(rec):
 # ---------------------------------------------------------------------------
 STAGES_FILE = os.path.join(ROOT, 'tools', 'jolene_stages.json')
 
+# THE AREAS' ORDER (record v2, 27_premises foldAreas): an unstaged polygon entry of an area layer folds into an area and
+# composes after every entry that does not fold; a STAGED entry never folds and keeps its place - so it is written before
+# the layer's first foldable entry, where the migrated record has it (GATE PREMISES 20b: the same tree regions, the same
+# record v1 and v2)
+AREA_LAYERS = ('terrain', 'surface', 'material', 'exclude', 'ttype', 'zones')
+AREA_TERRAFORM = ('flatten', 'raise', 'ramp')
+def area_foldable(layer, e):
+    if not isinstance(e, dict) or not isinstance(e.get('id'), str) or e.get('stage') or not isinstance(e.get('poly'), list) or len(e['poly']) < 3: return False
+    if layer == 'terrain': return e.get('kind') in AREA_TERRAFORM
+    if layer == 'zones': return e.get('kind') == 'clear'
+    return layer in AREA_LAYERS
+def put_entry(rows, layer, e):
+    if layer in AREA_LAYERS:
+        k = next((i for i, x in enumerate(rows) if area_foldable(layer, x)), None)
+        if k is not None: rows.insert(k, e); return
+    rows.append(e)
+
 def apply_stages(rec, path=STAGES_FILE):
     if not os.path.exists(path): return 0
     with open(path, encoding='utf8') as fh: S = json.load(fh)
@@ -307,7 +324,7 @@ def apply_stages(rec, path=STAGES_FILE):
         for e in rows:
             if not str(e.get('id', '')).startswith('sg_') or e['id'] in ids: raise SystemExit('stages: %r is not a fresh sg_ id' % e.get('id'))
             if 'stage' not in e: raise SystemExit('stages: %s is added and carries no stage - it would stand in the sandbox' % e['id'])
-            ids.add(e['id']); rec['layers'][layer].append(e); n += 1
+            ids.add(e['id']); put_entry(rec['layers'][layer], layer, e); n += 1   # (COMMUNITY-AIRPORT: an area layer's staged entry before its first foldable one)
     print('  stages %-26s %4d entries' % (os.path.basename(path), n))
     return n
 
