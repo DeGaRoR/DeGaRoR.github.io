@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 285aae7bfc8d8234
+// body-sha256: 126f7fb20ca9b1e0
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -35159,6 +35159,13 @@ const GEN_GAUGE = {
 //   d       dial cut-out, m (3-1/8 in = 79.4 mm, 2-1/4 in = 57.2 mm; 0 = no dial)
 //   coaming the compass sits on the coaming, not the panel (iron)
 //   perTank a sender per tank, billed with the gauge
+// THE INSTRUMENT POD (WEIGHT STUDY, the user 13 Nov: no dashboard, the gauges in glider size on a small mount): a
+// moulded pod on a stalk ahead of the stick, the dash gone - systems.mount 'pod' (the cage's instPod, the join). Its
+// dials are the glider's 57 mm (2 1/4 in) flight instruments: d, and kgK of an 80 mm one's mass (a 57 mm ASI or vario
+// ~0.25 kg, an altimeter ~0.30, against the 0.40-0.50 of an 80 mm one - INFERRED, glider-instrument catalogue weights
+// as recalled); the pod itself podKg (a glass shell and its stalk). The frame bills it in the dash board's place
+// (61_gen_frame panelM), the board none
+const GEN_INSTR_POD = { d: 0.0572, kgK: 0.6, podKg: 0.2 };
 const GEN_INSTR = {
   asi:     { name: 'airspeed indicator',   d: 0.0794, kg: 0.40, price: 350,
              power: 'none', note: 'UMA / Falcon 3-1/8 in; a TSO\'d United is ~700' },
@@ -35459,6 +35466,8 @@ function genSystemsResolve(S, opts) {
     const r = rowOf(k);
     let kg = r.kg, price = r.price;
     if (r.perTank) { kg += r.perTank.kg * nTanks; price += r.perTank.price * nTanks; }
+    // (the instrument pod: a big dial is the glider's 57 mm one, GEN_INSTR_POD)
+    if (S && S.systems && S.systems.mount === 'pod' && r.d > GEN_INSTR_POD.d + 1e-6) kg = +(kg * GEN_INSTR_POD.kgK).toFixed(3);
     rows.push({ key: k, group: 'panel', name: r.name, kg, price, amps: r.amps || 0 });
     if (r.power === 'elec') { nPowered++; loads.push({ key: k, amps: r.amps || 0 }); }
   }
@@ -35950,7 +35959,8 @@ const GEN_TIP_SHAPE = { bow: [0.15, 0.80], droop: [0, 0.45], full: [1, 2.6], phi
 // ground contact a side (61_gen_frame refs.skids) that SLIDES on the tail skid's law (30_solver TW_SKID_MU) - the wing
 // that goes down at rest on a single main wheel, a sailplane's - instead of scraping. Its drag: the hoop's two legs, a
 // round tube (Cd 1.2 on h x 2r each), on the tip's strip. The first plane's only. Mass and price INFERRED (a glider's
-// bolt-on tip skid: a bent 6061 tube and a nylon shoe, ~0.3 kg, the STOL fence's 90 a side)
+// bolt-on tip skid: a bent 6061 tube and a nylon shoe, ~0.3 kg, the STOL fence's 90 a side) - WEIGHT STUDY (the user,
+// 13 Nov): 0.1 kg, a moulded skid on a sailplane's tip (a nylon or glass shoe bonded under the tip, ~0.1 kg as recalled)
 // THE HANGING NACELLE'S MAST (61_gen_frame 3d, the Archaeopteryx study's stage 3): its station (at, the middle) and chord
 // (len) as fractions of the root chord when the spec leaves them out (the hub's: the cabin slides free of it); tc its section's thickness over chord (the drawn
 // blade's 12 %, _cage_eng pylonOutline); kgM its mass a metre - a carbon blade, spar and fairing, ~2.4 kg/m INFERRED (a
@@ -35973,7 +35983,7 @@ const GEN_HANG = { at: 0.50, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.30,
   // nodes carry nothing but the box, and under a quarter (0.15, 0.10) the card at the 200-substep cap diverged parked
   // (measured 12 Nov, scratch soft.js / stiff.js); at a quarter, with the hub on the root, it holds 5.9 g on the bench
   hubKg: 1.5, boxK: 0.25 };
-const GEN_TIP_SKID = { h: [0.02, 0.30], h0: 0.10, xc: [0.15, 0.75], xs: 0.45, bow: 0.6, r: 0.008, cd: 1.2, kg: 0.30, each: 90 };
+const GEN_TIP_SKID = { h: [0.02, 0.30], h0: 0.10, xc: [0.15, 0.75], xs: 0.45, bow: 0.6, r: 0.008, cd: 1.2, kg: 0.10, each: 90 };
 // ...its STATION (m from the centreline): `bow` of the way out along a tip's bow (a rounded, clipped, Hoerner or
 // elliptic tip: the bow's own outer reach would otherwise touch the ground first, the wing tilted on a single main), at
 // the tip joint on a tip that bends (drooped, upturned: the bend is its own) and at the tip on one without a bow (square,
@@ -36245,7 +36255,7 @@ function genEngPropD0(S, e0, PP0) {
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
-                               ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0 };
+                               ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -38498,6 +38508,7 @@ function clampSpec(spec) {
       const seen = new Set();
       sy.items = sy.items.filter(k => GEN_INSTR[k] && !seen.has(k) && seen.add(k));
     } else sy.items = null;
+    if (sy.mount !== 'pod') delete sy.mount;          // (the instrument pod, GEN_INSTR_POD - the key only when on)
     if (sy.fit === 'custom' && !sy.items) sy.items = GEN_SYSTEMS.basic.items.slice();
     if (!sy.elec || typeof sy.elec !== 'object') sy.elec = {};
     for (const k of ['battery', 'alternator', 'starter', 'vac'])
@@ -45365,7 +45376,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE PANEL BOARD, from its own geometry. `cab.panel` carries the depth
     // and how far the coaming wraps; the board spans the cabin.
     let panelM = 0;
-    if (cb.panel && cb.panel.on) {
+    // (the instrument pod, GEN_INSTR_POD: no board - the pod on its stalk, billed where the board was)
+    if (S.systems && S.systems.mount === 'pod') panelM = GEN_INSTR_POD.podKg;
+    else if (cb.panel && cb.panel.on) {
       const pw = 2 * cb.halfW * (0.6 + 0.8 * (cb.panel.wrap || 0));
       panelM = pw * (cb.panel.depth || 0.25) * O.panelKgM2;
     }
