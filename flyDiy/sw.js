@@ -1,4 +1,4 @@
-// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build 7a116155c6fc.
+// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build 58b93231a9ae.
 // The media cache: cache-first for media/ (content-hashed, immutable), nothing else.
 // The world payloads and mesh bins this build asks for; anything else under
 // media/world/ or media/geo/ is swept on activate (a superseded world is ~35 MB,
