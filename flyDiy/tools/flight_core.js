@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 62c6f805f586e231
+// body-sha256: 5a3c40d5598b2288
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -11154,6 +11154,162 @@ function runwaySite(r, F) {
   if (Array.isArray(r.taxiOut1) && r.taxiOut1.length) out.taxiOut1 = r.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
   return out;
 }
+// THE DOCKS (DOCKS-LODGE, the user 13 Nov: "very important; floatplanes have nowhere to go, not even a base, they spawn
+// in the middle of the water"). A DOCK is the water's stand: a pier off the shore of a WATER lane's field, the spots an
+// aeroplane ties up at alongside it, and its way out to the lane. The record (premises frame, on the lane's runway entry):
+//   docks: [{ id, x, z, hdg, len?, kind?: 'float' | 'fixed', side?: 1 | -1, gap?, ties?: [s, ...], draw?: false, approach?: [[x, z], ...] }]
+// x, z = the dock's SHORE end (its root, at the waterline); hdg = its axis, root -> head, out over the water (the strip's
+// convention: [cos hdg, sin hdg]); len along it (DOCK_DEF.len). kind: a floating dock (planks at the water) or a fixed pier
+// (on piles, a step higher). side: the side the aeroplanes lie on, +1 the axis's left normal ([-sin, cos], runwayEnds' n),
+// -1 the other (ONE side: a high wing laid across a dock meets the aeroplane on its other side). gap: the spacing of the tie
+// spots along it; ties: the tie stations (m from the root) by hand instead (clear of a float's fingers). draw: false - the
+// scenery already stands the dock (a marine/seaplane float item: Cedar Harbour's, Cabin Lake's): its ties and its way out,
+// no modules of its own. approach: the authored way from past the head to the lane (a harbour mouth, round a point) -
+// absent, the way is straight from past the head to the lane's centreline.
+// DERIVED (dockWorld, in the world, into the lane's site as `site.docks`): each tie spot { id, x, z, hdg, elev } - the
+// aeroplane's place alongside, nose toward the head (it leaves forward), DOCK_TIE.off off the axis; the way out per tie
+// (`approach`: the tie, past the head, the authored points, the lane's centreline - the last point ON it, the land
+// stand's taxiOut rule); the deck level; the pier's modules (the house pier's baked kit, src/pier/: pier_deck planks for
+// a floating dock, pier_run + pier_head on piles for a fixed one) as `mods` - compose stands them as props (instanced,
+// their LODs: no new mesh). A dock on a staged lane comes and goes with the lane (stageView). A lane's dock never reaches
+// standPadOf (a lane is no strip). THE START (app.js applyRoute's hydro branch): tied at the dock's first free tie spot
+// (the start chain's free test), else on the lane's spawn, as before.
+const DOCK_DEF = { len: 24, kind: 'float', side: 1, gap: 14 };
+const DOCK_KINDS = ['float', 'fixed'];
+const DOCK_DECK = { float: 0.35, fixed: 1.2 };   // the deck over the water (m): planks riding the water; a pier a step up
+const DOCK_TIE = { off: 3.4, end: 5, past: 18, w: 2.5 };   // a tie spot's CG off the axis (half the deck + a fender + a float's half track); its station this far in from the head; the way out runs this far past the head; the deck's width
+const DOCK_LEN = [8, 80];
+// the kit's modules as the dock lays them (tools/_house_gen.js PIER_KIT: the deck's level in the module's frame, its extent
+// along local z - the pitch; a module is placed by its DECK). GATE DOCKS holds this against PIER_KIT
+const DOCK_KIT = {
+  pier_deck: { deck: 2.65, dz: [-1.101, 1.101] },
+  pier_run:  { deck: 2.645, dz: [-1.687, 1.235] },
+  pier_head: { deck: 2.725, dz: [-1.759, 1.718] },
+};
+const dockOk = d => !!d && typeof d.id === 'string' && d.id.length > 0 && isFinite(+d.x) && isFinite(+d.z) && isFinite(+d.hdg);
+function laneDocks(r) {
+  if (!Array.isArray(r.docks)) return [];
+  return r.docks.filter(dockOk).map(d => {
+    const kind = DOCK_KINDS.indexOf(d.kind) >= 0 ? d.kind : DOCK_DEF.kind;
+    const len = Math.max(DOCK_LEN[0], Math.min(DOCK_LEN[1], isFinite(+d.len) && +d.len > 0 ? +d.len : DOCK_DEF.len));
+    const ap = Array.isArray(d.approach) ? d.approach.filter(q => Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1])).map(q => [+q[0], +q[1]]) : [];
+    const ties = Array.isArray(d.ties) ? d.ties.filter(v => isFinite(+v) && +v >= 0 && +v <= len).map(Number) : null;
+    return { id: d.id, x: +d.x, z: +d.z, hdg: +d.hdg, len, kind, side: +d.side === -1 ? -1 : 1,
+             gap: isFinite(+d.gap) && +d.gap >= 10 ? +d.gap : DOCK_DEF.gap, ties: ties && ties.length ? ties : null, draw: d.draw !== false, approach: ap };
+  });
+}
+// the tie stations along a dock (m from the root): the first DOCK_TIE.end in from the head, then every gap toward the
+// root while a whole aeroplane's length (8 m) is still alongside
+function dockStations(dk) {
+  if (dk.ties) return dk.ties.slice();
+  const out = [];
+  for (let s = dk.len - DOCK_TIE.end; s >= 6; s -= dk.gap) out.push(s);
+  return out.length ? out : [dk.len / 2];
+}
+// the pier's modules in the premises frame: a frontier walked from the root, each module placed by its deck's start
+function dockMods(dk, deckY) {
+  const d = [CORE_MATH.cos(dk.hdg), CORE_MATH.sin(dk.hdg)], ry = Math.atan2(d[0], d[1]);
+  const out = [];
+  const put = (key, s) => {
+    const K = DOCK_KIT[key], c = s - K.dz[0];
+    out.push({ key, x: +(dk.x + d[0] * c).toFixed(3), z: +(dk.z + d[1] * c).toFixed(3), y: +(deckY - K.deck).toFixed(3), ry: +ry.toFixed(4) });
+    return s + (K.dz[1] - K.dz[0]);
+  };
+  let s = 0;
+  if (dk.kind === 'fixed') {
+    const head = DOCK_KIT.pier_head.dz[1] - DOCK_KIT.pier_head.dz[0];
+    while (s + head < dk.len - 0.5) s = put('pier_run', s);
+    put('pier_head', s);
+  } else {
+    while (s < dk.len - 0.5) s = put('pier_deck', s);
+  }
+  return out;
+}
+// the lane's centreline point nearest (x, z), kept 60 m in from either end, in the premises frame
+function laneJoin(r, x, z) {
+  const E = runwayEnds(r), m = Math.min(60, r.len / 4);
+  const t = Math.max(m, Math.min(r.len - m, (x - E.end0[0]) * E.d[0] + (z - E.end0[1]) * E.d[1]));
+  return [E.end0[0] + E.d[0] * t, E.end0[1] + E.d[1] * t];
+}
+// one dock into the world: its ties, their ways out, its deck and its modules (premises frame: `mods`, for compose)
+function dockWorld(r, dk, F, waterY) {
+  const d = [CORE_MATH.cos(dk.hdg), CORE_MATH.sin(dk.hdg)], n = [-d[1] * dk.side, d[0] * dk.side];
+  const W = q => { const w = F.toWorld(q[0], q[1]); return [+w[0].toFixed(3), +w[1].toFixed(3)]; };
+  const deckY = waterY + DOCK_DECK[dk.kind];
+  const head = [dk.x + d[0] * dk.len, dk.z + d[1] * dk.len];
+  const hw = +(dk.hdg - F.yaw).toFixed(4);
+  const ties = dockStations(dk).map((s, i) => {
+    const p = [dk.x + d[0] * s + n[0] * DOCK_TIE.off, dk.z + d[1] * s + n[1] * DOCK_TIE.off];
+    const out = [p[0] + d[0] * (dk.len - s + DOCK_TIE.past), p[1] + d[1] * (dk.len - s + DOCK_TIE.past)];
+    const way = [p, out].concat(dk.approach);
+    const last = way[way.length - 1];
+    way.push(laneJoin(r, last[0], last[1]));
+    const w = W(p);
+    return { id: dk.id + ':' + (i + 1), x: w[0], z: w[1], hdg: hw, elev: +waterY.toFixed(3), s: +s.toFixed(2), approach: way.map(W) };
+  });
+  const root = W([dk.x, dk.z]), hd = W(head);
+  return { id: dk.id, kind: dk.kind, x: root[0], z: root[1], hdg: hw, len: dk.len, wid: DOCK_TIE.w, side: dk.side, y: +deckY.toFixed(3),
+           head: hd, ties, draw: dk.draw, mods: dk.draw ? dockMods(dk, deckY) : [] };
+}
+// a lane's dock tie spots, first-free order (the start's question): [{ dock, tie }] in the record's order
+function laneTies(site) {
+  const out = [];
+  for (const dk of (site && Array.isArray(site.docks) ? site.docks : [])) for (const t of dk.ties || []) out.push({ dock: dk, tie: t });
+  return out;
+}
+// what a dock record may carry (the editor's refusal, GATE DOCKS)
+function dockIssues(r) {
+  const out = [];
+  if (r.docks == null) return out;
+  if (!Array.isArray(r.docks)) return ['runway ' + r.id + ': docks is a list of { id, x, z, hdg, len?, kind?, side?, gap?, approach? }'];
+  if (!runwayIsWater(r)) out.push('runway ' + r.id + ': a dock belongs to a water lane');
+  const ids = new Set();
+  for (const d of r.docks) {
+    if (!d || typeof d.id !== 'string' || !d.id) { out.push('runway ' + r.id + ': a dock without an id'); continue; }
+    const w = 'runway ' + r.id + ': dock ' + d.id;
+    if (ids.has(d.id)) out.push(w + ' is named twice'); ids.add(d.id);
+    if (!(isFinite(+d.x) && isFinite(+d.z))) out.push(w + ' needs x and z (its shore end)');
+    if (!isFinite(+d.hdg)) out.push(w + ': hdg is radians (shore -> head)');
+    if (d.len != null && !(+d.len >= DOCK_LEN[0] && +d.len <= DOCK_LEN[1])) out.push(w + ': len is ' + DOCK_LEN[0] + '..' + DOCK_LEN[1] + ' m');
+    if (d.kind != null && DOCK_KINDS.indexOf(d.kind) < 0) out.push(w + ': kind is ' + DOCK_KINDS.join(' or '));
+    if (d.side != null && d.side !== 1 && d.side !== -1) out.push(w + ': side is 1 or -1');
+    if (d.gap != null && !(+d.gap >= 10)) out.push(w + ': gap is at least 10 m');
+    if (d.ties != null && !(Array.isArray(d.ties) && d.ties.length && d.ties.every(v => isFinite(+v) && +v >= 0 && +v <= (+d.len || DOCK_DEF.len)))) out.push(w + ': ties is a list of stations along it (m from the shore end)');
+    if (d.draw != null && d.draw !== false) out.push(w + ': draw is false (the scenery stands it) or absent');
+    if (d.approach != null && !(Array.isArray(d.approach) && d.approach.every(q => Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1])))) out.push(w + ': approach is [[x, z], ...]');
+  }
+  return out;
+}
+// what a composed dock is on the water (the checks: the panel and GATE DOCKS): the deck's head over water, every tie spot
+// afloat in DOCK_WET.tie of water, every way out over DOCK_WET.way of water all along (3 m steps) with a wing's room of water
+// either side (DOCK_WET.wing), clear of every other dock's deck. `wet(x, z)` = the water's depth there (world), <= 0 on land
+const DOCK_WET = { tie: 1.0, way: 1.0, deck: 2.0, wing: 7.5 };   // (wing: a 15 m span's half - the Beaver's 14.6)
+function dockWater(dk, wet, others) {
+  const out = [];
+  if (!(wet(dk.head[0], dk.head[1]) > 0.3)) out.push('dock ' + dk.id + ': its head is not over water');
+  const decks = (others || []).filter(o => o !== dk).map(o => ({ a: [o.x, o.z], b: o.head }));
+  const segD = (p, a, b) => { const vx = b[0] - a[0], vz = b[1] - a[1], L2 = vx * vx + vz * vz || 1; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vz) / L2)); return Math.hypot(p[0] - a[0] - vx * t, p[1] - a[1] - vz * t); };
+  for (const t of dk.ties) {
+    if (!(wet(t.x, t.z) >= DOCK_WET.tie)) out.push('dock ' + dk.id + ': tie ' + t.id + ' is in ' + Math.max(0, wet(t.x, t.z)).toFixed(2) + ' m of water (' + DOCK_WET.tie + ' wanted)');
+    const A = t.approach;
+    let worst = Infinity, at = null, hit = null, side = null;
+    for (let i = 1; i < A.length; i++) {
+      const L = Math.hypot(A[i][0] - A[i - 1][0], A[i][1] - A[i - 1][1]), n = Math.max(1, Math.ceil(L / 3));
+      for (let k = 0; k <= n; k++) {
+        const p = [A[i - 1][0] + (A[i][0] - A[i - 1][0]) * k / n, A[i - 1][1] + (A[i][1] - A[i - 1][1]) * k / n];
+        const w = wet(p[0], p[1]); if (w < worst) { worst = w; at = p; }
+        // a wing's room: the water DOCK_WET.wing either side of the way (the deck alongside is low: over it is over water)
+        if (!side) { const ux = (A[i][1] - A[i - 1][1]) / (L || 1), uz = -(A[i][0] - A[i - 1][0]) / (L || 1);
+          for (const sg of [1, -1]) if (!(wet(p[0] + ux * sg * DOCK_WET.wing, p[1] + uz * sg * DOCK_WET.wing) > 0)) { side = p; break; } }
+        if (!hit) for (const D of decks) if (segD(p, D.a, D.b) < DOCK_WET.deck) { hit = p; break; }
+      }
+    }
+    if (!(worst >= DOCK_WET.way)) out.push('dock ' + dk.id + ': tie ' + t.id + "'s way out meets " + Math.max(0, worst).toFixed(2) + ' m of water at ' + at.map(v => v.toFixed(0)).join(', '));
+    if (hit) out.push('dock ' + dk.id + ': tie ' + t.id + "'s way out crosses another dock at " + hit.map(v => v.toFixed(0)).join(', '));
+    if (side) out.push('dock ' + dk.id + ': tie ' + t.id + "'s way out passes within " + DOCK_WET.wing + ' m of the shore at ' + side.map(v => v.toFixed(0)).join(', '));
+  }
+  return out;
+}
 // THE STAND'S PAD (STAND-PAD, the user 13 Nov: "a parking spot shouldn't have a 15 % grade, otherwise it's not a parking
 // spot"; the editor GO ~10:45: a pad setting on every stand, automatic ONLY where the ground is steeper than 2 %). A
 // DERIVED flatten under the stand and its lead-in to the strip, at the strip's own level where the stand stands beside it
@@ -12180,7 +12336,7 @@ function compose(rec0, world, opts) {
   // a DERIVED tree exclude 30 m round the box, and the aerodrome record
   const runways = rec.layers.runways.filter(r => r.c && r.len > 0 && r.wid > 0).map(r => Object.assign({}, RUNWAY_DEF, r));
   { const byId = new Map(roads.map(q => [q.id, q])); for (const r of runways) waysVia(r, byId); }   // (G3092: a way out that follows a road)
-  const aerodromes = [], microStrips = [], microMods = [];
+  const aerodromes = [], microStrips = [], microMods = [], dockProps = [];
   for (const r of runways) {
     const E = runwayEnds(r);
     // a SEA LANE (G434): the water's own level, nothing graded, nothing painted, nothing excluded
@@ -12193,6 +12349,14 @@ function compose(rec0, world, opts) {
       // G2310: a lane's site is its PLOTS alone (the slipways), each shed on the shore's composed ground; no plots, no site
       r.site = Array.isArray(r.plots) && r.plots.length ? runwaySite(r, F) : null;
       if (r.site && r.site.plots) for (const p of r.site.plots) { const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2); }
+      // DOCKS-LODGE: the lane's docks into its site (a lane with docks and no plots gains a site of its docks alone), their
+      // modules into the props (below, with the authored ones)
+      const DK = laneDocks(r);
+      if (DK.length) {
+        const wy = aerodromes[aerodromes.length - 1].elev;
+        r.site = Object.assign(r.site || {}, { docks: DK.map(dk => dockWorld(r, dk, F, wy)) });
+        for (const dk of r.site.docks) dk.mods.forEach((m, i) => dockProps.push({ id: 'dock:' + r.id + ':' + dk.id + ':' + i, kind: 'prop', key: m.key, x: m.x, z: m.z, yaw: m.ry, y: m.y, w: 3.6, on: 'water', dock: r.id + ':' + dk.id }));
+      }
       continue;
     }
     const elev = T1(r.c[0], r.c[1]);
@@ -13643,6 +13807,9 @@ function compose(rec0, world, opts) {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
       O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob)));   // (G3001: the placer's scale reaches the built prop - it was dropped here)
     }
+    // DOCKS-LODGE: the water lanes' docks, module by module (DERIVED: their y the deck's, over the water - never the ground;
+    // `dock` names the lane and the dock, so the editor selects the lane they belong to)
+    for (const p of dockProps) O.records.objects.push(p);
     // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
     // `n` animals of the species `key` living within `r` metres of (x, z). One
     // record makes a herd, a pod or a flock, and `n: 1, r: 0` is one animal
@@ -13776,6 +13943,7 @@ function issues(rec0) {
       }
     }
     if (r.hangar && isFinite(+r.hangar.x)) { if (plotIds.has(r.id)) out.push('runway ' + r.id + ': plot ' + r.id + ' is named twice'); plotIds.add(r.id); }
+    for (const i of dockIssues(r)) out.push(i);   // DOCKS-LODGE
   }
   const fl = rec.layers.terrain.filter(e => e.kind === 'flatten' && e.poly && polySimple(e.poly));
   for (let i = 0; i < fl.length; i++) for (let j = 0; j < i; j++) {
@@ -13965,6 +14133,15 @@ function checks(rec0, world, opts) {
       worst = Math.max(worst, Math.abs(O.localH(lx, lz) - want));
     }
     put(worst < 0.05, 'runway ' + r.id + ' on its profile (' + (worst * 100).toFixed(1) + ' cm)');
+    // DOCKS-LODGE: a lane's docks on the water - the head over it, every tie afloat, every way out clear to the lane
+    if (r.site && Array.isArray(r.site.docks) && r.site.docks.length) {
+      // (the depth: the world's water over its bed where it has both - a LAKE composes its ground AT the surface (CABIN-LAKE), so
+      // the composed ground says 0 there - else the lane's level over the composed ground)
+      const wl = A.elev, wW = world && typeof world.waterH === 'function' && typeof world.terrainH === 'function';
+      const wet = (x, z) => { const L = F.toLocal(x, z), g = wl - O.localH(L[0], L[1]); if (!wW) return g; const w = world.waterH(x, z), h = world.terrainH(x, z); return isFinite(w) && isFinite(h) ? Math.max(g, w - h) : g; };
+      const iss = []; for (const dk of r.site.docks) for (const i of dockWater(dk, wet, r.site.docks)) iss.push(i);
+      put(!iss.length, iss.length ? 'runway ' + r.id + ': ' + iss[0] : 'runway ' + r.id + ': ' + r.site.docks.length + ' dock' + (r.site.docks.length > 1 ? 's' : '') + ', ' + laneTies(r.site).length + ' tie spots afloat, every way out clear to the lane');
+    }
     if (o.site && o.site.sitePattern) {
       let iss;
       try { const pat = o.site.sitePattern(A, r.site || null); iss = o.site.sitePatternIssues(pat, A, r.site || null, 0, o.site.patternPath || null); }
@@ -14013,7 +14190,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, STAND_PAD, standPadOf, DOCK_DEF, DOCK_KINDS, DOCK_DECK, DOCK_TIE, DOCK_LEN, DOCK_KIT, DOCK_WET, laneDocks, dockStations, dockMods, dockWorld, laneJoin, laneTies, dockIssues, dockWater, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
@@ -55858,6 +56035,7 @@ const CONTRACT_TRACKS = {
   resort:   { max: 3, stages: ['trk.resort.1', 'trk.resort.2', 'trk.resort.3'] },
   survey:   { max: 3, stages: ['trk.survey.1', 'trk.survey.2', 'trk.survey.3'] },
   clients:  { max: 2, stages: ['trk.clients.1', 'trk.clients.2'] },
+  lodge:    { max: 4, stages: ['trk.lodge.1', 'trk.lodge.2', 'trk.lodge.3', 'trk.lodge.4'] },   // DOCKS-LODGE (13 Nov): Hook Lagoon - 1 the dock, 2 the lodge, 3 a short muddy strip, 4 the long strip (no provider unlocks it yet: the Game coordinator's story)
 };
 
 // ---- THE PROVIDERS (§R G-PROV: five) ----------------------------------------------------------------------
@@ -56219,6 +56397,7 @@ const CONTRACT_TEXT = {
   'trk.resort.1': CT_('The lodge\'s frame'),
   'trk.resort.2': CT_('The lodge'),
   'trk.resort.3': CT_('The strip lengthened'),
+  'trk.lodge.1': CT_('A dock in the lagoon'), 'trk.lodge.2': CT_('The lodge'), 'trk.lodge.3': CT_('A muddy strip'), 'trk.lodge.4': CT_('The long strip'),   // DOCKS-LODGE: placeholders - the Game coordinator writes the lodge's story
   'trk.survey.1': CT_('A windsock and tie-downs at East Point'),
   'trk.survey.2': CT_('East Point becomes a station'),
   'trk.survey.3': CT_('The weather mast on ' + GAME_NAMES.hill),
@@ -60095,6 +60274,10 @@ const STAGE_REVEALS = {
   'survey:3':   { at: 'w3',       caption: 'trk.survey.3',   world: false },   // (no mast exists today: HANDOVER G2300)
   'clients:1':  { at: 'HOME',     caption: 'trk.clients.1',  world: true },    // the flying club's house
   'clients:2':  { at: 'HOME',     caption: 'trk.clients.2',  world: false },   // (no museum hangar exists today: HANDOVER G2300)
+  'lodge:1':    { at: 'lg_sea',   caption: 'trk.lodge.1',    world: true },    // DOCKS-LODGE: the lane and the dock in Hook Lagoon (the lodge's lumber on its plot)
+  'lodge:2':    { at: 'lg_sea',   caption: 'trk.lodge.2',    world: true },    // the lodge: the main house, three cabins, the boathouse, the woodshed
+  'lodge:3':    { at: 'lg_strip', caption: 'trk.lodge.3',    world: true },    // a short muddy strip (380 m) and the track up to it
+  'lodge:4':    { at: 'lg_strip', caption: 'trk.lodge.4',    world: true },    // the long strip (1000 m of gravel), the owner's
 };
 // the shot's eye about its target (A0's GPU still frames it: tools/stages_shot.js): metres back, elevation, and the
 // caption's time on screen
