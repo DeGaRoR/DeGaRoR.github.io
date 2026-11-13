@@ -2043,6 +2043,14 @@ function aeroSharedU(THREE) {
   aeroLabGains(THREE);           // the saved gains, once the block exists
   return AERO_DEC;
 }
+// CANOPY-CRACKS: the crack sheet's stand-in, one texel of no crack (R 255: as far as the sheet reads; G 255: never arrives)
+let AERO_CRACK_NONE = null;
+function aeroCrackNone(THREE) {
+  if (AERO_CRACK_NONE) return AERO_CRACK_NONE;
+  const t = new THREE.DataTexture(new Uint8Array([255, 255, 128, 0]), 1, 1, THREE.RGBAFormat);
+  t.needsUpdate = true;
+  return (AERO_CRACK_NONE = t);
+}
 function aeroSharedU0(THREE, z4) {
   return ({
     tAtlas: { value: aeroAtlas(THREE) },
@@ -2074,6 +2082,11 @@ function aeroSharedU0(THREE, z4) {
     uCrackN: { value: 0 },
     uCrackP: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 0, 0)) },
     uCrackQ: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 1, 0)) },
+    // CANOPY-CRACKS (12 Nov): the crack sheet (dmg_glass.js SHEET_*; app.js binds the flown aeroplane's own at the flight's
+    // start) - until then a texel of no crack (R: far, G: never arrives), so a sampler is always bound and nothing shows;
+    // uCrackMat which sheet it is (0 acrylic, 1 laminated: the whitened core's size)
+    tCrack: { value: aeroCrackNone(THREE) },
+    uCrackMat: { value: 0 },
     uInset: { value: 0.02 },
     // THE WEATHERING (G345, src/viewer/aeroweather.js). uWear carries the
     // FOUR MACROS now — x age, y flight, z bush, w rain — and the module
@@ -4454,52 +4467,35 @@ const aeroGlassMat = m => GLASS_MATS[m] || GLASS_MATS.acrylic;
 // loads after it
 const AERO_GLASS_CRACK_FS = [
   "float dgU1(int i, int seed) { uint x = (uint(i) * 0x27d4eb2du) ^ (uint(seed) * 0x165667b1u); x ^= x >> 15u; x *= 0x85ebca6bu; x ^= x >> 13u; x *= 0xc2b2ae35u; x ^= x >> 16u; return float(x) / 4294967296.0; }",
-  "float dgU2(int i, int j, int seed) { return dgU1(int(uint(i) * 73856093u ^ uint(j) * 19349663u), seed); }",
-  "float dgV1(float x, int seed) { float fi = floor(x); int i = int(fi); float f = x - fi; float s = f * f * (3.0 - 2.0 * f); float a = dgU1(i, seed); return a + (dgU1(i + 1, seed) - a) * s; }",
-  "float dgFbm(float x, int seed) { float s = 0.0, a = 0.5, f = 1.0, n = 0.0; for (int o = 0; o < 3; o++) { s += a * (dgV1(x * f, seed + o * 31) * 2.0 - 1.0); n += a; a *= 0.5; f *= 2.03; } return s / n; }",
   "float dgSm(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }",
   "float dgLine(float dist, float w, float pw) { float we = max(w, pw); return (1.0 - dgSm(we * 0.5, we, dist)) * (w / we); }",
-  "float dgVor(vec2 p, int seed) { vec2 fl = floor(p); int ix = int(fl.x), iy = int(fl.y); float md = 9.0, mx = 0.0, my = 0.0;",
-  "  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { float px = float(i) + dgU2(ix + i, iy + j, seed), py = float(j) + dgU2(ix + i, iy + j, seed + 1); float dx = px - (p.x - fl.x), dy = py - (p.y - fl.y), d = dx * dx + dy * dy; if (d < md) { md = d; mx = dx; my = dy; } }",
-  "  float e = 9.0;",
-  "  for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) { float px = float(i) + dgU2(ix + i, iy + j, seed), py = float(j) + dgU2(ix + i, iy + j, seed + 1); float dx = px - (p.x - fl.x), dy = py - (p.y - fl.y), qx = dx - mx, qy = dy - my, ql = qx * qx + qy * qy;",
-  "    if (ql > 1e-5) e = min(e, ((mx + dx) * 0.5 * qx + (my + dy) * 0.5 * qy) / sqrt(ql)); }",
-  "  return e; }",
-  "vec2 dgCrack(vec2 q, float sev, int seed, float px) {",
-  "  float reach = 0.06 + 0.30 * sev, r = length(q) + 1e-6;",
-  "  if (r > reach * 1.05) return vec2(0.0);",
-  "  float th = atan(q.y, q.x); if (th < 0.0) th += 6.2831853;",
-  "  int NR = 5 + int(floor(dgU1(1, seed) * 5.0)); float cell = th / 6.2831853 * float(NR); int c0 = int(floor(cell));",
-  "  float line = 0.0, haze = 0.0;",
-  "  for (int o = -1; o <= 1; o++) {",
-  "    int k = c0 + o; if (k < 0) k += NR; if (k >= NR) k -= NR;",
-  "    float base = (float(k) + 0.5 + 0.7 * (dgU1(k, seed + 3) - 0.5)) / float(NR) * 6.2831853;",
-  "    float ang = base + 0.10 * dgFbm(r * 9.0 + float(k) * 7.1, seed + 5) + 0.12 * dgFbm(r * 2.3 + float(k), seed + 6) * min(1.0, r / 0.1);",
-  "    float d = th - ang; d -= 6.2831853 * floor(d / 6.2831853 + 0.5);",
-  "    float len = reach * (0.45 + 0.55 * dgU1(k, seed + 9)), dist = abs(d) * r;",
-  "    float w = 0.0009 * (1.0 - min(1.0, r / len)) + 0.00025;",
-  "    if (r < len) { line = max(line, dgLine(dist, w, px)); haze = max(haze, 0.55 * (1.0 - dgSm(w, max(w * 6.0, px * 2.0), dist))); }",
-  "  }",
-  "  if (sev >= 0.5) {",
-  "    int NG = 1 + int(floor(dgU1(2, seed) * 3.0));",
-  "    for (int j = 0; j < 3; j++) { if (j >= NG) break;",
-  "      float R = (0.03 + 0.02 * dgU1(j, seed + 13)) * pow(2.0, float(j)) * (0.6 + sev);",
-  "      if (dgU2(c0, j, seed + 17) > 0.55 || R > reach) continue;",
-  "      float Rw = R * (1.0 + 0.08 * dgFbm(th * 5.0 + float(j), seed + 19)), dist = abs(r - Rw);",
-  "      line = max(line, dgLine(dist, 0.0004, px)); haze = max(haze, 0.45 * (1.0 - dgSm(0.001, max(0.004, px * 2.0), dist))); }",
-  "  }",
-  "  if (sev >= 0.85) {",
-  "    float cz = 0.9 * (1.0 - dgSm(0.02, 0.06 + 0.06 * sev, r));",
-  "    if (cz > 0.0) { float e = dgVor(q * 60.0, seed + 23); haze = max(haze, cz * (1.0 - dgSm(0.02, 0.07, e)) * 0.8); }",
-  "  }",
-  "  return vec2(line, haze);",
+  "vec2 dgCrack(vec2 q, float sev, int seed, float px, vec2 vt) {",
+  "  float r = length(q);",
+  "  if (r > 0.44) return vec2(0.0);",
+  "  float a = 6.2831853 * dgU1(1, seed), ca = cos(a), sa = sin(a);",
+  "  vec2 p = vec2(ca * q.x - sa * q.y, sa * q.x + ca * q.y);",
+  "  if (dgU1(2, seed) < 0.5) p.x = -p.x;",
+  "  vec4 t = textureLod(tCrack, p / 0.9 + 0.5, max(0.0, log2(px / 0.00087890625)));",
+  "  float d = max(0.0, t.r * 0.008 - 0.000263671875);",
+  "  float vis = clamp((sev - t.g) * 40.0 + 1.0, 0.0, 1.0);",
+  "  float tap = clamp(t.g / max(sev, 0.05), 0.0, 1.0);",
+  "  float gl = 0.12 + 0.88 * pow(abs(sin(6.2831853 * t.b + 5.0 * vt.x + 3.0 * vt.y)), 10.0);",
+  "  float line = dgLine(d, px * mix(1.3, 0.55, tap), px) * vis * gl * min(1.0, 0.0012 / px);",
+  "  float rc = uCrackMat > 0.5 ? 0.010 + 0.016 * sev : 0.006 + 0.020 * sev;",
+  "  float wh = t.a * (1.0 - dgSm(0.7 * rc, 1.6 * rc, r));",
+  "  return vec2(line, wh);",
   "}",
 ].join('\n');
-// ...its uniforms (aeroSharedU) and the fragment's mark, (line, haze) 0..1
+// ...its uniforms (aeroSharedU) and the fragment's mark, (line, haze) 0..1. CANOPY-CRACKS (12 Nov): the crack is READ from
+// the flown aeroplane's crack sheet (tCrack: tools/crack_sheet_bake.js, bound by app.js glassMarks; uCrackMat 0 acrylic,
+// 1 laminated), and the glint wants the eye in craft space (uCraftInv: the vertex side's, declared here for the fragment)
 const AERO_GLASS_CRACK_PARS = `
 uniform float uCrackN;
 uniform vec4 uCrackP[4];
 uniform vec4 uCrackQ[4];
+uniform sampler2D tCrack;
+uniform float uCrackMat;
+uniform mat4 uCraftInv;
 vec2 aeroCrack = vec2(0.0);
 ` + AERO_GLASS_CRACK_FS + '\n';
 
@@ -4566,6 +4562,7 @@ const AEROGLASS_HOOK = function (shader) {
     if (uCrackN > 0.5) {
       float dgPx = max(fwidth(vCraftPos.x), max(fwidth(vCraftPos.y), fwidth(vCraftPos.z)));
       vec3 dgNf = normalize(vCraftNrm);
+      vec3 dgE = normalize((uCraftInv * vec4(cameraPosition, 1.0)).xyz - vCraftPos);   // the eye, for the glint
       for (int i = 0; i < 4; i++) {
         if (float(i) >= uCrackN) break;
         vec3 dgD = vCraftPos - uCrackP[i].xyz;
@@ -4574,7 +4571,7 @@ const AEROGLASS_HOOK = function (shader) {
         vec3 dgA = abs(dgN.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
         vec3 dgT1 = normalize(cross(dgN, dgA));
         vec3 dgT2 = cross(dgN, dgT1);
-        aeroCrack = max(aeroCrack, dgCrack(vec2(dot(dgD, dgT1), dot(dgD, dgT2)), uCrackP[i].w, int(uCrackQ[i].w), dgPx));
+        aeroCrack = max(aeroCrack, dgCrack(vec2(dot(dgD, dgT1), dot(dgD, dgT2)), uCrackP[i].w, int(uCrackQ[i].w), dgPx, vec2(dot(dgE, dgT1), dot(dgE, dgT2))));
       }
       roughnessFactor += 0.6 * aeroCrack.x + 0.5 * aeroCrack.y;
     }
@@ -4641,9 +4638,10 @@ const AEROGLASS_HOOK = function (shader) {
   vec3 aeroDiff = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse
                 + totalEmissiveRadiance;
   // G3623 (DMG-GLASS): a crack scatters what the pane receives - the diffuse light over the pane's own colour is its
-  // irradiance (over pi): added near-white along the lines and, fainter, over the crazed haze. Zero without a mark
+  // irradiance (over pi): added near-white along the lines and over the whitened core (CANOPY-CRACKS: the crushed spot,
+  // 0.55 - it was the crazed haze at 0.30). Zero without a mark
   vec3 aeroIrr = (reflectedLight.directDiffuse + reflectedLight.indirectDiffuse) / max(diffuseColor.rgb, vec3(0.02));
-  vec3 aeroCrk = aeroIrr * (0.85 * aeroCrack.x + 0.30 * aeroCrack.y) * vec3(0.93, 0.95, 0.97);
+  vec3 aeroCrk = aeroIrr * (0.85 * aeroCrack.x + 0.55 * aeroCrack.y) * vec3(0.93, 0.95, 0.97);
   // (the back face - the pane seen from the seat: the crack alone, nothing where there is none)
   if (!gl_FrontFacing && aeroCrack.x + aeroCrack.y <= 0.0) discard;
   gl_FragColor = vec4(gl_FrontFacing ? aeroDiff * (1.0 - aeroT) * uGlassB.y + aeroSpec + aeroCrk : aeroCrk, 1.0);`);
