@@ -2841,7 +2841,7 @@
    {
     "id": "sg_ca_yard/woodshed",
     "key": "shed/wood shed",
-    "r": "624,276,4,3,168"
+    "r": "624,277,4,3,168"
    },
    {
     "id": "sg_ca_yard/toolshed",
@@ -2851,7 +2851,7 @@
    {
     "id": "sg_ca_yard/smokehouse",
     "key": "house/fish shack",
-    "r": "619,277,4,3,78"
+    "r": "619,279,4,3,78"
    },
    {
     "id": "sg_ca_yard/hangar",
@@ -2861,7 +2861,7 @@
    {
     "id": "sg_ca_yard/outhouse",
     "key": "house/outhouse",
-    "r": "624,275,1,1,168"
+    "r": "625,278,1,1,168"
    }
   ],
   "links": [
