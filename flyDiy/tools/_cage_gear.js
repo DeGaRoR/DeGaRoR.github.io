@@ -1497,7 +1497,7 @@ function skiDims(P, third, R) {
   const skin = third ? 0.02 : (P.skiSkin == null ? 0.051 : +P.skiSkin);
   const tip = third ? Math.max(0.025, Math.min(0.12, SR.tipK * L)) : (+P.skiTip > 0 ? +P.skiTip : Math.max(0.03, Math.min(0.25, SR.tipK * L)));
   return { kind: tk, L, W, tip, skin, skinL: skin / 2, at: third ? 0.55 : (+P.skiAt || SR.at), beam: third ? 1 : (P.skiBeam == null ? SR.beam : +P.skiBeam),
-           notchAt: P.skiNotchAt == null ? SR.notchAt : +P.skiNotchAt, h, R, bT: SR.tyreW * R, prot, drop, third,
+           notchAt: P.skiNotchAt == null ? SR.notchAt : +P.skiNotchAt, h, R, bT: third ? SR.tyreW * R : skiTyreW(R, P), prot, drop, third,
            heel: !third && tk !== 'retract' && (P.skiHeelW == null || +P.skiHeelW > 0), mat: ['carbon', 'alu', 'glass'][Math.round(+P.skiMat || 0)] || 'carbon',
            color: Math.round(+P.skiColor || 0) };
 }

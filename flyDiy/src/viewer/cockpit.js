@@ -159,9 +159,9 @@ function make(THREE) {
     if (!model || !model.gauges || !THREE.SphereGeometry) return;
     const padMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { transparent: true, opacity: 0, depthWrite: false, colorWrite: false });  // pre-ok: colorWrite false
     for (const g of model.gauges) {
-      if (!/^(switch|knob|key|flap|gpskey)$/.test(g.c.law) || !g.obj.add) continue;
-      const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.padR || (g.c.law === 'key' ? 0.022 : g.c.law === 'flap' ? 0.024 : 0.016), 8, 6), padMat);
-      if (g.c.law === 'flap') pad.position.set(0, -0.012, -0.030);   // G335: on the knob, not the buried pivot
+      if (!/^(switch|knob|key|flap|ski|gpskey)$/.test(g.c.law) || !g.obj.add) continue;
+      const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.padR || (g.c.law === 'key' ? 0.022 : g.c.law === 'flap' || g.c.law === 'ski' ? 0.024 : 0.016), 8, 6), padMat);
+      if (g.c.law === 'flap' || g.c.law === 'ski') pad.position.set(0, -0.012, -0.030);   // G335: on the knob, not the buried pivot (SKIS: the selector's too)
       if (g.c.slide) pad.position.set(0, 0, g.c.padR ? -0.004 : -0.012);   // G371: a push-pull's knob (G2802: a breaker's button)
       pad.userData.pickPad = 1;
       // C4b (G875): answered, never drawn - three's Raycaster tests every layer-0 object, shown or not; drawn, the
@@ -506,6 +506,9 @@ function make(THREE) {
         // G335: the dash flap switch follows the flap COMMAND (the linkage's
         // own number on ctl — the AP's or the hand's)
         case 'flap': { const sm = CK.sim; a1 = (c.k || 0.75) * clamp(sm && sm.ctl ? +sm.ctl.flap || 0 : 0, 0, 1); break; }
+        // SKIS: the wheel-skis' selector follows its command (the hand's or the AP's on ctl.ski; unset, where the skis are)
+        case 'ski': { const sm = CK.sim, cmd = sm && sm.ctl && (sm.ctl.ski === 0 || sm.ctl.ski === 1) ? sm.ctl.ski
+                        : (sm && sm.out && sm.out.ski > 0.5 ? 1 : 0); a1 = (c.k || 0.9) * cmd; break; }
         default: a1 = 0;
       }
       // A3: THE LAW IS ABSOLUTE, THE GEOMETRY IS NOT - the snapshot holds the
@@ -586,7 +589,7 @@ function make(THREE) {
       let a = h.part || h.object;
       while (a && a !== model.grp) {
         const g = model.gauges.find(q => q.obj === a);
-        if (g) return g.c.law === 'flap' ? Object.assign({ pick: 'flap' }, g) : g;   // G335: the dash switch is the lever's click
+        if (g) return g.c.law === 'flap' ? Object.assign({ pick: 'flap' }, g) : g.c.law === 'ski' ? Object.assign({ pick: 'ski' }, g) : g;   // G335: the dash switch is the lever's click (SKIS: the selector's)
         // G318: the flap lever, the brake, the fuel selector, the trim wheel
         const pk = model.picks && model.picks.find(q => q.obj === a);
         if (pk) return { pick: pk.key, obj: pk.obj, c: { law: 'pick:' + pk.key, drive: pk.key } };
@@ -618,6 +621,7 @@ function make(THREE) {
         if (i >= n - 1) for (let k = 0; k < i; k++) INP3.fire('flapUp'); else INP3.fire('flapDown');
         did = true;
       }
+      else if (g.pick === 'ski' && INP3 && INP3.fire) { INP3.fire('ski'); did = true; }   // SKIS: the selector's click
       else if (g.pick === 'brake') { CK.park = !CK.park; did = true; }
       else if (g.pick === 'fuel') { const i = clamp(Math.round(+CK.sw.fuel || 0), 0, 3); CK.sw.fuel = (i + 1) % 4; did = true; }
       else if (g.pick === 'trim' && INP3 && INP3.setTrim) { INP3.setTrim((INP3.trim() || 0) + 0.05); did = true; }

@@ -457,6 +457,7 @@ const MAT = {
   grip:   { col: 0x3a3e46, rough: 0.45, metal: 0.00 },
   cap:    { col: 0xb0281e, rough: 0.40, metal: 0.00 },
   amber:  { col: 0xffb040, rough: 0.30, metal: 0.00 },
+  green:  { col: 0x3fc060, rough: 0.30, metal: 0.00 },   // SKIS: the wheel-skis' DOWN lens
   face:   { col: 0x101214, rough: 0.85, metal: 0.00 },   // the atlas (no finish)
 };
 const matCache = {};
@@ -1350,6 +1351,37 @@ function flapAt(parent, x, y, z) {
   arm.mesh(g, matFor('lever')); knob.mesh(g, matFor('needle'));
   return g;
 }
+// SKIS (13 Nov): THE WHEEL-SKIS' SELECTOR - a gear handle's grammar for the skis: a black escutcheon 22 x 44 with its
+// slot, DOWN at the bottom (the skis under the tyres: the aeroplane on its skis) and UP at the top (the tyres through
+// the cutouts), the two marks and a green and an amber lens beside them; the lever pivots inside the dash and its knob is
+// a little SKI (a white paddle, its toe turned up) - law 'ski': the command on ctl.ski, 0.9 rad over its two places
+function skiSelAt(parent, x, y, z) {
+  const K = KIT();
+  const esc = K.Bag(), marks = K.Bag(), lensG = K.Bag(), lensA = K.Bag();
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+  K.boxIn(esc, [x - 0.0075, y, z - 0.00075], [0.0035, 0.022, 0.00075], X, Y, Z);
+  K.boxIn(esc, [x + 0.0075, y, z - 0.00075], [0.0035, 0.022, 0.00075], X, Y, Z);
+  K.boxIn(esc, [x, y + 0.019, z - 0.00075], [0.011, 0.003, 0.00075], X, Y, Z);
+  K.boxIn(esc, [x, y - 0.019, z - 0.00075], [0.011, 0.003, 0.00075], X, Y, Z);
+  K.boxIn(esc, [x, y, z + 0.006], [0.0035, 0.015, 0.006], X, Y, Z);
+  esc.mesh(parent, matFor('plate'));
+  for (const yy of [0.014, -0.014]) K.boxIn(marks, [x + 0.0145, y + yy, z - 0.0004], [0.0032, 0.0006, 0.0003], X, Y, Z);
+  marks.mesh(parent, matFor('needle'));
+  // the two lenses (a green DOWN, an amber UP), small domes beside the marks
+  K.revolve(lensG, [x - 0.0150, y - 0.014, z - 0.0002], [0, 0, -1], [[0.0026, 0], [0.0022, 0.0012], [0.0010, 0.0018], [0, 0.0019]], 14, true);
+  K.revolve(lensA, [x - 0.0150, y + 0.014, z - 0.0002], [0, 0, -1], [[0.0026, 0], [0.0022, 0.0012], [0.0010, 0.0018], [0, 0.0019]], 14, true);
+  lensG.mesh(parent, matFor('green')); lensA.mesh(parent, matFor('amber'));
+  const g = gaugeAt(parent, 'edGauge_ski', [x, y + 0.010, z + 0.012], [1, 0, 0], 'ski', 'ski', { k: 0.9, sgn: -1 });
+  const arm = K.Bag(), knob = K.Bag();
+  K.revolve(arm, [0, 0, 0.002], [0, 0, -1], [[0.0022, 0], [0.0022, 0.036]], 14, true);
+  // the knob: a small ski - a flat paddle 26 x 9 mm, its toe turned up, on the arm's end
+  const zk = -0.034;
+  K.boxIn(knob, [0, -0.002, zk], [0.0045, 0.012, 0.0022], X, Y, Z);
+  K.boxIn(knob, [0, 0.0115, zk - 0.0025], [0.0045, 0.0028, 0.0018], X, [0, 0.8, -0.6], [0, 0.6, 0.8]);
+  K.revolve(knob, [0, -0.002, zk + 0.0022], [0, 0, 1], [[0.0026, 0], [0.0026, 0.004]], 12, true);
+  arm.mesh(g, matFor('lever')); knob.mesh(g, matFor('needle'));
+  return g;
+}
 function keyAt(parent, x, y, z, pos) {
   const K = KIT();
   // THE KIT'S KEY when it is in, in the lock the user described: "a simple
@@ -1754,6 +1786,7 @@ function build(parent, A, P, pilotX) {
     extLights: lightsOn && +P.lightSw ? EXT_LIGHTS.filter(k => litFitted(P, k)) : [],
     intLights: lightsOn && +P.lightSw ? INT_LIGHTS.filter(k => litFitted(P, k)) : [],
     flapSwitch: P && Math.round(+P.flapCtl || 0) === 1,      // G335
+    skiSwitch: P && Math.round(+P.gearSki || 0) === 3 && !+P.gearRetract && !+P.gearFloats,   // SKIS: the wheel-skis' selector
     swStyle: (SY.look && SY.look.sw) || 'toggle',             // G371
     // G2802 / G2803: the breaker row and the GPS unit, placed in what the dials and switches left free
     breakers: (R.breakers || []).map(b => b.key),
@@ -2055,11 +2088,12 @@ function build(parent, A, P, pilotX) {
     sg.name = 'edSwitch_' + s.k;                       // the shed's click finds it (G305)
     {
       const sb = UVBag(aoMaterial());
-      aoDiscInto(sb, 0, 0, 0, { key: 0.020, rocker: 0.018, toggle: 0.011, pushpull: 0.011, knob: 0.015, flap: 0.019 }[s.kind] || 0.012);
+      aoDiscInto(sb, 0, 0, 0, { key: 0.020, rocker: 0.018, toggle: 0.011, pushpull: 0.011, knob: 0.015, flap: 0.019, ski: 0.019 }[s.kind] || 0.012);
       const m = sb.mesh(sg, 'edGauge_ao'); if (m) m.renderOrder = 2;
     }
     if (s.kind === 'key') keyAt(sg, 0, 0, 0, 'both');
     else if (s.kind === 'flap') flapAt(sg, 0, 0, 0);
+    else if (s.kind === 'ski') skiSelAt(sg, 0, 0, 0);
     else if (s.kind === 'rocker') rockerAt(sg, 0, 0, 0, s.k, +P[{ alt: 'swAlt', avionics: 'swAvionics' }[s.k] || 'swMaster'] > 0.5);
     else if (s.kind === 'toggle') toggleAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);
     else if (s.kind === 'pushpull') pushPullAt(sg, 0, 0, 0, s.k, +P['li_' + s.k] > 0.5);   // G371
