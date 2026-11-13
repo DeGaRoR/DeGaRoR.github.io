@@ -197,7 +197,8 @@
   "cw_apLift": 0.207,
   "carTail": 1,
   "cw_blinkOn": 1,
-  "cw_blinkY": 0.06
+  "cw_blinkY": 0.06,
+  "hdlDepth": 0.075
  },
  "fuel": {
   "litres": 80,

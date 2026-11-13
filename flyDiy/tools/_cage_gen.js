@@ -7748,7 +7748,7 @@ function cageInterior(m, S) {
     if (I.hdl && I.hdlD > 0) {
       const GLH = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows', 'joint', 'doorSeal']);
       const t0 = I.pillars ? (I.skinT > 0 ? I.skinT : (I.shellT || 0.035) * 0.35) : 0;
-      const sel = [];
+      const sel = [], hoop = [];
       F.forEach((f, i) => {
         if (f.v.length !== 4 || GLH.has(f.m) || f.paneEdge || f.capFace || f.doorKey) return;
         const p = f.v.map(k => V[k]);
@@ -7758,8 +7758,25 @@ function cageInterior(m, S) {
         // the skin's outward normal points UP on the roof: the cabin sees it from below
         if (cz < zA || cz >= zNose0 || cy < S.bandY) return;
         if (ny / (Math.hypot(nx, ny, nz) || 1) >= 0.8) sel.push(i);
+        else if (f.m === 'ceilingLoop' || PM.has(f.m)) hoop.push([i, cy]);
       });
-      if (sel.length) liner(sel, t0 + I.hdlD, () => 'headliner', t0);
+      // the roof hoops' own steps (their sides, near the crown) join the slab: it runs on over each hoop as a padded rib
+      // instead of breaking at it - the break left a black slit over every hoop. Below that, THE PILLARS (the user: "a
+      // real liner engulfs the pillar structure ... I want to stop seeing the bare metal pillars"): the hoops' descent
+      // and the pillar bands from the sill up, a moulded trim (the upper wall trim's material) min(hdlDepth, 5 cm) deep
+      let crown = -1e9; for (const i of sel) for (const k of F[i].v) crown = Math.max(crown, V[k][1]);
+      const pil = [];
+      for (const [i, cy] of hoop) (cy > crown - 0.12 ? sel : pil).push(i);
+      if (pil.length) { const n1 = add.length;
+        liner(pil, t0 + Math.min(I.hdlD, 0.05), () => 'cabWall', t0);
+        for (let k = n1; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'cabWall') { f.v = f.v.slice().reverse(); f.back = 1; } } }
+      if (sel.length) {
+        const n0 = add.length;
+        liner(sel, t0 + I.hdlD, () => 'headliner', t0);
+        // the slab's UNDERSIDE drawn as the skin liner's copies are (LINER-BACK): the skin's winding, flagged back - the
+        // headliner's lit path (a front-facing underside took the interior's shade unlit: a black ceiling)
+        for (let k = n0; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'headliner') { f.v = f.v.slice().reverse(); f.back = 1; } }
+      }
     }
     for (const f of add) {
       if (!f.lin || !LINM.has(f.m) || f.v.length !== 4) continue;

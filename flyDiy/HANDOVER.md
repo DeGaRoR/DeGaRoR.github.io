@@ -315641,3 +315641,15 @@ the next steps).
     Store, Cedar Harbour dock, Hilltop Coffee, Jolene Island Packing (all reached from HOME, ~12 km); the runway ends
     out of the To list unless a tow is on; the fields with no road (the strips the roads never reach) were already
     dropped, the unreachable greyed.
+- **CAR-3, A REAL HEADLINER AND PILLAR TRIMS (13 Nov; the user: "a real liner engulfs the pillar structure, and adds 5-10
+  cm of depth. I want to stop seeing the bare metal pillars ... model the roof liner, because this one does nothing")**:
+  NEW ROW hdlDepth (_cage_page5.js 'headliner' group, Fittings > Headliner & trim; absent = the recoloured skin as before):
+  _cage_gen.js cageInterior - the cabin's ceiling skin (inward normal at least 0.8 down, between zA and the windscreen)
+  and the roof hoops' faces within 12 cm of the crown, extruded INTO the cabin as one closed slab hdlDepth deep in the
+  headliner's material (the liner idiom, so it runs on over each hoop as a padded rib - its break left a black slit);
+  the hoops' descent and the pillar bands (PM) from the sill up, a moulded trim min(hdlDepth, 5 cm) deep in the upper
+  wall trim's. Their cabin faces take the skin liner's lit path (LINER-BACK: the skin's winding, flagged back) - a
+  front-facing underside was unlit, a black ceiling. _cage_light.js ceilAt: the lamp's band reaches a padded
+  headliner's underside (hdlDepth + skinT under the crown) - it hung on the skin inside the slab. (intPillars, the
+  composite pillar bands, builds nothing on the van - its zones are not 'carbon'.) The van: hdlDepth 0.075; its
+  builds/vehicles/ files rejoined, its sheet rewritten.
