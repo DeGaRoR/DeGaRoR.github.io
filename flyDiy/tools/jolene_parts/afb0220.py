@@ -207,6 +207,7 @@ OBJ += [prop('fuel_bin', 'bin_metal_rust', 575.5, 27.0, 0.7), prop('fuel_pallets
 # (d) THE OLD POWER LINE (u ~715): the field's dead line marching off the strip - the middle pole gone, two left standing
 #     (26 k triangles each at full detail: two, not three) - wingtips
 OBJ += [prop('line_pole1', 'pole_b', 703, 24, 0.55), prop('line_pole3', 'pole_b', 725, 50, 0.6)]
+for o in OBJ[-2:]: o['trunk'] = True   # a trunk too (29_obstacles TREE_HITS.pole): the beams meet it, as v1 found the nodes alone miss a pole
 # (e) THE TRAILER CAMP (u ~880): a box trailer someone lived in, across the old shoulder; the car that brought them; the
 #     fire ring and the barrel stove they kept
 OBJ += [prop('camp_trailer', 'auto_semi_box', 886, 35, 1.45), prop('camp_car', 'car_crashed', 864, 26, 2.4),

@@ -696,6 +696,14 @@ const TREE_HITS = (() => {
     }
     return out;
   }
-  return { make, trunkOf, lying, CELL, STRIDE };
+  // AFB-0220: A POLE THAT IS A TRUNK TOO. A placed prop is solid by its drawn mesh (render_premises hitAdd: the OBSTACLES column
+  // grid, met by the airframe's NODES) - a 0.3 m pole stands between a wing's nodes and the wing goes by it: measured, the
+  // stock build taxied at a pole_b head-on rolled on past it (6 node contacts), its wing 2.5-4.5 m out met nothing. A pole prop
+  // whose record says `trunk: true` is ALSO a trunk cylinder (met by the BEAMS, as a tree is: the wing bends or breaks on it).
+  // The section is the pole's own, not the crossarm's: r 0.16 m, 6.13 m tall (src/pier/pier_yard.js's pole rows). Opt-in by
+  // the record: every pole on the island (Metlakatla's 40) as a trunk is one line here, the town's call. -> [x, z, y0, r, y1]
+  const POLES = { pole_a: { r: 0.16, h: 6.13 }, pole_b: { r: 0.16, h: 6.13 }, pole_c: { r: 0.16, h: 6.13 } };
+  function pole(key, x, z, y0, s) { const P = POLES[key]; if (!P) return null; s = s > 0 ? s : 1; return [x, z, y0, P.r * s, y0 + P.h * s]; }
+  return { make, trunkOf, lying, pole, POLES, CELL, STRIDE };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { OBSTACLES, TREE_HITS };
