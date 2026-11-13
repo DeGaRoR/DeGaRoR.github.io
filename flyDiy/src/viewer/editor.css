@@ -37,8 +37,9 @@
    G3370 (TUTO-FLIGHT): and T1's "Skip the flight" (#stSkip, app.js, body-level).
    G3520 (GAME-MENUS): and the menu (#gmPanel, app.js, body-level: the pause menu in flight, the menu in the shed).
    G3722 (PHONE-GARAGE): and the garage top bar's card (#edPopCard, editor.js, body-level: the explode slider).
-   NEW-PLANE: and the full-screen new-aeroplane chooser (#npWrap, new_plane.js, body-level). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel, #edPopCard, #npWrap, #gEmptyCard) {
+   NEW-PLANE: and the full-screen new-aeroplane chooser (#npWrap, new_plane.js, body-level).
+   FLEET: and the full-screen fleet (#flWrap, fleet_screen.js, body-level). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel, #edPopCard, #npWrap, #flWrap, #gEmptyCard) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
