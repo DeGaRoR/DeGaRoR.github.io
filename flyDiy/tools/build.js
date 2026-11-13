@@ -1110,6 +1110,10 @@ function buildViewer(core) {
     if (!window.FLYDIY_CAREER_WANT()) return false;
     return fetch(SRC).then(function (r) { if (!r.ok) throw new Error(SRC + ' ' + r.status); return r.text(); }).then(function (t) {
       window.FLYDIY_CAREER_TEXT = t;
+      // MISSIONS-LIVE switch (dev): ?pack=<id> fetches src/missions/<id>.json beside the career core (app.js CAREER_PACK
+      // installs it before the first offers; ?pack=draft reads the mission editor's draft there instead)
+      var pk = (/[?&]pack=([A-Za-z0-9_.-]+)/.exec(location.search || '') || [])[1];
+      if (pk && pk !== 'draft') return fetch('src/missions/' + pk + '.json').then(function (r) { return r.ok ? r.text() : null; }).then(function (p) { window.FLYDIY_PACK_TEXT = p; return true; }, function () { return true; });
       // sw.js keeps it for the next (offline) career boot: the worker caches it on this word (and on its install)
       try { if (navigator.serviceWorker) navigator.serviceWorker.ready.then(function (r) { if (r.active) r.active.postMessage({ flydiy: 'career-core', src: SRC }); }); } catch (e) {}
       return true;

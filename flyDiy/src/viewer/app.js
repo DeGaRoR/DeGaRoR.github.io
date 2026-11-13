@@ -555,6 +555,25 @@
   // its start, Tim, the opening once); the dev career (?career=1) keeps none, so every gate's fixture career stays
   // rail-free; the sandbox: never (its page half below)
   const STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev' && typeof storyNewCareer === 'function';
+  // MISSIONS-LIVE switch (13 Nov, the switch to mission packs - the loader; dev until the switch-over): ?pack=<id> installs
+  // src/missions/<id>.json (fetched by index.html's career loader: window.FLYDIY_PACK_TEXT) over the contract tables,
+  // ?pack=draft the mission editor's draft (flydiy.missionEditor.draft, the same origin) - once, before the first offers
+  // (73b_missions.js missionPackUse: a pack that does not validate changes nothing, said in the console)
+  const CAREER_PACK = (() => {
+    if (!CAREER_DEV || typeof missionPackUse !== 'function') return null;
+    let id = null; try { id = (/[?&]pack=([\w.-]+)/.exec(window.location.search || '') || [])[1] || null; } catch (e) { id = null; }
+    if (!id) return null;
+    let txt = null;
+    try { txt = id === 'draft' ? window.localStorage.getItem('flydiy.missionEditor.draft') : (window.FLYDIY_PACK_TEXT || null); } catch (e) { txt = null; }
+    if (!txt) { console.warn('flyDiy (missions): ?pack=' + id + ' - no pack text (not fetched, or no editor draft)'); return { id, ok: false }; }
+    try {
+      const r = missionPackUse(JSON.parse(txt));
+      if (r.ok) console.info('flyDiy (missions): pack ' + id + ' in use - ' + r.n + ' missions' + (r.held.length ? ', ' + r.held.length + ' held (' + r.held.slice(0, 3).map(h => h.id + ': ' + h.why).join('; ') + ')' : ''));
+      else console.warn('flyDiy (missions): pack ' + id + ' refused - ' + r.why);
+      return Object.assign({ id }, r);
+    } catch (e) { console.warn('flyDiy (missions): pack ' + id + ' -', e && e.message); return { id, ok: false }; }
+  })();
+  window.FLYDIY_PACK = () => CAREER_PACK;
   // G3380 (STORY-INTRO): the opening's arm - set by a NEW career's story start (playerLoad), once; Continue never sets it
   let stIntroArm = false;
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)

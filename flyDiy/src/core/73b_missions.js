@@ -647,6 +647,25 @@ function missionPackInstall(pack, providers) {
   return { providers: out, held, text: Object.assign({}, MISSION_TEXT, msClone(P.text || {})) };
 }
 
+// ---- THE PACK IN USE (MISSIONS-LIVE switch, 13 Nov: "the switch to mission packs: the loader") ----------------------------
+// missionPackUse(pack, providers?, text?) -> { ok, n, held, why }: the pack installed (missionPackInstall) OVER the live
+// tables - every provider's arc / builds / night replaced by the pack's, the pack's words merged into the text - so the
+// career's offers, records and pay read the pack from then on (the generated jobs and the goods stay the providers').
+// A pack that does not validate changes nothing. The page calls it once, before the career's first offers (?pack=).
+function missionPackUse(pack, providers, text) {
+  const base = providers || CONTRACT_PROVIDERS, T = text || CONTRACT_TEXT;
+  const why = missionPackValidate(pack);
+  if (why && why.length) return { ok: false, n: 0, held: [], why: why.slice(0, 5).join('; ') };
+  const I = missionPackInstall(pack, base);
+  let n = 0;
+  for (const p of Object.keys(I.providers)) {
+    if (!base[p]) continue;
+    for (const k of ['arc', 'builds', 'night']) { base[p][k] = I.providers[p][k] || []; n += base[p][k].length; }
+  }
+  Object.assign(T, I.text || {});
+  return { ok: true, n, held: I.held, why: '' };
+}
+
 // ---- THE REWARD (the editor's live line) ----------------------------------------------------------------------------
 // -> { pay: contractPay's parts (what the map's card shows), paid: contractPayTotal with no bonus (what careerComplete
 //      pays), best: every bonus earned (the gold medal, each criterion beaten by its margin), prefs: the bonus

@@ -381,6 +381,19 @@ function run(mut) {
   const core = [...html.matchAll(/data-core="([^"]+)"/g)].map(m => m[1]);
   ok(J(core) === J(LEAN), 'the editor loads exactly the LEAN set, in order (' + core.join(' ') + ')');
   ok(!/<script[^>]+src="https?:/.test(html) && !/fetch\(\s*['"]https?:/.test(html), 'the editor fetches nothing off the repo');
+  // ==== THE PACK IN USE (MISSIONS-LIVE switch, 13 Nov): missionPackUse over the live tables ===========================
+  if (typeof M.missionPackUse === 'function') {
+    const B = JSON.parse(fs.readFileSync(path.join(PACK_DIR, 'builtin.json'), 'utf8'));
+    const prov = clone(M.CONTRACT_PROVIDERS), text = clone(M.CONTRACT_TEXT);
+    const ids = P => Object.keys(P).sort().map(p => p + ':' + ['arc', 'builds', 'night'].map(k => (P[p][k] || []).map(r => r.id).join(',')).join('|')).join(' ');
+    const u = M.missionPackUse(B, prov, text);
+    ok(u.ok && u.n === 35 && !u.held.length && ids(prov) === ids(M.CONTRACT_PROVIDERS), 'the pack in use: builtin.json over the live tables gives the same 35 missions in the same places (' + u.n + ', held ' + u.held.length + ')');
+    const prov2 = clone(M.CONTRACT_PROVIDERS), bad = M.missionPackUse({ what: 'nope' }, prov2, clone(M.CONTRACT_TEXT));
+    ok(!bad.ok && J(prov2) === J(M.CONTRACT_PROVIDERS), 'a pack that does not validate changes nothing (' + (bad.why || '').slice(0, 60) + ')');
+  } else ok(!!mut, 'missionPackUse is in 73b_missions.js');
+  { const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), BLD = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
+    ok(/const CAREER_PACK = \(\(\) => \{/.test(APP) && /missionPackUse\(JSON\.parse\(txt\)\)/.test(APP) && /'flydiy\.missionEditor\.draft'/.test(APP) && /fetch\('src\/missions\/' \+ pk \+ '\.json'\)/.test(BLD),
+       'the switch: ?pack=<id> fetched by the career loader, ?pack=draft the editor draft, installed once before the first offers'); }
   return { fails: fails.slice(), checks };
 }
 
