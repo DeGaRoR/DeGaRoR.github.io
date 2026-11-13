@@ -24560,6 +24560,24 @@
     "yaw": -0.6087,
     "dy": 0,
     "on": "ground"
+   },
+   {
+    "id": "xw_winch13",
+    "kind": "prop",
+    "key": "gen:winch",
+    "x": -359.51,
+    "z": 136.34,
+    "yaw": 0.8552,
+    "on": "flat"
+   },
+   {
+    "id": "xw_winch31",
+    "kind": "prop",
+    "key": "gen:winch",
+    "x": -209.03,
+    "z": 267.17,
+    "yaw": -2.2864,
+    "on": "flat"
    }
   ],
   "junctions": [

@@ -17,6 +17,10 @@
 //   PERF      the line's cost a frame
 //   MODULE    the page's half (winch_mode.js) run in node on a three scene: the winch drawn and weathered, a launch, the plate
 //   PAGE      the winch's wiring in the page (winch_mode.js, app.js, the start chooser), by its source
+//   PLACED    AFB-0220: Jolene's two PERMANENT winches in the record (xw_winch13 / xw_winch31, key 'gen:winch' -
+//             render_premises GEN_PROPS): off 13/31's paved edge, 1000 m of cable from each direction's start, facing it;
+//             winchStart picks the facing, nearest one from each end (none built); each collides (its own triangles, 0.5 m
+//             columns, OBSTACLES); every material PBR (MeshStandardMaterial) from MATLIB; the page's hooks by their source
 // node tools/_winch_check.js [--only=LAUNCH,...]
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -171,9 +175,86 @@ if (want('MODULE')) {
       res.perm && res.perm.reused && res.perm.built === 0 && res.perm.stays && Math.abs(res.perm.L - 900) < 5;
     row('MODULE', ok, res.err ? 'THREW: ' + res.err : 'winch_mode.js in node: ' + res.to + '; the winch in the scene (' + res.meshes + ' meshes, the club\'s weathering on ' + res.hooked + ' of them, the fairlead ' + f(res.far, 0) + ' m from the start), the cable drawn; ' +
       'the launch by the hands: ' + (res.rel ? res.rel + ' at ' + f(res.relH, 0) + ' m' : 'NEVER RELEASED') + '; the plate: "' + res.words.join('" / "') + '"; towStop ' + (res.stopped ? 'cleared it' : 'LEFT IT') + '; a PERMANENT winch 900 m ahead: ' + (res.perm ? (res.perm.reused ? 'the cable to it (' + f(res.perm.L, 0) + ' m, ' + res.perm.built + ' built)' : 'NOT USED') + ', ' + (res.perm.stays ? 'still standing after the launch' : 'REMOVED') : '-'));
-    finish();
+    placed().then(finish);
   })();
-} else setImmediate(() => finish());
+} else setImmediate(() => placed().then(finish));
+// ---- PLACED (AFB-0220): the AFB's permanent winches, as the record and the game stand them ------------------------------
+async function placed() {
+  if (!want('PLACED')) return;
+  const THREE = global.THREE = require(path.join(ROOT, 'vendor', 'three.min.js'));
+  global.window = global.window || globalThis; window.THREE = THREE;
+  Object.assign(globalThis, TW, WI); globalThis.machineSheet = C.machineSheet;
+  globalThis.AEROWX = globalThis.AEROWX || require(path.join(ROOT, 'src', 'viewer', 'aeroweather.js'));
+  globalThis.MATLIB = window.MATLIB = window.MATLIB || require(path.join(ROOT, 'src', 'viewer', 'matlib.js'));
+  for (const fl of ['_gear_kit.js', '_gear_gen.js', '_winch_gen.js', '_winch_weather.js']) require(path.join(__dirname, fl));
+  require(path.join(ROOT, 'src', 'viewer', 'winch_mode.js'));
+  const WG = window.WINCH_GEN, WMd = window.WINCH_MODE, MAT = window.MATLIB;
+  const REC = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
+  const obs = REC.layers.objects.filter(o => o.key === 'gen:winch');
+  const e0 = [aH.x - ux * aH.len / 2, aH.z - uz * aH.len / 2], nx = -uz, nz = ux;
+  const st = (x, z) => [(x - e0[0]) * ux + (z - e0[1]) * uz, (x - e0[0]) * nx + (z - e0[1]) * nz];
+  // each standing as render_premises buildGenProp stands it: a holder at the record's pose, the generator's group in it
+  const scene = new THREE.Scene(), stood = {};
+  for (const o of obs) { const g = new THREE.Group(); g.position.set(o.x, W.terrainH(o.x, o.z), o.z); g.rotation.y = o.yaw; const m = WG.build({ wx: 1, cableLen: 0, chute: 0 }); g.add(m); scene.add(g); g.updateMatrixWorld(true);
+    window.WINCH_WX.apply(m, { macro: window.WINCH_WX.PRESETS.club }); stood[o.id] = { o, g, m }; }
+  const P1 = { x: aH.x + ux * (aH.len / 2 - 60), z: aH.z + uz * (aH.len / 2 - 60) };   // runway 31's start, as P0 is 13's
+  // 1 the record
+  const w13 = stood.xw_winch13, w31 = stood.xw_winch31, lines = [];
+  let okRec = !!(w13 && w31);
+  for (const [w, S, dir] of [[w13, P0, 1], [w31, P1, -1]]) {
+    if (!w) continue;
+    const q = st(w.o.x, w.o.z), fw = WG.fairlead(w.m, 0), L = Math.hypot(fw.x - S.x, fw.z - S.z);
+    const e = w.m.matrixWorld.elements, face = (e[8] * ux + e[10] * uz) * dir;   // its +z away from the start (so its -z, the cable's side, toward it): 1
+    lines.push(w.o.id + ' at (' + f(w.o.x, 2) + ', ' + f(w.o.z, 2) + ') yaw ' + f(w.o.yaw, 4) + ': station ' + f(q[0], 0) + ' m of ' + aH.len + ', ' + f(Math.abs(q[1]), 1) + ' m off the centreline, the fairlead ' + f(L, 0) + ' m from ' + (dir > 0 ? '13' : '31') + '\'s start, facing it ' + f(face, 3));
+    okRec = okRec && Math.abs(q[1]) > 24 && Math.abs(q[1]) < 27 && L >= 900 && L <= 1010 && face > 0.99;
+  }
+  row('PLACED', okRec && obs.length === 2, 'the record\'s permanent winches (' + obs.length + '): ' + lines.join('; '));
+  // 2 the launch picks the facing, nearest one (none built), from each end
+  const pick = async (S, hdg) => {
+    const sim = C.makeSim(DEF0, W); sim.reset(0); C.placeAtLineup(sim, aH, { x: S.x, z: S.z, hdg }, W, DEF0.refs); for (let i = 0; i < 60; i++) sim.step(1 / 60);
+    const xA = sim.axes()[0], fwd = [-xA[0], -xA[2]];
+    sim.setEngine(0, { key: 'off' });
+    const n0 = scene.children.length, to = await WMd.winchStart({ THREE, scene, world: W, sim, def: DEF0, hands: true });
+    const r = { to, model: WMd.tow.model, own: WMd.tow.own, built: scene.children.length - n0 - 1, L: WMd.tow.L, fwd };
+    WMd.towStop(); return r;
+  };
+  let pk = null;
+  try {
+    let a = await pick(P0, Math.atan2(uz, ux)); if (a.fwd[0] * ux + a.fwd[1] * uz < 0) a = await pick(P0, Math.atan2(uz, ux) + Math.PI);
+    let b = await pick(P1, Math.atan2(uz, ux) + Math.PI); if (b.fwd[0] * ux + b.fwd[1] * uz > 0) b = await pick(P1, Math.atan2(uz, ux));
+    pk = { a, b };
+  } catch (e) { pk = { err: e.message }; }
+  row('PLACED', !pk.err && pk.a.model === w13.m && !pk.a.own && pk.a.built === 0 && pk.b.model === w31.m && !pk.b.own && pk.b.built === 0 && Math.abs(pk.a.L - 1000) < 15 && Math.abs(pk.b.L - 1000) < 15 && w13.g.parent === scene && w31.g.parent === scene,
+    pk.err ? 'THREW: ' + pk.err : 'winchStart from 13\'s start takes xw_winch13 (' + f(pk.a.L, 0) + ' m of cable, ' + pk.a.built + ' built), from 31\'s xw_winch31 (' + f(pk.b.L, 0) + ' m, ' + pk.b.built + ' built) - the other, turned away down the same runway, is passed over; both stay');
+  // 3 it collides: its own triangles in 0.5 m columns (render_premises shapeOf), an OBSTACLES registry
+  {
+    const g = w13.g, inv = new THREE.Matrix4().copy(g.matrixWorld).invert(), M = new THREE.Matrix4(), v = new THREE.Vector3(), pos = [], idx = [];
+    g.traverse(o => { if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || /^(hitbox:|smoke|aoskirt)/.test(o.name || '')) return;
+      M.multiplyMatrices(inv, o.matrixWorld); const P = o.geometry.attributes.position, base = pos.length / 3;
+      for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(M); pos.push(v.x, v.y, v.z); }
+      const I = o.geometry.index; if (I) for (let i = 0; i < I.count; i++) idx.push(base + I.getX(i)); else for (let i = 0; i < P.count; i++) idx.push(base + i); });
+    const S = C.OBSTACLES.rasterise(pos, idx, 0.5), R = C.OBSTACLES.make(), id = R.add({ x: g.position.x, z: g.position.z, yaw: g.rotation.y, y0: g.position.y, shape: S, tag: 'prop' }), rec = R.get(id);
+    let best = -1, bi = 0, bj = 0; for (let j = 0; j < S.nz; j++) for (let i = 0; i < S.nx; i++) { const k = j * S.nx + i; if (S.hi[k] - S.lo[k] > best) { best = S.hi[k] - S.lo[k]; bi = i; bj = j; } }
+    const k = bj * S.nx + bi, lx = S.ox + (bi + 0.5) * 0.5, lz = S.oz + (bj + 0.5) * 0.5, c = Math.cos(g.rotation.y), sn = Math.sin(g.rotation.y);
+    const inside = C.OBSTACLES.penetration(rec, g.position.x + lx * c + lz * sn, g.position.y + (S.lo[k] + S.hi[k]) / 2, g.position.z - lx * sn + lz * c, [0, 0, 0]);
+    const outside = C.OBSTACLES.penetration(rec, g.position.x + 5.5 * c, g.position.y + 1, g.position.z - 5.5 * sn, [0, 0, 0]);
+    // its nearest column to 13/31's centreline: off the paved edge (22.5 m)
+    let near = Infinity; for (let j = 0; j < S.nz; j++) for (let i = 0; i < S.nx; i++) { const kk = j * S.nx + i; if (S.hi[kk] < S.lo[kk]) continue;
+      for (const [a2, b2] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const qx = S.ox + (i + a2) * 0.5, qz = S.oz + (j + b2) * 0.5; near = Math.min(near, Math.abs(st(g.position.x + qx * c + qz * sn, g.position.z - qx * sn + qz * c)[1])); } }
+    row('PLACED', !!inside && !outside && near > 22.5 + 0.5, 'it collides: ' + idx.length / 3 + ' triangles in ' + S.nx + ' x ' + S.nz + ' columns of 0.5 m; a point inside it pushed out ' + (inside ? 'yes' : 'NO') + ', 2 m clear of its side ' + (outside ? 'HIT' : 'clear') + '; its nearest column ' + f(near, 2) + ' m off the centreline (the paved edge 22.5)');
+  }
+  // 4 every material PBR, MATLIB's
+  { const mats = new Set(); w13.m.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) mats.add(m); });
+    const bad = [...mats].filter(m => !m.isMeshStandardMaterial || MAT.rowOf(m) < 0);
+    const maps = [...mats].filter(m => m.map || m.normalMap || m.roughnessMap).length;
+    row('PLACED', mats.size > 0 && !bad.length, mats.size + ' materials on a winch, every one a MeshStandardMaterial made by MATLIB (' + maps + ' with maps in node - the house library\'s scans are the page\'s Images, HOUSE_TEX_SETS)' + (bad.length ? '; NOT: ' + bad.map(m => m.type + ':' + m.name).join(', ') : '')); }
+  // 5 the page's hooks (render_premises' generated prop, world_boot's lazy ask)
+  { const rd = q => { try { return fs.readFileSync(path.join(ROOT, q), 'utf8'); } catch (e) { return ''; } };
+    const RP = rd('src/viewer/render_premises.js'), WB = rd('src/viewer/world_boot.js');
+    const h = { genProps: /const GEN_PROPS = \{ 'gen:winch'/.test(RP), routed: /ob\.kind === 'prop' && GEN_PROPS\[ob\.key\]\) return buildGenProp/.test(RP), hit: /function buildGenProp[\s\S]{0,2200}hitAdd\(g, 'prop', 0\.5\)/.test(RP), weather: /function buildGenProp[\s\S]{0,2200}WINCH_WX\.apply/.test(RP), lazy: /"gen:winch"\/\.test\(premisesPlaced\)\) window\.FLYDIY_LAZY\(\['_winch_gen', '_winch_weather'\]\)/.test(WB) };
+    const miss = Object.keys(h).filter(k2 => !h[k2]);
+    row('PLACED', !miss.length, 'the page stands it: ' + (Object.keys(h).length - miss.length) + ' of ' + Object.keys(h).length + ' hooks (render_premises GEN_PROPS / buildGenProp: built, weathered, hitAdd \'prop\'; world_boot asks for its files)' + (miss.length ? ' MISSING: ' + miss.join(', ') : '')); }
+}
 function finish() {
 if (want('PAGE')) {
   const B = require('./build.js'), lazy = B.MANIFEST.lazy.map(([d, f2]) => d + '/' + f2);

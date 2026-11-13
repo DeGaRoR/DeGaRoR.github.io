@@ -41,14 +41,21 @@
     if (!R) throw new Error('not lined up on a runway');
     const hook = winchHookNodes(sim); let hx = 0, hz = 0; hook.nodes.forEach((i, k) => { hx += sim.p[i * 3] * hook.w[k]; hz += sim.p[i * 3 + 2] * hook.w[k]; });
     // THE WINCH: A PERMANENT ONE when the runway has it (the AFB's own, placed by the scenery - any group WINCH_GEN built
-    // (userData.winchProp) standing within 25 m of the centreline ahead, its fairlead 300 m or more away): the cable runs
+    // (userData.winchProp) standing within 30 m of the centreline ahead, its fairlead 300 m or more away): the cable runs
     // to it and it stays when the launch ends. Else one is built for this launch at the end of up to 1000 m of cable (the
     // fairlead on the centreline, the drawbar away from the glider), weathered, and taken away by towStop
-    let model = null, own = false, fl = null;
+    // AFB-0220 (the AFB's two permanent winches, one per direction, 25.5 m off 13/31's centreline - 3 m off the paved edge
+    // with the van's width): the search reaches 30 m off the centreline (was 25: the van stood on the pavement's edge),
+    // takes only a winch that FACES the glider (its -z toward it - the other direction's winch, further down the same
+    // runway, is turned away) and the NEAREST of those
+    let model = null, own = false, fl = null, best = Infinity;
     scene_.traverse(o => {
-      if (model || !o.userData || !o.userData.winchProp || !o.parent) return;
+      if (!o.userData || !o.userData.winchProp || !o.parent) return;
+      o.updateMatrixWorld(true);
+      const e = o.matrixWorld.elements, fzx = -e[8], fzz = -e[10], fn = Math.hypot(fzx, fzz) || 1;   // its -z in the world
+      if ((fzx * R.dx + fzz * R.dz) / fn > -0.7) return;                                        // not facing the glider
       const f = window.WINCH_GEN.fairlead(o, 0), rx = f.x - hx, rz = f.z - hz, along = rx * R.dx + rz * R.dz, side = Math.abs(-rx * R.dz + rz * R.dx);
-      if (along >= 300 && along <= R.ahead + 40 && side < 25) { model = o; fl = f; }
+      if (along >= 300 && along <= R.ahead + 40 && side < 30 && along < best) { best = along; model = o; fl = f; }
     });
     const L = model ? Math.hypot(fl.x - hx, fl.z - hz) : Math.min(ctx.L || 1000, R.ahead - 60);
     if (!model) {

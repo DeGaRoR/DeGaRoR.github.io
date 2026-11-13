@@ -4032,6 +4032,7 @@ function make(THREE, scene, world, rec0, opts) {
     // A number in `y` still wins (a thing on a roof, a raft); otherwise it is the composed ground plus
     // the entry's own `dy`.
     const obY = (typeof ob.y === 'number') ? ob.y : (O.terrainAt(w[0], w[1]) + (+ob.dy || 0));
+    if (ob.kind === 'prop' && GEN_PROPS[ob.key]) return buildGenProp(ob, w, yaw, obY);   // AFB-0220: a generated prop (the winch)
     if (ob.kind === 'prop') {
       if (!pp || !PR || !PR.props[ob.key]) return null;
       const g = pp(THREE, ob.key, w[0], w[1], yaw, obY, true);   // a repeated key is instanced (G934)
@@ -4082,6 +4083,35 @@ function make(THREE, scene, world, rec0, opts) {
       return { grp, tris: Math.round(tris), house: ob };
     }
     return null;
+  }
+  // AFB-0220 (the user 13 Nov: "THE GLIDER WINCH, installed PERMANENTLY at Jolene on the main runway 13/31"): A GENERATED
+  // PROP - an object { kind: 'prop', key: 'gen:winch' } is the glider winch built by its generator (tools/_winch_gen.js,
+  // WINCH 2's PBR club look: every material MATLIB.shared's, the 'winch' scope; tools/_winch_weather.js ages it in its own
+  // place once it stands), not a baked prop: the editor moves, turns and deletes it like one. Its two files are lazy
+  // (world_boot asks for them when the record names the key); until they are in, a holder stands, `propPending`, so the
+  // hitbox waits (hitReady), and it fills when they land. Collides as every prop does: hitAdd 'prop', 0.5 m columns of its
+  // own triangles. winch_mode.js finds it (userData.winchProp) and runs a winch launch's cable to it.
+  const GEN_PROPS = { 'gen:winch': { gen: 'WINCH_GEN', lazy: ['_winch_gen', '_winch_weather'], P: { wx: 1, cableLen: 0, chute: 0 } } };
+  function buildGenProp(ob, w, yaw, obY) {
+    const D = GEN_PROPS[ob.key];
+    if (!window[D.gen] && !window.FLYDIY_LAZY) return null;   // (a page with neither the generator nor the lazy loader: the cook's)
+    const g = new THREE.Group(); g.name = 'genprop:' + ob.key + ':' + ob.id;
+    g.position.set(w[0], obY, w[1]); g.rotation.y = yaw;
+    if (+ob.s > 0 && Math.abs(+ob.s - 1) > 1e-3) g.scale.setScalar(+ob.s);
+    let tris = 0;
+    const fill = () => {
+      const GEN = window[D.gen]; if (!GEN || g.userData.genFilled) return;
+      const m = GEN.build(Object.assign({}, D.P));
+      m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const q = o.geometry; if (q) tris += (q.index ? q.index.count : (q.attributes.position ? q.attributes.position.count : 0)) / 3; } });
+      g.add(m); g.userData.genFilled = true; delete g.userData.propPending;
+      g.updateMatrixWorld(true);
+      if (window.WINCH_WX && D.gen === 'WINCH_GEN') window.WINCH_WX.apply(m, { macro: window.WINCH_WX.PRESETS.club, base: (typeof FLYDIY_ASSET_BASE !== 'undefined' ? FLYDIY_ASSET_BASE : '') });
+    };
+    G.houses.add(g);
+    if (window[D.gen]) fill();
+    else { g.userData.propPending = true; window.FLYDIY_LAZY(D.lazy).then(() => { if (g.parent) fill(); }).catch(e => console.warn('premises: the generated prop ' + ob.key + ' could not load', e && e.message)); }
+    hitAdd(g, 'prop', 0.5);   // (queued while pending: hitPendingStep registers it once it is drawn)
+    return { grp: g, tris: Math.round(tris), house: ob };
   }
   const objectSeed = ob => PG.hash32(PG.fnv(String(ob.id)), PG.fnv(JSON.stringify([ob.kind, ob.key, ob.x, ob.z, ob.yaw, ob.y, ob.w, ob.on].concat(ob.s ? [ob.s] : [], ob.with ? [ob.with] : []))));   // (G3001: a scale is the object's too)
   // a site's item (G830: its generation - the build and the synthetic plot's dressing plan - is premises_build.js

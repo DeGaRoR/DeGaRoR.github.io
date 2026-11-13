@@ -79,3 +79,25 @@ as `(dx, dz)`, set `group.rotation.y = Math.atan2(dx, dz)`.
   - 1000 m of cable: lift-off 3.9 s, the climb at 22-24 m/s, released at **275 m**.
   - 600 m of cable: released at 135 m.
   - after the release, the glider circuit and a landing on the runway.
+
+## Placed (AFB-0220, 13 Nov 2026)
+
+Two permanent winches stand at Jolene AFB, one per direction of 13/31, as editor data in
+`tools/fixtures/island_jolene.json` (objects `{ kind: 'prop', key: 'gen:winch' }`; the world editor moves, turns and deletes
+them like any prop):
+
+| id | serves | world x, z | yaw | station from 13's end | off the centreline | the fairlead from that direction's start (60 m in from its end) |
+|---|---|---|---|---|---|---|
+| `xw_winch13` | launches on 13 | -359.51, 136.34 | 0.8552 | 1063 m | 25.5 m NE (the side away from the club and the taxiways) | 1000 m |
+| `xw_winch31` | launches on 31 | -209.03, 267.17 | -2.2864 | 1262 m | 25.5 m NE | 1000 m |
+
+- The van's nearest point is 24.0 m off the centreline: 1.5 m off the paved edge (22.5 m), off every normal landing and
+  taxi; a DC-3's wingtip on the centreline passes 9.5 m inside it.
+- `render_premises.js` `GEN_PROPS` / `buildGenProp` builds it (`WINCH_GEN.build({ wx: 1, cableLen: 0, chute: 0 })`, then
+  `WINCH_WX.apply` once placed) and registers it with `hitAdd(g, 'prop', 0.5)`: it collides like every prop. `world_boot.js`
+  asks for the two lazy files when the record names `gen:winch`.
+- `winch_mode.js` now searches 30 m off the centreline (was 25 m: the van would have stood on the pavement's edge), takes
+  only a winch that faces the glider, and takes the nearest of those. From 13's start it finds `xw_winch13`; the 31 winch,
+  further down the same runway, is turned away and passed over. The reverse holds from 31's start.
+- GATE WINCH `PLACED` holds the record, the pick from both ends, the collision, every material PBR from MATLIB, and the
+  page's hooks.
