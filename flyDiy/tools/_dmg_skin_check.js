@@ -107,7 +107,7 @@ function go(k, c, damage, hook) {
 function piecesOf(sim) {
   const n = sim.n, P = new Int32Array(n); for (let i = 0; i < n; i++) P[i] = i;
   const f = i => { while (P[i] !== i) { P[i] = P[P[i]]; i = P[i]; } return i; };
-  for (const b of sim.beams) if (!b.broken) { const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }
+  for (const b of sim.beams) if (!b.broken || b.tt === 1) { const x = f(b.a), y = f(b.b); if (x !== y) P[x] = y; }
   for (const C of sim.clusterCuts().clusters) if (!C.off) for (const i of C.nodes) { const x = f(i), y = f(C.nodes[0]); if (x !== y) P[x] = y; }
   const out = new Int32Array(n); for (let i = 0; i < n; i++) out[i] = f(i);
   return out;
