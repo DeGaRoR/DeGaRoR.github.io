@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: bf001aad53d943a6
+// body-sha256: b134ad6ff7d4ec65
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -12567,7 +12567,7 @@ function compose(rec0, world, opts) {
     // THE LATTICE EARNS ITS CELL: from a quarter of the finest feather (1 m at most), halved (to 0.25 m) while any
     // cell's midpoint reads more than GR_TOL (1 cm) off the analytic ground there - a deep cut's feather (twenty metres
     // of target over the DEM) needs a finer lattice than a road's half metre
-    let n = Math.min(64, Math.max(16, Math.ceil(GR_TS / Math.max(0.25, Math.min(1, fe / 4))))), N, r, A, B, hc;
+    let n = Math.min(64, Math.max(16, Math.ceil(GR_TS / Math.max(0.25, Math.min(1, fe / 4))))), N, r, A, B, hc, relief;
     for (;;) {
       N = n + 1; r = GR_TS / n; A = new Float64Array(N * N); B = new Float64Array(N * N);
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -12577,15 +12577,20 @@ function compose(rec0, world, opts) {
         B[j * N + i] = b0; A[j * N + i] = b1 - b0;
       }
       if (n >= 64) break;
-      // (the error at a midpoint is dA h + dB: h is the tile centre's ground, give or take GR_RELIEF of the DEM)
-      if (hc === undefined) { const w = F.toWorld(x0 + GR_TS / 2, z0 + GR_TS / 2); hc = world.terrainH(w[0], w[1]); }
+      // (the error at a midpoint is dA h + dB: h is the tile centre's ground, give or take the tile's RELIEF of the DEM)
+      // (OBSERVATORY-SITE 13 Nov: the relief MEASURED - the DEM at the tile's corners and edge midpoints about its centre, at
+      //  least GR_RELIEF. A fixed 2 m held on the lowland; a 16 m tile on Mount Ardent's 20-40 % spans 4-6 m, and the lattice
+      //  stopped refining with the midpoint error |dA| x (h - hc) over the 1 cm it promises - GATE PREMRASTER's p99 went
+      //  2.07 mm with the summit's altiport, 92 of 93 bad probes in such tiles; measured: 1.94 mm, master's own probes better too)
+      if (hc === undefined) { const w = F.toWorld(x0 + GR_TS / 2, z0 + GR_TS / 2); hc = world.terrainH(w[0], w[1]); relief = GR_RELIEF;
+        for (const q of [[0, 0], [GR_TS, 0], [0, GR_TS], [GR_TS, GR_TS], [GR_TS / 2, 0], [0, GR_TS / 2], [GR_TS, GR_TS / 2], [GR_TS / 2, GR_TS]]) { const v = F.toWorld(x0 + q[0], z0 + q[1]); relief = Math.max(relief, Math.abs(world.terrainH(v[0], v[1]) - hc)); } }
       let bad = false;
       for (let j = 0; j < n && !bad; j++) for (let i = 0; i < n && !bad; i++) {
         const x = x0 + (i + 0.5) * r, z = z0 + (j + 0.5) * r;
         let b0 = 0, b1 = 1;
         for (let q = 0; q < hit.length; q++) { b0 = hit[q].apply(x, z, b0); b1 = hit[q].apply(x, z, b1); }
         const k = j * N + i, da = (A[k] + A[k + 1] + A[k + N] + A[k + N + 1]) / 4 - (b1 - b0), db = (B[k] + B[k + 1] + B[k + N] + B[k + N + 1]) / 4 - b0;
-        if (Math.abs(da * hc + db) + Math.abs(da) * GR_RELIEF > GR_TOL) bad = true;
+        if (Math.abs(da * hc + db) + Math.abs(da) * relief > GR_TOL) bad = true;
       }
       if (!bad) break;
       n *= 2;
