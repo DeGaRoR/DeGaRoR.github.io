@@ -193,6 +193,7 @@ const WHEEL_ROWS = [
   ['carFender', 'mud guards', 0, 2, 1, ['none', 'rounded (1940s)', 'square (military)'], { when: P => +P.isCar || +P.carFender, absent: 0 }],
   ['carFenderGap', 'mud guard clearance over the tyre (m)', 0.02, 0.25, 0.005, { when: P => +P.carFender > 0, absent: 0.07 }],
   ['carStep', 'running board (step) between the guards', 0, 1, 1, { when: P => +P.carFender > 0, absent: 0 }],
+  ['carStepY', 'step height (up, m)', -0.10, 0.25, 0.005, { when: P => +P.carFender > 0, absent: 0 }],   // CAR-3 (13 Nov: "the step goes up 10 cm")
   // CAR-3: a pressed licence plate on the rear (its text spec.meta.plate; absent = none)
   ['carPlate', 'licence plate (rear)', 0, 1, 1, { when: P => +P.isCar || +P.carPlate, absent: 0 }],
   // CAR-3 TOW KIT (13 Nov): a sign on the windscreen's header, roof beacons, wipers on the windscreen and rear windows

@@ -2930,8 +2930,8 @@ function fenderBuild(group, P, AF, units) {
     const zcF = uF.axle[2], ycF = uF.axle[1], RF = uF.R || 0.4, zcR = uR.axle[2], ycR = uR.axle[1], RR = uR.R || 0.4;
     const xoF = fHi + 0.055, xiF = Math.max(0.2, fLo - 0.06), xoR = rHi + 0.055;
     const xiR = Math.min(rHi - 0.02, Math.max(rLo, halfAt(zcR) - 0.03));
-    const yB = Math.min(botAt((zcF + zcR) / 2), botAt(zcF - RF), botAt(zcR + RR)) - 0.05;   // the step's height
-    const xBi = Math.max(0.2, Math.min(halfAt((zcF + zcR) / 2) - 0.12, xoR - 0.25)), xBo = Math.max(xoF, xoR) + 0.005;
+    const yB = Math.min(botAt((zcF + zcR) / 2), botAt(zcF - RF), botAt(zcR + RR)) - 0.05 + (+P.carStepY || 0);   // the step's height (carStepY up, absent 0)
+    let xBi = Math.max(0.2, Math.min(halfAt((zcF + zcR) / 2) - 0.12, xoR - 0.25)), xBo = Math.max(xoF, xoR) + 0.005;
     // (CAR-3, the user 13 Nov: "make sure that the wheel arches hug the fuselage at the back, there is a big gap, real
     // ones are cut to silhouette ... match the wheel well dimension and have it come inside the wheel well"): with the
     // rear axle's well cut (archOn & 1) the rear guard runs just INSIDE the well's opening (8 mm under its arc) and its
@@ -2946,6 +2946,9 @@ function fenderBuild(group, P, AF, units) {
         pv = c; }
       return best > 0 ? best : halfAt(z); };
     const xWell = Math.max(0.2, rLo - aGap + 0.003), xBody = halfAt(zcR), Ra = RR + aGap;
+    // (a raised step, above the body's bottom edge: its inner edge hugs the side, 3 mm off, no brackets under it)
+    const STEP_UP = yB > botAt((zcF + zcR) / 2) + 0.005;
+    if (STEP_UP) xBi = Math.max(0.2, Math.min(halfAtY((zcF + zcR) / 2, yB + 0.01) + 0.003, xBo - 0.15));
     const xInR = q => { if (WELL && Math.hypot(q.z - zcR, q.y - ycR) < Ra - 0.002) return xWell;
       return Math.min(xoR - 0.08, halfAtY(q.z, Math.max(q.y, botAt(q.z) + 0.005)) + 0.003); };
     const hugR = (xo, c, skirt, sq) => q => { const xi = xInR(q), xb = Math.max(xi, Math.min(xBody, xo - 0.08)), o = [[xi, sq ? -0.03 : -0.035], [xi, 0]];
@@ -2998,7 +3001,7 @@ function fenderBuild(group, P, AF, units) {
         m.position.set(sg * xm, yB + 0.009, (zBF + zBR) / 2); m.name = 'edFender'; root.add(m); }
       // the brackets: an angle from the plate's underside up to the floor
       for (const f of [0.2, 0.5, 0.8]) { const z = zBR + (zBF - zBR) * f, yb = botAt(z), xb = Math.max(0.2, Math.min(xBi + 0.05, halfAt(z) - 0.05));
-        if (yb - yB > 0.01) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.006, yb - yB, 0.05), dark); m.position.set(sg * xb, (yb + yB) / 2, z); m.name = 'edFender'; root.add(m);
+        if (!STEP_UP && yb - yB > 0.01) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.006, yb - yB, 0.05), dark); m.position.set(sg * xb, (yb + yB) / 2, z); m.name = 'edFender'; root.add(m);
           const m2 = new THREE.Mesh(new THREE.BoxGeometry(xBo - xb - 0.02, 0.006, 0.05), dark); m2.position.set(sg * (xb + xBo - 0.02) / 2, yB - 0.006, z); m2.name = 'edFender'; root.add(m2); } }
     }
   }

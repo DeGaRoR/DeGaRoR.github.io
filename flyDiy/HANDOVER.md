@@ -315828,3 +315828,13 @@ CAR-3 TOW KIT + REAR GUARDS (13 Nov, the user: "a flat face on top of the windsc
   per-point inner edge: inside the well 3 mm short of its wall, elsewhere 3 mm short of the body's silhouette at that
   height (the section's crossing); flat inside the body's line, crowned outboard. NOTE: in the game the textured
   pieces (carPlate, carTowSign) fall back to their bucket colour - propBuild knows neither; a follow-up.
+
+CAR-3 VAN STANCE (13 Nov, the user: "Tyres 70% their current width, + 7 cm outward. Slightly squarer body at the
+  bottom, the step goes up 10 cm ... is the firewall width matched to the bonnet? ... Shot from the top"). whWide 1.4 ->
+  0.98; s1X 0.90 -> 0.97, s2X 0.96 -> 1.03; botRound 0.05 -> 0 (the keel's half-width 0.44 -> 0.48 m, 0.78 -> 0.84 at
+  5 cm up; the frames' BotW rows were tried and NARROW the bottom - the seats came through the flanks; not used). NEW
+  ROW carStepY (step height up, m; absent 0; the vans 0.10; when carFender, not carStep - GATE PARTS' one-step rescue);
+  a step above the body's bottom hugs the side (3 mm off its silhouette) and drops its brackets. THE FIREWALL: the nose
+  ring (noseW 0.8 from task #23) was 0.75 m half-width against the bonnet's rear 0.865 m and the cabin's 0.92 m - a
+  pinch; noseW 0.914 puts the ring on the bonnet's rear edge (measured on the dumped triangles); the plan view now runs
+  bonnet -> scuttle -> windscreen without a step. The three vans rejoined.
