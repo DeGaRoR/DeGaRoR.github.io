@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a7e7bf517f251793
+// body-sha256: 285aae7bfc8d8234
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36818,7 +36818,9 @@ const GEN_RULES = {
   // is BUILT FOR A WEIGHT as the D-tube and the soft shell: certified as if its aeroplane weighed buildKg (66_gen_cert),
   // so on anything heavier it folds where it lands. Its NOSE SKID (the third unit as a skid ahead, twMode 'skid') is its
   // own too: a rubber-sprung shoe on a short leaf, skidKg (a glider's nose skid ~0.3-0.5 kg, INFERRED) - not the
-  // tailwheel assembly's law the tricycle branch bills a skid by (2.0 kg at R 0.10)
+  // tailwheel assembly's law the tricycle branch bills a skid by (2.0 kg at R 0.10). A FAIRED one (twFairing) is its
+  // fairing: the moulded nose shell with a rubber shoe bonded under it - the shell's mass (the fairing row) and no more
+  // (the user, 13 Nov: "for real this is almost just the fairing")
   ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4 },
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
@@ -44554,7 +44556,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else { B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire'); }
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
-    pt(TW, (GUL && SKID && GUL.skidKg > 0 ? GUL.skidKg : CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);   // (L6: the ultralight monowheel's nose skid, its own)        // the nosewheel with its fork, by size (a bicycle wheel's own)
+    pt(TW, (GUL && SKID && GUL.skidKg > 0 ? (mFairTw > 0 ? 0 : GUL.skidKg) : CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);   // (L6: the ultralight monowheel's nose skid, its own)        // the nosewheel with its fork, by size (a bicycle wheel's own)
     // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
     // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
     if (S.gear.retract) {
