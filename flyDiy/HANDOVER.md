@@ -315313,3 +315313,65 @@ The drafting table's PC-6 (DRAFTING_TABLE.md rounds 12-15) and what it found in 
   by A0: it moves every canon plane's short-strip landings and owes old-vs-new numbers on the canon first.
 - NOT in this branch: the colour decode (aeroLinear and the four r128-era sites) and the world's colours ride their own
   ref, claude/fit-procedure-colour, with the PC-6's livery retuned to them - held for the user's look at LOOK-1's stills.
+## REAL-FIGURES PERENNIAL - STAMPS, GATE REALBAND, GATE REALREFS, THE HOW-TO (2026-11-12, REAL-FIGURES, cloud; branch claude/real-perennial, tools only, onto L39b 23ce68c1f)
+
+The REAL-CHECK report can no longer quietly show a number flown on another aeroplane, core or reference, and a new
+reference cannot go in without its conditions and its sources. No core change. The how-to: tools/FIT_AND_VALIDATE.md
+section 12 (the method brief, new on master; section 13 is the hand-over to the FIT-PROCEDURE session's Drafting Table).
+
+**THE RULE FOR EVERY PHYSICS CHANGE FROM NOW ON (A0, 12 Nov).** GATE REALBAND holds the core's numbers. A change that
+moves them goes red on REALBAND by design. Its owner:
+1. reads the red lines (which plane, which number, build or core);
+2. accepts them with `node tools/_realband_check.js --write --reason="<the change, e.g. AERO-BODY: PHYSICS_V 8, the body's drag>"`.
+   The reason is required; every write is kept in tools/realband_baseline.json `history`;
+3. commits the baseline with the change. The report's flown results of the moved planes are now stale (it says so);
+   REAL-FIGURES re-flies them.
+
+Known to come: AERO-BODY (PHYSICS_V 8), the Archaeopteryx rod row, TOW-LAUNCH's slope fix.
+
+- STAMPS (tools/_real_stamp.js). Every real_check result carries `stamp`:
+  - the build file's git blob;
+  - the core's body-sha256;
+  - real_check.js's blob;
+  - a hash of the PLANES row, without its labels;
+  - a hash of the REFS row, without its trail (src, sources, notes, a row's flaps; a range read in order).
+
+  `check()` gives one of four states:
+  - fresh;
+  - stale: the build, core or PLANES row moved, so re-fly;
+  - rescored: only the reference moved;
+  - unstamped.
+
+  real_report prints a freshness block at the top and a chip on each plane. `node tools/_real_stamp.js` lists every
+  result's state. `--backfill=<dir> --at=<commit>` stamps an older folder from the files at the commit it was flown on.
+  Master's evidence (REAL-CHECK-2026-11-07 to -09) is unstamped: the core has moved since, so re-fly before quoting it.
+- THE LIVE SET (_real_stamp.liveKeys): the PLANES rows that are not dropped, supersededBy, next or `branch:`.
+  `real_check --all` flies only those (`--every` / `--branch` for the rest). On master today: cub160 jodel pa18f160
+  chinook dc3 stearman tigermoth camel c172rf carboncubss c172v2.
+- GATE REALBAND (tools/_realband_check.js, core, weight 2, ~2-4 min): `real_check --quick` of the live set against
+  tools/realband_baseline.json (written on this tree). It compares, per load MIN / TYP / MTOW:
+  - mass, Vs, V75, Vmax, climb, L/D;
+  - grass take-off;
+  - CG and margin;
+  - plus the shape and the empty mass.
+
+  A move past its tolerance (1 % on a speed, 0.5 point on a CG) is red, naming whether the build file or the core
+  moved. A new live plane, or one leaving the set, is red until `--write --reason`. The note line says how fresh the
+  report's evidence is (not red).
+- GATE REALREFS (tools/_realrefs_lint.js, core, 0.1 s). Every reference row must give:
+  - its indicator, v, tol and src;
+  - its conditions, stated even when unknown: kg on every performance row, flaps on the stall and the distances,
+    surface on the distances (a water row: water).
+
+  A reference made from now on must also carry `variant`, `sources` ({what, quality, read, url | noUrl}) and each row's
+  `from`. The 13 references on master are LEGACY: listed in the lint, and printed as a note until each is sourced.
+  Every PLANES row must resolve. Fixed in real_refs.js (conditions only, no figure changed):
+  - 8 distance rows that did not state their flaps: 7 now 'unknown', the Petrel's water take-off 0 (no flaps on the type);
+  - the Carbon Cub's V75 range and the Petrel's land take-off range, written high-to-low, now in order (the scores read
+    them min / max: unchanged).
+- real_report grades a sourced row's confidence by its sources' quality (poh 1, maker / typeSheet 0.9, review 0.6,
+  encyclopedia / ruling 0.5, thin 0.3), else by its src text as before.
+- TOOLS:
+  - tools/lattice_overlay.js (+ .py, needs python3 + Pillow): the flown nodes, beams and strips over quickshot's
+    pictures, on the game's load path, with the join's datum. ~15 s;
+  - tools/fleet_scan.js: every build's mass, margin, CG / NP and tail taper per tree, then `--diff=base,new`.

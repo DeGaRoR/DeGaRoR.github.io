@@ -26,7 +26,8 @@
 //      game - best = the PILOT'S SHARE; best - reference (at the reference's weight) = the AIRFRAME'S.
 //
 //   node tools/real_check.js cub                    one plane (keys: tools/real_refs.js PLANES)
-//   node tools/real_check.js --all [--jobs=4]       the whole set, one child process per plane
+//   node tools/real_check.js --all [--jobs=4]       the live set (not dropped / supersededBy / next / branch rows; --every,
+//                                                   --branch for those), one child process per plane
 //   node tools/real_check.js cub --quick            the analytic band only (no flights, ~20 s a plane)
 //   node tools/real_check.js --build=f.json --ref=c172r [--water]   any build against any reference row
 //   options: --json=<file> (the results), --md=<file> (the report section), --svg=<file> (the band chart),
@@ -434,7 +435,7 @@ function runPlane(key, P) {
   const def0 = C.buildGen(spec);
   const F = loadFacts(def0);
   const CS = cases(def0, F, R, P, P.cgSweep || has('cg'));
-  const out = { key, label: P.label, file: P.file, ref: P.ref, refName: R.name, official: !!P.official, engineNote: P.engineNote || null,
+  const out = { key, stamp: require(path.join(T, '_real_stamp.js')).stampOf(key, P, R, { core: CORE_PATH }), label: P.label, file: P.file, ref: P.ref, refName: R.name, official: !!P.official, engineNote: P.engineNote || null,
                 provisional: !!P.provisional, note: P.note || null, group: P.group || null, card: P.card || null,
                 shape: measureShape(spec, def0, P.file ? JSON.parse(fs.readFileSync(path.join(ROOT, P.file), 'utf8')).spec || JSON.parse(fs.readFileSync(path.join(ROOT, P.file), 'utf8')) : null),
                 joinErrors: errors, facts: { empty: F.empty, baked: F.mass, fuelKg: F.fuelKg, seats: F.nSeats, occupied: F.occB, baggage: F.baggage,
@@ -696,7 +697,8 @@ function main() {
   const keys = args.filter(a => !a.startsWith('--'));
   const t0 = Date.now();
   if (has('all') || keys.length > 1) {
-    const list = has('all') ? Object.keys(PLANES).filter(k => !PLANES[k].branch || has('branch')) : keys;
+    // --all: the live set - not the rows taken out (dropped), replaced (supersededBy) or waiting (next); --every flies them too
+    const list = has('all') ? require(path.join(T, '_real_stamp.js')).liveKeys(PLANES, { every: has('every'), branch: has('branch') }) : keys;
     const jobs = +opt('jobs', 4), { spawn } = require('child_process');
     const dir = opt('dir', path.join(T, 'perf', 'real_check'));
     fs.mkdirSync(dir, { recursive: true });
