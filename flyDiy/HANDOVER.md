@@ -315264,3 +315264,125 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+## OBSERVATORY-SITE - MOUNT ARDENT: THE STATION IN FOUR PIECES, BUILT ONE A STEP (THE OBSERVATORY TRACK), AND ITS ALTIPORT - 210 x 12 m UP THE NORTH-EAST SPUR, 15 % AT THE BOTTOM EASING TO A FLAT TOP THAT IS THE HELIPAD AND THE STAND (2026-11-13, OBSERVATORY-SITE for A0, cloud - node only, no GPU; branch claude/observatory-site-a off origin/master 23ce68c1)
+
+The user (13 Nov, via A0): the observatory on Mount Ardent (mt_s_meteo, G3660-G3664) "has not really been well done" - a FIRST
+PASS that the user then edits by hand in the world editor. No road leads there; everything is flown in, by an aeroplane that
+climbs in poor weather and lands on snow (the snow ground and the skis are SNOW-MUD's and SKIS': hooks only, below).
+
+1. THE STATION IN PARTS (tools/_meteo_gen.js). A `part` dial: 0 the whole station as before - BUILT IDENTICAL TO MASTER at LOD
+   0/1/2 in both eras (every bag's vertices hashed, old file against new); 1 the drum (the two-tier disc, its stack, mast and
+   lantern), 2 the hall (the flat disc), 3 the tower (the core and the top saucer with its instruments), 4 the triangulation
+   pillar. Each is a preset - 'meteo drum', 'meteo hall', 'meteo tower', 'meteo pillar' - so each is its own catalogue entry
+   (meteo/<preset>, landmark), its own foot, outline and pad (ground need 'ramp', the outline of its own discs). A part keeps
+   THE STATION'S FRAME: its origin the drum's centre, its datum the drum's floor - the four items stand on one site at one
+   origin and meet exactly as the whole one does. A part alone is CLOSED: a wall or a window band the whole station leaves out
+   where another part buries it (the drum's ground storey in the hall and the core; the hall's glazing in the drum and the
+   core) is drawn when that part is not in the build; the small things (seams, patches, hatches, vents, the core's lower
+   windows) still keep off a neighbour's place, which it covers once it stands. LOD 0 triangles: drum 13 720, hall 10 236,
+   tower 13 184, pillar 192 (the whole station 36 698; the parts' sum is 634 more - the closed walls and bands).
+   TRAP (cost a run): `membrane` (the tarred roof's flag) was declared inside the drum's code and read by the hall's - hoisted.
+   THE PILLAR'S TOP PLATE 0.5 -> 0.66 m half (in the whole station too - the one change to its geometry): GATE LODS' roof row on
+   the pillar ALONE read 0.68 - its battered shaft (0.62 m half at the foot) showed round the 1 m plate from above, and the row
+   counts a near-vertical face as no roof (even an identical far mesh scores ~0.7). A survey pillar's plate overhangs; now
+   the gate's 842 rows pass, no ledger touched.
+2. THE PAD IS AUTHORED (island_jolene.json terrain mt_t_pad): today's computed pad (siteShelves' ramp for the whole station:
+   its hull, the least-squares plane capped at 6 %, falloff 8) written as a `ramp` entry in the editor's own form (level
+   1093.631 at the polygon's centroid, slope 0.06, hdg 1.222 deg, abs) - reconstructed to 0.2 mm. WHY: a part's pad fitted
+   on its own outline would put each stage's floors on another plane (the hall alone, then the drum: the floor moves). Over
+   the authored pad every part's own pad refits the same plane (the composer reads authored terrain first: siteShelves' T1s),
+   so the ground and every floor are the same at every stage (measured: the four parts' pads all read the plane; the ground
+   at their centres within 1.7 cm of the authored one - the shelf's own 5-decimal rounding).
+3. THE PROJECT, ONE BUILDING A STEP: a sixth track `observatory` (72_contract_data CONTRACT_TRACKS, max 3; captions
+   trk.observatory.1-3 - labels only, no story), mt_s_meteo's items `tower` [1, null], `drum` [2, null], `hall` [3, null] and
+   `pillar` (no stage: it stands from the start, the summit's survey mark); a construction kit ('build': the fence, the
+   materials, the frame going up) on each one's place the step before it stands - sg_k_obs_tower [0, 0] (12 x 10 on the
+   core), sg_k_obs_drum [1, 1] (18 x 18, kept off the standing core), sg_k_obs_hall [2, 2] (19.5 x 20, west of the core and
+   the drum). THE ORDER IS THE GEOMETRY'S: the core stands at the junction inside the hall's ring, so its site comes first,
+   on open ground; the hall wraps its foot last. STAGE_REVEALS observatory:1-3 at mt_strip. The sandbox (every track at its
+   max) is the whole station as before, on the same ground.
+   A PROJECT'S TRACK, NO PROVIDER'S: nothing in play advances it yet (ECON_BOOK.landmarks 'observatory' is data only) - so a
+   CAREER (track 0) shows the summit with the pillar and the tower's building site, not the station, until the Game
+   coordinator wires the project (and its contract or landmark payment) to `unlock: { stage: 'observatory:<n>' }`. That is
+   the point of a project, and it is a change a player will see: flagged to the Game coordinator.
+4. THE ALTIPORT (runways mt_strip "Ardent Altiport", GAME_NAMES.fields.mt_strip, CONTRACT_FIELDS row). Searched on the DEM
+   (reports/evidence/OBSERVATORY-SITE: search.js, fit.js, design.js), not guessed: the spur that runs east-north-east off the
+   summit, 70-90 m north of it, already rises the way the user asked - ~15 % on its lower part, ~5 % above, flat at the top.
+     length 210 m, width 12 m, gravel (surface 6, look 'gravel', no marks, no PAPI), altiport, approach 0 (landed WEST,
+     uphill, over the east end), hdg 3.1416, centre (9317.2, -5961.9), falloff 30, band 6.
+     ground (the composed centreline): end 0 1020.0 m -> end 1 1038.9 m, 18.9 m of rise; profile [[0, -13.62], [0.3, -4.33],
+     [0.8, 4.89], [1, 5.29]] over the centre's 1033.65 m; the slope 14.8-15.7 % over the first 60 m, 11-12 % to 100 m, 7 %
+     at 140 m, 1.3 % at 180 m, flat (0.3 %) over the last 40 m; worst 15.7 %, crest 4.5 % per 30 m (the altiport's 20 / 5).
+     cut/fill at +-12 m: within 2.5 m over the lower 100 m; the north edge of the upper part up to 4-8 m of fill (the spur falls
+     north there), the south 3-6 m of cut.
+     the top: mt_t_platform, a flatten at 1038.94 abs (the strip's own top), the strip's last 40 m + 8 m beyond the end + a
+     30 x 12 m apron on the south side, falloff 10; cut up to ~9 m at the apron's back edge (the summit's slope). Its ground
+     paved gravel (material mt_m_platform, 4 m past the flatten's back and 3 m past its ends): on the bare patch the stand's
+     tailwheel read 24 mm off terrainH (GATE CONTACT), and with the gravel cut to the flatten the Jodel's wheel sat on its rim
+     (31 mm, GATE TERRAINMATCH) - now 0.0 / 3.6 mm and 5.3 mm at worst.
+     THE HELIPAD: the strip's flat top, as asked - a 14 x 14 m concrete square (material mt_m_helipad) on its last metres.
+     THE STAND: (9230.2, -5950.4) on the apron, 1038.9 m, beside the head; taxiOut one point on the centreline 11.5 m away.
+     "A SIMPLE PUSH ONLY": no hangar, no taxiway - the stand is at the head and the way out is one step onto it. No launch
+     rule exists in the code to set (the start chain's 'front'): owed, the Game coordinator's.
+     trees off the platform (exclude mt_x_platform); the fleet cook finds NO tie-down spot (120 refused not flat, 32 on the
+     strip) - as tw_ski: PREM_STORE.spots mt_strip 0.
+   THE STAND PAD (A0's STAND-PAD-SHAPES, claude/stand-pad, lands Sat): the stand's `pad` is left absent (= auto); the stand
+   is on the authored flatten, which an automatic pad steps aside for - it plugs in as is.
+   SNOW HOOK: mt_strip's `surface` / `look` (gravel today) and mt_m_helipad's look are the entries SNOW-MUD switches to the snow
+   ground; CONTRACT_FIELDS' `surf` follows the record (contractFieldsOf). Skis: stripAllows already lets skis on snow or grass.
+5. THE PILOT FLIES IT AS IT FLIES SKYLINE - NOTHING CHANGED IN 43_pilot (every altiport branch reads the aerodrome's
+   `altiport`; no tw_ski id in the code). The Cub (the short-strip reference), the game's flight (8 kt / 250 deg, damage on):
+     HOME > mt_strip: the arrival climbed to the field's circuit (FINAL at 1175 m MSL, 136 m over the strip, 1.6 km out), the
+     flare armed 27 m before the threshold, three-point, sink -0.07 m/s at 13.4 m/s, touchdown 37 m in, 51 m roll, stopped
+     88 m up the strip with 122 m left; no yield, no break. (Traced BEFORE the platform's gravel and the raster commit; the
+     strip's own ground is the same in both.)
+     mt_strip > HOME: from the stand - turned on the spot (252 deg), lined up, the altiport's committed take-off ("past the
+     point of stopping at V=8.0 with 132 m left - Vr in 73 m"), off downhill in ~75 m, flown home, landed, stopped; no damage.
+   WHAT THE PILOT WOULD NEED (not done - the Pilot's): (a) a HELIPAD is nothing to it (no helicopter); (b) the arrival does not
+   taxi to the stand at an away field (TAXI-HOME's arrive is the own field only) - at a one-way strip the stop is on the
+   slope, the next start turns there; (c) a launch rule ("push only") has no field to read; (d) snow: the roll-out law's
+   friction on the snow ground, when it exists, is untested here; (e) GATE ALTIPORT flies tw_ski only - a mt_strip row is
+   the Pilot coordinator's call.
+6. RE-COOKED as documented: premises_cook --island jolene (4 cells + the two terrain-type files), city_cook (manifest hashes
+   only), map_bake (16 runways), fleet_spots --cook (mt_strip 0). NOT the parked cook (GPU: the train's).
+   Unrelated, seen: the premises cook prints "premises dress site:s41/i1 Cannot read properties of null (reading '0')" - s41,
+   the lookout cab by Cabin Lake, 13 km away, not touched here.
+7. GATES THAT SPELL THE ISLAND'S COUNTS, re-pinned exactly (no check loosened): CONTRACTS (16 runways; the tracks list + the
+   observatory's; the new career's tracks + observatory 0; + a row: no provider's arc unlocks the observatory track), MAPBAKE
+   (16 in the projection), TAXICLEAR (NRW 16), RWYTREES (13 strip boxes). PREM_STORE.spots mt_strip 0 (GATE STORAGE's key).
+8. THE RASTER ON A MOUNTAIN (27_premises grBake - SEPARABLE, A0's CALL; commits 03144ca0 + its cook aafa4f64): GATE PREMRASTER
+   went red with the site - p99 2.07 mm over its 2 mm (master 1.96: 1 508 probes over 2 mm of 1 552 allowed, 44 to spare; my
+   three terrain modifiers add 900 probes, 110 over). 92 of the 93 bad probes sat in 16 m tiles whose DEM spans 4-6 m about
+   the centre: the lattice's refinement test reads |dA h + dB| at the centre's h "give or take GR_RELIEF (2 m)", so on a
+   mountain it stopped refining with the 1 cm it promises broken. Data could not fix it (falloffs 6-25 m, a smaller apron,
+   no authored pad: 65 over at best, the budget ~40). THE FIX: the relief MEASURED per tile (the DEM at the 4 corners and 4
+   edge midpoints, at least 2 m). p99 1.94 mm on this record, master's own bad probes 1 508 -> 1 433. COST: tiles baked
+   12 346 -> 12 374, 0.25 m tiles 2 804 -> 2 919, 1.67 -> 1.69 ms a tile, the cache 50.3 MB as before; the cook re-wrote 148
+   raster cells - 26.5 MB in git, the shipped raster 87.34 -> 90.93 MB, a default page's 57.09 -> 59.24 MB (+2.15 MB a
+   player downloads). WITHOUT IT (drop 03144ca0 + aafa4f64): re-run premises_cook + city_cook on f069d1d6 and PREMRASTER is
+   red on the site's 110 probes - nothing else of the site depends on it. FRAMECOST (GPU) not run here: A0's.
+
+WHAT TO LOOK AT AND TWEAK IN THE EDITOR (the first pass is the user's to finish):
+- the four station items on mt_s_meteo share one origin (the drum's centre): select one by its footprint; rotating a part
+  turns it about the drum's centre. The pad (mt_t_pad) is a slope polygon - its level / slope / heading rows.
+- the strip's head: the platform's back-edge cut (up to ~9 m into the summit's slope, mt_t_platform) and the north edge's fill
+  on the upper part - widen the falloff, move the apron, or slide the strip a few metres south.
+- the helipad square (mt_m_helipad) and the stand's spot on the apron; whether the kits' sizes read right at the summit.
+- no path from the platform to the station (~110 m and 55 m of climb): a footpath with switchbacks is the user's to draw.
+- views: the strip from the east on final (the spur's nose falls away under it), the summit from the platform.
+
+GATES (cloud, node only; `--no-build`, jobs 2-3 on a 4-core box), on this branch's final tree:
+  PASS (42): GROUNDQUERY PATCHBOUNDS PILOTCANFLY TAKEOFF TAXICLEAR (4 shards) LINEUP MAPBAKE CONTACT TERRAINMATCH LAKEBED MEDIA
+  ASSETS HOUSE LODS SITE PREMISES PATCHFAR GROUNDBOX PREMRASTER PREMCOOK CITYCOOK PARKED (solo; it ran out of heap twice beside
+  other jobs) OBSTACLE PAVEMENT MICRO RWYTREES GAMEPREM STORAGE STORESPOT CONTRACTS MISSIONS STAGES NAMES ROUTES ECON WORLD AERO
+  STRIPGROUND. (The stand's last 1 m move came after the first battery; the gates that read the record and its cooks were re-run
+  on it: GROUNDQUERY PATCHBOUNDS TAXICLEAR MAPBAKE CONTACT TERRAINMATCH MEDIA SITE PREMISES PREMRASTER PREMCOOK CITYCOOK
+  PAVEMENT GAMEPREM STORAGE STORESPOT CONTRACTS STAGES WORLD STRIPGROUND PARKED - all PASS.)
+  RED, MASTER'S OWN (a clean origin/master 23ce68c1 worktree, the same rows): ALTIPORT (tw_ski rows 2b, 3, 4 - the Cub's final
+  begun under the circuit height, the doctored arrival's calibration, the metal Cessna's break-up; mt_strip is in no row),
+  LAZY (route_draw.551be74d.js), SCENERYED 20b (the town composition's 2500 ms on this box: 3086 ms on master).
+  RED, THE STALE PARKED COOK: HOUSEWORKER cold / warm / partial (G844, the parked aeroplanes still pending at 120 s) -
+  master 23ce68c1 with ONE comment changed fails the identical three rows (parked_cook --check: STALE); the train's GPU
+  re-cook ends it.
+  NOT RUN: FRAMECOST, the parked cook (GPU, A0's), the full tier (TOUR, ARCHETYPES ...), the GPU stills. The Cub's two legs
+  were flown with tools/altiport_trace.js (above; reports/evidence/OBSERVATORY-SITE).
