@@ -3124,6 +3124,9 @@ function genStolCageOff(cage) {
   // aeroplane) - no certificate withdrawn, no cache re-keyed, no procured fingerprint moved
   for (const k in GEN_LEVER_ROW_OFF) if (k in cage && cage[k] === GEN_LEVER_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   if ('gearLvPos' in cage) { out = out || Object.assign({}, cage); delete out.gearLvPos; }
+  // SKIS: the ski rows at "no skis" (absent IS that) and the wheel-ski's preview (state, never the aeroplane)
+  for (const k in GEN_SKI_ROW_OFF) if (k in cage && cage[k] === GEN_SKI_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  if ('skiPos' in cage) { out = out || Object.assign({}, cage); delete out.skiPos; }
   for (const k in GEN_CAGE_ROW_NEUTRAL) if (k in cage && cage[k] === GEN_CAGE_ROW_NEUTRAL[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
@@ -3136,6 +3139,9 @@ const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFai
 const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0, lvJoint: 0 }, o = {};
   for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the flat base copy too)
   return o; })();
+// SKIS (29c_ski.js): the gear layer's ski rows (tools/_cage_gear.js) at the value a build without skis draws (_cage_gen
+// CAGE_DEFAULT_ABSENT holds the same): gearSki 0 none / 1 plain / 2 wheel-through / 3 wheel-ski; L, W, tip 0 = sized
+const GEN_SKI_ROW_OFF = { gearSki: 0, skiL: 0, skiW: 0, skiTip: 0, skiAt: 0.585, skiInc: 3, skiT: 1, skiTL: 0, skiTW: 0, skiSkin: 0.051, skiBeam: 0.57, skiNotchAt: 0.49, skiMat: 0, skiColor: 0, skiHeelW: 1, skiProt: 0.03 };
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
                           'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor'];
@@ -5939,6 +5945,36 @@ function clampSpec(spec) {
                                0.70, 1.60);
   if (!GEN_FAIR_MATS[S.gear.fairMat]) S.gear.fairMat = 'glass';
   if (S.gear.brakes != null && !GEN_BRAKES[S.gear.brakes]) delete S.gear.brakes;   // (the brakes: absent is as it was)
+  // SKIS (13 Nov, 29c_ski.js): THE SKI GEAR - the key only when chosen (absent: no key, the build as it was, to the bit).
+  // On the wheels' legs only (a taildragger or a tricycle, not folding, not on floats); a ski wears no spat (the wheel-
+  // ski's tyre runs through the slot, a plain ski has no wheel): the drag and the mass price the gear bare. Lengths in
+  // metres; null / absent = sized at SKI_RULES.pDesign from the gross by the frame
+  if (S.gear.ski && typeof S.gear.ski === 'object' && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle') && !S.gear.retract) {
+    const k = S.gear.ski, o = { kind: k.kind === 'wheel' || k.kind === 'retract' ? k.kind : 'plain' };
+    const num = (v, lo, hi) => Number.isFinite(+v) && v !== null && v !== '' ? genClamp(+v, lo, hi) : undefined;
+    const put = (dst, key, v) => { if (v !== undefined) dst[key] = v; };
+    put(o, 'L', num(k.L, 0.4, 6)); put(o, 'W', num(k.W, 0.08, 1.5)); put(o, 'tip', num(k.tip, 0, 0.5));
+    put(o, 'at', num(k.at, 0.35, 0.85)); put(o, 'inc', num(k.inc, -5, 10));
+    // (the planform, 29c skiPlan: the bottom skins' margin, the aft beam's share of the width - 1 a straight plank -, the
+    // wheel's cutout's start from the toe; the shell's material: carbon (absent), aluminium, glassfibre)
+    put(o, 'skin', num(k.skin, 0, 0.15)); put(o, 'skinL', num(k.skinL, 0, 0.1)); put(o, 'beam', num(k.beam, 0.3, 1));
+    put(o, 'notchAt', num(k.notchAt, 0.2, 0.8));
+    if (k.mat === 'alu' || k.mat === 'glass') o.mat = k.mat;
+    if (o.kind === 'plain') put(o, 'ped', num(k.ped, 0.05, 0.6));
+    else put(o, 'prot', num(k.prot, 0, 0.2));
+    if (o.kind === 'retract') { put(o, 'drop', num(k.drop, 0.01, 0.3)); put(o, 'time', num(k.time, 2, 60)); }
+    if (k.bottom === 'alu') o.bottom = 'alu';
+    if (k.third && typeof k.third === 'object') {
+      const t = { };
+      put(t, 'L', num(k.third.L, 0.2, 3)); put(t, 'W', num(k.third.W, 0.05, 1)); put(t, 'tip', num(k.third.tip, 0, 0.3));
+      put(t, 'at', num(k.third.at, 0.3, 0.8)); if (o.kind !== 'plain') put(t, 'prot', num(k.third.prot, 0, 0.15));
+      put(t, 'skin', num(k.third.skin, 0, 0.1)); put(t, 'skinL', num(k.third.skinL, 0, 0.1));
+      o.third = t;
+    }
+    S.gear.ski = o;
+    S.gear.fairing = S.gear.twFairing = 'none';
+    if (o.kind === 'plain') delete S.gear.brakes;      // (a straight ski has no wheel to brake: GEN_BRAKES' pair comes off with it)
+  } else delete S.gear.ski;
   // G121 (the review's B8): ONE ENGINE UNTIL THE MOUNTS ARE REAL. `engines`
   // is an array by design and `nEngines` multiplies thrust honestly — but
   // every mount today is the one nose pair, so a second entry would fly as
@@ -6595,6 +6631,8 @@ function resolveSpec(spec) {
   //    track of about 1.5 m — an honest cut, and the only one camber makes.
   S.gear.camberRad = S.gear.camber * Math.PI / 180;
   S.gear.contactR = S.gear.wheelR * CORE_MATH.cos(S.gear.camberRad);
+  // SKIS: a PLAIN ski's pedestal is the mains' contact (the wheel is off; `ped` the axle over the ski's bottom)
+  if (S.gear.ski && S.gear.ski.kind === 'plain' && S.gear.ski.ped > 0) S.gear.contactR = S.gear.ski.ped;
   const REG = (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[S.engine]) || null;
   // G134: a CUSTOM row (the editor's dials, resolved + clamped) outranks the
   // registry row it started from. Shape-compatible with a registry entry so

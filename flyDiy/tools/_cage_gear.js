@@ -74,6 +74,12 @@ Object.assign(gearDef, {
   gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0, gnTwist: 0,
   shockKind: 1, linkSwing: -42,
   gearLvPos: 0,            // WILGA-GEAR: the trailing-link leg's preview (0 extended .. 1 full stroke; a view, never saved)
+  // SKIS (13 Nov, the core's 29c_ski.js): 0 none, 1 straight (the wheel off), 2 wheel-through slot (penetration), 3 the
+  // hydraulic wheel-ski; the mains' ski length / width / toe (0: sized at the core's pDesign for the build's weight),
+  // the axle from the toe, the rigged incidence; the third unit's ski (the tail ski / nose ski) and its size; the
+  // wheel-ski's preview (1 down; a view, never saved). Every row absent at its default (CAGE_DEFAULT_ABSENT)
+  gearSki: 0, skiL: 0, skiW: 0, skiTip: 0, skiAt: 0.585, skiInc: 3, skiT: 1, skiTL: 0, skiTW: 0, skiPos: 1,
+  skiSkin: 0.051, skiBeam: 0.57, skiNotchAt: 0.49, skiMat: 0, skiColor: 0, skiHeelW: 1, skiProt: 0.03,
   cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96,
 });
 // the page's own defaults still win — this only fills what it did not say
@@ -1465,6 +1471,36 @@ window.CAGE_LAB_ROWS = {
 // GEAR_RETRACTABLE's own wheels (a nose wheel, not floats: the group's own when) - and stays while it is on, so a
 // build saved retractable on a tailwheel can still switch it off
 const RETRACT_CAN = P => !!(+P.s2On && Math.round(+P.s2Leg) !== 3);
+// SKIS: the drawn ski's dimensions - the rows, or (a row at 0) sized by the core's own rule (SKI_RULES: pDesign, the
+// share each unit carries, the aspect) for the build's weight (the last build's design gross the game published, else
+// a light aeroplane's 800 kg). A sized row is WRITTEN BACK, so a saved build carries its ski as drawn (the join writes
+// the drawn numbers into spec.gear.ski: what is drawn is what flies)
+const SKI_KINDS = [null, 'plain', 'wheel', 'retract'];
+const SKI_SHELL_MAT = ['skiWhite', 'skiRed', 'skiYellow', 'skiBlack', 'skiCarbon'];
+function skiDims(P, third, R) {
+  const SR = SKI_RULES, CP = skiPlan;
+  const kind = SKI_KINDS[Math.round(+P.gearSki || 0)] || 'plain';
+  const gross = (typeof window !== 'undefined' && +window.FLYDIY_LAST_GROSS > 0) ? +window.FLYDIY_LAST_GROSS : 800;
+  const kL = third ? 'skiTL' : 'skiL', kW = third ? 'skiTW' : 'skiW';
+  if (!(+P[kL] > 0) || !(+P[kW] > 0)) {
+    // sized: the reference (the SS2300) scaled to bear its share at pDesign; the tail ski a plank for its own share
+    const ref = CP(Object.assign({ beam: SR.beam, notchAt: SR.notchAt, at: SR.at }, SR.ref));
+    const k = Math.sqrt((third ? SR.thirdShare : SR.mainShare) * gross * 9.81 / SR.pDesign / (third ? 0.55 * 0.55 / SR.aspectThird * 0.9 : ref.Ab));
+    if (!(+P[kL] > 0)) P[kL] = +((third ? 0.55 : SR.ref.L) * k).toFixed(3);
+    if (!(+P[kW] > 0)) P[kW] = +((third ? 0.55 / SR.aspectThird : SR.ref.W) * k).toFixed(3);
+  }
+  const L = +P[kL], W = +P[kW];
+  const tk = third ? (kind === 'plain' ? 'plain' : 'wheel') : kind;
+  const prot = tk === 'plain' ? 0 : third ? SR.protThird : (P.skiProt == null ? SR.prot : +P.skiProt), drop = tk === 'retract' ? SR.drop : 0;
+  const pos = P.skiPos == null ? 1 : Math.max(0, Math.min(1, +P.skiPos));
+  const h = tk === 'plain' ? R : tk === 'wheel' ? R - prot : R - prot + pos * (prot + drop);
+  const skin = third ? 0.02 : (P.skiSkin == null ? 0.051 : +P.skiSkin);
+  const tip = third ? Math.max(0.025, Math.min(0.12, SR.tipK * L)) : (+P.skiTip > 0 ? +P.skiTip : Math.max(0.03, Math.min(0.25, SR.tipK * L)));
+  return { kind: tk, L, W, tip, skin, skinL: skin / 2, at: third ? 0.55 : (+P.skiAt || SR.at), beam: third ? 1 : (P.skiBeam == null ? SR.beam : +P.skiBeam),
+           notchAt: P.skiNotchAt == null ? SR.notchAt : +P.skiNotchAt, h, R, bT: SR.tyreW * R, prot, drop, third,
+           heel: !third && tk !== 'retract' && (P.skiHeelW == null || +P.skiHeelW > 0), mat: ['carbon', 'alu', 'glass'][Math.round(+P.skiMat || 0)] || 'carbon',
+           color: Math.round(+P.skiColor || 0) };
+}
 const GROUP = ['9 · undercarriage', [
   ['gearOn',  'undercarriage', 0, 1, 1],
   ['gearSit', 'stand it on the ground', 0, 1, 1,
@@ -1525,6 +1561,29 @@ const GROUP = ['9 · undercarriage', [
   // (shown on a low wing on wheels - ONE row from the stock aeroplane brings it, GATE PARTS' reach; the nose wheel the
   // retraction also needs is the join's and the swing's own test, GEAR_RETRACTABLE)
   ], { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }],
+  // SKIS (13 Nov): THE SKI GEAR on the wheels' own legs - one ski, three mountings (the core's 29c_ski.js). The join
+  // writes spec.gear.ski from these and from what was drawn (the drawn length, width and toe ARE the flown ski's)
+  ['skis', [
+    ['gearSki', 'skis', 0, 3, 1, ['none', 'straight (the wheel comes off)', 'wheel through a slot (penetration)', 'wheel-ski (hydraulic, retractable)']],
+    ['skiL', 'ski length (0: sized for the weight)', 0, 4, 0.01, { dim: 'm', when: P => +P.gearSki > 0 }],
+    ['skiW', 'ski width (0: sized for the weight)', 0, 1, 0.005, { dim: 'm', when: P => +P.gearSki > 0 }],
+    ['skiTip', 'toe upturn (0: 6 % of the length)', 0, 0.4, 0.005, { dim: 'm', when: P => +P.gearSki > 0 }],
+    ['skiAt', 'axle from the toe (share of the length)', 0.4, 0.8, 0.005, { when: P => +P.gearSki > 0 }],
+    // the planform (the core's skiPlan: the SS2300's by default) - the bottom skins' margin round the shell, the aft
+    // beam's share of the width (1: a straight plank, no wheel cutout), where the cutout starts from the toe
+    ['skiSkin', 'bottom skins: margin round the shell', 0, 0.12, 0.002, { dim: 'm', when: P => +P.gearSki > 0 }],
+    ['skiBeam', 'aft beam: share of the width (1: no cutout)', 0.35, 1, 0.01, { when: P => +P.gearSki > 0 }],
+    ['skiNotchAt', 'wheel cutout from the toe (share of the length)', 0.3, 0.7, 0.005, { when: P => +P.gearSki > 0 && +P.skiBeam < 1 }],
+    ['skiProt', 'tyre below the sole (beside the ski / skis up)', 0, 0.12, 0.005, { dim: 'm', when: P => Math.round(+P.gearSki) >= 2 }],
+    ['skiMat', 'shell', 0, 2, 1, ['carbon monocoque', 'aluminium', 'glassfibre'], { when: P => +P.gearSki > 0 }],
+    ['skiColor', 'finish', 0, 4, 1, ['white', 'red', 'yellow', 'black', 'carbon weave'], { when: P => +P.gearSki > 0 }],
+    ['skiHeelW', 'heel wheel (4 in)', 0, 1, 1, ['off', 'on'], { when: P => +P.gearSki > 0 && Math.round(+P.gearSki) !== 3 }],
+    ['skiInc', 'rigged flight incidence ° (the check cable)', 0, 8, 0.5, { when: P => +P.gearSki > 0 }],
+    ['skiT', 'tail / nose ski', 0, 1, 1, ['off', 'on'], { when: P => +P.gearSki > 0 }],
+    ['skiTL', 'tail / nose ski length (0: sized)', 0, 2, 0.01, { dim: 'm', when: P => +P.gearSki > 0 && +P.skiT }],
+    ['skiTW', 'tail / nose ski width (0: sized)', 0, 0.6, 0.005, { dim: 'm', when: P => +P.gearSki > 0 && +P.skiT }],
+    ['skiPos', 'wheel-ski position (preview: 1 down, 0 up)', 0, 1, 0.01, { when: P => Math.round(+P.gearSki) === 3 }],
+  ], { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 && !+P.gearRetract }],
   // G133: one build material for the whole set of fairings — a set of
   // spats is laid up as one job, and the row exists only when one is worn
   ['fairCons', 'fairing build', 0, 2, 1, ['glassfibre', 'carbon', 'alloy'],
@@ -2425,6 +2484,9 @@ PAGE.post = ctx => {
   // see the defaults note above. The bench keeps absolute stations.)
   NACS = nacellesOf(scene);                       // GR: this build's nacelles (the mounts, the probe, the fold, the cuts)
   const stations = GP.gearStations(P);
+  // SKIS: this draw's ski kind (none on a retracting gear or floats) and the drawn units
+  const skiKind = (+P.gearRetract || +P.gearFloats) ? 0 : Math.round(+P.gearSki || 0), skiPlain = skiKind === 1;
+  const skiUnits = [];
   // RETRACT-1: a retracting gear is drawn bare (no spat, no trouser, no leg shroud: noRet above)
   if (GEAR_RETRACTABLE(P)) for (const st of stations) { st.fair = 0; st.legFair = 0; }
   // WILGA-GEAR (the user, 9 Nov: "allow only a fairing for the leg, not the wheel on this suspension type"): the trailing
@@ -2814,15 +2876,39 @@ PAGE.post = ctx => {
           r = { axle: u.hub, axis: u.axis, root: r.root, tip: u.top,
                 travel: r.travel };
         } else {
-          GG.wheel(wu.proxy, r.axle, r.axis, st.R,
+          if (!skiPlain) GG.wheel(wu.proxy, r.axle, r.axis, st.R,              // (SKIS: a straight ski's wheel is off)
                    { brake: !!st.brake, inboard: sgn, P: st.P });
-          if (st.fair) GG.spat(lb, r.axle, r.axis, st.R, fOpt);
+          if (st.fair && !skiKind) GG.spat(lb, r.axle, r.axis, st.R, fOpt);
         }
       }
       delete st.mount; delete st.ret;
       wu.wb.axle = r.axle; wu.wb.R = st.R;
       wu.wb.kind = (st.leg === 3 || isSingle(st)) ? 'T'
                  : (r.axle[0] > 0 ? 'L' : 'R');
+      // SKIS: the unit's ski, its own bag-set (the flown part 'edSki' + kind: rigid on its axle, pitched about it); a
+      // straight ski's third unit (the plain tail ski) carries no wheel either - its drawn wheel is dropped here
+      if (skiKind && (wu.wb.kind !== 'T' || +P.skiT)) {
+        const third = wu.wb.kind === 'T', d = skiDims(P, third, st.R);
+        if (third && d.kind === 'plain') for (const k of ['tyre', 'hub', 'brake', 'alloy', 'dark']) if (wu.wb[k]) wu.wb[k] = GG.Bag();
+        const sb = {}; for (const k of ['skiSole', 'skiShell', 'skiPad', 'alloy', 'steel', 'dark', 'chrome', 'hub', 'skiHeel']) sb[k] = GG.Bag();
+        d.out = third ? 1 : (r.axle[0] >= 0 ? 1 : -1);
+        const rec = GG.ski(sb, r.axle, d);
+        // THE RIGGING (a main ski's): the front run - the cable and the long spring - from the toe's lug up to a fitting
+        // on the fuselage's lower flank ahead of the leg (the firewall's corner on a Cub), the aft check cable from the
+        // heel's lug to a fitting behind the leg; each its own part (the flown aeroplane stretches it with the ski)
+        const links = [];
+        if (!third && rec.fittings.toe && rec.fittings.heel && AFx && typeof AFx.surf === 'function') {
+          const fit = (z, deg) => { const zz = Math.max(AFx.z0 + 0.1, Math.min(AFx.z1 - 0.1, z));
+            const a = AFx.surf(zz, deg * Math.PI / 180), b = AFx.surf(zz, -deg * Math.PI / 180);
+            return (Math.sign(a[0]) === Math.sign(r.axle[0]) ? a : b).slice(); };
+          for (const [nm, tip, z, deg, coil] of [['F', rec.fittings.toe, r.axle[2] + 0.42 * d.L, 62, true], ['R', rec.fittings.heel, r.axle[2] - 0.40 * d.L, 70, false]]) {
+            const pin = fit(z, deg), lb2 = { steel: GG.Bag(), chrome: GG.Bag(), alloy: GG.Bag() };
+            GG.skiRigRun(lb2, pin, tip, coil, Math.max(0.7, Math.min(1.6, d.W / 0.457)));
+            links.push({ name: 'edSkiLink' + wu.wb.kind + nm, pin, tip: tip.slice(), bags: lb2 });
+          }
+        }
+        skiUnits.push({ kind: wu.wb.kind, bags: sb, axle: r.axle.slice(), dims: d, rec, links });
+      }
       // G58.7: BOTH ends are anchors. `root` bolts to the airframe and
       // must stay put; the moving end is the spring's own tip (the
       // castor's swivel top) on a tailwheel, the axle otherwise — the
@@ -2855,6 +2941,18 @@ PAGE.post = ctx => {
   }
   // G58.2/.3: bake each unit into its own NAMED group — the join's
   // snapshot picks these up by name, exactly as it does the prop's
+  for (const su of skiUnits) {
+    const sg = new THREE.Group();
+    sg.name = 'edSki' + su.kind;
+    for (const k in su.bags) if (su.bags[k].tris)
+      su.bags[k].mesh(sg, GG.gearMat(k === 'skiShell' ? (su.dims.mat === 'alu' && su.dims.color === 0 ? 'alloy' : SKI_SHELL_MAT[su.dims.color] || 'skiWhite') : k));
+    group.add(sg);
+    for (const lk of su.links || []) {
+      const lg = new THREE.Group(); lg.name = lk.name;
+      for (const k in lk.bags) if (lk.bags[k].tris) lk.bags[k].mesh(lg, GG.gearMat(k));
+      group.add(lg);
+    }
+  }
   for (const wb of wheelUnits) {
     const wg = new THREE.Group();
     wg.name = 'edWheel' + (wb.kind || 'T');
@@ -3158,6 +3256,9 @@ PAGE.post = ctx => {
       leverBad = Object.assign(leverBad || {}, { s1Drop: why, s1_lvComp: why }); }
   }
   window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
+    // SKIS: the drawn skis (the join's spec.gear.ski and its flown parts): per unit its axle, its dimensions as drawn
+    ...(skiUnits.length ? { skis: skiUnits.map(u => ({ kind: u.kind, axle: u.axle, dims: u.dims, fittings: u.rec.fittings, yBottom: u.rec.yBottom,
+                                                        links: (u.links || []).map(l => ({ name: l.name, pin: l.pin, tip: l.tip })) })) } : {}),
     ...(leverOut.length ? { lever: leverOut } : {}),                // WILGA-GEAR: the trailing-link legs as drawn
     ...(leverBad ? { leverBad } : {}),
     ...(swing ? { swing } : {}),

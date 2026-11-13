@@ -1,0 +1,56 @@
+{
+ "what": "skis-base",
+ "note": "GATE SKIS section 1: the no-ski witnesses (tools/_skis_bytes.js: def, shakedown sheet, 300 flown steps) by the core BEFORE the skis (origin/master 23ce68c1, train L39b). Re-bless in a base worktree with node tools/_skis_check.js --bless when a chantier landing before this one moves them.",
+ "base": "23ce68c1",
+ "builds": {
+  "bugReports/cessnaFloatsWOrks.json": {
+   "def": "346249a10550",
+   "sh": "5227a338ef04",
+   "sim": "35e49dac7e48",
+   "nodes": 134,
+   "ski": false
+  },
+  "bugReports/cessnaMetal (1).json": {
+   "def": "e115e9638960",
+   "sh": "117aaee3ab0d",
+   "sim": "b2984f0de39c",
+   "nodes": 107,
+   "ski": false
+  },
+  "builds/candidates/carbon_cub_ss.json": {
+   "def": "b7b7e5b60650",
+   "sh": "56224fbe8db1",
+   "sim": "7e4ee90db5a5",
+   "nodes": 95,
+   "ski": false
+  },
+  "builds/candidates/superpetrel_V4_1.json": {
+   "def": "6ecde26ec3b2",
+   "sh": "17902609bb0a",
+   "sim": "a5209488c267",
+   "nodes": 184,
+   "ski": false
+  },
+  "builds/cub_2026-09-20_corrected.json": {
+   "def": "f07b9dd1592d",
+   "sh": "b604e3a748ae",
+   "sim": "c29ef256332d",
+   "nodes": 97,
+   "ski": false
+  },
+  "builds/jodel_2026-09-20_corrected.json": {
+   "def": "6d4782a0e953",
+   "sh": "f61e95ed89a6",
+   "sim": "1b58cbbe17d3",
+   "nodes": 115,
+   "ski": false
+  },
+  "tools/fixtures/build_v7_ultralight_2026-09-05.json": {
+   "def": "ea36ce6b4982",
+   "sh": "aa500c36e716",
+   "sim": "e7847e1221a9",
+   "nodes": 123,
+   "ski": false
+  }
+ }
+}

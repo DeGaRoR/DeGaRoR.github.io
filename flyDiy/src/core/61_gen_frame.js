@@ -2599,6 +2599,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   sec('gear');
   // FLOATS-CLASSIC (the user 3 Nov: floats "need to come with weight and price"): a float build has no wheels to pay
   // for - it pays for its floats (HYDRO.floatPrice, billed with the pair below)
+  // SKIS (29c_ski.js): the resolved ski gear (null without: every line below as it was). A plain ski replaces its wheel
+  // (the wheel, tyre and brake come off - neither bought nor carried); the others keep the wheel and add the ski
+  const SKR = S.gear.ski ? skiResolve(S, gross) : null;
+  if (SKR && BOOMS) SKR.third = null;                  // (a twin boom's two tail contacts: no tail ski - not modelled)
+  if (SKR) {
+    spend((SKR.kind === 'plain' ? 0 : 2 * GEN_PRICES.wheel) + (SKR.third && SKR.third.kind === 'plain' ? 0 : GEN_PRICES.thirdWheel)
+          + (ARCH.price || 0));
+    spend(SKR.usd);
+  } else
   if (S.gear.type !== 'floats') spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
   // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
   // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
@@ -2761,7 +2770,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // THE BRAKES (GEN_BRAKES): the pair's mass on the mains, its price with the wheels; absent: nothing (as it was)
   const BRK = genBrakeOf(S), mBrk = BRK ? 0.5 * BRK.kg : 0;
   if (BRK) spend(BRK.price);
-  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk);
+  if (SKR) {   // SKIS: the ski (and half the wheel-ski's power pack) on each axle; a plain ski's wheel is off (and its brakes: clampSpec)
+    const mS = (SKR.kind === 'plain' ? 0 : R.wheelKg(S.gear.wheelR)) + SKR.mains.kg + 0.5 * SKR.packKg + mFairMain + mBrk;
+    pt(GAL, mS); pt(GAR, mS);
+  } else { pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk); }
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -2802,7 +2814,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else { B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire'); }
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
-    pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
+    pt(TW, (SKR && SKR.third ? (SKR.third.kind === 'plain' ? 0 : R.wheelTwKg(S.gear.twR)) + SKR.third.kg : R.wheelTwKg(S.gear.twR)) + mFairTw);        // the nosewheel with its fork, by size (SKIS: + its nose ski)
     // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
     // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
     if (S.gear.retract) {
@@ -2886,7 +2898,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.
     B(TW, TPT, 'gear', false, 'inner');
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
-    pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
+    pt(TW, (SKR && SKR.third ? (SKR.third.kind === 'plain' ? 0.5 : twKgK) * R.wheelTwKg(S.gear.twR) + 0.4 * SKR.third.kg : twKgK * R.wheelTwKg(S.gear.twR)) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it; SKIS: + the tail ski, a plain one on the spring's half)
+    // SKIS: the tail ski's mass mostly on the tailpost foot (its pedestal and rigging hang off the spring's root): on the
+    // wheel's node alone 8 kg let a PC-6's spring snap through under full rudder at the take-off's start (measured)
+    if (SKR && SKR.third) pt(TPB, 0.6 * SKR.third.kg);
   }
   } if (hullGear) {   // (HULL-B55: after the wheels on an amphibian - was `else if`)
     // ---- THE BOAT HULL (HULL-B3, futureDesigns/HULL-TYPES-2026-11.md §3.5). ONE centreline hull record: the drawn
@@ -3867,6 +3882,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // repaint (the paint alone) and a recover (the cloth and its paint) off the airframe actually built (76_ econRestoreCost)
   parts.cover = { paintA: coverA, clothA: clothAll };
   if (podR) parts.pod = podR;   // G2410: the resolved belly pod (absent with none: the parts keep their bytes)
+  if (SKR) parts.ski = SKR;     // SKIS: the resolved ski gear - the solver's contacts and the drag read it (absent: no key)
   // WILGA-GEAR: THE STRUTS, each designed for this aeroplane (62c gearOleoDesign: the charge for the static deflection
   // at the design gross, the second stage, the orifice for the limit sink) - on the final masses: the wheel's static
   // load is the gross's share the mains carry at the built CG (the third wheel's lever arm), split per side. The

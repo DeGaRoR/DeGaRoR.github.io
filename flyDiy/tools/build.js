@@ -99,6 +99,9 @@ const MANIFEST = {
     // world's registry (20_ makes it), the solver's push-out (30_), the viewer
     // stands and takes down the shapes; pure.
     '29_obstacles.js',
+    // THE SKIS (SKIS, 13 Nov): the ski gear's rules and its soft-ground law (the SNOW-MUD interface: world.soft); the
+    // frame resolves a ski from it, the drag prices it, the solver's ground pass runs it; pure
+    '29c_ski.js',
     '30_solver.js',
     // THE ELECTRICAL BUS (the panel arc, session 4): pure, read by the
     // cockpit and the gates; after the solver only by kinship

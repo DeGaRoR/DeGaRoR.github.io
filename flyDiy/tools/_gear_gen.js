@@ -53,6 +53,10 @@ const MAT = {
   dark:    lam(0x3a4048),      // rubber, boots, bungee
   bronze:  lam(0xa8843c),      // bushes, castor pivot
   fair:    lam(0xcfd6de),      // spats
+  // SKIS (13 Nov): the shell's finishes (the SS2300's standard white; red, yellow, black, the carbon weave), the UHMW
+  // bottom skins, the non-skid walk, the heel wheel's polyurethane tyre
+  skiWhite: lam(0xf1f0ea), skiRed: lam(0xb8261e), skiYellow: lam(0xe9b81c), skiBlack: lam(0x1c1d20), skiCarbon: lam(0x2b2e33),
+  skiSole: lam(0xf6f5f0), skiPad: lam(0x1a1b1d), skiHeel: lam(0xe3a91e),
   mark:    new THREE.MeshBasicMaterial({ color: 0xff4d3d }),  // pre-ok: a bench marker (not used in the world)
 };
 
@@ -2717,7 +2721,228 @@ function legTipWheel(bags, AF, P, st) {
   return { axle: u.hub, axis: u.axis, root: top, tip: top, travel: [0, 1, 0], castor: u };
 }
 
+// SKIS (13 Nov, the core's 29c_ski.js; futureDesigns/SKIS-2026-11-13.md): THE SKI, after the Summit Aircraft SS2300
+// (the user's photographs, the maker's sheet) - one family for every aeroplane, the PC-6's wheel-skis a larger one.
+// THE PLANFORM IS THE CORE'S (skiPlan): what is drawn is the outline the physics bears on. Pieces, all lofted on that
+// outline (a grid of stations along the ski and columns across it, so the toe's half-round, the cutout's fillet and the
+// upturn are smooth):
+//   the BOTTOM SKINS   white UHMW, the outline grown by the skins' margin (the SS2300's 22 x 81 in under its 18 x 79)
+//   the SHELL          the monocoque: a screwed flange round its edge, the walk-on DECK forward (flat, a slight crown),
+//                      the aft BEAM a faceted spine rising from the heel to the pedestal and running into the deck;
+//                      the toe's upturn lifts everything; its colour the row's (white, red, yellow, black, carbon)
+//   the WALK           the non-skid pad on the deck
+//   the SCREWS         round the flange, at a pitch
+//   the PEDESTAL       on the beam over the axle: a base plate, two gussets, the axle's socket (a wheel beside it in the
+//                      cutout: the axle runs on from the hub to the socket); the wheel-ski's is a slide and its jack
+//   the RIGGING        the toe's and the heel's lugs (the flown rig runs the spring and the cables to the airframe) and
+//                      the cable along the top between them, clamped
+//   the HEEL WHEEL     the 4 in polyurethane wheel in its fork at the heel (just proud of the sole: the hard-surface rule)
+// A tail / nose ski is the same lofts on a straight plank with its wheel through a slot, a cheek each side.
+// o: the core's resolved unit (L, W, skin, skinL, at, beam, notchAt, tip) + { h (the axle over the ski's bottom), R,
+// bT (the tyre's width), kind, third, out (+1 / -1: which side is outboard), heel (the heel wheel), retract }.
+// Returns the drawing's record (the fittings, the bottom's height, the plan) for the join and the flown rig.
+const SKI_GEO = { skinT: 0.009, flange: 0.022, rim: 0.035, hf: 0.007, deckH: 0.075, pitch: 0.075, ns: 72, nw: 14 };
+function ski(bags, axle, o) {
+  const G = SKI_GEO, CP = typeof skiPlan === 'function' ? skiPlan : (window && window.skiPlan);
+  const P = CP({ L: o.L, W: o.W, skin: o.skin, skinL: o.skinL, at: o.at, beam: o.third ? 1 : o.beam, notchAt: o.notchAt, tip: o.tip,
+                 bT: o.third ? null : o.bT });
+  const out = o.out || 1, kS = Math.max(0.6, Math.min(1.8, o.W / 0.457));
+  // the ski's lateral place: the wheel in the cutout (its tyre's centre wTyre off the shell's centreline), or - a plain
+  // ski, a tail ski - the pedestal (the beam's centre) under the axle
+  const wAx = (o.kind === 'plain' || o.third) ? (o.third ? 0 : P.wc) : P.wTyre;
+  const xc = axle[0] - out * wAx, yB0 = axle[1] - o.h, zc = axle[2];
+  const X = (s, w, y) => [xc + out * w, y, zc + s];
+  const E = [0, 0], sm = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+  // ---- the loft: a closed solid over [s0, s1], its columns between edges(s), bottom yb(s, w), height hh(s, w, wi, wo)
+  const loft = (bag, s0, s1, edges, yb, hh, ns, nw) => {
+    const R2 = [], R1 = [], cs = k => 0.5 - 0.5 * Math.cos(Math.PI * k / nw);
+    const ss = i => { const u = i / ns, c = 0.5 - 0.5 * Math.cos(Math.PI * u); return s0 + (s1 - s0) * (0.35 * u + 0.65 * c); };
+    for (let i = 0; i <= ns; i++) {
+      const s = ss(i); edges(s, E); const wi = E[0], wo = E[1], top = [], bot = [];
+      for (let j = 0; j <= nw; j++) { const w = wi + (wo - wi) * cs(j), y = yb(s, w); bot.push(bag.v(X(s, w, y))); top.push(bag.v(X(s, w, y + hh(s, w, wi, wo)))); }
+      R2.push(top); R1.push(bot);
+    }
+    // each face outward: against a point inside its station (the column's middle, half height) - robust to the mirror
+    const face = (a, b, c, d, inside) => {
+      const pa = vp(a), pb = vp(b), pc = vp(c);
+      const n = crs(sub(pb, pa), sub(pc, pa)), cen = mul(add(add(pa, pb), add(pc, vp(d))), 0.25);
+      if (dot(n, sub(cen, inside)) >= 0) bag.quad(a, b, c, d); else bag.quad(a, d, c, b);
+    };
+    const mid = (i, j) => mul(add(vp(R2[i][j]), vp(R1[i][j])), 0.5);
+    for (let i = 0; i < ns; i++) for (let j = 0; j < nw; j++) {
+      const inC = mul(add(mid(i, j), mid(i + 1, j + 1)), 0.5);
+      face(R2[i][j], R2[i][j + 1], R2[i + 1][j + 1], R2[i + 1][j], inC);
+      face(R1[i][j], R1[i + 1][j], R1[i + 1][j + 1], R1[i][j + 1], inC);
+    }
+    for (let i = 0; i < ns; i++) {
+      const cI = mid(i, nw >> 1);
+      face(R2[i][0], R2[i + 1][0], R1[i + 1][0], R1[i][0], cI);
+      face(R2[i][nw], R1[i][nw], R1[i + 1][nw], R2[i + 1][nw], cI);
+    }
+    for (const i of [0, ns]) for (let j = 0; j < nw; j++) {
+      const cI = i === 0 ? mid(1, j) : mid(ns - 1, j);
+      face(R2[i][j], R1[i][j], R1[i][j + 1], R2[i][j + 1], cI);
+    }
+  };
+  // a bag's vertex back (the kit's Bag keeps them in a flat array: read through its own accessor or the closure's copy)
+  const VP = new Map();
+  const tap = bag => { if (bag._tapped) return bag; const v0 = bag.v; bag.v = p => { const i = v0(p); VP.set(bag._id + ':' + i, p); return i; };
+                       bag._id = (ski._n = (ski._n || 0) + 1); bag._tapped = true; return bag; };
+  let curBag = null;
+  const vp = i => VP.get(curBag._id + ':' + i);
+  const loftOn = (bag, ...a) => { curBag = tap(bag); loft(curBag, ...a); };
+  // ---- the heights
+  const up = P.up, sT = P.sT, sN = P.sN, tN = P.tN;
+  const Hd = G.deckH * kS, Hp = Hd * (o.third ? 0.9 : 1.25), Hh = Hd * 0.45, hf = G.hf, fw = G.flange * kS, rim = G.rim * kS;
+  const ridge = s => s < 0 ? Hh + (Hp - Hh) * sm((s - P.sHeel) / (0 - P.sHeel)) : Hp + (Hd - Hp) * sm(s / Math.max(0.05, sN - 0));
+  const shellT = (s, w, wi, wo) => {
+    const half = Math.max(1e-6, (wo - wi) / 2), u = Math.abs(w - (wi + wo) / 2) / half;
+    const beamT = ridge(s) * (1 - 0.38 * Math.pow(u, 1.4)), deckT = Hd * (1 - 0.08 * u * u);
+    const q = (P.notch && !o.third) ? sm((s - (sN - tN)) / tN) : 1;
+    let T = (P.notch && !o.third) ? beamT + (deckT - beamT) * q : deckT;
+    if (s > sT) T *= 1 - 0.5 * (s - sT) / Math.max(0.05, P.sToe - sT);
+    if (s < P.sHeel + 0.08 * P.L && !(P.notch && !o.third)) T *= 0.6 + 0.4 * sm((s - P.sHeel) / (0.08 * P.L));
+    return T;
+  };
+  const shellH = (s, w, wi, wo) => { const d = Math.min(w - wi, wo - w, s - P.sHeel); const e = sm((d - fw) / rim); return hf + (shellT(s, w, wi, wo) - hf) * e; };
+  const skinY = (s) => yB0 + up(s), shellY = (s) => yB0 + up(s) + G.skinT;
+  const skinH = (s, w, wi, wo) => { const d = Math.min(w - wi, wo - w); return G.skinT * (0.55 + 0.45 * sm(d / 0.01)); };
+  // the tail ski's slot (its wheel through it): the plank in four pieces round it
+  const slot = o.third && o.kind !== 'plain' ? { L: 2 * Math.sqrt(Math.max(0, 2 * o.R * (o.prot + 0.04))) + 0.05, W: o.bT + 0.035 } : null;
+  const pieces = (edgesFn, s0, s1) => {
+    if (!slot) return [[s0, s1, edgesFn]];
+    const sF = slot.L / 2, sB = -slot.L / 2, hw = slot.W / 2;
+    return [[sF, s1, edgesFn], [s0, sB, edgesFn],
+            [sB, sF, (s, e) => { edgesFn(s, e); e[1] = -hw; return e; }], [sB, sF, (s, e) => { edgesFn(s, e); e[0] = hw; return e; }]];
+  };
+  // ---- 1 the bottom skins
+  for (const [s0, s1, ed] of pieces(P.skin, P.sHeel - P.mL, P.sToe + P.mL))
+    loftOn(bags.skiSole, s0, s1, ed, (s) => skinY(s), skinH, Math.max(8, Math.round(G.ns * (s1 - s0) / P.Lmax)), 6);
+  // ---- 2 the shell
+  for (const [s0, s1, ed] of pieces(P.body, P.sHeel, P.sToe))
+    loftOn(bags.skiShell, s0, s1, ed, (s) => shellY(s), shellH, Math.max(8, Math.round(G.ns * (s1 - s0) / P.L)), G.nw);
+  const topY = (s, w) => { P.body(s, E); return shellY(s) + shellH(s, w, E[0], E[1]); };
+  // ---- 3 the walk (the SS2300's: 0.15-0.35 of the length from the toe, half the deck's width, round-cornered)
+  if (!o.third) {
+    const a0 = P.sToe - 0.36 * P.L, a1 = P.sToe - 0.15 * P.L, pw = 0.47 * P.W, rc = 0.05 * kS;
+    const pc = P.notch ? -0.04 * P.W : 0;
+    const pe = (s, e) => { const c = Math.min(rc, s - a0, a1 - s), d = rc - Math.sqrt(Math.max(0, rc * rc - Math.pow(Math.max(0, rc - c), 2)));
+                           e[0] = pc - pw / 2 + d; e[1] = pc + pw / 2 - d; return e; };
+    loftOn(bags.skiPad, a0, a1, pe, (s, w) => topY(s, w) - 0.0015, () => 0.0035, 16, 6);
+  }
+  // ---- 4 the screws round the flange (a dome each, at the pitch, on the flange's middle)
+  {
+    const pts = [], N = 400;
+    for (let k = 0; k <= N; k++) { const s = P.sHeel + 0.012 + (P.sToe - 0.004 - P.sHeel - 0.012) * k / N; P.body(s, E); pts.push([s, E[1] - fw / 2]); }
+    for (let k = N; k >= 0; k--) { const s = P.sHeel + 0.012 + (P.sToe - 0.004 - P.sHeel - 0.012) * k / N; P.body(s, E); pts.push([s, E[0] + fw / 2]); }
+    let acc = G.pitch * kS;
+    for (let k = 1; k < pts.length; k++) {
+      const a = pts[k - 1], b = pts[k], d = Math.hypot(b[0] - a[0], b[1] - a[1]); acc += d;
+      if (acc < G.pitch * kS) continue; acc = 0;
+      const sp = b[0], wp = b[1], y = topY(sp, wp);
+      if (slot && Math.abs(sp) < slot.L / 2 + 0.01) continue;
+      revolve(bags.alloy, X(sp, wp, y - 0.0005), [0, 1, 0], [[0.0048, 0], [0.0042, 0.0018], [0.0022, 0.0032]], 6, true);
+    }
+  }
+  // ---- 5 the pedestal (over the axle, on the beam's spine) and the axle's run to it
+  const wP = o.third ? 0 : P.wc, sP = 0, yTop = topY(sP, wP), yAx = axle[1];
+  const fitPts = {};
+  if (o.third) {
+    // two cheeks straddling the wheel, on the slot's sides, up to the axle; a bush through them
+    const hw = (slot ? slot.W / 2 : 0.04) + 0.008;
+    for (const sg of [-1, 1]) {
+      const yS = topY(0, sg * (hw + 0.02)), c = X(0, sg * (hw + 0.004), 0.5 * (yS + yAx + 0.025));
+      boxIn(bags.alloy, c, [0.004, 0.5 * (yAx + 0.025 - yS), 0.05 * kS], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    }
+    revolve(bags.alloy, X(0, -hw - 0.012, yAx), [out, 0, 0], [[0.012, 0], [0.012, 2 * hw + 0.024]], 12, true);
+  } else {
+    const pl = 0.11 * kS, pw2 = 0.045 * kS;
+    boxIn(bags.alloy, X(sP, wP, yTop + 0.003), [pw2, 0.003, pl], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    for (const bs of [-1, 1]) for (const bw of [-1, 1])
+      revolve(bags.alloy, X(sP + bs * 0.8 * pl, wP + bw * 0.7 * pw2, yTop + 0.006), [0, 1, 0], [[0.005, 0], [0.004, 0.003]], 6, true);
+    if (o.kind === 'retract') {
+      // THE WHEEL-SKI'S SLIDE: a column the axle's carrier runs in, and the jack that lowers the ski (its body on the
+      // column's head, its rod to the deck)
+      const cH = Math.max(0.12, yAx - yTop + 0.16);
+      boxIn(bags.alloy, X(sP, wP, yTop + cH / 2), [0.028 * kS, cH / 2, 0.045 * kS], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+      const jA = X(sP + 0.05 * kS, wP, yTop + cH - 0.03), jB = X(sP + 0.42 * Math.min(P.sToe, 0.5 * P.L), wP, topY(0.42 * Math.min(P.sToe, 0.5 * P.L), wP) + 0.02);
+      const jm = lerp3(jA, jB, 0.55);
+      tube(bags.dark, jA, jm, 0.024 * kS, 12); tube(bags.chrome, jm, jB, 0.011 * kS, 10);
+      revolve(bags.alloy, jB, [out, 0, 0], [[0.016, -0.02], [0.016, 0.02]], 10, true);
+    } else {
+      // two gussets (a triangle each, fore and aft of the socket), the socket across the ski at the axle's height
+      const gT = 0.005, gH = Math.max(0.03, yAx - yTop - 0.012);
+      for (const gw of [-1, 1]) {
+        const w0 = wP + gw * 0.022 * kS;
+        const tri = [X(sP - pl * 0.92, w0, yTop + 0.006), X(sP + pl * 0.92, w0, yTop + 0.006), X(sP, w0, yTop + 0.006 + gH)];
+        const nrmW = [out * gT / 2, 0, 0];
+        const V = tri.map(p => bags.alloy.v(add(p, nrmW))).concat(tri.map(p => bags.alloy.v(sub(p, nrmW))));
+        bags.alloy.tri(V[0], V[1], V[2]); bags.alloy.tri(V[3], V[5], V[4]);
+        bags.alloy.quad(V[0], V[3], V[4], V[1]); bags.alloy.quad(V[1], V[4], V[5], V[2]); bags.alloy.quad(V[2], V[5], V[3], V[0]);
+      }
+      const sock0 = X(sP, wP - 0.045 * kS, yAx), sock1 = X(sP, wP + 0.045 * kS, yAx);
+      tube(bags.alloy, sock0, sock1, 0.024 * kS, 14);
+    }
+    // the axle's run from the hub's inboard face to the socket (a wheel beside the ski)
+    if (o.kind !== 'plain') {
+      const hubIn = wAx - (o.bT / 2) * 0.85;
+      tube(bags.steel, X(sP, wP - 0.03, yAx), X(sP, hubIn, yAx), 0.017 * kS, 12);
+    }
+  }
+  // ---- 6 the rigging's lugs and the cable along the top
+  {
+    const lug = (s, w) => { const y = topY(s, w); boxIn(bags.alloy, X(s, w, y + 0.008), [0.004, 0.009, 0.016], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+                            revolve(bags.alloy, X(s, w - 0.006, y + 0.014), [out, 0, 0], [[0.007, 0], [0.007, 0.012]], 8, true);
+                            return X(s, w, y + 0.016); };
+    const sTo = P.sToe - (o.third ? 0.1 : 0.07) * P.L, sHe = P.sHeel + (o.third ? 0.1 : 0.07) * P.L;
+    const wTo = o.third ? 0 : 0.02 * P.W, wHe = o.third ? 0 : P.wc;
+    fitPts.toe = lug(sTo, wTo); fitPts.heel = lug(sHe, wHe);
+    if (!o.third) {
+      const path = [];
+      for (let k = 0; k <= 40; k++) {
+        const u = k / 40, s = sHe + (sTo - sHe) * u, wq = wHe + (wTo - wHe) * sm((s - (sN - tN)) / (2 * tN)) + 0.06 * P.W * Math.sin(Math.PI * u);
+        path.push(X(s, wq, topY(s, wq) + 0.006));
+      }
+      sweep(bags.steel, path, () => secRound(0.0028, 6), true);
+      for (const u of [0.22, 0.5, 0.78]) { const q = path[Math.round(40 * u)]; boxIn(bags.dark, q, [0.008, 0.004, 0.012], [1, 0, 0], [0, 1, 0], [0, 0, 1]); }
+    }
+  }
+  // ---- 7 the heel wheel (a 4 in polyurethane wheel in its fork, proud of the sole by a hair)
+  if (o.heel && !o.third) {
+    const Rw = 0.0508 * Math.max(0.8, Math.min(1.4, kS)), bw = 0.034, sW = P.sHeel - 0.25 * Rw, wW = P.wc, yW = yB0 + Rw - 0.008;
+    const hub = X(sW, wW, yW), ax = [out, 0, 0];
+    revolve(bags.skiHeel, add(hub, [-out * bw / 2, 0, 0]), ax, [[Rw * 0.55, 0], [Rw * 0.92, 0.002], [Rw, bw * 0.3], [Rw, bw * 0.7], [Rw * 0.92, bw - 0.002], [Rw * 0.55, bw]], 20, true);
+    revolve(bags.hub, add(hub, [-out * (bw / 2 + 0.004), 0, 0]), ax, [[0.012, 0], [0.012, bw + 0.008]], 10, true);
+    for (const sg of [-1, 1]) {
+      const fx = sg * (bw / 2 + 0.007), a = X(P.sHeel + 0.06 * kS, wW + fx, topY(P.sHeel + 0.06 * kS, wW + fx) - 0.003), b = add(hub, [out * fx, 0, 0]);
+      sweep(bags.alloy, [a, lerp3(a, b, 0.5), b], () => secBlade(0.024, 0.005, 2), true, [1, 0, 0]);
+    }
+  }
+  return { yBottom: yB0, plan: { L: P.L, W: P.W, A: P.Ab }, fittings: { toe: fitPts.toe, heel: fitPts.heel }, slot, xc, wAx };
+}
+
+// SKIS: A RIGGING RUN from the airframe's fitting (a) to the ski's lug (b): the cable (a swaged eye each end), and on the
+// front run the long coil spring that holds the toe up against the check cable (the SS2300's, the photographs: a closed
+// coil over the run's middle, a cable each side of it). Its own bags: the flown aeroplane stretches it pin to tip
+function skiRigRun(bags, a, b, coil, kS) {
+  const k = kS || 1, d = sub(b, a), L = len(d), t = nrm(d);
+  const cab = (p, q) => sweep(bags.steel, [p, q], () => secRound(0.0024 * k, 6), true);
+  for (const e of [a, b]) revolve(bags.alloy, off(e, t, e === a ? 0 : -0.02 * k), t, [[0.0042 * k, 0], [0.0042 * k, 0.02 * k]], 8, true);
+  if (!coil) { cab(a, b); return; }
+  const u0 = 0.30, u1 = 0.82, p0 = off(a, t, u0 * L), p1 = off(a, t, u1 * L);
+  cab(a, p0); cab(p1, b);
+  const n0 = nrm(Math.abs(t[1]) < 0.9 ? crs(t, [0, 1, 0]) : crs(t, [1, 0, 0])), n1 = crs(t, n0);
+  const Rh = 0.013 * k, pitch = 0.0075 * k, turns = Math.max(6, Math.round((u1 - u0) * L / pitch)), path = [];
+  for (let i = 0; i <= turns * 10; i++) {
+    const f = i / (turns * 10), ang = 2 * Math.PI * turns * f, c = off(a, t, (u0 + (u1 - u0) * f) * L);
+    path.push(add(c, add(mul(n0, Rh * Math.cos(ang)), mul(n1, Rh * Math.sin(ang)))));
+  }
+  sweep(bags.chrome, path, () => secRound(0.0019 * k, 5), true);
+  for (const e of [p0, p1]) revolve(bags.alloy, off(e, t, e === p0 ? -0.012 * k : 0), t, [[0.004 * k, 0], [Rh, 0.006 * k], [0.004 * k, 0.012 * k]], 10, true);
+}
+
 window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
+                    ski, SKI_GEO, skiRigRun,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,

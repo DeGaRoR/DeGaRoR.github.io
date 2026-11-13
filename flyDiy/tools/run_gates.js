@@ -345,6 +345,12 @@ const GATES = [
   // static deflection at gross, a 23.725-style limit drop with no bottoming and the reserve drop, no pogo, the trailing
   // arc, a broken leg drops, the drawn leg = the physics leg through the game's load chain, nothing else moved
   { id: 'WILGAGEAR', file: '_wilga_gear_check.js', tier: 'core', weight: 1, wall: 150 },
+  // SKIS (13 Nov): the generic ski gear - absent is as today (the core before the skis, to the bit), the spec, mass /
+  // price / drag, what is drawn flies, the area sets the pressure, no brakes on straight skis, the wheel-ski's selector, the
+  // belly pod on the Carbon Cub end to end (tools/_skis_check.js; futureDesigns/SKIS-2026-11-13.md); SKISFLY the two
+  // validation planes' circuits on the powder layer (and the PC-6 on its wheels)
+  { id: 'SKIS', file: '_skis_check.js', tier: 'core', wall: 240 },
+  { id: 'SKISFLY', file: '_skis_check.js', argv: ['--fly'], tier: 'full', wall: 900 },
   // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
   // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
   // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round
