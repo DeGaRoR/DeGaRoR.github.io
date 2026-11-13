@@ -8141,7 +8141,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // LOOK-1 2c: the impostors' soft coverage needs samples in the frame's target
       if (TREE_SOFT_U) { const aa = typeof window !== 'undefined' ? window.FLYDIY_AA : null, tg = aa && aa.target && aa.target(); TREE_SOFT_U.value = L1_OFF || !tg || !(tg.samples >= 4) ? 0 : IMPK.soft; }
       // LOOK-1 D3: the crowns take the moon as one shape once the moon is the key and the sky's light is going (trees.js U_CROWN); 0 under the sun
-      if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.crownN) TREE_LEAF.crownN(L1_OFF || !SKY_LIGHT.isMoon ? 0 : Math.max(0, Math.min(1, (-day.sunEl - 1.2) / 3)));
+      if (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.crownN) TREE_LEAF.crownN(L1_OFF || !(rL && rL.isMoon) ? 0 : Math.max(0, Math.min(1, (-day.sunEl - 1.2) / 3)));
       if (LE.on && rL) lightTake(rL.exposure); else LE.init = false;   // G1352: the new light is the target, eased to
     } else {
       // INTERIM S2 DIMMER — the fallback when the atmosphere is off (the TSL flag)
