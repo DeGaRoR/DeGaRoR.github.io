@@ -756,6 +756,7 @@ function cageJoinSpec(P, M, T) {
   if (M.Sh > 0) tl.Sh = M.Sh;
   if (M.Sv > 0) tl.Sv = M.Sv;
   if (M.Svt > 0) tl.Svt = M.Svt;
+  if (+P.tailDrawn) tl.drawn = 1;                  // REAL-CANON: PETREL-LS's drawn-tail rules (60_gen_spec, 61_gen_frame), latent
   if (M.hTaper > 0) tl.hTaper = M.hTaper;          // P4: the trusses' trapezoids
   if (M.vTaper > 0) tl.vTaper = M.vTaper;
   if (typeof M.dorsalArea === 'number' && isFinite(M.dorsalArea))
@@ -1815,7 +1816,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // (FIN-TAPER, 10 Nov: the 75 %/25 % chord RATIO is not the tip/root taper - a straight planform through those
           // two chords has root c25 + (c25 - c75)/2 and tip c75 - (c25 - c75)/2, so tip/root = (3r - 1)/(3 - r).
           // The ratio flew the Petrel's 0.23 fin as 0.53: a parallel box leaning aft, its swept root missing)
-          const lamOf = r => Math.max(0.05, Math.min(1, (3 * r - 1) / (3 - r)));
+          // (REAL-CANON, A0 13 Nov: LATENT - only a card with the row tailDrawn on (the Super Petrel V4.2's) reads the
+          // tail this way; every other card keeps the ratio, so no validated plane's tail moves until the user rules)
+          const lamOf = r => Math.max(0.05, Math.min(1, +P.tailDrawn ? (3 * r - 1) / (3 - r) : r));
           const taperOf = m => {
             const a = m.chordAt(0.25 * m.span), b = m.chordAt(0.75 * m.span);
             return a > 1e-6 ? lamOf(b / a) : 1;

@@ -5226,7 +5226,9 @@ const GEN_TAIL_ENVELOPE = {
   // stock); the thin-airfoil tau formula holds to 0.70
   elevChord: [0.15, 0.65], rudChord: [0.15, 0.65],
   // P4: the trapezoid the truss stands on — tip over root chord
-  hTaper: [0.15, 1.0], vTaper: [0.15, 1.0],
+  hTaper: [0.35, 1.0], vTaper: [0.35, 1.0],
+  // (REAL-CANON, A0 13 Nov: PETREL-LS's floor, 0.15, holds only for a tail stated `drawn` - its card's tailDrawn row)
+  drawnTaperLo: 0.15,
 };
 
 // THE FIELD REGISTRY (SPEC-FIXPOINT G1550-G1559, the 2026-10-04 review's E3).
@@ -5895,8 +5897,11 @@ function clampSpec(spec) {
   dr.len    = genClamp(dr.len    == null ? 0.34 : dr.len,    0, 2.00);
   if (S.tail.tipV != null && !GEN_TIPS[S.tail.tipV]) S.tail.tipV = null;
   if (S.tail.tipH != null && !GEN_TIPS[S.tail.tipH]) S.tail.tipH = null;
-  S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, ...GEN_TAIL_ENVELOPE.hTaper);
-  S.tail.vTaper = genClamp(S.tail.vTaper == null ? 1 : S.tail.vTaper, ...GEN_TAIL_ENVELOPE.vTaper);
+  // REAL-CANON (A0 13 Nov): `drawn` - PETREL-LS's drawn-tail rules - is stated (1) or absent, never false
+  if (S.tail.drawn) S.tail.drawn = 1; else delete S.tail.drawn;
+  const tapLo = S.tail.drawn ? GEN_TAIL_ENVELOPE.drawnTaperLo : GEN_TAIL_ENVELOPE.hTaper[0];
+  S.tail.hTaper = genClamp(S.tail.hTaper == null ? 1 : S.tail.hTaper, tapLo, GEN_TAIL_ENVELOPE.hTaper[1]);
+  S.tail.vTaper = genClamp(S.tail.vTaper == null ? 1 : S.tail.vTaper, tapLo, GEN_TAIL_ENVELOPE.vTaper[1]);
   if (!['conventional', 'v', 'twinBoom'].includes(S.tail.type)) S.tail.type = 'conventional';
   S.tail.boomX = genClampN(S.tail.boomX, 0.3, 4.0);
   S.tail.boomLen = genClampN(S.tail.boomLen, 0.5, 8.0);
@@ -6161,7 +6166,7 @@ function clampSpec(spec) {
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
   fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
-  fu.postGap = genClamp(fu.postGap, 0.05, 1.10);
+  fu.postGap = genClamp(fu.postGap, S.tail && S.tail.drawn ? 0.05 : 0.35, 1.10);   // (PETREL-LS's 0.05: a drawn tail's, latent)
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
   // The TAIL-END SECTION. These were in the spec from the start but had no

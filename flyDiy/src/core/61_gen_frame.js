@@ -2548,7 +2548,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // through the rudder. Raised clear of the post's top (more than 0.15 m), the fin gets a row AT the stab's height
   // and the stab's roots tie to that row, its tips' up-and-down wires to the rows above and below (the Cub's own
   // brace, carried up the fin). On the cone (every stab under that line): the rule below, to the bit.
-  const stabOnFin = (stabY - P[TPT][1]) > 0.15;
+  // (REAL-CANON, A0 13 Nov: latent - a tail stated `drawn` only, its card's tailDrawn row: the Super Petrel V4.2's)
+  const stabOnFin = !!t.drawn && (stabY - P[TPT][1]) > 0.15;
   const stabTips = [];
   const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
   for (const [sd, sg] of [['L', -1], ['R', 1]]) {
@@ -2655,7 +2656,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const xn = P[nd][0];
     let k = -1;
     if (xn < lastST.x - 0.02) for (let i = ST.length - 2; i >= 0; i--) if (ST[i].x <= xn) { k = i; break; }
-    if (k >= 0 && F[k] && F[k] !== last) { B(nd, F[k].TL, 'tail'); B(nd, F[k].TR, 'tail'); }
+    if (t.drawn && k >= 0 && F[k] && F[k] !== last) { B(nd, F[k].TL, 'tail'); B(nd, F[k].TR, 'tail'); }   // (latent, as above)
     B(nd, TPT, 'tail'); B(nd, TPB, 'tail');                   // the root, the keel row to TPB
     B(nd, last.TL, 'tail'); B(nd, last.TR, 'tail');
   }

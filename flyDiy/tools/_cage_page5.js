@@ -1277,6 +1277,11 @@ window.CAGE_PAGE = {
       ['taperOn',   'taper section',   0, 1, 1],
       // (12 Nov, FIT-PROCEDURE: the user, "Match to cabin size" - the boom root is the cabin's aft frame, no step)
       ['boomMatch', 'match to cabin size', 0, 1, 1, { when: P => !+P.taperOn, absent: 0 }],
+      // (REAL-CANON, A0 13 Nov: PETREL-LS's drawn-tail rules made LATENT - the tail's taper read as the straight planform
+      // through its 25 % / 75 % chords (floor 0.15, the tail post's gap to 0.05), a stab raised up the fin hung on the fin,
+      // a swept fin root tied to the bay under it. Absent at 0: on the Super Petrel V4.2's card only, until the user rules
+      // on the fleet with pictures)
+      ['tailDrawn', 'tail as drawn (true taper, stab on the fin, swept root)', 0, 1, 1, { absent: 0 }],
       // the `when` rules below are MEASURED, not assumed (P1 probe,
       // 2026-08-26): each hidden row was varied through the full display
       // pipeline in the mode that hides it and the mesh hash did not
