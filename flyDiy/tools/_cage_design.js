@@ -2908,6 +2908,7 @@ const ARCHETYPES = [
                     // the steering wheel (ctlStick 4), no throttle lever (ctlThr 3); the pedals stay
                     ctlStick: 4, ctlThr: 3,
                     whBrake: 2,   // (13 Nov, the user: "redo the brake sizing for the speedster too": the car's drum inside the rim)
+                    whTex: 1, whTexPat: 1, whTexDirt: 0.15,   // (WHEEL-TEX: textured tyres - the speedster's wavy ribs, a little dust)
                     s1Fair: 0, s2Fair: 0, whProfile: 2,
                     // (the user: "can we increase the rim size?"): spoked, the rim 0.64 of the wheel - an 18" wire wheel in a
                     // 28" tyre (whRimD, the new row)

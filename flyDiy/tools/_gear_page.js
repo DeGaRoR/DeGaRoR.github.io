@@ -174,6 +174,11 @@ const WHEEL_ROWS = [
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
   ['whValve', 'valve stem', 0, 1, 1],
   ['whBrake', 'brake type', 0, 2, 1, ['disc', 'drum', 'car drum (inside the rim)']],
+  // CAR-3 (WHEEL-TEX): the tyres' and rims' own PBR maps - the tread, the sidewall's lettering, the wear and the dirt
+  // (absent = the plain materials); the pattern (auto: a car all-season, an aeroplane ribbed) and the dirt
+  ['whTex', 'textured tyres and rims (PBR)', 0, 1, 1, { absent: 0 }],
+  ['whTexPat', 'tread pattern', 0, 3, 1, ['auto', 'vintage wavy ribs', 'modern all-season', 'aviation ribbed'], { when: P => +P.whTex === 1, absent: 0 }],
+  ['whTexDirt', 'tyre and rim dirt', 0, 1, 0.01, { when: P => +P.whTex === 1, absent: 0.4 }],
   // CAR (12 Nov): THE CAR SWITCH and the car-only rows (absent = an aeroplane; nothing changes for one)
   ['isCar', 'this build is a car', 0, 1, 1, ['no (an aeroplane)', 'yes (a car)']],
   ['carDrive', 'driven wheels', 0, 1, 1, ['rear', 'all four (4WD)'], { when: P => +P.isCar }],

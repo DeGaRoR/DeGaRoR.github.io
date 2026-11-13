@@ -216,7 +216,10 @@
   "ctlThr": 3,
   "consoleOn": 1,
   "carPlate": 1,
-  "carFenderGap": 0.11
+  "carFenderGap": 0.11,
+  "whTex": 1,
+  "whTexPat": 2,
+  "whTexDirt": 0.45
  },
  "fuel": {
   "litres": 80,

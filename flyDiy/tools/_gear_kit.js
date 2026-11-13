@@ -38,9 +38,17 @@ const rot = (v, axis, ang) => {
 // One indexed buffer per MATERIAL, so a leg is a handful of draw calls
 // however many members it has.
 function Bag() {
-  const pos = [], idx = [];
-  return {
-    v: p => { pos.push(p[0], p[1], p[2]); return pos.length / 3 - 1; },
+  const pos = [], idx = [], uv = [];
+  // CAR-3 (WHEEL-TEX, 13 Nov): A BAG MAY CARRY A UV MAP. `uvf(p)` -> [u, v] for every vertex pushed while it is set
+  // (the wheel's: u round the axle, v across the profile); `v(p, u, v)` overrides it - revolve hands its own (the seam
+  // column duplicated at u = 1, the row's v off the profile). No uvf, no uv: every other bag byte for byte as before
+  const B = {
+    uvf: null,
+    v: (p, uo, vo) => { pos.push(p[0], p[1], p[2]);
+      if (B.uvf || uo != null) { const t = (uo == null || vo == null) && B.uvf ? B.uvf(p) : [0, 0];
+        while (uv.length < pos.length / 3 * 2 - 2) uv.push(0, 0);
+        uv.push(uo != null ? uo : t[0], vo != null ? vo : t[1]); }
+      return pos.length / 3 - 1; },
     quad: (a, b, c, d) => { idx.push(a, b, c, a, c, d); },
     tri: (a, b, c) => { idx.push(a, b, c); },
     get tris() { return idx.length / 3; },
@@ -49,6 +57,8 @@ function Bag() {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position',
         new THREE.BufferAttribute(new Float32Array(pos), 3));
+      if (uv.length) { while (uv.length < pos.length / 3 * 2) uv.push(0, 0);
+        g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2)); }
       g.setIndex(idx);
       g.computeVertexNormals();
       const m = new THREE.Mesh(g, mat);
@@ -56,6 +66,7 @@ function Bag() {
       return m;
     },
   };
+  return B;
 }
 
 // ---- paths ----------------------------------------------------------------
@@ -212,20 +223,24 @@ function revolve(bag, ctr, axis, prof, segs, cap) {
   let e1 = Math.abs(ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
   e1 = nrm(sub(e1, mul(ax, dot(e1, ax))));
   const e2 = crs(ax, e1);
-  const rows = prof.map(([r, h]) => {
+  // (WHEEL-TEX: a bag with a uv map gets a SEAM COLUMN - k = S at u = 1, the same place as k = 0 - so the map wraps
+  //  without a smeared quad; a profile point's third value, when given, is its row's v)
+  const UV = !!bag.uvf, SC = UV ? S + 1 : S;
+  const rows = prof.map(([r, h, vRow]) => {
     const row = [];
-    for (let k = 0; k < S; k++) {
-      const a = 2 * Math.PI * k / S;
+    for (let k = 0; k < SC; k++) {
+      const a = 2 * Math.PI * (k % S) / S;
       const c = Math.cos(a) * r, s = Math.sin(a) * r;
-      row.push(bag.v([ctr[0] + e1[0] * c + e2[0] * s + ax[0] * h,
-                      ctr[1] + e1[1] * c + e2[1] * s + ax[1] * h,
-                      ctr[2] + e1[2] * c + e2[2] * s + ax[2] * h]));
+      const p = [ctr[0] + e1[0] * c + e2[0] * s + ax[0] * h,
+                 ctr[1] + e1[1] * c + e2[1] * s + ax[1] * h,
+                 ctr[2] + e1[2] * c + e2[2] * s + ax[2] * h];
+      row.push(UV ? bag.v(p, k / S, vRow != null ? vRow : null) : bag.v(p));
     }
     return row;
   });
   for (let i = 0; i < rows.length - 1; i++)
     for (let k = 0; k < S; k++) {
-      const k2 = (k + 1) % S;
+      const k2 = UV ? k + 1 : (k + 1) % S;
       if (flip) bag.quad(rows[i + 1][k], rows[i + 1][k2], rows[i][k2], rows[i][k]);
       else bag.quad(rows[i][k], rows[i][k2], rows[i + 1][k2], rows[i + 1][k]);
     }

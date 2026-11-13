@@ -2959,6 +2959,11 @@
       // A BAKED PIECE'S OWN MATERIAL (session 4d): the key from the hardware
       // kit keeps its textures — the props registry rebuilds the very
       // material the editor drew it with
+      // WHEEL-TEX (CAR-3): a textured tyre or rim - its maps redrawn by the very factory the garage drew it with
+      if (data.cage && m.tyreTex && window.CAGE_WHEELTEX) {
+        const tm = window.CAGE_WHEELTEX.material(m.tyreTex);
+        if (tm) return matCache[mn] = tm;
+      }
       if (data.cage && m.propMat && typeof propBuild === 'function') {
         try {
           const [pk, pm] = m.propMat.split('|');

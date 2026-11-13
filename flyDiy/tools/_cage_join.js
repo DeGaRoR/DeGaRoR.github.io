@@ -2746,6 +2746,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // keeps its maps and its uv — its own bucket, rebuilt from the
             // props registry
             (kud.propMat ? 'Pm' + kud.propMat : '') +
+            (kud.tyreTex ? 'Tx' + kud.tyreTex : '') +      // WHEEL-TEX: a textured tyre / rim is its own bucket (its uv rides)
             (kud.aeroMemF ? 'S' + kud.aeroMemF.join(',') : '') +
             (kud.aeroMetalK ? 'Q' + kud.aeroMetalK : '') +
             (kud.aeroFieldM != null ? 'U' + kud.aeroFieldM : '') +
@@ -2813,6 +2814,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.lampKey ? { lamp: ud.lampKey, lampCol: ud.lampCol } : {}),
           ...(ud.lampCup ? { lampCup: ud.lampCup, lampCol: ud.lampCol, ...(ud.lampK ? { lampK: ud.lampK } : {}) } : {}),
           ...(ud.propMat ? { propMat: ud.propMat } : {}),
+          ...(ud.tyreTex ? { tyreTex: ud.tyreTex } : {}),   // WHEEL-TEX: the game rebuilds it from CAGE_WHEELTEX
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
           ...(ud.aeroNoLet ? { noLet: 1 } : {}),   // LOOKS-ROUND2: a float, paint without letters
@@ -2892,7 +2894,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                                                         (m0.userData.vesSet ||
                                                          m0.userData.charKey ||
                                                          m0.userData.panelSet ||
-                                                         m0.userData.propMat))
+                                                         m0.userData.propMat ||
+                                                         m0.userData.tyreTex))
                                                        ? [] : null });
         const lv0 = G3.pos.length / 3;
         for (let i = r.start; i < end; i++) pushV(G3, idx ? idx.getX(i) : i);

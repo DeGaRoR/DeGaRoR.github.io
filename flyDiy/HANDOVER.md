@@ -315786,3 +315786,22 @@ the next steps).
   bucket). "the wheel well ... a little tight": archGap 0.05 -> 0.10, carFenderGap 0.11 (the guards follow).
   convoy_shot: the PAGE's trailer model (FLYDIY_LAZY - an injected copy drew white), the house textures read and waited
   for, the AO bake waited for, the convoy hung off the cage root (a gear-layer rebuild took it away).
+
+CAR-3 WHEEL-TEX (13 Nov, the user: "all the tyres are much too clean. Please do a professional texturing job ... a
+  proper PBR material for the rubber, patterns/writing on the flanks as normals, a proper tyre road pattern - wavy
+  ridges for the speedster, modern all paths and weather for the van ... the same treatment to the rims, proper UV
+  mapping, PBR materials and believable wear and dirt ... also impact the normal planes, at least as an option").
+  NEW ROWS (Wheels > rim): whTex (0 the old flat rubber, 1 textured; absent = 0, so every plane is as before until the
+  row is set), whTexPat (0 auto - a car all-season, a plane aviation ribs; 1 vintage wavy ribs, 2 all-season, 3
+  aviation), whTexDirt (0..1, absent 0.4). UVs: _gear_kit.js Bag takes a uvf and revolve adds a seam column (u = the
+  angle round the axle, so the maps turn WITH the wheel - no swimming); _gear_gen.js wheel() maps the tyre v by the
+  carcass profile's arc length (inboard flank 0-0.3, tread 0.3-0.7, outboard flank 0.7-1) and the rim by r/rimR.
+  Maps: window.CAGE_WHEELTEX (_gear_gen.js) - procedural canvases periodic in u: the tyre 2048 x 512 height field ->
+  normal / albedo / roughness (tread blocks, grooves, sipes, shoulder slots; the flank a bead seat, a rim-protector rib,
+  serrations, raised lettering and a DOT line), the rim 512 x 512 (brake dust, grime in the hub); MeshStandardMaterial
+  per key 'tyre|pat|dirt%' / 'rim|rrggbb|dirt%', userData.tyreTex (own join bucket, keeps its uv; app.js and parked.js
+  rebuild it from the key) and aeroskin (the understudy leaves it). Headless: drawOK() guards the canvas (no maps, flat
+  rubber); plateBuild guarded the same way. The vans whTex 1 / pat 2 / dirt 0.45 (edits, the three vehicles rejoined,
+  names restored); the roadster whTex 1 / pat 1 / dirt 0.15 (card and candidate). The Cub with whTex 1 checked as the
+  plane option (a Cessna's spats hide its wheels). Gates PARTS DESIGN GEAR CAGEFIT VEHICLE UISMOKE TRAILER LIVERYREACH
+  JOIN green; the convoy re-rendered.

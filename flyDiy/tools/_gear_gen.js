@@ -442,6 +442,30 @@ function wheel(bags, ctr, axis, R, opt) {
   let e1 = Math.abs(ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
   e1 = nrm(sub(e1, mul(ax, dot(e1, ax))));
   const e2 = crs(ax, e1);
+  // CAR-3 (WHEEL-TEX, the user 13 Nov: "all the tyres are much too clean ... a professional texturing job ... Don't forget
+  // that turn"): whTex 1 - the tyre and the rim get a UV map in THE WHEEL'S OWN FRAME, so the maps turn with it: u round
+  // the axle (revolve's own angle, its seam column at u = 1), v across - the tyre's profile in three bands (the inboard
+  // sidewall 0-0.3, the tread 0.3-0.7, the outboard sidewall 0.7-1; +axis is outboard), the rim by radius. The maps are
+  // CAGE_WHEELTEX's (below); absent = no uv, the plain materials, every wheel byte for byte
+  const WT = +P.whTex === 1;
+  const rTreadOf = () => R * (1 - (prof.crown || 0.06)) * 0.985;
+  if (WT) {
+    const loc = p => { const d = sub(p, ctr); const a = dot(d, e1), b = dot(d, e2); return [Math.hypot(a, b), dot(d, ax), (Math.atan2(b, a) / (2 * Math.PI) + 1) % 1]; };
+    T.uvf = p => { const [r, h, u] = loc(p), rt = rTreadOf(), b0 = R * prof.bead;
+      if (r >= rt) return [u, 0.5 + 0.2 * clamp(h / (hw * 0.78), -1, 1)];
+      const f = clamp((r - b0) / Math.max(1e-6, rt - b0), 0, 1) * 0.3; return [u, h < 0 ? f : 1 - f]; };
+    const rimR = R * prof.bead * 1.25;
+    Hb.uvf = p => { const [r, , u] = loc(p); return [u, clamp(r / rimR, 0, 1)]; };
+  }
+  // the carcass profile's rows: piecewise arc length - the inboard flank to 0.3, the tread band to 0.7, the outboard to 1
+  const vProf = pts => {
+    if (!WT) return pts;
+    const rt = rTreadOf(); let iA = pts.findIndex(q => q[0] >= rt), iB = pts.length - 1 - pts.slice().reverse().findIndex(q => q[0] >= rt);
+    if (iA < 0) { iA = Math.floor(pts.length * 0.4); iB = Math.ceil(pts.length * 0.6); }
+    const L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const span = (i0, i1, v0, v1, i) => v0 + (v1 - v0) * (L[i1] - L[i0] > 1e-9 ? (L[i] - L[i0]) / (L[i1] - L[i0]) : 0);
+    return pts.map((q, i) => [q[0], q[1], i <= iA ? span(0, iA, 0, 0.3, i) : i <= iB ? span(iA, iB, 0.3, 0.7, i) : span(iB, pts.length - 1, 0.7, 1, i)]);
+  };
   const at = (rad, hh, an) => add(ctr, add(mul(ax, hh),
     add(mul(e1, Math.cos(an) * rad), mul(e2, Math.sin(an) * rad))));
 
@@ -497,11 +521,11 @@ function wheel(bags, ctr, axis, R, opt) {
     // G2784: one ellipse, bead to bead; whBulge widens it as it widens the flank
     const grooves = [];                       // G3852: the bush tyre wears lugs, never circumferential grooves
     const TT = tyreTorus(R, bead * 1.03, beadH, hw * B, grooves);
-    revolve(T, ctr, ax, TT.pts.map(([r, z]) => [r, z]), 44);
+    revolve(T, ctr, ax, vProf(TT.pts.map(([r, z]) => [r, z])), 44);
     wallAt = r => { const u = (r - TT.rc) / TT.a; return Math.abs(u) < 1 ? TT.b * Math.sqrt(1 - u * u) : beadH; };
     if (L && L.tread === 'lugs') tyreLugs(T, (r, z, th) => at(r, z, th), TT, L, R);   // whSlick 2 (G3851b)
     else if (!slick) bushLugs(T, TT, R, at, prof.mil ? MIL_LUG : BUSH_LUG);
-  } else revolve(T, ctr, ax, flank(-1).concat(crown, flank(1).reverse()), 44);
+  } else revolve(T, ctr, ax, vProf(flank(-1).concat(crown, flank(1).reverse())), 44);
   if (!prof.torus && !L) for (const s of [-1, 1])
     for (const rr of [0.62, 0.70]) {
       // on the sidewall: the straight wall's 0.90 hw, or the torus where it is at that radius
@@ -683,6 +707,7 @@ function wheel(bags, ctr, axis, R, opt) {
             q(Rh * 0.022, 0.003, 0.005), q(Rh * 0.018, 0.0025, 0.004), 7);
     }
   }
+  if (WT) { T.uvf = null; Hb.uvf = null; }   // (WHEEL-TEX: the mappers are this wheel's alone)
 }
 // ---- THE SPAT -------------------------------------------------------------
 // A wheel fairing is a STREAMLINED BODY, and the shape is the whole point
@@ -2679,7 +2704,167 @@ function legTipWheel(bags, AF, P, st) {
   return { axle: u.hub, axis: u.axis, root: top, tip: top, travel: [0, 1, 0], castor: u };
 }
 
-window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
+// ---- WHEEL-TEX: THE TYRES' AND RIMS' OWN MAPS (CAR-3, the user 13 Nov: "all the tyres are much too clean. Please do a
+// professional texturing job on these. Don't forget that turn, so no leaks and stuff like that. But a proper PBR material
+// for the rubber, maybe some patterns/writing on the flanks as normals, maybe a new normal map with a proper tyre road
+// pattern - wavy ridges for the speedster, and modern all paths and weather for the van. Apply the same treatment to the
+// rims, proper UV mapping, PBR materials and believable wear and dirt ... Have those modifications also impact the
+// normal planes, at least as an option") ---------------------------------------------------------------------------
+// Drawn once per key on canvases, in the wheel's own uv (wheel() above: u round the axle, v across - the tyre's inboard
+// sidewall 0-0.3, tread 0.3-0.7, outboard sidewall 0.7-1; the rim by radius). EVERYTHING IS PERIODIC IN u and nothing
+// depends on where the wheel stands, so the maps turn with it without a seam or a smear: the dust settles in the grooves
+// and toward the bead all the way round, not at the bottom of a picture. A HEIGHT FIELD first (the tread's blocks and
+// grooves, the sidewall's bead seat, rib, serrations and raised lettering), the normal map off it (central differences,
+// wrapped in u), the albedo and the roughness from the same field and the dirt. Keys: 'tyre|<pattern>|<dirt%>'
+// (vintage wavy ribs, modern all-season, aviation ribbed), 'rim|<rrggbb>|<dirt%>'. A material is pooled per key and
+// carries userData.tyreTex = key: the join keeps its uv and its own bucket, and the game rebuilds it from here.
+const WHEELTEX = (() => {
+  const pool = new Map();
+  const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  // value noise, periodic in x over `px` lattice cells
+  const noise = (x, y, px) => { const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+    const w = q => ((q % px) + px) % px, sm = t => t * t * (3 - 2 * t);
+    const a = hash(w(xi), yi), b = hash(w(xi + 1), yi), c = hash(w(xi), yi + 1), d = hash(w(xi + 1), yi + 1);
+    return (a + (b - a) * sm(fx)) + ((c + (d - c) * sm(fx)) - (a + (b - a) * sm(fx))) * sm(fy); };
+  const sstep = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  const TEXT = { vintage: 'HOMEFIELD SPEEDWAY ★ RACING CORD ★ 5.25-18 ★ ', allseason: 'JOLENE ALL-TERRAIN • M+S • LT 7.50 R16 • TUBELESS • ',
+                 aviation: 'FLYDIY AERO • 6.00-6 • 6 PLY RATING • TT • ' };
+  // the tread's height at (u, t): t across the tread 0..1
+  const tread = (pat, u, t) => {
+    if (pat === 'vintage') {                     // five ribs between four WAVY grooves, notched shoulders
+      let h = 1;
+      for (let k = 0; k < 4; k++) { const c = 0.2 * (k + 1) + 0.032 * Math.sin(2 * Math.PI * (u * 36 + k * 0.5)); h = Math.min(h, sstep(0.020, 0.034, Math.abs(t - c))); }
+      if (t < 0.08 || t > 0.92) { const f = (u * 96) % 1; h = Math.min(h, 0.35 + 0.65 * sstep(0.08, 0.16, Math.min(f, 1 - f))); }
+      return h;
+    }
+    if (pat === 'aviation') { let h = 1; for (let k = 0; k < 4; k++) h = Math.min(h, sstep(0.018, 0.03, Math.abs(t - 0.2 * (k + 1)))); return h; }
+    // ALL-SEASON: four circumferential grooves; shoulder slots; chevron-angled blocks in the intermediate rows (mirrored
+    // about the centre - directional); a centre rib cut by sipes; two zig-zag sipes across every block
+    const P = 64, xp = u * P, gC = [0.21, 0.42, 0.58, 0.79];
+    let h = 1;
+    for (const c of gC) h = Math.min(h, sstep(0.016, 0.03, Math.abs(t - c)));
+    const side = t < 0.5 ? -1 : 1, tt = t < 0.5 ? t : 1 - t;        // folded to one half
+    if (tt < 0.21) {                                                  // the shoulder: lateral slots
+      const f = ((xp + tt * 0.6) % 1 + 1) % 1; h = Math.min(h, sstep(0.07, 0.12, Math.min(f, 1 - f)) * (tt < 0.03 ? 0.7 : 1) + (tt < 0.03 ? 0.3 : 0));
+      const sp = ((xp * 2 + tt * 0.6 + 0.25) % 1 + 1) % 1; if (tt > 0.05 && tt < 0.18) h = Math.min(h, 0.55 + 0.45 * sstep(0.02, 0.04, Math.min(sp, 1 - sp)));
+    } else if (tt < 0.42) {                                           // the intermediate rows: chevron grooves
+      const f = ((xp + (tt - 0.21) * 2.2 * side * -1 + (side > 0 ? 0.5 : 0)) % 1 + 1) % 1;
+      h = Math.min(h, sstep(0.06, 0.1, Math.min(f, 1 - f)));
+      const sp = ((xp * 2 + (tt - 0.21) * 2.2 * -side + 0.25 + 0.03 * Math.sin(tt * 90)) % 1 + 1) % 1;
+      h = Math.min(h, 0.55 + 0.45 * sstep(0.015, 0.03, Math.min(sp, 1 - sp)));
+    } else {                                                          // the centre rib: sipes only
+      const sp = ((xp * 3 + (t - 0.5) * 2 + 0.03 * Math.sin(t * 120)) % 1 + 1) % 1; h = Math.min(h, 0.6 + 0.4 * sstep(0.02, 0.04, Math.min(sp, 1 - sp)));
+    }
+    return h;
+  };
+  const textBand = (W, Hpx, text, size) => {   // the lettering, twice round, on its own canvas (alpha = raised)
+    const c = document.createElement('canvas'); c.width = W; c.height = Hpx; const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.font = '800 ' + size + 'px "Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+    const w = g.measureText(text).width, reps = Math.max(1, Math.floor(W / (w + 40)));
+    const step = W / reps;
+    // (upside down in the canvas: on the outboard sidewall the letters' up is outward = the canvas's down, and they read
+    //  clockwise = the canvas's leftward - the 180 degree turn does both)
+    g.translate(W / 2, Hpx / 2); g.rotate(Math.PI); g.translate(-W / 2, -Hpx / 2);
+    for (let k = 0; k < reps; k++) g.fillText(text, k * step + 8, Hpx / 2);
+    return g.getImageData(0, 0, W, Hpx).data;
+  };
+  function tyreMaps(pat, dirt) {
+    const W = 2048, H = 512, Hf = new Float32Array(W * H);
+    const vOf = y => 1 - (y + 0.5) / H, inBand = (v0, v1) => [Math.max(0, Math.floor((1 - v1) * H)), Math.min(H, Math.ceil((1 - v0) * H))];
+    // the lettering: the outboard sidewall, w 0.42-0.72 (v 0.784-0.874); a DOT-code line inboard
+    const [lb0, lb1] = inBand(1 - 0.3 * 0.72, 1 - 0.3 * 0.42), Lh = lb1 - lb0;
+    const txt = textBand(W, Lh, TEXT[pat] || TEXT.aviation, Math.round(Lh * 0.86));
+    const [db0, db1] = inBand(0.3 * 0.45, 0.3 * 0.6), Dh = db1 - db0;
+    const dot = textBand(W, Dh, 'DOT ' + (pat === 'vintage' ? '1938' : pat === 'allseason' ? 'HF7C 4623' : 'AV12 0946') + '   MADE ON JOLENE ISLAND   ', Math.round(Dh * 0.8));
+    const T = new Float32Array(W * H);   // the tread mask (1 on the tread band), for the albedo
+    for (let y = 0; y < H; y++) { const v = vOf(y);
+      for (let x = 0; x < W; x++) { const u = x / W, i = y * W + x;
+        let h;
+        if (v >= 0.3 && v <= 0.7) { const t = (v - 0.3) / 0.4; h = 0.55 + 0.45 * tread(pat, u, t); T[i] = 1;
+          h -= 0.03 * noise(u * 512, t * 64, 512); }                   // the wear's unevenness
+        else { const w = v < 0.3 ? v / 0.3 : (1 - v) / 0.3;           // 0 at the bead, 1 at the shoulder
+          h = 0.5 + 0.06 * sstep(0.10, 0.13, w) * (1 - sstep(0.21, 0.24, w)) - 0.04 * (1 - sstep(0.06, 0.1, w));   // the rim protector rib, the bead seat
+          if (w > 0.84) h += 0.025 * Math.sin(w * 900);                // the shoulder's serrations
+          h += 0.01 * noise(u * 256, w * 24, 256);
+          if (y >= lb0 && y < lb1) h += 0.1 * txt[((y - lb0) * W + x) * 4 + 3] / 255;
+          if (y >= db0 && y < db1) h += 0.05 * dot[((y - db0) * W + x) * 4 + 3] / 255; }
+        Hf[i] = h; } }
+    const nrm = document.createElement('canvas'), alb = document.createElement('canvas'), rgh = document.createElement('canvas');
+    for (const c of [nrm, alb, rgh]) { c.width = W; c.height = H; }
+    const nI = nrm.getContext('2d').createImageData(W, H), aI = alb.getContext('2d').createImageData(W, H), rI = rgh.getContext('2d').createImageData(W, H);
+    const K = 6.0, d = Math.max(0, Math.min(1, dirt));
+    for (let y = 0; y < H; y++) { const v = vOf(y), ym = Math.max(0, y - 1), yp = Math.min(H - 1, y + 1);
+      for (let x = 0; x < W; x++) { const i = y * W + x, xm = (x + W - 1) % W, xp = (x + 1) % W;
+        const du = (Hf[y * W + xp] - Hf[y * W + xm]) * 0.5, dv = (Hf[ym * W + x] - Hf[yp * W + x]) * 0.5;
+        let nx = -du * K, ny = -dv * K, nz = 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+        nI.data[i * 4] = (nx * 0.5 + 0.5) * 255; nI.data[i * 4 + 1] = (ny * 0.5 + 0.5) * 255; nI.data[i * 4 + 2] = (nz * 0.5 + 0.5) * 255; nI.data[i * 4 + 3] = 255;
+        const h = Hf[i], u = x / W, n1 = noise(u * 300, v * 80, 300), n2 = noise(u * 1400, v * 360, 1400);
+        let r = 23, g = 23, b = 26, ro = 0.88;   // (a cool near-black: the first read warm under the studio key)
+        if (T[i]) { const top = sstep(0.86, 0.97, h), groove = 1 - sstep(0.6, 0.8, h);
+          const k = top * (0.55 + 0.45 * n1); r += 16 * k; g += 15 * k; b += 14 * k; ro = 0.9 - 0.2 * top;           // the road's polish on the blocks
+          const dd = d * groove * (0.6 + 0.4 * n2); r += (82 - r) * dd * 0.6; g += (74 - g) * dd * 0.6; b += (62 - b) * dd * 0.6; ro = Math.max(ro, 0.9 + 0.08 * dd); }
+        else { const w = v < 0.3 ? v / 0.3 : (1 - v) / 0.3;
+          const lift = Math.max(0, h - 0.56) * 2.2; r += 26 * lift; g += 26 * lift; b += 27 * lift; ro -= 0.08 * lift;              // the raised letters' worn edges
+          const dust = d * (0.2 + 0.8 * (1 - sstep(0.15, 0.7, w))) * (0.55 + 0.45 * n1) * 0.32;                                  // road dust toward the bead (grey, not tan: a render read the tyres beige)
+          r += (78 - r) * dust; g += (74 - g) * dust; b += (68 - b) * dust; ro = Math.min(0.98, ro + 0.1 * dust);
+          if (n2 > 0.93) { r += 14; g += 14; b += 14; } }                                                                         // the scuffs
+        aI.data[i * 4] = r; aI.data[i * 4 + 1] = g; aI.data[i * 4 + 2] = b; aI.data[i * 4 + 3] = 255;
+        const rv = Math.max(0, Math.min(1, ro)) * 255; rI.data[i * 4] = rI.data[i * 4 + 1] = rI.data[i * 4 + 2] = rv; rI.data[i * 4 + 3] = 255; } }
+    nrm.getContext('2d').putImageData(nI, 0, 0); alb.getContext('2d').putImageData(aI, 0, 0); rgh.getContext('2d').putImageData(rI, 0, 0);
+    return { nrm, alb, rgh };
+  }
+  function rimMaps(dirt) {
+    const W = 512, H = 512, d = Math.max(0, Math.min(1, dirt));
+    const nrm = document.createElement('canvas'), alb = document.createElement('canvas'), rgh = document.createElement('canvas');
+    for (const c of [nrm, alb, rgh]) { c.width = W; c.height = H; }
+    const nI = nrm.getContext('2d').createImageData(W, H), aI = alb.getContext('2d').createImageData(W, H), rI = rgh.getContext('2d').createImageData(W, H);
+    for (let y = 0; y < H; y++) { const v = 1 - (y + 0.5) / H;
+      for (let x = 0; x < W; x++) { const u = x / W, i = y * W + x;
+        const n1 = noise(u * 64, v * 16, 64), n2 = noise(u * 400, v * 30, 400), n3 = noise(u * 900, v * 900, 900);
+        // brake dust at the hub and in the bead seat, streaked round the wheel; paint chips; orange peel
+        const dust = d * (0.75 * (1 - sstep(0.12, 0.42, v)) + 0.6 * sstep(0.74, 0.86, v) * (1 - sstep(0.95, 1, v))) * (0.55 + 0.45 * n1) * (0.75 + 0.25 * n2);
+        let r = 236, g = 236, b = 236;
+        r += (78 - r) * dust; g += (68 - g) * dust; b += (58 - b) * dust;
+        const chip = n3 > 0.965 ? 1 : 0; if (chip) { r *= 0.55; g *= 0.55; b *= 0.6; }
+        aI.data[i * 4] = r; aI.data[i * 4 + 1] = g; aI.data[i * 4 + 2] = b; aI.data[i * 4 + 3] = 255;
+        const ro = Math.min(1, 0.32 + 0.5 * dust + 0.3 * chip) * 255; rI.data[i * 4] = rI.data[i * 4 + 1] = rI.data[i * 4 + 2] = ro; rI.data[i * 4 + 3] = 255;
+        const px = (noise(u * 900 + 1.3, v * 900, 900) - 0.5) * 0.12, py = (noise(u * 900, v * 900 + 2.1, 900) - 0.5) * 0.12;
+        const l = Math.hypot(px, py, 1); nI.data[i * 4] = (px / l * 0.5 + 0.5) * 255; nI.data[i * 4 + 1] = (py / l * 0.5 + 0.5) * 255; nI.data[i * 4 + 2] = (1 / l * 0.5 + 0.5) * 255; nI.data[i * 4 + 3] = 255; } }
+    nrm.getContext('2d').putImageData(nI, 0, 0); alb.getContext('2d').putImageData(aI, 0, 0); rgh.getContext('2d').putImageData(rI, 0, 0);
+    return { nrm, alb, rgh };
+  }
+  let canDraw = null;   // (a headless bench's document draws nothing: the plain materials there)
+  const drawOK = () => { if (canDraw == null) { try { const c = document.createElement('canvas'); canDraw = !!(c && c.getContext && c.getContext('2d') && c.getContext('2d').createImageData); } catch (e) { canDraw = false; } } return canDraw; };
+  function material(key) {
+    if (typeof document === 'undefined' || !key || !drawOK()) return null;
+    if (pool.has(key)) return pool.get(key);
+    const [kind, a, b] = key.split('|'), dirt = (+b || 0) / 100;
+    const M = kind === 'tyre' ? tyreMaps(a, dirt) : rimMaps(dirt);
+    const tex = (c, srgb) => { const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 8;
+      if (srgb && THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t; };
+    const m = new THREE.MeshStandardMaterial(kind === 'tyre'
+      ? { color: 0xffffff, map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0 }
+      : { color: new THREE.Color('#' + (a || 'c8ccd0')), map: tex(M.alb, true), roughnessMap: tex(M.rgh), roughness: 1, normalMap: tex(M.nrm), metalness: 0.35 });
+    m.normalScale.set(kind === 'tyre' ? 1.4 : 0.6, kind === 'tyre' ? 1.4 : 0.6);
+    m.userData.tyreTex = key; m.userData.aeroskin = 1;
+    pool.set(key, m); return m;
+  }
+  return { material };
+})();
+if (typeof window !== 'undefined') window.CAGE_WHEELTEX = WHEELTEX;
+// the wheel's material for a bag: the textured tyre / rim when the build asks (whTex 1), else the plain gear material
+function wheelMat(k, P) {
+  if (!P || +P.whTex !== 1 || (k !== 'tyre' && k !== 'hub') || typeof document === 'undefined') return gearMat(k);
+  const pats = ['vintage', 'allseason', 'aviation'];
+  const pi = Math.round(+P.whTexPat || 0), pat = pi >= 1 && pi <= 3 ? pats[pi - 1] : (+P.isCar ? 'allseason' : 'aviation');
+  const dirt = Math.round(100 * (P.whTexDirt != null ? +P.whTexDirt : 0.4));
+  let key;
+  if (k === 'tyre') key = 'tyre|' + pat + '|' + dirt;
+  else { const h = gearMat('hub'); key = 'rim|' + ((h && h.color) ? h.color.getHexString() : 'c8ccd0') + '|' + dirt; }
+  return WHEELTEX.material(key) || gearMat(k);
+}
+
+window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat, wheelMat, WHEELTEX, stubAirframe, drawStub, objAirframe, drawBody,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,

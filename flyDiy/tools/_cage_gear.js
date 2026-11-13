@@ -2721,6 +2721,7 @@ function plateBuild(group, P, AF, mesh) {
     for (const x of [70, 442]) { g.beginPath(); g.arc(x, 46, 9, 0, Math.PI * 2); g.fillStyle = relief ? '#444' : '#0c1220'; g.fill(); g.fillStyle = ink; }   // the bolt holes
     return c; };
   if (typeof document === 'undefined') return;
+  { let ok = false; try { const c = document.createElement('canvas'); ok = !!(c && c.getContext && c.getContext('2d')); } catch (e) {} if (!ok) return; }   // (a headless bench draws no canvas)
   const map = new THREE.CanvasTexture(draw(false)), bump = new THREE.CanvasTexture(draw(true));
   if (THREE.SRGBColorSpace) map.colorSpace = THREE.SRGBColorSpace;
   const face = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 1.5, metalness: 0.35, roughness: 0.42 });
@@ -2900,7 +2901,7 @@ function spareBuild(group, P, AF) {
   const wb = { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag(), alloy: GG.Bag(), dark: GG.Bag(), brakefix: GG.Bag(), steel: GG.Bag() };
   GG.wheel(wb, [0, 0, 0], [sg, 0, 0], R, { brake: false, inboard: sg, P: Object.assign({}, P, { whCap: 0 }) });
   const wg = new THREE.Group();
-  for (const k of ['tyre', 'hub', 'alloy', 'dark']) if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.gearMat(k));
+  for (const k of ['tyre', 'hub', 'alloy', 'dark']) if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.wheelMat ? GG.wheelMat(k, P) : GG.gearMat(k));
   rig.add(wg);
   const tb = new THREE.Box3().setFromObject(wg);
   const hwT = Math.max(Math.abs(tb.min.x), Math.abs(tb.max.x));     // the tyre's half-width (its widest, the bulge)
@@ -3546,7 +3547,7 @@ PAGE.post = ctx => {
     const wg = new THREE.Group();
     wg.name = 'edWheel' + (wb.kind || 'T');
     for (const k of ['tyre', 'hub', 'brake', 'alloy', 'dark'])
-      if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.gearMat(k));
+      if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.wheelMat ? GG.wheelMat(k, P) : GG.gearMat(k));   // (WHEEL-TEX: the textured tyre and rim when asked)
     group.add(wg);
   }
   // CAR-1 (the user, 12 Nov: "put a spare wheel on one of the sides, at the back, like the ref picture"): spareOn - the
