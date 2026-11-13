@@ -808,6 +808,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     GRASS: [0.153, 0.194, 0.060], FOREST_FLOOR: [0.060, 0.070, 0.030], ROCK: [0.200, 0.190, 0.170],
     SCREE: [0.190, 0.170, 0.130], WATER: [0.048, 0.068, 0.100], PAVED: [0.251, 0.230, 0.190],
     GRAVEL: [0.190, 0.150, 0.110], SAND: [0.283, 0.237, 0.196],
+    // SNOW-MUD (13 Nov): snow's albedo 0.8-0.9 fresh, ~0.7 old and packed, 0.5-0.6 wet (a little blue); mud a dark wet soil
+    SNOW_PACKED: [0.700, 0.720, 0.760], SNOW_POWDER: [0.800, 0.820, 0.860], SNOW_WET: [0.550, 0.570, 0.610],
+    MUD_FIRM: [0.100, 0.080, 0.058], MUD_SOFT: [0.070, 0.055, 0.040],
   };
   const GU = { alb: GROUND_ALBEDO.GRASS.slice(), target: GROUND_ALBEDO.GRASS.slice(), cls: 'GRASS', r: 6, tick: 0, mix: {}, last: 0, pin: null };
   const capOf = () => GU.pin || GU.alb;   // the cap the probe bakes over: the ground, or a pinned colour (the A/B below)

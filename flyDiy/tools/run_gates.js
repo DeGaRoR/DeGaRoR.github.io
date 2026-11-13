@@ -151,6 +151,11 @@ const GATES = [
   // skis) holds for the stock Cub, the float Cessna and an amphibian, and the three pilots never plan a landing on the
   // wrong surface (~10 s; --selftest)
   { id: 'STRIPSURF', file: '_surface_check.js', tier: 'core', wall: 15 },
+  // SNOW-MUD (13 Nov): the five soft rows (packed / powder / wet snow, firm / soft mud) and their layer - the eight hard
+  // rows frozen and 16 legacy rolls bit-identical to master; the sinking with pressure (load, width, diameter, the
+  // carcass, the layer's depth; the ski's plate); the take-off runs and braked rolls of the stock, tundra and tricycle
+  // builds on each; the looks and the gear rule (~100 s; --selftest, --show)
+  { id: 'SOFTGROUND', file: '_softground_check.js', tier: 'core', wall: 110 },
   // G193: the user's ultralight off the stand through the declared pattern —
   // the stop, the straight roll, in calm air and in wind (~3 min)
   { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core', wall: 300 },

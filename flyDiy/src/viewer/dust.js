@@ -47,13 +47,18 @@
   // fines: the share of the class's surface that is dust-sized (the AP-42 silt content's role, normalised to dirt);
   // loose: how much grit a tyre throws; ut: the dry threshold wall-wind speed near the surface (m/s, ~10x Bagnold's u*t);
   // col: the dust's albedo (linear) - INFERRED from soil reflectance tables (dry silt ~0.3-0.45, sand ~0.4-0.55)
-  const CLASSES = ['dirt', 'sand', 'gravel', 'grass', 'paved'];
+  // SNOW-MUD (13 Nov): 'mud' and 'snow' (the soft looks' pavement classes, the SURFACE codes 8-12). Their water is THEIRS,
+  // not the season's soil (`wet`, read in place of env.wet): mud is always wet - it throws clods, never dust; snow is its own
+  // dry powder - the prop's wall jet and the tyres lift it white (a skiplane's take-off cloud), whatever the soil does
+  const CLASSES = ['dirt', 'sand', 'gravel', 'grass', 'paved', 'mud', 'snow'];
   const CLS = {
     dirt:   { fines: 1.0,  loose: 0.35, ut: 4.0, col: [0.42, 0.33, 0.24] },
     sand:   { fines: 0.45, loose: 1.0,  ut: 4.5, col: [0.56, 0.47, 0.34] },
     gravel: { fines: 0.35, loose: 0.8,  ut: 5.0, col: [0.40, 0.38, 0.35] },
     grass:  { fines: 0.18, loose: 0.1,  ut: 6.0, col: [0.44, 0.39, 0.29] },
     paved:  { fines: 0.03, loose: 0.0,  ut: 9.0, col: [0.40, 0.39, 0.37] },
+    mud:    { fines: 0.0,  loose: 0.6,  ut: 9.0, col: [0.16, 0.12, 0.085], wet: 1 },
+    snow:   { fines: 0.7,  loose: 0.15, ut: 5.0, col: [0.80, 0.82, 0.86], wet: 0 },
   };
   const MUD_COL = [0.16, 0.12, 0.085];
   // THE GROUND'S OWN COLOUR (the user, 10 Nov, on the Cub at low sun on a dark dirt strip: "the color of the dirt cloud is not
@@ -371,7 +376,7 @@
       if (!w.on) continue;
       const ci = env.cls ? env.cls(w.x, w.z) : 0;
       if (ci < 0) continue;
-      const C = CLS[CLASSES[ci]], S = env.wet ? env.wet(ci) : 0, dry = dryK(S), V = Math.hypot(w.vx, w.vz);
+      const C = CLS[CLASSES[ci]], S = C.wet != null ? C.wet : env.wet ? env.wet(ci) : 0, dry = dryK(S), V = Math.hypot(w.vx, w.vz);
       const pud = env.puddle ? env.puddle(w.x, w.z) : 0, mud = smooth(0.45, 0.8, S);
       const g = w.y;
       // TOUCHDOWN: the contact begins with a sink - the spin-up skid scrubs, the tyre slaps the ground
@@ -437,7 +442,7 @@
     const hx = pr.x + ax * sHit, hz = pr.z + az * sHit;
     const ci = env.cls ? env.cls(hx, hz) : 0;
     if (ci < 0) return;
-    const C = CLS[CLASSES[ci]], S = env.wet ? env.wet(ci) : 0, ut = C.ut * L.jetUt * utK(S);
+    const C = CLS[CLASSES[ci]], S = C.wet != null ? C.wet : env.wet ? env.wet(ci) : 0, ut = C.ut * L.jetUt * utK(S);
     if (u <= ut || (env.puddle && env.puddle(hx, hz) > 0.01)) return;
     const flux = u * (u * u - ut * ut) / (ut * ut * ut);      // dimensionless, 0 at the threshold
     const rate = L.propK * flux * C.fines * dryK(S) * K;
@@ -462,7 +467,7 @@
       const u = gam / (Math.PI * Math.max(0.5, h));
       const ci = env.cls ? env.cls(tp[0], tp[2]) : 0;
       if (ci < 0) continue;
-      const C = CLS[CLASSES[ci]], S = env.wet ? env.wet(ci) : 0, ut = C.ut * utK(S);
+      const C = CLS[CLASSES[ci]], S = C.wet != null ? C.wet : env.wet ? env.wet(ci) : 0, ut = C.ut * utK(S);
       if (u <= ut) continue;
       const flux = u * (u * u - ut * ut) / (ut * ut * ut);
       const rate = L.vortK * flux * C.fines * dryK(S) * K;
@@ -484,7 +489,7 @@
     attribute vec4 iB;                                              // iB: optical depth at the centre, ground y, class, a puff's half-height
     attribute vec2 iC;                                              // iC (V2): the puff's sun and sky through the other puffs (0..1)
     uniform float uStretch, uMinNdc, uNear;
-    uniform vec3 uCol[5]; uniform vec3 uMud; uniform vec3 uSunV;
+    uniform vec3 uCol[7]; uniform vec3 uMud; uniform vec3 uSunV;
     varying vec2 vUv; varying vec4 vA; varying vec3 vCol; varying float vTau, vGd, vK, vSv;
     varying vec3 vLq, vUq; varying vec2 vSh;                         // V2: the sun and the sky's up in the sprite's frame; iC
     void main() {
@@ -527,7 +532,7 @@
       vec3 wOff = vec3(off, 0.0) * mat3(viewMatrix);
       vGd = iPos.y + wOff.y - iB.y;
       int ci = int(iB.z + 0.5);
-      vCol = kind > 1.5 ? uMud : ci == 0 ? uCol[0] : ci == 1 ? uCol[1] : ci == 2 ? uCol[2] : ci == 3 ? uCol[3] : uCol[4];
+      vCol = kind > 1.5 ? uMud : ci == 0 ? uCol[0] : ci == 1 ? uCol[1] : ci == 2 ? uCol[2] : ci == 3 ? uCol[3] : ci == 4 ? uCol[4] : ci == 5 ? uCol[5] : uCol[6];
       gl_Position = projectionMatrix * vp;
       #include <logdepthbuf_vertex>
     }`;

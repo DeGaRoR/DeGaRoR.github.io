@@ -7816,9 +7816,10 @@
   // strength; window.DUST_FX the rig's handle.
   const DUST_Q = (() => { try { const m = /[?&]dust=([0-9.]+)/.exec(location.search || ''); return m ? +m[1] : null; } catch (e) { return null; } })();
   let dustFx = null;
-  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
-  const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4 };
-  const DUST_GROUND = ['dirt', 'sand', 'gravel', 'dirt', null];   // a dust class -> the pavement surface whose colour it takes
+  // (SNOW-MUD, 13 Nov: 8-10 snow, 11-12 mud - dust.js's own classes: the snow's powder thrown up, the mud's clods)
+  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand', 'snow', 'snow', 'snow', 'mud', 'mud'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
+  const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4, mud: 5, snow: 6 };
+  const DUST_GROUND = ['dirt', 'sand', 'gravel', 'dirt', null, 'mud', 'snow'];   // a dust class -> the pavement surface whose colour it takes
   // THE SOIL'S WATER, ONCE A FRAME, FOR EVERYONE WHO SHOWS IT (DIRT-STRIP's ask, 9 Nov): SOIL_WET off the day, handed to the
   // pavement (PAVEMENT.setSoilWet: one shared uniform - the strip's damp tint and its drawn puddles) and to the dust (the same
   // R: the water drawn is the water splashed in). Runs with the dust off too (?dust=0 is the dust's lever, not the puddles').

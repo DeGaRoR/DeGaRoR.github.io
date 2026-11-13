@@ -77,7 +77,7 @@ var AIRFRAME_MODEL = (function () {
   const CR_SEC = 5, CR_AT = 2, CR_ONCE = 0.1, CR_MASK = 0.2;
   const AF_SURF_PAVED = 5, AF_SURF_WATER = 4;
   // the rough rows' tailwheel rattle (GROUND_SURF codes 0..7: grass rock scree forest water paved gravel sand)
-  const AF_ROUGH = [0.5, 1.0, 0.9, 0.7, 0, 0.12, 0.8, 0.4];
+  const AF_ROUGH = [0.5, 1.0, 0.9, 0.7, 0, 0.12, 0.8, 0.4, 0.2, 0.15, 0.15, 0.35, 0.3];   // SNOW-MUD 8-12: snow smooth, mud a little rougher
   const AF_TUNE = {
     Vref: 50, windExt: 0.08, windCab: 0.09, windOpen: 0.2, windMax: 2.2,
     gnd: 0.025, gndVref: 12, gndHi: 0, wat: 0.07, drag: 0.12,

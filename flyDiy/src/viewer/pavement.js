@@ -43,7 +43,7 @@
 // island is one program.
 'use strict';
 const PAVEMENT = (() => {
-  const CLASSES = ['concrete', 'asphalt', 'gravel', 'dirt', 'sand', 'grass'];
+  const CLASSES = ['concrete', 'asphalt', 'gravel', 'dirt', 'sand', 'grass', 'snow', 'mud'];   // (SNOW-MUD: snow 6, mud 7 - the shader reads the index)
   // what each class reaches for in the library (keys of PAVEMENT_TEX_SETS), and its own numbers.
   // lanes: the concrete's paving lanes; hexRot: degrees a hex tile may turn (a brushed finish is
   // directional, loose material is not); rut: whether the pavement itself carries ruts.
@@ -57,7 +57,26 @@ const PAVEMENT = (() => {
     dirt:     { base: 'dirtS',     damage: 'trailR',    shoulder: 'dry',     grass: 'grassG', tracks: 'dirtG',   moss: 'tracksM',   macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 1.5, soft: [0.6, 0.7, 0.8, 1.0] },
     sand:     { base: 'sandC',     damage: 'gravelS',   shoulder: 'sandC',   grass: 'grassG', tracks: 'dirtG',   moss: 'mudAir',    macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 1.0, soft: [0.5, 0.5, 0.6, 1.0] },
     grass:    { base: 'fieldgrass', damage: 'gravelF',  shoulder: 'grassG',  grass: 'lush',   tracks: 'grassP', moss: 'grassG',     macro: 'fieldgrass',   lanes: 0, hexRot: 90, rut: 1, marks: 1, rubber: 0, band: 1.5, soft: [0.6, 0.3, 0.85, 0.7] },
+    // SNOW-MUD (13 Nov 2026; the observatory's altiport, the community field): THE SOFT LOOKS, the soft classes' machinery
+    // (the compacted wheel band, the ruts, the tread pressed in, the coarse patches) on sets the library already ships. SNOW
+    // has no set of its own in the pavement library: it RECOLOURS fine grain to snow - `recolor`, per slot, the linear
+    // albedo the set is graded to (its gain to that luminance, its saturation to `sat`, its tint to that hue), so the
+    // texture's relief stays and its colour is snow's: fresh ~0.75, the packed wheel tracks greyer and bluer (~0.55),
+    // the banks brighter, the far tier and the dust the same (gradedMean reads it). MUD wears the library's mud sets as
+    // they are (aerial mud, the muddy tracks), and `wetMin` keeps a wet film on it whatever the day's soil says
+    snow:     { base: 'gravelF',   damage: 'gravelS',   shoulder: 'gravelF', grass: 'gravelG', tracks: 'concreteD', moss: 'gravelG', macro: 'dirtAir',     lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 2, soft: [0.5, 0.4, 0.9, 0.9],
+                recolor: { sat: 0.06, base: [0.70, 0.72, 0.76], damage: [0.78, 0.80, 0.84], shoulder: [0.80, 0.82, 0.86], grass: [0.74, 0.76, 0.80], tracks: [0.50, 0.54, 0.62], moss: [0.66, 0.68, 0.73], macro: [0.72, 0.74, 0.78] } },
+    mud:      { base: 'mudAir',    damage: 'tracksM',   shoulder: 'dirtS',   grass: 'grassG', tracks: 'tracksM', moss: 'dirtG',     macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 1.5, soft: [0.7, 0.6, 0.9, 1.0], wetMin: 0.45 },
   };
+  // SNOW-MUD: a set's grade under a class that recolours it -> [gain, sat, tr, tg, tb] (null: the set's own). The set's
+  // graded mean taken to the slot's target luminance, its saturation `sat`, its tint the target's hue
+  function recolorGrade(cls, slot, key, lib) {
+    const rc = cls && cls.recolor, tgt = rc && rc[slot];
+    if (!tgt) return null;
+    const mean = (lib && lib.mean && lib.mean[key]) || ((typeof PAVEMENT_TEX_SETS !== 'undefined' && PAVEMENT_TEX_SETS[key] && PAVEMENT_TEX_SETS[key].mean) || [0.2, 0.2, 0.2]);
+    const L = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], lt = L(tgt), lm = Math.max(1e-3, L(mean));
+    return [lt / lm, rc.sat, tgt[0] / lt, tgt[1] / lt, tgt[2] / lt];
+  }
 
   const SLOTS = ['base', 'damage', 'shoulder', 'grass', 'tracks', 'moss', 'macro'];
   // THE RECIPE: every knob the bench edits, with the defaults the first shot was judged at.
@@ -119,8 +138,8 @@ const PAVEMENT = (() => {
   // (rec.pavement: the editor's PAVEMENT section lists them); the world look's RUNWAY section lays a live overlay over
   // every pavement (look()) and exports it. The defaults draw what G1391 draws: brightness 1, no tint, wear 1, the paved
   // side at the edge zone's sideA, the soft and grass sides their ragged edge alone (alpha 0) over edgeSoft (G1395).
-  const LOOK_GROUPS = { pv: ['concrete', 'asphalt'], sf: ['gravel', 'dirt', 'sand'], gr: ['grass'] };
-  const LOOK_NAMES = { pv: 'paved (concrete, asphalt)', sf: 'soft (gravel, dirt, sand)', gr: 'grass' };
+  const LOOK_GROUPS = { pv: ['concrete', 'asphalt'], sf: ['gravel', 'dirt', 'sand', 'snow', 'mud'], gr: ['grass'] };   // (SNOW-MUD: snow and mud are soft)
+  const LOOK_NAMES = { pv: 'paved (concrete, asphalt)', sf: 'soft (gravel, dirt, sand, snow, mud)', gr: 'grass' };
   // G1395: a soft / grass side's spread at -1 is the edge zone's edgeSoft (2.6 m: the old torn edge, reaching ~3 x it out);
   // the paved one's the edge zone's sideW
   // (G3018, the user 12 Oct: 'the saturation control is missing from the pavement edition') a tenth knob, SAT: the surface's
@@ -1088,7 +1107,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     float nrmK = uSpec.y * (1.0 - smoothstep(uDist.z, uDist.w, dist));
     gPlain = smoothstep(uDist.y * 0.8, uDist.y * 1.1, dist);
     bool sideFade = uSide.x > 0.5;
-    bool paved = cls < 1.5, concrete = cls < 0.5, grassy = cls > 4.5, road = uClass.w > 0.5, isPoly = uClass.w > 1.5;
+    bool paved = cls < 1.5, concrete = cls < 0.5, grassy = cls > 4.5 && cls < 5.5, road = uClass.w > 0.5, isPoly = uClass.w > 1.5;
     // THE FOOTPRINT RULE: a thin feature (a joint, a crack, a paint edge) is anti-aliased by fwidth,
     // and once the pixel's footprint exceeds the feature's width its coverage must SHRINK to the
     // width's share of the footprint - or a 6 cm joint paints a half-dark band as wide as the pixel
@@ -1208,7 +1227,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         // THE IMPRINT: the tyres' lugs pressed into the trough - a mask with its own relief (the
         // mask's gradient), where the ground is soft enough to take it (dirt and sand fully, gravel
         // and grass faintly), fading with the footprint (a 16 cm lug) and the distance
-        float imp = uSoft.w * detail * PV_THIN(0.16) * (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35);
+        float imp = uSoft.w * detail * PV_THIN(0.16) * ((cls > 2.5 && cls < 4.5) || cls > 5.5 ? 1.0 : 0.35);
         if (imp > 0.01 && r1.x > 0.05) {
           float tx = r1.z, tw = r1.w;
           float t0 = pvTread(u, tx, tw, seed), tu = pvTread(u + 0.012, tx, tw, seed), tv = pvTread(u, tx + 0.012, tw, seed);
@@ -1244,7 +1263,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         // the compacted ground (the expected density), which is also what the far view reads - a track thinner than its
         // pixel's footprint hands over to them (PV_THIN). uRubber2.w: the run-up's prop-blast scour at each end.
         float L = 2.0 * halfL, sd = seed * 37.0;
-        float imp = uSoft.w * detail * PV_THIN(0.16) * (grassy ? 0.0 : (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35));   // (no lugs pressed in turf: DIRT-STRIP 10 Nov)
+        float imp = uSoft.w * detail * PV_THIN(0.16) * (grassy ? 0.0 : ((cls > 2.5 && cls < 4.5) || cls > 5.5 ? 1.0 : 0.35));   // (no lugs pressed in turf: DIRT-STRIP 10 Nov)
         // (16 passes at most, as 4 x 4: the loop rule's small constants - no texture read inside, uRoad.x the count)
         for (int ka = 0; ka < 4; ka++) for (int kb = 0; kb < 4; kb++) {
           float fk = float(ka * 4 + kb);
@@ -1313,7 +1332,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         wheel = wb * uSoft.z * (0.75 + 0.25 * pvNoise(uvS / 3.0));
         float streak = pvFbm(vec2(u / 6.0, v / 0.35) + seed * 3.0);
         tread = rubberPre * smoothstep(0.42, 0.7, streak) * uSoft.w * 0.5;
-        float imp = uSoft.w * detail * PV_THIN(0.16) * (grassy ? 0.0 : (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35));   // (no lugs pressed in turf: DIRT-STRIP 10 Nov)
+        float imp = uSoft.w * detail * PV_THIN(0.16) * (grassy ? 0.0 : ((cls > 2.5 && cls < 4.5) || cls > 5.5 ? 1.0 : 0.35));   // (no lugs pressed in turf: DIRT-STRIP 10 Nov)
         for (int k = 0; k < 2; k++) {
           float fk = float(k);
           float c = (pvNoise(vec2(u / (uRut2.x * 2.5) + fk * 13.0, seed + fk)) - 0.5) * halfW * 0.5;
@@ -1842,8 +1861,8 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   function applyAll(THREE) { for (const m of MATS) applyOne(THREE, m); }
   // a set's mean colour graded as the shader grades it (gain, tint, saturation): linear rgb, what the
   // eye sees of that set on average - the far tier's uMean and the cover ring's `col` (v1.17)
-  function gradedMean(key, r, lib, satK) {
-    const g0 = (r.grade && r.grade[key]) || [1, 1], g = satK === undefined || satK === 1 ? g0 : [g0[0], g0[1] * satK].concat(g0.slice(2)), t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1];
+  function gradedMean(key, r, lib, satK, rg) {
+    const g0 = rg || (r.grade && r.grade[key]) || [1, 1], g = satK === undefined || satK === 1 ? g0 : [g0[0], g0[1] * satK].concat(g0.slice(2)), t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1];
     const mean = (lib && lib.mean[key]) || ((typeof PAVEMENT_TEX_SETS !== 'undefined' && PAVEMENT_TEX_SETS[key] && PAVEMENT_TEX_SETS[key].mean) || [0.2, 0.2, 0.2]);
     const c = [mean[0] * g[0] * t[0], mean[1] * g[0] * t[1], mean[2] * g[0] * t[2]], l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     return [l + (c[0] - l) * g[1], l + (c[1] - l) * g[1], l + (c[2] - l) * g[1]];
@@ -1868,7 +1887,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   function groundColor0(cls, recipe) {
     const row = CLASS_DEF[cls]; if (!row) return null;
     const r = recipe ? Object.assign(JSON.parse(JSON.stringify(RECIPE)), recipe, { grade: Object.assign({}, RECIPE.grade, recipe.grade || {}) }) : R;
-    const c = gradedMean(row.shoulder, r, SHARED), lk = lookOf(cls, r);
+    const c = gradedMean(row.shoulder, r, SHARED, undefined, recolorGrade(row, 'shoulder', row.shoulder, SHARED)), lk = lookOf(cls, r);
     if (lk.match > 0.5) return null;   // G2570: a matched grass strip draws the ground itself - a tuft there takes the ground's (the cover ring's meanAt)
     return [c[0] * lk.side[0], c[1] * lk.side[1], c[2] * lk.side[2]];   // G1392: the side's look
   }
@@ -1880,7 +1899,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     if (SC_MEMO.v !== GC_V) { SC_MEMO.v = GC_V; SC_MEMO.m.clear(); }
     if (SC_MEMO.m.has(cls)) return SC_MEMO.m.get(cls);
     const row = CLASS_DEF[cls]; let c = null;
-    if (row && row.base) { const lk = lookOf(cls, R), m = gradedMean(row.base, R, SHARED, lk.sat); c = [m[0] * lk.surf[0], m[1] * lk.surf[1], m[2] * lk.surf[2]]; }
+    if (row && row.base) { const lk = lookOf(cls, R), m = gradedMean(row.base, R, SHARED, lk.sat, recolorGrade(row, 'base', row.base, SHARED)); c = [m[0] * lk.surf[0], m[1] * lk.surf[1], m[2] * lk.surf[2]]; }
     SC_MEMO.m.set(cls, c); return c;
   }
   // ---- THE RUNWAY LOOK (G1392) -------------------------------------------------------------------------------
@@ -1960,10 +1979,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     U.uTile.value.set(met('base'), met('damage'), met('shoulder'), met('grass'));
     U.uTile2.value.set(met('tracks'), met('moss'), met('macro'), 0);
     const SURF = { base: 1, damage: 1, tracks: 1, moss: 1, macro: 1 };   // (G3018: the surface's sets - the side and the grass keep their own)
-    SLOTS.forEach((s, i) => { const g = (r.grade && r.grade[keyOf(s)]) || [1, 1]; U.uGrade.value[i].set(g[0], SURF[s] && lk.sat !== 1 ? g[1] * lk.sat : g[1], 0, 0); const t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1]; U.uTint.value[i].set(t[0], t[1], t[2], 0); });
+    SLOTS.forEach((s, i) => { const g = recolorGrade(cls, s, keyOf(s), lib) || (r.grade && r.grade[keyOf(s)]) || [1, 1]; U.uGrade.value[i].set(g[0], SURF[s] && lk.sat !== 1 ? g[1] * lk.sat : g[1], 0, 0); const t = g.length >= 5 ? g.slice(2, 5) : [1, 1, 1]; U.uTint.value[i].set(t[0], t[1], t[2], 0); });
     U.uClass.value.set(CLASSES.indexOf(d.cls), cls.lanes, cls.rut, d.poly ? 2 : (d.road ? 1 : 0));
     // the base's mean colour, graded exactly as the shader grades the base (gain, tint, saturation)
-    { const c = gradedMean(cls.base, r, lib, lk.sat); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
+    { const c = gradedMean(cls.base, r, lib, lk.sat, recolorGrade(cls, 'base', cls.base, lib)); U.uMean.value.set(c[0], c[1], c[2], 0.85); }
     U.uHex.value.set(r.hexDepth, r.hexOn, r.hexCells, cls.hexRot * Math.PI / 180 * r.hexRotK);
     U.uMacro.value.set(r.macroLuma, r.macroHue, r.macroRough, d.road ? 0 : lk.match);   // .w (G2570): a grass STRIP shows the ground (its match)
     U.uLane.value.set(cls.lanes, r.laneW, r.jointW, r.jointDepth);
@@ -1972,7 +1991,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     U.uPatch.value.set(r.patchK, r.patchTone, r.patchRough, r.patchLen);
     U.uMoss.value.set(r.mossK, r.mossEdge, r.mossJoint, r.mossScale);
     U.uStain.value.set(r.stainK, r.stainScale, r.stainRough, lk.mowA);   // .w (G2570): the mown tint over a matched grass strip
-    U.uWet.value.set(r.wet, lk.surf[0], lk.surf[1], lk.surf[2]);          // .yzw (the puddles' until 2026-09-23): the runway look's surface multiplier (G1392)
+    U.uWet.value.set(cls.wetMin !== undefined ? Math.max(r.wet, cls.wetMin) : r.wet, lk.surf[0], lk.surf[1], lk.surf[2]);   // (SNOW-MUD: mud is wet)          // .yzw (the puddles' until 2026-09-23): the runway look's surface multiplier (G1392)
     U.uMark.value.set(r.paintAge, r.paintRough, r.chalk, r.paintOnGrass);
     U.uRubber.value.set(r.rubberStart, r.rubberPeak, r.rubberEnd, r.rubberSpread);
     U.uRubber2.value.set(cls.rubber && !d.road ? r.rubberK : 0, r.rubberTrack, r.rubberStreak, !cls.rubber && !d.road && !d.poly ? (r.tyreEnds || 0) : 0);   // the rubber is a paved runway's (the touchdown zones); a soft strip's tyres MARK the same band
