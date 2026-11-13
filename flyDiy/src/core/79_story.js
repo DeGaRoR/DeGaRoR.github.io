@@ -109,12 +109,14 @@ const STORY_TIM = {
        'It\u2019s pre-certified, so no bench needed here (this shed has none anyway). When it looks right, tap OK on the card.'],
   T1: ['Good news: the old WWII airport is ready for us. It\u2019s our base of operations now. Come and join me there.',
        'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.'],
-  T2: ['Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.'],
-  T3: ['Certified? Then fly it over to its owner.'],
-  T4: ['He can\u2019t pay us... so he\u2019s giving us the Cub. Not a bad trade.'],
-  T5: ['A few quick jobs with the Cub. Nothing fancy, just get them done.'],
-  T6: ['We promised this one: floats on the Cub, and land it at the seaplane base.'],
-  T7: ['The Cub is flying a route now. But look: three planes for sale, once only.'],
+  // TUTORIAL v2 (TUTORIAL-LOCK): the band's lines follow the beats' new meaning (the same words, re-keyed: T2 the swap, T3
+  // the build, T4 the delivery, T5 the gift, T6 one job, T7 the floats and the rest; no route, no occasions)
+  T2: ['A client brought us a Cub. Let’s swap it with the ultralight: Storage keeps every plane you own.'],
+  T3: ['Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.'],
+  T4: ['Certified? Then fly it over to its owner.'],
+  T5: ['He can’t pay us... so he’s giving us the Cub. Not a bad trade.'],
+  T6: ['One quick job with the Cub: tools to bring back from the hill. Nothing fancy, just get it done.'],
+  T7: ['We promised this one: floats on the Cub, and land it at the seaplane base. Then a well-deserved rest.'],
 };
 // G3370 (TUTO-FLIGHT, GAME-PLAN §R2, the user 19 Oct: "a few cards covering the basics of the game, and the basics of
 // building a plane"): THE LADDER on T1's flight - one card per stretch of the flight, in Tim's band (app.js #stTim) as text

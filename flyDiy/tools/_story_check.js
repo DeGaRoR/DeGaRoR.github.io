@@ -120,6 +120,7 @@ function run(M) {
   ok(M.storyOf(d).planes.gift === 'client-cub', "the gift: the client's Cub is the story's gift plane");
   // T6 ONE JOB
   ok(M.storyJobIds(d).join() === 'field.02' && M.STORY_JOBS.join() === 'field.02', 'T6: the one job offered is Tools from the hill (field.02)', M.storyJobIds(d).join());
+  ok(M.careerOfferIds(d)[0] === 'field.02' && M.careerAccept(d, 'field.02').ok, 'T6: the one job is OFFERED first and can be accepted (its chain after set aside while the beat holds)', M.careerOfferIds(d).slice(0, 3).join());
   step({ k: 'jobDone', id: 'field.02' }, 'T6: the one job moves the story', true);
   // T7 THE FLOATS, THE END
   step({ k: 'stop', stop: stop('SEA'), slot: 'client-cub', gear: 'wheels' }, 'T7: on wheels at the seaplane base is refused', false);
