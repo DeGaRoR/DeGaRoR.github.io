@@ -2690,7 +2690,7 @@ function missionPackUse(pack, providers, text) {
     for (const k of ['arc', 'builds', 'night']) { base[p][k] = I.providers[p][k] || []; n += base[p][k].length; }
   }
   Object.assign(T, I.text || {});
-  return { ok: true, n, held: I.held, why: '' };
+  return { ok: true, n, held: I.held, why: '', projects: missionPackNormalise(pack).projects };   // (PROJECTS: the page ticks them)
 }
 
 // ---- THE REWARD (the editor's live line) ----------------------------------------------------------------------------
