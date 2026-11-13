@@ -30,7 +30,10 @@
   }
   function rotM(rot, flip) {
     const r = ((rot || 0) % 360 + 360) % 360;
-    const c = Math.round(Math.cos(r * Math.PI / 180)), sn = Math.round(Math.sin(r * Math.PI / 180));
+    // ANY ANGLE (13 Nov, the PC-6 floats: the sheet's airframe drawn ~2 deg nose-up on its floats - the user: "the plane
+    // is tilted ... anchored from your nose point"); a quarter turn stays exact (the old rounding, kept where it holds)
+    const snap = v => (Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v);
+    const c = snap(Math.cos(r * Math.PI / 180)), sn = snap(Math.sin(r * Math.PI / 180));
     const f = flip ? -1 : 1;
     // screen: X right, Y up -> pixels y down; then the drawing's turn (clockwise on screen)
     return [c, -sn * f, sn, c * f];   // applied to (X, -Y)

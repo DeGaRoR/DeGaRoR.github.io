@@ -35,6 +35,12 @@ const DT = require('./dt_node.js'), C = DT.CORE;
   const have = new Set(Array.from(B.parts).map(p => C.PARTS[p]));
   const want = ['body', 'glass', 'screen', 'pillar', 'wing', 'strut', 'fin', 'stab', 'cowl', 'engine', 'gear'];
   ok(want.every(p => have.has(p)), 'every part is drawn' + (want.some(p => !have.has(p)) ? ': missing ' + want.filter(p => !have.has(p)).join(' ') : ''));
+  // A FLOAT CARD DRAWS ITS FLOATS (13 Nov: the table loaded no hydro core - the float layer saw no Wipline catalogue and
+  // drew nothing, silently; dt_manifest now loads src/core/32_hydro.js)
+  const fdoc = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'candidates', 'pc6_floats_2026-11-13.json'), 'utf8'));
+  const FB = DT.build(fdoc.spec, null, { level: 0 });
+  const fparts = Array.from(FB.parts).filter(p => C.PARTS[p] === 'float').length;
+  ok(!FB.errors.length && fparts > 1000, 'the PC-6 on Wiplines draws its floats (' + fparts + ' triangles)');
   const T = C.compare(doc.ref, C.measure(B, { stations: C.stations(doc.ref), probes: C.probes(doc.ref) }), C.windows(B), B);
   ok(T.pass >= 120, 'the PC-6: ' + T.pass + ' / ' + T.n + ' key measurements and line checks inside tolerance (floor 120)');
   const FO = C.folds(B);
@@ -71,6 +77,16 @@ const DT = require('./dt_node.js'), C = DT.CORE;
     }
   }
   ok(worst < 1e-9, 'the view mapping round-trips every turn and mirror (worst ' + worst.toExponential(1) + ')');
+  // ANY ANGLE (13 Nov, the PC-6 floats: a sheet drawn 3 deg nose-up on its floats): a fractional turn round-trips, and it
+  // TURNS (the old rounding snapped 3 deg back to 0 - a tilted sheet could not be registered)
+  let worstF = 0;
+  const V3 = { ox: 120, oy: 340, k: 80, rot: 3, flip: false };
+  for (const [x, y] of [[0, 0], [3.2, 1.1], [-2, 0.4], [7, -1.5]]) {
+    const p = C.toPx(V3, x, y), q = C.fromPx(V3, p[0], p[1]);
+    worstF = Math.max(worstF, Math.abs(q[0] - x), Math.abs(q[1] - y));
+  }
+  const tilt = C.toPx(V3, 10, 0)[1] - V3.oy;          // 10 m aft at 3 deg clockwise: 10 * 80 * sin 3 deg = 41.9 px lower
+  ok(worstF < 1e-9 && Math.abs(tilt - 800 * Math.sin(3 * Math.PI / 180)) < 0.01, 'a sheet turns by a fractional angle (3 deg: ' + tilt.toFixed(1) + ' px at 10 m, round trip ' + worstF.toExponential(1) + ')');
 }
 console.log('GATE DRAFTING: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

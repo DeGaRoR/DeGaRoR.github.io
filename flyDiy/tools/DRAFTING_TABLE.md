@@ -693,3 +693,38 @@ to forget". A first cut (a declared `wgStolFly` row) was dropped for exactly tha
   already reads its sheets at +-10 %.
 - THE TOOL FOR EVERY SESSION: CLAUDE.md now points at this file; tools/drafting/KICKOFF.md is the message to paste with
   a new plane's blueprint; GATE DRAFTING (tools/drafting/dt_check.js, 4 s) joins the core battery.
+
+## ROUND 16 (13 Nov): the PC-6 on Wipline 6100 amphibians; three liveries
+
+The user: "a bigger task. Let's do the Pilatus on floats ... mounted on Wipaire floats ... the Wipline 6100", with the
+float figures (length 7.49 / 7.75 m amphibian, hull 0.86 x 0.99 m, displacement 2,503 kg amphibian / 2,569 kg seaplane
+EACH, maximum flotation 2,781 / 2,854 kg for the pair, FAR 23.751), a three-view (N908PL, 500 px) and photographs.
+- THE REFERENCE: refs/pc6_floats.json - the land PC-6's airframe figures, the 6100's own (src wipaire-6100), the
+  sheet's side view scaled by the length (10.90 m = 456 px; the x3 upscale is the working sheet). The sheet places the
+  floats, Wipaire sizes them: its hull reads 6.9 m against 7.49 (-8 %), its depth 0.77 against the row's 0.78.
+- THE CARD: builds/candidates/pc6_floats_2026-11-13.json, the land card + `gearFloats`, the catalogue's 6100 row
+  (`fltPreset` 9, the rows applied as the starter does), `fltAmph` 1 (Wipline), keel 1.75 m below the belly, the step
+  +0.25 m off the 12-deg rule (the drawn step: the rule's own station moves aft 0.28 m with the deeper keel), the front
+  strut upright over its deck fitting (`fltFrontRing` 1), the sheet's ventral lobe (`finVentral*`).
+- THE ANGLE (the user, three steps: "the plane is tilted ... 2 degrees ... anchored from your nose point", "+1/2", "+1/2
+  again, and use that same angular value as the angle between the floats and the plane fuselage"): 3.0 deg. The sheet
+  is registered turned 3.0 deg about the spinner tip, and `fltInc` 3.0 - POSITIVE is the bow DOWN against the airframe
+  (the sign was found by trying both). With it the fin, the tail cone, the ventral, the deck and the keel all sit on
+  the drawing.
+- THE TABLE LEARNED TWO THINGS: (1) it loaded no hydro core, so the float layer saw no Wipline catalogue and drew
+  NOTHING, silently - dt_manifest now loads src/core/32_hydro.js, and GATE DRAFTING asserts a float card draws its
+  floats (negative-verified: 0 triangles without it); (2) a view turned only by quarter turns (rotM rounded) - any angle
+  now, a quarter turn still exact, GATE DRAFTING asserts a 3-deg turn.
+- WHAT THE FIT FOUND IN THE GAME (reported to A0, not changed here): 32_hydro calibrates each Wipline hull's volume to
+  the catalogue's `flot`, but `flot` = disp / 0.9 on every row - Wipaire's maximum flotation for the PAIR (FAR 23.751),
+  not one hull: every Wipline floats on ~11 % too much volume (the 6100: 2.854 m3 each against 2.569). The amphibian's
+  gear weight (Wipaire +190 kg on the 6100) does not appear in the joined spec (the card weighs +306 kg over the land
+  one: the seaplane installation).
+- GARAGE GAPS (REF_MATCH section 7): the front strut's station; no Brazil flag.
+- THE LIVERIES (the livery kit only; the tints authored under the colour fix, claude/fit-procedure-colour):
+  the floats card wears the photographs' yellow (green-over-blue cheat lines, a green tailplane, the script on the
+  cowl; tools/drafting/refs/pc6_livery_floats_yellow.py); two red-and-white land liveries ride as cards of their own
+  (builds/candidates/pc6_livery_alpengluehn / _nordwind; tools/drafting/refs/pc6_liveries_redwhite.py): a Swiss alpine
+  sweep with a flash, a cross trail and the flag, and a German jump ship with twin cheat lines and red tips. A
+  side-projected text set high on a cowl smears over its top (seen from above): keep a cowl's lettering on the flat
+  flank.

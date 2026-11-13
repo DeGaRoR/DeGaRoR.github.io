@@ -1,0 +1,236 @@
+{
+ "what": "drafting-ref",
+ "v": 1,
+ "identity": {
+  "name": "Pilatus PC-6 Turbo-Porter on Wipline 6100 amphibious floats",
+  "maker": "Pilatus Aircraft",
+  "variant": "PC-6/B2-H4 + Wipline 6100 (amphibian)",
+  "engine": "Pratt & Whitney Canada PT6A-27, 550 shp, Hartzell HC-B3TN-3D three-blade",
+  "locked": null,
+  "notes": [
+   "The H4 index (SB 149A, 1985): MTOW 2800 kg, extended composite wingtips (span 15.87 m, not 15.2 m), enlarged dorsal fin.",
+   "Rejected: FOCA TC F 90-05 (the Marabu, Baerfuss 1972) - not this aeroplane.",
+   "The floats: Wipaire Wipline 6100, AMPHIBIAN (the sheet and the photos: a nose wheel at each bow, dual mains aft of the step).",
+   "The airframe is the land PC-6/B2-H4 card (pc6_drafting_2026-11-11): the floats replace the main gear and the tail wheel; a ventral fin is added (the sheet)."
+  ]
+ },
+ "sources": {
+  "tcds": "FOCA Type Certificate Data Sheet F 56-10, issue 7, 20 Sep 2006 (PC-6 series, the B2-H4 column) - the authority",
+  "factsheet": "Pilatus factsheet 'PC-6 The world's leading STOL' (performance stated for the PC-6/B2-H4, ISA)",
+  "tar": "CAA New Zealand Type Acceptance Report TAR 1/21B/14 Rev 1, 8 Sep 2023 (https://www.aviation.govt.nz/assets/aircraft/type-acceptance-reports/Pilatus_PC-6.pdf)",
+  "sheet": "the user's upload (12 Nov 2026): a three-view of a PC-6 B2/H4 on amphibious floats (N908PL), 500 x 729 px",
+  "wipaire-6100": "Wipline 6100 float figures as given by the user (12 Nov 2026), from Wipaire's product page"
+ },
+ "figures": {
+  "geometry.span": {
+   "v": 15.87,
+   "unit": "m",
+   "src": "tcds"
+  },
+  "geometry.chord": {
+   "v": 1.9,
+   "unit": "m",
+   "src": "tcds",
+   "cond": "constant over the span: MAC = 1.9 m"
+  },
+  "geometry.wingArea": {
+   "v": 30.15,
+   "unit": "m2",
+   "src": "tcds"
+  },
+  "geometry.airfoil": {
+   "v": "NACA 64-514",
+   "src": "tcds",
+   "cond": "constant over the span"
+  },
+  "geometry.stabSpan": {
+   "v": 5.13,
+   "unit": "m",
+   "src": "factsheet",
+   "cond": "16 ft 10 in; the old manual's figure 16 ft 9.5 in"
+  },
+  "geometry.propDia": {
+   "v": [
+    2.515,
+    2.565
+   ],
+   "unit": "m",
+   "src": "tcds",
+   "cond": "99-101 in (the factsheet's 2.67 m is another propeller)"
+  },
+  "geometry.dihedral": {
+   "v": 1.1,
+   "unit": "deg",
+   "src": "sheet",
+   "cond": "the front view's upper surface: 10 px over 500 px; no published figure found"
+  },
+  "floats.model": {
+   "v": "Wipline 6100",
+   "src": "wipaire-6100"
+  },
+  "floats.L.seaplane": {
+   "v": 7.49,
+   "unit": "m",
+   "src": "wipaire-6100",
+   "note": "24'7\""
+  },
+  "floats.L.amphibian": {
+   "v": 7.75,
+   "unit": "m",
+   "src": "wipaire-6100",
+   "note": "25'5\" (the nose gear ahead of the bow)"
+  },
+  "floats.H": {
+   "v": 0.86,
+   "unit": "m",
+   "src": "wipaire-6100",
+   "note": "hull height 2'10\""
+  },
+  "floats.B": {
+   "v": 0.99,
+   "unit": "m",
+   "src": "wipaire-6100",
+   "note": "hull width 3'3\""
+  },
+  "floats.locker": {
+   "v": 22.7,
+   "unit": "kg",
+   "src": "wipaire-6100",
+   "note": "each float"
+  },
+  "floats.disp.amphibian": {
+   "v": 2503,
+   "unit": "kg",
+   "src": "wipaire-6100",
+   "note": "fresh water, each float"
+  },
+  "floats.disp.seaplane": {
+   "v": 2569,
+   "unit": "kg",
+   "src": "wipaire-6100",
+   "note": "fresh water, each float"
+  },
+  "floats.maxFlot.amphibian": {
+   "v": 2781,
+   "unit": "kg",
+   "src": "wipaire-6100",
+   "note": "FAR 23.751, 80 % reserve buoyancy, 2 floats: the heaviest aeroplane the pair may carry"
+  },
+  "floats.maxFlot.seaplane": {
+   "v": 2854,
+   "unit": "kg",
+   "src": "wipaire-6100"
+  }
+ },
+ "image": {
+  "file": "pc6_floats_3view_500.jpg",
+  "size": [
+   1500,
+   2187
+  ],
+  "how": "the user's upload (500 x 729), upscaled x3 (Lanczos) as the working sheet",
+  "local": "never committed: a private reference"
+ },
+ "views": {
+  "side": {
+   "box": [
+    0,
+    0,
+    1500,
+    645
+   ],
+   "ox": 78,
+   "oy": 282,
+   "k": 125.49,
+   "rot": 3.0,
+   "flip": false,
+   "scaleBy": "geometry.length (1368 px (the x3 sheet) = 10.90 m: the spinner tip to the elevator trailing edge)",
+   "check": "float deck-to-keel 32 px = 0.77 m vs the 6100 row 0.78; the drawn hull 288 px = 6.9 m vs Wipaire 7.49 (-8 %): the sheet places the floats, Wipaire sizes them; the propeller is drawn short",
+   "note": "origin = the spinner tip; the plan views are drawn at 45 deg (not read); the sheet is registered at 3.0 deg (clockwise, about the spinner tip): the drawing shows the airframe 3.0 deg nose-up on its floats (the user, 13 Nov: \"tilted ... 2 degrees ... anchored from your nose point\", then +0.5), then +0.5 again: 3.0 deg, the floats-to-fuselage angle too"
+  }
+ },
+ "marks": {
+  "body.front": {
+   "view": "side",
+   "pts": [
+    [
+     78,
+     282
+    ]
+   ]
+  },
+  "float.bow": {
+   "view": "side",
+   "pts": [
+    [
+     210,
+     495
+    ]
+   ]
+  },
+  "float.stern": {
+   "view": "side",
+   "pts": [
+    [
+     1074,
+     489
+    ]
+   ]
+  },
+  "float.step": {
+   "view": "side",
+   "pts": [
+    [
+     639,
+     576
+    ]
+   ]
+  },
+  "float.deck": {
+   "view": "side",
+   "pts": [
+    [
+     450,
+     480
+    ]
+   ]
+  },
+  "float.noseWheel": {
+   "view": "side",
+   "pts": [
+    [
+     219,
+     600
+    ]
+   ]
+  },
+  "float.mainWheel": {
+   "view": "side",
+   "pts": [
+    [
+     681,
+     597
+    ]
+   ]
+  }
+ },
+ "architecture": {
+  "candidates": [
+   "beaver",
+   "caravan"
+  ],
+  "why": "high wing on struts; the Beaver-alike is the tailwheel bush plane, the Caravan-alike carries the PT6A"
+ },
+ "history": [
+  {
+   "d": "2026-11-13",
+   "what": "birth: the land PC-6 reference + the Wipline 6100 figures (user) + the float sheet (user upload)"
+  }
+ ],
+ "gaps": [
+  {
+   "d": "2026-11-13",
+   "what": "the float rigging's front strut station: the sheet draws the front strut ~0.9 m ahead of the deck fitting the garage hangs it on (Wipline 2350 parts-manual stations); no row moves it"
+  }
+ ]
+}
