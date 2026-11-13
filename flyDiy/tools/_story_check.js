@@ -69,12 +69,9 @@ function run(M) {
   // ---- the documents
   const cubFile = fs.readdirSync(path.join(ROOT, 'builds')).find(f => /^cub_.*\.json$/.test(f) && !/edits|corrected/.test(f));
   const cub = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', cubFile), 'utf8')).spec;
-  const base = JSON.parse(JSON.stringify(cub));                     // the client's Cub as it ARRIVES: unfinished
-  base.controls.flap = { type: 'none', span: 0, chord: 0 }; base.systems = { fit: 'minimal' };   // PLANE-LIST (the user 10 Nov): it arrives in its own livery, not bare
-  const other = Object.keys(C.POWERPLANTS).find(k => k !== base.engines[0].type);
-  const done = JSON.parse(JSON.stringify(base));                    // ... and as the player delivers it
-  done.engines[0].type = other; done.controls.flap = { type: 'plain', span: 0.4, chord: 0.25 };
-  done.gear.wheelR = +base.gear.wheelR * 1.3; done.systems = { fit: 'basic' }; done.paint = Object.assign({}, base.paint, { job: 'full', base: 0x2244aa });
+  const base = JSON.parse(JSON.stringify(cub));                     // the client's Cub as it ARRIVES: file 1 exactly (TUTORIAL v2, TUTORIAL-CUBS)
+  // ... and as the player delivers it: TUTORIAL v2, the exact build's target (file 2: file 1 + the five rows)
+  const done = JSON.parse(fs.readFileSync(path.join(ROOT, M.STORY_BUILDS.T3.target), 'utf8')).spec;
   let d = M.careerNormalise(M.careerNew({ id: 't', seed: 'story', name: 'gate' }));
   ok(M.storyOf(d) === null && M.storyJobsOpen(d) && M.storyMask(d) === null, 'a career without a story: no rails, jobs open, no mask');
   ok(!M.storyStep(d, { k: 'ack' }, { aeros }).ok, 'storyStep refuses a career without a story');
@@ -101,16 +98,14 @@ function run(M) {
   step({ k: 'ack' }, "T2: the swap done (the tutor's last OK)", true);
   ok(M.storyMask(d) === 'checklist', 'T3: the mask "checklist"');
   // T3 THE BUILD
-  const half = JSON.parse(JSON.stringify(done)); half.controls.flap = { type: 'none' };
-  r = step({ k: 'certified', slot: 'client-cub', spec: half, cost: 5000 }, 'T3: a build without flaps is refused', false);
-  ok(/flaps/.test(r.why || ''), 'T3: the refusal names the missing item', r.why);
-  // (PRICE-CAL: the edit bills re-measured at today's prices against econPay(40 000) = 57 300: the O-320 finish 85 115 over, the Jabiru's 53 939 on)
-  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 85115 }, 'T3: over budget is refused (the O-320 finish)', false);
+  const half = JSON.parse(JSON.stringify(done)); half.cage.wgVG = 0;
+  r = step({ k: 'certified', slot: 'client-cub', spec: half, cost: 5000 }, 'T3: a build one row short (no vortex generators) is refused', false);
+  ok(/wing > devices/.test(r.why || ''), 'T3: the refusal names the missing row', r.why);
   step({ k: 'certified', slot: 'ul', spec: done, cost: 5000 }, 'T3: another plane is refused', false);
-  const list = M.storyChecklist(done, base, ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint']);
-  ok(list.every(x => x.ok), 'the checklist on the delivered Cub: every item met', list.filter(x => !x.ok).map(x => x.k).join());
-  ok(M.storyChecklist(base, base, ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint']).every(x => !x.ok), 'the checklist on the Cub as it arrived: every item open');
-  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 53939 }, 'T3: the checklist met on budget (the Jabiru finish)', true);
+  const list = M.storyBuildList('T3', done);
+  ok(list.length === 5 && list.every(x => x.ok), 'the build on the delivered Cub (file 2): every row met', list.filter(x => !x.ok).map(x => x.k).join());
+  ok(M.storyBuildList('T3', base).every(x => !x.ok), 'the build on the Cub as it arrived (file 1): every row open');
+  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 1e7 }, 'T3: the exact build certified moves on (no budget: the rows are the work)', true);
   // T4 THE DELIVERY
   step({ k: 'stop', stop: stop('HOME'), slot: 'client-cub' }, "T4: HOME is not the owner's strip", false);
   r = step({ k: 'stop', stop: stop('w6'), slot: 'client-cub' }, "T4: delivered at the owner's strip", true);
@@ -455,32 +450,28 @@ async function pageRun() {
     ok(ra.ok && M.storyOf(d).beat === 'T3', 'v2: the swap acknowledged, T3 (the build) on the rails', M.storyOf(d).beat); }
   const env = JSON.parse(prefs.get('flydiy.build.' + S.planes.client) || 'null'), base = S.base.client || {};
   const file = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20.json'), 'utf8')).spec;
-  ok(env && env.spec && base.controls.flap.type === 'none' && base.systems.fit === 'minimal' && JSON.stringify(base.paint) === JSON.stringify(file.paint) && base.engines[0].type === file.engines[0].type &&
+  ok(env && env.spec && M.storyEditDiff(file, base).length === 0 && JSON.stringify(base.paint) === JSON.stringify(file.paint) &&
      JSON.stringify(env.spec) === JSON.stringify(base) && d.career.airframes[S.planes.client].owner === 'client',
-     "the Cub as it arrives: flaps off, the minimal panel, its own battered livery (PLANE-LIST), the same engine; bound with that spec, the client's", base.engines[0].type);
-  // PLANE-LIST (Game's ask, 11 Nov): the handover touches ONLY the flaps, the panel and the slot's name - the user's window,
-  // narrow cowl, aged cowl tint, livery, decals and wear (CLIENT-CUB-LOOK, 4 Nov) can never be overridden again
+     "the Cub as it arrives: file 1 exactly (TUTORIAL v2), its own battered livery; bound with that spec, the client's", base.engines[0].type);
+  // PLANE-LIST (Game's ask, 11 Nov) + TUTORIAL v2: the handover touches ONLY the slot's name - the user's window, narrow
+  // cowl, aged cowl tint, livery, decals and wear (CLIENT-CUB-LOOK, 4 Nov) can never be overridden; the five rows land on file 2
   { const laid = M.storyClientSpec(file), want = JSON.parse(JSON.stringify(file));
-    want.controls = Object.assign({}, want.controls, { flap: { type: 'none', span: 0, chord: 0 } }); want.systems = { fit: 'minimal' };
     want.meta = Object.assign({}, want.meta, { name: 'Client Cub' });
-    ok(JSON.stringify(laid) === JSON.stringify(want), "the handover changes only the flaps, the panel and the name (the Cub's own look kept whole)",
+    ok(JSON.stringify(laid) === JSON.stringify(want), "the handover changes only the name (the Cub's own look kept whole)",
        Object.keys(laid).filter(k => JSON.stringify(laid[k]) !== JSON.stringify(want[k])).join(',')); }
-  ok(M.storyChecklist(base, base, M.STORY_BEATS.find(b => b.id === 'T3').goal.checklist).every(x => !x.ok), 'every item of the checklist is open on it (no battery: no lights)');
+  ok(M.storyBuildList('T3', base).every(x => !x.ok), 'every row of the build is open on it');
   ok(!out.career.lines.some(l => /hangar is yours/.test(l.text || '')), "STORY-1: the arrival card does not hand over HOME's hangar - it has been yours since the start", (out.career.lines[0] || {}).text);
   half.storyCardSync(); half.storyCardSync();                       // (the budget is measured once the build held still a tick)
   el = half.el();
   const ticks = (el.innerHTML.match(/<li/g) || []).length;
-  const open6 = M.STORY_BEATS.find(b => b.id === 'T3').goal.checklist.map(k => M.STORY_CHECKS[k].words).every(w => el.innerHTML.includes('<li class=""><span class="stTick" aria-hidden="true"></span>' + w.replace(/&/g, '&amp;')));
-  ok(/The client's plane/.test(el.innerHTML) && ticks === 8 && open6 && el.innerHTML.includes('on budget: 0 of ' + (M.econPay ? M.econPay(40000) : 40000)), "the card: T3's checklist (six items open, the budget at 0, the certificate)", ticks + ' rows');
+  const open5 = M.storyBuildList('T3', base).map(r => r.words).every(w => el.innerHTML.includes('<li class=""><span class="stTick" aria-hidden="true"></span>' + w.replace(/&/g, '&amp;').replace(/>/g, '&gt;')));
+  ok(/The client's plane/.test(el.innerHTML) && ticks === 6 && open5 && !/on budget/.test(el.innerHTML), "the card: T3's build (five rows open, the certificate; no budget)", ticks + ' rows');
   // ---- the garage's certificate on the finished Cub
-  const done = JSON.parse(JSON.stringify(base));
-  done.engines[0].type = 'jabiru2200_std';                         // a stronger engine, on budget (the 80 hp Jabiru: 53 939 at PRICE-CAL's prices)
-  done.controls.flap = { type: 'plain', span: 0.4, chord: 0.25 }; done.gear.wheelR = +base.gear.wheelR * 1.3; done.systems = { fit: 'basic' };
-  done.paint = Object.assign({}, base.paint, { job: 'full', base: 0x2244aa });
+  const done = JSON.parse(fs.readFileSync(path.join(ROOT, M.STORY_BUILDS.T3.target), 'utf8')).spec;   // TUTORIAL v2: file 2
   P.standSet(S.planes.client); P.specSet(done);
   half.storyCardSync();
   const lis = (half.el().innerHTML.match(/<li class="ok"/g) || []).length;
-  ok(lis >= 6, 'the card ticks the checklist off the build on the stand', lis + ' ticked');
+  ok(lis >= 5, 'the card ticks the build rows off the plane on the stand', lis + ' ticked');
   H.window.BENCH_CERTIFIED();
   d = P.get();
   const cost = H.window.FLYDIY_STORY.card();
@@ -908,6 +899,12 @@ async function tutorRun() {
   ok(/the swap/i.test(e.innerHTML) && />OK</.test(e.innerHTML), "Rufus inside: Tim's last T2 words end the swap (v2), with an OK");
   press('tnext'); e = tim();
   ok(/what the client wants/.test(e.innerHTML) && /stTimRows/.test(e.innerHTML), "OK: the swap done, T3 (the build): Tim's words carry the client's checklist", e.className);
+  // TUTORIAL v2 THE EXACT BUILD: one step per row, waiting on the plane on the stand, its row lit; the five rows done -> certify
+  press('tnext'); e = tim();
+  ok(/1 of 5/.test(e.innerHTML) && /data-k="engPreset"/.test(X.lock().lit || '') && /#edTree/.test(X.lock().allow) && !/>Next</.test(e.innerHTML),
+     'Next: the first row (the engine) - a waiting step, the row lit, the part tree open', (X.lock().lit || '') + ' | ' + X.lock().allow);
+  P.specSet(JSON.parse(fs.readFileSync(path.join(ROOT, M.STORY_BUILDS.T3.target), 'utf8')).spec); e = tim();
+  ok(/certify/.test(e.innerHTML) && /stTimRows/.test(e.innerHTML) && (e.innerHTML.match(/<li class="ok"/g) || []).length === 5, "the five rows on the plane: Tim's certify words, the client's list ticked");
   press('tnext'); e = tim();
   ok(!P.bodyCls.has('stTut') && e.className === 'min' && /data-tim="open"/.test(e.innerHTML), "OK: the steps done, Tim's chip in the corner (his last words behind it), nothing locked");
   // ---- the source
@@ -964,7 +961,7 @@ if (!SELF) {
     ['a stop anywhere counts', brk('storyStep', (doc, ev, ctx) => (ev && ev.k === 'stop' && ev.stop) ? C.storyStep(doc, Object.assign({}, ev, { stop: Object.assign({}, ev.stop, { aero: C.storySite(C.STORY_BEATS.find(b => b.id === C.storyOf(doc).beat).goal.at || 'home', ctx.aeros) }) }), ctx) : C.storyStep(doc, ev, ctx))],
     ['the cabin falls back to HOME', brk('storySite', (role, L) => C.storySite(role, L) || (role === 'cabin' ? 'HOME' : null))],
     ['the job list is never held', brk('storyJobsOpen', () => true)],
-    ['the checklist always passes', brk('storyChecklist', (S, B, items) => (items || []).map(k => ({ k, words: k, ok: true })))],
+    ['the build always passes', brk('storyBuildList', (beat) => (C.STORY_BUILDS[beat] ? C.STORY_BUILDS[beat].rows : []).map(r => ({ k: r.k, words: r.k, ok: true })))],
   ];
   let bad = 0;
   for (const [what, M] of breaks) { const f = run(M); console.log('  ' + (f.length ? 'caught ' : 'MISSED ') + what + (f.length ? ' (' + f[0] + ')' : '')); if (!f.length) bad++; }
