@@ -53,11 +53,13 @@ const OUT = opt('out', 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-09/dust/
 const RUNUP = opt('runup', null);
 const HOUR = opt('hour', 'golden');
 const FROM = opt('from', null), DEST = opt('dest', 'CIRCUIT');   // (--from: the take-off at another field, the route pref's spawn)
+const BURST = opt('burst', '0') === '1';   // --burst 1: a crash-dense cloud (8 puffs of optical depth ~6, the Petrel crash's saturation, 12 Nov) put 10 m ahead and left of
+//   the aeroplane at the roll's start, so the roll and run stills show the drawn edge of the densest dust the game makes (GATE DUST 5c's case on the GPU)
 const LOOK0 = opt('look', '1') === '0', V2OFF = opt('v2', '1') === '0';   // --v2 0: ?dustv2=0 (the colour tune alone)      // --look 0: the 9 Nov dust look (?dustlook=0), the before of a before/after
 const q = [DUST_ON ? null : 'dust=0', GFX ? 'gfx=' + GFX : null, LOOK0 ? 'dustlook=0' : null, V2OFF ? 'dustv2=0' : null].filter(Boolean).join('&');
 const URL0 = opt('url', 'http://localhost:8450/flyDiy/dev.html');
 const URL = q ? URL0 + (URL0.includes('?') ? '&' : '?') + q : URL0;
-const ARM = (DUST_ON ? 'dust' : 'nodust') + (LOOK0 ? '_look0' : V2OFF ? '_v1' : '') + '_' + (GFX || 'default') + (RUNUP ? '_runup_' + RUNUP : '') + (FROM ? '_from_' + FROM : '');
+const ARM = (DUST_ON ? 'dust' : 'nodust') + (LOOK0 ? '_look0' : V2OFF ? '_v1' : '') + '_' + (GFX || 'default') + (RUNUP ? '_runup_' + RUNUP : '') + (FROM ? '_from_' + FROM : '') + (BURST ? '_burst' : '');
 const PORT = 9400 + (process.pid % 500);
 const CHROME = [opt('chrome', null), 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome',
@@ -148,7 +150,7 @@ async function runup(ev, cmd, shot, rec) {
     await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
     await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{localStorage.clear();' + (FROM ? 'localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');' : '') + '}catch(e){}' });
     await cmd('Page.navigate', { url: URL });
-    const ready = '(window.BOOT && BOOT.state === "gone" && window.GARAGE_SPEC && window.FLIGHT_PROBE && !(window.CAGE_CREW_PENDING && CAGE_CREW_PENDING()))';
+    const ready = '(window.BOOT && BOOT.state === "gone" && !(typeof BOOT.busy === "function" && BOOT.busy()) && window.GARAGE_SPEC && window.FLIGHT_PROBE && !(window.CAGE_CREW_PENDING && CAGE_CREW_PENDING()))';
     let up = false;
     for (let i = 0; i < 900 && !up; i++) { await sleep(2000); up = await ev(ready).catch(() => false); }
     if (!up) throw new Error('the page never finished booting');
@@ -160,11 +162,20 @@ async function runup(ev, cmd, shot, rec) {
         if (!sx) continue; if (sx === last) { if (++same >= 2) break; } else { last = sx; same = 0; } } }
     await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
     // THE ROLL-OUT
+    // (13 Nov, A0/LOOK-1: since PACE-ON the trip's loading cover stays up until every program links - ~96 s, 258 s under
+    // load - and a click under it never reaches a flight: one click, then wait for the cover to be gone before judging or
+    // clicking again)
+    const coverGone = '(window.BOOT && BOOT.state === "gone" && !(typeof BOOT.busy === "function" && BOOT.busy()))';
+    const isFlying = "(()=>{try{const ap=FLIGHT_PROBE.ap();return !!(ap&&ap.phase)}catch(e){return false}})()";
     let flying = false;
-    for (let a = 0; a < 8 && !flying; a++) {
+    for (let a = 0; a < 4 && !flying; a++) {
       await ev("(()=>{[...document.querySelectorAll('button')].filter(b=>/roll out/i.test(b.textContent)).forEach(x=>x.click());})()");
-      await sleep(6000);
-      flying = await ev("(()=>{try{const ap=FLIGHT_PROBE.ap();return !!(ap&&ap.phase)}catch(e){return false}})()");
+      await sleep(4000);
+      for (let i = 0; i < 200; i++) { if (await ev(coverGone).catch(() => false)) break;
+        await ev("(()=>{const f=document.getElementById('bootFly');if(window.BOOT&&BOOT.state==='waiting'&&f&&!f.disabled)f.click();return 1})()").catch(() => 0); await sleep(2000); }
+      await sleep(3000);
+      flying = await ev(isFlying);
+      say(ARM + ' roll-out click ' + (a + 1) + ': flying ' + flying + ' at ' + Math.round((Date.now() - T0) / 1000) + ' s');
     }
     if (!flying) throw new Error('the roll-out never happened');
     // the rig's dials: the frame uncapped, the surface and the soil (printed: neither is the game's default)
@@ -198,7 +209,12 @@ async function runup(ev, cmd, shot, rec) {
     while (Date.now() - t0 < AIR_MAX) {
       const s = await ev("(()=>{const ap=FLIGHT_PROBE.ap(),sim=FLIGHT_PROBE.sim();return {ph:ap.phase,ias:sim&&sim.out?(sim.out.ias!=null?sim.out.ias:sim.out.V):null}})()");
       if (s.ph !== last) { rec.trace.push([((Date.now() - t0) / 1000).toFixed(1), s.ph, s.ias]); last = s.ph; say(ARM + ' ' + s.ph + ' ias=' + s.ias); }
-      if (s.ph === 'ROLL' && !rollT) { rollT = Date.now(); await sleep(1200); hd = await ev(HD); rec.hd = hd; if (!shots.has('roll')) { shots.add('roll'); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + Math.PI + 0.35) + ',0.22,22),1'); await sleep(1200); await shot('roll'); } }
+      if (s.ph === 'ROLL' && !rollT) { rollT = Date.now(); await sleep(1200); hd = await ev(HD); rec.hd = hd;
+        if (BURST && hd != null) rec.burst = await ev(`(()=>{const F=DUST_FX.fx,c=FLIGHT_PROBE.sim().cgPos(),w=F.st.wheels[0]||{x:c[0],z:c[2]},hd=${hd},ci=(()=>{try{return F.env.cls()}catch(e){return 0}})();
+          const bx=w.x+Math.cos(hd)*10+Math.cos(hd-Math.PI/2)*6,bz=w.z+Math.sin(hd)*10+Math.sin(hd-Math.PI/2)*6,g=FLIGHT_PROBE.world().terrainH(bx,bz);
+          for(let j=0;j<8;j++){const a=j*0.785,r0=1.2+0.06*j,rr=j?2.2:0;DUST.emitPuff(F.sys,bx+Math.cos(a)*rr,g+0.6+0.15*j,bz+Math.sin(a)*rr,Math.cos(a)*1.2,1.2,Math.sin(a)*1.2,r0,6*Math.PI*r0*r0,0.5,ci)}
+          return {at:[+bx.toFixed(1),+g.toFixed(1),+bz.toFixed(1)],cls:ci,tau:6}})()`);
+        if (!shots.has('roll')) { shots.add('roll'); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + Math.PI + 0.35) + ',0.22,22),1'); await sleep(1200); await shot('roll'); } }
       if (rollT && !liftT && !sMid && s.ias > 12) { sMid = true; if (hd == null) { hd = await ev(HD); rec.hd = hd; } await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + Math.PI / 2) + ',0.40,28),1'); await sleep(600); await shot('run'); }
       if (s.ph === 'LIFTOFF' && !liftT) { liftT = Date.now(); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + Math.PI + 0.25) + ',0.25,30),1'); await shot('liftoff'); }
       if (liftT && Date.now() - liftT > 8000 && !shots.has('back8')) { shots.add('back8'); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + 0.2) + ',0.30,60),1'); await sleep(800); await shot('back8'); }
