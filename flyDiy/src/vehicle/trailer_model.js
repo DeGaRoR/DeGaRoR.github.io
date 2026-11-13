@@ -12,21 +12,290 @@
 //                 mudguards with a tread top and rubber mud flaps, the axle's U-bracket mounts
 //   LIGHTS        a rear light board: two combination lamps (stop/tail red, indicator amber, reverse white), triangle
 //                 reflectors, a plate board (blank) and its lamp, amber side reflectors, white front ones
-//   THE CRADLE    floats: per float two carpeted timber bunks (50 x 140) tilted to the float's deadrise on swivel
+//   THE CRADLE    floats: per float two timber bunks (50 x 140, one plank each) tilted to the float's deadrise on swivel
 //                 brackets and posts off saddle plates on the rails; a bow stop post per float (a rubber V-block)
 //                 carrying the LATCH (a release hook, its red lever) and the yellow strap to the bow eye - drawn
 //                 while the latch is shut. Hull: two bunks under the chines, black keel rollers on the centreline,
 //                 one winch post at the bow (the hand winch: drum, gear case, crank) with the latch and strap.
 //
-// THE COST: one Group of merged meshes, one per material (10), and the wheels as 4 InstancedMesh (tyre, wheel, drum,
-// chrome) of 5 instances (4 turning, the spare) - 14 draw calls, ~16k triangles (GATE TRAILER's MODEL measures); a
+// THE COST: one Group of merged meshes, one per material (11), and the wheels as 4 InstancedMesh (tyre, wheel, drum,
+// chrome) of 5 instances (4 turning, the spare) - 15-16 draw calls, ~37k triangles (GATE TRAILER's MODEL measures); a
 // frame's update: the group's matrix and 4 instance matrices x 4 meshes (~2 us). The materials are MeshStandard -
-// they take the scene's environment like every prop.
+// they take the scene's environment like every prop - dressed in the game's library and one baked AO map (THE SURFACES,
+// below: a 512 x 512 atlas, ~3 s of CPU once a geometry, in the frames' idle time).
 //
 // Frame: the trailer's (trailer.js): origin on the ground under the axles' centre, +x forward to the ball, +y up,
 // +z right. buildTrailerModel(THREE, T [, o]) -> { group, update(T, latched), stats }; buildTowHitch(THREE) -> the
 // car's half (the ball mount, for the car's rig at its ball point).
 // ============================================================
+
+// ---- THE SURFACES (13 Nov, the user: "give that a bit more love ... more advanced textures and materials ... the planks ...
+//      fit every plank to a single plank, not the same for every plank ... bake some ambient occlusion, because it looks very
+//      sharp ... reuse the materials that we have everywhere in the game ... a second UV map, so that you can bake the
+//      ambient occlusion and multiply with the first one"):
+//   THE GAME'S MATERIALS  the house kit's library (src/viewer/house_tex.js HOUSE_TEX_SETS - the buildings', the hangars'):
+//                 'galv' (galvanised sheet) on the frame, darker on the running gear; 'steelgrey' (painted steel) on the
+//                 wheels and drums; 'deckwood' (tight decking boards) on the bunks. Its texel-density contract: the UVs in
+//                 METRES, the texture's repeat 1 / tile - and the very textures the world's houses use when the world pack is
+//                 in (its tex(): one texture a set and map, uploaded once). Without the library (node, a bare page) the
+//                 plain colours stand, as before.
+//   THE PLANKS    each bunk is ONE board of deckwood's twelve (its rows 42.67 px apart, the seams inset 3 px): its top and
+//                 bottom span that board's width, its edges a narrow strip of it, its ends another board; the board and its
+//                 offset along the grain are each plank's own (a hash of its number) - no two bunks alike.
+//   UV0           everything else: a box projection in metres by the face's dominant axis.
+//   UV1 + THE AO  a second UV set, an atlas of non-overlapping charts (a part's faces of one dominant axis, connected),
+//                 shelf-packed at TRL_AO.dpm px a metre; the ambient occlusion BAKED into it on the CPU (renderer-agnostic,
+//                 node-testable): per texel TRL_AO.rays cosine-weighted rays against a BVH of the whole trailer (the wheels at
+//                 rest) and the ground plane, a falloff over TRL_AO.reach; the empty texels dilated. The wheels' parts are
+//                 baked in their own frame (they turn) against themselves. The map is every material's aoMap on channel 1
+//                 (three multiplies it into the ambient / environment light; TRL_AO.direct of it on the direct diffuse too,
+//                 for the crevices the sun's shadow map is too coarse to see). In a page the bake runs in the frames' idle
+//                 time (requestIdleCallback, <= 6 ms slices: ~3 s of CPU on a desktop, the AO arriving a few seconds after the
+//                 trailer - a white map until then, no shader change); in node at once. One bake a geometry (a cache by its
+//                 positions' hash).
+const TRL_AO = { dpm: 40, pad: 2, rays: 24, reach: 0.6, slice: 6, direct: 0.4 };
+const TRL_PLANK = { key: 'deckwood', boards: 12, inset: 3 / 512 };
+const trlLib = () => (typeof HOUSE_TEX_SETS !== 'undefined' && HOUSE_TEX_SETS) || null;
+const TRL_TEXC = new Map();
+function trlTex(T, key, map) {
+  const S = trlLib(), set = S && S[key];
+  if (!set || !set[map]) return null;
+  // the world pack's own cache (tools/_house_gen.js tex: the houses' textures, uploaded once), when it is in this page
+  if (typeof tex === 'function') { try { const t = tex(key, map); if (t && t.isTexture) return t; } catch (e) {} }
+  const ck = key + '|' + map; if (TRL_TEXC.has(ck)) return TRL_TEXC.get(ck);
+  const img = set[map]; if (Array.isArray(img)) return null;
+  const t = new T.Texture(img); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8;
+  if (map === 'diff' || map === 'paint') t.colorSpace = T.SRGBColorSpace;
+  t.repeat.set(1 / set.tile, 1 / set.tile);
+  const ok = () => { t.needsUpdate = true; };
+  if (img.complete && img.naturalWidth) ok(); else if (img.addEventListener) img.addEventListener('load', ok);
+  TRL_TEXC.set(ck, t); return t;
+}
+// a material dressed in a library set: its maps, the set's metalness, a tint (the map x colour)
+function trlDress(T, m, key, tint, o) {
+  const S = trlLib(), set = S && S[key]; if (!set) return false;
+  const d = trlTex(T, key, 'diff'); if (!d) return false;
+  m.map = d; m.roughnessMap = trlTex(T, key, 'rough'); const n = trlTex(T, key, 'nor'); if (n) { m.normalMap = n; m.normalScale.set((o && o.nrm) || 1, (o && o.nrm) || 1); }
+  m.color.setHex(tint); if (o && o.lift) m.color.multiplyScalar(o.lift);   // (a library map darker than the part: lifted, linear)
+  m.metalness = o && o.metal != null ? o.metal : set.metal; m.roughness = o && o.rough != null ? o.rough : 1;
+  m.needsUpdate = true; return true;
+}
+const trlHash = n => { let h = (n * 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13; return h >>> 0; };
+// a plank's UV0 in its own frame (x across [-w/2, w/2], y [-th, 0], z along [0, L]), before it is placed: board `k` of the set
+function trlPlankUV(T, g, w, th, k, off) {
+  const S = trlLib(), tile = (S && S[TRL_PLANK.key] && S[TRL_PLANK.key].tile) || 2.2, nB = TRL_PLANK.boards, e = TRL_PLANK.inset;
+  const band = (kk, f) => tile * ((1 - (kk + 1) / nB + e) + f * (1 / nB - 2 * e));   // v (metres) at fraction f across board kk
+  const P = g.attributes.position.array, n = P.length / 3, uv = new Float32Array(n * 2);
+  const a = new T.Vector3(), b = new T.Vector3(), c = new T.Vector3(), nn = new T.Vector3();
+  for (let t = 0; t < n; t += 3) {
+    a.fromArray(P, t * 3); b.fromArray(P, t * 3 + 3); c.fromArray(P, t * 3 + 6);
+    nn.subVectors(b, a).cross(c.clone().sub(a)); const ax = Math.abs(nn.x), ay = Math.abs(nn.y), az = Math.abs(nn.z);
+    for (let i = 0; i < 3; i++) {
+      const q = i === 0 ? a : i === 1 ? b : c; let u, v;
+      if (ay >= ax && ay >= az) { u = q.z + off; v = band(nn.y > 0 ? k : (k + 5) % nB, (q.x + w / 2) / w); }            // top / bottom
+      else if (ax >= az) { u = q.z + off; v = band(k, 0.3 + 0.4 * (q.y + th) / th); }                                   // the edges
+      else { u = (q.x + w / 2) * 0.6 + off; v = band((k + 3) % nB, (q.y + th) / th); }                                    // the ends
+      uv[(t + i) * 2] = u; uv[(t + i) * 2 + 1] = v;
+    }
+  }
+  g.setAttribute('uv', new T.BufferAttribute(uv, 2)); g.userData.uvOwn = true;
+  return g;
+}
+// the face's class by its dominant axis (0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z) and its projection (metres) onto that plane
+const trlCls = (nx, ny, nz) => { const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz); return ax >= ay && ax >= az ? (nx >= 0 ? 0 : 1) : ay >= az ? (ny >= 0 ? 2 : 3) : (nz >= 0 ? 4 : 5); };
+const trlProj = (c, x, y, z) => c < 2 ? [c === 0 ? -z : z, y] : c < 4 ? [x, c === 2 ? -z : z] : [c === 4 ? x : -x, y];
+// UV0 (unless the part carries its own) and the part's CHARTS for UV1: its triangles of one class, connected by shared vertices
+function trlCharts(T, g, frame, out) {
+  const P = g.attributes.position.array, nT = P.length / 9;
+  const cls = new Uint8Array(nT), own = !!g.userData.uvOwn;
+  const uv = own ? null : new Float32Array(nT * 6);
+  for (let t = 0; t < nT; t++) {
+    const o = t * 9, ux = P[o + 3] - P[o], uy = P[o + 4] - P[o + 1], uz = P[o + 5] - P[o + 2], vx = P[o + 6] - P[o], vy = P[o + 7] - P[o + 1], vz = P[o + 8] - P[o + 2];
+    const c = trlCls(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx); cls[t] = c;
+    if (uv) for (let i = 0; i < 3; i++) { const q = trlProj(c, P[o + i * 3], P[o + i * 3 + 1], P[o + i * 3 + 2]); uv[t * 6 + i * 2] = q[0]; uv[t * 6 + i * 2 + 1] = q[1]; }
+  }
+  if (uv) g.setAttribute('uv', new T.BufferAttribute(uv, 2));
+  // the vertices welded (0.1 mm), the triangles of one class joined through them
+  const key = new Map(), vid = new Int32Array(nT * 3);
+  for (let i = 0; i < nT * 3; i++) { const k = Math.round(P[i * 3] * 1e4) + ',' + Math.round(P[i * 3 + 1] * 1e4) + ',' + Math.round(P[i * 3 + 2] * 1e4); let id = key.get(k); if (id === undefined) key.set(k, id = key.size); vid[i] = id; }
+  const par = new Int32Array(nT); for (let t = 0; t < nT; t++) par[t] = t;
+  const find = t => { while (par[t] !== t) { par[t] = par[par[t]]; t = par[t]; } return t; };
+  const seen = new Map();   // (class, vertex) -> a triangle
+  for (let t = 0; t < nT; t++) for (let i = 0; i < 3; i++) { const k = cls[t] * 1e7 + vid[t * 3 + i], s = seen.get(k); if (s === undefined) seen.set(k, t); else { const a = find(s), b = find(t); if (a !== b) par[a] = b; } }
+  const groups = new Map(); for (let t = 0; t < nT; t++) { const r = find(t); let L = groups.get(r); if (!L) groups.set(r, L = []); L.push(t); }
+  for (const tris of groups.values()) {
+    const c = cls[tris[0]], q = new Float32Array(tris.length * 6); let u0 = Infinity, v0 = Infinity, u1 = -Infinity, v1 = -Infinity;
+    tris.forEach((t, j) => { for (let i = 0; i < 3; i++) { const o = t * 9 + i * 3, p = trlProj(c, P[o], P[o + 1], P[o + 2]); q[j * 6 + i * 2] = p[0]; q[j * 6 + i * 2 + 1] = p[1]; u0 = Math.min(u0, p[0]); v0 = Math.min(v0, p[1]); u1 = Math.max(u1, p[0]); v1 = Math.max(v1, p[1]); } });
+    out.push({ g, frame, tris, q, u0, v0, w: u1 - u0, h: v1 - v0 });
+  }
+}
+// the charts shelf-packed into a W x H atlas (powers of two); each chart's place (x, y in pixels)
+function trlPack(charts) {
+  const { dpm, pad } = TRL_AO;
+  for (const c of charts) { c.pw = Math.max(1, Math.ceil(c.w * dpm)) + 2 * pad; c.ph = Math.max(1, Math.ceil(c.h * dpm)) + 2 * pad; }
+  const area = charts.reduce((s, c) => s + c.pw * c.ph, 0);
+  let W = 64; while (W * W < area * 1.25) W *= 2;
+  const order = charts.slice().sort((a, b) => b.ph - a.ph || b.pw - a.pw);
+  for (;;) {
+    let x = 0, y = 0, rowH = 0, fits = true;
+    for (const c of order) {
+      if (c.pw > W) { fits = false; break; }
+      if (x + c.pw > W) { x = 0; y += rowH; rowH = 0; }
+      c.x = x; c.y = y; x += c.pw; rowH = Math.max(rowH, c.ph);
+    }
+    const H0 = y + rowH; let H = 64; while (H < H0) H *= 2;
+    if (fits && H <= W * 2) return { W, H };
+    W *= 2;
+  }
+}
+// UV1 written per vertex from the charts (a part's vertices are its charts' - each triangle in exactly one)
+function trlWriteUV1(T, charts, W, H) {
+  const { dpm, pad } = TRL_AO, per = new Map();
+  for (const c of charts) {
+    let a = per.get(c.g); if (!a) { a = new Float32Array(c.g.attributes.position.count * 2); per.set(c.g, a); }
+    c.tris.forEach((t, j) => { for (let i = 0; i < 3; i++) { const k = (t * 3 + i) * 2;
+      a[k] = (c.x + pad + (c.q[j * 6 + i * 2] - c.u0) * dpm) / W; a[k + 1] = (c.y + pad + (c.q[j * 6 + i * 2 + 1] - c.v0) * dpm) / H; } });
+  }
+  for (const [g, a] of per) g.setAttribute('uv1', new T.BufferAttribute(a, 2));
+}
+// a BVH over triangles (9 floats each) and an any-hit ray query (the hit's distance, or Infinity)
+function trlBVH(tri) {
+  const n = tri.length / 9, idx = new Int32Array(n), cen = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { idx[i] = i; for (let a = 0; a < 3; a++) cen[i * 3 + a] = (tri[i * 9 + a] + tri[i * 9 + 3 + a] + tri[i * 9 + 6 + a]) / 3; }
+  const cap = 2 * n + 1, bb = new Float32Array(cap * 6), lft = new Int32Array(cap), st = new Int32Array(cap), cnt = new Int32Array(cap); let nn = 0;
+  const build = (s, e) => {
+    const id = nn++; let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+    for (let i = s; i < e; i++) { const o = idx[i] * 9; for (let v = 0; v < 9; v += 3) { const x = tri[o + v], y = tri[o + v + 1], z = tri[o + v + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z; } }
+    bb.set([x0, y0, z0, x1, y1, z1], id * 6);
+    if (e - s <= 4) { st[id] = s; cnt[id] = e - s; lft[id] = -1; return id; }
+    const ex = x1 - x0, ey = y1 - y0, ez = z1 - z0, ax = ex >= ey && ex >= ez ? 0 : ey >= ez ? 1 : 2;
+    const sub = Array.from(idx.subarray(s, e)).sort((p, q) => cen[p * 3 + ax] - cen[q * 3 + ax]); idx.set(sub, s);
+    const m = (s + e) >> 1; cnt[id] = 0; lft[id] = build(s, m); st[id] = build(m, e); return id;
+  };
+  build(0, n);
+  const stack = new Int32Array(128);
+  return function hit(ox, oy, oz, dx, dy, dz, tmax) {
+    const ix = 1 / dx, iy = 1 / dy, iz = 1 / dz; let sp = 0; stack[sp++] = 0;
+    while (sp) {
+      const id = stack[--sp], b = id * 6;
+      let t0 = (bb[b] - ox) * ix, t1 = (bb[b + 3] - ox) * ix; if (t0 > t1) { const q = t0; t0 = t1; t1 = q; }
+      let u0 = (bb[b + 1] - oy) * iy, u1 = (bb[b + 4] - oy) * iy; if (u0 > u1) { const q = u0; u0 = u1; u1 = q; }
+      if (u0 > t0) t0 = u0; if (u1 < t1) t1 = u1;
+      let w0 = (bb[b + 2] - oz) * iz, w1 = (bb[b + 5] - oz) * iz; if (w0 > w1) { const q = w0; w0 = w1; w1 = q; }
+      if (w0 > t0) t0 = w0; if (w1 < t1) t1 = w1;
+      if (t1 < 0 || t0 > t1 || t0 > tmax) continue;
+      if (lft[id] >= 0) { stack[sp++] = lft[id]; stack[sp++] = st[id]; continue; }
+      for (let i = st[id], e = st[id] + cnt[id]; i < e; i++) {
+        const o = idx[i] * 9, ax = tri[o], ay = tri[o + 1], az = tri[o + 2];
+        const e1x = tri[o + 3] - ax, e1y = tri[o + 4] - ay, e1z = tri[o + 5] - az, e2x = tri[o + 6] - ax, e2y = tri[o + 7] - ay, e2z = tri[o + 8] - az;
+        const px = dy * e2z - dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y - dy * e2x, det = e1x * px + e1y * py + e1z * pz;
+        if (det > -1e-12 && det < 1e-12) continue;
+        const inv = 1 / det, sx = ox - ax, sy = oy - ay, sz = oz - az, u = (sx * px + sy * py + sz * pz) * inv; if (u < 0 || u > 1) continue;
+        const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x, v = (dx * qx + dy * qy + dz * qz) * inv; if (v < 0 || u + v > 1) continue;
+        const t = (e2x * qx + e2y * qy + e2z * qz) * inv; if (t > 1e-4 && t < tmax) return t;
+      }
+    }
+    return Infinity;
+  };
+}
+// the texels to bake: each chart's triangles rasterised in the atlas - a texel's point (its frame's) and its face's normal
+function trlTexels(charts, W, H) {
+  const out = { pos: [], nor: [], frame: [], at: [] }, own = new Int32Array(W * H).fill(-1);
+  for (const c of charts) {
+    const P = c.g.attributes.position.array, U = c.g.attributes.uv1.array;
+    for (const t of c.tris) {
+      const o = t * 9, k = t * 6;
+      const x0 = U[k] * W, y0 = U[k + 1] * H, x1 = U[k + 2] * W, y1 = U[k + 3] * H, x2 = U[k + 4] * W, y2 = U[k + 5] * H;
+      const d = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2); if (Math.abs(d) < 1e-9) continue;
+      const ux = P[o + 3] - P[o], uy = P[o + 4] - P[o + 1], uz = P[o + 5] - P[o + 2], vx = P[o + 6] - P[o], vy = P[o + 7] - P[o + 1], vz = P[o + 8] - P[o + 2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+      for (let j = Math.max(0, Math.floor(Math.min(y0, y1, y2))); j <= Math.min(H - 1, Math.ceil(Math.max(y0, y1, y2))); j++)
+        for (let i = Math.max(0, Math.floor(Math.min(x0, x1, x2))); i <= Math.min(W - 1, Math.ceil(Math.max(x0, x1, x2))); i++) {
+          const px = i + 0.5, py = j + 0.5;
+          const a = ((y1 - y2) * (px - x2) + (x2 - x1) * (py - y2)) / d, b = ((y2 - y0) * (px - x2) + (x0 - x2) * (py - y2)) / d, g = 1 - a - b;
+          if (a < -1e-4 || b < -1e-4 || g < -1e-4 || own[j * W + i] >= 0) continue;
+          own[j * W + i] = out.at.length; out.at.push(j * W + i); out.frame.push(c.frame);
+          out.pos.push(a * P[o] + b * P[o + 3] + g * P[o + 6], a * P[o + 1] + b * P[o + 4] + g * P[o + 7], a * P[o + 2] + b * P[o + 5] + g * P[o + 8]);
+          out.nor.push(nx, ny, nz);
+        }
+    }
+  }
+  return out;
+}
+// the bake: a slice of texels [i0, i1) into `ao` (0..1, per texel); the rays a Hammersley set, cosine-weighted, turned per texel
+function trlBakeSlice(X, hits, ao, i0, i1) {
+  const { rays, reach } = TRL_AO, K = rays;
+  for (let i = i0; i < i1; i++) {
+    const nx = X.nor[i * 3], ny = X.nor[i * 3 + 1], nz = X.nor[i * 3 + 2], fr = X.frame[i], hit = hits[fr];
+    const ox = X.pos[i * 3] + nx * 0.002, oy = X.pos[i * 3 + 1] + ny * 0.002, oz = X.pos[i * 3 + 2] + nz * 0.002;
+    // a tangent basis, turned by the texel's own angle (no banding)
+    let tx, ty, tz; if (Math.abs(nx) < 0.9) { tx = 0; ty = nz; tz = -ny; } else { tx = -nz; ty = 0; tz = nx; }
+    let tl = Math.hypot(tx, ty, tz); tx /= tl; ty /= tl; tz /= tl;
+    const bx = ny * tz - nz * ty, by = nz * tx - nx * tz, bz = nx * ty - ny * tx, rot = (trlHash(i) / 4294967296) * Math.PI * 2;
+    let occ = 0;
+    for (let k = 0; k < K; k++) {
+      let r = k, inv = 0, f = 0.5; while (r) { if (r & 1) inv += f; r >>= 1; f *= 0.5; }   // the radical inverse (base 2)
+      const u = (k + 0.5) / K, s = Math.sqrt(inv), ph = 2 * Math.PI * u + rot, cz = Math.sqrt(1 - inv);
+      const lx = Math.cos(ph) * s, ly = Math.sin(ph) * s;
+      const dx = tx * lx + bx * ly + nx * cz, dy = ty * lx + by * ly + ny * cz, dz = tz * lx + bz * ly + nz * cz;
+      let t = hit(ox, oy, oz, dx, dy, dz, reach);
+      if (fr === 0 && dy < -1e-6) { const tg = -oy / dy; if (tg < t) t = tg; }   // the ground under the trailer (its frame: y = 0)
+      if (t < reach) occ += 1 - t / reach;
+    }
+    ao[i] = 1 - occ / K;
+  }
+}
+const TRL_AO_CACHE = new Map();
+// the whole pass: charts, UV1, the bake (now, or in slices), the map. `parts`: [{ geoms, frame }], frame 0 the trailer's (with
+// the ground), 1 the wheel's own; `occl`: per frame, Float32Array triangles (9 floats each) the rays may hit
+function trlAO(T, parts, occl, o) {
+  const t0 = Date.now(), charts = [];
+  for (const p of parts) for (const g of p.geoms) trlCharts(T, g, p.frame, charts);
+  const { W, H } = trlPack(charts); trlWriteUV1(T, charts, W, H);
+  const data = new Uint8Array(W * H * 4).fill(255);
+  const map = new T.DataTexture(data, W, H, T.RGBAFormat); map.channel = 1; map.flipY = false;
+  map.magFilter = T.LinearFilter; map.minFilter = T.LinearFilter; map.generateMipmaps = false; map.needsUpdate = true;
+  const stats = { W, H, charts: charts.length, texels: 0, rays: TRL_AO.rays, ms: 0, done: false, mean: 1 };
+  // the cache: the same geometry (its positions' hash) bakes once
+  let h = 0x811c9dc5; for (const p of parts) for (const g of p.geoms) { const A = g.attributes.position.array; for (let i = 0; i < A.length; i += 7) h = Math.imul(h ^ ((A[i] * 1e4) | 0), 16777619) >>> 0; }
+  const ck = h + ':' + W + 'x' + H;
+  const finish = (bytes, X, ao) => {
+    if (!bytes) {
+      // the texels' values, then the empty ones dilated from their neighbours (the charts' padding: no seam under bilinear)
+      const val = new Float32Array(W * H).fill(-1); for (let i = 0; i < X.at.length; i++) val[X.at[i]] = ao[i];
+      for (let pass = 0; pass < TRL_AO.pad + 2; pass++) {
+        const nv = val.slice();
+        for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { if (val[j * W + i] >= 0) continue; let s = 0, n = 0;
+          for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= W || jj >= H) continue; const v = val[jj * W + ii]; if (v >= 0) { s += v; n++; } }
+          if (n) nv[j * W + i] = s / n; }
+        val.set(nv);
+      }
+      bytes = new Uint8Array(W * H); let sum = 0;
+      for (let i = 0; i < W * H; i++) { const v = val[i] < 0 ? 1 : val[i]; bytes[i] = Math.round(Math.max(0, Math.min(1, v)) * 255); }
+      for (let i = 0; i < X.at.length; i++) sum += ao[i]; stats.mean = X.at.length ? sum / X.at.length : 1;
+      TRL_AO_CACHE.set(ck, { bytes, mean: stats.mean, texels: X.at.length });
+    }
+    for (let i = 0; i < W * H; i++) { const v = bytes[i]; data[i * 4] = v; data[i * 4 + 1] = v; data[i * 4 + 2] = v; }
+    map.needsUpdate = true; stats.done = true; stats.ms = Date.now() - t0;
+    if (o.onAO) o.onAO(stats);
+  };
+  const hit0 = TRL_AO_CACHE.get(ck);
+  if (o.ao === false) { stats.done = true; return { map, stats }; }
+  if (hit0) { stats.texels = hit0.texels; stats.mean = hit0.mean; stats.cached = true; finish(hit0.bytes); return { map, stats }; }
+  const X = trlTexels(charts, W, H), ao = new Float32Array(X.at.length); stats.texels = X.at.length;
+  const hits = occl.map(tri => (tri && tri.length ? trlBVH(tri) : () => Infinity));
+  const async = o.ao !== 'sync' && typeof window !== 'undefined' && typeof setTimeout === 'function';
+  if (!async) { trlBakeSlice(X, hits, ao, 0, X.at.length); finish(null, X, ao); return { map, stats }; }
+  // (the slices in the frames' IDLE time - requestIdleCallback, to its deadline and never past TRL_AO.slice ms - so the bake
+  //  costs no frame; where there is none, one setTimeout slice at a time)
+  let i = 0;
+  const idle = typeof requestIdleCallback === 'function', next = () => (idle ? requestIdleCallback(step, { timeout: 250 }) : setTimeout(step, 16));
+  const step = dl => { const te = Date.now() + TRL_AO.slice;
+    while (i < X.at.length && Date.now() < te && (!dl || !dl.timeRemaining || dl.didTimeout || dl.timeRemaining() > 1)) { const e = Math.min(X.at.length, i + 32); trlBakeSlice(X, hits, ao, i, e); i = e; }
+    if (i < X.at.length) next(); else finish(null, X, ao); };
+  next();
+  return { map, stats };
+}
 
 function buildTrailerModel(THREE, Tr, o) {
   o = o || {};
@@ -38,7 +307,7 @@ function buildTrailerModel(THREE, Tr, o) {
   const M = o.materials || {
     galv: std(0xaeb3b8, 0.72, 0.40),          // hot-dip galvanised: a matt silver
     galvDk: std(0x8f959b, 0.70, 0.52),        // the axles, the arms, the brackets (duller, older zinc)
-    carpet: std(0x3a414a, 0.0, 0.98),         // the bunks' marine carpet
+    carpet: std(0x3a414a, 0.0, 0.98),         // (marine carpet: unused since 13 Nov - the bunks are bare planks, M.plank)
     rubber: std(0x18191b, 0.0, 0.88),         // tyres, mud flaps, V-blocks, keel rollers
     wheel: std(0xc8ccd0, 0.55, 0.32),         // the pressed-steel wheels, painted silver
     chrome: std(0xe9ebee, 1.0, 0.16),         // the hub caps, the wheel nuts, the ball
@@ -49,6 +318,18 @@ function buildTrailerModel(THREE, Tr, o) {
     strap: std(0xe2b21c, 0.0, 0.8),          // the latch's webbing strap, the winch strap
     drum: std(0x3d4043, 0.6, 0.6),            // the brake drums (cast iron, painted)
   };
+  // the bunks' planks (13 Nov: bare timber boards, the user's "planks"), and the game's library on what it suits (above)
+  if (!M.plank) M.plank = std(0x8a5a32, 0.0, 0.85);
+  if (!o.materials) {
+    // (the galv map is a roof's, mean 0.17 linear: hot-dip galvanising is a bright matt silver - the map lifted x2.6 (x1.9 the
+    //  older, duller zinc of the running gear), metalness 0.7, roughness ~0.7 over the map's 0.51)
+    trlDress(T, M.galv, 'galv', 0xffffff, { lift: 2.6, metal: 0.7, rough: 1.4 });
+    trlDress(T, M.galvDk, 'galv', 0xf4f6f8, { lift: 1.9, metal: 0.65, rough: 1.6 });
+    trlDress(T, M.wheel, 'steelgrey', 0xd6d9dc, { metal: 0.55, rough: 0.8 });
+    trlDress(T, M.drum, 'steelgrey', 0x55595d, { metal: 0.6, rough: 1 });
+    trlDress(T, M.plank, TRL_PLANK.key, 0xf2e6d8, { metal: 0, rough: 1, nrm: 1.2 });
+  }
+  let plankN = 0;
   const bins = new Map();   // material -> [geometries, in the trailer's frame]
   const put = (mat, g) => { if (!bins.has(mat)) bins.set(mat, []); bins.get(mat).push(g); return g; };
   const V3 = (x, y, z) => new T.Vector3(x, y, z);
@@ -253,15 +534,19 @@ function buildTrailerModel(THREE, Tr, o) {
 
   // ---- THE CRADLE ----
   const strapParts = [];
-  const bunkPart = (x0, x1, y0, y1, z, tilt, w, len) => {   // a carpeted bunk from x0 to x1, its top at y (the line), tilted about x
+  const bunkPart = (x0, x1, y0, y1, z, tilt, w, len) => {   // a timber bunk (one plank) from x0 to x1, its top at y (the line), tilted about x
     const L = Math.hypot(x1 - x0, y1 - y0), th = 0.05;
-    const g = new T.ExtrudeGeometry(rrect(w, th, 0.012), { depth: L, bevelEnabled: false, curveSegments: S(3) });
-    g.translate(0, -th / 2, 0); g.rotateZ(tilt);
+    let g = new T.ExtrudeGeometry(rrect(w, th, 0.012), { depth: L, bevelEnabled: false, curveSegments: S(3) });
+    g.translate(0, -th / 2, 0); if (g.index) g = g.toNonIndexed();
+    // THE PLANK: its own board of the deckwood set and its own offset along the grain (13 Nov)
+    const hk = trlHash(++plankN);
+    trlPlankUV(T, g, w, th, hk % TRL_PLANK.boards, (hk >>> 8) % 1000 / 1000 * 2.2);
+    g.rotateZ(tilt);
     const m = new T.Matrix4().makeBasis(V3(0, 0, -1).applyAxisAngle(V3(0, 1, 0), 0), V3(0, 1, 0), V3(1, 0, 0));
     // (extruded along +z; turned so +z runs along +x, then pitched with the line)
     const pitch = Math.atan2(y1 - y0, x1 - x0);
     g.applyMatrix4(new T.Matrix4().makeRotationY(Math.PI / 2)); g.applyMatrix4(new T.Matrix4().makeRotationZ(pitch));
-    g.translate(x0, y0, z); put(M.carpet, g); void m; void len;
+    g.translate(x0, y0, z); put(M.plank, g); void m; void len;
   };
   // a post from the rail (or a bolster) up to a bunk's bracket, with its swivel plate
   const post = (x, z, yTop, zBase) => {
@@ -380,45 +665,71 @@ function buildTrailerModel(THREE, Tr, o) {
   }
 
   // ---- MERGE: one mesh per material (the frame), one InstancedMesh per wheel part ----
+  // the spare's carrier: two angle bars under the rails (with the frame: its surfaces and its AO are the frame's)
+  for (const s of [-1, 1]) { const a = new T.BoxGeometry(0.62, 0.006, 0.04); a.translate(xRear + 0.42, railY - railH / 2 - 0.006, s * 0.2); put(M.galvDk, a); }
+  for (const s of [-1, 1]) { const a = new T.BoxGeometry(0.006, 0.006, 2 * zR); a.translate(xRear + 0.42 + s * 0.3, railY - railH / 2 - 0.003, 0); put(M.galvDk, a); }
+  // every part as triangles (three vertices each), with its normals
+  const flat = g => { const q = g.index ? g.toNonIndexed() : g; if (q !== g) g.dispose(); if (!q.attributes.normal) q.computeVertexNormals(); return q; };
+  for (const list of bins.values()) for (let i = 0; i < list.length; i++) list[i] = flat(list[i]);
+  for (let i = 0; i < strapParts.length; i++) strapParts[i] = flat(strapParts[i]);
+  for (const k in W) for (let i = 0; i < W[k].length; i++) W[k][i] = flat(W[k][i]);
+  // the wheels' places: four on the spindles, the spare flat under the rear (outer face down)
+  const wheelAt = [[-ax + spX, -1], [-ax + spX, 1], [ax + spX, -1], [ax + spX, 1]].map(([x, s]) => ({ x, s, z: s * wZ }));
+  const mtx = new T.Matrix4(), mR = new T.Matrix4(), mS = new T.Matrix4();
+  const wheelMat = (i, spin, out) => {
+    if (i === 4) return out.makeTranslation(xRear + 0.42, railY - railH / 2 - 0.105, 0).multiply(mR.makeRotationX(Math.PI / 2));
+    const w = wheelAt[i]; out.makeTranslation(w.x, wheelR, w.z);
+    if (w.s < 0) out.multiply(mR.makeRotationY(Math.PI));   // the outer face out (-z on the left)
+    return out.multiply(mS.makeRotationZ(w.s < 0 ? spin : -spin));   // rolling forward: the top goes forward
+  };
+  // THE SURFACES' PASS (above): UV0, the charts, UV1, the AO - the frame (frame 0: the trailer and the wheels at rest, the
+  // ground) and the wheel's parts (frame 1: themselves); the strap is surfaced but hits nothing (it comes and goes)
+  const staticG = [].concat(...bins.values()), wheelG = [].concat(...Object.values(W));
+  const tris = (geoms, mats) => { let n = 0; for (const g of geoms) n += g.attributes.position.array.length * (mats ? mats.length : 1);
+    const out = new Float32Array(n), v = new T.Vector3(); let k = 0;
+    for (const g of geoms) { const P = g.attributes.position.array;
+      if (!mats) { out.set(P, k); k += P.length; continue; }
+      for (const m of mats) for (let i = 0; i < P.length; i += 3) { v.set(P[i], P[i + 1], P[i + 2]).applyMatrix4(m); out[k++] = v.x; out[k++] = v.y; out[k++] = v.z; } }
+    return out; };
+  const rest = [0, 1, 2, 3, 4].map(i => wheelMat(i, 0, new T.Matrix4()));
+  const o0 = tris(staticG), o1 = tris(wheelG, rest), occl0 = new Float32Array(o0.length + o1.length); occl0.set(o0); occl0.set(o1, o0.length);
+  const AO = trlAO(T, [{ geoms: staticG.concat(strapParts), frame: 0 }, { geoms: wheelG, frame: 1 }], [occl0, tris(wheelG)], o);
+  // (three's aoMap darkens the ambient / environment light only; the sun's shadow map is far coarser than a bracket on a rail,
+  //  so the small contacts stayed sharp in sunlight - 40 % of the AO on the direct diffuse too: the crevices the shadow map
+  //  cannot see. A WebGL program patch, its own cache key; a node renderer ignores it)
+  const aoDirect = m => { m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <aomap_fragment>',
+    '#include <aomap_fragment>\n#ifdef USE_AOMAP\n\treflectedLight.directDiffuse *= mix( 1.0, ambientOcclusion, ' + TRL_AO.direct.toFixed(2) + ' );\n#endif'); };
+    m.customProgramCacheKey = () => 'trl-ao-direct'; };
+  for (const m of Object.values(M)) if (m && m.isMaterial) { m.aoMap = AO.map; m.aoMapIntensity = 1; aoDirect(m); m.needsUpdate = true; }
   function merge(list) {
-    let n = 0; const flat = list.map(g => { const q = g.index ? g.toNonIndexed() : g; n += q.attributes.position.count; return q; });
-    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3); let k = 0;
-    for (const q of flat) { if (!q.attributes.normal) q.computeVertexNormals(); pos.set(q.attributes.position.array, k * 3); nor.set(q.attributes.normal.array, k * 3); k += q.attributes.position.count; }
+    let n = 0; for (const q of list) n += q.attributes.position.count;
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), uv1 = new Float32Array(n * 2); let k = 0;
+    for (const q of list) {
+      pos.set(q.attributes.position.array, k * 3); nor.set(q.attributes.normal.array, k * 3);
+      if (q.attributes.uv) uv.set(q.attributes.uv.array, k * 2); if (q.attributes.uv1) uv1.set(q.attributes.uv1.array, k * 2);
+      k += q.attributes.position.count;
+    }
     const out = new T.BufferGeometry(); out.setAttribute('position', new T.BufferAttribute(pos, 3)); out.setAttribute('normal', new T.BufferAttribute(nor, 3));
+    out.setAttribute('uv', new T.BufferAttribute(uv, 2)); out.setAttribute('uv1', new T.BufferAttribute(uv1, 2));
     out.computeBoundingSphere(); out.computeBoundingBox();
     for (const g of list) g.dispose(); return out;
   }
   const group = new T.Group(); group.name = 'trailer'; group.matrixAutoUpdate = false;
-  let tris = 0, draws = 0;
-  for (const [mat, list] of bins) { const g = merge(list); const m = new T.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; m.name = 'trailer:' + (mat.name || ''); group.add(m); tris += g.attributes.position.count / 3; draws++; }
+  let triN = 0, draws = 0;
+  for (const [mat, list] of bins) { const g = merge(list); const m = new T.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; m.name = 'trailer:' + (mat.name || ''); group.add(m); triN += g.attributes.position.count / 3; draws++; }
   const strap = strapParts.length ? new T.Mesh(merge(strapParts), M.strap) : null;
-  if (strap) { strap.castShadow = true; strap.name = 'trailer:strap'; group.add(strap); tris += strap.geometry.attributes.position.count / 3; draws++; }
+  if (strap) { strap.castShadow = true; strap.name = 'trailer:strap'; group.add(strap); triN += strap.geometry.attributes.position.count / 3; draws++; }
   const NW = 5, inst = [];
   for (const k of ['tyre', 'wheel', 'drum', 'chrome']) {
     const g = merge(W[k]), mat = k === 'tyre' ? M.rubber : k === 'wheel' ? M.wheel : k === 'drum' ? M.drum : M.chrome;
     const im = new T.InstancedMesh(g, mat, NW); im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false; im.name = 'trailer:wheels:' + k;
-    group.add(im); inst.push(im); tris += g.attributes.position.count / 3 * NW; draws++;
+    group.add(im); inst.push(im); triN += g.attributes.position.count / 3 * NW; draws++;
   }
-  // the wheels' places: four on the spindles, the spare flat under the rear (outer face down)
-  const wheelAt = [[-ax + spX, -1], [-ax + spX, 1], [ax + spX, -1], [ax + spX, 1]].map(([x, s]) => ({ x, s, z: s * wZ }));
-  const mtx = new T.Matrix4(), mR = new T.Matrix4(), mS = new T.Matrix4();
   function poseWheels(spin) {
-    for (let i = 0; i < 4; i++) {
-      const w = wheelAt[i];
-      mtx.makeTranslation(w.x, wheelR, w.z);
-      if (w.s < 0) mtx.multiply(mR.makeRotationY(Math.PI));   // the outer face out (-z on the left)
-      mtx.multiply(mS.makeRotationZ(w.s < 0 ? spin : -spin));   // rolling forward: the top goes forward
-      for (const im of inst) im.setMatrixAt(i, mtx);
-    }
-    mtx.makeTranslation(xRear + 0.42, railY - railH / 2 - 0.105, 0).multiply(mR.makeRotationX(Math.PI / 2));
-    for (const im of inst) { im.setMatrixAt(4, mtx); im.instanceMatrix.needsUpdate = true; }
+    for (let i = 0; i < NW; i++) { wheelMat(i, spin, mtx); for (const im of inst) im.setMatrixAt(i, mtx); }
+    for (const im of inst) im.instanceMatrix.needsUpdate = true;
   }
   poseWheels(0);
-  // the spare's carrier: two angle bars under the rails
-  // (built after the wheels' list: a late member goes in its own small mesh)
-  { const g = []; for (const s of [-1, 1]) { const a = new T.BoxGeometry(0.62, 0.006, 0.04); a.translate(xRear + 0.42, railY - railH / 2 - 0.006, s * 0.2); g.push(a); }
-    for (const s of [-1, 1]) { const a = new T.BoxGeometry(0.006, 0.006, 2 * zR); a.translate(xRear + 0.42 + s * 0.3, railY - railH / 2 - 0.003, 0); g.push(a); }
-    const m = new T.Mesh(merge(g), M.galvDk); m.castShadow = true; group.add(m); tris += m.geometry.attributes.position.count / 3; draws++; }
 
   const _a = new T.Vector3(), _b = new T.Vector3(), _c = new T.Vector3();
   function update(Tp, latched) {
@@ -427,7 +738,7 @@ function buildTrailerModel(THREE, Tr, o) {
     poseWheels(Tp.spin || 0);
     if (strap) strap.visible = latched !== false;
   }
-  return { group, update, strap, materials: M, stats: { tris: Math.round(tris), draws, materials: bins.size, x: [xRear, Ld + 0.06], width: 2 * (wZ + 0.15), xFront, xRear } };
+  return { group, update, strap, materials: M, aoMap: AO.map, stats: { tris: Math.round(triN), draws, materials: bins.size, x: [xRear, Ld + 0.06], width: 2 * (wZ + 0.15), xFront, xRear, ao: AO.stats } };
 }
 
 // THE CAR'S HALF: the tow bar's ball mount for the pickup's receiver (50 mm square shank, the drop plate, the 50 mm ball
