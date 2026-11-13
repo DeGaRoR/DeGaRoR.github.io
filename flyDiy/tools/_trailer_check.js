@@ -227,10 +227,12 @@ const TM = require(path.join(ROOT, 'src/vehicle/trailer_model.js'));
       for (let i = 0; i < 30; i++) DM.frame(1);
       const given = !!scene.getObjectByName('garage:car') && DM.name === 'the roadster' && DM.from === 'car:village' && DM.to === 'mk_hall';
       DM.leave();
-      // ...and a LOOP (the chooser's "out and back"): the village out to the cannery and back to the village
-      await DM.enter({ THREE, scene, world: W, at: [PL.find(p => p.id === 'car:village').x, 0, PL.find(p => p.id === 'car:village').z], to: 'car:cannery', loop: true });
-      let lp = 0, out = false; while (lp < 60 * 1500) { DM.frame(60); lp += 60; const ph = DM.words().phase; if (DM.to === 'car:village') out = true; if (out && ph === 'ARRIVED') break; }
-      const loopOk = out && DM.words().phase === 'ARRIVED' && DM.to === 'car:village'; DM.leave();
+      // ...and a LOOP (the chooser's "out and back"): Cedar Harbour's harbour front out to the town hall (0.5 km by road) and
+      //  back to the harbour front (the village > the cannery is 13.6 km by road: a 45-minute loop, too long for a row)
+      const hb = PL.find(p => p.id === 'car:harbour');
+      await DM.enter({ THREE, scene, world: W, at: [hb.x, 0, hb.z], to: 'mk_hall', loop: true });
+      let lp = 0, out = false; while (lp < 60 * 900) { DM.frame(60); lp += 60; const ph = DM.words().phase; if (DM.to === 'car:harbour') out = true; if (out && ph === 'ARRIVED') break; }
+      const loopOk = out && DM.words().phase === 'ARRIVED' && DM.to === 'car:harbour' && !DM.loop; DM.leave();
       chooser = { n: PL.length, car: ['car:harbour', 'car:village', 'car:tramway', 'car:cannery'].every(i => ids.includes(i)), rwy: ids.some(i => /^rwy:/.test(i)), town: R.has('mk_hall'), given, loop: loopOk, loopMin: +(lp / 3600).toFixed(1) };
       did.push(chooser.car && !chooser.rwy && chooser.town && given && loopOk ? 'chooser' : 'CHOOSER ' + JSON.stringify(chooser));
     })().then(finish, e => { errs.push(e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : String(e)); finish(); });
@@ -250,7 +252,7 @@ const TM = require(path.join(ROOT, 'src/vehicle/trailer_model.js'));
     const okL = lazy.includes('src/vehicle/trailer.js') && lazy.includes('src/vehicle/trailer_model.js') && !B.MANIFEST.core.some(n => /trailer/.test(n));
     row('PAGE', !errs.length && did.join(',') === 'drive,tow,trailer,drawn,chooser' && !miss.length && okL,
       'drive_mode.js in node on the island: ' + (did.join(', ') || 'nothing') + (errs.length ? ' - THREW: ' + errs.join('; ') : '') + '; app.js ' + (Object.keys(hooks).length - miss.length) + ' of ' + Object.keys(hooks).length +
-      ' (the menu row, ?trailer=1, inline, the lazy fetch, the plate, the roll-out\'s choice, the autopilot\'s launch and handover; the start chooser: FLYDIY_START, the car tow, the push stepped, inline, the story apart)' + (chooser ? '; the chooser\'s car: ' + chooser.n + ' places, its four own, no runway end, the village reaches the town, a given car driven: ' + (chooser.given ? 'yes' : 'NO') + ', a loop the village > the cannery > the village: ' + (chooser.loop ? 'back in ' + chooser.loopMin + ' min' : 'NO') : '') + (miss.length ? ' MISSING: ' + miss.join(', ') : '') + '; trailer.js, trailer_model.js lazy' + (okL ? '' : ' - NOT'));
+      ' (the menu row, ?trailer=1, inline, the lazy fetch, the plate, the roll-out\'s choice, the autopilot\'s launch and handover; the start chooser: FLYDIY_START, the car tow, the push stepped, inline, the story apart)' + (chooser ? '; the chooser\'s car: ' + chooser.n + ' places, its four own, no runway end, the village reaches the town, a given car driven: ' + (chooser.given ? 'yes' : 'NO') + ', a loop the harbour front > the town hall > the harbour front: ' + (chooser.loop ? 'back in ' + chooser.loopMin + ' min' : 'NO') : '') + (miss.length ? ' MISSING: ' + miss.join(', ') : '') + '; trailer.js, trailer_model.js lazy' + (okL ? '' : ' - NOT'));
     console.log('GATE TRAILER: ' + (fails ? 'FAIL' : 'PASS'));
     process.exit(fails ? 1 : 0);
   }
