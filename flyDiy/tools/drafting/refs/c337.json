@@ -1,0 +1,334 @@
+{
+ "what": "drafting-ref",
+ "v": 1,
+ "identity": {
+  "name": "Cessna 337D Super Skymaster",
+  "maker": "Cessna Aircraft Company",
+  "variant": "337D (1969), unpressurised, normal category",
+  "engine": "2 x Teledyne Continental IO-360-C, 210 BHP at 2800 RPM, fuel injected; constant-speed full-feathering propellers, 76 in, front tractor + rear pusher on the centreline",
+  "locked": null,
+  "notes": [
+   "Not the P337 (pressurised) nor the O-2 (military).",
+   "The card is born from the C172 (the user, 13 Nov), not the Skymaster-alike recreation card."
+  ]
+ },
+ "sources": {
+  "poh": "Cessna 337D Owner's Manual, 1969 (the user's copy; facts extracted by A0 into futureDesigns/SKYMASTER-337D-FIGURES-2026-11-13.md, branch claude/design-refs)",
+  "3view": "the manufacturer's 'Principal Dimensions' 3-view in the same manual"
+ },
+ "figures": {
+  "geometry.span": {
+   "v": 11.58,
+   "unit": "m",
+   "src": "3view",
+   "cond": "38 ft 0 in"
+  },
+  "geometry.length": {
+   "v": 9.09,
+   "unit": "m",
+   "src": "3view",
+   "cond": "29 ft 10 in overall"
+  },
+  "geometry.height": {
+   "v": 2.84,
+   "unit": "m",
+   "src": "3view",
+   "cond": "9 ft 4 in max, on the ground"
+  },
+  "geometry.boomSpacingTail": {
+   "v": 3.058,
+   "unit": "m",
+   "src": "3view",
+   "cond": "boom centrelines at the tail: 10 ft 0 3/8 in"
+  },
+  "geometry.boomSpacingWing": {
+   "v": 3.258,
+   "unit": "m",
+   "src": "3view",
+   "cond": "boom centrelines at the wing: 10 ft 8 1/4 in"
+  },
+  "geometry.propDia": {
+   "v": 1.93,
+   "unit": "m",
+   "src": "3view",
+   "cond": "76 in, front and rear"
+  },
+  "geometry.track": {
+   "v": 2.49,
+   "unit": "m",
+   "src": "3view",
+   "cond": "main gear, 8 ft 2 in"
+  },
+  "geometry.groundAttitude": {
+   "v": 2,
+   "unit": "deg",
+   "src": "3view",
+   "cond": "nose up, side view"
+  },
+  "geometry.wingArea": {
+   "v": 18.7,
+   "unit": "m2",
+   "src": "poh",
+   "cond": "derived: 4400 lb / 21.9 lb/sq ft = 201 sq ft",
+   "quality": "derived"
+  },
+  "specs.mtow": {
+   "v": 1996,
+   "unit": "kg",
+   "src": "poh",
+   "cond": "4400 lb"
+  },
+  "specs.empty": {
+   "v": 1204,
+   "unit": "kg",
+   "src": "poh",
+   "cond": "approx. 2655 lb"
+  },
+  "specs.baggage": {
+   "v": 166,
+   "unit": "kg",
+   "src": "poh",
+   "cond": "365 lb"
+  },
+  "specs.power": {
+   "v": [
+    210,
+    210
+   ],
+   "unit": "bhp",
+   "src": "poh",
+   "cond": "2 x IO-360-C at 2800 RPM"
+  },
+  "specs.fuel": {
+   "v": [
+    93,
+    131
+   ],
+   "unit": "US gal total",
+   "src": "poh",
+   "cond": "two 46 gal wing mains + boom sump tanks; 131 with the optional auxiliaries; usable not stated"
+  },
+  "specs.oil": {
+   "v": 5,
+   "unit": "US gal per engine (as printed)",
+   "src": "poh",
+   "quality": "thin"
+  },
+  "specs.loadFactor": {
+   "v": {
+    "flapsUp": [
+     3.8,
+     -1.52
+    ],
+    "flapsDown": 2.0
+   },
+   "unit": "g",
+   "src": "poh",
+   "cond": "normal category"
+  },
+  "specs.cg": {
+   "v": null,
+   "unit": "",
+   "src": "poh",
+   "cond": "Section IV Center of Gravity Moment Envelope: to read off the PDF (asked)"
+  },
+  "specs.flapTrim": {
+   "v": "extending flaps rotates the elevator trim nose-down (mechanical interconnect)",
+   "unit": "",
+   "src": "poh"
+  },
+  "perf.Vmax": {
+   "v": 320,
+   "unit": "km/h",
+   "src": "poh",
+   "kg": 1996,
+   "cond": "199 mph, sea level"
+  },
+  "perf.cruise": {
+   "v": 307,
+   "unit": "km/h",
+   "src": "poh",
+   "kg": 1996,
+   "cond": "191 mph, 75 % power at 5500 ft"
+  },
+  "perf.range": {
+   "v": 1223,
+   "unit": "km",
+   "src": "poh",
+   "cond": "760 mi, 92 gal, 75 %, no reserve; optimum 1345 mi at 144 mph, 10 000 ft"
+  },
+  "perf.Vs0": {
+   "v": 111,
+   "unit": "km/h",
+   "src": "poh",
+   "kg": 1996,
+   "flaps": "full",
+   "cond": "69 mph, power off"
+  },
+  "perf.Vs1": {
+   "v": 127,
+   "unit": "km/h",
+   "src": "poh",
+   "flaps": "up",
+   "cond": "79 mph CAS: the green arc's bottom (no stated flaps-up stall)",
+   "quality": "marking"
+  },
+  "perf.roc": {
+   "v": 6.1,
+   "unit": "m/s",
+   "src": "poh",
+   "kg": 1996,
+   "cond": "1200 fpm, sea level, both engines"
+  },
+  "perf.rocFrontOnly": {
+   "v": 1.52,
+   "unit": "m/s",
+   "src": "poh",
+   "kg": 1996,
+   "cond": "300 fpm, rear engine out (feathered)"
+  },
+  "perf.rocRearOnly": {
+   "v": 1.96,
+   "unit": "m/s",
+   "src": "poh",
+   "kg": 1996,
+   "cond": "385 fpm, front engine out (feathered)"
+  },
+  "perf.ceiling": {
+   "v": 5944,
+   "unit": "m",
+   "src": "poh",
+   "cond": "19 500 ft both; front only 6800 ft (2073 m); rear only 8800 ft (2682 m)"
+  },
+  "perf.TO": {
+   "v": 273,
+   "unit": "m",
+   "src": "poh",
+   "kg": 1996,
+   "flaps": "1/3",
+   "cond": "895 ft ground run"
+  },
+  "perf.TO50": {
+   "v": 471,
+   "unit": "m",
+   "src": "poh",
+   "kg": 1996,
+   "flaps": "1/3",
+   "cond": "1545 ft over 50 ft"
+  },
+  "perf.LDG": {
+   "v": 213,
+   "unit": "m",
+   "src": "poh",
+   "kg": 1996,
+   "cond": "700 ft ground roll"
+  },
+  "perf.LDG50": {
+   "v": 503,
+   "unit": "m",
+   "src": "poh",
+   "kg": 1996,
+   "cond": "1650 ft over 50 ft"
+  },
+  "perf.Vy": {
+   "v": 182,
+   "unit": "km/h",
+   "src": "poh",
+   "cond": "113 mph flaps up gear up (97 flaps 1/3 gear down; 84 full)"
+  },
+  "perf.Vx": {
+   "v": 132,
+   "unit": "km/h",
+   "src": "poh",
+   "cond": "82 mph flaps up gear up (79 flaps 1/3; 73 full)"
+  },
+  "perf.Vyse": {
+   "v": 161,
+   "unit": "km/h",
+   "src": "poh",
+   "cond": "100 mph IAS, best single-engine rate (blue line)"
+  },
+  "perf.VNE": {
+   "v": 362,
+   "unit": "km/h",
+   "src": "poh",
+   "cond": "225 mph CAS"
+  },
+  "perf.VNO": {
+   "v": 306,
+   "unit": "km/h",
+   "src": "poh",
+   "cond": "190 mph CAS"
+  },
+  "perf.VFE": {
+   "v": {
+    "third": 257,
+    "full": 193
+   },
+   "unit": "km/h",
+   "src": "poh",
+   "cond": "160 mph to 1/3, 120 mph 1/3 to full"
+  },
+  "perf.VLO": {
+   "v": 225,
+   "unit": "km/h",
+   "src": "poh",
+   "cond": "gear operating 140 mph"
+  },
+  "perf.VLE": {
+   "v": 249,
+   "unit": "km/h",
+   "src": "poh",
+   "cond": "gear extended 155 mph"
+  }
+ },
+ "image": null,
+ "views": {},
+ "marks": {},
+ "lines": [],
+ "architecture": {
+  "candidates": [
+   "c172"
+  ],
+  "why": "the user, 13 Nov: start from the 172 (high wing, the Cessna cabin), not the Skymaster-alike card; the twin booms, the between-booms stab and push-pull come from the garage's own rows (booms twin, stMount 3, engMount 4)"
+ },
+ "dossier": [
+  {
+   "file": "(inline in chat, 13 Nov)",
+   "what": "Cessna 'Skymaster 72' brochure cover, N1799M in flight",
+   "use": "the DEFAULT LIVERY: lime green over white, a dark cheat line on the pod"
+  },
+  {
+   "file": "vh-azw_ground_weathering.jpg",
+   "what": "VH-AZW on the ground (aeropedia), white and ochre, the factory belly cargo pod",
+   "use": "WEATHERING; the belly pod's shape; gear, rear-prop clearance, ground attitude"
+  },
+  {
+   "file": "(to come)",
+   "what": "the manual's 'Principal Dimensions' 3-view",
+   "use": "the sheet"
+  },
+  {
+   "file": "(to come)",
+   "what": "POH Section IV CG moment envelope + loading graph",
+   "use": "the CG check"
+  }
+ ],
+ "gaps": [
+  "ENGINE: the registry has the Lycoming IO-360-L2A 180 hp with a fixed-pitch prop; the IO-360-C is 210 hp at 2800 RPM - an engine row (as the PT6A-27 row)",
+  "PROP: constant speed is a flag the thrust law does not read, and there is NO FEATHERING (a dead engine windmills): the single-engine climbs (front 300 / rear 385 fpm, feathered) cannot be matched honestly without it",
+  "FLAP-TRIM INTERCONNECT: missing (the flaps' own pitching moment only)",
+  "POD LENGTH on twin booms: the pod ends where pilotLen + paxLen*bays puts it; taperLen / aeroAftLen do not lengthen it (RETRACT-STUDY 1755-1800) - to check against the 3-view",
+  "RETRACT: the skymaster fold exists but is marked \"to check on a reference\"; belly-well doors rough"
+ ],
+ "history": [
+  {
+   "date": "2026-11-13",
+   "who": "session FIT-PROCEDURE",
+   "step": "references",
+   "line": "figures from the 1969 owner's manual (A0's extract); no sheet yet; the dossier started"
+  }
+ ],
+ "datumLE": null,
+ "cgEnvelope": []
+}
