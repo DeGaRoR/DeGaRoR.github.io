@@ -1965,6 +1965,57 @@ const GEN_DRAG = {
   exhStack: 0.003,
 };
 
+// ENGINE COOLING (ENGINE-COOLING, the user 12 Nov: "planes look the way they look because they need these things ...
+// I'd rather that be encoded in physics"; futureDesigns/ENGINE-COOLING-2026-11.md, its defaults ruled "OK"). The heat
+// genEngineThermo says the engine rejects is carried off by AIR, and the air comes in through what is DRAWN: the cowl's
+// forward-facing openings, a scoop that faces the flight, a pusher nacelle's nose inlet, the wing radiators' mouths, the
+// cylinder heads left in the wind. Read by 62_gen_aero genCooling; the join measures the openings (spec.cooling).
+//   path      the air may warm by dT = eps (Tlim - T_ambient) before the hot side is at its limit: a hot day shrinks
+//             the gap, which is why a hot climb is the sizing case. PROPOSED constants, calibrated so the cowls fitted
+//             to real reference models (the Cub, the V2-172, the Jodel) pass the hot climb with a real margin (GATE COOL)
+//   ivr       the inlet's BEST velocity ratio V_inlet / V_free (ENGINE-COOLING 3): a small inlet, the engine's passages
+//             pulling hard behind it, runs near it (0.6-0.9 in a climb); a big one spills (the passages limit it)
+//   passages  the engine's own fins and baffles: `passages` x the air its hot climb needs, at that climb's inlet speed,
+//             with nothing ahead of them (an engine is built to be cooled); in series with the inlet and a drawn outlet,
+//             mdot = 1 / sqrt(sum 1 / mdot_i^2). Calibrated so the reference-fitted cowls (the Cub, the V2-172, the
+//             Jodel) keep a real margin and a big inlet stops buying air past ~3 x (it spills round the cowl)
+//   kappaBare the heads and fins left in the stream (the Cub's, a bare engine's), beside the cowl's air
+//   r         the exit velocity over the free stream: the momentum the air keeps (a baffled cowl 0.7, a radiator duct
+//             with a diffuser 0.8): cooling drag D = mdot V (1 - r), CdA = 2 (mdot / rho V) (1 - r)
+//   outRatio  the drawn outlet that passes the inlet's flow (the heated air is thinner: the classic 1.3 x)
+//   slip      the slipstream's share at a nose inlet (behind the propeller's roots), of the actuator disc's velocity
+//             ratio; a pusher's own inlets on the ground get `pushInflow` of the disc's static velocity (the prop sucks)
+//   suck      IN FLIGHT a pusher's prop sucks on the cowl's OUTLET, just ahead of the disc (the user 12 Nov, the Super
+//             Petrel: "it has quite a large opening"): the static pressure there falls by rho/2 ((V + v)^2 - V^2) of
+//             the disc's induced velocity v, so the pressure that drives the air through the engine grows and the flow
+//             with its root: V_in = V sqrt(1 + suck (f^2 - 1)), f = (V + v) / V the actuator disc's ratio; `suck` the
+//             share of v at the outlet (the hub's inner disc, like `slip`)
+//   hot       FAR 23.1043's climb cooling day: 38 C (100 F) at sea level, ISA + 23, full power at Vy
+//   taxi      the hot strip: 5 m/s, 20 % power, the slipstream does the work
+//   meredith  the heat added in a radiator DUCT is a little ramjet: thrust power ~ k M^2 Q (Meredith, RAE 1935); none on
+//             a cowl
+//   pass/warn the margin (air passed / air needed) the design check reads: under `pass` the engine overheats, under
+//             `warn` it runs hot
+const GEN_COOL = {
+  cp: 1005,
+  path: { air:      { Tlim: 160, eps: 0.30 },
+          liquid:   { Tlim: 110, eps: 0.55 },
+          electric: { Tlim: 70,  eps: 0.50 },
+          turbine:  { Tlim: 90,  eps: 0.50 } },
+  ivr: 0.8, passages: 3.0, kappaBare: 0.5,
+  r: { cowl: 0.70, duct: 0.80 },
+  outRatio: 1.3,
+  slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25, suck: 0.6,
+  hot: { dISA: 23, h: 0 },
+  taxi: { V: 5, power: 0.2 },
+  cruisePower: 0.75,
+  meredith: 0.1,
+  radMouth: 0.8,
+  pass: 1.0, warn: 1.15,
+  // the oil's red line, C (a light aero engine's 118 C / 245 F): the cockpit's needle reaches it at exactly enough air
+  oilRed: 118,
+};
+
 const GEN_GAUGE = {
   e: { fus: 0.30, wing: 0.49, tail: 0.41, gear: 0.75 },
   lo: 0.6, hi: 3.0,
@@ -2603,7 +2654,8 @@ const GEN_SEAPLANE_PROPS = {
                     for: 'Cessna 172 / 172R / 172S on Wipline 2350 (Wipaire STC)' },
 };
 
-// COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
+// COWL INTAKES. Texture only, deliberately (and still: ENGINE-COOLING measures the cowl's DRAWN openings - its
+// apertures, its scoop, its exits - not these louvres; 62_gen_aero genCoolOpen): a grill drawn on the cover reads at
 // every distance the aeroplane is ever seen from, and a modelled duct would cost
 // a hole in the one panel whose whole job since G1.7 has been to have no holes
 // in it ("a big opening… either the prop attachment or an air intake").

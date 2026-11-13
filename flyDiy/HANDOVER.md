@@ -315313,3 +315313,215 @@ The drafting table's PC-6 (DRAFTING_TABLE.md rounds 12-15) and what it found in 
   by A0: it moves every canon plane's short-strip landings and owes old-vs-new numbers on the canon first.
 - NOT in this branch: the colour decode (aeroLinear and the four r128-era sites) and the world's colours ride their own
   ref, claude/fit-procedure-colour, with the PC-6's livery retuned to them - held for the user's look at LOOK-1's stills.
+
+## ENGINE-COOLING - the drawn openings cool the engine (12 Nov 2026, claude/festive-faraday-w3w40x)
+
+The study (futureDesigns/ENGINE-COOLING-2026-11.md, its page beside it as .html) landed on the user's call, 12 Nov: "OK
+with your defaults. I think you should code that." The defaults: the hot case is 38 C at sea level (FAR 23.1043); the
+climb row is safety tier and the taxi row commercial, both PROPOSED; certificates already signed are kept (R3: a game
+update is not a change to the aeroplane), the openings stay out of the fingerprint; the gauge and a power pull-back in v1,
+no damage; cowl flaps v2; the turned scoop now, a NACA flush inlet later; an undrawn outlet is "sized for you".
+
+- **The model (62_gen_aero genCoolOpen / genCooling, GEN_COOL in 60_gen_spec).** dT = eps (Tlim - Tamb), the air the
+  engine needs m = Q / (cp dT); the air the openings pass = kappa rho V_inlet A_in, capped by a drawn outlet (A_out / 1.3).
+  V_inlet = the flight plus 0.6 of the actuator-disc slipstream on a tractor; a pusher's inlets get only its inflow
+  (0.25), on the ground. Kinds: 'bare' (no cowl: passes, the old kCool per kW), 'legacy' (openings not measured: the old
+  per-kW kCool, byte for byte), 'measured' (the momentum drag CdA = 2 kappa A_eff (1 - r) minus the Meredith credit on
+  radiator ducts, x the nose / pusher engine count). Radiators come from the cage rad* rows.
+- **The measurement (tools/_cowl_gen.js coolOpenings).** The cowl's face apertures, the chin scoop, the nacelle inlet (the
+  Super Petrel's forward mouth through the nacelle), the exit gap, the gills, in m2, carried by window.CAGE_COOL_OPEN
+  (its own global: _load_build replaces CAGE_UI after the scene build) into spec.cooling at the join. Facing: the cowl's
+  +z faces the prop, so a pusher's face apertures face AFT and are outlets; a scoop faces the flight when scoopRev ===
+  pushes.
+- **The pusher scoop (cw_scoopRev, "mouth faces: the propeller / the firewall").** Default 0 = as before.
+- **The certificate rows (64c genCoolRows, 64b GEN_CERT_TIER).** cool.climb (safe: fail < 1.0, warn < 1.15) and
+  cool.taxi (comm, warn < 1), both `proposed`: a proposed fail reads as a WARN on both certificates until the user rules.
+  The remedy sizes to the x1.15 pass line and names the step (turn the scoop; size its mouth; give the air a way out).
+- **Out of the fingerprint.** CERT_MEASURED_BLOCKS ['cooling'] (66b certStrip), BENCH_COSMETIC and PROCURE_READOUTS gain
+  'cooling'. No signature moves for this chantier.
+- **The fiche.** Physics, after 'cooling duty': cooling air (bare) / hot-day climb air, cooling openings, cooling drag;
+  their PLAQUE_WHY lines in plaque.js.
+- **The needle.** The oil temperature on the cockpit gauge from genCoolOilC (the air the openings pass now against the air
+  needed now, red line GEN_COOL.oilRed 118 C): DISPLAY ONLY. An unmeasured cowl reads its old 82 C. list:1 Cub 60 C cruise, 95 C
+  in a 38 C climb; list:6 Twin busher 168 C (the dial's stop).
+- **GATE COOL (tools/_cool_check.js, core).** FACING, CALIBRATION, THE PUSHER (the remedy walked to a pass), DRAG,
+  CERTIFICATE, THE SCOOP, THE NEEDLE.
+
+The fleet at 38 C, full-power climb (margin = air passed / air needed): list:1 Cub 1.63, list:50 V2-172 1.66, list:2 Jodel
+5.18, list:10 Tiger Moth-alike 1.81 (bare heads), list:47 Carbon Cub SS 1.65, list:41 Super Petrel 0.81 (its nacelle
+inlet 0.038 m2 counted; the row asks for ~0.054), list:6 Twin busher 0 (a cowled pusher, nothing faces the flight; the
+remedy walks it to a pass), list:7 Rufus bare. Cooling drag CdA: Cub 0.0087 -> 0.0114, V2-172 0.0213 -> 0.0178, Jodel
+0.0087 -> 0.0100, Twin busher 0.0295 -> 0.0182.
+
+- **Gates (each run on the branch and on the pre-change baseline 594a1a05 side by side; the full battery does not fit
+  this container's wall: 12 of 327 jobs in 30 min).** COOL, BENCH, AIDS, STORY, DRAG, ACCEPT, PROCURE, UISMOKE, PANEL,
+  GPSFACE: PASS. GEN: the same single standing red on both sides ("cruise is quiet in wind"), SHAKEDOWN lines identical,
+  no anchor moved. JOINPARITY: the same standing Jodel mass red on both sides. ACCEPT re-flew its evidence: the
+  fingerprints equal the baseline's (no certificate moves), cruise Cub 113 -> 112.7 km/h, C172 185.4 -> 185.8.
+  The --all delivery verdict was NOT run here.
+
+- **Open, waiting on the user.** (1) the proposed rows: rule them in (the Twin busher's safety certificate then FAILs)
+  or tune them; (2) the power pull-back over the red line - it changes how the official list:6 flies, so it lands with
+  (1); (3) sign.rules for kept signatures; (4) cowl flaps (v2), scoop azimuth and NACA inlets. A0 not told: the
+  cross-session send was refused (untrusted device). No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## ENGINE-COOLING 2 - the pusher's suction, the top scoop, the open mouth; list:6 and list:41 cooled (12 Nov 2026, claude/festive-faraday-w3w40x)
+
+The user, after the first landing: "we can make the row, but we have to modify the twin busher and the superpetrel at
+once ... let's have at least a top scoop ... the superpetrel, it has quite a large opening now. Let's fix that."
+futureDesigns/ENGINE-COOLING-2026-11.md §11 has the whole of it.
+
+- **The suction (GEN_COOL.suck 0.6, 62 genCooling).** In flight a pusher's prop lowers the static pressure at the
+  cowl's outlet, just ahead of the disc. The air through the engine grows by the root law:
+  V_in = V sqrt(1 + suck (f^2 - 1)), f the actuator disc's ratio. The ground keeps its pushInflow. Tractors are
+  untouched. This is what "the Petrel's large opening" was missing: its throat was measured right (0.038 m2, the
+  drawn hole); the model did not credit the pusher's own pull.
+- **The top scoop (cw_scoopTop).** The chin scoop mirrored above the spine, with its row in the cowl's scoop group, its
+  ABSENT_AT entry, the parts list and the editor's highlight. Absent means bit for bit (GATE COOL).
+- **The open mouth (_cowl_gen coolOpenings).** Only the part of a scoop's mouth outside the cowl's skin is counted,
+  sampled against the cowl's section at the mouth's station. A scoop drawn into a deep cowl is a notch; the row says
+  so, and the pusher remedy says to stand the scoop out of the skin. This moves a few scoops in the sweep: the caravan
+  archetype 0.32 -> 0.05, the twin-boom pushers' small chin scoops down.
+- **The cards.** list:6 Twin busher floats 4b: the chin scoop turned to face the flight (cw_scoopRev 1), riding the
+  bottom line (cw_scoopFollow 1), half-sizes 0.20 x 0.15, opening 0.9, exit gap 0.22. The hot climb goes 0 -> 1.22,
+  the oil 168 -> 108 C, the cooling drag 0.018 -> 0.021 m2. list:41 Super Petrel LS: nacelle inlet 0.42 -> 0.47
+  (0.048 m2), the hot climb 0.81 -> 1.20 (0.96 from the suction alone), the drag unchanged. Neither card carries a
+  plaque. The Petrel is in LB.VALIDATED: its parity capture (JOINPARITY's page fixture) predates this; JOINPARITY's
+  only red is the standing Jodel mass, the same on the base.
+- **The rows stay PROPOSED.** Sweeping every listed card and every archetype finds more fails than the two planes:
+  - official: list:13 STOL Cub 0.65, list:26 Client Cub 0.97;
+  - archetypes: rv 0.57, spitfire 0.39, caravan 0.05, beaver 0.66, sesqui, ul1, motorglider, ttail, vtail just
+    under 1;
+  - the wing twins (da62, twinBush, p38, fourEngine, floatplane) at 0, their nacelle cowls drawn closed.
+
+  The rv's numbers also say `kappa` is too harsh on small pressure-cowl inlets. The proposal is in the design note §11:
+  calibrate on an RV-class cowl, open the twins' faces, re-draw what still fails, then rule the rows real (with
+  sign.rules).
+- **ENGCONFIG re-pinned** (its IDENTITY table, with a note). Every def digest moved: the drag's `coolBy`, the
+  shakedown's `cooling`. The flown digests moved for the measured cowls only (Cub, Jodel, ultralight fixture, metal
+  Cessna, Cessna on floats), the first landing's meant drag. The Chinook keeps its old flown pin: it fails the same
+  way on the base 594a1a05 (master's red).
+- **Gates.** Each was run on the branch and on its base side by side: COWL, PARTS, DESIGN, KNIFE, SAVE, HULL,
+  PLANELISTS, BENCH, AIDS, STORY, DRAG, PANEL, PROCURE, ACCEPT, UISMOKE, COOL, ENERGY, PODEDITOR, QUADWIN and FRAMES
+  pass. DESIGNCHECK, NODUMMY, DMGCERTCOST and JOINPARITY fail identically on the base. ENGCONFIG after the re-pin
+  fails only where the base does: the Chinook, the quad flights, the three cards. The --all delivery verdict was not
+  run in this container.
+- **Open.** A parked re-cook (the Twin busher's and the Petrel's drawn cowls changed; the cook wants a GPU, A0's
+  train). A0 is still not told: the cross-session send is refused here.
+
+## ENGINE-COOLING 3 - the rows RULED: the series law, the heads on the drawn cowl, every body engine, the archetypes' birth rule (12 Nov 2026, claude/festive-faraday-w3w40x)
+
+The user, 12 Nov, on the second landing's sweep: "the starting designs ... have never been authored ... just add a rule
+and regenerate them"; "on the client cub ... the cylinder heads ... stick out of the cowl ... we should account for
+them"; "check Rufus"; "the twin engine on floats ... has a chin scoop, so we can check whether this is being correctly
+accounted for"; "if you recalibrate something, that should be your coefficients around the opening"; "this
+pusher-puller inline should allow for a scoop on the aft engine as well". futureDesigns/ENGINE-COOLING-2026-11.md §12
+has the whole of it.
+
+- **The series law (62 genCooling, GEN_COOL ivr 0.8 / passages 3.0; kappa retired).** The air passed is
+  1 / sqrt(sum 1 / mdot_i^2) over three terms: the drawn inlet (ivr rho V A_in), the engine's own passages (3 x its
+  hot-climb need), and a drawn outlet (ivr rho V A_out / 1.3).
+  - The drag is the same expression wherever the outlet is sized for you.
+  - The remedy's sizes are the inverse of the law: the inlet with the outlet sized for it, the outlet through the
+    drawn inlet.
+- **The heads measured on the drawn cowl.**
+  - How: `COWL_GEN.coolHeads` (_cowl_gen), called by the engine layer once the cowl is drawn. It maps each cylinder's
+    frontal strip into unit 0's shell (`window.CAGE_COWL_SHELLS`) and tests it against the skin.
+  - Output: `spec.cooling.headsOut / headsAll`, written by the join (`CAGE_COOL_HEADS`).
+  - Readings: list:26 Client Cub 0.046 m2 out, which takes it from 0.97 to 2.77 with the card unchanged; list:1 Cub 0;
+    the Tiger Moth-alike's cylinders are inside its drawn cowl (the generator's loft said 0.099 out).
+  - Uncowled engines: an uncowled piston engine is judged on its heads (list:7 Rufus 2.54); an uncowled electric
+    motor passes with no figure.
+- **Facing: a pusher's lowered bottom and gills face the flight.** Its cowl is turned round, so they are inlets there.
+  Its way out is the face round the spinner. The remedy says so.
+  - list:6 Twin busher is redrawn accordingly: no exit gap (it was 0.22 against the row's 0-0.08), the face opened to
+    0.2 m half-sizes as the way out. It passes at 1.35.
+- **list:41 Super Petrel** is back to the user's drawing (inlet 0.42) and passes at 1.48. **list:27** Ultralight twin on
+  floats: its chin scoops ride the bottom line at 0.14 x 0.11 (they were mostly buried), 0.62 -> 1.50.
+- **Every body engine judged (genCoolBodyEngines, genCoolingOne).** A push-pull's nose and rear are judged separately;
+  the worst answers, and the drag is summed.
+  - New row `cw_scoopAft` ("the rear engine's scoop: as the nose cowl's / turned: into the air"). The cowl layer
+    rebuilds the aft clone's scoop turned (the scoop meshes carry `userData.coolScoop`).
+  - The measurement carries `scoopAlt` (the mouth at its other end) and `units` (each unit's aft flag, area factor and
+    turned scoop).
+- **The archetypes' birth rule (_cage_design designCoolBirth, in designFull).**
+  - Target: 1.4 x the engine's need, at an inlet speed of 32 m/s x (kW/100)^0.3 (clamped 28-75). It never shrinks
+    what a card draws.
+  - By mount: a puller opens its front, plus a chin scoop on a wing nacelle or an inline/vee; a pusher gets its scoop
+    turned and riding, and its face opened as the way out; a nacelle cone opens its inlet; a layout's rear engine gets
+    scoopAft; a liquid engine's wing radiators grow, net of the nose (the Spitfire-alike's to a Spitfire IX's
+    0.57 x 0.33 m).
+  - Turbines: the turbine cowl style's oil-cooler scoop now stands out of the skin at 0.55 x 0.40 of the barrel.
+  - All 32 archetypes pass.
+- **THE RULING.** cool.climb (safe) and cool.taxi (comm) are no longer proposed. Every official card passes; the STOL
+  Cub warns at 1.08 (the user: no care).
+  - Existing certificates: a signed certificate keeps its stored bench check until the aeroplane changes or the bench
+    runs again. There is no GEN_SPEC_V or PHYSICS_V bump, so R3's recheck does not fire.
+  - Still failing (not official): list:10 Tiger Moth-alike 0.17, list:22/31 twinBoomFail, list:28 Single-seat
+    ultralight 0.6, list:33-36 the older Twin busher reviews.
+- **GATE COOL** (wall 420 s) adds THE SERIES, THE HEADS, THE BIRTH and THE PUSH-PULL (both run before THE SCOOP: the
+  real three.js it loads stops the panel's engine layer), and the ruled rows.
+
+- **Gates.** Each was run on the branch and on its base e0d2bd18 side by side.
+  - Pass: COWL, PARTS, DESIGN, KNIFE, SAVE, HULL, PLANELISTS, BENCH, AIDS, STORY, DRAG, PANEL, PROCURE, ACCEPT, UISMOKE,
+    COOL, ENERGY, PODEDITOR, QUADWIN, FRAMES, CERTGATES.
+  - Identical failure lines on the base: DESIGNCHECK, NODUMMY, DMGCERTCOST, JOINPARITY (the Jodel mass), GEN ("cruise
+    is quiet in wind"), ARCHETYPES (full tier: the Chinook-alike's circuit, a rejected take-off).
+  - ENGCONFIG: the metal Cessna's and the Cessna on floats' digests moved (their 0.011 m2 of heads now measured
+    through the drawn cowl). They are re-pinned; it then fails only where the base does (the Chinook, the quad
+    flights, the three cards).
+  - ACCEPT re-flew the metal Cessna's record (same fingerprint).
+  - The --all delivery verdict was not run in this container.
+
+- **Open.**
+  - The Cub-style head cut-outs: a garage gap. The horseshoe is a sector, not a cut round each head.
+  - The power pull-back over the oil's red line: not built (no official card overheats).
+  - Cowl flaps; a NACA flush inlet.
+  - The parked re-cook (the Twin busher's, the Ultralight twin's and the archetypes' drawn cowls changed; A0's GPU).
+  - A0 not told from here (the cross-session send is refused).
+
+## ENGINE-COOLING 4 - on L39b; the scoops are inlets; the Tiger Moth's front; the gills; STOL re-captured (12-13 Nov 2026, claude/festive-faraday-w3w40x)
+
+- **Merged master L39b (23ce68c1f)**, not rebased: a force-push is refused in this session, and A0 accepted either. The
+  four files resolved against fit-procedure:
+  - _cowl_gen buildScoop takes the held section (scoopHold), the cowl-fitted width (scoopWFit) and the taper, plus the
+    turned mouth's z.
+  - coolOpenings measures a cowl-fitted mouth's own width.
+  - _cage_cowl ABSENT_AT and _cage_parts carry both sides' scoop rows.
+  - 90_node_exports takes both lists.
+  - The Ultralight twin's card did not conflict on master: master never touched it.
+  - THE LATENT RULE: cw_scoopRev / cw_scoopTop / cw_scoopAft sit in _cowl_gen's P and _cage_cowl's ABSENT_AT at 0,
+    exactly as fit-procedure's scoopHold / scoopWFit / scoopTaper* do. PROCURE, JOIN and the STOL fixture's spec diff
+    show no cage row moving on a build that does not set them.
+- **The user, on the quickshots:** "most of them have no length and look like a disc"; "for the moth, a proper cowl front
+  opening rather than this scoop"; "we have coded shark fins recently, do we account for that?"
+  - designCoolBirth: a scoop the rule sizes is 3.2 x its height long (within the barrel), with its full section held
+    over the front third.
+  - A narrow inline's or vee's nose gets a tall front slot (2.2 x as tall as wide) and no scoop. The Tiger Moth is at
+    1.58, ul1 at 1.37.
+  - A wing nacelle keeps its chin scoop whatever the engine. All 32 archetypes pass.
+  - The shark fins are the side gills (PROPER-COWLS): measured, an outlet on a tractor and an inlet on a pusher.
+    genCoolOpen now lets only the lowered bottom (the exit gap) draw and cap a tractor's way out. Gills and aft openings
+    add to the exit sized for you; a few small gills used to become the only outlet. No saved card draws gills yet.
+- **The clean wing's Vs.** The cooling drag's climb and cruise speeds hang off the clean wing's Vs, so a slat or a VG kit
+  does not redraw the cowl. GATE STOL: the auto slat pays only its seam again (it was x1.0119).
+  - _stol_check's axial check is now NET of the cooling term: the kit's mass and the endplate's span move the clean
+    climb, and the cooling term with it (0.01016 vs 0.00999 m2). The fences' and endplates' drag still rides the strips.
+- **GATE STOL's baseline RE-CAPTURED on this branch** (_stol_samebits --capture, root = this tree). Diffed against a
+  capture of master 23ce68c1f itself, card by card:
+  - Every validated build moves its def / 4 s / design check / lap, and its joined spec only by `cooling` (Rufus: def
+    and lap; it has no cowl).
+  - Every card moves its def (the drag's `coolBy`) and, cowled, its 4 s, and its spec only by `cooling`, plus the birth
+    rule's opening rows on: tigermoth, pittsAlike, caravan, rv, spitfire (radW/H), floatplane, ttail, vtail, da62,
+    twinBush, skymaster, p38, pushPull, trimotor, fourEngine.
+  - Nothing else differs from master's own capture: the eng_bmepK / eng_massK and engines.custom.cyl differences
+    against the old 6b6b12a4c capture are master's.
+- **Gates on the tip (792e9169) against master 23ce68c1f, side by side** (A0's list + STOL + PROCURE):
+  - Pass on both sides: BENCH, CAGEFIT, CERTGATES, ENGDRAWN, ENGINEDIALS, JOIN, KNIFE, PROCURE, SNAPSHOTS, STOL, STORY,
+    UISMOKE. COOL passes (master has no COOL).
+  - ENGCONFIG fails on both sides, on the same rows: the Chinook's flown digest (master's red), the quad flights, the
+    three cards. The Chinook's def pin differs by ENGINE-COOLING 2's re-pin.
+  - The --all delivery verdict was not run in this container.
+- **Riding** L40a (Fri 13 Nov 19:00; ref by 18:30 Paris); L39c was cancelled. PHYSICS-PAGES' cooling page
+  (claude/physics-pages-cooling) builds on dea18da3 and wants this branch's final sha. The parked re-cook (the Twin
+  busher 4b, the Ultralight twin, the archetypes' cowls) is the train's.
