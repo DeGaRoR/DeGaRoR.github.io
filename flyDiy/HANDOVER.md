@@ -315264,3 +315264,94 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+
+## SKYLINE-RESORT (13 Nov 2026, cloud session for A0; claude/skyline-resort-1 -> claude/ready/skyline-resort): SKYLINE ALTIPORT AS A PROJECT
+
+THE USER (13 Nov): the ski station's top (tw_ski) becomes the Jolene Aero Club's summer altiport - recreational flying, gliders
+(launched by a PUSH only: no car tow, no winch), small planes; a restaurant and a place to store aeroplanes beside the flattened
+part; later a glider hangar. The strip "much too wide and much too long, probably 2 times for each". DATA ONLY (no code): every
+entry is ordinary editor data, written into tools/fixtures/island_jolene.json by **tools/skyline_resort.py** (idempotent: an id it
+owns is replaced, else appended; `--check` says whether the fixture is as written - re-run it on a rebased fixture). No story text.
+
+THE FRAME the script writes in: the strip's axis, d = (cos -1.0472, sin -1.0472) uphill, n = (-d.z, d.x); P(a, c) = the top end
+(352.00, -7872.00) - a d + c n (a metres DOWN from the top, c across, + away from the tram station).
+
+1 THE STRIP, BEFORE -> AFTER (tw_ski, grass, altiport, landed uphill over end 0):
+  - before: 380 x 18 m, c (257.00, -7707.46), threshold (162.00, -7542.91) 679.6 m, top (352.00, -7872.01) 708.8 m, rise 29.3 m
+    (10 % at the threshold, 1 % over a 68 m top), shoulder 30 m, band 6; a stage vary resort 0-2: 320 m, c (272.0, -7733.44)
+  - after: 190 x 9 m at EVERY stage (the 320 -> 380 m step is gone), c (304.50, -7789.73), threshold (257.00, -7707.46) = the old
+    strip's centre, 698.8 m; top (352.00, -7872.00) 708.8 m (unchanged: the platform, the stand (310.4, -7844), the way out
+    (329.47, -7832.99) untouched); rise 10.1 m - the old strip's UPPER HALF as it was composed (9 % at the threshold, the ease,
+    ~1 % over the top 60 m): profile [[0, -10.32], [0.3684, -4.08], [0.6316, -1.01], [0.8421, -0.39], [1, -0.26]] on elev
+    709.08; shoulder 30 -> 12 m (half the strip, and the parking terrace keeps its own grade beside it), band 3. The tired
+    station (resort 0): `vary` sock false, ties false (no windsock, no tie-down spots); the deal (resort 1) puts them back.
+    The ground below the new threshold is the hill's own again (the old lower half: the dip and the hump 40-90 m out).
+  - the physics: the stage's runway is composed like any (terrainH, surfaceAt) at the load / roll-out (76_stages' queue);
+    GATE STAGES 2 now asserts 190 x 9 m and the top end at (352.00, -7872.00) at every value, and the bare strip below resort:1
+  - THE AUTOPILOT: nothing to change in 43_pilot.js - it reads `len` and the composed ground (judgeHeld's grade, the
+    altiport's slope-line flare, landHdg from the profile's ends). pilotCanFly at 190 m: the stock build (LDGrun 159 m), the
+    user's Cub (110) and Jodel (153) go; the metal C172 (249) is REFUSED at dispatch ('strip-too-short ... 190 m of strip for
+    a 249 m landing run') - on master it flew there and broke up on the 380 m strip (GATE ALTIPORT 4's own red)
+  - CONTRACT_FIELDS.tw_ski (72_contract_data.js) follows the record: x 305, z -7790, len 190 (GATE CONTRACTS: byte-equal to
+    contractFieldsOf; its selftest's drift row reads the new line). scenery_ship_afb19.json: fieldPatches.tw_ski (len, wid, c,
+    profile, band, falloff) - the user's AFB (19) save still has the old strip (GATE SCENERYED 15)
+2 THE FOOT-LAUNCH PAD (resort 1): tw_y_launch (surface 5) + tw_m_launch (concrete, band 0.3) = P(0..72, +6.5..+8.5): 2 m of
+  concrete from the top end down the flat top and ~12 m into the slope, beside the strip on the side away from the station
+  (corners (357.63, -7868.76) (321.63, -7806.40) (323.36, -7805.40) (359.36, -7867.76)); ground, no solid
+3 THE FOOTPATHS (resort 1, roads cls track, look dirt, 1.6 m, ungraded; few points: GATE MAPBAKE's projection carries every
+  road, 20 479 of its 20 480 gz bytes now): tw_p_ridge (the ridge walk north along the west flank to the old lower slope, the
+  ski piste: (275.86, -7820.12) .. (190.63, -7676.50)), tw_p_launch (round the top end to the pad: (331.37, -7849.27) ..
+  (358.99, -7869.12)), tw_p_lookout (down the east flank: (323.73, -7804.04) .. (320.98, -7758.28));
+  signposts = billboards with the enamel plate (rwy:<text>, w 0.9): RIDGE (273.56, -7819.14), LAUNCH (324.96, -7802.17),
+  LOOKOUT (322.15, -7755.30), PISTE (189.03, -7679.73)
+4 THE TREES AND THE ROCKS (every stage): cover polygons (ttype, code null) of the tree system - `veg` 'new' (fir x2, spruce x1.5,
+  pine 0.8, dead conifer 0.25, shrub 1; 70 trees/ha, under 6): the island's own fill plants them (LODs, impostors); the
+  aerodrome's tree box still keeps the strip clear (polyGround: treeAeroBlocked). Groves tw_k_grove_e (365.4, -7789.2),
+  _w (246.9, -7890.0), _nw (225.5, -7786.9), _se (425.7, -7901.6), _sw (331.3, -7956.1), _le (298.1, -7611.6), _lw
+  (153.4, -7695.1) - the flanks, never the ridge's top, the approach or the way out. LARGE ROCKS: veg 'biome' scree (the tree
+  pack's rock subjects at size 22, the cover ring's) on tw_k_rocks_e (357.4, -7828.4), _n (229.9, -7756.6), _s (386.4, -7885.6),
+  _ne (345.8, -7791.3)
+5 THE RESTAURANT AND THE PARKING AREA (resort 2): the Summit Lodge (house/cafe, already resort 2+; its building site sg_k_lodge
+  resort 1) + tw_m_terrace (concrete, P(72.5..82, -30.5..-39), centre (283.3, -7822.5)) with three tables, five chairs, two
+  planters and two people (tw_o21..o32, existing props). THE PARKING AREA tw_t_park + tw_y_park + tw_m_park = P(92.5..128,
+  -12.75..-29.25), centre (278.7, -7787.0), on the ridge north of the platform (the old strip's west half): the ground falls
+  ~7 % there (> STAND_PAD.grade 2 %), so it is TERRAFORMED - a ramp (slope 4.5 % toward the top, level across; 707.0 m at its
+  uphill edge) so a parked box's corners stay inside FLEET_SPOT.flatTol; gravel, `parking` { gap 2, max 2 } (the design-refs
+  shape, PARKING-AREA). On claude/stand-pad (the fill): 2 spots, park:tw_m_park:0 (276.6, -7783.5) and :1 (283.2, -7794.9), ry
+  1.047. On master the `parking` key is inert; the narrower strip frees one apron spot there (the fleet pack: tw_ski 0 -> 1).
+6 THE GLIDER HANGAR: its building site sg_k_glider (kit 'build', 20 x 12, resort 2 only) and tw_s_summit/glider (hangar/club
+  hangar cut to a glider: HW 9.5, HD 5.5, EAVE 4.4 - 19 m of door for a 15-18 m span; resort 3+) at (262.38, -7759.78), yaw
+  1.0472: the door toward the strip, P(142, -21.5), 14 m off the centreline (door at c -15.5); its own ground block (704.6 m)
+- STAGES: resort 0 the tired station (the strip, no sock/ties; station, patrol cabin, pilot hut, groomer's garage, shed, outhouse)
+  - 1 the deal (the strip's sock and tie-downs, the launch pad, the paths and signs; the lodge's building site) - 2 the summer
+  altiport (the Summit Lodge, the terrace, the parking area; the glider hangar's building site) - 3 the glider hangar. Every band
+  edge is an existing STAGE_REVEALS row (resort:1..3, world true). OWED TO THE GAME COORDINATOR (not edited here - theirs): the
+  STAGE_REVEALS comments (resort:3 "the altiport lengthened, 320 m -> 380 m" is now the glider hangar) and the trk.resort.1..3
+  captions to the new steps; tools/jolene_stages.json's tw_ski row and tools/jolene_parts/tramway.json's strip were brought to the
+  fixture (jolene_author.py no longer reproduces the fixture: it is the editor's since rev 26)
+- RE-COOKED: the premises (node tools/premises_cook.js --island jolene), the fleet pack (fleet_spots.js --cook), the map
+  (map_bake.js). The parked cook needs the GPU (A0 at the train).
+- GATE ROWS MOVED WITH THE DATA (none weakened): STAGES 2 (190 x 9 m, the top end, the bare strip below resort:1 - was
+  "320 m below resort:3"); CONTRACTS' selftest drift row (its anchor is the new CONTRACT_FIELDS line); PILOTS (the snow leg is
+  tw_ski, now under PILOTS_SHORT_M: short-strip nerves fire on it too - read off the data, not pinned); PARKED 13 (its "field
+  with no room" was tw_ski, which has one spot now: Jumbo Mine's street, 0 spots, carries the row); TAXICLEAR 11b/11c
+  CALIBRATIONS (the game's stop of 8 Oct no longer meets the station - its corner is 3.5 m outside the 9 m strip - so each
+  calibration flies the nearest pose that still reproduces the collision, searched: CAL_B (328.67, -7841.60) blind drawn
+  6.5 m clear / driven 3.2 m into the station, seeing a turn on the spot; CAL_C (331.94, -7851.26) the blind Cub flown into
+  it, 13 contacts; the FLOWN rows keep the game's stop and pass)
+- GATES (this branch on master 23ce68c1f; a core battery subset, the runner, on 4 cores): PASS STAGES PREMISES PREMCOOK PREMRASTER STRIPSURF
+  STRIPGROUND TERRAINMATCH TAXICLEAR (4 shards) STORESPOT GAMEPREM GRASSSIDES TREES TREEHIT RWYTREES SCENERY MEDIA NAMES WORLD
+  MAPBAKE PILOTS PARKED COOKWAIT BUILT. REDS, against master 23ce68c1f on the same box: SCENERYED (1) = master's own (20b, the
+  town-on compose 3.1-4.3 s over 2.5 s, master 3.2 s); TREECRASH = master's standing red (the L39 list; its load-test row);
+  ALTIPORT 4 lines vs master's 5 - rows 2 (the Cub's final under the circuit height) and 3 (the doctored arrival's
+  calibration) are master's own, row 4 changes from master's crash (the metal C172 broke up on the 380 m strip) to a
+  dispatch refusal (pilotCanFly: 249 m landing run > 190 m) - the row wants a refusal on arrival and a divert, so it stays
+  red: OWED TO PILOT (accept a dispatch refusal said with its reason, or give the row another case). NEW REDS, owed to the
+  Game coordinator (NOT gated - no ready pushed): CONTRACTS (8 of 2534) and ECON (4 of 150). The contract law
+  (73_contracts contractTakeoffM: toM x mass ratio^2 x surface, at both ends, no altitude, no slope) finds no validated
+  design for resort.01 (1 pax), resort.02 (80 kg), resort.05 (2 pax + 40 kg), clients.01 (1 pax) and the resort/guests and
+  supplies routes at 190 m; measured, the shortest tw_ski that keeps every arc stage flyable under today's law is 240 m. ECON's
+  calibration moves with it (hangar1 at contract 10, band 11-16, on seeds a, e, f). The physics says otherwise (the Cub runs
+  66 m uphill on it in GATE ALTIPORT; a take-off is downhill at ~9 %): an altiport grade credit in the contract law (and in
+  pilotCanFly's sheet run) is the fix, not a longer strip - or the user rules the length (tools/skyline_resort.py LEN, one
+  constant, then the three cooks)

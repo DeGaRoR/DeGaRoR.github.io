@@ -282,8 +282,10 @@ function run(mut) {
     snow: Object.assign({}, base, { to: 'tw_ski' }), skis: Object.assign({}, base, { gear: 'skis' }),
     unknown: { from: 'HOME', to: 'HOME', gear: 'wheels' },
   };
-  // what fires on each leg (the altiport is grass: snow AND unpaved; a water lane is never "unpaved")
-  const fire = { weather: ['weather'], night: ['night'], short: ['short'], unpaved: ['unpaved'], water: ['water'], floats: ['water'], snow: ['snow', 'unpaved'], skis: ['snow'] };
+  // what fires on each leg (the altiport is grass: snow AND unpaved; a water lane is never "unpaved"; SKYLINE-RESORT 13 Nov: the
+  // altiport is 190 m since, under PILOTS_SHORT_M - its leg is a short strip's too)
+  const skiShort = (M.CONTRACT_FIELDS.tw_ski.len < M.PILOTS_SHORT_M);
+  const fire = { weather: ['weather'], night: ['night'], short: ['short'], unpaved: ['unpaved'], water: ['water'], floats: ['water'], snow: ['snow', 'unpaved'].concat(skiShort ? ['short'] : []), skis: ['snow'] };
   // the four recruits: only brian refuses, on the weather and the night
   for (const id of ORDER) {
     ok(M.pilotsRefusal(id, base) === null, id + ' refuses the plain leg');

@@ -711,13 +711,14 @@ async function fleetStood() {
   const doc = { fleet: {} }; for (const n of names) doc.fleet[n] = { hangar: null, aero: 'HOME', outSince: 0 };
   doc.fleet['in-shed'] = { hangar: 'HOME', aero: 'HOME' };
   doc.fleet['at-w3'] = { hangar: null, aero: 'w3' };
-  doc.fleet['at-tw'] = { hangar: null, aero: 'tw_ski' };          // no room there: counted, never a bad spot
+  // (SKYLINE-RESORT 13 Nov: the halved altiport has room for one now - the field with no room is Jumbo Mine's street, 0 spots)
+  doc.fleet['at-tw'] = { hangar: null, aero: 'mn_strip' };        // no room there: counted, never a bad spot
   const P = FS.plan(doc, null, PACK, 'jolene');
   const H = PACK.aero.HOME;
   check(P.stand.filter(p => p.aero === 'HOME').map(p => p.slot + '@' + p.spot).join() === names.map((n, i) => n + '@' + H[i][3]).join(),
     "13 the plan: HOME's rows by slot name on HOME's spots in the planner's order (the painted stand first)", P.stand.map(p => p.slot + '@' + p.spot).join(' '));
   check(!P.stand.some(p => p.slot === 'in-shed') && P.stand.some(p => p.slot === 'at-w3' && p.spot === PACK.aero.w3[0][3]), "13 ...a hangar's resident is not stood; a row out at w3 takes w3's first spot");
-  check(P.miss.length === 1 && P.miss[0].slot === 'at-tw' && /no spots at tw_ski/.test(P.miss[0].why), '13 ...a row at a field with no room stands nothing and is counted', JSON.stringify(P.miss));
+  check(P.miss.length === 1 && P.miss[0].slot === 'at-tw' && /no spots at mn_strip/.test(P.miss[0].why), '13 ...a row at a field with no room stands nothing and is counted', JSON.stringify(P.miss));
   const Pf = FS.plan(doc, 'fleet-1-cub', PACK, 'jolene');
   check(!Pf.stand.some(p => p.slot === 'fleet-1-cub') && Pf.stand.filter(p => p.aero === 'HOME').every(p => p.spot === P.stand.find(q => q.slot === p.slot).spot),
     '13 ...the flown airframe stands nothing and its spot stays empty: no other prop moves');
