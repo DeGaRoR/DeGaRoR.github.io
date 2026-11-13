@@ -176,6 +176,22 @@ let FL = null;
 // ---- MODEL ----
 const THREE = require(path.join(ROOT, 'vendor', 'three.min.js'));
 const TM = require(path.join(ROOT, 'src/vehicle/trailer_model.js'));
+// (13 Nov, the user: "ensure there's no clipping of the arches through any wheels"): every vertex and triangle centre of the
+// trailer's static parts against its own tyres' volume (within the tread's width, between the hub's 5 cm and the tyre's
+// radius) and, on the car deck, against the carried car's tyres - the points inside, and where the worst one is
+function clipsOf(M, car, deckY) {
+  const S = M.stats, wheels = S.wheels.map(w => ({ c: w, r: S.wheelR, hw: S.wheelW / 2, r0: 0.05, who: 'its own' }));
+  if (car) for (const [xa, tr] of [[car.xF, car.trackF || car.track], [car.xR, car.trackR || car.track]]) for (const sz of [-1, 1])
+    wheels.push({ c: [xa, deckY + car.tyreR, sz * tr / 2], r: car.tyreR, hw: car.tyreW / 2, r0: 0, who: 'the car\'s' });
+  let n = 0, worst = null;
+  const test = (x, y, z, name) => { for (const w of wheels) { const dz = Math.abs(z - w.c[2]); if (dz >= w.hw - 0.004) continue;
+    const r = Math.hypot(x - w.c[0], y - w.c[1]); if (r > w.r0 && r < w.r - 0.004) { n++; const d = w.r - r; if (!worst || d > worst.d) worst = { d, name, who: w.who }; } } };
+  M.group.children.forEach(m => { if (!m.isMesh || m.isInstancedMesh) return; const P = m.geometry.attributes.position.array;
+    for (let i = 0; i < P.length; i += 9) { for (let k = 0; k < 9; k += 3) test(P[i + k], P[i + k + 1], P[i + k + 2], m.name);
+      test((P[i] + P[i + 3] + P[i + 6]) / 3, (P[i + 1] + P[i + 4] + P[i + 7]) / 3, (P[i + 2] + P[i + 5] + P[i + 8]) / 3, m.name); } });
+  return { n, worst };
+}
+const clipWords = c => (c.n ? c.n + ' points inside a tyre (the worst ' + (c.worst.d * 100).toFixed(1) + ' cm into ' + c.worst.who + ', ' + c.worst.name + ')' : 'no point inside a tyre');
 {
   const out = [];
   let ok = true;
@@ -184,8 +200,9 @@ const TM = require(path.join(ROOT, 'src/vehicle/trailer_model.js'));
     M.update(R.L.trailer, true);
     const box = new THREE.Box3().setFromObject(M.group);
     const s = M.stats, len = s.x[1] - s.x[0];
-    ok = ok && s.tris < 40000 && s.draws <= 18 && s.width < 2.6 && Math.abs(s.x[1] - R.L.fit.Ld) < 0.1 && ms < 400 && M.strap && box.isEmpty() === false;
-    out.push(which + ': ' + s.tris + ' triangles, ' + s.draws + ' draw calls (' + s.materials + ' materials + the wheels instanced x5), ' + f(len, 2) + ' x ' + f(s.width, 2) + ' m, built in ' + ms + ' ms');
+    const cl = clipsOf(M, null, 0);
+    ok = ok && s.tris < 40000 && s.draws <= 18 && s.width < 2.6 && Math.abs(s.x[1] - R.L.fit.Ld) < 0.1 && ms < 400 && M.strap && box.isEmpty() === false && cl.n === 0;
+    out.push(which + ': ' + s.tris + ' triangles, ' + s.draws + ' draw calls (' + s.materials + ' materials + the wheels instanced x5), ' + f(len, 2) + ' x ' + f(s.width, 2) + ' m, built in ' + ms + ' ms, ' + clipWords(cl));
   }
   // (13 Nov) THE SURFACES: every mesh carries UV0 and UV1; the AO baked (at once, here) into its atlas - the faces that look
   // down darker than those that look up, nothing outside [0, 1]; the bunks each their own board of the plank set
@@ -216,9 +233,11 @@ const TM = require(path.join(ROOT, 'src/vehicle/trailer_model.js'));
       let uvAll = true; Mc.group.traverse(m => { if (m.isMesh && (!m.geometry.attributes.uv || !m.geometry.attributes.uv1)) uvAll = false; });
       const deck = Mc.group.children.find(m => m.material === Mc.materials.timber), V = deck ? deck.geometry.attributes.uv.array : [], PN = deck ? deck.geometry.attributes.normal.array : [];
       const boards = new Set(); for (let i = 0; i < V.length / 2; i += 3) if (PN[i * 3 + 1] > 0.85) boards.add(Math.floor(((V[i * 2 + 1] / 2.2) % 1 + 1) % 1 * 12));
-      const okC = uvAll && Mc.stats.tris < 50000 && Mc.stats.draws <= 18 && Mc.stats.deckY > 0.6 && boards.size >= 6 && ms < 600;
+      const cl = clipsOf(Mc, car, Mc.stats.deckY), strapN = Mc.group.children.filter(m => m.material === Mc.materials.strap).length, chock = Mc.group.children.some(m => m.material === Mc.materials.chock);
+      const okC = uvAll && Mc.stats.tris < 50000 && Mc.stats.draws <= 18 && Mc.stats.deckY > 0.6 && boards.size >= 6 && ms < 600 && cl.n === 0 && strapN === 0 && chock;
       ok = ok && okC;
-      said.push('ramps ' + ramp + ': ' + Mc.stats.tris + ' triangles, ' + Mc.stats.draws + ' draw calls, the deck at ' + f(Mc.stats.deckY, 2) + ' m, its planks on ' + boards.size + ' boards, UV0 + UV1 ' + (uvAll ? 'yes' : 'NO') + ', ' + ms + ' ms' + (okC ? '' : ' - FAILED'));
+      said.push('ramps ' + ramp + ': ' + Mc.stats.tris + ' triangles, ' + Mc.stats.draws + ' draw calls, the deck at ' + f(Mc.stats.deckY, 2) + ' m, its planks on ' + boards.size + ' boards, UV0 + UV1 ' + (uvAll ? 'yes' : 'NO') + ', ' + ms + ' ms, ' + clipWords(cl) +
+        ', the tyre straps ' + (strapN ? 'STILL THERE' : 'gone') + ', the chocks ' + (chock ? 'moulded rubber' : 'MISSING') + (okC ? '' : ' - FAILED'));
     }
     surf += '; THE CAR DECK (the roadster\'s): ' + said.join('; ');
   }

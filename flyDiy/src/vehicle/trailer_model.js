@@ -325,6 +325,9 @@ function buildTrailerModel(THREE, Tr, o) {
   // (CAR-3: the car deck's own: oiled hardwood planks, the ramps' extruded aluminium)
   if (!M.timber) M.timber = std(0x6f4a2c, 0.0, 0.78);
   if (!M.alu) M.alu = std(0xc9ced3, 0.85, 0.3);
+  // (13 Nov: the wheel chocks' moulded rubber - the library's coarse concrete for its grain, its normal and roughness only)
+  if (!M.chock) { M.chock = std(0x26272a, 0.0, 1.0); const n = trlTex(T, 'concretec', 'nor'), r = trlTex(T, 'concretec', 'rough');
+    if (n) { M.chock.normalMap = n; M.chock.normalScale.set(0.5, 0.5); } if (r) M.chock.roughnessMap = r; }
   // the bunks' planks (13 Nov: bare timber boards, the user's "planks"), and the game's library on what it suits (above)
   if (!M.plank) M.plank = std(0x8a5a32, 0.0, 0.85);
   if (!o.materials) {
@@ -497,10 +500,15 @@ function buildTrailerModel(THREE, Tr, o) {
   }
   // THE MUDGUARDS: one tandem guard a side - the arcs over both wheels and the flat between, a rolled lip, a tread top;
   // its stays to the rail; a rubber flap behind the rear wheel
-  { const Rf = wheelR + 0.055, gw = 0.27;
+  // (13 Nov, the user: "ensure there's no clipping of the arches through any wheels": the arcs were drawn round the AXLE
+  //  TUBES (+-ax) while the wheels ride the trailing arms 0.11 m aft (spX) - the rear tyre came out of its arc and the flap
+  //  cut it. Every arc, the tread plate, the flap and the reflector are now on the WHEELS' centres (xwF, xwR). Under the car
+  //  deck there are no guards: the deck covers the wheels (its outriggers ran through them) - its flaps hang off the deck)
+  const xwF = ax + spX, xwR = -ax + spX;
+  if (!isC) { const Rf = wheelR + 0.055, gw = 0.27;
     const path = (r) => { const P = []; const n = S(14);
-      for (let i = 0; i <= n; i++) { const a = -0.25 + (Math.PI / 2 + 0.25) * (i / n); P.push([ax + Math.cos(a) * r, wheelR + Math.sin(a) * r]); }
-      for (let i = 0; i <= n; i++) { const a = Math.PI / 2 + (Math.PI / 2 + 0.3) * (i / n); P.push([-ax + Math.cos(a) * r, wheelR + Math.sin(a) * r]); }
+      for (let i = 0; i <= n; i++) { const a = -0.25 + (Math.PI / 2 + 0.25) * (i / n); P.push([xwF + Math.cos(a) * r, wheelR + Math.sin(a) * r]); }
+      for (let i = 0; i <= n; i++) { const a = Math.PI / 2 + (Math.PI / 2 + 0.3) * (i / n); P.push([xwR + Math.cos(a) * r, wheelR + Math.sin(a) * r]); }
       return P; };
     const outer = path(Rf + 0.0035), inner = path(Rf);
     const sh = new T.Shape(); outer.forEach(([x, y], i) => i ? sh.lineTo(x, y) : sh.moveTo(x, y)); inner.slice().reverse().forEach(([x, y]) => sh.lineTo(x, y)); sh.closePath();
@@ -509,18 +517,18 @@ function buildTrailerModel(THREE, Tr, o) {
       // the rolled outer lip (a tube along the guard's outer edge)
       tube(M.galv, outer.map(([x, y]) => [x, y, s * (wZ + gw / 2 + 0.01)]), 0.006, 64);
       // the tread plate on the flat top, the stays
-      boxAt(M.galvDk, 2 * ax + 0.02, 0.004, gw - 0.04, [0, wheelR + Rf + 0.006, s * (wZ + 0.01)]);
+      boxAt(M.galvDk, 2 * ax + 0.02, 0.004, gw - 0.04, [spX, wheelR + Rf + 0.006, s * (wZ + 0.01)]);
       // its mounting (12 Nov, the user: "your wheel arches are poking through" - the three 30 mm angle stays ran up into
       // the guard's skin and, over the wheels, into the tyres' shoulders): over each wheel a flat bar from the rail's
       // outer face out under the skin, above the tyre and inboard of it; between the tyres, where there is no tyre, one
       // angle stay from the rail's foot up to under the skin
       const yUnder = wheelR + Rf - 0.006, zIn = s * (wZ - gw / 2 + 0.035);
-      for (const xw of [-ax + spX, ax + spX]) boxAt(M.galvDk, 0.04, 0.006, Math.abs(zIn - s * (zR + 0.025)), [xw, yUnder, (zIn + s * (zR + 0.025)) / 2]);
+      for (const xw of [xwR, xwF]) boxAt(M.galvDk, 0.04, 0.006, Math.abs(zIn - s * (zR + 0.025)), [xw, yUnder, (zIn + s * (zR + 0.025)) / 2]);
       member(M.galvDk, angle(0.03, 0.003), [spX, railY - railH / 2, s * (zR + 0.025)], [spX, yUnder - 0.035, zIn], [1, 0, 0]);
       // the mud flap
-      boxAt(M.rubber, 0.006, 0.26, gw - 0.02, [-ax - Rf - 0.035, 0.215, s * (wZ + 0.01)], [0, 0, -0.08]);
+      boxAt(M.rubber, 0.006, 0.26, gw - 0.02, [xwR - Rf - 0.035, 0.215, s * (wZ + 0.01)], [0, 0, -0.08]);
       // the amber side reflector on the guard's front
-      boxAt(M.amber, 0.06, 0.03, 0.006, [ax + Rf * 0.75, wheelR + Rf * 0.62, s * (wZ + gw / 2 + 0.018)]);
+      boxAt(M.amber, 0.06, 0.03, 0.006, [xwF + Rf * 0.75, wheelR + Rf * 0.62, s * (wZ + gw / 2 + 0.018)]);
     }
   }
 
@@ -605,9 +613,8 @@ function buildTrailerModel(THREE, Tr, o) {
     }
   } else if (isC) {
     // ---- THE CAR DECK: outriggers on posts off the rails at every station, a full deck of hardwood planks along the
-    // trailer, galvanised angle along both edges with stake pockets and D-rings, a ladder headboard at the front, rubber
-    // chocks fore and aft of the front tyres, a yellow ratchet strap over each tyre's crown to the rings either side,
-    // and THE RAMPS: two aluminium ladder ramps hinged at the deck's tail on the car's wheel tracks - folded up for the
+    // trailer, galvanised angle along both edges with stake pockets and D-rings, a ladder headboard at the front, moulded
+    // rubber chocks fore and aft of the front tyres on their plates (13 Nov: the tyre straps removed), and THE RAMPS: two aluminium ladder ramps hinged at the deck's tail on the car's wheel tracks - folded up for the
     // road (Tr.ramp 'down': lowered to the ground, the loading slope)
     const xd0 = xRear + 0.02, xd1 = xFront - 0.02, half = Math.max(C.track / 2 + C.tyreW / 2 + 0.14, wZ + 0.16), pt = 0.035;
     const yb = deckY - pt;                                     // the outriggers' top
@@ -638,25 +645,39 @@ function buildTrailerModel(THREE, Tr, o) {
       for (const z of [-half + 0.03, 0, half - 0.03]) member(M.galv, rrect(0.05, 0.05, 0.005), [xh, deckY, z], [xh, deckY + hH, z], [1, 0, 0]);
       for (const y of [deckY + 0.2, deckY + hH]) member(M.galv, rrect(0.04, 0.04, 0.004), [xh, y, -half + 0.03], [xh, y, half - 0.03], [0, 1, 0]);
       for (let k = 1; k < 9; k++) { const z = -half + 0.03 + (2 * half - 0.06) * k / 9; boxAt(M.galvDk, 0.006, hH - 0.02, 0.012, [xh, deckY + hH / 2, z]); } }
-    // the chocks and the straps on the car's wheels
-    const tyreTop = deckY + 2 * C.tyreR;
-    const trF = C.trackF || C.track, trR = C.trackR || C.track;   // (each axle its own track)
+    // THE WHEEL CHOCKS (13 Nov, the user: "remove the yellow cable, and model the wheel blocks properly with a decent
+    // material" - the tyre straps are gone): ahead of and behind each front tyre a moulded rubber chock - its face a concave
+    // arc round the tyre (4 mm clear of it), a flat crown, its back a slope with three grip ribs, every edge bevelled - on
+    // a galvanised base plate bolted to the deck (four bolt heads); the rubber M.chock (the library's moulded grain)
+    const trF = C.trackF || C.track, trR = C.trackR || C.track, plate = 0.006, cW = C.tyreW + 0.03, Rc = C.tyreR + 0.004, hC = Math.min(0.13, C.tyreR * 0.36);
+    const chockShape = sx => {
+      const yc = C.tyreR - plate, P = [];                       // (the tyre's centre over the plate's top, the chock's frame)
+      const xAt = y => sx * Math.sqrt(Math.max(0, Rc * Rc - (yc - y) * (yc - y)));
+      for (let i = 0; i <= 8; i++) { const y = hC * i / 8; P.push([xAt(y), y]); }   // the face up the tyre
+      const xt = xAt(hC) + sx * 0.035, xb = xAt(0) + sx * 0.21; P.push([xt, hC]);       // the crown
+      for (let k = 1; k <= 3; k++) {                                                     // the back's ribs
+        const f0 = (k - 0.62) / 3.6, f1 = (k - 0.38) / 3.6, f = (k - 0.5) / 3.6, x0 = xt + (xb - xt) * f0, x1 = xt + (xb - xt) * f1, xm = xt + (xb - xt) * f;
+        P.push([x0, hC * (1 - f0)], [xm + sx * 0.008, hC * (1 - f) + 0.012], [x1, hC * (1 - f1)]);
+      }
+      P.push([xb, 0.004], [xb - sx * 0.006, 0], [xAt(0), 0]);
+      const sh = new T.Shape(); P.forEach(([x, y], i) => (i ? sh.lineTo(x, y) : sh.moveTo(x, y))); sh.closePath(); return sh;
+    };
     for (const s of [-1, 1]) {
       const z = s * trF / 2;
-      for (const sx of [-1, 1]) {      // a chock ahead of and behind each front tyre
-        const xc = C.xF + sx * (C.tyreR * 0.78), w = new T.Shape();
-        w.moveTo(0, 0); w.lineTo(0.16 * sx, 0); w.lineTo(0, 0.11); w.closePath();
-        const g = new T.ExtrudeGeometry(w, { depth: Math.min(0.2, C.tyreW), bevelEnabled: false }); g.translate(xc, deckY, z - Math.min(0.2, C.tyreW) / 2); put(M.rubber, g);
-      }
-      for (const [xa, zw] of [[C.xF, s * trF / 2], [C.xR, s * trR / 2]]) {   // the strap: the ring ahead, over the crown, the ring behind; its ratchet
-        const z = zw, pts = [];
-        for (let i = 0; i <= 12; i++) { const a = Math.PI * i / 12; pts.push([xa + Math.cos(a) * (C.tyreR + 0.012), deckY + C.tyreR + Math.sin(a) * (C.tyreR + 0.012), z]); }
-        pts.unshift([xa + C.tyreR + 0.22, deckY + 0.01, z]); pts.push([xa - C.tyreR - 0.22, deckY + 0.01, z]);
-        tube(M.strap, pts, 0.006, 48);
-        rbox(M.black, 0.09, 0.04, 0.05, 0.006, [xa - C.tyreR - 0.08, deckY + 0.08, z], 0.6);
+      for (const sx of [-1, 1]) {
+        const g = new T.ExtrudeGeometry(chockShape(sx), { depth: cW - 0.012, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.004, bevelSegments: 2, curveSegments: S(4) });
+        g.translate(C.xF, deckY + plate, z - (cW - 0.012) / 2); put(M.chock, g);
+        const xp = C.xF + sx * (Math.sqrt(Math.max(0, Rc * Rc - (C.tyreR - plate) * (C.tyreR - plate))) + 0.11);
+        boxAt(M.galvDk, 0.27, plate, cW + 0.07, [xp, deckY + plate / 2, z]);
+        for (const dx of [-0.11, 0.11]) for (const dz of [-1, 1]) cyl(M.chrome, 0.009, 0.009, 0.006, [xp + dx, deckY + plate + 0.003, z + dz * (cW / 2 + 0.02)], 'y', 6);
       }
     }
-    void tyreTop;
+    // the mud flaps behind the trailer's rear wheels, hung off the deck's edge (no guards under the deck)
+    for (const s of [-1, 1]) {
+      const xf = xwR - wheelR - 0.07, yTop = deckY - pt - 0.01, yBot = 0.09;
+      boxAt(M.rubber, 0.006, yTop - yBot, 0.25, [xf, (yTop + yBot) / 2, s * wZ]);
+      boxAt(M.galvDk, 0.03, 0.006, 0.27, [xf + 0.012, yTop + 0.003, s * wZ]);
+    }
     // THE RAMPS: FOLDING ladders - two sections hinged in the middle, each two side rails with rungs every 8 cm - on the
     // wheel tracks, hinged at the deck's tail. Up for the road: the first section stands up off the hinge, the second
     // folded back down against it (a low tailgate); Tr.ramp 'down': the two in line to the ground, the loading slope
@@ -826,7 +847,8 @@ function buildTrailerModel(THREE, Tr, o) {
     poseWheels(Tp.spin || 0);
     if (strap) strap.visible = latched !== false;
   }
-  return { group, update, strap, materials: M, aoMap: AO.map, stats: { tris: Math.round(triN), draws, materials: bins.size, x: [xRear, Ld + 0.06], width: 2 * (wZ + 0.15), xFront, xRear, deckY: isC ? deckY : null, ao: AO.stats } };
+  return { group, update, strap, materials: M, aoMap: AO.map, stats: { tris: Math.round(triN), draws, materials: bins.size, x: [xRear, Ld + 0.06], width: 2 * (wZ + 0.15), xFront, xRear, deckY: isC ? deckY : null, ao: AO.stats,
+    wheels: wheelAt.map(w => [w.x, wheelR, w.z]), wheelR, wheelW: 0.185, rimR: 0.178 } };
 }
 
 // THE CAR'S HALF: the tow bar's ball mount for the pickup's receiver (50 mm square shank, the drop plate, the 50 mm ball
