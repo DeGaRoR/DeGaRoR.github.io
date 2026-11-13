@@ -11,7 +11,9 @@
 //             the td_probe of 13 Nov, so it is no default), the normal landing at HOME; the bush pilot and the club pilot
 //             the same short law, neither STOL nor feel - each on its To, NO GROUND LOOP (the strip-decides STOL technique ground-looped both Cubs there:
 //             FIT-PROCEDURE 25a25817), no fault. The Cessna 172 (list:50 F-HCSN, a trike), the expert, HOME > tw_ski
-//             (380 m: short for it, longer than its landing run - East Point's 150 m is declined, G2450): the strip-decides STOL technique, no ground loop, landed there or a clean divert
+//             (380 m: short for it, longer than its landing run - East Point's 150 m is declined, G2450): the strip-decides STOL technique, no ground loop, landed there or a clean divert - flown in TAIL (below), one job
+//   TAIL      the tailwind judged at the gate (A0 13 Nov): list:50 HOME > tw_ski's one way in on the game's day - judged on the
+//             final (appr.held), landed clean with the STOL plan, or refused before any flare and a clean divert
 //   GLIDE     the glider rating decides: the motorglider, its motor off 280 m over Jolene, sent to Jolene - the expert
 //             (rated) flies the glider's circuit to its To ('completed'); the club pilot (unrated) has an EMERGENCY
 //             (said so, 'forced-landing') and lands on the field the glide reaches
@@ -79,7 +81,6 @@ const STRIP = [
   ['the archetype cub, the expert', 'cub', undefined, ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: false }], true],
   ['the user\'s Cub, the bush pilot (Megan)', CUB, 'bush', ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: false }], true],
   ['the user\'s Cub, the club pilot (Brian)', CUB, 'club', ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: false }], true],
-  ['the Cessna 172 (list:50), the expert', C172, undefined, ['HOME', 'tw_ski'], [{ technique: 'short', stol: true, feel: false }], false],
 ];
 for (const [what, file, prof, order, want, mustLand] of STRIP) {
   if (!go('STRIP')) continue;
@@ -92,23 +93,24 @@ for (const [what, file, prof, order, want, mustLand] of STRIP) {
 }
 
 // ---- TAIL: the tailwind judged at the gate, not at the touch ----
-// A0 13 Nov (TOW-LAUNCH, GATE ALTIPORT 4): the metal Cessna (bugReports/cessnaMetal (1).json) onto Skyline Altiport's one way
+// A0 13 Nov (TOW-LAUNCH, GATE ALTIPORT 4, found on the retired list:40 metal Cessna; flown here on THE Cessna, list:50 F-HCSN - the
+// user: one Cessna): onto Skyline Altiport's one way
 // in (uphill) on the game's day, 4.8 m/s behind, ~38 m/s over the ground onto 380 m - master ground-looped and broke up;
 // with the slope fix and the re-bake it touched, rolled off the box, went round and only THEN refused. The final with wind
 // behind it is judged before a flare (judgeHeld: appr.held on the record): landed clean on tw_ski, or 'strip-too-short'
 // said with no FLARE before it there and a clean landing where it diverted (_tour_lib's 'declined'); never a ground loop
-const METAL = path.join(ROOT, 'bugReports', 'cessnaMetal (1).json');
 if (go('TAIL')) {
-  if (!fs.existsSync(METAL)) console.log('owed   TAIL    bugReports/cessnaMetal (1).json is not on this tree');
-  else {
+  {
     let out = null, err = null;
-    try { out = tour(METAL, undefined, ['HOME', 'tw_ski']); } catch (e) { err = String(e.message).slice(0, 160); }
+    try { out = tour(C172, undefined, ['HOME', 'tw_ski']); } catch (e) { err = String(e.message).slice(0, 160); }
     const x = out && out.legs[0];
     const ref = x && x.verdicts.find(v => v.code === 'strip-too-short');
     const flareBefore = x && x.phases.some(q => q.phase === 'FLARE' && (!ref || q.t < ref.t));
     const judged = !!(x && x.appr && x.appr.held);
-    const ok = !!x && judged && !x.L.groundLoop && (clean(x) || (!!x.L.declined && !!ref && !flareBefore));
-    row('TAIL', ok, 'the metal Cessna HOME>tw_ski, the game day, the expert: ' + (err ? 'THREW ' + err : x ? legLine(x) + (x.L.declined ? ' DECLINED -> ' + x.L.declined : '') +
+    // (the strip decides: a trike, an expert, powered, 380 m - the short technique with its STOL parts, when it lands there)
+    const plan = !!(x && x.appr && x.appr.technique === 'short' && x.appr.stol && !x.appr.feel);
+    const ok = !!x && judged && !x.L.groundLoop && ((clean(x) && plan) || (!!x.L.declined && !!ref && !flareBefore));
+    row('TAIL', ok, 'the Cessna 172 (list:50) HOME>tw_ski, the game day, the expert (asked: short+STOL, judged at the gate): ' + (err ? 'THREW ' + err : x ? legLine(x) + (x.L.declined ? ' DECLINED -> ' + x.L.declined : '') +
       ' | judged ' + (judged ? JSON.stringify(x.appr.held) : 'NO') + (ref ? ' | refused at t ' + ref.t + (flareBefore ? ' AFTER A FLARE' : ', no flare before') + ': ' + String(ref.note).slice(0, 160) : '') : 'NO LEG'));
   }
 }
