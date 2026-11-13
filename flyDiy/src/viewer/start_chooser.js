@@ -129,6 +129,8 @@
   // the bottom sheet (the CSS's own place: the inline position cleared)
   function placeSheet() {
     const el = st.el; if (!el || !el.style) return;
+    // a sheet the player dragged somewhere (card_drag.js remembers it as 'startSheet', left/top) stays where they put it
+    try { const kept = JSON.parse(W.localStorage.getItem('flydiy.cardPos') || '{}'); if (kept && kept.startSheet) return; } catch (e) {}
     const pill = st.pill || document.getElementById('edStart');
     if (phoneish() || !pill || !pill.getBoundingClientRect) { el.style.left = el.style.right = el.style.bottom = ''; return; }
     const r = pill.getBoundingClientRect(), w = Math.min(540, W.innerWidth - 44);
