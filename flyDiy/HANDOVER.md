@@ -315805,3 +315805,13 @@ CAR-3 WHEEL-TEX (13 Nov, the user: "all the tyres are much too clean. Please do 
   names restored); the roadster whTex 1 / pat 1 / dirt 0.15 (card and candidate). The Cub with whTex 1 checked as the
   plane option (a Cessna's spats hide its wheels). Gates PARTS DESIGN GEAR CAGEFIT VEHICLE UISMOKE TRAILER LIVERYREACH
   JOIN green; the convoy re-rendered.
+
+CAR-3 FINAL PUSH (13 Nov, the user: "some clipping at the bottom of the back windows ... black stuff", "we really want
+  the blue one", "the wheels ... stick out almost 10 centimeters ... enlarge the track", "the saturation in the middle").
+  The black stuff: the PADDED HEADLINER (hdlDepth) took an upward ledge on the rear wall at the sill line for ceiling and
+  hung its slab under it, the slab's aft side in the skin's own plane - z-fighting under both rear windows (found by
+  raycasting the rear wall in the page: an aeroFinish 'headliner' face at the skin's depth). _cage_gen.js: the ceiling
+  is the roof - faces within 30 cm of its crown. Not the seats, not the wall trim (both ruled out by renders).
+  The track: s1X 0.82 -> 0.90, s2X 0.88 -> 0.96 (8 cm out each side; the guards and arches follow the wheels);
+  paxSeatZ 0.2 -> 0.32. The three vans rejoined. The trailer's wood: TRL_WX.mat timber/plank saturation 0.5 -> 0.7,
+  silvering 0.6 -> 0.3 (GATE TRAILER's check moved with it). The convoy rendered with the Retro (navy) van as the tow.

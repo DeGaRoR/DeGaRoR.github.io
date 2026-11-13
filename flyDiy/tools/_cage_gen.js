@@ -7765,6 +7765,14 @@ function cageInterior(m, S) {
       // real liner engulfs the pillar structure ... I want to stop seeing the bare metal pillars"): the hoops' descent
       // and the pillar bands from the sill up, a moulded trim (the upper wall trim's material) min(hdlDepth, 5 cm) deep
       let crown = -1e9; for (const i of sel) for (const k of F[i].v) crown = Math.max(crown, V[k][1]);
+      // (13 Nov, the user: "at the bottom of the back windows there is some black stuff"): an upward ledge on the rear
+      // wall at the sill line passed as ceiling, and its slab hung hdlDepth under it with its aft side IN the skin's
+      // plane (the brown headliner fighting the paint under the rear windows). The ceiling is the roof: within 30 cm
+      // of its crown
+      for (let j = sel.length - 1; j >= 0; j--) {
+        const cy = F[sel[j]].v.reduce((a, k) => a + V[k][1], 0) / F[sel[j]].v.length;
+        if (cy < crown - 0.3 / (S.FS || 1)) sel.splice(j, 1);
+      }
       const pil = [];
       for (const [i, cy] of hoop) {
         if (cy > crown - 0.12) { sel.push(i); continue; }
