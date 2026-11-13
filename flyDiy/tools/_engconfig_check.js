@@ -245,24 +245,33 @@ const kidsDone = PINMODE ? null : runKids();
 // Jodel's def (their landing flap) and gives the pusher fixture back its 28 Oct def; every flown digest is master's.
 say('1 IDENTITY - the saved builds and the single mounts, digested against master (1bcd01d3e + the landing notch)');
 const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat(['tools/fixtures/repro/rufus_2026-10-18_certified.json']));
+// ENGINE-COOLING (12 Nov, claude/festive-faraday-w3w40x): re-pinned with --pin on the branch, against the same rows run on
+// its base 594a1a05. The cooling drag is now the momentum of the air the DRAWN openings pass (62_gen_aero genCooling):
+// every def digest moves (the drag carries `coolBy`, the shakedown its `cooling` summary); the flown digest moves where
+// a measured cowl's drag did - the Cub, the Jodel, the ultralight fixture, the metal Cessna, the Cessna on floats. The
+// C172, the twin-boom, the twin, the pusher, Rufus and the stock singles fly the digest they flew. The Chinook keeps its
+// old flown pin: it fails the same way on the base (167a99... flown there too), master's red, not this chantier's.
+// ENGINE-COOLING 3 (12 Nov): the metal Cessna and the Cessna on floats re-pinned (def and flown): the cylinder heads are
+// now measured against the DRAWN cowl (spec.cooling.headsOut) - 0.011 m2 of theirs poke through, and the heads' air is
+// netted out of the cowl's cooling drag; every other row equal on the base e0d2bd18.
 const PIN = {
-  'builds/cub_2026-09-20_corrected.json': '030fcb9946adc31e ef32151105b90ed4',
-  'builds/jodel_2026-09-20_corrected.json': '202e618adef1efa0 2768fd6cab2c9814',
-  'builds/cessna172_2026-09-20_corrected.json': '4b96bdef8b315409 b4a926d9ce6d6b33',
-  'builds/chinook_2026-09-21_corrected.json': '0ce32059d36b92a3 9a62a6a61fcc8556',
-  'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'f6a9c697f782f45b e7942c80c42fb7f0',
-  'tools/fixtures/build_v8_twin-boom_2026-09-11.json': 'd3712ab277fcc329 77b62ab7c4146aaa',
-  'tools/fixtures/build_v7_twin_2026-09-04.json': 'b272e4d2fa0f485e 221d6c2405b15e1e',
-  'tools/fixtures/build_v8_pusher_2026-09-11.json': '382e0869b7b40fca 1e888903ddfb652c',
-  'bugReports/cessnaMetal (1).json': '94470c8f8a15303b a46c863c418b9466',
-  'bugReports/cessnaFloatsWOrks.json': '2629b4e69583e6bf c0cb85e1b844a200',   // FLOAT-DECK 10 Nov: the def moves (a float build rests at deck 0), the flown steps do not
-  'tools/fixtures/repro/rufus_2026-10-18_certified.json': '4cdd3f968a12bfe3 210d8b580d8fe556',
-  'stock nose': '643179bc32524858 31cce33943cc578a',
-  'stock pusher': '5c93f8d9d359df46 5613f19c025bd3cf',
-  'stock wingTop': '517c36a580adee0c 53a5929a6f5191d4',
-  'stock wing': '8df433ecc01fd5a2 7f98742af70074a4',
-  'stock 2 nose (clamped to one)': '643179bc32524858 31cce33943cc578a',
-  'stock pusher+nose (clamped to one)': '5c93f8d9d359df46 5613f19c025bd3cf',
+  'builds/cub_2026-09-20_corrected.json': '3648bf163799cae9 811852016151aab6',
+  'builds/jodel_2026-09-20_corrected.json': '071aec8b30f75954 91de808589c2b7bd',
+  'builds/cessna172_2026-09-20_corrected.json': '8c3f5c1cccb19132 b4a926d9ce6d6b33',
+  'builds/chinook_2026-09-21_corrected.json': '23410ab32b1cb6c1 9a62a6a61fcc8556',
+  'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'd2ed8ef26a86b6c5 a04a230e8d631667',
+  'tools/fixtures/build_v8_twin-boom_2026-09-11.json': 'fe78edfd3ef1fea5 77b62ab7c4146aaa',
+  'tools/fixtures/build_v7_twin_2026-09-04.json': '9ea1934fc404b8fc 221d6c2405b15e1e',
+  'tools/fixtures/build_v8_pusher_2026-09-11.json': '888ebfdf96341e38 1e888903ddfb652c',
+  'bugReports/cessnaMetal (1).json': '7de0372430b4c28c 0188260fec73712c',
+  'bugReports/cessnaFloatsWOrks.json': 'ec60bc853a4a12a8 55bf1eec20118296',   // FLOAT-DECK 10 Nov: the def moves (a float build rests at deck 0), the flown steps do not
+  'tools/fixtures/repro/rufus_2026-10-18_certified.json': '5ef573483ffd5d4d 210d8b580d8fe556',
+  'stock nose': 'e959f1716ede56c4 31cce33943cc578a',
+  'stock pusher': 'd4a273f9985f43a7 5613f19c025bd3cf',
+  'stock wingTop': '76401b1f0fa1c967 53a5929a6f5191d4',
+  'stock wing': '495c25ec142c03ee 7f98742af70074a4',
+  'stock 2 nose (clamped to one)': 'e959f1716ede56c4 31cce33943cc578a',
+  'stock pusher+nose (clamped to one)': 'd4a273f9985f43a7 5613f19c025bd3cf',
 };
 const H = o => crypto.createHash('sha1').update(JSON.stringify(o, (k, v) => typeof v === 'number' && !isFinite(v) ? String(v) : v)).digest('hex').slice(0, 16);
 const stockMount = (...ms) => () => { const s = clone(C.GEN_DEFAULT); s.engines = ms.map(m => ({ type: s.engines[0].type, mount: m })); return s; };

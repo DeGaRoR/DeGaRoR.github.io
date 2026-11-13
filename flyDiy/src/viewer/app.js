@@ -13045,6 +13045,17 @@
           n1(s.burnKgH / (s.energyKgL || 0.72), 0) + ' L/h)');
       R('cooling duty', n1(s.coolKW, 0) + ' kW · ' +
         (s.engineCooling === 'liquid' ? 'by radiator' : 'by fins'));
+      // ENGINE-COOLING (12 Nov): what the drawn openings do with it - the hot-day climb (38 C at sea level, full power)
+      const CO = s.cooling;
+      if (CO && CO.kind === 'bare') R('cooling air', 'no cowl: heads in the wind ' + n1(CO.bareA, 3) + ' m2 · ' +
+        (CO.margin != null ? n1(CO.margin, 2) + ' x what a 38 C climb needs' : 'the engine stands in the air'), CO.margin != null && CO.margin < 1 ? 'bad' : '');
+      else if (CO && CO.margin != null) {
+        R('hot-day climb air', n1(CO.passKgS, 2) + ' / ' + n1(CO.needKgS, 2) + ' kg/s · ' + n1(CO.margin, 2) + ' x what it needs',
+          CO.margin < 1 ? 'bad' : '');
+        R('cooling openings', 'in ' + n1(CO.inA, 3) + ' m2' + (CO.bareA > 0 ? ' + heads ' + n1(CO.bareA, 3) : '') +
+          ' (needs ' + n1(CO.needA, 3) + ') · out ' + (CO.outA != null ? n1(CO.outA, 3) + ' m2' : 'sized for you'));
+        R('cooling drag', n1(CO.cdA, 3) + ' m2 · on the ground ' + n1(CO.taxi, 2) + ' x', CO.taxi < 1 ? 'bad' : '');
+      }
       // G435: the endurance said in minutes, red under half an hour (the
       // user's 2 kWh trainer: 2 min at full throttle, into the sea)
       if (s.enduranceFullH != null) {

@@ -421,9 +421,12 @@ console.log('3b. TODAY\'S PHYSICS (G2822): the stall angle as flown, the design 
   let xs = 0, same = kitNo.strips.length === kit.strips.length;
   kit.strips.forEach((st, i) => { const o = kitNo.strips[i]; if (!o || o.area !== st.area) same = false;
     else xs += ((st.stol ? st.stol.cd : 0) - (o.stol ? o.stol.cd : 0)) * st.area; });
-  ok(C.genDamageOn(kit) && kit.params.gen.drag.axial === clean.params.gen.drag.axial && kit.params.gen.drag.stol > 0
+  // (ENGINE-COOLING, 12 Nov: the body row's cooling term is the engine's air at the aeroplane's own clean climb, so the
+  // kit's mass and the endplate's span nudge it - the body's axial CdA is the clean one NET of that term, to 1e-12)
+  const axNet = d => d.axial - (d.coolBy === 'momentum' ? d.cool : 0);
+  ok(C.genDamageOn(kit) && Math.abs(axNet(kit.params.gen.drag) - axNet(clean.params.gen.drag)) < 1e-12 && kit.params.gen.drag.stol > 0
      && same && Math.abs(xs - kit.params.gen.drag.stol) < 1e-9,
-     `damage ON; the body's axial CdA is the clean one (${clean.params.gen.drag.axial.toFixed(4)} m2) and the fences + endplates' ${kit.params.gen.drag.stol.toFixed(4)} m2 ride the strips (${xs.toFixed(4)})`);
+     `damage ON; the body's axial CdA is the clean one net of its cooling term (${clean.params.gen.drag.axial.toFixed(4)} m2) and the fences + endplates' ${kit.params.gen.drag.stol.toFixed(4)} m2 ride the strips (${xs.toFixed(4)})`);
   ok(ep.strips.filter(st => st.stol).length === 2 && ep.strips.filter(st => st.stol).every(st => st.stol.dAs === 0 && st.stol.cd > 0),
      'an endplate alone: its plate\'s drag on each tip strip, no stall-angle term');
   {
