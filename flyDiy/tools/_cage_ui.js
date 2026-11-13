@@ -1135,6 +1135,49 @@ function surfAttr(m) {
   return new THREE.BufferAttribute(a, 4);
 }
 
+// THE CLEAR ARCH (the LS4, 13 Nov - the user: "an option for hiding that center arch there, for having a full complete
+// bubble ... we just want not to see it, but we don't want the absence of it to affect the geometry"): the cage's
+// `canClear` draws the cabin frame band's faces that stand between glass - glazing ahead of them and behind them along
+// the body, and over the sill there - in the glass's own material. A DRAWING only: the sheet, its materials, the
+// measured glazing, the join and the physics never see it. Map face index -> the glass material it wears; null when off.
+function archClear(m) {
+  if (!+P.canClear || !m || !m.F || !m.V) return null;
+  const glass = [];
+  for (const f of m.F) {
+    if (!GLASSM.has(f.m) || f.v.length < 3) continue;
+    let y = 0, z = 0; for (const vi of f.v) { y += m.V[vi][1]; z += m.V[vi][2]; }
+    glass.push([y / f.v.length, z / f.v.length, f.m]);
+  }
+  if (!glass.length) return null;
+  const out = new Map();
+  m.F.forEach((f, fi) => {
+    if (f.m !== 'pillarCabin' || f.v.length < 3) return;
+    let y = 0, z = 0; for (const vi of f.v) { y += m.V[vi][1]; z += m.V[vi][2]; }
+    y /= f.v.length; z /= f.v.length;
+    let fwd = null, aft = null, sill = Infinity;
+    for (const g of glass) {
+      const dz = g[1] - z;
+      if (Math.abs(dz) > 0.6) continue;
+      sill = Math.min(sill, g[0]);
+      if (dz > 0 && (!fwd || dz < fwd[1] - z)) fwd = g;
+      if (dz < 0 && (!aft || dz > aft[1] - z)) aft = g;
+    }
+    if (fwd && aft && y > sill) out.set(fi, (fwd[1] - z < z - aft[1] ? fwd : aft)[2]);
+  });
+  if (!out.size) return null;
+  // ...and whatever else stands IN the arch: the panes' seals along it and the frame's inner body (the band's box,
+  // a seal's width either side, over the sill) - so the bubble reads as one piece
+  let z0 = Infinity, z1 = -Infinity, y0 = Infinity, gm = null;
+  for (const [fi, g] of out) { gm = g; for (const vi of m.F[fi].v) { z0 = Math.min(z0, m.V[vi][2]); z1 = Math.max(z1, m.V[vi][2]); y0 = Math.min(y0, m.V[vi][1]); } }
+  const pad = 0.03;
+  m.F.forEach((f, fi) => {
+    if (out.has(fi) || GLASSM.has(f.m) || f.v.length < 3) return;
+    let y = 0, z = 0; for (const vi of f.v) { y += m.V[vi][1]; z += m.V[vi][2]; }
+    y /= f.v.length; z /= f.v.length;
+    if (z > z0 - pad && z < z1 + pad && y > y0 + 0.02) out.set(fi, gm);
+  });
+  return out;
+}
 function meshFrom(m) {
   // indexed geometry with per-material groups: welded verts give the same
   // smooth normals the game viewer computes
@@ -1143,9 +1186,11 @@ function meshFrom(m) {
   // LINER-BACK: one group per section AND side - a section whose faces are all lined is still one group (one draw);
   // only a section that mixes lined and unlined faces splits (matOf's sd, _cage_gen.js linerBack)
   const byMat = new Map(), sdOf = new Map();
-  m.F.forEach(f => {
+  const clear = archClear(m);
+  m.F.forEach((f, fi) => {
     const sd = f.back ? 'b' : f.backed ? 'f' : '';
-    const bk = sd ? f.m + '' + sd : f.m;
+    const fm = clear && clear.has(fi) ? clear.get(fi) : f.m;
+    const bk = sd ? fm + '' + sd : fm;
     if (!byMat.has(bk)) { byMat.set(bk, []); sdOf.set(bk, sd); }
     const t = byMat.get(bk);
     // a FAN: quads as before; the knife's triangles and n-gons (G245) are

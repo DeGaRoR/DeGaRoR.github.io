@@ -643,6 +643,8 @@ window.CAGE_PAGE = {
         ['winPilotPanel', 'pilot window: a panel (draw it as a drawn window)', 0, 1, 1, { absent: 0 }],
         ['canopy',    'canopy',         0, 3, 1, ['closed', 'convertible',
                                                   'open', 'bubble']],
+        // (the LS4, 13 Nov: the arch between the panes drawn as glass - a look only, the geometry and the physics untouched)
+        ['canClear',  'canopy arch',    0, 1, 1, ['framed', 'clear (drawn as glass)'], { absent: 0 }],
         // THE LABEL IS THE SHAPE, NOT THE MECHANISM (NEW-AIRCRAFT §5.3):
         // a builder chooses what the top of the fuselage does behind the
         // cockpit — cabin roof running aft, or a turtledeck falling away.
