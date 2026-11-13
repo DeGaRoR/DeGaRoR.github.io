@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 4b58c16309f0f952
+// body-sha256: a283701a012871d6
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -17025,7 +17025,7 @@ function makeSim(def, world) {
   const RFRAC = RET ? (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1) : 1, RSEMI = RFRAC < 1;
   if (RET) {
     const isMainN = new Set(def.refs.mains || []);
-    for (const i of [...(def.refs.mains || []), def.refs.tw]) {
+    for (const i of [...(def.refs.mains || []), ...(RET.fixedTw ? [] : [def.refs.tw])]) {   // (the ultralight monowheel: the tail wheel stays down)
       if (!(i >= 0 && i < n)) continue;
       GW[i] = 1;
       const meas = RET.lift ? (isMainN.has(i) ? RET.lift.mains : RET.lift.nose) : null;
@@ -19412,7 +19412,7 @@ function makeSim(def, world) {
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
-      if ((isMain || (isTW && TWM !== 4)) && (GR === null || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
+      if ((isMain || (isTW && TWM !== 4)) && (GR === null || (isTW && RET.fixedTw) || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
@@ -36831,7 +36831,11 @@ const GEN_RULES = {
   // tailwheel assembly's law the tricycle branch bills a skid by (2.0 kg at R 0.10). A FAIRED one (twFairing) is its
   // fairing: the moulded nose shell with a rubber shoe bonded under it - the shell's mass (the fairing row) and no more
   // (the user, 13 Nov: "for real this is almost just the fairing")
-  ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4 },
+  // ...and ITS RETRACTION (the user, 13 Nov: "a tiny retraction mechanism, weighing almost nothing ... billed as ultra
+  // light too, no need for a user choice"): a glider's - the pilot's lever, a push rod to an over-centre link, a gas strut,
+  // two doors on hinges and springs - retractKg on the axle (not GEN_RULES.retractKg's powered kit, 12 kg at the least),
+  // retractPrice; the tail wheel stays down. INFERRED: a 15 m sailplane's gear retraction weighs well under a kilogram
+  ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4, retractKg: 0.6, retractPrice: 600 },
   // THE TOW HOOK (A0 for the user, 13 Nov: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and make
   // the TOW-LAUNCH car tow use it"): gear.towHook 'nose' | 'cg' (the gear page's towHook). A NOSE release (Tost E 85
   // class: aerotow - the line pulls from ahead, the glider stays in line behind the tug) at the nose's keel; a CG release
@@ -38976,9 +38980,8 @@ function clampSpec(spec) {
   // down on a tip (the wingtip skid, wings[0].tipSkid, is the wing's own row). The key only when on (a two-wheel build's
   // spec is the bytes it was); no retraction, no trailing link (both are built per side)
   if (S.gear.mono === true && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle')) {
-    delete S.gear.retract;
-    if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';
-    if (S.gear.ul !== true) delete S.gear.ul;     // (L6: the ultralight monowheel, GEN_RULES.ulGear - the key only when on)
+    if (S.gear.ul !== true) { delete S.gear.retract; delete S.gear.ul; }   // (the ULTRALIGHT monowheel may retract: GEN_RULES.ulGear.retractKg)
+    if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';     // (L6: the ultralight monowheel, GEN_RULES.ulGear - the key only when on)
   } else { delete S.gear.mono; delete S.gear.ul; }
   // (THE TOW HOOK, GEN_RULES.towHook: a nose or a CG release on a wheeled gear - the key only when one is fitted; a spec
   //  built from its cage without the join - a design bake - reads the cage's row, as the frame reads whProfile)
@@ -39074,7 +39077,7 @@ function clampSpec(spec) {
   // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
   // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
   // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
-  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
+  if (S.gear.retract && typeof S.gear.retract === 'object' && (S.gear.type === 'tricycle' || (S.gear.mono && S.gear.ul))) {   // (the ultralight monowheel: its main alone, the tail wheel fixed)
     const r = S.gear.retract;
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
@@ -44540,6 +44543,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
   const mWheel = CYCLE ? R.wheelCycleKg(S.gear.wheelR) : R.wheelKg(S.gear.wheelR);
   pt(GAL, mWheel + mFairMain); if (!MONO) pt(GAR, mWheel + mFairMain);
+  // (THE ULTRALIGHT MONOWHEEL'S RETRACTION, GEN_RULES.ulGear: the lever, the push rod, the over-centre link, the gas strut
+  //  and the doors' hinges - on its axle)
+  if (S.gear.retract && GUL && GUL.retractKg > 0) { pt(GAL, GUL.retractKg); spend(GUL.retractPrice || 0); }
   // THE TOW HOOK (GEN_RULES.towHook; gear.towHook 'nose' | 'cg'): the release's node on the centreline - at the nose
   // ring's keel (aerotow), or on the belly `ahead` of the mains (winch, auto-tow) - tied to the HARD structure round it
   // (weightless members, a soft shell's hard row: the keel tubes and, on a hanging nacelle, the mast's foot; the line
@@ -44613,7 +44619,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     pt(TW, (GUL && SKID && GUL.skidKg > 0 ? (mFairTw > 0 ? 0 : GUL.skidKg) : CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);   // (L6: the ultralight monowheel's nose skid, its own)        // the nosewheel with its fork, by size (a bicycle wheel's own)
     // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
     // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
-    if (S.gear.retract) {
+    if (S.gear.retract && !GUL) {                   // (the ultralight monowheel's own kit: below)
       const kit = R.retractKg(gross);
       pt(GAL, kit / 3); pt(GAR, kit / 3); pt(TW, kit / 3);
       spend(GEN_PRICES.retract);
@@ -47753,7 +47759,7 @@ function genParams(S, fr, strips) {
     // RETRACT-1 (RETRACT-STUDY §3.1): the retractable gear - the key only when chosen. `cdA` is the gear's own drag area
     // (genGearCdA, inside fusCdA[0] as on every build: every design-time number - the plaque, the AP's speeds - stays the
     // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)
-    ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg,
+    ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg, ...(S.gear.type === 'taildragger' ? { fixedTw: true } : {}),
                                        cdA: cda.drag.gear || 0,
                                        // G1: the fraction (1 unless partial) and the measured lift (null: the frame's rule)
                                        frac: S.gear.retract.frac || 1, lift: S.gear.retract.lift || null } } : {}),
