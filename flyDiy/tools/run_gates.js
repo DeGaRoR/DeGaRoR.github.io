@@ -979,6 +979,7 @@ const GATES = [
   // builders' attributes, the markings recorded off sitePaintStrip, the hook rules, the recipe (~5 s)
   { id: 'PAVEMENT', file: '_pavement_check.js', tier: 'core' },
   { id: 'MICRO', file: '_micro_check.js', tier: 'core', wall: 60 },   // DIRT-STRIP: a bush strip's micro-height - off is bit-identical, the ISO 8608 field, terrainH and the drawn ribbon carry it, the Cub rides it
+  { id: 'AFB0220', file: '_afb0220_check.js', tier: 'core', wall: 30 },   // AFB-0220: Jolene 02/20 the derelict strip - the band, the rough lane, the playground's props and ground pieces colliding (OBSTACLES, TREE_HITS.lying, the solver), the cost
   // G1091 (POLISH-2): THE TREES BY THE RUNWAYS - the three variants (?rwytrees=today|map|mapx): the map's nearest TREE cell
   // against the nearest collidable tree per runway side, nothing on paving, the one rule the woodland and the fill share,
   // the ground paths and a 5 % surface in 'map' (core, ~1 min); under --all the fill's own trees in the page harness per
