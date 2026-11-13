@@ -553,8 +553,6 @@ const WATER = (() => {
       // LOOK-GLINT (GLINT above): wGR is 0 in the point and spot loops, the day's weight from the directional loop on
       .replace('#include <lights_fragment_begin>', `
         float wGR = 0.0, wGlR = wRough(0.003 + 0.00512 * uWWind.x), wGlK = uWGlint.x * uWGlint.y;
-        if (uWGlint.z > 0.0) { vec2 wGc = floor(vWP.xz * 3.0 + wDet.xy * 4.0); float wGh = fract(sin(dot(wGc, vec2(12.9898, 78.233))) * 43758.5453);
-          wGlK *= mix(1.0, step(0.7, wGh) * 3.333, uWGlint.z * (1.0 - smoothstep(0.08, 0.4, wFp))); }
 ` + (typeof THREE !== 'undefined' && THREE.ShaderChunk && THREE.ShaderChunk.lights_fragment_begin || '')
         .replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight ); wGR = uWGlint.w;')
         .replace(/RE_Direct\( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight \);/g,
@@ -678,7 +676,7 @@ const WATER = (() => {
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
-      uWGlint: { value: new THREE.Vector4(1, 1, 0, 0) },   // LOOK-GLINT (frame()): x the sun's visibility from the glint, y gain, z sparkle, w the day's weight
+      uWGlint: { value: new THREE.Vector4(1, 1, 0, 0) },   // LOOK-GLINT (frame()): x the sun's visibility from the glint, y gain, z (free), w the day's weight
       uWStretch: { value: 0 }, uWStrL: { value: new THREE.Vector2(1, 1) }, uWMirMax: { value: 1e9 }, uWDirN: { value: new THREE.Vector4(0, 150, 600, 0) },   // NIGHT-SHINE (frame())
       uWLampP: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampC: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampK: { value: v4(0) },   // NIGHT-SHINE: lamps()
       uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
@@ -1696,9 +1694,10 @@ const WATER = (() => {
   //     ripples' (the spread and the perspective make the cone);
   //   - x vis: the share of the sun seen from the glint's water (app.js: the terrain's profile along the sun from three points on the path) -
   //     a sun behind the ridge draws no path;
-  //   - z sparkle: near water (cells over a pixel), a third of the facets carry the light, x3 (the mean kept) - the path breaks into glints.
+  //   - calm: the day's ripple floor (the detail tile's strength at no wind, 0.12 -> 0.3 of the body's detail; the night's ramp as it was):
+  //     "there always is distortion of the reflection" - the mirror's shores waver and the path breaks into the ripples' own glints.
   // OFF SWITCH: ?glint=0 (a rig's A/B) = master to the bit; WATER.glint.<key> live.
-  const GLINT = { vis: 1, gain: 1, spark: 0.6 };
+  const GLINT = { vis: 1, gain: 1, calm: 0.3 };
   const GLINT_OFF = typeof location !== 'undefined' && /[?&]glint=0/.test(location.search || '');
   const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
@@ -1706,11 +1705,11 @@ const WATER = (() => {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
       const tN = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - 1.5) / 3.5)), kN = NIGHT_SEA.k * tN * (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
       U.uWNight.value.set(NIGHT_SEA.col[0] * kN, NIGHT_SEA.col[1] * kN, NIGHT_SEA.col[2] * kN, NIGHT_SEA.flat);
-      if (U.uWGlint) U.uWGlint.value.set(GLINT_OFF ? 1 : GLINT.vis, GLINT_OFF ? 1 : GLINT.gain, GLINT_OFF ? 0 : GLINT.spark, GLINT_OFF ? 0 : 1 - tN);
+      if (U.uWGlint) U.uWGlint.value.set(GLINT_OFF ? 1 : GLINT.vis, GLINT_OFF ? 1 : GLINT.gain, 0, GLINT_OFF ? 0 : 1 - tN);
       // NIGHT-BRIGHT, the user 4 Nov: "more ripples on the water, because they make the beautiful reflections": up to 5 x at night, capped at the level seen in the shot (3.1).
       // NIGHT-RIPPLE: here, every frame, eased with the sheen: in setWind (which runs when the wind CHANGES) it latched through the next day or never came on at a calm dusk. The day's to the bit
-      const zD = S.detailK * Math.min(1, 0.12 + IN.wind[0] / 8);
-      U.uWDetailK.value.z = Math.max(zD, Math.min(3.1, zD * (1 + 4 * tN)));
+      const zD = S.detailK * Math.min(1, 0.12 + IN.wind[0] / 8), zC = GLINT_OFF ? zD : S.detailK * Math.min(1, Math.max(0.12, GLINT.calm) + IN.wind[0] / 8);   // LOOK-GLINT: the day's calm floor, faded out on the night's ramp
+      U.uWDetailK.value.z = Math.max(zC + (zD - zC) * tN, Math.min(3.1, zD * (1 + 4 * tN)));
       // NIGHT-SHINE: the stretch, its cap, the far glint's fade and the lamps' streaks on the deep-night ramp tS: by day and at dusk all four are off to the bit
       const tS = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - NIGHT_SEA.shine[0]) / (NIGHT_SEA.shine[1] - NIGHT_SEA.shine[0])));
       const kE = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
