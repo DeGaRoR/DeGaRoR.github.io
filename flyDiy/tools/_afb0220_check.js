@@ -262,5 +262,6 @@ console.log('9. the cost (static: what the part draws; FRAMECOST measures the fr
   yes(tCompose < 60000, 'the island composes in ' + (tCompose / 1000).toFixed(1) + ' s in node with the part (the premises cook carries it in play)');
 }
 
-console.log('GATE AFB0220: ' + (bad ? 'FAIL (' + bad + ' of ' + n + ')' : 'PASS (' + n + ' checks)'));
+console.log(n + ' checks, ' + bad + ' failed');
+console.log('GATE AFB0220: ' + (bad ? 'FAIL (' + bad + ' of ' + n + ')' : 'PASS'));
 process.exit(bad ? 1 : 0);
