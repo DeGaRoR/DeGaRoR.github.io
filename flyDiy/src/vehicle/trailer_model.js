@@ -55,6 +55,169 @@
 //                 positions' hash).
 const TRL_AO = { dpm: 40, budget: 32000, pad: 2, rays: 24, reach: 0.6, slice: 6, direct: 0.4 };   // (budget: the texels baked - a bigger trailer bakes coarser, never longer)
 const TRL_PLANK = { key: 'deckwood', boards: 12, inset: 3 / 512 };
+// ---- THE WEATHERING (13 Nov, the user: "a little weathering on it ... the same system as the planes and the field"):
+//   The aeroplanes' system (src/viewer/aeroweather.js) places its layers in the FLOWN CRAFT's space (its shared uCraftInv,
+//   its exhaust and wheel sources) - a trailer is its own object, so it takes that system's PIECES and RULES here, in the
+//   trailer's own frame, with its own uniforms:
+//     the GRUNGE SHEET   aeroWxGrungeTex (r fbm6, g cells14, b fbm12, a fbm2 - linear data) at the planes' tiles (fine
+//                        0.35 m, coarse 2.4 m, streaks 0.22 x 2.6 m), projected on the face's dominant axis in metres
+//     the COLOURS        AERO_WX_COL's dust, dirt, mud, grime and rust (linear albedo, each with its roughness floor)
+//     NO SHINY DIRT      the planes' invariant: under any cover the roughness rises to the layer's floor (>= 0.85) and
+//                        the metalness falls with it
+//     the GROUND DIRT    the house kit's rule (tools/_house_gen.js uDirtTop / uDirtH / uDirtK): a gradient up from the
+//                        ground, broken by the coarse blotch
+//   and the trailer's own sources: the MUD each wheel throws (onto what faces it, inside the guards, the flaps, the rails
+//   by the tyres - the cells' splatter over a body), the CAVITIES from the baked AO (grime in the crevices, the zinc's
+//   white rust in the galvanised corners, rust in the steel wheels' recesses), the RAIN's streaks down the flanks, the
+//   wood's silvering on the tops; the tyres and wheels dirtied in their own frame (they turn). Every layer is a CLAMPED
+//   SUM of the macros x its gain (as aeroWxResolve's), the macros the trailer's: x AGE, y MUD, z RAIN (TRL_WX.wear: "a
+//   little"); window.AEROWX_OFF (the planes' switch) leaves the trailer clean too; without the grunge sheet (node, a
+//   page without aeroweather.js) the materials stay as they were. One program patch (its own cache key, 'trl-wx'), the
+//   AO's direct share (above) folded in; per material its gains (TRL_WX.mat: dirt, the corrosion kind, the silvering, the
+//   saturation - the timber, the deck's and the bunks', at HALF its saturation, the user's "the wood looks a lot harsher").
+const TRL_WX = {
+  wear: [0.45, 0.35, 0.40],                                     // x AGE, y MUD, z RAIN ("a little")
+  tile: [0.35, 2.40, 0.22, 2.60],                               // the planes' tiles (AERO_WX_KNOB fineTile, coarseTile, streakAcross, streakAlong)
+  dirt: [0.62, 0.50, 0.55],                                     // the house rule: the top (m), the height it fades over (m), its gain
+  col: { dust: [0.100, 0.088, 0.072, 0.88], dirt: [0.130, 0.104, 0.076, 0.90], mud: [0.085, 0.062, 0.040, 0.95],
+         grime: [0.070, 0.060, 0.048, 0.92], rust: [0.200, 0.075, 0.030, 0.95], zinc: [0.42, 0.43, 0.42, 0.92] },   // (AERO_WX_COL; zinc: the white rust)
+  // per material [dirt gain, corrosion 0 none / 1 zinc / 2 iron, silvering, saturation]
+  mat: { galv: [1, 1, 0, 1], galvDk: [1.1, 1, 0, 1], wheel: [0.9, 2, 0, 1], drum: [1, 2, 0, 1], rubber: [0.8, 0, 0, 1], chock: [0.7, 0, 0, 1],
+         plank: [0.8, 0, 0.6, 0.5], timber: [0.8, 0, 0.6, 0.5], alu: [0.6, 0, 0, 1], black: [0.7, 0, 0, 1], chrome: [0.35, 0, 0, 1],
+         white: [0.5, 0, 0, 1], red: [0.3, 0, 0, 1], amber: [0.3, 0, 0, 1], strap: [0.6, 0, 0, 1], carpet: [0.8, 0, 0, 1] },
+};
+const TRL_WX_VS_HEAD = '\nvarying vec3 vTrlP;\nvarying vec3 vTrlN;\n';
+const TRL_WX_VS_BODY = '\n\tvTrlP = transformed; vTrlN = objectNormal;\n';
+const TRL_WX_FS_HEAD = `
+varying vec3 vTrlP;
+varying vec3 vTrlN;
+uniform sampler2D tTrlG;
+uniform vec4 uTrlWear;       // x age, y mud, z rain, w on
+uniform vec4 uTrlTile;       // fine, coarse, streak across, streak along (m)
+uniform vec3 uTrlDirt;       // the house rule: top, height, gain
+uniform vec4 uTrlWh[4];      // the wheels: centre (trailer frame), radius
+uniform vec4 uTrlMat;        // dirt gain, corrosion, silvering, saturation
+uniform vec4 uTrlC[6];       // dust, dirt, mud, grime, rust, zinc: rgb + roughness floor
+`;
+const TRL_WX_FS_COLOR = `
+	float trlCov = 0.0; float trlFloor = 0.85;
+	{
+		vec3 P = vTrlP; vec3 N = normalize(vTrlN) * (gl_FrontFacing ? 1.0 : -1.0); vec3 aN = abs(N);
+		vec2 pl = aN.y > max(aN.x, aN.z) ? P.xz : (aN.x > aN.z ? P.zy : P.xy);
+		vec4 gF = texture2D(tTrlG, pl / uTrlTile.x);
+		vec4 gC = texture2D(tTrlG, pl / uTrlTile.y + vec2(0.37, 0.61));
+		float age = uTrlWear.x, mud = uTrlWear.y, rain = uTrlWear.z, k = uTrlMat.x * uTrlWear.w;
+		float ao = 1.0;
+#ifdef USE_AOMAP
+		ao = texture2D(aoMap, vAoMapUv).r;
+#endif
+		vec3 c = diffuseColor.rgb;
+		float L = dot(c, vec3(0.2126, 0.7152, 0.0722));
+		c = mix(vec3(L), c, uTrlMat.w);                                                  // the saturation
+		float up = clamp(N.y, 0.0, 1.0);
+		c = mix(c, vec3(L * 0.92 + 0.015), clamp(uTrlMat.z * age * up * (0.45 + 0.55 * gC.a), 0.0, 1.0));   // the wood's silvering
+		float cov, a;
+#ifdef USE_INSTANCING
+		// A WHEEL (its own frame, the axle on z): the tread's road dirt and dust, the rim's recesses (brake dust, rust)
+		float rr = length(P.xy) / max(0.05, uTrlWh[0].w);
+		float tread = smoothstep(0.66, 0.84, rr);
+		a = clamp(k * (0.2 * age + 0.4 * mud) * mix(0.35, 1.0, tread) * (0.55 + 0.9 * (gF.r - 0.5)), 0.0, 0.55);
+		c = mix(c, uTrlC[1].rgb, a); trlCov = max(trlCov, a);
+		a = clamp(k * age * 0.35 * (1.0 - tread) * smoothstep(0.85, 0.4, ao) * (0.5 + gF.b), 0.0, 0.6);
+		c = mix(c, uTrlC[3].rgb, a); trlCov = max(trlCov, a);
+		if (uTrlMat.y > 1.5) { a = clamp(age * 0.4 * smoothstep(0.8, 0.35, ao) * smoothstep(0.6, 0.85, gF.g), 0.0, 0.35); c = mix(c, uTrlC[4].rgb, a); trlCov = max(trlCov, a); }
+#else
+		// THE GROUND DIRT (the house rule), broken by the blotch and the mottle
+		float hg = clamp((uTrlDirt.x - P.y) / max(0.01, uTrlDirt.y), 0.0, 1.0);
+		a = clamp(k * uTrlDirt.z * (0.5 + 0.5 * age + 0.5 * mud) * hg * smoothstep(0.15, 0.75, 0.55 * gC.a + 0.45 * gF.r + 0.35 * hg - 0.15), 0.0, 0.75);
+		c = mix(c, uTrlC[1].rgb, a); trlCov = max(trlCov, a);
+		// THE DUST on the tops
+		a = clamp(k * age * 0.3 * up * up * smoothstep(0.3, 0.8, gF.r * 0.7 + gC.a * 0.5), 0.0, 0.4);
+		c = mix(c, uTrlC[0].rgb, a); trlCov = max(trlCov, a);
+		// THE WHEELS' MUD: round each tyre, inside its guard, on what faces it - a body and the cells' splatter
+		float m = 0.0;
+		for (int i = 0; i < 4; i++) {
+			vec4 W = uTrlWh[i]; vec2 d = P.xy - W.xy; float r = length(d), dz = abs(P.z - W.z);
+			float reach = smoothstep(W.w + 0.5, W.w + 0.02, r) * smoothstep(0.34, 0.1, dz);
+			float face = 0.35 + 0.65 * clamp(dot(N.xy, -d / max(r, 1e-3)), 0.0, 1.0);
+			m = max(m, reach * face);
+		}
+		m *= k * mud;
+		float spl = smoothstep(1.0 - 0.6 * m, 1.12 - 0.6 * m, gF.g);
+		a = clamp(m * 0.5 * (0.6 + 0.8 * gF.b) + spl * min(0.6, 1.2 * m), 0.0, 0.8);
+		c = mix(c, uTrlC[2].rgb, a); trlCov = max(trlCov, a);
+		// THE CAVITIES (the baked AO): grime in the crevices
+		float cav = smoothstep(0.82, 0.38, ao);
+		a = clamp(k * age * 0.75 * cav * (0.45 + 0.8 * gF.b), 0.0, 0.7);
+		c = mix(c, uTrlC[3].rgb, a); trlCov = max(trlCov, a);
+		// THE RAIN: streaks down the flanks, from under every edge
+		float vert = 1.0 - smoothstep(0.25, 0.6, aN.y);
+		float acr = aN.x > aN.z ? P.z : P.x;
+		float st = texture2D(tTrlG, vec2(acr / uTrlTile.z, P.y / uTrlTile.w) + vec2(0.11, 0.53)).b;
+		a = clamp(k * rain * 0.5 * vert * smoothstep(0.52, 0.78, st) * (0.5 + 0.5 * cav), 0.0, 0.4);
+		c = mix(c, uTrlC[3].rgb, a); trlCov = max(trlCov, a);
+		// THE CORROSION: the zinc's white rust in the galvanised corners, rust in the steel's
+		if (uTrlMat.y > 0.5) {
+			float cs = age * smoothstep(0.85, 0.4, ao) * smoothstep(0.5, 0.8, gF.g * 0.6 + gF.r * 0.6);
+			vec4 cc = uTrlMat.y > 1.5 ? uTrlC[4] : uTrlC[5];
+			a = clamp(cs * (uTrlMat.y > 1.5 ? 0.6 : 0.45) + rain * vert * 0.15 * smoothstep(0.6, 0.85, st) * cav, 0.0, 0.55);
+			c = mix(c, cc.rgb, a); trlCov = max(trlCov, a);
+		}
+#endif
+		diffuseColor.rgb = c;
+	}
+`;
+const TRL_WX_FS_ROUGH = '\n\troughnessFactor = mix( roughnessFactor, max( roughnessFactor, trlFloor ), clamp( trlCov * 1.6, 0.0, 1.0 ) );\n';
+const TRL_WX_FS_METAL = '\n\tmetalnessFactor *= 1.0 - clamp( trlCov * 1.6, 0.0, 1.0 );\n';
+const TRL_WX_U = new WeakMap();   // THREE -> the shared uniforms (one write reaches every trailer's material)
+// the grunge sheet: the planes' (aeroWxGrungeTex) on a page; in node, the same noise (aeroWxGrunge) as a DataTexture when
+// aeroweather.js is loaded; otherwise none (the weathering off)
+function trlWxGrunge(T) {
+  const W = (typeof AEROWX !== 'undefined' && AEROWX) || (typeof globalThis !== 'undefined' && globalThis.AEROWX) || null;
+  if (!W || (typeof window !== 'undefined' && window.AEROWX_OFF)) return null;
+  if (typeof document !== 'undefined' && W.aeroWxGrungeTex) return W.aeroWxGrungeTex(T);
+  if (!W.aeroWxGrunge) return null;
+  const S = W.AERO_WX_GRUNGE_PX || 256, t = new T.DataTexture(W.aeroWxGrunge(S), S, S, T.RGBAFormat);
+  t.wrapS = t.wrapT = T.RepeatWrapping; t.needsUpdate = true; return t;
+}
+function trlWxShared(T) {
+  if (TRL_WX_U.has(T)) return TRL_WX_U.get(T);
+  const g = trlWxGrunge(T); if (!g) return null;
+  const C = TRL_WX.col, U = {
+    tTrlG: { value: g },
+    uTrlWear: { value: new T.Vector4(TRL_WX.wear[0], TRL_WX.wear[1], TRL_WX.wear[2], 1) },
+    uTrlTile: { value: new T.Vector4(...TRL_WX.tile) },
+    uTrlDirt: { value: new T.Vector3(...TRL_WX.dirt) },
+    uTrlC: { value: ['dust', 'dirt', 'mud', 'grime', 'rust', 'zinc'].map(k => new T.Vector4(...C[k])) },
+  };
+  TRL_WX_U.set(T, U); return U;
+}
+// the patch: the AO's direct share (always) and the weathering (when the shared uniforms exist); every anchor must hit
+// (a renamed three chunk is a loud miss: m.userData.trlWxMiss, GATE TRAILER reads it)
+function trlPatch(T, m, key, wheels) {
+  const U = trlWxShared(T), gains = TRL_WX.mat[key] || [0.8, 0, 0, 1], own = { uTrlMat: { value: new T.Vector4(...gains) }, uTrlWh: { value: wheels } };
+  m.userData.trlWx = !!U; m.userData.trlKey = key;
+  m.onBeforeCompile = sh => {
+    const miss = [], rep = (src, a, b) => { if (src.indexOf(a) < 0) { miss.push(a); return src; } return src.replace(a, b); };
+    let fs = rep(sh.fragmentShader, '#include <aomap_fragment>', '#include <aomap_fragment>\n#ifdef USE_AOMAP\n\treflectedLight.directDiffuse *= mix( 1.0, ambientOcclusion, ' + TRL_AO.direct.toFixed(2) + ' );\n#endif');
+    if (U) {
+      Object.assign(sh.uniforms, U, own);
+      sh.vertexShader = rep(rep(sh.vertexShader, '#include <common>', '#include <common>' + TRL_WX_VS_HEAD), '#include <begin_vertex>', '#include <begin_vertex>' + TRL_WX_VS_BODY);
+      fs = rep(fs, '#include <common>', '#include <common>' + TRL_WX_FS_HEAD);
+      fs = rep(fs, '#include <color_fragment>', '#include <color_fragment>' + TRL_WX_FS_COLOR);
+      fs = rep(fs, '#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>' + TRL_WX_FS_ROUGH);
+      fs = rep(fs, '#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>' + TRL_WX_FS_METAL);
+    }
+    sh.fragmentShader = fs; m.userData.trlWxMiss = miss;
+  };
+  m.customProgramCacheKey = () => (U ? 'trl-wx' : 'trl-ao-direct');
+}
+// the trailer's weathering macros, for every trailer at once: trailerWeather({ age, mud, rain }) (0..1 each; omitted keep)
+function trailerWeather(T, w) {
+  const U = trlWxShared(T); if (!U) return null; const v = U.uTrlWear.value;
+  if (w) { if (w.age != null) v.x = +w.age; if (w.mud != null) v.y = +w.mud; if (w.rain != null) v.z = +w.rain; if (w.on != null) v.w = w.on ? 1 : 0; }
+  return { age: v.x, mud: v.y, rain: v.z, on: v.w > 0.5 };
+}
 const trlLib = () => (typeof HOUSE_TEX_SETS !== 'undefined' && HOUSE_TEX_SETS) || null;
 const TRL_TEXC = new Map();
 function trlTex(T, key, map) {
@@ -395,7 +558,9 @@ function buildTrailerModel(THREE, Tr, o) {
   // (trackF / trackR when the axles differ),
   // tyreR, tyreW, x0, x1 (its tail and nose) }. The deck stands over the trailer's own guards; the pads are the deck's ends
   const C = isC ? fit.car : null;
-  const deckY = isC ? Math.max(railTop + 0.12, 2 * wheelR + 0.13) : 0;
+  // (the deck over the mudguards: the outriggers' 115 mm under the deck clear the guards' tread top, 2 R + 63 mm, by 10 mm -
+  //  13 Nov, the user: "why did you remove the metal arch from the flatbed? It was looking good")
+  const deckY = isC ? Math.max(railTop + 0.12, 2 * wheelR + 0.13, 2 * wheelR + 0.063 + 0.115 + 0.01) : 0;
   const pads = isC ? [{ kind: 'deck', at: [Math.min(C.x0, C.xR - C.tyreR) - 0.15, deckY, 0] }, { kind: 'deck', at: [Math.max(C.x1 - 0.2, C.xF + C.tyreR) + 0.05, deckY, 0] }] : fit.pads;
   const keelOf = side => pads.filter(p => p.kind === 'keel' && p.float === side).sort((a, b) => b.at[0] - a.at[0]);
   // the bows: the float's (the hull's) most forward keel station, the trailer's frame
@@ -503,9 +668,10 @@ function buildTrailerModel(THREE, Tr, o) {
   // (13 Nov, the user: "ensure there's no clipping of the arches through any wheels": the arcs were drawn round the AXLE
   //  TUBES (+-ax) while the wheels ride the trailing arms 0.11 m aft (spX) - the rear tyre came out of its arc and the flap
   //  cut it. Every arc, the tread plate, the flap and the reflector are now on the WHEELS' centres (xwF, xwR). Under the car
-  //  deck there are no guards: the deck covers the wheels (its outriggers ran through them) - its flaps hang off the deck)
-  const xwF = ax + spX, xwR = -ax + spX;
-  if (!isC) { const Rf = wheelR + 0.055, gw = 0.27;
+  //  deck the guards stay (the user: "it was looking good"): the deck stands over them (deckY) and its outriggers' braces
+  //  stop inboard of them over the guards' length)
+  const xwF = ax + spX, xwR = -ax + spX, Rf = wheelR + 0.055, gw = 0.27, guardZin = wZ - gw / 2 + 0.01, guardX = [xwR - Rf - 0.06, xwF + Rf + 0.06];
+  { 
     const path = (r) => { const P = []; const n = S(14);
       for (let i = 0; i <= n; i++) { const a = -0.25 + (Math.PI / 2 + 0.25) * (i / n); P.push([xwF + Math.cos(a) * r, wheelR + Math.sin(a) * r]); }
       for (let i = 0; i <= n; i++) { const a = Math.PI / 2 + (Math.PI / 2 + 0.3) * (i / n); P.push([xwR + Math.cos(a) * r, wheelR + Math.sin(a) * r]); }
@@ -623,7 +789,8 @@ function buildTrailerModel(THREE, Tr, o) {
       member(M.galv, rrect(0.05, 0.08, 0.005), [x, yb - 0.04, -half], [x, yb - 0.04, half], [0, 1, 0]);
       for (const s of [-1, 1]) {
         member(M.galv, rrect(0.05, 0.05, 0.005), [x, railTop, s * zR], [x, yb - 0.08, s * zR], [1, 0, 0]);
-        member(M.galvDk, angle(0.03, 0.003), [x, railTop, s * zR], [x, yb - 0.08, s * Math.min(half - 0.05, zR + 0.32)], [1, 0, 0]);
+        const zb = x > guardX[0] && x < guardX[1] ? Math.min(guardZin - 0.04, zR + 0.32) : Math.min(half - 0.05, zR + 0.32);   // (inboard of a guard)
+        member(M.galvDk, angle(0.03, 0.003), [x, railTop, s * zR], [x, yb - 0.08, s * zb], [1, 0, 0]);
       }
     }
     // the planks: along the trailer, 14 cm wide, 6 mm apart
@@ -671,12 +838,6 @@ function buildTrailerModel(THREE, Tr, o) {
         boxAt(M.galvDk, 0.27, plate, cW + 0.07, [xp, deckY + plate / 2, z]);
         for (const dx of [-0.11, 0.11]) for (const dz of [-1, 1]) cyl(M.chrome, 0.009, 0.009, 0.006, [xp + dx, deckY + plate + 0.003, z + dz * (cW / 2 + 0.02)], 'y', 6);
       }
-    }
-    // the mud flaps behind the trailer's rear wheels, hung off the deck's edge (no guards under the deck)
-    for (const s of [-1, 1]) {
-      const xf = xwR - wheelR - 0.07, yTop = deckY - pt - 0.01, yBot = 0.09;
-      boxAt(M.rubber, 0.006, yTop - yBot, 0.25, [xf, (yTop + yBot) / 2, s * wZ]);
-      boxAt(M.galvDk, 0.03, 0.006, 0.27, [xf + 0.012, yTop + 0.003, s * wZ]);
     }
     // THE RAMPS: FOLDING ladders - two sections hinged in the middle, each two side rails with rungs every 8 cm - on the
     // wheel tracks, hinged at the deck's tail. Up for the road: the first section stands up off the hinge, the second
@@ -806,10 +967,9 @@ function buildTrailerModel(THREE, Tr, o) {
   // (three's aoMap darkens the ambient / environment light only; the sun's shadow map is far coarser than a bracket on a rail,
   //  so the small contacts stayed sharp in sunlight - 40 % of the AO on the direct diffuse too: the crevices the shadow map
   //  cannot see. A WebGL program patch, its own cache key; a node renderer ignores it)
-  const aoDirect = m => { m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <aomap_fragment>',
-    '#include <aomap_fragment>\n#ifdef USE_AOMAP\n\treflectedLight.directDiffuse *= mix( 1.0, ambientOcclusion, ' + TRL_AO.direct.toFixed(2) + ' );\n#endif'); };
-    m.customProgramCacheKey = () => 'trl-ao-direct'; };
-  for (const m of Object.values(M)) if (m && m.isMaterial) { m.aoMap = AO.map; m.aoMapIntensity = 1; aoDirect(m); m.needsUpdate = true; }
+  // the patch (THE WEATHERING, above): the AO's direct share and the layers; the wheels' centres for their mud
+  const wxWheels = [0, 1, 2, 3].map(i => new T.Vector4(wheelAt[i].x, wheelR, wheelAt[i].z, wheelR));
+  for (const [key, m] of Object.entries(M)) if (m && m.isMaterial) { m.aoMap = AO.map; m.aoMapIntensity = 1; trlPatch(T, m, key, wxWheels); m.needsUpdate = true; }
   function merge(list) {
     let n = 0; for (const q of list) n += q.attributes.position.count;
     const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), uv1 = new Float32Array(n * 2); let k = 0;
@@ -864,4 +1024,4 @@ function buildTowHitch(THREE) {
   return g;
 }
 
-if (typeof module !== 'undefined') module.exports = { buildTrailerModel, buildTowHitch };
+if (typeof module !== 'undefined') module.exports = { buildTrailerModel, buildTowHitch, trailerWeather, TRL_WX };
