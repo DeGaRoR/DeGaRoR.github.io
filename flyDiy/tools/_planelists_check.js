@@ -59,6 +59,10 @@ const CLASSES = {
   "Pawnee": ["wip", "builds/candidates/pawnee (1).json", "F-HPAW"],
   "sailPlane": ["wip", "builds/candidates/sailPlane.json", "F-CSWS"],
   "Cessna 172 on floats (draft)": ["wip", "builds/cessna172r_floats_2026-11-08.json", "F-HCSF"],
+  // (13 Nov, FIT-PROCEDURE, the user: "put it as a candidate, and ensure I can edit it manually myself") the drafting
+  // table's two planes, candidates in the pool, opened and saved in the garage like any design
+  "Cessna 337D Super Skymaster": ["wip", "builds/candidates/c337_drafting_2026-11-13.json", "N1799M"],
+  "Pilatus PC-6 Turbo-Porter": ["wip", "builds/candidates/pc6_drafting_2026-11-11.json", "HB-FDY"],
   // (the Ruckus x2 join as reproductions with REAL-FIGURES' cards - Solo 103 = ruckus_std, Back-Country = ruckus_2026-11-09;
   //  the Spitfire and the Skymaster as WIP with the chooser's shapes ready)
 };

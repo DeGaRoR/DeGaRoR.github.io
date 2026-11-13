@@ -71,6 +71,23 @@ const DT = require('./dt_node.js'), C = DT.CORE;
     }
   }
   ok(worst < 1e-9, 'the view mapping round-trips every turn and mirror (worst ' + worst.toExponential(1) + ')');
+  // TWO SCALES (13 Nov, the Skymaster's stretched scan): ky != k round-trips every turn, and a turned view's metres
+  // along the sheet's vertical take ky (the top view at rot 270: a station 1 m aft is ky pixels up the page)
+  let worstK = 0;
+  for (const rot of [0, 90, 180, 270]) for (const flip of [false, true]) {
+    const V = { ox: 120, oy: 340, k: 100, ky: 97, rot, flip };
+    for (const [x, y] of [[0, 0], [3.2, 1.1], [-2, 0.4], [7, -1.5]]) {
+      const p = C.toPx(V, x, y), q = C.fromPx(V, p[0], p[1]);
+      worstK = Math.max(worstK, Math.abs(q[0] - x), Math.abs(q[1] - y));
+    }
+  }
+  const up = C.toPx({ ox: 0, oy: 0, k: 100, ky: 97, rot: 270 }, 1, 0)[1];
+  ok(worstK < 1e-9 && Math.abs(up + 97) < 1e-9, 'two sheet scales round-trip every turn, the vertical one along the page (' + up.toFixed(1) + ' px)');
+  // THE SKYMASTER (13 Nov): the second plane builds through the table, its booms, both engines and its stab drawn
+  const sdoc = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'candidates', 'c337_drafting_2026-11-13.json'), 'utf8'));
+  const SB = DT.build(sdoc.spec, null, { level: 0 });
+  const sp = new Set(Array.from(SB.parts).map(p => C.PARTS[p]));
+  ok(!SB.errors.length && ['body', 'wing', 'fin', 'stab', 'cowl', 'engine', 'gear'].every(p => sp.has(p)), 'the Skymaster builds, every part drawn');
 }
 console.log('GATE DRAFTING: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

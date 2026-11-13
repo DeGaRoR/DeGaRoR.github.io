@@ -22,6 +22,8 @@
     { "file": "carbon_cub_ss.json", "name": "Carbon Cub SS", "note": "the STOL Cub on the CC340 (engine dials), slats, the stol flap, Oratex on aluminium spars - REAL-FIGURES-3", "from": "REAL-FIGURES-3 (builds/edits/carbon_cub_ss.edits.json)" },
     { "file": "cub_chord160.json", "hide": "next", "name": "Piper Cub, J-3 chord", "note": "the official Cub at the J-3's 1.60 m chord (16.5 m2) - REAL-FIGURES-3", "from": "REAL-FIGURES-3 (builds/edits/cub_chord160.edits.json)" },
     { "file": "pa18_floats_chord160.json", "hide": "next", "name": "PA-18 floats, PA-18 chord", "note": "the float Super Cub at the PA-18's 1.60 m chord - REAL-FIGURES-3", "from": "REAL-FIGURES-3 (builds/edits/pa18_floats_chord160.edits.json)" },
-    { "file": "sailPlane.json", "name": "Sailplane", "note": "the user's export - work in progress (PLANE-LIST, the user 10 Nov); moved from review/", "from": "the user" }
+    { "file": "sailPlane.json", "name": "Sailplane", "note": "the user's export - work in progress (PLANE-LIST, the user 10 Nov); moved from review/", "from": "the user" },
+    { "file": "c337_drafting_2026-11-13.json", "name": "Cessna 337D Super Skymaster", "note": "push-pull on twin booms off the drafting table (the 1969 Owner's Manual, tools/drafting/refs/c337.json); a candidate (the user 13 Nov): the wing over yield and the empty mass -14 % until REAL-FIGURES sizes it; editable in the garage like any design", "from": "FIT-PROCEDURE (tools/drafting, the user's 3-view)" },
+    { "file": "pc6_drafting_2026-11-11.json", "name": "Pilatus PC-6 Turbo-Porter", "note": "the PC-6/B2-H4 off the drafting table (FOCA TCDS F 56-10, tools/drafting/refs/pc6.json): the first plane fitted with the table", "from": "FIT-PROCEDURE (tools/drafting)" }
   ]
 }

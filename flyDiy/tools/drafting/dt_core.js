@@ -35,15 +35,19 @@
     // screen: X right, Y up -> pixels y down; then the drawing's turn (clockwise on screen)
     return [c, -sn * f, sn, c * f];   // applied to (X, -Y)
   }
+  // THE SHEET'S OWN TWO SCALES (13 Nov, the Skymaster): a scanned or resized sheet is often stretched one way - the 337's
+  // reads 100.3 px/m across (29 ft 10 in) and 97.4 down (9 ft 4 in), and its top view, length running DOWN the page,
+  // came out 3-6 % short. `k` is the sheet's horizontal pixels per metre, `ky` its vertical (absent = k, as before):
+  // both act on the SHEET's axes, after the drawing's turn
   function toPx(V, X, Y) {
-    const M = rotM(V.rot, V.flip), k = V.k, x = X * k, y = -Y * k;
-    return [V.ox + M[0] * x + M[1] * y, V.oy + M[2] * x + M[3] * y];
+    const M = rotM(V.rot, V.flip), k = V.k, ky = V.ky || V.k, x = X, y = -Y;
+    return [V.ox + k * (M[0] * x + M[1] * y), V.oy + ky * (M[2] * x + M[3] * y)];
   }
   function fromPx(V, px, py) {
-    const M = rotM(V.rot, V.flip), k = V.k, dx = px - V.ox, dy = py - V.oy;
+    const M = rotM(V.rot, V.flip), dx = (px - V.ox) / V.k, dy = (py - V.oy) / (V.ky || V.k);
     const det = M[0] * M[3] - M[1] * M[2];
     const x = (M[3] * dx - M[1] * dy) / det, y = (-M[2] * dx + M[0] * dy) / det;
-    return [x / k, -y / k];
+    return [x, -y];
   }
 
   // ---- the raster: the plane's parts drawn into a view's pixel grid, front-most part a pixel ------------------

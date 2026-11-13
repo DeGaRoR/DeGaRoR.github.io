@@ -323,8 +323,9 @@
    "k": 100.1,
    "rot": 0,
    "flip": false,
-   "scaleBy": "geometry.length (910 px, the spinner tip 160 to the fin top aft corner 1070 on the extension line = 9.093 m)",
-   "note": "drawn level, the ground line tilted 2 deg; origin = the spinner tip; the extension lines sit 2 and 9 px outside the drawn ends"
+   "scaleBy": "geometry.length (910 px, the spinner tip 160 to the fin top aft corner 1070 on the extension line = 9.093 m); ky 97.4 from 9 ft 4 in (277 px, the dimension line 8.5 -> 285.5): the scan is 2.9 % shorter down than across",
+   "note": "drawn level, the ground line tilted 2 deg; origin = the spinner tip; the extension lines sit 2 and 9 px outside the drawn ends",
+   "ky": 97.4
   },
   "top": {
    "box": [
@@ -340,7 +341,8 @@
    "flip": false,
    "scaleBy": "geometry.span (1189 px tip to tip = 11.58 m)",
    "check": "boom spacing 335 px at the wing = 3.26 m (3.258), 313 px at the tail = 3.05 m (3.058); props 198 px = 1.93 m",
-   "note": "nose DOWN the sheet (aft is up): turned 270; origin = the front spinner tip; ITS STATIONS RUN SHORT AFT of the side view's (wing LE 2.82 vs 3.00, wing TE 4.62 vs 4.95, rear spinner 5.95 vs 6.25: the sheet's own inconsistency) - stations are read on the side view (scaled by the stated length), widths on the top and front views"
+   "note": "nose DOWN the sheet (aft is up): turned 270; origin = the front spinner tip; ky = k x 0.971 (the scan's stretch, read on the side view): its stations agree with the side view's",
+   "ky": 99.7
   },
   "front": {
    "box": [
@@ -350,169 +352,16 @@
     1777
    ],
    "ox": 607,
-   "oy": 1497,
+   "oy": 1567,
    "k": 102.05,
    "rot": 0,
    "flip": false,
    "scaleBy": "geometry.span (1182 px = 11.58 m)",
-   "note": "upright; origin = the centreline at the spinner (to refine on the overlay)"
+   "note": "upright; origin = the centreline at the spinner hub (1567: the hub circle; the first read, 1497, was the wing line)",
+   "ky": 99.1
   }
  },
  "marks": {
-  "profile.0": {
-   "view": "side",
-   "pts": [
-    [
-     259.1,
-     172.3
-    ],
-    [
-     259.1,
-     263.4
-    ]
-   ]
-  },
-  "profileW.0": {
-   "view": "top",
-   "pts": [
-    [
-     553.6,
-     1205.3
-    ]
-   ]
-  },
-  "profile.1": {
-   "view": "side",
-   "pts": [
-    [
-     310.6,
-     164.3
-    ],
-    [
-     310.6,
-     264.4
-    ]
-   ]
-  },
-  "profileW.1": {
-   "view": "top",
-   "pts": [
-    [
-     549.5,
-     1154.0
-    ]
-   ]
-  },
-  "profile.2": {
-   "view": "side",
-   "pts": [
-    [
-     402.8,
-     127.7
-    ],
-    [
-     402.8,
-     266.4
-    ]
-   ]
-  },
-  "profileW.2": {
-   "view": "top",
-   "pts": [
-    [
-     547.9,
-     1061.5
-    ]
-   ]
-  },
-  "profile.3": {
-   "view": "side",
-   "pts": [
-    [
-     496.9,
-     122.7
-    ],
-    [
-     496.9,
-     267.4
-    ]
-   ]
-  },
-  "profileW.3": {
-   "view": "top",
-   "pts": [
-    [
-     548.9,
-     974.2
-    ]
-   ]
-  },
-  "profile.4": {
-   "view": "side",
-   "pts": [
-    [
-     559.3,
-     122.7
-    ],
-    [
-     559.3,
-     259.5
-    ]
-   ]
-  },
-  "profileW.4": {
-   "view": "top",
-   "pts": [
-    [
-     551.5,
-     912.6
-    ]
-   ]
-  },
-  "profile.5": {
-   "view": "side",
-   "pts": [
-    [
-     685.2,
-     125.7
-    ],
-    [
-     685.2,
-     208.9
-    ]
-   ]
-  },
-  "profileW.5": {
-   "view": "top",
-   "pts": [
-    [
-     559.7,
-     794.5
-    ]
-   ]
-  },
-  "profile.6": {
-   "view": "side",
-   "pts": [
-    [
-     729.8,
-     132.6
-    ],
-    [
-     729.8,
-     187.1
-    ]
-   ]
-  },
-  "profileW.6": {
-   "view": "top",
-   "pts": [
-    [
-     577.2,
-     748.3
-    ]
-   ]
-  },
   "body.front": {
    "view": "side",
    "pts": [
@@ -620,50 +469,6 @@
    ],
    "note": "a rounded rectangle with no glass hatching: the access / baggage door, not a window"
   },
-  "profile.7": {
-   "view": "side",
-   "pts": [
-    [
-     625.7,
-     123.7
-    ],
-    [
-     625.7,
-     248.6
-    ]
-   ]
-  },
-  "profileW.7": {
-   "view": "top",
-   "pts": [
-    [
-     556.6,
-     851.0
-    ]
-   ]
-  },
-  "profile.8": {
-   "view": "side",
-   "pts": [
-    [
-     338.4,
-     160.4
-    ],
-    [
-     338.4,
-     265.4
-    ]
-   ]
-  },
-  "profileW.8": {
-   "view": "top",
-   "pts": [
-    [
-     548.4,
-     1125.2
-    ]
-   ]
-  },
   "fin.top": {
    "view": "side",
    "pts": [
@@ -727,6 +532,204 @@
     ]
    ],
    "note": "the ground line drawn 2 deg nose-up (rising aft) under a level airframe"
+  },
+  "profile.0": {
+   "view": "side",
+   "pts": [
+    [
+     259.1,
+     172.0
+    ],
+    [
+     259.1,
+     263.1
+    ]
+   ]
+  },
+  "profileW.0": {
+   "view": "top",
+   "pts": [
+    [
+     553.6,
+     1210.4
+    ]
+   ]
+  },
+  "profile.1": {
+   "view": "side",
+   "pts": [
+    [
+     310.1,
+     164.0
+    ],
+    [
+     310.1,
+     266.1
+    ]
+   ]
+  },
+  "profileW.1": {
+   "view": "top",
+   "pts": [
+    [
+     549.5,
+     1160.1
+    ]
+   ]
+  },
+  "profile.2": {
+   "view": "side",
+   "pts": [
+    [
+     340.2,
+     160.0
+    ],
+    [
+     340.2,
+     266.1
+    ]
+   ]
+  },
+  "profileW.2": {
+   "view": "top",
+   "pts": [
+    [
+     548.4,
+     1130.5
+    ]
+   ]
+  },
+  "profile.3": {
+   "view": "side",
+   "pts": [
+    [
+     405.2,
+     124.9
+    ],
+    [
+     405.2,
+     266.1
+    ]
+   ]
+  },
+  "profileW.3": {
+   "view": "top",
+   "pts": [
+    [
+     547.9,
+     1066.4
+    ]
+   ]
+  },
+  "profile.4": {
+   "view": "side",
+   "pts": [
+    [
+     498.3,
+     121.9
+    ],
+    [
+     498.3,
+     266.1
+    ]
+   ]
+  },
+  "profileW.4": {
+   "view": "top",
+   "pts": [
+    [
+     547.9,
+     974.8
+    ]
+   ]
+  },
+  "profile.5": {
+   "view": "side",
+   "pts": [
+    [
+     560.4,
+     121.9
+    ],
+    [
+     560.4,
+     262.1
+    ]
+   ]
+  },
+  "profileW.5": {
+   "view": "top",
+   "pts": [
+    [
+     550.5,
+     913.6
+    ]
+   ]
+  },
+  "profile.6": {
+   "view": "side",
+   "pts": [
+    [
+     618.5,
+     122.9
+    ],
+    [
+     618.5,
+     251.0
+    ]
+   ]
+  },
+  "profileW.6": {
+   "view": "top",
+   "pts": [
+    [
+     556.6,
+     856.4
+    ]
+   ]
+  },
+  "profile.7": {
+   "view": "side",
+   "pts": [
+    [
+     685.5,
+     125.9
+    ],
+    [
+     685.5,
+     209.0
+    ]
+   ]
+  },
+  "profileW.7": {
+   "view": "top",
+   "pts": [
+    [
+     559.7,
+     790.4
+    ]
+   ]
+  },
+  "profile.8": {
+   "view": "side",
+   "pts": [
+    [
+     729.6,
+     132.9
+    ],
+    [
+     729.6,
+     187.0
+    ]
+   ]
+  },
+  "profileW.8": {
+   "view": "top",
+   "pts": [
+    [
+     577.2,
+     747.0
+    ]
+   ]
   }
  },
  "lines": [],
@@ -879,5 +882,6 @@
   "S": 19.52,
   "le": 2.97,
   "note": "from the planform read off the sheet (1.93 to the boom, 1.25 at the tip, LE straight); S checks the manual 18.7"
- }
+ },
+ "sectionsNote": "13 Nov, the user: \"get straight lines out of the fuselage, in profile and top view\" - the frames marked at their own stations on straight lines: the top straight firewall -> windscreen base, flat 0.80 under the wing; the belly flat -0.64 to C, a straight rise to the aft bulkhead; the sides parallel 0.585, then straight in to 0.50"
 }
