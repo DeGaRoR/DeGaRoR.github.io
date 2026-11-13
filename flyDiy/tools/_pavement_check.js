@@ -732,7 +732,8 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
     // (DIRT-STRIP 10 Nov, the user on Skyline Altiport: a grass strip is a TRAIL through the tundra; no mown wash any more. 12 Nov,
     // the user: "the transparent surrounding don't work ... convincing surrounding in the greenery, not lawn grass" - the strip DRAWS
     // its tundra over its width (the island's grey-green split into moss / sedge / bearberry / lichen / earth) and fades it out over a
-    // ragged side, the tracks in it; the ground no longer shows through a hole round the tracks)
+    // ragged side, the tracks in it; the ground no longer shows through a hole round the tracks. THE OWNER'S RE-PIN, A0 13 Nov:
+    // the same strength, the new law - the alpha law and the tundra mix are read in GLSL.map as the old law was)
     const law = P.GLSL.map.indexOf('if (grassy && !road && uMacro.w > 0.0) {') >= 0 && P.GLSL.map.indexOf('col = mix(col, tun, tunK);') >= 0
       && P.GLSL.map.indexOf('gPavA = mix(gPavA, max(soil, smoothstep(-0.9 * shW, 0.2 * shW, dE + 1.6 * shW * (m4 - 0.5) + 0.8 * (m2 - 0.5))) * gPavA, uMacro.w);') >= 0;
     verdict(P.RECIPE.grMatch === 1 && P.groundColor('grass', mr) === null && P.opaqueDepth('grass', 9, mr, 'strip') === Infinity && MU.uMacro.value.w === 1
