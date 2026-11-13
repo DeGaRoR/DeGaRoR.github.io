@@ -159,14 +159,18 @@ the literature recommends, and a second draw would be a second overdraw budget o
 
 - MUD'S PROJECTION (`projWheel`, `proj` on the class row):
   - Adhesion: mud `adh` 4 g, slush 2.5 g.
-  - Rates per second: tread 3 x V x (0.4 + sink), bow 60-90 x sink, prop wash 6-9 x (u - 12..14 m/s).
+  - Rates per second: tread 9-10 x V x (0.4 + sink), bow 120-160 x sink, prop wash 6-9 x (u - 12..14 m/s).
   - Mix: clods 25-35 %, the rest drops.
   - The lift is held to `projUp` 5 m/s, a ~1.3 m rise.
-  - Each wheel throws at most `projMax` 140 a second.
+  - Each wheel throws at most `projMax` 220 a second, scaled down on a tier whose pool is under 400.
+  - Sizes: a CLOD is a 6-24 mm lump; a DROP is a CLUSTER of drops, 1.2-3.5 cm, the way games draw spray (the stills
+    showed true 1-5 mm drops drawing under a pixel).
   - Landed clods splat at 0.5 x `splat`, drops at 0.15 x.
-  - Splats: `splatLife` 22 s, wet gloss gone by 0.4 of it, eroded over the last half. The ring holds 40 (phone),
+  - Splats: 5-18 cm, `splatLife` 22 s, wet gloss gone by 0.4 of it, eroded over the last half. The ring holds 40 (phone),
     60 (potato), 120 (retro) and 200 (gamer); a full ring of fresh splats takes no more.
 - SNOW'S EXTRAS:
+  - `rise`: packed 1.6, powder 2.4. The cloud grows up that much faster, may stand up to sqrt(rise) taller (capped at
+    1.3 x the dust's cap) and is rounder.
   - `plough` (powder): 40 clumps a second x the sinkage x V/15, plus a puff topped up at the wheel's nose.
   - Drift: 6 x drift x the jet's flux, under 15 cm, 0.35-0.7 s, sparkling.
 - THE DRAW:
@@ -181,6 +185,18 @@ the literature recommends, and a second draw would be a second overdraw budget o
   - The dust's kinds and classes draw by their old lines.
 - THE BENCH (tools/_dust.html): Mud, Packed snow, Powder and Wet snow surfaces, a snowfield ground, the sinkage per
   surface. `?scen=&cls=&cam=&sun=&t=&still=1` seeks a moment in 1/30 s steps (the stills' rig).
+- WHAT THE STILLS TAUGHT (the dust bench in headless Chromium on SwiftShader, 13 Nov; the bench had been broken on master,
+  missing matlib.js):
+  1. A backlit powder cloud drew DARK SLATE. The inter-puff shadow had treated ice like soil. Now snow puffs take 0.3 of
+     the shadow and a multiple-scattering FILL; backlit the cloud glows warm white.
+  2. The run-up cloud hugged the ground. `rise` now makes it billow up into a cauliflower behind the aeroplane.
+  3. Mud and slush were INVISIBLE at their true sizes. Now they use clusters and lumps.
+  4. Long, thin, lit drop streaks read as a SPARKLER. A drop now smears at most 2.5 x its size, darker, with a small glint.
+  5. Lit orange by a low sun, clods read as EMBERS. The soft classes' mud is now darker and duller.
+  6. On the pavement, aerial mud's tyre fans spread everywhere and the wet film mirrored the sky pink. The strip is now
+     plain dirt recoloured to wet clay (saturation 0.5), with the muddy ruts darker in the tracks and the film at 0.3.
+  - The stills: the powder run-up seen from the strip end and from beside it (backlit); a mud take-off and taxi from the
+    new Wheel camera, front-lit and backlit; a slush take-off; the snow and mud strips on the pavement bench.
 - NOT DONE, NAMED:
   - no full-screen whiteout fog when the eye is inside a cloud (the near fade carries it);
   - no mud written onto the airframe from a roll on mud (aeroweather's BUSH macro is career wear, not physics);

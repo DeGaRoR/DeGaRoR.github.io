@@ -79,6 +79,7 @@ input[type=range] { width: 100%; accent-color: var(--acc); margin: 0; }
         <button id="c-side" data-v="side" aria-pressed="true">Beside the strip</button>
         <button id="c-end" data-v="end" aria-pressed="false">Strip end</button>
         <button id="c-chase" data-v="chase" aria-pressed="false">Chase</button>
+        <button id="c-wheel" data-v="wheel" aria-pressed="false">Wheel</button>
       </div>
     </div>
     <div class="grp">
@@ -141,6 +142,7 @@ input[type=range] { width: 100%; accent-color: var(--acc); margin: 0; }
   </aside>
 </div>
 <!--THREE--><script src="../vendor/three.min.js"></script><!--/THREE-->
+<!--MATLIB--><script src="../src/viewer/matlib.js"></script><!--/MATLIB-->
 <!--DUST--><script src="../src/viewer/dust.js"></script><!--/DUST-->
 <script>
 (function () {
@@ -277,6 +279,7 @@ const tgt = new THREE.Vector3();
 function placeCam(P) {
   const ax = pivot.position.x, az = pivot.position.z, ay = pivot.position.y;
   if (S.cam === 'side') { const cx = Math.max(-40, Math.min(420, ax * 0.35 + 90)); camera.position.set(cx, 1.7, 48); tgt.set(Math.min(ax, cx + 60), Math.min(ay + 1.5, 6), az); camera.fov = 42; }   // (the strip kept in frame: the cloud stays on the ground)
+  else if (S.cam === 'wheel') { const yaw = -pivot.rotation.y; camera.position.set(ax - Math.cos(yaw) * 5 + Math.sin(yaw) * 7, 0.9, az + Math.sin(yaw) * 5 + Math.cos(yaw) * 7); tgt.set(ax - Math.cos(yaw) * 1.5, 0.6, az); camera.fov = 45; }   // (SNOW-MUD: low beside the wheels - the clods, the splats)
   else if (S.cam === 'end') { camera.position.set(-70, 2.2, -12); tgt.set(ax, ay + 2, az); camera.fov = 30; }
   else { const yaw = -pivot.rotation.y; camera.position.set(ax - Math.cos(yaw) * 22, ay + 5, az + Math.sin(yaw) * 22 + 6); tgt.set(ax, ay + 1.5, az); camera.fov = 50; }
   camera.updateProjectionMatrix(); camera.lookAt(tgt);

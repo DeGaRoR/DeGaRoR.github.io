@@ -66,7 +66,10 @@ const PAVEMENT = (() => {
     // they are (aerial mud, the muddy tracks), and `wetMin` keeps a wet film on it whatever the day's soil says
     snow:     { base: 'gravelF',   damage: 'gravelS',   shoulder: 'gravelF', grass: 'gravelG', tracks: 'concreteD', moss: 'gravelG', macro: 'dirtAir',     lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 2, soft: [0.5, 0.4, 0.9, 0.9],
                 recolor: { sat: 0.06, base: [0.70, 0.72, 0.76], damage: [0.78, 0.80, 0.84], shoulder: [0.80, 0.82, 0.86], grass: [0.74, 0.76, 0.80], tracks: [0.50, 0.54, 0.62], moss: [0.66, 0.68, 0.73], macro: [0.72, 0.74, 0.78] } },
-    mud:      { base: 'mudAir',    damage: 'tracksM',   shoulder: 'dirtS',   grass: 'grassG', tracks: 'tracksM', moss: 'dirtG',     macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 1.5, soft: [0.7, 0.6, 0.9, 1.0], wetMin: 0.45 },
+    // (the bench, 13 Nov: on aerial mud the hex tiling spread its tyre fans everywhere and the 0.45 film mirrored the sky pink -
+    // the base is plain dirt recoloured to wet clay, the muddy ruts only where the wheels go and in patches, a lighter film)
+    mud:      { base: 'dirtG',     damage: 'tracksM',   shoulder: 'dirtS',   grass: 'grassG', tracks: 'tracksM', moss: 'mudAir',    macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 1.5, soft: [0.7, 0.6, 0.9, 1.0], wetMin: 0.3,
+                recolor: { sat: 0.5, base: [0.078, 0.060, 0.043], macro: [0.085, 0.066, 0.048], shoulder: [0.072, 0.058, 0.044], tracks: [0.052, 0.040, 0.030] } },
   };
   // SNOW-MUD: a set's grade under a class that recolours it -> [gain, sat, tr, tg, tb] (null: the set's own). The set's
   // graded mean taken to the slot's target luminance, its saturation `sat`, its tint the target's hue

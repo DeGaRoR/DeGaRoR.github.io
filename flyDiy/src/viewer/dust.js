@@ -55,6 +55,8 @@
   //         (Stokes + drag), so the cloud hangs seconds to tens of seconds, not the dust's minutes (the scout, 1.2)
   //   g     the phase's asymmetry: ice crystals scatter forward hard (a backlit snow cloud glows) - 0.8 vs the dust's 0.6
   //   drift the SALTATION SKIN's rate (kind 3: white streaks along the wall jet, under 15 cm)
+  //   rise  how much faster than dust the cloud grows UP (and how much taller it may stand, and rounder): a jet-lifted snow
+  //         cloud billows 2-5 m (the brownout / whiteout analogy, the scout's 2.3); the dust's is a low layer
   //   plough the bow wave of a sinking tyre (kind 4 clumps; the sinkage is the solver's, st.wheels[k].sink)
   //   proj  a WET class's projection: mud and slush throw, they do not cloud (the four sources: projWheel / propJet)
   // ut: the wall-wind threshold (~10 x u*t): powder's u*t 0.07-0.25 m/s (Pomeroy & Gray 1990) -> 2; packed / wind-hardened
@@ -67,11 +69,11 @@
     grass:  { fines: 0.18, loose: 0.1,  ut: 6.0, col: [0.44, 0.39, 0.29] },
     paved:  { fines: 0.03, loose: 0.0,  ut: 9.0, col: [0.40, 0.39, 0.37] },
     mud:    { fines: 0.0,  loose: 0.0,  ut: 9.0, col: [0.16, 0.12, 0.085], wet: 1,
-              proj: { adh: 4, tread: 3.0, bow: 60, wash: 14, washK: 6, clod: 0.35, col: [0.105, 0.078, 0.052], splat: 1 } },
-    snow:   { fines: 0.10, loose: 0.0,  ut: 8.0, col: [0.80, 0.82, 0.86], wet: 0, lum: [0.5, 0.9], fall: [0.6, 2.5, 8], g: 0.8, drift: 2.0 },
-    powder: { fines: 0.45, loose: 0.0,  ut: 2.0, col: [0.86, 0.88, 0.92], wet: 0, lum: [0.5, 0.92], fall: [0.55, 3.0, 12], g: 0.8, drift: 3.0, plough: 1 },
+              proj: { adh: 4, tread: 9, bow: 120, wash: 14, washK: 6, clod: 0.35, col: [0.105, 0.078, 0.052], splat: 1 } },
+    snow:   { fines: 0.10, loose: 0.0,  ut: 8.0, col: [0.80, 0.82, 0.86], wet: 0, lum: [0.5, 0.9], fall: [0.6, 2.5, 8], g: 0.8, drift: 2.0, rise: 1.6 },
+    powder: { fines: 0.45, loose: 0.0,  ut: 2.0, col: [0.86, 0.88, 0.92], wet: 0, lum: [0.5, 0.92], fall: [0.55, 3.0, 12], g: 0.8, drift: 3.0, plough: 1, rise: 2.4 },
     slush:  { fines: 0.0,  loose: 0.0,  ut: 9.0, col: [0.50, 0.53, 0.57], wet: 1, lum: [0.3, 0.7],
-              proj: { adh: 2.5, tread: 3.5, bow: 90, wash: 12, washK: 9, clod: 0.25, col: [0.50, 0.53, 0.57], splat: 0.6 } },
+              proj: { adh: 2.5, tread: 10, bow: 160, wash: 12, washK: 9, clod: 0.25, col: [0.50, 0.53, 0.57], splat: 0.6 } },
   };
   const MUD_COL = [0.16, 0.12, 0.085];
   // THE GROUND'S OWN COLOUR (the user, 10 Nov, on the Cub at low sun on a dark dirt strip: "the color of the dirt cloud is not
@@ -145,7 +147,7 @@
     // SNOW-MUD: the new kinds' laws. DRIFT (3) a saltating streak: 0.3-0.7 s, drag-held near the ground; CLUMP (4) a snow
     // lump off a plough (ballistic); DROP (5) a mud / slush drop, 1-5 mm (its terminal speed 6-8 m/s: a little drag); SPLAT
     // the landed mud: splatLife s, its wet gloss gone by splatDry of it, eroded away over the last half
-    driftDrag: 2.5, dropDrag: 0.35, clumpDrag: 0.12, splatLife: 22, splatDry: 0.4, splatMax: 0.12, projMax: 140, projUp: 5,
+    driftDrag: 2.5, dropDrag: 0.35, clumpDrag: 0.12, splatLife: 22, splatDry: 0.4, splatMax: 0.18, projMax: 220, projUp: 5,
     z0: 0.03,                        // m: the strip's roughness length for the log wind
     // the wheels
     wheelK: 0.075, wheelV0: 2.0,     // optical m^2 a second per (m/s over V0)^2 at fines 1, dry (AP-42: per metre ~linear in speed, so ~V^2 a second;
@@ -263,7 +265,7 @@
     if (S.age[q] < 0.6 * L.splatLife) return;                     // a full ring of fresh splats takes no more (an old one never pops)
     S.next = (S.next + 1) % S.n;
     S.p[q * 3] = x; S.p[q * 3 + 1] = y; S.p[q * 3 + 2] = z;
-    S.s[q] = Math.min(L.splatMax, s * (1.6 + 0.12 * sp)); S.age[q] = 0; S.cls[q] = cls; S.seed[q] = rnd(); S.sp[q] = sp;
+    S.s[q] = Math.min(L.splatMax, 0.035 + s * 2.5 + 0.006 * sp); S.age[q] = 0;   // (5-18 cm: a clod's blot, wider for a faster hit) S.cls[q] = cls; S.seed[q] = rnd(); S.sp[q] = sp;
   }
   // the wind at height y over the ground: the 10 m wind on a log profile
   const LOG10 = Math.log(10 / L.z0);
@@ -309,8 +311,9 @@
       if (P.age[i] < 0) continue;
       const jt = P.kj[i] * L.jetTau * (1 - Math.exp(-a / L.jetTau));
       const rR = Math.sqrt(P.r0[i] * P.r0[i] + 8 * (kAir * a + jt));
-      const rv = P.rv[i] = Math.min(rR, rvTop, Math.sqrt(P.rv0[i] * P.rv0[i] + 8 * (kz * a + 0.35 * jt)));
-      const r = P.r[i] = Math.min(rR, L.aspect * rv);
+      const ris = CLS[CLASSES[P.cls[i]]].rise || 1;                 // (SNOW-MUD: snow billows up; the dust's 1 is its line exactly)
+      const rv = P.rv[i] = Math.min(rR, ris === 1 ? rvTop : Math.min(L.rvCap * 1.3, rvTop * Math.sqrt(ris)), Math.sqrt(P.rv0[i] * P.rv0[i] + 8 * (kz * ris * a + 0.35 * jt * ris)));
+      const r = P.r[i] = Math.min(rR, (ris === 1 ? L.aspect : L.aspect / Math.sqrt(ris)) * rv);
       const tau = P.tau[i] = curMass(P, i) / (Math.PI * r * rv) * lifeFade(a, Math.min(T.life, 2.5 * lingerOf(P.cls[i])));
       if (tau < L.tauMin && a > 1) { if (P.into[i] >= 0) { P.into[i] = -1; sys.stats.merged++; } P.age[i] = -1; continue; }
       live++;
@@ -485,8 +488,10 @@
   function projWheel(sys, w, PJ, ci, was, V, pud, dt, K) {
     const R = w.R || 0.2, sk = Math.min(1, Math.max(0, w.sink || 0) / 0.05);
     const ux = V > 0.3 ? w.vx / V : 1, uz = V > 0.3 ? w.vz / V : 0, lx = -uz, lz = ux;
-    let room = Math.ceil(L.projMax * dt * K);
-    const sizeOf = kind => kind === 2 ? 0.0035 * Math.exp(1.3 * rnd()) : 0.0008 * Math.exp(1.1 * rnd());
+    let room = Math.ceil(L.projMax * dt * K * Math.min(1, sys.G.n / 400));   // (a smaller tier's pool: fewer, not a ring that eats its own)
+    // (the stills, 13 Nov: drops of their true 1-5 mm drew under a pixel and vanished - a DROP is a CLUSTER of them as the eye
+    // reads a spray, 1.2-3.5 cm, the way every game draws spray; a clod its 6-24 mm lump)
+    const sizeOf = kind => kind === 2 ? 0.006 * Math.exp(1.4 * rnd()) : 0.012 * Math.exp(1.05 * rnd());
     const one = (kind, x, y, z, vx, vy, vz) => { if (room-- > 0) emitGrit(sys, kind, x, y, z, vx, vy, vz, sizeOf(kind), ci); };
     const pick = () => (rnd() < PJ.clod ? 2 : 5);
     const n = r => { let k = Math.floor(r); if (rnd() < r - k) k++; return k; };
@@ -557,7 +562,7 @@
       if (u > PJ.wash) { const hl = Math.hypot(ax, az) || 1, fx = ax / hl, fz = az / hl, gy = gH ? gH(hx, hz) : g0;
         let r = PJ.washK * (u - PJ.wash) * K * dt, N = Math.min(Math.ceil(L.projMax * dt), Math.floor(r) + (rnd() < r % 1 ? 1 : 0));
         for (let j = 0; j < N; j++) { const la = (rnd() - 0.5) * 2 * rS, k = 0.25 + 0.25 * rnd();
-          emitGrit(sys, 5, hx - fz * la, gy + 0.03, hz + fx * la, fx * u * k, 0.6 + 1.6 * rnd(), fz * u * k, 0.0008 + 0.0015 * rnd(), ci); } }
+          emitGrit(sys, 5, hx - fz * la, gy + 0.03, hz + fx * la, fx * u * k, 0.6 + 1.6 * rnd(), fz * u * k, 0.01 + 0.015 * rnd(), ci); } }
       return;
     }
     if (u <= ut || (env.puddle && env.puddle(hx, hz) > 0.01)) return;
@@ -655,7 +660,7 @@
       bool soft = ci >= 5;                                          // (SNOW-MUD's classes: their kinds' own stretch; the dust's line as it was)
       float len = s + (puff ? 0.0 : !soft ? min(0.5, sp * uStretch)
         : kind > 2.5 && kind < 3.5 ? min(0.9, sp * uStretch * 2.5)   // drift: a streak along the ground
-        : kind > 4.5 ? min(0.6, sp * uStretch)                       // drop: the water's spray's streak
+        : kind > 4.5 ? min(2.5 * s, sp * uStretch * 0.5)              // drop: a short smear, at most 2.5 x its own size (the stills, 13 Nov: long thin streaks read as a SPARKLER)
         : min(0.12, sp * uStretch * 0.4)), hy = s;                    // clod, clump: a lump, a little blurred
       if (puff) {
         // the ellipsoid's outline: its height along the world's up as the eye sees it, its width across (seen from above: round)
@@ -752,7 +757,11 @@
         float mean = (A.r + A.g + A.b + B.r + B.g + B.b) / 6.0;
         float sky = 0.5 * six(uq, A, B) + 0.5 * mean, gnd = six(-uq, A, B);
         col = vCol * (uSunCol * sun * vSh.x * 1.6 + uSkyCol * sky * vSh.y * 1.3 + uGndCol * gnd * 0.5) / 3.14159265;
-        col *= mix(vec3(1.0), mix(vec3(0.86, 0.93, 1.07), vec3(1.0), clamp(sun * vSh.x * 1.4, 0.0, 1.0)), vSnow);   // snow's shade is blue (the sky's light in it)
+        // SNOW-MUD: SNOW IS A NEAR-LOSSLESS SCATTERER (single-scattering albedo ~1): the light that enters a snow cloud leaves it
+        // everywhere - a multiple-scattering FILL (the sun's share the six-way bake's single scattering misses), then a faint
+        // blue in what the sun does not reach (the sky's light in the shade). The stills of 13 Nov drew a dark slate cloud backlit
+        col += vSnow * vCol * uSunCol * (0.35 + 0.4 * mean) * (0.6 + 0.4 * vSh.x) / 3.14159265;
+        col *= mix(vec3(1.0), mix(vec3(0.92, 0.96, 1.05), vec3(1.0), clamp(sun * vSh.x * 1.4, 0.0, 1.0)), vSnow);
       } else if (kind > 0.5 && kind < 1.5) {
         // THE PUFF: a sphere's column, torn by the billow (two taps of the baked noise: density r, its normal gb)
         vec2 o = vec2(seed * 7.13, seed * 3.71) + vec2(age * 0.06, -age * 0.09);
@@ -796,10 +805,12 @@
         float wet = 1.0 - smoothstep(0.0, uSplatDry, age);
         vec3 N = normalize(vUpV + vec3(texture2D(uNoise, q * 0.6 + seed).gb * 2.0 - 1.0, 0.0) * 0.25);
         float ndl = max(0.0, dot(N, uSunV));
-        col = vCol * mix(1.12, 0.78, wet) * (uSunCol * (0.2 + 0.8 * ndl) + uSkyCol) / 3.14159265;
+        vec3 sc = vCi < 7.5 ? mix(vec3(dot(vCol, vec3(0.2126, 0.7152, 0.0722))), vCol, 0.6) * 0.65 : vCol;
+        col = sc * mix(1.12, 0.78, wet) * (uSunCol * (0.2 + 0.8 * ndl) + uSkyCol) / 3.14159265;
         col += uSunCol * pow(max(0.0, dot(N, normalize(uSunV + vec3(0.0, 0.0, 1.0)))), 48.0) * 0.35 * wet;   // the wet gloss
       } else if (vCi > 4.5 && kind > 1.5) {
         // SNOW-MUD: THE THROWN KINDS (the soft classes; the dust's grit and wet-dirt mud keep their own line below)
+        vec3 mudC = vCi < 5.5 ? mix(vec3(dot(vCol, vec3(0.2126, 0.7152, 0.0722))), vCol, 0.6) * 0.6 : vCol;   // (the stills, 13 Nov: lit orange by a low sun, the clods read as embers - wet mud is darker and duller)
         float n1 = texture2D(uNoise, vUv * 0.5 + vec2(seed * 9.1, seed * 4.7) + age * 0.15).r;
         float h1 = hsh(vec2(seed, 1.7)), h2 = hsh(vec2(seed, 5.3));
         float life = 1.0 - smoothstep(0.75, 1.0, age);
@@ -817,10 +828,11 @@
           col = vCol * (uSunCol * (0.15 + 0.85 * ndl) + uSkyCol * vec3(0.9, 0.97, 1.1)) / 3.14159265;
         } else if (kind > 4.5) {
           // DROP: mud / slush water - the spray's streaked speck, dark and glossy (a glint toward the sun)
-          a = smoothstep(1.0, 0.35, d2) * 0.85 * vK * life;
+          float tn = texture2D(uNoise, vUv * 0.7 + vec2(seed * 6.1, seed * 2.3)).r;   // a cluster, not a disc: torn
+          a = smoothstep(1.0, 0.2, d2) * smoothstep(0.2, 0.6, tn + 0.35 * (1.0 - d2)) * 0.8 * vK * life;
           float ndl = dot(Ns, uSunV) * 0.5 + 0.5;
-          col = vCol * (0.65 + 0.3 * h1) * (uSunCol * (0.2 + 0.8 * ndl) + uSkyCol) / 3.14159265;
-          col += uSunCol * pow(max(0.0, dot(Ns, normalize(uSunV + vec3(0.0, 0.0, 1.0)))), 20.0) * 0.3;
+          col = mudC * (0.45 + 0.3 * h1) * (uSunCol * (0.15 + 0.85 * ndl) + uSkyCol * 0.8) / 3.14159265;
+          col += uSunCol * pow(max(0.0, dot(Ns, normalize(uSunV + vec3(0.0, 0.0, 1.0)))), 40.0) * 0.08;   // a small wet glint, no sheen   // the wet sheen: the sky at its rim, the sun's glint
         } else {
           // CLOD: a tumbling lump - torn outline, a bumpy lit body, its own shade of mud (dry crumbly to wet glossy)
           float spin = (h1 - 0.5) * 18.0 * age, cs = cos(spin), sn = sin(spin);
@@ -830,7 +842,7 @@
           a = smoothstep(lump, lump - 0.2, d2) * 0.95 * vK * life;
           vec3 N = normalize(Ns + vec3(nb.gb * 2.0 - 1.0, 0.0) * 0.8);
           float ndl = dot(N, uSunV) * 0.5 + 0.5;
-          col = vCol * (0.7 + 0.6 * h2) * (uSunCol * (0.12 + 0.88 * ndl * ndl) + uSkyCol * 0.9) / 3.14159265;
+          col = mudC * (0.7 + 0.6 * h2) * (uSunCol * (0.12 + 0.88 * ndl * ndl) + uSkyCol * 0.9) / 3.14159265;
           col += uSunCol * pow(max(0.0, dot(N, normalize(uSunV + vec3(0.0, 0.0, 1.0)))), 30.0) * 0.25 * step(0.5, h1);   // the wet ones glint
         }
       } else {
@@ -1086,7 +1098,8 @@
               if (t1 > 0) { const q = (d2 - t1 * t1) / rho2; if (q < 6) ts += P.tau[j] * Math.exp(-q); }
               if (dy > 0) { const q = (d2 - dy * dy) / rho2; if (q < 6) tu += P.tau[j] * Math.exp(-q); }
             }
-            SH[i * 2] = Math.exp(-0.9 * ts); SH[i * 2 + 1] = Math.exp(-0.5 * tu);
+            const ks = P.cls[i] === 6 || P.cls[i] === 7 ? 0.3 : 1;   // (SNOW-MUD: ice scatters, it hardly absorbs - the light the cloud takes from one puff it gives to the next)
+            SH[i * 2] = Math.exp(-0.9 * ts * ks); SH[i * 2 + 1] = Math.exp(-0.5 * tu * ks);
           }
         }
         // write the instances, far first
