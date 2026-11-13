@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 2ae6579dd13a5595
+// body-sha256: 873de818fc0f2629
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -54858,7 +54858,10 @@ function playerRestoreState(doc, id, now) {
   if (!P) return null;
   const stage = restoreStage(doc, id), s = doc.sheds[id], t = restoreNow(doc, now);
   const step = RESTORE_STEPS.find(x => x.to === stage + 1) || null;
-  const aero = s.base || id, plotP = plotPrice(aero, id, s.shell);
+  // the price paid for the plot, on the hangar's own record (playerAcquire); the price book only when an older record has
+  // none (the sandbox page loads no economy - 76_economy's econShellPrice is the career's lazy pack: the page check, 13 Nov)
+  let plotP = Number.isFinite(s.price) ? s.price : 0;
+  if (!plotP) try { plotP = plotPrice(s.base || id, id, s.shell) || 0; } catch (e) { plotP = 0; }
   const next = step ? { to: step.to, word: RESTORE_WORDS[step.to], price: Math.round((plotP || 0) * step.share), days: step.days, what: step.what } : null;
   const w = s.restore && Number.isFinite(s.restore.until) ? s.restore : null;
   const works = w ? { to: w.to, word: RESTORE_WORDS[w.to] || '', until: w.until, left: Math.max(0, w.until - t) } : null;
