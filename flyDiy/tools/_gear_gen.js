@@ -2606,7 +2606,7 @@ const SKI_GEO = { skinT: 0.009, flange: 0.022, rim: 0.035, hf: 0.007, deckH: 0.0
 function ski(bags, axle, o) {
   const G = SKI_GEO, CP = typeof skiPlan === 'function' ? skiPlan : (window && window.skiPlan);
   const P = CP({ L: o.L, W: o.W, skin: o.skin, skinL: o.skinL, at: o.at, beam: o.third ? 1 : o.beam, notchAt: o.notchAt, tip: o.tip,
-                 bT: o.third ? null : o.bT });
+                 bT: o.third ? null : o.bT, R: o.third ? 0 : o.R, prot: o.third || o.kind === 'plain' ? null : o.prot });
   const out = o.out || 1, kS = Math.max(0.6, Math.min(1.8, o.W / 0.457));
   // the ski's lateral place: the wheel in the cutout (its tyre's centre wTyre off the shell's centreline), or - a plain
   // ski, a tail ski - the pedestal (the beam's centre) under the axle
@@ -2654,7 +2654,7 @@ function ski(bags, axle, o) {
   const loftOn = (bag, ...a) => { curBag = tap(bag); loft(curBag, ...a); };
   // ---- the heights
   const up = P.up, sT = P.sT, sN = P.sN, tN = P.tN;
-  const Hd = G.deckH * kS, Hp = Hd * (o.third ? 0.9 : 1.25), Hh = Hd * 0.45, hf = G.hf, fw = G.flange * kS, rim = G.rim * kS;
+  const Hd = P.deckH || G.deckH * kS, Hp = Hd * (o.third ? 0.9 : 1.25), Hh = Hd * 0.45, hf = G.hf, fw = G.flange * kS, rim = G.rim * kS;
   const ridge = s => s < 0 ? Hh + (Hp - Hh) * sm((s - P.sHeel) / (0 - P.sHeel)) : Hp + (Hd - Hp) * sm(s / Math.max(0.05, sN - 0));
   const shellT = (s, w, wi, wo) => {
     const half = Math.max(1e-6, (wo - wi) / 2), u = Math.abs(w - (wi + wo) / 2) / half;
@@ -2666,8 +2666,8 @@ function ski(bags, axle, o) {
     return T;
   };
   const shellH = (s, w, wi, wo) => { const d = Math.min(w - wi, wo - w, s - P.sHeel); const e = sm((d - fw) / rim); return hf + (shellT(s, w, wi, wo) - hf) * e; };
-  const skinY = (s) => yB0 + up(s), shellY = (s) => yB0 + up(s) + G.skinT;
-  const skinH = (s, w, wi, wo) => { const d = Math.min(w - wi, wo - w); return G.skinT * (0.55 + 0.45 * sm(d / 0.01)); };
+  const skinT = P.skinT || G.skinT, skinY = (s) => yB0 + up(s), shellY = (s) => yB0 + up(s) + skinT;
+  const skinH = (s, w, wi, wo) => { const d = Math.min(w - wi, wo - w); return skinT * (0.55 + 0.45 * sm(d / 0.01)); };
   // the tail ski's slot (its wheel through it): the plank in four pieces round it
   const slot = o.third && o.kind !== 'plain' ? { L: 2 * Math.sqrt(Math.max(0, 2 * o.R * (o.prot + 0.04))) + 0.05, W: o.bT + 0.035 } : null;
   const pieces = (edgesFn, s0, s1) => {
@@ -2779,7 +2779,7 @@ function ski(bags, axle, o) {
       sweep(bags.alloy, [a, lerp3(a, b, 0.5), b], () => secBlade(0.024, 0.005, 2), true, [1, 0, 0]);
     }
   }
-  return { yBottom: yB0, plan: { L: P.L, W: P.W, A: P.Ab }, fittings: { toe: fitPts.toe, heel: fitPts.heel }, slot, xc, wAx };
+  return { yBottom: yB0, plan: { L: P.L, W: P.W, A: P.Ab, notchAt: (P.sToe - P.sN) / P.L, wTyre: P.wTyre }, fittings: { toe: fitPts.toe, heel: fitPts.heel }, slot, xc, wAx };
 }
 
 // SKIS: A RIGGING RUN from the airframe's fitting (a) to the ski's lug (b): the cable (a swaged eye each end), and on the

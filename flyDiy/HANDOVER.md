@@ -315306,3 +315306,11 @@ reports/evidence/SKIS/README.md.
 - Rigs drop the aeroplane level from reset; the game stands it in three-point first (sim.stance()): a tail ski on a
   marginal tail (FIT-PROCEDURE's PC-6 card: its aft belly 1 cm off the ground) can settle on its belly after the drop.
   The ski rigs and GATE SKIS take the stance, as the game does.
+- THE CUTOUT IS THE TYRE'S (the user: "the wheel has to be able to go down through the little opening"): skiPlan
+  starts the cutout forward of the axle by the tyre's chord at the deck's and the skins' top at its lowest (skis up)
+  + 3 cm + the fillet, the tyre's inner wall 15 mm off the beam's skins, the tyre's width the drawn carcass's
+  (skiTyreW); GATE SKIS 4 walks the tyre through every height. The Carbon Cub's SS2300s are WHEEL-SKIS (gearSki 3).
+- THE CONTROLS: input action `ski` (key 0; under the AP too, the gear key's rule); the dashboard's selector in the
+  switch row (_panel_gen skiSwitch, _cage_panel skiSelAt, law 'ski' in cockpit.js, clickable); unset = the surface's.
+- THE LOAD DOOR AND THE POD: tools/_load_build.js now hands the spec to the pod layer (CAGE_POD.fromSpec) where the
+  page's applySpec does - every headless look (quick_view, quickshot, the gates' scenes) drew no belly pod before.

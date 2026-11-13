@@ -300,6 +300,7 @@
   // steps - and the hand's write before EVERY step put its own brake back, so a parked aeroplane flown by hand rolled
   // (inline and in the worker alike). The hand's write reads the knob now, as a floor on both mains
   if (INP && INP.parkFrom) INP.parkFrom(() => !!(CK && CK.park));
+  if (INP && INP.skiFrom) INP.skiFrom(() => (sim && sim.out && typeof sim.out.ski === 'number') ? sim.out.ski : null);   // SKIS
   const scene = new THREE.Scene();
 
   // THE FAR PLANE (G401, the user: "it is unacceptable that a mountain disappears
@@ -8950,9 +8951,18 @@
     }
     gearHandSeen = h;
   }
+  // SKIS: THE WHEEL-SKIS' KEY UNDER THE AUTOPILOT - the same rule as the gear's: a press flips them from where they are
+  let skiHandSeen = null;
+  function skiKeyUnderAP() {
+    if (manual || !INP || typeof INP.ski !== 'function' || !sim.ctl || !('ski' in sim.ctl)) { skiHandSeen = null; return; }
+    const h = INP.ski();
+    if (skiHandSeen !== null && h !== skiHandSeen) sim.ctl.ski = h === null ? null : h;
+    skiHandSeen = h;
+  }
   function scriptView(dt) {
     if (!started) { setRail(null); return; }
     gearKeyUnderAP();
+    skiKeyUnderAP();
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);

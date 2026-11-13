@@ -81,7 +81,10 @@ const SKI_RULES = {
   tipK: 0.045,         // the toe's upturn, x L (the SS2300's ~9 cm; light skis 4-8 in over the last 12-18 in)
   tipRun: 0.16,        // the upturn's run, x L
   heelR: 0.03,         // m: the heel's corner radii
-  gap: 0.012,          // m: the tyre's sidewall off the beam's edge in the cutout
+  gap: 0.015,          // m: the tyre's sidewall off the beam's skin in the cutout
+  clr: 0.03,           // m: the tyre's tread off the cutout's face, at its lowest through the ski
+  deckH: 0.075,        // m: the deck's height over the skins at the reference's width (the drawing's; it scales with W)
+  skinT: 0.009,        // m: the bottom skins' thickness
   inc: 3,              // deg: the rigged flight incidence (the aft check cable; +1..+6, AC 43.13-2B 0..+5)
   droop: -20,          // deg: the safety cable's stop (AC 43.13-2B -20..-35; TC AC 500-010 -15 in flight)
   prot: 0.03,          // m: the tyre below the ski's sole beside it (the SS2300 set for its 8.50x6: a hand's width under 2 in; the
@@ -113,6 +116,13 @@ const SKI_RULES = {
   tyreW: 0.62,         // a tyre's width over its radius (the tyre element's footprint; a 31" tundra ~0.3 m on 0.39)
 };
 
+// THE TYRE'S WIDTH as drawn (tools/_gear_gen.js TYRE: the carcass's half-width over R - standard 0.40, tundra 0.44,
+// slim 0.29 - its bulge to 1.04, the cage's whBulge): the cutout and the tyre element take the drawn tyre, not a rule
+function skiTyreW(R, cage) {
+  const prof = Math.round(+((cage && cage.whProfile) || 0)), hw = prof === 1 ? 0.44 : prof === 2 ? 0.29 : 0.40;
+  const bulge = cage && cage.whBulge != null ? Math.max(0.5, +cage.whBulge) : 1;
+  return 2 * hw * 1.04 * R * (prof === 1 ? 1 : bulge);
+}
 // THE PLANFORM - one function the drawing and the physics share (what is drawn is what bears). o: { L, W (the shell),
 // skin, skinL (the bottom skins' margin, sides and ends), at (the axle from the toe, x L), beam (the aft beam's share of
 // W, inboard; 1 = no cutout, a straight plank), notchAt (the cutout's start from the toe, x L), tip (the upturn, m) }.
@@ -122,7 +132,16 @@ function skiPlan(o) {
   const R = SKI_RULES, L = o.L, W = o.W, m = o.skin != null ? o.skin : 0, mL = o.skinL != null ? o.skinL : 0;
   const at = o.at != null ? o.at : R.at, beam = o.beam != null ? Math.max(0.3, Math.min(1, o.beam)) : 1;
   const sToe = at * L, sHeel = -(1 - at) * L, bE = -W / 2 + beam * W, notch = beam < 0.999;
-  const sN = sToe - (o.notchAt != null ? o.notchAt : R.notchAt) * L, tN = Math.min(0.18, 0.4 * W);
+  const tN = Math.min(0.10, 0.22 * W);
+  // THE CUTOUT IS THE TYRE'S (the user, 13 Nov: "the wheel has to be able to go down through the little opening"): the
+  // wheel-ski moves the ski past its tyre (up: the tyre `prot` under the sole; down: the ski under the tyre), so the
+  // opening must take the tyre at its lowest through the ski - its chord at the deck's top and at the skins' top, a
+  // clearance, the fillet - forward of the axle; the row's start holds when it is further forward already
+  const chord = d => d <= 0 ? 0 : d >= o.R ? o.R : Math.sqrt(2 * o.R * d - d * d);
+  const m0 = o.skin != null ? o.skin : 0, kS0 = Math.max(0.6, Math.min(1.8, W / 0.457));
+  const need = (notch && o.R > 0 && o.prot != null) ? Math.max(chord(o.prot + R.skinT + R.deckH * kS0) + R.clr + tN,
+                                                                chord(o.prot + R.skinT) + R.clr + tN + m0) : 0;
+  const sN = Math.max(sToe - (o.notchAt != null ? o.notchAt : R.notchAt) * L, Math.min(need, sToe - 0.25 * L));
   const sm = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
   const mk = (Wd, sT, sH, bEd, sNd) => (s, out) => {
     let wi = -Wd / 2, wo = notch ? Wd / 2 + (bEd - Wd / 2) * sm((sNd - s) / tN) : Wd / 2;
@@ -143,7 +162,8 @@ function skiPlan(o) {
     const w = q[1] - q[0]; A += w * ds; Ab += w * ds * (s < sT ? 1 : 1 - (s - sT) / (s1 - sT));
   }
   return { L, W, m, mL, at, beam, notch, sToe, sHeel, sN, tN, bE, wc: -W / 2 + beam * W / 2, tip, sT,
-           wTyre: o.bT != null ? bE + o.bT / 2 + R.gap : 0, body, skin, up, A, Ab, Wmax: W + 2 * m, Lmax: L + 2 * mL };
+           wTyre: o.bT != null ? bE + m + o.bT / 2 + R.gap : 0, body, skin, up, A, Ab, Wmax: W + 2 * m, Lmax: L + 2 * mL,
+           deckH: R.deckH * kS0, skinT: R.skinT, need };
 }
 // the carbon shell's areal mass, solved so the SS2300 (a penetration ski) weighs its 27 lb with rigging
 (() => { const R = SKI_RULES, P = skiPlan(Object.assign({ beam: R.beam, notchAt: R.notchAt, at: R.at }, R.ref));
@@ -183,14 +203,15 @@ function skiResolve(S, gross) {
   const plan = (o, third, k) => skiPlan({ L: o.L > 0 ? o.L : (third ? 0.55 : R.ref.L * k), W: o.W > 0 ? o.W : (third ? 0.55 / R.aspectThird : R.ref.W * k),
     skin: o.skin != null ? o.skin : (third ? 0.02 : R.ref.skin * Math.min(1.5, k)), skinL: o.skinL != null ? o.skinL : (third ? 0.01 : R.ref.skinL * Math.min(1.5, k)),
     at: o.at != null ? o.at : (third ? 0.55 : R.at), beam: third ? 1 : (o.beam != null ? o.beam : R.beam),
-    notchAt: o.notchAt != null ? o.notchAt : R.notchAt, tip: o.tip, bT: third ? 0 : R.tyreW * wR });
+    notchAt: o.notchAt != null ? o.notchAt : R.notchAt, tip: o.tip, bT: third ? null : skiTyreW(wR, S.cage),
+    R: third ? 0 : wR, prot: third ? null : (kind === 'plain' ? null : (K.prot != null ? K.prot : R.prot)) });
   const unit = (P, k, third) => ({ L: P.L, W: P.W, Wmax: P.Wmax, Lmax: P.Lmax, tip: P.tip, at: P.at, A: P.Ab, Aplan: P.A, beam: P.beam,
     notchAt: (P.sToe - P.sN) / P.L, skin: P.m, skinL: P.mL, wTyre: P.wTyre, wc: P.wc, kind: k, third });
   const M = unit(plan(K, false, kM), kind, false);
   M.ped = kind === 'plain' ? (K.ped > 0 ? K.ped : wR) : wR;
   M.prot = kind === 'plain' ? 0 : (K.prot != null ? K.prot : R.prot);
   M.drop = kind === 'retract' ? (K.drop != null ? K.drop : R.drop) : 0;
-  M.bT = R.tyreW * wR;
+  M.bT = skiTyreW(wR, S.cage);
   let T = null;
   if (K.third && typeof K.third === 'object') {
     // the tail / nose ski: a straight plank (no cutout: its wheel runs through it), sized for its share when unsized

@@ -591,6 +591,7 @@ function layoutCore(A, o, flexRow, glass) {
   for (const k of (o.extLights || [])) sw.push({ k, kind: o.swStyle === 'pushpull' ? 'pushpull' : 'toggle', light: true });   // G371
   for (const k of (o.intLights || [])) sw.push({ k, kind: 'knob', light: true });
   if (o.flapSwitch) sw.push({ k: 'flap', kind: 'flap' });     // G335: at the row's right end, a Cessna's
+  if (o.skiSwitch) sw.push({ k: 'ski', kind: 'ski' });        // SKIS: the wheel-skis' selector (a wheel-ski build's only)
   // the row's room at a height: the plate's width there less the keep-outs
   // (G442.1) and, on the flexible row, less every dial whose own switch
   // room or face covers that height - its free runs of switch centres

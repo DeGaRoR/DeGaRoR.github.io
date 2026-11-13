@@ -693,7 +693,7 @@ const AERO_HARD = {
            ball: 'plastic', plate: 'plasticGrn', lever: 'chrome', knob: 'plasticGrn',
            rocker: 'plasticScr', key: 'chrome', barrel: 'chrome', bowl: 'plasticWorn',
            // the hardware kit's flat materials (the panel arc, session 4c)
-           grip: 'plasticGrn', cap: 'plasticScr', amber: 'plastic',
+           grip: 'plasticGrn', cap: 'plasticScr', amber: 'plastic', green: 'plastic',   // (SKIS: the selector's DOWN lens)
            // session 4d: the bats and the lock are plated, the screws steel
            screw: 'steelTube',
            face: null },

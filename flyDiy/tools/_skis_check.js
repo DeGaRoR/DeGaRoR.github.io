@@ -153,11 +153,25 @@ async function main() {
     const a = ccSpec.gear.ski, b = pcSpec.gear.ski;
     const rows = c => JSON.parse(fs.readFileSync(path.join(ROOT, c), 'utf8')).spec.cage;
     const rc = rows(CC_CARD), rp = rows(PC6_CARD);
-    ok(a && a.kind === 'wheel' && a.L === rc.skiL && a.W === rc.skiW && a.skin === 0.051 && a.beam === 0.57 && a.notchAt === 0.49 && a.prot > 0 && a.third && a.third.L === rc.skiTL && a.third.W === rc.skiTW,
-       'the Carbon Cub: the SS2300 as drawn - the wheel in its cutout (' + JSON.stringify(a) + ')');
-    const ss = defOf(ccSpec).parts.ski.mains;
-    ok(Math.abs(ss.kg - C.SKI_RULES.refKg) < 0.02 && Math.abs(ss.Aplan / C.skiPlan(Object.assign({ beam: 0.57, notchAt: 0.49, at: 0.585 }, C.SKI_RULES.ref)).A - 1) < 0.002,
-       `the SS2300 flies at its own figures: ${ss.kg.toFixed(2)} kg a ski with rigging (27 lb), ${ss.Aplan.toFixed(3)} m2 of skins, ${ss.A.toFixed(3)} m2 bearing`);
+    ok(a && a.kind === 'retract' && a.L === rc.skiL && a.W === rc.skiW && a.skin === 0.051 && a.beam === 0.57 && a.prot > 0 && a.drop > 0 && a.third && a.third.L === rc.skiTL && a.third.W === rc.skiTW,
+       'the Carbon Cub: the SS2300 as drawn, a wheel-ski - its tyre through the cutout (' + JSON.stringify(a) + ')');
+    // THE TYRE GOES THROUGH THE CUTOUT, IT DOES NOT CLIP (the user, 13 Nov): at its lowest (the skis up: the tyre `prot`
+    // under the sole) the tyre's chord at every height through the skins and the shell, against the outline beside it -
+    // the skins' (to their top) and the shell's (to the deck's top) outboard edge stands inboard of the tyre's inner wall
+    for (const [nm, sp] of [['the Carbon Cub', ccSpec], ['the PC-6', pcSpec]]) {
+      const U = defOf(sp).parts.ski.mains, R = sp.gear.wheelR, bT = C.skiTyreW(R, sp.cage);
+      const Pn = C.skiPlan({ L: U.L, W: U.W, skin: U.skin, skinL: U.skinL, at: U.at, beam: U.beam, notchAt: U.notchAt, tip: U.tip, bT, R, prot: U.prot });
+      const inner = Pn.wTyre - bT / 2, e = [0, 0];
+      let worst = Infinity;
+      for (let h = 0.0005; h <= Pn.skinT + Pn.deckH; h += 0.002) {
+        const d = U.prot + h, hc = d >= R ? R : Math.sqrt(2 * R * d - d * d);
+        for (let k = 0; k <= 60; k++) { const s0 = -hc + 2 * hc * k / 60; (h <= Pn.skinT ? Pn.skin : Pn.body)(s0, e); worst = Math.min(worst, inner - e[1]); }
+      }
+      ok(worst > 0, `${nm}: the tyre (${(2 * R).toFixed(2)} x ${bT.toFixed(2)} m) passes the cutout at its lowest with ${(100 * worst).toFixed(1)} cm to the outline (the cutout from ${(100 * (Pn.sToe - Pn.sN) / Pn.L).toFixed(0)} % of the length, the tyre ${Pn.wTyre.toFixed(3)} m off the shell's centreline)`);
+    }
+    const ss = defOf(ccSpec).parts.ski.mains, RS = C.SKI_RULES, Aref = C.skiPlan(Object.assign({ beam: RS.beam, notchAt: RS.notchAt, at: RS.at }, RS.ref)).A;
+    ok(Math.abs(RS.kgRig + RS.kgK.wheel * (RS.mats.carbon.k0 + RS.mats.carbon.kA * Aref) - RS.refKg) < 1e-9 && ss.kg > RS.refKg,
+       `the SS2300 weighs its 27 lb with rigging on its own outline (${Aref.toFixed(3)} m2 of skins, fixed beside its wheel); as the Cub's wheel-ski (its slide and jack, the cutout grown for the 31" tyre: ${ss.Aplan.toFixed(3)} m2) ${ss.kg.toFixed(2)} kg a ski`);
     ok(b && b.kind === 'retract' && b.L === rp.skiL && b.W === rp.skiW && b.prot > 0 && b.drop > 0 && b.third && b.third.L === rp.skiTL && b.third.prot > 0,
        'the PC-6: a wheel-ski as drawn, its tail ski through its wheel (' + JSON.stringify(b) + ')');
     const dc = defOf(ccSpec);
