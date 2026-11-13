@@ -315264,3 +315264,76 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+
+## DOCKS-LODGE (13 Nov, cloud DOCKS-LODGE for A0; branch claude/docks-lodge-1 off claude/stand-pad bf7e8613): A DOCK PER WATER BASE, THE FLOATPLANE TIED AT IT, AND A NEW LODGE ON THE SEA (HOOK LAGOON, STAGED 0-4)
+The user, 13 Nov: "very important; floatplanes have nowhere to go, not even a base, they spawn in the middle of the water"; and a
+brand-new lodge "on the sea, in a bay, a nice place for a lodge, preferably far from Jolene AFB" (not at Cabin Lake).
+- THE DOCK (27_premises.js THE DOCKS): a water lane's runway entry carries `docks: [{ id, x, z, hdg, len?, kind?: 'float' |
+  'fixed', side?: 1 | -1, gap?, ties?: [s..], draw?: false, approach?: [[x, z]..] }]` (premises frame; x, z the shore end, hdg
+  shore -> head). Compose (the lane branch) derives `site.docks` in the world: the tie spots (DOCK_TIE.off 3.4 m off the axis on
+  `side`, nose toward the head, every `gap` 14 m from 5 m in from the head, or the hand `ties` stations), the deck level (water +
+  DOCK_DECK: 0.35 floating, 1.2 fixed), each tie's way out (the tie, 18 m past the head, the authored points, the lane's
+  centreline - the last point ON it, the land stand's taxiOut rule), and the pier's modules: the house pier's baked kit
+  (pier_deck planks floating; pier_run + pier_head on piles fixed) stood as derived props in O.records.objects (y = the deck's,
+  `on: 'water'`, `dock: '<lane>:<dock>'`) - instanced, their LODs, no new mesh. `draw: false` = the scenery already stands the
+  dock (a marine/seaplane float item): ties and way out only. checks(): "runway X: n docks, n tie spots afloat, every way out
+  clear to the lane" (dockWater: head over water, every tie in 1 m, every way out over 1 m all along with 7.5 m of water either
+  side - a 15 m span's half - and clear of the other docks; the depth is the WORLD's water over its bed where it has both: a
+  lake composes its ground AT the surface). A lane's dock never reaches standPadOf (lanes skip it: STAND-PAD-SHAPES §1).
+- THE BASES (tools/fixtures/island_jolene.json + scenery_ship_afb19.json fieldPatches, so the user-save row 15 holds): Greywater
+  (SEA) a new fixed pier (32 m, 2 ties) off the shore east of the slip, way out NNE to the lane's NE end; Cedar Harbour (mk_sea)
+  the scenery's own seaplane float at the end of the trestle (mk_mf_air, draw false, 1 tie at 15 m: the -z side, clear of its
+  fingers), way out SE to the lane; Cabin Lake (cb_sea) the scenery's own float s37 (draw false, 1 tie); Hook Lagoon (lg_sea,
+  the lodge's) a fixed pier in the lagoon with its way out down the lagoon's channel (10 points). FOUND, NOT A BASE: a third
+  marine seaplane float (s29, -4778,-23149) at the north channel's community - no water lane there (a lane would make it one:
+  the Game coordinator's call). The first try at Cedar Harbour put a dock inside the breakwater basin: the way out met the
+  mole (GATE DOCKS 4 keeps that doctored dock red).
+- THE START (app.js applyRoute's hydro branch, STAND-PAD-SHAPES §3's plug): dockStart(sea) - the lane's first FREE tie by the
+  start chain's own test (START_FREE_R, FLEET_STAND's plan at the field, the site's parked) -> placeAtStand at the tie (the
+  lane's level), else the lane's spawn as before. ONLY WHEN SOMEONE CAN TAXI IT OFF: the pilot advertises a water taxi
+  (`ap.waterTaxi`, the Pilot coordinator's fix - it is then handed the dock as its site: ap.departFrom(lane, to, { stand: tie,
+  taxiOut: the way out, water: true, dock, tie })) or the player flies by hand (`manual`); `?dockstart=1` forces it. The pilot
+  today has no water taxi and opens the throttle where it stands (ROLL): under the autopilot the start stays on the lane.
+  window.FLYDIY_START_WHY() says 'dock' | 'lane-no-water-taxi' | 'no-dock' | 'dock-busy'; window.FLYDIY_DOCK_START() the tie.
+  WHAT THE PILOT NEEDS (43_pilot.js not touched): (1) `ap.waterTaxi = true`; (2) departFrom with a site whose `water` is true:
+  follow taxiOut on the water (water rudders down, ~3-5 m/s, no brakes, the float's wide turns), at the centreline turn to the
+  take-off direction and ROLL - the join is mid-lane, so taxi on to the end with the most water ahead or decide the run fits;
+  (3) the arrival's twin of TAXI-HOME: setArriveSite(lane, dockSite) -> taxi to the join, the way back reversed, cut the engine
+  ~30 m out and drift alongside the tie. CAVEAT: the autopilot switched on while tied at the dock starts its ROLL there.
+- THE EDITOR (premises_ui.js / render_premises.js): the AIRFIELD tool "a dock (floatplanes)" (a click by a shore near a water
+  lane: a floating dock on the nearest shore, pointing at the lane); a water lane's inspector lists its docks (kind, shore x/z,
+  heading, length, side, the hand stations or the spacing, "the scenery stands it", the way points, what the composition made);
+  three discs - the shore end (moves the dock, its way points stay), the head (turns and stretches it), a way point; clicking a
+  dock selects its lane (onDock, in the pick and the cycle).
+- THE LODGE: HOOK LAGOON (track `lodge`, max 4, 72_contract_data CONTRACT_TRACKS + four STAGE_REVEALS + placeholder captions -
+  the Game coordinator writes the story and the names). The survey (the game's own terrain: a 100 m coastal sweep scoring
+  shelter by 24 rays to 4 km, a 1.2 km lane of 2.5 m water, the flat ground for a 900-1200 m strip within 2.5 km, the
+  distances), the three candidates:
+  1 HOOK LAGOON, the NE coast (picked): a lagoon behind a hooked spit (4550..5300, -19950..-19480) opening SE into a bay; the
+    dock in its inner basin (water on every side; the spit shelters it from the north sea), the lane in the bay (6300,-19450,
+    E-W, 1400 x 150 m over 5 m of water, its west end 150 m off the lagoon's mouth), a 1000 m strip at 0.3 % on the flats 350 m
+    above the lodge (elev 26 m, mean cut 0.7 m, worst 2 m), mountains behind; 20.4 km from Jolene AFB, 4.5 km from the Cabin
+    Strip across a ridge (another valley, another coast).
+  2 THE WEST BAY behind the SW hook (-6000..-4000, -15000..-13500): as sheltered (1.0), a 1350 m lane, 15 km from the AFB - but
+    no strip near the water: the best 1000 m line is 2 km off, 130 m up the hill (mean cut 1.1 m, worst 4.3 m).
+  3 THE NW COVE behind a small point (-9100,-21500): the farthest (23 km), flat land galore (900 m at 1.6 % 700 m from the cove)
+    - but open to the Pacific westerlies (its shelter is offshore islets: fetch 570 m) and a road already runs that coast.
+  Ruled out: the north channel (the island's calmest water) is the Old / New Community and the ferry terminal; the fjord
+  (-2000..-1300, -21500..-18300) is narrow, with Mountainside Strip at its head 3 km from Cabin Lake.
+  THE STAGES (stageView): 0 the bare shore; 1 the lane lg_sea and its pier, the lodge's lumber on its plot (kit 'build'
+  lg_k_lodge, its clearing); 2 the lodge - site lg_s_lodge: the main house (house/log cabin, 15 x 8.5 m, two storeys), three
+  log cabins, the boathouse (house/net loft, on piles at the waterline), a woodshed, an outhouse; the fire pit, two picnic
+  tables, two boats on the shore; the trees cleared by an exclude (TREES ONLY BY THE TREE SYSTEM: no mesh tree); 3 a short muddy
+  strip lg_strip (vary: 380 m x 12, soft - surface grass - its look dirt, wet 0.55) at the east end of the long line, and the
+  gravel track up from the lodge (lg_r_track); 4 the long strip (1000 m x 18 of gravel). The strip's stand and entry are the
+  same at 3 and 4 (the short strip is the long one's east end). WHERE, FOR THE USER TO MOVE: the lane's centre (6300, -19450),
+  the dock's shore end (4744.1, -19925.4), the lodge's site (4600, -19940), the strip's centre (4250, -20450) heading 20 deg.
+  The project node (claude/mission-packs) writes career.sites[site.id] = state; the stage law reads tracks.lodge - a step's
+  site { id: 'lodge', state: n } wants a line that moves tracks.lodge with it (or the step's unlock 'lodge:n'): theirs.
+- GATES: GATE DOCKS (new, core, ~40 s; tools/_docks_check.js): 1 the shape (13 doctored docks refused by name), 2 a dock per
+  water base (the scenery's floats where they stand), 3 the ties, 4 the water (three doctored docks red: through the
+  breakwater, turned ashore, across the real dock), 5 the pier (DOCK_KIT = PIER_KIT, a continuous deck, the props), 6 the start
+  (the twin on floats tied at three docks stays put afloat; the hydro branch's source rows), 7 the editor, 8 the lodge's five
+  stages. The premises re-cooked (premises_cook --island jolene: the lodge's cells, Greywater's dock cell, and East Point's
+  cell r_39_m46 - East Point's automatic stand pad: claude/stand-pad changed the composition with no re-cook). The plan: reports/evidence/DOCKS-LODGE/
+  lodge_plan.png (off the composed data; the headless SwiftShader page showed only the far terrain - no in-game still yet).
