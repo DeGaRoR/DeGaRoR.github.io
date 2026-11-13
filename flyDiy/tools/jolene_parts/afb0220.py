@@ -173,12 +173,13 @@ for k in range(26):
     lu, lv = 2.5 + 5.0 * h01(k, 133), 1.8 + 2.4 * h01(k, 134)
     AREAS.append(area('remnant%d' % k, rect(u, v, lu, lv, (h01(k, 135) - 0.5) * 0.5), draw={'look': 'worn', 'band': 0, 'z': 3, 'yaw': round(HDG + (h01(k, 135) - 0.5) * 0.5, 4)}))
 # THE SIDES, MUD: the west playground's floor soft mud (the wheels go in: a crash playground's ground) from the old band's edge
-# out to 18-30 m; the east verges where the lane is not firm mud
+# out to 18-30 m; the east verges where the lane is not firm mud - stopping 60 m short of the lane's ends, whose overruns are
+# the ground as it lies (GATE TERRAINMATCH: a mud polygon over the lane's falloff crease drew 5.2 mm off at p95)
 AREAS.append(area('west_mud', band_poly(70, 1665, lambda u: 7.0 + wob(u / 400, 3, 1.5), lambda u: 23.0 + wob(u / 260, 4, 7.0)),
                   draw={'look': 'softmud', 'band': 1, 'z': 1}))
-AREAS.append(area('east_verge_n', band_poly(40, LANE_U0 + 20, lambda u: -21.0 + wob(u / 120, 8, 4.0), lambda u: -7.0 + wob(u / 90, 9, 1.0)),
+AREAS.append(area('east_verge_n', band_poly(40, LANE_U0 - 60, lambda u: -21.0 + wob(u / 120, 8, 4.0), lambda u: -7.0 + wob(u / 90, 9, 1.0)),
                   draw={'look': 'mud', 'band': 1, 'z': 1}))
-AREAS.append(area('east_verge_s', band_poly(LANE_U1 - 20, 1660, lambda u: -22.0 + wob(u / 130, 10, 4.0), lambda u: -7.0 + wob(u / 95, 11, 1.0)),
+AREAS.append(area('east_verge_s', band_poly(LANE_U1 + 60, 1660, lambda u: -22.0 + wob(u / 130, 10, 4.0), lambda u: -7.0 + wob(u / 95, 11, 1.0)),
                   draw={'look': 'mud', 'band': 1, 'z': 1}))
 
 # ---- 2. THE HEAVED SLABS: frost has lifted the old concrete in blocks (u 330-430, v 14-34) --------------------------
