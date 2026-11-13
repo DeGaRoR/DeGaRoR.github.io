@@ -767,6 +767,10 @@ const GATES = [
   // step ahead of the CG, the floats short, the margin's remedy sized by rebuilt levers; the corners against the
   // envelope; the tiers only relax; the indicators' menu replaces the reference-cut button; ~40 s
   { id: 'AIDS', file: '_aids_check.js', tier: 'core', wall: 45 },
+  // ENGINE COOLING (ENGINE-COOLING, 12 Nov; futureDesigns/ENGINE-COOLING-2026-11.md): the drawn openings' facing, the
+  // reference-fitted cowls' hot-day margins, the cowled pusher's remedy path, the momentum drag, the proposed rows and
+  // the fingerprint, the turned scoop. ~75 s (six cards through the load door)
+  { id: 'COOL', file: '_cool_check.js', tier: 'core', wall: 420 },
   // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
   // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
   // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,
@@ -1018,6 +1022,10 @@ const GATES = [
   { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   // AIRCRAFT-BOARD (the user 4 Nov: the fiche, awarded on passed certification): plane_fiche.js's views, award, matte, clone, target. ~1 s
   { id: 'PLANEFICHE', file: '_plane_fiche_check.js', argv: ['--selftest'], tier: 'core', wall: 2 },
+  // PHYSICS-PAGES (the user 11 Nov: the physics a player never sees, as fiche pages): 66c genFichePages' data held to the
+  // functions it reads (a second load test, bench_worker's own test to destruction, the drag rows, genSystemsResolve and
+  // makeBus, the tanks, the model) on the Cub, the Cessna and the Twin; fiche_physics.js's fit and its pages in both themes. ~90 s
+  { id: 'PHYSPAGES', file: '_physpages_check.js', argv: ['--selftest'], tier: 'full', wall: 100 },
   // WING-STRUCTURE (the user 9 Nov: the cutaway's missing wing, its structure in its place): wing_struct.js on the validated
   // aeroplanes - the spars on their nodes and the printed rails, the ribs at the field's stations, the wires on the
   // solver's members, the stringers at the grammar's pitch, the budget, inside the covering, no physics. ~10 s

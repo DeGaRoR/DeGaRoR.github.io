@@ -3701,8 +3701,9 @@ function editorInit(api) {
       // the scoop's own mouth, from buildScoop's own two lines
       scoop: C => {
         const ze = C.zEnd();
-        const y = C.spineY(ze * 0.6) -
-          C.sectionAtZ(C.P.cowlLen * 0.5).bB * C.P.scoopDrop;
+        // ENGINE-COOLING: a top scoop (scoopTop) sits above the spine
+        const y = C.P.scoopTop ? C.spineY(ze * 0.6) + C.sectionAtZ(C.P.cowlLen * 0.5).bT * C.P.scoopDrop
+          : C.spineY(ze * 0.6) - C.sectionAtZ(C.P.cowlLen * 0.5).bB * C.P.scoopDrop;
         const z1 = C.P.cowlLen + C.P.lidLen * 0.35;
         return [[0, y, z1], [0, y, z1 - C.P.scoopLen]];
       },
@@ -3738,7 +3739,7 @@ function editorInit(api) {
       scoopOn: 'scoop', scoopLen: 'scoop', scoopW: 'scoop', scoopH: 'scoop',
       scoopSq: 'scoop', scoopLipH: 'scoop', scoopDrop: 'scoop',
       scoopRake: 'scoop', scoopAp: 'scoop', scoopLipDepth: 'scoop',
-      scoopDuct: 'scoop',
+      scoopDuct: 'scoop', scoopRev: 'scoop', scoopTop: 'scoop', scoopAft: 'scoop',
       oilOn: 'oil', oilZ: 'oil', oilW: 'oil', oilL: 'oil', oilSq: 'oil',
       partOn: 'part', partY: 'part', partW: 'part',
       apMode: 'aps', apW: 'aps', apH: 'aps', apSq: 'aps',

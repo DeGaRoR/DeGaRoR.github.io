@@ -3387,7 +3387,136 @@ function designFull(sel, over) {
     const nm = designPresetNames()[Math.round(cage.engPreset)];
     if (nm) W.CAGE_ENG_APPLY_PRESET(full, nm);
   }
+  // ENGINE-COOLING 3: the birth opens the cowl to what the engine needs (designCoolBirth); a stock tile is not a birth
+  if (!stock) { const cw = designCoolBirth(full); for (const k in cw) cage[k] = cw[k]; }
   return { full, cage, spec };
+}
+
+// ENGINE-COOLING 3 - THE BIRTH OPENS THE COWL (the user 12 Nov: "the starting designs ... have never been authored, so
+// they come as what they are ... just add a rule and regenerate them"). An archetype is born with the openings its
+// engine needs - sized to its heat by GEN_COOL's own law (62_gen_aero genCooling: the inlet, the engine's passages and
+// the outlet in series) at a light aeroplane's hot climb, to TARGET x the need (headroom over the 1.15 pass line) - and
+// never smaller than its card draws (the rule only opens):
+//   a puller (the nose, a pulling wing or pylon engine; a layout's pullers): the cowl's front, round the spinner
+//   a pusher on the body (and a push-pull's or a tandem's rear engine): the chin scoop turned into the air, riding the
+//     bottom line (the rear engine of a layout: its own scoop turned, cw_scoopAft), and the face round the spinner
+//     opened as its way out
+//   a pusher in a nacelle closed by its tail cone (aftMode 1): the cone's inlet
+//   where the front cannot hold it - a wing nacelle's small face round its spinner, a narrow inline or vee - a chin
+//   scoop into the air as well, riding the bottom line; a turbine's oil cooler: that scoop alone
+//   a liquid engine with wing radiators (radMode): the radiators' mouths, the nose left as drawn
+// Untouched: no cowl, an electric engine, a fin mount. Returns the rows it changed (the bake's cage gets them; GATE
+// COOL's sweep checks every archetype the shed births then passes).
+// (the climb's inlet speed grows with the engine: a light aeroplane's 32 m/s at 100 kW, a fighter's twice it - a fixed
+// light-aeroplane speed sized the Spitfire-alike's radiators three times too big; Vy x the slipstream, roughly kW^0.3)
+const COOL_BIRTH = { target: 1.4, V100: 32, Vexp: 0.3, Vmin: 28, Vmax: 75, push: 0.88, rho: 1.134, lip: 0.015, follow: 0.67, lenK: 3.2, hold: 0.33, slot: 2.2 };
+function designCoolBirth(full) {
+  const out = {};
+  if (full.cowlOn != null && !+full.cowlOn) return out;
+  let R = null;
+  try { R = W.CAGE_ENG_SPEC && W.ENG_GEN && W.ENG_GEN.engResolve ? W.ENG_GEN.engResolve(W.CAGE_ENG_SPEC(full)) : null; } catch (e) { R = null; }
+  if (!R || !(R.powerW > 0) || R.arch === 'electric') return out;
+  const turbine = R.arch === 'turbine';
+  const GC = typeof GEN_COOL !== 'undefined' ? GEN_COOL
+    : { cp: 1005, path: { air: { Tlim: 160, eps: 0.30 }, liquid: { Tlim: 110, eps: 0.55 }, turbine: { Tlim: 90, eps: 0.50 } },
+        ivr: 0.8, passages: 3.0, outRatio: 1.3, radMouth: 0.8 };
+  const TH = typeof GEN_ENG_THERMO !== 'undefined' ? GEN_ENG_THERMO
+    : { four: { cool: { air: 0.45, liquid: 0.42 } }, two: { cool: { air: 0.55, liquid: 0.50 } }, turbine: { cool: { air: 0.05, liquid: 0.05 } } };
+  const liquid = !!(R.P && +R.P.liquid), two = !!(R.P && +R.P.twoStroke);
+  const frac = ((TH[turbine ? 'turbine' : two ? 'two' : 'four'] || TH.four).cool || {})[liquid ? 'liquid' : 'air'] || 0.45;
+  const pth = GC.path[turbine ? 'turbine' : liquid ? 'liquid' : 'air'];
+  const need = frac * R.powerW / (GC.cp * pth.eps * (pth.Tlim - 38));          // kg/s at 38 C, full power
+  const T = COOL_BIRTH.target * need, rhs = 1 / (T * T) - 1 / Math.pow(GC.passages * need, 2);
+  const flowIn = rhs > 0 ? 1 / Math.sqrt(rhs) : T * 2;
+  const areaAt = V => flowIn / (GC.ivr * COOL_BIRTH.rho * V);                   // m2 of inlet
+  // a superellipse's area (the cowl's own apertures, cw_*Sq through its sqExp)
+  const sqExp = q => { q = Math.max(0, Math.min(1, +q || 0)); return q < 0.5 ? 1 + q / 0.5 : 2 * Math.pow(5, (q - 0.5) / 0.5); };
+  const sArea = (a, b, n) => { let S = 0; const N = 64;
+    for (let i = 0; i < N; i++) { const t0 = i / N * 2 * Math.PI, t1 = (i + 1) / N * 2 * Math.PI;
+      const p = t => [Math.sign(Math.cos(t)) * Math.pow(Math.abs(Math.cos(t)), 2 / n) * a, Math.sign(Math.sin(t)) * Math.pow(Math.abs(Math.sin(t)), 2 / n) * b];
+      const P0 = p(t0), P1 = p(t1); S += P0[0] * P1[1] - P1[0] * P0[1]; }
+    return Math.abs(S) / 2; };
+  const set = (k, v) => { out[k] = v; full[k] = v; };
+  const g = k => +full[k] || 0;
+  // the cowl's front as drawn (its central opening net of the spinner, its pair), m2 - an estimate: the cowl fits an
+  // opening to its face when it draws it
+  const faceHave = () => {
+    const mode = Math.round(g('cw_apMode'));
+    const pairs = mode === 2 || mode === 3 ? 2 * sArea(g('cw_pairW'), g('cw_pairH'), sqExp(full.cw_pairSq)) : 0;
+    const n = sqExp(full.cw_apSq != null ? full.cw_apSq : 0.47);
+    return (mode === 1 || mode === 3 ? Math.max(0, sArea(Math.max(0.02, g('cw_apW')), Math.max(0.02, g('cw_apH')), n) - Math.PI * Math.pow(g('cw_spinR'), 2)) : 0) + pairs;
+  };
+  // the cowl's front, round the spinner, opened to `A` m2 (grown, never shrunk; the pair kept); `tall` a slot that
+  // many times as tall as it is wide (a narrow inline's or vee's nose: a round opening is fitted down to its width)
+  const openFace = (A, tall) => {
+    const mode = Math.round(g('cw_apMode'));
+    const pairs = mode === 2 || mode === 3 ? 2 * sArea(g('cw_pairW'), g('cw_pairH'), sqExp(full.cw_pairSq)) : 0;
+    const spin = Math.PI * Math.pow(g('cw_spinR'), 2);
+    const n = sqExp(full.cw_apSq != null ? full.cw_apSq : 0.47);
+    const w0 = mode === 1 || mode === 3 ? Math.max(0.02, g('cw_apW')) : 0.1, h0 = mode === 1 || mode === 3 ? Math.max(0.02, g('cw_apH')) : 0.1;
+    const have = faceHave();
+    if (have >= A) return;
+    if (mode === 0) set('cw_apMode', 1); else if (mode === 2) set('cw_apMode', 3);
+    const want = A - pairs + spin;
+    if (tall > 0) {
+      const w = Math.sqrt(want / Math.max(1e-6, sArea(1, tall, n)));
+      set('cw_apW', +Math.min(0.7, Math.max(w0 > 0.1 ? 0 : w0, w)).toFixed(3)); set('cw_apH', +Math.min(0.7, tall * w).toFixed(3));
+      return;
+    }
+    const f = Math.sqrt(want / Math.max(1e-6, sArea(w0, h0, n)));
+    set('cw_apW', +Math.min(0.7, w0 * f).toFixed(3)); set('cw_apH', +Math.min(0.7, h0 * f).toFixed(3));
+  };
+  // the chin scoop into the air, riding the bottom line, its open mouth (about two thirds of it stands out) `A` m2; `how`
+  // 'pull' its mouth to the propeller (a tractor: into the air), 'push' turned round (a pusher), 'aft' the rear cowl's
+  // own (a layout's rear engine)
+  const scoop = (A, how) => {
+    const hOpen = Math.sqrt(A / (COOL_BIRTH.follow * Math.PI * 1.25));
+    const H = Math.min(0.2, hOpen + COOL_BIRTH.lip), Wd = Math.min(0.3, 1.25 * hOpen + COOL_BIRTH.lip);
+    const turned = how === 'aft' ? +full.cw_scoopAft : how === 'push' ? +full.cw_scoopRev : !+full.cw_scoopRev;
+    if (+full.cw_scoopOn > 0 && g('cw_scoopW') >= Wd && g('cw_scoopH') >= H && turned && +full.cw_scoopFollow) return;
+    set('cw_scoopOn', 1); set('cw_scoopFollow', 1); set('cw_scoopAp', Math.max(0.9, g('cw_scoopAp')));
+    if (how === 'aft') set('cw_scoopAft', 1); else if (how === 'push') set('cw_scoopRev', 1); else if (+full.cw_scoopRev) set('cw_scoopRev', 0);
+    set('cw_scoopW', +Math.max(g('cw_scoopW'), Wd).toFixed(3)); set('cw_scoopH', +Math.max(g('cw_scoopH'), H).toFixed(3));
+    // AN INLET, NOT A DISC (the user 12 Nov: "most of them have no length and look like a disc"): the length about 3.2 x
+    // its height, within the cowl's barrel, its full section held over the front third (FIT-PROCEDURE's scoopHold)
+    const Hn = g('cw_scoopH'), barrel = Math.max(0.3, 0.95 * (g('cw_cowlLen') || 0.6));
+    set('cw_scoopLen', +Math.min(barrel, Math.max(g('cw_scoopLen'), COOL_BIRTH.lenK * Hn)).toFixed(3));
+    if (!(g('cw_scoopHold') > 0)) set('cw_scoopHold', COOL_BIRTH.hold);
+  };
+  // the wing radiators' mouths (mode 1 a pair, 2 one and an oil cooler), grown to `A` m2 in all (cage metres x planeScale)
+  const radiators = A => {
+    const rm = Math.round(g('radMode')), ps = g('planeScale') > 0 ? g('planeScale') : 1, oilK = g('radOilK') || 0.55;
+    const per = rm === 1 ? 2 : 1 + oilK * oilK, w0 = Math.max(0.05, g('radW')), h0 = Math.max(0.03, g('radH'));
+    const have = per * w0 * h0 * (GC.radMouth || 0.8) * ps * ps;
+    if (have >= A) return;
+    const f = Math.sqrt(A / have);
+    set('radW', +(w0 * f).toFixed(3)); set('radH', +(h0 * f).toFixed(3));
+  };
+  const mK = Math.round(g('engMount')), aim = Math.round(g('engAim'));
+  const Vp = Math.max(COOL_BIRTH.Vmin, Math.min(COOL_BIRTH.Vmax, COOL_BIRTH.V100 * Math.pow(R.powerW / 1e5, COOL_BIRTH.Vexp)));
+  const pullA = areaAt(Vp), pushA = areaAt(COOL_BIRTH.push * Vp);
+  if (mK === 8) return out;                                                      // a fin mount: left as drawn
+  if (liquid && Math.round(g('radMode')) > 0) { radiators(Math.max(0, pullA - faceHave())); return out; }   // the radiators: what the nose leaves
+  if (turbine) { scoop(pullA, mK === 1 ? 'push' : 'pull'); return out; }       // the oil cooler's scoop
+  if (mK === 4 || mK === 7) {                                                    // push-pull, tandem: nose pulls, rear pushes
+    openFace(Math.max(pullA, pushA * GC.outRatio)); scoop(pushA, 'aft'); return out;
+  }
+  const pushes = mK === 1 || (mK === 2 && aim !== 1) || ((mK === 3 || mK === 6) && aim === 2);
+  if (!pushes) {
+    // a narrow inline's or vee's nose: a proper front opening, a tall slot (the user 12 Nov, the Tiger Moth: "a proper
+    // cowl front opening rather than this scoop")
+    const inline = R.arch === 'inline' || R.arch === 'vee';
+    openFace(pullA, inline ? COOL_BIRTH.slot : 0);
+    // a wing nacelle's face is small and round its spinner, whatever the engine: a chin scoop as well
+    if (mK === 3 || mK === 5 || mK === 6) scoop(pullA, 'pull');
+    return out;
+  }
+  if ((mK === 2 || mK === 3 || mK === 6) && Math.round(g('cw_aftMode')) === 1) {   // a nacelle's tail cone: its inlet
+    if (!+full.cw_inletOn) { set('cw_inletOn', 1); set('cw_inletW', Math.max(0.5, g('cw_inletW'))); set('cw_inletH', Math.max(0.5, g('cw_inletH'))); }
+    return out;
+  }
+  scoop(pushA, 'push'); openFace(pushA * GC.outRatio);
+  return out;
 }
 
 function designBake(sel, over) {

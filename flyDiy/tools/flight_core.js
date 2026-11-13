@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 2ffb6da32463e261
+// body-sha256: 5d87bc32bd0fb934
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -19429,9 +19429,7 @@ function makeSim(def, world) {
           : GROUND_DEF;
         // G1938: the differential brake, per main (its side of the built pose); brakeD 0 is the old line exactly
         const bkI = !isMain ? 0 : ctl.brakeD ? Math.max(0, Math.min(1, ctl.brake + (def.nodes[i].p[2] > 0 ? 1 : -1) * ctl.brakeD)) : ctl.brake;
-        // THE BRAKES' HOLD (GEN_BRAKES): a main's braking friction is the surface's or what its brake can hold at this load,
-        // the lesser; no `brakeN` (every build without brakes chosen) is the surface's, the old line exactly
-        const muR = su[0] + (isMain ? bkI * (P_.brakeN ? Math.min(su[1], P_.brakeN / Math.max(Fn, 1)) : su[1]) : 0);
+        const muR = su[0] + (isMain ? bkI * su[1] : 0);
         // G121.3: BELOW WALKING PACE THE COEFFICIENT IS A DAMPER, NOT A
         // RESISTANCE. The 0.2 m/s regularization means the sub-0.2 regime
         // was never physical rolling — and it turned out to be load-bearing
@@ -35019,6 +35017,57 @@ const GEN_DRAG = {
   exhStack: 0.003,
 };
 
+// ENGINE COOLING (ENGINE-COOLING, the user 12 Nov: "planes look the way they look because they need these things ...
+// I'd rather that be encoded in physics"; futureDesigns/ENGINE-COOLING-2026-11.md, its defaults ruled "OK"). The heat
+// genEngineThermo says the engine rejects is carried off by AIR, and the air comes in through what is DRAWN: the cowl's
+// forward-facing openings, a scoop that faces the flight, a pusher nacelle's nose inlet, the wing radiators' mouths, the
+// cylinder heads left in the wind. Read by 62_gen_aero genCooling; the join measures the openings (spec.cooling).
+//   path      the air may warm by dT = eps (Tlim - T_ambient) before the hot side is at its limit: a hot day shrinks
+//             the gap, which is why a hot climb is the sizing case. PROPOSED constants, calibrated so the cowls fitted
+//             to real reference models (the Cub, the V2-172, the Jodel) pass the hot climb with a real margin (GATE COOL)
+//   ivr       the inlet's BEST velocity ratio V_inlet / V_free (ENGINE-COOLING 3): a small inlet, the engine's passages
+//             pulling hard behind it, runs near it (0.6-0.9 in a climb); a big one spills (the passages limit it)
+//   passages  the engine's own fins and baffles: `passages` x the air its hot climb needs, at that climb's inlet speed,
+//             with nothing ahead of them (an engine is built to be cooled); in series with the inlet and a drawn outlet,
+//             mdot = 1 / sqrt(sum 1 / mdot_i^2). Calibrated so the reference-fitted cowls (the Cub, the V2-172, the
+//             Jodel) keep a real margin and a big inlet stops buying air past ~3 x (it spills round the cowl)
+//   kappaBare the heads and fins left in the stream (the Cub's, a bare engine's), beside the cowl's air
+//   r         the exit velocity over the free stream: the momentum the air keeps (a baffled cowl 0.7, a radiator duct
+//             with a diffuser 0.8): cooling drag D = mdot V (1 - r), CdA = 2 (mdot / rho V) (1 - r)
+//   outRatio  the drawn outlet that passes the inlet's flow (the heated air is thinner: the classic 1.3 x)
+//   slip      the slipstream's share at a nose inlet (behind the propeller's roots), of the actuator disc's velocity
+//             ratio; a pusher's own inlets on the ground get `pushInflow` of the disc's static velocity (the prop sucks)
+//   suck      IN FLIGHT a pusher's prop sucks on the cowl's OUTLET, just ahead of the disc (the user 12 Nov, the Super
+//             Petrel: "it has quite a large opening"): the static pressure there falls by rho/2 ((V + v)^2 - V^2) of
+//             the disc's induced velocity v, so the pressure that drives the air through the engine grows and the flow
+//             with its root: V_in = V sqrt(1 + suck (f^2 - 1)), f = (V + v) / V the actuator disc's ratio; `suck` the
+//             share of v at the outlet (the hub's inner disc, like `slip`)
+//   hot       FAR 23.1043's climb cooling day: 38 C (100 F) at sea level, ISA + 23, full power at Vy
+//   taxi      the hot strip: 5 m/s, 20 % power, the slipstream does the work
+//   meredith  the heat added in a radiator DUCT is a little ramjet: thrust power ~ k M^2 Q (Meredith, RAE 1935); none on
+//             a cowl
+//   pass/warn the margin (air passed / air needed) the design check reads: under `pass` the engine overheats, under
+//             `warn` it runs hot
+const GEN_COOL = {
+  cp: 1005,
+  path: { air:      { Tlim: 160, eps: 0.30 },
+          liquid:   { Tlim: 110, eps: 0.55 },
+          electric: { Tlim: 70,  eps: 0.50 },
+          turbine:  { Tlim: 90,  eps: 0.50 } },
+  ivr: 0.8, passages: 3.0, kappaBare: 0.5,
+  r: { cowl: 0.70, duct: 0.80 },
+  outRatio: 1.3,
+  slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25, suck: 0.6,
+  hot: { dISA: 23, h: 0 },
+  taxi: { V: 5, power: 0.2 },
+  cruisePower: 0.75,
+  meredith: 0.1,
+  radMouth: 0.8,
+  pass: 1.0, warn: 1.15,
+  // the oil's red line, C (a light aero engine's 118 C / 245 F): the cockpit's needle reaches it at exactly enough air
+  oilRed: 118,
+};
+
 const GEN_GAUGE = {
   e: { fus: 0.30, wing: 0.49, tail: 0.41, gear: 0.75 },
   lo: 0.6, hi: 3.0,
@@ -35657,7 +35706,8 @@ const GEN_SEAPLANE_PROPS = {
                     for: 'Cessna 172 / 172R / 172S on Wipline 2350 (Wipaire STC)' },
 };
 
-// COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
+// COWL INTAKES. Texture only, deliberately (and still: ENGINE-COOLING measures the cowl's DRAWN openings - its
+// apertures, its scoop, its exits - not these louvres; 62_gen_aero genCoolOpen): a grill drawn on the cover reads at
 // every distance the aeroplane is ever seen from, and a modelled duct would cost
 // a hole in the one panel whose whole job since G1.7 has been to have no holes
 // in it ("a big opening… either the prop attachment or an air intake").
@@ -35723,28 +35773,6 @@ const GEN_PRICES = {
 // for it. NOTE `paint.gloss` is NOT touched here: it is a spec field nothing
 // currently reads, and wiring a dead field would be a second change wearing
 // this one's clothes.
-// THE BRAKES (the user, 9 Nov: "we have to account for the power of brakes as well ... if you want better brakes, then
-// it's gonna add weight to your plane"). The solver's wheel brake was the surface's friction only (GROUND_SURF's brake mu
-// x the brake command x the wheel's load): every aeroplane's brakes could lock its wheels. A real light aeroplane's
-// often cannot - the J-3's and the D.112's heel drums are why their books' landing rolls are long. `perWheelN` is the
-// most a main's brake holds (N, at the tyre): the braking friction becomes min(the surface's, perWheelN / the wheel's
-// load). `kg` the pair with their lines and master cylinders, billed on the mains; `price` the pair, new.
-// ABSENT IS AS IT WAS: a gear without `brakes` brakes to the surface's friction (no cap, no mass), so every saved build
-// flies bit for bit and keeps its certificate. Values (estimates, stated as such):
-//   drum    a cable / heel drum in a 6 in wheel (J-3, D.112): ~0.2 g on a 550 kg aeroplane
-//   disc    one Cleveland 30-9 class caliper a wheel: about the grass friction limit of a 600 kg aeroplane
-//   double  two calipers / a double-puck heavy-duty disc (Beringer, Grove class: the bush builds), past it
-const GEN_BRAKES = {
-  drum:   { name: 'heel drum brakes',            perWheelN: 600,  kg: 2.4, price: 400,
-            note: 'cable or heel-operated drums in 6 in wheels: the J-3 and D.112 era' },
-  disc:   { name: 'single-caliper discs',        perWheelN: 1400, kg: 3.6, price: 1300,
-            note: 'Cleveland 30-9 class, one caliper a wheel' },
-  double: { name: 'double-caliper heavy discs',  perWheelN: 2600, kg: 5.4, price: 3200,
-            note: 'Beringer / Grove class, two pucks a wheel: the bush builds' },
-};
-// the build's brake row, or null (absent / unknown: the surface's friction, as it always was)
-function genBrakeOf(S) { const k = S && S.gear && S.gear.brakes; return (k && GEN_BRAKES[k]) || null; }
-
 const GEN_FINISH = {
   // `kgM2` is the COLOUR COATS ONLY, and the distinction matters. The covering
   // system itself -- fabric and its dope, or the alloy skin -- is already
@@ -36107,7 +36135,7 @@ function genEngPropD0(S, e0, PP0) {
   if (e0 && e0.custom) return (S.prop && S.prop.D > 0) ? S.prop.D : 1.80;
   return PP0.prop.D;
 }
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1, brkHold: 0 };
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -38934,7 +38962,6 @@ function clampSpec(spec) {
   S.gear.twFairTail = genClamp(S.gear.twFairTail == null ? 1 : S.gear.twFairTail,
                                0.70, 1.60);
   if (!GEN_FAIR_MATS[S.gear.fairMat]) S.gear.fairMat = 'glass';
-  if (S.gear.brakes != null && !GEN_BRAKES[S.gear.brakes]) delete S.gear.brakes;   // (the brakes: absent is as it was)
   // G121 (the review's B8): ONE ENGINE UNTIL THE MOUNTS ARE REAL. `engines`
   // is an array by design and `nEngines` multiplies thrust honestly — but
   // every mount today is the one nose pair, so a second entry would fly as
@@ -41873,6 +41900,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // would be noise. Structure is priced by its own mass; things that are BOUGHT
   // rather than built (engine, wheels, instruments, paint) call spend().
   const ledger = {};
+  // the outfit row's own items as billed (PHYSICS-PAGES, the mass page: "what is in Fittings?"); a record, no mass of its own
+  let outfitKg = null;
+  // ...and the gear row's kilos by node as billed (PHYSICS-PAGES: main gear / tail or nose wheel / floats on the page)
+  let gearDm = null;
   let SEC = 'fuselage';
   // WHAT IS THE AEROPLANE AND WHAT IS THE LOAD. `pt()` bills crew, fuel and
   // freight into the same node masses the structure uses — it has to, the
@@ -41907,7 +41938,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const trace = (typeof globalThis !== 'undefined' && globalThis.GEN_MASS_TRACE) ? (e.nodeM || (e.nodeM = [])) : null;
     for (let i = 0; i < nodes.length; i++) {
       const dm = nodes[i].m - (secSnap[i] || 0);
-      if (dm) { e.mx += dm * P[i][0]; if (trace) trace.push([i, dm]); }
+      if (dm) { e.mx += dm * P[i][0]; if (trace) trace.push([i, dm]); if (SEC === 'gear') (gearDm || (gearDm = [])).push([i, dm]); }
     }
   };
   const secOpen = () => { secSnap = nodes.map(n => n.m); };
@@ -44017,10 +44048,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   B(GAR, F[iFwd].TR, 'gear', false, 'inner');
   }
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
-  // THE BRAKES (GEN_BRAKES): the pair's mass on the mains, its price with the wheels; absent: nothing (as it was)
-  const BRK = genBrakeOf(S), mBrk = BRK ? 0.5 * BRK.kg : 0;
-  if (BRK) spend(BRK.price);
-  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk);
+  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain);
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -44953,6 +44981,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     half(F[1].TL, F[1].TR, glassM);
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * ctlM);         // G3504: the cabin's rear ring
+    { const nCowl = (noseEng && engOn) ? 1 + engCowl.length : engCowl.length ? engCowl.length : 1;
+      outfitKg = { panel: panelM, plumbing: plumbM, cowl: nCowl * cowlM, exhaust: nCowl * exhM, glazing: glassM, controls: ctlM }; }
     // the furnishing on the cabin floor, both rings (G3570: the floor is in it - at the raised floor's height)
     sec('furnish');
     if (floorUp > 0) for (const rg of [F[1], F[iCabR]]) { onRing(rg, 'L', 0.25 * furnM); onRing(rg, 'R', 0.25 * furnM); }
@@ -45102,7 +45132,16 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
 
     bracing: useStrut ? (w.crankAt > 0 ? 'strut + boxed outer' : 'strut')
                       : 'cantilever box', strutOffset, trike,
-    ledger,
+    ledger, outfitKg,
+    // the gear row split as billed: each node's kilos to the nearer of the mains and the third wheel, a float's or a
+    // hull's nodes to the floats; [kg, centroid x] each (a record: no mass moves)
+    gearKg: (() => { if (!gearDm) return null;
+      const mm = [GAL, GAR].filter(i => typeof i === 'number' && i >= 0), xm = mm.length ? mm.reduce((a, i) => a + P[i][0], 0) / mm.length : null;
+      const xt = typeof TW === 'number' && TW >= 0 ? P[TW][0] : null, acc = { main: [0, 0], third: [0, 0], floats: [0, 0] };
+      for (const [i, dm] of gearDm) { const x = P[i][0], k = /^(FL|HULL|PON)/.test(nodes[i].tag || '') ? 'floats'
+        : (xt == null || xm == null || Math.abs(x - xm) <= Math.abs(x - xt)) ? 'main' : 'third'; acc[k][0] += dm; acc[k][1] += dm * x; }
+      for (const k in acc) acc[k] = [acc[k][0], acc[k][0] ? acc[k][1] / acc[k][0] : 0];
+      return acc; })(),
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
     floats: FLOATS,             // H1: the float records, or null
     ...(AMPH ? { amph: true } : {}),   // HULL-B55: an amphibian - the wheels are its contacts on land, the hull on the water
@@ -45982,7 +46021,252 @@ function genFusSwet(S, ST) {
 // body row reads what the fiche calibrated; the other rows are literature
 // and the clean cards check them (GATE DRAG). The pieces are published as
 // gen.drag for the plaque and the study.
-function genFusCdA(S, fr) {
+// ENGINE COOLING (ENGINE-COOLING, futureDesigns/ENGINE-COOLING-2026-11.md; GEN_COOL's header in 60_gen_spec says what
+// each constant is). Pure, no sim: the heat (genEngineThermo) -> the air it needs (Q = mdot cp dT) -> the air the drawn
+// geometry passes -> a MARGIN per case (the hot-day climb, the taxi, the cruise), and the cooling DRAG from the momentum
+// the air loses (CdA = 2 mdot (1 - r) / rho V).
+// THE AIR PASSED (ENGINE-COOLING 3, the user 12 Nov: "if you recalibrate something, that should be your coefficients
+// around the opening or the geometry of the opening"): three resistances IN SERIES - the drawn inlet (ivr rho V A_in: a
+// small inlet runs near its best velocity ratio), the engine's own passages (its fins and baffles: `passages` x the air
+// its hot climb needs, at that climb's inlet speed - an engine is built to be cooled; past that the air spills round the
+// cowl), and a drawn outlet (ivr rho V A_out / outRatio) - mdot = 1 / sqrt(sum 1 / mdot_i^2). The cylinder heads in the
+// wind pass beside it (kappaBare rho V A_heads).
+// WHAT IS READ: spec.cooling (the join's measurement of the drawn cowl, m2: `face` the front apertures net of the
+// spinner, `scoop` the scoop's open mouth and `scoopRev` its facing, `scoopAlt` its mouth at the other end, `nacInlet` a
+// nacelle cone's inlet, `exit` the lowered bottom, `gills` the side gills, `headsOut` / `headsAll` the cylinders' frontal
+// outside the drawn skin / in all, `units` each engine unit's cowl: turned round (aft), its area factor, its scoop turned
+// on its own), the cage's wing radiators (rad* rows), the engine's facing (engAt.pushes). The cowl's +z faces the
+// propeller: on a tractor the face apertures take the air in, on a pusher they face aft and let it out.
+// THREE ANSWERS (`kind`): 'bare' - no cowl, the engine in the wind: its heads alone (headsAll); 'legacy' - a cowled spec
+// nobody measured (a headless build, an old fiche): no margin, today's GEN_DRAG.kCool; 'measured' - the model.
+// EVERY ENGINE ON THE BODY is judged (a push-pull's nose and rear: the rear one wears the nose cowl turned round); the
+// answer is the worst one's, its drag the sum. Wing and pylon nacelles all wear one cowl: engine 0 speaks for them.
+//   o.VClimb, o.VCruise  EAS, m/s (the aeroplane's own: GEN_VRATIO x Vs at build, def.params.ap after)
+function genHeadsFrontal(S) {
+  const E = S.engBox, cw = S.cowl || {}, covers = cw.covers || {};
+  const PP = S.pplant || POWERPLANTS[((S.engines && S.engines[0]) || {}).type] || POWERPLANTS.a65_sensenich74;
+  const eng = (PP && PP.engine) || {};
+  const th = genEngineThermo(eng);
+  const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
+  if (!E || eng.layout === 'radial' || eng.aspiration === 'electric' || th.family === 'turbine' || th.cooling === 'liquid' ||
+      (cowlOn && covers.sides)) return 0;
+  const at = cw.atEngine || {};
+  const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
+  return 2 * out * (2 * E.cylR) * 2;                    // both banks, each bank's reach x its height
+}
+// the body's engines (a nose, a pusher), by their index in engAt; none: engine 0 speaks for every nacelle
+function genCoolBodyEngines(S) {
+  const ks = (S.engAt || []).map((e, i) => e && (e.mount === 'nose' || e.mount === 'pusher') ? i : -1).filter(i => i >= 0);
+  return ks.length ? ks : [0];
+}
+function genCoolOpen(S, k) {
+  const K = GEN_COOL, cg = S.cage || {}, cw = S.cowl || {};
+  const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
+  const EA = S.engAt || [], ki = k > 0 ? k : 0;
+  const at = EA[ki] || EA[0] || {};
+  const pushes = !!at.pushes;
+  const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
+  // the engines whose cooling the BODY row pays: those on the body (a nose, a pusher); a wing or pylon nacelle's is in
+  // the nacelle rule's 0.30 x frontal ("cylinders, radiator, exhaust, the lot"), and the per-kW term before this charged
+  // one engine whatever the count - so one at least, as it did
+  const nBody = Math.max(1, EA.filter(e => e && (e.mount === 'nose' || e.mount === 'pusher')).length);
+  // the wing radiators (27 Oct): a ducted radiator's mouth under each wing (or one and an oil cooler) - the duct is drawn
+  // with its exit flap, so its outlet is the duct's own; shared between the engines when there are several
+  const rm = Math.round(+cg.radMode || 0), ps = +cg.planeScale > 0 ? +cg.planeScale : 1;
+  const mouth = Math.max(0, +cg.radW || 0) * Math.max(0, +cg.radH || 0) * K.radMouth * ps * ps;
+  const oilK = Math.max(0, +cg.radOilK || 0.55);
+  const radA = rm === 1 ? 2 * mouth : rm === 2 ? mouth * (1 + oilK * oilK) : 0;
+  const parts = [];
+  const C = S.cooling && typeof S.cooling === 'object' ? S.cooling : null;
+  const n = v => Math.max(0, +v || 0);
+  // the heads in the wind: measured against the drawn skin when the join could (headsOut / headsAll), else the
+  // generator's own reach against its cowl loft (genHeadsFrontal)
+  if (!cowlOn) return { kind: 'bare', k: ki, pushes, nEng, nBody, inA: 0, outA: 0, radA: radA / nEng, exitSized: true, parts,
+                        bareA: C && C.headsAll != null ? n(C.headsAll) : genHeadsFrontal(S) };
+  if (!C) return { kind: 'legacy', k: ki, pushes, nEng, nBody, inA: 0, outA: 0, bareA: 0, radA: radA / nEng, exitSized: true, parts };
+  // this engine's unit: its cowl's area factor (a clone scaled to another kind of face) and its scoop turned on its own
+  const U = (Array.isArray(C.units) && C.units[ki]) || {}, kf = +U.k > 0 ? +U.k : 1, turned = !!+U.turned;
+  let inA = 0, outA = 0;
+  const put = (A, faces, what) => { if (!(A > 0)) return; parts.push({ what, A, faces }); if (faces === 'fwd') inA += A; else outA += A; };
+  put(kf * n(C.face), pushes ? 'aft' : 'fwd', 'the cowl\'s front openings');
+  // a scoop's mouth faces the cowl's +z (the propeller) unless it is turned round (on this unit: cw_scoopAft)
+  const rev = turned ? !+C.scoopRev : !!+C.scoopRev;
+  put(kf * n(turned ? C.scoopAlt : C.scoop), rev === pushes ? 'fwd' : 'aft', 'the scoop');
+  // a nacelle cone's inlet faces -z: the flight on a pusher, aft on a tractor
+  put(kf * n(C.nacInlet), pushes ? 'fwd' : 'aft', 'the nacelle\'s inlet');
+  // the lowered bottom's crescent and the gills' hoods open towards the cowl's FIREWALL end: aft on a tractor (the way
+  // out), into the flight on a pusher, whose cowl is turned round (ENGINE-COOLING 3: there they are inlets, and a
+  // pusher's way out is its face, round the spinner at the propeller's end)
+  put(kf * n(C.exit), pushes ? 'fwd' : 'aft', 'the lowered bottom (the exit)');
+  put(kf * n(C.gills), pushes ? 'fwd' : 'aft', 'the gills');
+  const bareA = C.headsOut != null ? n(C.headsOut) : genHeadsFrontal(S);
+  // WHICH OUTLET IS THE WAY OUT (ENGINE-COOLING 3; the user 12 Nov on the side gills, "the shark fins"): a tractor's
+  // cowl always has its exit at the firewall end, sized for you until the lowered bottom (the exit gap) draws it - the
+  // gills, an aft-facing scoop or cone ADD to it and never cap the air (a few small gills drawn used to become the only
+  // way out); a pusher's way out is what faces aft (its face round the spinner, an unturned scoop)
+  const capOut = pushes ? outA : kf * n(C.exit);
+  return { kind: 'measured', k: ki, pushes, nEng, nBody, inA, outA, bareA, radA: radA / nEng, exitSized: !(capOut > 0), parts };
+}
+function genCooling(S, o) {
+  const ks = genCoolBodyEngines(S);
+  const per = ks.map(k => genCoolingOne(S, o, k));
+  // the worst engine answers; the drag is every body engine's (wing nacelles: engine 0's alone, as the body row always
+  // paid one)
+  let w = per[0];
+  for (const p of per) if (p.hot && w.hot && p.hot.margin < w.hot.margin) w = p;
+  const out = Object.assign({}, w);
+  if (per.length > 1) {
+    out.cdA = per.reduce((s, p) => s + (p.cdA || 0), 0);
+    out.engines = per.map(p => ({ k: p.k, pushes: p.pushes, margin: p.hot ? p.hot.margin : null, limit: p.hot ? p.hot.limit : null }));
+  }
+  return out;
+}
+function genCoolingOne(S, o, k) {
+  const K = GEN_COOL, oo = o || {};
+  const EN = (S.engines && S.engines[0]) || {};
+  const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
+  const eng = (PP && PP.engine) || {};
+  const th = genEngineThermo(eng);
+  const path = th.family === 'turbine' ? 'turbine' : th.family === 'electric' ? 'electric' : th.cooling;
+  const op = genCoolOpen(S, k);
+  const kW = (eng.powerW || 0) / 1000, D = (S.prop && S.prop.D) || (PP.prop && PP.prop.D) || 1.8;
+  const Adisc = Math.PI * D * D / 4;
+  const asp = eng.aspiration || 'na';
+  const crit = (asp === 'turbo' || asp === 'super') && eng.critAlt > 0 ? ATMOS_ISA.sigma(eng.critAlt) : 1;
+  // the heads' air: a bare engine's (any piston: its cylinders, its radiator, in the wind); a cowled one's air-cooled
+  // heads only (a liquid head's barrel is not what the cowl is sized for)
+  const bareA = op.kind === 'bare' ? (path === 'turbine' || path === 'electric' ? 0 : op.bareA) : (path === 'air' ? op.bareA : 0);
+  const out = { kind: op.kind, k: op.k, path, coolKW: th.coolKW, pushes: op.pushes, nEng: op.nEng,
+                inA: op.inA + op.radA, outA: op.outA, bareA, radA: op.radA, exitSized: op.exitSized, parts: op.parts };
+  if (op.kind === 'legacy' && !(op.radA > 0)) return out;
+  if (op.kind === 'legacy') out.kind = 'measured';                // the radiators are measured whatever the cowl
+  const duct = op.radA > 0 && op.radA >= op.inA;                  // the air goes through a radiator duct
+  const r = duct ? K.r.duct : K.r.cowl;
+  const dT = Tamb => K.path[path].eps * (K.path[path].Tlim - Tamb);
+  // the inlet's speed: the true airspeed plus the slipstream's share (a nose inlet behind the roots), from the actuator
+  // disc at the thrust eta x P / V; a pusher's inlets are ahead of it, but its prop SUCKS on the outlet (GEN_COOL.suck:
+  // the pressure the air is driven by grows, the flow with its root); the ground keeps its own inflow law
+  const slip = (Pw, V, rho) => {
+    const T = K.etaClimb * Pw / Math.max(1, V);
+    return (1 + Math.sqrt(1 + 2 * T / (rho * Adisc * V * V))) / 2;
+  };
+  const air = (A, h, pFrac, Veas, ground) => {
+    const rho = A.rho(h), sig = A.sigma(h), Tc = A.T(h) - 273.15;
+    const pr = pFrac * atmosPowerRatio(sig, asp, eng.flatK || 1, crit);
+    const Q = th.coolKW * pr * 1000;                              // W, per engine
+    const need = Q / (K.cp * dT(Tc));
+    let Vin;
+    if (ground) {
+      const P = pr * kW * 1000;
+      const Ts = Math.pow(K.FM * P, 2 / 3) * Math.pow(2 * rho * Adisc, 1 / 3), vd = Math.sqrt(Ts / (2 * rho * Adisc));
+      Vin = K.taxi.V + (op.pushes ? K.pushInflow : K.slip) * vd;
+    } else {
+      const V = Veas / Math.sqrt(sig), f = slip(pr * kW * 1000, V, rho);
+      Vin = V * (op.pushes ? Math.sqrt(1 + K.suck * (f * f - 1)) : 1 + K.slip * (f - 1));
+    }
+    return { rho, Tc, Q, need, Vin };
+  };
+  const VC = oo.VClimb > 0 ? oo.VClimb : 30, VCr = oo.VCruise > 0 ? oo.VCruise : VC * 1.24;
+  const HOT = makeAtmos({ dISA: K.hot.dISA });
+  // THE ENGINE'S PASSAGES, an equivalent area (m2 at the free stream): `passages` x what its hot climb needs there
+  const h0 = air(HOT, K.hot.h, 1, VC, false);
+  const Aeng = K.passages * h0.need / (h0.rho * h0.Vin);
+  const inv2 = f => f > 0 && isFinite(f) ? 1 / (f * f) : (f === Infinity ? 0 : Infinity);
+  const caseAt = (A, h, pFrac, Veas, ground) => {
+    const { rho, Tc, Q, need, Vin } = air(A, h, pFrac, Veas, ground);
+    const fIn = K.ivr * rho * Vin * out.inA, fEng = rho * Vin * Aeng;
+    const fOut = op.exitSized ? Infinity : K.ivr * rho * Vin * op.outA / K.outRatio;
+    const rIn = inv2(fIn), rEng = inv2(fEng), rOut = inv2(fOut), sum = rIn + rEng + rOut;
+    const flow = isFinite(sum) && sum > 0 ? 1 / Math.sqrt(sum) : 0;
+    const bare = K.kappaBare * rho * Vin * bareA;
+    const pass = flow + bare;
+    // the inlet that would pass `m` x the need, the outlet sized for it (through the engine's passages); the outlet that
+    // would, through the inlet AS DRAWN (Infinity: the inlet must grow first)
+    const T = m => m * need - bare;
+    const inAt = m => {
+      const t = T(m); if (!(t > 0)) return 0;
+      const rhs = 1 / (t * t) - rEng;
+      return rhs > 0 ? 1 / Math.sqrt(rhs) / (K.ivr * rho * Vin) : Infinity;
+    };
+    const outAt = m => {
+      const t = T(m); if (!(t > 0)) return 0;
+      const rhs = 1 / (t * t) - rEng - rIn;
+      return rhs > 0 ? K.outRatio / Math.sqrt(rhs) / (K.ivr * rho * Vin) : Infinity;
+    };
+    const inNeed = inAt(1), inPass = inAt(K.warn);
+    return { rho, oatC: Tc, Q: Q / 1000, dT: dT(Tc), need, pass, flow, bare, margin: need > 0 ? pass / need : Infinity,
+             Vin, inNeed, inPass, outNeed: outAt(1), outPass: outAt(K.warn),
+             limit: rOut >= rIn && rOut >= rEng ? 'outlet' : rEng > rIn ? 'engine' : 'inlet' };
+  };
+  // the case the caller is IN (the cockpit's needle: o.at = { air: an atmosphere, h, pFrac, Veas, ground })
+  if (oo.at && oo.at.air) {
+    const a = oo.at;
+    out.at = caseAt(a.air, a.h || 0, Math.max(0, Math.min(1, +a.pFrac || 0)), Math.max(0, +a.Veas || 0), !!a.ground);
+    if (oo.atOnly) return out;
+  }
+  out.hot = caseAt(HOT, K.hot.h, 1, VC, false);
+  out.taxi = caseAt(HOT, K.hot.h, K.taxi.power, 0, true);
+  out.cruise = caseAt(ATMOS_ISA, 0, K.cruisePower, VCr, false);
+  out.Aeng = Aeng;
+  if (op.kind === 'bare') { out.cdA = 0; out.margin = out.hot.margin; return out; }   // (a bare engine's drag: the heads term)
+  // THE DRAG: the momentum of the air the geometry passes - with no outlet drawn, the outlet is SIZED FOR YOU to the hot
+  // climb's need (the default every saved build reads: its drag follows what its engine needs, not how big its face is
+  // drawn); a drawn outlet passes what the series passes; never less than the air it NEEDS (an engine starved of air
+  // overheats - the margin says so - and does not fly faster for it). Net of the heads' air (the heads term bills it).
+  // Equivalent free-stream areas (m2): the air over rho V_inlet
+  const H = out.hot;
+  const needEq = Math.max(0, H.need - H.bare) / (H.rho * H.Vin), flowEq = H.flow / (H.rho * H.Vin);
+  const Aeff = op.exitSized ? needEq : Math.max(needEq, flowEq);
+  // the cruise's dynamic pressure over the inlet's: the flow rides the slipstream, the momentum is lost on the free stream
+  const fC = out.cruise.Vin / (VCr / Math.sqrt(ATMOS_ISA.sigma(0)));
+  let cda = 2 * Aeff * fC * (1 - r);
+  // MEREDITH: a radiator duct's heat as thrust, k M^2 Q at the cruise (a cowl gets none)
+  let meredithN = 0;
+  if (duct) {
+    const V = VCr, M = V / ATMOS_ISA.a(0), q = 0.5 * ATMOS_ISA.rho(0) * V * V;
+    meredithN = K.meredith * M * M * out.cruise.Q * 1000 / Math.max(1, V);
+    cda = Math.max(0, cda - meredithN / q);
+  }
+  out.Aeff = Aeff; out.r = r; out.duct = duct; out.meredithN = meredithN;
+  // one engine's; genCooling sums the body's (a single engine's body row: x nBody as it always was - one)
+  out.cdA = ks1(S) ? cda * op.nBody : cda;
+  out.margin = H.margin;
+  return out;
+}
+// the body row's old count: one engine's cooling x nBody when ONE engine speaks for the body (a single, or wing
+// nacelles: nBody 1); with several body engines genCooling sums them each once
+function ks1(S) { return genCoolBodyEngines(S).length <= 1; }
+
+// the plaque's few numbers (genShakedown's `cooling`): null for a cowled spec never measured
+function genCoolSummary(def) {
+  const S = def && def.spec, ap = (def && def.params && def.params.ap) || {};
+  if (!S || typeof genCooling !== 'function') return null;
+  const C = genCooling(S, { VClimb: ap.VClimb, VCruise: ap.VCruise });
+  if (C.kind === 'legacy') return null;
+  const r3 = v => Math.round(v * 1000) / 1000, r2 = v => Math.round(v * 100) / 100;
+  // (ENGINE-COOLING 3: a bare engine's own figure - its heads in the wind)
+  if (C.kind === 'bare') return { kind: 'bare', bareA: r3(C.bareA), needKgS: r2(C.hot.need), passKgS: r2(C.hot.pass),
+                                  margin: r2(C.hot.margin), taxi: r2(C.taxi.margin) };
+  return { kind: C.kind, pushes: C.pushes, inA: r3(C.inA), outA: C.exitSized ? null : r3(C.outA), bareA: r3(C.bareA),
+           needA: r3(C.hot.inNeed), needKgS: r2(C.hot.need), passKgS: r2(C.hot.pass), margin: r2(C.hot.margin),
+           taxi: r2(C.taxi.margin), cruise: r2(C.cruise.margin), cdA: r3(C.cdA), limit: C.hot.limit };
+}
+
+// THE OIL TEMPERATURE NOW (the cockpit's needle; display only - nothing in the solver reads it, and the power is not
+// pulled back over the red line until the proposed rows are ruled): the hot side's rise grows as the air needed over the
+// air passed, to the red line (GEN_COOL.oilRed) at exactly enough air. A bare engine reads as if it had twice the air
+// it needs; an unmeasured cowl returns null (the needle keeps the 82 C it always showed). `at` as genCooling's o.at.
+function genCoolOilC(S, at) {
+  const K = GEN_COOL;
+  const C = genCooling(S, { at, atOnly: true });
+  if (C.kind === 'legacy' && !(C.radA > 0)) return null;
+  const T = at.air.T(at.h || 0) - 273.15;
+  const x = !C.at ? 0.5 : (C.at.pass > 0 ? Math.min(2, C.at.need / C.at.pass) : 2);
+  const oil = Math.max(T + 20, T + (K.oilRed - T) * Math.pow(x, 0.7));
+  return { oilC: oil, margin: x > 0 ? 1 / x : Infinity };
+}
+
+function genFusCdA(S, fr, o) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
   for (const s of ST) frontal = Math.max(frontal, 2 * s.w * (s.yt - s.yb));
@@ -46020,7 +46304,8 @@ function genFusCdA(S, fr) {
             : th.cooling === 'liquid' ? D.kCool.liquid
             : radial ? (cowlOn ? D.kCool.radialRing : D.kCool.radialBare) : D.kCool.pressureCowl;
     cool = k * th.coolKW;
-    // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal
+    // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal (genHeadsFrontal counts the
+    // same reach as a bare inlet; the expression stays here as it was, bit for bit)
     const E = S.engBox;
     if (E && !radial && th.family !== 'turbine' && th.cooling !== 'liquid' &&
         (!cowlOn || !covers.sides)) {
@@ -46028,6 +46313,14 @@ function genFusCdA(S, fr) {
       const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
       heads = D.cdBlock * 2 * out * (2 * E.cylR) * 2;      // both banks, each bank's reach x its height
     }
+  }
+  // ENGINE-COOLING: a MEASURED cowl (the join's spec.cooling) or drawn wing radiators pay the momentum the cooling air
+  // loses (genCooling), at the aeroplane's own climb and cruise speeds (GEN_VRATIO x Vs, the speeds genAP gives it); a
+  // bare engine and an unmeasured spec keep the per-kW figure above
+  let coolSheet = null;
+  if (o && o.Vs > 0) {
+    coolSheet = genCooling(S, { VClimb: GEN_VRATIO.VClimb * o.Vs, VCruise: GEN_VRATIO.VCruise * o.Vs });
+    if (coolSheet.kind === 'measured') cool = coolSheet.cdA;
   }
   // the windscreen
   const cb = S.cab || {}, cn = cb.canopy || {};
@@ -46049,7 +46342,8 @@ function genFusCdA(S, fr) {
     fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
     drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
-            body, cool, heads, screen, junct, exh },
+            body, cool, heads, screen, junct, exh,
+            coolBy: coolSheet && coolSheet.kind === 'measured' ? 'momentum' : 'perKW' },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
   // wind. Priced as a DELTA on the covered figure — the gear model's own rule
@@ -46918,7 +47212,12 @@ function genParams(S, fr, strips) {
     ClMax3Dx = ClMax3D + gainS / G.Sw;
   }
   const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3Dx));
-  const cda = genFusCdA(S, fr);
+  // ENGINE-COOLING: the cooling drag's climb and cruise speeds hang off the CLEAN wing's Vs - a slat or a VG kit is the
+  // wing's, it does not redraw the cowl (the outlet "sized for you" is the engine's, sized on the aeroplane's own clean
+  // climb; GATE STOL: the auto slat pays only its seam, the body's axial term is the clean one). The margin rows read the
+  // climb the aeroplane flies (def.params.ap)
+  const VsClean = ClMax3Dx === ClMax3D ? Vs : Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3D));
+  const cda = genFusCdA(S, fr, { Vs: VsClean });
   // G115: the undercarriage and bracing join the drag build-up. PERF STUDY
   // chantier 2 (2026-09-15): ADDED AS THEY ARE — the body row is a wetted
   // build-up now and contains no reference gear to subtract from; the delta
@@ -47143,8 +47442,6 @@ function genParams(S, fr, strips) {
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
-    // THE BRAKES' HOLD (GEN_BRAKES): the most a main's brake holds, N - the key only when the build has brakes chosen
-    ...(genBrakeOf(S) ? { brakeN: genBrakeOf(S).perWheelN } : {}),
     // G3800 (TAILWHEELS): a taildragger's tail contact, 30_solver twLine's law: 2 lockable, 3 fixed, 4 skid - the key
     // only when chosen (absent: 1, the steerable Scott-type wheel, every taildragger's default)
     ...(S.gear.type !== 'tricycle' && S.gear.twMode ? { twMode: { lock: 2, fixed: 3, skid: 4 }[S.gear.twMode] } : {}),
@@ -49713,6 +50010,9 @@ function genShakedown(def, opts) {
     engineName: ENr.name, hp, engineMass: ENr.mass,
     engineFamily: THr.family, engineCooling: THr.cooling,
     coolKW: THr.coolKW, burnKgH: THr.burnKgH, drawKW: THr.drawKW,
+    // ENGINE-COOLING (12 Nov): what the drawn openings make of that duty - the hot-day climb's air needed and passed,
+    // the margin, the cooling drag (62_gen_aero genCooling; null when the cowl was never measured)
+    cooling: genCoolSummary(def),
     powerLoad: sim.totalM / Math.max(1e-6, hp),
     onWheels, restsOn: lowTag, gearStrain, restChassisStrain: chassisStrain,
     springStrain, susTravel, susShift, gearFolded: susShift > 0.5,
@@ -50957,18 +51257,23 @@ const GEN_CERT_TIER = { 'pitch.sm': 'safe', 'pitch.Vh': 'comm', 'pitch.short': '
   'yaw.Vv': 'comm', 'yaw.cnb': 'safe', 'roll.clb': 'safe', 'roll.spiral': 'safe', 'yaw.dutch': 'safe', 'roll.mode': 'safe',
   'ctl.aileron': 'safe', 'ctl.droop': 'safe', 'ctl.rudder': 'safe',
   'aid.step': 'safe', 'aid.reserve': 'safe', 'aid.prop': 'safe', 'aid.range': 'comm', 'aid.thrust': 'comm', 'aid.stance': 'comm',
-  'aid.doors': 'comm' };
+  'aid.doors': 'comm',
+  // ENGINE-COOLING (12 Nov; the user: defaults OK): the hot-day climb is a safety row, the ground a commercial one -
+  // landed PROPOSED, ruled the same day (64c genCoolRows)
+  'cool.climb': 'safe', 'cool.taxi': 'comm' };
 function genCertTierOf(id) { return GEN_CERT_TIER[id] || 'safe'; }
 // a row list -> the two certificates' verdicts: the airworthiness one fails only on a safe, non-proposed fail; every
 // other non-pass is a warning on it; the commercial one fails on any fail (the safe tier's included: an aeroplane
-// that is not safe is not commercial either)
+// that is not safe is not commercial either) - except a PROPOSED row's (ENGINE-COOLING, 12 Nov): a new check awaiting
+// the user's ruling is a warning on BOTH certificates, so a game update never withdraws one (R3: the bench re-signs at
+// every roll-out). The first proposed rows were the cooling rows (ruled 12 Nov); none is proposed now
 function genCertTiers(rows) {
   const R = (rows || []).map(r => Object.assign({}, r, { tier: r.tier || genCertTierOf(r.id) }));
   const safeFail = R.filter(r => r.tier === 'safe' && r.level === 'fail' && !r.proposed);
   const warns = R.filter(r => r.level !== 'pass' && safeFail.indexOf(r) < 0);
-  const commFail = R.filter(r => r.level === 'fail');
+  const commFail = R.filter(r => r.level === 'fail' && !r.proposed);
   return { safe: safeFail.length ? 'fail' : warns.length ? 'warn' : 'pass', safeFail, warns,
-           comm: commFail.length ? 'fail' : R.some(r => r.level === 'warn') ? 'warn' : 'pass', commFail };
+           comm: commFail.length ? 'fail' : R.some(r => r.level !== 'pass') ? 'warn' : 'pass', commFail };
 }
 // ============================================================
 // THE DESIGN AIDS (DESIGN-AIDS, the user 3 Nov: "I think we miss helpers in the garage. CG and neutral point are good,
@@ -51075,6 +51380,87 @@ function genAidWaterline(F, massKg, rho) {
   let lo = 0, hi = H;
   for (let i = 0; i < 22; i++) { const m = 0.5 * (lo + hi); if (HYDRO.levelVolume(F, m, 160) < need) lo = m; else hi = m; }
   return 0.5 * (lo + hi);
+}
+
+// THE COOLING ROWS (ENGINE-COOLING; 62_gen_aero genCooling). Two rows, RULED (the user 12 Nov: "we can make the row,
+// but we have to modify the twin busher and the superpetrel at once" - done, and every official card and every
+// archetype the shed births passes; they landed PROPOSED first, 64b genCertTiers' door). A certificate already signed
+// keeps its stored bench check until the aeroplane changes or the bench runs again (R3: no version bump):
+//   cool.climb  safe   the hot-day climb (FAR 23.1043: 38 C at sea level, full power at Vy): fail under 1.00 x the air
+//                      the engine needs, warn under 1.15
+//   cool.taxi   comm   the hot strip at taxi power: a warning under 1.00 (it runs hot waiting at the hold)
+// A bare engine (no cowl) passes, the air is all round it; a cowled spec the join never measured has no row.
+function genCoolRows(def) {
+  const S = def.spec || {}, ap = (def.params && def.params.ap) || {};
+  if (typeof genCooling !== 'function') return [];
+  const K = GEN_COOL, r2 = v => Math.round(v * 100) / 100, r3 = v => Math.round(v * 1000) / 1000;
+  const C = genCooling(S, { VClimb: ap.VClimb, VCruise: ap.VCruise });
+  if (C.kind === 'legacy') return [];
+  const lim = 'FAR 23.1043\'s climb cooling day: 38 C at sea level, full power at Vy. Fail under ' + K.pass.toFixed(2) +
+              ' x the air the engine needs, warn under ' + K.warn.toFixed(2);
+  const H = C.hot, T = C.taxi, m = H.margin;
+  const lvlOf = v => v < K.pass ? 'fail' : v < K.warn ? 'warn' : 'pass';
+  // ENGINE-COOLING 3 (the user: "check Rufus ... completely open engines, what kind of figure we get"): a bare engine's
+  // own figure - its cylinders' frontal in the wind
+  if (C.kind === 'bare' && (C.path === 'electric' || C.path === 'turbine'))
+    return [{ id: 'cool.climb', group: 'power', tier: 'safe', label: 'Engine cooling, hot-day climb', value: null, unit: '',
+              level: 'pass', limit: lim, why: 'no cowl: an ' + (C.path === 'electric' ? 'electric motor' : 'engine') + ' in the open air cools itself', fix: '' }];
+  if (C.kind === 'bare') {
+    const bl = lvlOf(m);
+    return [{ id: 'cool.climb', group: 'power', tier: 'safe', label: 'Engine cooling, hot-day climb', value: r2(m),
+              unit: 'x the air needed', level: bl, limit: lim,
+              why: 'no cowl: ' + r3(C.bareA) + ' m2 of cylinders in the wind pass ' + r2(m) + ' x the ' + r2(H.need) + ' kg/s the engine needs at ' + Math.round(H.oatC) + ' C',
+              fix: bl === 'pass' ? '' : 'a bare engine this hot needs a cowl with an inlet (or a bigger engine is the wrong fix: it heats more)' }];
+  }
+  const lvl = lvlOf(m);
+  const cm = v => Math.round(v * 100);
+  // the mouth to draw, as width x height (an oval 1.2 x as wide as tall)
+  const mouth = A => { const h = Math.sqrt(4 * A / (Math.PI * 1.2)); return cm(1.2 * h) + ' x ' + cm(h) + ' cm'; };
+  // the sizes to draw are the PASS line's (K.warn x the need: a design drawn to exactly 1.00 runs hot)
+  const need = r3(H.inPass), have = r3(C.inA), outNeed = r3(H.outPass);
+  // a push-pull: the engine that answers (the worst), named
+  const who = Array.isArray(C.engines) && C.engines.length > 1 ? (C.pushes ? 'the rear engine: ' : 'the nose engine: ') : '';
+  // the way out: a tractor's at its firewall end (the lowered bottom, the gills); a pusher's cowl is turned round, so
+  // its way out is its face, round the spinner at the propeller's end
+  const wayOut = C.pushes ? 'open the cowl\'s face round the spinner (inlets: one, round the spinner - on a pusher it is the way out)'
+                          : 'lower the cowl\'s bottom (exit gap) or add gills';
+  const fwd = C.parts.filter(p => p.faces === 'fwd').map(p => p.what), aftIn = C.parts.filter(p => p.faces === 'aft' && /front|scoop|inlet/.test(p.what));
+  let why, fix = '';
+  const air = r2(H.need) + ' kg/s of air at ' + Math.round(H.oatC) + ' C to carry ' + Math.round(H.Q) + ' kW';
+  // a scoop drawn but buried in the skin: its rows say a mouth, the drawing has none (the cowl measures what is open)
+  const cg = S.cage || {}, buried = +cg.cw_scoopOn > 0 && S.cooling && !(+S.cooling.scoop > 0);
+  const buriedNote = buried ? ' (the scoop is drawn inside the cowl\'s skin: none of its mouth faces the air - let it ride the bottom line or drop it further)' : '';
+  if (!(C.inA > 0) && !(C.bareA > 0)) {
+    why = 'no opening faces the air' + (C.pushes && aftIn.length ? ': this cowl\'s openings face the propeller, which on a pusher is backwards' : '') +
+          ' - in a hot climb the engine gets none of the ' + air + buriedNote;
+    // ...and the air needs a way out: a pusher's aft face round the spinner is its outlet, often a sliver
+    const outFix = !C.exitSized && (!isFinite(outNeed) || C.outA < outNeed) ? '; and give the air a way out: about ' + (isFinite(outNeed) ? outNeed : r3(need * K.outRatio)) + ' m2 of outlet (now ' + r3(C.outA) +
+                   ') - ' + wayOut : '';
+    fix = (C.pushes ? (who ? 'turn the rear cowl\'s scoop into the air (cowl page, scoop: the rear engine\'s scoop), ' : 'turn the scoop round (cowl page, chin scoop: mouth faces the firewall), ') +
+                      'let it stand out of the skin (rides the bottom line, or sits on top of the cowl) and size its mouth to about ' + need + ' m2 (about ' + mouth(need) + ')'
+                    : 'open the cowl\'s front (inlets) or fit a scoop: about ' + need + ' m2 in all (about ' + mouth(need) + ')') + outFix;
+  } else {
+    const by = H.limit === 'outlet' ? 'the outlet' : 'the inlets';
+    why = by + ' pass ' + r2(m) + ' of the ' + air + buriedNote + (C.bareA > 0 ? ' (the cylinder heads in the wind count)' : '') +
+          (fwd.length ? '; in: ' + fwd.join(', ') + ', ' + have + ' m2' : '') + (C.exitSized ? '' : '; out: ' + r3(C.outA) + ' m2');
+    if (lvl !== 'pass') {
+      if (H.limit === 'outlet') fix = (C.inA >= need ? 'the inlet is big enough but the air cannot leave: ' : 'the air cannot leave: ') +
+        'give it about ' + (isFinite(outNeed) ? outNeed : r3(need * K.outRatio)) + ' m2 of outlet (now ' + r3(C.outA) + ') - ' + wayOut +
+        (C.inA < need ? '; then enlarge ' + (fwd.length ? fwd.join(' / ') : 'the inlets') + ' to about ' + need + ' m2 (now ' + have + ')' : '');
+      else if (C.radA > 0 && C.radA >= C.inA - C.radA) fix = 'grow the radiators\' mouths to about ' + need + ' m2 in all (now ' + have + '), or open their exit flaps';
+      else fix = 'enlarge ' + (fwd.length ? fwd.join(' / ') : 'the inlets') + ' to about ' + need + ' m2 (now ' + have + ')';
+    }
+  }
+  if (who) { why = who + why + ' (the other engine ' + C.engines.filter(e => e.k !== C.k).map(e => r2(e.margin) + ' x').join(', ') + ')'; if (fix) fix = who + fix; }
+  const rows = [{ id: 'cool.climb', group: 'power', tier: 'safe', label: 'Engine cooling, hot-day climb',
+                  value: r2(m), unit: 'x the air needed', level: lvl, limit: lim, why, fix }];
+  const tl = T.margin < K.pass ? 'warn' : 'pass';
+  rows.push({ id: 'cool.taxi', group: 'power', tier: 'comm', label: 'Engine cooling on the ground (hot strip, taxi)',
+              value: r2(T.margin), unit: 'x the air needed', level: tl,
+              limit: 'the hot strip (38 C), 5 m/s at 20 % power, the slipstream doing the work: a warning under ' + K.pass.toFixed(2),
+              why: (C.pushes ? 'a pusher\'s inlets get only the propeller\'s inflow on the ground' : 'the slipstream alone') + ': ' + r2(T.margin) + ' x the ' + r2(T.need) + ' kg/s needed',
+              fix: tl === 'pass' ? '' : 'it runs hot waiting at the hold: a bigger inlet, or keep ground runs short' });
+  return rows;
 }
 
 function genDesignAids(def, bal, opts) {
@@ -51316,6 +51702,9 @@ function genDesignAids(def, bal, opts) {
           why: (trike ? 'tip-back ' : 'the mains ') + r2(ang) + ' deg' + (sh2 != null && trike ? ', nose wheel ' + Math.round(sh2 * 100) + ' %' : ''),
           fix: lvl === 'pass' ? '' : ang < W[0] ? 'the mains ' + r2(Math.abs(moveM)) + ' m ' + (trike ? 'aft' : 'forward') : ang > W[1] ? 'the mains a little ' + (trike ? 'forward' : 'aft') : 'the mains ' + (sh2 < GEN_AIDS.noseShare[0] ? 'forward' : 'aft') + ' to share the weight' });
   }
+  // ---- ENGINE COOLING (ENGINE-COOLING, 12 Nov; the user via A0: "the cooling requirements will need to be part of the
+  // CERTIFICATE ... if something fails for it, it should be CLEAR") -----------------------------------------------------
+  for (const r of genCoolRows(def)) row(r);
   return out;
 }
 // the drawn loading's CG by the same ledger arithmetic (the corners' reference)
@@ -53145,6 +53534,10 @@ const CERT_BOLT_ONS = ['pod'];
 // by age (the annual inspection keeps an aeroplane airworthy). Ageing, an overhaul, a restore never withdraw. Before
 // this, `aging` hashed with the structure group (an unnamed block): procureOnSaveCert re-signs those (WEAR-PRICE M4)
 const CERT_CONDITION = ['aging'];
+// MEASURED BLOCKS (ENGINE-COOLING, 12 Nov): a whole block the join measures off the drawing - the cowl's cooling openings
+// (spec.cooling, off the cowl rows the structure group already hashes). Dropped whole: a certificate signed before the
+// join measured them hashes the same (R3: a game update is not a change to the aeroplane)
+const CERT_MEASURED_BLOCKS = ['cooling'];
 // the cage's STATE and MINOR rows - views, the explode, who is aboard and whether the crew is shown, the lamps'
 // switches and dimmers, the lamps FITTED (li_*Fit: minor, a W&B update), the reflector glow, the fastener density
 // (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).
@@ -53181,7 +53574,7 @@ function certHash(str) {
 function certStrip(spec, o) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));
-  for (const k of CERT_COSMETIC.concat(CERT_MINOR_BLOCKS, CERT_BOLT_ONS, o && o.condition ? [] : CERT_CONDITION)) delete c[k];
+  for (const k of CERT_COSMETIC.concat(CERT_MINOR_BLOCKS, CERT_BOLT_ONS, CERT_MEASURED_BLOCKS, o && o.condition ? [] : CERT_CONDITION)) delete c[k];
   if (c.energy && typeof c.energy === 'object') {
     for (const k of CERT_LOOK.energy) delete c.energy[k];
     if (Array.isArray(c.energy.vessels)) for (const v of c.energy.vessels) if (v && typeof v === 'object') for (const k of CERT_LOOK.vessel) delete v[k];
@@ -53226,6 +53619,280 @@ function certChangeLine(keys) {
   if (!keys || !keys.length) return 'the aeroplane changed';
   const L = keys.map(k => (CERT_GROUPS[k] || {}).label || k);
   return (L.length > 1 ? L.slice(0, -1).join(', ') + ' and ' + L[L.length - 1] : L[0]) + ' changed';
+}
+// ============================================================
+// THE FICHE'S PHYSICS PAGES (PHYSICS-PAGES, 11 Nov 2026) - the data behind the fiche pages that show what a player never
+// sees: the LOAD TEST and its BREAKING POINT, the DRAG, the X-RAY (electrics and tanks) and WHAT THE SIM FLIES.
+//
+// NO PHYSICS HERE. Every number is read off a function the game already runs, the way it runs it:
+//   load     makeLoadTest on the stand's airframe (app.js startLoadTest's cfg), the shape and each member's force at the
+//            limit load, each force over that member's own yield (fy0 in tension, fc0 in compression, the damage
+//            model's figures)
+//   destroy  the bench to destruction (bench_worker.js benchLoadRun with destroy: the certified airframe, the damage
+//            layer on, the bags to three times the ultimate at the load test's own rate), the shape when the first part
+//            lets go and the damage record (sim.damage(): firstYield, firstBreak, broken, groups)
+//   drag     def.params.gen.drag (genFusCdA's build-up, genGearCdA, the truss, the pod), the gear row split by
+//            genGearCdA's own terms (the sum checked against the row), and each row's cost in km/h by the cruise rule
+//            64_gen_build solves the belly pod's cost with (drag = 65 % of the thrust, from the best-glide speed to
+//            4 Vs) run again with that row's drag area off the same probe
+//   elec     genSystemsResolve with the lights the build has fitted (the light layer's li_<key>Fit rows), and the bus
+//            (makeBus) run with the alternator switched off until it can no longer feed an instrument
+//   tanks    the vessels' resolved records (genVesselResolve's _res) and their bays (genBayResolve)
+//   model    def.nodes (masses), def.beams, def.strips with the control chords, the two body drag points
+//            (refs.fusDrag / fusDragAft with params.fusCdA / fusCdAAft), the propeller disc (params.prop.D at
+//            refs.engine), the ground contacts
+//
+//   genFichePages(def, { destroy: true|false, load: true|false, propOff }) -> { v, model, load, destroy, drag, elec, tanks }
+//            (propOff: genAidPropOff(CAGE_ENG), the drawn hubs; the model's propeller discs stand there)
+//
+// Heavy parts: the load test steps the sim (seconds), the bench to destruction longer (up to a minute on a strong wing):
+// the page asks for them on the bench's thread; each part can be left out ({ load: false, destroy: false }).
+// GATE PHYSPAGES (tools/_physpages_check.js) holds every part to the function it reads.
+// ============================================================
+const GEN_FICHE_PAGES_V = 1;
+const GEN_FICHE_CRUISE_K = 0.65;   // 64_gen_build's pod rule: cruise where the drag is 65 % of the thrust
+
+const GEN_FICHE_TEN = [1, 10, 100, 1000, 1e4, 1e5];
+function genFicheR(x, k) { const m = GEN_FICHE_TEN[k == null ? 3 : k]; return Math.round(x * m) / m; }
+
+// the airframe as the solver holds it: what the model page draws, and what every other page places its callouts by
+function genFicheModel(def, opts) {
+  const S = def.spec || {}, CT = S.controls || {}, P = def.params || {};
+  const tags = [], tagIx = {};
+  const tagOf = t => { t = t || ''; if (!(t in tagIx)) { tagIx[t] = tags.length; tags.push(t); } return tagIx[t]; };
+  const nodes = def.nodes.map(n => [genFicheR(n.p[0]), genFicheR(n.p[1]), genFicheR(n.p[2]), genFicheR(n.m, 2), tagOf(n.tag)]);
+  const CLS = ['fus', 'wing', 'tail', 'wire', 'gear'];
+  const beams = def.beams.map(b => [b.a, b.b, Math.max(0, CLS.indexOf(b.cls || (b.gear ? 'gear' : 'fus'))), b.vis === 'inner' ? 1 : 0]);
+  const share = st => st.kind === 'stab' ? (CT.elevator && CT.elevator.chord) || 0 : st.kind === 'fin' ? (CT.rudder && CT.rudder.chord) || 0
+    : st.ail ? (CT.aileron && CT.aileron.chord) || 0 : st.flap ? (CT.flap && CT.flap.chord) || 0 : 0;
+  const KIND = ['wing', 'stab', 'fin'];
+  const strips = def.strips.map(st => [st.fIn, st.fOut, st.rIn, st.rOut, genFicheR(st.chord), Math.max(0, KIND.indexOf(st.kind)),
+                                       genFicheR(share(st)), st.ail ? 1 : st.flap ? 2 : 0, genFicheR(st.area)]);
+  const mid = ix => { const a = [].concat(ix || []); if (!a.length) return null; const c = [0, 0, 0]; for (const i of a) for (let k = 0; k < 3; k++) c[k] += def.nodes[i].p[k] / a.length; return c.map(v => genFicheR(v)); };
+  const engI = [].concat((def.refs && def.refs.engine) || []);
+  const engAt = Array.isArray(S.engAt) ? S.engAt : [];
+  return {
+    tags, nodes, beams, strips, CLS, KIND,
+    drag: { fwd: mid(def.refs && def.refs.fusDrag), aft: mid(def.refs && def.refs.fusDragAft),
+            cda: (P.fusCdA || []).map(v => genFicheR(v, 4)), cdaAft: (P.fusCdAAft || []).map(v => genFicheR(v, 4)) },
+    prop: { D: genFicheR((P.prop && P.prop.D) || 0), at: mid(engI), pusher: engAt.some(e => e && e.mount === 'pusher'),
+            mounts: engAt.map(e => e && e.mount),
+            // the discs where the blades are DRAWN: each engine station (the mount's flange) moved by the editor's own
+            // measure of its hub (64c genAidPropOff off CAGE_ENG, handed in as opts.propOff); [x, y, z, drawn 1|0] - a
+            // disc without that measure stays at its flange (drawn 0)
+            discs: engAt.map((e, i) => { if (!e) return null; const PO = opts && Array.isArray(opts.propOff) ? opts.propOff : null, off = PO && PO[i];
+              return [genFicheR(e.x + (off ? off[0] : 0)), genFicheR(e.y + (off ? off[1] : 0)), genFicheR(e.z || 0), off ? 1 : 0]; }).filter(Boolean) },
+    engineKg: genFicheR(engI.reduce((a, i) => a + def.nodes[i].m, 0) + def.nodes.filter(n => n.tag === 'CGE').reduce((a, n) => a + n.m, 0), 1),
+    contacts: [].concat((def.refs && def.refs.mains) || [], def.refs && def.refs.tw >= 0 ? [def.refs.tw] : []),
+    floats: !!(def.parts && def.parts.floats),
+    semi: genFicheR((S.geom && S.geom.semi) || 0),
+  };
+}
+
+// the shape of a run against its jig, in the body frame (x aft, y up, z right), metres
+function genFicheShape(sim, def, base, now) {
+  const out = [];
+  for (let i = 0; i < def.nodes.length; i++) {
+    const d = [0, 1, 2].map(q => now.p[i * 3 + q] - base.p[i * 3 + q]);
+    out.push([0, 1, 2].map(a => genFicheR(d[0] * now.ax[a][0] + d[1] * now.ax[a][1] + d[2] * now.ax[a][2], 4)));
+  }
+  return out;
+}
+const genFicheSnap = sim => ({ p: Float64Array.from(sim.p), ax: sim.axes().map(a => a.slice()) });
+
+// THE LOAD TEST at the limit: app.js startLoadTest's cfg on a fresh sim of this def
+function genFicheLoad(def) {
+  const S = def.spec || {};
+  const sim = makeSim(def, null); sim.reset(0);
+  const cfg = { material: (S.fuselage && S.fuselage.material) || undefined,
+                wingMaterial: typeof genSurfKey === 'function' ? genSurfKey(S, 'wing', 0) : undefined };
+  const rig = makeLoadTest(sim, def, cfg);
+  if (!rig.state.ok) return { ok: false, why: rig.state.why };
+  let base = null, lim = null, F = null, frames = 0;
+  while (!rig.state.done && frames < 60 * 30) {
+    const ph = rig.state.phase; rig.step(1 / 60); frames++;
+    if (ph === 'settle' && rig.state.phase !== 'settle') base = genFicheSnap(sim);
+    if (!lim && rig.state.n >= rig.limit) {
+      lim = genFicheSnap(sim);
+      F = sim.beams.map(b => ((b.tens && b.strain < 0) ? 0 : b.k * b.strain * b.L0));
+    }
+  }
+  const st = rig.state;
+  const util = sim.beams.map((b, i) => { const f = F ? F[i] : 0, cap = f >= 0 ? (b.fy0 || b.fu) : (b.fc0 || b.fy0 || b.fu); return cap > 0 ? genFicheR(Math.abs(f) / cap, 4) : 0; });
+  let worst = 0; util.forEach((u, i) => { if (u > util[worst]) worst = i; });
+  return { ok: true, limit: rig.limit, ult: rig.ult, W: genFicheR(rig.W, 1), semi: genFicheR(rig.semi), bags: rig.bags.length,
+           verdict: st.verdict, limitPct: st.limitPct, ultPct: st.ultPct,
+           tipM: genFicheR(st.limitPct / 100 * rig.semi, 4), ultTipM: genFicheR(st.ultPct / 100 * rig.semi, 4),
+           shape: lim && base ? genFicheShape(sim, def, base, lim) : null, util, comp: F ? F.map(f => (f < 0 ? 1 : 0)) : null,
+           worst, worstU: util[worst], worstComp: F ? F[worst] < 0 : false, frames };
+}
+
+// THE BENCH TO DESTRUCTION: bench_worker.js benchLoadRun's destroy path (its setup restated here; GATE PHYSPAGES holds
+// the verdict, the loads and the damage record to benchLoadRun's own)
+function genFicheDestroy(def0, opts) {
+  const S = def0.spec || {}, U = GEN_LOAD_ULT;
+  const def = Object.assign({}, def0, { params: Object.assign({}, def0.params, { damage: true }) });
+  if (opts && opts.cert && opts.cert.Ft && opts.cert.nb === def.beams.length) def.cert = opts.cert;
+  else if (typeof genCertAttach === 'function')
+    genCertAttach(def, { world: def.parts && def.parts.floats && typeof makeWorld === 'function' ? makeWorld() : null });
+  const sim = makeSim(def, null); sim.reset(0);
+  const cfg = { material: (S.fuselage && S.fuselage.material) || undefined,
+                wingMaterial: typeof genSurfKey === 'function' ? genSurfKey(S, 'wing', 0) : undefined,
+                destroy: true, ult: 3 * U, rampS: 4 * 3 };
+  const rig = makeLoadTest(sim, def, cfg);
+  if (!rig.state.ok) return { ok: false, why: rig.state.why };
+  let base = null, atBreak = null, frames = 0;
+  while (!rig.state.done && frames < 60 * 120) {
+    const ph = rig.state.phase; rig.step(1 / 60); frames++;
+    if (ph === 'settle' && rig.state.phase !== 'settle') base = genFicheSnap(sim);
+    if (!atBreak && rig.state.brokeAt != null) atBreak = genFicheSnap(sim);
+  }
+  const st = rig.state, D = sim.damage();
+  const yielded = [], broken = [];
+  sim.beams.forEach((b, i) => { if (b.broken) broken.push(i); else if (b.yielded) yielded.push(i); });
+  return { ok: true, verdict: st.verdict, yieldAt: st.yieldAt, breakAt: st.breakAt, brokeAt: st.brokeAt,
+           brokeKey: st.brokeKey, brokeSeam: st.brokeSeam, breakFirst: st.breakFirst || null,
+           firstBreak: D.firstBreak ? { beam: D.firstBreak.beam, how: D.firstBreak.how, seam: D.firstBreak.seam, cls: D.firstBreak.cls } : null,
+           firstYield: D.firstYield && typeof D.firstYield === 'object' ? { beam: D.firstYield.beam, cls: D.firstYield.cls } : null,
+           groups: (D.groups || []).map(G => ({ key: G.key, seam: G.seam })), broken, yielded,
+           shape: atBreak && base ? genFicheShape(sim, def, base, atBreak) : null, frames };
+}
+
+// THE DRAG: the rows, the gear's terms, each one's km/h
+function genFicheGearTerms(S) {
+  // genGearCdA's own terms, one by one (62_gen_aero.js); GATE PHYSPAGES checks the sum against genGearCdA
+  const G = S.gear, semi = S.geom.semi;
+  const fd = t => 1 - 0.18 * (Math.max(0.70, Math.min(1.60, t || 1)) - 1);
+  const wCd = (G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55) * (G.fairing && G.fairing !== 'none' ? fd(G.fairTail) : 1);
+  const tCd = (G.twFairing === 'full' ? 0.15 : G.twFairing === 'spat' ? 0.22 : 0.55) * (G.twFairing && G.twFairing !== 'none' ? fd(G.twFairTail) : 1);
+  const R = G.wheelR || 0.20, Rt = G.twR || 0.10, legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
+  let lever = 0;
+  if (G.suspension === 'lever') {
+    const lv = G.lever, dx = lv && lv.horn && lv.top ? [0, 1, 2].map(k => lv.horn[k] - lv.top[k]) : null;
+    lever = 2 * legCd * (dx ? Math.hypot(dx[0], dx[1], dx[2]) : 0.50) * 0.060;
+  }
+  return { wheels: 2 * wCd * (2 * R * 0.76 * R), third: tCd * (2 * Rt * 0.76 * Rt), legs: 2 * legCd * (G.legDrop || 0.42) * 0.05, lever,
+           thirdLeg: (G.twFairing === 'full' || G.twLegFair === 'fair' ? 0.30 : 1.0) * (G.twLeg || 0.20) * 0.05,
+           struts: S.bracing && S.bracing.type === 'strut' ? 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0 };
+}
+const GEN_FICHE_DRAG_GROUPS = { fuselage: ['body'], cooling: ['cool', 'heads', 'exh'], screen: ['screen'], junct: ['junct'],
+  mainGear: ['g:wheels', 'g:legs', 'g:lever'], third: ['g:third', 'g:thirdLeg'], struts: ['g:struts'], wires: ['brace'],
+  nacelles: ['nacelles'], pod: ['pod'], strutPods: ['strutPods'] };
+function genFicheDrag(def) {
+  const S = def.spec, g = def.params.gen || {}, D = g.drag || {};
+  const sim = makeSim(def, null); sim.reset(0);
+  const W = sim.totalM * 9.81, aMax = 0.85 * genStallAngle(def), Vs0 = g.Vs || 10;
+  const sh = genShakedown(def);
+  const dragAt = (v, cda) => genProbeAt(sim, v, genAlphaForLift(sim, v, W, aMax)).drag - 0.5 * RHO * v * v * cda;
+  const cruise = cda => {
+    let lo = Math.max(1.05 * Vs0, sh.VbestLD || 0), hi = 4 * Vs0;
+    if (dragAt(lo, cda) >= GEN_FICHE_CRUISE_K * sim.thrustAt(lo, 1)) return lo;
+    for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (dragAt(m, cda) < GEN_FICHE_CRUISE_K * sim.thrustAt(m, 1)) lo = m; else hi = m; }
+    return 0.5 * (lo + hi);
+  };
+  const v0 = cruise(0);
+  const terms = genFicheGearTerms(S);
+  const rows = {};
+  let known = 0;
+  for (const r of ['body', 'cool', 'heads', 'screen', 'junct', 'exh', 'gear', 'brace', 'pod', 'strutPods']) {
+    if (D[r] > 0) rows[r] = D[r];
+    known += D[r] || 0;
+  }
+  // what the axial row carries with no row of its own: the off-nose nacelles (62_gen_aero's G179.5 block)
+  if (D.axial - known > 1e-6) rows.nacelles = D.axial - known;
+  const groups = {};
+  for (const k in GEN_FICHE_DRAG_GROUPS) {
+    let c = 0;
+    for (const r of GEN_FICHE_DRAG_GROUPS[k]) c += r.startsWith('g:') ? (terms[r.slice(2)] || 0) : (rows[r] || 0);
+    if (c > 0) groups[k] = { cda: genFicheR(c, 4), dV: genFicheR(cruise(c) - v0, 3) };
+  }
+  const a = genAlphaForLift(sim, v0, W, aMax), pr = genProbeAt(sim, v0, a), q = 0.5 * RHO * v0 * v0;
+  return { Vc: genFicheR(v0, 3), axial: genFicheR(D.axial, 4), surf: genFicheR((pr.drag - q * D.axial) / q, 4),
+           rows: Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, genFicheR(v, 4)])),
+           gear: Object.fromEntries(Object.entries(terms).map(([k, v]) => [k, genFicheR(v, 5)])), groups,
+           floats: S.gear.type === 'floats', gearType: S.gear.type };
+}
+
+// THE ELECTRICS: the record, the lamps fitted, the bus with the alternator off
+function genFicheElec(def) {
+  const S = def.spec || {}, cg = S.cage || {};
+  const LK = Object.keys(GEN_LIGHT_AMPS);
+  const lights = cg.lightOn ? LK.filter(k => cg['li_' + k + 'Fit'] == null || !!+cg['li_' + k + 'Fit']) : [];
+  const sy = genSystemsResolve(S, { lights });
+  const lamps = lights.map(k => ({ key: k, amps: GEN_LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1), cb: GEN_LIGHT_BREAKER[k] }));
+  const run = (loads, alt) => {
+    const bus = makeBus({ battAh: sy.battAh, altA: sy.altA, loads, breakers: sy.breakers });
+    bus.master = true; bus.alt = alt; bus.avionics = true;
+    bus.step(0.5, 2300, false);
+    const r = { A: genFicheR(bus.loadA, 3) };
+    if (!alt && sy.battAh > 0) { let t = 0; while (bus.ok && t < 6 * 3600) { bus.step(5, 2300, false); t += 5; } r.min = genFicheR(t / 60, 1); r.capped = t >= 6 * 3600; }
+    return r;
+  };
+  const night = sy.loads.concat(lamps.map(l => ({ key: 'lt_' + l.key, amps: l.amps, cb: l.cb })));
+  return { hasBus: sy.hasBus, elec: sy.elec, battAh: sy.battAh, altA: sy.altA, starter: sy.starter, vac: sy.vac,
+           parts: sy.parts, breakers: sy.breakers, loads: sy.loads, lamps, bill: sy.bill.elec,
+           day: run(sy.loads.slice(), true), night: run(night, true), dark: run(night, false),
+           litePos: { bayFrac: cg.li_bayFrac != null ? +cg.li_bayFrac : 0.24 } };
+}
+
+// THE TANKS: the vessels as resolved, each with its bay
+function genFicheTanks(def) {
+  const S = def.spec || {}, E = S.energy || {};
+  return { kind: E.kind || 'fuel', vessels: (E.vessels || []).map(v => {
+    const R = v._res || {}, B = typeof genBayResolve === 'function' ? genBayResolve(S, v.bay, def.parts && def.parts.ST) : null;
+    return { bay: v.bay, form: v.form, litres: R.litres, installedL: R.installedL, contentsKg: R.contentsKg, vesselKg: R.vesselKg,
+             vessel: R.vessel && R.vessel.name, kWh: R.kWh,
+             bayRes: B && { on: B.on, name: B.name, span: B.span || null, x0: B.x0, x1: B.x1, litres: B.litres } };
+  }) };
+}
+
+// THE COOLING (the user, 12 Nov: "a page for the engine cooling ... something nice that shows cooling ... a balance ...
+// on the plane"): ENGINE-COOLING's model as it judges the aeroplane - genCooling's three cases (the 38 C climb, the taxi,
+// the cruise: the heat, the air it needs, the air the drawn openings pass, the margin, what limits the flow, the opening
+// that would pass), its cooling drag, and the oil needle (genCoolOilC) at each case - plus where the cowl and the engine
+// stand, to draw the air through them. Nothing restated: each case's conditions are GEN_COOL's own (hot / taxi /
+// cruisePower) at the aeroplane's own climb and cruise speeds (def.params.ap), as genCoolSummary reads them.
+function genFicheCooling(def) {
+  if (typeof genCooling !== 'function' || typeof GEN_COOL === 'undefined') return null;
+  const S = def.spec || {}, ap = (def.params && def.params.ap) || {}, K = GEN_COOL;
+  const C = genCooling(S, { VClimb: ap.VClimb, VCruise: ap.VCruise });
+  const R = v => (typeof v === 'number' && isFinite(v)) ? genFicheR(v, 4) : (v === Infinity ? 'inf' : null);
+  const VC = ap.VClimb > 0 ? ap.VClimb : 30, VCr = ap.VCruise > 0 ? ap.VCruise : VC * 1.24;
+  const HOT = makeAtmos({ dISA: K.hot.dISA });
+  const AT = { hot: { air: HOT, h: K.hot.h, pFrac: 1, Veas: VC, ground: false },
+               taxi: { air: HOT, h: K.hot.h, pFrac: K.taxi.power, Veas: 0, ground: true },
+               cruise: { air: ATMOS_ISA, h: 0, pFrac: K.cruisePower, Veas: VCr, ground: false } };
+  const cases = {};
+  for (const k of ['taxi', 'hot', 'cruise']) {
+    const c = C[k]; if (!c) continue;
+    const oil = typeof genCoolOilC === 'function' ? genCoolOilC(S, AT[k]) : null;
+    cases[k] = { Q: R(c.Q), need: R(c.need), pass: R(c.pass), flow: R(c.flow), bare: R(c.bare), margin: R(c.margin), Vin: R(c.Vin),
+                 dT: R(c.dT), oatC: R(c.oatC), limit: c.limit, inNeed: R(c.inNeed), inPass: R(c.inPass), outNeed: R(c.outNeed),
+                 outPass: R(c.outPass), oilC: oil ? R(oil.oilC) : null, V: R(AT[k].Veas), pFrac: AT[k].pFrac };
+  }
+  // where the air goes: the body engine the answer is about, its cowl (len along x from the face to its firewall end; top /
+  // bot about the engine's axis), the engine box, the propeller's disc
+  const EA = S.engAt || [], e = EA[C.k > 0 ? C.k : 0] || EA[0] || {}, cw = S.cowl || {}, E = S.engBox || {};
+  const len = cw.len > 0 ? cw.len : 0.7, face = C.pushes ? e.x + 0.1 : e.x - 0.1;
+  const PP = S.pplant || POWERPLANTS[((S.engines && S.engines[0]) || {}).type] || {}, eng = (PP && PP.engine) || {};
+  const ST0 = def.parts && def.parts.ST && def.parts.ST[0];
+  return { v: 1, kind: C.kind, path: C.path, pushes: !!C.pushes, coolKW: R(C.coolKW), kW: R((eng.powerW || 0) / 1000),
+           layout: eng.layout || null, nEng: C.nEng || 1,
+           parts: (C.parts || []).map(p => ({ what: p.what, A: R(p.A), faces: p.faces })),
+           inA: R(C.inA), outA: R(C.outA), bareA: R(C.bareA), radA: R(C.radA), exitSized: !!C.exitSized, duct: !!C.duct,
+           cdA: R(C.cdA), meredithN: R(C.meredithN || 0), cases,
+           lines: { pass: K.pass, warn: K.warn, oilRed: K.oilRed, hotOat: R(cases.hot ? cases.hot.oatC : null) },
+           geom: { x: R(e.x), y: R(e.y), z: R(e.z || 0), mount: e.mount || 'nose', face: R(face), fw: R(C.pushes ? face - len : face + len), top: R(cw.top), bot: R(cw.bot),
+                   halfH: R(E.halfH), cylZ: R(E.cylZ), cylR: R(E.cylR), D: R((S.prop && S.prop.D) || 0),
+                   fus: ST0 ? { yb: R(ST0.yb), yt: R(ST0.yt) } : null } };
+}
+
+function genFichePages(def, opts) {
+  const o = opts || {};
+  return { v: GEN_FICHE_PAGES_V, model: genFicheModel(def, o),
+           load: o.load === false ? null : genFicheLoad(def),
+           destroy: o.destroy === false ? null : genFicheDestroy(def, o),
+           drag: genFicheDrag(def), elec: genFicheElec(def), tanks: genFicheTanks(def), cooling: genFicheCooling(def) };
 }
 // ===========================================================================
 // THE PLAYER — the player's property as ONE document, one key, one version.
@@ -60952,7 +61619,7 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 // ...and the READOUTS the editor derives a frame after a load: `fuel` (the energy arc's legacy litres, re-derived from
 // energy.vessels by the energy layer - measured on the page, G2280: the stock Cub's 45 came back 29 a frame after the
 // load with no edit). A readout is not a choice, so it never signs or withdraws a certificate.
-const PROCURE_READOUTS = ['fuel'];
+const PROCURE_READOUTS = ['fuel', 'cooling'];   // ENGINE-COOLING: the join's measurement of the cowl's openings (66b CERT_MEASURED_BLOCKS)
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
 // G3852: whSlick (a tundra's lugs or smooth) is drawing only, as bench.js counts it
 const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|accBeacon|whSlick)$|^hgDr[A-Z]/;
@@ -64888,7 +65555,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_BRAKES, genBrakeOf };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_FICHE_PAGES_V, genFichePages, genFicheModel, genFicheLoad, genFicheDestroy, genFicheDrag, genFicheGearTerms, genFicheElec, genFicheTanks, GEN_COOL, genCooling, genCoolOpen, genCoolOilC, genCoolSummary, genHeadsFrontal, genCoolRows, genFicheCooling };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh

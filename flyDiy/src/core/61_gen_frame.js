@@ -610,6 +610,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // would be noise. Structure is priced by its own mass; things that are BOUGHT
   // rather than built (engine, wheels, instruments, paint) call spend().
   const ledger = {};
+  // the outfit row's own items as billed (PHYSICS-PAGES, the mass page: "what is in Fittings?"); a record, no mass of its own
+  let outfitKg = null;
+  // ...and the gear row's kilos by node as billed (PHYSICS-PAGES: main gear / tail or nose wheel / floats on the page)
+  let gearDm = null;
   let SEC = 'fuselage';
   // WHAT IS THE AEROPLANE AND WHAT IS THE LOAD. `pt()` bills crew, fuel and
   // freight into the same node masses the structure uses — it has to, the
@@ -644,7 +648,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const trace = (typeof globalThis !== 'undefined' && globalThis.GEN_MASS_TRACE) ? (e.nodeM || (e.nodeM = [])) : null;
     for (let i = 0; i < nodes.length; i++) {
       const dm = nodes[i].m - (secSnap[i] || 0);
-      if (dm) { e.mx += dm * P[i][0]; if (trace) trace.push([i, dm]); }
+      if (dm) { e.mx += dm * P[i][0]; if (trace) trace.push([i, dm]); if (SEC === 'gear') (gearDm || (gearDm = [])).push([i, dm]); }
     }
   };
   const secOpen = () => { secSnap = nodes.map(n => n.m); };
@@ -3690,6 +3694,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     half(F[1].TL, F[1].TR, glassM);
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * ctlM);         // G3504: the cabin's rear ring
+    { const nCowl = (noseEng && engOn) ? 1 + engCowl.length : engCowl.length ? engCowl.length : 1;
+      outfitKg = { panel: panelM, plumbing: plumbM, cowl: nCowl * cowlM, exhaust: nCowl * exhM, glazing: glassM, controls: ctlM }; }
     // the furnishing on the cabin floor, both rings (G3570: the floor is in it - at the raised floor's height)
     sec('furnish');
     if (floorUp > 0) for (const rg of [F[1], F[iCabR]]) { onRing(rg, 'L', 0.25 * furnM); onRing(rg, 'R', 0.25 * furnM); }
@@ -3839,7 +3845,16 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
 
     bracing: useStrut ? (w.crankAt > 0 ? 'strut + boxed outer' : 'strut')
                       : 'cantilever box', strutOffset, trike,
-    ledger,
+    ledger, outfitKg,
+    // the gear row split as billed: each node's kilos to the nearer of the mains and the third wheel, a float's or a
+    // hull's nodes to the floats; [kg, centroid x] each (a record: no mass moves)
+    gearKg: (() => { if (!gearDm) return null;
+      const mm = [GAL, GAR].filter(i => typeof i === 'number' && i >= 0), xm = mm.length ? mm.reduce((a, i) => a + P[i][0], 0) / mm.length : null;
+      const xt = typeof TW === 'number' && TW >= 0 ? P[TW][0] : null, acc = { main: [0, 0], third: [0, 0], floats: [0, 0] };
+      for (const [i, dm] of gearDm) { const x = P[i][0], k = /^(FL|HULL|PON)/.test(nodes[i].tag || '') ? 'floats'
+        : (xt == null || xm == null || Math.abs(x - xm) <= Math.abs(x - xt)) ? 'main' : 'third'; acc[k][0] += dm; acc[k][1] += dm * x; }
+      for (const k in acc) acc[k] = [acc[k][0], acc[k][0] ? acc[k][1] / acc[k][0] : 0];
+      return acc; })(),
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
     floats: FLOATS,             // H1: the float records, or null
     ...(AMPH ? { amph: true } : {}),   // HULL-B55: an amphibian - the wheels are its contacts on land, the hull on the water
