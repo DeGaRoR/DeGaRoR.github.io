@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e7a63e5d2ab03133
+// body-sha256: b205f9e56d017c71
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -53877,7 +53877,7 @@ function genFicheCooling(def) {
            inA: R(C.inA), outA: R(C.outA), bareA: R(C.bareA), radA: R(C.radA), exitSized: !!C.exitSized, duct: !!C.duct,
            cdA: R(C.cdA), meredithN: R(C.meredithN || 0), cases,
            lines: { pass: K.pass, warn: K.warn, oilRed: K.oilRed, hotOat: R(cases.hot ? cases.hot.oatC : null) },
-           geom: { x: R(e.x), y: R(e.y), face: R(face), fw: R(C.pushes ? face - len : face + len), top: R(cw.top), bot: R(cw.bot),
+           geom: { x: R(e.x), y: R(e.y), z: R(e.z || 0), mount: e.mount || 'nose', face: R(face), fw: R(C.pushes ? face - len : face + len), top: R(cw.top), bot: R(cw.bot),
                    halfH: R(E.halfH), cylZ: R(E.cylZ), cylR: R(E.cylR), D: R((S.prop && S.prop.D) || 0),
                    fus: ST0 ? { yb: R(ST0.yb), yt: R(ST0.yt) } : null } };
 }
