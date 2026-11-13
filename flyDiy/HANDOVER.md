@@ -315347,3 +315347,8 @@ brand-new lodge "on the sea, in a bay, a nice place for a lodge, preferably far 
   (six tracks: + lodge; 17 fields; the new career's tracks + lodge: 0), MAPBAKE (17 runways in the projection), the MAP smoke
   (+ Hook Lagoon and its strip as places, 118 roads). RE-COOKED: the premises, the fleet spots (fleet_spots.js --cook: lg_sea 12,
   lg_strip 12), the map (map_bake.js).
+- LIGHTER FIRST PASS (A0 13 Nov, the user's credit rule: no new scope, the docks first, the lodge lighter; L40d): the lodge's
+  track road (lg_r_track), its outhouse and its woodshed came out, so the map is inside the user's budgets with no budget moved
+  (MAPBAKE: projection 95.6 KB <= 96, infra 20.0 KB gzipped <= 20). Stage 2 is now the main house, three cabins, the boathouse,
+  the fire pit, the tables and the boats; stage 3 the short strip alone (its stand reached by its taxi line). The map smoke is back
+  to 117 roads; the premises and the fleet spots re-cooked on it.
