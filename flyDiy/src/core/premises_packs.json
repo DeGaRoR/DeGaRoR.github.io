@@ -15,8 +15,8 @@
       "mk_mp_air",
       "mk_mf_air"
      ],
-     "record": "ad8014679eecb6f3",
-     "mods": 111,
+     "record": "14c6d1b43ce3bcf4",
+     "mods": 112,
      "places": {
       "things": 311,
       "cells": 41,
@@ -24,18 +24,18 @@
       "failed": 0
      },
      "raster": {
-      "tiles": 30192,
+      "tiles": 30196,
       "cells": 496,
-      "nodes": 44418256,
-      "raw": 356078592,
+      "nodes": 44437620,
+      "raw": 356233600,
       "worstMm": 0.0331
      }
     },
     {
      "name": "town",
      "drop": [],
-     "record": "07ffdd4fdcb23d63",
-     "mods": 184,
+     "record": "62a0f15d5d164809",
+     "mods": 185,
      "places": {
       "things": 796,
       "cells": 71,
@@ -43,10 +43,10 @@
       "failed": 0
      },
      "raster": {
-      "tiles": 34218,
+      "tiles": 34222,
       "cells": 521,
-      "nodes": 58740866,
-      "raw": 470756496,
+      "nodes": 58760230,
+      "raw": 470911504,
       "worstMm": 0.0331
      }
     }
@@ -69,19 +69,19 @@
      "town"
     ],
     "bytes": {
-     "raw": 564351440,
-     "ship": 87217256
+     "raw": 564506448,
+     "ship": 87251389
     },
     "fetched": {
      "default": {
       "cells": 496,
-      "raw": 356078592,
-      "ship": 56969017
+      "raw": 356233600,
+      "ship": 57003150
      },
      "town": {
       "cells": 521,
-      "raw": 470756496,
-      "ship": 70931660
+      "raw": 470911504,
+      "ship": 70965793
      }
     },
     "cells": [
@@ -9433,10 +9433,10 @@
        39,
        -46
       ],
-      "sig": "g1-a1f9bc2cf85d85bc",
-      "src": "media/world/jolene/premises/r_39_m46.9e3be613.bin",
-      "raw": 574512,
-      "tiles": 97,
+      "sig": "g1-d7362d248f9ed6ee",
+      "src": "media/world/jolene/premises/r_39_m46.2547715c.bin",
+      "raw": 729520,
+      "tiles": 101,
       "in": [
        "default",
        "town"
