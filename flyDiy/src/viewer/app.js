@@ -10609,7 +10609,7 @@
     if (!s) return null;
     const o = { aeros: world.aerodromes, jobs: {} };
     for (const id of STORY_JOBS) { try { const c = careerContract(d, id); if (c) o.jobs[id] = contractText(c.title, contractVars(c)); } catch (e) {} }
-    if (s.beat === 'T2' && s.planes.client) {
+    if (s.beat === 'T3' && s.planes.client) {   // TUTORIAL v2: the build is T3
       let spec = null;
       if (slotOnStand() === s.planes.client) spec = storyLiveSpec();
       if (!spec) { try { const env = JSON.parse(prefGet('flydiy.build.' + s.planes.client, 'null')); spec = env && env.spec; } catch (e) {} }
@@ -11352,7 +11352,7 @@
     try { const s = stLive(); if (s && s.planes && s.planes.starter) window.FLYDIY_STORY_STARTER = s.planes.starter; } catch (e) {}
     // T2's checklist follows the build on the stand (its ledger memoised on the spec's fingerprint); T6's hire step opens
     // the hire screen once the garage is up (T6b: the beat may begin in the air)
-    setInterval(() => { try { const s = stLive(); if (s && !s.open && (s.beat === 'T2' || (s.beat === 'T6' && inGarage && !STORY_TUTOR_FACTS.hiredPilot()))) storyCardSync(); } catch (e) {} }, 3000);
+    setInterval(() => { try { const s = stLive(); if (s && !s.open && s.beat === 'T3') storyCardSync(); } catch (e) {} }, 3000);   // TUTORIAL v2: the build (T3) ticks; no hire any more
     window.FLYDIY_STORY = {
       story: () => { const s = stLive(); return s ? JSON.parse(JSON.stringify(s)) : null; },
       mask: () => storyMask(playerLoad()), jobsOpen: () => storyJobsOpen(playerLoad()), card: () => storyCardNow(),

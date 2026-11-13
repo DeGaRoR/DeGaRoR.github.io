@@ -60,7 +60,11 @@ function run(M) {
   ok(M.storySite('harbour', twoWater) === 'mk_sea' && M.storySite('water', twoWater) === 'SEA' && M.storySite('harbour', aeros) === null &&
      M.storySite('harbour', twoWater.map(a => a.id === 'mk_sea' ? Object.assign({}, a, { role: 'water' }) : a)) === 'SEA',
      "T6's route ends on the OTHER water field (never the one 'water' picked; one water field only: null - never HOME's tarmac)");
-  ok(M.STORY_BEATS.find(b => b.id === 'T6').done.some(e => e.k === 'routeOffer' && e.a === 'harbour' && e.b === 'water'), "T6's route: water to water (the floats Cub, G3760's gear law)");
+  // TUTORIAL v2 (TUTORIAL-LOCK, 13 Nov): no route, no hire, no occasions - T7 (the floats) ends the tutorial on the one checkpoint
+  ok(M.STORY_BEATS.find(b => b.id === 'T7').done.some(e => e.k === 'checkpoint') && M.STORY_BEATS.find(b => b.id === 'T7').done.some(e => e.k === 'open')
+     && !M.STORY_BEATS.some(b => (b.done || []).concat(b.enter || []).some(e => e.k === 'routeOffer' || e.k === 'occasions')), "v2: T7's end opens the island on the checkpoint; no route, no occasions");
+  ok(M.STORY_BEATS.find(b => b.id === 'T2').goal.k === 'ack' && M.STORY_BEATS.find(b => b.id === 'T3').goal.k === 'certified' && M.STORY_BEATS.find(b => b.id === 'T6').goal.n === 1,
+     'v2: T2 the swap, T3 the build, T6 ONE job');
   ok(M.storySite('nope', aeros) === null, 'an unknown role: null');
   // ---- the documents
   const cubFile = fs.readdirSync(path.join(ROOT, 'builds')).find(f => /^cub_.*\.json$/.test(f) && !/edits|corrected/.test(f));
@@ -91,41 +95,39 @@ function run(M) {
   step({ k: 'stop', stop: stop('HOME'), slot: 'other' }, 'T1: another plane is refused', false);
   r = step({ k: 'stop', stop: stop('HOME'), slot: 'ul' }, 'T1: the ultralight stopped at HOME moves the story', true);
   ok(r.effects.some(e => e.k === 'hangar' && e.at === 'home') && r.effects.some(e => e.k === 'clientPlane' && e.beat === 'T2'), 'T1 done: the hangar effect; T2 entered: the client plane effect', JSON.stringify(r.effects));
-  ok(M.storyMask(d) === 'checklist', 'T2: the mask "checklist"');
-  // T2
-  step({ k: 'bind', role: 'client', slot: 'client-cub', spec: base }, 'T2: the page binds the client\'s plane (its spec as it arrived)', true);
+  // T2 THE SWAP (v2): the client's Cub arrived (T1's done entered it); the tutor walks the swap; its last step's OK moves on
+  step({ k: 'bind', role: 'client', slot: 'client-cub', spec: base }, "T2: the page binds the client's plane (its spec as it arrived)", true);
+  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 5000 }, 'T2: the swap is not the build (a certificate is refused)', false);
+  step({ k: 'ack' }, "T2: the swap done (the tutor's last OK)", true);
+  ok(M.storyMask(d) === 'checklist', 'T3: the mask "checklist"');
+  // T3 THE BUILD
   const half = JSON.parse(JSON.stringify(done)); half.controls.flap = { type: 'none' };
-  r = step({ k: 'certified', slot: 'client-cub', spec: half, cost: 5000 }, 'T2: a build without flaps is refused', false);
-  ok(/flaps/.test(r.why || ''), 'T2: the refusal names the missing item', r.why);
-  // (PRICE-CAL: the edit bills re-measured at today's prices - procureEditBill of the arrival ledger against each finish -
-  // against the budget at today's prices, econPay(40 000) = 57 300: the O-320 finish 85 115 over, the Jabiru's 53 939 on)
-  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 85115 }, 'T2: over budget is refused (the O-320 finish)', false);
-  step({ k: 'certified', slot: 'ul', spec: done, cost: 5000 }, 'T2: another plane is refused', false);
+  r = step({ k: 'certified', slot: 'client-cub', spec: half, cost: 5000 }, 'T3: a build without flaps is refused', false);
+  ok(/flaps/.test(r.why || ''), 'T3: the refusal names the missing item', r.why);
+  // (PRICE-CAL: the edit bills re-measured at today's prices against econPay(40 000) = 57 300: the O-320 finish 85 115 over, the Jabiru's 53 939 on)
+  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 85115 }, 'T3: over budget is refused (the O-320 finish)', false);
+  step({ k: 'certified', slot: 'ul', spec: done, cost: 5000 }, 'T3: another plane is refused', false);
   const list = M.storyChecklist(done, base, ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint']);
   ok(list.every(x => x.ok), 'the checklist on the delivered Cub: every item met', list.filter(x => !x.ok).map(x => x.k).join());
   ok(M.storyChecklist(base, base, ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint']).every(x => !x.ok), 'the checklist on the Cub as it arrived: every item open');
-  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 53939 }, 'T2: the checklist met on budget (the Jabiru finish)', true);
-  // T3
-  step({ k: 'stop', stop: stop('HOME'), slot: 'client-cub' }, 'T3: HOME is not the owner\'s strip', false);
-  r = step({ k: 'stop', stop: stop('w6'), slot: 'client-cub' }, 'T3: delivered at the owner\'s strip', true);
-  ok(r.effects.some(e => e.k === 'giftPlane' && e.beat === 'T4'), 'T4 entered: the gift effect');
-  // T4
-  step({ k: 'ack' }, 'T4: read', true);
-  ok(M.storyOf(d).planes.gift === 'client-cub', 'the gift: the client\'s Cub is the story\'s gift plane');
-  // T5
-  step({ k: 'jobDone', id: 'a' }, 'T5: job 1 counted (not met yet)', true);
-  step({ k: 'jobDone', id: 'b' }, 'T5: job 2 counted', true);
-  ok(M.storyOf(d).beat === 'T5' && M.storyOf(d).jobs === 2, 'T5: still on the beat at 2 of 3');
-  step({ k: 'jobDone', id: 'c' }, 'T5: job 3 moves the story', true);
-  // T6
-  step({ k: 'stop', stop: stop('SEA'), slot: 'client-cub', gear: 'wheels' }, 'T6: on wheels at the seaplane base is refused', false);
-  r = step({ k: 'stop', stop: stop('SEA'), slot: 'client-cub', gear: 'floats' }, 'T6: the Cub on floats at the seaplane base', true);
-  ok(r.effects.some(e => e.k === 'routeOffer' && e.plane === 'gift') && r.effects.some(e => e.k === 'occasions' && e.n === 3), 'T6 done: the route offer; T7 entered: the three occasions', JSON.stringify(r.effects));
+  step({ k: 'certified', slot: 'client-cub', spec: done, cost: 53939 }, 'T3: the checklist met on budget (the Jabiru finish)', true);
+  // T4 THE DELIVERY
+  step({ k: 'stop', stop: stop('HOME'), slot: 'client-cub' }, "T4: HOME is not the owner's strip", false);
+  r = step({ k: 'stop', stop: stop('w6'), slot: 'client-cub' }, "T4: delivered at the owner's strip", true);
+  ok(r.effects.some(e => e.k === 'giftPlane' && e.beat === 'T5'), 'T5 entered: the gift effect');
+  // T5 THE GIFT
+  step({ k: 'ack' }, 'T5: read', true);
+  ok(M.storyOf(d).planes.gift === 'client-cub', "the gift: the client's Cub is the story's gift plane");
+  // T6 ONE JOB
+  ok(M.storyJobIds(d).join() === 'field.02' && M.STORY_JOBS.join() === 'field.02', 'T6: the one job offered is Tools from the hill (field.02)', M.storyJobIds(d).join());
+  step({ k: 'jobDone', id: 'field.02' }, 'T6: the one job moves the story', true);
+  // T7 THE FLOATS, THE END
+  step({ k: 'stop', stop: stop('SEA'), slot: 'client-cub', gear: 'wheels' }, 'T7: on wheels at the seaplane base is refused', false);
   ok(!M.storyJobsOpen(d), 'T7: the job list still held');
-  // T7
-  r = step({ k: 'ack' }, 'T7: read', true);
+  r = step({ k: 'stop', stop: stop('SEA'), slot: 'client-cub', gear: 'floats' }, 'T7: the Cub on floats at the seaplane base', true);
+  ok(r.effects.some(e => e.k === 'open') && r.effects.some(e => e.k === 'checkpoint') && !r.effects.some(e => e.k === 'routeOffer' || e.k === 'occasions'), 'T7 done: the island opens on the checkpoint (no route, no occasions)', JSON.stringify(r.effects));
   const s = M.storyOf(d);
-  ok(s.open && s.beat === 'open' && M.storyJobsOpen(d) && M.storyMask(d) === null && r.effects.some(e => e.k === 'open'), 'the rails end: open, the job list open, no mask');
+  ok(s.open && s.beat === 'open' && M.storyJobsOpen(d) && M.storyMask(d) === null, 'the rails end: open, the job list open, no mask');
   ok(s.done.join() === 'T0,T1,T2,T3,T4,T5,T6,T7', 'every beat done, in order', s.done.join());
   ok(!M.storyStep(d, { k: 'ack' }, { aeros }).ok, 'an open story refuses steps');
   // ---- G2743 TWO OWNED HANGARS: the cabin granted at the start, send-to between them. STORY-1 (rule b, the user 29 Oct:
@@ -447,6 +449,9 @@ async function pageRun() {
   ok(S.beat === 'T2' && !d.sheds.HOME.locked && !d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'T1 done: the WWII field\'s hangar ours since the start (STORY-1), nothing handed over - no ledger line (STORY-HOME-FIX F3)');
   // (G3585, the user 24 Oct: "the Cub is parked outside" - Tim's storage steps swap it onto the stand)
   ok(cub && cub.aero === 'HOME' && M.playerStoreWhere(d, S.planes.client).kind === 'outside', "T2: the client's Cub is parked outside the WWII hangar (HOME's apron)", S.planes.client + ' ' + JSON.stringify(cub));
+  // TUTORIAL v2: T2 is the swap - its tutor's last OK moves on to the build (T3)
+  { const ra = H.window.FLYDIY_STORY.event({ k: 'ack' }); await settle(); d = P.get();
+    ok(ra.ok && M.storyOf(d).beat === 'T3', 'v2: the swap acknowledged, T3 (the build) on the rails', M.storyOf(d).beat); }
   const env = JSON.parse(prefs.get('flydiy.build.' + S.planes.client) || 'null'), base = S.base.client || {};
   const file = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20.json'), 'utf8')).spec;
   ok(env && env.spec && base.controls.flap.type === 'none' && base.systems.fit === 'minimal' && JSON.stringify(base.paint) === JSON.stringify(file.paint) && base.engines[0].type === file.engines[0].type &&
@@ -459,13 +464,13 @@ async function pageRun() {
     want.meta = Object.assign({}, want.meta, { name: 'Client Cub' });
     ok(JSON.stringify(laid) === JSON.stringify(want), "the handover changes only the flaps, the panel and the name (the Cub's own look kept whole)",
        Object.keys(laid).filter(k => JSON.stringify(laid[k]) !== JSON.stringify(want[k])).join(',')); }
-  ok(M.storyChecklist(base, base, M.STORY_BEATS.find(b => b.id === 'T2').goal.checklist).every(x => !x.ok), 'every item of the checklist is open on it (no battery: no lights)');
+  ok(M.storyChecklist(base, base, M.STORY_BEATS.find(b => b.id === 'T3').goal.checklist).every(x => !x.ok), 'every item of the checklist is open on it (no battery: no lights)');
   ok(!out.career.lines.some(l => /hangar is yours/.test(l.text || '')), "STORY-1: the arrival card does not hand over HOME's hangar - it has been yours since the start", (out.career.lines[0] || {}).text);
   half.storyCardSync(); half.storyCardSync();                       // (the budget is measured once the build held still a tick)
   el = half.el();
   const ticks = (el.innerHTML.match(/<li/g) || []).length;
-  const open6 = M.STORY_BEATS.find(b => b.id === 'T2').goal.checklist.map(k => M.STORY_CHECKS[k].words).every(w => el.innerHTML.includes('<li class=""><span class="stTick" aria-hidden="true"></span>' + w.replace(/&/g, '&amp;')));
-  ok(/The client's plane/.test(el.innerHTML) && ticks === 8 && open6 && el.innerHTML.includes('on budget: 0 of ' + (M.econPay ? M.econPay(40000) : 40000)), "the card: T2's checklist (six items open, the budget at 0, the certificate)", ticks + ' rows');
+  const open6 = M.STORY_BEATS.find(b => b.id === 'T3').goal.checklist.map(k => M.STORY_CHECKS[k].words).every(w => el.innerHTML.includes('<li class=""><span class="stTick" aria-hidden="true"></span>' + w.replace(/&/g, '&amp;')));
+  ok(/The client's plane/.test(el.innerHTML) && ticks === 8 && open6 && el.innerHTML.includes('on budget: 0 of ' + (M.econPay ? M.econPay(40000) : 40000)), "the card: T3's checklist (six items open, the budget at 0, the certificate)", ticks + ' rows');
   // ---- the garage's certificate on the finished Cub
   const done = JSON.parse(JSON.stringify(base));
   done.engines[0].type = 'jabiru2200_std';                         // a stronger engine, on budget (the 80 hp Jabiru: 53 939 at PRICE-CAL's prices)
@@ -478,12 +483,12 @@ async function pageRun() {
   H.window.BENCH_CERTIFIED();
   d = P.get();
   const cost = H.window.FLYDIY_STORY.card();
-  ok(M.storyOf(d).beat === 'T3' && cost && cost.title === 'The delivery', "the bench's certificate moves T2 (the checklist met, the edit bill on budget): T3 on the card", M.storyOf(d).beat);
+  ok(M.storyOf(d).beat === 'T4' && cost && cost.title === 'The delivery', "the bench's certificate moves T3 (the checklist met, the edit bill on budget): T4 on the card", M.storyOf(d).beat);
   // ---- the occasions: authored, one-time, in the used market
   let o = M.storyApply(d, { k: 'occasions', n: 3 }, {}).doc;
   const occ = M.procureMarketOf(o).filter(L => L.occasion);
   ok(occ.length === 3 && occ.every(L => M.STORY_OCCASIONS.some(A => A.id === L.id) && L.price < L.catalogue && M.procureFlyableAt(M.procureUsedCert(L), L.aero)),
-     'T7: three occasions on the market, authored by hand, under the catalogue, flyable where they stand', occ.map(L => L.id + ' ' + L.price).join(', '));
+     '(legacy) the occasions effect: three on the market, authored by hand, under the catalogue, flyable where they stand', occ.map(L => L.id + ' ' + L.price).join(', '));
   const file2 = JSON.parse(fs.readFileSync(path.join(ROOT, M.CONTRACT_DESIGNS[occ[1].design].build), 'utf8')).spec;
   o.wallet = 1e6;
   const b = M.procureBuyUsed(o, occ[1].id, { slot: 'Occasion', slotNames: [], fileSpec: file2 });
@@ -491,8 +496,8 @@ async function pageRun() {
   const plain = M.careerNormalise(M.careerNew({ id: 'x', seed: 'gate' }));
   ok(JSON.stringify(M.procureMarketOf(plain)) === JSON.stringify(M.procureMarket('gate', 0, [])), 'a career without the story: the used market exactly as before');
   // ---- Q1 at T5 and after
-  const t5 = JSON.parse(JSON.stringify(d)); t5.career.story.beat = 'T5';
-  ok(M.STORY_JOBS.every(id => !M.storyJobHeld(t5, id)) && M.careerOfferIds(t5).filter(id => !M.STORY_JOBS.includes(id)).every(id => M.storyJobHeld(t5, id)), "T5: the story's three jobs offered, every other one held");
+  const t5 = JSON.parse(JSON.stringify(d)); t5.career.story.beat = 'T6';
+  ok(M.STORY_JOBS.every(id => !M.storyJobHeld(t5, id)) && M.careerOfferIds(t5).filter(id => !M.STORY_JOBS.includes(id)).every(id => M.storyJobHeld(t5, id)), "T6 (v2): the story's one job offered, every other one held");
   const op = JSON.parse(JSON.stringify(d)); op.career.story.beat = 'open'; op.career.story.open = true;
   ok(M.careerOfferIds(op).every(id => !M.storyJobHeld(op, id)) && M.storyCard(op) === null, 'open: nothing held, no card');
   return fails;
@@ -726,7 +731,7 @@ async function ladderRun() {
   ok(d.wallet === w0 && JSON.stringify(d.career.pilots || null) === log0 && JSON.stringify(d.career.contracts) === con0 && d.ledger.filter(l => l.amount).length === 0 && d.ledger.length - led0 <= 2,
      'no money, no logbook row, no contract moved: only what the stop records', 'wallet ' + d.wallet + ', ledger +' + (d.ledger.length - led0));
   X.storySkipSync();
-  ok(X.skip().hidden && !P.bodyCls.has('stSkipOn') && /client/.test(H.window.FLYDIY_STORY.card().title.toLowerCase()), 'after the skip: the pill gone, the T2 card up');
+  ok(X.skip().hidden && !P.bodyCls.has('stSkipOn') && /swap/.test(H.window.FLYDIY_STORY.card().title.toLowerCase()), "after the skip: the pill gone, the T2 card up (v2: the swap)");
   // ---- SKIP THE FLIGHT, in the air: the shed door, the flight's end not recorded
   atT1(); await settle();
   let doors = 0; const door = P.mkEl('button'); door.id = 'bHangar2'; door.onclick = () => { doors++; };
@@ -768,15 +773,11 @@ async function tutorRun() {
   const t1 = TU.T1, roll = t1[t1.length - 1];
   ok(roll.wait === 'flying' && roll.allow === 'rollout', 'T1 in the shed: the news, then Roll out (the step waits for the flight; in flight the ladder, G3370)', ids('T1'));
   const t2 = TU.T2, w2 = t2.map(s => s.wait).filter(Boolean).join();
-  ok(w2 === 'inHangar,storeOpen,clientOnStand,starterInside' && t2[0].free && t2[0].allow === 'shed' && /parked outside/.test(t2.map(s => s.say).join(' ')) && /INSIDE/.test(t2.map(s => s.say).join(' ')) && !t2[t2.length - 1].wait,
-     'T2, the WWII arrival: the taxi or The shed (free), the hangar, the contract (the Cub parked outside), Storage, the swap, the ultralight into a visible slot, the list', ids('T2'));
-  // G3585 T6b ("the tutorial must hire"): one free step - the hire screen opened from the story in the garage (never in
-  // flight), a short wallet topped up to the cheapest sign-on (the story-opened screen cannot close before a hire)
-  const t6 = TU.T6 || [], h6 = t6[0] || {};
-  ok(t6.length === 1 && h6.wait === 'hiredPilot' && facts.has('hiredPilot') && h6.open === 'hire' && h6.free && !h6.allow && /[Hh]ire a pilot/.test(h6.say || '') &&
-     /if \(step\.open === 'hire'\) storyHireOpen\(\);/.test(app) && /function storyHireOpen\(\) \{[\s\S]{0,200}!inGarage[\s\S]{0,400}playerCharge\(d, -need, 'story', 'T6:signon'\)[\s\S]{0,200}H\.open\(\{ from: 'story' \}\)/.test(app) &&
-     /s\.beat === 'T6' && inGarage && !STORY_TUTOR_FACTS\.hiredPilot\(\)\)\)\) storyCardSync\(\)/.test(app) && /addEventListener\('flydiy:hired'/.test(app),
-     'T6b: Tim asks for a hire (free, nothing held); the hire screen opens from the story in the garage only, a short wallet topped up to the cheapest sign-on, the 3 s tick and the hired event move him on', ids('T6'));
+  ok(w2 === 'inHangar,storeOpen,clientOnStand,starterInside' && t2[0].free && t2[0].allow === 'shed' && /parked outside/.test(t2.map(s => s.say).join(' ')) && /INSIDE/.test(t2.map(s => s.say).join(' ')) && !t2[t2.length - 1].wait && t2[t2.length - 1].ack,
+     'T2 (v2: THE SWAP), the WWII arrival: the taxi or The shed (free), the hangar, the contract (the Cub parked outside), Storage, the swap, the ultralight into a visible slot, the OK that ends the swap', ids('T2'));
+  ok(Array.isArray(TU.T3) && TU.T3.some(s => s.id === 'list'), 'T3 (v2: THE BUILD): the list (the exact steps join from storyEditDiff when the reference files land)', ids('T3'));
+  // TUTORIAL v2: no hire any more (no route): T6 is the one job, no tutor steps
+  ok(!TU.T6, 'v2: no hire step (the route is gone with it)');
   // the tick and the Next
   let f = {};
   const fact = k => !!f[k];
@@ -903,7 +904,9 @@ async function tutorRun() {
   ok(mv.ok, 'the HOME hangar has an inside slot for it', mv.why || JSON.stringify(W1));
   P.set(mv.doc);
   e = tim();
-  ok(/what the client wants/.test(e.innerHTML) && /stTimRows/.test(e.innerHTML) && />OK</.test(e.innerHTML), "Rufus inside: Tim's last T2 words carry the client's checklist");
+  ok(/the swap/i.test(e.innerHTML) && />OK</.test(e.innerHTML), "Rufus inside: Tim's last T2 words end the swap (v2), with an OK");
+  press('tnext'); e = tim();
+  ok(/what the client wants/.test(e.innerHTML) && /stTimRows/.test(e.innerHTML), "OK: the swap done, T3 (the build): Tim's words carry the client's checklist", e.className);
   press('tnext'); e = tim();
   ok(!P.bodyCls.has('stTut') && e.className === 'min' && /data-tim="open"/.test(e.innerHTML), "OK: the steps done, Tim's chip in the corner (his last words behind it), nothing locked");
   // ---- the source

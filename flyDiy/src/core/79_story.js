@@ -72,31 +72,30 @@ function storyChecklist(spec, base, items) {
 // goal: what moves the beat on. enter / done: the effects handed to the page on entering / completing it. mask: the
 // tutorial mode of the tech mask (TECH-MASK G3230) while the beat stands - 'finish' = the finish only.
 const STORY_BEATS = [
+  // TUTORIAL v2 (TUTORIAL-LOCK, the user 13 Nov): fully deterministic, one day, no choices; the ids stay T0-T7 (the page's
+  // wiring keys on them), their meaning moved: T2 the SWAP (new), T3 the build, T4 the delivery, T5 the gift, T6 ONE job, T7
+  // the floats, and the END writes the one checkpoint (storyCheckpoint). No route, no hire, no occasions any more.
   { id: 'T0', title: 'The cabin', mask: 'finish',
     brief: 'Your ultralight waits in the cabin’s shed. Make it yours - a colour, a name - then come and read the letter.',
     goal: { k: 'ack' } },
   { id: 'T1', title: 'The move', brief: 'The old WWII field is our base now - its hangar is ours already. Fly the ultralight there.',
     goal: { k: 'stop', at: 'home', plane: 'starter' },
     done: [{ k: 'hangar', at: 'home', shell: 'club' }] },
-  { id: 'T2', title: "The client's plane", mask: 'checklist',
-    brief: 'A client brings an unfinished Cub. The checklist is on the bench; keep it on budget.',
-    enter: [{ k: 'clientPlane', at: 'home' }],
-    // costCap (G2742 STORY-PAGE, measured): the page's cost is dm11's edit bill (every ledger line the work rebuilt, at build
-    // price) against the Cub as it arrived. G2741's 9000 could not be met by any finish (the cheapest complete one, on the
-    // Rotax 582, bills 24 248); finished on the Jabiru 2200 35 114, the Rotax 912 38 089, the O-200 44 355, the O-320 48 745
+  { id: 'T2', title: 'The swap', brief: 'A client brought a Cub. Put the ultralight away and bring the Cub onto the floor.',
+    enter: [{ k: 'clientPlane', at: 'home' }], goal: { k: 'ack' } },
+  { id: 'T3', title: "The client's plane", mask: 'checklist',
+    brief: 'The work, step by step: Tim shows each change. Keep it on budget, then certify it at the bench.',
+    // costCap (G2742 STORY-PAGE, measured): the page's cost is dm11's edit bill against the Cub as it arrived
     goal: { k: 'certified', plane: 'client', checklist: ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint'], costCap: 40000 } },
-  { id: 'T3', title: 'The delivery', brief: "Certified. Fly it to its owner's strip.",
+  { id: 'T4', title: 'The delivery', brief: "Certified. Fly it to its owner's strip.",
     goal: { k: 'stop', at: 'client', plane: 'client' } },
-  { id: 'T4', title: 'The gift', brief: '"I can’t pay you. Keep it." The Cub is yours.',
+  { id: 'T5', title: 'The gift', brief: '"I can’t pay you. Keep it." The Cub is yours.',
     enter: [{ k: 'giftPlane', plane: 'client' }], goal: { k: 'ack' } },
-  { id: 'T5', title: 'Cub work', brief: 'A pickup, a survey, a small load: quick, easy jobs.',
-    goal: { k: 'jobs', n: 3 } },
-  { id: 'T6', title: 'The water job', brief: 'A job you promised: fit floats to the Cub and land it at the seaplane base.',
+  { id: 'T6', title: 'A job', brief: 'One job to learn the ropes: tools to bring back from the hill.',
+    goal: { k: 'jobs', n: 1 } },
+  { id: 'T7', title: 'The water job', brief: 'Fit floats to the Cub and land it at the seaplane base. Then, a well-deserved rest.',
     goal: { k: 'stop', at: 'water', plane: 'gift', gear: 'floats' },
-    done: [{ k: 'routeOffer', plane: 'gift', a: 'harbour', b: 'water' }] },   // (b: the Cub's home end - where it landed)
-  { id: 'T7', title: 'The three occasions', brief: 'Back to the ultralight alone - and three planes on offer, once only.',
-    enter: [{ k: 'occasions', n: 3 }], goal: { k: 'ack' },
-    done: [{ k: 'open' }] },
+    done: [{ k: 'open' }, { k: 'checkpoint' }] },
 ];
 const STORY_IDS = STORY_BEATS.map(b => b.id);
 // G3350 (STORY-TIM, the user 19 Oct): TIM - "your friend and business partner" - speaks each beat in the band at the
@@ -198,14 +197,12 @@ const STORY_TUTOR = {
       say: 'Drag the Cub onto the floor, or tap its "work on". The ultralight steps off the stand to make room.' },
     { id: 'park', wait: 'starterInside', allow: 'storeStarter',
       say: 'Now put the ultralight where we can see it: drag it into an INSIDE slot. Storage keeps every plane you own - inside, on the apron, or long-term.' },
-    { id: 'list', say: 'Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.' },
+    { id: 'swapped', ack: true, say: 'That’s the swap: any plane you own goes on the floor the same way. Now the client’s work.' },
   ],
-  // G3585 T6b (the user 25 Oct: "the tutorial must hire"): the water job comes with a route, and a route needs a hired
-  // pilot - the hire screen opens in the garage (the page: storyHireOpen; opened from the story it closes only after a
-  // hire), nothing else held (free: a flight is never locked); the route then goes to the pilot you hired (storyRoutePilot)
-  T6: [
-    { id: 'hire', wait: 'hiredPilot', open: 'hire', free: true,
-      say: 'This job comes with a route, and someone has to fly it while we work. Hire a pilot: pick one and pay the sign-on - the wage comes at the end of each day.' },
+  // T3 THE BUILD (TUTORIAL-LOCK): the exact changes come from storyEditDiff (the start file -> its target) once the
+  // reference files land (TUTORIAL-CUBS); until then the list and the budget
+  T3: [
+    { id: 'list', say: 'Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.' },
   ],
 };
 const storyTutorSteps = id => STORY_TUTOR[id] || null;
@@ -381,7 +378,7 @@ function storyStep(doc, ev, ctx) {
   // the beat is done: its done-effects, the next beat and its enter-effects
   const effects = (B.done || []).map(e => Object.assign({ beat: B.id }, e));
   s.done.push(B.id);
-  if (B.id === 'T4' && s.planes.client) s.planes.gift = s.planes.client;          // the gift: the client's Cub is ours
+  if (B.id === 'T5' && s.planes.client) s.planes.gift = s.planes.client;          // the gift (T5 in v2): the client's Cub is ours
   const i = STORY_IDS.indexOf(B.id), next = STORY_IDS[i + 1] || null;
   if (effects.some(e => e.k === 'open') || !next) { s.beat = 'open'; s.open = true; }
   else { s.beat = next; for (const e of storyEnterEffects(next)) effects.push(e); }
@@ -409,7 +406,7 @@ const STORY_CABIN_SHED = { shell: 'field', dims: { HW: 9, HD: 10, EAVE: 4.0 }, k
 const STORY_NO_CABIN = 'No strip on the island is the cabin yet (name one "Cabin…" in the scenery editor): the story starts at HOME.';
 // T5 (Q1: the generated list is held, the story's own goals shown instead): the story's three quick jobs are the authored
 // openers of three contractors - a pickup, a survey, a small load (72_contract_data.js; the narrative pack may re-author)
-const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
+const STORY_JOBS = ['field.02'];   // TUTORIAL v2: ONE job (STORY_JOB below), not three
 // T7: THE THREE OCCASIONS - one-time listings in the used market, AUTHORED BY HAND (the user's rule: a missing plane is
 // authored, never generated). PLACEHOLDERS until the user authors the two planes the story names (HANDOVER G2742): the
 // fabric 4-seater stands as the validated metal Cessna (meridian), the Jodel-class one as the validated Jodel (pinson);
@@ -565,6 +562,12 @@ function storyApply(doc, e, o) {
     line = 'Three aeroplanes on offer, once only: see the Market.';
   } else if (e.k === 'open') {
     line = 'The island is open: every contractor’s work is on the map.';
+  } else if (e.k === 'checkpoint') {
+    // TUTORIAL v2's END: the one state every career starts from (storyCheckpoint), the client's Cub back to its owner's family
+    d.career.story = s;
+    const K = storyCheckpoint(d);
+    if (!K.ok) return K;
+    return { ok: true, doc: K.doc, why: '', line: 'A well-deserved rest. The Cub went back to its owner’s family; new planes come from the market, or from your own bench.' };
   } else return stNo(doc, 'an unknown effect ' + e.k);
   d.career.story = s;
   return { ok: true, doc: d, why: '', line };
@@ -606,7 +609,7 @@ function storyOccasionListings(doc) {
   return out;
 }
 // Q1: THE JOB LIST HELD - the story's own jobs (T5's) are the only ones offered while the rails run
-const storyJobIds = doc => { const s = storyOf(doc); return s && !s.open && s.beat === 'T5' ? STORY_JOBS.filter(id => !doc.career.contracts.done.some(x => x.id === id)) : []; };
+const storyJobIds = doc => { const s = storyOf(doc); return s && !s.open && s.beat === 'T6' ? STORY_JOBS.filter(id => !doc.career.contracts.done.some(x => x.id === id)) : []; };
 const storyJobHeld = (doc, id) => !storyJobsOpen(doc) && !storyJobIds(doc).includes(id);
 // THE BEAT CARD'S WORDS: the beat's title and brief, its goal's state, the button. o: { aeros, spec (the client plane's
 // spec as it stands now, T2), cost (its edit bill), jobs: { id: title } } -> null (no story, or open) | { beat, title,
