@@ -753,7 +753,7 @@ function garageInit(api) {
     .then(j => ((j && j.planes) || []).filter(p => p && p.official && labOk(p)).map(c => Object.assign(candRow(c), { tip: 'official' })), () => []);
   const loadCandidate = c => fetch(CAND_DIR + encodeURIComponent(c.file))
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-    .then(t => { const g = unwrap(t); loadSpec(g.spec, '', null, null, null, lvOf(g)); })
+    .then(t => { const g = unwrap(t); loadSpec(g.spec, ''); })
     .catch(e => alert('That candidate could not be loaded: ' + c.file + ' (' + ((e && e.message) || e) + ')'));
   // PLANE-LISTS (the user 4 Nov, off the all-planes sheet: "so we have an exhaustive list"): builds/lists/plane_lists.json, every
   // aeroplane we have. PLANE-LIST (the user 10 Nov, the classes): REPRODUCTIONS (the types REAL-FIGURES tests against the real
