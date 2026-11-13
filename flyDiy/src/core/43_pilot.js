@@ -2732,7 +2732,23 @@ function makePilot(sim, def, world, opts) {
     // water (GATE TOUR mk_sea > SEA, t 672.6; G3072 saw it at 680). Held to 0.5 it taxis at 3.5 m/s and flies the leg (lift-off
     // 174 m, the touch at SEA 0.63 m/s). The water's 0.5 is flat (the land's rolling share is not a hull's)
     const taxiCap = () => Math.min(A.taxiThrMax ?? 0.85, GP.cap, sim.hydro ? 0.5 : Math.abs(SV.e) > 0.10 ? Math.max(0.5, taxiFF() + 0.15) : 1);
-    const taxi = (Vtgt) => SV.taxi(Vtgt, taxiFF(), taxiCap());
+    // PILOT-UNIFY (TOW-LAUNCH's slope reaction, 13 Nov): BREAK-AWAY POWER. With the slope at the wheels the Cub on East Point's
+    // stand (14.5-15.5 % up on forest floor, Crr 0.10: ~0.25 W to climb) sat at 0.00 m/s under the governor's 0.85 (0.22 W),
+    // re-planned three times and gave up ('taxi-lost'); measured from rest, 1.0 moves it 8 m in 10 s. A pilot asked to taxi who
+    // has not moved in 2 s with the brakes off opens the throttle until it moves (FAA-H-8083-3C ch. 2: "more power may be
+    // needed to start moving"), then comes back to taxi power: on the land, asked to roll (> 0.5 m/s), under 0.2 m/s for 2 s,
+    // the brake off - the throttle ramps from the governor's at 0.25 / s toward full (never past the nose-over cap GP.cap)
+    // until it rolls; the power that broke it away is held (the slope still pulls) until the taxi speed is reached, then the
+    // governor's again
+    const taxi = (Vtgt) => {
+      const brk0 = c.brake || 0;
+      SV.taxi(Vtgt, taxiFF(), taxiCap());
+      if (sim.hydro || !(Vtgt > 0.5) || brk0 > 0.01 || (c.brake || 0) > 0.01 || SV.Vg >= Vtgt) { ap.breakAwayT = 0; ap.breakAwayThr = 0; return; }
+      if (SV.Vg < 0.2) ap.breakAwayT = (ap.breakAwayT || 0) + dt;
+      else if (SV.Vg > 0.5) ap.breakAwayT = 0;
+      if (ap.breakAwayT > 2) ap.breakAwayThr = Math.max(ap.breakAwayThr || 0, Math.min(GP.cap, 1, taxiCap() + 0.25 * (ap.breakAwayT - 2)));
+      if (ap.breakAwayThr) { c.thr = Math.max(c.thr, ap.breakAwayThr); ap.breakAwayMax = Math.max(ap.breakAwayMax || 0, ap.breakAwayThr); }
+    };
     const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
     // STRIP-LANE (Pilot, 10 Nov; the DIRT-STRIP re-vet): ON A ROUGH STRIP, TAXI SLOWLY. The Jodel backtracked w3 (chaos 0.2)
     // at ~8 m/s (the long straight's taxiVFast) and a stone it met put the disc in the ground; a bush strip is taxied at a

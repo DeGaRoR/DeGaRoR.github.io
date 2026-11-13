@@ -267,11 +267,12 @@ if (FULL) {
     const ap = C.makePilot(sim, def, world, { style: 'normal' });
     ap.setRoute(a, a); ap.departFrom(a, a, site);
     const g = {}, out = [];
-    let contact = 0, contactAt = null;
+    let contact = 0, contactAt = null, aglMax = 0;
     for (let k = 0; k < 60 * 800; k++) {
       ap.update(1 / 60); sim.step(1 / 60);
       if (k % 6) continue;
       const grp = GROUP[ap.phase] || ap.phase, cg = sim.cgPos();
+      aglMax = Math.max(aglMax, cg[1] - world.terrainH(cg[0], cg[2]));
       const near = world.treesNear(cg[0], cg[2], out);
       let m = Infinity;
       for (const ti of near) {
@@ -286,8 +287,10 @@ if (FULL) {
       if (!(grp in g) || m < g[grp]) g[grp] = m;
       if (ap.phase === 'STOPPED') break;
     }
-    check(ap.phase === 'STOPPED' && contact === 0, '8 map: the ' + name + ' flies ' + a.name + '\'s circuit to a stop and touches no tree',
-      ap.phase + ' at ' + ap.t.toFixed(0) + ' s; ' + (contact ? contact + ' contacts, first ' + contactAt : 'nearest node to a tree cylinder (below its top): ' + Object.entries(g).map(([k, m]) => k + ' ' + (m === Infinity ? 'none within 64 m' : m.toFixed(1) + ' m')).join(', ')));
+    // PILOT-UNIFY (13 Nov, TOW-LAUNCH's slope reaction): A CIRCUIT IS FLOWN - the Cub that never left East Point's stand ('taxi-lost')
+    // stopped touching no tree and passed: it must have been airborne (>= 30 m over the ground)
+    check(ap.phase === 'STOPPED' && contact === 0 && aglMax >= 30, '8 map: the ' + name + ' flies ' + a.name + '\'s circuit (airborne >= 30 m) to a stop and touches no tree',
+      ap.phase + ' at ' + ap.t.toFixed(0) + ' s, highest ' + aglMax.toFixed(0) + ' m over the ground, ' + ap.report.outcome + '; ' + (contact ? contact + ' contacts, first ' + contactAt : 'nearest node to a tree cylinder (below its top): ' + Object.entries(g).map(([k, m]) => k + ' ' + (m === Infinity ? 'none within 64 m' : m.toFixed(1) + ' m')).join(', ')));
   }
 }
 
