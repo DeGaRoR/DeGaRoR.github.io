@@ -194,6 +194,7 @@ const WHEEL_ROWS = [
   ['spareAt', 'spare wheel mount', 0, 1, 1, ['the flank', 'the rear wall (door)'], { when: P => +P.spareOn, absent: 0 }],
   ['spareX', 'spare wheel across, from the centre (m; rear wall)', 0, 1.2, 0.005, { when: P => +P.spareOn && +P.spareAt === 1, absent: 0 }],
   ['spareK', 'spare wheel size (x the road wheels)', 0.6, 1.0, 0.01, { when: P => +P.spareOn, absent: 1 }],
+  ['spareStrap', 'spare wheel strap (leather, buckled)', 0, 1, 1, { when: P => +P.spareOn, absent: 1 }],
   // CAR-4: the twin booms' wheels outboard of the booms (m; absent 0 = under the boom)
   ['twBoomOut', 'boom wheels outboard of the booms (m)', 0, 0.8, 0.005, { when: P => +P.boomTwin }],
   // CAR-3/4: the bumpers and the hitch (absent = none)

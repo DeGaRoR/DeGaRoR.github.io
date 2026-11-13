@@ -315695,3 +315695,5 @@ the next steps).
   4.6 cm); the black housing runs forward until the corner's skin passes its outer edge (+12 mm). There is no flat
   wall OUTBOARD of the van's doors - the corner's radius starts at their edges - so the lamp's face is in the back's
   plane and its body fills the radius. The van: carTailAt 1 (x 0.873..0.950, just outboard of the lower hinges).
+- **CAR-3, NO STRAP ON THE VAN'S SPARE (the user: "drop the leather")**: NEW ROW spareStrap (absent 1 = the leather
+  strap and buckle as before; 0 = none - the wheel on its carrier, stub and wing nut alone). The van: spareStrap 0.

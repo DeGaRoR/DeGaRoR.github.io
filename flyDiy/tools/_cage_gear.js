@@ -2656,6 +2656,13 @@ function spareBuild(group, P, AF) {
     m.rotation.set(0, sg > 0 ? -Math.PI / 2 : Math.PI / 2, 0);
     m.rotateZ(s2 > 0 ? 0 : Math.PI);
   }
+  // (CAR-3, the user 13 Nov: "drop the leather"): spareStrap 0 = NO STRAP - the wheel held by its carrier and the wing
+  // nut alone (a door-mounted spare's way); absent = the strap and its buckle, as before
+  if (+P.spareStrap === 0) {
+    rig.traverse(m => { if (m.isMesh && m.parent === rig) m.name = 'edSpareFit'; });
+    group.add(root);
+    return root;
+  }
   // ---- THE STRAP, over the whole wheel: a bracket on the flank, over the tyre's crown following its section, down the
   // outer wall, on over the rim onto the disc, to the BUCKLE low on the disc; from there the lower strap to a tab on the
   // spike, the free end through the buckle and down, held by a keeper
