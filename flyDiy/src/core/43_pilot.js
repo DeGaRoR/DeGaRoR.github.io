@@ -1229,7 +1229,8 @@ function makePilot(sim, def, world, opts) {
     return clamp(Math.max((short ? 60 : 45) * V, (short ? 152 : 122) / gs, (hC - gD * W) / (gs + gD)), 400, Math.max(400, 150 * V));
   };
   const gammaGA = () => { const S = sheetOf(); return S && S.gammaClimb ? 0.8 * S.gammaClimb : 0.08; };
-  const dirLim = (mode) => ({ gs: A.gs, gsMax: gsMax(), gammaClimb: gammaGA(), mode, LDGrun: sheetOf() && sheetOf().LDGrun ? sheetOf().LDGrun : null, TORun: sheetOf() && sheetOf().TORun ? sheetOf().TORun : null,
+  // PILOT-UNIFY: mode 'glide' (gliderCircuitPlan) - no go-around and no climb-out to weigh: the wind, the slope and the approach
+  const dirLim = (mode) => ({ gs: A.gs, gsMax: gsMax(), gammaClimb: mode === 'glide' ? Infinity : gammaGA(), mode, LDGrun: sheetOf() && sheetOf().LDGrun ? sheetOf().LDGrun : null, TORun: sheetOf() && sheetOf().TORun ? sheetOf().TORun : null,
     finalReach: P3_ ? p3Final(A.gs, ap.hCruise, 0, ap.VAppr, true) : 0 });
   // the take-off / landing direction at an aerodrome: the runway model's two
   // directions SCORED (25_airfield.js siteScoreDirections: the wind, the
@@ -1311,11 +1312,11 @@ function makePilot(sim, def, world, opts) {
   // the wind of its own clock - the very call planFromHere's re-plan makes (dirAt, pref from there to the field, the
   // sheet's limits), for a caller that poses the aeroplane (the story's skip onto the final poses on the end returned):
   // { u: [ux, uz], way: +1 along a.hdg / -1 against it, why }. No side effect: ap.dirWhy is the pilot's and is put back
-  ap.landWayFrom = (a, x, z) => {
+  ap.landWayFrom = (a, x, z, mode) => {
     if (!a || !Number.isFinite(x) || !Number.isFinite(z)) return null;
     const why0 = ap.dirWhy;
     try {
-      const u = dirAt(a, a.x - x, a.z - z), why = ap.dirWhy;
+      const u = dirAt(a, a.x - x, a.z - z, mode), why = ap.dirWhy;
       return { u: [u[0], u[1]], way: u[0] * CORE_MATH.cos(a.hdg) + u[1] * CORE_MATH.sin(a.hdg) >= 0 ? 1 : -1, why: why == null ? null : why };
     } finally { ap.dirWhy = why0; }
   };
@@ -1418,14 +1419,26 @@ function makePilot(sim, def, world, opts) {
   };
   const gliderCircuitPlan = (a) => {
     try {
-      const LW = ap.landWayFrom(a, sim.cgPos()[0], sim.cgPos()[2]); if (!LW) return null;
+      // PILOT-UNIFY (A0 13 Nov): A GLIDE LANDS INTO THE WIND UNLESS THE OTHER WAY IS BLOCKED - scored with no go-around (it
+      // has none): a way refused only for its go-around climb is flown into the wind (Cannery's into-wind way stays refused:
+      // its approach is steeper than the aeroplane's - blocked, so the wind behind is met below)
+      const LW = ap.landWayFrom(a, sim.cgPos()[0], sim.cgPos()[2], 'glide'); if (!LW) return null;
       const P = planArrival(a, LW.u, a);
       // (a field other than the route's To is now where the flight ends: the To follows it - the landing is judged, the
       //  taxi-in planned and the arrival said at the field it lands on, not at one 24 km away)
       if (ap.route && ap.route.to && ap.route.to.id !== a.id) { say('glider-divert', 'landing at ' + (a.name || a.id) + ' instead of ' + (ap.route.to.name || ap.route.to.id)); ap.route.to = a; }
       const S = sheetOf(), LD = S && S.LDbest > 0 ? S.LDbest : 12;
       const deg = Math.round(((Math.atan2(LW.u[0], -LW.u[1]) * 180 / Math.PI) + 360) % 360);
-      return { F: P.F, sAim: P.sAim, side: P.side || 1, W: clamp(0.6 * (P.W || 500), 220, 420), E: 0.6 * LD, LD, stage: 'key', t0: ap.t,
+      // PILOT-UNIFY (A0 13 Nov, GATE UNIFY EMERG): A SHORT STRIP WITH THE WIND BEHIND IS GLIDED ONTO ITS THRESHOLD. Cannery's
+      // into-wind way is blocked (its approach), so the game's day lands it 2.6 m/s downwind on 310 m: the expert touched 113 m
+      // in, the student 205 m and overran by 90 m. On a short strip (under 450 m or 1.6 x the run) with more than 0.5 m/s
+      // behind: the aim 10 m past the threshold, and the float the plan allows scaled by the ground speed the wind adds
+      const wA = windAt(a, 30), tailA = wA[0] * LW.u[0] + wA[1] * LW.u[1], runA = (S && S.LDGrun) || 0;
+      const tailShort = tailA > 0.5 && !(a.surface === 4) && (a.len < 450 || a.len < 1.6 * runA);
+      const sThrA = alongOf(P.F, [a.x, 0, a.z]) - a.len / 2;
+      const VapA = Math.max(ap.VAppr || 0, A.VAppr || 0, 18);
+      return { F: P.F, sAim: tailShort ? Math.min(P.sAim, sThrA + 10) : P.sAim, floatK: tailShort ? (VapA + tailA) / VapA : 1, tail: Math.round(tailA * 10) / 10,
+               side: P.side || 1, W: clamp(0.6 * (P.W || 500), 220, 420), E: 0.6 * LD, LD, stage: 'key', t0: ap.t,
                id: a.id, name: a.name || a.id, way: 'heading ' + deg + ' deg', log: [] };
     } catch (e) { return null; }
   };
@@ -3654,7 +3667,7 @@ function makePilot(sim, def, world, opts) {
           //  glide meets the ground - the way the height must cover ends that far short of the aim: 534 m long without it)
           //  - a clean glider's: the float bleeds the approach speed at g/E, so a draggy one floats less: x E/14, the
           //  motorglider's ratio; the C172-alike gliding at 6.5 floated 280 m in the plan and came in 16 m short)
-          const floatD = 10 * Math.max(ap.VAppr || 0, A.VAppr || 0, 18) * clamp(G.E / 14, 0.3, 1);
+          const floatD = 10 * Math.max(ap.VAppr || 0, A.VAppr || 0, 18) * clamp(G.E / 14, 0.3, 1) * (G.floatK || 1);
           const need = d => Math.max(0, d - floatD) / G.E + (G.margin || 20);
           const sKey = G.sAim + 0.8 * G.W, cD = G.side * G.W, dMin = 0.8 * G.W + G.W + 2 * Rt;
           const next = st => { if (st !== G.stage) { G.log.push({ t: +ap.t.toFixed(1), stage: st, h: Math.round(h) }); G.stage = st; say('glider-circuit', st + ' at ' + Math.round(h) + ' m over the aim'); } };
@@ -4699,7 +4712,10 @@ function makePilot(sim, def, world, opts) {
         // runway heading to the cruise height, 4 km away from HOME, over the valley to the ridge, and broke up on it turning
         // back. A To more than 90 deg off the climb-out: the crosswind turn's height, then the route from there
         const toB = ap.route && ap.route.to;
-        const behind = !!(ap.xc && toB && ((toB.x - cg[0]) * climbDir0[0] + (toB.z - cg[2]) * climbDir0[1]) < 0);
+        // (off the track FLOWN - the runway's line on a take-off; a climb re-engaged in the air (GATE GLIDE's starts) flies
+        //  its own: the runway frame there read East Point 'behind' and handed the climb over 16 m low)
+        const vhC = Math.hypot(vcg[0], vcg[2]), trkC = vhC > 5 ? [vcg[0] / vhC, vcg[2] / vhC] : climbDir0;
+        const behind = !!(ap.xc && toB && ((toB.x - cg[0]) * trkC[0] + (toB.z - cg[2]) * trkC[1]) < 0);
         const hTurn = (ap.xc && !routeArmed && !behind) ? ap.hCruise - 8
                     : Math.min(ap.hCruise - 15, Math.max(A.hSafe + 10, ST.hTurnK * 0.6 * ap.hCruise));
         pubH = ap.refAlt + hTurn; pubN = ap.xc ? 'CRUISE HEIGHT' : 'CROSSWIND TURN'; pubX = null; pubZ = null;
