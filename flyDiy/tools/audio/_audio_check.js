@@ -191,9 +191,9 @@ function makePage(S, opt) {
 const BUILDS = [
   { name: 'cub (the user\'s)', file: 'builds/cub_2026-09-20_corrected.json', nE: 1, cyl: 4, two: 0, gear: 1 },
   { name: 'jodel', file: 'builds/jodel_2026-09-20_corrected.json', nE: 1, cyl: 4, two: 0, gear: 1 },
-  { name: 'cessna (custom flat-4)', file: 'builds/cessna172_2026-09-20_corrected.json', nE: 1, cyl: 4, two: 0, gear: 1 },
-  { name: 'cessna metal (O-540)', file: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', nE: 1, cyl: 4, two: 0, gear: 1 },
-  { name: 'cessna on floats', file: 'tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json', nE: 1, cyl: 4, two: 0, gear: 1, floats: true },
+  { name: 'cessna (custom flat-4)', file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', nE: 1, cyl: 4, two: 0, gear: 1 },
+  { name: 'cessna metal (O-540)', file: 'bugReports/cessnaMetal (1).json', nE: 1, cyl: 4, two: 0, gear: 1 },
+  { name: 'cessna on floats', file: 'tools/fixtures/test_copies/build_v10_c172_wipline2350_2026-09-20.json', nE: 1, cyl: 4, two: 0, gear: 1, floats: true },
   { name: 'twin 582', file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', nE: 2, cyl: 2, two: 1, gear: 2.62 },
 ];
 const FLOWN = (SPB_CHILD ? BUILDS.slice(0, 1) : BUILDS).map(b => {

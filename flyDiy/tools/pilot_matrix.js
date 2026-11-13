@@ -45,7 +45,7 @@ const WEATHERS = {
 // `stand` (G630): the departure starts on HOME's stand and TAXIS out (--stand), so the taxi is flown
 const FIXTURES = { flat: {}, stand: { stand: true }, up4: { slope: -0.04 }, dn4: { slope: 0.04 }, up2: { slope: -0.02 }, dn2: { slope: 0.02 }, sand: { surface: 7 }, rh: { circuit: 'right,150,downwind' } };
 const MACHINES_QUICK = ['cub', 'c172', 'stearman'];
-const ACT_KEYS = ['stock', 'c172', 'fixtures/build_v10_cessnaMetal_2026-09-26.json'];
+const ACT_KEYS = ['stock', 'c172', '../bugReports/cessnaMetal (1).json'];
 // G630: CONTROL ACTIVITY (pilot_trace `activity`: aileron / rudder reversals
 // per minute past 1.7 deg, per phase group). The limit is per group; the
 // matrix column reads the worst group against it. Calibrated on the Jolene

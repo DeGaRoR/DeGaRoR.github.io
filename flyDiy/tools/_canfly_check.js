@@ -44,8 +44,8 @@ const t0 = Date.now();
 const BUILDS = [
   ['cub', path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json')],
   ['jodel', path.join(ROOT, 'builds', 'jodel_2026-09-20_corrected.json')],
-  ['c172', path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json')],
-  ['c172w', path.join(ROOT, 'builds', 'cessna172_2026-09-20_corrected.json')],
+  ['c172', path.join(__dirname, '..', 'bugReports', 'cessnaMetal (1).json')],
+  ['c172w', path.join(ROOT, 'tools', 'fixtures', 'test_copies', 'cessna172_2026-09-20_corrected.json')],
 ];
 const FLOATS = [['floats', path.join(ROOT, 'bugReports', 'cessnaFloatsWOrks.json')], ['pa18f', path.join(ROOT, 'builds', 'pa18_floats_2026-10-23.json')]];
 const defs = {};

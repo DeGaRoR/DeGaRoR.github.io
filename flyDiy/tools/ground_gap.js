@@ -16,7 +16,7 @@
 //
 //   node tools/ground_gap.js [--build <json>|cub|stock|<archetype key>]... [--settle s] [--json]
 //     default: cub, stock (GEN_DEFAULT on the page's default cage), "bugReports/cessnaMetal (1).json",
-//     "bugReports/cessnaFloats.json"
+//     "bugReports/cessnaFloatsWOrks.json"
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -27,7 +27,7 @@ const arg = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] :
 const builds = [];
 for (let i = 0; i < argv.length; i++) if (argv[i] === '--build') builds.push(argv[i + 1]);
 if (!builds.length) builds.push('cub', 'stock', path.join(T, '..', 'bugReports', 'cessnaMetal (1).json'),
-  path.join(T, '..', 'bugReports', 'cessnaFloats.json'));
+  path.join(T, '..', 'bugReports', 'cessnaFloatsWOrks.json'));
 const SETTLE = +arg('--settle', 6);
 // app.js's G1383 dial, read off app.js itself (G1540: 0 since GROUND-LATTICE - the ground drawn where the wheels stand)
 const TW_DRAW_DROP = (() => { const m = /const TW_DRAW_DROP = ([\d.]+);/.exec(fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'app.js'), 'utf8')); return m ? +m[1] : 0; })();

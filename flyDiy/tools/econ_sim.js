@@ -91,7 +91,7 @@ const DESIGN_SRC = {
   twinf:   { table: 'twinf', label: 'twin floatplane', seg: 1, work: true },
   c172:    { build: 'bugReports/cessnaMetal (1).json', label: 'metal Cessna (4 seats)', seg: 2, work: true },
   c172f:   { build: 'bugReports/cessnaFloatsWOrks.json', label: 'Cessna floats', seg: 2, work: true },
-  cjodel:  { build: 'builds/composite_jodel_2026-10-07.json', label: 'composite Jodel', seg: 3, work: true },
+  cjodel:  { build: 'tools/fixtures/test_copies/composite_jodel_2026-10-07.json', label: 'composite Jodel', seg: 3, work: true },
 };
 const SEG_WANTS = { tube: 1, wood: 1, metal: 2, composite: 3 };
 function measureDesigns() {

@@ -30,7 +30,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const env = f => JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', f), 'utf8'));
 const SHELF = { 'Jolene Cub': env('cub_2026-09-20_corrected.json'), 'Spare Cub': env('cub_2026-09-20_corrected.json'),
                 'Club Cub': env('cub_2026-09-20_corrected.json'), 'Jodel D9': env('jodel_2026-09-20_corrected.json'),
-                'Old Jodel': env('jodel_2026-09-20_corrected.json'), 'Metal Cessna': env('cessna172_2026-09-20_corrected.json') };
+                'Old Jodel': env('jodel_2026-09-20_corrected.json'), 'Metal Cessna': env('../tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json') };
 for (const n of Object.keys(SHELF)) { SHELF[n].name = n; if (SHELF[n].spec && SHELF[n].spec.meta) SHELF[n].spec.meta.name = n; }
 const FLEET = { 'Jolene Cub': { hangar: 'HOME', aero: 'HOME', kind: 'inside', slot: 0 }, 'Jodel D9': { hangar: 'HOME', aero: 'HOME', kind: 'inside', slot: 1 },
                 'Spare Cub': { hangar: null, aero: 'HOME', kind: 'outside', slot: 0 }, 'Club Cub': { hangar: null, aero: 'HOME', kind: 'outside', slot: 1 },

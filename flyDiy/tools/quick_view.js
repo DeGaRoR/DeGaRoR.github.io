@@ -9,7 +9,7 @@
 //
 //   node tools/quick_view.js [build.json] [--out=<file.html>] [--png=<file.png>] [--cage=k=v,k=v] [--size=1400x900]
 //
-//   build.json  a saved build (the {spec} envelope the garage writes); default tools/fixtures/dc3_2026-10.json
+//   build.json  a saved build (the {spec} envelope the garage writes); default tools/fixtures/test_copies/dc3_2026-10.json
 //   --out       the viewer (default reports/quick_view/<build name>.html - not committed: reports/ is a scratch)
 //   --png       also the four views at once as a picture (the pre-installed Chromium, headless, through Playwright)
 //   --cage      cage rows set first (a what-if without writing a file)
@@ -22,7 +22,7 @@ const fs = require('fs'), path = require('path');
 const T = __dirname, ROOT = path.join(T, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
-const file = argv.find(a => !a.startsWith('--')) || path.join(T, 'fixtures', 'dc3_2026-10.json');
+const file = argv.find(a => !a.startsWith('--')) || path.join(T, 'fixtures', 'test_copies', 'dc3_2026-10.json');
 
 const j = JSON.parse(fs.readFileSync(file, 'utf8'));
 const spec = j.spec && typeof j.spec === 'object' ? j.spec : j;

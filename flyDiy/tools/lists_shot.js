@@ -27,7 +27,7 @@ const URL0 = 'http://127.0.0.1:' + PORT + '/flyDiy/index.html?audio=0';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const env = f => JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', f), 'utf8'));
 const SHELF = { 'My Cub': env('cub_2026-09-20_corrected.json'), 'My Jodel': env('jodel_2026-09-20_corrected.json'),
-                'My Cessna': env('cessna172_2026-09-20_corrected.json') };
+                'My Cessna': env('../tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json') };
 for (const n of Object.keys(SHELF)) { SHELF[n].name = n; if (SHELF[n].spec && SHELF[n].spec.meta) SHELF[n].spec.meta.name = n; }
 
 (async () => {

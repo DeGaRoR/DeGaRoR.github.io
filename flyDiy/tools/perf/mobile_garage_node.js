@@ -22,7 +22,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const flag = k => argv.includes('--' + k);
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
+  cessna: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
 const MODE = opt('mode', 'full'), BK = opt('build', 'cub'), REPS = +opt('reps', 2), TICKS = +opt('ticks', 4);
 const ROWS = opt('only', 'wgSpan,wgChord,stSpan,s1X,paxLen,halfW,seatH').split(',');
 const OUT = path.resolve(opt('out', path.join(ROOT, 'reports/evidence/MOBILE-GARAGE', 'node_' + MODE + '_' + BK + '.json')));

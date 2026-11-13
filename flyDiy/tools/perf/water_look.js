@@ -3,7 +3,7 @@
 // variant, as stills for the user to judge (their explicit ask, 13 Oct - D:/Dev/flydiy-notes/WATER-REDESIGN-PLAN-2026-10.md).
 //
 //   node tools/perf/water_look.js [--url http://localhost:8583/flyDiy/dev.html?world=jolene&gfx=gamer]
-//        [--variants ref,b,c,bc] [--views dock,off300,lowpass,approach,lake,opensea] [--build bugReports/cessnaFloats.json]
+//        [--variants ref,b,c,bc] [--views dock,off300,lowpass,approach,lake,opensea] [--build bugReports/cessnaFloatsWOrks.json]
 //        [--out screenshots/water_look] [--wait 3500] [--boot-cap 150000]
 // One headless boot a variant (?wrefl=b|c|bc; 'ref' = no switch: today's AUTO mirror), the floatplane rolled out and PAUSED,
 // then each view: the aircraft placed (afloat at its rest height, or at a height), the free eye placed and aimed at it, the
@@ -22,7 +22,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const URL0 = opt('url', 'http://localhost:8583/flyDiy/dev.html?world=jolene&gfx=gamer');
 const VARIANTS = opt('variants', 'ref,b,c,bc').split(',').filter(Boolean);
 const VIEWS = opt('views', 'dock,off300,lowpass,approach,lake,opensea').split(',').filter(Boolean);
-const BUILD = opt('build', 'bugReports/cessnaFloats.json');
+const BUILD = opt('build', 'bugReports/cessnaFloatsWOrks.json');
 const OUT = path.resolve(opt('out', 'screenshots/water_look'));
 const WAIT = +opt('wait', 3500), BOOT_CAP = +opt('boot-cap', 150000);
 const LABEL = { ref: 'today (AUTO mirror)', b: 'b - the hull reflection', c: 'c - transparency + shadow', bc: 'b + c', ring: 'ring - the full mirror near land + the hull + the shadow (one sky)' };

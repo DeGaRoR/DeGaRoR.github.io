@@ -557,7 +557,7 @@ checkTrike(trike);
 });
 
 part("-- TRIKE-XWIND: the user's pusher across 2 m/s --", () => {
-  const FIX = path.join(__dirname, 'fixtures', 'build_v8_pusher_2026-09-11.json');
+  const FIX = path.join(__dirname, '..', 'builds', 'candidates', 'build_v8_pusher_2026-09-11.json');
   const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
   const def = buildGen(genMigrateSpec(JSON.parse(JSON.stringify(spec))));
   const px = fly(null, 400, null, { def, wind: [0, 2] });
@@ -634,7 +634,7 @@ part('-- LAND-WAY: the landing way the pilot would plan from here --', () => {
 // `stol` technique knob (the bush pilot), lands and departs short on every land strip that is not soft: 1.2 Vs0 on a
 // 6.8 deg power-on slope to an aim 10 m in, the flare flown on power to the three-point attitude on the stick's whole
 // travel, the stick back and the brakes at once; half the landing flap and a Vx climb to 15 m. The showcase STOL Cub
-// (tools/fixtures/stol_cub_showcase.json) qualifies; the kit Cub (its elevator holds 48.6 km/h for a 41.8 stall) does not;
+// (builds/candidates/stol_cub_showcase.json) qualifies; the kit Cub (its elevator holds 48.6 km/h for a 41.8 stall) does not;
 // the validated builds carry no device and are never probed - their whole circuits are GATE STOL section 1's
 // (tools/fixtures/stol_baseline.json.gz: the stock Cub's lap below is read from it, not flown again) and
 // tools/_stol_samebits.js's. TWO PARTS, two shards (the review's wall): ONE circuit (the showcase's, with its shakedown as the
@@ -643,7 +643,7 @@ const STOL_G = {};   // the showcase's def and shakedown, built once per process
 const stolShow = () => {
   if (STOL_G.d) return STOL_G;
   const LB = require('./_load_build.js'), C = require('./flight_core.js');
-  STOL_G.spec = LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'stol_cub_showcase.json'), 'utf8')));
+  STOL_G.spec = LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'candidates', 'stol_cub_showcase.json'), 'utf8')));
   STOL_G.d = buildGen(STOL_G.spec); STOL_G.sh = C.genShakedown(STOL_G.d, { corners: false });
   return STOL_G;
 };
@@ -671,7 +671,7 @@ part('-- STOL-QUAL: who flies the STOL law - a STOL sheet and a STOL-qualified p
   const LB = require('./_load_build.js');
   const pilotOf = (spec, o) => { const w = makeWorld(), d = buildGen(spec), s = makeSim(d, w); s.reset(0); return makePilot(s, d, w, o); };
   const fx = f => LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8')));
-  const G = stolShow(), kitS = fx('stol_cub_kit.json');
+  const G = stolShow(), kitS = fx('test_copies/stol_cub_kit.json');
   const onShow = o => { const w = makeWorld(), s = makeSim(G.d, w); s.reset(0); return makePilot(s, G.d, w, Object.assign({ shakedown: G.sh }, o)); };
   // THE GAIN RIDES THE SHAKEDOWN (A0 / PILOT's review: no probe at the roll's start): the sheet built from the shakedown carries
   // it, and the first read of ap.stol costs no probe
@@ -682,7 +682,7 @@ part('-- STOL-QUAL: who flies the STOL law - a STOL sheet and a STOL-qualified p
   check(!!qk && qk.on === false, 'STOL: the kit Cub does not (the elevator-held Vs0, ' + (qk && qk.ratio) + ' x - its tail cannot use the slot)');
   const vals = [...Object.keys(LB.VALIDATED).map(k => [k, LB.loadValidated(k).spec]),
                 ['rufus', LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'rufus_2026-10-18_certified.json'), 'utf8')))],
-                ['c172', LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'cessna172_2026-09-20_corrected.json'), 'utf8')))]];
+                ['c172', LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'tools', 'fixtures', 'test_copies', 'cessna172_2026-09-20_corrected.json'), 'utf8')))]];
   const qv = vals.map(([k, sp]) => [k, pilotOf(sp).stol]);
   console.log('   validated: ' + qv.map(([k, q]) => k + ' ' + JSON.stringify(q)).join(', '));
   check(qv.every(([, q]) => q === null), 'STOL: no validated build (' + qv.map(q => q[0]).join(', ') + ') carries a STOL device - the law is never even probed');

@@ -347,14 +347,14 @@ const KEEL = {};
 const BUILDS = [
   { name: 'stock', over: { ...KEEL } },
   { name: 'rod', over: { boomStyle: 1, ...KEEL } },
-  { name: 'twin', spec: FIX('build_v8_twin-boom_2026-09-11.json') },
+  { name: 'twin', spec: FIX('test_copies/build_v8_twin-boom_2026-09-11.json') },
   { name: 'stock+ifr', garage: IFR, over: { ...KEEL } },
   // G3xx: the door inner panel on — the wall controls must stand off it
   { name: 'stock+panel', over: { doorPanelOn: 1, ...KEEL } },
   // C172-CLIP (9 Nov 2026, AVIONICS-PFD-LAND via A0): THE Cessna, the corrected 172, through the load door. Given as
   // BOTH spec and garage: the spec alone draws its body without GARAGE_SPEC (its radio aerials drop), the garage alone
   // draws the stock body. When the V2-172 (builds/cessna172r_2026-11-08.json) is official, this entry swaps to it.
-  { name: 'c172', file: 'builds/cessna172_2026-09-20_corrected.json' },
+  { name: 'c172', file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json' },
 ];
 for (const B of BUILDS) if (B.file) { B.spec = B.garage = LB.loadBuild(B.file).spec; }
 
@@ -499,7 +499,7 @@ function selftest() {
   }
   // 4. a static tail fitting on the twin must be flagged at tail+ (a box glued to the fin, unnamed => static)
   {
-    const S3 = SH.sceneBuild(FIX('build_v8_twin-boom_2026-09-11.json'), {});
+    const S3 = SH.sceneBuild(FIX('test_copies/build_v8_twin-boom_2026-09-11.json'), {});
     const fin = S3.scene.getObjectByName('edFinSkin');
     check(!!fin && !!S3.W.CAGE_BOOMS, 'twin fixture has edFinSkin and CAGE_BOOMS');
     const objs = PH.collect(S3, THREE);

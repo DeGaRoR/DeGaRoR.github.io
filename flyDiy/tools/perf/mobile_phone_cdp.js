@@ -62,7 +62,7 @@ const PORT = +opt('port', 9222), URL0 = opt('url', 'http://localhost:8700/flyDiy
 const BK = opt('build', 'cub'), ROWS = opt('rows', 'wgSpan,wgChord,stSpan,paxLen').split(','), REPS = +opt('reps', 3), TICKS = +opt('ticks', 4);
 const FRAMES = +opt('frames', 10), SOAK = +opt('soak', 10), SKIP = new Set(opt('skip', '').split(',').filter(Boolean));
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
+  cessna: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
 const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 13);
 const OUT = path.resolve(opt('out', path.join(__dirname, 'phone_' + BK + '_' + stamp + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));

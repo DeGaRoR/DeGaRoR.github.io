@@ -12,7 +12,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const PORT = +opt('port', 0), UDD = opt('udd', null), DIR = path.resolve(opt('dir', 'reports/evidence/GARAGE-LAG-2'));
 if (!PORT || !UDD) { console.error('garage_lag_shots: --port and --udd are required'); process.exit(2); }
 const BK = opt('build', 'cub'), ROW = opt('row', 'p_wgSpan');
-const BUILDS = { cub: { build: 'tools/perf/garage_lag_cub_wip.json' }, metal: MB.BUILDS.metal };
+const BUILDS = { cub: { build: 'tools/fixtures/test_copies/garage_lag_cub_wip.json' }, metal: MB.BUILDS.metal };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   if (await MB.serveRoot(PORT)) { console.error('port taken'); process.exit(4); }

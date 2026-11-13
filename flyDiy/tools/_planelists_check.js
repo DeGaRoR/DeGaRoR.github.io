@@ -23,6 +23,11 @@
 //   called "official" or "Metal"; every test plane's name starts "Test copy: "; a row whose file rides another branch is the
 //   developer's until it lands.
 //
+// THE FILES (CANON-CLEAN, the user 12 Nov ~23:59: "get rid of the other copies ... once and for all"): every tracked plane
+//   file (a JSON whose spec has wings) is a list row's file - reports/ aside, the evidence; a test plane's (legacy, archive) file
+//   lives in tools/fixtures/test_copies/ (HELD: the career's file, until the career moves) and some tool or gate reads it; no two
+//   plane files are the same aeroplane (paint, finish, name and registration aside); a deleted row keeps its number, no file.
+//
 //   node tools/_planelists_check.js [--selftest]  -> "GATE PLANELISTS: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -85,7 +90,7 @@ function listRows(lists, index, thumbs, exists, contractFiles, refs = RF) {
     if (nums.has(p.n)) bad.push('number ' + p.n + ' twice'); nums.add(p.n);
     if (!p.name || names.has(p.name)) bad.push('name missing or twice: ' + id); names.add(p.name);
     if (!ALL.includes(p.list)) bad.push(id + ': no class (' + p.list + ')');
-    if ((p.file ? 1 : 0) + (p.stock ? 1 : 0) + (p.gen ? 1 : 0) !== 1) bad.push(id + ': not exactly one door');
+    if ((p.file ? 1 : 0) + (p.stock ? 1 : 0) + (p.gen ? 1 : 0) !== (p.deleted ? 0 : 1)) bad.push(id + ': not exactly one door' + (p.deleted ? ' (a deleted row has none)' : ''));
     if (p.file) {
       if (!exists(p.file)) { if (p.rides) named.push(id + ': ' + p.file + ' rides ' + p.rides); else bad.push(id + ': ' + p.file + ' is not there'); }
       if (!['legacy', 'archive'].includes(p.list) && /review\//.test(p.file)) bad.push(id + ': ' + p.list + ' reads review/');
@@ -172,6 +177,33 @@ function stand(S, bad) {
   return bad;
 }
 
+// THE FILES (CANON-CLEAN): the tracked plane files against the list. files: [path], read: path -> text (injected: the selftest)
+const TEST_COPIES = 'tools/fixtures/test_copies/';
+const HELD = { 'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'the career\'s twin floatplane (CONTRACT_DESIGNS.twinf) - until the career flies list:27' };
+function canonFiles(L, files, read) {
+  const bad = [], crypto = require('crypto');
+  const canon = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, kk) => (o[kk] = x[kk], o), {}) : x));
+  const planes = [], seen = {};
+  for (const fl of files) {
+    if (!/\.json$/.test(fl) || /^reports\//.test(fl) || /^(package|version)\.json$/.test(fl)) continue;
+    let j; try { j = JSON.parse(read(fl)); } catch (e) { continue; }
+    const s = j && (j.spec || j);
+    if (!s || typeof s !== 'object' || Array.isArray(s) || !Array.isArray(s.wings) || !(s.cage || s.engines)) continue;
+    planes.push(fl);
+    const o = {}; for (const k of Object.keys(s)) if (!['meta', 'paint', 'finish', 'v', 'decals'].includes(k)) o[k] = s[k];
+    const h = crypto.createHash('sha1').update(canon(o)).digest('hex');
+    if (seen[h]) bad.push('files: ' + fl + ' is the same aeroplane as ' + seen[h] + ' (one plane, one file)'); else seen[h] = fl;
+  }
+  const rowFiles = new Set(L.planes.filter(r => r.file).map(r => r.file));
+  for (const fl of planes) if (!rowFiles.has(fl)) bad.push('files: ' + fl + ' is a plane file on no list row (a test copy lives in ' + TEST_COPIES + ' with its row)');
+  const code = files.filter(fl => /^(src|tools)\/.*\.(js|mjs|cjs|sh|py)$/.test(fl) && fl !== 'tools/flight_core.js' && fl !== 'tools/_planelists_check.js').map(read).join('\n');
+  for (const r of L.planes.filter(r => r.file && ['legacy', 'archive'].includes(r.list))) {
+    if (!r.file.startsWith(TEST_COPIES) && !HELD[r.file]) bad.push('files: test plane ' + r.n + ' ' + r.name + ' reads ' + r.file + ', outside ' + TEST_COPIES);
+    if (r.file.startsWith(TEST_COPIES) && !code.includes(path.basename(r.file))) bad.push('files: test copy ' + r.file + ' - no tool or gate reads it (delete it)');
+  }
+  return bad;
+}
+
 (async () => {
   const LF = 'builds/lists/plane_lists.json', IX = 'builds/candidates/index.json';
   const lists = read(LF), index = read(IX);
@@ -182,7 +214,9 @@ function stand(S, bad) {
   const coreDir = path.join(ROOT, 'src', 'core');
   const S = { garage: read('src/viewer/garage.js'), np: read('src/viewer/new_plane.js'), css: read('src/viewer/editor.css'), app: read('src/viewer/app.js'),
     core: fs.readdirSync(coreDir).filter(f => /\.js$/.test(f)).map(f => fs.readFileSync(path.join(coreDir, f), 'utf8')).join('\n') };
-  const bad = listRows(lists, index, thumbs, exists, contractFiles).concat(await pageRows(S));
+  const TRACKED = require('child_process').execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64e6 }).split('\n').filter(Boolean);
+  const readC = new Map(), readT = fl => { if (!readC.has(fl)) { let v = ''; try { v = fs.readFileSync(path.join(ROOT, fl), 'utf8'); } catch (e) {} readC.set(fl, v); } return readC.get(fl); };
+  const bad = listRows(lists, index, thumbs, exists, contractFiles).concat(await pageRows(S)).concat(canonFiles(JSON.parse(lists), TRACKED, readT));
   const L = JSON.parse(lists).planes;
   console.log('GATE PLANELISTS - ' + L.length + ' rows: ' + ALL.map(k => k + ' ' + L.filter(p => p.list === k).length).join(', '));
   for (const n of named) console.log('  NAMED ' + n);
@@ -196,7 +230,7 @@ function stand(S, bad) {
     await red('a test plane back on a player class', rows(edit(o => { o.planes.find(p => p.n === 3).list = 'reproduction'; })));
     await red('a reproduction off to legacy', rows(edit(o => { o.planes.find(p => p.n === 9).list = 'legacy'; })));
     await red('one plane on two rows', rows(edit(o => { o.planes.find(p => p.n === 48).file = 'builds/cub_2026-09-20_corrected.json'; })));
-    await red('a hidden test plane back on the rack', rows(lists, index.replace('"hide": "legacy", ', '')));
+    await red('a hidden next version back on the rack', rows(lists, index.replace('"hide": "next", ', '')));
     await red('the Client Cub row off the story (bare again)', rows(edit(o => { o.planes.find(p => p.n === 26).over.paint = { job: 'bare' }; })));
     await red('a player plane reading review/', rows(edit(o => { o.planes.find(p => p.n === 38).file = 'builds/candidates/review/stol_cub_kit.json'; })));
     await red('a Market file gone', listRows(lists, index, thumbs, f => f !== contractFiles[0] && exists(f), contractFiles));
@@ -216,6 +250,13 @@ function stand(S, bad) {
     await red('canon (b): a player plane without its registration', rows(edit(o => { delete o.planes.find(p => p.n === 6).reg; })), /^canon: Twin busher floats 4b has no registration/);
     await red('canon (c): "Metal" back on a player plane', rows(edit(o => { o.planes.find(p => p.n === 40).name = 'Metal Cessna'; })), /^canon: a player plane named Metal/);
     await red('canon (c): a test plane not called a test copy', rows(edit(o => { o.planes.find(p => p.n === 5).name = 'B-CESS'; })), /^canon: test plane 5 /);
+    { const L0 = JSON.parse(lists), plain = TRACKED.filter(fl => !/^reports\//.test(fl));
+      const tc = L0.planes.find(r => r.file && r.file.startsWith(TEST_COPIES));
+      await red('files: a plane file on no row', canonFiles(L0, plain.concat(['builds/stray_selftest.json']), fl => (fl === 'builds/stray_selftest.json' ? readT('builds/cub_2026-09-20_corrected.json').replace('"name"', '"nm"') : readT(fl))), /stray_selftest\.json is a plane file on no list row|same aeroplane/);
+      await red('files: two files, one aeroplane', canonFiles(L0, plain.concat(['builds/dup_selftest.json']), fl => (fl === 'builds/dup_selftest.json' ? readT('builds/jodel_2026-09-20_corrected.json') : readT(fl))), /dup_selftest\.json is the same aeroplane as/);
+      if (tc) { const L1 = JSON.parse(lists); L1.planes.find(r => r.n === tc.n).file = 'builds/' + path.basename(tc.file);
+        await red('files: a test plane outside test_copies', canonFiles(L1, plain, readT), /reads builds\/.*outside tools\/fixtures\/test_copies/); }
+      if (tc) await red('files: a test copy nobody reads', canonFiles(L0, plain, fl => (/^(src|tools)\//.test(fl) ? readT(fl).split(path.basename(tc.file)).join('x.json') : readT(fl))), /no tool or gate reads it/); }
     await red('the floats draft shown to a player before its file lands', pageRows(Object.assign({}, S, { garage: S.garage.replace('labOk(p) && !p.rides))', 'labOk(p)))') })), /rides another branch/);
   }
   for (const b of bad) console.log('  FAIL ' + b);

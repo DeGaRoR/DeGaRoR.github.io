@@ -307,7 +307,7 @@ function gameHost(C, W, def, from, to, g) {
 const ROOT = path.join(__dirname, '..');
 const BUILDS = {
   cub: { key: path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub", tour: 'land' },
-  c172: { key: path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), name: 'the aluminium C172', tour: 'c172' },
+  c172: { key: path.join(__dirname, '..', 'bugReports', 'cessnaMetal (1).json'), name: 'the aluminium C172', tour: 'c172' },
   floats: { key: path.join(ROOT, 'bugReports', 'cessnaFloatsWOrks.json'), name: 'the float Cessna', tour: 'water' },
 };
 // THE ORDERS (the plan): clockwise round the island from HOME - Tamgas Hill 2.7 km NW, the altiport 5.4 km on, Jumbo

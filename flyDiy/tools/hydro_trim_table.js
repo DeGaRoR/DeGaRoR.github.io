@@ -42,10 +42,10 @@ function gross(S0) {
   return def;
 }
 const CASES = {
-  c172r_stc: { label: '172R + 2350, STC prop, 1157 kg', def: () => gross(readSpec('builds/c172r_wipline2350_stcprop_2026-10-20.json')) },
-  c172r_land: { label: '172R + 2350, land prop, 1157 kg', def: () => gross(readSpec('builds/c172r_wipline2350_landprop_2026-10-20.json')) },
+  c172r_stc: { label: '172R + 2350, STC prop, 1157 kg', def: () => gross(readSpec('tools/fixtures/test_copies/c172r_wipline2350_stcprop_2026-10-20.json')) },
+  c172r_land: { label: '172R + 2350, land prop, 1157 kg', def: () => gross(readSpec('tools/fixtures/test_copies/c172r_wipline2350_landprop_2026-10-20.json')) },
   floats: { label: 'Cessna floats (cessnaFloatsWOrks)', def: () => build(readSpec('bugReports/cessnaFloatsWOrks.json')) },
-  wipline: { label: 'Wipline fixture (172 on 2350s, v10)', def: () => build(readSpec('tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json')) },
+  wipline: { label: 'Wipline fixture (172 on 2350s, v10)', def: () => build(readSpec('tools/fixtures/test_copies/build_v10_c172_wipline2350_2026-09-20.json')) },
   twin: { label: 'twin on floats (GATE FLOATS)', def: () => { if (!(process.env.FLYDIY_RAW_BUILDS === '1')) return build(require('./_load_build.js').loadValidated('twinFloats').spec); const S = readSpec('tools/fixtures/build_v7_ultralight_2026-09-05.json'); S.gear.type = 'floats'; S.cage = Object.assign({}, S.cage, { gearFloats: 1 }); return build(S); } },
 };
 // G3446 (HYDRO-TRIM, after train L25b): THE PILOT'S FEET AND HANDS. G2080 (ENGINE-TORQUE) made the propeller's torque,

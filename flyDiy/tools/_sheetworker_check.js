@@ -48,7 +48,7 @@ const ok = (cond, msg) => { checks++; if (!cond) { fails++; console.log('  FAIL 
 const BUILDS = {
   cub: { file: 'builds/cub_2026-09-20_corrected.json' },
   jodel: { file: 'builds/jodel_2026-09-20_corrected.json' },
-  c172: { file: 'builds/cessna172_2026-09-20_corrected.json' },
+  c172: { file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json' },
   floats: { file: 'bugReports/cessnaFloatsWOrks.json' },
   twinf: { file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
            patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },
@@ -58,7 +58,7 @@ const BUILDS = {
   synthA: { file: 'builds/cub_2026-09-20_corrected.json',
             patch: j => { const s = j.spec || j; s.wings[0].span = +(s.wings[0].span * 1.137).toFixed(4); s.wings[0].chord = +(s.wings[0].chord * 0.913).toFixed(4);
                           if (s.engines && s.engines[0] && s.engines[0].power) s.engines[0].power *= 1.21; if (s.cage && s.cage.paxLen) s.cage.paxLen *= 1.07; return j; } },
-  synthB: { file: 'builds/cessna172_2026-09-20_corrected.json',
+  synthB: { file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json',
             patch: j => { const s = j.spec || j; if (s.cage) { if (s.cage.paxLen) s.cage.paxLen *= 1.11; if (s.cage.halfW) s.cage.halfW *= 0.94; if (s.cage.stSpan) s.cage.stSpan *= 1.15; }
                           if (s.tail && s.tail.span) s.tail.span *= 1.15; if (s.gear && s.gear.track) s.gear.track *= 1.08; return j; } },
 };

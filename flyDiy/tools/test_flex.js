@@ -726,7 +726,7 @@ if (SH.take()) {
   const tb = statTail(buildGen(tbSpec()));
   say(fmt('twin boom (matrix row)', tb));
   // ...and the user's build, the one that read 761 mm / 37 % / 36 deg
-  const fxPath = require('path').join(__dirname, 'fixtures', 'build_v8_twin-boom_2026-09-11.json');
+  const fxPath = require('path').join(__dirname, 'fixtures', 'test_copies', 'build_v8_twin-boom_2026-09-11.json');
   let tu = null, td = null;
   try {
     const raw = JSON.parse(require('fs').readFileSync(fxPath, 'utf8'));

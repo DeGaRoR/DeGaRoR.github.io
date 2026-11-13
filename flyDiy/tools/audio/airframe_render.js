@@ -75,8 +75,8 @@ function place(sim, def, o) {
 // ---- the scenes -------------------------------------------------------------------------------------------------
 const B = {
   cub: 'builds/cub_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json',
-  floats: 'tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json',
+  cessna: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json',
+  floats: 'tools/fixtures/test_copies/build_v10_c172_wipline2350_2026-09-20.json',
 };
 const ramp = (t, t0, t1, a, b) => t <= t0 ? a : t >= t1 ? b : a + (b - a) * (t - t0) / (t1 - t0);
 const SCENES = {

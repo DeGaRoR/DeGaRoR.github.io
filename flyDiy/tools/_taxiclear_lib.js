@@ -285,7 +285,7 @@ function nodesInside(C, W, sim) {
 // (keys, not specs: the callers fly them through pilot_trace.js specOf - tools/_load_build.js, the game's aeroplane)
 const BUILDS = [
   { key: 'stock', name: 'stock build' },
-  { key: path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), name: 'aluminium C172' },
+  { key: path.join(__dirname, '..', 'bugReports', 'cessnaMetal (1).json'), name: 'aluminium C172' },
   { key: path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub" },
 ];
 // a build's plan box off its own nodes (the parked footprint's rule, GP_PARKED_FOOT): half-span, nose + 0.3 m of

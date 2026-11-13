@@ -38,7 +38,7 @@ const f3 = v => (+v).toFixed(3), mm = v => (v * 1000).toFixed(1) + ' mm';
 // THE WILGA-CLASS HOST: the user's metal Cessna's airframe (1.3 t, high wing, four seats - the Wilga's class) flown as a
 // taildragger on the lever gear, the Wilga's 2.83 m track (the study's [14]) and its Stomil 500 x 200 tyres ([1], [8])
 function hostSpec() {
-  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cessna172_2026-09-20_corrected.json'), 'utf8'));
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json'), 'utf8'));
   const s = JSON.parse(JSON.stringify(raw.spec || raw));
   Object.assign(s.gear, { type: 'taildragger', suspension: 'lever', track: 2.83, wheelR: 0.25, twR: 0.128, x: null, y: null, twX: null, twY: null,
     fairing: 'none', twFairing: 'none', legFair: 'none', twLegFair: 'none', floats: null });
@@ -240,7 +240,7 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
   const CELL = 0.02, CAP = 0.02;
   // the cases: each fairing shape (lvBoot: 0 trailing - the Wilga's, the default -, 1 tapered, 2 flared), and the host's
   // fitting high and low on the body (lvRootAng 50 / 110: "if you would place it lower or higher on the body, how does it fare?")
-  const CUBF = 'builds/cub_2026-09-20_corrected.json', HOSTF = 'builds/cessna172_2026-09-20_corrected.json';
+  const CUBF = 'builds/cub_2026-09-20_corrected.json', HOSTF = 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json';
   const HOST = { s1Leg: 4, s1Drop: 0.80, s1R: 0.25, s1X: 1.415, s1Z: 1.45, s2Leg: 3, s2Z: 0.10, s2X: 0, s2R: 0.064, s2Steer: 1 };
   const cases = [[CUBF, { s1Leg: 4, s1Drop: 0.85, s1_lvBoot: 1 }, 'the Cub, tapered'], [CUBF, { s1Leg: 4, s1Drop: 0.85 }, 'the Cub, trailing (the default)'],
     [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 1 }), 'the Wilga-class host, tapered'], [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 2 }), 'the host, flared'],
@@ -337,7 +337,7 @@ console.log('7c. the strut\'s mount up the leg (lvTop, a share of the leg - the 
   // the host at mounts 0.13 (v1, the derived short strut) .. 0.85: each stands at the charge's deflection and absorbs the
   // limit drop without bottoming; the long strut (the default) lands softer than the short one and does not bounce
   const LB = require(path.join(T, '_load_build.js'));
-  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cessna172_2026-09-20_corrected.json'), 'utf8'));
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json'), 'utf8'));
   const peakG = (def, V) => { const sim = settled(def, 8), M = def.nodes.reduce((a, n) => a + n.m, 0);
     for (let i = 0; i < sim.n; i++) { sim.p[i * 3 + 1] += 0.03; sim.v[i * 3] = 0; sim.v[i * 3 + 1] = -V; sim.v[i * 3 + 2] = 0; }
     sim.ctl.thr = 0; sim.oleoPeak(true);
@@ -367,7 +367,7 @@ console.log('7c. the strut\'s mount up the leg (lvTop, a share of the leg - the 
 
 console.log('8. nothing else moved');
 {
-  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cessna172_2026-09-20_corrected.json'), 'utf8'));
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json'), 'utf8'));
   const d = C.buildGen(JSON.parse(JSON.stringify(raw.spec || raw)));
   yes(!('lever' in d.parts) && !('lever' in d.spec.gear) && d.spec.gear.suspension !== 'lever' && !d.nodes.some(n => /^AXLE[PHUK]/.test(n.tag || '')),
       'a build without the leg carries no lever key, node or member (its bit-identity: GATE BUILD / JOINPARITY and the study\'s §8)');

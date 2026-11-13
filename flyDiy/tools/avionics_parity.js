@@ -20,7 +20,7 @@ const FIX = path.join(T, 'fixtures', 'avionics_parity.json');
 // the twin floatplane - the twin through its own float patch) and the brief's two more (the Cessna 172, Rufus)
 const BUILDS = {};
 for (const [k, v] of Object.entries(LB.VALIDATED)) BUILDS[k] = { file: v.build, patch: v.patch || null };
-BUILDS.cessna172 = { file: 'builds/cessna172_2026-09-20_corrected.json', patch: null };
+BUILDS.cessna172 = { file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', patch: null };
 BUILDS.rufus = { file: 'builds/rufus_2026-10-18_certified.json', patch: null };
 const h = () => crypto.createHash('sha256');
 function defHash(def) {

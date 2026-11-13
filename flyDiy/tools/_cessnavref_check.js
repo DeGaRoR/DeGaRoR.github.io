@@ -15,7 +15,7 @@
 //   - THE BAR: stopped ON the strip (the touch past the threshold, the stop short of the far end, on the centreline's
 //     box), or the strip REFUSED with its reason said ('strip-too-short') and the aeroplane landed and stopped on the
 //     strip it diverted to; either way no member yielded or broken, no dent, no prop strike, no ground loop
-// 2 (shard 1) THE CONTROL: the C172 file build (builds/cessna172_2026-09-20_corrected.json, the load door's) on the
+// 2 (shard 1) THE CONTROL: the C172 file build (tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json, the load door's) on the
 //   same leg - its elevator holds Vref (no 'vref-raised'), and it lands and stops on Tamgas Hill as it did
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -36,7 +36,7 @@ const check = (ok, what, detail) => {
 const ROOT = path.join(T, '..');
 const JOBS = [
   { id: 'metal', key: path.join(ROOT, 'bugReports', 'cessnaMetal (1).json'), name: 'the metal Cessna (the load door\'s)', finding: true },
-  { id: 'c172', key: path.join(ROOT, 'builds', 'cessna172_2026-09-20_corrected.json'), name: 'the C172 file build (the control)', finding: false },
+  { id: 'c172', key: path.join(ROOT, 'tools', 'fixtures', 'test_copies', 'cessna172_2026-09-20_corrected.json'), name: 'the C172 file build (the control)', finding: false },
 ];
 for (const J of JOBS) {
   if (!SHD.take()) continue;

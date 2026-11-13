@@ -29,7 +29,7 @@ const OUT = path.resolve(ROOT, opt('out', path.join('reports', 'evidence', 'SND-
 const AFTER = +opt('after', 4000);
 const SOLO = argv.includes('--solo'), LOG = argv.includes('--log');
 const FILES = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', twin582: 'tools/fixtures/build_v7_ultralight_2026-09-05.json' };
+  cessna: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', twin582: 'tools/fixtures/build_v7_ultralight_2026-09-05.json' };
 const BUILDS = opt('builds', 'cub,jodel,cessna,twin582').split(',').filter(k => FILES[k]);
 const PORT = 9400 + (process.pid % 500);
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',

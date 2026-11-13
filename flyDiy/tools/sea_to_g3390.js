@@ -22,7 +22,7 @@
 //
 //   node tools/build.js                       (the core must be fresh: _core_fresh refuses a stale one)
 //   node tools/sea_to_g3390.js                the 8 runs (2 builds x gross/half x calm/8 kt) -> reports/evidence/G3390/sea_to_result.json
-//   node tools/sea_to_g3390.js --builds builds/c172r_wipline2350_stcprop_2026-10-20.json --kinds gross --winds 0 \
+//   node tools/sea_to_g3390.js --builds tools/fixtures/test_copies/c172r_wipline2350_stcprop_2026-10-20.json --kinds gross --winds 0 \
 //        --step-v 4 --tag _easeat4             one run, the stick eased from 4 m/s
 //   options: --builds a.json[,b.json] (repo-relative to flyDiy/) --kinds gross,half --winds 0,4.12 --step-v 9
 //            --step-trim 6 --max 90 --out <dir> --tag <suffix> --airspeed (print sim.out.ias each second)
@@ -32,7 +32,7 @@ const T = __dirname, FLY = path.join(T, '..');
 const C = require(path.join(T, 'flight_core.js'));
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] != null ? argv[i + 1] : d; };
-const BUILDS = opt('builds', 'builds/c172r_wipline2350_landprop_2026-10-20.json,builds/c172r_wipline2350_stcprop_2026-10-20.json').split(',');
+const BUILDS = opt('builds', 'tools/fixtures/test_copies/c172r_wipline2350_landprop_2026-10-20.json,tools/fixtures/test_copies/c172r_wipline2350_stcprop_2026-10-20.json').split(',');
 const KINDS = opt('kinds', 'gross,half').split(','), WINDS = opt('winds', '0,4.12').split(',').map(Number);
 const STEP_V = +opt('step-v', 9), STEP_TRIM = +opt('step-trim', 6), MAXS = +opt('max', 90);
 const TECHS = opt('tech', 'g3390,poh').split(','), VR = +opt('vr', 25.7);   // 50 KIAS: the 172 floatplane POH's lift-off

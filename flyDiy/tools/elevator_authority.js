@@ -11,7 +11,7 @@ const PT=require(path.join(T,'pilot_trace.js'));PT.loadPanel();const C=require(p
 function probe(sim,V,a){const [xA,yU]=sim.axes();const vel=[0,0,0];for(let k=0;k<3;k++)vel[k]=-V*(Math.cos(a)*xA[k]+Math.sin(a)*yU[k]);return sim.probe(vel);}
 function aFor(sim,V,W,aMax){let a0=0.01,a1=0.09,f0=probe(sim,V,a0).Fy-W,f1=probe(sim,V,a1).Fy-W;for(let i=0;i<12;i++){if(Math.abs(f1-f0)<1e-9)break;let a2=a1-f1*(a1-a0)/(f1-f0);a2=Math.min(aMax,Math.max(-0.06,a2));a0=a1;f0=f1;a1=a2;f1=probe(sim,V,a1).Fy-W;if(Math.abs(f1)<0.5)break;}return {a:a1,miss:f1};}
 const r=(v,n=3)=>+(+v).toFixed(n);
-const builds=[['metal game','bugReports/cessnaMetal (1).json',1],['metal file','bugReports/cessnaMetal (1).json',0],['c172 file','builds/cessna172_2026-09-20_corrected.json',0]];
+const builds=[['metal game','bugReports/cessnaMetal (1).json',1],['metal file','bugReports/cessnaMetal (1).json',0],['c172 file','tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json',0]];
 for(const [lab,file,game] of builds){
   const raw=JSON.parse(fs.readFileSync(file,'utf8'));const spec=game?LB.gameSpec(raw):(raw.spec||raw);
   const def=C.buildGen(C.genMigrateSpec?C.genMigrateSpec(JSON.parse(JSON.stringify(spec))):spec);const g=def.params.gen;

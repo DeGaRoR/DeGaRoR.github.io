@@ -40,7 +40,7 @@ const ok = (cond, msg) => { checks++; if (!cond) fails.push(msg); return !!cond;
   const world = C.makeWorld(0, { island: C.ISLAND_GEN.makeIsland(boot),
     premises: fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.json'), 'utf8') });
   const gH = (x, z) => world.terrainH(x, z);
-  const builds = [['stock', 'build_v9_stock_2026-09-15.json'], ['cessnaMetal', 'build_v10_cessnaMetal_2026-09-26.json']];
+  const builds = [['stock', 'test_copies/build_v9_stock_2026-09-15.json'], ['cessnaMetal', '../../bugReports/cessnaMetal (1).json']];
   // the lowest contact's height over the ground under it (the solver's own contact: node minus radius)
   const clearance = sim => {
     let m = Infinity;

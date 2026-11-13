@@ -15,7 +15,7 @@ const L = require(path.join(T, '_treecrash_lib.js'));
 const C = L.core();
 const B = require(path.join(T, '..', 'src', 'viewer', 'bench.js'));
 const FILES = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-                c172: 'builds/cessna172_2026-09-20_corrected.json' };
+                c172: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json' };
 
 function specOf(build, mode) {
   const j = JSON.parse(fs.readFileSync(path.join(T, '..', FILES[build]), 'utf8'));

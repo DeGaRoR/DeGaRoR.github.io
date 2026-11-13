@@ -42,7 +42,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 
 const PAIRS = [['savannah', 'da62'], ['jodel', 'twinBush'], ['da62', 'p38']];
 const VALIDATED = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
+  cessna: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
 
 // ---- the child: one fresh process, a sequence of bakes ------------------------------------------------------------
 if (argv.includes('--child')) {

@@ -64,8 +64,8 @@ const BUILDS = [
   { key: 'floats', file: 'bugReports/cessnaFloatsWOrks.json' },
   { key: 'twinFloats', file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', patch: floats },
   // the user's mosquito (a turtledeck pod, two boom lengths, two fins)
-  { key: 'mosquito2', file: 'tools/fixtures/repro/mosquito_2.json' },
-  { key: 'mosquito3', file: 'tools/fixtures/repro/mosquito_3.json' },
+  { key: 'mosquito2', file: 'tools/fixtures/test_copies/mosquito_2.json' },
+  { key: 'mosquito3', file: 'tools/fixtures/test_copies/mosquito_3.json' },
   // SYNTHETIC: the boom, the fin, the body, the rod - on the cage's own dials
   { key: 'cub boom +0.8', file: 'builds/cub_2026-09-20_corrected.json',
     patch: s => cage({ boomLen: +s.cage.boomLen + 0.8 })(s) },
@@ -73,8 +73,8 @@ const BUILDS = [
     patch: s => cage({ boomLen: +s.cage.boomLen - 0.6 })(s) },
   { key: 'cub fin swept 25', file: 'builds/cub_2026-09-20_corrected.json', patch: cage({ finSweep: 25 }) },
   { key: 'cub turtledeck', file: 'builds/cub_2026-09-20_corrected.json', patch: cage({ mirror: 1 }) },
-  { key: 'mosquito boom 3.6', file: 'tools/fixtures/repro/mosquito_3.json', patch: cage({ boomLen: 3.6 }) },
-  { key: 'mosquito boom 6.0', file: 'tools/fixtures/repro/mosquito_3.json', patch: cage({ boomLen: 6.0 }) },
+  { key: 'mosquito boom 3.6', file: 'tools/fixtures/test_copies/mosquito_3.json', patch: cage({ boomLen: 3.6 }) },
+  { key: 'mosquito boom 6.0', file: 'tools/fixtures/test_copies/mosquito_3.json', patch: cage({ boomLen: 6.0 }) },
   { key: 'jodel fin upright', file: 'builds/jodel_2026-09-20_corrected.json', patch: cage({ finSweep: 0 }) },
   { key: 'twin rod inclined', file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
     patch: s => { floats(s); cage({ rodIncl: 4 })(s); } },

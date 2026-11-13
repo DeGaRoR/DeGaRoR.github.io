@@ -44,11 +44,11 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const BUILDS = {
   cub:   { file: '../builds/cub_2026-09-20_corrected.json', label: 'Cub' },
   jodel: { file: '../builds/jodel_2026-09-20_corrected.json', label: 'Jodel' },
-  c172:  { file: '../builds/cessna172_2026-09-20_corrected.json', label: 'C172' },
+  c172:  { file: '../tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', label: 'C172' },
   // the user's Cessna on floats: the C172 on Wipline 2350s (G1937's validated water take-off - one lift-off at 27.7 m/s);
   // the corrected C172 with its wheels swapped for floats cannot get off the water at all (G1937: 'stuck on the hump',
   // T/W 0.20 on undersized floats - every profile, the expert's too, rejected: a build, not a person)
-  c172f: { file: 'fixtures/build_v10_c172_wipline2350_2026-09-20.json', label: 'C172 floats', from: 'SEA' },
+  c172f: { file: 'fixtures/test_copies/build_v10_c172_wipline2350_2026-09-20.json', label: 'C172 floats', from: 'SEA' },
 };
 const PROFILES = ['expert', 'club', 'student', 'bush', 'hamfist'];
 const WEATHER = { calm: [], x2: ['--wind', '2,2'], x4: ['--wind', '1,4', '--gust', '0.6'], breeze: ['--day-wind', '8,250,0.15,1'] };

@@ -38,7 +38,7 @@ const VALIDATED = [
     label: "the user's Cub (Continental A-65, direct drive)" },
   { key: 'jodel', file: 'builds/jodel_2026-09-20_corrected.json',
     label: 'the Jodel D112 (Continental A-65, cruise-pitch prop)' },
-  { key: 'cessna', file: 'builds/cessna172_2026-09-20_corrected.json',
+  { key: 'cessna', file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json',
     label: 'the Cessna 172 (custom flat four, 5.9 L: O-320/O-360 class)' },
   { key: 'cessnaFloats', file: 'bugReports/cessnaFloatsWOrks.json',
     label: 'the Cessna on floats (Lycoming O-540, flat six)' },

@@ -27,7 +27,7 @@ const BUILDS = {
   metal: 'bugReports/cessnaMetal (1).json',
   floats: 'bugReports/cessnaFloatsWOrks.json',
   twinFloats: 'twinFloats',
-  rufus: 'tools/fixtures/repro/rufus_2026-10-18.json',
+  rufus: 'tools/fixtures/test_copies/rufus_2026-10-18.json',
 };
 const sha = x => { const seen = new WeakSet(); return crypto.createHash('sha1').update(JSON.stringify(x, (k, v) =>
   (v && typeof v === 'object' && !ArrayBuffer.isView(v)) ? (seen.has(v) ? '~seen' : (seen.add(v), v)) :

@@ -182,11 +182,11 @@ for (const k of KEYS) {
 // ---- 5. the census ------------------------------------------------------------------------------------------------
 console.log('== 5. every loader of a validated build goes through tools/_load_build.js ==');
 // the validated files and the metal Cessna's fixture copy (the same spec, byte for byte - checked below)
-const FILES = KEYS.map(k => LB.VALIDATED[k].build).concat(['tools/fixtures/build_v10_cessnaMetal_2026-09-26.json']);
+const FILES = KEYS.map(k => LB.VALIDATED[k].build).concat(['bugReports/cessnaMetal (1).json']);
 {
   const a = JSON.parse(fs.readFileSync(path.join(FLY, 'bugReports', 'cessnaMetal (1).json'), 'utf8')).spec;
-  const b = JSON.parse(fs.readFileSync(path.join(FLY, 'tools', 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), 'utf8')).spec;
-  ok(JSON.stringify(a) === JSON.stringify(b), 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is the metal Cessna\'s spec to the byte (so it is held like it)');
+  const b = JSON.parse(fs.readFileSync(path.join(FLY, 'bugReports', 'cessnaMetal (1).json'), 'utf8')).spec;
+  ok(JSON.stringify(a) === JSON.stringify(b), 'bugReports/cessnaMetal (1).json is the metal Cessna\'s spec to the byte (so it is held like it)');
 }
 // THE DECLARED DOORS. Anything else naming a validated file must require tools/_load_build.js.
 const DOORS = {

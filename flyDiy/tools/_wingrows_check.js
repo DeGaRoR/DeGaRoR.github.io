@@ -157,7 +157,7 @@ const BUILDS = [
   ['cessna', 'bugReports/cessnaMetal (1).json'],
   ['cessna floats', 'bugReports/cessnaFloatsWOrks.json'],
   ['twin on floats', 'tools/fixtures/build_v7_ultralight_2026-09-05.json'],
-  ['mosquito', 'tools/fixtures/repro/mosquito_3.json'],
+  ['mosquito', 'tools/fixtures/test_copies/mosquito_3.json'],
 ];
 const flownWing = P => { const S = C.resolveSpec(cageJoinSpec(P, {}, JT)).spec; return JSON.stringify([S.wings, S.controls]); };
 function kept() {

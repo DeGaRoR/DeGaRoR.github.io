@@ -114,7 +114,7 @@ console.log('\nREFERENCE (FLOAT_GEN.REF: RULE = design rule, INF = inferred; the
 // ---- FIXTURE ----------------------------------------------------------------------
 console.log('\nFIXTURE (the Cessna 172 on Wipline 2350s, joined)');
 {
-  const FIX = path.join(T, 'fixtures', 'build_v10_c172_wipline2350_2026-09-20.json');
+  const FIX = path.join(T, 'fixtures', 'test_copies', 'build_v10_c172_wipline2350_2026-09-20.json');
   const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
   const def = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
   const fl = def.parts.floats;

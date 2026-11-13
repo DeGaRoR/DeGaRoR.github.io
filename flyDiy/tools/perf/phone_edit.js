@@ -32,8 +32,8 @@ const PORT = +opt('port', 0), UDD = opt('udd', null);
 if (!PORT || (!UDD && !argv.includes('--phone'))) { console.error('phone_edit: --port (and --udd, but for --phone) are required'); process.exit(2); }
 if (PORT >= 8600 && PORT <= 8680) { console.error('phone_edit: --port inside 8600-8680 (the cook ports) - pick 87xx'); process.exit(2); }
 const REPO = path.resolve(__dirname, '..', '..', '..');
-const BUILDS = { twin: 'bugReports/Twin_busher_floats_2.json', cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json', pa18: 'builds/pa18_floats_2026-10-23.json' };
+const BUILDS = { twin: 'tools/fixtures/test_copies/Twin_busher_floats_2.json', cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
+  cessna: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json', pa18: 'builds/pa18_floats_2026-10-23.json' };
 const BK = opt('build', 'twin'), BUILD = BUILDS[BK] || BK;
 // the slider families: wing, tail, fuselage (the sheet), boom, floats, engine, lights
 const ROWS = opt('rows', 'wgSpan,wgChord,stSpan,finHeight,paxLen,halfW,boomLen,fltL,fltZ,engY,li_lampSize').split(',');

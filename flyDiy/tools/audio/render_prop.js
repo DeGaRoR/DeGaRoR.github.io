@@ -34,15 +34,15 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const PROP_BUILDS = [
   { key: 'cub', file: 'builds/cub_2026-09-20_corrected.json', label: "the user's Cub (A-65, direct drive, 2 blades 1.91 m)", vr: 22, vy: 28 },
   { key: 'jodel', file: 'builds/jodel_2026-09-20_corrected.json', label: 'the Jodel D112 (A-65, cruise-pitch prop 1.83 m)', vr: 24, vy: 30 },
-  { key: 'cessna', file: 'builds/cessna172_2026-09-20_corrected.json', label: 'the Cessna 172 (custom flat four 5.9 L, 1.905 m alu)', vr: 28, vy: 37 },
-  { key: 'cessnaMetal', file: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', label: 'the metal Cessna (O-540, 2.06 m)', vr: 30, vy: 40 },
-  { key: 'cessnaFloats', file: 'tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json', label: 'the Cessna on Wipline floats (O-540)', vr: 30, vy: 38 },
+  { key: 'cessna', file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', label: 'the Cessna 172 (custom flat four 5.9 L, 1.905 m alu)', vr: 28, vy: 37 },
+  { key: 'cessnaMetal', file: 'bugReports/cessnaMetal (1).json', label: 'the metal Cessna (O-540, 2.06 m)', vr: 30, vy: 40 },
+  { key: 'cessnaFloats', file: 'tools/fixtures/test_copies/build_v10_c172_wipline2350_2026-09-20.json', label: 'the Cessna on Wipline floats (O-540)', vr: 30, vy: 38 },
   { key: 'twin582', file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', label: 'the twin-582 (two Rotax 582, C-box 2.62)', vr: 20, vy: 25 },
   // THE PT6 ARCHETYPE: the metal Cessna's airframe on a PT6A-114A and its Hartzell three-blade (the Caravan's)
-  { key: 'pt6', file: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', label: 'a PT6A-114A archetype (the Caravan engine, 3 blades 2.69 m)',
+  { key: 'pt6', file: 'bugReports/cessnaMetal (1).json', label: 'a PT6A-114A archetype (the Caravan engine, 3 blades 2.69 m)',
     vr: 33, vy: 45, mutate: s => { s.engines[0].type = 'pt6a114a_hartzell3'; delete s.engines[0].custom; delete s.engines[0].sound; s.prop.blades = 3; s.prop.D = 2.69; } },
   // THE ELECTRIC ARCHETYPE: the twin-boom fixture, a Pipistrel E-811 on 2 blades
-  { key: 'electric', file: 'tools/fixtures/build_v8_twin-boom_2026-09-11.json', label: 'an electric archetype (Pipistrel E-811, the twin-boom fixture)', vr: 24, vy: 30 },
+  { key: 'electric', file: 'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json', label: 'an electric archetype (Pipistrel E-811, the twin-boom fixture)', vr: 24, vy: 30 },
 ];
 
 let FC = null;

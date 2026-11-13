@@ -77,10 +77,10 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const BUILDS = [
   { key: 'cub', file: 'builds/cub_2026-09-20_corrected.json', label: "the user's Cub (A-65)" },
   { key: 'jodel', file: 'builds/jodel_2026-09-20_corrected.json', label: 'the Jodel D112 (A-65)' },
-  { key: 'cessna', file: 'builds/cessna172_2026-09-20_corrected.json', label: 'the Cessna 172 (flat four 5.9 L)' },
+  { key: 'cessna', file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', label: 'the Cessna 172 (flat four 5.9 L)' },
   { key: 'twin582', file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', label: 'the twin-582 (two Rotax 582)' },
-  { key: 'electric', file: 'tools/fixtures/build_v8_twin-boom_2026-09-11.json', label: 'an electric (the twin-boom, E-811)' },
-  { key: 'pt6', file: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', label: 'a turboprop (the metal Cessna on a PT6A-114A)',
+  { key: 'electric', file: 'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json', label: 'an electric (the twin-boom, E-811)' },
+  { key: 'pt6', file: 'bugReports/cessnaMetal (1).json', label: 'a turboprop (the metal Cessna on a PT6A-114A)',
     mutate: s => { s.engines[0].type = 'pt6a114a_hartzell3'; delete s.engines[0].custom; delete s.engines[0].sound; } },
   { key: 'swing', file: 'builds/cub_2026-09-20_corrected.json', label: 'the Cub without a starter (minimal systems: swung)',
     mutate: s => { s.systems = Object.assign({}, s.systems || {}, { elec: Object.assign({}, (s.systems && s.systems.elec) || {}, { starter: 'none' }) }); } },

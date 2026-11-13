@@ -36,11 +36,11 @@ const loadSpec = (f) => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')).
 const BUILDS = {
   cub:     { file: 'builds/cub_2026-09-20_corrected.json' },
   jodel:   { file: 'builds/jodel_2026-09-20_corrected.json' },
-  c172:    { file: 'builds/cessna172_2026-09-20_corrected.json' },
-  c172f:   { file: 'builds/cessna172_2026-09-20_corrected.json', floats: true },
-  wip:     { file: 'tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json' },
+  c172:    { file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json' },
+  c172f:   { file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', floats: true },
+  wip:     { file: 'tools/fixtures/test_copies/build_v10_c172_wipline2350_2026-09-20.json' },
   ultraf:  { file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', floats: true },
-  twinf:   { file: 'tools/fixtures/build_v7_twin_2026-09-04.json', floats: true },
+  twinf:   { file: 'tools/fixtures/test_copies/build_v7_twin_2026-09-04.json', floats: true },
 };
 const ONLY = arg('only', Object.keys(BUILDS).join(',')).split(',');
 

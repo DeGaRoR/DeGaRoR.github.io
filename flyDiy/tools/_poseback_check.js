@@ -63,7 +63,7 @@ const f2 = x => (x == null || !isFinite(x) ? String(x) : x.toFixed(2));
 // ---- the core (fast: the main realm) and the host's body (its own realm, on the fake clock)
 const C = require(path.join(ROOT, 'tools', 'flight_core.js'));
 const SV = (() => { const m = { exports: {} }; new Function('module', 'window', fs.readFileSync(VIEW_FILE, 'utf8'))(m, undefined); return m.exports; })();
-const SPEC = C.genMigrateSpec((j => j.spec || j)(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'build_v9_stock_2026-09-15.json'), 'utf8'))));
+const SPEC = C.genMigrateSpec((j => j.spec || j)(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'test_copies', 'build_v9_stock_2026-09-15.json'), 'utf8'))));
 const DEF = C.buildGen(SPEC);
 const MASS = DEF.nodes.map(nd => nd.m), MTOT = MASS.reduce((a, b) => a + b, 0);
 const cgOf = p => { let x = 0, y = 0, z = 0; for (let i = 0; i < MASS.length; i++) { x += p[i * 3] * MASS[i]; y += p[i * 3 + 1] * MASS[i]; z += p[i * 3 + 2] * MASS[i]; } return [x / MTOT, y / MTOT, z / MTOT]; };

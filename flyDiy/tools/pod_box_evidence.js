@@ -12,7 +12,7 @@
 // section's own box, sized from its volume slider, the readouts awaited (off "measuring"), the camera low on the quarter:
 //   cub      the user's Cub, a 160 L pod                       garage_cub.jpg (+ _plaque: the plaque's belly-pod rows)
 //   metal    the user's metal Cessna as the fixture has it     garage_metal.jpg (+ _plaque)
-//            (tools/fixtures/cessnaMetal_pod_2026-10-22.json: 200 L, 2.52 x 0.63 x 0.32 m)
+//            (tools/fixtures/test_copies/cessnaMetal_pod_2026-10-22.json: 200 L, 2.52 x 0.63 x 0.32 m)
 //   jodel    the default pod - REFUSED in red (full, the static margin negative)    garage_jodel.jpg
 //   cub      unticked: the key gone from the spec, nothing drawn                      garage_cub_off.jpg
 // LOOK FOR: the pod under the belly in the body's colour (the Cub yellow; the metal Cessna bare metal - its livery's rule),
@@ -53,7 +53,7 @@ const out = { garage: [], belly: null, errors: [] };
 async function garage() {
   const B = [
     { k: 'cub', spec: specOf('builds/cub_2026-09-20_corrected.json'), litres: 160 },
-    { k: 'metal', spec: specOf('tools/fixtures/cessnaMetal_pod_2026-10-22.json'), litres: null, keep: true },
+    { k: 'metal', spec: specOf('tools/fixtures/test_copies/cessnaMetal_pod_2026-10-22.json'), litres: null, keep: true },
     { k: 'jodel', spec: specOf('builds/jodel_2026-09-20_corrected.json'), litres: null },
   ];
   for (const b of B) {
@@ -87,7 +87,7 @@ async function garage() {
 }
 
 async function belly() {
-  const s = specOf('tools/fixtures/cessnaMetal_pod_2026-10-22.json'); s.pod = Object.assign({}, s.pod, { depth: 0.45 });
+  const s = specOf('tools/fixtures/test_copies/cessnaMetal_pod_2026-10-22.json'); s.pod = Object.assign({}, s.pod, { depth: 0.45 });
   await run(sp => { window.GARAGE_SPEC.set(sp); return true; }, s);
   await until(() => !!(window.GARAGE_SPEC.resolved && window.GARAGE_SPEC.resolved()), 120000);
   await sleep(3000);

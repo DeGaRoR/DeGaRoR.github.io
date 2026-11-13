@@ -54,7 +54,7 @@ const B = require(path.join(ROOT, 'src', 'viewer', 'bench.js'));
 const BUILDS = {
   cub: { file: 'builds/cub_2026-09-20_corrected.json', gear: 'taildragger' },
   jodel: { file: 'builds/jodel_2026-09-20_corrected.json', gear: 'taildragger' },
-  c172: { file: 'builds/cessna172_2026-09-20_corrected.json', gear: 'tricycle' },
+  c172: { file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', gear: 'tricycle' },
   floats: { file: 'bugReports/cessnaFloatsWOrks.json', gear: 'floats' },
   twinf: { file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', gear: 'floats',
            patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },

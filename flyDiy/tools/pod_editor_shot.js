@@ -29,7 +29,7 @@ const URL0 = 'http://127.0.0.1:' + PORT + '/flyDiy/index.html?audio=0';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const BUILDS = [
   { k: 'cub', file: 'builds/cub_2026-09-20_corrected.json', litres: 160, note: 'the user\'s Cub: a 160 L pod fitted' },
-  { k: 'c172', file: 'builds/cessna172_2026-09-20_corrected.json', litres: 160, note: 'the Cessna 172: a 160 L pod fitted' },
+  { k: 'c172', file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', litres: 160, note: 'the Cessna 172: a 160 L pod fitted' },
   { k: 'floats', file: 'bugReports/cessnaFloatsWOrks.json', litres: 220, note: 'the Cessna on floats: a 220 L pod, clear of the water' },
   { k: 'jodel', file: 'builds/jodel_2026-09-20_corrected.json', litres: null, note: 'the Jodel: the default pod - refused in red (full, the static margin negative)' },
 ];

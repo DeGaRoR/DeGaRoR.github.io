@@ -420,7 +420,7 @@ let STOCK_SCENE = null;   // the stock headless scene, built once for TWSTEER an
       }
     }
     // a trike draws none
-    const spec = SH.loadFixture(path.join(T, 'fixtures/build_v8_twin-boom_2026-09-11.json'));
+    const spec = SH.loadFixture(path.join(T, 'fixtures/test_copies/build_v8_twin-boom_2026-09-11.json'));
     const S2 = SH.sceneBuild(spec, {});
     const none = ((S2.W.CAGE_HINGE && S2.W.CAGE_HINGE.links) || []).filter(L => L.kind === 'twSteer');
     check(none.length === 0, 'TWSTEER: a tricycle has steering springs', none.length);
@@ -535,8 +535,8 @@ const doorAxisErr = q => {
     const PR = (W0.CAGE_PAGE && W0.CAGE_PAGE.presets) || {};
     const preset = (name, over) => { const o = Object.assign({}, W0.CAGE2.CAGE_PARAMS); const pre = PR[name] || {};
       for (const k in pre) if (k !== '_base') o[k] = pre[k]; return Object.assign(o, over || {}); };
-    const STOL = path.join(T, 'fixtures/stol_cub_showcase.json');
-    const METAL = path.join(T, 'fixtures/build_v10_cessnaMetal_2026-09-26.json');
+    const STOL = path.join(T, '../builds/candidates/stol_cub_showcase.json');
+    const METAL = path.join(T, '../bugReports/cessnaMetal (1).json');
     const fs = require('fs');
     const PLANES = [
       ['stock Cub (clamshell)', over => SH.sceneBuild(null, { over: preset('piper cub', over) })],
@@ -649,8 +649,8 @@ const doorAxisErr = q => {
       const pf = CORE.procureFp;
       check(typeof pf === 'function' && pf(withRows(0)) === pf(spec) && pf(withRows(0.05)) === pf(spec), 'DOOR AXIS: the hgDr rows move the procure fingerprint');
       let nF = 0;
-      for (const f of fs.readdirSync(path.join(T, 'fixtures'))) {
-        if (!/^(build_|stol_cub|player_)/.test(f) || !/\.json$/.test(f)) continue;
+      for (const f of [].concat(...['', 'test_copies'].map(d => fs.existsSync(path.join(T, 'fixtures', d)) ? fs.readdirSync(path.join(T, 'fixtures', d)).map(x => d ? d + '/' + x : x) : []))) {   // (CANON-CLEAN: the test copies too)
+        if (!/^(test_copies\/)?(build_|stol_cub|player_)/.test(f) || !/\.json$/.test(f)) continue;
         let j; try { j = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', f), 'utf8')); } catch (e) { continue; }
         const sp = j && (j.spec || j);
         if (!sp || !sp.cage) continue;
@@ -819,7 +819,7 @@ const coincidence = (() => {
   if (SH) {
     const THREE = SH.context().THREE;
     const BUILDS = [['jodel', '../builds/jodel_2026-09-20_corrected.json'], ['cub', '../builds/cub_2026-09-20_corrected.json'],
-                    ['cessna', '../builds/cessna172_2026-09-20_corrected.json'], ['twin', 'fixtures/build_v7_ultralight_2026-09-05.json']];
+                    ['cessna', '../tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json'], ['twin', 'fixtures/build_v7_ultralight_2026-09-05.json']];
     for (const [name, file] of BUILDS) {
       const S = SH.sceneBuild(SH.loadFixture(path.join(T, file)).spec, {});
       const meshes = []; S.scene.traverse(o => { if (o.isMesh) meshes.push(o); });

@@ -15,7 +15,7 @@ const CERT = !process.argv.includes('--no-cert');
 const BUILDS = {
   cub: { label: 'the user\'s Cub (A-65, taildragger)', file: 'builds/cub_2026-09-20_corrected.json' },
   jodel: { label: 'the Jodel (A-65, taildragger)', file: 'builds/jodel_2026-09-20_corrected.json' },
-  c172: { label: 'the Cessna 172 (tricycle)', file: 'builds/cessna172_2026-09-20_corrected.json' },
+  c172: { label: 'the Cessna 172 (tricycle)', file: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json' },
   floats: { label: 'the C172 on floats', file: 'bugReports/cessnaFloatsWOrks.json' },
   twinf: { label: 'the twin on floats (ultralight)', file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
            patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 }); return j; } },

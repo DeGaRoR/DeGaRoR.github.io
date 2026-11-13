@@ -35,7 +35,7 @@ const WANT = opt('builds', 'cub,metal').split(',');
 // the builds: the Cub as TODAY's first boot makes it (G770's default, captured once with --dumpwip from a 'default' load,
 // so an older tree - whose default was not the Cub yet - builds the same aeroplane), and master_bench's metal Cessna
 // (2026-10-03: the user's validated Cub is builds/cub_2026-09-20_corrected.json - the first boot is the Cub-ALIKE archetype)
-const BUILDS = { cub: { label: 'Cub', build: 'builds/cub_2026-09-20_corrected.json' }, cubAlike: { label: 'Cub-alike (first boot, captured)', build: 'tools/perf/garage_lag_cub_wip.json' }, metal: MB.BUILDS.metal, default: { label: 'first boot', build: 'default' } };
+const BUILDS = { cub: { label: 'Cub', build: 'builds/cub_2026-09-20_corrected.json' }, cubAlike: { label: 'Cub-alike (first boot, captured)', build: 'tools/fixtures/test_copies/garage_lag_cub_wip.json' }, metal: MB.BUILDS.metal, default: { label: 'first boot', build: 'default' } };
 const REPS = +opt('reps', 5), QUIET = +opt('quiet', 700), PAGE = opt('page', 'index.html');
 // --evms: the page's answer per rep, ms (GARAGE-LAG-2: a SwiftShader cloud box links a new program in tens of seconds)
 const EVMS = +opt('evms', 60000);

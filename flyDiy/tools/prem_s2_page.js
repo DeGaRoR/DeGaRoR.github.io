@@ -29,7 +29,7 @@ const AWAY = JSON.stringify({ what: 'flydiy-player', v: 2, wallet: 0, mode: 'san
   fleet: { Cub: { hangar: null, aero: 'w3', outSince: 0, left: 'HOME' } }, ledger: [] });
 const CASES = {
   lift: { 'flydiy.player': V1, 'flydiy.build.Cub': CUB, 'flydiy.build.Jodel': slot('Jodel', B('jodel_2026-09-20_corrected.json')),
-          'flydiy.build.Cessna': slot('Cessna', B('cessna172_2026-09-20_corrected.json')) },
+          'flydiy.build.Cessna': slot('Cessna', B('../tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json')) },
   away: { 'flydiy.player': AWAY, 'flydiy.build.Cub': CUB, 'flydiy.wip': CUB },
 };
 const lines = [];

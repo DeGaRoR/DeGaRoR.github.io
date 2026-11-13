@@ -89,7 +89,7 @@ cases.push(pullCase(twin, 'twin floatplane: the left float dug in', 'FLTL', 'roo
   return { free: new Set(ct.P), loads: [[bow, [1000 * a[0] / la, 1000, 1000 * a[2] / la]]], rate: 40, secs: 12 };
 }, { file: 'float', ax: ax(0, 1), side: 'from the left' }));
 // the twin-boom FIXTURE (not a validated build): its left boom levered at its station
-L.BUILDS.twinBoom = { label: 'twin boom (fixture)', build: 'tools/fixtures/build_v8_twin-boom_2026-09-11.json' };
+L.BUILDS.twinBoom = { label: 'twin boom (fixture)', build: 'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json' };
 cases.push(pullCase('twinBoom', 'twin-boom FIXTURE: the left boom levered at its station', 'BML', 'station', (def, sim, ct) => {
   const cd = def.clusters.find(q => q.tag === 'BML'), k0 = cd.dmg.station, up = cd.rings[k0], dn = cd.rings[cd.rings.length - 1];
   const rootCuts = sim.clusterCuts().cuts.filter(q => q.kind === 'root' && q.cls === 'boom');

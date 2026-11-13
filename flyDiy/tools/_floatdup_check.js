@@ -91,7 +91,7 @@ const COUNT = `(()=>{const roots=new Set();if(window.CAGE_SCENE)roots.add(window
     const preset = n => `(()=>{const U=window.CAGE_UI;U.P.fltPreset=(window.CAGE_FLOAT_PRESETS||[]).indexOf('${n}');U.syncSliders();U.build();return 1})()`;
     const upd = p => "(GARAGE_SPEC.update({prop:{pitch:'" + p + "'}}),1)";
     console.log('THE BUILDER\'S PATH (the corrected 172)');
-    await step('wheels, loaded', load(readSpec('builds/cessna172_2026-09-20_corrected.json')), 14000, false);
+    await step('wheels, loaded', load(readSpec('tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json')), 14000, false);
     await step('floats on', set('gearFloats', 1), 7000, true);
     await step('the Wipline 2350', preset('Wipline 2350'), 7000, true);
     await step('a spec update (the pitch: what a design tile or the float kit writes)', upd('climb'), 7000, true);

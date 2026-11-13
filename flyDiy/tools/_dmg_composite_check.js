@@ -2,7 +2,7 @@
 // GATE DMGCOMPOSITE (G2047-G2049, DMG-COMPOSITE) - the composite build certifies, flies, and breaks as a laminate breaks
 // (tools/_dmg_composite_lib.js; GEN_MATERIALS.glass, GEN_CRASH carbon / glass, 30_solver.js dmgMember / beamKink /
 // beamYield, skin_break.js shellTear). Node only, damage ON (the build's own params.damage: true; the default stays off):
-//   1. THE BUILD (builds/composite_jodel_2026-10-07.json): the validated Jodel's geometry in E-glass the garage's way - the
+//   1. THE BUILD (tools/fixtures/test_copies/composite_jodel_2026-10-07.json): the validated Jodel's geometry in E-glass the garage's way - the
 //      construction tile on glassfibre reaches spec.fuselage.material 'glass' and every surface 'as the aeroplane' is the
 //      glass row; its members are glass but the steel bearer, its glue lines (the ribs, the box webs, the shell's
 //      centreline, the cabin-to-tailcone joint) bonds

@@ -82,7 +82,7 @@ function svgBars(R, field, title, unit, fmt) {
     const secs = c => Object.entries(c.bySec).map(([a, b]) => a + ' ' + b).join(', ') || '-';
     const off = c => c.off.slice(0, 6).map(o => o.parts + ' ' + o.m + ' kg').join('; ') + (c.off.length > 6 ? '; +' + (c.off.length - 6) + ' pieces' : '') || '-';
     let md = '# DMG-COMPOSITE - the crash table (G2049)\n\nDMG-TUNE\'s standard crashes (tools/_dmg_tune_lib.js), damage ON with the certificate stamped (genCertify, GEN_CERT_V unchanged), node only. ' +
-      'The composite build is builds/composite_jodel_2026-10-07.json (the validated Jodel\'s geometry in E-glass); the carbon variant is the same file on the composite tile (reported, not gated). ' +
+      'The composite build is tools/fixtures/test_copies/composite_jodel_2026-10-07.json (the validated Jodel\'s geometry in E-glass); the carbon variant is the same file on the composite tile (reported, not gated). ' +
       '**Every source is as recalled - nothing was opened in this session.** "member work" is the members\' plastic and crack work (30_solver.js dmgW); "energy taken" the mechanical energy (kinetic + the weight\'s potential) taken out of the aeroplane between the run\'s first frame and its end (the trunk\'s and the ground\'s contact damping, friction and the members\' work); "back" how far the CG came back off its furthest point (the rebound). "laminate set" counts laminate members yielded and still whole (a brittle laminate has none).\n\n';
     md += '| build | mass kg | CG % MAC | V_S m/s | members (by material) | laminate seams |\n|---|---|---|---|---|---|\n';
     for (const r of R) { const s = r.sheet; md += `| ${NAME[r.k]} | ${s.mass} | ${s.cgMAC} | ${s.Vs} | ${JSON.stringify(s.mats)} | ${JSON.stringify(s.seams)} |\n`; }

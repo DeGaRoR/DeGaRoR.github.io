@@ -9,7 +9,7 @@ const T = __dirname, ROOT = path.join(T, '..');
 const L = require(path.join(T, '_treecrash_lib.js'));
 const C = L.core();
 const { chromium } = require(process.env.PLAYWRIGHT_PATH || (() => { try { return require.resolve('playwright'); } catch (e) { return '/opt/node22/lib/node_modules/playwright'; } })());
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', c172: 'builds/cessna172_2026-09-20_corrected.json',
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', c172: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json',
                  floats: 'bugReports/cessnaFloatsWOrks.json' };
 (async () => {
   const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] });

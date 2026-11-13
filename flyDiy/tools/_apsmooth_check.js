@@ -40,9 +40,9 @@ const BUILDS = [
   { k: 'jodel', f: 'builds/jodel_2026-09-20_corrected.json', order: 'HOME,HOME', trike: false },
   // G3332 (LEVEL-OFF, landed L22b 22 Oct): the climb -> cruise capture no longer balloons on this validated type (15.7 -> 5.3 m,
   // node, 21 Oct); its KNOWN (the 17 m ceiling) is gone - the row is judged at the 10 m bar like every other
-  { k: 'c172', f: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', order: 'HOME,w3', trike: true },
-  { k: 'rufus', f: 'tools/fixtures/repro/rufus_2026-10-18_certified.json', order: 'HOME,w3', trike: false },
-  { k: 'mosquito', f: 'tools/fixtures/repro/mosquito_3.json', order: 'HOME,w3', trike: false },
+  { k: 'c172', f: 'bugReports/cessnaMetal (1).json', order: 'HOME,w3', trike: true },
+  { k: 'rufus', f: 'tools/fixtures/test_copies/rufus_2026-10-18_certified.json', order: 'HOME,w3', trike: false },
+  { k: 'mosquito', f: 'tools/fixtures/test_copies/mosquito_3.json', order: 'HOME,w3', trike: false },
 ].filter(b => !opt('only') || opt('only').split(',').includes(b.k));
 const PERSONS = ['expert', 'club', 'student'];
 // INFO rows: printed, never judged - the Jodel into w2 (the user-accepted t66 behaviour: a tailwind final steeper than it can

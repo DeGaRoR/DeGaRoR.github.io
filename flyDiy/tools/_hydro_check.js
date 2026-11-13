@@ -200,7 +200,7 @@ for (const [tau, lam, Cv] of [[4, 2, 2], [4, 2, 3], [4, 3, 3], [6, 2, 3], [4, 2,
 {
   console.log('\nTHE COST (the 172 on Wipline 2350s, sim.step(1/60), best of 12 windows of 10 steps)');
   const C = require('./flight_core.js');
-  const FIX = require('path').join(__dirname, 'fixtures', 'build_v10_c172_wipline2350_2026-09-20.json');
+  const FIX = require('path').join(__dirname, 'fixtures', 'test_copies', 'build_v10_c172_wipline2350_2026-09-20.json');
   const spec = JSON.parse(require('fs').readFileSync(FIX, 'utf8')).spec;
   const mk = every => {
     const def = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));

@@ -2,7 +2,7 @@
 // (_dmg_composite_check.js) and its evidence's (dmg_composite_evidence.js). The user (2026-10-06): "I would also like to
 // see ... something made out of glassfiber/carbon" crash.
 //
-//   composite    builds/composite_jodel_2026-10-07.json: the validated Jodel D112 (builds/jodel_2026-09-20_corrected.json),
+//   composite    tools/fixtures/test_copies/composite_jodel_2026-10-07.json: the validated Jodel D112 (builds/jodel_2026-09-20_corrected.json),
 //                its geometry untouched, built in E-glass / epoxy the garage's way - the construction tile on glassfibre
 //                (cage intCons 5 -> spec.fuselage.material 'glass'), every surface 'as the aeroplane' (GEN_SURF_DEFAULT:
 //                the glass wing and tail), the member screws off
@@ -19,7 +19,7 @@ const path = require('path'), fs = require('fs');
 const L = require('./_treecrash_lib.js');
 const T = require('./_dmg_tune_lib.js');
 const ROOT = path.join(__dirname, '..');
-const BUILD = 'builds/composite_jodel_2026-10-07.json';
+const BUILD = 'tools/fixtures/test_copies/composite_jodel_2026-10-07.json';
 L.BUILDS.composite = { label: 'Jodel in glass', build: BUILD };
 L.BUILDS.compositeC = { label: 'Jodel in carbon (report)', build: BUILD, patch: j => { j.spec.cage.intCons = 0; j.spec.fuselage.material = 'carbon'; return j; } };
 const LAM = new Set(['carbon', 'glass']);

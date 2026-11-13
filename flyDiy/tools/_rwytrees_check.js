@@ -257,7 +257,7 @@ if (FULL) {
   // HOME's circuit with the user's aluminium C172 and the Cub (the player's default); East Point's with the Cub - the
   // strip whose fans and box the map lifts nearest (its 5 % surface goes 0.4 m under). Tamgas Hill (w3) is not flown:
   // the Cub cycles taxi / hold / line-up there without taking off in every variant (measured: 'today' and 'map' alike)
-  for (const [name, key, fld] of [['aluminium C172', path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), 'HOME'], ['Cub', 'cub', 'HOME'], ['Cub', 'cub', 'nv_strip']]) {
+  for (const [name, key, fld] of [['aluminium C172', path.join(T, '..', 'bugReports', 'cessnaMetal (1).json'), 'HOME'], ['Cub', 'cub', 'HOME'], ['Cub', 'cub', 'nv_strip']]) {
     const world = worlds.map;
     const def = C.buildGen(PT.specOf(key).spec);
     const sim = C.makeSim(def, world); sim.reset(0);

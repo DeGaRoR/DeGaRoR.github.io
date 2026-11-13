@@ -52,7 +52,7 @@ const fs = require('fs'), path = require('path');
 const C = require('./flight_core.js'), LB = require('./_load_build.js');
 let bad = 0;
 const check = (ok, label, note) => { console.log((ok ? '  ok   ' : '  FAIL ') + label + (note != null ? '  (' + note + ')' : '')); if (!ok) bad++; return ok; };
-const raw = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), 'utf8'));
+const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'bugReports', 'cessnaMetal (1).json'), 'utf8'));
 const specOf = (retract, bare) => { const s = LB.gameSpec(JSON.parse(JSON.stringify(raw))); if (retract) s.gear.retract = retract;
   if (bare) { s.gear.fairing = s.gear.twFairing = 'none'; s.gear.legFair = s.gear.twLegFair = 'none'; } return s; };
 const defOf = (retract, bare) => { const s = specOf(retract, bare); const d = C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(s) : s); d.params = Object.assign({}, d.params, { damage: true }); return d; };

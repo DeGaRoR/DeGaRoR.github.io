@@ -65,7 +65,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const LIST = [];
   // a VARIANT: key@row - the validated build with its wings' construction row set (cub@aluFabric, cub@steel), so every
   // kind of structure is drawn on an aeroplane the game flies; key+light - its lamp fitted (the bay's pocket)
-  // (a .json in the list is a build FILE - the official B-CESS, builds/cessna172_2026-09-20.json, with its wing tanks)
+  // (a .json in the list is a build FILE - the official B-CESS, builds/cessna172r_2026-11-08.json, with its wing tanks)
   if (BUILD && BUILD.val) for (const k0 of BUILD.val.split(',')) LIST.push(/\.json$/.test(k0) ? { key: path.basename(k0).replace(/\.json$/, ''), spec: () => { const j = JSON.parse(fs.readFileSync(path.resolve(k0), 'utf8')); return j.spec || j; } } : { key: k0.replace(/[@+]/g, '_'), spec: () => {
     const [k, row] = k0.replace(/\+(light|plain)$/, '').split('@'), sp = require('./_load_build.js').loadValidated(k).spec;
     // key+plain: the build's decal patterns off for the picture (the Petrel's dark pattern hid its inside - the user 9 Nov)

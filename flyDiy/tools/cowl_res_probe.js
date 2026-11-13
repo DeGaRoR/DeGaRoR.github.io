@@ -22,7 +22,7 @@ const os = require('os');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const OUTF = path.resolve(opt('out', 'cowl_res_probe.json'));
-const BUILDS = opt('builds', 'builds/cessna172_2026-09-20_corrected.json,builds/cessna172_2026-09-20.json,builds/cub_2026-09-20_corrected.json').split(',');
+const BUILDS = opt('builds', 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json,builds/cessna172r_2026-11-08.json,builds/cub_2026-09-20_corrected.json').split(',');
 const VARIANTS = opt('variants', '0,3,4').split(',').map(Number);
 const TOGGLES = +opt('toggles', 5);
 const WAIT = +opt('wait', 9000);

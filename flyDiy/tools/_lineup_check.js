@@ -35,7 +35,7 @@ const BJ = require(path.join(T, '_bake_joined.js'));
 
 const SHOW = process.argv.includes('--show');
 const SELF = process.argv.includes('--selftest');
-const METAL = path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json');
+const METAL = path.join(T, '..', 'bugReports', 'cessnaMetal (1).json');
 
 let fail = [];
 const check = (ok, label, extra) => { if (!ok) fail.push(label + (extra ? ' - ' + extra : '')); return ok; };

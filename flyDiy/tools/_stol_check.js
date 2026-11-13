@@ -600,7 +600,7 @@ for (const [key, B] of Object.entries(BENCH)) {
 }
 
 // =========================================================================
-// 6. THE USER'S CUB WITH A STOL KIT (G2824, tools/fixtures/stol_cub_kit.json): their Cub (builds/
+// 6. THE USER'S CUB WITH A STOL KIT (G2824, tools/fixtures/test_copies/stol_cub_kit.json): their Cub (builds/
 // cub_2026-09-20_corrected.json) with a fixed slot, a VG row, the drooped bush tips and the ailerons drooped 10 deg,
 // set in the editor's own rows. JOINED HERE (what the editor draws is what the join flies), benched and FLOWN - the
 // pilot's whole circuit off HOME - against the stock aeroplane as master flew it (the fixture's builds.cub: its lap).
@@ -611,10 +611,10 @@ for (const [key, B] of Object.entries(BENCH)) {
 //              Clark Y: the stall carried well past the plain wing's) -> Vs -12..-17 % from the slot alone
 //   kits       the Robertson / Sierra R/STOL: "15-25 mph slower approaches, up to 40 % less runway" (the maker's)
 if (!BENCH_ONLY || process.argv.includes('--cub')) {
-  console.log('6. THE USER\'S CUB WITH A STOL KIT (tools/fixtures/stol_cub_kit.json, flown)');
+  console.log('6. THE USER\'S CUB WITH A STOL KIT (tools/fixtures/test_copies/stol_cub_kit.json, flown)');
   const BJ = require(path.join(T, '_bake_joined.js'));
   BJ.loadPanel();
-  const KIT = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'stol_cub_kit.json'), 'utf8'));
+  const KIT = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'test_copies', 'stol_cub_kit.json'), 'utf8'));
   const r = BJ.bakeJoined(KIT.spec);                  // the drawing chain (its CAGE_JOIN, for the snapshot below)
   const J = require(path.join(T, '_load_build.js')).gameSpec(KIT);   // the spec the game flies (its load door)
   ok(JSON.stringify(J.wings[0].stol) === JSON.stringify(KIT.spec.wings[0].stol) && J.wings[0].tip === 'drooped',
@@ -714,8 +714,8 @@ if (!BENCH_ONLY) {
 // an editor row in spec.cage, JOINED here through the game's load door. Read on the design numbers (the circuits
 // are in reports/evidence/STOL-WING-2/showcase_flown.log: lift-off 46.2 m against the stock 96.1).
 if (!BENCH_ONLY) {
-  console.log('8. THE SHOWCASE STOL CUB (tools/fixtures/stol_cub_showcase.json)');
-  const SHOW = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'stol_cub_showcase.json'), 'utf8'));
+  console.log('8. THE SHOWCASE STOL CUB (builds/candidates/stol_cub_showcase.json)');
+  const SHOW = JSON.parse(fs.readFileSync(path.join(T, '..', 'builds', 'candidates', 'stol_cub_showcase.json'), 'utf8'));
   const J = require(path.join(T, '_load_build.js')).gameSpec(SHOW);
   const stockB = FIX.builds && FIX.builds.cub;
   ok(J.engines[0].type === 'rotax915_carbon' && Math.abs(J.gear.wheelR - 0.39) < 0.02 && J.wings[0].tip === 'drooped' &&
@@ -773,7 +773,7 @@ if (!BENCH_ONLY) {
 if (!BENCH_ONLY) {
   console.log('9. THE STOL LAW AT THE TOUCH (the showcase: bush calm, expert in gusts, expert across 2 m/s)');
   const os = require('os'), cp = require('child_process');
-  const FXS = path.join(T, 'fixtures', 'stol_cub_showcase.json'), RUN = path.join(T, '_stol_leg.js');
+  const FXS = path.join(T, '..', 'builds', 'candidates', 'stol_cub_showcase.json'), RUN = path.join(T, '_stol_leg.js');
   const LEGS = { bush: ['--profile', 'bush'], gust: ['--wind', '1,4', '--gust', '0.6'], xwind: ['--wind', '0,2'] };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'stol9_')), t0 = Date.now();
   // the three legs side by side, each into its .out, waited for: node is the launcher (A0 3 Nov: shell '/bin/bash' threw

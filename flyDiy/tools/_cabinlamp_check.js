@@ -29,13 +29,13 @@ const LB = require('./_load_build.js');
 
 const SET = {
   cub: { v: 'cub' }, jodel: { v: 'jodel' }, metal: { v: 'metal' }, floats: { v: 'floats' },
-  twinFloats: { v: 'twinFloats' }, rufus: { f: 'tools/fixtures/repro/rufus_2026-10-18.json' },
-  bubble: { f: 'tools/fixtures/build_v8_twin-boom_2026-09-11.json' },
-  skylight: { f: 'tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json' },
-  twin2: { f: 'tools/fixtures/Twin_busher_floats_2.json' },
+  twinFloats: { v: 'twinFloats' }, rufus: { f: 'tools/fixtures/test_copies/rufus_2026-10-18.json' },
+  bubble: { f: 'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json' },
+  skylight: { f: 'tools/fixtures/test_copies/build_v10_c172_wipline2350_2026-09-20.json' },
+  twin2: { f: 'tools/fixtures/test_copies/Twin_busher_floats_2.json' },
   // CABIN-INTERIOR G1: the user's twin with the overhead console (and the headliner it hangs from): the front row's
   // lamps in the console's bezels, the rear row's on the roof
-  twin2con: { f: 'tools/fixtures/Twin_busher_floats_2.json',
+  twin2con: { f: 'tools/fixtures/test_copies/Twin_busher_floats_2.json',
               patch: j => { Object.assign(j.spec.cage, { ohConsoleOn: 1, hdlOn: 1, wallTrimOn: 1 }); return j; } },
 };
 // the expected rung of each lamp, flood first then the passengers in seat order

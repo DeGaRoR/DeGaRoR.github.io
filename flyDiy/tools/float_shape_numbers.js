@@ -18,7 +18,7 @@ const C = require(CORE);
 // the builds are read from the core's own tree (a baseline worktree's core flies that tree's fixtures)
 const T = path.dirname(CORE);
 const BUILDS = {
-  cessna: { file: path.join(T, 'fixtures', 'build_v10_c172_wipline2350_2026-09-20.json'), label: 'the Cessna 172 on Wipline 2350s (GATE WIPLINE fixture)' },
+  cessna: { file: path.join(T, 'fixtures', 'test_copies', 'build_v10_c172_wipline2350_2026-09-20.json'), label: 'the Cessna 172 on Wipline 2350s (GATE WIPLINE fixture)' },
   cessnaWorks: { file: path.join(T, '..', 'bugReports', 'cessnaFloatsWOrks.json'), label: 'the Cessna on floats the user validated (W-CHECK, custom rows)' },
   twin: { file: path.join(T, 'fixtures', 'build_v7_ultralight_2026-09-05.json'), floats: true, label: 'the twin-582 ultralight on floats (GATE FLOATS)' },
 };

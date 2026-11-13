@@ -11,7 +11,7 @@
 const fs = require('fs'), path = require('path'), z = require('zlib');
 const ROOT = path.join(__dirname, '..', '..');
 const B = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json',
+  cessna: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json',
   floats: 'bugReports/cessnaFloatsWOrks.json', twin: 'tools/fixtures/build_v7_ultralight_2026-09-05.json' };
 const dr = b => z.deflateRawSync(Buffer.isBuffer(b) ? b : Buffer.from(b), { level: 9 }).length;
 const gz = b => z.gzipSync(Buffer.from(b), { level: 9 }).length;

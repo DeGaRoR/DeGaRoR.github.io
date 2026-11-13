@@ -2,7 +2,7 @@
 // GATE RADIALDIV (G2630 RADIAL-DIVERGE) — THE USER'S MOSQUITO, BOTH BUILDS, FLY.
 // The user (9-10 Oct): "massive issues with radial engines. mosquito turns in circle for no obvious reasons,
 // mosquito (1) makes the game crash, and everything is fine if I swap for a boxer engine."
-// The builds are the user's own files (+ SYNTH, below) (tools/fixtures/repro/mosquito.json, mosquito_1.json: a 620 kg carbon
+// The builds are the user's own files (+ SYNTH, below) (tools/fixtures/test_copies/mosquito.json, mosquito_1.json: a 620 kg carbon
 // single-seat taildragger, oleo gear, the M-14P radial; (1) differs ONLY in its tailwheel spring, 0.2 m vs 0.4 m).
 // THE CAUSE (HANDOVER G2630): genSubstepsTrue (62_gen_aero.js) capped the step at 200 and, where even 200 could not
 // carry the dampers, flew them uncut: the oleo's tailwheel bracing dampers (3.7 kg into 0.41 kg carbon nodes) asked
@@ -40,8 +40,8 @@ const ONLY = (() => { const a = argv.find(x => x.startsWith('--only=')); return 
 // and its oleo at stiffness 3 - heavy nose, light carbon nodes, a hard damper: NaN on master's core at frame 0. Not a
 // design anyone flies; the construction and the rest are asked of it, the flight is the user's builds'.
 const BUILDS = {
-  mosquito:   { file: 'tools/fixtures/repro/mosquito.json', fly: true },
-  mosquito_1: { file: 'tools/fixtures/repro/mosquito_1.json', fly: true },
+  mosquito:   { file: 'tools/fixtures/test_copies/mosquito.json', fly: true },
+  mosquito_1: { file: 'tools/fixtures/test_copies/mosquito_1.json', fly: true },
   // the REFERENCE for the hands-off row: the user's Cub, flown the same way (its own rows are PILOT's; this one is asked
   // only for its hands-off turn, which bounds the radial's)
   cub:        { file: 'builds/cub_2026-09-20_corrected.json', fly: true, ref: true },

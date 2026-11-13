@@ -562,7 +562,7 @@ function faceSuite(GPS) {
 const PANELS = [
   ['cub', 'builds/cub_2026-09-20_corrected.json', 'glass', 'plate', true, true],
   ['cub', 'builds/cub_2026-09-20_corrected.json', 'portable', 'plate', true, true],
-  ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'glass', 'plate', true, true],
+  ['cessna', 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', 'glass', 'plate', true, true],
   // the shipped metal Cessna (tools/_load_build.js VALIDATED.metal): A0's evidence build for tools/avionics_stills.js
   ['metal', 'bugReports/cessnaMetal (1).json', 'glass', 'plate', true, true],
   ['metal', 'bugReports/cessnaMetal (1).json', 'portable', 'plate', true, true],
@@ -580,9 +580,9 @@ const PANELS = [
 // this row said it cost three small gauges, but G2815's own branch already laid out all twelve beside the 271 mm screen
 // on the 620 mm plate - the rows above hold the layout clean: no dial overlap, the GPS clear of every dial and switch)
   ['metal', 'bugReports/cessnaMetal (1).json', 'flatPair', 'plate', false, true],
-  ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'flat', 'plate', false, true],
-  ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'flat:copilot', 'plate', false, true],
-  ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'flatPair', 'plate', false, true],
+  ['cessna', 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', 'flat', 'plate', false, true],
+  ['cessna', 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', 'flat:copilot', 'plate', false, true],
+  ['cessna', 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', 'flatPair', 'plate', false, true],
   ['cub', 'builds/cub_2026-09-20_corrected.json', 'flat', 'plate', false, true],
 ];
 function dashOf(file, gps) {

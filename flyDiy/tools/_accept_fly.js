@@ -20,7 +20,7 @@ const C = L.core();
 const B = require(path.join(T, '..', 'src', 'viewer', 'bench.js'));
 
 const FILES = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-                c172: 'builds/cessna172_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
+                c172: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
 const CASES = {
   cub:     { build: 'cub', home: true },
   cub2:    { build: 'cub', home: true },                       // the same flight again: deterministic run to run

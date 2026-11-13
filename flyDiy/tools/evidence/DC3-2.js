@@ -19,7 +19,7 @@
 //     and the damage after; then THE DROP on the stand: the aeroplane lifted and let fall at 3.05 m/s (10 ft/s, FAR
 //     25.473's limit sink) and at 4.6 m/s (the user's) through the page's own placement door (FLIGHT_PROBE.place).
 //
-//   node tools/evidence/DC3-2.js [--file tools/fixtures/dc3_2026-10.json] [--out reports/evidence/DC3-2]
+//   node tools/evidence/DC3-2.js [--file tools/fixtures/test_copies/dc3_2026-10.json] [--out reports/evidence/DC3-2]
 //        [--parts garage,taxi,land] [--taxi-s 30] [--size 1600x900] [--url <a running page>] [--headed]
 // Prints DC32 {...} (one JSON summary line), the ROW lines and the PNG paths; exits 1 when an occupant is buried, the
 // taxi crashed, or the 3.05 m/s drop broke anything.
@@ -33,7 +33,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] != null && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const REPO = path.resolve(__dirname, '..', '..', '..');
 const FD = path.join(REPO, 'flyDiy');
-const FILE = path.resolve(FD, opt('file', 'tools/fixtures/dc3_2026-10.json'));
+const FILE = path.resolve(FD, opt('file', 'tools/fixtures/test_copies/dc3_2026-10.json'));
 const OUT = path.resolve(FD, opt('out', 'reports/evidence/DC3-2'));
 const PARTS = opt('parts', 'garage,taxi,land').split(',');
 const [SW, SH] = opt('size', '1600x900').split('x').map(Number);

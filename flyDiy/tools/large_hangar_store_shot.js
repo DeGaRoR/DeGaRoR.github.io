@@ -22,14 +22,14 @@ const SCENE = opt('scene', 'store'), FULL = SCENE === 'full' || SCENE === 'roste
 const CUB = 'cub_2026-09-20_corrected.json', JOD = 'jodel_2026-09-20_corrected.json';
 // --scene roster (the user 9 Nov: "I don't want all cubs and Jodels. Get in the roster"): the Jodel on the stand, the validated
 // aeroplanes the user named stored round it, each at its own measured footprint (playerFootOfDef off its build)
-const ROSTER_FILES = { 'Metal Cessna': 'cessna172_2026-09-20.json', 'Piper Cub': CUB, 'STOL Cub': 'candidates/stol_cub_showcase.json',
+const ROSTER_FILES = { 'Cessna 172': 'cessna172r_2026-11-08.json', 'Piper Cub': CUB, 'STOL Cub': 'candidates/stol_cub_showcase.json',
   'Twin busher floats': 'candidates/Twin_busher_floats_4b.json', 'Rufus': 'rufus_2026-10-18_certified.json', 'pusherLight': 'candidates/build_v8_pusher_2026-09-11.json',
   'B-ITES': 'candidates/B-ITES.json', 'PA-18 on floats': 'pa18_floats_2026-10-23.json', 'Chinook': 'chinook_2026-09-21_corrected.json' };
 const envOf = (n, f) => { const j = env(f); return j.spec ? j : { what: 'flydiy-build', v: j.v || 10, name: n, spec: j }; };
 const SHELF = ROSTER ? Object.fromEntries(Object.entries(ROSTER_FILES).map(([n, f]) => [n, envOf(n, f)]))
   : FULL
   ? { 'Jolene Cub': env(CUB), 'Spare Cub': env(CUB), 'Club Cub': env(CUB), 'Old Jodel': env(JOD), 'Red Jodel': env(JOD), 'Blue Jodel': env(JOD) }
-  : { 'Jolene Cub': env(CUB), 'Spare Cub': env(CUB), 'Club Cub': env(CUB), 'Jodel D9': env(JOD), 'Metal Cessna': env('cessna172_2026-09-20_corrected.json') };
+  : { 'Jolene Cub': env(CUB), 'Spare Cub': env(CUB), 'Club Cub': env(CUB), 'Jodel D9': env(JOD), 'Metal Cessna': env('../tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json') };
 const SLOTS = ROSTER ? 10 : FULL ? 8 : null;
 // the footprints the packer parks them by (as a save measures them: GATE HANGAR's envelopes)
 const FOOT = { cub: { half: 5.4, fwd: 1.8, aft: 6.9, h: 2.1 }, jodel: { half: 4.4, fwd: 1.8, aft: 5.9 }, cessna: { half: 5.5, fwd: 1.6, aft: 6.6, h: 2.7 } };

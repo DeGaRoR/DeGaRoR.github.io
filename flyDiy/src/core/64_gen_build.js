@@ -993,6 +993,15 @@ function genShakedown(def, opts) {
   // the autopilot reads it from there, never probing at the roll's start (~0.1 s). Only a wing with a stall-angle device
   // gets the key; every other shakedown is the same object as before
   if (!(opts && opts.slim)) { const sg = genStolGain(def); if (sg) out.stolGain = sg; }
+  // FLAPLESS-SAID (FLAGSHIP 13 Nov, A0: genTrim's own words above - "say so in the shakedown rather than ship an aeroplane
+  // that cannot be landed" - and nothing did: landsFlapless / apprTrimFail reached the autopilot and the machine sheet only).
+  // HOW IT LANDS when genTrim could not land it as built: on no flap (the flap will not trim or flare), on a partial notch,
+  // or with its approach trim out of the elevator's reach. Only such a build gets the key
+  { const L = {};
+    if (g.landsFlapless) L.flapless = true;
+    if (g.landsPartialFlap != null) { L.partial = g.landsPartialFlap; L.full = g.flapLdgFull; }
+    if (g.apprTrimFail != null) L.trimFail = g.apprTrimFail;
+    if (Object.keys(L).length) out.landing = L; }
   return out;
 }
 

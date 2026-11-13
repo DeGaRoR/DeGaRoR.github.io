@@ -6,7 +6,7 @@
 //
 //   1. ROLLOUT  tools/rollout_perf.js at HOME (the route HOME / CIRCUIT), the CHASE view and the COCKPIT view, the user's Cub
 //               (builds/cub_2026-09-20_corrected.json), the metal Cessna (bugReports/cessnaMetal (1).json) and the Cessna 172
-//               (builds/cessna172_2026-09-20_corrected.json) - GATE-ANCHOR (A0 for the user, 18 Oct): every build pinned BY
+//               (tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json) - GATE-ANCHOR (A0 for the user, 18 Oct): every build pinned BY
 //               FILE, never the OLD STOCK default (metal + 172 both until the user names the right Cessna file); and the
 //               floatplane's TAKE-OFF from the SEA lane (bugReports/cessnaFloatsWOrks.json,
 //               the chase view, --float-secs; the user: "the water take off is extremely uneven"); every run with the water
@@ -62,7 +62,7 @@ if (opt('secs', null)) M.secs = +opt('secs');
 if (opt('float-secs', null)) M.floatSecs = +opt('float-secs');   // (0: no float leg)
 const ONLY = new Set(opt('only', 'rollout,garage,bench').split(','));
 const REMOTE = opt('remote', 'mn_strip');
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', c172: 'builds/cessna172_2026-09-20_corrected.json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', c172: 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json' };
 const NAMES = { cub: 'the Cub', metal: 'the metal Cessna', c172: 'the Cessna 172', floats: 'the Cessna on floats' };
 const FLOATS = 'bugReports/cessnaFloatsWOrks.json';
 const VIEWS = ['chase', 'cockpit'];

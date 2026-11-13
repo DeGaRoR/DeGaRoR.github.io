@@ -8,7 +8,7 @@
 // headless, the join measures it, the energy layer fits the tanks) -> buildGen. Nothing is patched in memory: what flies
 // is what the widened envelope (G3503) and the structure rules (G3501, G3504, G3505) make of the drawing.
 //
-//   node tools/dc3_build.js --build      (re)write tools/fixtures/dc3_2026-10.json through the load chain
+//   node tools/dc3_build.js --build      (re)write tools/fixtures/test_copies/dc3_2026-10.json through the load chain
 //   node tools/dc3_build.js              the fixture's sheet, design check, cost, and the pilot's flight (take-off,
 //                                        circuit, landing) against the real DC-3 [--no-fly] [--no-cert] [--maxS=600]
 //                                        [--json=<file>]
@@ -17,7 +17,7 @@ const fs = require('fs'), path = require('path');
 const T = __dirname, ROOT = path.join(T, '..');
 const LB = require('./_load_build.js');
 const PR = require('./dc3_probe.js');
-const FIX = path.join(T, 'fixtures', 'dc3_2026-10.json');
+const FIX = path.join(T, 'fixtures', 'test_copies', 'dc3_2026-10.json');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const flag = k => argv.includes('--' + k);
@@ -181,7 +181,7 @@ if (require.main === module) {
   console.log('loaded ' + path.relative(ROOT, FIX) + ' through the load chain: join errors ' + (L.errors || []).length);
   for (const e of L.errors || []) console.log('  ERRS ' + e);
   const def = C.buildGen(JSON.parse(JSON.stringify(L.spec)));
-  const s = PR.sheet(C, def, 'DC-3 FULL SIZE - tools/fixtures/dc3_2026-10.json');
+  const s = PR.sheet(C, def, 'DC-3 FULL SIZE - tools/fixtures/test_copies/dc3_2026-10.json');
   printSheetFull(s);
   s.cost = (() => { const a = []; for (let i = 0; i < 3; i++) a.push(stepCostOf(C, def)); a.sort((x, y) => x.msPerFrame - y.msPerFrame); return a[1]; })();
   console.log(`  solver ${s.cost.msPerFrame.toFixed(2)} ms / 60 Hz frame (node, airborne, median of 3), substeps ${s.cost.substeps}`);

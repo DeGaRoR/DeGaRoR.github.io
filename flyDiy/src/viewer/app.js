@@ -12927,6 +12927,13 @@
     R('cruise', n1(s.VCruise * 3.6, 0) + ' km/h');
     R('climb', n1(s.climbRate, 2) + ' m/s', judge('climb', s.climbRate || 0));
     R('take-off run', n1(s.TORun, 0) + ' m', judge('take-off run', s.TORun || 0));
+    // FLAGSHIP 13 Nov (FLAPLESS-SAID): HOW IT LANDS, when genTrim could not land it as built (genShakedown.landing)
+    if (s.landing) {
+      const Lg = s.landing;
+      if (Lg.flapless) R('landing flaps', 'none: its flap will not trim or flare, it lands at the clean stall', 'bad');
+      else if (Lg.partial != null) R('landing flaps', Math.round(Lg.partial * 100) + ' % of its flap: more will not trim', 'warn');
+      if (Lg.trimFail != null) R('approach trim', 'out of reach: the elevator cannot hold the approach (' + n1(Lg.trimFail, 2) + ')', 'bad');
+    }
     // IN THIN AIR (G72) — only when its own bench test has been run on THIS
     // build, so the section is earned the same way the plaque is.
     const da = densAltIfRun();

@@ -22,7 +22,7 @@ const os = require('os');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const OUT = path.resolve(opt('out', 'cowl_res_stills'));
-const BUILDS = opt('builds', 'builds/cessna172_2026-09-20_corrected.json,builds/cessna172_2026-09-20.json,builds/cub_2026-09-20_corrected.json').split(',');
+const BUILDS = opt('builds', 'tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json,builds/cessna172r_2026-11-08.json,builds/cub_2026-09-20_corrected.json').split(',');
 // modes: before = master's geometry (level 2, no eye pass) | after = the eye pass | lvl3 = THE FREE LEVEL-3 LOOK: the
 // hidden subsurf select (#lvl, G106.1's bench instrument) at 3 for the whole plane + cowl detail 2 - a look at what a
 // third construction level gives, not a shipping path (it moves the measured rows)

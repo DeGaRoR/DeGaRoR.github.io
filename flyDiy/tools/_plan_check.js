@@ -113,6 +113,6 @@ function fly(name, key, island) {
 }
 
 fly('stock, HOME (analytic)', 'stock', false);
-fly('aluminium C172, Jolene HOME', path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), true);
+fly('aluminium C172, Jolene HOME', path.join(T, '..', 'bugReports', 'cessnaMetal (1).json'), true);
 console.log('GATE PLAN: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
 process.exit(bad ? 1 : 0);

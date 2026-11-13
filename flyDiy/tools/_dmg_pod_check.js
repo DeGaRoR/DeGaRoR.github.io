@@ -113,7 +113,7 @@ function runChecks(C, quiet) {
 
   // ===== D. THE FREIGHT =====
   {
-    const env = JSON.parse(rd('tools/fixtures/cessnaMetal_pod_2026-10-22.json'));
+    const env = JSON.parse(rd('tools/fixtures/test_copies/cessnaMetal_pod_2026-10-22.json'));
     const def = C.buildGen(C.genMigrateSpec(env.spec)), card = C.freightCardPod(C.FREIGHT_CARDS.c172, def, 0.4);
     const items = [{ id: 'skibag', kind: 'long', kg: 9, dims: [1.0, 0.25, 0.1] }, { id: 'flat1', kind: 'box', kg: 20, dims: [0.5, 0.4, 0.15] }].concat(C.freightItems({ kg: 240 }, 'goods.parts'));
     const P = C.freightPack(card, items, { pax: 1 }), inPod = P.placed.filter(p => p.space === 'pod');

@@ -23,7 +23,7 @@ const BUILDS = {
   metal: 'bugReports/cessnaMetal (1).json',
   floats: 'bugReports/cessnaFloatsWOrks.json',
   twinFloats: 'twinFloats',
-  rufus: 'tools/fixtures/repro/rufus_2026-10-18.json',
+  rufus: 'tools/fixtures/test_copies/rufus_2026-10-18.json',
 };
 // a shared or circular object is written once (the floats' def links back to itself); the walk's order is fixed, so the
 // hash still is

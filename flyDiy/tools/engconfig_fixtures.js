@@ -20,7 +20,8 @@ const FIX = {
   trimotor: { card: 'trimotor', name: 'Trimotor (three Rotax 912)' },
   four:     { card: 'fourEngine', name: 'Four (wing nacelles, four Rotax 912)' },
 };
-const fileOf = k => path.join(T, 'fixtures', `build_v10_engcfg_${k}_2026-10-22.json`);
+const ENGCFG_FILES = { pushpull: 'build_v10_engcfg_pushpull_2026-10-22.json', trimotor: 'build_v10_engcfg_trimotor_2026-10-22.json', four: 'build_v10_engcfg_four_2026-10-22.json' };   // (CANON-CLEAN: test copies, by name)
+const fileOf = k => path.join(T, 'fixtures', 'test_copies', ENGCFG_FILES[k]);
 function bake(k) {
   const F = FIX[k], a = D.ARCHETYPES.find(q => q.key === F.card);
   const r = BJ.bakeJoined(D.designBake(a.sel, a.over));

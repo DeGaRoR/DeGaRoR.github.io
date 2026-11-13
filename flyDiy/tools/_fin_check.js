@@ -1086,7 +1086,7 @@ const foldsOf = s => {
   try { SH = require('./_scene_headless.js'); } catch (e) { fail('§10: the headless scene: ' + e.message); }
   if (SH) {
     const BUILDS = [['jodel', '../builds/jodel_2026-09-20_corrected.json'], ['cub', '../builds/cub_2026-09-20_corrected.json'],
-                    ['cessna', '../builds/cessna172_2026-09-20_corrected.json'], ['cessna floats', '../bugReports/cessnaFloatsWOrks.json'],
+                    ['cessna', '../tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json'], ['cessna floats', '../bugReports/cessnaFloatsWOrks.json'],
                     ['twin', 'fixtures/build_v7_ultralight_2026-09-05.json']];
     const said = [];
     for (const [name, file] of BUILDS) {
