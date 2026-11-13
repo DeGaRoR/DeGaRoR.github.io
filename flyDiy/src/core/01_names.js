@@ -52,7 +52,7 @@ var GAME_NAMES = {
     w8:       'Hiking Strip',                 // in a little valley east of the Cabin Strip (was strip 13)
     w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
-    xw_rough: 'Jolene AFB 02/20 rough side',  // (AFB-0220, 13 Nov: 02/20's bumpy dirt lane beside the old concrete band - STOL practice)
+    xw_rough: 'Jolene AFB 02R/20L',           // (AFB-0220, 13 Nov: 02/20's bumpy firm-mud lane, right of the old concrete band landing 02 - STOL practice; the map's place is Jolene AFB's)
   },
 };
 

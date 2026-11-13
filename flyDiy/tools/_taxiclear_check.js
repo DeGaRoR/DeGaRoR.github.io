@@ -255,12 +255,15 @@ for (const seed of [0, 1, 6, 12, 42]) {
   foots.default = { half: C.GP_PARKED_DEFAULT[0], fwd: C.GP_PARKED_DEFAULT[1], aft: C.GP_PARKED_DEFAULT[2] };
   const t0 = Date.now(), SC = L.spotCensus(C, WI, IX, VB, foots);
   // (G3014: the user's rev 26 shipped strips 10 and 11 (w5, w6) - ten runways; the count is the shipped record's)
-  const NRW = 15;   // (rev 27: w7, the North East strip; rev 28: w4 strip 9, w8 strip 13; G3097: w1 the Cabin Strip; CABIN-LAKE: cb_sea)
+  const NRW = 16;   // (rev 27: w7, the North East strip; rev 28: w4 strip 9, w8 strip 13; G3097: w1 the Cabin Strip; CABIN-LAKE: cb_sea; AFB-0220: xw_rough)
   check(WI.aerodromes.length === NRW && SC.per.length === NRW, '10 Jolene\'s ' + NRW + ' runways', SC.per.map(p => p.id).join(' '));
   for (const p of SC.per) {
     // a field with no room stands no spot (never a bad one): every candidate it had was refused by a rule
     const refused = Object.values(p.why).reduce((a, b) => a + b, 0);
-    check(p.n >= 1 || refused >= 20, '10 ' + p.id + (p.n ? ' has tie-down spots' : ' has no room: every candidate refused by the rules'), p.n + ' (' + p.kinds + '); refused: ' + JSON.stringify(p.why));
+    // (AFB-0220: a field whose record says `ties: false` - 27_premises stageAero, 02/20's unmaintained rough lane - stands none by its own
+    //  word: fleetSpots answers { stage: 1 } and nothing else)
+    const tiesOff = p.n === 0 && p.why && p.why.stage === 1 && Object.keys(p.why).length === 1;
+    check(p.n >= 1 || refused >= 20 && !tiesOff || tiesOff, '10 ' + p.id + (p.n ? ' has tie-down spots' : tiesOff ? ' has none: its record says ties: false' : ' has no room: every candidate refused by the rules'), p.n + ' (' + p.kinds + '); refused: ' + JSON.stringify(p.why));
     check(p.same, '10 ' + p.id + ' spots are deterministic (the same list on a second call)');
   }
   check(SC.per.filter(p => p.n >= 1).length >= 6 && SC.per.reduce((a, p) => a + p.n, 0) >= 50, '10 the fleet has room on six or more of the ' + NRW + ' runways', SC.per.filter(p => p.n >= 1).length + ' runways, ' + SC.per.reduce((a, p) => a + p.n, 0) + ' spots');
