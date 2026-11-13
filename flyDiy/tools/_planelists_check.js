@@ -142,11 +142,13 @@ function pageRows(S) {
   need('garage', /\.filter\(p => p && p\.official && labOk\(p\)\)/, 'a lab row is off the official pool (SEA-OFF)');
   need('garage', /planeLists, openListed, officialPool,/, 'GARAGE_SPEC carries the lists');
   need('np', /poolCards\(g0\.officialPool, 'official', 'official'\)/, "the chooser's official group (the user 4 Nov: \"yes, both on the chooser\")");
-  need('garage', /class="dfPill gfAll">all planes</, "the rack's button");
-  need('garage', /\.gfAll'\)\.addEventListener\('click', \(\) => \{ closeFleet\(\); if \(window\.NEW_PLANE\) window\.NEW_PLANE\.open\(\{ all: true \}\)/, 'the button opens the screen');
+  // FLEET (13 Nov): the All planes tab of the full-screen Fleet; the chooser's old door forwards to it
+  need('fleet', /data-tab="all">All planes</, "the Fleet's All planes tab");
+  need('np', /if \(opts && opts\.all\) return !!\(window\.FLEET_SCREEN && window\.FLEET_SCREEN\.open\(\{ tab: 'all' \}\)\)/, 'the chooser\'s All planes door forwards to the Fleet');
   need('garage', /for \(const k in p\.over \|\| \{\}\) g\.spec\[k\] = Object\.assign\(\{\}, g\.spec\[k\], p\.over\[k\]\); loadSpec\(g\.spec, ''\)/, 'a row opens unnamed, no plaque, its sections laid over');
-  need('np', /g0\.planeLists\(\)\.then\(list =>[\s\S]{0,1400}?g0\.openListed\(p\)/, 'the screen draws the lists and opens through the garage');
-  need('np', /const LIST_CLASSES = \[\['reproduction', 'reproductions', 'reproduction'\], \['story', 'story', 'story'\], \['original', 'originals', 'original'\],\s*\['wip', 'work in progress', 'work in progress'\], \['next', /, 'the classes, each its heading and its word');
+  need('fleet', /g\.planeLists\(\)\.then\(l => \{ lists = l/, 'the Fleet reads the lists through the garage');
+  need('fleet', /if \(t\.kind === 'list'\) \{ if \(t\.why\) return; return loadNow\(\(\) => g\.openListed\(t\.p\)\)/, 'a list tile opens through the garage (openListed), behind the spinner');
+  need('fleet', /const CLASSES = \[\['reproduction', 'Reproductions'\], \['story', 'Story'\], \['original', 'Originals'\], \['wip', 'Work in progress'\],/, "the player's four classes first, in the list's order");
   if (/plane_lists/.test(S.core)) bad.push('core: the career, the Market and the contracts must not read the lists');
   // internal + notes: the dev's, the garage's own filter on stubs
   const m = /const LISTS_FILE = [\s\S]*?const planeLists = \(\) => \{[\s\S]*?\n  \};/.exec(S.garage);
@@ -180,7 +182,7 @@ function stand(S, bad) {
   const C = require('./flight_core.js');
   const contractFiles = Object.values(C.CONTRACT_DESIGNS).map(d => d.build).filter(Boolean);
   const coreDir = path.join(ROOT, 'src', 'core');
-  const S = { garage: read('src/viewer/garage.js'), np: read('src/viewer/new_plane.js'), css: read('src/viewer/editor.css'), app: read('src/viewer/app.js'),
+  const S = { garage: read('src/viewer/garage.js'), fleet: read('src/viewer/fleet_screen.js'), np: read('src/viewer/new_plane.js'), css: read('src/viewer/editor.css'), app: read('src/viewer/app.js'),
     core: fs.readdirSync(coreDir).filter(f => /\.js$/.test(f)).map(f => fs.readFileSync(path.join(coreDir, f), 'utf8')).join('\n') };
   const bad = listRows(lists, index, thumbs, exists, contractFiles).concat(await pageRows(S));
   const L = JSON.parse(lists).planes;
@@ -202,7 +204,7 @@ function stand(S, bad) {
     await red('a Market file gone', listRows(lists, index, thumbs, f => f !== contractFiles[0] && exists(f), contractFiles));
     await red('the filter shows internal to a player', pageRows(Object.assign({}, S, { garage: S.garage.replace("(dev || (PLAYER_CLASSES.includes(p.list) && labOk(p) && !p.rides))", 'true') })));
     await red('the stock shelf back', pageRows(Object.assign({}, S, { garage: S.garage + '\n<div class="gfStock"></div>' })));
-    await red('the rack without its button', pageRows(Object.assign({}, S, { garage: S.garage.replace('gfAll">all planes<', 'gfAll"><') })));
+    await red('the Fleet without its All planes tab', pageRows(Object.assign({}, S, { fleet: S.fleet.replace('data-tab="all">All planes<', 'data-tab="all"><') })));
     await red('the chooser without its official group', pageRows(Object.assign({}, S, { np: S.np.replace("poolCards(g0.officialPool, 'official', 'official')", '0') })));
     await red('R1 undone', pageRows(Object.assign({}, S, { css: S.css.replace('--ws-right:0px !important', '--ws-right:0px') })));
     await red('R2 undone', pageRows(Object.assign({}, S, { app: S.app.replace('!!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen())', 'false') })));

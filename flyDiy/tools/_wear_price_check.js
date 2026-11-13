@@ -170,7 +170,9 @@ function page(S) {
   ok(/return econAgingStart\(r\.doc, name, sp && sp\.aging \? sp\.aging : null\);/.test(S.APP), 'app.js: a build\'s first save starts its clock at the age set');
   ok(/if \(CAREER_DEV && window\.FLYDIY_CAREER\) Object\.assign\(window\.FLYDIY_CAREER, \{/.test(S.APP) && /restoreOf: k => econRestoreOf\(k\), restore: k => econRestoreNow\(k\) \}\);/.test(S.APP) && !/setCare/.test(S.APP), 'app.js: the career\'s refresh doors (behind CAREER_DEV), no upkeep door');
   ok(/if \(now && typeof econAgingSpec === 'function'\) sp = econAgingSpec\(sp, now\);/.test(S.GAR), 'garage.js: a career slot loads at its age now');
-  ok(/\(brk \? ' gfBroken' : ''\)/.test(S.GAR), 'garage.js: the rack greys a broken airframe');
+  // (FLEET 13 Nov: the rack is the Fleet screen - garage.js hands `broken` over, fleet_screen.js greys the tile and says it)
+  const FLT = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'fleet_screen.js'), 'utf8');
+  ok(/away, broken: !!brk, cert: brk \? 'grounded' :/.test(S.GAR) && /r\.broken \? 'flBroken' : ''/.test(FLT) && /\['grounded', 'Broken, grounded', 'bad'\]/.test(FLT), 'garage.js + fleet_screen.js: the Fleet greys a broken airframe and says so');
   ok(/function wearRefresh\(\)/.test(S.ED) && /if \(isRoot\) wearRefresh\(\);/.test(S.ED) && /\['recover', 'recover the fabric'\]/.test(S.ED) && /\['rebuild', 'rebuild'\]/.test(S.ED), 'editor.js: the four refresh buttons');
   ok(/function wearBroken\(\)/.test(S.ED) && /if \(isRoot\) wearBroken\(\);/.test(S.ED), 'editor.js: broken and grounded, and its repair, on the WEAR tab');
   ok(/careEl\.sel\.disabled = inCareer\(\);/.test(S.ED) && /\['perfect', 'perfect maintenance'\], \['normal', 'normal maintenance'\], \['poor', 'poor maintenance'\]/.test(S.ED), 'editor.js: the three upkeeps, locked in a career');

@@ -120,8 +120,12 @@ async function run(S) {
   ok(/window\.BENCH_CERTIFIED\(\); \} catch \(e\) \{\} \}\n[^\n]*\n\s*if \(!wasPassed && passed\(\) && window\.FICHE_BOARD\) \{ try \{ window\.FICHE_BOARD\.certified\(\); \} catch \(e\) \{\} \}/.test(BE), 'bench.js awards the fiche beside BENCH_CERTIFIED');
   ok(!/BENCH_CERTIFIED\s*=/.test(FB), 'the story\'s slot is not taken');
   ok(/PLANE_THUMB\.saved\(name\); \} catch \(e\) \{\}\n[^\n]*\n\s*try \{ if \(window\.FICHE_BOARD\) window\.FICHE_BOARD\.saved\(name\)/.test(G), 'garage.js: a save tells the fiche (an unsaved plane\'s waits for its name)');
-  ok((G.match(/window\.FICHE_BOARD\.forget\(n\)/g) || []).length === 2, 'garage.js: both deletes forget the fiche');
-  ok(/window\.FICHE_BOARD\.rowButton\(row, n\)/.test(G), 'garage.js: the fleet\'s rows carry the fiche\'s door');
+  // FLEET (13 Nov): Delete and Sell end in ONE door (garage.js forgetSlot), which forgets the fiche; the Fleet's tiles carry
+  // the fiche's door (fleet_screen.js: a tile's Fiche opens FICHE_BOARD with the plane's own key)
+  const FLT = rd('src/viewer/fleet_screen.js');
+  ok((G.match(/window\.FICHE_BOARD\.forget\(n\)/g) || []).length === 1 && /const forgetSlot = n => \{[\s\S]{0,300}window\.FICHE_BOARD\.forget\(n\)/.test(G) &&
+     /del: n => \{ forgetSlot\(n\);/.test(G) && /forgetSlot\(n\);\n      return r \|\| \{ ok: true \};/.test(G), 'garage.js: both deletes (Delete, Sell) forget the fiche, through forgetSlot');
+  ok(/W\.FICHE_BOARD\.show\(t\.fiche\)/.test(FLT), 'fleet_screen.js: the Fleet\'s tiles carry the fiche\'s door');
   ok(/\['#pfBoard', 'fiche', '\.pfHead'\]/.test(CD) && /\['#pfNote', 'ficheNote', ''\]/.test(CD), 'card_drag.js: the board and its line are draggable');
   ok(/'plane_fiche\.js', 'fiche_board\.js'/.test(B), 'build.js loads fiche_board.js after plane_fiche.js');
   ok(/navigator\.canShare\(\{ files: \[file\] \}\) && navigator\.share/.test(FB) && /a\.download = fname/.test(FB), 'the share: the device\'s sheet with the file, else a saved file');

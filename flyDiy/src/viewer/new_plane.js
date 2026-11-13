@@ -46,10 +46,12 @@ function hold(on) { try { if (window.FLYDIY_UI_HOLD) window.FLYDIY_UI_HOLD(!!on)
 function open(opts) {
   if (!NG() || !D()) return false;
   if (busy) return false;
+  // ALL PLANES moved to the Fleet screen (FLEET, the user 13 Nov: one full-screen place to pick a plane): this door forwards
+  if (opts && opts.all) return !!(window.FLEET_SCREEN && window.FLEET_SCREEN.open({ tab: 'all' }));
   if (!el) build();
-  choices = {}; page = opts && opts.all ? 'all' : 'start'; stepI = 0; regText = '';
+  choices = {}; page = 'start'; stepI = 0; regText = '';
   offer = (opts && opts.offer) || null;
-  el.querySelector('.npTitle').textContent = page === 'all' ? 'ALL PLANES' : offer ? 'CHOOSE AN AEROPLANE' : 'NEW AEROPLANE';
+  el.querySelector('.npTitle').textContent = offer ? 'CHOOSE AN AEROPLANE' : 'NEW AEROPLANE';
   el.hidden = false;
   document.documentElement.classList.add('npOpen');
   document.documentElement.classList.toggle('npOffer', !!offer);
@@ -119,7 +121,7 @@ function skip() {
   advance();
 }
 function next() {
-  if (busy || page === 'all') return;
+  if (busy) return;
   if (page === 'start') { page = 'step'; stepI = 0; render(); return; }
   if (page === 'step') { skip(); return; }
   if (page === 'summary') generate();
@@ -147,20 +149,18 @@ function render() {
   const body = el.querySelector('.npBody');
   const dots = el.querySelector('.npDots');
   const st = steps();
-  dots.innerHTML = page === 'all' ? '' : st.map((s, i) => '<i class="' + (page === 'step' && i === stepI ? 'on' : stepDone(s) ? 'done' : '') +
+  dots.innerHTML = st.map((s, i) => '<i class="' + (page === 'step' && i === stepI ? 'on' : stepDone(s) ? 'done' : '') +
     '" title="' + esc(s.title) + '"></i>').join('') + '<i class="sum' + (page === 'summary' ? ' on' : '') + '" title="summary"></i>';
   const fb = el.querySelector('.npBack'), fs = el.querySelector('.npSkip'), fn = el.querySelector('.npNext');
   const hint = el.querySelector('.npHint');
   fb.disabled = page === 'start';
   fs.hidden = page !== 'step';
-  fb.hidden = fn.hidden = page === 'all';
   fn.textContent = page === 'summary' ? 'generate' : page === 'start' ? 'start ›' : 'next ›';
   fn.classList.toggle('npGo', page === 'summary');
   hint.textContent = page === 'step' ? 'step ' + (stepI + 1) + ' of ' + st.length + ' · skip takes the usual choice' : '';
   body.innerHTML = '';
   body.scrollTop = 0;
-  if (page === 'all') renderAll(body);
-  else if (page === 'start') renderStart(body);
+  if (page === 'start') renderStart(body);
   else if (page === 'step') renderStep(body, st[stepI]);
   else renderSummary(body);
 }
@@ -280,46 +280,8 @@ function renderStart(body) {
   }
 }
 
-// ALL PLANES (PLANE-LISTS, the user 4 Nov): every aeroplane we have, read-only: the lists (GARAGE_SPEC.planeLists: internal is the
-// dev's), a tile each with its side profile when one is baked, a name alone when not. A press loads it through the garage's own
-// door (GARAGE_SPEC.openListed) and hands over like a candidate; nothing is built or loaded before the press
-const LIST_CLASSES = [['reproduction', 'reproductions', 'reproduction'], ['story', 'story', 'story'], ['original', 'originals', 'original'],
-  ['wip', 'work in progress', 'work in progress'], ['next', 'next versions', 'next version'], ['legacy', 'test planes (legacy)', 'test plane'],
-  ['archive', 'archive', 'archived']];
-const FICHE_CLASSES = ['reproduction', 'story', 'original'];
-function renderAll(body) {
-  let warn = '';
-  try { warn = GS().name() ? '' : 'loading one replaces the unsaved build on the stand'; } catch (e) {}
-  body.insertAdjacentHTML('beforeend', '<div class="npStepH"><b>Every aeroplane we have</b><span>a press puts it on the stand, unsaved' +
-    '</span></div>' + (warn ? '<div class="npLead"><em class="npWarn">' + esc(warn) + '</em></div>' : ''));
-  const g0 = GS();
-  if (!g0 || !g0.planeLists || !g0.openListed) return;
-  const host = document.createElement('div');
-  body.appendChild(host);
-  g0.planeLists().then(list => {
-    if (page !== 'all' || !isOpen()) return;
-    // PLANE-LIST (the user 10 Nov): the classes, each its heading and its word; the last three reach the developer only
-    for (const [key, head, word] of LIST_CLASSES) {
-      const rows = list.filter(p => p.list === key);
-      if (!rows.length) continue;
-      host.insertAdjacentHTML('beforeend', '<div class="npSecH">' + esc(head) + '</div>');
-      const grid = document.createElement('div');
-      grid.className = 'npGrid npSmall';
-      for (const p of rows) {
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'npTile'; b.dataset.list = key;
-        b.innerHTML = '<b>' + esc(p.name) + '</b><small>' + esc(word + (p.note ? ' — ' + p.note : '')) + '</small>';
-        b.title = p.tip || '';
-        if (p.thumb) { b.dataset.thumb = p.thumb; npThumb(b); }
-        // PLANE-RENDERS R3: an official plane ships with its fiche - its door in the tile's corner (fiche_board.js; none when not baked)
-        if (FICHE_CLASSES.includes(key) && p.thumb && window.FICHE_BOARD) { try { window.FICHE_BOARD.tileDoor(b, p.thumb); } catch (e) {} }
-        b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openListed(p); }));
-        grid.appendChild(b);
-      }
-      host.appendChild(grid);
-    }
-  }, () => {});
-}
+// ALL PLANES (PLANE-LISTS, the user 4 Nov) lived here until the Fleet screen took it (fleet_screen.js, 13 Nov): the list's
+// classes as tiles, each its picture, Load and Fiche - open({ all: true }) forwards there
 
 function renderStep(body, s) {
   const g = NG();

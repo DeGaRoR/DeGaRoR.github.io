@@ -27,7 +27,7 @@
      determinate bar, one ticker of what is landing. The Ken Burns drift is a
      CSS animation on a will-change layer: the compositor keeps it moving
      while a build step blocks the main thread, which is the one signal of
-     life a blocked page can give. z 70: above #dfBirth / #gFleet / #ctlPanel
+     life a blocked page can give. z 70: above #dfBirth / #flWrap / #ctlPanel
      (60) - nothing opens over the loading screen. */
   #boot { position:fixed; inset:0; z-index:70; background:#1a1815; color:#f4efe6;
     font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;

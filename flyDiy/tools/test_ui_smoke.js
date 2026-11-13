@@ -961,35 +961,39 @@ try {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'garage.js'), 'utf8'), gb, { filename: 'garage.js' });
     gb.garageInit({ defaults: () => ({}), apply() {}, resolved: () => null, isGen: () => true, inGarage: () => true,
                     place: n => GA.place(n), flyFrom: n => { flew = n; return GA.flyFrom(n); }, bringHome: n => GA.bringHome(n), wear: n => 0 });
+    // FLEET (13 Nov): LOAD opens the full-screen Fleet on Your hangar; the hangar's rows are garage.js's data (GARAGE_SPEC.fleet)
+    // and their doors fleetDo - the screen that draws them and asks on the tile is GATE FLEET's
+    let fsOpen = null;
+    gb.window.FLEET_SCREEN = { open: o => { fsOpen = o; return true; }, refresh() {} };
     els2.gLoad.on.click();
-    const rowsOf = () => kids.filter(k => typeof k.className === 'string' && /\bgfRow\b/.test(k.className) && k.children.some(c => c.className === 'gfLoad'));
-    const byName = () => { const o = {}; for (const r of rowsOf()) { const b = r.children.find(c => c.className === 'gfLoad'); const nm = b.children.find(c => c.tag === 'b'); if (nm) o[nm.textContent] = r; } return o; };
+    if (!fsOpen || fsOpen.tab !== 'mine') throw new Error('LOAD did not open the Fleet screen on Your hangar: ' + JSON.stringify(fsOpen));
+    const FG = gb.window.GARAGE_SPEC;
+    const byName = () => { const o = {}; for (const r of FG.fleet().rows) o[r.name] = r; return o; };
     let rows = byName();
-    const badge = r => { const b = r.children.find(c => c.className === 'gfLoad'); const i = b && b.children.find(c => /\bgfPlace\b/.test(c.className)); return i ? i.textContent : null; };
-    if (!rows.Cub || !rows.Jodel || !rows.Twin) throw new Error('the fleet popup did not list the three saved aeroplanes: ' + Object.keys(rows).join(','));
+    const badge = r => (r && r.place ? r.place.text : null);
+    if (!rows.Cub || !rows.Jodel || !rows.Twin) throw new Error('the Fleet did not list the three saved aeroplanes: ' + Object.keys(rows).join(','));
     if (badge(rows.Cub) !== 'in HOME' || badge(rows.Jodel) !== 'out at ' + other.id || !/^away at /.test(badge(rows.Twin) || ''))
-      throw new Error(`the popup's place badges: ${badge(rows.Cub)} / ${badge(rows.Jodel)} / ${badge(rows.Twin)}`);
-    if (/gfAway/.test(rows.Cub.className) || !/gfAway/.test(rows.Jodel.className) || !/gfAway/.test(rows.Twin.className))
-      throw new Error(`the popup greys the wrong rows: Cub "${rows.Cub.className}", Jodel "${rows.Jodel.className}", Twin "${rows.Twin.className}"`);
-    const home = r => r.children.find(c => c.className === 'gfHome');
-    if (home(rows.Cub) || !home(rows.Jodel) || !home(rows.Twin)) throw new Error('"bring it home" is offered on the wrong rows');
-    // bring the Twin home from the popup: the page's ledger moves it to HOME (inside if a slot and the floor allow, else outside)
-    home(rows.Twin).on.click();
+      throw new Error(`the Fleet's place badges: ${badge(rows.Cub)} / ${badge(rows.Jodel)} / ${badge(rows.Twin)}`);
+    if (rows.Cub.away || !rows.Jodel.away || !rows.Twin.away)
+      throw new Error(`the Fleet greys the wrong rows: Cub ${rows.Cub.away}, Jodel ${rows.Jodel.away}, Twin ${rows.Twin.away}`);
+    if (rows.Cub.home || !rows.Jodel.home || !rows.Twin.home) throw new Error('"bring it home" is offered on the wrong rows');
+    // bring the Twin home from the Fleet: the page's ledger moves it to HOME (inside if a slot and the floor allow, else outside)
+    FG.fleetDo.home('Twin');
     const pt2 = PL.place('Twin');
-    if (pt2.aero !== 'HOME' || !pt2.here) throw new Error('bring it home from the popup left the Twin ' + pt2.text);
+    if (pt2.aero !== 'HOME' || !pt2.here) throw new Error('bring it home from the Fleet left the Twin ' + pt2.text);
     rows = byName();
-    if (badge(rows.Twin) !== pt2.text) throw new Error('the popup did not redraw the Twin\'s place: ' + badge(rows.Twin));
-    // "fly from there?" on the greyed Jodel: asked, and the garage moves to its base (a hangar is held there)
-    rows.Jodel.children.find(c => c.className === 'gfLoad').on.click();
-    if (!asked || !/fly from there\?/.test(asked) || flew !== 'Jodel' || PL.doc().here !== other.id)
-      throw new Error(`"fly from there?": asked ${JSON.stringify(asked)}, flew ${flew}, the garage at ${PL.doc().here}`);
+    if (badge(rows.Twin) !== pt2.text) throw new Error('the Fleet did not re-read the Twin\'s place: ' + badge(rows.Twin));
+    // "fly from there?" on the greyed Jodel (the tile asks - GATE FLEET): the door flies from its base (a hangar is held there)
+    FG.fleetDo.load('Jodel');
+    if (flew !== 'Jodel' || PL.doc().here !== other.id)
+      throw new Error(`"fly from there": flew ${flew}, the garage at ${PL.doc().here}`);
     // the build on the stand here is unsaved (no slot): its roll-out is the garage's base - now that field
     if (PL.rollFrom() !== other.id) throw new Error('the roll-out of the unsaved build on the stand is not the garage\'s base (' + other.id + '): ' + PL.rollFrom());
     PL.set(d0);
     if (PL.rollFrom() !== 'HOME') throw new Error('back in the sandbox, the roll-out is not HOME: ' + PL.rollFrom());
     if (R.baseRow('garage').kind !== 'line') throw new Error('back to one hangar, the base row is not a line again');
     console.log(`PREM-S2: the sandbox's base line "${rowR.labels[0]}"; two hangars -> a select (${rowG.options.join(', ')}), picking moves the garage; ` +
-      `the popup: ${badge(rows.Cub)} / out at ${other.id} (greyed) / away -> brought home (${pt2.text}); "fly from there?" moved the garage to ${other.id}`);
+      `the Fleet: ${badge(rows.Cub)} / out at ${other.id} (greyed) / away -> brought home (${pt2.text}); "fly from there" moved the garage to ${other.id}`);
   }
   storageChecks();   // G2690 HANGAR-STORAGE
   // PRICE-CAL: THE FLEET CARD'S SELL (garage.js renderFleet): a career's airframe carries Sell at its used-market price
@@ -1020,18 +1024,19 @@ try {
     gb.garageInit({ defaults: () => ({}), apply() {}, resolved: () => null, isGen: () => true, inGarage: () => true,
                     place: () => null, wear: () => 0, money: v => String(v),
                     saleOf: n => SALE[n] || null, sell: n => { soldN = n; return { ok: true, value: SALE[n].value }; } });
+    gb.window.FLEET_SCREEN = { open: () => true, refresh() {} };
     els3.gLoad.on.click();
-    const rowsOf = () => { const o = {}; for (const r of kids.filter(k => typeof k.className === 'string' && /\bgfRow\b/.test(k.className))) {
-      const b = r.children.find(c => c.className === 'gfLoad'); const nm = b && b.children.find(c => c.tag === 'b'); if (nm) o[nm.textContent] = r; } return o; };
-    const sellOf = r => r && r.children.find(c => c.className === 'gfSell');
+    const FG = gb.window.GARAGE_SPEC;
+    const rowsOf = () => { const o = {}; for (const r of FG.fleet().rows) o[r.name] = r; return o; };
     let rows = rowsOf();
-    if (!sellOf(rows.Cub) || sellOf(rows.Cub).disabled || !/35700/.test(sellOf(rows.Cub).title)) throw new Error('the fleet card: no live Sell at its price on the Cub (' + (sellOf(rows.Cub) && sellOf(rows.Cub).title) + ')');
-    if (!sellOf(rows.Jodel) || !sellOf(rows.Jodel).disabled || !/tutorial/.test(sellOf(rows.Jodel).title)) throw new Error('the fleet card: the Jodel\'s Sell is not greyed with the tutorial\'s reason');
-    if (sellOf(rows.Rufus)) throw new Error('the fleet card: a row the economy does not price (the Rufus) carries a Sell');
-    sellOf(rows.Cub).on.click();
-    if (!asked || !/Sell .*35700/.test(asked) || soldN !== 'Cub' || LS.getItem('flydiy.build.Cub') !== null)
-      throw new Error('the Sell: asked ' + JSON.stringify(asked) + ', sold ' + soldN + ', the slot ' + (LS.getItem('flydiy.build.Cub') ? 'still saved' : 'gone'));
-    console.log('PRICE-CAL: the fleet card\'s Sell - live at its price on the Cub, greyed in the tutorial on the Jodel, none on the Rufus; the sale asks, sells, clears the slot');
+    if (!rows.Cub || !rows.Cub.sale || !rows.Cub.sale.ok || rows.Cub.sale.value !== 35700 || rows.Cub.sale.text !== '35700') throw new Error('the Fleet: no live Sell at its price on the Cub (' + JSON.stringify(rows.Cub && rows.Cub.sale) + ')');
+    if (!rows.Jodel || !rows.Jodel.sale || rows.Jodel.sale.ok || !/tutorial/.test(rows.Jodel.sale.why)) throw new Error('the Fleet: the Jodel\'s Sell is not greyed with the tutorial\'s reason');
+    if (!rows.Rufus || rows.Rufus.sale) throw new Error('the Fleet: a row the economy does not price (the Rufus) carries a Sell');
+    const sold = FG.fleetDo.sell('Cub');
+    if (!sold || sold.ok === false || soldN !== 'Cub' || LS.getItem('flydiy.build.Cub') !== null || rowsOf().Cub)
+      throw new Error('the Sell: ' + JSON.stringify(sold) + ', sold ' + soldN + ', the slot ' + (LS.getItem('flydiy.build.Cub') ? 'still saved' : 'gone'));
+    void asked;
+    console.log('PRICE-CAL: the Fleet\'s Sell - live at its price on the Cub, greyed in the tutorial on the Jodel, none on the Rufus; the sale sells and clears the slot (the tile asks first: GATE FLEET)');
   }
   // exercise every wired button (Skin cycles all 3 states)
   // bEdit is the editor door the shelf's move left behind (G63): CAGE_UI_BOOT
