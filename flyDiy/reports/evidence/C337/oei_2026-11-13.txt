@@ -1,6 +1,5 @@
 THE 337 ENGINE-OUT CLIMB at 1996 kg (2 engines: nose + pusher)
-  both engines      6.07 m/s (1194 fpm)    manual 6.10 m/s (1201 fpm)  -1 %   at 151 km/h TAS, |beta| 0.00 deg  [CROSSWIND]
-  front engine only 1.14 m/s (224 fpm)     manual 1.52 m/s (299 fpm)  -25 %   at 149 km/h TAS, |beta| 0.00 deg  [CLIMB]
-  rear engine only  1.22 m/s (241 fpm)     manual 1.96 m/s (386 fpm)  -38 %   at 149 km/h TAS, |beta| 0.00 deg  [CLIMB]
+  both engines      6.16 m/s (1213 fpm)    manual 6.10 m/s (1201 fpm)  1 %   at 152 km/h TAS, |beta| 0.00 deg  [CROSSWIND]
+  front engine only 1.27 m/s (249 fpm)     manual 1.52 m/s (299 fpm)  -17 %   at 151 km/h TAS, |beta| 0.01 deg  [CLIMB]
+  rear engine only  1.31 m/s (257 fpm)     manual 1.96 m/s (386 fpm)  -33 %   at 151 km/h TAS, |beta| 0.00 deg  [CLIMB]
   (the manual's best single-engine rate-of-climb speed: 100 mph IAS = 161 km/h; the cut engine's prop stops, no windmill drag)
-done-oei

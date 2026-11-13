@@ -1,18 +1,18 @@
 | card | real aeroplane | empty kg (real) | as baked / at MTOW kg | S m² | T0/W | Vs km/h | V75 km/h | Vmax km/h | ROC m/s | L/D | CdS m² | TO roll m | TO 50 ft m |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Cessna 337D Super Skymaster | Cessna 337D Super Skymaster (2 x IO-360-C, 210 BHP) - refs/c337.json | 1035 / 1204 (-14 %) | 1388 / 1996 | 19.8 / 18.7 (6 %) | 0.27 | 115 / 127 (-9 %) | 240 / — (—) | 268 / 320 (-16 %) | 5.8 / 6.1 (-4 %) | 9.7 / — (—) | 0.80 / — (—) | 242 / 273 (-11 %) | 340 / 471 (-28 %) |
-  landing config: Vs0 97 / 111 (-12 %) km/h   |   Vmax at full power 268 km/h under VNE 362
+| Cessna 337D Super Skymaster | Cessna 337D Super Skymaster (2 x IO-360-C, 210 BHP) - refs/c337.json | 1019 / 1204 (-15 %) | 1372 / 1996 | 19.0 / 18.7 (1 %) | 0.27 | 117 / 127 (-8 %) | 244 / — (—) | 272 / 320 (-15 %) | 5.9 / 6.1 (-3 %) | 9.9 / — (—) | 0.76 / — (—) | 233 / 273 (-15 %) | 331 / 471 (-30 %) |
+  landing config: Vs0 99 / 111 (-11 %) km/h   |   Vmax at full power 272 km/h under VNE 362
 
-DIMENSIONS (ours / Cessna 337D Super Skymaster (2 x IO-360-C, 210 BHP) - refs/c337.json; ours at MTOW 1996 kg, ballast 608 kg):
+DIMENSIONS (ours / Cessna 337D Super Skymaster (2 x IO-360-C, 210 BHP) - refs/c337.json; ours at MTOW 1996 kg, ballast 624 kg):
   engine     custom Flat (boxer) 4-cyl 5.9 L 210 hp 144 kg, prop Sensenich 74CK 1.93 m   / 210 hp — kg, prop 1.93 m
   fuselage   alloy, tricycle gear, 6 seats / —
-  length m (eng flange-rudder TE)   7.62 /   9.09  -16 %
-  height m                         2.80 /   2.84  -1 %
+  length m (eng flange-rudder TE)   7.54 /   9.09  -17 %
+  height m                         3.10 /   2.84  9 %
   span m                          11.58 /  11.58  0 %
-  area m2                          19.8 /   18.7  6 %
-  AR                                6.8 /    7.2  -5 %
-  root chord m                     1.93 /      —  —
-  tip chord m                      1.25 /      —  —
+  area m2                          19.0 /   18.7  1 %
+  AR                                7.1 /    7.2  -1 %
+  root chord m                     1.85 /      —  —
+  tip chord m                      1.20 /      —  —
   dihedral deg                      1.7 /      —  —
   incidence deg                     1.5 /      —  —
   washout deg                       3.0 /      —  —
@@ -23,40 +23,40 @@ DIMENSIONS (ours / Cessna 337D Super Skymaster (2 x IO-360-C, 210 BHP) - refs/c3
   fin area m2                      2.63 /      —  —
   track m                          2.51 /   2.49  1 %
   wheelbase m                      2.52 /      —  —
-  cabin width m                    1.03 /      —  —
+  cabin width m                    1.09 /      —  —
   fuel L                            212 /    352  -40 %
-  wing load kg/m2 at MTOW         101.0 /  106.7  -5 %
+  wing load kg/m2 at MTOW         105.3 /  106.7  -1 %
   power load kg/hp at MTOW          9.5 /    9.5  -0 %
 
-BUILD CHECK (the bench, headless; as baked 1388 kg):
-  stance     on its wheels, deck 0.5 deg, suspension travel 2 mm, nose-over -15 deg, power-over 0.00
-  balance    CG 28 % MAC, static margin 18 % (NP 46 % MAC), stab trim -1.0 deg, Cn-beta 0.100, d(eps)/d(a) 0.48
-  shake      FLIES A CIRCUIT: Vs 96 km/h, cruise 215 km/h at thr 0.52, climb 9.27 m/s, TO 182 m, L/D best 9.7 at 135 km/h, 210 hp, 6.6 kg/hp
-  sandbags   HELD — over yield: limit 3.94 % of semispan, ultimate 7.63 %, worst member 190 % of yield (wing)
-  hot & high WORKS HOT AND HIGH: 1614 m DA, TO 266 m, climb 7.51 m/s, service ceiling 7737 m
-  ledger     fuselage 117, engines 351, wings 185, bracing 37, tail 95, gear 89, cabin 160*, vessel 10, fuel 153*, panel 8, elec 19, avionics 3, outfit 71, furnish 40, paint 9, cargo 40*  (* payload; empty 1035 kg)
+BUILD CHECK (the bench, headless; as baked 1372 kg):
+  stance     on its wheels, deck 1.9 deg, suspension travel 1 mm, nose-over -13 deg, power-over 0.00
+  balance    CG 26 % MAC, static margin 20 % (NP 46 % MAC), stab trim -0.9 deg, Cn-beta 0.102, d(eps)/d(a) 0.48
+  shake      FLIES A CIRCUIT: Vs 97 km/h, cruise 218 km/h at thr 0.51, climb 9.56 m/s, TO 188 m, L/D best 9.9 at 137 km/h, 210 hp, 6.5 kg/hp
+  sandbags   HELD — over yield: limit 4.19 % of semispan, ultimate 8.37 %, worst member 188 % of yield (wing)
+  hot & high WORKS HOT AND HIGH: 1614 m DA, TO 276 m, climb 7.75 m/s, service ceiling 7814 m
+  ledger     fuselage 111, engines 351, wings 179, bracing 36, tail 95, gear 91, cabin 160*, vessel 10, fuel 153*, panel 8, elec 19, avionics 3, outfit 68, furnish 39, paint 8, cargo 40*  (* payload; empty 1019 kg)
   systems    asi 0.4, alt 0.5, vsi 0.4, ai 1.1, aiE 1.0, dg 1.2, turn 0.7, tacho 0.5, gmeter 0.5, oilP 0.2, oilT 0.2, fuel 0.6, fuelSight 0.1, volts 0.1, clock 0.3, hobbs 0.1, compass 0.3, battery:lead 7.0, alternator:alt60 4.5, starter:yes 4.0, vac:pump 1.2, com:compact 1.0, xpdr:modeS 0.7, nav:vor 1.6, harness 2.4
-  drag       CdS fit 0.799 m2 (induced k 1256512)  fusCdA 0.565  gear -0.002  brace 0.000  swet 17.359 L 5.370 frontal 1.496 vol 4.462 f 3.890 FF 2.029 boxK 1.058 cdWet 0.005 body 0.186 cool 0.045 heads 0.000 screen 0.023 junct 0.017 exh 0.012 coolBy — gear 0.192 brace 0.000 axial 0.565
+  drag       CdS fit 0.756 m2 (induced k 1300240)  fusCdA 0.540  gear -0.002  brace 0.000  swet 16.068 L 5.198 frontal 1.496 vol 3.920 f 3.766 FF 2.133 boxK 1.058 cdWet 0.005 body 0.181 cool 0.023 heads 0.000 screen 0.025 junct 0.017 exh 0.012 coolBy — gear 0.192 brace 0.000 axial 0.540
 
 | card (flown, the pilot) | TO run m (ours / real) | climb m/s at VClimb (ours / real ROC) | cruise: V km/h at thr (level) | landing roll m (ours / real) | landing over 15 m (ours / real) | outcome |
 |---|---|---|---|---|---|---|
-| build | 266 / 273 (-3 % ✓) | 5.6 / 6.1 (-9 %) | 143 at 0.40 | 266 / 213 (25 %) | 459 / 503 (-9 % ✓) | completed (304 s, 221 s wall) |
+| build | 261 / 273 (-4 % ✓) | 5.8 / 6.1 (-5 %) | 146 at 0.39 | 260 / 213 (22 %) | 491 / 503 (-2 % ✓) | completed (303 s, 272 s wall) |
 
 RANKED DISCREPANCIES (engine-matched cards, |ours/real - 1|):
-   -28 %  build     TO 50ft ours 340.0  real 471.0
-   -16 %  build     Vmax    ours 267.9  real 320.0
-   -14 %  build     empty   ours 1034.9  real 1204.0
-   -11 %  build     TO roll ours 242.0  real 273.0
-    -9 %  build     Vs      ours 114.9  real 127.0
-  +   6 %  build     S       ours 19.8  real 18.7
-    -4 %  build     ROC     ours 5.8  real 6.1
+   -30 %  build     TO 50ft ours 331.0  real 471.0
+   -15 %  build     empty   ours 1019.0  real 1204.0
+   -15 %  build     Vmax    ours 271.8  real 320.0
+   -15 %  build     TO roll ours 233.0  real 273.0
+    -8 %  build     Vs      ours 117.3  real 127.0
+    -3 %  build     ROC     ours 5.9  real 6.1
+  +   1 %  build     S       ours 19.0  real 18.7
 
 BY INDICATOR (mean signed error over the engine-matched cards):
-  TO 50ft  -28 %  (n 1, spread -28..-28)
-  Vmax     -16 %  (n 1, spread -16..-16)
-  empty    -14 %  (n 1, spread -14..-14)
-  TO roll  -11 %  (n 1, spread -11..-11)
-  Vs        -9 %  (n 1, spread -9..-9)
-  S          6 %  (n 1, spread 6..6)
-  ROC       -4 %  (n 1, spread -4..-4)
-done-perf
+  TO 50ft  -30 %  (n 1, spread -30..-30)
+  empty    -15 %  (n 1, spread -15..-15)
+  Vmax     -15 %  (n 1, spread -15..-15)
+  TO roll  -15 %  (n 1, spread -15..-15)
+  Vs        -8 %  (n 1, spread -8..-8)
+  ROC       -3 %  (n 1, spread -3..-3)
+  S          1 %  (n 1, spread 1..1)
+END
