@@ -18,11 +18,28 @@
    "z": -129.73,
    "hdg": 1.9908,
    "len": 1757.8,
-   "wid": 45,
+   "wid": 18,
    "surface": {
     "key": "concrete",
     "word": "concrete",
     "cls": "hard"
+   },
+   "elev": 28,
+   "altiport": false
+  },
+  {
+   "id": "w2r",
+   "name": "Jolene AFB 02R/20L",
+   "kind": "strip",
+   "x": 685.86,
+   "z": -266.04,
+   "hdg": 1.9908,
+   "len": 820,
+   "wid": 15,
+   "surface": {
+    "key": "mud",
+    "word": "mud",
+    "cls": "mud"
    },
    "elev": 28,
    "altiport": false
@@ -1432,9 +1449,9 @@
     "w": 5.8,
     "main": true,
     "p": [
-     "984,2197 940,2014",
-     "984,2197 963,2101 940,2014",
-     "984,2197 983,2197 977,2165 963,2101 955,2069 954,2067 951,2053 944,2030 940,2014"
+     "983,2197 940,2014",
+     "983,2197 963,2101 940,2014",
+     "983,2197 977,2165 963,2101 955,2069 954,2067 951,2053 944,2030 940,2014"
     ]
    },
    {
@@ -2894,9 +2911,9 @@
   }
  },
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
- "img": "media/map/jolene_map.dc064b4c.png",
- "imgBytes": 715118,
- "imgHash": "dc064b4c",
+ "img": "media/map/jolene_map.3bb555fd.png",
+ "imgBytes": 715151,
+ "imgHash": "3bb555fd",
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
