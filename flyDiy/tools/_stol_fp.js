@@ -86,12 +86,15 @@ const STOL_ROW_DEFAULTS = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgC
 // seaplanes merge stores what the gate compares (Pilot 8 Nov: every build read 'DIFFERS' after a re-capture)
 const HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15,
                        engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
-function preStol(spec) {
+function preStol(spec, neutral) {
   const J = JSON.parse(JSON.stringify(spec));
   for (const w of J.wings || []) if (w && w.stol === null) delete w.stol;
   for (const w of J.wings || []) if (w && w.tipShape === null) delete w.tipShape;   // (HULL-B26: stated null at the kind's own, as stol)
   if (J.cage && Object.keys(STOL_ROW_DEFAULTS).every(r => J.cage[r] === STOL_ROW_DEFAULTS[r])) for (const r in STOL_ROW_DEFAULTS) delete J.cage[r];
   if (J.cage) for (const r in HULL_ROW_OFF) if (J.cage[r] === HULL_ROW_OFF[r]) delete J.cage[r];
+  // the core's neutral rows (GEN_CAGE_ROW_NEUTRAL: the engine dials, s1Stiff, GEN_BRAKES' brkHold the load door writes at 0)
+  // go too, as _stol_check drops them before it compares
+  if (J.cage && neutral) for (const r in neutral) if (J.cage[r] === neutral[r]) delete J.cage[r];
   return J;
 }
 module.exports = { h, fpDef, fpFly, fpDraw, fpLap, fpCheck, STOL_ROW_DEFAULTS, HULL_ROW_OFF, preStol };
