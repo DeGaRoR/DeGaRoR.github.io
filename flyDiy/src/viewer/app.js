@@ -17801,7 +17801,9 @@
     // go dark for the shot and come back with it; the pick handlers below
     // ask SHOT.on before they throw a ray.
     edSitP.traverse(o => {
-      if (o.name === 'edCanopyLoops' || (o.userData && o.userData.edHi)) o.visible = !on;
+      // (PETREL-SKIN 13 Nov: the retractable gear's reserved wells - RETRACT G3 `edWellGhost`, amber edges drawn through
+      // everything - stood in every shot and every thumb: an editor's instrument, the Petrel's three little yellow boxes)
+      if (o.name === 'edCanopyLoops' || o.name === 'edWellGhost' || (o.userData && o.userData.edHi)) o.visible = !on;
     });
     // G1370 (UI-LAYER, the user: the path ribbons "are not hidden in screenshot mode"): every helper on the UI layer
     // - the pattern's ribbons, the pilot's legs, the CG posts, the editor's outlines - leaves the shot with the layer
