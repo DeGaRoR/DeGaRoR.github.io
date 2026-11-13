@@ -45,6 +45,10 @@ const world = J => IN.islandWorld('jolene', { premises: JSON.stringify(J) });
   verdict(recs === want && pub === Object.keys(VET).sort().join(', '), `Jolene as shipped is bumpy on the Pilot-vetted strips only: ${recs || 'none'} in the record (want ${want}), ${pub || 'none'} published; the mine strip and the rest flat`);
 }
 const FIX0 = JSON.parse(JSON.stringify(FIX)); for (const r of FIX0.layers.runways) delete r.micro;
+// (COMMUNITY-AIRPORT, 13 Nov: w7 is this gate's BENCH strip, measured and budgeted at 1 020 x 9 m dirt - the shipped w7 is now
+//  the community field's last stage, 15 m gravel, and its 9 m dirt is the stage `community:1`. The bench keeps the strip it
+//  was written for: w7 at that stage, every threshold below unchanged)
+{ const b = FIX0.layers.runways.find(r => r.id === 'w7'); if (b && b.stage && Array.isArray(b.stage.vary)) { const q = b.stage.vary.find(v => v.show && v.show[0] === 1) || {}; for (const k of ['wid', 'look', 'surface']) if (q[k] !== undefined) b[k] = q[k]; delete b.stage; } }
 const withMicro = (id, micro) => { const J = JSON.parse(JSON.stringify(FIX0)); const r = J.layers.runways.find(q => q.id === id); r.micro = micro; return J; };
 const W0 = world(FIX0);
 const A7 = W0.aerodromes.find(a => a.id === 'w7');

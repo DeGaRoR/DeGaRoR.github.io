@@ -20,14 +20,14 @@
 //     bumps - its centre and heading the same at every stage (one axis); the wheels' surface (W.surface) on the centreline
 //     and just inside each edge is the stage's code over the strip's length; the ground's 2 m bump (terrainH) falls with
 //     each pass (0 > 1 > 2, the last under 2 mm: the raster's own lattice)
-//   3 THE AXIS AND ITS PATHS: at stage 0 a plain track on the axis (every point within 0.5 m of the centreline) from each
-//     end of the mud strip to the full length's end, where the roads to the village (r37) and to the east (r38) begin -
+//   3 THE AXIS AND ITS PATHS: at stage 0 a plain track on the axis (a 3.6 m ground band - the dirt look and the wheels'
+//     gravel surface - its centreline within 0.5 m of the axis) from each end of the mud strip to the full length's end, where the roads to the village (r37) and to the east (r38) begin -
 //     so the axis and the ways to it exist from the start; at 1 and 2 no path (the strip covers the axis); r37 / r38 begin
 //     at the full ends at every stage
 //   4 THE SCENERY AT EACH STAGE: every sg_ca_ entry of the record stands at the stage its band says and only then; every
 //     building a catalogue entry, every prop a registry prop with a box (no new asset); no tree object (trees only by the
 //     tree system: the yard is an exclude); every solid thing 25 m or more off the centreline but the drum markers, which
-//     stand 5 m off the edge of the stage's strip; each stage adds things (the reveal shows progress) and the count per
+//     stand 8 m off the edge of the stage's strip; each stage adds things (the reveal shows progress) and the count per
 //     stage stays under 70 solid things (instanced props and the catalogue's own LODs; nothing per frame)
 //   5 THE SANDBOX: every track at its max is the last stage (gravel, 15 m) - the island's record as it ships
 // ~40 s (the island composed 3 times).
@@ -53,7 +53,7 @@ const WANT = [
   { len: 1020, wid: 9, surface: 6, look: 'dirt', chaos: 0.25 },
   { len: 1020, wid: 15, surface: 6, look: 'gravel', chaos: 0 },
 ];
-const MARK_OFF = 5, SOLID_OFF = 25, PER_STAGE_MAX = 70;
+const MARK_OFF = 8, SOLID_OFF = 25, PER_STAGE_MAX = 70;
 const PROPS = (() => { const f = n => new Set((fs.readFileSync(path.join(T, n), 'utf8').match(/P\('([a-z0-9_]+)'/g) || []).map(s => s.slice(3, -1))); return new Set([...f('props_table.py'), ...f('pier_table.py')]); })();
 const BB = L.propBoxes(C);
 
@@ -105,7 +105,10 @@ R.ordered = rows => {
 R.paths = (rec, a, n, full) => {
   const why = [], ux = Math.cos(a.hdg), uz = Math.sin(a.hdg);
   const along = p => (p[0] - a.x) * ux + (p[1] - a.z) * uz, across = p => -(p[0] - a.x) * uz + (p[1] - a.z) * ux;
-  const P = (rec.layers.roads || []).filter(r => /^sg_ca_path_/.test(String(r.id)));
+  // a path is a ground band (material sg_ca_path_*, a 4-point polygon along the axis): its centreline the mids of its ends
+  const mid = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+  const P = (rec.layers.material || []).filter(r => /^sg_ca_path_/.test(String(r.id))).map(r => ({ id: r.id, pts: r.poly.length === 4 ? [mid(r.poly[0], r.poly[3]), mid(r.poly[1], r.poly[2])] : r.poly }));
+  if (n === 0) for (const m of P) if (!(rec.layers.surface || []).some(y => y.id === 'sg_ca_y_' + m.id.slice(6) && y.surface === 6)) why.push(m.id + ': no wheels\' surface under it');
   if (n > 0) { if (P.length) why.push('stage ' + n + ': ' + P.length + ' axis path(s) stand - the strip covers the axis'); }
   else {
     if (P.length !== 2) why.push('stage 0: ' + P.length + ' axis paths, not 2');
@@ -151,7 +154,7 @@ R.scenery = (whole, rec, a, n) => {
   for (const id of haveIds) if (!wantIds.has(id)) why.push('stage ' + n + ': ' + id + ' stands outside its band');
   // the things: assets that exist, where they may stand
   let solid = 0;
-  const yard = (rec.layers.sites || []).find(s => s.id === 'sg_ca_yard');
+  const yard = (rec.layers.sites || []).find(s => s.id === 'sg_ca_y');
   for (const o of rec.layers.objects || []) {
     if (!/^sg_ca_/.test(String(o.id))) continue;
     if (o.kind === 'tree') { why.push(o.id + ': a tree object - trees only by the tree system'); continue; }
@@ -166,9 +169,9 @@ R.scenery = (whole, rec, a, n) => {
     const at = yard.at, c = Math.cos(at.yaw || 0), s = Math.sin(at.yaw || 0);
     for (const it of yard.items || []) {
       solid++;
-      if (!CAT.entries.get(CAT.aliases[it.key] || it.key)) why.push('sg_ca_yard/' + it.id + ': ' + it.key + ' is no catalogue entry');
+      if (!CAT.entries.get(CAT.aliases[it.key] || it.key)) why.push('sg_ca_y/' + it.id + ': ' + it.key + ' is no catalogue entry');
       const x = at.x + it.x * c + it.z * s, z = at.z - it.x * s + it.z * c;
-      if (across(x, z) < SOLID_OFF) why.push('stage ' + n + ': sg_ca_yard/' + it.id + ' ' + across(x, z).toFixed(1) + ' m off the centreline');
+      if (across(x, z) < SOLID_OFF) why.push('stage ' + n + ': sg_ca_y/' + it.id + ' ' + across(x, z).toFixed(1) + ' m off the centreline');
     }
   }
   if (solid > PER_STAGE_MAX) why.push('stage ' + n + ': ' + solid + ' solid things, over ' + PER_STAGE_MAX);
@@ -238,13 +241,17 @@ function selftest() {
   // 3: a path off the axis, a path at stage 1, a path that stops short
   const a = { x: 0, z: 0, hdg: 0, len: 600 };
   const road = (id, pts) => ({ id, pts });
+  const band = (id, a, b) => ({ id, poly: [[a[0], a[1] - 1.8], [b[0], b[1] - 1.8], [b[0], b[1] + 1.8], [a[0], a[1] + 1.8]] });
+  const L3 = (bands, roads) => ({ layers: { roads: roads || base, material: bands, surface: bands.map(b => ({ id: 'sg_ca_y_' + b.id.slice(6), surface: 6 })) } });
   const base = [road('r37', [[510, 0], [600, 0]]), road('r38', [[-510, 0], [-600, 0]])];
-  const ok3 = { layers: { roads: base.concat([road('sg_ca_path_e', [[-510, 0], [-302, 0]]), road('sg_ca_path_w', [[302, 0], [510, 0]])]) } };
+  const ok3 = L3([band('sg_ca_path_e', [-510, 0], [-302, 0]), band('sg_ca_path_w', [302, 0], [510, 0])]);
   must(!R.paths(ok3, a, 0, 1020).length, '3 (the calibration: the right paths pass)');
-  must(R.paths({ layers: { roads: base.concat([road('sg_ca_path_e', [[-510, 2], [-302, 0]]), road('sg_ca_path_w', [[302, 0], [510, 0]])]) } }, a, 0, 1020).length > 0, '3 a path 2 m off the axis');
-  must(R.paths({ layers: { roads: base.concat([road('sg_ca_path_e', [[-450, 0], [-302, 0]]), road('sg_ca_path_w', [[302, 0], [510, 0]])]) } }, a, 0, 1020).length > 0, '3 a path that stops 60 m short of the full end');
+  must(R.paths(L3([band('sg_ca_path_e', [-510, 2], [-302, 0]), band('sg_ca_path_w', [302, 0], [510, 0])]), a, 0, 1020).length > 0, '3 a path 2 m off the axis');
+  must(R.paths(L3([band('sg_ca_path_e', [-450, 0], [-302, 0]), band('sg_ca_path_w', [302, 0], [510, 0])]), a, 0, 1020).length > 0, '3 a path that stops 60 m short of the full end');
+  { const nos = L3([band('sg_ca_path_e', [-510, 0], [-302, 0]), band('sg_ca_path_w', [302, 0], [510, 0])]); nos.layers.surface = [];
+    must(R.paths(nos, a, 0, 1020).length > 0, '3 a path drawn with no wheels\' surface under it'); }
   must(R.paths(ok3, Object.assign({}, a, { len: 1020 }), 1, 1020).length > 0, '3 a path still standing on the full strip');
-  must(R.paths({ layers: { roads: [road('r37', [[540, 30]]), base[1]] } }, Object.assign({}, a, { len: 1020 }), 1, 1020).length > 0, '3 the road to the village moved off the end');
+  must(R.paths(L3([], [road('r37', [[540, 30]]), base[1]]), Object.assign({}, a, { len: 1020 }), 1, 1020).length > 0, '3 the road to the village moved off the end');
   // 4: a tree object, a prop too close, a new asset, an entry outside its band
   const whole = { layers: { objects: [], sites: [] } };
   const recO = o => ({ layers: { objects: [o], sites: [] } });
@@ -254,7 +261,7 @@ function selftest() {
   must(R.scenery({ layers: { objects: [{ id: 'sg_ca_p', kind: 'prop', key: 'tractor_farm', x: 0, z: 12, stage: st }], sites: [] } }, recO({ id: 'sg_ca_p', kind: 'prop', key: 'tractor_farm', x: 0, z: 12 }), A4, 2).why.length > 0, '4 a tractor 12 m off the centreline');
   must(R.scenery({ layers: { objects: [{ id: 'sg_ca_p', kind: 'prop', key: 'wind_turbine', x: 0, z: 40, stage: st }], sites: [] } }, recO({ id: 'sg_ca_p', kind: 'prop', key: 'wind_turbine', x: 0, z: 40 }), A4, 2).why.length > 0, '4 a new asset (no such prop)');
   must(R.scenery({ layers: { objects: [{ id: 'sg_ca_p', kind: 'prop', key: 'tyre', x: 0, z: 40, stage: { track: 'community', show: [0, 0] } }], sites: [] } }, recO({ id: 'sg_ca_p', kind: 'prop', key: 'tyre', x: 0, z: 40 }), A4, 2).why.length > 0, '4 a stage-0 prop standing at stage 2');
-  must(R.scenery(whole, { layers: { objects: [{ id: 'sg_ca_p', kind: 'prop', key: 'drum_steel', x: 0, z: 9.5 }], sites: [] } }, A4, 2).why.length > 0, '4 a drum marker at stage 1\'s edge on the wider strip (and outside its band)');
+  must(R.scenery(whole, { layers: { objects: [{ id: 'sg_ca_p', kind: 'prop', key: 'drum_steel', x: 0, z: 12.5 }], sites: [] } }, A4, 2).why.length > 0, '4 a drum marker at stage 1\'s edge on the wider strip (and outside its band)');
   console.log('  ' + red + ' of ' + n + ' red');
   console.log('GATE COMMUNITY --selftest: ' + (red === n ? 'PASS' : 'FAIL'));
   process.exit(red === n ? 0 : 1);

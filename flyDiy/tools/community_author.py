@@ -17,10 +17,10 @@ shed and hangar generators' presets); trees only by the tree system (an exclude 
      plain track on that axis to both ends (where the roads to the village and to the east meet it - the axis and the
      ways to it exist from the start). The strip's hut (a trapper's cabin, its stove pipe), a lean-to of split logs, the
      fire barrel with its stools, the garden plot behind an old fence, a salvaged car body. The farm tractor dragging a
-     home-made drag of old tyres; four people at the work; oil-drum markers along the mud strip.
+     home-made drag of old tyres; four people at the work; oil-drum markers 8 m off the mud strip's edges.
   1  ONE PASS (today's strip, 1 020 x 9 m dirt): the woodshed and its cordwood, a tool shed, the smokehouse, the fuel
-     point (drums, a tank, cans), a picnic table, an old pickup; a rusty loader the community salvaged and the tractor at
-     the far end of the new length with its drag; drum markers along the full length.
+     point (drums, a tank, cans), a picnic table, an old pickup; a rusty loader the community salvaged and the tractor
+     with its drag back from grading the new length; drum markers along the full length.
   2  THE LAST PASS (the sandbox: 1 020 x 15 m gravel, graded smooth - minimal infrastructure): a small field hangar, the
      outhouse, a gravel apron beside the strip, what is left of the gravel heaps, the skid-steer and the tractor parked,
      the people at rest round the table; the drum markers moved out to the wider edge.
@@ -43,6 +43,7 @@ VARY = [
     {'show': [1, 1], 'wid': 9, 'look': 'dirt', 'surface': 6, 'micro': {'chaos': 0.25, 'seed': 7}},
 ]
 S0_LEN = 600
+MARK_OFF = 8                                                 # the drum markers: metres off the strip's edge
 
 
 def R(v, n=2):
@@ -81,10 +82,14 @@ def author(rec):
         adds['objects'].append(e)
 
     # ---- the paths on the axis (stage 0 only: at 1 and 2 the strip itself covers them) ----------------------------------
+    # a worn track 3.6 m wide on the centreline, from each end of the mud strip to the full length's end where the roads
+    # begin: a ground band (the dirt look, the wheels' gravel surface), not a road - a road is a map line and a graded
+    # band of its own, and this one is only the strip's axis walked and driven before the strip reached it
     half = (w['len'] - S0_LEN) / 2
     for tag, a, b in (('e', 0.0, half - 2), ('w', w['len'] - half + 2, w['len'])):
-        adds['roads'].append({'id': PFX + 'path_' + tag, 'pts': [P(a, 0), P((a + b) / 2, 0), P(b, 0)], 'w': 3.6, 'cls': 'track', 'look': 'dirt',
-                              'graded': False, 'poles': 'off', 'rail': 'off', 'pav': {'marks': 'none'}, 'stage': st(0, 0)})
+        poly = [P(a, -1.8), P(b, -1.8), P(b, 1.8), P(a, 1.8)]
+        adds['material'].append({'id': PFX + 'path_' + tag, 'poly': poly, 'look': 'dirt', 'band': 1, 'yaw': R(ya, 4), 'z': 1, 'stage': st(0, 0)})
+        adds['surface'].append({'id': PFX + 'y_path_' + tag, 'poly': poly, 'surface': 6, 'stage': st(0, 0)})
 
     # ---- the yard: the middle of the strip, the south side (v < 0), every solid thing 28 m or more off the centreline ----
     UM = w['len'] / 2                                     # the yard's centre along the strip
@@ -97,15 +102,16 @@ def author(rec):
                       'P': Pp or {}, 'stage': band})
     # 0 (stands from the first day): the strip hut, the lean-to of split logs
     item('hut', 'shed/trapper cabin', UM - 8, -52, math.pi, st(0))
-    item('leanto', 'shed/lean-to', UM - 18, -50, math.pi, st(0))
+    item('lean', 'shed/lean-to', UM - 18, -50, math.pi, st(0))
     # 1: the woodshed (cordwood), a tool shed, the smokehouse (the fish shack, its chimney smoking)
-    item('woodshed', 'shed/wood shed', UM - 30, -56, math.pi, st(1))
-    item('toolshed', 'shed/tool shed', UM + 12, -50, math.pi, st(1))
-    item('smokehouse', 'house/fish shack', UM + 26, -62, math.pi / 2, st(1), {'yard': 0, 'lot': False})
+    item('wood', 'shed/wood shed', UM - 30, -56, math.pi, st(1))
+    item('tool', 'shed/tool shed', UM + 12, -50, math.pi, st(1))
+    item('smoke', 'house/fish shack', UM + 26, -62, math.pi / 2, st(1), {'yard': 0, 'lot': False})
     # 2: the small field hangar (one aeroplane under a roof), the outhouse
-    item('hangar', 'hangar/field shed, small', UM + 44, -52, math.pi, st(2))
-    item('outhouse', 'house/outhouse', UM - 40, -64, math.pi, st(2), {'yard': 0, 'lot': False})
-    adds['sites'].append({'id': PFX + 'yard', 'name': 'Community strip yard', 'at': {'x': yard[0], 'z': yard[1], 'yaw': R(ya, 4)},
+    item('hang', 'hangar/field shed, small', UM + 44, -52, math.pi, st(2))
+    item('wc', 'house/outhouse', UM - 40, -64, math.pi, st(2), {'yard': 0, 'lot': False})
+    adds['sites'].append({'id': PFX + 'y',  # (short ids: the map lists every site item by id - MAPBAKE's 20 KB)
+                          'name': 'Community strip yard', 'at': {'x': yard[0], 'z': yard[1], 'yaw': R(ya, 4)},
                           'items': items, 'yard': None,
                           'life': {'clutter': 0, 'rubbish': 0, 'cars': 0, 'traffic': 0, 'small': 0, 'antennas': 0}, 'stage': st(0)})
     # the yard's ground: no tree, no rock, no settlement there (from the first day)
@@ -176,16 +182,17 @@ def author(rec):
     adds['material'].append({'id': PFX + 'm_apron', 'poly': ap, 'look': 'gravel', 'band': 2, 'yaw': R(ya, 4), 'z': 1, 'stage': st(2)})
     adds['surface'].append({'id': PFX + 'y_apron', 'poly': ap, 'surface': 6, 'stage': st(2)})
 
-    # ---- the oil-drum markers: every ~100 m along both edges, 5 m off the edge of the strip of the stage ---------------
+    # ---- the oil-drum markers: every ~100 m along both edges, MARK_OFF off the edge of the strip of the stage ---------------
+    # 8 m off the edge, the first and last 40 m in from the strip's ends: the end turn-arounds (TAXICLEAR 11a) swing wide
     def markers(u0, u1, half_w, band):
         m = int(round((u1 - u0) / 100.0))
         for i in range(m + 1):
             u = u0 + (u1 - u0) * i / m
             for s in (1, -1):
-                obj('drum_steel', u, s * (half_w + 5), 0.37 * i, band, on='ground')
-    markers(half + 4, w['len'] - half - 4, VARY[0]['wid'] / 2, st(0, 0))
-    markers(4, w['len'] - 4, VARY[1]['wid'] / 2, st(1, 1))
-    markers(4, w['len'] - 4, FINAL['wid'] / 2, st(2))
+                obj('drum_steel', u, s * (half_w + MARK_OFF), 0.37 * i, band, on='ground')
+    markers(half + 40, w['len'] - half - 40, VARY[0]['wid'] / 2, st(0, 0))
+    markers(40, w['len'] - 40, VARY[1]['wid'] / 2, st(1, 1))
+    markers(40, w['len'] - 40, FINAL['wid'] / 2, st(2))
     return w, adds
 
 

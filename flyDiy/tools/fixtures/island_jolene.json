@@ -2104,6 +2104,64 @@
     "surface": 6
    },
    {
+    "id": "sg_ca_y_path_e",
+    "poly": [
+     [
+      -3054.35,
+      -23825.48
+     ],
+     [
+      -3257.81,
+      -23782.24
+     ],
+     [
+      -3258.55,
+      -23785.76
+     ],
+     [
+      -3055.1,
+      -23829.01
+     ]
+    ],
+    "surface": 6,
+    "stage": {
+     "track": "community",
+     "show": [
+      0,
+      0
+     ]
+    }
+   },
+   {
+    "id": "sg_ca_y_path_w",
+    "poly": [
+     [
+      -3848.61,
+      -23656.66
+     ],
+     [
+      -4052.06,
+      -23613.41
+     ],
+     [
+      -4052.81,
+      -23616.94
+     ],
+     [
+      -3849.35,
+      -23660.18
+     ]
+    ],
+    "surface": 6,
+    "stage": {
+     "track": "community",
+     "show": [
+      0,
+      0
+     ]
+    }
+   },
+   {
     "id": "sg_ca_y_apron",
     "poly": [
      [
@@ -3043,6 +3101,70 @@
     "look": "gravel",
     "band": 2,
     "z": 0
+   },
+   {
+    "id": "sg_ca_path_e",
+    "poly": [
+     [
+      -3054.35,
+      -23825.48
+     ],
+     [
+      -3257.81,
+      -23782.24
+     ],
+     [
+      -3258.55,
+      -23785.76
+     ],
+     [
+      -3055.1,
+      -23829.01
+     ]
+    ],
+    "look": "dirt",
+    "band": 1,
+    "yaw": -2.9322,
+    "z": 1,
+    "stage": {
+     "track": "community",
+     "show": [
+      0,
+      0
+     ]
+    }
+   },
+   {
+    "id": "sg_ca_path_w",
+    "poly": [
+     [
+      -3848.61,
+      -23656.66
+     ],
+     [
+      -4052.06,
+      -23613.41
+     ],
+     [
+      -4052.81,
+      -23616.94
+     ],
+     [
+      -3849.35,
+      -23660.18
+     ]
+    ],
+    "look": "dirt",
+    "band": 1,
+    "yaw": -2.9322,
+    "z": 1,
+    "stage": {
+     "track": "community",
+     "show": [
+      0,
+      0
+     ]
+    }
    },
    {
     "id": "sg_ca_m_heap0",
@@ -14787,72 +14909,6 @@
      null,
      null
     ]
-   },
-   {
-    "id": "sg_ca_path_e",
-    "pts": [
-     [
-      -3054.72,
-      -23827.24
-     ],
-     [
-      -3156.45,
-      -23805.62
-     ],
-     [
-      -3258.18,
-      -23784.0
-     ]
-    ],
-    "w": 3.6,
-    "cls": "track",
-    "look": "dirt",
-    "graded": false,
-    "poles": "off",
-    "rail": "off",
-    "pav": {
-     "marks": "none"
-    },
-    "stage": {
-     "track": "community",
-     "show": [
-      0,
-      0
-     ]
-    }
-   },
-   {
-    "id": "sg_ca_path_w",
-    "pts": [
-     [
-      -3848.98,
-      -23658.42
-     ],
-     [
-      -3950.71,
-      -23636.8
-     ],
-     [
-      -4052.44,
-      -23615.18
-     ]
-    ],
-    "w": 3.6,
-    "cls": "track",
-    "look": "dirt",
-    "graded": false,
-    "poles": "off",
-    "rail": "off",
-    "pav": {
-     "marks": "none"
-    },
-    "stage": {
-     "track": "community",
-     "show": [
-      0,
-      0
-     ]
-    }
    }
   ],
   "runways": [
@@ -21145,7 +21201,7 @@
     ]
    },
    {
-    "id": "sg_ca_yard",
+    "id": "sg_ca_y",
     "name": "Community strip yard",
     "at": {
      "x": -3543.18,
@@ -21171,7 +21227,7 @@
       }
      },
      {
-      "id": "leanto",
+      "id": "lean",
       "key": "shed/lean-to",
       "x": -18.0,
       "z": 0.0,
@@ -21188,7 +21244,7 @@
       }
      },
      {
-      "id": "woodshed",
+      "id": "wood",
       "key": "shed/wood shed",
       "x": -30.0,
       "z": -6.0,
@@ -21205,7 +21261,7 @@
       }
      },
      {
-      "id": "toolshed",
+      "id": "tool",
       "key": "shed/tool shed",
       "x": 12.0,
       "z": 0.0,
@@ -21222,7 +21278,7 @@
       }
      },
      {
-      "id": "smokehouse",
+      "id": "smoke",
       "key": "house/fish shack",
       "x": 26.0,
       "z": -12.0,
@@ -21242,7 +21298,7 @@
       }
      },
      {
-      "id": "hangar",
+      "id": "hang",
       "key": "hangar/field shed, small",
       "x": 44.0,
       "z": -2.0,
@@ -21259,7 +21315,7 @@
       }
      },
      {
-      "id": "outhouse",
+      "id": "wc",
       "key": "house/outhouse",
       "x": -40.0,
       "z": -14.0,
@@ -25167,8 +25223,8 @@
     "id": "sg_ca_o50",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3265.92,
-    "z": -23791.56,
+    "x": -3301.76,
+    "z": -23787.0,
     "yaw": -2.9322,
     "on": "ground",
     "stage": {
@@ -25183,8 +25239,8 @@
     "id": "sg_ca_o51",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3262.18,
-    "z": -23773.95,
+    "x": -3296.77,
+    "z": -23763.53,
     "yaw": -2.9322,
     "on": "ground",
     "stage": {
@@ -25199,8 +25255,8 @@
     "id": "sg_ca_o52",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3362.43,
-    "z": -23771.04,
+    "x": -3403.48,
+    "z": -23765.38,
     "yaw": -2.5622,
     "on": "ground",
     "stage": {
@@ -25215,8 +25271,8 @@
     "id": "sg_ca_o53",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3358.69,
-    "z": -23753.43,
+    "x": -3398.49,
+    "z": -23741.91,
     "yaw": -2.5622,
     "on": "ground",
     "stage": {
@@ -25231,8 +25287,8 @@
     "id": "sg_ca_o54",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3458.94,
-    "z": -23750.53,
+    "x": -3505.21,
+    "z": -23743.76,
     "yaw": -2.1922,
     "on": "ground",
     "stage": {
@@ -25247,8 +25303,8 @@
     "id": "sg_ca_o55",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3455.2,
-    "z": -23732.92,
+    "x": -3500.22,
+    "z": -23720.28,
     "yaw": -2.1922,
     "on": "ground",
     "stage": {
@@ -25263,8 +25319,8 @@
     "id": "sg_ca_o56",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3555.45,
-    "z": -23730.01,
+    "x": -3606.94,
+    "z": -23722.14,
     "yaw": -1.8222,
     "on": "ground",
     "stage": {
@@ -25279,8 +25335,8 @@
     "id": "sg_ca_o57",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3551.71,
-    "z": -23712.41,
+    "x": -3601.95,
+    "z": -23698.66,
     "yaw": -1.8222,
     "on": "ground",
     "stage": {
@@ -25295,8 +25351,8 @@
     "id": "sg_ca_o58",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3651.96,
-    "z": -23709.5,
+    "x": -3708.67,
+    "z": -23700.51,
     "yaw": -1.4522,
     "on": "ground",
     "stage": {
@@ -25311,8 +25367,8 @@
     "id": "sg_ca_o59",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3648.22,
-    "z": -23691.89,
+    "x": -3703.68,
+    "z": -23677.04,
     "yaw": -1.4522,
     "on": "ground",
     "stage": {
@@ -25327,8 +25383,8 @@
     "id": "sg_ca_o60",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3748.47,
-    "z": -23688.99,
+    "x": -3810.39,
+    "z": -23678.89,
     "yaw": -1.0822,
     "on": "ground",
     "stage": {
@@ -25343,8 +25399,8 @@
     "id": "sg_ca_o61",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3744.73,
-    "z": -23671.38,
+    "x": -3805.4,
+    "z": -23655.42,
     "yaw": -1.0822,
     "on": "ground",
     "stage": {
@@ -25359,15 +25415,15 @@
     "id": "sg_ca_o62",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3844.98,
-    "z": -23668.47,
-    "yaw": -0.7122,
+    "x": -3096.45,
+    "z": -23831.16,
+    "yaw": -2.9322,
     "on": "ground",
     "stage": {
      "track": "community",
      "show": [
-      0,
-      0
+      1,
+      1
      ]
     }
    },
@@ -25375,15 +25431,15 @@
     "id": "sg_ca_o63",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3841.24,
-    "z": -23650.86,
-    "yaw": -0.7122,
+    "x": -3091.25,
+    "z": -23806.7,
+    "yaw": -2.9322,
     "on": "ground",
     "stage": {
      "track": "community",
      "show": [
-      0,
-      0
+      1,
+      1
      ]
     }
    },
@@ -25391,9 +25447,9 @@
     "id": "sg_ca_o64",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3060.61,
-    "z": -23835.71,
-    "yaw": -2.9322,
+    "x": -3198.61,
+    "z": -23809.44,
+    "yaw": -2.5622,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25407,9 +25463,9 @@
     "id": "sg_ca_o65",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3056.66,
-    "z": -23817.12,
-    "yaw": -2.9322,
+    "x": -3193.41,
+    "z": -23784.99,
+    "yaw": -2.5622,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25423,9 +25479,9 @@
     "id": "sg_ca_o66",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3159.6,
-    "z": -23814.67,
-    "yaw": -2.5622,
+    "x": -3300.77,
+    "z": -23787.72,
+    "yaw": -2.1922,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25439,9 +25495,9 @@
     "id": "sg_ca_o67",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3155.65,
-    "z": -23796.08,
-    "yaw": -2.5622,
+    "x": -3295.58,
+    "z": -23763.27,
+    "yaw": -2.1922,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25455,9 +25511,9 @@
     "id": "sg_ca_o68",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3258.59,
-    "z": -23793.62,
-    "yaw": -2.1922,
+    "x": -3402.94,
+    "z": -23766.01,
+    "yaw": -1.8222,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25471,9 +25527,9 @@
     "id": "sg_ca_o69",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3254.64,
-    "z": -23775.04,
-    "yaw": -2.1922,
+    "x": -3397.74,
+    "z": -23741.56,
+    "yaw": -1.8222,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25487,9 +25543,9 @@
     "id": "sg_ca_o70",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3357.58,
-    "z": -23772.58,
-    "yaw": -1.8222,
+    "x": -3505.1,
+    "z": -23744.29,
+    "yaw": -1.4522,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25503,9 +25559,9 @@
     "id": "sg_ca_o71",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3353.63,
-    "z": -23754.0,
-    "yaw": -1.8222,
+    "x": -3499.9,
+    "z": -23719.84,
+    "yaw": -1.4522,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25519,9 +25575,9 @@
     "id": "sg_ca_o72",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3456.57,
-    "z": -23751.54,
-    "yaw": -1.4522,
+    "x": -3607.26,
+    "z": -23722.58,
+    "yaw": -1.0822,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25535,9 +25591,9 @@
     "id": "sg_ca_o73",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3452.62,
-    "z": -23732.96,
-    "yaw": -1.4522,
+    "x": -3602.06,
+    "z": -23698.13,
+    "yaw": -1.0822,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25551,9 +25607,9 @@
     "id": "sg_ca_o74",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3555.56,
-    "z": -23730.5,
-    "yaw": -1.0822,
+    "x": -3709.42,
+    "z": -23700.86,
+    "yaw": -0.7122,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25567,9 +25623,9 @@
     "id": "sg_ca_o75",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3551.6,
-    "z": -23711.92,
-    "yaw": -1.0822,
+    "x": -3704.22,
+    "z": -23676.41,
+    "yaw": -0.7122,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25583,9 +25639,9 @@
     "id": "sg_ca_o76",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3654.54,
-    "z": -23709.46,
-    "yaw": -0.7122,
+    "x": -3811.58,
+    "z": -23679.15,
+    "yaw": -0.3422,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25599,9 +25655,9 @@
     "id": "sg_ca_o77",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3650.59,
-    "z": -23690.88,
-    "yaw": -0.7122,
+    "x": -3806.39,
+    "z": -23654.7,
+    "yaw": -0.3422,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25615,9 +25671,9 @@
     "id": "sg_ca_o78",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3753.53,
-    "z": -23688.42,
-    "yaw": -0.3422,
+    "x": -3913.75,
+    "z": -23657.43,
+    "yaw": 0.0278,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25631,9 +25687,9 @@
     "id": "sg_ca_o79",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3749.58,
-    "z": -23669.84,
-    "yaw": -0.3422,
+    "x": -3908.55,
+    "z": -23632.98,
+    "yaw": 0.0278,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25647,9 +25703,9 @@
     "id": "sg_ca_o80",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3852.52,
-    "z": -23667.38,
-    "yaw": 0.0278,
+    "x": -4015.91,
+    "z": -23635.72,
+    "yaw": 0.3978,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25663,9 +25719,9 @@
     "id": "sg_ca_o81",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3848.57,
-    "z": -23648.8,
-    "yaw": 0.0278,
+    "x": -4010.71,
+    "z": -23611.26,
+    "yaw": 0.3978,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25679,15 +25735,15 @@
     "id": "sg_ca_o82",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3951.51,
-    "z": -23646.34,
-    "yaw": 0.3978,
+    "x": -3097.07,
+    "z": -23834.09,
+    "yaw": -2.9322,
     "on": "ground",
     "stage": {
      "track": "community",
      "show": [
-      1,
-      1
+      2,
+      null
      ]
     }
    },
@@ -25695,15 +25751,15 @@
     "id": "sg_ca_o83",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3947.56,
-    "z": -23627.75,
-    "yaw": 0.3978,
+    "x": -3090.63,
+    "z": -23803.77,
+    "yaw": -2.9322,
     "on": "ground",
     "stage": {
      "track": "community",
      "show": [
-      1,
-      1
+      2,
+      null
      ]
     }
    },
@@ -25711,15 +25767,15 @@
     "id": "sg_ca_o84",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -4050.5,
-    "z": -23625.3,
-    "yaw": 0.7678,
+    "x": -3199.24,
+    "z": -23812.37,
+    "yaw": -2.5622,
     "on": "ground",
     "stage": {
      "track": "community",
      "show": [
-      1,
-      1
+      2,
+      null
      ]
     }
    },
@@ -25727,15 +25783,15 @@
     "id": "sg_ca_o85",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -4046.55,
-    "z": -23606.71,
-    "yaw": 0.7678,
+    "x": -3192.79,
+    "z": -23782.05,
+    "yaw": -2.5622,
     "on": "ground",
     "stage": {
      "track": "community",
      "show": [
-      1,
-      1
+      2,
+      null
      ]
     }
    },
@@ -25743,9 +25799,9 @@
     "id": "sg_ca_o86",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3061.24,
-    "z": -23838.64,
-    "yaw": -2.9322,
+    "x": -3301.4,
+    "z": -23790.66,
+    "yaw": -2.1922,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25759,9 +25815,9 @@
     "id": "sg_ca_o87",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3056.04,
-    "z": -23814.19,
-    "yaw": -2.9322,
+    "x": -3294.95,
+    "z": -23760.34,
+    "yaw": -2.1922,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25775,9 +25831,9 @@
     "id": "sg_ca_o88",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3160.22,
-    "z": -23817.6,
-    "yaw": -2.5622,
+    "x": -3403.56,
+    "z": -23768.94,
+    "yaw": -1.8222,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25791,9 +25847,9 @@
     "id": "sg_ca_o89",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3155.03,
-    "z": -23793.15,
-    "yaw": -2.5622,
+    "x": -3397.11,
+    "z": -23738.62,
+    "yaw": -1.8222,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25807,9 +25863,9 @@
     "id": "sg_ca_o90",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3259.21,
-    "z": -23796.56,
-    "yaw": -2.1922,
+    "x": -3505.72,
+    "z": -23747.23,
+    "yaw": -1.4522,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25823,9 +25879,9 @@
     "id": "sg_ca_o91",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3254.02,
-    "z": -23772.11,
-    "yaw": -2.1922,
+    "x": -3499.28,
+    "z": -23716.91,
+    "yaw": -1.4522,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25839,9 +25895,9 @@
     "id": "sg_ca_o92",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3358.2,
-    "z": -23775.52,
-    "yaw": -1.8222,
+    "x": -3607.88,
+    "z": -23725.51,
+    "yaw": -1.0822,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25855,9 +25911,9 @@
     "id": "sg_ca_o93",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3353.0,
-    "z": -23751.06,
-    "yaw": -1.8222,
+    "x": -3601.44,
+    "z": -23695.19,
+    "yaw": -1.0822,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25871,9 +25927,9 @@
     "id": "sg_ca_o94",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3457.19,
-    "z": -23754.48,
-    "yaw": -1.4522,
+    "x": -3710.05,
+    "z": -23703.8,
+    "yaw": -0.7122,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25887,9 +25943,9 @@
     "id": "sg_ca_o95",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3451.99,
-    "z": -23730.02,
-    "yaw": -1.4522,
+    "x": -3703.6,
+    "z": -23673.48,
+    "yaw": -0.7122,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25903,9 +25959,9 @@
     "id": "sg_ca_o96",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3556.18,
-    "z": -23733.44,
-    "yaw": -1.0822,
+    "x": -3812.21,
+    "z": -23682.08,
+    "yaw": -0.3422,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25919,9 +25975,9 @@
     "id": "sg_ca_o97",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3550.98,
-    "z": -23708.98,
-    "yaw": -1.0822,
+    "x": -3805.76,
+    "z": -23651.76,
+    "yaw": -0.3422,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25935,9 +25991,9 @@
     "id": "sg_ca_o98",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3655.17,
-    "z": -23712.4,
-    "yaw": -0.7122,
+    "x": -3914.37,
+    "z": -23660.37,
+    "yaw": 0.0278,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25951,9 +26007,9 @@
     "id": "sg_ca_o99",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3649.97,
-    "z": -23687.94,
-    "yaw": -0.7122,
+    "x": -3907.92,
+    "z": -23630.05,
+    "yaw": 0.0278,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25967,9 +26023,9 @@
     "id": "sg_ca_o100",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3754.16,
-    "z": -23691.36,
-    "yaw": -0.3422,
+    "x": -4016.53,
+    "z": -23638.65,
+    "yaw": 0.3978,
     "on": "ground",
     "stage": {
      "track": "community",
@@ -25983,105 +26039,9 @@
     "id": "sg_ca_o101",
     "kind": "prop",
     "key": "drum_steel",
-    "x": -3748.96,
-    "z": -23666.9,
-    "yaw": -0.3422,
-    "on": "ground",
-    "stage": {
-     "track": "community",
-     "show": [
-      2,
-      null
-     ]
-    }
-   },
-   {
-    "id": "sg_ca_o102",
-    "kind": "prop",
-    "key": "drum_steel",
-    "x": -3853.14,
-    "z": -23670.31,
-    "yaw": 0.0278,
-    "on": "ground",
-    "stage": {
-     "track": "community",
-     "show": [
-      2,
-      null
-     ]
-    }
-   },
-   {
-    "id": "sg_ca_o103",
-    "kind": "prop",
-    "key": "drum_steel",
-    "x": -3847.95,
-    "z": -23645.86,
-    "yaw": 0.0278,
-    "on": "ground",
-    "stage": {
-     "track": "community",
-     "show": [
-      2,
-      null
-     ]
-    }
-   },
-   {
-    "id": "sg_ca_o104",
-    "kind": "prop",
-    "key": "drum_steel",
-    "x": -3952.13,
-    "z": -23649.27,
+    "x": -4010.09,
+    "z": -23608.33,
     "yaw": 0.3978,
-    "on": "ground",
-    "stage": {
-     "track": "community",
-     "show": [
-      2,
-      null
-     ]
-    }
-   },
-   {
-    "id": "sg_ca_o105",
-    "kind": "prop",
-    "key": "drum_steel",
-    "x": -3946.94,
-    "z": -23624.82,
-    "yaw": 0.3978,
-    "on": "ground",
-    "stage": {
-     "track": "community",
-     "show": [
-      2,
-      null
-     ]
-    }
-   },
-   {
-    "id": "sg_ca_o106",
-    "kind": "prop",
-    "key": "drum_steel",
-    "x": -4051.12,
-    "z": -23628.23,
-    "yaw": 0.7678,
-    "on": "ground",
-    "stage": {
-     "track": "community",
-     "show": [
-      2,
-      null
-     ]
-    }
-   },
-   {
-    "id": "sg_ca_o107",
-    "kind": "prop",
-    "key": "drum_steel",
-    "x": -4045.92,
-    "z": -23603.78,
-    "yaw": 0.7678,
     "on": "ground",
     "stage": {
      "track": "community",
