@@ -1,0 +1,29 @@
+# SKIS evidence (13 Nov 2026, cloud: node, tools/quickshot.js - no in-game renderer)
+
+The design note: futureDesigns/SKIS-2026-11-13.md. The gates: tools/_skis_check.js (GATE SKIS core, GATE SKISFLY full).
+The cards: tools/fixtures/skis/ (carbon_cub_ss_skis.json - list:47 on Summit SS2300s; pc6_skis.json - FIT-PROCEDURE's
+PT6A-27 Porter, not on master yet, on aluminium wheel-skis with its tail ski; carbon_cub_ss_pod.json - list:47 with the
+belly pod). Every picture below is the game's own load chain headless (the editor's layers draw, the join measures).
+
+| picture | what |
+|---|---|
+| carbon_cub_ss2300_close_q.png | the SS2300 on the Carbon Cub, close: the white monocoque on its UHMW skins, the screwed flange, the walk-on deck and its non-skid pad, the beam's spine and the T-pedestal, the cable along the top, the 4 in heel wheel, the tyre in the outboard cutout, the front spring and cable to the cowling's corner, the aft check cable |
+| carbon_cub_ss2300_q / side / front / bottom.png | the same, whole; from below the skins' outline and the cutout (outboard) |
+| pc6_wheelskis_q / side.png | the PC-6 on its wheel-skis (the same family, 2.9 x 0.66 m, aluminium shell), skis down: the jack to the deck |
+| pc6_wheelskis_up_side.png | the same, skis up (the preview row skiPos 0): the tyre below the sole |
+| carbon_cub_pod_side / q.png | the Carbon Cub with the belly pod (2.1 x 0.48 x 0.30 m, 116 L, rated 65 kg) |
+
+The flights (the game's pilot, tools/_skis_check.js; a powder layer = SOFT_GROUND.powder handed to a world shim over
+HOME - no snow surface exists on master yet: the SNOW-MUD interface, design note section 3):
+
+- GATE SKIS 5: on powder the Carbon Cub's sinkage 33.8 / 15.3 / 8.0 cm on 0.6 x 0.12 / 1.1 x 0.2 / 1.7 x 0.3 m skis;
+  on its SS2300s it lifts off in ~87 m (the tyre beside the ski 3 cm below the sole; 78 / 87 / 198 m at 1.5 / 3 / 5 cm:
+  the references' "the protruding tyre ploughs"); on 0.6 x 0.12 m skis it sinks to the bed and the pilot aborts.
+- GATE SKIS 6: a straight-ski slide-out on packed snow is the same with the brake held, to the bit; a wheel-ski with
+  its skis up stops in 7 m braked against 59 m free.
+- GATE SKIS 7: the PC-6's selector - up on grass, down on powder, the pilot's 15 s cycle, the axles rise 6 cm.
+- GATE SKISFLY: the Carbon Cub (SS2300s) and the PC-6 (skis down) fly the circuit off and back onto powder and stop
+  with no brakes; the PC-6 also on the grass with its skis up (the full tier: the battery's log).
+- Before the fix of the tail ski's mass and of the three-point stance (the rigs drop the aeroplane level; the game does
+  not), the PC-6's tail spring snapped through under full rudder at the take-off's start: FIT-PROCEDURE's card sits
+  with its aft belly 1 cm off the ground (reported).

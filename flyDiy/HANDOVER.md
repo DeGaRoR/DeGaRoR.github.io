@@ -315264,3 +315264,45 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+
+
+## SKIS - ONE SKI LANDING GEAR FOR EVERY AEROPLANE (cloud session SKIS, 13 Nov 2026)
+
+The user (13 Nov): a generic ski gear, "one main type and a few options, not a list of 10"; dimensions adjustable;
+PHYSICS STOPS ABERRATIONS (the ski's area sets the contact pressure); no wheel brakes on straight skis; mass, drag and
+price paid; drawn by the gear generator, WYSIWYG. The reference ski (the user's photographs and the maker's sheet): the
+Summit Aircraft SS2300 - "the Pilatus uses similar skis". Design note futureDesigns/SKIS-2026-11-13.md (the model, the
+soft-ground interface, the rows, the cuts); A0's research futureDesigns/SKI-REFERENCES-2026-11-13.md; evidence
+reports/evidence/SKIS/README.md.
+
+- ONE SKI (src/core/29c_ski.js `skiPlan`, the drawing and the physics read the same outline): the shell on UHMW bottom
+  skins, the aft beam keeping 0.57 of the width inboard, the wheel's cutout outboard from 0.49 of the length, the toe a
+  half-round upturned, the pedestal 0.585 from the toe. THREE MOUNTINGS (`gear.ski.kind`): 'plain' (the wheel off, no
+  brake), 'wheel' (the wheel beside the ski, 3 cm below the sole: the SS2300's), 'retract' (the hydraulic wheel-ski:
+  the PC-6's; ctl.ski 1 down / 0 up, unset it follows the surface). OPTIONS: the tail / nose ski (`third`), the heel
+  wheel. ABSENT IS AS TODAY: no key, the def, the sheet and 300 flown steps of seven builds identical to the core
+  before the skis (GATE SKIS 1, tools/fixtures/skis/base.json - re-bless with `--bless` in a base worktree if a
+  chantier landing first moves them).
+- THE PHYSICS (30_solver `skiGround`): per ski node two ELEMENTS, the sole and the tyre; on hard ground the node's
+  spring, the tyre's share handed back to the wheel pass bit for bit (brakes, twLine); the sole slides (SKI_HARD_MU,
+  no brake) and grips sideways with a keel's slope (SKI_RULES.cn). On a SOFT layer the plastic Bekker law over each
+  element's own area, the rut's memory, compaction + bulldozing, planing past the hump.
+- THE SOFT GROUND, THE SNOW-MUD INTERFACE: `world.soft(x, z)` -> null (hard: every world today) or { kind, depth, k,
+  vP, kEl, plough, muSki, muSki0, muAlu, latSki, roll, muBrake, muLat } (terrainH is the layer's TOP). SOFT_GROUND
+  presets (powder, packed, wet, ice); SKI_SOFT the per-element law (a wheel on snow can read it: SNOW-MUD's to wire).
+- MASS / PRICE / DRAG: by the skins' area, the shell's material (carbon solved on the SS2300's 27 lb, aluminium, glass)
+  and the mounting; a plain ski replaces its wheel. The frame bills it (parts.ski), 62 adds its CdA (drag.ski).
+- THE DRAWING (tools/_gear_gen.js `ski`, `skiRigRun`; tools/_cage_gear.js the "skis" rows, all absent at default -
+  GEN_SKI_ROW_OFF / CAGE_DEFAULT_ABSENT, skiPos never saved; the join writes spec.gear.ski from CAGE_GEAR.skis; app.js
+  ski rigs pose each ski on its axle node by out.skiPitch / out.skiDy, the tail ski inside the castor, the rigging
+  runs stretched pin -> lug).
+- GATES: SKIS (core, ~4 min: absent, the spec, mass/price/drag, drawn = flown, the area sets the pressure, no brakes,
+  the selector, THE BELLY POD on the Carbon Cub end to end) and SKISFLY (full: the circuits on powder).
+- THE BELLY POD (the user: "the garage has it, nothing uses it"): fitted on the Carbon Cub (tools/fixtures/skis/
+  carbon_cub_ss_pod.json): mass/CG, drag, clearance, the freight packed into it and strapped onto its nodes all work
+  (GATE SKIS 8). THE OPEN POINT: a player's build has no freight card (FREIGHT_CARDS holds the catalogue's designs;
+  freightLoadCard / app.js frCard return null - FREIGHT-MODEL's open point): the career cannot load the pod of a
+  garage build. The gate measures a card off the aeroplane (tools/_freight_site.js) to prove the rest of the chain.
+- Rigs drop the aeroplane level from reset; the game stands it in three-point first (sim.stance()): a tail ski on a
+  marginal tail (FIT-PROCEDURE's PC-6 card: its aft belly 1 cm off the ground) can settle on its belly after the drop.
+  The ski rigs and GATE SKIS take the stance, as the game does.

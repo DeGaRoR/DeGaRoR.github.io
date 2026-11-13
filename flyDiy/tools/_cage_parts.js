@@ -1134,6 +1134,9 @@ const CAGE_PARTS = [
       // G1: the fold - the mains' preset or custom turns, the nose's
       ['fold', ['gearFold', 'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist',
                 'gearFoldNose', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist']],
+      // SKIS (13 Nov): the ski gear on these legs - the kind, the planform (the SS2300's by default), the rig, the finish
+      ['skis', ['gearSki', 'skiL', 'skiW', 'skiTip', 'skiAt', 'skiInc', 'skiSkin', 'skiBeam', 'skiNotchAt', 'skiProt',
+                'skiMat', 'skiColor', 'skiHeelW', 'skiT', 'skiTL', 'skiTW', 'skiPos']],
     ] },
 
   // THE FLOATS (H2, G389): one part, both pontoons and their struts; the

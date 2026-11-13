@@ -1551,7 +1551,15 @@ function genParams(S, fr, strips) {
   // HONEST's relative checks are written against (spats buy, tyres cost).
   // Axial only — the cross-flow blobs keep the body's own calibrated numbers.
   const gearDCdA = genGearCdADelta(S, S.geom.semi);
-  const gearCdA = genGearCdA(S, S.geom.semi);
+  let gearCdA = genGearCdA(S, S.geom.semi);
+  // SKIS (29c_ski.js): the skis' own drag (the frame's resolved record); a PLAIN ski replaces its wheel, so that wheel's
+  // bare term comes off (a ski wears no spat: clampSpec). Absent: no term, the sum as it was
+  if (fr.parts && fr.parts.ski) {
+    const SK = fr.parts.ski, R0 = S.gear.wheelR || 0.20, Rt = S.gear.twR || 0.10;
+    gearCdA += SK.cdA - (SK.kind === 'plain' ? 2 * 0.55 * (2 * R0 * 0.76 * R0) : 0)
+                      - (SK.third && SK.third.kind === 'plain' ? 0.55 * (2 * Rt * 0.76 * Rt) : 0);
+    cda.drag.ski = SK.cdA;
+  }
   cda.fusCdA[0] += gearCdA;
   cda.drag.gear = gearCdA;
   // THE NACELLES (G179.5, the user: "add the nacelle drag for wing-mounted

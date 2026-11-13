@@ -641,6 +641,10 @@ const AERO_HARD = {
     dark: 'rubber',            // boots, bungee, the rubber in compression
     bronze: 'bronze',          // bushes, the castor pivot
     fair: 'trim',              // a spat is painted, whatever it is made of
+    // SKIS (13 Nov): the shell painted (gelcoat over the carbon), or the carbon weave itself; the UHMW skins, the
+    // non-skid walk, the heel wheel's polyurethane
+    skiWhite: 'trim', skiRed: 'trim', skiYellow: 'trim', skiBlack: 'trim', skiCarbon: 'composite',
+    skiSole: 'plastic', skiPad: 'rubberGrip', skiHeel: 'plastic',
     body: null, mark: null,    // the bench's ghost airframe, and a marker
   },
   // ---- the powerplant (_eng_page.js COL) ----------------------------------
