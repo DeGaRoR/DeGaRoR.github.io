@@ -2066,10 +2066,20 @@ function floatParamsFor(grossKg, over) {
 // their mass interpolated between neighbours — stated as estimates, not
 // facts. Displacement is per FLOAT; mSys per PAIR with rigging. The
 // model number is roughly the float's buoyancy in pounds.
-// `disp` is the catalogue's "displacement in fresh water", `flot` its
-// "maximum flotation" (the whole watertight hull, ~10 % more): the hull is
-// CALIBRATED so its volume to the deck is `flot`, and `disp` is the number
-// the plaque quotes.
+// `disp` is the catalogue's "displacement in fresh water" - ONE float's
+// watertight volume (kg of fresh water). `flot` is its "maximum flotation",
+// which Wipaire footnotes "per FAR 23.751 with 80 % reserve buoyancy (2
+// floats)": the heaviest AEROPLANE the PAIR may carry, 2 x disp / 1.8 =
+// disp / 0.9 on every row - NOT a hull's volume. The hull is nevertheless
+// CALIBRATED so its volume to the deck is `flot` (presetParams), so a
+// catalogue pick is ~11 % too big against the frame's own 180 % rule
+// (floatParamsFor). KNOWN (HYDRO-DISP, 13 Nov, FIT-PROCEDURE's PC-6 fit via
+// A0): left as is - the family cannot reach `disp` on the 3000 and up (they
+// sit at f 0.84-0.99 to reach `flot` already), and a saved card keeps its own
+// dials; the fix (the bottom kept, the topsides lowered) is a design choice
+// for the user: D:/Dev/flydiy-notes/HYDRO-DISP-DESIGN-2026-11-13.md. `disp`
+// is the number the plaque quotes. (EDO rows: `flot` IS one float's
+// buoyancy, the EDO convention - right as it stands.)
 const FLOAT_PRESETS = {
   'Wipline 1450':  { L: 4.60, B: 0.64, H: 0.50, disp: 658,  flot: 724,  mSys: 68,  gross: 650,  est: true,
                      for: 'light sport (Carbon Cub SS, Legend Cub)' },
