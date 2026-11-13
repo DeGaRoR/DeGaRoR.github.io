@@ -205,7 +205,8 @@ function makeWorld(seed, opts) {
 
   // surface enum — reserved classes included (PAVED/GRAVEL/... arrive with
   // WORLD-GEN-PROC stages); the classifier below is the honest v1 minimum.
-  const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
+  // SNOW-MUD (13 Nov): 8-12 the soft rows (00_registry GROUND_SURF / GROUND_SOFT) - placed only where a record says so
+const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12 };
 
   // aerodrome registry — DESCRIPTIVE for now: the AP still flies the
   // def.params.ap constants (contract rule 6 deferred), and the h0 runway

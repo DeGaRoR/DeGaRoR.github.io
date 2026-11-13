@@ -484,7 +484,7 @@ function makeSim(def, world) {
   // floor, sand: the stain). `scN` counts the substeps that slid (the hop's signature). Zeroed by reset()
   DMG.sW = new Float64Array(DMG_ON ? n : 0); DMG.sD = new Float64Array(DMG_ON ? n * 3 : 0);
   DMG.sN = new Float64Array(DMG_ON ? n * 3 : 0); DMG.sG = new Float64Array(DMG_ON ? n : 0); DMG.scN = 0; DMG.scW = 0;
-  const SCUFF_SOFT = [1, 0, 0, 1, 0, 0, 0, 1];      // GROUND_SURF's classes: 0 grass, 3 forest floor, 7 sand
+  const SCUFF_SOFT = [1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1];   // GROUND_SURF's classes: 0 grass, 3 forest floor, 7 sand; SNOW-MUD: 8-12 snow and mud
   function scuffAdd(i, w, dx, dy, dz, ix, iy, iz, soft) {
     const i3 = i * 3;
     DMG.sW[i] += w; DMG.scW += w; DMG.scN++;
@@ -3422,6 +3422,19 @@ function makeSim(def, world) {
   const TYRE_ = P_.tyre || {}, TYRE_OLD = !!P_.tyreCoulomb;
   const iCnM = TYRE_OLD ? 0 : 1 / (TYRE_.main || TYRE_CN.standard),
         iCnT = TYRE_OLD ? 0 : 1 / (TYRE_.tw || (P_.twSteer < 0 ? TYRE_CN.nosewheel : TYRE_CN.tailwheel));
+  // SNOW-MUD: each wheel's tread width, diameter and footprint on a soft layer (tyreFootprint: the carcass's proportions on the
+  // wheel's own radius), made the first time the wheel meets one. The mains' carcass is the build's (62_gen_aero `tyre`:
+  // its cornering class, read back - tundra 4.5, slim 10, else standard), the third wheel's what it is. out.softZ (the
+  // deepest sinkage, m) and out.softF (the compaction drag summed, N) exist only on a frame that met a soft layer
+  const SOFT_MIN = 8;
+  const SKW = new Float64Array(n), SKD = new Float64Array(n), SKA = new Float64Array(n);
+  const softMainCls = TYRE_.cls || (TYRE_.main === TYRE_CN.tundra ? 'tundra' : TYRE_.main === TYRE_CN.slim ? 'slim' : 'standard');
+  let softLive = false;
+  function softWheel(i, isMain) {
+    const D = Math.max(0.1, 2 * r[i]);
+    const fp = tyreFootprint(isMain ? softMainCls : (P_.twSteer < 0 ? 'nosewheel' : 'tailwheel'), D);
+    SKW[i] = fp[0]; SKD[i] = D; SKA[i] = fp[1];
+  }
   // G3800 (TAILWHEELS, the user 29 Oct / 3 Nov): THE TAIL CONTACT'S FOUR LAWS (params.twMode, a taildragger's only; a
   // tricycle's nose wheel is the rudder's, linked, as ever - TWL null, not one line below runs). The gear page's
   // tailwheel row (s2Steer) chooses:
@@ -3975,12 +3988,25 @@ function makeSim(def, world) {
         // at Morford's pavement, 0 at HOME); classes without a row read the
         // grass row, which equals the classic constants — so HOME, the
         // calibration datum, is unchanged to the last bit.
-        const su = world && world.surface
-          ? (GROUND_SURF[world.surface(p[i3], p[i3+2])] || GROUND_DEF)
-          : GROUND_DEF;
+        const sc = world && world.surface ? world.surface(p[i3], p[i3+2]) : -1;
+        const su = sc !== -1 ? (GROUND_SURF[sc] || GROUND_DEF) : GROUND_DEF;
         // G1938: the differential brake, per main (its side of the built pose); brakeD 0 is the old line exactly
         const bkI = !isMain ? 0 : ctl.brakeD ? Math.max(0, Math.min(1, ctl.brake + (def.nodes[i].p[2] > 0 ? 1 : -1) * ctl.brakeD)) : ctl.brake;
-        const muR = su[0] + (isMain ? bkI * su[1] : 0);
+        let muR = su[0] + (isMain ? bkI * su[1] : 0);
+        // SNOW-MUD: A SOFT LAYER (GROUND_SOFT, the codes past the hard ones) - the tyre sinks by its load over its footprint
+        // and pays the trench it compacts (groundSinkWheel: Bekker's rigid wheel, the tyre flattening at its own pressure,
+        // never deeper than the layer), added to the rolling coefficient as F / N. On every hard surface: this compare only
+        if (sc >= SOFT_MIN && Fn > 0) {
+          const SO = GROUND_SOFT[sc];
+          if (SO !== undefined) {
+            if (SKW[i] === 0) softWheel(i, isMain);
+            const Fs = groundSinkWheel(SO, Fn, SKW[i], SKD[i], SKA[i]);
+            muR += Fs / Fn;
+            if (!softLive) { out.softZ = 0; out.softF = 0; softLive = true; }
+            if (GROUND_SINK.z > out.softZ) out.softZ = GROUND_SINK.z;
+            out.softF += Fs;
+          }
+        }
         // G121.3: BELOW WALKING PACE THE COEFFICIENT IS A DAMPER, NOT A
         // RESISTANCE. The 0.2 m/s regularization means the sub-0.2 regime
         // was never physical rolling — and it turned out to be load-bearing
@@ -4138,6 +4164,7 @@ function makeSim(def, world) {
   }
   function step(dtFrame, sub = subN) {
     const dt = dtFrame / sub;
+    if (softLive) { out.softZ = 0; out.softF = 0; softLive = false; }   // SNOW-MUD: the soft layer's readouts (out.softZ / softF) are the frame's
     if (GR !== null) gearStep(dtFrame);              // RETRACT-1: the gear moves once a frame
     aicFresh = true;
     rigFresh = true;               // G1885: the frame's first substep sums the second moments

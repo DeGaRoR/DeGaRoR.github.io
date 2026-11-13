@@ -1027,8 +1027,104 @@ const GROUND_SURF = {
   5: [0.02, 0.55, 0.9],  // BISECT
   6: [0.045, 0.38, 0.75],           // GRAVEL — rolls almost as easy, brakes worse
   7: [0.10, 0.30, 0.6],             // SAND — reserved with the enum
+  // SNOW-MUD (13 Nov 2026, the user: "if we develop snow, maybe we just develop mud; it's pretty much the same thing in the
+  // end"): THE SOFT ROWS. Their three numbers are the FIRM BASE under the layer (what a tyre would roll on with nothing
+  // to sink into); the layer itself - what a tyre or a ski SINKS into, and the drag that sinking costs - is GROUND_SOFT
+  // below, by the same key. Placed only where a world or a premises record says so (27_premises RUNWAY_LOOKS 'snow' ...
+  // 'softmud'); nothing in either world carries one by default, so every row above and every saved build reads as before.
+  // Sources (each the middle of its range; ESTIMATES where said): Raymer, Aircraft Design (table 17.1, take-off ground roll):
+  // firm dirt rolling 0.04 / brakes 0.3, soft turf 0.07 / 0.3, wet grass 0.08 / 0.2, icy concrete 0.02 / 0.06-0.10; ICAO
+  // GRF / RCAM (Doc 9981, Circ 355) braking bands: compacted snow 'medium' ~0.30-0.35, dry snow over 3 mm 'medium' ~0.30,
+  // wet snow / slush 'medium to poor' ~0.26-0.29, 'poor' <= 0.25. Side grip: a tyre's lateral limit sits a little over its
+  // braking one on a loose surface (ESTIMATE, as the off-strip rows above).
+  8:  [0.025, 0.30, 0.35],          // SNOW, PACKED: a groomed / rolled snow strip, cold (the altiport's)
+  9:  [0.025, 0.25, 0.30],          // SNOW, POWDER: dry fresh snow over a packed base - the layer is deep
+  10: [0.035, 0.18, 0.22],          // SNOW, WET: near 0 C, heavy and sticky ("worse than mud or even beach sand")
+  11: [0.050, 0.28, 0.45],          // MUD, FIRM: a drying clay strip, the community field's first stage
+  12: [0.060, 0.18, 0.30],          // MUD, SOFT: wet clay after rain - the wheels go in
 };
 const GROUND_DEF = GROUND_SURF[0];
+// SNOW-MUD: THE SOFT LAYER - what a contact sinks into, keyed by the SURFACE code (GROUND_SURF's soft rows only; absent =
+// a hard surface, the solver's line is the one it always was). THE FORM is Bekker's pressure-sinkage law p = k z^n
+// (M.G. Bekker, Theory of Land Locomotion 1956 / Introduction to Terrain-Vehicle Systems 1969; J.Y. Wong, Theory of
+// Ground Vehicles, ch. 2: the rigid wheel's sinkage and its COMPACTION RESISTANCE), k lumped (Bekker's kc/b + kphi), and
+// the layer's DEPTH zMax (the firm base under it: nothing sinks deeper than the snow is). THE NUMBERS ARE FIT, not
+// measured: the exponents sit in Bekker's families (fresh snow n ~1.4-1.6, wet clays and loams lower; Wong's table,
+// RECALLED), the stiffness k is fit so that the stock wheel (D 0.4 m, standard carcass, 3 kN) reads the operational
+// rules (FAA-H-8083-23's skiplane chapter; mountainflying.com's rule of thumb; AvWeb): soft ground lengthens a light
+// aeroplane's take-off 20-50 %, wet or powder snow 2-3 x or stops it (the wheels' limit is about 4 in of dry snow, 1 in
+// of wet). The published fresh-snow k (~200 kPa/m^n) is a virgin snowpack a man sinks into to the knee; a strip is
+// settled, and these k are 10-30 x stiffer. Fit at the stock wheel, read at the others (GATE SOFTGROUND prints all):
+//                   the extra rolling coefficient F/N, sinkage   stock 3 kN   C172 5 kN   tundra 3 kN   slim 3 kN
+//   packed snow                                                  0.015 5 mm   0.019 7 mm  0.001 1 mm    0.023 7 mm
+//   powder                                                       0.25 10 cm   0.28 12 cm  0.04 3.5 cm   0.34 13 cm
+//   wet snow                                                     0.20 7 cm    0.24 9 cm   0.025 2 cm    0.29 10 cm
+//   firm mud                                                     0.07 2 cm    0.095 3 cm  0.005 3 mm    0.12 3 cm
+//   soft mud                                                     0.22 6.5 cm  0.30 10 cm  0.014 9 mm    0.29 9 cm
+//   k     Pa/m^n, the layer's stiffness           n     the pressure-sinkage exponent
+//   zMax  m, the layer's depth (the base under)   ski   [kinetic, static breakout] of a UHMW/PTFE ski bottom on it
+//                                                       (SKI-REFERENCES-2026-11-13 4.1 / 4.6: ideal -3 C 0.03-0.05,
+//                                                       cold dry 0.10-0.20, wet 0.08-0.12; breakout ~2 x)
+// A NAMED CUT for the skis: one power law per layer. Fit at a tyre's 30-200 kPa, it lets a 7-10 kPa ski sink only cm into
+// the powder, where real fresh snow takes a ski deeper and then stiffens as it compacts - a two-regime snow is the SKIS
+// session's to add if its gates need it (a row field, absent = this law)
+const GROUND_SOFT = {
+  8:  { k: 3.0e7, n: 1.0, zMax: 0.03, ski: [0.04, 0.08] },   // packed: a little loose on a rolled base, cold (ski: ideal)
+  9:  { k: 4.6e6, n: 1.5, zMax: 0.30, ski: [0.12, 0.24] },   // powder: cold and dry - the slow end of the ski's range
+  10: { k: 3.5e6, n: 1.2, zMax: 0.15, ski: [0.10, 0.20] },   // wet: dense near 0 C, heavy; the ski's capillary drag
+  11: { k: 3.3e6, n: 0.8, zMax: 0.06, ski: [0.25, 0.40] },   // firm mud: a skin over a firm base (no ski belongs here: ESTIMATE)
+  12: { k: 1.3e6, n: 0.8, zMax: 0.25, ski: [0.30, 0.45] },   // soft mud: wet clay; the wheels go in (ski: ESTIMATE)
+};
+// A SKI's sliding friction on EVERY surface (the ski gear's interface, SKIS session): [kinetic, static breakout]. The
+// soft rows read GROUND_SOFT's; the rest are ESTIMATES (a UHMW bottom on wet grass slides, on the hard ground it
+// grinds; no source in hand) and water none (the water's own pass carries a ski that is in it)
+const GROUND_SKI_MU = { 0: [0.25, 0.40], 1: [0.50, 0.60], 2: [0.45, 0.55], 3: [0.35, 0.50], 4: null, 5: [0.40, 0.50], 6: [0.45, 0.55], 7: [0.40, 0.50] };
+for (const k in GROUND_SOFT) GROUND_SKI_MU[k] = GROUND_SOFT[k].ski;
+// THE TYRE ON SOFT GROUND, per carcass (TYRE_CN's keys): w the tread's width over the wheel's diameter, d its rated
+// deflection over its section height (taken = its width). A tyre's FOOTPRINT on firm ground is then an ellipse
+// pi/4 x l x 0.8 w, l = 2 sqrt(D d w) (the chord at that deflection), and THE PRESSURE IT PUTS ON THE GROUND IS ITS LOAD
+// OVER THAT AREA (a tyre inflated for its aeroplane: the C172's 6.00-6 at 5 kN reads ~180 kPa, 26 psi, against its
+// 29-38 psi; a tundra tyre ~40 kPa, 6 psi, against 6-15). RECALLED proportions (aircraft tyre tables; the low-pressure
+// tundra tyre runs deeper deflection, a narrow high-pressure tyre shallower), ESTIMATES each
+const TYRE_SOFT = { standard: { w: 0.32, d: 0.32 }, tundra: { w: 0.40, d: 0.40 }, slim: { w: 0.16, d: 0.25 },
+                    tailwheel: { w: 0.30, d: 0.25 }, nosewheel: { w: 0.33, d: 0.30 } };
+// -> [tread width b (m), footprint area A (m^2)] of a wheel of diameter D (m) of carcass `cls`
+function tyreFootprint(cls, D) {
+  const T = TYRE_SOFT[cls] || TYRE_SOFT.standard, b = T.w * D;
+  return [b, Math.PI / 4 * 2 * Math.sqrt(D * T.d * b) * 0.8 * b];
+}
+// THE SINK: one scratch the two readers fill (no allocation in the solver's loop): z the sinkage (m), p the ground's
+// pressure under the contact (Pa), F the compaction resistance (N, against the motion), cap 1 when the layer bottomed
+// (the firm base carries the rest)
+const GROUND_SINK = { z: 0, p: 0, F: 0, cap: 0 };
+// A WHEEL (Bekker's rigid wheel, Wong eq. 2.60-2.62): sinkage z = [3 N / ((3 - n) b k sqrt D)]^(2 / (2n + 1)). A
+// pneumatic tyre presses at most its load over its footprint (A, tyreFootprint): where the rigid wheel would press harder
+// (k z^n > N / A) it flattens and sinks only to (N / (A k))^(1/n); never deeper than the layer. Resistance
+// F = b k z^(n+1) / (n+1) (the trench compacted per metre) - in the rigid regime F / N ~ sqrt(z / D): a heavier load, a
+// narrower or smaller wheel, a softer layer, all drag more. N newtons on the contact, b, D, A as above. -> F (N);
+// GROUND_SINK holds the rest
+function groundSinkWheel(S, N, b, D, A) {
+  const G_ = GROUND_SINK;
+  if (!(N > 0) || !S) { G_.z = 0; G_.p = 0; G_.F = 0; G_.cap = 0; return 0; }
+  const n = S.n, k = S.k;
+  let z = Math.pow(3 * N / ((3 - n) * b * k * Math.sqrt(D)), 2 / (2 * n + 1));
+  if (A > 0) { const zt = Math.pow(N / (A * k), 1 / n); if (zt < z) z = zt; }
+  G_.cap = 0; if (z > S.zMax) { z = S.zMax; G_.cap = 1; }
+  G_.z = z; G_.p = k * Math.pow(z, n);
+  return (G_.F = b * k * Math.pow(z, n + 1) / (n + 1));
+}
+// A PLATE (a ski, a skid, a float's keel on the snow): N newtons over its bearing area A (m^2), w wide (m). The ground's
+// pressure p = N / A sinks it to z = (p / k)^(1/n), never deeper than the layer; the PLOUGH - the trench its front compacts
+// - resists F = w k z^(n+1) / (n+1) (SKI-REFERENCES 4.6: "plough drag proportional to sinkage times ski width"). The
+// sliding friction is the ski's own (GROUND_SKI_MU), on top. -> F; GROUND_SINK holds the rest
+function groundSinkPlate(S, N, A, w) {
+  const G_ = GROUND_SINK;
+  if (!(N > 0) || !(A > 0) || !S) { G_.z = 0; G_.p = 0; G_.F = 0; G_.cap = 0; return 0; }
+  let z = Math.pow(N / A / S.k, 1 / S.n);
+  G_.cap = 0; if (z > S.zMax) { z = S.zMax; G_.cap = 1; }
+  G_.z = z; G_.p = N / A;
+  return (G_.F = w * S.k * Math.pow(z, S.n + 1) / (S.n + 1));
+}
 // G1844 (DMG-TYRE): THE TYRE'S CORNERING STIFFNESS, per unit of its load (/rad): a rolling tyre's side force is
 // C_alpha * tan(slip angle), linear, until it reaches the surface's Coulomb limit mu * N (the lateral mu of the row
 // above), and C_alpha = TYRE_CN[class] * N. Per unit load because C_alpha/Fz of a pneumatic tyre near its rated
@@ -1072,5 +1168,5 @@ const TW_SCOTT = { arc: 0.61, vSlide: 0.15, Mf0: 2.8, Nref: 980, trailK: 0.35, d
 // lakebed) - the grass row; steel on concrete 0.45 (casex's aircraft-materials table) - the paved rows; the loose and
 // soft rows dig the shoe in a little more; on a lakebed under water the shoe hardly drags (the water's own drag is the
 // wet pass's)
-const TW_SKID_MU = { 0: 0.36, 1: 0.45, 2: 0.50, 3: 0.40, 4: 0.10, 5: 0.45, 6: 0.42, 7: 0.45 };
+const TW_SKID_MU = { 0: 0.36, 1: 0.45, 2: 0.50, 3: 0.40, 4: 0.10, 5: 0.45, 6: 0.42, 7: 0.45, 8: 0.10, 9: 0.15, 10: 0.15, 11: 0.40, 12: 0.40 };   // SNOW-MUD: a steel shoe on snow ~0.10-0.15 (ESTIMATE: a sled's steel runner; Engineering Toolbox's 0.35-0.40 is aluminium on snow), on mud the soft ground's
 
