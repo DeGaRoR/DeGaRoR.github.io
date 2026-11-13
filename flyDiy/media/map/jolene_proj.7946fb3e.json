@@ -18,13 +18,30 @@
    "z": -129.73,
    "hdg": 1.9908,
    "len": 1757.8,
-   "wid": 45,
+   "wid": 15,
    "surface": {
     "key": "concrete",
     "word": "concrete",
     "cls": "hard"
    },
    "elev": 28,
+   "altiport": false
+  },
+  {
+   "id": "xw_rough",
+   "name": "Jolene AFB 02/20 rough side",
+   "kind": "strip",
+   "x": 634.39,
+   "z": -167.35,
+   "hdg": 1.9908,
+   "len": 1000,
+   "wid": 18,
+   "surface": {
+    "key": "dirt",
+    "word": "dirt",
+    "cls": "hard"
+   },
+   "elev": 29,
    "altiport": false
   },
   {
@@ -2894,9 +2911,9 @@
   }
  },
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
- "img": "media/map/jolene_map.af898cb5.png",
- "imgBytes": 715115,
- "imgHash": "af898cb5",
+ "img": "media/map/jolene_map.5e6e7fe3.png",
+ "imgBytes": 715175,
+ "imgHash": "5e6e7fe3",
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
