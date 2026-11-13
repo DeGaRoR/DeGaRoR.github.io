@@ -48,7 +48,7 @@ const GFX = opt('gfx', null);
 const CLS = opt('cls', 'dirt');               // 'none' = the game's own surface
 const SOIL = opt('soil', '0.02');             // 'none' = the game's own weather
 const STILLS = opt('stills', '1') !== '0';
-const AIR_MAX = +opt('airmax', 90000);
+const AIR_MAX = +opt('airmax', 480000);   // (13 Nov: 90 s ran out in HOME's TAXI - the taxi to the runway is longer since the new HOME layout; the loop breaks 25 s after the lift-off anyway)
 const OUT = opt('out', 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-09/dust/dust');   // (pictures never go in git: the notes' evidence folder)
 const RUNUP = opt('runup', null);
 const HOUR = opt('hour', 'golden');
