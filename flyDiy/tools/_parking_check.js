@@ -51,5 +51,15 @@ ok(/parking: m\.parking && typeof m\.parking === 'object' \? m\.parking : null/.
 ok(/filter\(p => p && p\.poly && \(p\.stands \|\| p\.parking\)/.test(A25), '5 fleetField takes a parking area as its own');
 ok(/filter\(p => p\.stands \|\| p\.parking\)/.test(LIB) && /parking: p\.parking \|\| null/.test(LIB), '5 the cook (paveOf) hands parking on to fleetSpots');
 ok(/rows\.check\(insp, 'parked aeroplanes fill it'/.test(UI), '5 the editor\'s draw section has the parking row');
+// 6 THE START CHAIN (START-CHAIN, the user 13 Nov: "spawn in front of its hangar if it has one and it's free; else in its
+//   parking area; else straight on the runway"): app.js applyRoute asks startChain for the front (the hangar's door walked
+//   out, or the field's stand) when no tie-down spot is the start; startChain answers the front when nothing of the
+//   player's fleet (FLEET_STAND's plan) nor a parked scenery aeroplane stands within START_FREE_R, else the first free
+//   cooked spot - the parking areas' ('park:') first - else null: the line-up
+const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+ok(/const chain = front0 \? startChain\(from\.id, st, front0, slotOnStand\(\)\) : null;/.test(APP) && /const stand = \(st && taxiStart\) \? \(spotStand \|\| chained \|\| null\) : null;/.test(APP), '6 applyRoute starts from the chain (a tie-down spot still first)');
+ok(/if \(!busy\(front\.x, front\.z, START_FREE_R\)\) return \{ stand: front, why: 'front' \};/.test(APP), '6 the front when it is free');
+ok(/L\.filter\(s => \/\^park:\/\.test\(String\(s\[3\]\)\)\)\.concat/.test(APP) && /hdg: -s\[2\], spot: s\[3\] \}, why: 'parking'/.test(APP), '6 else the first free cooked spot, the parking areas first (hdg = -ry)');
+ok(/return \{ stand: null, why: 'lineup' \};/.test(APP) && /window\.FLYDIY_START_WHY = \(\) => startWhy;/.test(APP), '6 else the line-up; the page says which (FLYDIY_START_WHY)');
 console.log('GATE PARKING: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
