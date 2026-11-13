@@ -24,10 +24,10 @@
    "cond": "38 ft 0 in"
   },
   "geometry.length": {
-   "v": 9.09,
+   "v": 9.093,
    "unit": "m",
    "src": "3view",
-   "cond": "29 ft 10 in overall"
+   "cond": "29 ft 10 in overall (the clean Principal Dimensions sheet; the PDF's scanned page reads 29 ft 9 in)"
   },
   "geometry.height": {
    "v": 2.84,
@@ -282,9 +282,371 @@
    "cond": "gear extended 155 mph"
   }
  },
- "image": null,
- "views": {},
- "marks": {},
+ "image": {
+  "file": "c337_3view_clean.png",
+  "sha256": "a4dcf151a3c8c4d23db67f1340ffb7bd0005c41894942a152527d95e46e87d04",
+  "size": [
+   1223,
+   1777
+  ],
+  "how": "the user's clean copy of the manual's 'Principal Dimensions' page (13 Nov)",
+  "local": "never committed: the sheet stays in the session dossier / the page's IndexedDB"
+ },
+ "views": {
+  "side": {
+   "box": [
+    0,
+    0,
+    1223,
+    372
+   ],
+   "ox": 160,
+   "oy": 202,
+   "k": 99.09,
+   "rot": 0,
+   "flip": false,
+   "scaleBy": "geometry.length (901 px spinner tip to rudder aft-most = 9.093 m)",
+   "note": "drawn level, the ground line tilted 2 deg; origin = the spinner tip; the extension lines sit 2 and 9 px outside the drawn ends"
+  },
+  "top": {
+   "box": [
+    0,
+    375,
+    1223,
+    1372
+   ],
+   "ox": 608,
+   "oy": 1308,
+   "k": 102.7,
+   "rot": 270,
+   "flip": false,
+   "scaleBy": "geometry.span (1189 px tip to tip = 11.58 m)",
+   "check": "boom spacing 335 px at the wing = 3.26 m (3.258), 313 px at the tail = 3.05 m (3.058); props 198 px = 1.93 m",
+   "note": "nose DOWN the sheet (aft is up): turned 270; origin = the front spinner tip; ITS STATIONS RUN SHORT AFT of the side view's (wing LE 2.82 vs 3.00, wing TE 4.62 vs 4.95, rear spinner 5.95 vs 6.25: the sheet's own inconsistency) - stations are read on the side view (scaled by the stated length), widths on the top and front views"
+  },
+  "front": {
+   "box": [
+    0,
+    1372,
+    1223,
+    1777
+   ],
+   "ox": 607,
+   "oy": 1497,
+   "k": 102.05,
+   "rot": 0,
+   "flip": false,
+   "scaleBy": "geometry.span (1182 px = 11.58 m)",
+   "note": "upright; origin = the centreline at the spinner (to refine on the overlay)"
+  }
+ },
+ "marks": {
+  "profile.0": {
+   "view": "side",
+   "pts": [
+    [
+     259.1,
+     172.3
+    ],
+    [
+     259.1,
+     263.4
+    ]
+   ]
+  },
+  "profileW.0": {
+   "view": "top",
+   "pts": [
+    [
+     553.6,
+     1205.3
+    ]
+   ]
+  },
+  "profile.1": {
+   "view": "side",
+   "pts": [
+    [
+     310.6,
+     164.3
+    ],
+    [
+     310.6,
+     264.4
+    ]
+   ]
+  },
+  "profileW.1": {
+   "view": "top",
+   "pts": [
+    [
+     549.5,
+     1154.0
+    ]
+   ]
+  },
+  "profile.2": {
+   "view": "side",
+   "pts": [
+    [
+     402.8,
+     127.7
+    ],
+    [
+     402.8,
+     266.4
+    ]
+   ]
+  },
+  "profileW.2": {
+   "view": "top",
+   "pts": [
+    [
+     547.9,
+     1061.5
+    ]
+   ]
+  },
+  "profile.3": {
+   "view": "side",
+   "pts": [
+    [
+     496.9,
+     122.7
+    ],
+    [
+     496.9,
+     267.4
+    ]
+   ]
+  },
+  "profileW.3": {
+   "view": "top",
+   "pts": [
+    [
+     548.9,
+     974.2
+    ]
+   ]
+  },
+  "profile.4": {
+   "view": "side",
+   "pts": [
+    [
+     559.3,
+     122.7
+    ],
+    [
+     559.3,
+     259.5
+    ]
+   ]
+  },
+  "profileW.4": {
+   "view": "top",
+   "pts": [
+    [
+     551.5,
+     912.6
+    ]
+   ]
+  },
+  "profile.5": {
+   "view": "side",
+   "pts": [
+    [
+     685.2,
+     125.7
+    ],
+    [
+     685.2,
+     208.9
+    ]
+   ]
+  },
+  "profileW.5": {
+   "view": "top",
+   "pts": [
+    [
+     559.7,
+     794.5
+    ]
+   ]
+  },
+  "profile.6": {
+   "view": "side",
+   "pts": [
+    [
+     729.8,
+     132.6
+    ],
+    [
+     729.8,
+     187.1
+    ]
+   ]
+  },
+  "profileW.6": {
+   "view": "top",
+   "pts": [
+    [
+     577.2,
+     748.3
+    ]
+   ]
+  },
+  "body.front": {
+   "view": "side",
+   "pts": [
+    [
+     211.5,
+     202.0
+    ]
+   ]
+  },
+  "cowl.back": {
+   "view": "side",
+   "pts": [
+    [
+     310.6,
+     202.0
+    ]
+   ]
+  },
+  "wing.le": {
+   "view": "side",
+   "pts": [
+    [
+     457.3,
+     114.8
+    ]
+   ]
+  },
+  "wing.te": {
+   "view": "side",
+   "pts": [
+    [
+     650.5,
+     122.7
+    ]
+   ]
+  },
+  "wheel": {
+   "view": "side",
+   "pts": [
+    [
+     536.5,
+     301.1
+    ]
+   ]
+  },
+  "nosewheel": {
+   "view": "side",
+   "pts": [
+    [
+     283.9,
+     301.1
+    ]
+   ]
+  },
+  "window.door1": {
+   "view": "side",
+   "pts": [
+    [
+     405.7,
+     142.5
+    ],
+    [
+     485.0,
+     184.2
+    ]
+   ]
+  },
+  "window.cabin2": {
+   "view": "side",
+   "pts": [
+    [
+     504.8,
+     147.5
+    ],
+    [
+     556.4,
+     182.2
+    ]
+   ]
+  },
+  "window.cabin3": {
+   "view": "side",
+   "pts": [
+    [
+     562.3,
+     149.5
+    ],
+    [
+     603.9,
+     182.2
+    ]
+   ]
+  },
+  "door.aft": {
+   "view": "side",
+   "pts": [
+    [
+     643.6,
+     150.5
+    ],
+    [
+     683.2,
+     195.1
+    ]
+   ],
+   "note": "a rounded rectangle with no glass hatching: the access / baggage door, not a window"
+  },
+  "profile.7": {
+   "view": "side",
+   "pts": [
+    [
+     625.7,
+     123.7
+    ],
+    [
+     625.7,
+     248.6
+    ]
+   ]
+  },
+  "profileW.7": {
+   "view": "top",
+   "pts": [
+    [
+     556.6,
+     851.0
+    ]
+   ]
+  },
+  "profile.8": {
+   "view": "side",
+   "pts": [
+    [
+     338.4,
+     160.4
+    ],
+    [
+     338.4,
+     265.4
+    ]
+   ]
+  },
+  "profileW.8": {
+   "view": "top",
+   "pts": [
+    [
+     548.4,
+     1125.2
+    ]
+   ]
+  }
+ },
  "lines": [],
  "architecture": {
   "candidates": [
@@ -304,14 +666,14 @@
    "use": "WEATHERING; the belly pod's shape; gear, rear-prop clearance, ground attitude"
   },
   {
-   "file": "(to come)",
-   "what": "the manual's 'Principal Dimensions' 3-view",
+   "file": "c337_3view_clean.png",
+   "what": "the manual's 'Principal Dimensions' 3-view, clean copy",
    "use": "the sheet"
   },
   {
-   "file": "(to come)",
-   "what": "POH Section IV CG moment envelope + loading graph",
-   "use": "the CG check"
+   "file": "c337d_1969_poh.pdf",
+   "what": "the 1969 337D Owner's Manual (the whole PDF, 51 pages)",
+   "use": "figures, CG envelope (4-7), loading graph (4-6), cargo pack (4-8), performance tables (6-x)"
   }
  ],
  "gaps": [
@@ -330,5 +692,26 @@
   }
  ],
  "datumLE": null,
- "cgEnvelope": []
+ "cgEnvelope": [],
+ "pillars": {
+  "note": "side view, metres aft of the spinner tip (read on a metric grid over the sheet, 13 Nov)",
+  "firewall": 1.52,
+  "windscreen.base": [
+   1.8,
+   0.42
+  ],
+  "windscreen.top": [
+   2.45,
+   0.77
+  ],
+  "door.front": 2.45,
+  "B (strut post)": 3.38,
+  "C": 4.03,
+  "D (cabin aft bulkhead)": 4.63,
+  "rear cowl front": 5.77,
+  "rear spinner tip": [
+   6.25,
+   0.5
+  ]
+ }
 }
