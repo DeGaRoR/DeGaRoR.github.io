@@ -574,6 +574,14 @@
     } catch (e) { console.warn('flyDiy (missions): pack ' + id + ' -', e && e.message); return { id, ok: false }; }
   })();
   window.FLYDIY_PACK = () => CAREER_PACK;
+  // a project event's line for the arrival card (PROJECTS): the works started, a step done, the project done
+  function projectLine(e, now) {
+    const P = (CAREER_PACK && CAREER_PACK.projects || []).find(p => p.id === e.project), name = (P && P.name) || e.project;
+    if (e.k === 'works') return name + ': the works started - ready in ' + Math.round((e.ready - (+now || 0)) / 86400) + ' days' + (e.cost ? ' (' + Math.round(e.cost).toLocaleString('en-GB') + ' paid)' : '');
+    if (e.k === 'step') return name + ': a step done';
+    if (e.k === 'projectDone') return name + ': done' + (e.abilities && e.abilities.length ? ' - the hangar gains: ' + e.abilities.join(', ') : '');
+    return null;
+  }
   // G3380 (STORY-INTRO): the opening's arm - set by a NEW career's story start (playerLoad), once; Continue never sets it
   let stIntroArm = false;
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
@@ -9510,6 +9518,9 @@
       // G3585 (B'1): the stop's story effects can lift that hangar's lock (T1 done: the WWII field's hangar is ours) -
       // the roll-in opens there now, where the go-to above was refused while it was still locked
       if (out.moved && out.moved.kind === 'in' && out.moved.hangar && out.moved.hangar !== d.here && !out.room) { const g = playerGoTo(d, out.moved.hangar); if (g.ok) { d = g.doc; out.room = out.moved.hangar; } }
+      // PROJECTS (13 Nov): the pack's projects meet the stop - a step's missions done start its works, works ready finish
+      // the step and set its site's state, the last step grants its abilities (73b careerProjectsTick, the career's day)
+      if (CAREER_DEV && d.career && CAREER_PACK && CAREER_PACK.projects && CAREER_PACK.projects.length) { const now = dayAbs(careerDay(d)), pj = careerProjectsTick(d, CAREER_PACK.projects, now); d = pj.doc; if (out.career) for (const e of pj.events) { const L = projectLine(e, now); if (L) out.career.lines.push({ k: 'project', ok: true, text: L }); } }
       if (CAREER_DEV && out.career && rtSettled && rtSettled.lines.length) out.career.lines.unshift(...rtSettled.lines);   // (G3260: the routes' line)
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
