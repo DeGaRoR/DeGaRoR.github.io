@@ -92,6 +92,8 @@
         else for (const n of treeCols) names.add(n);
       }
       for (const ob of L.objects || []) if (ob.kind === 'tree' && ob.key) names.add(String(ob.key).split('|')[0]);
+      // AFB-0220: a placed DEBRIS object's model (26c_wild.js: a felled dead spruce is the dead family's - no rock or debris kind)
+      for (const ob of L.objects || []) if (ob.kind === 'debris' && typeof WILD_DEBRIS !== 'undefined' && WILD_DEBRIS.KINDS[ob.key]) names.add(WILD_DEBRIS.KINDS[ob.key].col);
     }
     return [...names];
   }

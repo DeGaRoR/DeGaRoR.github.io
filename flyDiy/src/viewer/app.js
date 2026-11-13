@@ -21883,7 +21883,17 @@
       const byAp = launchArm();
       setManual(true, 'tow');
       window.FLYDIY_LAZY(['tow', 'winch', '_winch_gen', '_winch_weather', 'winch_mode'])
-        .then(() => window.WINCH_MODE.winchStart({ THREE, scene, world, sim, def, hands: byAp }))
+        .then(() => window.WINCH_MODE.winchStart({ THREE, scene, world, sim, def, hands: byAp,
+          // AFB-0220: the launch line - the lined-up glider moved (dx, dz) metres up the centreline to the standing winch's
+          // launch point (winch_mode.js), the pose re-placed as the line-up placed it, the motor still off
+          slide: (dx, dz) => {
+            const S = lastStart; if (!S || !S.pose || typeof placeAtLineup !== 'function') return false;
+            const pose = Object.assign({}, S.pose, { x: S.pose.x + dx, z: S.pose.z + dz });
+            sim.reset(0); if (typeof sim.stance === 'function') sim.stance();
+            placeAtLineup(sim, S.from, pose, world, def.refs);
+            if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+            S.pose = pose; return true;
+          } }))
         .then(to => { TOWS.busy = false; console.info('flyDiy winch: on the cable, ' + to); })
         .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the winch launch could not start -', TOWS.failed); });
       return;
@@ -21953,7 +21963,7 @@
       return [   // (the car tow first: the user's glider start, 13 Nov - at HOME, Jolene AFB 13/31's 2.3 km)
         { id: 'cartow:HOME', mode: 'cartow', label: 'The car tow', sub: 'on a line behind the car down Jolene AFB 13/31, released at height', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
         { id: 'push:tw_ski', mode: 'push', label: 'A push off Skyline Altiport', sub: 'down its 10 % slope, lifted off over the edge', ok: !!alt && pa.ok, why: !alt ? 'no altiport on this island' : pa.ok ? undefined : pa.why },
-        { id: 'winch:HOME', mode: 'winch', label: 'A winch launch', sub: 'up to 1000 m of cable to the winch at the far end of Jolene AFB 13/31, released at the top', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
+        { id: 'winch:HOME', mode: 'winch', label: 'A winch launch', sub: 'the club\'s winch at the NW end of Jolene AFB 13/31 (1 100 m of cable; a launch the other way sets one up at the far end), released at the top', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
       ];
     },
     async destinations(startId) {

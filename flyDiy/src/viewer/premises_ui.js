@@ -40,7 +40,7 @@ const SECTIONS = [
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
   { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'biome', 'clear', 'tree', 'probe'] },
   { k: 'sites',      label: 'SITES',      icon: '⌂',  tools: ['select', 'building', 'theme', 'cable', 'probe'] },
-  { k: 'objects',    label: 'OBJECTS',    icon: '⚑',  tools: ['select', 'prop', 'billboard', 'aircraft', 'animal', 'probe'] },
+  { k: 'objects',    label: 'OBJECTS',    icon: '⚑',  tools: ['select', 'prop', 'billboard', 'aircraft', 'animal', 'debris', 'probe'] },
   { k: 'assets',     label: 'ASSETS',     icon: '▣',  tools: ['select', 'place', 'scatter'] },   // G2914: the model placer
   { k: 'file',       label: 'FILE',       icon: '▤',  tools: [] },
   { k: 'view',       label: 'VIEW',       icon: '◎',  tools: [] },
@@ -155,6 +155,8 @@ function objectKeys(kind, rec) {
     const K = { land: 'on the ground', sea: 'in the water', air: 'in the air' };
     return AN.list().map(a => [a.key, (K[a.kind] || a.kind) + ' \u00b7 ' + (a.label || a.key) + ' (' + a.length.toFixed(1) + ' m)']);
   }
+  // AFB-0220: the wild debris (26c_wild.js) - the tree pack's fallen trees, logs, stumps and boulders, solid
+  if (kind === 'debris') return typeof WILD_DEBRIS === 'undefined' ? [] : WILD_DEBRIS.ORDER.map(k => [k, WILD_DEBRIS.KINDS[k].label]);
   if (kind === 'prop') {
     const PR = typeof PROP_REG !== 'undefined' ? PROP_REG : ((typeof window !== 'undefined' && window.PROP_REG) || null);   // a script-scope const of flight_core.js
     if (!PR || !PR.props) return [];
@@ -960,7 +962,7 @@ function mount(host, ctx) {
         const F = R.overlay.frame, found = PG.findById(rec, selected);
         if (!found) return false;
         const e = found.entry, before = clone(e);
-        if (e.kind === 'tree' || e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft' || (e.kind === 'sound' && !e.poly)) { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
+        if (e.kind === 'tree' || e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft' || e.kind === 'debris' || e.kind === 'winch' || (e.kind === 'sound' && !e.poly)) { drag = { id: selected, layer: found.layer, point: true, before, F }; return true; }
         if (found.layer === 'runways') {
           if (h.key.indexOf('hold:') === 0) {
             // the pattern becomes AUTHORED the moment a hold is touched: the derived graph, saved verbatim, the hold moved along the centreline
@@ -1244,10 +1246,11 @@ function mount(host, ctx) {
     }
     if (tool === 'place') { const id = placeAsset(L); if (id) { strip.status('dropped ' + id + ' (' + ASSET.key + ') - click to drop another, Esc stops'); } return; }
     if (tool === 'scatter') { scatterAsset(L); return; }
-    if (tool === 'prop' || tool === 'billboard' || tool === 'aircraft' || tool === 'animal') {
+    if (tool === 'prop' || tool === 'billboard' || tool === 'aircraft' || tool === 'animal' || tool === 'debris') {
       const key = OBJ_PICK[tool] || (objectKeys(tool, rec)[0] || [null])[0];
       if (!key) { strip.status('no ' + tool + ' to place here'); return; }
-      const e = tool === 'animal' ? animalRecord(key, L) : tool === 'prop' ? { id: PG.newId(rec, 'objects'), kind: 'prop', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, dy: 0, on: 'ground' }
+      const e = tool === 'debris' ? { id: PG.newId(rec, 'objects'), kind: 'debris', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: +(Math.random() * 6.28).toFixed(4) }
+              : tool === 'animal' ? animalRecord(key, L) : tool === 'prop' ? { id: PG.newId(rec, 'objects'), kind: 'prop', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, dy: 0, on: 'ground' }
               : tool === 'aircraft' ? { id: PG.newId(rec, 'objects'), kind: 'aircraft', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0 }
                                 : { id: PG.newId(rec, 'objects'), kind: 'billboard', key, x: +L[0].toFixed(2), z: +L[1].toFixed(2), yaw: 0, w: 3.6 };
       run({ layer: 'objects', id: e.id, before: null, after: e, label: tool + ' ' + e.id });
@@ -1784,6 +1787,20 @@ function mount(host, ctx) {
       if (a) rows.note(insp, a.label + ': ' + a.length.toFixed(1) + ' m, ' + a.nt.toLocaleString() + ' triangles, ' +
         a.clips.length + ' clip' + (a.clips.length === 1 ? '' : 's') + ' (' + [...new Set(a.clips.map(c => c.role))].join(', ') + ')');
       else rows.note(insp, 'the species "' + e.key + '" is not in the animal table of this build');
+    } else if (layer === 'objects' && (e.kind === 'debris' || e.kind === 'winch')) {
+      // AFB-0220: a piece of the wild debris (the tree pack's model, solid: its cylinders are the trunk set 'wild') or the
+      // standing glider winch (its launch line: a winch launch toward it starts `cable` metres short of it)
+      if (e.kind === 'debris') { const keys = objectKeys('debris'); if (keys.length) rows.select(insp, 'debris', keys, () => e.key, v => ed(x => { x.key = v; }, 'debris of ' + id)); }
+      numRow(insp, 'x (m)', () => e.x, v => ed(x => { x.x = +v.toFixed(2); }, 'place of ' + id, 'x'), metres);
+      numRow(insp, 'z (m)', () => e.z, v => ed(x => { x.z = +v.toFixed(2); }, 'place of ' + id, 'z'), metres);
+      rows.slider(insp, 'turn (°)', -180, 180, 1, () => (e.yaw || 0) * 180 / Math.PI, v => ed(x => { x.yaw = v * Math.PI / 180; }, 'turn of ' + id, 'yaw'), v => v.toFixed(0) + '°');
+      if (e.kind === 'debris') {
+        rows.slider(insp, 'scale', 0.25, 4, 0.05, () => (+e.s > 0 ? +e.s : 1), v => ed(x => { if (Math.abs(v - 1) < 1e-3) delete x.s; else x.s = +v.toFixed(3); }, 'scale of ' + id, 's'), v => 'x' + (+v).toFixed(2));
+        rows.note(insp, 'solid like a tree trunk: a wingtip, a wheel, the propeller and the nose all meet it (its cylinders follow the model to half a metre)');
+      } else {
+        rows.slider(insp, 'launch line (m)', 300, 1600, 10, () => +e.cable || 1000, v => ed(x => { x.cable = Math.round(v); }, 'launch line of ' + id, 'cable'), v => v.toFixed(0) + ' m');
+        rows.note(insp, 'the glider winch, standing for good: a winch launch on the runway toward it lines the glider up this far short of it; its -z (the cable side) faces the launch point');
+      }
     } else if (layer === 'objects' && (e.kind === 'prop' || e.kind === 'billboard' || e.kind === 'aircraft')) {
       const keys = objectKeys(e.kind, rec);
       if (keys.length) rows.select(insp, e.kind, keys, () => e.key, v => ed(x => { x.key = v; }, e.kind + ' of ' + id));
@@ -2123,7 +2140,7 @@ function mount(host, ctx) {
     return cats.concat(Array.from(extra).sort());
   }
   function objectsPalette(P) {
-    for (const kind of ['prop', 'billboard', 'aircraft', 'animal']) {
+    for (const kind of ['prop', 'billboard', 'aircraft', 'animal', 'debris']) {
       const keys = objectKeys(kind, rec);
       if (!keys.length) { rows.note(P, 'no ' + kind + 's registered here'); continue; }
       if (!OBJ_PICK[kind]) OBJ_PICK[kind] = keys[0][0];

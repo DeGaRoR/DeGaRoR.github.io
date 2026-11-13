@@ -112,7 +112,7 @@ function make(THREE, scene, world, rec0, opts) {
   // may land between the make and the rebuild)
   let composedFresh = !!o.game;
   const root = new THREE.Group(); root.name = 'premises';
-  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'traffic', 'animals', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'debris', 'winch', 'runways', 'roads', 'tram', 'traffic', 'animals', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
   // G3543 VEHICLE PRINTS' state (the prints themselves: by the traffic, below)
   const PRINT = { on: !(typeof location !== 'undefined' && /[?&]carprints=0\b/.test(location.search || '')),
                   geo: null, mat: null, st: null, tr: null, cars: [], frame: 0, life: -1, lifeList: [], trN: -1, tick: 0, n: 0, nTr: 0 };
@@ -1529,7 +1529,7 @@ function make(THREE, scene, world, rec0, opts) {
   // (G2890: a spline road's outline is its curve - the line compose draws it on; `raw` the points the author clicked, the handles')
   function worldPts(entry, raw) {
     const F = O.frame;
-    const src = entry.poly || (entry.pts ? (!raw && entry.curve === 'spline' ? PG.roadLine(entry) : entry.pts).map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' || entry.kind === 'animal' || entry.kind === 'sound' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
+    const src = entry.poly || (entry.pts ? (!raw && entry.curve === 'spline' ? PG.roadLine(entry) : entry.pts).map(p => [p[0], p[1]]) : (entry.kind === 'tree' || entry.kind === 'prop' || entry.kind === 'billboard' || entry.kind === 'aircraft' || entry.kind === 'animal' || entry.kind === 'debris' || entry.kind === 'winch' || entry.kind === 'sound' ? [[entry.x, entry.z]] : (entry.c && entry.len ? (E => [E.end0, E.end1])(PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, entry))) : [])));
     return src.map(p => F.toWorld(p[0], p[1]));
   }
   function lineFor(layer, entry, colour, sel) {
@@ -4804,6 +4804,90 @@ function make(THREE, scene, world, rec0, opts) {
     stats.trees = O.records.trees.length; stats.treeTris = tris;
   }
 
+  // ---- AFB-0220 (13 Nov 2026): THE WILD DEBRIS and THE STANDING WINCH ------------------------------------------------
+  // THE DEBRIS (26c_wild.js): the premises' kind 'debris' objects - a fallen dead spruce, a trunk, a log, a stump, a boulder
+  // pile - drawn with the TREE PACK's own model (treeBuild, the full rung: the same pictures the forest floor's scatter is
+  // made of), instanced per model part, on plain MATLIB materials as the cover ring draws its rocks and debris (the leaf
+  // hook's sway and AO are a standing tree's, and a felled one does not sway). Static: built once per rebuild, no per-frame
+  // cost. THEIR HIT is not here: 20_world.js registers the same records' cylinders as the trunk set 'wild' (the page's world,
+  // the physics worker's and every node gate's compose it themselves). A pack not in yet: built when it is (treeWarm).
+  const DEBRIS_DIM = { fallen_spruce: 0.78, fallen_snag: 0.78, trunk: 0.82, log: 0.7, stump: 0.85 };   // the scatter's own `dim`s (the user: "debris should be barely brighter")
+  let debrisWait = false;
+  function buildDebris() {
+    for (const c of G.debris.children.slice()) { G.debris.remove(c); if (c.dispose) c.dispose(); }
+    stats.debris = 0; stats.debrisTris = 0;
+    const list = (O && O.records && O.records.debris) || [];
+    if (!list.length || typeof WILD_DEBRIS === 'undefined' || typeof treeBuild !== 'function' || typeof treeList !== 'function') return;
+    const ready = typeof treeReady === 'function' && treeReady();
+    if (!ready) {
+      if (!debrisWait && typeof treeWarm === 'function') { debrisWait = true; Promise.resolve(treeWarm()).then(() => { debrisWait = false; buildDebris(); }, () => { debrisWait = false; }); }
+      return;
+    }
+    const F = O.frame, all = treeList('all'), byKey = new Map();
+    for (const d of list) { let l = byKey.get(d.key); if (!l) byKey.set(d.key, l = []); l.push(d); }
+    const mtx = new THREE.Matrix4(), rot = new THREE.Matrix4(), lay = new THREE.Matrix4().makeRotationZ(-Math.PI / 2), sc = new THREE.Matrix4(), col = new THREE.Color();
+    const plain = new Map();
+    for (const [key, recs] of byKey) {
+      const K = WILD_DEBRIS.KINDS[key]; if (!K) continue;
+      const subs = all.filter(e => e.col && e.col.name === K.col), e = subs[K.sub] || subs[0];
+      if (!e) continue;
+      let B = null; try { B = treeBuild(THREE, e.key, 0, 'rungs'); } catch (err) { continue; }
+      if (!B || !B.parts || !B.parts.length) continue;
+      const dim = DEBRIS_DIM[key] || 1;
+      for (const p of B.parts) {
+        let mat = plain.get(p.mat);
+        if (!mat) { mat = MATLIB.make(THREE, 'std', { map: p.mat.map || null, normalMap: p.mat.normalMap || null, roughness: 1, metalness: 0 }); mat.name = 'debris:' + key; plain.set(p.mat, mat); }
+        const m = new THREE.InstancedMesh(p.geo, mat, recs.length);
+        recs.forEach((d, i) => {
+          const D = WILD_DEBRIS.drawOf(key, d.s), w = F.toWorld(d.x, d.z);
+          // world <- the yaw about y <- (a felled tree) its +y laid along +x <- the model's units in metres
+          sc.makeScale(D.m, D.m, D.m); rot.makeRotationY(d.yaw + F.yaw);
+          mtx.copy(rot); if (D.lay) mtx.multiply(lay); mtx.multiply(sc);
+          mtx.setPosition(w[0], d.y - D.sink, w[1]);
+          m.setMatrixAt(i, mtx);
+          m.setColorAt(i, col.setRGB(dim, dim, dim));
+        });
+        m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
+        m.computeBoundingSphere(); m.castShadow = true; m.receiveShadow = true; m.userData.sharedGeo = true; m.name = 'debris:' + key;
+        G.debris.add(m);
+      }
+      stats.debris += recs.length; stats.debrisTris += (B.tris || 0) * recs.length;
+    }
+  }
+  // THE WINCH (kind 'winch'): tools/_winch_gen.js's model (WINCH_GEN.build, the club look by _winch_weather.js - the
+  // WINCH session's, A0 13 Nov: PBR through MATLIB, the house scans' images, the van's wheels from the gear kit), fetched
+  // lazily as the launch fetches it, stood on the composed ground facing its launch line, and SOLID by its drawn mesh
+  // (hitAdd 'prop', as a placed prop). winch_mode.js finds it (userData.winchProp) and runs the launch's cable to it;
+  // userData.launchL is the record's `cable`: the launch line, the glider lined up that far short of it
+  const WINCHES = new Map();   // id -> { grp, sig }
+  let winchLoad = null;
+  function buildWinches() {
+    const list = (O && O.records && O.records.winches) || [];
+    const want = new Map(list.map(w => [w.id, w]));
+    for (const [id, W] of WINCHES) { const r = want.get(id); if (r && W.sig === JSON.stringify(r)) continue; if (W.grp) { hitDrop(W.grp); if (W.grp.parent) W.grp.parent.remove(W.grp); } WINCHES.delete(id); }
+    if (!list.length || typeof window === 'undefined') return;
+    const go = () => {
+      if (!window.WINCH_GEN) return;
+      const F = O.frame;
+      for (const r of (O.records.winches || [])) {
+        if (WINCHES.has(r.id)) continue;
+        let grp = null; try { grp = window.WINCH_GEN.build({ wx: 1, cableLen: 0, chute: 0 }); } catch (e) { console.warn('premises: the winch', e); continue; }
+        const w = F.toWorld(r.x, r.z);
+        grp.position.set(w[0], r.y, w[1]); grp.rotation.y = r.yaw + F.yaw;
+        grp.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+        grp.userData.launchL = r.cable; grp.userData.premisesId = r.id; grp.name = 'winch:' + r.id;
+        G.winch.add(grp); grp.updateMatrixWorld(true);   // (its own group: the houses' walks read a house's userData)
+        if (window.WINCH_WX) try { window.WINCH_WX.apply(grp, { macro: window.WINCH_WX.PRESETS.club, base: (typeof FLYDIY_ASSET_BASE !== 'undefined' ? FLYDIY_ASSET_BASE : '') }); } catch (e) { console.warn('premises: the winch weathering', e); }
+        if (o.game) hitAdd(grp, 'prop', 0.5);
+        WINCHES.set(r.id, { grp, sig: JSON.stringify(r) });
+      }
+      stats.winches = WINCHES.size;
+    };
+    if (window.WINCH_GEN) { go(); return; }
+    if (!window.FLYDIY_LAZY || winchLoad) return;
+    winchLoad = window.FLYDIY_LAZY(['_winch_gen', '_winch_weather']).then(() => { winchLoad = null; go(); }, e => { winchLoad = null; console.warn('premises: the winch did not load', e); });
+  }
+
   // ---- G2063 (TOWN-GEO): the town's geometry, later ------------------------------------------------------------------
   // the town's own box (world), from its entries' shapes: where the host measures the eye's reach from
   function geoBox() {
@@ -4940,6 +5024,7 @@ function make(THREE, scene, world, rec0, opts) {
       // because until this week no record carried one.
       yield 'trees';
       buildTrees();
+      buildDebris(); buildWinches();   // AFB-0220
       if (LIFE) { LIFE.set(rec.life); LIFE.dirty(); stats.life = 1; }
       yield 'freeze';
       freezeStatic(true);
@@ -4968,6 +5053,7 @@ function make(THREE, scene, world, rec0, opts) {
     syncHouses();
     if (LIFE) { LIFE.set(rec.life); LIFE.dirty(); stats.life = 1; }
     buildTrees();
+    buildDebris(); buildWinches();   // AFB-0220
     stats.tris = 0; for (const [, m] of chunks) stats.tris += m.geometry.index.count / 3;
     stats.chunks = chunks.size; stats.ms = performance.now() - t0; stats.rebuilt = n;
     return stats;
@@ -4994,7 +5080,7 @@ function make(THREE, scene, world, rec0, opts) {
     // a hand-placed tree within two metres wins over the polygon under it
     // (G2891 c3: a parked aeroplane by its size - pickR)
     let tree = null, td = Infinity;
-    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < pickR(ob) && d < td) { td = d; tree = ob; } }
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal' || ob.kind === 'debris' || ob.kind === 'winch') { const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < pickR(ob) && d < td) { td = d; tree = ob; } }
     if (tree) return { id: tree.id, layer: 'objects', entry: tree };
     // G1656: a point sound within three metres of its pin
     let snd = null, sd = 3;
@@ -5011,7 +5097,7 @@ function make(THREE, scene, world, rec0, opts) {
   function hitAll(x, z) {
     const F = O.frame, L = F.toLocal(x, z), out = [], seen = new Set();
     const put = (rank, d, h) => { if (h && !seen.has(h.id + '|' + (h.item || ''))) { seen.add(h.id + '|' + (h.item || '')); out.push([rank, d, h]); } };
-    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal') {
+    for (const ob of rec.layers.objects) if (ob.kind === 'tree' || ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft' || ob.kind === 'animal' || ob.kind === 'debris' || ob.kind === 'winch') {
       const d = Math.hypot(ob.x - L[0], ob.z - L[1]); if (d < pickR(ob)) put(0, d, { id: ob.id, layer: 'objects', entry: ob }); }
     for (const so of rec.layers.sounds || []) if (!so.poly && isFinite(+so.x)) { const d = Math.hypot(so.x - L[0], so.z - L[1]); if (d < 3) put(0, d, { id: so.id, layer: 'sounds', entry: so }); }   // G1656: a point sound within three metres of its pin
     for (const it of O.records.items) if (it.foot && PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) put(1, 0, { id: it.site, layer: 'sites', entry: f.entry, item: it.item }); }

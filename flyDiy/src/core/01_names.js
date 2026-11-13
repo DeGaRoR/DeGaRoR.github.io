@@ -38,6 +38,7 @@ var GAME_NAMES = {
   fields: {
     HOME:     'Jolene AFB 13/31',
     w2:       'Jolene AFB 02/20',
+    w2r:      'Jolene AFB 02R/20L',             // (AFB-0220, 13 Nov: the rough side of the old 02/20 - firm mud, bumpy)
     w3:       'Fishing Village Strip',        // (the user, 9 Nov: was Ridgeback Strip, was Tamgas Hill Strip)
     SEA:      'Greywater Dock',               // (was Annette Dock)
     mk_sea:   'Cedar Harbour Seaplane Base',  // (was Metlakatla Seaplane Base)

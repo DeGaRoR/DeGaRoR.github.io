@@ -50,6 +50,16 @@
       const f = window.WINCH_GEN.fairlead(o, 0), rx = f.x - hx, rz = f.z - hz, along = rx * R.dx + rz * R.dz, side = Math.abs(-rx * R.dz + rz * R.dx);
       if (along >= 300 && along <= R.ahead + 40 && side < 25) { model = o; fl = f; }
     });
+    // AFB-0220: THE LAUNCH LINE. A standing winch carries its line's length (userData.launchL, the premises record's
+    // `cable`: Jolene's 1 100 m on 13/31): a glider lined up further out (the threshold, 2.3 km from it) is moved up the
+    // centreline to the launch point - the cable a club lays, not the runway's length - when the page can move it
+    // (ctx.slide: app.js re-places the lined-up pose; the motor stays off)
+    if (model && typeof ctx.slide === 'function' && model.userData.launchL > 0) {
+      const want = model.userData.launchL, far = Math.hypot(fl.x - hx, fl.z - hz);
+      if (far > want + 30 && ctx.slide(R.dx * (far - want), R.dz * (far - want))) {
+        hx = 0; hz = 0; hook.nodes.forEach((i, k) => { hx += sim.p[i * 3] * hook.w[k]; hz += sim.p[i * 3 + 2] * hook.w[k]; });
+      }
+    }
     const L = model ? Math.hypot(fl.x - hx, fl.z - hz) : Math.min(ctx.L || 1000, R.ahead - 60);
     if (!model) {
       if (L < 300) throw new Error('only ' + Math.round(R.ahead) + ' m of runway ahead: a winch launch wants 360 m at least');

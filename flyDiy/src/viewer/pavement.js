@@ -215,7 +215,11 @@ const PAVEMENT = (() => {
   ];
   // THE PER-ENTRY KNOBS: the handful a strip or a road may own (contract v1.16 `pav`); the rest is the
   // material's character, the premises' (rec.pavement) or the module's
-  const ENTRY_KNOBS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK'];
+  // (AFB-0220, 13 Nov: an abandoned strip's EDGES are its own - the moss and the grass creeping in from them, the chipped
+  // ragged edge, the weeds in the joints, the damp stains, the side's fade into the ground; RECIPE keys, so a strip's
+  // row carries them like the seven before; 27_premises PAV_KEYS is the same list + 'marks', GATE PAVEMENT holds it)
+  const ENTRY_KNOBS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK',
+    'mossEdge', 'grassReach', 'edgeChip', 'bandNoise', 'jointDirt', 'mossJoint', 'damageK', 'stainK', 'sideW', 'sideA'];
   // THE PRESETS: a runway look is a class + one of these (the bench's judged exports)
   const PRESETS = {
     fresh: { crackK: 0.12, damageK: 0.3, paintAge: 0.3, chalk: 0.3, mossK: 0.15, patchK: 0.02, laneW: 7.5, stainK: 0.25 },

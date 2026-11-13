@@ -494,12 +494,21 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     if (typeof window !== 'undefined' && window.FLYDIY_GROUND_RASTER !== undefined) return !!window.FLYDIY_GROUND_RASTER;
     return typeof process !== 'undefined' && !!process.env && process.env.FLYDIY_GROUND_RASTER === '1';
   }
+  // AFB-0220 (26c_wild.js): the premises' 'debris' records -> TREE_HITS set 'wild' (none: the set dropped). `var`: the
+  // registry is made below the first setPremises call, which finds it undefined and leaves the set to the line that makes it
+  var WILD_TH;
+  function wildSync() {
+    if (!WILD_TH || typeof WILD_DEBRIS === 'undefined') return;
+    const L = PM && PMrec ? WILD_DEBRIS.records(PMrec, PM.frame) : [];
+    if (!L.length) { WILD_TH.drop('wild'); return; }
+    WILD_TH.set('wild', WILD_DEBRIS.hitsOf(L, terrainH));
+  }
   function setPremises(rec0, extra) {
     for (let i = aerodromes.length - 1; i >= 0; i--) if (aerodromes[i].premises) aerodromes.splice(i, 1);
     PM = null; PMrec = null;
     aeroTreeBox = null;   // G1091: the aerodromes change with the premises
     if (typeof terrainClear === 'function') terrainClear();   // the ground moved (G407: the height memo)
-    if (!rec0 || typeof PREMISES_GEN === 'undefined') return null;
+    if (!rec0 || typeof PREMISES_GEN === 'undefined') { wildSync(); return null; }
     const rec = PREMISES_GEN.unwrap(rec0).rec;
     const globals = typeof window !== 'undefined' ? window : {};
     const cat = (opts && opts.catalogue) || PREMISES_GEN.collect(globals);
@@ -526,6 +535,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     // a premises runway named HOME REPLACES the world's own (an island's field is its premises')
     if (ISL && PM.aerodromes.some(a => a.id === 'HOME')) { const i = aerodromes.findIndex(a => a.id === 'HOME' && !a.premises); if (i >= 0) aerodromes.splice(i, 1); }
     PM.aerodromes.forEach((a, i) => { aerodromes.push(a); if (typeof AIRFIELD_SITES !== 'undefined') { const st = PM.runways[i] && PM.runways[i].site; if (st) AIRFIELD_SITES[a.id] = st; else delete AIRFIELD_SITES[a.id]; } });
+    wildSync();   // AFB-0220
     return PM;
   }
   if (opts && opts.premises) setPremises(opts.premises);
@@ -750,6 +760,10 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   // G1330 (TREE-HITBOX): the trunks of the trees the viewer DRAWS (29_obstacles.js TREE_HITS) - empty in a world no
   // viewer stands on; the woodland above keeps its own cylinders, so a headless world collides as it always did
   const treeHits = (typeof TREE_HITS !== 'undefined') ? TREE_HITS.make() : null;
+  // AFB-0220: THE WILD DEBRIS' CYLINDERS (26c_wild.js) - the premises' placed fallen trees, logs, stumps and boulders as the
+  // trunk set 'wild', on the composed ground; set now (the first composition ran before the registry existed) and again
+  // by every setPremises (the world editor's edit: the page's world and the physics worker's each recompose the record)
+  WILD_TH = treeHits; wildSync();
   if (obstacles && SET && SET.buildings) {
     // the analytic world's settlement boxes (23_world_settle.js): w along the row, l across it,
     // stood on the ground at their centre; a box shape per size class, shared

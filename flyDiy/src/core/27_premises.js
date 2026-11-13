@@ -1424,7 +1424,8 @@ const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, 
 // WHAT A `pav` MAY SAY (v1.16's per-entry knobs, mirrored from src/viewer/pavement.js's ENTRY_KNOBS,
 // which GATE PAVEMENT holds equal): the record is validated against these so a misspelt key is an
 // ISSUE and not a silent no-op - `pav: { mark: 'none' }` used to be read, ignored and never reported
-const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK', 'marks'];
+const PAV_KEYS = ['paintAge', 'crackK', 'rubberK', 'laneW', 'wet', 'mossK', 'patchK',
+  'mossEdge', 'grassReach', 'edgeChip', 'bandNoise', 'jointDirt', 'mossJoint', 'damageK', 'stainK', 'sideW', 'sideA', 'marks'];   // (AFB-0220: the edges' knobs, pavement.js ENTRY_KNOBS)
 // THE PARKING STANDS (v1.21, 2026-09-23, the user: "you may also further design a parking area for
 // planes, with clear ground markings"): a material polygon may carry `stands` - a row of aircraft
 // stands painted on it, each a lead-in line with a nose-stop bar across its end, drawn in the
@@ -4284,6 +4285,17 @@ function compose(rec0, world, opts) {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
       O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob)));   // (G3001: the placer's scale reaches the built prop - it was dropped here)
     }
+    // THE WILD DEBRIS (AFB-0220, 13 Nov 2026; 26c_wild.js): kind 'debris' - a fallen tree, a log, a stump, a boulder pile out
+    // of the TREE PACK, placed and SOLID (20_world.js registers its cylinders as the trunk set 'wild'; render_premises.js
+    // draws the pack's own model) - and kind 'winch': the glider launch winch standing for good (tools/_winch_gen.js,
+    // drawn by render_premises.js; `cable` the launch line's length, m: a winch launch toward it starts that far out).
+    // Both in the premises frame, their y the composed ground
+    O.records.debris = [];
+    for (const ob of rec.layers.objects) if (ob.kind === 'debris' && typeof WILD_DEBRIS !== 'undefined' && WILD_DEBRIS.KINDS[ob.key])
+      O.records.debris.push({ id: ob.id, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, s: WILD_DEBRIS.scaleOf(ob), y: O.localH(ob.x, ob.z) });
+    O.records.winches = [];
+    for (const ob of rec.layers.objects) if (ob.kind === 'winch')
+      O.records.winches.push({ id: ob.id, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, cable: +ob.cable > 0 ? +ob.cable : 1000, y: O.localH(ob.x, ob.z) });
     // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
     // `n` animals of the species `key` living within `r` metres of (x, z). One
     // record makes a herd, a pod or a flock, and `n: 1, r: 0` is one animal
@@ -4424,7 +4436,8 @@ function issues(rec0) {
     if (Math.abs((+a.level || 0) - (+b.level || 0)) < 0.01) continue;
     if (polysOverlap(a.poly, b.poly)) out.push('terrain ' + a.id + ' and ' + b.id + ': two flattens at different levels overlap');
   }
-  for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= 7)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
+  // (AFB-0220: SNOW-MUD's five soft codes 8-12 are surfaces too - an area drawn `mud` was refused as 'unknown surface 11')
+  for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= SURFACE_NAMES.length - 1)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
   // (t53 OPTION C, 13 Oct: rev 28's 02/20 ENDS on 13/31 - a T, the user's geometry): a strip one of whose ends lies inside the
@@ -4434,6 +4447,8 @@ function issues(rec0) {
     let dh = Math.abs(((p.hdg - q.hdg) % Math.PI + Math.PI) % Math.PI); dh = Math.min(dh, Math.PI - dh); return i0 !== i1 && dh > 20 * Math.PI / 180; };
   for (let i = 0; i < rws.length; i++) for (let j = 0; j < i; j++) if (polysOverlap(runwayBox(rws[i], 0), runwayBox(rws[j], 0)) && !endsOn(rws[i], rws[j]) && !endsOn(rws[j], rws[i])) out.push('runways ' + rws[i].id + ' and ' + rws[j].id + ' cross');
   for (const ob of rec.layers.objects) { if (ob.kind === 'tree' && !ob.key) out.push('tree ' + ob.id + ': no species'); if ((ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') && !ob.key) out.push(ob.kind + ' ' + ob.id + ': no key');
+    if (ob.kind === 'debris' && typeof WILD_DEBRIS !== 'undefined') { const w = WILD_DEBRIS.issue(ob); if (w) out.push(w); }   // AFB-0220
+    if (ob.kind === 'winch' && !(+ob.cable > 0 || ob.cable === undefined)) out.push('winch ' + ob.id + ': its launch line (`cable`, m) is a length');
     if (ob.kind === 'animal') { if (!ob.key) out.push('animal ' + ob.id + ': no species'); if (ob.n !== undefined && (!(+ob.n >= 1) || +ob.n > 24)) out.push('animal ' + ob.id + ': ' + ob.n + ' of them (1 to 24)'); } }
   for (const st of rec.layers.sites) { if (!st.at) out.push('site ' + st.id + ': no anchor'); for (const it of st.items || []) if (!it.key) out.push('site ' + st.id + ': an item without a key'); }
   for (const L of rec.layers.links) { if (!LINK_SOLVERS[L.kind]) out.push('link ' + L.id + ': unknown kind ' + L.kind); if (!L.from || !L.to || !L.from.item || !L.to.item) out.push('link ' + L.id + ': needs two ends'); }

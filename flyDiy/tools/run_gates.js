@@ -232,6 +232,14 @@ const GATES = [
   // top; the glide; the pilot's key; the weak link; the guillotine; 600 m; the autopilot's handover; the circuit to a
   // landing; the line's cost; the page's wiring (winch_mode.js, the start chooser); ~6 min
   { id: 'WINCH', file: '_winch_check.js', tier: 'core', wall: 600 },
+  // AFB-0220 (13 Nov 2026): JOLENE AFB 02/20 GONE WILD + THE WINCH STANDING ON 13/31 - the layout as afb0220_author.py
+  // writes it (the 18 m central band clean and straight, nothing to hit within 11 m of its centreline; 02R/20L firm mud
+  // with the DIRT-STRIP relief; the NW side soft mud; the forest's four cover polygons), the debris table held to the tree
+  // pack, the 'wild' trunk set on the island's world, the winch (off the pavement, its fairleads in winch_mode's reach, PBR
+  // through MATLIB, the launch line 1 100 m flown to the release) and THE COLLISIONS - a log, a stump, a trunk under a
+  // wheel, a boulder pile, a fallen spruce under a low wing, a pole at a wingtip, a landing roll into a fallen spruce, the
+  // winch's drawn mesh: the prop strike, the members, the crash as the trees give them; ~3 min
+  { id: 'AFB0220', file: '_afb0220_check.js', tier: 'core', wall: 240 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },
