@@ -99,7 +99,13 @@ const rowsOfParams = Q => Object.assign({
   // FLOATS-CLASSIC: a catalogue row says its own style (an EDO row the classic deck, a Wipline row the flat one)
   fltStyle: Q.style === 'edo' ? 1 : 0,
 }, Q.style === 'edo' ? { finVentralShape: 1 } : null);   // ...and an EDO kit's ventral is the plan's vintage lobe (once, like every row here)
-const DEF_ROWS = HY0 ? rowsOfParams(HY0.presetParams('Wipline 1450')) : {};
+// HYDRO-DISP (13 Nov): the defaults are the 1450's dials AS THEY STOOD - fitted to its `flot` - written out, so a saved
+// build missing a float row comes back exactly as saved (G3700: WYSIWYG on a load). The corrected fit (volume to the
+// row's `disp`) reaches a hull only when the player picks a catalogue row.
+const DEF_ROWS = HY0 ? { fltL: 4.6, fltStep: 0.5543478260869565, fltB: 0.64, fltH: 0.45454545454545453, fltBeta: 26.829720306396485,
+  fltBetaBow: 33.21981353759766, fltBetaA: 20.41486015319824, fltHs: 0.075, fltAft: 5.9, fltAftCurve: 0, fltFlat: 0.3792569923400879,
+  fltStem: 0.12780186462402343, fltRake: 12, fltNoseR: 0.1, fltPlan: 2.9535606002807615, fltStern: 0.5, fltFlare: 4,
+  fltMass: 27.200000000000003, fltSpreadAft: 0.28, fltStyle: 0 } : {};
 // (the preset row itself boots at `custom`: a build saved before G451 must
 // not come back labelled as a catalogue row its dials never were)
 Object.assign(PAGE.defaults = PAGE.defaults || {}, {

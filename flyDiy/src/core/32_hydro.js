@@ -2066,10 +2066,15 @@ function floatParamsFor(grossKg, over) {
 // their mass interpolated between neighbours — stated as estimates, not
 // facts. Displacement is per FLOAT; mSys per PAIR with rigging. The
 // model number is roughly the float's buoyancy in pounds.
-// `disp` is the catalogue's "displacement in fresh water", `flot` its
-// "maximum flotation" (the whole watertight hull, ~10 % more): the hull is
-// CALIBRATED so its volume to the deck is `flot`, and `disp` is the number
-// the plaque quotes.
+// `disp` is the catalogue's "displacement in fresh water" - ONE float's
+// watertight volume (in kg of fresh water): the hull is CALIBRATED so its
+// volume to the deck is `disp`. `flot` is its "maximum flotation", which
+// Wipaire footnotes "per FAR 23.751 with 80 % reserve buoyancy (2 floats)":
+// the heaviest AEROPLANE the PAIR may carry, 2 x disp / 1.8 = disp / 0.9 on
+// every row - not a hull's volume. (HYDRO-DISP, 13 Nov, FIT-PROCEDURE's
+// PC-6 fit via A0: the fit took `flot` until then, every Wipline hull ~11 %
+// too big against the frame's own 180 % rule, floatParamsFor. EDO rows are
+// their own convention - there `flot` IS one float's buoyancy - and keep it.)
 const FLOAT_PRESETS = {
   'Wipline 1450':  { L: 4.60, B: 0.64, H: 0.50, disp: 658,  flot: 724,  mSys: 68,  gross: 650,  est: true,
                      for: 'light sport (Carbon Cub SS, Legend Cub)' },
@@ -2257,7 +2262,8 @@ function floatPrice(P) {
 // rough water handling"): deeper V at the step and aft, a finer plan
 // forward, more afterbody rise, a narrower transom, a longer rocker.
 // presetParams solves f so the hull's volume to the deck is the row's
-// `flot`; a hull the range cannot reach keeps f at its end and says so.
+// `disp` (HYDRO-DISP: `flot` until 13 Nov, see the catalogue); a hull the
+// range cannot reach keeps f at its end and says so.
 // Two branches: FINER (f > 0) is a finer BOW PLAN, a longer rocker and a
 // deeper V (12 deg per unit); FULLER (f < 0) is mostly a fuller plan and a
 // longer keel flat, the V shallowing only a little (6 deg per unit) — a
@@ -2338,12 +2344,13 @@ function presetParams(name, over) {
   // freeboard over the sheer) to 1 (the finest)
   let lo = -0.7, hi = 1, vLo = volOf(lo), vHi = volOf(1);
   let f;
-  if (R.flot >= vLo) f = lo; else if (R.flot <= vHi) f = 1;
-  else { for (let i = 0; i < 18; i++) { const m = 0.5 * (lo + hi); if (volOf(m) > R.flot) lo = m; else hi = m; } f = 0.5 * (lo + hi); }
+  const V = R.disp;                      // HYDRO-DISP: one float's volume is the row's displacement (not `flot`)
+  if (V >= vLo) f = lo; else if (V <= vHi) f = 1;
+  else { for (let i = 0; i < 18; i++) { const m = 0.5 * (lo + hi); if (volOf(m) > V) lo = m; else hi = m; } f = 0.5 * (lo + hi); }
   const P = fineParams(P0, f);
   delete P._keel;
   P.scale = k;
-  P.volRes = volOf(f) / R.flot - 1;      // the residual the range left (0 inside it)
+  P.volRes = volOf(f) / V - 1;           // the residual the range left (0 inside it)
   return Object.assign(P, over || {});
 }
 
