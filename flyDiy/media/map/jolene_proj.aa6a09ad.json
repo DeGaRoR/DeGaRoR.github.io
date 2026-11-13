@@ -264,6 +264,23 @@
    },
    "elev": 103,
    "altiport": false
+  },
+  {
+   "id": "mt_strip",
+   "name": "Ardent Altiport",
+   "kind": "strip",
+   "x": 9317.2,
+   "z": -5961.9,
+   "hdg": -3.14159,
+   "len": 210,
+   "wid": 12,
+   "surface": {
+    "key": "gravel",
+    "word": "gravel",
+    "cls": "hard"
+   },
+   "elev": 1034,
+   "altiport": true
   }
  ],
  "plots": [
@@ -533,9 +550,9 @@
   {
    "id": "summit",
    "label": "Mount Ardent",
-   "x": 9106,
-   "z": -5886,
-   "elev": 1100
+   "x": 9130,
+   "z": -5874,
+   "elev": 1090
   }
  ],
  "infra": {
@@ -2814,9 +2831,24 @@
     "r": "1099,859,6,5,0"
    },
    {
-    "id": "mt_s_meteo/station",
-    "key": "meteo/meteo station",
-    "r": "1675,1759,55,38,0"
+    "id": "mt_s_meteo/tower",
+    "key": "meteo/meteo tower",
+    "r": "1675,1759,18,18,0"
+   },
+   {
+    "id": "mt_s_meteo/drum",
+    "key": "meteo/meteo drum",
+    "r": "1676,1760,25,25,90"
+   },
+   {
+    "id": "mt_s_meteo/hall",
+    "key": "meteo/meteo hall",
+    "r": "1674,1759,33,33,0"
+   },
+   {
+    "id": "mt_s_meteo/pillar",
+    "key": "meteo/meteo pillar",
+    "r": "1677,1760,7,7,0"
    },
    {
     "id": "hy_s_upper/i1",
@@ -2894,9 +2926,9 @@
   }
  },
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
- "img": "media/map/jolene_map.af898cb5.png",
- "imgBytes": 715115,
- "imgHash": "af898cb5",
+ "img": "media/map/jolene_map.9a23906c.png",
+ "imgBytes": 715118,
+ "imgHash": "9a23906c",
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
