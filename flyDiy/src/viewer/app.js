@@ -314,6 +314,19 @@
     }
     return v + ((n ? seen / n : 1) - v) * 0.15;
   }
+  // LOOK-HALO (13 Nov, atmo.js uApK.y): the share of the sun the TERRAIN hides from the eye - three rays (the centre and half a degree
+  // over and under), the profile walked from the eye (15 m, x1.35, 26 steps: to 37 km). The craft and the shed are not occluders here
+  // (the air beyond a strut is lit). Eased 0.1 a frame, as the glare's
+  let eyeHide = 0;
+  function sunHiddenEye(c, d, v) {
+    if (d.y <= -0.02) return v - v * 0.1;
+    let hid = 0;
+    for (const dy of [0, 0.0087, -0.0087]) {
+      const yy = d.y + dy; let t = 15;
+      for (let i = 0; i < 26; i++) { if (world.terrainH(c.x + d.x * t, c.z + d.z * t) > c.y + yy * t) { hid++; break; } t *= 1.35; }
+    }
+    return v + (hid / 3 - v) * 0.1;
+  }
   // THE COCKPIT (the panel arc, session 4): cockpit.js's one instance —
   // null under the smoke gate, which never runs the RENDER block
   const CK = (window.FLYDIY_COCKPIT && window.FLYDIY_COCKPIT.make)
@@ -20963,6 +20976,7 @@
                                              aspect: renderer.domElement.width / Math.max(1, renderer.domElement.height), tint: [L.T[0] / mT, L.T[1] / mT, L.T[2] / mT] });
         SKY_GLARE.render(renderer);
         if (!inShed && window.WATER && WATER.glint && typeof world.waterH === 'function' && typeof world.terrainH === 'function') WATER.glint.vis = glintVis(camera.position, glareDir, WATER.glint.vis);   // LOOK-GLINT
+        if (window.ATMO && ATMO.sunHidden) { eyeHide = (inShed || L.isMoon || typeof world.terrainH !== 'function') ? 0 : sunHiddenEye(camera.position, glareDir, eyeHide); ATMO.sunHidden(eyeHide); }   // LOOK-HALO
       }
     }
     if (photoGrab && framePresented) { const g = photoGrab; photoGrab = null; try { g(renderer.domElement); } catch (e) { console.warn('flyDiy: the photo -', e && e.message); } }   // G3741
