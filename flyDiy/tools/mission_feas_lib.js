@@ -498,8 +498,10 @@ function judgeMission(env, packRow, m, opts) {
   const subs = C.contractSubsOf(rec);
   const pool = planePool();
   R.pool = pool.map(p => p.design);
-  // on offer at all? (the career's own offer list, with everything before it done)
-  { const cw = careerWith(rec, pool[0].design); if (cw.offer === false) { R.verdict = 'infeasible'; R.why = cw.why; return R; } }
+  // on offer at all? (the career's own offer list, with everything before it done) - an order is judged on it first; a
+  // job after the game's capability rule (its reason - the load, the gear, the strip - is the more specific one)
+  const offerWhy = () => { const cw = careerWith(rec, pool[0].design); return cw.offer === false ? cw.why : ''; };
+  if (rec.kind === 'build') { const w = offerWhy(); if (w) { R.verdict = 'infeasible'; R.why = w; return R; } }
   const isBuild = rec.kind === 'build';
   let order = [];
   if (isBuild) {
@@ -548,6 +550,7 @@ function judgeMission(env, packRow, m, opts) {
       return R;
     }
   }
+  if (!isBuild) { const w = offerWhy(); if (w) { R.verdict = 'infeasible'; R.why = w; return R; } }
   if (S.blocked.length) R.notes.push(...S.blocked);
   if (o.dry) { R.verdict = 'unflown'; R.plane = order[0].name; R.why = 'would fly: ' + order.map(p => p.design).join(', '); return R; }
   const tries = Math.max(1, o.tries || 2);
