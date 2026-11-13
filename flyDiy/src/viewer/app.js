@@ -19646,6 +19646,23 @@
         return () => { if (home && route.parentNode !== home) home.insertBefore(route, home.firstChild); };
       } });
   } catch (e) { console.warn('flyDiy: the destination button -', e && e.message); }
+  // TUTORIAL-LOCK (the user 13 Nov: "skip tutorial = a choice at the start, later a menu item"): in the garage, while the
+  // story is on its rails, the menu offers to skip the rest - two presses (the row asks once), then the one checkpoint
+  // (79_story.js storyCheckpoint: the career as the tutorial's end leaves it) and the page reloaded on it
+  let gmSkipAsk = false;
+  try {
+    window.FLYDIY_MENU.add({ k: 'skipTut', sec: 'Story', before: 'main',
+      label: () => (gmSkipAsk ? 'Skip it: start the career (day 3)' : 'Skip the tutorial'),
+      when: () => { try { const s = STORY_PAGE && CAREER_DEV ? storyOf(playerLoad()) : null; return !!(s && !s.open && inGarage); } catch (e) { return false; } },
+      act: () => {
+        if (!gmSkipAsk) { gmSkipAsk = true; return; }
+        gmSkipAsk = false;
+        const r = CAREER_DEV ? storyCheckpoint(playerLoad()) : { ok: false, why: 'not a career' };
+        if (!r.ok) { console.warn('flyDiy (story): the skip did not apply - ' + r.why); return; }
+        player = r.doc; playerSave();
+        try { location.reload(); } catch (e) {}
+      } });
+  } catch (e) { console.warn('flyDiy: the skip-tutorial row -', e && e.message); }
   // G3791 (PHONE-TESTFLIGHT): THE PHONE MENU'S TEST FLIGHT - one line, in the garage, while the profile's switch is on
   // (fly 'testfield'): the bench's own row run (bench.js BENCH_RUN), which hands off to the test field (startTestFlight)
   // (the profile asked directly: GARAGE_ONLY is declared further down, in its temporal dead zone here)

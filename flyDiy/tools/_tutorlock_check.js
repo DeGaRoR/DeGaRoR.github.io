@@ -69,6 +69,8 @@ ok(/const STORY_JOB = 'field\.02';/.test(SRC) && /function storyCheckpoint\(doc,
 const WEL = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'welcome.js'), 'utf8'), APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
 ok(/row\('careerSkip', '⏭', 'New career, no tutorial'/.test(WEL) && /W\.FLYDIY_CAREER_SKIP = true; done\('career'\);/.test(WEL), '6 the welcome offers "New career, no tutorial" (the skip flag set)');
 ok(/const skip = !!window\.FLYDIY_CAREER_SKIP/.test(APP) && /\(skip \? storySkip\(player, args\) : storyNewCareer\(player, args\)\)/.test(APP) && /stIntroArm = !skip;/.test(APP), '6 a skipped career is born on the checkpoint (storySkip), without the opening');
+ok(/window\.FLYDIY_MENU\.add\(\{ k: 'skipTut', sec: 'Story'/.test(APP) && /return !!\(s && !s\.open && inGarage\);/.test(APP) && /if \(!gmSkipAsk\) \{ gmSkipAsk = true; return; \}/.test(APP) && /const r = CAREER_DEV \? storyCheckpoint\(playerLoad\(\)\)/.test(APP),
+   '6 the menu offers "Skip the tutorial" in the garage while on the rails: two presses, then the checkpoint');
 if (process.argv.includes('--selftest')) {
   const bad = JSON.parse(JSON.stringify(d)); bad.wallet += 1;
   console.log('  selftest a wallet off by one: ' + (JSON.stringify(strip(bad)) !== JSON.stringify(strip(B)) ? 'red (ok)' : 'GREEN'));
