@@ -1118,6 +1118,9 @@ function drawPylonMount(group, f, P, GK, aft, C) {
   }
   pylonMeshes(group, fair, jb);
 }
+// WILGA-GEAR: THE HUG IS SHARED - the trailing-link leg's root fairing (the user, 10 Nov: "where the leg meets the fuselage,
+// to have a fairing that fits", like the pylons) stands on the same rays and wears the same fillet and joint
+if (typeof window !== 'undefined') window.CAGE_PYLON = { caster: pylonCaster, hug: pylonHug, NS: PYLON_NS };
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
 function pylonMeshes(group, fair, jb) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
@@ -1532,7 +1535,7 @@ function engPlace(ctx, prev) {
   // backwards) so the firewall plate stays on the face and the propeller
   // runs behind it. Group k > 0 names its spinner/prop with a '#k' suffix so
   // the join can spin each one about its own hub.
-  const unitOut = [];
+  const unitOut = [], unitG = [];
   const spinGeo = (() => {
     const d2 = Math.max(0.35, Math.min(2, CW.P.detail || 1));
     const NS = Math.max(10, Math.round(16 * d2));
@@ -1617,7 +1620,7 @@ function engPlace(ctx, prev) {
     // wing-box selector cut it in two on a wing mount (the user: "the
     // engine block and prop seem to be attached to the body, while the
     // support is attached to the wing nacelle structure")
-    ug.name = 'edEng' + sfx;
+    ug.name = 'edEng' + sfx; unitG.push(ug);
     // G2790: a layout mixes the nose (the cage's own firewall) with faces
     // off the body (a nacelle, the bulkhead of a push-pull drawn plain):
     // a unit whose face is synthetic when the first unit's is not draws
@@ -1886,6 +1889,23 @@ function engPlace(ctx, prev) {
       }
     }
   }
+  // ENGINE-COOLING 3 (the user 12 Nov: the Client Cub's heads stick out of its cowl - "we should account for them"):
+  // the cylinders as unit 0's DRAWN cowl sees them (COWL_GEN.coolHeads: each one's frontal strip against the shell's
+  // skin), m2 out in the wind and m2 in all; with no cowl every head is out; a cowl not drawn this frame says nothing
+  window.CAGE_COOL_HEADS = null;
+  try {
+    if (CW && CW.coolHeads && R && R.place) {
+      const sh = window.CAGE_COWL_SHELLS, cu = sh && sh[0], eu = unitG[0];
+      const cowled = P.cowlOn == null || +P.cowlOn;
+      if (!cowled) window.CAGE_COOL_HEADS = CW.coolHeads(R, null);
+      else if (cu && eu && cu.parent) {
+        let root = cu; while (root.parent) root = root.parent;
+        root.updateMatrixWorld(true); eu.updateMatrixWorld(true);
+        const M4 = new THREE.Matrix4().copy(cu.matrixWorld).invert().multiply(eu.matrixWorld), v = new THREE.Vector3();
+        window.CAGE_COOL_HEADS = CW.coolHeads(R, (x, y, z) => { v.set(x, y, z).applyMatrix4(M4); return [v.x, v.y, v.z]; });
+      }
+    }
+  } catch (e) { window.CAGE_COOL_HEADS = null; }
   window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
                       resolved: R, zFw, exhaustAt,
                       propFitCheck,                                // G477: the disc's clearance, per unit (the join calls it)

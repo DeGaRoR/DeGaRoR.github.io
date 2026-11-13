@@ -1,0 +1,3 @@
+# generated review pages and renders (node make_v3.js, node diff.js, node sheet.js, node before_after.js)
+check/
+stickers_v3.html

@@ -777,6 +777,16 @@ const POWERPLANTS = {
     engine: { name: 'P&W PT6A-60A', mass: 218, powerW: 783000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.20, length: 1.85, rpm: 1700, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.67 m', D: 2.67, Tstatic: 10767, kV2: 0.5355 },
   },
+  // THE PC-6's PT6A-27 (12 Nov, FIT-PROCEDURE; the user: "create your engine"), off the locked reference
+  // tools/drafting/refs/pc6.json: 550 shp take-off and max continuous (FOCA TCDS F 56-10), 680 shp thermodynamic
+  // (flatK 680/550), the P&WC dry mass ~149 kg (thin: the reference marks it so), the Hartzell HC-B3TN-3D three-blade
+  // of 99-101 in (2.54 m, the middle) turning 2 200 rpm; the prop is genPropSynth's output (alu, standard) like every
+  // PT6 row; length the -34's frame (62 in). PRICE: P&WC's 2026 flat-rate overhaul for the -27, $372k (capped $450k)
+  pt6a27_hartzell3: {
+    price: 410000,   // P&WC flat rate $372-450k (2026), the middle as the -114A / -34 rows take theirs
+    engine: { name: 'P&W PT6A-27', mass: 149, powerW: 410135, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.236, length: 1.57, rpm: 2200, cs: true },
+    prop:   { name: 'Hartzell 3-blade 2.54 m', D: 2.54, Tstatic: 6432, kV2: 0.4161 },
+  },
 };
 // ============================================================
 // ENGINE THERMO LAWS (G134). Two numbers per family, both quoted at RATED
@@ -947,8 +957,11 @@ function genEnginePrice(family, powerW) {
 // _eng_page.js preset, through CAGE_JOIN_ENGINES), which is the sum of the
 // resolve's mass items along the crank. GATE ENGID §10 re-measures each one
 // against the bench and goes red at 2 cm, so this table cannot drift from the
-// engine it describes. A row without an entry (no preset behind it) hangs its
-// mass where it always did — absent means today, byte for byte.
+// engine it describes. A row whose entry is null (no preset behind it: the
+// 3548 outrunner) hangs its mass where it always did, byte for byte. A row with
+// NO entry at all (a row added later, in this file or at runtime) is not left
+// at the flange: genEngineCgAft below reads the same engine's measurement
+// under another key, else the table's own law (2026-11-12, the runtime-row fix).
 const GEN_ENG_CG = {
   a65_sensenich74: 0.20, o200_eprops: 0.21, io360_mccauley: 0.24,
   jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23, rotax912is_warp: 0.23,
@@ -963,14 +976,61 @@ const GEN_ENG_CG = {
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
   fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
   sp260d_class: 0.31, emrax268_carbon: 0.14,
-  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71,
+  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71, pt6a27_hartzell3: 0.61,   // (the -27: measured on its preset, 0.606 - GATE ENGID's bench)
   pt6a60a_hartzell4: 0.78,
+  outrunner3548_12x6: null,
 };
-// the one reader: a custom row's own number outranks the table's
+// THE SAME ENGINE UNDER ANOTHER KEY (2026-11-12). The per-key tables (GEN_ENG_CG
+// here, GEN_DRIVE.eng in 33_drive) are keyed by the registry key, so a row they
+// were never told about read NOTHING off them. Measured: a PC-6 on a runtime copy
+// of the PT6A-114A row (the row unchanged, a new key) hung its 160 kg on the
+// flange nodes instead of 0.63 m behind them, its prop bit the ground 0.5 s into
+// the settle (the strike seized the engine) and the pilot rejected the take-off
+// at 0 thrust, while every probe, which flies no settle, saw the full power.
+// `genEngineRowKey(table, key, engine)` is the key a table knows for this row:
+// the key itself when the table has it (every registry row today: no number
+// moves), else the first key of the table whose registry engine is the SAME
+// ENGINE (GEN_ENG_SAME: what fixes the block - name, dry mass, family, layout,
+// length; power, rpm and the prop move neither its CG nor its cylinders), else
+// the key (absent stays absent).
+const GEN_ENG_SAME = ['name', 'mass', 'family', 'layout', 'length'];
+function genEngineRowKey(table, key, engine) {
+  if (!table || key == null || Object.prototype.hasOwnProperty.call(table, key)) return key;
+  const E = engine || (POWERPLANTS[key] && POWERPLANTS[key].engine);
+  if (!E) return key;
+  for (const k of Object.keys(table)) {
+    const R = POWERPLANTS[k] && POWERPLANTS[k].engine;
+    if (R && GEN_ENG_SAME.every(f => R[f] === E[f])) return k;
+  }
+  return key;
+}
+// THE LAW FOR AN ENGINE NOBODY MEASURED: the CG aft of the flange goes as the
+// block's size, mass^(1/3), with the coefficient the median of the measured
+// rows of its class (a radial; else its family) - read off the table itself,
+// so it cannot drift from it. Leave-one-out over the 43 measured rows: within
+// 5 cm on most, 18 cm at worst (the inverted Ranger) - hanging the lump on the
+// flange is wrong by the whole cgAft (0.63 m on a PT6). null when the class has
+// no measured row.
+function genEngineCgLaw(engine) {
+  if (!engine || !(engine.mass > 0)) return null;
+  const cls = e => (e.layout === 'radial' ? 'radial' : e.family);
+  const c = cls(engine), cs = [];
+  for (const k of Object.keys(GEN_ENG_CG)) {
+    const v = GEN_ENG_CG[k], R = POWERPLANTS[k] && POWERPLANTS[k].engine;
+    if (v != null && R && R.mass > 0 && cls(R) === c) cs.push(v / CORE_MATH.pow(R.mass, 1 / 3));
+  }
+  if (!cs.length) return null;
+  cs.sort((a, b) => a - b);
+  const n = cs.length, med = n % 2 ? cs[(n - 1) / 2] : (cs[n / 2 - 1] + cs[n / 2]) / 2;
+  return Math.round(med * CORE_MATH.pow(engine.mass, 1 / 3) * 100) / 100;
+}
+// the one reader: a custom row's own number outranks the table's; a key the
+// table does not know reads the same engine's entry, else the law
 function genEngineCgAft(key, engine) {
   if (engine && engine.cgAft != null && isFinite(engine.cgAft)) return engine.cgAft;
-  const v = GEN_ENG_CG[key];
-  return v == null ? null : v;
+  const k = genEngineRowKey(GEN_ENG_CG, key, engine);
+  if (Object.prototype.hasOwnProperty.call(GEN_ENG_CG, k)) { const v = GEN_ENG_CG[k]; return v == null ? null : v; }
+  return genEngineCgLaw(engine || (POWERPLANTS[key] && POWERPLANTS[key].engine));
 }
 
 const POLARS = {

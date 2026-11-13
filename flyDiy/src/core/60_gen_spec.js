@@ -1965,6 +1965,57 @@ const GEN_DRAG = {
   exhStack: 0.003,
 };
 
+// ENGINE COOLING (ENGINE-COOLING, the user 12 Nov: "planes look the way they look because they need these things ...
+// I'd rather that be encoded in physics"; futureDesigns/ENGINE-COOLING-2026-11.md, its defaults ruled "OK"). The heat
+// genEngineThermo says the engine rejects is carried off by AIR, and the air comes in through what is DRAWN: the cowl's
+// forward-facing openings, a scoop that faces the flight, a pusher nacelle's nose inlet, the wing radiators' mouths, the
+// cylinder heads left in the wind. Read by 62_gen_aero genCooling; the join measures the openings (spec.cooling).
+//   path      the air may warm by dT = eps (Tlim - T_ambient) before the hot side is at its limit: a hot day shrinks
+//             the gap, which is why a hot climb is the sizing case. PROPOSED constants, calibrated so the cowls fitted
+//             to real reference models (the Cub, the V2-172, the Jodel) pass the hot climb with a real margin (GATE COOL)
+//   ivr       the inlet's BEST velocity ratio V_inlet / V_free (ENGINE-COOLING 3): a small inlet, the engine's passages
+//             pulling hard behind it, runs near it (0.6-0.9 in a climb); a big one spills (the passages limit it)
+//   passages  the engine's own fins and baffles: `passages` x the air its hot climb needs, at that climb's inlet speed,
+//             with nothing ahead of them (an engine is built to be cooled); in series with the inlet and a drawn outlet,
+//             mdot = 1 / sqrt(sum 1 / mdot_i^2). Calibrated so the reference-fitted cowls (the Cub, the V2-172, the
+//             Jodel) keep a real margin and a big inlet stops buying air past ~3 x (it spills round the cowl)
+//   kappaBare the heads and fins left in the stream (the Cub's, a bare engine's), beside the cowl's air
+//   r         the exit velocity over the free stream: the momentum the air keeps (a baffled cowl 0.7, a radiator duct
+//             with a diffuser 0.8): cooling drag D = mdot V (1 - r), CdA = 2 (mdot / rho V) (1 - r)
+//   outRatio  the drawn outlet that passes the inlet's flow (the heated air is thinner: the classic 1.3 x)
+//   slip      the slipstream's share at a nose inlet (behind the propeller's roots), of the actuator disc's velocity
+//             ratio; a pusher's own inlets on the ground get `pushInflow` of the disc's static velocity (the prop sucks)
+//   suck      IN FLIGHT a pusher's prop sucks on the cowl's OUTLET, just ahead of the disc (the user 12 Nov, the Super
+//             Petrel: "it has quite a large opening"): the static pressure there falls by rho/2 ((V + v)^2 - V^2) of
+//             the disc's induced velocity v, so the pressure that drives the air through the engine grows and the flow
+//             with its root: V_in = V sqrt(1 + suck (f^2 - 1)), f = (V + v) / V the actuator disc's ratio; `suck` the
+//             share of v at the outlet (the hub's inner disc, like `slip`)
+//   hot       FAR 23.1043's climb cooling day: 38 C (100 F) at sea level, ISA + 23, full power at Vy
+//   taxi      the hot strip: 5 m/s, 20 % power, the slipstream does the work
+//   meredith  the heat added in a radiator DUCT is a little ramjet: thrust power ~ k M^2 Q (Meredith, RAE 1935); none on
+//             a cowl
+//   pass/warn the margin (air passed / air needed) the design check reads: under `pass` the engine overheats, under
+//             `warn` it runs hot
+const GEN_COOL = {
+  cp: 1005,
+  path: { air:      { Tlim: 160, eps: 0.30 },
+          liquid:   { Tlim: 110, eps: 0.55 },
+          electric: { Tlim: 70,  eps: 0.50 },
+          turbine:  { Tlim: 90,  eps: 0.50 } },
+  ivr: 0.8, passages: 3.0, kappaBare: 0.5,
+  r: { cowl: 0.70, duct: 0.80 },
+  outRatio: 1.3,
+  slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25, suck: 0.6,
+  hot: { dISA: 23, h: 0 },
+  taxi: { V: 5, power: 0.2 },
+  cruisePower: 0.75,
+  meredith: 0.1,
+  radMouth: 0.8,
+  pass: 1.0, warn: 1.15,
+  // the oil's red line, C (a light aero engine's 118 C / 245 F): the cockpit's needle reaches it at exactly enough air
+  oilRed: 118,
+};
+
 const GEN_GAUGE = {
   e: { fus: 0.30, wing: 0.49, tail: 0.41, gear: 0.75 },
   lo: 0.6, hi: 3.0,
@@ -2603,7 +2654,8 @@ const GEN_SEAPLANE_PROPS = {
                     for: 'Cessna 172 / 172R / 172S on Wipline 2350 (Wipaire STC)' },
 };
 
-// COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
+// COWL INTAKES. Texture only, deliberately (and still: ENGINE-COOLING measures the cowl's DRAWN openings - its
+// apertures, its scoop, its exits - not these louvres; 62_gen_aero genCoolOpen): a grill drawn on the cover reads at
 // every distance the aeroplane is ever seen from, and a modelled duct would cost
 // a hole in the one panel whose whole job since G1.7 has been to have no holes
 // in it ("a big opening… either the prop attachment or an air intake").
@@ -2669,6 +2721,28 @@ const GEN_PRICES = {
 // for it. NOTE `paint.gloss` is NOT touched here: it is a spec field nothing
 // currently reads, and wiring a dead field would be a second change wearing
 // this one's clothes.
+// THE BRAKES (the user, 9 Nov: "we have to account for the power of brakes as well ... if you want better brakes, then
+// it's gonna add weight to your plane"). The solver's wheel brake was the surface's friction only (GROUND_SURF's brake mu
+// x the brake command x the wheel's load): every aeroplane's brakes could lock its wheels. A real light aeroplane's
+// often cannot - the J-3's and the D.112's heel drums are why their books' landing rolls are long. `perWheelN` is the
+// most a main's brake holds (N, at the tyre): the braking friction becomes min(the surface's, perWheelN / the wheel's
+// load). `kg` the pair with their lines and master cylinders, billed on the mains; `price` the pair, new.
+// ABSENT IS AS IT WAS: a gear without `brakes` brakes to the surface's friction (no cap, no mass), so every saved build
+// flies bit for bit and keeps its certificate. Values (estimates, stated as such):
+//   drum    a cable / heel drum in a 6 in wheel (J-3, D.112): ~0.2 g on a 550 kg aeroplane
+//   disc    one Cleveland 30-9 class caliper a wheel: about the grass friction limit of a 600 kg aeroplane
+//   double  two calipers / a double-puck heavy-duty disc (Beringer, Grove class: the bush builds), past it
+const GEN_BRAKES = {
+  drum:   { name: 'heel drum brakes',            perWheelN: 600,  kg: 2.4, price: 400,
+            note: 'cable or heel-operated drums in 6 in wheels: the J-3 and D.112 era' },
+  disc:   { name: 'single-caliper discs',        perWheelN: 1400, kg: 3.6, price: 1300,
+            note: 'Cleveland 30-9 class, one caliper a wheel' },
+  double: { name: 'double-caliper heavy discs',  perWheelN: 2600, kg: 5.4, price: 3200,
+            note: 'Beringer / Grove class, two pucks a wheel: the bush builds' },
+};
+// the build's brake row, or null (absent / unknown: the surface's friction, as it always was)
+function genBrakeOf(S) { const k = S && S.gear && S.gear.brakes; return (k && GEN_BRAKES[k]) || null; }
+
 const GEN_FINISH = {
   // `kgM2` is the COLOUR COATS ONLY, and the distinction matters. The covering
   // system itself -- fabric and its dope, or the alloy skin -- is already
@@ -3031,7 +3105,7 @@ function genEngPropD0(S, e0, PP0) {
   if (e0 && e0.custom) return (S.prop && S.prop.D > 0) ? S.prop.D : 1.80;
   return PP0.prop.D;
 }
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1 };
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1, brkHold: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -3059,7 +3133,7 @@ const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFai
                            engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
 // WILGA-GEAR: the trailing-link leg's rows per station (tools/_gear_page.js LEG_ROWS[4]) at the value a build without them
 // draws (_cage_gen CAGE_DEFAULT_ABSENT holds the same)
-const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0 }, o = {};
+const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0, lvJoint: 0 }, o = {};
   for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the flat base copy too)
   return o; })();
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
@@ -4976,8 +5050,14 @@ function clampWing(w, S, k) {
 // that hid every over-size drawing until 2026-09-07. Metres, and chord
 // FRACTIONS for the controls. Widen here, nowhere else.
 const GEN_TAIL_ENVELOPE = {
-  hSpan: [1.50, 4.50], hChord: [0.40, 1.60],
-  vHeight: [0.60, 2.20], vChord: [0.40, 1.80],
+  // PC6-TAIL (2026-11-12): the stab's span to 6.0 m and the fin's height to 3.0 m (were 4.5 / 2.2). A 2.8 t STOL
+  // utility aeroplane under 18 m of wing - the Pilatus PC-6/B2-H4, a 5.13 m tailplane and a ~2.5 m fin - flew
+  // clamped. Nothing downstream was sized to the old ceiling: the stab truss takes 2..4 bays on any span, the fin the
+  // same up the post, the polars read hSpan^2/Sh and vHeight^2/Sv, mass and inertia are billed per bay off the area,
+  // and the big envelope below already flies an 8 m stab and a 4.3 m fin. A tail inside the old bounds is not touched
+  // (the clamp is the identity there); only a value the old ceiling cut moves.
+  hSpan: [1.50, 6.00], hChord: [0.40, 1.60],
+  vHeight: [0.60, 3.00], vChord: [0.40, 1.80],
   // G3503 (DC3-BUILD): A BIG AEROPLANE'S TAIL (genBig: a wing over 18 m) - the
   // DC-3's 8.2 m x 2.25 m stab and its 3 m fin of 2.9 m chord, with headroom
   // (DC3-EDITABLE: the ~40 m class's - a 12 m x 4 m stab, a 5.5 m fin of 4.5 m chord)
@@ -5858,6 +5938,7 @@ function clampSpec(spec) {
   S.gear.twFairTail = genClamp(S.gear.twFairTail == null ? 1 : S.gear.twFairTail,
                                0.70, 1.60);
   if (!GEN_FAIR_MATS[S.gear.fairMat]) S.gear.fairMat = 'glass';
+  if (S.gear.brakes != null && !GEN_BRAKES[S.gear.brakes]) delete S.gear.brakes;   // (the brakes: absent is as it was)
   // G121 (the review's B8): ONE ENGINE UNTIL THE MOUNTS ARE REAL. `engines`
   // is an array by design and `nEngines` multiplies thrust honestly — but
   // every mount today is the one nose pair, so a second entry would fly as

@@ -19,7 +19,7 @@
 //      the garage poses them (GEAR_LEVER at the strut's stroke) sit on the physics nodes (3 mm)
 //   7b. THE FAIRING: the leg's boot only (no wheel fairing on the trailing link) in each of its three shapes and with the
 //      fitting high and low, cut so that nothing that moves comes within 3 mm of it through the stroke, detailed (seams,
-//      screws), clear of the ground at full stroke on a flat tyre pitched nose-down, still hiding the strut above its
+//      screws), its root fitted to the fuselage all round, clear of the ground at full stroke on a flat tyre pitched nose-down, still hiding the strut above its
 //      floor; its cache replays the same boot
 //   7c. THE STRUT'S MOUNT (lvTop, a share of the leg; default 0.72 - the photographs' long strut): through the load chain,
 //      over the slider's range, each stands at the charge's deflection and absorbs the limit drop without bottoming; the
@@ -247,7 +247,9 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
     [HOSTF, HOST, 'the host, trailing (the default)'],
     [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 50 }), 'the host, trailing, fitting low (50 deg)'], [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 110 }), 'the host, trailing, fitting high (110 deg)'],
     [HOSTF, Object.assign({}, HOST, { s1_lvTop: 0.13 }), 'the host, trailing, the short strut (v1: mount 0.13)'],
-    [HOSTF, Object.assign({}, HOST, { s1_lvTop: 0.40 }), 'the host, trailing, the mount half-way (0.40)']];
+    [HOSTF, Object.assign({}, HOST, { s1_lvTop: 0.40 }), 'the host, trailing, the mount half-way (0.40)'],
+    [HOSTF, Object.assign({}, HOST, { s1_lvJoint: 1 }), 'the host, trailing, root fitted to the body (lvJoint 1)'],
+    [CUBF, { s1Leg: 4, s1Drop: 0.85, s1_lvJoint: 1 }, 'the Cub, trailing, root fitted to the body (lvJoint 1)']];
   let groundMin = Infinity, groundAt = '';
   for (const [file, over, who] of cases) {
     const raw = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')), s0 = raw.spec || raw;
@@ -281,6 +283,15 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
           if (g < groundMin) { groundMin = g; groundAt = who; } } }
       if (u.boot) stats = 'style ' + u.boot.style + ', ' + u.boot.cuts + ' cut edges, ' + u.boot.screws + ' screws' + (u.boot.chord ? ', chord ' + u.boot.chord.map(f3).join(' -> ') + ' m' : ', tube r ' + f3(u.boot.tubeR) + ' m');
       const bootOk = u.boot && u.boot.screws >= 20 && u.boot.cuts > 0; if (!bootOk) stats += ' (NO DETAIL / NO CUT)';
+      // THE ROOT FAIRING (the user: "where the leg meets the fuselage, a fairing that fits"): every column of its sleeve
+      // finds the body's skin up the leg - it meets the fuselage all round, filleted, its joint round the foot
+      // (all round on the default builds; a fitting high on a flat side or low on the belly may leave a few columns with no
+      // skin within reach - they end at the fitting as the plain boot did: reported, three quarters at least)
+      // (an option since 10 Nov - lvJoint 1/2; plain at the default, the user: "in most cases it will just [glitch]" where its
+      // rays cross a window's or a seam's cut): fitted on three quarters of the columns at least where asked, absent elsewhere
+      const rf = u.rootFit, wantRf = (over.s1_lvJoint || 0) >= 1;
+      stats += rf ? '; root fitted to the skin on ' + rf.hits + '/' + rf.columns + ' columns' + (rf.joint ? ', strip ' + rf.joint + ' columns, ' + rf.rivets + ' rivets' : '') : '; plain root';
+      if (wantRf ? (!rf || rf.hits < 0.75 * rf.columns || (over.s1_lvJoint === 1 && !(rf.rivets > 10))) : !!rf) stats += ' (ROOT FIT WRONG)';
       for (let i = 0; i <= 12; i++) {
         const q = G.gearLeverAt(L, sw * i / 12); poses++;
         const Ta = G.gearNodeFrame([u.piv, u.axle, add(u.piv, u.ax)], [u.piv, q.axle, add(u.piv, u.ax)]),
@@ -290,7 +301,7 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
           for (const M of parts) for (const x of M.v) { const dd = near(app(T, x)); nMov++; if (dd < worst) { worst = dd; at = nm + ' at ' + (i / 12).toFixed(2) + ' of the stroke'; } }
       }
     }
-    yes(units.length === 2 && boots === 2 && spats === 0 && !/NO /.test(stats), who + ': the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (' + stats + ')');
+    yes(units.length === 2 && boots === 2 && spats === 0 && !/NO |WRONG/.test(stats), who + ': the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (' + stats + ')');
     yes(poses === 26 && worst >= 0.003, who + ': through the whole stroke (13 poses a side, ' + nMov + ' points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest ' +
         (worst >= CAP ? '> ' + mm(CAP) : mm(worst) + ' (' + at + ')'));
     // ...and it still hides the mechanism: the strut's cylinder BODY at rest (above its end collar, 2 cm), seen from either side and from ahead and

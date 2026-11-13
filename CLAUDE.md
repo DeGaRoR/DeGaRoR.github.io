@@ -22,3 +22,18 @@ fit-to-reference tool, not hand guessing:
 Keep it a tool: every fitted value lands on a garage row in the card (`flyDiy/tools/_cage_design.js` ARCHETYPES), a
 missing control is flagged as a garage gap (REF_MATCH.md section 7) and then built as a row, and the how-to is updated
 with whatever the next aeroplane teaches.
+
+## Fitting an aeroplane to its BLUEPRINTS (the drafting table)
+
+When a user gives a blueprint (a three-view) of a real aeroplane and asks for a card that matches it, use the drafting
+table, not hand guessing:
+
+- the how-to and the first plane's full log: `flyDiy/tools/DRAFTING_TABLE.md` (the PC-6/B2-H4, rounds 1-15);
+- the tool: `flyDiy/tools/drafting/` (`table.js` new / check / set / fit / trace / compare; `dt_check.js` = GATE
+  DRAFTING) and the light page `flyDiy/drafting.html` (the welcome menu's "New reference plane");
+- the reference blocks: `flyDiy/tools/drafting/refs/` (`pc6.json` is the model: sources first, the TCDS prevails); the
+  blueprint images are private and are never committed;
+- handing blueprints to a new session: `flyDiy/tools/drafting/KICKOFF.md` (the message to paste with the image).
+
+The reference block is the only truth a comparison may use; every change is a garage row; a missing control is built
+as a row ABSENT at its default, on its own garage branch for the trains.

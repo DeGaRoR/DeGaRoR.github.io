@@ -203,6 +203,23 @@ if (argv[0] === '--build') {
         r.posC.set(g.pos);                          // the cage's own pose of an intact part: rigid in the body frame
         SB.poseCage(r.RC, rest, live, g.pos, r.posC, NF, down, null);
         SB.tear(r.RC, g.pos, r.posC);
+        // G4102 (CUT-THROUGH): the cage record's removed triangles across a parting, drawn again as cut copies (RC.cut2)
+        { const C2 = r.RC.cut2;
+          if (C2) { const p2 = new Float64Array(C2.nv * 3), Kk = C2.K, b2 = C2.base; SB.poseCage(C2, rest, live, b2, p2, NF, down, null);
+            S.cutCopies = Math.max(S.cutCopies || 0, C2.nv / 3);
+            for (let j = 0; j < C2.nv / 3; j++) {
+              // its corners' kept nodes on its side's piece; its edges as the rest's (it rides one side: no stretch past the tear)
+              for (let q = 0; q < 3; q++) { const o = j * 3 + q, pq = own[C2.dom[o]];
+                for (let kk = 0; kk < Kk; kk++) if (C2.w2[o * Kk + kk] > 0 && own[C2.wi[o * Kk + kk]] !== pq) { S.cutSpan = (S.cutSpan || 0) + 1; break; } }
+              for (let q = 0; q < 3; q++) { const x = (j * 3 + q) * 3, y = (j * 3 + (q + 1) % 3) * 3;
+                const l0 = Math.hypot(b2[x] - b2[y], b2[x + 1] - b2[y + 1], b2[x + 2] - b2[y + 2]), l1 = Math.hypot(p2[x] - p2[y], p2[x + 1] - p2[y + 1], p2[x + 2] - p2[y + 2]);
+                const ex = l1 - ((1 + SB.TEAR) * l0 + SB.TEAR_ABS); if (ex > (S.cutExcess == null ? -Infinity : S.cutExcess)) { S.cutExcess = ex;
+                  if (process.env.CUTDBG) S.cutWorst = { t: +simI.t.toFixed(3), mesh: r.m.nm, l0: +l0.toFixed(3), l1: +l1.toFixed(3), corners: [0, 1, 2].map(qq => { const o = j * 3 + qq; return { dom: C2.dom[o], vp: C2.vp[o], pcDom: own[C2.dom[o]], s: C2.s[o], w: Array.from(C2.w2.slice(o * Kk, o * Kk + Kk)).map(x => +x.toFixed(2)), wi: Array.from(C2.wi.slice(o * Kk, o * Kk + Kk)), pcW: Array.from(C2.wi.slice(o * Kk, o * Kk + Kk)).map(i => own[i]), b: Array.from(b2.slice(o * 3, o * 3 + 3)).map(x => +x.toFixed(2)), p: Array.from(p2.slice(o * 3, o * 3 + 3)).map(x => +x.toFixed(2)) }; }) }; } }
+              // the cut's line against the mesh: a clipped copy whose plane passes within 2 mm of a corner (the line on an edge)
+              if (C2.s[j * 3]) { S.cutClip = (S.cutClip || 0) + 1; if (Math.min(Math.abs(C2.d[j * 3]), Math.abs(C2.d[j * 3 + 1]), Math.abs(C2.d[j * 3 + 2])) < 0.002) S.cutOnEdge = (S.cutOnEdge || 0) + 1; }
+              for (let q = 0; q < 3; q++) if (!Number.isFinite(p2[j * 9 + q * 3])) S.finite = false;
+            }
+          } }
         for (const [RR, pos] of [[r.RG, r.posG], [r.RC, r.posC]]) {
           for (let i = 0; i < pos.length; i++) if (!Number.isFinite(pos[i])) { S.finite = false; break; }
           const ws = SB.worstStretch(RR, g.pos, pos);
@@ -253,6 +270,10 @@ if (argv[0] === '--build') {
     S.setsEnd = stI.set.every((x, i) => x === stW.set[i]);
     S.flushLost = S.settleSteps >= 8 && !S.setsEnd;   // (G2640, Deform's welcome: unequal after the inline held still a whole window = the host's trailing flush lost)
     for (const r of recs) { S.removedG += r.RG.removed; S.tornG += r.RG.torn; S.removedC += r.RC.removed; S.tornC += r.RC.torn; }
+    // G4102: of the cage's triangles removed across a parting at the end (not torn), how many its cut copies draw
+    S.cutAcross = 0; S.cutDrawn = 0;
+    for (const r of recs) { const RC = r.RC; if (!RC || !RC.dead) continue; const drawn = new Set(RC.cut2 ? RC.cut2.tri : []);
+      for (let t = 0; t < RC.nt; t++) if (RC.dead[t] === 1) { S.cutAcross++; if (drawn.has(t)) S.cutDrawn++; } }
     const Dm = simI.damage();
     S.nb = Dm.broken.length; S.crashed = Dm.crashed; S.reason = Dm.reason; S.groups = Dm.groups.map(g => g.key);
     S.hop = { sends: H.dmgSends, bytes: H.dmgBytes, ms: +H.dmgMs.toFixed(3), perSend: H.dmgSends ? Math.round(H.dmgBytes / H.dmgSends) : 0 };
@@ -331,6 +352,13 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
           + (S.stretchAt ? ' (' + JSON.stringify(S.stretchAt) + ')' : '') + '; the worst stretch of an edge of 2 cm or more ' + S.stretch.toFixed(4)
           + (S.tiedFrames ? '; HELD by cover ties on ' + S.tiedFrames + ' frames, up to ' + (S.heldMax || 0) + ' held triangles, their worst edge stretch ' + (S.heldStretch || 0).toFixed(3) : ''));
         yes(S.finite, 'every skin position finite');
+        // G4102 (CUT-THROUGH; the user 13 Nov: "breakage fully independent from mesh geometry")
+        if (S.cutAcross) {
+          yes(!S.cutSpan, 'cut-through: every cut copy rides one side - the kept nodes of its corners on the piece of its side (' + (S.cutSpan || 0) + ' corners not, of up to ' + (S.cutCopies || 0) + ' copies)');
+          yes(!(S.cutExcess > 1e-6), 'cut-through: no edge of a cut copy past the tear (it rides one side whole): the worst ' + ((S.cutExcess || 0) * 1000).toFixed(2) + ' mm from it' + (S.cutWorst ? ' ' + JSON.stringify(S.cutWorst) : ''));
+          yes(S.cutDrawn >= 0.9 * S.cutAcross, 'cut-through: the triangles removed across a parting are drawn cut, not dropped - ' + S.cutDrawn + ' of ' + S.cutAcross + ' at the end');
+          yes(!S.cutClip || (S.cutOnEdge || 0) <= 0.1 * S.cutClip, 'cut-through: the cut runs through the triangles, not along their edges - ' + (S.cutOnEdge || 0) + ' of ' + (S.cutClip || 0) + ' clipped copies have the plane within 2 mm of a corner (before the jag)');
+        }
       }
       console.log('    the cost (node): the first break\'s binding ' + S.bindG.toFixed(1) + ' ms generated (whole), ' + S.bindC.toFixed(1) + ' ms cage (nearest nodes; ' + r.skin.verts + ' vertices); '
         + S.events + ' events, ' + (S.events ? (S.eventMs / S.events).toFixed(2) : '-') + ' ms each (both records of every group)');

@@ -2066,10 +2066,20 @@ function floatParamsFor(grossKg, over) {
 // their mass interpolated between neighbours — stated as estimates, not
 // facts. Displacement is per FLOAT; mSys per PAIR with rigging. The
 // model number is roughly the float's buoyancy in pounds.
-// `disp` is the catalogue's "displacement in fresh water", `flot` its
-// "maximum flotation" (the whole watertight hull, ~10 % more): the hull is
-// CALIBRATED so its volume to the deck is `flot`, and `disp` is the number
-// the plaque quotes.
+// `disp` is the catalogue's "displacement in fresh water" - ONE float's
+// watertight volume (kg of fresh water). `flot` is its "maximum flotation",
+// which Wipaire footnotes "per FAR 23.751 with 80 % reserve buoyancy (2
+// floats)": the heaviest AEROPLANE the PAIR may carry, 2 x disp / 1.8 =
+// disp / 0.9 on every row - NOT a hull's volume. presetParams fits the
+// family's fineness to `flot` (the bottom's shape, as it always was), then
+// SCALES the hull to `disp` with its shape kept (HYDRO-SCALE, USER 13 Nov):
+// ~8 % off the width, ~4 % off the length, the height the catalogue's. So a
+// catalogue pick is drawn a stated ~8 % narrower and ~4 % shorter than the
+// sheet's L and B: the family fills its box more fully than a Wipline does.
+// (Found by FIT-PROCEDURE's PC-6 fit via A0; flydiy-notes
+// HYDRO-DISP-DESIGN-2026-11-13.) A saved card keeps its own dials until it is
+// re-fitted. (EDO rows: `flot` IS one float's buoyancy, the EDO convention -
+// right as it stands.)
 const FLOAT_PRESETS = {
   'Wipline 1450':  { L: 4.60, B: 0.64, H: 0.50, disp: 658,  flot: 724,  mSys: 68,  gross: 650,  est: true,
                      for: 'light sport (Carbon Cub SS, Legend Cub)' },
@@ -2340,10 +2350,27 @@ function presetParams(name, over) {
   let f;
   if (R.flot >= vLo) f = lo; else if (R.flot <= vHi) f = 1;
   else { for (let i = 0; i < 18; i++) { const m = 0.5 * (lo + hi); if (volOf(m) > R.flot) lo = m; else hi = m; } f = 0.5 * (lo + hi); }
-  const P = fineParams(P0, f);
-  delete P._keel;
-  P.scale = k;
-  P.volRes = volOf(f) / R.flot - 1;      // the residual the range left (0 inside it)
+  const fitRes = volOf(f) / R.flot - 1;   // the residual the range left (0 inside it)
+  // HYDRO-SCALE (USER 13 Nov: "scaled to disp, shape kept"): the hull fitted to `flot` above is ~11 % too big (`flot`
+  // is the pair's FAR maximum aeroplane, disp / 0.9). It is SCALED to the row's `disp`, its shape kept: the width
+  // takes two thirds of the cut, the length a third, the height stays the catalogue's (ln sB = 2 ln sL; ~-8 % width,
+  // ~-4 % length). The bottom's angles (deadrise, sternpost, the plan's law) and the fineness stay as fitted; the
+  // details follow the new length, the shell's mass stays the catalogue's. Built as the garage rebuilds a hull from
+  // its rows (scaleParams at the new length), so a pick and its saved rows are the same hull. Tow-tank measured on
+  // 1450 / 2100 / 2350 / 3000 / 6100 (flydiy-notes HYDRO-DISP-DESIGN-2026-11-13 section 6): the hump R/W +1-3 % free,
+  // +7-8 % held at 5 deg, every float over its hump; 1-2.4 cm deeper at rest.
+  const atS = s => {
+    const L = R.L * s, Q = fineParams(scaleParams(DEF, L / DEF.L, Object.assign({}, WIPLINE_AFT, { B: R.B * s * s, H: P0.H,
+      hs: P0.hs, mFloat: P0.mFloat, preset: name, disp: R.disp })), f);   // (the step's depth is a height: kept)
+    delete Q._keel;
+    Q.scale = L / DEF.L;
+    return Q;
+  };
+  let sLo = 0.85, sHi = 1;
+  for (let i = 0; i < 30; i++) { const m = 0.5 * (sLo + sHi); if (makeFloat(atS(m)).volDeck * DEF.rho > R.disp) sHi = m; else sLo = m; }
+  const P = atS(0.5 * (sLo + sHi));
+  P.fitRes = fitRes;
+  P.volRes = makeFloat(P).volDeck * P.rho / R.disp - 1;
   return Object.assign(P, over || {});
 }
 

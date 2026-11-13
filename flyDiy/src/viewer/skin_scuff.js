@@ -50,6 +50,14 @@
     eps0: 0.008,      // crush: a member's equivalent plastic strain where the paint starts to craze (0.8 %: a SET member,
                       //   not one just past its yield - at 0.2 % a 3 m/s taxi crazed the whole cowl on the real page)
     eps1: 0.06,       // ...and where the crush is full (6 %: a buckled tube - TREE-CRASH's kinks run 3-10 %)
+    // G4100 (CRASH-LOOK, the user 13 Nov: "any impact must show on the plane", and yes to a dent where list:50's wing
+    // met the pole): a member that SET a little - past epsD, under the craze's eps0 - DENTS its skin: the crush byte up
+    // to dentI (under the shader's craze start, 0.40: relief only, no crazed or flaked paint). The member's equivalent
+    // strain is its plastic work spread over its whole length, so a dent a hand wide on a 1.7 m spar reads a few tenths
+    // of a percent (list:50's wing on the pole at 5 m/s: 0.56 %, under eps0 - nothing was drawn); the Cub's belly slide
+    // bends its longerons 0.11 % (under epsD: a slide is the scrape's, not a dent)
+    epsD: 0.0015,
+    dentI: 0.30,
     scrapeW: 60,      // J: a node's slide work at 1 - 1/e of the full scrape (a node of ~300 N on the ground slid ~25 cm)
     face0: 0.05,      // the facing (rest normal . the side the node was pushed from) where a node's scrape starts...
     face1: 0.55,      // ...and is whole
@@ -92,7 +100,7 @@
     if (D.wB) for (let bi = 0; bi < nb; bi++) {
       const w = D.wB[bi]; if (!(w > 0)) continue;
       const b = def.beams[bi], R = crash[b.mat], sy = R && R.ty ? R.ty : 3e8, A = b.A > 0 ? b.A : 5e-5, L = b.L > 0 ? b.L : 0.5;
-      const e = w / (sy * A * L), I = Math.pow(smooth(SC.eps0, SC.eps1, e), 0.8);
+      const e = w / (sy * A * L), I = Math.max(SC.dentI * smooth(SC.epsD, SC.eps0, e), Math.pow(smooth(SC.eps0, SC.eps1, e), 0.8));   // G4100: the dent under the craze
       eB[bi] = e;
       if (I > cN[b.a]) cN[b.a] = I;
       if (I > cN[b.b]) cN[b.b] = I;
@@ -551,6 +559,9 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
         rgh = mix(rgh, dSubR, dMet * flake * (1.0 - rim));
         rgh = mix(rgh, max(rgh, uDmgCol[0].w), dMet * rim);
         dGrad += dMet * cr * nB.yzw * 7.0 * 0.004;
+        // G4100: THE DENT - the sheet (or the slack fabric) pushed in from the lightest set up: the buckle field at a
+        // centimetre's depth, whole by a third of the crush (where the paint has not crazed yet)
+        dGrad += (dMet + 0.6 * dFab) * smoothstep(0.0, 0.30, cr) * nB.yzw * 7.0 * 0.010;
         float chipOn = flake;
         // wood: SPLINTERS - thin pale raw grain torn along the part, dark splits between, sparse
         float sp = dmgVN(vec3(dP.x * 3.0, dP.y * 90.0, dP.z * 90.0)).x;

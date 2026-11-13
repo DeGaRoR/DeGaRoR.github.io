@@ -314266,6 +314266,19 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
   1.25 m, 269 mm of stroke, 7 / 24 bar; every mount 0.13-0.85 stands at 68 mm and takes the limit drop unbottomed; the long
   strut lands at 3.2 g at the CG against the short one's 4.5 (GATE WILGAGEAR 7c). The Wilga fairing stays thick (a 31 deg
   leaning leg on a horizontal pivot swings the strut ~+-8 cm sideways at its foot) - the user: fine.
+- THE ROOT FITTED TO THE BODY (a later ref, claude/wilga-gear-rootfit - after A0 landed the READY as a0/wilga-gear-l37b):
+  the boot trims its 36 columns on the drawn skin with the pylons' rays (_cage_eng exports CAGE_PYLON = { caster, hug };
+  _cage_gear leverSkinOf hands leverBoot a skin cast and a cache key), a 4 cm fillet, a rubber bead round the joint.
+  Full on the default builds; a high side fitting leaves columns ending at the fitting (GATE WILGAGEAR 7b reports it).
+  THEN AN OPTION, PLAIN BY DEFAULT (the user, 10 Nov, after the low/mid/high x shape matrix: "whenever you intersect cut
+  windows or any seam in the fuselage, then it generates big glitches ... an option ... when it works, why not"): the row
+  lvJoint is now 'leg fairing root' - 0 plain (the default, no skin cast at all), 1 fitted with a riveted strip (the pylons'
+  Bezier strip on the skin's own normal, 2.6 mm rivets every 3.5 cm), 2 fitted with no strip. One trim axis for every column
+  (per-column axes zig-zagged the foot); the Wilga's leg tube trimmed with the slab ("the darker gray part in front ... would
+  need to follow") with no fillet of its own (its fillet stood through the slab's thin sides); a ray much longer than its
+  neighbours' (through a window to the cabin's far side) is a miss filled from them. Known limit: rays still read cut
+  windows and seams as holes - the reason it is not the default. GATE WILGAGEAR 7b: plain at the default, fitted 36/36 with
+  the strip where asked (host and Cub).
 
 **Pitfalls met (each measured, each fixed):**
 - The fixed leg as gear-class members is a 1.2e5 N/m spring and folds under its own strut: kMul 20.
@@ -315264,6 +315277,589 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+
+## PC6-TAIL - THE TAIL'S FLOWN ENVELOPE OPENS TO A 6 M STAB AND A 3 M FIN (12 Nov 2026, cloud)
+
+The user's PC-6 off the drafting table (builds/candidates/pc6_drafting_2026-11-11.json, on the fit-procedure branches)
+joined with two ERRS rows: "the drawn hSpan 5.143 m is outside the flown envelope 1.5-4.5 m" and "vHeight 2.512 m ...
+0.6-2.2 m". The real PC-6/B2-H4 has a 5.13 m tailplane and a ~2.5 m fin, so a 2.8 t STOL utility aeroplane under 18 m of
+wing could not fly its own tail (genBig, the DC-3's envelope, only opens past 18 m).
+- **Where:** `GEN_TAIL_ENVELOPE` (60_gen_spec.js, the one home since TAIL CHANTIER 2 P1 / G215): clampSpec cuts to it
+  through GEN_FIELDS 'tail.hSpan' / 'tail.vHeight' (genFieldClamp, resolveSpec's put() too), _cage_join.js reads it for
+  its ERRS row. The 4.5 / 2.2 were G215's light-aeroplane bounds ("clamps speak", not a physics limit); no gate asserts
+  the numbers (SPECFIX B8 reads the envelope itself).
+- **Why it is safe:** nothing downstream was sized to the old ceiling - the stab truss is 2..4 bays on any span
+  (61_gen_frame.js), the polars read hSpan^2/Sh and vHeight^2/Sv (62_gen_aero.js), mass/inertia are billed per bay off
+  the area, and the big envelope already flies an 8 m stab and a 4.3 m fin. Opened to hSpan [1.5, 6.0], vHeight
+  [0.6, 3.0]; the chords and the big envelope are untouched.
+- **Identity:** buildGen hashed (nodes, beams, params, resolved spec) on master's core and the new one over 160 specs
+  (every builds/**.json raw and joined, every archetype's birth and joined card): 159 bit-identical; the one that moves
+  is twinBush's BIRTH spec, whose DERIVED fin (sqrt(Sv x vAR)) was cut at 2.2 and now flies at 2.349 (its joined card
+  and GATE ARCHETYPES --only=twinBush, which flies the drawn tail: PASS, the circuit completes).
+- **The PC-6** (on master, so its engine reads "differs"): joined with 0 ERRS, flown tail 5.143 x 2.486 (was 4.5 x 2.2).
+  perf_study --vs=pc6 --fly before / after: static margin 11 -> 13 %, Cn-beta 0.097 -> 0.107, tail 62 -> 65 kg, flown
+  circuit completed both (TO 216 / 215 m, climb 8.2 / 8.1 m/s, cruise 145 / 148 km/h, landing roll 380 / 405 m).
+  Still open: its height reads 4.11 m against 3.20 (the drawn fin, not the clamp).
+
+
+## FIT-PROCEDURE FIXES (12 Nov, FIT-PROCEDURE for A0; branch claude/fit-procedure-fixes, after fit-procedure-garage-windows)
+
+The drafting table's PC-6 (DRAFTING_TABLE.md rounds 12-15) and what it found in the garage and the core:
+- THE PT6A-27 (`pt6a27_hartzell3`): 550 shp / 680 thermodynamic (flatK 1.236), 149 kg, HC-B3TN-3D 2.54 m (genPropSynth
+  alu / standard), 2 200 rpm, P&WC 2026 flat rate; GEN_ENG_CG 0.61 as ENGID's bench measures it; its dial point emitted.
+  Garage preset 'P&W PT6A-27' AFTER the custom engine (saved index 46: no index moves), its can fitted to the rating.
+- genEngineRowKey (00_registry, 33_drive): a registry row the per-key tables (GEN_ENG_CG, GEN_DRIVE.eng) do not know
+  reads its twin's entry, else a CG estimated from the measured rows - a runtime-added row used to hang its engine on the
+  front mount nodes, strike its propeller in the settle and fly zero thrust. All 44 existing rows bit-identical.
+- PC6-TAIL (its own entry above): the flown tail envelope 1.5-6.0 / 0.6-3.0 m.
+- plane_shot: the portraits set the craft frame of the root they draw (a rig-only slide of side / plan-box liveries).
+- PERF_STUDY'S +-10 % IS A REPORT, ALL CARDS - NOT A GATE TOLERANCE: a take-off or landing distance within +-10 % of the
+  reference row is printed as a match (the tick) and left out of the ranked discrepancies (DIST_TOL). No gate reads it.
+  perf_study also gained Vs0, the landing over 15 m, --field=short and 'Vmax ... under/ABOVE VNE', and the pc6 row that
+  reads tools/drafting/refs/pc6.json (null where the reference is silent).
+- GATE DRAFTING (tools/drafting/dt_check.js, core, 4 s): the drafting table's own checks and the PC-6 on its reference.
+  The tool for every session: CLAUDE.md's section, tools/drafting/KICKOFF.md (the message to paste with a blueprint).
+- THE LATENT RULE, kept by every new key here (A0's L39a lesson): absent at its default, so no saved build, preset or join
+  gains a key. The stack rows of fit-procedure-garage-windows are ENG_PAGE.LATENT for the same reason.
+- NOT in this branch: THE STRIP DECIDES (43_pilot: a short-field landing flown with the whole STOL-PILOT technique by
+  the expert / the bush pilot, devices or none) rides its own ref, claude/fit-procedure-strip-decides - held from L40a
+  by A0: it moves every canon plane's short-strip landings and owes old-vs-new numbers on the canon first.
+- NOT in this branch: the colour decode (aeroLinear and the four r128-era sites) and the world's colours ride their own
+  ref, claude/fit-procedure-colour, with the PC-6's livery retuned to them - held for the user's look at LOOK-1's stills.
+## REAL-FIGURES PERENNIAL - STAMPS, GATE REALBAND, GATE REALREFS, THE HOW-TO (2026-11-12, REAL-FIGURES, cloud; branch claude/real-perennial, tools only, onto L39b 23ce68c1f)
+
+The REAL-CHECK report can no longer quietly show a number flown on another aeroplane, core or reference, and a new
+reference cannot go in without its conditions and its sources. No core change. The how-to: tools/FIT_AND_VALIDATE.md
+section 12 (the method brief, new on master; section 13 is the hand-over to the FIT-PROCEDURE session's Drafting Table).
+
+**THE RULE FOR EVERY PHYSICS CHANGE FROM NOW ON (A0, 12 Nov).** GATE REALBAND holds the core's numbers. A change that
+moves them goes red on REALBAND by design. Its owner:
+1. reads the red lines (which plane, which number, build or core);
+2. accepts them with `node tools/_realband_check.js --write --reason="<the change, e.g. AERO-BODY: PHYSICS_V 8, the body's drag>"`.
+   The reason is required; every write is kept in tools/realband_baseline.json `history`;
+3. commits the baseline with the change. The report's flown results of the moved planes are now stale (it says so);
+   REAL-FIGURES re-flies them.
+
+Known to come: AERO-BODY (PHYSICS_V 8), the Archaeopteryx rod row, TOW-LAUNCH's slope fix.
+
+- STAMPS (tools/_real_stamp.js). Every real_check result carries `stamp`:
+  - the build file's git blob;
+  - the core's body-sha256;
+  - real_check.js's blob;
+  - a hash of the PLANES row, without its labels;
+  - a hash of the REFS row, without its trail (src, sources, notes, a row's flaps; a range read in order).
+
+  `check()` gives one of four states:
+  - fresh;
+  - stale: the build, core or PLANES row moved, so re-fly;
+  - rescored: only the reference moved;
+  - unstamped.
+
+  real_report prints a freshness block at the top and a chip on each plane. `node tools/_real_stamp.js` lists every
+  result's state. `--backfill=<dir> --at=<commit>` stamps an older folder from the files at the commit it was flown on.
+  Master's evidence (REAL-CHECK-2026-11-07 to -09) is unstamped: the core has moved since, so re-fly before quoting it.
+- THE LIVE SET (_real_stamp.liveKeys): the PLANES rows that are not dropped, supersededBy, next or `branch:`.
+  `real_check --all` flies only those (`--every` / `--branch` for the rest). On master today: cub160 jodel pa18f160
+  chinook dc3 stearman tigermoth camel c172rf carboncubss c172v2.
+- GATE REALBAND (tools/_realband_check.js, core, weight 2, ~2-4 min): `real_check --quick` of the live set against
+  tools/realband_baseline.json (written on this tree). It compares, per load MIN / TYP / MTOW:
+  - mass, Vs, V75, Vmax, climb, L/D;
+  - grass take-off;
+  - CG and margin;
+  - plus the shape and the empty mass.
+
+  A move past its tolerance (1 % on a speed, 0.5 point on a CG) is red, naming whether the build file or the core
+  moved. A new live plane, or one leaving the set, is red until `--write --reason`. The note line says how fresh the
+  report's evidence is (not red).
+- GATE REALREFS (tools/_realrefs_lint.js, core, 0.1 s). Every reference row must give:
+  - its indicator, v, tol and src;
+  - its conditions, stated even when unknown: kg on every performance row, flaps on the stall and the distances,
+    surface on the distances (a water row: water).
+
+  A reference made from now on must also carry `variant`, `sources` ({what, quality, read, url | noUrl}) and each row's
+  `from`. The 13 references on master are LEGACY: listed in the lint, and printed as a note until each is sourced.
+  Every PLANES row must resolve. Fixed in real_refs.js (conditions only, no figure changed):
+  - 8 distance rows that did not state their flaps: 7 now 'unknown', the Petrel's water take-off 0 (no flaps on the type);
+  - the Carbon Cub's V75 range and the Petrel's land take-off range, written high-to-low, now in order (the scores read
+    them min / max: unchanged).
+- real_report grades a sourced row's confidence by its sources' quality (poh 1, maker / typeSheet 0.9, review 0.6,
+  encyclopedia / ruling 0.5, thin 0.3), else by its src text as before.
+- TOOLS:
+  - tools/lattice_overlay.js (+ .py, needs python3 + Pillow): the flown nodes, beams and strips over quickshot's
+    pictures, on the game's load path, with the join's datum. ~15 s;
+  - tools/fleet_scan.js: every build's mass, margin, CG / NP and tail taper per tree, then `--diff=base,new`.
+
+## FICHE PASS + FICHE PAGES + MASS (AIRCRAFT-LOOKS, Thu 12 Nov, claude/ready/fiche-pass + claude/ready/fiche-mass for L39b)
+
+**The pass (A0's slot 15:15-16:15):** the canon planes' fiches (plane-canon's lists: reproductions, story, originals, wip on master's cards; the test copies not baked) with CUT TAKES + CUT PINNED - every cutaway checked to open. A row without a thumb is keyed `list:<n>`; each `media/fiches/index.json` entry carries `listFile` (its card) and `listRow`.
+- **Canon regs** (the user's yes to all, Q4): `spec.meta.reg` written into 9 cards as one replaced value (LF kept). meta is outside every fingerprint (`bench.js BENCH_COSMETIC`); proven in node before the edit: Rufus's load door 24e2e238 (= `SHIPPED_CERTS`), f2 and cert major unchanged, the same on both career Cessnas.
+- **Diagnostic fiches** (PHYSICS-PAGES' drawn-vs-flown page): ten fiches WITHOUT crew (parked.js `emptyCockpit`'s fields) on `claude/diag-fiches` (master + `reports/evidence/DIAG-FICHES-2026-11-12` only), never in media/. cub160 / pa18f160 are REAL-CHECK records: their cards (cub_chord160, pa18_floats_chord160) are baked.
+
+**The pages (the user's fiche structure):** Main | Cutaway | Mass | Drag | Physics | Electrics | Integrity | Reference | Flight log.
+- `FICHE_BOARD.pages.add({ id, label, mount(sheet, rec, ctx), compose?, hidden?, visible? })`:
+  - slot order main, cutaway, mass, drag, physics, electrics, integrity, reference, log; an unknown id goes at the end;
+  - the same id replaces the page; 'log' is hidden;
+  - only registered, visible pages get a button (`visible(rec, ctx)` per record; a throw = no button); an open page no longer visible falls back to Main.
+- ctx goes whole: `{ spec (the stand's), title, propOff, listFile, listRow, urlOf }`. `garage.js listed()` gives the row a plane was opened from while it is the one on the stand (an edit or another load drops it).
+- Mine: Main (today's fiche), Cutaway (the baked cutaway, large), Mass. PHYSICS-PAGES': Drag, Physics, Electrics, Integrity, Reference (after perf). Flight log: a hidden place.
+
+**Mass (`src/viewer/fiche_mass.js`, from massproto 8b38623d):**
+- The empty plane as a sunburst, with the user's five label rules.
+- The as-flown bar to the maximum, then the seats check: full tanks, then 80 kg a seat.
+- The W&B envelope under a bigger side profile.
+- Categories, A0's default with no core change:
+  - Outfit is one slice; its finer split waits for `parts.outfitKg` (claude/physics-pages 7a4c871c).
+  - The engine splits from the spec rows (engine, installation, propeller, mount).
+  - The gear splits by `GEN_MASS_TRACE` nodes (main, tail or nose wheel, floats).
+- The data keeps massproto data()'s shape, so PHYSICS-PAGES' genFicheMass can replace the 'mass' page by id.
+- The official planes' weights are baked into the index (`data.mass`, node; `fiche_bake.js --mass-only` refills them, no Chrome). A plane on the stand is weighed when its page opens (~0.4 s).
+- The side profile is placed on the frame's node extent (the middle of the drawn length); a fiche does not yet record its side view's x origin.
+
+**Gates:** PLANEFICHE gets the PAGES and MASS rows plus 10 selftest breaks.
+
+**Owed:**
+- The price sunburst (after perf).
+- The side view's x origin recorded at the bake (the profile then lands exactly).
+- The HD fiche copies for the user.
+
+CANON REGS r2 (AIRCRAFT-LOOKS, Thu 12 Nov eve, A0 accepted the R3 call; for L40a). L39b dropped fiche-pass + fiche-mass:
+the reg commit turned STOL, POD and SNAPSHOTS red (floats, Rufus). Cause: genCertKey (core 66_gen_cert.js) hashes the
+whole def.spec, meta included; the first proof checked the load door, f2, the cert major and the bench fp, not genCertKey.
+By the user's R3 rule (a reg that moves a stamped hash on a certified file stops), builds/rufus_2026-10-18_certified.json
+and bugReports/cessnaFloatsWOrks.json KEEP F-PGAR; the canon table (plane_lists.json rows 7 and 4) still names N47RF and
+B-CESF, so on those two the table and the painted plane differ until the question below is answered. The other 7 cards
+(cessna172r_2026-11-08 + 6 candidates) carry the canon regs: no pinned stamp moves, but their genCertKey does - A STORED
+CERTIFICATE OF ONE OF THOSE 7 CARDS RE-CERTIFIES ONCE. After perf, for the user: take meta out of genCertKey (a renamed
+plane keeps its certificate)? It re-keys every card once (every stored certificate re-certifies) and needs a version gate.
+The fiches list:7 and design:c172f were baked with N47RF / B-CESF painted: re-bake in A0's slot Fri 13 Nov 13:00-13:30.
+## ENGINE-COOLING - the drawn openings cool the engine (12 Nov 2026, claude/festive-faraday-w3w40x)
+
+The study (futureDesigns/ENGINE-COOLING-2026-11.md, its page beside it as .html) landed on the user's call, 12 Nov: "OK
+with your defaults. I think you should code that." The defaults: the hot case is 38 C at sea level (FAR 23.1043); the
+climb row is safety tier and the taxi row commercial, both PROPOSED; certificates already signed are kept (R3: a game
+update is not a change to the aeroplane), the openings stay out of the fingerprint; the gauge and a power pull-back in v1,
+no damage; cowl flaps v2; the turned scoop now, a NACA flush inlet later; an undrawn outlet is "sized for you".
+
+- **The model (62_gen_aero genCoolOpen / genCooling, GEN_COOL in 60_gen_spec).** dT = eps (Tlim - Tamb), the air the
+  engine needs m = Q / (cp dT); the air the openings pass = kappa rho V_inlet A_in, capped by a drawn outlet (A_out / 1.3).
+  V_inlet = the flight plus 0.6 of the actuator-disc slipstream on a tractor; a pusher's inlets get only its inflow
+  (0.25), on the ground. Kinds: 'bare' (no cowl: passes, the old kCool per kW), 'legacy' (openings not measured: the old
+  per-kW kCool, byte for byte), 'measured' (the momentum drag CdA = 2 kappa A_eff (1 - r) minus the Meredith credit on
+  radiator ducts, x the nose / pusher engine count). Radiators come from the cage rad* rows.
+- **The measurement (tools/_cowl_gen.js coolOpenings).** The cowl's face apertures, the chin scoop, the nacelle inlet (the
+  Super Petrel's forward mouth through the nacelle), the exit gap, the gills, in m2, carried by window.CAGE_COOL_OPEN
+  (its own global: _load_build replaces CAGE_UI after the scene build) into spec.cooling at the join. Facing: the cowl's
+  +z faces the prop, so a pusher's face apertures face AFT and are outlets; a scoop faces the flight when scoopRev ===
+  pushes.
+- **The pusher scoop (cw_scoopRev, "mouth faces: the propeller / the firewall").** Default 0 = as before.
+- **The certificate rows (64c genCoolRows, 64b GEN_CERT_TIER).** cool.climb (safe: fail < 1.0, warn < 1.15) and
+  cool.taxi (comm, warn < 1), both `proposed`: a proposed fail reads as a WARN on both certificates until the user rules.
+  The remedy sizes to the x1.15 pass line and names the step (turn the scoop; size its mouth; give the air a way out).
+- **Out of the fingerprint.** CERT_MEASURED_BLOCKS ['cooling'] (66b certStrip), BENCH_COSMETIC and PROCURE_READOUTS gain
+  'cooling'. No signature moves for this chantier.
+- **The fiche.** Physics, after 'cooling duty': cooling air (bare) / hot-day climb air, cooling openings, cooling drag;
+  their PLAQUE_WHY lines in plaque.js.
+- **The needle.** The oil temperature on the cockpit gauge from genCoolOilC (the air the openings pass now against the air
+  needed now, red line GEN_COOL.oilRed 118 C): DISPLAY ONLY. An unmeasured cowl reads its old 82 C. list:1 Cub 60 C cruise, 95 C
+  in a 38 C climb; list:6 Twin busher 168 C (the dial's stop).
+- **GATE COOL (tools/_cool_check.js, core).** FACING, CALIBRATION, THE PUSHER (the remedy walked to a pass), DRAG,
+  CERTIFICATE, THE SCOOP, THE NEEDLE.
+
+The fleet at 38 C, full-power climb (margin = air passed / air needed): list:1 Cub 1.63, list:50 V2-172 1.66, list:2 Jodel
+5.18, list:10 Tiger Moth-alike 1.81 (bare heads), list:47 Carbon Cub SS 1.65, list:41 Super Petrel 0.81 (its nacelle
+inlet 0.038 m2 counted; the row asks for ~0.054), list:6 Twin busher 0 (a cowled pusher, nothing faces the flight; the
+remedy walks it to a pass), list:7 Rufus bare. Cooling drag CdA: Cub 0.0087 -> 0.0114, V2-172 0.0213 -> 0.0178, Jodel
+0.0087 -> 0.0100, Twin busher 0.0295 -> 0.0182.
+
+- **Gates (each run on the branch and on the pre-change baseline 594a1a05 side by side; the full battery does not fit
+  this container's wall: 12 of 327 jobs in 30 min).** COOL, BENCH, AIDS, STORY, DRAG, ACCEPT, PROCURE, UISMOKE, PANEL,
+  GPSFACE: PASS. GEN: the same single standing red on both sides ("cruise is quiet in wind"), SHAKEDOWN lines identical,
+  no anchor moved. JOINPARITY: the same standing Jodel mass red on both sides. ACCEPT re-flew its evidence: the
+  fingerprints equal the baseline's (no certificate moves), cruise Cub 113 -> 112.7 km/h, C172 185.4 -> 185.8.
+  The --all delivery verdict was NOT run here.
+
+- **Open, waiting on the user.** (1) the proposed rows: rule them in (the Twin busher's safety certificate then FAILs)
+  or tune them; (2) the power pull-back over the red line - it changes how the official list:6 flies, so it lands with
+  (1); (3) sign.rules for kept signatures; (4) cowl flaps (v2), scoop azimuth and NACA inlets. A0 not told: the
+  cross-session send was refused (untrusted device). No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## ENGINE-COOLING 2 - the pusher's suction, the top scoop, the open mouth; list:6 and list:41 cooled (12 Nov 2026, claude/festive-faraday-w3w40x)
+
+The user, after the first landing: "we can make the row, but we have to modify the twin busher and the superpetrel at
+once ... let's have at least a top scoop ... the superpetrel, it has quite a large opening now. Let's fix that."
+futureDesigns/ENGINE-COOLING-2026-11.md §11 has the whole of it.
+
+- **The suction (GEN_COOL.suck 0.6, 62 genCooling).** In flight a pusher's prop lowers the static pressure at the
+  cowl's outlet, just ahead of the disc. The air through the engine grows by the root law:
+  V_in = V sqrt(1 + suck (f^2 - 1)), f the actuator disc's ratio. The ground keeps its pushInflow. Tractors are
+  untouched. This is what "the Petrel's large opening" was missing: its throat was measured right (0.038 m2, the
+  drawn hole); the model did not credit the pusher's own pull.
+- **The top scoop (cw_scoopTop).** The chin scoop mirrored above the spine, with its row in the cowl's scoop group, its
+  ABSENT_AT entry, the parts list and the editor's highlight. Absent means bit for bit (GATE COOL).
+- **The open mouth (_cowl_gen coolOpenings).** Only the part of a scoop's mouth outside the cowl's skin is counted,
+  sampled against the cowl's section at the mouth's station. A scoop drawn into a deep cowl is a notch; the row says
+  so, and the pusher remedy says to stand the scoop out of the skin. This moves a few scoops in the sweep: the caravan
+  archetype 0.32 -> 0.05, the twin-boom pushers' small chin scoops down.
+- **The cards.** list:6 Twin busher floats 4b: the chin scoop turned to face the flight (cw_scoopRev 1), riding the
+  bottom line (cw_scoopFollow 1), half-sizes 0.20 x 0.15, opening 0.9, exit gap 0.22. The hot climb goes 0 -> 1.22,
+  the oil 168 -> 108 C, the cooling drag 0.018 -> 0.021 m2. list:41 Super Petrel LS: nacelle inlet 0.42 -> 0.47
+  (0.048 m2), the hot climb 0.81 -> 1.20 (0.96 from the suction alone), the drag unchanged. Neither card carries a
+  plaque. The Petrel is in LB.VALIDATED: its parity capture (JOINPARITY's page fixture) predates this; JOINPARITY's
+  only red is the standing Jodel mass, the same on the base.
+- **The rows stay PROPOSED.** Sweeping every listed card and every archetype finds more fails than the two planes:
+  - official: list:13 STOL Cub 0.65, list:26 Client Cub 0.97;
+  - archetypes: rv 0.57, spitfire 0.39, caravan 0.05, beaver 0.66, sesqui, ul1, motorglider, ttail, vtail just
+    under 1;
+  - the wing twins (da62, twinBush, p38, fourEngine, floatplane) at 0, their nacelle cowls drawn closed.
+
+  The rv's numbers also say `kappa` is too harsh on small pressure-cowl inlets. The proposal is in the design note §11:
+  calibrate on an RV-class cowl, open the twins' faces, re-draw what still fails, then rule the rows real (with
+  sign.rules).
+- **ENGCONFIG re-pinned** (its IDENTITY table, with a note). Every def digest moved: the drag's `coolBy`, the
+  shakedown's `cooling`. The flown digests moved for the measured cowls only (Cub, Jodel, ultralight fixture, metal
+  Cessna, Cessna on floats), the first landing's meant drag. The Chinook keeps its old flown pin: it fails the same
+  way on the base 594a1a05 (master's red).
+- **Gates.** Each was run on the branch and on its base side by side: COWL, PARTS, DESIGN, KNIFE, SAVE, HULL,
+  PLANELISTS, BENCH, AIDS, STORY, DRAG, PANEL, PROCURE, ACCEPT, UISMOKE, COOL, ENERGY, PODEDITOR, QUADWIN and FRAMES
+  pass. DESIGNCHECK, NODUMMY, DMGCERTCOST and JOINPARITY fail identically on the base. ENGCONFIG after the re-pin
+  fails only where the base does: the Chinook, the quad flights, the three cards. The --all delivery verdict was not
+  run in this container.
+- **Open.** A parked re-cook (the Twin busher's and the Petrel's drawn cowls changed; the cook wants a GPU, A0's
+  train). A0 is still not told: the cross-session send is refused here.
+
+## ENGINE-COOLING 3 - the rows RULED: the series law, the heads on the drawn cowl, every body engine, the archetypes' birth rule (12 Nov 2026, claude/festive-faraday-w3w40x)
+
+The user, 12 Nov, on the second landing's sweep: "the starting designs ... have never been authored ... just add a rule
+and regenerate them"; "on the client cub ... the cylinder heads ... stick out of the cowl ... we should account for
+them"; "check Rufus"; "the twin engine on floats ... has a chin scoop, so we can check whether this is being correctly
+accounted for"; "if you recalibrate something, that should be your coefficients around the opening"; "this
+pusher-puller inline should allow for a scoop on the aft engine as well". futureDesigns/ENGINE-COOLING-2026-11.md §12
+has the whole of it.
+
+- **The series law (62 genCooling, GEN_COOL ivr 0.8 / passages 3.0; kappa retired).** The air passed is
+  1 / sqrt(sum 1 / mdot_i^2) over three terms: the drawn inlet (ivr rho V A_in), the engine's own passages (3 x its
+  hot-climb need), and a drawn outlet (ivr rho V A_out / 1.3).
+  - The drag is the same expression wherever the outlet is sized for you.
+  - The remedy's sizes are the inverse of the law: the inlet with the outlet sized for it, the outlet through the
+    drawn inlet.
+- **The heads measured on the drawn cowl.**
+  - How: `COWL_GEN.coolHeads` (_cowl_gen), called by the engine layer once the cowl is drawn. It maps each cylinder's
+    frontal strip into unit 0's shell (`window.CAGE_COWL_SHELLS`) and tests it against the skin.
+  - Output: `spec.cooling.headsOut / headsAll`, written by the join (`CAGE_COOL_HEADS`).
+  - Readings: list:26 Client Cub 0.046 m2 out, which takes it from 0.97 to 2.77 with the card unchanged; list:1 Cub 0;
+    the Tiger Moth-alike's cylinders are inside its drawn cowl (the generator's loft said 0.099 out).
+  - Uncowled engines: an uncowled piston engine is judged on its heads (list:7 Rufus 2.54); an uncowled electric
+    motor passes with no figure.
+- **Facing: a pusher's lowered bottom and gills face the flight.** Its cowl is turned round, so they are inlets there.
+  Its way out is the face round the spinner. The remedy says so.
+  - list:6 Twin busher is redrawn accordingly: no exit gap (it was 0.22 against the row's 0-0.08), the face opened to
+    0.2 m half-sizes as the way out. It passes at 1.35.
+- **list:41 Super Petrel** is back to the user's drawing (inlet 0.42) and passes at 1.48. **list:27** Ultralight twin on
+  floats: its chin scoops ride the bottom line at 0.14 x 0.11 (they were mostly buried), 0.62 -> 1.50.
+- **Every body engine judged (genCoolBodyEngines, genCoolingOne).** A push-pull's nose and rear are judged separately;
+  the worst answers, and the drag is summed.
+  - New row `cw_scoopAft` ("the rear engine's scoop: as the nose cowl's / turned: into the air"). The cowl layer
+    rebuilds the aft clone's scoop turned (the scoop meshes carry `userData.coolScoop`).
+  - The measurement carries `scoopAlt` (the mouth at its other end) and `units` (each unit's aft flag, area factor and
+    turned scoop).
+- **The archetypes' birth rule (_cage_design designCoolBirth, in designFull).**
+  - Target: 1.4 x the engine's need, at an inlet speed of 32 m/s x (kW/100)^0.3 (clamped 28-75). It never shrinks
+    what a card draws.
+  - By mount: a puller opens its front, plus a chin scoop on a wing nacelle or an inline/vee; a pusher gets its scoop
+    turned and riding, and its face opened as the way out; a nacelle cone opens its inlet; a layout's rear engine gets
+    scoopAft; a liquid engine's wing radiators grow, net of the nose (the Spitfire-alike's to a Spitfire IX's
+    0.57 x 0.33 m).
+  - Turbines: the turbine cowl style's oil-cooler scoop now stands out of the skin at 0.55 x 0.40 of the barrel.
+  - All 32 archetypes pass.
+- **THE RULING.** cool.climb (safe) and cool.taxi (comm) are no longer proposed. Every official card passes; the STOL
+  Cub warns at 1.08 (the user: no care).
+  - Existing certificates: a signed certificate keeps its stored bench check until the aeroplane changes or the bench
+    runs again. There is no GEN_SPEC_V or PHYSICS_V bump, so R3's recheck does not fire.
+  - Still failing (not official): list:10 Tiger Moth-alike 0.17, list:22/31 twinBoomFail, list:28 Single-seat
+    ultralight 0.6, list:33-36 the older Twin busher reviews.
+- **GATE COOL** (wall 420 s) adds THE SERIES, THE HEADS, THE BIRTH and THE PUSH-PULL (both run before THE SCOOP: the
+  real three.js it loads stops the panel's engine layer), and the ruled rows.
+
+- **Gates.** Each was run on the branch and on its base e0d2bd18 side by side.
+  - Pass: COWL, PARTS, DESIGN, KNIFE, SAVE, HULL, PLANELISTS, BENCH, AIDS, STORY, DRAG, PANEL, PROCURE, ACCEPT, UISMOKE,
+    COOL, ENERGY, PODEDITOR, QUADWIN, FRAMES, CERTGATES.
+  - Identical failure lines on the base: DESIGNCHECK, NODUMMY, DMGCERTCOST, JOINPARITY (the Jodel mass), GEN ("cruise
+    is quiet in wind"), ARCHETYPES (full tier: the Chinook-alike's circuit, a rejected take-off).
+  - ENGCONFIG: the metal Cessna's and the Cessna on floats' digests moved (their 0.011 m2 of heads now measured
+    through the drawn cowl). They are re-pinned; it then fails only where the base does (the Chinook, the quad
+    flights, the three cards).
+  - ACCEPT re-flew the metal Cessna's record (same fingerprint).
+  - The --all delivery verdict was not run in this container.
+
+- **Open.**
+  - The Cub-style head cut-outs: a garage gap. The horseshoe is a sector, not a cut round each head.
+  - The power pull-back over the oil's red line: not built (no official card overheats).
+  - Cowl flaps; a NACA flush inlet.
+  - The parked re-cook (the Twin busher's, the Ultralight twin's and the archetypes' drawn cowls changed; A0's GPU).
+  - A0 not told from here (the cross-session send is refused).
+
+## ENGINE-COOLING 4 - on L39b; the scoops are inlets; the Tiger Moth's front; the gills; STOL re-captured (12-13 Nov 2026, claude/festive-faraday-w3w40x)
+
+- **Merged master L39b (23ce68c1f)**, not rebased: a force-push is refused in this session, and A0 accepted either. The
+  four files resolved against fit-procedure:
+  - _cowl_gen buildScoop takes the held section (scoopHold), the cowl-fitted width (scoopWFit) and the taper, plus the
+    turned mouth's z.
+  - coolOpenings measures a cowl-fitted mouth's own width.
+  - _cage_cowl ABSENT_AT and _cage_parts carry both sides' scoop rows.
+  - 90_node_exports takes both lists.
+  - The Ultralight twin's card did not conflict on master: master never touched it.
+  - THE LATENT RULE: cw_scoopRev / cw_scoopTop / cw_scoopAft sit in _cowl_gen's P and _cage_cowl's ABSENT_AT at 0,
+    exactly as fit-procedure's scoopHold / scoopWFit / scoopTaper* do. PROCURE, JOIN and the STOL fixture's spec diff
+    show no cage row moving on a build that does not set them.
+- **The user, on the quickshots:** "most of them have no length and look like a disc"; "for the moth, a proper cowl front
+  opening rather than this scoop"; "we have coded shark fins recently, do we account for that?"
+  - designCoolBirth: a scoop the rule sizes is 3.2 x its height long (within the barrel), with its full section held
+    over the front third.
+  - A narrow inline's or vee's nose gets a tall front slot (2.2 x as tall as wide) and no scoop. The Tiger Moth is at
+    1.58, ul1 at 1.37.
+  - A wing nacelle keeps its chin scoop whatever the engine. All 32 archetypes pass.
+  - The shark fins are the side gills (PROPER-COWLS): measured, an outlet on a tractor and an inlet on a pusher.
+    genCoolOpen now lets only the lowered bottom (the exit gap) draw and cap a tractor's way out. Gills and aft openings
+    add to the exit sized for you; a few small gills used to become the only outlet. No saved card draws gills yet.
+- **The clean wing's Vs.** The cooling drag's climb and cruise speeds hang off the clean wing's Vs, so a slat or a VG kit
+  does not redraw the cowl. GATE STOL: the auto slat pays only its seam again (it was x1.0119).
+  - _stol_check's axial check is now NET of the cooling term: the kit's mass and the endplate's span move the clean
+    climb, and the cooling term with it (0.01016 vs 0.00999 m2). The fences' and endplates' drag still rides the strips.
+- **GATE STOL's baseline RE-CAPTURED on this branch** (_stol_samebits --capture, root = this tree). Diffed against a
+  capture of master 23ce68c1f itself, card by card:
+  - Every validated build moves its def / 4 s / design check / lap, and its joined spec only by `cooling` (Rufus: def
+    and lap; it has no cowl).
+  - Every card moves its def (the drag's `coolBy`) and, cowled, its 4 s, and its spec only by `cooling`, plus the birth
+    rule's opening rows on: tigermoth, pittsAlike, caravan, rv, spitfire (radW/H), floatplane, ttail, vtail, da62,
+    twinBush, skymaster, p38, pushPull, trimotor, fourEngine.
+  - Nothing else differs from master's own capture: the eng_bmepK / eng_massK and engines.custom.cyl differences
+    against the old 6b6b12a4c capture are master's.
+- **Gates on the tip (792e9169) against master 23ce68c1f, side by side** (A0's list + STOL + PROCURE):
+  - Pass on both sides: BENCH, CAGEFIT, CERTGATES, ENGDRAWN, ENGINEDIALS, JOIN, KNIFE, PROCURE, SNAPSHOTS, STOL, STORY,
+    UISMOKE. COOL passes (master has no COOL).
+  - ENGCONFIG fails on both sides, on the same rows: the Chinook's flown digest (master's red), the quad flights, the
+    three cards. The Chinook's def pin differs by ENGINE-COOLING 2's re-pin.
+  - The --all delivery verdict was not run in this container.
+- **Riding** L40a (Fri 13 Nov 19:00; ref by 18:30 Paris); L39c was cancelled. PHYSICS-PAGES' cooling page
+  (claude/physics-pages-cooling) builds on dea18da3 and wants this branch's final sha. The parked re-cook (the Twin
+  busher 4b, the Ultralight twin, the archetypes' cowls) is the train's.
+**PAVEMENT GRASS-STRIP LAW RE-PINNED (DIRT-STRIP 13 Nov, A0 13 Nov: the owner's re-pin with its reason):** the user on 12 Nov, Skyline Altiport: "the transparent surrounding don't work ... convincing surrounding in the greenery, not lawn grass ... less bright, more earth color". A grass strip (uMacro.w) now DRAWS its tundra over its width (the island's grey-green split into moss / sedge / bearberry / lichen / bare earth) and fades it out over a ragged side, the tracks in it, the ruts dark earth; it no longer shows the ground through a hole round the tracks. _pavement_check.js reads the new alpha law and the tundra mix in GLSL.map, at the same strength as the old law's line (DIRT-STRIP's own line of 10 Nov). Rides L40m (claude/ready/dirt-look-2).
+## G3916 - CANOPY-CRACKS: THE GLAZING CRACK READ FROM A BAKED SHEET, TWO LOOKS (ACRYLIC, LAMINATED) - A CLEAN REPLACE OF THE G3623 STAR (2026-11-12, cloud; the study then the build; branch claude/canopy-cracks-study, for A0 + the Deform Coordinator)
+The user, 12 Nov, on the Super Petrel crash stills: the canopy cracks look "like children drawings", and that pattern does not happen on polymer glass. The study (`futureDesigns/CANOPY-CRACKS-2026-11.md`, the page `futureDesigns/canopy-cracks/canopy_cracks.html`) offered A (retune the procedural star), B (a baked crack sheet per material) and C (B + the broken pane). The user: "B is good. Laminated and acrylic look good, keep only these 2. Tempered does not look good enough and polycarbonate is plain unreadable", then "just go, perf is delayed and yours is a clean replace".
+- **Why the G3623 star read childish** (the study, §1): each ray carried a haze of 0.55 out to max(6w, 2 px), so 3-5 px chalk lines; two fbm octaves wobbled every ray; every ray had the same 0.85 brightness from root to tip; concentric rings (a laminated-glass cue) and a Voronoi honeycomb (tempered-glass dicing) on a 3 mm acrylic sheet; 5-9 rays from one point made an asterisk; one look for every material.
+- **What it is now.**
+  - `tools/crack_sheet_bake.js` bakes two sheets once (`media/tex/crack/acrylic.<sha8>.png`, `laminated.<sha8>.png`, ~390 KB each; the table `src/viewer/crack_sheet.js`, GENERATED). One pattern a look, 1024² over 0.9 m round the hit (0.88 mm a texel), RGBA8: R the distance to the nearest crack (0-8 mm), G when that crack arrived as it grew (the reveal by severity, and the taper), B the crack facet's phase (the glint), A the whitened core at full severity. The growth rules are the study page's mock-ups the user approved (acrylic: a crushed white spot, a hackle fringe, 8-9 forking runners to the sheet's edge, 2-3 short arcs; laminated: 14-21 straight radials, chords at irregular radii, a powdered cone). Seeded, no Math.random.
+  - `dmg_glass.js` `GLSL_CRACK`: one `textureLod` at the pixel's own level (no implicit derivatives inside the marks' loop) + ~30 ALU, against ~70 hash calls for the star. The sheet is rotated and mirrored by the mark's seed. The line is a hairline in pixels (1.3 px half-coverage at the root, 0.55 at the tip, faded under a pixel) and, far off, holds only its share of the pixel (SHARE_M 1.2 mm / px). The glint: `pow(|sin(2π phase + 5 vt.x + 3 vt.y)|, 10)` with vt the eye's direction in the mark's tangent frame, so a few stretches flash and the flashes move with the eye. The core: A shrunk with the severity (acrylic rc 0.006 + 0.020 sev, laminated 0.010 + 0.016 sev). `crackJS` mirrors it (bilinear + box mips, as the GPU). `sheetOf`: glass -> laminated; acrylic, polycarbonate (no look of its own, the user's decision) and none -> acrylic.
+  - `aeroskin.js`: `tCrack` and `uCrackMat` in `aeroSharedU0`. `tCrack` starts as `aeroCrackNone` (one texel of no crack: R far, G never arrives), so a sampler is always bound and an empty one never reads as a crack everywhere. The hook passes the eye (`uCraftInv * cameraPosition`, uCraftInv declared for the fragment in AERO_GLASS_CRACK_PARS). The core scatters at 0.55 (the crazed haze was 0.30). No new program (a sampler's value is not a program key).
+  - `app.js` `glassSheet(U, look)`: at the glazing capture (the flight's first frame at rest, damage on) the flown aeroplane's sheet is fetched and, once in, uploaded (`renderer.initTexture`) and bound - never at the crash. `FLYDIY_GLASS_TEST(sev, at, look)` takes `'acrylic' | 'laminated'` by hand. `FLYDIY_GLASS` and the test's return carry `sheet` and `sheetIn`.
+  - The build manifest loads `crack_sheet.js` before `dmg_glass.js`; GATE MEDIA's manifest list has it.
+- **GATE DMGGLASS** (rows changed):
+  - S + the sampler, uCrackMat, the eye in the call, crack_sheet.js in the manifest, app.js binding the sheet only once it is in.
+  - U the mask off the sheet: nothing past SHEET_R or without a sheet; the reveal grows with the severity (141 < 463 < 675 < 736 lit samples at 0.15 / 0.5 / 0.85 / 1; never less at more), a light set's star 0.15 m, the full one 0.44; the core there at the hit and wider at full severity; a hairline (the lit share of the disc 0.3-5 %); the far share; the glint moves with the eye; the two looks differ; sheetOf.
+  - K (new) the shipped sheets: the table's sig = a fresh bake's, N / span / dmax = dmg_glass.js's, each PNG decodes to the bake byte for byte, under 600 KB.
+  - G the mirror with the acrylic sheet bound and mipmapped as the page does: 40000 samples, |d| > 0.05 on 0, worst 0.044, the crack where JS has it 2783 / 2785.
+  - R the stand-in texel: a mark changes 0 px; the sheet bound, no mark: 0 px; a broken member's mark brightens 4561 px (>= 2000, the star's was 3162), darkens 0; a light one 1059; off the plane / away / cleared 0; programs 1 -> 1 -> 1.
+  - B 4429 px from behind; N 0 steps marked or not (the control 12); T unchanged (the triggers are G3623's), shadeJS now reads the build's own sheet.
+- **Neighbour gates (this branch):** PROGRAMS, MEDIA, BUILD, SKINMAT pass; DMGGLASS PASS (all rows) and its selftest PASS (S and T red on every build).
+- **Evidence** (`reports/evidence/CANOPY-CRACKS/`, tools/dmg_glass_stills.js on SwiftShader, the stand, the cockpit camera): the Cub, acrylic, marks 1 and 0.3 (`cub_mark1*`, `cub_mark03*`); the Cub with `--look laminated` (`cub_laminated_*`); the metal Cessna `--at view` (`metal_view_*`). The rings and the honeycomb are gone: straight forking hairlines from a small crushed white spot; the laminated web holds. Unseen on a real GPU.
+- **Not done, said plainly:** no dark side to a crack (the add pass cannot darken; it wants the tint companion to read the sheet - option C's work); no hole and no shards for a broken pane (option C, next on the user's word); the glint is the eye's alone, not the sun's; marks still follow members, not contact points (G3623's limit, flagged to the Deform Coordinator). A plane switched to another look mid-session keeps the old sheet bound until the new one has loaded (milliseconds, at the flight's start).
+- HYDRO-SCALE (SEAPLANES-LAND for A0; "USER 13 Nov: Wipline floats scaled to disp, shape kept"), claude/ready/hydro-scale: the Wipline catalogue's `flot` is the PAIR's FAR 23.751 maximum aeroplane (disp / 0.9), and every catalogue hull was fitted to it, so each was ~11 % too big. The user's call: SCALE the hull, keep its shape (not the lower deck + more sheer first proposed); they look wide, so take more from the width. presetParams fits the fineness to `flot` at the sheet's box as before (the bottom as it was), then scales the length by s and the width by s^2, the height kept, s solved per row to `disp`: L x0.959-0.963, B x0.919-0.928, volume = disp on all 15 rows (2350: 5.97 x 0.740 -> 5.73 x 0.682 m, 0.58 high). Details follow the new length (as the garage rebuilds from rows); the shell mass stays the catalogue's (price unchanged). Tow tank (node, 1450 / 2100 / 2350 / 3000 / 6100 at half gross a float): deadrise unchanged, hump R/W +1-3 % free / +7-8 % held at 5 deg, all over the hump, 1-2.4 cm deeper at rest, reserve 1.94-2.02 x gross. NO FLOWN PLANE MOVES: the garage float defaults (DEF_ROWS) are frozen at the 1450's old dials; the 23 float-bearing cards' joined floats are byte-identical to master. A fresh catalogue pick is the scaled hull, so a new 2350 is ~8 % narrower than the float Cessna's saved floats until the re-fit. RE-PINNED with that reason: WIPLINE (CATALOGUE: vol = disp within 0.2 %, L x s 0.955-0.965, B x s^2, H the row's; the fit to flot kept as fitRes), FLOATSCLASSIC (the Wipline hull hash e2f19d7b -> 23429e30). Gates PASS: WIPLINE FLOATSCLASSIC FLOATS HYDRODYN STARTER FLOATKIT FLOATLETTERS FLOATDUP SEAPLANE HYDROTRIM DMGFLOATTO CAGEFIT. RETRACT not run (over 10 min here; it reads WIPLINE_AMPHIB only, no hull). Not checked in a browser (no GPU slot; the next round's stills show it). NEXT ROUND (the user): re-fit the float Cessna list:4 (2350) and the PA-18 (2100), side-by-side stills, one flight each, one re-pin pass (FLOATS, HYDRODYN, SEAPLANE, TOUR water legs, the re-fitted cards' POD / ENGCONFIG / CONTRACTS / PROCURE / STOL rows). Design note: D:/Dev/flydiy-notes/HYDRO-DISP-DESIGN-2026-11-13.md section 6.
+
+## LIVERY-STICKERS - THE TWELVE ALASKA MARKS AS LIVERY STICKERS (2026-11-09, LIVERY-STICKERS for A0, cloud - node + SwiftShader; branch claude/livery-stickers off claude/stickers-src 36bc0c9ef = master e789e77c + the marks)
+THE ASK (A0's brief, 9 Nov: the user approved all twelve v3 marks): cutter-ready art; polish 02 / 08 / 09 / 12 and keep the
+rest exactly; a sticker layer on the livery machinery (a distance field per mark, one colour, placed like a livery layer,
+either side or both, a size, a turn, a mirror for the left side); official planes and saved builds unchanged; the cost
+measured and named; GATE LIVERYSTICKERS; garage stills on the Cub and the Twin busher at gamer and laptop.
+
+1 THE ART (assets-src/stickers/, README.md there):
+- make_v3.js writes the luminance masks to mask/ now; `python3 flatten.py` composites each mask IN PAINT ORDER as geometry
+  (shapely): white adds ink (unioned), black cuts it (holes and the halos' gaps become geometry), clip paths intersect, a
+  stroke is a round-joined buffer in the element's own units, every transform applied; the fill rules are exact (every
+  face of the linework tested by its winding number). Out: svg/NN_id.svg, ONE path a mark (fill-rule evenodd), no stroke,
+  mask, clip or group; and cut.json (the game's source).
+- THE LOOK IS IDENTICAL: `node diff.js mask svg 1200` (Chromium, 1200 px across): the worst mark moved 22 pixels of
+  1.9 M (0.001 %; a pixel "moves" when its coverage changes by over half), ink within 0.12 % - the polygonised circles' AA.
+- flatten.py also prints, per mark, the thinnest ink and the thinnest gap a cutter has to hold (the widest opening /
+  closing that keeps 99.5 % of the area): the worst ink 1.09 units, the worst gap 1.76 (both glassy panorama, 320 units
+  wide): at 30 cm across, 1.0 mm of vinyl and 1.65 mm of gap. The other marks hold more.
+
+2 THE POLISH (before / after: reports/evidence/LIVERY-STICKERS/marks_before_after.jpg, big and at sticker size; the
+  other eight masks are byte-identical to the approved v3):
+- 02 grizzly: the shoulder hump is now the highest thing on the back (it was the ear), the head carried below it, short
+  and deep: a dished face, a blunt square muzzle, a heavy jaw and a ruff (the head shorter and deeper than v3's).
+- 08 true north: headOn(.., { simple: true }) - no fin, struts, prop blades or windscreen; a thicker wing, fatter tyres,
+  drawn 15 % bigger, the peaks lower behind it. Wing, cabin, cowl ring, two tyres.
+- 09 moose: one broad solid blade swept back with four short points (6-7 units deep; there were seven, 12-14 deep), a
+  notch and a brow palm. Reads as a palm at 36 px.
+- 12 alaska: alaska_ne.py - Natural Earth 1:50m admin-1 (public domain; the download line in its header), the Alaska
+  Albers conic (EPSG:3338's parameters, spherical), the southeast archipelago closed into the panhandle (9 km), the fjords
+  taken off (an opening and a closing of 11 km), Douglas-Peucker 4 km; Kodiak (with Afognak), St Lawrence and Nunivak
+  kept; the Aleutian swooshes laid along the real islands' centroids. The frame is 262 x 168 now (the map's own aspect).
+
+3 IN THE GAME (src/viewer/aeroskin.js "THE LIVERY STICKERS"):
+- FOUR SLOTS, `vn<1-4><On Mk Col L C H Rot Tgt Mode Side Mir>` in AERO_DEC_DEF, all off: `finish.decals` stores
+  deviations, so every build saved before - every official plane - carries none and is unchanged (GATE LIVERYSTICKERS 3/4).
+- THE ATLAS: page 15, cut 2 x 2, one cell a slot; each slot draws its mark in its colour into its cell (the ink fitted to
+  the cell, aspect kept, a margin all round for the field's ramp and the mips) and hands the shader the cell's ink box as
+  its rect (uDecB is any rect; aeroSetDecals takes `d.rect` before aeroPageRect). Pages 8-13 stay LIVERY-TEXT's, 14 free.
+- THE FIELD: G212's - alpha 0.5 at the edge, the ink's colour under the whole ramp, `sdf: 1` (so a float, which declines
+  letters, declines stickers too - vinyl is vinyl).
+- PLACED LIKE A LIVERY LAYER: goes on (AERO_DEC_ON, the kit's eight targets), projected as (field / side / plan), station,
+  height on side, turn (+-pi), a size = the INK's height in metres (the width follows the mark's ink box).
+- SIDES: both / the right side only / the left side only = uDecE.z 0 / -1 / +1. The one-side test (the certification
+  strip's, G208.2: position x normal) takes a SIGN now (aSg). +x IS THE LEFT FLANK, MEASURED (stickers_shot.js --probe:
+  a +1 sticker on the stock Cub showed only on the view whose nose points left) - AERO_VINYL_RIGHT = -1.
+- MIRROR ON THE LEFT: noMirror (paint's rule: one physical direction on both flanks). Measured in the same probe: a
+  noMirror decal reads AS DRAWN on +x (the left) - so the cell is drawn flipped when the mirror is on, and "mirror" means
+  exactly the brief's: the right flank reads as drawn, the left wears the mirror image (a bear walks to the nose on both).
+  Off, both flanks read as drawn (the letters' rule).
+- ORDER: the kit, then the stickers (vinyl on paint), then the registration and its wing copy, then the strip and the
+  master. AERO_MAXD 9 -> 13: the worst case (5 + 4 + 2 + 2) kept whole; the kit's trim rule unchanged.
+- THE GEOMETRY IS LAZY: src/viewer/livery_marks.js (tools/livery_marks_prep.js from cut.json: rings at 0.1 unit, deltas,
+  Douglas-Peucker 0.08) is a MANIFEST.lazy file, asked for (window.FLYDIY_LAZY) the first time a sticker is drawn; the
+  names and ink boxes are inline (AERO_VINYL_MARKS), so a placement never waits and an absent file draws an empty cell -
+  aeroVinylReady repaints the cells when it lands. aeroVinylWait(spec) is a promise: flown_bake.js awaits it before it
+  draws, so the flown bake's IndexedDB cache (keyed by the build) never keeps an empty sticker cell.
+- THE PANEL (_cage_ui.js, DECG 'vny', editor.js heads it "stickers"): four <details>, each: on; the mark as twelve buttons
+  with the mark's picture (from the lazy file; the number until it lands); colour (unset follows the trim, double-click the
+  label to follow again, as the registration's ink); size; station; height on side; turn; sides; mirror on the left; goes
+  on; projected as. decKitDefaults folds the vn rows into DEC / DEC_DEF (the editor bundle is ahead of aeroskin).
+- A SEAM FOUND AND FIXED: parked.js usedPages mapped a decal's rect back to a page by its CORNER (Math.round) - a sticker
+  cell rounded to column 4 (off the atlas) and row 2 (page 11), so a parked aeroplane's atlas copy would have missed its
+  stickers. By the rect's centre now (identical for every whole page). GATE LIVERYSTICKERS 5 holds it.
+
+COSTS (measured):
+- index.html: +21.6 KB raw, +6.5 KB gz (5648824 -> 5655472 B gzip -9, build.js on master e789e77c vs this branch) - code
+  only, inside MEDIA's WIRE and STEP budgets (MEDIA PASS).
+  The marks: livery_marks.js 40.8 KB raw / 16.1 KB gz, fetched only by an aeroplane that wears a sticker.
+- ATLAS PAGES: one (15), shared by the four slots. 0-7 untouched, 8-13 LIVERY-TEXT's, 14 free.
+- SHADER SLOTS: AERO_MAXD 9 -> 13 = +4 iterations of the unrolled decal loop in every skin program's text, +20 vec4 of
+  fragment uniforms (5 arrays x 4). Per pixel nothing changes for an aeroplane without stickers: the loop breaks at uDecN.
+  MEASURED on the page (stickers_shot.js, every active uniform of every skin program, both stages together): the heaviest
+  program 282 vec4 on laptop, 327 on gamer, the decal arrays 65 of them (262 / 307 before). SwiftShader reports 4096 a
+  stage; WebGL2 guarantees 224 fragment vectors. Not measured: a phone's real limit - A0's GPU check and the user's phone
+  should see the skin compile (the phone tier compiles the weathering and the grammar out, so its count is lower).
+- COMPILE: every skin program's text changes once (the loop bound and the signed one-side test): one recompile per program
+  on the first load after the deploy, then the browser's cache. SwiftShader cannot time it honestly.
+- A sticker's draw: a fill + a distance transform over its cell - measured in node at 4096 (a 1024 px cell): ~130 ms, when
+  its MARK or flip changes. The field is kept per slot, so a colour change (the well fires on every step of a drag)
+  repaints the colour over it: ~1 ms. Placement sliders redraw nothing (the page's signature is the mark, colour, flip).
+
+GATES (cloud, node; this tree, `run_gates.js --only=... --jobs=2`): LIVERYSTICKERS (NEW, core, ~4 s: 143 checks; --selftest
+11 probes, every one red), SKINMAT, MEDIA, BUILD, SAVE, ASSETS, ASSETBUDGET, EDBUGS, DESIGN, BENCH, UISMOKE, FLOWNBAKE,
+LIVERYREACH PASS; PARKED PASS (run alone at --max-old-space-size=4096, as LIVERY-5 found: the parked cook is stale on any
+branch that moves a source). RED AS ON MASTER (the same lines on a clean origin/master e789e77c worktree): LIVERY 2 lines
+(builds/cub_2026-09-20.json's strut pin: "resolves to its painted pin trim - got castAlu", "its material is that paint"),
+LAZY 1 line (route_draw's first demand). Not run: the full battery (--all) - A0's train runs it.
+RE-PINNED, with the reason written beside each: GATE LIVERY's slot count and GATE BENCH's AERO_MAXD, 9 -> 13 (the four
+sticker slots; the kit's layers and pages and the strip's and master's slots unchanged). Nothing else moved.
+
+PICTURES (reports/evidence/LIVERY-STICKERS/, README there; SwiftShader, gamer and laptop, 1600 x 1080 canvas, GOLDEN):
+the stock Cub - the grizzly on the right cowl (right side only), the bull moose on the left cowl (left side only, a dark
+red), the Alaska map on the fin (both sides), four views each preset; the Twin busher - the glassy panorama on the
+pod, the orca on both fins (mirrored on the left), the midnight valley on a wing top, four views; the flank probe; the
+marks before / after. The gamer page lost its GPU process to the session's memory limit once per run and recovered.
+
+OPEN QUESTIONS, WITH THE DEFAULTS TAKEN:
+- LIVERY-TEXT is not on origin (no claude/livery-text): built on master with its seams kept - pages 8-13 untouched, the
+  sticker code its own block. MERGING: AERO_MAXD is the one line both change: 15 (text) + 4 (stickers) = 19, the JS
+  constant AND the #define, and GATE LIVERY / BENCH / LIVERYSTICKERS re-pinned to 19 (and their worst cases summed).
+  At 19 the decal arrays are 95 vec4 and the heaviest skin program ~357 (gamer, both stages) - worth A0's GPU check
+  on the phone before both land. The kit's trim rule already makes the kit give way first if a later count is lower.
+- The default place of a slot switched on: the rear fuselage, 3.2 m aft of the firewall, on the waist, 350 mm - on the
+  stock Cub that is ON the registration (its letters fill the rear fuselage); the player moves it. Default kept: no
+  per-build placement. Say if a smarter first place (fitted like the kit's FIT) is wanted.
+- Mirror default OFF (both flanks read as drawn, as a cutter's sheet of two identical stickers would). A mark that faces
+  somewhere (the bear, the moose, the orca) may want it ON by default - say if so.
+- Stickers skip floats (the field page declines letters there: `noLetters`). Say if the floats should take them.
+- A parked aeroplane captured in the first moment of a session, before the 40 KB marks file arrived, holds no sticker
+  until its next capture (parked.js's capture is synchronous; the flown bake waits).
+READY (for A0): claude/ready/livery-stickers = claude/livery-stickers, on claude/stickers-src 36bc0c9ef (= master e789e77c +
+the marks). Source only - no built file is committed (index.html, dev.html, sw.js, version.json, flight_core.js: the
+train's build; flight_core.js does not change, nothing in src/core moved). The parked cook goes stale with any source
+change (tools/parked_cook.js at the train). For AIRCRAFT-LOOKS, through A0: LIVERY-TEXT and this branch share one line,
+AERO_MAXD (JS and #define): 9 + 6 (text) + 4 (stickers) = 19 when both land, and the three gates that pin it (LIVERY,
+BENCH, LIVERYSTICKERS) move together; pages 8-13 are untouched here, page 15 is the stickers', 14 is free; the one-side
+test now takes a sign (uDecE.z -1), which a text piece "left only / right only" can use as is (AERO_VINYL_RIGHT = -1:
++x is the left flank, measured). The GPU check: the gamer page's skin compile (the shader text changed) and the uniform
+count on the phone.
+
+### LIVERY-STICKERS, round 2 (9 Nov, the user's answers to the open questions) - SUPERSEDES the entry above on the slot count (13 -> 15, a cap), the floats (they take stickers now), the default place and the READY note's "19"
+THE USER: "maybe we should allow a little less both text and the stickers, because 19 slots seems like a lot ... let's
+try 15"; the phone "we'll test later"; the default spot "in the middle of the fuselage of the plane"; mirror off "is good";
+"I would like stickers to go to floats, and no reason to be skipped"; the parked planes: as they are ("so that we don't
+have to rebake, no problem").
+- AERO_MAXD 13 -> 15 (JS and #define), AND A CAP, NOT A SUM: the four fixed markings (registration, its wing copy, the
+  certification strip, the master) are always kept; the player's pieces share the other eleven. aeroDecalsFor's trim: THE
+  KIT GIVES WAY FIRST (its last layers), THEN THE STICKERS (their last slots); it returns `dropped`, the pieces that found
+  no slot, for a panel to say. Today's worst case (5 kit + 4 stickers + 4 fixed = 13) is kept whole. LIVERY-TEXT planned
+  15 too: the two branches now AGREE on that line - its pieces join the stickers' side of the trim when it lands (A0 /
+  AIRCRAFT-LOOKS decide whether text gives way before or after the stickers; the seam is `vinyl` in aeroDecalsFor).
+  Re-pinned 13 -> 15, the reason beside each: GATE LIVERY's slot count, GATE BENCH's AERO_MAXD.
+- FLOATS TAKE STICKERS: uDecE.x is 1 for letters (the registration's field, still declined on a `noLetters` section) and 2
+  for a sticker's field (taken); the shader thresholds both as a distance field (aSdf = step(0.5, x)) and declines only
+  the letters there (aLet). Shown: the winged prop on both of the Twin busher's floats (side projection, centred on the
+  hull).
+- THE FIRST PLACE: a slot the player switches on (the 'on' tick, or a mark button on an empty slot) whose placement is
+  untouched goes to the middle of THAT build's fuselage - its field box's mid-length (decFitScan, the kit's own fit) - with
+  its top 3 cm under the waist line, in the field frame (_cage_ui.js decVinylFirstPlace). Centred ON the waist it was half
+  on the stock Cub's window glass (which takes no decal), hence under it. Proven through the panel in the page: the stock
+  Cub's slot 3 went to L 2.30 = the measured mid-length. The rows' fallback (no geometry) is L 2.5, C 0.
+- COSTS NOW: index.html +24.8 KB raw / +7.8 KB gz over master e789e77c (5648824 -> 5656856 B gzip -9). The decal arrays
+  75 vec4 (+30 over master's 45); the heaviest skin program 292 vec4 on laptop, 326 on gamer (both stages counted
+  together, the gamer count with 6 of its skin programs compiled at the time; SwiftShader reports 4096 a stage). Every skin program recompiles once (the define and the shader text moved).
+- GATE LIVERYSTICKERS: 152 checks, --selftest 15 probes all red (new: AERO_MAXD at 19, the stickers giving way before the
+  kit, stickers as letters, the first place off the middle, the first place centred on the waist). The budget is proven
+  with 6 / 9 / 12 extra fixed markings (every fixed one kept, the kit then the stickers dropped from the last).
+- GATES (this tree): LIVERYSTICKERS, SKINMAT, MEDIA, BUILD, SAVE, ASSETS, ASSETBUDGET, EDBUGS, DESIGN, BENCH, UISMOKE,
+  FLOWNBAKE, LIVERYREACH PASS; PARKED PASS (215 checks, alone at --max-old-space-size=4096); LIVERY red on master's two strut lines only.
+- PICTURES (reports/evidence/LIVERY-STICKERS, replaced): the round-2 stills - the same compositions plus
+  `cub_<gfx>_first_place.jpg` (a slot ticked on through the panel, at the fuselage's middle) and the lighthouse on the
+  Twin busher's floats (the winged prop, both floats, `twin_<gfx>_*`).
+
+### LIVERY-STICKERS-2 - the rebase onto master 23ce68c1f (train L39b), for L40a (12 Nov, A0's ask)
+claude/ready/livery-stickers-2 = master 23ce68c1f + A0's marks commit + the cutter-ready art + ONE squashed commit of the
+game work (the 16 commits of claude/ready/livery-stickers 4dc3c2c6a, replayed: their history stays on that branch).
+WHAT LIVERY-TEXT CHANGED UNDER IT, AND HOW THE STICKERS NOW SIT:
+- AERO_MAXD: master is 15 already (LIVERY-TEXT's six pieces). The stickers add NO slot - the user's cap ("let's try 15")
+  holds: the fixed markings AND the text pieces are kept (LIVERY-TEXT puts them in the never-trimmed list), then the four
+  stickers, then the kit in what is left. Worst case: 4 fixed + 6 text = 10, then 4 stickers + 1 kit layer, 4 dropped
+  (`dropped` in aeroDecalsFor's return). Paint order: the kit, the stickers, the text, the registration, the rest.
+  So GATE LIVERY and GATE BENCH need no re-pin from this branch any more (master pins 15).
+- THE SIDES: LIVERY-TEXT's one-side code is now the stickers' too - uDecE.z 0 both, 1 the +x side (the LEFT flank, as
+  the probe measured and LIVERY-TEXT's comment says), 2 the -x side (the RIGHT); its shader lines are kept verbatim.
+  The stickers' `one` is 2 for "the right side only" and 1 for "the left side only" (AERO_VINYL_RIGHT -1 -> code 2).
+- STICKERS ON FLOATS: uDecE.x 2 for a sticker's field (floats take it), 1 for letters (the registration and the text
+  pieces: floats still decline them) - unchanged from round 2, on master's shader.
+- The editor folds the vn rows after the text pieces' t rows (decKitDefaults); the finish view heads "lettering" then
+  "stickers".
+LIVERY MANAGER (AIRCRAFT-LOOKS, lands L40a - its branch is not on origin, so not run here): the stickers are their own
+rows, vn1..vn4 x 11 fields (AERO_VINYL_FIELDS: On Mk Col L C H Rot Tgt Mode Side Mir) in finish.decals, separate from
+the kit's m1..m5 - a livery that holds m1..m5 neither carries nor clears them. If the manager should carry stickers,
+it copies the keys matching /^vn[1-4]/ the way it copies /^m[1-5]/. ONE INTERACTION TO KNOW: the kit gives way first, so
+a plane wearing six text pieces and four stickers draws only the FIRST kit layer of a five-layer livery.
+GATES (this tree, --no-build after one build, by check name): LIVERYSTICKERS, LIVERYTEXT (67), LIVERYREACH, BENCH, SKINMAT,
+UISMOKE, SAVE, BUILD, MEDIA, ASSETS, ASSETBUDGET, EDBUGS, DESIGN, FLOWNBAKE PASS; PARKED PASS (215 checks, alone at --max-old-space-size=4096). LIVERY red on 2 of 328
+lines - builds/cub_2026-09-20.json's strut pin ("resolves to its painted pin trim - got castAlu", "its material is that
+paint"), the same 2 of 328 on a clean master 23ce68c1f worktree: master's.
+GATE LIVERYSTICKERS: 153 checks (+1: the worst case with six text pieces on), --selftest 15 probes all red.
+
+
+# L40a (Fri 13 Nov 19:00, full battery 275 PASS / 42 FAIL)
+
+LANDED (merged): see the merge list in this train's log; L40m folded in. DROPPED for real conflicts (re-made on this master for L40c, Sat 20:15): fleet-screen, chooser-alikes-onfleet2 (garage.js), archaeopteryx (30_solver/60_gen_spec/61_gen_frame/_gear_page), livery-manager (build.js), pilot-unify + pilot-jumbo + tow-launch-l40a-2 (the cowl tools/_gear_page/build.js after fit-procedure-fixes). ABSENT: dirt-faults, photo-mode-2.
+
+STANDING (master's, unchanged list): FLIGHTREC GEN RADIALDIV ALTIPORT DESTTO TREECRASH DMGCERT DMGGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGDAMP DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY LIVERY DESIGNCHECK JOINPARITY ENGINE ENGCONFIG FLEX LOAD TECH NODUMMY.
+NEW REDS, NAMED with owners (fix or re-pin with reason in L40c):
+- STOL "spitfire fly" + REALBAND (dc3/camel moved, core hash changed): a core physics change in this batch -> REAL-FIGURES identifies the ref and re-pins with the reason.
+- POD (pod-off def/shakedown bytes, 6 builds): ENGINE-COOLING 56c8800a (inside physics-pages-cooling) -> re-pin with reason.
+- ENERGYBASE + ENGTORQUE "carbon: cg0 / node masses moved": a card changed in the batch -> FIT-PROCEDURE / ENGINE-COOLING check.
+- DMGSKINGPU, DMGWALL (metal nosein 2.28 % > 2 %), DMGTYRE (angular momentum), DMGPOD (gear-up pod torn at 3 m/s), ROLLANIM (64.1 > 64 bytes/frame) -> Deform (crash-look / flex-gearfalls).
+- ROOMMERGE (8 tris unmatched) -> Game (restore-steps).
+- FLOATLETTERS (the weight drops the letters at 0.5) -> AIRCRAFT-LOOKS / fit-procedure-paint shader.
+- CANDIDATES (pc6_drafting not in index.json) -> FIT-PROCEDURE.
+- NAMES ("Alaska" in the twelve marks text) -> LIVERY-STICKERS (livery-stickers-3).
+- MEDIA (index.html +0.34 MiB > 0.3 one-build bound): the sum of 24 readies in one train; re-pin per train, A0.
 
 
 ## AFB-0220 - JOLENE 02/20, THE DERELICT CROSSWIND STRIP: A NARROW BAND, A ROUGH LANE, A CRASH PLAYGROUND, THE FOREST TAKING OVER (13 Nov 2026, cloud, AFB-0220 for A0; claude/afb-0220-strip -> claude/ready/afb-0220)

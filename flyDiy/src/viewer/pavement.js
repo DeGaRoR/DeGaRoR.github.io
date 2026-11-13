@@ -1080,7 +1080,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   float p = big ? uMicro3.w * edge * edge : min(0.6, 0.1 + 0.9 * uMicro3.w) * (0.6 + 0.4 * edge);
   if (pmH(i, j, sk) >= p) return vec4(9.0, 9.0, 0.0, 0.0);
   float a = pmH(i, j, sk + 1), b = pmH(i, j, sk + 2), e = pmH(i, j, sk + 3);
-  float R = big ? 0.07 + 0.2 * e * e : 0.01 + 0.015 * e;
+  float R = big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e;   // (pebbles 3-13 cm across: the user 12 Nov, the 9 Nov picture)
   vec2 C = vec2((float(i) + 0.25 + 0.5 * a) * M, (float(j) + 0.25 + 0.5 * b) * M);
   return vec4((vec2(u, v) - C) / R, R, pmH(i, j, sk + 4));
 }`;
@@ -1478,8 +1478,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
           if (r < 1.0) {
             float top = sqrt(max(1.0 - r * r, 0.0));
             // the island's own rock, grey-brown, darker than the dry soil's crowns - and dusted with the soil it lies in, most at its foot
-            vec3 sc = mix(vec3(0.24, 0.225, 0.2), vec3(0.46, 0.43, 0.385), RK.w) * (0.75 + 0.5 * pvNoise(uvS / 0.05 + RK.w * 37.0));   // (the user 10 Nov: the pebbles back - a grey that reads, not the 9 Nov pale coins)
-            sc = mix(sc, col, 0.12 + 0.3 * (1.0 - top));
+            // (the user 12 Nov, with the 9 Nov picture: "the small ones really gave dirt a more believable look") - the 9 Nov pale
+            // grey and size back, a light dusting at the foot only; the turned, knobbly outline and the wet darkening kept
+            vec3 sc = mix(vec3(0.44, 0.42, 0.39), vec3(0.63, 0.59, 0.53), RK.w) * (0.8 + 0.4 * pvNoise(uvS / 0.07 + RK.w * 37.0));
+            sc = mix(sc, col, 0.04 + 0.16 * (1.0 - top));
             // WET (the user, 9 Nov 21:20: "they do not look wet"): a wet stone is darker and glossy - its own 0.6 gave it the dry
             // soil's matt where the wet soil around it shone
             float wetS = clamp(uPavWet, 0.0, 1.0);
@@ -1740,19 +1742,43 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       float merge = smoothstep(0.62, 0.82, wv) * exp(-v * v / 3.2);
       float trS = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) + 0.45 * (wv - 0.5) + 0.6 * merge - 0.35 * gap + 0.35 * (edgeN - 0.5);
       float soil = smoothstep(0.3, 0.58, trS), trail = smoothstep(0.55, 0.85, trS);
-      if (soil > 0.004) { const vec3 LW = vec3(0.2126, 0.7152, 0.0722); float lum = dot(col, LW);
-        Smp f = pvSet(4, uvS); float sk = soil * (1.0 - trail);
-        vec3 dirt = f.c.rgb * (lum / max(dot(f.c.rgb, LW), 0.02)) * vec3(0.9, 0.8, 0.66) * 0.8;   // bare soil: the ground's brightness, browner, darker
+      // THE TUNDRA ROUND IT (the user 12 Nov, Skyline: "the transparent surrounding don't work. Nothing blends, it's really just
+      // slapped there ... convincing surrounding in the greenery setting, but well done, not lawn grass, then integrate with the
+      // ruts ... less bright, more earth color"): the strip no longer shows the island's lawn through a hole round a pale band -
+      // it DRAWS its tundra over its whole width and fades it out over the torn side (a ragged, wide margin): a mosaic of the
+      // ground's own green split into dark moss / crowberry, dry ochre sedge, rust bearberry, pale lichen specks and bare earth
+      // scuffs (3-8 m patches, 0.4-1.2 m breakup), stronger toward the trail, so the tracks sit IN the tundra
+      const vec3 LW = vec3(0.2126, 0.7152, 0.0722); float lum = dot(col, LW);
+      // (06:10 stills: multiples of the lawn stayed lawn, and one octave through sharp steps drew squares) - an ABSOLUTE tundra
+      // palette near the island's own grey-green, rotated fbm, soft steps
+      const mat2 RT = mat2(0.8, -0.6, 0.6, 0.8); vec2 q = RT * uvS, q2 = RT * q;
+      float m1 = pvFbm(q / 3.1 + seed * 1.7 + 41.0), m2 = pvFbm(q2 / 1.2 + 43.0), m3 = pvFbm(q / 0.45 + 47.0), m4 = pvFbm(q2 / 7.5 + seed + 53.0);
+      float near = 1.0 - smoothstep(0.0, max(halfW, 4.0) + 0.6 * shW, abs(v) + 2.5 * (m4 - 0.5));   // the mosaic strongest at the trail
+      vec3 tun = mix(vec3(0.072, 0.086, 0.046), vec3(0.165, 0.15, 0.085), smoothstep(0.4, 0.62, m1));   // moss / crowberry -> dry sedge
+      tun = mix(tun, vec3(0.13, 0.075, 0.048), smoothstep(0.52, 0.66, m4) * 0.7);                         // rust bearberry
+      tun = mix(tun, vec3(0.24, 0.245, 0.2), smoothstep(0.62, 0.74, m3) * 0.2);                           // lichen
+      vec3 earthT = vec3(0.115, 0.09, 0.064) * (0.8 + 0.4 * m3);
+      tun = mix(tun, earthT, smoothstep(0.56, 0.7, m2 * 0.6 + m3 * 0.4) * (0.2 + 0.5 * near));
+      tun = mix(tun, col * 0.55, 0.12) * (0.8 + 0.4 * m3);
+      float tunK = 0.85 + 0.15 * near;
+      col = mix(col, tun, tunK); rough = max(rough, 0.85);
+      if (soil > 0.004) {
+        // the ruts IN EARTH, not paint: an absolute dark earth albedo, half the set's own contrast kept (the old per-pixel match to
+        // the lawn's brightness made them pale and flat), the bare soil feathering into the plants through the 0.45 m breakup
+        Smp f = pvSet(4, uvS); float sk = soil * (1.0 - trail) * smoothstep(0.15, 0.55, soil + 0.5 * (m3 - 0.5));
+        vec3 dirt = f.c.rgb * sqrt(0.06 / max(dot(f.c.rgb, LW), 0.02)) * vec3(1.1, 0.93, 0.7);   // its lum = sqrt(0.105 x its own)
         col = mix(col, dirt, sk); nT = mix(nT, f.n.xyz, sk * 0.7); rough = mix(rough, f.n.a, sk);
         Smp g = pvSet(1, uvS);
-        vec3 grit = g.c.rgb * (lum / max(dot(g.c.rgb, LW), 0.02)) * vec3(1.06, 0.98, 0.86) * (0.85 + 0.3 * edgeN);
+        vec3 grit = g.c.rgb * sqrt(0.07 / max(dot(g.c.rgb, LW), 0.02)) * vec3(1.08, 0.94, 0.74) * (0.88 + 0.24 * edgeN);
+        grit = mix(grit, dirt, 0.5);   // packed earth with grit in it, not a gravel road
         col = mix(col, grit, trail); nT = mix(nT, g.n.xyz, trail); rough = mix(rough, g.n.a, trail);
         vec2 pc = floor(uvS / 0.22), ph = pvHash2(pc + seed * 3.1);
         if (ph.x < 0.4 * trail) { vec2 pq = (pc + 0.25 + 0.5 * pvHash2(pc + seed * 5.7 + 11.0)) * 0.22 - uvS; float pr = 0.01 + 0.015 * ph.y;
           float pbV = (1.0 - smoothstep(0.7 * pr, pr, length(pq * vec2(1.0, 1.0 + 0.6 * ph.y)))) * smoothstep(0.5, 1.5, pr / max(fwidth(uvS.x), 1e-4));
           col = mix(col, vec3(0.3, 0.285, 0.26) * (0.7 + 0.6 * ph.x / 0.4) * min(lum / 0.18, 1.6), pbV * 0.9); }
       }
-      gPavA = mix(gPavA, soil * gPavA, uMacro.w);
+      // opaque over the strip (the drawn tundra, not a hole); the torn side's own fade does the margin, ragged by its noise
+      gPavA = mix(gPavA, max(soil, smoothstep(-0.9 * shW, 0.2 * shW, dE + 1.6 * shW * (m4 - 0.5) + 0.8 * (m2 - 0.5))) * gPavA, uMacro.w);
     }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk

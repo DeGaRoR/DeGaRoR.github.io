@@ -586,7 +586,7 @@ function buildDeck(P, HY, o, sc) {
   cleat(hard, LA - o.rTransom - 0.22 * sc, yDeck(LA - o.rTransom - 0.22 * sc), 0, 0.11 * sc, sc);
   // THE RIGGING STATIONS: the spreader-bar deck blocks and the strut fitting
   // plates, at the two stations the layer rigs (published back to it)
-  const rig = { fwd: -P.flatK * xs, aft: o.xAft };
+  const rig = { fwd: -Math.min(0.9 * xs, P.flatK * xs + (+P.rigFwd || 0)), aft: o.xAft };   // (FLOAT-RIG-FWD)
   for (const x of [rig.fwd, rig.aft]) {
     const s = HY.sectionOf(P, x === 0 ? -1e-9 : x), y = yDeck(x);
     for (const sd of [-1, 1]) {
@@ -632,7 +632,7 @@ function buildDeckEdo(P, HY, o, sc) {
   cleat(hard, xc0, yOn(xc0, 0), 0, 0.11 * sc, sc);
   cleat(hard, xc1, yOn(xc1, 0), 0, 0.11 * sc, sc);
   // THE RIGGING STATIONS: a saddle under each spreader bar's end and the strut fitting beside it, on the shoulder
-  const rig = { fwd: -P.flatK * xs, aft: o.xAft };
+  const rig = { fwd: -Math.min(0.9 * xs, P.flatK * xs + (+P.rigFwd || 0)), aft: o.xAft };   // (FLOAT-RIG-FWD)
   for (const x of [rig.fwd, rig.aft]) {
     const s = sAt(x);
     for (const sd of [-1, 1]) {
@@ -778,7 +778,7 @@ function build(P, opts) {
     bumperT: P.crownK ? 0.022 : 0.012, bumperL: P.crownK ? 0.13 : 0.04,
   };
   const hull = buildHull(P, HY, o);
-  const out = { hull: hull.bag.out(), sc, rig: { fwd: -P.flatK * P.xs, aft: o.xAft }, stats: meshStats(hull.bag) };
+  const out = { hull: hull.bag.out(), sc, rig: { fwd: -Math.min(0.9 * P.xs, P.flatK * P.xs + (+P.rigFwd || 0)), aft: o.xAft }, stats: meshStats(hull.bag) };
   if (opts.detail !== 0) {
     out.protrusions = buildProtrusions(P, HY, o, sc).out();
     out.bumper = buildBumper(P, HY, hull, o, sc).out();
