@@ -1105,6 +1105,14 @@ const GATES = [
   // in flight (the queue + the page's source); every arc unlock mapped; the kits existing props; the editor's save
   // restores the whole record. ~70 s. `--selftest`: 18 doctored rules, each red (~15 s)
   { id: 'STAGES', file: '_stages_check.js', tier: 'core', wall: 70 },
+  // COMMUNITY-AIRPORT (13 Nov): the community field at w7 in three stages (the `community` site track, 0 mud / 1 today's
+  // dirt / 2 gravel = the sandbox) - the track read off career.sites; w7's length, width, surface, bumps per stage read off
+  // the COMPOSED world (the wheels' surface, terrainH); one axis, a track on it to both ends at stage 0; the scenery by its
+  // bands, existing assets, off the centreline; the sandbox the last stage. ~25 s. `--selftest`: 17 doctored rules
+  { id: 'COMMUNITY', file: '_community_check.js', tier: 'core', wall: 30 },
+  // ...and the pilot at every stage (the game's flight, damage on): the Cub and the metal Cessna into w7 and out of it at
+  // stages 0, 1, 2 (w6 > w7, then a circuit w7 > w7) - one job per (build, stage), ~10-25 min each
+  { id: 'COMMUNITYFLY', file: '_communityfly_check.js', tier: 'full', shards: 3, timeout: 3600_000, wall: 900 },
   // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
   // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
   { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },

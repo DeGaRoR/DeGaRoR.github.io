@@ -461,6 +461,10 @@ const CONTRACT_TEXT = {
   'trk.survey.3': CT_('The weather mast on ' + GAME_NAMES.hill),
   'trk.clients.1': CT_('The club house'),
   'trk.clients.2': CT_('A small museum hangar for your best design'),
+  // COMMUNITY-AIRPORT (13 Nov): the community field's two stage captions (76_stages STAGE_SITE_TRACKS) - plain placeholders,
+  // the Game coordinator's to word
+  'trk.community.1': CT_('The community strip graded to its full length'),
+  'trk.community.2': CT_('The community strip gravelled and widened'),
   // goods (the load words)
   'goods.mail': CT_('mail'), 'goods.tools': CT_('tools'), 'goods.crew': CT_('crew'),
   'goods.parts': CT_('parts'), 'goods.samples': CT_('ore samples'), 'goods.rods': CT_('drill rods'),

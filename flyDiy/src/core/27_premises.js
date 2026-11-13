@@ -890,7 +890,7 @@ function restorePlaces(rec, cut) {
 //   stage: { track: 'minedock', show: [lo, hi | null], vary: [ { show: [lo, hi], ...what changes } ] }
 // and stands only while the career's world progress `tracks[track]` (a small integer, 74_career.js, advanced by a
 // contract's `unlock: { stage: '<track>:<n>' }`) lies in [lo, hi]; hi null (or absent) = no upper bound. `vary` (the
-// first band holding the value) changes the entry while it stands: a RUNWAY's len / c / surface / look / profile / wid
+// first band holding the value) changes the entry while it stands: a RUNWAY's len / c / surface / look / profile / wid / micro
 // (its ground and its surface - physics, so a stage applies at composition only, never in flight: 76_stages.js), its
 // `sock` / `ties` (false: no windsock, no tie-down spots); an item's or an object's P (merged).
 // A CONSTRUCTION KIT is an object { kind: 'kit', kit: <STAGE_KITS name>, x, z, yaw, w, d } - data: it expands, where it
@@ -900,7 +900,9 @@ function restorePlaces(rec, cut) {
 // with the `stage` fields taken off, so the sandbox's record is TODAY'S, byte for byte (GATE STAGES holds it against
 // the island cook's recorded hash). A career's record is stageView(rec, career.tracks): the page composes it at load
 // (world_boot.js) and recomposes it at a roll-out / roll-in when a stage advanced (app.js; never in flight).
-const STAGE_RUNWAY_VARY = ['len', 'c', 'wid', 'surface', 'look', 'profile', 'sock', 'ties'];
+// (COMMUNITY-AIRPORT, 13 Nov: + `micro` - a strip's bumps (26b_strip_micro.js) are its ground too: the community field is
+// graded smoother at each step; composed like the rest of the strip, so the wheels and the ribbon follow the stage)
+const STAGE_RUNWAY_VARY = ['len', 'c', 'wid', 'surface', 'look', 'profile', 'sock', 'ties', 'micro'];
 const STAGE_KITS = {
   // the fenced plot alone: the old fence round it, a gate gap, a pallet by the gate
   plot:  { fence: true, props: [['pallet_one', 0.12, 0.85, 0.3]] },

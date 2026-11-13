@@ -231,7 +231,10 @@ function infraOf(rec, O, toPx) {
   const deg = a => ((Math.round(a * 180 / Math.PI) % 180) + 180) % 180;
   // the roads: compose's line (the record's points, `smooth` applied once, as every reader sees it); the class the record's
   const byId = {}; for (const r of O.roads) byId[r.id] = r;
-  const roads = rec.layers.roads.map(r => {
+  // (COMMUNITY-AIRPORT, 13 Nov: the map is the SANDBOX's - a road that stands only below a track's max, the community
+  //  field's stage-0 paths, is not on it, as compose leaves it out)
+  const stands = r => !r.stage || require('./flight_core.js').PREMISES_GEN.stageStands(r.stage, null);
+  const roads = rec.layers.roads.filter(stands).map(r => {
     const c = byId[r.id]; if (!c) throw new Error('map_bake: compose has no road ' + r.id);
     const P = dedupe(c.pts.map(q => ip(q[0], q[1])));
     const cls = r.cls === 'track' || r.cls === 'path' ? 'track' : r.cls === 'gravel' ? 'gravel' : 'paved';

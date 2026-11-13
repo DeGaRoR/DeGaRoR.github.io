@@ -5,8 +5,10 @@
 // A track (72_contract_data.js CONTRACT_TRACKS: field 2, minedock 4, resort 3, survey 3, clients 2) is a small integer in
 // the career document (`career.tracks`), advanced by a contract's `unlock: { stage: '<track>:<n>' }` (74_career.js
 // careerComplete). The world record stands an element only while its track lies in the element's band. This file:
-//   stageTracksOf(doc)          the tracks a composition reads: the career's, or NULL - the sandbox, every track at its max
-//   stageMaxes()                { track: max } from CONTRACT_TRACKS (the sandbox's law, stageIssues' second argument)
+//   stageTracksOf(doc)          the tracks a composition reads: the career's (a site's track: career.sites, the projects'),
+//                               or NULL - the sandbox, every track at its max
+//   stageMaxes()                { track: max } from CONTRACT_TRACKS and STAGE_SITE_TRACKS (the sandbox's law, stageIssues'
+//                               second argument)
 //   stageKey(tracks)            the composition's key ('sandbox' | 'field:1,minedock:0,...'): what the roll-out compares
 //   STAGE_REVEALS               every arc unlock '<track>:<n>' -> where it is seen and what is said (a trk.* text key);
 //                               world: false - nothing in the world changes at it in this train (said, never hidden)
@@ -44,6 +46,18 @@ const STAGE_REVEALS = {
   'survey:3':   { at: 'w3',       caption: 'trk.survey.3',   world: false },   // (no mast exists today: HANDOVER G2300)
   'clients:1':  { at: 'HOME',     caption: 'trk.clients.1',  world: true },    // the flying club's house
   'clients:2':  { at: 'HOME',     caption: 'trk.clients.2',  world: false },   // (no museum hangar exists today: HANDOVER G2300)
+  // COMMUNITY-AIRPORT (13 Nov, the user: the community field at w7 in three stages - a SITE's track, below): 0 the first
+  // strip on sticky mud (600 x 8 m, the paths on its axis to both ends), 1 today's (1 020 x 9 m dirt), 2 the last pass
+  // (1 020 x 15 m gravel, graded smooth: the sandbox). The strip's rows and the scenery: tools/jolene_stages.json (sg_ca_)
+  'community:1': { at: 'w7',      caption: 'trk.community.1', world: true },   // graded to its full length: dirt, 1 020 x 9 m
+  'community:2': { at: 'w7',      caption: 'trk.community.2', world: true },   // gravelled and widened: 15 m, graded smooth
+};
+// THE SITES' TRACKS (COMMUNITY-AIRPORT, 13 Nov): a stage a PROJECT moves, not a provider's arc. A project's step sets
+// `career.sites[site] = state` (73b careerProjectsTick: steps take site { id, state }); the composition reads that state
+// as the track's value (stageTracksOf), an integer 0..max; absent, the track's own career value, else 0 (the project not
+// begun). Its max joins stageMaxes, so the sandbox is the last stage, as every track's.
+const STAGE_SITE_TRACKS = {
+  community: { site: 'community', max: 2 },   // w7 New Community Runway: 0 mud, 1 dirt, 2 gravel
 };
 // the shot's eye about its target (A0's GPU still frames it: tools/stages_shot.js): metres back, elevation, and the
 // caption's time on screen
@@ -52,6 +66,7 @@ const STAGE_SHOT = { dist: 70, el: 0.32, ms: 4500 };
 function stageMaxes() {
   const out = {};
   if (typeof CONTRACT_TRACKS === 'object') for (const t of Object.keys(CONTRACT_TRACKS)) out[t] = CONTRACT_TRACKS[t].max;
+  for (const t of Object.keys(STAGE_SITE_TRACKS)) if (!(t in out)) out[t] = STAGE_SITE_TRACKS[t].max;
   return out;
 }
 // the tracks a composition reads: a career document's (the page's dev career, a v2 player document with `career`, or
@@ -61,6 +76,11 @@ function stageTracksOf(doc) {
   if (!c || !c.tracks || typeof c.tracks !== 'object') return null;
   const out = {};
   for (const t of Object.keys(stageMaxes())) out[t] = Math.max(0, Math.floor(+c.tracks[t] || 0));
+  // a site's track: the project's state of its site (career.sites), clamped to the track's band
+  for (const t of Object.keys(STAGE_SITE_TRACKS)) {
+    const S = STAGE_SITE_TRACKS[t], v = c.sites && typeof c.sites === 'object' ? c.sites[S.site] : undefined;
+    if (v !== undefined && v !== null && isFinite(+v)) out[t] = Math.max(0, Math.min(S.max, Math.floor(+v)));
+  }
   return out;
 }
 function stageKey(tracks) {
