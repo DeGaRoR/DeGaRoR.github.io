@@ -23,6 +23,9 @@
 //              cost (they are inlined by design — build.js inlineFonts). The
 //              single-file artifact died at 97.83 MiB, 95.9% of it base64;
 //              this is what keeps it dead.
+//   THE NAMED CHUNKS   every <name>.<h8>.js index.html / dev.html names is on
+//              disk and tracked by git (13 Nov: a (built) commit left the new
+//              career chunk out; a branch served as it stands had no core).
 //   THE BUDGET, MECHANICAL   index.html under a declared ceiling. The old
 //              100 MiB limit was enforced by comments in build.js and a
 //              hand-computed margin ("0.42 MiB under a limit FIVE OTHER
@@ -562,6 +565,28 @@ for (const a of MEDIA_ACCEPTED) {
 }
 checkNoCreep(files.filter(f => fs.existsSync(f)));
 const art = checkArtifact();
+// THE NAMED CHUNKS ARE IN THE TREE (A0 + Game, 13 Nov: a branch's (built) commit named career_core.<h8>.js in index.html
+// and left the chunk out - `git add` of the built files without the new chunk: the trains rebuild, so master was safe,
+// but a branch served as it stands (git archive, a preview) booted a career with no core). Every <name>.<h8>.js that
+// index.html or dev.html names must be on disk AND tracked by git (in the index: a (built) commit that adds it passes;
+// an untracked one is the trap). Outside a git checkout (an archive served) only the disk is asked.
+function chunkNames(html) { return [...new Set((String(html).match(/\b[a-z][a-z0-9_]*\.[0-9a-f]{8}\.js\b/g) || []))].sort(); }
+function checkChunks(pages, onDisk, tracked) {
+  let n = 0;
+  for (const [page, html] of pages) for (const name of chunkNames(html)) {
+    n++;
+    check(onDisk(name), `${page} names ${name}: not on disk beside it`);
+    if (tracked) check(tracked.has(name), `${page} names ${name}: not tracked by git (git add it with the (built) commit - quote the glob so the old chunk's deletion goes in too)`);
+  }
+  return n;
+}
+let chunkTracked = null;
+try { chunkTracked = new Set(execFileSync('git', ['ls-files', '--', '*.js'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+  .split(/\r?\n/).filter(f => /^[a-z][a-z0-9_]*\.[0-9a-f]{8}\.js$/.test(f))); } catch (e) { chunkTracked = null; }
+const chunkPages = ['index.html', 'dev.html'].filter(f => fs.existsSync(path.join(ROOT, f))).map(f => [f, fs.readFileSync(path.join(ROOT, f), 'utf8')]);
+const chunkN = checkChunks(chunkPages, n => fs.existsSync(path.join(ROOT, n)), chunkTracked);
+console.log(`  the named chunks: ${chunkN} (${chunkPages.map(([f, h]) => f + ': ' + (chunkNames(h).join(', ') || 'none')).join(' · ')})` +
+  (chunkTracked ? ', each on disk and tracked by git' : ', on disk (no git checkout: tracking not asked)'));
 
 // ---------------------------------------------------------------------------
 if (process.argv.includes('--selftest')) {
@@ -612,6 +637,15 @@ if (process.argv.includes('--selftest')) {
     ['the gzip measure on a real page', () =>
       // the wire number is the compressed page, not the raw one
       !!(art && art.gz > 0.1 && art.gz < art.mib * 0.6)],
+    ['a chunk index.html names removed from the tree', () => {
+      const before = fail.length;
+      const gone = chunkNames(chunkPages.length ? chunkPages[0][1] : '')[0] || 'career_core.00000000.js';
+      const pages = chunkPages.length && chunkNames(chunkPages[0][1]).length ? chunkPages : [['index.html', '"' + gone + '"']];
+      const quiet = (() => { const b = fail.length; checkChunks(pages, () => true, new Set(chunkNames(pages[0][1]))); const q = fail.length === b; fail.length = b; return q; })();
+      checkChunks(pages, n => n !== gone, new Set(chunkNames(pages[0][1]).filter(n => n !== gone)));
+      const caught = quiet && fail.length === before + 2;   // (gone from the disk and from git: both rows red)
+      fail.length = before;
+      return caught; }],
     ['a data: payload past what the fonts cost', () =>
       dataBytes('data:font/woff2;base64,' + 'A'.repeat(500 * 1024)) / 1024
         > DATA_BUDGET_KB],
