@@ -706,7 +706,7 @@ function makePilot(sim, def, world, opts) {
     const site = (siteOrTaxiOut && !Array.isArray(siteOrTaxiOut)) ? siteOrTaxiOut : null;
     ap.site = site;
     ap.atHold = (opts && opts.atHold) || null;
-    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; ap.taxiIn = false; holdN = 0; planN = 0; ap.pivSpot = null; ap.pivSpotT = null; ap.climbHold = null; ap.toWaitT = null; ap.flareGuard = null; ap.flareGuardN = 0;
+    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; ap.taxiIn = false; holdN = 0; planN = 0; ap.pivSpot = null; ap.pivSpotT = null; ap.holdBack = false; ap.climbHold = null; ap.toWaitT = null; ap.flareGuard = null; ap.flareGuardN = 0;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
     to = landable(from, to);
@@ -4158,6 +4158,29 @@ function makePilot(sim, def, world, opts) {
               go('STOPPED');
             }
             break;
+          }
+          // PILOT-UNIFY (the user, 13 Nov: "the CUB must be able to do it, and the JODEL must be able to do it" - Jumbo Mine):
+          // A SHORT STRIP IS LEFT FROM ITS END, FROM THE HOLD TOO. G2811 backtracks an aeroplane that landed; one that taxied
+          // out from a stand rolled from the hold where the route meets the strip - the Jodel at Jumbo Mine (250 m) 50 m in,
+          // 200 m ahead for a run whose 0.85 of the sheet (211 m) and the field's reserve (55 m) want 234: committed at 13 m/s,
+          // then 'out of runway' with Vr 47 m off and 103 m left (master the same, to the metre). Under 300 m, a taildragger
+          // lined up at the hold whose take-off does not fit ahead (0.85 of the sheet's run + the reserve: the roll's own
+          // arithmetic) and with 20 m or more to gain taxis back along the centreline to the turn's spot at the end (G2811's
+          // taxi point and pivot spot) and lines up there: the whole strip. Once a departure; the Cub (185 of 200) is unchanged
+          if (!trike && !ap.holdBack && onStrip && alig > 0.95 && isFinite(RgMin) && !sim.hydro && !ap.route.from.altiport &&
+              (ap.route.from.len || 1100) < 300 && ap.takeoffDir) {
+            const fr = ap.route.from, tD = ap.takeoffDir, spot = pivRoom();
+            const behind = (cg[0] - fr.x) * tD[0] + (cg[2] - fr.z) * tD[1] + fr.len / 2;   // the strip behind the aeroplane
+            const fitTO = 0.85 * (A.TORun ?? 500) + reserveOf();
+            if (fitTO > left && behind - spot >= 20) {
+              ap.holdBack = true; ap.path = null; ap.taxiPath = null; ap.stopAfterLineup = true; holdN = 0;
+              const sEnd = fr.len / 2 - spot;
+              ap.taxiTgt = [fr.x - tD[0] * sEnd, fr.z - tD[1] * sEnd];
+              ap.pivSpot = { x: ap.taxiTgt[0], z: ap.taxiTgt[1], spot, from: Math.round(behind) };
+              say('backtrack', 'the run needs ' + Math.round(fitTO) + ' m, ' + Math.round(left) + ' m ahead of the hold - back along the strip to its end (' + Math.round(behind - spot) + ' m more): the whole strip');
+              go('TAXI');
+              break;
+            }
           }
           if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && left >= need) {
             go('ROLL'); ap.t = Math.max(ap.t, 1);
