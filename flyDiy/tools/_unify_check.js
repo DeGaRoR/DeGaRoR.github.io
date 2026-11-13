@@ -58,7 +58,8 @@ function tour(file, profile, order) {
   const def = TR.defOf(C, PT, file), legs = [];
   const R = TR.flyTour(C, W, def, order, { game: { profile, lineup: true }, roundOK: 'nv_strip', tMax: 1800, log: L => {
     const A = HOST && HOST.ap && HOST.ap.report && HOST.ap.report.appr;
-    legs.push({ L, appr: A ? { technique: A.technique, stol: !!A.stol, feel: !!A.feel } : null });
+    const Rp = HOST && HOST.ap && HOST.ap.report;
+    legs.push({ L, appr: A ? { technique: A.technique, stol: !!A.stol, feel: !!A.feel, held: A.held || null } : null, phases: Rp ? (Rp.phases || []).slice() : [], verdicts: Rp ? (Rp.verdicts || []).slice() : [] });
   } });
   return { R, legs };
 }
@@ -88,6 +89,28 @@ for (const [what, file, prof, order, want, mustLand] of STRIP) {
   const fine = x => mustLand ? clean(x) : (!x.L.groundLoop && (clean(x) || x.L.declined || x.L.heldOff));
   const ok = out.legs.length === want.length && out.legs.every((x, i) => fine(x) && x.appr && x.appr.technique === want[i].technique && x.appr.stol === want[i].stol && x.appr.feel === want[i].feel);
   row('STRIP', ok, what + ': ' + out.legs.map(legLine).join(' | ') + ' (asked: ' + want.map(w => w.technique + (w.stol ? '+STOL' : '') + (w.feel ? '+feel' : '')).join(', ') + ')');
+}
+
+// ---- TAIL: the tailwind judged at the gate, not at the touch ----
+// A0 13 Nov (TOW-LAUNCH, GATE ALTIPORT 4): the metal Cessna (bugReports/cessnaMetal (1).json) onto Skyline Altiport's one way
+// in (uphill) on the game's day, 4.8 m/s behind, ~38 m/s over the ground onto 380 m - master ground-looped and broke up;
+// with the slope fix and the re-bake it touched, rolled off the box, went round and only THEN refused. The final with wind
+// behind it is judged before a flare (judgeHeld: appr.held on the record): landed clean on tw_ski, or 'strip-too-short'
+// said with no FLARE before it there and a clean landing where it diverted (_tour_lib's 'declined'); never a ground loop
+const METAL = path.join(ROOT, 'bugReports', 'cessnaMetal (1).json');
+if (go('TAIL')) {
+  if (!fs.existsSync(METAL)) console.log('owed   TAIL    bugReports/cessnaMetal (1).json is not on this tree');
+  else {
+    let out = null, err = null;
+    try { out = tour(METAL, undefined, ['HOME', 'tw_ski']); } catch (e) { err = String(e.message).slice(0, 160); }
+    const x = out && out.legs[0];
+    const ref = x && x.verdicts.find(v => v.code === 'strip-too-short');
+    const flareBefore = x && x.phases.some(q => q.phase === 'FLARE' && (!ref || q.t < ref.t));
+    const judged = !!(x && x.appr && x.appr.held);
+    const ok = !!x && judged && !x.L.groundLoop && (clean(x) || (!!x.L.declined && !!ref && !flareBefore));
+    row('TAIL', ok, 'the metal Cessna HOME>tw_ski, the game day, the expert: ' + (err ? 'THREW ' + err : x ? legLine(x) + (x.L.declined ? ' DECLINED -> ' + x.L.declined : '') +
+      ' | judged ' + (judged ? JSON.stringify(x.appr.held) : 'NO') + (ref ? ' | refused at t ' + ref.t + (flareBefore ? ' AFTER A FLARE' : ', no flare before') + ': ' + String(ref.note).slice(0, 160) : '') : 'NO LEG'));
+  }
 }
 
 // ---- in the air (GATE GLIDE's way): settled at a's line-up, moved to (x, z) h m up, heading hdg at V ----

@@ -3024,14 +3024,14 @@ function makePilot(sim, def, world, opts) {
         const aimS = sThr0 + Math.max(10, 0.06 * to.len);
         // (never before an aim G2125 displaced down the strip for an obstacle - that aim is the approach's clearance)
         if (dAim > 300 && aimS < ap.xAim && !(ap.appr && ap.appr.displaced)) { ap.xAim = aimS; if (ap.appr) ap.appr.aimIn = r0(aimS - sThr0); }
-        say('held-speed-short-field', 'the elevator holds ' + Vtd.toFixed(1) + ' m/s on this final' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s behind)' : '') + ': the stop from it needs ' + r0(need) + ' m, ' +
+        say('held-speed-short-field', (tVAdapt > 0.5 ? 'the elevator holds ' : 'the approach flies ') + Vtd.toFixed(1) + ' m/s on this final' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s behind)' : '') + ': the stop from it needs ' + r0(need) + ' m, ' +
             r0(room0) + ' m of ' + (to.name || to.id) + ' are left past the aim and the float - landing short-field (aim ' + r0(ap.xAim - sThr0) + ' m in, the brakes from the touch)');
       }
       heldJudged = ap.shortFld ? 'short' : 'normal';
       const room = sEnd - ap.xAim - fl;
       if (heldJudged === 'short' && room < (RC_ ? (A.stopShortK ?? 0.84) * (0.8 * (need - Vg) + Vg) : needS) && dAim > 0) {   // (G3491: the stop at full brakes)
         heldJudged = 'refused';
-        say('strip-too-short', (to.name || to.id) + ': the elevator holds ' + Vtd.toFixed(1) + ' m/s' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s of wind behind on its one way in)' : '') + ', the short-field stop from it needs ' + r0(needS) +
+        say('strip-too-short', (to.name || to.id) + ': ' + (tVAdapt > 0.5 ? 'the elevator holds ' : 'the approach flies ') + Vtd.toFixed(1) + ' m/s' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s of wind behind on its one way in)' : '') + ', the short-field stop from it needs ' + r0(needS) +
             ' m, ' + r0(Math.max(0, room)) + ' m are left past the aim and the float - not landing there');
         // the nearest strip this gear lands on with the room (its own surface, its grade unknown: level) - else committed, said
         let best = null, bd = Infinity;
@@ -5097,7 +5097,13 @@ function makePilot(sim, def, world, opts) {
         // flare's does); a go-around closes it again. An aeroplane that trims inside 0.15 flies as before
         SV.IthMaxT = A.rotateIMax ?? 0.30;
         const canGA = (ap.gaN || 0) < 2 && !committed;
-        if (tVAdapt > 0.5 && heldJudged !== 'refused' && judgeHeld(d)) break;
+        // PILOT-UNIFY (A0 13 Nov, TOW-LAUNCH's ALTIPORT 4: the metal Cessna onto Skyline Altiport's one way in with 4.8 m/s
+        // behind, ~38 m/s over the ground onto 380 m - ground-looped, or touched, rolled off and only then refused): THE
+        // TAILWIND IS JUDGED AT THE GATE, NOT AT THE TOUCH. Every final with wind behind it (> 0.5 m/s along the landing: a
+        // one-way strip) is judged as a raised reference is (G2500 / G2530 judgeHeld: the touch over the ground, the float,
+        // the stop on the strip's grade): short-field when the normal stop does not fit, refused and diverted when neither
+        // does - before a flare is armed. A final into the wind or in calm air flies as before
+        if (heldJudged !== 'refused' && (tVAdapt > 0.5 || (!sim.hydro && ap.route.to && ap.route.to.surface !== 4 && tailOf(ap.route.to) > 0.5)) && judgeHeld(d)) break;
         setStatus(slopeCaptured ? 'down the slope to the aim point' : 'level, waiting for the slope', [
           cond('to the aim', Math.round(d), 0, d <= 0, 'm'),
           cond('above slope', Math.round(above), ST.gaHigh, above < ST.gaHigh, 'm'),
