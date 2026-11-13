@@ -185,6 +185,9 @@ This session cannot message a session on the user's computer, so the answer is h
    every certificate key moves. Master is still at 7. PROP-CLASSES (claude/practical-cerf-7fjpwp) also takes 8:
    whichever lands second takes 9. A latent-only L40 means the harness rule behind a flag, defaulting to the old rule.
    That would undo the user's ruling, so it is the user's call, not mine.
+   **THE USER'S RULING (13 Nov): "No, go cable runs, there's no need of latent. You can say that I say this."** L40 lands
+   with the cable-run harness live: no flag, the new rule is the only rule, and `PHYSICS_V` goes to 8 (9 if PROP-CLASSES
+   lands first).
 3. **The gate table by check name, master 23ce68c1f against this branch** (31 gates, same box, `--jobs=3`; 13 Nov):
 
 | gate | master | branch | by check name |
