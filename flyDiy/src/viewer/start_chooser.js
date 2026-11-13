@@ -95,12 +95,16 @@
     }, e => { st.busy = false; note(String((e && e.message) || e)); });
     return true;
   }
+  // what go() reads: 'mode:id'. starts() lists a strip or a water lane by its bare aerodrome id ('w3'), which go() would read
+  // as mode 'w' and roll out at HOME (the 11:25 page check, 13 Nov) - so a bare id goes as 'field:<id>' (go() treats field
+  // and water alike); 'trailer:HOME', 'push:tw_ski', 'cartow:HOME', 'place:...' already carry their mode
+  const startArg = s => (!s || /:/.test(String(s))) ? s : 'field:' + s;
   function doGo(start, to, startLabel, toLabel) {
     if (st.busy) return;
-    st.busy = true; LOG.goes++;
+    st.busy = true; LOG.goes++; LOG.last = startArg(start);
     if (kindNow() === 'car' && toLabel) note('Driving to ' + toLabel);
     let p;
-    try { p = Promise.resolve(S().go({ start, to })); } catch (e) { p = Promise.reject(e); }
+    try { p = Promise.resolve(S().go({ start: startArg(start), to })); } catch (e) { p = Promise.reject(e); }
     p.then(() => { st.busy = false; closeSheet(); }, e => {
       st.busy = false; LOG.refused++;
       const why = 'Not from there: ' + String((e && e.message) || e);
@@ -118,6 +122,20 @@
     document.body.appendChild(el);
     st.el = el;
     W.addEventListener('keydown', e => { if (st.open && e.key === 'Escape') { e.stopPropagation(); closeSheet(); } }, true);
+    W.addEventListener('resize', () => { if (st.open) placeSheet(); });
+  }
+  // THE SHEET OVER ITS PILL (the 11:25 page check, 13 Nov: anchored right:22 it opened over the editor's panels, far from
+  // what was pressed): on a desktop it stands above the pill, centred on it, kept 12 px inside the window; a phone keeps
+  // the bottom sheet (the CSS's own place: the inline position cleared)
+  function placeSheet() {
+    const el = st.el; if (!el || !el.style) return;
+    const pill = st.pill || document.getElementById('edStart');
+    if (phoneish() || !pill || !pill.getBoundingClientRect) { el.style.left = el.style.right = el.style.bottom = ''; return; }
+    const r = pill.getBoundingClientRect(), w = Math.min(540, W.innerWidth - 44);
+    if (!(r.width > 0)) { el.style.left = el.style.right = el.style.bottom = ''; return; }
+    const left = Math.max(12, Math.min(W.innerWidth - w - 12, r.left + r.width / 2 - w / 2));
+    el.style.left = Math.round(left) + 'px'; el.style.right = 'auto';
+    el.style.bottom = Math.round(Math.max(12, W.innerHeight - r.top + 8)) + 'px';
   }
   function openSheet(on) {
     if (!on) return closeSheet();
@@ -125,6 +143,7 @@
     if (!st.el) build();
     LOG.opens++;
     st.open = true; st.el.hidden = false; st.tab = 'from'; st.kind = kindNow(); st.msg = '';
+    placeSheet();
     const r = remembered(st.kind);
     st.pick = r ? r.start : null;
     st.to = st.kind === 'car' ? (r && r.to) || SURPRISE : planeTo();

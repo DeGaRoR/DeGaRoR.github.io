@@ -29,6 +29,11 @@ function sourceRows(S) {
   if (/\b(confirm|alert|prompt)\s*\(/.test(strip(S.sc))) bad.push('start_chooser: a browser pop-up');
   if (/FLYDIY_ROUTE\.(to|spawn)\(|bGo/.test(strip(S.sc))) bad.push('start_chooser: it rolls out or routes by itself (only FLYDIY_START.go may)');
   need('css', /#scSheet \{ position:fixed;/, 'the sheet\'s look');
+  // (the 11:25 page check, 13 Nov) at 1024 px #edActs is a ~20 px gap between the panels: the pill must not shrink into it;
+  // and the sheet opens above its pill on a desktop (anchored right it stood over the editor's panels)
+  need('css', /#edActs \.edStartB \{ flex:none;/, 'the pill never shrinks (flex:none)');
+  need('sc', /function placeSheet\(\)[\s\S]*?getBoundingClientRect\(\)[\s\S]*?el\.style\.bottom = Math\.round\(Math\.max\(12, W\.innerHeight - r\.top \+ 8\)\)/, 'the sheet stands above its pill on a desktop');
+  need('sc', /openSheet\(on\) \{[\s\S]*?placeSheet\(\);/, 'the sheet is placed when it opens');
   return bad;
 }
 
@@ -66,7 +71,8 @@ async function flow(src, o) {
     available: () => available, vehicle: () => (kind === 'car' ? 'car' : 'plane'), powered: () => kind === 'plane' && powered,
     starts: () => Promise.resolve(STARTS[kind === 'plane' && !powered ? 'glider' : kind]),
     destinations: () => Promise.resolve(DESTS[kind === 'car' ? 'car' : 'plane']),
-    go: x => { calls.go.push(x); return refuse ? Promise.reject(new Error(refuse)) : Promise.resolve(); },
+    // go() as the page's own (app.js FLYDIY_START.go): it reads 'mode:id' - a bare 'w3' would be mode 'w' (the 11:25 page check)
+    go: x => { calls.go.push(x); if (!/^[a-z]+:./.test(String(x && x.start))) return Promise.reject(new Error('go() reads mode:id, got ' + (x && x.start))); return refuse ? Promise.reject(new Error(refuse)) : Promise.resolve(); },
   };
   const ctx = { window: W, document: doc, console, Promise, JSON, Math, String, Object, Array, setTimeout };
   vm.createContext(ctx); vm.runInContext(src, ctx, { filename: 'start_chooser.js' });
@@ -90,10 +96,10 @@ async function flow(src, o) {
   t(/>Fields</.test(H) && /Metlakatla SPB/.test(H) && /data-start="SEA" disabled title="water: needs floats"/.test(H), 'the sheet: fields grouped, a start that cannot be used greyed with its reason');
   t(C._state().pick === 'HOME' && C._state().to === 'w3', "the first usable start picked; the plane's To is the route's (" + C._state().to + ')');
   C._pick('w3'); await settle(); C._act('go'); await settle();
-  t(calls.go.length === 1 && calls.go[0].start === 'w3' && calls.go[0].to === 'w3' && !C.isOpen(), 'Go hands { start, to } to FLYDIY_START.go, the sheet closed');
+  t(calls.go.length === 1 && calls.go[0].start === 'field:w3' && calls.go[0].to === 'w3' && !C.isOpen(), 'Go hands { start: field:w3 (mode:id, as go() reads it), to } to FLYDIY_START.go, the sheet closed');
   t(/"plane":\{"start":"w3"/.test(store.get('flydiy.start') || ''), 'the start is remembered for planes');
   C.label(verb, 'Roll out & fly', false);
-  t(C.go() === true && calls.go.length === 2 && calls.go[1].start === 'w3', 'the next one click goes from the remembered start');
+  t(C.go() === true && calls.go.length === 2 && calls.go[1].start === 'field:w3', 'the next one click goes from the remembered start (as mode:id)');
   await settle();
   refuse = 'no such field: w3';
   C.go(); await settle();
@@ -135,6 +141,7 @@ async function flow(src, o) {
     await red('Surprise me draws an unreachable place', () => flow(S.sc.replace('const ok = (L || []).filter(d => d.ok);', 'const ok = (L || []).slice(-1);')));
     await red('a greyed start can be picked', () => flow(S.sc.replace("(o.ok ? '' : ' disabled title=\"' + esc(o.why || '') + '\"')", "''")));
     await red('nothing remembered goes anyway', () => flow(S.sc.replace("if (!r) return false;                       // nothing chosen yet", "if (!r) return true;                       // nothing chosen yet")));
+    await red('a bare field id handed to go()', () => flow(S.sc.replace("const startArg = s => (!s || /:/.test(String(s))) ? s : 'field:' + s;", 'const startArg = s => s;')));
     await red('a refusal closes the sheet', () => flow(S.sc.replace('openSheet(true); st.msg = why; render();', 'closeSheet();')));
     await red('the verb rolls out by itself', () => sourceRows(Object.assign({}, S, { sc: S.sc + "\nwindow.FLYDIY_ROUTE.to('x');" })));
   }

@@ -1033,7 +1033,7 @@ html.phone #flWrap .flTile .flBtn { min-height:40px; }
 /* ---- THE START CHOOSER (start_chooser.js, the user 13 Nov: the sandbox's Fly / Drive with where from and where to) -----
    The pill beside the verb (#edStart: "From X → Y"), and the sheet above it (#scSheet: From | To, Go). The phone: a bottom
    sheet with From / To tabs. Garage tokens; the verb's own .verb look for its buttons. */
-#edActs .edStartB { display:flex; flex-direction:column; align-items:flex-start; gap:2px; max-width:260px; min-width:0;
+#edActs .edStartB { flex:none; display:flex; flex-direction:column; align-items:flex-start; gap:2px; max-width:260px; min-width:0;
   padding:6px 11px; text-align:left; }
 #edActs .edStartB[hidden] { display:none; }
 #edActs .edStartB small { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.1em; text-transform:uppercase; color:var(--ed-faint); }
