@@ -14519,46 +14519,6 @@
      null,
      null
     ]
-   },
-   {
-    "id": "lg_r_track",
-    "name": "the lodge track",
-    "pts": [
-     [
-      4640,
-      -19975
-     ],
-     [
-      4655,
-      -20040
-     ],
-     [
-      4640,
-      -20120
-     ],
-     [
-      4625,
-      -20200
-     ],
-     [
-      4615,
-      -20270
-     ]
-    ],
-    "w": 3.6,
-    "cls": "gravel",
-    "graded": true,
-    "falloff": 6,
-    "curve": "spline",
-    "clear": 2,
-    "band": 4,
-    "stage": {
-     "track": "lodge",
-     "show": [
-      3,
-      null
-     ]
-    }
    }
   ],
   "runways": [
@@ -21068,26 +21028,6 @@
       "x": -5,
       "z": 28,
       "yaw": 1.5708,
-      "P": {
-       "lot": false
-      }
-     },
-     {
-      "id": "woodshed",
-      "key": "house/woodshed",
-      "x": 5,
-      "z": -40,
-      "yaw": -0.4,
-      "P": {
-       "lot": false
-      }
-     },
-     {
-      "id": "outhouse",
-      "key": "house/outhouse",
-      "x": -60,
-      "z": -35,
-      "yaw": 0.2,
       "P": {
        "lot": false
       }
