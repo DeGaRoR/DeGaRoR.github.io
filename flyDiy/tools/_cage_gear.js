@@ -149,6 +149,10 @@ const station = (i, name) => [name, [
   // WEIGHT STUDY L6 (the user, 12 Nov: "the gear has been specifically developed for that plane ... it's really like a
   // bicycle wheel. It's like an ultralight wheel"): THE ULTRALIGHT MONOWHEEL - a bicycle wheel in a sprung fork, its
   // members a third of the leg's (GEN_RULES.ulGear), built for ~250 kg: on anything heavier it folds. A single main only
+  // THE TOW HOOK (A0 for the user, 13 Nov): a nose release (aerotow) or a CG release ahead of the mains (winch,
+  // auto-tow) - GEN_RULES.towHook, the tow line pulls on it
+  ...(i === 1 ? [['towHook', 'tow hook', 0, 2, 1, ['none', 'nose (aerotow)', 'CG (winch, auto-tow)'],
+                  { when: P => +P.s1On, absent: 0 }]] : []),
   ...(i === 1 ? [['s1Ul', 'ultralight wheel (built for ~250 kg)', 0, 1, 1, ['off', 'on'],
                   { when: P => +P.s1On && !(+P.s1X > 0.01) && Math.round(+P.s1Leg) !== 3 && !GEAR_RETRACTABLE(P), absent: 0 }]] : []),
   ...(i === 2 ? [['s2Nose', 'spring at', 0, 1, 1, ['the tail', 'the nose (a nose skid)'],

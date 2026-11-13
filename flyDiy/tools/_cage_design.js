@@ -3050,6 +3050,9 @@ const ARCHETYPES = [
                     rodMat: 1,
                     // (WEIGHT STUDY, the user 13 Nov: no dashboard - the three gauges in glider size, 57 mm, on a small pod)
                     intDash: 0, instPod: 1,
+                    // (A0 for the user, 13 Nov: the tow hook, the Archaeopteryx first - a CG release ahead of the wheel: the
+                    //  auto-tow behind the car and the winch)
+                    towHook: 2,
                     // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its

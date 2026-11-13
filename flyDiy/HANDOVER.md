@@ -315697,3 +315697,19 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   floor. The card: intDash 0, instPod 1. GARAGE GAP FOUND: intDash 0 alone (no pod) still bills the board
   (cabin.panel.on is never written false) - every card with the dash off is billed ~1 kg it does not draw; not fixed
   here (it moves those cards and the saved builds' parity), owed.
+- THE TOW HOOK (13 Nov, A0 for the user: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and
+  make the TOW-LAUNCH car tow use it"): the Archaeopteryx 79.7 -> 80.4 kg. GEN_RULES.towHook { nose { kg 0.4 }, cg
+  { kg 0.6, ahead 0.25 } } (Tost E 85 / Europa G 88 class, masses INFERRED); the gear page's row towHook (none / nose /
+  CG; CAGE_DEFAULT_ABSENT, GEN_CAGE_ROW_NEUTRAL 0) -> gear.towHook 'nose' | 'cg' (the join; clampSpec reads the cage's
+  row on a spec baked without the join; a wheeled gear only). 61_gen_frame (the gear section): the release's node TOWH -
+  the nose ring's keel, or the belly `ahead` of the mains - tied by weightless members of the HARD row (the keel tubes,
+  and on a hanging nacelle the mast's foot and its next level; a soft shell's nose release on the keel tubes alone), the
+  release billed on it; refs.towHook = [TOWH]. The card: towHook 2 (CG). THE INTERFACE (for TOW-LAUNCH, via A0): pass
+  hook: def.refs.towHook to makeTowLine where present (src/vehicle/tow.js already takes o.hook), towHookNodes the
+  fallback. MEASURED with tow-launch-l40c's tow.js / vehicle files and their _tow_check launch in a scratch tree, the card
+  built THROUGH THE JOIN (their harness bakes the design without it: no fuse.hang, so no mast - the wing on the soft
+  shell's poles, 4 box members broken at the line-up): the CG hook lifts it at 7.2 s, 16.4 m/s, 55 m; then their hands'
+  climb law (6 + 0.45 deg a metre, to 32) kites it to 65 deg in 3 s and the 6 kN weak link breaks at 19 m. On the nose
+  hook it climbs clean to ~120 m and over-speeds to 36 m/s (the card's VNE, 130 km/h) - the pod's nose poles, then the
+  tail, go - and the link breaks near 100 m. Both are the hands' (a CG hook wants the rotation held, the speed held under
+  VNE) and the weak link's (6 kN on a 160 kg glider - a real one is ~1.3-2 x its weight) - TOW-LAUNCH's to tune.

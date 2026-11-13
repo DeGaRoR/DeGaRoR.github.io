@@ -77,6 +77,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // WEIGHT STUDY L5: a HANGING NACELLE's wing sits on a hub (the mast's head): its carry-through is the hub fitting
   // (GEN_HANG.hubKg, billed in 3d) and its 'bracing' box the wing's own, built at GEN_HANG.boxK of its mass and springs
   const HUBPIN = !!(S.fuse && S.fuse.hang && S.wings && S.wings[0]);
+  let TOWH = -1;                                  // (the tow hook's node, built with the gear: refs.towHook)
   const HUBF = typeof GEN_HANG !== 'undefined' && GEN_HANG.boxK > 0 ? GEN_HANG.boxK : 1;
   // WEIGHT STUDY L6: THE ULTRALIGHT MONOWHEEL (gear.ul, on a monowheel only): its members at GEN_RULES.ulGear.linK
   const GUL = S.gear && S.gear.mono && S.gear.ul && GEN_RULES.ulGear && GEN_RULES.ulGear.linK > 0 ? GEN_RULES.ulGear : null;
@@ -3021,6 +3022,36 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
   const mWheel = CYCLE ? R.wheelCycleKg(S.gear.wheelR) : R.wheelKg(S.gear.wheelR);
   pt(GAL, mWheel + mFairMain); if (!MONO) pt(GAR, mWheel + mFairMain);
+  // THE TOW HOOK (GEN_RULES.towHook; gear.towHook 'nose' | 'cg'): the release's node on the centreline - at the nose
+  // ring's keel (aerotow), or on the belly `ahead` of the mains (winch, auto-tow) - tied to the HARD structure round it
+  // (weightless members, a soft shell's hard row: the keel tubes and, on a hanging nacelle, the mast's foot; the line
+  // pulls kN there, not on the poles), the release billed on it. refs.towHook names it for the tow line (tow.js)
+  TOWH = -1;
+  const HOOK = S.gear.towHook === 'nose' || S.gear.towHook === 'cg' ? S.gear.towHook : null;
+  if (HOOK && R.towHook && R.towHook[HOOK]) {
+    const K = R.towHook[HOOK], HB = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true, hard: true });
+    let hx, hy, anch;
+    if (HOOK === 'nose') {
+      const r0 = F[0], r1 = F[Math.min(1, F.length - 1)];
+      hx = ST[0].x + 0.05; hy = Math.min(P[r0.BL][1], P[r0.BR][1]) - 0.02;
+      anch = [r0.BL, r0.BR, r0.TL, r0.TR, r1.BL, r1.BR];
+      const kl = keelRef && keelRef.twin ? [keelRef.left[0], keelRef.right[0], keelRef.left[1], keelRef.right[1]]
+               : keelRef && keelRef.bottom ? [keelRef.bottom[0], keelRef.top[0], keelRef.bottom[1], keelRef.top[1]] : [];
+      // (on a SOFT shell - a fuselage row naming a hard one - the release bolts to the keel tubes alone: the pod's nose
+      //  ring is poles, and an aerotow's pull tore it (62 members on a 130 m car tow, scratch, 13 Nov))
+      if (M && M.hard && kl.filter(q => q != null).length) anch = kl.filter(q => q != null);
+      else anch = anch.concat(kl.filter(q => q != null));
+    } else {
+      hx = P[GAL][0] - (K.ahead || 0.25);
+      const ir = nearestRing(hx), rg = F[ir];
+      hy = 0.5 * (P[rg.BL][1] + P[rg.BR][1]) - 0.02;
+      anch = [rg.BL, rg.BR, rg.TL, rg.TR];
+      if (mastRef) anch = anch.concat(mastRef.foot, mastRef.nodes.slice(4, 8));
+    }
+    TOWH = N(hx, hy, 0, 'TOWH');
+    for (const a of [...new Set(anch)]) HB(TOWH, a);
+    pt(TOWH, K.kg); spend(K.price || 0);
+  }
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -4112,6 +4143,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     engine: engNodes, engineOf: engIdx, mains: GAL === GAR ? [GAL] : [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,   // (MONOWHEEL: one main)
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     ...(SKIDS.length ? { skids: SKIDS } : {}),       // TIP-SKID: the wingtip skids' shoes (the key only then)
+    ...(TOWH >= 0 ? { towHook: [TOWH] } : {}),       // THE TOW HOOK: the release's node, for the tow line (the key only then)
     ...(mastRef ? { mast: mastRef } : {}),          // THE HANGING NACELLE: the mast (3d; the key only then)
     ...(keelRef ? { keel: keelRef } : {}),          // ...and its keel beam (3e)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we

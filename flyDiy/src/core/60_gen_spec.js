@@ -3189,7 +3189,7 @@ function genEngPropD0(S, e0, PP0) {
 //  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
-                               ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0 };
+                               ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -3766,6 +3766,14 @@ const GEN_RULES = {
   // fairing: the moulded nose shell with a rubber shoe bonded under it - the shell's mass (the fairing row) and no more
   // (the user, 13 Nov: "for real this is almost just the fairing")
   ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4 },
+  // THE TOW HOOK (A0 for the user, 13 Nov: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and make
+  // the TOW-LAUNCH car tow use it"): gear.towHook 'nose' | 'cg' (the gear page's towHook). A NOSE release (Tost E 85
+  // class: aerotow - the line pulls from ahead, the glider stays in line behind the tug) at the nose's keel; a CG release
+  // (Tost Europa G 88 class: winch and auto-tow - the pull near the CG lets the glider rotate into the climb, and it
+  // back-releases itself when overrun) `ahead` of the main wheel on the belly. kg / price per release INFERRED (as
+  // recalled: ~0.4 / ~0.6 kg with the ring and the cable). 61_gen_frame builds the hook's node on the hard structure and
+  // names it refs.towHook - what TOW-LAUNCH's line (src/vehicle/tow.js makeTowLine, `o.hook`) pulls on
+  towHook: { nose: { kg: 0.4, price: 450 }, cg: { kg: 0.6, ahead: 0.25, price: 650 } },
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
@@ -5906,6 +5914,10 @@ function clampSpec(spec) {
     if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';
     if (S.gear.ul !== true) delete S.gear.ul;     // (L6: the ultralight monowheel, GEN_RULES.ulGear - the key only when on)
   } else { delete S.gear.mono; delete S.gear.ul; }
+  // (THE TOW HOOK, GEN_RULES.towHook: a nose or a CG release on a wheeled gear - the key only when one is fitted; a spec
+  //  built from its cage without the join - a design bake - reads the cage's row, as the frame reads whProfile)
+  if (S.gear.towHook == null && S.cage && Math.round(+S.cage.towHook || 0) > 0) S.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+S.cage.towHook)) - 1];
+  if (!((S.gear.towHook === 'nose' || S.gear.towHook === 'cg') && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))) delete S.gear.towHook;
   // MONOWHEEL: THE SUNK MAINS - the share of the wheel's diameter inside the body (the cage's s1Sink, the join's); the
   // drag counts the rest, no leg in the stream. Absent at 0
   if (+S.gear.sink > 0) S.gear.sink = genClamp(+S.gear.sink, 0, 0.7); else delete S.gear.sink;
