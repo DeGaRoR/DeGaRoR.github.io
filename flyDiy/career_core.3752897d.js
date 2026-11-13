@@ -7717,6 +7717,56 @@ function storyChecklist(spec, base, items) {
     return { k, words: C ? C.words : k, ok }; });
 }
 
+// ---- THE EXACT BUILDS (TUTORIAL v2, the user 13 Nov: "fully deterministic - each tutorial build ends EXACTLY on a
+// reference file, 4-5 modifications from its start; the tutor points at the exact row and value") ----------------------
+// TUTORIAL-CUBS (claude/ready/tutorial-cubs 3830b08f9): tools/tutorial_cubs.js UPGRADE / FLOATS are the one place the edit
+// lists are written and proven (the page moves each row through its own widget and lands on the target STRICTLY); these
+// rows are theirs (GATE TUTORLOCK holds them equal). A row: the part that owns it (the editor's tree), its data-k, ONE
+// value (a catalogue row by its index, `name` the entry picked; propPitch is the pitch row, spec.prop.pitch, never a cage
+// key), Tim's words. The full spec diff of start -> target is 253 leaves (a catalogue row writes its dials once): the steps
+// are the ROWS, each checked on the live plane by its value (storyBuildDone).
+// `parts`: the target's tech keys above the story's segment 1 (Wood and fabric) - the client's parts: while the beat
+// stands the page adds them to the machine shop's entries (app.js techMaskSync), so the rows are open; after the
+// tutorial the Cub keeps them as an occasion does (yours to fly, those rows not to modify). GATE TUTORLOCK: = techOver.
+const STORY_BUILDS = {
+  T3: { plane: 'client', start: 'builds/cub_2026-09-20.json', target: 'builds/client_cub_upgraded_2026-11-13.json',
+    parts: ['eng:rotax915_carbon', 'kit:stol', 'surf:fabricAlu'],
+    rows: [
+      { part: 'engine', k: 'engPreset', v: 21, name: 'rotax 915 iS', say: 'The engine first: pick the Rotax 915 iS in the engine row.' },
+      { part: 'main wheels > size', k: 's1R', v: 0.37, say: 'Bush tyres: set the main wheel radius to 0.37 m.' },
+      { part: 'wing > devices', k: 'wgVG', v: 1, say: 'On the wing: tick the vortex generators.' },
+      { part: 'wing > structure', k: 'wgCons', v: 7, name: 'fabric on aluminium spar', say: 'Still the wing: construction, fabric on aluminium spar.' },
+      { part: 'stabiliser > size', k: 'stSpan', v: 1.59, say: 'Last, the tail: set the stabiliser span to 1.59.' },
+    ] },
+  T7: { plane: 'gift', start: 'builds/client_cub_upgraded_2026-11-13.json', target: 'builds/client_cub_floats_2026-11-13.json',
+    parts: ['eng:rotax915_carbon', 'kit:stol', 'surf:fabricAlu'],
+    rows: [
+      { part: 'floats > catalogue', k: 'gearFloats', v: 1, say: 'Floats instead of wheels: tick the floats row.' },
+      { part: 'floats > catalogue', k: 'fltPreset', v: 0, name: 'Wipline 1450', say: 'Pick the float model: the Wipline 1450.' },
+      { part: 'floats > placement', k: 'fltDrop', v: 1, say: 'Set the keel 1.00 m below the belly.' },
+      { part: 'propeller', k: 'propPitch', v: 4, name: 'seaplane', say: 'And the propeller: the seaplane pitch.' },
+    ] },
+};
+// storyBuildDone(spec, rows) -> [true|false per row]: the row's setting at its value on `spec` (the cage's key; the pitch
+// row reads spec.prop.pitch)
+function storyBuildDone(spec, rows) {
+  const S = spec || {}, c = S.cage || {};
+  return (rows || []).map(r => r.k === 'propPitch' ? ((S.prop && S.prop.pitch) || 'standard') === r.name
+    : (typeof r.v === 'number' ? (c[r.k] !== undefined && c[r.k] !== null && Math.abs(+c[r.k] - r.v) <= 1e-6) : c[r.k] === r.v));
+}
+// the beat's build rows as checklist rows { words, ok } (the card, the certificate's goal)
+function storyBuildList(beat, spec) {
+  const B = STORY_BUILDS[beat];
+  if (!B) return [];
+  const done = storyBuildDone(spec, B.rows);
+  return B.rows.map((r, i) => ({ k: r.k, words: r.part + ': ' + (r.name || r.v), ok: !!done[i] }));
+}
+// the tutor's steps of a build: one waiting step per row (the fact 'build:<beat>:<i>', the control 'buildRow')
+const storyBuildSteps = beat => STORY_BUILDS[beat].rows.map((r, i) => ({ id: 'row' + (i + 1), wait: 'build:' + beat + ':' + i,
+  allow: 'buildRow', build: beat, row: i, say: (i + 1) + ' of ' + STORY_BUILDS[beat].rows.length + ' - ' + r.say }));
+// the client's parts the machine shop takes while a build beat stands (app.js techMaskSync adds them to the entries)
+const storyBuildEntries = doc => { const s = storyOf(doc); const B = s && !s.open ? STORY_BUILDS[s.beat] : null; return B ? B.parts.slice() : []; };
+
 // ---- THE BEATS (§3; the words are placeholders for the narrative pack, keyed by id) ---------------------------------
 // goal: what moves the beat on. enter / done: the effects handed to the page on entering / completing it. mask: the
 // tutorial mode of the tech mask (TECH-MASK G3230) while the beat stands - 'finish' = the finish only.
@@ -7733,9 +7783,10 @@ const STORY_BEATS = [
   { id: 'T2', title: 'The swap', brief: 'A client brought a Cub. Put the ultralight away and bring the Cub onto the floor.',
     enter: [{ k: 'clientPlane', at: 'home' }], goal: { k: 'ack' } },
   { id: 'T3', title: "The client's plane", mask: 'checklist',
-    brief: 'The work, step by step: Tim shows each change. Keep it on budget, then certify it at the bench.',
-    // costCap (G2742 STORY-PAGE, measured): the page's cost is dm11's edit bill against the Cub as it arrived
-    goal: { k: 'certified', plane: 'client', checklist: ['engine', 'flaps', 'tyres', 'lights', 'panel', 'paint'], costCap: 40000 } },
+    brief: 'The work, step by step: Tim shows each change, then certify it at the bench.',
+    // TUTORIAL v2: the goal is the build's exact rows (STORY_BUILDS.T3), certified; no budget (the rows are the work - a
+    // deterministic build has nothing to overspend; the old checklist and its costCap 40 000 retired with the old T3)
+    goal: { k: 'certified', plane: 'client', build: 'T3' } },
   { id: 'T4', title: 'The delivery', brief: "Certified. Fly it to its owner's strip.",
     goal: { k: 'stop', at: 'client', plane: 'client' } },
   { id: 'T5', title: 'The gift', brief: '"I can’t pay you. Keep it." The Cub is yours.',
@@ -7761,7 +7812,7 @@ const STORY_TIM = {
   // TUTORIAL v2 (TUTORIAL-LOCK): the band's lines follow the beats' new meaning (the same words, re-keyed: T2 the swap, T3
   // the build, T4 the delivery, T5 the gift, T6 one job, T7 the floats and the rest; no route, no occasions)
   T2: ['A client brought us a Cub. Let’s swap it with the ultralight: Storage keeps every plane you own.'],
-  T3: ['Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.'],
+  T3: ['Here is what the client wants: five changes, I\u2019ll show you each one. Then certify it at the bench here, and we fly it to them.'],
   T4: ['Certified? Then fly it over to its owner.'],
   T5: ['He can’t pay us... so he’s giving us the Cub. Not a bad trade.'],
   T6: ['One quick job with the Cub: tools to bring back from the hill. Nothing fancy, just get it done.'],
@@ -7853,7 +7904,15 @@ const STORY_TUTOR = {
   // T3 THE BUILD (TUTORIAL-LOCK): the exact changes come from storyEditDiff (the start file -> its target) once the
   // reference files land (TUTORIAL-CUBS); until then the list and the budget
   T3: [
-    { id: 'list', say: 'Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.' },
+    { id: 'list', rows: true, say: 'Here is what the client wants: five changes, I\u2019ll show you each one. Then certify it at the bench here, and we fly it to them.' },
+    ...storyBuildSteps('T3'),
+    { id: 'certify', rows: true, say: 'That\u2019s the client\u2019s list. Now the bench: certify it, and we fly it to them.' },
+  ],
+  // T7 THE FLOATS (TUTORIAL v2): the Cub on floats, four rows (STORY_BUILDS.T7), then the water
+  T7: [
+    { id: 'floats', say: 'Floats for the water job: four changes on the Cub, I\u2019ll show you each one.' },
+    ...storyBuildSteps('T7'),
+    { id: 'water', free: true, say: 'On floats. Now fly it to the seaplane base and land on the water.' },
   ],
 };
 const storyTutorSteps = id => STORY_TUTOR[id] || null;
@@ -8011,9 +8070,9 @@ function storyStep(doc, ev, ctx) {
     if (ev.k !== 'certified') why = 'this beat waits for the certified build';
     else if (s.planes.client && ev.slot !== s.planes.client) why = 'not the client’s plane';
     else {
-      const list = storyChecklist(ev.spec, s.base.client, G.checklist), miss = list.filter(r => !r.ok);
+      const list = G.build ? storyBuildList(G.build, ev.spec) : storyChecklist(ev.spec, s.base.client, G.checklist), miss = list.filter(r => !r.ok);
       if (miss.length) why = 'the checklist: ' + miss.map(r => r.words).join(', ');
-      else if (typeof ev.cost === 'number' && ev.cost > storyCostCap(G)) why = 'over budget (' + Math.round(ev.cost) + ' > ' + storyCostCap(G) + ')';
+      else if (G.costCap && typeof ev.cost === 'number' && ev.cost > storyCostCap(G)) why = 'over budget (' + Math.round(ev.cost) + ' > ' + storyCostCap(G) + ')';
       else met = true;
     }
   }
@@ -8128,13 +8187,12 @@ function storyNewCareer(doc, o) {
   d.career.airframes[slot] = { from: 'story', story: 'starter', factory: false, modified: false, paid: 0, at: Math.round(d.clock || 0) };
   return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
 }
-// THE CLIENT'S CUB AS IT ARRIVES (T2): the validated Cub unfinished - its flaps off, the minimal panel (no battery, so no
-// lights), in its own battered white and blue (the user 4 Nov, CLIENT-CUB-LOOK) - on the same engine. Every item of T2's
-// checklist is open on it (GATE STORY holds that), and nothing else of the file is touched (GATE STORY: window, cowl, paint, wear).
+// THE CLIENT'S CUB AS IT ARRIVES (T2): TUTORIAL v2 (TUTORIAL-CUBS) - file 1 EXACTLY (builds/cub_2026-09-20.json: the
+// validated J-3 in its own battered white and blue, N1938J), so the five rows land on file 2 exactly; only the slot's name
+// is written. (The old T3's flaps-off and minimal panel went with its checklist: they would have left the build two
+// settings off its target.) GATE STORY: nothing else of the file is touched.
 function storyClientSpec(cub) {
   const s = stClone(cub || {});
-  s.controls = Object.assign({}, s.controls || {}, { flap: { type: 'none', span: 0, chord: 0 } });
-  s.systems = { fit: 'minimal' };
   // PLANE-LIST (the user 10 Nov): the Client Cub is handed over in its own battered white and blue (CLIENT-CUB-LOOK, N1938J) -
   // a 'bare' job hid that livery; a fresh paint job stays the player's later work (STORY_CHECKS.paint)
   s.meta = Object.assign({}, s.meta || {}, { name: STORY_SLOTS.client });
@@ -8279,8 +8337,8 @@ function storyCard(doc, o) {
     rows.push({ words: at ? 'Land at ' + storyAeroName(at, o.aeros) + (P ? ' with ' + P : '') + (G.gear ? ', on ' + G.gear : '') + ', stopped and whole'
                           : 'No aerodrome plays ' + STORY_ROLES[G.at].words + ' on this island yet', ok: false });
   } else if (G.k === 'certified') {
-    for (const r of storyChecklist(o.spec || s.base.client, s.base.client, G.checklist)) rows.push({ words: r.words, ok: r.ok });
-    rows.push({ words: 'on budget: ' + (typeof o.cost === 'number' ? Math.round(o.cost) + ' of ' : 'at most ') + storyCostCap(G), ok: typeof o.cost === 'number' && o.cost <= storyCostCap(G) });
+    for (const r of (G.build ? storyBuildList(G.build, o.spec || s.base.client) : storyChecklist(o.spec || s.base.client, s.base.client, G.checklist))) rows.push({ words: r.words, ok: r.ok });
+    if (G.costCap) rows.push({ words: 'on budget: ' + (typeof o.cost === 'number' ? Math.round(o.cost) + ' of ' : 'at most ') + storyCostCap(G), ok: typeof o.cost === 'number' && o.cost <= storyCostCap(G) });
     rows.push({ words: 'certified in the garage (the bench)', ok: false });
   } else if (G.k === 'jobs') {
     rows.push({ words: s.jobs + ' of ' + G.n + ' jobs', ok: s.jobs >= G.n });
