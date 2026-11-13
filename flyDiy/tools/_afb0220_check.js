@@ -136,10 +136,10 @@ if (want('ROUGH')) {
 
 if (want('MUD')) {
   const F = FR(A2); let n = 0, m = 0, trk = 0;
-  for (let u = -850; u <= 730; u += 20) { if (u > -590 && u < -505) continue; for (const v of [14, 25, 38]) { const p = F.P(u, v); n++; if (W.surface(p[0], p[1]) === 12) m++; } }
+  for (let u = -850; u <= 730; u += 20) { if (u > -590 && u < -505) continue; for (const v of [17, 25, 38]) { const p = F.P(u, v); n++; if (W.surface(p[0], p[1]) === 12) m++; } }
   for (const v of [12, 18, 24]) { const p = F.P(-547, v); if (W.surface(p[0], p[1]) === 6) trk++; }
   const soft = C.GROUND_SOFT && C.GROUND_SOFT[12];
-  row('MUD', m === n && trk === 3 && !!soft, 'soft mud (12) under ' + m + ' of ' + n + ' points of the NW side (v 14 / 25 / 38, u -850 .. 730 less road r4\'s gap); the track at the gap gravel at ' + trk + ' of 3; the soft layer ' + (soft ? 'k ' + soft.k + ', ' + soft.zMax * 100 + ' cm deep' : 'MISSING (SNOW-MUD)'));
+  row('MUD', m === n && trk === 3 && !!soft, 'soft mud (12) under ' + m + ' of ' + n + ' points of the NW side (v 17 / 25 / 38, u -850 .. 730 less road r4\'s gap); the track at the gap gravel at ' + trk + ' of 3; the soft layer ' + (soft ? 'k ' + soft.k + ', ' + soft.zMax * 100 + ' cm deep' : 'MISSING (SNOW-MUD)'));
 }
 
 if (want('FOREST')) {

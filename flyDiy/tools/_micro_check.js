@@ -38,7 +38,7 @@ const FIX = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.j
 // the field on w7 against the bare island, as before
 const world = J => IN.islandWorld('jolene', { premises: JSON.stringify(J) });
 {
-  const VET = { w3: 0.2, w8: 0.4 };
+  const VET = { w2r: 0.65, w3: 0.2, w8: 0.4 };   // (AFB-0220: 02R/20L, the user's 'very bumpy but landable' side - flown by the pilot: pilot_trace cub --world jolene --from w2r --to w2r, landed 0 m off the centreline, no go-around)
   const recs = FIX.layers.runways.filter(r => r.micro).map(r => r.id + ':' + r.micro.chaos).sort().join(', ');
   world(FIX); const pub = [...SM.live.values()].flat().map(s => s.id).sort().join(', ');
   const want = Object.keys(VET).sort().map(k => k + ':' + VET[k]).join(', ');

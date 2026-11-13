@@ -49,11 +49,12 @@ W2R = {'id': 'w2r', 'name': 'Jolene AFB 02R/20L', 'u': -160.0, 'v': -24.0, 'len'
        'micro': {'chaos': 0.65, 'seed': 220, 'puddles': 0.7, 'hazards': 2},
        'pav': {'marks': 'none', 'mossK': 0.7, 'wet': 0.6},
        'clear': {'side': 4, 'beyond': 40, 'taper': 0, 'bushes': False}}
-# THE MUD SIDE (NW, v > 0): SOFT MUD (12, 'wet clay after rain - the wheels go in'), from v 10 (1 m off the concrete) to a
+# THE MUD SIDE (NW, v > 0): SOFT MUD (12, 'wet clay after rain - the wheels go in'), from v 14.5 (past the concrete's 5 m band:
+# the torn concrete fades into the ground first, GATE CONTACT keeps a band off other pavements) to a
 # ragged outer edge round v 50, the whole strip but the last stretch before 13/31 (u <= 740) and a gap where road r4
 # meets the old runway (u -582 .. -512: its gravel track runs across the gap to the concrete). Keeps the trees out
 # (a mud area is a hard surface to the forest: FEEL_HARD)
-MUD = {'v0': 10.0, 'v1': 50.0, 'u0': -860.0, 'u1': 740.0, 'gap': (-582.0, -512.0), 'look': 'softmud', 'surface': 12, 'band': 7, 'fade': 6}
+MUD = {'v0': 14.5, 'v1': 50.0, 'u0': -860.0, 'u1': 740.0, 'gap': (-582.0, -512.0), 'look': 'softmud', 'surface': 12, 'band': 7, 'fade': 6}
 TRACK = {'u': -547.0, 'w': 7.0, 'v0': 9.0, 'v1': 26.0}       # r4's end (u -547, v 22.6) to the concrete's edge
 # THE FOREST TAKING OVER: the tree system's own fill on two cover polygons (27_premises vegOf 'new': the species, their
 # share, the dead fraction; render_world's fill plants them, its trunks are TREE_HITS 'fill:*' - solid), young growth

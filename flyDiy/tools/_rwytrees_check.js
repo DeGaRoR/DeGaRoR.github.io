@@ -121,7 +121,7 @@ console.log('GATE RWYTREES - the trees by the runways (' + (FULL ? 'core + full'
   //  shoulders y_sh13_0/1, y_sh02_0/1 + the fan x_fan02_0 (the 40 m tree cut at HOME) - 5 fans, no shoulder)
   // (G3097: + w1 the Cabin Strip - 12 boxes; its approach over end 0 cleared by the fan x_fan_w1_0 - 6 fans: the pilot's cone
   //  met the drawn woods 25 m before the threshold, 19 Oct)
-  check(by('fan').length === 6 && by('box').length === 12 && by('shoulder').join() === '',
+  check(by('fan').length === 6 && by('box').length === 13 && by('shoulder').join() === '',   // (AFB-0220: + w2r's box)
     '1 Jolene\'s runway clearances are named', 'fans ' + by('fan').join(' ') + ' | boxes ' + by('box').length + ' | shoulders ' + by('shoulder').join(' '));
   for (const v of VARIANTS) {
     const O = worlds[v].premises.overlay, off = O.rwyClearances().filter(c => c.off), kinds = [...new Set(off.map(c => c.kind))].sort().join('+') || 'none';
@@ -309,7 +309,8 @@ if (FULL) {
   // (G3014: the user's rev 26 / 27 strips carry their OWN authored clearances - w5 side 0 / beyond 0, w6 side 0 / taper 0.21, w7
   //  side 4 / taper -0.5; every other strip keeps today's box; no collidable tree stands inside any own clearance)
   // (G3020 rev 28: HOME 0 / 60, w2 4 / 5, w3 6 / 150, w4 0 / 20, w8 12 / 150 - every own clear as authored)
-  const OWN = ['HOME', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7', 'w8'], ownNow = (env.premises || env).layers.runways.filter(q => q.clear).map(q => q.id).sort();
+  const OWN = ['HOME', 'w2', 'w2r', 'w3', 'w4', 'w5', 'w6', 'w7', 'w8'],   // (AFB-0220: w2r, 02R/20L, authored with its own clearance)
+         ownNow = (env.premises || env).layers.runways.filter(q => q.clear).map(q => q.id).sort();
   const inOwn = OWN.map(id => { const q = land.find(z => z.id === id), a = W0.aerodromes.find(z => z.id === id); if (!q || !a || !a.treeClear) return id + ' none';
     const c = q.clear, Eq = [Math.cos(q.hdg), Math.sin(q.hdg)]; let n = 0;
     for (const Tr of W0.trees) { const dx = Tr.x - q.c[0], dz = Tr.z - q.c[1], u = Math.abs(dx * Eq[0] + dz * Eq[1]), v = Math.abs(-dx * Eq[1] + dz * Eq[0]);
