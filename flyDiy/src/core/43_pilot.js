@@ -2749,8 +2749,11 @@ function makePilot(sim, def, world, opts) {
     const taxi = (Vtgt) => {
       const brk0 = c.brake || 0;
       SV.taxi(Vtgt, taxiFF(), taxiCap());
-      if (sim.hydro) { c.brake = 0; c.thr = Math.max(c.thr, Math.min(taxiCap(), A.waterTaxiThrMin ?? 0.12)); }
-      if (sim.hydro || !(Vtgt > 0.5) || brk0 > 0.01 || (c.brake || 0) > 0.01 || SV.Vg >= Vtgt) { ap.breakAwayT = 0; ap.breakAwayThr = 0; return; }
+      // (THE HULL WET, not the build on floats: sim.hydro is every float build's, an amphibian on its wheels on a land runway
+      //  included - there the land's governor, brake and break-away power stand; wetA as at the hump's test, ROLL)
+      const afloatT = !!(sim.hydro && sim.hydro.floats && sim.hydro.floats.some(fx => fx.out && fx.out.wetA > 0.05));
+      if (afloatT) { c.brake = 0; c.thr = Math.max(c.thr, Math.min(taxiCap(), A.waterTaxiThrMin ?? 0.12)); }
+      if (afloatT || !(Vtgt > 0.5) || brk0 > 0.01 || (c.brake || 0) > 0.01 || SV.Vg >= Vtgt) { ap.breakAwayT = 0; ap.breakAwayThr = 0; return; }
       if (SV.Vg < 0.2) ap.breakAwayT = (ap.breakAwayT || 0) + dt;
       else if (SV.Vg > 0.5) ap.breakAwayT = 0;
       if (ap.breakAwayT > 2) ap.breakAwayThr = Math.max(ap.breakAwayThr || 0, Math.min(GP.cap, 1, taxiCap() + 0.25 * (ap.breakAwayT - 2)));
