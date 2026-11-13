@@ -2009,6 +2009,16 @@ function mount(host, ctx) {
           v => edD((q, x) => { q.look = v; const L = PG.RUNWAY_LOOKS[v]; if (L && L.surface !== null && L.surface !== undefined) x.props.wheels = Object.assign({}, x.props.wheels || {}, { surface: +L.surface }); }, 'surface'));   // (ONE SURFACE: the wheels follow, the apron flag kept)
         rows.slider(insp, 'lanes turned (°)', -180, 180, 1, () => (+d.yaw || 0) * 180 / Math.PI, v => edD(q => { q.yaw = v * Math.PI / 180; }, 'yaw', 'yaw'), v => v.toFixed(0) + '°');
         rows.button(insp, 'turn the lanes along its longest side', () => { const e0 = longestEdge(poly); if (e0) edD(q => { q.yaw = +Math.atan2(e0[1][1] - e0[0][1], e0[1][0] - e0[0][0]).toFixed(4); }, 'yaw'); });
+        // PARKING-AREA (the user 13 Nov: "parking = an area, a polygon or a circle, sized in the editor; the parked planes fill
+        // it"): the field's parked aeroplanes fill this area first, in rows along its lanes (the yaw above), nearest the stand
+        // first, each held to the fleet's rules (flat, clear, off the runway and the taxi routes); the parking list is cooked
+        // again with the scenery (tools/fleet_spots.js --cook)
+        rows.check(insp, 'parked aeroplanes fill it', () => !!(d.parking && typeof d.parking === 'object'), v => edD(q => { if (v) q.parking = Object.assign({}, q.parking || {}); else delete q.parking; }, 'parking'));
+        if (d.parking && typeof d.parking === 'object') {
+          rows.slider(insp, 'parking: gap between wings (m)', 0.5, 6, 0.5, () => +d.parking.gap || ((PG.FLEET_SPOT || {}).gap || 1.5), v => edD(q => { q.parking = Object.assign({}, q.parking, { gap: v }); }, 'parking gap', 'pkg'), v => v.toFixed(1) + ' m');
+          rows.slider(insp, 'parking: at most (aeroplanes)', 1, 12, 1, () => +d.parking.max || 12, v => edD(q => { q.parking = Object.assign({}, q.parking, { max: v }); }, 'parking max', 'pkm'), v => v.toFixed(0));
+          rows.note(insp, 'the noses point along the lanes (turn them above); a circle area works the same - its grid is clipped to the circle');
+        }
         // (the band, the wear and the paint's age - the pavement's rows, on this draw)
         pavRows(d, id, 'material', (mut, label, key) => ed(x => { mut(x.props.draw); }, label, key), PG.RUNWAY_LOOKS[d.look]);
       } else {

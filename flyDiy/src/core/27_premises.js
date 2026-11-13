@@ -3019,7 +3019,7 @@ function compose(rec0, world, opts) {
   // THE PAVED POLYGONS (v1.16): a material polygon with a `look` (a pavement class) instead of a set is an
   // apron, a turnaround, a pad - the pavement module draws it, the map never sees it
   const pavePolys = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.look && RUNWAY_LOOKS[m.look] && RUNWAY_LOOKS[m.look].cls)
-    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0, stands: m.stands || null,
+    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0, stands: m.stands || null, parking: m.parking && typeof m.parking === 'object' ? m.parking : null,
                  marks: m.marks && MARK_KINDS.indexOf(m.marks.kind) >= 0 ? m.marks : null }));
   // (v1.36, G2912) A DOCK'S WATER: for a pavement wearing dock marks, how much of each edge's outside is water - three
   // points 4 m out from the edge, water standing 20 cm over the ground there (areaMarks puts the quay's line on that edge)
