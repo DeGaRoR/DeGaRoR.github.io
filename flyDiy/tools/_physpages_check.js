@@ -127,6 +127,19 @@ function child(k) {
       ok(/^<svg [^>]*viewBox="0 0 1200 800"/.test(out) && out.endsWith('</svg>') && !/NaN|undefined|Infinity/.test(out),
          'DRAW ' + p.id + ' (' + th + ') ' + (out.startsWith('THROW') ? out : 'carries a bad number or is not one svg'));
     }
+    // COOLING: the section's numbers are ENGINE-COOLING's own (genCooling at the aeroplane's climb and cruise speeds), the oil
+    // genCoolOilC's, and it draws whole
+    if (typeof C.genCooling === 'function') {
+      const Ck = D.cooling, ap = def.params.ap || {}, G = C.genCooling(def.spec, { VClimb: ap.VClimb, VCruise: ap.VCruise });
+      ok(!!Ck && Ck.kind === G.kind && ['taxi', 'hot', 'cruise'].every(c => !G[c] || (Ck.cases[c] && near(Ck.cases[c].margin, G[c].margin, 2e-4) && near(Ck.cases[c].need, G[c].need, 2e-4) && near(Ck.cases[c].pass, G[c].pass, 2e-4))),
+         'COOLING the section\'s margins, needs and passes are not genCooling\'s');
+      if (Ck && Ck.cases.hot && typeof C.genCoolOilC === 'function') {
+        const o = C.genCoolOilC(def.spec, { air: C.makeAtmos({ dISA: C.GEN_COOL.hot.dISA }), h: C.GEN_COOL.hot.h, pFrac: 1, Veas: ap.VClimb, ground: false });
+        ok(o == null ? Ck.cases.hot.oilC == null : near(Ck.cases.hot.oilC, o.oilC, 1e-3), 'COOLING the climb\'s oil is not genCoolOilC\'s'); }
+      let out = ''; try { out = FP.svg('cooling', D, { name: k, reg: 'F-TEST', sig: 'Wingsmith' }); } catch (e) { out = 'THROW ' + e.message; }
+      ok(/^<svg /.test(out) && !/NaN|undefined|Infinity/.test(out), 'DRAW cooling ' + (out.startsWith('THROW') ? out : 'bad'));
+      notes.push('cooling ' + (Ck ? Ck.kind + ', climb ' + (Ck.cases.hot ? Ck.cases.hot.margin + ' x' : '-') + ', cdA ' + Ck.cdA : 'none'));
+    }
     // THE PHONE (AIRCRAFT-LOOKS' spec, 13 Nov): a section with its portrait layout draws exactly w wide at 320 / 360 / 480,
     // on the dark sheet, with no bad number and no text starting past the right edge
     for (const p of FP.PAGES) for (const w of [320, 360, 480]) {
