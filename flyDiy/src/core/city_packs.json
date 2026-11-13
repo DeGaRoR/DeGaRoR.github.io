@@ -22,11 +22,11 @@
     "farGain": 0.2
    },
    "inputs": {
-    "fixture": "2605c7187ac0ab25",
-    "record": "62a0f15d5d164809",
-    "places": "d941c68768adfb48",
+    "fixture": "9474a2c09b50bacf",
+    "record": "896a7fce86d679fe",
+    "places": "7f2498b06ebb7015",
     "kitPack": "2e8c3968b3e6d9b8e62809e562f6adeb8da454db23fbf0da527b217980288011",
-    "kitTable": "5f4c08748fe78d0d",
+    "kitTable": "6a8464fb13937a9e",
     "cook": "a1c6aed7a7daa3b2",
     "means": "6623a4a696933e10",
     "lotKit": "078a44c2f83c968c"
@@ -886,17 +886,17 @@
      }
     ]
    },
-   "hash": "e23574b7eb6e8e43",
+   "hash": "fc24b4418a4cca4a",
    "counts": {
     "cells": 13,
-    "plots": 380,
-    "kitRows": 435,
-    "props": 3761,
-    "lots": 35892,
+    "plots": 383,
+    "kitRows": 440,
+    "props": 3781,
+    "lots": 36120,
     "uniques": 63,
     "objects": 42,
-    "farTris": 6388,
-    "farVerts": 12176
+    "farTris": 6458,
+    "farVerts": 12306
    },
    "cells": [
     {
@@ -904,9 +904,9 @@
       -9,
       -17
      ],
-     "src": "media/city/jolene/metlakatla/c_m9_m17.69fca78f.bin",
-     "raw": 70484,
-     "gz": 34479,
+     "src": "media/city/jolene/metlakatla/c_m9_m17.2bc8612b.bin",
+     "raw": 70424,
+     "gz": 34438,
      "box": [
       -4264.06,
       5.25,
@@ -917,7 +917,7 @@
      ],
      "plots": 20,
      "kitRows": 23,
-     "props": 186,
+     "props": 183,
      "lots": 1685,
      "uniques": 1,
      "objects": 0,
@@ -930,7 +930,7 @@
       -9,
       -16
      ],
-     "src": "media/city/jolene/metlakatla/c_m9_m16.36092f34.bin",
+     "src": "media/city/jolene/metlakatla/c_m9_m16.ad041fd8.bin",
      "raw": 2556,
      "gz": 1609,
      "box": [
@@ -956,9 +956,9 @@
       -8,
       -18
      ],
-     "src": "media/city/jolene/metlakatla/c_m8_m18.652c8025.bin",
-     "raw": 59544,
-     "gz": 28283,
+     "src": "media/city/jolene/metlakatla/c_m8_m18.3102d48d.bin",
+     "raw": 59660,
+     "gz": 28330,
      "box": [
       -4097.8,
       -5.98,
@@ -969,8 +969,8 @@
      ],
      "plots": 15,
      "kitRows": 16,
-     "props": 183,
-     "lots": 1289,
+     "props": 184,
+     "lots": 1292,
      "uniques": 13,
      "objects": 0,
      "farTris": 354,
@@ -982,9 +982,9 @@
       -8,
       -17
      ],
-     "src": "media/city/jolene/metlakatla/c_m8_m17.a7402e69.bin",
-     "raw": 412444,
-     "gz": 191244,
+     "src": "media/city/jolene/metlakatla/c_m8_m17.31da0889.bin",
+     "raw": 412360,
+     "gz": 191355,
      "box": [
       -4099.05,
       -5,
@@ -995,8 +995,8 @@
      ],
      "plots": 101,
      "kitRows": 128,
-     "props": 904,
-     "lots": 10167,
+     "props": 916,
+     "lots": 10157,
      "uniques": 7,
      "objects": 0,
      "farTris": 1770,
@@ -1008,9 +1008,9 @@
       -7,
       -18
      ],
-     "src": "media/city/jolene/metlakatla/c_m7_m18.61d265a9.bin",
-     "raw": 288140,
-     "gz": 136440,
+     "src": "media/city/jolene/metlakatla/c_m7_m18.cb7a4ed0.bin",
+     "raw": 283672,
+     "gz": 134404,
      "box": [
       -3599.28,
       -5.54,
@@ -1019,14 +1019,14 @@
       24.35,
       -8700.36
      ],
-     "plots": 79,
-     "kitRows": 81,
-     "props": 818,
-     "lots": 6943,
+     "plots": 78,
+     "kitRows": 80,
+     "props": 804,
+     "lots": 6826,
      "uniques": 16,
      "objects": 0,
-     "farTris": 1226,
-     "farVerts": 2348,
+     "farTris": 1216,
+     "farVerts": 2328,
      "draws": 1
     },
     {
@@ -1034,9 +1034,9 @@
       -7,
       -17
      ],
-     "src": "media/city/jolene/metlakatla/c_m7_m17.84e4ab8c.bin",
-     "raw": 332280,
-     "gz": 154793,
+     "src": "media/city/jolene/metlakatla/c_m7_m17.9c19ae8c.bin",
+     "raw": 327788,
+     "gz": 152783,
      "box": [
       -3587.09,
       9.05,
@@ -1045,14 +1045,14 @@
       41.41,
       -8235.42
      ],
-     "plots": 82,
-     "kitRows": 94,
-     "props": 810,
-     "lots": 8220,
+     "plots": 81,
+     "kitRows": 93,
+     "props": 803,
+     "lots": 8101,
      "uniques": 9,
      "objects": 3,
-     "farTris": 1330,
-     "farVerts": 2546,
+     "farTris": 1316,
+     "farVerts": 2520,
      "draws": 1
     },
     {
@@ -1060,12 +1060,12 @@
       -7,
       -16
      ],
-     "src": "media/city/jolene/metlakatla/c_m7_m16.87fbf4c4.bin",
+     "src": "media/city/jolene/metlakatla/c_m7_m16.bf5809a3.bin",
      "raw": 31996,
-     "gz": 16541,
+     "gz": 16536,
      "box": [
       -3295.09,
-      29.83,
+      29.8,
       -8029.45,
       -3077.86,
       53.95,
@@ -1086,25 +1086,25 @@
       -6,
       -18
      ],
-     "src": "media/city/jolene/metlakatla/c_m6_m18.239aceaa.bin",
-     "raw": 56336,
-     "gz": 26552,
+     "src": "media/city/jolene/metlakatla/c_m6_m18.b5a8e774.bin",
+     "raw": 56652,
+     "gz": 26698,
      "box": [
       -3067.59,
       -5.19,
       -8985.06,
       -2899.13,
       21.7,
-      -8703.23
+      -8703.24
      ],
      "plots": 13,
      "kitRows": 15,
-     "props": 122,
-     "lots": 1351,
+     "props": 120,
+     "lots": 1359,
      "uniques": 6,
      "objects": 4,
-     "farTris": 246,
-     "farVerts": 474,
+     "farTris": 250,
+     "farVerts": 480,
      "draws": 1
     },
     {
@@ -1112,25 +1112,25 @@
       -6,
       -17
      ],
-     "src": "media/city/jolene/metlakatla/c_m6_m17.96f4394c.bin",
-     "raw": 190992,
-     "gz": 90079,
+     "src": "media/city/jolene/metlakatla/c_m6_m17.5ea7888d.bin",
+     "raw": 209892,
+     "gz": 98698,
      "box": [
       -3078.54,
       10.09,
-      -8707.74,
+      -8699.63,
       -2599.31,
-      27.33,
+      27.49,
       -8241.35
      ],
-     "plots": 52,
-     "kitRows": 56,
-     "props": 522,
-     "lots": 4661,
+     "plots": 57,
+     "kitRows": 63,
+     "props": 555,
+     "lots": 5124,
      "uniques": 3,
      "objects": 13,
-     "farTris": 774,
-     "farVerts": 1464,
+     "farTris": 864,
+     "farVerts": 1634,
      "draws": 1
     },
     {
@@ -1138,9 +1138,9 @@
       -6,
       -16
      ],
-     "src": "media/city/jolene/metlakatla/c_m6_m16.3de0739a.bin",
+     "src": "media/city/jolene/metlakatla/c_m6_m16.9927a891.bin",
      "raw": 32560,
-     "gz": 15820,
+     "gz": 15823,
      "box": [
       -3063.17,
       30.32,
