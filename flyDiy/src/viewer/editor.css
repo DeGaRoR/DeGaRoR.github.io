@@ -1030,6 +1030,57 @@ html.phone #flWrap .flGrid { grid-template-columns:repeat(2, minmax(0,1fr)); gap
 html.phone #flWrap .flGrid.flList { grid-template-columns:1fr; }
 html.phone #flWrap .flTile .flBtn { min-height:40px; }
 
+/* ---- THE START CHOOSER (start_chooser.js, the user 13 Nov: the sandbox's Fly / Drive with where from and where to) -----
+   The pill beside the verb (#edStart: "From X → Y"), and the sheet above it (#scSheet: From | To, Go). The phone: a bottom
+   sheet with From / To tabs. Garage tokens; the verb's own .verb look for its buttons. */
+#edActs .edStartB { display:flex; flex-direction:column; align-items:flex-start; gap:2px; max-width:260px; min-width:0;
+  padding:6px 11px; text-align:left; }
+#edActs .edStartB[hidden] { display:none; }
+#edActs .edStartB small { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.1em; text-transform:uppercase; color:var(--ed-faint); }
+#edActs .edStartB span { font:500 12px/1.25 'IBM Plex Sans'; color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+#scSheet { position:fixed; right:22px; bottom:78px; z-index:58; width:min(540px, calc(100vw - 44px)); max-height:min(62vh, 560px);
+  display:flex; flex-direction:column; background:var(--ed-panel); color:var(--ed-ink); border:1px solid var(--ed-border);
+  border-radius:10px; box-shadow:0 10px 32px rgba(0,0,0,.5); font:400 12.5px/1.35 'IBM Plex Sans'; text-transform:none; letter-spacing:normal; }
+#scSheet[hidden] { display:none; }
+#scSheet button { font-family:inherit; text-transform:none; letter-spacing:normal; }
+#scSheet .scH { display:flex; justify-content:space-between; align-items:center; padding:9px 14px; border-bottom:1px solid var(--ed-hair);
+  font:600 11px/1 'IBM Plex Sans'; letter-spacing:.14em; }
+#scSheet .scSeg { display:none; }
+#scSheet .scCols { display:grid; grid-template-columns:1fr 1fr; min-height:0; flex:1; }
+#scSheet .scCol { padding:6px 12px 10px; display:flex; flex-direction:column; gap:3px; overflow:auto; min-width:0; }
+#scSheet .scCol + .scCol { border-left:1px solid var(--ed-hair); }
+#scSheet .scGh { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.12em; text-transform:uppercase; color:var(--ed-faint); padding:9px 0 4px; }
+#scSheet .scOpt { display:flex; flex-direction:column; align-items:flex-start; gap:1px; width:100%; padding:6px 8px; text-align:left;
+  background:transparent; border:1px solid transparent; border-radius:6px; color:var(--ed-ink); cursor:pointer; min-width:0; }
+#scSheet .scOpt:hover:not(:disabled) { background:var(--ed-btn-bg); }
+#scSheet .scOpt.on { background:var(--ed-acc-soft); border-color:var(--ed-acc); }
+#scSheet .scOpt:disabled { opacity:.45; cursor:default; }
+#scSheet .scOpt b { font-weight:500; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#scSheet .scOpt small { color:var(--ed-faint); font-size:11px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#scSheet .scOpt:focus-visible { outline:2px solid var(--ed-acc); outline-offset:1px; }
+#scSheet .scWait { color:var(--ed-faint); padding:8px 2px; }
+#scSheet .scMsg { padding:7px 14px; color:var(--ed-warn); border-top:1px solid var(--ed-hair); }
+#scSheet .scFoot { display:flex; align-items:center; gap:8px; padding:9px 14px; border-top:1px solid var(--ed-hair); }
+#scSheet .scSum { flex:1; min-width:0; color:var(--ed-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* the phone and narrow windows: a bottom sheet, From / To as tabs */
+@media (max-width:700px) {
+  #scSheet { left:0; right:0; bottom:0; width:auto; max-height:78vh; border-radius:14px 14px 0 0; padding-bottom:env(safe-area-inset-bottom, 0px); }
+  #scSheet .scSeg { display:flex; border:1px solid var(--ed-border); border-radius:6px; overflow:hidden; }
+  #scSheet .scSeg button { background:transparent; border:0; color:var(--ed-dim); padding:7px 14px; font:500 12px/1 'IBM Plex Sans'; }
+  #scSheet .scSeg button.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
+  #scSheet .scCols { grid-template-columns:1fr; }
+  #scSheet .scCol + .scCol { border-left:0; }
+  #scSheet.scTab-from .scTo, #scSheet.scTab-to .scFrom { display:none; }
+  #scSheet .scOpt { padding:10px; }
+  #scSheet .scFoot .verb { min-height:44px; }
+}
+html.phone #scSheet { left:0; right:0; bottom:0; width:auto; max-height:78vh; border-radius:14px 14px 0 0; }
+html.phone #scSheet .scSeg { display:flex; border:1px solid var(--ed-border); border-radius:6px; overflow:hidden; }
+html.phone #scSheet .scSeg button { background:transparent; border:0; color:var(--ed-dim); padding:7px 14px; }
+html.phone #scSheet .scSeg button.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
+html.phone #scSheet .scCols { grid-template-columns:1fr; }
+html.phone #scSheet.scTab-from .scTo, html.phone #scSheet.scTab-to .scFrom { display:none; }
+
 /* DROP-JSON (G2799, the user 18 Oct): 'drop to import' over the workshop
    while a file is dragged onto it - the scenery editor's .pr-drop, the
    garage's tokens */
@@ -2297,54 +2348,3 @@ body.shot #gmPanel, body.shot #gmMenu { display:none !important; }
 #npWrap .npReg { display:flex; align-items:center; gap:10px; margin-top:14px; color:var(--ed-dim); font-size:12px; }
 #npWrap .npReg input { min-height:44px; width:160px; padding:0 10px; border-radius:8px; box-sizing:border-box;
   background:var(--ed-track); border:1px solid var(--ed-btn-bd); color:var(--ed-ink); font:500 14px/1 'IBM Plex Mono', monospace; }
-
-/* ---- THE START CHOOSER (start_chooser.js, the user 13 Nov: the sandbox's Fly / Drive with where from and where to) -----
-   The pill beside the verb (#edStart: "From X → Y"), and the sheet above it (#scSheet: From | To, Go). The phone: a bottom
-   sheet with From / To tabs. Garage tokens; the verb's own .verb look for its buttons. */
-#edActs .edStartB { display:flex; flex-direction:column; align-items:flex-start; gap:2px; max-width:260px; min-width:0;
-  padding:6px 11px; text-align:left; }
-#edActs .edStartB[hidden] { display:none; }
-#edActs .edStartB small { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.1em; text-transform:uppercase; color:var(--ed-faint); }
-#edActs .edStartB span { font:500 12px/1.25 'IBM Plex Sans'; color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
-#scSheet { position:fixed; right:22px; bottom:78px; z-index:58; width:min(540px, calc(100vw - 44px)); max-height:min(62vh, 560px);
-  display:flex; flex-direction:column; background:var(--ed-panel); color:var(--ed-ink); border:1px solid var(--ed-border);
-  border-radius:10px; box-shadow:0 10px 32px rgba(0,0,0,.5); font:400 12.5px/1.35 'IBM Plex Sans'; text-transform:none; letter-spacing:normal; }
-#scSheet[hidden] { display:none; }
-#scSheet button { font-family:inherit; text-transform:none; letter-spacing:normal; }
-#scSheet .scH { display:flex; justify-content:space-between; align-items:center; padding:9px 14px; border-bottom:1px solid var(--ed-hair);
-  font:600 11px/1 'IBM Plex Sans'; letter-spacing:.14em; }
-#scSheet .scSeg { display:none; }
-#scSheet .scCols { display:grid; grid-template-columns:1fr 1fr; min-height:0; flex:1; }
-#scSheet .scCol { padding:6px 12px 10px; display:flex; flex-direction:column; gap:3px; overflow:auto; min-width:0; }
-#scSheet .scCol + .scCol { border-left:1px solid var(--ed-hair); }
-#scSheet .scGh { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.12em; text-transform:uppercase; color:var(--ed-faint); padding:9px 0 4px; }
-#scSheet .scOpt { display:flex; flex-direction:column; align-items:flex-start; gap:1px; width:100%; padding:6px 8px; text-align:left;
-  background:transparent; border:1px solid transparent; border-radius:6px; color:var(--ed-ink); cursor:pointer; min-width:0; }
-#scSheet .scOpt:hover:not(:disabled) { background:var(--ed-btn-bg); }
-#scSheet .scOpt.on { background:var(--ed-acc-soft); border-color:var(--ed-acc); }
-#scSheet .scOpt:disabled { opacity:.45; cursor:default; }
-#scSheet .scOpt b { font-weight:500; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#scSheet .scOpt small { color:var(--ed-faint); font-size:11px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#scSheet .scOpt:focus-visible { outline:2px solid var(--ed-acc); outline-offset:1px; }
-#scSheet .scWait { color:var(--ed-faint); padding:8px 2px; }
-#scSheet .scMsg { padding:7px 14px; color:var(--ed-warn); border-top:1px solid var(--ed-hair); }
-#scSheet .scFoot { display:flex; align-items:center; gap:8px; padding:9px 14px; border-top:1px solid var(--ed-hair); }
-#scSheet .scSum { flex:1; min-width:0; color:var(--ed-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-/* the phone and narrow windows: a bottom sheet, From / To as tabs */
-@media (max-width:700px) {
-  #scSheet { left:0; right:0; bottom:0; width:auto; max-height:78vh; border-radius:14px 14px 0 0; padding-bottom:env(safe-area-inset-bottom, 0px); }
-  #scSheet .scSeg { display:flex; border:1px solid var(--ed-border); border-radius:6px; overflow:hidden; }
-  #scSheet .scSeg button { background:transparent; border:0; color:var(--ed-dim); padding:7px 14px; font:500 12px/1 'IBM Plex Sans'; }
-  #scSheet .scSeg button.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
-  #scSheet .scCols { grid-template-columns:1fr; }
-  #scSheet .scCol + .scCol { border-left:0; }
-  #scSheet.scTab-from .scTo, #scSheet.scTab-to .scFrom { display:none; }
-  #scSheet .scOpt { padding:10px; }
-  #scSheet .scFoot .verb { min-height:44px; }
-}
-html.phone #scSheet { left:0; right:0; bottom:0; width:auto; max-height:78vh; border-radius:14px 14px 0 0; }
-html.phone #scSheet .scSeg { display:flex; border:1px solid var(--ed-border); border-radius:6px; overflow:hidden; }
-html.phone #scSheet .scSeg button { background:transparent; border:0; color:var(--ed-dim); padding:7px 14px; }
-html.phone #scSheet .scSeg button.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
-html.phone #scSheet .scCols { grid-template-columns:1fr; }
-html.phone #scSheet.scTab-from .scTo, html.phone #scSheet.scTab-to .scFrom { display:none; }
