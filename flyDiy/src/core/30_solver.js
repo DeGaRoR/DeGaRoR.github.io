@@ -1480,7 +1480,7 @@ function makeSim(def, world) {
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
-        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; if (TETH) { b.Lt = L; b.Lt0 = L; b.tt = 1; DMG.tether++; } beamBreak(bi, 'kink'); }   // (G4103: and its tether)   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
+        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; if (TETH && tetherKind(b)) { b.Lt = L; b.tt = 1; DMG.tether++; } beamBreak(bi, 'kink'); }   // (G4103: and its tether)   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
       }
     }
     noteSet(bi);
@@ -3725,11 +3725,20 @@ function makeSim(def, world) {
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
   }
-  // G4103 (JOINT-TETHER): a kinked member's tether - pulls at kB (L - Lt) to ft x its strength, plastic past it (Lt follows:
-  // the stored energy at most Ft^2 / 2 kB), torn once L is et past the crushed length Lt0: the piece event again
+  // G4103 (JOINT-TETHER): a kinked member's tether (60_gen_spec GEN_DMG_TETHER): 1 a ductile tube or sheet, 2 wood, 0 none
+  function tetherKind(b) {
+    const R = b.mat ? GEN_CRASH[b.mat] : null;
+    if (!R || !(b.Lr > 0)) return 0;
+    return R.etu > 0 ? 1 : b.mat === 'wood' ? 2 : 0;
+  }
+  // its pull: kB (L - Lt) to its cap - a fold opening (L under its rest length) at rFold x its crush force, then the
+  // creased wall's share of its strength - plastic past the cap (Lt follows: the stored energy at most F^2 / 2 kB); torn
+  // once past its rest length by what its material has left: the piece event again
   function tetherPull(b, a3, b3, dx, dy, dz, L) {
-    if (L > b.Lt0 * (1 + GEN_DMG_TETHER.et)) { b.tt = 0; DMG.tetherT++; tetherTorn = 1; return; }
-    const Fm = GEN_DMG_TETHER.ft * (b.fu < Infinity ? b.fu : b.Ff > 0 ? b.Ff : 0);
+    const T = GEN_DMG_TETHER, k = tetherKind(b), R = GEN_CRASH[b.mat];
+    if (L > b.Lr * (1 + (k === 1 ? T.eDuct * R.etu : 0))) { b.tt = 0; DMG.tetherT++; tetherTorn = 1; return; }
+    const fu = b.fu < Infinity ? b.fu : 0;
+    const Fm = k === 2 ? T.rWood * fu : L < b.Lr && b.Ff > 0 ? T.rFold * b.Ff : T.rDuct * fu;
     let F = b.kB * (L - b.Lt);
     if (F > Fm) { F = Fm; b.Lt = L - Fm / b.kB; }
     if (!(F > 0)) return;
