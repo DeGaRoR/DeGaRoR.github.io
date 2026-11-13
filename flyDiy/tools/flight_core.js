@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 22f5c8c8d1d9c4d1
+// body-sha256: b87654be1745d09a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1130,6 +1130,7 @@ var GAME_NAMES = {
     w8:       'Hiking Strip',                 // in a little valley east of the Cabin Strip (was strip 13)
     w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
+    mt_strip: 'Ardent Altiport',              // (OBSERVATORY-SITE 13 Nov: the observatory's strip on Mount Ardent's north-east spur, landed uphill)
   },
 };
 
@@ -55732,6 +55733,9 @@ const CONTRACT_FIELDS = {
   // (G2745, the user's save 17, 18 Oct: the Cabin Strip - the story's start, an S of gravel up a lake valley)
   w1:       { id: 'w1',       name: GAME_NAMES.fields.w1,        x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true },   // (22 Oct, the user: no PAPI at the Cabin Strip - a bush strip, no glideslope lights)
   cb_sea:   { id: 'cb_sea',   name: GAME_NAMES.fields.cb_sea,          x: 1890,  z: -17804, len: 1400, surf: 'water', lit: false },   // (CABIN-LAKE 26 Oct: the lake below the Cabin Strip; no job flies there yet - CABIN-LAKE-JOBS)
+  // (OBSERVATORY-SITE 13 Nov: the observatory's altiport on Mount Ardent, 210 m landed uphill to 1 039 m - in no provider's
+  //  fields yet: the Game coordinator joins it to the jobs; a SNOW surface hook when the snow ground lands)
+  mt_strip: { id: 'mt_strip', name: GAME_NAMES.fields.mt_strip,      x: 9317,  z: -5962,  len: 210,  surf: 'gravel', alti: true, lit: true },
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -55777,6 +55781,10 @@ const CONTRACT_TRACKS = {
   resort:   { max: 3, stages: ['trk.resort.1', 'trk.resort.2', 'trk.resort.3'] },
   survey:   { max: 3, stages: ['trk.survey.1', 'trk.survey.2', 'trk.survey.3'] },
   clients:  { max: 2, stages: ['trk.clients.1', 'trk.clients.2'] },
+  // OBSERVATORY-SITE (13 Nov, the user: "the observatory PROJECT builds them ONE AT A TIME"): the Mount Ardent station's three
+  // buildings, one per step (the tower, the drum, the hall; the pillar stands from the start) - a PROJECT's track, no provider's:
+  // nothing in play advances it yet (ECON_BOOK.landmarks 'observatory' is data only); the Game coordinator wires the project
+  observatory: { max: 3, stages: ['trk.observatory.1', 'trk.observatory.2', 'trk.observatory.3'] },
 };
 
 // ---- THE PROVIDERS (§R G-PROV: five) ----------------------------------------------------------------------
@@ -56143,6 +56151,9 @@ const CONTRACT_TEXT = {
   'trk.survey.3': CT_('The weather mast on ' + GAME_NAMES.hill),
   'trk.clients.1': CT_('The club house'),
   'trk.clients.2': CT_('A small museum hangar for your best design'),
+  'trk.observatory.1': CT_('The observatory\'s instrument tower on ' + GAME_NAMES.mountain),
+  'trk.observatory.2': CT_('The observatory\'s station'),
+  'trk.observatory.3': CT_('The observatory\'s hall'),
   // goods (the load words)
   'goods.mail': CT_('mail'), 'goods.tools': CT_('tools'), 'goods.crew': CT_('crew'),
   'goods.parts': CT_('parts'), 'goods.samples': CT_('ore samples'), 'goods.rods': CT_('drill rods'),
@@ -59972,7 +59983,7 @@ const cwMoney = n => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g,
 // 76_stages.js - THE BUILDINGS THAT MISSIONS PUT UP: the career's side of the premises' `stage` (G2300-G2309 STAGES,
 // GAME-2026-10-06.md §11; the record's side is 27_premises.js stageView / stageIssues, contract v1.33).
 //
-// A track (72_contract_data.js CONTRACT_TRACKS: field 2, minedock 4, resort 3, survey 3, clients 2) is a small integer in
+// A track (72_contract_data.js CONTRACT_TRACKS: field 3, minedock 4, resort 3, survey 3, clients 2, observatory 3) is a small integer in
 // the career document (`career.tracks`), advanced by a contract's `unlock: { stage: '<track>:<n>' }` (74_career.js
 // careerComplete). The world record stands an element only while its track lies in the element's band. This file:
 //   stageTracksOf(doc)          the tracks a composition reads: the career's, or NULL - the sandbox, every track at its max
@@ -60014,6 +60025,11 @@ const STAGE_REVEALS = {
   'survey:3':   { at: 'w3',       caption: 'trk.survey.3',   world: false },   // (no mast exists today: HANDOVER G2300)
   'clients:1':  { at: 'HOME',     caption: 'trk.clients.1',  world: true },    // the flying club's house
   'clients:2':  { at: 'HOME',     caption: 'trk.clients.2',  world: false },   // (no museum hangar exists today: HANDOVER G2300)
+  // OBSERVATORY-SITE (13 Nov): the Mount Ardent station, one building a step (mt_s_meteo's items; the kits sg_k_obs_*), seen from
+  // its altiport (mt_strip)
+  'observatory:1': { at: 'mt_strip', caption: 'trk.observatory.1', world: true },   // the tower: the core and the top saucer
+  'observatory:2': { at: 'mt_strip', caption: 'trk.observatory.2', world: true },   // the drum: the two-tier disc
+  'observatory:3': { at: 'mt_strip', caption: 'trk.observatory.3', world: true },   // the hall: the flat disc
 };
 // the shot's eye about its target (A0's GPU still frames it: tools/stages_shot.js): metres back, elevation, and the
 // caption's time on screen
