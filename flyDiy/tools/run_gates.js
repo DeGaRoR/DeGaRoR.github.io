@@ -906,6 +906,7 @@ const GATES = [
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
   { id: 'PARKING', file: '_parking_check.js', tier: 'core' },   // PARKING-AREA (13 Nov): an area the parked fleet fills (25_airfield fleetSpots)
+  { id: 'DOCKS', file: '_docks_check.js', tier: 'core', wall: 60 },   // DOCKS-LODGE (13 Nov): the water's stands - a dock per water base, its ties, its way out clear, the start tied at it; the lodge's stages
   // G2890 (SCENERY-ED-1): the scenery editor's HAND, headless - premises_ui.js under a DOM stub on the real core: a polygon's
   // corner added on its edge / picked / removed / subdivided / undone, the round pad, the smooth road's handles, the plot pick (~1 s)
   { id: 'SCENERYED', file: '_scenery_ed_check.js', tier: 'core' },

@@ -3704,6 +3704,68 @@
     "what": [
      "trees"
     ]
+   },
+   {
+    "id": "lg_x_lodge",
+    "what": [
+     "trees"
+    ],
+    "poly": [
+     [
+      4455,
+      -20000
+     ],
+     [
+      4700,
+      -20000
+     ],
+     [
+      4700,
+      -19900
+     ],
+     [
+      4455,
+      -19890
+     ]
+    ],
+    "stage": {
+     "track": "lodge",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "lg_x_kit",
+    "what": [
+     "trees"
+    ],
+    "poly": [
+     [
+      4630,
+      -19985
+     ],
+     [
+      4675,
+      -19985
+     ],
+     [
+      4675,
+      -19940
+     ],
+     [
+      4630,
+      -19940
+     ]
+    ],
+    "stage": {
+     "track": "lodge",
+     "show": [
+      1,
+      1
+     ]
+    }
    }
   ],
   "roads": [
@@ -14457,6 +14519,46 @@
      null,
      null
     ]
+   },
+   {
+    "id": "lg_r_track",
+    "name": "the lodge track",
+    "pts": [
+     [
+      4640,
+      -19975
+     ],
+     [
+      4655,
+      -20040
+     ],
+     [
+      4640,
+      -20120
+     ],
+     [
+      4625,
+      -20200
+     ],
+     [
+      4615,
+      -20270
+     ]
+    ],
+    "w": 3.6,
+    "cls": "gravel",
+    "stage": {
+     "track": "lodge",
+     "show": [
+      3,
+      null
+     ]
+    },
+    "graded": true,
+    "falloff": 6,
+    "curve": "spline",
+    "clear": 2,
+    "band": 4
    }
   ],
   "runways": [
@@ -14821,6 +14923,16 @@
        "hdg": null
       }
      }
+    ],
+    "docks": [
+     {
+      "id": "d1",
+      "x": 871.1,
+      "z": -2860.2,
+      "hdg": -1.134,
+      "len": 32,
+      "kind": "fixed"
+     }
     ]
    },
    {
@@ -14861,6 +14973,20 @@
        "z": -8670.0,
        "hdg": null
       }
+     }
+    ],
+    "docks": [
+     {
+      "id": "d1",
+      "x": -3359.86,
+      "z": -9104.49,
+      "hdg": -0.8206,
+      "len": 26,
+      "kind": "float",
+      "ties": [
+       15
+      ],
+      "draw": false
      }
     ]
    },
@@ -15783,7 +15909,178 @@
        "hdg": null
       }
      }
+    ],
+    "docks": [
+     {
+      "id": "d1",
+      "x": 2213.91,
+      "z": -17350.13,
+      "hdg": -1.7106,
+      "len": 26,
+      "kind": "float",
+      "ties": [
+       15
+      ],
+      "draw": false
+     }
     ]
+   },
+   {
+    "id": "lg_sea",
+    "name": "Hook Lagoon",
+    "c": [
+     6300.0,
+     -19450.0
+    ],
+    "hdg": 0.0,
+    "len": 1400.0,
+    "wid": 150.0,
+    "surface": 4,
+    "look": "none",
+    "crossfall": 0,
+    "disp": [
+     0,
+     0
+    ],
+    "papi": [
+     false,
+     false
+    ],
+    "falloff": null,
+    "site": null,
+    "pattern": null,
+    "profile": null,
+    "approach": null,
+    "docks": [
+     {
+      "id": "d1",
+      "x": 4744.1,
+      "z": -19925.4,
+      "hdg": 0.6,
+      "len": 26,
+      "kind": "fixed",
+      "approach": [
+       [
+        4880,
+        -19880
+       ],
+       [
+        4950,
+        -19830
+       ],
+       [
+        4985,
+        -19780
+       ],
+       [
+        4990,
+        -19740
+       ],
+       [
+        5045,
+        -19695
+       ],
+       [
+        5110,
+        -19650
+       ],
+       [
+        5190,
+        -19600
+       ],
+       [
+        5275,
+        -19550
+       ],
+       [
+        5385,
+        -19500
+       ],
+       [
+        5500,
+        -19455
+       ]
+      ]
+     }
+    ],
+    "stage": {
+     "track": "lodge",
+     "show": [
+      1,
+      null
+     ]
+    }
+   },
+   {
+    "id": "lg_strip",
+    "name": "Hook Lagoon Strip",
+    "len": 1000,
+    "wid": 18,
+    "surface": 6,
+    "look": "gravel",
+    "slope": 0,
+    "crossfall": 0,
+    "disp": [
+     0,
+     0
+    ],
+    "papi": [
+     false,
+     false
+    ],
+    "falloff": 40,
+    "site": null,
+    "pattern": null,
+    "stand": {
+     "x": 4614.95,
+     "z": -20283.15,
+     "hdg": null
+    },
+    "taxiOut": [
+     [
+      4625.89,
+      -20313.22
+     ]
+    ],
+    "profile": null,
+    "approach": null,
+    "hangar": null,
+    "circuit": null,
+    "band": 3,
+    "pav": {
+     "marks": "none",
+     "wet": 0.55,
+     "mossK": 0.7
+    },
+    "altiport": false,
+    "c": [
+     4250.0,
+     -20450.0
+    ],
+    "hdg": 0.349,
+    "stage": {
+     "track": "lodge",
+     "show": [
+      3,
+      null
+     ],
+     "vary": [
+      {
+       "show": [
+        3,
+        3
+       ],
+       "len": 380,
+       "c": [
+        4522.52,
+        -20350.83
+       ],
+       "wid": 12,
+       "surface": 0,
+       "look": "dirt"
+      }
+     ]
+    }
    }
   ],
   "zones": [
@@ -20710,6 +21007,99 @@
       }
      }
     ]
+   },
+   {
+    "id": "lg_s_lodge",
+    "name": "Hook Lagoon Lodge",
+    "at": {
+     "x": 4600.0,
+     "z": -19940.0,
+     "yaw": 0
+    },
+    "yard": null,
+    "items": [
+     {
+      "id": "lodge",
+      "key": "house/log cabin",
+      "x": 50,
+      "z": -22,
+      "yaw": -0.6,
+      "P": {
+       "lot": false,
+       "L": 15,
+       "w": 8.5,
+       "storeys": 2,
+       "name": "the lodge"
+      }
+     },
+     {
+      "id": "cabin1",
+      "key": "house/log cabin",
+      "x": -40,
+      "z": -5,
+      "yaw": -0.3,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "cabin2",
+      "key": "house/log cabin",
+      "x": -85,
+      "z": 10,
+      "yaw": -0.1,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "cabin3",
+      "key": "house/log cabin",
+      "x": -125,
+      "z": 25,
+      "yaw": 0.15,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "boathouse",
+      "key": "house/net loft",
+      "x": -5,
+      "z": 28,
+      "yaw": 1.5708,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "woodshed",
+      "key": "house/woodshed",
+      "x": 5,
+      "z": -40,
+      "yaw": -0.4,
+      "P": {
+       "lot": false
+      }
+     },
+     {
+      "id": "outhouse",
+      "key": "house/outhouse",
+      "x": -60,
+      "z": -35,
+      "yaw": 0.2,
+      "P": {
+       "lot": false
+      }
+     }
+    ],
+    "stage": {
+     "track": "lodge",
+     "show": [
+      2,
+      null
+     ]
+    }
    }
   ],
   "links": [
@@ -23810,6 +24200,108 @@
     "yaw": -0.6087,
     "dy": 0,
     "on": "ground"
+   },
+   {
+    "id": "lg_k_lodge",
+    "kind": "kit",
+    "kit": "build",
+    "x": 4650.0,
+    "z": -19962.0,
+    "yaw": -0.6,
+    "w": 20,
+    "d": 14,
+    "stage": {
+     "track": "lodge",
+     "show": [
+      1,
+      1
+     ]
+    }
+   },
+   {
+    "id": "lg_o_fire",
+    "kind": "prop",
+    "key": "camp_firepit",
+    "x": 4615.0,
+    "z": -19930.0,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground",
+    "stage": {
+     "track": "lodge",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "lg_o_table1",
+    "kind": "prop",
+    "key": "picnic_table",
+    "x": 4630.0,
+    "z": -19940.0,
+    "yaw": 0.4,
+    "dy": 0,
+    "on": "ground",
+    "stage": {
+     "track": "lodge",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "lg_o_table2",
+    "kind": "prop",
+    "key": "picnic_table",
+    "x": 4605.0,
+    "z": -19945.0,
+    "yaw": -0.2,
+    "dy": 0,
+    "on": "ground",
+    "stage": {
+     "track": "lodge",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "lg_o_boat1",
+    "kind": "prop",
+    "key": "boat_clinker",
+    "x": 4588.0,
+    "z": -19925.0,
+    "yaw": 1.2,
+    "dy": 0,
+    "on": "ground",
+    "stage": {
+     "track": "lodge",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "lg_o_boat2",
+    "kind": "prop",
+    "key": "boat_painted",
+    "x": 4584.0,
+    "z": -19930.0,
+    "yaw": 1.35,
+    "dy": 0,
+    "on": "ground",
+    "stage": {
+     "track": "lodge",
+     "show": [
+      2,
+      null
+     ]
+    }
    }
   ],
   "junctions": [

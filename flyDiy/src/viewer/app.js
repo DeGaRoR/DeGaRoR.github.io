@@ -7162,9 +7162,20 @@
     const wet = typeof stripSurface === 'function' ? (a => a && stripSurface(a).cls === 'water') : (a => a && a.kind === 'water');
     if (sim.hydro && (wet(from) || gearNow === 'floats')) {
       const sea = wet(from) ? from : (world.aerodromes.find(wet) || aeroById('SEA') || { hdg: Math.PI / 2, spawn: [0, 1285], elev: 0 });
-      placeAtAerodrome(sim, sea);
+      const seaTo = did === 'CIRCUIT' || to === from ? sea : to;
+      // DOCKS-LODGE: TIED AT THE DOCK (the user 13 Nov: "floatplanes have nowhere to go, not even a base, they spawn in the
+      // middle of the water") - the lane's first free tie spot (dockStart: the start chain's free test), else the lane's
+      // spawn as before. Only when someone can taxi it off the dock: the pilot's water taxi (ap.waterTaxi, the Pilot
+      // coordinator's - it is then handed the dock as its site: the tie its stand, the way out its taxiOut) or the player's
+      // hand (flying it themselves); the pilot without one would open the throttle at the dock (ROLL): the lane, as before
+      const dk = dockStart(sea);
+      const dockTaxi = !!(ap && ap.waterTaxi), dockOk = dk.stand && (dockTaxi || manual || DOCK_FORCE);
+      startWhy = dockOk ? 'dock' : dk.stand ? 'lane-no-water-taxi' : dk.why;
+      lastDock = dockOk ? dk : null;
+      if (dockOk) placeAtStand(sim, sea, dk.stand); else placeAtAerodrome(sim, sea);
       patternVisFor(sea, null);
-      ap.setRoute(sea, did === 'CIRCUIT' || to === from ? sea : to);
+      if (dockOk && dockTaxi && typeof ap.departFrom === 'function') ap.departFrom(sea, seaTo, dk.site);
+      else ap.setRoute(sea, seaTo);
       return;
     }
     if (typeof sim.stance === 'function') sim.stance();
@@ -7253,6 +7264,33 @@
     const order = L.filter(s => /^park:/.test(String(s[3]))).concat(L.filter(s => !/^park:/.test(String(s[3]))));
     for (const s of order) if (!busy(s[0], s[1], 3)) return { stand: { x: s[0], z: s[1], hdg: -s[2], spot: s[3] }, why: 'parking' };
     return { stand: null, why: 'lineup' };
+  }
+  // DOCKS-LODGE: THE WATER FRONT - a lane's dock tie spots (27_premises dockWorld: siteOf(lane).docks[].ties, in the record's
+  // order), the first FREE one by the start chain's own test (no player's aeroplane standing within START_FREE_R of it - the
+  // fleet's plan at this field, the flown one aside - and no parked aeroplane of the scenery). Returns { stand, why, site,
+  // dock, tie }: why 'dock' (a free tie), 'dock-busy' (every tie taken), 'no-dock' (the lane has none); `site` is the
+  // dock as a land site's shape, for a pilot that taxis on the water: { stand: the tie, taxiOut: its way out (the last point
+  // ON the lane's centreline), water: true, dock, tie }. ?dockstart=1 starts at the dock whoever flies (a test's switch)
+  const DOCK_FORCE = (() => { try { return /[?&]dockstart=1\b/.test(location.search || ''); } catch (e) { return false; } })();
+  let lastDock = null;
+  window.FLYDIY_DOCK_START = () => lastDock ? { dock: lastDock.dock.id, tie: lastDock.tie.id, x: lastDock.stand.x, z: lastDock.stand.z, hdg: lastDock.stand.hdg } : null;
+  function dockStart(sea) {
+    const st = (sea && typeof siteOf === 'function') ? siteOf(sea.id) : null;
+    const L = (st && Array.isArray(st.docks)) ? st.docks : [];
+    if (!L.length) return { stand: null, why: 'no-dock' };
+    const taken = [];
+    try {
+      const F = window.FLEET_STAND, isl = world && world.island && world.island.id, flown = slotOnStand();
+      if (F && F.plan && isl) for (const q of F.plan(playerLoad(), flown || null, window.FLEET_SPOTS_PACK, isl, null, sea.id, null).stand)
+        if (q.slot !== flown && Number.isFinite(q.x) && Number.isFinite(q.z)) taken.push([q.x, q.z]);
+    } catch (e) {}
+    if (Array.isArray(st.parked)) for (const p of st.parked) if (Number.isFinite(+p.x) && Number.isFinite(+p.z)) taken.push([+p.x, +p.z]);
+    for (const dock of L) for (const tie of dock.ties || []) {
+      if (taken.some(q => Math.hypot(q[0] - tie.x, q[1] - tie.z) < START_FREE_R)) continue;
+      const stand = { x: tie.x, z: tie.z, hdg: tie.hdg, elev: tie.elev, dock: dock.id, tie: tie.id };
+      return { stand, why: 'dock', dock, tie, site: { stand, taxiOut: tie.approach.slice(1), water: true, dock, tie } };
+    }
+    return { stand: null, why: 'dock-busy' };
   }
   let lastStart = null, skipAir = false;
   function placeLinedUp() {

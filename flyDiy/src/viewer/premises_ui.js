@@ -35,7 +35,7 @@ const PG = window.PREMISES_GEN;
 const SECTIONS = [
   { k: 'terrain',    label: 'TERRAIN',    icon: '⛰', tools: ['select', 'area', 'flatten', 'raise', 'ramp', 'surface', 'material', 'probe'] },
   { k: 'areas',      label: 'AREAS',      icon: '▱',  tools: ['select', 'area', 'rect', 'concrete', 'parking', 'dock', 'hatch', 'probe'] },
-  { k: 'airfield',   label: 'AIRFIELD',   icon: '✈',  tools: ['select', 'runway', 'apron', 'pad', 'stand', 'probe'] },
+  { k: 'airfield',   label: 'AIRFIELD',   icon: '✈',  tools: ['select', 'runway', 'apron', 'pad', 'stand', 'seadock', 'probe'] },
   { k: 'roads',      label: 'ROADS',      icon: '⌇',  tools: ['select', 'road', 'probe'] },
   { k: 'zones',      label: 'ZONES',      icon: '▦',  tools: ['select', 'zone', 'probe'] },
   { k: 'vegetation', label: 'TREES',      icon: '♣',  tools: ['select', 'forest', 'biome', 'clear', 'tree', 'probe'] },
@@ -66,7 +66,7 @@ const ICONS = {
   sounds: 'M2.5 7h3l4-3.5v11l-4-3.5h-3Z|M12 6.5a3.5 3.5 0 0 1 0 5|M14 4.5a6.3 6.3 0 0 1 0 9',
 };
 const iconSvg = k => { const d = ICONS[k]; if (!d) return null; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 18 18'); svg.setAttribute('aria-hidden', 'true'); for (const q of d.split('|')) { const pth = document.createElementNS('http://www.w3.org/2000/svg', 'path'); pth.setAttribute('d', q); svg.appendChild(pth); } return svg; };
-const TOOL_LABEL = { area: 'an area', rect: 'a rectangle', concrete: 'concrete', parking: 'parking', dock: 'a dock', hatch: 'keep clear', place: 'place a model', scatter: 'scatter', select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', pad: 'round pad', stand: 'the stand', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe', soundpt: 'a point sound', soundarea: 'a sound area' };
+const TOOL_LABEL = { area: 'an area', rect: 'a rectangle', concrete: 'concrete', parking: 'parking', dock: 'a dock', hatch: 'keep clear', place: 'place a model', scatter: 'scatter', select: 'select', flatten: 'flatten', raise: 'raise / lower', ramp: 'slope', material: 'material', road: 'trace a road', surface: 'surface', zone: 'zone', forest: 'forest', biome: 'vegetation', clear: 'no trees', tree: 'a tree', runway: 'runway', apron: 'apron / taxiway', pad: 'round pad', stand: 'the stand', seadock: 'a dock (floatplanes)', building: 'a building', theme: 'the mine (theme)', cable: 'a cable', prop: 'a prop', billboard: 'a billboard', aircraft: 'an aeroplane', animal: 'animals', probe: 'probe', soundpt: 'a point sound', soundarea: 'a sound area' };
 const TOOL_HELP = {
   // G2890 (the user: "I don't know how to edit an existing polygon"): the shape's whole grammar, said where the tool is
   select: 'click a feature to select it. Its shape: drag an orange disc to move a corner, a faint one to add a corner there, click its edge to add one; click a corner (white) and Del removes it - Del with no corner picked deletes the feature. A smooth road: drag a cyan disc to bend it',
@@ -94,6 +94,7 @@ const TOOL_HELP = {
   pad: 'click the centre of the pad, then a point on its rim: a round paved apron, its edge a smooth circle - drag its two discs to move or resize it',
   material: 'click the corners, close: a PBR set projected on the ground inside, its contour fading over the metres you set; a higher priority paints over a lower',
   stand: 'click the ground beside a strip: the aeroplane stands there, its way out a straight taxi to the centreline; drag the discs, add taxi points in the inspector',
+  seadock: 'click the water by a shore near a water lane: a floating dock on the nearest shore, pointing at the lane - the floatplane starts tied there; drag its shore disc to move it, its head disc to turn and stretch it; kind, side and length in the inspector',
   building: 'pick a building in the inspector, click the ground to stand it there (its own site); drag its disc to move it',
   theme: 'click the ground: the Kennecott theme stands there as ONE site - the mill, the shop, the row, the receiving shed, the conveyor link and the gravel yard',
   cable: 'click a tram station, then the other: the line is solved between them (the village\'s tramLine, once its branch lands) and the ropes drawn',
@@ -1066,6 +1067,14 @@ function mount(host, ctx) {
         for (const k of ['taxiOut', 'taxiOut1']) if (Array.isArray(p[k])) p[k] = p[k].map((q, i, a) => i === a.length - 1 ? q : [+(q[0] + dx).toFixed(2), +(q[1] + dz).toFixed(2)]); }
       else if (p && p.stand) { p.stand.x = +L[0].toFixed(2); p.stand.z = +L[1].toFixed(2); }
     }
+    else if (drag.runway && /^d[kha]:/.test(drag.runway)) {
+      // DOCKS-LODGE: a dock's shore disc carries the dock (its way points stay where they are: the harbour mouth does not move),
+      // its head disc turns it and sets its length, a way point's disc moves that point
+      const e = found.entry, parts = drag.runway.slice(3).split(':'), d = (e.docks || []).find(q => q && q.id === parts[0]);
+      if (d && drag.runway[1] === 'k') { d.x = +L[0].toFixed(2); d.z = +L[1].toFixed(2); }
+      else if (d && drag.runway[1] === 'h') { const LN = PG.DOCK_LEN || [8, 80], dx = L[0] - d.x, dz = L[1] - d.z; d.hdg = +Math.atan2(dz, dx).toFixed(4); d.len = +Math.max(LN[0], Math.min(LN[1], Math.hypot(dx, dz))).toFixed(1); }
+      else if (d && drag.runway[1] === 'a' && Array.isArray(d.approach) && d.approach[+parts[1]]) d.approach[+parts[1]] = [+L[0].toFixed(2), +L[1].toFixed(2)];
+    }
     else if (drag.runway && (drag.runway === 'stand' || drag.runway === 'hangar' || drag.runway.indexOf('tx') === 0 || drag.runway.indexOf('ty') === 0)) {
       // the stand or a taxi point moves; the LAST taxi point stays on the centreline (it is the entry)
       const e = found.entry, E = PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, e));
@@ -1245,6 +1254,17 @@ function mount(host, ctx) {
         run({ layer: 'areas', id: fid, before: null, after: { id: fid, name: 'the works flat', poly: PG.ensureCCW(fpoly), props: { terraform: { kind: 'flatten', level: medianLevel(fpoly), falloff: bankFor(fpoly, medianLevel(fpoly), 14), abs: false, order: 0 } } }, label: 'the works flat' });
       }
       select(sid); return;
+    }
+    if (tool === 'seadock') {
+      // DOCKS-LODGE: the nearest WATER lane (within 1.5 km) takes the dock: its root on the shore nearest the click, its axis toward the lane
+      let best = null;
+      for (const r of R.overlay.runways) { if (!PG.runwayIsWater(r)) continue; const E = PG.runwayEnds(r); const d = PG.distPtSeg(L[0], L[1], E.end0, E.end1); if (!best || d < best.d) best = { r, d }; }
+      if (!best || best.d > 1500) { strip.status('no water lane within 1.5 km'); return; }
+      const e0 = PG.findById(rec, best.r.id), dk = e0 ? dockNear(e0.entry, [L[0], L[1]]) : null;
+      if (!dk) { strip.status('no shore near the click'); return; }
+      edit(best.r.id, 'runways', x => { x.docks = (x.docks || []).concat([dk]); }, 'dock of ' + best.r.id);
+      setTool('select'); select(best.r.id);
+      return;
     }
     if (tool === 'stand') {
       // the nearest strip takes the stand; the way out is one point: the stand projected onto the centreline
@@ -1751,6 +1771,7 @@ function mount(host, ctx) {
         }, 'hangar of ' + id));
       } else rows.note(insp, 'a club hangar (the garage\'s shell) can stand behind a stand: put the stand first');
       plotRows(insp, e, id, ed);   // (G3091: the base plots)
+      if (WATER) dockRows(insp, e, id, ed);   // DOCKS-LODGE: the lane's docks
       if (e.site && e.site.pattern) rows.button(insp, 'pattern: back to the derived one', () => ed(x => { const st = Object.assign({}, x.site); delete st.pattern; x.site = Object.keys(st).length ? st : null; }, 'derived pattern of ' + id));
       else rows.note(insp, 'the pattern is the DERIVED one (two holds 110 m in); touch a hold and it becomes yours');
     } else if (layer === 'sites') {
@@ -2571,6 +2592,53 @@ function mount(host, ctx) {
   // THE BASE PLOTS (the career's: where a player's hangar stands - HOME.2 and the others): a disc each on the map (its stand's too),
   // the place and heading typed, a stand of its own given or taken (without one the field's stand and way out serve it), a plot
   // added beside the stand, removed
+  // DOCKS-LODGE: A WATER LANE'S DOCKS (27_premises laneDocks / dockWorld) - the water's stands: a dock's shore disc carries it
+  // (its authored way out stays), its head disc turns and stretches it, a way point's small disc moves that point; the
+  // floatplane starts tied at its first free tie spot (app.js dockStart). What the composition made of each is said under it
+  function dockRows(p, e, id, ed) {
+    const D = Array.isArray(e.docks) ? e.docks : [], DF = PG.DOCK_DEF || { len: 24, kind: 'float', side: 1, gap: 14 }, LN = PG.DOCK_LEN || [8, 80];
+    let made = []; try { const s = typeof siteOf === 'function' ? siteOf(id) : null; made = s && Array.isArray(s.docks) ? s.docks : []; } catch (err) { made = []; }
+    rows.note(p, 'DOCKS: ' + (D.length ? D.map(q => q.id).join(', ') + ' - drag a dock\'s shore disc to move it, its head disc to turn and stretch it, a way point\'s small disc to move it' : 'none - a floatplane here starts on the lane'));
+    D.forEach((q, i) => {
+      const did = q.id, upd = (f, k) => ed(x => f(x.docks[i]), 'dock ' + did + ' of ' + id, k ? 'd' + i + k : undefined);
+      rows.note(p, 'DOCK ' + did);
+      rows.pills(p, did + ' kind', [['float', 'floating', 'planks riding the water'], ['fixed', 'fixed pier', 'on piles, a step above the water']], () => q.kind || DF.kind, v => upd(o => { o.kind = v; }));
+      numRow(p, did + ' shore x (m)', () => q.x, v => upd(o => { o.x = +v.toFixed(2); }, 'x'), metres);
+      numRow(p, did + ' shore z (m)', () => q.z, v => upd(o => { o.z = +v.toFixed(2); }, 'z'), metres);
+      rows.slider(p, did + ' heading (°)', -180, 180, 1, () => wrapDeg((+q.hdg || 0) * DEG), v => upd(o => { o.hdg = +(v / DEG).toFixed(4); }, 'h'), v => v.toFixed(0) + '° (shore to head)');
+      rows.slider(p, did + ' length (m)', LN[0], LN[1], 1, () => +q.len || DF.len, v => upd(o => { o.len = v; }, 'l'), v => v.toFixed(0) + ' m');
+      rows.pills(p, did + ' aeroplanes tie up', [['1', 'left', 'on the left looking out from the shore'], ['-1', 'right', 'on the right looking out from the shore']], () => String(+q.side === -1 ? -1 : 1), v => upd(o => { o.side = +v; }));
+      if (Array.isArray(q.ties)) { rows.note(p, did + ' TIE STATIONS by hand: ' + q.ties.map(v => (+v).toFixed(0) + ' m').join(', ') + ' from the shore end'); rows.button(p, did + ': tie spots by spacing instead', () => upd(o => { delete o.ties; })); }
+      else rows.slider(p, did + ' tie spacing (m)', 10, 30, 1, () => +q.gap || DF.gap, v => upd(o => { o.gap = v; }, 'g'), v => v.toFixed(0) + ' m');
+      rows.check(p, did + ': the scenery stands it (a marine float item) - no pier of its own', () => q.draw === false, v => upd(o => { if (v) o.draw = false; else delete o.draw; }));
+      const A = Array.isArray(q.approach) ? q.approach : [];
+      rows.note(p, did + ' WAY OUT: ' + (A.length ? A.length + ' point' + (A.length > 1 ? 's' : '') + ' past the head, then the lane' : 'straight from past the head to the lane'));
+      A.forEach((w, k) => rows.button(p, did + ': remove way point ' + (k + 1), () => upd(o => { o.approach.splice(k, 1); if (!o.approach.length) delete o.approach; })));
+      rows.button(p, did + ': add a way point', () => upd(o => { const h = +o.hdg || 0, L0 = +o.len || DF.len, W0 = Array.isArray(o.approach) ? o.approach : [], last = W0.length ? W0[W0.length - 1] : [o.x + Math.cos(h) * (L0 + 20), o.z + Math.sin(h) * (L0 + 20)];
+        o.approach = W0.concat([[+(last[0] + Math.cos(h) * 40).toFixed(2), +(last[1] + Math.sin(h) * 40).toFixed(2)]]); }));
+      const M = made.find(m => m.id === did);
+      if (M) rows.note(p, did + ': ' + M.ties.length + ' tie spot' + (M.ties.length > 1 ? 's' : '') + ', deck ' + M.y.toFixed(2) + ' m (' + (M.kind === 'fixed' ? 'a pier' : 'floating') + '), ' + M.mods.length + ' modules');
+      rows.button(p, 'remove dock ' + did, () => ed(x => { x.docks.splice(i, 1); if (!x.docks.length) delete x.docks; }, 'dock ' + did + ' of ' + id));
+    });
+    rows.button(p, 'add a dock (on the shore nearest the lane\'s middle)', () => ed(x => { const d = dockNear(x, x.c); if (d) x.docks = (x.docks || []).concat([d]); }, 'dock of ' + id));
+  }
+  // a new dock for water lane x near point q (premises frame): its root on the nearest shore (rings out from q), its axis
+  // toward the lane's centreline
+  function dockNear(x, q) {
+    const F = R.overlay && R.overlay.frame, A = (R.aerodromes ? R.aerodromes() : []).find(a => a.id === x.id);
+    if (!F || !A || !R.overlay.localH) return null;
+    // (the world's water over its bed - a lake composes its ground at the surface - else the lane's level over the composed ground)
+    const wet = (lx, lz) => { const w = F.toWorld(lx, lz), wl = world && world.waterH ? world.waterH(w[0], w[1]) : -Infinity; return isFinite(wl) ? wl > world.terrainH(w[0], w[1]) + 0.05 : A.elev - R.overlay.localH(lx, lz) > 0.05; };
+    let best = null;
+    for (let r = 2; r <= 600 && !best; r += 2) for (let a = 0; a < 48; a++) {
+      const t = a * Math.PI / 24, lx = q[0] + Math.cos(t) * r, lz = q[1] + Math.sin(t) * r;
+      if (!wet(lx, lz)) { best = [lx, lz]; break; }
+    }
+    if (!best) return null;
+    const J = PG.laneJoin ? PG.laneJoin(Object.assign({}, PG.RUNWAY_DEF, x), best[0], best[1]) : x.c;
+    const ids = new Set((x.docks || []).map(d => d.id)); let n = 1; while (ids.has('d' + n)) n++;
+    return { id: 'd' + n, x: +best[0].toFixed(2), z: +best[1].toFixed(2), hdg: +Math.atan2(J[1] - best[1], J[0] - best[0]).toFixed(4), len: (PG.DOCK_DEF || {}).len || 24, kind: 'float' };
+  }
   function plotRows(p, e, id, ed) {
     const P = Array.isArray(e.plots) ? e.plots : [];
     rows.note(p, 'BASE PLOTS: ' + (P.length ? P.map(q => q.id).join(', ') + ' - drag a plot\'s disc (its stand and way out come with it), its stand\'s small disc alone' : 'none'));

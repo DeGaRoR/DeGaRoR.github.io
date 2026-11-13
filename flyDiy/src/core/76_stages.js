@@ -44,6 +44,10 @@ const STAGE_REVEALS = {
   'survey:3':   { at: 'w3',       caption: 'trk.survey.3',   world: false },   // (no mast exists today: HANDOVER G2300)
   'clients:1':  { at: 'HOME',     caption: 'trk.clients.1',  world: true },    // the flying club's house
   'clients:2':  { at: 'HOME',     caption: 'trk.clients.2',  world: false },   // (no museum hangar exists today: HANDOVER G2300)
+  'lodge:1':    { at: 'lg_sea',   caption: 'trk.lodge.1',    world: true },    // DOCKS-LODGE: the lane and the dock in Hook Lagoon (the lodge's lumber on its plot)
+  'lodge:2':    { at: 'lg_sea',   caption: 'trk.lodge.2',    world: true },    // the lodge: the main house, three cabins, the boathouse, the woodshed
+  'lodge:3':    { at: 'lg_strip', caption: 'trk.lodge.3',    world: true },    // a short muddy strip (380 m) and the track up to it
+  'lodge:4':    { at: 'lg_strip', caption: 'trk.lodge.4',    world: true },    // the long strip (1000 m of gravel), the owner's
 };
 // the shot's eye about its target (A0's GPU still frames it: tools/stages_shot.js): metres back, elevation, and the
 // caption's time on screen

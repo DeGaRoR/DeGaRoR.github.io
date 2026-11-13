@@ -223,7 +223,17 @@
    }
   },
   "SEA": {
-   "name": "Greywater Dock"
+   "name": "Greywater Dock",
+   "docks": [
+    {
+     "id": "d1",
+     "x": 871.1,
+     "z": -2860.2,
+     "hdg": -1.134,
+     "len": 32,
+     "kind": "fixed"
+    }
+   ]
   },
   "mn_strip": {
    "name": "Copperhead Mine Street"
@@ -423,6 +433,38 @@
       "porchLamp": 1,
       "stairLights": 1
      }
+    }
+   ]
+  },
+  "mk_sea": {
+   "docks": [
+    {
+     "id": "d1",
+     "x": -3359.86,
+     "z": -9104.49,
+     "hdg": -0.8206,
+     "len": 26,
+     "kind": "float",
+     "ties": [
+      15
+     ],
+     "draw": false
+    }
+   ]
+  },
+  "cb_sea": {
+   "docks": [
+    {
+     "id": "d1",
+     "x": 2213.91,
+     "z": -17350.13,
+     "hdg": -1.7106,
+     "len": 26,
+     "kind": "float",
+     "ties": [
+      15
+     ],
+     "draw": false
     }
    ]
   }

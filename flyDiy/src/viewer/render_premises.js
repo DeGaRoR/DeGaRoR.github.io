@@ -3483,6 +3483,12 @@ function make(THREE, scene, world, rec0, opts) {
       // (G3091, objective 1) THE BASE PLOTS: a disc each (it moves the plot with its stand and way out), a small one for its stand
       for (const q of f.entry.plots || []) { if (!q || !isFinite(+q.x) || !isFinite(+q.z)) continue; put([+q.x, +q.z], 'pl:' + q.id);
         if (q.stand && isFinite(+q.stand.x) && isFinite(+q.stand.z)) put([+q.stand.x, +q.stand.z], 'ps:' + q.id, true); }
+      // DOCKS-LODGE: a water lane's docks - the shore disc (moves the dock), the head disc (turns and stretches it), a small disc per
+      // authored way point (premises_ui's drag: 'dk:' / 'dh:' / 'da:')
+      for (const q of f.entry.docks || []) { if (!q || !isFinite(+q.x) || !isFinite(+q.z) || !isFinite(+q.hdg)) continue;
+        const Ld = +q.len > 0 ? +q.len : ((PG.DOCK_DEF && PG.DOCK_DEF.len) || 24);
+        put([+q.x, +q.z], 'dk:' + q.id); put([+q.x + Math.cos(+q.hdg) * Ld, +q.z + Math.sin(+q.hdg) * Ld], 'dh:' + q.id);
+        (Array.isArray(q.approach) ? q.approach : []).forEach((w, k) => { if (Array.isArray(w)) put(w, 'da:' + q.id + ':' + k, true); }); }
       // THE HOLDS: the pattern's two stop bars, draggable along the centreline (the pattern's hand)
       const A = O.aerodromes[O.runways.findIndex(r => r.id === selectedId)];
       if (A && SITE.sitePattern) {
@@ -4024,6 +4030,15 @@ function make(THREE, scene, world, rec0, opts) {
   }
   // a placed prop or billboard (v5): a prop through propPlace on the composed ground, a billboard
   // through BIG_GEN.billboard with its own finish (the board IS the texture); in the world frame
+  // DOCKS-LODGE: (lx, lz) within 4 m of one of water lane r's docks (its deck, root to head; the record's, premises frame)
+  function onDock(r, L) {
+    for (const q of (r && Array.isArray(r.docks)) ? r.docks : []) {
+      if (!q || !isFinite(+q.x) || !isFinite(+q.hdg)) continue;
+      const Ld = +q.len > 0 ? +q.len : ((PG.DOCK_DEF && PG.DOCK_DEF.len) || 24);
+      if (PG.distPtSeg(L[0], L[1], [+q.x, +q.z], [+q.x + Math.cos(+q.hdg) * Ld, +q.z + Math.sin(+q.hdg) * Ld]) < 4) return true;
+    }
+    return false;
+  }
   function buildObject(ob) {
     const PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
     const w = O.frame.toWorld(ob.x, ob.z), yaw = ob.yaw + O.frame.yaw;
@@ -4988,6 +5003,7 @@ function make(THREE, scene, world, rec0, opts) {
         for (let i = 0; i + 1 < ln.length; i++) { const d = PG.distPtSeg(L[0], L[1], ln[i], ln[i + 1]) - (en.w || en.width || 4) / 2; if (d < nearD) { nearD = d; near = e; } }
       }
     }
+    for (const r of O.runways) if (onDock(r, L)) { const f = PG.findById(rec, r.id); if (f) return { id: r.id, layer: 'runways', entry: f.entry }; }   // DOCKS-LODGE: a dock picks its lane
     for (const r of O.runways) if (PG.inPoly(PG.runwayBox(r, 2), L[0], L[1])) return { id: r.id, layer: 'runways', entry: PG.findById(rec, r.id).entry };
     for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) { const f = featOf(p.id); if (f) return f; }
     for (const it of O.records.items) if (PG.inPoly(it.foot, L[0], L[1])) { const f = PG.findById(rec, it.site); if (f) return { id: it.site, layer: 'sites', entry: f.entry, item: it.item }; }
@@ -5026,6 +5042,7 @@ function make(THREE, scene, world, rec0, opts) {
         if (dm < 1.5) put(2, dm, { id: en.id, layer: e.layer, entry: en });
       } else if (en.poly && PG.inPoly(en.poly, L[0], L[1])) put(4, Math.abs(PG.polyArea(en.poly)), { id: en.id, layer: e.layer, entry: en });
     }
+    for (const r of O.runways) if (onDock(r, L)) { const f = PG.findById(rec, r.id); if (f) put(3, 0, { id: r.id, layer: 'runways', entry: f.entry }); }   // DOCKS-LODGE
     for (const r of O.runways) if (PG.inPoly(PG.runwayBox(r, 2), L[0], L[1])) { const f = PG.findById(rec, r.id); if (f) put(3, 0, { id: r.id, layer: 'runways', entry: f.entry }); }
     for (const p of O.pavePolys || []) if (PG.inPoly(p.poly, L[0], L[1])) { const f = featOf(p.id); if (f) put(4, Math.abs(PG.polyArea(p.poly)), f); }
     out.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));

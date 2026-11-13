@@ -95,6 +95,7 @@ const CONTRACT_TRACKS = {
   resort:   { max: 3, stages: ['trk.resort.1', 'trk.resort.2', 'trk.resort.3'] },
   survey:   { max: 3, stages: ['trk.survey.1', 'trk.survey.2', 'trk.survey.3'] },
   clients:  { max: 2, stages: ['trk.clients.1', 'trk.clients.2'] },
+  lodge:    { max: 4, stages: ['trk.lodge.1', 'trk.lodge.2', 'trk.lodge.3', 'trk.lodge.4'] },   // DOCKS-LODGE (13 Nov): Hook Lagoon - 1 the dock, 2 the lodge, 3 a short muddy strip, 4 the long strip (no provider unlocks it yet: the Game coordinator's story)
 };
 
 // ---- THE PROVIDERS (§R G-PROV: five) ----------------------------------------------------------------------
@@ -456,6 +457,7 @@ const CONTRACT_TEXT = {
   'trk.resort.1': CT_('The lodge\'s frame'),
   'trk.resort.2': CT_('The lodge'),
   'trk.resort.3': CT_('The strip lengthened'),
+  'trk.lodge.1': CT_('A dock in the lagoon'), 'trk.lodge.2': CT_('The lodge'), 'trk.lodge.3': CT_('A muddy strip'), 'trk.lodge.4': CT_('The long strip'),   // DOCKS-LODGE: placeholders - the Game coordinator writes the lodge's story
   'trk.survey.1': CT_('A windsock and tie-downs at East Point'),
   'trk.survey.2': CT_('East Point becomes a station'),
   'trk.survey.3': CT_('The weather mast on ' + GAME_NAMES.hill),
