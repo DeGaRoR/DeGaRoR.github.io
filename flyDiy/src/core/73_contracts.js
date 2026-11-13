@@ -143,6 +143,11 @@ const CONTRACT_FIT = {
   surf: { concrete: 1.0, asphalt: 1.0, paved: 1.0, gravel: 1.1, dirt: 1.1, sand: 1.25, grass: 1.15, snow: 1.3, water: 1.0 },
   bulkSeats: 4,
   rangeUse: 0.75,
+  // SKYLINE-RESORT (13 Nov; for the Game coordinator's review): an ALTIPORT is left downhill whatever the wind (43_pilot GTRAM),
+  // so its take-off run is the flat run x altiK. Skyline's ~9 % grade adds g x 0.09 = 0.9 m/s2 to a light aeroplane's 1.3-2
+  // m/s2 mean acceleration: 60-70 % of the flat run; 0.75 is the cautious end. Without it the halved altiport (190 m) had no
+  // doer for the resort arc (resort.01/02/05, clients.01) - GATE CONTRACTS / ECON; with it they read as at 380 m
+  altiK: 0.75,
 };
 
 // ---- THE PAY (§12.3 as amended by G-COST: net, no running costs) -----------------------------------------
@@ -713,7 +718,7 @@ function contractGearOk(gear, f) {
 // the loaded take-off distance on a field (the certificate's toM, (W/W0)^2, the surface's factor)
 function contractTakeoffM(design, loadKg, f) {
   const W0 = design.massKg, W = W0 + Math.max(0, loadKg || 0);
-  return design.toM * (W / W0) * (W / W0) * ((f && CONTRACT_FIT.surf[f.surf]) || 1.2);
+  return design.toM * (W / W0) * (W / W0) * ((f && CONTRACT_FIT.surf[f.surf]) || 1.2) * (f && f.alti ? CONTRACT_FIT.altiK : 1);
 }
 const ctCapKg = D => Math.max(0, D.seats - 1) * CONTRACT_FIT.occKg + (D.bagKg || 0);
 // one sub, one design -> { ok, why }
