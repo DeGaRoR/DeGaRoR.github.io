@@ -3691,7 +3691,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     };
     let BAKE_RT = null;                    // the shared bake pair (see bakeImpostorAtlasNow)
     let BAKE_RED = null;
-    const bakeReduce = () => { if (BAKE_RED) return BAKE_RED; const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ uniforms: { uSrc: { value: null } },
+    const bakeReduce = () => { if (BAKE_RED) return BAKE_RED; const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), MATLIB.make(THREE, 'shader', { uniforms: { uSrc: { value: null } },
         vertexShader: 'varying vec2 vU; void main() { vU = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: 'uniform sampler2D uSrc; varying vec2 vU; void main() { gl_FragColor = texture2D(uSrc, vU); }',
         depthTest: false, depthWrite: false, toneMapped: false, blending: THREE.NoBlending })); q.frustumCulled = false; const sc = new THREE.Scene(); sc.add(q);
       return (BAKE_RED = { q, sc, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) }); };
