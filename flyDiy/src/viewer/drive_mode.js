@@ -93,6 +93,34 @@
   }
   DM.useCar = useCar;
 
+  // ---- THE START CHOOSER'S LISTS (13 Nov, the user's sandbox "Drive": a start and a destination, the car driven from one to
+  //      the other - app.js FLYDIY_START): the places a car can stand at on the island's main road network (HOME's, as the
+  //      drive mode's own graph from HOME), and from any one of them the places its roads reach. One graph a world, built on
+  //      the first ask (~0.2-1.5 s, the drive mode's own build); no car, nothing in the scene ----
+  const LG = { world: null, G: null };
+  function listGraph(world) {
+    if (LG.world === world && LG.G) return LG.G;
+    const H = typeof siteOf === 'function' ? siteOf('HOME') : null, st = H && H.stand;
+    const I = vehIslandFromWorld(world, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null,
+      town: { id: TOWN.id, site: TOWN.site, name: (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town' }, from: st ? [st.x, st.z] : null });
+    if (!I) throw new Error('no roads in this world (the premises carry the road graph)');
+    LG.world = world; LG.G = vehRoadGraph(I.spec);
+    return LG.G;
+  }
+  // [{ id, name, x, y, z, what }] - a car's places (no runway ends: those are the tow's and the trailer's)
+  DM.placeList = function (world) {
+    const G1 = listGraph(world);
+    return Object.values(G1.places).filter(p => p.kind === 'stop' && p.what !== 'runway').sort((a, b) => a.name.localeCompare(b.name))
+      .map(p => ({ id: p.id, name: p.name, x: p.x, y: world.terrainH(p.x, p.z), z: p.z, what: p.what }));
+  };
+  // the place ids a car standing at `id` can drive to (either way it faces: two passes, as the To picker's)
+  DM.reachFrom = function (world, id) {
+    const G1 = listGraph(world), P = G1.places[id]; if (!P) return new Set();
+    const L = vehGraphLocate(G1, P.x, P.z, 0), A = vehDijkstra(G1, L.ahead, null), B = vehDijkstra(G1, L.behind, null), out = new Set();
+    for (const q of Object.values(G1.places)) if (q.kind === 'stop' && q.what !== 'runway' && q.id !== id && (A.dist[q.node] < Infinity || B.dist[q.node] < Infinity)) out.add(q.id);
+    return out;
+  };
+
   // ---- THE GRAPH: the island's roads (vehicle_island.js) and the places a vehicle can be sent to ----
   // (the graph: vehicle_island.js vehIslandFromWorld - the gate's recipe: the roads, the runways and their taxi routes, the
   //  stands' links, the steep stretches closed; buildGraph was this file's own until phase 2)

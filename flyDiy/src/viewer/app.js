@@ -20672,7 +20672,7 @@
         for (let k = 0; k < nStep; k++) {
           if (FR) FR.push(0); script(1 / 60); if (FR) FR.pop();         // G620: the pilot's script (FR.S.script)
           if (k === kPair) POSE_LERP.mark(sim);                          // G1100: the positions before the frame's last 60th
-          const TWm = towOn(); if (TWm) TWm.towPre();                  // TOW-LAUNCH: the line's coupling round the step
+          const TWm = towOn(); if (TWm) TWm.towPre(); else if (START.push && !START.push.done) pushStep();   // TOW-LAUNCH: the line's coupling round the step (the chooser's push: its step)
           if (FR) FR.push(1); sim.step(1 / 60); if (FR) FR.pop();       // substep rate is a per-aircraft property (G620: FR.S.solver)
           if (TWm) TWm.towPost(1 / 60);
         }
@@ -20766,7 +20766,7 @@
     // G1100 (POSE-SMOOTH): FROM HERE TO THE RENDER THE SIM'S POSITIONS ARE THE DRAWN ONES - between the last two steps,
     // at the frame clock's alpha (POSE_LERP above; restored below the render). In the world only, the page's own flight
     // (the worker's view interpolates itself), and a pause holds the alpha it had
-    { const DM = driveOn(); if (DM) DM.frame(pc.steps); else towTick(); }   // TOW-LAUNCH: the drive mode's car (drive_mode.js), the real time's steps; else the glider's tow
+    { const DM = driveOn(); if (DM) DM.frame(pc.steps); else towTick(pc.steps); }   // TOW-LAUNCH: the drive mode's car (drive_mode.js), the real time's steps; else the glider's tow
     const drawnPose = !inGarage && simwRan < 0 && POSE_LERP.draw(sim, running ? PACE.alpha : null);
     const cgD = drawnPose ? cgFinite(sim.cgPos()) : cg;
     if (drawnPose && running && window.WATER && WATER.setTime) WATER.setTime(sim.t - (1 - POSE_LERP.alpha) * simRate / 60);   // the sea at the drawn pose's time
@@ -21785,6 +21785,7 @@
     if (curKey !== 'gen' || !def) return false;
     if (def.params && def.params.nEngines === 0) return true;
     if (genSpec && genSpec.motorOff === true) return true;
+    if (START.mode === 'cartow') return true;   // (the sandbox's start chooser: the car tow picked)
     try { return /[?&]tow(=1|=on|&|$)/.test(location.search); } catch (e) { return false; }
   }
   // TOW-LAUNCH phase 4: THE LAUNCH TRAILER - a float or hull build carried down the runway on a trailer behind the car and
@@ -21842,9 +21843,11 @@
     setManual(false, 'launch');
     console.info('flyDiy launch: the pilot takes it from the launch, ' + Math.round(agl) + ' m up (' + ap.phase + ')');
   }
-  function towTick() {
+  function towTick(steps) {
     const T = towOn();
-    if (inGarage || !started || driveOn() || flightOver) { if (T && inGarage) { T.towStop(); TOWS.busy = false; } return; }
+    if (START.spawnBack !== undefined && !inGarage && started) { spawnId = START.spawnBack; delete START.spawnBack; }   // (the chooser's start: this roll-out's only)
+    if (inGarage || !started || driveOn() || flightOver) { if (T && inGarage) { T.towStop(); TOWS.busy = false; } if (inGarage) START.push = null; return; }
+    if (START.mode === 'push') { pushTick(); return; }
     // (the trailer: the car sets off as the player opens the throttle - or, under ?towhands=1, half a second on)
     if (T) { T.towDraw(); if (running && !T.tow.go && (T.tow.kind === 'trailer' ? (sim.ctl.thr > 0.5 || (T.tow.hands && T.tow.t > 0.5)) : T.tow.t > 3)) T.tow.start(); launchHandOver(T); return; }
     if (!TOWS.busy && !TOWS.failed && trailerWanted() && window.FLYDIY_LAZY && sim) {
@@ -21881,8 +21884,131 @@
     if (w) { n.hidden = false; $('flNoticeK').textContent = tr ? 'trailer launch' : 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
     else if (n.dataset.tow) { delete n.dataset.tow; $('flNoticeK').textContent = 'not certified'; n.hidden = true; flRender(); }
   }
+  // ---- THE SANDBOX'S START CHOOSER (the user, 13 Nov via A0: in sandbox the garage's button is "Fly" (a plane) / "Drive" (a
+  //      car), with a chooser for the START and the DESTINATION, and the autopilot flies or drives from one to the other; the
+  //      story keeps its hangar spawn). Game draws the chooser; this is the one API it calls - window.FLYDIY_START:
+  //   available()            sandbox only (false in a career: the story's spawn)
+  //   vehicle()              'plane' | 'car' (window.VEHICLE_KIND of the garage's build)
+  //   powered()              a plane with an engine and its motor on
+  //   starts()               Promise<[{ id, mode, label, sub, ok, why? }]> - mode 'field' | 'water' | 'trailer' (powered) |
+  //                          'push' | 'cartow' | 'winch' (unpowered; the winch not built yet) | 'place' (a car)
+  //   destinations(startId)  Promise<[{ id, label, ok, why? }]> - a plane: the aerodromes its gear may land on (and the
+  //                          circuit); a car: the places its roads reach from that start
+  //   go({ start, to, car }) Promise - rolls out from the garage, the autopilot on, from start to to; `car` (a car's start):
+  //                          { sheet | sheetUrl, mesh, meshMatrix, wheels, name } - the garage car (drive_mode useCar) ----
+  const START = { mode: null, push: null };
+  const startStory = () => { try { return !!(typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.isCareer && DAY_CLOCK.isCareer()); } catch (e) { return false; } };
+  const startKind = () => (window.VEHICLE_KIND ? window.VEHICLE_KIND(genSpec || null) : 'plane');
+  const startPowered = () => !(curKey === 'gen' && def && ((def.params && def.params.nEngines === 0) || (genSpec && genSpec.motorOff === true)));
+  const CAR_PACK = ['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'drive_mode'];
+  const startFieldWords = { water: 'a water base', field: 'an aerodrome' };
+  const startAero = id => (world.aerodromes || []).find(a => a.id === id) || null;
+  function startPlaneFields(gear, landing) {
+    return (world.aerodromes || []).filter(a => a.kind !== 'meadow').map(a => {
+      const al = typeof stripAllows === 'function' ? stripAllows(gear, a) : { ok: true }, water = a.kind === 'water';
+      return { id: a.id, mode: water ? 'water' : 'field', label: (typeof fieldName === 'function' ? fieldName(a.id, a.name) : a.name) || a.id,
+        sub: startFieldWords[water ? 'water' : 'field'] + (landing ? '' : ': the stand, the taxi, the departure'), ok: !!al.ok, why: al.ok ? undefined : al.why };
+    });
+  }
+  window.FLYDIY_START = {
+    available: () => !startStory(),
+    vehicle: () => startKind(),
+    powered: () => startKind() === 'plane' && startPowered(),
+    async starts() {
+      if (startStory()) return [];
+      if (startKind() === 'car') {
+        await window.FLYDIY_LAZY(CAR_PACK);
+        return window.DRIVE_MODE.placeList(world).map(p => ({ id: 'place:' + p.id, mode: 'place', label: p.name,
+          sub: p.what === 'field' ? 'an aerodrome\'s stand' : p.what === 'town' ? 'the town' : 'a place by the road', ok: true }));
+      }
+      const gear = routeGear(true);
+      if (startPowered()) {
+        const L = startPlaneFields(gear, false);
+        if (floatBuild()) L.push({ id: 'trailer:HOME', mode: 'trailer', label: 'From the trailer', sub: 'behind the car on Jolene AFB 13/31, flown off it', ok: !!startAero('HOME') });
+        return L;
+      }
+      const alt = startAero('tw_ski'), home = startAero('HOME'), al = a => (a && typeof stripAllows === 'function' ? stripAllows(gear, a) : { ok: !!a, why: 'no such field' });
+      const pa = al(alt), ta = al(home);
+      return [
+        { id: 'push:tw_ski', mode: 'push', label: 'A push off Skyline Altiport', sub: 'down its 10 % slope, lifted off over the edge', ok: !!alt && pa.ok, why: !alt ? 'no altiport on this island' : pa.ok ? undefined : pa.why },
+        { id: 'cartow:HOME', mode: 'cartow', label: 'The car tow', sub: 'on a line behind the car down Jolene AFB 13/31, released at height', ok: !!home && ta.ok, why: !home ? 'no Jolene AFB' : ta.ok ? undefined : ta.why },
+        { id: 'winch', mode: 'winch', label: 'A winch launch', sub: 'the cable and its drum', ok: false, why: 'not built yet' },
+      ];
+    },
+    async destinations(startId) {
+      if (startStory()) return [];
+      const m = /^([a-z]+):(.+)$/.exec(String(startId || ''));
+      if (startKind() === 'car') {
+        await window.FLYDIY_LAZY(CAR_PACK);
+        const from = m && m[1] === 'place' ? m[2] : null, R = from ? window.DRIVE_MODE.reachFrom(world, from) : new Set();
+        return window.DRIVE_MODE.placeList(world).filter(p => p.id !== from).map(p => ({ id: 'place:' + p.id, label: p.name, ok: R.has(p.id), why: R.has(p.id) ? undefined : 'no road from there' }));
+      }
+      const L = startPlaneFields(routeGear(true), true).map(d => ({ id: d.id, label: d.label, ok: d.ok, why: d.why }));
+      return [{ id: 'CIRCUIT', label: 'A circuit, back where it started', ok: true }].concat(L);
+    },
+    go(o) {
+      o = o || {};
+      if (startStory()) return Promise.reject(new Error('the story starts at its hangar'));
+      if (!inGarage) return Promise.reject(new Error('the chooser starts from the garage'));
+      const m = /^([a-z]+):?(.*)$/.exec(String(o.start || '')), mode = m ? m[1] : null, id = m ? m[2] : null;
+      const to = String(o.to || 'CIRCUIT').replace(/^place:/, '');
+      if (mode === 'place') {
+        return window.FLYDIY_LAZY(CAR_PACK).then(() => {
+          const P = window.DRIVE_MODE.placeList(world).find(p => p.id === id);
+          if (!P) throw new Error('no such place: ' + id);
+          if (to !== 'CIRCUIT' && !window.DRIVE_MODE.reachFrom(world, id).has(to)) throw new Error('no road from ' + P.name + ' to ' + to);
+          return DRIVE.enter(to === 'CIRCUIT' ? null : to, { at: [P.x, P.y, P.z], car: o.car || null });
+        });
+      }
+      if (mode === 'winch') return Promise.reject(new Error('the winch launch is not built yet'));
+      const where = mode === 'field' || mode === 'water' ? id : mode === 'push' ? 'tw_ski' : 'HOME';
+      if (!startAero(where)) return Promise.reject(new Error('no such field: ' + where));
+      START.mode = mode === 'push' || mode === 'cartow' ? mode : null; START.push = null;
+      TRAILER.want = mode === 'trailer'; TOWS.failed = null;
+      if (START.spawnBack === undefined) START.spawnBack = spawnId;   // (this roll-out's start only: put back once it rolled out)
+      spawnId = where !== baseAeroId() ? where : null;
+      if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.to(to);
+      setManual(false, 'start');
+      LASK.go = true; try { $('bGo').onclick(); } finally { LASK.go = false; }
+      return Promise.resolve();
+    },
+  };
+  // THE PUSH START IN THE PAGE (GATE TOW's ALTIPORT row, flown the same way): the glider at the head of Skyline Altiport's
+  // slope, its motor off, pushed 400 N for 4 s, rolled down on tow.js slopePull (the solver's ground has no along-slope
+  // force until the slope reaction lands - both go together), lifted off over the edge on the launch hands; the pilot from
+  // 30 m (setManual(false): CLIMB, then the glide to the To, the circuit, the landing - GATE GLIDE)
+  function pushTick() {
+    const P = START.push;
+    if (!P) {
+      if (START.pushBusy || !window.FLYDIY_LAZY) return;
+      START.pushBusy = true;
+      window.FLYDIY_LAZY(['tow']).then(() => {
+        START.pushBusy = false;
+        const alt = startAero('tw_ski'); if (!alt || !sim || !def) { START.mode = null; return; }
+        const ux = Math.cos(alt.hdg), uz = Math.sin(alt.hdg), x0 = alt.x + ux * (alt.len / 2 - 120), z0 = alt.z + uz * (alt.len / 2 - 120);
+        placeAtLineup(sim, alt, { x: x0, z: z0, hdg: alt.hdg + Math.PI }, world, def.refs);
+        if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+        setManual(true, 'push');
+        START.push = { t: 0, fx: -ux, fz: -uz, hands: makeTowHands(sim, { ground: alt.elev }), lift: false, x0, z0 };
+        console.info('flyDiy push: at the head of Skyline Altiport, pushed');
+      }).catch(e => { START.pushBusy = false; START.mode = null; console.warn('flyDiy: the push could not start -', e && e.message); });
+      return;
+    }
+    if (!running || P.done) return;
+    const cg = sim.cgPos(), agl = cg[1] - groundH(cg[0], cg[2]);
+    if (P.lift && agl > 30) { P.done = true; setManual(false, 'launch'); console.info('flyDiy push: the pilot takes it, ' + Math.round(agl) + ' m up (' + ap.phase + ')'); }
+  }
+  // (each solver step, before it - as the tow's towPre: after the hand's input, so the launch hands are the controls)
+  function pushStep() {
+    const P = START.push, dt = 1 / 60;
+    P.t += dt;
+    if (!P.lift) slopePull(sim, world, P.fx, P.fz, dt);
+    if (P.t < 4) { const J = 400 / sim.totalM * dt; for (let i = 0; i < sim.n; i++) sim.impulse(i, P.fx * J * sim.m[i], 0, P.fz * J * sim.m[i]); }
+    if (!P.lift && P.t > 1 && !sim.wheelsOnGround()) P.lift = true;
+    P.hands(null, dt);
+  }
   if (typeof window !== 'undefined') {
-    window.FLYDIY_TOW_WANTED = () => towWanted() || trailerWanted();   // (sim_link.js: a tow or a trailer flight flies inline - the line, the cradle act in the page's substeps)
+    window.FLYDIY_TOW_WANTED = () => towWanted() || trailerWanted() || START.mode === 'push';   // (sim_link.js: a tow or a trailer flight flies inline - the line, the cradle act in the page's substeps)
     // the menu's trailer row (a float or hull build): on the trailer at the runway, or back to the water - each a restart
     if (window.FLYDIY_MENU) window.FLYDIY_MENU.add({ k: 'trailer', label: () => TRAILER.want ? 'Back to the water' : 'Launch from the trailer',
       when: () => !inGarage && (trailerAble() || TRAILER.want),
@@ -21941,13 +22067,16 @@
   // view key. The menu's "Drive the pickup" / "Back to the aeroplane" row; ?drive=1 drives once the boot lifts.
   const DRIVE_Q = (() => { try { return /[?&]drive(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
   const DRIVE = { busy: false,
-    enter(to) {
-      if (driveOn() || DRIVE.busy || !window.FLYDIY_LAZY) return;
+    // o (FLYDIY_START, the sandbox's start chooser): { at: [x, y, z] the start (a place's), car: { sheet | sheetUrl, mesh,
+    // meshMatrix, wheels, name } the garage's car (drive_mode useCar; absent: the stock pickup) } - returns the promise
+    enter(to, o) {
+      if (driveOn() || DRIVE.busy || !window.FLYDIY_LAZY) return Promise.reject(new Error(driveOn() ? 'already driving' : 'busy'));
       DRIVE.busy = true;
+      let done = null, fail = null; const P = new Promise((a, b) => { done = a; fail = b; });
       const go = () => {
-        const cg = sim.cgPos();
+        const cg = sim.cgPos(), at = o && o.at ? o.at : [cg[0], cg[1], cg[2]];
         window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'drive_mode'])
-          .then(() => window.DRIVE_MODE.enter({ THREE, scene, world, at: [cg[0], cg[1], cg[2]], to }))
+          .then(() => window.DRIVE_MODE.enter(Object.assign({ THREE, scene, world, at, to }, (o && o.car) || {})))
           .then(() => {
             DRIVE.busy = false; running = false; started = false;
             if (craft && craft.parent) craft.parent.remove(craft);
@@ -21956,11 +22085,12 @@
             if (window.FLYDIY_DEST_REFILL) window.FLYDIY_DEST_REFILL();
             flRender(); DRIVE.menu();
             const R = window.DRIVE_MODE.report();
-            console.info('flyDiy drive: the roads as a graph in ' + Math.round(window.DRIVE_MODE.graphMs) + ' ms; joined vehicle-side', R && R.joins.length, 'drawn crossings / Ts; spans rebuilt', R && R.rebuilt.length);
+            done(); console.info('flyDiy drive: the roads as a graph in ' + Math.round(window.DRIVE_MODE.graphMs) + ' ms; joined vehicle-side', R && R.joins.length, 'drawn crossings / Ts; spans rebuilt', R && R.rebuilt.length);
           })
-          .catch(e => { DRIVE.busy = false; if (window.DRIVE_MODE && window.DRIVE_MODE.on) window.DRIVE_MODE.leave(); console.warn('flyDiy: the drive mode could not start -', e && e.message); });
+          .catch(e => { DRIVE.busy = false; if (window.DRIVE_MODE && window.DRIVE_MODE.on) window.DRIVE_MODE.leave(); console.warn('flyDiy: the drive mode could not start -', e && e.message); fail(e); });
       };
       if (inGarage) rollOut(go); else go();
+      return P;
     },
     leave() {
       const DM = driveOn(); if (!DM) return;

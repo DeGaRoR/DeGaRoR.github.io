@@ -192,7 +192,7 @@ const TM = require(path.join(ROOT, 'src/vehicle/trailer_model.js'));
 }
 // ---- PAGE: drive_mode.js run in node on the island ----
 {
-  const errs = [], did = [];
+  const errs = [], did = []; let chooser = null;
   try {
     // the page's globals: the lazy modules as the page loads them (top-level functions), the core's, a DOM's few
     Object.assign(global, V, Dr, VI, TRL, TM, require(path.join(ROOT, 'src/vehicle/tow.js')));
@@ -218,6 +218,17 @@ const TM = require(path.join(ROOT, 'src/vehicle/trailer_model.js'));
       for (let i = 0; i < 60; i++) { DM.towPre(); ts.step(1 / 60); DM.towPost(1 / 60); DM.towDraw(); }
       const w1 = DM.towWords(), inScene = !!scene.getObjectByName('trailer'), hitch = !!scene.getObjectByName('car:hitch');
       DM.towStop(); did.push('trailer'); did.push(w0 && w1 && inScene && hitch && !scene.getObjectByName('trailer') ? 'drawn' : 'NOT DRAWN');
+      // (13 Nov) THE SANDBOX'S START CHOOSER's car half: the car's places (no runway end), what the village's roads reach, and
+      // a GIVEN car (useCar: the roadster's measured sheet, its own mesh) entered in place of the stock pickup
+      const PL = DM.placeList(W), ids = PL.map(p => p.id), R = DM.reachFrom(W, 'car:village');
+      const own = new THREE.Group(); own.name = 'garage:car';
+      await DM.enter({ THREE, scene, world: W, at: [PL.find(p => p.id === 'car:village').x, 0, PL.find(p => p.id === 'car:village').z], to: 'mk_hall',
+        sheet: require(path.join(ROOT, 'src/cars/car_roadster.json')), mesh: own, name: 'the roadster' });
+      for (let i = 0; i < 30; i++) DM.frame(1);
+      const given = !!scene.getObjectByName('garage:car') && DM.name === 'the roadster' && DM.from === 'car:village' && DM.to === 'mk_hall';
+      DM.leave();
+      chooser = { n: PL.length, car: ['car:harbour', 'car:village', 'car:tramway', 'car:cannery'].every(i => ids.includes(i)), rwy: ids.some(i => /^rwy:/.test(i)), town: R.has('mk_hall'), given };
+      did.push(chooser.car && !chooser.rwy && chooser.town && given ? 'chooser' : 'CHOOSER ' + JSON.stringify(chooser));
     })().then(finish, e => { errs.push(e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : String(e)); finish(); });
   } catch (e) { errs.push(e && e.message); finish(); }
   function finish() {
@@ -225,12 +236,17 @@ const TM = require(path.join(ROOT, 'src/vehicle/trailer_model.js'));
     const hooks = { wanted: /function trailerWanted\(\)/.test(APP), menu: /'Launch from the trailer'/.test(APP), inline: /FLYDIY_TOW_WANTED = \(\) => towWanted\(\) \|\| trailerWanted\(\)/.test(APP),
       lazy: /'trailer', 'trailer_model', 'drive_mode'/.test(APP), start: /DRIVE_MODE\.trailerStart\(/.test(APP), plate: /'trailer launch'/.test(APP),
       // (12 Nov: the roll-out's choice in the garage; the launch's autopilot and its handover to the pilot)
-      chooser: /if \(inGarage && launchAsk\(\)\) return;/.test(APP) && /From the trailer<span>/.test(APP), apHands: /hands: byAp/.test(APP), handover: /setManual\(false, 'launch'\)/.test(APP) };
+      chooser: /if \(inGarage && launchAsk\(\)\) return;/.test(APP) && /From the trailer<span>/.test(APP), apHands: /hands: byAp/.test(APP), handover: /setManual\(false, 'launch'\)/.test(APP),
+      // (13 Nov: the sandbox's start chooser - window.FLYDIY_START's six calls, the car tow by its pick, the push stepped
+      //  before each solver step after the hand's input, flown inline, and its handover; the story left alone)
+      start: ['available:', 'vehicle:', 'powered:', 'async starts()', 'async destinations(startId)', 'go(o)'].every(k => APP.includes('window.FLYDIY_START = {') && APP.includes(k)),
+      cartow: /if \(START\.mode === 'cartow'\) return true;/.test(APP), pushStep: /else if \(START\.push && !START\.push\.done\) pushStep\(\);/.test(APP),
+      pushInline: /\|\| START\.mode === 'push';/.test(APP), story: /available: \(\) => !startStory\(\)/.test(APP) };
     const miss = Object.keys(hooks).filter(k => !hooks[k]);
     const okL = lazy.includes('src/vehicle/trailer.js') && lazy.includes('src/vehicle/trailer_model.js') && !B.MANIFEST.core.some(n => /trailer/.test(n));
-    row('PAGE', !errs.length && did.join(',') === 'drive,tow,trailer,drawn' && !miss.length && okL,
+    row('PAGE', !errs.length && did.join(',') === 'drive,tow,trailer,drawn,chooser' && !miss.length && okL,
       'drive_mode.js in node on the island: ' + (did.join(', ') || 'nothing') + (errs.length ? ' - THREW: ' + errs.join('; ') : '') + '; app.js ' + (Object.keys(hooks).length - miss.length) + ' of ' + Object.keys(hooks).length +
-      ' (the menu row, ?trailer=1, inline, the lazy fetch, the plate, the roll-out\'s choice, the autopilot\'s launch and handover)' + (miss.length ? ' MISSING: ' + miss.join(', ') : '') + '; trailer.js, trailer_model.js lazy' + (okL ? '' : ' - NOT'));
+      ' (the menu row, ?trailer=1, inline, the lazy fetch, the plate, the roll-out\'s choice, the autopilot\'s launch and handover; the start chooser: FLYDIY_START, the car tow, the push stepped, inline, the story apart)' + (chooser ? '; the chooser\'s car: ' + chooser.n + ' places, its four own, no runway end, the village reaches the town, a given car driven: ' + (chooser.given ? 'yes' : 'NO') : '') + (miss.length ? ' MISSING: ' + miss.join(', ') : '') + '; trailer.js, trailer_model.js lazy' + (okL ? '' : ' - NOT'));
     console.log('GATE TRAILER: ' + (fails ? 'FAIL' : 'PASS'));
     process.exit(fails ? 1 : 0);
   }
