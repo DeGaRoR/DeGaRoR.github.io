@@ -439,7 +439,12 @@ function siteScoreDirections(model, wind, lim, pref, oneWay) {
     if (!land && D.grade > 0) { sc -= 60 * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }
     if (land && reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
     else if (land && reqGs > gsNom) { sc -= 100 * (reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
-    if (D.reqClimb > climb) { sc -= 1000; why.push((land ? 'go-around' : 'climb-out') + ' needs ' + (D.reqClimb * 100).toFixed(1) + '% climb'); }
+    // PILOT-UNIFY (the user, 13 Nov: the Jodel must take off from Jumbo Mine): A CLIMB-OUT PAST THE AEROPLANE'S IS GRADED. Both of
+    // Jumbo Mine's ways out failed the Jodel's 8 % - the valley's by 9.3 %, the mountain's by 207 % - and at a flat -1000 each the
+    // one-way's -500 sent it at the mountain (capsized 300 m past the end; the Cub, whose climb makes 9.3, took the valley). Past
+    // the limit a take-off's way costs 100 more per climb's worth over it: of two ways out the aeroplane cannot climb, the
+    // one that asks least. A landing's go-around, and every way within the limit, as before
+    if (D.reqClimb > climb) { sc -= 1000 + (land ? 0 : 100 * Math.min(50, (D.reqClimb - climb) / Math.max(1e-3, climb))); why.push((land ? 'go-around' : 'climb-out') + ' needs ' + (D.reqClimb * 100).toFixed(1) + '% climb'); }
     else if (D.reqClimb > 0.5 * climb) { sc -= 100 * (D.reqClimb - 0.5 * climb) / climb; why.push('climb-out ' + (D.reqClimb * 100).toFixed(1) + '%' + (D.climbTurn ? (D.climbTurn > 0 ? ' turning right' : ' turning left') : '')); }
     if (pref) { const pl = Math.hypot(pref[0], pref[1]) || 1, p = (D.u[0] * pref[0] + D.u[1] * pref[1]) / pl; sc += 0.5 * p; if (oneWay && p < 0) { sc -= 500; why.push('one-way'); } }
     out.push({ k: D.k, score: Math.round(sc * 100) / 100, why });
