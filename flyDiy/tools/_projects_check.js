@@ -59,7 +59,7 @@ ok(!again.events.length && JSON.stringify(again.doc.career.projects) === JSON.st
 const S73 = fs.readFileSync(path.join(ROOT, 'src', 'core', '73b_missions.js'), 'utf8'), S74 = fs.readFileSync(path.join(ROOT, 'src', 'core', '74_career.js'), 'utf8');
 ok(/const PN = missionProjectNeeds\(P\);/.test(S73) && /if \(N\.project\) \{/.test(S74), '4 the install marks the steps\' missions; careerNeedsOk reads them');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
-ok(/pj = careerProjectsTick\(d, CAREER_PACK\.projects, now\)/.test(APP) && /function projectLine\(e\)/.test(APP) && use.projects && use.projects.length === 2,
+ok(/pj = careerProjectsTick\(d, CAREER_PACK\.projects, now\)/.test(APP) && /function projectLine\(e, now\)/.test(APP) && use.projects && use.projects.length === 2,
    '5 the page ticks the pack projects at a flight end (the career day), their lines on the arrival card');
 console.log('GATE PROJECTS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
