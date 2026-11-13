@@ -5607,8 +5607,14 @@
     if (Array.isArray(m)) return m.map(brkCutMat);
     if (!m) return m;
     let c = CUT_MAT.get(m); if (c) return c;
-    c = m.clone(); c.name = (m.name || '') + ':cut';
-    const own = m.onBeforeCompile;
+    // (copied as scuffMat copies: Material.copy JSON-copies userData, and a hook up the chain reads its uniforms from
+    // there - a vector array turned plain objects threw in the renderer's upload every frame: the 13 Nov w6 stills
+    // drew sky only once a Cub parted. And the material's OWN hook, not ATMO's accessor's wrapped one: wrapped twice)
+    const ud = m.userData; m.userData = {};
+    try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
+    c.userData = Object.assign({}, ud); c.name = (m.name || '') + ':cut';
+    if (m.defines) c.defines = Object.assign({}, m.defines);
+    const own = Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
     const f = function (sh, r) { if (own) own.call(this, sh, r); brkCutInject(sh); };
     f.toString = () => (own ? own.toString() : '') + '|cut4102';   // (the key flips with the source's: the scuff's waker)
     c.onBeforeCompile = f;
