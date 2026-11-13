@@ -274,7 +274,7 @@ LANE_C = P((LANE_U0 + LANE_U1) / 2, LANE_V)
 # that lays it on the band's heights - read off the composed island by tools/afb0220_measure.js (0 mm at all five points
 # after two passes), then held. Its falloff 6 m stops 2.25 m short of the band's centreline (10 m moved the band too)
 LANE_PROFILE = [[0, -1.085], [0.25, -0.936], [0.5, -0.804], [0.75, -0.699], [1, -0.615]]
-RUNWAYS = [{'id': PREFIX + 'rough', 'name': 'Jolene AFB 02/20 rough side', 'c': list(LANE_C), 'hdg': HDG, 'len': LANE_U1 - LANE_U0, 'wid': LANE_W,
+RUNWAYS = [{'id': PREFIX + 'rough', 'name': 'Jolene AFB 02R/20L', 'c': list(LANE_C), 'hdg': HDG, 'len': LANE_U1 - LANE_U0, 'wid': LANE_W,
             'surface': 11, 'look': 'mud', 'band': 1.5, 'pav': {'wet': 0.7}, 'crossfall': 0, 'disp': [0, 0], 'papi': [False, False],
             'falloff': 6, 'site': None, 'pattern': None, 'profile': LANE_PROFILE, 'approach': None,
             'clear': {'side': 3, 'beyond': 10, 'taper': 0, 'bushes': True},
