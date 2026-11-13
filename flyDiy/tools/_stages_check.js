@@ -12,8 +12,9 @@
 //     sandbox's law (stageIssues with CONTRACT_TRACKS' maxes: a band through the max is open) and issues() is empty
 //   2 EVERY STAGE COMPOSES: every value of every track (the others at their max) and every track at 0 - the staged
 //     record valid, no compose issue the sandbox lacks, every kit's props in the prop registry and its frame a catalogue
-//     entry, the village's plots the sandbox's at every value (a zone below its band still sows), the altiport 320 m
-//     below resort:3 with its top end and stand where they were, East Point with no windsock and no tie-down spots
+//     entry, the village's plots the sandbox's at every value (a zone below its band still sows), the altiport 190 x 9 m
+//     at every resort value (SKYLINE-RESORT: halved, its top end where it was) with no windsock and no tie-down spots
+//     below resort:1 (the tired station), East Point with no windsock and no tie-down spots
 //     below survey:1, every staged site's pattern sound (sitePatternIssues)
 //   3 TAXICLEAR AT EVERY STAGE (MILL-TAXI's census, tools/_taxiclear_lib.js): every stand, parked box and route of
 //     every runway, for every validated build, keeps its half-span + 3 m off every solid thing - today's (the cook's
@@ -196,9 +197,13 @@ function main() {
     check(kits.every(o => (o.kind === 'prop' ? BB.has(o.key) : !!CAT.entries.get(o.key))), '2 ' + tag + ' every kit object resolves (a registry prop, a catalogue frame)', kits.length + ' objects');
     check(plotsOf(O, 'z_village') === villageSandbox, '2 ' + tag + ' the village stands the sandbox\'s plots', O.records.plots.length + ' plots');
     const ski = O.aerodromes.find(a => a.id === 'tw_ski'), east = O.aerodromes.find(a => a.id === 'nv_strip');
-    const wantLen = V.t.resort < 3 ? 320 : 380;
+    // SKYLINE-RESORT (the user 13 Nov: "much too wide and much too long"): 190 x 9 m at EVERY stage (the 320 -> 380 m growth
+    // step is gone), its top end where the 380 m strip had it (352.00, -7872.00); the tired station (resort 0) has no
+    // windsock and no tie-down spots, the deal (resort 1) puts them there
+    const wantLen = 190, wantWid = 9, skiBare = V.t.resort < 1;
     const top = (() => { const r = SV.rec.layers.runways.find(q => q.id === 'tw_ski'); return PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, r)).end1; })();
-    check(ski && ski.len === wantLen && Math.hypot(top[0] - skiTop[0], top[1] - skiTop[1]) < 0.01, '2 ' + tag + ' the altiport is ' + wantLen + ' m, its top end where it was', ski ? ski.len + ' m' : 'missing');
+    check(ski && ski.len === wantLen && ski.wid === wantWid && Math.hypot(top[0] - skiTop[0], top[1] - skiTop[1]) < 0.01 && Math.hypot(top[0] - 352.0, top[1] + 7872.0) < 0.01, '2 ' + tag + ' the altiport is ' + wantLen + ' x ' + wantWid + ' m, its top end where it was', ski ? ski.len + ' x ' + ski.wid + ' m, top ' + top.map(v => v.toFixed(3)).join(', ') : 'missing');
+    check(!!ski && (ski.sock === false) === skiBare && (ski.ties === false) === skiBare, '2 ' + tag + ' Skyline Altiport ' + (skiBare ? 'has no windsock and no tie-down spot (the tired station)' : 'has its windsock and its tie-downs'), 'sock ' + (ski && ski.sock) + ', ties ' + (ski && ski.ties));
     const eastBare = V.t.survey < 1;
     const spots = C.fleetSpots(east, C.siteOf('nv_strip'), {});
     check(!!east && (east.sock === false) === eastBare && (east.ties === false) === eastBare && (eastBare ? spots.spots.length === 0 : true), '2 ' + tag + ' East Point ' + (eastBare ? 'has no windsock and no tie-down spot' : 'has its windsock and its tie-downs'), 'sock ' + east.sock + ', ties ' + east.ties + ', ' + spots.spots.length + ' spots');

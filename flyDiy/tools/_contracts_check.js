@@ -1096,7 +1096,7 @@ const BREAKS = [
   ['the normaliser drops unknown fields', { s73: sub('  const o = (r && typeof r === \'object\') ? ctClone(r) : {};', '  const o = (r && typeof r === \'object\') ? (({ future, ...x }) => ctClone(x))(r) : {};') }],
   ['the validator lets a deadline through', { s73: sub("if (s.when != null) { const ww = contractWhenWhy(s.when); if (ww) why.push(at + ': ' + ww); }", '') }],
   // the world
-  ['CONTRACT_FIELDS drifts from the record', { s72: sub("len: 380,  surf: 'grass', alti: true", "len: 420,  surf: 'grass', alti: true") }],
+  ['CONTRACT_FIELDS drifts from the record', { s72: sub("len: 190,  surf: 'grass', alti: true", "len: 420,  surf: 'grass', alti: true") }],
   ['wheels may land on water', { s73: sub('  return !ctWet(f);\n}', '  return true;\n}') }],
   ['a validated design\'s numbers drift from its build', { s72: sub('massKg: 476, emptyKg: 354, toM: 156,', 'massKg: 476, emptyKg: 354, toM: 120,') }],
   // the physical rows
