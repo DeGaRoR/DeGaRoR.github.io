@@ -315359,3 +315359,14 @@ the wiring (arm points, the boolean, the stop keys, the garage, the lazy rows, t
 6. a pass wide of g2 (the "Missed g2" line, warn colour).
 7. the arrival card at w3 (the gold medal line) and the map's contracts screen with demo.gates open (the places drawn).
 8. FRAMECOST-style: frame time with the mission mounted vs ?pack= absent at the same spot (the props are ~2k tris a post).
+
+## READY claude/ready/missions-live - A MISSION IN FLIGHT (13 Nov 2026, cloud, node + headless three.js; A0 integrates, a GPU page check owed)
+
+**Base: claude/mission-packs 2d1ab6ca.** Code as gated = c5495224 (source c7344228 + its (built) commit); this note on top.
+What it does, what is not done, the calls for Game and the GPU shot list: the MISSIONS-LIVE entry above. No core file
+changes (flight_core.js and the career chunk byte-identical to the base): the parked cook is untouched.
+**Gates** (this tree, built, run_gates.js --no-build): MISSIONLIVE (new, 49 checks; --selftest 9/9 red), MISSIONS,
+MISSIONPROPS, PROJECTS, CONTRACTS, STORY, ACCEPT, CERTGATES, ROUTES, BUILT, ASSETBUDGET, CARDS, CHARS, CLOCK, MEDIA, SAVE,
+UILAYER, UISMOKE, UISMOKE-PHONE: PASS. LAZY: FAIL (1) - the route_draw row ("the door's first demand fetched
+route_draw.551be74d.js once"), the SAME red on the base 2d1ab6ca run here (cloud-only, as the earlier missions notes say).
+Not run: the full tier, FRAMECOST, the GPU stills (A0's slot).
