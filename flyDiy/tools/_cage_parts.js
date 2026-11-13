@@ -1021,7 +1021,7 @@ const CAGE_PARTS = [
                       'cw_scoopLipDepth', 'cw_scoopDuct']],
       ['panel joint', ['cw_seamOn', 'cw_seamType', 'cw_seamPos',
                        'cw_seamWidth', 'cw_seamDepth']],
-      ['split line', ['cw_partOn', 'cw_partY', 'cw_partW', 'cw_partLevel', 'cw_partArc']],
+      ['split line', ['cw_partOn', 'cw_partY', 'cw_partW', 'cw_partArc']],
       ['fasteners', ['cw_fastOn', 'cw_fastPitch', 'cw_fastD']],
       ['oil door', ['cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL', 'cw_oilSq']],
       // the bench's nacelle termination, back (2026-09-04)
