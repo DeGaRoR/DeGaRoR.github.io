@@ -1226,20 +1226,36 @@ PAGE.post = ctx => {
   if (nLad) {
     const lerp = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
     const at = (a, b, y) => lerp(a, b, Math.max(0, Math.min(1, (y - a[1]) / ((b[1] - a[1]) || 1e-9))));
-    // ANGLE SECTION (13 Nov, the user: "I think that there are slight L profiles"): two legs of 1.2 x the strut's
-    // thickness (36 mm on the PC-6's 30 mm struts), 12 % of a leg thick, the corner on the rail's line
-    const lg = Math.max(0.025, 1.2 * t), th = Math.max(0.003, 0.12 * lg), ovF = 0.30 * sc, ovA = 0.06 * sc;
-    const Lsect = [[0, 0], [lg, 0], [lg, th], [th, th], [th, lg], [0, lg]].map(q => [q[0] - lg / 3, q[1] - lg / 3]);
+    // ANGLE SECTION, ON THE STRUTS' FACE (13 Nov, the user: "slight L profiles", then "the horizontal pieces are put
+    // ... on top of the struts ... taking the orientation of the struts, it comes flat on it"): each side's rails lie
+    // on the OUTBOARD face of that side's struts - the plane through the front strut and the deck line, its normal
+    // outboard - one leg flat on the struts (in the plane, centred on the rail's line), the other standing out of the
+    // plane along its top edge (the step). Legs 1.2 x the strut thickness, 12 % of a leg thick
+    const lg = Math.max(0.025, 1.2 * t), th = Math.max(0.003, 0.12 * lg), hl = 0.5 * lg, ovF = 0.30 * sc, ovA = 0.06 * sc;
+    const cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const nz = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
     rec.ladder = [];
     for (const sd of [-1, 1]) {
       const tag = sd > 0 ? 'L' : 'R', d = rec.deck[tag], R0 = roots[tag];
+      // the side's strut plane: the front strut and the deck line; outboard = away from the centreline
+      let n = nz(cr([R0.rFf[0] - d.fwdIn[0], R0.rFf[1] - d.fwdIn[1], R0.rFf[2] - d.fwdIn[2]],
+                    [d.aftIn[0] - d.fwdIn[0], d.aftIn[1] - d.fwdIn[1], d.aftIn[2] - d.fwdIn[2]]));
+      if (n[0] * Math.sign(d.fwdIn[0] || sd) < 0) n = [-n[0], -n[1], -n[2]];
+      const off = 0.5 * t;                       // the strut's half thickness: the rail sits ON its face
       for (let i = 1; i <= nLad; i++) {
         const y = d.fwdIn[1] + (R0.rFf[1] - d.fwdIn[1]) * i / (nLad + 1);
-        const p = at(d.fwdIn, R0.rFf, y), q = at(d.aftIn, R0.rA, y);
+        const p0 = at(d.fwdIn, R0.rFf, y), q0 = at(d.aftIn, R0.rA, y);
+        const p = [p0[0] + n[0] * off, p0[1] + n[1] * off, p0[2] + n[2] * off];
+        const q = [q0[0] + n[0] * off, q0[1] + n[1] * off, q0[2] + n[2] * off];
         const v = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], L = Math.hypot(v[0], v[1], v[2]) || 1;
         const a = [p[0] - v[0] / L * ovF, p[1] - v[1] / L * ovF, p[2] - v[2] / L * ovF];
         const b = [q[0] + v[0] / L * ovA, q[1] + v[1] / L * ovA, q[2] + v[2] / L * ovA];
-        GK.sweep(sg, [a, b], () => Lsect, true, [0, 1, 0]);
+        // the sweep's frame: u along the hint (n: out of the struts' plane), v = T x n (in the plane, across the
+        // rail) - flipped so the standing leg is on the TOP edge (the polygon reversed with it: the same winding)
+        const T = nz(v), B = cr(T, n), up = B[1] >= 0 ? 1 : -1;
+        let S = [[0, -hl], [th, -hl], [th, hl - th], [lg, hl - th], [lg, hl], [0, hl]].map(q2 => [q2[0], q2[1] * up]);
+        if (up < 0) S = S.reverse();
+        GK.sweep(sg, [a, b], () => S, true, n);
         rec.ladder.push({ side: tag, y: +y.toFixed(3), len: +(L + ovF + ovA).toFixed(3) });
       }
     }
