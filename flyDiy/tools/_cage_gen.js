@@ -8313,6 +8313,41 @@ function cageSubdivide(m) {
   return out;
 }
 
+// THE AFTERBODY LOOKS OUT (PETREL-SKIN 13 Nov, the user via A0: "an undesired texture darkening on the aft part of the
+// plane"). orientCage leaves the skin consistent, but where the body folds onto its taper (the Super Petrel's pod-and-
+// rod tightening section, aft of the cabin) a consistent surface is geometrically inside-out behind the fold: 2198 of
+// the taper's 2326 triangles faced INTO the body (measured in the page; with every face inverted the body flips and the
+// taper comes out right, so the walk does reach it). A back face reads as the cabin's inside to the skin shader
+// (aeroskin.js uInside.y: the cabin darkening on a skin's back face), so the whole afterbody and its livery went near-
+// black. Behind the taper's front (the station range the taper's own faces span), each outer skin face is turned on its
+// own to look away from the fuselage's axis at its station; the body forward of it, the caps and the inner parts keep
+// the walk's winding. Drawing only: the physics fingerprint through the load door is unchanged (see the commit).
+const CAGE_AFT_SKIN = new Set(['taper', 'taperPanel', 'body', 'waistband', 'floorLoop', 'pillarTaper', 'pillarTail']);
+function cageAftOutward(m) {
+  let zHi = -1e9, zLo = 1e9;
+  for (const f of m.F) if (f.m === 'taper') for (const vi of f.v) { const z = m.V[vi][2]; if (z > zHi) zHi = z; if (z < zLo) zLo = z; }
+  if (!(zHi > zLo)) return;                                  // no taper: nothing to do
+  const stY = new Map(), stK = z => Math.round(z * 10);
+  for (const f of m.F) for (const vi of f.v) {
+    const p = m.V[vi], k = stK(p[2]), r = stY.get(k) || [1e9, -1e9];
+    stY.set(k, [Math.min(r[0], p[1]), Math.max(r[1], p[1])]);
+  }
+  for (const f of m.F) {
+    if (f.v.length < 3 || f.capFace || !CAGE_AFT_SKIN.has(f.m)) continue;
+    const p = f.v.map(i => m.V[i]), L = p.length;
+    const c = [0, 1, 2].map(a => p.reduce((t, q) => t + q[a], 0) / L);
+    if (c[2] > zHi + 1e-6 || c[2] < zLo - 1e-6) continue;   // forward of the taper (or past it): the walk's
+    const u = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
+    const w = [p[L - 1][0] - p[1][0], p[L - 1][1] - p[1][1], p[L - 1][2] - p[1][2]];
+    const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+    const nl = Math.hypot(n[0], n[1], n[2]); if (!(nl > 0) || Math.hypot(n[0], n[1]) < 0.3 * nl) continue;
+    const r = stY.get(stK(c[2])); if (!r) continue;
+    const rx = c[0], ry = c[1] - (r[0] + r[1]) / 2;
+    if (Math.hypot(rx, ry) < 0.05) continue;
+    if (n[0] * rx + n[1] * ry < 0) f.v.reverse();
+  }
+}
+
 // make face windings globally consistent and outward (positive volume) —
 // the emitters above build bands in whatever order was convenient
 function orientCage(m) {
@@ -11045,6 +11080,7 @@ function cageSheetKept(spec, step, L) {
     let s = m;
     for (let i = 0; i < L; i++) s = cageSubdivide(s);
     if (L > 0) s = cageRefitArc(s);
+    cageAftOutward(s);                         // PETREL-SKIN 13 Nov: the afterbody looks out (see cageAftOutward)
     const drawn = KG && S.windows && S.windows.length;
     // THE PILOT'S GLASS AS A PANEL (12 Nov, FIT-PROCEDURE; the user: "make it a full panel where the window part is
     // actually just a panel and we cut through"): S.glaze.pilotPanel turns the cockpit's glazed band into skin, as
@@ -11088,6 +11124,7 @@ function cageSheet(P, opts) {
   for (let i = 0; i < L; i++) s = cageSubdivide(s);
   if (eye && L > 0) s = cageEyeLevel(s, spec, eye);
   if (L > 0) s = cageRefitArc(s);
+  cageAftOutward(s);                           // PETREL-SKIN 13 Nov: the afterbody looks out (see cageAftOutward)
   // DRAWN WINDOWS (G245): with any drawn, the pax glass BAND is skin again —
   // before the sill and the cut see it, so neither extends nor separates a
   // window that no longer exists. The knife itself runs after cageCut: a
