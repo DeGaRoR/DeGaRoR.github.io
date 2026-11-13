@@ -122,6 +122,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     else { const kit = () => { if (!window.HOUSE_KIT) return; document.removeEventListener('load', kit, true); gens(); };
       document.addEventListener('load', kit, true); }
   } } catch (e) {}
+  // AFB-0220: the glider winch as a generated prop (render_premises GEN_PROPS 'gen:winch') - its generator and weathering
+  // asked for when the record places one (they carry their own load order: matlib, the gear kit and aeroweather are core)
+  try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && /"gen:winch"/.test(premisesPlaced)) window.FLYDIY_LAZY(['_winch_gen', '_winch_weather']); } catch (e) {}
   // THE SCENERY KIT'S PACKS (ASSETS-OCT G2904): lazy (build.js MANIFEST.lazy, every scenery_* entry, the levels last) -
   // asked for when the record holds prop objects (the user's placed models); the premises step waits for pending ones
   try { if (typeof premisesPlaced === 'string' && window.FLYDIY_LAZY && window.FLYDIY_LAZY_SRC && /"kind":\s*"prop"/.test(premisesPlaced)) {

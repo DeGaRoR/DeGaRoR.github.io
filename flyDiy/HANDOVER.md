@@ -315280,3 +315280,364 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - A PARALLEL SESSION, SAME CHIP: another AFB-0220 session pushed claude/afb-0220-strip (4427f722, 16:53: an 18 m band, 'w2r' 02R/20L in SNOW-MUD's firm mud - snow-mud merged -, a `debris` object kind in a new 26c_wild.js, the winch merged in as kind 'winch', its own GATE AFB0220 and futureDesigns/AFB-0220-2026-11-13.md). This variant was found after its first push was refused and lives on claude/afb-0220-b-strip (no ready ref pushed: A0 picks one, or takes pieces - TREE_HITS.lying + the cells' ground pieces, the splice, the probe).
 - GATES on claude/afb-0220-b-strip (--jobs=2, 19 gates, 3051 s): PASS AFB0220 PROFILE WORLDRENDER TREES TREEHIT GRASSSIDES LOOKS SITE PREMISES OBSTACLE PAVEMENT STAGES NAMES STRIPGROUND PREMCOOK (run alone after the cook). RED, named: SCENERYED 1 (20b, Metlakatla put back 2968 ms > 2500: a timing row, red on the untouched winch base too - not this change); and FOUR OF THIS CHANGE's, each a pin of the old 02/20, not yet re-pinned: MICRO ("bumpy on the Pilot-vetted strips only": xw_rough's chaos 0.55 is not Pilot-vetted - Pilot's call), CONTRACTS 3 (CONTRACT_FIELDS must mirror every runway: xw_rough is not declared in 72_contract_data nor in the gear rule's table), RWYTREES 3 (row 1 the clearances' list and row 9 the own-clear strips' list want xw_rough named; row 7 'map nearer than today on every side' loses w2 L - the vegetation areas plant 02/20's sides in both modes), RWYLIGHTS 2 (its crossing case needs one of 13/31's edge lights on 02/20's pavement: none on a 15 m band - the row should build its own case). Not run: the full tier, FRAMECOST (GPU), UISMOKE, BUILT, TAXICLEAR, LINEUP, TOUR, DESTTO, ROUTE.
 - THE WINCH (claude/afb-0220-winch fd55d8f0, stacked on claude/sailplane-launch-study-176kdv): TWO winches as editor objects {kind 'prop', key 'gen:winch'} (render_premises buildGenProp: WINCH_GEN built lazily, WINCH_WX after placement, hitAdd 'prop' 0.5), 25.5 m off 13/31's centreline on the NE side (1.5 m off the paving), xw_winch13 (-359.51, 136.34, yaw 0.8552) and xw_winch31 (-209.03, 267.17, yaw -2.2864), each 1000 m of cable from its end's start 60 m in; winchStart's reach 25 -> 30 m off the centreline (25 stood the van on the paving) and only a winch facing the glider, the nearest; 13 materials, every one a MATLIB MeshStandardMaterial; GATE WINCH PASS (5 new PLACED rows), ASSETS red (the base's _cowl_gen.js line). Its own HANDOVER entry is on that branch (the base had flattened HANDOVER.md to LF).
+
+## CAR-1 - THE FIRST CAR: A 1930s BOAT-TAIL ROADSTER DRAWN IN THE GARAGE FROM THE TIGER MOTH, DRIVEN ON THE AI CAR'S PHYSICS (12 Nov 2026, cloud - node + quickshot only; branch claude/fly-diy-car-build-uu6e6w off master 1f5b8219)
+
+The user (12 Nov): "build a car in Fly DIY ... one of these 1930 cars ... start from the Flying Moth ... get rid of the
+propeller, get rid of the wings, reuse the mechanics that we have for powering the wheels from the engine, because we
+already have an AI car that reuses this physics ... four wheels and directional wheels ... the front face of these old
+cars ... avoid having to do wheel wells ... no boom at all, an aeropod instead, and that would be the trunk ... quick shot
+rendering of your progress." THE DOCUMENT: futureDesigns/CAR-1-2026-11.md (what landed, the numbers, the 7 garage gaps,
+the next steps).
+
+- **THE CARD `roadster`** (`tools/_cage_design.js`, after the Spitfire WIP, `blocked` as it is - out of the birth list
+  and the flying gates): the Tiger Moth-alike's measured body rows; no wing / fin / stab / blades / cone / tube; rod-and-pod
+  with the AERO AFT as the boat-tail trunk; a 1.2 m bonnet the body's width (`cw_taperW 1.05`) ending in a tall square
+  radiator opening (the cowl's own inlet, `cw_apMode 1`, `cw_apSq 0.9`); the Argus As 10C inverted V8 (`engY 0.05`: its
+  banks inside the bonnet, only the exhaust stubs out of its side); FOUR WHEELS - the mains the rear axle, the THIRD
+  STATION AS A PAIR (`s2X 0.68`: the gear layer already draws any non-tailwheel station off the centreline as a pair, and
+  the stance reads the extreme contacts) - 0.72 m open wheels on spring-blade stubs, no wells, no fairings. The card must
+  carry the Moth's nose-section rows (`aeroWsLen/aeroLen/aeroTip*/aeroDroop`): without them the class's long closed nose
+  cone grows ahead of the firewall and the engine hangs in front of it (the first bake did exactly that).
+- **TWO ROWS, DEFAULT ON (every build unchanged):** `rodOn` (Boom > rod; `S.rod.bare` -> `emitRodFree` returns and
+  `_cage_access.js` rodSite places nothing on the missing tube) and `spinOn` (Engine; the cone's mesh - `propOn` only ever
+  gated the blades).
+- **THE PHYSICS IS THE VEHICLE SHELL (G2940), NOT makeSim** (its ground pass drives nothing and steers one third wheel;
+  the generator always builds wings). `tools/car_sheet.js` MEASURES the drawing into the shell's sheet: the four drawn
+  contacts (CAGE_GEAR.contacts), the body (CAGE_GEAR.AF + the layers inside the track), the mass from the build's own
+  LEDGER less wings / bracing / tail plus a 120 kg CHASSIS (a gap), the CG along the car from the ledger's moments placed
+  by the mains' measured station (zFw = z(rear axle) + gear.x), the engine row's power x 0.85; a tune (drums, leaf springs,
+  cross-plies) scaled to the mass; the drive test. Written: `src/cars/car_roadster.json` (sheet + tune, generated).
+  Measured: wb 2.90 m, track 1.50 m, 691 kg (56 % front), 150 kW at the wheels; 0-100 km/h 7.9 s, 237 km/h at 40 s, 100-0
+  in 50.4 m straight, turning circle 10.0 m both ways, a 0.54 g lane change back to -0.9 deg. **THE FIRST STANCE SPUN**: axles
+  at 3.05 / 0.15 stood it 64 % on its nose (the V8 ahead of the firewall), the driven rear's tyres filled their friction
+  ellipse at a third of the throttle and a 0.9 g lane change went round (heading 0 -> 161 -> -132 deg) while the first LANE
+  row said 'upright' - the row now prints the heading excursion and its end. The front axle under the radiator (3.35 / 0.45)
+  is the period's and holds.
+- **NOT DONE (CAR-1-2026-11.md §2-3):** the drawn front wheels do not yaw (one castor unit per centred station only); no
+  chassis ledger row; the join's aeroplane spec still holds one third wheel; car legs and fenders; side-by-side seats; no
+  drive mode in the page (vehicle.js is still outside the bundle); no GATE CAR yet.
+- Pictures: quickshot (`node tools/quickshot.js --key roadster <out> --views side,q,front,top`).
+- **THE USER'S REVIEW (same day, all card rows; futureDesigns/CAR-1-2026-11.md §1 "The user's review"):** one seat (the
+  Camel's single cockpit; the trunk 1.9 m, the rear axle 0.55); every line straight (one keel / roof / waist width, the
+  nose section's pinch and droop off); the bonnet ONE section to the radiator (it had swelled forward: 1.05 x and a squarer
+  front than the fit's firewall); its widest line at the body's waistline (`cw_waist` 0.05 -> 0.28, which also hid the body
+  showing past it head-on); the waist cut LEVEL (PROPER-COWLS' `partLevel`, at `partY 0.25` - the parameter split ran
+  diagonally once the waist moved); louvres (the side gills) under it; the Argus replaced by the custom engine on its V8
+  layout at a 3.6 L car V8's bore and stroke, 3000 rpm (86 kW, 89 kg by the aero engine model - a gap: no car-engine
+  family; the custom's own defaults are a twin, so the card pins arch / cyl / vee / aim / exhaust); the suspension a
+  wishbone (the swinging link, feet on the body's lower side) with a coil-over up to the body's SIDE (`shockAng 90`,
+  `linkX 0` - the Cub's crossed X had put the tops under the belly). Sheet: 521 kg, 47 % front, 73 kW at the wheels,
+  0-100 km/h 6.5 s, 187 km/h, 100-0 in 48.1 m, circle 9.7 m, the 0.57 g lane change back to -0.9 deg.
+- **THE SECOND REVIEW (waist + pillars), MEASURED** (station-by-station samples of CAGE_GEAR.AF against the cowl's
+  vertices; CAR-1-2026-11.md "The second review"): the birth fit had overwritten the bonnet's firewall waist (-0.59) -
+  `fitNose 0`, the firewall section set from the body's measured one, waist 0.263 = y 0.162 m (the body's) fore and aft,
+  the level cut on it (`partY 0`); squareness searched against the body's section (top 0.38 / bottom 0.92, 7-8 mm mean);
+  the head lobes off; `frWinBotY` -0.494 -> -0.481 (the bottom's 1 cm step at the front pillar - NOT the keel's reference:
+  -0.56 dropped it 5.5 cm) and `crPillar` / `crFrame` 0 (the ring creases' folds). After: bottom -0.415 +- 0.001 m, top
+  0.499, the bonnet 0.398 wide all along.
+- **THE THIRD REVIEW** (CAR-1-2026-11.md "The third review"): `whRimD` (new row, absent = as before; card 0.64 spoked);
+  a tail tank ('behind the cabin' bay; 42 % front); the livery in livery rows only (metallic blue body, polished bonnet,
+  copper cheat line and pinstripes, roundel 7, "La Belle Étoile" in Great Vibes) - the markings run aft from the
+  FIREWALL; the bonnet takes no marking at its stations (a gap: the nose is not its own section); the driver seated
+  (`cabOcc 1`); `gillUp` (new cowl row, absent = as before) places the louvres by height - the band was reckoned in a
+  crowded angle; a car dash (custom fit, metric, centred) and the yoke; saved as builds/candidates/roadster_2026-11.json
+  (`car_sheet.js --save`) with rows in the pool index and the plane lists (candidates, n 50). Phone renders by
+  tools/plane_shot.js. Car: 540 kg, 42 % front, 0-100 6.0 s, lane change back to -1.1 deg.
+- **THE FOURTH REVIEW**: the bonnet's tip off-white - a SIDE-projected marking; side / plan markings live in the craft's
+  frame (along = aft from the craft root, the garage's -z), not the field's (aft from the firewall). GATE DESIGN's livery
+  yardstick updated to the live kit (m1-m5, t1-t6, metal / rough). The list thumbnail baked. Gates on the final card
+  (28 + the re-checks): all PASS but **TANKMOUNT (owed: the tail tank 12 mm through the boat tail's skin, whatever its
+  size, form or seat - kept, the deck form is the likely cure)** and LIVERY (master's two standing reds, the Cub's strut).
+- **THE FIFTH REVIEW**: the face - the opening fills the off-white shell, a rolled lip as its surround, and two new opt-in
+  cowl parts (`grilleOn` / `capOn`, _cowl_gen.js buildGrille / buildCap, absent = off): chrome bars cut to the opening, a
+  cross bar and a dark core; a radiator cap on the top line. The name in English: "Lady Luck".
+- **THE SIXTH REVIEW**: headlamps (`lampOn`, cowl, shells in the body's livery section), the grille's race number
+  (`grilleNum`, seven-segment geometry - quickshot's front view mirrors the page: the page's +x is the car's left), the
+  bonnet blue with a polished shorter shell (`cw_seamPos 0.81`), the front axle at the radiator (wb 3.20 m), a spare
+  wheel (`spareOn`, gear layer: the rearmost wheel copied onto the flank). All new rows absent = as before.
+- **THE SEVENTH REVIEW**: the race number 28 painted ON a fine open grille (bars cut where the sticker's edges cross them,
+  each piece the colour over it; `grilleRows` new, absent 0) - no panel in the opening; the spare wheel measured in the gear
+  group's own frame (a world box had put it on the ground in the page, under the pitched mount).
+- **THE EIGHTH REVIEW**: the spare wheel mounted (_cage_gear.js spareBuild): hubcap out (the spare side's own road wheel,
+  else the other turned), no brake, seated 34 mm off the flank over its whole height; a flange-and-stub carrier with a
+  chrome hub nut; a leather strap swept round the tyre's crown to a bracket and D-ring, its buckle modelled (frame,
+  roller, tongue, keeper, punched tail).
+- **THE NINTH REVIEW**: the spare drawn fresh (GG.wheel, no cap, no brake); its strap holds the whole wheel - bracket, crown,
+  wall, rim, the disc's measured face, a buckle low on the disc, a tab on the central spike under a wing nut; `whWide`
+  (new, absent 1) - 0.80 m wheels at 80 % width; the front mounts behind the polished shell (`s2Z 3.45`, `s2AxZ 0.30`).
+- **CAR-2 - A DUNE BUGGY FROM RUFUS (12 Nov, the user: "another style of car ... a buggy from Rufus?")**: no new code; a
+  rejoin of builds/rufus_2026-10-18_certified.json with builds/edits/buggy_2026-11.edits.json (tools/_rejoin_build.js):
+  wing, fin, stab, prop, spinner and rod off, the boom style 1 pod with a short aero tail, the Rotax 912 kept EXPOSED IN
+  FRONT (`engMount 0`: the pusher mount left the engine floating behind the pod), four tundra wheels on swinging-link
+  wishbones and coil-overs (rear s1Z 1.62, front s2Z 2.78 + s2AxZ 0.5, track 1.64 m, r 0.36-0.38). In the page Rufus's
+  open tube frame (`skinOn 0`) IS the roll cage. Saved as builds/candidates/buggy_2026-11.json ("Dune Bug", reg 7; the
+  pool index, plane lists n 51, thumb cand_buggy_2026-11.webp); sheet src/cars/car_buggy.json: wb 1.86 m, 415 kg, 47 %
+  front, 51 kW at the wheels, 0-100 5.9 s, 166 km/h, braking 0.79 g, lane change back to -0.5 / -0.9 deg. Leftovers: the
+  aero-tail stub behind the seat reads as a black hub; the interior view (`i`) finds no dash framing on this pod.
+- **CAR-3 - THE FIELD WAGON, A GLIDER TUG FROM THE C172 (12 Nov; the user: "a car that looks more or less like a car ... able
+  to pull the glider ... a real cabin ... a utility vehicle"; then the Dodge Power Wagon carryall as the reference, "two
+  passenger sections", "the outline projection", "the cowl ... a square base")**: builds/edits/utility_2026-11.edits.json
+  over builds/cessna172r_2026-11-08.json (tools/_rejoin_build.js). The pilot section and TWO passenger bays (paxCount 2,
+  a door and a window each), ending flat at the aft bulkhead, the roof level to the end; matched to the user's three-view
+  with tools/outline.js (the target traced off the drawing, scaled on the 126 in wheelbase): planeScale 0.90, wheelbase
+  3.20 m, 0.45 m tyres, front axle under the hood (s2AxZ 1.3), the cab widened (halfW 1.0), the nose ring squared
+  (noseCrown 0.1, frNoseTopW/BotW, frNoseTopY 0.37) and the bonnet a square section fitted to it (car_lines --build: within
+  ~4 cm), the windscreen stood up (wsRun 0.5). A 6.0 L custom V8, 4WD (spec.meta.car), 1080 kg: 0-100 5.0 s, and
+  AUTOTOW: a 450 kg glider LAUNCHES off the paved strip (the climb at 5.3 kN held at 112 km/h); not off grass (mu 0.55:
+  ~1.5 t would). Leftovers: the front legs reach 0.8 m from the firewall (a diagonal strut in view: legs mount on the
+  body only - a gap), a black fitting on the rear wall. Not yet in the pool (the build regenerates from its edits).
+- **CAR-3 TOOLS**: src/vehicle/vehicle.js a TOW LINE (ctl.tow N, towEl, towDir; absent = no rope - GATE VEHICLE PASS);
+  tools/car_sheet.js 4WD and the chassis mass from spec.meta.car ({drive:'4wd', chassisKg}), TOW and AUTOTOW rows, the
+  ledger's datum on the MAINS' station (not the rear axle - CAR-4's mains are its front pair); tools/car_lines.js --build.
+- **CAR-4 - THE RANCH HAND, A UTV FROM THE CUB (the user: "use the double boom to emulate a chassis ... the stabilizer ...
+  a bed ... a tiny engine")**: builds/edits/utv_2026-11.edits.json over builds/cub_2026-09-20_corrected.json. NEW ROWS
+  boomBodyZ / boomBodyY (_cage_wing.js drawBooms, the boom drawing lifted out of wingPost; _cage_page5.js, _cage_parts.js):
+  twin booms with the WING OFF root on the body (the core holds a wing to 6.5 m span, so it cannot be buried); absent =
+  as before. The booms are the chassis rails, the stab (squared planform) the bed, the rear wheels on the booms (s2Leg 3),
+  the front pair under a short bonnet over the A-65; two seats abreast (halfW 0.92); 4WD, 539 kg, 0-100 7.2 s. It cannot
+  launch a glider (39 kW at the wheels: a launch needs ~150 kW, the physics, not the build).
+- **CAR-3, THE USER'S VAN REVIEW (same day: "flat bottom ... a lot wider ... the nose section almost nothing, 10 cm max ...
+  a smaller engine, the bonnet the same width, less length and height ... a flat back like a van")**: every frame's
+  bottom on one keel (keelY / aftKeelY / tailKeelY / fr*BotY -1.0, frNoseBotY -1.22: the floor flat at -0.91 m
+  +- 5 mm); 1.98 m wide (halfW 1.1, roofHalfW 1.05); the roof lowered (roofY 0.9); the nose 0.11 m (noseLen 0.12); the
+  windscreen base brought down onto the bonnet (wsBaseLift -0.35); the back square (aftRoofY / tailRoofY at the roof,
+  tailHalfW = the body - the tail section had dropped to 0.40 m: the "pointy" back); a full-width bonnet (cw_aftW 0.99,
+  0.8 m long, top 0.12 m, its bottom on the floor line) over a 4.0 L V8 (177 kW); the front axle under it (wb 2.50 m).
+  1018 kg, 37 % front, 0-100 5.8 s; AUTOTOW off paved: LAUNCHES (97 km/h held). OPEN: a dark wedge between the bonnet
+  and the driver's door low down (the 0.11 m nose ring and the door's deep cut), the front shock's top showing at the
+  door's front edge, the livery band higher on the bonnet than on the body, a black fitting with a hub on the rear wall
+  (the page's, not the headless scene's).
+- **CAR-3, MATCHED TO THE POWER WAGON BY SECTIONS (the user: "project to scale ... match the sections and global dimensions
+  before the detail"; the scale from the user's 4.72 m length and 2.07 m height = 0.01044 m/px - the drawing's wheelbase
+  then reads 2.90 m, not the 114 in quoted; the user marked six sections on the overlay)**: NEW TOOLS tools/blueprint_overlay.py
+  (the quickshot side view, semi-transparent, over the scaled drawing, registered on the tail and the ground, a 0.5 m
+  grid) and tools/car_stations.js (the build's section stations in metres off the cage's rings). NEW ROWS paxLenLast (the
+  REARMOST bay's own length - the bays are laid from the aft end; absent = paxLen) and doorPaxN (doors on the first N
+  bays from the FRONT; absent = all); cw_lampIn (lamps seated in the face's side inlets, apMode 2/3; absent = on stalks -
+  built, not yet used). Sections from the aft end, target / built: bay 2 1.33 / 1.33, bay 1 to 2.30 / 2.30, cabin to the
+  windscreen base 3.18 / 3.19, nose to the firewall 3.43 / 3.44, bonnet 0.79 straight + 0.24 face to 4.46 / 4.47; the floor
+  raised 0.16 m (keel -0.82), the roof at 2.07 m, the wheels on the drawing's, 1035 kg, still LAUNCHES off paved.
+- **CAR-3, THE USER'S SECTIONS, READ RIGHT (12 Nov, the user's coloured overlay: cowl - nose - cabin with the angled A
+  pillar - pax 1 - pax 2)**: the overlay was registered on a fitting on the rear wall, not the body (0.1 m off) -
+  blueprint_overlay.py now takes the rear-most BODY column (>= 30 % of the fullest column) and the drawing's body rear
+  wall (437 px, not the bumper). The windscreen rows reset to the C172's (wsRun 0.655 = the drawing's A-pillar run,
+  0.59 m) and the cowl face reset clean (no lid rise, lidLen 0.06 at lidShoulder 0.92 - the C172's 0.24 m lid was a
+  dome). Stations from the body's aft end, the user's red lines / built: pax 2 1.25 / 1.251, pax 1 to 2.18 / 2.181, the
+  windscreen top 2.45 / 2.451, the A-pillar foot 3.04 / 3.040, the firewall 3.34 / 3.340, the cowl face 4.38 / 4.37
+  (pilotLen 0.2, paxLen 0.933, paxLenLast 1.29, noseLen 0.333, cw_cowlLen 0.97). The detail (grille, lamps in inlets,
+  windows on the doors, fairings, the front suspension) is next, after the user's look.
+- **CAR-3, THE USER'S ROUND (cabin +40 cm, the firewall top and bonnet line -15 cm, the nose and cowl lengths kept, every
+  windscreen crown / bubble / bow at 0, the rear wheel 20 cm and the front wheel 15 cm forward)**: pilotLen 0.644 (the
+  cabin 0.86 -> 1.26 m; the body grows aft in the garage's frame), wsBaseBow / wsCeilBow / bubble / noseCrown / dashCrown
+  0, the bonnet top 0.352 -> 0.193 (frNoseTopY 0.2, cw_aftH 0.473; its bottom on the floor line), the rear axle 1.02 m
+  from the rear wall (s1Z 0.5), the front 0.25 m behind the bonnet face (s2AxZ 1.15). The body's own corner rounding
+  (topRound / botRound) left as it was.
+- **CAR-3, THE NEXT ROUND (the user: the waist +12 cm, the nose's sharpness relaxed, no suspension fairings, the front wheel
+  30 cm back, the windows wider and back in line with the drawing, the bonnet face at 70 % of its width)**: waistY 0.258
+  (+0.133 cage = +12 cm), crNoseCap 1.5 / noseTip 0.1 (were 3 / 0.25), s1LegFair / s2LegFair 0, s2AxZ 0.85, cw_taperW 0.7.
+  THE WINDOWS: one row cannot give the drawing's two widths, and the old pair straddled the B pillar and the bay seam - now
+  one window per bay on two rows: row 1 (bay 1) paxWinZ 1.587 / W 0.633, row 2 (bay 2) win2Z 0.438 / W 0.78; a window's z
+  is its FRONT edge (tools/car_stations.js prints them). UTV: the nose and bonnet restored to the matched version (the
+  user), the bed on the Twin busher's straight-stab planform rows.
+- **CAR-4, THE UTV ROUND (the user: the rear track equal to the front's, the front the reference; the bed square, as wide as
+  the cab, overhanging the booms; the cab's bottom flat)**: NEW ROW twBoomOut (_cage_gear.js boomMount, _gear_page.js,
+  _cage_parts.js): the twin booms' wheels that far outboard of the booms (absent 0 = under the boom) - 0.26 m, both tracks
+  1.44 m; the bed stOver 0.13 m past the booms (its edge at the cab's 0.62 m half-width) and stTipZ 0.6 (the tip's leading
+  edge forward: the bed's sides straight, no flare toward the cab); frWinBotY -0.92 (the cab's floor flat at -0.63 m to
+  the nose, the nose itself the user's chosen one). 536 kg, 71 % front, 0-100 7.0 s. Gates PARTS / CAGEFIT / DESIGN PASS.
+- **CAR-3, THE NEXT ROUND (the user: the windscreen run -5 cm, the cabin +5 cm, the pilot window sill -10 cm, the bonnet
+  face's top -10 cm; both rendered; the suspension anchors placed clean)**: wsRun 0.60, pilotLen 0.70, frPostWaistY /
+  frCabWaistY 0.147 (the cab frames' waist -0.111 cage = -10 cm; the bays keep waistY 0.258), the bonnet's front top
+  -10 cm by a height taper (cw_taperH 0.894, cw_faceRise -0.15 - deckH lowers the whole lid, deckSweep only the last
+  0.2 m). THE SUSPENSION: the front legs hung 0.85 m behind their axle (a long diagonal link) - mounted at s2Z 3.1 (the
+  last station where the floor is flat: at 3.2 the nose's underside rises and the wheel lifted 0.44 m, 2 wheels on the
+  ground), s2AxZ 0.6; the shock tops at 45-50 deg round the section (s1_ / s2_shockAng; at 90 they climbed the door and
+  broke through the bonnet line), the front's 15 cm aft (s2_shockZ -0.15). 1025 kg, 46 % front, LAUNCHES off paved.
+- **CAR-4, THE UTV'S REAR WINDOW (the user: "a back window ... aligned with the main windows")**: NEW ROWS rearWinOn / W /
+  H / Y / R (_cage_gen.js cageSpec S.rearWin, cageRearCut in both sheet paths after the side windows; _cage_page5.js,
+  _cage_parts.js; absent = none): the knife's own frame (the wells' API: n0 straight aft, the outline in the rearmost
+  wall's plane) and a NEW knife option `only(f, V)` (_knife_gen.js: an excluded face is never cut; absent = all facing
+  faces) - without it the aft projection opened every aft-facing face along the body. The UTV's: y 0.201-0.829 cage = the
+  side glass's sill and head exactly, 1.25 wide, r 0.06. Gates KNIFE / PARTS / CAGEFIT / DESIGN / COWL PASS. Behind the
+  glass stands the interior aft bulkhead (intBulk 1, 6 cm inside) - the window reads dark.
+- **CAN THE UTV TOW**: on the ground yes (a glider on its wheel: lift-off speed in 6.8 s on paved), a launch no - 39 kW at
+  the wheels holds 3 kN at 44 km/h at most; an auto-tow climb needs ~5 kN at ~95 km/h (~150 kW). The wagon is the tug.
+- **CAR-3, THE RESET (the user: "come back to really simpler settings ... keep the pillars and the global proportions")**:
+  the wagon's edits rebuilt from 165 rows to the essentials (the old set kept in the session's scratch, not the repo):
+  the pillars (pilotLen, paxLen, paxLenLast, noseLen, wsRun), the proportions (planeScale, halfW, roofHalfW, roofY), ONE
+  floor (every frame's bottom -0.82: -0.745 m end to end), ONE roof (frPaxTopY / aftRoofY / tailRoofY = roofY: level at
+  0.914 m, it had fallen 12 cm aft), ONE waist (waistY 0.147 - the per-frame waists were the kinked sill), the
+  windscreen flat (crowns / bows 0), noseKeelSq 1 (cherry-picked from FIT-PROCEDURE f04a18ef: the nose's bottom corners
+  square - the bonnet meets it within 16 mm on the sides and bottom), no drawn windows, no passenger doors, the bonnet /
+  engine / wheels / legs as they were. THE THINGS THROUGH THE BACK: the rod's bolted socket (drawn with the rod off -
+  _cage_gen.js now skips it when S.rod.bare), the rear bay's two seats (their reclined backs 12 cm through the wall - NEW
+  ROW paxSeatBays, _cage_crew.js: only the first N bays from the front carry seats, absent = all; the wagon's 1), the tank
+  (aftCabin -> nose bay), and the C172's avionics (the roadster's car systems). Found with a probe through _load_build.js
+  (the page's own scene): the seats are not in the headless scene. 1012 kg, 53 % front; AUTOTOW off paved now holds 79
+  km/h (short of the 90 pass mark: the tank's move took weight off the rear - ballast in the load bay is the cure to try).
+- **CAR-3/4, THE BACKS (the user: "the backside is what we're gonna see for all tows ... give that a little bit of love")**:
+  rearWinN / rearWinGap (a PAIR of rear windows; absent = one) - the wagon's two in the side glass's band (0.305-0.823
+  cage), 0.80 wide, 0.95 apart. The UTV: intBulk 0 (its window looks into the cab) and the roadster's wheel model (whProfile
+  2 slim, whRim 1 spoked, whRimD 0.62, whWide 1.1, its tread kept). NEW ASSEMBLY bumpF / bumpR (+ bumpY / bumpGap / bumpW /
+  bumpH / bumpFin / bumpGuards / hitchOn; _cage_gear.js bumperBuild, _gear_page.js, _cage_parts.js; absent = none): a
+  1940s blade (convex face between rolled lips, swept along the width, the ends wrapping 75 deg back round the corners),
+  teardrop overriders, bracket arms with gussets and bolts; the rear one a ribbed step pad and THE HITCH - a square
+  receiver tube with its collar and cross plate, the drawbar, the drop plate and shelf, a 50 mm ball on its neck and nut,
+  the cross pin with head and clip ring, two safety-chain loops. The ball's centre is window.CAGE_GEAR_HITCH; car_sheet
+  writes it as sheet.hitch (the rope pulls there). The front bumper's station is the bonnet's own rows (AF.z1 + cowlLen +
+  lidLen) - a scene lookup of the cowl group missed it in the page. THE TUG'S BALLAST: the 4WD splits the drive equally per
+  wheel (no differential), so a front-heavy tug spins its light rears on the climb - 150 kg in the load bay (spec.cargo,
+  _rejoin_build.js now carries E.cargo): 1249 kg, 36 % front, AUTOTOW LAUNCHES (97 km/h held).
+- **CAR-4, THE REAR WALL'S BAS-RELIEF ON THE OUTSIDE (the user: "build the ability of printing the bas-relief on the
+  visible backside")**: NEW ROWS extRelief (1 pressed beads / 2 rolled / 3 framed panel, the aft bulkhead's own three) and
+  extReliefH (_cage_gen.js cageRearRelief, after cageInterior in both sheet paths; rows in _gear_page.js, claimed in
+  _cage_parts.js; absent = none): raised beads on the rear wall's outside, clipped to its outline (the hull of its
+  aft-facing skin faces, inset), stepping round the rear windows, the faces tagged with the wall's own skin material so the
+  sheet paints them (a gear-layer mesh drew white: the section material is not reachable there). Both cars: beads, 16 mm.
+  The UTV's take its 'cloth' (the Cub's fabric skin) and read darker than the wood grain. The wagon's aft bulkhead off too.
+- **CAR-3/4, THE DOORS, THE LIGHT BUMPER, THE ROUND'S FIXES (12 Nov)**: extRelief 4 'rear doors' (_cage_gen.js
+  cageRearRelief): a square-cornered frame up into the roof's rounding (to 88 % of the wall's width, as wide as the wall
+  is there), the split down the middle, published on the sheet as m.rearDoors; _cage_gear.js rearDoorHardware hangs the
+  garage's own butt hinges (HINGE_GEN.buttHinge, the cabin doors') two per door on the outer edges and a T-handle with its
+  escutcheon at the split - a picture, the doors do not swing yet (a real cut door needs the rear wall's faces split
+  along the outline: owed). bumpStyle 1 'light tube' (a round section, no overriders or step, round arms, a 50 mm
+  receiver) - the UTV's, black, at the booms' tail ends (on twin booms the rear bumper rides CAGE_BOOMS.zTip). THE PINCH
+  between the bonnet and the windscreen: the A-pillar's foot sat under the bonnet line - wsBaseLift 0.06 levels the deck.
+  ctlStick 1 (the yoke) on the van, the UTV and the buggy; hdlOn / wallTrimOn (the roof lining) on the van and the UTV.
+  The rear wall's rows grouped in the tree under Structure & skin > 'rear wall (outside)' (rear windows, the relief).
+- **CAR-3, THE REAR DOORS NUDGED (the user: "3 cm up with the door and 3 cm outward with the contour")**: NEW ROWS
+  extDoorTop / extDoorOut (metres, absent 0; the 'rear wall (outside)' group): the outline's top up and its sides out;
+  the hinges follow (they read m.rearDoors). The van: 0.03 / 0.03.
+- **CAR-3, THE VAN'S OWN WHEELS AND FRONT (12 Nov)**: whProfile 3 'military lug (1940s)' (_gear_gen.js TYRE[3]: a
+  9.00-16 on a 16" rim - a torus taller and narrower than the tundra; MIL_LUG chevrons, the two halves meeting across the
+  crown: bushLugs takes a lug table and a `stagger`) and whRim 3 'steel disc + lock ring' (a dished pressed disc with a
+  stamped ring, the split lock ring on the flange with its notch); both on the usual wheel rows, absent = as before. The
+  van: whProfile 3, whRim 3, 8 nuts, a domed cap, whRimD 0.50. The bonnet's bottom line 10 cm up (cw_keelH 0.79) and the
+  front bumper up over it (NEW ROW bumpYF, the front's own height; absent = bumpY): 0.12.
+  OWED (the user): THE GRILLE - a wide horizontal grid over the top half of the bonnet face, not as wide as the car; two
+  side inlets with a lip each, the headlamps in them (cw_lampIn, built, unused yet).
+- **CAR, THE CAR FLAG AND THE CAR PART (12 Nov; the user: "mark them as cars ... an option ... as a player ... a new car
+  section ... the controls very specific to cars")**: NEW ROWS isCar (always shown: "this build is a car"), carDrive (0
+  rear / 1 all four), carChassisKg (_gear_page.js; absent = an aeroplane, nothing changes); a top-level part 'Car'
+  (_cage_parts.js) holds them with the bumpers and hitch and the spare wheel (moved out of 'Wheels & tyres'; their
+  switches show with isCar or once set). tools/car_sheet.js reads carDrive / carChassisKg over the older spec.meta.car.
+  THE AUDIT - kept GENERAL (a plane can use them): rearWin* (rear windows), extRelief* / extDoor* (the rear wall's outside
+  relief and rear doors), boomBodyZ/Y (twin booms without a wing), twBoomOut, paxLenLast, doorPaxN, paxSeatBays,
+  cw_lampIn, whProfile 3 / whRim 3 (the military tyre, the steel disc), noseKeelSq; CAR-ONLY (the Car part): isCar,
+  carDrive, carChassisKg, bump*, hitchOn, spare*; and outside the garage, tools/car_sheet.js's tune (brakes, springs,
+  tyres, the driveline) and the vehicle shell's tow line. All four cars carry isCar 1 (the roadster's card, the buggy,
+  the van 4WD 280 kg, the UTV 4WD 150 kg). NOT YET: what the GAME does with isCar (the hidden wing and prop still fly) -
+  waiting on the TOW-LAUNCH session (its drive mode, claude/tow-launch-phase1) for the seam: a build's sheet + its own
+  meshes as the drive mode's rig.
+- **CAR-3, THE INTERIOR, THE WHEEL WELLS, THE NARROWER NOSE (12 Nov; the user: "bigger seats ... 2 rows of seats in the
+  back ... 3 seats in a row ... cut the fuselage at the shape of the wheel and do a little wheel well in it ... at the
+  back I would really like that we try this wheel well thing ... for the nose, just do minor adjustment")**: the seats
+  (e4c37cc1): seatType/paxSeatType 5 (executive), paxAbreast 3, paxSeatBays 2, paxSeatZ 0.2, seatGap 0.64; the rear
+  doors' edges +5 cm out (extDoorOut 0.08), the rear bumper +5 cm up (bumpY 0.05). NEW ROWS archOn (0 none / 1 rear /
+  2 front / 3 both) and archGap (the clearance round the tyre, m; default 0.04), in the Car part's 'wheel arches' group
+  (_gear_page.js). THE CUT (_cage_gear.js, the end of the gear layer): for each picked axle, a side well per wheel
+  through the retractable-gear knife path (window.CAGE_GEAR.cutsSide, mode 'box', applied by _cage_ui.js wellApply
+  and by quickshot) - its outline an arc of radius R + gap round the hub from the body's bottom edge, its floor
+  (ceil) the tyre's inner face less the gap, so the hole is lined and closed, not a see-through slot; absent = no cut.
+  The van: archOn 1, archGap 0.05, the rear track in (s1X 0.82) so the rear tyres sit inside the arches. THE FRONT
+  (minor, as asked): noseW 0.8 and cw_aftW 0.87 (a narrower nose and bonnet, the cowl-nose joint within ~5 mm except
+  the top corner, -107 mm), the front track in (s2X 0.88; tracks 1.76 m front, 1.64 m rear) - the front tyres still
+  stand a little proud of the bonnet, as the user allowed. car_sheet: 1268 kg, 35.5 % front, AUTOTOW still LAUNCHES.
+  STILL OWED: THE GRILLE (above).
+- **CAR x TOW-LAUNCH, THE MERGE (12 Nov; the user: "you have my go-ahead for merging you two branches ... it keeps the
+  towing part, but ... you keep the whole car part, including the AI and everything that it has done ... keep its car
+  model integrated with our physics ... in case our self-made cars do not look good enough, we default back to these")**:
+  origin/claude/tow-launch-phase1 (40c06bf7) merged into claude/fly-diy-car-build-uu6e6w. THE SPLIT: the CAR-BUILD
+  session owns the car - src/vehicle/vehicle.js, vehicle_drive.js, vehicle_island.js (the AI driver and its roads),
+  src/viewer/drive_mode.js, src/cars/* (the conquer car: the drive mode's default rig, on vehicle.js's physics),
+  tools/drive_shot.js, the road-join tools, GATE VEHICLE and DRIVE-TRIP; TOW-LAUNCH keeps the towing - tow.js,
+  trailer.js, trailer_model.js, the glider launches / circuit / altiport push start (43_pilot.js), GATE TOW, TRAILER.
+  THE CONFLICT: vehicle.js - TOW-LAUNCH's kept (the scratch-slot substep, car.extF); CAR-3's ctl.tow / towEl / towDir
+  dropped, tools/car_sheet.js's TOW and AUTOTOW rows pull through car.extF (same digits: the van holds 97 km/h);
+  vehicleDef gains `hitch` from sheet.hitch (undefined without one - no digit moves). For tow.js (TOW-LAUNCH's):
+  `o.hitch || car.def.hitch || ...` so a garage car's drawn ball is the rope's point. NEXT (CAR): DM.vehicleSource =
+  { sheet, tune, buildRig(THREE) } - the conquer car the default, a garage car (its own meshes, its car_sheet) an option.
+- **CAR-3, THE VAN'S FACE (12 Nov; the user: "go do something elegant in the front of the van" - the grille owed since:
+  "a wide horizontal grid on the top half of the bonnet face, not as wide as the car, two side inlets with lips holding
+  the headlamps")**: NEW ROW cw_apLift 'inlets up / down (the engine stays)' (_cowl_rows.js, 'inlets' group;
+  _cowl_gen.js apertureList; ABSENT_AT 0 = as before): it lifts the main inlet and the pair ALONE - apOffY also moves the
+  spinner's and the engine's axis (axisXY, _cage_eng.js), so a grille raised with it put the engine through the bonnet
+  top (seen as two dark marks on the lid). The lamp seated in an inlet (lampIn) now turns its bowl BACK into the face as
+  a chrome reflector, the glass bulging forward of the rim (it turned forward over the lens and read as a white ball;
+  only lampIn changes - the proud lamps on stalks draw as before). The van: apMode 3, the main inlet 0.64 x 0.16 m
+  (apW 0.32, apH 0.08, apSq 0.75), apLift 0.40 (the top half of the face, the engine where it was: apOffY 0), a rolled
+  lip (lipMode 1), the grille five horizontal rows on two uprights set 2 cm back (grilleN 2, grilleRows 5, grilleBar
+  0.014), ductLen 0.05; the pair round (pairSq 0.5 - 0 is a diamond), pairX 0.47, r 0.105, level with the grille
+  (pairY 0), the headlamps in them (lampOn, lampIn, lampBack 0.03). A radiator cap tried and left off (a dark knob).
+
+## WINCH - THE GLIDER WINCH LAUNCH: THE WINCH DRAWN AND WEATHERED, THE LINE TO A FIXED DRUM, THE START CHOOSER'S 'winch' (13 Nov 2026, cloud; branch claude/sailplane-launch-study-176kdv, master 23ce68c1f + claude/tow-launch-onmaster 480ea6df merged in)
+
+The user (13 Nov, via A0): "why wouldn't you plan for the winch, and why wouldn't we do a 3D model for that? ... a very
+specialized piece of equipment"; then "full weathering ... the plane or the building methods, or both"; "middle option,
+and take the wheels from the cars sessions, get the ones from the van"; "you may start on the implementation". The
+study before it: futureDesigns/glider-launch/STUDY.md (aerotow / car tow / the trailer / the winch, the probes).
+
+- **THE WINCH, A PROP** (`tools/_winch_gen.js`, WINCH_GEN; the tower generator's grammar: DEF / ROWS / PRESETS / PAINTS /
+  build(P) -> THREE.Group, DIM / KIT for a placer): a twin-drum trailer winch - tandem chassis on leaf springs, the deck at
+  1.0 m, A-frame drawbar and jockey wheel, four stabiliser legs; the engine housing (V8 / diesel / electric) with its
+  grille, louvres and stack; two narrow drums (core 0.80 m, flanges 1.16 m) on one shaft with disc brakes; a levelwind per
+  drum; the rear fairleads with their GUILLOTINES; the mesh cage; the driver's cab facing aft down the cable, its window
+  grilled, the amber beacon; the cable out to the drogue, strop, weak link and rings. THE VAN'S WHEELS: the CAR session's
+  Field Wagon (builds/vehicles/utility_2026-11.json) drawn by GEAR_GEN.wheel with its saved rows (VAN_WHEEL: TYRE 2 x 1.4
+  wide, rim 0.5, six bolts, cap, valve, R 0.45); plain discs when the gear kit is not on the page. Each part carries
+  `aBox` (its half extents and kind) for the weathering's edges; `userData.wx` the weather's sources.
+- **THE WEATHERING, BOTH METHODS** (`tools/_winch_weather.js`, WINCH_WX): the BUILDINGS' scans (house_tex.js's steelgrey
+  / steelrust / rust / galv, triplanar at their own tile; paint as a neutral-map grain under the tint), the house's
+  DIRT_EXPR splash line and age tone; the AEROPLANES' four macros (age / use / field / rain, aeroWxResolve's rule), the
+  grunge sheet (aeroWxGrunge) and AERO_WX_COL, sources placed (the stack's plume, the wheels' mud, grease at the drums,
+  rollers, gearbox and hitch), chips at each part's own edges down to primer and rusting steel, no shiny dirt (grease the
+  one glossy). THE CLUB LOOK on every build (the user's "middle option"). Found tuning it: fade + age tone + rain streaks
+  together washed the yellow to cream - each halved, and the fade bleaches toward the paint's own lighter colour.
+- **THE PHYSICS** (`src/vehicle/winch.js`, pure): tow.js's line with the far end FIXED (the fairlead) and its rest length
+  reeled in at the drum's speed (stretch rate -v_hook.u + v_drum; per-substep exact - nothing moves at the far end); THE
+  CG HOOK (winchHookNodes: a point 0.25 m ahead of the CG on the belly, the pull shared by the belly's two bracketing
+  frame stations) - ON THE NOSE HOOK THE LAUNCH FAILED: the pull held the nose down, the elevator full up, the pitch
+  falling from 30 to 7 deg, 187 m off 1000 m; the DRUM (150 kW, 9 kN cap, 350 kg equivalent, 32 m/s) and its DRIVER (the
+  slack taken up at 2 m/s, the ground run opened over 1.5 s but never pulling past 1.1 x the glider's weight - full power
+  at once snatched the 249 kg glider off a 3.9 kN link in 3 s - the glider's airspeed held in the climb by a PI, the pull
+  capped at 1.3 W, easing off past 50 deg, the brake after the release, the GUILLOTINE past 80 deg or 2.2 W); the
+  releases (the back-release at 70 deg, slack at the top, the cable wound in, the weak link 1.6 W, the key); the hands
+  (makeWinchHands: the ground run, 7 deg off the ground, the climb to 42 deg by height, the nose lowered when slow and as
+  the line steepens). Same surface as tow.js's line, so the page's tow plumbing drives it.
+- **THE PAGE** (`src/viewer/winch_mode.js`, WINCH_MODE, lazy with winch.js / tow.js / the two tools): the start chooser's
+  `winch:HOME` (ok on Jolene AFB, was "not built yet"), START.mode 'winch'; towTick lines the glider up, the motor off,
+  and calls winchStart: the winch built and weathered at the end of up to 1000 m of cable along the runway (the fairlead
+  on the centreline, the drawbar away), the cable drawn with its sag, laid on the grass and reeled in after the release.
+  app.js: towOn() answers WINCH_MODE first (its tow hooks: towPre / towPost / towDraw / towWords / towRelease / towStop
+  and `tow` with kind 'winch'), so the R key, the plate ('winch launch'), the inline flight, the restart and the
+  autopilot's handover (launchHandOver) are the car tow's. MANIFEST.lazy +4.
+- **GATE WINCH** (`tools/_winch_check.js`, core, ~6 min; run_gates row after TRAILER): LAUNCH (1000 m: lift-off 3.9 s,
+  the climb at 22.4-23.8 m/s against 23.5, released at 275 m by the back-release, 2.79 kN at most), GLIDE, RELEASE (the
+  key at 100 m, the drum braked), WEAK (1.5 kN breaks in the roll), CUT (no back-release: the guillotine at 274 m),
+  SHORT (600 m: 135 m), AUTOPILOT (CLIMB -> GLIDE), CIRCUIT (released at 275 m, the glider's circuit, landed on the
+  runway 7.4 m off the centreline, sink 0.40), PERF, MODULE (winch_mode.js run in node on a three scene: the winch drawn
+  and weathered at the far end, a launch by the hands, the plate's words, towStop clean), PAGE (the wiring by source).
+- **NOT DONE / OWED**: the page not flown in a browser (the island boots ~9 min under SwiftShader; MODULE runs the page's
+  half in node, PAGE checks app.js by source); no collision with the winch (the glider is released short of it); one
+  cable of the two used; no winch sound; the winch not in the world outside a winch launch (a scenery placement - the
+  KIT numbers are ready); a pure 0-engine sailplane card still owed (the motorglider flies with its motor off).
+- **WINCH 2 (A0, 13 Nov: "installed PERMANENTLY at Jolene AFB ... PBR materials, reusing the game's existing ones")**:
+  every winch material is a PBR MeshStandardMaterial made by MATLIB.shared in the `winch` scope (GATE ASSETS' rule; the
+  scope keeps the weathering hook off every other family's shared material); the cage's mesh was unlit LineSegments - now
+  thin square bars, one merged geometry, painted steel (it casts its grid's shadow); the scans in the game are the house
+  library's own Images (HOUSE_TEX_SETS - fetched once, shared with the buildings); the weathering's prop space is per
+  placed winch (an inverse world matrix on the group, set before each of its meshes draws). FOUND: the cage's alias
+  (MAT.mesh = MAT.trim) set before the role loop re-tagged trim 'mesh' - 63 meshes unweathered; the alias after the loop.
+  A PERMANENT WINCH: winch_mode.js uses any WINCH_GEN group standing on the centreline ahead (userData.winchProp, its
+  fairlead 300 m+ away) instead of setting one up, and leaves it standing (MODULE row). WINCH_GEN.fairlead(group, drum).
+  The placing session's notes: futureDesigns/glider-launch/WINCH-PLACEMENT.md. GATE ASSETS is red on master's merge of
+  the car branch (tools/_cowl_gen.js, 2 material sites) - not the winch's.
+
+
+## AFB-0220 WINCH - THE GLIDER WINCH INSTALLED PERMANENTLY AT JOLENE AFB, ONE PER DIRECTION OF 13/31 (13 Nov 2026, cloud AFB-0220 for A0; claude/afb-0220-winch, stacked on claude/sailplane-launch-study-176kdv)
+- The user (13 Nov via A0): "THE GLIDER WINCH, installed PERMANENTLY at Jolene on the main runway 13/31 ... CHECK it uses PBR materials". Two editor objects { kind: 'prop', key: 'gen:winch' } in tools/fixtures/island_jolene.json: xw_winch13 (-359.51, 136.34) yaw 0.8552 serves 13; xw_winch31 (-209.03, 267.17) yaw -2.2864 serves 31. Each 25.5 m NE of the centreline (the van 1.5 m off the paved edge), its fairlead 1000 m from its direction's start (60 m in from the end), facing it. The world editor moves, turns, deletes them.
+- render_premises.js GEN_PROPS / buildGenProp: WINCH_GEN.build({ wx: 1, cableLen: 0, chute: 0 }) in a holder at the record's pose, WINCH_WX.apply once placed, hitAdd(g, 'prop', 0.5): it collides (OBSTACLES). A holder with propPending until the lazy files land (world_boot.js asks for _winch_gen / _winch_weather when the record names gen:winch).
+- winch_mode.js winchStart: the search 30 m off the centreline (was 25 - the van stood on the paved edge), only a winch that FACES the glider, the nearest of those: from 13's start xw_winch13, from 31's xw_winch31 (the other, turned away down the same runway, passed over).
+- PBR, checked (GATE WINCH PLACED): 13 materials on a built winch, every one a MeshStandardMaterial made by MATLIB (the 'winch' scope, WINCH 2). Gates: WINCH PASS (PLACED 5 rows), UISMOKE PASS, PREMISES PASS, BUILT PASS; ASSETS FAIL (tools/_cowl_gen.js 2 material sites - the base's, named in WINCH 2) and SCENERYED FAIL 20b (Metlakatla compose timing - the base fails it too, 3493 ms quiet).
+- OWED: the premises cook (the fixture moved: PREMCOOK, re-cook on the train); the fixture here has no trailing newline (the tow-launch line's form), master's has one - integrate by taking either side and re-splicing the two xw_winch objects; FRAMECOST / the look on a GPU (the winch near the 13/31 edge, both ends).

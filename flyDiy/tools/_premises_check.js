@@ -1664,7 +1664,11 @@ if (SELFTEST) {
     check(conn.length === 3 && conn.every(n => n.name && grid.indexOf(n.id) >= 0), '21d its three ways out are named connection points on the grid (' + conn.map(n => n.name).join(', ') + ')');
     const pc = conn.length >= 2 ? G.path(conn[0].id, conn[conn.length - 1].id) : null;
     check(pc && pc.edges.every(e => mk(G.edge(e).road)), '21d a path between two of them runs on its streets', pc && (pc.edges.length + ' spans, ' + pc.len.toFixed(0) + ' m'));
-    check(comps.every(c => c.every(id => G.node(id).roads.every(mk))), '21d ...and it is joined to no road outside it (the user traces those)');
+    // (TOW-LAUNCH, 12 Nov - the user: "join the roads". Until then the town was joined to no road outside it ("the user traces
+    //  those"); tools/road_join_drawn.js / road_join_level.js joined the island's drawn crossings: HOME's road r3 meets the
+    //  town's mk_sa01 at a junction now - the town's grid is on the island's network)
+    const r3 = (J.layers.roads.find(r => r.id === 'r3') || {}).nodes || [], s01 = (J.layers.roads.find(r => r.id === 'mk_sa01') || {}).nodes || [];
+    check(grid.some(id => G.node(id).roads.includes('r3')) && r3.some(j => j && s01.includes(j)), '21d ...and it meets HOME\'s road: r3 x mk_sa01 one junction (the user, 12 Nov: "join the roads")');
     // the town's 391 plots (on flat ground) as they were before the junctions (the fixture of train 44.4, 11 Oct): a waypoint
     // inserted on a straight span is no corner - the same plots, seed for seed (a later edit of Metlakatla's zones or
     // streets moves this hash: re-take it from tools/road_review.js's record then)
@@ -1674,7 +1678,12 @@ if (SELFTEST) {
     // (G3014: re-taken as this comment's rule says - the user's rev 26 edited Metlakatla's streets, 391 -> 398 plots, sha below.
     //  NOT 'the ids taken off': an id'd waypoint on a straight span is no corner BY DESIGN, so taking the ids off makes those
     //  waypoints corners and moves the plots - that is no counterfactual for 'without the junctions')
-    check(hp === '5a61e780db99fc4b', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for rev 28: train 53, 13 Oct)', hp);
+    // (TOW-LAUNCH, 12 Nov: re-taken - the joins moved some town streets' free ends onto the streets they meet (T's, at most 2.1 m:
+    //  mk_sa04, mk_sa08, mk_sc37, mk_sc45, mk_sc47, mk_sc50) and extended a few by their gap (mk_sc63, mk_r_walden): the plots
+    //  sown along them move with them. Was 5a61e780db99fc4b, 398 plots. Re-taken again the same day: two of those joins were
+    //  redundant junctions half a metre from the streets' own (mk_sc44 at mk_j100, mk_sc64 at mk_j119 - their overruns, which
+    //  doubled the street back, out) and mk_r_walden's crossing on r1 went in a slot early - fixed; 037fdb092a92c16a, 399)
+    check(hp === '6cff23b2a640e5c8', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for the joins: TOW-LAUNCH 12 Nov)', hp);
     check(!PG.issues(J).some(t => /junction|roadside/.test(t)), '21d no junction issue', PG.issues(J).filter(t => /junction|roadside/.test(t)).slice(0, 3).join('; '));
   }
 }
