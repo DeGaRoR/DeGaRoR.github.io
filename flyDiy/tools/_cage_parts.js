@@ -1156,7 +1156,7 @@ const CAGE_PARTS = [
       ['hull', ['fltL', 'fltStep', 'fltB', 'fltH', 'fltBeta', 'fltBetaBow', 'fltBetaA', 'fltHs', 'fltAft',
                 'fltAftCurve', 'fltFlat', 'fltStem', 'fltRake', 'fltNoseR', 'fltPlan', 'fltStern', 'fltFlare', 'fltMass']],
       ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],
-      ['struts', ['fltStrutR', 'fltStrutAng', 'fltFrontRing', 'fltSpread', 'fltSpreadAft', 'fltWires']],
+      ['struts', ['fltStrutR', 'fltStrutAng', 'fltFrontRing', 'fltRigFwd', 'fltSpread', 'fltSpreadAft', 'fltWires', 'fltLadder']],
     ] },
 
   { key: 'third', name: 'Third wheel', parent: 'gear', layer: 'gear',

@@ -174,6 +174,10 @@ const GROUP = ['9b · floats', [
     ['fltSpread',  'spreader bars',       0, 1, 1, on],
     ['fltSpreadAft','aft spreader (aft of the step)', 0.10, 2.40, 0.01, onM],
     ['fltWires',   'cross wires',         0, 1, 1, on],
+    // FLOAT-RIG-FWD (13 Nov, the user on the PC-6's Wiplines: "the anchors on the floats does not seem completely correct,
+    // if you may move these"): the FRONT strut's deck fitting moved forward (+) of its station (the keel flat's forward
+    // end) - the drawing, the spec (gear.floats.rigFwd) and the flown truss (61_gen_frame) together. ABSENT at 0
+    ['fltRigFwd',  'front strut fitting (+ forward)', -1.0, 2.0, 0.01, { absent: 0, when: P => +P.gearFloats, dim: 'm' }],
     // FLOAT-LADDER (13 Nov, the user on the PC-6's Wiplines: "an option for generating these reinforcements on the floats
     // struts, I guess doubling as a ladder"): fore-and-aft rails a side, front strut to rear strut, the steps up from the
     // float to the cabin. ABSENT at 0 (no saved build gains the key)
@@ -204,6 +208,8 @@ function hullParams(P) {
   Q.scale = k;
   // TWIN4B-STRUTS: the front strut pair on the ring over its deck fitting (61_gen_frame; absent: on the step's ring)
   if (Math.round(+P.fltFrontRing || 0) === 1) Q.frontRing = 1;
+  // FLOAT-RIG-FWD: present only when moved (a record without it is the one it was)
+  if (+P.fltRigFwd) Q.rigFwd = +P.fltRigFwd;
   const name = PRESET_NAMES[Math.round(P.fltPreset)];
   if (name && name !== CUSTOM) Q.preset = name;
   return Q;
@@ -1116,7 +1122,7 @@ PAGE.post = ctx => {
     rec.tetraC[tag] = [K, KB, DL, DR].map(v => toCage(v, at));
     // the deck fitting points at the two rigging stations (the same
     // stations FLOAT_GEN put its fitting plates on): inboard and outboard
-    const rig = out ? out.rig : { fwd: -HP.flatK * HP.xs, aft: HP.xAft };
+    const rig = out ? out.rig : { fwd: -Math.min(0.9 * HP.xs, HP.flatK * HP.xs + (+HP.rigFwd || 0)), aft: HP.xAft };
     const fit = (x, inb) => {
       const s = HY.sectionOf(HP, x === 0 ? -1e-9 : x);
       // (FLOATS-CLASSIC: an EDO's fittings sit on the arc just inside its shoulder, FLOAT_GEN's EDO_FIT of it -
@@ -1213,14 +1219,14 @@ PAGE.post = ctx => {
     if (+P.fltWires) wire(d.fwdIn, rA);    // the drag wire
   }
   // FLOAT-LADDER (the row above): on each side, rails at 1/(n+1) .. n/(n+1) of the front strut's rise, each from the
-  // front strut to the rear strut at the same height, run on 0.12 m past both (the photographs: the rails overhang
-  // the struts fore and aft). Round tubes in the struts' paint. DRAWN, NOT FLOWN: their ends sit mid-strut, never on
+  // front strut to the rear strut at the same height, run on 0.30 m ahead of the front strut and 0.06 m past the rear
+  // (the user's drawing on the sheet, 13 Nov). Round tubes in the struts' paint. DRAWN, NOT FLOWN: their ends sit mid-strut, never on
   // a physics node, so they are not in rec.members (the join's contract: every member two-ended on nodes); a few kg
   const nLad = Math.max(0, Math.min(3, Math.round(+P.fltLadder || 0)));
   if (nLad) {
     const lerp = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
     const at = (a, b, y) => lerp(a, b, Math.max(0, Math.min(1, (y - a[1]) / ((b[1] - a[1]) || 1e-9))));
-    const rr = Math.max(0.010, 0.7 * t), ov = 0.12 * sc;
+    const rr = Math.max(0.010, 0.7 * t), ovF = 0.30 * sc, ovA = 0.06 * sc;
     rec.ladder = [];
     for (const sd of [-1, 1]) {
       const tag = sd > 0 ? 'L' : 'R', d = rec.deck[tag], R0 = roots[tag];
@@ -1228,10 +1234,10 @@ PAGE.post = ctx => {
         const y = d.fwdIn[1] + (R0.rFf[1] - d.fwdIn[1]) * i / (nLad + 1);
         const p = at(d.fwdIn, R0.rFf, y), q = at(d.aftIn, R0.rA, y);
         const v = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], L = Math.hypot(v[0], v[1], v[2]) || 1;
-        const a = [p[0] - v[0] / L * ov, p[1] - v[1] / L * ov, p[2] - v[2] / L * ov];
-        const b = [q[0] + v[0] / L * ov, q[1] + v[1] / L * ov, q[2] + v[2] / L * ov];
+        const a = [p[0] - v[0] / L * ovF, p[1] - v[1] / L * ovF, p[2] - v[2] / L * ovF];
+        const b = [q[0] + v[0] / L * ovA, q[1] + v[1] / L * ovA, q[2] + v[2] / L * ovA];
         GK.tube(sg, a, b, rr, 10);
-        rec.ladder.push({ side: tag, y: +y.toFixed(3), len: +(L + 2 * ov).toFixed(3) });
+        rec.ladder.push({ side: tag, y: +y.toFixed(3), len: +(L + ovF + ovA).toFixed(3) });
       }
     }
   }

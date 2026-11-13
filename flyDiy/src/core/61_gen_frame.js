@@ -3180,7 +3180,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // the bow station sits where the hull still has a beam: the Wipline's
     // bow closes to a POINT at -xs, and three coincident nodes made a
     // zero-length beam (strain Infinity in GATE FLOATS)
-    const stas = [-0.93 * FP.xs, -FP.flatK * FP.xs, 0, xAft, FP.L - FP.xs];
+    const stas = [-0.93 * FP.xs, -Math.min(0.9 * FP.xs, FP.flatK * FP.xs + (+FP.rigFwd || 0)), 0, xAft, FP.L - FP.xs];   // FLOAT-RIG-FWD: the front fitting moved (absent: the keel flat's end)
     // THE RIGGING (G396.3): the keel incidence, bow down positive, about the
     // step keel — the layer draws the hull through the same rotation. The
     // tetra and the slab stay float-local (the pose is read off the nodes).
