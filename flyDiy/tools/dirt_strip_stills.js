@@ -93,6 +93,16 @@ const HOLD = (at, agl) => `(async () => {
   // SETTLE (the tail comes down): run ~1.5 s, then pause again
   if (${SETTLE}) { const tg = () => document.getElementById('bPause').click(); tg(); await new Promise(r => setTimeout(r, ${SETTLE})); tg(); }
   return JSON.stringify(s.cgPos().map(v => Math.round(v * 10) / 10)); })()`;
+// one frame read from the default framebuffer right after the game's own FLYDIY_AA.render (LOOK-1's t51 way), as a PNG (base64)
+const GRAB = `new Promise((res, rej) => { const R = (window.WORLD && WORLD.renderer) || (window.FLIGHT_PROBE && FLIGHT_PROBE.renderer && FLIGHT_PROBE.renderer()), AA = window.FLYDIY_AA; if (!R || !AA || !AA.render) return rej(new Error('no WORLD.renderer / FLYDIY_AA'));
+  const gl = R.getContext(), orig = AA.render; let done = false;
+  AA.render = function () { const r = orig.apply(this, arguments); if (done) return r; done = true; AA.render = orig;
+    try { const c = R.domElement, w = c.width, h = c.height, px = new Uint8Array(w * h * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      const k = document.createElement('canvas'); k.width = w; k.height = h; const x = k.getContext('2d'), im = x.createImageData(w, h), D = im.data;
+      for (let y = 0; y < h; y++) { const so = (h - 1 - y) * w * 4, d = y * w * 4; for (let i = 0; i < w * 4; i += 4) { D[d + i] = px[so + i]; D[d + i + 1] = px[so + i + 1]; D[d + i + 2] = px[so + i + 2]; D[d + i + 3] = 255; } }
+      x.putImageData(im, 0, 0); res(k.toDataURL('image/png').split(',')[1]); } catch (e) { rej(e); }
+    return r; };
+  setTimeout(() => { if (!done) { done = true; AA.render = orig; rej(new Error('no FLYDIY_AA frame in 5 s')); } }, 5000); })`;
 const FRAMES = n => `new Promise(r => { let k = 0; const f = () => { if (++k >= ${n}) r(k); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 
 async function runPage(page) {
@@ -143,7 +153,15 @@ async function runPage(page) {
     if (JS) console.log('  js: ' + await ev('(()=>{' + JS + '})()').catch(e => 'ERR ' + e.message));
     // the UI out of the picture: the world and the aeroplane alone
     await ev("(()=>{['ui','devPanel','hud','rail'].forEach(i=>{const e=document.getElementById(i);if(e)e.style.visibility='hidden';});document.querySelectorAll('.card,.panel,#phase,#hud,.toast,button').forEach(e=>e.style.visibility='hidden');return 1;})()").catch(() => 0);
-    const tag = path.basename(page, '.html'), cap = async name => { const png = await cmd('Page.captureScreenshot', { format: 'png' }); fs.mkdirSync(OUT, { recursive: true }); const file = path.join(OUT, name); fs.writeFileSync(file, Buffer.from(png.result.data, 'base64')); return file; };
+    const tag = path.basename(page, '.html'), cap = async name => {
+      // (13 Nov, the 14:15 stills blank on master 23ce68c1f too: the page drew - rAF 58/s, a place within 5 m - but the CDP
+      //  screenshot showed only the page's #cfe0ec behind the canvas; LOOK-1's t51 rig read real frames by gl.readPixels right after
+      //  FLYDIY_AA.render) - the frame read the same way, its alpha forced opaque; the CDP screenshot only if that grab fails
+      let b64 = await ev(GRAB).catch(e => { console.log('  grab failed (' + String(e.message || e).slice(0, 80) + '), the CDP screenshot'); return null; });
+      if (!b64) b64 = (await cmd('Page.captureScreenshot', { format: 'png' })).result.data;
+      fs.mkdirSync(OUT, { recursive: true }); const file = path.join(OUT, name); const buf = Buffer.from(b64, 'base64'); fs.writeFileSync(file, buf);
+      if (buf.length < 20000) console.log('  WARNING ' + name + ' is ' + buf.length + ' bytes - one colour? (a blank frame)');
+      return file; };
     for (let si = 0; si < AS.length; si++) { frame(AS[si]); let first = true;
     for (const vk of VIEW_KEYS) {
       const V = VIEWS[vk]; if (!V) continue;
