@@ -644,7 +644,8 @@ function genFusCdA(S, fr) {
   const cw = S.cowl || {}, covers = cw.covers || {};
   const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
   let cool = 0, heads = 0;
-  if (!electric) {
+  const none = typeof genUnpowered === 'function' && genUnpowered(S);   // (ENGINELESS: no engine to cool, no stacks)
+  if (!electric && !none) {
     const k = th.family === 'turbine' ? D.kCool.turbine
             : th.cooling === 'liquid' ? D.kCool.liquid
             : radial ? (cowlOn ? D.kCool.radialRing : D.kCool.radialBare) : D.kCool.pressureCowl;
@@ -673,7 +674,7 @@ function genFusCdA(S, fr) {
   }
   junct += 3 * D.junct.tail;
   const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
-  const exh = electric ? 0 : D.exhStack * (radial ? 4 : 2) * nEng;
+  const exh = electric || none ? 0 : D.exhStack * (radial ? 4 : 2) * nEng;
   const out = {
     fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],

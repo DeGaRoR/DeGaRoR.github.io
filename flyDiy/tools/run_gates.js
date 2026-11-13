@@ -209,6 +209,7 @@ const GATES = [
   // section (the solver's tube cut): the Archaeopteryx holds on carbon 0.8 mm, a 0.5 mm rod on the pusher pod parts at its root
   { id: 'RODROW', file: '_rodrow_check.js', tier: 'core', wall: 300 },
   { id: 'ULTRALIGHT', file: '_ultralight_check.js', tier: 'core', wall: 420 },   // (WEIGHT STUDY L4-L6: the soft shell, the hub, the ultralight monowheel)
+  { id: 'ENGINELESS', file: '_engineless_check.js', tier: 'core', wall: 90 },   // (the LS4: the sailplane - engines[0].none, no powerplant, no propeller, no tank)
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
   // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)

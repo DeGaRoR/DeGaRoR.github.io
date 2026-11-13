@@ -394,6 +394,9 @@ function cageJoinSpec(P, M, T) {
           ? (((LAY ? wingK(i) % 2 : i) === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
       });
       const wingK = i => LAY ? LAYM.slice(0, i).filter(m => m === 'wing').length : i;
+      // ENGINELESS (the LS4): the engine page's switch off (engOn 0) is a sailplane - one nose entry flagged `none`
+      // (60_gen_spec GEN_NO_POWERPLANT: no mass, no power, no propeller, no tank)
+      if (P.engOn != null && !+P.engOn) return [Object.assign(one(0, 'nose'), { none: true })];
       if (LAY) return LAYM.map((m, i) => one(i, m));
       return mk === 'wing' ? [one(0, mk), one(1, mk)] : [one(0, mk)];
     })(),
@@ -2121,7 +2124,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // The list is written WHOLE - garage.js's merge replaces an array - so a
     // removed tank stays removed.
     if (window.CAGE_ENERGY && window.CAGE_ENERGY.toSpec)
-      try { M.energy = window.CAGE_ENERGY.toSpec(); }
+      try { M.energy = window.CAGE_ENERGY.toSpec(); if (P.engOn != null && !+P.engOn) M.energy.vessels = []; }   // (ENGINELESS: no tank)
       catch (e) { ERRS.push('the tanks could not be written to the build: '
                             + e.message); }
     // ...AND THE FIT (the panel arc, session 2), through the same door: the
