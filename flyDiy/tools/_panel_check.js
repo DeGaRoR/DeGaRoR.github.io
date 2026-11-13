@@ -342,6 +342,49 @@ function run() {
         if (Math.hypot(p.cx - q.cx, p.cy - q.cy) < p.r + q.r - 1e-6) ov4 = p.k + '/' + q.k;
       }
       check(!ov4, 'short plate: nothing overlaps', ov4);
+      // GEAR-LEVER (13 Nov): THE GEAR SELECTOR (PANEL_GEN.placeGear). A fixed gear asks for none and its layout is the
+      // layout it was, byte for byte; a retracting gear's stands on the plate, clear of every dial, switch and
+      // keep-out, at each of the four places (throttle: beside A.thrX), its lamps a red + a green per leg (an
+      // amphibian's floats: four legs, and a blue per leg); a plate with no room names it, never draws it off
+      {
+        const oG = { items: ['asi', 'alt', 'tacho', 'oilP', 'oilT', 'compass', 'fuel'], side: 'pilot', pilotX: 0.20, radios: ['com'],
+          elec: { hasBus: true, altA: 60 }, extLights: ['taxi', 'land', 'nav'], intLights: ['instr'], flapSwitch: true };
+        const AG = Object.assign({}, A4, { halfW: 0.55, thrX: -0.05 });
+        const L0 = G.layout(AG, oG);
+        check(!('gear' in L0) && JSON.stringify(G.layout(AG, Object.assign({}, oG))) === JSON.stringify(L0), 'gear selector: a fixed gear has none (no key in the layout)');
+        const inside = (L, g) => {
+          const b = g.box, hits = [];
+          for (const d of L.dials) if (!d.coaming) { const nx = Math.max(b.x0, Math.min(d.cx, b.x1)), ny = Math.max(b.y0, Math.min(d.cy, b.y1)); if (Math.hypot(nx - d.cx, ny - d.cy) < d.r) hits.push(d.k); }
+          for (const s of L.switches) if (s.x > b.x0 - 0.010 && s.x < b.x1 + 0.010 && s.y > b.y0 - 0.014 && s.y < b.y1 + 0.014) hits.push('sw:' + s.k);
+          for (const k of AG.keepOut || []) if (b.x1 > k.x0 && b.x0 < k.x1 && b.y1 > k.y0 && b.y0 < k.y1) hits.push('keepOut');
+          if (b.x0 < -L.xLim - 0.005 || b.x1 > L.xLim + 0.005 || b.y0 < L.yBot - 0.005 || b.y1 > L.yTop + 0.005) hits.push('off the plate');
+          return hits;
+        };
+        const at = {};
+        for (const where of ['throttle', 'pilot', 'centre', 'copilot']) {
+          const L = G.layout(AG, Object.assign({}, oG, { gearLever: { at: where, n: 3, amph: false } }));
+          at[where] = L.gear;
+          check(!!L.gear && !(L.extraOverflow || []).includes('gear'), 'gear selector (' + where + '): placed', JSON.stringify(L.extraOverflow));
+          if (L.gear) check(!inside(L, L.gear).length, 'gear selector (' + where + '): on the plate, clear of every dial, switch and keep-out', inside(L, L.gear).join());
+          if (L.gear) check(JSON.stringify(L.dials) === JSON.stringify(L0.dials) && JSON.stringify(L.switches) === JSON.stringify(L0.switches),
+            'gear selector (' + where + '): the dials and switches stand where they stood');
+        }
+        // (each place is the nearest free one to ITS line: no other place's answer stands nearer to it)
+        const tgt = { throttle: AG.thrX, pilot: oG.pilotX, centre: 0, copilot: -oG.pilotX };
+        if (at.copilot && at.centre && at.pilot && at.throttle) {
+          const bad = Object.keys(tgt).filter(w => Object.keys(tgt).some(o => Math.abs(at[o].x - tgt[w]) < Math.abs(at[w].x - tgt[w]) - 0.006));
+          check(!bad.length && at.copilot.x < at.pilot.x - 0.05, 'gear selector: each place the nearest to its own line, the copilot\'s across from the pilot\'s',
+            Object.keys(at).map(w => w + ' ' + at[w].x.toFixed(3)).join(', ') + (bad.length ? ' - nearer elsewhere: ' + bad.join() : ''));
+        }
+        if (at.throttle) check(Math.abs(at.throttle.x - AG.thrX) < 0.12 && at.throttle.y < at.pilot.y + 0.03, 'gear selector (throttle): low, beside the throttle',
+          at.throttle.x.toFixed(3) + ' / ' + at.throttle.y.toFixed(3));
+        const l3 = G.gearLamps(3, false, -1), l4 = G.gearLamps(4, true, 1);
+        check(l3.filter(l => l.k === 'gearG').length === 3 && l3.filter(l => l.k === 'gearR').length === 1 && !l3.some(l => l.k === 'gearB'), 'gear lamps: a tricycle - three greens, one red, no blue');
+        check(l4.filter(l => l.k === 'gearG').length === 4 && l4.filter(l => l.k === 'gearB').length === 4 && l4.filter(l => l.k === 'gearR').length === 1, 'gear lamps: an amphibian\'s floats - four greens, four blues, one red');
+        const tight = G.layout(Object.assign({}, A4, { halfW: 0.20, thrX: 0 }), Object.assign({}, oG, { items: ['asi', 'alt', 'turn', 'dg', 'vsi', 'ai', 'tacho', 'oilP', 'oilT', 'fuel'], gearLever: { at: 'throttle', n: 3 } }));
+        check(tight.gear ? !inside(tight, tight.gear).length : (tight.extraOverflow || []).includes('gear'), 'gear selector: a full plate places it clear or names it (never off the plate)',
+          tight.gear ? inside(tight, tight.gear).join() : 'named');
+      }
       // G442.1: THE KEY IS ALWAYS THERE - no bus: the magneto key alone (no master, no alt); a pack: the power key
       const kNo = L4.switches.map(s => s.k);
       check(kNo[0] === 'key' && !kNo.includes('master') && !kNo.includes('alt'), 'no bus: the key row has the magneto key and no rockers', kNo.join());
@@ -772,6 +815,49 @@ function run() {
     // the cockpit view hides the pilot and gives it back
     CK.cockpitView(true, model); check(!body.visible, 'cockpit view: the pilot\'s body is hidden');
     CK.cockpitView(false, model); check(body.visible, 'cockpit view: ...and shown again outside it');
+    // GEAR-LEVER (13 Nov): THE SELECTOR AND ITS LAMPS IN FLIGHT. The lever follows the HANDLE (ctl.gear), drawn down
+    // (rest -k); a click throws it; the lamps read out.gear on the bus - green down and locked, red in transit or with
+    // the horn's law (30_solver gearWarnOf), an amphibian's blue up, dark with the master off; a fixed build has no gear
+    {
+      global.gearWarnOf = C.gearWarnOf;
+      const CKg = CKm.make(THREE);
+      const lev = mk('edGauge_gear', { law: 'gear', drive: 'gear', ax: [1, 0, 0], sgn: 1, k: 0.5, rest: -0.5, padR: 0.022 });
+      const lmat = () => new THREE.MeshStandardMaterial({ emissive: 0xffffff, emissiveIntensity: 0 });
+      const lampsG = ['gearG', 'gearR', 'gearB'].map(k => ({ mesh: new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), lmat()), key: k, kind: 'cup', k: 3 }));
+      const grpG = new THREE.Group(); grpG.add(lev.obj);
+      const mg = { grp: grpG, gauges: [lev], lamps: lampsG, mats: {}, meshes: {}, people: [], data: { lights: { on: true } } };
+      const simG = Object.assign({}, sim, { out: Object.assign({}, sim.out, { gear: 1, gearWow: 1, gearMov: 0 }), ctl: { gear: 1, thr: 0, flap: 0 } });
+      CKg.bind(mg, mg.data, simG, withSys({ fit: 'basic' }), { fieldElev: 0 });
+      check(lev.obj.children.some(c => c.userData.pickPad), 'gear lever: a pick pad on its knob');
+      const lit = () => lampsG.map(l => (l.mesh.material.emissiveIntensity > 0 ? 1 : 0)).join('');
+      const ang = () => 2 * Math.atan2(lev.obj.quaternion.x, lev.obj.quaternion.w);
+      CKg.frame(1 / 60, simG, null, {}); CKg.pose(mg);
+      check(near(ang(), 0, 1e-9) && lit() === '100', 'gear lever: drawn down and down - no turn; the greens alone', ang().toFixed(3) + ' ' + lit());
+      check(CKg.click(Object.assign({ pick: 'gear' }, lev), 0) && simG.ctl.gear === 0, 'gear lever: a click throws the selector UP (ctl.gear 0)');
+      CKg.frame(1 / 60, simG, null, {}); CKg.pose(mg);
+      check(near(ang(), 1.0, 1e-9), 'gear lever: up is +k from the drawn down (1 rad turn)', ang().toFixed(3));
+      check(lit() === '110', 'gear lamps: the selector up on the ground - the gear held down (squat), the red with the horn', lit());
+      Object.assign(simG.out, { gear: 0.5, gearWow: 0, gearMov: -1 }); simG.ctl.thr = 0.8; CKg.frame(1 / 60, simG, null, {});
+      check(lit() === '010', 'gear lamps: in transit the red alone', lit());
+      Object.assign(simG.out, { gear: 0, gearMov: 0 }); CKg.frame(1 / 60, simG, null, {});
+      check(lit() === '000', 'gear lamps: up and stowed at cruise power - all dark', lit());
+      simG.ctl.thr = 0.1; CKg.frame(1 / 60, simG, null, {});
+      check(lit() === '010', 'gear lamps: up with the throttle back - the red (the horn\'s law)', lit());
+      simG.out.gearAmph = 1; CKg.frame(1 / 60, simG, null, {});
+      check(lit() === '001', 'gear lamps: an amphibian up - the blue, no red (no horn: the advisory)', lit());
+      CKg.sw.sw_master = 0; CKg.frame(1 / 60, simG, null, {});
+      check(lit() === '000', 'gear lamps: the master off - dark', lit());
+      check(C.gearWarnOf({ V: 40 }, { thr: 0 }) === 0 && C.gearWarnOf({ gear: 1, gearWow: 1 }, { gear: 0 }) === 1 && C.gearWarnOf({ gear: 1, gearWow: 1, gearAmph: 1 }, { gear: 0 }) === 0,
+        'gear warning law: none on a fixed build, the selector up on the ground warns, an amphibian never');
+      const st = { said: false }, o = { gear: 0, gearAmph: 1, Veas: 60, vs: -2, gearWow: 0 };
+      const said = []; for (const V of [60, 40, 30, 25, 22, 30, 50, 25]) { o.Veas = V; said.push(C.gearAdvisoryOf(o, st, 20) || '-'); }
+      check(said.join(',') === '-,-,-,up,-,-,-,up', 'gear advisory: once an approach slowing through 1.3 Vs (UP for the water), re-armed over 1.55 Vs', said.join(','));
+      o.gear = 1; st.said = false; o.Veas = 50; C.gearAdvisoryOf(o, st, 20); o.Veas = 25;
+      check(C.gearAdvisoryOf(o, st, 20) === 'down' && C.gearAdvisoryOf({ gear: 1, Veas: 25, vs: -2 }, { said: false }, 20) === null, 'gear advisory: DOWN for the runway; never on a land retract (no gearAmph)');
+      const s2 = {}, run = [{ Veas: 5, hydroWet: 3 }, { Veas: 20, hydroWet: 1 }, { Veas: 25 }, { Veas: 28 }];
+      check(run.every(q => C.gearAdvisoryOf(Object.assign({ gear: 0, gearAmph: 1, vs: 0 }, q), s2, 20) === null), 'gear advisory: a take-off run (afloat, then just off) never speaks - armed only past 1.55 Vs in the air');
+      delete global.gearWarnOf;
+    }
     delete global.genSystemsResolve; delete global.makeBus; delete global.GEN_INSTR;
   }
   return fail.length === 0;

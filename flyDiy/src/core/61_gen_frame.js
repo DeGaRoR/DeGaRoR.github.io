@@ -2661,6 +2661,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // (HULL-B55: an AMPHIBIAN - a tricycle that carries the hull's lines (the join's, a retracting gear on a boat hull):
   // the wheels below AND the hull after them; its mains / nose refs stay the wheels', the water's record rides FLOATS)
   const AMPH = S.gear.type === 'tricycle' && !!(S.gear.hull && Array.isArray(S.gear.hull.sta)) && typeof HYDRO !== 'undefined';
+  // AMPH-FLOATS (GEAR-LEVER): floats with their amphibian wheels (gear.floats.amph, which clampSpec keeps only with the
+  // retraction) - the floats block hangs the wheels; the refs are the wheels'
+  const AMPH_FLOATS = S.gear.type === 'floats' && !!(S.gear.floats && S.gear.floats.amph && S.gear.retract) && typeof HYDRO !== 'undefined';
   const hullGear = (S.gear.type === 'hull' || AMPH) && S.gear.hull && Array.isArray(S.gear.hull.sta) && typeof HYDRO !== 'undefined';
   // G3800 (TAILWHEELS): THE SKID's shoe is a hand-sized contact where the wheel's tyre would touch (its contact point,
   // and so the three-point attitude, unchanged): a 3 cm radius at the tyre's bottom, half the wheel assembly's mass
@@ -3165,6 +3168,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // system weight, 0.40 a hull) and every family key; the family scaled to
     // its length supplies what an older record lacks
     const FM = S.gear.floats;
+    const AMPHF = FM && FM.amph && S.gear.retract ? FM.amph : null, AMPHW = [];   // AMPH-FLOATS (below)
     const FP = FM ? Object.assign(HYDRO.scaleParams(HYDRO.DEF, (FM.L || HYDRO.DEF.L) / HYDRO.DEF.L), FM,
                                   { mFloat: FM.mFloat != null ? FM.mFloat : HYDRO.DEF.mFloat * Math.pow(FM.L / HYDRO.DEF.L, 2),
                                     mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0], scale: FM.L / HYDRO.DEF.L })
@@ -3231,6 +3235,28 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         B(DL[i], DR[i + 1], 'gear', false, 'inner', undefined, NM); B(DR[i], DL[i + 1], 'gear', false, 'inner', undefined, NM);
       }
       for (let i = 0; i < NS; i++) { B(K[i], DL[i], 'gear', false, 'inner', undefined, NM); B(K[i], DR[i], 'gear', false, 'inner', undefined, NM); B(DL[i], DR[i], 'gear', false, 'inner', undefined, NM); }
+      // AMPH-FLOATS (GEAR-LEVER, 13 Nov; the backlog's AMPHIB-FLOATS): THE AMPHIBIAN'S WHEELS. A wheel node at each
+      // axle the float layer drew (gear.floats.amph, the float's frame, turned by the same rigging), its radius the
+      // tyre's, held to the float's nearest station by four members and IN the float's rigid body (a drag link and a
+      // spring leg on a float are stiff next to the tyre: the tyre's own spring is the contact's). The system's weight
+      // (Wipaire's, the pair over the seaplane's; a row with none: 0.5 of the hulls' [inferred off the published rows,
+      // 0.3-0.9]) on the axles - the mains 0.70 of a float's, the nose 0.30 [inferred]. The solver's contact plane rises
+      // with the retraction (params.retract.lift); its ROLL and the land / water split are the hull amphibian's
+      // (parts.amph): the wheels on land, the floats on the water
+      if (AMPHF) {
+        const at = (xy, nm, r) => { const [x, y] = rig(xy[0], xy[1]); return N(gx + x, yK + y, zc, nm, r); };
+        const near = x => { let b = 0; for (let i = 1; i < NS; i++) if (Math.abs(stas[i] - x) < Math.abs(stas[b] - x)) b = i; return b; };
+        const kgF = (AMPHF.kg != null ? AMPHF.kg : 0.5 * 2 * FP.mFloat) / 2;
+        const iM = at(AMPHF.main, sd < 0 ? 'AXLEL' : 'AXLER', AMPHF.rM), iN = at(AMPHF.nose, 'TW', AMPHF.rN);
+        pt(iM, 0.70 * kgF); pt(iN, 0.30 * kgF);
+        for (const [w, x] of [[iM, AMPHF.main[0]], [iN, AMPHF.nose[0]]]) {
+          const b = near(x), b2 = x > stas[b] ? Math.min(NS - 1, b + 1) : Math.max(0, b - 1);
+          B(w, K[b], 'gear', false, 'inner', undefined, NM); B(w, DL[b], 'gear', false, 'inner', undefined, NM);
+          B(w, DR[b], 'gear', false, 'inner', undefined, NM); B(w, K[b2], 'gear', false, 'inner', undefined, NM);
+        }
+        all.push(iM, iN);
+        AMPHW.push({ sd, main: iM, nose: iN });
+      }
       // G1840 (DMG-D3): a rigid float is BeamNG's 'prop' - its root is its attachment (the struts and the spreader
       // bars that end on it: the solver reads them off the members), its axis the keel, its lateral the deck's beam
       clusters.push({ cls: 'float', tag: 'FLT' + (sd < 0 ? 'L' : 'R'), nodes: all,
@@ -3271,6 +3297,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const [FL, FR] = FLOATS;
     for (const i of [1, 3]) { B(FL.DR[i], FR.DL[i], 'gear', true, undefined, undefined, { kMul: 8 }); B(FL.DR[i], FR.DL[i === 1 ? 3 : 1], 'gear', true, 'wire', undefined, { kMul: 8 }); }
     GAL = FL.K[2]; GAR = FR.K[2]; TW = -1; twX = gx; twY = yK;
+    // AMPH-FLOATS: an amphibian's refs are its WHEELS (the hull amphibian's rule, HULL-B55): the mains the two main
+    // axles, the nose the port bow's wheel and tw2 the starboard's (the second contact rolls the first's law)
+    if (AMPHF && AMPHW.length === 2) {
+      const [WL, WR] = AMPHW[0].sd < 0 ? AMPHW : [AMPHW[1], AMPHW[0]];
+      GAL = WL.main; GAR = WR.main; TW = WL.nose; TW2 = WR.nose;
+      twX = nodes[TW].p[0]; twY = nodes[TW].p[1];
+    }
   }
 
   // ---- 6. payload, fuel, systems --------------------------------------
@@ -3839,7 +3872,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
     floats: FLOATS,             // H1: the float records, or null
-    ...(AMPH ? { amph: true } : {}),   // HULL-B55: an amphibian - the wheels are its contacts on land, the hull on the water
+    ...(AMPH || AMPH_FLOATS ? { amph: true } : {}),   // HULL-B55: an amphibian - the wheels are its contacts on land, the hull on the water (AMPH-FLOATS: the floats on the water)
     // PERF STUDY chantier 1: what the pass measured for the gauge (pass 1)
     // and the gauge it was billed at (pass 2)
     gauged, gaugeRef, gauge: GG,

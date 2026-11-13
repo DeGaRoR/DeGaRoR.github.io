@@ -525,6 +525,8 @@ body.rollShot #flActs { display:none !important; }
   background:#2b3138; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12); }
 #ui .rd b .gl.g { background:#35c46a; box-shadow:0 0 6px rgba(53,196,106,0.7); }
 #ui .rd b .gl.r { background:#e04a33; box-shadow:0 0 6px rgba(224,74,51,0.7); }
+/* GEAR-LEVER: an amphibian's wheels up - blue (Wipline's advisory: water) */
+#ui .rd b .gl.b { background:#3a86ff; box-shadow:0 0 6px rgba(58,134,255,0.7); }
 
 #ui .rd[hidden] { display:none; }
 

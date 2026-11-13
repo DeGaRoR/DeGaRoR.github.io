@@ -3224,6 +3224,15 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     const dx2 = thr.twinDx || 0;                         // G446: the twin's second rod, inboard
     A.keepOut.push({ x0: Math.min(p.x, p.x + dx2) - m, x1: Math.max(p.x, p.x + dx2) + m, y0: p.y - m, y1: p.y + m + out * 0.5, what: 'throttle' });
   }
+  // GEAR-LEVER: WHERE THE THROTTLE IS, in the plate's x, for the gear selector's default place ("low, beside the
+  // throttle"): the push-pull's collar, the console's centre line, else the wall the lever stands on (off the plate:
+  // the layout takes the plate's nearest edge). Read only by _panel_gen placeGear, which only a retracting gear runs
+  {
+    const px = thr && thr.obj && thr.obj.parent && thr.obj.parent.position ? thr.obj.parent.position.x : null;
+    A.thrX = thrMode === 1 && px != null ? px + (thr.twinDx || 0) / 2
+           : thrMode === 2 ? (sbs ? 0 : pilot.x + (stickMode === 1 ? -0.28 : 0.28))
+           : (pilot.x >= 0 ? 1 : -1) * (A.halfW || 0.5);
+  }
   let pedals = st1.pedals;
   // G318: the flap lever, the brake, the fuel selector and the trim wheel —
   // the pilot's, drawn with the controls so the join carries them

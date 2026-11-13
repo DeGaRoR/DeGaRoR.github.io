@@ -154,9 +154,12 @@ function make(THREE) {
     if (!model || !model.gauges || !THREE.SphereGeometry) return;
     const padMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { transparent: true, opacity: 0, depthWrite: false, colorWrite: false });  // pre-ok: colorWrite false
     for (const g of model.gauges) {
-      if (!/^(switch|knob|key|flap|gpskey)$/.test(g.c.law) || !g.obj.add) continue;
+      if (!/^(switch|knob|key|flap|gpskey|gear)$/.test(g.c.law) || !g.obj.add) continue;
       const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.padR || (g.c.law === 'key' ? 0.022 : g.c.law === 'flap' ? 0.024 : 0.016), 8, 6), padMat);
       if (g.c.law === 'flap') pad.position.set(0, -0.012, -0.030);   // G335: on the knob, not the buried pivot
+      // GEAR-LEVER: on the wheel-shaped knob as drawn (the selector down: 70 mm out from a pivot 30 mm in the dash, turned
+      // 0.5 rad down); the pad rides the lever's group, so it follows the knob up and down
+      if (g.c.law === 'gear') pad.position.set(0, -0.034, -0.061);
       if (g.c.slide) pad.position.set(0, 0, g.c.padR ? -0.004 : -0.012);   // G371: a push-pull's knob (G2802: a breaker's button)
       pad.userData.pickPad = 1;
       // C4b (G875): answered, never drawn - three's Raycaster tests every layer-0 object, shown or not; drawn, the
@@ -426,9 +429,10 @@ function make(THREE) {
       // avionics master's cap is its own switch's too, lights fitted or not;
       // a lamp whose breaker is out is dark
       const fitted = CK.lightOn || l.key === 'master' || l.key === 'alt' || l.key === 'avionics';
-      const v = fitted && busOk && CK.pw(LS[i]) ? clamp(+CK.sw[LS[i]] || 0, 0, 1) : 0;
+      const gl = l.key === 'gearG' || l.key === 'gearR' || l.key === 'gearB';   // GEAR-LEVER: the gear's own law
+      const v = gl ? (busOk ? CK.gearLamp(l.key) : 0) : fitted && busOk && CK.pw(LS[i]) ? clamp(+CK.sw[LS[i]] || 0, 0, 1) : 0;
       const gain = l.key === 'beacon' ? beacon : 1;
-      const inside = l.key === 'flood' || l.key === 'pedal' || l.key === 'instr' || l.key === 'master' || l.key === 'alt';
+      const inside = l.key === 'flood' || l.key === 'pedal' || l.key === 'instr' || l.key === 'master' || l.key === 'alt' || gl;
       if (l.mesh.material && l.mesh.material.emissive)
         l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (l.k || 1) * (inside ? kIn : kOut);   // G468: the socket's third  pre-ok: kIn / kOut carry P
     }
@@ -490,6 +494,9 @@ function make(THREE) {
         // G335: the dash flap switch follows the flap COMMAND (the linkage's
         // own number on ctl — the AP's or the hand's)
         case 'flap': { const sm = CK.sim; a1 = (c.k || 0.75) * clamp(sm && sm.ctl ? +sm.ctl.flap || 0 : 0, 0, 1); break; }
+        // GEAR-LEVER: the gear selector follows the HANDLE (ctl.gear: 1 down, 0 up - the hand's, the key's or the AP's),
+        // not the gear: the lever is where the pilot put it, the lamps say where the gear is
+        case 'gear': { const sm = CK.sim, h = sm && sm.ctl && sm.ctl.gear === 0 ? 0 : 1; a1 = (c.k || 0.5) * (1 - 2 * h); break; }
         default: a1 = 0;
       }
       // A3: THE LAW IS ABSOLUTE, THE GEOMETRY IS NOT - the snapshot holds the
@@ -570,7 +577,7 @@ function make(THREE) {
       let a = h.part || h.object;
       while (a && a !== model.grp) {
         const g = model.gauges.find(q => q.obj === a);
-        if (g) return g.c.law === 'flap' ? Object.assign({ pick: 'flap' }, g) : g;   // G335: the dash switch is the lever's click
+        if (g) return g.c.law === 'flap' ? Object.assign({ pick: 'flap' }, g) : g.c.law === 'gear' ? Object.assign({ pick: 'gear' }, g) : g;   // G335: the dash switch is the lever's click
         // G318: the flap lever, the brake, the fuel selector, the trim wheel
         const pk = model.picks && model.picks.find(q => q.obj === a);
         if (pk) return { pick: pk.key, obj: pk.obj, c: { law: 'pick:' + pk.key, drive: pk.key } };
@@ -606,6 +613,7 @@ function make(THREE) {
       else if (g.pick === 'fuel') { const i = clamp(Math.round(+CK.sw.fuel || 0), 0, 3); CK.sw.fuel = (i + 1) % 4; did = true; }
       else if (g.pick === 'trim' && INP3 && INP3.setTrim) { INP3.setTrim((INP3.trim() || 0) + 0.05); did = true; }
       else if (g.pick === 'thr') did = true;               // G364: a click holds it; the drag moves it
+      else if (g.pick === 'gear') did = CK.gearSet(null);  // GEAR-LEVER: a click throws the selector to its other end
       else if (g.pick === 'gps') {                         // G2813: a tap on the GPS's glass (gps_face.js touch)
         const GP = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
         did = !!(GP && GP.touch && CK.gpsOn && GP.touch(g.u, g.v, g.unit || 0));
@@ -648,6 +656,7 @@ function make(THREE) {
     if (!g || !g.c) return false;
     // G318: the trim wheel, the fuel selector and the flap lever move under
     // the mouse too (the 4e idiom: up is clockwise / a notch up / lever up)
+    if (g.pick === 'gear') { CK.grab = { g, y0: y, v0: 0, moved: false }; return true; }   // GEAR-LEVER: up or down by the hand
     if (g.pick === 'trim' || g.pick === 'fuel' || g.pick === 'flap' || g.pick === 'thr') {
       const W4 = typeof window !== 'undefined' ? window : {};
       const INP4 = W4.FLYDIY_INPUT;
@@ -675,6 +684,9 @@ function make(THREE) {
     else if (G.g.pick === 'thr') {                      // G364: the lever follows the hand, 150 px the travel
       const W7 = typeof window !== 'undefined' ? window : {};
       if (W7.FLYDIY_INPUT && W7.FLYDIY_INPUT.setAxis) W7.FLYDIY_INPUT.setAxis('throttle', clamp(G.v0 + dy / 150, 0, 1));
+    }
+    else if (G.g.pick === 'gear') {                     // GEAR-LEVER: the lever moved up is gear UP, down is DOWN (20 px)
+      if (Math.abs(dy) > 20) CK.gearSet(dy > 0 ? 0 : 1);
     }
     else if (G.g.pick === 'flap') {                     // the lever pulled up is a notch of flap
       const W6 = typeof window !== 'undefined' ? window : {};
@@ -723,6 +735,30 @@ function make(THREE) {
     else if (id === 'fuelSel') { const i = clamp(Math.round(+CK.sw.fuel || 0), 0, 3); CK.sw.fuel = (i + 1) % 4; did = true; }
     if (did) CK.glow(0);
     return did;
+  };
+  // GEAR-LEVER: THE SELECTOR BY HAND - the same door the gear key (Digit9) uses: the input's handle (INP.fire('gear')
+  // toggles it; under the AP app.js gearKeyUnderAP turns the press into sim.ctl.gear). want: 0 up, 1 down, null the
+  // other end. Nothing on a fixed build (no ctl.gear). True when the hand moved it
+  CK.gearSet = want => {
+    const sm = CK.sim; if (!sm || !sm.ctl || !('gear' in sm.ctl)) return false;
+    const now = sm.ctl.gear === 0 ? 0 : 1, to = want == null ? 1 - now : want;
+    if (to === now) return false;
+    const W8 = typeof window !== 'undefined' ? window : {}, I8 = W8.FLYDIY_INPUT;
+    if (I8 && I8.fire) I8.fire('gear'); else sm.ctl.gear = to;
+    return true;
+  };
+  // GEAR-LEVER: THE GEAR'S LAMPS (the user's ruling: greens together, red with the horn, dark up; an amphibian's blue up),
+  // read off the solver's out.gear on the bus (the master on, the bus alive - a dead bus, dark lamps): GREEN down and
+  // locked, BLUE (an amphibian) up and stowed, RED in transit or with the warning (30_solver gearWarnOf: the horn's law)
+  CK.gearLamp = key => {
+    const sm = CK.sim, o = sm && sm.out;
+    if (!o || typeof o.gear !== 'number') return 0;
+    if (CK.bus && !(CK.busOk !== false && CK.pw('sw_' + key))) return 0;
+    const pos = o.gear;
+    if (key === 'gearG') return pos > 0.98 ? 1 : 0;
+    if (key === 'gearB') return o.gearAmph > 0 && pos < 0.02 ? 1 : 0;   // (an amphibian's only)
+    if (key === 'gearR') return (pos >= 0.02 && pos <= 0.98) || (typeof gearWarnOf === 'function' && gearWarnOf(o, sm.ctl)) ? 1 : 0;
+    return 0;
   };
   CK.setKey = pos => {
     const i = KEY_STEPS.indexOf(pos); if (i < 0) return;

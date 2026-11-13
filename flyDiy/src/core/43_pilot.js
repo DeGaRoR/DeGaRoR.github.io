@@ -866,6 +866,9 @@ function makePilot(sim, def, world, opts) {
   // water lane: surface 4 / water, stripAllows' own test); on the surface, the one under the aeroplane (the world's
   // water over its terrain). Every other build - a fixed gear, a land retract - is untouched (AMPHG false)
   const AMPHG = GEAR && !!(def.parts && def.parts.amph);
+  // GEAR-LEVER: an amphibian on FLOATS (the take-off from the water waits for the wheels up; the hull amphibian keeps its
+  // validated run)
+  const AMPHF_TO = AMPHG && !!(def.spec && def.spec.gear && def.spec.gear.type === 'floats');
   // (no destination - a glide with nowhere picked: null, and the surface under the aeroplane decides)
   const gearWetDest = () => { const to = ap.route && ap.route.to; return to ? !!(to.surface === 4 || to.water || to.kind === 'water') : null; };
   const gearWetUnder = (x, z) => { try { return typeof world.waterH === 'function' && typeof world.terrainH === 'function' && world.waterH(x, z) > world.terrainH(x, z) + 0.2; } catch (e) { return false; } };
@@ -3937,6 +3940,10 @@ function makePilot(sim, def, world, opts) {
           // 20.9 m/s), the Wipline C172 unchanged (27.7 m/s, 345 m). Back stick through the hump changed nothing
           // (G396.4 measured why it is neutral)
           if (sim.hydro) { if (rollS0 === null) thrRollW = 0; thrRollW = Math.min(capT, thrRollW + dt / (A.waterThrRampS ?? 4)); thrRoll = thrRollW; }
+          // GEAR-LEVER (AMPH-FLOATS): AN AMPHIBIAN'S FLOATS TAKE OFF FROM THE WATER WHEELS UP - the checklist's "gear UP for
+          // water" before the power (Wipline's advisory says it): the run waits at idle, its clock held, until the wheels
+          // are stowed (the gear block above has asked for them). Every other build: nothing here
+          if (AMPHF_TO && sim.hydro.floats.some(fx => fx.wet > 0.05) && !(sim.gear() && sim.gear().up)) { thrRoll = 0; thrRollW = 0; phaseT = 0; }
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {

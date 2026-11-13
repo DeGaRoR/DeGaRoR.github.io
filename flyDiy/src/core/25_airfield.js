@@ -1043,6 +1043,7 @@ function stripGear(x) {
   if (g) {
     const t = String(g.type || '');
     if (t === 'amphibian' || (g.floats && g.floats.amphibian === true)) return 'amphibian';
+    if (t === 'floats' && g.floats && g.floats.amph && typeof g.floats.amph === 'object' && g.retract) return 'amphibian';   // AMPH-FLOATS (GEAR-LEVER): floats with their wheels
     if (t === 'skis' || g.skis === true) return 'skis';
     if (t === 'floats') return 'floats';
     if (t === 'tricycle' && g.hull && Array.isArray(g.hull.sta)) return 'amphibian';   // HULL-B55: a boat hull on retracting wheels

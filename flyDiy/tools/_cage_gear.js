@@ -1445,6 +1445,7 @@ const RETRACT_LAB = () => {
   } catch (e) { return true; }
 };
 window.CAGE_RETRACT_LAB = RETRACT_LAB;
+window.CAGE_GEAR_RETRACTABLE = GEAR_RETRACTABLE;   // GEAR-LEVER: the dash asks it (the selector only on a gear that retracts)
 // SEA-OFF (SEAPLANES-LAND 8 Nov; the user: seaplanes + retract land on master SWITCHED OFF first, then a thorough
 // testing round): THE SAME SWITCH HIDES THE MERGE'S OTHER NEW ROWS from the player's garage - the boat hull (hullOn:
 // every hull row hangs off it), the pylon / fin / nacelle-over engine rows, the cabane's pylon and drawn rows, the tip's

@@ -86,6 +86,37 @@ function snapPut(t, s, seen) {
   for (const k of Object.keys(t)) if (!(k in s) && typeof t[k] !== 'function') delete t[k];
   for (const k of Object.keys(s)) put(t, k, s[k]);
 }
+// GEAR-LEVER (the user's ruling, 8 Nov: "red with horn"): THE GEAR WARNING, one law for the horn (audio_params gearWarn)
+// and the dash's red lamp (cockpit.js): a retractable gear (out.gear a number) NOT down and locked with the throttle
+// back or the flap past the approach, in the air; on the ground (the squat switch) the SELECTOR UP. An amphibian
+// (out.gearAmph) has no horn: its gear may rightly be up on the approach - it has the advisory (gearAdvisoryOf) instead.
+// 1 / 0; 0 on every fixed build (no out.gear)
+function gearWarnOf(o, ctl) {
+  const g = o ? o.gear : undefined;
+  if (typeof g !== 'number' || (o.gearAmph > 0)) return 0;
+  const c = ctl || {};
+  if (o.gearWow > 0) return c.gear === 0 ? 1 : 0;
+  const thr = +c.thr || 0, fl = +c.flap || 0;
+  return g <= 0.98 && (thr < 0.25 || fl > 0.35) ? 1 : 0;
+}
+// GEAR-LEVER (the user, 13 Nov: "the real amphibian advisory ... as Wipline's advisory does"): AN AMPHIBIAN'S GEAR
+// ADVISORY. Wipaire's announces the gear's state as the aeroplane slows for a landing - "gear is UP for water landing",
+// "gear is DOWN for runway landing" - whatever the surface: the pilot checks it against the one ahead. Here: armed
+// in the air under ARM m/s (equivalent) and descending, once per approach (re-armed over REARM m/s or on the surface);
+// returns 'up' / 'down' / 'transit' at the moment it speaks, else null. `st` is the caller's state ({ armed, said }).
+// No out.gearAmph: null always.
+const GEAR_ADV = { ARM: 1.30, REARM: 1.55 };      // x the build's Vs (out.vs1g / the caller's vs) [inferred: a pattern]
+// (armed only in the air past REARM x Vs - a take-off run, on the water or the runway, never speaks; the surface -
+// the squat switch, a wet hull - disarms it)
+function gearAdvisoryOf(o, st, vs) {
+  if (!o || !(o.gearAmph > 0) || typeof o.gear !== 'number' || !st) return null;
+  const V = o.Veas != null ? o.Veas : (o.V || 0), Vs = vs > 0 ? vs : 20;
+  if (o.gearWow > 0 || o.hydroWet > 0) { st.armed = false; st.said = false; return null; }
+  if (V > GEAR_ADV.REARM * Vs) { st.armed = true; st.said = false; return null; }
+  if (!st.armed || st.said || V > GEAR_ADV.ARM * Vs || !((o.vs || 0) < 0.3)) return null;
+  st.said = true;
+  return o.gear > 0.98 ? 'down' : o.gear < 0.02 ? 'up' : 'transit';
+}
 function makeSim(def, world) {
   const P_ = def.params;
   const PP = POWERPLANTS[P_.powerplant];
@@ -1574,9 +1605,11 @@ function makeSim(def, world) {
   // drawn fold's MEASURED rise of the wheel's lowest point (params.retract.lift, the join's) - else the frame's rule,
   // the lift to the highest of the wheel's members' anchors plus its radius, times the fraction
   const RFRAC = RET ? (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1) : 1, RSEMI = RFRAC < 1;
+  const GAMPH = !!(RET && def.parts && def.parts.amph);
   if (RET) {
     const isMainN = new Set(def.refs.mains || []);
-    for (const i of [...(def.refs.mains || []), def.refs.tw]) {
+    // (AMPH-FLOATS: a quadricycle's second nose wheel, refs.tw2, retracts with the first - no land retract has a tw2)
+    for (const i of [...(def.refs.mains || []), def.refs.tw].concat(def.refs.tw2 != null && def.refs.tw2 >= 0 ? [def.refs.tw2] : [])) {
       if (!(i >= 0 && i < n)) continue;
       GW[i] = 1;
       const meas = RET.lift ? (isMainN.has(i) ? RET.lift.mains : RET.lift.nose) : null;
@@ -1588,6 +1621,47 @@ function makeSim(def, world) {
   }
   // the effective contact radius: a wheel node's plane rises with the wheel (rC itself is the reset's, untouched)
   const rCe = i => (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]);
+  // GEAR-LEVER (the user, 13 Nov: "a wheels-down water landing is a real hazard in the physics (it noses over)"): AN
+  // AMPHIBIAN'S WHEELS IN THE WATER. Its hull (a boat's, the floats') is the water's (32_hydro hydroSolverPass); its
+  // wheels were not - a wheels-down alighting ran on the hull as if they were up. Each tyre under the surface is the
+  // wet body's bluff plate (32_hydro WB_*: Cd 1.0 on the immersed chord x half the radius across the flow in the wheel's
+  // plane, Cd 1.2 on the immersed disc across it, its displaced volume), at the contact plane the retraction leaves
+  // it (rCe: stowed it rides up into the hull). Low under the CG, its drag is the nose-over moment every gear-down
+  // amphibian landing shows. Explicit as the wet body's is: a node's force against its own velocity stops it at most
+  // over the step (the slamCap). Only an amphibian (parts.amph with a retraction and a hull or floats): every other
+  // build runs nothing here
+  // (only the tyre's EXPOSED part ploughs: the drop below its stowed place, GH x pos - stowed flush in the float, none;
+  // AMPH-FLOATS only for now: the hull amphibian's (the Super Petrel's, validated) water runs keep their numbers until
+  // its baselines are re-blessed with it)
+  const AW_CD = 1.0, AW_CDS = 1.2, AW_W = 0.5, AW_RHO = 1000;
+  const AW_ON = GAMPH && !!(def.spec && def.spec.gear && def.spec.gear.type === 'floats');
+  let AWI = null;
+  function amphWheelWater(dtS) {
+    if (AWI === null) { AWI = []; for (let i = 0; i < n; i++) if (GW[i] && def.nodes[i].r > 0) AWI.push(i); }
+    const Mn = def.refs.mains || [];
+    let ax = 0, ay = 0, az = 1;
+    if (Mn.length === 2) { const a = Mn[0] * 3, b = Mn[1] * 3; ax = p[b] - p[a]; ay = p[b+1] - p[a+1]; az = p[b+2] - p[a+2];
+      const L = Math.sqrt(ax * ax + ay * ay + az * az) || 1; ax /= L; ay /= L; az /= L; }
+    let drag = 0;
+    for (const i of AWI) {
+      const i3 = i * 3, R = def.nodes[i].r, wy = world.waterH(p[i3], p[i3+2], simT);
+      if (!(wy > -1e8)) continue;
+      const d = Math.min(2 * R, wy - (p[i3+1] - R) - (GR ? GR.lift * GH[i] : 0), GR ? GH[i] * GR.pos : 2 * R);
+      if (!(d > 0)) continue;
+      const wT = AW_W * R, th = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - d / R))), seg = 0.5 * R * R * (th - CORE_MATH.sin(th));
+      const vx = v[i3], vy = v[i3+1], vz = v[i3+2], va = vx * ax + vy * ay + vz * az;
+      const px = vx - va * ax, py = vy - va * ay, pz = vz - va * az, Vm = Math.sqrt(vx * vx + vy * vy + vz * vz);
+      const kP = 0.5 * AW_RHO * AW_CD * wT * d * Vm, kS = 0.5 * AW_RHO * AW_CDS * seg * Vm;
+      let Fx = -kP * px - kS * va * ax, Fy = -kP * py - kS * va * ay, Fz = -kP * pz - kS * va * az;
+      if (Vm > 1e-6) {
+        const fa = (Fx * vx + Fy * vy + Fz * vz) / Vm, cap = m[i] * Vm / dtS;
+        if (fa < -cap) { const k = (-fa - cap) / Vm; Fx += k * vx; Fy += k * vy; Fz += k * vz; }
+      }
+      f[i3] += Fx; f[i3+1] += Fy + AW_RHO * 9.81 * seg * wT; f[i3+2] += Fz;
+      drag += Math.hypot(Fx, Fz);
+    }
+    out.amphWheelDrag = drag;
+  }
   function gearStep(dtF) {
     // the squat switch: any wheel within 3 cm of its (effective) ground
     let wow = false;
@@ -1606,6 +1680,7 @@ function makeSim(def, world) {
     if (WB) WB.lift = GH.map((h, i) => GW[i] ? GR.lift * h : 0);
     // published on `out` (the physics worker's snapshot carries out whole: the page's lamps, horn and swing read these)
     out.gear = GR.pos; out.gearMov = GR.moving; out.gearWow = wow ? 1 : 0; out.gearEmerg = GR.emerg ? 1 : 0;
+    if (GAMPH) out.gearAmph = 1;   // GEAR-LEVER: an amphibian (the dash's blue lamps, the advisory; no horn) - the key only then
   }
   // THE CRASH (G1470): when a member other than the nose's BREAKS (noseB: the nose crushing round a trunk is a dent), when
   // the contacts' push passes CRASH_G (the impact's g above, over 50 ms; FAR 23.561's 9 g forward ultimate is what the
@@ -4041,6 +4116,7 @@ function makeSim(def, world) {
     // THE WATER (H1): every wet panel of every float, onto the frame
     const wIn = DMG_ON && (HY || wetOn()) ? waterSum0() : false;   // G1470: the water's push, for the impact's g
     if (HY && world) out.hydroWet = HYDRO.hydroSolverPass(HY, world, f, simT, dt, ctl);
+    if (HY && AW_ON && world && typeof world.waterH === 'function') amphWheelWater(dt);   // GEAR-LEVER: the amphibian's tyres
     else if (wetArm) { out.hydroWet = HYDRO.wetSolverPass(WB, world, f, simT, dt); out.wetDrag = WB.drag; out.wetBuoy = WB.buoy; out.wetFlood = WB.flood; }
     if (wIn) waterSum1(dt);
     // tree collisions: cheap cylinder push-out, only when low and near trees
@@ -4300,7 +4376,7 @@ function makeSim(def, world) {
     for (const i of [...def.refs.mains, def.refs.tw]) {
       if (!(i >= 0)) continue;   // REVIEW 2026-10-04: no third wheel (tw null) read p[NaN]
       if (i === def.refs.tw && t2 >= 0) { const gh2 = world ? world.terrainH(p[t2*3], p[t2*3+2]) : 0;
-        if (p[t2*3+1] - rC[t2] - gh2 < 0.03) { c++; continue; } }
+        if (p[t2*3+1] - rCe(t2) - gh2 < 0.03) { c++; continue; } }   // (GEAR-LEVER: rCe - a quadricycle's second nose; rC on every other)
       const gh = world ? world.terrainH(p[i*3], p[i*3+2]) : 0;
       if (p[i*3+1] - rCe(i) - gh < 0.03) c++;
     }

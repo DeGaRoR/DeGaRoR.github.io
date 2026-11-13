@@ -743,6 +743,14 @@ function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out) {
     if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8, side: THREE.DoubleSide })); wm.name = 'edFloatWell' + tag; ug.add(wm); }
   }
   rec.amph = rec.amph || { style: Math.round(+P.fltAmph) === 2 ? 'EDO (photographs)' : 'Wipline', model: A.name, est: A.est, main: A.main, mainN: A.mainN, nose: A.nose, dKg: A.dKg, assumed: ['stowFlush', 'trunnionH', 'noseTravel', 'noseRake'], measured: { keelClearance: +(ykS - yg).toFixed(3) }, fitWhy };
+  // AMPH-FLOATS (GEAR-LEVER 13 Nov): THE WHEELS FOR THE PHYSICS, in the float's own frame BEFORE the rigging's incidence
+  // (x aft of the step, y up from the step's keel - the frame's stations' frame; the frame turns them by the same
+  // incidence): the axles down and stowed, the tyres' radii and widths, the mains' count. The join writes them to
+  // gear.floats.amph; the frame hangs a wheel node on each float at each axle
+  rec.amph.local = rec.amph.local || { main: [+xm.toFixed(4), +(ax0[1] - ykS).toFixed(4)], mainUp: [+qUp[0].toFixed(4), +(qUp[1] - ykS).toFixed(4)],
+    nose: [+(edoNose || wipNose).noseAxle[0].toFixed(4), +((edoNose || wipNose).noseAxle[1] - ykS).toFixed(4)],
+    noseUp: [+(edoNose || wipNose).noseUp[0].toFixed(4), +((edoNose || wipNose).noseUp[1] - ykS).toFixed(4)],
+    rM: +Rm.toFixed(4), rN: +Rn.toFixed(4), wM: +Wm.toFixed(4), wN: +Wn.toFixed(4), mainN: A.mainN || 1, dKg: A.dKg != null ? +A.dKg.toFixed(1) : null, est: !!A.est };
   rec.amph[tag] = { edoPivot: edoNose ? C3(edoNose.pivot) : null, edoRake: edoNose ? edoNose.rake : null, capY: C3([0, yCap, 0])[1], mainAxle: C3(ax0), mainUp: C3(rot(ax0, T, thM)), trunnion: C3(T), noseAxle: C3((edoNose || wipNose).noseAxle), noseUp: C3((edoNose || wipNose).noseUp), thM: +(thM / D2R).toFixed(1) };
 }
 const prevPost = PAGE.post;

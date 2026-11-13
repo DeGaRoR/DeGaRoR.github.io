@@ -5725,6 +5725,15 @@ function clampSpec(spec) {
     f.inc = genClamp(f.inc == null ? 0 : f.inc, -5, 10);   // G396.3: the keel's incidence, deg, bow down positive (0: measured no unstick gain at 3 or 5 on the card, and the fixture's approach went around at 3 — a row, not a default)
     f.x = f.x == null ? null : genClamp(f.x, -3, big ? 12 : 6);
     f.y = f.y == null ? null : genClamp(f.y, big ? -4.5 : -2.5, 0.5);
+    // AMPH-FLOATS (GEAR-LEVER, 13 Nov): THE AMPHIBIAN'S WHEELS (the join's, as drawn: the float's own frame, x aft of
+    // the step, y up from its keel) - a nose wheel in each bow, the mains aft of each step; their tyres, the mains'
+    // count, the system's kg over the seaplane's (absent: the frame estimates it). The key only on an amphibian
+    if (f.amph && typeof f.amph === 'object' && Array.isArray(f.amph.main) && Array.isArray(f.amph.nose)) {
+      const a = f.amph, xy = v => [genClamp(+v[0] || 0, -0.8 * f.L, f.L), genClamp(+v[1] || 0, -1.5, 1.5)];
+      f.amph = { main: xy(a.main), nose: xy(a.nose), rM: genClamp(+a.rM || 0.18, 0.08, 0.6), rN: genClamp(+a.rN || 0.12, 0.05, 0.5),
+                 wM: genClamp(+a.wM || 0.13, 0.04, 0.4), wN: genClamp(+a.wN || 0.10, 0.03, 0.4), mainN: a.mainN === 2 ? 2 : 1,
+                 ...(a.kg != null && isFinite(+a.kg) ? { kg: genClamp(+a.kg, 5, 1500) } : {}), ...(a.est ? { est: 1 } : {}) };
+    } else delete f.amph;
   } else S.gear.floats = null;
   // HULL-B2: THE BOAT'S MEASURED LINES (the join's cageHullTable): rows { x, yk, b, yc, bd, yd } in the water's frame
   // (x aft of the step, y up from its keel, metres), plus the step keel's place (x aft of the firewall, y over the keel
@@ -5777,7 +5786,9 @@ function clampSpec(spec) {
   // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
   // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
   // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
-  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
+  // (AMPH-FLOATS: an amphibian's floats retract their wheels too - floats with gear.floats.amph; never plain floats)
+  const AMPH_FLOATS = S.gear.type === 'floats' && !!(S.gear.floats && S.gear.floats.amph);
+  if (S.gear.retract && typeof S.gear.retract === 'object' && (S.gear.type === 'tricycle' || AMPH_FLOATS)) {
     const r = S.gear.retract;
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';

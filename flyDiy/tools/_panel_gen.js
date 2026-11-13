@@ -347,12 +347,94 @@ function dialLayout(A, o) {
 // o.screens [{k, w, h, sw, sh, cradle}] (the GPS's GEN_AVIONICS face; cradle: a portable may stand on the
 // glareshield), o.breakers [keys] (genSystemsResolve's breakers).
 const CB_PITCH = 0.016, CB_PITCH_MIN = 0.013, CB_HALF = 0.009, CB_UP = 0.022;   // a 9 mm collar, its tape above it
+// GEAR-LEVER (the user's ruling of 8 Nov; GEAR-LEVER 13 Nov): THE LANDING GEAR SELECTOR, a Piper Arrow's (PA-28R): a
+// lever with a wheel-shaped knob in an UP / DOWN gate, and beside it the gear's lamps - one GREEN per leg (down and
+// locked, all together), a RED one over them (IN TRANSIT, and with the horn: the gear not down with the throttle back,
+// or the selector up on the ground), all dark with the gear up. An AMPHIBIAN (o.gearLever.amph) adds a BLUE per leg
+// under the greens (Wipline's advisory: blue = wheels UP for the water, green = DOWN for the runway). Only a build
+// whose gear retracts asks for it (o.gearLever); a fixed gear's layout is the layout it was, to the bit.
+// The unit in the plate's frame (cage metres, +x the pilot's left), about the gate's centre: the gate 24 x 66 mm, its
+// UP / DOWN tapes over and under it, the lamps' column GEAR_LAMP_DX to the side `s` (+1 port, -1 starboard).
+const GEAR_GATE = { w: 0.024, h: 0.066, slot: 0.044, tapeY: 0.041, tapeW: 0.022, tapeH: 0.0068, half: 0.047 };
+const GEAR_LAMP_DX = 0.030, GEAR_LAMP_R = 0.0034;
+// the lamps: k (the lamp's key: gearG green, gearB blue, gearR red), unit (N nose, L / R mains; a quadricycle's LN / RN
+// noses), x / y off the gate's centre on side s. n = the legs (3 a tricycle, 4 an amphibian's floats)
+function gearLamps(n, amph, s) {
+  const lx = (s || -1) * GEAR_LAMP_DX, out = [{ k: 'gearR', unit: 'T', x: lx, y: 0.026 }];
+  const row = (k, y0) => {
+    if (n === 4) for (const [u, dx, dy] of [['LN', 0.0055, 0], ['RN', -0.0055, 0], ['L', 0.0055, -0.014], ['R', -0.0055, -0.014]])
+      out.push({ k, unit: u, x: lx + dx, y: y0 + dy });
+    else for (const [u, dx, dy] of [['N', 0, 0], ['L', 0.009, -0.014], ['R', -0.009, -0.014]])
+      out.push({ k, unit: u, x: lx + dx, y: y0 + dy });
+  };
+  row('gearG', 0.010);
+  if (amph) row('gearB', -0.016);
+  return out;
+}
+// where the selector goes: `at` throttle (default: low, beside the throttle - the crew's A.thrX, the lever's or the
+// push-pull's station in the plate's x; the pilot's outboard edge when the throttle is on the wall), pilot, centre,
+// copilot. ON THE PLATE ALWAYS (the user: "never overflowing the panel"): inside the outline, inset, clear of every dial,
+// switch, screen and keep-out; the score its distance from the wanted x plus half its height over the plate's foot (a
+// gear lever lives low); nowhere -> `gear` in extraOverflow (named in the column, the key and the PFD lamps remain)
+function placeGear(A, o, L) {
+  const G = o && o.gearLever;
+  if (!G) return L;
+  const F = A && A.face ? A.face : null;
+  const KO = Array.isArray(A && A.keepOut) ? A.keepOut : [];
+  const yTop = L.yTop, yBot = L.yBot, xLim = L.xLim, pX = o.pilotX || 0;
+  const thrX = A && typeof A.thrX === 'number' && isFinite(A.thrX) ? A.thrX : null;
+  const at = ['throttle', 'pilot', 'centre', 'copilot'].includes(G.at) ? G.at : 'throttle';
+  const xT = at === 'centre' ? 0 : at === 'copilot' ? (Math.abs(pX) > 0.05 ? -pX : -0.20)
+           : at === 'pilot' ? pX : thrX != null ? thrX : pX;
+  const boxes = [];
+  for (const d of L.dials) if (!d.coaming) boxes.push({ circle: true, cx: d.cx, cy: d.cy, r: d.r + 0.006 });
+  for (const s of L.switches) {
+    const hw = s.kind === 'key' ? 0.022 : 0.013;
+    boxes.push({ x0: s.x - hw, x1: s.x + hw, y0: s.y - (s.kind === 'flap' ? 0.024 : 0.016), y1: s.y + (s.kind === 'flap' ? 0.046 : 0.032) });
+  }
+  for (const k of KO) boxes.push({ x0: k.x0 - 0.004, x1: k.x1 + 0.004, y0: k.y0 - 0.004, y1: k.y1 + 0.004 });
+  for (const q of (L.screens || [])) if (!q.coaming) boxes.push({ x0: q.cx - q.w / 2 - 0.006, x1: q.cx + q.w / 2 + 0.006, y0: q.cy - q.h / 2 - 0.006, y1: q.cy + q.h / 2 + 0.006 });
+  const hits = (x0, x1, y0, y1) => boxes.some(b => {
+    if (b.circle) { const nx = Math.max(x0, Math.min(b.cx, x1)), ny = Math.max(y0, Math.min(b.cy, y1)); return Math.hypot(nx - b.cx, ny - b.cy) < b.r; }
+    return x1 > b.x0 && x0 < b.x1 && y1 > b.y0 && y0 < b.y1;
+  });
+  const onPlate = (x0, x1, y0, y1) => {
+    if (x0 < -xLim - 1e-6 || x1 > xLim + 1e-6 || y1 > yTop + 1e-6 || y0 < yBot - 1e-6) return false;
+    if (!F) return true;
+    const ns = Math.max(1, Math.ceil((x1 - x0) / 0.01));
+    for (let i = 0; i <= ns; i++) {
+      const x = x0 + (x1 - x0) * i / ns, c = F.at(x);
+      if (!c || Math.abs(c.x - x) > 0.03) return false;
+      if (y1 > c.y1 - PAN_INSET + 1e-6 || y0 < c.y0 + PAN_INSET - 1e-6) return false;
+    }
+    return true;
+  };
+  const ext = s => ({ x0: Math.min(-GEAR_GATE.w / 2 - 0.001, s * GEAR_LAMP_DX - 0.014), x1: Math.max(GEAR_GATE.w / 2 + 0.001, s * GEAR_LAMP_DX + 0.014),
+                      y0: -GEAR_GATE.half, y1: GEAR_GATE.half });
+  let best = null;
+  for (let cx = -xLim; cx <= xLim + 1e-9; cx += 0.005)
+    for (let cy = yBot + GEAR_GATE.half; cy + GEAR_GATE.half <= yTop + 1e-9; cy += 0.005) {
+      // the lamps toward the panel's middle (and toward the throttle when it stands beside the plate's edge)
+      for (const s of cx > 1e-9 ? [-1, 1] : [1, -1]) {
+        const e = ext(s), x0 = cx + e.x0, x1 = cx + e.x1, y0 = cy + e.y0, y1 = cy + e.y1;
+        if (!onPlate(x0, x1, y0, y1) || hits(x0 - 0.004, x1 + 0.004, y0 - 0.004, y1 + 0.004)) continue;
+        const score = Math.abs(cx - xT) + 0.5 * (y0 - yBot) + (s === (cx > 1e-9 ? -1 : 1) ? 0 : 0.002);
+        if (!best || score < best.score - 1e-12) best = { cx, cy, s, score, x0, x1, y0, y1 };
+      }
+    }
+  if (!best) { L.extraOverflow.push('gear'); return L; }
+  const n = G.n === 4 ? 4 : 3, amph = !!G.amph;
+  L.gear = { x: best.cx, y: best.cy, s: best.s, at, n, amph, lamps: gearLamps(n, amph, best.s),
+             box: { x0: best.x0 - 0.004, x1: best.x1 + 0.004, y0: best.y0 - 0.004, y1: best.y1 + 0.004 } };
+  return L;
+}
 function placeExtras(A, o, L) {
   o = o || {};
   const screensWant = Array.isArray(o.screens) ? o.screens : [];
   const cbWant = Array.isArray(o.breakers) ? o.breakers : [];
   const placed = Array.isArray(L.screens) ? L.screens : [];        // the glass layout's own (G2808)
   L.screens = placed.slice(); L.breakers = { row: [], pitch: CB_PITCH }; L.extraOverflow = [];
+  placeGear(A, o, L);                                               // GEAR-LEVER: before the GPS and the breakers
   if (!screensWant.length && !cbWant.length) return L;
   const F = A && A.face ? A.face : null;
   const KO = Array.isArray(A && A.keepOut) ? A.keepOut : [];
@@ -366,6 +448,7 @@ function placeExtras(A, o, L) {
                  y1: s.y + (s.kind === 'flap' ? 0.046 : 0.032) });
   }
   for (const k of KO) boxes.push({ x0: k.x0 - 0.004, x1: k.x1 + 0.004, y0: k.y0 - 0.004, y1: k.y1 + 0.004 });
+  if (L.gear) boxes.push(L.gear.box);                               // GEAR-LEVER: the lever's unit, with its gap
   for (const q of placed) boxes.push({ x0: q.cx - q.w / 2 - 0.006, x1: q.cx + q.w / 2 + 0.006, y0: q.cy - q.h / 2 - 0.006, y1: q.cy + q.h / 2 + 0.006 });
   const hitsBox = (x0, x1, y0, y1) => boxes.some(b => {
     if (b.circle) {
@@ -1425,7 +1508,7 @@ function paintAtlas(g, faces, units, o) {
   }
 }
 
-const API = { UNITS, FACES, REST, scaleOf, angleOf, angleOfDisp, layout, placeExtras, ATLAS_W, ATLAS_H, SLOT, COLS, slotRect, faceUV,
+const API = { UNITS, FACES, REST, scaleOf, angleOf, angleOfDisp, layout, placeExtras, placeGear, gearLamps, GEAR_GATE, GEAR_LAMP_DX, GEAR_LAMP_R, ATLAS_W, ATLAS_H, SLOT, COLS, slotRect, faceUV,
               PAINT, paintAtlas, postIrrAt, D_BIG, D_SMALL, GAP, niceStep, dispToSI };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PANEL_GEN = API;

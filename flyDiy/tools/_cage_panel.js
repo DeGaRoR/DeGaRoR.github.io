@@ -45,6 +45,18 @@ const SY = { fit: 'basic', units: 'aviation', items: null,  // pre-ok: a fit nam
              look: { bezel: 'plastic', sw: 'toggle' } };   // G371: cosmetic, the panel's own (not the core's)
 const LOOK_BEZEL = [['plastic', 'new black plastic'], ['metal', 'old painted metal']];
 const LOOK_SW = [['toggle', 'metal toggles'], ['pushpull', 'push-pull buttons']];
+// GEAR-LEVER: where the landing gear selector stands (a retracting gear's only); 'throttle' the default, absent
+const LOOK_GEAR = [['throttle', 'low, beside the throttle'], ['pilot', "in front of the pilot"], ['centre', 'the panel\'s middle'], ['copilot', "the passenger's side"]];
+// the build's selector: a gear that retracts (the gear layer's own test, the join's) - a hull amphibian's tricycle,
+// three legs; amphibious floats (fltAmph), a quadricycle, four, and the amphibian's blue lamps
+function gearLeverOf(P) {
+  if (!P) return null;
+  const RT = window.CAGE_GEAR_RETRACTABLE;
+  const floatsAmph = +P.gearFloats > 0 && +P.fltAmph > 0;
+  const retr = floatsAmph || (RT ? !!RT(P) : !!(+P.gearRetract && !+P.gearFloats && +P.s2On));
+  if (!retr) return null;
+  return { at: (SY.look && SY.look.gear) || 'throttle', n: floatsAmph ? 4 : 3, amph: floatsAmph || !!(+P.hullOn) };
+}
 const lookBezel = () => (SY.look && SY.look.bezel === 'metal') ? 'bezelOld' : 'bezel';
 let seeded = false;
 
@@ -64,6 +76,8 @@ function fromSpec(sy) {
   if (s.avionics && s.avionics.elt === 'fitted') SY.avionics.elt = 'fitted'; else delete SY.avionics.elt;
   SY.look = { bezel: s.look && LOOK_BEZEL.some(q => q[0] === s.look.bezel) ? s.look.bezel : 'plastic',
               sw: s.look && LOOK_SW.some(q => q[0] === s.look.sw) ? s.look.sw : 'toggle' };   // G371
+  // GEAR-LEVER: the selector's place - in the spec only off its default ('throttle'), so every build keeps its bytes
+  if (s.look && LOOK_GEAR.some(q => q[0] === s.look.gear) && s.look.gear !== 'throttle') SY.look.gear = s.look.gear;
   seeded = true;
   if (panelBody) renderPanel();
 }
@@ -268,6 +282,11 @@ function renderPanel() {
   select(looks, 'light switches', 'the on/off switches of the light row: plated toggles, or knurled ' +
     'push-pull knobs that stand out when on',
     LOOK_SW, SY.look.sw, v => { SY.look.sw = v; renderPanel(); commit(); });
+  // GEAR-LEVER: the selector's place, shown on a build whose gear retracts
+  if (gearLeverOf((window.CAGE_UI && window.CAGE_UI.P) || null))
+    select(looks, 'gear selector', 'where the landing gear lever and its lamps stand: low beside the throttle (an ' +
+      'Arrow\'s), in front of the pilot, in the middle, or on the passenger\'s side - always on the panel',
+      LOOK_GEAR, SY.look.gear || 'throttle', v => { if (v === 'throttle') delete SY.look.gear; else SY.look.gear = v; renderPanel(); commit(); });
 
   // ---- the dials -----------------------------------------------------------
   const dials = fold(B, 'dials · ' + RB.items.length + ' fitted', true);
@@ -1350,6 +1369,92 @@ function flapAt(parent, x, y, z) {
   arm.mesh(g, matFor('lever')); knob.mesh(g, matFor('needle'));
   return g;
 }
+// GEAR-LEVER (the user's ruling, 8 Nov: "Arrow/RG style; red with horn; greens together; no press-to-test in v1; the
+// lever only on retract builds"): THE LANDING GEAR SELECTOR, a Piper Arrow's. A black escutcheon 24 x 66 on the plate
+// with a 7 x 44 slot, UP over it and DOWN under it on tapes; the lever pivots 30 mm INSIDE the dash on a lateral axis
+// and comes out through the slot to a knob shaped as a little WHEEL (a black tyre on a white hub, its axle across the
+// cockpit) - up in the gate is gear up, down is gear down (law 'gear': the handle ctl.gear, +-0.5 rad, the editor's
+// pose down). Beside it the lamps (PANEL_GEN.gearLamps): a bezel and a lens per lamp, the lens a lamp CUP keyed
+// gearG / gearR / gearB (the join buckets each key with its colour; the cockpit lights them off out.gear on the bus)
+const GEAR_K = 0.50;
+const GEAR_LAMP_COL = { gearG: 0x38ff5c, gearR: 0xff2a18, gearB: 0x3a86ff };
+const gearLampMats = {};
+function gearLampMat(key) {
+  if (gearLampMats[key]) return gearLampMats[key];
+  const Lg = window.CAGE_LIGHT;
+  const m = Lg && Lg.cupMat ? Lg.cupMat(0, GEAR_LAMP_COL[key], true, key, 3) : matFor('amber');
+  return (gearLampMats[key] = m);
+}
+const GEAR_TAPE = ['UP', 'DOWN'];
+let gearTapeMat = null;
+function gearTapeMaterial() {
+  if (gearTapeMat) return gearTapeMat;
+  const n = GEAR_TAPE.length;
+  const cv = HAS_DOM ? document.createElement('canvas') : null;
+  if (cv) { cv.width = 512; cv.height = 160 * n; }
+  const tex = cv ? new THREE.CanvasTexture(cv) : null;
+  if (tex) { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }
+  gearTapeMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
+    transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
+  gearTapeMat.userData.aeroskin = 1;
+  gearTapeMat.userData.panelSet = 'geartape';        // the join buckets it, the flight rebuilds it (material('geartape'))
+  gearTapeMat.userData.inside = 1;
+  const paint = () => {
+    if (!cv) return;
+    const g = cv.getContext('2d'), sh = labelSheet();
+    if (!g || !g.clearRect) return;
+    g.clearRect(0, 0, 512, 160 * n);
+    const bi = sh ? sh.names.indexOf('blank') : -1;
+    GEAR_TAPE.forEach((word, i) => {
+      if (sh && sh.img && sh.img.complete && sh.img.naturalWidth && bi >= 0)
+        g.drawImage(sh.img, 0, bi * sh.h, sh.w, sh.h, 0, i * 160, 512, 160);
+      else { g.fillStyle = '#e6e1d5'; g.fillRect(24, i * 160 + 30, 464, 100); }
+      g.fillStyle = '#1b1b1d'; g.font = `700 84px ${FONT_REG}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(word, 256, i * 160 + 84);
+    });
+    if (tex) tex.needsUpdate = true;
+  };
+  paint();
+  const sh = labelSheet();
+  if (sh && sh.img && !(sh.img.complete && sh.img.naturalWidth)) sh.img.addEventListener('load', paint);
+  return gearTapeMat;
+}
+// the unit at the stand group's origin (the gate's centre); Lg = the layout's record (lamps, side), down = the pose
+function gearLeverAt(parent, Lg, down) {
+  const K = KIT(), PGn = PG();
+  const GG = (PGn && PGn.GEAR_GATE) || { w: 0.024, h: 0.066, slot: 0.044, tapeY: 0.041, tapeW: 0.022, tapeH: 0.0068 };
+  const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
+  // the escutcheon: four bars round the slot, 1.5 mm proud, a dark well behind the slot
+  const esc = K.Bag(), well = K.Bag();
+  const hw = GG.w / 2, hh = GG.h / 2, sw = 0.0035, sh = GG.slot / 2;
+  K.boxIn(esc, [hw - (hw - sw) / 2, 0, -0.00075], [(hw - sw) / 2, hh, 0.00075], X, Y, Z);
+  K.boxIn(esc, [-hw + (hw - sw) / 2, 0, -0.00075], [(hw - sw) / 2, hh, 0.00075], X, Y, Z);
+  K.boxIn(esc, [0, sh + (hh - sh) / 2, -0.00075], [sw, (hh - sh) / 2, 0.00075], X, Y, Z);
+  K.boxIn(esc, [0, -sh - (hh - sh) / 2, -0.00075], [sw, (hh - sh) / 2, 0.00075], X, Y, Z);
+  K.boxIn(well, [0, 0, 0.010], [sw, sh, 0.010], X, Y, Z);
+  esc.mesh(parent, matFor('plate')); well.mesh(parent, matFor('hub'));
+  // the lever: the arm from the pivot through the slot, the wheel on its end
+  const g = gaugeAt(parent, 'edGauge_gear', [0, 0, 0.030], [1, 0, 0], 'gear', 'gear', { k: GEAR_K, sgn: 1, padR: 0.022 });
+  const arm = K.Bag(), tyre = K.Bag(), hub = K.Bag();
+  K.revolve(arm, [0, 0, 0.004], [0, 0, -1], [[0.0024, 0], [0.0024, 0.074]], 14, true);
+  const kc = [0, 0, -0.070];
+  K.revolve(tyre, kc, [1, 0, 0], [[0.0062, -0.0058], [0.0098, -0.0060], [0.0119, -0.0045], [0.0127, 0], [0.0119, 0.0045],
+                                   [0.0098, 0.0060], [0.0062, 0.0058], [0.0062, -0.0058]], 32, false);
+  K.revolve(hub, kc, [1, 0, 0], [[0, -0.0050], [0.0064, -0.0050], [0.0064, 0.0050], [0, 0.0050]], 24, true);
+  arm.mesh(g, matFor('lever')); tyre.mesh(g, matFor('knob')); hub.mesh(g, matFor('needle'));
+  g.rotation.x = (down ? -1 : 1) * GEAR_K;
+  // the lamps: a bezel ring and a domed lens, each lens its key's lamp cup
+  const bez = K.Bag(), R0 = (PGn && PGn.GEAR_LAMP_R) || 0.0034;
+  const lens = {};
+  for (const l of Lg.lamps || []) {
+    K.revolve(bez, [l.x, l.y, 0], [0, 0, -1], [[R0, 0.0002], [R0 + 0.0013, 0.0004], [R0 + 0.0011, 0.0024], [R0, 0.0026]], 20, false);
+    const b = lens[l.k] || (lens[l.k] = K.Bag());
+    K.revolve(b, [l.x, l.y, 0], [0, 0, -1], [[R0, 0.0010], [R0 * 0.8, 0.0028], [R0 * 0.45, 0.0036], [0, 0.0038]], 20, false);
+  }
+  bez.mesh(parent, matFor('bezel'));
+  for (const k of Object.keys(lens)) lens[k].mesh(parent, gearLampMat(k));
+  return g;
+}
 function keyAt(parent, x, y, z, pos) {
   const K = KIT();
   // THE KIT'S KEY when it is in, in the lock the user described: "a simple
@@ -1758,6 +1863,8 @@ function build(parent, A, P, pilotX) {
     // G2802 / G2803: the breaker row and the GPS unit, placed in what the dials and switches left free
     breakers: (R.breakers || []).map(b => b.key),
     screens: gpsScreens(R),
+    // GEAR-LEVER: the selector and its lamps, a retracting gear's only (the key absent on every other build)
+    ...(gearLeverOf(P) ? { gearLever: gearLeverOf(P) } : {}),
   });
   const grp = new THREE.Group();
   grp.name = 'edPanel';
@@ -2117,6 +2224,28 @@ function build(parent, A, P, pilotX) {
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     }
   }
+  // ---- GEAR-LEVER: the gear selector and its lamps (L.gear: placed by PANEL_GEN.placeGear, on the plate always)
+  if (L.gear) {
+    const gg = standOn(L.gear.x, L.gear.y, 0.03);
+    gg.name = 'edSwitch_gear';                         // the shed's click finds it (G305)
+    {
+      const sb = UVBag(aoMaterial());
+      aoDiscInto(sb, 0, 0, 0, 0.024);
+      const m = sb.mesh(gg, 'edGauge_ao'); if (m) m.renderOrder = 2;
+    }
+    gearLeverAt(gg, L.gear, !(P && P.gearPos != null && +P.gearPos < 0.5));
+    if (HAS_DOM && labelSheet()) {
+      const GGt = G.GEAR_GATE;
+      for (let i = 0; i < GEAR_TAPE.length; i++) {
+        const lg = new THREE.Group();
+        lg.position.set(0, (i ? -1 : 1) * GGt.tapeY, -0.0006);
+        gg.add(lg);
+        const lb = UVBag(gearTapeMaterial());
+        labelInto(lb, i, GEAR_TAPE.length, 0, 0, 0, GGt.tapeW, GGt.tapeH);
+        const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
+      }
+    }
+  }
   // ---- G2802: THE BREAKERS - a push-to-reset button per circuit on the plate, pulled (or tripped) out 4 mm, law
   // 'switch' with no turn and a slide on `cb_<key>` (the push-pull's contract): the flight's click pulls and
   // pushes it, the bus opens its loads (31_elec.js). One tape over the row names each and its rating.
@@ -2222,7 +2351,8 @@ window.CAGE_PANEL = {
                   : k === 'label' ? labelMaterial() : k === 'needle' ? needleMaterial()
                   : k === 'reg' ? regMaterial() : k === 'keytape' ? keyTapeMaterial()
                   : k === 'cbtape' ? cbTapeMaterial() : k === 'gps' ? gpsMaterial()            // G2802 / G2803
-                  : k === 'wordtape' ? wordTapeMaterial() : matFor(k)),                          // G2808
+                  : k === 'wordtape' ? wordTapeMaterial()                                         // G2808
+                  : k === 'geartape' ? gearTapeMaterial() : matFor(k)),                          // GEAR-LEVER
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   tape, setReg,                                // G318: a tape for any surface; the registration
   atlas: () => atlasCv, last: () => LAST, faceDim,

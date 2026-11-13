@@ -69,6 +69,30 @@ console.log('1 THE SPEC');
   check(!('retract' in cl(td).gear), 'a taildragger drops it');
   const fl = specOf({ time: 6 }); fl.gear.type = 'floats';
   check(!('retract' in cl(fl).gear), 'floats drop it');
+  // GEAR-LEVER / AMPH-FLOATS (13 Nov): AN AMPHIBIAN'S FLOATS keep it - floats with their wheels (gear.floats.amph, the
+  // join's: the float's frame, the tyres, the system's kg) - and fly a quadricycle: the mains on the float's step, a
+  // nose in each bow (tw, tw2), the system's weight on the axles, the retraction's lift and the wheels' own drag; a
+  // float build without the record is the float build it was (no amph, no retract, no wheels)
+  const AMPH = { main: [0.26, 0.04], nose: [-4.28, 0.01], rM: 0.21, rN: 0.18, wM: 0.15, wN: 0.13, mainN: 2, kg: 189.6 };
+  const fa = specOf({ time: 12, act: 'hydraulic', emerg: 'pump', lift: { mains: 0.34, nose: 0.75 } }); fa.gear.type = 'floats';
+  fa.gear.floats = { L: 7.49, preset: 'Wipline 6100', track: 1.4, amph: JSON.parse(JSON.stringify(AMPH)) };
+  const ca = cl(JSON.parse(JSON.stringify(fa)));
+  check(!!ca.gear.retract && ca.gear.retract.emerg === 'pump' && !!ca.gear.floats.amph && ca.gear.floats.amph.kg === 189.6 && ca.gear.floats.amph.mainN === 2,
+    'amphibious floats keep the retract and their wheels\' record', JSON.stringify(ca.gear.retract));
+  const fp = JSON.parse(JSON.stringify(fa)); delete fp.gear.floats.amph;
+  check(!('retract' in cl(fp).gear) && !('amph' in cl(fp).gear.floats), 'floats without the wheels\' record drop the retract');
+  const dA = C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(fa)))), dP = C.buildGen(C.genMigrateSpec(fp));
+  const mOf = d => d.nodes.reduce((a, q) => a + q.m, 0), axl = dA.refs.mains.map(i => dA.nodes[i]);
+  check(dA.parts.amph === true && !dP.parts.amph && axl.every(q => /^AXLE/.test(q.tag) && Math.abs(q.r - 0.21) < 1e-9) && dA.refs.tw >= 0 && dA.refs.tw2 >= 0 && dA.refs.tw2 !== dA.refs.tw,
+    'the amphibian\'s refs are its four wheels (mains on the steps, tw / tw2 the bows)', axl.map(q => q.tag).join());
+  check(dP.refs.tw === -1 && dP.refs.tw2 === undefined, 'a float build keeps its step keels and no third wheel');
+  // (the airframe sizes to the heavier gross: the difference is the system's kg plus that growth, never less)
+  const dm = mOf(dA) - mOf(dP), wk = [...dA.refs.mains, dA.refs.tw, dA.refs.tw2].reduce((a, i) => a + dA.nodes[i].m, 0);
+  check(dm >= 189.6 - 0.5 && Math.abs(wk - 189.6) < 0.5, 'the amphibian system\'s weight is read - on the four axles', dm.toFixed(1) + ' kg heavier, ' + wk.toFixed(1) + ' on the axles');
+  check(!!dA.params.retract && dA.params.retract.lift.nose === 0.75 && dA.params.retract.cdA > 0.1 && dA.params.twSteer < 0 && dP.params.retract === undefined,
+    'the retraction flies the drawn lift and the wheels\' own drag; the bows steer as a nose wheel', JSON.stringify(dA.params.retract));
+  { const W = C.makeWorld(), sA = C.makeSim(dA, W); sA.reset(0);
+    check('gear' in sA.ctl && sA.gear() !== null, 'the amphibian has a gear handle (the dash lever, the key)'); }
 }
 // (dB: the same aeroplane fixed and BARE - a retracting gear wears no fairings, so the bill compares like with like)
 const dF = defOf(null), dB = defOf(null, true), dR = defOf({ time: 6, act: 'hydraulic' });
@@ -218,6 +242,20 @@ console.log('9 THE HORN');
   check(warnOf({ gear: 1, gearWow: 0, V: 40 }, { thr: 0.1, flap: 0.5 }) === 0, 'gear down: none');
   check(warnOf({ gear: 0.5, gearWow: 1, V: 0 }, { thr: 0, flap: 0 }) === 0, 'on the ground: none');
   check(warnOf({ V: 40 }, { thr: 0, flap: 1 }) === 0, 'a fixed build: none');
+  // GEAR-LEVER (13 Nov, the user's "red with horn"): the selector UP on the ground (the squat switch holding the gear
+  // down) warns; an amphibian never sounds it (its advisory speaks instead); the horn's law and the dash's red lamp are
+  // ONE law - 30_solver gearWarnOf, which audio_params calls (its inline line, for a rig without the core, the same)
+  check(warnOf({ gear: 1, gearWow: 1, V: 0 }, { thr: 0, flap: 0, gear: 0 }) === 1, 'the selector up on the ground: the warning');
+  check(warnOf({ gear: 1, gearWow: 1, V: 0 }, { thr: 0, flap: 0, gear: 1 }) === 0, 'the selector down on the ground: none');
+  check(warnOf({ gear: 0, gearWow: 0, V: 40, gearAmph: 1 }, { thr: 0.1, flap: 0.5 }) === 0, 'an amphibian, gear up on the approach: no horn (the advisory)');
+  { let n = 0, bad = [];
+    for (const g of [undefined, 0, 0.5, 0.99, 1]) for (const w of [0, 1]) for (const am of [0, 1]) for (const h of [undefined, 0, 1]) for (const thr of [0.1, 0.8]) for (const fl of [0, 0.5]) {
+      const o = { V: 40 }; if (g !== undefined) o.gear = g; o.gearWow = w; if (am) o.gearAmph = 1;
+      const c = { thr, flap: fl }; if (h !== undefined) c.gear = h;
+      n++; if (warnOf(o, c) !== C.gearWarnOf(o, c)) bad.push(JSON.stringify([o, c]));
+    }
+    check(!bad.length, 'the horn\'s law is the core\'s gearWarnOf (the dash\'s red lamp) over ' + n + ' states', bad.slice(0, 2).join(' '));
+  }
   // the stall voice sounds it: on, off, on (0.3 s on, 0.2 s off)
   const blk = AP.audioParamsBlock(), st = AM.airframeState(), seen = new Set();
   const sim = { out: { gear: 0, gearWow: 0, V: 40, alpha: 0 }, ctl: { thr: 0.1, flap: 0 }, eng: [] };

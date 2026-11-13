@@ -8318,6 +8318,14 @@
   // shed (no bus, no engine) and stay parts.
   const edSwitchClick = hit => {
     if (!edEye || !hit || !hit.name || !window.CAGE_UI || !window.CAGE_UI.P) return false;
+    // GEAR-LEVER: the gear selector in the shed throws the gear's preview (the retraction's `gearPos` row: the units, the
+    // doors and the lever all follow it, as the flight's handle does)
+    if ((hit.name === 'edGauge_gear' || hit.name === 'edSwitch_gear') && 'gearPos' in window.CAGE_UI.P) {
+      const PG2 = window.CAGE_UI.P; PG2.gearPos = +PG2.gearPos > 0.5 ? 0 : 1;
+      if (typeof window.CAGE_UI.syncSliders === 'function') try { window.CAGE_UI.syncSliders(); } catch (e2) {}
+      window.CAGE_UI.build();
+      return true;
+    }
     const m = /^(?:edGauge_sw_|edSwitch_)([A-Za-z0-9]+)$/.exec(hit.name);
     if (!m) return false;
     const k = m[1], P = window.CAGE_UI.P;
@@ -16575,19 +16583,30 @@
   // and the gear is not yet), EMERG once the emergency extension was pulled. The cell exists only on such a build
   // (hudGearOn: flInstApply reads it); written only when it changes
   let hudGearOn = false, hudGearK = '';
+  const hudGearAdv = { said: false, text: '', t0: 0 };   // GEAR-LEVER: the amphibian's advisory state
   function hudGear() {
     const o = sim && sim.out, on = !!(o && typeof o.gear === 'number');
-    if (on !== hudGearOn) { hudGearOn = on; hudGearK = ''; flInstApply(); }
+    if (on !== hudGearOn) { hudGearOn = on; hudGearK = ''; flInstApply(); window.FLYDIY_GEAR_RETRACTS = on; }   // GEAR-LEVER: the controls panel lists the handle
     if (!on || !R.gear) return;
     const pos = o.gear, locked = pos > 0.98, up = pos < 0.02, hd = sim.ctl && sim.ctl.gear === 0 ? 0 : 1;
-    const lamp = locked ? 'g' : up ? '' : 'r';
-    const lab = (o.gearEmerg ? 'EMERG · ' : '') + (locked ? 'gear down' : up ? (hd ? 'gear DOWN?' : 'gear up') : (o.gearMov > 0 ? 'gear coming down' : o.gearMov < 0 ? 'gear going up' : 'gear UNSAFE'));
+    // GEAR-LEVER: an amphibian's wheels UP are BLUE (the water), DOWN green (the runway) - Wipline's advisory lamps
+    const amph = o.gearAmph > 0;
+    const lamp = locked ? 'g' : up ? (amph ? 'b' : '') : 'r';
+    let lab = (o.gearEmerg ? 'EMERG · ' : '') + (locked ? 'gear down' : up ? (hd && !amph ? 'gear DOWN?' : 'gear up') : (o.gearMov > 0 ? 'gear coming down' : o.gearMov < 0 ? 'gear going up' : 'gear UNSAFE'));
+    // GEAR-LEVER: THE AMPHIBIAN'S ADVISORY (30_solver gearAdvisoryOf: once an approach, slowing through 1.3 Vs) -
+    // "gear is UP for water landing" / "gear is DOWN for runway landing" on the gear line for 6 s
+    if (amph && typeof gearAdvisoryOf === 'function') {
+      let vs = 0; try { const sh = ap && ap.sheet; vs = (sh && (sh.Vs || sh.Vs1 || sh.Vs0)) || 0; } catch (e) {}
+      const said = gearAdvisoryOf(o, hudGearAdv, vs);
+      if (said) { hudGearAdv.text = said === 'up' ? 'gear is UP for water landing' : said === 'down' ? 'gear is DOWN for runway landing' : 'gear is in TRANSIT'; hudGearAdv.t0 = performance.now(); window.FLYDIY_GEAR_ADVISORY = { said, text: hudGearAdv.text }; }
+      if (hudGearAdv.text && performance.now() - (hudGearAdv.t0 || 0) < 6000) lab = hudGearAdv.text;
+    }
     const k = lamp + '|' + lab;
     if (k === hudGearK) return;
     hudGearK = k;
     for (const s of R.gear.children || []) s.className = 'gl' + (lamp ? ' ' + lamp : '');
     if (R.gearU) R.gearU.textContent = lab;
-    if (RD.gear) RD.gear.classList.toggle('warn', !locked && !up);
+    if (RD.gear) RD.gear.classList.toggle('warn', (!locked && !up) || /landing$/.test(lab));
   }
   // the netto's state: a 3 s needle and a 20 s ring, as a vario has
   let nettoF = 0, nettoI = 0;
