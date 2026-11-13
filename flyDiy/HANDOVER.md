@@ -315444,3 +315444,4 @@ UISMOKE, SAVE, BUILD, MEDIA, ASSETS, ASSETBUDGET, EDBUGS, DESIGN, FLOWNBAKE PASS
 lines - builds/cub_2026-09-20.json's strut pin ("resolves to its painted pin trim - got castAlu", "its material is that
 paint"), the same 2 of 328 on a clean master 23ce68c1f worktree: master's.
 GATE LIVERYSTICKERS: 153 checks (+1: the worst case with six text pieces on), --selftest 15 probes all red.
+
