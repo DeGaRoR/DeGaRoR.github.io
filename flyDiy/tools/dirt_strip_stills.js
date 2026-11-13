@@ -127,8 +127,13 @@ async function runPage(page) {
     //  clicked under it never reaches a flight) - wait for the cover to be gone first, and stop if the flight never comes
     for (let i = 0; i < 150; i++) { const bs = await ev("(()=>{const c=document.getElementById('boot');return (window.BOOT&&BOOT.state==='gone')||!c||c.classList.contains('gone')||c.offsetParent===null;})()"); if (bs) break; await sleep(1000); }
     let flying = false;
-    for (let a = 0; a < 8 && !flying; a++) { await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); await sleep(6000); flying = await ev("/TAXI|DOWNWIND|FINAL|DEPART|HOLD|PARK/.test(document.body.innerText)"); }
-    if (!flying) throw new Error('never flying after 8 Go clicks (the boot cover?) - not shot');
+    // (13 Nov, the blank 03:42 stills: the body text matched /HOLD/ in the shed - the shots were taken under the roll-out
+    //  cinematic and its held frame, the page's own pale blue) - flying is the phase plate past GARAGE (HOLDING on the stand, or the pilot's phase), no roll-out shot,
+    //  not the shed, no boot cover (the roll-out's own trip screen); a Go every 15 s while not (it skips the cinematic)
+    const FLY = "(()=>{const B=document.body.classList,ph=((document.getElementById('phName')||{}).textContent||'').trim();return !B.contains('rollShot')&&!B.contains('mode-ws')&&(!window.BOOT||BOOT.state==='gone')&&!!ph&&!/GARAGE/i.test(ph);})()";
+    for (let a = 0, tGo = 0; a < 240 && !flying; a++) { if (a - tGo >= 15 || a === 0) { tGo = a; await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); } await sleep(1000); flying = await ev(FLY); }
+    if (!flying) throw new Error('never flying in 240 s (phase ' + await ev("((document.getElementById('phName')||{}).textContent||'').trim()+' '+document.body.className") + ') - not shot');
+    console.log('  flying: ' + await ev("((document.getElementById('phName')||{}).textContent||'').trim()"));
     for (let i = 0; i < 150; i++) { const bs = await ev("window.BOOT ? BOOT.state : 'none'"); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
     const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
     for (let i = 0; i < 20; i++) { const n = await ev(KEEP); await sleep(500); if (!n && i > 4) break; }
