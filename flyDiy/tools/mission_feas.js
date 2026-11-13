@@ -8,6 +8,7 @@
 //   node tools/mission_feas.js --merge               the shards' JSON -> feasibility.json + feasibility.md (the page's JSON)
 //   node tools/mission_feas.js --only=field.01,demo.photo   those missions only
 //   node tools/mission_feas.js --static              the static read and the plane choice, nothing flown (~1 min)
+//   node tools/mission_feas.js --only=<ids> --rerun  those missions again -> reruns/ (--merge puts them over the shards' rows)
 //   options: --packs=<dir> (default src/missions)  --out=<dir> (default reports/MISSION-FEASIBILITY)  --tries=N (planes
 //            tried per mission, default 2)  --tmax=<s> (a flight's limit, default 3600)  --quiet
 // Deterministic: the same tree gives the same table; every mission gets a fresh world, career, sim and pilot, so a shard's
@@ -34,16 +35,28 @@ function merge() {
   const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /^feas_.*\.json$/.test(f)).sort() : [];
   const rows = [], meta = [];
   for (const f of files) { const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); rows.push(...j.rows); meta.push({ file: f, shard: j.shard, n: j.rows.length, wallS: j.wallS }); }
+  // RE-RUNS (--only=... --rerun): a later run of some missions on the current harness replaces their shard rows
+  const rr = path.join(OUT, 'reruns'), reruns = [];
+  if (fs.existsSync(rr)) for (const f of fs.readdirSync(rr).filter(f => /\.json$/.test(f)).sort()) {
+    const j = JSON.parse(fs.readFileSync(path.join(rr, f), 'utf8'));
+    for (const R of j.rows) { const i = rows.findIndex(x => x.pack === R.pack && x.id === R.id); if (i >= 0) rows[i] = R; else rows.push(R); reruns.push(R.id); }
+  }
   rows.sort((a, b) => (a.pack + '|' + a.id) < (b.pack + '|' + b.id) ? -1 : 1);
-  return write(rows, { shards: meta });
+  return write(rows, { shards: meta, reruns });
 }
 function summary(rows) {
   const by = {};
   for (const R of rows) by[R.verdict] = (by[R.verdict] || 0) + 1;
   return by;
 }
+// a mission no plane completed: every plane's own reason, in the order tried
+function whyAll(R) {
+  if (R.verdict === 'feasible' || !R.attempts || R.attempts.length < 2) return R;
+  return Object.assign({}, R, { why: R.attempts.map(A => A.plane + ': ' + (A.verdict === R.verdict ? '' : A.verdict + ' - ') + (A.why || '')).join(' | ') });
+}
 function write(rows, extra) {
   const F = require('./mission_feas_lib.js');
+  rows = rows.map(R => whyAll(F.finalize(R)));
   fs.mkdirSync(OUT, { recursive: true });
   const sum = summary(rows);
   const doc = Object.assign({ what: 'flydiy-mission-feasibility', v: 1, built: null, summary: sum, totalFlownS: Math.round(rows.reduce((a, R) => a + (R.timeS || 0), 0)), rows }, extra || {});
@@ -97,6 +110,9 @@ function main() {
     fs.mkdirSync(path.join(OUT, 'shards'), { recursive: true });
     fs.writeFileSync(path.join(OUT, 'shards', 'feas_' + tag + '.json'), JSON.stringify(res, null, 1) + '\n');
     if (!SHD.S) write(rows);
+  } else if (has('rerun') && only) {
+    fs.mkdirSync(path.join(OUT, 'reruns'), { recursive: true });
+    fs.writeFileSync(path.join(OUT, 'reruns', 'rerun_' + only.join('+') + '.json'), JSON.stringify(res, null, 1) + '\n');
   } else if (opt('json', null)) fs.writeFileSync(path.resolve(opt('json')), JSON.stringify(res, null, 1) + '\n');
   return res;
 }

@@ -220,6 +220,9 @@ function nextTarget(doc, rec, cur) {
 function routeFor(W, objs, survey) {
   const pts = [];
   const gnd = (x, z) => Math.max(W.terrainH(x, z), W.waterH ? W.waterH(x, z) : -Infinity);
+  // the lead-in / lead-out: 600 m / 300 m, never more than 0.45 of the way from the objective before (no zig-zag back)
+  let prev = null;
+  const lead = (cx, cz, k) => { const d = prev ? 0.45 * Math.hypot(cx - prev[0], cz - prev[1]) : Infinity; prev = [cx, cz]; return Math.min(k, d); };
   for (const s of objs) {
     const P = s.place;
     if (P.gate) {
@@ -231,18 +234,21 @@ function routeFor(W, objs, survey) {
       const top = P.alt && P.alt.max != null ? (P.alt.ref === 'msl' ? P.alt.max - gnd(cx, cz) : P.alt.max) : 150;
       const bot = P.alt && P.alt.min != null ? (P.alt.ref === 'msl' ? P.alt.min - gnd(cx, cz) : P.alt.min) : 0;
       const agl = Math.max(bot + 10, Math.min(top - 30, 100));
-      pts.push({ x: cx - 600 * dx, z: cz - 600 * dz, alt: agl, ref: 'agl', V: null }, { x: cx, z: cz, alt: agl, ref: 'agl', V: null }, { x: cx + 300 * dx, z: cz + 300 * dz, alt: agl, ref: 'agl', V: null });
+      const li = lead(cx, cz, 600);
+      pts.push({ x: cx - li * dx, z: cz - li * dz, alt: agl, ref: 'agl', V: null }, { x: cx, z: cz, alt: agl, ref: 'agl', V: null }, { x: cx + 0.5 * Math.min(li, 600) * dx, z: cz + 0.5 * Math.min(li, 600) * dz, alt: agl, ref: 'agl', V: null });
     } else if (P.ring) {
       let dx = 0, dz = -1;
       if (typeof P.dir === 'number') { const a = P.dir * Math.PI / 180; dx = Math.sin(a); dz = -Math.cos(a); }
-      pts.push({ x: P.ring[0] - 600 * dx, z: P.ring[2] - 600 * dz, alt: P.ring[1], ref: 'msl', V: null }, { x: P.ring[0], z: P.ring[2], alt: P.ring[1], ref: 'msl', V: null },
-               { x: P.ring[0] + 300 * dx, z: P.ring[2] + 300 * dz, alt: P.ring[1], ref: 'msl', V: null });
+      const li = lead(P.ring[0], P.ring[2], 600);
+      pts.push({ x: P.ring[0] - li * dx, z: P.ring[2] - li * dz, alt: P.ring[1], ref: 'msl', V: null }, { x: P.ring[0], z: P.ring[2], alt: P.ring[1], ref: 'msl', V: null },
+               { x: P.ring[0] + 0.5 * li * dx, z: P.ring[2] + 0.5 * li * dz, alt: P.ring[1], ref: 'msl', V: null });
     } else if (P.pt) {
       const A = P.alt || null;
       let alt = 300, ref = 'agl';
       if (A && A.min != null && A.max != null) { alt = (A.min + A.max) / 2; ref = A.ref || 'agl'; }
       else if (A && A.min != null) { alt = A.min + 100; ref = A.ref || 'agl'; }
       else if (A && A.max != null) { alt = Math.max(60, A.max - 50); ref = A.ref || 'agl'; }
+      lead(P.pt[0], P.pt[1], 0);
       pts.push({ x: P.pt[0], z: P.pt[1], alt, ref, V: null });
     }
   }
@@ -286,6 +292,13 @@ function flyOne(ctx, cur, to, o) {
     C.careerOverflewAdd(W, cg[0], cg[2], over);
     if (T0) {
       const agl = cg[1] - Math.max(W.terrainH(cg[0], cg[2]), W.waterH ? W.waterH(cg[0], cg[2]) : -Infinity);
+      // the closest pass by each objective (the evidence for a miss: how far, how high)
+      for (const ob of T0.objs) {
+        const P = ob.place, c = P.gate ? [(P.gate[0][0] + P.gate[1][0]) / 2, (P.gate[0][1] + P.gate[1][1]) / 2] : P.ring ? [P.ring[0], P.ring[2]] : P.pt;
+        if (!c) continue;
+        const d = Math.hypot(cg[0] - c[0], cg[2] - c[1]), N = (L.near = L.near || {});
+        if (!N[ob.key] || d < N[ob.key].d) N[ob.key] = { d: r1(d), agl: r1(agl), msl: r1(cg[1]), t: r1(L.t) };
+      }
       const ev = C.missionTrackStep(T0, { t: sim.t != null ? sim.t : L.t, x: cg[0], z: cg[2], y: cg[1], agl });
       for (const e of ev) if (e.k === 'hit' || e.k === 'photo' || e.k === 'strike') (L.events = L.events || []).push({ k: e.k, key: e.key, t: r1(L.t) });
     }
@@ -546,8 +559,10 @@ function judgeMission(env, packRow, m, opts) {
     };
     const A = flyMission(env, rec, plane, { log: o.log, tMax: o.tMax, maxFlights: o.maxFlights, verdictOf });
     R.attempts.push(A);
+    finalize({ attempts: [A] });
     if (A.verdict === 'feasible' || A.verdict === 'broken') break;
   }
+  for (const A of R.attempts) finalize({ attempts: [A] });
   const best = R.attempts.find(a => a.verdict === 'feasible') || R.attempts.find(a => a.verdict === 'broken') || R.attempts[R.attempts.length - 1];
   R.verdict = best.verdict; R.why = best.why; R.plane = best.plane; R.timeS = best.timeS;
   if (isBuild && R.verdict !== 'feasible' && R.build && best.book) {
@@ -561,6 +576,25 @@ function judgeMission(env, packRow, m, opts) {
     if (fails.length) { R.verdict = 'infeasible'; R.why = best.plane + ' fails the order: ' + fails.map(x => x.k + ' ' + x.value + ' (' + x.need + ')').join(', '); }
     else if (deliveredAt && waits.length) { R.verdict = 'feasible'; R.untested = true; R.why = 'delivery flown; untested here: ' + waits.map(x => x.k + ' ' + x.status + ' (' + x.need + ')').join(', '); }
   }
+  return R;
+}
+
+// ---- THE HOLLOW PASS: the page ends ANY flight that STOPS as a stop (app.js: STOPPED -> playerFlightEnd('stopped')), so
+// a flight that never left the ground still hands the career a stop where it stands - and a 'land' step there is judged
+// done on stop.aero alone. A mission completed that way is not flyable: the row says which flight stayed down and why.
+function finalize(R) {
+  if (!R || !R.attempts || !R.attempts.length) return R;
+  for (const A of R.attempts) {
+    const down = (A.legs || []).filter(L => !L.airborne);
+    A.grounded = down.map(L => ({ from: L.from, to: L.to, t: L.t, phases: L.phases.slice(-6).join('>'), said: (L.verdicts || []).filter(v => /hold|lineup|taxi|declin|stuck|gave|wait/i.test(v)).slice(-2) }));
+    if (A.verdict === 'feasible' && down.length) {
+      A.verdict = 'infeasible';
+      A.why = 'never took off on ' + down.map(L => L.from + ' > ' + L.to + ' (' + Math.round(L.t) + ' s on the ground: ' + L.phases.slice(-6).join('>') + ')').join('; ') +
+        ' - the page ended it as a stop and the career counted it (a step judged on stop.aero alone)';
+    }
+  }
+  const best = R.attempts.find(a => a.verdict === 'feasible');
+  if (R.verdict === 'feasible' && !best) { const a = R.attempts[R.attempts.length - 1]; R.verdict = a.verdict; R.why = a.why; R.plane = a.plane; R.timeS = a.timeS; }
   return R;
 }
 
@@ -590,4 +624,4 @@ function mdTable(rows) {
 }
 
 module.exports = { C, TR, SH, SLOT, planePool, officialRows, planeDef, readPacks, spotsPack, installPack, staticCheck, careerDaySpec, careerWith,
-  nextTarget, routeFor, flyOne, flyMission, buildCandidates, judgeMission, makeEnv, mdTable, legLine, fmtT };
+  nextTarget, routeFor, flyOne, flyMission, buildCandidates, judgeMission, finalize, makeEnv, mdTable, legLine, fmtT };
