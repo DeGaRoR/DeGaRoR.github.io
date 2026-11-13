@@ -473,6 +473,9 @@ function storyNewCareer(doc, o) {
   d.career.story = s;
   // G3230 (TECH-MASK): a new story career opens its machine shop at the first segment, Wood and fabric (79b_tech.js)
   if (typeof techNew === 'function') d.career.tech = techNew();
+  // TUTORIAL-LOCK (the user 13 Nov: "the tutorial fits in ONE DAY"): a story career's first morning, 15 July 08:00 AKDT
+  // (2026-07-15 16:00 UT) - its flights fit in that daylight; the checkpoint ends it on day 3, 08:00
+  if (typeof careerDayNorm === 'function') d.career.day = careerDayNorm(STORY_DAY1);
   d.career.airframes[slot] = { from: 'story', story: 'starter', factory: false, modified: false, paid: 0, at: Math.round(d.clock || 0) };
   return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
 }
@@ -649,6 +652,7 @@ function storyCard(doc, o) {
 // the first tech segment. What carries over is the player's own: paint, registration, names, the sheds they hold.
 //   storyCheckpoint(doc) -> { ok, doc }   (pure; a second checkpoint of its result is the same document)
 //   storySkip(doc, o)    -> { ok, doc }   storyNewCareer then storyCheckpoint: the New career's "start the career" choice
+const STORY_DAY1 = Object.freeze({ date: '2026-07-15', utc: 57600 });   // a story career's first morning (08:00 AKDT)
 const STORY_JOB = 'field.02';   // the tutorial's ONE job (Tools from the hill: 40 kg Fishing Village -> HOME)
 const STORY_CHECKPOINT = Object.freeze({ day: Object.freeze({ date: '2026-07-17', utc: 57600 }), wallet: 12000, seed: 'jolene', job: STORY_JOB });
 function storyCheckpoint(doc, o) {
