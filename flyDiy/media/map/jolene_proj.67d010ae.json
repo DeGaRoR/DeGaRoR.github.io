@@ -188,10 +188,10 @@
    "z": -23721.21,
    "hdg": 2.93215,
    "len": 1020,
-   "wid": 9,
+   "wid": 15,
    "surface": {
-    "key": "dirt",
-    "word": "dirt",
+    "key": "gravel",
+    "word": "gravel",
     "cls": "hard"
    },
    "elev": 43,
@@ -2827,6 +2827,41 @@
     "id": "hy_s_bayside/i1",
     "key": "utility/hydro powerhouse",
     "r": "822,1557,25,16,131"
+   },
+   {
+    "id": "sg_ca_yard/hut",
+    "key": "shed/trapper cabin",
+    "r": "622,277,4,3,168"
+   },
+   {
+    "id": "sg_ca_yard/leanto",
+    "key": "shed/lean-to",
+    "r": "623,277,3,2,168"
+   },
+   {
+    "id": "sg_ca_yard/woodshed",
+    "key": "shed/wood shed",
+    "r": "624,276,4,3,168"
+   },
+   {
+    "id": "sg_ca_yard/toolshed",
+    "key": "shed/tool shed",
+    "r": "620,278,3,2,168"
+   },
+   {
+    "id": "sg_ca_yard/smokehouse",
+    "key": "house/fish shack",
+    "r": "619,277,4,3,78"
+   },
+   {
+    "id": "sg_ca_yard/hangar",
+    "key": "hangar/field shed, small",
+    "r": "618,278,16,13,78"
+   },
+   {
+    "id": "sg_ca_yard/outhouse",
+    "key": "house/outhouse",
+    "r": "624,275,1,1,168"
    }
   ],
   "links": [
@@ -2894,9 +2929,9 @@
   }
  },
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
- "img": "media/map/jolene_map.af898cb5.png",
- "imgBytes": 715115,
- "imgHash": "af898cb5",
+ "img": "media/map/jolene_map.366519f1.png",
+ "imgBytes": 715113,
+ "imgHash": "366519f1",
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
