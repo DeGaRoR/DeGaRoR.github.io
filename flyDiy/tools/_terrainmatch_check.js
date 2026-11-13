@@ -41,6 +41,10 @@ const TOL = { p95: 5, worst: 30, wheel: 11 };
 const ALLOW = [
   { id: 'nv_strip stand', p95: 15, worst: 50, why: 'nv_meadow: a grass polygon at its 2 m grid - refined it is +27 k triangles at nv_strip, where potato\'s count would grow (pavement.js REFINE: grass polygons not refined)' },
   { id: 'nv_strip overrun end', p95: 8, worst: 40, why: 'nv_meadow (as nv_strip stand)' },
+  // (AFB-0220, 13 Nov, A RE-PIN, NOT A FIX - master's own, unmasked: terrain_match.js drew every site's jitter off ONE stream in record
+  //  order, so adding Jolene's xw_rough moved tw_ski's sample; seeded per runway now, tw_ski's overrun end reads its real worst, 34.2 mm on
+  //  its apron's concrete rim at (343, -7877) - master's 29.6 was the old stream's luck. Tightening it back is the apron's rim, Game's)
+  { id: 'tw_ski overrun end', worst: 40, why: 'its apron\'s concrete rim at (343, -7877): 34.2 mm, master\'s own (unmasked by the per-runway sample, AFB-0220)' },
   { id: 'nv_strip overrun start', p95: 8, why: 'nv_meadow (as nv_strip stand)' },
   { id: 'nv_strip lane', p95: 10, why: 'nv_meadow (as nv_strip stand)' },
   { id: 'mn_strip overrun start', p95: 8, why: 'mn_main across its 18 m on the cut past the end: rows across 3 m (REFINE.roadV off: 13 k more over Jolene)' },
@@ -203,13 +207,23 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
   //  as render_world does - L37a's real cost on master, measured: potato HOME taxi 1226310 -> 1438368 (+212058); gamer HOME taxi 2044742 -> 2242608 (+197866) (the rows by chaos saved
   //  nothing: refineAxis lands 5 and 8 cm floors on the same ~9.4 cm rows)
   const BUMPS = 225498; for (const k in PAV0) PAV0[k] += BUMPS;
+  // + THE ROUGH LANE'S BUMPS, A NAMED COST (AFB-0220, A0's RULING 13 Nov, the user's standing rule "ship with the cost named and listed,
+  //  never sacrifice features"): xw_rough, Jolene 02/20's 1000 x 18 m firm-mud STOL lane at micro chaos 0.55 (Pilot-vetted), drawn refined
+  //  to its bumps as w3 / w8 are - 764 192 triangles, all of it within 3 km of both views (ground_drawn.js's meshes; chaos 0.4 would be
+  //  662 656, 600 m 422 664: the length pays, not the chaos). Listed for the perf week: a distance LOD on the bump refinement. The rest of
+  //  02/20's dressing fits under the old pin (its long polygons cut every 36 m: polyGeometry draws a polygon's whole bounding box)
+  // + 02/20's DRESSING (the same ruling, measured): the crumbled band's dirt, the clean 3-5 m concrete core and the 26 remnant slabs,
+  //  cut every 36 m (79 segments) - 118 932 triangles within 3 km of both views, near its floor (each segment's grid carries the
+  //  pavement's 7.5 m shoulder: pavement.js shoulderFor); master's own slack at the HOME-taxi view (~37 k) takes part of it
+  const AFB_DRESS = 118932;
+  const XW_ROUGH = 764192; for (const k in PAV0) PAV0[k] += XW_ROUGH + AFB_DRESS;
   const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + PAV0['HOME stand'], 'HOME taxi': (PATCH0 || {})['HOME taxi'] + PAV0['HOME taxi'] }, gamer: { 'HOME stand': 1222208 + PAV0['HOME stand'], 'HOME taxi': 1304000 + PAV0['HOME taxi'] } };
   // RE-TAKEN 9 Nov (HOME-LAYOUT, A0's call), THE TWO "HOME stand" ROWS ONLY: SCENERY - the user's validated HOME layout moved the
   // start's stand (the medium hangar's) 60 m along the row, and this row measures within 3 km OF THE STAND: the same eye 60 m
   // west, +10 568 (potato, +0.88 %) / +14 584 (gamer, +0.75 %) triangles, measured on L36d (before the bumps). The HOME taxi rows
   // went down and keep their pins. Rebased on L37a: the user's bumps (BUMPS above) ride on top, as on every other row
-  if (POT === 6) BASE.potato['HOME stand'] = 1207886 + BUMPS;
-  BASE.gamer['HOME stand'] = 1957246 + BUMPS;
+  if (POT === 6) BASE.potato['HOME stand'] = 1207886 + BUMPS + XW_ROUGH + AFB_DRESS;
+  BASE.gamer['HOME stand'] = 1957246 + BUMPS + XW_ROUGH + AFB_DRESS;   // (+ AFB-0220's named costs above)
   const C = require(path.join(T, 'flight_core.js')), home = C.siteOf('HOME'), tp = home.taxiOut, m = tp[Math.floor(tp.length / 2)];
   const views = { 'HOME stand': [home.stand.x, home.stand.z], 'HOME taxi': m };
   const pav = {}; for (const [k, [x, z]] of Object.entries(views)) { let t = 0; for (const M of GD.MESHES) { const cx = (M.box[0] + M.box[2]) / 2, cz = (M.box[1] + M.box[3]) / 2; if (Math.hypot(cx - x, cz - z) < 3000) t += M.idx.length / 3; } pav[k] = t; }

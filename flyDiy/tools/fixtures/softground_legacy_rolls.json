@@ -1,26 +1,26 @@
 {
- "what": "GATE SOFTGROUND: the cg after 4 s at full power + 2 s braked with 0.3 of rudder, on flat ground of each legacy SURFACE code 0-7, stock buildGen() and its tricycle; read off origin/master 23ce68c1 (train L39b built), BEFORE SNOW-MUD touched the solver",
+ "what": "GATE SOFTGROUND: the cg after 4 s at full power + 2 s braked with 0.3 of rudder, on flat ground of each legacy SURFACE code 0-7, stock buildGen() and its tricycle; read off origin/master 23ce68c1 (train L39b built), BEFORE SNOW-MUD touched the solver | RE-BLESSED 13 Nov on origin/master 6a8d705c (train L40a, no SNOW-MUD), AFB-0220 carrying snow-mud onto L40a: L40a's brakes' hold (GEN_BRAKES, 30_solver) moved 7 of the 16 hard-ground rolls by centimetres - master's physics, not the soft layer's",
  "master": "23ce68c1",
  "rolls": {
   "stock:0": [
-   -23.131142119244725,
-   1.400707726136482,
-   4.479689437027633
+   -23.211358659445064,
+   1.3847893877114468,
+   4.51767614808264
   ],
   "stock:1": [
-   -21.67490908276241,
-   1.3950934247230453,
-   4.187637926481177
+   -21.787873138472907,
+   1.3626595805769501,
+   4.23995913591511
   ],
   "stock:2": [
-   -13.585819099142924,
-   1.3027690305697446,
-   5.882000984059362
+   -13.63221527083942,
+   1.3314676453513452,
+   5.918789212365275
   ],
   "stock:3": [
-   -18.72752022725664,
-   1.3549605959685866,
-   4.524625136019851
+   -18.793898548169413,
+   1.3785597373263758,
+   4.55157181693441
   ],
   "stock:4": [
    -0.703233757245996,
@@ -28,19 +28,19 @@
    0.3715315686431028
   ],
   "stock:5": [
-   -25.583913469945475,
-   1.2721428126153658,
-   4.674959476433682
+   -25.650339830672962,
+   1.2365492851720963,
+   4.717652785443463
   ],
   "stock:6": [
-   -24.45271344215885,
-   1.4169858075765005,
-   4.927915255724102
+   -24.5047246534074,
+   1.4168640526811123,
+   4.953324963089416
   ],
   "stock:7": [
-   -18.72752022725664,
-   1.3549605959685866,
-   4.524625136019851
+   -18.793898548169413,
+   1.3785597373263758,
+   4.55157181693441
   ],
   "tri:0": [
    -20.231743969711683,

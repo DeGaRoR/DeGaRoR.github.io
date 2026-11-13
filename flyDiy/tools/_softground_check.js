@@ -16,7 +16,7 @@
 //
 // A. THE ABSENT CASE. The eight hard rows are the numbers they were (frozen here, literally); a world whose surface is
 //    0 rolls bit for bit as a world with no surface at all; and the stock build and its tricycle, rolled and braked on
-//    every legacy code, end bit for bit where origin/master 23ce68c1 left them (tools/fixtures/softground_legacy_rolls
+//    every legacy code, end bit for bit where origin/master left them - 23ce68c1, re-blessed on 6a8d705c (L40a) (tools/fixtures/softground_legacy_rolls
 //    .json: read off master BEFORE this change). The solver writes out.softZ / softF only on a frame that met a layer.
 // B. THE TABLES. 13 rows, each soft row with a layer (k, n, zMax, a ski pair kinetic < breakout); GROUND_SKI_MU names
 //    every code (water none); the side tables keyed by the code have 13 entries (TW_SKID_MU, GEN_DRIVE.turfS,
