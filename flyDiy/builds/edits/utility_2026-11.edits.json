@@ -176,7 +176,7 @@
   "paxSeatType": 5,
   "paxAbreast": 3,
   "paxSeatZ": 0.2,
-  "seatGap": 0.64,
+  "seatGap": 0.4,
   "archOn": 1,
   "archGap": 0.05,
   "noseW": 0.8,
@@ -198,7 +198,8 @@
   "carTail": 1,
   "cw_blinkOn": 1,
   "cw_blinkY": 0.06,
-  "hdlDepth": 0.075
+  "hdlDepth": 0.075,
+  "paxGap": 0.64
  },
  "fuel": {
   "litres": 80,

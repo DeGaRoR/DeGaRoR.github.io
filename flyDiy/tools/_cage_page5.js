@@ -868,6 +868,8 @@ window.CAGE_PAGE = {
          { when: P => +P.crewOn && +P.paxCount > 0, absent: -1 }],
         ['paxSeatZ',  'fore / aft in bay', -1.50, 1.50, 0.005,
          { when: P => +P.crewOn && +P.paxCount > 0 }],
+        ['paxGap',    'sbs seat gap (passengers; absent = the pilots\')', 0.18, 1.20, 0.005,
+         { when: P => +P.crewOn && +P.paxCount > 0 && +P.paxAbreast >= 2 }],   // CAR-3
         ['seat2H',    'squab height',  -1, 1.50, 0.005,
          { link: { sentinel: -1, from: 'seatH', test: v => v < 0 } }],
         ['seat2Rake', 'back recline',  -1, 60, 0.5,

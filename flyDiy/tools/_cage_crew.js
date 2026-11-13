@@ -2884,11 +2884,13 @@ function seatPlaces(A, P) {
   // the outer shoulder sits ~0.21 m outboard of the seat centre (the
   // skeleton's clavicle + joint), so the seat centre stays 0.25 m inside the
   // waist half-width (2026-09-04: the pilots stuck out of the sides)
-  const gapIn = halfW => Math.min(P.seatGap, Math.max(0.18, halfW - 0.25));
+  // (CAR-3, 13 Nov: paxGap - the passenger rows' own side-by-side gap; absent = the cockpit's seatGap, as before - so a
+  // van's front pair can sit close while its benches of three keep their spread)
+  const gapIn = (halfW, section) => Math.min(section && P.paxGap != null ? +P.paxGap : P.seatGap, Math.max(0.18, halfW - 0.25));
   const row = (zBack, halfW, section, filled, ab) => {
     const out = [];
     const n0 = ab || abreast, n = perRowOf(n0);
-    const gp = n0 >= 2 && n0 <= 3 ? gapIn(halfW) : 0;
+    const gp = n0 >= 2 && n0 <= 3 ? gapIn(halfW, section) : 0;
     // a pair sits +-gap; a bench of three adds the middle seat last (the
     // outer two fill first, the way a rear bench is used)
     const xs = AISLE[n0] ? aisleXs(n0, halfW) : n === 3 ? [gp, -gp, 0] : n === 2 ? [gp, -gp] : [0];

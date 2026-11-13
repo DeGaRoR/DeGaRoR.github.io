@@ -1237,7 +1237,7 @@ const CAGE_PARTS = [
       ['seating', ['seatType', 'seatLayout', 'pilotRear', 'seatZ', 'seatH', 'seatRake',
                    'seatTilt', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
-      ['passenger seats', ['paxSeatType', 'paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],
+      ['passenger seats', ['paxSeatType', 'paxSeatZ', 'paxGap', 'seat2H', 'seat2Rake', 'seat2Tilt']],
     ] },
 
   { key: 'controls', name: 'Controls', parent: 'fit', layer: 'crew',
