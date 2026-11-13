@@ -255,7 +255,9 @@ function tipStrike(key, o) {
     if (mountAt == null && ((Dm.groups || []).some(G => /mount$/.test(G.key)) || (tie.length && tie.every(bi => sim.beams[bi].broken)))) mountAt = sim.t - t0;
     if (st && st.strike === 'separation') { if (sepBite == null) sepBite = (st.strikeAt || {}).bite || 0;
       if (st.strikeAt && st.strikeAt.stopAfterSep) sepStop = true;
-      if (mountAt == null && (sim.out.rpm[k] || 0) > 30) pastMax = Math.max(pastMax, trunkBite() - sepBite); }
+      // (the step the trunk stops it is not 'still turning': the solver seized it inside that step - what the hub travelled
+      // in it, under the shake, is one 1/60 s step's, not a prop turning on through the trunk)
+      if (!sepStop && mountAt == null && (sim.out.rpm[k] || 0) > 30) pastMax = Math.max(pastMax, trunkBite() - sepBite); }
     if (!finite(sim)) break;
   }
   const Dm = sim.damage();
