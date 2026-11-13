@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d2d2075800b90f30
+// body-sha256: a7e7bf517f251793
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -41982,8 +41982,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const ghost = !!(opt && opt.ghost);
     if (!ghost) {
     const hubK = HUBPIN && SEC === 'bracing' && !isG ? HUBF : 1;   // (L5: the hub's box, below)
-    const bm = { a, b, k: hubK * row(MM.k, cls) * (isG ? kG : ((cls === 'wing' || cls === 'tail' || MM === M) && MM.buildKg > 0 ? Math.min(KS, KSB(MM)) : KS)) * kGain * mK * bK * kMul,
-                 c: Math.sqrt(hubK) * row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
+    // (WEIGHT STUDY L4: a rod of its OWN row springs and damps as that row - its mass and section already did; on a soft
+    //  shell the rod's rings and the truss the stab stands on took the poles' springs, x0.09, and the Archaeopteryx's
+    //  stab-root fitting kinked in a glide - Pilot's UNIFY ARCH. Only where a rod row is named: RODX)
+    const MKC = rodMem && RODM && RODM.k ? RODM : MM;
+    const bm = { a, b, k: hubK * row(MKC.k, cls) * (isG ? kG : ((cls === 'wing' || cls === 'tail' || MKC === M) && MKC.buildKg > 0 ? Math.min(KS, KSB(MKC)) : KS)) * kGain * mK * bK * kMul,
+                 c: Math.sqrt(hubK) * row(MKC.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
