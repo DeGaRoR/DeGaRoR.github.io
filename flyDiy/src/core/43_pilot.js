@@ -706,7 +706,7 @@ function makePilot(sim, def, world, opts) {
     const site = (siteOrTaxiOut && !Array.isArray(siteOrTaxiOut)) ? siteOrTaxiOut : null;
     ap.site = site;
     ap.atHold = (opts && opts.atHold) || null;
-    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; ap.taxiIn = false; holdN = 0; planN = 0; ap.pivSpot = null; ap.pivSpotT = null; ap.climbHold = null; ap.toWaitT = null; ap.flareGuard = null; ap.flareGuardN = 0;
+    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; ap.taxiIn = false; holdN = 0; planN = 0; ap.pivSpot = null; ap.pivSpotT = null; ap.holdBack = false; ap.valleyHdg = null; ap.valleyChecked = false; ap.climbHold = null; ap.toWaitT = null; ap.flareGuard = null; ap.flareGuardN = 0;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
     to = landable(from, to);
@@ -4159,6 +4159,29 @@ function makePilot(sim, def, world, opts) {
             }
             break;
           }
+          // PILOT-UNIFY (the user, 13 Nov: "the CUB must be able to do it, and the JODEL must be able to do it" - Jumbo Mine):
+          // A SHORT STRIP IS LEFT FROM ITS END, FROM THE HOLD TOO. G2811 backtracks an aeroplane that landed; one that taxied
+          // out from a stand rolled from the hold where the route meets the strip - the Jodel at Jumbo Mine (250 m) 50 m in,
+          // 200 m ahead for a run whose 0.85 of the sheet (211 m) and the field's reserve (55 m) want 234: committed at 13 m/s,
+          // then 'out of runway' with Vr 47 m off and 103 m left (master the same, to the metre). Under 300 m, a taildragger
+          // lined up at the hold whose take-off does not fit ahead (0.85 of the sheet's run + the reserve: the roll's own
+          // arithmetic) and with 20 m or more to gain taxis back along the centreline to the turn's spot at the end (G2811's
+          // taxi point and pivot spot) and lines up there: the whole strip. Once a departure; the Cub (185 of 200) is unchanged
+          if (!trike && !ap.holdBack && onStrip && alig > 0.95 && isFinite(RgMin) && !sim.hydro && !ap.route.from.altiport &&
+              (ap.route.from.len || 1100) < 300 && ap.takeoffDir) {
+            const fr = ap.route.from, tD = ap.takeoffDir, spot = pivRoom();
+            const behind = (cg[0] - fr.x) * tD[0] + (cg[2] - fr.z) * tD[1] + fr.len / 2;   // the strip behind the aeroplane
+            const fitTO = 0.85 * (A.TORun ?? 500) + reserveOf();
+            if (fitTO > left && behind - spot >= 20) {
+              ap.holdBack = true; ap.path = null; ap.taxiPath = null; ap.stopAfterLineup = true; holdN = 0;
+              const sEnd = fr.len / 2 - spot;
+              ap.taxiTgt = [fr.x - tD[0] * sEnd, fr.z - tD[1] * sEnd];
+              ap.pivSpot = { x: ap.taxiTgt[0], z: ap.taxiTgt[1], spot, from: Math.round(behind) };
+              say('backtrack', 'the run needs ' + Math.round(fitTO) + ' m, ' + Math.round(left) + ' m ahead of the hold - back along the strip to its end (' + Math.round(behind - spot) + ' m more): the whole strip');
+              go('TAXI');
+              break;
+            }
+          }
           if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && left >= need) {
             go('ROLL'); ap.t = Math.max(ap.t, 1);
             ap.trackHold = true; thrRoll = GP.cap; thRest = null; rollS0 = null;
@@ -4225,7 +4248,7 @@ function makePilot(sim, def, world, opts) {
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
           rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0; humpBack = true; humpThPk = null; humpEase = 0;
-          depC = null; toAccelDone = false; toHoldH = null; toLowT = 0; flcI = 0; flcTh = flcVt = null; flcSet = false; flcSetT = 0; flcRelax = 0;   // G2125: a new run, a new climb-out
+          depC = null; ap.valleyHdg = null; ap.valleyChecked = false; toAccelDone = false; toHoldH = null; toLowT = 0; flcI = 0; flcTh = flcVt = null; flcSet = false; flcSetT = 0; flcRelax = 0;   // G2125: a new run, a new climb-out
           // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
           // plan's twin: 'short' when the strip is under 2 x the sheet's
           // take-off run (an accelerate-stop wants about two runs) — the
@@ -4596,7 +4619,43 @@ function makePilot(sim, def, world, opts) {
         // The water's and the high thrust line's lift-offs keep the attitude law above (G396, G435)
         if (!sim.hydro && !highThrust) {
           const K = climbKit();
-          const Vt = (depNeed(15, 1500) > 0 || !!(ap.dep && ap.dep.stol)) ? K.Vx : K.Vy;   // STOL-PILOT: a STOL departure accelerates to Vx only
+          // PILOT-UNIFY (the user, 13 Nov: the Jodel must take off from Jumbo Mine): THE VALLEY DEPARTURE. Past Jumbo Mine's far end
+          // the ground on the runway line rises 24 m at 300 m, 98 at 400, 139 at 500 (a mountain); 20-40 deg off it falls into a
+          // valley. The Jodel lifted off 52 m before the end, ran on level in ground effect to Vx (10 s, 230 m) and met the
+          // slope at 12 m (capsized); the CLIMB's terrain turn waits for hSafe + 10 (27 m), never reached. A pilot leaving a
+          // strip toward rising ground turns into the valley as soon as the wing allows: off the wheels, if the straight
+          // climb-out asks more than the go-around gradient (gammaGA, 15 m clear over 1.5 km), the smallest turn off the line
+          // (15, 30, 45 deg, either side) whose way the climb makes - else the way that asks least - is flown, at Vx from
+          // the floor speed (no level run-up), the bank 0.05 rad + 0.04 a metre up to 0.26 (15 deg); CLIMB holds it (below).
+          // Only when the straight way out is too steep for the aeroplane: every other departure is the old one to the bit.
+          // THE GROUND, NOT THE TREES: read with the canopy, the trees just past HOME's end (150 m on, 15 m clear, from the
+          // lift-off's 2 m) asked more than the C172's 8 % and turned it off the line into an en-route join (GATE PLAN 3) -
+          // the Vx climb (depNeed) clears trees; a valley is the TERRAIN's: the ground alone, 15 m clear, every 150 m to 750 m.
+          // AND THE NEAR GROUND ONLY: HOME's rise 1-1.5 km out (10 % from the lift-off, the C172's 7) is CLIMB's terrain turn's,
+          // from hSafe + 10 (~340 m of an 8 % climb) - the valley departure is for ground nearer than that turn can be flown
+          const gTerr = (dx, dz) => { let g = -1; for (let k = 1; k <= 5; k++) { const d = 150 * k; g = Math.max(g, (groundH(cg[0] + dx * d, cg[2] + dz * d) + 15 - cg[1]) / d); } return g; };
+          if (!ap.valleyChecked && onG === 0) {
+            ap.valleyChecked = true;
+            const tdV = [F.ux * ap.dirX, F.uz * ap.dirX], gG = gammaGA();
+            const n0 = gTerr(tdV[0], tdV[1]);
+            // (CLEARLY BEYOND THE CLIMB: 1.5 x the sheet's full climb gradient, gG / 0.8 - HOME's 10 % from the lift-off is a climb the C172
+            //  makes on Vx and CLIMB's turn, Jumbo Mine's mountain way 27 % is not)
+            if (n0 > 1.5 * gG / 0.8) {
+              let best = null;
+              for (const deg of [15, -15, 30, -30, 45, -45]) {
+                const r = deg * Math.PI / 180, dx = tdV[0] * CORE_MATH.cos(r) - tdV[1] * CORE_MATH.sin(r), dz = tdV[0] * CORE_MATH.sin(r) + tdV[1] * CORE_MATH.cos(r);
+                const n = gTerr(dx, dz);
+                if (!best || (best.n > gG && n < best.n) || (best.n <= gG && n <= gG && Math.abs(deg) === Math.abs(best.deg) && n < best.n)) best = { deg, n, h: Math.atan2(dz, dx) };
+              }
+              if (best && best.n < n0) {
+                ap.valleyHdg = best.h;
+                say('valley-departure', 'the ground ahead asks ' + Math.round(n0 * 100) + ' % (the climb makes ' + Math.round(gG * 100) + ') - turning ' + Math.abs(best.deg) + ' deg off the runway line into the lower ground (' + Math.round(best.n * 100) + ' %) off the wheels');
+              }
+            }
+          }
+          const valley = ap.valleyHdg != null;
+          const vBank = clamp(0.05 + 0.04 * aglL, 0.05, 0.26);
+          const Vt = valley ? K.Vfloor : (depNeed(15, 1500) > 0 || !!(ap.dep && ap.dep.stol)) ? K.Vx : K.Vy;   // STOL-PILOT: a STOL departure accelerates to Vx only
           // (to the climb speed itself: the ground effect is where the speed is cheap - and where a rotation from 4 to 16
           // deg at the floor speed sent the Jodel back under it)
           const obstTO = Vt === K.Vx && K.Vx < K.Vy;
@@ -4617,9 +4676,9 @@ function makePilot(sim, def, world, opts) {
             const rampV = (obstTO ? 0.25 : 0) + Math.max(0, (obstTO ? 0.6 : 0.5) * tClimbMax - (obstTO ? 0.25 : 0)) * clamp(V - K.Vfloor, 0, 1);
             toHoldH = toHoldH == null ? cg[1] + 2.0 : toHoldH + rampV * dt;
             if (aglG >= 1.5) toLowT += dt;
-            engage('LOC', 'TECS', 'TECS', { alt: toHoldH, vs: null, gs: null, vsUp: 0.6 + rampV, vsDn: -0.4, ias: Vt, wK: 0, vFloor: null, toCap: K.cap, thrFull: true,
-                                            thMin: Math.min(K.cap, thLift0) - 0.035 * toLowT, flc: null, bank: 0.15 });
-          } else engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: Vt, wK: null, vFloor: K.Vfloor, toCap: K.cap, thrFull: null, thMin: null, thMax: null, flc: true, bank: 0.15 });
+            engage(valley ? 'HDG' : 'LOC', 'TECS', 'TECS', { alt: toHoldH, vs: null, gs: null, vsUp: 0.6 + rampV, vsDn: -0.4, ias: Vt, wK: 0, vFloor: null, toCap: K.cap, thrFull: true,
+                                            thMin: Math.min(K.cap, thLift0) - 0.035 * toLowT, flc: null, bank: valley ? vBank : 0.15, ...(valley ? { hdg: ap.valleyHdg } : {}) });
+          } else engage(valley ? 'HDG' : 'LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: valley ? Math.max(K.Vx, K.Vfloor) : Vt, wK: null, vFloor: K.Vfloor, toCap: K.cap, thrFull: null, thMin: null, thMax: null, flc: true, bank: valley ? vBank : 0.15, ...(valley ? { hdg: ap.valleyHdg } : {}) });
           ap.climbKit = K;
         }
         flapTgt = fTOd;
@@ -4687,7 +4746,7 @@ function makePilot(sim, def, world, opts) {
         // P1.C (C.3): Vx — the sheet's best angle — while the ground within
         // 1.5 km along the climb-out (canopy included, 15 m clear) stands
         // above the aeroplane; Vy / the cruise-climb once it is below
-        const climbDir0 = [F.ux * ap.dirX, F.uz * ap.dirX];
+        const climbDir0 = ap.valleyHdg != null ? [CORE_MATH.cos(ap.valleyHdg), CORE_MATH.sin(ap.valleyHdg)] : [F.ux * ap.dirX, F.uz * ap.dirX];
         // G2125 PILOT-PROFILE: what stands ahead is the climb-out corridor's (the trees and the houses too, sampled once
         // a departure - depNeed), Vx is never under the floor (the sheet's 0.87 Vy is 1.2 Vs), the floor and the
         // attitude cap ride the climb (TECS vFloor / toCap); on the water and with a high thrust line, as before
@@ -4695,13 +4754,13 @@ function makePilot(sim, def, world, opts) {
         const K = landTO ? climbKit() : null;
         // STOL-PILOT: a STOL departure climbs at Vx to the 15 m (50 ft) screen whatever stands ahead (the short-field
         // take-off's obstacle climb, FAA-H-8083-3), then as before
-        const obstAhead = !!(sheetOf() && sheetOf().Vx) && ((landTO ? depNeed(15, 1500) > 0 : gradAhead(cg[0], cg[2], climbDir0[0], climbDir0[1], 1500, cg[1], 15) > 0)
+        const obstAhead = !!(sheetOf() && sheetOf().Vx) && ((landTO && ap.valleyHdg == null ? depNeed(15, 1500) > 0 : gradAhead(cg[0], cg[2], climbDir0[0], climbDir0[1], 1500, cg[1], 15) > 0)
                           || (!!(ap.dep && ap.dep.stol) && agl < 15));
         const VxF = K ? K.Vx : sheetOf() && sheetOf().Vx;
         if (obstAhead !== vxHeld) { vxHeld = obstAhead; if (obstAhead && !vxSaid) { vxSaid = true; say('vx-climb', 'ground ahead above the aeroplane — climbing at Vx ' + VxF.toFixed(1) + ' m/s until clear'); } }
         const iasC = obstAhead ? VxF : agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
-        engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: K ? Math.max(iasC, K.Vfloor) : iasC, bank: bankLim,
-                                        vFloor: K ? K.Vfloor : null, toCap: K ? K.cap : null, wK: null, thMax: null, flc: K ? true : null });   // P0.5: full climb = the sheet's climbMax
+        engage(ap.valleyHdg != null ? 'HDG' : 'LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: K ? Math.max(iasC, K.Vfloor) : iasC, bank: ap.valleyHdg != null ? Math.min(bankLim, 0.35) : bankLim,
+                                        ...(ap.valleyHdg != null ? { hdg: ap.valleyHdg } : {}), vFloor: K ? K.Vfloor : null, toCap: K ? K.cap : null, wK: null, thMax: null, flc: K ? true : null });   // P0.5: full climb = the sheet's climbMax
         // G3332 LEVEL-OFF: THE CAPTURE STARTS WHERE THE HEIGHT LAW ASKS THE CLIMB ALREADY FLOWN. The climb above flies the
         // sheet's climbMax to hCruise - 8 (the cross-country's hand-over), where TECS's height law (0.2 /s) asked 1.6 m/s of
         // the 7.6 flown: the metal Cessna ballooned 15.7 m past the plan on HOME -> w3 (APSMOOTH, 21 Oct; the circuit's
@@ -4755,7 +4814,7 @@ function makePilot(sim, def, world, opts) {
         // heading — the moment the runway-line ground within 1.5 km needs
         // a gradient over 0.8 of the measured climb, 30 m clear (A3's k1 departure
         // climbed into the 8 % hill with 1.5 m to spare at 122 m)
-        const climbDirNow = [F.ux * ap.dirX, F.uz * ap.dirX];
+        const climbDirNow = ap.valleyHdg != null ? [CORE_MATH.cos(ap.valleyHdg), CORE_MATH.sin(ap.valleyHdg)] : [F.ux * ap.dirX, F.uz * ap.dirX];
         const terrainTurn = agl > A.hSafe + 10 && gradAhead(cg[0], cg[2], climbDirNow[0], climbDirNow[1], 1500, cg[1], 30) > gammaGA();
         if (terrainTurn && !terrainTurnSaid) { terrainTurnSaid = true; say('terrain-turn', 'the ground ahead climbs faster than the aeroplane — turning at ' + Math.round(agl) + ' m'); }
         // G3321 CABIN-CIRCUIT (the user, 18 Oct: "the circuit should ensure to pass the tight zone before manoeuvring"): a strip
