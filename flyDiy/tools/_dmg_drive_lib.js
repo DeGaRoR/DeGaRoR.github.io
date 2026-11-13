@@ -232,7 +232,7 @@ function tipStrike(key, o) {
   const sd = off < -0.3 ? -1 : (off > 0.3 ? 1 : -1), lx = pxv * sd, lz = pzv * sd;
   TH.set('fill:test', [hx + ux * fw + lx * lat, hz + uz * fw + lz * lat, elev - 0.5, rt, elev + 10]);
   const t0 = sim.t, before = sim.out.rpm.slice();
-  let mountAt = null, imbMax = 0, failAt = null, peakEng = 0, sepBite = null, pastMax = 0, sepStop = false;
+  let mountAt = null, imbMax = 0, failAt = null, peakEng = 0, sepBite = null, pastMax = 0, sepStop = false, overF = null, stopF = null, fr = 0;
   // ENGINE-LUMP (13 Nov, the user: "if the prop is going through anything, I do mind"): after the blade breaks, the deepest
   // the trunk reaches into the disc PAST the bite the prop lost, while the prop still turns - the solver's own geometry
   // (propTrunk: the hub's band along the heading, the trunk's circle across it), measured here from the nodes
@@ -253,15 +253,20 @@ function tipStrike(key, o) {
     if (st) { imbMax = Math.max(imbMax, st.imbN || 0); if (st.failed && failAt == null) failAt = sim.t - t0; }
     peakEng = Math.max(peakEng, sim.out.rpmEng[k] || 0);
     if (mountAt == null && ((Dm.groups || []).some(G => /mount$/.test(G.key)) || (tie.length && tie.every(bi => sim.beams[bi].broken)))) mountAt = sim.t - t0;
+    fr++;
     if (st && st.strike === 'separation') { if (sepBite == null) sepBite = (st.strikeAt || {}).bite || 0;
-      if (st.strikeAt && st.strikeAt.stopAfterSep) sepStop = true;
+      if (st.strikeAt && st.strikeAt.stopAfterSep && !sepStop) { sepStop = true; stopF = fr; }
       // (the step the trunk stops it is not 'still turning': the solver seized it inside that step - what the hub travelled
       // in it, under the shake, is one 1/60 s step's, not a prop turning on through the trunk)
-      if (!sepStop && mountAt == null && (sim.out.rpm[k] || 0) > 30) pastMax = Math.max(pastMax, trunkBite() - sepBite); }
+      // (13 Nov, the first run: the solver looks for the trunk once a FRAME (trunkFrame, before the substeps); under the
+      // shake the hub travels 1-3 cm inside one frame, so the depth past the lost bite reads up to one frame's travel over
+      // the 1 cm allowance before the next frame's look stops it. The row asserts that: the stop comes in the frame after
+      // the trunk first reaches past the allowance, never later - the prop does not turn on through it)
+      if (!sepStop && mountAt == null && (sim.out.rpm[k] || 0) > 30) { const pb = trunkBite() - sepBite; pastMax = Math.max(pastMax, pb); if (pb > 0.01 && overF == null) overF = fr; } }
     if (!finite(sim)) break;
   }
   const Dm = sim.damage();
-  return { bite: o.bite, R, thr: o.thr == null ? 1 : o.thr, rpm0: before[k], drive: Dm.drive ? JSON.parse(JSON.stringify(Dm.drive)) : null, imbMax, mountAt, failAt, peakEng, sepBite, pastMax, sepStop,
+  return { bite: o.bite, R, thr: o.thr == null ? 1 : o.thr, rpm0: before[k], drive: Dm.drive ? JSON.parse(JSON.stringify(Dm.drive)) : null, imbMax, mountAt, failAt, peakEng, sepBite, pastMax, sepStop, lagF: overF == null ? null : (stopF == null ? Infinity : stopF - overF),
     groups: (Dm.groups || []).map(G => G.key), running: sim.eng.map(e => e.running), seized: sim.eng.map(e => !!e.seized), crashed: Dm.crashed, reason: Dm.reason, finite: finite(sim), sim, def };
 }
 
