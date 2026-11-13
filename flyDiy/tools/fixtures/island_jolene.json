@@ -1183,6 +1183,41 @@
     "falloff": 6,
     "abs": true,
     "order": 0
+   },
+   {
+    "id": "tw_t_park",
+    "kind": "ramp",
+    "poly": [
+     [
+      294.71,
+      -7798.27
+     ],
+     [
+      276.96,
+      -7767.53
+     ],
+     [
+      262.67,
+      -7775.78
+     ],
+     [
+      280.42,
+      -7806.52
+     ]
+    ],
+    "level": 706.2,
+    "slope": 0.045,
+    "hdg": 150.0,
+    "falloff": 5,
+    "abs": true,
+    "order": 0,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
    }
   ],
   "surface": [
@@ -1992,6 +2027,64 @@
      ]
     ],
     "surface": 6
+   },
+   {
+    "id": "tw_y_launch",
+    "poly": [
+     [
+      357.63,
+      -7868.76
+     ],
+     [
+      321.63,
+      -7806.4
+     ],
+     [
+      323.36,
+      -7805.4
+     ],
+     [
+      359.36,
+      -7867.76
+     ]
+    ],
+    "surface": 5,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_y_park",
+    "poly": [
+     [
+      294.71,
+      -7798.27
+     ],
+     [
+      276.96,
+      -7767.53
+     ],
+     [
+      262.67,
+      -7775.78
+     ],
+     [
+      280.42,
+      -7806.52
+     ]
+    ],
+    "surface": 6,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
    }
   ],
   "material": [
@@ -2904,6 +2997,106 @@
     "look": "gravel",
     "band": 2,
     "z": 0
+   },
+   {
+    "id": "tw_m_launch",
+    "poly": [
+     [
+      357.63,
+      -7868.76
+     ],
+     [
+      321.63,
+      -7806.4
+     ],
+     [
+      323.36,
+      -7805.4
+     ],
+     [
+      359.36,
+      -7867.76
+     ]
+    ],
+    "look": "concrete",
+    "band": 0.3,
+    "yaw": -1.0472,
+    "z": 1,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_m_park",
+    "poly": [
+     [
+      294.71,
+      -7798.27
+     ],
+     [
+      276.96,
+      -7767.53
+     ],
+     [
+      262.67,
+      -7775.78
+     ],
+     [
+      280.42,
+      -7806.52
+     ]
+    ],
+    "look": "gravel",
+    "band": 0.6,
+    "yaw": -1.0472,
+    "z": 0,
+    "parking": {
+     "gap": 2,
+     "max": 2
+    },
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_m_terrace",
+    "poly": [
+     [
+      289.34,
+      -7824.47
+     ],
+     [
+      284.59,
+      -7816.24
+     ],
+     [
+      277.22,
+      -7820.49
+     ],
+     [
+      281.97,
+      -7828.72
+     ]
+    ],
+    "look": "concrete",
+    "band": 0.2,
+    "yaw": -1.0472,
+    "z": 1,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
    }
   ],
   "exclude": [
@@ -14457,6 +14650,112 @@
      null,
      null
     ]
+   },
+   {
+    "id": "tw_p_ridge",
+    "pts": [
+     [
+      275.86,
+      -7820.12
+     ],
+     [
+      264.15,
+      -7781.85
+     ],
+     [
+      235.15,
+      -7731.62
+     ],
+     [
+      190.63,
+      -7676.5
+     ]
+    ],
+    "w": 1.6,
+    "cls": "track",
+    "look": "dirt",
+    "graded": false,
+    "poles": "off",
+    "rail": "off",
+    "pav": {
+     "marks": "none"
+    },
+    "surface": 6,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_p_launch",
+    "pts": [
+     [
+      331.37,
+      -7849.27
+     ],
+     [
+      344.37,
+      -7871.79
+     ],
+     [
+      355.0,
+      -7877.2
+     ],
+     [
+      358.99,
+      -7869.12
+     ]
+    ],
+    "w": 1.6,
+    "cls": "track",
+    "look": "dirt",
+    "graded": false,
+    "poles": "off",
+    "rail": "off",
+    "pav": {
+     "marks": "none"
+    },
+    "surface": 6,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_p_lookout",
+    "pts": [
+     [
+      323.73,
+      -7804.04
+     ],
+     [
+      320.98,
+      -7758.28
+     ]
+    ],
+    "w": 1.6,
+    "cls": "track",
+    "look": "dirt",
+    "graded": false,
+    "poles": "off",
+    "rail": "off",
+    "pav": {
+     "marks": "none"
+    },
+    "surface": 6,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      null
+     ]
+    }
    }
   ],
   "runways": [
@@ -15271,8 +15570,8 @@
    {
     "id": "tw_ski",
     "name": "Skyline Altiport",
-    "len": 380,
-    "wid": 18,
+    "len": 190,
+    "wid": 9,
     "surface": 0,
     "look": "grass",
     "slope": 0,
@@ -15285,7 +15584,7 @@
      false,
      false
     ],
-    "falloff": 30,
+    "falloff": 12,
     "site": null,
     "pattern": null,
     "stand": {
@@ -15302,32 +15601,36 @@
     "profile": [
      [
       0,
-      -15.96
+      -10.32
      ],
      [
-      0.55,
-      4.94
+      0.3684,
+      -4.08
      ],
      [
-      0.82,
-      12.6
+      0.6316,
+      -1.01
+     ],
+     [
+      0.8421,
+      -0.39
      ],
      [
       1,
-      13.3
+      -0.26
      ]
     ],
     "approach": 0,
     "hangar": null,
     "circuit": null,
-    "band": 6,
+    "band": 3,
     "pav": {
      "marks": "none"
     },
     "altiport": true,
     "c": [
-     257,
-     -7707.46
+     304.5,
+     -7789.73
     ],
     "hdg": -1.0472,
     "stage": {
@@ -15340,31 +15643,10 @@
       {
        "show": [
         0,
-        2
+        0
        ],
-       "len": 320,
-       "c": [
-        272.0,
-        -7733.44
-       ],
-       "profile": [
-        [
-         0,
-         -9.8
-        ],
-        [
-         0.4656,
-         4.94
-        ],
-        [
-         0.7862,
-         12.6
-        ],
-        [
-         1,
-         13.3
-        ]
-       ]
+       "sock": false,
+       "ties": false
       }
      ]
     }
@@ -19708,6 +19990,27 @@
       "P": {
        "lot": false
       }
+     },
+     {
+      "id": "glider",
+      "key": "hangar/club hangar",
+      "x": -14.62,
+      "z": 108.22,
+      "yaw": 1.0472,
+      "P": {
+       "HW": 9.5,
+       "HD": 5.5,
+       "EAVE": 4.4,
+       "lot": false,
+       "name": "Glider hangar"
+      },
+      "stage": {
+       "track": "resort",
+       "show": [
+        3,
+        null
+       ]
+      }
      }
     ]
    },
@@ -21483,6 +21786,425 @@
      7,
      10
     ]
+   },
+   {
+    "id": "tw_k_grove_e",
+    "poly": [
+     [
+      372.44,
+      -7839.42
+     ],
+     [
+      325.44,
+      -7758.01
+     ],
+     [
+      358.35,
+      -7739.01
+     ],
+     [
+      405.35,
+      -7820.42
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "new",
+     "species": {
+      "realistic_fir_trees_pack_lods_gameready.glb": {
+       "proportion": 2
+      },
+      "spruce_tree.glb": {
+       "proportion": 1.5
+      },
+      "pine_georgeous.glb": {
+       "proportion": 0.8
+      },
+      "dead_conifer": {
+       "proportion": 0.25
+      },
+      "shrub_deciduous": {
+       "proportion": 1
+      }
+     },
+     "density": 70,
+     "under": 6,
+     "cover": 1
+    }
+   },
+   {
+    "id": "tw_k_grove_w",
+    "poly": [
+     [
+      274.99,
+      -7902.61
+     ],
+     [
+      249.99,
+      -7859.31
+     ],
+     [
+      218.81,
+      -7877.31
+     ],
+     [
+      243.81,
+      -7920.61
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "new",
+     "species": {
+      "realistic_fir_trees_pack_lods_gameready.glb": {
+       "proportion": 2
+      },
+      "spruce_tree.glb": {
+       "proportion": 1.5
+      },
+      "pine_georgeous.glb": {
+       "proportion": 0.8
+      },
+      "dead_conifer": {
+       "proportion": 0.25
+      },
+      "shrub_deciduous": {
+       "proportion": 1
+      }
+     },
+     "density": 70,
+     "under": 6,
+     "cover": 1
+    }
+   },
+   {
+    "id": "tw_k_grove_nw",
+    "poly": [
+     [
+      259.7,
+      -7812.13
+     ],
+     [
+      220.7,
+      -7744.58
+     ],
+     [
+      191.25,
+      -7761.58
+     ],
+     [
+      230.25,
+      -7829.13
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "new",
+     "species": {
+      "realistic_fir_trees_pack_lods_gameready.glb": {
+       "proportion": 2
+      },
+      "spruce_tree.glb": {
+       "proportion": 1.5
+      },
+      "pine_georgeous.glb": {
+       "proportion": 0.8
+      },
+      "dead_conifer": {
+       "proportion": 0.25
+      },
+      "shrub_deciduous": {
+       "proportion": 1
+      }
+     },
+     "density": 70,
+     "under": 6,
+     "cover": 1
+    }
+   },
+   {
+    "id": "tw_k_grove_se",
+    "poly": [
+     [
+      391.25,
+      -7883.99
+     ],
+     [
+      423.75,
+      -7940.28
+     ],
+     [
+      460.12,
+      -7919.28
+     ],
+     [
+      427.62,
+      -7862.99
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "new",
+     "species": {
+      "realistic_fir_trees_pack_lods_gameready.glb": {
+       "proportion": 2
+      },
+      "spruce_tree.glb": {
+       "proportion": 1.5
+      },
+      "pine_georgeous.glb": {
+       "proportion": 0.8
+      },
+      "dead_conifer": {
+       "proportion": 0.25
+      },
+      "shrub_deciduous": {
+       "proportion": 1
+      }
+     },
+     "density": 70,
+     "under": 6,
+     "cover": 1
+    }
+   },
+   {
+    "id": "tw_k_grove_sw",
+    "poly": [
+     [
+      332.36,
+      -7917.99
+     ],
+     [
+      364.86,
+      -7974.28
+     ],
+     [
+      330.22,
+      -7994.28
+     ],
+     [
+      297.72,
+      -7937.99
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "new",
+     "species": {
+      "realistic_fir_trees_pack_lods_gameready.glb": {
+       "proportion": 2
+      },
+      "spruce_tree.glb": {
+       "proportion": 1.5
+      },
+      "pine_georgeous.glb": {
+       "proportion": 0.8
+      },
+      "dead_conifer": {
+       "proportion": 0.25
+      },
+      "shrub_deciduous": {
+       "proportion": 1
+      }
+     },
+     "density": 70,
+     "under": 6,
+     "cover": 1
+    }
+   },
+   {
+    "id": "tw_k_grove_le",
+    "poly": [
+     [
+      303.19,
+      -7663.47
+     ],
+     [
+      255.69,
+      -7581.2
+     ],
+     [
+      292.93,
+      -7559.7
+     ],
+     [
+      340.43,
+      -7641.97
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "new",
+     "species": {
+      "realistic_fir_trees_pack_lods_gameready.glb": {
+       "proportion": 2
+      },
+      "spruce_tree.glb": {
+       "proportion": 1.5
+      },
+      "pine_georgeous.glb": {
+       "proportion": 0.8
+      },
+      "dead_conifer": {
+       "proportion": 0.25
+      },
+      "shrub_deciduous": {
+       "proportion": 1
+      }
+     },
+     "density": 70,
+     "under": 6,
+     "cover": 1
+    }
+   },
+   {
+    "id": "tw_k_grove_lw",
+    "poly": [
+     [
+      195.81,
+      -7725.47
+     ],
+     [
+      148.31,
+      -7643.2
+     ],
+     [
+      111.07,
+      -7664.7
+     ],
+     [
+      158.57,
+      -7746.97
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "new",
+     "species": {
+      "realistic_fir_trees_pack_lods_gameready.glb": {
+       "proportion": 2
+      },
+      "spruce_tree.glb": {
+       "proportion": 1.5
+      },
+      "pine_georgeous.glb": {
+       "proportion": 0.8
+      },
+      "dead_conifer": {
+       "proportion": 0.25
+      },
+      "shrub_deciduous": {
+       "proportion": 1
+      }
+     },
+     "density": 70,
+     "under": 6,
+     "cover": 1
+    }
+   },
+   {
+    "id": "tw_k_rocks_e",
+    "poly": [
+     [
+      357.32,
+      -7841.22
+     ],
+     [
+      346.32,
+      -7822.17
+     ],
+     [
+      357.58,
+      -7815.67
+     ],
+     [
+      368.58,
+      -7834.72
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "biome",
+     "mix": "scree"
+    }
+   },
+   {
+    "id": "tw_k_rocks_n",
+    "poly": [
+     [
+      242.36,
+      -7762.1
+     ],
+     [
+      231.36,
+      -7743.05
+     ],
+     [
+      217.5,
+      -7751.05
+     ],
+     [
+      228.5,
+      -7770.1
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "biome",
+     "mix": "scree"
+    }
+   },
+   {
+    "id": "tw_k_rocks_s",
+    "poly": [
+     [
+      373.12,
+      -7880.59
+     ],
+     [
+      384.12,
+      -7899.65
+     ],
+     [
+      399.71,
+      -7890.65
+     ],
+     [
+      388.71,
+      -7871.59
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "biome",
+     "mix": "scree"
+    }
+   },
+   {
+    "id": "tw_k_rocks_ne",
+    "poly": [
+     [
+      345.25,
+      -7804.31
+     ],
+     [
+      334.25,
+      -7785.26
+     ],
+     [
+      346.37,
+      -7778.26
+     ],
+     [
+      357.37,
+      -7797.31
+     ]
+    ],
+    "code": null,
+    "veg": {
+     "mode": "biome",
+     "mix": "scree"
+    }
    }
   ],
   "objects": [
@@ -23810,6 +24532,291 @@
     "yaw": -0.6087,
     "dy": 0,
     "on": "ground"
+   },
+   {
+    "id": "tw_g_ridge",
+    "kind": "billboard",
+    "key": "rwy:RIDGE",
+    "x": 273.56,
+    "z": -7819.14,
+    "yaw": -1.0472,
+    "w": 0.9,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_g_launch",
+    "kind": "billboard",
+    "key": "rwy:LAUNCH",
+    "x": 324.96,
+    "z": -7802.17,
+    "yaw": 2.0944,
+    "w": 0.9,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_g_lookout",
+    "kind": "billboard",
+    "key": "rwy:LOOKOUT",
+    "x": 322.15,
+    "z": -7755.3,
+    "yaw": 2.0944,
+    "w": 0.9,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_g_piste",
+    "kind": "billboard",
+    "key": "rwy:PISTE",
+    "x": 189.03,
+    "z": -7679.73,
+    "yaw": 2.0944,
+    "w": 0.9,
+    "stage": {
+     "track": "resort",
+     "show": [
+      1,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o21",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "table_wood",
+    "x": 285.24,
+    "z": -7823.37,
+    "yaw": 0.5236,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o22",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "chair_wood",
+    "x": 286.36,
+    "z": -7822.72,
+    "yaw": 3.6652,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o23",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "chair_wood",
+    "x": 284.11,
+    "z": -7824.02,
+    "yaw": 0.5236,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o24",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "table_wood",
+    "x": 283.24,
+    "z": -7819.91,
+    "yaw": 0.5236,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o25",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "chair_wood",
+    "x": 284.36,
+    "z": -7819.26,
+    "yaw": 3.6652,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o26",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "chair_wood",
+    "x": 282.11,
+    "z": -7820.56,
+    "yaw": 0.5236,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o27",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "table_wood",
+    "x": 281.03,
+    "z": -7823.49,
+    "yaw": 0.5236,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o28",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "chair_wood",
+    "x": 281.63,
+    "z": -7824.53,
+    "yaw": 2.0944,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o29",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "planter",
+    "x": 282.14,
+    "z": -7827.81,
+    "yaw": 0.0,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o30",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "planter",
+    "x": 278.09,
+    "z": -7820.8,
+    "yaw": 0.0,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o31",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "person_koky",
+    "x": 280.32,
+    "z": -7819.86,
+    "yaw": 1.1236,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "tw_o32",
+    "kind": "prop",
+    "dy": 0,
+    "on": "ground",
+    "key": "person_andrew",
+    "x": 287.66,
+    "z": -7824.17,
+    "yaw": 3.2652,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      null
+     ]
+    }
+   },
+   {
+    "id": "sg_k_glider",
+    "kind": "kit",
+    "kit": "build",
+    "x": 262.38,
+    "z": -7759.78,
+    "yaw": 1.0472,
+    "w": 20,
+    "d": 12,
+    "stage": {
+     "track": "resort",
+     "show": [
+      2,
+      2
+     ]
+    }
    }
   ],
   "junctions": [

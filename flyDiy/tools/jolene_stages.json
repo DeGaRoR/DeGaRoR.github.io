@@ -102,31 +102,10 @@
     {
      "show": [
       0,
-      2
+      0
      ],
-     "len": 320,
-     "c": [
-      272.0,
-      -7733.44
-     ],
-     "profile": [
-      [
-       0,
-       -9.8
-      ],
-      [
-       0.4656,
-       4.94
-      ],
-      [
-       0.7862,
-       12.6
-      ],
-      [
-       1,
-       13.3
-      ]
-     ]
+     "sock": false,
+     "ties": false
     }
    ]
   },
@@ -300,5 +279,6 @@
     }
    }
   ]
- }
+ },
+ "note_skyline": "SKYLINE-RESORT (13 Nov): tw_ski is 190 x 9 m at every resort value (the 320 -> 380 m step is gone; resort 0 no windsock, no tie-downs); the resort's other staged entries (the launch pad, the paths and signposts at 1; the terrace, the parking area, the glider hangar's kit at 2; the glider hangar at 3) are written into the fixture by tools/skyline_resort.py, which is their source"
 }
