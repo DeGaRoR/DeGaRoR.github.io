@@ -187,6 +187,10 @@ const GATES = [
   // onto the hold, at every land aerodrome of both worlds; the take-off roll completes (the Cub default and
   // the user's aluminium C172 at Jolene HOME); the skip's roll begins where the taxi's did (~4.5 min)
   { id: 'LINEUP', file: '_lineup_check.js', tier: 'core', wall: 270 },
+  // TOW-LAUNCH SLOPE: the ground pushes along its normal - the motorglider at Skyline Altiport (tw_ski, ~9 % grass),
+  // engine off: it rolls downhill at g (sin - Crr cos), pushed uphill it slows at g (sin + Crr cos) and rolls back,
+  // parked under Crr (3 %) it holds, braked on 9 % it holds, across 9 % its side grip holds (~1 min)
+  { id: 'SLOPE', file: '_slope_check.js', tier: 'core', wall: 60 },
   // G3800 TAILWHEELS: the tail contact's four laws (the steerable Scott kind's pivot and re-lock, a brake-free 180 deg,
   // no breakout on the autopilot's runway; the lockable DC-3 locked straight and pivoting unlocked; the skid's stop; the
   // fixed wheel), a twin boom's wheel a boom, the inverted V on its tip wheels flying HOME's circuit, its controls'
