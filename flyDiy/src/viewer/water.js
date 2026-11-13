@@ -524,6 +524,15 @@ const WATER = (() => {
             }
           }
           #endif
+          // LOOK-GLINT r3 (t52 17:10: a sun behind the ridge kept a sharp column under it - the probe carries the sun's disc and corona,
+          // and a reflection reads it whatever stands between): the reflection's radiance OVER the sky's (6 x the probe's mean over the upper
+          // hemisphere, roughness 1) is scaled by the sun's visibility from the path (uWGlint.x). Day only (w), none under ?glint=0; a seen sun
+          // (x 1) keeps every bit, a cloud or a lit shore under the cap is untouched
+          if (uWGlint.w > 0.0 && uWGlint.x < 0.999) {
+            float wCap = 6.0 * max(dot(getIBLRadiance( geometryViewDir, wUpV * faceDirection, 1.0 ), vec3(0.2126, 0.7152, 0.0722)), 1.0e-4);
+            float wLr = dot(iblRadiance, vec3(0.2126, 0.7152, 0.0722));
+            if (wLr > wCap) iblRadiance *= mix(1.0, (wCap + (wLr - wCap) * uWGlint.x) / wLr, uWGlint.w);
+          }
           iblRadiance *= wMeanF; }`)
       .replace('#include <normal_fragment_maps>', '')
       // NIGHT-SHINE: the direct lights' glint faded on the FAR water at deep night (uWDirN.x, frame()): there the analytic highlight of a small moon fell on ripples a pixel cannot draw, white dashes along a far shore (the hero, 5 Nov); the near glitter path stays
