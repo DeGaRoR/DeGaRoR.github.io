@@ -1099,6 +1099,7 @@ const GATES = [
   // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
   // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
   { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },
+  { id: 'TUTORLOCK', file: '_tutorlock_check.js', argv: ['--selftest'], tier: 'core', wall: 15 },   // TUTORIAL-LOCK (13 Nov): the end checkpoint, Skip, the exact-build diff (79_story.js)
   // CANDIDATE OFFICIAL (the user, 2 Nov): the staging pool builds/candidates/ - the index and its files (the user's names,
   // no orphan, no plaque), every candidate through the page's own load door headless (_load_build.js) and buildGen, the
   // review/ folder not offered (none in the index, each in REVIEW.md; its load chain reported, never red), the garage's

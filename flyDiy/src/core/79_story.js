@@ -635,3 +635,80 @@ function storyCard(doc, o) {
   return { beat: B.id, title: B.title, brief: B.brief, rows, ack: G.k === 'ack', note: notes.join(' ') || null,
            step: STORY_IDS.indexOf(B.id) + 1, of: STORY_IDS.length };
 }
+
+// ---- THE TUTORIAL LOCK (TUTORIAL-LOCK, the user 13 Nov ~12:40: "now that we want a fixed state, we have to lock all of
+// this; that's the very first task") ------------------------------------------------------------------------------------
+// THE END-OF-TUTORIAL CHECKPOINT: whatever was flown (or skipped), the career starts from ONE state - the story open, every
+// beat done, the one teaching job done, a fixed wallet, a fixed day ("a well-deserved rest": day 3, 08:00 AKDT), the world's
+// one seed (no per-career randomness), the starter alone in the fleet (the client's Cub went back to its owner's family),
+// the first tech segment. What carries over is the player's own: paint, registration, names, the sheds they hold.
+//   storyCheckpoint(doc) -> { ok, doc }   (pure; a second checkpoint of its result is the same document)
+//   storySkip(doc, o)    -> { ok, doc }   storyNewCareer then storyCheckpoint: the New career's "start the career" choice
+const STORY_JOB = 'field.02';   // the tutorial's ONE job (Tools from the hill: 40 kg Fishing Village -> HOME)
+const STORY_CHECKPOINT = Object.freeze({ day: Object.freeze({ date: '2026-07-17', utc: 57600 }), wallet: 12000, seed: 'jolene', job: STORY_JOB });
+function storyCheckpoint(doc, o) {
+  o = o || {};
+  if (!doc || doc.mode !== 'career' || !doc.career) return stNo(doc, 'not a career');
+  const d = stClone(doc), c = d.career, s = storyNormalise(c.story), K = STORY_CHECKPOINT;
+  const starter = s.planes.starter || STORY_SLOTS.starter;
+  s.beat = 'open'; s.open = true; s.done = STORY_IDS.slice(); s.jobs = 1;
+  delete s.offers; delete s.occasions;
+  s.planes = { starter, client: null, gift: null };
+  c.story = s;
+  c.seed = K.seed;
+  c.day = (typeof careerDayNorm === 'function') ? careerDayNorm(K.day) : Object.assign({}, K.day);
+  // the one job: done once, paid its base, its provider's reputation and arc as a stop would leave them
+  const rec = typeof contractAuthored === 'function' ? (contractAuthored()[K.job] || null) : null;
+  const C = c.contracts || (c.contracts = { offered: [], accepted: [], tracked: null, done: [], live: {} });
+  C.done = [{ id: K.job, at: 0, pay: rec && rec.pay ? (+rec.pay.base || 0) : 0 }];
+  C.accepted = []; C.offered = []; C.tracked = null; C.live = {};
+  for (const p of Object.keys(c.providers || {})) c.providers[p] = { rep: 0, arc: 0 };
+  if (rec && rec.rep && c.providers) { const P = c.providers[rec.rep.provider] || (c.providers[rec.rep.provider] = { rep: 0, arc: 0 }); P.rep = +(+rec.rep.gain || 0).toFixed(3); P.arc = 1; }
+  if (c.tracks) for (const t of Object.keys(c.tracks)) c.tracks[t] = 0;
+  // the fleet: the starter alone (every other airframe row and fleet row of the tutorial goes)
+  if (d.fleet) for (const k of Object.keys(d.fleet)) if (k !== starter) delete d.fleet[k];
+  if (c.airframes) for (const k of Object.keys(c.airframes)) if (k !== starter) delete c.airframes[k];
+  c.pilots = {}; c.roster = []; c.routes = [];
+  if (typeof techNew === 'function') c.tech = techNew();
+  // the wallet: fixed, the difference written to the ledger as the checkpoint's
+  // (a checkpoint already written - its line undone first, so a second checkpoint writes the very same line)
+  if (!Array.isArray(d.ledger)) d.ledger = [];
+  const prev = d.ledger.find(e => e && e.k === 'story' && e.ref === 'checkpoint');
+  const before = (+d.wallet || 0) + (prev ? +prev.amt || 0 : 0), clock0 = prev ? prev.clock : Math.round(d.clock || 0);
+  d.ledger = d.ledger.filter(e => e !== prev);
+  const want = K.wallet, dw = Math.round(want - before);
+  if (dw) d.ledger.push({ k: 'story', amt: -dw, ref: 'checkpoint', clock: clock0, free: false });
+  d.wallet = want;
+  return { ok: true, doc: d };
+}
+function storySkip(doc, o) {
+  const r = storyNewCareer(doc, o);
+  if (!r.ok) return r;
+  return storyCheckpoint(r.doc, o);
+}
+// THE EXACT BUILD: the tutor's build steps are the DIFFERENCES between the build's start file and its target file (the
+// client's J-3 -> toward the Carbon Cub, 4-5 changes; that Cub -> on floats) - one step per changed setting, checked on the
+// live plane by its value. storyEditDiff(start, target, { skip, eps }) -> [{ path: 'a.b.c', from, to }] (sorted by path);
+// a list of objects (wings) walked by index (wings.0.span), any other array whole; the identity and the cosmetic keys are skipped (the player's paint and name are theirs).
+// storyEditDone(spec, steps, eps) -> [true|false per step]: the step's setting at its target value on `spec`.
+const STORY_EDIT_SKIP = /^(meta|log|plaque|what|v|cert|wear|name|finish|paint|thumb)(\.|$)/;
+function storyEditDiff(a, b, o) {
+  o = o || {};
+  const skip = o.skip || STORY_EDIT_SKIP, eps = o.eps === undefined ? 1e-6 : +o.eps, out = [];
+  // a leaf: a value, or an array that is not a same-length list of objects (wings, panels: walked element by element)
+  const leaf = v => v === null || typeof v !== 'object' || (Array.isArray(v) && !v.every(q => q && typeof q === 'object' && !Array.isArray(q)));
+  const same = (x, y) => (typeof x === 'number' && typeof y === 'number') ? Math.abs(x - y) <= eps : JSON.stringify(x) === JSON.stringify(y);
+  (function walk(x, y, p) {
+    if (p && skip.test(p)) return;
+    if (leaf(x) || leaf(y) || (Array.isArray(x) !== Array.isArray(y)) || (Array.isArray(x) && x.length !== y.length)) { if (!same(x === undefined ? null : x, y === undefined ? null : y)) out.push({ path: p, from: x === undefined ? null : x, to: y === undefined ? null : y }); return; }
+    const keys = new Set(Object.keys(x || {}).concat(Object.keys(y || {})));
+    for (const k of [...keys].sort()) walk(x ? x[k] : undefined, y ? y[k] : undefined, p ? p + '.' + k : k);
+  })(a || {}, b || {}, '');
+  return out;
+}
+const storyEditAt = (o, path) => path.split('.').reduce((v, k) => (v === null || v === undefined ? undefined : v[k]), o);
+function storyEditDone(spec, steps, eps) {
+  const e = eps === undefined ? 1e-6 : +eps;
+  return (steps || []).map(s => { const v = storyEditAt(spec, s.path), t = s.to;
+    return (typeof v === 'number' && typeof t === 'number') ? Math.abs(v - t) <= e : JSON.stringify(v === undefined ? null : v) === JSON.stringify(t); });
+}
