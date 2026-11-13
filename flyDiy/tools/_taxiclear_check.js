@@ -235,7 +235,12 @@ for (const seed of [0, 1, 6, 12, 42]) {
   const a = WI.aerodromes.find(q => q.id === 'mn_strip'), s = C.siteOf('mn_strip');
   const put = L.intoWorld(C, WI, SH, a.x, a.z, 600);
   check(put.obstacles > 150 && WI.obstacles.count >= put.obstacles, '9 the mill\'s obstacles are in the world', put.obstacles + ' obstacles, ' + put.trunks + ' trunks');
-  for (const B of VB.filter(b => b.key !== 'stock')) {
+  // PILOT-UNIFY (the user, 13 Nov via A0: "It doesn't matter that the Cessna can't take off from Jumbo Mine. But the CUB must be
+  // able to do it, and the JODEL must be able to do it"): THE JODEL FLIES FROM THE MILL TOO - the validated Jodel
+  // (builds/jodel_2026-09-20_corrected.json), the same three rows, by the one autopilot. (The Cessna's case becomes its said
+  // decline at the hold once the go / no-go reads the surface and the slope - L40c)
+  const JODEL = (() => { const key = path.join(T, '..', 'builds', 'jodel_2026-09-20_corrected.json'); return { key, name: 'the Jodel', def: C.buildGen(PT.specOf(key).spec) }; })();
+  for (const B of VB.filter(b => b.key !== 'stock').concat([JODEL])) {
     const F = L.flyOut(C, WI, IX, B.def, a, s);
     check(F.air, '9 ' + B.name + ' taxied from the mill and took off', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, '9 ' + B.name + ' touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
