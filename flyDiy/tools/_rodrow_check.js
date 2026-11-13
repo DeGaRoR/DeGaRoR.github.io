@@ -59,10 +59,14 @@ const ROD_CARDS = ['chinook', 'ul1', 'floatplane', 'pusherPod', 'mw5', 'archaeop
 
 console.log('A. LATENT');
 { let clean = true, same = true;
+  // (the Archaeopteryx NAMES its rod since the weight study's L4 - carbon, as its fuselage was: the soft shell is the
+  //  pod's alone - so it is checked against the same aeroplane with the fuselage carbon and no rod row: the same beams)
   for (const k of ROD_CARDS) {
-    const sp = born(k), sp0 = born(k, { rodMat: 0, rodWallMm: 1.2 });
-    if ('rodMat' in sp.fuselage || 'rodWall' in sp.fuselage) clean = false;
-    if (JSON.stringify(build(sp).beams) !== JSON.stringify(build(sp0).beams)) same = false;
+    const named = k === 'archaeopteryx';
+    const sp = born(k), sp0 = named ? born(k, { intCons: 0, rodMat: 0, rodWallMm: 1.2 }) : born(k, { rodMat: 0, rodWallMm: 1.2 });
+    if (named ? !(sp.fuselage.rodMat === 'carbon' && !('rodWall' in sp.fuselage)) : ('rodMat' in sp.fuselage || 'rodWall' in sp.fuselage)) clean = false;
+    if (!named && JSON.stringify(build(sp).beams) !== JSON.stringify(build(sp0).beams)) same = false;
+    if (named) { const sp1 = born(k, { intCons: 0 }); if (JSON.stringify(build(sp1).beams) !== JSON.stringify(build(sp0).beams)) same = false; }
   }
   const off = born('cub', { rodMat: 1, rodWallMm: 0.5 });
   ok(clean && same && !('rodMat' in off.fuselage) && !('rodWall' in off.fuselage),

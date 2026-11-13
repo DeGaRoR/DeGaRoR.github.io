@@ -453,8 +453,8 @@ try {
   const dA = C.buildGen(JSON.parse(JSON.stringify(cageJoinSpec(Object.assign({}, P, { intCons: 3 }), M, T))));
   const mT = dT.parts.ledger.fuselage.mass, mA = dA.parts.ledger.fuselage.mass;
   ok(mA > mT + 5, 'an alloy fuselage is heavier than the tube one (' + mT.toFixed(1) + ' -> ' + mA.toFixed(1) + ' kg)');
-  const sX = cageJoinSpec(Object.assign({}, P, { intCons: 7 }), M, T);
-  ok(sX.fuselage.material === 'glass', 'an out-of-range tile clamps to the last row (aluTube since G466; glass since G2047)');
+  const sX = cageJoinSpec(Object.assign({}, P, { intCons: 9 }), M, T);
+  ok(sX.fuselage.material === 'softShell', 'an out-of-range tile clamps to the last row (aluTube since G466; glass since G2047; the soft shell since the weight study\'s L4)');
 } catch (e) {
   ok(false, 'construction join threw: ' + e.message);
 }

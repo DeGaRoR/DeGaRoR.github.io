@@ -846,10 +846,17 @@ function nullPaths(o, pre, out) {
   // design gross, and every class's gauge follows it (genDesignGross) — so
   // "did not move" became "moved by an order less than the wing did", the
   // gear rule's own shape. The engines never move: they are bought.
+  // WEIGHT STUDY L2a (12 Nov, the user: "have the tail material just follow the wing material"): a SILENT tail follows a
+  // chosen wing (60_gen_spec genSurfKey) - so the tail is held to the rule with its own construction NAMED (the
+  // aeroplane's tail default said out loud), and the silent tail is checked to follow
   const dW = Math.abs(LC.wings.mass - L0.wings.mass);
+  const cwT = clone(cw); cwT.tail = Object.assign({}, cwT.tail, { finMaterial: C.GEN_SURF_DEFAULT_TAIL[glob], stabMaterial: C.GEN_SURF_DEFAULT_TAIL[glob] });
+  const LT = led(cwT);
   ok(['fuselage', 'tail'].every(s2 =>
-       !L0[s2] === !LC[s2] && (!L0[s2] || Math.abs(LC[s2].mass - L0[s2].mass) < 0.1 * dW)),
-     'G116: the fuselage and the tail moved by an order less than the wing (the gauge follows the gross)');
+       !L0[s2] === !LT[s2] && (!L0[s2] || Math.abs(LT[s2].mass - L0[s2].mass) < 0.1 * dW)),
+     'G116: the fuselage and the tail (its own construction named) moved by an order less than the wing (the gauge follows the gross)');
+  ok(C.genSurfKey(C.resolveSpec(clone(cw)).spec, 'stab') === 'carbon' && C.genSurfKey(C.resolveSpec(clone(cwT)).spec, 'stab') === C.GEN_SURF_DEFAULT_TAIL[glob],
+     'L2a: a silent tail follows the chosen carbon wing; a named one keeps its own');
   // SEAPLANES-LAND 8 Nov (A0: "write the rule as the physics"): THE BRACING FOLLOWS THE WING'S STIFFNESS, NOT ITS GROSS.
   // A carbon wing is stiffer than fabric over wood: it carries more of its own bending, the struts and wires less, so
   // their gauge FALLS - whichever way the wing's mass goes. The default aeroplane, carbon vs fabric (kg):
