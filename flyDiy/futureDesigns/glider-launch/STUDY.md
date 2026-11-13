@@ -200,3 +200,28 @@ Run any of them with `node futureDesigns/glider-launch/<probe>.js` from `flyDiy/
 2. B: a winch (fixed drum at the far end, the cable reeled in) is physically the same rope with a fixed anchor.
    It is even simpler than the car, and it is the classic club launch. Worth adding as B'?
 3. A true sailplane card (0 engines + monowheel), or keep launching the motorglider with its engine off?
+
+## Addendum 2026-11-13: the winch (B')
+
+**The model.**
+- `tools/_winch_gen.js` is a procedural prop in the tower generator's grammar: DEF, ROWS, PRESETS, PAINTS and
+  `build(P)`, which returns a THREE.Group. DIM and KIT hold the numbers a placer reads.
+- It draws a twin-drum trailer winch: the chassis with its drawbar; the engine housing (V8, diesel or electric); the
+  drums with their brakes and levelwinds; the fairleads with the guillotines; the mesh cage; the cab with its aft
+  grille and beacon; and the cable out to the drogue, strop, weak link and rings.
+- `tools/_winch.html` is its page: orbit, presets and toggles. `tools/winch_shot.js` renders headless stills into
+  `reports/evidence/WINCH-LAUNCH/`. `tools/winch_page.js` builds the one-file phone page.
+
+**The physics probe (`probe_winch.js [L0] [vReel] [Tcap]`).**
+- It is the car tow's line with the far end fixed at the drum's fairlead. The rest length shrinks at the drum speed,
+  and the stretch rate is d(L − Lrest)/dt = −v_hook·u + v_drum.
+- **The drum:** the driver opens up to 24 m/s over 3 s and backs off when the line pulls over 4.5 kN.
+- **The glider:** the motorglider with its engine off holds a pitch schedule: tail up on the run, rotate at 22 m/s, a
+  34° climb from 10 m, eased when slow.
+- **Release:** when the line passes 65° at the glider.
+- **Measured:**
+  - 600 m line: released at **126 m**, 20.9 s, 58 m short of the drum; peak tension 6.0 kN.
+  - 1000 m line: released at **239 m**, 32.3 s, 111 m short of the drum; peak tension 5.1 kN.
+- **Release speed is 43.6 m/s, too fast.** The probe's drum holds 24 m/s even as the line steepens. A real driver
+  eases off in the second half of the climb; the production law should govern on the glider's airspeed. That is the
+  first tuning item.

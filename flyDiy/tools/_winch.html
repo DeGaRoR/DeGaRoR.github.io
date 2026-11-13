@@ -1,0 +1,251 @@
+<title>Glider Launch Winch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a field sheet - the model fills the top as the working view, the facts sit below it in two columns that stack on a phone. */
+:root {
+  --bg: #eef0ea; --panel: #e2e6dc; --fg: #1d2420; --muted: #5a6458; --rule: #c9cfc2;
+  --accent: #b86e00; --accent-ink: #fff7e8; --sky-top: #9fc0dc; --sky-bot: #e9eee6;
+  --f-display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --f-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131713; --panel: #1b211b; --fg: #e3e8df; --muted: #9aa596; --rule: #2e362d;
+  --accent: #f0a32a; --accent-ink: #1b1305; --sky-top: #2b3d52; --sky-bot: #59626a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #131713; --panel: #1b211b; --fg: #e3e8df; --muted: #9aa596; --rule: #2e362d;
+  --accent: #f0a32a; --accent-ink: #1b1305; --sky-top: #2b3d52; --sky-bot: #59626a; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--f-body); margin: 0;
+       padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 40px }
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 18px }
+header { display: grid; gap: 4px }
+.eyebrow { font: 500 12px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent) }
+h1 { font: 700 clamp(30px, 6vw, 48px)/1 var(--f-display); letter-spacing: .01em; margin: 0; text-wrap: balance }
+.lede { color: var(--muted); max-width: 68ch; margin: 0 }
+.stage { position: relative; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--panel) }
+#view { display: block; width: 100%; height: min(62vh, 560px); min-height: 300px; touch-action: none; cursor: grab }
+#view:active { cursor: grabbing }
+.hint { position: absolute; left: 10px; bottom: 8px; font: 12px var(--f-mono); color: #1d2420; background: rgba(255,255,255,.7); padding: 2px 6px; border-radius: 3px; pointer-events: none }
+.controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center }
+.group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
+.group > span { font: 500 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 2px }
+button.chip { font: 500 14px var(--f-body); color: var(--fg); background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 5px 12px; cursor: pointer }
+button.chip:hover { border-color: var(--accent) }
+button.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent) }
+button.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.stills { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.stills figure { margin: 0; display: grid; gap: 4px }
+.stills img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border: 1px solid var(--rule); border-radius: 4px; display: block; background: var(--panel) }
+.stills figcaption { font: 12px var(--f-mono); color: var(--muted) }
+.cols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; align-items: start }
+h2 { font: 700 22px/1.1 var(--f-display); letter-spacing: .02em; margin: 0 0 8px; text-transform: uppercase }
+.parts { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px }
+.parts li { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 10px; padding-top: 10px; border-top: 1px solid var(--rule) }
+.parts b { font: 700 16px/1.2 var(--f-display); letter-spacing: .03em; text-transform: uppercase }
+.parts p { margin: 0; min-width: 0 }
+table { width: 100%; border-collapse: collapse; font-size: 14px }
+td { padding: 7px 0; border-top: 1px solid var(--rule); vertical-align: top }
+td:first-child { color: var(--muted); padding-right: 12px; width: 45% }
+td:last-child { font: 500 13.5px var(--f-mono); font-variant-numeric: tabular-nums }
+.note { font-size: 13px; color: var(--muted); margin: 10px 0 0 }
+.src { font-size: 13px; color: var(--muted); display: grid; gap: 4px; margin: 0; padding-left: 18px }
+.src a { color: var(--fg) }
+body.shot { padding: 0 } body.shot .wrap { max-width: none } body.shot .wrap > *:not(.stage) { display: none } body.shot .stage { border: 0; border-radius: 0 }
+body.shot #view { width: 1600px; height: 1200px; max-height: none } body.shot .hint { display: none }
+@media (max-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr) } .stills { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (max-width: 420px) { .parts li { grid-template-columns: minmax(0, 1fr); gap: 2px } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">flyDiy · launch equipment · prop model v1</div>
+    <h1>Glider Launch Winch</h1>
+    <p class="lede">A twin-drum trailer winch, the kind a club parks at the far end of the field. It reels in up to a kilometre of cable at 20–30 m/s and pulls a sailplane up a steep climb to a few hundred metres. Drag to orbit, pinch or scroll to zoom.</p>
+  </header>
+
+  <div class="stage">
+    <canvas id="view" aria-label="3D model of the winch"></canvas>
+    <div class="hint" id="hint">drag · zoom</div>
+  </div>
+
+  <div class="controls">
+    <div class="group" id="views"><span>View</span></div>
+    <div class="group" id="presets"><span>Build</span></div>
+    <div class="group" id="toggles"><span>Show</span></div>
+  </div>
+
+  <div class="stills" id="stills" hidden></div>
+
+  <div class="cols">
+    <section>
+      <h2>What you are looking at</h2>
+      <ul class="parts">
+        <li><b>Trailer</b><p>Tandem-axle chassis with chequer-plate deck, A-frame drawbar, jockey wheel and four stabiliser legs. It is parked with the drawbar pointing away from the launch point.</p></li>
+        <li><b>Engine</b><p>Up front in a louvred housing, radiator grille forward, exhaust stack up the side. Classic club winches run a big petrol V8; the presets also show a diesel and an electric build. A propshaft and gearbox drive the drum shaft.</p></li>
+        <li><b>Drums</b><p>Two narrow, large-diameter drums on one transverse shaft, each with its own disc brake. One drum launches while the other cable is towed back out, so launches alternate.</p></li>
+        <li><b>Levelwinds</b><p>A carriage behind each drum that runs side to side on two bars, laying the cable evenly as it comes in.</p></li>
+        <li><b>Guillotines</b><p>The red boxes on the rear fairleads. If a glider cannot release, the driver fires the guillotine and cuts the cable at the winch.</p></li>
+        <li><b>Cage and cab</b><p>Welded mesh over the drums, because a parting cable whips. The driver sits facing aft, behind a grilled window, and watches the cable and the glider. The amber beacon on the roof is lit while a launch is running.</p></li>
+        <li><b>Glider end</b><p>The cable ends in a drogue parachute that slows its fall after release, then a strop, the weak link and the two rings that clip onto the glider's release hook.</p></li>
+      </ul>
+    </section>
+    <section>
+      <h2>Numbers</h2>
+      <table>
+        <tr><td>Deck, length × width</td><td>5.6 × 2.3 m</td></tr>
+        <tr><td>Overall, with drawbar</td><td>7.2 m</td></tr>
+        <tr><td>Cab roof height</td><td>2.8 m</td></tr>
+        <tr><td>Drum core / flange</td><td>Ø 0.80 / 1.16 m</td></tr>
+        <tr><td>Cable</td><td>steel or synthetic, ≤ 10 mm</td></tr>
+        <tr><td>Cable laid out</td><td>about 1 km</td></tr>
+        <tr><td>Reel-in speed</td><td>20–30 m/s</td></tr>
+        <tr><td>Weak link</td><td>≈ 1.33 × glider gross weight</td></tr>
+        <tr><td>Glider to parachute</td><td>≥ 20 m</td></tr>
+        <tr><td>Release height</td><td>300–600 m (1000–2000 ft)</td></tr>
+        <tr><td>Mass (estimate)</td><td>≈ 3.5 t</td></tr>
+      </table>
+      <p class="note">The trailer dimensions and mass are estimates; no manufacturer drawing was reachable. Drum size, cable, weak link, parachute distance and launch heights come from the sources below.</p>
+      <h2 style="margin-top:18px">Sources</h2>
+      <ol class="src">
+        <li><a href="https://groups.google.com/g/rec.aviation.soaring/c/5PtSKN_en1I" target="_blank" rel="noopener">rec.aviation.soaring: winch drum design (≈ 800 mm narrow drum core)</a></li>
+        <li><a href="https://www.difesa.it/assets/allegati/4335/all10_capitolatotecnico_lanciatori.pdf" target="_blank" rel="noopener">Italian defence procurement spec, Skylaunch Evolution 2 (cable up to 10 mm)</a></li>
+        <li><a href="https://gliding.co.nz/wp-content/uploads/currentdoc/AC3-04.pdf" target="_blank" rel="noopener">Gliding NZ AC3-04 (weak link ≈ 1⅓ × gross weight)</a></li>
+        <li><a href="https://glidingaustralia.org/wp-content/uploads/2020/09/OPS-0007-Winch-Launch-Manual-November-2015.pdf" target="_blank" rel="noopener">Gliding Australia winch launch manual (guillotine, parachute separation)</a></li>
+        <li><a href="https://www.gliding.co.uk/wp-content/uploads/sites/3/2019/06/Winch-Launch.pdf" target="_blank" rel="noopener">BGA: Winch Launch (launch heights, cable)</a></li>
+      </ol>
+    </section>
+  </div>
+</div>
+
+<script src="../vendor/three.min.js"></script>
+<script src="_winch_gen.js"></script>
+<script>
+(function () {
+  'use strict';
+  const QS = new URLSearchParams(location.search);
+  const SHOT = QS.get('shot');                       // headless stills: ?shot=<view>&preset=<name>
+  if (SHOT) document.body.classList.add('shot');
+  const canvas = document.getElementById('view');
+  const WG = window.WINCH_GEN;
+  const LEGACY = +THREE.REVISION < 155;              // light units changed at r155; the page runs on either
+  const LK = LEGACY ? 1 : Math.PI;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: !!SHOT });
+  renderer.setPixelRatio(SHOT ? 1 : Math.min(2, window.devicePixelRatio || 1));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace; else renderer.outputEncoding = THREE.sRGBEncoding;
+  const scene = new THREE.Scene();
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  // the sky: a vertical gradient on a big inverted sphere, retinted when the theme flips
+  const skyMat = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,
+    uniforms: { top: { value: new THREE.Color() }, bot: { value: new THREE.Color() } },
+    vertexShader: 'varying float h; void main(){ h = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    fragmentShader: 'uniform vec3 top; uniform vec3 bot; varying float h; void main(){ gl_FragColor = vec4(mix(bot, top, clamp(h*1.6+0.08,0.0,1.0)), 1.0); }' });
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), skyMat));
+  function tint() { skyMat.uniforms.top.value.set(css('--sky-top') || '#9fc0dc'); skyMat.uniforms.bot.value.set(css('--sky-bot') || '#e9eee6'); }
+  tint();
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', tint);
+  new MutationObserver(tint).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  // the field: mown grass with a darker runway strip along the cable's line
+  const grass = new THREE.Mesh(new THREE.CircleGeometry(300, 64), new THREE.MeshStandardMaterial({ color: 0x5d7444, roughness: 1 }));
+  grass.rotation.x = -Math.PI / 2; grass.receiveShadow = true; scene.add(grass);
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(14, 300), new THREE.MeshStandardMaterial({ color: 0x55693d, roughness: 1 }));
+  strip.rotation.x = -Math.PI / 2; strip.position.set(0, 0.004, -150); strip.receiveShadow = true; scene.add(strip);
+  scene.add(new THREE.HemisphereLight(0xdfeaf5, 0x55603f, 0.75 * LK));
+  const sun = new THREE.DirectionalLight(0xfff3e0, 1.9 * LK);
+  sun.position.set(9, 14, 6); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 50 }); sun.shadow.bias = -0.0004;
+  scene.add(sun);
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 900);
+
+  let P = Object.assign({}, WG.DEF), model = null, presetName = 'club twin-drum';
+  function rebuild() {
+    if (model) { scene.remove(model); model.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+    model = WG.build(P);
+    model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    scene.add(model);
+  }
+
+  // the views: yaw from +x toward +z (deg), pitch (deg), distance (m), target
+  const VIEWS = {
+    q:     { label: '¾ rear', yaw: -38, pitch: 20, dist: 11.5, t: [0, 1.15, -0.2] },
+    side:  { label: 'Side',   yaw: 0,   pitch: 6,  dist: 12.5, t: [0, 1.2, 0.6] },
+    rear:  { label: 'Cable end', yaw: -90, pitch: 10, dist: 7.5, t: [0, 1.15, -1.5] },
+    front: { label: 'Drawbar', yaw: 62, pitch: 16, dist: 11, t: [0, 1.1, 0.6] },
+    top:   { label: 'Top',    yaw: -90, pitch: 82, dist: 12, t: [0, 0.8, 0.4] },
+    chute: { label: 'Glider end', yaw: -35, pitch: 32, dist: 7.5, t: [0, 0.15, -35.2] },
+  };
+  const O = { yaw: 0, pitch: 0, dist: 10, t: new THREE.Vector3() };
+  let viewKey = SHOT || 'q';
+  function setView(k) {
+    const v = VIEWS[k] || VIEWS.q; viewKey = k;
+    O.yaw = v.yaw; O.pitch = v.pitch; O.dist = v.dist; O.t.set(...v.t);
+    document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === k)));
+    draw();
+  }
+  function place() {
+    const y = THREE.MathUtils.degToRad(O.yaw), p = THREE.MathUtils.degToRad(O.pitch);
+    camera.position.set(O.t.x + O.dist * Math.cos(p) * Math.cos(y), O.t.y + O.dist * Math.sin(p), O.t.z + O.dist * Math.cos(p) * Math.sin(y));
+    camera.lookAt(O.t);
+  }
+  function size() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * renderer.getPixelRatio()) || canvas.height !== Math.round(h * renderer.getPixelRatio())) renderer.setSize(w, h, false);
+    camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix();
+  }
+  let queued = false;
+  function draw() { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; size(); place(); renderer.render(scene, camera); }); }
+  window.addEventListener('resize', draw);
+
+  // orbit: one finger or the mouse turns, two fingers or the wheel zoom
+  const ptr = new Map(); let pinch0 = 0, dist0 = 0;
+  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptr.size === 2) { const [a, b] = [...ptr.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = O.dist; } });
+  canvas.addEventListener('pointermove', e => {
+    const q = ptr.get(e.pointerId); if (!q) return;
+    if (ptr.size === 1) { O.yaw += (e.clientX - q.x) * 0.35; O.pitch = Math.max(-2, Math.min(85, O.pitch + (e.clientY - q.y) * 0.3)); }
+    q.x = e.clientX; q.y = e.clientY;
+    if (ptr.size === 2) { const [a, b] = [...ptr.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 0) O.dist = Math.max(3, Math.min(80, dist0 * pinch0 / d)); }
+    document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    draw();
+  });
+  const up = e => { ptr.delete(e.pointerId); pinch0 = 0; };
+  canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('wheel', e => { e.preventDefault(); O.dist = Math.max(3, Math.min(80, O.dist * Math.exp(e.deltaY * 0.0012))); draw(); }, { passive: false });
+
+  // the controls
+  function chip(parent, label, pressed, on) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = label;
+    b.setAttribute('aria-pressed', String(!!pressed)); b.addEventListener('click', on); parent.appendChild(b); return b;
+  }
+  const vbox = document.getElementById('views');
+  for (const k of Object.keys(VIEWS)) chip(vbox, VIEWS[k].label, k === viewKey, () => setView(k)).dataset.k = k;
+  const pbox = document.getElementById('presets');
+  for (const name of Object.keys(WG.PRESETS)) chip(pbox, name, name === presetName, e => {
+    presetName = name; const keep = { cableLen: P.cableLen, chute: P.chute, cage: P.cage };
+    P = Object.assign({}, WG.DEF, WG.PRESETS[name], keep); rebuild(); draw();
+    pbox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
+  });
+  const tbox = document.getElementById('toggles');
+  const TOG = [['Cage', 'cage', 1, 0], ['Cable out', 'cableLen', 30, 0], ['Cab', 'cab', 1, 0]];
+  for (const [label, key, onV, offV] of TOG) {
+    const b = chip(tbox, label, P[key] === onV, () => { P[key] = P[key] === onV ? offV : onV; b.setAttribute('aria-pressed', String(P[key] === onV)); rebuild(); draw(); });
+  }
+
+  // stills baked in at publish time (window.WINCH_STILLS = [{ src, caption }])
+  if (Array.isArray(window.WINCH_STILLS) && window.WINCH_STILLS.length && !SHOT) {
+    const box = document.getElementById('stills'); box.hidden = false;
+    for (const s of window.WINCH_STILLS) {
+      const f = document.createElement('figure'), im = document.createElement('img'), c = document.createElement('figcaption');
+      im.src = s.src; im.alt = s.caption; im.loading = 'lazy'; c.textContent = s.caption; f.append(im, c); box.appendChild(f);
+    }
+  }
+
+  if (SHOT && QS.get('preset') && WG.PRESETS[QS.get('preset')]) P = Object.assign({}, WG.DEF, WG.PRESETS[QS.get('preset')]);
+  rebuild(); setView(viewKey);
+  if (SHOT) { size(); place(); renderer.render(scene, camera); window.__ready = true; }
+})();
+</script>
