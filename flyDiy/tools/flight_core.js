@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: fd6e509b5ed5df7c
+// body-sha256: 76dc10ca5e22ee29
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -15460,7 +15460,30 @@ const TREE_HITS = (() => {
     };
     return api;
   }
-  return { make, trunkOf, CELL, STRIDE };
+  // AFB-0220 (the user 13 Nov: fallen trees, stumps, boulders "with REAL COLLISION ... the damage system reacts as it does to
+  // trees"): A LYING PIECE (a fallen trunk, a branch heap, a stump, a boulder - the tree pack's debris and rock subjects,
+  // placed as record trees) is no upright trunk: its trunk's cylinder would be a post at its middle. Its hitbox is a CHAIN of
+  // low upright cylinders down its LONG AXIS - this set's own shape, so the solver meets it as it meets a trunk (every beam,
+  // the tree-crash law). bb: the subject's box in its model frame [x0, y0, z0, x1, y1, z1]; s its drawn size; sticks: a
+  // branch heap (mostly air: the radius 0.45 of the footprint's half width, the top 0.6 of its height) or a solid piece (0.9,
+  // 0.9); x, z, foot: where it stands (world; foot = its drawn foot's y); yaw: three's rotation.y (local x -> (cos, -sin),
+  // local z -> (sin, cos)). The radius is held to 0.2..2.0 m, the top to 0.3 m at least, the cylinders one radius apart and
+  // the end ones a radius inside the box's ends, 48 at most. -> [[x, z, y0, r, y1], ...]
+  function lying(bb, s, sticks, x, z, foot, yaw) {
+    if (!bb) return [];
+    s = s || 1;
+    const ex = (bb[3] - bb[0]) * s, ez = (bb[5] - bb[2]) * s, hgt = (bb[4] - bb[1]) * s;
+    const alongX = ex >= ez, L = alongX ? ex : ez, wMin = alongX ? ez : ex, k = sticks ? 0.45 : 0.9;
+    const r = Math.max(0.2, Math.min(2.0, 0.5 * wMin * k)), top = Math.max(0.3, hgt * (sticks ? 0.6 : 0.9));
+    const c = Math.cos(yaw || 0), sn = Math.sin(yaw || 0), cx = (bb[0] + bb[3]) / 2 * s, cz = (bb[2] + bb[5]) / 2 * s;
+    const half = Math.max(0, L / 2 - r), n = Math.min(48, Math.max(1, Math.ceil(2 * half / r) + 1)), out = [];
+    for (let i = 0; i < n; i++) {
+      const q = n === 1 ? 0 : -half + 2 * half * i / (n - 1), lx = cx + (alongX ? q : 0), lz = cz + (alongX ? 0 : q);
+      out.push([x + lx * c + lz * sn, z - lx * sn + lz * c, foot, r, foot + top]);
+    }
+    return out;
+  }
+  return { make, trunkOf, lying, CELL, STRIDE };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { OBSTACLES, TREE_HITS };
 // ============================================================
