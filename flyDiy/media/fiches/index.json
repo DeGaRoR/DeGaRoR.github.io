@@ -4,6 +4,8 @@
   "design:cub": {
    "name": "Piper Cub",
    "file": "piperCub",
+   "listFile": "builds/cub_2026-09-20_corrected.json",
+   "listRow": "list:1",
    "data": {
     "name": "Piper Cub",
     "reg": "F-BCUB",
@@ -14,17 +16,17 @@
     },
     "wings": 1,
     "gear": "taildragger",
-    "fuelL": 44,
+    "fuelL": 45,
     "engine": "a65_sensenich74",
     "nEngines": 1,
     "seats": 2,
     "specs": {
-     "empty": 354.76827650311765,
-     "allUp": 476.44827650311765,
-     "Vs": 15.984574324473728,
+     "empty": 353.34760786055995,
+     "allUp": 475.74760786056004,
+     "Vs": 15.972816478723427,
      "VCruise": 31.4,
-     "climb": 2.9686593197894764,
-     "TORun": 157,
+     "climb": 2.9751205658580053,
+     "TORun": 153,
      "engine": "Continental A-65",
      "propD": 1.91,
      "propBlades": 2
@@ -46,6 +48,8 @@
   "design:jodel": {
    "name": "Jodel D112",
    "file": "jodelD112",
+   "listFile": "builds/jodel_2026-09-20_corrected.json",
+   "listRow": "list:2",
    "data": {
     "name": "Jodel D112",
     "reg": "F-PJDL",
@@ -61,12 +65,12 @@
     "nEngines": 1,
     "seats": 2,
     "specs": {
-     "empty": 341.78226931171525,
-     "allUp": 464.1822693117153,
-     "Vs": 18.83823970121611,
+     "empty": 341.1598609512247,
+     "allUp": 463.5598609512245,
+     "Vs": 18.825605643699486,
      "VCruise": 35.2,
-     "climb": 2.544304779722994,
-     "TORun": 206,
+     "climb": 2.551983616073382,
+     "TORun": 205,
      "engine": "Continental A-65",
      "propD": 1.83,
      "propBlades": 2
@@ -85,99 +89,11 @@
     "cutaway": "design_jodel/cutaway.webp"
    }
   },
-  "list:5": {
-   "name": "Metal Cessna",
-   "file": "cessnaMetal",
-   "data": {
-    "name": "Metal Cessna",
-    "reg": "B-CESS",
-    "dims": {
-     "span": 11.02,
-     "length": 8.27,
-     "height": 2.55
-    },
-    "wings": 1,
-    "gear": "tricycle",
-    "fuelL": 212,
-    "engine": "o540_hartzell",
-    "nEngines": 1,
-    "seats": 4,
-    "specs": {
-     "empty": 713.1989346299488,
-     "allUp": 1065.8389346299489,
-     "Vs": 24.143319050296974,
-     "VCruise": 54.1,
-     "climb": 5.627261351640659,
-     "TORun": 225,
-     "engine": "Lycoming O-540-B2C5",
-     "propD": 2.06,
-     "propBlades": 2
-    },
-    "sea": false,
-    "heroProp": "disc",
-    "pxPerM": 81.654,
-    "heroWingY": 0.257
-   },
-   "pics": {
-    "hero": "list_5/hero.webp",
-    "above": "list_5/above.webp",
-    "side": "list_5/side.webp",
-    "plan": "list_5/plan.webp",
-    "front": "list_5/front.webp",
-    "cutaway": "list_5/cutaway.webp"
-   }
-  },
-  "list:39": {
-   "name": "Metal Cessna on floats",
-   "file": "cessnaMetal floats",
-   "data": {
-    "name": "Metal Cessna on floats",
-    "reg": "B-CESS",
-    "dims": {
-     "span": 11.02,
-     "length": 8.65,
-     "height": 3.19
-    },
-    "wings": 1,
-    "gear": "floats",
-    "fuelL": 212,
-    "engine": "o540_hartzell",
-    "nEngines": 1,
-    "seats": 4,
-    "specs": {
-     "empty": 845.4479527739961,
-     "allUp": 1198.0879527739964,
-     "Vs": 25.597461107780077,
-     "VCruise": 55.4,
-     "climb": 6.618748951546907,
-     "TORun": 286,
-     "engine": "Lycoming O-540-B2C5",
-     "propD": 2.083,
-     "propBlades": 2,
-     "TOWater": null
-    },
-    "sea": true,
-    "heroProp": "disc",
-    "pxPerM": 81.654,
-    "heroWingY": 0.217,
-    "hydroNode": {
-     "t": 20.2,
-     "V": 29.6,
-     "dist": 286
-    }
-   },
-   "pics": {
-    "hero": "list_39/hero.webp",
-    "above": "list_39/above.webp",
-    "side": "list_39/side.webp",
-    "plan": "list_39/plan.webp",
-    "front": "list_39/front.webp",
-    "cutaway": "list_39/cutaway.webp"
-   }
-  },
   "cand:Twin_busher_floats_4b.json": {
    "name": "Twin busher floats 4b",
    "file": "Twin busher floats 4b",
+   "listFile": "builds/candidates/Twin_busher_floats_4b.json",
+   "listRow": "list:6",
    "data": {
     "name": "Twin busher floats 4b",
     "reg": "F-FORE",
@@ -226,9 +142,11 @@
   "list:7": {
    "name": "Rufus",
    "file": "",
+   "listFile": "builds/rufus_2026-10-18_certified.json",
+   "listRow": "list:7",
    "data": {
     "name": "Rufus",
-    "reg": "F-PGAR",
+    "reg": "N47RF",
     "dims": {
      "span": 9.87,
      "length": 6.17,
@@ -268,13 +186,15 @@
   "stock:chinook": {
    "name": "Chinook",
    "file": "birdman",
+   "listFile": "builds/chinook_2026-09-21_corrected.json",
+   "listRow": "list:8",
    "data": {
     "name": "Chinook",
     "reg": "C-ICHK",
     "dims": {
      "span": 9.76,
      "length": 5.25,
-     "height": 2.95
+     "height": 2.88
     },
     "wings": 1,
     "gear": "taildragger",
@@ -283,11 +203,11 @@
     "nEngines": 1,
     "seats": 2,
     "specs": {
-     "empty": 235.43036000309868,
-     "allUp": 352.7903600030986,
-     "Vs": 16.382367689072005,
+     "empty": 235.1719186222223,
+     "allUp": 352.5319186222222,
+     "Vs": 16.376366026486018,
      "VCruise": 36.1,
-     "climb": 5.275795243912129,
+     "climb": 5.281188486891555,
      "TORun": 109,
      "engine": "Rotax 582 + 2.62 red.",
      "propD": 1.73,
@@ -309,7 +229,9 @@
   },
   "cand:stol_cub_showcase.json": {
    "name": "STOL Cub",
-   "file": "STOL Cub",
+   "file": "",
+   "listFile": "builds/candidates/stol_cub_showcase.json",
+   "listRow": "list:13",
    "data": {
     "name": "STOL Cub",
     "reg": "F-STOL",
@@ -352,6 +274,8 @@
   "list:25": {
    "name": "PA-18 on floats",
    "file": "",
+   "listFile": "builds/pa18_floats_2026-10-23.json",
+   "listRow": "list:25",
    "data": {
     "name": "PA-18 on floats",
     "reg": "F-AMOR",
@@ -400,6 +324,8 @@
   "list:26": {
    "name": "Client Cub",
    "file": "NewCub",
+   "listFile": "builds/cub_2026-09-20.json",
+   "listRow": "list:26",
    "data": {
     "name": "Client Cub",
     "reg": "N1938J",
@@ -437,6 +363,728 @@
     "plan": "list_26/plan.webp",
     "front": "list_26/front.webp",
     "cutaway": "list_26/cutaway.webp"
+   }
+  },
+  "cand:stearman_2026-10.json": {
+   "name": "Stearman-alike",
+   "file": "Stearman (round body, open cockpits)",
+   "listFile": "builds/candidates/stearman_2026-10.json",
+   "listRow": "list:9",
+   "data": {
+    "name": "Stearman-alike",
+    "reg": "40-1749",
+    "dims": {
+     "span": 9.84,
+     "length": 7.72,
+     "height": 2.86
+    },
+    "wings": 2,
+    "gear": "taildragger",
+    "fuelL": 174,
+    "engine": "w670_hs2b",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 902.2667272545707,
+     "allUp": 1227.546727254571,
+     "Vs": 22.190797060502753,
+     "VCruise": 38.1,
+     "climb": 3.37512192179197,
+     "TORun": 289,
+     "engine": "Continental W-670-6A",
+     "propD": 2.5,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 91.5,
+    "heroWingY": 0.826
+   },
+   "pics": {
+    "hero": "cand_stearman_2026-10.json/hero.webp",
+    "above": "cand_stearman_2026-10.json/above.webp",
+    "side": "cand_stearman_2026-10.json/side.webp",
+    "plan": "cand_stearman_2026-10.json/plan.webp",
+    "front": "cand_stearman_2026-10.json/front.webp",
+    "cutaway": "cand_stearman_2026-10.json/cutaway.webp"
+   }
+  },
+  "cand:tigermoth_2026-10.json": {
+   "name": "Tiger Moth-alike",
+   "file": "Tiger Moth (round body, open cockpits)",
+   "listFile": "builds/candidates/tigermoth_2026-10.json",
+   "listRow": "list:10",
+   "data": {
+    "name": "Tiger Moth-alike",
+    "reg": "T7230",
+    "dims": {
+     "span": 8.98,
+     "length": 7.24,
+     "height": 2.65
+    },
+    "wings": 2,
+    "gear": "taildragger",
+    "fuelL": 87,
+    "engine": "gipsymajor1_wood",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 569.5635355490019,
+     "allUp": 812.2035355490017,
+     "Vs": 19.307057274968912,
+     "VCruise": 36.5,
+     "climb": 2.7980093990060957,
+     "TORun": 227,
+     "engine": "DH Gipsy Major 1",
+     "propD": 1.91,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 100.196,
+    "heroWingY": 0.836
+   },
+   "pics": {
+    "hero": "cand_tigermoth_2026-10.json/hero.webp",
+    "above": "cand_tigermoth_2026-10.json/above.webp",
+    "side": "cand_tigermoth_2026-10.json/side.webp",
+    "plan": "cand_tigermoth_2026-10.json/plan.webp",
+    "front": "cand_tigermoth_2026-10.json/front.webp",
+    "cutaway": "cand_tigermoth_2026-10.json/cutaway.webp"
+   }
+  },
+  "cand:camel_2026-10.json": {
+   "name": "Camel-alike",
+   "file": "Camel (round body, open cockpit)",
+   "listFile": "builds/candidates/camel_2026-10.json",
+   "listRow": "list:11",
+   "data": {
+    "name": "Camel-alike",
+    "reg": "B6313",
+    "dims": {
+     "span": 8.56,
+     "length": 5.73,
+     "height": 2.83
+    },
+    "wings": 2,
+    "gear": "taildragger",
+    "fuelL": 99,
+    "engine": "clerget9b_wood",
+    "nEngines": 1,
+    "seats": 1,
+    "specs": {
+     "empty": 598.7979544309984,
+     "allUp": 770.0779544309971,
+     "Vs": 19.529782625325222,
+     "VCruise": 37.9,
+     "climb": 3.4375674713644453,
+     "TORun": 193,
+     "engine": "Clerget 9B",
+     "propD": 2.59,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 105.2,
+    "heroWingY": 0.589
+   },
+   "pics": {
+    "hero": "cand_camel_2026-10.json/hero.webp",
+    "above": "cand_camel_2026-10.json/above.webp",
+    "side": "cand_camel_2026-10.json/side.webp",
+    "plan": "cand_camel_2026-10.json/plan.webp",
+    "front": "cand_camel_2026-10.json/front.webp",
+    "cutaway": "cand_camel_2026-10.json/cutaway.webp"
+   }
+  },
+  "cand:dc3_2026-10.json": {
+   "name": "DC-3-alike",
+   "file": "DC-3 (full size)",
+   "listFile": "builds/candidates/dc3_2026-10.json",
+   "listRow": "list:12",
+   "data": {
+    "name": "DC-3-alike",
+    "reg": "B-DAKO",
+    "dims": {
+     "span": 29,
+     "length": 19.6,
+     "height": 7.29
+    },
+    "wings": 1,
+    "gear": "taildragger",
+    "fuelL": 3110,
+    "engine": "r1830_hs23e50",
+    "nEngines": 2,
+    "seats": 29,
+    "specs": {
+     "empty": 6481.561554008035,
+     "allUp": 8920.761554008037,
+     "Vs": 30.684031948598687,
+     "VCruise": 68.4,
+     "climb": 8.029631364351559,
+     "TORun": 331,
+     "engine": "P&W R-1830 Twin Wasp",
+     "propD": 3.4,
+     "propBlades": 3
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 31.037,
+    "heroWingY": 0.232
+   },
+   "pics": {
+    "hero": "cand_dc3_2026-10.json/hero.webp",
+    "above": "cand_dc3_2026-10.json/above.webp",
+    "side": "cand_dc3_2026-10.json/side.webp",
+    "plan": "cand_dc3_2026-10.json/plan.webp",
+    "front": "cand_dc3_2026-10.json/front.webp",
+    "cutaway": "cand_dc3_2026-10.json/cutaway.webp"
+   }
+  },
+  "list:41": {
+   "name": "Super Petrel LS",
+   "file": "",
+   "listFile": "builds/candidates/superpetrel_V4_1.json",
+   "listRow": "list:41",
+   "data": {
+    "name": "Super Petrel LS",
+    "reg": "PU-PTL",
+    "dims": {
+     "span": 8.87,
+     "length": 6.24,
+     "height": 3.04
+    },
+    "wings": 2,
+    "gear": "tricycle",
+    "fuelL": 72,
+    "engine": "rotax912is_warp",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 379.9411162380486,
+     "allUp": 591.7811162380489,
+     "Vs": 20.89102734036967,
+     "VCruise": 42.5,
+     "climb": 3.8272139933795493,
+     "TORun": 273,
+     "engine": "Rotax 912 iS",
+     "propD": 1.6,
+     "propBlades": 3,
+     "TOWater": null
+    },
+    "sea": true,
+    "heroProp": "disc",
+    "pxPerM": 101.445,
+    "heroWingY": 0.293,
+    "hydroNode": {
+     "t": 24.6,
+     "V": 23.5,
+     "dist": 273
+    }
+   },
+   "pics": {
+    "hero": "list_41/hero.webp",
+    "above": "list_41/above.webp",
+    "side": "list_41/side.webp",
+    "plan": "list_41/plan.webp",
+    "front": "list_41/front.webp",
+    "cutaway": "list_41/cutaway.webp"
+   }
+  },
+  "list:47": {
+   "name": "Carbon Cub SS",
+   "file": "",
+   "listFile": "builds/candidates/carbon_cub_ss.json",
+   "listRow": "list:47",
+   "data": {
+    "name": "Carbon Cub SS",
+    "reg": "N340SS",
+    "dims": {
+     "span": 10.44,
+     "length": 7.01,
+     "height": 2.85
+    },
+    "wings": 1,
+    "gear": "taildragger",
+    "fuelL": 91,
+    "engine": "a65_sensenich74",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 423.30414197790526,
+     "allUp": 578.8241419779056,
+     "Vs": 17.34048050093503,
+     "VCruise": 39,
+     "climb": 7.109113004304762,
+     "TORun": 79,
+     "engine": "custom Flat (boxer) 4-cyl 5.6 L",
+     "propD": 2.03,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 86.227,
+    "heroWingY": 0.31
+   },
+   "pics": {
+    "hero": "list_47/hero.webp",
+    "above": "list_47/above.webp",
+    "side": "list_47/side.webp",
+    "plan": "list_47/plan.webp",
+    "front": "list_47/front.webp",
+    "cutaway": "list_47/cutaway.webp"
+   }
+  },
+  "list:50": {
+   "name": "Cessna 172",
+   "file": "Cessna 172",
+   "listFile": "builds/cessna172r_2026-11-08.json",
+   "listRow": "list:50",
+   "data": {
+    "name": "Cessna 172",
+    "reg": "F-HCSN",
+    "dims": {
+     "span": 11.02,
+     "length": 8.22,
+     "height": 2.55
+    },
+    "wings": 1,
+    "gear": "tricycle",
+    "fuelL": 212,
+    "engine": "a65_sensenich74",
+    "nEngines": 1,
+    "seats": 4,
+    "specs": {
+     "empty": 728.976326797326,
+     "allUp": 1081.6163267973245,
+     "Vs": 25.39332697932466,
+     "VCruise": 50.3,
+     "climb": 3.357667975965757,
+     "TORun": 386,
+     "engine": "custom Flat (boxer) 4-cyl 5.9 L",
+     "propD": 1.905,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 81.654,
+    "heroWingY": 0.229
+   },
+   "pics": {
+    "hero": "list_50/hero.webp",
+    "above": "list_50/above.webp",
+    "side": "list_50/side.webp",
+    "plan": "list_50/plan.webp",
+    "front": "list_50/front.webp",
+    "cutaway": "list_50/cutaway.webp"
+   }
+  },
+  "design:c172f": {
+   "name": "Cessna 172 floats (career)",
+   "file": "cessnaFloatsWOrks",
+   "listFile": "bugReports/cessnaFloatsWOrks.json",
+   "listRow": "list:4",
+   "data": {
+    "name": "Cessna 172 floats (career)",
+    "reg": "B-CESF",
+    "dims": {
+     "span": 11.02,
+     "length": 9.07,
+     "height": 3.28
+    },
+    "wings": 1,
+    "gear": "floats",
+    "fuelL": 25,
+    "engine": "o540_hartzell",
+    "nEngines": 1,
+    "seats": 4,
+    "specs": {
+     "empty": 731.4826925621526,
+     "allUp": 949.4826925621538,
+     "Vs": 24.315106400021683,
+     "VCruise": 54.8,
+     "climb": 6.833342060176133,
+     "TORun": 350,
+     "engine": "Lycoming O-540-B2C5",
+     "propD": 2.06,
+     "propBlades": 2,
+     "TOWater": null
+    },
+    "sea": true,
+    "heroProp": "disc",
+    "pxPerM": 81.654,
+    "heroWingY": 0.208,
+    "hydroNode": {
+     "t": 23.7,
+     "V": 28.4,
+     "dist": 350
+    }
+   },
+   "pics": {
+    "hero": "design_c172f/hero.webp",
+    "above": "design_c172f/above.webp",
+    "side": "design_c172f/side.webp",
+    "plan": "design_c172f/plan.webp",
+    "front": "design_c172f/front.webp",
+    "cutaway": "design_c172f/cutaway.webp"
+   }
+  },
+  "list:40": {
+   "name": "Cessna 172 (career)",
+   "file": "cessnaMetal",
+   "listFile": "bugReports/cessnaMetal (1).json",
+   "listRow": "list:40",
+   "data": {
+    "name": "Cessna 172 (career)",
+    "reg": "B-CESS",
+    "dims": {
+     "span": 11.02,
+     "length": 8.27,
+     "height": 2.55
+    },
+    "wings": 1,
+    "gear": "tricycle",
+    "fuelL": 25,
+    "engine": "o540_hartzell",
+    "nEngines": 1,
+    "seats": 4,
+    "specs": {
+     "empty": 667.8246362611576,
+     "allUp": 885.8246362611576,
+     "Vs": 22.145678029019095,
+     "VCruise": 49.3,
+     "climb": 6.9362296190851485,
+     "TORun": 147,
+     "engine": "Lycoming O-540-B2C5",
+     "propD": 2.06,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 81.654,
+    "heroWingY": 0.257
+   },
+   "pics": {
+    "hero": "list_40/hero.webp",
+    "above": "list_40/above.webp",
+    "side": "list_40/side.webp",
+    "plan": "list_40/plan.webp",
+    "front": "list_40/front.webp",
+    "cutaway": "list_40/cutaway.webp"
+   }
+  },
+  "cand:ugly_bi.json": {
+   "name": "ugly bi",
+   "file": "ugly bi",
+   "listFile": "builds/candidates/ugly_bi.json",
+   "listRow": "list:17",
+   "data": {
+    "name": "ugly bi",
+    "reg": "U-GLYB",
+    "dims": {
+     "span": 8,
+     "length": 6.29,
+     "height": 2.93
+    },
+    "wings": 2,
+    "gear": "taildragger",
+    "fuelL": 123,
+    "engine": "o200_eprops",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 499.8275203942003,
+     "allUp": 678.3875203942002,
+     "Vs": 19.638666025270314,
+     "VCruise": 35.1,
+     "climb": 2.702866564437144,
+     "TORun": 197,
+     "engine": "Continental O-200-A",
+     "propD": 1.91,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 112.534,
+    "heroWingY": 0.768
+   },
+   "pics": {
+    "hero": "cand_ugly_bi.json/hero.webp",
+    "above": "cand_ugly_bi.json/above.webp",
+    "side": "cand_ugly_bi.json/side.webp",
+    "plan": "cand_ugly_bi.json/plan.webp",
+    "front": "cand_ugly_bi.json/front.webp",
+    "cutaway": "cand_ugly_bi.json/cutaway.webp"
+   }
+  },
+  "cand:mosquito.json": {
+   "name": "mosquito",
+   "file": "mosquito",
+   "listFile": "builds/candidates/mosquito.json",
+   "listRow": "list:18",
+   "data": {
+    "name": "mosquito",
+    "reg": "B-MOSQ",
+    "dims": {
+     "span": 9.36,
+     "length": 6.36,
+     "height": 2.49
+    },
+    "wings": 1,
+    "gear": "taildragger",
+    "fuelL": 124,
+    "engine": "m14p_v530",
+    "nEngines": 1,
+    "seats": 1,
+    "specs": {
+     "empty": 495.8960055542213,
+     "allUp": 675.1760055542206,
+     "Vs": 21.992955884311236,
+     "VCruise": 50,
+     "climb": 17.383370581076118,
+     "TORun": 68,
+     "engine": "Vedeneyev M-14P",
+     "propD": 2.34,
+     "propBlades": 3
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 96.132,
+    "heroWingY": 0.348
+   },
+   "pics": {
+    "hero": "cand_mosquito.json/hero.webp",
+    "above": "cand_mosquito.json/above.webp",
+    "side": "cand_mosquito.json/side.webp",
+    "plan": "cand_mosquito.json/plan.webp",
+    "front": "cand_mosquito.json/front.webp",
+    "cutaway": "cand_mosquito.json/cutaway.webp"
+   }
+  },
+  "cand:build_v8_pusher_2026-09-11.json": {
+   "name": "pusherLight",
+   "file": "pusherLight",
+   "listFile": "builds/candidates/build_v8_pusher_2026-09-11.json",
+   "listRow": "list:21",
+   "data": {
+    "name": "pusherLight",
+    "reg": "F-JPSH",
+    "dims": {
+     "span": 9.23,
+     "length": 5.85,
+     "height": 2.38
+    },
+    "wings": 1,
+    "gear": "tricycle",
+    "fuelL": 18,
+    "engine": "rotax582_ivo",
+    "nEngines": 1,
+    "seats": 1,
+    "specs": {
+     "empty": 239.54291155840792,
+     "allUp": 342.50291155840785,
+     "Vs": 17.26784532463038,
+     "VCruise": 35.4,
+     "climb": 4.319071473716282,
+     "TORun": 115,
+     "engine": "Rotax 582 + 2.62 red.",
+     "propD": 1.59,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 97.499,
+    "heroWingY": 0.872
+   },
+   "pics": {
+    "hero": "cand_build_v8_pusher_2026-09-11.json/hero.webp",
+    "above": "cand_build_v8_pusher_2026-09-11.json/above.webp",
+    "side": "cand_build_v8_pusher_2026-09-11.json/side.webp",
+    "plan": "cand_build_v8_pusher_2026-09-11.json/plan.webp",
+    "front": "cand_build_v8_pusher_2026-09-11.json/front.webp",
+    "cutaway": "cand_build_v8_pusher_2026-09-11.json/cutaway.webp"
+   }
+  },
+  "cand:flydiy-build (4).json": {
+   "name": "twinBoomFail",
+   "file": "",
+   "listFile": "builds/candidates/flydiy-build (4).json",
+   "listRow": "list:22",
+   "data": {
+    "name": "twinBoomFail",
+    "reg": "F-WBOO",
+    "dims": {
+     "span": 9,
+     "length": 10.43,
+     "height": 3.23
+    },
+    "wings": 1,
+    "gear": "tricycle",
+    "fuelL": null,
+    "engine": "e811_velis",
+    "nEngines": 1,
+    "seats": 1,
+    "specs": {
+     "empty": 309.9531094829824,
+     "allUp": 404.95310948298226,
+     "Vs": 19.945801923724666,
+     "VCruise": 37.9,
+     "climb": 4.467899681484667,
+     "TORun": 150,
+     "engine": "Pipistrel E-811 (certified)",
+     "propD": 1.62,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 86.282,
+    "heroWingY": 0.29
+   },
+   "pics": {
+    "hero": "cand_flydiy-build_4_.json/hero.webp",
+    "above": "cand_flydiy-build_4_.json/above.webp",
+    "side": "cand_flydiy-build_4_.json/side.webp",
+    "plan": "cand_flydiy-build_4_.json/plan.webp",
+    "front": "cand_flydiy-build_4_.json/front.webp",
+    "cutaway": "cand_flydiy-build_4_.json/cutaway.webp"
+   }
+  },
+  "cand:B-ITES.json": {
+   "name": "B-ITES",
+   "file": "B-ITES",
+   "listFile": "builds/candidates/B-ITES.json",
+   "listRow": "list:23",
+   "data": {
+    "name": "B-ITES",
+    "reg": "B-ITES",
+    "dims": {
+     "span": 9.85,
+     "length": 9.85,
+     "height": 2.71
+    },
+    "wings": 1,
+    "gear": "tricycle",
+    "fuelL": 22,
+    "engine": "io360_mccauley",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 452.71777938000315,
+     "allUp": 568.5577793800028,
+     "Vs": 21.622691073127733,
+     "VCruise": 48.2,
+     "climb": 8.470722288426309,
+     "TORun": 117,
+     "engine": "Lycoming IO-360-L2A",
+     "propD": 1.69,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 91.375,
+    "heroWingY": 0.313
+   },
+   "pics": {
+    "hero": "cand_B-ITES.json/hero.webp",
+    "above": "cand_B-ITES.json/above.webp",
+    "side": "cand_B-ITES.json/side.webp",
+    "plan": "cand_B-ITES.json/plan.webp",
+    "front": "cand_B-ITES.json/front.webp",
+    "cutaway": "cand_B-ITES.json/cutaway.webp"
+   }
+  },
+  "design:twinf": {
+   "name": "Ultralight twin on floats",
+   "file": "",
+   "listFile": "builds/candidates/build_v7_ultralight_2026-09-05_floats.json",
+   "listRow": "list:27",
+   "data": {
+    "name": "Ultralight twin on floats",
+    "reg": "F-JTWF",
+    "dims": {
+     "span": 11.86,
+     "length": 6.54,
+     "height": 2.81
+    },
+    "wings": 1,
+    "gear": "floats",
+    "fuelL": 19,
+    "engine": "rotax582_ivo",
+    "nEngines": 2,
+    "seats": 1,
+    "specs": {
+     "empty": 390.62012359682416,
+     "allUp": 476.380123596824,
+     "Vs": 16.12404998611991,
+     "VCruise": 36.1,
+     "climb": 7.979163467650009,
+     "TORun": 79,
+     "engine": "Rotax 582 + 2.62 red.",
+     "propD": 1.91,
+     "propBlades": 2,
+     "TOWater": null
+    },
+    "sea": true,
+    "heroProp": "disc",
+    "pxPerM": 75.872,
+    "heroWingY": 0.258,
+    "hydroNode": {
+     "t": 8.9,
+     "V": 20.6,
+     "dist": 79
+    }
+   },
+   "pics": {
+    "hero": "design_twinf/hero.webp",
+    "above": "design_twinf/above.webp",
+    "side": "design_twinf/side.webp",
+    "plan": "design_twinf/plan.webp",
+    "front": "design_twinf/front.webp",
+    "cutaway": "design_twinf/cutaway.webp"
+   }
+  },
+  "cand:pawnee (1).json": {
+   "name": "Pawnee",
+   "file": "pawnee",
+   "listFile": "builds/candidates/pawnee (1).json",
+   "listRow": "list:24",
+   "data": {
+    "name": "Pawnee",
+    "reg": "F-HPAW",
+    "dims": {
+     "span": 11.24,
+     "length": 5.77,
+     "height": 2.67
+    },
+    "wings": 1,
+    "gear": "taildragger",
+    "fuelL": 18,
+    "engine": "a65_sensenich74",
+    "nEngines": 1,
+    "seats": 1,
+    "specs": {
+     "empty": 307.3928656963001,
+     "allUp": 420.3528656963002,
+     "Vs": 17.05698582862912,
+     "VCruise": 30.4,
+     "climb": 2.349865464006954,
+     "TORun": 193,
+     "engine": "Continental A-65",
+     "propD": 1.52,
+     "propBlades": 2
+    },
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 80.084,
+    "heroWingY": 0.43
+   },
+   "pics": {
+    "hero": "cand_pawnee_1_.json/hero.webp",
+    "above": "cand_pawnee_1_.json/above.webp",
+    "side": "cand_pawnee_1_.json/side.webp",
+    "plan": "cand_pawnee_1_.json/plan.webp",
+    "front": "cand_pawnee_1_.json/front.webp",
+    "cutaway": "cand_pawnee_1_.json/cutaway.webp"
    }
   }
  }
