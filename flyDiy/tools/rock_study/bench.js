@@ -624,7 +624,10 @@ function placeMeshRocks(which) {
   const kit = kitOf(), byArch = a => kit.filter(v => v.arch === a);
   const CL = byArch('cliff'), BL = byArch('block'), BO = byArch('boulder'), SL = byArch('slab');
   const list = [], cam = camera.position, R = 700;
-  const occ = new Map(); const ocell = 4;   // a coarse occupancy grid: no two pieces on one spot
+  // ?dens=1|4|8: the cliff cover's density (1 = the last stills, ~1 point per 25 m2 and a claim of 0.16 w; 4 = the first
+// correctly-random stills, 1 per 7 m2 and 0.08 w; 8 = twice that, with PACKS and a wide size spread - see below)
+const DENS = +(Q.get('dens') || 1), PACKS = DENS >= 8 || Q.get('packs') === '1';
+const occ = new Map(); const ocell = DENS >= 8 ? 2.5 : 4;   // a coarse occupancy grid: no two pieces on one spot
   const free = (x, z, r) => { const i0 = Math.floor((x - r) / ocell), i1 = Math.floor((x + r) / ocell), j0 = Math.floor((z - r) / ocell), j1 = Math.floor((z + r) / ocell);
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const o = occ.get(i * 65536 + j); if (o && o > 0.5) return false; } return true; };
   const take = (x, z, r) => { const i0 = Math.floor((x - r) / ocell), i1 = Math.floor((x + r) / ocell), j0 = Math.floor((z - r) / ocell), j1 = Math.floor((z + r) / ocell);
@@ -638,7 +641,8 @@ function placeMeshRocks(which) {
   if (which !== 'scatter') {
     const C = [];
     // random points (not a lattice: a lattice shows as rows), ~1 per 30 m2
-    const NC = Math.round((2 * R) * (2 * R) / 25);
+    const NC = Math.round((2 * R) * (2 * R) / (DENS >= 8 ? 3.5 : (DENS >= 4 ? 7 : 25)));
+    const CLAIM = DENS >= 8 ? 0.05 : (DENS >= 4 ? 0.08 : 0.16);
     for (let q = 0; q < NC; q++) {
       const jx = -R + 2 * R * hh(q, 17, 1), jz = -R + 2 * R * hh(q, 17, 2);
       if (Math.hypot(jx - cam.x, jz - cam.z) > R + 300) continue;
@@ -646,15 +650,37 @@ function placeMeshRocks(which) {
       const g = gradXZ(jx, jz, 12), s = Math.atan(Math.hypot(g[0], g[1])) * 180 / Math.PI;
       const cR = sampleK(CODES, 4, 0, jx, jz) / 255;
       const pr = Math.min(1, ss(34, 46, s) * (0.5 + 0.5 * cR) + ss(28, 40, s) * cR * 0.5) * (0.55 + 0.9 * (vn3(jx / 50, 5, jz / 50) - 0.5) + 0.45);
-      if (pr > 0.15 && rand(jx, jz, 3) < pr) C.push([jx, jz, s, g]);
+      if (pr > 0.15 && rand(jx, jz, 3) < pr) C.push([jx, jz, s, g, 0]);
     }
-    C.sort((a, b) => b[2] - a[2]);
-    for (const [x, z, s, g] of C) {
+    // PACKS (?dens=8): pack centres ~1 per 2500 m2 on the steep rock, each a radius of 15-40 m. A shard's class is drawn by how
+    // near it is to its pack's centre: BIG (28-58 m) only in the inner third and rare, MEDIUM (12-27 m) in the inner two
+    // thirds, SMALL (3-12 m) everywhere; and the density itself falls off between packs (20 % of it at a pack's rim and
+    // beyond). The big ones are placed first, so they claim the ground and the small ones pack round them.
+    let PK = null;
+    if (PACKS) {
+      PK = new Map(); const NP = Math.round((2 * R) * (2 * R) / 2500);
+      for (let q = 0; q < NP; q++) { const px = -R + 2 * R * hh(q, 31, 1), pz = -R + 2 * R * hh(q, 31, 2);
+        if (slopeAt(px, pz) < 32) continue; const rr = 15 + 25 * hh(q, 31, 3); const k = Math.floor(px / 100) * 65536 + Math.floor(pz / 100);
+        let a = PK.get(k); if (!a) PK.set(k, a = []); a.push([px, pz, rr]); }
+      const packF = (x, z) => { let best = 0; const ix = Math.floor(x / 100), iz = Math.floor(z / 100);
+        for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) for (const [px, pz, rr] of (PK.get((ix + a) * 65536 + iz + b) || [])) {
+          const f = 1 - Math.hypot(x - px, z - pz) / rr; if (f > best) best = f; } return best; };
+      for (let i = C.length - 1; i >= 0; i--) { const c = C[i], f = packF(c[0], c[1]);
+        if (rand(c[0], c[1], 21) > 0.2 + 0.8 * f) { C.splice(i, 1); continue; }
+        const r0 = rand(c[0], c[1], 22);
+        c[4] = (f > 0.65 && r0 < 0.10) ? 2 : ((f > 0.3 && r0 < 0.35) ? 1 : 0); }
+      STAT.packs = [...PK.values()].reduce((n, a) => n + a.length, 0);
+    }
+    C.sort((a, b) => (b[4] - a[4]) || (b[2] - a[2]));
+    for (const [x, z, s, g, cls] of C) {
       const r = rand(x, z, 4), r2 = rand(x, z, 5), r3 = rand(x, z, 6);
       // the size: a power law - a few big shards (to 40 m) carry the face, many small ones fill between
-      const pw = Math.pow(r, 1.5), w = 10 + 25 * pw, hgt = w * (0.45 + 0.35 * r2), th = 0.35 * w;
-      if (!free(x, z, w * 0.16)) continue;   // (they OVERLAP heavily, like scales: the claim is an eighth of the width)
-      take(x, z, w * 0.16);
+      const pw = Math.pow(r, 1.5);
+      const w = !PACKS ? 10 + 25 * pw : (cls === 2 ? 28 + 30 * r : (cls === 1 ? 12 + 15 * r : 3 + 9 * pw));
+      const hgt = w * (0.45 + 0.35 * r2), th = 0.35 * w;
+      if (!free(x, z, w * CLAIM)) continue;   // (they OVERLAP heavily, like scales: the claim is a fraction of the width)
+      take(x, z, w * CLAIM);
+      STAT['cls' + cls] = (STAT['cls' + cls] || 0) + 1;
       const v = CL[Math.floor(r2 * 97) % CL.length];
       const gl = Math.hypot(g[0], g[1]) || 1e-6, dnx = -g[0] / gl, dnz = -g[1] / gl, sr = s * Math.PI / 180;
       const dl = (2 + 10 * r3) * Math.PI / 180, f = Math.min(sr + dl, 1.48);   // the shard's face angle
@@ -665,7 +691,8 @@ function placeMeshRocks(which) {
       { const q1 = new THREE.Quaternion().setFromAxisAngle(Za, (rand(x, z, 7) - 0.5) * 0.7), q2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (rand(x, z, 8) - 0.5) * 0.87);
         q1.premultiply(q2); Xa.applyQuaternion(q1); Ya.applyQuaternion(q1); Za.applyQuaternion(q1); }
       const sx = w / v.size[0], sy = hgt / v.size[1], sz = th / v.size[2];
-      const bb = v.lods[0].boundingBox, zf = bb.max.z * sz, out = 0.5 + 0.075 * w;   // the front's reach, what stands out
+      // what stands proud: 0.5 + 0.075 w; in PACKS the big stand far prouder (a quarter of their width), the medium 0.14 w
+      const bb = v.lods[0].boundingBox, zf = bb.max.z * sz, out = !PACKS ? 0.5 + 0.075 * w : (cls === 2 ? 0.25 * w : (cls === 1 ? 0.14 * w : 0.4 + 0.08 * w));   // the front's reach, what stands out
       const y0 = hXZ(x, z);
       // origin: the base end a third of its length below the point, sunk along the face's normal so `out` m stands proud
       V.set(x, y0, z).addScaledVector(Ya, -0.45 * hgt).addScaledVector(Za, -(zf - out));
@@ -690,7 +717,8 @@ function placeMeshRocks(which) {
       const outcrop = Math.max(cR, cS * 0.6) * ss(20, 30, sl) * clus * (1 - cF) * (cv > -0.2 ? 1 : 0.3);
       const ce = cR + (vn3(jx / 9, 2, jz / 9) - 0.5) * 0.6;   // (the raster's line, broken by a 9 m noise: else the blocks stand in rows along it)
       const edge = (ce > 0.2 && ce < 0.8 ? 1 : 0) * (1 - cF) * clus;
-      const pT = talus * 0.14 * (0.3 + 0.7 * clus), pO = outcrop * 0.05, pE = edge * 0.035;
+      const dK = Math.min(4, DENS);   // (the blocks follow the density, to 4x)
+      const pT = Math.min(0.9, talus * 0.14 * (0.3 + 0.7 * clus) * dK), pO = Math.min(0.9, outcrop * 0.05 * dK), pE = Math.min(0.9, edge * 0.035 * dK);
       const r = rand(jx, jz, 13); let kind = null;
       if (r < pT) kind = 'talus'; else if (r < pT + pO) kind = 'outcrop'; else if (r < pT + pO + pE) kind = 'edge'; else continue;
       const r1 = rand(jx, jz, 14), r2 = rand(jx, jz, 15), r3 = rand(jx, jz, 16), pw = Math.pow(1 - r2, 2.6);

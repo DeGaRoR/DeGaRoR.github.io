@@ -204,6 +204,39 @@ What the first state gets right and wrong (honest):
   (rows along the contours from the side). `bench.js hh` is murmur3's finaliser now. Any game placement must use a
   strong hash too.
 
+### 5b. The density test (the user, 13 Nov: "4 times ... then double that ... size variation ... packs")
+
+Switch: `?dens=1|4|8` in `bench.js`. Stills: `reports/evidence/ROCK-STUDY/density/{near,face,high}_1x_4x_8x.jpg` and
+`top_4x_8x.jpg`. All with `eco=1`.
+
+- **1x** (the last stills): ~1 point per 25 m², each shard claims 0.16 w. ~6 k shards.
+- **4x** (the first correctly random density): 1 per 7 m², claim 0.08 w, 4 m occupancy cells. **15-20 k shards.**
+- **8x + packs** (1 per 3.5 m², claim 0.05 w, 2.5 m cells): **28-37 k shards.**
+  - **Packs:** pack centres ~1 per 2500 m² on ground over 32°, each 15-40 m in radius. The density falls to 20 % at a
+    pack's rim and beyond.
+  - **Size by distance to the pack's centre:** BIG shards (28-58 m, ~2 %) only in the inner third, MEDIUM (12-27 m,
+    ~17 %) in the inner two thirds, SMALL (3-12 m) everywhere. The big ones are placed first, so the small ones pack
+    round them.
+  - **What stands proud:** big ones 0.25 w, medium 0.14 w, small 0.4 + 0.08 w. In the first pass the big ones were sunk
+    like the small ones and read as low mounds.
+
+Triangles drawn (rocks only, eco ladder):
+
+| view | 1x | 4x | 8x + packs |
+|---|---|---|---|
+| near | ~2.4 M | 4.3 M | 7.8 M |
+| face | 0.9 M | 2.7 M | 5.0 M |
+| high | - | 4.4 M | 8.5 M |
+
+- **Look.** 4x is a continuous blocky cover: every face is rock, but it reads as scales or cobbles of one size. **8x with
+  packs reads best of all the tests so far:** big crags stand out of the face with their own shadows, with medium and
+  small rock round them and thinner ground between packs. That is the "packs" structure, visible from the near view to
+  the high one. The crags' moss reads a little too yellow from altitude.
+- **Cost.** The look scales with the instance count, and the cost scales with it too: 5-8 M triangles is far over a phone
+  (and over most desktops). Most of it is the many small shards at the far rungs. The way to keep the look and drop the
+  cost is §6's: **bake each pack as ONE cluster mesh** (the big crag with its medium and small rocks merged and
+  decimated), and an impostor beyond ~600 m. The pack layout is the right unit for that bake.
+
 ## 6. Recommendation: what to build first, what it costs, what it changes
 
 **Build first: rock clusters in the cover ring.** It changes the most of what an aeroplane sees, for the least risk.
@@ -215,7 +248,7 @@ What the first state gets right and wrong (honest):
 2. **Placement rules in the cover ring, extended**, for talus, outcrop and edge (§5, reading the curvature, flow and
    "face uphill" fields baked per 10 m cell by `island_prep.py`). Beyond the ring's 220 m and above aglOff, an
    **outer rock ring** draws only blocks > 3 m, as impostors, to ~1.2 km. That is what gives a rock skyline from the air.
-3. **The cliff cover as CLUSTERS, not single shards.** This is the fix for the block-field look. Merge 4-8 overlapping
+3. **The cliff cover as CLUSTERS, not single shards** (§5b: the 8x pack layout is the look to bake). This is the fix for the block-field look. Merge 4-8 overlapping
    shards offline into one **cluster mesh** per variant (a few big crag shapes, 3-6 k tris at LOD0), placed along the
    faces. That gives non-convex outlines and continuous faces, and 5-10x fewer instances and draws. The face's ground
    wears the cluster's photograph (the FC5 transfer, §5).
