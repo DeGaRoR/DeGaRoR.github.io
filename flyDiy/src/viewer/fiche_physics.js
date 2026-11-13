@@ -47,7 +47,7 @@
              ramp: [[0, [201, 191, 174]], [0.3, [176, 160, 134]], [0.6, [208, 138, 79]], [1, [181, 70, 42]]], bad: '#b5462a', warn: '#c27a3e',
              frame: true },
     dark: { bg: '#000000', ink: '#f2ece2', dim: '#bdb5a8', faint: '#8d877b', hair: 'rgba(255,248,236,.18)', rule: 'rgba(255,248,236,.16)',
-            lead: 'rgba(244,239,230,.38)', member: 'rgba(214,206,194,.26)', ghost: 0.36, fillOp: 0.4, edge: null,
+            lead: 'rgba(244,239,230,.38)', member: 'rgba(214,206,194,.26)', ghost: 0.5, fillOp: 0.4, edge: null,
             ramp: [[0, [74, 69, 64]], [0.25, [151, 144, 127]], [0.5, [216, 160, 122]], [1, [232, 112, 72]]], bad: '#ec6f49', warn: '#e0a070',
             frame: true },
   };
@@ -281,7 +281,21 @@
     const N = p => [ox + f * (p[2] * pic.s + fr.ox), oy + f * (p[0] * pic.s + fr.oy)];
     return { N, f, ox, oy, k: pic.s * f };
   }
-  const picImg = (pic, m, op, filt) => `<image href="${pic.href}" x="${m.ox.toFixed(1)}" y="${m.oy.toFixed(1)}" width="${(pic.W * m.f).toFixed(1)}" height="${(pic.H * m.f).toFixed(1)}" opacity="${op}"${filt ? ` filter="url(#${filt})"` : ''}/>`;
+  // THE PICTURES ON BLACK (the user, 13 Nov: "we don't see the Cessna at all anymore in the greyed-out views"): a dark livery
+  // (the metal Cessna, rendered without a reflective environment) sinks into the phone's black. On the dark sheet every
+  // picture goes through a lift - its darks raised (a gamma), and a thin light outline traced off its own alpha - so the
+  // aeroplane keeps its shape whatever its paint: 'dl' for a colour picture, 'dg' for a greyed one. Cream: as drawn.
+  let CUR_DARK = false;
+  const darkDefs = th => { const edge = (th.base || th) === THEMES.sheet ? null : th.dim;
+    const lift = (id, grey) => `<filter id="${id}" x="-3%" y="-3%" width="106%" height="106%" color-interpolation-filters="sRGB">` +
+      (grey ? '<feColorMatrix in="SourceGraphic" type="saturate" values="0" result="g0"/>' : '<feOffset in="SourceGraphic" dx="0" dy="0" result="g0"/>') +
+      '<feComponentTransfer in="g0" result="lf"><feFuncR type="gamma" exponent="0.55" offset="0.08"/><feFuncG type="gamma" exponent="0.55" offset="0.08"/><feFuncB type="gamma" exponent="0.55" offset="0.08"/></feComponentTransfer>' +
+      '<feMorphology in="SourceAlpha" operator="dilate" radius="2.2" result="dd"/><feComposite in="dd" in2="SourceAlpha" operator="out" result="ed"/>' +
+      `<feFlood flood-color="${edge}" flood-opacity=".75" result="fc"/><feComposite in="fc" in2="ed" operator="in" result="ln"/>` +
+      '<feMerge><feMergeNode in="lf"/><feMergeNode in="ln"/></feMerge></filter>';
+    return edge ? `<defs>${lift('dl', false)}${lift('dg', true)}</defs>` : ''; };
+  const picImg = (pic, m, op, filt) => { const f = CUR_DARK ? (filt ? 'dg' : 'dl') : filt;
+    return `<image href="${pic.href}" x="${m.ox.toFixed(1)}" y="${m.oy.toFixed(1)}" width="${(pic.W * m.f).toFixed(1)}" height="${(pic.H * m.f).toFixed(1)}" opacity="${op}"${f ? ` filter="url(#${f})"` : ''}/>`; };
   // where each drag group sits on the side picture (shared by the desktop and the phone)
   function dragAt(D) {
     const M = D.model, Dg = D.drag, at = {};
@@ -438,7 +452,7 @@
     const M = D.model, E = D.elec, Tk = D.tanks, Wc = (th.base || th) === THEMES.sheet ? WIRE.sheet : WIRE.dark;
     const m = planMap(pic, box), N = m.N, FUEL = CAT.engine;
     out.push(`<defs><filter id="xg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="xf" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${FUEL}" stroke-width="2.2"/></pattern></defs>`);
-    out.push(picImg(pic, m, (th.base || th) === THEMES.sheet ? 0.4 : 0.34, 'xg'));
+    out.push(picImg(pic, m, (th.base || th) === THEMES.sheet ? 0.4 : 0.5, 'xg'));
     const wf = M.nodes.filter(n => M.tags[n[4]] === 'WF'), wr = M.nodes.filter(n => M.tags[n[4]] === 'WR');
     const near = (arr, z) => arr.slice().sort((a, b) => Math.abs(a[2] - z) - Math.abs(b[2] - z))[0];
     const semi = M.semi;
@@ -533,7 +547,7 @@
     // the ghosts: picture pixel = R(rot) proj(p) s + o (fitFrame), so proj(p) = R(-rot)(pixel - o) / s
     for (const vk of ['plan', 'side', 'front']) { const pc = o.pics && o.pics[vk]; if (!pc || !pc.frame) continue;
       const O = V[vk].f([0, 0, 0]), f = V[vk].sc / pc.s;
-      out.push(`<image href="${pc.href}" width="${pc.W}" height="${pc.H}" transform="translate(${O[0].toFixed(2)} ${O[1].toFixed(2)}) scale(${f.toFixed(5)}) rotate(${(-(pc.frame.rot || 0)).toFixed(2)}) translate(${-pc.frame.ox} ${-pc.frame.oy})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
+      out.push(`<image href="${pc.href}" width="${pc.W}" height="${pc.H}" transform="translate(${O[0].toFixed(2)} ${O[1].toFixed(2)}) scale(${f.toFixed(5)}) rotate(${(-(pc.frame.rot || 0)).toFixed(2)}) translate(${-pc.frame.ox} ${-pc.frame.oy})" opacity="${th.ghost}" filter="url(#${CUR_DARK ? 'dg' : 'mg'})"/>`); }
     const quad = (st, P, hatch) => {
       const F0 = P3(M, st[0]), F1 = P3(M, st[1]), R0 = P3(M, st[2]), R1 = P3(M, st[3]), ch = st[4], cs = hatch ? st[6] : 0;
       const at = (F, R, t) => { const d = [0, 1, 2].map(q => R[q] - F[q]), Ln = Math.hypot(...d) || 1; return [0, 1, 2].map(q => F[q] + d[q] / Ln * ch * (t - 0.15)); };
@@ -850,6 +864,7 @@
   function svg(page, data, opts) {
     const o = opts || {}, th = themeOf(o), K = kit(th);
     const L = o.layout || {}, phone = L.screen === 'phone' || (!L.screen && o.screen === 'phone');
+    CUR_DARK = (th.base || th) !== THEMES.sheet;
     // (the first prototypes' ids stay understood: load, xray, model)
     const f = { integrity: pageLoad, load: pageLoad, drag: pageDrag, electrics: pageXray, xray: pageXray, physics: pageModel, model: pageModel, reference: pageReference }[page];
     if (!f) throw new Error('no physics page ' + page);
@@ -858,11 +873,13 @@
     const ALIAS = { load: 'integrity', xray: 'electrics', model: 'physics' }, pid = ALIAS[page] || page, Kt = phone ? KIT() : null;
     if (phone && Kt && PHONE[pid]) {
       const C = Kt.column({ w: L.w > 0 ? L.w : 360, palette: kitPalette(th, o) });
+      C.push(darkDefs(th));
       PHONE[pid](data, o, th, K, C);
       return C.svg((PAGES.find(p => p.id === pid) || {}).name + (o.name ? ' of the ' + o.name : ''), { sig: o.sig })
         .replace(/id="([a-z]{2})"/g, 'id="' + uid + '$1"').replace(/url\(#([a-z]{2})\)/g, 'url(#' + uid + '$1)');
     }
-    return wrap(f(data, o, th, K), (PAGES.find(p => p.id === (ALIAS[page] || page)) || {}).name + (o.name ? ' of the ' + o.name : ''))
+    const body = f(data, o, th, K); if (CUR_DARK) body.splice(1, 0, darkDefs(th));
+    return wrap(body, (PAGES.find(p => p.id === (ALIAS[page] || page)) || {}).name + (o.name ? ' of the ' + o.name : ''))
       .replace(/id="([a-z]{2})"/g, 'id="' + uid + '$1"').replace(/url\(#([a-z]{2})\)/g, 'url(#' + uid + '$1)');
   }
   // ---- THE PAGE'S GLUE (the board's hook): a fiche record in, a page drawn ---------------------------------------------
