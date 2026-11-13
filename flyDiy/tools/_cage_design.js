@@ -2935,7 +2935,7 @@ const ARCHETYPES = [
                     // in copper on the flank behind the bonnet, its number in black. (The markings' stations run aft from the
                     // FIREWALL: the first placement, 2.35 m, landed on the boat tail; the cheat line's band is m2P of its H)
                     paint: { job: 'full', sweep: 0, base: 0x7fa8c9, trim: 0xc96f2a },
-                    finish: { decals: {
+                    finish: { wear: 0.01, decals: {   // (13 Nov, the user: "0,01 for roadster" - a whisper of weathering)
                       regL: 0.45, regC: -0.10, regH: 0.26, regCol: 0x20211f, regOutOn: 0,
                       // THE RADIATOR SHELL POLISHED, THE BONNET BLUE (the user, 12 Nov: "the blue up till the end ... restore
                       // the metallic only for the tip, like in the attached picture. Maybe make this part a little less long"):

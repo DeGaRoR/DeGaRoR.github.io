@@ -37,7 +37,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(2000);
   }
   console.log('garage up', el());
-  await page.addScriptTag({ path: path.join(ROOT, 'src', 'vehicle', 'trailer_model.js') });
+  // the PAGE's own trailer model (its lazy loader): a copy injected beside it could not see the page's texture library
+  // (house_tex.js's HOUSE_TEX_SETS lives in the loader's scope) and drew the trailer white
+  await page.evaluate(() => window.FLYDIY_LAZY(['trailer_model']));
+  // THE TRAILER'S TEXTURES FIRST: the house kit's maps load when first read (house_tex.js), and a trailer built before
+  // they arrive draws white - read them now and wait until every image is in
+  for (let i = 0; i < 60; i++) {
+    const ok = await page.evaluate(() => { const S = window.HOUSE_TEX_SETS || (typeof HOUSE_TEX_SETS !== 'undefined' ? HOUSE_TEX_SETS : null); if (!S) return true;
+      let all = true; for (const k of ['galv', 'steelgrey', 'deckwood']) { const set = S[k]; if (!set) continue;
+        for (const mp of ['diff', 'nor', 'rough']) { const im = set[mp]; if (im && !Array.isArray(im) && !(im.complete && im.naturalWidth)) all = false; } }
+      return all; }).catch(() => false);
+    if (ok) break; await sleep(1000);
+  }
   const load = async f => {
     await page.setInputFiles('#gFile', path.resolve(f));
     for (let i = 0; i < 150; i++) {
@@ -119,7 +130,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     T.group.matrix.makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, 0)).setPosition(0, yG, z0);
     T.group.matrixWorldNeedsUpdate = true;
     let gear = null; root.traverse(o => { if (o.name === 'cageLayer:gear') gear = o; });
-    const hold = new THREE.Group(); hold.name = 'convoy'; (gear || root).add(hold); hold.add(T.group);
+    // (under the ROOT, not the gear layer: a layer is rebuilt by the garage at will - the AO wait saw it happen - and
+    // takes its children with it; the hold carries the gear frame as a fixed matrix instead)
+    root.updateMatrixWorld(true);
+    const hold = new THREE.Group(); hold.name = 'convoy'; hold.matrixAutoUpdate = false;
+    hold.matrix.copy(root.matrixWorld).invert().multiply((gear || root).matrixWorld); root.add(hold); hold.add(T.group);
     // LEVEL IT: the garage keeps the craft still and tilts the GROUND to its stance, so the two axles' ground points
     // stand at different heights in the cage's frame - a turn about x puts both tyres' bottoms on one line
     const bot = L => { const q = L[0]; return [q.p[1] - q.R, q.p[2]]; };
@@ -139,6 +154,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     return { craftFix: nFix, levelDeg: +(a * 180 / Math.PI).toFixed(2), rear: rearC.map(q => q.p.map(v => +v.toFixed(3)).concat([+q.R.toFixed(3)])), front: frontC.map(q => q.p.map(v => +v.toFixed(3)).concat([+q.R.toFixed(3)])), yG, ball, Ld, deckY: T.stats.deckY, car, tris: T.stats.tris };
   }, [cargo, RAMP]);
   console.log('convoy', el(), JSON.stringify(lay));
+  await sleep(10000);   // (the trailer's AO bake runs in the page's idle slices: a white map for the first seconds)
   for (const [yaw, elv, fov] of views) {
     const o = { kind: 'hero', yaw, el: elv, fov: fov || 28, fill: 0.9, w: 1800, h: 1000, ss: 2, bg0: '#2b2724', bg1: '#0a0908', key: 2.2, rim: 2.6 };
     const r = await page.evaluate(`(() => { const body = ${PORTRAIT_BODY}; return body(${JSON.stringify(o)}, window.CAGE_UI_SCENE, null); })()`);

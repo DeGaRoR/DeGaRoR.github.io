@@ -638,25 +638,29 @@ function buildTrailerModel(THREE, Tr, o) {
       for (const z of [-half + 0.03, 0, half - 0.03]) member(M.galv, rrect(0.05, 0.05, 0.005), [xh, deckY, z], [xh, deckY + hH, z], [1, 0, 0]);
       for (const y of [deckY + 0.2, deckY + hH]) member(M.galv, rrect(0.04, 0.04, 0.004), [xh, y, -half + 0.03], [xh, y, half - 0.03], [0, 1, 0]);
       for (let k = 1; k < 9; k++) { const z = -half + 0.03 + (2 * half - 0.06) * k / 9; boxAt(M.galvDk, 0.006, hH - 0.02, 0.012, [xh, deckY + hH / 2, z]); } }
-    // the chocks and the straps on the car's wheels
-    const tyreTop = deckY + 2 * C.tyreR;
+    // THE WHEEL CHOCKS (the user, 13 Nov: "remove the yellow links and ... remodel the wheel blocks"): no straps; each tyre
+    // held fore and aft by a moulded rubber chock - its face CUT TO THE TYRE (the arc 8 mm off the tread, from the deck to
+    // the chock's height), a short flat crown, the back a stepped slope down to a wide foot, its sides closed, a bevel;
+    // three anti-slip ribs moulded across the slope and a grab handle (a loop) on the crown
     const trF = C.trackF || C.track, trR = C.trackR || C.track;   // (each axle its own track)
-    for (const s of [-1, 1]) {
-      const z = s * trF / 2;
-      for (const sx of [-1, 1]) {      // a chock ahead of and behind each front tyre
-        const xc = C.xF + sx * (C.tyreR * 0.78), w = new T.Shape();
-        w.moveTo(0, 0); w.lineTo(0.16 * sx, 0); w.lineTo(0, 0.11); w.closePath();
-        const g = new T.ExtrudeGeometry(w, { depth: Math.min(0.2, C.tyreW), bevelEnabled: false }); g.translate(xc, deckY, z - Math.min(0.2, C.tyreW) / 2); put(M.rubber, g);
-      }
-      for (const [xa, zw] of [[C.xF, s * trF / 2], [C.xR, s * trR / 2]]) {   // the strap: the ring ahead, over the crown, the ring behind; its ratchet
-        const z = zw, pts = [];
-        for (let i = 0; i <= 12; i++) { const a = Math.PI * i / 12; pts.push([xa + Math.cos(a) * (C.tyreR + 0.012), deckY + C.tyreR + Math.sin(a) * (C.tyreR + 0.012), z]); }
-        pts.unshift([xa + C.tyreR + 0.22, deckY + 0.01, z]); pts.push([xa - C.tyreR - 0.22, deckY + 0.01, z]);
-        tube(M.strap, pts, 0.006, 48);
-        rbox(M.black, 0.09, 0.04, 0.05, 0.006, [xa - C.tyreR - 0.08, deckY + 0.08, z], 0.6);
-      }
-    }
-    void tyreTop;
+    const chockW = Math.min(0.26, C.tyreW + 0.05), Rk = C.tyreR + 0.008, hK = Math.min(0.15, Math.max(0.08, 0.3 * C.tyreR));
+    const chock = (xa, z, sx) => {
+      // the profile in (u, y): u out from the tyre's centre line along the trailer, y up from the deck
+      const sh = new T.Shape(), arc = [];
+      for (let i = 0; i <= 10; i++) { const y = 0.004 + (hK - 0.004) * i / 10, dy = C.tyreR - y; arc.push([Math.sqrt(Math.max(0, Rk * Rk - dy * dy)), y]); }
+      const uT = arc[arc.length - 1][0], uF = uT + 0.035, uB = uT + 0.17;
+      sh.moveTo(arc[0][0], 0); for (const [u, y] of arc) sh.lineTo(u, y);
+      sh.lineTo(uF, hK); sh.lineTo(uF + 0.04, hK * 0.68); sh.lineTo(uF + 0.08, hK * 0.62); sh.lineTo(uB, 0.012); sh.lineTo(uB, 0); sh.closePath();
+      const g = new T.ExtrudeGeometry(sh, { depth: chockW - 0.012, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.005, bevelSegments: 2, curveSegments: 6 });
+      g.translate(0, 0, -(chockW - 0.012) / 2);
+      if (sx < 0) { g.scale(-1, 1, 1); const ix = g.index; if (ix) { const A = ix.array; for (let i = 0; i < A.length; i += 3) { const t = A[i + 1]; A[i + 1] = A[i + 2]; A[i + 2] = t; } } }
+      g.translate(xa, deckY, z); put(M.rubber, g);
+      // the ribs across the slope, the handle on the crown
+      for (let k = 0; k < 3; k++) { const f = (k + 0.5) / 3, u = uF + 0.08 + (uB - uF - 0.08) * f, y = hK * 0.62 * (1 - f) + 0.012 * f;
+        boxAt(M.rubber, 0.012, 0.012, chockW - 0.03, [xa + sx * u, deckY + y + 0.004, z], [0, 0, sx * Math.atan2(hK * 0.6, uB - uF - 0.08)]); }
+      const loop = new T.TorusGeometry(0.022, 0.005, 6, 14, Math.PI); loop.translate(xa + sx * (uT + uF) / 2, deckY + hK + 0.002, z); put(M.black, loop);
+    };
+    for (const s of [-1, 1]) for (const [xa, tr] of [[C.xF, trF], [C.xR, trR]]) for (const sx of [-1, 1]) chock(xa, s * tr / 2, sx);
     // THE RAMPS: FOLDING ladders - two sections hinged in the middle, each two side rails with rungs every 8 cm - on the
     // wheel tracks, hinged at the deck's tail. Up for the road: the first section stands up off the hinge, the second
     // folded back down against it (a low tailgate); Tr.ramp 'down': the two in line to the ground, the loading slope
