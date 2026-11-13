@@ -1499,7 +1499,10 @@ function makePilot(sim, def, world, opts) {
       const unpowL = !!starvedSaid;
       const stolL0 = !water && !soft && stolOn() && !unpowL;   // (the sheet's AND the pilot's qualification)
       let technique = (short || stolL0) ? 'short' : soft ? 'soft' : 'normal';
-      if (PRA && PRF.field && !water) technique = PRF.field;   // G1943: a profile's own field technique
+      // G1943: a profile's own field technique - a powered approach's habit. PILOT-UNIFY: with no engine on a short strip
+      // every person lands short (GATE UNIFY's EMERG, list:50 at Cannery's 310 m: the student's normal approach touched
+      // 150 m in and stopped 75 m past the end; the expert's short one 87 m in, 59 m left)
+      if (PRA && PRF.field && !water && !(unpowL && short)) technique = PRF.field;
       const shortT = technique === 'short';
       // THE STRIP DECIDES (12 Nov, FIT-PROCEDURE; the user: "the pilot should be able to decide what technique to use, at
       // least for the expert and the STOL ... automatically switch into the technique or a normal easy landing technique
