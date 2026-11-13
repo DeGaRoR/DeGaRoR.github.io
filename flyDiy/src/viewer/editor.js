@@ -1059,7 +1059,7 @@ function editorInit(api) {
       // `data-dec` tag every row carries
       const dec = CU.DECBODY;
       if (dec) {
-        const by = { reg: [], txt: [], kit: [], body: [], wing: [], stk: [], spiral: [], other: [] };
+        const by = { reg: [], txt: [], kit: [], vny: [], body: [], wing: [], stk: [], spiral: [], other: [] };
         for (const el of Array.from(dec.children))
           (by[(el.dataset && el.dataset.dec) || 'other'] || by.other).push(el);
         emitEls(p0, 'registration', by.reg.concat(by.other),
@@ -1067,6 +1067,9 @@ function editorInit(api) {
         // LIVERY-TEXT (9 Nov): the six text pieces - a name, a slogan - under their own heading
         if (by.txt.length) emitEls(p0, 'lettering', by.txt, 'up to six lines of text — a name, a slogan');
         emitEls(p0, 'livery', by.kit, 'the marking kit — three layers');
+        // LIVERY-STICKERS: the twelve Alaska marks, four slots
+        if (by.vny.length)
+          emitEls(p0, 'stickers', by.vny, 'vinyl marks — four slots, one colour each, placed like a livery layer');
         emitEls(p0, 'body image', by.body, 'a picture on the fuselage');
         emitEls(p0, 'wing image', by.wing, 'a picture on the wing');
         // G208.2: the certification stickers' place and fine tuning
