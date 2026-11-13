@@ -4627,16 +4627,20 @@ function makePilot(sim, def, world, opts) {
           // climb-out asks more than the go-around gradient (gammaGA, 15 m clear over 1.5 km), the smallest turn off the line
           // (15, 30, 45 deg, either side) whose way the climb makes - else the way that asks least - is flown, at Vx from
           // the floor speed (no level run-up), the bank 0.05 rad + 0.04 a metre up to 0.26 (15 deg); CLIMB holds it (below).
-          // Only when the straight way out is too steep for the aeroplane: every other departure is the old one to the bit
+          // Only when the straight way out is too steep for the aeroplane: every other departure is the old one to the bit.
+          // THE GROUND, NOT THE TREES: read with the canopy, the trees just past HOME's end (150 m on, 15 m clear, from the
+          // lift-off's 2 m) asked more than the C172's 8 % and turned it off the line into an en-route join (GATE PLAN 3) -
+          // the Vx climb (depNeed) clears trees; a valley is the TERRAIN's: the ground alone, 15 m clear, every 150 m to 1.5 km
+          const gTerr = (dx, dz) => { let g = -1; for (let k = 1; k <= 10; k++) { const d = 150 * k; g = Math.max(g, (groundH(cg[0] + dx * d, cg[2] + dz * d) + 15 - cg[1]) / d); } return g; };
           if (!ap.valleyChecked && onG === 0) {
             ap.valleyChecked = true;
             const tdV = [F.ux * ap.dirX, F.uz * ap.dirX], gG = gammaGA();
-            const n0 = gradAhead(cg[0], cg[2], tdV[0], tdV[1], 1500, cg[1], 15);
+            const n0 = gTerr(tdV[0], tdV[1]);
             if (n0 > gG) {
               let best = null;
               for (const deg of [15, -15, 30, -30, 45, -45]) {
                 const r = deg * Math.PI / 180, dx = tdV[0] * CORE_MATH.cos(r) - tdV[1] * CORE_MATH.sin(r), dz = tdV[0] * CORE_MATH.sin(r) + tdV[1] * CORE_MATH.cos(r);
-                const n = gradAhead(cg[0], cg[2], dx, dz, 1500, cg[1], 15);
+                const n = gTerr(dx, dz);
                 if (!best || (best.n > gG && n < best.n) || (best.n <= gG && n <= gG && Math.abs(deg) === Math.abs(best.deg) && n < best.n)) best = { deg, n, h: Math.atan2(dz, dx) };
               }
               if (best && best.n < n0) {
