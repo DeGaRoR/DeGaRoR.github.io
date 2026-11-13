@@ -315264,3 +315264,98 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+
+## MISSIONS-LIVE - A MISSION IN FLIGHT: THE TRACKER FED, THE GATES / RINGS / POINTS DRAWN, THE NEXT ONE UNDER A BEACON WITH A SCREEN-EDGE ARROW, THE LAP'S TIMER + SPLITS, THE MAP'S MISSION PLACES; GATE MISSIONLIVE (13 Nov 2026, MISSIONS-LIVE for A0, cloud - node + headless three.js, no GPU; branch claude/missions-live-1 off claude/mission-packs 2d1ab6ca)
+
+The brief (A0, 13 Nov): code only, no story or mission content - (1) feed the plane's state to 73c at a low fixed rate,
+no per-frame allocation, its result (tracks, spot, waitedMin, spec, occupants, people) to the end-of-flight check; (2)
+draw the mission in the world from the existing props, only while a mission runs, the NEXT one highlighted and an
+off-screen arrow, a timer + splits in the game's UI style, map markers; (3) a run_gates row.
+
+**Files.** NEW src/viewer/mission_live.js (window.MISSION_LIVE; build.js MANIFEST.lazy with tools/_mission_gen.js - the
+sandbox and a career with no such mission never fetch either), NEW tools/_mission_live_check.js (GATE MISSIONLIVE, core
+tier, ~2 s). Edited: app.js (the career page half: MSL, missionLiveArm / End / Frame / Spot / Stop), map_menu.js (3b'.
+the mission's places), flight.css (#msLive, #msArrow), build.js (the two lazy rows), run_gates.js (the row). NO core
+file changes: tools/flight_core.js and the career chunk are byte-identical to the base - the parked cook is not touched.
+
+**THE TRACKER** (pure half, node-tested over the real core):
+- ARMED at every departure: app.js careerFlightStart (the roll-out), a chained leg (nextLeg, after the stop moved the
+  document) and a restart (fullReset): `missionLiveArm()` - for a career whose accepted contracts have an object place
+  (missionLiveWanted), FLYDIY_LAZY(['_mission_gen', 'mission_live']), then MISSION_LIVE.arm(doc, { reach: the slot's
+  foot.half (the half-span playerFootOfDef measured at the roll-out), fields: CONTRACT_FIELDS, spots:
+  FLEET_SPOTS_PACK.aero, from: fromId }) -> one 73c tracker per contract whose current leg has in-flight objectives, and
+  the markers (missionMarkers; done and 'field' ones dropped - the aerodrome is in the world already) of every accepted
+  contract with places; then mount. A generation counter drops a load that lands after the flight ended.
+- FED in careerFrame behind one boolean (`if (MSL.on) missionLiveFrame(cg)`): `ML.due(ap.t)` is a compare; only when a
+  sample is due (MISSION_LIVE.RATE = 0.25 s, a FIXED rate - the next due RATE after the last, not after the last frame;
+  a clock that went back starts again) the page reads the height over the ground (surfH) and calls tick(t, x, y MSL, z,
+  agl) - one reused sample object, every tracker stepped (73c tests the whole segment, so 4 Hz catches a gate crossed
+  between samples). A 'photo' event dispatches flydiy:shutter (G3744's sound).
+- EVENTS beyond 73c's: { k: 'missed', id, key } - a seq leg's armed objective skipped (a LATER objective of the leg
+  crossed while it is open), once per objective. A hit restates the markers (missionMarkers over the leg's live progress
+  as the flight has it: done / next / later).
+- THE STOP: careerStopApply spreads missionLiveStop(how, aero, cg) into careerStopRecord: `tracks` (evidence() =
+  { id: missionTrackEvidence }), `spot` (stopped at an aerodrome: the first FLEET_SPOTS_PACK spot whose
+  FLEET_SPOT_FOOT box holds the CG, fleetSpotDist <= 0 -> '<aero>:<spot id>'), `spec` (def.spec: an order's
+  preferences), `occ` (occNow(): the seats' bands, the injury rule), `people` ({ on: the named people the flight
+  carries - every accepted contract's open steps of its current leg that board here (from is the departure or none):
+  load.pax ids + embark ids; off: the same, when stopped at an aerodrome }), `departHour` (the world's local hour at the
+  arm). A crash goes the same way (careerStopApply runs before careerCrashReset: the rules see the tracks). Then
+  missionLiveEnd(); the garage ends it too.
+- **NOT DONE: waitedMin.** There is no Wait button anywhere in the page (no arrival-card verb, no clock skip at a stop);
+  the stop record carries none, so a `wait` step is still not doable in the game. It needs an arrival-card verb (the
+  minutes from the step's require.waitMin, playerClock forward, careerOnStop again at the same field with
+  { waitedMin }) - a card/UX decision for Game; the record field and the core are ready.
+- **A CALL FOR GAME: people.** 73c reads people.on as "got on HERE". The page boards at the DEPARTURE, so the stop at
+  the far end carries who boarded for that flight (on) and that they got off there (off: everyone aboard, the page has no
+  "stays aboard"). Every disembark list is then met at the step's stop, and an embark list on a carry step is met at its
+  arrival. If Game wants embark judged where they board, the core should read the departure's people (a stop record of
+  the departure) - say so and I will move it.
+
+**THE DRAWING** (mount / frame / unmount; nothing exists when no mission runs):
+- one THREE.Group 'missionLive' in the scene: each marker's prop from tools/_mission_gen.js (forMarker -> build at lod 1
+  on the finish's shared materials; ONE build per distinct preset in a mount, the rest clones sharing the geometry): a
+  gate's two posts (pylons / balloon columns) on the ground (world.terrainH) + a faint line at the band's top, a ring at
+  its centre turned rotation.y = -dir (tether = its centre's height over the ground), a point's flag / photo target, a
+  spot's tie-down marks at its ry. Stand-ins (a post, a torus, a mast, a box in obstacle orange) only if the generator
+  failed to load. Every object matrixAutoUpdate off - static.
+- states: done -> its group hidden; later -> drawn (the props' materials are shared; dimming per state would need
+  per-marker material clones - left out on purpose); NEXT -> THE BEACON: one open translucent cylinder (one
+  MeshBasicMaterial, depthWrite off), moved onto the next objective on a state change only: a gate's mid-point, radius
+  half the gap, up to the band's top; a ring's hoop; a point's circle through its band. Its pulse is that one
+  material's opacity per frame.
+- THE ARROW (#msArrow): the next objective (the tracked contract's; an any-order leg's nearest) projected with the
+  frame's camera into a reused Vector3; on screen -> hidden; off-screen or behind -> a chevron on the edge (90 % box)
+  pointing to it, its distance beside it (m / km). THE PLATE (#msLive, top centre): the running (else last) lap as
+  "SPEED 12.4 s" (+ penalty), the last three splits "cp2 32.0 s (32)", the last event's line for 4 s ("Through g1",
+  "Missed g2" / "Hit: +3 s" in the warn colour, "Photo taken: <the say line>", "Time: 17.2 s"). --ed-* tokens, IBM Plex
+  Sans, no italic; text rewritten at most 10 times a second.
+- NOT DONE (named): the torn prop swapped in on a strike (the generator has `torn: 1`; the event carries `until`) - the
+  strike shows on the plate and the lap only; the photo's white flash frame; the gate's direction arrow.
+
+**THE MAP** (map_menu.js 3b'.): mapAdapt keeps each contract's `markers`; the open and the tracked contract's places drawn
+over the routes: a gate's two posts and the line, a ring a bar across its heading in a dashed circle of its true radius,
+a point its circle (dashed; dotted for a photo), a spot a square, a site a diamond; a label "n" ("n · cp2 · 32 s" for a
+split); next #e0652a, later dim, done grey. A spot needs the spots table in careerMapRecord (75_ does not pass it today:
+a spot marker has no x/z on the map and is skipped - a core one-liner for whoever next touches 75_).
+
+**GATE MISSIONLIVE** (tools/_mission_live_check.js, 49 checks; `--selftest` 9 mutations of mission_live.js, each red):
+the demo pack in use (missionPackUse(demo_p1.json), as ?pack=demo_p1); nothing armed without a mission or with a
+place-less one (demo.order); demo.gates armed g1, g2, r1 seq; a scripted flight at 60 frames a second the page's way
+(due then tick): every objective ONCE and IN ORDER, the timer g1 -> g2, ~4 samples a second (175 in 2630 frames), the
+beacon's target g1 > g2 > r1, the markers done, through careerStopRecord + careerOnStop at w3: done, GOLD; wide of g2:
+ONE "missed g2", the ring not counted, the stop names g2, flown again it passes; a wingtip 3 m from g2's post: one strike,
++3 s on the lap; the rally (offered after the gates): cp1..cp4 in order, every split with its target, the stop moves it;
+headless three.js r186: mounted only when armed, the group, the beacon on g1 then on the ring, g1 + g2 hidden once done,
+end() leaves the scene as it was; with MISSION_GEN loaded the generator's props (balloon columns, the ring at 120 m);
+the wiring (arm points, the boolean, the stop keys, the garage, the lazy rows, the map).
+
+**GPU PAGE CHECK - the shots I want (A0's slot; ?career=1&pack=demo_p1, accept "demo.gates" on the map, roll out at HOME):**
+1. the chase view on the roll-out towards g1 (~800 m off): both balloon columns, the beacon between them, the plate hidden.
+2. the cockpit view 150 m before g1: the band line, the beacon pulse (two frames ~0.8 s apart).
+3. just after g1: the plate "SPEED 0.x s", the line "Through g1"; g1's columns gone, the beacon on g2.
+4. a 90-degree turn away from g2: the arrow on the screen's edge with its distance (desktop and the phone profile).
+5. the ring from 300 m (its orientation along heading 349, the tethers to the ground) and through it.
+6. a pass wide of g2 (the "Missed g2" line, warn colour).
+7. the arrival card at w3 (the gold medal line) and the map's contracts screen with demo.gates open (the places drawn).
+8. FRAMECOST-style: frame time with the mission mounted vs ?pack= absent at the same spot (the props are ~2k tris a post).

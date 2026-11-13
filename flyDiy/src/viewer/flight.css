@@ -1188,3 +1188,23 @@ body:not(.fl2) #ui #mmX { display:none; }
   .flCornB { min-width:44px; min-height:44px; }
   #flMmB { top:12px; right:12px; }
 }
+
+/* ---- MISSIONS-LIVE (13 Nov): A MISSION IN FLIGHT (src/viewer/mission_live.js makes both under #ui while a mission
+   runs, removes them after): the lap's timer plate top-centre - the timer in the label weight, the splits and the last
+   event under it in plain ink (a hit or a miss in the warn colour) - and the arrow to the next objective on the screen's
+   edge when it is out of view, its distance beside it. The editor's tokens, IBM Plex Sans only. ---- */
+#ui #msLive { position:absolute; top:64px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column;
+  align-items:center; gap:3px; padding:7px 14px; background:var(--ed-plate); border:1px solid var(--ed-border);
+  border-radius:6px; max-width:min(420px, calc(100% - 32px)); box-sizing:border-box; pointer-events:none; }
+#ui #msLive[hidden] { display:none; }
+#msLive .msT { font:600 15px/1.2 'IBM Plex Sans'; letter-spacing:.08em; color:var(--ed-acc); }
+#msLive .msT:empty, #msLive .msS:empty, #msLive .msE:empty { display:none; }
+#msLive .msS { font:400 11.5px/1.35 'IBM Plex Sans'; color:var(--ed-dim); }
+#msLive .msE { font:500 12px/1.35 'IBM Plex Sans'; color:var(--ed-ink); }
+#msLive .msE.warn { color:var(--ed-warn); }
+#ui #msArrow { position:absolute; left:0; top:0; display:flex; align-items:center; gap:4px; pointer-events:none;
+  will-change:transform; }
+#ui #msArrow[hidden] { display:none; }
+#msArrow svg { width:30px; height:30px; fill:#ffd27a; stroke:rgba(30,27,24,.8); stroke-width:1.2; }
+#msArrow i { font:600 11px/1 'IBM Plex Sans'; font-style:normal; color:var(--ed-ink); background:var(--ed-plate);
+  padding:2px 5px; border-radius:4px; }

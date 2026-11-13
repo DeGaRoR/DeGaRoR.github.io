@@ -9762,11 +9762,75 @@
     try { const cv = doc && doc.career && world ? careerSkyCover(world.day) : undefined; if (typeof cv === 'number') doc.career.cover = Math.round(cv * 100) / 100; } catch (e) {}
     return doc;
   }
-  function careerFlightStart() { crOver = []; careerPlateSync(); }
+  function careerFlightStart() { crOver = []; careerPlateSync(); missionLiveArm(); }
   function careerFrame(cg) {
     if (!started || inGarage || !cg) return;
     try { careerOverflewAdd(world, cg[0], cg[2], crOver); } catch (e) {}
     if (crPlateEl && !crPlateEl.hidden) careerLegSync();
+    if (MSL.on) missionLiveFrame(cg);
+  }
+  // ---- MISSIONS-LIVE (13 Nov): A MISSION IN FLIGHT - the tracker fed, the gates / rings / points drawn ----------------
+  // At each departure (the roll-out, a chained leg, a restart) an accepted contract whose places 73c can track or draw
+  // arms src/viewer/mission_live.js (lazy: fetched with tools/_mission_gen.js the first time; never for a career with
+  // no such mission, never in the sandbox): one tracker per contract (missionTrackNew, the aeroplane's half-span its
+  // reach), its markers as static props in the world, the next one under a beacon with a screen-edge arrow, the lap's
+  // timer and splits on the flight layer. careerFrame feeds it every frame and it samples at MISSION_LIVE.RATE (4 Hz;
+  // the core tests the whole segment); its evidence, the spot, the spec, the occupants, the people ride the stop record
+  // (careerStopApply). Nothing is armed, drawn or allocated when no mission runs (MSL.on false: one boolean a frame).
+  const MSL = { on: false, gen: 0, departH: null };
+  function missionLiveWanted(d) {
+    const C = d && d.career && d.career.contracts;
+    if (!C || typeof careerContract !== 'function' || typeof contractSubsOf !== 'function') return false;
+    return (C.accepted || []).some(id => { const r = careerContract(d, id); return r && contractSubsOf(r).some(s => s && s.place && typeof s.place === 'object'); });
+  }
+  function missionLiveArm() {
+    const gen = ++MSL.gen;
+    MSL.on = false;
+    if (window.MISSION_LIVE) window.MISSION_LIVE.end();
+    MSL.departH = world && world.day && world.day.localSeconds != null ? world.day.localSeconds / 3600 : null;
+    if (!CAREER_DEV) return;
+    const d = playerLoad();
+    if (!missionLiveWanted(d)) return;
+    const L = window.FLYDIY_LAZY ? window.FLYDIY_LAZY(['_mission_gen', 'mission_live']) : Promise.resolve();
+    Promise.resolve(L).then(() => {
+      if (gen !== MSL.gen || !window.MISSION_LIVE || inGarage) return;
+      const ML = window.MISSION_LIVE, F = flSlot && playerLoad().fleet[flSlot], half = F && F.foot && F.foot.half;
+      const n = ML.arm(playerLoad(), { reach: half, fields: typeof CONTRACT_FIELDS !== 'undefined' ? CONTRACT_FIELDS : null,
+                                       spots: window.FLEET_SPOTS_PACK && window.FLEET_SPOTS_PACK.aero, from: fromId });
+      if (!n) return;
+      ML.mount(scene, { THREE, ground: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : 0), ui: document.getElementById('ui') });
+      MSL.on = true;
+    }).catch(e => console.warn('flyDiy (missions): the mission tracker did not start -', e && e.message));
+  }
+  function missionLiveEnd() { MSL.gen++; MSL.on = false; if (window.MISSION_LIVE) window.MISSION_LIVE.end(); }
+  function missionLiveFrame(cg) {
+    const ML = window.MISSION_LIVE, t = ap ? ap.t : 0;
+    if (ML.due(t)) {
+      const ev = ML.tick(t, cg[0], cg[1], cg[2], cg[1] - surfH(cg[0], cg[2]));
+      if (ev) for (const e of ev) if (e.k === 'photo') try { window.dispatchEvent(new CustomEvent('flydiy:shutter', { detail: { at: Date.now(), mission: e.id } })); } catch (x) {}
+    }
+    ML.frame(camera, performance.now());
+  }
+  // the tie-down spot the aeroplane stopped on ('<aero>:<spot id>'; 25_ fleetSpotDist <= 0 over FLEET_SPOT_FOOT), or null
+  function missionLiveSpot(aero, x, z) {
+    const P = window.FLEET_SPOTS_PACK, list = aero && P && P.aero && P.aero[aero];
+    if (!list || typeof fleetSpotDist !== 'function' || typeof FLEET_SPOT_FOOT === 'undefined') return null;
+    for (const q of list) if (fleetSpotDist({ x: q[0], z: q[1], ry: q[2], half: FLEET_SPOT_FOOT.half, fwd: FLEET_SPOT_FOOT.fwd, aft: FLEET_SPOT_FOOT.aft }, x, z) <= 0) return aero + ':' + q[3];
+    return null;
+  }
+  // what the flight hands the stop record for the missions (careerStopRecord's MISSIONS-P1..P3 keys; only those it has)
+  function missionLiveStop(how, aeroId, cg) {
+    const out = {};
+    const ML = MSL.on && window.MISSION_LIVE;
+    const tr = ML ? ML.evidence() : null;
+    if (tr) out.tracks = tr;
+    if (how === 'stopped' && aeroId && cg) { const sp = missionLiveSpot(aeroId, cg[0], cg[2]); if (sp) out.spot = sp; }
+    if (def && def.spec) out.spec = def.spec;
+    const occ = (() => { try { return occNow(); } catch (e) { return null; } })();
+    if (Array.isArray(occ)) out.occ = occ;
+    if (ML) { const on = ML.aboard(); if (on.length) out.people = { on, off: how === 'stopped' && aeroId ? on : [] }; }
+    if (MSL.departH != null) out.departHour = MSL.departH;
+    return out;
   }
   const careerCargo = () => {
     // G2345 (FREIGHT-LOAD): the accepted placement rides this airframe -> its kilos (the items are the stop's load)
@@ -9803,7 +9867,10 @@
       // G2665 (NIGHT-OPS): every time-of-day window is judged on the day's own almanac (in June dusk is 22:29, in
       // December ~16:40), not the 19.5 h constant - SIM-CLOCK's recommendation (G2653)
       ...careerDuskDawn(),
+      // MISSIONS-LIVE: the flight's mission evidence (the tracks, the spot, the spec, the seats' bands, the people)
+      ...missionLiveStop(how, W && flightCanDepart(W) ? W.aero.id : null, sim.cgPos()),
     });
+    missionLiveEnd();     // the next leg (Fly on) or roll-out arms it again off the document this stop moved
     const hook = careerAcceptHook(crit => (window.ACCEPT_REC ? window.ACCEPT_REC.verdict(crit) : null));
     const res = careerOnStop(d, stop, { acceptVerdict: hook });
     if (res.doc && typeof freightLoadSettle === 'function') res.doc = freightLoadSettle(res.doc);   // G2345: a delivered load leaves the record
@@ -14245,6 +14312,7 @@
   }
   function enterGarage() {
     crowdStop(false);                  // G2970: the stand's passengers seated, the start that waited on them dropped
+    if (CAREER_DEV) missionLiveEnd();  // MISSIONS-LIVE: nothing tracked, nothing drawn in the shed
     parkedFlush();
     // G1490 (HYBRID-TRIPS): the flown model back AT REST on its bake - the hybrid's t is the flight's, and a model left in
     // the band met the shed and the next roll-out shot on programs keyed in no compile (a 5.2 s link) - flown_bake.js rest
@@ -15722,6 +15790,7 @@
     if (started && flSlot && !flEnded) playerFlightEnd('abandoned');
     flEnded = false; flLastEnd = null;
     sim.reset(0); ap = mkPilot(curKey); applyRoute(); started = false; running = true;
+    if (CAREER_DEV) missionLiveArm();   // MISSIONS-LIVE: a restart flies the objectives again from the start
     // REVIEW 2026-10-04 (A8): a diverged sim left the chase camera's yaw-rate filter and azimuth at NaN, and only the
     // garage roll-out reveal ever rewrote them - "Fly again" after a crash placed the eye at (NaN, NaN, NaN)
     flYawRate = 0;
@@ -16488,6 +16557,7 @@
       // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
       flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
       flEnded = false; flLastEnd = null;   // PREM-S2: a new leg ends (and moves the airframe) on its own
+      if (CAREER_DEV) missionLiveArm();     // MISSIONS-LIVE: the next leg's objectives (the stop moved the document)
       if (CAREER_DEV) careerCertWarn(true);   // CERT-GATES: the next leg says it too
     }
     flNextLeg = nextLeg;

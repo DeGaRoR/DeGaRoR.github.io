@@ -1091,6 +1091,12 @@ const GATES = [
   // THE MISSION PROPS (MISSIONS-PROPS): tools/_mission_gen.js - the air-race pylon, the balloon column, the ring, the marker
   // flag, the tie-down spot, the site's stages; their strike dimensions are the core's (73c MISSION_PROP_DIMS)
   { id: 'MISSIONPROPS', file: '_mission_props_check.js', tier: 'core' },
+  // MISSIONS-LIVE (13 Nov): A MISSION IN FLIGHT - src/viewer/mission_live.js over the real core with the demo pack in use:
+  // the demo gates mission flown by a scripted path (the page's frames, the tracker's 4 Hz) passes every gate in order, a
+  // missed gate reported, a strike's penalty, the rally's splits recorded, each through the stop record and careerOnStop;
+  // the drawing headless on three.js (mounted only while armed, the beacon on the next objective, the done ones hidden,
+  // gone at end); the page's wiring. ~2 s. `--selftest`: 9 doctored rules, each red
+  { id: 'MISSIONLIVE', file: '_mission_live_check.js', tier: 'core' },
   // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
   // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village
   // unmoved, the altiport and East Point by their stage); MILL-TAXI's census at every stage with the kits' solids; never
