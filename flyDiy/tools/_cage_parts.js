@@ -1112,7 +1112,7 @@ const CAGE_PARTS = [
       ['this build is a car', ['isCar']],
       ['drive', ['carDrive', 'carChassisKg', 'carBeamR']],
       ['wheel arches', ['archOn', 'archGap']],
-      ['lamps', ['carTail', 'carTailAt', 'carPlate']],
+      ['lamps', ['carTail', 'carTailAt', 'carPlate', 'carTowSign', 'carBeacon', 'carWipers']],
       ['mud guards and step', ['carFender', 'carFenderGap', 'carStep']],
       ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],
       ['spare wheel', ['spareOn', 'spareAt', 'spareZ', 'spareSide', 'spareX', 'spareY', 'spareK', 'spareStrap']],

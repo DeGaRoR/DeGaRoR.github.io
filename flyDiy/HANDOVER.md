@@ -315815,3 +315815,16 @@ CAR-3 FINAL PUSH (13 Nov, the user: "some clipping at the bottom of the back win
   The track: s1X 0.82 -> 0.90, s2X 0.88 -> 0.96 (8 cm out each side; the guards and arches follow the wheels);
   paxSeatZ 0.2 -> 0.32. The three vans rejoined. The trailer's wood: TRL_WX.mat timber/plank saturation 0.5 -> 0.7,
   silvering 0.6 -> 0.3 (GATE TRAILER's check moved with it). The convoy rendered with the Retro (navy) van as the tow.
+
+CAR-3 TOW KIT + REAR GUARDS (13 Nov, the user: "a flat face on top of the windscreen ... signs there, indicating it's
+  the tow vehicle ... beacons ... windshield wipers for all windows"; "the wheel arches hug the fuselage at the back ...
+  real ones are cut to silhouette ... have it come inside the wheel well"). NEW ROWS (Car > lamps): carTowSign,
+  carBeacon, carWipers (absent = none) - _cage_gear.js towKitBuild, placed off the drawn sheet: the windscreen's own
+  faces (material 'windshield'; they are a CUT part - read back through cutOff, as cageAirframe does) give its edges and
+  plane; the sign (amber, black chevrons, "TOW SERVICE", canvas map + bump, propMat 'carTowSign') on the header's
+  frontmost forward-facing faces; two amber beacons on the roof's front corners; two wipers parked along the
+  windscreen's foot, one on each rear window along its sill. The vans have all three. REAR GUARDS (fenderBuild, with
+  the rear well cut, archOn & 1): radius min(R + carFenderGap, R + archGap - 8 mm) - inside the well's opening - and a
+  per-point inner edge: inside the well 3 mm short of its wall, elsewhere 3 mm short of the body's silhouette at that
+  height (the section's crossing); flat inside the body's line, crowned outboard. NOTE: in the game the textured
+  pieces (carPlate, carTowSign) fall back to their bucket colour - propBuild knows neither; a follow-up.

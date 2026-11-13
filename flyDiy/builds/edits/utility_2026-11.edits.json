@@ -219,7 +219,10 @@
   "carFenderGap": 0.11,
   "whTex": 1,
   "whTexPat": 2,
-  "whTexDirt": 0.45
+  "whTexDirt": 0.45,
+  "carTowSign": 1,
+  "carBeacon": 1,
+  "carWipers": 1
  },
  "fuel": {
   "litres": 80,

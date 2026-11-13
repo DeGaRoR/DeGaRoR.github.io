@@ -195,6 +195,10 @@ const WHEEL_ROWS = [
   ['carStep', 'running board (step) between the guards', 0, 1, 1, { when: P => +P.carFender > 0, absent: 0 }],
   // CAR-3: a pressed licence plate on the rear (its text spec.meta.plate; absent = none)
   ['carPlate', 'licence plate (rear)', 0, 1, 1, { when: P => +P.isCar || +P.carPlate, absent: 0 }],
+  // CAR-3 TOW KIT (13 Nov): a sign on the windscreen's header, roof beacons, wipers on the windscreen and rear windows
+  ['carTowSign', 'tow sign (over the windscreen)', 0, 1, 1, { when: P => +P.isCar || +P.carTowSign, absent: 0 }],
+  ['carBeacon', 'roof beacons', 0, 1, 1, { when: P => +P.isCar || +P.carBeacon, absent: 0 }],
+  ['carWipers', 'wipers (windscreen + rear windows)', 0, 1, 1, { when: P => +P.isCar || +P.carWipers, absent: 0 }],
   ['carTailAt', 'tail lamps\' face', 0, 1, 1, ['on the corner (45 degrees)', 'flat on the back'], { when: P => +P.carTail, absent: 0 }],
   // CAR-1: a spare wheel on the body's flank (absent = none)
   ['spareOn', 'spare wheel', 0, 1, 1, { when: P => +P.isCar || +P.spareOn }],

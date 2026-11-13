@@ -2755,6 +2755,115 @@ function plateBuild(group, P, AF, mesh) {
   group.add(root);
 }
 
+// CAR-3 TOW KIT (the user 13 Nov: "There is a flat face on top of the windscreen. Can you add some signs there,
+// indicating it's the tow vehicle? And add beacons. And windshield wipers for all windows"): three rows, absent = none.
+// Everything is placed off the drawn sheet (cage units x FS, the gear group's frame): the windscreen's own faces
+// (material 'windshield') give its top and bottom edges and its plane; the header is the sheet's forward-facing faces
+// over the glass's top edge. carTowSign 1 = a pressed sign on the header (amber, black chevrons, TOW); carBeacon 1 =
+// two amber beacons on the roof's front corners; carWipers 1 = two wipers parked along the windscreen's foot and one
+// on each rear window (rearWinOn), parked along its sill.
+function towKitBuild(group, P, AF, mesh) {
+  if (!mesh || !mesh.V || !mesh.F) return;
+  const C2 = window.CAGE2, FS = ((C2 && C2.CAGE_UNIT) || 1) * (+P.planeScale || 1);
+  // (a cut part's faces carry their explode offset as cutOff: measured back at their own place, cageAirframe's rule)
+  const Vf = (f, i) => { const p = mesh.V[i], o = f.cutOff || [0, 0, 0]; return [(p[0] - o[0]) * FS, (p[1] - o[1]) * FS, (p[2] - o[2]) * FS]; };
+  const ws = []; for (const f of mesh.F) if (f && f.m === 'windshield' && f.v) for (const i of f.v) ws.push(Vf(f, i));
+  const root = new THREE.Group(); root.name = 'edTowKit';
+  const dark = GG.gearMat('dark'), chrome = GG.gearMat('chrome');
+  const rubber = new THREE.MeshStandardMaterial({ color: 0x141517, metalness: 0.1, roughness: 0.8 }); rubber.userData.aeroskin = 1;
+  const mk = (geo, mat, par) => { const m = new THREE.Mesh(geo, mat); m.name = 'edTowKit'; (par || root).add(m); return m; };
+  let G = null;
+  if (ws.length >= 3) {
+    const yT = Math.max(...ws.map(p => p[1])), yB = Math.min(...ws.map(p => p[1]));
+    const top = ws.filter(p => p[1] > yT - 0.02), bot = ws.filter(p => p[1] < yB + 0.02);
+    const zT = top.reduce((a, p) => a + p[2], 0) / top.length, zB = bot.reduce((a, p) => a + p[2], 0) / bot.length;
+    const xT = Math.max(...top.map(p => Math.abs(p[0]))), xB = Math.max(...bot.map(p => Math.abs(p[0])));
+    const up = new THREE.Vector3(0, yT - yB, zT - zB).normalize(), n = new THREE.Vector3(0, -up.z, up.y);   // (forward and up)
+    G = { yT, yB, zT, zB, xT, xB, up, n };
+  }
+  // ---- THE SIGN on the header
+  if (+P.carTowSign && G && typeof document !== 'undefined') {
+    let ok = false; try { const c = document.createElement('canvas'); ok = !!(c && c.getContext && c.getContext('2d')); } catch (e) {}
+    // the header: forward-facing sheet faces over the glass's top edge, near the middle
+    let hy0 = Infinity, hy1 = -Infinity, hz = 0, hn = 0; const cand = [];
+    for (const f of mesh.F) { if (!f || !f.v || f.v.length < 3 || /window|windshield|pane|Edge|joint|seal/i.test(f.m || '')) continue;
+      const P3 = f.v.map(i => Vf(f, i)), c = P3.reduce((a, p) => [a[0] + p[0] / P3.length, a[1] + p[1] / P3.length, a[2] + p[2] / P3.length], [0, 0, 0]);
+      if (Math.abs(c[0]) > 0.4 || c[1] < G.yT - 0.005 || c[1] > G.yT + 0.35 || Math.abs(c[2] - G.zT) > 0.2) continue;
+      const a = new THREE.Vector3(...P3[1]).sub(new THREE.Vector3(...P3[0])), b = new THREE.Vector3(...P3[2]).sub(new THREE.Vector3(...P3[0])), nn = a.cross(b).normalize();
+      if (Math.abs(nn.z) < 0.7 || f.back) continue;
+      cand.push([P3, c]); }
+    // the outer skin: the frontmost of them (a liner or trim behind it never counts)
+    if (cand.length) { hz = Math.max(...cand.map(q => q[1][2])); for (const [P3, c] of cand) if (c[2] > hz - 0.02) { for (const p of P3) { hy0 = Math.min(hy0, p[1]); hy1 = Math.max(hy1, p[1]); } hn++; } }
+    if (ok && hn) { const H = Math.max(0.05, Math.min(0.16, (hy1 - Math.max(hy0, G.yT)) * 0.78)), W = Math.min(1.2, G.xT * 1.2, H * 11);
+      const draw = relief => { const c = document.createElement('canvas'); c.width = 1024; c.height = Math.round(1024 * H / W); const g = c.getContext('2d'), h = c.height;
+        g.fillStyle = relief ? '#000' : '#f2a900'; g.fillRect(0, 0, 1024, h);
+        const ch = Math.min(h * 1.1, 170);   // the chevron panels at either end
+        for (const side of [0, 1]) { g.save(); g.beginPath(); g.rect(side ? 1024 - ch : 0, 0, ch, h); g.clip();
+          for (let k = -4; k < 8; k++) { g.beginPath(); const x0 = (side ? 1024 - ch : 0) + k * h * 0.5; g.moveTo(x0, h); g.lineTo(x0 + h * 0.25, h); g.lineTo(x0 + h * 0.75, 0); g.lineTo(x0 + h * 0.5, 0); g.closePath();
+            g.fillStyle = relief ? '#555' : '#111'; g.fill(); } g.restore(); }
+        g.strokeStyle = relief ? '#fff' : '#111'; g.lineWidth = Math.max(6, h * 0.06); g.strokeRect(g.lineWidth / 2, g.lineWidth / 2, 1024 - g.lineWidth, h - g.lineWidth);
+        g.fillStyle = relief ? '#fff' : '#111'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.font = '800 ' + Math.round(h * 0.72) + 'px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; g.fillText('TOW  SERVICE', 512, h * 0.54, 1024 - 2 * ch - 30);
+        return c; };
+      const map = new THREE.CanvasTexture(draw(false)), bump = new THREE.CanvasTexture(draw(true)); if (THREE.SRGBColorSpace) map.colorSpace = THREE.SRGBColorSpace;
+      const face = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 1.2, metalness: 0.2, roughness: 0.45 });
+      face.userData.propMat = 'carTowSign'; face.userData.aeroskin = 1;
+      const sg = new THREE.Group(); sg.name = 'edTowKit';
+      const yc = (Math.max(hy0, G.yT) + hy1) / 2;
+      sg.position.set(0, yc, hz + 0.004); root.add(sg);
+      mk(new THREE.BoxGeometry(W + 0.02, H + 0.016, 0.008), dark, sg).position.z = 0.004;   // the backing plate
+      const fg = new THREE.PlaneGeometry(W, H); mk(fg, face, sg).position.z = 0.0085;
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) { const b = mk(new THREE.CylinderGeometry(0.006, 0.006, 0.004, 10), chrome, sg); b.rotation.x = Math.PI / 2; b.position.set(sx * (W / 2 - 0.02), sy * (H / 2 - 0.012), 0.0105); }
+    }
+  }
+  // ---- THE BEACONS on the roof's front corners
+  if (+P.carBeacon && AF && typeof AF.surf === 'function') {
+    const zR = (G ? G.zT : AF.z1) - 0.22, zz = Math.max(AF.z0, Math.min(AF.z1, zR));
+    const ring = []; for (let a = 0; a <= 180; a += 2) { const q = AF.surf(zz, a * D2R); if (q && isFinite(q[1])) ring.push([Math.abs(q[0]), q[1]]); }
+    const yTop = Math.max(...ring.map(p => p[1])), half = Math.max(...ring.map(p => p[0]));
+    const xb = Math.min(half - 0.18, Math.max(0.3, half * 0.62));
+    const yAt = x => { let y = -Infinity; for (let i = 1; i < ring.length; i++) { const a = ring[i - 1], b = ring[i]; if ((a[0] - x) * (b[0] - x) <= 0 && a[0] !== b[0]) y = Math.max(y, a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])); } return isFinite(y) ? y : yTop; };
+    const lens = new THREE.MeshStandardMaterial({ color: 0xffa21a, emissive: 0xff7a00, emissiveIntensity: 0.55, metalness: 0, roughness: 0.18, transparent: true, opacity: 0.88 });
+    lens.userData.aeroskin = 1;
+    for (const sx of [-1, 1]) { const b = new THREE.Group(); b.name = 'edTowKit'; b.position.set(sx * xb, yAt(xb) - 0.004, zz); root.add(b);
+      mk(new THREE.CylinderGeometry(0.075, 0.082, 0.035, 24), dark, b).position.y = 0.0175;          // the base
+      mk(new THREE.CylinderGeometry(0.062, 0.066, 0.006, 24), chrome, b).position.y = 0.038;         // its chrome ring
+      mk(new THREE.CylinderGeometry(0.058, 0.06, 0.075, 24, 1, true), lens, b).position.y = 0.079;   // the dome's wall
+      const cap = mk(new THREE.SphereGeometry(0.058, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), lens, b); cap.position.y = 0.1165;
+      const refl = mk(new THREE.BoxGeometry(0.06, 0.05, 0.004), chrome, b); refl.position.y = 0.075; refl.rotation.y = 0.6;   // the mirror inside
+      mk(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 12), lens, b).position.y = 0.072; }           // the bulb
+  }
+  // ---- THE WIPERS
+  const wiper = (pivot, ex, ey, ez, L, ang) => {
+    const g = new THREE.Group(); g.name = 'edTowKit'; g.matrixAutoUpdate = true;
+    const M = new THREE.Matrix4().makeBasis(ex, ey, ez); g.quaternion.setFromRotationMatrix(M); g.position.copy(pivot); root.add(g);
+    const a = new THREE.Group(); a.rotation.z = ang; g.add(a);
+    const hub = mk(new THREE.CylinderGeometry(0.016, 0.018, 0.022, 14), dark, g); hub.rotation.x = Math.PI / 2; hub.position.z = 0.011;
+    const nut = mk(new THREE.CylinderGeometry(0.007, 0.007, 0.01, 8), chrome, g); nut.rotation.x = Math.PI / 2; nut.position.z = 0.026;
+    const arm = mk(new THREE.BoxGeometry(L, 0.011, 0.006), dark, a); arm.position.set(L / 2, 0, 0.022);
+    const knee = mk(new THREE.BoxGeometry(0.05, 0.013, 0.012), dark, a); knee.position.set(0.04, 0, 0.022);
+    const bl = L * 0.92, blade = mk(new THREE.BoxGeometry(bl, 0.009, 0.012), dark, a); blade.position.set(L * 0.55, 0.014, 0.013);
+    const edge = mk(new THREE.BoxGeometry(bl * 0.98, 0.004, 0.008), rubber, a); edge.position.set(L * 0.55, 0.014, 0.004);
+    for (const t of [0.25, 0.75]) { const cl = mk(new THREE.BoxGeometry(0.012, 0.016, 0.01), dark, a); cl.position.set(L * 0.55 + (t - 0.5) * bl, 0.008, 0.018); } };
+  if (+P.carWipers) {
+    if (G) {   // the windscreen: two, parked along its foot, both laid toward the left (+x) side
+      const ex = new THREE.Vector3(1, 0, 0), L = Math.min(0.55, G.xB * 0.78);
+      for (const f of [-0.62, 0.18]) {
+        const pv = new THREE.Vector3(f * G.xB, G.yB, G.zB).addScaledVector(G.up, 0.022).addScaledVector(G.n, 0.004);
+        wiper(pv, ex, G.up.clone(), G.n.clone(), L, 0.06); }
+    }
+    if (+P.rearWinOn > 0 && AF) {   // the rear windows (cage units x FS, the knife's frame): one each, along the sill
+      const nR = Math.max(1, Math.min(2, Math.round(+P.rearWinN || 1))), gp = Math.max(0, +P.rearWinGap || 0) * FS;
+      const w = Math.max(0.05, +P.rearWinW || 0.6) * FS, h = Math.max(0.05, +P.rearWinH || 0.3) * FS, y = (+P.rearWinY || 0) * FS;
+      let zb = Infinity; for (const p of mesh.V) zb = Math.min(zb, p[2] * FS);
+      for (let i = 0; i < nR; i++) { const x = nR === 2 ? (i ? -0.5 : 0.5) * gp : 0;
+        // (a right-handed frame facing aft: its +x is the world's -x)
+        wiper(new THREE.Vector3(x + w * 0.36, y - h / 2 + 0.03, zb - 0.003), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), w * 0.72, 0.06); }
+    }
+  }
+  if (root.children.length) group.add(root);
+}
+
 function fenderBuild(group, P, AF, units) {
   const style = Math.round(+P.carFender || 0);
   if (!(style === 1 || style === 2) || !units || units.length < 4) return;
@@ -2781,9 +2890,11 @@ function fenderBuild(group, P, AF, units) {
   const halfAt = z => { let h = 0; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(Math.max(AF.z0, Math.min(AF.z1, z)), a * D2R); if (q && isFinite(q[0])) h = Math.max(h, Math.abs(q[0])); } return h; };
   // ---- the sweep: a profile [[|x|, d]] (d along the path's normal, + away from the wheel / up) along a path of
   // {z, y, nz, ny} points; one sheet, drawn both sides
+  // (a profile may be a function of the path point: the rear guard's inner edge follows the body / the well)
   const sheet = (sg, path, prof, mat) => {
-    const pos = [], idx = [], np = prof.length;
-    for (const q of path) for (const [x, d] of prof) pos.push(sg * x, q.y + q.ny * d, q.z + q.nz * d);
+    const PP = typeof prof === 'function' ? path.map((q, i) => prof(q, i)) : null;
+    const pos = [], idx = [], np = (PP ? PP[0] : prof).length;
+    path.forEach((q, i) => { for (const [x, d] of (PP ? PP[i] : prof)) pos.push(sg * x, q.y + q.ny * d, q.z + q.nz * d); });
     for (let i = 0; i + 1 < path.length; i++) for (let j = 0; j + 1 < np; j++) {
       const a = i * np + j, b = a + 1, c = a + np, e = c + 1; idx.push(a, c, b, b, c, e); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
@@ -2821,7 +2932,28 @@ function fenderBuild(group, P, AF, units) {
     const xiR = Math.min(rHi - 0.02, Math.max(rLo, halfAt(zcR) - 0.03));
     const yB = Math.min(botAt((zcF + zcR) / 2), botAt(zcF - RF), botAt(zcR + RR)) - 0.05;   // the step's height
     const xBi = Math.max(0.2, Math.min(halfAt((zcF + zcR) / 2) - 0.12, xoR - 0.25)), xBo = Math.max(xoF, xoR) + 0.005;
-    const rAF = RF + gap, rAR = RR + gap;
+    // (CAR-3, the user 13 Nov: "make sure that the wheel arches hug the fuselage at the back, there is a big gap, real
+    // ones are cut to silhouette ... match the wheel well dimension and have it come inside the wheel well"): with the
+    // rear axle's well cut (archOn & 1) the rear guard runs just INSIDE the well's opening (8 mm under its arc) and its
+    // inner edge reaches into the well, 3 mm short of the well's wall; off the well, it stops 3 mm short of the body's
+    // own silhouette at that height (the section's crossing) - flat where it lies inside the body's line, crowned
+    // outboard of it. Without a well: as before
+    const aGap = +P.archGap > 0 ? +P.archGap : 0.04, WELL = (Math.round(+P.archOn || 0) & 1) === 1;
+    const rAF = RF + gap, rAR = WELL ? Math.min(RR + gap, RR + aGap - 0.008) : RR + gap;
+    const halfAtY = (z, y) => { const zz = Math.max(AF.z0, Math.min(AF.z1, z)); let pv = null, best = -1;
+      for (let a = 0; a <= 180; a += 2) { const q = AF.surf(zz, a * D2R); if (!q || !isFinite(q[0])) continue; const c = [Math.abs(q[0]), q[1]];
+        if (pv && (pv[1] - y) * (c[1] - y) <= 0 && pv[1] !== c[1]) best = Math.max(best, pv[0] + (c[0] - pv[0]) * (y - pv[1]) / (c[1] - pv[1]));
+        pv = c; }
+      return best > 0 ? best : halfAt(z); };
+    const xWell = Math.max(0.2, rLo - aGap + 0.003), xBody = halfAt(zcR), Ra = RR + aGap;
+    const xInR = q => { if (WELL && Math.hypot(q.z - zcR, q.y - ycR) < Ra - 0.002) return xWell;
+      return Math.min(xoR - 0.08, halfAtY(q.z, Math.max(q.y, botAt(q.z) + 0.005)) + 0.003); };
+    const hugR = (xo, c, skirt, sq) => q => { const xi = xInR(q), xb = Math.max(xi, Math.min(xBody, xo - 0.08)), o = [[xi, sq ? -0.03 : -0.035], [xi, 0]];
+      for (let k = 1; k <= 10; k++) { const x = xi + (xo - xi) * k / 10, u = x > xb ? 2 * (x - xb) / (xo - xb) - 1 : -1;
+        o.push([x, sq ? (k === 10 ? -0.004 : 0) : c * (1 - u * u) * (k < 10 ? 1 : 0.5)]); }
+      if (sq) o.push([xo + 0.002, -0.02], [xo + 0.002, -skirt], [xo - 0.006, -skirt - 0.004]);
+      else o.push([xo + 0.006, -0.012], [xo + 0.009, -skirt * 0.6], [xo + 0.006, -skirt]);
+      return o; };
     let pF, pR, zBF, zBR;
     if (style === 1) {
       // ROUNDED: the front over its wheel from ahead (52 deg, above the bumper) to behind (150), then down and aft
@@ -2834,7 +2966,7 @@ function fenderBuild(group, P, AF, units) {
       pR = [Br].concat(bez(Br, [Br[0] - 0.16, Br[1]], [D[0] - tD[0] * 0.16, D[1] - tD[1] * 0.16], D, 12), arc(zcR, ycR, rAR, 35, 165, 26).slice(1));
       const PF = withN(pF), PR = withN(pR);
       sheet(sg, PF, crowned(xiF, xoF, 0.045, 0.10), paint); bead(sg, PF, xoF + 0.006, -0.098, 0.009);
-      sheet(sg, PR, crowned(xiR, xoR, 0.02, 0.08), paint); bead(sg, PR, xoR + 0.006, -0.078, 0.008);
+      sheet(sg, PR, WELL ? hugR(xoR, 0.02, 0.08, false) : crowned(xiR, xoR, 0.02, 0.08), paint); bead(sg, PR, xoR + 0.006, -0.078, 0.008);
     } else {
       // SQUARE: flat top over the wheel, raked front, a straight slope down and aft to the step; the rear the same
       // mirrored, its back a short raked face
@@ -2850,7 +2982,7 @@ function fenderBuild(group, P, AF, units) {
       // mark the corner points on the resampled paths (their mitres)
       for (const P0 of [pF, pR]) for (const q of P0) for (const c of (P0 === pF ? F : G)) if (c.corner && Math.abs(q[0] - c[0]) < 1e-9 && Math.abs(q[1] - c[1]) < 1e-9) q.corner = true;
       sheet(sg, withN(pF), square(xiF, xoF, 0.12), paint);
-      sheet(sg, withN(pR), square(xiR, xoR, 0.10), paint);
+      sheet(sg, withN(pR), WELL ? hugR(xoR, 0, 0.10, true) : square(xiR, xoR, 0.10), paint);
     }
     // THE STEP: a ribbed tread plate from the front fender's foot to the rear's, its edge turned down, on brackets
     if (STEP && zBF - zBR > 0.3) {
@@ -3563,6 +3695,7 @@ PAGE.post = ctx => {
     if (+P.carTail) carTailLamps(group, P, AF);
     if (Math.round(+P.carFender || 0) > 0) fenderBuild(group, P, AF, legUnits);
     if (+P.carPlate) plateBuild(group, P, AF, mesh);
+    if (+P.carTowSign || +P.carBeacon || +P.carWipers) towKitBuild(group, P, AF, mesh);
   }
   // the LEGS take a livery section too (phase C): steel tube by default,
   // following nobody — but a builder can paint a leg without repainting the
