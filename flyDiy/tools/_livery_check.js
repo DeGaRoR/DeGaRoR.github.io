@@ -338,7 +338,7 @@ function run(SRC) {
       m3On: 1,                                         // (the cheat line: pattern 0, the default)
       m4On: 1, m4Pat: kitIx('flag'), m4P: 16, m4Q: 2, m4Tgt: 6, m4W: 0.6, m4H: 0.5,
       m5On: 1, m5Pat: kitIx('pattern'), m5P: 1, m5Q: 1, m5Tgt: 4, m5Mode: 2 } } });
-    check(A_ok(SRC), 'the kit has five layers, on pages 3 4 5 1 2, and nine decal slots');
+    check(A_ok(SRC), 'the kit has five layers, on pages 3 4 5 1 2, and fifteen decal slots (the user\'s cap: LIVERY-TEXT\'s pieces and LIVERY-STICKERS\' share it)');
     for (const [tag, S1, S2] of [['A then Q (five layers)', SPEC_A, SPEC_Q], ['Q then A', SPEC_Q, SPEC_A]]) {
       const store = browser();
       const p1 = page(SRC, store, 1, consOfSpec(S1)); p1.seed(S1); state(p1, S1);

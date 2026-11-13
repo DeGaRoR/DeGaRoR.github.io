@@ -435,7 +435,10 @@ const MANIFEST = {
          ['src/viewer', 'freight_strap.js'],
          // G2970 (CHARACTERS): THE CROWD - the passengers who walk to the door and board; fetched with the first
          // passengers at a stand (its cast and clips from src/chars/crowd_pack.json, media/), never before
-         ['src/viewer', 'crowd.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'crowd.js'],
+         // LIVERY-STICKERS (9 Nov): THE TWELVE ALASKA MARKS' GEOMETRY (tools/livery_marks_prep.js) - fetched by aeroskin.js
+         // the first time a livery sticker is drawn (aeroVinylGeo), never by an aeroplane that wears none
+         ['src/viewer', 'livery_marks.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
