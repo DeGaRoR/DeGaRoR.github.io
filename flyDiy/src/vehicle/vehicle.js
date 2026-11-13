@@ -66,6 +66,9 @@ const VEH_DT = 1 / 240;
 const VEH_SURF = {
   0: [0.55, 0.035], 1: [0.75, 0.020], 2: [0.45, 0.050], 3: [0.50, 0.040],
   4: [0.10, 0.200], 5: [0.90, 0.013], 6: [0.65, 0.020], 7: [0.45, 0.060],
+  // SNOW-MUD (13 Nov): a car tyre on packed / powder / wet snow, firm / soft mud (Wong's car tyre on snow ~0.025-0.04 rolling,
+  // a winter road's grip 0.2-0.3; mud ESTIMATES) - no sinking for the car: its rows only
+  8: [0.30, 0.030], 9: [0.20, 0.080], 10: [0.15, 0.060], 11: [0.40, 0.060], 12: [0.25, 0.150],
 };
 const VEH_SURF_NONE = VEH_SURF[5];
 

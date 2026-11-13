@@ -523,7 +523,7 @@
     const P = PVL();
     if (!P) { note(body, 'no pavement module on this page'); return; }
     note(body, 'per surface type: the surface\u2019s brightness and tint, its wear, and the sides\u2019 colour, width and blend into the island\u2019s ground. Live over every runway, road and apron; the declared width is the drawn width whatever the surface (the sides are added outside it).');
-    const NM = { pv: 'paved', sf: 'gravel, dirt, sand', gr: 'grass' };
+    const NM = { pv: 'paved', sf: 'gravel, dirt, sand, snow, mud', gr: 'grass' };
     for (const g of Object.keys(P.LOOK_GROUPS)) {
       const S = sec(body, NM[g] || g, g === 'pv', P.LOOK_GROUPS[g].join(', '));
       for (const row of P.KNOBS) {
