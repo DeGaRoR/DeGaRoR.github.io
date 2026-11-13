@@ -19,7 +19,9 @@
   "factsheet": "Pilatus factsheet 'PC-6 The world's leading STOL' (performance stated for the PC-6/B2-H4, ISA)",
   "tar": "CAA New Zealand Type Acceptance Report TAR 1/21B/14 Rev 1, 8 Sep 2023 (https://www.aviation.govt.nz/assets/aircraft/type-acceptance-reports/Pilatus_PC-6.pdf)",
   "sheet": "the user's upload (12 Nov 2026): a three-view of a PC-6 B2/H4 on amphibious floats (N908PL), 500 x 729 px",
-  "wipaire-6100": "Wipline 6100 float figures as given by the user (12 Nov 2026), from Wipaire's product page"
+  "wipaire-6100": "Wipline 6100 float figures as given by the user (12 Nov 2026), from Wipaire's product page",
+  "user-aopa": "the user (13 Nov 2026), quoting the published specification note for the PC-6 on Wipline amphibians (AOPA Pilot, July 2019, \"A flying Swiss Army knife\": the Brazilian air ambulance)",
+  "wipaire-sman": "Wipaire Service Manual & ICA P/N 1002553 Rev R, \"6000 & 6100 floats on DeHavilland DHC-2 and Pilatus PC-6/B2-H4\" (displacement 5664 / 5518 lb each; tyres; W&B datum 200 in ahead of the wing quarter chord for the PC-6)"
  },
  "figures": {
   "geometry.span": {
@@ -120,6 +122,16 @@
    "v": 2854,
    "unit": "kg",
    "src": "wipaire-6100"
+  },
+  "floats.addedMass.amphibian": {
+   "v": 407.3,
+   "unit": "kg",
+   "src": "user-aopa",
+   "note": "\"Specifications are for a PC-6 on wheels. Amphibious floats add 898 pounds.\" (the user, 13 Nov; Wipaire's Beaver page gives the 6100 amphibian exchange weight as 885 lb, the same order)"
+  },
+  "floats.tyres": {
+   "v": "mains dual 6.00x6 6-ply type III, nose 5.00x5 6-ply, 40 psi; quadricycle, castering nose wheels, differential braking, 4 brakes",
+   "src": "wipaire-sman"
   }
  },
  "image": {
