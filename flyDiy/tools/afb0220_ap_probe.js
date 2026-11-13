@@ -6,17 +6,18 @@
 'use strict';
 const path = require('path'), fs = require('fs');
 const T = __dirname;
+require(path.join(T, 'pilot_trace.js')).loadPanel();   // (the cage's globals: an archetype's design bake needs them, as GATE HITBOX loads them)
 const C = require(path.join(T, 'flight_core.js'));
 const IN = require(path.join(T, 'island_node.js'));
 const which = process.argv[2] || 'gen', from = process.argv[3] || 'w2';
-const W = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.json'), 'utf8') });
+const W = IN.islandWorld('jolene', { premises: fs.readFileSync(process.env.FIX || path.join(T, 'fixtures', 'island_jolene.json'), 'utf8') });
 const a = W.aerodromes.find(q => q.id === from);
 const d = [Math.cos(a.hdg), Math.sin(a.hdg)], nrm = [-d[1], d[0]];
 const lat = (x, z) => (x - a.x) * nrm[0] + (z - a.z) * nrm[1], alongOf = (x, z) => (x - a.x) * d[0] + (z - a.z) * d[1];
 let build;
 if (which === 'gen') build = () => C.buildGen();
-else { const D = require(path.join(T, '_cage_design.js')); build = () => C.buildGen(D.ARCHETYPES[which.replace(/^arch:/, '')].spec || D.ARCHETYPES[which.replace(/^arch:/, '')]); }
-let td = null, latMax = 0, offBand = 0, rollN = 0, phases = [];
+else { const D = require(path.join(T, '_cage_design.js')), A = D.ARCHETYPES.find(q => q.key === which.replace(/^arch:/, '')); if (!A) throw new Error('no archetype ' + which); build = () => C.buildGen(D.designBake(A.sel, A.over)); }
+let td = null, latPeak = 0, latMax = 0, offBand = 0, rollN = 0, phases = [];
 const def = build(), sim = C.makeSim(def, W);
 sim.reset(0); C.placeAtAerodrome(sim, a);
 for (let i = 0; i < 4 * 60; i++) sim.step(1 / 60);
@@ -29,10 +30,11 @@ for (let s0 = 0; s0 < 480 * 60; s0++) {
   const air = phases.some(p => /APPROACH|FINAL|FLARE|LAND/.test(p));
   const wog = sim.wheelsOnGround ? sim.wheelsOnGround() : 0;
   if (air && !td && wog > 0) td = { lat: lat(c[0], c[2]), along: alongOf(c[0], c[2]), ph, t: s0 / 60 };
-  if (td && ph !== 'STOPPED') { const v = lat(c[0], c[2]); latMax = Math.max(latMax, Math.abs(v)); rollN++; if (Math.abs(v) > a.wid / 2 - 1.2) offBand++; }
+  if (td && ph !== 'STOPPED') { const v = lat(c[0], c[2]); if (Math.abs(v) > Math.abs(latPeak)) latPeak = v; latMax = Math.max(latMax, Math.abs(v)); rollN++; if (Math.abs(v) > a.wid / 2 - 1.2) offBand++; }
   if (ph === 'STOPPED' && td) break;
 }
 console.log('AFB0220 AP PROBE ' + which + ' at ' + from + ' (' + a.name + ', ' + a.wid + ' m wide): phases ' + phases.join(' > '));
 console.log('  touchdown: ' + (td ? 'lateral ' + td.lat.toFixed(2) + ' m, ' + td.along.toFixed(0) + ' m from the centre (phase ' + td.ph + ')' : 'none'));
-console.log('  the roll: the CG at most ' + latMax.toFixed(2) + ' m off the centreline; ' + (rollN ? (100 * offBand / rollN).toFixed(1) : '0') + ' % of it within 1.2 m of the band\'s edge');
-console.log('  verdict: ' + (td && Math.abs(td.lat) < a.wid / 2 - 1.2 && latMax < a.wid / 2 - 1.2 && phases.includes('STOPPED') ? 'ON ' + from + '\'S CENTRELINE (' + (from === 'w2' ? 'the central band' : 'its own strip') + ')' : 'OFF / NOT STOPPED'));
+console.log('  the roll: the CG at most ' + latMax.toFixed(2) + ' m off the centreline (peak ' + latPeak.toFixed(2) + ', + west); ' + (rollN ? (100 * offBand / rollN).toFixed(1) : '0') + ' % of it within 1.2 m of the band\'s edge');
+{ const Dm = sim.damage ? sim.damage() : null; console.log('  damage: ' + (Dm ? (Dm.crashed ? 'CRASHED (' + Dm.reason + ')' : 'none crashed') + ', ' + Dm.broken.length + ' members broken' : 'n/a')); }
+console.log('  verdict: ' + (td && Math.abs(td.lat) < a.wid / 2 - 1.2 && latMax < a.wid / 2 - 1.2 && phases.includes('STOPPED') && !(sim.damage && sim.damage().crashed) ? 'ON ' + from + '\'S CENTRELINE (' + (from === 'w2' ? 'the central band' : 'its own strip') + ')' : 'OFF / NOT STOPPED'));
