@@ -206,6 +206,22 @@ const TM = require(path.join(ROOT, 'src/vehicle/trailer_model.js'));
     surf = '; THE SURFACES: UV0 + UV1 on every mesh ' + (uvAll ? 'yes' : 'NO') + ', the AO atlas ' + A.W + ' x ' + A.H + ' (' + A.charts + ' charts, ' + A.texels + ' texels x ' + A.rays + ' rays, baked in ' + A.ms + ' ms in node), mean ' + f(A.mean, 2) +
       ', the faces looking up ' + f(aUp, 2) + ' vs down ' + f(aDn, 2) + '; the 4 bunks\' tops on ' + boards.size + ' different boards of the deckwood set';
   }
+  // (13 Nov) THE CAR DECK (the CAR session's fit.kind 'car', mapped onto the surfaces): the roadster's deck, its ramps up and
+  // down - built, UV0 + UV1 on every mesh, its deck planks each their own board
+  { const wb = 2.9, xR = 0.25 - wb / 2, car = { xR, xF: xR + wb, track: 1.5, trackF: 1.5, trackR: 1.5, tyreR: 0.36, tyreW: 0.16, x0: xR - 0.6, x1: xR + wb + 0.6 };
+    const Ld = Math.max(car.x1 + 0.1, car.xF + 0.36 + 0.5, 0.41 + 0.31 + 0.4) + 1.05, said = [];
+    for (const ramp of ['up', 'down']) {
+      const Tc = { fit: { kind: 'car', car, Ld }, wheelR: 0.31, wheelZ: 0.78, axleDx: 0.82, ballH: 0.48, ramp };
+      const t0 = Date.now(), Mc = TM.buildTrailerModel(THREE, Tc, { ao: false }), ms = Date.now() - t0;
+      let uvAll = true; Mc.group.traverse(m => { if (m.isMesh && (!m.geometry.attributes.uv || !m.geometry.attributes.uv1)) uvAll = false; });
+      const deck = Mc.group.children.find(m => m.material === Mc.materials.timber), V = deck ? deck.geometry.attributes.uv.array : [], PN = deck ? deck.geometry.attributes.normal.array : [];
+      const boards = new Set(); for (let i = 0; i < V.length / 2; i += 3) if (PN[i * 3 + 1] > 0.85) boards.add(Math.floor(((V[i * 2 + 1] / 2.2) % 1 + 1) % 1 * 12));
+      const okC = uvAll && Mc.stats.tris < 50000 && Mc.stats.draws <= 18 && Mc.stats.deckY > 0.6 && boards.size >= 6 && ms < 600;
+      ok = ok && okC;
+      said.push('ramps ' + ramp + ': ' + Mc.stats.tris + ' triangles, ' + Mc.stats.draws + ' draw calls, the deck at ' + f(Mc.stats.deckY, 2) + ' m, its planks on ' + boards.size + ' boards, UV0 + UV1 ' + (uvAll ? 'yes' : 'NO') + ', ' + ms + ' ms' + (okC ? '' : ' - FAILED'));
+    }
+    surf += '; THE CAR DECK (the roadster\'s): ' + said.join('; ');
+  }
   const H = TM.buildTowHitch(THREE);
   row('MODEL', ok && H.children.length >= 4, 'the trailer\'s model (three.js r' + THREE.REVISION + ' in node) - ' + out.join('; ') + '; the car\'s ball mount ' + H.children.length + ' parts' + surf);
 }
