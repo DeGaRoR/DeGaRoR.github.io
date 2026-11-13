@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 22f5c8c8d1d9c4d1
+// body-sha256: a2c3e0be17448f74
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -17291,6 +17291,28 @@ function makeSim(def, world) {
   // compares every p and v. A world without a bound (the island's raster, a
   // premises layer) gets the old path; so does FLYDIY_EXACT_GROUND=1.
   const GROUND_CONE_EPS = 0.01;
+  // THE GROUND PUSHES ALONG ITS NORMAL (TOW-LAUNCH, 2026-11-12). The contact pushed every node STRAIGHT UP and every
+  // friction lived in the horizontal plane, so a slope never pulled an aeroplane downhill: the motorglider set down on
+  // Skyline Altiport (tw_ski, ~10 % grass) never moved, and pushed to 4.4 m/s it slowed at 0.47 m/s2 where a free wheel
+  // runs on at g (grade - Crr). Now a contact on a slope reads the terrain's normal off a forward difference (two more
+  // terrainH, GROUND_SLOPE_D: about a tyre's half-width), its spring and damper push along that normal (the penetration
+  // stays the vertical one - the error is O(grade^2), 0.5 % of the spring at 10 %, and a flat contact keeps its old
+  // depth), and its friction lives in the tangent plane. A contact whose difference is exactly zero (every flat pad: the
+  // analytic HOME, a graded apron or stand) takes the old lines, so flat ground is master's to the bit.
+  // THE HOLD: the old ground had no slope to hold against, and its rolling resistance under 0.2 m/s is a damper (G121.3)
+  // - on a slope that is a creep, a parked aeroplane walking off downhill. So on a slope a wheel under 0.2 m/s is static
+  // friction: it takes the tangential force the node carries (gravity's share, the airframe's members, the push) up to
+  // its Coulomb limit (the creep mu N: Crr unbraked, Crr + brake mu on a braked main; the side's mu across), the damper
+  // on top. Parked on a grade under Crr it stays where it stands, on one over it it rolls at g (sin - Crr cos); a braked
+  // main also holds what the unbraked tailwheel passes on (the tilt's pull alone let a braked motorglider creep 2 mm/s
+  // down 9 %). Above 0.2 m/s the friction is the old law in the new plane. GATE SLOPE holds all of it.
+  // THE NORMAL IS READ ONCE A FRAME a contact node, and again only when the node has run GROUND_SLOPE_D / 2 from where
+  // it was read (the normal is the ground's at the tyre's patch, not the substep's: 24 substeps a frame read it 24
+  // times). The cache is the frame's own (snFrame, bumped by step()), so a frame's forces depend on its start state
+  // only - determinism and a reset() need no bookkeeping. Typed arrays: the contact pass allocates nothing.
+  const GROUND_SLOPE_D = 0.25, GROUND_SLOPE_RE2 = (GROUND_SLOPE_D / 2) * (GROUND_SLOPE_D / 2);
+  const snCx = new Float64Array(n), snCz = new Float64Array(n), snCn = new Float64Array(n * 3), snCf = new Int32Array(n).fill(-1);
+  let snFrame = 0;
   let coneOn = !(typeof process !== 'undefined' && process.env && process.env.FLYDIY_EXACT_GROUND === '1');
   let coneLive = false, coneS2 = 0;
   const gcx = new Float64Array(n), gcz = new Float64Array(n), gcy = new Float64Array(n);
@@ -19398,12 +19420,29 @@ function makeSim(def, world) {
       const pen = gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
       if (pen <= 0) continue;
       if (NOSE_G[i]) noseGnd = true;                 // G1470: the nose on the ground - the prop has struck it
+      // TOW-LAUNCH: the terrain's normal (n = (-gx, 1, -gz)/|.|); exactly flat -> the old lines, bit for bit
+      let snx = 0, sny = 1, snz = 0;
+      if (gH) {
+        const cdx = p[i3] - snCx[i], cdz = p[i3+2] - snCz[i];
+        if (snCf[i] !== snFrame || cdx * cdx + cdz * cdz > GROUND_SLOPE_RE2) {   // the frame's first contact, or the node ran on
+          const sgx = (gH(p[i3] + GROUND_SLOPE_D, p[i3+2]) - gy) / GROUND_SLOPE_D, sgz = (gH(p[i3], p[i3+2] + GROUND_SLOPE_D) - gy) / GROUND_SLOPE_D;
+          if (sgx !== 0 || sgz !== 0) { sny = 1 / Math.sqrt(sgx * sgx + sgz * sgz + 1); snx = -sgx * sny; snz = -sgz * sny; }
+          snCf[i] = snFrame; snCx[i] = p[i3]; snCz[i] = p[i3+2]; snCn[i3] = snx; snCn[i3+1] = sny; snCn[i3+2] = snz;
+        } else { snx = snCn[i3]; sny = snCn[i3+1]; snz = snCn[i3+2]; }
+      }
+      const flat = sny === 1;
       let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
+      if (!flat) Fn = KGn[i] * pen - CGn[i] * (v[i3] * snx + v[i3+1] * sny + v[i3+2] * snz);   // the damper on the normal velocity
       if (out.gndDump) out.gndPitch -= (p[i3] - out.gndCgx) * Fn;
 
       if (Fn < 0) Fn = 0;
+      if (flat) {
       f[i3+1] += Fn;
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
+      } else {
+        f[i3] += Fn * snx; f[i3+1] += Fn * sny; f[i3+2] += Fn * snz;
+        cIx += Fn * snx * dt; cIy += Fn * sny * dt; cIz += Fn * snz * dt;
+      }
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
       if ((isMain || (isTW && TWM !== 4)) && (GR === null || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
@@ -19417,8 +19456,15 @@ function makeSim(def, world) {
           hx = nx; hz = nz;
         }
         const hL = hyp2(hx, hz) || 1e-9; hx/=hL; hz/=hL;
-        const lx = -hz, lz = hx;
-        const vr_ = v[i3]*hx + v[i3+2]*hz, vl = v[i3]*lx + v[i3+2]*lz;
+        let lx = -hz, lz = hx, hy = 0, ly = 0;
+        if (!flat) {                                 // TOW-LAUNCH: the heading laid into the tangent plane, the lateral t x n
+          const hn = hx * snx + hz * snz; let tx = hx - hn * snx, ty = -hn * sny, tz = hz - hn * snz;
+          const tL = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1e-9; tx /= tL; ty /= tL; tz /= tL;
+          hx = tx; hy = ty; hz = tz;
+          lx = ty * snz - tz * sny; ly = tz * snx - tx * snz; lz = tx * sny - ty * snx;
+        }
+        const vr_ = flat ? v[i3]*hx + v[i3+2]*hz : v[i3]*hx + v[i3+1]*hy + v[i3+2]*hz;
+        const vl = flat ? v[i3]*lx + v[i3+2]*lz : v[i3]*lx + v[i3+1]*ly + v[i3+2]*lz;
         // G115: the wheel asks WHAT IT IS ROLLING ON. `world.surface` is the
         // biome classifier with the aerodrome strips folded in (measured: 5
         // at Morford's pavement, 0 at HOME); classes without a row read the
@@ -19462,22 +19508,44 @@ function makeSim(def, world) {
         // tightened the Jodel's taxi turn at 0.2 of rudder from 31.8 to 25.1 m (GATE DMGTYRE: x0.62 of the old law) and the
         // arc's breakout does not need it)
         const kL = Math.min(su[2] * Fn / Math.max(Math.abs(vl), 0.02, Math.abs(vr_) * su[2] * (isTW ? iCnT : iCnM)), m[i]/dt);
+        if (flat) {
         if (isTW && TWL) TWL.F[twQ] = kL * vl;                          // the side force (the fork's springs read it next substep)
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
+        } else {
+          // TOW-LAUNCH: the friction in the tangent plane; under 0.2 m/s the wheel holds the tilt's pull (-Fn t.y, -Fn l.y)
+          // up to its Coulomb limit (THE HOLD, above): the creep regime's damper alone would walk a parked aeroplane downhill
+          let Fr = -kR * vr_, Fl = -kL * vl;
+          if (Math.abs(vr_) < 0.2) {
+            const lr = muRe * Fn, ll = su[2] * Fn;
+            const ft = f[i3] * hx + f[i3+1] * hy + f[i3+2] * hz, fl = f[i3] * lx + f[i3+1] * ly + f[i3+2] * lz;
+            Fr = Math.max(-lr, Math.min(lr, Fr - ft)); Fl = Math.max(-ll, Math.min(ll, Fl - fl));
+          }
+          if (isTW && TWL) TWL.F[twQ] = -Fl;
+          f[i3] += Fr * hx + Fl * lx; f[i3+1] += Fr * hy + Fl * ly; f[i3+2] += Fr * hz + Fl * lz;
+        }
       } else if (isTW) {
         // G3800: THE TAIL SKID (twMode 4) - a steel shoe sliding, Coulomb in every direction at its surface's mu
         // (TW_SKID_MU), regularised at 0.02 m/s so it holds parked as a wheel's creep does; no rolling, no steering
         const sk = TW_SKID_MU[world && world.surface ? world.surface(p[i3], p[i3+2]) : 0];
+        if (flat) {
         const vx = v[i3], vz = v[i3+2], sp = hyp2(vx, vz);
         const kf = Math.min((sk == null ? TW_SKID_MU[0] : sk) * Fn / Math.max(sp, 0.02), m[i]/dt);
         f[i3] -= kf * vx; f[i3+2] -= kf * vz;
+        } else {                                     // TOW-LAUNCH: the shoe slides in the tangent plane
+          const vn = v[i3] * snx + v[i3+1] * sny + v[i3+2] * snz, vx = v[i3] - vn * snx, vy = v[i3+1] - vn * sny, vz = v[i3+2] - vn * snz;
+          const kf = Math.min((sk == null ? TW_SKID_MU[0] : sk) * Fn / Math.max(Math.sqrt(vx * vx + vy * vy + vz * vz), 0.02), m[i]/dt);
+          f[i3] -= kf * vx; f[i3+1] -= kf * vy; f[i3+2] -= kf * vz;
+        }
       } else {
         scrape = true;                               // G1470: something other than a wheel on the ground (arms the yield)
-        const vx=v[i3], vz=v[i3+2], sp = hyp2(vx, vz);
+        let vx=v[i3], vz=v[i3+2], vy = 0;
+        if (!flat) { const vn = vx * snx + v[i3+1] * sny + vz * snz; vx -= vn * snx; vy = v[i3+1] - vn * sny; vz -= vn * snz; }   // TOW-LAUNCH: the slide in the tangent plane
+        const sp = flat ? hyp2(vx, vz) : Math.sqrt(vx * vx + vy * vy + vz * vz);
         if (sp > 1e-6) {
           const kf = Math.min(0.8 * Fn / sp, m[i]/dt);
           f[i3] -= kf*vx; f[i3+2] -= kf*vz;
+          if (!flat) { f[i3+1] -= kf * vy; cIy -= kf * vy * dt; }
           cIx -= kf * vx * dt; cIz -= kf * vz * dt;
           if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], kf * sp * sp, dt);   // G2357: the contact, read (DMG-SCAR)
           if (PODS !== null && PODS[i] >= 0) { const P4 = DMG.pod, k = PODS[i]; P4.slide[k] += sp * dt; P4.work[k] += kf * sp * sp * dt; P4.n++;
@@ -19590,6 +19658,7 @@ function makeSim(def, world) {
     if (GR !== null) gearStep(dtFrame);              // RETRACT-1: the gear moves once a frame
     aicFresh = true;
     rigFresh = true;               // G1885: the frame's first substep sums the second moments
+    snFrame = (snFrame + 1) & 0x3fffffff;   // TOW-LAUNCH: the contact normals are read afresh this frame
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
