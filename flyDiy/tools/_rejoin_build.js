@@ -48,6 +48,8 @@ if (editsFile) {
   // the livery: the paint whole, the finish whole (sections, decals, wear, glass)
   if (E.paint) spec.paint = E.paint;
   if (E.finish) spec.finish = E.finish;
+  // CAR (13 Nov): the build's kind (spec.kind 'car' / 'trailer'; an aeroplane's edit set carries none)
+  if (E.kind) spec.kind = E.kind;
   if (E.energy) spec.energy = E.energy;
   if (E.fuel) spec.fuel = E.fuel;
   if (E.cargo) spec.cargo = E.cargo;   // CAR-3: a load (the tug's ballast)

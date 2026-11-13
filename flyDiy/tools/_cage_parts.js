@@ -1112,7 +1112,7 @@ const CAGE_PARTS = [
       ['wheel arches', ['archOn', 'archGap']],
       ['lamps', ['carTail']],
       ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],
-      ['spare wheel', ['spareOn', 'spareZ', 'spareSide', 'spareY']],
+      ['spare wheel', ['spareOn', 'spareAt', 'spareZ', 'spareSide', 'spareX', 'spareY', 'spareK']],
     ] },
 
   { key: 'mains', name: 'Main gear', parent: 'gear', layer: 'gear',

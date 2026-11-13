@@ -15,11 +15,19 @@
   function vehicleKind(b) {
     const s = b && b.spec && typeof b.spec === 'object' ? b.spec : b;   // a saved envelope { what, name, spec } or a bare spec
     if (!s || typeof s !== 'object') return 'plane';
+    // (CAR, 13 Nov: the garage's car switch, when the card HAS the row, is the live truth - a saved car whose switch was
+    // since turned off is an aeroplane again before its next save rewrites spec.kind)
+    if (s.cage && s.cage.isCar != null && s.cage.isCar !== '') {
+      if (+s.cage.isCar > 0) return 'car';
+      if (s.kind === 'car') return 'plane';
+    }
     if (KINDS.includes(s.kind)) return s.kind;
-    if (s.cage && +s.cage.isCar > 0) return 'car';
     if (s.meta && s.meta.car) return 'car';
     return 'plane';
   }
+  // what a save writes (garage.js saveAs / exportFile): spec.kind for a car or a trailer, NO key for an aeroplane
+  vehicleKind.stamp = spec => { if (!spec || typeof spec !== 'object') return spec; const k = vehicleKind(spec);
+    if (k === 'plane') delete spec.kind; else spec.kind = k; return spec; };
   vehicleKind.row = r => (r && KINDS.includes(r.kind) ? r.kind : 'car');
   vehicleKind.KINDS = KINDS;
   root.VEHICLE_KIND = vehicleKind;

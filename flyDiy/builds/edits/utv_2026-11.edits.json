@@ -231,5 +231,6 @@
   },
   "wear": 0
  },
- "_what": "CAR-4 (the user 12 Nov: 'use the double boom to emulate a chassis ... the stabilizer ... a bed ... the cabin with a tiny engine, a nose almost non-existing'): a utility side-by-side from the Cub-alike - its cabin widened to two seats abreast, no wing (the twin booms rooted on the body: boomBodyZ / boomBodyY, the new rows), the booms the chassis rails, the stab the bed, the rear wheels on the booms, the front pair under a short cowl over the A-65; 4WD; it drives, it does not fly"
+ "_what": "CAR-4 (the user 12 Nov: 'use the double boom to emulate a chassis ... the stabilizer ... a bed ... the cabin with a tiny engine, a nose almost non-existing'): a utility side-by-side from the Cub-alike - its cabin widened to two seats abreast, no wing (the twin booms rooted on the body: boomBodyZ / boomBodyY, the new rows), the booms the chassis rails, the stab the bed, the rear wheels on the booms, the front pair under a short cowl over the A-65; 4WD; it drives, it does not fly",
+ "kind": "car"
 }

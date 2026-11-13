@@ -199,7 +199,13 @@
   "cw_blinkOn": 1,
   "cw_blinkY": 0.06,
   "hdlDepth": 0.075,
-  "paxGap": 0.64
+  "paxGap": 0.64,
+  "spareOn": 1,
+  "spareAt": 1,
+  "spareSide": 1,
+  "spareX": 0.427,
+  "spareY": -0.222,
+  "spareK": 0.85
  },
  "fuel": {
   "litres": 80,
@@ -361,5 +367,6 @@
  "cargo": {
   "len": 1.0,
   "kg": 150
- }
+ },
+ "kind": "car"
 }

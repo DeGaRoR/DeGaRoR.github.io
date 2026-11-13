@@ -315665,3 +315665,26 @@ the next steps).
 - tow.js slopePull (TOW-LAUNCH's page push and GATE TOW's ALTIPORT row, not on master) is now REDUNDANT: the solver pulls downhill itself. It stays until the merge removes it (A0's side), so the two slopes must not both reach one aeroplane once both are in.
 - PUSHED WITHOUT THE FULL BATTERY (A0's call, 13 Nov: the core battery is ~16 h of wall on the cloud box; train L40b runs every gate on its own box). The targeted branch-vs-master comparison of the ground gates was run side by side.
 - TRAP (named, not fixed here - 39c_placement is not this change's): placeAtAerodrome without seatOnGround on a sloped strip (the spawn identity) drops the aeroplane onto a buried third wheel; on a downhill spawn with the ground's slope now real, a taildragger can go over its nose. The game seats (app.js applyRoute); a gate that spawns raw on Jolene's sloped strips is the place to look first if one goes red on this change.
+
+## CAR (cont., 13 Nov evening - claude/fly-diy-car-build-uu6e6w): the van finished, the kind on saves, the lamp check
+
+- **CAR-3, THE SPARE ON THE REAR DOOR (the user: "for the back to be nice to look at, just put a spare wheel in the middle
+  of the left door, centered on the part without the window at the bottom")**: NEW ROWS spareAt (0 the flank as
+  before / 1 the rear wall), spareX (m across, rear wall), spareK (x the road wheels; absent 1) - _gear_page.js, claimed
+  in _cage_parts.js 'spare wheel'. _cage_gear.js spareBuild draws the same wheel, carrier, strap and buckle in a RIG
+  (+x aft, +z across) stood on the wall plane AF.z0. The van: spareSide 1 (the LEFT), spareX 0.427 (the left door's and
+  its window's centre), spareY -0.222, spareK 0.85 - the wall's clear panel between the bumper's top (-0.537) and the
+  window's bottom (0.274) is 0.81 m, a full 0.9 m road wheel does not fit. spareSide's LABELS were backwards (the cage's
+  +x is PORT, G209): now -1 'right', 1 'left' - no value changed, the roadster's spare (1) was always on its left.
+- **RETRO ROOF BAND**: m3 Pat 0 plan, C -1.015, W 3.53 (the windscreen's top to the rear doors' foot), H 1.70, P 0.941,
+  Q 0.05 - navy +-0.80, keylines to +-0.84, on the flat roof. Wider (H 1.94) painted the upper flanks: a plan
+  projection paints every face in its footprint and the body narrows under 0.88 above y 0.8. The orange keylines run
+  down the rear door edges. Seats: seatGap 0.40, paxGap (new row, passengers' own sbs gap) 0.64.
+- **spec.kind (A0)**: src/viewer/vehicle_kind.js (TOW's, the one rule) - an explicit garage car switch (spec.cage.isCar)
+  wins over a stale spec.kind; VEHICLE_KIND.stamp(spec). garage.js saveAs / exportFile stamp spec.kind ('car';
+  NO key for an aeroplane); garage.js's own vehicleKind defers to window.VEHICLE_KIND (it used to overwrite it). The six
+  car files carry spec.kind 'car', the three car edit sets 'kind' (tools/_rejoin_build.js copies E.kind).
+- **THE CABIN LAMPS UNDER THE LINER ARE LIT**: page probe - flood lens 2.40, pax 0.00 in both the plain and the lined
+  C172, the lamp 5.1 cm lower (on the slab's underside, 0.704 vs the skin 0.761). The dark close-up was plane_shot's:
+  rendered in the other order the PLAIN one is dark - the SECOND build of a plane_shot run renders its cabin lamps off.
+  TRAP (named, not fixed): compare lamps across builds one run per build.

@@ -183,10 +183,16 @@ const WHEEL_ROWS = [
   // CAR-3: the trailer's tail lamps on the rear corners (absent = none)
   ['carTail', 'tail lamps (stop, indicator, reverse) on the rear corners', 0, 1, 1, { when: P => +P.isCar || +P.carTail }],
   // CAR-1: a spare wheel on the body's flank (absent = none)
-  ['spareOn', 'spare wheel on the flank', 0, 1, 1, { when: P => +P.isCar || +P.spareOn }],
-  ['spareZ', 'spare wheel station (m, the layers\' z)', -4, 4, 0.01, { when: P => +P.spareOn }],
-  ['spareSide', 'spare wheel side', -1, 1, 2, ['left', 'right'], { when: P => +P.spareOn }],
+  ['spareOn', 'spare wheel', 0, 1, 1, { when: P => +P.isCar || +P.spareOn }],
+  ['spareZ', 'spare wheel station (m, the layers\' z)', -4, 4, 0.01, { when: P => +P.spareOn && +P.spareAt !== 1 }],
+  // (13 Nov: the cage's +x is the PORT side (G209) - the labels read 'left' for -1 and put the van's spare on the
+  // wrong door; the values are unchanged, only their names: -1 the right (starboard), 1 the left (port))
+  ['spareSide', 'spare wheel side', -1, 1, 2, ['right', 'left'], { when: P => +P.spareOn }],
   ['spareY', 'spare wheel up / down (m)', -0.4, 0.4, 0.005, { when: P => +P.spareOn }],
+  // CAR-3: the spare on the REAR WALL (a van's door), spareX across, spareK its size (absent = the flank, full size)
+  ['spareAt', 'spare wheel mount', 0, 1, 1, ['the flank', 'the rear wall (door)'], { when: P => +P.spareOn, absent: 0 }],
+  ['spareX', 'spare wheel across, from the centre (m; rear wall)', 0, 1.2, 0.005, { when: P => +P.spareOn && +P.spareAt === 1, absent: 0 }],
+  ['spareK', 'spare wheel size (x the road wheels)', 0.6, 1.0, 0.01, { when: P => +P.spareOn, absent: 1 }],
   // CAR-4: the twin booms' wheels outboard of the booms (m; absent 0 = under the boom)
   ['twBoomOut', 'boom wheels outboard of the booms (m)', 0, 0.8, 0.005, { when: P => +P.boomTwin }],
   // CAR-3/4: the bumpers and the hitch (absent = none)

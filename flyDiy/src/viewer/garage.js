@@ -33,13 +33,24 @@
 // CAR (13 Nov, the Fleet's contract with the game coordinator): THE KIND OF A BUILD - 'car' when the garage's car switch
 // is ON (spec.cage.isCar 1: an explicit row, "no (an aeroplane)" is 0) or the build carries the first cars' legacy
 // spec.meta.car; 'plane' otherwise ('trailer' later). One rule, read by the Fleet's filters and the roll-out
+// (the rule itself is src/viewer/vehicle_kind.js, loaded before this file - spec.kind as the save wrote it first; this
+// is its stand-in when that file is absent, e.g. a gate that boots garage.js alone)
 function vehicleKind(spec) {
-  if (!spec || typeof spec !== 'object') return 'plane';
-  if (spec.cage && +spec.cage.isCar === 1) return 'car';
-  if (spec.meta && spec.meta.car) return 'car';
+  if (typeof window !== 'undefined' && window.VEHICLE_KIND && window.VEHICLE_KIND !== vehicleKind) return window.VEHICLE_KIND(spec);
+  const s = spec && spec.spec && typeof spec.spec === 'object' ? spec.spec : spec;
+  if (!s || typeof s !== 'object') return 'plane';
+  if (s.cage && s.cage.isCar != null && s.cage.isCar !== '') return +s.cage.isCar > 0 ? 'car' : 'plane';
+  if (s.kind === 'car' || s.kind === 'trailer') return s.kind;
+  if (s.meta && s.meta.car) return 'car';
   return 'plane';
 }
-if (typeof window !== 'undefined') window.VEHICLE_KIND = vehicleKind;
+if (typeof window !== 'undefined' && !window.VEHICLE_KIND) window.VEHICLE_KIND = vehicleKind;
+// what a save writes: spec.kind for a car (or a trailer), no key for an aeroplane (A0: no plane file gains a key)
+function stampKind(s) {
+  if (!s || typeof s !== 'object') return;
+  const k = vehicleKind(s);
+  if (k === 'plane') delete s.kind; else s.kind = k;
+}
 const GEN_TEX = 1024;                     // paint sheet, up from 512
 const GEN_RIBS = 13;                      // rib tapes across the semispan
 
@@ -1364,6 +1375,7 @@ function garageInit(api) {
     // shelf row wins, because it is the one you typed.
     if (!spec.meta || typeof spec.meta !== 'object') spec.meta = {};
     spec.meta.name = typed;
+    stampKind(spec);                // CAR: the build's kind travels with it (spec.kind; an aeroplane carries none)
     // PREM-S2: a save over this slot whose FINISH changed is a repaint (it resets the airframe's outside wear)
     let repainted = false;
     try { const prev = JSON.parse(lsGet(SLOT + name) || 'null');
@@ -1399,6 +1411,7 @@ function garageInit(api) {
   // exports.") It is a ribbon verb now; the popup keeps the NOUNS.
   function exportFile() {
     commit();
+    stampKind(spec);
     const name = slotName || 'flydiy-build';
     const blob = new Blob([envelope(name, spec, plaque, log, true)],
                           { type: 'application/json' });

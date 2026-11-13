@@ -2555,23 +2555,35 @@ function spareBuild(group, P, AF) {
       while (n && n !== group) { n.updateMatrix(); M.premultiply(n.matrix); n = n.parent; }
       b2.union(bm.applyMatrix4(M)); });
     return b2; };
-  const sg = +P.spareSide < 0 ? -1 : 1, z = +P.spareZ;
-  const R = Math.max(0.1, +P.s1R || 0.3);                  // the road wheels' size
-  const y = (typeof AF.cyAt === 'function' ? AF.cyAt(z) : 0) + (+P.spareY || 0);
+  // (CAR-3, the user 13 Nov: "for the back to be nice to look at, just put a spare wheel in the middle of the left
+  // door, centered on the part without the window at the bottom"): spareAt 1 = ON THE REAR WALL - the same wheel,
+  // carrier, strap and buckle, drawn in a RIG whose +x is aft (the wall's outward normal) and whose +z runs across the
+  // car, stood on the wall plane AF.z0 at spareX across (spareSide's side) and spareY over the wall's own mid-height;
+  // spareK scales the wheel (absent 1 = the road wheels' size). Absent spareAt = the flank, as before.
+  const REAR = Math.round(+P.spareAt || 0) === 1;
+  const side = +P.spareSide < 0 ? -1 : 1;
+  const sg = REAR ? 1 : side;
+  const zW = REAR ? AF.z0 + 0.05 : +P.spareZ;
+  const z = REAR ? 0 : zW;
+  const R = Math.max(0.1, +P.s1R || 0.3) * (+P.spareK > 0 ? +P.spareK : 1);   // the road wheels' size
+  const yAbs = (typeof AF.cyAt === 'function' ? AF.cyAt(zW) : 0) + (+P.spareY || 0);
+  const y = REAR ? 0 : yAbs;
   const root = new THREE.Group(); root.name = 'edSpare';
+  const rig = REAR ? new THREE.Group() : root;
+  if (REAR) { rig.position.set(side * Math.abs(+P.spareX || 0), yAbs, AF.z0); rig.rotation.y = Math.PI / 2; root.add(rig); }
   // THE WHEEL, drawn fresh by the road wheels' own builder - no brake, NO HUB CAP (the user: "remove the little hubcap so
   // that it presents a flatter surface"), built at the origin first to measure its tyre, then seated
   const wb = { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag(), alloy: GG.Bag(), dark: GG.Bag(), brakefix: GG.Bag(), steel: GG.Bag() };
   GG.wheel(wb, [0, 0, 0], [sg, 0, 0], R, { brake: false, inboard: sg, P: Object.assign({}, P, { whCap: 0 }) });
   const wg = new THREE.Group();
   for (const k of ['tyre', 'hub', 'alloy', 'dark']) if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.gearMat(k));
-  root.add(wg);
+  rig.add(wg);
   const tb = new THREE.Box3().setFromObject(wg);
   const hwT = Math.max(Math.abs(tb.min.x), Math.abs(tb.max.x));     // the tyre's half-width (its widest, the bulge)
   const Rr = R * (+P.whRimD > 0 ? Math.min(0.85, +P.whRimD) : 0.42);
   // the flank: the body's half-width over the tyre's height and length
   let half = 0;
-  for (let zz = z - R; zz <= z + R + 1e-6; zz += R / 6)
+  if (!REAR) for (let zz = z - R; zz <= z + R + 1e-6; zz += R / 6)
     for (let a = 0; a <= 180; a += 2) { const q = AF.surf(zz, a * D2R);
       if (q && isFinite(q[0]) && q[1] >= y - R && q[1] <= y + R) half = Math.max(half, Math.abs(q[0])); }
   const CARRIER = 0.034;                                   // flange + clearance between the flank and the tyre's inner wall
@@ -2582,7 +2594,7 @@ function spareBuild(group, P, AF) {
   const chrome = GG.gearMat('chrome'), alloy = GG.gearMat('alloy'), steel = GG.gearMat('steel');
   const leather = new THREE.MeshStandardMaterial({ color: 0x5a3822, roughness: 0.68, metalness: 0, side: THREE.DoubleSide });
   const leatherEdge = new THREE.MeshStandardMaterial({ color: 0x3a2414, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
-  const add = (geo, mat, pos, rot) => { const m = new THREE.Mesh(geo, mat); if (pos) m.position.copy(pos); if (rot) m.quaternion.copy(rot); root.add(m); return m; };
+  const add = (geo, mat, pos, rot) => { const m = new THREE.Mesh(geo, mat); if (pos) m.position.copy(pos); if (rot) m.quaternion.copy(rot); rig.add(m); return m; };
   const qTo = (x, yy, zz) => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(x, yy, zz).normalize());
   const alongU = qTo(sg, 0, 0), alongW = qTo(0, 0, 1);
   // ---- THE CARRIER: a domed flange on the flank, four bolts, the stub axle through the hub - and past it, THE SPIKE
@@ -2679,7 +2691,7 @@ function spareBuild(group, P, AF) {
   for (const [h, w] of [[tS * 2.2 + kt, wS / 2 + kt], [tS * 2.2 + kt, -(wS / 2 + kt)], [-tS / 2 - kt, -(wS / 2 + kt)], [-tS / 2 - kt, wS / 2 + kt]])
     kp.push(W(ku + h, kv, w));
   add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(kp, true, 'catmullrom', 0.2), 40, 0.004, 6, true), leatherEdge);
-  for (const m of root.children) if (m.isMesh) m.name = 'edSpareFit';
+  rig.traverse(m => { if (m.isMesh && m.parent === rig) m.name = 'edSpareFit'; });
   group.add(root);
   return root;
 }
@@ -3207,7 +3219,7 @@ PAGE.post = ctx => {
     group.add(wg);
   }
   // CAR-1 (the user, 12 Nov: "put a spare wheel on one of the sides, at the back, like the ref picture"): spareOn - the
-  // rearmost drawn road wheel, copied and stood against the body's flank (spareSide 1 right / -1 left) at spareZ (metres,
+  // rearmost drawn road wheel, copied and stood against the body's flank (spareSide 1 the left / port +x, -1 the right) at spareZ (metres,
   // the layers' z), its hub at the body's mid-height plus spareY. A picture only: it is not a unit, not a contact, and
   // it rides the body (named edSpare, not edWheel*). Absent = no spare.
   if (+P.spareOn && AF && typeof AF.surf === 'function') spareBuild(group, P, AF);
