@@ -315651,3 +315651,23 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   The card: intCons 6, rodMat 1 (carbon, as it was - the soft shell is the pod's alone), s1Ul 1. GEN_CAGE_ROW_NEUTRAL
   gains this branch's absent-means-default rows (finRudBelow, bpCabPy*, wgTipSkid*, ctlRuns, rodMat, rodWallMm, s1Ul):
   GATE STOL's join-to-master parity read them as a moved spec on the six saved builds (the merge's only new red).
+- L8-L9 OF THE PATH: THE PACK CASE AND WHITE FROM THE MATERIAL (13 Nov, the user: "on the pack case, will you get that
+  only through scaling? ... what would prevent everyone to choose a light pack case"; "if we say 0 kilo ... then it's got
+  to be white ... and if you put a livery onto it, then it's a little bit more"): the Archaeopteryx 89.9 -> 81.9 kg.
+  (L8) 60c_gen_energy GEN_VESSELS.packCase: its `fixed` (BMS, contactors, fuse, connectors: 3.0 kg, a car pack's) scales
+  with the pack under fixedKWh 10 (x kWh / 10, at least fixedMin 0.3) - not a choice, a light case is had only by
+  carrying a small pack; at 10 kWh and above every pack is the bytes it was (fleet hash: only the Archaeopteryx moved).
+  vessel 17.5 -> 15.1 (2.07 kWh: the real Kokam 14s1p 40 Ah, ~13-14 kg estimated). Known overlap left: the cells' packK
+  0.70 already counts part of the case and the BMS.
+  (L9) GEN_FINISH.self 'White (self-coloured)': the gelcoat out of the mould, a pre-dyed covering, a ripstop skin - no
+  colour coats (kgM2 0, perM2 0); clampSpec holds the base at its white (0xf3f4f1); a trim line or a sweep on it bills
+  liveryKgM2 0.12 x sweep over the covered area (a trim line ~1.8 kg on this card). The Scheme tile's 4th option
+  ('white' -> paint.job 'self'); the card flies it (the registration is vinyl: grams). paint 5.1 -> 0.
+  FOUND ON THE WAY: (1) the rod's phantom lattice is already gone - since L4 the rod members bill the soft row's 0.07 kg/m
+  x the rod's rho t (2.3 kg aft of the box; the honest tube pi d t rho is 2.4): AERO-BODY's tube billing changes ~+0.1
+  kg on this card, its -12 was on the carbon pod. (2) The outfit's 7.3 kg carries a 2.7 kg COWL this card does not draw
+  (cowlOn 0): AERO-BODY's COWL-BILL (bc77c5e39, inside its PHYSICS_V 8 with re-captured baselines - not taken here: it
+  moves the Rufus, the Chinook, the Stearman). The rest: film glazing 1.9, light control runs 1.7, the panel board 0.9
+  (kept: without it the three gauges float - a garage gap). (3) The mast 2.5 kg (GEN_HANG.kgM 2.4 x 1.05 m), the keel
+  tubes 1.5, the hub 1.5: fixed numbers on the one hanging nacelle - to scale with the design gross if a second one
+  ever flies.

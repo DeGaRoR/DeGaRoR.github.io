@@ -4020,7 +4020,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // rode on the tail cone and the empennage, whose many small panels put
     // the 172's 7 kg of paint at 3.6 m — 2.3 m behind the wing that carries
     // half the wetted surface
-    const pm = coverA * (FIN.kgM2 || 0);
+    // (the self-coloured white, WEIGHT STUDY: its colour coats are the scheme's share only, GEN_FINISH.self)
+    const pm = coverA * ((FIN.kgM2 || 0) + (FIN.liveryKgM2 > 0 ? FIN.liveryKgM2 * Math.max(0, Math.min(1, +S.paint.sweep || 0)) : 0));
     if (pm > 0 && coverIds.length && coverA > 0) {
       for (const i of coverIds) nodes[i].m += pm * (coverAt[i] || 0) / coverA;
       bill(pm, 0);

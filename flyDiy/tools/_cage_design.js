@@ -2269,11 +2269,15 @@ const DESIGN_ROWS = [
     read: (P, S) => {
       const p = S && S.paint; if (!p) return null;
       if (p.job === 'bare') return 'bare';
+      if (p.job === 'self') return 'white';
       return p.sweep >= 0.5 ? 'sweep' : 'trim';
     },
     options: [
       { value: 'bare', label: 'Bare / primer', icon: ICON.schemeBare,
         writes: { spec: { paint: { job: 'bare' } } } },
+      // WEIGHT STUDY: white from the material (gelcoat, pre-dyed cloth, ripstop) - no paint, no kilos; the base is white
+      { value: 'white', label: 'White (self-coloured)', icon: ICON.schemeBare, note: 'no paint: the gelcoat or the cloth is the white; a scheme on it adds its share',
+        writes: { spec: { paint: { job: 'self', sweep: 0, base: 0xf3f4f1 } } } },
       { value: 'trim', label: 'Trim line', icon: ICON.schemeTrim,
         writes: { spec: { paint: { job: 'full', sweep: 0.35 } } } },
       { value: 'sweep', label: 'Full sweep', icon: ICON.schemeSweep,
@@ -3232,7 +3236,8 @@ const ARCHETYPES = [
             spec: { fuel: { litres: 0 },
                     energy: { kind: 'battery', cell: 'nmc', vessels: [{ bay: 'underFloor', capacity: 2 }] },
                     systems: { fit: 'minimal', items: ['asi', 'alt', 'vsi'] },   // (L3: airspeed, altimeter, vario)
-                    paint: { job: 'full', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
+                    // (WEIGHT STUDY: white from the gelcoat and the cloth - no paint, 5.1 -> 0 kg; the registration is vinyl)
+                    paint: { job: 'self', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
                     finish: { decals: {
                       regTarget: 0, regMode: 0, regL: 0.95, regC: -0.30, regH: 0.12 },
                       sections: { ...BODY_PAINT(0xf3f4f1), wingSkin: { tint: 0xf3f4f1 }, finSkin: { tint: 0xf3f4f1 },

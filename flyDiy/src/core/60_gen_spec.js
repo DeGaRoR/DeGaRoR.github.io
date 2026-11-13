@@ -2776,6 +2776,14 @@ const GEN_FINISH = {
           kgM2: 0.12 },
   bare: { name: 'Bare / primer', perM2: 0,                  sweep: 0,
           kgM2: 0.03 },
+  // WEIGHT STUDY (the user, 13 Nov: "if we say 0 kilo, I guess that's fine, but then it's got to be white ... and if you
+  // put a livery onto it, then it's a little bit more"): WHITE FROM THE MATERIAL - a moulding's gelcoat as it leaves the
+  // mould (the white of every sailplane: the gelcoat is in the composite rows' cover), a pre-dyed covering (Oratex), a
+  // ripstop skin. No colour coats: kgM2 0, nothing to pay a painter. The base IS white (clampSpec holds it); a trim line
+  // or a sweep on it is colour coats on its share only - liveryKgM2 x sweep over the covered area (the full job's
+  // 0.12 kg/m2 x the share the scheme paints). The registration's vinyl is grams
+  self: { name: 'White (self-coloured)', perM2: 0, sweep: 1,
+          kgM2: 0, liveryKgM2: 0.12, base: 0xf3f4f1 },
 };
 
 // Cabin box per seating layout: half-width, height above the lower longeron,
@@ -5547,6 +5555,7 @@ function clampSpec(spec) {
 
   S.paint.regX = genClamp(S.paint.regX == null ? 0.30 : S.paint.regX, 0, 1);
   if (!GEN_FINISH[S.paint.job]) S.paint.job = 'full';
+  if (S.paint.job === 'self') S.paint.base = GEN_FINISH.self.base;   // (the self-coloured finish: the material's own white)
 
   // G296: the birth flow's labels are retired (see GEN_DEFAULT.meta); an
   // older save still carrying them is tidied here, on the clone.
