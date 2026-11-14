@@ -50,6 +50,13 @@ Red there, each placed (the base: master 6a8d705c4 + claude/l40a-repin's fixture
     not reliably hold the metal Cessna's engine in this crash - the damage owners' finding, left RED here (not
     quarantined): A0's ruling.;
 - timed out under load (1800 s): TREECRASH (master's: in 6a8d705c4's baseline); DMGCERTCOST over its 70 s by load (72.6 s).
-- DMGGEAR: being placed against the base.
+- DMGGEAR (placed against the base run without its wall, master + l40a-repin):
+  - the base's own: the twin floatplane's touchdowns (FLD-S2TR; 0.87 / 1.25 there, 0.77 / 1.15 here), the Super Petrel
+    V4.1's float dig-in and float nose-in;
+  - NEW, PETREL-LS's: the V4.1's touchdowns load FIN-MOUNT's swept-root tie (tail VF-S4TL/TR): 0.67 at 1.0 m/s, 0.68 at
+    1.5 m/s, the airframe 1.03 at the FAR 23.473 limit sink (the base: 0.40 / 0.50 / 0.31 on the gear and HR). It comes
+    with tailDrawn on the V4.1 (1e0957ae1), which cleared its DMGCERT flown pull (1.21 without it). One of the two reds
+    stands either way: the V4.1's tail as PETREL-LS draws it, for A0 / PETREL-LS's owner to rule (the canon Petrel is
+    V4.2; the gates fly V4.1).
 Green after layer 8 (they were PETREL-LS's): STOL (the Highlander), DMGCERT / DMGCLUSTERS (the twin floatplane),
 DMGCERT (the V4.1's flown pull). STOL, REALBAND, REALREFS, PLANELISTS green on the merged tree.
