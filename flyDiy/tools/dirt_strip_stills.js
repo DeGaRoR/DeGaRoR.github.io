@@ -93,6 +93,10 @@ const HOLD = (at, agl) => `(async () => {
   // SETTLE (the tail comes down): run ~1.5 s, then pause again
   if (${SETTLE}) { const tg = () => document.getElementById('bPause').click(); tg(); await new Promise(r => setTimeout(r, ${SETTLE})); tg(); }
   return JSON.stringify(s.cgPos().map(v => Math.round(v * 10) / 10)); })()`;
+// (14 Nov: the Saturday stills - no FLYDIY_AA frame at all: the loop draws nothing while uiHold (the new-plane panel, the
+// plane fiche's studio) or holdRender; a seeded build may open the panel under the rig's hidden UI) - closed / released before each grab
+const UNHOLD = "(()=>{ const s = []; try { if (window.NEW_PLANE && NEW_PLANE.isOpen && NEW_PLANE.isOpen()) { NEW_PLANE.close(); s.push('new-plane closed'); } } catch (e) { s.push('np ' + e.message); } try { if (window.FLYDIY_UI_HOLD) FLYDIY_UI_HOLD(false); } catch (e) {} return s.join(', '); })()";
+const WHY = "JSON.stringify({ np: !!(window.NEW_PLANE && NEW_PLANE.isOpen && NEW_PLANE.isOpen()), boot: window.BOOT && BOOT.state, body: document.body.className, html: document.documentElement.className, ph: ((document.getElementById('phName')||{}).textContent||'').trim(), fiche: !!document.querySelector('.pfOn,.fiche.on,[data-fiche-open]') })";
 // one frame read from the default framebuffer right after the game's own FLYDIY_AA.render (LOOK-1's t51 way), as a PNG (base64)
 const GRAB = `new Promise((res, rej) => { const R = (window.WORLD && WORLD.renderer) || (window.FLIGHT_PROBE && FLIGHT_PROBE.renderer && FLIGHT_PROBE.renderer()), AA = window.FLYDIY_AA; if (!R || !AA || !AA.render) return rej(new Error('no WORLD.renderer / FLYDIY_AA'));
   const gl = R.getContext(), orig = AA.render; let done = false;
@@ -143,6 +147,7 @@ async function runPage(page) {
     const FLY = "(()=>{const B=document.body.classList,ph=((document.getElementById('phName')||{}).textContent||'').trim();return !B.contains('rollShot')&&!B.contains('mode-ws')&&(!window.BOOT||BOOT.state==='gone')&&!!ph&&!/GARAGE/i.test(ph);})()";
     for (let a = 0, tGo = 0; a < 240 && !flying; a++) { if (a - tGo >= 15 || a === 0) { tGo = a; await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); } await sleep(1000); flying = await ev(FLY); }
     if (!flying) throw new Error('never flying in 240 s (phase ' + await ev("((document.getElementById('phName')||{}).textContent||'').trim()+' '+document.body.className") + ') - not shot');
+    { const un = await ev(UNHOLD).catch(() => ''); if (un) console.log('  after the Go: ' + un); }
     console.log('  flying: ' + await ev("((document.getElementById('phName')||{}).textContent||'').trim()"));
     for (let i = 0; i < 150; i++) { const bs = await ev("window.BOOT ? BOOT.state : 'none'"); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
     const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
@@ -157,7 +162,9 @@ async function runPage(page) {
       // (13 Nov, the 14:15 stills blank on master 23ce68c1f too: the page drew - rAF 58/s, a place within 5 m - but the CDP
       //  screenshot showed only the page's #cfe0ec behind the canvas; LOOK-1's t51 rig read real frames by gl.readPixels right after
       //  FLYDIY_AA.render) - the frame read the same way, its alpha forced opaque; the CDP screenshot only if that grab fails
-      let b64 = await ev(GRAB).catch(e => { console.log('  grab failed (' + String(e.message || e).slice(0, 80) + '), the CDP screenshot'); return null; });
+      const un = await ev(UNHOLD).catch(() => ''); if (un) console.log('  ' + un);
+      let b64 = await ev(GRAB).catch(() => null);
+      if (!b64) { console.log('  grab: no frame - ' + await ev(WHY).catch(e => e.message)); await ev(UNHOLD).catch(() => 0); await ev(FRAMES(10)); b64 = await ev(GRAB).catch(e => { console.log('  grab failed again (' + String(e.message || e).slice(0, 60) + '), the CDP screenshot'); return null; }); }
       if (!b64) b64 = (await cmd('Page.captureScreenshot', { format: 'png' })).result.data;
       fs.mkdirSync(OUT, { recursive: true }); const file = path.join(OUT, name); const buf = Buffer.from(b64, 'base64'); fs.writeFileSync(file, buf);
       if (buf.length < 20000) console.log('  WARNING ' + name + ' is ' + buf.length + ' bytes - one colour? (a blank frame)');
