@@ -383,7 +383,8 @@ function flyOut(C, W, I, def, a, s, opt) {
     air = cg[1] - W.terrainH(cg[0], cg[2]) > 30;
   }
   const D = sim.damage ? sim.damage() : null;
-  return { air, t, phases, minWing: minW, at, overMin, overAt, contacts, cWhat, trunkHits: sim.trunkHits ? sim.trunkHits() : 0, crashed: !!(D && D.crashed), track, span: 2 * half };
+  return { air, t, phases, minWing: minW, at, overMin, overAt, contacts, cWhat, trunkHits: sim.trunkHits ? sim.trunkHits() : 0, crashed: !!(D && D.crashed), track, span: 2 * half,
+           outcome: ap.report.outcome, declined: ((ap.report.verdicts || []).find(v => v.code === 'takeoff-declined') || {}).note || null };
 }
 const fmtWhat = s => (s ? s.tag + ' ' + s.id : 'nothing');
 
