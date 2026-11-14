@@ -67,7 +67,17 @@ function poseFor(def, W, a, site) {
   const ap = C.makePilot(sim, def, W, {});
   ap.setRoute(a, a); ap.departFrom(a, a, site);
   // the rest height the aeroplane settles to where it starts - what the gear must read at the hold too
-  for (let i = 0; i < 180; i++) { sim.ctl.brake = 1; sim.step(1 / 60); }
+  // ELEC-SYSTEMS (14 Nov, for A0's L40d): SETTLED, not 3 s. On Jolene w4's stand (a 4-5 % slope) the Cub starts rolling
+  // downhill, the full brake pitches it onto its nose (the tail 1.75 m up at 2 s) and it falls back onto its tail by ~4 s:
+  // a fixed 3 s sampled the teeter mid-fall (master -5.2 cm, +1.4 kg of harness -7.4 cm: the fall's phase, not the gear),
+  // while settled it reads 1.123 / 1.124 m against 1.125 at the roll. So: the old 3 s at least, then until the CG has been
+  // still (< 5 mm/s) for half a second, 12 s at most. Every other strip was already still at 3 s (same reading).
+  { let still = 0;
+    for (let i = 0; i < 720; i++) {
+      sim.ctl.brake = 1; sim.step(1 / 60);
+      const v = sim.cgVel(); still = Math.hypot(v[0], v[1], v[2]) < 0.005 ? still + 1 : 0;
+      if (i >= 179 && still >= 30) break;
+    } }
   return { pose: ap.lineupPose(), restH: cgOverGround(sim, W), sim };
 }
 // skip: a fresh reset onto the pose, a fresh pilot on the hold; `doctor` bends the placement (selftest)
