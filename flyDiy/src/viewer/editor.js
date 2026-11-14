@@ -4588,6 +4588,9 @@ function editorInit(api) {
     const roll = $('edRoll');
     if (roll) roll.onclick = () => {
       releaseView();
+      // START-CHOOSER: the sandbox's one click goes from the remembered start (FLYDIY_START.go); nothing remembered, or the
+      // story: today's roll-out below
+      if (window.START_CHOOSER && window.START_CHOOSER.go && window.START_CHOOSER.go()) return;
       const go = document.getElementById('bGo');
       if (go && go.onclick) go.onclick();
     };

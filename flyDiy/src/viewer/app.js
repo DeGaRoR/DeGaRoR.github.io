@@ -16194,6 +16194,9 @@
     if (v) {
       v.textContent = b.textContent;
       v.classList.toggle('warn', !!untested);
+      // START-CHOOSER (the user 13 Nov): in the sandbox the verb reads Fly / Drive, with where from and where to beside it
+      // (start_chooser.js; the story and a page without FLYDIY_START keep the words above)
+      if (window.START_CHOOSER && window.START_CHOOSER.label) window.START_CHOOSER.label(v, b.textContent, !!untested);
     }
   }
   window.BENCH_CHANGED = syncGoLabel;
