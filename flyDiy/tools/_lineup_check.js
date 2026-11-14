@@ -67,7 +67,15 @@ function poseFor(def, W, a, site) {
   const ap = C.makePilot(sim, def, W, {});
   ap.setRoute(a, a); ap.departFrom(a, a, site);
   // the rest height the aeroplane settles to where it starts - what the gear must read at the hold too
-  for (let i = 0; i < 180; i++) { sim.ctl.brake = 1; sim.step(1 / 60); }
+  // (REAL-CANON, 14 Nov: SETTLED, not 3 s. The rest height was read after 180 frames, inside the gear's settling: on
+  // jolene w4 the Cub card read 1.176 m at 3 s and 1.123 m from 6 s on (its roll began at 1.124), and ELEC-SYSTEMS'
+  // cable-run harness (+1.6 kg, the CG 1.5 mm forward: the user's ruling, live) moved the 3 s sample to 1.200 m, past
+  // the 6 cm. So: 3 s at least, then until the CG's height holds to a millimetre over half a second, 10 s at most)
+  let hPrev = null;
+  for (let i = 0; i < 600; i++) {
+    sim.ctl.brake = 1; sim.step(1 / 60);
+    if (i >= 179 && (i - 179) % 30 === 0) { const h = cgOverGround(sim, W); if (hPrev != null && Math.abs(h - hPrev) < 0.001) break; hPrev = h; }
+  }
   return { pose: ap.lineupPose(), restH: cgOverGround(sim, W), sim };
 }
 // skip: a fresh reset onto the pose, a fresh pilot on the hold; `doctor` bends the placement (selftest)
