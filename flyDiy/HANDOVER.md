@@ -315860,3 +315860,10 @@ NEW REDS, NAMED with owners (fix or re-pin with reason in L40c):
 - CANDIDATES (pc6_drafting not in index.json) -> FIT-PROCEDURE.
 - NAMES ("Alaska" in the twelve marks text) -> LIVERY-STICKERS (livery-stickers-3).
 - MEDIA (index.html +0.34 MiB > 0.3 one-build bound): the sum of 24 readies in one train; re-pin per train, A0.
+
+## CANON-C172-GATES CORRECTION (Pilot, 14 Nov)
+
+Every pilot gate flies the one Cessna, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50), since L40a/L40c (d85750d7e).
+The aluminium test copy tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is kept ONLY for its structure / audio users (HINGE,
+HONESTY, JOINPARITY, PARKED, RETRACT, ROLLSND); its c172fx tour row is dropped and pilot_persona.js flies F-HCSN. Older entries above
+that name the fixture as "the metal Cessna" in a flying gate describe the gates before that change.
