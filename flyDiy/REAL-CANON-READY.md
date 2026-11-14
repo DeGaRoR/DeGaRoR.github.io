@@ -38,9 +38,18 @@ Red there, each placed (the base: master 6a8d705c4 + claude/l40a-repin's fixture
 - the base's own: ALTIPORT, DESTTO (career cub@w3), FLIGHTREC, GEN (cruise quiet in wind), RADIALDIV, DMGINST (the
   twin-boom fixture), DMGCERT (the Cessna floats; the Super Petrel V4.1's breaking point), DMGCLUSTERS (the Cessnas'
   fin twist), DMGINTEGRITY (the V4.1's fuselage cut);
-- ELEC-SYSTEMS's own (identical on claude/elec-systems 0c3c1bd24 alone): LINEUP (jolene w4, rest height -7.4 cm),
-  DMGINTEGRITY (the metal Cessna's engine through the firewall with the limiters);
-- timed out under load (1800 s): TREECRASH (on the base too); DMGCERTCOST over its 70 s by load (72.6 s).
+- ELEC-SYSTEMS's two (identical on claude/elec-systems 0c3c1bd24 alone), both flip at its cable-run harness 614822358
+  (the user's ruling "cable runs live": the Cub card +1.61 kg, the metal Cessna +1.85 kg, the CG ~1-1.5 mm forward):
+  - LINEUP jolene w4: the cause is the GATE's. The stand's rest height was read at 3 s, inside the gear's settling
+    (1.176 m at 3 s, 1.123 from 6 s on; the roll began at 1.124: already 5.2 of its 6 cm before ELEC); the harness moved
+    the 3 s sample to 1.200. Fixed in _lineup_check.js (f5805a35c): settled - 3 s at least, then until the CG's height
+    holds to 1 mm over 0.5 s. GATE LINEUP green.
+  - DMGINTEGRITY, the metal Cessna's engine through the firewall WITH the limiters: a knife edge, not ELEC's bug. Swept
+    round the gate's case (V 49-51 m/s, sink 9.8-10.2): BEFORE the harness the engine already went through in 5 of 7
+    (0.08-0.38 m; only 50/10 and 49/10 held); on the stack 6 of 7. The harness moved which point holds. The limiters do
+    not reliably hold the metal Cessna's engine in this crash - the damage owners' finding, left RED here (not
+    quarantined): A0's ruling.;
+- timed out under load (1800 s): TREECRASH (master's: in 6a8d705c4's baseline); DMGCERTCOST over its 70 s by load (72.6 s).
 - DMGGEAR: being placed against the base.
 Green after layer 8 (they were PETREL-LS's): STOL (the Highlander), DMGCERT / DMGCLUSTERS (the twin floatplane),
 DMGCERT (the V4.1's flown pull). STOL, REALBAND, REALREFS, PLANELISTS green on the merged tree.
