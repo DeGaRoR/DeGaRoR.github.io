@@ -2653,19 +2653,16 @@ function mergeRoom(group, leave) {
     const mesh = new THREE.Mesh(geo, b.m);
     mesh.castShadow = b.cast; mesh.receiveShadow = b.recv; mesh.renderOrder = b.order;
     mesh.userData.roomMerged = b.list.length; if (b.out) mesh.userData.outdoor = true;
-    for (const s of b.list) { swapped.push([s.o, s.o.parent, b.out]); if (s.o.parent) s.o.parent.remove(s.o); }   // (kept aside, never uploaded)
+    for (const s of b.list) { swapped.push([s.o, s.o.parent]); if (s.o.parent) s.o.parent.remove(s.o); }   // (kept aside, never uploaded)
     out.push(mesh); meshes++;
   }
   for (const m of out) group.add(m);
   const sources = out.reduce((n, m) => n + m.userData.roomMerged, 0);
   let on = true;
   // the live switch: false puts every source back under its own parent and takes the merged meshes out; true the reverse
-  // (ROOMMERGE 2, 13 Nov: outdoorsShow sets only what stands under the room at the time - the merged outdoor meshes while
-  // merged, the sources while not; a swap carries the outdoors' state across, or the apron's kerbs, merged into the hidden
-  // outdoor mesh, came back drawn with the view out of the door up)
   const set = v => { v = v !== false; if (v === on) return on; on = v;
-    for (const m of out) { if (v) { if (m.userData.outdoor) m.visible = !viewOut; group.add(m); } else group.remove(m); }
-    for (const [o, par, isOut] of swapped) { if (v) { if (o.parent) o.parent.remove(o); } else if (par) { if (isOut && par === group) o.visible = !viewOut; par.add(o); } }
+    for (const m of out) { if (v) group.add(m); else group.remove(m); }
+    for (const [o, par] of swapped) { if (v) { if (o.parent) o.parent.remove(o); } else if (par) par.add(o); }
     return on; };
   return { sources, meshes, kept: kept + (take.length - sources), set, on: () => on };
 }
