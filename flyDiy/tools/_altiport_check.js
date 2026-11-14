@@ -8,7 +8,7 @@
 // (0.93 m/s). Node reproduces both (the game's flight: tools/_tour_lib.js gameHost - the worker's host, the page's
 // placement and pilot, DAY_CLOCK's day ticked; ISLAND-TOUR-2 G1970) to the verdict and the metre.
 //
-//   node tools/_altiport_check.js            -> "GATE ALTIPORT: PASS|FAIL" (4 heavy jobs: --shard=i/4)
+//   node tools/_altiport_check.js            -> "GATE ALTIPORT: PASS|FAIL" (5 heavy jobs: --shard=i/4)
 //   node tools/_altiport_check.js --show     -> every line, passed ones too
 //   PILOT_CORE=<flight_core.js> flies another core (the before / after)
 //
@@ -174,11 +174,18 @@ if (SHD.take()) {
   if (SHOW) console.log('    flares ' + JSON.stringify(R.flares) + '\n    final ' + JSON.stringify(R.finalAt));
   const GW = R.game && R.game.day && R.game.day.wind;
   check(!!(GW && GW.kts === 8 && GW.dirDeg === 250 && R.game.shake && R.game.damage === true), id + ': the game\'s flight (the 8 kt / 250 deg day, the page\'s pilot, the damage on)', JSON.stringify(R.game && { wind: GW, mass: R.game.mass, fuel: R.game.fuel }));
-  check(said('vref-raised'), id + ': the finding\'s case - the load door\'s build, the elevator ran out on the approach (vref-raised)');
+  // SKYLINE-RESORT (13-14 Nov; A0 + Game 14 Nov: "fine as long as it's a said refusal, not a crash"): the altiport halved to
+  // 190 m is shorter than this aeroplane's sheet landing run (249 m), so the pilot refuses it AT DISPATCH (pilotCanFly / G2450:
+  // 'strip-too-short ... not going there') and the leg is never flown - the finding's approach cannot arise. That refusal is
+  // held as TAXICLEAR 11c holds East Point's: the reason said, no take-off roll, nothing damaged. Otherwise the bar as it was
+  const dispatch = said('strip-too-short') && R.says.some(v => /^strip-too-short.*not going there/.test(v)) && !/ROLL/.test(TR.fmtLeg(L));
+  if (dispatch) check(true, id + ': the altiport REFUSED AT DISPATCH, said (190 m < its 249 m landing run) - never flown', R.says.find(v => v.startsWith('strip-too-short')));
+  else check(said('vref-raised'), id + ': the finding\'s case - the load door\'s build, the elevator ran out on the approach (vref-raised)');
   const D = R.damage || {};
   check(!D.yields && !D.breaks && !D.dented && !D.over && !L.faults.some(f => /^(prop-strike|crash|yield|break|dent|ground-loop|off-strip|obstacle|trunk)$/.test(f.k)), id + ': undamaged - no yield, no break, no dent, no prop strike, no ground loop, no off-strip',
     JSON.stringify({ yields: D.yields, breaks: D.breaks, dented: !!D.dented, over: !!D.over }) + '; ' + (L.faults.map(f => f.k + ': ' + f.note).join('; ') || 'no fault'));
-  if (said('strip-too-short')) {
+  if (dispatch) { /* (the refusal's row above; no flight, no flare, no landing to judge) */ }
+  else if (said('strip-too-short')) {
     const atTw = R.flares.filter(f => f.d < 2000);
     check(L.landedOn && L.landedOn !== 'tw_ski' && ld.onStrip === true && L.faults.every(f => f.k === 'diverted'), id + ': the altiport REFUSED, said - landed and stopped on the strip diverted to',
       (R.says.find(v => v.startsWith('strip-too-short')) || '') + ' | landed on ' + L.landedOn + ', ' + JSON.stringify(ld) + ', faults ' + (L.faults.map(f => f.k).join(',') || 'none'));
@@ -191,6 +198,53 @@ if (SHD.take()) {
     const outF = R.flares.filter(f => !(f.over >= 0 && f.low - R.SG.hi <= ARM_MAX));
     check(R.flares.length > 0 && !outF.length, id + 'c: every flare armed over the strip, at most ' + ARM_MAX + ' m above it', R.flares.map(f => f.over + ' m over the strip\'s lowest ground ' + f.d + ' m out at ' + f.t + ' s').join('; ') || 'no flare');
     if (L.arr.apprClear) check(L.arr.apprClear.c >= 3, id + 'd: the final\'s lowest node 3 m over the ground and the forest', L.arr.apprClear.c + ' m (' + L.arr.apprClear.what + ', ' + L.arr.apprClear.d + ' m out)');
+  }
+}
+// 5 THE CONTRACT LAW'S ALTIPORT CREDIT, FLOWN (SKYLINE-RESORT; Game's condition 14 Nov via A0): 73_contracts CONTRACT_FIT.altiK
+//   (an altiport's take-off run = the flat run x altiK: it is left downhill) must hold in the game's own flight. Each doer the
+//   halved Skyline keeps - the Cub with one passenger (resort.01 / clients.01's lightest doer) and the metal Cessna with two and
+//   40 kg (resort.05's only doer) - loaded as the contract loads it (the seats, the baggage), lined up on tw_ski and flown off
+//   downhill by the page's pilot in the game's day (709 m: the density altitude is in it): the run from brake release to the
+//   lowest node 2.5 m over the ground (genTORunAt's own end, so the same thing as the snapshot's toM) is
+//   a  no longer than the contract law's run (contractTakeoffM: toM x mass ratio^2 x the surface x altiK) - the measured
+//      ratio to the flat law's run printed: altiK must not be under it
+//   b  inside the strip with room: at most its length - 10 m (from the top end)
+const ALTI_CASES = [
+  { name: 'the Cub + 1 passenger (resort.01)', design: 'cub', pax: 1, kg: 0,
+    load: (s, bag) => { s.cabin = Object.assign({}, s.cabin, { pax: 1, occupied: [1, 1], baggage: bag }); s.cage = Object.assign({}, s.cage, { paxOcc1: 1, cabOcc: 1 }); } },
+  { name: 'the metal Cessna + 2 passengers + 40 kg (resort.05)', design: 'c172', pax: 2, kg: 40,
+    load: (s, bag) => { s.cabin = Object.assign({}, s.cabin, { pax: 2, occupied: [1, 1, 1, 1], baggage: bag }); s.cage = Object.assign({}, s.cage, { paxOcc1: 1, paxOcc2: 1, paxOcc3: 1, paxOcc4: 1, cabOcc: 1 }); } },
+];
+if (SHD.take()) {
+  const TW = TR.tourWorld(C, IN, fs), W = TW.W, A = id => W.aerodromes.find(q => q.id === id), tw = A('tw_ski'), home = A('HOME');
+  const K = C.CONTRACT_FIT && C.CONTRACT_FIT.altiK, Msum = d => d.nodes.reduce((a, n) => a + n.m, 0);
+  check(typeof K === 'number' && K > 0 && K <= 1, '5 the contract law carries an altiport credit (CONTRACT_FIT.altiK ' + K + ')');
+  for (const Q of ALTI_CASES) {
+    const D = C.CONTRACT_DESIGNS[Q.design], j = JSON.parse(fs.readFileSync(path.join(ROOT, D.build), 'utf8'));
+    const base = C.genMigrateSpec(JSON.parse(JSON.stringify(j.spec || j))), want = Q.pax * C.CONTRACT_FIT.occKg + Q.kg, m0 = Msum(C.buildGen(base));
+    // the load the contract carries: the seats filled, the baggage grown to the rest (a baggage kg weighs ~0.6 kg built; the
+    // cabin's own cap may stop it short - the mass flown is printed and the law is read at the contract's mass, the stricter)
+    let bag = (base.cabin && base.cabin.baggage) || 0, sp = null, dm = 0;
+    for (let it = 0; it < 12; it++) { sp = C.genMigrateSpec(JSON.parse(JSON.stringify(j.spec || j))); Q.load(sp, bag); dm = Msum(C.buildGen(sp)) - m0; if (Math.abs(dm - want) < 1.5) break; bag += (want - dm) / 0.6; }
+    const def = C.buildGen(sp); def.params = Object.assign({}, def.params, { damage: true });
+    const H = TR.gameHost(C, W, def, tw, home, { lineup: true }), sim = H.sim;
+    H.queueCmd({ cmd: 'start' });
+    let roll = null, lift = false, out = null;
+    for (let k = 0; k < 240 * 60 && !out; k++) {
+      H.step(); const ap = H.ap, cg = sim.cgPos();
+      if (ap.phase === 'STOPPED' && !roll) break;
+      if (!roll && ap.phase === 'ROLL') roll = [cg[0], cg[2]];
+      if (roll && ap.phase === 'LIFTOFF') lift = true;
+      if (roll && lift) { let low = Infinity; for (let i = 0; i < sim.n; i++) low = Math.min(low, sim.p[i * 3 + 1] - W.terrainH(sim.p[i * 3], sim.p[i * 3 + 2])); if (low >= 2.5) out = [cg[0], cg[2]]; }
+    }
+    const law = C.contractTakeoffM(D, want, C.CONTRACT_FIELDS.tw_ski), flat = law / K;
+    const run = out ? Math.hypot(out[0] - roll[0], out[1] - roll[1]) : Infinity;
+    const top = tw.len / 2, along = p => (p[0] - tw.x) * Math.cos(tw.hdg) + (p[1] - tw.z) * Math.sin(tw.hdg);
+    const tag = '5 ' + Q.name + ' (+' + Math.round(dm) + ' kg flown, the law at +' + want + ')';
+    console.log('  ' + tag + ': brake release ' + (roll ? (top - along(roll)).toFixed(0) + ' m below the top end' : '-') + ', 2.5 m up after ' + (isFinite(run) ? run.toFixed(1) : '-') +
+      ' m; the law ' + law.toFixed(0) + ' m (flat ' + flat.toFixed(0) + ' m): measured ratio ' + (isFinite(run) ? (run / flat).toFixed(3) : '-') + ' vs altiK ' + K);
+    check(isFinite(run) && run <= law, tag + 'a: the flown downhill run no longer than the contract law\'s', isFinite(run) ? run.toFixed(1) + ' m vs ' + law.toFixed(1) + ' m, ratio ' + (run / flat).toFixed(3) : 'never 2.5 m up');
+    check(isFinite(run) && run <= tw.len - 10, tag + 'b: the run fits the ' + tw.len + ' m strip from its top end with 10 m to spare (the pilot lines up ' + (roll ? Math.round(top - along(roll)) : '?') + ' m below the top: Pilot\'s)', isFinite(run) ? run.toFixed(1) + ' m' : '-');
   }
 }
 // (the verdict line is run_gates.js's contract, `^GATE <ID>: PASS$` - a shard's tag in it never matched: G2520)
