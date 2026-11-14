@@ -53,6 +53,7 @@
     ['#flFly', 'flyout', '#flFlyHead'],   // TIME-CONTROLS: the flight's flyout (the career's time menu, the top row's cards): by its head; dragged, flPlaceFly keeps the place
     ['#updNote', 'updNote', ''],    // G3910 (PHONE-1b): the update / clean-download note (update_now.js)
     ['#gImpCard', 'importCard', ''],   // HOTFIX 3 (11 Nov): the phone garage's import card (garage.js impOpen; its file control, paste box and buttons stay controls)
+    ['#scSheet', 'startSheet', '.scH'],   // START-CHOOSER: the sandbox's From / To sheet, by its title line (start_chooser.js; above its pill until dragged)
   ];
   const STORE = 'flydiy.cardPos', MOVE_PX = 4, SCAN_MS = 400, KEEP = 40;
   const NO_DRAG = 'button, a, input, select, textarea, label, option, [contenteditable="true"], [data-nodrag]';

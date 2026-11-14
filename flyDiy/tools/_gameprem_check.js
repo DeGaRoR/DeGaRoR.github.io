@@ -620,7 +620,7 @@ function run(mut) {
     ok(/slotsChanged\s*:/.test(A), 'page: the garage is handed the slots door');
     const saveB = G.slice(G.indexOf('const saveAs = name =>'), G.indexOf('function exportFile'));
     ok(/slotsChanged\(/.test(saveB), 'page: save / save as tell the player document');
-    const delB = G.slice(G.indexOf("del.addEventListener('click'"), G.indexOf("del.addEventListener('click'") + 600);
+    const delB = G.slice(G.indexOf('const forgetSlot = n =>'), G.indexOf('const forgetSlot = n =>') + 600);   // (FLEET: the Fleet tile's Delete and Sell end here)
     ok(/slotsChanged\(/.test(delB), 'page: delete tells the player document');
     const impB = G.slice(G.indexOf('const readFile = f =>'), G.indexOf('const readFile = f =>') + 900);
     ok(/slotsChanged\(/.test(impB), 'page: import tells the player document');
@@ -636,8 +636,10 @@ function run(mut) {
     ok(/playerBringHome\(/.test(A), 'page: "bring it home" is wired');
     ok(/flightBases\(world,\s*playerLoad\(\)\)/.test(A), 'page: the base line reads the bases derived from the hangars held');
     ok(/playerGoTo\(/.test(A), 'page: the base select moves the garage (playerGoTo)');
-    const rf = fnBody(G, 'renderFleet');
-    ok(/api\.place\(/.test(rf) && /gfAway/.test(rf) && /fly from there\?/.test(rf), 'page: the fleet popup carries the place badge and greys an aeroplane elsewhere ("fly from there?")');
+    // FLEET (13 Nov): the hangar's rows are garage.js's data (fleetModel) and the screen asks on the tile (fleet_screen.js)
+    const fm = (G.match(/const fleetModel = \(\) => \{[\s\S]*?\n  \};\n/) || [''])[0];
+    const FS = strip(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'fleet_screen.js'), 'utf8'));
+    ok(/api\.place\(n\)/.test(fm) && /away/.test(fm) && /flAway/.test(FS) && /Fly from there\?/.test(FS), 'page: the Fleet tile carries the place badge and greys an aeroplane elsewhere ("Fly from there?", asked on the tile)');
   }
 
   // ==== THE WORLD (S3, G2310): the plots, the sheds the world stands, the roll-out at any base ==================
