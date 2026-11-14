@@ -4408,7 +4408,8 @@ function issues(rec0) {
     if (Math.abs((+a.level || 0) - (+b.level || 0)) < 0.01) continue;
     if (polysOverlap(a.poly, b.poly)) out.push('terrain ' + a.id + ' and ' + b.id + ': two flattens at different levels overlap');
   }
-  for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= 7)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
+  // (AFB-0220: the range is the enum's own - SNOW-MUD's snow 8-10 and mud 11-12 are surfaces an area's wheels may say)
+  for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface < SURFACE_NAMES.length && Number.isInteger(+s.surface))) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
   // (t53 OPTION C, 13 Oct: rev 28's 02/20 ENDS on 13/31 - a T, the user's geometry): a strip one of whose ends lies inside the
