@@ -285,7 +285,7 @@ function nodesInside(C, W, sim) {
 // (keys, not specs: the callers fly them through pilot_trace.js specOf - tools/_load_build.js, the game's aeroplane)
 const BUILDS = [
   { key: 'stock', name: 'stock build' },
-  { key: path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), name: 'aluminium C172' },
+  { key: path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json'), name: 'Cessna 172 (F-HCSN)' },   // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
   { key: path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub" },
 ];
 // a build's plan box off its own nodes (the parked footprint's rule, GP_PARKED_FOOT): half-span, nose + 0.3 m of

@@ -324,10 +324,14 @@ if (!STRIPS) {
     const L1 = R.legs[0], L2 = R2.legs[0];
     console.log('  ' + B.name + ': ' + order.join(' > ') + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
     if (L1 && L1.heldOff) { epHeldOff('6 ' + B.name + ' HOME > nv_strip', L1); check(L1.landedOn === L1.heldOff, '6 ' + B.name + ' HOME > nv_strip: landed and stopped on the strip it diverted to, no fault', L1.heldOff + ' ' + JSON.stringify(L1.arr.landing)); }
+    // PILOT-UNIFY (G2530 as section 5): THE To REFUSED, SAID - judgeHeld reads the wind behind on East Point's one way in
+    // at the gate and refuses at the first approach instead of twice round: the reason in the player's words, landed and
+    // stopped on the strip it diverted to, no other fault (_tour_lib L.declined)
+    else if (L1 && L1.declined) { const why = (L1.verdicts.find(v => v.startsWith('strip-too-short')) || ''); check(/too short|short-field stop/.test(why) && L1.landedOn === L1.declined, '6 ' + B.name + ' HOME > nv_strip: the To refused with its reason said - landed and stopped on ' + L1.declined + ' with no fault', why + ' ' + JSON.stringify(L1.arr.landing)); console.log('  DECLINED 6 ' + B.name + ' HOME > nv_strip: ' + why + ' -> ' + L1.declined); }
     else check(L1 && L1.ok && L1.landedOn === 'nv_strip', '6 ' + B.name + ' HOME > nv_strip: lands at East Point and stops on it, no fault', L1 ? (L1.faults.map(f => f.k + ': ' + f.note).join('; ') || 'td ' + JSON.stringify(L1.arr.landing)) : '-');
     // G2450 (EAST-POINT-DEPART): the arrival over the ridge 3.9 km out is planned to come down (the circuit joined when the
     // straight-in cannot), so the first approach lands - TOUR-REAL's and ISLAND-TOUR-2's went round 'high on the slope'
-    if (!(L1 && L1.heldOff)) check(L1 && !L1.warnings.some(w => /go-around/.test(w)), '6 ' + B.name + ' HOME > nv_strip: the first approach lands (no go-around)', L1 ? (L1.warnings.join('; ') || 'final ' + JSON.stringify(L1.arr.final)) : '-');
+    if (!(L1 && (L1.heldOff || L1.declined))) check(L1 && !L1.warnings.some(w => /go-around/.test(w)), '6 ' + B.name + ' HOME > nv_strip: the first approach lands (no go-around)', L1 ? (L1.warnings.join('; ') || 'final ' + JSON.stringify(L1.arr.final)) : '-');
     // G2450: THE DEPARTURE, GATED (it was printed until it took off): from the strip's very end (within 15 m - the turn's
     // spot is the half-span + 1.5 m in), the named way out, and on to Jumbo Mine with no fault
     check(L2 && L2.ok && L2.landedOn === 'mn_strip', '6 ' + B.name + ' nv_strip > mn_strip: takes off from East Point and lands at Jumbo Mine, no fault', L2 ? (L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.verdicts.filter(v => /reject|abort|declin/.test(v)).join('; ') || 'ok') : 'not flown');
