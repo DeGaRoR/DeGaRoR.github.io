@@ -200,3 +200,29 @@ This session cannot message a session on the user's computer, so the answer is h
 | APSMOOTH | FAIL | FAIL | the same |
 | DMGCERTCOST | FAIL | FAIL | the same check ("the worker's certificate is node's", 2.1e-8 / 2.2e-8). The Petrel's frames 1789 -> 1790 went over its exact budget: the budget moved by that frame, the file's own precedent (G2470), commit below |
 | JOINPARITY | 2 FAIL | 3 FAIL | the same two (the Jodel's node = page, a tool flying a validated build raw) **plus the twin floatplane** at 4.2e-9 (see above: the page capture is stale; re-capture after landing) |
+
+## For A0 - L40d (14 Nov; your ask: LINEUP and DMGINTEGRITY, red on this branch alone)
+The branch now merges master **6a8d705c4 (L40a)** (`67e97bda`, rebuilt). Both gates were run on master 6a8d705c4 and on
+this branch, same box, side by side.
+
+**LINEUP - a gate measurement bug, FIXED** (`tools/_lineup_check.js`, the reason written at the fix):
+- Red here alone: jolene w4 "the gear at rest height" -7.4 cm against a 6 cm bound; master read -5.2 cm, the only
+  strip not within 0.2 cm.
+- Traced: w4's stand sits on a 4-5 % slope. The Cub rolls downhill, the full brake pitches it onto its nose (the tail
+  1.75 m up at 2 s), and it falls back onto its tail by ~4 s. The gate sampled its "rest height" at a fixed 3 s, in
+  the middle of that fall, so the reading was the fall's phase, not the gear.
+- Proof it is mass and phase, not this branch's code: master's old harness +1.4 kg reads -7.5 cm the same way.
+- Settled (6-12 s), w4 reads 1.123 m on master and 1.124 m here, against 1.125 m at the roll.
+- The fix: the settle runs the old 3 s at least, then until the CG is still (< 5 mm/s) for 0.5 s, 12 s at most.
+- After it: w4 +0.1 cm, every other strip reads exactly as before, LINEUP PASS, selftest caught.
+- **For the game, not this gate:** the Cub teeters onto its nose (tail 1.75 m up) when it starts braked on w4's
+  stand. Worth a look by whoever owns the stands or the brakes.
+
+**DMGINTEGRITY - not this branch's on L40a.** Master 6a8d705c4 fails the SAME two checks, on the SAME two builds:
+- the metal Cessna, "THE ENGINE THROUGH THE FIREWALL, a severe nose-in on the ground" - with the limiters, master
+  MNTTL 0.06 m into bay 4, the branch a few more nodes;
+- the Super Petrel, "the fuselage cut across behind ring 3 (10 members): no break-up" - on both.
+Every other row is ok on both. If REAL-FIGURES saw it pass without this branch, it was on another base (its stack);
+on L40a it is master's red. Not re-pinned here: neither failure is mine to re-pin.
+
+Also re-checked on the L40a merge: ELEC, PANEL, TECH PASS.
