@@ -468,8 +468,8 @@ function planAt(C, W, I, def, a, b, pose, opt) {
 function paveOf(W) {
   const O = W.premises && W.premises.overlay;
   if (!O || !O.pavePolys) return [];
-  return O.pavePolys.filter(p => p.stands).map(p => ({ id: p.id, poly: p.poly.map(q => { const w = O.frame.toWorld(q[0], q[1]); return Array.isArray(w) ? [w[0], w[1]] : [w.x, w.z]; }),
-    yaw: (p.yaw || 0) + (O.frame.yaw || 0), stands: p.stands }));
+  return O.pavePolys.filter(p => p.stands || p.parking).map(p => ({ id: p.id, poly: p.poly.map(q => { const w = O.frame.toWorld(q[0], q[1]); return Array.isArray(w) ? [w[0], w[1]] : [w.x, w.z]; }),
+    yaw: (p.yaw || 0) + (O.frame.yaw || 0), stands: p.stands, parking: p.parking || null }));
 }
 // the planner's inputs off the census's world: the solid things (the index), the ground, the water
 function spotInputs(W, I, pave) {

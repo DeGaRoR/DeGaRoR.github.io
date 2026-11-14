@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: f173392710c9d24f
+// body-sha256: d9d2169cd58d90f7
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7708,11 +7708,12 @@ function fleetField(aero, site, pave) {
     return false;
   };
   // a stand polygon belongs to this field when its centre does
-  const polys = (pave || []).filter(p => p && p.poly && p.stands && base(...fleetPolyCentre(p.poly)));
+  const polys = (pave || []).filter(p => p && p.poly && (p.stands || p.parking) && base(...fleetPolyCentre(p.poly)));   // (PARKING-AREA: an area the fleet fills, as a painted stand row)
   const f = (x, z) => base(x, z) || polys.some(p => inPoly(p.poly, x, z));
   f.polys = polys;
   return f;
 }
+const fleetInPoly = (poly, x, z) => { let ins = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) ins = !ins; } return ins; };
 const fleetPolyCentre = poly => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of poly) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); } return [(x0 + x1) / 2, (z0 + z1) / 2]; };
 function fleetSpots(aero, site, opts) {
   // G2300 (STAGES, contract v1.33): a field whose stage says `ties: false` has no tie-down spots yet (East Point before
@@ -7773,7 +7774,33 @@ function fleetSpots(aero, site, opts) {
   // 1 THE PAINTED STANDS of this field, in their order: the nose at the stop, the box the envelope's (a stand whose
   // neighbour is taken - by a spot before it, or by a thing the record parks there - is refused by the rules above)
   const near = field.polys.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  // 0 THE PARKING AREAS (PARKING-AREA, the user 13 Nov: "parking = an area, a polygon or a circle, sized in the editor; the
+  // parked planes fill it"): a grid over the area in its own lanes' frame (its yaw), the nose along the lanes, across them
+  // a span and a gap apart, the rows a length and a row gap apart; tried nearest the field's stand first, each through the
+  // rules above (inside the area by its four corners, flat, clear, off the runway and the routes, no overlap)
   for (const p of near) {
+    if (!p.parking) continue;
+    const pk = p.parking, ctr = fleetPolyCentre(p.poly), c = CORE_MATH.cos(p.yaw || 0), s = CORE_MATH.sin(p.yaw || 0);
+    const pitchV = 2 * env.half + (+pk.gap > 0 ? +pk.gap : F.gap), pitchU = env.fwd + env.aft + (+pk.rowGap > 0 ? +pk.rowGap : F.rowGap);
+    let u0 = Infinity, u1 = -Infinity, w0 = Infinity, w1 = -Infinity;
+    for (const q of p.poly) { const dx = q[0] - ctr[0], dz = q[1] - ctr[1], u = dx * c + dz * s, w = -dx * s + dz * c; u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
+    const cand = [];
+    // the grid centred in the area, 0.25 m in from its edges (a corner ON an edge is neither in nor out); a circle clips it
+    const nU = Math.max(0, Math.floor((u1 - u0 - env.fwd - env.aft - 0.5) / pitchU) + 1), nW = Math.max(0, Math.floor((w1 - w0 - 2 * env.half - 0.5) / pitchV) + 1);
+    const uMid = (u0 + u1) / 2 - (env.fwd - env.aft) / 2, wMid = (w0 + w1) / 2;
+    for (let i = 0; i < nU; i++) for (let j = 0; j < nW; j++) {
+      const u = uMid + (i - (nU - 1) / 2) * pitchU, w = wMid + (j - (nW - 1) / 2) * pitchV;
+      const x = ctr[0] + u * c - w * s, z = ctr[1] + u * s + w * c;
+      const sp = { id: 'park:' + p.id + ':' + cand.length, kind: 'park', x: r3(x), z: r3(z), ry: r3(-(p.yaw || 0)), half: env.half, fwd: env.fwd, aft: env.aft, _d: Math.hypot(x - ref.x, z - ref.z) };
+      // inside ITS area by all four corners (the field's own test is looser: anything near the stand is the field)
+      if (fleetSpotPts(sp, 1e9).every(q => fleetInPoly(p.poly, q[0], q[1]))) cand.push(sp); else why.field++;
+    }
+    cand.sort((a, b) => a._d - b._d || (a.id < b.id ? -1 : 1));
+    const cap = Math.min(max, ok.length + (+pk.max > 0 ? +pk.max | 0 : max));
+    for (const sp of cand) { if (ok.length >= cap) break; delete sp._d; if (test(sp)) ok.push(sp); }
+  }
+  for (const p of near) {
+    if (!p.stands) continue;
     const so = p.stands, n = Math.max(1, Math.min(24, (so.n | 0) || 6)), pitch = +so.pitch > 0 ? +so.pitch : 11, lead = +so.lead > 0 ? +so.lead : 9;
     const v0 = -(n - 1) * pitch / 2 + (+so.vOff || 0), uStop = (so.u0 === undefined ? -lead / 2 : +so.u0) + lead, ctr = fleetPolyCentre(p.poly);
     const c = CORE_MATH.cos(p.yaw || 0), s = CORE_MATH.sin(p.yaw || 0);
@@ -11187,6 +11214,55 @@ function runwaySite(r, F) {
   if (Array.isArray(r.taxiOut1) && r.taxiOut1.length) out.taxiOut1 = r.taxiOut1.map(W).map(q => [+q[0].toFixed(3), +q[1].toFixed(3)]);
   return out;
 }
+// THE STAND'S PAD (STAND-PAD, the user 13 Nov: "a parking spot shouldn't have a 15 % grade, otherwise it's not a parking
+// spot"; the editor GO ~10:45: a pad setting on every stand, automatic ONLY where the ground is steeper than 2 %). A
+// DERIVED flatten under the stand and its lead-in to the strip, at the strip's own level where the stand stands beside it
+// (the centreline's profile height there), so the feather is a no-op on the runway: the strip's grade is never touched.
+//   stand.pad absent / 'auto'  a pad only where the stand's grade (6 m baseline, the worst of its centre and 4 m around)
+//                              is over STAND_PAD.grade; a stand on level ground composes exactly as before (no modifier)
+//   stand.pad 'off'            never a pad
+//   stand.pad { w, l, falloff } a pad of that size whatever the grade (w across the strip, l along it, m)
+// In the premises frame (the record's own coordinates, as runwayEnds); `T1` reads the ground as composed so far (the
+// authored terrain and the strip's grade): a hand-authored pad already there reads level and asks for none.
+const STAND_PAD = { grade: 0.02, w: 22, l: 26, falloff: 12, base: 6, ring: 4 };
+// THE STRIP STAYS THE STRIP'S: the pad is a RAMP that follows the centreline's profile along the strip (level across), and the
+// composer applies it BEFORE the strip's own grade, so inside the strip the grade has the last word and its shoulder blends
+// to a pad already at its height. A stand on AUTHORED ground work (a terrain modifier's box over it: someone shaped that
+// ground on purpose) gets no automatic pad - `covered(x0, z0, x1, z1)`: an authored modifier's box meets the pad's, feather included.
+function standPadOf(r, E, pr, elev, T1, covered) {
+  const st = r.stand, P = st && st.pad;
+  if (!st || !isFinite(+st.x) || !isFinite(+st.z) || P === 'off' || P === false) return null;
+  const sx = +st.x, sz = +st.z, B = STAND_PAD.base / 2, Rg = STAND_PAD.ring;
+  const custom0 = P && typeof P === 'object';
+  const gradeAt = (x, z) => Math.hypot((T1(x + B, z) - T1(x - B, z)) / (2 * B), (T1(x, z + B) - T1(x, z - B)) / (2 * B));
+  const custom = P && typeof P === 'object';
+  if (!custom) {
+    let g = 0;
+    for (const [dx, dz] of [[0, 0], [Rg, 0], [-Rg, 0], [0, Rg], [0, -Rg]]) g = Math.max(g, gradeAt(sx + dx, sz + dz));
+    if (!(g > STAND_PAD.grade)) return null;
+  }
+  const W2 = (custom && +P.w > 0 ? +P.w : STAND_PAD.w) / 2, L2 = (custom && +P.l > 0 ? +P.l : STAND_PAD.l) / 2;
+  const fall = custom && +P.falloff > 0 ? +P.falloff : STAND_PAD.falloff;
+  // the stand in the strip's frame: u along (from end0), v across (signed, the strip's normal)
+  const du = sx - E.end0[0], dv = sz - E.end0[1];
+  const u = du * E.d[0] + dv * E.d[1], v = du * E.n[0] + dv * E.n[1];
+  const sg = v >= 0 ? 1 : -1, edge = r.wid / 2;
+  // across: from the strip's edge (its lead-in) to the stand's far side; along: centred on the stand
+  const v0 = sg * edge, v1 = v + sg * W2;
+  const uA = u - L2, uB = u + L2;
+  const at = (a, b) => [+(E.end0[0] + E.d[0] * a + E.n[0] * b).toFixed(2), +(E.end0[1] + E.d[1] * a + E.n[1] * b).toFixed(2)];
+  const poly = [at(uA, v0), at(uB, v0), at(uB, v1), at(uA, v1)];
+  // authored ground work under the pad or its feather: it steps aside (an explicit { w, l } pad is asked for, and stays)
+  if (!custom0 && typeof covered === 'function') {
+    const xs = poly.map(q => q[0]), zs = poly.map(q => q[1]);
+    if (covered(Math.min(...xs) - fall, Math.min(...zs) - fall, Math.max(...xs) + fall, Math.max(...zs) + fall)) return null;
+  }
+  // the centreline's height and gradient at the stand's station (clamped onto the strip): level across, the strip's slope along
+  const uc = Math.max(0, Math.min(r.len, u)), u1 = Math.max(0, uc - 1), u2 = Math.min(r.len, uc + 1);
+  const level = elev + pr.at(uc), slope = u2 > u1 ? (pr.at(u2) - pr.at(u1)) / (u2 - u1) : 0;
+  const hdg = Math.atan2(E.d[0], E.d[1]) * 180 / Math.PI;   // the ramp's 0 = +z, 90 = +x, rising along the strip's d
+  return { id: r.id + ':standpad', kind: 'ramp', poly, level: +level.toFixed(3), slope: +slope.toFixed(5), hdg: +hdg.toFixed(3), falloff: fall, abs: true, derived: true };
+}
 // (v1.33) a stage's `sock: false` / `ties: false` onto the aerodrome (render_world's windsock, 25_airfield fleetSpots);
 // absent - the record never says it - the aerodrome is untouched
 function stageAero(a, r) {
@@ -12190,6 +12266,11 @@ function compose(rec0, world, opts) {
     roadObjs.push({ id: r.id, pts: [E.end0, E.end1], w: r.wid, surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, runway: true });
     aerodromes.push(stageAero(runwayAerodrome(r, F, elev, rec.layers.terrain.filter(m => m.kind === 'flatten' && m.poly && m.poly.length >= 3).map(m => m.poly), T1, roads.filter(q => q.graded !== false)), r));   // T1 sees the strip's own grade (pushed above)
     r.site = runwaySite(r, F);   // the composed runway's site: the stand and the way out in the world, the authored pattern kept
+    // STAND-PAD: a derived flatten under a stand steeper than 2 % (standPadOf), BEFORE the stand's ground is read below
+    // (it goes in BEFORE the strip's grade - the grade applies after it, so the strip keeps its own heights inside its width)
+    { const covered = (x0, z0, x1, z1) => mods.slice(0, nAuth).some(Q => Q.bbox && x1 >= Q.bbox.x0 && x0 <= Q.bbox.x1 && z1 >= Q.bbox.z0 && z0 <= Q.bbox.z1);
+      const pd = r.site && r.site.stand ? standPadOf(r, E, pr, elev, T1, covered) : null; const PM = pd ? makeModifier(pd, F.y0) : null;
+      if (PM) { const gi = M ? mods.indexOf(M) : -1; if (gi >= 0) mods.splice(gi, 0, PM); else mods.push(PM); r.site.standPad = { level: pd.level, slope: pd.slope }; } }
     // G710: THE PARKED AEROPLANES the way out must clear (25_airfield.js gpClearWay): every `aircraft`
     // object within 400 m of the stand or a taxi point, in the world (x, z, and `ry` = rotation.y, the
     // record's yaw plus the frame's - render_premises' own placement), its key naming the footprint
@@ -12328,7 +12409,7 @@ function compose(rec0, world, opts) {
   // THE PAVED POLYGONS (v1.16): a material polygon with a `look` (a pavement class) instead of a set is an
   // apron, a turnaround, a pad - the pavement module draws it, the map never sees it
   const pavePolys = rec.layers.material.filter(m => m.poly && m.poly.length >= 3 && m.look && RUNWAY_LOOKS[m.look] && RUNWAY_LOOKS[m.look].cls)
-    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0, stands: m.stands || null,
+    .map(m => ({ id: m.id, poly: m.poly, bbox: polyBBox(m.poly), look: m.look, band: m.band === undefined ? null : m.band, pav: m.pav || null, yaw: +m.yaw || 0, z: +m.z || 0, stands: m.stands || null, parking: m.parking && typeof m.parking === 'object' ? m.parking : null,
                  marks: m.marks && MARK_KINDS.indexOf(m.marks.kind) >= 0 ? m.marks : null }));
   // (v1.36, G2912) A DOCK'S WATER: for a pavement wearing dock marks, how much of each edge's outside is water - three
   // points 4 m out from the edge, water standing 20 cm over the ground there (areaMarks puts the quay's line on that edge)
@@ -13992,7 +14073,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
