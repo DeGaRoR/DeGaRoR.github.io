@@ -769,6 +769,8 @@ function garageInit(api) {
     return listsP.then(l => l.filter(p => p && (dev || (PLAYER_CLASSES.includes(p.list) && labOk(p) && !p.rides))).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
   };
   const openListed = p => {
+    // a SHAPE ROW (list:55 Spitfire, list:56 Skymaster: `shape`, no file) is built from its chooser shape (new_plane.js openShape)
+    if (p.shape) { const why = window.NEW_PLANE && window.NEW_PLANE.openShape ? window.NEW_PLANE.openShape(p.shape) : 'the chooser is not loaded'; if (why) alert(p.name + ': ' + why); return; }
     if (p.stock) { loadStock(p.stock); return; }
     if (p.gen) { loadSpec(api.defaults(), ''); return; }
     return fetch(p.file.split('/').map(encodeURIComponent).join('/'))

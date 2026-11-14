@@ -23,6 +23,30 @@
 const NG = () => window.NEW_PLANE_GEN;
 const D = () => window.CAGE_DESIGN;
 const GS = () => window.GARAGE_SPEC;
+// THE REAL PLANES BEHIND THE SHAPES (PLANE-LIST Q5, the user 10 Nov: "yes"): for the 8 types that have a real plane (Cub, Jodel,
+// C172, Chinook, Tiger Moth, Stearman, Camel, the Twin-582 floatplane) the chooser's "-alike" tile opens THAT plane - its list
+// row's `alike` names the archetype - instead of a second shape; the other shapes stay starting points. The rows are the
+// garage's (GARAGE_SPEC.planeLists, async): the tile takes the plane's name and picture when they answer, and a press before
+// that waits for them. No lists (an old garage): every shape is today's
+let realMap = null;
+function loadReal() {
+  const g0 = GS();
+  realMap = null;
+  if (!g0 || typeof g0.planeLists !== 'function' || typeof g0.openListed !== 'function') { realMap = {}; return Promise.resolve(realMap); }
+  let pr; try { pr = Promise.resolve(g0.planeLists()); } catch (e) { pr = Promise.resolve([]); }
+  return pr.then(l => { const m = {}; for (const p of l || []) if (p && p.alike && p.file) m[p.alike] = p; return (realMap = m); }, () => (realMap = {}));
+}
+function realTile(b, a, real, shapeDoor) {
+  const go = m => { const p = m[a.key]; if (p) withSpinner(() => { LOG.generated++; GS().openListed(p); }); else shapeDoor(); };
+  b.addEventListener('click', () => { if (realMap) go(realMap); else real.then(m => { if (isOpen() && page === 'start') go(m); }); });
+  real.then(m => {
+    const p = m[a.key];
+    if (!p || !isOpen()) return;
+    b.dataset.real = String(p.n); b.title = '';
+    b.innerHTML = '<b>' + esc(p.name) + '</b><small>the real plane</small>';
+    if (p.thumb) { b.dataset.thumb = p.thumb; npThumb(b); }
+  });
+}
 
 function svgFor(icon) {
   if (!icon) return '<svg viewBox="0 0 64 40" aria-hidden="true"></svg>';
@@ -215,6 +239,7 @@ function renderStart(body) {
   // where every pick is a door back
   // (a card whose choices the rule table now greys - N4's struck discs - is not offered as a start)
   const gen = d.ARCHETYPES.filter(a => !g.authored(a) && !d.archInactive(a) && !g.complete(g.fromArchetype(a)).cleared.length);
+  const real = loadReal();
   if (gen.length) {
     body.insertAdjacentHTML('beforeend', '<div class="npSecH">start like one of the shed\'s designs - the choices filled in, yours to change</div>');
     const gg = document.createElement('div');
@@ -224,7 +249,7 @@ function renderStart(body) {
       b.type = 'button'; b.className = 'npTile';
       b.innerHTML = svgFor(a.icon || (d.archIcon ? d.archIcon(a) : null)) + '<b>' + esc(a.name) + '</b>';
       b.title = a.note || '';
-      b.addEventListener('click', () => { choices = g.complete(g.fromArchetype(a)).choices; page = 'summary'; render(); });
+      realTile(b, a, real, () => { choices = g.complete(g.fromArchetype(a)).choices; page = 'summary'; render(); });
       gg.appendChild(b);
     }
     body.appendChild(gg);
@@ -272,7 +297,7 @@ function renderStart(body) {
       b.innerHTML = svgFor(a.icon || (d.archIcon ? d.archIcon(a) : null)) + '<b>' + esc(a.name) + '</b>' +
         (reason ? '<small class="npWhy">' + esc(reason) + '</small>' : '');
       if (reason) b.disabled = true;
-      else b.addEventListener('click', () => generateCard(a));
+      else realTile(b, a, real, () => generateCard(a));
       b.dataset.thumb = 'arch:' + a.key; npThumb(b);   // PLANE-RENDERS R1: the recreation's baked side profile, over its icon
       ga.appendChild(b);
     }
@@ -392,6 +417,27 @@ function generateCard(a) {
   });
 }
 
-window.NEW_PLANE = { open, close, isOpen, LOG, _state: () => ({ page, stepI, choices: Object.assign({}, choices), busy }),
+// THE SHAPE DOOR (PLANE-LIST Q5 + Game's FLEET, 13 Nov): a shape row (list:55 Spitfire, list:56 Skymaster) built from its archetype,
+// the authored recreations' one build - with the panel's spinner when the panel is up, else directly (GARAGE_SPEC.set, the one door
+// a design enters by). Returns null when built, else the reason it is not (blocked, or not in this build)
+// (shapeWhy: the same answer as a pure query, nothing built - the FLEET greys a shape row's tile with it)
+function shapeWhy(key) {
+  const d = D(), a = ((d && d.ARCHETYPES) || []).find(x => x.key === key);
+  if (!a) return 'not in this build';
+  return (d.archInactive ? d.archInactive(a) : null) || null;
+}
+function openShape(key) {
+  const why = shapeWhy(key);
+  if (why) return why;
+  const d = D(), a = d.ARCHETYPES.find(x => x.key === key);
+  if (isOpen()) { generateCard(a); return null; }
+  const spec = d.designBake(a.sel, a.over);
+  LOG.generated++; LOG.lastSpec = spec;
+  if (window.CAGE_COWL_FIT_NEXT) window.CAGE_COWL_FIT_NEXT();
+  GS().set(spec);
+  return null;
+}
+
+window.NEW_PLANE = { open, close, isOpen, LOG, openShape, shapeWhy, _state: () => ({ page, stepI, choices: Object.assign({}, choices), busy }),
                      _pick: pick, _next: next, _skip: skip, _back: back };
 })();
