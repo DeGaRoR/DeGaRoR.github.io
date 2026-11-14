@@ -213,9 +213,10 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
   //  662 656, 600 m 422 664: the length pays, not the chaos). Listed for the perf week: a distance LOD on the bump refinement. The rest of
   //  02/20's dressing fits under the old pin (its long polygons cut every 36 m: polyGeometry draws a polygon's whole bounding box)
   // + 02/20's DRESSING (the same ruling, measured): the crumbled band's dirt, the clean 3-5 m concrete core and the 26 remnant slabs,
-  //  cut every 36 m (79 segments) - 118 932 triangles within 3 km of both views, near its floor (each segment's grid carries the
-  //  pavement's 7.5 m shoulder: pavement.js shoulderFor); master's own slack at the HOME-taxi view (~37 k) takes part of it
-  const AFB_DRESS = 118932;
+  //  cut every 36 m (79 segments) - 201 360 triangles within 3 km of both views, near its floor (each segment's grid carries the
+  //  pavement's 7.5 m shoulder: pavement.js shoulderFor; the crumble reaches |v| 10 so w2's edge lights (|v| 9) stand flush in it, not cut
+  //  in its clear - GATE RWYLIGHTS); master's own slack at the HOME-taxi view (~37 k) takes part of it
+  const AFB_DRESS = 201360;
   const XW_ROUGH = 764192; for (const k in PAV0) PAV0[k] += XW_ROUGH + AFB_DRESS;
   const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + PAV0['HOME stand'], 'HOME taxi': (PATCH0 || {})['HOME taxi'] + PAV0['HOME taxi'] }, gamer: { 'HOME stand': 1222208 + PAV0['HOME stand'], 'HOME taxi': 1304000 + PAV0['HOME taxi'] } };
   // RE-TAKEN 9 Nov (HOME-LAYOUT, A0's call), THE TWO "HOME stand" ROWS ONLY: SCENERY - the user's validated HOME layout moved the

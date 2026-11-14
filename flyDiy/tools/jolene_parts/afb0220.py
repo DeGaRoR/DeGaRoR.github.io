@@ -170,7 +170,7 @@ def segs(u0, u1):
     n = int(math.ceil((u1 - u0) / SEG))
     return [(u0 + (u1 - u0) * k / n - (LAP / 2 if k else 0), u0 + (u1 - u0) * (k + 1) / n + (LAP / 2 if k + 1 < n else 0)) for k in range(n)]
 for k, (a0, a1) in enumerate(segs(2, LEN - 60)):
-    AREAS.append(area('crumble%d' % k, band_poly(a0, a1, lambda u: -7.0 + wob(u / 170, 121, 0.3), lambda u: 7.0 + wob(u / 190, 122, 0.3), step=6),
+    AREAS.append(area('crumble%d' % k, band_poly(a0, a1, lambda u: -10.0 + wob(u / 170, 121, 0.2), lambda u: 10.0 + wob(u / 190, 122, 0.2), step=6),
                       draw={'look': 'dirt', 'band': 0.5, 'z': 2, 'yaw': HDG}))
 for k, (a0, a1) in enumerate(segs(0, LEN - 40)):
     AREAS.append(area('core%d' % k, band_poly(a0, a1, lambda u: -CORE_HW(u), lambda u: CORE_HW(u), step=6),
