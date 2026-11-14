@@ -31,6 +31,17 @@
 //               - THE SIGNATURE is the game's name (GAME_NAMES.game, 01_names.js - one place) + " · certified airworthy"
 //               - A FRAME: a thin, quiet line with rounded corners round the whole sheet, in its own palette, on the board
 //                 and in the shared picture
+//   THE PAGES   (the user's fiche structure, 12 Nov) a strip of buttons under the header, in the user's names and order:
+//               Main | Cutaway | Mass | Drag | Physics | Electrics | Integrity | Reference | Flight log. A page comes in through
+//               FICHE_BOARD.pages.add({ id, label, mount(sheet, rec, ctx), compose?, hidden?, visible? }): the slot order
+//               above (ids main, cutaway, mass, drag, physics, electrics, integrity, reference, log; an unknown id at the end),
+//               the same id REPLACES the page, 'log' is hidden. Only a registered, visible page gets a button; visible(rec,
+//               ctx) is asked per record (false or a throw: no button), and an open page that is no longer visible falls
+//               back to Main. ctx goes WHOLE to every page: { spec (the stand's, for the plane on it), title, propOff
+//               (genAidPropOff(CAGE_ENG)), listFile, listRow (the list row it was opened from), urlOf }. A page with its
+//               own compose(rec, ctx) -> Promise<Blob> shares that picture; else the share is Main's.
+//               Mine: Main (today's fiche), Cutaway (the baked cutaway, large), Mass (fiche_mass.js); PHYSICS-PAGES': Drag,
+//               Physics, Electrics, Integrity, Reference; Flight log: a hidden place.
 // GATE PLANEFICHE checks the wiring (tools/_plane_fiche_check.js).
 'use strict';
 (function () {
@@ -72,6 +83,15 @@
 #pfBoard .pfSpecs dt { color:#6d675b; } #pfBoard .pfSpecs dd { margin:0; text-align:right; font-weight:500; }
 #pfBoard .pfName { font:600 15px/1.2 'IBM Plex Sans', sans-serif; letter-spacing:.02em; margin:0 0 4px; }
 #pfBoard .pfMsg { padding:10px 14px; color:var(--ed-dim,#9a978f); }
+#pfBoard .pfTabs { display:flex; flex-wrap:wrap; gap:6px; padding:8px 10px 0 12px; }
+#pfBoard .pfTabs[hidden] { display:none; }
+#pfBoard .pfTabs button { font:500 10px/1 'IBM Plex Sans', sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--ed-dim,#9a978f);
+  background:transparent; border:1px solid var(--ed-btn-bd,rgba(255,255,255,.18)); border-radius:999px; padding:6px 10px; cursor:pointer; }
+#pfBoard .pfTabs button[aria-pressed="true"] { color:var(--ed-ink,#e8e6e1); background:var(--ed-btn-bg,rgba(255,255,255,.06)); border-color:rgba(255,255,255,.4); }
+#pfBoard .pfCutBig { display:block; width:100%; height:auto; }
+#pfBoard .pfMass svg { display:block; width:100%; height:auto; }
+#pfBoard .pfMass .pfMassB { margin-top:12px; padding-top:6px; border-top:1px solid #d8cdb8; }
+#pfBoard .pfSheet .pfMsg { color:#6d675b; }
 .gfFiche { font:500 10px/1 'IBM Plex Sans', sans-serif; letter-spacing:.06em; text-transform:uppercase; }
 .npFiche { position:absolute; right:6px; top:6px; font:500 9px/1 'IBM Plex Sans', sans-serif; letter-spacing:.08em; text-transform:uppercase;
   color:var(--ed-ink,#e8e6e1); background:rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.25); border-radius:999px; padding:4px 7px; cursor:pointer; }
@@ -203,7 +223,8 @@
   let bakedP = null, bakedIdx = {};
   const baked = () => bakedP || (bakedP = (typeof fetch === 'function' ? fetch(BAKED + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
     .then(j => (bakedIdx = (j && j.fiches) || {}), () => ({})));
-  const bakedRec = (key, B) => { const b = B[key]; if (!b) return null; const pics = {}; for (const v in b.pics || {}) pics[v] = BAKED + b.pics[v]; return { name: key, baked: true, data: b.data || { name: b.name }, pics }; };
+  const bakedRec = (key, B) => { const b = B[key]; if (!b) return null; const pics = {}; for (const v in b.pics || {}) pics[v] = BAKED + b.pics[v];
+    return { name: key, baked: true, data: b.data || { name: b.name }, pics, listRow: key, listFile: b.listFile || '' }; };
   // the All planes screen's tile: a small door in its corner (a span: a button cannot hold a button); a click opens the board, not the plane
   function tileDoor(tile, key) {
     if (!tile || !key) return;
@@ -217,8 +238,24 @@
       tile.appendChild(d);
     });
   }
+  // ---- THE PAGES: the registry (the user's fiche structure, 12 Nov) ----------------------------------------------------
+  const SLOTS = ['main', 'cutaway', 'mass', 'drag', 'physics', 'electrics', 'integrity', 'reference', 'log'];
+  const PAGES = {};
+  const pages = {
+    add(p) {
+      if (!p || typeof p.id !== 'string' || !p.id || typeof p.mount !== 'function') return false;
+      PAGES[p.id] = { id: p.id, label: p.label || p.id, mount: p.mount, compose: typeof p.compose === 'function' ? p.compose : null,
+                      hidden: p.hidden != null ? !!p.hidden : p.id === 'log', visible: typeof p.visible === 'function' ? p.visible : null };
+      if (board && !board.hidden && boardName) show(boardName, boardRec);
+      return true;
+    },
+    ids() { const k = Object.keys(PAGES); return SLOTS.filter(i => k.includes(i)).concat(k.filter(i => !SLOTS.includes(i))); },
+    get(id) { return PAGES[id] || null; },
+    // the pages a record shows: registered, not hidden, visible(rec, ctx) true (a throw = no button)
+    shown(rec, ctx) { return pages.ids().filter(id => { const p = PAGES[id]; if (!p || p.hidden) return false; if (!p.visible) return true; try { return !!p.visible(rec, ctx); } catch (e) { return false; } }); },
+  };
   // ---- the board -----------------------------------------------------------------------------------------------------
-  let board = null, boardName = '', cycle = null, urls = [];
+  let board = null, boardName = '', boardRec = null, pageId = 'main', cycle = null, urls = [];
   const freeUrls = () => { for (const u of urls) URL.revokeObjectURL(u); urls = []; };
   const urlOf = b => { if (!b) return ''; if (typeof b === 'string') return b; const u = URL.createObjectURL(b); urls.push(u); return u; };
   const kmh = v => (v != null && isFinite(v) ? Math.round(v * 3.6) + ' km/h' : '—');
@@ -250,16 +287,19 @@
       board = $('div'); board.id = 'pfBoard'; board.hidden = true;
       board.innerHTML = '<div class="pfHead"><b></b><span class="pfReg"></span><span class="pfStale"></span><span class="pfSp"></span>' +
         '<button type="button" class="pfUpd">update</button><button type="button" class="pfShare">share</button><button type="button" class="pfClose">close</button></div>' +
-        '<div class="pfBody"></div>';
+        '<div class="pfTabs" hidden></div><div class="pfBody"></div>';
       board.querySelector('.pfClose').onclick = close;
       document.body.appendChild(board);
     }
-    boardName = name;
-    const body = board.querySelector('.pfBody');
+    if (boardName !== name) pageId = 'main';
+    boardName = name; boardRec = rec || null;
+    const body = board.querySelector('.pfBody'), tabs = board.querySelector('.pfTabs');
     const paint = r => {
       freeUrls(); if (cycle) { clearInterval(cycle); cycle = null; }
-      body.innerHTML = '';
+      body.innerHTML = ''; tabs.innerHTML = ''; tabs.hidden = true;
       if (!r) { const m = $('div', 'pfMsg'); m.textContent = 'No fiche yet: it is drawn when this aeroplane takes its airworthiness certificate.'; body.appendChild(m); return; }
+      // the plane on the stand: its list row while it is the one opened from the list (garage.js listed())
+      if (!r.baked && standName() === name && W.GARAGE_SPEC && W.GARAGE_SPEC.listed) { try { const l = W.GARAGE_SPEC.listed(); if (l) { r.listFile = l.file; r.listRow = l.row; } } catch (e) {} }
       const d = r.data || {}, st = P.stale && standName() === name ? P.stale(r) : null, nmS = titleOf(d.name || name, bakedIdx);
       board.querySelector('.pfHead b').textContent = nmS;
       board.querySelector('.pfReg').textContent = d.reg || '';
@@ -267,8 +307,38 @@
       const upd = board.querySelector('.pfUpd'), can = !r.baked && standName() === name && certNow() && !drawing;
       upd.disabled = !can; upd.title = can ? 'Draw the fiche again (a few seconds)' : r.baked ? 'An official aeroplane\'s fiche comes with the game' : standName() !== name ? 'Put this aeroplane on the stand to update its fiche' : 'Its certificate first: the fiche is the certified aeroplane\'s';
       upd.onclick = () => { if (!upd.disabled) drawFor(name, 'update'); };
-      board.querySelector('.pfShare').onclick = () => share(r);
-      const sh = $('div', 'pfSheet'), fr = $('div', 'pfFrame'), top = $('div', 'pfTop'), low = $('div', 'pfLow');
+      const ctx = ctxOf(name, r, nmS), ids = pages.shown(r, ctx);
+      if (!ids.includes(pageId)) pageId = ids.includes('main') ? 'main' : ids[0] || 'main';
+      board.querySelector('.pfShare').onclick = () => share(r, ctx);
+      if (ids.length > 1) {
+        tabs.hidden = false;
+        for (const id of ids) { const b = $('button'); b.type = 'button'; b.textContent = PAGES[id].label; b.setAttribute('aria-pressed', id === pageId ? 'true' : 'false');
+          b.onclick = () => { if (pageId !== id) { pageId = id; paint(r); } }; tabs.appendChild(b); }
+      }
+      const sh = $('div', 'pfSheet'); body.appendChild(sh);
+      const pg = PAGES[pageId];
+      if (!pg) return;
+      try { const p = pg.mount(sh, r, ctx); if (p && p.catch) p.catch(e => console.warn('flyDiy (fiche page ' + pageId + '):', e && e.message)); }
+      catch (e) { console.warn('flyDiy (fiche page ' + pageId + '):', e && e.message); const m = $('div', 'pfMsg'); m.textContent = 'This page could not be drawn.'; sh.appendChild(m); }
+    };
+    board.hidden = false;
+    if (rec) baked().then(() => paint(rec), () => paint(rec));
+    else if (/^(design|list|cand|stock|arch):/.test(name)) baked().then(B => paint(bakedRec(name, B)), () => paint(null));
+    else baked().catch(() => ({})).then(() => P.get(name)).then(paint, () => paint(null));
+  }
+  // what every page is handed, WHOLE (the registry's promise): the stand's spec for the plane on it, the title, the propeller's
+  // offset, the list row and file the record carries, the board's url maker
+  function ctxOf(name, r, title) {
+    const onStand = !r.baked && standName() === name;
+    let spec = null; try { spec = onStand && W.GARAGE_SPEC && W.GARAGE_SPEC.get ? W.GARAGE_SPEC.get() : null; } catch (e) { spec = null; }
+    let propOff = null; try { propOff = onStand && typeof genAidPropOff === 'function' ? genAidPropOff(W.CAGE_ENG) : null; } catch (e) { propOff = null; }
+    return { spec, title, propOff, listFile: r.listFile || '', listRow: r.listRow || '', urlOf };
+  }
+  // MAIN: today's fiche (the hero, the cutaway where it fits, the strip of views with their dimensions, the numbers)
+  function mountMain(sh, r, ctx) {
+    {
+      const d = r.data || {}, nmS = ctx.title;
+      const fr = $('div', 'pfFrame'), top = $('div', 'pfTop'), low = $('div', 'pfLow');
       const hero = $('img', 'pfHero'); hero.alt = ''; hero.src = urlOf(r.pics.hero); top.appendChild(hero);
       if (r.pics.cutaway) {
         const c = $('img', 'pfCut'); c.alt = ''; c.src = urlOf(r.pics.cutaway); top.appendChild(c);
@@ -296,14 +366,15 @@
       side.appendChild(dl);
       low.appendChild(strip); low.appendChild(side);
       const sg = $('div', 'pfSig'); sg.textContent = sig();
-      fr.appendChild(top); fr.appendChild(low); fr.appendChild(sg); sh.appendChild(fr); body.appendChild(sh);
-    };
-    board.hidden = false;
-    if (rec) baked().then(() => paint(rec), () => paint(rec));
-    else if (/^(design|list|cand|stock|arch):/.test(name)) baked().then(B => paint(bakedRec(name, B)), () => paint(null));
-    else baked().catch(() => ({})).then(() => P.get(name)).then(paint, () => paint(null));
+      fr.appendChild(top); fr.appendChild(low); fr.appendChild(sg); sh.appendChild(fr);
+    }
   }
-  function close() { if (board) board.hidden = true; if (cycle) { clearInterval(cycle); cycle = null; } freeUrls(); }
+  pages.add({ id: 'main', label: 'Main', mount: mountMain });
+  // CUTAWAY: the baked cutaway at the sheet's width (no new bake)
+  pages.add({ id: 'cutaway', label: 'Cutaway', visible: r => !!(r && r.pics && r.pics.cutaway),
+    mount: (sh, r) => { const fr = $('div', 'pfFrame'), im = $('img', 'pfCutBig'); im.alt = ''; im.src = urlOf(r.pics.cutaway); fr.appendChild(im);
+      const sg = $('div', 'pfSig'); sg.textContent = sig(); fr.appendChild(sg); sh.appendChild(fr); } });
+  function close() { if (board) board.hidden = true; if (cycle) { clearInterval(cycle); cycle = null; } freeUrls(); boardRec = null; }
   // ---- the share: one composed picture ---------------------------------------------------------------------------------
   const bitmap = b => (typeof b === 'string' ? fetch(b).then(r => r.blob()) : Promise.resolve(b)).then(x => createImageBitmap(x));
   async function compose(r) {
@@ -347,8 +418,9 @@
     g.stroke();
     return new Promise(res => c.toBlob(res, 'image/png'));
   }
-  async function share(r) {
-    let blob = null; try { blob = await compose(r); } catch (e) { note('The picture could not be made: ' + String(e && e.message || e).slice(0, 80)); return; }
+  async function share(r, ctx) {
+    const pg = PAGES[pageId];
+    let blob = null; try { blob = pg && pg.compose ? await pg.compose(r, ctx) : await compose(r); } catch (e) { note('The picture could not be made: ' + String(e && e.message || e).slice(0, 80)); return; }
     if (!blob) return;
     const fname = String(titleOf((r.data && r.data.name) || r.name || 'aeroplane', bakedIdx)).replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') + '_fiche.png';
     const file = typeof File === 'function' ? new File([blob], fname, { type: 'image/png' }) : null;
@@ -358,5 +430,5 @@
     const a = document.createElement('a'), u = URL.createObjectURL(blob); a.href = u; a.download = fname; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(u), 4000);
   }
-  W.FICHE_BOARD = { certified, saved, show, close, rowButton, tileDoor, forget, compose, drawFor, titleOf, cutSpot, sig, get pending() { return pending; }, get drawing() { return drawing; } };
+  W.FICHE_BOARD = { certified, saved, show, close, rowButton, tileDoor, forget, compose, drawFor, titleOf, cutSpot, sig, pages, bakedRec, get pending() { return pending; }, get drawing() { return drawing; } };
 })();

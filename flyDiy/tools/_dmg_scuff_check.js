@@ -209,6 +209,11 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     yes(sl.coh / sl.scrape > 0.5, 'the wing-low slide went one way: its scraped vertices\' slide coherence along the skin averages ' + (sl.coh / sl.scrape).toFixed(2) + ' (streaked; the taxi\'s rub into a trunk ' + (C['taxi-3'].n.scrape ? (C['taxi-3'].n.coh / C['taxi-3'].n.scrape).toFixed(2) : '-') + ')');
     yes(sl.soil === sl.scrape, 'the slide on grass stains what it scraped (' + sl.soil + ' of ' + sl.scrape + ')');
     yes(C['slide-L'].phys.yields === 0 ? C['slide-L'].n.crush === 0 : true, 'the slide without a yield crushes nothing');
+    // G4101 (the user 13 Nov: "ANY impact must show on the plane - if it touches anything, the scuff goes on"): the 3 m/s
+    // taxi into a trunk - nothing breaks, nothing yields - still marks the cowl where it met the bark
+    const tx3 = C['taxi-3'];
+    yes(tx3.n.scrape > 0 && tx3.phys.scW > 0, 'a touch shows: the 3 m/s taxi into a trunk marks ' + tx3.n.scrape + ' vertices (' + tx3.phys.scW + ' J at the bark, '
+      + tx3.phys.yields + ' yields)');
     const tp = C['trunk-0'].panes;
     // (2 Nov, the port onto master: 6 Oct's crash cracked the windscreen alone. Today's 30 m/s trunk hits the rear window
     // too - the Cub 0.503, the metal Cessna 1, the Jodel's clean - the crash itself has moved since (GATE DMGSCAR's two
@@ -269,8 +274,12 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
   yes(/const re = m\.userData && m\.userData\.scuffRe;\n\s+b = m\.userData && m\.userData\.flownBaked \? copyMat\(m, re \? re\(FB_BAND_HOOK\) : FB_BAND_HOOK/.test(fb), 'flown_bake.js: the baked band keeps a wrapper only a damage material carries (scuffRe)');
   const sol = fs.readFileSync(path.join(ROOT, 'src', 'core', '30_solver.js'), 'utf8');
   // (the call sites in the step: not the definitions, and not scuffTrunk's own call of scuffAdd - reached only through them)
-  const calls = sol.split('\n').filter(l => /scuffAdd\(|scuffTrunk\(/.test(l) && !/function scuff/.test(l) && !/if \(st > 0\.05\) scuffAdd/.test(l));
-  yes(calls.length >= 2 && calls.every(l => /DMG_ON/.test(l)), 'the solver records the slide only behind DMG_ON (' + calls.length + ' call sites)');
+  // (G4101: and not the helpers' own calls - scuffTrunk's press, scuffNose's mark; scuffNose's call sits in an `if (DMG_ON) {`
+  // block, its guard within the four lines before it)
+  const SL = sol.split('\n'), calls = [];
+  SL.forEach((l, k) => { if (/scuffAdd\(|scuffTrunk\(|scuffNose\(/.test(l) && !/function scuff/.test(l) && !/if \((st > 0\.05|vn < -0\.05|wk > 0)\) scuffAdd/.test(l))
+    calls.push(/DMG_ON/.test(l) || /if \(DMG_ON\) \{/.test(SL.slice(Math.max(0, k - 4), k).join('\n')) ? 'DMG_ON ' + l : l); });
+  yes(calls.length >= 3 && calls.every(l => /DMG_ON/.test(l)), 'the solver records the slide only behind DMG_ON (' + calls.length + ' call sites)');
   console.log('(' + (checks - fails) + '/' + checks + ' checks, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
   console.log('GATE DMGSCUFF: ' + (fails ? 'FAIL' : 'PASS'));   // (run_gates.js reads this line exactly)
   process.exit(fails ? 1 : 0);

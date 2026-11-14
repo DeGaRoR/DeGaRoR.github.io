@@ -88,6 +88,7 @@ async function child() {
   R.t.crash = Date.now() - t1;
   // (train 41, A0: THE SHEET - at the crash's end, every riding record's longest drawn live edge past 1.5 x its rest + 5 cm)
   R.sheet = W.FLYDIY_SKIN_LONGEST ? W.FLYDIY_SKIN_LONGEST() : null;
+  R.cut = W.FLYDIY_CUT_STATS ? W.FLYDIY_CUT_STATS() : null;   // G4102 (CUT-THROUGH)
   const s1 = SW ? SW.state() : null, dm = FP.damage ? FP.damage() : null;
   R.end = { simT: +(sim.t - tA).toFixed(3), phase: s1 && s1.phase, strays: s1 ? s1.strays : null, errors: s1 ? s1.errors : null,
             verdict: dm ? { reason: dm.reason || null } : null };
@@ -133,6 +134,10 @@ function judge(R, say) {
   if (!(R.page && R.page.wreck && (R.page.gone > 0 || R.page.bodies > 0))) bad('no debris on the page (wreck ' + (R.page && R.page.wreck) + ', parts gone ' + (R.page && R.page.gone) + ', pieces ' + (R.page && R.page.bodies) + ')');
   // 5 THE SHEET (A0, train 41): no drawn live edge past 1.5 x its rest + 5 cm at the crash's end, any record
   say('  the longest drawn live edges at the end: ' + JSON.stringify(R.sheet));
+  // G4102 (CUT-THROUGH): the triangles removed across a parting drawn again as cut copies, beside the records, finite
+  say('  the cut-through at the end: ' + JSON.stringify(R.cut));
+  if (R.cut && R.cut.copies > 0 && !(R.cut.meshes > 0)) bad('the cut copies were made (' + R.cut.copies + ') but no mesh draws them');
+  if (R.cut && R.cut.bad > 0) bad('a cut copy drawn not finite (' + R.cut.bad + ' records)');
   if (R.sheet && R.sheet.past > 0) bad('A DRAWN SHEET: ' + R.sheet.past + ' records with a live edge past 1.5 x its rest + 5 cm - the worst ' + JSON.stringify(R.sheet.worst[0]));
   // 4 errors
   const we = R.end && R.end.errors ? R.end.errors.length : 0;

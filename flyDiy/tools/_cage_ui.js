@@ -4280,6 +4280,14 @@ function decKitDefaults() {
         if (!(key in DEC_DEF)) DEC_DEF[key] = A.AERO_TXT_LDEF[k];
         if (!(key in DEC)) DEC[key] = A.AERO_TXT_LDEF[k];
       }
+  // LIVERY-STICKERS: the livery stickers' rows arrive the same way and for the same reason (vn<i><field>)
+  if (A.AERO_VINYL_LDEF && A.AERO_VINYL_FIELDS && A.AERO_VINYL_N)
+    for (let i = 1; i <= A.AERO_VINYL_N; i++)
+      for (const k of A.AERO_VINYL_FIELDS) {
+        const key = 'vn' + i + k;
+        if (!(key in DEC_DEF)) DEC_DEF[key] = A.AERO_VINYL_LDEF[k];
+        if (!(key in DEC)) DEC[key] = A.AERO_VINYL_LDEF[k];
+      }
   return (decKitIn = true);
 }
 let decPanel = null, decImgAspect = 1;
@@ -4557,6 +4565,26 @@ function decFitScan(A) {
   // in would start a root-to-tip fade half a metre inboard of the root.
   if (box[1][0][0] < 0 && box[1][0][1] > 0) box[1][0][0] = 0;
   return box;
+}
+// LIVERY-STICKERS: A STICKER'S FIRST PLACE (the user, 9 Nov: "in the middle of the fuselage of the plane"). A slot the
+// player switches on whose placement is still untouched (station, height and projection at their defaults) goes to the
+// middle of THIS build's fuselage - the body's field box, mid-length - with its top just UNDER the waist line, on the solid
+// flank (on the stock Cub the waist is the window sill: centred on it, the top half fell on the glass, which takes no
+// decal and showed half a sticker), in the field frame. Measured
+// by decFitScan, the kit's own fit; no geometry (a bench, a stub), the defaults stand. The rows it writes are deviations
+// like any the player drags, so a build that never turns a sticker on still carries none.
+function decVinylFirstPlace(q) {
+  const A = AK();
+  if (!A || !DEC[q + 'On']) return false;
+  if (DEC[q + 'L'] !== DEC_DEF[q + 'L'] || DEC[q + 'C'] !== DEC_DEF[q + 'C'] || (+DEC[q + 'Mode'] || 0) !== 0) return false;
+  let b = null;
+  try { b = decFitScan(A); } catch (e) { b = null; }
+  const f = b && b[0] && b[0][0];
+  if (!f || !(f[1] > f[0])) return false;
+  DEC[q + 'L'] = +((f[0] + f[1]) / 2).toFixed(2);
+  DEC[q + 'C'] = -Math.round(((+DEC[q + 'H'] || 0.35) / 2 + 0.03) * 100) / 100;
+  for (const k of ['L', 'C']) if (SYNC[q + k]) SYNC[q + k]();
+  return true;
 }
 function decFitApply(A) {
   if (!A.AERO_KIT_LAYERS) return;
@@ -5468,6 +5496,108 @@ function buildDecPanel() {
       pick('projected as', q + 'Mode', MODE_NAMES, MODE_HELP,
            (was, now) => decReframe(was, now, { l: q + 'L', c: q + 'C' }), det);
       refresh.push(() => decFitGrey(q));
+      redo();
+    }
+  }
+
+  // ---- THE LIVERY STICKERS (LIVERY-STICKERS, 9 Nov) ---------------------------
+  // Four slots, each its own <details> like a kit layer: a mark (the twelve Alaska marks, picked from their pictures),
+  // one colour (unset: the trim, like the registration's ink), a size, the livery layer's placement rows, the sides
+  // and the mirror. aeroskin draws and places them (aeroVinylLayers); this panel only edits DEC's vn* rows.
+  DECG.cur = 'vny';
+  if (A.AERO_VINYL_MARKS && A.AERO_VINYL_N) {
+    const MK = A.AERO_VINYL_MARKS;
+    const mkOf = q => MK[Math.max(0, Math.min(MK.length - 1, Math.round(+DEC[q + 'Mk'] || 0)))];
+    // THE PICTURES come with the marks' geometry (the lazy livery_marks.js): the buttons say the number until it lands
+    const thumbs = [];
+    const thumbFill = () => {
+      const G = A.aeroVinylGeo && A.aeroVinylGeo();
+      if (!G) return false;
+      for (const t of thumbs) {
+        if (t.done) continue;
+        const rings = A.aeroVinylRings(G, t.mk), b = MK[t.mk].b;
+        if (!rings) continue;
+        const d = rings.map(r => 'M' + r.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L') + 'Z').join('');
+        t.el.innerHTML = '<svg viewBox="' + [b[0], b[1], b[2] - b[0], b[3] - b[1]].map(v => +v.toFixed(1)).join(' ') +
+          '" width="30" height="30" style="display:block"><path fill="currentColor" fill-rule="evenodd" d="' + d + '"/></svg>';
+        t.done = true;
+      }
+      return true;
+    };
+    if (!thumbFill() && typeof window !== 'undefined' && typeof window.FLYDIY_LAZY === 'function')
+      try { window.FLYDIY_LAZY('livery_marks').then(() => { thumbFill(); if (A.aeroVinylReady) A.aeroVinylReady(); draw(); }); } catch (e) {}
+    for (let li = 1; li <= A.AERO_VINYL_N; li++) {
+      const q = 'vn' + li;
+      const det = document.createElement('details');
+      det.dataset.g = 'sticker/' + li;
+      det.dataset.dec = 'vny';
+      const sum = document.createElement('summary');
+      det.appendChild(sum); body.appendChild(det);
+      const refresh = [];
+      const say = () => {
+        const on = !!DEC[q + 'On'];
+        sum.textContent = 'sticker ' + li + ' — ' + (on ? mkOf(q).name : 'off');
+        sum.style.opacity = on ? '' : '.55';
+      };
+      const redo = () => { for (const f of refresh) f(); say(); };
+      DEC_RELOAD.push(redo);
+      flag('on', q + 'On', 'put this sticker on the aeroplane - switched on, it goes to the middle of the fuselage',
+           () => { if (DEC[q + 'On']) { det.open = true; decVinylFirstPlace(q); } redo(); }, det);
+      // the mark: twelve buttons, the picked one outlined
+      {
+        const d = row('mark', 'the twelve Alaska marks: one colour, cut from vinyl', det);
+        const grid = document.createElement('div');
+        grid.style.cssText = 'flex:1;display:grid;grid-template-columns:repeat(6,1fr);gap:3px';
+        const btns = [];
+        MK.forEach((m, k) => {
+          const bt = document.createElement('button');
+          bt.type = 'button'; bt.title = m.name; bt.dataset.mk = k;
+          bt.style.cssText = 'padding:2px;min-width:0;height:36px;display:flex;align-items:center;justify-content:center;' +
+            'background:transparent;color:inherit;border:1px solid rgba(127,127,127,.35);border-radius:3px;cursor:pointer';
+          bt.textContent = String(k + 1);
+          bt.onclick = () => { DEC[q + 'Mk'] = k; if (!DEC[q + 'On']) { DEC[q + 'On'] = 1; if (SYNC[q + 'On']) SYNC[q + 'On'](); decVinylFirstPlace(q); }
+            redo(); decSavePrefs(); applyDecals(); draw(); };
+          grid.appendChild(bt); btns.push(bt); thumbs.push({ el: bt, mk: k });
+        });
+        d.appendChild(grid);
+        refresh.push(() => { const cur = Math.round(+DEC[q + 'Mk'] || 0);
+          btns.forEach((bt, k) => { bt.style.outline = k === cur ? '2px solid currentColor' : ''; bt.style.opacity = k === cur ? '1' : '.7'; }); });
+        SYNC[q + 'Mk'] = () => redo();
+      }
+      // the colour: unset follows the trim, as the registration's ink does; double-click the label to follow again
+      {
+        const d = row('colour', 'the vinyl\'s colour. Unset it follows the aeroplane\'s trim — double-click the label to go back to following', det);
+        const c = document.createElement('input');
+        c.type = 'color'; c.style.flex = 'none';
+        wellRecent(c);
+        const cur = () => {
+          if (DEC[q + 'Col'] != null) return DEC[q + 'Col'];
+          try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); if (S && S.paint && S.paint.trim != null) return S.paint.trim; } catch (e) {}
+          return 0x1b3a5c;
+        };
+        const paint = () => { c.value = '#' + (cur() >>> 0).toString(16).padStart(6, '0'); };
+        paint();
+        c.oninput = () => { DEC[q + 'Col'] = parseInt(c.value.slice(1), 16); decSavePrefs(); applyDecals(); draw(); };
+        const k = d.querySelector('span.k');
+        if (k) { k.style.cursor = 'pointer'; k.ondblclick = () => { DEC[q + 'Col'] = null; paint(); decSavePrefs(); applyDecals(); draw(); }; }
+        d.appendChild(c);
+        refresh.push(paint);
+      }
+      num('size', q + 'H', 0.05, 1.5, 0.01, 'metres — the mark\'s height; its width follows the mark', null, det);
+      num('station', q + 'L', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len', det);
+      num('height on side', q + 'C', -1.2, 1.2, 0.02,
+          'metres around the section from the waist rail, + upward', 'up', det);
+      num('turn', q + 'Rot', -3.15, 3.15, 0.01, 'radians', null, det);
+      pick('sides', q + 'Side', A.AERO_VINYL_SIDES || ['both sides', 'the right side only', 'the left side only'],
+           'both flanks, or one: the right is the pilot\'s right', null, det);
+      flag('mirror on the left', q + 'Mir',
+           'the left flank wears the mirror image, so the mark faces the same way (to the nose, say) on both sides', null, det);
+      pick('goes on', q + 'Tgt',
+           ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail',
+            'the wings', 'the tail', 'the fin', 'the stabiliser'],
+           'where the sticker may land; a sticker is vinyl, so it skips the floats like the registration', null, det);
+      pick('projected as', q + 'Mode', MODE_NAMES, MODE_HELP,
+           (was, now) => decReframe(was, now, { l: q + 'L', c: q + 'C' }), det);
       redo();
     }
   }

@@ -223,8 +223,9 @@ function manifestFiles() {
              'ktx2_twins.js',   // AS3 (G916): the KTX2 twins of the plain maps (tools/ktx2_twins.js, media/tex/ktx2/<family>/)
              'cabin_livery.js',   // the tram cabin's liveries (G343)
              'blueprint_library.js',   // the blueprint library's sheets (G573.2, media/blueprints/)
-             'map_pack.js',
-             'dust_atlas.js']   // DIRT-DUST V2 (11 Nov): the dust puff's six-way atlas (tools/dust_atlas_bake.js, media/tex/dust/)   // the island map's projection, its bake and the user's painting (G2250 / G2324, media/map/)
+             'map_pack.js',   // the island map's projection, its bake and the user's painting (G2250 / G2324, media/map/)
+             'dust_atlas.js',   // DIRT-DUST V2 (11 Nov): the dust puff's six-way atlas (tools/dust_atlas_bake.js, media/tex/dust/)
+             'crack_sheet.js']   // CANOPY-CRACKS (12 Nov): the glazing's crack sheets (tools/crack_sheet_bake.js, media/tex/crack/)
     .map(f => path.join(ROOT, 'src', 'viewer', f));
   const packs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'src', 'props', 'props_packs.json'), 'utf8'))
@@ -547,7 +548,14 @@ const present = walkMedia(MEDIA);
     if (fetched && !refs.has(rel)) refs.set(rel, 'src/viewer/fiche_board.js');
     let J = null; try { J = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8')); } catch (e) {}
     check(!!(J && J.fiches && typeof J.fiches === 'object'), `${rel} is a fiche index ({fiches: {key: {pics}}})`);
-    if (fetched) for (const b of Object.values((J && J.fiches) || {})) for (const f of Object.values((b && b.pics) || {})) { const r = 'media/fiches/' + f; if (!refs.has(r)) refs.set(r, rel); } } }
+    if (fetched) for (const b of Object.values((J && J.fiches) || {})) for (const f of Object.values((b && b.pics) || {})) { const r = 'media/fiches/' + f; if (!refs.has(r)) refs.set(r, rel); }
+    // PHYSICS-PAGES (12 Nov): the fiche's physics sections fetch, beside each fiche's side picture, its physics.json
+    // (tools/fiche_physics_bake.js: one per fiche the index names), and once, media/fiches/references.json
+    // (tools/fiche_reference_bake.js) - named by fiche_physics.js, so held both ways: each one present, none orphaned
+    const FPs = path.join(ROOT, 'src', 'viewer', 'fiche_physics.js'), FP = fs.existsSync(FPs) ? fs.readFileSync(FPs, 'utf8') : '';
+    if (fetched && /'physics\.json'/.test(FP))
+      for (const b of Object.values((J && J.fiches) || {})) { const side = b && b.pics && b.pics.side; if (typeof side === 'string' && side.includes('/')) { const r = 'media/fiches/' + side.replace(/[^/]*$/, 'physics.json'); if (!refs.has(r)) refs.set(r, 'src/viewer/fiche_physics.js'); } }
+    if (/'media\/fiches\/references\.json'/.test(FP) && !refs.has('media/fiches/references.json')) refs.set('media/fiches/references.json', 'src/viewer/fiche_physics.js'); } }
 checkStore(refs, present);
 // MEDIA ACCEPTED BY NAME (a media file the user accepted by its size; the gate holds it to that size - a re-encode that
 // grows it is a new ask, not a silent pass)

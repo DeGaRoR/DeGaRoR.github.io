@@ -1059,7 +1059,7 @@ function editorInit(api) {
       // `data-dec` tag every row carries
       const dec = CU.DECBODY;
       if (dec) {
-        const by = { reg: [], txt: [], kit: [], body: [], wing: [], stk: [], spiral: [], other: [] };
+        const by = { reg: [], txt: [], kit: [], vny: [], body: [], wing: [], stk: [], spiral: [], other: [] };
         for (const el of Array.from(dec.children))
           (by[(el.dataset && el.dataset.dec) || 'other'] || by.other).push(el);
         emitEls(p0, 'registration', by.reg.concat(by.other),
@@ -1067,6 +1067,9 @@ function editorInit(api) {
         // LIVERY-TEXT (9 Nov): the six text pieces - a name, a slogan - under their own heading
         if (by.txt.length) emitEls(p0, 'lettering', by.txt, 'up to six lines of text — a name, a slogan');
         emitEls(p0, 'livery', by.kit, 'the marking kit — three layers');
+        // LIVERY-STICKERS: the twelve Alaska marks, four slots
+        if (by.vny.length)
+          emitEls(p0, 'stickers', by.vny, 'vinyl marks — four slots, one colour each, placed like a livery layer');
         emitEls(p0, 'body image', by.body, 'a picture on the fuselage');
         emitEls(p0, 'wing image', by.wing, 'a picture on the wing');
         // G208.2: the certification stickers' place and fine tuning
@@ -3701,8 +3704,9 @@ function editorInit(api) {
       // the scoop's own mouth, from buildScoop's own two lines
       scoop: C => {
         const ze = C.zEnd();
-        const y = C.spineY(ze * 0.6) -
-          C.sectionAtZ(C.P.cowlLen * 0.5).bB * C.P.scoopDrop;
+        // ENGINE-COOLING: a top scoop (scoopTop) sits above the spine
+        const y = C.P.scoopTop ? C.spineY(ze * 0.6) + C.sectionAtZ(C.P.cowlLen * 0.5).bT * C.P.scoopDrop
+          : C.spineY(ze * 0.6) - C.sectionAtZ(C.P.cowlLen * 0.5).bB * C.P.scoopDrop;
         const z1 = C.P.cowlLen + C.P.lidLen * 0.35;
         return [[0, y, z1], [0, y, z1 - C.P.scoopLen]];
       },
@@ -3738,7 +3742,7 @@ function editorInit(api) {
       scoopOn: 'scoop', scoopLen: 'scoop', scoopW: 'scoop', scoopH: 'scoop',
       scoopSq: 'scoop', scoopLipH: 'scoop', scoopDrop: 'scoop',
       scoopRake: 'scoop', scoopAp: 'scoop', scoopLipDepth: 'scoop',
-      scoopDuct: 'scoop',
+      scoopDuct: 'scoop', scoopRev: 'scoop', scoopTop: 'scoop', scoopAft: 'scoop',
       oilOn: 'oil', oilZ: 'oil', oilW: 'oil', oilL: 'oil', oilSq: 'oil',
       partOn: 'part', partY: 'part', partW: 'part',
       apMode: 'aps', apW: 'aps', apH: 'aps', apSq: 'aps',
@@ -3771,7 +3775,8 @@ function editorInit(api) {
     //                       first is what makes the hex mean what it says —
     //                       (250,212,130) -> a real amber against the cream.
     const m = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(HI.pin).convertSRGBToLinear(),
+      // (12 Nov: r186's managed colour already decodes the hex - convert only when management is off: once)
+      color: THREE.ColorManagement && THREE.ColorManagement.enabled ? new THREE.Color(HI.pin) : new THREE.Color(HI.pin).convertSRGBToLinear(),
       transparent: true, opacity: 0.95, toneMapped: false,
       depthTest: false, depthWrite: false, fog: false });
     m.onBeforeCompile = sh => {

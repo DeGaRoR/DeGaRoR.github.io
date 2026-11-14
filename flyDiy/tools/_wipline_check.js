@@ -5,11 +5,13 @@
 //   node tools/_wipline_check.js --show     -> every preset's numbers
 //
 // WHAT IT ASSERTS:
-//   CATALOGUE  every FLOAT_PRESETS row builds a hull whose volume to the deck
-//              is the row's maximum flotation within 1.5 % (measured rows) /
-//              4 % (rows marked est), whose length, width and OVERALL height
-//              (the bow's: hull H + the sheer) ARE the row's, with a fineness
-//              inside [-0.7, 1] and a finite mass;
+//   CATALOGUE  every FLOAT_PRESETS row's fineness is fitted at the row's box
+//              to its maximum flotation within 1.5 % (measured rows) / 4 %
+//              (est), inside [-0.7, 1]; the hull is then SCALED to the row's
+//              displacement (one float's volume; HYDRO-SCALE, USER 13 Nov)
+//              within 0.2 %: the length x s (0.955-0.965), the width x s^2,
+//              the OVERALL height (the bow's: hull H + the sheer) the row's;
+//              a finite mass;
 //   DRAWN      FLOAT_GEN draws each preset's hull CLOSED (no open edge,
 //              outward winding), with a volume that matches the physics loft
 //              within 1 %, its protrusions closed, a water rudder blade of the
@@ -44,15 +46,20 @@ console.log('CATALOGUE');
   for (const name of H.FLOAT_PRESET_NAMES) {
     const R = H.FLOAT_PRESETS[name], P = H.presetParams(name);
     const F = H.makeFloat(P);
-    const vol = F.volDeck * P.rho, tol = R.est ? 0.04 : 0.015;
-    const good = Math.abs(vol / R.flot - 1) < tol && Math.abs(P.L - R.L) < 1e-9 && Math.abs(P.B - R.B) < 1e-9 && Math.abs(P.H * (1 + (P.sheerK || 0)) - R.H) < 1e-9
+    // RE-PINNED (HYDRO-SCALE, 13 Nov): "USER 13 Nov: Wipline floats scaled to disp, shape kept". The fineness is
+    // fitted to `flot` at the sheet's box as before (fitRes); the hull is then scaled to ONE float's `disp` (`flot` is
+    // the pair's FAR maximum aeroplane, disp / 0.9): the length by s, the width by s^2, the height kept, s solved per
+    // row (0.955-0.965: ~-4 % length, ~-8 % width)
+    const vol = F.volDeck * P.rho, tol = R.est ? 0.04 : 0.015, s = P.L / R.L;
+    const good = Math.abs(vol / R.disp - 1) < 0.002 && Math.abs(P.fitRes || 0) < tol && s > 0.955 && s < 0.965 && Math.abs(P.B - R.B * s * s) < 1e-9
+              && Math.abs(P.H * (1 + (P.sheerK || 0)) - R.H) < 1e-9
               && P.fineK >= -0.7 && P.fineK <= 1 && Number.isFinite(P.mFloat) && P.mFloat > 5;
-    if (SHOW || !good) console.log(`   ${name.padEnd(14)} L ${f(P.L, 2)} W ${f(P.B, 2)} H ${f(P.H * (1 + (P.sheerK || 0)), 2)} (${f(P.H, 2)} at the step + the sheer)  deadrise ${f(P.beta, 1)}/${f(P.betaA, 1)}  fineness ${f(P.fineK, 2)}  ` +
-      `volume ${f(vol, 0)} vs flotation ${R.flot} (${f(100 * (vol / R.flot - 1), 1)} %)  mass ${f(P.mFloat, 0)} kg${R.est ? '  [est]' : ''}`);
+    if (SHOW || !good) console.log(`   ${name.padEnd(14)} L ${f(P.L, 2)} (x${f(s, 3)}) W ${f(P.B, 2)} (x${f(s * s, 3)}) H ${f(P.H * (1 + (P.sheerK || 0)), 2)} (${f(P.H, 2)} at the step + the sheer)  deadrise ${f(P.beta, 1)}/${f(P.betaA, 1)}  fineness ${f(P.fineK, 2)} (fit to flotation ${f(100 * (P.fitRes || 0), 1)} %)  ` +
+      `volume ${f(vol, 0)} vs displacement ${R.disp} (${f(100 * (vol / R.disp - 1), 2)} %)  mass ${f(P.mFloat, 0)} kg${R.est ? '  [est]' : ''}`);
     ok = ok && good; n++;
   }
   verdict(n >= 14, `${n} catalogue rows (bound 14: the Wipline line 1450 to 13000)`);
-  verdict(ok, `every row lands on its four catalogue numbers (length, width, height, flotation) with a fineness inside [-0.7, 1]`);
+  verdict(ok, `every row: the fineness fitted to its flotation inside [-0.7, 1], then scaled to its displacement (length x0.955-0.965, width x its square, the height the row's)`);
 }
 
 // ---- DRAWN ----------------------------------------------------------------------

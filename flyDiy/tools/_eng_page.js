@@ -256,6 +256,12 @@ const PRESETS = {
   // HULL-B49: the 100 hp 912 (the Super Petrel LS's) - the 915's bore and stroke, injected, naturally aspirated
   'rotax 912 iS': { bore: 0.084, stroke: 0.0611, rpm: 5800, liquid: 1,
     geared: 1, injected: 1, airStyle: 1 },
+  // THE PC-6's PT6A-27 (12 Nov, FIT-PROCEDURE): the can FITTED to the rating at its flat margin, as the medium PT6s'
+  // (ruling 2): 0.3592 m -> 410.1 kW (550 shp) rated at 680/550 = 1.236; the -34's small reduction gearbox (1.15)
+  // and the PC-6's 2 200 rpm propeller. After the custom engine: PRESETS_AFTER_CUSTOM below (no saved index moves)
+  'P&W PT6A-27': { arch: 'turbine', tStyle: 0, tCanD: 0.3592, tCanL: 1.05,
+    gearK: 1.15, flatK: 1.236, tRpm: 2200, fwW: 0.80, fwH: 0.80,
+    carbOn: 0, airbox: 0, plumb: 0 },
   'bare engine': { mount: 0, fwOn: 0, plumb: 0 },
 };
 
@@ -484,7 +490,7 @@ const CUSTOM_ENGINE = 'custom engine';
 // THE SAVED ORDER, ONE KEEPER (NEW-SHAPES-1): the names engPreset indexes - the catalogue as it stood when the custom
 // engine took slot 41, the custom engine, then every preset added since (PRESETS_AFTER_CUSTOM, in the order added).
 // Every list that turns an index into an engine or back reads this, never Object.keys(PRESETS) on its own.
-const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66', 'rotax 916 iS', 'rotax 912 iS'];
+const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66', 'rotax 916 iS', 'rotax 912 iS', 'P&W PT6A-27'];
 function presetNames() {
   const all = Object.keys(PRESETS).filter(n => n !== 'bare engine');
   return all.filter(n => !PRESETS_AFTER_CUSTOM.includes(n)).concat([CUSTOM_ENGINE],

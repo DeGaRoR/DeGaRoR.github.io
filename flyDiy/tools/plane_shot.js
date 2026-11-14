@@ -186,12 +186,22 @@ const ANALYSE = `async (a, b) => {
 // A dark studio either way: the studio's black under a soft radial backdrop, the studio's own lights plus a portrait
 // key (low at the front, so a belly seen from below is lit) and a rim from behind; no pool, no floor. Drawn at 2x and
 // halved (the supersample is the anti-aliasing). The page's size, lens and pose come back as they were.
-const PORTRAIT_BODY = `(o, root, fwd0) => {
+// THE CRAFT FRAME FOLLOWS THE PORTRAIT (SIDEBOX-SLIDE, 12 Nov): the side-box and plan-box liveries (kit m<n>Mode 1/2)
+// project through vCraftPos = uCraftInv * modelMatrix * v, and uCraftInv is ONE shared uniform the game sets once a frame
+// (app.js poseModel: from the mount in the garage, from model.grp in flight). A portrait draws synchronously, between
+// frames: the levelled hero turned the mount ~10 deg (the PC-6's stance) under a frame still measured on the pitched mount,
+// so the bands came out diagonal and the far flank rotated. So the body sets the frame from the root it draws (craft: the
+// axes of that root, as app.js passes them), after the levelling, and puts the frame back after. The profile's root is not
+// turned, so its frame is the frame it had, bit for bit.
+const PORTRAIT_BODY = `(o, root, fwd0, craft) => {
   const P = window.FLIGHT_PROBE, R = P.renderer(), S = P.hangarScene(), cam0 = P.camera();
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const pitch0 = root.rotation.x;
   if (o.kind !== 'profile' && !fwd0) root.rotation.x = 0;   // the air's attitude for the hero and the board's 3-view; the thumbnail stands
   root.updateMatrixWorld(true);
+  const AK = window.AEROSKIN, CU = AK && AK.aeroSetCraft && AK.aeroSharedU ? AK.aeroSharedU(THREE).uCraftInv : null, craft0 = CU ? CU.value.clone() : null;
+  const reframe = () => { if (!CU || !craft) return; const m = craft.mount || root; m.updateWorldMatrix(true, false); AK.aeroSetCraft(THREE, m.matrixWorld, craft.axes); };
+  reframe();
   // the box of what is drawn (the hidden overlays out), and the aeroplane's own axes (z forward in the cage, the mount
   // turned to the room; up is the room's)
   const box = new THREE.Box3(), gb = new THREE.Box3();
@@ -333,6 +343,7 @@ const PORTRAIT_BODY = `(o, root, fwd0) => {
     root.visible = true; S.background = bg0; S.remove(lights); key.dispose && key.dispose(); rim.dispose && rim.dispose(); for (const p of panels) p.bg.dispose();
     for (const m of hid) m.visible = true;
     root.rotation.x = pitch0; root.updateMatrixWorld(true);
+    if (craft0) CU.value.copy(craft0);   // the frame the page had (its next frame sets it again anyway)
     R.setPixelRatio(pr); R.setSize(sz.x, sz.y, false);
     try { window.dispatchEvent(new Event('resize')); } catch (e) {}
   }
@@ -351,10 +362,13 @@ const PORTRAIT_BODY = `(o, root, fwd0) => {
 const PORTRAIT = `(o) => {
   const body = ${PORTRAIT_BODY};
   const cage = window.CAGE_UI_SCENE, P = window.FLIGHT_PROBE;
-  if (!o.takeoff) return body(o, cage, null);
+  // the craft frame of each root, as app.js poseModel sets it: the cage's mount (x lateral, z forward, y up), the flown
+  // model.grp (x along, y up, z left)
+  const J = window.CAGE_JOIN, CAGE_F = { mount: (J && J.mount && J.mount()) || cage, axes: { lateral: 'x', along: 'z', up: 'y', aft: true } };
+  if (!o.takeoff) return body(o, cage, null, CAGE_F);
   const M = P.model && P.model(), g = M && M.grp, sim = P.sim && P.sim(), def = P.def && P.def(), CK = window.FLYDIY_COCKPIT_I;
-  if (!g || !window.FLYDIY_CRAFT_IN_SHED || !sim || !sim.ctl) { const r = body(o, cage, null); r.takeoff = 'fallback: no flown model door'; return r; }
-  const plain = o.kind === 'cuts' ? body(o, cage, null) : null;   // the orthos as before
+  if (!g || !window.FLYDIY_CRAFT_IN_SHED || !sim || !sim.ctl) { const r = body(o, cage, null, CAGE_F); r.takeoff = 'fallback: no flown model door'; return r; }
+  const plain = o.kind === 'cuts' ? body(o, cage, null, CAGE_F) : null;   // the orthos as before
   cage.updateMatrixWorld(true);
   const f = new THREE.Vector3(0, 0, 1).transformDirection(cage.parent.matrixWorld), fwd0 = [f.x, f.y, f.z];
   const fl = def && def.params && def.params.flaps, flapTO = fl && Number.isFinite(fl.to) ? fl.to : 0.25;
@@ -368,7 +382,7 @@ const PORTRAIT = `(o) => {
       let lamps = 0;
       if (CK && CK.sw) { for (const k of ['sw_nav', 'sw_beacon', 'sw_land', 'sw_taxi', 'sw_strobe']) if (k in CK.sw) { CK.sw[k] = 1; lamps++; if (CK.handSw) CK.handSw[k] = true; } try { if (CK.glow) CK.glow(0); } catch (e) {} }
       disc(2400); g.updateMatrixWorld(true);
-      const r = body(o, g, fwd0);
+      const r = body(o, g, fwd0, { mount: g, axes: { lateral: 'z', along: 'x', up: 'y', aft: false } });
       if (plain) { const hero = r.cuts.find(c => /^hero/.test(c.name)); plain.cuts = plain.cuts.map(c => /^hero/.test(c.name) && hero ? hero : c); }
       const out = plain || r;
       out.takeoff = { flap: flapTO, props: (M.props || []).length, lamps };

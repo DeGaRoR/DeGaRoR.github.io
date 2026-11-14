@@ -198,6 +198,19 @@ function statTorsion(def, torque, plane) {
 // tip: a tip point load is not comparable across panel counts, because the tip
 // station stands for a different fraction of the wing at 2 panels than at 5,
 // and reading it that way makes station density look like a stiffness change.
+// (13 Nov, FLAGSHIP's all-gates run on master: makeSim crashed in the negatives below since GEAR-FALLS (4 Nov) - a cut
+// list shifts every member's index, but the frame's damage tables (parts.dmg groups / iso / lump) still named the old
+// ones: the gear groups read a member past the end.) A def with members cut: the tables follow - each index mapped, a cut
+// member dropped
+function cutBeams(d, keep) {
+  const map = new Int32Array(d.beams.length).fill(-1); let nk = 0;
+  d.beams.forEach((b, i) => { if (keep(b, i)) map[i] = nk++; });
+  const re = a => (a || []).map(i => (i >= 0 && i < map.length ? map[i] : -1)).filter(i => i >= 0);
+  const dm = d.parts && d.parts.dmg;
+  const dmg = dm ? Object.assign({}, dm, { groups: (dm.groups || []).map(G => Object.assign({}, G, { t0: re(G.t0), t1: re(G.t1) })),
+    iso: dm.iso && re(dm.iso), lump: dm.lump && re(dm.lump) }) : dm;
+  return Object.assign({}, d, { beams: d.beams.filter((b, i) => map[i] >= 0), parts: Object.assign({}, d.parts, { dmg }) });
+}
 function statBend(def, load, plane) {
   const sim = makeSim(def, null);
   sim.reset(0);
@@ -616,8 +629,7 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m, the couple's way
         if (o >= 0 && d.nodes[o] && d.nodes[o].tag === 'WB') cut.add(i);
       });
     }
-    const d2 = Object.assign({}, d,
-      { beams: d.beams.filter((b, i) => !cut.has(i)) });
+    const d2 = cutBeams(d, (b, i) => !cut.has(i));
     const bdCut = cut.size >= 4 ? statBend(d2, 2000) : null;
     results['the bending net can catch the hinge (strut chords cut -> fold)'] =
       cut.size >= 4 && Number.isFinite(bdCut) && bdCut > BEND_MAX;
@@ -638,7 +650,7 @@ const TORS_FLOOR = 0.05;   // deg at 200 N.m, the couple's way
     sp.bracing = { type: 'cantilever', interplane: 'N', interplaneAt: 0.62, wires: 'both', cabane: 'N' };
     const d = buildGen(sp);
     const wires = d.beams.filter(b => b.cls === 'wire').length;
-    const d2 = Object.assign({}, d, { beams: d.beams.filter(b => b.cls !== 'wire') });
+    const d2 = cutBeams(d, b => b.cls !== 'wire');
     const bd0 = Math.max(statBend(d, 2000, 0) ?? 0, statBend(d, 2000, 1) ?? 0);
     const bd1 = Math.max(statBend(d2, 2000, 0) ?? 0, statBend(d2, 2000, 1) ?? 0);
     results['the wires carry the wing (wires cut -> bend x3 or more)'] =

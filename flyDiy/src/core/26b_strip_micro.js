@@ -221,7 +221,7 @@ const STRIP_MICRO = (() => {
       const p = big ? K.rocks * edge * edge : Math.min(0.6, 0.1 + 0.9 * K.rocks) * (0.6 + 0.4 * edge);
       if (ih(i, j, sk) >= p) return null;
       const a = ih(i, j, sk + 1), b = ih(i, j, sk + 2), e = ih(i, j, sk + 3);
-      return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.01 + 0.015 * e];
+      return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e];
     }
     // the stones for the meshes: a 1.2 m cell's, whole inside the strip clear of its ends, none in a way's trough or a hole
     // -> [u, v, R] or null. A stone's footprint (R <= 0.27) stays inside the middle of its own cell (0.3 m clear of its sides)

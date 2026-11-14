@@ -25,6 +25,14 @@
 //                      wing line on the board and in the shared picture
 //   THE SIGNATURE      the game's name from its one place (GAME_NAMES.game) + " · certified airworthy"
 //   THE FRAME          a thin quiet rounded line round the whole sheet, on the board and in the shared picture
+// THE PAGES (the user's fiche structure, 12 Nov): FICHE_BOARD.pages - the slot order (an unknown id at the end), the same id
+//   replaces, 'log' hidden, a page shown only when registered and visible (false or a throw: no button), the open page back to
+//   Main when it is not; ctx passed whole; the baked record carries listRow + listFile; garage.js listed() only while the plane
+//   on the stand is the one opened from the list; build.js loads fiche_mass.js after fiche_board.js
+// THE MASS PAGE (fiche_mass.js, the user's sunburst): on the Cub - the rows add up to the ledger, the engine split into
+//   engine / installation / propeller / mount and the gear into main / tail wheel (each summing to its section), no
+//   "Fittings" and no "Engine & fuel"; every callout inside its frame, none over another; the seats check with full tanks
+//   at 80 kg a seat; a baked index entry with weights has the data's shape
 //   node tools/_plane_fiche_check.js [--selftest]  -> "GATE PLANEFICHE: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -230,11 +238,69 @@ async function run(S) {
     ok(/s\.TOWater \? 'on water: ' \+ s\.TOWater : num\(s\.TORun, 'm'\)/.test(FB), 'FICHE-WATER: the board prints the water row');
     ok(/lift: off \? \{ t: r\.lift\.t, dist: r\.lift\.dist, V: r\.lift\.V \} : null,/.test(BE), 'FICHE-WATER: the hydroplane verdict carries the lift-off as numbers');
   }
+  // ---- THE PAGES (the registry, run on a stub page)
+  {
+    const Wp = {}, ctx = { window: Wp, document: {}, console, setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {}, Promise, URL: {} };
+    try { vm.runInNewContext(FB, ctx); } catch (e) {}
+    const A = Wp.FICHE_BOARD, PG = A && A.pages;
+    if (!PG) fails.push('PAGES the registry is not there'); else {
+      const mnt = () => {};
+      ok(PG.ids().join() === 'main,cutaway', 'PAGES Main and Cutaway are the board\'s own (' + PG.ids().join() + ')');
+      PG.add({ id: 'zz', label: 'ZZ', mount: mnt }); PG.add({ id: 'log', label: 'Flight log', mount: mnt }); PG.add({ id: 'drag', label: 'Drag', mount: mnt, visible: () => false });
+      PG.add({ id: 'mass', label: 'Mass', mount: mnt, visible: r => !!(r && r.m) }); PG.add({ id: 'physics', label: 'Physics', mount: mnt, visible: () => { throw new Error('x'); } });
+      ok(PG.ids().join() === 'main,cutaway,mass,drag,physics,log,zz', 'PAGES the slot order, an unknown id at the end (' + PG.ids().join() + ')');
+      ok(PG.add({ id: 'mass', label: 'Mass 2', mount: mnt, visible: () => true }) && PG.get('mass').label === 'Mass 2' && PG.ids().filter(i => i === 'mass').length === 1, 'PAGES the same id replaces the page');
+      ok(!PG.add({ id: 'nomount' }) && !PG.get('nomount'), 'PAGES a page without a mount is refused');
+      const sh = PG.shown({ pics: {} }, {});
+      ok(!sh.includes('log') && !sh.includes('drag') && !sh.includes('physics') && sh.includes('mass') && sh.includes('zz') && sh[0] === 'main',
+        'PAGES the hidden log, a page not visible and a page whose visible() throws get no button (' + sh.join() + ')');
+      ok(!sh.includes('cutaway') && PG.shown({ pics: { cutaway: 'x' } }, {}).includes('cutaway'), 'PAGES Cutaway only with a baked cutaway');
+      const br = A.bakedRec('list:7', { 'list:7': { name: 'Rufus', listFile: 'builds/rufus.json', pics: { hero: 'list_7/hero.webp' } } });
+      ok(br && br.listRow === 'list:7' && br.listFile === 'builds/rufus.json' && br.pics.hero === 'media/fiches/list_7/hero.webp', 'PAGES the baked record carries listRow and listFile');
+    }
+    ok(/if \(!ids\.includes\(pageId\)\) pageId = ids\.includes\('main'\) \? 'main'/.test(FB), 'PAGES an open page no longer visible falls back to Main');
+    ok(/return \{ spec, title, propOff, listFile: r\.listFile \|\| '', listRow: r\.listRow \|\| '', urlOf \};/.test(FB) && /const p = pg\.mount\(sh, r, ctx\);/.test(FB), 'PAGES ctx goes whole to the page');
+    ok(/listed: \(\) => \(listedRow && listedRow\.spec === spec \?/.test(S.G) && /listedRow = \{ file: p\.file, row: p\.thumb \|\| /.test(S.G), 'PAGES garage.js: the listed row only while the plane on the stand is the one opened from it');
+    ok(/'plane_fiche\.js', 'fiche_board\.js', 'fiche_mass\.js'/.test(B), 'PAGES build.js loads fiche_mass.js after fiche_board.js');
+  }
+  // ---- THE MASS PAGE (fiche_mass.js) on the Cub
+  if (S.M) {
+    const m = { exports: {} };
+    try { new Function('module', 'exports', S.M)(m, m.exports); } catch (e) { fails.push('MASS fiche_mass.js does not load: ' + e.message); }
+    const FM = m.exports;
+    let C = null, LB = null; try { C = require(path.join(ROOT, 'tools', 'flight_core.js')); LB = require(path.join(ROOT, 'tools', '_load_build.js')); } catch (e) {}
+    if (FM.data && C && LB) {
+      const spec = LB.gameSpecFull(JSON.parse(rd('builds/cub_2026-09-20_corrected.json'))).spec;
+      let D = null; try { D = FM.data(spec, C); } catch (e) { fails.push('MASS the Cub could not be weighed: ' + e.message); }
+      if (D) {
+        const def = C.buildGen(JSON.parse(JSON.stringify(spec))), Lg = def.parts.ledger, sum = Object.values(Lg).reduce((a, e) => a + (e.mass > 0.05 ? e.mass : 0), 0);
+        const kg = keys => D.rows.filter(r => keys.includes(r.key)).reduce((a, r) => a + r.kg, 0);
+        ok(Math.abs(D.M - sum) < 0.5 && D.rows.every(r => typeof r.key === 'string' && typeof r.name === 'string' && r.cat && r.kg > 0 && isFinite(r.x) && typeof r.payload === 'boolean'),
+          'MASS the rows add up to the ledger (' + D.M + ' of ' + sum.toFixed(2) + ' kg) in massproto\'s shape');
+        ok(['engine', 'install', 'prop', 'mount'].every(k => D.rows.some(r => r.key === k)) && Math.abs(kg(['engine', 'install', 'prop', 'mount']) - Lg.engines.mass) < 0.1,
+          'MASS the engine split: engine, installation, propeller, mount = the engine section');
+        ok(D.rows.some(r => r.key === 'gearMain') && D.rows.some(r => r.key === 'gearAux' && r.name === 'Tail wheel') && Math.abs(kg(['gearMain', 'gearAux', 'floats']) - Lg.gear.mass) < 0.2,
+          'MASS the gear split by its nodes: main gear and tail wheel = the gear section');
+        ok(!D.rows.some(r => /Fittings|Engine & fuel/.test(r.name)) && !Object.values(FM.CAT).some(c => /Fittings|Engine & fuel/.test(c[0])), 'MASS no "Fittings", no "Engine & fuel"');
+        ok(D.steps.length === 4 && D.steps[0][1].m < D.M && D.mtow > 0 && D.bal && isFinite(D.bal.npX) && D.seats === 2 && D.occKg === 80, 'MASS the walk, the maximum, the balance and the seats');
+        const Sv = FM.svg(D, null), bx = Sv.box, P = Sv.placed;
+        const out = P.filter(q => q.x < bx.x0 || q.x + q.w > bx.x1 || q.y < bx.y0 || q.y + q.h > bx.y1);
+        let ov = 0; for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { const a = P[i], b = P[j]; if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) ov++; }
+        ok(P.length === D.rows.filter(r => !r.payload).length && !out.length && !ov, 'MASS every part its callout, inside the frame, none over another (' + P.length + ' callouts, ' + out.length + ' out, ' + ov + ' over)');
+        const empty = D.rows.filter(r => !r.payload).reduce((a, r) => a + r.kg, 0), full = Math.round(empty + D.fuelFull + 2 * 80);
+        ok(Sv.weight.includes('>' + full + ' kg<') && /THE SEATS CHECK/.test(Sv.weight), 'MASS the seats check: full tanks + 80 kg a seat (' + full + ' kg for two)');
+      }
+    } else fails.push('MASS fiche_mass.js or the core is not there');
+    for (const [k, e] of Object.entries((S.IDX && S.IDX.fiches) || {})) {
+      const d = e && e.data && e.data.mass; if (!d) continue;
+      checks++; if (!(Array.isArray(d.rows) && d.rows.length && Array.isArray(d.steps) && d.steps.length === 4 && d.mtow > 0 && d.bal && Array.isArray(d.xNodes))) fails.push('MASS the baked weights of ' + k + ' are not in the data\'s shape');
+    }
+  }
   return { fails, checks };
 }
 (async () => {
   const S = { F: rd('src/viewer/plane_fiche.js'), B: rd('tools/build.js'), FB: rd('src/viewer/fiche_board.js'), BE: rd('src/viewer/bench.js'),
-              G: rd('src/viewer/garage.js'), CD: rd('src/viewer/card_drag.js'), N: rd('src/core/01_names.js'),
+              G: rd('src/viewer/garage.js'), CD: rd('src/viewer/card_drag.js'), N: rd('src/core/01_names.js'), M: rd('src/viewer/fiche_mass.js'),
               IDX: JSON.parse(rd('media/fiches/index.json')), LISTS: JSON.parse(rd('builds/lists/plane_lists.json')) };
   const F = S.F, FB = S.FB;
   const base = await run(S);
@@ -292,6 +358,15 @@ async function run(S) {
     ['FICHE-WATER: a hull on its land figure', 'F', F.replace(' || +(spec.cage && spec.cage.hullOn) > 0', '')],
     ['FICHE-WATER: the board prints the land figure', 'FB', FB.replace("s.TOWater ? 'on water: ' + s.TOWater : num(s.TORun, 'm')", "num(s.TORun, 'm')")],
     ['FICHE-WATER: no lift numbers', 'BE', S.BE.replace('lift: off ? { t: r.lift.t, dist: r.lift.dist, V: r.lift.V } : null,', '')],
+    ['PAGES: the log shown', 'FB', FB.replace("hidden: p.hidden != null ? !!p.hidden : p.id === 'log'", 'hidden: !!p.hidden')],
+    ['PAGES: an unknown id first', 'FB', FB.replace('return SLOTS.filter(i => k.includes(i)).concat(k.filter(i => !SLOTS.includes(i)));', 'return k.filter(i => !SLOTS.includes(i)).concat(SLOTS.filter(i => k.includes(i)));')],
+    ['PAGES: a throwing visible() shows its button', 'FB', FB.replace('try { return !!p.visible(rec, ctx); } catch (e) { return false; }', 'try { return !!p.visible(rec, ctx); } catch (e) { return true; }')],
+    ['PAGES: no fallback to Main', 'FB', FB.replace("if (!ids.includes(pageId)) pageId = ids.includes('main') ? 'main'", "if (0) pageId = ids.includes('main') ? 'main'")],
+    ['PAGES: the baked record without its row', 'FB', FB.replace("pics, listRow: key, listFile: b.listFile || '' };", 'pics };')],
+    ['MASS: the engine in one piece', 'M', S.M.replace('if (eng > 0 && eng + inst + prop <= e.mass + 0.5) {', 'if (0) {')],
+    ['MASS: the gear in one piece', 'M', S.M.replace("if (k === 'gear' && Array.isArray(e.nodeM) && e.nodeM.length) {", 'if (0) {')],
+    ['MASS: the callouts not pushed apart', 'M', S.M.replace('if (hit(Pl[i], Pl[j])) { L2[i].th -= 0.012; L2[j].th += 0.012; moved = true; }', 'if (0) moved = true;')],
+    ['MASS: the seats check without the fuel', 'M', S.M.replace('base = emptyKg + (D.fuelFull || 0)', 'base = emptyKg')],
   ]);
   let bad = 0;
   for (const [nm, k, f2] of BREAKS) { if (f2 === S[k]) { console.log('  selftest ' + nm + ': the break did not apply'); bad++; continue; } const r = await run(Object.assign({}, S, { [k]: f2 })); if (!r.fails.length) { console.log('  selftest ' + nm + ': NOT caught'); bad++; } }

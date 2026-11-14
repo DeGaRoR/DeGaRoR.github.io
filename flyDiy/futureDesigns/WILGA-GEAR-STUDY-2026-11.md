@@ -341,6 +341,15 @@ The long strut lands ~30 % softer: its leverage stays near constant over the str
 budget, and a longer strut only runs at a lower pressure. Every mount stands at the charge's 68 mm. The 1.2 x reserve
 drop meets the steel stop at 0.13 and 0.85 and recovers (23.727 allows it).
 
+**The root, fitted to the body** (the user: "where the leg meets the fuselage, to have a fairing that fits", as the
+engine's and the cabane's pylons do): the leg is fixed, so the boot trims itself on the drawn skin with the pylons' own
+rays (_cage_eng pylonCaster, shared as CAGE_PYLON): each of its 36 lengthwise columns, from 0.30 m down the leg, is cut
+where it meets the skin - up the leg, or (a long slab's trailing edge beside a vertical side) along the fitting's normal,
+straight up, straight inboard - its last 4 cm flared onto the skin (the pylons' quarter circle), the foot sunk 6 mm, a
+rubber bead round it (the joint). The boot's cache keys on the skin round the fitting. All 36 columns on the skin on the
+default builds (host, Cub); a fitting high on a flat side leaves some with no skin in reach - they end at the fitting, as
+the plain boot did (26/36 at 110 deg, 35/36 at 50 deg). fairing_root_fit.png.
+
 **The cuts follow the mount** - the fairing and its cuts are built from the drawn strut (its sweep, the cut field, the
 cache's key): at 0.13 the floor is notched by the pivot, at 0.40 the gaiter leaves through a round hole in it, at 0.72
 the strut through a slot (strut_mount_slider.png).

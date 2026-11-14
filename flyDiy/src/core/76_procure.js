@@ -61,7 +61,7 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 // ...and the READOUTS the editor derives a frame after a load: `fuel` (the energy arc's legacy litres, re-derived from
 // energy.vessels by the energy layer - measured on the page, G2280: the stock Cub's 45 came back 29 a frame after the
 // load with no edit). A readout is not a choice, so it never signs or withdraws a certificate.
-const PROCURE_READOUTS = ['fuel'];
+const PROCURE_READOUTS = ['fuel', 'cooling'];   // ENGINE-COOLING: the join's measurement of the cowl's openings (66b CERT_MEASURED_BLOCKS)
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
 // G3852: whSlick (a tundra's lugs or smooth) is drawing only, as bench.js counts it
 const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|accBeacon|whSlick)$|^hgDr[A-Z]/;

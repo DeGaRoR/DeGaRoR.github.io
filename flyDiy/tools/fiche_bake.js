@@ -31,7 +31,7 @@ const argv = process.argv.slice(2), flag = k => argv.includes('--' + k);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] != null && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const L = JSON.parse(fs.readFileSync(path.join(FLY, 'builds', 'lists', 'plane_lists.json'), 'utf8'));
 const only = opt('only', '') ? opt('only').split(',') : null;
-const rows = L.planes.filter(p => ['reproduction', 'story', 'original', 'wip'].includes(p.list) && p.file && p.thumb && (!only || only.includes(p.thumb)));
+const rows = L.planes.map(p => p.thumb || p.n == null ? p : Object.assign({}, p, { thumb: 'list:' + p.n })).filter(p => ['reproduction', 'story', 'original', 'wip'].includes(p.list) && p.file && p.thumb && (!only || only.includes(p.thumb)));
 const safe = k => k.replace(/[^\w.-]+/g, '_');
 if (flag('dry')) { for (const r of rows) console.log(r.thumb.padEnd(40), r.name.padEnd(28), r.file); process.exit(0); }
 const keep = opt('keep', null), work = keep || fs.mkdtempSync(path.join(os.tmpdir(), 'fiche_bake_'));
@@ -63,6 +63,23 @@ function nodeHydro(file) {
     }
     return { lift, t, why: lift ? '' : 'stayed on the water' };
   } catch (e) { return { lift: null, t: 0, why: 'threw: ' + String(e && e.message || e).slice(0, 80) }; }
+}
+// THE MASS PAGE (fiche_mass.js, the user's sunburst 12 Nov): an official plane's weights ride in its index entry (data.mass),
+// weighed here in node from its card (the load door's spec) - the page draws them without a build; --mass-only refills them
+// for every entry that names its card (listFile), no Chrome
+function massOf(file) {
+  try {
+    CORE = CORE || require(path.join(FLY, 'tools', 'flight_core.js')); LBD = LBD || require(path.join(FLY, 'tools', '_load_build.js'));
+    const FM = require(path.join(FLY, 'src', 'viewer', 'fiche_mass.js'));
+    return FM.data(LBD.gameSpecFull(JSON.parse(fs.readFileSync(path.join(FLY, file), 'utf8'))).spec, CORE);
+  } catch (e) { console.log('fiche_bake: the weights of ' + file + ' failed: ' + String(e && e.message || e).slice(0, 120)); return null; }
+}
+if (flag('mass-only')) {
+  const ip = path.join(OUT, 'index.json'), ix = JSON.parse(fs.readFileSync(ip, 'utf8')); let n = 0, all = 0;
+  for (const e of Object.values(ix.fiches || {})) { if (!e || !e.listFile) continue; all++; const m = massOf(e.listFile); if (m) { e.data = Object.assign({}, e.data, { mass: m }); n++; } }
+  fs.writeFileSync(ip, JSON.stringify(ix, null, 1) + '\n');
+  console.log('fiche_bake: weights for ' + n + ' of ' + all + ' fiche(s) with a card');
+  process.exit(n === all ? 0 : 2);
 }
 const HYDRO_MS = 1000 * +opt('hydro-secs', '150');   // the hydroplane run's wait inside one plane's probe (its --probe-secs is 300)
 const BUSY_MS = 1000 * +opt('busy-secs', '60');      // a float build's wait for a busy bench to take the row
@@ -114,6 +131,7 @@ for (const r of rows) {
   fs.mkdirSync(path.join(OUT, dir), { recursive: true });
   for (const [view, b] of Object.entries(v.files)) { const f = dir + '/' + view + '.webp', buf = Buffer.from(b, 'base64'); fs.writeFileSync(path.join(OUT, f), buf); pics[view] = f; kb += buf.length / 1024; }
   const data = Object.assign({}, v.data, { name: r.name });
+  { const ms = massOf(r.file); if (ms) data.mass = ms; }
   // a float build the page could not run (the phone profile): the node run's lift-off on the fiche
   let nh = null;
   if (data.sea && !(v.hydro && v.hydro.lift)) {
@@ -124,7 +142,7 @@ for (const r of rows) {
   // `file`: the build file's own internal name - a plane loaded from it carries that as its save's name, and the board shows
   // the list's name for it, never the key (fiche_board.js titleOf; the user 9 Nov: "piperCub" on a fiche)
   let file = ''; try { file = JSON.parse(fs.readFileSync(path.join(FLY, r.file), 'utf8')).name || ''; } catch (e) {}
-  index.fiches[r.thumb] = { name: r.name, file, data, pics };
+  index.fiches[r.thumb] = { name: r.name, file, listFile: r.file, listRow: r.n != null ? 'list:' + r.n : r.thumb, data, pics };
   done++;
   console.log('fiche_bake:', r.thumb, r.name, v.ms + ' ms', Object.keys(pics).join(','), 'worst task ' + JSON.stringify(v.time && v.time.worst),
     'hydro: ' + (!v.hydro ? 'none' : v.hydro.refused ? 'REFUSED for ' + v.hydro.ms + ' ms on a float build (the bench busy, or no row - the fiche says see the hydroplane test)' : !v.hydro.done ? 'unsettled after ' + v.hydro.ms + ' ms (the fiche says see the hydroplane test)'
@@ -135,7 +153,7 @@ for (const r of rows) {
 // a name two files share ("build") names neither - counted over EVERY official row's file, not only this bake's: with --only
 // a row baked before already holds '' and hid the share (11 Nov: --only list:25 wrote PA-18's "build" back, Rufus's was '')
 { const n = {}, own = f => { try { return JSON.parse(fs.readFileSync(path.join(FLY, f), 'utf8')).name || ''; } catch (e) { return ''; } };
-  for (const q of L.planes) if (q.list === 'official' && q.file && q.thumb) { const k = own(q.file); if (k) n[k] = (n[k] || 0) + 1; }
+  for (const q of L.planes) if (["reproduction","story","original","wip"].includes(q.list) && q.file) { const k = own(q.file); if (k) n[k] = (n[k] || 0) + 1; }
   for (const e of Object.values(index.fiches)) if (e.file) n[e.file] = Math.max(n[e.file] || 0, 1);
   for (const e of Object.values(index.fiches)) if (e.file && n[e.file] > 1) e.file = ''; }
 fs.mkdirSync(OUT, { recursive: true });

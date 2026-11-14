@@ -172,6 +172,7 @@
 
   const pow2 = v => (v & (v - 1)) === 0 && v > 0;
 
+  const L1_OFF_T = typeof location !== 'undefined' && /[?&]l1tree=0/.test(location.search);   // LOOK-1 step 3's A/B
   function coverageMips(THREE, tex, img, cut255) {
     const w0 = img.naturalWidth || img.width, h0 = img.naturalHeight || img.height;
     if (!pow2(w0) || !pow2(h0)) return false;      // the chain only halves cleanly on POT
@@ -196,8 +197,12 @@
           // a STRAIGHT box filter off one getImageData: a canvas stores
           // premultiplied colour, so repeated canvas draws bleed the
           // background into every leaf edge — the classic dark fringe
-          for (let k = 0; k < 4; k++)
-            nd[o + k] = (sd[a + k] + sd[b + k] + sd[c + k] + sd[d + k]) * 0.25;
+          // LOOK-1 D5 (the study's A1; TREES-FROM-TWIGS §3.3 named it): AND THE COLOUR IS WEIGHTED BY THE ALPHA. A canvas returns RGB 0 under alpha 0, so a straight box averaged that
+          // black into every edge texel, and the coverage rescale kept them opaque: crowns 0.40-0.68x dark at range, their texel contrast 2-3x, frozen into the impostors by the bake.
+          const wA = sd[a + 3], wB = sd[b + 3], wC = sd[c + 3], wD = sd[d + 3], wS = wA + wB + wC + wD;
+          for (let k = 0; k < 3; k++)
+            nd[o + k] = wS > 0 && !L1_OFF_T ? (sd[a + k] * wA + sd[b + k] * wB + sd[c + k] * wC + sd[d + k] * wD) / wS : (sd[a + k] + sd[b + k] + sd[c + k] + sd[d + k]) * 0.25;
+          nd[o + 3] = wS * 0.25;
         }
       }
       rescale(nd, target, cut255);
@@ -606,6 +611,12 @@
   // leaves' width there (1 = today), w the impostors' (render_world.js reads the same object). Same coverage, wider edge.
   const U_SOFT = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(150, 600, 5, 4) : { x: 150, y: 600, z: 5, w: 4 } };   // the user 8 Nov: "strong" (far trees must read, a little big)
   if (typeof window !== 'undefined') window.TREE_SOFT = U_SOFT;
+  // LOOK-1 D3: THE CROWN'S NORMALS AT NIGHT, near geometry only (the user's hero: "golden light and specks on trees"). The moon lights a crown card by card, each on its own
+  // normal, and at night nothing fills the rest (the study's §0): specks. Toward a cone round the tree's axis, the crown takes the moon as one shape. 0 by day, so nothing
+  // moves there: dayApply sets it from the moon key. The impostors keep their baked normals (the study's pick2_forest_crown shows why). A leaf is double-sided, and three flips the
+  // normal on a back face: with one shape's normal that flip would deal the specks back, so it is undone
+  const U_CROWN = { value: 0 };
+  const CROWN_VS = 'if (uCrownN > 0.0) { vec3 _cn = normalize(vec3(position.x, length(position.xz) * 0.55 + 0.01, position.z)); objectNormal = normalize(mix(objectNormal, _cn, uCrownN)); }';
   const EDGE_GLSL = [
     'if (uBakeAlb > 0.5) {',
     '  diffuseColor.a = diffuseColor.a >= uCut ? 1.0 : 0.0;',
@@ -633,7 +644,7 @@
       sh.uniforms.uBakeAlb = U_BAKEALB;
       sh.uniforms.uHue = mat.userData.uHue; sh.uniforms.uSat = mat.userData.uSat;
       sh.uniforms.uLight = mat.userData.uLight;
-      sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP; sh.uniforms.uSoft = U_SOFT;
+      sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP; sh.uniforms.uSoft = U_SOFT; sh.uniforms.uCrownN = U_CROWN;
       sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
       sh.uniforms.uWind = U_WIND;
       { let vs = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAoV = aoV;');
@@ -643,6 +654,7 @@
         vs = declOnce(vs, '#ifdef USE_BATCHING\n#define LEAF_SWAY_PH (getIndirectIndex(gl_DrawID) * 1.7)\n#else\n#define LEAF_SWAY_PH (float(gl_InstanceID) * 1.7)\n#endif');
         vs = declOnce(vs, 'uniform vec4 uWind;');
         vs = declOnce(vs, 'varying float vAoV;');
+        if (isLeaf) { vs = declOnce(vs, 'uniform float uCrownN;'); vs = vs.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + CROWN_VS); }
         sh.vertexShader = declOnce(vs, 'attribute float aoV;'); }
       if (mat.userData.fade) fadeInject(sh, mat.userData.fadeSet, mat);
       // A LEAF READS THE SHADOW MAP WITH FOUR TAPS, NOT SOFT. The renderer's
@@ -654,10 +666,11 @@
       // chunk that reads it, is the material's own choice.
       sh.fragmentShader = '#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' +
         'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\n' +
-        'uniform float uHue, uSat, uLight, uCut, uSharp, uFlat, uFlatMean;\nuniform vec4 uSoft;\nvarying float vAoV;\n' +
+        'uniform float uHue, uSat, uLight, uCut, uSharp, uFlat, uFlatMean, uCrownN;\nuniform vec4 uSoft;\nvarying float vAoV;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>',
             '#include <map_fragment>\n' + TINT_LIVE + (isLeaf ? '\n' + EDGE_GLSL : ''))
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + (isLeaf ? 'if (uCrownN > 0.5 && faceDirection < 0.0) { normal = -normal; nonPerturbedNormal = normal; }' : ''))
           .replace('#include <lights_fragment_end>',
             '#include <lights_fragment_end>\n' + LEAF_GLSL);
     };
@@ -808,6 +821,7 @@
     window.treeTrunk = treeTrunk;
     window.treeBuild = treeBuild;
     window.treeMapsReady = treeMapsReady;
+    treeLeaf.crownN = k => { if (k !== undefined) U_CROWN.value = k; return U_CROWN.value; };
     window.TREE_LEAF = treeLeaf;
   }
 })();

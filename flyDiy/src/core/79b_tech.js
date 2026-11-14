@@ -69,7 +69,7 @@ const TECH_TABLE = {
   'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3, 'eng:rotax912is_warp': 2,
   'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
   'eng:fes_folding_100': 3, 'eng:outrunner2212_9x47': 3, 'eng:outrunner3548_12x6': 3, 'eng:outrunner6374_18x10': 3,
-  'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3,
+  'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3, 'eng:pt6a27_hartzell3': 3,
   'cfg:twin': 2,
   'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
   'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,

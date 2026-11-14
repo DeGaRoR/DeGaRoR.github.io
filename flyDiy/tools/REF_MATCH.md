@@ -12,6 +12,9 @@ procedure's: a fitter is only ever run on the rows of the step in hand.
 
 **Handing a model to a new session:** `tools/ref_match/KICKOFF.md` is the message to paste with the GLB.
 
+**The next tool (design, 11 Nov 2026):** `tools/DRAFTING_TABLE.md`, a light phone-first page for matched planes,
+blueprints first, built on this method and its limits (the Spitfire, section 10).
+
 **The rule above all: every change is a garage row.** A card is a list of the rows a builder could set by hand. If a
 shape needs something no row offers, stop and flag it (section 7): the garage gets the control, then the card uses it.
 
@@ -261,6 +264,12 @@ the body aft for exactly this reason.
 | a dorsal fillet that curves CONCAVE into the spine (the DC-3's): ours stands convex above it | OPEN: the dorsal left off, the LE run to the spine |
 | a nacelle role in the tool, and the nacelles / props' station (the DC-3's nacelle 2.98-6.88 m aft of the nose, ours 3.59-6.98) | OPEN: step 3 |
 | a strut boot where a gear leg passes the skin (the 172's nose strut enters the lower cowl: GATE CLIP declares it, `DECLARED` in tools/_clip_check.js, C172-CLIP 9 Nov) | OPEN: the honest visual fix |
+| the flown tail envelope on a mid-size type: the PC-6's 5.13 m stab and 2.5 m fin fly clamped (hSpan 1.5-4.5, vHeight 0.6-2.2; the big envelope is for spans past 18 m) (DRAFTING_TABLE.md, 11 Nov) | CLOSED 12 Nov (PC6-TAIL): 1.5-6.0 / 0.6-3.0, the PC-6 flies its drawn tail |
+| the tail wheel's station held at the tail post (`s2Z` moves nothing; the PC-6's sits 0.21 m aft of ours) | OPEN |
+| the stab's station `stZ` stops at -0.6 cage units | OPEN: reached by the chord |
+| the engine auto-fit: a type's engine from its power, mass and kind (the PC-6's PT6A-27, 550 shp / 149 kg, is not in the catalogue) | the -27 itself CLOSED 12 Nov (pt6a27_hartzell3, catalogue 46); the auto-fit OPEN |
+| `topRound` 0 is the PITCHED roof mode, not a sharp corner: a square cabin wants 0.05 (DRAFTING_TABLE.md round 3) | OPEN: label it in the row |
+| a square cowl's split line opens to a dark wedge in its default mode (`cw_partLevel` 0: the width is in the section's parameter) | the answer exists: `cw_partLevel` 1; OPEN: make it the default for a boxy section |
 
 ## 8. The Camel log (27 Oct 2026)
 

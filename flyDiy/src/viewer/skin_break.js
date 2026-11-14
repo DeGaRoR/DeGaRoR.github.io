@@ -70,7 +70,7 @@
   const REACH = 0.05;
   // (train 41: a covering record's incremental event - FABRIC's ties read across pieces - local / skipped as any (true), or
   // made whole at every event (false: the reference, by construction))
-  const OPT = { localCov: true, looks: false };
+  const OPT = { localCov: true, looks: false, cut: true };   // (G4102: cut: the cut-through, below)
   // G3770 (DMG-LOOKS, ?dmglook=1: OPT.looks): THE PARTING RULE - where a broken frame member's drawn places part, by how it
   // broke. Today every broken member is drawn split at exactly half its length (each place on its dominant end: t < 0.5
   // against t > 0.5), its flat ends open; the census (futureDesigns/dmg-looks, study 10.1): 45-103 members a 30 m/s
@@ -321,6 +321,84 @@
     R.pending = take < R.pending.length ? R.pending.slice(take) : null;
     return take;
   }
+  // G4102 (CRASH-LOOK CUT-THROUGH; the user, 13 Nov: "No cuts along triangles ... Breakage should be fully independent
+  // from mesh geometry, that's where it looks wrong. Try never to cut along geometry lines"). Rule 3 removes a triangle
+  // across a parting, so every parting was drawn along the mesh's own rows - straight, on its panel lines (the Cub's
+  // flat boards). The removed triangles across a parting (two pieces, or a broken member between corners' dominant
+  // nodes) of a cage record are drawn again by a small record of their own, R.cut2 - each up to TWICE, a copy riding
+  // each side - and each copy is clipped by the PARTING SURFACE: the plane across the line between the two sides'
+  // dominant nodes (at the parting rule's station on their member, or half way), its normal along that line, which the
+  // drawing offsets per pixel by a jag field (skin_scuff.js's cut block). So the visible edge runs THROUGH the
+  // triangles, jagged, where the plane and the jag put it - never along an edge - and the two edges meet.
+  //   R.cut2: nv corners (3 a copy), its binding on its side (wi / w2 / vp / dom: sideBind), base, sag, src (the record's
+  //   vertex it copies: the page's attributes), d (its signed distance to the plane, + towards the A side) and s (+1 an
+  //   A copy: keeps d + jag >= 0; -1 a B copy: keeps d + jag < 0; 0 not crossed: whole). Posed by poseCage on the CPU.
+  // The record itself is untouched (rule 3 stands: its places, the GPU's riding, its census). Left out: a triangle on
+  // three pieces, a member the pool draws (hidden), one whose two sides' nodes coincide.
+  // (OPT.cut false: rule 3 alone, as before - no cut2)
+  // a corner's binding on one side (piece P, dominant node d): its place's weights on P and not across a broken member
+  // from d, normalised - or d alone - into wo / w2o at o2
+  function sideBind(R, v, P, d, BP, pc, wo, w2o, o2) {
+    const K = R.K, u = R.rep ? R.rep[v] : v, o = u * K; let s = 0;
+    for (let k = 0; k < K; k++) { const i = R.wi[o + k], w = R.ww[o + k];
+      const keep = w !== 0 && (i === d || (pc[i] === P && !BP.has(d, i)));
+      wo[o2 + k] = i; w2o[o2 + k] = keep ? w : 0; s += keep ? w : 0; }
+    if (s > 0.05) { for (let k = 0; k < K; k++) w2o[o2 + k] /= s; }
+    else { for (let k = 0; k < K; k++) { wo[o2 + k] = k === 0 ? d : R.wi[o + k]; w2o[o2 + k] = k === 0 ? 1 : 0; } }
+  }
+  function cutStage(R, T, D, BP, rest, base, LK) {
+    const K = R.K, nt = R.nt, i0 = R.idx0, dead = R.dead, vp = R.vp, dom = R.dom, pc = D.pc;
+    const E = BP.ends, brk = (x, y) => E[x] === 1 && E[y] === 1 && BP.has(x, y);
+    const MEM = LK ? R.mem : null, rows = [];        // [t, side's piece, side's node, sign, sd0, sd1, sd2, clip]
+    for (let t = 0; t < nt; t++) {
+      if (dead[t] !== 1) continue;
+      const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
+      if (MEM) { const mm = MEM[a]; if (mm >= 0 && MEM[b] === mm && MEM[c] === mm && LK.hide[mm] === 1) continue; }
+      const P = [vp[a], vp[b], vp[c]], Dd = [dom[a], dom[b], dom[c]];
+      let odd;
+      if (P[0] !== P[1] || P[1] !== P[2]) {
+        if (P[0] !== P[1] && P[1] !== P[2] && P[0] !== P[2]) continue;      // three pieces: rule 3
+        odd = P[0] === P[1] ? 2 : P[0] === P[2] ? 1 : 0;
+      } else {
+        const n0 = (brk(Dd[0], Dd[1]) ? 1 : 0) + (brk(Dd[0], Dd[2]) ? 1 : 0), n1 = (brk(Dd[1], Dd[0]) ? 1 : 0) + (brk(Dd[1], Dd[2]) ? 1 : 0),
+              n2 = (brk(Dd[2], Dd[0]) ? 1 : 0) + (brk(Dd[2], Dd[1]) ? 1 : 0);
+        if (n0 + n1 + n2 === 0) continue;
+        odd = n0 >= n1 && n0 >= n2 ? 0 : n1 >= n2 ? 1 : 2;
+      }
+      const m1 = odd === 0 ? 1 : 0, dA = Dd[m1], dB = Dd[odd];
+      if (dA === dB) continue;
+      const a3 = dA * 3, b3 = dB * 3; let s = 0.5;
+      // (the parting rule's station when the two sides' nodes are one member's ends)
+      if (LK && LK.part && T.adj[dA]) for (const bi of T.adj[dA]) { const bm = T.beams[bi]; if (!bm || !((bm.a === dA && bm.b === dB) || (bm.a === dB && bm.b === dA))) continue;
+        const sP = LK.part[bi]; if (sP > 0 && sP < 1) s = bm.a === dA ? sP : 1 - sP; break; }
+      let nx = rest[a3] - rest[b3], ny = rest[a3 + 1] - rest[b3 + 1], nz = rest[a3 + 2] - rest[b3 + 2];
+      const L = Math.hypot(nx, ny, nz); if (!(L > 1e-6)) continue;
+      nx /= L; ny /= L; nz /= L;
+      const px = rest[a3] + s * (rest[b3] - rest[a3]), py = rest[a3 + 1] + s * (rest[b3 + 1] - rest[a3 + 1]), pz = rest[a3 + 2] + s * (rest[b3 + 2] - rest[a3 + 2]);
+      const sd = [a, b, c].map(v => (base[v * 3] - px) * nx + (base[v * 3 + 1] - py) * ny + (base[v * 3 + 2] - pz) * nz);
+      const onA = sd[0] > 0 || sd[1] > 0 || sd[2] > 0, onB = sd[0] < 0 || sd[1] < 0 || sd[2] < 0, clip = onA && onB ? 1 : 0;
+      // (each copy rides ONE binding, its anchor corner's on that side - the majority corner for A, the odd one for B - so it
+      // moves rigidly with that corner (one blend, one turn: no edge of it can stretch); a tube's centimetre triangles bound
+      // corner by corner drew 0.2-5 m slivers on a bent piece, measured)
+      if (onA) rows.push([t, P[m1], dA, 1, sd[0], sd[1], sd[2], clip, [a, b, c][m1]]);
+      if (onB) rows.push([t, P[odd], dB, -1, sd[0], sd[1], sd[2], clip, [a, b, c][odd]]);
+    }
+    if (!rows.length) { R.cut2 = null; return; }
+    const n2 = rows.length, nv = n2 * 3;
+    const C2 = { nv, K, wi: new Int32Array(nv * K), ww: null, w2: new Float32Array(nv * K), vp: new Int32Array(nv), dom: new Int32Array(nv),
+                 ride: new Uint8Array(nv).fill(1), rep: null, sag: R.sag ? new Float32Array(nv) : null, pc, cage: true, active: true,
+                 src: new Int32Array(nv), tri: new Int32Array(n2), base: new Float64Array(nv * 3), d: new Float32Array(nv), s: new Int8Array(nv),
+                 v: (R.cut2 ? R.cut2.v : 0) + 1 };
+    C2.ww = C2.w2;
+    for (let j = 0; j < n2; j++) { const [t, Pq, dq, sg, s0, s1, s2, clip, anc] = rows[j]; C2.tri[j] = t;
+      sideBind(R, anc, Pq, dq, BP, pc, C2.wi, C2.w2, j * 3 * K);
+      for (let q = 0; q < 3; q++) { const v = i0[t * 3 + q], o = j * 3 + q;
+        if (q) for (let k = 0; k < K; k++) { C2.wi[o * K + k] = C2.wi[j * 3 * K + k]; C2.w2[o * K + k] = C2.w2[j * 3 * K + k]; }
+        C2.vp[o] = Pq; C2.dom[o] = dq; C2.src[o] = v; C2.d[o] = q === 0 ? s0 : q === 1 ? s1 : s2; C2.s[o] = clip ? sg : 0;
+        C2.base[o * 3] = base[v * 3]; C2.base[o * 3 + 1] = base[v * 3 + 1]; C2.base[o * 3 + 2] = base[v * 3 + 2];
+        if (C2.sag) C2.sag[o] = R.sag[R.rep ? R.rep[anc] : anc]; } }
+    R.cut2 = C2;
+  }
   // THE EVENT: the damage state moved (D.vB). Returns true when the index changed
   function event(R, T, D, rest, base, budget) {
     if (R.vB === D.vB) return false;
@@ -356,6 +434,7 @@
     R.dv = (R.dv | 0) + 1; R.dirtyPl = null;         // (G1818: the GPU's copy of the record is stale, whole)
     const { nv, K, wi, ww } = R, idx = R.idx;
     if (!D.br.length) {                        // healed (a reset): the index as built, nothing held
+      R.cut2 = null;                                 // (G4102)
       if (R.idx0) idx.set(R.idx0);
       R.active = false; R.vp = R.dom = R.w2 = R.ride = R.dead = R.watch = R.sag = null; R.torn = R.removed = R.cut = 0; R.held = R.xv = R.tp = null; R.cov = false; R.heldTorn = 0;   // (G2040)
       R.evTied = R.evTorn = null;
@@ -511,6 +590,8 @@
       }
       if (any) R.sag = sag;
     }
+    // G4102 (CRASH-LOOK CUT-THROUGH): the triangles the rule above removed across a parting, drawn again cut through
+    if (OPT.cut && R.cage && rest && base && pc) cutStage(R, T, D, BP, rest, base, LK); else R.cut2 = null;
     // (G1818: what the next event compares - this one's pieces and broken count, and the record's nodes)
     { const n = T.n, M = R.nodeMask && R.nodeMask.length === n ? R.nodeMask : (R.nodeMask = new Uint8Array(n));
       M.fill(0);
