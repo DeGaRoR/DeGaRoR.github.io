@@ -77,7 +77,7 @@ for (const g of ROWS) {
 // G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
 const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
   faceRing: 0, waistF: null,
-  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopHold: 0, scoopWFit: 0, scoopTaperH: 1, scoopTaperW: 1, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 0, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
+  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopHold: 0, scoopWFit: 0, scoopTaperH: 1, scoopTaperW: 1, scoopRev: 0, scoopTop: 0, scoopAft: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 0, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
   gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
@@ -975,6 +975,8 @@ const COWL_BY_ARCH = {
     cw_lipMode: 1, cw_lipThick: 0.020, cw_lipProtrude: 0.4, cw_lipInset: 0.04,
     cw_lipDepth: 0.10, cw_lipRound: 0.7, cw_ductLen: 0.16,
     cw_scoopOn: 1, cw_scoopZ: 1, cw_scoopDrop: 0.9, cw_scoopSq: 0.55,
+    // ENGINE-COOLING 3: the oil cooler's scoop stands out of the skin (only its open mouth is measured)
+    cw_scoopFollow: 1,
     cw_lobeN: 0,
   },
 };
@@ -984,8 +986,9 @@ const COWL_BY_ARCH = {
 // it because it cools a gearbox, not nine cylinders.
 const COWL_PROPS = {
   radial:  { lid: 0.30, lidR: 0.23, ap: 0.58 },
+  // (ENGINE-COOLING 3: the scoop 0.42 x 0.30 -> 0.55 x 0.40 of the barrel - a PT6's oil cooler at a 38 C climb)
   turbine: { lid: 0.30, lidR: 0.23, ap: 0.22,
-             scoopW: 0.42, scoopH: 0.30, scoopLen: 0.30 },
+             scoopW: 0.55, scoopH: 0.40, scoopLen: 0.30 },
 };
 
 // PURE, so the gate can exercise it without a browser. Returns the cage keys
@@ -1400,6 +1403,8 @@ function cowlPlace(ctx, again) {
   if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: a thrown build's dial
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
+  // ENGINE-COOLING: what the cowl opens to the air (CW.coolOpenings, below), the join's spec.cooling; no cowl, no openings
+  window.CAGE_COOL_OPEN = null; window.CAGE_COWL_SHELLS = null;
   if (!P.cowlOn) { birthPreset = null; return null; }
 
   LIVE_P = P;
@@ -1535,6 +1540,10 @@ function cowlPlace(ctx, again) {
   const XRAY = !!(window.CAGE_VIEW && window.CAGE_VIEW.xray);
   if (XRAY) cA = Math.min(cA, window.CAGE_VIEW.xrayA || 0.12);
   const M = cowlMats(cA), aps = CW.apertureList();
+  // ENGINE-COOLING (futureDesigns/ENGINE-COOLING-2026-11.md): the openings, measured off the cowl this frame draws (m2,
+  // per cowl: every engine wears the same one); its own global (CAGE_COOL_OPEN, as CAGE_BOOMS), the join carries them to spec.cooling, the core decides which way each
+  // faces (genCoolOpen) and what air they pass (genCooling)
+  if (CW.coolOpenings) { try { window.CAGE_COOL_OPEN = CW.coolOpenings(aps); } catch (e) { window.CAGE_COOL_OPEN = null; } }
 
   group = new THREE.Group();
   // NAMED for the editor (G76/G77): the part table says which layer a
@@ -1548,7 +1557,15 @@ function cowlPlace(ctx, again) {
   // because the cowl module is shared with a bench that may predate it
   if (CW.buildFirewallLip) CW.buildFirewallLip(cowl, M);
   CW.buildLips(cowl, M, aps);
-  CW.buildScoop(cowl, M);
+  // (ENGINE-COOLING 3: the scoop's meshes marked, so a push-pull's aft cowl can wear its own - cw_scoopAft, below;
+  // the same meshes in the same order, a flag on each)
+  const markScoop = (into, rev) => {
+    const sg = new THREE.Group(), r0 = CW.P.scoopRev;
+    if (rev != null) CW.P.scoopRev = rev;
+    try { CW.buildScoop(sg, M); } finally { CW.P.scoopRev = r0; }
+    for (const ch of sg.children.slice()) { ch.userData.coolScoop = 1; into.add(ch); }
+  };
+  markScoop(cowl, null);
   // G94: the fasteners, the parting line and the oil door — the three things
   // that say this panel comes off. Guarded, because the cowl module is shared
   // with a bench that may predate them.
@@ -1591,6 +1608,7 @@ function cowlPlace(ctx, again) {
       }
       const t = new THREE.Mesh(g, M.innerBack);
       t.name = o.name; t.userData.innerTwin = 1;
+      if (o.userData.coolScoop) t.userData.coolScoop = 1;
       o.parent.add(t);
     }
   }
@@ -1626,9 +1644,32 @@ function cowlPlace(ctx, again) {
   // inherited its translation and its π turn. Every unit now has its own
   // group under an identity root.)
   const ex = Math.max(0, P.explodeD || 0) * FS;
+  // ENGINE-COOLING 3: each unit's shell (the engine layer reads the heads against unit 0's), and the area each unit's
+  // openings are worth against unit 0's (a clone scaled to another kind of face scales its openings by sx sy)
+  const shells = [], unitK = [];
   units.forEach((u, k) => {
     const f = u.face;
     const c = k === 0 ? cowl : cowl.clone();
+    shells.push(c); unitK.push({ aft: !!u.aft, k: 1 });
+    // ENGINE-COOLING 3 (the user 12 Nov: "this pusher-puller inline should allow for a scoop on the aft engine as
+    // well"): the aft cowl is the nose cowl turned round, so a scoop facing the flight on the nose faces the rear
+    // propeller there. `scoopAft` 1 turns the AFT cowl's scoop on its own (its mouth at the other end: into the air
+    // on a push-pull's rear engine); the nose cowl keeps its own. Absent / 0: the clone as it was
+    if (k > 0 && u.aft && +CW.P.scoopOn && +CW.P.scoopAft) {
+      for (const ch of c.children.slice()) if (ch.userData && ch.userData.coolScoop) c.remove(ch);
+      const sg = new THREE.Group();
+      markScoop(sg, CW.P.scoopRev ? 0 : 1);
+      for (const o of sg.children.slice()) {
+        c.add(o);
+        if (o.isMesh && o.material === M.skin && o.geometry.attributes.normal) {
+          const g = o.geometry.clone(), pa = g.attributes.position, na = o.geometry.attributes.normal;
+          for (let i = 0; i < pa.count; i++)
+            pa.setXYZ(i, pa.getX(i) - na.getX(i) * INNER_OFF, pa.getY(i) - na.getY(i) * INNER_OFF, pa.getZ(i) - na.getZ(i) * INNER_OFF);
+          const t = new THREE.Mesh(g, M.innerBack); t.name = o.name; t.userData.innerTwin = 1; t.userData.coolScoop = 1; c.add(t);
+        }
+      }
+      unitK[k].scoopTurned = 1;
+    }
     const ug = new THREE.Group();
     ug.name = 'cageLayer:cowl'; ug.userData.xray = XRAY ? 1 : 0;
     ug.add(c);
@@ -1643,6 +1684,7 @@ function cowlPlace(ctx, again) {
       if (k > 0 && u.kind !== units[0].kind && f0.halfW > 0 && f0.halfH > 0 && f.halfW > 0 && f.halfH > 0) {
         const sx = f.halfW / f0.halfW, sy = f.halfH / f0.halfH;
         c.scale.set(sx, sy, Math.sqrt(sx * sy));
+        unitK[k].k = sx * sy;
       }
     }
     // ON THE SKIN, NOT IN IT: `seat` is how far the fuselage skin domes past
@@ -1658,6 +1700,8 @@ function cowlPlace(ctx, again) {
     group.add(ug);
   });
   scene.add(group);
+  window.CAGE_COWL_SHELLS = shells;
+  if (window.CAGE_COOL_OPEN) window.CAGE_COOL_OPEN.units = unitK;
 
   applyRowStates(mode);
   window.CAGE_COWL = { face, len: CW.zEnd(), aps: aps.length, mode,

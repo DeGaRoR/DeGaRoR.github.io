@@ -315,6 +315,23 @@ for (const [nm, re, why] of BANNED)
 // and the things it MUST do
 check(/convertSRGBToLinear/.test(SRC),
   'no sRGB->linear conversion: a picked colour would render ~2x too bright');
+// ONCE, NOT TWICE (12 Nov, FIT-PROCEDURE: the PC-6's rudder against its fuselage): r186's managed Color(hex) already
+// decodes the hex, so aeroLinear must not decode again - a tint then draws the colour the decal of the same hex draws.
+// On the real vendor build, both colour modes: managed = three's own decode; off ('as authored') = one explicit decode
+{
+  const T3 = require(path.join(ROOT, 'vendor', 'three.min.js'));
+  const was = T3.ColorManagement.enabled, hex = 0xf5862a, near = (p, q) => ['r', 'g', 'b'].every(k => Math.abs(p[k] - q[k]) < 1e-6);
+  const srgb2lin = v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  const once = { r: srgb2lin(0xf5 / 255), g: srgb2lin(0x86 / 255), b: srgb2lin(0x2a / 255) };
+  try {
+    for (const on of [true, false]) {
+      T3.ColorManagement.enabled = on;
+      const c = A.aeroLinear(T3, hex);
+      check(near(c, once), 'aeroLinear decodes 0xf5862a ' + (near(c, { r: srgb2lin(once.r), g: srgb2lin(once.g), b: srgb2lin(once.b) }) ? 'TWICE' : 'wrongly') +
+            ' with ColorManagement ' + (on ? 'on' : 'off') + ' (want the single sRGB decode the decal atlas gets)');
+    }
+  } finally { T3.ColorManagement.enabled = was; }
+}
 check(/LinearSRGBColorSpace/.test(SRC),
   'the detail sheet must be LINEAR — it is data, not a picture');
 // POT: RepeatWrapping + mipmaps on WebGL1 requires it, and a non-POT sheet

@@ -614,6 +614,9 @@ function genShakedown(def, opts) {
     engineName: ENr.name, hp, engineMass: ENr.mass,
     engineFamily: THr.family, engineCooling: THr.cooling,
     coolKW: THr.coolKW, burnKgH: THr.burnKgH, drawKW: THr.drawKW,
+    // ENGINE-COOLING (12 Nov): what the drawn openings make of that duty - the hot-day climb's air needed and passed,
+    // the margin, the cooling drag (62_gen_aero genCooling; null when the cowl was never measured)
+    cooling: genCoolSummary(def),
     powerLoad: sim.totalM / Math.max(1e-6, hp),
     onWheels, restsOn: lowTag, gearStrain, restChassisStrain: chassisStrain,
     springStrain, susTravel, susShift, gearFolded: susShift > 0.5,

@@ -291,6 +291,29 @@
   if (typeof window !== 'undefined') window.FLYDIY_INPUT = INP;
   let manual = false, inpEv = null;
   const glareDir = new THREE.Vector3(0, 1, 0);      // SKY S7: the light's direction handed to the flare
+  // LOOK-GLINT (13 Nov, water.js GLINT): the share of the sun seen from the water that carries its glitter path. The path's centre is
+  // where the mirrored eye's line to the sun meets the water - D = (eye height over the water) / tan(sun elevation) out along the sun's
+  // azimuth (the water's level: the first water out along it, to 24 km); from there and at D/2 and 2D (on water only) the terrain's profile is
+  // walked toward the sun (20 m, x1.55, 16 steps: to 14 km). No water toward the sun, or no sample on water: 1 (nothing to judge).
+  // A sun behind the ridge draws no path. Eased (0.15 a frame) so a crest crossing the disc fades the path, never blinks it
+  function glintVis(c, d, v) {
+    const hz = Math.hypot(d.x, d.z);
+    if (d.y <= 0 || hz < 1e-4) return v + (1 - v) * 0.15;   // (no sun: nothing to hide; the shader's day weight is 0 at night)
+    const ax = d.x / hz, az = d.z / hz, wet = (x, z) => { const h = world.waterH(x, z); return Number.isFinite(h) && h > world.terrainH(x, z) ? h : NaN; };
+    let wy = NaN;
+    for (let t = 0; t <= 24000 && !Number.isFinite(wy); t = t ? t * 1.35 : 8) wy = wet(c.x + ax * t, c.z + az * t);   // (a ridge 800 m up sees its path 16 km out)
+    if (!Number.isFinite(wy) || c.y <= wy) return v + (1 - v) * 0.15;   // no water toward the sun: no path to judge (never a stale 0 from the last lake)
+    const D = Math.min(24000, (c.y - wy) / Math.max(d.y / hz, 1e-3));
+    let seen = 0, n = 0;
+    for (const k of [0.5, 1, 2]) {
+      const px = c.x + ax * D * k, pz = c.z + az * D * k, hw = wet(px, pz);
+      if (!Number.isFinite(hw)) continue;
+      n++; let clear = 1, t = 20;
+      for (let i = 0; i < 16; i++) { if (world.terrainH(px + d.x * t, pz + d.z * t) > hw + 0.5 + d.y * t) { clear = 0; break; } t *= 1.55; }
+      seen += clear;
+    }
+    return v + ((n ? seen / n : 1) - v) * 0.15;
+  }
   // THE COCKPIT (the panel arc, session 4): cockpit.js's one instance —
   // null under the smoke gate, which never runs the RENDER block
   const CK = (window.FLYDIY_COCKPIT && window.FLYDIY_COCKPIT.make)
@@ -5418,6 +5441,11 @@
     return out;
   };
   // (train 41, A0: THE SHEET - a strip drawn metres across the runway at rest, on both paths: which record, which class)
+  // G4102 (CUT-THROUGH): the cut copies on the page - records with copies, copies, their meshes, any corner not finite
+  window.FLYDIY_CUT_STATS = () => { let recs = 0, copies = 0, meshes = 0, bad = 0, clipped = 0;
+    for (const R of BRK.recs) { if (!R.cut2) continue; recs++; copies += R.cut2.nv / 3; for (let o = 0; o < R.cut2.nv; o++) if (R.cut2.s[o]) clipped++;
+      const T = R.cutDraw; if (T && T.geo) { meshes += T.meshes.length; const a = T.geo.attributes.position.array; for (let i = 0; i < a.length; i++) if (!Number.isFinite(a[i])) { bad++; break; } } }
+    return { recs, copies, clipped: clipped / 3, meshes, bad }; };
   window.FLYDIY_SKIN_LONGEST = () => {
     const K = model && model.brk; if (!K || !BRK.X || !K.NF || !sim) return null;
     const recs = [];
@@ -5570,6 +5598,99 @@
   // the scuff's record for a group (brkGroups' row): brkMakeRec with the wall's binding size when the wall binds, kept off
   // the break list (noPush) until a break
   const brkCageRec = (own, pa, base, off, fab, o, noPush) => brkMakeRec(own, pa, base, off, fab, o, brkInhWant(), noPush);
+  // G4102 (CRASH-LOOK CUT-THROUGH; the user 13 Nov: "breakage should be fully independent from mesh geometry"): a cage
+  // record's cut copies (skin_break.js cutStage: R.cut2 - the triangles removed across a parting, each drawn again riding
+  // each side) as a mesh beside every mesh that draws the record's geometry: the copies' corners take their source
+  // vertices' attributes (gathered again when those move: the scuff's record), aCut (the signed distance to the parting
+  // plane, the copy's side) and aCutP (the corner's rest place: the jag's field, the same on both copies). Its material
+  // is the source's own with the cut added (brkCutMat): each copy keeps its side of the plane offset by the jag, so the
+  // edge runs through the triangles, jagged, frayed dark a centimetre each side. Posed here on the CPU each frame the
+  // record is (a few hundred corners; the GPU rides the record). No shadow of its own (a copy clipped in colour is whole
+  // in the depth pass: a ghost strip's shadow - the 13 Nov stills' complaint)
+  const CUT_MAT = new WeakMap();
+  const CUT_VS = 'attribute vec2 aCut;\nattribute vec3 aCutP;\nvarying vec2 vCut;\nvarying vec3 vCutP;\n';
+  const CUT_FS = 'varying vec2 vCut;\nvarying vec3 vCutP;\n' +
+    'float cutH(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }\n' +
+    'float cutN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n' +
+    '  return mix(mix(mix(cutH(i), cutH(i + vec3(1,0,0)), f.x), mix(cutH(i + vec3(0,1,0)), cutH(i + vec3(1,1,0)), f.x), f.y),\n' +
+    '             mix(mix(cutH(i + vec3(0,0,1)), cutH(i + vec3(1,0,1)), f.x), mix(cutH(i + vec3(0,1,1)), cutH(i + vec3(1,1,1)), f.x), f.y), f.z); }\n' +
+    // the jag: a 15 cm wander (6 cm), a 4 cm ragging (2 cm), a few mm of fray
+    'float cutJag(vec3 p) { return 0.06 * (cutN(p * 6.5) - 0.5) + 0.02 * (cutN(p * 25.0 + 7.1) - 0.5) + 0.006 * (cutN(p * 90.0 + 3.3) - 0.5); }\n';
+  function brkCutInject(sh) {
+    sh.vertexShader = CUT_VS + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vCut = aCut; vCutP = aCutP;');
+    let fs = CUT_FS + sh.fragmentShader.replace('void main() {', 'void main() {\n  float cutC = vCut.x + cutJag(vCutP);\n  if (vCut.y * cutC < 0.0) discard;');
+    // the torn edge: darker, rough, the paint gone a centimetre each side of the line (a copy cut on its side only)
+    if (fs.indexOf('#include <lights_physical_fragment>') >= 0)
+      fs = fs.replace('#include <lights_physical_fragment>', '{ float cutE = (vCut.y != 0.0) ? 1.0 - smoothstep(0.004, 0.014, abs(cutC)) : 0.0;\n' +
+        '  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.35 + vec3(0.02), cutE * (0.55 + 0.45 * cutN(vCutP * 140.0)));\n' +
+        '  roughnessFactor = mix(roughnessFactor, 0.95, cutE); }\n#include <lights_physical_fragment>');
+    sh.fragmentShader = fs;
+  }
+  function brkCutMat(m) {
+    if (Array.isArray(m)) return m.map(brkCutMat);
+    if (!m) return m;
+    let c = CUT_MAT.get(m); if (c) return c;
+    // (copied as scuffMat copies: Material.copy JSON-copies userData, and a hook up the chain reads its uniforms from
+    // there - a vector array turned plain objects threw in the renderer's upload every frame: the 13 Nov w6 stills
+    // drew sky only once a Cub parted. And the material's OWN hook, not ATMO's accessor's wrapped one: wrapped twice)
+    const ud = m.userData; m.userData = {};
+    try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
+    c.userData = Object.assign({}, ud); c.name = (m.name || '') + ':cut';
+    if (m.defines) c.defines = Object.assign({}, m.defines);
+    const own = Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
+    const f = function (sh, r) { if (own) own.call(this, sh, r); brkCutInject(sh); };
+    f.toString = () => (own ? own.toString() : '') + '|cut4102';   // (the key flips with the source's: the scuff's waker)
+    c.onBeforeCompile = f;
+    CUT_MAT.set(m, c); return c;
+  }
+  function brkCutFree(R) {
+    const T = R.cutDraw; if (!T) return;
+    for (const t of T.meshes) if (t.parent) t.parent.remove(t);
+    if (T.geo) T.geo.dispose();
+    T.meshes = []; T.geo = null; T.v = -1;
+  }
+  function brkCutBuild(R, T, C2) {
+    brkCutFree(R);
+    const src = R.geo, nv = C2.nv, g = new THREE.BufferGeometry(), ver = new Map();
+    for (const name in src.attributes) {
+      const a = src.attributes[name]; if (!a || a.isInterleavedBufferAttribute || !a.array) continue;
+      const it = a.itemSize, arr = name === 'position' ? new Float32Array(nv * it) : new a.array.constructor(nv * it);
+      for (let o = 0; o < nv; o++) { const v = C2.src[o]; for (let k = 0; k < it; k++) arr[o * it + k] = a.array[v * it + k]; }
+      g.setAttribute(name, new THREE.BufferAttribute(arr, it, a.normalized)); ver.set(name, a.version);
+    }
+    const cut = new Float32Array(nv * 2), cp = new Float32Array(nv * 3);
+    for (let o = 0; o < nv; o++) { cut[o * 2] = C2.d[o]; cut[o * 2 + 1] = C2.s[o]; cp[o * 3] = C2.base[o * 3]; cp[o * 3 + 1] = C2.base[o * 3 + 1]; cp[o * 3 + 2] = C2.base[o * 3 + 2]; }
+    g.setAttribute('aCut', new THREE.BufferAttribute(cut, 2)); g.setAttribute('aCutP', new THREE.BufferAttribute(cp, 3));
+    // (a multi-material geometry: the copies ordered by their source triangle's group, one group each)
+    const groupsSrc = src.groups || [];
+    if (groupsSrc.length > 1) {
+      const nT = nv / 3, gi = new Int32Array(nT);
+      for (let j = 0; j < nT; j++) { const s3 = C2.tri[j] * 3; let q = 0; for (; q < groupsSrc.length; q++) if (s3 >= groupsSrc[q].start && s3 < groupsSrc[q].start + groupsSrc[q].count) break; gi[j] = q < groupsSrc.length ? groupsSrc[q].materialIndex : 0; }
+      const ord = Array.from({ length: nT }, (_, j) => j).sort((x, y) => gi[x] - gi[y]), idx = new Uint32Array(nv);
+      ord.forEach((j, k) => { idx[k * 3] = j * 3; idx[k * 3 + 1] = j * 3 + 1; idx[k * 3 + 2] = j * 3 + 2; });
+      g.setIndex(new THREE.BufferAttribute(idx, 1));
+      for (let k = 0; k < nT;) { const mi = gi[ord[k]]; let e = k; while (e < nT && gi[ord[e]] === mi) e++; g.addGroup(k * 3, (e - k) * 3, mi); k = e; }
+    }
+    T.geo = g; T.v = C2.v; T.ver = ver; T.w = new Float64Array(nv * 3);
+    T.n = g.attributes.normal ? g.attributes.normal.array : null; T.nB = null;
+    if (T.n && R.nB) { T.nB = new Float32Array(nv * 3); for (let o = 0; o < nv; o++) { const v = C2.src[o]; T.nB[o * 3] = R.nB[v * 3]; T.nB[o * 3 + 1] = R.nB[v * 3 + 1]; T.nB[o * 3 + 2] = R.nB[v * 3 + 2]; } }
+    if (!T.nB) T.n = null;
+    const hosts = []; model.grp.traverse(m => { if (m.isMesh && !m.userData.cutTwin && R.geos && R.geos.indexOf(m.geometry) >= 0) hosts.push(m); });
+    for (const m of hosts) { const t = new THREE.Mesh(g, brkCutMat(m.material)); t.userData.cutTwin = true; t.castShadow = false;
+      t.receiveShadow = m.receiveShadow; t.frustumCulled = false; t.renderOrder = m.renderOrder; t.name = (m.name || '') + ':cut'; m.add(t); T.meshes.push(t); }
+  }
+  function brkCutDraw(R, off, X, K) {
+    const C2 = R.cut2, T = R.cutDraw || (R.cutDraw = { v: -1, geo: null, meshes: [], w: null, n: null, nB: null, ver: null });
+    if (!C2) { if (T.geo) brkCutFree(R); return; }
+    if (T.v !== C2.v || !T.geo) brkCutBuild(R, T, C2);
+    else for (const [name, v0] of T.ver) { const a = R.geo.attributes[name]; if (!a || a.version === v0 || name === 'position' || name === 'normal') continue;   // (the scuff's record moved: gathered again)
+      const b = T.geo.attributes[name], it = a.itemSize; for (let o = 0; o < C2.nv; o++) { const v = C2.src[o]; for (let k = 0; k < it; k++) b.array[o * it + k] = a.array[v * it + k]; }
+      b.needsUpdate = true; T.ver.set(name, a.version); }
+    if (!T.meshes.length) return;
+    const pa = T.geo.attributes.position;
+    SKIN_BREAK.poseCage(C2, K.rest, sim.p, C2.base, pa.array, K.NF, K.down, off, { Mi: X.Mi, B: X.B, cg: X.cg, o: X.o, w: T.w, n: T.n, nB: T.nB });
+    pa.needsUpdate = true; if (T.n) T.geo.attributes.normal.needsUpdate = true;
+  }
   function brkCage(xA, yU, cg, o, gain, still) {
     const D = brkState();
     if (!D || model.gen) return;
@@ -5702,12 +5823,13 @@
       } else BRK.motP = Float64Array.from(p);
       d = Math.sqrt(d); if (d > TEAR_JITTER) BRK.motion = (BRK.motion || 0) + d; }
     for (const [own, , pa, , off] of groups) {
-      const R = own.brkR; if (!R || !R.active) continue;
+      const R = own.brkR; if (!R || !R.active) { if (R && R.cutDraw && R.cutDraw.geo) brkCutFree(R); continue; }   // (G4102: a heal takes the cut copies)
       const ge = GP ? GP.of(R, pa, off, o) : null, onGpu = !!ge && !ge.cpu;
       if (!onGpu) {
         X.w = R.w; X.n = R.nAttr ? R.nAttr.array : null; X.nB = R.nB || null;
         SB.poseCage(R, K.rest, sim.p, R.baseD, pa.array, K.NF, K.down, off, X);
       }
+      if (R.cut2 || (R.cutDraw && R.cutDraw.geo)) brkCutDraw(R, off, X, K);   // G4102: the cut copies beside it
       // (G1869: the tear checked at most every TEAR_EVERY s of sim time - a check is every live triangle's three edges;
       // G1818: on the GPU's riding, on its places' world positions - skin_break.js tearPlaces. Train 41: AT THE CPU'S
       // CADENCE - the frame the tear is due asks the places pass (that frame's positions); the read lands a frame or two
@@ -6801,8 +6923,9 @@
   // damage event (the broken list or the sets moved) the marks are made again from them and packed into the shared
   // uniforms; a heal, a new flight or another aeroplane lets them go. Nothing runs while damage is off or nothing broke
   // but one compare a frame; the capture is once a flight (a few thousand points). window.FLYDIY_GLASS: the page checks'
-  // read; window.FLYDIY_GLASS_TEST(sev, at): a mark placed by hand (at: a pane point index, 'view' the glazing's point
-  // nearest the middle of the view, or by default the windscreen's middle)
+  // read; window.FLYDIY_GLASS_TEST(sev, at, look): a mark placed by hand (at: a pane point index, 'view' the glazing's point
+  // nearest the middle of the view, or by default the windscreen's middle; look: 'acrylic' | 'laminated', the sheet by
+  // hand - CANOPY-CRACKS - else the aeroplane's own)
   const GLM = { model: null, P: null, M: null, marks: [], key: '', test: false };
   function glassPanes(U) {
     const inv = U.uCraftInv.value, M4 = new THREE.Matrix4(), N3 = new THREE.Matrix3(), v = new THREE.Vector3(), nv = new THREE.Vector3();
@@ -6840,6 +6963,29 @@
     return DMG_GLASS.members(GLM.P, mids);
   }
   function glassClear(U) { GLM.marks = []; GLM.key = ''; GLM.test = false; if (U) DMG_GLASS.pack(U, []); window.FLYDIY_GLASS = null; }
+  // CANOPY-CRACKS (12 Nov, the user's option B): THE FLOWN AEROPLANE'S CRACK SHEET - its glazing's look (dmg_glass.js sheetOf:
+  // glass -> the laminated sheet, acrylic and polycarbonate -> the acrylic one), baked once (tools/crack_sheet_bake.js, the
+  // table crack_sheet.js). Fetched once a look at the flight's start, when the glazing is captured, and uploaded as it lands -
+  // never at the crash. tCrack keeps aeroskin's no-crack texel until this sheet is in (an empty sampler would read as a
+  // crack everywhere a mark reaches); a sampler swap links no program
+  const CRK = { tex: {}, ready: {}, want: null };
+  function glassSheet(U, look) {   // (look: FLYDIY_GLASS_TEST's third argument, 'acrylic' | 'laminated' - a sheet by hand)
+    if (typeof CRACK_SHEET === 'undefined' || !CRACK_SHEET || !U.tCrack) return;
+    const gm = def && def.spec && def.spec.cabin && def.spec.cabin.glazingMat, sh = CRACK_SHEET[look] ? look : DMG_GLASS.sheetOf(gm);
+    CRK.want = sh; U.uCrackMat.value = DMG_GLASS.matIndex(sh);
+    if (CRK.ready[sh]) { U.tCrack.value = CRK.tex[sh]; return; }
+    if (CRK.tex[sh]) return;   // (on its way)
+    const t = CRK.tex[sh] = new THREE.Texture();
+    t.flipY = false; t.generateMipmaps = true; t.colorSpace = THREE.NoColorSpace;
+    t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    const im = new Image(); im.decoding = 'async';
+    im.onload = () => {
+      t.image = im; t.needsUpdate = true; CRK.ready[sh] = true;
+      try { if (renderer.initTexture) renderer.initTexture(t); } catch (e) {}
+      if (CRK.want === sh) U.tCrack.value = t;
+    };
+    im.src = (typeof FLYDIY_ASSET_BASE !== 'undefined' ? FLYDIY_ASSET_BASE : '') + CRACK_SHEET[sh];
+  }
   function glassMarks() {
     if (typeof DMG_GLASS === 'undefined' || !window.AEROSKIN || !AEROSKIN.aeroSharedU || !model || !sim || !def) return;
     const U = AEROSKIN.aeroSharedU(THREE);
@@ -6849,7 +6995,7 @@
     const damaged = D.br.length > 0 || D.sS !== '0:0';                  // (sim_host simDmgSigs: sS = yields:dents)
     if (!damaged) {
       if (GLM.marks.length && !GLM.test) glassClear(U);                    // healed: the panes whole again
-      if (!GLM.P) { GLM.P = glassPanes(U); GLM.M = GLM.P ? glassMembers(U) : []; }   // the capture, at rest
+      if (!GLM.P) { GLM.P = glassPanes(U); GLM.M = GLM.P ? glassMembers(U) : []; if (GLM.P) glassSheet(U); }   // the capture, at rest (+ the crack sheet)
       return;
     }
     if (!GLM.P || !GLM.M || !GLM.M.length) return;
@@ -6857,13 +7003,14 @@
     GLM.marks = DMG_GLASS.impacts(GLM.P, GLM.M, D, GLM.test ? [] : GLM.marks); GLM.test = false;
     DMG_GLASS.pack(U, GLM.marks);
     window.FLYDIY_GLASS = { marks: GLM.marks.map(m => ({ p: m.p.map(x => +x.toFixed(3)), sev: +m.sev.toFixed(2), pane: m.pane, member: m.bi })),
-                            panes: GLM.P.panes, points: GLM.P.n, members: GLM.M.length };
+                            panes: GLM.P.panes, points: GLM.P.n, members: GLM.M.length, sheet: CRK.want, sheetIn: !!CRK.ready[CRK.want] };
   }
-  window.FLYDIY_GLASS_TEST = (sev, at) => {
+  window.FLYDIY_GLASS_TEST = (sev, at, look) => {
     if (typeof DMG_GLASS === 'undefined' || !model) return null;
     const U = AEROSKIN.aeroSharedU(THREE);
     if (sev == null) { glassClear(U); return 0; }
     if (!GLM.P) GLM.P = glassPanes(U); const P = GLM.P; if (!P) return null;
+    glassSheet(U, look);   // CANOPY-CRACKS: the flown aeroplane's sheet, or the look asked (a test mark shows once it is in, a frame or two on a first fetch)
     let k = at;
     if (k === 'view') {   // (28 Oct) the glazing's point nearest the middle of the view - the windscreen's middle is off the
       // left seat's view on the metal Cessna: the camera's eye and forward taken into craft space, the point most ahead
@@ -6880,7 +7027,7 @@
     const nl = Math.hypot(P.nrm[k * 3], P.nrm[k * 3 + 1], P.nrm[k * 3 + 2]) || 1;
     GLM.marks = [{ p: [P.pts[k * 3], P.pts[k * 3 + 1], P.pts[k * 3 + 2]], n: [P.nrm[k * 3] / nl, P.nrm[k * 3 + 1] / nl, P.nrm[k * 3 + 2] / nl], sev: +sev, seed: 4242 + k, pane: P.pane[k], bi: -1 }];
     GLM.test = true; DMG_GLASS.pack(U, GLM.marks);
-    return { at: k, p: GLM.marks[0].p, n: GLM.marks[0].n, panes: P.panes, points: P.n };
+    return { at: k, p: GLM.marks[0].p, n: GLM.marks[0].n, panes: P.panes, points: P.n, sheet: CRK.want, sheetIn: !!CRK.ready[CRK.want] };
   };
   function scarsClear() {
     GROUND_SCAR.clear(scarMesh);
@@ -9661,8 +9808,28 @@
       return { ok: !!r.ok, why: r.why || '' }; } catch (e) { return { ok: false, why: String((e && e.message) || e) }; } },
     onStand: () => slotOnStand(),
     start: () => storeStartNow(),
+    // RESTORE (HOME-DERELICT, the user 13 Nov: the old hangar restored step by step): the building the garage is in - its
+    // stage, the next step (price, days, what), the works under way (71_ playerRestoreState; a finished step settled first);
+    // Start pays and starts it (playerRestoreStart: the sandbox at once and free). The world draws the new stage at the next
+    // roll-out ('restore' step below): in the garage the world is not drawn
+    restore: () => { if (typeof playerRestoreState !== 'function') return null;
+      restoreSettleNow(); const d = playerLoad(), s = playerRestoreState(d, roomId());
+      return s ? Object.assign(s, { sandbox: d.mode !== 'career' }) : null; },
+    restoreStart: () => { try { const r = playerRestoreStart(playerLoad(), roomId());
+      if (r.ok) { player = r.doc; playerSave(); try { if (CAREER_DEV) econWalletSync(); } catch (e) {} }
+      return { ok: !!r.ok, why: r.why || '', cost: r.cost || 0 }; } catch (e) { return { ok: false, why: String((e && e.message) || e) }; } },
     onChange: null,
   };
+  // RESTORE: a step whose days are up is finished where the document is read (the storage screen, the roll-out)
+  function restoreSettleNow() {
+    if (typeof playerRestoreSettle !== 'function') return [];
+    const r = playerRestoreSettle(playerLoad());
+    if (r.done.length) { player = r.doc; playerSave(); }
+    return r.done;
+  }
+  // ...and the key the roll-out's 'restore' step runs on: every held building's stage as it stands once settled
+  const restoreKey = () => { try { const r = playerRestoreSettle(playerLoad()), S = r.doc.sheds || {};
+    return Object.keys(S).map(id => id + ':' + restoreStage(r.doc, id)).join(','); } catch (e) { return ''; } };
   // ---- G2300 (STAGES): THE BUILDINGS THE MISSIONS PUT UP - composed at the load (world_boot.js) and at a ROLL-OUT, never
   // in flight (76_stages.js stageHost: a change noted in 'flight' waits, queued). The roll-out's 'stages' trip step
   // recomposes the world on the WHOLE record's view at the new tracks through the world editor's own path - the
@@ -13045,6 +13212,17 @@
           n1(s.burnKgH / (s.energyKgL || 0.72), 0) + ' L/h)');
       R('cooling duty', n1(s.coolKW, 0) + ' kW · ' +
         (s.engineCooling === 'liquid' ? 'by radiator' : 'by fins'));
+      // ENGINE-COOLING (12 Nov): what the drawn openings do with it - the hot-day climb (38 C at sea level, full power)
+      const CO = s.cooling;
+      if (CO && CO.kind === 'bare') R('cooling air', 'no cowl: heads in the wind ' + n1(CO.bareA, 3) + ' m2 · ' +
+        (CO.margin != null ? n1(CO.margin, 2) + ' x what a 38 C climb needs' : 'the engine stands in the air'), CO.margin != null && CO.margin < 1 ? 'bad' : '');
+      else if (CO && CO.margin != null) {
+        R('hot-day climb air', n1(CO.passKgS, 2) + ' / ' + n1(CO.needKgS, 2) + ' kg/s · ' + n1(CO.margin, 2) + ' x what it needs',
+          CO.margin < 1 ? 'bad' : '');
+        R('cooling openings', 'in ' + n1(CO.inA, 3) + ' m2' + (CO.bareA > 0 ? ' + heads ' + n1(CO.bareA, 3) : '') +
+          ' (needs ' + n1(CO.needA, 3) + ') · out ' + (CO.outA != null ? n1(CO.outA, 3) + ' m2' : 'sized for you'));
+        R('cooling drag', n1(CO.cdA, 3) + ' m2 · on the ground ' + n1(CO.taxi, 2) + ' x', CO.taxi < 1 ? 'bad' : '');
+      }
       // G435: the endurance said in minutes, red under half an hour (the
       // user's 2 kWh trainer: 2 min at full throttle, into the sea)
       if (s.enduranceFullH != null) {
@@ -15309,6 +15487,10 @@
     // screen (stageCompose), never in flight; absent in the sandbox (no host), and a no-op while nothing is queued
     { id: 'stages', part: 'world', label: 'the new buildings', w: 4, key: () => (WF ? 'stages ' + stageWantKey() : null), deps: ['world'],
       when: () => !!STAGE_Q, fn: () => stageCompose('rollout') },
+    // RESTORE (13 Nov): a restoration step finished (or a sandbox step taken) since the world stood its hangars - the side
+    // hangars re-stood at their stages (setPlayerSheds rebuilds only the one whose dims changed), under the loading screen
+    { id: 'restore', part: 'world', label: 'the old hangar', w: 2, key: () => (WF && typeof playerRestoreSettle === 'function' ? 'restore ' + restoreKey() : null), deps: ['world'],
+      fn: () => { restoreSettleNow(); if (WF && WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); } } },
     // THE TOWN ROUND THE STAND (G591): the premises within 4 km of the aeroplane, built in 40 ms slices - they were one
     // synchronous drain inside the world step (the 15-18 s task behind "page unresponsive"); the rest streams in flight
     { id: 'town', part: 'world', label: 'building the field', w: 8, key: () => WF ? 'at ' + anchorStr() : null, deps: ['world', 'stages'], fn: () => {
@@ -20939,6 +21121,7 @@
         SKY_GLARE.update(camera, glareDir, { lum: (0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2]) * cT, isMoon: L.isMoon, phase: L.phase,
                                              aspect: renderer.domElement.width / Math.max(1, renderer.domElement.height), tint: [L.T[0] / mT, L.T[1] / mT, L.T[2] / mT] });
         SKY_GLARE.render(renderer);
+        if (!inShed && window.WATER && WATER.glint && typeof world.waterH === 'function' && typeof world.terrainH === 'function') WATER.glint.vis = glintVis(camera.position, glareDir, WATER.glint.vis);   // LOOK-GLINT
       }
     }
     if (photoGrab && framePresented) { const g = photoGrab; photoGrab = null; try { g(renderer.domElement); } catch (e) { console.warn('flyDiy: the photo -', e && e.message); } }   // G3741

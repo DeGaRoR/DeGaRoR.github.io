@@ -95,7 +95,8 @@ const NAMES = ['PLAYER_V', 'PLAYER_MIGRATORS', 'playerMigrate', 'playerDefault',
   'playerBringHome', 'playerRollFrom', 'FLIGHT_BASES', 'flightBasesOf', 'flightBases', 'flightBase',
   'PREM_WORLD', 'playerWorldSheds', 'playerClosedSheds', 'premResidentsDrawn', 'playerRollHangar', 'playerPlotSite',
   'PREM_STORE', 'playerStoreSlots', 'playerBaseOutside', 'playerStoreWhere', 'playerStoreSettle', 'playerMove', 'playerFloorSync',
-  'playerFlyStart', 'playerStoreView'];
+  'playerFlyStart', 'playerStoreView',
+  'RESTORE_WORDS', 'RESTORE_STEPS', 'restoreStage', 'playerRestoreState', 'playerRestoreStart', 'playerRestoreSettle'];
 const RW_JS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
 // G2310 (PREM-S3): Jolene composed TWICE, once (the record as shipped, its plots) and once with every `plots` stripped (the
 // record as it was before the amendment) - outside run(), so the selftest's forty runs reuse them
@@ -747,8 +748,9 @@ function run(mut) {
         ok(J(st) === J([0, 1, 2, 3]), 'CLOSED-SHED: in a career HOME.2 stands at the field track\'s stage (field 0/1/2/3 -> ' + J(st) + ')');
       }
       const hH = R.playerAcquire(sb, 'HOME', 'HOME.2', 'works', 'own');
-      ok(!hH.ok || (!R.playerClosedSheds(hH.doc).some(x => x.id === 'HOME.2') && R.hangarDims(hH.doc.sheds['HOME.2']).stage === undefined),
-         'CLOSED-SHED: HOME.2 held leaves the closed list, restored (no stage)', J(hH.ok && hH.doc.sheds['HOME.2']));
+      // (RESTORE, A0 13 Nov: held, it keeps the stage it was bought at - restored step by step, see RESTORE below)
+      ok(!hH.ok || (!R.playerClosedSheds(hH.doc).some(x => x.id === 'HOME.2') && R.hangarDims(hH.doc.sheds['HOME.2']).stage === 0),
+         'CLOSED-SHED: HOME.2 held leaves the closed list, at the stage it stood (the sandbox: derelict)', J(hH.ok && hH.doc.sheds['HOME.2']));
       ok(!R.playerClosedSheds(h3).some(x => x.id === 'w3' || x.id === 'SEA' || x.id === 'mk_sea' || x.id === 'tw_ski'), 'CLOSED-SHED: an unflagged plot stands nothing (only the mine is flagged)');
     }
     ok(/function standShed\(dims\) \{[\s\S]{0,400}shedNode = shedNodeAt\(SITE\.hangar, dims\);/.test(R.__rw), 'S3 identity: HOME\'s shed is standShed\'s own build, undressed (no third argument)');
@@ -765,6 +767,52 @@ function run(mut) {
       ok(/r\.kind === 'in' && r\.hangar && r\.hangar !== d\.here[\s\S]{0,80}playerGoTo\(d, r\.hangar\)/.test(fnB(A3, 'playerFlightEnd')), 'S3 page: the roll-in returns into the hangar playerArrive chose (the garage opens there)');
       ok(/WF\.setPlayerSheds\(worldSideSheds\(\)\)/.test(fnB(A3, 'worldBuilt')), 'S3 page: the side hangars stand when the world is built');
     }
+  }
+
+  // ==== RESTORE (HOME-DERELICT, the user 13 Nov: the old hangar restored step by step; the assets ready, no story wiring) ====
+  {
+    const T0 = 1e9, DAY = 86400;
+    const sb0 = R.playerNormalise(R.playerMigrate(R.playerDefault()));
+    const a = R.playerAcquire(sb0, 'HOME', 'HOME.2', 'works', 'own');
+    ok(a.ok && a.doc.sheds['HOME.2'].dims.stage === 0, 'RESTORE: the old hangar is bought as it stands (derelict, stage 0)', a.why);
+    ok(R.playerWorldSheds(a.doc).find(s => s.id === 'HOME.2').dims.stage === 0, 'RESTORE: the world stands it at its stage');
+    const club = R.playerAcquire(sb0, 'HOME', 'HOME.2', 'club', 'own');
+    ok(club.ok && R.playerRestoreState(club.doc, 'HOME.2') === null && !Number.isFinite(club.doc.sheds['HOME.2'].dims.stage), 'RESTORE: another shell on the plot is a new building - nothing to restore');
+    ok(R.playerRestoreState(sb0, 'HOME') === null, 'RESTORE: a plot without a restoration track has none');
+    const s0 = R.playerRestoreState(a.doc, 'HOME.2', T0);
+    ok(s0 && s0.stage === 0 && s0.word === 'derelict' && s0.next && s0.next.to === 1 && s0.next.word === 'made safe' && s0.next.price > 0 && s0.next.days > 0 && !s0.works && s0.why === '',
+       'RESTORE: the card - derelict, the next step (made safe) with its price and days', J(s0));
+    // the sandbox: free and at once, step by step to restored, then nothing more
+    let d = a.doc; const seen = [];
+    for (let i = 0; i < 3; i++) { const r = R.playerRestoreStart(d, 'HOME.2', T0); if (!r.ok) break; d = r.doc; seen.push(d.sheds['HOME.2'].dims.stage); }
+    ok(eq(seen, [1, 2, 3]) && d.wallet === a.doc.wallet && !d.sheds['HOME.2'].restore, 'RESTORE: the sandbox restores at once and free, one stage a step', J(seen));
+    const fin = R.playerRestoreStart(d, 'HOME.2', T0);
+    refused(fin, d, d, 'RESTORE: a restored building');
+    // the career: paid at the start, finished when its days are up, one step at a time
+    const cr = clone(sb0); cr.mode = 'career'; cr.wallet = 5e6;
+    const ca = R.playerAcquire(cr, 'HOME', 'HOME.2', 'works', 'own').doc;
+    const st = R.playerRestoreStart(ca, 'HOME.2', T0), step = R.RESTORE_STEPS[0];
+    ok(st.ok && st.cost > 0 && st.doc.wallet === ca.wallet - st.cost && st.doc.sheds['HOME.2'].restore && st.doc.sheds['HOME.2'].restore.until === T0 + step.days * DAY && st.doc.sheds['HOME.2'].dims.stage === 0,
+       'RESTORE: a career pays the step at its start; the building stays as it was while the works run', J(st.doc && st.doc.sheds['HOME.2']));
+    ok(st.doc.ledger.some(l => l.k === 'restore' && l.ref === 'HOME.2' && l.amt === st.cost), 'RESTORE: the ledger says it');
+    refused(R.playerRestoreStart(st.doc, 'HOME.2', T0 + 10), st.doc, st.doc, 'RESTORE: a second step while the works run');
+    const early = R.playerRestoreSettle(st.doc, T0 + step.days * DAY - 1), late = R.playerRestoreSettle(st.doc, T0 + step.days * DAY);
+    ok(early.doc === st.doc && !early.done.length && eq(late.done, ['HOME.2']) && late.doc.sheds['HOME.2'].dims.stage === 1 && !late.doc.sheds['HOME.2'].restore && st.doc.sheds['HOME.2'].restore,
+       'RESTORE: the step finishes when its days are up, not before (pure: the given document untouched)');
+    const ws = R.playerRestoreState(st.doc, 'HOME.2', T0 + DAY);
+    ok(ws.works && ws.works.to === 1 && ws.works.left === (step.days - 1) * DAY && ws.why === 'the works are under way', 'RESTORE: the card says the works and the time left', J(ws));
+    const poor = clone(ca); poor.wallet = 1;
+    refused(R.playerRestoreStart(poor, 'HOME.2', T0), poor, poor, 'RESTORE: a wallet short of the step');
+    // an older document's hangar (no stage) stands restored, as before
+    const old = clone(a.doc); delete old.sheds['HOME.2'].dims.stage;
+    ok(R.restoreStage(old, 'HOME.2') === 3 && R.playerWorldSheds(old).find(s => s.id === 'HOME.2').dims.stage === 3, 'RESTORE: an older document\'s hangar stands restored, unchanged');
+    // the page: the doors and the roll-out's redraw (source-scanned)
+    const A4 = R.__app;
+    ok(/restore: \(\) => \{ if \(typeof playerRestoreState !== 'function'\) return null;\s*restoreSettleNow\(\);/.test(A4) && /restoreStart: \(\) => \{ try \{ const r = playerRestoreStart\(playerLoad\(\), roomId\(\)\);/.test(A4),
+       'RESTORE page: the storage screen\'s doors (the building the garage is in; a finished step settled first)');
+    ok(/\{ id: 'restore', part: 'world'[\s\S]{0,260}restoreSettleNow\(\); if \(WF && WF\.setPlayerSheds\) \{ WF\.setPlayerSheds\(worldSideSheds\(\)\)/.test(A4), 'RESTORE page: the roll-out re-stands the hangars at their stages');
+    const SU = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'storage_ui.js'), 'utf8');
+    ok(/A\.restore \? A\.restore\(\) : null/.test(SU) && /A\.restoreStart\(\)/.test(SU) && /'Start the works'/.test(SU), 'RESTORE page: the storage screen shows the strip, asks, then starts the works');
   }
 
   // ==== PURITY =====================================================================
@@ -828,6 +876,12 @@ const BREAKS = [
   ['GQ7: Repair / Paint leaves the wear', { src71: sub('  delete r.wearOut;\n', '') }],
   ['gp1: the bases are not derived from the hangars held', { src38b: sub('const R = doc ? flightBasesOf(doc) : FLIGHT_BASES;', 'const R = FLIGHT_BASES;') }],
   ['the roll-out always from the base', { src71: sub("if (W.kind !== 'none' && W.aero) return W.aero;", '') }],
+  ['RESTORE: bought restored', { src71: sub("if (P.closedTrack && shell === P.shells[0]) d.sheds[plotId].dims.stage =", 'if (false) d.sheds[plotId].dims.stage =') }],
+  ['RESTORE: the world ignores the stage', { src71: sub('const rs = restoreStage(doc, id); if (rs != null) dims.stage = rs;', '') }],
+  ['RESTORE: a step finishes at once in a career', { src71: sub('until: t + (career ? st.next.days * RESTORE_DAY_S : 0)', 'until: t') }],
+  ['RESTORE: a step is free in a career', { src71: sub("playerLedger(d, 'restore', st.next.price, id);", '') }],
+  ['RESTORE: two steps at once', { src71: sub("else if (works) why = 'the works are under way';", '') }],
+  ['RESTORE: the roll-out forgets the hangars', { app: sub("{ id: 'restore', part: 'world'", "{ id: 'restore0', part: 'world'") }],
   // ---- the page's doors (source scans) ----
   ['the page forgets the lift at load', { app: sub("try { if (typeof playerFleetReconcile === 'function') player = playerFleetReconcile(player, playerSlotNames()).doc; }", 'try { }') }],
   ['a save does not tell the fleet ledger', { garage: sub('slotsChanged({ saved: name, repainted });', '') }],

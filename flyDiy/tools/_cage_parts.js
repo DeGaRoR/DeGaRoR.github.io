@@ -1018,7 +1018,7 @@ const CAGE_PARTS = [
       ['inlet lip', ['cw_lipMode', 'cw_lipThick', 'cw_lipDepth',
                      'cw_lipRound', 'cw_lipProtrude', 'cw_lipInset',
                      'cw_ductLen', 'cw_ductFlare']],
-      ['chin scoop', ['cw_scoopOn', 'cw_scoopFollow', 'cw_scoopHold', 'cw_scoopWFit', 'cw_scoopTaperH', 'cw_scoopTaperW', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
+      ['chin scoop', ['cw_scoopOn', 'cw_scoopRev', 'cw_scoopTop', 'cw_scoopAft', 'cw_scoopFollow', 'cw_scoopHold', 'cw_scoopWFit', 'cw_scoopTaperH', 'cw_scoopTaperW', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
                       'cw_scoopH', 'cw_scoopSq', 'cw_scoopDrop',
                       'cw_scoopRake', 'cw_scoopAp', 'cw_scoopLipH',
                       'cw_scoopLipDepth', 'cw_scoopDuct']],
@@ -1130,7 +1130,7 @@ const CAGE_PARTS = [
                   's1_twSpringT', 's1_twLeaves', 's1_twRake', 's1_twTrail',
                   's1_twLegDrop', 's1_twSteer', 's1_twSteerVis']],
       // WILGA-GEAR: the trailing-link leg (the Wilga's) and its preview
-      ['trailing link', ['s1_lvArm', 's1_lvAng', 's1_lvComp', 's1_lvTop', 's1_lvReach', 's1_lvStat', 's1_lvLegW', 's1_lvRootAng', 's1_lvBoot',
+      ['trailing link', ['s1_lvArm', 's1_lvAng', 's1_lvComp', 's1_lvTop', 's1_lvReach', 's1_lvStat', 's1_lvLegW', 's1_lvRootAng', 's1_lvBoot', 's1_lvJoint',
                          'gearLvPos']],
       // RETRACT-1: the retractable gear (a tricycle's; the mains are what it is mostly about)
       ['retraction', ['gearRetract', 'gearRetT', 'gearRetAct', 'gearPos', 'gearRetFrac', 'gearWellCut', 'gearLegDoor', 'gearDoors', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor']],
@@ -1159,7 +1159,7 @@ const CAGE_PARTS = [
       ['hull', ['fltL', 'fltStep', 'fltB', 'fltH', 'fltBeta', 'fltBetaBow', 'fltBetaA', 'fltHs', 'fltAft',
                 'fltAftCurve', 'fltFlat', 'fltStem', 'fltRake', 'fltNoseR', 'fltPlan', 'fltStern', 'fltFlare', 'fltMass']],
       ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],
-      ['struts', ['fltStrutR', 'fltStrutAng', 'fltFrontRing', 'fltSpread', 'fltSpreadAft', 'fltWires']],
+      ['struts', ['fltStrutR', 'fltStrutAng', 'fltFrontRing', 'fltRigFwd', 'fltSpread', 'fltSpreadAft', 'fltWires', 'fltLadder']],
     ] },
 
   { key: 'third', name: 'Third wheel', parent: 'gear', layer: 'gear',
@@ -1185,20 +1185,20 @@ const CAGE_PARTS = [
                   's2_twSpringT', 's2_twLeaves', 's2_twRake', 's2_twTrail',
                   's2_twLegDrop', 's2_twSteer', 's2_twSteerVis']],
       // WILGA-GEAR: the station's copy of the trailing-link rows (the leg row offers the kind on the mains only)
-      ['trailing link', ['s2_lvArm', 's2_lvAng', 's2_lvComp', 's2_lvTop', 's2_lvReach', 's2_lvStat', 's2_lvLegW', 's2_lvRootAng', 's2_lvBoot']],
+      ['trailing link', ['s2_lvArm', 's2_lvAng', 's2_lvComp', 's2_lvTop', 's2_lvReach', 's2_lvStat', 's2_lvLegW', 's2_lvRootAng', 's2_lvBoot', 's2_lvJoint']],
     ] },
 
   // 2026-09-04 (the user: "the wheel is a child of suspension"): under the mains
   { key: 'wheels', name: 'Wheels & tyres', parent: 'mains', layer: 'gear',
     when: P => (+P.gearOn) * (1 - (+P.gearFloats || 0)) > 0, unless: ['gearFloats'],
     sections: ['spat'],
-    place: { type: ['whProfile', 'whSlick', 'whRim', 'whCap', 'whBrake', 'fairCons'],
+    place: { type: ['whProfile', 'whSlick', 'whRim', 'whCap', 'whBrake', 'brkHold', 'fairCons'],
              count: ['whRibs', 'whBolts'], at: 'every station' },
     groups: [
       // the radii, one per station — the wheel's own size, filed with the wheel
       ['size', ['s1R', 's2R']],
       ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
-      ['rim', ['whRim', 'whBolts', 'whCap', 'whValve', 'whBrake']],
+      ['rim', ['whRim', 'whBolts', 'whCap', 'whValve', 'whBrake', 'brkHold']],
       ['fairing build', ['fairCons']],
     ] },
 

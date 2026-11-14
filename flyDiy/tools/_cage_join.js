@@ -75,6 +75,7 @@ const CAGE_JOIN_ENGINES = {
   // A-65 through the fallback below, which is the four-orphan trap
   'P&W PT6A-114A': 'pt6a114a_hartzell3',
   'P&W PT6A-34': 'pt6a34_hartzell4',
+  'P&W PT6A-27': 'pt6a27_hartzell3',   // (12 Nov, FIT-PROCEDURE: the PC-6's)
 };
 
 // G132: THE DRAWN BLADE IS THE PHYSICS' AUTHOR. cw_material indexes the cowl
@@ -452,7 +453,7 @@ function cageJoinSpec(P, M, T) {
       // numbers, the details, the water rudder, the mass) plus the placement
       const HYj = window.HYDRO_GEN || (typeof HYDRO !== 'undefined' ? HYDRO : null);
       const keys = (HYj && HYj.FLOAT_SPEC_KEYS) || ['L', 'xs', 'B', 'H', 'beta', 'betaA', 'hs', 'aftAngle', 'bStern'];
-      for (const k of keys.concat(['y', 'track', 'volDeck', 'inc', 'frontRing']))
+      for (const k of keys.concat(['y', 'track', 'volDeck', 'inc', 'frontRing', 'rigFwd']))
         if (typeof M.floats[k] === 'number' && isFinite(M.floats[k])) spec.gear.floats[k] = M.floats[k];
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
       if (typeof M.floats.preset === 'string') spec.gear.floats.preset = M.floats.preset;
@@ -534,6 +535,10 @@ function cageJoinSpec(P, M, T) {
     spec.gear.twFairTail = +P.s2FairTail || 1;
     spec.gear.fairMat = ['glass', 'carbon', 'alloy'][Math.round(P.fairCons || 0)]
                         || 'glass';
+    // THE BRAKES' HOLD (GEN_BRAKES, the user 9 Nov): the key only when chosen - absent flies as it always did (G3800's
+    // twMode rule), so no saved build moves and no certificate is withdrawn
+    { const bk = [null, 'drum', 'disc', 'double'][Math.round(+P.brkHold || 0)];
+      if (bk) spec.gear.brakes = bk; else delete spec.gear.brakes; }
     // G132: THE DRAWN LEG IS THE SUSPENSION. GEN_SUSPENSION (spring rate,
     // damping, price) read spec.gear.suspension while the mains' shock rows
     // drew coil-over/bungee/oleo from s1_shockKind with nothing between
@@ -667,6 +672,24 @@ function cageJoinSpec(P, M, T) {
   if (typeof M.seats === 'number' && M.seats >= 1) cabin.seats = M.seats;
   if (Array.isArray(M.occupied) && M.occupied.length) cabin.occupied = M.occupied;
   if (Object.keys(cabin).length) spec.cabin = cabin;
+  // ENGINE-COOLING: THE COWL'S OPENINGS, measured by the cowl layer off the cowl it drew (CAGE_COOL_OPEN, m2: the
+  // face, the scoop and its facing, a nacelle's inlet, the exit, the gills). Every key written every time, so the
+  // garage's per-key merge takes a closed opening back to 0; a headless join (no layer) says nothing, and the core then
+  // keeps the per-kW cooling drag (62_gen_aero genCoolOpen 'legacy'). MEASURED, never the player's: certStrip drops it
+  {
+    const co = typeof window !== 'undefined' ? window.CAGE_COOL_OPEN : null;
+    // ENGINE-COOLING 3: the heads in the wind (the engine layer, CAGE_COOL_HEADS: m2 out of the drawn skin, m2 in all),
+    // the scoop's other end (a push-pull's aft cowl, cw_scoopAft) and each unit's area factor; an uncowled engine
+    // writes its heads alone (all in the wind: the bare engine's own figure)
+    const hd = typeof window !== 'undefined' ? window.CAGE_COOL_HEADS : null;
+    const heads = hd && typeof hd === 'object' ? { headsOut: +hd.out || 0, headsAll: +hd.all || 0 } : { headsOut: null, headsAll: null };
+    if (co && typeof co === 'object')
+      spec.cooling = Object.assign({ face: +co.face || 0, scoop: +co.scoop || 0, scoopAlt: +co.scoopAlt || 0, scoopRev: co.scoopRev ? 1 : 0,
+                       nacInlet: +co.nacInlet || 0, exit: +co.exit || 0, gills: +co.gills || 0,
+                       units: Array.isArray(co.units) ? co.units.map(u => ({ aft: u.aft ? 1 : 0, k: +u.k || 1, turned: u.scoopTurned ? 1 : 0 })) : null }, heads);
+    else if (hd && typeof hd === 'object' && (P.cowlOn != null && !+P.cowlOn))
+      spec.cooling = Object.assign({ face: 0, scoop: 0, scoopAlt: 0, scoopRev: 0, nacInlet: 0, exit: 0, gills: 0, units: null }, heads);
+  }
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE)) {
     spec.wings[0].xLE = M.wingXLE;

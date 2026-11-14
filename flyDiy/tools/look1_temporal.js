@@ -115,15 +115,17 @@ const PAGE_RIG = `window.LT = (() => {
   // THE FLICKER INDEX: each offset drawn twice, the second kept
   async function spread(base, offs, pxA) {
     const poses = []; for (const o of offs) { const P = Object.assign({}, base, { yaw: base.yaw + o[0] * pxA, pitch: base.pitch + o[1] * pxA }); poses.push(P, P); }
-    const N = offs.length - 1; let M = null, S = null, F0 = null, Lr = null, W = 0, H = 0, n = 0, one = null;
+    const N = offs.length - 1; let SUM = null, M = null, S = null, F0 = null, Lr = null, W = 0, H = 0, n = 0, one = null;
     const r = await walk(poses, (i, px, w, h) => { if (i % 2 === 0) return; W = w; H = h;
       if (!M) { M = new Float32Array(w * h); S = new Float32Array(w * h); F0 = new Float32Array(w * h); Lr = new Float32Array(w * h); }
       const k = (i - 1) / 2; luma(px, w, h, Lr);
       if (k === 0) { F0.set(Lr); one = px.slice(); }
+      if (k < N) { if (!SUM) SUM = new Float32Array(w * h * 4); for (let q = 0; q < w * h * 4; q++) SUM[q] += px[q]; }
       if (k < N) { n++; for (let q = 0; q < w * h; q++) { const d = Lr[q] - M[q]; M[q] += d / n; S[q] += d * (Lr[q] - M[q]); } } });
     let a = 0, sk = 0, lo = 0, nfl = 0, sum = 0; const sky = (H * 0.55) | 0;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const q = y * W + x, sd = Math.sqrt(S[q] / n); S[q] = sd; sum += sd; if (sd > 4) { a++; if (y >= sky) sk++; else lo++; } if (Math.abs(Lr[q] - F0[q]) > 4) nfl++; }
     return Object.assign(r, { flicker_all: +(100 * a / (W * H)).toFixed(2), flicker_sky: +(100 * sk / (W * (H - sky))).toFixed(2), flicker_low: +(100 * lo / (W * sky)).toFixed(2), mean_spread: +(sum / (W * H)).toFixed(3), noise_floor: +(100 * nfl / (W * H)).toFixed(3),
+      mean: await png(W, H, dst => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const s0 = ((H - 1 - y) * W + x) * 4, t0 = (y * W + x) * 4; for (let c = 0; c < 3; c++) dst[t0 + c] = SUM[s0 + c] / N; dst[t0 + 3] = 255; } }, 0.92),
       heat: await png(W, H, heatFill(S, W, H, 8)), one: await png(W, H, flipRGB(one, W, H), 0.92) });
   }
   // CLIP: the frames as JPEGs, held in the page, handed over one at a time
@@ -246,6 +248,17 @@ const PAGE_RIG = `window.LT = (() => {
       for (const k of ['As', 'Noenv', 'Nohemi']) { wr('blue_' + el + '_' + k + '.jpg', b['jpg' + k]); delete b['jpg' + k]; }
       rowsB[el] = b; R.blue = rowsB; log('blue ' + el + ' ' + JSON.stringify(b)); save();
     }
+  } else if (flag('matrix')) {   // bench parity: the AA tier x the leaf sharpen x the impostor's alpha gain, at the canopy (near models) and the stand (impostors): a still + the crawl
+    const COMBOS = JSON.parse(process.env.LT_COMBOS || '[["msaa",0.9,1],["msaa",0.9,1,1],["off",0.9,1],["msaa4",0.9,1],["full",0.9,1],["msaa",0.4,1],["msaa",0,1],["msaa",0.9,0.5],["msaa",0.4,0.5]]');
+    R.matrix = {};
+    for (const vn of (ONLY.length ? ONLY : ['canopy_cu', 'stand'])) { const V = VIEWS.find(v => v.name === vn); const p = await place(V); if (!p) continue; const pose = { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch };
+      for (const [aa, sharp, gain, noA2C] of COMBOS) { const tag = vn + '_' + aa + '_s' + sharp + '_g' + gain + (noA2C ? '_noA2C' : '');
+        await ev(`(GFX.set('aa', '${aa}'), TREE_LEAF.sharp(${sharp}), TREE_LOD.imp({ gain: ${gain} }), (() => { let n = 0; WORLD.scene.traverse(o => { for (const m of (o.material ? [].concat(o.material) : [])) { if (m.userData.__a2c === undefined && m.alphaToCoverage) m.userData.__a2c = 1; if (m.userData.__a2c) { m.alphaToCoverage = !${noA2C ? 1 : 0}; n++; } } }); window.__a2cN = n; })(), 1)`); await ev(FRAMES(30)); await sleep(1200);
+        const sp = await J(`LT.spread(${JSON.stringify(pose)}, ${JSON.stringify(offs)}, ${pxA})`); wr('mx_' + tag + '.jpg', sp.one); if (aa === 'msaa' && sharp === 0.9 && gain === 1 && !noA2C) wr('mx_' + tag + '_taamean.jpg', sp.mean); delete sp.one; delete sp.heat; delete sp.mean;
+        const d = await J(`LT.d2(${JSON.stringify(rows(p, 40, 0.25 * pxA, 0))}, 8)`); delete d.heat; delete d.last;
+        R.matrix[tag] = { spread: sp, pan: { crown: d.crown, low: d.low, all: d.all }, samples: await ev('(FLYDIY_AA.target && FLYDIY_AA.target() ? FLYDIY_AA.target().samples : -1)'), a2cMaterials: await ev('window.__a2cN || 0') };
+        log(tag + ' flicker ' + sp.flicker_all + ' pan crown ' + (d.crown && d.crown.over4) + ' low ' + d.low.over4 + ' samples ' + R.matrix[tag].samples); save(); }
+      await ev(`(GFX.set('aa', 'msaa'), TREE_LEAF.sharp(0.9), TREE_LOD.imp({ gain: 1 }), 1)`); }
   } else if (flag('stills')) {
     const G = { date: '2026-06-22', utc: 4.6 * 3600, rate: 0, cloudCover: 0, cloudType: 'cu' };
     const shots = [['stand_noon', 'stand', CLEAR], ['stand_golden', 'stand', G], ['canopy_noon', 'canopy', CLEAR], ['canopy_golden', 'canopy', G]];

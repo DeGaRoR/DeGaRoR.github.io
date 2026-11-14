@@ -97,6 +97,7 @@ master (the def and 2 s of node positions).
 - fairing_shapes.png - the three shapes, side / three-quarter / ahead (quick_view)
 - fairing_details.png - seams, screws, the floor's cut, the pivot's notch (quick_view)
 - fairing_placements.png - the fitting low / default / high (quick_view)
+- fairing_root_fit.png - the root fitted to the fuselage, filleted, with its rubber joint (quick_view; a later ref, claude/wilga-gear-rootfit)
 - strut_v1_v2.png - the short and the long strut, bare and faired, at rest and at full stroke (quick_view)
 - strut_mount_slider.png - the mount at 0.13 / 0.40 / 0.72: the fairing and its cuts follow (quick_view)
 

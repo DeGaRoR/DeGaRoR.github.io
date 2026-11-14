@@ -40,7 +40,10 @@ const ok = (c, label) => { n++; if (!c) fails++; console.log((c ? '  ok    ' : '
 const f2 = (v, d = 2) => (typeof v === 'number' && isFinite(v)) ? v.toFixed(d) : String(v);
 
 // the pin: tools/../ master's flight_core before FLOATS-CLASSIC (adb2d2a9), the hash below over every Wipline hull
-const WIPLINE_PIN = 'e2f19d7b6d3c19afeb9c3197bec481760ad6964e';
+// RE-PINNED (HYDRO-SCALE, 13 Nov): "USER 13 Nov: Wipline floats scaled to disp, shape kept" - every Wipline row's hull
+// scaled to the row's `disp` (width ~-8 %, length ~-4 %, height kept; was fitted to `flot`, ~11 % big). DEF unchanged.
+// Was e2f19d7b6d3c19afeb9c3197bec481760ad6964e.
+const WIPLINE_PIN = '23429e3019d2626503209a1d3013b33589562f3e';
 function wiplineHash() {
   const h = require('crypto').createHash('sha1');
   for (const nm of H.FLOAT_PRESET_NAMES.concat([null])) {

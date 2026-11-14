@@ -37,6 +37,9 @@ const DEF = {
   // the wheel
   whProfile: 0, whTread: 0, whRibs: 3, whRim: 0, whBolts: 6, whCap: 1,
   whValve: 1, whBrake: 0,
+  // THE BRAKES' HOLD (GEN_BRAKES, 9 Nov): 0 as it always was (the surface's friction, no mass), 1 heel drums, 2 single-
+  // caliper discs, 3 double-caliper discs - a PHYSICS row: the join writes gear.brakes from it
+  brkHold: 0,
   whSlick: 0,        // G3852: a tundra's tread - 0 the bush lugs, 1 smooth, 2 the bevelled lugs (G3851b)
                      // (a look: the fingerprints skip it, bench.js)
   whBulge: 1,        // sidewall inflation x (G33: the balloon look, on
@@ -57,7 +60,7 @@ const DEF = {
   // up the leg, the axle ahead of the fitting, the static deflection at gross (the strut's charge), the leg's fairing
   // chord, the fitting round the body. Every row is ABSENT AT ITS DEFAULT (_cage_gen CAGE_DEFAULT_ABSENT): no saved
   // build gains a key
-  lvArm: 0.400, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.070, lvLegW: 0.090, lvRootAng: 80, lvBoot: 0,
+  lvArm: 0.400, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.070, lvLegW: 0.090, lvRootAng: 80, lvBoot: 0, lvJoint: 0,
   // the tailwheel assembly
   twR: 0.10, twSpringLen: 0.52, twSpringDrop: 0.30, twSpringW: 0.052,
   twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
@@ -120,7 +123,8 @@ const LEG_ROWS = {
     ['lvLegW', 'leg fairing chord', 0.04, 0.16, 0.002],
     ['lvRootAng', 'fitting round the body', 40, 120, 1],
     // (the leg fairing's shape - shown with the leg-fairing row: _cage_gear legRowWhen)
-    ['lvBoot', 'leg fairing shape', 0, 2, 1, ['trailing (Wilga)', 'tapered', 'flared']],   // (the user, 10 Nov: "trailing should be the default")
+    ['lvBoot', 'leg fairing shape', 0, 2, 1, ['trailing (Wilga)', 'tapered', 'flared']],
+    ['lvJoint', 'leg fairing root', 0, 2, 1, ['plain', 'fitted to the body, riveted strip', 'fitted to the body, no strip']],   // (the user, 10 Nov: "trailing should be the default")
   ],
   3: [
     ['twSpringLen', 'spring length', 0.20, 1.00, 0.01],
@@ -174,6 +178,7 @@ const WHEEL_ROWS = [
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat'], notCycle],
   ['whValve', 'valve stem', 0, 1, 1, notCycle],
   ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum'], notCycle],
+  ['brkHold', 'brakes (hold, mass)', 0, 3, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs']],
 ];
 
 const PRESETS = {

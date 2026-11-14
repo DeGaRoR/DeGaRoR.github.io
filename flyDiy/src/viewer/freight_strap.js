@@ -81,7 +81,8 @@
     g.computeBoundingSphere();
     return g;
   };
-  const lin = (T, h) => { const c = new T.Color(h); if (c.convertSRGBToLinear) c.convertSRGBToLinear(); return c; };
+  // (12 Nov: under r186's managed colour, Color(hex) already decodes - convert only when management is off: once)
+  const lin = (T, h) => { const c = new T.Color(h); if (!(T.ColorManagement && T.ColorManagement.enabled) && c.convertSRGBToLinear) c.convertSRGBToLinear(); return c; };
   // the two records the straps wear: a woven polyester webbing (the hangar's tie-down orange) and a zinc-plated steel
   function strapMats(T) {
     const M = W.MATLIB;
