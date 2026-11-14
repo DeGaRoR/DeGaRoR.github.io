@@ -79,6 +79,7 @@ input[type=range] { width: 100%; accent-color: var(--acc); margin: 0; }
         <button id="c-side" data-v="side" aria-pressed="true">Beside the strip</button>
         <button id="c-end" data-v="end" aria-pressed="false">Strip end</button>
         <button id="c-chase" data-v="chase" aria-pressed="false">Chase</button>
+        <button id="c-wheel" data-v="wheel" aria-pressed="false">Wheel</button>
       </div>
     </div>
     <div class="grp">
@@ -96,6 +97,10 @@ input[type=range] { width: 100%; accent-color: var(--acc); margin: 0; }
         <button id="f-sand" data-v="1" aria-pressed="false">Sand</button>
         <button id="f-gravel" data-v="2" aria-pressed="false">Gravel</button>
         <button id="f-grass" data-v="3" aria-pressed="false">Dry grass</button>
+        <button id="f-mud" data-v="5" aria-pressed="false">Mud</button>
+        <button id="f-snow" data-v="6" aria-pressed="false">Packed snow</button>
+        <button id="f-powder" data-v="7" aria-pressed="false">Powder</button>
+        <button id="f-slush" data-v="8" aria-pressed="false">Wet snow</button>
       </div>
     </div>
     <div class="grp">
@@ -137,6 +142,7 @@ input[type=range] { width: 100%; accent-color: var(--acc); margin: 0; }
   </aside>
 </div>
 <!--THREE--><script src="../vendor/three.min.js"></script><!--/THREE-->
+<!--MATLIB--><script src="../src/viewer/matlib.js"></script><!--/MATLIB-->
 <!--DUST--><script src="../src/viewer/dust.js"></script><!--/DUST-->
 <script>
 (function () {
@@ -178,6 +184,14 @@ const stripTex = [
   canvasTex(256, 1024, (g, w, h) => speckle(g, w, h, '#8d8780', ['#77716a', '#a39d95', '#5f5a54', '#b3ada4'], 14000, 1, 5), [1, 6]),
   canvasTex(256, 1024, (g, w, h) => { speckle(g, w, h, '#8f8452', ['#7f7646', '#a39566', '#9b8662', '#6c6a3e'], 9000, 1, 4); g.globalAlpha = 0.3; g.fillStyle = '#8f7a5e'; for (const x of [0.36, 0.64]) g.fillRect(x * w - 9, 0, 18, h); g.globalAlpha = 1; }, [1, 6]),
 ];
+// SNOW-MUD (13 Nov): the soft surfaces - a muddy strip in a field; packed, powder and wet snow strips in a snowfield
+stripTex[5] = canvasTex(256, 1024, (g, w, h) => { speckle(g, w, h, '#4a3a2b', ['#3b2e22', '#5a4733', '#2f251b', '#614d38'], 9000, 1, 4); g.globalAlpha = 0.35; g.fillStyle = '#2a2018'; for (const x of [0.36, 0.64]) g.fillRect(x * w - 10, 0, 20, h); g.globalAlpha = 1; }, [1, 6]);
+stripTex[6] = canvasTex(256, 1024, (g, w, h) => { speckle(g, w, h, '#d9dee6', ['#c9d0db', '#e8ecf2', '#bfc8d6'], 9000, 1, 3); g.globalAlpha = 0.25; g.fillStyle = '#a9b4c6'; for (const x of [0.36, 0.64]) g.fillRect(x * w - 10, 0, 20, h); g.globalAlpha = 1; }, [1, 6]);
+stripTex[7] = canvasTex(256, 1024, (g, w, h) => speckle(g, w, h, '#eef1f6', ['#e2e7ef', '#f7f9fc', '#d7dde8'], 6000, 1, 3), [1, 6]);
+stripTex[8] = canvasTex(256, 1024, (g, w, h) => { speckle(g, w, h, '#a9adb3', ['#8f949b', '#c0c4c9', '#7d8289'], 9000, 1, 4); g.globalAlpha = 0.35; g.fillStyle = '#6f757d'; for (const x of [0.36, 0.64]) g.fillRect(x * w - 10, 0, 20, h); g.globalAlpha = 1; }, [1, 6]);
+const snowTex = canvasTex(256, 256, (g, w, h) => speckle(g, w, h, '#e3e8ef', ['#d3dae5', '#f0f3f8', '#c8d1de'], 5000, 1, 4), [400, 400]);
+const SNOWY = c => c >= 6 && c <= 8;
+const SINK = { 5: 0.06, 6: 0.005, 7: 0.10, 8: 0.07 };   // the solver's sinkage on each (GATE SOFTGROUND's stock wheel), the plough's and the bow wave's
 const stripMat = new THREE.MeshStandardMaterial({ map: stripTex[0], roughness: 1 });
 const strip = new THREE.Mesh(new THREE.PlaneGeometry(STRIP_W, STRIP_LEN), stripMat); strip.rotation.x = -Math.PI / 2; strip.rotation.z = -Math.PI / 2; strip.position.set(STRIP_LEN / 2 - 120, 0.01, 0); strip.receiveShadow = true; scene.add(strip);
 // a far ridge and a tree line, for depth
@@ -253,7 +267,7 @@ function pose(t) {
   const W = (lx, ly, lz) => new THREE.Vector3(lx, ly, lz).applyMatrix4(plane.matrixWorld);
   const vx = cy * P.V, vz = -sy * P.V;   // yaw positive turns left (to -z... the frame's own)
   const wl = [W(1.6, 0.0, -0.95), W(1.6, 0.0, 0.95), W(-3.25, 0.93, 0)];
-  for (let k = 0; k < 3; k++) { const w = st.wheels[k], p = wl[k]; Object.assign(w, { x: p.x, y: 0, z: p.z, vx, vy: P.vy, vz, on: P.on && (k < 2 || P.pitch > 0.12) && p.y < 0.4, R: k < 2 ? 0.31 : 0.08, brake: P.brake || 0 }); }
+  for (let k = 0; k < 3; k++) { const w = st.wheels[k], p = wl[k]; Object.assign(w, { sink: SINK[S.cls] || 0, x: p.x, y: 0, z: p.z, vx, vy: P.vy, vz, on: P.on && (k < 2 || P.pitch > 0.12) && p.y < 0.4, R: k < 2 ? 0.31 : 0.08, brake: P.brake || 0 }); }
   const d = W(3.42, 1.32, 0), fwd = new THREE.Vector3(1, 0, 0).transformDirection(plane.matrixWorld);
   const T = T_STATIC * P.thr * Math.max(0.55, 1 - P.V / 60);
   Object.assign(st.props[0], { x: d.x, y: d.y, z: d.z, ax: fwd.x, ay: fwd.y, az: fwd.z, R: 0.92, wash: Math.sqrt(P.V * P.V + 2 * T / (1.225 * DISC_A)) - P.V });
@@ -265,6 +279,7 @@ const tgt = new THREE.Vector3();
 function placeCam(P) {
   const ax = pivot.position.x, az = pivot.position.z, ay = pivot.position.y;
   if (S.cam === 'side') { const cx = Math.max(-40, Math.min(420, ax * 0.35 + 90)); camera.position.set(cx, 1.7, 48); tgt.set(Math.min(ax, cx + 60), Math.min(ay + 1.5, 6), az); camera.fov = 42; }   // (the strip kept in frame: the cloud stays on the ground)
+  else if (S.cam === 'wheel') { const yaw = -pivot.rotation.y; camera.position.set(ax - Math.cos(yaw) * 5 + Math.sin(yaw) * 7, 0.9, az + Math.sin(yaw) * 5 + Math.cos(yaw) * 7); tgt.set(ax - Math.cos(yaw) * 1.5, 0.6, az); camera.fov = 45; }   // (SNOW-MUD: low beside the wheels - the clods, the splats)
   else if (S.cam === 'end') { camera.position.set(-70, 2.2, -12); tgt.set(ax, ay + 2, az); camera.fov = 30; }
   else { const yaw = -pivot.rotation.y; camera.position.set(ax - Math.cos(yaw) * 22, ay + 5, az + Math.sin(yaw) * 22 + 6); tgt.set(ax, ay + 1.5, az); camera.fov = 50; }
   camera.updateProjectionMatrix(); camera.lookAt(tgt);
@@ -292,7 +307,8 @@ const restart = () => { clock = 0; setTier(tierName); };
 pills('scen', 'scen', null, restart);
 pills('cam', 'cam');
 pills('sun', 'sun', null, () => { sunDir = placeSun(); });
-pills('surf', 'cls', Number, () => { stripMat.map = stripTex[S.cls]; stripMat.needsUpdate = true; restart(); });
+const surfSet = () => { stripMat.map = stripTex[S.cls]; stripMat.needsUpdate = true; groundMat.map = SNOWY(S.cls) ? snowTex : grassTex; groundMat.needsUpdate = true; };
+pills('surf', 'cls', Number, () => { surfSet(); restart(); });
 pills('tier', 'tier', null, () => setTier(S.tier));
 const WETW = v => v < 0.08 ? 'bone dry' : v < 0.2 ? 'dry' : v < 0.35 ? 'damp' : v < 0.55 ? 'wet' : 'mud';
 $('wet').addEventListener('input', e => { S.wet = +e.target.value; $('wetv').textContent = WETW(S.wet) + ' (' + S.wet.toFixed(2) + ')'; });
@@ -313,7 +329,7 @@ new ResizeObserver(resize).observe(canvas); resize();
 const fpsBuf = []; let last = performance.now(), hudT = 0, simMs = 0;
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = window.STILL ? 0 : Math.min(0.05, (now - last) / 1000); last = now;
   fpsBuf.push(dt); if (fpsBuf.length > 90) fpsBuf.shift();
   clock += dt; if (clock > SC[S.scen].dur) restart();
   const P = pose(clock);
@@ -330,6 +346,15 @@ function frame(now) {
     $('fps').textContent = (1 / med).toFixed(0); $('np').textContent = sys.P.live; $('ng').textContent = sys.G.live; $('cov').textContent = dust.cover.toFixed(1); $('cpu').textContent = simMs.toFixed(2);
     $('say').textContent = SAY[S.scen] + '  ' + Math.max(0, SC[S.scen].dur - clock).toFixed(0) + ' s to the replay.'; }
 }
+// ?scen=&cls=&cam=&sun=&t= (SNOW-MUD, the rig's): a chosen moment - the surface and the views set, the clock run to t in
+// 1/30 s steps before the first frame (the stills are the same moment whatever the machine's frame rate)
+{ const q = new URLSearchParams(location.search);
+  for (const k of ['scen', 'cam', 'sun']) if (q.get(k)) S[k] = q.get(k);
+  if (q.get('cls')) { S.cls = +q.get('cls'); surfSet(); }
+  sunDir = placeSun();
+  const t = +(q.get('t') || 0);
+  if (t > 0) { restart(); for (; clock < t; clock += 1 / 30) { pose(clock); DUST.sources(sys, st, env, 1 / 30); DUST.step(sys, 1 / 30, env); } clock = t; }
+  if (q.get('still')) window.STILL = true; }
 requestAnimationFrame(frame);
 })();
 </script>

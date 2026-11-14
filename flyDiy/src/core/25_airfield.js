@@ -1007,7 +1007,7 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
 // premises strip the runway's LOOK (27_premises RUNWAY_LOOKS: concrete, old concrete, asphalt, gravel, dirt, sand,
 // grass), which names the pavement finer than the friction enum does (dirt rides GRAVEL's row there). The look
 // wins where it names something; the enum otherwise. `snow` is in the vocabulary for a record that says so
-// (`snow: true` or `look: 'snow'`) - no world carries one yet, and the friction enum has no row for it.
+// (`snow: true` or `look: 'snow'`); SNOW-MUD (13 Nov) gave it friction rows (SURFACE 8-10) and added `mud` (11-12).
 // -> { key, word, cls } - cls is what the gear rule reads: 'water' | 'snow' | 'grass' | 'hard'
 const STRIP_SURFACES = {
   asphalt:  { word: 'asphalt',  cls: 'hard' },
@@ -1018,11 +1018,16 @@ const STRIP_SURFACES = {
   sand:     { word: 'sand',     cls: 'hard' },
   grass:    { word: 'grass',    cls: 'grass' },
   snow:     { word: 'snow',     cls: 'snow' },
+  // SNOW-MUD (13 Nov): mud is a land surface wheels use (soft: GROUND_SOFT 11/12) and no ski belongs on - its own class,
+  // which the gear rule below reads as 'not snow, not grass, not water'
+  mud:      { word: 'mud',      cls: 'mud' },
   water:    { word: 'water',    cls: 'water' },
 };
-const STRIP_LOOK_SURF = { asphalt: 'asphalt', concrete: 'concrete', worn: 'concrete', gravel: 'gravel', dirt: 'dirt', sand: 'sand', grass: 'grass', snow: 'snow' };
-// the SURFACE enum's index -> the vocabulary (GRASS 0, ROCK 1, SCREE 2, FOREST_FLOOR 3, WATER 4, PAVED 5, GRAVEL 6, SAND 7)
-const STRIP_ENUM_SURF = ['grass', 'gravel', 'gravel', 'dirt', 'water', 'paved', 'gravel', 'sand'];
+const STRIP_LOOK_SURF = { asphalt: 'asphalt', concrete: 'concrete', worn: 'concrete', gravel: 'gravel', dirt: 'dirt', sand: 'sand', grass: 'grass', snow: 'snow',
+                          powder: 'snow', slush: 'snow', mud: 'mud', softmud: 'mud' };
+// the SURFACE enum's index -> the vocabulary (GRASS 0, ROCK 1, SCREE 2, FOREST_FLOOR 3, WATER 4, PAVED 5, GRAVEL 6, SAND 7;
+// SNOW-MUD: SNOW_PACKED 8, SNOW_POWDER 9, SNOW_WET 10, MUD_FIRM 11, MUD_SOFT 12)
+const STRIP_ENUM_SURF = ['grass', 'gravel', 'gravel', 'dirt', 'water', 'paved', 'gravel', 'sand', 'snow', 'snow', 'snow', 'mud', 'mud'];
 function stripSurface(a) {
   const mk = key => Object.assign({ key }, STRIP_SURFACES[key]);
   if (!a) return mk('grass');
