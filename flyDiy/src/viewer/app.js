@@ -4394,6 +4394,34 @@
     model.restBaked = true;
     if (window.AEROSKIN && window.AEROSKIN.aeroRestBake) window.AEROSKIN.aeroRestBake(THREE, model.grp);
   }
+  // SNOW-MUD FINISH: THE VISUAL SINK. The solver's contact stays at the hard ground (its sinkage is a drag and a readout); the
+  // DRAWN aeroplane is lowered and tilted so its wheels stand in mud or soft snow by what each sinks - sim.out.softW [main 0,
+  // main 1, tail 1, tail 2] (soft frames only), and a ski's out.skiSink[k] at its def.refs.skis[k] (SKIS' contract). The plane
+  // through those contacts (groundSinkPose, 00_registry) is eased over SINK_TAU and applied as a small rigid motion about the
+  // CG over the ground: a drop, a pitch and a roll, the slopes held to SINK_SLOPE. Off every soft layer, once eased back to
+  // nought: one compare a frame, no matrix touched. Nothing else reads model.grp's pose for physics
+  const SINK_TAU = 0.2, SINK_SLOPE = 0.08, SINK_V = [0, 0, 0], SINK_T = [0, 0, 0], SINK_PTS = [], SINK_M = new THREE.Matrix4(), SINK_A = new Array(16);
+  function sinkPoseApply(cg) {
+    const o = sim && sim.out, SW = !inGarage && o ? o.softW : null, SK = !inGarage && o ? o.skiSink : null;
+    if (!SW && !SK && SINK_V[0] < 1e-4 && Math.abs(SINK_V[1]) + Math.abs(SINK_V[2]) < 1e-5) return;
+    SINK_PTS.length = 0;
+    const P = sim.p, R = def && def.refs;
+    if (SW && R) {
+      const ids = [R.mains && R.mains[0], R.mains && R.mains[1], R.tw, R.tw2];
+      for (let k = 0; k < 4; k++) { const i = ids[k]; if (i != null && i >= 0 && SW[k] > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], SW[k]]); }
+    }
+    if (SK && R && Array.isArray(R.skis)) for (let k = 0; k < R.skis.length; k++) {
+      const sk = R.skis[k], nd = sk && sk.nodes, i = nd ? nd[Math.min(1, nd.length - 1)] : -1;
+      if (i != null && i >= 0 && SK[k] > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], SK[k]]);
+    }
+    if (SINK_PTS.length) groundSinkPose(SINK_PTS, cg[0], cg[2], SINK_T); else { SINK_T[0] = SINK_T[1] = SINK_T[2] = 0; }
+    SINK_T[1] = Math.max(-SINK_SLOPE, Math.min(SINK_SLOPE, SINK_T[1])); SINK_T[2] = Math.max(-SINK_SLOPE, Math.min(SINK_SLOPE, SINK_T[2]));
+    const e = 1 - Math.exp(-Math.max(0, frameDt()) / SINK_TAU);
+    for (let k = 0; k < 3; k++) SINK_V[k] += (SINK_T[k] - SINK_V[k]) * e;
+    if (SINK_V[0] < 1e-4 && Math.abs(SINK_V[1]) + Math.abs(SINK_V[2]) < 1e-5) { SINK_V[0] = SINK_V[1] = SINK_V[2] = 0; return; }
+    // about the CG (the tilt is a few mrad: the pivot's height moves the drawn wheels by mm)
+    model.grp.matrix.premultiply(SINK_M.fromArray(groundSinkMatrix(SINK_V, cg[0], cg[1], cg[2], SINK_A)));
+  }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -4419,6 +4447,7 @@
       cg[1] + ox*xA[1] + oy*yU[1] + oz*vZ.y,
       cg[2] + ox*xA[2] + oy*yU[2] + oz*vZ.z);
     model.grp.matrix.copy(mBasis);
+    sinkPoseApply(cg);                           // SNOW-MUD FINISH: the drawn aeroplane stands IN a soft layer (the contact stays honest)
     // r186: a hand-set matrix must flag itself, or a getWorldPosition between
     // this pose and the render reads last frame's world (see buildPeople's mkFrame)
     model.grp.matrixWorldNeedsUpdate = true;

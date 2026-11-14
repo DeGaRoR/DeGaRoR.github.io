@@ -996,6 +996,10 @@ const GATES = [
   // unchanged; powder clouds (>= 1.5 x dirt) and settles, packed snow drifts; mud and slush never cloud, throw clods and
   // drops no higher than 2 m, shed at speed not at a walk, plough with the sinkage, splat and lie (~1 s; --selftest, --show)
   { id: 'SNOWMUDFX', file: '_snowmud_fx_check.js', tier: 'core', wall: 10 },
+  // SNOW-MUD FINISH (15 Nov): THE VISUAL SINK - the solver's per-wheel sinkage (out.softW, soft frames only), the plane through
+  // the contacts (groundSinkPose), the drawn aeroplane's rigid motion (groundSinkMatrix): every drawn wheel stands its own
+  // sinkage in the layer, the contact stays at the hard ground; the absent case one compare (~3 s; --selftest, --show)
+  { id: 'SINKVIS', file: '_sinkvis_check.js', tier: 'core', wall: 10 },
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)
