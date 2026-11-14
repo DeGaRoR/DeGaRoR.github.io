@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: de2c2e591fe001fd
+// body-sha256: 42d62d019d0663dd
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -56433,10 +56433,15 @@ const CONTRACT_FIT = {
   surf: { concrete: 1.0, asphalt: 1.0, paved: 1.0, gravel: 1.1, dirt: 1.1, sand: 1.25, grass: 1.15, snow: 1.3, water: 1.0 },
   bulkSeats: 4,
   rangeUse: 0.75,
-  // SKYLINE-RESORT (13 Nov; for the Game coordinator's review): an ALTIPORT is left downhill whatever the wind (43_pilot GTRAM),
-  // so its take-off run is the flat run x altiK. Skyline's ~9 % grade adds g x 0.09 = 0.9 m/s2 to a light aeroplane's 1.3-2
-  // m/s2 mean acceleration: 60-70 % of the flat run; 0.75 is the cautious end. Without it the halved altiport (190 m) had no
-  // doer for the resort arc (resort.01/02/05, clients.01) - GATE CONTRACTS / ECON; with it they read as at 380 m
+  // ALTIPORT CREDIT (SKYLINE-RESORT 13-14 Nov; Game: yes, 14 Nov via A0): an altiport is left downhill whatever the wind
+  // (43_pilot GTRAM), so its take-off run is the flat run x altiK. FLOWN (GATE ALTIPORT 5: the game's pilot and day on the
+  // 190 m tw_ski, 709 m, brake release to 2.5 m as genTORunAt ends it, at the contract's load): the Cub + 1 passenger 126.9 m,
+  // 0.528 of the flat law's run (240 m); the metal Cessna + 2 passengers + 40 kg (184 kg of the 200 aboard - its baggage caps)
+  // 158.4 m, 0.635 of 249 m. 0.75 is above both: the cautious end, no density-altitude term (the flown run has it).
+  // THE LIMIT, named: ONE constant for every f.alti row - tw_ski (190 m grass, ~9 % at its threshold) and w4 ('strip 9', 216 m
+  // gravel, steeper: ~21 % on average, so a larger credit there and 0.75 cautious). A gentler altiport grade needs its own
+  // factor, a / (a + g x grade) on the aeroplane's mean roll acceleration a - next round. Without it the halved Skyline had no
+  // doer for resort.01 / 02 / 05 and clients.01 (GATE CONTRACTS / ECON red)
   altiK: 0.75,
 };
 
