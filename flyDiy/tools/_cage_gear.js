@@ -138,6 +138,25 @@ const station = (i, name) => [name, [
   // is the fitting plus the family's law plus s<i>AxZ (2026-09-04)
   ['s' + i + 'Z',     'fitting fore / aft',
                                      -4, 4, 0.01, sOnM(i)],
+  // MONOWHEEL: THE NOSE SKID - the third unit's leaf spring and shoe (the tail skid's, leg 3) at the NOSE: its station
+  // then counts back from the nose (AF.z1) as a tailwheel's counts forward from the tail (AF.z0); the join measures it
+  // ahead of the mains (a tricycle), and the Tail contact row's Skid makes it slide
+  // MONOWHEEL (the user, 11 Nov: "sunk wheels for gliders ... only a proper square cut through the fuselage"): THE SUNK
+  // WHEEL - the share of the wheel's diameter inside the body; the leg becomes a fork up into it and the skin is cut
+  // square round the tyre (the retract's knife, no well). 0: the leg as ever
+  ['s' + i + 'Sink', 'sunk into the body (share of the wheel)', 0, 0.7, 0.01,
+   { when: P => +P['s' + i + 'On'] && Math.round(+P['s' + i + 'Leg']) !== 3 && !GEAR_RETRACTABLE(P) }],
+  // WEIGHT STUDY L6 (the user, 12 Nov: "the gear has been specifically developed for that plane ... it's really like a
+  // bicycle wheel. It's like an ultralight wheel"): THE ULTRALIGHT MONOWHEEL - a bicycle wheel in a sprung fork, its
+  // members a third of the leg's (GEN_RULES.ulGear), built for ~250 kg: on anything heavier it folds. A single main only
+  // THE TOW HOOK (A0 for the user, 13 Nov): a nose release (aerotow) or a CG release ahead of the mains (winch,
+  // auto-tow) - GEN_RULES.towHook, the tow line pulls on it
+  ...(i === 1 ? [['towHook', 'tow hook', 0, 2, 1, ['none', 'nose (aerotow)', 'CG (winch, auto-tow)'],
+                  { when: P => +P.s1On, absent: 0 }]] : []),
+  ...(i === 1 ? [['s1Ul', 'ultralight wheel (built for ~250 kg)', 0, 1, 1, ['off', 'on'],
+                  { when: P => +P.s1On && !(+P.s1X > 0.01) && Math.round(+P.s1Leg) !== 3 && !GEAR_RETRACTABLE(P), absent: 0 }]] : []),
+  ...(i === 2 ? [['s2Nose', 'spring at', 0, 1, 1, ['the tail', 'the nose (a nose skid)'],
+                  { when: P => +P.s2On && Math.round(+P.s2Leg) === 3 && !+P.boomTwin }]] : []),
   // G3503 (DC3-BUILD): the half track to 3.2 m, the wheel to 0.65 m and the leg drop to
   // 1.6 m (metres, unscaled: a DC-3's 2.82 m half track and 1.14 m tyres under the nacelles)
   // DC3-EDITABLE: to the big box's 8 m track (4 m), 0.90 m wheel and 1.80 m leg (gear.legDrop's clampBig)
@@ -446,7 +465,9 @@ function liftD(C, g) {
 // THE CHAIN of one unit, its senses probed: u the leg unit (root, axle, the moving end, the wheel's axis), key L / R / T
 function foldChain(u, key, P, SP) {
   const h = (u.root || u.moving || u.axle).slice(), ax = u.axle, top = u.moving || u.axle;
-  const F = foldOf(P, key === 'T'), side = key === 'R' ? -1 : 1;
+  // (a main on the CENTRELINE - the ultralight monowheel - swings as a nose wheel does: up about the lateral axis)
+  const mono = key !== 'T' && Math.abs(h[0]) < 0.02;
+  const F = foldOf(P, key === 'T' || mono), side = key === 'R' ? -1 : 1;
   const leg = fNrm([top[0] - h[0], top[1] - h[1], top[2] - h[2]]);
   const C = { hinge: h, leg, twist: side * (F.twist || 0) * D2R, turns: [], frac: Math.max(0.3, Math.min(1, +P.gearRetFrac || 1)),
               R: u.R || 0.2, wAx: u.waxis ? fNrm(u.waxis) : [1, 0, 0], axle: ax.slice(), legR: u.legR || 0.05 };
@@ -470,7 +491,7 @@ function foldChain(u, key, P, SP) {
   // TRIMMED (-15..+25 degrees, further on) so the stowed wheel's centre sits at the structure's mid-depth over its plan
   // place (the wing's between its skins outside the body, else half way from the keel to the floor) - a wheel riding its
   // stub outboard of the leg folds inward ~ its offset UNDER the pin otherwise. A custom fold, a partial one: as set
-  const preset = (key === 'T' ? FOLD_NOSE_KEYS[Math.round(+P.gearFoldNose || 0)] : FOLD_KEYS[Math.round(+P.gearFold || 0)]) !== 'custom';
+  const preset = (key === 'T' || mono ? FOLD_NOSE_KEYS[Math.round(+P.gearFoldNose || 0)] : FOLD_KEYS[Math.round(+P.gearFold || 0)]) !== 'custom';
   C.trim = 0;
   // (into the nacelle: forward when the nacelle runs further ahead of the pin than behind it, else aft)
   if (key !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'nacelle' && C.turns.length === 1) {
@@ -557,6 +578,7 @@ function foldChain(u, key, P, SP) {
       if (Nn) { const zc = Math.max(Nn.z0 + 0.02, Math.min(Nn.z1 - 0.02, c[2]));
         mid = (Nn.AF.keelAt(zc) + Nn.AF.surf(zc, Math.PI)[1]) / 2;
         over = Math.max(0, c[2] + C.R - (Nn.z1 - 0.02)) + Math.max(0, (Nn.z0 + 0.02) - (c[2] - C.R)); }
+      else if (mono && MONO_UL(P) && SP.keelY) { const k = SP.keelY(c[2]); mid = k == null ? null : k + C.R + 0.03; }   // (the sailplane's box: the wheel just in, under the seat's back)
       else mid = SP.midAt(c[0], c[2]);
       if (mid == null) continue;
       const e = Math.abs(c[1] - mid) + 10 * over + 0.0004 * Math.abs(d);
@@ -795,7 +817,9 @@ function structProbe(AF, W, P) {
     if (AF && z >= AF.z0 && z <= AF.z1) return (AF.keelAt(z) + floorY) / 2;
     return null;
   };
-  return { bodyIn, wingIn, nacIn, inside: p => Math.max(bodyIn(p), wingIn(p), nacIn(p)), midAt, floorY };
+  // (the keel's height at a station - the ultralight monowheel's trim stows its wheel just inside the belly)
+  const keelY = z => AF && z >= AF.z0 && z <= AF.z1 ? AF.keelAt(z) : null;
+  return { bodyIn, wingIn, nacIn, inside: p => Math.max(bodyIn(p), wingIn(p), nacIn(p)), midAt, floorY, keelY };
 }
 // ---- G2 (RETRACT-STUDY §8.2): DOES IT FIT? ------------------------------------------------------------------------------
 // The unit's points - the tyre (two faces x two rings x 12, the hub) and the leg (from a quarter of the way down: its
@@ -850,10 +874,13 @@ function foldFit(P, swing, AF, W, MX) {
   // metres, z forward) - the floor test stands forward of it; null on any other build
   // (and at its front, the windscreen's front ring wsFront: ahead of it is the bow - the nose wheel folds forward into
   // the nose there, as an EDO amphibian float's does)
-  const [zCabA, zCabF] = !+P.hullOn ? [null, null] : (() => { try {
+  // (and the ultralight monowheel's - a sailplane's: the pilot sits on the keel and the wheel stows in the box behind the
+  // seat, aft of the cabin's back ring - the floor test stands forward of it only)
+  const ulMono = MONO_UL(P) && !+P.hullOn;
+  const [zCabA, zCabF] = !+P.hullOn && !ulMono ? [null, null] : (() => { try {
     const RR = CG2.cageResolve(CG2.cageSpec(P)), zOf = (...nm) => { for (const n of nm) { const rr = RR.rings.find(q => q.name === n);
       const lv = rr && rr.lv && (rr.lv.floor || rr.lv.waist); if (lv && isFinite(lv.z)) return lv.z * FSm; } return null; };
-    return [zOf('pilPaxA', 'pilCabA'), zOf('wsFront')]; } catch (e) { return [null, null]; } })();
+    return ulMono ? [zOf('pilPaxA', 'pilCabA', 'pilCabB'), null] : [zOf('pilPaxA', 'pilCabA'), zOf('wsFront')]; } catch (e) { return [null, null]; } })();
   const leTe = new Map();
   const chordFrac = p => {
     if (!W || !W.leAt || !W.teAt) return null;
@@ -1425,7 +1452,10 @@ const fitNote = () => { const B = window.CAGE_ROW_BAD ? window.CAGE_ROW_BAD() : 
 
 // RETRACT-1: the build may retract its gear - the switch on, wheels (not floats), a nose wheel, a low wing
 // (GR: any wing - a low wing's mains root on the wing, any other's on the body: the Catalina's hull)
-const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && +P.s2On && Math.round(+P.s2Leg) !== 3);
+// (the ULTRALIGHT MONOWHEEL's retraction, the LS4's: one centreline main with the ultralight wheel (s1Ul) swings up into
+//  the belly; the tail wheel stays down - its own unit is not in the swing)
+const MONO_UL = P => !!(+P.s1On && !(+P.s1X > 0.01) && +P.s1Ul);
+const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && ((+P.s2On && Math.round(+P.s2Leg) !== 3) || MONO_UL(P)));
 // RETRACT-LAB (SEAPLANES-LAND 7 Nov; the user: the retract wheels are "not great yet ... not final"): THE RETRACT
 // OPTIONS STAND BEHIND ONE SWITCH until a retract quality pass - the developer's toggle (the flight rail's "dev ›",
 // pref flydiy.flDev), ?retract=lab, or window.FLYDIY_RETRACT_LAB (the headless rigs set it: they see every row). Off,
@@ -1464,7 +1494,7 @@ window.CAGE_LAB_ROWS = {
 // (A0 7 Nov: "fixing gearRetract shows on every build is welcome"): the switch is offered where it can act -
 // GEAR_RETRACTABLE's own wheels (a nose wheel, not floats: the group's own when) - and stays while it is on, so a
 // build saved retractable on a tailwheel can still switch it off
-const RETRACT_CAN = P => !!(+P.s2On && Math.round(+P.s2Leg) !== 3);
+const RETRACT_CAN = P => !!((+P.s2On && Math.round(+P.s2Leg) !== 3) || MONO_UL(P));
 const GROUP = ['9 · undercarriage', [
   ['gearOn',  'undercarriage', 0, 1, 1],
   ['gearSit', 'stand it on the ground', 0, 1, 1,
@@ -2316,7 +2346,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
       // they don't close. They close only for the retracted position"): with NO leg door the down leg stands in the
       // opening, so the well's doors stay open while it is down - two split doors had shut on it, the leg running along
       // their seam and crossing neither half; with a leg door, a door the down gear does not pass through shuts down)
-      const name = 'edMechDoor' + tag + ci + '_' + (di + 1), seq = { k: DOOR_SEQ, closedDown: !through && !!+P.gearLegDoor };
+      const name = 'edMechDoor' + tag + ci + '_' + (di + 1), seq = { k: DOOR_SEQ, closedDown: !through && !!+P.gearLegDoor && !MONO_UL(P) };   // (the ultralight monowheel's: its WHEEL stands in the opening, down - the doors hang open beside it, a sailplane's)
       // drawn as it stands gear down (every part's rest): a door the down gear passes through stands open
       const Rd = CM.gearRot(axis, DOOR_ANG * CM.gearDoorOpen(seq, 1));
       panel(name, hp, mat, v => { const q = CM.gearApp(Rd, [v[0] - hinge[0], v[1] - hinge[1], v[2] - hinge[2]]); return [hinge[0] + q[0], hinge[1] + q[1], hinge[2] + q[2]]; });
@@ -2435,7 +2465,13 @@ PAGE.post = ctx => {
   // end as it is to the pod's on a single body), the same row for both
   const TBg = (+P.boomTwin && typeof window !== 'undefined' && window.CAGE_BOOMS && window.CAGE_BOOMS.yBot) ? window.CAGE_BOOMS : null;
   for (const st of stations)
-    if (st.leg === 3) st.z = (TBg ? TBg.zTip : AF.z0) + Math.max(0.02, st.z);
+    if (st.leg === 3) st.z = (st.id === 2 && +P.s2Nose && !TBg) ? AF.z1 - Math.max(0.02, st.z)   // (MONOWHEEL: the nose skid)
+      : (TBg ? TBg.zTip : AF.z0) + Math.max(0.02, st.z);
+  // THE HANGING NACELLE (the user, 11 Nov: "the wheel has to be anchored on the pylon"): a centreline main hangs from the
+  // MAST's foot - its fitting the mast's middle (the wing layer's CAGE_HANG, drawn before this one), its own fore / aft
+  // the row's offset from there (s1AxZ)
+  const HG = +P.hangOn && P.wingOn && typeof window !== 'undefined' ? window.CAGE_HANG : null;
+  if (HG) for (const st of stations) if (st.id === 1 && st.leg !== 3 && !(st.x > 0.01)) st.z = HG.zc;
   // G3800: THE INVERTED V (the stab layer's mount 4): the tail's contacts at the panel tips - x the gap's half, y the
   // boom's centre less the panel's drop (cant, the booms' half-track less the half gap), z the tip the stab layer drew
   // on the last build (window.CAGE_IV_TIPS, metres; it draws after this layer) or a quarter metre ahead of the boom end
@@ -2719,6 +2755,87 @@ PAGE.post = ctx => {
   // is centreline by construction, so it gets one contact whatever its row's
   // lateral offset says (two identical contacts otherwise).
   const isSingle = st => st.single != null ? !!st.single : st.x <= 0.01;
+  // MONOWHEEL (the user, 11 Nov: "a skid with a fairing is in the end a protrusion of the fuselage with a protective skid
+  // behind it ... a single model for blended ... size that protrusion using the skid existing controls"; the reference:
+  // the Archaeopteryx's nose piece, "really an extension of the nose piece, fully aerodynamic"): THE FAIRED SKID IS THE
+  // BODY GROWN DOWN - a lofted foil keel under the skid's fitting, from the drawn skin (every vertex of its root row cast
+  // up onto the body: the engine pylon's caster and section, _cage_eng CAGE_PYLON) down to just above the shoe's sole. Its
+  // root flared (the blended fillet, a third of its height, at most 8 cm) so it is one surface with the body; its chord
+  // shrinking with depth and its leading edge sweeping aft, so in profile it runs out of the nose's line down to the shoe;
+  // its section thinning to a narrow keel at the bottom. Sized by the skid's own rows: the chord the run from the fitting
+  // to the shoe plus a nose ahead (the spring's length, its drop, the castor's trail), the thickness the spring's width
+  // x 1.4, the depth the shoe's level (the leg's drop and the radius). The steel shoe stays proud under it - the protective
+  // skid - and the spring inside it. In the static bags: it is the body's, not the suspension's. Any faired skid (spat or
+  // trousers on the row) is this one shape
+  // MONOWHEEL: THE SUNK WHEEL (s<i>Sink) - its axle where the given share of its diameter stands above the keel line at
+  // its station, a fork of two plates either side of the tyre up into the body (the anchor's job: the hanging nacelle's
+  // pylon will carry it, stage 3), and a SQUARE CUT round the tyre (sunkCuts: the knife's hole and the structure it
+  // clears, no well's box - the knife's `hole` cut) a hand of clearance all round, up to the tyre's top
+  const sunkCuts = [];
+  const sunkFork = (lb, st, sgn) => {
+    const K = window.GEAR_KIT, x = sgn * st.x, z = st.z + (st.axZ || 0);
+    const k = AF.keelAt(Math.max(AF.z0 + 1e-3, Math.min(AF.z1 - 1e-3, z)));
+    const yA = k + st.R * (2 * st.sink - 1), prof = GG.TYRE[Math.round(+st.P.whProfile || 0)] || GG.TYRE[0];
+    // (THE HANGING NACELLE: the fork rises to the mast's foot, which stands on it - the wing layer's CAGE_HANG)
+    const HGf = +P.hangOn && P.wingOn && st.id === 1 && !(st.x > 0.01) ? window.CAGE_HANG : null;
+    // (RETRACT, the ultralight monowheel - a sailplane's: the fork's arms rise to a PIVOT a radius and 40 mm over the
+    // axle, on the belly's bulkhead; the fork swings aft about it, ~105 deg, and the wheel's centre rises ~1.26 x that arm -
+    // the whole wheel into the box behind the seat, the doors closing under it. Its knee brace locks over centre)
+    const ulR = RETR && MONO_UL(P);
+    const hw = st.R * prof.hw * 1.05, top = HGf && isFinite(HGf.yFoot) ? Math.max(k + 0.06, HGf.yFoot + 0.01) : ulR ? yA + st.R + 0.04 : k + 0.06, clr = 0.02;
+    for (const s of [-1, 1]) {
+      const xp = x + s * (hw + 0.012), yc = 0.5 * (yA + top);
+      K.boxIn(lb.steel, [xp, yc, z], [0.003, 0.5 * (top - yA) + 0.02, 0.045], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    }
+    K.taper(lb.steel, [x - hw - 0.02, yA, z], [x + hw + 0.02, yA, z], 0.006, 0.006, 8);   // the axle
+    const zs = [z - st.R - clr, z + st.R + clr], xs = [x - hw - 0.02 - clr, x + hw + 0.02 + clr];
+    let o = [[zs[1], -xs[1]], [zs[0], -xs[1]], [zs[0], -xs[0]], [zs[1], -xs[0]]].map(p => [p[0] / FS, p[1] / FS]);
+    let a2 = 0; for (let j = 0; j < 4; j++) { const p = o[j], q = o[(j + 1) % 4]; a2 += p[0] * q[1] - q[0] * p[1]; }
+    if (a2 < 0) o = o.reverse();
+    sunkCuts.push({ units: ['S' + st.id + (sgn < 0 ? 'L' : sgn > 0 && st.x > 0.01 ? 'R' : '')], mode: 'box', outline: o,
+                    ceil: (yA + st.R + clr) / FS, hole: 1 });
+    return { axle: [x, yA, z], axis: [sgn || 1, 0, 0], root: [x, top, z], tip: [x, yA, z], travel: [0, 1, 0] };
+  };
+  const skidProtrusion = (r, st) => {
+    const PY = window.CAGE_PYLON;
+    if (!PY || !r.root || !r.axle) return;
+    const zA = Math.min(r.root[2], r.axle[2]) - 0.05, zB = Math.max(r.root[2], r.axle[2]) + 0.14;
+    const c = Math.max(0.25, zB - zA), zc = 0.5 * (zA + zB);
+    const sole = r.axle[1] - st.R, keel = AF.keelAt(Math.max(AF.z0 + 1e-3, Math.min(AF.z1 - 1e-3, zc)));
+    if (!(keel > sole + 0.04)) return;
+    const H = keel - sole, t = Math.max(0.04, 1.4 * (+st.P.twSpringW || 0.052)), fB = Math.min(0.08, 0.33 * H);
+    const C = PY.pylonCaster({ scene, mesh }, FS, [-0.6, 0.6, zA - 0.5, zB + 0.5]);
+    const bodyY = (x, z) => { const h = C.cast([x, sole - 0.05, z], [0, 1, 0], ['body'], 4); return h ? h.p[1] : null; };
+    const NR = 14, yBot = sole + 0.015, bag = bags.fair, rows = [];
+    for (let i = 0; i <= NR; i++) {
+      const sv = i / NR, e = sv < 0.3 ? fB * (1 - sv / 0.3) * (1 - sv / 0.3) : 0;
+      const k = 1 - 0.42 * sv * sv, tk = Math.sqrt(Math.max(0.03, 1 - sv * sv * sv * sv)), wOff = -0.28 * c * sv * sv;
+      const pts = PY.pylonOutline('foil', c * k, t * tk / (c * k), 0, e);
+      rows.push(pts.map(([u, w]) => {
+        const x = u, z = zc + w + wOff, yb = bodyY(x, z);
+        const yTop = (yb != null ? yb : keel) + 0.006;                     // (the root sunk into the skin it meets)
+        return [x, yTop + (yBot - yTop) * sv, z];
+      }));
+    }
+    const ids = rows.map(rw => rw.map(p => bag.v(p)));
+    const n = rows[0].length;
+    // each quad wound outward (away from its row's centre line)
+    const cen = rows.map(rw => [0, 1, 2].map(a => rw.reduce((m, p) => m + p[a], 0) / rw.length));
+    for (let i = 0; i < NR; i++) for (let q = 0; q < n; q++) {
+      const q2 = (q + 1) % n, A = rows[i][q], B = rows[i][q2], D = rows[i + 1][q];
+      const e1 = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], e2 = [D[0] - A[0], D[1] - A[1], D[2] - A[2]];
+      const nn = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+      const o = [A[0] - cen[i][0], 0, A[2] - cen[i][2]];
+      if (nn[0] * o[0] + nn[2] * o[2] >= 0) bag.quad(ids[i][q], ids[i][q2], ids[i + 1][q2], ids[i + 1][q]);
+      else bag.quad(ids[i][q], ids[i + 1][q], ids[i + 1][q2], ids[i][q2]);
+    }
+    // the bottom: a fan to its centre, facing down
+    const L = rows[NR], ic = bag.v(cen[NR]);
+    for (let q = 0; q < n; q++) {
+      const q2 = (q + 1) % n, A = L[q], B = L[q2], ny = (A[2] - cen[NR][2]) * (B[0] - cen[NR][0]) - (A[0] - cen[NR][0]) * (B[2] - cen[NR][2]);
+      if (ny <= 0) bag.tri(ic, ids[NR][q], ids[NR][q2]); else bag.tri(ic, ids[NR][q2], ids[NR][q]);
+    }
+  };
   for (const st of stations) {
     const sides = (st.leg === 3 && TBg) ? [-1, 1] : (st.leg === 3 || st.x <= 0.01) ? [0] : [-1, 1];
     for (const s of sides) {
@@ -2766,6 +2883,7 @@ PAGE.post = ctx => {
         st.steerByHinge = !!window.HINGE_GEN;
         r = (st.mount && st.mount.tip && GG.legTipWheel) ? GG.legTipWheel(proxy, AFx, st.P, st)   // G3800: the V's tips
           : GG.legTailwheel(proxy, AFx, st.P, st);
+        if (r && r.skid && st.fair && !st.mount) skidProtrusion(r, st);   // MONOWHEEL: the faired skid
         if (r.castor && yaws)
           castorUnitOut = { bags: cb, top: r.castor.top, ax: r.castor.ax,
                             axle: r.axle, ears: r.castor.ears };
@@ -2785,7 +2903,8 @@ PAGE.post = ctx => {
                     if (catS) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: Math.min(+st.P.oleoCyl || 0.55, 0.42) }); }
                     else if (shortRow(P, !!st.single) > 0) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: cylFOf(st.P.oleoCyl, P, !!st.single) }); }
                     retMounts.push({ key: st.single ? 'T' : (sgn > 0 ? 'L' : 'R'), wing: !!m, depth: 2 * st.ret.in, z: st.z }); }
-        if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
+        if (st.sink > 0 && (!RETR || MONO_UL(P))) r = sunkFork(lb, st, sgn);   // MONOWHEEL: the sunk wheel's fork (the ultralight monowheel retracts on it: its pivot up in the belly)
+        else if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
         // WILGA-GEAR: the trailing-link leg - its arm and the strut's two halves in their own bags (each posed apart)
         else if (st.leg === 4 && !st.single && GG.legLever) { lb.lever = { arm: allBags(), cyl: allBags(), rod: allBags() };
@@ -2797,7 +2916,7 @@ PAGE.post = ctx => {
         // G133: spats ride their UNITS now, not the static shared bags —
         // a nose spat sits on its fork, a main spat on its own leg, so
         // the flown aeroplane carries them with the moving parts
-        if (st.steer > 0 && st.x < 0.01) {
+        if (st.steer > 0 && st.x < 0.01 && !(st.sink > 0 && (!RETR || MONO_UL(P)))) {
           // 2026-09-04 (the user: "the tricycle configuration tries strange
           // things for the front wheel"): the nose castor used to be drawn
           // INTO THE LEG'S bags, so the join stretched fork and spat with the
@@ -2993,6 +3112,7 @@ PAGE.post = ctx => {
     swing = {};
     for (const u of legUnits) {
       const key = u.kind === 'T' ? 'T' : u.kind;
+      if (key === 'T' && Math.round(+P.s2Leg) === 3) continue;   // (a tail wheel stays down: the ultralight monowheel's)
       if (!swing[key] && (u.axle || u.moving)) swing[key] = foldChain(u, key, P, SPx);
     }
     // GM2: the brace and the actuator, drawn at rest (gear down) in their own named groups - before the fit: the wells'
@@ -3167,7 +3287,9 @@ PAGE.post = ctx => {
     ...(fit && fit.wells ? { wells: fit.wells } : {}),   // G3: the reserved volumes (the join's gear.wells, the tanks' keep-out)
     // G4: the wells' cuts in the knife's terms (cage units, the plan outline, the ceiling) - _cage_ui cuts the DRAWN
     // fuselage with them (wellApply); the measured sheet is never cut (the legs stand on the skin the contracts read)
-    ...(fit && fit.cuts && fit.cuts.length ? { cuts: cutsCage(fit.cuts, FS) } : {}),
+    // (MONOWHEEL: the sunk wheels' square cuts; THE HANGING NACELLE: the mast's hole through the roof, the wing layer's)
+    ...((hc => (fit && fit.cuts && fit.cuts.length) || sunkCuts.length || hc.length ? { cuts: (fit && fit.cuts ? cutsCage(fit.cuts, FS) : []).concat(sunkCuts, hc) } : {})(
+      +P.hangOn && P.wingOn && Array.isArray(window.CAGE_HANG_CUTS) ? window.CAGE_HANG_CUTS : [])),
     // GR: the side wells (the Catalina's recesses in the hull's side), the knife's terms with their own frames
     ...(fit && fit.cutsSide && fit.cutsSide.length ? { cutsSide: cutsSideCage(fit.cutsSide, FS) } : {}),
     // G5: the wing's cuts (its own and the body's, merged) in the layer's own metres (the wing's skin is drawn in them)

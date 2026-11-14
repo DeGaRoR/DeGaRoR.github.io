@@ -42,6 +42,16 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const bucketOf = (cls, mnt) => mnt ? null
     : (cls === 'wing' || cls === 'cabane' || cls === 'interplane' || cls === 'wire') ? 'wing'
     : cls === 'tail' ? 'tail' : cls === 'gear' ? 'gear' : 'fus';
+  // THE FOOT-LAUNCH D-TUBE (WEIGHT STUDY): a wing row BUILT FOR A WEIGHT (`buildKg`) is gauged in its OWN bucket, 'wingB',
+  // against its own reference - not the wing bucket the carry-through and the truss classes billed in another material
+  // share (they kept the first-billed row's refGross: the D-tube's 190 kg grew the Archaeopteryx's carbon bracing 7.1 ->
+  // 12.3 kg). A card without such a row has no 'wingB' and is gauged exactly as before
+  // (the tail in the D-tube - it follows a chosen wing - likewise: 'tailB')
+  // (WEIGHT STUDY L4: the SOFT SHELL - a fuselage row built for a weight, GEN_MATERIALS.softShell - likewise: 'fusB')
+  // (its wing-class members - a carry-through billed in the fuselage's row - stay in the shared 'wing' bucket: 'wingB' is
+  //  a SURFACE row's)
+  const bucketB = (bk, mat) => mat && mat.buildKg > 0 && ((bk === 'fus' && mat === M) || ((bk === 'wing' || bk === 'tail') && mat !== M)) ? bk + 'B' : bk;
+  const gBag = bk => gauged[bk] || (gauged[bk] = { m: 0, x: 0, y: 0, z: 0 });
   const gauged = { fus: { m: 0, x: 0, y: 0, z: 0 }, wing: { m: 0, x: 0, y: 0, z: 0 },
                    tail: { m: 0, x: 0, y: 0, z: 0 }, gear: { m: 0, x: 0, y: 0, z: 0 } };
   // ...and the reference gross each bucket is gauged against: the BILLING
@@ -64,7 +74,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     tail:  genSurfMaterial(S, 'stab'),
   };
   let MB = M;                                   // what the open section BILLS
+  // WEIGHT STUDY L5: a HANGING NACELLE's wing sits on a hub (the mast's head): its carry-through is the hub fitting
+  // (GEN_HANG.hubKg, billed in 3d) and its 'bracing' box the wing's own, built at GEN_HANG.boxK of its mass and springs
+  const HUBPIN = !!(S.fuse && S.fuse.hang && S.wings && S.wings[0]);
+  let TOWH = -1;                                  // (the tow hook's node, built with the gear: refs.towHook)
+  const HUBF = typeof GEN_HANG !== 'undefined' && GEN_HANG.boxK > 0 ? GEN_HANG.boxK : 1;
+  // WEIGHT STUDY L6: THE ULTRALIGHT MONOWHEEL (gear.ul, on a monowheel only): its members at GEN_RULES.ulGear.linK
+  const GUL = S.gear && S.gear.mono && S.gear.ul && GEN_RULES.ulGear && GEN_RULES.ulGear.linK > 0 ? GEN_RULES.ulGear : null;
   const KS = kScale || 1;                       // structure sized for the mass
+  // ...but a wing BUILT FOR a weight (the foot-launch D-tube) is no stiffer than at that weight: kScale's own law at buildKg,
+  // floored at the row's kFloorK of the aeroplane's own (what the integrator holds: at kScale's bare 0.45 the D-tube on
+  // a 1.6 t Caravan took the solver with it once its bracing let go - GATE LIGHTWING; at 0.7 it breaks cleanly)
+  const KSB = MW => Math.max(KS * (MW.kFloorK || 0), Math.min(4, Math.max(0.45, CORE_MATH.pow(MW.buildKg / ((M && M.refMass) || 390), 0.85))));
   const ARCH = GEN_SUSPENSION[S.gear.suspension] || GEN_SUSPENSION.bungee;
   const SUS = (S.gear.stiffness == null ? 1 : S.gear.stiffness) * ARCH.k;
   // Damping does NOT scale with stiffness the way stiffness does. Critical
@@ -94,6 +115,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const CG = KS * ARCH.c * Math.sqrt(S.gear.stiffness == null ? 1 : S.gear.stiffness);
   const CGB = KS * ARCH.c;
   const R = GEN_RULES;
+  // THE ROD ROW (WEIGHT STUDY L2b, fuselage.rodMat / rodWall - latent): the rod's tube in its own material and wall.
+  // Absent, RODM is the fuselage's row and RODT GEN_RULES.rodWall - every expression below is the old one. RODX: the row
+  // is set; then the rod's own members (the fuselage's aft of the cabin box) are billed and sectioned at the tube's
+  // section (rho t over the fuselage row's at the standard wall) until the tube is billed pi d t rho (AERO-BODY)
+  const ROD0 = R.rodWall == null ? 1.2e-3 : R.rodWall;
+  const RODX = !!(S.fuse && S.fuse.boom === 'rod' && (S.fuse.rodMat || S.fuse.rodWall > 0));
+  const RODM = RODX && S.fuse.rodMat && GEN_MATERIALS[S.fuse.rodMat] && GEN_MATERIALS[S.fuse.rodMat].phys ? GEN_MATERIALS[S.fuse.rodMat] : M;
+  const RODT = RODX && S.fuse.rodWall > 0 ? S.fuse.rodWall : ROD0;
+  const RODMK = RODX && RODM && RODM.phys && M && M.phys ? (RODM.phys.rho * RODT) / (M.phys.rho * ROD0) : 1;
   const D = Math.PI / 180;
   const nodes = [], beams = [];
   const degenerate = [];                            // B10: the members B() refused (zero length)
@@ -211,12 +241,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // the tube's radius: the resolved rod record when the join measured one,
     // else the DRAWING's own `rodD` (cage units x planeScale = metres) — a
     // save from before the join wrote `fuse.rod` still knows what it drew
-    const rod = S.fuse.rod, ph = M && M.phys;
+    const rod = S.fuse.rod, ph = RODM && RODM.phys;   // (the rod row's material, else the fuselage's)
     const cg = S.cage || {};
     const rodR = (rod && rod.r > 0) ? rod.r
       : (+cg.rodD > 0 ? 0.5 * (+cg.rodD) * (+cg.planeScale || 1) : 0);
     if (!(rodR > 0) || !ph || !(ph.E > 0)) return (rodKv = 1);
-    const t = R.rodWall == null ? 1.2e-3 : R.rodWall;
+    const t = RODT;   // (the rod row's wall, else GEN_RULES.rodWall)
     const G = ph.E / 2.6;
     const GJt = G * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * t;
     // the mid-boom bay: its section off the station profile, its length
@@ -332,7 +362,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   const boxRearJ = S.fuse ? S.fuse.boxRear : -1;
   // G3505: the gauge's knee for strength (GEN_RULES.gaugeHoldK x the airframe material's design gross); Infinity = off
-  const kneeW = R.gaugeHoldK > 0 ? R.gaugeHoldK * (((GEN_MATERIALS[S.material] || {}).refGross) || 550) : Infinity;
+  // (WEIGHT STUDY L4: an airframe BUILT FOR a weight - the soft shell - has no knee: its sections never grow past it)
+  const kneeW = R.gaugeHoldK > 0 && !(M && M.buildKg > 0) ? R.gaugeHoldK * (((GEN_MATERIALS[S.material] || {}).refGross) || 550) : Infinity;
   const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     // A MEMBER BETWEEN TWO POINTS THAT ARE ONE POINT IS REFUSED (REVIEW
@@ -343,6 +374,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // coincides with another is the call site's to alias.
     if (!(L >= 1e-6) || a === b) { degenerate.push([a, b, cls]); return; }
     const isG = cls === 'gear';
+    const ulG = isG && GUL ? GUL.linK : 1;            // (L6: the ultralight monowheel's members, GEN_RULES.ulGear)
     // GEN_RULES.wingK: the wing class is x19 softer than the cap its own mass
     // already buys. See the constant for the measurements and the substep
     // trade. Damping is NOT scaled with it — a stiffer structure at the same c
@@ -403,7 +435,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // x10 is x1.5 over carbon's own row and the rig is quiet.
     // G185: the truss classes are steel on every airframe too
     const steel = mnt || cls === 'cabane' || cls === 'interplane' || cls === 'wire';
-    const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : MB;
+    // WEIGHT STUDY L4: A ROLE THAT STAYS HARD (`opt.hard`: the hanging nacelle's keel tubes and the motor's mount on the
+    // mast) on a row that names one (GEN_MATERIALS.softShell.hard: the tent's poles are the pod, its frame is tube).
+    // A row without `hard` - every row before the soft shell - builds the member of itself, as before
+    const HARD = !steel && opt && opt.hard && MB && MB.hard ? GEN_MATERIALS[MB.hard] : null;
+    const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : (HARD || MB);
     const mK = mnt ? (R.mountK == null ? 1 : R.mountK) : 1;
     // G199.5: a ROD boom's bays are a tube, not a lattice — GEN_RULES.rodBoomK
     // on every fuselage-class member aft of the cabin box (the post, the
@@ -446,13 +482,20 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                   P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
       ? R.fusAftGauge * ((P[a][0] >= aftX0 && P[b][0] >= aftX0 && !nearSpar(P[a][0]) && !nearSpar(P[b][0]))
                           ? perimK(0.5 * (P[a][0] + P[b][0])) : 1) : 1;
+    // (the rod row: a member of the rod's own - the fuselage aft of the cabin box on a rod boom)
+    const rodMem = RODX && cls === 'fus' && !mnt && S.fuse.boxRear != null && P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6;
     // G2362 (DMG-MOUNTRIG): `opt.ghost` - a member that is BILLED and not built: its mass (and its gauge's record) as the
     // member would weigh, nothing in the lattice. The nose leg's wires, moved off the flange onto the mount's lower cups,
     // weigh what they did (so the aeroplane does not move); the new pair is built weightless
     const ghost = !!(opt && opt.ghost);
     if (!ghost) {
-    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
-                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
+    const hubK = HUBPIN && SEC === 'bracing' && !isG ? HUBF : 1;   // (L5: the hub's box, below)
+    // (WEIGHT STUDY L4: a rod of its OWN row springs and damps as that row - its mass and section already did; on a soft
+    //  shell the rod's rings and the truss the stab stands on took the poles' springs, x0.09, and the Archaeopteryx's
+    //  stab-root fitting kinked in a glide - Pilot's UNIFY ARCH. Only where a rod row is named: RODX)
+    const MKC = rodMem && RODM && RODM.k ? RODM : MM;
+    const bm = { a, b, k: hubK * row(MKC.k, cls) * (isG ? kG : ((cls === 'wing' || cls === 'tail' || MKC === M) && MKC.buildKg > 0 ? Math.min(KS, KSB(MKC)) : KS)) * kGain * mK * bK * kMul,
+                 c: Math.sqrt(hubK) * row(MKC.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
@@ -466,7 +509,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // judges a class by, per member) and the material it is made of (the GEN_MATERIALS key whose `phys`
     // it reads; GEN_CRASH carries that material's ultimate and its elongation). Read by nothing else.
     {
-      const bk = bucketOf(cls, mnt), g1 = bk && GG ? GG[bk] : 1;
+      const bk = bucketB(bucketOf(cls, mnt), MM), g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
       const lin = row(MM.lin, cls, tSecM);
       // ...but never under its CLASS's section (lin / rho of the row, ungauged: exactly what the load test judges a
@@ -474,7 +517,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // aft taper, the gauge under 1 - has the rest of its strength in the skin, which the lattice bills under
       // `cover`, not `lin`. Measured: on the metal Cessna its own billed area put a wing member at 133 % of yield
       // at the 3.8 g limit (a 172's wing holds it), the class's at 52 % - the load test's own figure.
-      bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, lin) / MM.phys.rho : 0;
+      bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, MM.noFloor ? 0 : lin) / MM.phys.rho : 0;   // (noFloor: the foot-launch D-tube - its section is what was paid for)
       // G3505 (DC3-BUILD, 2026-10-23): AN AIRLINER'S MEMBERS HOLD ITS STRESS. The gauge above is Raymer's mass rule,
       // sub-linear in the gross (fus 0.30, wing 0.49, tail 0.41, gear 0.75, capped at 3) - right for what the structure
       // WEIGHS, and on the fleet the members' strength is calibrated with it. But one lattice member stands for what an
@@ -486,7 +529,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // so its stress holds; the mass, the bill and k stay the gauge's. At or below the knee (every saved build: the
       // heaviest, the Cessna on floats, is 0.50 of its 2 222 kg) nothing is multiplied.
       if (bk && GG && GG.W0 > kneeW) bm.A *= GG.W0 / kneeW;
+      if (ulG !== 1) bm.A *= ulG;
       bm.mat = genPhysKey(MM.phys);
+      // the rod row: the rod's own member in the rod's material, its section the wall's share of the standard's
+      if (rodMem && RODM && RODM.phys) { bm.A *= RODT / ROD0; bm.mat = genPhysKey(RODM.phys); }
       // G2361 (DMG-MOUNTRIG): a member whose section is its own and not its class row's (the nose mount's bearer, its
       // isolators, the engine's case: GEN_RULES.mountTubeA / mountIsoA / mountCaseA) - weightless ones, so only the
       // damage layer reads it; `iso` an isolator (no Euler: a rubber cup bottoms, it does not buckle)
@@ -542,11 +588,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // THE GAUGE (PERF STUDY chantier 1): the row at its size for this
       // aeroplane's design gross. Pass 1 bills at 1 and records what would
       // follow the gauge; pass 2 bills at the solved factor.
-      const bk = bucketOf(cls, mnt);
+      const bk = bucketB(bucketOf(cls, mnt), MM);
       const g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
-      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK, h = h0 * g1;
-      if (bk && !GG) { const G = gauged[bk]; G.m += 2 * h0;
+      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK * (rodMem ? RODMK : 1) * (HUBPIN && SEC === 'bracing' && !isG ? HUBF : 1) * ulG, h = h0 * g1;   // (the rod row's rho t)
+      if (bk && !GG) { const G = gBag(bk); G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
         if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
       nodes[a].m += h; nodes[b].m += h;
@@ -652,7 +698,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
   };
   const secOpen = () => { secSnap = nodes.map(n => n.m); };
-  const sec = s => { secClose(); SEC = s; MB = MSEC[s] || M; secOpen(); };
+  // (WEIGHT STUDY L4: on a hanging nacelle the wing's box and its carry-through are the HARD row's when the fuselage's
+  //  names one - a soft shell carries no wing; without the mast, they are the poles)
+  const sec = s => { secClose(); SEC = s; MB = MSEC[s] || (s === 'bracing' && HUBPIN && M && M.hard && GEN_MATERIALS[M.hard] ? GEN_MATERIALS[M.hard] : M); secOpen(); };
   secOpen();                                        // the fuselage section is open from the first node
   const spend = c => bill(0, c);
   // EVERY SQUARE METRE THE AEROPLANE IS COVERED IN, kept as it is billed. The
@@ -672,7 +720,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                            coverAt[i] = (coverAt[i] || 0) + area / ids.length; }
     // a load-bearing skin follows the gauge (GEN_MATERIALS.coverGauged);
     // the bucket is the section's: the wings', the tail's, else the body's
-    const bk = SEC === 'wings' ? 'wing' : SEC === 'tail' ? 'tail' : 'fus';
+    const bk = SEC === 'wings' ? bucketB('wing', MB) : SEC === 'tail' ? bucketB('tail', MB) : 'fus';
     // G445.7: THE SKIN AFT OF THE CABIN IS SKIN. The fuselage row's cover
     // (4.5 kg/m2 on alloy) "carries frames, doors, floors and windows" —
     // the cabin's things — and was billed on the bare tail cone at the same
@@ -689,7 +737,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (SEC === 'tail' && MB.tail && MB.tail.cover != null) kA *= MB.tail.cover;
     const m0 = area * MB.cover * kA, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
     const per = m / ids.length;
-    if (MB.coverGauged && !GG) { const G = gauged[bk]; G.m += m0; const p0 = m0 / ids.length;
+    if (MB.coverGauged && !GG) { const G = gBag(bk); G.m += m0; const p0 = m0 / ids.length;
       for (const i of ids) { G.x += p0 * P[i][0]; G.y += p0 * P[i][1]; G.z += p0 * P[i][2]; }
       if (!gaugeRef[bk]) gaugeRef[bk] = MB.refGross || 550; }
     for (const i of ids) nodes[i].m += per;
@@ -824,7 +872,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } });
     cl.push(TPB, TPT);
     let omega = 0;
-    const ph = M && M.phys, rod = S.fuse.rod, cg = S.cage || {};
+    const ph = RODM && RODM.phys, rod = S.fuse.rod, cg = S.cage || {};   // (the rod row's material, else the fuselage's)
     // (a save that carries neither the rod record nor the row: the cage's
     // own default tube, 0.12 across, in metres)
     const rodR = (rod && rod.r > 0) ? rod.r
@@ -841,7 +889,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // The mass is billed onto these nodes by the passes still to come
       // (the tail truss, the fittings): omega is resolved at the end of the
       // lattice, when the nodes weigh what they weigh.
-      const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
+      const tW = RODT;
       const GJt = (ph.E / 2.6) * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * tW;
       const L = Math.max(0.5, fu.tailArm - boxRear);
       // G350: torsion is the twist constraint's now (GJ, below) — the
@@ -855,7 +903,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // its root is the bulkhead ring at boxRear (the attachment, the cluster's first ring)
     let rodDmg = null;
     if (ph && ph.E > 0 && rodR > 0 && rodRings.length >= 2) {
-      const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
+      const tW = RODT;
       const ring0 = rodRings[0], last = rodRings[rodRings.length - 1];
       rodDmg = { kind: 'tube', mat: genPhysKey(ph), E: ph.E, EI: ph.E * Math.PI * CORE_MATH.pow(rodR, 3) * tW,
                  GJ: (ph.E / 2.6) * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * tW, r: rodR,
@@ -1145,7 +1193,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // root pair moves with it; the panels start there), else the cabin's
   // HULL-B78: A CENTRAL PYLON for the cabane (S.bracing.cabPylon, the first plane's) - the wing roots on the pylon, a
   // half-width CABPY_HW off the centreline, its cabane a narrow truss inside the fairing (below)
-  const CABPY_HW = 0.12, cabPy = cabane && k === 0 && !!(S.bracing && S.bracing.cabPylon);
+  // (THE HANGING NACELLE, 3d: the first plane stands on the mast alone - no ties to the cabin's rings, no cabane)
+  const hangK = k === 0 && !!(S.fuse && S.fuse.hang);
+  const CABPY_HW = 0.12, cabPy = cabane && k === 0 && !hangK && !!(S.bracing && S.bracing.cabPylon);
   const zRoot = cabPy ? CABPY_HW : (w.centreW > 0 ? 0.5 * w.centreW : cab.halfW) + (cabane ? R.cabaneSplay : 0);
   dmgRootZ[k] = zRoot;
   const cabPyBase = new Map();                            // (HULL-B78: the pylon's base nodes, per ring and side)                                    // G1815: a node here is a root fitting's
@@ -1327,10 +1377,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // snap-through, and it cost a red STRESS gate to find.
     const lo = opposeTag + sd;
     for (const [nd, x] of [[rootF, xF], [rootR, xR]]) {
+      if (hangK) continue;                               // (the hanging nacelle: the mast, 3d, carries the wing)
       const [iA, iB] = straddle(x), iN = nearestRing(x);
       const rings = [...new Set([iN, iA, iB])];
       if (!cabane) for (const i of rings) B(nd, F[i][side], 'wing');
       else if (cabPy) {
+        // (THE HUB'S PYLON placed - S.bracing.cabPyAt / cabPyLen: the truss stands on the rings under the pylon's own
+        // chord - its two ends' straddling pairs and the ring nearest its middle - not under each spar; absent, as ever)
+        const BRp = S.bracing || {};
+        if (BRp.cabPyAt != null || BRp.cabPyLen != null) {
+          const pc = w.xLE + (BRp.cabPyAt != null ? BRp.cabPyAt : 0.40) * w.chord, ph = 0.5 * Math.max(0.30, (BRp.cabPyLen != null ? BRp.cabPyLen : 0.55) * w.chord);
+          rings.length = 0;
+          for (const i of new Set([nearestRing(pc), ...straddle(pc - ph), ...straddle(pc + ph)])) rings.push(i);
+        }
         // HULL-B78: THE PYLON's TRUSS - each root node to a base node on the roof's centreline at the same half-width
         // (each ring's own, tied across to its top longerons and to its mirror): posts and diagonals fore / aft, all
         // inside the fairing, so undrawn ('inner'); the fairing's own skin (~1.5 kg/m2 over its two faces, INFERRED)
@@ -1557,8 +1616,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       }
       // and the box has to carry through the fuselage too, or the whole
       // bending moment still arrives at a point (rule 3)
+      // (THE HANGING NACELLE, 3d: the box carries through the hub and down the mast, not into the cabin's rings)
       const [iA] = straddle(xF), iN = nearestRing(xF);
-      for (const i of [...new Set([iN, iA])]) {
+      if (!hangK) for (const i of [...new Set([iN, iA])]) {
         B(cFB[0], F[i][lo], 'wing'); B(cRB[0], F[i][lo], 'wing');
       }
     }
@@ -1680,6 +1740,168 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           incAt, ribZ, linC, useStrut, strutOffset, sparFront, sparRear } = planes[0];
   const w = S.wing, G = S.geom;
 
+  // ---- 3c. THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2, futureDesigns/archaeopteryx/CONFIG_STUDY.md;
+  // the user, 11 Nov: "the centre section is the heart of the plane ... a rear socket for the rod to slot in") ----
+  // fuselage.rodHub: THE ROD SLOTS INTO THE WING'S CENTRE SECTION. Its root ring (the bulkhead ring at boxRear, the ROD
+  // cluster's first) is tied to the root bay's spar nodes - both spars, both sides, and the box caps under them - and
+  // those nodes join the rod's rigid cluster: the twin boom's recipe (G294: the attachment BAY rigid, both its stations;
+  // bolted to one rib the tail rode +-200 mm), so the tail's loads go into the wing's own box, not through the pod.
+  // The pod's own members to the rod stay (stage 3's pylon takes the pod off them). Nothing without the key
+  if (S.fuse && S.fuse.rodHub && S.fuse.boom === 'rod' && wf.L && wf.R) {
+    const RC = clusters.find(c => c.tag === 'ROD');
+    if (RC && RC.rings && RC.rings.length) {
+      const hub = [];
+      for (const sd of ['L', 'R']) for (const j of [0, Math.min(1, wf[sd].F.length - 1)])
+        for (const q of [wf[sd].F[j], wf[sd].R[j], wf[sd].FB ? wf[sd].FB[j] : null, wf[sd].RB ? wf[sd].RB[j] : null])
+          if (q != null && !hub.includes(q)) hub.push(q);
+      const far = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1], P[a][2] - P[b][2]) > 0.05;
+      // (the ties WEIGHTLESS - the cluster is the stiffness, the members its damage joints - and the socket billed once:
+      // a bolted alloy saddle and sleeve, ~1.2 kg INFERRED (the pod-and-rod's bulkhead socket's class), on the rod's root
+      // ring; 64 members at the fuselage's own gauge weighed 17 kg on the Archaeopteryx card)
+      for (const q of RC.rings[0]) for (const m of hub) if (far(q, m)) B(q, m, 'fus', 0, 0, 0, { noMass: true });
+      for (const q of RC.rings[0]) pt(q, 1.2 / RC.rings[0].length);
+      for (const m of hub) if (!RC.nodes.includes(m)) RC.nodes.push(m);
+      if (RC.dmg) RC.dmg.root = hub.slice();
+      RC.hub = hub.slice();
+    }
+  }
+
+  // ---- 3d. THE HANGING NACELLE'S MAST (the Archaeopteryx study's stage 3, futureDesigns/archaeopteryx/CONFIG_STUDY.md;
+  // the user, 11 Nov: "the pylon is structural and should go down to the bottom of the plane, where the supporting beam
+  // will go, making the fuselage as we see it now not the central piece anymore ... a proper cut to allow the pylon
+  // through, and be constrained at its bottom to the supporting beam") ----
+  // fuselage.hang: ONE MAST on the centreline, from the wing's centre section straight down through the cabin to the
+  // keel, where the drawn one stands (hangX, the join's measure; else its station on the root chord: hangAt its middle,
+  // hangLen its chord, GEN_HANG's when absent - the hub's, the cabin slides free of it); a monowheel's axle hangs from its
+  // foot and the pusher bolts on its back face (the user: "the wheel should anchor onto the pylon ... the engine ... on
+  // the back face of the pylon"). A lattice of
+  // four longerons at the drawn blade's own thickness (+-hw: tc of its chord, halved), a ring and a diagonal every lv
+  // and a diagonal on every face - a beam in both directions, not a plane truss. Its HEAD is in the hub: tied to the
+  // root bay's spar nodes and their caps, and in the rod's rigid cluster when the rod is rooted there (3c). Its FOOT is
+  // CLAMPED ON THE KEEL: its two lowest levels tied to the bottom longerons' corners of the rings round its chord - two
+  // levels, so the cabin cannot swing about it. The cabin's rings no longer carry the wing (3, mkWing: no root ties on
+  // a hanging nacelle): the wing stands on the mast, the cabin hangs from its foot. Weightless members (the mast billed
+  // once, kgM a metre, over its nodes); cabane class (its buckling, 30_solver); inside the blade, so undrawn ('inner')
+  const MAST = [];
+  let mastRef = null;
+  if (S.fuse && S.fuse.hang && wf.L && wf.R && S.wings && S.wings[0]) {
+    const w0 = S.wings[0], H0 = typeof GEN_HANG !== 'undefined' ? GEN_HANG : { at: 0.5, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.3 };
+    const at = S.fuse.hangAt != null ? +S.fuse.hangAt : H0.at, len = S.fuse.hangLen != null ? +S.fuse.hangLen : H0.len;
+    let ph = 0.5 * Math.max(0.10, len * w0.chord);
+    // (where the join measured the drawn mast - hangX, its front and back - else at its station on the root chord)
+    const HX = Array.isArray(S.fuse.hangX) ? S.fuse.hangX : null, xc0 = w0.xLE + at * w0.chord;
+    const xa = HX ? HX[0] : xc0 - ph, xb = HX ? HX[1] : xc0 + ph, xc = 0.5 * (xa + xb);
+    ph = 0.5 * (xb - xa);
+    const hw = Math.max(0.012, 0.5 * H0.tc * 2 * ph);
+    const rF = wf.L.F[0], rR = wf.L.R[0];
+    // the head's level: the root chord line (the root spar nodes'), at x; the foot's: the keel (the bottom longerons')
+    const yTop = x => { const t = Math.max(0, Math.min(1, (x - P[rF][0]) / ((P[rR][0] - P[rF][0]) || 1))); return P[rF][1] + (P[rR][1] - P[rF][1]) * t; };
+    const yKeel = x => {
+      let i = 0; while (i < ST.length - 2 && ST[i + 1].x < x) i++;
+      const a = P[F[i].BL][1], b = P[F[i + 1].BL][1], t = Math.max(0, Math.min(1, (x - ST[i].x) / ((ST[i + 1].x - ST[i].x) || 1)));
+      return a + (b - a) * t;
+    };
+    const Hm = 0.5 * (yTop(xa) + yTop(xb)) - 0.5 * (yKeel(xa) + yKeel(xb));
+    if (Hm > 0.2) {
+      const nL = Math.max(2, Math.round(Hm / H0.lv)), lv = [];
+      for (let l = 0; l <= nL; l++) {
+        const q = [];
+        for (const [x, z] of [[xa, -hw], [xa, hw], [xb, -hw], [xb, hw]]) {
+          const y = yKeel(x) + (yTop(x) - yKeel(x)) * l / nL;
+          const n = N(x, y, z, 'MST'); q.push(n); MAST.push(n);
+        }
+        lv.push(q);
+      }
+      const M = (a, b) => B(a, b, 'cabane', false, 'inner', undefined, { noMass: true });
+      for (let l = 0; l <= nL; l++) {
+        const [aL, aR, bL, bR] = lv[l];
+        M(aL, aR); M(bL, bR); M(aL, bL); M(aR, bR); M(l % 2 ? aR : aL, l % 2 ? bL : bR);   // the ring and its diagonal
+        if (l === nL) continue;
+        const [cL, cR, dL, dR] = lv[l + 1], alt = l % 2;
+        M(aL, cL); M(aR, cR); M(bL, dL); M(bR, dR);                                       // the four longerons
+        M(alt ? aL : bL, alt ? dL : cL); M(alt ? aR : bR, alt ? dR : cR);                 // the side faces
+        M(alt ? aL : aR, alt ? cR : cL); M(alt ? bL : bR, alt ? dR : dL);                 // the leading / trailing faces
+      }
+      // the head in the hub
+      const hub = [];
+      for (const sd of ['L', 'R']) for (const q of [wf[sd].F[0], wf[sd].R[0], wf[sd].FB ? wf[sd].FB[0] : null, wf[sd].RB ? wf[sd].RB[0] : null])
+        if (q != null && !hub.includes(q)) hub.push(q);
+      for (const t of lv[nL]) for (const h of hub) M(t, h);
+      const RCh = clusters.find(c => c.tag === 'ROD');
+      if (RCh && RCh.hub) for (const t of lv[nL]) if (!RCh.nodes.includes(t)) RCh.nodes.push(t);
+      // the foot clamped on the keel: the two lowest levels to the bottom corners of the rings round the chord
+      const rings = [...new Set([nearestRing(xa), nearestRing(xb), ...straddle(xc)])];
+      for (const l of [0, 1]) for (const t of lv[l]) for (const i of rings) { M(t, F[i].BL); M(t, F[i].BR); }
+      const kg = H0.kgM * Hm;
+      for (const n of MAST) pt(n, kg / MAST.length);
+      // (L5) the hub: the wing's one fitting on the mast's head - on the wing's root nodes, where it is (the stiffest
+      // springs of the aeroplane, the root's across the hub, end there) - billed as the carry-through ('bracing')
+      if (HUBPIN && H0.hubKg > 0) { const s0 = SEC; sec('bracing'); for (const h of hub) pt(h, H0.hubKg / hub.length); sec(s0); }
+      mastRef = { nodes: MAST.slice(), head: lv[nL].slice(), foot: lv[0].slice(), x: [xa, xb], hw, h: Hm, kg, rings };
+    }
+  }
+
+  // ---- 3e. THE KEEL BEAM (the study's stage 3; the user, 12 Nov: "the keel beam should probably be paired with the
+  // fuselage, as they will both host the seat and the pedals ... changing the length of 1 would change the other ... this
+  // keel beam is actually the cabin floor and length") ----
+  // On a hanging nacelle the cabin's floor IS a beam: on the centreline at the keel, from the nose's ring to the mast's
+  // foot - the cabin's own stations (no length of its own: the cabin's rings make it, the mast ends it), a two-chord truss
+  // (GEN_HANG.keelD deep: a bottom chord on the keel line, a top chord over it, a post and a diagonal a bay), each station
+  // tied to its ring's bottom corners, its aft end clamped on the mast's foot (both chords on the mast's two lowest
+  // levels' forward corners). Weightless members, the beam billed a metre (keelKgM); fuselage class; inside the skin
+  let keelRef = null;
+  // THE TWIN KEEL (fuselage.hangKeel 2): two tubes either side of the pilot at the window's sill (hangKeelK of the cabin's
+  // height, the join's measure), straight from the nose's ring to the mast - each station tied to its ring's two corners
+  // on its side, the pair laddered across, each tube's end on the mast's level at its height (its forward corners and
+  // the level over and under). The controls will mount on them
+  if (mastRef && S.fuse && +S.fuse.hangKeel === 2) {
+    const H0 = typeof GEN_HANG !== 'undefined' ? GEN_HANG : { tubeKgM: 0.5, keelK: 0.33, keelIn: 0.85 };
+    const k = S.fuse.hangKeelK != null ? +S.fuse.hangKeelK : H0.keelK, kin = H0.keelIn || 0.85, xa = mastRef.x[0];
+    const st = []; for (let i = 0; i < F.length; i++) if (ST[i].x < xa - 0.05) st.push(i);
+    if (st.length) {
+      const M = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true, hard: true });   // (L4: a role that stays hard)
+      const L = [], R = [];
+      for (const i of st) {
+        const at = (lo, hi) => P[lo].map((v, c) => v + (P[hi][c] - v) * k);
+        const pl = at(F[i].BL, F[i].TL), pr = at(F[i].BR, F[i].TR);
+        const l = N(ST[i].x, pl[1], pl[2] * kin, 'KEELL'), r = N(ST[i].x, pr[1], pr[2] * kin, 'KEELR');
+        L.push(l); R.push(r); M(l, r);
+        M(l, F[i].BL); M(l, F[i].TL); M(r, F[i].BR); M(r, F[i].TR); M(l, F[i].BR); M(r, F[i].BL);
+      }
+      for (let q = 0; q + 1 < L.length; q++) { M(L[q], L[q + 1]); M(R[q], R[q + 1]); M(q % 2 ? L[q] : R[q], q % 2 ? R[q + 1] : L[q + 1]); }
+      // the ends on the mast: its level nearest the tubes' height, and the levels round it
+      const lvN = Math.round(mastRef.nodes.length / 4) - 1, yE = P[L[L.length - 1]][1];
+      const lvAt = l => mastRef.nodes.slice(4 * l, 4 * l + 4);
+      let best = 0, bd = Infinity; for (let l = 0; l <= lvN; l++) { const d = Math.abs(P[lvAt(l)[0]][1] - yE); if (d < bd) { bd = d; best = l; } }
+      for (const l of [best - 1, best, best + 1]) if (l >= 0 && l <= lvN) { const [aL, aR] = lvAt(l); M(L[L.length - 1], aL); M(R[R.length - 1], aR); M(L[L.length - 1], aR); M(R[R.length - 1], aL); }
+      const len = xa - ST[st[0]].x, kg = 2 * (H0.tubeKgM || 0.5) * len;
+      for (const n of L.concat(R)) pt(n, kg / (L.length + R.length));
+      keelRef = { twin: 1, left: L, right: R, x: [ST[st[0]].x, xa], len, kg, rings: st, k };
+    }
+  }
+  if (mastRef && !keelRef) {
+    const H0 = typeof GEN_HANG !== 'undefined' ? GEN_HANG : { keelD: 0.08, keelKgM: 1.2 };
+    const xa = mastRef.x[0], kd = H0.keelD || 0.08, KB = [], KT = [];
+    const keelY = i => 0.5 * (P[F[i].BL][1] + P[F[i].BR][1]);
+    const st = []; for (let i = 0; i < F.length; i++) if (ST[i].x < xa - 0.05) st.push(i);
+    if (st.length) {
+      const M = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true, hard: true });   // (L4: a role that stays hard)
+      for (const i of st) {
+        const b = N(ST[i].x, keelY(i), 0, 'KEELB'), t = N(ST[i].x, keelY(i) + kd, 0, 'KEELT');
+        KB.push(b); KT.push(t);
+        M(b, t); M(b, F[i].BL); M(b, F[i].BR); M(t, F[i].BL); M(t, F[i].BR);
+      }
+      // the last bay to the mast's foot: its forward corners, the two lowest levels
+      const f0 = mastRef.foot, f1 = mastRef.nodes.slice(4, 8);
+      for (let k = 0; k < KB.length - 1; k++) { M(KB[k], KB[k + 1]); M(KT[k], KT[k + 1]); M(k % 2 ? KB[k] : KT[k], k % 2 ? KT[k + 1] : KB[k + 1]); }
+      const lb = KB[KB.length - 1], lt = KT[KT.length - 1];
+      for (const q of [f0[0], f0[1], f1[0], f1[1]]) { M(lb, q); M(lt, q); }
+      const len = xa - ST[st[0]].x, kg = (H0.keelKgM || 1.2) * len;
+      for (const n of KB.concat(KT)) pt(n, kg / (KB.length + KT.length));
+      keelRef = { bottom: KB, top: KT, x: [ST[st[0]].x, xa], len, kg, rings: st };
+    }
+  }
+
   // ---- 2b. engines OFF the nose (2026-09-04) ----------------------------
   // The pusher hangs on the ring nearest its station (the aft bulkhead) as
   // the nose engine hangs on the firewall; the over-the-wing engine is a
@@ -1738,7 +1960,26 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         if (e.mount === 'wing' && e.side > 0) continue; // the pair's mirror
       } else if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
       const iE = LAYF ? i : 0;                         // this entry's engine index
-      if (e.mount === 'pusher') {
+      if (e.mount === 'pusher' && mastRef && mastRef.nodes.length >= 8) {
+        // THE PUSHER BOLTED ON THE MAST (WEIGHT STUDY L7, 12 Nov, the user: "You might also save on engine mount ...
+        // the heavy truss mount should just go also in the 3d model"; the hanging nacelle's: "the engine bolts directly
+        // on the pillar's back face, with no mount"): on a hanging nacelle the mast's back face IS the mount - the pair
+        // tied to the back-face nodes (bL, bR) of the two mast levels nearest its height, a short bolted plate, no
+        // 4130 bearers to bill (weightless ties: the mast is billed once, GEN_HANG.kgM). Its mass hangs on the mast
+        const [PL, PR] = NM(e.x, e.y, 0.55 * cab.halfW, 'ENG');
+        const MN = mastRef.nodes, nLv = Math.floor(MN.length / 4);
+        let l0 = 0, bd = Infinity;
+        for (let l = 0; l < nLv; l++) { const d = Math.abs(P[MN[4 * l + 2]][1] - e.y); if (d < bd) { bd = d; l0 = l; } }
+        const l1 = l0 + 1 < nLv && (l0 === 0 || Math.abs(P[MN[4 * (l0 + 1) + 2]][1] - e.y) < Math.abs(P[MN[4 * (l0 - 1) + 2]][1] - e.y)) ? l0 + 1 : l0 - 1;
+        const back = [MN[4 * l0 + 2], MN[4 * l0 + 3], MN[4 * l1 + 2], MN[4 * l1 + 3]];
+        const BT = (a, b) => B(a, b, 'fus', false, 'inner', true, { noMass: true });
+        BT(PL, PR);
+        BT(PL, back[0]); BT(PL, back[1]); BT(PL, back[2]); BT(PL, back[3]);
+        BT(PR, back[1]); BT(PR, back[0]); BT(PR, back[3]); BT(PR, back[2]);
+        hangEngine(e, [PL, PR], back, 0, engDryM, S.prop.mass);
+        engNodes.push(PL, PR); engIdx.push(iE, iE);
+        if (LAYF) engCowl.push([PL, PR]);
+      } else if (e.mount === 'pusher') {
         const [PL, PR] = NM(e.x, e.y, 0.55 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
         BM(PL, PR);
@@ -2599,7 +2840,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   sec('gear');
   // FLOATS-CLASSIC (the user 3 Nov: floats "need to come with weight and price"): a float build has no wheels to pay
   // for - it pays for its floats (HYDRO.floatPrice, billed with the pair below)
-  if (S.gear.type !== 'floats') spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
+  // MONOWHEEL (60_gen_spec gear.mono): ONE main wheel on the centreline - one wheel, one fairing, one leg to pay for
+  const MONO = !!S.gear.mono, nMn = MONO ? 1 : 2;
+  // ...and THE BICYCLE WHEEL (the cage's whProfile 3, every wheel of the build as the row draws them): its own mass law
+  // and price (GEN_RULES.wheelCycleKg, GEN_PRICES.wheelCycle). Every other carcass: the rule as before
+  const CYCLE = Math.round(+((S.cage && S.cage.whProfile) || 0)) === 3;
+  if (S.gear.type !== 'floats') spend(nMn * (CYCLE ? GEN_PRICES.wheelCycle : GEN_PRICES.wheel) + GEN_PRICES.thirdWheel + (ARCH.price || 0));
   // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
   // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
   // deeper shell 88·R², its leg shroud included), stretched a little by the
@@ -2619,10 +2865,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     + (S.gear.twLegFair === 'fair' && S.gear.twFairing !== 'full'
        ? fairShroudM(S.gear.twLeg || 0.20) : 0);
   spend(FMAT.price * (
-    (S.gear.fairing === 'full' ? 2 * GEN_PRICES.trouser
-      : S.gear.fairing === 'spat' ? 2 * GEN_PRICES.spat : 0)
+    (S.gear.fairing === 'full' ? nMn * GEN_PRICES.trouser
+      : S.gear.fairing === 'spat' ? nMn * GEN_PRICES.spat : 0)
     + (S.gear.legFair === 'fair' && S.gear.fairing !== 'full'
-       ? 2 * GEN_PRICES.legFair : 0)
+       ? nMn * GEN_PRICES.legFair : 0)
     + (S.gear.twFairing === 'full' ? GEN_PRICES.trouser
       : S.gear.twFairing === 'spat' ? GEN_PRICES.spat : 0)
     + (S.gear.twLegFair === 'fair' && S.gear.twFairing !== 'full'
@@ -2668,16 +2914,21 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const hullGear = (S.gear.type === 'hull' || AMPH) && S.gear.hull && Array.isArray(S.gear.hull.sta) && typeof HYDRO !== 'undefined';
   // G3800 (TAILWHEELS): THE SKID's shoe is a hand-sized contact where the wheel's tyre would touch (its contact point,
   // and so the three-point attitude, unchanged): a 3 cm radius at the tyre's bottom, half the wheel assembly's mass
-  const SKID = S.gear.type === 'taildragger' && S.gear.twMode === 'skid';
+  // (MONOWHEEL: and a tricycle's NOSE skid - the same shoe where the nose wheel's tyre would touch)
+  const SKID = (S.gear.type === 'taildragger' || S.gear.type === 'tricycle') && S.gear.twMode === 'skid';
   const twRN = SKID ? 0.03 : S.gear.twR, twDy = SKID ? (S.gear.twR || 0.10) - 0.03 : 0, twKgK = SKID ? 0.5 : 1;
   // ...and a 'hull' whose lines never reached the spec (an archetype's birth spec, pre-join) flies on the floats the
   // gross sizes, the seaplane it can be without its drawing - never on wheels it does not have
   const WHEELS = S.gear.type !== 'floats' && S.gear.type !== 'hull';
   // WILGA-GEAR: THE TRAILING-LINK LEG (62c GEAR_LEVER; the study futureDesigns/WILGA-GEAR-STUDY-2026-11.md) - on a
   // lever build the mains are not the six-member tripod below: each leg is its own truss, the points the drawn leg's
-  const LEVER = WHEELS && S.gear.suspension === 'lever' && !S.gear.retract;
+  const LEVER = WHEELS && S.gear.suspension === 'lever' && !S.gear.retract && !MONO;
   let LEVREC = null;
   if (WHEELS) {
+  // MONOWHEEL: ONE AXLE NODE on the centreline ('AXLEC'); GAR is the same node (every reader of the pair - the lever's
+  // design, the parts - reads one wheel), and refs.mains holds it once
+  if (MONO) { GAL = GAR = N(gx, gy, 0, 'AXLEC', S.gear.contactR); }
+  else
   [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
   if (LEVER) {
     // THE LEG, per side, at full extension (the strut's L0 is its length as built): the pivot as two bearing nodes on
@@ -2724,7 +2975,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       clusters.push({ cls: 'lever', tag: 'LEG' + nm, nodes: [PI, PO, U] });
       LEVREC.sides.push({ side: nm, axle: ax, pi: PI, po: PO, h: H, u: U });
     }
-  } else
+  } else if (!MONO)
   B(GAL, GAR, 'gear');
   // What each of those six members IS, now that `vis` can say so. The forward
   // pair is the SUSPENSION LEG — bungee cord, spring steel or oleo, drawn as
@@ -2734,6 +2985,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // they made the undercarriage read as a cage, and an X of bracing wires under
   // the belly is both what a tube-and-fabric aeroplane actually has and the
   // same load path. Nothing here changes k, c or mass.
+  // MONOWHEEL: the one axle hangs on both sides' members - the two legs forward, the two drag braces aft (no cross
+  // wires: the legs ARE the cross), and below both of the ring's top corners (rule 10, the same snap-blockers)
+  // (THE HANGING NACELLE, 3d: the one wheel hangs from the MAST's foot - its four keel-level corners, and up to the level
+  // above for rule 10 - not from the cabin's rings: the user, "the wheel has to be anchored on the pylon")
+  if (MONO && mastRef) {
+    const [aL, aR, bL, bR] = mastRef.foot, l1 = mastRef.nodes.slice(4, 8);
+    B(GAL, aL, 'gear', false, 'leg'); B(GAL, aR, 'gear', false, 'leg'); B(GAL, bL, 'gear'); B(GAL, bR, 'gear');
+    for (const q of l1) B(GAL, q, 'gear', false, 'inner');
+  } else
+  if (MONO) {
+    B(GAL, fwdL, 'gear', false, 'leg'); B(GAL, fwdR, 'gear', false, 'leg');
+    B(GAL, AA.BL, 'gear'); B(GAL, AA.BR, 'gear');
+  } else
   if (!LEVER) {
   B(GAL, fwdL, 'gear', false, 'leg'); B(GAL, AA.BL, 'gear');
   B(GAL, fwdR, 'gear', false, 'wire');
@@ -2753,15 +3017,52 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // A near-vertical member up to the ring's TOP corner is also what a
   // bungee-sprung light aeroplane actually has, and like the tailwheel's it is
   // INTERNAL: under the covering it should not be visible.
-  if (!LEVER) {
+  if (MONO && mastRef) { /* (on the mast: its level above is the snap-blocker) */ }
+  else if (MONO) { B(GAL, F[iFwd].TL, 'gear', false, 'inner'); B(GAL, F[iFwd].TR, 'gear', false, 'inner'); }
+  else if (!LEVER) {
   B(GAL, F[iFwd].TL, 'gear', false, 'inner');
   B(GAR, F[iFwd].TR, 'gear', false, 'inner');
   }
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
+  const mWheel = CYCLE ? R.wheelCycleKg(S.gear.wheelR) : R.wheelKg(S.gear.wheelR);
   // THE BRAKES (GEN_BRAKES): the pair's mass on the mains, its price with the wheels; absent: nothing (as it was)
+  // (MONOWHEEL: the one main carries the whole of it)
   const BRK = genBrakeOf(S), mBrk = BRK ? 0.5 * BRK.kg : 0;
   if (BRK) spend(BRK.price);
-  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk);
+  pt(GAL, mWheel + mFairMain + (MONO ? 2 : 1) * mBrk); if (!MONO) pt(GAR, mWheel + mFairMain + mBrk);
+  // (THE ULTRALIGHT MONOWHEEL'S RETRACTION, GEN_RULES.ulGear: the lever, the push rod, the over-centre link, the gas strut
+  //  and the doors' hinges - on its axle)
+  if (S.gear.retract && GUL && GUL.retractKg > 0) { pt(GAL, GUL.retractKg); spend(GUL.retractPrice || 0); }
+  // THE TOW HOOK (GEN_RULES.towHook; gear.towHook 'nose' | 'cg'): the release's node on the centreline - at the nose
+  // ring's keel (aerotow), or on the belly `ahead` of the mains (winch, auto-tow) - tied to the HARD structure round it
+  // (weightless members, a soft shell's hard row: the keel tubes and, on a hanging nacelle, the mast's foot; the line
+  // pulls kN there, not on the poles), the release billed on it. refs.towHook names it for the tow line (tow.js)
+  TOWH = -1;
+  const HOOK = S.gear.towHook === 'nose' || S.gear.towHook === 'cg' ? S.gear.towHook : null;
+  if (HOOK && R.towHook && R.towHook[HOOK]) {
+    const K = R.towHook[HOOK], HB = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true, hard: true });
+    let hx, hy, anch;
+    if (HOOK === 'nose') {
+      const r0 = F[0], r1 = F[Math.min(1, F.length - 1)];
+      hx = ST[0].x + 0.05; hy = Math.min(P[r0.BL][1], P[r0.BR][1]) - 0.02;
+      anch = [r0.BL, r0.BR, r0.TL, r0.TR, r1.BL, r1.BR];
+      const kl = keelRef && keelRef.twin ? [keelRef.left[0], keelRef.right[0], keelRef.left[1], keelRef.right[1]]
+               : keelRef && keelRef.bottom ? [keelRef.bottom[0], keelRef.top[0], keelRef.bottom[1], keelRef.top[1]] : [];
+      // (on a SOFT shell - a fuselage row naming a hard one - the release bolts to the keel tubes alone: the pod's nose
+      //  ring is poles, and an aerotow's pull tore it (62 members on a 130 m car tow, scratch, 13 Nov))
+      if (M && M.hard && kl.filter(q => q != null).length) anch = kl.filter(q => q != null);
+      else anch = anch.concat(kl.filter(q => q != null));
+    } else {
+      hx = P[GAL][0] - (K.ahead || 0.25);
+      const ir = nearestRing(hx), rg = F[ir];
+      hy = 0.5 * (P[rg.BL][1] + P[rg.BR][1]) - 0.02;
+      anch = [rg.BL, rg.BR, rg.TL, rg.TR];
+      if (mastRef) anch = anch.concat(mastRef.foot, mastRef.nodes.slice(4, 8));
+    }
+    TOWH = N(hx, hy, 0, 'TOWH');
+    for (const a of [...new Set(anch)]) HB(TOWH, a);
+    pt(TOWH, K.kg); spend(K.price || 0);
+  }
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -2802,10 +3103,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else { B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire'); }
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
-    pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
+    pt(TW, (GUL && SKID && GUL.skidKg > 0 ? (mFairTw > 0 ? 0 : GUL.skidKg) : CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);   // (L6: the ultralight monowheel's nose skid, its own)        // the nosewheel with its fork, by size (a bicycle wheel's own)
     // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
     // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
-    if (S.gear.retract) {
+    if (S.gear.retract && !GUL) {                   // (the ultralight monowheel's own kit: below)
       const kit = R.retractKg(gross);
       pt(GAL, kit / 3); pt(GAR, kit / 3); pt(TW, kit / 3);
       spend(GEN_PRICES.retract);
@@ -3280,6 +3581,33 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     GAL = FL.K[2]; GAR = FR.K[2]; TW = -1; twX = gx; twY = yK;
   }
 
+  // ---- 5c. TIP-SKID (60_gen_spec GEN_TIP_SKID): THE WINGTIP SKIDS, one a side under the first plane's tip joint ----
+  // The shoe is ONE NODE, its ground contact (refs.skids: the solver slides it on the tail skid's law, 30_solver), on
+  // the joint's own frame (genTipJoint: the front spar's point on the chord line, the chord, the section's up) at xs of
+  // the chord, its underside h under the lower skin the loft draws (genAfEval, the same evaluator: 63_gen_wing draws
+  // the hoop off the same numbers), tied into the joint bay's four spar nodes - a tetrahedron's apex, rigid (rule 4) -
+  // by four members inside the hoop: gear class, the bracing's rate x8 (the apex stands a hand under a near-flat bay,
+  // so its members are near the bay's plane and carry its load at sin^2 of their angle: the float tie's kMul), weightless
+  // (the shoe's mass is the node's). Nothing on a wing without one: no node, no member, no key.
+  const SKIDS = [];
+  {
+    const w0K = S.wings && S.wings[0], hK = w0K ? +w0K.tipSkid : 0;
+    if (hK > 0 && wf.L && wf.R && typeof GEN_TIP_SKID !== 'undefined') {
+      const K = GEN_TIP_SKID, tz = genTipSkidZ(w0K, G.semi);
+      const cJ = chordAt(tz), lo = (typeof genAfEval === 'function' ? genAfEval(w0K.naca).lo(K.xs)[1] : -0.05);
+      for (const [sd, W] of [[-1, wf.L], [1, wf.R]]) {
+        const J = genTipJoint(nodes, W, tz, sd);
+        if (!J) continue;
+        const pS = [0, 1, 2].map(i => J.O[i] + J.ch[i] * (K.xs - sparFront) * cJ + J.up[i] * (lo * cJ - hK + 1.6 * K.r));
+        const SKn = N(pS[0], pS[1], pS[2], 'SK', 1.6 * K.r);   // (the shoe's radius: the drawn sleeve's)
+        const jo = Math.min(W.F.length - 1, J.j + 1);
+        for (const a of [W.F[J.j], W.R[J.j], W.F[jo], W.R[jo]]) B(SKn, a, 'gear', false, 'inner', undefined, { noMass: true, kMul: 8 });
+        pt(SKn, K.kg); spend(K.each);
+        SKIDS.push(SKn);
+      }
+    }
+  }
+
   // ---- 6. payload, fuel, systems --------------------------------------
   // tandem: pilot in the FRONT seat first (a J-3 is soloed from the rear, but
   // that is a CG choice the player can make by moving the seat, not a default)
@@ -3584,7 +3912,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE PANEL BOARD, from its own geometry. `cab.panel` carries the depth
     // and how far the coaming wraps; the board spans the cabin.
     let panelM = 0;
-    if (cb.panel && cb.panel.on) {
+    // (the instrument pod, GEN_INSTR_POD: no board - the pod on its stalk, billed where the board was)
+    if (S.systems && S.systems.mount === 'pod') panelM = GEN_INSTR_POD.podKg;
+    else if (cb.panel && cb.panel.on) {
       const pw = 2 * cb.halfW * (0.6 + 0.8 * (cb.panel.wrap || 0));
       panelM = pw * (cb.panel.depth || 0.25) * O.panelKgM2;
     }
@@ -3629,7 +3959,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE CONTROLS, from the reach: out to the tips and back to the tail.
     // Dual controls are a second stick and a second set of pedals.
     const reach = S.geom.semi + S.fuse.tailArm;
-    const ctlM = O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
+    // (WEIGHT STUDY L3: light runs - push-pull carbon rods and Dyneema on the keel tubes - when the outfit says so)
+    const ctlM = (cb.ctlRuns === 'light' && O.ctlKgMLight > 0 ? O.ctlKgMLight : O.ctlKgM) * reach + (seats > 1 ? O.ctlDualKg : 0);
     // THE GLAZING: the windscreen and the side windows, over the cabin.
     // ...an OPEN FRAME (PERF STUDY chantier 1) has a windscreen and no side
     // windows — there is no side to put them in
@@ -3739,7 +4070,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // rode on the tail cone and the empennage, whose many small panels put
     // the 172's 7 kg of paint at 3.6 m — 2.3 m behind the wing that carries
     // half the wetted surface
-    const pm = coverA * (FIN.kgM2 || 0);
+    // (the self-coloured white, WEIGHT STUDY: its colour coats are the scheme's share only, GEN_FINISH.self)
+    const pm = coverA * ((FIN.kgM2 || 0) + (FIN.liveryKgM2 > 0 ? FIN.liveryKgM2 * Math.max(0, Math.min(1, +S.paint.sweep || 0)) : 0));
     if (pm > 0 && coverIds.length && coverA > 0) {
       for (const i of coverIds) nodes[i].m += pm * (coverAt[i] || 0) / coverA;
       bill(pm, 0);
@@ -3821,8 +4153,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
     fusDrag: [F[iCabR].BL, F[iCabR].BR, F[iCabR].TL, F[iCabR].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
-    engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
+    engine: engNodes, engineOf: engIdx, mains: GAL === GAR ? [GAL] : [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,   // (MONOWHEEL: one main)
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
+    ...(SKIDS.length ? { skids: SKIDS } : {}),       // TIP-SKID: the wingtip skids' shoes (the key only then)
+    ...(TOWH >= 0 ? { towHook: [TOWH] } : {}),       // THE TOW HOOK: the release's node, for the tow line (the key only then)
+    ...(mastRef ? { mast: mastRef } : {}),          // THE HANGING NACELLE: the mast (3d; the key only then)
+    ...(keelRef ? { keel: keelRef } : {}),          // ...and its keel beam (3e)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
     // have to treat the whole wing consistently, and get rid of that
     // different treatment for the central part"). The centre section is
@@ -4003,7 +4339,14 @@ function genDesignGross(S, a, cg) {
     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
   const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
-  const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
+  // THE BUILD WEIGHT (the foot-launch D-tube, GEN_SURF_MATERIALS.dtube): a wing built for buildKg thins below it but
+  // never grows past it
+  const WROW = genSurfMaterial(S, 'wing', 0) || {}, TROW = genSurfMaterial(S, 'stab') || {};
+  // ('wingB': the D-tube's own bucket, gauged with the wing's exponent and capped at its build weight)
+  const eOf = c => G.e[c] != null ? G.e[c] : G.e[c.replace(/B$/, '')];
+  const rowOf = c => c === 'wingB' ? WROW : c === 'tailB' ? TROW : c === 'fusB' ? (GEN_MATERIALS[S.material] || null) : null;   // (L4: the soft shell's)
+  const hiOf = c => { const r = rowOf(c); return r && r.buildKg > 0 ? Math.min(G.hi, CORE_MATH.pow(r.buildKg / ref(c), eOf(c))) : G.hi; };
+  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), eOf(c))));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
   const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)
@@ -4013,8 +4356,8 @@ function genDesignGross(S, a, cg) {
     let f = Mfix + furnOf(W) - W, df = -1 + (furnOf(W) > 0 ? fK * O.furnKgPerKg : 0);
     for (const c in GD) { if (!(GD[c].m > 0)) continue; const g = gOf(c, W);
       f += GD[c].m * g;
-      const raw = CORE_MATH.pow(W / ref(c), G.e[c]);
-      if (raw > G.lo && raw < G.hi) df += GD[c].m * G.e[c] * g / W; }
+      const raw = CORE_MATH.pow(W / ref(c), eOf(c));
+      if (raw > G.lo && raw < hiOf(c)) df += GD[c].m * eOf(c) * g / W; }
     W = Math.max(Mfix, W - f / df);
   }
   const gauge = { W0: W }, dm = {}; let mAdd = furnOf(W), xAdd = 0, yAdd = 0, zAdd = 0;

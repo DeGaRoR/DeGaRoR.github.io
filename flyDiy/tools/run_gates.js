@@ -192,6 +192,24 @@ const GATES = [
   // fixed wheel), a twin boom's wheel a boom, the inverted V on its tip wheels flying HOME's circuit, its controls'
   // signs and volumes, the old saves' migration (~10 min, four probes at a time)
   { id: 'TAILWHEEL', file: '_tailwheel_check.js', tier: 'core', weight: 4, wall: 900 },
+  // MONOWHEEL (the Archaeopteryx study's stage 1): the single wheel on the centreline (gear.mono: the spec's flag, one axle
+  // node, one wheel billed, the cert's ground loads on it), the wingtip skid under any tip (its shoe's node and the drawn
+  // hoop on one contact), the nose skid; the motor glider on one wheel and a tail skid parks on one wingtip skid, rolls to
+  // 25 m/s and flies HOME's circuit; the tile's Monowheel parks on its nose skid (~8 min, one probe in parallel)
+  { id: 'MONOWHEEL', file: '_monowheel_check.js', tier: 'core', weight: 2, wall: 900 },
+  // HUB (the Archaeopteryx study's stage 2): the rod slotted into the wing's centre section - the spec's key, the root bay
+  // in the rod's rigid cluster and tied to its root ring, the socket's mass, the tail held off the wing alone, the drawn
+  // collar (~1 min)
+  { id: 'HUB', file: '_hub_check.js', tier: 'core', wall: 300 },
+  { id: 'NACELLE', file: '_nacelle_check.js', tier: 'core', wall: 200 },   // the Archaeopteryx study's stage 3: the hanging nacelle's mast
+  // WEIGHT STUDY (2026-11-12): the foot-launch D-tube wing - light, built for ~250 kg, certified there; on a Cub, a C172 and a
+  // Caravan it breaks under the 3.8 g limit at its root, and without its build weight the exploit reopens (negative control)
+  { id: 'LIGHTWING', file: '_lightwing_check.js', tier: 'core', wall: 320 },
+  // WEIGHT STUDY L2b (2026-11-12): the rod row - the rod's material and wall, latent; its stiffness and its breaking follow the
+  // section (the solver's tube cut): the Archaeopteryx holds on carbon 0.8 mm, a 0.5 mm rod on the pusher pod parts at its root
+  { id: 'RODROW', file: '_rodrow_check.js', tier: 'core', wall: 300 },
+  { id: 'ULTRALIGHT', file: '_ultralight_check.js', tier: 'core', wall: 420 },   // (WEIGHT STUDY L4-L6: the soft shell, the hub, the ultralight monowheel)
+  { id: 'ENGINELESS', file: '_engineless_check.js', tier: 'core', wall: 90 },   // (the LS4: the sailplane - engines[0].none, no powerplant, no propeller, no tank)
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
   // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)

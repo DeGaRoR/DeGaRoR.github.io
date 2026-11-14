@@ -7,13 +7,17 @@
 //   node tools/quickshot.js <build.json | --key <archetype>> <out-prefix> [options]
 //     --views side,top,front,q   which pictures (default side,top); q = a three-quarter from ahead, starboard, above;
 //                                bottom = from below, qb = a three-quarter from ahead, starboard, below (RETRACT G4);
-//                                qr = from behind, starboard, above; qp = from ahead, port, above
+//                                qr = from behind, starboard, above; qp = from ahead, port, above;
+//                                qrb = from behind, starboard, below (the Archaeopteryx study)
 //     --flat                     flat facets (the default: smooth shading, the meshes' own vertex normals)
 //     --nowells / --noedges      the retractable gear's wells: drawn whole, uncut / the reserved boxes' edges not drawn
 //     --focus gear               frame the picture on the gear (and the wing's wells), not the whole aeroplane
 //     --frames '{"qb":[u0,u1,w0,w1],...}'   the views' frames given (each picture prints the frame it used)
 //     --over '{"row":value}'     panel rows over the build (try a slider without saving a file)
 //     --crop z0,z1,y0,y1         the side view's window, metres (z forward, y up)
+//     --around x,y,z,r           any view framed on a point (layer metres), r either way of it
+//     --wire                     the lofts' grids drawn over the picture (the hub's blend: rows and rays)
+//     --half                     the cutaway: the body's starboard half left out, so what runs inside the cabin shows
 //     --w 1400                   picture width, px
 //     --marks fittings|corners|reg   rings on the placed fittings / a quad window's corners / the registration
 //     --gear 0..1                a retractable gear's position (RETRACT G1: 1 down, 0 up) - the editor's own preview row
@@ -80,8 +84,12 @@ const DEC = Object.assign({ regL: 2.10, regC: 0.28, regH: 0.30, regW: 0.96 }, (s
 const inReg = f => { if (!sheet.A || f.v.some(i => !sheet.A[i])) return false;
   let sl = 0, sc = 0; for (const i of f.v) { sl += sheet.A[i][0]; sc += sheet.A[i][1]; } sl = sl / f.v.length * FS; sc = sc / f.v.length * FS;
   return Math.abs(sl - DEC.regL) < DEC.regW / 2 && Math.abs(sc - DEC.regC) < DEC.regH / 2; };
+// --half: THE CUTAWAY - the body's starboard half (+x, the side the side view looks from) left out, so what runs inside
+// the cabin shows (the hanging nacelle's mast down to the keel)
+const HALF = argv.includes('--half');
 for (const f of sheet.F) {
   if (SKIP_SHEET.has(f.m) || f.v.length < 3) continue;
+  if (HALF && f.v.reduce((a, i) => a + sheet.V[i][0], 0) / f.v.length > 1e-4) continue;
   const col = MARKS.includes('reg') && inReg(f) ? [245, 245, 245] : GLASS.has(f.m) ? (f.m === 'drawnPane' ? [70, 170, 230] : [60, 110, 160])
     : f.m === 'joint' || f.m === 'paneEdge' || f.m === 'doorSeal' || f.m === 'reveal' ? [40, 40, 44]
     : f.m === 'wheelWell' ? [96, 100, 92]
@@ -139,6 +147,7 @@ if (CUTSN) {
 S.scene.updateMatrixWorld(true);
 const v = new THREE.Vector3();
 const segs = [];   // RETRACT G3: the gear's reserved wells (edWellGhost's edges), drawn over the picture
+const WIRE = argv.includes('--wire'), wires = [];   // --wire: the lofts' grids (userData.grid), depth-tested
 S.scene.traverse(o => {
   if (o.isLineSegments && o.geometry && o.geometry.attributes && o.geometry.attributes.position) {
     let inWell = false; for (let q = o; q; q = q.parent) if (q.name === 'edWellGhost') inWell = true;
@@ -151,12 +160,30 @@ S.scene.traverse(o => {
     return;
   }
   if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+  // --wire: a mesh that keeps its loft's grid (userData.grid, rows of points - the hub's blend) draws it, its rows and
+  // its rays, the quads' own edges (depth-tested: only what is seen)
+  // ...and a mesh that keeps its own quads' edges (userData.wireGeo, a segment list: the wing layer's skin parts)
+  if (WIRE && o.userData && o.userData.wireGeo && o.userData.wireGeo.attributes && o.userData.wireGeo.attributes.position) {
+    const pa = o.userData.wireGeo.attributes.position, q = new THREE.Vector3(), Wm = i => { q.fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld); return [q.x, q.y, q.z]; };
+    for (let i = 0; i + 1 < pa.count; i += 2) wires.push({ a: Wm(i), b: Wm(i + 1) });
+  }
+  if (WIRE && o.userData && Array.isArray(o.userData.grid)) {
+    const Gd = o.userData.grid, Wm = p => { const q = new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(o.matrixWorld); return [q.x, q.y, q.z]; };
+    for (let i = 0; i < Gd.length; i++) for (let k = 0; k < Gd[i].length; k++) {
+      const k2 = (k + 1) % Gd[i].length;
+      wires.push({ a: Wm(Gd[i][k]), b: Wm(Gd[i][k2]) });
+      if (i + 1 < Gd.length) wires.push({ a: Wm(Gd[i][k]), b: Wm(Gd[i + 1][k]) });
+    }
+  }
   if (o.visible === false || /^edVessel_|^edFuel_|^edCrew/.test(o.name || '')) return;
   let hidden = false; for (let q = o; q; q = q.parent) if (q.visible === false) hidden = true;
   if (hidden) return;
   const m = Array.isArray(o.material) ? o.material[0] : o.material;
   let col = m && m.color ? [m.color.r * 255, m.color.g * 255, m.color.b * 255].map(Math.round) : [180, 180, 180];
   if (/^edAcc_/.test(o.name || '') || (o.parent && /access/.test(o.parent.name || ''))) col = [220, 40, 40];
+  // (the hub's blend wears the body's paint in the editor - its livery section follows the fuselage's; here the sheet's
+  // own colour, as the rod it grows out of is drawn)
+  if (o.name === 'rodHubSocket' || o.name === 'hangMast') col = hex(skin);   // (and the hanging nacelle's mast: the body's paint)
   if (m && m.transparent && m.opacity < 0.3) return;
   const pos = o.geometry.attributes.position, idx = o.geometry.index;
   const n = idx ? idx.count : pos.count;
@@ -188,7 +215,7 @@ function view(name) {
     top: { u: p => -p[2], w: p => -p[0], d: p => p[1] },                  // from above, the nose to the left
     front: { u: p => -p[0], w: p => p[1], d: p => p[2] },                // head-on, starboard on the left
     bottom: { u: p => -p[2], w: p => p[0], d: p => -p[1] },              // RETRACT G4: from below, the nose to the left
-    q: {}, qb: {}, qr: {}, qp: {},                                         // set below
+    q: {}, qb: {}, qr: {}, qp: {}, qrb: {},                                         // set below
   }[name];
   // (11 Nov, FIT-PROCEDURE: "do some 3/4 views of the latest model") qr = a three-quarter from BEHIND, starboard,
   // above; qp = from ahead, PORT, above - the q view's yaw turned round
@@ -206,8 +233,16 @@ function view(name) {
     V.w = p => p[1] * cp - dd(p) * sp;
     V.d = p => dd(p) * cp + p[1] * sp;
   }
-  if (name === 'q') {   // a three-quarter from ahead, starboard, above: yaw 37 deg, pitch 22 deg
-    const cy = Math.cos(0.65), sy = Math.sin(0.65), cp = Math.cos(0.38), sp = Math.sin(0.38);
+  if (name === 'qrb') {  // a three-quarter from BEHIND, starboard, BELOW (the hub's underside): yaw -37 deg, pitch -22 deg
+    const cy = Math.cos(-0.65), sy = Math.sin(-0.65), cp = Math.cos(-0.38), sp = Math.sin(-0.38);
+    V.u = p => -p[2] * cy + p[0] * sy;
+    const dd = p => p[0] * cy + p[2] * sy;
+    V.w = p => p[1] * cp - dd(p) * sp;
+    V.d = p => dd(p) * cp + p[1] * sp;
+  }
+  if (name === 'q' || name === 'qr') {   // a three-quarter from ahead (q) / from BEHIND (qr), starboard, above: yaw 37 deg, pitch 22 deg
+    const yaw = name === 'qr' ? -0.65 : 0.65;          // (the camera at +x, -z: aft and starboard)
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(0.38), sp = Math.sin(0.38);
     V.u = p => -p[2] * cy + p[0] * sy;
     const dd = p => p[0] * cy + p[2] * sy;
     V.w = p => p[1] * cp - dd(p) * sp;
@@ -219,6 +254,10 @@ function view(name) {
   for (const t of tris) if (!FOCUS || t.gear) for (let k = 0; k < 9; k += 3) { const p = [t[k], t[k + 1], t[k + 2]]; const u = V.u(p), w = V.w(p); u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
   const crop = opt('crop', null);
   if (crop && name === 'side') { const [z0, z1, y0, y1] = crop.split(',').map(Number); u0 = -z1; u1 = -z0; w0 = y0; w1 = y1; }
+  // --around x,y,z,r: ANY view framed on a point (the layer's metres: x starboard, y up, z forward), r either way of it
+  const AR = opt('around', null);
+  if (AR) { const [ax, ay, az, ar] = AR.split(',').map(Number), pu = V.u([ax, ay, az]), pw = V.w([ax, ay, az]);
+            u0 = pu - ar; u1 = pu + ar; w0 = pw - 0.62 * ar; w1 = pw + 0.62 * ar; }
   if (FOCUS) { const m = 0.18 * Math.max(u1 - u0, w1 - w0); u0 -= m; u1 += m; w0 -= m; w1 += m; }
   // --frames '{"qb":[u0,u1,w0,w1]}': a frame given (a series of pictures in one frame); every frame used is printed
   const FR = opt('frames', null) ? JSON.parse(opt('frames', '{}'))[name] : null;
@@ -286,6 +325,14 @@ function view(name) {
       const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= Wd || Y >= H) continue;
       const i = Y * Wd + X; out[i * 3] = m.col[0]; out[i * 3 + 1] = m.col[1]; out[i * 3 + 2] = m.col[2];
     }
+  }
+  for (const s of wires) {  // --wire: the grid's edges, 1 px, where they are seen (the depth buffer, a hair's bias)
+    const ax = (V.u(s.a) - u0) * sc, ay = (w1 - V.w(s.a)) * sc, az = V.d(s.a), bx = (V.u(s.b) - u0) * sc, by = (w1 - V.w(s.b)) * sc, bz = V.d(s.b);
+    const n = Math.ceil(Math.max(Math.abs(bx - ax), Math.abs(by - ay))) + 1;
+    for (let k = 0; k <= n; k++) { const t = k / n, x = Math.round(ax + (bx - ax) * t), y = Math.round(ay + (by - ay) * t), z = az + (bz - az) * t;
+      if (x < 0 || y < 0 || x >= Wd || y >= H) continue;
+      const i = y * Wd + x; if (z < zb[i] - 0.004) continue;
+      out[i * 3] = 20; out[i * 3 + 1] = 20; out[i * 3 + 2] = 24; }
   }
   for (const s of segs) {   // RETRACT G3: the wells' edges, 2 px, over everything
     const ax = (V.u(s.a) - u0) * sc, ay = (w1 - V.w(s.a)) * sc, bx = (V.u(s.b) - u0) * sc, by = (w1 - V.w(s.b)) * sc;

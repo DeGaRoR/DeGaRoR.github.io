@@ -255,6 +255,14 @@ another layer's solid. `fixtures/clip_baseline.json` makes it a ratchet: red
 only for a NEW or deeper finding; `--rebase` after a chantier clears some;
 `--report` lists every fitting's worst depth. See
 futureDesigns/FITMENT-STUDY-2026-09-12.md.
+GATE MONOWHEEL (MONOWHEEL, core, ~10 min) is the single wheel's, the wingtip skid's and the nose skid's: the spec's flag
+and keys (absent when off), one centreline axle, one wheel billed, the hoop drawn on the shoe's contact, the cert's ground
+loads on one main, the motor glider on one wheel and a tail skid parked on one wingtip skid, rolling and flying HOME's
+circuit, the tile's Monowheel parked on its nose skid. futureDesigns/archaeopteryx/CONFIG_STUDY.md section 4.
+GATE NACELLE (NACELLE, core, ~3 min) is the hanging nacelle's mast: the spec's keys (a wing above the cabin only), the
+mast's lattice from the hub to the keel where the drawn one stands, no other tie from the wing to the cabin's rings, the
+monowheel hung from the mast's foot, the aeroplane parked and the cabin hung under 2 g more, the pusher on the mast's back
+face, the cabin sliding free of it, the sunk wheel's cut leaving the rod whole. CONFIG_STUDY.md stage 3.
 GATE WILGAGEAR (WILGA-GEAR, core, ~2 min) is the trailing-link leg's: the geometry as researched, the static deflection
 at gross, a 23.725-style limit drop without bottoming and the reserve drop's recovery, no pogo, the trailing arc, a
 broken leg that drops, the drawn leg = the physics leg through the load chain, the fairing (its three shapes and two
@@ -315867,3 +315875,465 @@ NEW REDS, NAMED with owners (fix or re-pin with reason in L40c):
 - SHAPE ROWS: list:55 Spitfire and list:56 Skymaster (WIP) are the chooser's shapes themselves - `shape` instead of a file; All planes builds them with the authored recreations' door (generateCard); the Spitfire stays greyed with its reason (half reference-matched, not flown). A shape row's registration is given at its birth. Rows 53 and 54 are kept for the Ruckus (REAL-FIGURES' ready, A0 12 Nov).
 - GATE PLANELISTS: each of the 8 shapes opens exactly its one real row (a player plane with a file), every alike/shape key is a chooser archetype, a shape row is WIP with no other door, canon (b) skips a shape's registration; the page rows; 6 new selftest breaks. GATE NEWPLANE: the flow on its DOM stub (the Cub-alike tile is the real Cub and opens it with nothing built; a shape whose plane is not on the lists stays a shape; All planes: the Spitfire greyed, the Skymaster built once through the authored door).
 - NAMING RULE (the user 12 Nov, canon Q5; for CLAUDE.md once the user says so): name a plane by its list row and name, "list:50 Cessna 172" - never "the official Cessna", "the Metal Cessna" or a file name alone.
+## MONOWHEEL - THE SINGLE WHEEL, THE WINGTIP SKID UNDER ANY TIP, THE NOSE SKID (11 Nov 2026, cloud; the Archaeopteryx study's stage 1; branch claude/archaeopteryx-sailplane-study-q8tzz2)
+
+The user: "a true single-wheel gear type, we will reuse it on other gliders"; the tip skid "under any tip type. It's
+better"; "the front has a skid ... with a fairing in front". The configuration study: futureDesigns/archaeopteryx/
+CONFIG_STUDY.md (revision 2: the hub and the hanging nacelle; this is its stage 1).
+
+- **gear.mono** (60_gen_spec): a FLAG on a wheeled gear (taildragger / tricycle), not a type - the third unit keeps its
+  end and every rule that reads the type reads the same unit. Absent when off. A monowheel drops `retract` and the
+  `lever` suspension (both built per side). The join writes it off a centreline mains row (track < 0.02; the gear page
+  always documented "x = 0 is a single centreline wheel").
+- **The frame**: one axle node `AXLEC` at z 0 (GAR aliases GAL; refs.mains holds it ONCE - every reader that sums or
+  averages refs.mains is generic), its two legs to both forward belly nodes, two drag braces aft, two snap-blockers to
+  the ring's top corners (rule 10); one wheel, fairing and leg billed. Hard two-main sites fixed: the shakedown's AXLER
+  lookup (falls back to AXLEC), genCertGroundLoads (one main: both halves on it), genGearCdA (one wheel), the
+  differential brake (a z 0 wheel has no side), 29_obstacles' stance shape. Left as they are (read generically or only
+  index L/R by sign): app.js's wheel parts (a centreline main is the gear layer's kind R, the app's mainsR = refs.mains[0]),
+  the audio (mains[1] undefined reads as no wheel), the pilot's brake pivot (nothing to pivot on - a glider is pushed).
+- **TIP-SKID** (60_gen_spec GEN_TIP_SKID, genTipSkidZ): `wings[0].tipSkid` = the shoe's depth under the lower skin (m,
+  0.02-0.30, rows wgTipSkid / wgTipSkidH, default 0.10), ON ANY TIP: at 0.6 of a bowed tip's bow (at the joint on a
+  drooped / upturned tip, at the end on a square / winglet / endplate one - measured: at the joint a rounded tip's last
+  0.34 m touched first), 45 % chord. The shoe is one node a side (refs.skids), the apex of the bay's four spar nodes
+  (gear class, kMul 8, weightless members), sliding on the tail skid's law (30_solver: TW_SKID_MU, no scrape, no scar).
+  Drag: the hoop's two legs on the tip strip (as the endplate). Drawn by 63_gen_wing into the pitot group (bound to the
+  same spar nodes, so it rides the wing), the shoe's sleeve radius = the node's contact radius.
+- **The nose skid**: a tricycle's third unit on the Skid row (s2Steer 4) flies twMode 4 (62_gen_aero passes it, the
+  solver arms the law for a nose unit too; a nose WHEEL is unchanged, no key). The leaf spring and shoe (leg 3) at the
+  nose: `s2Nose` 1 counts its station back from the nose (AF.z1) as a tailwheel's counts from the tail. A faired skid
+  wears the wheel's spat (s2Fair 1) and trousers (2) round the shoe (_gear_gen).
+- **The tile**: Undercarriage > Monowheel (s1X 0, the nose skid, the wingtip skid on; reads 'mono' on a centreline main).
+  Taildragger / Tricycle write `s1X` back (a pair's own, else 0.86) and `s2Nose` 0. All 32 archetypes born bit-identical
+  (spec, nodes, beams, params, refs hashed against HEAD).
+- **The pilot** (39b_servos): on one wheel past 2 deg of bank the ground aileron is the whole stick the level loop's way
+  (the seaplane's low-float rule, G3331): the motor glider's roll levelled in 6 s and it left at 18 s (114 s with the
+  0.44 the proportional law gave: the swinging wing kept the high-T/W taildragger's line hold, G2829, at taxi power).
+- **Measured**: the motor glider on one wheel ahead of its CG and a tail skid parks on the wheel, the skid and one tip
+  skid (~11 deg); rolls to 25 m/s in 5.8 s; flies HOME's circuit. The Archaeopteryx card on a monowheel and a nose skid
+  is NOT flyable yet, and not for the gear: its pusher blows on the stab, so with the wheel near the CG the elevator in
+  the wash pitches it onto its nose or its tail from a standstill (and its static margin is -10 %) - stage 4's card work.
+- **Not done**: the fairing that TEARS and COLLAPSES (the tent material, stage 3); a dedicated nose-skid leg shape (the
+  leaf spring at the nose is the tail skid's).
+- **The faired skid** (the user: "a protrusion of the fuselage with a protective skid behind it ... a single model"):
+  any faired skid (s2Fair > 0 on the Skid row) is a lofted foil keel under the skid's fitting (_cage_gear skidProtrusion):
+  its root cast onto the drawn skin with the engine pylon's caster and flared (the blended fillet), the chord shrinking
+  and the leading edge sweeping aft with depth, down to 15 mm above the shoe's sole; sized by the skid's own rows. No
+  spat on a skid. _cage_eng exposes CAGE_PYLON (pylonCaster, pylonHug, pylonOutline). Its physics is still the spat's
+  price and drag (gear.twFairing): the honest protrusion drag is owed.
+- **The bicycle wheel** (whProfile 3, "super light wheels ... a new model"): its own drawing (_gear_gen wheelCycle:
+  a narrow tube tyre 0.20 R wide, a thin rim, a small hub, 24 wire spokes), GEN_RULES.wheelCycleKg (1.3 kg at R 0.25)
+  and GEN_PRICES.wheelCycle, a quarter of the drag width, the slim tyre's grip (TYRE_CN); the physics reads the carcass
+  off spec.cage.whProfile as the tyre grip always did (no new spec key).
+- **The sunk wheel** (s<i>Sink, "only a proper square cut through the fuselage"): the axle where that share of the
+  diameter stands above the keel line, the leg a fork of two plates and an axle up into the body, the skin cut square
+  round the tyre by the retract's knife with no well's box (a `hole` cut: knifeWells skips its wellBox; the structure
+  inside the prism is cleared). gear.sink (the mains') reaches the spec: the drag counts the share outside, no leg.
+  Quickshot shades a cut sheet smoothly (the knife's normals) where an uncut one is flat: a look, not geometry.
+  GEN_DEFAULT carries gear.mono false (GATE DESIGN's rule: a tile writes only a path the default carries); the clamp
+  deletes it unless true, so every resolved spec and certificate key is the bytes it was (checked on the Cub).
+
+## HUB - THE ROD SLOTTED INTO THE WING'S CENTRE SECTION (11 Nov 2026; the Archaeopteryx study's stage 2)
+
+The user: "the centre section is the heart of the plane ... a rear socket for the rod to slot in". The study planned
+the twin boom's recipe at x = 0; the rod is the better base (one rigid tube already, the conventional tail, the tail
+skid, the load rig and the cage's rod drawing all hang on it), so the stage is THE ROD RE-ROOTED.
+- **fuselage.rodHub** (the cage's rodHub row, Fuselage > boom > rod; the join writes it on a rod only; the clamp keeps
+  it only there).
+- **The frame** (61_gen_frame 3c): the ROD cluster's root ring (the bulkhead ring at boxRear) tied to the wing's root
+  bay - both spars, both sides, the box caps, stations 0 and 1 (G294: the attachment BAY rigid) - and those 16 nodes in
+  the rod's rigid cluster; the ties weightless, the socket billed once (~1.2 kg on the root ring: 64 ties at the
+  fuselage gauge weighed 17 kg on the card). The pod's own members to the rod stay; stage 3's pylon takes the pod off.
+  Measured (GATE HUB C): the tail post under 300 N held at the wing's root bay alone drops 8 mm (18 mm without).
+- **The drawing** (_cage_wing hubSocketDraw, after the wing: the engine layer runs BEFORE the wing layer, so CAGE_WING
+  is the previous build's there - the cabane pylon HULL-B78 reads it that way and is missing on a first headless
+  build).
+- **THE CENTRE SECTION SWALLOWS THE ROD** (the user's method, 11 Nov: "start from the geometry of the center wing ... raise
+  the center section of the aft edge proportionally over the chord ... until it gets higher than the rod ... the highest
+  point of the wing corresponds to the highest point of the rod ... deforming the bottom section of the wing a bit in the
+  same way ... a little tolerance, so that there is sort of a ring emerging ... from behind a Gauss curve"). _cage_wing
+  hubHump moves the wing's OWN skin vertices before any mesh is made of them (every reader - the struts, the gear, the
+  fin, the flown aeroplane - sees the deformed wing): the rod FITTED (its crown at the wing's highest point at the
+  centreline: rodY written and rebuilt), carried forward through the wing to that point (drawn, rodHubSocket); the top
+  raised by how far the rod's crown + 6 mm stands over it (smooth, zero at the highest point, growing to the trailing
+  edge), the bottom lowered likewise (eased out ahead of the rod's end), across the span a Gaussian whose width is the
+  narrowest that holds the rod's section (never under 1.25 r); the trailing edge's face becomes the wall the rod comes
+  out of. The rows for it: wings[].centreRows (63_gen_wing: the centre section lofted in N rows between the root ribs,
+  the spar points and weights blended; 25 on a hub) and the first bay's loop cuts (CAGE_HUB_CUTS, 0.30-0.64 m) - both
+  the wing layer's (window.CAGE_HUB_ROWS / CAGE_HUB_CUTS), the join takes the same. On the card the rod (22.4 cm) is
+  thicker than the centre section (14.3 cm): the bottom moves ~8 cm. The separate blend surface and the collar are gone,
+  and with S.rod.hub the bulkhead's flange (plate, sleeve, bolts, backing ring and its X) is not drawn.
+- quickshot: --around x,y,z,r (any view framed on a point), --wire (a mesh's userData.wireGeo / userData.grid edges,
+  depth-tested), the qrb view (3/4 from behind, below).
+- GATE HUB (new, core, ~1 min).
+
+
+## NACELLE - THE HANGING NACELLE'S MAST, AND THE CARD ON EVERYTHING SO FAR (11 Nov 2026; the Archaeopteryx study's stage 3, first piece)
+
+The user: "the pylon is structural and should go down to the bottom of the plane, where the supporting beam will go,
+making the fuselage as we see it now not the central piece anymore ... a proper cut to allow the pylon through, and be
+constrained at its bottom to the supporting beam"; then, on the real one's photo: "the cabin piece is actually in front
+of the pillar ... the whole cabin should be able to move relative to the pillar ... the wheel anchored on the pillar ...
+the engine anchors on the pillar".
+- **fuselage.hang** (+ hangAt, hangLen: the mast's middle and chord on the root chord; hangX: the drawn mast's front and
+  back, the join's measure). Rows hangOn / hangAt / hangLen (Fuselage > hanging nacelle), a wing above the cabin only.
+- **The frame** (61_gen_frame 3d): one mast, a four-longeron lattice at the drawn blade's thickness (a beam both ways),
+  from the hub's root bay (tied to its 8 root nodes, in the rod's rigid cluster when the rod is rooted there) to the keel
+  (its two lowest levels on the bottom corners of the rings round it) where the drawn one stands (hangX), else on the
+  chord. The wing no longer ties to the cabin's rings (no root ties, no cabane, no box carry-through into the rings): it
+  stands on the mast. A monowheel's axle hangs from the mast's foot. GEN_HANG: 2.4 kg/m INFERRED. Measured: the hub held,
+  2 g more on the cabin, its nose's keel drops 12 mm (it hangs now).
+- **The drawing** (_cage_wing hangMastDraw, after the wing and BEFORE its early readers): the engine pylon's blended
+  blade, from the keel (or a sunk wheel's fork) up into the wing; the roof cut round it where there is a gap under the
+  wing (the knife's new TOP cut, _knife_gen knifeWells `c.top`: looking down, the hole only); CAGE_HANG published for the
+  gear layer (a centreline main's fitting = the mast's middle, the sunk fork rises to the mast's foot) and the cowl layer
+  (a pusher bolts on the mast's back face - the engine layer is an early reader for it). pylonHug gained `botCap`.
+- **THE TRIANGLE FROM THE ROD TO THE KEEL** was the sunk wheel's square cut (MONOWHEEL): the knife looked up through the
+  rod's down-facing skin over the wheel and dragged one of its corners to the hole. A hole cut now ignores faces wholly
+  over its ceiling (yMax), as a well already could.
+- **The aft section over a pusher** (aeroAftOver, this card's row): its crown runs straight from the pillar to the tip,
+  and it gets a ring every eighth of its length.
+- **The card** (_cage_design archaeopteryx): the monowheel (0.20 m bicycle wheel, half sunk), the faired nose skid, the
+  wingtip skids, the hub, and the hanging nacelle: the mast at 0.85 of the root chord (0.36 m chord, ~1.79 m behind the
+  nose, about the CG) inside the aft section, the cabin pulled 0.30 m forward of it (pilotLen 0.75, boomLen 4.93, the aft
+  section 1.5 m: the wing, the tail and the aft section's tip where they were).
+- quickshot: --half (the cutaway: the body's starboard half left out).
+- GATE NACELLE (new, core, ~3 min). GATE HUB's load path steps the actual box at the build's own substep (the wingtip
+  skids' stiff shoes rang at the old fixed step). FRAMES' corpus re-recorded for the Archaeopteryx alone.
+- Open: on a parasol with the rod raised, the aft section's top and the mast's cut are not clean; the motor's front
+  flange shows through the aft section's side; TAXICLEAR's footprint row for the card (5.5 m half) is under its 6.5 m
+  semispan since the card was fitted to its drawing (before this session); the keel beam, the role materials and the
+  tent, the A-pillars to the hub, the load rig hanging the nacelle are the stage's next pieces.
+
+## KEEL - THE HANGING NACELLE'S KEEL BEAM, AND THE CARD'S DRIVE PARED DOWN (12 Nov 2026; the study's stage 3)
+
+The user: "the keel beam should probably be paired with the fuselage, as they will both host the seat and the pedals
+... changing the length of 1 would change the other ... this keel beam is actually the cabin floor and length".
+- **The frame** (61_gen_frame 3e, refs.keel): on a hanging nacelle a two-chord truss on the centreline at the keel
+  (GEN_HANG.keelD 0.08 m deep, keelKgM 1.2 kg/m INFERRED), at the cabin's own ring stations from the nose's ring to the
+  mast's front - no length of its own - each station tied to its ring's bottom corners, its aft end clamped on the
+  mast's two lowest levels.
+- **The drawing** (_cage_wing hangMastDraw, mesh hangKeel): the cabin's own floor line (the rings' floor level, 6 cm
+  over it and 2 cm under), from its first floor station to the mast's front face; over a sunk wheel's tyre (taller than
+  the floor, longer than the mast) it climbs to the mast's foot from a hand ahead of the tyre - a knee.
+- **The aft section under the rod** (aeroAftOver; the user: "the aft aeropod should start at the bottom of the rod"):
+  its crown no higher than the rod's lowest line, its shoulder band kept.
+- **The card**: the mast 40 % narrower (hangLen 0.18; the row reaches 0.10 now); the engine mount at the bench's least
+  (eng_mountGap 0.4, eng_mountR 0.5, eng_mountX 0); the cone 6 cm in radius, the blades 0.10 / 0.035 m of chord; blades,
+  cone and shaft carbon (cw_material 3; the shaft is the cone's part, spinMat 0); the nose skid's shoe level with the
+  wheel's contact (s2_twLegDrop 0, within 7 mm).
+- GATE NACELLE B2 (the keel beam's frame) and D (its drawing: at every cabin station its underside the ring's floor
+  less 2 cm). FRAMES' corpus: the Archaeopteryx card and builds/archaeopteryx_2026-11-10.json re-recorded (their aft
+  section's rows), nothing else.
+
+## PILLAR ON THE CG - THE MAST AT THE CG, THE ENGINE BOLTED ON IT, THE KEEL STRAIGHT (12 Nov 2026; the study's stage 3)
+
+The user: "make [the keel beam] straight ... put the pillar just on the CG ... to get the engine a little further
+forward ... on the real thing it really bolts into it ... center the engine vertically ... a slightly bigger propeller".
+- The keel beam drawn STRAIGHT: from the cabin's first floor station, on its floor, to the mast's foot (4 cm into it) -
+  through the sunk wheel's tyre if it must (the user: "it's not that much of a problem").
+- A CARD'S OWN ENGINE-BENCH ROWS WIN over the preset it picked (_cage_design designFull): the Archaeopteryx's E-811 preset
+  was applied after the card and overwrote its mount rows - last session's "engine mount at its minimum" never reached
+  the build. Only a card that both picks a preset and states engine rows moves (this one).
+- The card: the mast's middle on the loaded CG (genShakedown: 1.37 m behind the nose, hangAt 0.50; it was 1.79) - the
+  cabin to its least (pilotLen 0.42), the rod as much longer (boomLen 5.26), the aft section 1.33 m (its tip 6 cm ahead
+  of the prop); the static margin -4 % -> +11 %. The engine with no mount (eng_mount 0, stand-off 0.4) on the mast's back
+  face; the thrust line midway between the ground and the rod's underside (engY -0.318: 0.60 m either way); the prop
+  0.75 -> 0.95 m (12 cm clear of each). The wheel 6 cm aft of the mast's middle, under its chord (s1AxZ -0.06): at the
+  CG exactly it rocked back onto the tail post; so it parks on the wheel, the nose skid and a wingtip skid.
+
+## REPROJECTION - THE CARD BACK ON THE DRAWING, THE MAST AT THE BACK OF THE WING (12 Nov 2026; NOT YET GATED - the user
+validates the build first)
+
+The user: "time for a reprojection on the blueprints ... the rod's diameter is a little high ... get the waist up ... our
+cabin is not long enough ... the angle of the cabin is much more than ours ... the pillar ... really at the back of the
+wing". Our parts drawn over the drawing (outline, glazing, mast, keel, wheel, the cabin's aft frame; scratch tools, the
+side view at 5x): the window's front edge 0.61 / 1.71 m aft of the nose (sill / wing; the drawing's 0.57 / 1.72), its aft
+edge 2.07 (2.07), the wing LE / TE 1.08 / 2.26 (1.08 / 2.30), the aft section's face 2.97 (3.0), the length 6.01 (6.01);
+IoU side 0.805 -> 0.832, plan 0.902 -> 0.908. The card: rodD 0.27 (rodY 0.8129, the hump's refit), waistY -0.2, noseLen
+0.61, wsRun 1.75, pilotLen 0.52, wgDx 0.5, hangAt 0.86 (the mast 2.00 - 2.21 m), aeroAftLen 1.0, cw_noseOff 0.41, boomLen
+4.46, engY -0.343 (the thrust line midway again). The keel beam drawn level at its anchor on the mast's foot, the nose
+hung on it. THE CG went aft with the cabin: 73 % of the root chord, the static margin -14 % (it was +11 %): the masses'
+chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wingtip skid.
+
+## CABIN, FIN, TWIN KEEL (12 Nov 2026; NOT YET GATED - the user validates the build first)
+
+- The cabin 10 cm less deep (the user: "chop off 10 cm ... to match the drawing"): keelY / floorY / aftKeelY and the
+  windscreen frame's bottom (frWinBotY) up 0.134; noseDroop 0.15; the bottom on the drawing's from 0.75 to 2.25 m (side
+  IoU 0.847); the nose skid's shoe level with the wheel again (s2_twLegDrop 0.055).
+- The fin squared (the user's red lines): the shoulder straight under the tip on the mid row (finShoulderZ / Y 0,
+  finTipZ 0, finMidY 0), the top flat (finTopY 0), crisp corners, the shoulder's crease off - the LE straight within
+  2 mm, the trim's line level across fin and rudder.
+- THE TWIN KEEL (the user: "2 of them and the pilot fits between, mounted at the level of the bottom of the pilot window
+  ... tubes when there are 2, and a square section for a single one ... they anchor on the nose part, they're straight"):
+  the row hangKeels (Fuselage > hanging nacelle: single box / twin tubes); fuselage.hangKeel 2 and hangKeelK (the
+  sill's height in the cabin, the join's measure off the cabin ring's waist). The frame (3e): a tube a side at that
+  height, tied to its ring's corners on its side, laddered across, ends on the mast's levels at its height
+  (GEN_HANG.tubeKgM 0.5 kg/m each, keelIn 0.85 of the half-width). The drawing: two 50 mm carbon tubes, straight and
+  level at the sill, from where each meets the nose's skin to the mast's front, a cross tube at each end. The card on
+  twin tubes. GATE NACELLE's keel checks are the single beam's: to update with the twin's when the build is validated.
+
+## CONTROL SURFACES, AFT WINDOWS, LIVERY (12 Nov 2026; NOT YET GATED - the user validates the build first)
+- THE TAIL ON THE DRAWING (the user: "the fin-rudder proportion is still a little off, and the length of the beam too ...
+  the rudder to go below, covering the boom's height ... matching the control surfaces is not [optional]"; then "also
+  fix the stab shape"). Two new fin rows: `finShiftZ` (the whole fin fore / aft on the boom, _fin_gen.js `shiftZ`) and
+  `finRudBelow` (the rudder down over the rod's height: drives finKeel on a single rod). The card: the rod ends on the
+  hinge (boomLen 4.326, 5.57 m from the nose as drawn), the hinge vertical, the rudder's foot raked (finBaseY 0.2,
+  finSharpBase 3); the stab unswept-to-2-deg-forward with a 0.44 root chord. Side IoU 0.860, plan 0.920; the stab LE
+  4.93 -> 5.06 (drawing 4.93 -> 5.07), TE 5.54 -> 5.53 (5.55 -> 5.53). Scratch measurers: tailm.js / stabm.js.
+- THE KINK - A FIFTH CORNER ON THE FREE QUAD WINDOW (the real aeroplane's two aft windows, "the bottom one has an
+  angle": its bottom edge level aft, rising forward from 65 % of its length). Rows `<row>Q5On`, `<row>Q5Z/Y`
+  (following the bottom edge's middle until moved), `<row>R5` (its rounding, linked to the row's radius), on each of
+  the three drawn-window rows. cageQuadWindow inserts it between Q3 and Q4 (a corner in line with its neighbours is
+  dropped), the convexity check runs on n corners, `ids` maps outline order to row numbers for the bench's handles
+  (Q1 Q2 Q3 Q5 Q4); the knife takes 4 or 5 corners. GATE QUADWIN / PARTS to run on it when the build is validated.
+- THE TWO AFT WINDOWS: rows 1 and 2 of the drawn windows (4b) as free quads on the aft section under the rod, between
+  the pilot's window and the engine's face; proportions read off the photo. Quads, not the rounded rectangle: a quad's
+  corners land where placed in the side view, the rectangle is cut face-on and tilts on the tapering skin.
+- THE LIVERY: gloss white overall (paint full, body / wing / tail / rod sections tinted), a slim navy cheat line with
+  a red keyline (m1, cheat line, P 0.12, Q 0.06), the registration HB-WXA in navy on the fin (box side view, body &
+  tail: regL / regC are CRAFT-SPACE metres from the craft's origin - near the wing - not from the nose; the rod takes
+  no marking by design, aeroDecOk).
+- THE PHONE RENDER: the phone garage (?profile=phone, phone_still.js's boot) with SHOT_MODE entered and the view's
+  split forced to the whole screen (a style setting --ph-vw / --ph-vh to 100vw / 100vh: SHOT_MODE alone leaves the
+  sheet's half empty on a phone), the eye by FLIGHT_PROBE.camSet / pan (the garage's world: the fuselage along x, the
+  nose toward -x near x -3.6, the tail near +2.4; the span along z). Scratch rig, not committed.
+- THE PILOT, THE BELLY, THE WING'S SURFACES, THE LIGHTS, THE JOINT, THE REGISTRATION (12 Nov, the user's review of
+  the renders): the belly flatter (botRound 0.3); the aerobatic recline seat laid back 42 deg, on the floor, slid
+  forward (seatZ 0.32), the pedals 1.0 m off its back - the feet in the nose, the head clear. LIMIT MET: past ~1.3 m
+  from the cockpit's aft ring (zBack + pedalZ) the nose's floor (floorAt) falls away and the feet stand through the
+  skin; floorY does not move the seat. Plain flaps from the centre section to mid-span (wgFlapSpan 0.54) and the
+  ailerons the rest (wgAilSpan 0.55) - the real one's flaps are airbrakes: a GARAGE GAP (REF_MATCH section 7). The
+  lights off (lightOn 0, no electrics). The windows' joint 0.012 -> 0.008 (under ~6 mm the bead draws dotted on
+  SwiftShader). The cheat line lowered under every window (m1C -0.04); the registration on the nose's lower flank in
+  field mode (it fought the fin's hinge line).
+- A SMALL ENGINE, AND WHITE (12 Nov, the user: "the rod is much smaller. The nose cone is much smaller, it's actually not
+  even a cone ... the chord of the blades is even smaller ... adapt the length so that there is no clipping ... move it
+  up a notch ... get rid of the livery. You may keep the registration"): the cone at the row's least, short and round
+  (a hub); the shaft the cone grows back to the engine is a third of its radius (_cage_eng.js G244: max(0.012,
+  spinR x 0.34)), so it thins with it (20 -> 14 mm); blades 0.07 / 0.03 m of chord, t/c 0.12 / 0.06, shank 20 mm;
+  engY -0.343 -> -0.29; the shaft 0.41 -> 0.50 m - a shorter cone puts the blade plane further forward, and at 0.46 the
+  join still reported "prop: through the body" (the aft pod's tip). The cheat line gone; the registration kept.
+- ARCHAEOPTERYX v1 (12 Nov, the user: "We can commit this version as v1"): the card frozen as validated. GATE NACELLE
+  learns the twin keel (B2 / D both ways: the single beam on hangKeels 1, the card's twin tubes); the fin's new row
+  finRudBelow is claimed by its part (GATE PARTS); FRAMES re-recorded for this card only (the record changed no other
+  item). Run green on this tree: NACELLE HUB MONOWHEEL DEFAULT WEIGHT PILLAR KNIFE QUADWIN FIN COWL NACLAG ENGMESH JOIN
+  DESIGN NEWPLANE PARTS FRAMES CLIP SEATS CABIN CREWLOAD LIVERYREACH LIGHT FLAPS WINGROWS BLUEPRINT SAVE DASH. Red,
+  and red the same way on master 6f1497d72 (pre-existing, not this branch's): LIVERY (builds/cub_2026-09-20 strut
+  paint), DESIGNCHECK (200 N at the carbon mosquito's post, 4.2 vs 1.8 mm), JOINPARITY (the Jodel's node / page mass,
+  471.8 / 468.0). The fleet against master: every other card's def (nodes, beams, params, refs) identical; their specs
+  carry two neutral keys more (cage.aeroAftOver 0, gear.mono false - this branch's earlier rows). The full --all battery
+  NOT run.
+- THE WEIGHT STUDY (futureDesigns/archaeopteryx/WEIGHT_STUDY.md, study only): rated structure - each part carries the
+  gross and the g it was built for; mass, strength (the section without its floor) and stiffness (KS per part) from the
+  rating; the certificate unchanged, so a light part on a heavier aeroplane breaks at n_ult x R / W. Seventeen
+  suggestions, the plumbing, the Archaeopteryx's path to ~72 kg, six decisions for the user.
+- THE WEIGHT STUDY, REVISION 2 (12 Nov; futureDesigns/archaeopteryx/WEIGHT_STUDY.md, the user's rule: no classes, no
+  ratings on screen - light CONSTRUCTIONS that carry what they can take, physics teaches). Measured with a throwaway
+  prototype (weight_proto/: the `dtube` wing row patch + the garage's destroy bench): the CERTIFICATE IS AN AUTO-SIZER
+  (it stamps every member and fitting at ~1.5 x this aeroplane's own limit loads, and today's wing members hold 4-7 x
+  that in physics), so a light wing alone is an exploit (31 kg on the C172, still 6.06 g). Certified at its BUILD
+  WEIGHT (its stamps x min(1, 250 kg / W0)) it breaks where it should: Archaeopteryx 6.28 g (certifies), ul1 5.49, Cub
+  3.70, Savannah 3.70, C172 2.68, Caravan 1.57 - the spar folding at the root. The light wing UNRATED on the C172
+  DIVERGED the sim: a stiffness floor is owed. Where the pylon goes: the chooser's "Boom architecture" step and the
+  editor's "Fuselage style" (both appended). Fixed items ~29 kg (reclined tub seat, soft glazing, light controls on the
+  keel tubes, no panel, minimal furnishing, gelcoat).
+- THE FOOT-LAUNCH D-TUBE WING, BUILT (12 Nov, the user: "go ahead with the foot-launch wing and its gate first";
+  WEIGHT_STUDY.md phase 1). GEN_SURF_MATERIALS.dtube (60_gen_spec.js): carbon's phys, members x0.3 of the moulded row,
+  cover 0.6 kg/m2, springs x0.5, refGross 190, BUILT FOR `buildKg` 250 - its gauge capped at (buildKg/refGross)^e
+  (61_gen_frame.js genDesignGross hiOf), no section floor (`noFloor`), kScale capped at its build weight (KSB), and
+  CERTIFIED as if its aeroplane weighed buildKg (66_gen_cert.js: the wings section's limit loads x buildKg / W0 when
+  W0 is over it). The Wing structure tile's 9th option (wgCons 8, appended: _cage_design.js, _cage_wing.js row 0..8,
+  _cage_join.js, the wing's CONS4); the build grammar, the wing-structure drawing, the tech table (TECH_WING_ROW: the
+  wings' rows only - the tail stays at 8, the certificate holds only the wing to its build weight), water and shop
+  rows. GATE LIGHTWING (tools/_lightwing_check.js, core): the Archaeopteryx's wing 47.9 -> 34.9 kg, BROKE AT 6.28 g
+  (certified); Cub 3.70 g, C172 2.71 g, Caravan 1.62 g, at the wing root; springs x0.55 of moulded carbon on the
+  C172; NEGATIVE CONTROL: without buildKg the C172's D-tube wing holds 10.98 g (the exploit) before the sim diverges
+  (WEIGHT_STUDY gap 3: a soft wing past its strength can take the integrator - the control reads the load held, not the
+  ending). No card uses it yet (the fleet's hashes identical to v1). Gates run green: LIGHTWING WINGROWS DESIGN SKINMAT
+  JOIN PARTS SAVE WEIGHT FRAMES WINGSTRUCT NEWPLANE DEFAULT SPECFIX BUILD. TECH: its MONOWHEEL re-pin fixed here (the
+  Monowheel tile is gear:tricycle at segment 1 - missed at v1); still red the master way (av.elt has no segment). LOAD
+  red the master way (the GEN glass cantilever at 149 % of yield, identical numbers on 6f1497d72).
+- L1 OF THE PATH: THE ARCHAEOPTERYX ON THE D-TUBE (12 Nov, the user: "I'm definitely okay to change the wing ... but I
+  want to keep track of the path"): the card's wgCons 8 - empty 169.1 -> 155.0 kg (the ledger's non-payload sections;
+  an earlier "154 kg" was a partial read). WEIGHT_STUDY.md section 4 is now THE PATH (levels L0-L7, expected against
+  measured, target ~72 kg, projected ~86 at L7). Three corrections on the way: (1) the D-tube is gauged in its OWN
+  bucket 'wingB' (61_gen_frame.js bucketB / gBag; eOf / hiOf in genDesignGross) - in the shared wing bucket its 190 kg
+  reference grew the carbon carry-through 7.1 -> 12.3 kg; (2) the certificate's build weight scales the wing's BRACING
+  too (66_gen_cert.js: sec 'wings' or 'bracing') - full-strength struts held the D-tube on the Cub to 6.13 g; (3) the
+  D-tube's stiffness floor `kFloorK` 0.7 of the aeroplane's kScale - at kScale's bare 0.45 the Caravan diverged once its
+  bracing let go. GATE LIGHTWING: Archaeopteryx 6.75 g (certified), Cub 3.63, C172 2.73, Caravan 1.57 g, springs x0.55,
+  the negative control 10.98 g. The fleet: only the Archaeopteryx's hash moved. Found: the card's E-811 (30 kg, electric)
+  is fed by a 4 L avgas nose tank and no pack - a stage-1 leftover, L7's to fix.
+- L2a OF THE PATH: THE TAIL FOLLOWS A CHOSEN WING (12 Nov, the user: "have the tail material just follow the wing
+  material ... [the wing] remain something you can place independently"): 60_gen_spec.js genSurfKey - a fin / stab
+  that says nothing takes wings[0].material when the wing's construction was CHOSEN; a wing left to the aeroplane leaves
+  the tail to the fuselage (the Cub's welded tail under its wooden wing: G213's measured reason - a blanket rule moved 8
+  cards). Only the Archaeopteryx moves (fleet hash), no saved build in builds/ affected. A D-tube tail is gauged in its
+  own bucket 'tailB', its springs held like the wing's (KSB), certified at the build weight (66_gen_cert: sec 'tail'
+  when the stab's row carries buildKg); _cage_fin.js draws the tail as flown; the fin / stab rows' first option reads
+  'as the wing (else the aeroplane)'. The Archaeopteryx: tail 8.3 -> 6.1 kg, empty 155.0 -> 152.6 kg.
+  65_gen_loadtest.js cfg.throughBoom (a bench option, off by default): a tail surface's bags carried THROUGH THE ROD -
+  only the cabin (forward of fuse.boxRear + 0.05) on the trestles; the default pins everything but the surface, so the
+  rod carries nothing. Its stab load is the wing's loading (harsh: a standard 4130 rod on the 669 kg pusher pod cracks at
+  2.33 g on it). The light-rod prototype is NOT built here (AERO-BODY / the rod row): weight_proto/rodlight_prototype.patch
+  and the reply to A0, weight_proto/REPLY_TO_A0_rod.md. Gates green: LIGHTWING HUB NACELLE DEFAULT WEIGHT SKINMAT PILLAR
+  CLIP FRAMES FIN JOIN WINGROWS SPECFIX SAVE PARTS DESIGN NEWPLANE BLUEPRINT WINGSTRUCT; TECH and LOAD red the master way.
+- L2b: THE ROD ROW - MATERIAL + WALL (12 Nov; the user: "an ultralight rod that would also break somehow, that would
+  have different stiffness"; A0: the rod row is this branch's, in its own commits, for AERO-BODY to merge with its rod
+  physics - the tube billed pi d t rho, the buckling caps, the rod's height). LATENT: absent = the fuselage's material at
+  GEN_RULES.rodWall 1.2 mm, every expression the old one (the fleet's hashes identical; GATE RODROW A).
+  FILES: src/core/60_gen_spec.js (clampSpec: fuselage.rodMat a GEN_MATERIALS key with phys, rodWall 0.3-3 mm, a rod's
+  only); src/core/61_gen_frame.js (RODX / RODM / RODT / RODMK at genLattice's head: rodK's computed factor, the G314 tube
+  element's EI / GJ and its damage section (the solver's tube cut, fu x the section modulus) in the rod's material and
+  wall; the rod's own members - fuselage aft of the box's rear - billed at rho t over the fuselage row's at 1.2 mm and
+  sectioned at t / 1.2 mm in the rod's material); tools/_cage_join.js (rodMat 1-4: carbon, tubeFabric, aluTube, glass;
+  rodWall written only off 1.2 mm); tools/_cage_page5.js (the two rows, boom page, a single rod); tools/_cage_gen.js
+  (CAGE_DEFAULT_ABSENT rodMat 0, rodWallMm 1.2); tools/_cage_parts.js (the rod group); tools/_rodrow_check.js +
+  run_gates.js (GATE RODROW, core). NO BUILD WEIGHT: the tube cut is physics, the certificate never stamps it.
+  MEASURED (the stab's destroy ramp through the boom, cfg.throughBoom; the first break):
+  - the Archaeopteryx HOLDS on carbon 0.8 mm (its pick, 1.2 kg off: 152.6 -> 151.4 kg; not set on the card yet): the
+    stab's attachment kinks first at 7.49 g (1.2 mm: 7.47), no rod crack;
+  - the pusher pod (657 kg) on a 0.5 mm 4130 rod PARTS at its root at 0.76 g, against 2.33 g on its standard 1.2 mm;
+  - at the row's least, 0.3 mm, the pusher pod's rod buckles under its own tail at rest (fus/kink at 0 g) - a clean
+    break, no divergence.
+  SUBSTEPS: the Archaeopteryx 193 (true 200) at every wall (its wing sets them); the pusher pod 70 (1.2 mm), 76 (0.8),
+  86 (0.5), 90 (0.3), 94 (carbon 0.3) - the rod's lighter nodes raise omega; the floatplane 109 / 107 / 106.
+  OWED: a realistic tail limit load for the through-the-boom bench (its stab load is the wing's loading: the standard
+  4130 rod on the pusher pod cracks at 2.33 g) - the twin floatplane's "must hold" end needs it (AERO-BODY measures).
+- L3 OF THE PATH: THE FIXED ITEMS (12 Nov, the user: "Go L3"): the Archaeopteryx 152.6 -> 133.7 kg empty. NEW, latent:
+  SOFT FILM GLAZING - cabin.glazingMat 'film' (the glazeMat row's 4th option; GEN_OUTFIT.glassKgM2By.film 0.7 kg/m2,
+  aeroskin GLASS_MATS.film a faint haze, tech 'glaze:film' stage 1; clampSpec, the join, _cage_gen, _cage_ui lists);
+  LIGHT CONTROL RUNS - cabin.ctlRuns 'light' (the crew page's ctlRuns row, CAGE_DEFAULT_ABSENT 0; GEN_OUTFIT.ctlKgMLight
+  0.15 kg/m of reach against 0.62; 61_gen_frame's controls bill; clampSpec keeps 'light' only). THE CARD: seatType 11 (the
+  reclined tub, 3.0 kg), glazeMat 3, ctlRuns 1, ctlStick 2 with stickX 0.1 (at its default the side stick's console box
+  stood through the narrow pod's skin), spec.systems.items airspeed / altimeter / vario. KEPT: the dashboard (0.2 kg -
+  with intDash 0 the instruments float in the air: a GARAGE GAP, an instrument mount with no dashboard); the paint (a
+  gelcoat is no lighter than paint). The fleet: only the Archaeopteryx moves. Gates green: MONOWHEEL HUB NACELLE
+  LIGHTWING RODROW DEFAULT WEIGHT CABIN SEATS DMGGLASS PILLAR CLIP FRAMES JOIN SPECFIX CREWLOAD SAVE PARTS DESIGN
+  NEWPLANE; TECH red the master way ("every option of every covered table has a segment": av.elt none / fitted).
+- L7 OF THE PATH: THE REAL DRIVE AND NO MOUNT (12 Nov, the user: "Let's go next weight level. You might also save on
+  engine mount and stuff like that. Maybe the heavy truss mount should just go also in the 3d model"): the Archaeopteryx
+  133.7 -> 118.7 kg empty. (1) 61_gen_frame.js 2b: on a hanging nacelle (mastRef) the PUSHER BOLTS ON THE MAST - its
+  pair tied (weightless, mnt) to the back-face nodes of the two mast levels nearest its height, the engine hung on them;
+  the nine 4130 bearers to the cabin ring's corners (BM, billed) are gone (-3.6 kg; the drawing had none already,
+  eng_mount 0). Every card without a hanging nacelle builds the old mount, to the bit. (2) The card: engModel 'e-PPG 12
+  kW' (7 kg, 12 kW; was the E-811, 30 kg, 57.6 kW), spec.energy a 2 kWh NMC pack under the floor (17.5 kg; the nose bay
+  holds 1.2 kWh), fuel 0 (the avgas nose tank under an electric motor, a stage-1 leftover, gone), cw_noseOff 0.50 ->
+  0.58 (the shorter case brought the blades into the aft pod: the join's own check). Flies: climb 1.48 m/s, TO 162 m,
+  L/D 16.2, 13 min at cruise, static margin -0.06 (was -0.108). AERO-BODY's honest rod tube (their 92f8849e): ~-12 kg
+  more when both land.
+- L4-L6 OF THE PATH: THE SOFT SHELL, THE HUB, THE ULTRALIGHT MONOWHEEL (12 Nov, the user: "Let's keep going with the soft
+  shell, and then you can go L5, L6 in one go ... the gear ... give it the weight you want, provided it remains something
+  unique as a gear type ... it's really like a bicycle wheel ... And the wing attachment ... just giving it some number"):
+  the Archaeopteryx 118.7 -> 89.9 kg empty. GATE ULTRALIGHT (tools/_ultralight_check.js) holds all three.
+  (L4) GEN_MATERIALS.softShell, the Construction tile's 7th option (intCons 6; the join, the panel rows, the cage's
+  consG 'tube', CONS_MAP 'soft', TECH 'mat:softShell' tier 1, the tube shop, WB_MAT, audio 'ultralight', aeroskin fabric
+  over bare poles): 7075 poles (its own phys and GEN_CRASH row) under ripstop 0.15 kg/m2, k an eighth of the 6061 row's;
+  its WING row a pole too (the fuselage's row bills the struts, the carry-through, a cantilever's box: with the 6061
+  figures the soft-shell C172 held 9.7 g); its gear row the carbon row's. BUILT FOR A WEIGHT (buildKg 250) as the
+  D-tube: its own gauge bucket 'fusB' (61_gen_frame bucketB, genDesignGross rowOf), springs capped (KSB, kFloorK 0.5), NO
+  KNEE (gaugeHoldK grew the C172's poles x1.4), certified at buildKg / W0 on its own members (66_gen_cert, by b.mat); a
+  pole buckles wherever it stands (30_solver dmgMember: b.mat 'softShell', gear aside). Its `hard` row (carbon) builds the
+  roles that stay hard: the keel tubes (opt.hard) and, on a hanging nacelle, the 'bracing' section (sec()). The pod
+  25.0 -> 4.5 kg. Parked it stands; at the limit sink (0.22 m drop) nothing breaks (the poles take a set), at 0.3 m the
+  nose's upper longerons fold where the carbon pod holds; without the mast (hangOn 0) the wing sinks on yielding poles;
+  a Cub and a C172 on it come down parked within a second. THE WING BENCH IS NO TEST OF A SOFT SHELL: it pins the cabin
+  and loads the struts in tension, where a pole is strong (the soft-shell Cub "holds 9.96 g" on it and cannot stand).
+  (L5) GEN_HANG.hubKg 1.5 (on the wing's root nodes, 'bracing') and boxK 0.25: on a hanging nacelle (HUBPIN) the
+  cantilever box (billed in the fuselage's row - double the D-tube's own D-box) is built at a quarter of its mass AND
+  springs. bracing 6.5 -> 3.1. Under a quarter the box's bottom nodes (0.03-0.06 kg, nothing but the box on them) put the
+  card - already asking 226 substeps against the 200 cap - into a divergence parked: weightless (0) and 0.15 diverged,
+  0.25 without the hub broke up. THE INTEGRATOR, NOT THE STRUCTURE, SETS L5's FLOOR; the next weight on this card meets
+  the same cap (scratch stiff.js lists the binders).
+  (L6) GEN_RULES.ulGear { linK 0.3, buildKg 250, skidKg 0.4 }, the gear page's s1Ul (a single centreline main only;
+  CAGE_DEFAULT_ABSENT 0) -> gear.ul (clampSpec: on a monowheel only, the key only when on): the gear's members at 0.3 of
+  their section and mass, its nose skid 0.4 kg (the tricycle branch billed a skid as a 2.0 kg tailwheel), certified at
+  250 / W0. gear 7.5 -> 3.0 (5.5 at L7). On a Cub's monowheel it folds at the limit sink; the standard holds.
+  The card: intCons 6, rodMat 1 (carbon, as it was - the soft shell is the pod's alone), s1Ul 1. GEN_CAGE_ROW_NEUTRAL
+  gains this branch's absent-means-default rows (finRudBelow, bpCabPy*, wgTipSkid*, ctlRuns, rodMat, rodWallMm, s1Ul):
+  GATE STOL's join-to-master parity read them as a moved spec on the six saved builds (the merge's only new red).
+- L8-L9 OF THE PATH: THE PACK CASE AND WHITE FROM THE MATERIAL (13 Nov, the user: "on the pack case, will you get that
+  only through scaling? ... what would prevent everyone to choose a light pack case"; "if we say 0 kilo ... then it's got
+  to be white ... and if you put a livery onto it, then it's a little bit more"): the Archaeopteryx 89.9 -> 81.9 kg.
+  (L8) 60c_gen_energy GEN_VESSELS.packCase: its `fixed` (BMS, contactors, fuse, connectors: 3.0 kg, a car pack's) scales
+  with the pack under fixedKWh 10 (x kWh / 10, at least fixedMin 0.3) - not a choice, a light case is had only by
+  carrying a small pack; at 10 kWh and above every pack is the bytes it was (fleet hash: only the Archaeopteryx moved).
+  vessel 17.5 -> 15.1 (2.07 kWh: the real Kokam 14s1p 40 Ah, ~13-14 kg estimated). Known overlap left: the cells' packK
+  0.70 already counts part of the case and the BMS.
+  (L9) GEN_FINISH.self 'White (self-coloured)': the gelcoat out of the mould, a pre-dyed covering, a ripstop skin - no
+  colour coats (kgM2 0, perM2 0); clampSpec holds the base at its white (0xf3f4f1); a trim line or a sweep on it bills
+  liveryKgM2 0.12 x sweep over the covered area (a trim line ~1.8 kg on this card). The Scheme tile's 4th option
+  ('white' -> paint.job 'self'); the card flies it (the registration is vinyl: grams). paint 5.1 -> 0.
+  FOUND ON THE WAY: (1) the rod's phantom lattice is already gone - since L4 the rod members bill the soft row's 0.07 kg/m
+  x the rod's rho t (2.3 kg aft of the box; the honest tube pi d t rho is 2.4): AERO-BODY's tube billing changes ~+0.1
+  kg on this card, its -12 was on the carbon pod. (2) The outfit's 7.3 kg carries a 2.7 kg COWL this card does not draw
+  (cowlOn 0): AERO-BODY's COWL-BILL (bc77c5e39, inside its PHYSICS_V 8 with re-captured baselines - not taken here: it
+  moves the Rufus, the Chinook, the Stearman). The rest: film glazing 1.9, light control runs 1.7, the panel board 0.9
+  (kept: without it the three gauges float - a garage gap). (3) The mast 2.5 kg (GEN_HANG.kgM 2.4 x 1.05 m), the keel
+  tubes 1.5, the hub 1.5: fixed numbers on the one hanging nacelle - to scale with the design gross if a second one
+  ever flies.
+- THE ARCHAEOPTERYX FLIES PILOT'S UNIFY ARCH (13 Nov, A0: "BALLOONS on landing ... a pitch-up that full forward stick
+  can't stop"): (1) the row flies builds/archaeopteryx_2026-11-10.json, and that save was the 10 Nov aeroplane - 169 kg
+  empty, 252.6 all-up, the E-811 on 5 L of avgas, the carbon pod, its static margin about -0.11 (the CG behind the
+  neutral point: the balloon is that). Re-saved from the card (81.9 kg, margin +3.2 %; GATE FRAMES' corpus entry for the
+  file re-recorded, the only item moved). (2) On the card the row then landed at 0.64 m/s with ONE member broken in the
+  glide (t 3.8 s): the stab-root fitting (HTL-S6TL, a kink). Since L4 the rod's lattice took the POD's springs - the
+  soft shell's, x0.09 of the carbon it had - and the rings the stab stands on went soft. 61_gen_frame B(): a rod of its
+  own row (RODX) springs and damps as that row (its mass and section already did); only the Archaeopteryx names one
+  (fleet hash: it alone moved). The row, with Pilot's 43_pilot / 76_pilots / _unify_check from claude/pilot-unify in a
+  scratch tree: ok ARCH - on the runway 0.4 m off, sink 0.43 m/s, nothing broken (the carbon pod: 0.52).
+  GATE NACELLE C reads the parked settle at 8 s (was 6): since L9 (no paint on the wing) the parasol variant's lighter
+  wingtip is still rocking on its skid at 6 s (0.87 m/s) after the monowheel goes down on it at ~4 s; at rest by 8 s
+  (0.07; 0.00 at 13 s) - a settle, not a ringing.
+- L10 OF THE PATH: THE SMALL THINGS (13 Nov, the user: "the skid ... for real this is almost just the fairing";
+  "nothing from the dash and the instrument which are still built"; instruments option 2 and the tip skids, yes):
+  81.9 -> 79.7 kg. (1) GEN_RULES.ulGear: a FAIRED nose skid is its fairing (twFairing's shell, no separate 0.4 kg
+  shoe). (2) GEN_TIP_SKID.kg 0.30 -> 0.10 (a moulded shoe under a sailplane's tip; only this card flies tip skids:
+  fleet hash). (3) THE INSTRUMENT POD (new cage row instPod, the interior page beside the dashboard, shown with the
+  dash off; CAGE_DEFAULT_ABSENT / GEN_CAGE_ROW_NEUTRAL 0): the join writes systems.mount 'pod'; GEN_INSTR_POD
+  { d 0.0572, kgK 0.6, podKg 0.2 }: genSystemsResolve bills an 80 mm dial at 0.6 (57 mm glider instruments), the
+  frame bills the pod in the dash board's place and no board. _cage_panel build: the fitted dials in one row of 57 mm
+  faces, the frame upright at the PILOT's station (instPodZ 0.80 ahead of the seat back, instPodY 0.42 over the floor -
+  absent rows, the dash's own place is outside the skin on this long nose), a pod shell behind them and a stalk to the
+  floor. The card: intDash 0, instPod 1. GARAGE GAP FOUND: intDash 0 alone (no pod) still bills the board
+  (cabin.panel.on is never written false) - every card with the dash off is billed ~1 kg it does not draw; not fixed
+  here (it moves those cards and the saved builds' parity), owed.
+- THE TOW HOOK (13 Nov, A0 for the user: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and
+  make the TOW-LAUNCH car tow use it"): the Archaeopteryx 79.7 -> 80.4 kg. GEN_RULES.towHook { nose { kg 0.4 }, cg
+  { kg 0.6, ahead 0.25 } } (Tost E 85 / Europa G 88 class, masses INFERRED); the gear page's row towHook (none / nose /
+  CG; CAGE_DEFAULT_ABSENT, GEN_CAGE_ROW_NEUTRAL 0) -> gear.towHook 'nose' | 'cg' (the join; clampSpec reads the cage's
+  row on a spec baked without the join; a wheeled gear only). 61_gen_frame (the gear section): the release's node TOWH -
+  the nose ring's keel, or the belly `ahead` of the mains - tied by weightless members of the HARD row (the keel tubes,
+  and on a hanging nacelle the mast's foot and its next level; a soft shell's nose release on the keel tubes alone), the
+  release billed on it; refs.towHook = [TOWH]. The card: towHook 2 (CG). THE INTERFACE (for TOW-LAUNCH, via A0): pass
+  hook: def.refs.towHook to makeTowLine where present (src/vehicle/tow.js already takes o.hook), towHookNodes the
+  fallback. MEASURED with tow-launch-l40c's tow.js / vehicle files and their _tow_check launch in a scratch tree, the card
+  built THROUGH THE JOIN (their harness bakes the design without it: no fuse.hang, so no mast - the wing on the soft
+  shell's poles, 4 box members broken at the line-up): the CG hook lifts it at 7.2 s, 16.4 m/s, 55 m; then their hands'
+  climb law (6 + 0.45 deg a metre, to 32) kites it to 65 deg in 3 s and the 6 kN weak link breaks at 19 m. On the nose
+  hook it climbs clean to ~120 m and over-speeds to 36 m/s (the card's VNE, 130 km/h) - the pod's nose poles, then the
+  tail, go - and the link breaks near 100 m. Both are the hands' (a CG hook wants the rotation held, the speed held under
+  VNE) and the weak link's (6 kN on a 160 kg glider - a real one is ~1.3-2 x its weight) - TOW-LAUNCH's to tune.
+
+- LS4 (13 Nov, the Archaeopteryx branch; A0 for the user, then the user's own steering): THE PROTOTYPE, saved as
+  builds/ls4_2026-11-13.json ("LS4 (light 15 m, WIP)"; its cage rows and the birth script in
+  tools/ref_match/refs/ls4/). The motorglider card under the cage page's sailplane preset, engineless (engines[0].none,
+  GATE ENGINELESS), the ultralight monowheel retracting (GATE ULTRALIGHT G), the 15 m double-taper wing (the 0.35 taper
+  floor), the T-tail seated on a straight fin, the controls inside, the reclined tub seat, the canopy arch drawn clear
+  (canClear), the tip skids. Matched to the factory sheet 1U-87 at its TRUE scale (17.65 / 17.45 mm a pixel, nose row 766,
+  rudder tip 377 - an earlier read at 15.4 along stretched it 13 %); the front view is drawn level, the side three-view at
+  the ground attitude (6.5 deg). KNOWN LIMITS (the user: "commit as is, I know the limitations"): 135 kg empty against the
+  LS4-b's 238 (the structure is sized for one pilot and no water, ~215 kg, at a light aeroplane's load factor; the LS4 is
+  built for 472-525 kg with 140 L of water at +5.3 g) - it is a LIGHT 15 m glider in the LS4's outline (the Apis class's
+  mass), not an LS4; best glide 28 at 57 km/h against ~40 (the body bills ~0.13 m2 of drag area, ~3x a sailplane pod's:
+  a glass homebuilt's skin friction, unfaired junctions, the T-tail's stab brace wires carried from the Cub-style tail);
+  the CG far forward (static margin 0.46 MAC: full up elevator holds 1.29 Vs), spiral mode doubling in ~10 s. THE FLIGHT
+  TEST (ftest_ls4.js, a crude scripted pilot): with the gear up, wings held, it cruises at ~24 m/s and 1.0-1.3 m/s sink
+  for a minute, undamaged; hands off it rolls into the spiral, and in the dive the glass wing yields from ~2.6 g (~1.8 g
+  with the ultralight wheel down) and breaks up; the scripted pilot did not land it (no rudder coordination, the forward
+  CG); no take-off of its own (no engine: the tow is TOW-LAUNCH's). NEXT (each its own chantier): water ballast in the
+  design gross + the sailplane load factor (the LS4 proper, ~200-210 kg, a ballast the player fills and dumps); the
+  sailplane's drag (laminar skin, faired junctions, a cantilever T stab without wires); the CG; the card in ARCHETYPES.
+  PRE-EXISTING REDS seen on the way, not this branch's: ENERGYBASE's carbon case (since the L39b merge), LIVERY's two
+  builds/cub_2026-09-20.json strut checks.

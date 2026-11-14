@@ -145,13 +145,14 @@ const BASE_GROUPS = [
   ]],
   ['interior', [
     ['intOn',     'interior on',   0, 1, 1],
-    ['intCons',   'construction',  0, 5, 1, ['composite', 'steel tube',
-                                             'plywood', 'aluminium', 'aluminium tube', 'glassfibre']],   // G2047: the sixth stop
+    ['intCons',   'construction',  0, 6, 1, ['composite', 'steel tube',
+                                             'plywood', 'aluminium', 'aluminium tube', 'glassfibre', 'soft shell']],   // G2047: the sixth stop
     ['intBulk',   'aft bulkhead',  0, 1, 1],
     ['intFire',   'firewall',      0, 1, 1],
     ['intPillars','pillar bodies', 0, 1, 1],
     ['shellT',    'shell thickness', 0.01, 0.10, 0.002],
     ['intDash',   'dashboard',     0, 1, 1],
+    ['instPod',   'instrument pod (no dash)', 0, 1, 1, ['off', 'on']],
     ['dashBack',  'dash setback',  0.01, 0.30, 0.005,
      { when: P => +P.intOn && +P.intDash }],
     ['dashLip',   'dash lip height', 0.01, 0.10, 0.002,
@@ -363,17 +364,18 @@ const fieldM = () => (G.CAGE_UNIT || 1) * (P.planeScale || 1);
 // player reads is 'aluminium')
 const CONS_MAP = { tube: 'tubeFabric', wood: 'wood', metal: 'alloy',
                    carbon: 'carbon', alu: 'aluTube',     // G466: the ultralight's bolted 6061 + Dacron
-                   glass: 'glass' };                     // G2047 (DMG-COMPOSITE): E-glass / epoxy
+                   glass: 'glass',                       // G2047 (DMG-COMPOSITE): E-glass / epoxy
+                   soft: 'softShell' };                  // WEIGHT STUDY L4: poles + ripstop
 // THE MEMBER SCREWS' NUMBERS (G214), metres, or null when hidden or when the
 // construction has none to show (fabric is stitched, not screwed)
 const memFOf = () => {
   if (!+P.memFast) return null;
   const c = consOf();
-  if (c === 'tubeFabric' || c === 'aluTube') return null;   // a sail is sewn, not screwed
+  if (c === 'tubeFabric' || c === 'aluTube' || c === 'softShell') return null;   // a sail is sewn, not screwed
   return [+P.memPitch || 0.03, +P.memDia || 0.0025, +P.memRise || 0.0004];
 };
-const consOf = () => CONS_MAP[['carbon', 'tube', 'wood', 'metal', 'alu', 'glass'][
-  Math.max(0, Math.min(5, Math.round(P.intCons || 0)))]] || 'tubeFabric';
+const consOf = () => CONS_MAP[['carbon', 'tube', 'wood', 'metal', 'alu', 'glass', 'soft'][
+  Math.max(0, Math.min(6, Math.round(P.intCons || 0)))]] || 'tubeFabric';
 // which section is on which shader branch — filled by meshFrom from the
 // mesh's own groups, so there is ONE description of the split (G66)
 const matSurf = {};
@@ -805,7 +807,7 @@ const matOf = (name, sd) => {
       // way of LOOKING at the build and must be able to see through it
       // T2.2: the glazing material's base numbers (aeroskin GLASS_MATS),
       // the builder's dials and the pane's own tint well on top
-      const GM = A.aeroGlassMat ? A.aeroGlassMat(['acrylic', 'polycarbonate', 'glass'][Math.round(+P.glazeMat || 0)]) : {};
+      const GM = A.aeroGlassMat ? A.aeroGlassMat(['acrylic', 'polycarbonate', 'glass', 'film'][Math.round(+P.glazeMat || 0)]) : {};
       // the material under the dials the builder MOVED (a dial at its
       // default is the material's to set)
       const dial = {};
@@ -1133,6 +1135,49 @@ function surfAttr(m) {
   return new THREE.BufferAttribute(a, 4);
 }
 
+// THE CLEAR ARCH (the LS4, 13 Nov - the user: "an option for hiding that center arch there, for having a full complete
+// bubble ... we just want not to see it, but we don't want the absence of it to affect the geometry"): the cage's
+// `canClear` draws the cabin frame band's faces that stand between glass - glazing ahead of them and behind them along
+// the body, and over the sill there - in the glass's own material. A DRAWING only: the sheet, its materials, the
+// measured glazing, the join and the physics never see it. Map face index -> the glass material it wears; null when off.
+function archClear(m) {
+  if (!+P.canClear || !m || !m.F || !m.V) return null;
+  const glass = [];
+  for (const f of m.F) {
+    if (!GLASSM.has(f.m) || f.v.length < 3) continue;
+    let y = 0, z = 0; for (const vi of f.v) { y += m.V[vi][1]; z += m.V[vi][2]; }
+    glass.push([y / f.v.length, z / f.v.length, f.m]);
+  }
+  if (!glass.length) return null;
+  const out = new Map();
+  m.F.forEach((f, fi) => {
+    if (f.m !== 'pillarCabin' || f.v.length < 3) return;
+    let y = 0, z = 0; for (const vi of f.v) { y += m.V[vi][1]; z += m.V[vi][2]; }
+    y /= f.v.length; z /= f.v.length;
+    let fwd = null, aft = null, sill = Infinity;
+    for (const g of glass) {
+      const dz = g[1] - z;
+      if (Math.abs(dz) > 0.6) continue;
+      sill = Math.min(sill, g[0]);
+      if (dz > 0 && (!fwd || dz < fwd[1] - z)) fwd = g;
+      if (dz < 0 && (!aft || dz > aft[1] - z)) aft = g;
+    }
+    if (fwd && aft && y > sill) out.set(fi, (fwd[1] - z < z - aft[1] ? fwd : aft)[2]);
+  });
+  if (!out.size) return null;
+  // ...and whatever else stands IN the arch: the panes' seals along it and the frame's inner body (the band's box,
+  // a seal's width either side, over the sill) - so the bubble reads as one piece
+  let z0 = Infinity, z1 = -Infinity, y0 = Infinity, gm = null;
+  for (const [fi, g] of out) { gm = g; for (const vi of m.F[fi].v) { z0 = Math.min(z0, m.V[vi][2]); z1 = Math.max(z1, m.V[vi][2]); y0 = Math.min(y0, m.V[vi][1]); } }
+  const pad = 0.03;
+  m.F.forEach((f, fi) => {
+    if (out.has(fi) || GLASSM.has(f.m) || f.v.length < 3) return;
+    let y = 0, z = 0; for (const vi of f.v) { y += m.V[vi][1]; z += m.V[vi][2]; }
+    y /= f.v.length; z /= f.v.length;
+    if (z > z0 - pad && z < z1 + pad && y > y0 + 0.02) out.set(fi, gm);
+  });
+  return out;
+}
 function meshFrom(m) {
   // indexed geometry with per-material groups: welded verts give the same
   // smooth normals the game viewer computes
@@ -1141,9 +1186,11 @@ function meshFrom(m) {
   // LINER-BACK: one group per section AND side - a section whose faces are all lined is still one group (one draw);
   // only a section that mixes lined and unlined faces splits (matOf's sd, _cage_gen.js linerBack)
   const byMat = new Map(), sdOf = new Map();
-  m.F.forEach(f => {
+  const clear = archClear(m);
+  m.F.forEach((f, fi) => {
     const sd = f.back ? 'b' : f.backed ? 'f' : '';
-    const bk = sd ? f.m + '' + sd : f.m;
+    const fm = clear && clear.has(fi) ? clear.get(fi) : f.m;
+    const bk = sd ? fm + '' + sd : fm;
     if (!byMat.has(bk)) { byMat.set(bk, []); sdOf.set(bk, sd); }
     const t = byMat.get(bk);
     // a FAN: quads as before; the knife's triangles and n-gons (G245) are
@@ -1698,7 +1745,7 @@ const EYE_STATS = { builds: 0, buildMs: null, swaps: 0, swapMs: null, last: null
 const wellCutsNow = () => { const C = typeof window !== 'undefined' ? window.CAGE_GEAR : null;      // (GR: the side wells with them)
   const all = C ? (Array.isArray(C.cuts) ? C.cuts : []).concat(Array.isArray(C.cutsSide) ? C.cutsSide : []) : [];
   return all.length ? all : null; };
-const wellSigOf = cuts => cuts ? cuts.map(c => c.ceil.toFixed(5) + ':' + (c.frame ? 's' + c.side + ':' : '') + (c.hf ? (c.hf.nx || c.hf.nu) + 'x' + (c.hf.nz || c.hf.nv) + ':' + (c.hf.y || c.hf.e).reduce((a, v, i) => a + v * (i % 7 + 1), 0).toFixed(5) + ':' : '') +
+const wellSigOf = cuts => cuts ? cuts.map(c => c.ceil.toFixed(5) + ':' + (c.top ? 't:' : '') + (c.frame ? 's' + c.side + ':' : '') + (c.hf ? (c.hf.nx || c.hf.nu) + 'x' + (c.hf.nz || c.hf.nv) + ':' + (c.hf.y || c.hf.e).reduce((a, v, i) => a + v * (i % 7 + 1), 0).toFixed(5) + ':' : '') +
   c.outline.map(p => p[0].toFixed(5) + ',' + p[1].toFixed(5)).join(' ')).join('|') : '';
 const WELL_MEMO = new WeakMap();        // sheet -> { sig, out }
 const WELL_STATS = { cuts: 0, ms: null, swaps: 0, last: null };

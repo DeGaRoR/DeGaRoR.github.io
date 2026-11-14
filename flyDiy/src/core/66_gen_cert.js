@@ -698,8 +698,9 @@ function genCertGroundLoads(def, nTD) {
     return out;
   }
   const Mn = (R.mains || []).filter(i => i >= 0);
-  if (Mn.length !== 2) return out;
-  const [iL, iR] = def.nodes[Mn[0]].p[2] < def.nodes[Mn[1]].p[2] ? Mn : [Mn[1], Mn[0]];
+  if (Mn.length !== 2 && Mn.length !== 1) return out;
+  // MONOWHEEL: one main - both halves of every case on its one wheel (the side load's two pushes, the same way, sum)
+  const [iL, iR] = Mn.length === 1 ? [Mn[0], Mn[0]] : def.nodes[Mn[0]].p[2] < def.nodes[Mn[1]].p[2] ? Mn : [Mn[1], Mn[0]];
   const tw = R.tw != null && R.tw >= 0 ? R.tw : -1;
   const xm = 0.5 * (def.nodes[iL].p[0] + def.nodes[iR].p[0]);
   const sT = tw >= 0 && Math.abs(def.nodes[tw].p[0] - xm) > 1e-3 ? Math.max(0, Math.min(1, (c[0] - xm) / (def.nodes[tw].p[0] - xm))) : 0;
@@ -1020,6 +1021,40 @@ function* genCertifySteps(def, opt) {
   GEN_CERT_HOOK.name = '';
   const tD = (typeof performance !== 'undefined' ? performance : Date).now();
   const { Ft, Fc, byT, byC, names } = genCertCombine(def, cases);
+  // THE BUILD WEIGHT (WEIGHT STUDY, 12 Nov): a wing built for a weight (GEN_SURF_MATERIALS.dtube.buildKg) is certified
+  // as if its aeroplane weighed that - its members' and its bracing's limit loads (and so their fittings') x min(1,
+  // buildKg / W0). The
+  // certificate otherwise sizes every member to THIS aeroplane's own loads, and a light wing on a heavy aeroplane held 6 g
+  // (weight_proto/, run 1): with this, it breaks where its physics says (a C172 2.7 g)
+  { const S = def.spec || {}, WR = (typeof genSurfMaterial === 'function' && S.wings) ? genSurfMaterial(S, 'wing', 0) : null;
+    const W0 = def.parts && def.parts.gauge && def.parts.gauge.W0;
+    if (WR && WR.buildKg > 0 && W0 > WR.buildKg) {
+      const f = WR.buildKg / W0;
+      // the wing's own structure AND what carries it - its struts and its carry-through (the 'bracing' section): a light
+      // wing comes with its bracing. (Measured: on the strut-braced Cub the full-strength struts relieved the D-tube's
+      // spar and the wing held 6.13 g - the struts are the wing's, not the fuselage's.)
+      def.beams.forEach((b, i) => { if (b.sec === 'wings' || b.sec === 'bracing') { Ft[i] *= f; Fc[i] *= f; } });
+    }
+    // ...and the tail built of it (it follows a chosen wing, 60_gen_spec genSurfKey): the same build weight
+    const TR = (typeof genSurfMaterial === 'function') ? genSurfMaterial(S, 'stab') : null;
+    if (TR && TR.buildKg > 0 && W0 > TR.buildKg) {
+      const f = TR.buildKg / W0;
+      def.beams.forEach((b, i) => { if (b.sec === 'tail') { Ft[i] *= f; Fc[i] *= f; } });
+    }
+    // ...and a FUSELAGE built of a row built for a weight (WEIGHT STUDY L4: the soft shell, GEN_MATERIALS.softShell):
+    // its own members - the poles, wherever they stand: the cabin, the carry-through - the gear's aside (its bracket
+    // is the gear's own cases, gearStamp) and the roles built hard (the keel, the mount: another row's members)
+    const MR = typeof GEN_MATERIALS !== 'undefined' ? GEN_MATERIALS[S.material] : null;
+    if (MR && MR.buildKg > 0 && MR.phys && W0 > MR.buildKg) {
+      const f = MR.buildKg / W0, mk = genPhysKey(MR.phys);
+      def.beams.forEach((b, i) => { if (b.mat === mk && b.cls !== 'gear') { Ft[i] *= f; Fc[i] *= f; } });
+    }
+    // ...and the ultralight monowheel (WEIGHT STUDY L6, GEN_RULES.ulGear): its gear's members, as built for its weight
+    const UG = S.gear && S.gear.mono && S.gear.ul && typeof GEN_RULES !== 'undefined' ? GEN_RULES.ulGear : null;
+    if (UG && UG.buildKg > 0 && W0 > UG.buildKg) {
+      const f = UG.buildKg / W0;
+      def.beams.forEach((b, i) => { if (b.cls === 'gear') { Ft[i] *= f; Fc[i] *= f; } });
+    } }
   return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
            sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
            Ft, Fc, byT, byC, names, cases, speeds: VS, aero, nw: ground && ground.nw != null ? ground.nw : null,
