@@ -259,13 +259,14 @@ const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat([
 const PIN = {
   'builds/cub_2026-09-20_corrected.json': '3648bf163799cae9 811852016151aab6',
   'builds/jodel_2026-09-20_corrected.json': '071aec8b30f75954 91de808589c2b7bd',
-  'builds/cessna172r_2026-11-08.json': '8c3f5c1cccb19132 b4a926d9ce6d6b33',
+  // ONE-CESSNA (15 Nov): the corrected C172 and the metal Cessna were two Cessnas - one now, THE Cessna list:50; its pin taken on
+  // claude/canon-onecessna (master 58c681347's core, no physics moved by the chantier): the two rows' old pins were other files'
+  'builds/cessna172r_2026-11-08.json': '67060a5c8649fb4e 3e5275835d6f9d38',
   'builds/chinook_2026-09-21_corrected.json': '23410ab32b1cb6c1 9a62a6a61fcc8556',
   'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'd2ed8ef26a86b6c5 a04a230e8d631667',
   'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json': 'fe78edfd3ef1fea5 77b62ab7c4146aaa',
   'tools/fixtures/test_copies/build_v7_twin_2026-09-04.json': '9ea1934fc404b8fc 221d6c2405b15e1e',
   'builds/candidates/build_v8_pusher_2026-09-11.json': '888ebfdf96341e38 1e888903ddfb652c',
-  'builds/cessna172r_2026-11-08.json': '7de0372430b4c28c 0188260fec73712c',
   'bugReports/cessnaFloatsWOrks.json': 'ec60bc853a4a12a8 55bf1eec20118296',   // FLOAT-DECK 10 Nov: the def moves (a float build rests at deck 0), the flown steps do not
   'tools/fixtures/test_copies/rufus_2026-10-18_certified.json': '5ef573483ffd5d4d 210d8b580d8fe556',
   'stock nose': 'e959f1716ede56c4 31cce33943cc578a',
@@ -286,8 +287,9 @@ const ID_KEYS = ['builds/cub_2026-09-20_corrected.json', 'builds/jodel_2026-09-2
   'builds/cessna172r_2026-11-08.json', 'builds/chinook_2026-09-21_corrected.json',
   'tools/fixtures/build_v7_ultralight_2026-09-05.json', 'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json',
   'tools/fixtures/test_copies/build_v7_twin_2026-09-04.json', 'builds/candidates/build_v8_pusher_2026-09-11.json',
-  // (A0, 22 Oct: the metal Cessna is the user's own file, and the Cessna on floats is in - both loaded the game's way)
-  'builds/cessna172r_2026-11-08.json', 'bugReports/cessnaFloatsWOrks.json', 'tools/fixtures/test_copies/rufus_2026-10-18_certified.json',
+  // (A0, 22 Oct: the metal Cessna is the user's own file, and the Cessna on floats is in - both loaded the game's way;
+  //  ONE-CESSNA 15 Nov: the metal Cessna's row is THE Cessna's, list:50, above - one row)
+  'bugReports/cessnaFloatsWOrks.json', 'tools/fixtures/test_copies/rufus_2026-10-18_certified.json',
   ...Object.keys(IDS)];
 for (const k of ID_KEYS) {
   let got;
