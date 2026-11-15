@@ -317030,3 +317030,20 @@ more realistic and may avoid nose over. Do the 3d anchor properly and profession
   Its three call sites are in drive_mode.js's tow section (towStart / towDraw / towStop): asked of the CAR session
   (its file).
 - GATES: TOW (above), GEAR, HUB, CLIP, CAGEFIT pass. STOL's draw fingerprint is the core's wing (not the gear layer).
+
+CAR x L40e (15 Nov, the user: "do the merge"): claude/tow-launch-l40e merged into claude/fly-diy-car-build-uu6e6w -
+  eae0c0c8 (master L40c/d + the tow set), then b2966b01 (the rope's end: towRingRig in drive_mode's TOW section, theirs
+  whole). Resolved: the lug tyre is whProfile 4 (master's bicycle took 3), the van stays on 2 with its track 0.97 / 1.03;
+  the garage's popup Fleet went (fleet_screen.js) - the Vehicles layers now reach the Fleet screen through garage.js's
+  vehicleLists door (VEHICLE_KIND.layers) and its Vehicles tab heads them Validated / Candidates (GATE VEHICLE LIST reads
+  that); the rows united (brkHold + the car drum and WHEEL-TEX rows under notCycle, ctlRuns + the steering wheel, the
+  cowl's coolOpenings + buildBlinkers, the pressed wheel + the bicycle wheel); the roadster card drops cw_partLevel (no
+  row since L40d: the split is always level). The vans rejoined (the base's registration only).
+  GATES on the merge: VEHICLE DRIVE-TRIP TRAILER UISMOKE LIVERYREACH CAGEFIT KNIFE COWL JOIN GEAR DESIGN PASS. Two reds,
+  both master's named ones (HANDOVER's L40c NEW REDS, owner ARCHAEOPTERYX): PARTS canClear (no part claims it) and TOW
+  CIRCUIT archaeopteryx (capsized on its motor-off circuit). TOW alone takes ~25 min on SwiftShader; under --jobs=2 it
+  overruns the runner's cap - run it alone.
+  NOT DONE (needs a decision): the van as the stock / tow car. drive_mode falls back to the Conquer's sheet AND its model;
+  a garage car drives only from the stand (FLYDIY_GARAGE_CAR -> carFromGarage measures the live garage scene). The van
+  as a default needs its mesh built from builds/vehicles/utility_retro_2026-11.json outside the garage (parked.js's
+  capture machinery is the candidate) and src/cars/car_utility.json as its sheet.
