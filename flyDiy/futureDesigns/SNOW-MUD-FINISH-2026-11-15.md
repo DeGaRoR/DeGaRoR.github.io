@@ -169,7 +169,12 @@ FLOWN ON SKIS: the PC-6 on skis on powder, with SKIS' fixture (tools/fixtures/sk
 and switches on, asserting that it gets off, the moment SKIS lands. The observatory's final test (PC-6 + skis + snow) is that
 row in the world.
 
-SKIS' optional `fresh` on rows 9 and 10 is now the base law itself. Kept on their rows it reads the same; it can go.
+SKIS' optional `fresh` on rows 9 and 10: my first note here said it "reads the same" kept on the virgin rows. It did not
+(SKIS, 15 Nov): their sole adds the fresh top to the row's own sinkage, so on the virgin rows the law counted twice, and the
+Carbon Cub's skis sank 20.5 cm and never lifted off. SKIS fixed it on claude/skis-pc6 (a809ac6ae): the fresh top applies
+only over a row stiffer than itself, so it is off on 9 and 10. Their ruts are 29.7 / 18.3 / 11.5 cm and the Cub is off in
+89 m; SNOWFLY passes merged (the PC-6 on skis off powder in 53 m). A wheel-ski's tyre pays groundBullWheel at its own rut in
+SKIS' ski pass.
 
 ## 6. IN MUD A SMALL WHEEL STRUGGLES (the user, 15 Nov; GATE WHEELSIZE, core, ~45 s)
 
