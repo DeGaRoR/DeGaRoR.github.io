@@ -278,18 +278,22 @@ async function main() {
     const F = C.GROUND_SOFT[9].fresh, k0 = C.GROUND_SOFT[9].k;
     try {
       delete C.GROUND_SOFT[9].fresh;
-      const a = settle(dC, W), za = Math.max(...a.out.skiSink);
-      const R = dC.parts.ski.mains, load = Math.max(...a.out.skiLoad);
-      C.groundSinkPlate(C.GROUND_SOFT[9], load, R.A, R.Wmax || R.W);
-      const zq = C.GROUND_SINK.z;
-      ok(Math.abs(za - zq) < 0.05 * zq + 2e-4, `with no fresh layer the rut is SNOW-MUD's plate law at rest: ${(100 * za).toFixed(2)} cm against groundSinkPlate's ${(100 * zq).toFixed(2)} (${(load / 1000).toFixed(2)} kN on ${R.A.toFixed(2)} m2)`);
+      // (the rut is PLASTIC: it keeps the deepest the load pressed it - the settle's bounce included - so it lies between
+      // SNOW-MUD's sinkage at the load at rest and at the peak load it carried)
+      const a = C.makeSim(dC, W); a.reset(0); if (a.stance) a.stance();
+      let peak = 0; for (let k = 0; k < 600; k++) { a.step(1 / 60); peak = Math.max(peak, ...a.out.skiLoad.slice(0, 2)); }
+      const za = Math.max(...a.out.skiSink.slice(0, 2));
+      const R = dC.parts.ski.mains, load = Math.max(...a.out.skiLoad.slice(0, 2)), wR = R.Wmax || R.W;
+      C.groundSinkPlate(C.GROUND_SOFT[9], load, R.A, wR); const zq = C.GROUND_SINK.z;
+      C.groundSinkPlate(C.GROUND_SOFT[9], peak, R.A, wR); const zp = C.GROUND_SINK.z;
+      ok(za >= 0.98 * zq && za <= 1.02 * zp, `with no fresh layer the rut is SNOW-MUD's plate law: ${(100 * za).toFixed(2)} cm, between groundSinkPlate's ${(100 * zq).toFixed(2)} at rest (${(load / 1000).toFixed(2)} kN on ${R.A.toFixed(2)} m2) and ${(100 * zp).toFixed(2)} at the settle's peak (${(peak / 1000).toFixed(2)} kN)`);
       C.GROUND_SOFT[9].k = k0 / 4;
       const b = settle(dC, W), zb = Math.max(...b.out.skiSink);
       ok(zb > 1.5 * za, `SNOW-MUD's row drives it: its powder 4 x softer, the ski ${(100 * zb).toFixed(2)} cm deep (n ${C.GROUND_SOFT[9].n}: x ${Math.pow(4, 1 / C.GROUND_SOFT[9].n).toFixed(2)} expected)`);
     } finally { C.GROUND_SOFT[9].fresh = F; C.GROUND_SOFT[9].k = k0; }
     const s9 = settle(dC, W);
-    ok(s9.out.softZ > 0 && Math.abs(s9.out.softZ - Math.max(...s9.out.skiSink)) < 1e-12 && s9.out.softF >= 0,
-       `the skis write SNOW-MUD's readouts: out.softZ ${(100 * s9.out.softZ).toFixed(1)} cm = the deepest ski (the dust's plough reads it)`);
+    ok(s9.out.softZ > 0 && Math.abs(s9.out.softZ - Math.max(...s9.out.skiSink)) < 0.05 * s9.out.softZ && s9.out.softF >= 0,
+       `the skis write SNOW-MUD's readouts: out.softZ ${(100 * s9.out.softZ).toFixed(1)} cm = the deepest ski's ${(100 * Math.max(...s9.out.skiSink)).toFixed(1)} (the frame's substeps against its end; the dust's plough reads it)`);
     // the plume is SNOW-MUD's (dust.js / app.js syncDustFx, their ask): what they read is the data - one record a ski in the
     // solver's order (def.refs.skis), its rut and load in the same order, `posed` (the rut is in the physics' pose already)
     const RS = dC.refs.skis, dP = defOf(pcSpec), RP = dP.refs.skis;
