@@ -23,11 +23,12 @@ Read this before you write or arm any rig. It collects every trap that cost a sl
 - The in-app browser pane draws NOTHING while it is hidden; use it only when it is on screen.
 - Wait for `BOOT.whenReady()`, then for `BOOT.state === 'gone'` (allow 420 s). The boot cover stays up until every program links, and a click under it never reaches a flight.
 - Then click `#bGo` until flying. "Flying" means ALL of these: BOOT gone; body has `mode-fly`; not `mode-ws`; no `body.rollShot`; sim t rising. The text HOLD/HOLDING is NOT flying.
+- Careers: the welcome menu never shows on a rig, even with ?welcome=1. Use `?mode=career` to boot a career directly. For "New career, no tutorial", set `FLYDIY_CAREER_SKIP` from an init script (Game, 15 Nov).
 - If you seed a design (flydiy.wip etc.), do it before the load and say so in the log. A seeded run that fails must be re-tried WITHOUT the seed before blaming the game.
 
 ## 3. Grab frames the one way that works
 - NEVER `Page.captureScreenshot` for the world. Headless shows the canvas see-through: you get the page background (#cfe0ec).
-- Wrap `FLYDIY_AA.render`, call the original, then `gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(...)` right after it, alpha forced opaque. Flip rows, encode PNG/JPEG yourself.
+- Wrap `FLYDIY_AA.render`, call the original, then `gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(...)` right after it, alpha forced opaque, and encode the PNG/JPEG yourself. Row order: check ONE frame before flipping. On this box (ANGLE D3D11, headless) Game got upright frames with no flip (15 Nov); LOOK-1's rig flips.
 - Wait frames with requestAnimationFrame (`FRAMES(30)`), never with sleep alone.
 - Camera: `FLIGHT_PROBE.devFree(x, y, z, yaw, pitch)` (the free eye), near the aircraft. Terrain and the cover ring stream around the AIRCRAFT, so a free eye far away shows flat sky.
 - Pause with the game's own `#bPause`, as a player would. If no frame arrives in 5 s, check renderer.info.render.frame over 1 s; if it doesn't move, the loop is not drawing.
