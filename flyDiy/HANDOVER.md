@@ -316372,3 +316372,39 @@ The user (13 Nov): tutorial v2 is FULLY DETERMINISTIC - each tutorial build ends
 - RE-PINNED with the reason: KNIFE corpus - `file:builds/cub_2026-09-20.json` now hashes as the validated J-3 (e37cbe02, 20942/16762, the J-3's window loops), the two new files added with the same sheet; no other entry moved.
 - **Proof** (tools/tutorial_cubs.js, this branch; floats on the HYDRO-SCALE tree 0c007ef7): --page, a fresh dev.html boot each: file 1 + 5 rows = file 2 to the leaf and file 2 re-opens as written; file 2 opens as written, + 4 rows = file 3 to the leaf (the same result on two separate boots), file 3 re-opens as written. --check (node) PASS. --fly, the game's pilot, calm: Client Cub 476 kg off HOME after 104 m (11.7 s), circuit, touch 17.3 m/s, stopped; upgraded 491 kg off after 50 m (6.8 s), circuit, touch 19.7 m/s, stopped; floats 533 kg off the SEA lane, hump R/W 0.13 at 6.1 m/s, off the water after 54 m (7.9 s, 16.9 m/s), circuit, touch on the water 20.5 m/s, stopped (the same on master: the file's hull is in its rows). Bench design check: warn / warn / warn (roll.spiral on all; + pitch.sm on the J-3; + ctl.flare 1.06 on floats), both certificates held (a warn is a certificate).
 - **Gates** (node, --no-build, on this branch): PLANELISTS STORY KNIFE FRAMES LIVERY LIVERYTEXT HULL WEARTAB WEARPRICE PLANEFICHE CANDIDATES NEWPLANE SNAPSHOTS POD STOL PASS (LIVERY: master's standing 2 of 328 gone). DESIGNCHECK (carbon shell post 4.2 vs 1.8 mm) and JOINPARITY (the Jodel's node = page; large_hangar_shot.js / large_hangar_store_shot.js fly a validated build raw) FAIL with the same lines on clean master 23ce68c1. Not run: the full tier, the Chrome gates beyond the page proofs above.
+## COMPETE-SCORE: THE AERO CLUB'S SCORING (2026-11-13, pure core in 73b/73c + GATE MISSIONS)
+The competition events, all pure (no clock, no random), all in the mission format, each judged on a STOP STEP like a
+timer (73c missionTimerOnSub, which now ends in missionScoreOnSub):
+- STOL (the user's top ask): a mission's `stol: [{ id, kind: takeoff|landing|spot, line, dir, stop, medals?|max?, ghost? }]`.
+  The tracker measures it off the samples (new optional sample fields: `gnd` wheels on the ground, `v` m/s, and the
+  attitude `hdg pitch roll`), with the tour's definitions (tools/_tour_lib.js: roll -> lift-off, touchdown -> stop):
+  take-off = stopped 0-3 m behind the line, the line to the lift-off (held 1 s; a hop is not it); landing = the first
+  touchdown past the line (short: a FOUL, Valdez) to the stop, after 5 s in the air, a go-around (5 s up) drops it;
+  spot = |distance| from the line at the first touchdown (`short` says which side). The first measure of a flight stands.
+  r.scores [{ id, kind, m, short?, ghost? }] on the step's result.
+- 3-D GATES: a ring's `pitch` tilts its facing (90 = a loop's vertical gate; the ring's frame n/l/u, msrRingFrame,
+  pitch 0 = the old ring exactly); a gate or ring may ask `att { hdg?, pitch?, roll?, tol 20, pen 2 }` - outside the
+  tolerance a SOFT penalty on the laps running (msrPenalise, shared with the strike), never a miss. The heading of a
+  near-vertical line is not judged; an angle the samples lack is `unknown`, not judged. A rolled wing changes the
+  strikes: a knife-edge wing reaches up, not out (pylons and rings).
+- REGULARITY: a timer with `regularity: true`: the score is |lap - target| (timer.dev); medals' le are seconds OFF the
+  target, else `tol`. The faster lap does not win.
+- MULTI-LEG COURSE: `course { timers: [one lap per leg, leg order], medals?, ghost? }`: on the last lap's stop step the
+  result is the SUM of the legs (each with its penalties), r.course { s, legs: [{ id, s, ghost? }] }; its medal replaces
+  the leg's. The earlier legs come from live.timers (74_ keeps every judged lap) through missionTrackNew(rec, live) into
+  the evidence (`course: { id: s }`) - so NO new 74_ code.
+- FIXED GHOST: `ghost { s, who?, splits?: { step: s } }` on a timer (`{ m }` on a STOL line, `{ s, legs }` on a course):
+  an authored rival record, the same for every player; split and stop events carry `ghost` (+ behind, - ahead), the
+  judge timer.ghost { s, beat, by }.
+SEAMS FOR A0 / MISSIONS-LIVE: (1) the career's stop seam keys on rec.timers: missionToContract gives a STOL-only record
+an empty timers list (missionScored(rec) says a record is scored), so the career already judges it; 74_ keeps only
+r.medal and r.timer - to show the STOL metres / the course sum on the card, 74_ contractOnStop should also keep
+r.scores / r.course (live.scores, an event); (2) the page's samples should add gnd, v (and the main wheels' x z for a
+fair STOL measure) and hdg/pitch/roll in the stated convention (pitch -90..90, roll right-wing-down +, inverted 180);
+(3) missionMarkers gives `kind: 'line'` markers for the STOL lines and `pitch`/`att` on rings and gates to draw;
+(4) the new functions are not in 90_node_exports.js (the gate loads 73b/73c fresh).
+GATE MISSIONS: +80 rows (the compete pack: 5 tiny missions, no story text), the checker's breaks, the converter's
+round trip, a course and a STOL event flown through careerOnStop; the selftest +37 doctored rules.
+BUDGET: the career chunk (GATE MEDIA, CAREER_BUDGET_KB 640) was at 624.9 KB on claude/mission-packs; COMPETE fits at
+639.2 KB only by keeping 73b/73c terse (the explanations live here, not in the code). The next career feature needs
+A0's budget call (rule b), not more squeezing.
