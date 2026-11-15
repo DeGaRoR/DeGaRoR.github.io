@@ -1700,7 +1700,12 @@ function makeSim(def, world) {
         if (SKW[i] === 0) softWheel(i, !c.third);
         groundSinkWheel(S, FT, SKW[i], SKDIA[i], SKA[i]); SKI_SOFT.sink(c.eT, GROUND_SINK.z, dt);
       }
-      if (FT > 0 || dT > 0) { Rp += SKI_SOFT.resist(S, SX, SKW[i], c.eT.zc, false); if (c.eT.zc > zMax) zMax = c.eT.zc; }
+      if (FT > 0 || dT > 0) {
+        Rp += SKI_SOFT.resist(S, SX, SKW[i], c.eT.zc, false); if (c.eT.zc > zMax) zMax = c.eT.zc;
+        // (DEEP SNOW: the tyre through the ski shoves the snow ahead as SNOW-MUD's wheel does - groundBullWheel on a row
+        //  with `bull`, at the tyre's own rut; the sole has its plough and planing instead)
+        if (SO.bull && c.eT.zc > 0) Rp += groundBullWheel(SO, c.eT.zc, SKW[i], SKDIA[i], vr_);
+      }
       if (!softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; out.softW = SOFTW; softLive = true; }   // (SNOW-MUD's readouts, opened as their wheel branch opens them; a posed ski writes no softW slot - their rule)
       if (zMax > out.softZ) out.softZ = zMax;
       out.softF += Rp;
