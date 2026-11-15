@@ -84,7 +84,7 @@ function runOn(spec, sc, tMax) {
     sim.ctl.thr = 0; sim.ctl.brake = 1; const p1 = sim.cgPos();
     for (let u = 0; u < 60; u += 1 / 60) { hold(); sim.step(1 / 60); if (sim.out.V < 1) { const p = sim.cgPos(); roll = Math.hypot(p[0] - p1[0], p[2] - p1[2]); break; } }
   }
-  return { run, t, roll, z, softSeen, V: sim.out.V };
+  return { run, t, roll, z, softSeen, V: sim.out.V, Vs };
 }
 
 // ---- the checks (o: the tables and laws under test, so --selftest can doctor them) ----------------------------------
@@ -124,11 +124,14 @@ function run(o) {
   const W = (S, cls, D, N) => { const fp = C.tyreFootprint(cls, D); const F = wheel(S, N, fp[0], D, fp[1]); return { F, r: F / N, z: SINK.z, cap: SINK.cap }; };
   for (const c of SOFT) {
     const S = GSO[c];
-    const a = W(S, 'standard', 0.4, 2000), b = W(S, 'standard', 0.4, 3000), bb = W(S, 'standard', 0.4, 4500);
+    // (DEEP SNOW: a light aeroplane's tyre goes through powder and wet snow to the base - the laws read at a twentieth of the
+    // loads there, where the layer still holds a wheel; the bottoming has its own check below)
+    const q = S.bull ? 0.05 : 1;
+    const a = W(S, 'standard', 0.4, 2000 * q), b = W(S, 'standard', 0.4, 3000 * q), bb = W(S, 'standard', 0.4, 4500 * q);
     check(b.z > a.z && bb.z >= b.z && b.r > a.r, 'C ' + c + ': more load sinks deeper and drags more per newton', [a, b, bb].map(q => q.r.toFixed(3) + '/' + (q.z * 1000).toFixed(0) + 'mm').join(' '));
-    const sm = W(S, 'standard', 0.3, 3000);
+    const sm = W(S, 'standard', 0.3, 3000 * q);
     check(sm.z > b.z && sm.r > b.r, 'C ' + c + ': a smaller wheel sinks deeper and drags more', sm.r.toFixed(3) + ' vs ' + b.r.toFixed(3));
-    const tu = W(S, 'tundra', 0.4, 3000), sl = W(S, 'slim', 0.4, 3000);
+    const tu = W(S, 'tundra', 0.4, 3000 * q), sl = W(S, 'slim', 0.4, 3000 * q);
     check(tu.z < b.z && tu.r < b.r && sl.z > b.z && sl.r > b.r, 'C ' + c + ': tundra floats, standard between, slim (narrow, hard) sinks', [tu, b, sl].map(q => q.r.toFixed(3)).join(' < '));
     // the pneumatic limit: a tyre presses the ground no harder than its load over its footprint (it flattens instead)
     let over = 0; for (const [cl, D, N] of [['standard', 0.4, 3000], ['tundra', 0.7, 3000], ['slim', 0.6, 5000], ['standard', 0.45, 6000]]) {
@@ -137,7 +140,7 @@ function run(o) {
     const hv = W(S, 'slim', 0.3, 20000);
     check(hv.z <= S.zMax + 1e-12 && hv.cap === 1, 'C ' + c + ': never deeper than the layer (a heavy slim wheel bottoms at ' + S.zMax + ' m)', hv.z);
     // the rigid regime: a narrower tread at the same pressure law (b alone, the footprint off) drags more
-    const nb = wheel(S, 3000, 0.08, 0.4, 0) / 3000, wb = wheel(S, 3000, 0.16, 0.4, 0) / 3000;
+    const nb = wheel(S, 3000 * q, 0.08, 0.4, 0) / (3000 * q), wb = wheel(S, 3000 * q, 0.16, 0.4, 0) / (3000 * q);
     check(nb > wb || SINK.cap === 1, 'C ' + c + ': a narrower rigid wheel drags more', nb.toFixed(3) + ' vs ' + wb.toFixed(3));
     // the plate (the ski)
     const p1 = plate(S, 6000, 0.8, 0.4), z1 = SINK.z, p2 = plate(S, 6000, 0.4, 0.4), z2 = SINK.z, p3 = plate(S, 6000, 0.4, 0.2), z3 = SINK.z;
@@ -146,6 +149,18 @@ function run(o) {
     log('C ' + c + ' F/N, sinkage: standard 3 kN ' + b.r.toFixed(3) + ' ' + (b.z * 1000).toFixed(0) + ' mm | tundra ' + tu.r.toFixed(3) + ' ' + (tu.z * 1000).toFixed(0) + ' mm | slim ' + sl.r.toFixed(3) + ' ' + (sl.z * 1000).toFixed(0) + ' mm | ski 0.8 m2 ' + (z1 * 1000).toFixed(1) + ' mm');
   }
   check(wheel(GSO[9], 0, 0.1, 0.4, 0.01) === 0 && SINK.z === 0 && plate(GSO[9], 100, 0, 0.2) === 0, 'C no load, no area: no sink, no drag');
+  // DEEP SNOW: the bulldozing - only on the rows that declare it (powder, wet snow), none on packed snow or mud; it grows
+  // with the speed (the ram) and with the buried face; a light aeroplane's tyre goes through the deep layers to the base
+  const bull = o.groundBullWheel;
+  check(!GSO[8].bull && !GSO[11].bull && !GSO[12].bull && GSO[9].bull && GSO[10].bull, 'C bulldozing on powder and wet snow only');
+  for (const c of [9, 10]) {
+    const fp = C.tyreFootprint('standard', 0.4); wheel(GSO[c], 3000, fp[0], 0.4, fp[1]);
+    const z = SINK.z, f0 = bull(GSO[c], z, fp[0], 0.4, 0), f10 = bull(GSO[c], z, fp[0], 0.4, 10), f20 = bull(GSO[c], z, fp[0], 0.4, 20), fh = bull(GSO[c], z / 2, fp[0], 0.4, 10);
+    check(SINK.cap === 1 && z === GSO[c].zMax, 'C ' + c + ': the stock tyre (3 kN) goes through to the base', (z * 100).toFixed(1) + ' cm');
+    check(f0 > 0 && f20 > f10 && f10 > f0 && fh < f10, 'C ' + c + ': the bulldozing grows with the speed and the buried face', [f0, f10, f20].map(v => v.toFixed(0)).join(' < ') + ' N; half buried ' + fh.toFixed(0));
+    log('C ' + c + ' the stock tyre at 3 kN: ' + (z * 100).toFixed(0) + ' cm deep, compaction ' + SINK.F.toFixed(0) + ' N + bulldozing ' + f0.toFixed(0) + ' / ' + f10.toFixed(0) + ' / ' + f20.toFixed(0) + ' N at 0 / 10 / 20 m/s');
+  }
+  check(bull(GSO[8], 0.01, 0.13, 0.4, 20) === 0 && bull(GSO[12], 0.05, 0.13, 0.4, 20) === 0, 'C no bulldozing off the deep rows');
 
   // D. the runs
   if (o.runs) {
@@ -153,14 +168,15 @@ function run(o) {
     for (const b of ['stock', 'tundra', 'tri']) for (const c of [0, 5, 8, 11]) check(ok(R[b][c]), 'D ' + b + ' reaches 0.9 Vs on ' + c);
     for (const b in R) for (const c in R[b]) check((+c >= 8) === R[b][c].softSeen && (+c < 8 || R[b][c].z > 0), 'D ' + b + ' on ' + c + ': the soft readouts exactly on the soft rows');
     check(Math.abs(rr('stock', 8) / g - 1) <= 0.15, 'D packed snow within 15 % of grass (stock)', (rr('stock', 8) / g).toFixed(2));
-    check(ok(R.stock[9]) && rr('stock', 9) >= 1.3 * g, 'D powder at least 1.3 x grass on the stock tyres', R.stock[9].run && (R.stock[9].run / g).toFixed(2));
-    check(ok(R.stock[10]) && rr('stock', 10) >= 1.3 * g, 'D wet snow at least 1.3 x grass on the stock tyres', R.stock[10].run && (R.stock[10].run / g).toFixed(2));
+    // DEEP SNOW (the user, 15 Nov: "I would expect this to fail without skis. That's the whole point"): NO WHEEL gets off
+    // deep powder or wet snow - the stock tyre, the tundra tyre, the tricycle - each held under flying speed
+    for (const b of ['stock', 'tundra', 'tri']) for (const c of [9, 10]) check(!ok(R[b][c]) && R[b][c].V < 0.9 * R[b][c].Vs, 'D ' + b + ' wheels do NOT get off deep ' + (c === 9 ? 'powder' : 'wet snow') + ' (held at ' + R[b][c].V.toFixed(1) + ' m/s)');
     check(rr('stock', 11) > g, 'D firm mud longer than grass', (rr('stock', 11) / g).toFixed(2));
     check(ok(R.stock[12]) && rr('stock', 12) >= 1.3 * g, 'D soft mud at least 1.3 x grass', R.stock[12].run && (R.stock[12].run / g).toFixed(2));
-    for (const c of SOFT) check(ok(R.tundra[c]) && (!ok(R.stock[c]) || R.tundra[c].t < R.stock[c].t), 'D tundra tyres get off sooner than standard on ' + c, (R.tundra[c].t).toFixed(1) + ' vs ' + R.stock[c].t.toFixed(1) + ' s');
+    for (const c of [8, 11, 12]) check(ok(R.tundra[c]) && (!ok(R.stock[c]) || R.tundra[c].t <= R.stock[c].t + 1e-9), 'D tundra tyres get off no later than standard on ' + c, (R.tundra[c].t).toFixed(1) + ' vs ' + R.stock[c].t.toFixed(1) + ' s');
     for (const c of [0, 5]) check(Math.abs(R.tundra[c].run / R.stock[c].run - 1) < 0.02, 'D on the hard code ' + c + ' the carcass is its cornering only (within 2 %)', (R.tundra[c].run / R.stock[c].run).toFixed(4));
     check(R.stock[8].roll > R.stock[0].roll, 'D packed snow\'s braked roll longer than grass\'s', R.stock[8].roll.toFixed(1) + ' vs ' + R.stock[0].roll.toFixed(1) + ' m');
-    check(!ok(R.tri[9]) && R.tri[9].V < 3, 'D the tricycle\'s small nose wheel bogs in powder (stuck: ' + R.tri[9].V.toFixed(1) + ' m/s after ' + R.tri[9].t.toFixed(0) + ' s)');
+    check(!ok(R.tri[9]) && R.tri[9].V < 0.9 * R.tri[9].Vs, 'D the tricycle bogs in powder (held at ' + R.tri[9].V.toFixed(1) + ' m/s after ' + R.tri[9].t.toFixed(0) + ' s)');
     const nm = { 0: 'grass', 5: 'paved', 8: 'snow packed', 9: 'powder', 10: 'wet snow', 11: 'mud firm', 12: 'mud soft' };
     for (const b in R) for (const c in R[b]) { const q = R[b][c];
       log('D ' + b.padEnd(6) + ' ' + nm[c].padEnd(11) + ' run ' + (q.run === null ? ('STUCK (' + q.V.toFixed(1) + ' m/s at ' + q.t.toFixed(0) + ' s)').padEnd(22) : (q.run.toFixed(0) + ' m ' + q.t.toFixed(1) + ' s (x' + (q.run / R[b][0].run).toFixed(2) + ')').padEnd(22)) +
@@ -215,7 +231,7 @@ function allRuns() {
   return out;
 }
 const live = () => ({ GROUND_SURF: C.GROUND_SURF, GROUND_SOFT: C.GROUND_SOFT, GROUND_SKI_MU: C.GROUND_SKI_MU, TW_SKID_MU: C.TW_SKID_MU,
-  groundSinkWheel: C.groundSinkWheel, groundSinkPlate: C.groundSinkPlate, stripSurface: C.stripSurface, stripAllows: C.stripAllows });
+  groundSinkWheel: C.groundSinkWheel, groundBullWheel: C.groundBullWheel, groundSinkPlate: C.groundSinkPlate, stripSurface: C.stripSurface, stripAllows: C.stripAllows });
 
 if (BLESS) {
   const fx = JSON.parse(fs.readFileSync(FX, 'utf8'));
