@@ -275,9 +275,9 @@
    "len": 210,
    "wid": 12,
    "surface": {
-    "key": "gravel",
-    "word": "gravel",
-    "cls": "hard"
+    "key": "snow",
+    "word": "snow",
+    "cls": "snow"
    },
    "elev": 1034,
    "altiport": true
@@ -2926,15 +2926,9 @@
   }
  },
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
-<<<<<<<< HEAD:flyDiy/media/map/jolene_proj.18671df2.json
- "img": "media/map/jolene_map.aad54ef9.png",
- "imgBytes": 715121,
- "imgHash": "aad54ef9",
-========
- "img": "media/map/jolene_map.9a23906c.png",
- "imgBytes": 715118,
- "imgHash": "9a23906c",
->>>>>>>> origin/claude/ready/observatory-site:flyDiy/media/map/jolene_proj.aa6a09ad.json
+ "img": "media/map/jolene_map.15a6c74a.png",
+ "imgBytes": 715124,
+ "imgHash": "15a6c74a",
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,

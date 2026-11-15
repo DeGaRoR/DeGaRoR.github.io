@@ -316674,3 +316674,22 @@ that name the fixture as "the metal Cessna" in a flying gate describe the gates 
 - Not yet (L40f): D2 the flap as drag when high (Rufus's card has ldg 0: its final is clean), D3 circling / S-turns down when a final cannot absorb the height (high_final +300 m: every plane goes round once).
 - Tools: flight_script lift {by}, scenario trees [[x,z,r,h]], each step's fly figures; tools/flight_table.js; scenarios rufus_cabin(_trees), high_final_rufus/cub/cessna. Logs D:/Dev/pilot_runs/descent/.
 - Gates (fixed tree): FLIGHTSCRIPT STOL PILOT PILOTCANFLY PILOTACT TOUR PASS; TAXICLEAR (archaeopteryx footprint), UNIFY (EMERG student, ARCH glider), ARCHETYPES (Chinook-alike rejected-takeoff, Archaeopteryx-alike capsized): the same reds on L40c / the base tree.
+
+# L40d (Sun 15 Nov 19:01, full battery 288 PASS / 54 FAIL; after A0's re-cook 8 of those cleared)
+
+LANDED (16): mission-packs-l40d (tutorial-lock + mission packs, COOL fixture re-pin), compete-score, observatory-site, pilot-gonogo (the go/no-go: declines at the hold with the numbers), real-canon 0b54a49ae (the physics canon, ELEC inside), petrel-skin-l40d, petrel-skin-livery, petrel-trim-gate, snow-mud-finish 3c11907d2 (sinking, mud coat, particles, MUDFLY, deep snow), observatory-2 (Ardent snow), rig-procedure, page-rig, workbench (+ the commit hook, 6 skills, GATE WORKBENCH + COMMITHYGIENE), flight-script, animals-motion ed36a130b (walk on turns, eased heads, 6 px skins), descent (D1: FAF capped, early slip, the recorder's say/appr).
+DROPPED for real conflicts with refs merged before them (A0 did not trial-merge the whole list; re-made for L40e): onecessna + canon-clean (plane_lists/knife_corpus vs mission-packs; _tour_lib/pilot_persona vs pilot-gonogo/descent), livery-manager-3 (66_gen_cert vs real-canon), tow-launch-l40d (cage tools vs real-canon), skis-pc6 (30_solver vs snow-mud-finish; _cage_gear vs real-canon), quickshot-one (quickshot.js vs real-canon), missions-live (build.js). Old Friday refs dropped too: snow-mud, skis (both superseded), community-airport, docks-lodge, afb-0220-b, gear-lever.
+A0 FIXES IN THE TRAIN: the premises / city / map were NOT re-cooked (ltrain's PREM flag keyed on ref names missed observatory/snow-mud); A0 ran premises_cook + city_cook + map_bake + build on the merged tree: UISMOKE, UISMOKE-PHONE, UISMOKE-PHONEFLY, MAPBAKE, TERRAINMATCH, PREMCOOK, CITYCOOK, STAGES green. UISMOKE's place list gains Ardent Altiport (a6d3490df, a stale pin).
+
+FIXED vs L40c (5): STRESS (gonogo's no-world guard), TECH (ELEC), REALBAND, LIVERY, DMGSKINGPU.
+NEW REDS (6), named with owners:
+- SOFTGROUND A (16 rows): the legacy rolls are pinned bit-identical to L40a 6a8d705c4; real-canon's physics moves them by cm. SNOW-MUD re-pins with that reason (L40e).
+- NACELLE B (2): high-wing and parasol mast tie (head to hub root nodes, foot on keel corners). REAL-FIGURES / ARCHAEOPTERYX (the mast).
+- ULTRALIGHT D: "without the mast, parked 10 s: 74074 yields, the wing sinks 3.4 cm". REAL-FIGURES.
+- BENCH: rufus_2026-10-18_certified.json stamped under physics 7, now 9 (real-canon's bump): the certified card needs its re-stamp. REAL-FIGURES.
+- MEDIA: career_core is 654.3 KB against its 640 KB budget (mission packs + story). GAME (or the perf round).
+- COMMITHYGIENE (new gate, first battery): final newlines dropped/added by real-canon (camel/dc3/tigermoth candidates) and the Cub file (mission-packs). Owners fix in their next ready; the hook stops new ones.
+HOUSEWORKER: green in this battery (it was Game's one red on its stack).
+STANDING (L40c's, unchanged): FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT GLIDE UNIFY DESTTO TREECRASH DMGCERT DMGGEAR WILGAGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGWALL DMGDAMP DMGTYRE DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY WINGROWS DESIGNCHECK JOINPARITY ENGINE PARTS POD DMGPOD CANDIDATES NAMES NODUMMY ENERGYBASE TANKMOUNT ENGTORQUE FLEX LOAD ENGCONFIG.
+
+COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); after 143 s (programs 501 -> 508, world 26.1, settle 17.4, shader compile 46.2 + 11.8 s): +5 s, 7 more programs. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.

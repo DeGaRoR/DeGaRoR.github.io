@@ -3,7 +3,7 @@
   {
    "id": "jolene",
    "fixture": "tools/fixtures/island_jolene.json",
-   "cooked": "2026-11-13",
+   "cooked": "2026-11-15",
    "variants": [
     {
      "name": "default",
@@ -15,8 +15,8 @@
       "mk_mp_air",
       "mk_mf_air"
      ],
-     "record": "70d878d63adf750e",
-     "mods": 117,
+     "record": "dec88f5fd45c0231",
+     "mods": 118,
      "places": {
       "things": 314,
       "cells": 41,
@@ -24,18 +24,18 @@
       "failed": 0
      },
      "raster": {
-      "tiles": 30287,
+      "tiles": 30291,
       "cells": 497,
-      "nodes": 46344495,
-      "raw": 371490800,
+      "nodes": 46363859,
+      "raw": 371645808,
       "worstMm": 0.0331
      }
     },
     {
      "name": "town",
      "drop": [],
-     "record": "bcbde7910cc8048a",
-     "mods": 190,
+     "record": "1e551c11385bc8fa",
+     "mods": 191,
      "places": {
       "things": 799,
       "cells": 71,
@@ -43,10 +43,10 @@
       "failed": 0
      },
      "raster": {
-      "tiles": 34313,
+      "tiles": 34317,
       "cells": 522,
-      "nodes": 60777073,
-      "raw": 487048448,
+      "nodes": 60796437,
+      "raw": 487203456,
       "worstMm": 0.0331
      }
     }
@@ -69,19 +69,19 @@
      "town"
     ],
     "bytes": {
-     "raw": 590448192,
-     "ship": 90925922
+     "raw": 590603200,
+     "ship": 90959749
     },
     "fetched": {
      "default": {
       "cells": 497,
-      "raw": 371490800,
-      "ship": 59238651
+      "raw": 371645808,
+      "ship": 59272478
      },
      "town": {
       "cells": 522,
-      "raw": 487048448,
-      "ship": 73284727
+      "raw": 487203456,
+      "ship": 73318554
      }
     },
     "cells": [
@@ -9447,10 +9447,10 @@
        39,
        -46
       ],
-      "sig": "g1-a1f9bc2cf85d85bc",
-      "src": "media/world/jolene/premises/r_39_m46.9e3be613.bin",
-      "raw": 574512,
-      "tiles": 97,
+      "sig": "g1-793e13d1b9a174c1",
+      "src": "media/world/jolene/premises/r_39_m46.69df9a7f.bin",
+      "raw": 729520,
+      "tiles": 101,
       "in": [
        "default",
        "town"
