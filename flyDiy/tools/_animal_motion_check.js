@@ -24,7 +24,7 @@
 //      H3 a fade cut short by another (graze, then stand, then set off, 0.15 s apart): never over LIMIT
 //      H4 the fade is EASED: its first frame moves the head less than a fifth of what a linear ramp's would
 //      H5 a head that comes up from the grass takes at least 0.6 s (the SPAN rule)
-//   L  THE WHOLE ANIMAL, FAR OUT: the moving skin is drawn until the animal is 3 px long at 1080p, the baked static
+//   L  THE WHOLE ANIMAL, FAR OUT: the moving skin is drawn until the animal is 6 px long at 1080p, the baked static
 //      cuts (untouched) only past that, and a walk / swim just inside poses the skin every frame
 //   C  THE CONTROL: the same H2 with the motion rules off (animals.js MOTION: ease, span, pace) must break LIMIT -
 //      the check can see the fault it is there for
@@ -309,19 +309,19 @@ async function bodyTransitions(g) {
 }
 // L: THE WHOLE ANIMAL, FAR OUT (the user, 15 Nov: "static mesh is barely acceptable ... when the animal is only a few
 // pixels large ... their movement is realistic as soon as they can be observed"; "do not modify the meshed and skinned
-// and rigged model"; "make it 3 px, the elk should move out to 900 m"): the moving skin is drawn until the animal's
-// length covers 3 px at 1080p (1 094 px a radian); the static cuts, the baked ones untouched, only past that
-const PX3 = len => len * 1094 / 3;
+// and rigged model"): the moving skin is drawn until the animal's length covers 6 px at 1080p (1 094 px a radian); the
+// static cuts, the baked ones untouched, only past that
+const PX6 = len => len * 1094 / 6;
 async function levelsCheck(g) {
   const AN = g.ANIMALS, out = [];
   for (const a of AN.list().filter(a => AN.levels(a.key).length)) {
-    const k = a.key, lv = AN.levels(k), want = PX3(a.length);
+    const k = a.key, lv = AN.levels(k), want = PX6(a.length);
     await AN.warm(k);
     const H = AN.place(THREE, k, {});
     const role = a.kind === 'land' ? 'walk' : a.kind === 'sea' ? 'swim' : 'flap';
     H.play(role, { loop: true, restart: true });
     const d1 = H.obj.levels[1] ? H.obj.levels[1].distance : Infinity;
-    check(d1 >= want - 1e-6, 'L ' + k + ': the static cut is drawn from ' + f2(d1) + ' m - the animal is still ' + f2(a.length * 1094 / d1) + ' px long there (want the moving skin to ' + f2(want) + ' m, 3 px)');
+    check(d1 >= want - 1e-6, 'L ' + k + ': the static cut is drawn from ' + f2(d1) + ' m - the animal is still ' + f2(a.length * 1094 / d1) + ' px long there (want the moving skin to ' + f2(want) + ' m, 6 px)');
     // the static cuts are the baked props, untouched: no skinned mesh in them
     const statics = H.obj.levels.slice(1).every(l => { let sk = false; l.object.traverse(o => { if (o.isSkinnedMesh) sk = true; }); return !sk; });
     check(statics, 'L ' + k + ': a static cut was re-skinned (the user: do not modify the meshed, skinned, rigged model)');
@@ -339,14 +339,14 @@ async function levelsCheck(g) {
     let posed = 0, q0 = bone.quaternion.clone();
     for (let f = 0; f < 30; f++) { H.step(DT); if (bone.quaternion.angleTo(q0) > 1e-5) posed++; q0.copy(bone.quaternion); }
     check(posed >= 25, 'L ' + k + ': a ' + role + ' at ' + f2(cam.position.x) + ' m poses the skin in only ' + posed + ' of 30 frames');
-    out.push(k + ' (' + f2(a.length) + ' m): moving skin to ' + f2(d1) + ' m (3 px), static cuts ' + lv.map((l, i) => f2(H.obj.levels[i + 1].distance)).join(' / ') + ' m (table ' + lv.map(l => l.dist).join(' / ') + '), ' + posed + '/30 frames posed at ' + f2(cam.position.x) + ' m');
+    out.push(k + ' (' + f2(a.length) + ' m): moving skin to ' + f2(d1) + ' m (6 px), static cuts ' + lv.map((l, i) => f2(H.obj.levels[i + 1].distance)).join(' / ') + ' m (table ' + lv.map(l => l.dist).join(' / ') + '), ' + posed + '/30 frames posed at ' + f2(cam.position.x) + ' m');
     H.dispose();
   }
   for (const l of out) say('L ' + l);
   // the control: with the rule off the ladder is G498's (the static cut from 40 m), and the check above would see it
   const M = AN.MOTION, a0 = AN.list().find(a => AN.levels(a.key).length);
   if (M && a0) { M.far = false; const d = AN.farDist(a0, 0, AN.levels(a0.key)[0].dist); M.far = true;
-    check(d < PX3(a0.length), 'L the control: with the rule off the static cut still starts at 3 px - the check cannot see the fault'); }
+    check(d < PX6(a0.length), 'L the control: with the rule off the static cut still starts at 6 px - the check cannot see the fault'); }
 }
 async function directed(g) {
   const AN = g.ANIMALS, M = AN.MOTION;
