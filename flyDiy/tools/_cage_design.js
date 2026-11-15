@@ -3082,6 +3082,9 @@ const ARCHETYPES = [
                     // (A0 for the user, 13 Nov: the tow hook, the Archaeopteryx first - a CG release ahead of the wheel: the
                     //  auto-tow behind the car and the winch)
                     towHook: 2,
+                    // THE NOSE BALLAST (the user, 15 Nov: "add 5 kg weight ballast in nose"): the rescue parachute and the
+                    // kit stowed in the very nose, which nothing else bills - 5 kg of lead on the nose ring (GEN_RULES.noseBallast)
+                    noseBallast: 5,
                     // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
@@ -3268,11 +3271,14 @@ const ARCHETYPES = [
             // 0.58 m (the shorter case brought the blades into the aft pod). And the motor BOLTED ON THE MAST in the frame
             // (61_gen_frame: a hanging nacelle's pusher ties to the mast's back face, no 4130 bearers billed: -3.6 kg)
             spec: { fuel: { litres: 0 },
-                    // THE PACK WHERE THE REAL ONE IS (15 Nov, the user: "at the level of the thighs of the pilot, below the
-                    // horizontal struts"): it had no station (L7: 'under the floor', settled by the bay at 1.18 m, 0.13 m
-                    // AFT of the seat); now 0.85 m aft of the datum (the pilot's hip at 1.05, the thighs forward of it), low
-                    // (lv 0.1: under the keel tubes at the sill). A real figure, not a re-tune: the static margin -11.6 -> -8.6 %
-                    energy: { kind: 'battery', cell: 'nmc', vessels: [{ bay: 'underFloor', capacity: 2, along: 0.85, lv: 0.1 }] },
+                    // THE PACKS WHERE THE REAL ONES ARE (15 Nov, the user: "at the level of the thighs of the pilot"; then
+                    // the photos: TWO packs standing on the cabin's side walls, left and right of the pilot's legs, below the
+                    // sill, forward of the seat). It had no station (L7: 'under the floor', settled by the bay at 1.18 m, 0.13 m
+                    // AFT of the seat); now the cabin bay, one 1 kWh pack a side at 0.85 m aft of the datum (the photo's
+                    // box: ~0.71-1.14 m against the nose and the wheel, ~0.3 m ahead of the hip), mid-wall (lv 0.35: floor
+                    // to sill). A real figure, not a re-tune
+                    energy: { kind: 'battery', cell: 'nmc', vessels: [{ bay: 'cabin', capacity: 1, along: 0.85, lv: 0.35 },
+                                                                      { bay: 'cabin', capacity: 1, along: 0.85, lv: 0.35 }] },
                     systems: { fit: 'minimal', items: ['asi', 'alt', 'vsi'] },   // (L3: airspeed, altimeter, vario)
                     // (WEIGHT STUDY: white from the gelcoat and the cloth - no paint, 5.1 -> 0 kg; the registration is vinyl)
                     paint: { job: 'self', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
