@@ -90,7 +90,12 @@ function pose(a, ty, s) {
 function seeded(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 function run(spec, opts) {
-  const o = Object.assign({ h: 0.08, T: 20, vTaxi: 4, tTaxi: 6, vMax: 22, seed: 7, tier: 'gamer', dt: 1 / 60, wet: 1, sink: 0.04, thrust: 1200 }, opts || {});
+  // the scenarios (the user, 15 Nov: "a heavy-mud case and a dry-dust case"): mud = soft mud, 4 cm sinkage; heavy = deep soft
+  // mud (8 cm), a harder run; dust = a dry dirt strip (no sinkage, no water: the clouds and their film)
+  const SCEN = { mud: { cls: 'mud', sink: 0.04, wet: 1, vMax: 22, thrust: 1200 }, heavy: { cls: 'mud', sink: 0.08, wet: 1, vMax: 24, thrust: 1500 },
+                 dust: { cls: 'dirt', sink: 0, wet: 0, vMax: 22, thrust: 1200 } };
+  const sc = SCEN[(opts && opts.scen) || 'mud'] || SCEN.mud;
+  const o = Object.assign({ h: 0.08, T: 20, vTaxi: 4, tTaxi: 6, seed: 7, tier: 'gamer', dt: 1 / 60 }, sc, opts || {});
   const SH = require(path.join(ROOT, 'tools', '_scene_headless.js'));
   const S = o.S || SH.sceneBuild(spec, { garage: spec });
   const THREE = SH.context().THREE;
@@ -113,8 +118,9 @@ function run(spec, opts) {
   // the sim
   const mR = Math.random, rng = seeded(o.seed); Math.random = rng; if (DUST.random) DUST.random(rng);
   try {
-    const sys = DUST.makeSystem(o.tier), mudCi = DUST.CLASSES.indexOf('mud');
-    const env = { groundH: () => 0, cls: () => mudCi, wet: () => 1, puddle: () => 0, wind: null, k: 1 };
+    const sys = DUST.makeSystem(o.tier), ci = DUST.CLASSES.indexOf(o.cls);
+    const env = { groundH: () => 0, cls: () => ci, wet: () => o.wet, puddle: () => 0, wind: null, k: 1 };
+    const air = (x, y, z) => (DUST.slipAt(sys.props, x, y, z) ? DUST.SL : null);
     const st = { wheels: [], props: [], wing: { span: 10, W: 5000, V: 0, rho: 1.225, tips: [[0, 0, 0], [0, 0, 0]] } };
     let s = 0, hits = 0, emitted = 0, vPrev = 0;
     const N = Math.round(o.T / o.dt);
@@ -140,10 +146,11 @@ function run(spec, opts) {
       emitted += (sys.G.next - g0 + sys.G.n) % sys.G.n;
       DUST.step(sys, o.dt, env);
       hits += GD.collide(G, sys.G, toCraft, [0, 0, V], o.dt, o.wet, 1);
+      GD.dustRays(G, sys.P, toCraft, [0, 0, V], air, o.dt, 1, rng);
       vPrev = V;
     }
     GD.smooth(G);   // (the texture's cover: what the page uploads and the pictures draw)
-    const stats = { cells: G.N, dims: [G.nx, G.ny, G.nz], occupied: G.occupied, tris: gat.label.length, contacts: CT, a0: a0 * 180 / Math.PI, tail, emitted, hits, mass: G.mass, msGrid: tGrid, msAll: Date.now() - t0, coat: GD.total(G) };
+    const stats = { cells: G.N, dims: [G.nx, G.ny, G.nz], occupied: G.occupied, tris: gat.label.length, contacts: CT, a0: a0 * 180 / Math.PI, tail, emitted, hits, mass: G.mass, rayHits: G.rayHits, dustMass: G.dustMass, scen: (opts && opts.scen) || 'mud', msGrid: tGrid, msAll: Date.now() - t0, coat: GD.total(G) };
     if (o.log) o.log(stats);
     return { G, tris: gat.tris, part: gat.part, label: gat.label, norm: gat.norm, stats, S };
   } finally { Math.random = mR; if (DUST.random) DUST.random(null); }

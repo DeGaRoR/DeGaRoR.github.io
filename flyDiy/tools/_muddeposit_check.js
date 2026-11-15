@@ -22,6 +22,9 @@
 //    clears what is under it; the coat's one number falls with both.
 // F. THE EDGE: the texture's cover blurred a cell (no square per hit); the spatter's streaks run aft; its erosion keeps
 //    the amount (a thin coat flecks, it does not vanish).
+// G. HEAVY MUD reaches the Cub's stab underside and fin, the Jodel's (low) wing undersides; DRY DUST films the band from the
+//    wheels to the fin (no mud, tops clean); THE PROP is a source (the dust film, the heavy mud at the fin); THE PBR: fresh mud
+//    glossy, dry matte, rain re-wets; the bump follows the mud; dust matte.
 // E. DETERMINISM AND COST: the same seed, the same deposit; the grid built under 600 ms and a 20 s run (1200 frames) under
 //    2 s in node, i.e. the collide well under the 64-march budget a frame.
 'use strict';
@@ -74,6 +77,8 @@ const grp = (lab, nx, ny, nz) => {
   if (/^wing:/.test(lab) && !/strut/i.test(lab)) return 'wing ' + f;
   if (/^sheet:windshield/.test(lab)) return 'windshield';
   if (/^cowl:/.test(lab)) return 'cowl ' + f;
+  if (/^stab:/.test(lab)) return 'stab ' + f;
+  if (/^fin:/.test(lab)) return 'fin ' + f;
   if (/^sheet:(body|aluminium|taper|floorLoop)/.test(lab)) return 'body ' + f;
   return null;
 };
@@ -101,6 +106,62 @@ const cub = plane('CUB', 'builds/cub_2026-09-20_corrected.json', (m, C) => {
   ok(m('gear front') > 0.5, 'CUB the tail wheel\'s fork caked (' + m('gear front').toFixed(3) + ')');
   clean(m, C, 'CUB');
 });
+// ---- G. HEAVY MUD, DRY DUST, THE PROP, THE PBR (THE USER, 15 Nov: "sometimes they splatter so much mud that you could really
+// draw ... a triangular projection ... that reaches the bottom of the wings, the aft part of the bottom of the wings, and it
+// actually can engulf the stabilizers and even the fin ... when you have dry dirt and it makes huge clouds, then really up to
+// the fin you have everything more or less in a linear shape from the wheels, but also of the engine ... full PBR")
+// pb: the PBR's mud and dust (pbrAt, the shader's arithmetic) means by group
+function pb(R) {
+  const out = {};
+  for (let t = 0; t < R.label.length; t++) {
+    if (R.part[t] !== 1) continue;
+    const nx = R.norm[t * 3], ny = R.norm[t * 3 + 1], nz = R.norm[t * 3 + 2], g = grp(R.label[t], nx, ny, nz);
+    if (!g) continue;
+    const b = t * 9, P = GD.pbrAt(R.G, (R.tris[b] + R.tris[b + 3] + R.tris[b + 6]) / 3, (R.tris[b + 1] + R.tris[b + 4] + R.tris[b + 7]) / 3, (R.tris[b + 2] + R.tris[b + 5] + R.tris[b + 8]) / 3, nx, ny, nz, 0.5, {});
+    const e = out[g] || (out[g] = { n: 0, mud: 0, dust: 0 }); e.n++; e.mud += P.mud; e.dust += P.dust;
+  }
+  for (const g in out) { out[g].mud /= out[g].n; out[g].dust /= out[g].n; }
+  return k => out[k] || { mud: 0, dust: 0 };
+}
+const scen = (name, spec, S, o) => MR.run(spec, Object.assign({ seed: 7, S, scen: name }, o || {}));
+{
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cub_2026-09-20_corrected.json'), 'utf8')), spec = raw.spec || raw;
+  const Hr = scen('heavy', spec, cub.S), M = pb(cub), H = pb(Hr), H0 = pb(scen('heavy', spec, cub.S, { thrust: 0 }));
+  const Dr = scen('dust', spec, cub.S), D = pb(Dr), D0r = scen('dust', spec, cub.S, { thrust: 0 }), D0 = pb(D0r);
+  if (SHOW) for (const [nm, F] of [['mud', M], ['heavy', H], ['heavy, no prop', H0], ['dust', D], ['dust, no prop', D0]])
+    say('    ' + nm.padEnd(15) + ['gear side', 'leg side', 'body under', 'stab front', 'stab under', 'fin front', 'fin side', 'wing under', 'wing top', 'cowl top'].map(k => k + ' ' + F(k).mud.toFixed(2) + '/' + F(k).dust.toFixed(2)).join('  '));
+  ok(H('stab under').mud > 0.3 && H('stab under').mud > M('stab under').mud && H('fin front').mud > 0.2, 'G1 CUB heavy mud engulfs the tail: stab underside ' + H('stab under').mud.toFixed(2) + ' (mud ' + M('stab under').mud.toFixed(2) + '), fin front ' + H('fin front').mud.toFixed(2));
+  ok(H('wing top').mud < 0.01 && H('cowl top').mud < 0.01, 'G1 CUB heavy mud: wing tops and cowl top still clean');
+  const band = ['gear side', 'body under', 'stab front', 'stab under', 'fin side'];
+  ok(D('gear side').dust > 0.5 && D('body under').dust > 0.15 && D('stab under').dust > 0.15 && D('fin side').dust > 0.08,
+    'G2 CUB dry dust films the band from the wheels to the fin: ' + band.map(k => k + ' ' + D(k).dust.toFixed(2)).join(', '));
+  ok(D('wing top').dust < 0.02 && D('cowl top').dust < 0.02, 'G2 CUB dry dust: wing tops and cowl top clean (' + D('wing top').dust.toFixed(3) + ', ' + D('cowl top').dust.toFixed(3) + ')');
+  ok(Dr.stats.hits === 0 && D('body under').mud === 0, 'G2 CUB dry dirt throws no mud on the aeroplane');
+  ok(Dr.stats.dustMass > 2.5 * D0r.stats.dustMass, 'G3 CUB the prop is a source: the dust film with the prop ' + Dr.stats.dustMass.toFixed(1) + ' over 2.5x without (' + D0r.stats.dustMass.toFixed(1) + ')');
+  ok(H('fin front').mud > 3 * H0('fin front').mud, 'G3 CUB the slipstream carries the heavy mud to the fin (' + H('fin front').mud.toFixed(2) + ' vs ' + H0('fin front').mud.toFixed(2) + ' without the prop)');
+  // G4 THE PBR moves with wet and dry: fresh mud glossy, dried matte, rain re-wets; dust matte; the bump follows the mud
+  const G = Hr.G, wet0 = Float32Array.from(G.wet), dep0 = Float32Array.from(G.dep), dust0 = Float32Array.from(G.dust);
+  const pts = [];
+  for (let t = 0; t < Hr.label.length; t++) if (/^sheet:body/.test(Hr.label[t]) && Hr.norm[t * 3 + 2] < -0.5) {
+    const b = t * 9; pts.push([(Hr.tris[b] + Hr.tris[b + 3] + Hr.tris[b + 6]) / 3, (Hr.tris[b + 1] + Hr.tris[b + 4] + Hr.tris[b + 7]) / 3, (Hr.tris[b + 2] + Hr.tris[b + 5] + Hr.tris[b + 8]) / 3, Hr.norm[t * 3], Hr.norm[t * 3 + 1], Hr.norm[t * 3 + 2]]); }
+  const meanR = (GG) => { GD.smooth(GG); let s = 0, n = 0; for (const p of pts) { const P = GD.pbrAt(GG, p[0], p[1], p[2], p[3], p[4], p[5], 0.5, {}); if (P.mud > 0.5) { s += P.rough; n++; } } return n ? s / n : NaN; };
+  const r0 = meanR(G); for (let i = 0; i < 10; i++) GD.wash(G, 60, 0, null); const r1 = meanR(G); for (let i = 0; i < 4; i++) GD.wash(G, 30, 1, null); const r2 = meanR(G);
+  ok(r0 < 0.4 && r1 > 0.75 && r2 < 0.5, 'G4 CUB the mud roughness: fresh ' + r0.toFixed(2) + ' (wet, glossy), ten dry minutes ' + r1.toFixed(2) + ' (matte), two minutes of rain ' + r2.toFixed(2));
+  G.wet.set(wet0); G.dep.set(dep0); G.dust.set(dust0); G.ver++; GD.smooth(G);
+  let sh = 0, sm = 0, smm = 0, shh = 0, smh = 0, n = 0, h0 = 0;
+  for (const p of pts) { const P = GD.pbrAt(G, p[0], p[1], p[2], p[3], p[4], p[5], 0.5, {}); n++; sm += P.mud; sh += P.h; smm += P.mud * P.mud; shh += P.h * P.h; smh += P.mud * P.h; if (P.mud === 0 && P.h > 0) h0++; }
+  const corr = (smh / n - sm / n * sh / n) / Math.sqrt(Math.max(1e-12, (smm / n - (sm / n) ** 2) * (shh / n - (sh / n) ** 2)));
+  ok(corr > 0.8 && h0 === 0, 'G4 CUB the bump follows the mud: correlation ' + corr.toFixed(2) + ', no relief where it is clean');
+  let sd = 0, kd = 0; for (const p of pts) { const P = GD.pbrAt(Dr.G, p[0], p[1], p[2], p[3], p[4], p[5], 0.5, {}); if (P.dust > 0.3) { sd += P.rough; kd++; } }
+  const Pd = kd ? sd / kd : NaN;
+  ok(Pd > 0.65, 'G4 CUB a dust film is matte (roughness ' + Pd.toFixed(2) + ' from a 0.5 base, ' + kd + ' points)');
+}
+// the LOW WING (the Jodel): the throw reaches the wing's underside, heavy mud more - the same law as the Cub's, the geometry decides
+{
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/jodel_2026-09-20_corrected.json'), 'utf8')), spec = raw.spec || raw;
+  const R = MR.run(spec, { seed: 7 }), M = pb(R), H = pb(scen('heavy', spec, R.S));
+  ok(M('wing under').mud > 0.05 && H('wing under').mud > M('wing under').mud, 'G1 JODEL (low wing) mud reaches the wing undersides (' + M('wing under').mud.toFixed(2) + '), heavy mud more (' + H('wing under').mud.toFixed(2) + ')');
+}
 const c172 = plane('C172', 'builds/cessna172r_2026-11-08.json', (m, C) => {
   ok(m('leg side') > 0.3 && m('gear side') > 0.5, 'C172 legs and fairings caked (leg ' + m('leg side').toFixed(3) + ', fairing ' + m('gear side').toFixed(3) + ')');
   ok(m('leg back') < m('leg front') / 3, 'C172 a leg\'s lee under a third of its front (' + m('leg back').toFixed(3) + ' vs ' + m('leg front').toFixed(3) + ')');
@@ -109,7 +170,7 @@ const c172 = plane('C172', 'builds/cessna172r_2026-11-08.json', (m, C) => {
 
 // ---- D. wash -------------------------------------------------------------------------------------------------------------
 {
-  const G = cub.G, dep0 = Float32Array.from(G.dep), c0 = GD.total(G);
+  const G = cub.G, dep0 = Float32Array.from(G.dep), wet0 = Float32Array.from(G.wet), c0 = GD.total(G);
   for (let i = 0; i < 600; i++) GD.wash(G, 1, 1, null);
   let u0 = 0, u1 = 0, s0 = 0, s1 = 0;
   for (let q = 0; q < G.N * 4; q += 4) { u0 += dep0[q]; u1 += G.dep[q]; s0 += dep0[q + 2] + dep0[q + 3]; s1 += G.dep[q + 2] + G.dep[q + 3]; }
@@ -121,7 +182,7 @@ const c172 = plane('C172', 'builds/cessna172r_2026-11-08.json', (m, C) => {
   let under = 0; for (let k = 0; k < G.nz; k++) if (G.o[2] + (k + 0.5) * G.h < zw) for (let c = k * G.nx * G.ny; c < (k + 1) * G.nx * G.ny; c++) under += G.dep[c * 4] + G.dep[c * 4 + 1] + G.dep[c * 4 + 2] + G.dep[c * 4 + 3];
   ok(under < 0.01 * Math.max(1e-6, dep0.reduce((a, b) => a + b, 0)), 'D2 30 s in water clears what is under the line');
   ok(c1 < c0 && GD.total(G) < c0, 'D3 the coat\'s number falls with rain (' + c0.toFixed(3) + ' -> ' + c1.toFixed(3) + ') and with water');
-  G.dep.set(dep0);
+  G.dep.set(dep0); G.wet.set(wet0); G.ver++;
 }
 // ---- E. determinism ------------------------------------------------------------------------------------------------------
 {

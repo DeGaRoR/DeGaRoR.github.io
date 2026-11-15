@@ -43,8 +43,15 @@
     rainUnder: 0.15,
     water: 1 / 6,     // /s: under the water's line
     maxMarch: 96,     // cells a segment may cross (a clod moves < 1 m a frame; a teleport is not a path)
+    // THE DUST FILM (the user, 15 Nov: "when you have dry dirt and it makes huge clouds, then really up to the fin you have
+    // everything more or less in a linear shape from the wheels, but also of the engine"): rays from the live puffs, carried by
+    // the air relative to the aeroplane, a turbulent jitter so they graze the belly and the flanks
+    D0d: 0.15,        // the film's deposit that reads as 63 % (CALIBRATED 15 Nov: the stock Cub's 20 s dry-dirt taxi + take-off films the gear ~0.9, the belly and the stab ~0.3-0.4, the fin ~0.15 - "up to the fin ... more or less in a linear shape")
+    kDust: 1.0, rays: 128, rayL: 1.5, jitter: 0.18,
+    // WET AND DRY (the PBR's roughness): fresh mud is the throw's water; it dries over tDry s in the open, rain re-wets it
+    tDry: 300, kRewet: 1 / 40, rainDust: 1 / 60,
   };
-  const DEF = { h: 0.08, reach: 2.2, pad: 0.12 };
+  const DEF = { h: 0.08, reach: 4.0, pad: 0.12 };   // (reach: the whole tail - heavy mud and the dust reach the fin, the user 15 Nov)
 
   // ---- THE GRID ------------------------------------------------------------------------------------------------------
   // tris: Float32Array / Array of 9 numbers a triangle (craft space); part: Uint8Array a triangle (1 airframe, 2 tyre)
@@ -61,7 +68,7 @@
     x0 -= o.pad; y0 -= o.pad; z0 -= o.pad; x1 += o.pad; y1 += o.pad; z1 += o.pad;
     const nx = Math.max(1, Math.ceil((x1 - x0) / h)), ny = Math.max(1, Math.ceil((y1 - y0) / h)), nz = Math.max(1, Math.ceil((z1 - z0) / h));
     const N = nx * ny * nz;
-    const G = { h, nx, ny, nz, N, o: [x0, y0, z0], occ: new Uint8Array(N), dep: new Float32Array(N * 4), hits: 0, mass: 0, dirty: [nx, ny, nz, -1, -1, -1], ver: 0 };
+    const G = { h, nx, ny, nz, N, o: [x0, y0, z0], occ: new Uint8Array(N), dep: new Float32Array(N * 4), dust: new Float32Array(N), wet: new Float32Array(N), hits: 0, mass: 0, rayHits: 0, dustMass: 0, dirty: [nx, ny, nz, -1, -1, -1], ver: 0 };
     // rasterise: a barycentric lattice fine enough that no cell the surface crosses is missed (step <= h / 2)
     const ih = 1 / h;
     const mark = (x, y, z, p) => {
@@ -122,7 +129,8 @@
 
   // ---- THE DEPOSIT: mass m arriving along (dx, dy, dz) (craft, any length) into cell c and its 26 neighbours ------------
   const W4 = [0, 0, 0, 0];
-  function deposit(G, c, dx, dy, dz, m) {
+  function deposit(G, c, dx, dy, dz, m, wet) {
+    const wh = wet != null ? wet : 1;
     const l = Math.hypot(dx, dy, dz) || 1, ux = dx / l, uy = dy / l, uz = dz / l;
     let ws = 0;
     for (let b = 0; b < 4; b++) { const B = BINS[b], d = ux * B[0] + uy * B[1] + uz * B[2]; W4[b] = d > 0 ? d * d : 0; ws += W4[b]; }
@@ -132,13 +140,79 @@
     for (let dk = -1; dk <= 1; dk++) { const k = k0 + dk; if (k < 0 || k >= nz) continue;
       for (let dj = -1; dj <= 1; dj++) { const j = j0 + dj; if (j < 0 || j >= ny) continue;
         for (let di = -1; di <= 1; di++) { const i = i0 + di; if (i < 0 || i >= nx) continue;
-          const w = K.kern[(di !== 0) + (dj !== 0) + (dk !== 0)] * m, q = ((k * ny + j) * nx + i) * 4;
+          const w = K.kern[(di !== 0) + (dj !== 0) + (dk !== 0)] * m, cc = (k * ny + j) * nx + i, q = cc * 4;
+          const D = G.dep[q] + G.dep[q + 1] + G.dep[q + 2] + G.dep[q + 3];
+          G.wet[cc] = (G.wet[cc] * D + wh * w) / (D + w);       // (the fresh mud's water, by its share of the cell's mud)
           G.dep[q] += w * W4[0]; G.dep[q + 1] += w * W4[1]; G.dep[q + 2] += w * W4[2]; G.dep[q + 3] += w * W4[3];
         } } }
     const D = G.dirty;
     if (i0 - 1 < D[0]) D[0] = Math.max(0, i0 - 1); if (j0 - 1 < D[1]) D[1] = Math.max(0, j0 - 1); if (k0 - 1 < D[2]) D[2] = Math.max(0, k0 - 1);
     if (i0 + 1 > D[3]) D[3] = Math.min(nx - 1, i0 + 1); if (j0 + 1 > D[4]) D[4] = Math.min(ny - 1, j0 + 1); if (k0 + 1 > D[5]) D[5] = Math.min(nz - 1, k0 + 1);
     G.hits++; G.mass += m; G.ver++;
+  }
+
+  function dirtyAt(G, c) {
+    const nx = G.nx, ny = G.ny, i0 = c % nx, j0 = Math.floor(c / nx) % ny, k0 = Math.floor(c / (nx * ny)), D = G.dirty;
+    if (i0 - 1 < D[0]) D[0] = Math.max(0, i0 - 1); if (j0 - 1 < D[1]) D[1] = Math.max(0, j0 - 1); if (k0 - 1 < D[2]) D[2] = Math.max(0, k0 - 1);
+    if (i0 + 1 > D[3]) D[3] = Math.min(nx - 1, i0 + 1); if (j0 + 1 > D[4]) D[4] = Math.min(ny - 1, j0 + 1); if (k0 + 1 > D[5]) D[5] = Math.min(G.nz - 1, k0 + 1);
+  }
+  // ---- THE DUST FILM: rays from the live puffs near the aeroplane, carried by the air (air(x, y, z) -> the air's world
+  // velocity: the slipstream, the wind; null = still) relative to the aeroplane, marched through the grid; a hit films its cell
+  // and its neighbours by the puff's concentration there x the air's swept share. P: dust.js's sys.P; rng: 0..1
+  const RV = [0, 0, 0];
+  function dustRays(G, P, toCraft, vPlane, air, dt, k, rng) {
+    if (!G || !P || !(dt > 0)) return 0;
+    const e = toCraft, h = G.h, bx0 = G.o[0], by0 = G.o[1], bz0 = G.o[2], bx1 = bx0 + G.nx * h, by1 = by0 + G.ny * h, bz1 = bz0 + G.nz * h;
+    const R = rng || Math.random;
+    // the puffs that overlap the grid's box (their centre in craft space, the box grown by their size)
+    let n = 0; const cand = dustRays.cand || (dustRays.cand = []); cand.length = 0;
+    for (let i = 0; i < P.n; i++) {
+      if (P.age[i] < 0 || !(P.tau[i] > 1e-4)) continue;
+      const x = P.p[i * 3], y = P.p[i * 3 + 1], z = P.p[i * 3 + 2], r = Math.max(P.r[i], 0.3), rv = Math.max(P.rv[i], 0.3);
+      const cx = e[0] * x + e[4] * y + e[8] * z + e[12], cy = e[1] * x + e[5] * y + e[9] * z + e[13], cz = e[2] * x + e[6] * y + e[10] * z + e[14];
+      const g = Math.max(r, rv) + K.rayL;
+      if (cx < bx0 - g || cx > bx1 + g || cy < by0 - g || cy > by1 + g || cz < bz0 - g || cz > bz1 + g) continue;
+      cand.push(i); n++;
+    }
+    if (!n) return 0;
+    const per = Math.max(1, Math.floor(K.rays / n));
+    let hits = 0;
+    for (const i of cand) {
+      const x0 = P.p[i * 3], y0 = P.p[i * 3 + 1], z0 = P.p[i * 3 + 2], r = Math.max(P.r[i], 0.3), rv = Math.max(P.rv[i], 0.3), tau = P.tau[i];
+      const vol = 4.18879 * r * r * rv;                        // the ellipsoid's volume (4/3 pi r r rv)
+      for (let j = 0; j < per; j++) {
+        // a point in the ellipsoid (a cube's, rejected outside the ball)
+        let u1, u2, u3, d2; do { u1 = 2 * R() - 1; u2 = 2 * R() - 1; u3 = 2 * R() - 1; d2 = u1 * u1 + u2 * u2 + u3 * u3; } while (d2 > 1);
+        const x = x0 + u1 * r, y = y0 + u2 * rv, z = z0 + u3 * r;
+        if (y < 0.02 + (y0 - rv * 0.32)) continue;              // (under the dome's foot: in the ground)
+        const conc = tau / r * Math.exp(-2 * d2);              // the dust a metre of air there (the puff's Gaussian, its centre's depth over its size)
+        const a = air ? air(x, y, z) : null;
+        let ux = (a ? a[0] : 0) - vPlane[0], uy = (a ? a[1] : 0) - vPlane[1], uz = (a ? a[2] : 0) - vPlane[2];
+        const sp = Math.hypot(ux, uy, uz); if (sp < 0.3) continue;
+        const jt = K.jitter * sp; ux += (2 * R() - 1) * jt; uy += (2 * R() - 1) * jt * 0.6; uz += (2 * R() - 1) * jt;
+        // into craft space; a ray of length L along the flow, its weight the share of L the air sweeps this frame
+        const sx = e[0] * x + e[4] * y + e[8] * z + e[12], sy = e[1] * x + e[5] * y + e[9] * z + e[13], sz = e[2] * x + e[6] * y + e[10] * z + e[14];
+        const dX = e[0] * ux + e[4] * uy + e[8] * uz, dY = e[1] * ux + e[5] * uy + e[9] * uz, dZ = e[2] * ux + e[6] * uy + e[10] * uz, dl = Math.hypot(dX, dY, dZ) || 1;
+        const L = Math.max(sp * dt, K.rayL), f = sp * dt / L;
+        const c = march(G, sx, sy, sz, sx + dX / dl * L, sy + dY / dl * L, sz + dZ / dl * L);
+        if (c < 0) continue;
+        // (a ray born inside the airframe's own cell is no hit)
+        const ci = Math.floor((sx - bx0) / h), cj = Math.floor((sy - by0) / h), ck = Math.floor((sz - bz0) / h);
+        if (c === (ck * G.ny + cj) * G.nx + ci) continue;
+        const m = K.kDust * (k != null ? k : 1) * conc * f * vol / per;
+        filmAt(G, c, m); hits++;
+      }
+    }
+    G.rayHits += hits;
+    return hits;
+  }
+  function filmAt(G, c, m) {
+    const nx = G.nx, ny = G.ny, nz = G.nz, i0 = c % nx, j0 = Math.floor(c / nx) % ny, k0 = Math.floor(c / (nx * ny));
+    for (let dk = -1; dk <= 1; dk++) { const k = k0 + dk; if (k < 0 || k >= nz) continue;
+      for (let dj = -1; dj <= 1; dj++) { const j = j0 + dj; if (j < 0 || j >= ny) continue;
+        for (let di = -1; di <= 1; di++) { const i = i0 + di; if (i < 0 || i >= nx) continue;
+          G.dust[(k * ny + j) * nx + i] += K.kern[(di !== 0) + (dj !== 0) + (dk !== 0)] * m; } } }
+    dirtyAt(G, c); G.dustMass += m; G.ver++;
   }
 
   // ---- THE HITS: the dust pool's clods and drops against the grid -------------------------------------------------------
@@ -163,7 +237,7 @@
       if (c < 0) continue;
       const sp = Math.hypot(dX, dY, dZ), s = pool.s[q];
       const m = (s * s * s / 1e-6) * (0.25 + 0.75 * wet) * Math.min(1, sp / K.vRef) * (kd === 5 ? 0.6 : 1) * (k != null ? k : 1) * (pool.w ? pool.w[q] : 1);   // (w: the real throw a drawn one stands for)
-      deposit(G, c, dX, dY, dZ, m);
+      deposit(G, c, dX, dY, dZ, m, wet);
       pool.age[q] = pool.life[q];                          // it stuck (or broke up on the skin)
       n++;
     }
@@ -177,18 +251,19 @@
   // step at 0.5 a cell). An empty cell next to the skin takes its neighbours' value, so the trilinear read at a fragment on
   // the skin sees the skin's. box: [i0, j0, k0, i1, j1, k1], the dirty cells (all when absent) -> G.cov (Float32, N x 4)
   function smooth(G, box) {
-    const nx = G.nx, ny = G.ny, nz = G.nz, N4 = G.N * 4, F = 5;
-    if (!G.cov) { G.cov = new Float32Array(N4); G._t = new Float32Array(G.N * F); G._u = new Float32Array(G.N * F); box = null; }
+    const nx = G.nx, ny = G.ny, nz = G.nz, N4 = G.N * 4, F = 7;   // (a cell: the 4 mud covers, the dust film's, the wetness, the weight)
+    if (!G.cov) { G.cov = new Float32Array(N4); G.cov2 = new Float32Array(G.N * 2); G._t = new Float32Array(G.N * F); G._u = new Float32Array(G.N * F); box = null; }
     // a hit changes its kernel (the dirty box) and the blur reaches 2 cells further; the reads 2 more (stale beyond: unused)
     const B = box ? [Math.max(0, box[0] - 2), Math.max(0, box[1] - 2), Math.max(0, box[2] - 2), Math.min(nx - 1, box[3] + 2), Math.min(ny - 1, box[4] + 2), Math.min(nz - 1, box[5] + 2)]
                   : [0, 0, 0, nx - 1, ny - 1, nz - 1];
     if (B[3] < B[0]) return G.cov;
-    const A = G.cov, T = G._t, U = G._u, D0 = K.D0;
+    const A = G.cov, A2 = G.cov2, T = G._t, U = G._u, D0 = K.D0;
     const lo = [Math.max(0, B[0] - 2), Math.max(0, B[1] - 2), Math.max(0, B[2] - 2)], hi = [Math.min(nx - 1, B[3] + 2), Math.min(ny - 1, B[4] + 2), Math.min(nz - 1, B[5] + 2)];
     for (let k = lo[2]; k <= hi[2]; k++) for (let j = lo[1]; j <= hi[1]; j++) for (let i = lo[0]; i <= hi[0]; i++) {
       const c = (k * ny + j) * nx + i, q = c * 4, t = c * F, w = G.occ[c] === 1 ? 1 : 0;
       for (let b = 0; b < 4; b++) T[t + b] = w ? 1 - Math.exp(-G.dep[q + b] / D0) : 0;
-      T[t + 4] = w;
+      T[t + 4] = w ? 1 - Math.exp(-G.dust[c] / K.D0d) : 0; T[t + 5] = w ? G.wet[c] : 0;
+      T[t + 6] = w;
     }
     const pass = (src, dst, ax) => {
       const st = ax === 0 ? F : ax === 1 ? nx * F : nx * ny * F, n = ax === 0 ? nx : ax === 1 ? ny : nz;
@@ -200,8 +275,9 @@
     };
     pass(T, U, 0); pass(U, T, 1); pass(T, U, 2); pass(U, T, 0); pass(T, U, 1); pass(U, T, 2);
     for (let k = B[2]; k <= B[5]; k++) for (let j = B[1]; j <= B[4]; j++) for (let i = B[0]; i <= B[3]; i++) {
-      const c = (k * ny + j) * nx + i, q = c * 4, t = c * F, w = T[t + 4];
-      if (w > 0.02) { for (let b = 0; b < 4; b++) A[q + b] = Math.min(1, T[t + b] / w); } else { A[q] = A[q + 1] = A[q + 2] = A[q + 3] = 0; }
+      const c = (k * ny + j) * nx + i, q = c * 4, t = c * F, w = T[t + 6];
+      if (w > 0.02) { for (let b = 0; b < 4; b++) A[q + b] = Math.min(1, T[t + b] / w); A2[c * 2] = Math.min(1, T[t + 4] / w); A2[c * 2 + 1] = Math.min(1, T[t + 5] / w); }
+      else { A[q] = A[q + 1] = A[q + 2] = A[q + 3] = 0; A2[c * 2] = A2[c * 2 + 1] = 0; }
     }
     G.covVer = G.ver;
     return A;
@@ -223,6 +299,22 @@
     }
     return look(d0, d1, d2, d3, nx, ny, nz);
   }
+  // the second texture's two channels at p (dust film's cover, mud's wetness), trilinear; out: [dust, wet]
+  const S2 = [0, 0];
+  function sample2(G, px, py, pz) {
+    S2[0] = S2[1] = 0;
+    const C = G.cov2 && G.covVer === G.ver ? G.cov2 : null;
+    const h = G.h, fx = (px - G.o[0]) / h - 0.5, fy = (py - G.o[1]) / h - 0.5, fz = (pz - G.o[2]) / h - 0.5;
+    const i = Math.floor(fx), j = Math.floor(fy), k = Math.floor(fz), tx = fx - i, ty = fy - j, tz = fz - k;
+    for (let c = 0; c < 8; c++) {
+      const ii = i + (c & 1), jj = j + ((c >> 1) & 1), kk = k + ((c >> 2) & 1);
+      if (ii < 0 || jj < 0 || kk < 0 || ii >= G.nx || jj >= G.ny || kk >= G.nz) continue;
+      const w = ((c & 1) ? tx : 1 - tx) * (((c >> 1) & 1) ? ty : 1 - ty) * (((c >> 2) & 1) ? tz : 1 - tz), cc = (kk * G.ny + jj) * G.nx + ii;
+      if (C) { S2[0] += w * C[cc * 2]; S2[1] += w * C[cc * 2 + 1]; } else { S2[0] += w * (1 - Math.exp(-G.dust[cc] / K.D0d)); S2[1] += w * G.wet[cc]; }
+    }
+    return S2;
+  }
+
   // ---- THE SPATTER: the cover broken into streaks along the airflow and flecks (A0, 15 Nov: "mud reads as spatter streaks
   // along the airflow, not cubes"). A value noise in craft space, STRETCHED along y (aft: the airflow over a moving
   // aeroplane, and the throw's own direction), ~4 cm across and ~20 cm along, with a fleck octave; the cover ERODES it
@@ -252,6 +344,25 @@
   function erode(c, n) { return c <= 0 ? 0 : sstep(n - SP.edge, n + SP.edge, c); }
   // the drawn mud at a point: the smoothed cover, eroded by the spatter
   function mudAt(G, px, py, pz, nx, ny, nz) { const c = sample(G, px, py, pz, nx, ny, nz); return c > 0.003 ? erode(c, spatter(px, py, pz)) : 0; }
+  // ---- THE PBR (the user, 15 Nov: "Let's not forget to work diffuse, but also roughness and normals to have full PBR"): what
+  // the shader draws at a point, from the two textures and the spatter -
+  //   mud    the eroded mud cover (albedo toward the ground's mud colour, darker wet: x (0.55 + 0.45 dry))
+  //   dust   the film (albedo toward the ground's dust colour, a light veil; a top face takes a third of it - the film rides
+  //          the flow under and along, a cloud above is the rare case)
+  //   rough  mud: 0.25 wet (glossy) -> 0.9 dry (matte, cracked); dust 0.95; mixed over the base's by their covers
+  //   h      the BUMP's height (m-ish, 0..1 x PBR.bump): the mud's thickness - its cover, eroded, swollen where it is caked -
+  //          the shader bends the normal by its screen derivatives; dry mud a little rougher in relief (the flecks' octave)
+  const PBR = { roughWet: 0.25, roughDry: 0.9, roughDust: 0.95, dustTop: 0.35, bump: 1.0 };
+  const OUTP = { mud: 0, dust: 0, wet: 0, rough: 0, h: 0 };
+  function pbrAt(G, px, py, pz, nx, ny, nz, baseRough, out) {
+    const o = out || OUTP, c = sample(G, px, py, pz, nx, ny, nz), sp = spatter(px, py, pz), m = c > 0.003 ? erode(c, sp) : 0;
+    const t2 = sample2(G, px, py, pz), d = t2[0] * (nz > 0.3 ? PBR.dustTop : 1) * (1 - 0.5 * m), wet = t2[1];
+    const br = baseRough != null ? baseRough : 0.5, rm = PBR.roughWet + (PBR.roughDry - PBR.roughWet) * (1 - wet);
+    o.mud = m; o.dust = d; o.wet = wet;
+    o.rough = br + (PBR.roughDust - br) * d; o.rough += (rm - o.rough) * m;
+    o.h = PBR.bump * m * (0.35 + 0.65 * c) * (0.75 + 0.25 * (1 - wet) * sp);
+    return o;
+  }
   // how squarely a surface of normal n faces an arrival b: (-n . b) eased, 0 when it faces away
   const face = d => (d > 0 ? Math.min(1, d * 1.15) : 0);
   // the four channels' covers (0..1) on a surface of normal n: each arrival covers what faces it, independently
@@ -259,12 +370,14 @@
     return 1 - (1 - c0 * face(-nz)) * (1 - c1 * face(-ny)) * (1 - c2 * face(nx)) * (1 - c3 * face(-nx));
   }
 
-  // ---- WASH: rain (0..1) and water under craft z waterZ (null: none) ----------------------------------------------------
+  // ---- THE WEATHER ON THE COAT, once in a while (the page: every second): rain (0..1) washes and RE-WETS, water under craft z
+  // waterZ (null: none) washes fast; in the open the mud DRIES (its wetness e-folds over tDry s: the gloss goes, the roughness
+  // and the relief come up) and the dust film rain takes off fast (a veil, not a crust)
   function wash(G, dt, rain, waterZ) {
     if (!G || !(dt > 0)) return;
     const r = rain > 0 ? rain * K.rain * dt : 0;
     const kw = waterZ != null ? Math.min(1, K.water * dt) : 0;
-    if (!(r > 0) && !(kw > 0)) return;
+    const dry = Math.exp(-dt / K.tDry), rw = rain > 0 ? Math.min(1, rain * K.kRewet * dt) : 0, rd = rain > 0 ? Math.min(1, rain * K.rainDust * dt) : 0;
     const h = G.h, nx = G.nx, ny = G.ny;
     // rain falls on what faces up and out: the up-arrival (undersides) keeps it best, the sideways ones less, the aft one
     // (fronts of legs, leading edges) between
@@ -273,14 +386,16 @@
       const under = kw > 0 && G.o[2] + (k + 0.5) * h < waterZ;
       for (let c = k * nx * ny, e = c + nx * ny; c < e; c++) {
         const q = c * 4;
+        if (G.dust[c] > 0) G.dust[c] *= 1 - (under ? kw : rd);
         if (G.dep[q] + G.dep[q + 1] + G.dep[q + 2] + G.dep[q + 3] === 0) continue;
-        for (let b = 0; b < 4; b++) G.dep[q + b] *= 1 - (under ? kw : rk[b]);
+        if (r > 0 || under) for (let b = 0; b < 4; b++) G.dep[q + b] *= 1 - (under ? kw : rk[b]);
+        G.wet[c] = under ? 1 : rw > 0 ? G.wet[c] + (1 - G.wet[c]) * rw : G.wet[c] * dry;
       }
     }
     G.dirty[0] = 0; G.dirty[1] = 0; G.dirty[2] = 0; G.dirty[3] = nx - 1; G.dirty[4] = ny - 1; G.dirty[5] = G.nz - 1;
     G.ver++;
   }
-  function clear(G) { if (!G) return; G.dep.fill(0); G.hits = 0; G.mass = 0; G.ver++; }
+  function clear(G) { if (!G) return; G.dep.fill(0); G.dust.fill(0); G.wet.fill(0); G.hits = 0; G.mass = 0; G.rayHits = 0; G.dustMass = 0; G.ver++; }
   // the coat's one number (aeroMudStep's m, the readers of it): the mean cover over the airframe cells that hold any
   function total(G) {
     if (!G) return 0;
@@ -295,7 +410,7 @@
     return o;
   }
 
-  const GROUND_DEPOSIT = { K, SP, BINS, make, march, deposit, collide, smooth, sample, look, spatter, erode, mudAt, wash, clear, total, bytes };
+  const GROUND_DEPOSIT = { K, SP, PBR, BINS, make, march, deposit, collide, dustRays, filmAt, smooth, sample, sample2, look, spatter, erode, mudAt, pbrAt, wash, clear, total, bytes };
   if (typeof window !== 'undefined') window.GROUND_DEPOSIT = GROUND_DEPOSIT;
   if (typeof module !== 'undefined' && module.exports) module.exports = GROUND_DEPOSIT;
 })();

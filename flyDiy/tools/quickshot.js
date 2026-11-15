@@ -439,18 +439,23 @@ function decalMix(rgb, k, nk, fl, cls, ok) {
   return rgb;
 }
 
-// ---- --mud [seconds]: GROUND-FX's computed mud (tools/mud_roll.js: the drawn aeroplane voxelised, a taxi and a take-off
-// run on soft mud, dust.js's own throw marched against it) tinted over each face by the shader's arithmetic
-// (GROUND_DEPOSIT.sample at the face's centre, its normal). --mudcell m: the grid's cell (0.08 gamer, 0.12 phone)
+// ---- --mud [seconds]: GROUND-FX's computed mud and dust (tools/mud_roll.js: the drawn aeroplane voxelised, a taxi and a
+// take-off run, dust.js's own throw and clouds marched against it), drawn per PIXEL by the shader's arithmetic
+// (GROUND_DEPOSIT.pbrAt: the mud's cover eroded by the spatter, the dust film, the wetness -> albedo and gloss).
+// --scen mud|heavy|dust (default mud); --dry s: let the mud dry s seconds after the run (fresh = wet and glossy);
+// --mudcell m: the grid's cell (0.08 gamer, 0.12 phone)
 let MUDF = null;
 if (argv.includes('--mud')) {
   const MR = require(path.join(ROOT, 'tools', 'mud_roll.js')), GDq = require(path.join(ROOT, 'src', 'viewer', 'ground_deposit.js'));
   const mt = +opt('mud', 20) > 0 ? +opt('mud', 20) : 20;
-  const R = MR.run(spec, { S, T: mt, h: +opt('mudcell', 0.08) });
-  const st = R.stats, MUD = [74, 58, 42];
-  console.log('mud: ' + mt + ' s on soft mud, grid ' + st.dims.join('x') + ', thrown ' + st.emitted + ', hits ' + st.hits + ', coat ' + st.coat.toFixed(3) + ' (' + st.msAll + ' ms)');
-  // per PIXEL in the raster (the shader's own arithmetic: the smoothed cover, eroded by the spatter): editor -> craft
-  MUDF = (x, y, z, nx, ny, nz) => GDq.mudAt(R.G, x, -z, y, nx, -nz, ny);
+  const SCN = opt('scen', 'mud'), R = MR.run(spec, { S, T: mt, h: +opt('mudcell', 0.08), scen: SCN });
+  const dry = +opt('dry', 0); for (let t = 0; t < dry; t += 30) GDq.wash(R.G, Math.min(30, dry - t), 0, null);
+  GDq.smooth(R.G);
+  const st = R.stats;
+  console.log('mud: ' + mt + ' s, scenario ' + SCN + (dry ? ', dried ' + dry + ' s' : '') + ', grid ' + st.dims.join('x') + ', thrown ' + st.emitted + ', hits ' + st.hits + ', dust rays ' + st.rayHits + ', coat ' + st.coat.toFixed(3) + ' (' + st.msAll + ' ms)');
+  // per PIXEL in the raster: editor -> craft
+  const PO = {};
+  MUDF = (x, y, z, nx, ny, nz) => GDq.pbrAt(R.G, x, -z, y, nx, -nz, ny, 0.5, PO);
 }
 
 // ---- the marks: fittings placed, quad corners ---------------------------------------------------------------
