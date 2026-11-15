@@ -212,7 +212,12 @@ AR.make = function (THREE, ctx) {
                   blowT: -1, callT: -1, herd: 0, F: null, sp: SOUND.SPECIES.indexOf(spot.key),
                   up: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, 0, 1),
                   // THE TURN (ANIMALS-MOTION): the smoothed ground normal, the stride's rate, the ground speed, the yaw rate
-                  upS: new THREE.Vector3(0, 1, 0), posed: false, rho: 1, vs: 0, w: 0, pivot: false, pivotT: 0 };
+                  upS: new THREE.Vector3(0, 1, 0), posed: false, rho: 1, vs: 0, w: 0, pivot: false, pivotT: 0, via: null,
+                  // THE SWIMMING (SWIMMERS): declared HERE, for every individual - fields added later give the sea animals
+                  // their own object shapes, and the sound's reader (G1705) then reads them through boxed doubles (GATE AUDIO
+                  // ANIALLOC: 3.7 B a read)
+                  v: 0, vy: 0, bank: 0, pitch: 0, dTarget: 0, br: null, lead: null, off: null, lag: 1, wid: null,
+                  upT: 0, upDone: false };
     // where it starts: scattered in the hotspot, seeded per individual so
     // adding one never moves the others (the premises contract's rule 5)
     let ang = rnd() * TWO_PI, rr = spot.r * Math.sqrt(rnd());
@@ -559,8 +564,8 @@ AR.make = function (THREE, ctx) {
     }
     // BREAKING OUT: the frame the back comes through, a ring and a burst
     if (up && !one.wasUp) {
-      if (WK) WK.ring(cx, cz, beam * 0.9, Math.min(1, 0.4 + Math.max(0, -one.vy) * 0.4));
       if (S.blow > 0) one.blowT = T;                // the sound's mark (G1705): the frame the plume is fired below
+      if (WK) WK.ring(cx, cz, beam * 0.9, Math.min(1, 0.4 + Math.max(0, -one.vy) * 0.4));                // the sound's mark (G1705): the frame the plume is fired below
       if (ctx.stamp && stats.stamps < STAMP_BUDGET) {
         ctx.stamp(cx, cz, beam * 1.8, -0.35, 0.7, 'ring');
         stats.stamps++;
