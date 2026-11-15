@@ -3516,6 +3516,69 @@ function makeSim(def, world) {
   const TW_ARC = TW_SCOTT.arc;
   // (MONOWHEEL: a NOSE skid flies the skid's law too - twMode 4 on a nose unit; a nose wheel stays the rudder's, 0)
   const TWM = (TW1 >= 0 && (P_.twSteer > 0 || P_.twMode === 4)) ? (P_.twMode || 1) : 0;
+  // ROUGH GROUND (SNOW-MUD, 15 Nov - the user: "does a large tundra wheel help on a bumpy road with stones?"): THE TYRE'S
+  // ENVELOPE. The ground was read at one point under each node, so a wheel met a stone when its AXLE was over it - a 0.15 m
+  // wheel and a 0.36 m tundra wheel took the same step, and no stone cost any wheel speed. On a bumpy strip (world.roughAt:
+  // a micro strip's box) a rolling wheel now reads the EFFECTIVE ROAD of the TANDEM CAM (Schmeitz & Pacejka, Vehicle System
+  // Dynamics 2004; Zegelaar 1998): two cams of the tyre's radius R, one footprint length l apart (tyreFootprint's, 4A / pi b:
+  // the carcass's - 0.51 D standard, 0.64 D tundra), each riding the profile (the highest of h(x + s u) less the rim's rise
+  // R - sqrt(R^2 - s^2), |s| < 0.95 R, along the heading u). The axle's ground is their MEAN and the road's effective slope
+  // their DIFFERENCE over l, by which the stone pushes back along u (capped at ENV_TC). A stone shorter than the footprint
+  // lifts the axle by about half its height and over the footprint's length - the soft long tundra print swallows what a
+  // small hard wheel climbs whole; a hole narrower than it is bridged. THE COST: the ground is read ONCE A FRAME per wheel
+  // on the strip, a profile along u every ENV_DS over the cams and the frame's travel (envFrame); the substeps take the cams
+  // off it, arithmetic only. Off a bumpy strip one roughAt compare a wheel a frame; on a world without roughAt nothing at
+  // all: the bytes as before
+  const WHL = [];
+  for (const i of (def.refs && def.refs.mains) || []) if (i >= 0 && i < n) WHL.push(i);
+  if (TWM !== 4) { if (TW1 >= 0) WHL.push(TW1); if (TW2 >= 0) WHL.push(TW2); }
+  const ENV_TC = 3, ENV_NEAR = 0.6, ENV_DS = 0.05, ENV_M = 160, ENV_Q2 = 0.95 * 0.95;
+  const ENVK = new Int8Array(n).fill(-1); WHL.forEach((i, k) => { ENVK[i] = k; });
+  const ENVL = new Uint8Array(WHL.length), ENVO = new Float64Array(WHL.length * 7), ENVH = new Float64Array(WHL.length * ENV_M);
+  const nMainW = ((def.refs && def.refs.mains) || []).filter(i => i >= 0 && i < n).length;
+  let envLive = false;
+  out.envW = 0; out.envN = 0;                         // (the wheel-substeps the cams rode, and the ground reads, a frame)
+  // once a frame: each wheel near a bumpy strip's ground samples its profile (origin, heading, first offset, spacing, count)
+  function envFrame(RGH, dtFrame) {
+    envLive = false;
+    const gH = world.terrainH;
+    let axesOk = false, ux = 0, uz = 0;
+    for (let k = 0; k < WHL.length; k++) {
+      ENVL[k] = 0;
+      const i = WHL[k], i3 = i * 3, x0 = p[i3], z0 = p[i3+2], R = rC[i];
+      if ((GR !== null && !(GR.pos > 0.98)) || !RGH(x0, z0)) continue;
+      if (p[i3+1] - R - gH(x0, z0) > ENV_NEAR + 2 * Math.max(0, -v[i3+1]) * dtFrame) continue;
+      if (!axesOk) { bodyAxes(); const hl = hyp2(xAft[0], xAft[2]) || 1; ux = -xAft[0] / hl; uz = -xAft[2] / hl; axesOk = true; }
+      if (SKW[i] === 0) softWheel(i, k < nMainW);     // (the carcass's footprint: the soft layer's own, sized once)
+      const lf = Math.max(ENV_DS, 4 * SKA[i] / (Math.PI * SKW[i]));
+      // the window: the cams' reach about the axle, stretched the way the wheel rolls by the frame's travel (and a margin)
+      const reach = R + 0.5 * lf + ENV_DS, tr = 1.25 * (v[i3] * ux + v[i3+2] * uz) * dtFrame;
+      const s0 = -reach + (tr < 0 ? tr : 0), span = 2 * reach + Math.abs(tr) + 0.25 * Math.abs(hyp2(v[i3], v[i3+2]) * dtFrame);
+      let ds = ENV_DS, N = Math.ceil(span / ds) + 1;
+      if (N > ENV_M) { N = ENV_M; ds = span / (N - 1); }
+      const o = k * 7, b = k * ENV_M;
+      ENVO[o] = x0; ENVO[o+1] = z0; ENVO[o+2] = ux; ENVO[o+3] = uz; ENVO[o+4] = s0; ENVO[o+5] = ds; ENVO[o+6] = lf;
+      for (let j = 0; j < N; j++) { const s = s0 + j * ds; ENVH[b + j] = gH(x0 + s * ux, z0 + s * uz); }
+      out.envN += N;
+      for (let j = N; j < ENV_M; j++) ENVH[b + j] = ENVH[b + N - 1];   // (past the window: its last reading)
+      ENVL[k] = 1; envLive = true;
+    }
+  }
+  // one cam of radius R centred at c along wheel k's profile: the highest of the profile less the rim's rise
+  function envCam(k, c, R) {
+    const o = k * 7, b = k * ENV_M, ds = ENVO[o+5], R2 = R * R;
+    let j = Math.ceil((c - 0.95 * R) / ds), j1 = Math.floor((c + 0.95 * R) / ds), best = -Infinity;
+    // (the profile under the cam's own centre, interpolated, no rise: a flat road reads exactly flat)
+    const jc = Math.floor(c / ds);
+    if (jc >= 0 && jc + 1 < ENV_M) { const f = c / ds - jc, h0 = ENVH[b + jc], h1 = ENVH[b + jc + 1]; best = f === 0 ? h0 : h0 + f * (h1 - h0); }
+    if (j < 0) j = 0; if (j1 > ENV_M - 1) j1 = ENV_M - 1;
+    for (; j <= j1; j++) {
+      const sq = j * ds - c, s2 = sq * sq; if (s2 > ENV_Q2 * R2) continue;
+      const h = ENVH[b + j] - (R - Math.sqrt(R2 - s2));
+      if (h > best) best = h;
+    }
+    return best;
+  }
   const TWL = TWM ? { m: TWM, k: 0, trail: 0, Mf: 0, E: TW_SCOTT.E,
     st: [0, 0], ang: [0, 0], df: [0, 0], F: [0, 0], ff: [0, 0], fMax: [0, 0] } : null;
   if (TWL) out.twState = [0, 0], out.twAng = [0, 0], out.twF = [0, 0], out.twFmax = TWL.fMax;
@@ -4006,7 +4069,7 @@ function makeSim(def, world) {
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
       const i3 = i*3;
-      let gy;
+      let gy, tcE = 0, kE = -1;
       if (coneLive) {
         const dx = p[i3] - gcx[i], dz = p[i3+2] - gcz[i];
         const c = p[i3+1] - rC[i] - gcy[i] - GROUND_CONE_EPS;
@@ -4015,6 +4078,13 @@ function makeSim(def, world) {
       } else if (hbLive && p[i3+1] - rC[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
         out.gndSkipped++; continue;
       } else { gy = gH ? gH(p[i3], p[i3+2]) : 0; if (hbLive) out.gndSampled++; }
+      if (envLive && (kE = ENVK[i]) >= 0 && ENVL[kE]) {   // ROUGH GROUND: the tandem cam off the frame's profile
+        const o = kE * 7, lf = ENVO[o+6];
+        const a = (p[i3] - ENVO[o]) * ENVO[o+2] + (p[i3+2] - ENVO[o+1]) * ENVO[o+3] - ENVO[o+4];   // the axle along the profile
+        const hF = envCam(kE, a + 0.5 * lf, rC[i]), hR = envCam(kE, a - 0.5 * lf, rC[i]);
+        gy = 0.5 * (hF + hR); out.envW++;
+        tcE = (hF - hR) / lf; if (tcE > ENV_TC) tcE = ENV_TC; else if (tcE < -ENV_TC) tcE = -ENV_TC;
+      }
       const pen = gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
       if (pen <= 0) continue;
       if (NOSE_G[i]) noseGnd = true;                 // G1470: the nose on the ground - the prop has struck it
@@ -4023,6 +4093,7 @@ function makeSim(def, world) {
 
       if (Fn < 0) Fn = 0;
       f[i3+1] += Fn;
+      if (tcE !== 0) { f[i3] -= Fn * tcE * ENVO[kE*7+2]; f[i3+2] -= Fn * tcE * ENVO[kE*7+3]; }   // ROUGH GROUND: the stone pushes back by its angle
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
@@ -4232,7 +4303,8 @@ function makeSim(def, world) {
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
-    out.gndSampled = 0; out.gndSkipped = 0;
+    out.gndSampled = 0; out.gndSkipped = 0; out.envW = 0; out.envN = 0;
+    if (world && typeof world.roughAt === 'function') envFrame(world.roughAt, dtFrame);   // ROUGH GROUND: the wheels' profiles
     if (coneLive) {
       coneS2 = S * S;
       const gH = world.terrainH;
