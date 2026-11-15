@@ -1388,7 +1388,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         float cR = -kR * lc * sigM * sigM * 0.6;                                        // concave bottom < 0, convex shoulders > 0
         float sM = clamp(0.5 * kF * cF + 0.45 * kM * cM + 0.8 * cueK * rn + cR, -1.6, 1.6);
         float crown = smoothstep(0.05, 1.0, sM) * sK, hollow = smoothstep(0.05, 1.0, -sM) * sK;
-        crown = max(crown, 0.8 * smoothstep(0.03, 0.10, gMicH.w) * cueK);              // a hazard's mound: dry, stony
+        // (the user 15 Nov, a golden-hour shot: "things looking like rocks, but actually rendering in a glitchy way. Or maybe these
+        //  are puddles? ... they look bad and need to go") a hazard's mound was painted dry and stony from a 3-10 cm contour: a 2-4 m
+        //  pale flat sheet with a hard outline, the bump's own normals crumpling it. Now a faint dryness over its whole rise
+        crown = max(crown, 0.3 * smoothstep(0.02, 0.3, gMicH.w) * cueK);               // a hazard's mound: a little drier
         hollow = max(hollow, smoothstep(0.01, 0.05, gMicH.x) * cueK);                  // a pothole, a hazard's hole: mud
         hollow = max(hollow, smoothstep(0.03, 0.10, -gMicH.w) * cueK);
         // THE WAYS, READ (RUTS FIRST - the user, 9 Nov 17:00: "the main relief should come from the ruts themselves ... used by
@@ -1411,7 +1414,9 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         if (crown > 0.02) { Smp g = pvSet(1, uvS); float gk = 0.45 * crown; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
         if (hollow > 0.02) { Smp g = pvSet(4, uvS); float gk = 0.55 * hollow; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y * 0.7; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
         float lumM = dot(col, vec3(0.299, 0.587, 0.114));
-        col = mix(col, mix(col, vec3(lumM), 0.25) * 1.24 + vec3(0.02, 0.018, 0.015), crown); rough += 0.08 * crown;
+        // (15 Nov, the same shot) the crowns' lift was x 1.24 + 0.02: a low sun behind turned every convex patch into a pale sheet;
+        // a crown now reads by its coarse set (above) and a faint lift, no paler than the ground round it by more than ~6 %
+        col = mix(col, mix(col, vec3(lumM), 0.15) * 1.06 + vec3(0.004, 0.0035, 0.003), crown); rough += 0.08 * crown;
         col = mix(col, col * vec3(0.66, 0.58, 0.48) * (1.0 - 0.18 * clamp(uPavWet, 0.0, 1.0)), hollow); rough -= (0.10 + 0.15 * clamp(uPavWet, 0.0, 1.0)) * hollow;
         nT.xy -= gR * PV_MICRO_NRM;                                                     // the bumps' slope between the rows (after the blends)
         nT.y += gW;                                                                     // the ways' walls (the ribbon's v = -the field's)
@@ -1470,9 +1475,12 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         }
         float worn = max(exp(-l1 * l1), 0.55 * exp(-l2 * l2));
         float wild = clamp(uMicro2.z / 0.26, 0.0, 1.0);                                // a rough strip is a less tended one
-        float grassK = (1.0 - clamp(worn * 1.4, 0.0, 1.0)) * (0.25 + 0.75 * (1.0 - smoothstep(0.5, 2.0, dE))) * wild;
-        grassK = max(grassK, smoothstep(0.03, 0.10, gMicH.w));                           // a hazard's mound: nobody drives it
-        grassK *= smoothstep(0.35, 0.65, pvNoise(uvS / 1.4 + 23.0) * 0.6 + pvNoise(uvS / 5.0 + 3.0) * 0.4 + 0.15 * crown) * cueK;
+        // (the user 15 Nov, the same shot: "they look bad and need to go") the painted grass - a flat texture, its own normals
+        // crumpling it - lay in hard-edged sheets on a hazard's mound (from a 3-10 cm contour) and along the edges, beige under a low
+        // sun. Gone from the mounds and the edges (the grass field's blades grow beside the strip - LOOK-1's GRASS-ON-GREEN); a
+        // faint, soft-edged share stays on the untrafficked middle ridge
+        float grassK = (1.0 - clamp(worn * 1.4, 0.0, 1.0)) * 0.25 * wild;
+        grassK *= smoothstep(0.25, 0.85, pvNoise(uvS / 1.4 + 23.0) * 0.6 + pvNoise(uvS / 5.0 + 3.0) * 0.4) * cueK;
         if (grassK > 0.02) { Smp g = pvSet(3, uvS); vec2 w2 = pvHw2(hgt, 1.0 - grassK, g.c.a, grassK, uHex.x); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
       }
       // a grass strip is mown: stripes across, 3.5 m, a few per cent - the cut, not a colour
@@ -1759,8 +1767,16 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
           float pbV = (1.0 - smoothstep(0.7 * pr, pr, length(pq * vec2(1.0, 1.0 + 0.6 * ph.y)))) * smoothstep(0.5, 1.5, pr / max(fwidth(uvS.x), 1e-4));
           col = mix(col, vec3(0.3, 0.285, 0.26) * (0.7 + 0.6 * ph.x / 0.4) * min(lum / 0.18, 1.6), pbV * 0.9); }
       }
-      // opaque over the strip (the drawn tundra, not a hole); the torn side's own fade does the margin, ragged by its noise
-      gPavA = mix(gPavA, max(soil, smoothstep(-0.9 * shW, 0.2 * shW, dE + 1.6 * shW * (m4 - 0.5) + 0.8 * (m2 - 0.5))) * gPavA, uMacro.w);
+      // THE TRACK, NOT THE STRIP (the user 15 Nov, Skyline: "the track is too wide, and the sides have to do too heavy lifting ...
+      // some blending of the sides with the texture around (and below), so the surrounding texture keep penetrating the sides until
+      // the ruts? Or simply reducing the width of the track to only include a couple of meters of side track"): the drawn tundra
+      // stands opaque only round the worn lanes (their half-track + 0.7 m) and fades over ~2 m into the island's ground under it,
+      // its edge ragged (a 7.5 m and a 1.2 m noise) and wider where the lanes run together; past that the island's own ground (its
+      // grass field) up to the trail. The strip's torn side still caps it (a short strip's ends). Was: opaque over the whole width
+      float tReach = abs(v) - (PV_FLEET_MEAN + 0.7) + 1.6 * (m4 - 0.5) + 0.7 * (m2 - 0.5) - 0.8 * merge;
+      float trackA = 1.0 - smoothstep(0.0, 2.0, tReach);
+      float sideA = smoothstep(-0.9 * shW, 0.2 * shW, dE + 1.6 * shW * (m4 - 0.5) + 0.8 * (m2 - 0.5));
+      gPavA = mix(gPavA, max(soil, min(trackA, sideA)) * gPavA, uMacro.w);
     }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
