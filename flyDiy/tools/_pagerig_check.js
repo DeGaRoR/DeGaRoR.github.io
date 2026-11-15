@@ -1,0 +1,88 @@
+#!/usr/bin/env node
+// _pagerig_check.js - GATE PAGERIG (LOOK-1, 15 Nov 2026): the shared page harness tools/page_rig.js holds its contract.
+//   node half (the battery, seconds): the module loads and exports start / cli / parseViews; the views file is checked
+//     before a slot is spent; the GPU test refuses SwiftShader; the source keeps every RIG-PROCEDURE rule it was built for
+//     (no Page.captureScreenshot, Chrome killed by its own PID tree, the flydiy.* wipe, the hard cap, the flying test's
+//     five conditions, its own profile folder); the CLI without arguments prints its usage and exits 2.
+//   --gpu (BY HAND, in A0's GPU slot: boxlock.sh take gpu ...): the real page - boot, fly, pause, the free eye beside the
+//     aircraft, one grab that is not blank, on a real GPU, Chrome closed. [--out dir] keeps the still. ~4-6 min.
+//   node tools/_pagerig_check.js [--gpu [--out <dir>] [--cap 540]]
+'use strict';
+const fs = require('fs'), path = require('path'), { spawnSync } = require('child_process');
+const argv = process.argv.slice(2), opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] != null ? argv[i + 1] : d; };
+let fails = 0; const ok = (c, m) => { console.log((c ? '  ok   ' : '  FAIL ') + m); if (!c) fails++; };
+
+const P = require('./page_rig.js'), SRC = fs.readFileSync(path.join(__dirname, 'page_rig.js'), 'utf8');
+// 1 the module
+ok(['start', 'cli', 'parseViews', 'REAL_GPU', 'SIMT'].every(k => k in P), '1 exports start, cli, parseViews, REAL_GPU, SIMT');
+// 2 the views file is checked before a slot is spent
+const throws = t => { try { P.parseViews(t); return false; } catch (e) { return true; } };
+ok(P.parseViews('[{"name":"a","near":[10,2,-5],"yaw":1,"pitch":0},{"name":"b","x":1,"agl":20,"z":2,"yaw":0,"pitch":0.1}]').length === 2 &&
+   P.parseViews('{"views":[{"name":"c","x":1,"y":2,"z":3,"yaw":0,"pitch":0}]}').length === 1, '2a a good views file (array, or { views }) parses');
+ok(throws('[]') && throws('[{"name":"a b","x":1,"z":1,"yaw":0,"pitch":0}]') && throws('[{"name":"a","yaw":0,"pitch":0}]') &&
+   throws('[{"name":"a","x":1,"z":1,"pitch":0}]') && throws('[{"name":"a","x":1,"z":1,"yaw":0,"pitch":0},{"name":"a","x":1,"z":1,"yaw":0,"pitch":0}]'),
+   '2b empty / unsafe name / no position / no yaw / a name twice: refused');
+// 3 the GPU test
+ok(P.REAL_GPU('ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 (0x00002206) Direct3D11 vs_5_0 ps_5_0, D3D11)') && P.REAL_GPU('ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11)') &&
+   !P.REAL_GPU('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)') && !P.REAL_GPU('llvmpipe (LLVM 15.0.7, 256 bits)') && !P.REAL_GPU(null),
+   '3 REAL_GPU: NVIDIA / Intel yes; SwiftShader, llvmpipe, none: no');
+// 4 the source keeps the procedure's rules
+const code = SRC.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+ok(!/captureScreenshot/.test(code), '4a no Page.captureScreenshot (headless shows the canvas see-through)');
+ok(/taskkill \/PID ' \+ ch\.pid \+ ' \/T \/F/.test(code) && !/taskkill \/IM|taskkill \/F \/IM|pkill|killall/.test(code), '4b Chrome killed by its own PID tree, never by a pattern');
+ok(/\/\^flydiy\\\\\.\//.test(code) && /sessionStorage\.setItem\("page_rig_wiped"/.test(code), '4c the flydiy.* localStorage wipe, once per tab');
+ok(/HARD CAP/.test(code) && /process\.exit\(3\)/.test(code) && /clearTimeout\(capT\)/.test(code), '4d the hard cap (exit 3), disarmed by close()');
+ok(['mode-fly', 'rollShot', 'mode-ws', "BOOT.state !== 'gone'", 's.t'].every(k => P.SIMT.includes(k)), "4e flying = BOOT gone + mode-fly + no rollShot + no mode-ws + the sim's clock");
+ok(/--user-data-dir=' \+ udd/.test(code) && /mkdtempSync/.test(code) && /--headless=new/.test(code), '4f headless=new, a fresh profile folder of its own');
+ok(/gl\.readPixels/.test(code) && /AA\.render = function/.test(code), '4g the grab: FLYDIY_AA.render wrapped, readPixels after it');
+const parses = js => { try { new Function('return ' + js); return true; } catch (e) { console.log('    ' + e.message); return false; } };
+ok(parses(P.PAGE_HOOK) && parses(P.WHY) && parses(P.SIMT), '4h the page-side code (the grab hook, WHY, the flying test) parses');
+// 4i the grab hook on a fake page: a 4x10 GL frame (bottom-up rows: the bottom fifth dark, the top fifth bright) comes back
+//    upright (the top bright), opaque, its numbers right; a frame never drawn is a MISS in 5 s, not a hang
+const fakeGrab = async (draw) => {
+  const vm = require('vm'), W = 4, H = 10, gl = { FRAMEBUFFER: 1, RGBA: 2, UNSIGNED_BYTE: 3, bindFramebuffer() {},
+    readPixels(x, y, w, h, f, t, px) { for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) { const o = (r * w + c) * 4, v = r < 2 ? 10 : r >= 8 ? 240 : 120; px[o] = v; px[o + 1] = v; px[o + 2] = v; px[o + 3] = 0; } } };
+  let out = null;
+  class OC { constructor(w, h) { this.w = w; this.h = h; } getContext() { return { createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }), putImageData: d => { out = d.data; } }; }
+    convertToBlob() { return Promise.resolve(new Blob([Buffer.from('fake png')])); } }
+  const AA = { render() { return 1; } }, R = { getContext: () => gl, domElement: { width: W, height: H }, info: { render: { frame: 7 } } };
+  const ctx = { FLYDIY_AA: AA, FLYDIY_RENDERER: R, OffscreenCanvas: OC, btoa: b => Buffer.from(b, 'binary').toString('base64'), setTimeout, Promise, Uint8Array, Math, Error,
+    FLIGHT_PROBE: { camGet: () => ({ eye: [1, 2, 3], fov: 50 }) } };
+  ctx.window = ctx; vm.createContext(ctx); vm.runInContext(P.PAGE_HOOK, ctx);
+  const p = ctx.PAGE_RIG.grab(0); if (draw) AA.render(); const r = await p; return { r, out, aa: ctx.PAGE_RIG.aaCalls() };
+};
+// 5 the CLI's usage
+const u = spawnSync(process.execPath, [path.join(__dirname, 'page_rig.js')], { encoding: 'utf8', timeout: 20000 });
+ok(u.status === 2 && /usage: node tools\/page_rig\.js --views/.test(u.stderr), '5 the CLI without arguments: usage, exit 2');
+
+(async () => {
+  { const { r, out, aa } = await fakeGrab(true), i = r && r.info;
+    ok(i && i.w === 4 && i.h === 10 && i.frame === 7 && aa === 1 && out[0] === 240 && out[3] === 255 && out[9 * 4 * 4] === 10 && i.topMean === 240 && i.botMean === 10 && !i.blank && /^[A-Za-z0-9+/=]+$/.test(r.data),
+      '4i the grab hook on a fake page: rows flipped upright, alpha opaque, top/bottom means, not blank ' + JSON.stringify(i));
+    const t = Date.now(), m = await fakeGrab(false);
+    ok(m.r && /no frame drawn in 5 s/.test(m.r.miss) && Date.now() - t < 7000, '4j a frame never drawn: a MISS after 5 s, not a hang'); }
+  if (argv.includes('--gpu')) {
+    console.log('--gpu: the real page (a GPU slot is required)');
+    let rig = null;
+    try {
+      rig = await P.start({ cap: +opt('cap', 540), name: 'PAGERIG' });
+      ok(P.REAL_GPU(rig.gpu), '6a on a real GPU: ' + rig.gpu);
+      ok(await rig.fly({ need: false }), '6b flying (sim t rising) after ' + rig.bootS + ' s of boot');
+      await rig.pause();
+      if (rig.plane) {
+        const T = rig.plane.target, E = [T[0] - 12, T[1] + 3, T[2] + 8], d = [T[0] - E[0], T[1] - E[1], T[2] - E[2]];
+        await rig.eye(E[0], E[1], E[2], Math.atan2(d[0], -d[2]), Math.atan2(d[1], Math.hypot(d[0], d[2])));
+        await rig.frames(60);
+        const b = await rig.grab({ settle: 30 });
+        console.log('  grab ' + JSON.stringify(b.info));
+        ok(b.length > 10000 && b.slice(1, 4).toString() === 'PNG', '6c a PNG came back (' + b.length + ' B)');
+        ok(!b.info.blank && b.info.sd > 4 && b.info.bgShare < 0.5, '6d not blank (sd ' + b.info.sd + ', page-background share ' + b.info.bgShare + ')');
+        if (opt('out')) { fs.mkdirSync(opt('out'), { recursive: true }); fs.writeFileSync(path.join(opt('out'), 'pagerig.png'), b); console.log('  wrote ' + path.join(opt('out'), 'pagerig.png')); }
+      }
+      if (rig.errors.length) console.log('  page errors: ' + rig.errors.slice(0, 5).join(' | '));
+    } catch (e) { ok(false, '6 the page run: ' + (e && e.message || e)); if (e && e.why) console.log('  WHY ' + JSON.stringify(e.why)); }
+    finally { if (rig) await rig.close(); }
+  } else console.log('  (the page half runs by hand in a GPU slot: --gpu)');
+  console.log(fails ? `GATE PAGERIG: FAIL (${fails})` : 'GATE PAGERIG: PASS');
+  process.exit(fails ? 1 : 0);
+})();
