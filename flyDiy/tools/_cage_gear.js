@@ -3301,6 +3301,27 @@ PAGE.post = ctx => {
     if (+P.bumpR) bumperBuild(group, P, AF, scene, false);
     if (Math.round(+P.extRelief || 0) === 4) rearDoorHardware(group, P, mesh);
   }
+  // THE TOW RELEASE (the user via A0, 15 Nov: "towed from an anchor at their main wheel position, just forward of it ...
+  // the 3d anchor properly"): towHook 2, the CG release - its housing on the keel GEN_RULES.towHook.cg.ahead ahead of the
+  // main axle as drawn (the station 61_gen_frame builds the release's node at; tow.js pulls there). Rides the body
+  // (edTowRelease: the static merge); CAGE_GEAR.towRelease the jaw's point (cage metres) for the page's rope
+  if (typeof window !== 'undefined') window.CAGE_TOW_RELEASE = null;
+  if (Math.round(+P.towHook || 0) === 2 && AF && typeof AF.surf === 'function' && GG.towRelease) {
+    const mains = contacts.filter(c => c.st && c.st.id === 1 && c.p);
+    if (mains.length) {
+      const zAx = mains.reduce((s, c) => s + c.p[2], 0) / mains.length;
+      const GR = typeof GEN_RULES !== 'undefined' ? GEN_RULES : (typeof window !== 'undefined' && window.GEN_RULES) || null;
+      const ahead = (GR && GR.towHook && GR.towHook.cg && GR.towHook.cg.ahead) || 0.25;
+      const tb = { steel: GG.Bag(), alloy: GG.Bag(), chrome: GG.Bag(), dark: GG.Bag() };
+      const R = Math.max(...mains.map(c => +c.R || 0.2));
+      // (the housing's tail clears the main tyre's front by 2 cm: on the Archaeopteryx's sunk 0.20 m wheel that is 3 cm)
+      const rel = GG.towRelease(tb, AFx.nrmAt ? AFx : AF, zAx + ahead, { aft: Math.min(0.11, ahead - R - 0.02) });
+      const rg = new THREE.Group(); rg.name = 'edTowRelease';
+      for (const k in tb) if (tb[k].tris) { const m = tb[k].mesh(rg, GG.gearMat(k)); if (m) m.name = 'edTowRelease'; }
+      group.add(rg);
+      if (typeof window !== 'undefined') window.CAGE_TOW_RELEASE = rel ? { ring: rel.ring, z: zAx + ahead } : null;
+    }
+  }
   // the LEGS take a livery section too (phase C): steel tube by default,
   // following nobody — but a builder can paint a leg without repainting the
   // chrome piston or the tyres, which stay hardware. Only the 'steel' bag

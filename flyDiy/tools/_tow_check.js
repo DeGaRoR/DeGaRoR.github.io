@@ -39,6 +39,7 @@ const P0 = G.places['rwy:HOME:0'], P1 = G.places['rwy:HOME:1'];
 const dl = Math.hypot(P1.x - P0.x, P1.z - P0.z), dx = (P1.x - P0.x) / dl, dz = (P1.z - P0.z) / dl;
 
 // one launch: the glider lined up on runway 13's end, the car L0 ahead; opts: { L0, Vtow, weak, releaseAt (m), T (s), noLine }
+const TAKEUP_V = 10;   // (m/s: the take-up and the run TAKEUP judges - the line taut, the wing runner's sprint, the roll on the wheel)
 function launch(o) {
   o = Object.assign({ L0: 400, Vtow: 28, T: 150 }, o || {});
   const def = o.key ? C.buildGen(DS.designBake(DS.ARCHETYPES.find(x => x.key === o.key).sel, DS.ARCHETYPES.find(x => x.key === o.key).over)) : DEF0;
@@ -48,7 +49,7 @@ function launch(o) {
   let xA = sim.axes()[0];
   if (-xA[0] * dx - xA[2] * dz < 0) { sim.reset(0); hdg += Math.PI; C.placeAtLineup(sim, aH, { x: P0.x, z: P0.z, hdg }, W, def.refs); for (let i = 0; i < 120; i++) sim.step(1 / 60); xA = sim.axes()[0]; }
   sim.setEngine(0, { key: 'off' });
-  const hook = TW.towHookNodes(sim), hp = [0, 0];
+  const hook = o.nose ? TW.towNoseNodes(sim) : TW.towHookNodes(sim), hp = [0, 0];
   for (const i of hook) { hp[0] += sim.p[i * 3] / hook.length; hp[1] += sim.p[i * 3 + 2] / hook.length; }
   const car = V.makeVehicle(V.vehicleDef(SHEET), W), rear = car.def.foot.rear;
   car.place(hp[0] + dx * (o.L0 - 2 + rear), hp[1] + dz * (o.L0 - 2 + rear), Math.atan2(dz, dx)); for (let i = 0; i < 30; i++) car.step(1 / 60);
@@ -71,6 +72,13 @@ function launch(o) {
     if (sim.stats().bad) { R.bad = true; break; }
     const cg = sim.cgPos(), cv = sim.cgVel(), agl = cg[1] - W.terrainH(cg[0], cg[2]), Vg = Math.hypot(cv[0], cv[1], cv[2]);
     R.maxH = Math.max(R.maxH, agl);
+    // (THE TAKE-UP, 15 Nov: from the start to the lift-off - the attitude's worst: the nose down from its rest, the bank)
+    //  the take-up and the run to TAKEUP_V (the line taut, the runner's run, the roll on the wheel) and on to the lift-off:
+    //  the lowest pitch (a nose-over is the nose below the horizon - a taildragger's tail lifting is not one) and the bank
+    if (R.lift === null) { const xR = sim.axes()[0], zR = sim.axes()[2], pi = -Math.asin(Math.max(-1, Math.min(1, xR[1]))) * 57.3, bk = Math.abs(Math.asin(Math.max(-1, Math.min(1, zR[1]))) * 57.3);
+      const U = R.up || (R.up = { pMin: Infinity, bank: 0 }), Rn = R.run || (R.run = { pMin: Infinity, bank: 0 });
+      if (Vg < TAKEUP_V) { U.pMin = Math.min(U.pMin, pi); U.bank = Math.max(U.bank, bk); }
+      Rn.pMin = Math.min(Rn.pMin, pi); Rn.bank = Math.max(Rn.bank, bk); }
     if (R.lift === null && !sim.wheelsOnGround()) R.lift = { t, V: Vg, x: Math.hypot(cg[0] - P0.x, cg[2] - P0.z) };
     if (tow && o.releaseAt && tow.on && agl >= o.releaseAt) tow.release();
     if (tow && !tow.on && R.rel === null) { R.rel = tow.released; R.relT = t; R.relH = agl; R.relV = Vg; R.carU = car.out.u; R.extAfter = car.extF; }
@@ -110,6 +118,22 @@ const L = launch({});
   const ok = !R.bad && R.handed && R.phases.includes('GLIDE') && last[3] > 50 && last[1] > 18 && last[0] >= 39;
   row('AUTOPILOT', ok, 'the glider launched by the autopilot: released at ' + (R.relH != null ? f(R.relH, 0) + ' m' : '-') + ', the pilot from ' + (R.handed ? f(R.handed.t, 0) + ' s' : 'NEVER') + ': ' + (R.phases || []).join(' -> ') +
     '; 40 s after the release ' + f(last[3], 0) + ' m up at ' + f(last[1]) + ' m/s' + (R.ap && R.ap.report.outcome ? ' (' + R.ap.report.outcome + ')' : ''));
+}
+// ---- TAKEUP: THE CG RELEASE (the user, 15 Nov: "you should have them towed from an anchor at their main wheel position,
+//      just forward of it. That's more realistic and may avoid nose over"): the line on the belly release just ahead of
+//      the main wheel (tow.js towHookNodes - the build's refs.towHook, or the same site) against the NOSE hook the car tow
+//      pulled before (towNoseNodes) - each glider from the start to its lift-off (or 25 s): its lowest pitch, its worst bank. Judged: the take-up and the run to TAKEUP_V - never nose below 5 deg
+//      under the horizon, never banked 5 deg; the run on to the lift-off reported beside it ----
+{
+  const tab = [], bad = [];
+  for (const key of ['motorglider', 'archaeopteryx']) {
+    const A = launch({ key, T: 25, after: 1 }), B = launch({ key, nose: true, T: 25, after: 1 });
+    const fmt = (R) => 'to ' + TAKEUP_V + ' m/s: pitch ' + f(R.up.pMin, 1) + ' at its lowest, bank ' + f(R.up.bank, 1) + ' deg; to the lift-off: ' + f(R.run.pMin, 1) + ', ' + f(R.run.bank, 1) + ' deg' +
+      (R.lift ? ' (' + f(R.lift.t, 1) + ' s at ' + f(R.lift.V, 1) + ' m/s)' : ' (no lift-off in 25 s)');
+    tab.push(key + ' - CG release: ' + fmt(A) + ' | the nose hook (before): ' + fmt(B));
+    if (A.up.pMin < -5 || A.up.bank > 5 || A.bad) bad.push(key);
+  }
+  row('TAKEUP', !bad.length, 'the take-up to the lift-off - ' + tab.join('; ') + (bad.length ? ' - FAILED: ' + bad.join(', ') : ''));
 }
 // ---- CIRCUIT: THE GLIDER'S CIRCUIT (43_pilot GLIDE, the user 12 Nov: "do the glider circuit") - released, the pilot
 //      flies a glider's circuit at the field it reaches (the arrival's landing there: its way, its side, its aim) on

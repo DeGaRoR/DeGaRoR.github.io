@@ -1149,6 +1149,87 @@ function fitPad(bags, AF, z, ang, L, W, opt) {
   }
 }
 
+// THE TOW RELEASE (the user via A0, 15 Nov: "you should have them towed from an anchor at their main wheel position,
+// just forward of it ... Do the 3d anchor properly and professionally"). A CG release in its belly housing - the Tost
+// Europa G 88 class GEN_RULES.towHook.cg names - on the keel (ang 0) at `z`, the station 61_gen_frame builds the
+// release's node at (`ahead` of the main axle). Generated on the surface, like every fitting here:
+//   THE DOUBLER   the plate the housing bolts through (fitPad: painted with the aeroplane, four bolt heads)
+//   THE HOUSING   a blister lofted ON the skin - each section a superellipse in the belly's own frame at its station
+//                 (fitFrame), so it follows the keel's curve - blunt and OPEN at the front (the ring's way in: the line
+//                 pulls forward and down), its width and depth easing to the skin aft (a faired tail, no step)
+//   THE THROAT    the mouth's lip (a rolled edge, steel) and its recess (dark): the release's body in the dark inside
+//   THE JAW       the hook's claw across the throat (a bright steel bar, its bight forward: the ring hangs in it), its
+//                 pivot pin through the throat's walls
+// opt: { fore, aft (the housing's reach ahead of and behind the jaw, m), W (its width), D (its depth below the skin) }. Returns the jaw's point (where
+// the line's ring sits) and the frame there - the page hangs the rope's rings on it.
+function towRelease(bags, AF, z, opt) {
+  opt = opt || {};
+  // (the mouth `fore` ahead of the jaw's station; the faired tail `aft` behind it - the caller clears it of the main
+  //  wheel: a monowheel's sunk tyre stands 5 cm behind the release on the Archaeopteryx)
+  const W = opt.W || 0.072, D = opt.D || 0.034, fore = opt.fore || 0.06, aft = Math.max(0.025, opt.aft == null ? 0.11 : opt.aft);
+  const zF = z + fore, zA = z - aft, L = fore + aft;
+  const steel = bags.steel || bags.alloy, chrome = bags.chrome || bags.alloy, dark = bags.dark || steel;
+  fitPad(bags, AF, z + (fore - aft) / 2 + 0.008, 0, L + 0.03, W + 0.04, { thick: 0.003 });
+  const EXP = 2.6, NS = 18, NR = 14;
+  // the section's half-width and depth at t (0 the mouth, 1 the tail): a swell just aft of the mouth, a cosine tail
+  const wOf = t => (W / 2) * (t < 0.18 ? 0.92 + 0.08 * Math.sin(Math.PI / 2 * t / 0.18) : Math.max(0.06, Math.max(0, Math.cos(Math.PI / 2 * Math.min(1, (t - 0.18) / 0.82))) ** 0.8));
+  const dOf = t => D * (t < 0.18 ? 0.94 + 0.06 * Math.sin(Math.PI / 2 * t / 0.18) : Math.max(0.03, Math.max(0, Math.cos(Math.PI / 2 * Math.min(1, (t - 0.18) / 0.82))) ** 1.15));
+  const se = (c, e) => Math.sign(c) * Math.abs(c) ** (2 / e);
+  // a section: from one skin edge round the belly to the other (phi 0..pi), in the frame at its station
+  const ring = (zz, w, d, inset) => {
+    const F = fitFrame(AF, zz, 0), out = [];
+    for (let k = 0; k <= NS; k++) {
+      const ph = Math.PI * k / NS, u = se(Math.cos(ph), EXP), v = se(Math.sin(ph), EXP);
+      const x = (w - inset) * u, y = Math.max(0, (d - inset) * v) - 0.0012;   // (sunk 1.2 mm into the skin at the edges: no seam)
+      out.push(add(add(F.p, mul(F.side, x)), mul(F.n, y)));
+    }
+    return { pts: out, F };
+  };
+  // orient a quad outward from an inside point (the loft's own winding cannot be trusted on a mirrored belly frame)
+  const oq = (bag, ia, ib, ic, id, P, inside) => {
+    const a = P[0], b = P[1], c = P[2];
+    const nn = crs(sub(b, a), sub(c, a)), m = mul(add(add(a, b), add(c, P[3])), 0.25);
+    if (dot(nn, sub(m, inside)) >= 0) bag.quad(ia, ib, ic, id); else bag.quad(id, ic, ib, ia);
+  };
+  // THE HOUSING'S SHELL: rings from the mouth (t 0) to the tail (t 1), the tail closed on the skin
+  const rings = [];
+  for (let i = 0; i <= NR; i++) { const t = i / NR, zz = zF - (zF - zA) * t; rings.push(ring(zz, wOf(t), dOf(t), 0)); }
+  const ids = rings.map(r => r.pts.map(q => steel.v(q)));
+  for (let i = 0; i < NR; i++) {
+    const inside = add(rings[i].F.p, mul(rings[i].F.n, 0.3 * dOf(i / NR)));
+    for (let k = 0; k < NS; k++)
+      oq(steel, ids[i][k], ids[i][k + 1], ids[i + 1][k + 1], ids[i + 1][k],
+         [rings[i].pts[k], rings[i].pts[k + 1], rings[i + 1].pts[k + 1], rings[i + 1].pts[k]], inside);
+  }
+  { const r = rings[NR], tip = steel.v(off(r.F.p, r.F.n, -0.001)), inside = off(r.F.p, r.F.n, 0.004);
+    for (let k = 0; k < NS; k++) { const a = r.pts[k], b = r.pts[k + 1], nn = crs(sub(b, a), sub(r.F.p, a));
+      if (dot(nn, sub(a, inside)) >= 0) steel.tri(ids[NR][k], ids[NR][k + 1], tip); else steel.tri(tip, ids[NR][k + 1], ids[NR][k]); } }
+  // THE MOUTH: the lip (a rolled edge, 2.5 mm, steel) to the throat's opening, the throat recessed 26 mm (dark), its back
+  const w0 = wOf(0), d0 = dOf(0), lip = 0.0045;
+  const mouthIn = ring(zF - 0.003, w0, d0, lip), throatEnd = ring(zF - 0.026, w0 * 0.92, d0 * 0.92, lip);
+  const outerI = ids[0], inI = mouthIn.pts.map(q => steel.v(q));
+  const inside0 = add(rings[0].F.p, mul(rings[0].F.n, 0.45 * d0));
+  for (let k = 0; k < NS; k++)   // (the lip's face looks forward)
+    oq(steel, outerI[k], outerI[k + 1], inI[k + 1], inI[k], [rings[0].pts[k], rings[0].pts[k + 1], mouthIn.pts[k + 1], mouthIn.pts[k]], off(inside0, rings[0].F.fore, -0.05));
+  const tA = mouthIn.pts.map(q => dark.v(q)), tB = throatEnd.pts.map(q => dark.v(q));
+  const axisIn = add(rings[0].F.p, mul(rings[0].F.n, 0.45 * d0));
+  for (let k = 0; k < NS; k++)   // (the throat's walls look inward, toward its axis)
+  { const P4 = [mouthIn.pts[k], mouthIn.pts[k + 1], throatEnd.pts[k + 1], throatEnd.pts[k]], nn = crs(sub(P4[1], P4[0]), sub(P4[2], P4[0]));
+    if (dot(nn, sub(axisIn, P4[0])) >= 0) dark.quad(tA[k], tA[k + 1], tB[k + 1], tB[k]); else dark.quad(tB[k], tB[k + 1], tA[k + 1], tA[k]); }
+  { // the back wall: a fan, facing forward (seen through the mouth)
+    const c = dark.v(add(throatEnd.F.p, mul(throatEnd.F.n, 0.4 * d0)));
+    for (let k = 0; k < NS; k++) { const a = throatEnd.pts[k], b = throatEnd.pts[k + 1], nn = crs(sub(b, a), sub(add(throatEnd.F.p, mul(throatEnd.F.n, 0.4 * d0)), a));
+      if (dot(nn, throatEnd.F.fore) >= 0) dark.tri(tB[k], tB[k + 1], c); else dark.tri(c, tB[k + 1], tB[k]); } }
+  // THE JAW: a 7 mm steel bar bent to a claw across the throat - from its pivot up in the housing, down and forward to
+  // the bight just inside the mouth, back up to its tip - and the pivot pin through the throat's walls
+  const F0 = fitFrame(AF, zF - 0.012, 0), J = (a, dn) => add(add(F0.p, mul(F0.fore, a)), mul(F0.n, dn * d0));
+  const claw = [J(-0.012, 0.22), J(-0.004, 0.42), J(0.006, 0.62), J(0.006, 0.80), J(-0.004, 0.86), J(-0.012, 0.74)];
+  sweep(chrome, fillet(claw, 0.004, 4), () => secRound(0.0035, 10), true);
+  const pin = J(-0.012, 0.22);
+  tube(chrome, add(pin, mul(F0.side, -w0 * 0.82)), add(pin, mul(F0.side, w0 * 0.82)), 0.0028, 10);
+  return { ring: J(0.002, 0.82), F: F0 };
+}
+
 // G133: WHERE A LEG MEETS THE AEROPLANE IS NOW A CHOICE. `st.mount`, when
 // present, is a FRAME PROVIDER `zOff -> {p, n, fore, side}` and wins over
 // the fuselage contract — the cage layer hands one in when the wing's
@@ -2776,6 +2857,6 @@ window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
-                    fitPad, legBeam, legLink, legOleo, castorUnit, steerRun,
+                    fitPad, towRelease, legBeam, legLink, legOleo, castorUnit, steerRun,
                     legTailwheel, legTipWheel, legLever, leverRowsOf, Bag };
 })();
