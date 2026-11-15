@@ -218,6 +218,11 @@ const tipShapeOf = P => (+P.wgTipBow > 0 || +P.wgTipDroop > 0 || +P.wgTipFull > 
                   full: +P.wgTipFull > 1 ? +P.wgTipFull : null } } : {};
 // (TIP-SKID: the same key the join flies - _cage_join.js cageJoinSpec; absent when off)
 const tipSkidOf = P => +P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {};
+// (AIRBRAKES, GEN_RULES.airbrake: the same key the join flies - _cage_join.js cageJoinSpec; absent when off)
+const airbrakeOf = P => +P.wgBrake ? { airbrake: { z0: P.wgBrakeAt != null ? +P.wgBrakeAt : 0.30,
+  z1: (P.wgBrakeAt != null ? +P.wgBrakeAt : 0.30) + (P.wgBrakeLen != null ? +P.wgBrakeLen : 0.16),
+  h: P.wgBrakeH != null ? +P.wgBrakeH : 0.20 } } : {};
+if (typeof window !== 'undefined') window.CAGE_AIRBRAKE_OF = airbrakeOf;
 const WING_ITEMS = [
   ['wingOn',   'wings',          0, 1, 1],
   // G185: 'parasol' — on cabane struts above the deck, lift struts to the
@@ -250,6 +255,13 @@ const WING_ITEMS = [
   // wing that goes down at rest on a single main wheel slides on it (the tail skid's law) instead of scraping
   ['wgTipSkid',  'wingtip skid', 0, 1, 1, ['none', 'skid'], { when: P => +P.wingOn }],
   ['wgTipSkidH', 'skid depth under the skin', 0.02, 0.30, 0.005, { when: P => +P.wingOn && +P.wgTipSkid, dim: 'm' }],
+  // AIRBRAKES (the user, 15 Nov, the LS4: "We can model airbrakes, along with their dashboard control"): a sailplane's
+  // Schempp-Hirth plates, a box each side behind the spar - where they start along the semispan, how long they run,
+  // how high the plate rises (of the local chord); the blue handle in the cockpit, the [ and ] keys
+  ['wgBrake',    'airbrakes', 0, 1, 1, ['none', 'plates (Schempp-Hirth)'], { when: P => +P.wingOn, absent: 0 }],
+  ['wgBrakeAt',  'airbrakes start (of the semispan)', 0.12, 0.80, 0.01, { when: P => +P.wingOn && +P.wgBrake, absent: 0.30 }],
+  ['wgBrakeLen', 'airbrakes length (of the semispan)', 0.04, 0.35, 0.01, { when: P => +P.wingOn && +P.wgBrake, absent: 0.16 }],
+  ['wgBrakeH',   'airbrake plate height (of the chord)', 0.05, 0.35, 0.01, { when: P => +P.wingOn && +P.wgBrake, absent: 0.20 }],
   ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { when: P => +P.wingOn && !+P.wgPlan, note: heldNote('wgCrankAt') }],
   // G140: the crank SECTION — its own chord and fore/aft seat, the same
   // two numbers the root and tip carry. On a strutted wing the crank is
@@ -396,7 +408,8 @@ const WING_ITEMS = [
 // generated twin was a second row of the same key that moved nothing)
 const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH',
-                         'wgTipBow', 'wgTipDroop', 'wgTipFull', 'wgTipSkid', 'wgTipSkidH',   // TIP-SKID too; HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
+                         'wgTipBow', 'wgTipDroop', 'wgTipFull', 'wgTipSkid', 'wgTipSkidH',
+                         'wgBrake', 'wgBrakeAt', 'wgBrakeLen', 'wgBrakeH',   // (AIRBRAKES: the first plane's) TIP-SKID too; HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
                          // G2820: the STOL devices are the first plane's in the
                          // editor (the spec and the physics take them per plane)
                          'wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan',
@@ -983,6 +996,7 @@ function wingGSpec(P) {
       tip: TIP_KEYS[Math.round(P.wgTip)] || 'rounded',
       ...tipShapeOf(P),
       ...tipSkidOf(P),
+      ...airbrakeOf(P),
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
@@ -2609,7 +2623,7 @@ const wingPost = ctx => {
     }
   // CONTROL SURFACES EXPLODE (G32, user): unbolt aft and slightly down —
   // assembly-style, scaled like the cage parts
-  for (const nm of ['ailR', 'ailL', 'flapR', 'flapL'])
+  for (const nm of ['ailR', 'ailL', 'flapR', 'flapL', 'brkR', 'brkL'])   // (AIRBRAKES: the plates, wing skin too)
     if (gs[nm]) {
       // AN AILERON IS WING SKIN. It carries the field like the rest of the
       // covering — same ribs, same spar coordinate, same tapes — because it
@@ -2855,7 +2869,7 @@ const wingPost = ctx => {
       const L = Math.hypot(v[0], v[1], v[2]) || 1;
       return [v[0] / L, v[1] / L, v[2] / L];
     };
-    surfs.push({ name: mv.group, kind: mv.group.lastIndexOf('ail', 0) === 0 ? 'ail' : 'flap',
+    surfs.push({ name: mv.group, kind: mv.group.lastIndexOf('ail', 0) === 0 ? 'ail' : mv.group.lastIndexOf('brk', 0) === 0 ? 'brk' : 'flap',
                  line: [toCage(mv.line[0]), toCage(mv.line[1])],
                  aft: dirC(mv.aft), up: dirC(mv.up),
                  r: mv.r, chord: mv.chord, side: mv.side,

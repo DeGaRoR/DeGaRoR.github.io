@@ -50,9 +50,9 @@ console.log('A. LATENT');
     let s; try { s = born(A.key); } catch (e) { continue; }
     const d = build(s), L = d.parts.ledger;
     const has = !!s.water || !!L.water || !!L.waterTank || !!d.params.water;
-    if (has !== (A.key === 'archaeopteryx')) leak.push(A.key);
+    if (has !== (A.key === 'archaeopteryx' || A.key === 'ls4')) leak.push(A.key);   // (the LS4-alike: its wings' ballast)
   }
-  ok(!leak.length, `A only the Archaeopteryx carries water (${leak.join(', ') || 'none other'})`); }
+  ok(!leak.length, `A only the Archaeopteryx and the LS4-alike carry water (${leak.join(', ') || 'none other'})`); }
 
 console.log('B. THE BILL');
 const sMG = born('motorglider'), dMG = build(sMG);

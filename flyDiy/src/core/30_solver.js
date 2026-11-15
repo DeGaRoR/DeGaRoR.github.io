@@ -2267,7 +2267,7 @@ function makeSim(def, world) {
   // WATER TANKS (GEN_RULES.water, the user 15 Nov: a release, a water shower): THE DUMP VALVE. The frame records the
   // water's kilos on its nodes (`mWater`, as `mFuel`); with the valve open (ctl.dump - the cockpit's, carried to the
   // worker as every ctl field is) they drain, every tank by the same fraction, at the outlets' Torricelli rate
-  // (params.water.rateLs a tank still holding water). WDEF[i] is what has left node i: every door that rewrites a
+  // (params.water.rateLs: every tank's own hole, summed). WDEF[i] is what has left node i: every door that rewrites a
   // node's mass from its base - the burn, the load (setFreight) - takes it off, so a burn after a dump does not put
   // the water back; reset fills the tanks again. No water: WDEF null and not one line below reads differently.
   const WAT = P_.water || null;
@@ -2278,6 +2278,9 @@ function makeSim(def, world) {
                   rateLs: WAT ? WAT.rateLs : 0, kgL: (WAT && WAT.kgL) || 1,
                   tanks: WAT ? WAT.tanks.length : 0, outlets: WAT ? WAT.outlets : [] };
   if (WDEF !== null) ctl.dump = 0;          // (the valve's key: only a build with water carries it - input.js writes it then)
+  // AIRBRAKES (GEN_RULES.airbrake): the blue handle, 0 in .. 1 full out - a key only a build with brakes carries
+  const ABK = P_.airbrake || null;
+  if (ABK) ctl.airbrake = 0;
   // a node's mass from its base (the def's, or the burn's while the tanks are drawn down), its load on top, its water off
   const massBase = i => {
     const k = FUEL_K[i];
@@ -2288,7 +2291,7 @@ function makeSim(def, world) {
     water.open = !!ctl.dump;
     water.flowKgS = 0;
     if (!water.open || !(water.kg > 0) || !(water.kg0 > 0)) { out.waterKg = water.kg; out.waterFlow = 0; return; }
-    const dkg = Math.min(water.kg, water.rateLs * water.kgL * Math.max(1, water.tanks) * dt);
+    const dkg = Math.min(water.kg, water.rateLs * water.kgL * dt);   // (rateLs: the tanks' summed outlets, 61_gen_frame)
     const f2 = Math.max(0, water.frac - dkg / water.kg0);
     water.frac = f2; water.kg = water.kg0 * f2; water.flowKgS = dkg / Math.max(1e-9, dt);
     for (let k = 0; k < WAT_IDX.length; k++) {
@@ -2731,6 +2734,7 @@ function makeSim(def, world) {
     for (let i = 0; i < n; i++) minC = Math.min(minC, p[i*3+1] - rC[i]);
     for (let i = 0; i < n; i++) p[i*3+1] += -minC + 0.01 + drop;
     ctl.thr = ctl.de = ctl.da = ctl.dr = ctl.brake = ctl.flap = ctl.brakeD = 0;
+    if ('airbrake' in ctl) ctl.airbrake = 0;   // (AIRBRAKES: the handle in)
     ctl.twLock = 1;                                  // G3800: the tailwheel lock in (a lockable wheel: straight)
     ctl.wr = null;                                   // G2480: the water rudders back to the rule
     if (GR) { ctl.gear = 1; GR.pos = 1; GR.lift = 0; GR.emerg = false; GR.moving = 0; GR.cda = P_.fusCdA.slice(); if (WB) WB.lift = null;
@@ -3360,6 +3364,8 @@ function makeSim(def, world) {
         if (st.dr && ctl.flap > 0) { dCl += st.dr.dCl * ctl.flap; dCd += st.dr.dCd * ctl.flap; dAS += (st.dr.dAs || 0) * ctl.flap; }
         [Cl, Cd] = polar(al, P, sig, dCl, dCd, dAS);
       }
+      // AIRBRAKES: on the strips a brake spans, the lift it spoils and the plate's drag, at the handle (GEN_RULES.airbrake)
+      if (st.ab !== undefined && ctl.airbrake > 0 && ABK) { const e = ctl.airbrake * st.ab; Cl *= 1 - ABK.spoil * e; Cd += ABK.cd * e; }
       // G461: the stab flies at the body's wake q (P_.tailEta, 1 on a fiche)
       let q = 0.5 * rho * V2 * st.area * ((st.kind === 'stab' || st.kind === 'vtail') ? (P_.tailEta || 1) : 1);
       const iv = 1 / Math.sqrt(V2);

@@ -250,6 +250,10 @@ function cageJoinSpec(P, M, T) {
       // TIP-SKID (60_gen_spec GEN_TIP_SKID): the wingtip skid, its shoe's depth under the skin - absent when off (no key
       // moves the hash of a wing without one)
       ...(+P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {}),
+      // AIRBRAKES (GEN_RULES.airbrake): the boxes' span and the plate's height - absent when off
+      ...(+P.wgBrake ? { airbrake: { z0: P.wgBrakeAt != null ? +P.wgBrakeAt : 0.30,
+          z1: (P.wgBrakeAt != null ? +P.wgBrakeAt : 0.30) + (P.wgBrakeLen != null ? +P.wgBrakeLen : 0.16),
+          h: P.wgBrakeH != null ? +P.wgBrakeH : 0.20 } } : {}),
       // THE HUB (the rod rooted in the centre section): the centre's rows and the first bay's loop cuts the rod's hump
       // is shaped on (_cage_wing hubHump) - the same keys the wing layer draws with
       // THE HUB (the rod rooted in the centre section): the centre's rows the rod's hump is shaped on - the wing layer's
@@ -434,6 +438,9 @@ function cageJoinSpec(P, M, T) {
     if (M.mono) spec.gear.mono = true;             // MONOWHEEL: one main on the centreline (no track)
     if (M.mono && +P.s1Ul) spec.gear.ul = true;   // WEIGHT STUDY L6: the ultralight monowheel (GEN_RULES.ulGear)
     if (Math.round(+P.towHook || 0) > 0) spec.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+P.towHook)) - 1];   // THE TOW HOOK (GEN_RULES.towHook)
+    // THE CATEGORY (GEN_CATEGORY): the key only off 'normal'
+    { const ck = ['normal', 'utility', 'aerobatic', 'sailplane'][Math.max(0, Math.min(3, Math.round(+P.certCat || 0)))];
+      if (ck !== 'normal') spec.category = ck; else delete spec.category; }
     // MONOWHEEL: the mains sunk into the body (their share; the drag counts what stands out)
     if (+P.s1Sink > 0 && +P.s1On) spec.gear.sink = Math.min(0.7, +P.s1Sink);
     if (M.contactR > 0) spec.gear.wheelR = M.contactR;
@@ -1215,6 +1222,7 @@ function cageSurfHinge(pts, surf, opts) {
     if (opts && opts.cant >= 20) { out.drive2 = 'dr'; out.sgn2 = Math.abs(axis[1]) > 1e-6 ? (axis[1] > 0 ? -1 : 1) : (port ? -1 : 1); }
   }
   else if (S2 === 'flapR' || S2 === 'flapL') { out.drive = 'flap'; out.sgn = -1; }
+  else if (S2 === 'brkR' || S2 === 'brkL') { out.drive = 'airbrake'; out.sgn = 1; }   // AIRBRAKES: a slide, no turn
   else { out.drive = 'da'; out.sgn = port ? -1 : 1; }
   return out;
 }
@@ -2455,7 +2463,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // G185: the second plane's four surfaces ride the same way; their
       // names carry a '2', which the drive map strips below
       for (const nm of ['ailR', 'ailL', 'flapR', 'flapL', 'rud', 'rud2',
-                        'elevR', 'elevL', 'ailR2', 'ailL2', 'flapR2', 'flapL2'])
+                        'elevR', 'elevL', 'ailR2', 'ailL2', 'flapR2', 'flapL2', 'brkR', 'brkL'])   // (AIRBRAKES: the plates)
         PARTS.others.push({ src: 'edSurf_' + nm, kind: 'surf_' + nm,
           surf: nm, groups: {} });
       // G239: THE CONTROL LINKS. A pushrod or a cable has one end on the
@@ -3231,7 +3239,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const S2k = pt.surf.replace(/2$/, '');
           const which = S2k.lastIndexOf('ail', 0) === 0 ? 'aileron'
                       : S2k.lastIndexOf('flap', 0) === 0 ? 'flap'
-                      : S2k.lastIndexOf('rud', 0) === 0 ? 'rudder' : 'elevator';
+                      : S2k.lastIndexOf('rud', 0) === 0 ? 'rudder'
+                      : S2k.lastIndexOf('brk', 0) === 0 ? 'airbrake' : 'elevator';
           const ft = spec && spec.controls && spec.controls.flap
                      && spec.controls.flap.type;
           out2.k = genTravel(which, ft);

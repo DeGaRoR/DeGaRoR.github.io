@@ -1722,6 +1722,7 @@ const GEN_TRAVEL = {                       // degrees, each way
   elevator: 28,
   rudder:   27,
   flap:     40,                            // 0 -> full, one way only
+  airbrake: 0.0001,                        // AIRBRAKES: no turn - the plate SLIDES up (its slide, 63_gen_wing)
 };
 // the flap's own travel is the type's, where the type has an opinion: a
 // Fowler runs out further than it turns down, and a split flap goes further
@@ -2022,6 +2023,24 @@ const GEN_OUTFIT = {
 // (GEN_LOAD_LIMIT) and cancels in the ratio; a category field enters as
 // (Nz / 3.8)^e when it exists. The clamp keeps a foam trainer from
 // vanishing and a Twin Wasp from building itself of bridge steel.
+// THE CATEGORY (the user, 15 Nov, the LS4: "By increasing the strength, we should also get heavier ... Wing thicker,
+// stronger and more water seems like going in the right direction"): the positive limit load factor the structure is
+// built and certified to. The gauge above takes it as (Nz / 3.8)^e on the classes Nz sizes - the fuselage, the wing,
+// the tail; the gear is sized by its landing load, not by Nz (Raymer's Nl) - and the certificate (66_gen_cert) flies
+// its corners at it, the ultimate at 1.5 x. spec.category, absent = 'normal' (every build before it: the bytes kept).
+//   normal     CS-23 / FAR 23.337(a) normal category, +3.8 (the lightest aeroplanes' 2.1 + 24000 / (W + 10000) caps
+//              there; kept at 3.8 as it always was here)
+//   utility    CS-23 utility, +4.4
+//   aerobatic  CS-23 aerobatic, +6.0
+//   sailplane  CS-22.337, the utility sailplane: +5.3 at VA (-2.65 under), +4.0 at VD (the corner kept at 5.3 here)
+const GEN_CATEGORY = {
+  normal:    { nz: 3.8, name: 'normal (CS-23, +3.8 g)' },
+  utility:   { nz: 4.4, name: 'utility (CS-23, +4.4 g)' },
+  aerobatic: { nz: 6.0, name: 'aerobatic (CS-23, +6.0 g)' },
+  sailplane: { nz: 5.3, name: 'sailplane (CS-22 utility, +5.3 g)' },
+};
+const GEN_CATEGORY_KEYS = ['normal', 'utility', 'aerobatic', 'sailplane'];   // the cage's certCat row, in its order
+function genCatNz(S) { return (GEN_CATEGORY[S && S.category] || GEN_CATEGORY.normal).nz; }
 // THE DRAG BUILD-UP'S CONSTANTS (PERF STUDY chantier 2, 2026-09-15; read by
 // 62_gen_aero genFusCdA). Every number is a flat-plate drag AREA in m2 or
 // a factor, with where it comes from. The skin's own coefficient per m2 of
@@ -3264,7 +3283,7 @@ function genEngPropD0(S, e0, PP0) {
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
-                               brkHold: 0 };
+                               brkHold: 0, certCat: 0, wgBrake: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -3845,6 +3864,18 @@ const GEN_RULES = {
   // two doors on hinges and springs - retractKg on the axle (not GEN_RULES.retractKg's powered kit, 12 kg at the least),
   // retractPrice; the tail wheel stays down. INFERRED: a 15 m sailplane's gear retraction weighs well under a kilogram
   ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4, retractKg: 0.6, retractPrice: 600 },
+  // AIRBRAKES (the user, 15 Nov, the LS4: "We can model airbrakes, along with their dashboard control"): a sailplane's
+  // Schempp-Hirth plates - a pair of boxes in the wing behind the spar, each a plate that rises out of the upper skin
+  // on a parallelogram when the blue handle is pulled. Unlike a flap (which cambers the section: more lift at a given
+  // speed, a lower stall, some drag) a brake SPOILS the lift behind it and stands a plate in the stream: a steeper
+  // glide at the same speed, the approach's path control, and a speed limiter in a dive. wings[0].airbrake {z0, z1: the
+  // span's fractions of the semispan, h: the plate's height over the local chord}. On the strips it covers (62_gen_aero
+  // `ab`), at the handle's e (ctl.airbrake 0..1): Cl x (1 - spoil e), Cd + cdPlate x h x e (a plate across the flow,
+  // Cd ~1.2 on its frontal height - Hoerner). INFERRED: spoil 0.6 (the wake behind a full-out brake carries ~40 % of
+  // the clean lift); a Standard Class's pair at 1.2 m each, 0.2 c high takes the glide from ~40 to ~8 (the LS4 manual's
+  // approach with full brakes, as recalled ~7-9). kgPerM / pricePerM a side, per metre of box (the cassette, two plates'
+  // linkage, the springs, the cover strips: ~1.4 kg a metre)
+  airbrake: { spoil: 0.6, cdPlate: 1.2, kgPerM: 1.4, pricePerM: 900, z: [0.12, 0.92], h: [0.05, 0.35] },
   // THE TOW HOOK (A0 for the user, 13 Nov: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and make
   // the TOW-LAUNCH car tow use it"): gear.towHook 'nose' | 'cg' (the gear page's towHook). A NOSE release (Tost E 85
   // class: aerotow - the line pulls from ahead, the glider stays in line behind the tug) at the nose's keel; a CG release
@@ -5220,6 +5251,15 @@ function clampWing(w, S, k) {
     const h = +w.tipSkid;
     if (k === 0 && Number.isFinite(h) && h > 0) w.tipSkid = genClamp(h, GEN_TIP_SKID.h[0], GEN_TIP_SKID.h[1]); else delete w.tipSkid;
   }
+  // AIRBRAKES (GEN_RULES.airbrake): the first plane's only - its span's two fractions (at least 4 % of the semispan
+  // apart) and its plate's height; anything else, or another plane's, the key gone
+  if ('airbrake' in w) {
+    const A = w.airbrake, R = GEN_RULES.airbrake;
+    if (k === 0 && A && typeof A === 'object' && Number.isFinite(+A.z0) && Number.isFinite(+A.z1) && Number.isFinite(+A.h)) {
+      const z0 = genClamp(+A.z0, R.z[0], R.z[1] - 0.04), z1 = genClamp(+A.z1, z0 + 0.04, R.z[1]);
+      w.airbrake = { z0, z1, h: genClamp(+A.h, R.h[0], R.h[1]) };
+    } else delete w.airbrake;
+  }
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
   // This is the Jodel's wing — a flat centre section and sharply dihedralled
@@ -5519,6 +5559,9 @@ function genWaterClamp(S) {
     v.along = v.along == null ? null : genClamp(+v.along, -1, 12);
     v.lv = v.lv == null ? null : genClamp(+v.lv, 0, 1);
     v.rot = genClamp(+v.rot || 0, -90, 90);
+    // THE OUTLET'S OWN SIZE (the LS4: a sailplane's dump valves let its 170 L go in ~3-4 minutes, a 40 mm hole in under
+    // one): metres across, absent the rule's (GEN_RULES.water.outletD)
+    if (v.outletD != null) { if (+v.outletD > 0) v.outletD = genClamp(+v.outletD, 0.006, 0.08); else delete v.outletD; }
     if (v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) && v.dims.profile.length >= 2 && v.dims.profile.length <= 33)
       v.dims.profile = v.dims.profile.map(x => genClamp(+x || 0, 0, 1));
     else v.form = v.form === 'cyl' ? 'cyl' : 'box';
@@ -6062,6 +6105,9 @@ function clampSpec(spec) {
   //  built from its cage without the join - a design bake - reads the cage's row, as the frame reads whProfile)
   if (S.gear.towHook == null && S.cage && Math.round(+S.cage.towHook || 0) > 0) S.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+S.cage.towHook)) - 1];
   if (!((S.gear.towHook === 'nose' || S.gear.towHook === 'cg') && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))) delete S.gear.towHook;
+  // (THE CATEGORY, GEN_CATEGORY: the key only off 'normal'; a design bake reads the cage's certCat row, as the tow hook)
+  if (S.category == null && S.cage && Math.round(+S.cage.certCat || 0) > 0) S.category = GEN_CATEGORY_KEYS[Math.min(3, Math.round(+S.cage.certCat))];
+  if (!GEN_CATEGORY[S.category] || S.category === 'normal') delete S.category;
   // MONOWHEEL: THE SUNK MAINS - the share of the wheel's diameter inside the body (the cage's s1Sink, the join's); the
   // drag counts the rest, no leg in the stream. Absent at 0
   if (+S.gear.sink > 0) S.gear.sink = genClamp(+S.gear.sink, 0, 0.7); else delete S.gear.sink;

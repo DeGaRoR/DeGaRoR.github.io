@@ -178,7 +178,7 @@ function surfaceList(scene, P, FS, mesh) {
   const WG = window.CAGE_WING;
   for (const s of (WG && WG.surfs) || []) {
     const nm = s.name;
-    if (!objOf[nm]) continue;
+    if (!objOf[nm] || s.kind === 'brk') continue;   // (AIRBRAKES: a plate slides on its box's parallelogram - no hinge to hang)
     out.push({ key: nm, kind: s.kind, obj: objOf[nm], host: hostOf(nm),
                A: s.line[0], B: s.line[1], r: s.r,
                aft: s.aft, face: V.mul(s.up, -1),      // hardware lives UNDER a wing

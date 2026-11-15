@@ -292,6 +292,7 @@ function genStrips(S, fr) {
     return a;
   };
 
+  const abW = k === 0 && wk.airbrake ? wk.airbrake : null, abZ = abW ? [abW.z0 * semi, abW.z1 * semi] : null;
   const zAll = [PL.zRoot, ...PL.zs];
   for (const [side, fw] of [[1, PL.wf.R], [-1, PL.wf.L]]) {
     for (let b = 0; b < PL.zs.length; b++) {
@@ -317,6 +318,8 @@ function genStrips(S, fr) {
         const fFrac = fEnd <= zLo ? 0
                     : fEnd >= zHi ? 1
                     : (fEnd - zLo) / (zHi - zLo);
+        // AIRBRAKES (GEN_RULES.airbrake): how much of this strip the brake's box spans (plane 0's; the key only there)
+        const abFrac = abZ ? Math.max(0, Math.min(zHi, abZ[1]) - Math.max(zLo, abZ[0])) / Math.max(1e-9, zHi - zLo) : 0;
         strips.push({
           kind: 'wing', side, t, chord: ch,
           area: 0.5 * (zo - zi) * ch,
@@ -330,6 +333,7 @@ function genStrips(S, fr) {
           // reads the strip's own numbers, never a single aeroplane-wide one
           plane: k, sparSpacing: PL.sparSpacing, cf,
         });
+        if (abFrac > 0) strips[strips.length - 1].ab = abFrac;   // (AIRBRAKES: a key only on the strips a brake spans)
         const xcd = (ST || stPlate > 0 || stSkid > 0) ? stXcd(zLo, zHi, b === PL.zs.length - 1 && t > 0.5) : 0;
         if (ST || xcd > 0) {
           // G2820: keys only where a device reaches - every other strip is
@@ -2004,6 +2008,10 @@ function genParams(S, fr, strips) {
     // WATER TANKS (GEN_RULES.water): what the dump valve drains (the frame's `mWater` records) and where it leaves - the
     // outlets as node weights and a drop below them, for the solver and the viewer's shower (absent with none)
     ...(fr.parts && fr.parts.water ? { water: fr.parts.water } : {}),
+    // AIRBRAKES (GEN_RULES.airbrake): the solver's two numbers - the lift a full-out brake spoils on the strips it
+    // spans, and the plate's drag coefficient on their area (cdPlate x h) - absent with none
+    ...(S.wings && S.wings[0] && S.wings[0].airbrake ? { airbrake: { spoil: GEN_RULES.airbrake.spoil,
+        cd: GEN_RULES.airbrake.cdPlate * S.wings[0].airbrake.h } } : {}),
     // (WILGA-GEAR: a trailing-link leg's struts are no members - each stands in here at its stiffest, bottomed on its
     // stops, so the step is one the integrator carries; its orifice is semi-implicit and asks no step - 62c gearOleoF)
     ...genSubsteps(fr.nodes, fr.parts && fr.parts.lever ? fr.beams.concat(fr.parts.lever.sides.map(q => ({ a: q.u, b: q.h, k: q.O.kS + q.O.kFull, c: 0, L: q.O.Lx }))) : fr.beams, fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)

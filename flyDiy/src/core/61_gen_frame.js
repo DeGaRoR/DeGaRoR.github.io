@@ -3608,6 +3608,25 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
   }
 
+  // ---- 5d. AIRBRAKES (GEN_RULES.airbrake; wings[0].airbrake): THE BOXES, a side each ----------------------------
+  // Each box's kilos (kgPerM a metre of its span) on the spar pair at its middle station - 40 % on the front, 60 % on
+  // the rear (the box stands just aft of the main spar, between the two) - its own ledger line; nothing on a wing
+  // without one (no section opened: the ledger's bytes)
+  {
+    const AB = S.wings && S.wings[0] && S.wings[0].airbrake;
+    if (AB && wf.L && wf.R && R.airbrake) {
+      sec('airbrake');
+      const semiAB = G.semi || 1, zm = 0.5 * (AB.z0 + AB.z1) * semiAB, lenM = (AB.z1 - AB.z0) * semiAB;
+      const kgSide = R.airbrake.kgPerM * lenM;
+      for (const W of [wf.L, wf.R]) {
+        let j = 0;
+        for (let q = 1; q < W.F.length; q++) if (Math.abs(Math.abs(P[W.F[q]][2]) - zm) < Math.abs(Math.abs(P[W.F[j]][2]) - zm)) j = q;
+        pt(W.F[j], 0.4 * kgSide); pt(W.R[Math.min(j, W.R.length - 1)], 0.6 * kgSide);
+        spend(R.airbrake.pricePerM * lenM);
+      }
+    }
+  }
+
   // ---- 6. payload, fuel, systems --------------------------------------
   // tandem: pilot in the FRONT seat first (a J-3 is soloed from the rear, but
   // that is a CG choice the player can make by moving the seat, not a default)
@@ -3884,9 +3903,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         nodes[n2].mWater = (nodes[n2].mWater || 0) + w2 * kgW;
       }
     }
-    // Torricelli: one hole a tank (a wing tank's two share its flow), litres a second, full head - the valve's rate
-    const A = Math.PI * RW.outletD * RW.outletD / 4;
-    const rateLs = 1000 * RW.Cd * A * Math.sqrt(2 * 9.81 * RW.head);
+    // Torricelli: one hole a tank (a wing tank's two share its flow), its own size or the rule's, litres a second at
+    // full head - the valve's rate is the tanks' sum (each tank's on its record)
+    let rateLs = 0;
+    WVES.forEach((v, k) => { const d = v.outletD > 0 ? v.outletD : RW.outletD, A = Math.PI * d * d / 4;
+      tanks[k].rateLs = 1000 * RW.Cd * A * Math.sqrt(2 * 9.81 * RW.head); rateLs += tanks[k].rateLs; });
     WATER = { kg0, rateLs, kgL: GEN_WATER.water.kgL, outlets: outs, tanks };
     for (const v of WVES) { delete v._pair; delete v._res; delete v._out; }
   }
@@ -4404,7 +4425,9 @@ function genDesignGross(S, a, cg) {
   const eOf = c => G.e[c] != null ? G.e[c] : G.e[c.replace(/B$/, '')];
   const rowOf = c => c === 'wingB' ? WROW : c === 'tailB' ? TROW : c === 'fusB' ? (GEN_MATERIALS[S.material] || null) : null;   // (L4: the soft shell's)
   const hiOf = c => { const r = rowOf(c); return r && r.buildKg > 0 ? Math.min(G.hi, CORE_MATH.pow(r.buildKg / ref(c), eOf(c))) : G.hi; };
-  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), eOf(c))));
+  // THE CATEGORY (GEN_CATEGORY): Nz / 3.8 on the classes it sizes (not the gear: its landing load) - 1 on a normal one
+  const nzK = genCatNz(S) / GEN_CATEGORY.normal.nz;
+  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow((nzK !== 1 && c !== 'gear' ? W * nzK : W) / ref(c), eOf(c))));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
   const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)

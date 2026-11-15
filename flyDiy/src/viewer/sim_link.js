@@ -588,6 +588,7 @@ const SIM_LINK = (() => {
         const h = { de: null, da: null, dr: null, thr: null, brake: null, brakeD: null, wr: null, twLock: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
         if ('gear' in F.realCtl) h.gear = null;   // RETRACT-1: the gear handle - only an aeroplane that has one (INP.write fills it)
         if ('dump' in F.realCtl) h.dump = null;   // WATER TANKS: the dump valve - only an aeroplane with water (INP.write fills it)
+        if ('airbrake' in F.realCtl) h.airbrake = null;   // AIRBRAKES: the blue handle - only an aeroplane with brakes
         S.INP.write(h);
         cmd({ cmd: 'hand', ctl: Object.assign({}, h, { eng: h.eng ? h.eng.map(e => (e.thr != null ? e.thr : null)) : null }) });
       }

@@ -9160,10 +9160,19 @@
     if (dumpHandSeen !== null && h !== dumpHandSeen) sim.ctl.dump = h;
     dumpHandSeen = h;
   }
+  // AIRBRAKES: the handle the same way - the pilot's, whoever flies (written when it changes)
+  let abHandSeen = null;
+  function airbrakeKeyUnderAP() {
+    if (manual || !INP || typeof INP.airbrake !== 'function' || !sim.ctl || !('airbrake' in sim.ctl)) { abHandSeen = null; return; }
+    const h = INP.airbrake();
+    if (abHandSeen !== null && h !== abHandSeen) sim.ctl.airbrake = h;
+    abHandSeen = h;
+  }
   function scriptView(dt) {
     if (!started) { setRail(null); return; }
     gearKeyUnderAP();
     dumpKeyUnderAP();
+    airbrakeKeyUnderAP();
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
@@ -16834,7 +16843,7 @@
   // exactly what you are asking, so the three cells are back — as
   // `instruments` toggles, off by default, signed as a pilot reads them
   // (+ is nose up, roll right, RIGHT pedal).
-  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','gear','gearU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
+  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','gear','gearU','abrk','abrkU','wtr','wtrU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
   // A3: THE ENERGY CELL - the fourth number that is always there. Litres of a
   // tank or kWh of a pack (the build's kind, from sim.fuel), one decimal;
@@ -16902,6 +16911,20 @@
     if (R.gearU) R.gearU.textContent = lab;
     if (RD.gear) RD.gear.classList.toggle('warn', !locked && !up);
   }
+  // AIRBRAKES AND WATER (the user 15 Nov): two cells beside the gear's, each only on a build that has the thing - the
+  // blue handle's travel (the solver's ctl.airbrake), and the water aboard with DUMPING while the valve runs
+  // (out.waterKg / out.waterFlow: the worker's snapshot carries out whole). Written only when they change
+  let hudAbOn = false, hudAbK = '', hudWtOn = false, hudWtK = '';
+  function hudBrakeWater() {
+    const c = sim && sim.ctl, o = sim && sim.out;
+    const abOn = !!(c && 'airbrake' in c), wtOn = !!(o && typeof o.waterKg === 'number');
+    if (abOn !== hudAbOn || wtOn !== hudWtOn) { hudAbOn = abOn; hudWtOn = wtOn; hudAbK = hudWtK = ''; flInstApply(); }
+    if (abOn && R.abrk) { const e = Math.round(100 * (+c.airbrake || 0)), k = String(e);
+      if (k !== hudAbK) { hudAbK = k; R.abrk.textContent = e + ' %'; if (R.abrkU) R.abrkU.textContent = e > 0 ? 'airbrakes OUT' : 'airbrakes in';
+        if (RD.abrk) RD.abrk.classList.toggle('warn', e > 0); } }
+    if (wtOn && R.wtr) { const kg = Math.round(o.waterKg || 0), run = (o.waterFlow || 0) > 0, k = kg + '|' + run;
+      if (k !== hudWtK) { hudWtK = k; R.wtr.textContent = kg + ' kg'; if (R.wtrU) R.wtrU.textContent = run ? 'water DUMPING' : 'water'; } }
+  }
   // the netto's state: a 3 s needle and a 20 s ring, as a vario has
   let nettoF = 0, nettoI = 0;
   const nettoRing = new Float64Array(20 * 60);
@@ -16959,6 +16982,7 @@
     hudEnergy();
     hudWind();
     hudGear();
+    hudBrakeWater();                       // AIRBRAKES / WATER TANKS: their cells
     if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
     if (CAREER_DEV) careerFrame(cg);                     // G2320 (CAREER-WIRE): the aerodromes passed (a survey's evidence)
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
@@ -18625,7 +18649,7 @@
     if (p) p.classList.toggle('small', small);
     for (const d0 in RD) {
       if (!RD[d0]) continue;
-      RD[d0].hidden = d0 === 'gear' ? !hudGearOn : small ? PFD_SMALL.indexOf(d0) < 0
+      RD[d0].hidden = d0 === 'gear' ? !hudGearOn : d0 === 'abrk' ? !hudAbOn : d0 === 'wtr' ? !hudWtOn : small ? PFD_SMALL.indexOf(d0) < 0
                             : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' || d0 === 'wind' ||
                                 instOn[d0]);
     }

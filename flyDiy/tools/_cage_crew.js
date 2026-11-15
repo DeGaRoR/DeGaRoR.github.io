@@ -71,6 +71,7 @@ const MFALL = {
   cast:    lam(0x8e949a),
   hide:    lam(0x3a2a1f),
   ptt:     lam(0xc0302a),
+  brk:     lam(0x2f6fd0),      // AIRBRAKES: the sailplane's blue handle
   ball:    lam(0x1c1e22),      // a throttle's ball
   tread:   lam(0x202227),      // a pedal's rubber
   plateAl: lam(0xd0d4d8),      // a pedal's plate: the dash's own metal
@@ -1045,6 +1046,32 @@ function buildFlapLever(g0, A, P, sx, seat, sbs) {
   const sd = Math.sign(sx || 1);
   tapeOn(g0, 'Flaps', 0.040, [x + sd * 0.0205, y0 + 0.030, z - 0.010], sd > 0 ? -Math.PI / 2 : Math.PI / 2);
   return { obj: gL, label: 'flap lever' };
+}
+// THE AIRBRAKE HANDLE (the user, 15 Nov, the LS4: "We can model airbrakes, along with their dashboard control"): a
+// sailplane's blue handle on the LEFT wall by the pilot's knee - a tube on a pivot in a small bracket, a blue grip at
+// its head, forward with the brakes in and pulled aft as they come out (ctl.airbrake 0..1, ~70 deg of swing). Only on
+// a build with airbrakes (the wing's wgBrake row).
+function buildAirbrakeHandle(g0, A, P, sx, seat) {
+  const K = window.GEAR_KIT;
+  if (!K || !+P.wgBrake) return null;
+  const z = (seat ? seat.szc : A.zBack + 0.20) + 0.28;
+  const y0 = A.floorAt(z) + 0.004;
+  let x = -Math.abs(sx || 0) - 0.22;
+  if (A.wallAt) { const w = Math.abs(A.wallAt(-1, y0 + 0.12, z) || 0) - 0.04; if (w > 0.05) x = -w; }
+  const piv = [x, y0 + 0.10, z];
+  const br = K.Bag();
+  K.sweep(br, [[x, y0 + 0.07, z], [x, y0 + 0.13, z]],
+    () => [[-0.012, -0.03], [0.012, -0.03], [0.012, 0.03], [-0.012, 0.03]], true, [0, 0, 1]);
+  br.mesh(g0, M.cast);
+  const gH = movingAt(g0, 'edCtl_airbrake', piv, [1, 0, 0], 'airbrake', -1, 1.2);
+  const lev = K.Bag(), grip = K.Bag();
+  const up = _nrm3([0, Math.cos(25 * D2R), Math.sin(25 * D2R)]);
+  K.revolve(lev, [0, 0, 0], up, [[0.005, 0], [0.005, 0.20]], 12, true);
+  K.revolve(grip, _off3([0, 0, 0], up, 0.19), up,
+    [[0.005, 0], [0.013, 0.008], [0.014, 0.040], [0.012, 0.060], [0, 0.066]], 18, false);
+  lev.mesh(gH, M.plated); grip.mesh(gH, M.brk);
+  tapeOn(g0, 'Airbrakes', 0.040, [x + 0.016, y0 + 0.10, z - 0.04], -Math.PI / 2);
+  return { obj: gH, label: 'airbrake handle' };
 }
 // THE OVERHEAD CONSOLE (CABIN-INTERIOR G1, the user 2-3 Nov: the cabin's top half, "what you see through windows";
 // the first cut, 3 Nov 08:40). A shallow moulded pod on the ceiling's centreline just forward of the front row's
@@ -3229,6 +3256,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // the pilot's, drawn with the controls so the join carries them
   try {
     if (Math.round(+P.flapCtl || 0) !== 1) buildFlapLever(tg, A, P, pilot.x, pilot, sbs);   // G335: else the panel's switch
+    buildAirbrakeHandle(tg, A, P, pilot.x, pilot);          // AIRBRAKES: the blue handle (a build with brakes only)
     buildBrakeKnob(tg, A, P, pilot.x);
     buildFuelSelector(tg, A, P, pilot.x, pilot);
     buildTrimWheel(tg, A, P, pilot.x, pilot);

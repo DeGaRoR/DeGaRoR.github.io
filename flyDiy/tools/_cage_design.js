@@ -3292,6 +3292,50 @@ const ARCHETYPES = [
                       sections: { ...BODY_PAINT(0xf3f4f1), wingSkin: { tint: 0xf3f4f1 }, finSkin: { tint: 0xf3f4f1 },
                                   stabSkin: { tint: 0xf3f4f1 }, boomTube: { tint: 0xf3f4f1 }, boomSkin: { tint: 0xf3f4f1 } } },
                     meta: { reg: 'HB-WXA' } } } },
+  // THE LS4-ALIKE (the user 13-15 Nov: the LS4 from the motorglider - the sailplane preset's pod, engineless, the
+  // LS4's wing and tail fitted to the factory sheet 1U-87 and the 0-4 m three-view (tools/ref_match/refs/ls4/), the
+  // retracting ultralight monowheel, the wingtip skids, the clear canopy; then: the wing at 15 % (the LS4's thin-section
+  // Wortmann mod., the FX 67-K-150's thickness), 170 L of water in the wings (2 x 85 L, the LS4-a / -b's bags) dumped by
+  // 20 mm outlets in ~3.4 min, the CG tow release, the sailplane category (+5.3 g, CS-22), Schempp-Hirth airbrakes
+  // (0.30-0.46 of the semispan, 0.2 c plates). The card is the motorglider's tiles and the rows the build
+  // builds/ls4_2026-11-13.json differs by (the fit's own record: born_ls4.js + prototype_cage.json + the later rows).
+  // Open: the mass (204 kg empty against the LS4-b's 238), the drag (L/D ~17 here: the drag study)
+  { key: 'ls4', kind: 'recreation', name: 'LS4-alike', note: 'Standard Class sailplane, 15 m, ' +
+      'water ballast, airbrakes, retracting monowheel',
+    sel: {class: "sail",role: "glider",seatLayout: 0,paxCount: 0,canopy: "bubble",mirror: 1,intCons: 5,boomStyle: 0,section: 3,wgPos: 1,wgBrace: 1,wgTip: 2,wgFlapType: 0,engFamily: "electric",engModel: "pipistrel E-811",engMount: "nose",gearLayout: "tail",suspension: "spring",s1Fair: 1,empennage: "t",scheme: "trim",base: 15722191,trim: 1784412},
+    over: { cage: {
+                    planeScale: 0.595, boomLen: 6.14, cabPillarW: 0.085, paxPillarW: 0.115, pillarW: 0.085,
+                    halfW: 0.43, roofHalfW: 0.41, roofY: 0.625, keelY: -0.74, ceilInset: 0.2, waistY: -0.05,
+                    bandH: 0.084, aftRoofY: 0.47, aftKeelY: -0.635, tailRoofY: 0.18, tailKeelY: 0.08, ringPullIn: 0,
+                    apilW: 1.12, noseLen: 0.97, noseW: 0.9, pfW: 1.21, topComp: 1.15, bubble: 0, crFrontCap: 0,
+                    crNoseCap: 0, botRound: 0.36, cowlEase: 0.53, cowlBulge: 0.975, noseFinish: 1, aeroNose: 1,
+                    aeroLen: 1, aeroDroop: 0, aeroTipW: 0.08, aeroTipH: 0.08, boomMidPinch: 0.75, bubH: 0.9,
+                    bubAt: 0.55, canLoops: 3, bubH2: 0.56, bubAt2: 0.18, bubH3: 0.5, bubAt3: 0.78, noseTip: 0.98,
+                    aftNoseTip: 0.21, noseJointOn: 0, aftRingWinW: 0.08, aftRingScrW: -0.03, aftRingCowl1W: 0,
+                    aftRingCowl2W: 0, aftPilotLen: 0.42, aftWsRun: 0.95, aftNoseLen: 0.75, aftNoseW: 0.98,
+                    aftNoseH: 1.2, aftDroop: -0.005, aftNoseCrown: 0.585, aftCowlEase: 0.03, aftCowlBulge: 0.985,
+                    aftWsBaseLift: 0.255, aftWsTopOff: 0.081824, aftWsBaseBow: 0.45, aftWsCeilBow: 0.3,
+                    aftCowlLoops: 2, aftRingNoseTop: 0.285, aftRingNoseBot: -0.14, frNoseTopY: -0.39999999999999997,
+                    frWinBotY: -0.68329950868154, frPostWaistW: 0.545, frPostBotW: 0.545, frCabWaistW: 0.545,
+                    frCabBotW: 0.545, rimW: 0.01, doorSill: 0.094, dashBack: 0.1, dashDepth: 0.13, canClear: 1,
+                    stY: -0.06, stZ: 0.25, stSpan: 1.027, stChord: 0.59, finVentralOn: 0, finFillet: 0.04,
+                    finDorsal: 0, finTipZ: 0.25, finTipY: -0.3, finAftZ: 0, finAftY: -0.3, finBaseZ: 0, finBaseY: 0,
+                    finMidY: -0.2, finUY: 0, finLEZ: -0.1, finShoulderZ: 0.15, finSharpBase: 3, finSharpLE: 3,
+                    finHeight: 0.98, finChord: 1.12, finChordTip: 0.8, finSweep: 4, wgSpan: 15, wgChord: 0.9,
+                    wgChordTip: 0.36, wgTipX: 0.09, wgCrankChord: 0.72, wgCrankX: 0.05, wgWashout: 2.1, wgThick: 15,
+                    wgTipSkid: 1, wgTipSkidH: 0.06, wgCrankAt: 0.6, wgDx: -1.04, wgCons: 6, engOn: 0, cowlOn: 0,
+                    s1Z: 0.6, s1X: 0, s1R: 0.155, s1Drop: 0.05, s1Fair: 0, s2Drop: 0.05, s2Fair: 0, whProfile: 3,
+                    s2_twSpringLen: 0.12, s2_twSpringDrop: 0.02, s2_twLegDrop: 0, gearRetract: 1, gearRetT: 3,
+                    gearRetAct: 2, gearFold: 0, gearFoldNose: 0, gearRetFrac: 1, gearWellCut: 0, gearDoors: 2,
+                    gearLegDoor: 1, gearNacFit: 1, gearNacPod: 0, gearShort: 0, gearShortNose: 0, gearKneeDoor: 0,
+                    gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0, gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0,
+                    gnTwist: 0, seatType: 11, seatZ: 0, seatH: 0, seatRake: 42, seatGap: 0.285, consoleOn: 1,
+                    stickY: -0.095, pedalZ: 0.965, pedalH: 0.27, pedalSpread: 0.09, pilElbows: 0, pilRecline: 6,
+                    noseDome: 0.3, s1Sink: 0.5, finZ: -0.25, s1Ul: 1, hgHorn: 0, hgFamily: 2, towHook: 2, certCat: 3,
+                    wgBrake: 1, wgBrakeAt: 0.3, wgBrakeLen: 0.16, wgBrakeH: 0.2,
+                    },
+            spec: { paint: {job: "self",sweep: 0,base: 15987953,trim: 1520222}, finish: {sections: {body: {tint: 15987953}}},
+                    water: {vessels: [{bay: "wingRoot",capacity: 140,fill: 1,outletD: 0.02},{bay: "wingPanel",capacity: 30,fill: 1,outletD: 0.02}]} } } },
   // 2026-09-04 (the user): "We need a twin engine aircraft archetype, maybe
   // a couple of them. I'm thinking a luxury, small tourer, like the Diamond
   // DA62 or the Beechcraft Baron, and a larger plane (maybe our first)".

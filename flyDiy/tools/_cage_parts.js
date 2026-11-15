@@ -208,7 +208,7 @@ const CAGE_PARTS = [
   { key: 'design', name: 'Design & construction', parent: null, layer: 'cage',
     groups: [
       ['construction', ['intCons']],
-      ['configuration', ['boomStyle', 'mirror', 'canopy', 'canClear']],
+      ['configuration', ['boomStyle', 'mirror', 'canopy', 'canClear', 'certCat']],
       ['wing', ['wgPos', 'wgBrace', 'w2On']],
       ['what it has', ['wingOn', 'gearOn', 'crewOn']],
     ] },
@@ -677,7 +677,7 @@ const CAGE_PARTS = [
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
                     'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX', 'wgPlan', 'wgPlanAxis', 'wgTipBow', 'wgTipDroop', 'wgTipFull',
-                    'wgTipSkid', 'wgTipSkidH']],
+                    'wgTipSkid', 'wgTipSkidH', 'wgBrake', 'wgBrakeAt', 'wgBrakeLen', 'wgBrakeH']],
       // wgPos -> `design`
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],

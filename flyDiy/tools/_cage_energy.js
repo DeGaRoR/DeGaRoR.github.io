@@ -101,7 +101,8 @@ function waterVessel(v) {
     form: v.form === 'cyl' ? 'cyl' : (v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) && v.dims.profile.length >= 2) ? 'deck' : 'box',
     dims: (v.dims && v.dims.L > 0) ? Object.assign({ L: +v.dims.L, W: +v.dims.W, H: +v.dims.H },
       (Array.isArray(v.dims.profile) && v.dims.profile.length >= 2) ? { profile: v.dims.profile.map(Number) } : {}) : null,
-    finish: FINISH[v.finish] ? v.finish : null, hue: v.hue == null ? null : +v.hue || 0, tint: v.tint || null };
+    finish: FINISH[v.finish] ? v.finish : null, hue: v.hue == null ? null : +v.hue || 0, tint: v.tint || null,
+    ...(+v.outletD > 0 ? { outletD: +v.outletD } : {}) };
 }
 function fromSpec(energy, spec, water) {
   const WL = waterOf(spec, water);
@@ -172,7 +173,8 @@ function toWater() {
   return { vessels: EN.vessels.filter(isWater).map(v => ({ bay: v.bay, capacity: v.capacity, fill: v.fill == null ? 1 : v.fill,
     along: v.along, lv: v.lv, rot: v.rot, form: v.form || 'box',
     dims: v.dims ? Object.assign({ L: v.dims.L, W: v.dims.W, H: v.dims.H }, Array.isArray(v.dims.profile) ? { profile: v.dims.profile.slice() } : {}) : null,
-    finish: v.finish || null, hue: v.hue == null ? null : v.hue, tint: v.tint || null })) };
+    finish: v.finish || null, hue: v.hue == null ? null : v.hue, tint: v.tint || null,
+    ...(+v.outletD > 0 ? { outletD: v.outletD } : {}) })) };
 }
 // the bench remembers; the game's memory is the spec
 const LSKEY = () => 'cageEnergy:' + (typeof location !== 'undefined' ? location.pathname : '');
@@ -3865,6 +3867,13 @@ function renderPanel() {
     if (wat) range(box, 'filled', 'how full this water tank is, drawn and weighed - the structure is built for it full; ' +
       'in flight the dump valve empties it', 0, 1, 0.01, v.fill == null ? 1 : v.fill, x => (x * 100).toFixed(0) + ' %',
       x => { v.fill = x; dragLayout(false, i); }, x => { v.fill = x; relayout(); commitSoon(); });
+    // ...AND HOW FAST IT EMPTIES: the outlet's hole (GEN_RULES.water: Torricelli at the tank's head) - a sailplane's
+    // ballast valves empty its wings in a few minutes, a bomber's hopper in seconds
+    if (wat) { const Rw = (C.RULES && C.RULES.water) || { outletD: 0.04, Cd: 0.6, head: 0.25 };
+      const rate = d => 1000 * Rw.Cd * MathL.PI * d * d / 4 * MathL.sqrt(2 * 9.81 * Rw.head);
+      range(box, 'outlet', 'the dump outlet\'s hole across: how fast the valve empties this tank (Torricelli at its head)', 6, 80, 1,
+        (v.outletD > 0 ? v.outletD : Rw.outletD) * 1000, x => x.toFixed(0) + ' mm · ' + rate(x / 1000).toFixed(2) + ' L/s',
+        x => { v.outletD = x / 1000; }, x => { v.outletD = x / 1000; commitSoon(); }); }
     // THE GEOMETRY IS THE PLAYER'S, AND THE CAPACITY FOLLOWS IT. Three rows
     // for the box; the first touch copies the catalogue shape so the sliders
     // start from what is drawn, and from then on the litres are calculated.
