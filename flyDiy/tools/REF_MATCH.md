@@ -264,6 +264,11 @@ the body aft for exactly this reason.
 | a dorsal fillet that curves CONCAVE into the spine (the DC-3's): ours stands convex above it | OPEN: the dorsal left off, the LE run to the spine |
 | a nacelle role in the tool, and the nacelles / props' station (the DC-3's nacelle 2.98-6.88 m aft of the nose, ours 3.59-6.98) | OPEN: step 3 |
 | a strut boot where a gear leg passes the skin (the 172's nose strut enters the lower cowl: GATE CLIP declares it, `DECLARED` in tools/_clip_check.js, C172-CLIP 9 Nov) | OPEN: the honest visual fix |
+| a high wing sunk into its pod: the wing rides on the cabin roof, the Archaeopteryx's rod runs at the wing's mid-depth (section 12) | OPEN |
+| a glider's centreline gear: a nose wheel and a main wheel in tandem, a tail skid (the Archaeopteryx; the tricycle's mains follow the CG onto the rod) | OPEN |
+| a window with a kinked bottom edge (the Archaeopteryx's lower aft window, 12 Nov) | added: the free quad's fifth corner, `<row>Q5On` / `Q5Z` / `Q5Y` / `R5` |
+| a rudder carried down over the boom's height, a fin slid along the boom (the Archaeopteryx's) | added: `finRudBelow`, `finShiftZ` |
+| airbrake flaps: the Archaeopteryx's inner-span flaps double as airbrakes (deflecting far, drag over lift); the garage's flap types are all lift flaps | OPEN: plain flaps stand in (wgFlapType 1, the span the real one's) |
 | the flown tail envelope on a mid-size type: the PC-6's 5.13 m stab and 2.5 m fin fly clamped (hSpan 1.5-4.5, vHeight 0.6-2.2; the big envelope is for spans past 18 m) (DRAFTING_TABLE.md, 11 Nov) | CLOSED 12 Nov (PC6-TAIL): 1.5-6.0 / 0.6-3.0, the PC-6 flies its drawn tail |
 | the tail wheel's station held at the tail post (`s2Z` moves nothing; the PC-6's sits 0.21 m aft of ours) | OPEN |
 | the stab's station `stZ` stops at -0.6 cage units | OPEN: reached by the chord |
@@ -415,3 +420,27 @@ rows, and the fit is its `DC3_FIT` (v1 since 28 Oct: laid over the study's rows 
   rings on a quarter-ellipse spaced along the arc) at 0.3 - with the tip collapsed (noseTip 0.98), uncreased (crNoseCap 0,
   crFrontCap 0) and the nose joint band off, one smooth tip; the outer dihedral 6.5 (at the reference's 7.5 the Dutch roll
   diverged). Flown: the circuit and a first-time landing; the HOME trip 0 contacts, 0 breaks.
+
+## 12. A three-view instead of a model: the Archaeopteryx (10 Nov 2026)
+
+No GLB of the type exists; the user gave the maker's three-view ("Class 2 Hang Glider, 2005", 13 400 / 5 905 / 2 800).
+The route, with the tools it added:
+
+- `blueprint.py trace <bp.json> <image>`: each view's box on the drawing (`refs/archaeopteryx_bp.json`: the boxes, the
+  boxes to erase - dimension lines, text, ground hatching -, a seed point on each part, `mmPerPx` off the drawing's own
+  dimension lines) filled into a silhouette at 1 cm, in the match's frame: metres aft of the nose, above the rod's top
+  at `datumAt`. The silhouettes are committed (`refs/archaeopteryx_bp/*.png`), the drawing is not.
+- `blueprint.py match <bp.json> <dump-prefix> --png <out> [--on-image <drawing>]`: IoU per view, the length, the
+  wing's LE / TE at stations, the side profile, the wing and the stab across the span, the front view's pod widths
+  and wing line; overlays (grey both, green the drawing, red ours) and our outline over the drawing itself.
+- `blueprint.py tail <bp.json> <dump-prefix> <tail.json>`: the drawing's fin and stab in our frame, for `fit_tail.js`
+  (the fin fitted to 1 - IoU 0.071).
+- `bp_fit.py`: a coordinate search of one step's rows against the silhouettes (`dump_build.js --over`, as fit_body.py).
+
+Learned: the drawing's lines are ~2 px (0.045 m) thick, so every silhouette reads ~0.04 m fat; a wing chord off the
+plan is ~0.04 m long. The pod rows are coupled (the wing rides on the cabin top; a bubble canopy's glazing leaves the
+side wall's sill as the silhouette's top): the search found the pod's numbers, the user's eye found the pod wrong -
+"your wings are great, your tail is great, your cabin is dramatic". Fit the wing, the rod and the tail to the drawing;
+take the cabin from a card whose ARCHITECTURE is right (here the Chinook's, its very low waistline, the pax bay off)
+and let the user shape it. Where a drawing does not show a part well (the aft bulkhead: mid-chord, the user), ask.
+The result: `builds/archaeopteryx_2026-11-10.json` and the card; `quickshot.js` gained `qr` (three-quarter from behind).

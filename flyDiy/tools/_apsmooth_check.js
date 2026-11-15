@@ -40,7 +40,7 @@ const BUILDS = [
   { k: 'jodel', f: 'builds/jodel_2026-09-20_corrected.json', order: 'HOME,HOME', trike: false },
   // G3332 (LEVEL-OFF, landed L22b 22 Oct): the climb -> cruise capture no longer balloons on this validated type (15.7 -> 5.3 m,
   // node, 21 Oct); its KNOWN (the 17 m ceiling) is gone - the row is judged at the 10 m bar like every other
-  { k: 'c172', f: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', order: 'HOME,w3', trike: true },
+  { k: 'c172', f: 'builds/cessna172r_2026-11-08.json', order: 'HOME,w3', trike: true },   // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
   { k: 'rufus', f: 'tools/fixtures/repro/rufus_2026-10-18_certified.json', order: 'HOME,w3', trike: false },
   { k: 'mosquito', f: 'tools/fixtures/repro/mosquito_3.json', order: 'HOME,w3', trike: false },
 ].filter(b => !opt('only') || opt('only').split(',').includes(b.k));

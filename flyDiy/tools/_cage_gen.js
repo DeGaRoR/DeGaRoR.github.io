@@ -651,6 +651,17 @@ function cageResolve(S) {
     // keeps its height (edge 1) or rises past it (edge > 1) — the pod
     // morphs into a fin. The droop rides every shape the same way.
     const shp = AA.shape || 0, edge = AA.edge == null ? 0.6 : AA.edge;
+    // THE CROWN RUNS STRAIGHT (the aft section over a pusher, aeroAftOver - the Archaeopteryx's; the user, 11 Nov, on the V
+    // under the rod: "fix it rather than just getting rid of it", and the photo's straight top): the held axis' squeeze and
+    // the droop's lift pulled the roof down mid-length and up again at the tip - a dip, wider than the rod over it, a V on
+    // each side of it. Over a pusher the roof and the ceiling run straight from the pillar's to the tip's; the sides and
+    // the bottom keep their law
+    const crownAt = (v, f) => {
+      const pw = 2.2 - 1.3 * AA.tip, e = 1 - Math.pow(Math.max(0, 1 - Math.pow(f, pw)), 0.5 + 0.9 * AA.tip);
+      const sc = 1 - 0.95 * e, sh = 1 - (1 - edge) * e, sUp = (shp === 1 || shp === 3) ? sh : sc;
+      const mid = 0.5 * (baseD.roofY + baseD.keelY);
+      return mid + (v - mid) * (v >= mid ? sUp : (shp === 1 ? sh : sc)) - AA.droop * f * f;
+    };
     const ringAft = (name, zz) => {
       const f = Math.min(1, (zPaxA - zz) / Math.max(1e-6, zPaxA - zTipA));
       const pw = 2.2 - 1.3 * AA.tip;                  // dome ... teardrop
@@ -675,14 +686,36 @@ function cageResolve(S) {
       });
       for (const k in Rg.lv) { Rg.lv[k].y += dy;
         if (Rg.lv[k].yC != null) Rg.lv[k].yC += dy; }
+      if (AA.over) for (const [k, v] of [['roof', baseD.roofY], ['ceil', baseD.ceilY]]) {
+        const L = Rg.lv[k]; if (!L || v == null) continue;
+        const d = crownAt(v, 0) + (crownAt(v, 1) - crownAt(v, 0)) * f - L.y;
+        L.y += d; if (L.yC != null) L.yC += d;
+      }
+      // ...AND UNDER A ROD IT RUNS ALONG THE ROD'S UNDERSIDE (12 Nov, the user: "the aft aeropod should start at the
+      // bottom of the rod, so it does not intersect it"): the crown no higher than the rod's lowest line (its axis, its
+      // inclination, less its radius), the shoulder band under it kept its depth
+      if (AA.over && ROD && !ROD.twin && f > 0) {
+        const rb = ROD.y + Math.tan(ROD.incl || 0) * (zRodRoot - zz) - ROD.r - 0.002, Lr = Rg.lv.roof, Lc = Rg.lv.ceil;
+        if (Lr && Lr.y > rb) {
+          const dc = Lc ? Lr.y - Lc.y : 0, d = rb - Lr.y;
+          Lr.y += d; if (Lr.yC != null) Lr.yC += d;
+          if (Lc) { const d2 = (rb - dc) - Lc.y; Lc.y += d2; if (Lc.yC != null) Lc.yC += d2; }
+        }
+      }
       return Rg;
     };
     add(ringAft('aeroAftTip', zTipA), null);
     // the squeezed shapes read through two more rings (the cone keeps its
     // one — the template's ring list does not move)
+    // (THE AFT SECTION OVER A PUSHER, AA.over: a ring every eighth of its length - the side wall narrows at its ceiling
+    // and at its band at different rates, and over three bays each quad twisted into a fold, a lit V under the rod)
+    if (AA.over) for (const t of [0.93, 0.86, 0.78, 0.69, 0.59, 0.48, 0.36, 0.24, 0.12])
+      add(ringAft('aeroAftK' + Math.round(t * 100), zPaxA - t * AA.len), { mat: CAGE_MAT.plain });
+    else {
     if (shp) add(ringAft('aeroAftM2', zPaxA - 0.80 * AA.len), { mat: CAGE_MAT.plain });
     add(ringAft('aeroAftM', zPaxA - 0.55 * AA.len), { mat: CAGE_MAT.plain });
     if (shp) add(ringAft('aeroAftM0', zPaxA - 0.28 * AA.len), { mat: CAGE_MAT.plain });
+    }
   }
   // with the taper on, the pillar pair reverts to the full cabin section
   // — a pillar is a pillar again, the contraction is the taper's
@@ -6865,10 +6898,12 @@ function cageInterior(m, S) {
         }
         return o;
       };
+      // (ARCHAEOPTERYX, the user 11 Nov: the rod's hardware is not the body's skin - `fit` marks it, so the cowl's
+      // seat scan (_cage_cowl.js noseFace) does not read the socket on the aft face as skin domed past the firewall)
       const q4 = (p0, p1, p2, p3, mm) => add.push({
         v: [V.push(p0.slice()) - 1, V.push(p1.slice()) - 1,
             V.push(p2.slice()) - 1, V.push(p3.slice()) - 1],
-        m: mm || 'aluminium' });
+        m: mm || 'aluminium', fit: 1 });
       // SOLID ring plate: front/back annulus sheets + rim walls
       const plate = (rOut, rIn, z, wz) => {
         const O = circ(16, rOut, z), H = circ(16, rIn, z);
@@ -6919,13 +6954,17 @@ function cageInterior(m, S) {
         return [dx / l * rad, cy + dy / l * rad, z];
       };
       // ---- the bolted socket on the aft face ----
+      // (the user, 11 Nov: "get rid of the flange there, which was meant at fixing it on a flat surface" - a rod rooted in
+      // the wing's centre section (S.rod.hub) is blended into it; no plate, sleeve or bolts on the bulkhead)
       const zF = zPax0 - 0.012;
+      if (!S.rod.hub) {
       plate(rr + 0.055, rr + 0.006, zF, 0.008);
       sleeve(rr + 0.007, zF - 0.004, zF - 0.095);
       for (let k = 0; k < 8; k++) {
         const a2 = (k + 0.5) * Math.PI / 4;
         bolt(Math.sin(a2) * (rr + 0.038),
              yAxR(zF) + Math.cos(a2) * (rr + 0.038), zF - 0.004, 0.018, 0.0085);
+      }
       }
       // ---- planned joints: the bulkhead hoop's own nodes, processed
       // EXACTLY as the longitudinal chains process them (inCtr — same
@@ -6943,7 +6982,7 @@ function cageInterior(m, S) {
       // inside, bolts through the bulkhead) — members land on the
       // ring's rim, never graze the cap skin at glancing angles
       const zXi = zPax0 + 0.015;
-      if (md || cl) {
+      if ((md || cl) && !S.rod.hub) {   // (the flange's backing ring and its X: none on a rod rooted in the wing)
         plate(rr + 0.052, rr + 0.006, zXi, 0.007);
         const XN = [
           fb(md && jn(md.tL), cl && -cl.ceil.x, cl && cl.ceil.y),
@@ -8447,6 +8486,7 @@ const CAGE_PARAMS = {
   // tightening's aft section; cageLiftLegacy lifts a saved factor.)
   taperOn: 0, taperLen: 0.6, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12, rodIncl: 0,
+  hangOn: 0, hangAt: 0.50, hangLen: 0.35, hangKeels: 1,   // (the hanging nacelle, the Archaeopteryx study's stage 3: off; GEN_HANG's mast)
   // twin booms (2026-09-04): drawn by the wing layer off the trailing edge.
   // G267: the LOFT — a section (width x height) at each end of the body, a
   // squareness, and a fairing (length, cone -> ogive, cap) at each end.
@@ -8459,6 +8499,10 @@ const CAGE_PARAMS = {
   // the aero aft (2026-09-04, cut 1): the cowl layer lofts it on the aft face
   aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0, aeroAftTip: 0.5,
   aeroAftShape: 0, aeroAftEdge: 0.6,         // G339: cone | blade | flat | fin, the edge's fraction
+  // ARCHAEOPTERYX (11 Nov, the user: "an aero aft pod enabled here ... ignoring the engine and the shaft and everything,
+  // just drawing"): 1 draws the aero aft over a pusher's bulkhead too - the drawing only, the engine and its shaft stay
+  // where they are and fly as they did; 0 (every build before it) keeps the pusher's open face
+  aeroAftOver: 0,
   // bubble crest (G15, superseded by canopy below — kept as a dev param):
   // a smooth longitudinal bump of the roof/ceil over the pilot+pax cabin.
   // h 0 = off (the fit identity path).
@@ -8707,6 +8751,8 @@ const CAGE_PARAMS = {
   // truss), 2 wood (plywood bathtub + pillar posts + floorboards)
   intCons: 0,
   intDash: 1, dashBack: 0.05, dashLip: 0.035, dashDepth: 0.35,
+  instPod: 0,                          // (WEIGHT STUDY: no instrument pod - the dials on the dash)
+  canClear: 0,                         // (the LS4: the canopy's arch drawn as the frame it is)
   dashCrease: 1.5,
   // DASH CROWN (G26.4): the panel face's top arc rises in the middle
   // above the windshield base line — the rounded instrument panel of
@@ -9233,7 +9279,15 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
 // (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
-const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+const CAGE_DEFAULT_ABSENT = { canClear: 0, towHook: 0, instPod: 0, s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+  wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
+  s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
+  s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
+  s1Ul: 0,                           // (WEIGHT STUDY L6: no ultralight monowheel)
+  towHook: 0,                        // (no tow hook)
+  rodHub: 0,                         // (the hub's rear socket: the rod on the aft bulkhead, as ever)
+  hangOn: 0, hangAt: 0.50, hangLen: 0.35, hangKeels: 1,   // (the hanging nacelle: the cabin carries the wing, as ever; GEN_HANG's mast)
+  bpCabPyAt: 0.40, bpCabPyLen: 0.55, // (the hub's pylon on the chord: HULL-B78's own)
   hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0, hullTipPlane: 0,   // (HULL-B39, B43, B44, B45)
   // COMMS-SECTION ready 2 (9 Nov): the GPS puck's and the ELT whip's nudges - every older row's are written at 0 in
   // every save; these two rows' are absent at 0, so no saved build gains a key (L35d's STOL lesson)
@@ -9457,7 +9511,7 @@ function cageSpec(P) {
       }
     }
   }
-  S.glazeMat = ['acrylic', 'polycarbonate', 'glass'][Math.max(0, Math.min(2, Math.round(+P.glazeMat || 0)))];
+  S.glazeMat = ['acrylic', 'polycarbonate', 'glass', 'film'][Math.max(0, Math.min(3, Math.round(+P.glazeMat || 0)))];
   S.glaze = { sky: P.skylight == null || P.skylight ? 1 : 0,
               ext: Math.max(0, Math.round(P.skyExt != null ? P.skyExt : 5)),
               sillPilot: Math.max(0, P.winSillPilot || 0),
@@ -9481,13 +9535,15 @@ function cageSpec(P) {
   const noseEngK = engMountK === 0 || engMountK === 4 || engMountK === 5;
   // the aero aft (cut 2): the pod's own rings past the bulkhead; never with
   // a pusher on the bulkhead (its cowl is the aft), only where the pod ends
-  const aeroAft = (+P.aeroAftOn && (P.boomStyle || +P.boomTwin) && !aftEng)
+  // (ARCHAEOPTERYX: ...unless aeroAftOver asks for the pod over the pusher, drawn only)
+  const aeroAft = (+P.aeroAftOn && (P.boomStyle || +P.boomTwin) && (!aftEng || +P.aeroAftOver))
     ? { len: Math.max(0.3, +P.aeroAftLen || 0.9), droop: +P.aeroAftDroop || 0,
         tip: Math.max(0, Math.min(1, +P.aeroAftTip == null ? 0.5 : +P.aeroAftTip)),
         // G339: the shape (0 cone, 1 blade, 2 flat, 3 fin) and the edge the
         // held axis keeps at the tip (a fraction of its base)
         shape: Math.max(0, Math.min(3, Math.round(+P.aeroAftShape || 0))),
-        edge: Math.max(0.05, Math.min(1.5, +P.aeroAftEdge == null ? 0.6 : +P.aeroAftEdge)) }
+        edge: Math.max(0.05, Math.min(1.5, +P.aeroAftEdge == null ? 0.6 : +P.aeroAftEdge)),
+        ...(+P.aeroAftOver ? { over: 1 } : {}) }
     : null;
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',
@@ -9576,7 +9632,8 @@ function cageSpec(P) {
   S.rod = (P.boomStyle || +P.boomTwin)
     ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0,
         incl: (+P.rodIncl || 0) * Math.PI / 180,            // G267.1, tail up +
-        twin: +P.boomTwin ? 1 : 0 }
+        twin: +P.boomTwin ? 1 : 0,
+        hub: +P.rodHub && +P.wingOn ? 1 : 0 }               // (the rod rooted in the wing's centre section: no flange)
     : 0;
   // G189: on a rod the taper's truss lives INSIDE the boom's length (see
   // cageResolve), so it cannot be longer than the boom less a hand of bare
@@ -9837,8 +9894,8 @@ function cageSpec(P) {
     }
   }
   // (G2047: glassfibre, the sixth stop, is built as the composite is - the moulded shell's idiom)
-  const consG = ['carbon', 'tube', 'wood', 'metal', 'metal', 'carbon'][   // (index 4 'metal': the clamp's old reading)
-    Math.max(0, Math.min(5, Math.round(P.intCons || 0)))];
+  const consG = ['carbon', 'tube', 'wood', 'metal', 'metal', 'carbon', 'tube'][   // (index 4 'metal': the clamp's old reading; 6 the soft shell's poles)
+    Math.max(0, Math.min(6, Math.round(P.intCons || 0)))];
   const skinTv = Math.max(0, P.skinT || 0);
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,

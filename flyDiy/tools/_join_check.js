@@ -439,11 +439,11 @@ try {
 // billing material follows. The 2026-09-01 audit's headline: an aluminium
 // aeroplane flew tube-and-fabric because nothing wrote this row.
 try {
-  const CONS = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'];   // G466: the fifth stop; G2047 the sixth
+  const CONS = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass', 'softShell'];   // G466: the fifth stop; G2047 the sixth; L4 the seventh
   ok(P.intCons == null ? s.fuselage.material === undefined
-       : s.fuselage.material === CONS[Math.max(0, Math.min(5, Math.round(+P.intCons || 0)))],
+       : s.fuselage.material === CONS[Math.max(0, Math.min(6, Math.round(+P.intCons || 0)))],
      'a P without the tile writes no material; with it, the tile\'s (' + s.fuselage.material + ')');
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < CONS.length; i++) {
     const sI = cageJoinSpec(Object.assign({}, P, { intCons: i }), M, T);
     ok(sI.fuselage.material === CONS[i], 'intCons ' + i + ' -> fuselage.material ' + CONS[i]);
     const RI = resolveSpec(JSON.parse(JSON.stringify(sI))).spec;
@@ -453,8 +453,8 @@ try {
   const dA = C.buildGen(JSON.parse(JSON.stringify(cageJoinSpec(Object.assign({}, P, { intCons: 3 }), M, T))));
   const mT = dT.parts.ledger.fuselage.mass, mA = dA.parts.ledger.fuselage.mass;
   ok(mA > mT + 5, 'an alloy fuselage is heavier than the tube one (' + mT.toFixed(1) + ' -> ' + mA.toFixed(1) + ' kg)');
-  const sX = cageJoinSpec(Object.assign({}, P, { intCons: 7 }), M, T);
-  ok(sX.fuselage.material === 'glass', 'an out-of-range tile clamps to the last row (aluTube since G466; glass since G2047)');
+  const sX = cageJoinSpec(Object.assign({}, P, { intCons: 9 }), M, T);
+  ok(sX.fuselage.material === 'softShell', 'an out-of-range tile clamps to the last row (aluTube since G466; glass since G2047; the soft shell since the weight study\'s L4)');
 } catch (e) {
   ok(false, 'construction join threw: ' + e.message);
 }

@@ -182,6 +182,14 @@ const GATES = [
   // and the Cub HOME > Skyline Altiport (stopped, no fault; the final begun at the circuit height; every flare armed over
   // the strip and at most FLARE_ARM_MAX above it) and the flare guard's own row (a doctored arrival 250 m low is caught)
   { id: 'ALTIPORT', file: '_altiport_check.js', tier: 'core', shards: 4, timeout: 3600_000, wall: 900 },   // G2530: + 4 the metal Cessna (a fourth job, a fourth shard)
+  // TOW-LAUNCH GLIDE: unpowered flight, from the air - the motorglider (key off) and the Archaeopteryx on a glider's
+  // circuit at Jolene, Skyline Altiport > Jolene (the route's To first), a To out of reach (the nearest field), and the
+  // C172-alike's engine failures (300 m, 1000 m, the tanks dry: the nearest field its glide reaches, the circuit, landed)
+  { id: 'GLIDE', file: '_glide_check.js', tier: 'core', shards: 4, timeout: 3600_000, wall: 900 },
+  // PILOT-UNIFY (13 Nov, the user: one coherent pilot, abilities it triggers itself, declined into the story's persons): the
+  // ability table, the strip deciding the technique (feel / STOL / the short law by person and airframe), the glider rating
+  // deciding glide-to-goal or emergency, every person gliding an engine failure, the Archaeopteryx card when the tree has it
+  { id: 'UNIFY', file: '_unify_check.js', tier: 'core', shards: 4, timeout: 3600_000, wall: 1200 },
   // G2500 CESSNA-VREF: the metal Cessna as the game loads it into Tamgas Hill's 520 m in the game's flight, damage on -
   // stopped on the strip, or the strip refused with its reason said and the diversion landed; the C172 file build the control
   { id: 'CESSNAVREF', file: '_cessnavref_check.js', tier: 'full', shards: 2, timeout: 2400_000, wall: 700 },
@@ -197,6 +205,24 @@ const GATES = [
   // fixed wheel), a twin boom's wheel a boom, the inverted V on its tip wheels flying HOME's circuit, its controls'
   // signs and volumes, the old saves' migration (~10 min, four probes at a time)
   { id: 'TAILWHEEL', file: '_tailwheel_check.js', tier: 'core', weight: 4, wall: 900 },
+  // MONOWHEEL (the Archaeopteryx study's stage 1): the single wheel on the centreline (gear.mono: the spec's flag, one axle
+  // node, one wheel billed, the cert's ground loads on it), the wingtip skid under any tip (its shoe's node and the drawn
+  // hoop on one contact), the nose skid; the motor glider on one wheel and a tail skid parks on one wingtip skid, rolls to
+  // 25 m/s and flies HOME's circuit; the tile's Monowheel parks on its nose skid (~8 min, one probe in parallel)
+  { id: 'MONOWHEEL', file: '_monowheel_check.js', tier: 'core', weight: 2, wall: 900 },
+  // HUB (the Archaeopteryx study's stage 2): the rod slotted into the wing's centre section - the spec's key, the root bay
+  // in the rod's rigid cluster and tied to its root ring, the socket's mass, the tail held off the wing alone, the drawn
+  // collar (~1 min)
+  { id: 'HUB', file: '_hub_check.js', tier: 'core', wall: 300 },
+  { id: 'NACELLE', file: '_nacelle_check.js', tier: 'core', wall: 200 },   // the Archaeopteryx study's stage 3: the hanging nacelle's mast
+  // WEIGHT STUDY (2026-11-12): the foot-launch D-tube wing - light, built for ~250 kg, certified there; on a Cub, a C172 and a
+  // Caravan it breaks under the 3.8 g limit at its root, and without its build weight the exploit reopens (negative control)
+  { id: 'LIGHTWING', file: '_lightwing_check.js', tier: 'core', wall: 320 },
+  // WEIGHT STUDY L2b (2026-11-12): the rod row - the rod's material and wall, latent; its stiffness and its breaking follow the
+  // section (the solver's tube cut): the Archaeopteryx holds on carbon 0.8 mm, a 0.5 mm rod on the pusher pod parts at its root
+  { id: 'RODROW', file: '_rodrow_check.js', tier: 'core', wall: 300 },
+  { id: 'ULTRALIGHT', file: '_ultralight_check.js', tier: 'core', wall: 420 },   // (WEIGHT STUDY L4-L6: the soft shell, the hub, the ultralight monowheel)
+  { id: 'ENGINELESS', file: '_engineless_check.js', tier: 'core', wall: 90 },   // (the LS4: the sailplane - engines[0].none, no powerplant, no propeller, no tank)
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
   // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)
@@ -878,6 +904,13 @@ const GATES = [
   // Generate, always reaches the editor), three fixed joined builds (one per gear kind) + the saved failure
   // fixtures, five seeded random pre-join builds. The once is tools/newplane_validate.js, NOT here.
   { id: 'NEWPLANE', file: '_newplane_check.js', tier: 'core' },
+  // GATE FLEET (the user 13 Nov: 'load aircraft' full screen, a tile per aeroplane with Load and Fiche, ordered and filtered):
+  // fleet_screen.js on a DOM stub - the render held, the tile asks (no browser pop-up), one load behind the spinner, the fiche's
+  // own key, the list's classes in order; and the wiring (garage.js hands the hangar over, no #gFleet); --selftest: 7 reds
+  { id: 'FLEET', file: '_fleet_check.js', argv: ['--selftest'], tier: 'core', wall: 10 },
+  // GATE STARTCHOOSER (the user 13 Nov: the sandbox's Fly / Drive with where from and where to, on TOW-LAUNCH's FLYDIY_START):
+  // start_chooser.js on a DOM stub - the story untouched, the remembered start, the greyed reasons, Surprise me only reachable
+  { id: 'STARTCHOOSER', file: '_startchooser_check.js', argv: ['--selftest'], tier: 'core', wall: 10 },
   // ...its joined builds: one per gear kind + the saved failure fixtures (tools/fixtures/newplane/), ~3 min - full
   { id: 'NEWPLANE-BUILDS', file: '_newplane_check.js', argv: ['--builds'], tier: 'full' },
   // ...and the declared canonical builds actually FLY: designBake -> clamp
@@ -928,6 +961,7 @@ const GATES = [
   // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
+  { id: 'PARKING', file: '_parking_check.js', tier: 'core' },   // PARKING-AREA (13 Nov): an area the parked fleet fills (25_airfield fleetSpots)
   // G2890 (SCENERY-ED-1): the scenery editor's HAND, headless - premises_ui.js under a DOM stub on the real core: a polygon's
   // corner added on its edge / picked / removed / subdivided / undone, the round pad, the smooth road's handles, the plot pick (~1 s)
   { id: 'SCENERYED', file: '_scenery_ed_check.js', tier: 'core' },

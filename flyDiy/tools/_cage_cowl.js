@@ -77,7 +77,7 @@ for (const g of ROWS) {
 // G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
 const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
   faceRing: 0, waistF: null,
-  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopHold: 0, scoopWFit: 0, scoopTaperH: 1, scoopTaperW: 1, scoopRev: 0, scoopTop: 0, scoopAft: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 0, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
+  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopHold: 0, scoopWFit: 0, scoopTaperH: 1, scoopTaperW: 1, scoopRev: 0, scoopTop: 0, scoopAft: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
   gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
@@ -422,8 +422,16 @@ function noseFace(mesh, FS, end) {
   // band just outside the aperture's outline and within 50 mm forward of it.
   // Structure is inboard (normalised radius < 1) and the coaming is well aft,
   // so the band sees the skin and nothing else.
+  // ...and NOT THE ROD'S HARDWARE (ARCHAEOPTERYX, the user 11 Nov: "ignore the plate of the rod to place the cowl"):
+  // a pod-and-rod's bolted socket stands aft of the bulkhead at the face's top edge, inside this band, and was read as
+  // skin - a pusher's cowl stood ~2 cm off its firewall with the firewall showing through. The fittings' faces carry
+  // `fit` (_cage_gen.js, the G26 pod-and-rod fittings); their vertices are their own, so they are left out by index.
+  const fitV = new Set();
+  for (const f of mesh.F) if (f.fit) for (const i of f.v) fitV.add(i);
   let over = 0;
-  for (const p of mesh.V) {
+  for (let vi = 0; vi < mesh.V.length; vi++) {
+    if (fitV.has(vi)) continue;
+    const p = mesh.V[vi];
     const d = sg * (p[2] * FS) - sg * z;
     if (d <= 1e-4 || d > 0.05) continue;
     const nr = Math.max(Math.abs(p[0] * FS) / Math.max(halfW, 1e-4),
@@ -623,6 +631,16 @@ function engineFaces(mesh, FS, P) {
     // trailing edge, a third of a metre ahead of where the pod ends — the
     // same engBlockZ / engBlockY the over-the-wing and nacelle mounts take
     // (block fore / aft, up / down), applied to the face the pusher stands on.
+    // ARCHAEOPTERYX (11 Nov): THE AERO AFT OVER THE PUSHER IS A DRAWING (_cage_gen.js aeroAftOver) - its rings move the
+    // aft-most cap to the pod's tip, so the face is put back on the bulkhead by the aero aft's own length: the engine,
+    // its shaft and its prop stand where they stand without it (a build loads the same on a page without the row)
+    if (f && +P.aeroAftOver && +P.aeroAftOn && (+P.boomStyle || +P.boomTwin))
+      f = Object.assign({}, f, { z: f.z + Math.max(0.3, +P.aeroAftLen || 0.9) * FS });
+    // THE HANGING NACELLE (the user, 11 Nov: "the fact that in this case the engine anchors on the pillar is really good"):
+    // the pusher bolts on the MAST's back face, wherever the cabin ends (the wing layer's CAGE_HANG, published before its
+    // early readers: the engine layer places again over it, _cage_eng)
+    const HGe = +P.hangOn && P.wingOn && typeof window !== 'undefined' ? window.CAGE_HANG : null;
+    if (f && HGe && isFinite(HGe.zR)) f = Object.assign({}, f, { z: HGe.zR });
     // (FIREWALL RULE: a cowled pusher stands on the face itself - the block does not move it)
     if (f && cowledPusher(P)) return [{ face: f, aft: true, kind: 'pusher' }];
     return f ? [{ face: Object.assign({}, f, { z: f.z + bz, yc: f.yc + by }), aft: true, kind: 'pusher' }] : [];
@@ -1429,6 +1447,11 @@ function cowlPlace(ctx, again) {
     // CABIN-CRAFT: an absent row is its default, not the last aeroplane's value (CW.P is one object for every build)
     else if (v == null && k in ABSENT_AT) CW.P[k] = ABSENT_AT[k];
   }
+  // THE SPLIT LINE IS ALWAYS LEVEL (the user 13 Nov via A0: "the cowl's side split line ... must ALWAYS draw straight and
+  // level, not distorted by the cowl's section"): the panel joint and its camloc row at the height partY gives at the
+  // firewall, a fixed width (_cowl_gen.js partLevel 1, its own default). No row, and a saved cw_partLevel is read by
+  // nothing: the spec keeps its bytes, so no certificate, bench or parked key moves - the drawing only.
+  CW.P.partLevel = 1;
   // THE AFT SECTION IS THE FIREWALL — its size AND its shape. One section, not
   // two that are asked to agree.
   // THE STUB NEVER SHAPES THE COWL HERE, whatever the fit mode. `inheritStub`

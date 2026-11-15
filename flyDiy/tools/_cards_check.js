@@ -58,7 +58,7 @@ const ALLOW = {
   '#welcome': 'welcome.js: the first-launch screen - before any aeroplane exists',
   'music.js#musicCredits': 'audio/music.js: the music & sound credits - opened from the sound menu',
   '#flReticle': 'flight.css: the 10 px aiming reticle - the centre IS its meaning, not a card',
-  '#gFleet': "editor.css: the fleet popup - the garage's load door, the player opens it",
+  '#flWrap': "editor.css (FLEET, 13 Nov): the full-screen fleet - the garage's LOAD and All planes doors open it; its tiles ask on themselves",
   '#dfBirth': 'editor.css: the birth overlay - a new aeroplane, the player opens it',
   '#npWrap': 'editor.css (NEW-PLANE): the full-screen new-aeroplane chooser - the NEW button opens it; its spinner is the one build',
   '#hsStore': "storage_ui.js (HANGAR-STORAGE G2690): the storage screen - the garage's 'storage' button opens it (beside 'load'); its .hsAsk is the Fly confirmation the player asks for, inside it",

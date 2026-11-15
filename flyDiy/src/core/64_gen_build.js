@@ -540,7 +540,7 @@ function genShakedown(def, opts) {
   if (st.setEngine) for (let i = 0; i < st.eng.length; i++) st.setEngine(i, { key: 'off' });
   for (let i = 0; i < 150; i++) st.step(1/60);
   const idOf = t => def.nodes.findIndex(n => n.tag === t);
-  const iAx = idOf('AXLER'), iTw = def.refs.tw;
+  const iAx = idOf('AXLER') >= 0 ? idOf('AXLER') : idOf('AXLEC'), iTw = def.refs.tw;   // (MONOWHEEL: the centreline axle)
   const aglOf = i => st.p[i*3+1] - st.r[i];
   let gearStrain = 0, chassisStrain = 0, lowY = 1e9, lowTag = '';
   for (const b of st.beams) {

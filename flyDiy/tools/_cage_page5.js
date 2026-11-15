@@ -478,8 +478,8 @@ window.CAGE_PAGE = {
         // they were unreachable here — and the piper-cub preset sets
         // intOn 0, which then could not be undone (user 2026-08-19).
         ['intOn',     'interior',        0, 1, 1],
-        ['intCons',   'construction',    0, 5, 1, ['composite', 'steel tube',
-                                                  'plywood', 'aluminium', 'aluminium tube', 'glassfibre']],   // G2047
+        ['intCons',   'construction',    0, 6, 1, ['composite', 'steel tube',
+                                                  'plywood', 'aluminium', 'aluminium tube', 'glassfibre', 'soft shell']],   // G2047
         // ZERO SKIN (G26.4): the fuselage family omitted outright —
         // beyond the alpha slider; glass and all structure stay
         ['skinOn',    'fuselage skin',   0, 1, 1],
@@ -502,6 +502,8 @@ window.CAGE_PAGE = {
         ['fireSealW', 'fire seal',       0, 0.04, 0.002,
          { dim: 'len', when: P => +P.intOn && +P.intFire }],
         ['intDash',   'dashboard',       0, 1, 1],
+        // WEIGHT STUDY: no dash, the dials (57 mm) on a small pod on a stalk ahead of the stick (GEN_INSTR_POD)
+        ['instPod',   'instrument pod (no dash)', 0, 1, 1, ['off', 'on'], { when: P => +P.intOn && !+P.intDash, absent: 0 }],
         // moved from "7 · boom" (user, G28): a conception concern
         ['intBulk',   'aft bulkhead',    0, 1, 1],
         // WITHIN THE PILLAR, as a fraction of it: -1 the forward face,
@@ -632,7 +634,7 @@ window.CAGE_PAGE = {
          { when: P => Math.round(+P.canopy || 0) !== 3 }],
         // T2.2: the glazing MATERIAL, one for the whole aeroplane (the look
         // and the ledger read it; the join carries it as cabin.glazingMat)
-        ['glazeMat',  'glazing material', 0, 2, 1, ['acrylic', 'polycarbonate', 'glass']],
+        ['glazeMat',  'glazing material', 0, 3, 1, ['acrylic', 'polycarbonate', 'glass', 'soft film (WEIGHT STUDY: a fifth of the sheet)']],
         ['skylight',  'skylight',       0, 1, 1],
         ['skyExt',    'sky extent',     0, 5, 1,
          { when: P => +P.skylight }],
@@ -641,6 +643,8 @@ window.CAGE_PAGE = {
         ['winPilotPanel', 'pilot window: a panel (draw it as a drawn window)', 0, 1, 1, { absent: 0 }],
         ['canopy',    'canopy',         0, 3, 1, ['closed', 'convertible',
                                                   'open', 'bubble']],
+        // (the LS4, 13 Nov: the arch between the panes drawn as glass - a look only, the geometry and the physics untouched)
+        ['canClear',  'canopy arch',    0, 1, 1, ['framed', 'clear (drawn as glass)'], { absent: 0 }],
         // THE LABEL IS THE SHAPE, NOT THE MECHANISM (NEW-AIRCRAFT §5.3):
         // a builder chooses what the top of the fuselage does behind the
         // cockpit — cabin roof running aft, or a turtledeck falling away.
@@ -888,6 +892,9 @@ window.CAGE_PAGE = {
       // the auto-laced place: +x pilot's left, +y up, +z toward the
       // nose. 0 = as laced.
       ['controls', [
+        // WEIGHT STUDY L3 (12 Nov, the user: "they should be fitted in the tubes ... no central levers"): the runs' kind -
+        // the billed rate per metre of reach (GEN_OUTFIT.ctlKgM / ctlKgMLight); latent at 0
+        ['ctlRuns',   'control runs',   0, 1, 1, ['cables and torque tubes', 'light: push-pull carbon rods, Dyneema'], { absent: 0 }],
         ['ctlStick',  'pitch/roll',     0, 3, 1, ['stick between legs',
                                                   'yoke', 'side stick R',
                                                   'none']],
@@ -1284,8 +1291,11 @@ window.CAGE_PAGE = {
       // the job). Length, droop, and the tip from a rounded dome to a teardrop.
       // (2026-09-04: wherever the pod ENDS at the bulkhead — a rod boom or twin
       // booms of either construction — and no pusher sits on it)
+      // ARCHAEOPTERYX (11 Nov): over a pusher too, when aeroAftOver asks for it (the pod drawn over the engine's face)
+      ['aeroAftOver', 'aero aft over the pusher (drawing only)', 0, 1, 1,
+       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && [1, 4].includes(Math.round(P.engMount || 0)) }],
       ['aeroAftOn', 'aero aft',        0, 1, 1,
-       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && ![1, 4].includes(Math.round(P.engMount || 0)) }],
+       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && (![1, 4].includes(Math.round(P.engMount || 0)) || +P.aeroAftOver) }],
       ['aeroAftLen', 'aero aft length', 0.3, 2.0, 0.01,
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn, dim: 'len' }],
       ['aeroAftDroop', 'aero aft droop', -0.3, 0.3, 0.005,
@@ -1309,6 +1319,35 @@ window.CAGE_PAGE = {
       // boom and boom rod options, compared to the body")
       ['rodIncl',   'rod inclination (tail up)', -12, 12, 0.1,
        { when: P => +P.boomStyle === 1 && !+P.boomTwin }],
+      // THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2; the user: "the centre section is the heart of the plane
+      // ... a rear socket for the rod to slot in"): the rod's root tied into the wing's centre section, a streamlined
+      // socket from the rod up to the wing's underside (the engine pylon's hugging blade, _cage_eng)
+      ['rodHub',    'rod rooted in', 0, 1, 1, ['the aft bulkhead', 'the wing (the hub\'s rear socket)'],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin && +P.wingOn }],
+      // THE ROD ROW (WEIGHT STUDY L2b, 12 Nov; the user: "an ultralight rod that would also break somehow, that would have
+      // different stiffness"): the tube's material and wall - its stiffness (EI, GJ) and its breaking moment follow the
+      // section, nothing hidden: a thin rod is light and soft, and on a heavier aeroplane it parts at its root.
+      // Latent: as the fuselage at 1.2 mm writes nothing
+      ['rodMat',    'rod material',  0, 4, 1, ['as the fuselage', 'carbon', 'steel tube (4130)', 'aluminium (6061)', 'glassfibre'],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 0 }],
+      ['rodWallMm', 'rod wall (mm)', 0.3, 3.0, 0.05,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 1.2 }],
+      // THE HANGING NACELLE (the Archaeopteryx study's stage 3; the user, 11 Nov: "the pylon is structural and should go
+      // down to the bottom of the plane, where the supporting beam will go, making the fuselage as we see it now not the
+      // central piece anymore"): the cabin hung on ONE mast from the wing's centre section through a cut in the roof to
+      // the keel, a monowheel hung from its foot, the pusher on its back face; its station and chord on the root chord -
+      // the hub's: the cabin slides free of it ("the whole cabin should be able to move relative to the pillar"). A wing
+      // above the cabin (high or parasol) only
+      ['hangOn',    'the cabin',       0, 1, 1, ['carries the wing', 'hangs on a mast from the wing'],
+       { when: P => +P.wingOn && (Math.round(+P.wgPos || 0) === 0 || Math.round(+P.wgPos || 0) === 3) }],
+      ['hangAt',    'mast station on the chord (its middle)', 0.10, 0.95, 0.01,
+       { when: P => +P.hangOn && +P.wingOn }],
+      // THE KEEL (the user, 12 Nov: "it's actually 2 of them and the pilot fits between, mounted at the level of the bottom
+      // of the pilot window ... offer both options ... tubes when there are 2, and a square section for a single one")
+      ['hangKeels', 'keel beam', 1, 2, 1, ['single (a square box on the centreline)', 'twin tubes (either side of the pilot, at the sill)'],
+       { when: P => +P.hangOn && +P.wingOn }],
+      ['hangLen',   'mast chord (of the chord)', 0.10, 0.60, 0.01,
+       { when: P => +P.hangOn && +P.wingOn }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
       // (aft roof/keel = the boom frame; the cone's section = the tail
       // frame, both in 0 · frames since T2.1)

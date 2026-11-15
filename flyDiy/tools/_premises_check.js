@@ -1699,6 +1699,33 @@ if (SELFTEST) {
   check(/\['src\/viewer', 'tex_means\.js'\]/.test(fs.readFileSync(path.join(TOOLS, 'build.js'), 'utf8')), '22 the world pack loads tex_means.js (tools/build.js)');
 }
 
+// 35 THE STAND'S PAD (STAND-PAD, the user 13 Nov: "a parking spot shouldn't have a 15 % grade"; the editor GO: a pad setting
+//    on every stand, automatic ONLY where the ground is steeper than 2 %): a strip along x on ground that falls 15 % across
+//    (the stand beside it at v 16, as East Point's), and on ground that falls 1 %. Auto: a pad on the steep one, at the
+//    strip's own level, the stand level, the runway's centreline the same with or without it; none on the gentle one (it
+//    composes exactly as with 'off'); 'off' never; a { w, l } pad whatever the grade
+{
+  const slope = k => ({ id: 'sp' + k, terrainH: (x, z) => 20 - k * z, waterH: () => -50 });
+  const recOf = pad => { const r = PG.DEF(); r.layers.runways.push({ id: 'sp', c: [0, 0], hdg: 0, len: 150, wid: 12, surface: 6,
+    stand: Object.assign({ x: 0, z: 16, hdg: null }, pad === undefined ? {} : { pad }), taxiOut: [[0, 8], [0, 0]] }); return r; };
+  const hAt = (O, W, x, z) => O.terrainH(x, z, W.terrainH(x, z));
+  const gradeAt = (O, W, x, z) => Math.hypot((hAt(O, W, x + 3, z) - hAt(O, W, x - 3, z)) / 6, (hAt(O, W, x, z + 3) - hAt(O, W, x, z - 3)) / 6);
+  const steep = slope(0.15), gentle = slope(0.01);
+  const A = PG.compose(recOf(), steep), Aoff = PG.compose(recOf('off'), steep);
+  const G = PG.compose(recOf(), gentle), Goff = PG.compose(recOf('off'), gentle), Gc = PG.compose(recOf({ w: 12, l: 12 }), gentle);
+  const sp = PG.standPadOf;
+  check(typeof sp === 'function' && PG.STAND_PAD && PG.STAND_PAD.grade === 0.02, '35 the stand pad: standPadOf and STAND_PAD (grade 2 %) are the API');
+  check(gradeAt(Aoff, steep, 0, 16) > 0.05, '35 the steep case is steep without a pad (' + (100 * gradeAt(Aoff, steep, 0, 16)).toFixed(1) + ' %)');
+  check(gradeAt(A, steep, 0, 16) < 0.002 && gradeAt(A, steep, 0, 12) < 0.002, '35 auto: the stand and its lead-in level on 15 % ground (' + (100 * gradeAt(A, steep, 0, 16)).toFixed(2) + ' %)');
+  let same = true; for (let x = -70; x <= 70; x += 10) if (Math.abs(hAt(A, steep, x, 0) - hAt(Aoff, steep, x, 0)) > 1e-6) same = false;
+  check(same, '35 the runway\'s centreline is the same with the pad (it never touches the strip\'s grade)');
+  check(Math.abs(hAt(A, steep, 0, 16) - hAt(Aoff, steep, 0, 0)) < 0.01, '35 the pad stands at the strip\'s own level');
+  let gSame = true; for (let z = -20; z <= 40; z += 4) for (let x = -20; x <= 20; x += 8) if (hAt(G, gentle, x, z) !== hAt(Goff, gentle, x, z)) gSame = false;
+  check(gSame, '35 auto on 1 % ground: no pad, the ground composes exactly as with pad off');
+  check(gradeAt(Gc, gentle, 0, 16) < 0.002, '35 a { w, l } pad levels the stand whatever the grade');
+  check(typeof sp === 'function' && sp({ id: 'x', len: 150, wid: 12, stand: { x: 0, z: 16, pad: 'off' } }, null, null, 0, null) === null, '35 pad off: standPadOf answers null without reading the ground');
+}
+
 // ---------------------------------------------------------------------------
 if (fail.length) {
   for (const f of fail.slice(0, 30)) console.log('  ! ' + f);

@@ -287,6 +287,8 @@ const CAGE_PARTS = [
       // G3510: the round body (the aero nose's full rings) is the whole
       // shell's choice, beside the roundness it is shaped by
       ['roundness', ['topRound', 'botRound', 'aeroNose']],
+      // the hanging nacelle (the Archaeopteryx study's stage 3): the cabin hung on one mast from the wing
+      ['hanging nacelle', ['hangOn', 'hangAt', 'hangLen', 'hangKeels']],
       // HULL-B1: the boat hull's own rows (the shared ones are the frames above)
       ['boat hull', ['hullOn', 'hullBeta', 'hullBetaBow', 'hullBetaA', 'hullSteps', 'hullStepZ', 'hullHs',
                      'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt',
@@ -565,7 +567,7 @@ const CAGE_PARTS = [
              at: 'aft of the taper; twin, off the wing’s trailing edge' },
     groups: [
       // boomStyle -> `design`; these shape the rod once it is chosen
-      ['rod', ['rodY', 'rodD', 'rodIncl']],
+      ['rod', ['rodY', 'rodD', 'rodIncl', 'rodHub', 'rodMat', 'rodWallMm']],
       ['twin booms', ['boomTwin', 'boomX', 'boomDy', 'boomDz']],
       ['section', ['boomWf', 'boomHf', 'boomWa', 'boomHa', 'boomSquare', 'boomIncl', 'boomCollar']],
       ['wing end', ['boomNoseLen', 'boomNoseK', 'boomNoseCap']],
@@ -596,7 +598,7 @@ const CAGE_PARTS = [
                               'frTailTopZ', 'frTailWaistZ', 'frTailBotZ'], EXPERT],
       // the pod's aero tail where the pod ends at the bulkhead (a rod boom,
       // twin booms) — moved here from the Boom (G267)
-      ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip',
+      ['aero aft', ['aeroAftOn', 'aeroAftOver', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip',
                     'aeroAftShape', 'aeroAftEdge']],   // G339: the shape and its edge
     ] },
 
@@ -674,7 +676,8 @@ const CAGE_PARTS = [
     // (T2.3 (48): the carry-through beam's switch rides with the centre section)
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
-                    'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX', 'wgPlan', 'wgPlanAxis', 'wgTipBow', 'wgTipDroop', 'wgTipFull']],
+                    'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX', 'wgPlan', 'wgPlanAxis', 'wgTipBow', 'wgTipDroop', 'wgTipFull',
+                    'wgTipSkid', 'wgTipSkidH']],
       // wgPos -> `design`
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],
@@ -728,7 +731,7 @@ const CAGE_PARTS = [
     place: { type: 'bpCabane', fore: 'bpStrutZ', out: 'bpStrutX',
              at: 'the foot, on the deck' },
     groups: [
-      ['cabane', ['bpCabPylon', 'bpCabane', 'bpCabDraw', 'bpStrutK']],
+      ['cabane', ['bpCabPylon', 'bpCabPyAt', 'bpCabPyLen', 'bpCabane', 'bpCabDraw', 'bpStrutK']],
       ['foot', ['bpStrutZ', 'bpStrutX']],
     ] },
 
@@ -796,7 +799,7 @@ const CAGE_PARTS = [
   { key: 'fin', name: 'Fin & rudder', parent: 'tail', layer: 'fin',
     when: P => +P.finOn, gate: 'finOn',
     place: { on: 'finOn',
-             type: ['finCut', 'finCons', 'finDorsal', 'finDorsalTube', 'finKeel', 'finProject'],
+             type: ['finCut', 'finCons', 'finDorsal', 'finDorsalTube', 'finKeel', 'finRudBelow', 'finProject'],
              len: 'finRootFwd', high: 'finTipY', at: 'on the boom deck' },
     order: ['fitted', 'type', 'g:size', 'size'],
     rename: { size: 'outline points' },
@@ -805,7 +808,7 @@ const CAGE_PARTS = [
       // 'root', not a second 'fitted' heading under the trunk's own: what is
       // left here once the trunk has taken its rows is the root fillet
       ['root', ['finOn', 'finProject', 'finFillet', 'finDorsal', 'finDorsalTube',
-                'finKeel']],
+                'finKeel', 'finRudBelow']],
       ['ventral', ['finVentralOn', 'finVentralShape', 'finVentralH', 'finVentralC', 'finVentralZ', 'finVentralTip']],
       ['construction', ['finCons']],
       ['cut', ['finCut', 'finCutGap']],
@@ -1021,7 +1024,7 @@ const CAGE_PARTS = [
                       'cw_scoopLipDepth', 'cw_scoopDuct']],
       ['panel joint', ['cw_seamOn', 'cw_seamType', 'cw_seamPos',
                        'cw_seamWidth', 'cw_seamDepth']],
-      ['split line', ['cw_partOn', 'cw_partY', 'cw_partW', 'cw_partLevel', 'cw_partArc']],
+      ['split line', ['cw_partOn', 'cw_partY', 'cw_partW', 'cw_partArc']],
       ['fasteners', ['cw_fastOn', 'cw_fastPitch', 'cw_fastD']],
       ['oil door', ['cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL', 'cw_oilSq']],
       // the bench's nacelle termination, back (2026-09-04)
@@ -1111,7 +1114,7 @@ const CAGE_PARTS = [
       // `s1R`/`s2R` (the wheel radii) -> `wheels` (2026-09-03, the user: "the
       // wheel radius for example is under the main gear and not the wheel")
       ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Root', 's1Brake',
-                   's1Steer']],
+                   's1Steer', 's1Sink', 's1Ul', 'towHook']],
       ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
                    's1FairW', 's1LegFair']],
       ['blade', ['s1_beamAng', 's1_beamW', 's1_beamT', 's1_beamTaper',
@@ -1166,7 +1169,7 @@ const CAGE_PARTS = [
              fore: 's2Z', out: 's2X', up: 's2Drop', at: 'station 2' },
     groups: [
       ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Root', 's2Brake',
-                   's2Steer']],
+                   's2Steer', 's2Sink', 's2Nose']],
       ['fairing', ['s2Fair', 's2FairSkirt', 's2FairTail', 's2FairRake',
                    's2FairW', 's2LegFair']],
       ['blade', ['s2_beamAng', 's2_beamW', 's2_beamT', 's2_beamTaper',
@@ -1225,7 +1228,7 @@ const CAGE_PARTS = [
     when: P => +P.crewOn,
     sections: ['cabFloor'],                 // G2795: the floor's boards (its rows are here)
     groups: [
-      ['pitch & roll', ['ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank']],
+      ['pitch & roll', ['ctlRuns', 'ctlStick', 'stickX', 'stickY', 'stickZ', 'yokeGap', 'stickLen', 'stickCrank']],
       ['throttle', ['ctlThr', 'thrX', 'thrY', 'thrZ', 'thrLen']],
       ['rudder', ['ctlPed', 'pedalZ', 'pedalH', 'pedalSpread', 'pedalAngle']],
       ['console', ['consoleOn']],
@@ -1244,7 +1247,7 @@ const CAGE_PARTS = [
     place: { on: 'intDash', fore: 'dashBack', len: 'dashDepth',
              high: 'dashLip', at: 'off the windscreen base' },
     groups: [
-      ['dashboard', ['intDash', 'dashBack', 'dashLip', 'dashDepth',
+      ['dashboard', ['intDash', 'instPod', 'dashBack', 'dashLip', 'dashDepth',
                      'dashCrown', 'dashStyle', 'dashLegs']],
       ['crease', ['dashCrease'], EXPERT],
     ] },

@@ -549,6 +549,12 @@ const AERO_BY_CONS = {
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
                 edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
                 hdl: 'headliner', wall: 'trimVinyl' },
+  // (WEIGHT STUDY L4) the soft shell: a sewn ripstop skin (the fabric finish) over bare alloy poles
+  softShell:  { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
+                struct: 'bareAlu', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
+                hdl: 'headliner', wall: 'trimVinyl' },
   // THE FLYING SURFACES' OWN CONSTRUCTIONS (G213): fabric over wood, fabric
   // over steel tube — both wear doped fabric; what differs is the structure
   // showing through where a section is left open. Reached only from the
@@ -4711,6 +4717,9 @@ const GLASS_MATS = {
   acrylic: {},
   polycarbonate: { tint: 0xd6c9a4, opacity: 0.34, rough: 0.32, ccR: 0.36, touch: 0.8, grime: 0.3, refl: 0.8 },
   glass: { tint: 0xa9cfc4, rough: 0.05, ccR: 0.06, fresnel: 1.26 },
+  // SOFT GLAZING (WEIGHT STUDY L3): a stretched film - thin and clear, a faint haze, a soft limb, more of the frame's
+  // grime and handling on it
+  film: { tint: 0xeef3f4, opacity: 0.24, rough: 0.2, ccR: 0.22, touch: 0.6, grime: 0.2, refl: 0.85 },
 };
 const aeroGlassMat = m => GLASS_MATS[m] || GLASS_MATS.acrylic;
 

@@ -307,7 +307,9 @@ function gameHost(C, W, def, from, to, g) {
 const ROOT = path.join(__dirname, '..');
 const BUILDS = {
   cub: { key: path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub", tour: 'land' },
-  c172: { key: path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), name: 'the aluminium C172', tour: 'c172' },
+  // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
+  c172: { key: path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json'), name: 'the Cessna 172 (F-HCSN)', tour: 'c172' },
+  c172fx: { key: path.join(__dirname, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), name: 'Test copy: aluminium C172 (2026-09-26)', tour: 'c172' },
   floats: { key: path.join(ROOT, 'bugReports', 'cessnaFloatsWOrks.json'), name: 'the float Cessna', tour: 'water' },
 };
 // THE ORDERS (the plan): clockwise round the island from HOME - Tamgas Hill 2.7 km NW, the altiport 5.4 km on, Jumbo

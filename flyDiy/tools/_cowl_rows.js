@@ -253,7 +253,7 @@ const COWL_ROWS = [
     { k: 'partY', label: 'height (widest line → top line)', lo: -0.9, hi: 0.9, step: 0.02, when: 'P.partOn>0' },
     { k: 'partW', label: 'width', lo: 0.001, hi: 0.006, step: 0.0002, when: 'P.partOn>0' },
     // PROPER-COWLS: held level at the firewall's height, the groove a constant width (partW, metres)
-    { k: 'partLevel', label: 'split line level (a fixed height and width)', lo: 0, hi: 1, step: 1, when: 'P.partOn>0' },
+    // (partLevel: no row - the split line is always level, a fixed height and width; the user 13 Nov via A0)
     // PROPER-COWLS: the groove's width in metres on a parameter split too (0 = the old width by the section's turn)
     { k: 'partArc', label: 'groove width even (metres)', lo: 0, hi: 1, step: 1, when: 'P.partOn>0' },
   ] },

@@ -163,19 +163,21 @@ const TW_STEERS = ['steerable', 'steerable', 'lockable', 'fixed', 'skid'];
 // THE WHEEL ROWS, shared (G33 — the cage panel had lost this group
 // entirely; the port-the-full-surface rule again). Lifted verbatim from
 // the bench's own group + the new sidewall bulge.
+// MONOWHEEL: the bicycle wheel (3) draws its own spokes, rim and hub - the aircraft wheel's rows step aside for it
+const notCycle = { when: P => Math.round(+P.whProfile || 0) !== 3 };
 const WHEEL_ROWS = [
-  ['whProfile', 'carcass', 0, 2, 1, ['standard', 'tundra balloon', 'slim']],
+  ['whProfile', 'carcass', 0, 3, 1, ['standard', 'tundra balloon', 'slim', 'bicycle (light)']],
   // G3852: the 'tread' row (ribbed / smooth / blocked) is gone - each carcass draws its own; whTread stays in DEF
   // and in every file as loaded (a hashed cage row); the tundra keeps a choice of its own (the user: "a Tundra tyre
   // with no pattern"), shown only on that carcass
   ['whSlick', 'tundra tread', 0, 2, 1, ['bush lugs', 'smooth', 'bevelled lugs'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
-  ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
-  ['whRibs', 'ribs', 1, 5, 1],
-  ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],
-  ['whBolts', 'rim bolts', 3, 10, 1],
-  ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
-  ['whValve', 'valve stem', 0, 1, 1],
-  ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum']],
+  ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01, notCycle],
+  ['whRibs', 'ribs', 1, 5, 1, notCycle],
+  ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened'], notCycle],
+  ['whBolts', 'rim bolts', 3, 10, 1, notCycle],
+  ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat'], notCycle],
+  ['whValve', 'valve stem', 0, 1, 1, notCycle],
+  ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum'], notCycle],
   ['brkHold', 'brakes (hold, mass)', 0, 3, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs']],
 ];
 
@@ -237,6 +239,7 @@ const gearStations = P => {
                leg: Math.round(P['s' + i + 'Leg']), R: P['s' + i + 'R'],
                drop: P['s' + i + 'Drop'], brake: P['s' + i + 'Brake'],
                axZ: +P['s' + i + 'AxZ'] || 0,
+               sink: Math.max(0, Math.min(0.7, +P['s' + i + 'Sink'] || 0)),   // MONOWHEEL: the sunk wheel's share in the body
                // NEW-SHAPES-1: where the legs root - 0 auto (a wing under the body takes them), 1 the fuselage
                root: Math.round(+P['s' + i + 'Root'] || 0),
                fair: Math.round(P['s' + i + 'Fair'] || 0),

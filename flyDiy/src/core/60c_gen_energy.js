@@ -238,8 +238,13 @@ const GEN_VESSELS = {
   wet:     { name: 'Wet wing (sealed structure)', holds: 'fuel',
              // no shell at all: the sealant and the ribs' extra work only
              shapeK: 6.6, kgM2: 0.55, fixed: 1.2, priceM2: 1600, priceFixed: 420 },
+  // (WEIGHT STUDY, the pack case: its `fixed` - the BMS, the contactors, the fuse, the connectors - is sized for the
+  //  current a pack delivers, so it SCALES with the pack below fixedKWh (x kWh / fixedKWh, never under fixedMin): a 2 kWh
+  //  glider pack's BMS board and its connector are ~0.5 kg, not a car pack's 3. Not a choice - every pack follows it,
+  //  so a light case is had only by carrying a small pack. Unchanged at fixedKWh and above. Known overlap, left as it
+  //  is: the cells' packK (0.70) already counts some of the case and the BMS)
   packCase:{ name: 'Pack case',        holds: 'battery',
-             shapeK: 6.2, kgM2: 4.1, fixed: 3.0, priceM2: 2300, priceFixed: 300 },
+             shapeK: 6.2, kgM2: 4.1, fixed: 3.0, fixedKWh: 10, fixedMin: 0.3, priceM2: 2300, priceFixed: 300 },
 };
 
 // The volume a vessel needs, and what it and its contents weigh. ONE function,
@@ -269,7 +274,8 @@ function genVesselResolve(kind, capacity, vesselKey, mediumKey) {
   }
   const m3 = litres / 1000;
   const surface = ves.shapeK * CORE_MATH.pow(Math.max(1e-9, m3), 2 / 3);
-  const vesselKg = m3 > 1e-9 ? surface * ves.kgM2 + ves.fixed : 0;
+  const fixed = battery && ves.fixedKWh > 0 && V < ves.fixedKWh ? Math.max(ves.fixedMin || 0, ves.fixed * V / ves.fixedKWh) : ves.fixed;
+  const vesselKg = m3 > 1e-9 ? surface * ves.kgM2 + fixed : 0;
   return {
     kind, capacity: V, vessel: ves, litres, battery,
     // the space it actually occupies: cells and case, or fuel and ullage

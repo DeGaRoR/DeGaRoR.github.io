@@ -113,6 +113,7 @@ function fly(name, key, island) {
 }
 
 fly('stock, HOME (analytic)', 'stock', false);
-fly('aluminium C172, Jolene HOME', path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json'), true);
+// CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
+fly('Cessna 172 (F-HCSN), Jolene HOME', path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json'), true);
 console.log('GATE PLAN: ' + (bad ? 'FAIL (' + bad + ')' : 'PASS'));
 process.exit(bad ? 1 : 0);

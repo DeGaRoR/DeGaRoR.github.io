@@ -403,14 +403,14 @@ function checkWingRows(A, R) {
   }
   // the notes: said where the resolver moved the row, silent where it did not
   const cases = [
-    ['wgChordTip', { wgChord: 2.10, wgChordTip: 0.55 }, /^flies 0\.9[45] m/],   // §9's own case: 0.945 m
+    ['wgChordTip', { wgChord: 2.10, wgChordTip: 0.55 }, /^flies 0\.7[34] m/],   // §9's own case: 0.945 m at the old 0.45 floor; 0.735 at the sailplane's 0.35 (the LS4)
     ['wgChordTip', { wgChord: 1.70, wgChordTip: 1.75 }, /^flies 1\.70 m/],      // the ceiling: tip over root
     ['wgChordTip', { wgChord: 1.60, wgChordTip: 1.10 }, /^$/],
     ['wgSpan', { wgChord: 2.10, wgSpan: 6.5 }, /^flies 8\.40 m/],               // 4 x chord
     ['wgSpan', { wgChord: 0.80, wgSpan: 18 }, /^flies 16\.00 m/],               // 20 x chord
     ['wgSpan', { wgChord: 1.00, wgSpan: 15 }, /^$/],                             // the sail seed
     // the second plane's copy reads its own rows and plane 1's resolve
-    ['w2ChordTip', { w2On: 1, wgChord: 1.60, wgChordTip: 1.10, w2Chord: 2.10, w2ChordTip: 0.55 }, /^flies 0\.9[45] m/],
+    ['w2ChordTip', { w2On: 1, wgChord: 1.60, wgChordTip: 1.10, w2Chord: 2.10, w2ChordTip: 0.55 }, /^flies 0\.7[34] m/],
     ['w2ChordTip', { w2On: 1, wgChord: 2.10, wgChordTip: 0.55, w2Chord: 1.60, w2ChordTip: 1.10 }, /^$/],
   ];
   for (const [k, over, re] of cases) {
