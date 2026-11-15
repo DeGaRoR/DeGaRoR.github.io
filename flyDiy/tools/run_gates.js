@@ -1004,6 +1004,10 @@ const GATES = [
   // mud (faster deeper in, faster at speed), rain and water wash it; drawn through the wheel mud / belly / depression layers
   // over the macros', none at nought; app.js's wiring (~8 s; --selftest, --show)
   { id: 'MUDCOAT', file: '_mudcoat_check.js', tier: 'core', wall: 20 },
+  // SNOW-MUD FINISH (15 Nov): THE CUB, THE C172 (list:50) AND THE PC-6 FLOWN ON MUD - the pilot's circuits from HOME on
+  // grass, firm and soft mud (take-off roll, landing roll, outcome) and the stuck limits (soft mud's k scaled down, full power
+  // from rest); the table printed. Three child processes; ~9 min - the full tier's, as the archetype sweeps
+  { id: 'MUDFLY', file: '_mudfly_check.js', tier: 'full', timeout: 1800_000, wall: 600 },
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)
