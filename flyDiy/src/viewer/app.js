@@ -4432,6 +4432,46 @@
     model.restBaked = true;
     if (window.AEROSKIN && window.AEROSKIN.aeroRestBake) window.AEROSKIN.aeroRestBake(THREE, model.grp);
   }
+  // SNOW-MUD FINISH: THE VISUAL SINK. The solver's contact stays at the hard ground (its sinkage is a drag and a readout); the
+  // DRAWN aeroplane is lowered and tilted so its wheels stand in mud or soft snow by what each sinks - sim.out.softW [main 0,
+  // main 1, tail 1, tail 2] (soft frames only), and a ski's out.skiSink[k] at its unit's node (SKIS' def.parts.ski). The plane
+  // through those contacts (groundSinkPose, 00_registry) is eased over SINK_TAU and applied as a small rigid motion about the
+  // CG over the ground: a drop, a pitch and a roll, the slopes held to SINK_SLOPE. Off every soft layer, once eased back to
+  // nought: one compare a frame, no matrix touched. Nothing else reads model.grp's pose for physics
+  const SINK_TAU = 0.2, SINK_SLOPE = 0.08, SINK_V = [0, 0, 0], SINK_T = [0, 0, 0], SINK_PTS = [], SINK_M = new THREE.Matrix4(), SINK_A = new Array(16);
+  function sinkPoseApply(cg) {
+    const o = sim && sim.out, SW = !inGarage && o ? o.softW : null, SK = !inGarage && o ? o.skiSink : null;
+    if (!SW && !(SK && !(def.refs && def.refs.skis && def.refs.skis.every(u => u && u.posed))) && SINK_V[0] < 1e-4 && Math.abs(SINK_V[1]) + Math.abs(SINK_V[2]) < 1e-5) return;
+    SINK_PTS.length = 0;
+    const P = sim.p, R = def && def.refs;
+    if (SW && R) {
+      const ids = [R.mains && R.mains[0], R.mains && R.mains[1], R.tw, R.tw2];
+      for (let k = 0; k < 4; k++) { const i = ids[k]; if (i != null && i >= 0 && SW[k] > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], SW[k], i]); }
+    }
+    // SKIS. def.refs.skis (SKIS' record, one per unit in the solver's order: { nodes: [node], w, L, fwd, aft, main, kind, posed }):
+    // a POSED unit is already low by its rut in the solver's own pose (SKIS' moving datum) - it enters the fit at nought (it
+    // pivots the plane, it is not sunk twice), its node's softW (if any) dropped; an unposed unit by its out.skiSink. Without
+    // refs.skis, the first SKIS shape (def.parts.ski: the mains' nodes then the third's) by out.skiSink
+    if (R && Array.isArray(R.skis) && R.skis.length) {
+      for (let k = 0; k < R.skis.length; k++) { const u = R.skis[k], i = u && u.nodes ? u.nodes[0] : -1; if (i == null || i < 0) continue;
+        const z = u.posed ? 0 : (SK && SK[k] > 0 ? SK[k] : 0);
+        for (let q = SINK_PTS.length - 1; q >= 0; q--) if (SINK_PTS[q][3] === i) SINK_PTS.splice(q, 1);
+        if (u.posed || z > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], z, i]); }
+      if (!SINK_PTS.some(q => q[2] > 0)) SINK_PTS.length = 0;   // (every unit posed, no wheel sinking: nothing to draw)
+    } else if (SK && R && def.parts && def.parts.ski) {
+      const ids = (R.mains || []).slice(0, 2); if (def.parts.ski.third && R.tw != null && R.tw >= 0) ids.push(R.tw);
+      for (let k = 0; k < ids.length && k < SK.length; k++) { const i = ids[k]; if (!(SK[k] > 0)) continue;
+        for (let q = SINK_PTS.length - 1; q >= 0; q--) if (SINK_PTS[q][3] === i) SINK_PTS.splice(q, 1);
+        SINK_PTS.push([P[i * 3], P[i * 3 + 2], SK[k], i]); }
+    }
+    if (SINK_PTS.length) groundSinkPose(SINK_PTS, cg[0], cg[2], SINK_T); else { SINK_T[0] = SINK_T[1] = SINK_T[2] = 0; }
+    SINK_T[1] = Math.max(-SINK_SLOPE, Math.min(SINK_SLOPE, SINK_T[1])); SINK_T[2] = Math.max(-SINK_SLOPE, Math.min(SINK_SLOPE, SINK_T[2]));
+    const e = 1 - Math.exp(-Math.max(0, frameDt()) / SINK_TAU);
+    for (let k = 0; k < 3; k++) SINK_V[k] += (SINK_T[k] - SINK_V[k]) * e;
+    if (SINK_V[0] < 1e-4 && Math.abs(SINK_V[1]) + Math.abs(SINK_V[2]) < 1e-5) { SINK_V[0] = SINK_V[1] = SINK_V[2] = 0; return; }
+    // about the CG (the tilt is a few mrad: the pivot's height moves the drawn wheels by mm)
+    model.grp.matrix.premultiply(SINK_M.fromArray(groundSinkMatrix(SINK_V, cg[0], cg[1], cg[2], SINK_A)));
+  }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -4457,6 +4497,7 @@
       cg[1] + ox*xA[1] + oy*yU[1] + oz*vZ.y,
       cg[2] + ox*xA[2] + oy*yU[2] + oz*vZ.z);
     model.grp.matrix.copy(mBasis);
+    sinkPoseApply(cg);                           // SNOW-MUD FINISH: the drawn aeroplane stands IN a soft layer (the contact stays honest)
     // r186: a hand-set matrix must flag itself, or a getWorldPosition between
     // this pose and the render reads last frame's world (see buildPeople's mkFrame)
     model.grp.matrixWorldNeedsUpdate = true;
@@ -8042,6 +8083,27 @@
     soilNow = typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null;
     if (soilNow && typeof PAVEMENT !== 'undefined' && PAVEMENT.setSoilWet) PAVEMENT.setSoilWet(soilNow.wet);
   }
+  // SNOW-MUD FINISH: THE MUD COAT (aeroweather.js aeroMudStep / aeroWxSetMud): the flight's own - it builds while the mains
+  // roll on mud (SURFACE 11 / 12: two world.surface reads a frame, only on the ground), washes in the day's rain (soilNow.rainNow)
+  // and in water (the solver's contacts or hydro pass), and draws through the wheel mud / belly / depression layers. A new
+  // aeroplane starts clean; the garage shows the build without it (the weathering uniforms are shared). Off mud, dry and clean:
+  // the law's arithmetic and one compare (aeroWxSetMud refreshes the block only when the coat moved)
+  let mudCoat = 0, mudCoatDef = null;
+  function mudCoatFrame(dt) {
+    if (typeof AEROWX === 'undefined' || !AEROWX.aeroMudStep || !sim || !def || !def.refs) return;
+    if (def !== mudCoatDef) { mudCoatDef = def; mudCoat = 0; }
+    if (inGarage) { AEROWX.aeroWxSetMud(THREE, 0); return; }
+    if (dt > 0) {
+      const WC = typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null, M = def.refs.mains || [], P = sim.p;
+      let on = 0, mud = 0;
+      if (WC && !WC.water && world && typeof world.surface === 'function')
+        for (let k = 0; k < M.length; k++) if (WC.mains[k]) { on++; const i = M[k], sc = world.surface(P[i * 3], P[i * 3 + 2]); if (sc === 11 || sc === 12) mud++; }
+      const v = sim.cgVel ? sim.cgVel() : [0, 0, 0], o = sim.out || {};
+      mudCoat = AEROWX.aeroMudStep(mudCoat, dt, { mud: M.length ? mud / M.length : 0, V: Math.hypot(v[0], v[2]), sink: o.softZ > 0 ? o.softZ : 0,
+        rain: soilNow ? soilNow.rainNow : 0, water: !!(WC && WC.water) || o.hydroWet > 0 });
+    }
+    AEROWX.aeroWxSetMud(THREE, mudCoat);
+  }
   function dustMake() {
     if (dustFx || DUST_Q === 0 || typeof DUST === 'undefined' || !THREE.InstancedBufferGeometry) return dustFx;
     const G = window.GFX && window.GFX.get ? window.GFX.get() : null;
@@ -8078,6 +8140,10 @@
     const refs = def.refs, ids = (refs.mains || []).slice();
     if (refs.tw != null && refs.tw >= 0) ids.push(refs.tw);
     const airborneAll = !WC || WC.water;
+    // SNOW-MUD FINISH: each wheel's OWN sinkage (sim.out.softW: mains 0, 1, tail), and a ski unit (SKIS, def.parts.ski: its
+    // contacts are the mains' nodes then the third's, out.skiSink in that order) its own sink, width and length - the ski
+    // ploughs and throws across its width, it has no tread to shed
+    const oS = sim.out || {}, SWd = oS.softW, SKR = def.parts && def.parts.ski, SKs = SKR ? oS.skiSink : null, nM = (refs.mains || []).length;
     for (let k = 0; k < ids.length; k++) {
       const i = ids[k], x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
       const pv = F.prev.get(i);
@@ -8088,8 +8154,14 @@
       if (pv) { pv[0] = x; pv[1] = y; pv[2] = z; } else F.prev.set(i, [x, y, z]);
       const on = !airborneAll && (k < (refs.mains || []).length ? !!(WC.mains && WC.mains[k]) : !!WC.tw);
       let R = 0.2; if (model && model.wheelParts) for (const w of model.wheelParts) if (w.idx === i && w.R > 0) { R = w.R; break; }
+      let sink = SWd ? (SWd[k < nM ? k : 2] || 0) : 0, ski = null;
+      const RU = refs.skis && refs.skis.length ? refs.skis.find(u => u && u.nodes && u.nodes[0] === i) : null, ku = RU ? refs.skis.indexOf(RU) : -1;
+      const skRec = RU ? null : SKs ? (k < nM ? SKR.mains : SKR.third) : null;
+      const retractUp = oS.ski != null && oS.ski < 0.5 && ((RU && RU.kind === 'retract') || (SKR && SKR.kind === 'retract'));
+      if (RU && !retractUp) { ski = { W: RU.w || 0.3, L: RU.L || 1.5, fwd: RU.fwd }; sink = oS.skiSink && oS.skiSink[ku] > 0 ? oS.skiSink[ku] : 0; }
+      else if (skRec && !retractUp) { ski = { W: skRec.Wmax || skRec.W || 0.3, L: skRec.L || 1.5 }; sink = SKs[k] > 0 ? SKs[k] : 0; }
       st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0,
-                       sink: sim.out && sim.out.softZ > 0 ? sim.out.softZ : 0 });   // (SNOW-MUD: the solver's sinkage this frame - the plough's, the bow wave's)
+                       sink, ski });   // (SNOW-MUD: the solver's own sinkage of THIS contact - the plough's, the bow wave's)
     }
     // the props: one disc a thrust node (the mean disc's wash - the solver's out.wash), the axis forward = -xAft
     st.props.length = 0;
@@ -21088,6 +21160,7 @@
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
+    mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets

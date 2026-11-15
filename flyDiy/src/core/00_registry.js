@@ -1119,7 +1119,8 @@ const GROUND_DEF = GROUND_SURF[0];
 //   packed snow                                                  0.015 5 mm   0.019 7 mm  0.001 1 mm    0.023 7 mm
 //   powder                                                       0.25 10 cm   0.28 12 cm  0.04 3.5 cm   0.34 13 cm
 //   wet snow                                                     0.20 7 cm    0.24 9 cm   0.025 2 cm    0.29 10 cm
-//   firm mud                                                     0.07 2 cm    0.095 3 cm  0.005 3 mm    0.12 3 cm
+//   firm mud                                                     0.014 4 mm   0.019 6 mm  0.001 1 mm    0.023 6 mm   (FINISH 15 Nov: stiffened -
+//                the C172's 0.28 m nose wheel at ~310 kPa bottomed the first fit's 6 cm and could not fly; now it rolls +36 %)
 //   soft mud                                                     0.22 6.5 cm  0.30 10 cm  0.014 9 mm    0.29 9 cm
 //   k     Pa/m^n, the layer's stiffness           n     the pressure-sinkage exponent
 //   zMax  m, the layer's depth (the base under)   ski   [kinetic, static breakout] of a UHMW/PTFE ski bottom on it
@@ -1132,7 +1133,7 @@ const GROUND_SOFT = {
   8:  { k: 3.0e7, n: 1.0, zMax: 0.03, ski: [0.04, 0.08] },   // packed: a little loose on a rolled base, cold (ski: ideal)
   9:  { k: 4.6e6, n: 1.5, zMax: 0.30, ski: [0.12, 0.24] },   // powder: cold and dry - the slow end of the ski's range
   10: { k: 3.5e6, n: 1.2, zMax: 0.15, ski: [0.10, 0.20] },   // wet: dense near 0 C, heavy; the ski's capillary drag
-  11: { k: 3.3e6, n: 0.8, zMax: 0.06, ski: [0.25, 0.40] },   // firm mud: a skin over a firm base (no ski belongs here: ESTIMATE)
+  11: { k: 1.2e7, n: 0.8, zMax: 0.03, ski: [0.25, 0.40] },   // firm mud: a skin over a firm base (no ski belongs here: ESTIMATE); FINISH: stiffened so a C172 operates (+36 %)
   12: { k: 1.3e6, n: 0.8, zMax: 0.25, ski: [0.30, 0.45] },   // soft mud: wet clay; the wheels go in (ski: ESTIMATE)
 };
 // A SKI's sliding friction on EVERY surface (the ski gear's interface, SKIS session): [kinetic, static breakout]. The
@@ -1172,6 +1173,52 @@ function groundSinkWheel(S, N, b, D, A) {
   G_.cap = 0; if (z > S.zMax) { z = S.zMax; G_.cap = 1; }
   G_.z = z; G_.p = k * Math.pow(z, n);
   return (G_.F = b * k * Math.pow(z, n + 1) / (n + 1));
+}
+// SNOW-MUD FINISH: THE DRAWN SINK - the pose the eye sees on a soft layer. The physics contact stays at the hard ground
+// (the solver's sinkage is a drag and a readout, its named cut); the DRAWN aeroplane is lowered and tilted so its wheels
+// (and skis) stand in the layer by what they sink. The plane through the contacts' sinkage in the world: pts [x, z, s]...
+// (s >= 0, m), at least one; the best-fit plane s = a + b x + c z (one point: level; two: through both, level across them;
+// three or more: least squares), returned as out = [s at (px, pz), ds/dx, ds/dz] - the drop under the pivot and the two
+// slopes. Pure; the viewer (app.js poseModel) smooths it and turns it into a small rigid motion about the pivot
+function groundSinkPose(pts, px, pz, out) {
+  const N = pts.length; out = out || [0, 0, 0];
+  if (!N) { out[0] = out[1] = out[2] = 0; return out; }
+  let mx = 0, mz = 0, ms = 0;
+  for (const q of pts) { mx += q[0]; mz += q[1]; ms += q[2]; }
+  mx /= N; mz /= N; ms /= N;
+  let sxx = 0, sxz = 0, szz = 0, sxs = 0, szs = 0;
+  for (const q of pts) { const dx = q[0] - mx, dz = q[1] - mz, ds = q[2] - ms; sxx += dx * dx; sxz += dx * dz; szz += dz * dz; sxs += dx * ds; szs += dz * ds; }
+  const det = sxx * szz - sxz * sxz;
+  let b = 0, c = 0;
+  if (N >= 3 && det > 1e-6 * (sxx + szz) * (sxx + szz)) { b = (sxs * szz - szs * sxz) / det; c = (szs * sxx - sxs * sxz) / det; }
+  else if (sxx + szz > 1e-9) {
+    // collinear (two wheels, or a line of them): the slope along the line's direction (the covariance's principal axis), level across it
+    const tr = sxx + szz, dd = Math.sqrt(Math.max(0, (sxx - szz) * (sxx - szz) / 4 + sxz * sxz)), l1 = tr / 2 + dd;
+    let ux = sxz, uz = l1 - sxx; if (Math.abs(ux) + Math.abs(uz) < 1e-12) { ux = sxx >= szz ? 1 : 0; uz = sxx >= szz ? 0 : 1; }
+    const ul = Math.hypot(ux, uz); ux /= ul; uz /= ul;
+    let tt = 0, ts = 0; for (const q of pts) { const t = (q[0] - mx) * ux + (q[1] - mz) * uz; tt += t * t; ts += t * (q[2] - ms); }
+    const k = tt > 1e-12 ? ts / tt : 0; b = k * ux; c = k * uz;
+  }
+  out[0] = ms + b * (px - mx) + c * (pz - mz); out[1] = b; out[2] = c;
+  return out;
+}
+// ...and the rigid motion it means, as a column-major 4x4 (THREE.Matrix4's order): about the pivot (px, py, pz), a roll
+// about world x by +ds/dz and a pitch about world z by -ds/dx (small: a contact at +x goes down by ds/dx per metre), then a
+// drop of v[0]. v = [drop, ds/dx, ds/dz] (groundSinkPose's, eased). The viewer premultiplies the drawn aeroplane's matrix by it
+function groundSinkMatrix(v, px, py, pz, out) {
+  out = out || new Array(16);
+  const b = v[1], c = v[2], cb = Math.cos(b), sb = Math.sin(b), cc = Math.cos(c), sc = Math.sin(c);
+  // R = Rx(c) * Rz(-b)
+  const r00 = cb, r01 = sb, r02 = 0;
+  const r10 = -cc * sb, r11 = cc * cb, r12 = -sc;
+  const r20 = -sc * sb, r21 = sc * cb, r22 = cc;
+  // t = p - R p + (0, -drop, 0)
+  const tx = px - (r00 * px + r01 * py + r02 * pz), ty = py - (r10 * px + r11 * py + r12 * pz) - v[0], tz = pz - (r20 * px + r21 * py + r22 * pz);
+  out[0] = r00; out[1] = r10; out[2] = r20; out[3] = 0;
+  out[4] = r01; out[5] = r11; out[6] = r21; out[7] = 0;
+  out[8] = r02; out[9] = r12; out[10] = r22; out[11] = 0;
+  out[12] = tx; out[13] = ty; out[14] = tz; out[15] = 1;
+  return out;
 }
 // A PLATE (a ski, a skid, a float's keel on the snow): N newtons over its bearing area A (m^2), w wide (m). The ground's
 // pressure p = N / A sinks it to z = (p / k)^(1/n), never deeper than the layer; the PLOUGH - the trench its front compacts

@@ -3620,6 +3620,11 @@ function makeSim(def, world) {
   const SKW = new Float64Array(n), SKD = new Float64Array(n), SKA = new Float64Array(n);
   const softMainCls = TYRE_.cls || (TYRE_.main === TYRE_CN.tundra ? 'tundra' : TYRE_.main === TYRE_CN.slim ? 'slim' : 'standard');
   let softLive = false;
+  // SNOW-MUD FINISH: PER WHEEL - out.softW [main 0, main 1, tail 1, tail 2]: each wheel's sinkage this frame (m), the drawn
+  // aeroplane's (the viewer sinks the mesh, never the contact: groundSinkPose); written, like softZ, only on a soft frame
+  const SKSLOT = new Int8Array(n).fill(-1), SOFTW = [0, 0, 0, 0];
+  if (def.refs) { (def.refs.mains || []).forEach((m, k) => { if (k < 2 && m >= 0 && m < n) SKSLOT[m] = k; });
+    if (def.refs.tw != null && def.refs.tw >= 0) SKSLOT[def.refs.tw] = 2; if (def.refs.tw2 != null && def.refs.tw2 >= 0) SKSLOT[def.refs.tw2] = 3; }
   function softWheel(i, isMain) {
     const D = Math.max(0.1, 2 * r[i]);
     const fp = tyreFootprint(isMain ? softMainCls : (P_.twSteer < 0 ? 'nosewheel' : 'tailwheel'), D);
@@ -4198,9 +4203,10 @@ function makeSim(def, world) {
             if (SKW[i] === 0) softWheel(i, isMain);
             const Fs = groundSinkWheel(SO, Fn, SKW[i], SKD[i], SKA[i]);
             muR += Fs / Fn;
-            if (!softLive) { out.softZ = 0; out.softF = 0; softLive = true; }
+            if (!softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; out.softW = SOFTW; softLive = true; }
             if (GROUND_SINK.z > out.softZ) out.softZ = GROUND_SINK.z;
             out.softF += Fs;
+            const sl = SKSLOT[i]; if (sl >= 0 && GROUND_SINK.z > SOFTW[sl]) SOFTW[sl] = GROUND_SINK.z;
           }
         }
         // G121.3: BELOW WALKING PACE THE COEFFICIENT IS A DAMPER, NOT A
@@ -4361,7 +4367,7 @@ function makeSim(def, world) {
   }
   function step(dtFrame, sub = subN) {
     const dt = dtFrame / sub;
-    if (softLive) { out.softZ = 0; out.softF = 0; softLive = false; }   // SNOW-MUD: the soft layer's readouts (out.softZ / softF) are the frame's
+    if (softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; softLive = false; }   // SNOW-MUD: the soft layer's readouts (out.softZ / softF) are the frame's
     if (GR !== null) gearStep(dtFrame);              // RETRACT-1: the gear moves once a frame
     if (SKI !== null) skiStep(dtFrame);              // SKIS: the wheel-ski's selector and the skis' pitch
     aicFresh = true;
@@ -4414,6 +4420,7 @@ function makeSim(def, world) {
       if (occRec) genOccSub(OCC, OCS, p, v, dt, simT);
       if (subHook !== null) subHook(s, dt);
     }
+    if (softLive) out.softF /= sub;                  // SNOW-MUD FINISH: softF summed over the substeps -> the frame's mean drag (N)
     readPanel(dtFrame);
     dmgFrame(dtFrame);
     if (DRV) driveFrame(dtFrame);                   // G1826 (DMG-DRIVE)
