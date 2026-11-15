@@ -4658,7 +4658,8 @@ function makePilot(sim, def, world, opts) {
           // AND THE NEAR GROUND ONLY: HOME's rise 1-1.5 km out (10 % from the lift-off, the C172's 7) is CLIMB's terrain turn's,
           // from hSafe + 10 (~340 m of an 8 % climb) - the valley departure is for ground nearer than that turn can be flown
           const gTerr = (dx, dz) => { let g = -1; for (let k = 1; k <= 5; k++) { const d = 150 * k; g = Math.max(g, (groundH(cg[0] + dx * d, cg[2] + dz * d) + 15 - cg[1]) / d); } return g; };
-          if (!ap.valleyChecked && onG === 0) {
+          // (NO WORLD, NO VALLEY: a pilot made without a world - tools/test_stress.js, GATE STRESS - reads no ground here and departs as before)
+          if (!ap.valleyChecked && onG === 0 && world && typeof world.terrainH === 'function') {
             ap.valleyChecked = true;
             const tdV = [F.ux * ap.dirX, F.uz * ap.dirX], gG = gammaGA();
             const n0 = gTerr(tdV[0], tdV[1]);
