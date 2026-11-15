@@ -99,7 +99,7 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
 
     // ---- MODE B (the record path failed): the main thread's surface and the dust's class read mud round HOME's strip
     const H = rec.mudA && rec.mudA.home;
-    if (rec.mode === 'B') rec.mudB = await J(`(() => { const W = FLIGHT_PROBE.world(), k = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(), c = k && k.matrixWorld ? (k.updateMatrixWorld(true), [k.matrixWorld.elements[12], k.matrixWorld.elements[13], k.matrixWorld.elements[14]]) : FLIGHT_PROBE.camGet().target, CODE = ${CODE};
+    if (rec.mode === 'B') rec.mudB = await J(`(() => { const W = FLIGHT_PROBE.world(), c = FLIGHT_PROBE.camGet().target, CODE = ${CODE};
       const cx = ${H ? H.x : 'c[0]'}, cz = ${H ? H.z : 'c[2]'}, s0 = W.surface.bind(W);
       W.surface = (x, z) => Math.hypot(x - cx, z - cz) < 900 ? CODE : s0(x, z);
       const F = window.DUST_FX && DUST_FX.make && DUST_FX.make(), ci = window.DUST.CLASSES.indexOf('mud');
@@ -114,10 +114,11 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
     const RESUME = async () => { await ev("(()=>{const b=document.getElementById('bPause');if(b&&/resume|run/i.test(b.textContent))b.click();return b&&b.textContent})()"); await rig.frames(2);
       const t = await ev("(()=>{const b=document.getElementById('bPause');return b&&b.textContent})()"); if (!/pause/i.test(t || '')) throw new Error('RESUME failed: #bPause reads ' + t); };
     // (15 Nov slot: the button reads 'Run' when paused, not 'Resume' - the first run never resumed and sat paused at HOLD 11 min)
-    const where = () => J(`(() => { const t = FLIGHT_PROBE.camGet().target, k = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(); let c = t;
-      if (k && k.matrixWorld) { k.updateMatrixWorld(true); const e = k.matrixWorld.elements; c = [e[12], e[13], e[14]]; }
+    // the plane's place: camGet().target, the drawn CG (cgD). The craft Group sits at the ORIGIN - its parts are posed in world space:
+    // the 17:05 slot shot ten stills of the grass at 0,0,0. The sim's own cgPos beside it, their gap logged
+    const where = () => J(`(() => { const t = FLIGHT_PROBE.camGet().target, s0 = FLIGHT_PROBE.sim(); let g0 = null; try { g0 = s0 && s0.cgPos ? Array.from(s0.cgPos()) : null; } catch (e) {} const c = t;
       const W = FLIGHT_PROBE.world(), s = FLIGHT_PROBE.sim(), o = s && s.out || {};
-      return { P: c.map(v => +v.toFixed(2)), tgt: t.map(v => +v.toFixed(2)), craft: !!(k && k.matrixWorld), g: +W.terrainH(c[0], c[2]).toFixed(2), surf: W.surface(c[0], c[2]), softZ: o.softZ != null ? +(+o.softZ).toFixed(3) : null,
+      return { P: c.map(v => +v.toFixed(2)), sim: g0 && g0.map(v => +(+v).toFixed(2)), gap: g0 ? +Math.hypot(g0[0] - t[0], g0[1] - t[1], g0[2] - t[2]).toFixed(2) : null, g: +W.terrainH(c[0], c[2]).toFixed(2), surf: W.surface(c[0], c[2]), softZ: o.softZ != null ? +(+o.softZ).toFixed(3) : null,
         softW: o.softW ? Array.from(o.softW).map(v => +(+v).toFixed(3)) : null, coat: (typeof AERO_WX !== 'undefined' && AERO_WX.live) ? +AERO_WX.live.m.toFixed(3) : 0,
         puffs: window.DUST_FX && DUST_FX.fx ? DUST_FX.fx.sys.P.live : null, v: s && s.v ? Array.from(s.v).slice(0, 3).map(v => +(+v).toFixed(2)) : null }; })()`);
     // d: along the run (HOME's hdg, the sign that points from the aeroplane to the strip's far end); n: beside it, on the sun's side
@@ -137,10 +138,12 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
       const tx = P[0] + D[0] * (ta || 0), tz = P[2] + D[1] * (ta || 0), ty = P[1] + (tdy || 0);
       const dx = tx - ex, dy = ty - ey, dz = tz - ez, yaw = Math.atan2(dx, -dz), pitch = Math.atan2(dy, Math.hypot(dx, dz));
       await rig.eye(ex, ey, ez, yaw, pitch); await rig.frames(20);
-      const inF = await J(`(() => { const k = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(), cam = FLIGHT_PROBE.camera(); if (!k || !cam) return { ok: null };
-        k.updateMatrixWorld(true); cam.updateMatrixWorld(true); const v = new k.position.constructor().setFromMatrixPosition(k.matrixWorld), d = v.distanceTo(cam.position); v.project(cam);
+      const inF = await J(`(() => { const cam = FLIGHT_PROBE.camera(); if (!cam) return { ok: null }; cam.updateMatrixWorld(true);
+        const v = cam.position.clone().set(${P[0]}, ${P[1]}, ${P[2]}), d = v.distanceTo(cam.position); v.project(cam);
         return { ok: v.z < 1 && Math.abs(v.x) < 0.95 && Math.abs(v.y) < 0.95, ndc: [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(4)], dist: +d.toFixed(1) }; })()`).catch(e => ({ ok: null, err: String(e.message || e) }));
-      if (inF.ok === false) { misses++; rec.eyes[name] = { eye: [ex, ey, ez].map(v => +v.toFixed(2)), yaw, pitch, at: w, inFrame: inF, why: 'the aeroplane is not in the frame' }; say('MISS ' + name + ': plane not in frame ' + JSON.stringify(inF));
+      if (w.gap != null && w.gap > 5) { inF.warn = 'the aim point is ' + w.gap + ' m from FLIGHT_PROBE.sim().cgPos() (which ran stale on 14 Nov): a WARNING, not a miss'; say('WARNING ' + name + ': ' + inF.warn); }
+      if (Math.hypot(P[0], P[2]) < 1) { inF.ok = false; inF.why = 'the aim point is the world origin'; }
+      if (inF.ok === false) { misses++; rec.eyes[name] = { eye: [ex, ey, ez].map(v => +v.toFixed(2)), yaw, pitch, at: w, inFrame: inF, why: inF.why || 'the aim point is not in the frame' }; say('MISS ' + name + ': plane not in frame ' + JSON.stringify(inF));
         save(); if (misses >= 2) throw new Error('two misses: stop (RIG-PROCEDURE 4)'); return; }
       try { const png = await rig.grab({ settle: 6 }); const f = path.join(OUT, 'mud_' + name + '.png'); fs.writeFileSync(f, png);
         rec.eyes[name] = { eye: [ex, ey, ez].map(v => +v.toFixed(2)), yaw: +yaw.toFixed(3), pitch: +pitch.toFixed(3), at: w, info: png.info && { mean: png.info.mean, sd: png.info.sd, blank: png.info.blank }, inFrame: inF };
@@ -154,7 +157,7 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
     // hold, lined up, engine running, the pilot at HOLD). 15 Nov 15:15 slot: the taxi took 665 s (Sat on master ~190 s) - the
     // minute's trace (speed over the ground, throttle, rpm, the surface under the craft) says whether the Cub bogs on the soft mud.
     const TAXI_S = +opt('taxi', 60);
-    const tq = () => J("(()=>{const k=FLIGHT_PROBE.craft&&FLIGHT_PROBE.craft(),W=FLIGHT_PROBE.world(),s=FLIGHT_PROBE.sim(),o=s&&s.out||{},ap=FLIGHT_PROBE.ap();let c=FLIGHT_PROBE.camGet().target;if(k&&k.matrixWorld){k.updateMatrixWorld(true);const e=k.matrixWorld.elements;c=[e[12],e[13],e[14]];}"
+    const tq = () => J("(()=>{const W=FLIGHT_PROBE.world(),s=FLIGHT_PROBE.sim(),o=s&&s.out||{},ap=FLIGHT_PROBE.ap();const c=FLIGHT_PROBE.camGet().target;"
       + "return {ph:ap&&ap.phase,P:c.map(v=>+v.toFixed(2)),surf:W.surface(c[0],c[2]),thr:s&&s.ctl&&s.ctl.thr!=null?+(+s.ctl.thr).toFixed(3):null,rpm:o.rpm!=null?Math.round(o.rpm):null,softZ:o.softZ!=null?+(+o.softZ).toFixed(3):null}})()");
     rec.taxi = [];
     for (let t0 = Date.now(), prev = null; Date.now() - t0 < TAXI_S * 1000;) {
