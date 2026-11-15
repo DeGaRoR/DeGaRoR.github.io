@@ -5067,6 +5067,20 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const d = 8, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
       return BIO.codeOf(tt, Math.atan(sl) * 180 / Math.PI, ISLC.canopyAt(x, z), r);
     };
+    // 19 SUBALPINE (MOUNTAIN-VEG, 15 Nov 2026, BIOMES.subCode): heath and scrub above the height ramp take the subalpine MIX; the
+    // ground's code is untouched (the splat, the grass's colour). The ramp's edge broken by a 140 m noise; the point's draw a hash
+    // of its 1.37 m cell (no r: mixHere has none). tools/veg_bench.js plants the same. THE THINNING (BIOMES.subKeep): the high
+    // summits, and a ridge top - the point's height over the mean of four taps at 110 m (read for a subalpine point only)
+    if (BIO) {
+      try { if (/[?&]subalpine=0/.test(location.search)) BIO.subOn = false; } catch (e) {}
+      BIO.subAt = (code, x, z) => (!BIO.subOn || !(code === 2 || code === 7 || code === 14)) ? code
+        : BIO.subCode(code, world.terrainH(x, z), vnoise(x, z, 140, 61), hsh(Math.floor(x * 0.731), Math.floor(z * 0.731) + 97));
+      BIO.keepAt = (code, x, z, h) => {
+        if (code !== BIO.SUBALPINE) return 1;
+        const R = 110, m = (world.terrainH(x + R, z) + world.terrainH(x - R, z) + world.terrainH(x, z + R) + world.terrainH(x, z - R)) / 4;
+        return BIO.subKeep(h, h - m);
+      };
+    }
     const biomeAt = (x, z, r) => BIO.mixHere(codeAt(x, z, r), x, z);
     // 18 LAKESHORE's MASK (G3430, BIOMES.SHORE): the land within shoreReach m of a drawn lake's line - drawnLakeSD, the
     // splat's own lsd field (+ inside, m) - its edge broken by shoreJit x the reach on a 17 m noise, under the bank's slope
@@ -5646,8 +5660,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               // kind, its species the pool (codeAt / biomeAt below - the cover ring's too)
               const tt = ttypeAt(x, z);
               if (BIO) {
-                mixHere = pm !== undefined ? pm : BIO.mixAt(codeAt(x, z, hsh(ix + 21, iz + 23)));   // (BIO.mixHere, with the polygon read once)
+                const cd = pm !== undefined ? -1 : BIO.subAt(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);   // (19 SUBALPINE: the vegetation's code)
+                mixHere = pm !== undefined ? pm : BIO.mixAt(cd);   // (BIO.mixHere, with the polygon read once)
                 kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
+                if (cd === BIO.SUBALPINE && kind > 0 && BIO.keepAt) kind *= BIO.keepAt(cd, x, z, world.terrainH(x, z));   // 19: the summits and the ridge tops thin
               } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
               if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted (a polygon's mix stands as itself)
               // THE MIX'S OWN FLOOR (2026-09-22, the user's reference picture of the airport: the whole muskeg is
