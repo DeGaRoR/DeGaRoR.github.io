@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 603b2b0bf2e8c542
+// body-sha256: 12822757f5f90f5c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36974,7 +36974,7 @@ function genEngPropD0(S, e0, PP0) {
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
-                               brkHold: 0 };
+                               brkHold: 0, noseBallast: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -37563,6 +37563,12 @@ const GEN_RULES = {
   // recalled: ~0.4 / ~0.6 kg with the ring and the cable). 61_gen_frame builds the hook's node on the hard structure and
   // names it refs.towHook - what TOW-LAUNCH's line (src/vehicle/tow.js makeTowLine, `o.hook`) pulls on
   towHook: { nose: { kg: 0.4, price: 450 }, cg: { kg: 0.6, ahead: 0.25, price: 650 } },
+  // THE NOSE BALLAST (the user, 15 Nov: "add 5 kg weight ballast in nose, make it a new element available from garage"):
+  // lead bolted to the nose ring's floor (the cage's `noseBallast`, kg -> spec.ballast.nose), billed in its own ledger
+  // line 'ballast' on the nose ring's two bottom nodes. A glider's trim ballast (a pilot under the placard's minimum
+  // flies with lead in the nose); on the Archaeopteryx it stands for the rescue parachute and the kit stowed in the
+  // very nose, which nothing else bills. maxKg a ceiling for the row; pricePerKg INFERRED (lead, its box and bolts)
+  noseBallast: { maxKg: 20, pricePerKg: 15 },
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
@@ -39733,6 +39739,11 @@ function clampSpec(spec) {
   //  built from its cage without the join - a design bake - reads the cage's row, as the frame reads whProfile)
   if (S.gear.towHook == null && S.cage && Math.round(+S.cage.towHook || 0) > 0) S.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+S.cage.towHook)) - 1];
   if (!((S.gear.towHook === 'nose' || S.gear.towHook === 'cg') && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))) delete S.gear.towHook;
+  // (THE NOSE BALLAST, GEN_RULES.noseBallast: kg of lead on the nose ring - the key only when there is some; a design
+  //  bake reads the cage's row, as the tow hook)
+  if (S.ballast == null && S.cage && +S.cage.noseBallast > 0) S.ballast = { nose: +S.cage.noseBallast };
+  if (S.ballast && +S.ballast.nose > 0) S.ballast = { nose: Math.round(genClamp(+S.ballast.nose, 0, GEN_RULES.noseBallast.maxKg) * 10) / 10 };
+  else delete S.ballast;
   // MONOWHEEL: THE SUNK MAINS - the share of the wheel's diameter inside the body (the cage's s1Sink, the join's); the
   // drag counts the rest, no leg in the stream. Absent at 0
   if (+S.gear.sink > 0) S.gear.sink = genClamp(+S.gear.sink, 0, 0.7); else delete S.gear.sink;
@@ -46141,6 +46152,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const eltKg = (SYS.rows.find(r => r.key === 'elt:fitted') || {}).kg || 0;
   halfOn(F[0].TL, F[0].TR, eltKg ? SYS.bill.avionics.kg - eltKg : SYS.bill.avionics.kg);
   if (eltKg) { const Ft = F[Math.max(1, F.length - 2)]; halfOn(Ft.TL, Ft.TR, eltKg); }
+  // THE NOSE BALLAST (GEN_RULES.noseBallast; spec.ballast.nose kg): lead on the nose ring's floor, its own ledger line
+  // (opened only when there is some: a build without it bills the sections it always did)
+  if (S.ballast && +S.ballast.nose > 0 && R.noseBallast) {
+    sec('ballast');
+    halfOn(F[0].BL, F[0].BR, +S.ballast.nose);
+    spend(+S.ballast.nose * R.noseBallast.pricePerKg);
+  }
   // ---- THE OUTFIT (G159) ------------------------------------------------
   // Everything a real aeroplane carries between its structure and its payload.
   // Each item hangs off a CHOICE or a MEASUREMENT of this aeroplane, never a
