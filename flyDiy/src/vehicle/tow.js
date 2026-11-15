@@ -220,7 +220,9 @@ function towRingRig(T) {
   const rope = new T.MeshStandardMaterial({ color: 0xf2e6c8, metalness: 0, roughness: 0.9 });
   const big = new T.Mesh(new T.TorusGeometry(0.027, 0.003, 10, 32), steel);
   const small = new T.Mesh(new T.TorusGeometry(0.020, 0.0028, 10, 28), steel);
-  const eye = new T.Mesh(new T.TorusGeometry(0.016, 0.0045, 8, 20, Math.PI * 1.3), rope);
+  // (the eye: 0.8 of a loop, its gap turned to face along the line - the two legs leave it forward into the doubled rope)
+  const eyeG = new T.TorusGeometry(0.016, 0.0045, 8, 24, Math.PI * 1.6); eyeG.rotateZ(Math.PI * 1.2);
+  const eye = new T.Mesh(eyeG, rope);
   const tail = new T.Mesh(new T.CylinderGeometry(0.0045, 0.0045, 0.06, 8), rope);
   for (const m of [big, small, eye, tail]) { m.castShadow = true; g.add(m); }
   const X = new T.Vector3(), Y = new T.Vector3(), Z = new T.Vector3(), M = new T.Matrix4(), q = new T.Quaternion();
@@ -241,7 +243,7 @@ function towRingRig(T) {
     const cEye = cSmall.clone().addScaledVector(u, 0.020);
     place(eye, cEye, X.copy(u).negate(), Y.copy(w), Z.copy(s).negate());
     const cTail = cEye.clone().addScaledVector(u, 0.016 + 0.03);
-    place(tail, cTail, X.copy(w), Y.copy(u), Z.copy(s));
+    place(tail, cTail, X.copy(s), Y.copy(u), Z.copy(w));   // (a right-handed basis: s x u = w; the cylinder's axis along the line)
     return cTail.clone().addScaledVector(u, 0.03).toArray();   // (where the drawn rope begins)
   } };
 }
