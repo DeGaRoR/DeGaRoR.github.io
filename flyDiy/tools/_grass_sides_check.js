@@ -53,12 +53,14 @@ const D = PG.GRASS_SIDES_DEF;
   ok(on.kill === 1 && side.kill === 1, "3 'sides': HOME bare on its surface and its drawn side (" + G.sideClear + ' m)', 'at ' + u.toFixed(0) + ' m along: surface ' + on.kill + ', +' + (G.sideClear * 0.5).toFixed(1) + ' m ' + side.kill);
   ok(band.kill === 0 && band.cut === 1 && mow.kill === 0 && mow.cut === 1, "3 'sides': cut grass across the 40 m band and the " + G.mowBand + ' m mow band past it', '+30 m cut ' + band.cut + ', +' + (H.band + G.mowBand - 1) + ' m cut ' + mow.cut);
   ok(!wild.cut && (wild.kill || 0) === 0, "3 'sides': wild past the blend", '+' + (H.band + G.mowBand + G.mowBlend + 2) + ' m cut ' + (wild.cut || 0));
-  const surf = q(across(S, -4)), soft = q(across(W3, 1));
+  // (16 Nov: inside tw_ski's NARROW drawn track - trackW 3.8 m from the centreline, DIRT-STRIP's dirt-look-3 - so 2.5 m off it)
+  const surf = q(across(S, -6.5)), soft = q(across(W3, 1)), wildT = q(across(S, -4));
   ok(surf.kill === 0 && surf.surf === 1 && surf.cut === 1, "3 'sides': the grass strip's running surface is cut grass (surf 1)", 'tw_ski kill ' + surf.kill + ' surf ' + surf.surf);
   // (DIRT-STRIP 10 Nov, the user: "vegetation grows on the ruts") the trail's wheel lanes bare: a few tufts on a main lane (the fleet's
   //  mean half-track 1.098 m), fewer than everywhere else, the tail wheel's lane down the middle thinned less, none 5 m out
   const lane = q(across(S, -S.wid / 2 + 1.098)), mid = q(across(S, -S.wid / 2));
   ok(lane.kill > 0.7 && lane.surf === 1 && mid.kill > 0 && mid.kill < lane.kill && surf.kill === 0, "3 'sides': the grass strip's trail - its wheel lanes nearly bare, its middle thinned, cut grass beside", 'tw_ski lane ' + lane.kill.toFixed(2) + ', middle ' + mid.kill.toFixed(2) + ', 5 m out ' + surf.kill);
+  ok(G.trackW === 3.8 && !wildT.cut && !wildT.surf && (wildT.kill || 0) === 0, "3 'sides': past the narrow drawn track (trackW " + G.trackW + ' m) the trail strip grows the wild grass', 'tw_ski 5 m off the centreline: cut ' + (wildT.cut || 0) + ' surf ' + (wildT.surf || 0));
   ok(soft.kill === 0 && soft.cut === 1, "3 'sides': a soft (gravel) strip's torn edge lets the cut grass in past " + G.softClear + ' m', 'w3 +1 m kill ' + soft.kill + ' cut ' + soft.cut);
   PG.grassSides({ stripGrass: 0 }); const bare = q(across(S, -4)); PG.grassSides({ stripGrass: 1 });
   ok(bare.kill === 1 && !bare.surf, "3 'sides' with stripGrass 0: the grass strip's surface bare again (G665's answer)");
