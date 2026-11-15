@@ -316578,3 +316578,4 @@ gradient) - not 50 ft, and not the roll alone. A contract scales it by (W/W0)^2 
 CONTRACT_FIT.surf: paved 1.0, gravel / dirt 1.1, grass 1.15, sand 1.25, snow 1.3, water 1.0). The list:50 cessna172r at
 its gross 1128 kg rolls 290 m (REALBAND TOgrass) against the POH's 945 ft = 288 m; its toM 331 m is that roll plus the
 air segment at the snapshot's mass. The old 144 m was the 880 kg bugReports Cessna.
+- PETREL-TRIM GATE (SEAPLANES, 15 Nov, L40d): PETRELTRIM registered (core, 60 s) on builds/candidates/superpetrel_V4_2.json; needs claude/ready/petrel-skin (REAL-CANON 4/5 brings the card) merged first. Read on master 58c681347 + the card: foot -0.09 m (bound -0.15), boom -0.17 (-0.40), lift-off 28.7 s; on petrel-skin 87a86a4a5: foot -0.11, boom -0.21, lift-off 28.8 s. PASS both.
