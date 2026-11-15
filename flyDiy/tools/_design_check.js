@@ -94,7 +94,9 @@ const CORE = require(path.join(T, 'flight_core.js'));
 // see PATHS above. EMPTY — meta.role and meta.class, the two it once
 // carried, are retired (G292); the mechanism stays for the next field born
 // while 60_gen_spec.js is another session's hot file.
-const NEW_SPEC_FIELDS = [];
+// (WATER TANKS, 15 Nov: spec.water is absent by design - a build without a water tank carries no key, genWaterClamp
+//  takes an empty list off - so GEN_DEFAULT names no water section; the Archaeopteryx's card carries one)
+const NEW_SPEC_FIELDS = ['water.vessels'];
 
 const fail = [];
 const check = (ok, label, extra) => {

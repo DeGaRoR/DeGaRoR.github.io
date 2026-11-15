@@ -1856,7 +1856,7 @@ function waterMat() {
 // the outlet: a short pipe from the tank's floor to the skin and the valve on it - the tank's steel where it is clear
 // (it flies with the tank), red and the editor's alone where the run is blocked (a bead where it meets something)
 let OUT_GEO = null, VALVE_GEO = null;
-function drawOutlet(group, r, i) {
+function drawOutlet(group, r, i, tankBad) {
   const o = r.outlet, T3 = window.THREE;
   if (!o || !T3) return;
   if (!OUT_GEO) { OUT_GEO = new T3.CylinderGeometry(0.014, 0.014, 1, 14, 1, false); VALVE_GEO = new T3.CylinderGeometry(0.024, 0.024, 0.035, 16); }
@@ -1868,7 +1868,8 @@ function drawOutlet(group, r, i) {
   const valve = new T3.Mesh(VALVE_GEO, mat);
   valve.position.set(o.top[0], o.top[1] - MathL.min(0.03, o.len / 2), o.top[2]);
   valve.name = 'edVessel_' + i + '_valve';
-  for (const m of [pipe, valve]) { if (!o.ok) { m.userData.edMarker = 1; m.userData.edUnfit = 1; } group.add(m); }
+  // (a tank that does not fit takes its outlet with it: every mesh of it stamped edUnfit, G1108 - GATE TANKMOUNT)
+  for (const m of [pipe, valve]) { if (!o.ok) { m.userData.edMarker = 1; m.userData.edUnfit = 1; } if (tankBad) m.userData.edUnfit = 1; group.add(m); }
   if (!o.ok && o.at) {
     const b = new T3.Mesh(clashGeo(), clashMat());
     b.position.set(o.at[0], o.at[1], o.at[2]);
@@ -2814,7 +2815,7 @@ function drawResults(group, ctx, results) {
           const mw = slotMesh(group, contentsMemo(sol, fw), waterMat(), 'edFuel_' + i, r.c, yaw, true);
           if (mw && bad) mw.userData.edUnfit = 1;
         }
-        drawOutlet(group, r, i);
+        drawOutlet(group, r, i, bad);
       } else if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
         const mf = slotMesh(group, legacyFit() ? VM.contents(sol, VIEW.fill, 0.008) : contentsMemo(sol, VIEW.fill), fuelMat(),
                             'edFuel_' + i, r.c, yaw, true);
