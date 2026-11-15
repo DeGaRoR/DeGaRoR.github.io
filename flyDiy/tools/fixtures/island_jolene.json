@@ -3084,7 +3084,7 @@
      ]
     ],
     "z": 1,
-    "look": "gravel",
+    "look": "snow",
     "band": 1,
     "yaw": 0
    },
@@ -3109,7 +3109,7 @@
      ]
     ],
     "z": 1,
-    "look": "concrete",
+    "look": "snow",
     "band": 1,
     "yaw": 0
    }
@@ -16026,8 +16026,8 @@
     "name": "Ardent Altiport",
     "len": 210,
     "wid": 12,
-    "surface": 6,
-    "look": "gravel",
+    "surface": 9,
+    "look": "powder",
     "slope": 0,
     "crossfall": 0,
     "disp": [
