@@ -9696,6 +9696,19 @@
     if (apWhySeen.ap !== ap) { apWhySeen.ap = ap; apWhySeen.n = 0; }
     const n = V ? V.length : 0;
     if (n < apWhySeen.n) apWhySeen.n = n;
+    // DESCENT (15 Nov; A0: "the page confirms the canopy steepening"): THE FLIGHT LOG HEARS THE PILOT. Each new verdict is an
+    // event 'say' { t, code, note }, and the approach planned (ap.appr: the slope flown and its source - type / obstacle / stol /
+    // airframe - the obstacles' slope and the obstacle, the aim, Vref, the flap, a drawn approach's FAF height) an event 'appr'
+    // when it changes: the user's Rufus off Cabin Strip climbed to an 800 m FAF and the log could not say which slope did it
+    const FRl = typeof window !== 'undefined' && window.FLIGHT_REC && window.FLIGHT_REC.event && !window.FLIGHT_REC.off ? window.FLIGHT_REC : null;
+    if (FRl) {
+      if (apWhySeen.rAp !== ap || (apWhySeen.rn || 0) > n) { apWhySeen.rAp = ap; apWhySeen.rn = 0; }   // (its own count: a new pilot, a shorter report)
+      if (n > apWhySeen.rn) { for (const v of V.slice(apWhySeen.rn)) FRl.event('say', null, { t: v.t, code: v.code, note: String(v.note || '').slice(0, 240) }); apWhySeen.rn = n; }
+      const Ap = ap.report && ap.report.appr;
+      const aK = Ap ? [Ap.gs, Ap.reqGs, Ap.gsWhy, Ap.aimIn, Ap.Vref, Ap.flap, Ap.designed && Ap.designed.hFaf].join('|') : '';
+      if (aK !== apWhySeen.appr) { apWhySeen.appr = aK; if (Ap) FRl.event('appr', null, { to: ap.route && ap.route.to ? ap.route.to.id : null, gs: Ap.gs, reqGs: Ap.reqGs, why: Ap.gsWhy || null,
+        obst: Ap.obst || null, technique: Ap.technique, aimIn: Ap.aimIn, Vref: Ap.Vref, flap: Ap.flap, designed: Ap.designed || null }); }
+    }
     if (n > apWhySeen.n && typeof AP_WHY !== 'undefined') {
       const fresh = V.slice(apWhySeen.n);
       apWhySeen.n = n;

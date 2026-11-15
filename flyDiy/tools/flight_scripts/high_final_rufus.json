@@ -1,0 +1,67 @@
+{
+  "name": "high_final_rufus",
+  "what": "Rufus off HOME, one circuit; on the final the aeroplane is lifted 300 m (the autopilot handed back high), then lands and stops on HOME with no prop strike - DESCENT, the user 15 Nov ('losing altitude fast while remaining as slow as possible')",
+  "plane": "list:7",
+  "from": "HOME",
+  "to": "HOME",
+  "day": "game",
+  "persona": "expert",
+  "steps": [
+    {
+      "name": "board",
+      "do": "board"
+    },
+    {
+      "name": "start-up",
+      "do": "start",
+      "until": {
+        "engine": true
+      },
+      "capS": 10
+    },
+    {
+      "name": "taxi to the hold",
+      "until": {
+        "phase": [
+          "HOLD",
+          "LINEUP",
+          "ROLL"
+        ]
+      },
+      "capS": 400
+    },
+    {
+      "name": "take-off",
+      "until": {
+        "agl": 30
+      },
+      "capS": 120
+    },
+    {
+      "name": "climb to 150 m",
+      "until": {
+        "agl": 150
+      },
+      "capS": 180
+    },
+    {
+      "name": "the circuit to the final",
+      "until": {
+        "phase": "FINAL"
+      },
+      "capS": 600
+    },
+    {
+      "name": "300 m too high",
+      "do": "lift",
+      "by": 300
+    },
+    {
+      "name": "down and stop on HOME",
+      "until": {
+        "stoppedAt": "HOME"
+      },
+      "capS": 900
+    }
+  ]
+}

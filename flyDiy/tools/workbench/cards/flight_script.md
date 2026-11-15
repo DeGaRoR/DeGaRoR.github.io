@@ -36,9 +36,10 @@ Exit codes: 0 = every step passed, 1 = a step failed (the WHY is printed and log
 - `plane`: a plane-list row (`list:N`, from `builds/lists/plane_lists.json`) or a build file (from `flyDiy/`).
 - `day`: `game` (the new player's day: 8 kt from 250, 16:00 midsummer), `calm`, or a day spec.
 - `persona`: `expert` (default; the story's Stig; the player's autopilot is always Expert), `club`, `student`, `bush` or `hamfist`.
-- `do`: `board` (in node, an assert: mass, fuel, no damage), `start` (the page's Go), `leg` (the next leg from where it stopped). Absent means watch.
+- `do`: `board` (in node, an assert: mass, fuel, no damage), `start` (the page's Go), `leg` (the next leg from where it stopped), `lift` (`"by": m`, the aeroplane raised in place with its speeds kept: "high on final", the autopilot handed back high). Absent means watch.
 - `until`: `phase` (one or a list), `agl` (metres), `engine`, `stoppedAt` (an aerodrome id, judged by flightWhere), `declined` (a take-off declined at the hold, its reason said). All must hold.
-- `allow`: `yield`, `prop-strike`, `dent`, `declined`. Otherwise these faults end the step. A break, a crash, NaN and ABORT always end it.
+- `allow`: `yield`, `prop-strike`, `dent`, `declined`. Otherwise these faults end the step: **no prop strike is a pass condition of every step**. A break, a crash, NaN and ABORT always end it.
+- `trees` (scenario level, optional): `[[x, z, r, h], ...]`, a stand of canopy `h` m tall within `r` of (x, z), added to the node world's `canopyH`. The page's trees where the node world has none: the runway model's obstacle cone reads them, so a slope the page steepens can be flown in node.
 
 ## The library
 
@@ -47,13 +48,17 @@ Exit codes: 0 = every step passed, 1 = a step failed (the WHY is printed and log
 - `strip_jumbo`: the Jodel (list:2), HOME > Jumbo Mine > HOME.
 - `altiport`: the Cub, HOME > Skyline Altiport > HOME.
 - `float_circuit`: the float Cessna B-CESF (list:4), one circuit on SEA.
+- `rufus_cabin`, `rufus_cabin_trees`: Rufus (list:7), one circuit at Cabin Strip on its drawn approach (the user's flight of 15 Nov); the trees version steepens the slope as the page did. Read step 5's `fly.hMax`: the base must not climb.
+- `high_final_rufus`, `high_final_cub`, `high_final_cessna`: one circuit off HOME, lifted 300 m on the final, then land (DESCENT).
 
 ## Output: one JSONL per run
 
 - `run`: first line. The scenario, plane, build file, day, persona, git sha, world.
 - `sample`: one a second. Step, phase, the pilot's goal, x/y/z, AGL, ground / air / vertical speed, pitch / bank / heading, throttle / brake / flaps, fuel.
 - `say`: each verdict the pilot speaks, as it speaks it.
-- `step`: one per step. t0 / t1, the phases, the state at its end, the verdicts said, the solver ms p50 / p99 / max, `ok` or `why`.
+- `step`: one per step. t0 / t1, the phases, the state at its end, the verdicts said, the solver ms p50 / p99 / max, `ok` or `why`, and `fly`: the least air speed and most sink while airborne, the highest and lowest CG, and the first touch (sink, air speed, pitch).
+
+The table: `node tools/flight_table.js run1.jsonl run2.jsonl ... [--step <name part>] [--md]` prints one row per run from its landing step (time, go-arounds, min IAS, max sink, top, the touch, slips and diverts said, the why).
 - `end`: last line. ok, steps passed, sim and wall seconds, the failed step.
 
 Read it with any JSONL reader, e.g. `grep '"type":"step"' run.jsonl`.

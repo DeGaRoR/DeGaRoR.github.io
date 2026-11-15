@@ -1592,10 +1592,12 @@ function makePilot(sim, def, world, opts) {
       D = Object.assign({}, D, q);
     }
     ap.gs = D ? clamp(Math.max(A.gs, 1.05 * D.reqGs), A.gs, Math.max(A.gs, gsMax())) : A.gs;
+    // DESCENT (15 Nov): the slope's source, for the log (ap.appr.gsWhy): the type's, an obstacle's, the STOL slope, the airframe's own
+    let gsWhy = ap.gs > A.gs + 1e-4 ? 'obstacle' : 'type';
     // STOL-PILOT: THE STOL APPROACH IS STEEPER AND FLOWN ON POWER (FAA-H-8083-3: full flap, the power holding the speed,
     // the pitch the path; 50 ft cleared and the touchdown 300-500 ft on is 6-9.5 deg): gsStol (0.12, 6.8 deg) at the
     // least, never past the sheet's own gsMax; an obstacle's steeper slope stands
-    if (ap.stolFld) ap.gs = clamp(Math.max(ap.gs, A.gsStol ?? 0.12), ap.gs, Math.max(ap.gs, gsMax()));
+    if (ap.stolFld) { const g0 = ap.gs; ap.gs = clamp(Math.max(ap.gs, A.gsStol ?? 0.12), ap.gs, Math.max(ap.gs, gsMax())); if (ap.gs > g0 + 1e-4) gsWhy = 'stol'; }
     ap.siteDir = D;
     // G2125 PILOT-PROFILE: AN APPROACH STILL UNDER ITS OBSTACLE AT THE STEEPEST SLOPE THE AEROPLANE FLIES (the cone's
     // binding tree or house) CROSSES THE THRESHOLD HIGHER: the aim moves down the strip until the slope from it clears that
@@ -1618,11 +1620,12 @@ function makePilot(sim, def, world, opts) {
       const aimNeed = (D.obst.h - D.thrH + 15) / gF - D.obst.d;
       const runNeed = (sheetOf() && sheetOf().LDGrun) || 0;
       if (aimNeed > ap.xAim - sThr0 && to.len - aimNeed >= (RC_ ? 1.0 : 1.3) * runNeed) {
-        ap.gs = gF; ap.xAim = sThr0 + aimNeed; ap.appr.aimIn = Math.round(aimNeed); ap.appr.displaced = Math.round(aimNeed);
+        ap.gs = gF; gsWhy = 'airframe'; ap.xAim = sThr0 + aimNeed; ap.appr.aimIn = Math.round(aimNeed); ap.appr.displaced = Math.round(aimNeed);
         say('aim-displaced', 'this airframe flies ' + (Math.atan(gF) * 57.3).toFixed(1) + ' deg at idle (no landing flap) - the approach to ' + (to.name || to.id) + ' aims ' + Math.round(aimNeed) + ' m in, over the obstacle ' + D.obst.d + ' m out (' + Math.round(D.obst.h - D.thrH) + ' m)');
       }
     }
-    if (ap.appr) { ap.appr.gs = Math.round(ap.gs * 1000) / 1000; ap.appr.reqGs = D ? Math.round(D.reqGs * 1000) / 1000 : null; }   // G1936: the slope flown, the obstacles'
+    if (ap.appr) { ap.appr.gs = Math.round(ap.gs * 1000) / 1000; ap.appr.reqGs = D ? Math.round(D.reqGs * 1000) / 1000 : null; ap.appr.gsWhy = gsWhy;
+                   ap.appr.obst = D && D.obst ? { d: Math.round(D.obst.d), h: Math.round((D.obst.h - (D.thrH ?? 0)) * 10) / 10 } : null; }   // G1936: the slope flown, the obstacles'
     // P1 (found on the dn4 fixture, flown uphill for the first time): the
     // slope ends on the AIM'S ground (aimAlt, P0.8) while the level before
     // the FAF is hC over the aerodrome's datum — the FAF is where the slope
@@ -3116,6 +3119,7 @@ function makePilot(sim, def, world, opts) {
     const planFromHere = () => {
       const { from, to } = ap.route;
       ap.climbHold = null;   // G2450 / G2520: a new arrival plan ends a climb hold
+      ap.fafCapped = false;  // DESCENT: set by a designed approach whose FAF was capped (below)
       const climbDir = [F.ux * ap.dirX, 0, F.uz * ap.dirX];
       let u;
       // G1945 DEST-TO: a re-plan in the air (ap.setDest) arrives the cross-country way, whatever the To
@@ -3143,7 +3147,16 @@ function makePilot(sim, def, world, opts) {
           const sideD = DA.side === -1 ? -1 : DA.side === 1 ? 1 : P.side;
           P.side = sideD; P.sideForced = true; P.designed = true;
           P.sFaf = sFafD;
-          P.hC = Math.max(A.hSafe + 10, aimAlt() + ap.gs * dFaf - ap.altRef);
+          // DESCENT (the user, 15 Nov: Rufus off Cabin Strip "unable to lose altitude fast enough", its log: ENROUTE and BASE
+          // climbing to 989 m, the final begun 800 m over the strip): THE DRAWN FAF IS NOT CLIMBED TO ON A STEEPENED SLOPE. The
+          // slope's height at the drawing's first point is the plan's on the type's own slope (A.gs; Cabin Strip's 4923 m: 326 m);
+          // a steeper slope (an obstacle's reqGs, the STOL slope, up to gsMax 0.16: 788 m at that distance) is the slope near the
+          // threshold, not out at the FAF - the legs keep the type's slope or the circuit height, whichever is higher, and the
+          // final flies level from the FAF until the steep slope comes down to meet it (FINAL's latched level), then down it
+          const hDesG = aimAlt() + ap.gs * dFaf - ap.altRef, hTypeG = aimAlt() + A.gs * dFaf - ap.altRef;
+          P.hC = Math.max(A.hSafe + 10, Math.min(hDesG, Math.max(hTypeG, ap.hCruise)));
+          if (ap.appr) ap.appr.designed = { dFaf: Math.round(dFaf), hFaf: Math.round(P.hC), hSlope: Math.round(hDesG) };
+          ap.fafCapped = P.hC < hDesG - 4;   // (FINAL: level under the steep slope until it comes down to meet the aeroplane)
           P.sIaf = P.sFaf - Math.max(400, 10 * VTurn);
           const R2 = 2 * Rturn, tlD = Math.hypot(vcg[0], vcg[2]);
           const RcD = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
@@ -5125,7 +5138,11 @@ function makePilot(sim, def, world, opts) {
         const d = ap.xAim - sAl;
         const hGS = aimAlt() + Math.max(0, d) * ap.gs;
         const above = cg[1] - hGS;
-        if (!slopeCaptured && above < 4) slopeCaptured = true;
+        // DESCENT: UNDER A CAPPED DRAWN FAF THE SLOPE COMES DOWN TO MEET THE AEROPLANE (G381's own words). Below the slope, the
+        // capture made at once flew the slope's law UP to it - the fixed Rufus off Cabin Strip, its FAF kept at 326 m under an
+        // 0.10 slope's 524, climbed 55 m on its final. There the latched level is held until the slope is within 4 m; every
+        // other final captures as before
+        if (!slopeCaptured && above < 4 && !(ap.fafCapped && above < -4)) slopeCaptured = true;
         // G381: THE LEVEL SEGMENT IS LATCHED — its target was min(cg[1],
         // hGS + 10) re-read every tick, so a sag was never corrected (25 m
         // on the cub, then a climb back into the slope). And THE BANK: the
@@ -5134,7 +5151,7 @@ function makePilot(sim, def, world, opts) {
         // then the tracking bank of 0.18 — the 10 deg cap alone could not
         // finish a turn planned at 23 and crossed the centreline by 147 m.
         if (finalLevel == null) finalLevel = Math.min(cg[1], hGS + 10);
-        { const aim = wp(F, ap.xAim, 0); pubH = (slopeCaptured || above < 0 || above > 4) ? hGS : finalLevel; pubN = 'AIM'; pubX = aim[0]; pubZ = aim[1]; }
+        { const aim = wp(F, ap.xAim, 0); pubH = (slopeCaptured || (above < 0 && !ap.fafCapped) || above > 4) ? hGS : finalLevel; pubN = 'AIM'; pubX = aim[0]; pubZ = aim[1]; }
         // P0.6: the last fillet (base -> final) is the path's; LOC takes over
         // once the nose is within 11 deg of the runway and 60 m of the line
         const nS = nose[0] * F.ux + nose[1] * F.uz;
@@ -5165,15 +5182,20 @@ function makePilot(sim, def, world, opts) {
           p3Closed = P3_ && ap.shortFld && fLDG <= 0 && aglG > hOff;
           // (G3914: a flapless aeroplane on a long strip slips only in the last 80 m. Anywhere on final, the Caravan-alike and the four-engine card slipped 2.5 km out for +3 to +6 m the
           // idle was already losing, then went round twice 15 m off the centreline; without it both land first try)
-          if ((ap.shortFld || (PRA && PRF.slip) || (P3_ && fLDG <= 0 && aglG < 80)) && (slopeCaptured || (P3_ && above > 4 && !onPathF)) && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2) && (!P3_ || Math.abs(SV.ph) < 0.17 || slipK > 0)) {   // (G3914: the wings level first)
+          // DESCENT (the user, 15 Nov: "losing altitude fast while remaining as slow as possible is really key"): FAR ABOVE THE SLOPE THE SLIP
+          // IS ARMED WHEREVER THE FINAL IS - on any strip, on the path or off it, captured or not. Rufus's final began 800 m over its
+          // slope and slipped only 600 s later (the arm waited for the capture or for leaving the path). slipHigh (15 m) is far above
+          // G3914's few metres (the Caravan-alike's +3 to +6 slipped 2.5 km out and went round): those still wait as before
+          const slipHi = P3_ && above > (A.slipHigh ?? 15);
+          if ((slipHi || ((ap.shortFld || (PRA && PRF.slip) || (P3_ && fLDG <= 0 && aglG < 80)) && (slopeCaptured || (P3_ && above > 4 && !onPathF)))) && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2) && (!P3_ || Math.abs(SV.ph) < 0.17 || slipK > 0)) {   // (G3914: the wings level first)
             if (slipK === 0) slipSg = SV.crossWind(F) >= 0 ? 1 : -1;
             slipK = Math.min(1, slipK + dt / 3);
-            if (!slipSaid) { slipSaid = true; say('slip', 'high on energy on the short final (+' + eE.toFixed(1) + ' m at idle) — slipping it down'); }
+            if (!slipSaid) { slipSaid = true; say('slip', slipHi && !ap.shortFld ? 'high on the final (' + Math.round(above) + ' m over the slope at idle) — slipping it down' : 'high on energy on the short final (+' + eE.toFixed(1) + ' m at idle) — slipping it down'); }
           } else slipK = Math.max(0, slipK - dt / (aglG > hOff && eE > 0.5 ? 6 : 1.5));
         }
         // P0.5: the slope and the level before it are two references of the one law
         // (G3914: the elevator cannot hold the reference in a slip - the same Cub, 20.6 m/s on 0.35-0.41 of it for 19.2 - and asking it anyway winds the pitch up)
-        if (slopeCaptured || above < 0) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF + (P3_ ? 1.5 * slipK : 0), bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs), spdPri: P3_ || ap.shortFld });
+        if (slopeCaptured || (above < 0 && !ap.fafCapped)) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF + (P3_ ? 1.5 * slipK : 0), bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs), spdPri: P3_ || ap.shortFld });
         // ABOVE THE SLOPE ON ENTRY (G434, the hill strip on Jolene): the enroute leg's clearance over
         // the ground under it (hClear) had left the aeroplane 30 m over the pattern height, the
         // level was latched THERE and the slope, descending to the aim, only fell away under it -
