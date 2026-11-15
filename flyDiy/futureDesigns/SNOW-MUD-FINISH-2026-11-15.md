@@ -117,6 +117,24 @@ THE COST: one draw, as before. Node, gamer tier:
 - a powder take-off: 104 us median, 450 us p99, at most 327 instances.
 The puffs' overdraw stays under the tier's existing cover budget.
 
+## The PC-6 on wheels on powder (SKIS' observation, 15 Nov)
+
+SKIS' Ardent run, downhill 15 %: the PC-6 on WHEELS on powder rolls as on gravel (67 m against 67 m). On the flat it is
+39 m against 36 m.
+
+The physics is honest by its law:
+- Its 0.69 m mains at ~100 kPa sink 7 cm. That is about 0.8-1 kN of compaction drag at the start, falling as the wing
+  takes the load.
+- The 30 cm softZ SKIS read is the 0.14 m tail wheel bottoming, and the tail lifts in 3 s.
+- Against 7.1 kN of static thrust on 1277 kg, plus 1.5 m/s^2 of slope, the drag barely shows.
+
+A NAMED CUT: a tyre's BULLDOZING / RAM drag in snow - the snow pushed ahead at the wheel's speed, ~rho b z v^2. This law has
+compaction only. SKIS' rows add a plough for the skis; for tyres it is the candidate if the eye says deep snow is too easy
+at speed. Adding it moves the stock runs and needs a re-fit of k on 9 and 10.
+
+The probe also found a readout bug, fixed here: sim.out.softF was summed over the substeps. It is now the frame's mean (N),
+the compaction drag the wheels pay when rolling.
+
 ## Gates
 
 | gate | tier | runtime | self-test |

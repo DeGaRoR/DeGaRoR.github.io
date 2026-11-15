@@ -4266,6 +4266,7 @@ function makeSim(def, world) {
       if (occRec) genOccSub(OCC, OCS, p, v, dt, simT);
       if (subHook !== null) subHook(s, dt);
     }
+    if (softLive) out.softF /= sub;                  // SNOW-MUD FINISH: softF summed over the substeps -> the frame's mean drag (N)
     readPanel(dtFrame);
     dmgFrame(dtFrame);
     if (DRV) driveFrame(dtFrame);                   // G1826 (DMG-DRIVE)
