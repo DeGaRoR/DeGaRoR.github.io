@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 3791155fbf60da2f
+// body-sha256: 603b2b0bf2e8c542
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7218,12 +7218,14 @@ const GP_CLEAR = 1.5, GP_HALF_DEFAULT = 6.0;
 // (ENGINE-CONFIGS-2: the Skymaster-alike's rear pusher, then its wing and booms 0.5 m aft (25 Oct) - 6.16 m: 6.2)
 // (ENGINE-CONFIGS-2, 27 Oct: the three layout starters - the Push-pull starter 0.79 / 6.12 m, the Trimotor 0.76 /
 // 5.93, the Four-engine starter 0.51 / 6.01; all inside the table's envelope, so FLEET_SPOT_FOOT does not move)
+// (the Archaeopteryx to 6.5 (L40c, 15 Nov): its 13 m wing since the weight path - 6.50 m drawn; inside the table's
+// envelope, FLEET_SPOT_FOOT does not move)
 const GP_PARKED_FOOT = {   // [half-span, nose + prop ahead of the mount, tail behind it], metres
   cub: [5.4, 1.3, 5.5], pietenpol: [4.4, 0.9, 5.6], tigermoth: [4.5, 0.9, 5.6], stearman: [4.9, 1.0, 5.5], pittsAlike: [3.3, 0.9, 4.4],
   sesqui: [5.0, 0.9, 5.6], jodel: [4.2, 1.4, 4.5], c172: [5.5, 1.5, 6.1], chinook: [4.9, 0.4, 5.2], caravan: [7.0, 2.1, 6.6],
   rv: [4.9, 0.9, 5.7], savannah: [4.6, 0.9, 5.4], ul1: [4.7, 0.9, 5.4], floatplane: [5.9, 1.2, 5.8], pusherPod: [4.6, 0.6, 5.7],
   motorglider: [6.5, 0.9, 5.0], radial: [5.5, 0.9, 5.8], etrainer: [4.5, 0.9, 5.6], ttail: [5.5, 0.9, 5.8], vtail: [5.5, 0.9, 5.9],
-  mw5: [4.7, 0.6, 5.6], archaeopteryx: [5.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 6.2],
+  mw5: [4.7, 0.6, 5.6], archaeopteryx: [6.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 6.2],
   p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9], pushPull: [5.5, 0.9, 6.2], trimotor: [5.5, 0.8, 6.0], fourEngine: [5.5, 0.6, 6.1],
   camel: [4.3, 0.9, 5.1],      // NEW-SHAPES-1 (the Stearman's tail to 5.5: its re-matched boom, 5.45 m)
 };
@@ -38795,8 +38797,12 @@ function genPlanePair(pos0, pos1) {
 // the DC-3 sits inside the old big box, so nothing it flies moves; the small box is unchanged.
 const GEN_WING_ENVELOPE = {
   chord: [0.80, 3.00], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
-  // (the LS4, 13 Nov: a sailplane's outer panel to 0.40 of the root - 0.36 m on 0.90; 0.45 held it at 0.405)
-  taper: [0.35, 1.0], xLE: [-1.20, 3.00],
+  taper: [0.45, 1.0], xLE: [-1.20, 3.00],
+  // THE SLENDER WING'S TAPER (the LS4, 13 Nov; re-pinned for L40c's WINGROWS 15 Nov): a sailplane's outer panel runs
+  // to 0.40 of its root (0.36 m on 0.90) where the 0.45 floor held it at 0.405 - so a wing whose span is at least
+  // `spanPerChord` root chords (the LS4's 16.7; every validated card's under 10) tapers to `taper`; every other wing
+  // keeps the 0.45 floor, its rows to the bit (genTaperLo)
+  slender: { spanPerChord: 14, taper: 0.35 },
   placeDx: [-1.2, 1.8], placeDy: [-1.0, 1.5],
   // G3579 (DC3-2, the reference model's fit): a big wing's taper to 0.25 (the DC-3's outer panel, 4.63 -> 1.4 m) and its
   // crank chord to the big chord (its constant-chord centre section, 4.63 m) - past 18 m only: every validated build's
@@ -38806,6 +38812,11 @@ const GEN_WING_ENVELOPE = {
 };
 // is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
 function genEnvBig(span) { return +span > GEN_WING_ENVELOPE.span[1]; }
+// the taper's floor for a wing of this span and root chord in envelope E (GEN_WING_ENVELOPE.slender)
+function genTaperLo(E, span, chord) {
+  const SL = GEN_WING_ENVELOPE.slender;
+  return SL && +chord > 0 && +span / +chord >= SL.spanPerChord ? Math.min(E.taper[0], SL.taper) : E.taper[0];
+}
 function genWingEnv(span) { return genEnvBig(span) ? Object.assign({}, GEN_WING_ENVELOPE, GEN_WING_ENVELOPE.big) : GEN_WING_ENVELOPE; }
 function genBig(S) {
   const w = S && (Array.isArray(S.wings) ? S.wings[0] : S.wing);
@@ -38864,7 +38875,7 @@ function clampWing(w, S, k) {
   const Z = genWingSize(w, k);
   let E = Z.E;
   w.chord = Z.chord; w.span = Z.span;
-  w.taper = genClamp(w.taper, ...E.taper);
+  w.taper = genClamp(w.taper, genTaperLo(E, w.span, w.chord), E.taper[1]);
   w.dihedral = genClamp(w.dihedral, 0, 6);
   // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
   // sweep buys nothing aerodynamically — it is a compressibility device — so it
