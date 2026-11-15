@@ -315946,3 +315946,14 @@ futureDesigns/ELEC-SYSTEMS-2026-11.md; the hand-over: ELEC-SYSTEMS-READY.md.
 - genSystemsResolve `warnings[]`: said, never re-billed (the player's problem, the user's ruling).
 - PARKED: the harness as a fraction of empty mass (REAL-FIGURES: no-go on the Cub / Jodel / 172 until the user rules;
   the total there stays). 12 V everywhere (the user).
+
+
+# REAL-CANON READY (Sun 15 Nov, claude/ready/real-canon; rides L40d)
+
+The stack claude/real-canon (= claude/tail-retract-canon) on master L40a: PHYS-SCALE, STRUT-OPTIONS, the RUCKUS pieces,
+PETREL-LS, THE CANON, TAIL-RETRACT, PETREL-FRAME, TAIL-LATENT, ELEC-SYSTEMS; PHYSICS_V 9. flyDiy/REAL-CANON-READY.md
+places every red of the full battery (316) against the base. Re-pinned with their reasons (the stack's deliberate
+physics): WINGSPLIT, ENERGYBASE (carbon left at master's), PROCURE, FREIGHT, JOINPARITY's page fixture (re-captured with
+node tools/join_parity_page.js --only twinFloats / --only petrel: the twin floatplane's masses, the V4.1's FIN-MOUNT bars).
+Stack reds with causes: CANDIDATES (+V4.1, +jodel_geo), DMGINTEGRITY (knife edge), DMGGEAR (the V4.1's tail tie),
+FRAMECOST / PARKED (the parked cook is stale: re-cook on a GPU after the train's build), BENCH (the Rufus stamp is V 7).

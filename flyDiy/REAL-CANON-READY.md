@@ -1,4 +1,4 @@
-# REAL-CANON — ready (14 Nov 2026, REAL-FIGURES)
+# REAL-CANON — ready (15 Nov 2026, REAL-FIGURES)
 
 Branch claude/real-canon (= claude/tail-retract-canon), onto master L40a 6a8d705c4 (merged at 11f911497). For L40c,
 merged first. PHYSICS_V 9 (8 never reached master; 9 = PHYS-SCALE + ELEC-SYSTEMS, both history lines in 60_gen_spec).
@@ -33,30 +33,47 @@ key by key. HANDOVER: master's file with the stack's entries appended. STOL's fi
 
 ## The gates
 
-The core battery on c03a6fc34: 100 of 316 gates when the session's credits ran out (Sat); resumed, still running.
-Red there, each placed (the base: master 6a8d705c4 + claude/l40a-repin's fixture re-pins, or 23ce68c1f):
-- the base's own: ALTIPORT, DESTTO (career cub@w3), FLIGHTREC, GEN (cruise quiet in wind), RADIALDIV, DMGINST (the
-  twin-boom fixture), DMGCERT (the Cessna floats; the Super Petrel V4.1's breaking point), DMGCLUSTERS (the Cessnas'
-  fin twist), DMGINTEGRITY (the V4.1's fuselage cut);
-- ELEC-SYSTEMS's two (identical on claude/elec-systems 0c3c1bd24 alone), both flip at its cable-run harness 614822358
-  (the user's ruling "cable runs live": the Cub card +1.61 kg, the metal Cessna +1.85 kg, the CG ~1-1.5 mm forward):
-  - LINEUP jolene w4: the cause is the GATE's. The stand's rest height was read at 3 s, inside the gear's settling
-    (1.176 m at 3 s, 1.123 from 6 s on; the roll began at 1.124: already 5.2 of its 6 cm before ELEC); the harness moved
-    the 3 s sample to 1.200. Fixed in _lineup_check.js (f5805a35c): settled - 3 s at least, then until the CG's height
-    holds to 1 mm over 0.5 s. GATE LINEUP green.
-  - DMGINTEGRITY, the metal Cessna's engine through the firewall WITH the limiters: a knife edge, not ELEC's bug. Swept
-    round the gate's case (V 49-51 m/s, sink 9.8-10.2): BEFORE the harness the engine already went through in 5 of 7
-    (0.08-0.38 m; only 50/10 and 49/10 held); on the stack 6 of 7. The harness moved which point holds. The limiters do
-    not reliably hold the metal Cessna's engine in this crash - the damage owners' finding, left RED here (not
-    quarantined): A0's ruling.;
-- timed out under load (1800 s): TREECRASH (master's: in 6a8d705c4's baseline); DMGCERTCOST over its 70 s by load (72.6 s).
-- DMGGEAR (placed against the base run without its wall, master + l40a-repin):
-  - the base's own: the twin floatplane's touchdowns (FLD-S2TR; 0.87 / 1.25 there, 0.77 / 1.15 here), the Super Petrel
-    V4.1's float dig-in and float nose-in;
-  - NEW, PETREL-LS's: the V4.1's touchdowns load FIN-MOUNT's swept-root tie (tail VF-S4TL/TR): 0.67 at 1.0 m/s, 0.68 at
-    1.5 m/s, the airframe 1.03 at the FAR 23.473 limit sink (the base: 0.40 / 0.50 / 0.31 on the gear and HR). It comes
-    with tailDrawn on the V4.1 (1e0957ae1), which cleared its DMGCERT flown pull (1.21 without it). One of the two reds
-    stands either way: the V4.1's tail as PETREL-LS draws it, for A0 / PETREL-LS's owner to rule (the canon Petrel is
-    V4.2; the gates fly V4.1).
-Green after layer 8 (they were PETREL-LS's): STOL (the Highlander), DMGCERT / DMGCLUSTERS (the twin floatplane),
-DMGCERT (the V4.1's flown pull). STOL, REALBAND, REALREFS, PLANELISTS green on the merged tree.
+The full core battery, 316 gates, on 0125dbfe1 (Sat-Sun, 4 jobs, under load). Every red placed against the base
+(master 6a8d705c4 + claude/l40a-repin's fixture re-pins, c7020a536), the same check run there.
+
+FIXED on the stack (green on the tip):
+- LINEUP (the gate read the stand mid-settle: f5805a35c), STRUTOPT (the body row less ENGINE-COOLING's measured cool,
+  7e4c2a000), PARTS (tailDrawn on the tightening panel's row list), ENGINEDIALS (the DC-3's pitch 'cs' -> 'standard',
+  the physics already flew standard, 439fdcf2c), DMGDETERMINISM's 24th stray (62_gen_aero's skin-friction pow on
+  CORE_MATH, 6cc3cf71a; the 23 others and the Chromium/node hashes are the base's).
+RE-PINNED for the stack's deliberate physics (PHYSICS_V 9), the reason in each gate file:
+- WINGSPLIT (baefc9247): ELEC-SYSTEMS' harness moves the CG, the drawn wing translates by +1.101 / -0.451 / 0 mm in the
+  CG frame; only the "p" and hinge digests moved.
+- ENERGYBASE (8929eb23e): the harness, +0.58 to +0.93 kg on 13 Cub cases (the flip measured at 614822358^ / 614822358).
+  The carbon case is left at master's numbers: its -48 kg is master's own red (L40a's list).
+- PROCURE (8929eb23e): twelve option effects re-emitted (PHYS-SCALE's take-off deltas, the tundra tyres 7 -> 3 kg; the
+  harness on the avionics fits). Green on the base, green on the tip.
+- FREIGHT (87eb7e466): the five freight cards' mass blocks (+0.7 to +1.6 kg, the harness); holds, seats, doors the
+  same bytes. CARDS, CONTRACTS, CREWSEATS, LOADS, MISSIONS, SAVE, SIMWORKER green after.
+- JOINPARITY (68a4346da): the page fixture re-captured for two rows only (--only): the twin floatplane 477.615 -> 474.525
+  kg (the stack's masses; the float station 1.2333 -> 1.2194 with it), the V4.1 831 -> 845 bars (TAIL-LATENT's FIN-MOUNT
+  on its tailDrawn row). Left red, the base's own: the Jodel mass, the tool census line.
+RED, the base's own (the same failing checks on the base; most on L40a's STANDING list): ALTIPORT, CANDIDATES
+(pc6_drafting), CREWLOAD, DESIGNCHECK, DESTTO, DMGCERT, DMGCLUSTERS, DMGDAMP, DMGFABRIC, DMGINST, DMGLOOK, DMGPOD,
+DMGSCAR, DMGTYRE, DMGWALL, ENERGYBASE (carbon), ENGCONFIG, ENGINE, ENGTORQUE, FLEX, FLIGHTREC, FLOATLETTERS, GEN,
+HOUSEWORKER, LAZY, LIVERY, LOAD, NAMES, NODUMMY, POD, RADIALDIV, ROUNDTRIP, SCENERYED, SHADOWSKY, DMGDETERMINISM (23).
+RED, the stack's, each with its cause:
+- CANDIDATES +2: THE CANON's one row per plane (the user, 10 Nov) took superpetrel_V4_1.json out of the pool for V4.2
+  (the file stays: the damage gates fly the V4.1), and jodel_geo.json waits for FLAGSHIP's list:2 re-point (L40c). A0:
+  list them, or the gate learns a "fixture, not offered" row.
+- DMGINTEGRITY (the metal Cessna's engine through the firewall with the limiters): a knife edge, not ELEC's bug - swept
+  round the gate's case, the engine went through in 5 of 7 points before the harness, 6 of 7 after. A0's ruling.
+- DMGGEAR: base-or-not, stated: the twin floatplane's touchdowns and the V4.1's float dig-in / nose-in are the base's;
+  NEW is the V4.1's FIN-MOUNT swept-root tie at touchdown (0.67 / 0.68 at 1.0 / 1.5 m/s, 1.03 at the FAR 23.473 sink;
+  the base 0.40 / 0.50 / 0.31). It comes with tailDrawn on the V4.1 (1e0957ae1), which cleared its DMGCERT pull (1.21
+  without). One of the two stands either way: PETREL-LS's owner / A0 to rule.
+- FRAMECOST (+19 items: the parked draws 0 -> 123 at the stand, 193 taxiing) and PARKED (over its wall): the parked
+  cook src/core/parked_packs.json is keyed to the build id, so any core change makes it stale and the page captures
+  the four parked planes live. Re-cook (tools/parked_cook.js, needs a GPU) after L40d's build.
+- BENCH: builds/rufus_2026-10-18_certified.json is stamped PHYSICS_V 7 and the stack is 9; the Rufus file is not to be
+  touched. The user's / A0's call (re-certify, or the gate reads the stamp's era).
+TIMING under the battery's load, GREEN run alone on the tip (Sun): HITBOX, PREMISES, BENCHTIME, DMGCERTCOST, DMGUPLOAD,
+SETTLE. BENCH's timing lines ride with its Rufus stamp red. TREECRASH's timeout is master's (6a8d705c4's baseline).
+
+OPEN for A0: CANDIDATES' two files; DMGINTEGRITY's knife edge; the V4.1's FIN-MOUNT tie (DMGGEAR) vs its DMGCERT pull;
+BENCH's Rufus stamp; the parked re-cook (GPU) after L40d's build. Brakes (GEN-BRAKES) come in their own ready next round.
