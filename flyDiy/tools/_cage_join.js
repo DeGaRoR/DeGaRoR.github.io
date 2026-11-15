@@ -439,7 +439,7 @@ function cageJoinSpec(P, M, T) {
     if (M.mono && +P.s1Ul) spec.gear.ul = true;   // WEIGHT STUDY L6: the ultralight monowheel (GEN_RULES.ulGear)
     if (Math.round(+P.towHook || 0) > 0) spec.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+P.towHook)) - 1];   // THE TOW HOOK (GEN_RULES.towHook)
     // THE CATEGORY (GEN_CATEGORY): the key only off 'normal'
-    { const ck = ['normal', 'utility', 'aerobatic', 'sailplane'][Math.max(0, Math.min(3, Math.round(+P.certCat || 0)))];
+    { const ck = ['normal', 'light', 'sailplane', 'aerobatic'][Math.max(0, Math.min(3, Math.round(+P.certCat || 0)))];
       if (ck !== 'normal') spec.category = ck; else delete spec.category; }
     // MONOWHEEL: the mains sunk into the body (their share; the drag counts what stands out)
     if (+P.s1Sink > 0 && +P.s1On) spec.gear.sink = Math.min(0.7, +P.s1Sink);

@@ -645,9 +645,11 @@ window.CAGE_PAGE = {
                                                   'open', 'bubble']],
         // (the LS4, 13 Nov: the arch between the panes drawn as glass - a look only, the geometry and the physics untouched)
         ['canClear',  'canopy arch',    0, 1, 1, ['framed', 'clear (drawn as glass)'], { absent: 0 }],
-        // THE CATEGORY (GEN_CATEGORY, the user 15 Nov: "By increasing the strength, we should also get heavier"): the
-        // limit load the structure is built and certified to - the gauge grows with it, the certificate flies it
-        ['certCat',   'category (limit load)', 0, 3, 1, ['normal +3.8 g', 'utility +4.4 g', 'aerobatic +6.0 g', 'sailplane +5.3 g'], { absent: 0 }],
+        // THE CONSTRUCTION'S STRENGTH (GEN_CATEGORY, the user 15 Nov: "a category of rigidity the player should choose,
+        // and not a slider ... clear options"): four words, the structure built and certified to it - normal (most light
+        // aircraft), very light (an ultralight's own risk), strong (sailplanes), aerobatic; stronger is heavier
+        ['certCat',   'construction', 0, 3, 1, ['normal', 'very light', 'strong (sailplanes)', 'aerobatic'],
+         { absent: 0, note: 'how strong the structure is built: the loads it is made for and certified at (normal +3.8 g, very light +3.0, strong +5.3, aerobatic +6.0) - stronger is heavier' }],
         // THE LABEL IS THE SHAPE, NOT THE MECHANISM (NEW-AIRCRAFT §5.3):
         // a builder chooses what the top of the fuselage does behind the
         // cockpit — cabin roof running aft, or a turtledeck falling away.

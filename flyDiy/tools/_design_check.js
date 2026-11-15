@@ -136,7 +136,11 @@ const PAGE_BASE = Object.assign({}, G.CAGE_PARAMS,
 // T2.1: a retired row (the ring editor's offsets, the lean, taperW) is a
 // legal seed/override input — cageLiftLegacy converts it at every door
 const LEGACY = new Set((G.CAGE_LEGACY_FRAME && Object.keys(G.CAGE_LEGACY_FRAME)) || []);
-const KNOWN_KEY = k => RENDERED.has(k) || (k in PAGE_BASE) || LEGACY.has(k);
+// (15 Nov, the LS4-alike: THE HINGE LAYER'S OWN ROWS - hgHorn, hgFamily - are page rows the layer adds to the defaults
+//  when it loads (_cage_hinge.js hgDef); this panel does not load it, so its table is read off the file)
+const HINGE_KEYS = (() => { try { const src = require('fs').readFileSync(require('path').join(__dirname, '_cage_hinge.js'), 'utf8');
+  const m = /const hgDef = \{([\s\S]*?)\n\};/.exec(src); return new Set(m ? (m[1].match(/\b(hg[A-Za-z]+|doorStop)\s*:/g) || []).map(x => x.replace(/\s*:$/, '')) : []); } catch (e) { return new Set(); } })();
+const KNOWN_KEY = k => RENDERED.has(k) || (k in PAGE_BASE) || LEGACY.has(k) || HINGE_KEYS.has(k);
 
 // one real shakedown, for the target key names (ledger on, so the split's
 // two keys are present the way §5.1 declares targets against them)

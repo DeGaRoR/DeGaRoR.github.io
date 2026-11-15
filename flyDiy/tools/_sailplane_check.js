@@ -35,13 +35,15 @@ const build = s => C.buildGen(JSON.parse(JSON.stringify(s)));
 const led = (d, k) => (d.parts.ledger[k] || { mass: 0 }).mass;
 
 console.log('A. THE CATEGORY');
-{ const sN = born('motorglider'), sS = born('motorglider', { certCat: 3 });
-  ok(!('category' in sN) && sS.category === 'sailplane', `A the row writes the key: normal ${JSON.stringify(sN.category)}, certCat 3 ${JSON.stringify(sS.category)}`);
+{ const sN = born('motorglider'), sS = born('motorglider', { certCat: 2 }), sV = born('motorglider', { certCat: 1 });
+  ok(!('category' in sN) && sS.category === 'sailplane' && sV.category === 'light', `A the row writes the key: normal ${JSON.stringify(sN.category)}, strong ${JSON.stringify(sS.category)}, very light ${JSON.stringify(sV.category)}`);
+  ok(build(sV).parts.ledger.wings.mass < build(sN).parts.ledger.wings.mass, 'A very light builds lighter than normal');
   const dN = build(sN), dS = build(sS);
   ok(led(dS, 'wings') > led(dN, 'wings') * 1.05 && led(dS, 'fuselage') > led(dN, 'fuselage') && Math.abs(led(dS, 'gear') - led(dN, 'gear')) < 0.5,
      `A heavier as a sailplane: the wing ${r1(led(dN, 'wings'))} -> ${r1(led(dS, 'wings'))} kg, the fuselage ${r1(led(dN, 'fuselage'))} -> ${r1(led(dS, 'fuselage'))}, the gear ${r1(led(dN, 'gear'))} -> ${r1(led(dS, 'gear'))} (Nz not on the gear)`);
-  ok(C.genCatNz(sS) === 5.3 && C.genCatNz(sN) === 3.8 && C.GEN_CATEGORY.utility.nz === 4.4 && C.GEN_CATEGORY.aerobatic.nz === 6.0,
-     'A the table: normal 3.8, utility 4.4, aerobatic 6.0, sailplane 5.3');
+  ok(C.genCatNz(sS) === 5.3 && C.genCatNz(sN) === 3.8 && C.GEN_CATEGORY.light.nz === 3.0 && C.GEN_CATEGORY.aerobatic.nz === 6.0 &&
+     C.GEN_CATEGORY_KEYS.join() === 'normal,light,sailplane,aerobatic',
+     'A the four constructions: normal 3.8, very light 3.0, strong (sailplanes) 5.3, aerobatic 6.0 - the row\'s order');
   const R = C.resolveSpec(Object.assign(JSON.parse(JSON.stringify(sN)), { category: 'rocket' })).spec;
   ok(!('category' in R), 'A an unknown category: no key');
   const src = fs.readFileSync(path.join(T, '..', 'src', 'core', '66_gen_cert.js'), 'utf8');
@@ -78,8 +80,8 @@ const sL = BJ.bakeCard('ls4').spec, dL = build(sL);
   ok(((Wn.CAGE_CREW || {}).moving || []).some(m => m.name === 'edCtl_airbrake' && m.drive === 'airbrake'), 'B the blue handle in the cockpit, on the airbrake');
   // the keys
   const src = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'input.js'), 'utf8');
-  ok(/id: 'brkOut'[^\n]*\n[^\n]*keys: \{ key: 'BracketRight' \}/.test(src) && /id: 'brkIn'[^\n]*\n[^\n]*keys: \{ key: 'BracketLeft' \}/.test(src) &&
-     /if \('airbrake' in ctl\) ctl.airbrake = abH;/.test(src), 'B the input: ] out, [ in, written only where the handle is'); }
+  ok(/id: 'brkOut'[^\n]*\n[^\n]*keys: \{ key: 'Digit8' \}/.test(src) && /id: 'brkIn'[^\n]*\n[^\n]*keys: \{ key: 'Digit7' \}/.test(src) &&
+     /if \('airbrake' in ctl\) ctl.airbrake = abH;/.test(src), 'B the input: 8 out, 7 in (the brackets are the radio\'s), written only where the handle is'); }
 
 console.log('C. THE LS4-ALIKE');
 { const v = (sL.water && sL.water.vessels) || [];

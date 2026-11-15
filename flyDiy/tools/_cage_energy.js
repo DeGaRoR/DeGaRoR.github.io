@@ -3872,7 +3872,9 @@ function renderPanel() {
     if (wat) { const Rw = (C.RULES && C.RULES.water) || { outletD: 0.04, Cd: 0.6, head: 0.25 };
       const rate = d => 1000 * Rw.Cd * MathL.PI * d * d / 4 * MathL.sqrt(2 * 9.81 * Rw.head);
       range(box, 'outlet', 'the dump outlet\'s hole across: how fast the valve empties this tank (Torricelli at its head)', 6, 80, 1,
-        (v.outletD > 0 ? v.outletD : Rw.outletD) * 1000, x => x.toFixed(0) + ' mm · ' + rate(x / 1000).toFixed(2) + ' L/s',
+        (v.outletD > 0 ? v.outletD : Rw.outletD) * 1000, x => { const r = rate(x / 1000), L = (+v.capacity || 0) * (v.fill == null ? 1 : v.fill),
+          t = r > 0 ? L / r : 0;   // (the helper: how long this tank takes to empty, as filled, at the full head's rate)
+          return x.toFixed(0) + ' mm · ' + r.toFixed(2) + ' L/s · empty in ' + (t >= 90 ? (t / 60).toFixed(1) + ' min' : t.toFixed(0) + ' s'); },
         x => { v.outletD = x / 1000; }, x => { v.outletD = x / 1000; commitSoon(); }); }
     // THE GEOMETRY IS THE PLAYER'S, AND THE CAPACITY FOLLOWS IT. Three rows
     // for the box; the first touch copies the catalogue shape so the sliders

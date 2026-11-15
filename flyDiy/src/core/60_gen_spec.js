@@ -2023,23 +2023,26 @@ const GEN_OUTFIT = {
 // (GEN_LOAD_LIMIT) and cancels in the ratio; a category field enters as
 // (Nz / 3.8)^e when it exists. The clamp keeps a foam trainer from
 // vanishing and a Twin Wasp from building itself of bridge steel.
-// THE CATEGORY (the user, 15 Nov, the LS4: "By increasing the strength, we should also get heavier ... Wing thicker,
-// stronger and more water seems like going in the right direction"): the positive limit load factor the structure is
-// built and certified to. The gauge above takes it as (Nz / 3.8)^e on the classes Nz sizes - the fuselage, the wing,
-// the tail; the gear is sized by its landing load, not by Nz (Raymer's Nl) - and the certificate (66_gen_cert) flies
-// its corners at it, the ultimate at 1.5 x. spec.category, absent = 'normal' (every build before it: the bytes kept).
-//   normal     CS-23 / FAR 23.337(a) normal category, +3.8 (the lightest aeroplanes' 2.1 + 24000 / (W + 10000) caps
-//              there; kept at 3.8 as it always was here)
-//   utility    CS-23 utility, +4.4
+// THE CONSTRUCTION'S STRENGTH (the user, 15 Nov, the LS4: "By increasing the strength, we should also get heavier"; then
+// "it should be a choice in the airplane construction ... not be able to specify the G. We should have very light,
+// normal, heavy/sail planes, and aerobatic ... a category of rigidity the player should choose ... clear options"):
+// the positive limit load factor the structure is built and certified to, chosen as one of four words. The gauge above
+// takes it as (Nz / 3.8)^e on the classes Nz sizes - the fuselage, the wing, the tail; the gear is sized by its landing
+// load, not by Nz (Raymer's Nl) - and the certificate (66_gen_cert) flies its corners at it, the ultimate at 1.5 x.
+// spec.category, absent = 'normal' (every build before it: the bytes kept).
+//   normal     most light aircraft: CS-23 / FAR 23.337(a) normal, CS-VLA, +3.8
+//   light      VERY LIGHT - an ultralight's own choice: no certification standard asks less than +3.8 of a light
+//              aeroplane (the microlight codes ask ~+4: BCAR-S, ASTM F2245; FAR 103 sets none at all), so this is the
+//              builder's risk - +3.0, INFERRED; only the airliners' FAR 25 goes lower (+2.5), and they are not light
+//   sailplane  STRONG - the sailplanes (CS-22.337 utility, +5.3 at VA); a utility aeroplane's +4.4 sits under it
 //   aerobatic  CS-23 aerobatic, +6.0
-//   sailplane  CS-22.337, the utility sailplane: +5.3 at VA (-2.65 under), +4.0 at VD (the corner kept at 5.3 here)
 const GEN_CATEGORY = {
-  normal:    { nz: 3.8, name: 'normal (CS-23, +3.8 g)' },
-  utility:   { nz: 4.4, name: 'utility (CS-23, +4.4 g)' },
-  aerobatic: { nz: 6.0, name: 'aerobatic (CS-23, +6.0 g)' },
-  sailplane: { nz: 5.3, name: 'sailplane (CS-22 utility, +5.3 g)' },
+  normal:    { nz: 3.8, name: 'normal' },
+  light:     { nz: 3.0, name: 'very light' },
+  sailplane: { nz: 5.3, name: 'strong (sailplanes)' },
+  aerobatic: { nz: 6.0, name: 'aerobatic' },
 };
-const GEN_CATEGORY_KEYS = ['normal', 'utility', 'aerobatic', 'sailplane'];   // the cage's certCat row, in its order
+const GEN_CATEGORY_KEYS = ['normal', 'light', 'sailplane', 'aerobatic'];   // the cage's certCat row, in its order
 function genCatNz(S) { return (GEN_CATEGORY[S && S.category] || GEN_CATEGORY.normal).nz; }
 // THE DRAG BUILD-UP'S CONSTANTS (PERF STUDY chantier 2, 2026-09-15; read by
 // 62_gen_aero genFusCdA). Every number is a flat-plate drag AREA in m2 or

@@ -3331,10 +3331,18 @@ const ARCHETYPES = [
                     gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0, gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0,
                     gnTwist: 0, seatType: 11, seatZ: 0, seatH: 0, seatRake: 42, seatGap: 0.285, consoleOn: 1,
                     stickY: -0.095, pedalZ: 0.965, pedalH: 0.27, pedalSpread: 0.09, pilElbows: 0, pilRecline: 6,
-                    noseDome: 0.3, s1Sink: 0.5, finZ: -0.25, s1Ul: 1, hgHorn: 0, hgFamily: 2, towHook: 2, certCat: 3,
+                    noseDome: 0.3, s1Sink: 0.5, finZ: -0.25, s1Ul: 1, hgHorn: 0, hgFamily: 2, towHook: 2, certCat: 2,
                     wgBrake: 1, wgBrakeAt: 0.3, wgBrakeLen: 0.16, wgBrakeH: 0.2,
                     },
-            spec: { paint: {job: "self",sweep: 0,base: 15987953,trim: 1520222}, finish: {sections: {body: {tint: 15987953}}},
+            // THE KIT (the user 15 Nov: "let's try to bridge the weight gap ... More avionics, heavier batteries? Paint,
+            // seat?"): a sailplane's panel - the airspeed, the altimeter, the vario, the compass - a VHF radio, a Mode-S
+            // transponder (the competition glider's), a portable GPS in a cradle standing for the flight computer, the
+            // glider's batteries (one lead-acid 16 Ah row, ~7 kg: two 12 V 7 Ah gel cells are ~5), a moulded seat pan with
+            // its cushion and harness. No paint: the white is the gelcoat, already in the glass row's cover
+            spec: { systems: { fit: 'minimal', items: ['asi', 'alt', 'vsi', 'compass'], elec: { battery: 'lead' },
+                               avionics: { com: 'compact', xpdr: 'modeS', gps: 'portable' } },
+                    outfit: { seats: 'basic' },
+                    paint: {job: "self",sweep: 0,base: 15987953,trim: 1520222}, finish: {sections: {body: {tint: 15987953}}},
                     water: {vessels: [{bay: "wingRoot",capacity: 140,fill: 1,outletD: 0.02},{bay: "wingPanel",capacity: 30,fill: 1,outletD: 0.02}]} } } },
   // 2026-09-04 (the user): "We need a twin engine aircraft archetype, maybe
   // a couple of them. I'm thinking a luxury, small tourer, like the Diamond

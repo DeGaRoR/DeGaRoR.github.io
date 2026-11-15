@@ -122,9 +122,9 @@
     // AIRBRAKES (the user 15 Nov: "We can model airbrakes, along with their dashboard control"): the blue handle, a
     // fifth of its travel a press, repeating while held (a build without brakes has no handle: inert)
     { id: 'brkOut', kind: 'step', ctl: 'airbrake', label: 'airbrakes out', group: 'flying', repeat: 0.12,
-      hint: 'the blue handle aft (airbrakes only)', keys: { key: 'BracketRight' } },
+      hint: 'the blue handle aft (airbrakes only)', keys: { key: 'Digit8' } },
     { id: 'brkIn', kind: 'step', ctl: 'airbrake', label: 'airbrakes in', group: 'flying', repeat: 0.12,
-      hint: 'the blue handle forward', keys: { key: 'BracketLeft' } },
+      hint: 'the blue handle forward', keys: { key: 'Digit7' } },
     { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'trim',
       hint: 'a hand held on the stick; repeats while held', repeat: 0.15,
       keys: { key: 'Numpad1' } },

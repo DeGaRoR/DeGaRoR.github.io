@@ -168,7 +168,10 @@ for (const a of cards) {
     // bay this aeroplane does not have goes to the nose"), where it is shaped
     // to 3 L. Printed, not judged; any OTHER card doing it is red.
     const KNOWN_REMAP = { chinook: 'G1109: strut pod -> nose (no strut bay on this body), owed' };
-    if (KNOWN_REMAP[a.key] && bb !== jb) console.log('  KNOWN ' + a.key + ': ' + KNOWN_REMAP[a.key] + ' (card ' + bb + ' ' + bc + ' L vs ' + jb + ' ' + jc + ' L)');
+    // (ENGINELESS, the LS4-alike 15 Nov: a sailplane's join writes no fuel tank or pack - the engine page's engOn 0, GATE
+    //  ENGINELESS - so its card's motorglider seed has nothing to be compared with; its water rides spec.water)
+    if (base.engines && base.engines[0] && base.engines[0].none) console.log('  ENGINELESS ' + a.key + ': no tank or pack (card ' + bb + ' ' + bc + ' L, the join none)');
+    else if (KNOWN_REMAP[a.key] && bb !== jb) console.log('  KNOWN ' + a.key + ': ' + KNOWN_REMAP[a.key] + ' (card ' + bb + ' ' + bc + ' L vs ' + jb + ' ' + jc + ' L)');
     else check(bb === jb && (shaped || bc === jc), a.key + ': the tanks asked about are the card\'s own (bays, and capacities unless the layer shaped them)',
       'card ' + bb + ' ' + bc + ' L vs ' + jb + ' ' + jc + ' L');
   }

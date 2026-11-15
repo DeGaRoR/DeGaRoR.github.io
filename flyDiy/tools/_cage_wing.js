@@ -257,7 +257,7 @@ const WING_ITEMS = [
   ['wgTipSkidH', 'skid depth under the skin', 0.02, 0.30, 0.005, { when: P => +P.wingOn && +P.wgTipSkid, dim: 'm' }],
   // AIRBRAKES (the user, 15 Nov, the LS4: "We can model airbrakes, along with their dashboard control"): a sailplane's
   // Schempp-Hirth plates, a box each side behind the spar - where they start along the semispan, how long they run,
-  // how high the plate rises (of the local chord); the blue handle in the cockpit, the [ and ] keys
+  // how high the plate rises (of the local chord); the blue handle in the cockpit, the 7 (in) and 8 (out) keys
   ['wgBrake',    'airbrakes', 0, 1, 1, ['none', 'plates (Schempp-Hirth)'], { when: P => +P.wingOn, absent: 0 }],
   ['wgBrakeAt',  'airbrakes start (of the semispan)', 0.12, 0.80, 0.01, { when: P => +P.wingOn && +P.wgBrake, absent: 0.30 }],
   ['wgBrakeLen', 'airbrakes length (of the semispan)', 0.04, 0.35, 0.01, { when: P => +P.wingOn && +P.wgBrake, absent: 0.16 }],
