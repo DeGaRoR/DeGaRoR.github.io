@@ -71,7 +71,8 @@ function checkSurface(o) {
   // G121.3: the off-strip rows — every biome class the classifier answers
   // has a row, the directions read like the ground they name, and water is
   // the violent one: a wheel in a lake is not on a lawn.
-  check(o.rows === 8, 'surface: all eight ground classes carry a row (' +
+  // (SNOW-MUD, 13 Nov: + the five soft rows, 8-12 - GATE SOFTGROUND holds the eight here to their numbers)
+  check(o.rows === 13, 'surface: all eight ground classes and the five soft ones carry a row (' +
     o.rows + ')');
   check(o.screeCRR > o.grassCRR * 2 && o.waterCRR > o.screeCRR
         && o.waterBrake === 0,

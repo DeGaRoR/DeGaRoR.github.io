@@ -70,6 +70,13 @@ const AF_SURF = [
   [0.35, 0.45, 650, 1.0, 0, 2000, 5, 0.6],      // 5 paved: the tyre roar and the tread hum
   [0.65, 0.20, 3200, 0.8, 28, 3500, 4, 0],      // 6 gravel: the crunch
   [0.50, 0.80, 1300, 0.5, 8, 1200, 10, 0],      // 7 sand: a hiss, soft grains
+  // SNOW-MUD (13 Nov): snow a dull rumble and a squeak-crunch of packed crystals (higher grains), powder a soft hiss,
+  // wet snow a slushy low hiss; mud a heavy low rumble and a wet low hiss, no grains
+  [0.30, 0.35, 2200, 0.9, 10, 2800, 7, 0],      // 8 snow, packed: the squeak
+  [0.20, 0.55, 1800, 0.6, 6, 2200, 9, 0],       // 9 snow, powder: a soft hiss
+  [0.35, 0.60, 900, 0.6, 3, 1100, 12, 0],       // 10 snow, wet: slush
+  [0.60, 0.35, 600, 0.6, 2, 700, 16, 0],        // 11 mud, firm
+  [0.55, 0.50, 500, 0.5, 2, 600, 18, 0],        // 12 mud, soft
 ];
 const AF_SURF_W = 8;
 // the events, and the one-shot voices' kinds
@@ -267,7 +274,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     this.stats[3]++;
     const blk = n / sr, inv = 1 / n;
     // ---- per-block: the surface weights toward the row, the filters' coefficients ----
-    const row = gndS >= 0 && gndS < 8 ? gndS | 0 : 0;
+    const row = gndS >= 0 && gndS < AF_SURF.length ? gndS | 0 : 0;   // (SNOW-MUD: 13 rows)
     const ks = 1 - Math.exp(-blk / 0.15);
     for (let k = 0; k < AF_SURF_W; k++) z[Z_SW + k] += (AF_SURF[row][k] - z[Z_SW + k]) * ks;
     const wR = z[Z_SW], wH = z[Z_SW + 1], hissHz = z[Z_SW + 2], hissQ = z[Z_SW + 3], gK = z[Z_SW + 4], gHz = z[Z_SW + 5];
