@@ -1131,8 +1131,15 @@ const GROUND_DEF = GROUND_SURF[0];
 // session's to add if its gates need it (a row field, absent = this law)
 const GROUND_SOFT = {
   8:  { k: 3.0e7, n: 1.0, zMax: 0.03, ski: [0.04, 0.08] },   // packed: a little loose on a rolled base, cold (ski: ideal)
-  9:  { k: 4.6e6, n: 1.5, zMax: 0.30, ski: [0.12, 0.24] },   // powder: cold and dry - the slow end of the ski's range
-  10: { k: 3.5e6, n: 1.2, zMax: 0.15, ski: [0.10, 0.20] },   // wet: dense near 0 C, heavy; the ski's capillary drag
+  // DEEP SNOW (the user, 15 Nov: "model the deep snow wheel effect ... I would expect this to fail without skis. That's the
+  // whole point"): powder and wet snow are a VIRGIN layer, not a settled strip - Bekker's own fresh-snow stiffness (Wong's
+  // table: n 1.6, kc 4.37 kN/m^2.6, kphi 196.72 kN/m^3.6 -> ~2e5 at a tyre's width; SKIS' sole reads the same), so a tyre
+  // (100-300 kPa) goes through to the base - and the BULLDOZING it then pays, `bull` (groundBullWheel): the snow it shoves
+  // ahead of its buried face, sig (Pa, the snow's resistance to being pushed: its strength at the face) + rho v^2 (the snow
+  // driven to the wheel's speed: its bulk density, fresh powder ~150 kg/m^3, wet snow ~400). A ski PLANES on it (SKIS' law);
+  // a wheel ploughs. The FAA's wheel limits (4 in of dry snow, 1 in of wet) are far under these layers' 30 and 15 cm
+  9:  { k: 2.0e5, n: 1.6, zMax: 0.30, ski: [0.12, 0.24], bull: { rho: 150, sig: 5e3 } },   // powder: fresh, cold and dry, 30 cm over the base
+  10: { k: 4.0e5, n: 1.2, zMax: 0.15, ski: [0.10, 0.20], bull: { rho: 400, sig: 8e3 } },   // wet: near 0 C, heavy and sticky, 15 cm
   11: { k: 1.2e7, n: 0.8, zMax: 0.03, ski: [0.25, 0.40] },   // firm mud: a skin over a firm base (no ski belongs here: ESTIMATE); FINISH: stiffened so a C172 operates (+36 %)
   12: { k: 1.3e6, n: 0.8, zMax: 0.25, ski: [0.30, 0.45] },   // soft mud: wet clay; the wheels go in (ski: ESTIMATE)
 };
@@ -1219,6 +1226,16 @@ function groundSinkMatrix(v, px, py, pz, out) {
   out[8] = r02; out[9] = r12; out[10] = r22; out[11] = 0;
   out[12] = tx; out[13] = ty; out[14] = tz; out[15] = 1;
   return out;
+}
+// DEEP SNOW: A WHEEL'S BULLDOZING (the row's optional `bull`, absent = none: the packed snow and the muds pay compaction
+// only). Sunk z into a deep layer, a tyre's buried face (b wide, min(z, D) high) shoves the snow ahead: it resists by its
+// strength, sig, and by the momentum of the snow driven to the wheel's speed v, rho v^2 (the ram that keeps a wheel in deep
+// powder under flying speed whatever its power). Bekker's / Wong's bulldozing resistance in its simplest dynamic form; the
+// numbers are ESTIMATES (fresh powder 100-200 kg/m^3, wet snow 300-500). -> F (N); call after groundSinkWheel (its z)
+function groundBullWheel(S, z, b, D, v) {
+  const B = S && S.bull;
+  if (!B || !(z > 0)) return 0;
+  return b * Math.min(z, D) * (B.sig + B.rho * v * v);
 }
 // A PLATE (a ski, a skid, a float's keel on the snow): N newtons over its bearing area A (m^2), w wide (m). The ground's
 // pressure p = N / A sinks it to z = (p / k)^(1/n), never deeper than the layer; the PLOUGH - the trench its front compacts

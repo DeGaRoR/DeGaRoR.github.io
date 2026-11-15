@@ -4048,7 +4048,8 @@ function makeSim(def, world) {
           const SO = GROUND_SOFT[sc];
           if (SO !== undefined) {
             if (SKW[i] === 0) softWheel(i, isMain);
-            const Fs = groundSinkWheel(SO, Fn, SKW[i], SKD[i], SKA[i]);
+            let Fs = groundSinkWheel(SO, Fn, SKW[i], SKD[i], SKA[i]);
+            if (SO.bull) Fs += groundBullWheel(SO, GROUND_SINK.z, SKW[i], SKD[i], vr_);   // DEEP SNOW: the snow shoved ahead
             muR += Fs / Fn;
             if (!softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; out.softW = SOFTW; softLive = true; }
             if (GROUND_SINK.z > out.softZ) out.softZ = GROUND_SINK.z;
