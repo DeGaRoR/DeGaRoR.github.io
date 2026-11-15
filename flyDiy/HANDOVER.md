@@ -316556,3 +316556,58 @@ re-cooked (premises, city, map, fleet; mt_strip 0 spots):
   RWYTREES: PASS (43 rows) run directly, in 30 min 18 s - over the runner's 1 800 s timeout on this merged tree (22-25 min on
   the site's own branch): the runner gave FAIL at 1800.1 s with no failing row. Its wall wants a look when the trains merge.
   NOT RUN: FRAMECOST / the parked cook (GPU), the full tier, SKISFLY (SKIS's), the stills.
+## OBSERVATORY-3 - THE OBSERVATORY ON L40c WITH SNOW-MUD'S FINISH; THE APRON FEELS ITS PACKED SNOW; THE STAND FACES THE TAKE-OFF; SKISARDENT FLOWN ON THE SITE (2026-11-15, OBSERVATORY-SITE, cloud - node only; claude/ready/observatory-2 fast-forwarded)
+
+The user (15 Nov): "the mud and snow session has done a lot of progress, check with it about the status and update
+accordingly". Read off the branches (no message reaches the other sessions from this cloud session): claude/ready/
+snow-mud-finish 3c11907d2 (L40c 58c681347 + SNOW-MUD FINISH 1-4 + DEEP SNOW) and claude/ready/skis-pc6 e5cb2ad1d (L40c +
+SKIS + snow-mud-finish dc8667014 + SKIS-PC6).
+
+THEIR STATUS, AS IT BEARS ON THE SITE:
+- ONE SOFT GROUND (SKIS-PC6 with SNOW-MUD): the skis read the surface codes and SNOW-MUD's laws; world.soft and SOFT_GROUND
+  are retired - the "wire nobody owns" of OBSERVATORY-2 is closed on their side.
+- DEEP SNOW: powder and wet snow are a virgin 30 / 15 cm layer and a sunk tyre pays its bulldozing - NO WHEEL gets off powder
+  (GATE SNOWFLY): Ardent Altiport as powder is a ski field by the physics now, as the brief asked ("lands on SNOW").
+- SKIS-PC6's ULTIMATE TEST (tools/_skis_ardent.js, GATE SKISARDENT, full tier) flies THIS strip; it SKIPs where mt_strip is not
+  on the tree (OBSERVATORY-SITE was on L39b; L40c lacks it) - this branch puts it there.
+
+WHAT CHANGED HERE:
+1. THE BASE: claude/ready/snow-mud-finish 3c11907d2 + claude/ready/observatory-2 9c1b7bbe8 merged (every source auto-merged;
+   HANDOVER = snow-mud-finish's + the two observatory entries byte for byte; the generated files rebuilt, the island
+   re-cooked: premises, city, map, fleet - mt_strip 0 spots). Land it AFTER snow-mud-finish (the powder look is its).
+2. THE STAND FACES THE TAKE-OFF: mt_strip stand hdg 0 (nose east, downhill), its way out 15 m down the strip
+   (taxiOut (9245.2, -5961.9)): out of the stand a 37-deg lead-in, not the 252-deg turn on the spot (with hdg null the stand
+   faced its taxiOut, north, and the pilot turned round to the downhill line-up).
+3. THE APRON FEELS ITS SNOW (surface mt_u_apron, SNOW_PACKED 8): a drawn material polygon is FELT only as a round pad
+   (27_premises compose: material surfaces need `round`), so the platform's look (gravel, then packed snow) was never felt -
+   the apron read the bare mountain (SCREE 2) and the stand, inside the strip's footprint (20_world regSurf: the strip's
+   surface to wid/2 + 6 m and 20 m past its ends), the strip's powder. Now: the stand, a parked tail and the apron 8; the
+   strip, the helipad on its head and the line-up 9 (W.surface, measured).
+4. FOR SNOW-MUD (its file, one line, its own commit): an old-style surface polygon may carry the soft codes 8-12, as its
+   design says - the validator's bound read 0..7 ("surface mt_u_apron: unknown surface 8"); now any code the SURFACE enum
+   names, integers only (13 and 2.5 still refused). No gate held the old bound.
+
+SKISARDENT ON THE SITE (a scratch tree, never pushed: this branch + claude/ready/skis-pc6, their two source conflicts
+resolved for the test - the solver's wheel drag keeps DEEP SNOW's bulldozing over skis-pc6's older line, the exports' union):
+  POWDER, landing uphill: skis down, 40 m in at 20.7 m/s, run 33 m, stopped with 72 m left, no damage   ok
+  ...the powder rut: 30 cm - the layer's bottom (the row wants under 30)                                FAIL
+  POWDER, take-off downhill (from the line-up): off in 89 m, 69 m of strip left, no damage                ok
+  PACKED, take-off: off in 85 m (73 m left), no damage                                                   ok
+  PACKED, landing: no damage; 222 m, 52 m PAST THE END (no brakes on skis; no reverse thrust) - REPORTED   ok
+  The rut row is SKIS-PC6's expectation (15.8 cm on skis-pc6's SNOW-MUD, dc8667014) against DEEP SNOW's virgin 30 cm powder
+  (snow-mud-finish 3c11907d2): theirs to reconcile when the two land together - nothing of the site's in it.
+FROM THE STAND (not the gate's legs - its take-offs start lined up): the PC-6 on wheel-skis broke a tail member 6.5 s into
+the 37-deg lead-in, its tail ski 27 cm in the (then) powder under the stand; on packed snow it slid off the apron down the
+slope at 44 s and broke up (no brakes, mu 0.04). A ski aeroplane cannot taxi out of a mountain stand on snow in this game
+yet - SKIS's / the Pilot's (a push-only launch rule, or a ski taxi law). THE TEST STARTS LINED UP: gameHost(..., { lineup:
+true }) / _skis_ardent.js --lineup (the page's skip to line-up) - (9263.6, -5961.9), 1038.2 m, nose east.
+GATES on this branch (its final tree, re-cooked; node only, jobs 2):
+  PASS: STAGES PREMISES PREMCOOK CONTRACTS TERRAINMATCH CONTACT STRIPGROUND PAVEMENT STORAGE MAPBAKE CITYCOOK WORLD PREMRASTER
+  GAMEPREM SOFTGROUND SINKVIS STAND STARTCHOOSER PARKING SITE HOUSE LODS; SNOWMUDFX solo, twice (its p99 cost row trips
+  only beside other jobs - 1.48 ms of 1 under TAXICLEAR's load).
+  RED, NOT THE SITE'S: TAXICLEAR 9 (the C172 taxied from the mill, aborted its take-off: TAXI>STOP>HOLD>ROLL>ABORT) - the same
+  row red on claude/ready/snow-mud-finish 3c11907d2 alone (a worktree, the same run); NAMES ("Alaska" in L40a/c's
+  aeroskin.js, livery_marks.js, index.html - red on master); SCENERYED 20b (the town composition's 2500 ms on this box).
+  NOT RUN: SKISARDENT on this branch alone (it SKIPs without SKIS - flown above on the scratch with skis-pc6), RWYTREES (the
+  runner's 1800 s on a merged tree: PASS run directly on OBSERVATORY-2's tree, no strip box added since), FRAMECOST / the
+  parked cook (GPU), the full tier.
