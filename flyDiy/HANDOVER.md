@@ -316700,3 +316700,37 @@ the next steps).
     line it pitches 23 deg nose down as the line takes up and rolls onto its side at 6 s (bank -88 deg) - the ground
     handling that capsizes it on master's GLIDE / UNIFY landings. TOW-LAUNCH's follow-up (L40e): a wing runner and a
     monowheel ground roll in tow.js's hands.
+
+### TOW-LAUNCH L40e (15 Nov) - the CG release, the wing runner, the release drawn
+
+The user via A0: "you should have them towed from an anchor at their main wheel position, just forward of it. That's
+more realistic and may avoid nose over. Do the 3d anchor properly and professionally."
+- THE PULL: tow.js towHookNodes - the build's own CG release (refs.towHook, 61_gen_frame's node 0.25 m ahead of the
+  main axle) or, unfitted, the same belly site (the keel node or a corner ring's bottom pair). The old finder
+  (towNoseNodes, the aerotow's nose) had picked the Archaeopteryx's NOSEWHEEL. 30_solver gains sim.refs() (read-only,
+  no physics change), so the page's towHookNodes(sim) finds the release itself.
+- THE HANDS (tow.js makeTowHands): a WING RUNNER at the right tip to 6 m/s (<= 200 N on the tip); on the wheel a
+  firmer, damped roll; the rudder damped by the heading's rate (undamped, the nose swung 4.6 deg either side and on
+  one tall wheel each swing's tyre force rolled the glider); on the line the angle of attack held (6 deg under 15 m,
+  9 above).
+- THE TAKE-UP, before vs after (GATE TOW TAKEUP; pitch at its lowest / bank at its worst):
+    Archaeopteryx  l40d (nose hook = its nosewheel, old hands): pitch -23 deg at 2 s, on its side (bank 88) at 6 s
+                   nose hook, new hands:   to 10 m/s 2.0 / 7.1 deg;  to the lift-off 2.0 / 46.7 (6.2 s, 13.7 m/s)
+                   CG release, new hands:  to 10 m/s 1.3 / 0.5 deg;  to the lift-off 1.3 / 17.6 (10.1 s, 19.0 m/s)
+    motorglider    nose hook:  to 10 m/s 11.6 / 0.1;  lift-off 14.5 s at 25.5 m/s
+                   CG release: to 10 m/s 11.7 / 0.0;  lift-off 12.7 s at 24.7 m/s
+- MOVED FIGURES (GATE TOW, motorglider): LAUNCH lift-off 14.8 -> 12.7 s, released at 278 -> 364 m, the line's peak
+  4.43 -> 4.96 kN (the CG release climbs it steeper under the line, as an auto-tow does); AUTOPILOT released at 364 m;
+  CIRCUIT burns 360 m over the field. ALTIPORT, PERF, PAGE, RELEASE, WEAK unchanged in kind.
+- STILL RED: TOW CIRCUIT archaeopteryx. The take-up is clean; at the lift-off (19 m/s, well above its 12.9 m/s stall)
+  it rolls past 70 deg on full opposite aileron. It is THE CARD: with no line, released 300 m up at 23 m/s with the
+  controls FROZEN, L40c's Archaeopteryx swings to 31 deg bank in a second (the motorglider stays at 0.0) - the same
+  instability that capsizes it in master's GLIDE / UNIFY landings. The card's owner's.
+- THE GARAGE (towHook 2): _gear_gen towRelease, drawn by _cage_gear at the main axle + GEN_RULES.towHook.cg.ahead -
+  the doubler (fitPad: painted, four bolts), the housing lofted on the skin (open forward, a rolled lip, a dark throat
+  26 mm deep), the steel jaw and its pin; its tail kept 2 cm clear of the main tyre. Quickshot close-ups: side,
+  bottom, qb (--key archaeopteryx --around 0,-0.45,1.76,0.22).
+- THE ROPE'S END: tow.js towRingRig(THREE) - the Tost ring pair and the rope's spliced eye, posed at the release's jaw.
+  Its three call sites are in drive_mode.js's tow section (towStart / towDraw / towStop): asked of the CAR session
+  (its file).
+- GATES: TOW (above), GEAR, HUB, CLIP, CAGEFIT pass. STOL's draw fingerprint is the core's wing (not the gear layer).
