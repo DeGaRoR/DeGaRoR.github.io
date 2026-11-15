@@ -316359,3 +316359,8 @@ NEW REDS (8), NAMED with owners (fix or re-pin with reason for L40d/L40e):
   - UNIFY EMERG (the student): known red on the pu2 base, Pilot owns.
 
 COLD LOAD (the user 14 Nov: before/after every train): before 143 s (L40a 6a8d705c4); after 138 s (programs 501, world 26.1, settle 17.1, shader compile 56.5+4.0): no load cost from this train. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+
+## FLIGHT-SCRIPT (Pilot, 15 Nov 2026; the user via A0: scripted flights in steps with a deep log)
+- tools/flight_script.js: one scenario JSON (plane list:N, from/to, day game|calm, persona, steps {do, until, capS, allow}), the NODE runner through the game's own host (_tour_lib gameHost); one JSONL per run (run / sample 1 Hz / say / step with solver ms / end). A failed step stops the run with its WHY. The page runner (page_rig.js, frame ms per step) follows Thu 19 Nov.
+- The library tools/flight_scripts/: home_circuit (F-HCSN), east_point (the Cub, CALM: on the game's day it diverts, said), strip_jumbo (the Jodel), altiport (the Cub), float_circuit (B-CESF list:4). All five pass on 58c681347.
+- GATE FLIGHTSCRIPT (core, ~6 min): the library well formed, a bad scenario refused, a capped step failing with its WHY, the home circuit flown step by step, its JSONL read back. The card: tools/workbench/cards/flight_script.md.
