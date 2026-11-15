@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7233a869081010a7
+// body-sha256: f7988a95b1900f0b
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -46650,7 +46650,7 @@ function radialCowlK(K, S) {
 function genReK(L, lCal) {
   const R = GEN_DRAG.reynolds;
   if (!R || !(L > lCal)) return 1;
-  const cf = l => 0.455 / Math.pow(Math.log10(R.vRef * l / R.nu), 2.58);
+  const cf = l => 0.455 / CORE_MATH.pow(Math.log10(R.vRef * l / R.nu), 2.58);
   return cf(L) / cf(lCal);
 }
 // ENGINE COOLING (ENGINE-COOLING, futureDesigns/ENGINE-COOLING-2026-11.md; GEN_COOL's header in 60_gen_spec says what
