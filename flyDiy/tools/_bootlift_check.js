@@ -18,10 +18,12 @@
 //          (here with NO roll-out screen at all - the train-36 blind spot)
 //   diag   THE SELF-TEST (G1997): index.html?diag=quick's module run to its report on the same harness - every variant
 //          measured frames, the census by owner, the report's text, the graphics put back exactly as they were
-//   under  BOOT-LOOP-GUARD (15 Nov 2026, DIRT-STRIP's census on the box): Fly pressed UNDER the garage boot's cover, NOT lifted, while
-//          its chain is at 'compile' - before 'first light', the loop's first start (a key reaches #bGo behind the cover: Tab,
-//          Enter). The roll-out's screen supersedes the chain (G640) and replaces its done(): before the guard neither start ran -
-//          the roll-out gave up ('nothing landed for 20 s') and nothing was ever drawn. Now: the roll-out lands, the world is drawn.
+//   under  BOOT-LOOP-GUARD (15 Nov 2026, DIRT-STRIP's census on the box): a Go UNDER the garage boot's cover, NOT lifted, at 'world'
+//          - before 'first light', the loop's first start. A key reached #bGo behind the cover (Tab, Enter); the roll-out's screen
+//          superseded the chain (G640) and replaced its done(): neither start ran, the roll-out gave up ('nothing landed for 20 s')
+//          and nothing was ever drawn. (1) THE DOOR: the app behind the cover is inert (#ui, #edView) and #bGo refuses - no
+//          roll-out, the garage chain goes on. (2) THE NET: a Go past the door (BOOT.state read 'gone' for that one click, as any
+//          future path might) - the roll-out lands, the world is drawn: the loop started.
 //   hard   BOOT.opt.hard set to 1 ms as the boot reaches 'world' (the slow machine's case): the boot is NOT lifted while
 //          its chain still lands steps (G1995's watchdog) - it ends on its own ('ready'), never 'hard timeout'
 //
@@ -74,7 +76,7 @@ async function lift(ctx, at) {
 async function fly(ctx) {
   const { P, W, R } = ctx;
   const n0 = trips(W).length, rv0 = reveals(W);
-  const b = W.document.getElementById('bGo'); if (b) b.click();
+  const b = W.document.getElementById('bGo'); if (b && !ctx.noClick) b.click();
   const ok = await P.until(() => { const t = lastTrip(W); return trips(W).length > n0 && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'; }, V_MAX);
   const t = lastTrip(W);
   const w0 = R.world; await P.frames(60);
@@ -105,10 +107,17 @@ async function child(which) {
     const L = bootLog(W);
     out.end = { state: W.BOOT.state, ready: L.some(e => e.k === 'ready'), fails: L.filter(e => e.k === 'fail').map(e => e.reason), steps: L.filter(e => e.k === 'step').map(e => e.id), vS: Math.round(P.clock.t / 1000) };
   } else if (which === 'under') {
-    const ok = await P.until(() => W.BOOT && W.BOOT.state === 'loading' && W.BOOT.set === 'garage' && W.BOOT.current && W.BOOT.current.id === 'compile', V_MAX);
+    const ok = await P.until(() => W.BOOT && W.BOOT.state === 'loading' && W.BOOT.set === 'garage' && W.BOOT.current && W.BOOT.current.id === 'world', V_MAX);
+    const d = W.document, n0 = trips(W).length;
+    out.door = { reached: ok, inert: ['ui', 'edView'].map(id => { const e = d.getElementById(id); return e ? e.inert === true : null; }) };
+    d.getElementById('bGo').click(); await P.frames(3);
+    out.door.refused = trips(W).length === n0 && W.BOOT.set === 'garage' && W.BOOT.state === 'loading';
+    // the net: a Go past the door, while the chain is still before 'first light'
     const stepsAt = bootLog(W).filter(e => e.k === 'step').map(e => e.id);
-    out.under = { reached: ok, state: W.BOOT.state, firstLightBefore: stepsAt.includes('firstFrame'), steps: stepsAt.slice(-3) };
-    out.fly = await fly(ctx);
+    out.under = { state: W.BOOT.state, firstLightBefore: stepsAt.includes('firstFrame'), steps: stepsAt.slice(-3) };
+    const st = W.BOOT.state; W.BOOT.state = 'gone'; const g = d.getElementById('bGo');
+    try { g.click(); } finally { if (W.BOOT.state === 'gone') W.BOOT.state = st; }
+    out.fly = await fly(Object.assign({}, ctx, { noClick: true }));
     out.fly.firstLightEver = bootLog(W).some(e => e.k === 'step' && e.id === 'firstFrame');
   } else {
     out.lift = await lift(ctx, 'compile');
@@ -151,7 +160,9 @@ function verdict(r) {
     ok(r.fly.reveals >= 1, 'stay: a reveal marked with or without a roll-out screen (' + r.fly.reveals + ')');
   }
   if (r.which === 'under') {
-    ok(r.under.reached && r.under.state === 'loading' && !r.under.firstLightBefore, 'under: Fly pressed under the garage boot cover at compile, before first light (' + JSON.stringify(r.under.steps) + ')');
+    ok(r.door.reached && r.door.inert.every(x => x === true), 'under: the app behind the cover is inert while it is up (#ui, #edView: ' + JSON.stringify(r.door.inert) + ')');
+    ok(r.door.refused, 'under: Go under the cover refused - no roll-out, the garage chain goes on (the door)');
+    ok(r.under.state === 'loading' && !r.under.firstLightBefore, 'under: then a Go past the door, before first light (' + JSON.stringify(r.under.steps) + ')');
     ok(r.fly.landed && !r.fly.inShed, 'under: the roll-out landed (trip ' + JSON.stringify(r.fly.trip) + ', first light ever: ' + r.fly.firstLightEver + ')');
     ok(r.fly.worldDrawn > 0, 'under: the world drawn after it - the loop started (' + r.fly.worldDrawn + ' renders in 60 frames; BOOT-LOOP-GUARD)');
     ok(!r.fly.fails.some(f => /nothing landed/.test(f)), 'under: the roll-out screen did not give up (' + JSON.stringify(r.fly.fails) + ')');

@@ -16002,6 +16002,10 @@
     // own done callback starts the flight when it lifts
     if (rollAnimSkip) { rollAnimSkip(); return; }   // B9: a press over the roll-out animation skips it
     if (perfNow() < rollAnimSwallow) return;        // G1027: ...and the click of the press that skipped it is not a start
+    // BOOT-LOOP-GUARD (15 Nov): no Go while a loading screen is up - Tab reached this button behind the boot's cover and Enter
+    // rolled out under it (the garage chain superseded before 'first light': no loop, nothing drawn). #edRoll calls this same
+    // handler; the setup screen's own Fly is #bootFly
+    if (typeof BOOT !== 'undefined' && BOOT.state && BOOT.state !== 'gone') return;
     if (rollHold) return;
     if (CRW.after) { crowdStop(true); return; }   // G2970: a press while the passengers board seats them all and starts
     // G700: ...AND AFTER A LANDING IT FLIES ON FROM WHERE THE AEROPLANE STANDS (the playtest: "Fly on" reloaded -
@@ -22226,6 +22230,9 @@
     try { went = !!startTestFlight(c ? { alt: c.alt || null, V: c.V || null, fp: c.fp || null } : null); } catch (e) { console.warn('flyDiy: the test flight could not start -', e && e.message); }
     window.FLYDIY_PHONE_FLY = { started: went, card: c, at: Date.now() };
   }
+  // BOOT-LOOP-GUARD: the app's own layers behind the boot's cover, inert while it is up (no Tab reaches them); the welcome (90),
+  // the dev tools and the setup panel (inside #boot) are not among them
+  if (typeof BOOT.setUnder === 'function') BOOT.setUnder(['ui', 'wsUI', 'edInfo', 'edInfoTab', 'edWrap', 'edView', 'ctlPanel']);
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
     done: loopDone(() => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
       if (SIMW) SIMW.prewarm(); startLoop();
