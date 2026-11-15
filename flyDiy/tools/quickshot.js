@@ -445,6 +445,15 @@ function decalMix(rgb, k, nk, fl, cls, ok) {
 // --scen mud|heavy|dust (default mud); --dry s: let the mud dry s seconds after the run (fresh = wet and glossy);
 // --mudcell m: the grid's cell (0.08 gamer, 0.12 phone)
 let MUDF = null;
+// GROUND-FX: the PBR at a pixel - the dust's veil, the mud (wet: dark and glossy; dry: lighter, matte); n = the outward normal
+function mudPix(img, i, t, w0_, w1_, w2_, qx, qy, qz, lm, sp) {
+  const P = MUDF(w0_ * t[0] + w1_ * t[3] + w2_ * t[6], w0_ * t[1] + w1_ * t[4] + w2_ * t[7], w0_ * t[2] + w1_ * t[5] + w2_ * t[8], qx, qy, qz);
+  if (P.dust > 0.004) { const Dc = [178, 158, 126]; for (let k = 0; k < 3; k++) img[i * 3 + k] = Math.round(img[i * 3 + k] + (Dc[k] * lm - img[i * 3 + k]) * 0.8 * P.dust); }
+  if (P.mud > 0.004) {
+    const gl = Math.max(0, Math.min(1, (0.9 - P.rough) / 0.65)), Mw = [60, 46, 33], Md = [116, 96, 74];
+    for (let k = 0; k < 3; k++) { const M = Mw[k] + (Md[k] - Mw[k]) * (1 - P.wet); img[i * 3 + k] = Math.round(img[i * 3 + k] + (Math.min(255, M * lm * (0.85 + 0.3 * P.h) + 255 * sp * 2.2 * gl) - img[i * 3 + k]) * P.mud); }
+  }
+}
 if (argv.includes('--mud')) {
   const MR = require(path.join(ROOT, 'tools', 'mud_roll.js')), GDq = require(path.join(ROOT, 'src', 'viewer', 'ground_deposit.js'));
   const mt = +opt('mud', 20) > 0 ? +opt('mud', 20) : 20;
