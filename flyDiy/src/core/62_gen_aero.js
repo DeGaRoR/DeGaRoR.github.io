@@ -2086,7 +2086,10 @@ function genParams(S, fr, strips) {
             bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
     // (WILGA-GEAR: a trailing-link leg's struts are no members - each stands in here at its stiffest, bottomed on its
     // stops, so the step is one the integrator carries; its orifice is semi-implicit and asks no step - 62c gearOleoF)
-    ...genSubsteps(fr.nodes, fr.parts && fr.parts.lever ? fr.beams.concat(fr.parts.lever.sides.map(q => ({ a: q.u, b: q.h, k: q.O.kS + q.O.kFull, c: 0, L: q.O.Lx }))) : fr.beams, fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
+    // (PC6-OLEO: the telescopic tail strut likewise - its stop and its bearing as two members on the wheel and the foot)
+    ...genSubsteps(fr.nodes, (fr.parts && fr.parts.lever ? fr.beams.concat(fr.parts.lever.sides.map(q => ({ a: q.u, b: q.h, k: q.O.kS + q.O.kFull, c: 0, L: q.O.Lx }))) : fr.beams)
+                    .concat(fr.parts && fr.parts.twOleo && fr.parts.twOleo.O ? [{ a: fr.parts.twOleo.tw, b: fr.parts.twOleo.ob, k: fr.parts.twOleo.O.kS + fr.parts.twOleo.O.kFull, c: 0, L: fr.parts.twOleo.hd },
+                                                                              { a: fr.parts.twOleo.tw, b: fr.parts.twOleo.ob, k: fr.parts.twOleo.kLat, c: fr.parts.twOleo.cLat, L: fr.parts.twOleo.hd }] : []), fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
     polarWing, polarTail, polarFin,
     // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —
     // GATE GEN's G9 and every reader of the flat name keep working)

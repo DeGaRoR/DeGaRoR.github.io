@@ -152,6 +152,12 @@ function makeSim(def, world) {
   // and the orifice. null on every other build - one compare a substep, nothing else (no beam changes shape)
   const OLEO = (def.parts && def.parts.lever && def.parts.lever.sides)
     ? def.parts.lever.sides.map(q => ({ a: q.u, b: q.h, O: q.O, s: 0, sd: 0, F: 0, sMax: 0, fMax: 0 })) : null;
+  // PC6-OLEO: THE TELESCOPIC TAIL STRUT (61_gen_frame parts.twOleo): the wheel TW rides the line of the cylinder's two
+  // anchors (TOA top, TOB foot) - along it the oleo's law (62c gearOleoF on the designed O; s = Lx less the wheel's
+  // drop below the foot, + compressed), across it the piston's bearing (kLat, cLat), each reaction on the two anchors
+  // by the lever rule (the force's line through the wheel: momentum and moment kept). null on every other build
+  const TELE = (def.parts && def.parts.twOleo && def.parts.twOleo.O)
+    ? Object.assign({ s: 0, sd: 0, F: 0, sMax: 0, fMax: 0, bottomed: 0 }, def.parts.twOleo) : null;
   // THE TUBE (G294): RIGID CLUSTERS, shape-matched every substep. A group of
   // nodes (a twin boom's) is pulled onto the best-fit rigid transform of
   // its rest shape — Müller's shape matching: the mass-weighted centre,
@@ -2796,6 +2802,15 @@ function makeSim(def, world) {
     // A Jodel's wing that came off rested on its lower caps, its drawn covering 12 cm over the ground; flight never
     // reaches the ground with these nodes, and the law (K, C, friction) is unchanged
     for (let i = 0; i < n; i++) rC[i] = r[i] - (def.nodes[i].so || 0);
+    // PC6-OLEO: the telescopic tail strut starts at its STATIC stroke (the charge's: the wheel up its axis by sSt from the
+    // drawn, fully extended place) - the rest pose is the parked one; airborne, the gas extends it to the drawing
+    if (TELE !== null) {
+      const T = TELE, w3 = T.tw * 3, a3 = T.oa * 3, b3 = T.ob * 3;
+      let ux = p[a3] - p[b3], uy = p[a3 + 1] - p[b3 + 1], uz = p[a3 + 2] - p[b3 + 2];
+      const Lu = hyp3(ux, uy, uz) || 1e-9, sS = T.O.sSt || 0;
+      p[w3] += ux / Lu * sS; p[w3 + 1] += uy / Lu * sS; p[w3 + 2] += uz / Lu * sS;
+      T.s = sS; T.sd = 0; T.F = 0; T.sMax = sS; T.fMax = 0; T.bottomed = 0;
+    }
     {
       const M = (def.refs && def.refs.mains) || [], tw = def.refs ? def.refs.tw : null, W = totalM * 9.81;
       if (M.length) {
@@ -4171,6 +4186,49 @@ function makeSim(def, world) {
       if (F > Q.fMax) Q.fMax = F;
     }
   }
+  // PC6-OLEO: the telescope's pass - the strut's axis u up from the foot to the top anchor, the wheel's offset r from the
+  // foot: its drop along -u (the stroke) and its offset across (the bearing)
+  function telePass(dt) {
+    const T = TELE, w3 = T.tw * 3, a3 = T.oa * 3, b3 = T.ob * 3;
+    let ux = p[a3] - p[b3], uy = p[a3 + 1] - p[b3 + 1], uz = p[a3 + 2] - p[b3 + 2];
+    const Lu = hyp3(ux, uy, uz) || 1e-9; ux /= Lu; uy /= Lu; uz /= Lu;
+    const rx = p[w3] - p[b3], ry = p[w3 + 1] - p[b3 + 1], rz = p[w3 + 2] - p[b3 + 2], ru = rx * ux + ry * uy + rz * uz;
+    const vx = v[w3] - v[b3], vy = v[w3 + 1] - v[b3 + 1], vz = v[w3 + 2] - v[b3 + 2], vu = vx * ux + vy * uy + vz * uz;
+    const s = T.O.Lx + ru, sd = vu, mw = m[T.tw], mb = m[T.ob];
+    const F = gearOleoF(T.O, s, sd, dt, mw * mb / (mw + mb));          // + pushes the wheel down the axis
+    // the bearing: the wheel's offset across the axis and its speed across it, pulled back to the line
+    const qx = rx - ru * ux, qy = ry - ru * uy, qz = rz - ru * uz, wx = vx - vu * ux, wy = vy - vu * uy, wz = vz - vu * uz;
+    const lx = -T.kLat * qx - T.cLat * wx, ly = -T.kLat * qy - T.cLat * wy, lz = -T.kLat * qz - T.cLat * wz;
+    const fx = -F * ux + lx, fy = -F * uy + ly, fz = -F * uz + lz;
+    f[w3] += fx; f[w3 + 1] += fy; f[w3 + 2] += fz;
+    // the reactions: the axial on the foot; the bearing's by the lever rule along the cylinder (tau: the wheel's place
+    // along TOB -> TOA, negative below the foot - a cantilever, the top anchor pulled the other way)
+    const tau = ru / Lu, kb = 1 - tau, ka = tau;
+    f[b3] += F * ux - kb * lx; f[b3 + 1] += F * uy - kb * ly; f[b3 + 2] += F * uz - kb * lz;
+    f[a3] += -ka * lx; f[a3 + 1] += -ka * ly; f[a3 + 2] += -ka * lz;
+    T.s = s; T.sd = sd; T.F = F;
+    if (s > T.sMax) T.sMax = s;
+    if (F > T.fMax) T.fMax = F;
+  }
+  // ...and its bottom stop, as the Wilga's: past S the wheel put back to S along the axis against the foot (mass-
+  // weighted), its closing speed taken out - the load then goes into the cylinder's clamps
+  function teleStop() {
+    const T = TELE, w3 = T.tw * 3, a3 = T.oa * 3, b3 = T.ob * 3;
+    let ux = p[a3] - p[b3], uy = p[a3 + 1] - p[b3 + 1], uz = p[a3 + 2] - p[b3 + 2];
+    const Lu = hyp3(ux, uy, uz) || 1e-9; ux /= Lu; uy /= Lu; uz /= Lu;
+    const ru = (p[w3] - p[b3]) * ux + (p[w3 + 1] - p[b3 + 1]) * uy + (p[w3 + 2] - p[b3 + 2]) * uz;
+    const ex = T.O.Lx + ru - T.O.S;
+    if (!(ex > 0)) return;
+    const mw = m[T.tw], mb = m[T.ob], ww = mb / (mw + mb), wb = mw / (mw + mb);
+    p[w3] -= ux * ex * ww; p[w3 + 1] -= uy * ex * ww; p[w3 + 2] -= uz * ex * ww;
+    p[b3] += ux * ex * wb; p[b3 + 1] += uy * ex * wb; p[b3 + 2] += uz * ex * wb;
+    const vc = (v[w3] - v[b3]) * ux + (v[w3 + 1] - v[b3 + 1]) * uy + (v[w3 + 2] - v[b3 + 2]) * uz;
+    if (vc > 0) {
+      v[w3] -= ux * vc * ww; v[w3 + 1] -= uy * vc * ww; v[w3 + 2] -= uz * vc * ww;
+      v[b3] += ux * vc * wb; v[b3 + 1] += uy * vc * wb; v[b3 + 2] += uz * vc * wb;
+    }
+    T.bottomed++;
+  }
   // WILGA-GEAR: THE BOTTOM STOP, AS A CONSTRAINT (after the step's integration, as the clusters' projection is): a strut
   // past its stroke S has its eyes put back to S along their line, mass-weighted (the pair's centre unmoved), and their
   // closing speed taken out (inelastic, momentum kept) - the load then goes into the steel leg and arm, as on the real
@@ -4217,6 +4275,7 @@ function makeSim(def, world) {
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
     if (OLEO !== null) oleoPass(dt);                 // WILGA-GEAR: the trailing-link legs' struts
+    if (TELE !== null) telePass(dt);                 // PC6-OLEO: the telescopic tail strut
     if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
       if (nFlr) floorPass();                         // G1813: the kinked members' floors
       if (nTieL) tiePass();                          // G2040 (DMG-FABRIC): the covering's ties
@@ -4437,6 +4496,7 @@ function makeSim(def, world) {
     if (clusterFresh) { for (const C of clusters) clusterRest(C); clusterFresh = false; }
     integrate(dt);
     if (OLEO !== null) oleoStop();                   // WILGA-GEAR: a bottomed strut stops on steel
+    if (TELE !== null) teleStop();                   // PC6-OLEO: ...and the tail's
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
     for (const C of clusters) { if (C.off) continue; shapeMatch(C, dt); twistHold(C, dt); }
@@ -4785,6 +4845,8 @@ function makeSim(def, world) {
            // WILGA-GEAR: the trailing-link legs' struts - null on every other build; per side { s (m, + compressed), sd
            // (m/s), F (N), S (the stroke), sMax / fMax since the last oleoPeak(true) }
            oleo: () => (OLEO === null ? null : OLEO.map(Q => ({ s: Q.s, sd: Q.sd, F: Q.F, S: Q.O.S, sMax: Q.sMax, fMax: Q.fMax, bottomed: Q.bottomed || 0 }))),
+           // PC6-OLEO: the telescopic tail strut's state (null without one): s, sd, F, S, sMax / fMax, bottomed
+           twOleo: () => (TELE === null ? null : { s: TELE.s, sd: TELE.sd, F: TELE.F, S: TELE.O.S, sSt: TELE.O.sSt, sMax: TELE.sMax, fMax: TELE.fMax, bottomed: TELE.bottomed }),
            oleoPeak: clear => { if (OLEO !== null && clear) for (const Q of OLEO) { Q.sMax = Q.s; Q.fMax = Q.F; Q.bottomed = 0; } },
            gearPower: on => { if (GR !== null) GR.power = !!on; },
            gearEmergency: () => { if (GR !== null) { GR.emerg = true; ctl.gear = 1; } } };
