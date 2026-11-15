@@ -30,11 +30,11 @@ Read this before you write or arm any rig. It collects every trap that cost a sl
 - NEVER `Page.captureScreenshot` for the world. Headless shows the canvas see-through: you get the page background (#cfe0ec).
 - Wrap `FLYDIY_AA.render`, call the original, then `gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(...)` right after it, alpha forced opaque, and encode the PNG/JPEG yourself. Row order: check ONE frame before flipping. On this box (ANGLE D3D11, headless) Game got upright frames with no flip (15 Nov); LOOK-1's rig flips.
 - Wait frames with requestAnimationFrame (`FRAMES(30)`), never with sleep alone.
-- Camera: `FLIGHT_PROBE.devFree(x, y, z, yaw, pitch)` (the free eye), near the aircraft. Terrain and the cover ring stream around the AIRCRAFT, so a free eye far away shows flat sky.
+- Camera: `FLIGHT_PROBE.devFree(x, y, z, yaw, pitch)` (the free eye), near the aircraft. Terrain and the cover ring stream around the AIRCRAFT, so a free eye far away shows flat sky. If the subject is far from the spawn, first move the aircraft there with `FLIGHT_PROBE.place`, then put the eye near it with devFree (DIRT-STRIP, 15 Nov).
 - Pause with the game's own `#bPause`, as a player would. If no frame arrives in 5 s, check renderer.info.render.frame over 1 s; if it doesn't move, the loop is not drawing.
 
 ## 4. On the first miss: diagnose, don't retry
-- Log WHY once: `BOOT.state`, body classes, `FLYDIY_HOLDS()`, `document.visibilityState`, rAF count in 1 s, renderer.info frame delta in 1 s, page exceptions and console errors (Runtime.exceptionThrown).
+- Log WHY once: `BOOT.state`, body classes, `FLYDIY_HOLDS()`, `document.visibilityState`, rAF count in 1 s, the rAF callbacks by name over 1 s (it separates "the loop is not scheduled" from "the loop exits early"), renderer.info frame delta in 1 s, the render / AA.render call counts in 1 s, page exceptions and console errors (Runtime.exceptionThrown).
 - Two misses = stop, drop the lock, report the WHY. Do not burn the slot on blind retries.
 - Before you call it the game's bug: does the same rig work on the previous master? Does a known-good rig (section 5) work on yours?
 
