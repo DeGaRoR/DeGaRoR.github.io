@@ -1,6 +1,6 @@
 {
   "note": "COLOUR-RESTORE: files converted by tools/colour_restore.js (colours last changed before ac0d2e1f2), and the ones left",
-  "ref": "4787b6f82",
+  "ref": "bb25a950d",
   "convert": [
     "flyDiy/builds/archaeopteryx_2026-11-10.json",
     "flyDiy/builds/c172r_wipline2350_landprop_2026-10-20.json",

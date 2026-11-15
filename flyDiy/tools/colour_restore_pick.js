@@ -8,6 +8,8 @@
 //   - it does: they were picked as they draw today (the PC-6's teal, converted by hand in e6e1a8d05) -> LEAVE.
 // A file whose followed history is empty (git --follow loses some copies) falls back to its plain history.
 // --write puts the list in tools/colour_restore_files.json; without it the list is printed.
+// Run it on the commit BEFORE the conversion (ref = that commit): once converted, every file's colours were last changed
+// in a commit with the fix, and the list reads all LEAVE.
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const args = process.argv.slice(2), write = args.includes('--write');
