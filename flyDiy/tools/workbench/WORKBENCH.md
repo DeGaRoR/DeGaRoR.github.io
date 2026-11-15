@@ -9,7 +9,7 @@ Each tool has a skill in `.claude/skills/workbench-*` that loads its procedure w
 | Job | The tool | Command | Runs on | Skill / doc |
 |---|---|---|---|---|
 | Run tests (gates) | `flyDiy/tools/run_gates.js` | `node flyDiy/tools/run_gates.js --only=A,B [--jobs=3] [--no-build]` | node (CPU) | workbench-gates |
-| Commit, merge, push a ready | `flyDiy/tools/_commit_hygiene.js` | `node flyDiy/tools/_commit_hygiene.js` | node | workbench-commit, COMMIT-PROCEDURE.md |
+| Commit, merge, push a ready | `flyDiy/tools/_commit_hygiene.js` (+ the hook `flyDiy/tools/workbench/hook_git.js`, live for every session) | `node flyDiy/tools/_commit_hygiene.js` | node | workbench-commit, COMMIT-PROCEDURE.md |
 | Quick render of a build (no browser, ~3 s) | `flyDiy/tools/quickshot.js` | `node flyDiy/tools/quickshot.js <build.json\|--key k> <prefix> --views side,top,front,q [--over --crop --gear --marks]` | node | workbench-quick-render, ../QUICKSHOT.md |
 | Plane pictures in the garage look, thumbs, fiches | `flyDiy/tools/plane_shot.js` | `node flyDiy/tools/plane_shot.js --build a.json --out dir [--views q,s,t,f,hero] [--gpu]` | SwiftShader (or GPU in a slot) | workbench-quick-render |
 | Phone-profile page stills + touch | `flyDiy/tools/phone_still.js` | `node flyDiy/tools/phone_still.js --out <dir>/phone` | SwiftShader | workbench-phone |

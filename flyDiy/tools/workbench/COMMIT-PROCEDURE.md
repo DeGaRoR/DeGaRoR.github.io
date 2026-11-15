@@ -40,7 +40,7 @@ Every rule below cost a train or a re-make this month.
 ## Enforcement
 1. GATE COMMITHYGIENE (`node flyDiy/tools/_commit_hygiene.js [--head <ref>] [--base <ref>]`, node, core tier, seconds) fails on built files inside a non-(built) commit, HANDOVER CRs below master's, a whole-file line-ending flip, a changed final newline, index.html naming a missing chunk, and an exports name dropped.
 2. The train (ltrain.sh) runs it on each ref before the merge and drops a failing ref with the reason (it already drops HANDOVER CR losses).
-3. (waits for the user's yes) A project hook for every Claude session (`.claude/settings.json`, PreToolUse on `git commit` and `git push`) runs the same check on the staged diff and blocks it with the reason.
+3. THE HOOK (live): `.claude/settings.json` runs `flyDiy/tools/workbench/hook_git.js` before every Bash/PowerShell command of every Claude session in this repo. It blocks a `git commit` that stages built files without "(built)" in the command, or HANDOVER.md with lost CRs, and a `git push` whose commit fails the hygiene check. The block message says the fix. A deliberate exception adds `# hygiene-override: <why>` to the command.
 4. The skill `.claude/skills/workbench-commit` carries this page, so sessions see it before they commit.
 
 Run it yourself before you push: `node flyDiy/tools/_commit_hygiene.js` (your branch vs origin/master). Every FAIL line says what to do.

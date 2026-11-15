@@ -21,6 +21,6 @@ Read the full procedure once per session: `flyDiy/tools/workbench/COMMIT-PROCEDU
    - `src/core/90_node_exports.js` and similar lists are a UNION. A deliberate drop says `exports-dropped: NAME` in the commit message.
    - HANDOVER keeps both blocks, as bytes.
    - Built-file conflicts: take either side, rebuild, and commit as (built).
-6. **Before you push**, `node flyDiy/tools/_commit_hygiene.js` must print `GATE COMMITHYGIENE: PASS`. Every FAIL line says what to do.
+6. **Before you push**, `node flyDiy/tools/_commit_hygiene.js` must print `GATE COMMITHYGIENE: PASS`. Every FAIL line says what to do. The project hook (`flyDiy/tools/workbench/hook_git.js`) runs the same check on every `git push` and blocks built files in a source commit; a deliberate exception adds `# hygiene-override: <why>` to the command.
 7. **A ready = exactly what you gated.** Gate, then push `claude/ready/<name>`, or `claude/<name>` if you may not push readies (A0 copies it). More commits after = gate again.
 8. **The message**: the first line is `<FEATURE>: what changed (why)`. Quote the user when it's their call. End with your attribution line.
