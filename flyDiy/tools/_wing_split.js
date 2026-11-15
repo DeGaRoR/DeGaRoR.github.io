@@ -54,6 +54,10 @@ const CORE = require(path.join(__dirname, 'flight_core.js'));
 const { buildGen, genWing, GEN_DEFAULT } = CORE;
 
 const BASE = path.join(__dirname, '_wing_split.json');
+// RE-PINNED (REAL-CANON, 15 Nov, A0's rule: a deliberate physics move re-pinned with its reason): ELEC-SYSTEMS' harness
+// by cable runs (the user's ruling, 614822358: ~+1.7 kg, the CG ~1 mm forward) moves every drawn wing by one uniform
+// translation in the CG frame (the default: +1.101 mm x, -0.451 mm y, 0 z on every vertex of every group; the frame's
+// wing nodes unmoved) - the shape, the UVs, the weights the same; the positions' digests re-frozen.
 
 // THE WING'S OWN GROUPS. `skin` and `canopy` are shared with the fuselage —
 // the wing writes its covering into the same group the body does, and the
