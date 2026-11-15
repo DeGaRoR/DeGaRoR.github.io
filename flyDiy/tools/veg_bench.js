@@ -32,6 +32,7 @@ const OUT = opt('out', null);
 if (!OUT) { console.error('usage: node tools/veg_bench.js --out <dir> [--areas skyline,ardent,cabin,north] [--w 760] [--eyes 2]'); process.exit(2); }
 fs.mkdirSync(OUT, { recursive: true });
 const PW = +opt('w', 760);
+const TRY = opt('try', null) === 'subalpine';   // the candidate subalpine rule (MOUNTAIN-VEG), beside today's
 
 const IN = require(path.join(ROOT, 'tools', 'island_node.js'));
 global.GROUND_FIELDS = require(path.join(ROOT, 'src', 'core', '28b_ground_fields.js'));   // the splat's knobs, as the page has them
@@ -45,6 +46,26 @@ const BIO = BIOMES.make(PACK);
 const O = W.premises && W.premises.overlay;
 if (O && O.vegAt) BIO.over = (x, z) => O.vegAt(x, z);
 console.log('world', Date.now() - t0, 'ms; premises overlay', !!O);
+
+// ---- THE CANDIDATE: 19 SUBALPINE (--try subalpine). Heath and scrub above a height ramp (450 -> 600 m, its edge broken
+// by a 140 m noise of +-40 m) take the subalpine mix: the muskeg's small conifers and the young-forest firs, FLOORED (the
+// canopy map does not veto it: it cannot see trees under ~2 m), clumped lightly, thinning to 15 % between 700 and 950 m
+// and to 25 % on a ridge top (8 taps at 85-120 m: the point stands 15 m over their mean) - the ridges keep the grass.
+const SUB = { code: 19, h0: 450, h1: 600, jit: 40, top0: 700, top1: 950, topKeep: 0.15, ridgeDh: 15, ridgeKeep: 0.25 };
+if (TRY) {
+  BIO.mixes.subalpine = { forest: { ground: 'plane', count: 1600, radius: 220, under: 14, cover: 1, reach: 220, canopyFloor: 4, clump: 0.3, clumpM: 24, rocks: 14, debris: 20 },
+    species: { 'pine_evolveduk.glb': { proportion: 3, dead: 0 }, 'pine_georgeous.glb': { proportion: 2, dead: 0 }, 'spruce_tree.glb': { proportion: 1.5, dead: 0.04 },
+      'realistic_fir_trees_pack_lods_gameready.glb': { proportion: 1.5, dead: 0.04 }, 'dead_conifer': { proportion: 0.3 }, 'grass_reed': { proportion: 1, density: 0.9 } } };
+  BIO.map[SUB.code] = 'subalpine';
+}
+const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+const ridgeOf = (x, z, h) => h - (H(x + 120, z) + H(x - 120, z) + H(x, z + 120) + H(x, z - 120) + H(x + 85, z + 85) + H(x - 85, z - 85) + H(x + 85, z - 85) + H(x - 85, z + 85)) / 8;
+// the code with the candidate: r2 a second draw in [0, 1)
+const subCode = (code, tt, x, z, h, r2) => {
+  if (!TRY || !(tt === 2 || tt === 7)) return code;
+  const t = smooth(SUB.h0, SUB.h1, h + (vnoise(x, z, 140, 61) - 0.5) * 2 * SUB.jit);
+  return r2 < t ? SUB.code : code;
+};
 
 // ---- the fill's constants and helpers (render_world.js, verbatim where marked) ------------------------------------
 const FILL = { ng: 160, island: { from: 0.5, full: 6.0, gain: 1.3, min: 0.45, max: 2.4, biomeGain: 3.5, biomeWobble: 8 } };
@@ -92,9 +113,10 @@ function plantAt(ix, iz) {
   if (premTreeEx(x, z)) return { r: R.EXCL, x, z, h };
   let can = I.canopyAt(x, z), floored = false;
   const tt = ttypeAt(x, z);
-  const code = codeAt(x, z, hsh(ix + 21, iz + 23));
+  const code = subCode(codeAt(x, z, hsh(ix + 21, iz + 23)), tt, x, z, h, hsh(ix + 41, iz + 43));
   const mix = pm !== undefined ? pm : BIO.mixAt(code);
-  const kind = mix ? Math.min(1, BIO.density(mix) * SPC * SPC * FILL.island.biomeGain) : 0;
+  let kind = mix ? Math.min(1, BIO.density(mix) * SPC * SPC * FILL.island.biomeGain) : 0;
+  if (code === SUB.code && kind > 0) { kind *= 1 - (1 - SUB.topKeep) * smooth(SUB.top0, SUB.top1, h); if (ridgeOf(x, z, h) > SUB.ridgeDh) kind *= SUB.ridgeKeep; }
   if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);
   if (mix && pm) { const MF = BIO.mixOf(mix).forest; floored = true; can = Math.max(can, (MF && MF.canopyFloor) || 0, 12); }
   if (mix) { const MF = BIO.mixOf(mix).forest; if (MF && MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
@@ -129,8 +151,8 @@ function pickSpecies(mix, r, h) {
 // ---- colours ------------------------------------------------------------------------------------------------------
 const CODE_COL = { 0: [31, 78, 121], 1: [58, 123, 213], 2: [214, 190, 90], 3: [138, 109, 59], 4: [232, 217, 160], 5: [165, 159, 148], 6: [110, 106, 102],
   7: [154, 205, 50], 8: [46, 125, 50], 9: [255, 255, 255], 10: [208, 80, 80], 11: [140, 140, 124], 12: [60, 50, 50], 13: [20, 80, 30], 14: [107, 142, 35],
-  15: [0, 192, 96], 16: [0, 128, 106], 18: [90, 200, 200] };
-const CODE_NAME = Object.assign({}, BIOMES.NAMES);
+  15: [0, 192, 96], 16: [0, 128, 106], 18: [90, 200, 200], 19: [230, 90, 160] };
+const CODE_NAME = Object.assign({ 19: 'subalpine (candidate)' }, BIOMES.NAMES);
 const shadeOf = (x, z, d) => {   // a NW sun, the relief's own normal
   const dx = (H(x + d, z) - H(x - d, z)) / (2 * d), dz = (H(x, z + d) - H(x, z - d)) / (2 * d);
   const n = [-dx, 1, -dz], l = Math.hypot(...n), L = [-0.5, 0.75, -0.43];
@@ -164,7 +186,9 @@ function compose(panels, w, h) {
 // ---- the areas ---------------------------------------------------------------------------------------------------
 // centres from the fixture (tw_s_summit, mt_s_meteo, w1) and a 200 m peak scan of the shipped DEM
 const AREAS = {
-  skyline: { name: 'Skyline / tw_ski (tram summit 697 m, peak 687 m)', cx: 200, cz: -7700, half: 1800, marks: [[277, -7868, 'tram summit'], [310, -7844, 'tw_ski stand']] },
+  skyline: { name: 'Skyline / tw_ski (tram summit 697 m, peak 687 m)', cx: 200, cz: -7700, half: 1800, marks: [[277, -7868, 'tram summit'], [310, -7844, 'tw_ski stand']],
+    // the altiport: from 90 m over the ground 820 m east-north-east, looking at its stand; the tram: 70 m over the ground at mid-span, looking up at the summit station
+    eyesAt: [{ name: 'altiport', from: [1000, -7500, 90], at: [250, -7860, 10] }, { name: 'tram', from: [-760, -7900, 70], at: [277, -7868, 20] }] },
   ardent: { name: 'Mount Ardent (1 096 m, meteo station)', cx: 9112, cz: -5850, half: 2200, marks: [[9112, -5882, 'meteo']] },
   cabin: { name: 'The ridges round the Cabin Strip (peaks 876, 790, 786, 742 m)', cx: 300, cz: -15500, half: 3000, marks: [[2670, -15908, 'Cabin Strip'], [4361, -16251, 'Hiking Strip']] },
   north: { name: 'The north summit (853 m) and its ridge', cx: 6176, cz: -2391, half: 2000, marks: [] },
@@ -206,7 +230,7 @@ function runArea(key) {
     const x = x0 + (i + 0.5) * pxM, z = z0 + (j + 0.5) * pxM, h = H(x, z), sh = shadeOf(x, z, pxM), o = (j * N + i) * 3;
     const lit = 0.35 + 0.75 * sh, wt = wet(x, z, Math.max(h, 1.6)) && h < 1.5;
     const hy = hyps(h); for (let q = 0; q < 3; q++) relief[o + q] = Math.min(255, hy[q] * lit);
-    const cd = codeAt(x, z, hsh(i * 7 + 3, j * 13 + 5));
+    const cd = subCode(codeAt(x, z, hsh(i * 7 + 3, j * 13 + 5)), ttypeAt(x, z), x, z, h, hsh(i * 7 + 41, j * 13 + 43));
     codeShare[cd] = (codeShare[cd] || 0) + 1;
     const cc = CODE_COL[cd] || [255, 0, 0]; for (let q = 0; q < 3; q++) code[o + q] = Math.min(255, cc[q] * (0.55 + 0.5 * sh));
     const ci = Math.min(NC - 1, Math.floor((x - x0) / C)), cj = Math.min(NC - 1, Math.floor((z - z0) / C)), k = cj * NC + ci;
@@ -234,11 +258,17 @@ function runArea(key) {
   // the planted trees as dots on the density panel (every tree, 1 px dark green) when the scale lets them read
   if (pxM <= 6) for (const T of trees) { const i = Math.floor((T.x - x0) / pxM), j = Math.floor((T.z - z0) / pxM); if (i >= 0 && j >= 0 && i < N && j < N) { const o = (j * N + i) * 3; dens[o] = 20; dens[o + 1] = 70; dens[o + 2] = 25; } }
   const { img, TW } = compose([relief, code, dens, reason, cover], N, N);
-  writePNG(path.join(OUT, key + '_map.png'), TW, N, img);
+  writePNG(path.join(OUT, key + (TRY ? '_try' : '') + '_map.png'), TW, N, img);
 
   // 3. the eyes: a perspective of the window from two sides, the three layers
   const eyes = [];
   const EYEN = +opt('eyes', 2);
+  for (const E of (A.eyesAt || [])) {
+    const ey = [E.from[0], H(E.from[0], E.from[1]) + E.from[2], E.from[1]], at = [E.at[0], H(E.at[0], E.at[1]) + E.at[2], E.at[1]];
+    const P3 = renderEye(A, x0, z0, SZ, ey, at, trees);
+    const { img: im2, TW: tw2 } = compose(P3.panels, P3.w, P3.h);
+    const f = key + (TRY ? '_try' : '') + '_' + E.name + '.png'; writePNG(path.join(OUT, f), tw2, P3.h, im2); eyes.push({ file: f, eye: ey.map(v => v | 0), name: E.name });
+  }
   const peak = (() => { let b = [A.cx, A.cz, -1e9]; for (let j = 0; j < 60; j++) for (let i = 0; i < 60; i++) { const x = x0 + (i + 0.5) * SZ / 60, z = z0 + (j + 0.5) * SZ / 60, h = H(x, z); if (h > b[2]) b = [x, z, h]; } return b; })();
   for (let e = 0; e < EYEN; e++) {
     const az = [-2.4, 0.6, 2.0, -0.6][e];   // from the SW, then the NE (radians, 0 = +x)
@@ -246,7 +276,7 @@ function runArea(key) {
     const ex = peak[0] + Math.cos(az) * dist, ez = peak[1] + Math.sin(az) * dist;
     const P3 = renderEye(A, x0, z0, SZ, [ex, eh, ez], [peak[0] - Math.cos(az) * A.half * 0.25, peak[2] - A.half * 0.3, peak[1] - Math.sin(az) * A.half * 0.25], trees);
     const { img: im2, TW: tw2 } = compose(P3.panels, P3.w, P3.h);
-    const f = key + '_eye' + (e + 1) + '.png'; writePNG(path.join(OUT, f), tw2, P3.h, im2); eyes.push({ file: f, eye: [ex | 0, eh | 0, ez | 0] });
+    const f = key + (TRY ? '_try' : '') + '_eye' + (e + 1) + '.png'; writePNG(path.join(OUT, f), tw2, P3.h, im2); eyes.push({ file: f, eye: [ex | 0, eh | 0, ez | 0] });
   }
 
   // 4. the stats
@@ -259,9 +289,9 @@ function runArea(key) {
   // the treeline: the highest 50 m band holding 10+ trees/ha
   let tl = null; for (const b in stat.bands) if (stat.bands[b].treesPerHa >= 10) tl = Math.max(tl || 0, +b);
   stat.treeline50 = tl;
-  fs.writeFileSync(path.join(OUT, key + '.json'), JSON.stringify(stat, null, 1) + '\n');
+  fs.writeFileSync(path.join(OUT, key + (TRY ? '_try' : '') + '.json'), JSON.stringify(stat, null, 1) + '\n');
   console.log(key, 'walk', tWalk, 'ms, trees', trees.length, 'treeline band', tl, 'total', Date.now() - ta, 'ms');
-  return { stat, eyes, map: key + '_map.png' };
+  return { stat, eyes, map: key + (TRY ? '_try' : '') + '_map.png' };
 }
 
 // ---- the perspective rasteriser: the window's heightfield as triangles (z-buffer, per-vertex colour, a NW sun) -----
@@ -275,14 +305,14 @@ function renderEye(A, x0, z0, SZ, eye, at, trees) {
   const proj = (x, y, z) => { const d = [x - eye[0], y - eye[1], z - eye[2]], cz = d[0] * f[0] + d[1] * f[1] + d[2] * f[2];
     if (cz < 5) return null; const cx = d[0] * r[0] + d[1] * r[1] + d[2] * r[2], cy = d[0] * u[0] + d[1] * u[1] + d[2] * u[2];
     return [w / 2 + cx / cz * fk, h / 2 - cy / cz * fk, cz]; };
-  const G = Math.min(400, Math.round(SZ / 12)), st = SZ / G;
+  const G = Math.min(520, Math.round(SZ / 8)), st = SZ / G;
   const V = [], cols = [[], [], []];
   for (let j = 0; j <= G; j++) for (let i = 0; i <= G; i++) {
     const x = x0 + i * st, z = z0 + j * st, hh = H(x, z), sh = shadeOf(x, z, st), lit = 0.3 + 0.8 * sh;
     V.push(proj(x, Math.max(hh, -0.4), z));
     const hy = hyps(hh), seaV = hh < 0.2;
     cols[0].push(seaV ? [70, 120, 190] : hy.map(v => v * lit));
-    const cd = codeAt(x, z, hsh(i, j)); const cc = CODE_COL[cd] || [255, 0, 0]; cols[1].push(cc.map(v => v * (0.5 + 0.55 * sh)));
+    const cd = subCode(codeAt(x, z, hsh(i, j)), ttypeAt(x, z), x, z, hh, hsh(i + 41, j + 43)); const cc = CODE_COL[cd] || [255, 0, 0]; cols[1].push(cc.map(v => v * (0.5 + 0.55 * sh)));
     const ground = seaV ? [70, 120, 190] : [200 * lit * 0.8 + 30, 195 * lit * 0.8 + 30, 175 * lit * 0.8 + 25];
     cols[2].push(ground);
   }
