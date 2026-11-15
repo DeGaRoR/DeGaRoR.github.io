@@ -140,11 +140,11 @@ const LEG_ROWS = {
     ['twLegDrop', 'swivel drop', 0.03, 0.60, 0.005],
     ['twSteer', 'steer angle', -40, 40, 1],
     ['twSteerVis', 'springs+chains', 0, 1, 1],
-    // PC6-TAILWHEEL: the post-and-link style (the DEF note above); its three rows with it
-    ['twStyle', 'tailwheel style', 0, 1, 1, ['leaf spring', 'post and trailing link (PC-6)']],
-    ['twPostLen', 'post length', 0.10, 0.60, 0.005],
-    ['twPostD', 'post and arm tube', 0.03, 0.14, 0.002],
-    ['twGuard', 'guard ahead of the tyre', 0, 1, 1],
+    // PC6-TAILWHEEL: the oleo style (the DEF note above); its three rows with it (the fork, the V horn and the guard are the castor's)
+    ['twStyle', 'tailwheel style', 0, 1, 1, ['leaf spring', 'oleo strut, trailing leg (PC-6)']],
+    ['twPostLen', 'oleo length', 0.10, 1.20, 0.005],
+    ['twPostD', 'oleo cylinder', 0.03, 0.14, 0.002],
+    ['twGuard', 'trailing leg and its truss', 0, 1, 1],
     // G330: the rudder-horn rows are gone — the horn is the RUDDER'S (G326,
     // the hinge layer draws it at the rudder's foot); the castor's own
     // picture, kept for a bench without that layer, uses fixed offsets
