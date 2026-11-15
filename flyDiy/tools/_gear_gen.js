@@ -1894,25 +1894,60 @@ function legOleo(bags, AF, P, st, sgn) {
 // makes the wheel follow and self-centre. Steering springs and chains run
 // from the steering arm to the rudder horn; past `breakout` degrees the
 // unit unlocks and free-castors.
+// PC6-TAILWHEEL: the oleo's rake (its foot aft of its top), the piston's run below the collar (to just above the
+// tyre) and how far ahead of the strut the V's hinge and the stabiliser's node sit - one source for the leg and castor
+const PC6_RAKE = 8 * D2R;
+function pc6PistonRun(hd, R) { return Math.max(0.05, hd - R - 0.035); }
+function pc6Ahead(R) { return Math.max(0.16, 1.7 * R); }
 function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
-  const rake = P.twRake * D2R;
-  // swivel axis: down, tilted top-forward (+z is the nose)
-  const ax = nrm([0, -Math.cos(rake), Math.sin(rake)]);
+  const rake = P.twRake * D2R, pc6 = Math.round(+P.twStyle || 0) === 1, Dp = Math.max(0.03, +P.twPostD || 0.07);
+  // swivel axis: down, tilted top-forward (+z is the nose); the PC-6's oleo: its own axis, the foot aft (PC6_RAKE)
+  const ax = pc6 ? nrm([0, -Math.cos(PC6_RAKE), -Math.sin(PC6_RAKE)]) : nrm([0, -Math.cos(rake), Math.sin(rake)]);
   const fwd = nrm(sub([0, 0, 1], mul(ax, dot([0, 0, 1], ax))));
   const side = crs(ax, fwd);
   const yaw = steer * D2R;
   const F = v => rot(v, ax, yaw);            // steered frame
-  // the housing on the swivel axis
-  revolve(bags.alloy, top, ax,
+  // the housing on the swivel axis (the PC-6: the steering collar at the cylinder's foot, drawn below)
+  if (!pc6) revolve(bags.alloy, top, ax,
           [[0.026, -0.010], [0.030, 0.004], [0.030, CASTOR_HOUSE - 0.010],
            [0.022, CASTOR_HOUSE]],
           18, true);
-  revolve(bags.bronze, off(top, ax, 0.060), ax,
+  if (!pc6) revolve(bags.bronze, off(top, ax, 0.060), ax,
           [[0.016, 0], [0.016, 0.020]], 14, true);
   // the fork: offset BEHIND the axis by trail, straddling the wheel
   const hub = add(off(top, ax, P.twLegDrop), mul(F(fwd), -P.twTrail));
   const yoke = off(top, ax, P.twLegDrop * 0.42);
   const yokeC = add(yoke, mul(F(fwd), -P.twTrail * 0.55));
+  // PC6-TAILWHEEL (twStyle 1, the user's drawing over the render): below the collar everything turns with the wheel -
+  //   the PISTON down to just above the tyre, a CROSSHEAD across the tyre at its foot;
+  //   the "V on its side": its top member a U band clasping the collar, closed round a hinge AHEAD (pc6Ahead) and half
+  //     way down; its lower members two bands, one each side of the wheel, from that hinge straight to the axle - a
+  //     trailing link; the crosshead's two links press on them (the oleo is the link's spring);
+  //   the steering cables hook at the hinge (the ears); a little MUDGUARD over the tyre's top and front.
+  let vP = null;
+  if (pc6) {
+    const hd = P.twLegDrop, pB = off(top, ax, pc6PistonRun(hd, R)), bx = R * 0.46, S = F(side), W = F(fwd);
+    revolve(bags.alloy, off(top, ax, -0.004), ax, [[Dp * 0.62, 0], [Dp * 0.62, Dp * 0.55]], 20, true);      // the collar
+    sweep(bags.alloy, resample([off(top, ax, 0.01), pB], 6), () => secRound(Dp * 0.36, 16), true, S);       // the piston
+    revolve(bags.alloy, off(pB, ax, -Dp * 0.5), ax, [[Dp * 0.45, 0], [Dp * 0.45, Dp * 0.2]], 16, true);     // its wiper
+    boxIn(bags.steel, pB, [bx + Dp * 0.25, Dp * 0.28, Dp * 0.4], S, ax, W);                                 // the crosshead
+    vP = add(off(top, ax, 0.5 * hd), mul(W, pc6Ahead(R)));
+    const wU = Dp * 0.75, wA = Dp * 0.55, c0 = off(top, ax, Dp * 0.3);
+    const Upath = [add(c0, mul(S, -wU)), add(add(vP, mul(S, -wA)), mul(W, Dp * 0.5)),
+                   add(add(vP, mul(S, wA)), mul(W, Dp * 0.5)), add(c0, mul(S, wU))];
+    sweep(bags.steel, resample(fillet(Upath, Dp * 0.4), 16), () => secBlade(Dp * 0.18, Dp * 0.6), true, S);   // the U (its plates upright: a band seen from the side)
+    revolve(bags.alloy, add(vP, mul(S, -(wA + 0.03))), S, [[Dp * 0.2, 0], [Dp * 0.2, 2 * (wA + 0.03)]], 12, true);   // the hinge bolt
+    for (const s of [-1, 1]) {
+      const a0 = add(vP, mul(S, s * wA)), a1 = add(hub, mul(S, s * bx)), d = sub(a1, a0);
+      sweep(bags.steel, resample([a0, a1], 6), () => secBlade(Dp * 0.6, Dp * 0.16), true, nrm(crs(d, S)));   // the band
+      const tt = Math.max(0.35, Math.min(0.92, dot(sub(pB, a0), d) / dot(d, d))), q = add(a0, mul(d, tt));
+      const c = add(pB, mul(S, s * bx));
+      if (len(sub(q, c)) > 0.02) sweep(bags.steel, resample([c, q], 3), () => secBlade(Dp * 0.4, Dp * 0.14), true, W);   // a link
+    }
+    const rg = R * 1.16 + 0.012, arc = [];                                      // the mudguard: top and front of the tyre
+    for (let k = 0; k <= 12; k++) { const a = (25 + 115 * k / 12) * D2R; arc.push(add(add(hub, mul(W, rg * Math.cos(a))), mul(ax, -rg * Math.sin(a)))); }
+    sweep(bags.alloy, arc, () => secBlade(R * 0.9, 0.004), true, S);
+  } else {
   boxIn(bags.steel, yokeC, [0.030, 0.014, 0.026],
         F(side), ax, F(fwd));
   for (const s of [-1, 1]) {
@@ -1922,10 +1957,11 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
                                       0.03), 10),
           t => secBlade(0.026 - 0.006 * t, 0.012), true, F(fwd));
   }
+  }
   taper(bags.alloy, add(hub, mul(F(side), -R * 0.56)),
         add(hub, mul(F(side), R * 0.56)), 0.011, 0.011, 12);
   // the STEERING ARM and its springs/chains to the rudder horn
-  if (showLink && P.twSteerVis) {
+  if (showLink && P.twSteerVis && !pc6) {
     for (const s of [1, -1])
       sweep(bags.alloy, resample([off(top, ax, 0.030),
               add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
@@ -1958,7 +1994,7 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
     // old picture (showLink === true).
     if (showLink === true)
       for (const s of [1, -1]) {
-        const e = add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
+        const e = pc6 ? add(vP, mul(F(side), s * (Dp * 0.55 + 0.03))) : add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
                       mul(F(side), s * 0.052));
         const h = add(horn, mul(side, s * 0.045));
         steerRun(bags, e, h);
@@ -1966,7 +2002,8 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
       }
   }
   // the steering arm's two ears — where a spring hooks on — port first
-  const ears = [1, -1].map(s => add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
+  const ears = pc6 ? [1, -1].map(s => add(vP, mul(F(side), s * (Dp * 0.55 + 0.03))))
+                   : [1, -1].map(s => add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
                                     mul(F(side), s * 0.052)));
   // (G3800: no link, no ears - a lockable or a fixed wheel has no steering arm for the springs to hook on)
   return { hub, axis: F(side), ax, top, trail: P.twTrail, ears: showLink ? ears : null };
@@ -2618,43 +2655,52 @@ function legTailwheel(bags, AF, P, st) {
   const rise = st.rodRise || (st.mount && st.mount.rise) || 0;
   // G3800: a mount may carry its own keel and its own line (a twin boom's: the boom's belly, off the centreline)
   const keelAt = (st.mount && st.mount.keelAt) || AF.keelAt, x0 = (st.mount && st.mount.x0) || 0;
-  const tip = [x0, keelAt(st.z) - P.twSpringDrop - rise, tipZ];
+  let tip = [x0, keelAt(st.z) - P.twSpringDrop - rise, tipZ];   // (let: the oleo style moves it under the strut)
   const ctrl = [x0, root[1] - P.twSpringDrop * 0.30,
                 lerp3(root, tip, 0.55)[2]];
   const path = resample(bez(root, ctrl, tip, 12), 16);
-  // PC6-TAILWHEEL (15 Nov, the user: "mounted vertically on the aft back of the fuselage ... much more robust"): the POST
-  // style (twStyle 1, absent 0) - a stout vertical post from the fitting down `twPostLen`, a trailing ARM from its foot
-  // to the castor's top (the very point the leaf spring's tip stands on: the castor, the wheel and the contact are the
-  // spring's, so the flight is unchanged), a SHOCK from high on the post's aft face to the arm (the V on its side), and a
-  // GUARD triangle ahead of the tyre (tubes from the post's foot forward-down and back to the arm). A skid (steer 4)
-  // keeps its leaf blade
+  // PC6-TAILWHEEL (15 Nov, the user's own drawing over the render, the last word on it): the OLEO style (twStyle 1,
+  // absent 0) is a TRAILING LINK -
+  //   the CYLINDER (fixed, "spans the full height of the fuselage") clamped along the tail's aft face, its foot at the
+  //     keel ~8 deg aft of its top; the steering COLLAR at its foot is the castor's top (the swivel);
+  //   below the fuselage everything turns with the wheel (castorUnit, pc6): the PISTON down to just above the tyre, a
+  //     crosshead over the tyre; the "V on its side": its top member a U clasping the collar out to a hinge AHEAD, its
+  //     lower members two bands (one each side of the wheel) from that hinge straight to the axle, the crosshead's links
+  //     pressing on them; the steering cables hook at the V's hinge; a little mudguard;
+  //   the STABILISER (fixed, `twGuard` 0 drops it): two tubes from the belly ahead converging on a node low and forward,
+  //     a link from that node aft to the piston's foot (on the swivel's axis, so the steering does not move it).
+  // The wheel hangs `twLegDrop` below the collar (the contact: the keel less that drop less the radius); the collar sits
+  // `twSpringDrop` below the keel. A skid keeps its leaf
   if (Math.round(+P.twStyle || 0) === 1 && st.steer !== 4) {
-    const D = Math.max(0.03, +P.twPostD || 0.07), Lp = Math.max(0.10, +P.twPostLen || 0.28);
-    // ON THE AFT FACE (the user: "mounted vertically on the aft back of the fuselage"): the post stands just aft of the
-    // tail's aft face (AF.z0, the body's aft-most station; a twin boom's own mount keeps the fitting's station), from
-    // 60 % of `twPostLen` up the face down past the keel by the rest - never lower than one tube above the castor's top
-    const zP = (st.mount && st.mount.keelAt) ? F.p[2] : AF.z0 - D * 0.5;
-    const kP = keelAt(zP + D * 0.5), hP = AF.heightAt ? AF.heightAt(AF.z0 + 0.01) : Lp;
-    const top = [x0, kP + Math.min(Lp * 0.6, 0.8 * hP), zP], foot = [x0, Math.max(kP - Lp * 0.4, tip[1] + D), zP];
-    // the post: two clamp plates on the aft face and a round tube down
-    for (const f of [0.25, 0.85]) boxIn(bags.alloy, lerp3(foot, top, f), [D * 1.1, D * 0.7, 0.010], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-    sweep(bags.steel, resample([top, foot], 6), () => secRound(D / 2, 18), true, [1, 0, 0]);
-    // the arm: post foot -> the castor's top, a slimmer tube, a pivot boss at the foot
-    sweep(bags.steel, resample([foot, tip], 8), () => secRound(D * 0.36, 16), true, [1, 0, 0]);
-    revolve(bags.alloy, [x0 - D * 0.6, foot[1], foot[2]], [1, 0, 0], [[D * 0.42, 0], [D * 0.42, D * 1.2]], 18, true);
-    // the shock: from a third down the post's aft face to 60 % along the arm - a cylinder and its rod
-    const sTop = [x0, top[1] - Lp * 0.30, top[2] - D * 0.55], sBot = lerp3(foot, tip, 0.60);
-    const sMid = lerp3(sTop, sBot, 0.55);
-    sweep(bags.steel, resample([sTop, sMid], 6), () => secRound(D * 0.30, 14), true, [1, 0, 0]);
-    sweep(bags.alloy, resample([sMid, sBot], 6), () => secRound(D * 0.15, 12), true, [1, 0, 0]);
-    for (const e of [sTop, sBot]) revolve(bags.alloy, [x0 - D * 0.25, e[1], e[2]], [1, 0, 0], [[D * 0.20, 0], [D * 0.20, D * 0.5]], 12, true);
-    // the guard: a triangle ahead of the tyre (protection only - no load)
+    const D = Math.max(0.03, +P.twPostD || 0.07), Lp = Math.max(0.10, +P.twPostLen || 0.28), RAKE = PC6_RAKE;
+    const zS = (st.mount && st.mount.keelAt) ? F.p[2] : AF.z0 - D * 0.5;   // just aft of the aft face (a twin boom: its fitting)
+    // (the face's top: the section's centre plus its half-height - AF.cyAt / heightAt - less a hand for the clamp)
+    const kP = keelAt(zS + D * 0.5), zF = AF.z0 + 0.01;
+    const roofF = (AF.cyAt && AF.heightAt && !(st.mount && st.mount.keelAt)) ? AF.cyAt(zF) + AF.heightAt(zF) : kP + Lp;
+    const cylTop = [x0, Math.min(kP + Lp, roofF - D * 0.6), zS];
+    const yT = Math.min(tip[1], kP - 0.01);                               // the collar: at the keel (or below it)
+    tip = [x0, yT, zS - (cylTop[1] - yT) * Math.tan(RAKE)];               // the cylinder's foot, raked aft
+    const ax = nrm(sub(tip, cylTop)), at = s => add(cylTop, mul(ax, s)), Lc = Math.hypot(...sub(tip, cylTop));
+    // the cylinder, two clamp bands on the aft face (reaching the skin - a band that stops short floats: the user)
+    sweep(bags.steel, resample([cylTop, tip], 6), () => secRound(D / 2, 20), true, [1, 0, 0]);
+    revolve(bags.alloy, at(-D * 0.1), ax, [[D * 0.58, 0], [D * 0.58, D * 0.3]], 20, true);       // its cap
+    const zFace = (st.mount && st.mount.keelAt) ? zS + D * 0.5 : AF.z0 + 0.006;
+    for (const f of [0.18, 0.62]) { const c = at(Lc * f), half = Math.max(D * 0.31, 0.5 * (zFace - c[2]) + 0.004);
+      boxIn(bags.alloy, [x0, c[1], 0.5 * (c[2] - D * 0.31 + zFace)], [D * 1.25, D * 0.35, half], [1, 0, 0], [0, 1, 0], [0, 0, 1]); }
+    // THE STABILISER: the node ahead and low, its two tubes to the belly (each foot the skin's own point with a doubler
+    // pad: "make these robust, it's a generic option"), its link aft to the piston's foot
     if (+P.twGuard !== 0) {
-      const hub = [x0, tip[1] - (+P.twLegDrop || 0.1), tip[2] - (+P.twTrail || 0.05)];
-      const g = [x0, hub[1] - st.R * 0.15, hub[2] + st.R * 1.35];
-      const armAt = lerp3(foot, tip, 0.85);
-      sweep(bags.steel, resample([foot, g], 6), () => secRound(D * 0.20, 12), true, [1, 0, 0]);
-      sweep(bags.steel, resample([g, armAt], 6), () => secRound(D * 0.20, 12), true, [1, 0, 0]);
+      const hd = Math.max(0.12, +P.twLegDrop || 0.3), zMax = (AF.z1 != null ? AF.z1 : zS + 3) - 0.05;
+      const pB = add(tip, mul(ax, pc6PistonRun(hd, st.R)));                // the piston's foot (castorUnit's, on the axis)
+      const zH = Math.min(zMax - 0.3, tip[2] + pc6Ahead(st.R));
+      const za = Math.min(zMax, zS + 2.9 * hd), zb = Math.min(za - 0.10, zS + 1.6 * hd);
+      const A = fitOn(AF, st, za, 0).p, B = fitOn(AF, st, zb, 0).p;
+      const H = [x0, Math.min(yT - hd * Math.cos(RAKE) + st.R * 0.27, Math.min(A[1], B[1]) - D * 1.5), zH];
+      for (const [a0, b0] of [[A, H], [B, H]]) sweep(bags.steel, resample([a0, b0], 4), () => secRound(D * 0.24, 12), true, [1, 0, 0]);
+      sweep(bags.steel, resample([H, pB], 6), () => secRound(D * 0.26, 12), true, [1, 0, 0]);      // the link aft
+      for (const z of [za, zb]) padOn(bags, AF, st, z, 0, D * 1.8, D * 1.5, { thick: 0.006 });
+      revolve(bags.alloy, H, nrm(sub(A, H)), [[D * 0.30, -D * 0.3], [D * 0.30, D * 0.3]], 12, true);   // the node's fitting
+      revolve(bags.alloy, pB, ax, [[D * 0.42, -D * 0.25], [D * 0.42, D * 0.25]], 16, true);             // the link's ring
     }
   } else {
   // A LEAF SPRING IS LAMINATED: 3 leaves, each shorter than the one above
