@@ -1,7 +1,9 @@
 # REAL-CANON — ready (15 Nov 2026, REAL-FIGURES)
 
-Branch claude/real-canon (= claude/tail-retract-canon), onto master L40a 6a8d705c4 (merged at 11f911497). For L40c,
-merged first. PHYSICS_V 9 (8 never reached master; 9 = PHYS-SCALE + ELEC-SYSTEMS, both history lines in 60_gen_spec).
+claude/ready/real-canon (= claude/real-canon = claude/tail-retract-canon), ON MASTER L40c 58c681347 for L40d: L40c, then
+ALL of ELEC-SYSTEMS (claude/ready/elec-systems = elec-systems-eol e0ec0363b merged first, so its whole history is an
+ancestor: L40d can take elec-systems-eol out), then the stack (9b73e74ed, built on L40a). No built files against master:
+the train builds them. PHYSICS_V 9 (9 = PHYS-SCALE + ELEC-SYSTEMS, both history lines in 60_gen_spec).
 
 ## The layers
 
@@ -19,7 +21,7 @@ merged first. PHYSICS_V 9 (8 never reached master; 9 = PHYS-SCALE + ELEC-SYSTEMS
    the post gap's 0.05) and FIN-MOUNT (a raised stab hung on the fin, a swept fin root tied to the bay under it) only
    on a card with the row tailDrawn (the Super Petrel V4.2 and V4.1). Every other card's tail is as before PETREL-LS.
    The fleet-wide reading is the user's call, with pictures (the formula is the faithful one for the drawn chords).
-- ELEC-SYSTEMS merged (claude/elec-systems 0c3c1bd24).
+- ELEC-SYSTEMS: all of it (e0ec0363b, the ready's LINEUP fix and HANDOVER bytes included).
 - GATE STOL: preStol drops the core's neutral rows (GEN_BRAKES' brkHold: 0 read as DIFFERS).
 - The certificate key: one key in the page and in node (the spec's numbers at 12 digits); DMGCERTCOST floats budget
   1795 -> 1797.
@@ -31,49 +33,59 @@ replaces the per-kW figure; radialCowlK sets an unmeasured radial's). Exports: t
 key by key. HANDOVER: master's file with the stack's entries appended. STOL's fixture re-captured, REALBAND re-written
 (the DC-3: ENGINE-COOLING 4).
 
-## The gates
+## Onto L40c (Sun 15 Nov, A0's request)
 
-The full core battery, 316 gates, on 0125dbfe1 (Sat-Sun, 4 jobs, under load). Every red placed against the base
-(master 6a8d705c4 + claude/l40a-repin's fixture re-pins, c7020a536), the same check run there.
+Merge commits 426a84dc7 (ELEC-SYSTEMS onto 58c681347) and 9f77ac48f (the stack), every conflict a union - both sides'
+features kept:
+- TAIL-RETRACT x the ultralight monowheel (30_solver, 60_gen_spec, 62_gen_aero, _cage_join, _cage_gear): a retract on
+  a tricycle, a taildragger (its mains; `tail`) or the ultralight monowheel (`fixedTw`); either keeps the tail wheel down.
+- STRUT-OPTIONS x the Archaeopteryx rows (GEN_CAGE_ROW_NEUTRAL, CAGE_DEFAULT_ABSENT, the bracing rows, refs.strutDrag);
+  BIPLANE-SIZING's member massK x the rod / hub / ultralight factors; MASS-SCALE's class ceiling x the build-weight
+  ceiling; BUSH-WHEELS' carcass law x the bicycle wheel.
+- PETREL-LS x the hub: the rod's root-aft / socket rows and the hub's socket (no flange on either); the cabane pylon's
+  bpPylonZ / bpPylonLen ported into L40c's cabPylonDraw (_cage_wing) - its centreline caster only when they are set, so
+  every other pylon draws as on L40c; quickshot's open frame / crew / tints x --half / --wire / the hub's paint.
+- HANDOVER.md: master's bytes + the REAL-CANON entry (the stack's other entries are in L40c already); CR 204913.
+- GATE STOL's baseline re-captured on this tree (_stol_samebits --root=this tree), REALBAND re-written with its reason:
+  every live plane's figures equal the stack's own on L40a - the merge moved no physics.
 
-FIXED on the stack (green on the tip):
-- LINEUP (the gate read the stand mid-settle: f5805a35c), STRUTOPT (the body row less ENGINE-COOLING's measured cool,
-  7e4c2a000), PARTS (tailDrawn on the tightening panel's row list), ENGINEDIALS (the DC-3's pitch 'cs' -> 'standard',
-  the physics already flew standard, 439fdcf2c), DMGDETERMINISM's 24th stray (62_gen_aero's skin-friction pow on
-  CORE_MATH, 6cc3cf71a; the 23 others and the Chromium/node hashes are the base's).
-RE-PINNED for the stack's deliberate physics (PHYSICS_V 9), the reason in each gate file:
-- WINGSPLIT (baefc9247): ELEC-SYSTEMS' harness moves the CG, the drawn wing translates by +1.101 / -0.451 / 0 mm in the
-  CG frame; only the "p" and hinge digests moved.
-- ENERGYBASE (8929eb23e): the harness, +0.58 to +0.93 kg on 13 Cub cases (the flip measured at 614822358^ / 614822358).
-  The carbon case is left at master's numbers: its -48 kg is master's own red (L40a's list).
-- PROCURE (8929eb23e): twelve option effects re-emitted (PHYS-SCALE's take-off deltas, the tundra tyres 7 -> 3 kg; the
-  harness on the avionics fits). Green on the base, green on the tip.
-- FREIGHT (87eb7e466): the five freight cards' mass blocks (+0.7 to +1.6 kg, the harness); holds, seats, doors the
-  same bytes. CARDS, CONTRACTS, CREWSEATS, LOADS, MISSIONS, SAVE, SIMWORKER green after.
-- JOINPARITY (68a4346da): the page fixture re-captured for two rows only (--only): the twin floatplane 477.615 -> 474.525
-  kg (the stack's masses; the float station 1.2333 -> 1.2194 with it), the V4.1 831 -> 845 bars (TAIL-LATENT's FIN-MOUNT
-  on its tailDrawn row). Left red, the base's own: the Jodel mass, the tool census line.
-RED, the base's own (the same failing checks on the base; most on L40a's STANDING list): ALTIPORT, CANDIDATES
-(pc6_drafting), CREWLOAD, DESIGNCHECK, DESTTO, DMGCERT, DMGCLUSTERS, DMGDAMP, DMGFABRIC, DMGINST, DMGLOOK, DMGPOD,
-DMGSCAR, DMGTYRE, DMGWALL, ENERGYBASE (carbon), ENGCONFIG, ENGINE, ENGTORQUE, FLEX, FLIGHTREC, FLOATLETTERS, GEN,
-HOUSEWORKER, LAZY, LIVERY, LOAD, NAMES, NODUMMY, POD, RADIALDIV, ROUNDTRIP, SCENERYED, SHADOWSKY, DMGDETERMINISM (23).
-RED, the stack's, each with its cause:
-- CANDIDATES +2: THE CANON's one row per plane (the user, 10 Nov) took superpetrel_V4_1.json out of the pool for V4.2
-  (the file stays: the damage gates fly the V4.1), and jodel_geo.json waits for FLAGSHIP's list:2 re-point (L40c). A0:
-  list them, or the gate learns a "fixture, not offered" row.
-- DMGINTEGRITY (the metal Cessna's engine through the firewall with the limiters): a knife edge, not ELEC's bug - swept
-  round the gate's case, the engine went through in 5 of 7 points before the harness, 6 of 7 after. A0's ruling.
-- DMGGEAR: base-or-not, stated: the twin floatplane's touchdowns and the V4.1's float dig-in / nose-in are the base's;
-  NEW is the V4.1's FIN-MOUNT swept-root tie at touchdown (0.67 / 0.68 at 1.0 / 1.5 m/s, 1.03 at the FAR 23.473 sink;
-  the base 0.40 / 0.50 / 0.31). It comes with tailDrawn on the V4.1 (1e0957ae1), which cleared its DMGCERT pull (1.21
-  without). One of the two stands either way: PETREL-LS's owner / A0 to rule.
-- FRAMECOST (+19 items: the parked draws 0 -> 123 at the stand, 193 taxiing) and PARKED (over its wall): the parked
-  cook src/core/parked_packs.json is keyed to the build id, so any core change makes it stale and the page captures
-  the four parked planes live. Re-cook (tools/parked_cook.js, needs a GPU) after L40d's build.
-- BENCH: builds/rufus_2026-10-18_certified.json is stamped PHYSICS_V 7 and the stack is 9; the Rufus file is not to be
-  touched. The user's / A0's call (re-certify, or the gate reads the stamp's era).
-TIMING under the battery's load, GREEN run alone on the tip (Sun): HITBOX, PREMISES, BENCHTIME, DMGCERTCOST, DMGUPLOAD,
-SETTLE. BENCH's timing lines ride with its Rufus stamp red. TREECRASH's timeout is master's (6a8d705c4's baseline).
+## The gates (L40c, Sun 15 Nov)
 
-OPEN for A0: CANDIDATES' two files; DMGINTEGRITY's knife edge; the V4.1's FIN-MOUNT tie (DMGGEAR) vs its DMGCERT pull;
-BENCH's Rufus stamp; the parked re-cook (GPU) after L40d's build. Brakes (GEN-BRAKES) come in their own ready next round.
+On this tree (the merge, 9f77ac48f + 123c7b63f): the 249 core gates that are NOT on L40c's 45 standing, 4 jobs,
+4 h 39 wall. L40c's 45 standing were not re-run (A0: "name any red not among them"); the ones run earlier on this tree
+(GEN, ALTIPORT, DESTTO, FLEX, SHADOWSKY, TAXICLEAR) fail as on L40c. STOL (the fixture re-captured on this tree) PASS.
+Every red placed against 58c681347 (the same check run there):
+
+FIXED on this tree (this commit) - TAIL-RETRACT x the ultralight monowheel, a merge interaction (after it: ULTRALIGHT's G,
+RETRACT, MONOWHEEL, ENGINELESS, STOL, REALBAND, KNIFE, STORY, WEARTAB, WEARPRICE, LIVERYTEXT green):
+- ULTRALIGHT G: the join wrote a retraction for every taildragger, the standard monowheel's included (clampSpec drops it
+  there, the gate reads the join's spec), and the frame billed the taildragger's powered kit (12 kg at the least) ON TOP
+  of the ultralight's own 0.6 kg (+16.54 kg). Now: _cage_join retracts a taildragger's mains only on two wheels
+  (`taildragger && !mono`); 61_gen_frame's TAIL-RETRACT kit skips the ultralight monowheel (`!GUL`). ULTRALIGHT's G green (the LS4, the one build with a retracting ultralight monowheel, billed
+  its own 0.6 kg kit again).
+RED, the stack's, with its cause:
+- NACELLE B (high wing, parasol) and ULTRALIGHT B (the pod) / D (the mast), ONE cause - the Archaeopteryx (master's card,
+  newer than the piece): RUCKUS's "the join measures a ROD boom's body profile" (f9818c3b2, from 7741c3a73; on a rod the
+  profile block never ran and a build kept an earlier join's profile). The Archaeopteryx now flies its own drawn pod: the
+  keel rises aft of it (the S3 ring 0.94 m over the datum; L40c 0.19), empty 80.4 -> 79.6 kg, the carbon pod 24.5 ->
+  17.8 kg. The gates were pinned on the stale profile:
+  - NACELLE B: the mast's aft foot (1.756 m) sits ON the new keel line (0.069 m, the line 0.071 m); the gate compares it
+    to the lowest keel within 0.7 m (-0.020 m): 0.089 > 0.08 (a flat-keel assumption);
+  - ULTRALIGHT B: the soft shell 3.8 kg against the carbon's 17.8 (0.21, the bound 0.2; L40c 4.4 / 24.5 = 0.18);
+  - ULTRALIGHT D: off the mast the wing sinks 3.4 cm against 1.4 on it (the bound: 3 cm more; L40c 6.4 / 0.8).
+  A physics change on a card that is not the stack's: the user's call through A0. Either the profile stays (the
+  Archaeopteryx's three checks re-pinned by their owner, NACELLE's foot read on the interpolated keel) or the stack keeps
+  the stale-profile behaviour for that card. Not changed here.
+- BENCH: builds/rufus_2026-10-18_certified.json stamped PHYSICS_V 7, the stack is 9 (the Rufus file is not touched).
+- PARKED (over its wall; FRAMECOST is on the standing list): the parked cook is keyed to the build id - re-cook
+  (tools/parked_cook.js, a GPU) after L40d's build.
+RED, the base's own (on L40a's list; the same failing checks): CREWLOAD (the retry clock), DMGLOOK (the cub / metal
+plans), HOUSEWORKER (1800 s timeout), LAZY (route_draw's first fetch), SCENERYED.
+TIMING under the battery's load (4 jobs on 4 cores): BENCHTIME (6.0-8.3 s against 6 s; green run alone on Sat's tip),
+BIPLANE (a biplane's build 3.58x the stock, the bound 3x) and DUST (p99 over 1 ms a frame): both GREEN run alone on this commit's tree.
+Re-pinned on the line for the stack's deliberate physics (PHYSICS_V 9), each reason in its gate: WINGSPLIT, ENERGYBASE
+(carbon at master's), PROCURE, FREIGHT, JOINPARITY's page fixture (two rows), STOL's fixture, REALBAND.
+
+OPEN for A0: the Archaeopteryx's profile (NACELLE B, ULTRALIGHT B / D, above: the user's call); CANDIDATES +2 (FIT-PROCEDURE / FLAGSHIP, A0's note); DMGINTEGRITY's
+knife edge and DMGGEAR's V4.1 FIN-MOUNT tie (standing, rulings as before); BENCH's Rufus stamp; the parked re-cook
+(GPU) after L40d's build. Brakes (GEN-BRAKES) in their own ready.

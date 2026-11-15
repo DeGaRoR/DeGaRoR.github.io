@@ -3351,7 +3351,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   }
   // TAIL-RETRACT (2026-11-09): A TAILDRAGGER'S RETRACTION KIT, on the mains' axles (their actuators, locks and
   // trunnions; the tailwheel stays fixed); priced once, as the tricycle's
-  if (!trike && S.gear.retract && GAL != null && GAR != null) {
+  if (!trike && S.gear.retract && !GUL && GAL != null && GAR != null) {   // (the ultralight monowheel's kit is its own: GEN_RULES.ulGear)
     const kit = R.retractKg(gross);
     pt(GAL, kit / 2); pt(GAR, kit / 2);
     spend(GEN_PRICES.retract);

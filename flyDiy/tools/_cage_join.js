@@ -497,7 +497,7 @@ function cageJoinSpec(P, M, T) {
     // (the gear layer's GEAR_RETRACTABLE; clampSpec drops it on any type but a tricycle); written only when chosen, so a
     // fixed build's spec is what it was, to the bit
     // (TAIL-RETRACT: a taildragger's mains retract too, its tailwheel stays down)
-    if (+P.gearRetract && (M.gearType === 'tricycle' || M.gearType === 'taildragger' || (M.mono && +P.s1Ul)) && !+P.gearFloats) {        // (GR: any wing - the Catalina's hull; the ultralight monowheel, its main alone)
+    if (+P.gearRetract && (M.gearType === 'tricycle' || (M.gearType === 'taildragger' && !M.mono) || (M.mono && +P.s1Ul)) && !+P.gearFloats) {        // (GR: any wing - the Catalina's hull; the ultralight monowheel, its main alone)
       // (the ultralight monowheel's is a sailplane's - the pilot's lever, an over-centre link and a gas strut: manual,
       // ~3 s, no user choice; GEN_RULES.ulGear.retractKg)
       const ulR = M.gearType !== 'tricycle' && M.mono && +P.s1Ul;

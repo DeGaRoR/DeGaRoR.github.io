@@ -316384,10 +316384,20 @@ futureDesigns/ELEC-SYSTEMS-2026-11.md; the hand-over: ELEC-SYSTEMS-READY.md.
 
 # REAL-CANON READY (Sun 15 Nov, claude/ready/real-canon; rides L40d)
 
-The stack claude/real-canon (= claude/tail-retract-canon) on master L40a: PHYS-SCALE, STRUT-OPTIONS, the RUCKUS pieces,
-PETREL-LS, THE CANON, TAIL-RETRACT, PETREL-FRAME, TAIL-LATENT, ELEC-SYSTEMS; PHYSICS_V 9. flyDiy/REAL-CANON-READY.md
-places every red of the full battery (316) against the base. Re-pinned with their reasons (the stack's deliberate
-physics): WINGSPLIT, ENERGYBASE (carbon left at master's), PROCURE, FREIGHT, JOINPARITY's page fixture (re-captured with
-node tools/join_parity_page.js --only twinFloats / --only petrel: the twin floatplane's masses, the V4.1's FIN-MOUNT bars).
-Stack reds with causes: CANDIDATES (+V4.1, +jodel_geo), DMGINTEGRITY (knife edge), DMGGEAR (the V4.1's tail tie),
-FRAMECOST / PARKED (the parked cook is stale: re-cook on a GPU after the train's build), BENCH (the Rufus stamp is V 7).
+The stack claude/real-canon (= claude/tail-retract-canon) ON MASTER L40c 58c681347, no built files: L40c, then ALL of
+ELEC-SYSTEMS (e0ec0363b merged, its whole history an ancestor: L40d can take elec-systems-eol out), then PHYS-SCALE,
+STRUT-OPTIONS, the RUCKUS pieces, PETREL-LS, THE CANON, TAIL-RETRACT, PETREL-FRAME, TAIL-LATENT; PHYSICS_V 9.
+flyDiy/REAL-CANON-READY.md places every red of the 249 non-standing gates against 58c681347. Fixed here: ULTRALIGHT's G
+(TAIL-RETRACT x the ultralight monowheel: the standard monowheel no longer retracts, its kit billed once). Stack reds:
+NACELLE B and ULTRALIGHT B / D (one cause: RUCKUS's rod-boom profile makes the Archaeopteryx fly its own drawn pod,
+80.4 -> 79.6 kg; its checks were pinned on a stale profile - the user's call via A0), BENCH (the Rufus stamp, V 7), PARKED (re-cook on a GPU after L40d's build). The rest is L40c's own
+or timing under load. Re-pinned on the line: WINGSPLIT, ENERGYBASE, PROCURE, FREIGHT, JOINPARITY (two rows), STOL,
+REALBAND.
+
+A0's question - what toM is: CONTRACT_DESIGNS.toM (src/core/72_contract_data.js) is genShakedown's TORun at the design's
+massKg (64_gen_build.js genTORunAt): the ground roll (CRR 0.05, 00_registry; the take-off flap notch, the roll attitude,
+ground effect, the sim's sea-level air) PLUS an air segment to a 2.5 m screen (an energy height over the excess-thrust
+gradient) - not 50 ft, and not the roll alone. A contract scales it by (W/W0)^2 x the surface (73_contracts.js
+CONTRACT_FIT.surf: paved 1.0, gravel / dirt 1.1, grass 1.15, sand 1.25, snow 1.3, water 1.0). The list:50 cessna172r at
+its gross 1128 kg rolls 290 m (REALBAND TOgrass) against the POH's 945 ft = 288 m; its toM 331 m is that roll plus the
+air segment at the snapshot's mass. The old 144 m was the 880 kg bugReports Cessna.
