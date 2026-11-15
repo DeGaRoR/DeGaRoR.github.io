@@ -59,8 +59,13 @@ const endG = s => W.terrainH(STRIP.x + Math.cos(STRIP.hdg) * s, STRIP.z + Math.s
 
 function fly(cs, leg) {
   const code = cs.snow;
+  // (the case's snow on the strip and over the summit's snowfield; where the RECORD already lays snow off the strip - the
+  //  apron's packed snow, OBSERVATORY-3 - the record's own: the stand and the taxi feel what the site says)
+  const onStrip = (x, z) => Math.abs(along(x, z)) <= STRIP.len / 2 + 10 && Math.abs(across(x, z)) <= (STRIP.wid || 12) / 2 + 3;
   W.surface = code == null || code === 'record' ? surf0
-    : (x, z) => (Math.hypot(x - STRIP.x, z - STRIP.z) < SNOW_R && W.terrainH(x, z) > SNOW_ALT ? code : surf0(x, z));
+    : (x, z) => { const r = surf0(x, z);
+        if (!(Math.hypot(x - STRIP.x, z - STRIP.z) < SNOW_R && W.terrainH(x, z) > SNOW_ALT)) return r;
+        return r >= 8 && !onStrip(x, z) ? r : code; };
   const def = TR.defOf(C, PT, cs.build);
   const from = leg === 'land' ? HOME : STRIP, to = leg === 'land' ? STRIP : HOME;
   const H = TR.gameHost(C, W, def, from, to, { profile: persona, lineup: LINEUP && leg === 'to' });
