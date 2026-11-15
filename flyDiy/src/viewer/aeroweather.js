@@ -241,6 +241,7 @@ const AERO_WX_DEF = {
 const AERO_WX = {
   macro: { age: 0, flight: 0, bush: 0, rain: 0 },
   pin: {},                    // layer key -> pinned strength (the bench)
+  live: null,                 // SNOW-MUD FINISH: the flight's own mud coat (aeroMudStep), added over the macros' layers
   U: null,                    // the shared uniform block, once
   lab: { layers: {}, cols: {}, knobs: {} },   // deviations only
 };
@@ -248,6 +249,38 @@ const AERO_WX_NE = 4, AERO_WX_NW = 6;
 const AERO_WX_LAB_KEY = 'flydiy.aeroWx';
 
 function aeroWxClamp01(v) { return Math.max(0, Math.min(1, +v || 0)); }
+
+// SNOW-MUD FINISH: THE MUD COAT (A0 for the user, 15 Nov: "mud builds up on the gear, belly and flaps after mud ops. It wears
+// with rain or water landings"). One number m (0 clean .. 1 caked), the FLIGHT'S - not the airframe's career wear (the BUSH
+// macro, a saved build's look): it builds while the wheels roll on mud (SURFACE 11 / 12) and is washed by rain and by water.
+// It is drawn through the layers that already put mud where a wheel throws it: the WHEEL MUD cone (gear legs, the belly and the
+// flap undersides aft of the tyres, the tyres' own grooves) at full m, the BELLY dirt at AERO_MUD.belly x m, the dirt in the
+// depressions at AERO_MUD.dep x m - added over the macros' strengths, clamped, so a caked strip plane is caked whatever its
+// wear. The law (pure, per frame; ESTIMATES for the feel, no source in hand):
+//   build   kAcc x the mains' share on mud x min(V, vMax) / vRef x (0.4 + min(1, sink / sinkRef)) x (1 - m)   [/s]
+//           (the stock Cub's soft-mud take-off run, ~15 s, cakes it over half; a firm-mud taxi of a minute about half)
+//   rain    kRain x rain (0..1) x (1 + V / vRain) x m   [/s]   (ten minutes of steady rain parked washes most; flying in it faster)
+//   water   kWater x (0.3 + V / vWater) x m             [/s]   (a water landing's run washes the gear in ~10-30 s)
+const AERO_MUD = { kAcc: 0.08, vRef: 10, vMax: 25, sinkRef: 0.05, kRain: 1 / 600, vRain: 30, kWater: 1 / 25, vWater: 5, belly: 0.6, dep: 0.3 };
+// -> the new m. o: { mud (0..1, the mains' share on mud), V (m/s), sink (m), rain (0..1), water (0/1: wheels or hull in water) }
+function aeroMudStep(m, dt, o) {
+  const K = AERO_MUD; m = aeroWxClamp01(m);
+  if (!(dt > 0) || !o) return m;
+  const V = Math.max(0, +o.V || 0);
+  const acc = K.kAcc * aeroWxClamp01(o.mud) * Math.min(V, K.vMax) / K.vRef * (0.4 + Math.min(1, Math.max(0, +o.sink || 0) / K.sinkRef)) * (1 - m);
+  const wash = K.kRain * aeroWxClamp01(o.rain) * (1 + V / K.vRain) * m + (o.water ? K.kWater * (0.3 + V / K.vWater) * m : 0);
+  return aeroWxClamp01(m + (acc - wash) * dt);
+}
+// the coat onto the live block: the layers it raises (none at m = 0 - the old look exactly)
+function aeroWxSetMud(THREE, m) {
+  if (THREE) aeroWxSharedU(THREE);
+  m = aeroWxClamp01(m);
+  const was = AERO_WX.live ? AERO_WX.live.m : 0;
+  if (Math.abs(m - was) < 0.004 && !(m === 0 && was > 0)) return was;   // (a refresh only when it moved: the coat grows over seconds)
+  AERO_WX.live = m > 0 ? { m, mud: m, belly: AERO_MUD.belly * m, dep: AERO_MUD.dep * m } : null;
+  aeroWxRefresh();
+  return m;
+}
 
 // THE MACROS -> THE LAYERS. Pure: a spec's weather in, 24 strengths out.
 function aeroWxResolve(macro, pin) {
@@ -551,6 +584,7 @@ function aeroWxRefresh() {
   const U = AERO_WX.U;
   if (!U) return;
   const L = aeroWxResolve(AERO_WX.macro, AERO_WX.pin);
+  if (AERO_WX.live) AERO_WX_LAYERS.forEach((Ly, i) => { const a = AERO_WX.live[Ly.k]; if (a > 0 && AERO_WX.pin[Ly.k] == null) L[i] = Math.min(1, L[i] + a); });   // SNOW-MUD FINISH: the coat
   for (let i = 0; i < AERO_WX_NL; i++)
     U.uWxL.value[i].set(L[i * 4], L[i * 4 + 1], L[i * 4 + 2], L[i * 4 + 3]);
   AERO_WX_COL.forEach((C, i) => U.uWxC.value[i].set(C.v[0], C.v[1], C.v[2], C.v[3]));
@@ -567,7 +601,7 @@ function aeroWxRefresh() {
   // `if (aeroWxOn > 0.0)` on the macros, so a pinned layer over four zero
   // macros would draw nothing and measure as nothing (the first measureAll
   // came back 24 x 0 %). A thousandth of age is invisible everywhere else.
-  if (Object.keys(AERO_WX.pin).length)
+  if (Object.keys(AERO_WX.pin).length || AERO_WX.live)   // (SNOW-MUD FINISH: a live coat opens it too)
     U.uWear.value.x = Math.max(U.uWear.value.x, 1e-3);
 }
 // the spiral off a decal block (the editor's live DEC, or the flown build's
@@ -1426,7 +1460,7 @@ const AEROWX_API = {
   AERO_WX_DEF, AERO_WX_GLOSS_OK, AERO_WX_NL, AERO_WX_NE, AERO_WX_NW, AERO_WX,
   aeroWxResolve, aeroWxMacroFromSpec, aeroWxMacroToSpec,
   aeroWxGrunge, aeroWxGrungeTex, AERO_WX_GRUNGE_PX, aeroWxCavity, aeroWxBakeCavity,
-  aeroWxSharedU, aeroWxFinishU, aeroWxRefresh, aeroWxSetMacro, aeroWxPin,
+  aeroWxSharedU, aeroWxFinishU, aeroWxRefresh, aeroWxSetMacro, aeroWxPin, AERO_MUD, aeroMudStep, aeroWxSetMud,
   aeroWxSetDebug, aeroWxSetSources, aeroWxCraftOf, aeroWxSetSpiral, AERO_WX_SPIRAL_DEF,
   aeroWxLabGet, aeroWxLabSet, aeroWxLabReset, aeroWxLabResetRow, aeroWxLabExport, AERO_WX_LAB_KEY, AERO_WX_KNOB_RANGE,
   AERO_WX_PARS_FS, AERO_WX_SURF_FS, AERO_WX_CC_FS, AERO_WX_GLASS_FS,

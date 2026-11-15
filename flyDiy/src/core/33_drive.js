@@ -69,7 +69,7 @@ const GEN_DRIVE = {
   // error"): the allowance is the SURFACE's (20_world SURFACE order: GRASS, ROCK, SCREE, FOREST_FLOOR, WATER, PAVED,
   // GRAVEL, SAND) - 10 cm on the soft ground (grass, the forest floor, sand), 5 cm on the loose (scree, gravel), 1 cm on
   // the hard (rock, paved); the water has its own test (none); off the map's surfaces (-1) the grass's (`turf`)
-  turfS: [0.10, 0.01, 0.05, 0.10, 0, 0.01, 0.05, 0.10],
+  turfS: [0.10, 0.01, 0.05, 0.10, 0, 0.01, 0.05, 0.10, 0.05, 0.10, 0.10, 0.10, 0.10],   // SNOW-MUD 8-12: packed snow loose, the rest soft
   // TAXI-STRIKE (9 Nov, Deform's 172 diag: full power, the nose pushed down at 3.5 m/s on HOME's runway - the disc bit the
   // paving, graded a 'soft' separation (tip 236 > 200 m/s, bite under 15 % R), and the engine ran on at 2370 rpm into the
   // runway until the mount tore off): 'hard' is the ground the turf table calls hard (rock, paving) - past the brush the

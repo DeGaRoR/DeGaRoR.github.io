@@ -151,6 +151,11 @@ const GATES = [
   // skis) holds for the stock Cub, the float Cessna and an amphibian, and the three pilots never plan a landing on the
   // wrong surface (~10 s; --selftest)
   { id: 'STRIPSURF', file: '_surface_check.js', tier: 'core', wall: 15 },
+  // SNOW-MUD (13 Nov): the five soft rows (packed / powder / wet snow, firm / soft mud) and their layer - the eight hard
+  // rows frozen and 16 legacy rolls bit-identical to master; the sinking with pressure (load, width, diameter, the
+  // carcass, the layer's depth; the ski's plate); the take-off runs and braked rolls of the stock, tundra and tricycle
+  // builds on each; the looks and the gear rule (~100 s; --selftest, --show)
+  { id: 'SOFTGROUND', file: '_softground_check.js', tier: 'core', wall: 230 },
   // G193: the user's ultralight off the stand through the declared pattern —
   // the stop, the straight roll, in calm air and in wind (~3 min)
   { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core', wall: 300 },
@@ -1027,6 +1032,22 @@ const GATES = [
   { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
   { id: 'WATER', file: '_water_check.js', tier: 'core' },   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
   { id: 'DUST', file: '_dust_check.js', tier: 'core' },   // DIRT-DUST (2026-11-09): the strip's dust - the weather, the sources, the pools, the batch, the cost
+  // SNOW-MUD FX (13 Nov): the snow's cloud and the mud's projection on the dust's one system - the dust's five classes
+  // unchanged; powder clouds (>= 1.5 x dirt) and settles, packed snow drifts; mud and slush never cloud, throw clods and
+  // drops no higher than 2 m, shed at speed not at a walk, plough with the sinkage, splat and lie (~1 s; --selftest, --show)
+  { id: 'SNOWMUDFX', file: '_snowmud_fx_check.js', tier: 'core', wall: 10 },
+  // SNOW-MUD FINISH (15 Nov): THE VISUAL SINK - the solver's per-wheel sinkage (out.softW, soft frames only), the plane through
+  // the contacts (groundSinkPose), the drawn aeroplane's rigid motion (groundSinkMatrix): every drawn wheel stands its own
+  // sinkage in the layer, the contact stays at the hard ground; the absent case one compare (~3 s; --selftest, --show)
+  { id: 'SINKVIS', file: '_sinkvis_check.js', tier: 'core', wall: 10 },
+  // SNOW-MUD FINISH (15 Nov): THE MUD COAT - mud builds on the gear, the belly and the flap undersides while the mains roll on
+  // mud (faster deeper in, faster at speed), rain and water wash it; drawn through the wheel mud / belly / depression layers
+  // over the macros', none at nought; app.js's wiring (~8 s; --selftest, --show)
+  { id: 'MUDCOAT', file: '_mudcoat_check.js', tier: 'core', wall: 20 },
+  // SNOW-MUD FINISH (15 Nov): THE CUB, THE C172 (list:50) AND THE PC-6 FLOWN ON MUD - the pilot's circuits from HOME on
+  // grass, firm and soft mud (take-off roll, landing roll, outcome) and the stuck limits (soft mud's k scaled down, full power
+  // from rest); the table printed. Three child processes; ~9 min - the full tier's, as the archetype sweeps
+  { id: 'MUDFLY', file: '_mudfly_check.js', tier: 'full', timeout: 1800_000, wall: 600 },
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)
