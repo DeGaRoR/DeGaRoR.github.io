@@ -196,6 +196,17 @@ var COVER_RING = (() => {
     shingle:       { h: 0.30, sigma: 0.35, dens: 0.1, fill: 1 },            // shingle (11): the upper shore's tufts
   };
   const FIELD_MEADOW = FIELD_TYPES.grassland;
+  // GRASS ON GREEN (LOOK-1 15 Nov; the user: "everything green should get some grass ... Flight simulator would spawn grass on
+  // anything colored greenish. Green ground without grass looks bad"): the ground AS DRAWN decides too, not only its type's row.
+  // greenOf(linear rgb) -> 0..1: how green the drawn ground reads - its green over its red past `lo` across `span`, its blue
+  // under its green, and not black. The library's sets: lush 1.82 -> 1, grass 1.28 -> 0.77; dry 0.83, dirt 0.82, mud 0.78,
+  // grassRock 0.72, forest floor 0.66, snow (blue over green) -> 0. A green node grows at least `greenDens` x its greenness,
+  // the length its type's row (or the meadow's where the type has none) - so a green verge, field or slope is never bare.
+  const greenOf = (c, lo, span) => {
+    if (!c || !(c[1] > 0.02) || c[2] >= c[1]) return 0;
+    const t = (c[1] / Math.max(1e-3, c[0]) - lo) / span; if (!(t > 0)) return 0;
+    const s = Math.min(1, t); return s * s * (3 - 2 * s);
+  };
   // THE TUFT (GRASS-STUDY §4.2): the shipped patch's CARDS (its connected strips, by the index buffer) grouped K nearest to
   // nearest, each group one small geometry - the patch's own vertices, normals, uvs and AO, the group moved as a whole so its
   // foot is at the origin (a card is not bent, cut or redrawn). Of all the tufts the `keep` closest to the median one (its top,
@@ -258,7 +269,8 @@ var COVER_RING = (() => {
           root: 0.6, rootH: 0.8,   // (VEG-ROOT 10 Nov ~21:30: the field is grass_reed, MID; 22:20 its fade to 80 %) G2571: the root gradient's strength (0 = none) and the share of the tuft's height it fades out by (VEG-ROOT 9 Nov: on, the cover's row)
           lakeMargin: 0.03,      // G2572: how far ABOVE a lake's water the ground must stand for a tuft (m; render_world okAt; the sea keeps 0.3)
           tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
-          colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1 }
+          colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1,
+          green: 1, greenDens: 0.8, greenLo: 1.05, greenSpan: 0.3 }   // GRASS ON GREEN (15 Nov): green 0 = today's (the A/B)
       : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true,
           aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140, trunc: 1 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     // THE FIELD SHIPS OFF until its cost is cut (A0, train 43: the dials early, the field behind its editor switch - VEGETATION > the
@@ -500,6 +512,18 @@ var COVER_RING = (() => {
       let bmax = 0, lawn = 0, paved = false; for (let k = 0; k < N * N; k++) { if (boost[k] > bmax) bmax = boost[k]; if (kind[k] === 1) lawn++; if (kill[k] > 0 || cut[k] > 0 || boost[k] > 0 || kind[k]) paved = true; }
       const G = { N, mix, code, ok, col, kill, boost, kind, cls, lawnH, lawnD, at, bmax, lawn, bush, cut, surf, shore, nShore };
       if (FIELD) {
+        // GRASS ON GREEN (15 Nov): each node's greenness, from the colour the field already reads (the ground as drawn); none on
+        // mud or snow (SNOW-MUD's surfaces, by name - absent before it lands) whatever the colour says
+        const green = G.green = new Float32Array(N * N);
+        if (S.green > 0) {
+          const SF = world.SURFACE || {}, soft = [SF.SNOW_PACKED, SF.SNOW_POWDER, SF.SNOW_WET, SF.MUD_FIRM, SF.MUD_SOFT].filter(v => v !== undefined);
+          for (let j = 0, k = 0; j < N; j++) for (let i = 0; i < N; i++, k++) {
+            if (!ok[k] || code[k] === 0 || code[k] === 1) continue;   // (the sea and a lake's code: water's, whatever colour - G2572 above
+            //  already gave a lake's DRY bank its land code)
+            if (soft.length && world.surface && soft.includes(world.surface(x0 + i * SG, z0 + j * SG))) { ok[k] = 0; continue; }
+            green[k] = greenOf([col[k * 3], col[k * 3 + 1], col[k * 3 + 2]], S.greenLo, S.greenSpan);
+          }
+        }
         // the colour between the nodes (bilinear: the imagery is 10 m, the nodes 4 m - a tuft's root on its own colour)
         G.colB = (x, z) => { const fx = Math.min(N - 1.001, Math.max(0, (x - x0) / SG)), fz = Math.min(N - 1.001, Math.max(0, (z - z0) / SG)), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
           const o = [0, 0, 0]; for (const [di, dj, w] of [[0, 0, (1 - tx) * (1 - tz)], [1, 0, tx * (1 - tz)], [0, 1, (1 - tx) * tz], [1, 1, tx * tz]]) { const k = (j + dj) * N + i + di; o[0] += col[k * 3] * w; o[1] += col[k * 3 + 1] * w; o[2] += col[k * 3 + 2] * w; }
@@ -737,7 +761,12 @@ var COVER_RING = (() => {
           const cov = (R0.dens !== undefined || D.fill) ? 1 : (F.cover === undefined ? 1 : F.cover);
           T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * cov, clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp) }; }
         types.set(mix, T); return T; };
-      let dmax = 0; for (let k = 0; k < G.N * G.N; k++) { const T = typeOf(G.mix[k]); if (T && T.dens > dmax) dmax = T.dens; }
+      // GRASS ON GREEN (15 Nov): a node's density is at least greenDens x its greenness; a green node of a type with no row of
+      // its own (a bare biome, no mix) grows the meadow's length at that floor
+      const gD = S.green > 0 ? Math.max(0, +S.greenDens || 0) : 0, GR = G.green;
+      const densAt = (T, k) => Math.max(T ? T.dens : 0, gD * GR[k]);
+      const FIELD_GREEN_T = { h: FIELD_MEADOW.h, sigma: FIELD_MEADOW.sigma, dens: 0, clumpM: S.clumpM, clumpAmp: S.clumpAmp };
+      let dmax = 0; for (let k = 0; k < G.N * G.N; k++) { const d = densAt(typeOf(G.mix[k]), k); if (d > dmax) dmax = d; }
       const cutMax = Math.max(1, S.cutDens, S.stripDens);
       const env = S.tufts * dmax * cutMax * (1 + G.bmax);   // the candidates' density: every keep below is a share of it
       if (env <= 0) { STAT.lastMs = performance.now() - t0; return cell; }
@@ -749,14 +778,15 @@ var COVER_RING = (() => {
       for (let i = 0; i < n; i++) {
         const x = x0 + R() * C, z = z0 + R() * C, rand = R(), rA = R(), rV = R(), rY = R(), rH1 = R(), rH2 = R(), rJ = R();
         if (rand >= tierMax) continue;
-        const gk = G.at(x, z), T = typeOf(G.mix[gk]); if (!T) continue;
+        const gk = G.at(x, z), T0 = typeOf(G.mix[gk]), dK = densAt(T0, gk); if (!(dK > 0)) continue;
+        const T = T0 || FIELD_GREEN_T;
         const fk = F ? F.at(x, z) : -1;
         const kill = fk >= 0 ? F.kill[fk] : G.kill[gk], kind = fk >= 0 ? F.kind[fk] : G.kind[gk], ok = fk >= 0 ? F.ok[fk] : G.ok[gk];
         if (!ok || kill >= 1 || kind === 1 || kind === 3) continue;   // a plot's lawn is the first ring's (grass_dry); 'none' plants nothing
         const cut = fk >= 0 ? F.cut[fk] : G.cut[gk], surf = fk >= 0 ? F.surf[fk] : G.surf[gk], boost = fk >= 0 ? F.boost[fk] : G.boost[gk];
         // THE DENSITY: the type's, more where it is cut; the blotch's holes (fewer than the first ring's, none in the cut);
         // the pavement's kill and the verge's boost - one draw against the share of the envelope
-        let keep = T.dens * (cut > 0 ? 1 + ((surf ? S.stripDens : S.cutDens) - 1) * cut : 1) / (dmax * cutMax);
+        let keep = dK * (cut > 0 ? 1 + ((surf ? S.stripDens : S.cutDens) - 1) * cut : 1) / (dmax * cutMax);
         if (S.blotch > 0) keep *= 1 - S.blotch * (0.5 + 0.5 * vnoise(x, z, blotchM, 4242)) * (1 - cut);
         keep *= (1 - kill) * (1 + boost) / (1 + G.bmax);
         if (rA >= keep) continue;
@@ -1360,13 +1390,14 @@ var COVER_RING = (() => {
       // the mix, the pavement's kill and class, the land test - so a "why is there a log on the runway"
       // is one call instead of a guess
       nodeAt: (x, z) => { const C = S.cell, cx = Math.floor(x / C), cz = Math.floor(z / C), G = subGrid(cx * C, cz * C, C), k = G.at(x, z);
-        return { cell: [cx, cz], mix: G.mix[k], code: G.code[k], ok: !!G.ok[k], kill: +G.kill[k].toFixed(3), cls: G.cls[k], kind: G.kind[k], boost: +G.boost[k].toFixed(3) }; },
+        return { cell: [cx, cz], mix: G.mix[k], code: G.code[k], ok: !!G.ok[k], kill: +G.kill[k].toFixed(3), cls: G.cls[k], kind: G.kind[k], boost: +G.boost[k].toFixed(3),
+          cut: +G.cut[k].toFixed(3), green: G.green ? +G.green[k].toFixed(3) : null, col: [G.col[k * 3], G.col[k * 3 + 1], G.col[k * 3 + 2]].map(v => +v.toFixed(4)) }; },
       rockProtos: () => speciesOf().filter(rockish).map(c => ({ c, P: protosOf(c) })),   // the sprites' subjects (rocks and debris)
       stat: () => Object.assign({}, STAT, { by: Object.assign({}, STAT.by) }),   // a copy of the tally too (a shallow copy shared it)
       dispose: () => { api.replant(); for (const bm of batches.values()) { root.remove(bm); bm.dispose(); } batches.clear(); scene.remove(root); },
     };
     return api;
   }
-  return { make, FIELD_TYPES, FIELD_SPECIES };   // (the field's table: the biome card's defaults, world_rail)
+  return { make, FIELD_TYPES, FIELD_SPECIES, greenOf };   // greenOf: GRASS ON GREEN (GATE GREENGRASS) // (the field's table: the biome card's defaults, world_rail)
 })();
 if (typeof window !== 'undefined') window.COVER_RING = COVER_RING;
