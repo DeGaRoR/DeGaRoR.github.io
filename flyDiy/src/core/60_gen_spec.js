@@ -5087,8 +5087,12 @@ function genPlanePair(pos0, pos1) {
 // the DC-3 sits inside the old big box, so nothing it flies moves; the small box is unchanged.
 const GEN_WING_ENVELOPE = {
   chord: [0.80, 3.00], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
-  // (the LS4, 13 Nov: a sailplane's outer panel to 0.40 of the root - 0.36 m on 0.90; 0.45 held it at 0.405)
-  taper: [0.35, 1.0], xLE: [-1.20, 3.00],
+  taper: [0.45, 1.0], xLE: [-1.20, 3.00],
+  // THE SLENDER WING'S TAPER (the LS4, 13 Nov; re-pinned for L40c's WINGROWS 15 Nov): a sailplane's outer panel runs
+  // to 0.40 of its root (0.36 m on 0.90) where the 0.45 floor held it at 0.405 - so a wing whose span is at least
+  // `spanPerChord` root chords (the LS4's 16.7; every validated card's under 10) tapers to `taper`; every other wing
+  // keeps the 0.45 floor, its rows to the bit (genTaperLo)
+  slender: { spanPerChord: 14, taper: 0.35 },
   placeDx: [-1.2, 1.8], placeDy: [-1.0, 1.5],
   // G3579 (DC3-2, the reference model's fit): a big wing's taper to 0.25 (the DC-3's outer panel, 4.63 -> 1.4 m) and its
   // crank chord to the big chord (its constant-chord centre section, 4.63 m) - past 18 m only: every validated build's
@@ -5098,6 +5102,11 @@ const GEN_WING_ENVELOPE = {
 };
 // is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
 function genEnvBig(span) { return +span > GEN_WING_ENVELOPE.span[1]; }
+// the taper's floor for a wing of this span and root chord in envelope E (GEN_WING_ENVELOPE.slender)
+function genTaperLo(E, span, chord) {
+  const SL = GEN_WING_ENVELOPE.slender;
+  return SL && +chord > 0 && +span / +chord >= SL.spanPerChord ? Math.min(E.taper[0], SL.taper) : E.taper[0];
+}
 function genWingEnv(span) { return genEnvBig(span) ? Object.assign({}, GEN_WING_ENVELOPE, GEN_WING_ENVELOPE.big) : GEN_WING_ENVELOPE; }
 function genBig(S) {
   const w = S && (Array.isArray(S.wings) ? S.wings[0] : S.wing);
@@ -5156,7 +5165,7 @@ function clampWing(w, S, k) {
   const Z = genWingSize(w, k);
   let E = Z.E;
   w.chord = Z.chord; w.span = Z.span;
-  w.taper = genClamp(w.taper, ...E.taper);
+  w.taper = genClamp(w.taper, genTaperLo(E, w.span, w.chord), E.taper[1]);
   w.dihedral = genClamp(w.dihedral, 0, 6);
   // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
   // sweep buys nothing aerodynamically — it is a compressibility device — so it

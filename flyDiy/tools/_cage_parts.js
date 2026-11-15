@@ -208,7 +208,7 @@ const CAGE_PARTS = [
   { key: 'design', name: 'Design & construction', parent: null, layer: 'cage',
     groups: [
       ['construction', ['intCons']],
-      ['configuration', ['boomStyle', 'mirror', 'canopy']],
+      ['configuration', ['boomStyle', 'mirror', 'canopy', 'canClear']],
       ['wing', ['wgPos', 'wgBrace', 'w2On']],
       ['what it has', ['wingOn', 'gearOn', 'crewOn']],
     ] },

@@ -160,7 +160,12 @@ const flownOf = (P, plane) => {
 const envFor = (E, span) => (E && E.big && +span > E.span[1]) ? Object.assign({}, E, E.big) : E;
 // the second plane holds to its own floor (GEN_WING_ENVELOPE.second, NEW-SHAPES-1), as clampWing does: its notes say so
 const ENVW = (P, plane) => {
-  const E = envFor(typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null, P && (plane ? P.w2Span : P.wgSpan));
+  let E = envFor(typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null, P && (plane ? P.w2Span : P.wgSpan));
+  // (a slender wing's taper floor, the core's genTaperLo: the notes say the floor this wing is held to)
+  if (E && P && typeof genTaperLo === 'function') {
+    const lo = genTaperLo(E, +(plane ? P.w2Span : P.wgSpan), +(plane ? P.w2Chord : P.wgChord));
+    if (lo !== E.taper[0]) E = Object.assign({}, E, { taper: [lo, E.taper[1]] });
+  }
   if (!E || !plane || !E.second) return E;
   return Object.assign({}, E, { chord: [E.second.chord, E.chord[1]], span: [E.second.span, E.span[1]],
                                 spanPerChord: [E.second.spanPerChord, E.spanPerChord[1]] });
