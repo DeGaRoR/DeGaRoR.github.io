@@ -137,7 +137,9 @@ async function main() {
     const sP = dP.parts.ski, sW = dW.parts.ski, sR = dR.parts.ski;
     ok(sP.kg < sW.kg && sW.kg < sR.kg && sP.usd < sW.usd && sW.usd < sR.usd && sP.cdA < sW.cdA && sW.cdA < sR.cdA,
        `plain < penetration < wheel-ski: ${sP.kg.toFixed(1)} / ${sW.kg.toFixed(1)} / ${sR.kg.toFixed(1)} kg, $${sP.usd.toFixed(0)} / ${sW.usd.toFixed(0)} / ${sR.usd.toFixed(0)}, CdA ${sP.cdA.toFixed(3)} / ${sW.cdA.toFixed(3)} / ${sR.cdA.toFixed(3)} m2`);
-    const wheel = C.GEN_RULES.wheelKg(ccBare.gear.wheelR);
+    // (the wheel the plain ski takes off, by its carcass's own law: REAL-CANON's BUSH-WHEELS weighs a balloon tundra -
+    //  whProfile 1 - lighter; a law without the second argument ignores it)
+    const wheel = C.GEN_RULES.wheelKg(ccBare.gear.wheelR, Math.round(+((ccBare.cage && ccBare.cage.whProfile) || 0)));
     ok(Math.abs((G(d0).mass - 2 * wheel + 2 * sP.mains.kg) - G(dP).mass) < 0.6 * sP.third.kg + 2.5,
        `a plain ski replaces its wheel: gear ${G(d0).mass.toFixed(1)} kg -> ${G(dP).mass.toFixed(1)} (two ${wheel.toFixed(1)} kg tundras off, two ${sP.mains.kg.toFixed(1)} kg skis on, the tail ski)`);
     ok(G(dW).mass > G(d0).mass + 2 * sW.mains.kg - 1, `a wheel-through ski adds to its wheel: gear ${G(dW).mass.toFixed(1)} kg`);
