@@ -315386,3 +315386,70 @@ GATES (cloud, node only; `--no-build`, jobs 2-3 on a 4-core box), on this branch
   re-cook ends it.
   NOT RUN: FRAMECOST, the parked cook (GPU, A0's), the full tier (TOUR, ARCHETYPES ...), the GPU stills. The Cub's two legs
   were flown with tools/altiport_trace.js (above; reports/evidence/OBSERVATORY-SITE).
+## OBSERVATORY-2 - ARDENT ALTIPORT UNDER SNOW: the strip SNOW-MUD's POWDER, the flat top PACKED; the figures and the start point for SKIS's test (PC-6 + skis + snow at Mount Ardent); the wire nobody owns yet (2026-11-15, OBSERVATORY-SITE for A0, cloud - node only; branch claude/ready/observatory-2 = claude/ready/observatory-site 683d9cf30 + one commit)
+
+A0 (15 Nov 00:50, the user: "start the snow/mud finish now; the final test is PC-6 + skis + snow at YOUR runway"): (1) the
+altiport's surface snow by SNOW-MUD's material, so skis sink and plume; (2) a start point and the runway's figures for SKIS's
+node test; (3) what is still open on the station.
+
+1. THE RECORD (island_jolene.json; nothing else of the world): mt_strip look `powder`, surface 9 (SNOW_POWDER - the only snow a
+   ski sinks into, SNOW-MUD's table: 1.5 cm at 1.2 psi, the plough, and SNOW-MUD FX's big cloud; packed snow is near zero sink
+   and drift streaks only); the platform mt_m_platform and the helipad mt_m_helipad `snow` (SNOW_PACKED, the groomed apron).
+   CONTRACT_FIELDS mt_strip surf 'gravel' -> 'snow' (contractFieldsOf off the record: stripSurface reads powder as snow; the
+   gear rule lets skis on, and wheels too - they bog, below). The stand and the helipad lie inside the strip's graded band
+   (6 m): they FEEL the strip's powder (W.surface 9 there), the packed look is drawn.
+   DEPENDS ON SNOW-MUD (claude/ready/snow-mud): without it `powder` / `snow` are unknown looks and PG.issues refuses the
+   record. Merge it AFTER snow-mud. No cooks in this commit: the train's merged tree re-cooks (premises, city, map, fleet) -
+   gated below on such a tree.
+2. THE FIGURES (the composed ground, the merged tree; x east, z south, heights MSL):
+     Ardent Altiport `mt_strip`: 210 x 12 m, powder, altiport, landed WEST (uphill) over end 0, left EAST (downhill).
+     end 0 (threshold) (9422.2, -5961.9) 1020.03 m; end 1 (top) (9212.2, -5961.9) 1038.94 m; centre (9317.2, -5961.9),
+     record elevation 1033.65 m; rise 18.9 m, mean 9.0 %.
+     slope from end 0: 0-60 m 14.9 %, 60-100 m 11.4 %, 100-140 m 9.0 %, 140-170 m 4.8 %, 170-210 m 0.9 % (the flat top).
+     the aerodrome's hdg -3.1416 (= landing hdg; (cos, sin) points west), tdz (9267.2, -5961.9).
+     stand (9230.2, -5950.4) 1038.88 m, on the flat top beside the head; the PC-6's 15.87 m span clears every way (the
+     ground under its tips within +0.33 m of the stand).
+   THE START POINT FOR THE TEST: the game's own skip-to-line-up - _tour_lib gameHost(C, W, def, mt_strip, to, { lineup: true })
+   (the page: place.lineup) - puts the aeroplane on the strip at (9263.6, -5961.9), 1038.2 m, nose EAST, downhill, no taxi.
+   Measured on the merged tree with the wire below added IN THE RIG ONLY: the PC-6 on wheel-skis (tools/fixtures/skis/
+   pc6_skis.json), the 8 kt day: the skis down, the altiport's committed take-off ("past the point of stopping at V=8.5 with
+   144 m left - Vr in 94 m"), off in 75 m of powder, climbing over the spur's nose, no damage.
+   FROM THE STAND INSTEAD: the PC-6 turns on the spot (252 deg) on its skis in the powder and the fin's attachment breaks at
+   16 s (562 yields, 16 breaks) - the same PC-6 pivots 93 deg at HOME on wheels unbroken. The pilot's on-the-spot turn on skis
+   in a soft layer: SKIS's / the Pilot's, not the site's; start the test lined up.
+3. THE WIRE NOBODY OWNS YET: SNOW-MUD gives the record's codes their physics (GROUND_SOFT for a WHEEL; the FX classes), SKIS
+   reads a soft layer through `world.soft(x, z)` with its SOFT_GROUND presets - and no world answers `world.soft` from the
+   surface codes. Today a ski on the powder strip reads SKI_HARD_MU[0] (grass, 0.22) and sinks nothing; the wheel-skis stay
+   UP (the world says hard) and the tyres sink 21 cm in the powder (SNOW-MUD's wheel law): the PC-6 sits bogged. The rig's
+   wire (scratch, NOT committed): `W.soft = (x, z) => ({ 8: SOFT_GROUND.packed, 9: SOFT_GROUND.powder, 10:
+   SOFT_GROUND.wet })[W.surface(x, z)] || null` - the codes' rows are both sessions' (SOFT_GROUND vs GROUND_SOFT: one law or
+   two), so it is theirs to place (20_world / 27_premises compose) and to reconcile. The PLUME needs no wire: SNOW-MUD FX
+   keys its cloud off the surface code (app.js SURFACE 8-12 -> the dust classes).
+   WHEELS ON THE STRIP NOW: the user's Cub on wheels in this powder is not flown here (G-OBSERVATORY's Cub legs were on gravel).
+   SNOW-MUD's table: a tyre pays 0.25 rolling and sinks ~10 cm - with the 15 % uphill landing it stops at once, the downhill
+   take-off is doubtful. The altiport is now, in effect, a SKI field (the brief: "lands on SNOW").
+4. STILL OPEN ON THE STATION (none of it needs this session; the Game coordinator / the user):
+   - the `observatory` track advances from nothing in play: a career shows the pillar and the tower's building site until
+     the project (ECON_BOOK.landmarks 'observatory') is wired to `unlock: { stage: 'observatory:<n>' }`;
+   - no footpath from the platform to the station (~110 m, 55 m of climb) - the user's to draw;
+   - no helipad H (no mark kind for it - a pavement.js MARK_KINDS row);
+   - the raster commit (03144ca0 + its cook) rides with 683d9cf30 - A0's call stands as made;
+   - the station's look: the summit's own ground is summer scree around a snow strip; a winter season for the summit is no
+     part of this (no new world content).
+5. THE LANDING, the same rig (the wire in the rig only): the PC-6 on skis HOME > mt_strip, the game's flight - FINAL at
+   1 185 m MSL 1.6 km out, the flare 35 m before the threshold, touchdown ~42 m in on the powder, stopped ~123 m up the strip,
+   the skis 4.0-7.0 cm in; no break (its 38 yields are HOME's taxi). Said: 'strip-short: 210 m of strip for a 195 m landing
+   run - landing short-field, no margin'; 'gave-up: still in ROLLOUT at t=977 s' (the leg's patience, 6 s before the stop).
+   At HOME the PC-6 on skis cycled LINEUP / STOP / HOLD for ~7 min before its roll (SKIS / the Pilot's).
+GATES - on a SCRATCH tree, never pushed: origin/master 6a8d705c (L40a) + claude/ready/observatory-site 683d9cf30 +
+claude/ready/snow-mud ae0c12609 + claude/ready/skis 03f22959d (their source conflicts resolved mechanically for the test: 30_solver's
+muR keeps L40a's brake hold AND SNOW-MUD's soft drag; SKIS' skiSu over SNOW-MUD's `sc`; the exports' union) + this commit,
+re-cooked (premises, city, map, fleet; mt_strip 0 spots):
+  PASS: STAGES PREMISES PREMCOOK CONTRACTS TERRAINMATCH CONTACT STRIPGROUND PAVEMENT SKIS SNOWMUDFX STORAGE TAXICLEAR (4)
+  MAPBAKE CITYCOOK WORLD PREMRASTER LODS HOUSE GAMEPREM.
+  RED, NOT THIS COMMIT: SOFTGROUND A (SNOW-MUD's 16 legacy rolls pinned to 23ce68c1 / L39b; L40a's brake hold moved 9 - stock
+  builds braking on the hard tables, no record in them: SNOW-MUD re-blesses on L40a); NAMES ("Alaska" in L40a's aeroskin.js /
+  livery_marks.js / index.html); SCENERYED 20b (the town composition's 2500 ms on this box, red on master too).
+  RWYTREES: PASS (43 rows) run directly, in 30 min 18 s - over the runner's 1 800 s timeout on this merged tree (22-25 min on
+  the site's own branch): the runner gave FAIL at 1800.1 s with no failing row. Its wall wants a look when the trains merge.
+  NOT RUN: FRAMECOST / the parked cook (GPU), the full tier, SKISFLY (SKIS's), the stills.
