@@ -225,7 +225,7 @@ AR.make = function (THREE, ctx) {
       : (one.state === 'idle' && state === 'lie') ? 'toLie'
       : (one.state === 'lie' && state !== 'lie') ? 'fromLie' : null;
     if (via && CLIPS(one.a, via).length) {
-      one.state = 'trans'; one.next = state; one.t = 0;
+      one.state = 'trans'; one.next = state; one.t = 0; one.via = via;
       const c = H_clip(one, via);
       one.H.play(c, { fade: 0.22, loop: false });
       one.dwell = c ? c.dur : 0.5;
@@ -345,8 +345,14 @@ AR.make = function (THREE, ctx) {
     one.dir.set(Math.sin(one.hd), 0, Math.cos(one.hd));
     orient(one, one.dir, one.upS, 1);
     if (one.state === 'trans') {
-      // the transition ends when ITS CLIP does (paced, it may run longer than its nominal length), with a backstop
-      if (!P || P.done || one.t > one.dwell * 3 + 1) landStart(one, one.next || 'idle');
+      // the transition ends when ITS CLIP does (paced, it may run longer than its nominal length), with a backstop.
+      // Up from lying and off walking: through Stand_to_WalkSlow, from the stand Trans_Lying_to_Stand ends in - never a
+      // fade from a stand straight into a stride (ANIMALS-MOTION)
+      if (!P || P.done || one.t > one.dwell * 3 + 1) {
+        const nx = one.next || 'idle';
+        if (nx === 'walk' && one.via === 'fromLie' && CLIPS(one.a, 'toWalk').length) { one.state = 'idle'; landEnter(one, 'walk'); }
+        else landStart(one, nx);
+      }
       return;
     }
     if (one.t >= one.dwell) {

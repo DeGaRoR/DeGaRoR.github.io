@@ -12,15 +12,20 @@
 //         arc, they are not dragged round a pivot under the body (G498: the bear swung on 0.84 m with a 2.2 m body)
 //      T3 a turn ON THE SPOT (a refused step) steps the walk clip at the rate the turn needs: rate = yaw rate x half the
 //         length / the clip's ground speed (or its 0.25 floor), and the animal does not travel while it does
+//      T5 it moves over the ground only while a clip that travels is in effect (or fading out under it)
 //      T4 the refused step is exercised (the cliff and the pond refuse steps), and no animal stands in the pond
 //   H  THE HEAD. The head's frame (its three axes, in the animal's own frame, through every rotation and scale of
 //      its chain) from one frame to the next:
 //      H1 over the same run, never more than LIMIT degrees in a 30 fps frame (150 deg/s)
+//      B  THE BODY: through every one of those transitions, a fade adds at most 4 deg a frame (120 deg/s) to what the
+//         two clips do to each limb, spine and neck bone themselves
 //      H2 EVERY TRANSITION THE MACHINE MAKES (idle<->browse, idle/browse->toWalk->walk, walk->idle/browse,
 //         idle->toLie->lie->fromLie->idle/browse/walk), from three points in the outgoing clip: never over LIMIT
 //      H3 a fade cut short by another (graze, then stand, then set off, 0.15 s apart): never over LIMIT
 //      H4 the fade is EASED: its first frame moves the head less than a fifth of what a linear ramp's would
 //      H5 a head that comes up from the grass takes at least 0.6 s (the SPAN rule)
+//   L  THE WHOLE ANIMAL, FAR OUT: the moving skin is drawn until the animal is 6 px long at 1080p, the baked static
+//      cuts (untouched) only past that, and a walk / swim just inside poses the skin every frame
 //   C  THE CONTROL: the same H2 with the motion rules off (animals.js MOTION: ease, span, pace) must break LIMIT -
 //      the check can see the fault it is there for
 //   $  THE COST: R.tick's wall time per frame for the herds (median / p99, printed, never gated: a wall clock under
@@ -93,6 +98,27 @@ function swingDeg(A, B) {
   }
   return m * 180 / Math.PI;
 }
+// THE BODY: every limb, spine and neck bone (not the face: jaw, tongue, eyelids, ears) - each one's frame in the object's
+const BODY_SKIP = /jaw|tongue|eyelid|ear\d|ear_|eye/i;
+function bodyBones(obj) { const out = []; obj.traverse(q => { if (q.isBone && !BODY_SKIP.test(q.name) && !/^_?root/i.test(q.name)) out.push(q); }); return out; }
+function bodyFrames(obj, bones, outArr) {
+  obj.updateMatrixWorld(true);
+  _Mi.copy(obj.matrixWorld).invert();
+  for (let b = 0; b < bones.length; b++) {
+    _Mr.multiplyMatrices(_Mi, bones[b].matrixWorld);
+    const e = _Mr.elements;
+    for (let c = 0; c < 3; c++) { const n = Math.hypot(e[4 * c], e[4 * c + 1], e[4 * c + 2]) || 1; for (let r = 0; r < 3; r++) outArr[9 * b + 3 * c + r] = e[4 * c + r] / n; }
+  }
+  return outArr;
+}
+function bodySwings(A, B, nb, out) {
+  for (let b = 0; b < nb; b++) {
+    let m = 0;
+    for (let c = 0; c < 3; c++) { const o = 9 * b + 3 * c, d = A[o] * B[o] + A[o + 1] * B[o + 1] + A[o + 2] * B[o + 2]; m = Math.max(m, Math.acos(Math.max(-1, Math.min(1, d)))); }
+    out[b] = m * 180 / Math.PI;
+  }
+  return out;
+}
 const roleOf = key => (key ? String(key).split(':')[0] : null);
 const GAITS = { walk: 1, trot: 1 };
 const pct = (arr, p) => { if (!arr.length) return NaN; const s = arr.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * (s.length - 1)))]; };
@@ -135,7 +161,7 @@ async function herds(g) {
     for (let j = 0; j < objs.length; j++) {
       const l = L[j], s = S[j], a = AN.reg(l.key);
       const r = res[l.key] || (res[l.key] = { swing: [], turnStand: 0, turnStandEx: null, radius: [], tight: 0, tightEx: null,
-                                                pivotF: 0, pivotBad: 0, pivotBadEx: null, pivotMove: 0, wet: 0, frames: 0 });
+                                                pivotF: 0, pivotBad: 0, pivotBadEx: null, pivotMove: 0, wet: 0, frames: 0, slide: 0, slideEx: null });
       headFrame(objs[j], heads[j], s.G);
       if (s.have) {
         r.frames++;
@@ -169,9 +195,14 @@ async function herds(g) {
           if (l.rate !== undefined && Math.abs(l.rate - want) > 0.15 * want + 0.02) { r.pivotBad++; if (!r.pivotBadEx) r.pivotBadEx = [i, 'rate', f2(l.rate), 'want', f2(want), 'w', f2(w)].join(' '); }
         }
         if (GROUND(l.x, l.z) <= WATER(l.x, l.z) + 0.2) r.wet++;
+        // T5: it moves over the ground only on a clip that travels (its own, or the one fading out under it)
+        if (mv > 0.05) {
+          const sp = key => { const c = key && a.clips.find(c => c.key === key); return c ? (c.speed || 0) : 0; };
+          if (!(sp(s.clip) > 0 || sp(l.clip) > 0 || sp(l.from) > 0 || sp(s.from) > 0)) { r.slide++; if (!r.slideEx) r.slideEx = [i, l.state, s.clip, '->', l.clip, 'v', f2(mv)].join(' '); }
+        }
       }
       const T = s.F; s.F = s.G; s.G = T;
-      s.have = true; s.hd = l.hd; s.x = l.x; s.z = l.z; s.role = roleOf(l.clip); s.pivot = l.pivot; s.state = l.state;
+      s.have = true; s.hd = l.hd; s.x = l.x; s.z = l.z; s.role = roleOf(l.clip); s.pivot = l.pivot; s.state = l.state; s.clip = l.clip; s.from = l.from;
     }
   }
   for (const k of keys) {
@@ -185,6 +216,7 @@ async function herds(g) {
     check(r.pivotMove === 0, 'T3 ' + k + ': a turn on the spot travels', String(r.pivotMove));
     check(r.pivotF > 0, 'T4 ' + k + ': no step was ever refused (the cliff and the pond are there to refuse them)');
     check(r.wet === 0, 'T4 ' + k + ': an animal stands in the pond', String(r.wet));
+    check(r.slide === 0, 'T5 ' + k + ': it moves over the ground with no travelling clip in effect (a statue sliding)', r.slide + ' frames, first ' + r.slideEx);
     check(r.maxSw <= LIMIT, 'H1 ' + k + ': the head swings more than ' + LIMIT + ' deg in a frame', f2(r.maxSw) + ' at ' + r.maxEx);
   }
   const n = R.stats.animals;
@@ -231,6 +263,90 @@ async function transitions(g, label) {
     H.dispose();
   }
   return { worst, worstEx };
+}
+// B: THE BODY THROUGH EVERY TRANSITION - a fade adds at most BODY_ADD (4 deg a frame: 120 deg/s, animals.js MOTION.bodyCap)
+// to what the two clips themselves do to a bone (their own worst frame for it, played alone from the same points, x 1.1)
+const BODY_ADD = 4.0;
+async function bodyTransitions(g) {
+  const AN = g.ANIMALS;
+  const keys = AN.list('land').map(a => a.key);
+  let worst = 0, worstEx = '', over = 0;
+  for (const k of keys) {
+    const a = AN.reg(k);
+    const H = AN.place(THREE, k, {});
+    const bones = bodyBones(H.obj), nb = bones.length;
+    const F = new Float64Array(9 * nb), G = new Float64Array(9 * nb), sw = new Float64Array(nb);
+    // a clip's own worst frame per bone, from `at`, over 75 frames (played alone, paced as the player paces it)
+    const own = (c, loop, at) => {
+      const m = new Float64Array(nb);
+      H.player.play(c, { loop, restart: true, at }); H.player.prev = null;
+      H.step(0); bodyFrames(H.obj, bones, F);
+      for (let i = 0; i < 75; i++) { H.step(DT); bodyFrames(H.obj, bones, G); bodySwings(F, G, nb, sw); for (let b = 0; b < nb; b++) m[b] = Math.max(m[b], sw[b]); F.set(G); }
+      return m;
+    };
+    for (const [r0, r1] of EDGES) {
+      const A = a.clips.filter(c => c.role === r0), B = a.clips.filter(c => c.role === r1);
+      for (const ca of A) for (const cb of B) for (const at of [0.2, 0.5, 0.85]) {
+        const tA = LOOPS[r0] ? ca.dur * at : ca.dur;
+        const ownA = own(ca, !!LOOPS[r0], Math.min(tA, ca.dur - 1e-3)), ownB = own(cb, !!LOOPS[r1], 0);
+        H.player.play(ca, { loop: !!LOOPS[r0], restart: true }); H.player.prev = null;
+        for (let t = 0; t < tA * 3 + 2 && (LOOPS[r0] ? H.player.t < ca.dur * at : !H.player.done); t += DT) H.step(DT);
+        bodyFrames(H.obj, bones, F);
+        H.player.play(cb, { fade: 0.25, loop: !!LOOPS[r1] });
+        for (let i = 0; i < 75; i++) {
+          H.step(DT); bodyFrames(H.obj, bones, G); bodySwings(F, G, nb, sw); F.set(G);
+          for (let b = 0; b < nb; b++) {
+            const lim = Math.max(ownA[b], ownB[b]) * 1.1 + BODY_ADD, x = sw[b] - lim;
+            if (x > 0) over++;
+            if (x > worst) { worst = x; worstEx = k + ' ' + ca.key + ' -> ' + cb.key + ' at ' + at + ', frame ' + i + ', ' + bones[b].name + ' ' + f2(sw[b]) + ' deg vs the clips own ' + f2(Math.max(ownA[b], ownB[b])); }
+          }
+        }
+      }
+    }
+    H.dispose();
+  }
+  return { worst, worstEx, over };
+}
+// L: THE WHOLE ANIMAL, FAR OUT (the user, 15 Nov: "static mesh is barely acceptable ... when the animal is only a few
+// pixels large ... their movement is realistic as soon as they can be observed"; "do not modify the meshed and skinned
+// and rigged model"): the moving skin is drawn until the animal's length covers 6 px at 1080p (1 094 px a radian); the
+// static cuts, the baked ones untouched, only past that
+const PX6 = len => len * 1094 / 6;
+async function levelsCheck(g) {
+  const AN = g.ANIMALS, out = [];
+  for (const a of AN.list().filter(a => AN.levels(a.key).length)) {
+    const k = a.key, lv = AN.levels(k), want = PX6(a.length);
+    await AN.warm(k);
+    const H = AN.place(THREE, k, {});
+    const role = a.kind === 'land' ? 'walk' : a.kind === 'sea' ? 'swim' : 'flap';
+    H.play(role, { loop: true, restart: true });
+    const d1 = H.obj.levels[1] ? H.obj.levels[1].distance : Infinity;
+    check(d1 >= want - 1e-6, 'L ' + k + ': the static cut is drawn from ' + f2(d1) + ' m - the animal is still ' + f2(a.length * 1094 / d1) + ' px long there (want the moving skin to ' + f2(want) + ' m, 6 px)');
+    // the static cuts are the baked props, untouched: no skinned mesh in them
+    const statics = H.obj.levels.slice(1).every(l => { let sk = false; l.object.traverse(o => { if (o.isSkinnedMesh) sk = true; }); return !sk; });
+    check(statics, 'L ' + k + ': a static cut was re-skinned (the user: do not modify the meshed, skinned, rigged model)');
+    // just inside that distance, the LOD draws level 0 and a walk / swim poses the bones every frame
+    const cam = new THREE.PerspectiveCamera(45, 1.6, 0.5, 20000);
+    cam.position.set(Math.min(d1, want) * 0.95, 2, 0); cam.lookAt(0, 0, 0); cam.updateMatrixWorld(true);
+    H.obj.updateMatrixWorld(true); H.obj.update(cam);
+    check(H.obj.getCurrentLevel() === 0, 'L ' + k + ': at ' + f2(cam.position.x) + ' m the LOD does not draw the moving skin', String(H.obj.getCurrentLevel()));
+    // a node the playing clip drives (its most moving one over the clip), read off the instance
+    const cur = H.player.cur, nrs = cur ? cur.nr : [];
+    let bone = H.inst.objs[nrs[Math.floor(nrs.length / 2)]] || H.inst.bones[2], best = -1;
+    for (const nd of nrs) { const o = 3 * cur.nt.length + 4 * nrs.indexOf(nd), d = cur.data, st = cur.stride, h = Math.floor(cur.frames / 2);
+      const dot = Math.abs(d[o] * d[h * st + o] + d[o + 1] * d[h * st + o + 1] + d[o + 2] * d[h * st + o + 2] + d[o + 3] * d[h * st + o + 3]);
+      if (1 - dot > best) { best = 1 - dot; bone = H.inst.objs[nd]; } }
+    let posed = 0, q0 = bone.quaternion.clone();
+    for (let f = 0; f < 30; f++) { H.step(DT); if (bone.quaternion.angleTo(q0) > 1e-5) posed++; q0.copy(bone.quaternion); }
+    check(posed >= 25, 'L ' + k + ': a ' + role + ' at ' + f2(cam.position.x) + ' m poses the skin in only ' + posed + ' of 30 frames');
+    out.push(k + ' (' + f2(a.length) + ' m): moving skin to ' + f2(d1) + ' m (6 px), static cuts ' + lv.map((l, i) => f2(H.obj.levels[i + 1].distance)).join(' / ') + ' m (table ' + lv.map(l => l.dist).join(' / ') + '), ' + posed + '/30 frames posed at ' + f2(cam.position.x) + ' m');
+    H.dispose();
+  }
+  for (const l of out) say('L ' + l);
+  // the control: with the rule off the ladder is G498's (the static cut from 40 m), and the check above would see it
+  const M = AN.MOTION, a0 = AN.list().find(a => AN.levels(a.key).length);
+  if (M && a0) { M.far = false; const d = AN.farDist(a0, 0, AN.levels(a0.key)[0].dist); M.far = true;
+    check(d < PX6(a0.length), 'L the control: with the rule off the static cut still starts at 6 px - the check cannot see the fault'); }
 }
 async function directed(g) {
   const AN = g.ANIMALS, M = AN.MOTION;
@@ -288,6 +404,12 @@ async function directed(g) {
     say('H2 every transition the machine makes, from three points: the head\'s worst frame ' + f2(T2.worst) + ' deg (' + T2.worstEx + ')');
     check(T2.worst <= LIMIT, 'H2 a transition jumps the head more than ' + LIMIT + ' deg in a frame', f2(T2.worst) + ': ' + T2.worstEx);
   } catch (e) { check(false, 'H2 the transitions threw', e && (e.stack || e.message)); }
+  try { await levelsCheck(g); } catch (e) { check(false, 'L the levels threw', e && (e.stack || e.message)); }
+  try {
+    const BT = await bodyTransitions(g);
+    say('B the body through every transition: ' + BT.over + ' bone-frames faster than the clips themselves' + (BT.over ? ', worst by ' + f2(BT.worst) + ' deg (' + BT.worstEx + ')' : ''));
+    check(BT.over === 0, 'B a transition moves a bone faster than both its clips do', f2(BT.worst) + ' deg over: ' + BT.worstEx);
+  } catch (e) { check(false, 'B the body threw', e && (e.stack || e.message)); }
   if (M) {
     try { await directed(g); } catch (e) { check(false, 'H3-H5 threw', e && (e.stack || e.message)); }
     // C: the control - the same transitions with the rules off must break the limit
@@ -297,6 +419,9 @@ async function directed(g) {
       const C = await transitions(g);
       say('C the control (motion rules off): the head\'s worst frame ' + f2(C.worst) + ' deg (' + C.worstEx + ')');
       check(C.worst > LIMIT, 'C the control: with the motion rules off the transitions stay under the limit - the check cannot see the fault', f2(C.worst));
+      const CB = await bodyTransitions(g);
+      say('C the body control (motion rules off): ' + CB.over + ' bone-frames over, worst by ' + f2(CB.worst) + ' deg (' + CB.worstEx + ')');
+      check(CB.over > 0, 'C the body control: with the motion rules off no bone is over - the check cannot see the fault');
     } catch (e) { check(false, 'C the control threw', e && (e.stack || e.message)); }
     Object.assign(M, keep);
   } else check(false, 'H3-H5, C: animals.js has no MOTION rules (the G498 player)');

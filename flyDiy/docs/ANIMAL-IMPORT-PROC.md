@@ -104,7 +104,12 @@ only, G498's ruling):
   which keeps stepping, and keeps its travel, under the fade.
 - **A non-gait clip is paced** where its own head moves faster than 90 deg/s
   (the doe's and elk's Stand_Eating_01 drops the head 60 deg in 0.4 s).
-- **Lying down goes through Stand_to_Lying**, from a stand, every time.
+- **Lying down goes through Stand_to_Lying**, from a stand, every time; getting up into a walk goes through
+  Stand_to_WalkSlow.
+- **The body is timed too**: a fade adds at most 120 deg/s to what the two clips do to any limb, spine or neck bone.
+- **The whole animal, far out**: the moving skin is drawn until the animal is 6 px long at 1080p (a doe 292 m, an
+  elk 456 m, an orca 1.5 km); the baked static cuts, untouched, only past that. The user: "static mesh is barely
+  acceptable ... when the animal is only a few pixels large"; never re-skin or re-mesh a cut.
 - GATE ANIMOTION (`tools/_animal_motion_check.js`) holds all of it,
   `--root <tree>` runs it on another tree's code (the before numbers). A new
   land animal needs a bone whose name contains "head".
