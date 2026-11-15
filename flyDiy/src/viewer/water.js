@@ -145,37 +145,41 @@ const WATER = (() => {
     uniform sampler2D uWCalm; uniform vec4 uWCalmG; uniform float uWCalmOn; uniform float uWRipple;   // BAY-MIRROR: the sea's shelter (28_island.js calmAt's bytes): x0, z0, 1 / the field's width and depth (m); the wind's ripple kept in a bay (its dials.ripple)
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
-    // SUBMERGED BODIES (SWIMMERS, ANIMALS 15 Nov 2026; LOOK-1's yes): up to WSUB capsules - A: centre xyz, radius; B: unit axis
-    // xyz, half-length; uWSubN live. The column over a body is the depth to the body along the refracted view ray, not
-    // to the bed: a whale 2 m down shows through 2 m of sea (G797's absorption), drawn by its own opaque pass.
+    // SUBMERGED BODIES (SWIMMERS, ANIMALS 15 Nov 2026; LOOK-1's yes): up to 6 capsules - A: centre xyz, radius; B: unit axis
+    // xyz, half-length; uWSubN live. Each is the trunk's INSCRIBED capsule (ANIMALS.seaCore), so wherever it is hit the
+    // body's own opaque pixels are behind the water. The column over a body is the depth of the body under this point,
+    // not of the bed: a whale 1 m down shows through 1 m of sea (G797's optics). THE STRAIGHT RAY, not the refracted one:
+    // the framebuffer behind the water is the scene along the straight ray (nothing refracts it), so the window must open
+    // where the body IS on screen - the refracted ray (the first slot, 15 Nov) opened it a body-length toward the eye, onto
+    // the clear colour under the sea: a turquoise lozenge around every orca. A soft rim (the ray's miss distance over the
+    // radius) closes the window toward the skin's edge, so the outline is the sea's, never the capsule's.
     uniform vec4 uWSubA[6]; uniform vec4 uWSubB[6]; uniform float uWSubN;
-    // the nearest hit of a ray (ro, rd unit) on a capsule (pa..pb, r): t, or -1 (Quilez's capsule intersection)
-    float wCapsule(vec3 ro, vec3 rd, vec3 pa, vec3 pb, float r) {
+    // a ray (ro, rd unit) on a capsule (pa..pb, r): (t of the nearest hit, how central: 1 on the axis .. 0 grazing), t -1: miss
+    // (Quilez's capsule intersection; the centrality from the same discriminant: 1 - (miss distance / r)^2)
+    vec2 wCapsule(vec3 ro, vec3 rd, vec3 pa, vec3 pb, float r) {
       vec3 ba = pb - pa, oa = ro - pa;
       float baba = dot(ba, ba), bard = dot(ba, rd), baoa = dot(ba, oa), rdoa = dot(rd, oa), oaoa = dot(oa, oa);
-      float a = baba - bard * bard, b = baba * rdoa - baoa * bard, c = baba * oaoa - baoa * baoa - r * r * baba;
+      float a = max(baba - bard * bard, 1.0e-6), b = baba * rdoa - baoa * bard, c = baba * oaoa - baoa * baoa - r * r * baba;
       float h = b * b - a * c;
-      if (h >= 0.0 && a > 1.0e-6) {
+      if (h >= 0.0) {
         float t = (-b - sqrt(h)) / a, y = baoa + t * bard;
-        if (y > 0.0 && y < baba) return t;
+        if (y > 0.0 && y < baba) return vec2(t, clamp(h / (a * baba * r * r), 0.0, 1.0));
         vec3 oc = (y <= 0.0) ? oa : ro - pb;
         b = dot(rd, oc); c = dot(oc, oc) - r * r; h = b * b - c;
-        if (h > 0.0) return -b - sqrt(h);
+        if (h > 0.0) return vec2(-b - sqrt(h), clamp(h / (r * r), 0.0, 1.0));
       }
-      return -1.0;
+      return vec2(-1.0, 0.0);
     }
-    // the column over the nearest submerged body under this surface point, as a vertical depth (m); 1e4 = none
-    float wSubDepth(vec3 wp) {
-      vec3 d = normalize(wp - cameraPosition);
-      if (d.y >= -0.02) return 1.0e4;                       // a ray going up from the surface sees no body below
-      vec3 rd = refract(d, vec3(0.0, 1.0, 0.0), 0.7502);    // into the water (1 / 1.333)
-      if (dot(rd, rd) < 0.5) return 1.0e4;
-      float best = 1.0e4;
+    // the column under this surface point, over the bodies: the bed's (wD) pulled to the nearest body's depth by its rim
+    float wSubDepth(vec3 wp, float wD) {
+      vec3 rd = normalize(wp - cameraPosition);
+      if (rd.y >= -0.01) return wD;                         // the eye under the surface, or the ray leaving it
+      float best = wD;
       for (int i = 0; i < 6; i++) {
         if (float(i) >= uWSubN) break;
         vec3 c = uWSubA[i].xyz, ax = uWSubB[i].xyz * uWSubB[i].w;
-        float t = wCapsule(wp, rd, c - ax, c + ax, uWSubA[i].w);
-        if (t > 0.0) best = min(best, t * -rd.y);
+        vec2 hit = wCapsule(wp, rd, c - ax, c + ax, uWSubA[i].w);
+        if (hit.x > 0.0) best = min(best, mix(wD, hit.x * -rd.y, smoothstep(0.05, 0.6, hit.y)));
       }
       return best;
     }
@@ -320,7 +324,7 @@ const WATER = (() => {
         }
         vec2 wF = wField(vWP.xz);
         float wD = wDepth(wF, wB);
-        if (uWSubN > 0.5) wD = min(wD, wSubDepth(vWP0));   // SWIMMERS: a submerged body under this point (none: no cost)
+        if (uWSubN > 0.5) wD = wSubDepth(vWP0, wD);        // SWIMMERS: a submerged body under this point (none: no cost)
         // THE FOOTPRINT (G460.7): the GEOMETRIC MEAN of the pixel's two axes on the water, not the longer one.
         // At a grazing eye the along-view axis runs to metres while the across-view axis stays centimetres;
         // the longer one put the horizon's roughness at the Cox-Munk total and the far sea reflected the

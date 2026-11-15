@@ -15,7 +15,7 @@
 //       top / bottom: the body's highest / lowest point, world y. THE WATERLINE IS CROSSED or there is no wake: the
 //       crossing (the part of the body's height the surface cuts, 0..1, peaking at mid-body) times the speed is the
 //       wake's strength. A whale cruising 20 m down leaves nothing; a whale whose back is out leaves a trail.
-//   W.ring(x, z, r, k)      a breach or a fluke slap: a foam ring that spreads and fades
+//   W.ring(x, z, r, k)      a breath, a breach or a fluke slap: the upwelling's swirl (r its radius, k 0..1 its foam)
 //   W.step(dt)              ages everything and rebuilds the ONE draw
 //   W.stats, W.dispose()
 // Boats later are one more caller of hull(): the same record.
@@ -26,15 +26,18 @@
 //               foam fades over TRAIL_LIFE seconds
 //   THE ARMS    the Kelvin wedge: two thin crests leaving each point at +-19.47 deg to the track (the deep-water
 //               angle, any speed): their lateral offset grows with the point's age x its speed x tan(19.47 deg)
-//   THE RINGS   a breach: an annulus spreading at RING_V m/s, fading over RING_LIFE seconds
+//   THE RINGS   a breath or a breach: the upwelling's swirl - a soft disc of torn foam (the tile tears it) spreading at
+//               RING_V m/s and fading over RING_LIFE seconds, RING_A at most. (The first slot, 15 Nov: a white annulus
+//               spreading at 1.6 m/s for 9 s - a bright donut round every orca at every breath. A surfacing whale's
+//               water is a turbulent patch the size of its back, gone in a few seconds, never a ring.)
 // The foam is a lit standard material (MATLIB's, so the census and the day's light rules hold) with a tiled noise as
 // its alpha map at world scale, so the foam tears like foam and not like a ribbon; vertex alpha carries the fade.
 'use strict';
 (function () {
 const WK = {};
 const TRAIL_DS = 1.5, TRAIL_LIFE = 30, SPREAD = 0.18, ARM_TAN = Math.tan(19.47 * Math.PI / 180), ARM_W = 0.9;
-const RING_V = 1.6, RING_LIFE = 9, MAXP = 4096, MAXR = 32, MAXV = 24000;
-WK.K = { TRAIL_DS, TRAIL_LIFE, SPREAD, ARM_TAN, RING_V, RING_LIFE };
+const RING_V = 0.35, RING_LIFE = 6, RING_A = 0.45, MAXP = 4096, MAXR = 32, MAXV = 24000;
+WK.K = { TRAIL_DS, TRAIL_LIFE, SPREAD, ARM_TAN, RING_V, RING_LIFE, RING_A };
 
 // the crossing: how much of a body from `bottom` to `top` the surface at `lvl` cuts, 0 (clear above or below) to 1
 // (the surface at mid-body), a tent - a body just breaking the surface makes a little wake, half out the most
@@ -192,18 +195,19 @@ WK.make = function (THREE, o) {
       band(i, j, 1, 0.6);
       band(i, j, 2, 0.6);
     }
-    // the rings: an annulus of 24 segments
+    // the rings: a soft disc of 24 segments - the centre to 0.55 of the radius at the full foam, then out to nothing
     let nr = 0;
     for (let r = 0; r < MAXR; r++) {
       const age = T - RT[r];
       if (age < 0 || age > RING_LIFE) continue;
       nr++;
-      const R0 = RR[r] + RING_V * age, w = 0.6 + 0.25 * age, a = RK[r] * (1 - age / RING_LIFE) ** 1.5, y = RY[r] + 0.05;
+      const u = age / RING_LIFE, R = RR[r] + RING_V * age, a = RING_A * RK[r] * Math.min(1, age / 0.4) * (1 - u) * (1 - u), y = RY[r] + 0.05;
+      const c = vert(RX[r], y, RZ[r], a);
       let p0 = -1, p1 = -1;
       for (let s = 0; s <= 24; s++) {
         const ang = s / 24 * Math.PI * 2, cx = Math.sin(ang), cz = Math.cos(ang);
-        const q0 = vert(RX[r] + cx * R0, y, RZ[r] + cz * R0, a), q1 = vert(RX[r] + cx * (R0 + w), y, RZ[r] + cz * (R0 + w), a);
-        if (s) quad(p0, p1, q0, q1);
+        const q0 = vert(RX[r] + cx * R * 0.55, y, RZ[r] + cz * R * 0.55, a), q1 = vert(RX[r] + cx * R, y, RZ[r] + cz * R, 0);
+        if (s) { quad(c, p0, c, q0); quad(p0, p1, q0, q1); }
         p0 = q0; p1 = q1;
       }
     }

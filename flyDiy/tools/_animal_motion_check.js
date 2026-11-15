@@ -432,6 +432,22 @@ async function swimmers(g) {
     check(lists > 0 && !bad, 'S8 the bodies handed to the water', bad || 'none handed');
     R.dispose();
   }
+  // S9 THE CORE (the first GPU slot, 15 Nov: a capsule centred on the pivot at half the beam spilled past the skin and the
+  // water opened onto the clear colour - a turquoise lozenge round every orca): each sea animal's trunk capsule
+  // (ANIMALS.seaCore) exists, is thinner than half its beam, and both caps lie inside the model's own box (bb - pivot)
+  for (const a of AN.list('sea')) {
+    const H = AN.place(THREE, a.key, {}), C = H.core, bb = a.bb, pv = a.pivot || [0, 0, 0];
+    let why = '';
+    if (!C) why = 'none fitted';
+    else {
+      const ylo = bb[1] - pv[1], yhi = bb[4] - pv[1], zlo = bb[2] - pv[2], zhi = bb[5] - pv[2];
+      if (!(C.r > 0.1 * a.sea.beam && C.r < 0.5 * a.sea.beam)) why = 'radius ' + f2(C.r) + ' vs beam ' + a.sea.beam;
+      else if (!(C.cy - C.r > ylo && C.cy + C.r < yhi)) why = 'out of the box vertically';
+      else if (!(C.cz - C.h - C.r > zlo && C.cz + C.h + C.r < zhi)) why = 'out of the box along the body';
+    }
+    say('S9 ' + a.key + ': the trunk capsule ' + (C ? 'centre y ' + f2(C.cy) + ' z ' + f2(C.cz) + ', r ' + f2(C.r) + ', half-length ' + f2(C.h) : '-') + ' m');
+    check(!why, 'S9 ' + a.key + ': the trunk capsule', why);
+  }
   // S4 directly: the layer itself - a hull 10 m down, one at the surface, one in the air
   const W = g.WAKES.make(THREE, { waterH: () => 0 });
   for (let i = 0; i < 60; i++) {

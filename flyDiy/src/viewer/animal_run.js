@@ -131,6 +131,7 @@ AR.make = function (THREE, ctx) {
   const SUBK = 'animals:' + Math.random().toString(36).slice(2, 8), SUBL = [], SUBP = [];
   for (let i = 0; i < 6; i++) SUBP.push({ x: 0, y: 0, z: 0, r: 1, ax: 0, ay: 0, az: 1, h: 1, d2: 0 });
   const bySub = (a, b) => a.d2 - b.d2;
+  const _SA = new THREE.Vector3(), _SU = new THREE.Vector3();
   function submerged(e) {
     const W = (typeof window !== 'undefined' && window.WATER && window.WATER.setSubmerged) ? window.WATER : null;
     if (!W && !ctx.submerged) return;
@@ -139,15 +140,19 @@ AR.make = function (THREE, ctx) {
     for (const [, h] of HERDS) {
       if (h.kind !== 'sea') continue;
       for (const one of h.ones) {
-        if (!one.H.obj.visible || !(one.depth > 0)) continue;
-        const S = one.a.sea || SEA0, beam = (S.beam || 2) * (one.size || 1);
+        const C = one.H.core;
+        if (!C || !one.H.obj.visible || !(one.depth > 0)) continue;
         const d2 = e ? (one.x - e.x) ** 2 + (one.z - e.z) ** 2 : 0;
         // the pool keeps the nearest 6
         let q;
         if (k < 6) q = SUBP[k++];
         else { SUBL.sort(bySub); if (d2 >= SUBL[5].d2) continue; q = SUBL.pop(); }
-        q.x = one.x; q.y = one.y; q.z = one.z; q.r = beam * 0.5; q.d2 = d2;
-        q.ax = one.dir.x; q.ay = one.dir.y; q.az = one.dir.z; q.h = seaLen(one) * 0.36;
+        // the trunk's own capsule (ANIMALS.seaCore: inside the skin, fitted once per species) through the body's frame -
+        // its pitch and bank included (this frame's quaternion; the matrices are the renderer's, a frame late)
+        const sz = one.size || 1, oq = one.H.obj.quaternion, op = one.H.obj.position;
+        _SA.set(0, 0, 1).applyQuaternion(oq); _SU.set(0, 1, 0).applyQuaternion(oq);
+        q.x = op.x + (_SU.x * C.cy + _SA.x * C.cz) * sz; q.y = op.y + (_SU.y * C.cy + _SA.y * C.cz) * sz; q.z = op.z + (_SU.z * C.cy + _SA.z * C.cz) * sz;
+        q.ax = _SA.x; q.ay = _SA.y; q.az = _SA.z; q.r = C.r * sz; q.h = C.h * sz; q.d2 = d2;
         SUBL.push(q);
       }
     }

@@ -624,6 +624,65 @@ function levels(key) {
   return lv;
 }
 
+// THE CORE (SWIMMERS, 15 Nov 2026): the capsule INSIDE a sea animal's trunk, in its handle's frame (the pivot at the
+// origin, +z forward, before the individual's size) - { cy, cz, r, h }: the centre (0, cy, cz), the radius, the half-length
+// of the axis along z. The water reads it to open its column over the body (water.js setSubmerged), and a capsule that
+// spilled past the skin opened the water onto nothing (the first slot, 15 Nov: a turquoise lozenge around every orca, the
+// clear colour behind the sea). So it is fitted from the rest pose's own skin, once per species: the trunk's middle
+// half (30-80 % of the length from the tail; the head and the tail stock taper), cut in slices; a slice's centre is its
+// vertices' median, its centre the enclosed point farthest from the skin (a grid over the slice), that clearance its inscribed
+// radius; the capsule's radius 0.85 of the lower quartile's, its caps inside the section's ends. Read-only on the model.
+function seaCore(THREE, H) {
+  const b = BUILT.get(H.key);
+  if (b && b.core) return b.core;
+  const root = H.obj;
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), v = new THREE.Vector3();
+  const P = [];
+  for (const m of H.inst.meshes) {
+    if (!m.geometry || !m.geometry.attributes.position) continue;
+    const n = m.geometry.attributes.position.count;
+    for (let i = 0; i < n; i++) {
+      if (m.isSkinnedMesh) m.getVertexPosition(i, v); else v.fromBufferAttribute(m.geometry.attributes.position, i);
+      v.applyMatrix4(m.matrixWorld).applyMatrix4(inv);
+      P.push(v.x, v.y, v.z);
+    }
+  }
+  let z0 = Infinity, z1 = -Infinity;
+  for (let i = 2; i < P.length; i += 3) { z0 = Math.min(z0, P[i]); z1 = Math.max(z1, P[i]); }
+  const L = z1 - z0, zA = z0 + 0.3 * L, zB = z0 + 0.8 * L, NS = 8;
+  const med = arr => { arr.sort((p, q) => p - q); return arr.length ? arr[arr.length >> 1] : 0; };
+  const rs = [], cys = [];
+  for (let s = 0; s < NS; s++) {
+    const lo = zA + (zB - zA) * s / NS, hi = lo + (zB - zA) / NS, xs = [], ys = [];
+    for (let i = 0; i < P.length; i += 3) if (P[i + 2] >= lo && P[i + 2] < hi) { xs.push(P[i]); ys.push(P[i + 1]); }
+    if (xs.length < 6) continue;
+    // the centre: the point of the slice's box farthest from any skin vertex among those ENCLOSED by the skin (a vertex in
+    // each of 8 directions around it) - inside the trunk; never in the gap under a hanging flipper or beside a fin
+    let yLo = Infinity, yHi = -Infinity, xLo = Infinity, xHi = -Infinity;
+    for (const y of ys) { yLo = Math.min(yLo, y); yHi = Math.max(yHi, y); }
+    for (const x of xs) { xLo = Math.min(xLo, x); xHi = Math.max(xHi, x); }
+    let cy = 0, best = 0;
+    const G = 24;
+    for (let gi = 1; gi < G; gi++) for (let gj = 1; gj < G; gj++) {
+      const px = xLo + (xHi - xLo) * gi / G, py = yLo + (yHi - yLo) * gj / G;
+      let d2 = Infinity, sec = 0;
+      for (let j = 0; j < xs.length; j++) {
+        const ex = xs[j] - px, ey = ys[j] - py;
+        d2 = Math.min(d2, ex * ex + ey * ey);
+        sec |= 1 << (((Math.atan2(ey, ex) + Math.PI) / (Math.PI / 4)) & 7);
+      }
+      if (sec === 255 && d2 > best * best) { best = Math.sqrt(d2); cy = py; }
+    }
+    if (!(best > 0)) continue;
+    rs.push(best); cys.push(cy);
+  }
+  if (cys.length < 3) return null;
+  const r = 0.85 * rs.sort((p, q) => p - q)[Math.floor(rs.length / 4)], core = { cy: med(cys), cz: (zA + zB) / 2, r, h: Math.max(0, (zB - zA) / 2 - r) };
+  if (b) b.core = core;
+  return core;
+}
+
 // place(THREE, key) -> a handle. The object goes into the scene; `step(dt)`
 // runs the clock; `play(role, opts)` chains a clip; `loomSet(depth)` fades the
 // under-water copy in. Everything is null-safe before the bytes land: the
@@ -646,7 +705,7 @@ function place(THREE, key, o) {
     root.addLevel(g, farDist(a, li, l.dist));        // THE LADDER, FAR OUT (ANIMALS-MOTION)
   });
   const H = { key, a, obj: root, inst: null, player: null, L0, pivot: piv,
-              loomList: null, loomMats: null, pending: null, ready: false };
+              loomList: null, loomMats: null, core: null, pending: null, ready: false };
   // A PLAY ASKED FOR BEFORE THE BYTES LAND IS REMEMBERED, not dropped: the
   // behaviour starts its first bout the moment it sows the herd, and the
   // payload is still on the wire. Without this the animal stands in its rest
@@ -698,6 +757,7 @@ function place(THREE, key, o) {
   const fill = () => {
     H.inst = instance(THREE, key);
     L0.add(H.inst.root);
+    if (a.sea) H.core = seaCore(THREE, H);
     H.player = makePlayer(H.inst);
     H.ready = true;
     if (H.pending) { H.player.play(H.pending[0], H.pending[1]); H.pending = null; }
@@ -723,6 +783,7 @@ A.MOTION = MOTION;                     // ANIMALS-MOTION: the fade and pace rule
 A.GAIT = GAIT;
 A.headChain = headChain;
 A.farDist = farDist;
+A.seaCore = seaCore;                   // SWIMMERS: the trunk's inscribed capsule (the water's column over the body)
 if (typeof window !== 'undefined') window.ANIMALS = A;
 if (typeof module !== 'undefined' && module.exports) module.exports = A;
 })();
