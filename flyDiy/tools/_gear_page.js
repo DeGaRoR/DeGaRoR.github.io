@@ -70,7 +70,7 @@ const DEF = {
   // a trailing ARM from its foot to the castor, a SHOCK closing the V between them and a GUARD triangle ahead of the
   // tyre (the Pilatus PC-6's). The castor and the wheel stand where the leaf spring put them: the same contact, so the
   // flight is the spring's. Every row ABSENT AT ITS DEFAULT (_cage_gen CAGE_DEFAULT_ABSENT, the core's GEN_LEVER_ROW_OFF)
-  twStyle: 0, twPostLen: 0.28, twPostD: 0.07, twGuard: 1,
+  twStyle: 0, twPostLen: 0.28, twPostD: 0.07, twGuard: 1, twNode: 0,
 };
 // EVERY LEG OPTION EXISTS PER STATION. The flat keys above are the base
 // values; each station gets its own copy (s1_beamW, s2_beamW, ...) so the
@@ -148,7 +148,8 @@ const LEG_ROWS = {
     ['twStyle', 'tailwheel style', 0, 1, 1, ['leaf spring', 'oleo strut, trailing leg (PC-6)']],
     ['twPostLen', 'oleo length', 0.10, 1.20, 0.005],
     ['twPostD', 'oleo cylinder', 0.03, 0.14, 0.002],
-    ['twGuard', 'trailing leg and its truss', 0, 1, 1],
+    ['twGuard', 'stabiliser truss', 0, 1, 1],
+    ['twNode', 'truss node', 0, 1, 1, ['welded', 'bolted gussets']],
     // G330: the rudder-horn rows are gone — the horn is the RUDDER'S (G326,
     // the hinge layer draws it at the rudder's foot); the castor's own
     // picture, kept for a bench without that layer, uses fixed offsets
