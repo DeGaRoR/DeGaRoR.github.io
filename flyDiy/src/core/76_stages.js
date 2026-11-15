@@ -2,7 +2,7 @@
 // 76_stages.js - THE BUILDINGS THAT MISSIONS PUT UP: the career's side of the premises' `stage` (G2300-G2309 STAGES,
 // GAME-2026-10-06.md §11; the record's side is 27_premises.js stageView / stageIssues, contract v1.33).
 //
-// A track (72_contract_data.js CONTRACT_TRACKS: field 2, minedock 4, resort 3, survey 3, clients 2) is a small integer in
+// A track (72_contract_data.js CONTRACT_TRACKS: field 3, minedock 4, resort 3, survey 3, clients 2, observatory 3) is a small integer in
 // the career document (`career.tracks`), advanced by a contract's `unlock: { stage: '<track>:<n>' }` (74_career.js
 // careerComplete). The world record stands an element only while its track lies in the element's band. This file:
 //   stageTracksOf(doc)          the tracks a composition reads: the career's, or NULL - the sandbox, every track at its max
@@ -44,6 +44,11 @@ const STAGE_REVEALS = {
   'survey:3':   { at: 'w3',       caption: 'trk.survey.3',   world: false },   // (no mast exists today: HANDOVER G2300)
   'clients:1':  { at: 'HOME',     caption: 'trk.clients.1',  world: true },    // the flying club's house
   'clients:2':  { at: 'HOME',     caption: 'trk.clients.2',  world: false },   // (no museum hangar exists today: HANDOVER G2300)
+  // OBSERVATORY-SITE (13 Nov): the Mount Ardent station, one building a step (mt_s_meteo's items; the kits sg_k_obs_*), seen from
+  // its altiport (mt_strip)
+  'observatory:1': { at: 'mt_strip', caption: 'trk.observatory.1', world: true },   // the tower: the core and the top saucer
+  'observatory:2': { at: 'mt_strip', caption: 'trk.observatory.2', world: true },   // the drum: the two-tier disc
+  'observatory:3': { at: 'mt_strip', caption: 'trk.observatory.3', world: true },   // the hall: the flat disc
 };
 // the shot's eye about its target (A0's GPU still frames it: tools/stages_shot.js): metres back, elevation, and the
 // caption's time on screen
