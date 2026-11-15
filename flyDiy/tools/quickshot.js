@@ -218,18 +218,23 @@ S.scene.traverse(o => {
 });
 console.log('tris: sheet ' + (tris.length - nLayer) + ', layers ' + nLayer + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s build)');
 
-// ---- --mud [seconds]: GROUND-FX's computed mud (tools/mud_roll.js: the drawn aeroplane voxelised, a taxi and a take-off
-// run on soft mud, dust.js's own throw marched against it) tinted over each face by the shader's arithmetic
-// (GROUND_DEPOSIT.sample at the face's centre, its normal). --mudcell m: the grid's cell (0.08 gamer, 0.12 phone)
+// ---- --mud [seconds]: GROUND-FX's computed mud and dust (tools/mud_roll.js: the drawn aeroplane voxelised, a taxi and a
+// take-off run, dust.js's own throw and clouds marched against it), drawn per PIXEL by the shader's arithmetic
+// (GROUND_DEPOSIT.pbrAt: the mud's cover eroded by the spatter, the dust film, the wetness -> albedo and gloss).
+// --scen mud|heavy|dust (default mud); --dry s: let the mud dry s seconds after the run (fresh = wet and glossy);
+// --mudcell m: the grid's cell (0.08 gamer, 0.12 phone)
 let MUDF = null;
 if (argv.includes('--mud')) {
   const MR = require(path.join(ROOT, 'tools', 'mud_roll.js')), GDq = require(path.join(ROOT, 'src', 'viewer', 'ground_deposit.js'));
   const mt = +opt('mud', 20) > 0 ? +opt('mud', 20) : 20;
-  const R = MR.run(spec, { S, T: mt, h: +opt('mudcell', 0.08) });
-  const st = R.stats, MUD = [74, 58, 42];
-  console.log('mud: ' + mt + ' s on soft mud, grid ' + st.dims.join('x') + ', thrown ' + st.emitted + ', hits ' + st.hits + ', coat ' + st.coat.toFixed(3) + ' (' + st.msAll + ' ms)');
-  // per PIXEL in the raster (the shader's own arithmetic: the smoothed cover, eroded by the spatter): editor -> craft
-  MUDF = (x, y, z, nx, ny, nz) => GDq.mudAt(R.G, x, -z, y, nx, -nz, ny);
+  const SCN = opt('scen', 'mud'), R = MR.run(spec, { S, T: mt, h: +opt('mudcell', 0.08), scen: SCN });
+  const dry = +opt('dry', 0); for (let t = 0; t < dry; t += 30) GDq.wash(R.G, Math.min(30, dry - t), 0, null);
+  GDq.smooth(R.G);
+  const st = R.stats;
+  console.log('mud: ' + mt + ' s, scenario ' + SCN + (dry ? ', dried ' + dry + ' s' : '') + ', grid ' + st.dims.join('x') + ', thrown ' + st.emitted + ', hits ' + st.hits + ', dust rays ' + st.rayHits + ', coat ' + st.coat.toFixed(3) + ' (' + st.msAll + ' ms)');
+  // per PIXEL in the raster: editor -> craft
+  const PO = {};
+  MUDF = (x, y, z, nx, ny, nz) => GDq.pbrAt(R.G, x, -z, y, nx, -nz, ny, 0.5, PO);
 }
 
 // ---- the marks: fittings placed, quad corners ---------------------------------------------------------------
@@ -339,9 +344,13 @@ function view(name) {
         let lm = 0.32 + 0.68 * dl;
         const tc = t.c, vr = tc ? w0_ * tc[0] + w1_ * tc[3] + w2_ * tc[6] : 1, vg = tc ? w0_ * tc[1] + w1_ * tc[4] + w2_ * tc[7] : 1, vb = tc ? w0_ * tc[2] + w1_ * tc[5] + w2_ * tc[8] : 1;
         img[i * 3] = Math.min(255, t[9] * vr * lm + 255 * sp * vr); img[i * 3 + 1] = Math.min(255, t[10] * vg * lm + 255 * sp * vg); img[i * 3 + 2] = Math.min(255, t[11] * vb * lm + 255 * sp * vb);
-        if (MUDF) {   // GROUND-FX: the computed mud at this pixel, wet-dark and a little glossy
-          const mc = MUDF(w0_ * t[0] + w1_ * t[3] + w2_ * t[6], w0_ * t[1] + w1_ * t[4] + w2_ * t[7], w0_ * t[2] + w1_ * t[5] + w2_ * t[8], qx, qy, qz);
-          if (mc > 0.004) { const M = [74, 58, 42]; for (let k = 0; k < 3; k++) img[i * 3 + k] = Math.round(img[i * 3 + k] + (Math.min(255, M[k] * lm + 120 * sp) - img[i * 3 + k]) * mc); }
+        if (MUDF) {   // GROUND-FX: the PBR at this pixel - the dust's veil, the mud (wet: dark and glossy; dry: lighter, matte)
+          const P = MUDF(w0_ * t[0] + w1_ * t[3] + w2_ * t[6], w0_ * t[1] + w1_ * t[4] + w2_ * t[7], w0_ * t[2] + w1_ * t[5] + w2_ * t[8], qx, qy, qz);
+          if (P.dust > 0.004) { const Dc = [178, 158, 126]; for (let k = 0; k < 3; k++) img[i * 3 + k] = Math.round(img[i * 3 + k] + (Dc[k] * lm - img[i * 3 + k]) * 0.8 * P.dust); }
+          if (P.mud > 0.004) {
+            const gl = Math.max(0, Math.min(1, (0.9 - P.rough) / 0.65)), Mw = [60, 46, 33], Md = [116, 96, 74];
+            for (let k = 0; k < 3; k++) { const M = Mw[k] + (Md[k] - Mw[k]) * (1 - P.wet); img[i * 3 + k] = Math.round(img[i * 3 + k] + (Math.min(255, M * lm * (0.85 + 0.3 * P.h) + 255 * sp * 2.2 * gl) - img[i * 3 + k]) * P.mud); }
+          }
         }
       } else { img[i * 3] = r; img[i * 3 + 1] = g; img[i * 3 + 2] = b; }
     }
