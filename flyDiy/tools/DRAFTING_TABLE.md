@@ -693,3 +693,44 @@ to forget". A first cut (a declared `wgStolFly` row) was dropped for exactly tha
   already reads its sheets at +-10 %.
 - THE TOOL FOR EVERY SESSION: CLAUDE.md now points at this file; tools/drafting/KICKOFF.md is the message to paste with
   a new plane's blueprint; GATE DRAFTING (tools/drafting/dt_check.js, 4 s) joins the core battery.
+
+## Two sheet scales and the tricycle reader (FIT-PROCEDURE 6e89f590a, 13 Nov; taken without the Skymaster)
+
+- A view's optional **`ky`**: the sheet's vertical pixels per metre (absent = `k`). A scanned sheet is often stretched
+  one way (the 337's by 2.9 %). `toPx` / `fromPx` apply `k` across the sheet and `ky` down it, after the view's turn.
+  Every renderer that maps sheet pixels goes through `toPx` / `fromPx`, never `V.k` alone.
+- **The tricycle reader** in `measure()`: the mains are the gear off the centreline; the wheel on it is a tail wheel
+  when it is aft of the mains, a nose wheel when ahead. The KM table gains `nosewheel.a` / `nosewheel.bottom` (marks
+  `nosewheel`, `nosewheel.bottom`).
+- GATE DRAFTING checks both: `ky` round-trips every turn and mirror, and the KM table carries both third-wheel rows.
+
+## The free tilt (15 Nov, A0 for FLAGSHIP's Cessna fit)
+
+Real brochure sheets are drawn tilted (the 172's side view is 4.8 deg off, along its 26'11" line). A view's `rot` is
+now any angle in degrees: its nearest quarter turn is applied exactly, as before, and the rest tilts the view about its
+pivot, clockwise on the sheet like `rot`.
+- `rotAt` absent: the pivot is the view's origin (ox, oy).
+- `rotAt: [px, py]`: a sheet pixel.
+- `rotAt: { mark: 'wheel', at: [px, py] }`: a named mark. `DT_CORE.setTilt(ref, view, deg, mark)` sets the angle about the
+  mark, copies its pixel into `at` (so the page's worker maps the view from the view alone) and re-places the untilted
+  origin so the mark keeps its metres. With a pivot off the origin, (ox, oy) is the origin's place BEFORE the tilt;
+  `DT_CORE.placeOrigin(V, px, py)` (the page's "place the origin") turns the click back.
+- The tilt acts in the drawing's own metres, inside the sheet's two scales: p = P + K Rf K^-1 (p0 - P), K = diag(k, ky).
+
+It lives inside `toPx` / `fromPx`, so the table, `quickshot.js --sheet` and the in-game page all honour it. GATE DRAFTING:
+every pivot form round-trips with a mirror and two scales, a view's X axis runs at the angle on the sheet, `setTilt`
+keeps its mark, and the PC-6's sheet turned 4.8 deg (its side marks and lines turned with it) scores what the level
+sheet scores (136 / 175 both).
+
+## One projector: quickshot --sheet (QUICKSHOT-ONE, 15 Nov)
+
+A0's call on the user's "Unify it, not 3 modes ... Decide for the outline projection tool": one renderer (quickshot's,
+the garage's own layers) and one projection (this table's sheet logic). `quickshot.js <plane.json> <prefix> --sheet
+<img>` draws each view's drawing scaled by `dt_core.toPx`, quickshot's render over it, the red veil (our parts outside
+the drawing's lines), the parts' outline, the marks, the score table and the dimensions diff, stacked in one PNG
+(`tools/drafting/dt_sheet.js`). `table.js check --png` and `compare --png` call it (`--parts`, at the table's level), so
+`--png` now writes `<prefix>_sheet.png` instead of three files. Quickshot measures its own scene with the table's rules
+(`dt_build.collect`, split out of `build`). GATE QSPARITY: at level 0 the frame and every key measurement agree (the
+largest gap strut.at, 12 mm: the table's cut core and context against the garage's; the layers it leaves out are not
+the cause) and the score is the same 136 / 175; at the garage's level 2 the PC-6 scores 122, and the load door's
+clamps move no row on it.
