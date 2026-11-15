@@ -316536,3 +316536,45 @@ Every pilot gate flies the one Cessna, F-HCSN (builds/cessna172r_2026-11-08.json
 The aluminium test copy tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is kept ONLY for its structure / audio users (HINGE,
 HONESTY, JOINPARITY, PARKED, RETRACT, ROLLSND); its c172fx tour row is dropped and pilot_persona.js flies F-HCSN. Older entries above
 that name the fixture as "the metal Cessna" in a flying gate describe the gates before that change.
+## ELEC-SYSTEMS — THE ELECTRICS, AUDITED, TILED, AND SAID (2026-11-09)
+
+The user: "Where do we set that? ... Do we even compute the discharge? Do we refuse lamps without electrics? And
+electrical instruments? If we need to manage that, we need to manage that well." The audit, the plan and the sources:
+futureDesigns/ELEC-SYSTEMS-2026-11.md; the hand-over: ELEC-SYSTEMS-READY.md.
+- WHERE: Fit > Instruments (_cage_panel.js), its `electrics` fold - TILES (`.dfTile`, the design tiles' one look), one
+  row per part (battery, charging, starter, suction), the system on one line (Ah, charge A, day / night load, endurance
+  on the battery alone), the engine's usual set marked "for this engine" on each part's tiles with one button to fit it,
+  every refusal said there in red. NO 'class' choice (the user: classes were a new concept nobody asked for).
+- GEN_ELEC_SETS / GEN_ELEC_AS_BUILT / genElecSetOf(engine, key): a suggestion only. As-built history first (the A-65,
+  Clerget, Gipsy Major, W-670, Mikron: no electrics), else the registry's mass/family. Kept OUT of POWERPLANTS: its rows
+  ride into the build's params, a field there moves every fingerprint. RULE: a per-engine row is never put in a tier
+  without the user's ruling (GATE ELEC 7a and its selftest catch it).
+- A GENERATOR WITH NO BATTERY: a self-exciting machine (`selfExcited`: the DC generators, the Rotax coil and integrated
+  generator) is a bus - live only above cut-in (31_elec.js altSelf); the 60 A alternator, whose field the battery
+  excites (FAA AC 20-40), is not. The dash's MASTER / ALT rockers follow hasBus / altA (_panel_gen.js).
+- THE BUS was already real (31_elec.js, cockpit.js): soc, discharge, cut-in, starter draw, breakers, a flat battery
+  refusing the crank. New: the catalogue's `cutIn` / starter `amps` reach it (absent = the old 1100 / 150), and
+  cockpit.js elecAlarms says LOW VOLTS / NOT CHARGING / BATTERY FLAT / a refused start on the flight's #flElec line.
+- genSystemsResolve `warnings[]`: said, never re-billed (the player's problem, the user's ruling).
+- PARKED: the harness as a fraction of empty mass (REAL-FIGURES: no-go on the Cub / Jodel / 172 until the user rules;
+  the total there stays). 12 V everywhere (the user).
+
+# REAL-CANON READY (Sun 15 Nov, claude/ready/real-canon; rides L40d)
+
+The stack claude/real-canon (= claude/tail-retract-canon) ON MASTER L40c 58c681347, no built files: L40c, then ALL of
+ELEC-SYSTEMS (e0ec0363b merged, its whole history an ancestor: L40d can take elec-systems-eol out), then PHYS-SCALE,
+STRUT-OPTIONS, the RUCKUS pieces, PETREL-LS, THE CANON, TAIL-RETRACT, PETREL-FRAME, TAIL-LATENT; PHYSICS_V 9.
+flyDiy/REAL-CANON-READY.md places every red of the 249 non-standing gates against 58c681347. Fixed here: ULTRALIGHT's G
+(TAIL-RETRACT x the ultralight monowheel: the standard monowheel no longer retracts, its kit billed once). Stack reds:
+NACELLE B and ULTRALIGHT B / D (one cause: RUCKUS's rod-boom profile makes the Archaeopteryx fly its own drawn pod,
+80.4 -> 79.6 kg; its checks were pinned on a stale profile - the user's call via A0), BENCH (the Rufus stamp, V 7), PARKED (re-cook on a GPU after L40d's build). The rest is L40c's own
+or timing under load. Re-pinned on the line: WINGSPLIT, ENERGYBASE, PROCURE, FREIGHT, JOINPARITY (two rows), STOL,
+REALBAND.
+
+A0's question - what toM is: CONTRACT_DESIGNS.toM (src/core/72_contract_data.js) is genShakedown's TORun at the design's
+massKg (64_gen_build.js genTORunAt): the ground roll (CRR 0.05, 00_registry; the take-off flap notch, the roll attitude,
+ground effect, the sim's sea-level air) PLUS an air segment to a 2.5 m screen (an energy height over the excess-thrust
+gradient) - not 50 ft, and not the roll alone. A contract scales it by (W/W0)^2 x the surface (73_contracts.js
+CONTRACT_FIT.surf: paved 1.0, gravel / dirt 1.1, grass 1.15, sand 1.25, snow 1.3, water 1.0). The list:50 cessna172r at
+its gross 1128 kg rolls 290 m (REALBAND TOgrass) against the POH's 945 ft = 288 m; its toM 331 m is that roll plus the
+air segment at the snapshot's mass. The old 144 m was the 880 kg bugReports Cessna.

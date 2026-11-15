@@ -51,6 +51,9 @@ const { resolveSpec, clampSpec, genFrame, genAccessNeeds, genAccessList,
         GEN_DEFAULT } = CORE;
 
 const BASE = path.join(__dirname, '_energy_base.json');
+// REAL-CANON (15 Nov 2026): re-blessed for ELEC-SYSTEMS' wiring harness billed by its cable runs (614822358, the
+// user's ruling "cable runs live", PHYSICS_V 8 -> 9): +0.58 to +0.93 kg on 13 cases, the CG 0.7-1.7 mm forward. The
+// carbon case is left at master's numbers: its -48 kg move is master's own red (L40a), not this stack's.
 const BLESS = process.argv.includes('--bless');
 const SHOW = process.argv.includes('--show');
 const SELFTEST = process.argv.includes('--selftest');

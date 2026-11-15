@@ -1,0 +1,36 @@
+builds/c172r_wipline2350_landprop_2026-10-20.json  e06ba11e  n138:29ef3caddca1c0ea  b558:32a7e10e2a0c0b89  p:33c0d49cccd58c33
+builds/c172r_wipline2350_stcprop_2026-10-20.json  f634fee9  n138:d105093a79bb3901  b558:04673abb0800201a  p:3b78c3a68c103d70
+builds/cessna172_2026-09-20.json  8fb841d4  n111:9a2342da64ecec01  b467:3b49d5542959b63e  p:e12a60fb3a328a19
+builds/cessna172_2026-09-20_corrected.json  9b5ff209  n111:1ee468b973367512  b467:028ea86817d883a0  p:7e1ed48563606cbb
+builds/cessna172_floats_2026-11.json  ec9defe  n138:cf632ebb99539275  b558:37e70ccb93743da6  p:ca12df17acd7406e
+builds/chinook_2026-09-21.json  ce4cc1b9  n91:5bc20484a1e94110  b387:116de9aa7a96fcd6  p:29deff83e59a0636
+builds/chinook_2026-09-21_corrected.json  72a6e06c  n95:bd0c06ec9405bdf7  b406:724fb6bada9b85ba  p:2505775cb47c213e
+builds/composite_jodel_2026-10-07.json  ee83e25c  n115:74e796b4f0b804fb  b502:af32608c73dc9ca2  p:82780dd1c87c221b
+builds/cub_2026-09-20.json  424dead0  n91:cae87b78b44081b3  b380:562625ba6358d18a  p:523b3e63e1e92a65
+builds/cub_2026-09-20_corrected.json  96a2589  n97:6db0ac3f1e10a131  b404:917f1161f694ee1c  p:e18118d5f1077342
+builds/jodel_2026-09-20.json  ea920b64  n115:ae0ec27628710f23  b502:77c819495a8e2545  p:d5645c9160a57314
+builds/jodel_2026-09-20_corrected.json  9dc853eb  n115:80cdf113e1a24659  b502:f9baf4685525a6f5  p:cc4eaa00474dc9c6
+builds/pa18_floats_2026-10-23.json  d21ad765  n122:0d4a3d4678ca2786  b486:11421dccecb10ac7  p:25f03ed9c1c7edf7
+builds/rufus_2026-10-18_certified.json  134bcb58  n95:66251fd14cd7d628  b395:8b58486f4115a93c  p:587283a6f2a01c31
+builds/candidates/B-ITES.json  302779f7  n107:b98ba14f6917877f  b470:455f607dcb69c9f0  p:35d2aaa56767ea12
+builds/candidates/Twin_busher_floats_4b.json  2b29d0a7  n158:66f6030fc7addd0d  b649:bddb09a3590ad110  p:bfb0cb84e618b08b
+builds/candidates/birdman.json  ce4cc1b9  n91:5bc20484a1e94110  b387:116de9aa7a96fcd6  p:29deff83e59a0636
+builds/candidates/build_v7_twin_2026-09-04.json  676eae97  n96:bf5da9f3ed7f4c47  b409:ddf34e52823eb640  p:eb19a9deee4c1808
+builds/candidates/build_v7_ultralight_2026-09-05_floats.json  100dfec0  n123:ec683413d23335be  b500:a50e406b2afee397  p:0123d5e73d08ecac
+builds/candidates/build_v8_pusher_2026-09-11.json  2604d1ce  n93:ff67d1b2eaa2e1a5  b396:c7f107f467c5e16d  p:d35e49af271d2ccd
+builds/candidates/camel_2026-10.json  5f87966f  n145:8b123f04a5800154  b659:f2da487668d4244c  p:4b8c44a8d51ec9f2
+builds/candidates/carbon_cub_ss.json  86f0ff1b  n95:2aef55315086f343  b395:022ccd1c59390948  p:ddf619fb72c3f6ee
+builds/candidates/cub_chord160.json  f5e4bf2  n97:7db5349c8ebf561f  b404:8e698916e38f1e3b  p:f3ddc1f2cafe2c39
+builds/candidates/dc3_2026-10.json  209a970e  n140:054fcae2b7460699  b627:9d0ad374f153e167  p:49ff8632d20a33ae
+builds/candidates/flydiy-build (4).json  d11c5036  n141:5d4cb118af89c374  b650:41cfd3c57d1839e0  p:dec83dadb37c8c61
+builds/candidates/jodel_geo.json  361072a4  n115:b60f72f39a82968a  b502:64541bc545525486  p:bc54dcfc2b8306fc
+builds/candidates/mosquito.json  d8311a70  n111:64ff800fa3054eb7  b481:0863f68791347679  p:44049d1984b17e18
+builds/candidates/pa18_floats_chord160.json  81cd0d67  n122:5282554f9994270a  b486:465c0a43252d7252  p:da424c0fc55cc550
+builds/candidates/pawnee (1).json  57c06bf7  n97:1c68dc65e38f675a  b404:961cf70f6429b4b3  p:c4a33fc0f9bc935d
+builds/candidates/ruckus_2026-11-09.json  2bdbbeb6  n95:dcc0484144091c65  b395:78803280bb322339  p:f56477b38a4157de
+builds/candidates/ruckus_std_2026-11-09.json  264eb59d  n95:535d7e2ea9b26663  b395:f7def6aee6427b16  p:9f15c13ad301077a
+builds/candidates/stearman_2026-10.json  546870d2  n157:e4c92de7f2acc96d  b711:ef5e0e53755e3980  p:785ea138bca1b40d
+builds/candidates/stol_cub_showcase.json  189e281b  n97:075e54401d7fd16f  b404:c3ea447bd431a42b  p:6564cde8fc6d1d70
+builds/candidates/superpetrel_V4_1.json  4b83d709  n184:3cb5b45653b2c874  b811:ca36476a59ef0803  p:5eb2c08efe3f8edc
+builds/candidates/tigermoth_2026-10.json  10f27689  n151:f7e8ade37257e9ae  b685:ea6861907b2a8b90  p:e671ca88fb0587cb
+builds/candidates/ugly_bi.json  bebde9ae  n155:56d49edd6587fa46  b706:7ed066c95114e6a4  p:5ed7723a16647002

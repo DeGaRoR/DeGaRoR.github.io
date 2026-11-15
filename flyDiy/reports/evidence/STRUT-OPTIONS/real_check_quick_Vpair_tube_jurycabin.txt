@@ -1,0 +1,25 @@
+[ruckus_v] min   235 kg  Vs 43  V75 76  Vmax 90  ROC 2.32 @60  L/D 5.2  TO(grass) 52  CG 39% SM 22%  de(appr, flap 0.50) 0.054
+[ruckus_v] typ   249 kg  Vs 44  V75 75  Vmax 90  ROC 2.06 @61  L/D 5.2  TO(grass) 60  CG 39% SM 24%  de(appr, flap 0.50) 0.066
+[ruckus_v] mtow  249 kg  Vs 44  V75 75  Vmax 90  ROC 2.05 @61  L/D 5.2  TO(grass) 60  CG 39% SM 24%  de(appr, flap 0.50) 0.066
+
+### ruckus_v — against the Top Rudder Ruckus, standard (Polini Thor 303, 37-38 hp)
+
+Build `../../../tmp/claude-0/-workspace-DeGaRoR-github-io/e0936b33-b5c4-564f-923f-36f861dc85a7/scratchpad/ruckus_v.json` through the load door; 38 hp custom Inline 1-cyl 0.3 L, S 11.3 m², empty 162 kg, as baked 255 kg, fuel 14 kg, 1 seats. Reference: B&B Sport Aviation "RUCKUS - Airframe" sheet (pasted by the user 9 Nov): 254 / 550 lb, 17.5 ft, 28.4 ft, 122 ft2, Vs 24.1 mph, Vso 22, cruise 50, Vmax 54 at 37 hp, 650 fpm, L/D 4.6, TO 350 ft, LDG 300 ft, 5 gal.
+
+| load | mass kg | CG % MAC | SM % | Vs | Vs0 | V75 | Vmax | ROC m/s (Vy) | L/D | CdS | TO grass (analytic) | approach trim de (flap) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| min | 235 | 39 | 22 | 43 | 41 | 76 | 90 | 2.32 (60) | 5.2 | 1.69 | 52 | 0.054 (0.50) |
+| typ | 249 | 39 | 24 | 44 | 42 | 75 | 90 | 2.06 (61) | 5.2 | 1.69 | 60 | 0.066 (0.50) |
+| mtow | 249 | 39 | 24 | 44 | 42 | 75 | 90 | 2.05 (61) | 5.2 | 1.68 | 60 | 0.066 (0.50) |
+
+| indicator | reading | reference (band) | at kg | ours at those kg | verdict | ours equals theirs at |
+|---|---|---|---|---|---|---|
+| empty kg | ledger | 115 (109–121) | — | 162 | **outside** | — |
+| Vs1 km/h | airframe | 39 (37–41) | 249 | 44 | **near** | 193 kg (below our lightest load) |
+| V75 km/h | airframe | 80 (76–84) | 188–249 | 75–79 | **inside** (extrap.) | — |
+| Vmax km/h | airframe | 87 (83–91) | 249 | 90 | **inside** | — |
+| roc m/s | airframe | 3.30 (3.14–3.47) | 249 | 2.05 | **outside** | 184 kg (below our lightest load) |
+| LD  | airframe | 4.6 (4.1–5.1) | 188–249 | 5.2 | **near** (extrap.) | — |
+| TO m | airframe (grass) | 107 (96–117) | 249 | 60 | **outside** | — |
+
+[ruckus_v] done in 18 s

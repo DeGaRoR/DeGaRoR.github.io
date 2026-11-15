@@ -1,0 +1,14 @@
+c172r_wipline2350_landprop_2026-10-20.json        af98c9fe  295bcaf932b7  1120.096  0.7333  30.40  0
+c172r_wipline2350_stcprop_2026-10-20.json         92dd236d  3a22a37e3d24  1122.672  0.7295  30.40  0
+cessna172_2026-09-20.json                         bd677633  090f3e2f4e3a  1065.839  0.7533  30.40  0
+cessna172_2026-09-20_corrected.json               1e02cbdf  9e6fa47b1ab4  976.975  0.6833  30.40  0
+cessna172_floats_2026-11.json                     78476d00  a922e44de007  1198.088  0.7868  30.40  0
+chinook_2026-09-21.json                           3208e677  882b4923cc04  384.267  1.6212  20.70  0
+chinook_2026-09-21_corrected.json                 8e50507f  e380acbd10dd  352.790  1.4736  20.70  0
+composite_jodel_2026-10-07.json                   b78ff514  f3fa0accdf95  488.510  0.4111  22.55  0
+cub_2026-09-20.json                               c7409e90  3ec938da0467  449.650  0.6739  22.55  0
+cub_2026-09-20_corrected.json                     af84cf8d  18271f2fd735  476.448  0.6823  22.55  0
+jodel_2026-09-20.json                             22bc6b3a  bbceedec5854  564.769  0.6071  22.85  0
+jodel_2026-09-20_corrected.json                   59b49604  df7d40700ce5  471.789  0.4078  22.55  0
+pa18_floats_2026-10-23.json                       e5f3f8e1  5c1ca383f00a  751.554  0.6607  22.55  0
+rufus_2026-10-18_certified.json                   7052bcd0  2c90427044d2  366.681  0.7348  19.60  0

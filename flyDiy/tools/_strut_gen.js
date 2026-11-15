@@ -491,6 +491,20 @@ function strutBuild(bags, AF, site, ends, opt) {
     return SECT ? SECT.map(c => [(c[0] - 0.40) * us, c[1] * vs])
                 : K.secBlade(us, vs * 0.236, 4);
   };
+  // STRUT-OPTIONS (2026-11-10): A ROUND TUBE (opt.round, the wing's 'strut section' row): a circle of the tube's
+  // diameter (GEN_STRUT_OPT.tubeD, the drag's own figure) over the length, squeezed into the same blade at both ends -
+  // a round strut's end is flattened (or plugged with a tang) to enter its clevis - so the fittings are unchanged
+  const RD = (typeof GEN_STRUT_OPT !== 'undefined' ? GEN_STRUT_OPT.tubeD : 0.045);
+  const roundOf = D => t => {
+    const e = FIT.endFrac;
+    const k = Math.min(1, Math.min(t, 1 - t) / e);
+    const a = mix(FIT.bladeC, D, k) * 0.5, b = mix(FIT.bladeT, D, k) * 0.5;
+    const n = SECT ? SECT.length : 16;
+    const out = [];
+    for (let h = 0; h < n; h++) { const q = 2 * Math.PI * h / n; out.push([Math.cos(q) * a, Math.sin(q) * b]); }
+    return out;
+  };
+  const round = !!(opt && opt.round);
   // which member is which: a single strut, or the front / rear of a V
   const memberSec = i => ends.length === 1 ? [FIT.oneC, FIT.oneT]
     : i === 0 ? [FIT.frontC, FIT.frontT] : [FIT.rearC, FIT.rearT];
@@ -583,7 +597,7 @@ function strutBuild(bags, AF, site, ends, opt) {
     // of a streamline strut, and the thing a transported frame loses if you
     // let it pick its own start.
     const [sC, sT] = memberSec(i);
-    K.sweep(bags.strut, K.resample([foot, tip], 16), sectOf(sC, sT), true, [0, 0, 1]);
+    K.sweep(bags.strut, K.resample([foot, tip], 16), round ? roundOf(RD) : sectOf(sC, sT), true, [0, 0, 1]);
     // HOW FAR THE DRAWN END IS FROM THE BEAM IT STANDS FOR, IN PLAN. The
     // caller reports and gates on this: the visuals are constrained to the
     // physics, never the other way round.
@@ -652,7 +666,32 @@ function padOn(bags, K, ctr, n0, fore, L, W, t, proj, FIT) {
 
 const API = { STRUT_FIT, STRUT_BAND, strutBand,
               strutSnap, strutSite, strutSkin, strutBuild, strutClevisUp,
-              padOn };   // G185: the wing plate, for the brace layer's wing-to-wing members
+              padOn,     // G185: the wing plate, for the brace layer's wing-to-wing members
+              juryBuild };   // STRUT-OPTIONS
+// STRUT-OPTIONS (2026-11-10): THE JURY STRUT, drawn - a light tube (opt.t, GEN_STRUT_OPT.juryT: the drag's own
+// frontal) from a CLAMP on the drawn lift strut to its far end, round or streamline as the lift strut is; the clamp a
+// short collar round the strut (a split clamp, the J-3's and the ultralights' alike), the far end a small doubler
+// collar. `st` is the drawn lift strut ({pin, tip}, strutBuild's), `a` the clamp point on it, `b` the far end.
+function juryBuild(bags, a, b, st, opt) {
+  const W = typeof window !== 'undefined' ? window : null;
+  const K = W && W.GEAR_KIT;
+  if (!K || !bags) return null;
+  const t = (opt && opt.t) || 0.025, round = !!(opt && opt.round);
+  const SECT = (typeof GEN_STRUT_SECT !== 'undefined') ? GEN_STRUT_SECT : null;
+  // streamline: chord fore-and-aft at 3:1 (the PA-18's own strut proportion, STRUT_FIT), the thickness t
+  const sect = round || !SECT ? () => K.secRound(t * 0.5, 14)
+    : () => SECT.map(c => [(c[0] - 0.40) * 3 * t, c[1] * t / (2 * 0.118)]);
+  K.sweep(bags.strut, K.resample([a, b], 4), sect, true, [0, 0, 1]);
+  // the clamp: a collar along the lift strut, centred on the clamp point
+  const ax = nrm3([st.tip[0] - st.pin[0], st.tip[1] - st.pin[1], st.tip[2] - st.pin[2]]);
+  const hl = 0.035, rc = (round ? (typeof GEN_STRUT_OPT !== 'undefined' ? GEN_STRUT_OPT.tubeD : 0.045) * 0.5 : 0.022) + 0.004;
+  K.tube(bags.alloy, K.off(a, ax, -hl), K.off(a, ax, hl), rc, 14);
+  // the far end: a short stub collar along the jury's own axis (its end fitting)
+  const aj = nrm3([b[0] - a[0], b[1] - a[1], b[2] - a[2]]);
+  K.tube(bags.alloy, K.off(b, aj, -0.04), b, t * 0.5 + 0.004, 12);
+  return { a, b, len: d3(a, b) };
+}
+
 if (typeof window !== 'undefined') window.STRUT_GEN = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();

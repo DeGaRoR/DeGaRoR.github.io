@@ -42,6 +42,10 @@ PAGE.defaults = Object.assign({
   // frame roots the wing at the pylon and runs the cabane as a narrow truss inside it (61_gen_frame cabPylon)
   bpCabPylon: 0,
   bpCabPyAt: 0.40, bpCabPyLen: 0.55,   // (the hub's pylon on the chord: HULL-B78's own)
+  // PETREL-LS (the user, 10 Nov: "the pylon... has to move back a lot and get a lot longer"): the faired pylon's
+  // centre fore/aft (m, + forward; 0 = 0.40 of the centre chord behind the leading edge) and its length (m; 0 = 0.55
+  // of that chord) - drawn only (the frame's cabane truss inside it stands at the cabane's own station)
+  bpPylonZ: 0, bpPylonLen: 0,
 }, PAGE.defaults || {});
 
 // ---- panel ----------------------------------------------------------------
@@ -61,6 +65,8 @@ const BRACE_ITEMS = [
     // the centre section's, so the wing's fore / aft row moves it with the wing; these place it on the chord
     ['bpCabPyAt',  'pylon along the chord (its middle, from the LE)', 0.10, 0.95, 0.01, { when: P => onCab(P) && +P.bpCabPylon }],
     ['bpCabPyLen', 'pylon chord (x the wing\'s)', 0.20, 0.95, 0.01, { when: P => onCab(P) && +P.bpCabPylon }],
+    ['bpPylonZ', 'pylon fore / aft (+ forward)', -1.20, 0.60, 0.005, { when: P => onCab(P) && +P.bpCabPylon, dim: 'm', absent: 0 }],
+    ['bpPylonLen', 'pylon length (0 = 0.55 chord)', 0, 2.5, 0.01, { when: P => onCab(P) && +P.bpCabPylon, dim: 'm', absent: 0 }],
     ['bpStrutK', 'strut size (cabane, interplane)', 0.3, 1.5, 0.01, { when: P => onCab(P) || onBip(P) }],
   ], { when: onCab }],
   ['interplane & wires', [

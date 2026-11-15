@@ -127,6 +127,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const D = Math.PI / 180;
   const nodes = [], beams = [];
   const degenerate = [];                            // B10: the members B() refused (zero length)
+  // STRUT-OPTIONS (2026-11-10): where the lift struts' optional drag acts - one 4-node blob a side on the struts' own
+  // ends (refs.strutDrag), only when the spec asks for a strut option (the bytes every build had otherwise)
+  const strutDragRefs = [];
   const clusters = [];                              // G294: rigid node groups (the tube)
   // G327: a fin's cluster — its truss and the station it stands on — with
   // its stiffness declared as a K_tip for the end-of-lattice resolution
@@ -499,6 +502,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
+    // STRUT-OPTIONS (2026-11-10): what a lift-strut member IS, only where the wing's strut rows asked for it
+    // (bracing.section / bracing.jury): 'lift' a whole lift strut, 'half' one of its two halves at a jury strut's
+    // clamp, 'jury' the jury strut, 'tie' the hidden fore-and-aft tie between the pair's clamps; `round` the tube
+    // section. Absent on every member of every build without the rows (the bytes they were).
+    if (opt && opt.strut) bm.strut = opt.strut;
+    if (opt && opt.round) bm.round = true;
     if (opt && opt.pre) bm.pre = opt.pre;
     // G1803 (DMG-D0): THE LEDGER SECTION open as the member is built (sec(): 'fuselage', 'wings', 'bracing', 'tail', 'gear',
     // 'engines', ...) - the one its mass and money are billed to below, so the repair bill (DEFORM §10) sums a beam's
@@ -591,7 +600,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const bk = bucketB(bucketOf(cls, mnt), MM);
       const g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
-      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK * (rodMem ? RODMK : 1) * (HUBPIN && SEC === 'bracing' && !isG ? HUBF : 1) * ulG, h = h0 * g1;   // (the rod row's rho t)
+      // BIPLANE-SIZING (2026-11-09): a member's own MASS factor (opt.massK: a braced spar's relief, a truss plane's box
+      // stand-in) - the mass and the bill only; its stiffness, damping and section are the member's as before
+      const mKm = (opt && opt.massK > 0) ? opt.massK : 1;
+      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK * mKm * (rodMem ? RODMK : 1) * (HUBPIN && SEC === 'bracing' && !isG ? HUBF : 1) * ulG, h = h0 * g1;   // (the rod row's rho t)
       if (bk && !GG) { const G = gBag(bk); G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
         if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
@@ -1181,6 +1193,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const cH = w.position === 'parasol' ? (w.cabaneH == null ? 0.55 : w.cabaneH) : 0;
     return cab.h * POSk + (cH > 0 ? cH : R.wingStandoff * (POSk >= 0.75 ? 1 : POSk <= 0.25 ? -1 : 0));
   };
+  const sparKs = [];            // BIPLANE-SIZING: each plane's braced-spar mass factor (parts.sparK)
   const buildPlane = (k) => {
   sec('wings');
   curPlane = k;
@@ -1247,6 +1260,37 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // cantilever depth and cantilever cap stiffness; a lighter braced-spar
   // row (spruce I-beam sized for the braced case) is owed.
 
+  // BIPLANE-SIZING (2026-11-09, the user: "go ahead with the biplane wing sizing pass"; the owed braced-spar row above).
+  // THE BRACED SPAR'S MASS. The wing class's linear density was fitted on the Cub's spar: a strut monoplane carrying the
+  // whole lift, its worst moment the overhang's (0.45 of the semispan, w a^2 / 2 = 0.101 w s^2). A wired plane carries its
+  // SHARE of the lift (its area's) and its worst moment is the larger of its own overhang beyond the interplane station
+  // (a^2 / 2) and its bay between the root and that station (b^2 / 8, the wires and the strut its supports). Its spar caps
+  // bill (that moment over the Cub-like monoplane's) ^ 2/3 - a section of similar shape sized to its moment - between
+  // GEN_RULES.trussSparK's floor and 1. The stiffness stays the cantilever lattice's (GATE BIPLANE flies it).
+  // ...AND ITS BOX IS A STAND-IN: the cantilever box below gives the planar two-spar wing the depth its real spar has
+  // inside its own section - the lower caps and the webs are not a second spar - and its lower plan diagonals repeat the
+  // drag bracing the upper plane's diagonals already bill. On a CLOTH wing (a skinned wing's webs are its skin, boxWebK)
+  // the box's members bill GEN_RULES.trussBoxK of their density: the compression ribs' and the fittings' share.
+  const TRK = R.trussSparK || [0.35, 1];
+  let sparK = 1;
+  if (trussHere) {
+    const Sw0 = (S.geom.planes || []).reduce((t, p) => t + (p.Sw || 0), 0);
+    const phi = Sw0 > 0 && G.Sw > 0 ? G.Sw / Sw0 : 0.5;
+    const s0 = G.semi, a = Math.max(0, s0 - zIP), b = Math.max(0, zIP - zRoot);
+    const Mk = phi * Math.max(a * a / 2, b * b / 8), Mref = 0.10125 * s0 * s0;
+    sparK = Math.min(TRK[1], Math.max(TRK[0], CORE_MATH.pow(Mk / Mref, 2 / 3)));
+  }
+  const SPAR = sparK < 1 ? { massK: sparK } : undefined;
+  // UL-WING (the user 9 Nov: "we overestimate the wing weight by a factor 2 ... that's the kind of wing we should support
+  // easy"): a surface row may say how much of a member's density its STAND-INS bill - the strut fan's hidden members (the
+  // two drawn lift struts stay whole) and the wing plan's drag diagonals and rib members (a real tube-and-cable wing's are
+  // compression tubes and drag wires, not spar caps). `standInK` on the row; absent = 1, every row but the ultralight's
+  const MWk = genSurfMaterial(S, 'wing', k), SIK = MWk && MWk.standInK > 0 && MWk.standInK < 1 ? MWk.standInK : 1;
+  const STAND = SIK < 1 ? { massK: SIK } : undefined;
+  const boxCloth = trussHere && !(GEN_SURF_MATERIALS && genSurfMaterial(S, 'wing', k).coverGauged);
+  const boxK = R.trussBoxK == null ? 1 : R.trussBoxK;
+  const TBOX = boxCloth && boxK !== 1 ? { massK: boxK } : undefined, TWEB = boxCloth && boxK !== 1 ? { web: true, massK: boxK } : null;
+  sparKs[k] = sparK;
   // is this the UPPER plane of the pair (the box caps go on the far side)
   const upperHere = !S.biplane || S.wings.length < 2
     || (k === 0 ? yOfPlane(S.wings[0]) >= yOfPlane(S.wings[1])
@@ -1364,7 +1408,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // PILLAR-ANCHORS (P4): a PICKED pillar (S.bracing.strutAt, its ring's station, the join's) roots the strut on
     // that ring - the C pillar's included, the box clamp being the auto rule's; absent, the rule above, unchanged
     const strutAt = S.bracing && S.bracing.strutAt != null ? +S.bracing.strutAt : null;
-    const strutRoot = F[strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox)][opposeTag + sd];
+    const iStrutRing = strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox);
+    const strutRoot = F[iStrutRing][opposeTag + sd];
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
@@ -1399,6 +1444,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
             const yR = Math.max(P[F[i].TL][1], P[F[i].TR][1]), b = N(ST[i].x, yR, s * CABPY_HW, 'CPB');
             B(b, F[i].TL, 'cabane', false, 'inner'); B(b, F[i].TR, 'cabane', false, 'inner');
             const m = cabPyBase.get(i + '_' + (-s)); if (m != null) B(b, m, 'cabane', false, 'inner');
+            // PYLON-FOOT (Deform's certificate lookup, 13 Nov): a base sits ON its ring's top cross line, so its ties
+            // (both top longerons, its mirror) are one straight line; a base under ONE root has a single strut up, and the
+            // plane they span leaves a direction with no member at all - the certificate's static solve filled it with
+            // 1e8-4e8 N (the Petrel's cabane in every flight case). Each base is also tied fore and aft along the roof,
+            // to the neighbouring rings' top longeron on its side (the pylon's own longerons, inside the fairing)
+            const topSd = s > 0 ? 'TR' : 'TL';
+            // (massless: the fairing's own skin and the pylon's frame are billed above - these stand for its stiffness)
+            for (const j of [i - 1, i + 1]) if (F[j] && F[j][topSd] != null) B(b, F[j][topSd], 'cabane', false, 'inner', undefined, { noMass: true });
             pt(b, 1.5 * 2 * Math.max(0.1, P[nd][1] - yR) * 0.3);
             cabPyBase.set(key, b);
           }
@@ -1429,10 +1482,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const WR = zs.map(z => N(xRat(z), yF(z) - sparSpacing * Math.tan(incAt(z)), s * z, 'WR'));
     const cF = [rootF, ...WF], cR = [rootR, ...WR];
     for (let i = 0; i < zs.length; i++) {
-      B(cF[i], cF[i + 1], 'wing'); B(cR[i], cR[i + 1], 'wing');
-      B(cF[i + 1], cR[i + 1], 'wing');                       // rib
+      B(cF[i], cF[i + 1], 'wing', 0, 0, 0, SPAR); B(cR[i], cR[i + 1], 'wing', 0, 0, 0, SPAR);   // the spars (BIPLANE-SIZING)
+      B(cF[i + 1], cR[i + 1], 'wing', 0, 0, 0, STAND);         // rib (UL-WING: a stand-in's share on the ultralight row)
       // rule 4 again: the wing plan bay is a quad and gets its diagonals
-      B(cF[i], cR[i + 1], 'wing'); B(cR[i], cF[i + 1], 'wing');
+      B(cF[i], cR[i + 1], 'wing', 0, 0, 0, STAND); B(cR[i], cF[i + 1], 'wing', 0, 0, 0, STAND);
       const zi = i === 0 ? zRoot : zs[i - 1], zo = zs[i];
       cover(1.9 * (zo - zi) * 0.5 * (chordAt(zi) + chordAt(zo)),
             [cF[i], cF[i + 1], cR[i], cR[i + 1]]);
@@ -1491,8 +1544,63 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // T2.3 (83): ONE strut (bracing.struts 1) draws only the front member;
       // the rear one stays as a hidden fan member, so the truss the physics
       // flies is the same aeroplane — the drawing is what changes
-      B(strutRoot, WF[iStrut], 'wing', true);
-      B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1);
+      // STRUT-OPTIONS (2026-11-10, the user on the Ruckus and the Cub: "an option so that these are simply tubes ...
+      // from the middle of the truss, you got another half one going back towards the cabin ... we model this little
+      // one as well"). Neither option touches a build without its row: no `section`, no `jury` -> the two lines as
+      // they always were.
+      const SOPT = genStrutOpts(S);
+      // THE DRAG ACTS WHERE THE STRUTS ARE (REAL-FIGURES' finding on the first cut, 10 Nov: billed on the body's
+      // axial row it acted at the cabin ring's blob, well aft of the CG on a rod-boom ultralight, and weathercocked
+      // the Ruckus - SM 7.6 -> 17.1 %, the spiral 12.6 s -> a 4.5 s fail). The blob's four nodes are the strut's
+      // foot and its wing end(s): their mean is the drawn strut's (or the V pair's) middle, on this side, so each
+      // side's drag reads its own air (a yaw rate drags the advancing side's harder: the damping a real strut gives)
+      if (SOPT.round || SOPT.jury)
+        strutDragRefs.push((S.bracing && S.bracing.struts) === 1
+          ? [strutRoot, WF[iStrut], strutRoot, WF[iStrut]]
+          : [strutRoot, WF[iStrut], strutRoot, WR[iStrut]]);
+      if (!SOPT.jury) {
+        B(strutRoot, WF[iStrut], 'wing', true, 0, 0, SOPT.lift || undefined);
+        B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1, 0, 0, SOPT.lift || undefined);
+      } else {
+        // THE JURY STRUT. A clamp node on each lift strut at GEN_STRUT_OPT.juryAt of its length from the foot; the
+        // strut is the two halves either side of it, each at TWICE the class k so the pair in series is the one
+        // strut's axial spring it was (30_solver: F = k dL, a member's k does not scale with its length), and
+        // their masses sum to the whole strut's (half L each). From the clamp:
+        //   'wing'   the J-3 / PA-18 arrangement: a short strut UP to the wing's spar at the station nearest the
+        //            clamp, inboard of the lift strut's own (the front clamp to the front spar, the rear to the rear);
+        //   'cabin'  the Ruckus's (the user: "going back towards the cabin"): a strut AFT and in to the fuselage's
+        //            wing-side longeron one ring behind the strut's foot.
+        // A clamp on a straight strut with one brace off it is a hinge (two directions at the node), so the pair's
+        // clamps are joined by a HIDDEN fore-and-aft tie and a diagonal, massless: the jury fitting's own stiffness
+        // across the pair (GATE GEN's rank test is the proof they are needed and enough: GATE STRUTOPT). On a single strut (bracing.struts 1) the
+        // rear member is still in the truss, hidden, and so are its halves, its jury and the tie.
+        const tops = [WF[iStrut], WR[iStrut]], spars = [cF, cR];
+        const drawn = [true, (S.bracing && S.bracing.struts) !== 1];
+        const f = GEN_STRUT_OPT.juryAt, rp = P[strutRoot];
+        const iTo = SOPT.jury === 'cabin' ? Math.min(F.length - 1, iStrutRing + 1) : -1;
+        const zMid = Math.abs(rp[2]) + f * (Math.abs(P[tops[0]][2]) - Math.abs(rp[2]));
+        let jSt = 0;                                  // the spar station nearest the clamp, inboard of the strut's
+        for (let j = 0; j <= iStrut; j++)
+          if (Math.abs(Math.abs(P[cF[j]][2]) - zMid) < Math.abs(Math.abs(P[cF[jSt]][2]) - zMid)) jSt = j;
+        const mids = [];
+        for (let m = 0; m < 2; m++) {
+          const tp = P[tops[m]];
+          const md = N(rp[0] + f * (tp[0] - rp[0]), rp[1] + f * (tp[1] - rp[1]), rp[2] + f * (tp[2] - rp[2]), 'JS');
+          mids.push(md);
+          const HALF = { kx: 2, strut: 'half', ...(SOPT.round ? { round: true } : {}) };
+          B(strutRoot, md, 'wing', drawn[m], 0, 0, HALF);
+          B(md, tops[m], 'wing', drawn[m], 0, 0, HALF);
+          const to = SOPT.jury === 'cabin' ? F[iTo][side] : spars[m][jSt];
+          // (a hidden jury - the single strut's rear - is massless: it stands for the clamp's stiffness, not for a tube)
+          B(md, to, 'wing', drawn[m], 0, 0, { strut: 'jury', ...(drawn[m] ? { massK: GEN_STRUT_OPT.juryMassK } : { noMass: true }),
+                                              ...(SOPT.round ? { round: true } : {}) });
+        }
+        B(mids[0], mids[1], 'wing', 0, 0, 0, { strut: 'tie', noMass: true });
+        // ...and its diagonal, the front clamp to the rear strut's wing end: two clamps on two straight struts are six
+        // freedoms, held by the two struts, the two juries and the tie - five; the diagonal is the sixth (the rank
+        // test's 3n - 6 found the hinge without it)
+        B(mids[0], tops[1], 'wing', 0, 0, 0, { strut: 'tie', noMass: true });
+      }
       // fan ends: station 0 always; the TIP pair only where the fan may
       // reach it — an uncranked wing (byte-identical emissions). On a
       // cranked wing nothing reaches past the crank; the outer panel's
@@ -1503,7 +1611,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         ? (iStrut === 0 ? [] : [WF[0], WR[0]])
         : [WF[0], WR[0], WF[WF.length - 1], WR[WR.length - 1]];
       for (const t of ends)
-        B(strutRoot, t, 'wing');
+        B(strutRoot, t, 'wing', 0, 0, 0, STAND);                // (UL-WING: the fan, a stand-in)
       // ...AND EVERY STATION IN BETWEEN (2026-08-11, GATE FLEX matrix).
       // The four lines above reach exactly three stations: 0, mid=1 and the
       // last. `wing.panels` is a PLAYER SLIDER clamped 2..5, so at 4 panels the
@@ -1540,7 +1648,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         // G140: the crank station already carries the REAL struts — a fan
         // pair on top would be the panels-2 double-stiffness case, chosen
         if (zCrank && i === iStrut) continue;
-        B(strutRoot, WF[i], 'wing'); B(strutRoot, WR[i], 'wing');
+        B(strutRoot, WF[i], 'wing', 0, 0, 0, STAND); B(strutRoot, WR[i], 'wing', 0, 0, 0, STAND);
       }
       // G140: THE OUTER PANEL OF A CRANKED STRUTTED WING IS A BOX — the
       // C172's construction: strut to the crank joint, cantilever box from
@@ -1604,15 +1712,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         cFB.push(mkLower(cF[i], z, xFat(z), sparFront));
         cRB.push(mkLower(cR[i], z, xRat(z), sparRear));
         // station cell: webs down from each cap, lower rib, and its diagonals
-        B(cF[i], cFB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cRB[i], 'wing', 0, 0, 0, WEB);
-        B(cFB[i], cRB[i], 'wing', 0, 0, 0, WEB);
-        B(cF[i], cRB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cFB[i], 'wing', 0, 0, 0, WEB);
+        // (BIPLANE-SIZING: on a wired cloth plane the box is the spar's own depth - TWEB / TBOX bill trussBoxK)
+        const WB_ = TWEB || WEB;
+        B(cF[i], cFB[i], 'wing', 0, 0, 0, WB_); B(cR[i], cRB[i], 'wing', 0, 0, 0, WB_);
+        B(cFB[i], cRB[i], 'wing', 0, 0, 0, WB_);
+        B(cF[i], cRB[i], 'wing', 0, 0, 0, WB_); B(cR[i], cFB[i], 'wing', 0, 0, 0, WB_);
       }
       for (let i = 0; i < zs.length; i++) {
-        B(cFB[i], cFB[i+1], 'wing'); B(cRB[i], cRB[i+1], 'wing');   // lower caps
-        B(cFB[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cFB[i+1], 'wing', 0, 0, 0, WEB);   // lower plan
-        B(cF[i], cFB[i+1], 'wing', 0, 0, 0, WEB); B(cFB[i], cF[i+1], 'wing', 0, 0, 0, WEB);     // front web
-        B(cR[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cR[i+1], 'wing', 0, 0, 0, WEB);     // rear web
+        const WB_ = TWEB || WEB;
+        B(cFB[i], cFB[i+1], 'wing', 0, 0, 0, TBOX); B(cRB[i], cRB[i+1], 'wing', 0, 0, 0, TBOX);   // lower caps
+        B(cFB[i], cRB[i+1], 'wing', 0, 0, 0, WB_); B(cRB[i], cFB[i+1], 'wing', 0, 0, 0, WB_);   // lower plan
+        B(cF[i], cFB[i+1], 'wing', 0, 0, 0, WB_); B(cFB[i], cF[i+1], 'wing', 0, 0, 0, WB_);     // front web
+        B(cR[i], cRB[i+1], 'wing', 0, 0, 0, WB_); B(cRB[i], cR[i+1], 'wing', 0, 0, 0, WB_);     // rear web
       }
       // and the box has to carry through the fuselage too, or the whole
       // bending moment still arrives at a point (rule 3)
@@ -2676,13 +2787,22 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // drops by the spar spacing x tan(hInc) (LE up +, x aft +); the aero
   // reads the stab's chord off these nodes, so the tail flies its setting
   const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
+  // FIN-MOUNT (10 Nov, the user on the Petrel's tail: "the rudder really ... gets completely confused"): A STAB RAISED
+  // UP THE FIN HANGS ON THE FIN. Its root and tip ties ran to the post and the last ring whatever its height - right
+  // for a Cub's stab on the cone, but a cruciform stab 0.37 m up the fin drew them as long diagonals and wires down
+  // through the rudder. Raised clear of the post's top (more than 0.15 m), the fin gets a row AT the stab's height
+  // and the stab's roots tie to that row, its tips' up-and-down wires to the rows above and below (the Cub's own
+  // brace, carried up the fin). On the cone (every stab under that line): the rule below, to the bit.
+  // (REAL-CANON, A0 13 Nov: latent - a tail stated `drawn` only, its card's tailDrawn row: the Super Petrel V4.2's)
+  const stabOnFin = !!t.drawn && (stabY - P[TPT][1]) > 0.15;
+  const stabTips = [];
   const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
   for (const [sd, sg] of [['L', -1], ['R', 1]]) {
     HF[sd] = zsH.map(z => N(xFH(z), stabY, sg * z, 'HF'));
     HR[sd] = zsH.map(z => N(xRH(z), stabY - (xRH(z) - xFH(z)) * tanI, sg * z, 'HR'));
     HB[sd] = zsH.map(z => SO(N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'), dep * chordH(z) - stHalf));
     const ring = sd === 'L' ? [last.TL, last.BL] : [last.TR, last.BR];
-    for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
+    if (!stabOnFin) for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
       B(nd, TPB, 'tail'); B(nd, TPT, 'tail');
       for (const r of ring) B(nd, r, 'tail');
     }
@@ -2725,6 +2845,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // with steel WIRES from the tips up to the fin post and down to its foot
     // — tension-only, the G185 wire law, drawn — and the tip still ties to
     // the last ring's pair as the old tips did (the lattice's own roll path)
+    // (FIN-MOUNT: the tip's wires go up and down the fin, below; its ties to the last ring stay - they are the stab's
+    // roll path, G199.5: hung on the fin alone the v7 ultralight's stab rolled 5.4 deg on its mains through the taxi)
+    if (stabOnFin) { stabTips.push([H, sd]); for (const r of ring) B(H, r, 'tail'); continue; }
     B(H, TPT, 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
     B(H, TPB, 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
     for (const r of ring) B(H, r, 'tail');
@@ -2751,15 +2874,34 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const xFV = u => t.vX + rakeV * hV * u + (sparF - 0.5) * chordV(u);
   const xRV = u => t.vX + rakeV * hV * u + (0.5 - CR) * chordV(u);
   const nV = Math.max(2, Math.min(3, Math.round(hV / 0.55)));
+  // (FIN-MOUNT: the interior row nearest the raised stab moves to its height - the stab's roots land on it)
+  const uV = []; for (let i = 0; i <= nV; i++) uV.push(i / nV);
+  let jStab = -1;
+  if (stabOnFin) {
+    const us = (stabY - yV0) / hV;
+    if (us > 0.5 / nV && us < 1 - 0.5 / nV) {
+      jStab = 1; for (let i = 1; i < nV; i++) if (Math.abs(uV[i] - us) < Math.abs(uV[jStab] - us)) jStab = i;
+      uV[jStab] = us;
+    }
+  }
   const VF = [], VR = [], VX = [], VX2 = [];
   for (let i = 0; i <= nV; i++) {
-    const u = i / nV, y = yV0 + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
+    const u = uV[i], y = yV0 + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
     VF.push(N(xFV(u), y, 0, 'VF')); VR.push(N(xRV(u), y, 0, 'VR'));
     // the pair either side: the fin's own thickness, a diamond section
     VX.push(SO(N(xm, y, 0.5 * dep * chordV(u), 'VX'), 0.5 * dep * chordV(u) - finHalf));
     VX2.push(SO(N(xm, y, -0.5 * dep * chordV(u), 'VX'), 0.5 * dep * chordV(u) - finHalf));
   }
   for (const nd of [VF[0], VR[0], VX[0], VX2[0]]) {
+    // FIN-MOUNT (10 Nov): A ROOT AHEAD OF THE LAST RING STANDS ON THE BAY UNDER IT TOO. A swept fin's root runs forward
+    // along the boom (the Petrel's front spar 0.8 m ahead of the post) and hung on the post alone. Ahead of the last
+    // ring, the root node also ties to the top pair of the ring before it (the last ring's pair it already has). The post
+    // ties stay: they are what holds the post's top square for a stab on the cone (GATE TAKEOFF's stab roll, G199.5:
+    // taken off, the stand's stab rolled 5-6 deg on its post through the taxi). Over the last ring or aft of it: to the bit
+    const xn = P[nd][0];
+    let k = -1;
+    if (xn < lastST.x - 0.02) for (let i = ST.length - 2; i >= 0; i--) if (ST[i].x <= xn) { k = i; break; }
+    if (t.drawn && k >= 0 && F[k] && F[k] !== last) { B(nd, F[k].TL, 'tail'); B(nd, F[k].TR, 'tail'); }   // (latent, as above)
     B(nd, TPT, 'tail'); B(nd, TPB, 'tail');                   // the root, the keel row to TPB
     B(nd, last.TL, 'tail'); B(nd, last.TR, 'tail');
   }
@@ -2792,20 +2934,37 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       B(VF[i], X[i + 1], 'tail'); B(X[i], VF[i + 1], 'tail');
       B(VR[i], X[i + 1], 'tail'); B(X[i], VR[i + 1], 'tail');
     }
-    const bayV = (hV / nV) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV));
+    const bayV = hV * (uV[i + 1] - uV[i]) * 0.5 * (chordV(uV[i]) + chordV(uV[i + 1]));
     cover(1.9 * bayV, [VF[i], VF[i + 1], VR[i], VR[i + 1], VX[i], VX[i + 1], VX2[i], VX2[i + 1]]
                         .concat(i === nV - 1 ? [FIN] : []));
-    const ribV = Math.max(1, Math.round((hV / nV) / 0.4)) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV)) * 0.30;
+    const ribV = Math.max(1, Math.round((hV * (uV[i + 1] - uV[i])) / 0.4)) * 0.5 * (chordV(uV[i]) + chordV(uV[i + 1])) * 0.30;
     pt(VF[i + 1], 0.5 * ribV); pt(VR[i + 1], 0.5 * ribV);
   }
   for (const nd of [VF[nV], VR[nV], VX[nV], VX2[nV]]) B(FIN, nd, 'tail');   // the apex on the last section
   pt(FIN, 1.15 * cTipV * 0.30);              // the apex's bow (G235), as the tips'
   B(FIN, VF[nV - 1], 'tail'); B(FIN, VR[nV - 1], 'tail');   // ...and out of its plane (the same mechanism)
+  // FIN-MOUNT: the raised stab's roots on the fin's row at its height (its own side's section node, both spars, the
+  // rows above and below for depth), its tips braced up and down the fin as a Cub's to its post (tension wires)
+  if (stabOnFin) {
+    const j = jStab >= 1 ? jStab : 1;
+    for (const sd of ['L', 'R']) {
+      const XS = sd === 'R' ? VX : VX2;
+      for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
+        B(nd, VF[j], 'tail'); B(nd, VR[j], 'tail'); B(nd, XS[j], 'tail');
+        B(nd, XS[j - 1], 'tail'); B(nd, XS[Math.min(nV, j + 1)], 'tail');
+      }
+    }
+    for (const [H, sd] of stabTips) {
+      const XS = sd === 'R' ? VX : VX2;
+      B(H, XS[Math.min(nV, j + 1)], 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
+      B(H, XS[j - 1], 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
+    }
+  }
   // G327: the fin as one cluster with the post and the last ring it stands on
   finCluster('FIN', [...VF, ...VR, ...VX, ...VX2, FIN], [TPT, TPB, last.TL, last.TR],
              hV, chordV(0), MB, { front: VF[0], rear: VR[0], tip: FIN });
   TAIL = { HF, HR, HB, VF, VR, VX, VX2, zsH, semiH, zRootH, chordH, hV, chordV, nV,
-           fins: [{ VF, VR, VX, VX2, FIN, side: 1, hV, chordV, nV }],   // G268: one fin here, two on a twin boom
+           fins: [{ VF, VR, VX, VX2, FIN, side: 1, hV, chordV, nV, uV }],   // G268: one fin here, two on a twin boom (FIN-MOUNT: its rows' heights)
            sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };
   }
 
@@ -3024,7 +3183,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   B(GAR, F[iFwd].TR, 'gear', false, 'inner');
   }
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
-  const mWheel = CYCLE ? R.wheelCycleKg(S.gear.wheelR) : R.wheelKg(S.gear.wheelR);
+  const whProf = Math.round(+((S.cage && S.cage.whProfile) || 0));    // (BUSH-WHEELS: the carcass's own law)
+  const mWheel = CYCLE ? R.wheelCycleKg(S.gear.wheelR) : R.wheelKg(S.gear.wheelR, whProf);
   // THE BRAKES (GEN_BRAKES): the pair's mass on the mains, its price with the wheels; absent: nothing (as it was)
   // (MONOWHEEL: the one main carries the whole of it)
   const BRK = genBrakeOf(S), mBrk = BRK ? 0.5 * BRK.kg : 0;
@@ -3189,6 +3349,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
     pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
   }
+  // TAIL-RETRACT (2026-11-09): A TAILDRAGGER'S RETRACTION KIT, on the mains' axles (their actuators, locks and
+  // trunnions; the tailwheel stays fixed); priced once, as the tricycle's
+  if (!trike && S.gear.retract && !GUL && GAL != null && GAR != null) {   // (the ultralight monowheel's kit is its own: GEN_RULES.ulGear)
+    const kit = R.retractKg(gross);
+    pt(GAL, kit / 2); pt(GAR, kit / 2);
+    spend(GEN_PRICES.retract);
+  }
   } if (hullGear) {   // (HULL-B55: after the wheels on an amphibian - was `else if`)
     // ---- THE BOAT HULL (HULL-B3, futureDesigns/HULL-TYPES-2026-11.md §3.5). ONE centreline hull record: the drawn
     // fuselage's keel / chine / gunwale lines as 32_hydro's station table (hullParamsFromTable), so the water pushes
@@ -3310,7 +3477,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // unset, the same rule off this build's gross (HYDRO.hullTipFit)
       const fit0 = (TP.kg > 0 && TP.y > -0.999) ? null : HYDRO.hullTipFit(HR, gross || 400);
       const kgT = TP.kg > 0 ? TP.kg : fit0.kg, yRel = TP.y > -0.999 ? TP.y : fit0.y;
-      const TPP = HYDRO.tipFloatParams(kgT);
+      const TPP = HYDRO.tipFloatParams(kgT, TP.len);   // (PETREL-LS: the row's length, unset the family's own)
       const tAt = TP.at != null ? TP.at : 0.85;
       for (const [sd, W] of [[-1, WFT.L], [1, WFT.R]]) {
         // the spar station nearest tAt of the semispan
@@ -3351,6 +3518,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           B(Lt[1], W.F[j], 'gear', true, undefined, undefined, KMh); B(Rt[1], W.F[j], 'gear', true, undefined, undefined, KMh);
           B(Lt[2], W.R[j], 'gear', true, undefined, undefined, KMh); B(Rt[2], W.R[j], 'gear', true, undefined, undefined, KMh);
           B(Lt[0], W.F[j], 'gear', true, 'wire', undefined, KMh); B(Rt[0], W.R[j], 'gear', true, 'wire', undefined, KMh);
+          // TIP-FLOAT ROLL (Deform's certificate lookup, 13 Nov): every strut above lands on ONE spar station, its front
+          // and rear nodes, so the float could roll about that chord line as a rigid body (the outrigger's own note); the
+          // certificate's static solve filled that freedom with 1e7-1e8 N in every flight case (the Petrel's TFD-TFD). The
+          // struts' root fittings are clamped: the deck edges at the step and aft also tie to the next station inboard
+          // (hidden and massless, NMh: the fitting's stiffness, not a drawn member)
+          const jIn = j > 1 ? j - 1 : (j + 1 < W.F.length ? j + 1 : null);
+          if (jIn != null) { B(Lt[1], W.F[jIn], 'gear', false, 'inner', undefined, NMh); B(Rt[1], W.F[jIn], 'gear', false, 'inner', undefined, NMh);
+                             B(Lt[2], W.R[jIn], 'gear', false, 'inner', undefined, NMh); B(Rt[2], W.R[jIn], 'gear', false, 'inner', undefined, NMh); }
         }
         const slabT = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
           K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
@@ -3796,10 +3971,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
+      // (PETREL-LS: the second plane's panel is an outboard bay too - it sat at the root; a leading-edge bay, the
+      // span's middle, on the front spar alone)
       const frac = v.along != null ? v.along
-                 : (v.bay === 'wingPanel' ? 0.34 : 0);
+                 : (v.bay === 'wingPanel' || v.bay === 'wing2Panel' ? 0.34 : BAY.le ? 0.17 : 0);
       const [wl, wr] = wingPair(frac, BAY.plane || 0);
-      const rr = wingPairRear(frac, BAY.plane || 0);
+      const rr = BAY.le ? null : wingPairRear(frac, BAY.plane || 0);
       pair = rr ? [[wl, 0.3], [wr, 0.3], [rr[0], 0.2], [rr[1], 0.2]]
                 : [[wl, 0.5], [wr, 0.5]];
     } else {
@@ -4153,6 +4330,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
     fusDrag: [F[iCabR].BL, F[iCabR].BR, F[iCabR].TL, F[iCabR].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
+    ...(strutDragRefs.length ? { strutDrag: strutDragRefs } : {}),   // STRUT-OPTIONS (the key only then)
     engine: engNodes, engineOf: engIdx, mains: GAL === GAR ? [GAL] : [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,   // (MONOWHEEL: one main)
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     ...(SKIDS.length ? { skids: SKIDS } : {}),       // TIP-SKID: the wingtip skids' shoes (the key only then)
@@ -4345,7 +4523,7 @@ function genDesignGross(S, a, cg) {
   // ('wingB': the D-tube's own bucket, gauged with the wing's exponent and capped at its build weight)
   const eOf = c => G.e[c] != null ? G.e[c] : G.e[c.replace(/B$/, '')];
   const rowOf = c => c === 'wingB' ? WROW : c === 'tailB' ? TROW : c === 'fusB' ? (GEN_MATERIALS[S.material] || null) : null;   // (L4: the soft shell's)
-  const hiOf = c => { const r = rowOf(c); return r && r.buildKg > 0 ? Math.min(G.hi, CORE_MATH.pow(r.buildKg / ref(c), eOf(c))) : G.hi; };
+  const hiOf = c => { const h0 = (G.hiBy && G.hiBy[c]) || G.hi, r = rowOf(c); return r && r.buildKg > 0 ? Math.min(h0, CORE_MATH.pow(r.buildKg / ref(c), eOf(c))) : h0; };   // (MASS-SCALE: a class's own ceiling, the gear's)
   const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), eOf(c))));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point

@@ -1188,3 +1188,9 @@ body:not(.fl2) #ui #mmX { display:none; }
   .flCornB { min-width:44px; min-height:44px; }
   #flMmB { top:12px; right:12px; }
 }
+
+/* ELEC-SYSTEMS (9 Nov): the electrics' alarms over the flight - low volts, not charging, battery flat, a refused start */
+#flElec { position:fixed; left:50%; top:64px; transform:translateX(-50%); z-index:40; pointer-events:none;
+  padding:6px 12px; border-radius:7px; background:rgba(40,18,10,.82); border:1px solid #e08a5a;
+  font:600 11px/1.3 'IBM Plex Sans'; letter-spacing:.06em; color:#ffb48a; white-space:nowrap; }
+#flElec[hidden] { display:none; }
