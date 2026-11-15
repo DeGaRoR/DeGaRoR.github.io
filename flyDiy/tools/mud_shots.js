@@ -99,7 +99,7 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
 
     // ---- MODE B (the record path failed): the main thread's surface and the dust's class read mud round HOME's strip
     const H = rec.mudA && rec.mudA.home;
-    if (rec.mode === 'B') rec.mudB = await J(`(() => { const W = FLIGHT_PROBE.world(), c = FLIGHT_PROBE.camGet().target, CODE = ${CODE};
+    if (rec.mode === 'B') rec.mudB = await J(`(() => { const W = FLIGHT_PROBE.world(), k = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(), c = k && k.matrixWorld ? (k.updateMatrixWorld(true), [k.matrixWorld.elements[12], k.matrixWorld.elements[13], k.matrixWorld.elements[14]]) : FLIGHT_PROBE.camGet().target, CODE = ${CODE};
       const cx = ${H ? H.x : 'c[0]'}, cz = ${H ? H.z : 'c[2]'}, s0 = W.surface.bind(W);
       W.surface = (x, z) => Math.hypot(x - cx, z - cz) < 900 ? CODE : s0(x, z);
       const F = window.DUST_FX && DUST_FX.make && DUST_FX.make(), ci = window.DUST.CLASSES.indexOf('mud');
@@ -111,9 +111,13 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
 
     // ---- the eyes in the run's frame
     const PAUSE = async () => { await ev("(()=>{const b=document.getElementById('bPause');if(b&&/pause/i.test(b.textContent))b.click();return b&&b.textContent})()"); await rig.frames(3); };
-    const RESUME = async () => { await ev("(()=>{const b=document.getElementById('bPause');if(b&&/resume/i.test(b.textContent))b.click();return b&&b.textContent})()"); await rig.frames(2); };
-    const where = () => J(`(() => { const c = FLIGHT_PROBE.camGet().target, W = FLIGHT_PROBE.world(), s = FLIGHT_PROBE.sim(), o = s && s.out || {};
-      return { P: c.map(v => +v.toFixed(2)), g: +W.terrainH(c[0], c[2]).toFixed(2), surf: W.surface(c[0], c[2]), softZ: o.softZ != null ? +(+o.softZ).toFixed(3) : null,
+    const RESUME = async () => { await ev("(()=>{const b=document.getElementById('bPause');if(b&&/resume|run/i.test(b.textContent))b.click();return b&&b.textContent})()"); await rig.frames(2);
+      const t = await ev("(()=>{const b=document.getElementById('bPause');return b&&b.textContent})()"); if (!/pause/i.test(t || '')) throw new Error('RESUME failed: #bPause reads ' + t); };
+    // (15 Nov slot: the button reads 'Run' when paused, not 'Resume' - the first run never resumed and sat paused at HOLD 11 min)
+    const where = () => J(`(() => { const t = FLIGHT_PROBE.camGet().target, k = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(); let c = t;
+      if (k && k.matrixWorld) { k.updateMatrixWorld(true); const e = k.matrixWorld.elements; c = [e[12], e[13], e[14]]; }
+      const W = FLIGHT_PROBE.world(), s = FLIGHT_PROBE.sim(), o = s && s.out || {};
+      return { P: c.map(v => +v.toFixed(2)), tgt: t.map(v => +v.toFixed(2)), craft: !!(k && k.matrixWorld), g: +W.terrainH(c[0], c[2]).toFixed(2), surf: W.surface(c[0], c[2]), softZ: o.softZ != null ? +(+o.softZ).toFixed(3) : null,
         softW: o.softW ? Array.from(o.softW).map(v => +(+v).toFixed(3)) : null, coat: (typeof AERO_WX !== 'undefined' && AERO_WX.live) ? +AERO_WX.live.m.toFixed(3) : 0,
         puffs: window.DUST_FX && DUST_FX.fx ? DUST_FX.fx.sys.P.live : null }; })()`);
     // d: along the run (HOME's hdg, the sign that points from the aeroplane to the strip's far end); n: beside it, on the sun's side
@@ -133,8 +137,13 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
       const tx = P[0] + D[0] * (ta || 0), tz = P[2] + D[1] * (ta || 0), ty = P[1] + (tdy || 0);
       const dx = tx - ex, dy = ty - ey, dz = tz - ez, yaw = Math.atan2(dx, -dz), pitch = Math.atan2(dy, Math.hypot(dx, dz));
       await rig.eye(ex, ey, ez, yaw, pitch); await rig.frames(20);
+      const inF = await J(`(() => { const k = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(), cam = FLIGHT_PROBE.camera(); if (!k || !cam) return { ok: null };
+        k.updateMatrixWorld(true); cam.updateMatrixWorld(true); const v = new k.position.constructor().setFromMatrixPosition(k.matrixWorld), d = v.distanceTo(cam.position); v.project(cam);
+        return { ok: v.z < 1 && Math.abs(v.x) < 0.95 && Math.abs(v.y) < 0.95, ndc: [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(4)], dist: +d.toFixed(1) }; })()`).catch(e => ({ ok: null, err: String(e.message || e) }));
+      if (inF.ok === false) { misses++; rec.eyes[name] = { eye: [ex, ey, ez].map(v => +v.toFixed(2)), yaw, pitch, at: w, inFrame: inF, why: 'the aeroplane is not in the frame' }; say('MISS ' + name + ': plane not in frame ' + JSON.stringify(inF));
+        save(); if (misses >= 2) throw new Error('two misses: stop (RIG-PROCEDURE 4)'); return; }
       try { const png = await rig.grab({ settle: 6 }); const f = path.join(OUT, 'mud_' + name + '.png'); fs.writeFileSync(f, png);
-        rec.eyes[name] = { eye: [ex, ey, ez].map(v => +v.toFixed(2)), yaw: +yaw.toFixed(3), pitch: +pitch.toFixed(3), at: w, info: png.info && { mean: png.info.mean, sd: png.info.sd, blank: png.info.blank } };
+        rec.eyes[name] = { eye: [ex, ey, ez].map(v => +v.toFixed(2)), yaw: +yaw.toFixed(3), pitch: +pitch.toFixed(3), at: w, info: png.info && { mean: png.info.mean, sd: png.info.sd, blank: png.info.blank }, inFrame: inF };
         say('wrote ' + f + ' (' + png.length + ' B' + (png.info && png.info.blank ? ', BLANK' : '') + ')');
         if (png.info && png.info.blank) { misses++; rec.eyes[name].why = await rig.why(); }
       } catch (e) { misses++; rec.eyes[name] = { err: String(e.message || e), why: e.why || null }; say('MISS ' + name + ': ' + e.message); }
