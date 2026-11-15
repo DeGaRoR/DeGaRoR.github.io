@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: becc4605dcee79be
+// body-sha256: 0df1c926ec4d0d41
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1104,7 +1104,17 @@ const GROUND_SURF = {
   10: [0.035, 0.18, 0.22],          // SNOW, WET: near 0 C, heavy and sticky ("worse than mud or even beach sand")
   11: [0.050, 0.28, 0.45],          // MUD, FIRM: a drying clay strip, the community field's first stage
   12: [0.060, 0.18, 0.30],          // MUD, SOFT: wet clay after rain - the wheels go in
+  // SNOW-MUD LADDER (15 Nov, the user: grass "dry grass and wet grass and auto", "the sand gets firmer"): the WET RUNGS a
+  // weather look climbs (07f GROUND_WX) or a fixed wet look stands on. Raymer table 17.1: wet grass rolls 0.08 and brakes
+  // 0.2 (dry hard turf 0.05 / 0.4 - the grass row's datum); its side grip a little over its braking (ESTIMATE, as above).
+  // Wet sand: a packed, damp beach - firm where dry sand is loose (the sand row's 0.10 is the loose one): rolls ~0.05,
+  // brakes and grips better than the loose (ESTIMATE: no table in hand; the beach pilots' rule, firm wet sand below the
+  // tide line, soft dry sand above it)
+  13: [0.080, 0.20, 0.45],          // GRASS, WET: after rain or under dew - slippery to brake, a little draggier to roll
+  14: [0.050, 0.40, 0.65],          // SAND, WET: firm, packed by its water
 };
+// (the weather codes 20-22 read their DRY rung's row wherever a reader has no world to resolve them with - 07f GROUND_WX)
+GROUND_SURF[20] = GROUND_SURF[6]; GROUND_SURF[21] = GROUND_SURF[0]; GROUND_SURF[22] = GROUND_SURF[7];
 const GROUND_DEF = GROUND_SURF[0];
 // SNOW-MUD: THE SOFT LAYER - what a contact sinks into, keyed by the SURFACE code (GROUND_SURF's soft rows only; absent =
 // a hard surface, the solver's line is the one it always was). THE FORM is Bekker's pressure-sinkage law p = k z^n
@@ -1149,7 +1159,7 @@ const GROUND_SOFT = {
 // A SKI's sliding friction on EVERY surface (the ski gear's interface, SKIS session): [kinetic, static breakout]. The
 // soft rows read GROUND_SOFT's; the rest are ESTIMATES (a UHMW bottom on wet grass slides, on the hard ground it
 // grinds; no source in hand) and water none (the water's own pass carries a ski that is in it)
-const GROUND_SKI_MU = { 0: [0.25, 0.40], 1: [0.50, 0.60], 2: [0.45, 0.55], 3: [0.35, 0.50], 4: null, 5: [0.40, 0.50], 6: [0.45, 0.55], 7: [0.40, 0.50] };
+const GROUND_SKI_MU = { 0: [0.25, 0.40], 1: [0.50, 0.60], 2: [0.45, 0.55], 3: [0.35, 0.50], 4: null, 5: [0.40, 0.50], 6: [0.45, 0.55], 7: [0.40, 0.50], 13: [0.18, 0.30], 14: [0.40, 0.50], 20: [0.45, 0.55], 21: [0.25, 0.40], 22: [0.40, 0.50] };   // (LADDER: a ski on wet grass slides better than on dry - ESTIMATE; the weather codes their dry rung's)
 for (const k in GROUND_SOFT) GROUND_SKI_MU[k] = GROUND_SOFT[k].ski;
 // THE TYRE ON SOFT GROUND, per carcass (TYRE_CN's keys): w the tread's width over the wheel's diameter, d its rated
 // deflection over its section height (taken = its width). A tyre's FOOTPRINT on firm ground is then an ellipse
@@ -1295,7 +1305,7 @@ const TW_SCOTT = { arc: 0.61, vSlide: 0.15, Mf0: 2.8, Nref: 980, trailK: 0.35, d
 // lakebed) - the grass row; steel on concrete 0.45 (casex's aircraft-materials table) - the paved rows; the loose and
 // soft rows dig the shoe in a little more; on a lakebed under water the shoe hardly drags (the water's own drag is the
 // wet pass's)
-const TW_SKID_MU = { 0: 0.36, 1: 0.45, 2: 0.50, 3: 0.40, 4: 0.10, 5: 0.45, 6: 0.42, 7: 0.45, 8: 0.10, 9: 0.15, 10: 0.15, 11: 0.40, 12: 0.40 };   // SNOW-MUD: a steel shoe on snow ~0.10-0.15 (ESTIMATE: a sled's steel runner; Engineering Toolbox's 0.35-0.40 is aluminium on snow), on mud the soft ground's
+const TW_SKID_MU = { 0: 0.36, 1: 0.45, 2: 0.50, 3: 0.40, 4: 0.10, 5: 0.45, 6: 0.42, 7: 0.45, 8: 0.10, 9: 0.15, 10: 0.15, 11: 0.40, 12: 0.40, 13: 0.30, 14: 0.45 };   // (LADDER 13 wet grass: the shoe slides a little more; 14 wet sand: as sand)   // SNOW-MUD: a steel shoe on snow ~0.10-0.15 (ESTIMATE: a sled's steel runner; Engineering Toolbox's 0.35-0.40 is aluminium on snow), on mud the soft ground's
 
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -2853,6 +2863,101 @@ var SOIL_WET = (function () {
   function ofLook(R0, look) { return R0.cls[look] != null ? R0.cls[look] : R0.cls.dirt; }
   const API = { at, ofLook, CLASS, KEYS, WINDOW_H, force: null, _clear() { HC.clear(); WC.H = NaN; } };
   return API;
+})();
+// ============================================================
+// THE GROUND'S WEATHER LADDER (SNOW-MUD, 2026-11-15) - a strip whose ground follows the weather. Pure, no state.
+// The user (15 Nov): "should we have a mud ladder? Dirt to firm mud to soft mud as a function of the weather? ... these 3
+// options, and maybe an auto setting? So we can keep doing tests, or mark a runway as always dry or muddy, and let some
+// evolve with the weather" - and then: the grass the same (dry, wet, auto), the sand the same (wet sand is FIRMER and a
+// little darker, "don't make the sand go too dark ... the aprons around should probably follow the same trend"), the
+// bumps with it ("the more soft the mud is, the deeper the ruts and the holes should be, and they sort of firm up
+// slightly with the dry setting"), and the projections' colour with it ("unify these two systems"). Snow and gravel do
+// not climb a ladder (the user: snow follows other rules, gravel hardly changes).
+//
+// THE SETTING IS THE LOOK. A strip (a pad, a road) already says what it feels by its look (27_premises RUNWAY_LOOKS,
+// "feel follows the look"); the fixed rungs were looks already (dirt, mud (firm), mud (soft); grass; sand) and the new
+// ones join them: grass (wet), sand (wet), and three WEATHER looks - dirt (weather), grass (weather), sand (weather) -
+// whose feel is a WEATHER CODE (20, 21, 22), resolved where the ground is read (20_world surface) against the soil's
+// water (DIRT-DUST's SOIL_WET - the 96 h bucket of the plan's rain, sun and wind: pure in the instant, so the page,
+// the physics worker and a gate read the same rung with no message). A fixed look is what it always was.
+//
+// THE RUNGS (the soil's water S, 0 bone dry .. 1 saturated, of the look's own class; SOIL_WET's mud = smoothstep(0.55,
+// 0.9, S) of the dirt):
+//   dirt (weather)   mud < 0.25: DIRT (GRAVEL 6, dirt's friction as the 'dirt' look)   < 0.75: MUD_FIRM 11   else MUD_SOFT 12
+//   grass (weather)  S < 0.5: GRASS 0      else GRASS_WET 13 (Raymer table 17.1: wet grass rolls 0.08, brakes 0.2)
+//   sand (weather)   S < 0.45: SAND 7      else SAND_WET 14 (wet sand is firm: ESTIMATE, a packed beach rolls ~0.05)
+// so the storm days (12 mm/h at the front) make a dirt strip soft mud by the evening (GATE SOILWET: every storm day is
+// mud by 17:00), firm mud the next day, and dirt again after two or three dry days; turf holds its water longer; sand
+// drains at once.
+//
+// THE REST FOLLOWS THE RUNG (one law, three readers):
+//   wear   the bumps' WORN relief (STRIP_MICRO: the ruts, the lanes, the holes, the lumps) x WEAR[rung]: soft mud cuts
+//          them deeper, dry dirt firms them a little; wet sand firms, dry sand is the record's (the softer the ground,
+//          the deeper what the traffic wears into it). A STEP per rung, not a slope: the drawn ribbon is re-draped when
+//          the rung moves (a few times a game day), never every frame
+//   tint   the drawn ground's colour: darker with its water (dirt 30 %, grass 12 %, sand 10 % at saturation - the sand
+//          a shade, its aprons and the island around it do not darken), and the dirt toward the mud's own colour by its
+//          mud (the pavement's 'mud' class) - and the dust or the mud a wheel throws takes THAT colour (app.js)
+//   gloss  wet ground shines a little (the pavement's wet film, uWet.x)
+// A DEV OVERRIDE (world.setGround: 'dry' | 'firm' | 'soft' | null - the soil's water held at 0.05 / 0.7 / 0.95 for
+// every reader: the wheels, the drawn ground, the dust and the puddles; replayed on the physics worker as setDay is)
+// and the fixed looks keep every test on a known rung. GATE MUDLADDER.
+// ============================================================
+var GROUND_WX = (function () {
+  'use strict';
+  const WX = Object.freeze({ DIRT: 20, GRASS: 21, SAND: 22 });
+  const DRY = Object.freeze({ 20: 6, 21: 0, 22: 7 });            // a weather code's dry rung (and what a tree, a plot, a map reads)
+  const CLS = Object.freeze({ 20: 'dirt', 21: 'grass', 22: 'sand' });
+  const GRASS_WET = 13, SAND_WET = 14;
+  const STEP = Object.freeze({ mudFirm: 0.25, mudSoft: 0.75, grassWet: 0.5, sandWet: 0.45 });
+  // the worn relief's scale by rung (dirt: dry / firm / soft; grass: dry / wet; sand: dry / wet)
+  const WEAR = Object.freeze({ dirt: [0.85, 1.0, 1.3], grass: [1.0, 1.0], sand: [1.0, 0.9] });
+  // the drawn ground's darkening at saturation, x S (multiplier 1 - k S), and its film (the pavement's uWet.x) x S
+  const DARK = Object.freeze({ dirt: 0.30, grass: 0.12, sand: 0.10 });
+  const FILM = Object.freeze({ dirt: 0.35, grass: 0.10, sand: 0.20 });
+  // the dev override's water (every class): the three rungs' middles
+  const FORCE = Object.freeze({ dry: 0.05, firm: 0.70, soft: 0.95 });
+  const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
+  const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  const is = c => c === 20 || c === 21 || c === 22;
+  const lookClass = c => CLS[c] || null;
+  const dryOf = c => (is(c) ? DRY[c] : c);
+  // the class's water and mud off a SOIL_WET result (or { cls }): S of the class, the dirt's mud
+  function water(code, R) {
+    if (!R || !R.cls) return 0;
+    const k = CLS[code] || 'dirt';
+    return clamp01(R.cls[k] != null ? +R.cls[k] : +R.wet || 0);
+  }
+  // state(code, R, out?) -> { code (the rung's SURFACE code), rung (0 dry, 1 firm / wet, 2 soft), cls, S, mud, wear,
+  // dark (the colour multiplier's darkening), film } - for a weather code; a fixed code answers itself, rung 0
+  const ST = { code: 0, rung: 0, cls: null, S: 0, mud: 0, wear: 1, dark: 0, film: 0 };
+  function state(code, R, out) {
+    const o = out || ST;
+    o.cls = CLS[code] || null; o.S = 0; o.mud = 0; o.wear = 1; o.dark = 0; o.film = 0; o.rung = 0; o.code = code;
+    if (!is(code)) return o;
+    const S = water(code, R); o.S = S;
+    if (code === WX.DIRT) {
+      const m = smooth(0.55, 0.9, S); o.mud = m;
+      o.rung = m < STEP.mudFirm ? 0 : m < STEP.mudSoft ? 1 : 2;
+      o.code = o.rung === 0 ? DRY[code] : o.rung === 1 ? 11 : 12;
+      o.wear = WEAR.dirt[o.rung];
+    } else if (code === WX.GRASS) {
+      o.rung = S < STEP.grassWet ? 0 : 1; o.code = o.rung ? GRASS_WET : DRY[code]; o.wear = WEAR.grass[o.rung];
+    } else {
+      o.rung = S < STEP.sandWet ? 0 : 1; o.code = o.rung ? SAND_WET : DRY[code]; o.wear = WEAR.sand[o.rung];
+    }
+    o.dark = DARK[o.cls] * S; o.film = FILM[o.cls] * S;
+    return o;
+  }
+  const resolve = (code, R) => (is(code) ? state(code, R).code : code);
+  // a forced soil (the dev override): SOIL_WET's shape, every class at the rung's water
+  const FR = { wet: 0, cls: { dirt: 0, sand: 0, gravel: 0, grass: 0 }, rainNow: 0, hoursDry: 96, mud: 0, src: 'ground' };
+  function forced(level) {
+    const v = FORCE[level]; if (v === undefined) return null;
+    FR.wet = v; for (const k in FR.cls) FR.cls[k] = v; FR.mud = smooth(0.55, 0.9, v); FR.hoursDry = v > 0.3 ? 0 : 96;
+    return FR;
+  }
+  return { WX, DRY, CLS, GRASS_WET, SAND_WET, STEP, WEAR, DARK, FILM, FORCE, is, lookClass, dryOf, water, state, resolve, forced };
 })();
 // ============================================================
 // THE CLOUD FIELD (CLOUDS C1, 2026-09-15) — the weather map, the height
@@ -4438,7 +4543,8 @@ function makeWorld(seed, opts) {
   // surface enum — reserved classes included (PAVED/GRAVEL/... arrive with
   // WORLD-GEN-PROC stages); the classifier below is the honest v1 minimum.
   // SNOW-MUD (13 Nov): 8-12 the soft rows (00_registry GROUND_SURF / GROUND_SOFT) - placed only where a record says so
-const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12 };
+const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12, GRASS_WET: 13, SAND_WET: 14,
+                  DIRT_WX: 20, GRASS_WX: 21, SAND_WX: 22 };   // (SNOW-MUD LADDER, 15 Nov: the wet rungs; 20-22 a weather look's code, resolved by 07f GROUND_WX)
 
   // aerodrome registry — DESCRIPTIVE for now: the AP still flies the
   // def.params.ap constants (contract rule 6 deferred), and the h0 runway
@@ -4656,7 +4762,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
       const dx = Math.max(ax - m.x, 0, m.x - bx), dz = Math.max(az - m.z, 0, m.z - bz);
       if (dx * dx + dz * dz < m.r * m.r) B = Math.max(B, Number.isFinite(m.h) ? m.h : Infinity);
     }
-    return PM && PM.hMaxRect ? PM.hMaxRect(ax, az, bx, bz, B) : B;
+    const H = PM && PM.hMaxRect ? PM.hMaxRect(ax, az, bx, bz, B) : B;
+    // (SNOW-MUD LADDER: a weather strip's worn relief may stand up to |wear - 1| x its bound over the raster's: 0.35 covers every rung)
+    return PM && PM.wearBoundRect ? H + PM.wearBoundRect(ax, az, bx, bz, 0.35) : H;
   }
   // the terrainH it bounds: a world re-wrapped with another ground (HOTHIGH's tilt, pilot_trace --slope)
   // keeps this function but not its ground, and the solver reads it only where the two still agree
@@ -4803,9 +4911,15 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     // THE STONES' BODIES (DIRT-STRIP, 27_premises stonesAt): a bumpy strip's stones on the composed ground, exact (not the
     // raster's) - the wheels and every node feel them; the DRAWN ground is this less stoneH (the stone's mesh stands there)
     if (PM && PM.stonesAt) { const s = PM.stonesAt(x, z); if (s > 0) h += s; }
+    // SNOW-MUD LADDER (15 Nov): a weather strip's worn relief at its rung (27_premises wearDelta; 0 at the record's own) -
+    // on its box the answer is never memoised (the rung moves with the soil; the memo would hold the last one)
+    if (PM && PM.wearDelta) { const d = PM.wearDelta(x, z, wearScale); if (d !== null) return h + d; }
     thX[i] = x; thZ[i] = z; thH[i] = h;
     return h;
   }
+  // a weather code's worn-relief scale now (07f GROUND_WX's rung off this world's soil)
+  function wearScale(code) { return typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(code, soilNow()).wear : 1; }
+  const wearOf = (x, z) => { if (!(PM && PM.wearDelta)) return 0; const d = PM.wearDelta(x, z, wearScale); return d === null ? 0 : d; };
 
   // G1406 (METLA-LOAD): THE BUILD READ - the composed ground for a ONE-OFF read (a mesh's vertices, a road's samples, a
   // placement's test): terrainH where the premises' raster is cooked or absent (the same bits), the ANALYTIC composer
@@ -4815,7 +4929,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   function terrainHBuild(x, z) {
     if (!(PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z))) return terrainH(x, z);
     const h0 = baseH(x, z), h = PM.terrainH(x, z, h0);
-    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;   // (the bed, as terrainH carves it)
+    return (LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h) + wearOf(x, z);   // (the bed, as terrainH carves it; LADDER: the worn relief's rung)
   }
   // THE EXACT GROUND (COLD-LINKS x LAKE-HOLES, lakes-2): the ANALYTIC composer everywhere, carved as terrainH carves - the
   // source the premises' raster approximates (GATE PREMRASTER / PREMCOOK hold the raster and the cook to it). The raster
@@ -4825,7 +4939,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     const h0 = baseH(x, z);
     if (!PM) return LAKE_BED ? lakeCarve(x, z, h0, h0, null) : h0;
     const h = PM.terrainH(x, z, h0);
-    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;
+    return (LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h) + wearOf(x, z);   // (LADDER: as terrainH)
   }
   // the carve as one function (A0, train 28): terrainH and METLA-LOAD's build read (terrainHBuild) BOTH carve - the build
   // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
@@ -4877,11 +4991,35 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     }
     return -1;
   };
-  const aeroSurfAll = (x, z) => {
+  const aeroSurfRaw = (x, z) => {
     if (PM) { const s = PM.surfaceAt(x, z); if (s >= 0) return s; }   // a premises surface (an apron, a strip, a road) answers first
     const r = regSurf(x, z);
     return r >= 0 ? r : AERO.surfaceAt(x, z);
   };
+  // SNOW-MUD LADDER (15 Nov): a WEATHER look's code (20-22: dirt, grass, sand (weather)) is resolved here, where every reader of
+  // the ground asks - the wheels, the pilot, the dust, the HUD - to the rung the soil's water puts it on (07f GROUND_WX off
+  // SOIL_WET at this world's day, or the dev override world.setGround). A fixed code passes through (one compare).
+  const aeroSurfAll = (x, z) => { const s = aeroSurfRaw(x, z); return s >= 20 && s <= 22 ? surfaceNow(s) : s; };
+  // THE SOIL THIS WORLD STANDS ON (one read for every consumer: the rung, the drawn ground's tint, the dust, the puddles):
+  // SOIL_WET at the day (pure in the instant: the page and the physics worker read the same), or the override's held water.
+  // Memoised on what SOIL_WET reads (the instant, the sandbox's rain and humidity, the plan's id, its force)
+  let groundForce = null, dayRef = null;   // (dayRef: the day once made - the composer reads the ground before it exists: the dry rung)
+  const soilMemo = { k0: NaN, k1: NaN, k2: NaN, k3: NaN, k4: null, k5: null, R: null };
+  function soilNow() {
+    if (typeof GROUND_WX === 'undefined' || typeof SOIL_WET === 'undefined') return null;
+    if (groundForce) return GROUND_WX.forced(groundForce);
+    if (!dayRef) return null;
+    const d = dayRef, k0 = d.jdn * 86400 + d.utc, k1 = +d.rain || 0, k2 = +d.rh || 0, k3 = d.planSpec ? 1 : 0, k4 = d.planSpec || null, k5 = SOIL_WET.force;
+    const M = soilMemo;
+    if (M.R && M.k0 === k0 && M.k1 === k1 && M.k2 === k2 && M.k3 === k3 && M.k4 === k4 && M.k5 === k5) return M.R;
+    M.k0 = k0; M.k1 = k1; M.k2 = k2; M.k3 = k3; M.k4 = k4; M.k5 = k5; M.R = SOIL_WET.at(d);
+    return M.R;
+  }
+  // a code -> the code the ground has now (a weather code's rung; any other itself)
+  function surfaceNow(code) { return code >= 20 && code <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.resolve(code, soilNow()) : code; }
+  // the dev override: 'dry' | 'firm' | 'soft' (the soil's water held for every reader), null = the weather's. sim_link replays it
+  // on the physics worker's world (as setDay)
+  function setGround(level) { groundForce = level && typeof GROUND_WX !== 'undefined' && GROUND_WX.FORCE[level] !== undefined ? level : null; }
   const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear, aeroSurf: aeroSurfAll });
 
   // G1091: THE TREES BY THE RUNWAYS - ONE RULE FOR THE TREE YOU SEE AND THE TREE YOU HIT (POLISH-2). On an island
@@ -5239,7 +5377,8 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   function treeGround(x, z, sc) {
     const m = rwyTrees();
     if (m === 'today') return sc !== undefined ? sc : surface(x, z);
-    const p = PM.surfaceAt(x, z);
+    let p = PM.surfaceAt(x, z);
+    if (p >= 20 && p <= 22 && typeof GROUND_WX !== 'undefined') p = GROUND_WX.dryOf(p);   // (LADDER: a tree reads a weather strip's dry rung - never the day's)
     if (p >= 0 && !(m === 'map' && PM.shoulderAt(x, z))) return p;
     const a = AERO.surfaceAt(x, z); if (a >= 0) return a;
     return islandGround(x, z);
@@ -5291,6 +5430,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   // terrain-following flow, the breeze, the thermals and the winds aloft are
   // its rich terms. The day is made first: the climate's slow terms read it.
   const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  dayRef = day;   // (SNOW-MUD LADDER: soilNow reads it from here on)
   const climate = CLIMATE.make({
     terrainH, surface, SURFACE, bounds: BOUNDS, day, geo: GEO, seed: SEED,
     atmos: () => airNow(),                    // the column, live (K2)
@@ -5473,6 +5613,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
     roughAt: (x, z) => !!(PM && PM.roughAt && PM.roughAt(x, z)),   // (SNOW-MUD: on a bumpy strip's box - the wheel's envelope, 30_solver)
+    // (SNOW-MUD LADDER: the soil's water this world reads, a weather code's rung now, the dev override - 07f GROUND_WX)
+    soilNow, surfaceNow, setGround, get groundForce() { return groundForce; },
+    wxAt: (x, z) => { const s = aeroSurfRaw(x, z); return s >= 20 && s <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(s, soilNow()) : null; },   // a weather strip's rung here (null off one)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
@@ -7763,10 +7906,12 @@ const STRIP_SURFACES = {
   water:    { word: 'water',    cls: 'water' },
 };
 const STRIP_LOOK_SURF = { asphalt: 'asphalt', concrete: 'concrete', worn: 'concrete', gravel: 'gravel', dirt: 'dirt', sand: 'sand', grass: 'grass', snow: 'snow',
-                          powder: 'snow', slush: 'snow', mud: 'mud', softmud: 'mud' };
+                          powder: 'snow', slush: 'snow', mud: 'mud', softmud: 'mud',
+                          wetgrass: 'grass', wetsand: 'sand', dirtwx: 'dirt', grasswx: 'grass', sandwx: 'sand' };   // (SNOW-MUD LADDER)
 // the SURFACE enum's index -> the vocabulary (GRASS 0, ROCK 1, SCREE 2, FOREST_FLOOR 3, WATER 4, PAVED 5, GRAVEL 6, SAND 7;
 // SNOW-MUD: SNOW_PACKED 8, SNOW_POWDER 9, SNOW_WET 10, MUD_FIRM 11, MUD_SOFT 12)
-const STRIP_ENUM_SURF = ['grass', 'gravel', 'gravel', 'dirt', 'water', 'paved', 'gravel', 'sand', 'snow', 'snow', 'snow', 'mud', 'mud'];
+const STRIP_ENUM_SURF = ['grass', 'gravel', 'gravel', 'dirt', 'water', 'paved', 'gravel', 'sand', 'snow', 'snow', 'snow', 'mud', 'mud', 'grass', 'sand'];   // (LADDER: 13 wet grass, 14 wet sand)
+STRIP_ENUM_SURF[20] = 'dirt'; STRIP_ENUM_SURF[21] = 'grass'; STRIP_ENUM_SURF[22] = 'sand';   // (the weather codes: their class)
 function stripSurface(a) {
   const mk = key => Object.assign({ key }, STRIP_SURFACES[key]);
   if (!a) return mk('grass');
@@ -9509,6 +9654,20 @@ const STRIP_MICRO = (() => {
       if (HZ.length) h += ss(0, 0.5, halfW - Math.abs(v)) * hazardsAt(u, v, 0)[0];
       return h * eT;
     }
+    // THE WORN RELIEF (SNOW-MUD LADDER, 15 Nov; 07f GROUND_WX): the part of dh the traffic wore into the ground - the
+    // aeroplanes' lanes, the ways (troughs and berms), the holes, the lumps - which a weather strip scales by its rung (soft
+    // mud cuts it deeper, dry dirt firms it): the world adds (wear - 1) x this on the composed ground (20_world terrainH),
+    // the ribbon is re-draped by the same, and the shader's rows scale the same knobs (glslRow's wear). Every term is
+    // linear in its knob (rut, ruts, holeDepth, lumps), so the scaled field IS the field of the scaled knobs. 0 off the box
+    function wearUV(u, v) {
+      if (u <= 0 || u >= len || v <= -halfW || v >= halfW) return 0;
+      const eT = ss(0, END_IN, u) * ss(0, END_IN, len - u), dT = ss(EDGE_IN[0], EDGE_IN[1], halfW - Math.abs(v));
+      if (eT <= 0 || dT <= 0) return 0;
+      const rut = rutD > 0 ? rutD * lanes(v) * (0.7 + 0.3 * vnoise(u / 23, 0.5, seed + 7)) : 0;
+      return eT * dT * ((lA > 0 ? lumpsAt(u, v) : 0) - rut + waysAt(u, v)[0] - holesAt(u, v, 0)[0]);
+    }
+    // its magnitude's bound (either sign: a scale under 1 lifts the troughs, over 1 the berms and the lumps)
+    const wearBound = lA + rutD + holeD + WAYS.reduce((m, W) => m + W[2] * (1 + W[3]), 0) + 1e-6;
     // the ceiling: the crown's top + every octave's amplitude (the ruts and the holes only go down)
     const bound = crownS * halfW / 2 + amp.reduce((s, a) => s + a, 0) + swA + hzUp + lA + WAYS.reduce((m, W) => m + 2 * W[3] * W[2], 0) + (K.rocks > 0 ? STONE_H * 0.27 : 0) + 1e-6;   // (+ the swell's crest, + the highest hazard bump, + the lumps, + every berm, + the tallest stone)
     // the box in the caller's frame (for the modifier's bbox and its tiles)
@@ -9523,7 +9682,7 @@ const STRIP_MICRO = (() => {
     return {
       K, bbox, bound, touches, halfW, len, seed, pHole, pudOK,
       at: (x, z) => { const q = toUV(x, z); return atUV(q[0], q[1]); },
-      atUV,
+      atUV, wearUV, wearBound, wearAt: (x, z) => { const q = toUV(x, z); return wearUV(q[0], q[1]); },
       // standing water (m) at (x, z) for a soil wetness 0..1
       puddleAt: (x, z, wet) => {
         if (pudOK <= 0 || !(wet > 0)) return 0;
@@ -9558,8 +9717,9 @@ const STRIP_MICRO = (() => {
   // puddles x the grade's own, the 1 m octave's amplitude (the others x sqrt of their wavelength), hazards, hazard size m,
   // 1 + the swell m] and uMicro3 [the ways' ruts m, the lumps m, cart + 2 path (the ways the field built), rocks] - pavement.js
   // pvPuddle / pvRelief / pvWays / pvRockIn read exactly these; null when the strip is flat
-  function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100,
-    f.K.ruts / 100, f.K.lumps / 100, (f.ways.some(W => W[7] === 1) ? 1 : 0) + (f.ways.some(W => W[7] === 2) ? 2 : 0), f.K.rocks]; } return null; }
+  // (SNOW-MUD LADDER: `wear`, a weather strip's rung's scale of its worn relief - the hole depth, the ways' ruts, the lumps; 1 = the record's)
+  function glslRow(id, wear) { const k = wear > 0 ? wear : 1; for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, k * f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100,
+    k * f.K.ruts / 100, k * f.K.lumps / 100, (f.ways.some(W => W[7] === 1) ? 1 : 0) + (f.ways.some(W => W[7] === 2) ? 2 : 0), f.K.rocks]; } return null; }
   return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, padOf, stoneAt, STONE_H, BAND_V, BAND_H, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
 })();
 // 27_premises.js — THE PREMISES (G353 / G385): the record the world editor
@@ -9632,8 +9792,9 @@ const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways',
 // AREA { id, kind: 'sound', poly, key, on }: `key` an ambience bed (amb.*), `on` true = the bed at full there (fading out
 // over the bed's own reach), false = the bed silenced there (coming back over the same reach). How far a bed carries is
 // the ambience's (AMBIENCE_MODEL.REACH), never the record's.
-const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12 };
-const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND', 'SNOW_PACKED', 'SNOW_POWDER', 'SNOW_WET', 'MUD_FIRM', 'MUD_SOFT'];
+const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12, GRASS_WET: 13, SAND_WET: 14,
+                  DIRT_WX: 20, GRASS_WX: 21, SAND_WX: 22 };   // (SNOW-MUD LADDER, 15 Nov: the wet rungs; 20-22 a weather look's code, resolved by 07f GROUND_WX)
+const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND', 'SNOW_PACKED', 'SNOW_POWDER', 'SNOW_WET', 'MUD_FIRM', 'MUD_SOFT', 'GRASS_WET', 'SAND_WET'];   // (the weather codes 20-22 are named by their look)
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
 const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
 // THE CATEGORIES (G393, the asset session): the seven words every generator's catOf answers with, the
@@ -10370,7 +10531,8 @@ function migrate(rec) {
 // An area that felt HARD (paved / gravel / sand: no tree, no plot) and now feels soft keeps them out - its exclude gains trees and
 // plots (A0 for the user: the feel follows the look, no new trees grow in). Idempotent: a converted record converts to itself.
 // (SNOW-MUD, 13 Nov: a snow or mud strip or apron is a worked surface too - no tree grows on it, no plot is cut into it)
-const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND, SURFACE.SNOW_PACKED, SURFACE.SNOW_POWDER, SURFACE.SNOW_WET, SURFACE.MUD_FIRM, SURFACE.MUD_SOFT];
+const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND, SURFACE.SNOW_PACKED, SURFACE.SNOW_POWDER, SURFACE.SNOW_WET, SURFACE.MUD_FIRM, SURFACE.MUD_SOFT,
+                   SURFACE.SAND_WET, SURFACE.DIRT_WX, SURFACE.SAND_WX];   // (LADDER: a wet or weather dirt / sand is worked ground too)
 function feelFollowsLook(r) {
   const feelOf = k => { const L = k && RUNWAY_LOOKS[k]; return L && L.surface !== null && L.surface !== undefined ? +L.surface : null; };
   for (const w of r.layers.runways) if (w && w.look && +w.surface !== SURFACE.WATER) { const f = feelOf(w.look); if (f !== null && (w.surface === undefined || w.surface === null ? SURFACE.GRASS : +w.surface) !== f) w.surface = f; }
@@ -10979,6 +11141,15 @@ const RUNWAY_LOOKS = {
   slush:    { name: 'snow (wet)',     surface: SURFACE.SNOW_WET,    set: 'brushed', cls: 'snow', preset: null },
   mud:      { name: 'mud (firm)',     surface: SURFACE.MUD_FIRM,    set: 'dirt',    cls: 'mud',  preset: null },
   softmud:  { name: 'mud (soft)',     surface: SURFACE.MUD_SOFT,    set: 'dirt',    cls: 'mud',  preset: null },
+  // SNOW-MUD LADDER (15 Nov, the user: "these 3 options, and maybe an auto setting? So we can keep doing tests, or mark a
+  // runway as always dry or muddy, and let some evolve with the weather"): the wet rungs as fixed looks, and the WEATHER
+  // looks - their feel a weather code (20-22) the world resolves to the rung the soil's water puts it on (07f GROUND_WX),
+  // their drawing their class's, tinted and worn by the same rung (pavement.js setGroundWx, STRIP_MICRO wear)
+  wetgrass: { name: 'grass (wet)',     surface: SURFACE.GRASS_WET,   set: null,      cls: 'grass', preset: null },
+  wetsand:  { name: 'sand (wet)',      surface: SURFACE.SAND_WET,    set: 'dry',     cls: 'sand',  preset: null },
+  dirtwx:   { name: 'dirt (weather)',  surface: SURFACE.DIRT_WX,     set: 'dirt',    cls: 'dirt',  preset: null, wx: true },
+  grasswx:  { name: 'grass (weather)', surface: SURFACE.GRASS_WX,    set: null,      cls: 'grass', preset: null, wx: true },
+  sandwx:   { name: 'sand (weather)',  surface: SURFACE.SAND_WX,     set: 'dry',     cls: 'sand',  preset: null, wx: true },
 };
 const ROAD_LOOK = { gravel: 'gravel', paved: 'asphalt', track: 'grass', path: 'grass' };
 // THE BAND a pavement class draws beside itself when the entry says nothing (metres; a road's is
@@ -12481,7 +12652,8 @@ function compose(rec0, world, opts) {
     if (typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.on(r.micro)) {
       let grade = 0; for (let a = 0; a <= r.len; a += 3) grade = Math.max(grade, Math.abs(pr.slopeAt(a)));
       const MM = makeModifier({ id: r.id + ':micro', kind: 'micro', strip: { c: r.c, hdg: r.hdg, len: r.len, wid: r.wid }, micro: r.micro, grade: +grade.toFixed(4) }, F.y0);
-      if (MM) { microMods.push(MM); microStrips.push({ id: r.id, f: MM.field }); }
+      // (SNOW-MUD LADDER: a weather look's code rides along - its worn relief is scaled by its rung on the composed ground, wearDelta)
+      if (MM) { microMods.push(MM); const L = RUNWAY_LOOKS[r.look]; microStrips.push({ id: r.id, f: MM.field, wx: L && L.wx ? +L.surface : 0 }); }
     }
   }
   // (DIRT-STRIP) the micro strips published for STRIP_MICRO.at / puddleAt in the WORLD frame (the island's: nothing when none)
@@ -13207,6 +13379,41 @@ function compose(rec0, world, opts) {
     },
     // ROUGH GROUND (SNOW-MUD, 15 Nov: the wheel's envelope, 30_solver): whether (x, z) lies on a bumpy strip's box, grown a
     // metre - where a wheel reads the ground under its arc, not under its axle; false off every micro strip (one compare)
+    // SNOW-MUD LADDER (15 Nov): THE WEATHER STRIPS' WORN RELIEF - on a bumpy strip whose look follows the weather (07f
+    // GROUND_WX), what its rung adds to the composed ground: (scale(code) - 1) x the field's wearAt (26b), the scale the
+    // world's (its soil now). null off every such strip (the world's terrainH then memoises as before); wxMicroN their count
+    get wxMicroN() { let n = 0; for (const q of microStrips) if (q.wx) n++; return n; },
+    wearDelta(x, z, scale) {
+      let lx = NaN, lz = 0;
+      for (let k = 0; k < microStrips.length; k++) {
+        const q = microStrips[k]; if (!q.wx) continue;
+        if (lx !== lx) { const dx = x - F.anchor.x, dz = z - F.anchor.z; lx = dx * F.c - dz * F.s; lz = dx * F.s + dz * F.c; }   // (no weather strip: no transform)
+        const b = q.f.bbox;
+        if (lx < b.x0 || lx > b.x1 || lz < b.z0 || lz > b.z1) continue;
+        const sc = scale(q.wx);
+        return sc === 1 ? 0 : (sc - 1) * q.f.wearAt(lx, lz);
+      }
+      return null;
+    },
+    // the bound of |wearDelta| over a world rectangle (the ground's ceiling widens by it): maxScaleDev x the field's wearBound
+    wearBoundRect(ax, az, bx, bz, dev) {
+      let B = 0;
+      for (const q of microStrips) {
+        if (!q.wx) continue;
+        const b = q.f.bbox, c = [[ax, az], [bx, az], [ax, bz], [bx, bz]].map(([x, z]) => { const dx = x - F.anchor.x, dz = z - F.anchor.z; return [dx * F.c - dz * F.s, dx * F.s + dz * F.c]; });
+        const x0 = Math.min(...c.map(p => p[0])), x1 = Math.max(...c.map(p => p[0])), z0 = Math.min(...c.map(p => p[1])), z1 = Math.max(...c.map(p => p[1]));
+        if (x1 < b.x0 || x0 > b.x1 || z1 < b.z0 || z0 > b.z1) continue;
+        B = Math.max(B, dev * q.f.wearBound);
+      }
+      return B;
+    },
+    // a weather strip's code by its runway id (0: none, or not bumpy) - the renderer's re-drape
+    wxMicroOf(id) { for (const q of microStrips) if (q.id === id) return q.wx || 0; return 0; },
+    wearAtWorld(x, z, id) {
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      for (const q of microStrips) if (q.id === id) return q.f.wearAt(lx, lz);
+      return 0;
+    },
     roughAt(x, z) {
       if (!microStrips.length) return false;
       const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
@@ -16273,7 +16480,7 @@ function makeSim(def, world) {
   // floor, sand: the stain). `scN` counts the substeps that slid (the hop's signature). Zeroed by reset()
   DMG.sW = new Float64Array(DMG_ON ? n : 0); DMG.sD = new Float64Array(DMG_ON ? n * 3 : 0);
   DMG.sN = new Float64Array(DMG_ON ? n * 3 : 0); DMG.sG = new Float64Array(DMG_ON ? n : 0); DMG.scN = 0; DMG.scW = 0;
-  const SCUFF_SOFT = [1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1];   // GROUND_SURF's classes: 0 grass, 3 forest floor, 7 sand; SNOW-MUD: 8-12 snow and mud
+  const SCUFF_SOFT = [1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1];   // (LADDER: 13 wet grass, 14 wet sand - soft)   // GROUND_SURF's classes: 0 grass, 3 forest floor, 7 sand; SNOW-MUD: 8-12 snow and mud
   function scuffAdd(i, w, dx, dy, dz, ix, iy, iz, soft) {
     const i3 = i * 3;
     DMG.sW[i] += w; DMG.scW += w; DMG.scN++;
@@ -23730,7 +23937,7 @@ const GEN_DRIVE = {
   // error"): the allowance is the SURFACE's (20_world SURFACE order: GRASS, ROCK, SCREE, FOREST_FLOOR, WATER, PAVED,
   // GRAVEL, SAND) - 10 cm on the soft ground (grass, the forest floor, sand), 5 cm on the loose (scree, gravel), 1 cm on
   // the hard (rock, paved); the water has its own test (none); off the map's surfaces (-1) the grass's (`turf`)
-  turfS: [0.10, 0.01, 0.05, 0.10, 0, 0.01, 0.05, 0.10, 0.05, 0.10, 0.10, 0.10, 0.10],   // SNOW-MUD 8-12: packed snow loose, the rest soft
+  turfS: [0.10, 0.01, 0.05, 0.10, 0, 0.01, 0.05, 0.10, 0.05, 0.10, 0.10, 0.10, 0.10, 0.10, 0.05],   // (LADDER: 13 wet grass as grass, 14 wet sand firmer)   // SNOW-MUD 8-12: packed snow loose, the rest soft
   // TAXI-STRIKE (9 Nov, Deform's 172 diag: full power, the nose pushed down at 3.5 m/s on HOME's runway - the disc bit the
   // paving, graded a 'soft' separation (tip 236 > 200 m/s, bite under 15 % R), and the engine ran on at 2370 rpm into the
   // runway until the mount tore off): 'hard' is the ground the turf table calls hard (rock, paving) - past the brush the
@@ -24111,7 +24318,7 @@ const SCAR = {
 SCAR.eBlow = Math.round(Math.PI * SCAR.qB * CORE_MATH.pow(3 * SCAR.sod, 3) / 6);   // 970 J: a bowl deeper than the sod
 // the ground's class under a point: 0 turf, 1 bare, 2 hard, -1 water (world.SURFACE: GRASS 0, ROCK 1, SCREE 2,
 // FOREST_FLOOR 3, WATER 4, PAVED 5, GRAVEL 6, SAND 7; SNOW-MUD: SNOW 8-10 and MUD 11-12 bare - no sod to tear)
-const SCAR_SURF = [0, 2, 1, 0, -1, 2, 1, 1, 1, 1, 1, 1, 1];
+const SCAR_SURF = [0, 2, 1, 0, -1, 2, 1, 1, 1, 1, 1, 1, 1, 0, 1];   // (LADDER: 13 wet grass as grass, 14 wet sand as sand)
 function scarSurf(world, x, z) {
   if (!world) return 0;
   if (typeof world.waterH === 'function' && typeof world.terrainH === 'function') {
@@ -27178,6 +27385,9 @@ function pilotCanFly(profile, def, strip, wind, opts) {
 }
 
 function makePilot(sim, def, world, opts) {
+  // (SNOW-MUD LADDER, 15 Nov: an aerodrome's weather look (codes 20-22) is planned on its rung NOW - the world's soil - as
+  // its wheels will feel it; a fixed code is itself)
+  const surfNow = c => (world && typeof world.surfaceNow === 'function' ? world.surfaceNow(+c) : c);
   opts = opts || {};
   const A = def.params.ap;
   const ST = PILOT_STYLES[opts.style] || PILOT_STYLES.normal;
@@ -28336,7 +28546,7 @@ function makePilot(sim, def, world, opts) {
     // The record is on the report (`appr`) so the matrix can read what was
     // flown. The slope is the runway model's (below).
     {
-      const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[to.surface]) || null;
+      const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[surfNow(to.surface)]) || null;
       const water = to.surface === 4 || !!sim.hydro;            // the water has its own laws (H4): no technique
       const soft = !water && !!row && row[0] >= 0.10;
       const runNeed = sheetOf() && sheetOf().LDGrun ? sheetOf().LDGrun : null;
@@ -29880,7 +30090,7 @@ function makePilot(sim, def, world, opts) {
       const Vtd = ap.VAppr * ST.VapprK + tVAdapt, tail = tailOf(to), Vg = Vtd + tail;
       const sEnd = (to.x - F.ox) * F.ux + (to.z - F.oz) * F.uz + to.len / 2, sThr0 = sEnd - to.len;
       const stopOn = (a, grade, v) => {
-        const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[a.surface]) || [CRR, MU_BRAKE, 0.8];
+        const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[surfNow(a.surface)]) || [CRR, MU_BRAKE, 0.8];
         const aS = A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * brkMu(row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * grade;
         return v * v / (2 * Math.max(0.5, aS)) + v * 1.0;
       };
@@ -31141,7 +31351,7 @@ function makePilot(sim, def, world, opts) {
           // went to the tail-down schedule and the hump law (H4) lost the
           // floatplane 780 m off its lane — the water has its own laws
           const onWaterNow = !!sim.hydro || from0.surface === 4;
-          const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[from0.surface]) || null;
+          const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[surfNow(from0.surface)]) || null;
           const soft = !onWaterNow && !!row && row[0] >= 0.10;
           const runNeed = sheetOf() && sheetOf().TORun ? sheetOf().TORun : null;
           const short = !onWaterNow && runNeed != null && (from0.len || 1100) < 2.0 * runNeed;   // an accelerate-stop wants about two runs
@@ -58789,7 +58999,7 @@ const CONTRACT_FIELDS = {
   tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
   // (G3014, the user 12 Oct: 'add them' - their rev 26 strips 10 and 11, contracts may land there)
   w5:       { id: 'w5',       name: GAME_NAMES.fields.w5,        x: 3055,  z: -2837,  len: 310,  surf: 'gravel', lit: true, glide: 'papi' },
-  w6:       { id: 'w6',       name: GAME_NAMES.fields.w6,        x: -4172, z: -22110, len: 312,  surf: 'gravel', lit: true },
+  w6:       { id: 'w6',       name: GAME_NAMES.fields.w6,        x: -4172, z: -22110, len: 312,  surf: 'dirt', lit: true },   // (SNOW-MUD LADDER, 15 Nov: dirt (weather) - its mud follows the rain)
   w7:       { id: 'w7',       name: GAME_NAMES.fields.w7,        x: -3554, z: -23721, len: 1020, surf: 'dirt', lit: true },   // (rev 27: the user's North East strip)
   // (G3020, rev 28: 'I have fixed the altiports ... I have added a few runways; they need integrating in the trunk')
   w4:       { id: 'w4',       name: GAME_NAMES.fields.w4,        x: -1404, z: -17699, len: 216,  surf: 'gravel', alti: true, lit: true, glide: 'papi' },
@@ -68438,7 +68648,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_TIP_SKID, genTipSkidZ, GEN_HANG, genGearCdA, genCertGroundLoads, GEN_BRAKES, genBrakeOf, GEN_FICHE_PAGES_V, genFichePages, genFicheModel, genFicheLoad, genFicheDestroy, genFicheDrag, genFicheGearTerms, genFicheElec, genFicheTanks, GEN_COOL, genCooling, genCoolOpen, genCoolOilC, genCoolSummary, genHeadsFrontal, genCoolRows, genFicheCooling, RESTORE_WORDS, RESTORE_STEPS, restoreStage, playerRestoreState, playerRestoreStart, playerRestoreSettle, STORY_JOB, STORY_DAY1, STORY_CHECKPOINT, storyCheckpoint, storySkip, STORY_EDIT_SKIP, storyEditDiff, storyEditDone, STORY_BUILDS, storyBuildDone, storyBuildList, storyBuildSteps, storyBuildEntries, missionPackUse, missionProjectNormalise, missionProjectsWhy, missionProjectNeeds, careerProjectsTick, MISSION_DAY_S, GEN_ELEC_SETS, GEN_ELEC_AS_BUILT, genElecSetOf, genHarnessKg, GEN_STRUT_OPT, genStrutOpts, genStrutOptCdA, GROUND_SOFT, GROUND_SKI_MU, TYRE_SOFT, tyreFootprint, GROUND_SINK, groundSinkWheel, groundBullWheel, groundSinkPlate, groundSinkPose, groundSinkMatrix };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, GROUND_WX, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_TIP_SKID, genTipSkidZ, GEN_HANG, genGearCdA, genCertGroundLoads, GEN_BRAKES, genBrakeOf, GEN_FICHE_PAGES_V, genFichePages, genFicheModel, genFicheLoad, genFicheDestroy, genFicheDrag, genFicheGearTerms, genFicheElec, genFicheTanks, GEN_COOL, genCooling, genCoolOpen, genCoolOilC, genCoolSummary, genHeadsFrontal, genCoolRows, genFicheCooling, RESTORE_WORDS, RESTORE_STEPS, restoreStage, playerRestoreState, playerRestoreStart, playerRestoreSettle, STORY_JOB, STORY_DAY1, STORY_CHECKPOINT, storyCheckpoint, storySkip, STORY_EDIT_SKIP, storyEditDiff, storyEditDone, STORY_BUILDS, storyBuildDone, storyBuildList, storyBuildSteps, storyBuildEntries, missionPackUse, missionProjectNormalise, missionProjectsWhy, missionProjectNeeds, careerProjectsTick, MISSION_DAY_S, GEN_ELEC_SETS, GEN_ELEC_AS_BUILT, genElecSetOf, genHarnessKg, GEN_STRUT_OPT, genStrutOpts, genStrutOptCdA, GROUND_SOFT, GROUND_SKI_MU, TYRE_SOFT, tyreFootprint, GROUND_SINK, groundSinkWheel, groundBullWheel, groundSinkPlate, groundSinkPose, groundSinkMatrix };
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
 // worktree) runs an older core than its src/core says - DMG-COMPOSITE's "Jodel 154 -> 204" (read as V8's optimiser) was, to
