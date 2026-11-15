@@ -316654,3 +316654,8 @@ re-cooked (premises, city, map, fleet; mt_strip 0 spots):
   RWYTREES: PASS (43 rows) run directly, in 30 min 18 s - over the runner's 1 800 s timeout on this merged tree (22-25 min on
   the site's own branch): the runner gave FAIL at 1800.1 s with no failing row. Its wall wants a look when the trains merge.
   NOT RUN: FRAMECOST / the parked cook (GPU), the full tier, SKISFLY (SKIS's), the stills.
+
+## FLIGHT-SCRIPT (Pilot, 15 Nov 2026; the user via A0: scripted flights in steps with a deep log)
+- tools/flight_script.js: one scenario JSON (plane list:N, from/to, day game|calm, persona, steps {do, until, capS, allow}), the NODE runner through the game's own host (_tour_lib gameHost); one JSONL per run (run / sample 1 Hz / say / step with solver ms / end). A failed step stops the run with its WHY. The page runner (page_rig.js, frame ms per step) follows Thu 19 Nov.
+- The library tools/flight_scripts/: home_circuit (F-HCSN), east_point (the Cub, CALM: on the game's day it diverts, said), strip_jumbo (the Jodel), altiport (the Cub), float_circuit (B-CESF list:4). All five pass on 58c681347.
+- GATE FLIGHTSCRIPT (core, ~6 min): the library well formed, a bad scenario refused, a capped step failing with its WHY, the home circuit flown step by step, its JSONL read back. The card: tools/workbench/cards/flight_script.md.

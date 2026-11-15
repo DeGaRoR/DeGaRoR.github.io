@@ -133,6 +133,11 @@ const GATES = [
   // design check / Vref / damage on the STOL wing, the user's Cub with a STOL kit FLOWN (one circuit, ~2 min)
   { id: 'STOL', file: '_stol_check.js', argv: ['--selftest'], tier: 'core', wall: 480 },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
+  // FLIGHTSCRIPT (PILOT, 15 Nov; the user via A0: scripted flights in steps with a deep log, for the perf round and the tests):
+  // tools/flight_script.js's node runner - the library well formed, a bad scenario refused, a capped step failing with its
+  // WHY and stopping the run, the home circuit (the Cessna 172 F-HCSN off HOME's stand, the game's day) flown step by step
+  // and its JSONL read back. ~6 min, one process
+  { id: 'FLIGHTSCRIPT', file: '_flightscript_check.js', tier: 'core', wall: 720 },
   // G384: under core, GEN builds every configuration but flies four of the
   // sixteen circuits (test_gen.js CORE_FLY); --all flies them all
   { id: 'GEN', file: 'test_gen.js', tier: 'core', shards: 4, wall: 1500 },

@@ -1,0 +1,62 @@
+{
+  "name": "float_circuit",
+  "what": "the float Cessna B-CESF (the story's) off Annette Dock: water taxi, take-off, one circuit, the water landing, stopped on SEA. Its known approach (JOIN-PARITY G1970.4, vref-raised: the elevator cannot hold Vref at this power) goes round up to twice before the committed landing - the cap holds all three; the start is the page's water start, lined up on the lane",
+  "plane": "list:4",
+  "from": "SEA",
+  "to": "SEA",
+  "day": "game",
+  "persona": "expert",
+  "steps": [
+    {
+      "name": "board",
+      "do": "board"
+    },
+    {
+      "name": "start-up",
+      "do": "start",
+      "until": {
+        "engine": true
+      },
+      "capS": 10
+    },
+    {
+      "name": "water taxi to the hold",
+      "until": {
+        "phase": [
+          "HOLD",
+          "LINEUP",
+          "ROLL"
+        ]
+      },
+      "capS": 600
+    },
+    {
+      "name": "take-off",
+      "until": {
+        "agl": 30
+      },
+      "capS": 180
+    },
+    {
+      "name": "climb to 150 m",
+      "until": {
+        "agl": 150
+      },
+      "capS": 240
+    },
+    {
+      "name": "the circuit to the final",
+      "until": {
+        "phase": "FINAL"
+      },
+      "capS": 900
+    },
+    {
+      "name": "land and stop on SEA",
+      "until": {
+        "stoppedAt": "SEA"
+      },
+      "capS": 900
+    }
+  ]
+}
