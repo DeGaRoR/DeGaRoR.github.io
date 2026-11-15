@@ -327,6 +327,11 @@ const GATES = [
   // clip libraries and the cut levels; and the behaviours run headless
   // against the real vendor three (a herd, a pod and a flock, 900 steps).
   { id: 'ANIMALS', file: '_animal_check.js', tier: 'core' },
+  // THE ANIMALS' MOTION (ANIMALS-MOTION, 15 Nov 2026; the user: "no walking animation when they turn, harsh transition
+  // when they bend their heads"): a turn only ever on a gait clip, at the ground speed over a radius of the body, on the
+  // spot at the stepping rate; the head never over 5 deg in a 30 fps frame through every transition the machine makes;
+  // a negative control with the rules off. ~20 s.
+  { id: 'ANIMOTION', file: '_animal_motion_check.js', tier: 'core', wall: 40 },
   // THE CROWD (CHARACTERS G2970): the passengers' cast and clips round-trip from media/, the run walks, queues and
   // boards them (spacing, order, the door, the fade summing to one, the seat's own pose at the end), the fade twins,
   // the wire budget, and nothing of it in index.html (~1 s)

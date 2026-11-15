@@ -86,6 +86,29 @@ An animal is placed as a HOTSPOT — one `objects` record of a premises, kind
 OBJECTS section has the tool; every individual is seeded from `(id, index)`,
 so changing the count never moves the ones already standing.
 
+## HOW THEY MOVE (ANIMALS-MOTION, 15 Nov 2026)
+
+The user: "no walking animation when they turn, harsh transition when they
+bend their heads." The rules, none of them a joint curve (the vendors' clips
+only, G498's ruling):
+
+- **A land animal turns only while its gait clip steps.** Walking, its yaw
+  rate is its ground speed over a radius of its own length (half of it in a
+  hard turn, where the stride slows to 0.65). A refused step (water, a slope
+  over 28 deg, the hotspot's edge) turns it on the spot: the walk clip
+  stepping at the rate the turn needs, no travel. Idle, browse, lie and the
+  transitions keep their heading.
+- **Cross-fades are eased and as long as the head has to travel** (the
+  fade's own peak head speed under 75 deg/s; 0.3 s floor, 1.8 s ceiling). A
+  fade leaves the pose on screen, frozen, unless the outgoing clip is a gait,
+  which keeps stepping, and keeps its travel, under the fade.
+- **A non-gait clip is paced** where its own head moves faster than 90 deg/s
+  (the doe's and elk's Stand_Eating_01 drops the head 60 deg in 0.4 s).
+- **Lying down goes through Stand_to_Lying**, from a stand, every time.
+- GATE ANIMOTION (`tools/_animal_motion_check.js`) holds all of it,
+  `--root <tree>` runs it on another tree's code (the before numbers). A new
+  land animal needs a bone whose name contains "head".
+
 ## TRAPS THIS PIPELINE HAS ALREADY PAID FOR
 
 - **A skinned mesh's node transform is a lie.** glTF says it is ignored, and
