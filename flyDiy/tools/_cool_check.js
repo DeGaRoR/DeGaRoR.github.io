@@ -77,7 +77,7 @@ const CUB = card('builds/cub_2026-09-20_corrected.json');
 const C172 = card('builds/cessna172r_2026-11-08.json');
 const JOD = card('builds/jodel_2026-09-20_corrected.json');
 const TM = card('builds/candidates/tigermoth_2026-10.json');
-const PET = card('builds/candidates/superpetrel_V4_1.json');
+const PET = card('tools/fixtures/test_copies/superpetrel_V4_1.json');
 const RUF = card('builds/rufus_2026-10-18_certified.json');
 for (const [n, X, lo, hi] of [['list:1 Cub', CUB, 1.5, 3], ['list:50 V2-172', C172, 1.5, 3], ['list:2 Jodel', JOD, 1.5, 3.2]]) {
   const K = coolOf(X.def), row = rowOf(X.def, 'cool.climb');

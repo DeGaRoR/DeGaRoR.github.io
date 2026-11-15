@@ -3148,7 +3148,7 @@
   "list:41": {
    "name": "Super Petrel LS",
    "file": "",
-   "listFile": "builds/candidates/superpetrel_V4_1.json",
+   "listFile": "tools/fixtures/test_copies/superpetrel_V4_1.json",
    "listRow": "list:41",
    "data": {
     "name": "Super Petrel LS",

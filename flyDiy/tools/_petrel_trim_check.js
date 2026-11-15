@@ -4,7 +4,7 @@
 // read in node: the card's geometry, its rest on the SEA lane and the game's pilot taking it off.
 //
 //   node tools/_petrel_trim_check.js [card] [--show]     -> "GATE PETRELTRIM: PASS|FAIL"
-//        card: a build file relative to flyDiy/ (default builds/candidates/superpetrel_V4_1.json), loaded through the
+//        card: a build file relative to flyDiy/ (default tools/fixtures/test_copies/superpetrel_V4_1.json), loaded through the
 //        load door (_load_build gameSpec) as the game loads it; the core is tools/flight_core.js (build it first)
 //
 // THE ACCEPTANCE (A0 + the user, 10 Nov):
@@ -26,7 +26,7 @@
 const path = require('path'), fs = require('fs');
 const FLY = path.join(__dirname, '..');
 const SHOW = process.argv.includes('--show');
-const CARD = process.argv.slice(2).find(a => !a.startsWith('--')) || 'builds/candidates/superpetrel_V4_1.json';
+const CARD = process.argv.slice(2).find(a => !a.startsWith('--')) || 'tools/fixtures/test_copies/superpetrel_V4_1.json';
 const C = require('./flight_core.js'), LB = require('./_load_build.js');
 const j = JSON.parse(fs.readFileSync(path.join(FLY, CARD), 'utf8'));
 const spec = LB.gameSpec(j.spec || j);

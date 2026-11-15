@@ -7997,7 +7997,7 @@
    }
   },
   "petrel": {
-   "file": "builds/candidates/superpetrel_V4_1.json",
+   "file": "tools/fixtures/test_copies/superpetrel_V4_1.json",
    "page": {
     "n": 184,
     "nb": 845,

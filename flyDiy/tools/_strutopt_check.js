@@ -31,8 +31,9 @@ const plain = j => { const s = j.spec || j;
   return j; };
 const load = f => LB.gameSpec((/ruckus_struts/.test(f) ? plain : (j => j))(JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'))));
 const clone = o => JSON.parse(JSON.stringify(o));
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', cessna: 'builds/cessna172_2026-09-20_corrected.json',
-                 ruckus: 'builds/candidates/review/ruckus_struts_2026-11-10.json' };
+// (ONE-CESSNA 15 Nov: the Cessna is THE Cessna, list:50 - the corrected Sep file is a test copy now)
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', cessna: 'builds/cessna172r_2026-11-08.json',
+                 ruckus: 'tools/fixtures/test_copies/ruckus_struts_2026-11-10.json' };
 
 function rigidityRank(nodes, beams) {           // GATE GEN's (tools/test_gen.js G4), verbatim
   const n3 = nodes.length * 3;
