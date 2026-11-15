@@ -302,6 +302,35 @@ function gearOleoDesign(L, angFull, W, sink, D) {
   O.sSt = sSt; O.angSt = aSt; O.mrSt = mrSt; O.Fst = Fst; O.kFull = kFull;
   return O;
 }
+// PC6-OLEO: THE TELESCOPIC STRUT (the PC-6's tailwheel: an oleo whose piston carries the axle straight along the
+// strut's axis - a motion ratio of 1, the wheel's travel IS the stroke). gearOleoDesign's rules, every one, on the
+// stroke S (m) and the static stroke sSt (m: the charge, the static deflection at the design gross); W the wheel's static
+// load (N), sink the limit sink (m/s), D GEN_RULES.lever with the strut's own piston (D.dPiston)
+function gearOleoDesignTele(S, sSt, W, sink, D) {
+  const A = Math.PI * 0.25 * D.dPiston * D.dPiston, n = D.n;
+  const Fst = W, Pst = Fst / A + GEAR_PA, P1 = Pst / D.rp;
+  const V1 = A * sSt / (1 - CORE_MATH.pow(D.rp, -1 / n));
+  const P2 = D.p2k * Pst, s2 = (V1 / A) * (1 - CORE_MATH.pow(P1 / P2, 1 / n));
+  const Ptgt = D.nFull * W / A + GEAR_PA;
+  let V2 = 0;
+  if (s2 < S) {
+    const pAt = v => P2 * CORE_MATH.pow((V1 + v - A * s2) / Math.max(1e-12, V1 + v - A * S), n);
+    let lo = 0, hi = 50 * V1;
+    for (let k = 0; k < 80; k++) { const m = 0.5 * (lo + hi); if (pAt(m) > Ptgt) lo = m; else hi = m; }
+    V2 = 0.5 * (lo + hi);
+  }
+  const O = { Lx: 0, S, A, n, P1, V1, P2, V2, s2, kc: 0, kr: 0, cl: 0, kS: 0 };
+  const kFull = (gearOleoSpring(O, S) - gearOleoSpring(O, S - 1e-4)) / 1e-4;
+  O.kS = D.stopK * kFull;
+  const Flim = D.nLim * W;
+  O.kc = D.cd * Flim / (sink * sink);
+  O.kr = D.rb * O.kc;
+  const kSt = (gearOleoSpring(O, sSt + 1e-4) - gearOleoSpring(O, sSt - 1e-4)) / 2e-4;
+  O.cl = D.zl * 2 * Math.sqrt(kSt * (W / 9.81));
+  O.ff = D.ff * Fst; O.vf = D.vf;
+  O.sSt = sSt; O.mrSt = 1; O.Fst = Fst; O.kFull = kFull; O.kSt = kSt;
+  return O;
+}
 // THE PART'S POSE FROM ITS NODES: the rigid transform (3 x 4 row-major, gearMechPose's shape) taking the rest points
 // r[0..2] onto the current c[0..2] - a triad on the first three (origin r0, axis r0->r1, the plane with r2). The garage
 // poses the drawn arm and strut with it from gearLeverAt's points; the flight from the solver's nodes; so the two
@@ -328,4 +357,4 @@ function gearLeverRef(o, legDir) {
   return { piv, horn, top, w: o.w, comp: (o.ang - o.comp) * D };
 }
 const GEAR_LEVER = { GEAR_PA, gearLeverRef, gearLeverTurn, gearLeverInit, gearLeverAt, gearLeverAngOf, gearLeverMR, gearOleoP, gearOleoSpring,
-                     gearOleoF, gearOleoDesign, gearNodeFrame };
+                     gearOleoF, gearOleoDesign, gearOleoDesignTele, gearNodeFrame };

@@ -2744,6 +2744,11 @@ PAGE.post = ctx => {
         // drawn with its leg: it rides its spring, it does not yaw in the picture)
         const cb = allBags();
         const yaws = !TBg || sgn < 0;
+        // PC6-OLEO: the PC-6 tailwheel's castor in four parts the flight poses apart (castorUnit's bags.pc6): the
+        // collar, the V's upper arm, its lower bands - and the slider, the castor's own bags (the wheel rides in it)
+        const pc6B = yaws && Math.round(+st.P.twStyle || 0) === 1 && +st.steer !== 4
+          ? { collar: allBags(), upper: allBags(), lower: allBags(), slider: cb } : null;
+        if (pc6B) Object.defineProperty(cb, 'pc6', { value: pc6B, enumerable: false });
         const proxy = Object.assign({}, lb, wu.wb, yaws ? { castorBags: cb } : {});
         // G326: the steering springs run to the RUDDER'S horn, which the
         // hinge layer draws — so it draws the runs too, from the ears the
@@ -2754,7 +2759,8 @@ PAGE.post = ctx => {
           : GG.legTailwheel(proxy, AFx, st.P, st);
         if (r.castor && yaws)
           castorUnitOut = { bags: cb, top: r.castor.top, ax: r.castor.ax,
-                            axle: r.axle, ears: r.castor.ears };
+                            axle: r.axle, ears: r.castor.ears,
+                            ...(pc6B && r.castor.pc6 ? { pc6: { bags: pc6B, rec: r.castor.pc6 } } : {}) };
       } else {
         // RETRACT GM1 (§8.11): A RETRACTING LEG IS AN OLEO ON A TRUNNION INSIDE THE STRUCTURE (blade and bungee V do
         // not retract; the join flies it as an oleo) - the pin along the fold's first axis, its point the wing's mid-
@@ -2815,6 +2821,7 @@ PAGE.post = ctx => {
       // the start and end anchor points remain in original position".
       legUnits.push({ bags: lb, kind: wu.wb.kind, axle: r.axle,
                       root: r.root || null, moving: r.tip || r.axle,
+                      fixed: !!r.pc6Oleo,   // PC6-OLEO: the cylinder, its clamps and the truss are airframe - nothing in the leg moves
                       wing: !!m,      // RETRACT-1: rooted on the wing (the inward fold) or on the body (aft)
                       waxis: r.axis || null, R: st.R,      // G1: the wheel's axis and radius (the lift)
                       legR: (+(st.P && st.P.oleoDia) || 0.06) / 2 + 0.02,   // GR: the leg's radius and its links' room (the wells)
@@ -2822,7 +2829,7 @@ PAGE.post = ctx => {
                       strut: rOleo && rOleo.strutDir || null, strutL: rOleo && rOleo.strutL || 0, cylF: rOleo && rOleo.cylF || 0.55,
                       low: retLow, scissor: retSc,
                       lever: r.lever ? Object.assign({}, r.lever, { bags: lb.lever }) : null });   // WILGA-GEAR
-      contacts.push({ st, sgn, p: r.axle, R: st.R });
+      contacts.push({ st, sgn, p: r.axle, R: st.R, oleo: r.pc6Oleo || null });   // (PC6-OLEO: the tail strut's record)
     }
   }
   // the SPAT is the builder's to paint (phase C): its own livery section,
@@ -2902,6 +2909,13 @@ PAGE.post = ctx => {
       if (k === 'fair' && mf && exG > 0) mf.position.z += 0.6 * exG;   // G316
     }
     group.add(cgp);
+    // PC6-OLEO: the castor's other three parts, each its own group (the join exports them as castorTc / Tu / Tl)
+    if (castorUnitOut.pc6) for (const [part, nm] of [['collar', 'edCastorTc'], ['upper', 'edCastorTu'], ['lower', 'edCastorTl']]) {
+      const g = new THREE.Group(); g.name = nm;
+      const bs = castorUnitOut.pc6.bags[part];
+      for (const k in bs) bs[k].mesh(g, legM(k, bs[k]));
+      group.add(g);
+    }
   }
 
   // ---- THE GROUND COMES TO THE AEROPLANE ---------------------------------
@@ -3164,11 +3178,13 @@ PAGE.post = ctx => {
     onWing,                              // G1441: legs rooted on the wing (the drag preview's wing -> gear edge)
     // G58.3: the separable units' anchors, for the join's moving parts
     units: { legs: legUnits.map(u => ({ kind: u.kind, axle: u.axle,
-                                        root: u.root, moving: u.moving, wing: u.wing })),
+                                        root: u.root, moving: u.moving, wing: u.wing, fixed: !!u.fixed })),
              castor: castorUnitOut
                ? { top: castorUnitOut.top, ax: castorUnitOut.ax,
                    axle: castorUnitOut.axle,
-                   ears: castorUnitOut.ears || null } : null } };
+                   ears: castorUnitOut.ears || null,
+                   // PC6-OLEO: the mechanism's pivots and its swing table (cage frame, metres)
+                   ...(castorUnitOut.pc6 ? { pc6: (q => ({ pin: q.pin, hub0: q.hub0, S: q.S, tab: q.tab, compMax: q.compMax }))(castorUnitOut.pc6.rec) } : {}) } : null } };
   if (stat && notes.length) stat.textContent += '  ·  gear: ' + notes.join(' · ');
 };
 })();

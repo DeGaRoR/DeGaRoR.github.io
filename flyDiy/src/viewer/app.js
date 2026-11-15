@@ -3119,6 +3119,7 @@
     const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
     const leverRigs = [];                     // WILGA-GEAR: the trailing-link legs' rigid parts, each on three nodes
     let castorRig = null;
+    const pc6Rigs = [];                       // PC6-OLEO: the PC-6 tailwheel's collar, V arms (castorTc / Tu / Tl)
     let gearSwingRig = null;                  // RETRACT-1: the swing groups (null: a fixed build, nothing moves)
     let gearMechRig = null;                   // RETRACT GM3: the one kinematics (null: an older snapshot - the swing alone)
     if (data.cage && Array.isArray(data.parts)) {
@@ -3744,6 +3745,15 @@
           grp.add(pg);
           gearMechTags.push([pg, pt.name]);
         }
+        else if ((pt.kind === 'castorTc' || pt.kind === 'castorTu' || pt.kind === 'castorTl') && nodeOf.tw != null && pt.tab) {
+          // PC6-OLEO: a part of the PC-6 tailwheel's mechanism, posed each frame off the wheel node's travel up the
+          // strut's axis and the steering (the rig below the castor's)
+          if (pg.position && pg.position.set) pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          gearTags.push([pg, 'T']);
+          pc6Rigs.push({ obj: pg, kind: pt.kind, pivot: pt.pivot, top: pt.top, axis: pt.axis, pinAxis: pt.pinAxis, tab: pt.tab,
+                         idx: nodeOf.tw, rest0: nodeRest(nodeOf.tw) });
+        }
         else if (pt.kind === 'castorT' && nodeOf.tw != null) {
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
@@ -4196,6 +4206,7 @@
                         ctlMoves: ctlMoves.length ? ctlMoves : null,   // G240
                         picks: picks.length ? picks : null,            // G318
                         castorRig,
+                        pc6Rigs: pc6Rigs.length ? pc6Rigs : null,     // PC6-OLEO
                         gearSwingRig,                                  // RETRACT-1
                         gearMechRig,                                   // RETRACT GM3
                         surfaces: data.surfaces,
@@ -4371,6 +4382,7 @@
     model.restBaked = true;
     if (window.AEROSKIN && window.AEROSKIN.aeroRestBake) window.AEROSKIN.aeroRestBake(THREE, model.grp);
   }
+  let PC6Q = null;                           // PC6-OLEO: the mechanism rig's scratch quaternions and vectors
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -5062,6 +5074,39 @@
           c.obj.quaternion.setFromAxisAngle(vY, -sA * up);
         }
         poseRigid(c.obj);                             // G357: in the true frame
+      }
+    }
+    // PC6-OLEO: THE PC-6 TAILWHEEL'S MECHANISM. The slider (the piston, its fork, the wheel) is the castor above: the
+    // wheel node's travel and the steering. The collar turns only; the V's upper arm turns and swings on the collar's
+    // pin by phi; its lower bands ride the axle (the slider's travel), turn, and swing about it by psi - phi and psi the
+    // drawing's own table (castorUnit, the scissor solved over the stroke) at the stroke the wheel node reads: its travel
+    // up the strut's axis from the drawn, relaxed place. Every pin stays a pin at every stroke and every steering angle
+    if (model.pc6Rigs) {
+      const so = typeof sim !== 'undefined' && sim && sim.out, tst = so && so.twState ? so.twState[0] : 0;
+      const tws = (def && def.params && typeof def.params.twSteer === 'number') ? def.params.twSteer : 0.5;
+      const sA = tst === 1 && so.twAng ? so.twAng[0] : (tst === 2 || tst === 3) ? 0 : tws * (link.dr || 0);
+      const Q = PC6Q || (PC6Q = { y: new THREE.Quaternion(), r: new THREE.Quaternion(), a: new THREE.Vector3(), b: new THREE.Vector3(), o: new THREE.Vector3() });
+      for (const r of model.pc6Rigs) {
+        if (!r.obj.position || !r.obj.quaternion) continue;
+        const L = nodeLocal(r.idx), d = [L[0] - r.rest0[0], L[1] - r.rest0[1], L[2] - r.rest0[2]];
+        const up = r.axis[1] < 0 ? -1 : 1;
+        const comp = Math.max(0, (d[0] * r.axis[0] + d[1] * r.axis[1] + d[2] * r.axis[2]) * up);   // the travel up the strut (its axis points down)
+        const tb = r.tab, n = tb.comp.length - 1, cM = tb.comp[n] || 1e-9, f = Math.min(n, Math.max(0, comp / cM * n));
+        const i0 = Math.min(n - 1, Math.floor(f)), w = f - i0, lerp = A => A[i0] + (A[i0 + 1] - A[i0]) * w;
+        Q.a.set(r.axis[0], r.axis[1], r.axis[2]);
+        Q.y.setFromAxisAngle(Q.a, -sA * up);
+        // the part's place: the collar and the arm at their pivots turned about the strut with the steering; the bands at
+        // the relaxed axle turned likewise, then carried with the wheel's travel
+        Q.o.set(r.pivot[0] - r.top[0], r.pivot[1] - r.top[1], r.pivot[2] - r.top[2]).applyQuaternion(Q.y);
+        const carry = r.kind === 'castorTl';
+        r.obj.position.set(r.top[0] + Q.o.x + (carry ? d[0] : 0), r.top[1] + Q.o.y + (carry ? d[1] : 0), r.top[2] + Q.o.z + (carry ? d[2] : 0));
+        if (r.kind === 'castorTc') r.obj.quaternion.copy(Q.y);
+        else {
+          Q.b.set(r.pinAxis[0], r.pinAxis[1], r.pinAxis[2]);
+          Q.r.setFromAxisAngle(Q.b, lerp(r.kind === 'castorTu' ? tb.phi : tb.psi));
+          r.obj.quaternion.copy(Q.y).multiply(Q.r);
+        }
+        poseRigid(r.obj);
       }
     }
     { const oB = [O[0] + oR[0], O[1] + oR[1], oR[2]];
