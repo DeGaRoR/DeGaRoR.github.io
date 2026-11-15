@@ -316359,3 +316359,11 @@ NEW REDS (8), NAMED with owners (fix or re-pin with reason for L40d/L40e):
   - UNIFY EMERG (the student): known red on the pu2 base, Pilot owns.
 
 COLD LOAD (the user 14 Nov: before/after every train): before 143 s (L40a 6a8d705c4); after 138 s (programs 501, world 26.1, settle 17.1, shader compile 56.5+4.0): no load cost from this train. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+
+ARCHAEOPTERYX PITCH (archaeopteryx-2, cloud, 15 Nov; A0's "archaeo-pitch" ask, the user: "the batteries ... at the level of the thighs of the pilot, below the horizontal struts").
+- WHY IT WAS AFT: the card's pack had no station (weight study L7: 'under the floor'); the bay settled it at 1.18 m, 0.13 m AFT of the seat.
+- MOVED to the real place: along 0.85 m, lv 0.1 (tools/_cage_design.js, commit 65c28fdc6). Flown (gameSpecFull), before -> after: CG 68.9 -> 65.8 % MAC (all-up 160.4 kg), empty CG 96.1 -> 90.0 %, static margin -11.6 -> -8.6 %, spiral 4.79 -> 5.16 s, Dutch roll -1.000 (sentinel). Neutral point ~57 % MAC.
+- STILL UNSTABLE: +5 % margin wants the CG ~0.14 m further forward (~22 kg.m) - no pack station gives that. Wing move / nose mass NOT done: the user's yes first.
+- NO PUBLISHED CG RANGE found (Ruppert: 61 kg empty, L/D 28). Model suspects: the wing's mass centroid at 64 % MAC (spar-node billing: front 15 %, rear 65 %), the outfit at 92 %.
+- OWED: the drawn energy layer resets the hanging pod's pack to 2.27 m / 0.8 kWh (before and after; TANKMOUNT KNOWN_AUTO); the flown spec keeps 0.85 m / 2 kWh.
+- GATES: fleet hash only archaeopteryx moved; TANKMOUNT ULTRALIGHT LIGHTWING HUB NACELLE ENGINELESS GLIDE UNIFY DESIGN STOL JOIN PLANELISTS PASS. Red on the tree before this change too (not ours): REALBAND (carboncubss moved), DESIGNCHECK (carbon shell post 4.2 mm vs 1.8), CANDIDATES (pc6_drafting not in index.json); TAXICLEAR 9 (the Cessna's taxi; its hash did not move).
