@@ -2935,15 +2935,9 @@
   }
  },
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
-<<<<<<<< HEAD:flyDiy/media/map/jolene_proj.18671df2.json
- "img": "media/map/jolene_map.aad54ef9.png",
- "imgBytes": 715121,
- "imgHash": "aad54ef9",
-========
- "img": "media/map/jolene_map.11ef90bd.png",
- "imgBytes": 715147,
- "imgHash": "11ef90bd",
->>>>>>>> 9dd1f2ffd (SKYLINE-RESORT: Skyline Altiport as a project - the strip halved (380 x 18 -> 190 x 9 m, the top end kept), the foot-launch pad, footpaths and signposts, groves and rocks through the tree system, the restaurant terrace, a terraformed parking area, the glider hangar (resort 0-3)):flyDiy/media/map/jolene_proj.3556fb82.json
+ "img": "media/map/jolene_map.f31265bf.png",
+ "imgBytes": 715153,
+ "imgHash": "f31265bf",
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
