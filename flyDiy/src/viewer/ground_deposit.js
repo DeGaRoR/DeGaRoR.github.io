@@ -162,7 +162,7 @@
       const c = march(G, ax, ay, az, bx, by, bz);
       if (c < 0) continue;
       const sp = Math.hypot(dX, dY, dZ), s = pool.s[q];
-      const m = (s * s * s / 1e-6) * (0.25 + 0.75 * wet) * Math.min(1, sp / K.vRef) * (kd === 5 ? 0.6 : 1) * (k != null ? k : 1);
+      const m = (s * s * s / 1e-6) * (0.25 + 0.75 * wet) * Math.min(1, sp / K.vRef) * (kd === 5 ? 0.6 : 1) * (k != null ? k : 1) * (pool.w ? pool.w[q] : 1);   // (w: the real throw a drawn one stands for)
       deposit(G, c, dX, dY, dZ, m);
       pool.age[q] = pool.life[q];                          // it stuck (or broke up on the skin)
       n++;

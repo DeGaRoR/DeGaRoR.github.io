@@ -67,7 +67,8 @@ function box(x0, y0, z0, x1, y1, z1) {   // 12 triangles
 
 // ---- B, C. the builds --------------------------------------------------------------------------------------------------
 const grp = (lab, nx, ny, nz) => {
-  const f = nz > 0.5 ? 'top' : nz < -0.5 ? 'under' : ny < -0.5 ? 'front' : ny > 0.5 ? 'back' : 'side';
+  // (back = the LEE: facing squarely aft and not down - an aft face tilted down or sideways takes the upward or sideways throw, as it should)
+  const f = nz > 0.5 ? 'top' : nz < -0.5 ? 'under' : ny < -0.5 ? 'front' : ny > 0.8 && nz > -0.25 ? 'back' : ny > 0.5 ? 'aft-oblique' : 'side';
   if (/^gear:edLeg/.test(lab)) return 'leg ' + f;
   if (/^gear:/.test(lab) && !/edWheel/.test(lab)) return 'gear ' + f;
   if (/^wing:/.test(lab) && !/strut/i.test(lab)) return 'wing ' + f;

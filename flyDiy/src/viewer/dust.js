@@ -148,7 +148,8 @@
     // SNOW-MUD: the new kinds' laws. DRIFT (3) a saltating streak: 0.3-0.7 s, drag-held near the ground; CLUMP (4) a snow
     // lump off a plough (ballistic); DROP (5) a mud / slush drop, 1-5 mm (its terminal speed 6-8 m/s: a little drag); SPLAT
     // the landed mud: splatLife s, its wet gloss gone by splatDry of it, eroded away over the last half
-    driftDrag: 2.5, dropDrag: 0.35, clumpDrag: 0.12, splatLife: 22, splatDry: 0.4, splatMax: 0.18, projMax: 220, projUp: 5, treadCone: 0.58,
+    driftDrag: 2.5, dropDrag: 0.35, clumpDrag: 0.12, splatLife: 22, splatDry: 0.4, splatMax: 0.18, projMax: 220, projUp: 5, treadCone: 0.58, projHeavy: 0.7,   // (GROUND-FX: a heavy throw's rise cap x (1 + 0.7): 8.5 m/s, ~3.7 m - the stab and the fin)
+    slipK: 1.0,                      // GROUND-FX: the prop's slipstream as the air the thrown kinds and the puffs ride (the user: "also of the engine")
     // THE SPLASH BUDGET (GROUND-FX 16 Nov, A0's review of DIRT-STRIP's 160 drops/s): the grit ring overwrites its next slot, live
     // or not - every puddle splash of every wheel shares splashShare x the ring a second (phone 64, potato 96, retro 160, gamer
     // 280 /s), so the splashes alone never wrap it in under 1 / splashShare = 2.5 s: no flying grit or clod (life <= 1.8 s) evicted
@@ -178,7 +179,10 @@
   };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
-  let rnd = Math.random;   // (GROUND-FX: DUST.random(fn) seeds it for a node run - GATE MUDDEPOSIT's determinism; the page never sets it)
+  let rnd = Math.random;
+  // GROUND-FX: the weight the next emitted grit carries (a source whose throw the pool budget clips sets it to wanted / drawn,
+  // so the deposit on the aeroplane is the real throw's, however few are drawn); 1 otherwise
+  let wEmit = 1;   // (GROUND-FX: DUST.random(fn) seeds it for a node run - GATE MUDDEPOSIT's determinism; the page never sets it)
 
   // ================================================================================================================
   // THE SYSTEM
@@ -195,7 +199,7 @@
            into: new Int32Array(NP).fill(-1), intoGen: new Uint32Array(NP), mt: new Float32Array(NP), mI: new Float32Array(NP), aI: new Float32Array(NP), vI: new Float32Array(NP), n: NP, live: 0 },
       // grit + mud: position, velocity, size, age, life, kind (0 grit, 2 mud), class
       G: { p: new Float32Array(NG * 3), v: new Float32Array(NG * 3), s: new Float32Array(NG), age: new Float32Array(NG).fill(9), life: new Float32Array(NG).fill(1),
-           kind: new Uint8Array(NG), cls: new Uint8Array(NG), seed: new Float32Array(NG), next: 0, n: NG, live: 0 },
+           kind: new Uint8Array(NG), cls: new Uint8Array(NG), seed: new Float32Array(NG), w: new Float32Array(NG).fill(1), next: 0, n: NG, live: 0 },   // (GROUND-FX: w, the real throw a drawn one stands for - the deposit's weight)
       // SNOW-MUD: the splats - a landed clod or drop lying on the ground (position, size, age, class, seed, the landing's
       // speed for its fingers), a ring of T.splat
       S: { p: new Float32Array((T.splat || 0) * 3), s: new Float32Array(T.splat || 0), age: new Float32Array(T.splat || 0).fill(1e9), cls: new Uint8Array(T.splat || 0),
@@ -267,7 +271,7 @@
     if (G.age[q] < G.life[q]) { sys.stats.refused++; return; }
     G.next = (q + 1) % G.n;
     G.p[q * 3] = x; G.p[q * 3 + 1] = y; G.p[q * 3 + 2] = z; G.v[q * 3] = vx; G.v[q * 3 + 1] = vy; G.v[q * 3 + 2] = vz;
-    G.s[q] = s; G.age[q] = 0; G.life[q] = kind === 2 ? 1.6 : kind < 2 ? 1.2 : kind === 3 ? 0.35 + 0.35 * rnd() : kind === 4 ? 1.8 : 1.5; G.kind[q] = kind; G.cls[q] = cls; G.seed[q] = rnd();   // (SNOW-MUD: 3 drift, 4 clump, 5 drop)
+    G.w[q] = wEmit; G.s[q] = s; G.age[q] = 0; G.life[q] = kind === 2 ? 1.6 : kind < 2 ? 1.2 : kind === 3 ? 0.35 + 0.35 * rnd() : kind === 4 ? 1.8 : 1.5; G.kind[q] = kind; G.cls[q] = cls; G.seed[q] = rnd();   // (SNOW-MUD: 3 drift, 4 clump, 5 drop)
   }
   // SNOW-MUD: a landed clod or drop becomes a SPLAT, flat on the ground: its size the drop's spread by its landing speed
   // (a faster hit spreads wider - capped), the ring's oldest re-used
@@ -307,6 +311,29 @@
   // ---- step(sys, dt, env): integrate both pools, merge the old puffs ---------------------------------------------
   const WV = [0, 0, 0];
   const MERGE = new Map();
+  // GROUND-FX: THE SLIPSTREAM as air (the user, 15 Nov: the dirt goes back "also of the engine, because the engine itself is
+  // making a lot of this dirt"): the round jet propJet already draws - aft of the disc, radius R + s tan(8 deg), speed wash R / r
+  // (its momentum held) - as the AIR's velocity in the ground's frame, so a clod, a drop, a puff in it is carried aft over the
+  // belly to the tail; out to 40 m, soft-edged. Out: SL [x, y, z]; returns 0 outside every jet
+  const SL = [0, 0, 0];
+  function slipAt(props, x, y, z) {
+    SL[0] = SL[1] = SL[2] = 0;
+    if (!props || !props.length || !(L.slipK > 0)) return 0;
+    let any = 0;
+    const tn = Math.tan(L.jetHalf);
+    for (let k = 0; k < props.length; k++) {
+      const pr = props[k], wash = pr.wash || 0;
+      if (wash < 1) continue;
+      const ax = -pr.ax, ay = -pr.ay, az = -pr.az, dx = x - pr.x, dy = y - pr.y, dz = z - pr.z;
+      const s = dx * ax + dy * ay + dz * az;
+      if (s < 0 || s > 40) continue;
+      const rx = dx - ax * s, ry = dy - ay * s, rz = dz - az * s, r2 = rx * rx + ry * ry + rz * rz, R = pr.R || 0.9, rS = R + s * tn;
+      if (r2 > rS * rS) continue;
+      const u = wash * R / rS * 0.85 * L.slipK * (1 - smooth(0.7 * rS, rS, Math.sqrt(r2)));
+      SL[0] += ax * u; SL[1] += ay * u; SL[2] += az * u; any = 1;
+    }
+    return any;
+  }
   function step(sys, dt, env) {
     if (!(dt > 0)) return;
     sys.t += dt;
@@ -337,8 +364,9 @@
       // V2: the eddies (a young puff still rides its source's jet: the swirl comes in over the jet's decay)
       let ex = 0, ez = 0, ey = 0;
       if (LOOK.v2 && L.eddyU > 0) { eddyAt(x, z, sys.t, (L.eddyU + L.eddyUWind * spd10) * (1 - Math.exp(-a / L.jetTau)), EDDY); ex = EDDY[0]; ez = EDDY[1]; ey = EDDY[2]; }
-      P.v[i * 3] += (WV[0] + ex - P.v[i * 3]) * dr;
-      P.v[i * 3 + 2] += (WV[1] + ez - P.v[i * 3 + 2]) * dr;
+      const sl = sys.props ? slipAt(sys.props, x, P.p[i * 3 + 1], z) : 0;   // (GROUND-FX: the prop's blast blows the cloud aft)
+      P.v[i * 3] += (WV[0] + ex + (sl ? SL[0] : 0) - P.v[i * 3]) * dr;
+      P.v[i * 3 + 2] += (WV[1] + ez + (sl ? SL[2] : 0) - P.v[i * 3 + 2]) * dr;
       // the vertical: its own momentum dies, and the centre settles toward the dome's (ground + domeK rv)
       const yT = g + L.domeK * rv;
       P.v[i * 3 + 1] += (-(P.p[i * 3 + 1] - yT) * 0.4 + ey - P.v[i * 3 + 1]) * dr;
@@ -355,7 +383,10 @@
       G.age[q] += dt;
       const kd = G.kind[q];
       const dr = 1 - (kd === 2 ? L.mudDrag : kd === 0 ? L.gritDrag : kd === 5 ? L.dropDrag : kd === 3 ? L.driftDrag : L.clumpDrag) * dt;
-      G.v[q * 3] *= dr; G.v[q * 3 + 2] *= dr; G.v[q * 3 + 1] = G.v[q * 3 + 1] * dr - 9.81 * dt;
+      // GROUND-FX: the drag relaxes toward the AIR - still, or the prop's slipstream (a drop over the belly is blown aft)
+      if (sys.props && slipAt(sys.props, G.p[q * 3], G.p[q * 3 + 1], G.p[q * 3 + 2])) {
+        G.v[q * 3] = SL[0] + (G.v[q * 3] - SL[0]) * dr; G.v[q * 3 + 2] = SL[2] + (G.v[q * 3 + 2] - SL[2]) * dr; G.v[q * 3 + 1] = SL[1] + (G.v[q * 3 + 1] - SL[1]) * dr - 9.81 * dt;
+      } else { G.v[q * 3] *= dr; G.v[q * 3 + 2] *= dr; G.v[q * 3 + 1] = G.v[q * 3 + 1] * dr - 9.81 * dt; }
       G.p[q * 3] += G.v[q * 3] * dt; G.p[q * 3 + 1] += G.v[q * 3 + 1] * dt; G.p[q * 3 + 2] += G.v[q * 3 + 2] * dt;
       if (G.age[q] > 0.05 && G.v[q * 3 + 1] < 0) {
         const gy = gH ? gH(G.p[q * 3], G.p[q * 3 + 2]) : 0;
@@ -431,6 +462,7 @@
   const utK = S => Math.sqrt(1 + 1.21 * Math.pow(Math.max(0, S - 0.05) * 30, 0.68));
   function sources(sys, st, env, dt) {
     if (!(dt > 0)) return;
+    sys.props = st.props || null;   // (GROUND-FX: the slipstream step's particles ride)
     const K = env.k != null ? env.k : 1;
     // THE SPLASH BUDGET: last frame's asked splash rate (all wheels) over the budget scales every wheel alike this frame (a
     // fair share, both sides spray); the room (this frame's budget, its fraction carried) is the hard cap behind it
@@ -507,6 +539,13 @@
     const wf = SKI ? Math.max(1, SKI.W / 0.25) : 1, toe = SKI ? (SKI.fwd > 0 ? SKI.fwd : 0.45 * SKI.L) : R * 0.6, half = SKI ? 0.5 * SKI.W : 0.08;
     const ux = V > 0.3 ? w.vx / V : 1, uz = V > 0.3 ? w.vz / V : 0, lx = -uz, lz = ux;
     let room = Math.ceil(L.projMax * dt * K * Math.min(1, sys.G.n / 400));   // (a smaller tier's pool: fewer, not a ring that eats its own)
+    // GROUND-FX: what the tyre would throw this frame (the tread's and the bow wave's expected counts) over what the budget
+    // draws: each drawn one carries the rest as its weight. HEAVY (fast, deep, the user 15 Nov: "if there's really a lot, it
+    // can splatter even further"): the release's rise cap grows with the speed and the sinkage
+    const gT0 = V * V / R / 9.81, expT = SKI ? 0 : PJ.tread * smooth(PJ.adh, PJ.adh * 3, gT0) * V * (0.4 + sk) * K * dt;
+    const expB = sk > 0.05 ? PJ.bow * sk * wf * Math.min(V, 15) / 15 * K * dt : 0;
+    const wPrev = wEmit; wEmit = Math.max(1, (expT + expB) / Math.max(1, room));
+    const heavy = smooth(10, 25, V) * sk, upCap = L.projUp * (1 + L.projHeavy * heavy);
     // (the stills, 13 Nov: drops of their true 1-5 mm drew under a pixel and vanished - a DROP is a CLUSTER of them as the eye
     // reads a spray, 1.2-3.5 cm, the way every game draws spray; a clod its 6-24 mm lump)
     const sizeOf = kind => kind === 2 ? 0.006 * Math.exp(1.4 * rnd()) : 0.012 * Math.exp(1.05 * rnd());
@@ -528,7 +567,7 @@
       const phi = 0.25 + rnd() * (0.4 + 1.2 * (1 - early)), keep = 0.4 + 0.3 * rnd(), cs = Math.cos(phi), sn = Math.sin(phi), la = (rnd() + rnd() - 1) * L.treadCone * V * keep;   // (GROUND-FX, 15 Nov: a tyre's spray is a CONE, not a sheet - +-30 deg about the release, peaked at its middle; the old +-4 deg missed the belly between a wide track)
       const hx = -sn * R, hy = R - cs * R;                         // the point round the tyre: behind the hub, above the contact
       one(pick(), w.x + ux * hx + lx * (rnd() - 0.5) * 0.1, w.y + hy, w.z + uz * hx + lz * (rnd() - 0.5) * 0.1,
-        ux * V * (1 - cs) * keep + lx * la, Math.min(L.projUp, V * sn * keep), uz * V * (1 - cs) * keep + lz * la);   // (a lump's rise held: the mud reaches the legs and the wing's underside, ~1.3 m)
+        ux * V * (1 - cs) * keep + lx * la, Math.min(upCap, V * sn * keep), uz * V * (1 - cs) * keep + lz * la);   // (a lump's rise held: the mud reaches the legs and the wing's underside, ~1.3 m)
     }
     }
     // THE BOW WAVE
@@ -538,6 +577,7 @@
       one(rnd() < 0.25 ? 2 : 5, w.x + ux * (toe + at) + lx * side * half, w.y + 0.02, w.z + uz * (toe + at) + lz * side * half, ux * f + lx * o, up, uz * f + lz * o);
     }
     splashRun(sys, w, V, pud, dt, K, ci);   // (GROUND-FX 16 Nov: the mud's and the slush's puddles spray at the same rate as the dirt's)
+    wEmit = wPrev;
   }
   // ---- SNOW-MUD: POWDER'S PLOUGH - a sinking tyre (or a ski's toe) pushes the snow ahead aside: CLUMPS (kind 4, 1-4 cm,
   // white, ballistic) thrown to the sides and forward, and the fines it breaks up a cloud (a puff topped up, x the sinkage)
@@ -596,8 +636,10 @@
       const PJ = C.proj;
       if (u > PJ.wash) { const hl = Math.hypot(ax, az) || 1, fx = ax / hl, fz = az / hl, gy = gH ? gH(hx, hz) : g0;
         let r = PJ.washK * (u - PJ.wash) * K * dt, N = Math.min(Math.ceil(L.projMax * dt), Math.floor(r) + (rnd() < r % 1 ? 1 : 0));
+        const wPrev = wEmit; wEmit = N > 0 ? Math.max(1, r / N) : 1;
         for (let j = 0; j < N; j++) { const la = (rnd() - 0.5) * 2 * rS, k = 0.25 + 0.25 * rnd();
-          emitGrit(sys, 5, hx - fz * la, gy + 0.03, hz + fx * la, fx * u * k, 0.6 + 1.6 * rnd(), fz * u * k, 0.01 + 0.015 * rnd(), ci); } }
+          emitGrit(sys, 5, hx - fz * la, gy + 0.03, hz + fx * la, fx * u * k, 0.6 + 1.6 * rnd(), fz * u * k, 0.01 + 0.015 * rnd(), ci); }
+        wEmit = wPrev; }
       return;
     }
     if (u <= ut || (env.puddle && env.puddle(hx, hz) > 0.01)) return;
@@ -1188,7 +1230,7 @@
   }
 
   const random = fn => { rnd = typeof fn === 'function' ? fn : Math.random; };
-  const DUST = { makeSystem, step, sources, make, random, emitPuff, emitGrit, billow, sixWay, eddyAt, albedoFrom, LOOK, CLASSES, CLS, TIERS, TIER_OF, L, dryK, utK, GLSL: { vert: VERT, frag: FRAG } };
+  const DUST = { makeSystem, step, sources, make, random, slipAt, SL, emitPuff, emitGrit, billow, sixWay, eddyAt, albedoFrom, LOOK, CLASSES, CLS, TIERS, TIER_OF, L, dryK, utK, GLSL: { vert: VERT, frag: FRAG } };
   if (typeof window !== 'undefined') window.DUST = DUST;
   if (typeof module !== 'undefined' && module.exports) module.exports = DUST;
 })();
