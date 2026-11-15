@@ -75,7 +75,8 @@ async function lift(ctx, at) {
 // Fly, then the roll-out: its trip done and no screen up; then 60 frames - the world drawn, the reveal counted
 async function fly(ctx) {
   const { P, W, R } = ctx;
-  const n0 = trips(W).length, rv0 = reveals(W);
+  // (ctx.n0: the trips counted BEFORE a Go the caller pressed itself - 'under' presses it past the door, then waits here)
+  const n0 = ctx.n0 != null ? ctx.n0 : trips(W).length, rv0 = reveals(W);
   const b = W.document.getElementById('bGo'); if (b && !ctx.noClick) b.click();
   const ok = await P.until(() => { const t = lastTrip(W); return trips(W).length > n0 && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'; }, V_MAX);
   const t = lastTrip(W);
@@ -115,9 +116,9 @@ async function child(which) {
     // the net: a Go past the door, while the chain is still before 'first light'
     const stepsAt = bootLog(W).filter(e => e.k === 'step').map(e => e.id);
     out.under = { state: W.BOOT.state, firstLightBefore: stepsAt.includes('firstFrame'), steps: stepsAt.slice(-3) };
-    const st = W.BOOT.state; W.BOOT.state = 'gone'; const g = d.getElementById('bGo');
+    const nGo = trips(W).length, st = W.BOOT.state; W.BOOT.state = 'gone'; const g = d.getElementById('bGo');
     try { g.click(); } finally { if (W.BOOT.state === 'gone') W.BOOT.state = st; }
-    out.fly = await fly(Object.assign({}, ctx, { noClick: true }));
+    out.fly = await fly(Object.assign({}, ctx, { noClick: true, n0: nGo }));
     out.fly.firstLightEver = bootLog(W).some(e => e.k === 'step' && e.id === 'firstFrame');
   } else {
     out.lift = await lift(ctx, 'compile');
