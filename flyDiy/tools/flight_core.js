@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b4d60f58eb92fc6c
+// body-sha256: 565aca84191577fd
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -15797,10 +15797,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { OBSTACLE
 //           references' "a well-sized light ski sinks ~8 cm in fresh powder", and a ski too small for its load sinks
 //           through. A TYRE does not read it: at 50-300 kPa the fresh snow collapses at once, which SNOW-MUD's fit at
 //           the tyres already holds (so a wheel, and a wheel-ski's tyre, are SNOW-MUD's law exactly)
+// (the fresh top only over a SETTLED base - a row stiffer than it; where SNOW-MUD's row IS the virgin law (DEEP SNOW,
+//  15 Nov: powder k 2e5, wet 4e5) there is no second layer to add: the sole reads their row alone, never the law twice)
 if (typeof GROUND_SOFT !== 'undefined') {
-  Object.assign(GROUND_SOFT[8],  { skis: 1, vP: 12, lat: 0.35, plough: 0.6 });                                        // packed (rolled: no fresh snow)
-  Object.assign(GROUND_SOFT[9],  { skis: 1, vP: 7,  lat: 0.30, plough: 1.0, fresh: { k: 2.0e5, n: 1.5, z: 0.25 } });   // powder (dry, cold: deep and light)
-  Object.assign(GROUND_SOFT[10], { skis: 1, vP: 6,  lat: 0.35, plough: 1.4, fresh: { k: 4.0e5, n: 1.2, z: 0.12 } });   // wet ("worse than mud or even beach sand")
+  const fresh = (c, F) => GROUND_SOFT[c].k > F.k ? { fresh: F } : {};
+  Object.assign(GROUND_SOFT[8],  { skis: 1, vP: 12, lat: 0.35, plough: 0.6 });                                                  // packed (rolled: no fresh snow)
+  Object.assign(GROUND_SOFT[9],  { skis: 1, vP: 7,  lat: 0.30, plough: 1.0 }, fresh(9,  { k: 2.0e5, n: 1.5, z: 0.25 }));   // powder (dry, cold: deep and light)
+  Object.assign(GROUND_SOFT[10], { skis: 1, vP: 6,  lat: 0.35, plough: 1.4 }, fresh(10, { k: 4.0e5, n: 1.2, z: 0.12 }));   // wet ("worse than mud or even beach sand")
 }
 // a ski's side grip on the codes with no `lat` (GROUND_SURF's classes 0 grass .. 7 sand; 11 / 12 mud) [EST] - (GROUND_SURF's classes 0 grass .. 7 sand; 11 / 12 mud) [EST]
 const SKI_LAT = { 0: 0.45, 1: 0.55, 2: 0.50, 3: 0.50, 4: 0.10, 5: 0.50, 6: 0.50, 7: 0.50, 11: 0.45, 12: 0.40 };
@@ -17725,7 +17728,12 @@ function makeSim(def, world) {
         if (SKW[i] === 0) softWheel(i, !c.third);
         groundSinkWheel(S, FT, SKW[i], SKDIA[i], SKA[i]); SKI_SOFT.sink(c.eT, GROUND_SINK.z, dt);
       }
-      if (FT > 0 || dT > 0) { Rp += SKI_SOFT.resist(S, SX, SKW[i], c.eT.zc, false); if (c.eT.zc > zMax) zMax = c.eT.zc; }
+      if (FT > 0 || dT > 0) {
+        Rp += SKI_SOFT.resist(S, SX, SKW[i], c.eT.zc, false); if (c.eT.zc > zMax) zMax = c.eT.zc;
+        // (DEEP SNOW: the tyre through the ski shoves the snow ahead as SNOW-MUD's wheel does - groundBullWheel on a row
+        //  with `bull`, at the tyre's own rut; the sole has its plough and planing instead)
+        if (SO.bull && c.eT.zc > 0) Rp += groundBullWheel(SO, c.eT.zc, SKW[i], SKDIA[i], vr_);
+      }
       if (!softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; out.softW = SOFTW; softLive = true; }   // (SNOW-MUD's readouts, opened as their wheel branch opens them; a posed ski writes no softW slot - their rule)
       if (zMax > out.softZ) out.softZ = zMax;
       out.softF += Rp;
