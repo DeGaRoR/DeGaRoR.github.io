@@ -1622,9 +1622,30 @@ function makeSim(def, world) {
         want = sc0 >= SOFT_MIN && GROUND_SOFT[sc0] && GROUND_SOFT[sc0].skis ? 1 : 0;   // (the snow under the mains: the rows a ski belongs on)
       }
       if (SKI.snap) {   // (the airframe lowered with it: the reset stood it on the skis-down contact)
-        const r0 = rC[SKI.C[0].node]; SKI.pos = want; SKI.snap = false; skiSetHeights();
-        const dy = r0 - rC[SKI.C[0].node];
-        if (dy !== 0) for (let i = 0; i < n; i++) p[i*3+1] -= dy;
+        SKI.pos = want; SKI.snap = false; skiSetHeights();
+        // THE MAINS ONTO THEIR NEW CONTACT, THE THIRD CONTACT STAYS (15 Nov): dy is the mains' gap over the ground at the new
+        // contact radius, MEASURED (the game's placement stands the aeroplane on its tyres, a gate's reset on the skis
+        // down: neither is assumed), and the airframe turns rigidly about the tail / nose contact (the horizontal axis
+        // square to the line from it to the mains) until the mains have come down by it. A uniform drop of the ski's
+        // travel pushed the PC-6's mains 6 cm into the ground at its stand and the tail skid with them (38 yields)
+        const M = def.refs.mains, tw = def.refs && def.refs.tw != null && def.refs.tw >= 0 ? def.refs.tw : -1;
+        let dy = 0;
+        if (world && M && M.length === 2) {
+          for (const i of M) dy += 0.5 * (p[i*3+1] - world.terrainH(p[i*3], p[i*3+2]) - rC[i]);
+          if (dy > -1e-4 && dy < 1e-4) dy = 0;
+        }
+        if (dy !== 0 && tw >= 0 && M && M.length === 2) {
+          const px = p[tw*3], py = p[tw*3+1], pz = p[tw*3+2];
+          const dx = 0.5 * (p[M[0]*3] + p[M[1]*3]) - px, dz = 0.5 * (p[M[0]*3+2] + p[M[1]*3+2]) - pz, L = hyp2(dx, dz) || 1e-9;
+          const ax = -dz / L, az = dx / L, th = -dy / L, cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
+          for (let i = 0; i < n; i++) {   // Rodrigues, the axis (ax, 0, az) through the third contact
+            const rx = p[i*3] - px, ry = p[i*3+1] - py, rz = p[i*3+2] - pz, dot = ax * rx + az * rz;
+            const cx = -az * ry, cy = az * rx - ax * rz, cz = ax * ry;   // axis x r
+            p[i*3]   = px + rx * cs + cx * sn + ax * dot * (1 - cs);
+            p[i*3+1] = py + ry * cs + cy * sn;
+            p[i*3+2] = pz + rz * cs + cz * sn + az * dot * (1 - cs);
+          }
+        } else if (dy !== 0) for (let i = 0; i < n; i++) p[i*3+1] -= dy;
       }
       const d = Math.max(-dtF / SKI.time, Math.min(dtF / SKI.time, want - SKI.pos));
       if (d !== 0) { SKI.pos += d; if (SKI.pos > 1) SKI.pos = 1; else if (SKI.pos < 0) SKI.pos = 0; skiSetHeights(); }
