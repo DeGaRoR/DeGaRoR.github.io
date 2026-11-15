@@ -1119,7 +1119,8 @@ const GROUND_DEF = GROUND_SURF[0];
 //   packed snow                                                  0.015 5 mm   0.019 7 mm  0.001 1 mm    0.023 7 mm
 //   powder                                                       0.25 10 cm   0.28 12 cm  0.04 3.5 cm   0.34 13 cm
 //   wet snow                                                     0.20 7 cm    0.24 9 cm   0.025 2 cm    0.29 10 cm
-//   firm mud                                                     0.07 2 cm    0.095 3 cm  0.005 3 mm    0.12 3 cm
+//   firm mud                                                     0.014 4 mm   0.019 6 mm  0.001 1 mm    0.023 6 mm   (FINISH 15 Nov: stiffened -
+//                the C172's 0.28 m nose wheel at ~310 kPa bottomed the first fit's 6 cm and could not fly; now it rolls +36 %)
 //   soft mud                                                     0.22 6.5 cm  0.30 10 cm  0.014 9 mm    0.29 9 cm
 //   k     Pa/m^n, the layer's stiffness           n     the pressure-sinkage exponent
 //   zMax  m, the layer's depth (the base under)   ski   [kinetic, static breakout] of a UHMW/PTFE ski bottom on it
@@ -1132,7 +1133,7 @@ const GROUND_SOFT = {
   8:  { k: 3.0e7, n: 1.0, zMax: 0.03, ski: [0.04, 0.08] },   // packed: a little loose on a rolled base, cold (ski: ideal)
   9:  { k: 4.6e6, n: 1.5, zMax: 0.30, ski: [0.12, 0.24] },   // powder: cold and dry - the slow end of the ski's range
   10: { k: 3.5e6, n: 1.2, zMax: 0.15, ski: [0.10, 0.20] },   // wet: dense near 0 C, heavy; the ski's capillary drag
-  11: { k: 3.3e6, n: 0.8, zMax: 0.06, ski: [0.25, 0.40] },   // firm mud: a skin over a firm base (no ski belongs here: ESTIMATE)
+  11: { k: 1.2e7, n: 0.8, zMax: 0.03, ski: [0.25, 0.40] },   // firm mud: a skin over a firm base (no ski belongs here: ESTIMATE); FINISH: stiffened so a C172 operates (+36 %)
   12: { k: 1.3e6, n: 0.8, zMax: 0.25, ski: [0.30, 0.45] },   // soft mud: wet clay; the wheels go in (ski: ESTIMATE)
 };
 // A SKI's sliding friction on EVERY surface (the ski gear's interface, SKIS session): [kinetic, static breakout]. The
