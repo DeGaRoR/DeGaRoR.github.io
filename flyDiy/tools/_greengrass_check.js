@@ -52,7 +52,7 @@ function field(o) {
   B.load(path.join('src', 'viewer', 'cover_ring.js'));
   const col = o.col || LIB.lush;
   const CR = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer: 'grass',
-    biomeAt: () => 'bare', codeAt: o.codeAt || (() => 2), okAt: () => true, coverAt: o.coverAt || (() => null), groundMeanAt: () => col.slice() });
+    biomeAt: () => 'bare', codeAt: o.codeAt || (() => 2), okAt: () => true, coverAt: o.coverAt || (() => null), groundMeanAt: () => col.slice(), groundSetsAt: o.setsAt || null });
   CR.set(Object.assign({ on: true, budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0, tier: 0 }, o.set || {}));
   for (let i = 0; i < 4; i++) CR.update();
   const c = CR.census(), pts = []; for (let i = 0; i < c.length; i += 3) pts.push([c[i + 1], c[i + 2]]);
@@ -112,6 +112,17 @@ ok(bareB.length === 0, '3 a bare type on brown (dry) ground: none', bareB.length
   const a = F.CR.fieldAt(10, 0), b = F.CR.fieldAt(50, 0), c = F.CR.fieldAt(10, 35);
   ok(a && a.why === 'wild' && a.perM2 > 10 && a.mix === 'grassland' && b && b.why === 'no row, not green' && b.perM2 === 0 && c && c.why === 'kill' && c.perM2 === 0,
      '8 fieldAt: meadow wild, bare brown nothing, runway killed', JSON.stringify([a && [a.why, a.perM2], b && [b.why, b.perM2], c && [c.why, c.perM2]])); }
+
+// 9 GRASS BY THE TEXTURE DRAWN (16 Nov; the user: "several ground layers might use the same texture ... rocks+grass"): a bare type on
+//   brown ground, drawn as rocks+grass (x < 30), dirt (30-60) and a 50/50 blend (x >= 60). texGrass 0 (today): none; texGrass 1:
+//   grass on rocks+grass, none on dirt, the blend about half
+{ // (stripes 8 m wide across z, repeating every 24 m - each kind at the same distances from the eye, inside the field's reach)
+  const zm = z => ((Math.round(z / 4) * 4) % 24 + 24) % 24, setsAt = (x, z) => (zm(z) < 8 ? [['grassRock', 1]] : zm(z) < 16 ? [['dirt', 1]] : [['grassRock', 0.5], ['dirt', 0.5]]);
+  const o = { col: LIB.dry, setsAt }, off = n(o), on = n(Object.assign({}, o, { set: { texGrass: 1 } }));
+  const inside = (p, lo) => { const m = ((p[1] % 24) + 24) % 24; return p[0] > 8 && p[0] < 45 && m > lo + 1 && m < lo + 5; };
+  const A = P => P.filter(p => inside(p, 0)).length, D = P => P.filter(p => inside(p, 8)).length, H = P => P.filter(p => inside(p, 16)).length;
+  ok(off.length === 0, '9a texGrass 0 (today): a bare type on brown ground grows none, whatever is drawn', off.length);
+  ok(A(on) > 100 && D(on) === 0 && H(on) > A(on) * 0.25 && H(on) < A(on) * 0.75, '9b texGrass 1: grass on rocks+grass, none on dirt, a half blend about half', A(on) + ' / ' + D(on) + ' / ' + H(on)); }
 
 console.log(fails ? `GATE GREENGRASS: FAIL (${fails})` : 'GATE GREENGRASS: PASS');
 process.exit(fails ? 1 : 0);

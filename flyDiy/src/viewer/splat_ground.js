@@ -1114,7 +1114,11 @@ const SPLAT_GROUND = (() => {
       knobsLive: () => R.knobs,   // REVEAL-HITCH: the live knobs, read only - a per-sample reader (render_world poolAt) copied them every call
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
-      meanAt: (x, z, code, slopeDeg) => meanAt(x, z, code, slopeDeg),   // GRASS-DENSE G2562: the ground's colour as drawn, less its texture (below)
+      meanAt: (x, z, code, slopeDeg) => meanAt(x, z, code, slopeDeg),
+      // GRASS-ON-GREEN (16 Nov; the user: 'several ground layers use the same texture'): the near sets drawn at a point of code
+      // `code` and their weights, as meanAt blends them (tex[0] alone at the lean blend; else the A | B pair by the fields' mask)
+      setsAt: (x, z, code) => { const m = R.codes[code]; if (!m || !m.tex || !m.tex[0]) return null; if (U.uSNearN.value < 1.5 || !m.tex[1]) return [[m.tex[0], 1]];
+        const k = G.mixK(x, z, Math.round(m.mix[0] * 6), 0.52 - m.mix[2], m.mix[1] * 2); return [[m.tex[0], 1 - k], [m.tex[1], k]]; },   // GRASS-DENSE G2562: the ground's colour as drawn, less its texture (below)
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
       // the sets a type blends and where its near sets give way to the far one (GRAPHICS 'ground blend', PERF 2026-09-23):
       // from / to 0 = the recipe's detailFrom / detailTo. 'lean far' pulls the fade in to 100-400 m: with one far set,
