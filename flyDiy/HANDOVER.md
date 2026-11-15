@@ -316671,8 +316671,10 @@ the next steps).
   _gear_page 0..4, the van's edits. The core reads 4 as a standard tyre, as it read the car branch's 3: the van's
   physics did not move. The car session has been told.
 - THE CARS (the user via A0, 15 Nov: "let's exclusively use our own ... the van ... the speedster is just a little
-  easter egg ... we don't use the external 3d pickup model"): NOT in L40d. It goes as claude/cars-own for L40e. The
-  stock car's swap (drive_mode.js's sheet, the Conquer's packs, media, sw.js, vehicles.json) is the CAR session's: it
-  owns drive_mode.js, the vehicle files and app.js's DRIVE section. TOW-LAUNCH's half: GATE TOW and TRAILER on the van's
-  sheet instead of car_conquer.json, with every figure that moves named; tow.js / trailer.js already hook to the
-  car's drawn ball (def.hitch) - their Conquer fallback goes with the pickup.
+  easter egg ... we don't use the external 3d pickup model"), CORRECTED the same day: "Keep the pickup in game for
+  now, just not defaults. We'll remove once the built cars are fully proven." NOT in L40d: it goes as
+  claude/cars-own for L40e. The van is the stock, default and tow car; the roadster the easter egg; the Conquer
+  pickup STAYS selectable (its sheet, meshes, packs and sound kept), the default nowhere. The swap of the default
+  (drive_mode.js, the vehicle files, app.js's DRIVE section, vehicles.json) is the CAR session's. TOW-LAUNCH's half:
+  GATE TOW and TRAILER default to the van's sheet with every moved figure named, the Conquer kept as a second car's
+  rows; tow.js / trailer.js hook to the car's drawn ball (def.hitch) and keep the Conquer's fallback.
