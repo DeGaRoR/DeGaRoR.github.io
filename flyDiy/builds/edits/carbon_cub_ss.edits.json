@@ -202,7 +202,7 @@
    "imgW": 0.15,
    "imgH": 0.15,
    "wimL": 0.65,
-   "regCol": 1447963,
+   "regCol": 15905536,
    "regOutOn": 0,
    "m1On": 1,
    "m1Pat": 2,
@@ -217,7 +217,7 @@
    "m1Tgt": 0,
    "m1Mode": 1,
    "regFont": 2,
-   "wregOn": 1,
+   "wregOn": 0,
    "wregH": 0.55,
    "wregL": 2.6,
    "wregC": -1.1,
@@ -259,7 +259,11 @@
    "m1Clr": 0,
    "m2D": 1447963,
    "m2Metal": 0,
-   "m2Rot": 0
+   "m2Rot": 0,
+   "regShd": 1,
+   "regShdCol": 1842722,
+   "regShdX": 0.06,
+   "regShdY": 0.08
   },
   "glass": {
    "opacity": 0.35,

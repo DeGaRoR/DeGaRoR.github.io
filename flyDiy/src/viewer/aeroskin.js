@@ -2271,6 +2271,12 @@ const AERO_DEC_DEF = {
   // an outline (null: none - a new key: LIVERY-5 retired the old keyline, whose rows stay unread) and the side it is on
   // (0 both, 1 the left (port), 2 the right (starboard))
   regFace: null, regB: 1, regI: 0, regSl: 0, regLine: null, regSide: 0,
+  // CARBON-CUB-LIVERY (the user 16 Nov: "that option for the drop shadow effect they use as an outline"): THE DROP
+  // SHADOW - the registration drawn a second time on its own page (AERO_REG_SHADOW_PAGE) in the shadow's colour, a
+  // whole glyph each, set down and to the reader's right by fractions of the letters' height and laid UNDER them. Off
+  // by default: every saved aeroplane wears what it wore. (Not the outline: an outline in the letters' own page shares
+  // their texels, and a two-colour edge in one page is what drew as blocks.)
+  regShd: 0, regShdCol: null, regShdX: 0.06, regShdY: 0.08,   // null colour = AERO_REG_SHADOW_DEF
   // G2829 (STOL-WING-2, the user 27 Oct: "put a large registration on the wing top as well"): THE SAME MARKING A
   // SECOND TIME, on the wing - the registration's own page (its text, colour, font), its own height and place, read
   // in the plan view; off unless a build asks
@@ -2320,6 +2326,9 @@ const AERO_DEC_MODES = ['field', 'side', 'plan'];
 // nobody lettered, and every official one, wears what it always wore.
 const AERO_TXT_N = 6, AERO_TXT_MAX = 24;
 const AERO_TXT_PAGES = [8, 9, 10, 11, 12, 13];
+// CARBON-CUB-LIVERY: the registration's drop shadow (regShd*) - the atlas's one free page (15 is the stickers'), its
+// default colour (a near-black, as a shadow on paint reads), and which way "the reader's right" runs on the +x flank
+const AERO_REG_SHADOW_PAGE = 14, AERO_REG_SHADOW_DEF = 0x1c1e22, AERO_REG_SHADOW_AFT = 1;
 const AERO_TXT_LDEF = {
   On: 0, Txt: '', Face: 'barlow', B: 1, I: 0, Sl: 0,
   Col: null,                // null follows the paint's trim, as the registration's ink
@@ -3351,6 +3360,20 @@ function aeroDecalsFor(THREE, D, opts) {
   // here, placed in the list by the budget below
   const vinyl = [];
   for (const L of aeroVinylLayers(D, trim)) { aeroVinylDraw(THREE, L); vinyl.push(aeroVinylRect(L)); }
+  // CARBON-CUB-LIVERY: THE DROP SHADOW, before the letters (the list is mixed in order: the shadow is under them). Its
+  // page holds the same text in the same face and layout, so the registration's own rect fits it. "To the reader's
+  // right" is AFT on the port flank and FORWARD on the starboard one, so a registration on both flanks takes one
+  // shadow a side (one: 1 the +x flank, 2 the -x), each set its own way; down is down on both.
+  const regOne = Math.max(0, Math.min(2, Math.round(+D.regSide || 0)));
+  if (+D.regShd) {
+    aeroDecalText(THREE, AERO_REG_SHADOW_PAGE, opts.reg || D.reg || 'F-PGAR',
+                  D.regShdCol != null ? D.regShdCol : AERO_REG_SHADOW_DEF, null, regFontArg);
+    const dx = (+D.regShdX || 0) * D.regH, dy = (+D.regShdY || 0) * D.regH;
+    for (const one of (regOne ? [regOne] : [1, 2]))
+      list.push({ page: AERO_REG_SHADOW_PAGE, sL: D.regL + (one === 1 ? dx : -dx) * AERO_REG_SHADOW_AFT, sC: D.regC - dy,
+                  w: pw, h: ph, rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
+                  on: onOf(D.regTarget), mode: modeOf(D.regMode), one });
+  }
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode), one: Math.max(0, Math.min(2, Math.round(+D.regSide || 0))) });
@@ -3370,7 +3393,8 @@ function aeroDecalsFor(THREE, D, opts) {
   } catch (e) {}
   // THE BUDGET (LIVERY-STICKERS, the user's cap of 15): the fixed markings and LIVERY-TEXT's pieces first (`list`, never
   // dropped), then in what is left THE STICKERS, then THE KIT - so THE KIT GIVES WAY FIRST (its last layers), THEN THE
-  // STICKERS (their last slots). Worst case today: 4 fixed + 6 text = 10, leaving 5: all four stickers and one kit layer.
+  // STICKERS (their last slots). Worst case today: 4 fixed + 6 text = 10, leaving 5: all four stickers and one kit layer
+  // (CARBON-CUB-LIVERY: a drop shadow on both flanks is 2 more fixed - 12, leaving 3: no kit layer, three stickers).
   // `dropped` says how many pieces found no slot, so a panel can say it. Paint order: the kit, the stickers, the rest.
   const room = Math.max(0, AERO_MAXD - list.length);
   const keepV = Math.min(vinyl.length, room), keepK = Math.min(kit.length, room - keepV);
