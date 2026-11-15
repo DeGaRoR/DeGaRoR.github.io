@@ -1046,6 +1046,10 @@ const GATES = [
   // PC-6 on WHEELS - packed snow flies; deep powder and wet snow do not (the pilot rejects, full power held under 0.9 Vs: the
   // tyre's bulldozing); a ski of their class gets through (the law); the PC-6 ON SKIS flown when SKIS' fixture is in the tree
   { id: 'SNOWFLY', file: '_snowfly_check.js', tier: 'full', timeout: 1800_000, wall: 600 },
+  // SNOW-MUD (the user, 15 Nov: "small wheels should struggle more than large wheels"): the Cub's main wheels 0.15 / 0.22 /
+  // 0.30 m and 0.36 m tundra, full power from rest on grass, firm and soft mud - the mud's penalty falls as the wheel grows,
+  // the smallest is stuck in soft mud, the sinkage falls, firm mud is every wheel's ground, grass the control (~45 s)
+  { id: 'WHEELSIZE', file: '_wheelsize_check.js', tier: 'core', wall: 60 },
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)
