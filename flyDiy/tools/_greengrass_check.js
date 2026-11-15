@@ -11,6 +11,8 @@
 //   4. a sparse row (dens 0.35, the forest floor's) on green ground: more tufts with the dial than without
 //   5. never on: a runway's kill (coverAt kill 1), mud or snow (world.surface, SNOW-MUD's SURFACE names), the sea code
 //   6. the tuft's length on a bare type is the meadow's (FIELD_TYPES.grassland h 0.30): the mean scale sits by it
+//   7. the feather (16 Nov): off, the grass stops at a class edge; feather 1 runs it one node across, no further, never onto a kill
+//   8. the instrument fieldAt(x, z): what the field plants at a point and why (wild / no row, not green / kill)
 //   node tools/_greengrass_check.js   -> "GATE GREENGRASS: PASS|FAIL"
 'use strict';
 const path = require('path');
@@ -91,6 +93,25 @@ ok(bareB.length === 0, '3 a bare type on brown (dry) ground: none', bareB.length
 { const F = field({}), T = F.COVER_RING.FIELD_TYPES.grassland; let s = 0, k = 0;
   F.CR.root.traverse(o => { if (!o.isInstancedMesh) return; const M = o.instanceMatrix.array; for (let i = 0; i < o.count; i++) { s += Math.hypot(M[i * 16 + 4], M[i * 16 + 5], M[i * 16 + 6]); k++; } });
   ok(k > 0 && T.h === 0.3, '6 a bare type grows the meadow row (h ' + T.h + '); ' + k + ' instances, mean scale ' + (k ? (s / k).toFixed(4) : '-')); }
+
+// 7 THE FEATHER (16 Nov; the user: "grass covers more of the transition between zones"): a meadow (x < 30) beside a bare type on
+//   brown ground (x >= 30). Off: the grass stops at the class edge. feather 1: it runs into the next node (x 30-34), thins out, never
+//   past it (x > 36), and never onto a runway's kill
+{ const o = { col: LIB.dry, codeAt: x => (x < 30 ? 2 : 3), mixAt: cd => (cd === 2 ? 'grassland' : 'bare') };
+  const off = n(o), on = n(Object.assign({}, o, { set: { feather: 1 } }));
+  const band = P => P.filter(p => p[0] >= 30.5 && p[0] < 34).length, past = P => P.filter(p => p[0] > 36).length, meadow = P => P.filter(p => p[0] > 10 && p[0] < 26).length;
+  ok(band(off) === 0 && past(off) === 0, '7a feather 0 (today): the grass stops at the class edge', 'past the edge ' + band(off));
+  ok(band(on) > 20 && past(on) === 0 && Math.abs(meadow(on) - meadow(off)) <= meadow(off) * 0.02, '7b feather 1: it runs into the next node and no further, the meadow itself unchanged',
+     band(on) + ' tufts over 30.5-34 m, ' + past(on) + ' past 36 m, meadow ' + meadow(off) + ' -> ' + meadow(on));
+  const rw = n(Object.assign({}, o, { set: { feather: 1 }, coverAt: (x) => (x >= 26 && x < 30 ? { kill: 1, boost: 0, kind: null, cls: 'gravel', cut: 0, surf: 0 } : null) }));
+  ok(rw.filter(p => p[0] >= 26.5 && p[0] < 29.5).length === 0, '7c ...never onto a runway (kill 1) on the edge'); }
+
+// 8 THE INSTRUMENT: fieldAt(x, z) says what the field plants and why - the meadow wild, the bare brown type nothing, a runway killed
+{ const F = field({ col: LIB.dry, codeAt: x => (x < 30 ? 2 : 3), mixAt: cd => (cd === 2 ? 'grassland' : 'bare'),
+    coverAt: (x, z) => (z > 30 && z < 40 ? { kill: 1, boost: 0, kind: null, cls: 'gravel', cut: 0, surf: 0 } : null) });
+  const a = F.CR.fieldAt(10, 0), b = F.CR.fieldAt(50, 0), c = F.CR.fieldAt(10, 35);
+  ok(a && a.why === 'wild' && a.perM2 > 10 && a.mix === 'grassland' && b && b.why === 'no row, not green' && b.perM2 === 0 && c && c.why === 'kill' && c.perM2 === 0,
+     '8 fieldAt: meadow wild, bare brown nothing, runway killed', JSON.stringify([a && [a.why, a.perM2], b && [b.why, b.perM2], c && [c.why, c.perM2]])); }
 
 console.log(fails ? `GATE GREENGRASS: FAIL (${fails})` : 'GATE GREENGRASS: PASS');
 process.exit(fails ? 1 : 0);
