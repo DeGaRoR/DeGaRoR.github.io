@@ -1602,9 +1602,9 @@ function makeSim(def, world) {
   // SKIS (13 Nov, 29c_ski.js): THE SKI CONTACTS - null without skis (the ground pass never asks: every build without
   // gear.ski flies its old lines, to the bit). Each main's and the third unit's node carries up to two ELEMENTS below
   // it: the ski's bottom (hS) and, on a wheel-ski or a penetration ski, the tyre's (hT). Each element meets the ground
-  // by its own law: on hard ground the node's own spring (KGn); on a SOFT layer (world.soft, the SNOW-MUD interface)
-  // the plastic Bekker pressure over the element's own area - so a small ski on a heavy aeroplane sinks, its rut's
-  // compaction and bulldozing hold it back, and past the hump it planes. A ski slides (its bottom's mu, no brake: the
+  // by its own law: on hard ground the node's own spring (KGn); on SNOW-MUD's soft layer (the SURFACE code's GROUND_SOFT
+  // row) its RUT deepens to SNOW-MUD's sinkage of the load over the element's own area (29c SKI_SOFT: the moving datum) -
+  // so a small ski on a heavy aeroplane sinks, its rut's compaction and bulldozing hold it back, and past the hump it planes. A ski slides (its bottom's mu, no brake: the
   // brake reaches the tyre element only), grips sideways with its edges, and the tail / nose ski steers with its wheel.
   // ctl.ski: the wheel-ski's selector (1 down, 0 up; a reset picks the surface's - down on a soft layer).
   const SKI = typeof skiSimMake === 'function' ? skiSimMake(def, n) : null;
@@ -1617,8 +1617,8 @@ function makeSim(def, world) {
       // up over a hard one (the pilot looking where he will land); a reset snaps to it (the aeroplane parked as set)
       let want = ctl.ski;
       if (want !== 0 && want !== 1) {
-        const i3 = SKI.C[0].node * 3, S = world && typeof world.soft === 'function' ? world.soft(p[i3], p[i3+2]) : null;
-        want = S && S.depth > 0 ? 1 : 0;
+        const i3 = SKI.C[0].node * 3, sc0 = world && world.surface ? world.surface(p[i3], p[i3+2]) : -1;
+        want = SKI_SNOW[sc0] !== undefined ? 1 : 0;      // (the snow under the mains: SKI_SNOW's codes)
       }
       if (SKI.snap) {   // (the airframe lowered with it: the reset stood it on the skis-down contact)
         const r0 = rC[SKI.C[0].node]; SKI.pos = want; SKI.snap = false; skiSetHeights();
@@ -1652,10 +1652,11 @@ function makeSim(def, world) {
   // the ground pass for a ski node (i, its contact c): both elements' normal force, the SKI's share applied here with its
   // own laws (the sole's sliding - no brake -, its edges' side grip, the plough of everything sunk); returns the TYRE's
   // share (0: none), which the wheel pass below rolls, brakes and steers as any wheel (twLine for a tail ski's wheel)
-  let skiSu = null;                                   // the tyre's rows on a soft layer (GROUND_SURF's three), else null
+  let skiSoft = false;                                // this node's tyre on a soft layer is the ski's (the wheel pass adds no sink)
   function skiGround(c, i, i3, gy, dt) {
-    const S = world && typeof world.soft === 'function' ? world.soft(p[i3], p[i3+2]) : null;
-    skiSu = S ? [S.roll, S.muBrake, S.muLat] : null;
+    const sc = world && world.surface ? world.surface(p[i3], p[i3+2]) : -1;
+    const SO = sc >= SOFT_MIN ? GROUND_SOFT[sc] : undefined, SX = SKI_SNOW[sc];
+    skiSoft = SO !== undefined;
     const dS = gy + c.hS - p[i3+1], dT = c.kind === 'plain' ? -1 : gy + c.hT - p[i3+1];   // (the wheel pass's own arithmetic: a tyre element is its wheel, bit for bit)
     let hx = -xAft[0], hz = -xAft[2];
     if (c.third) { const s = P_.twSteer * ctl.dr, cs = CORE_MATH.cos(s), sn_ = CORE_MATH.sin(s);
@@ -1663,14 +1664,25 @@ function makeSim(def, world) {
     const hL = hyp2(hx, hz) || 1e-9; hx /= hL; hz /= hL;
     const lx = -hz, lz = hx, vr_ = v[i3]*hx + v[i3+2]*hz, vl = v[i3]*lx + v[i3+2]*lz;
     let FS = 0, FT = 0, Rp = 0, zMax = 0;
-    if (S && S.depth > 0 && S.k > 0) {
+    if (SO !== undefined) {
+      // SNOW-MUD'S LAYER: each element on the node's spring from its rut's floor; the rut deepens to the layer's sinkage
+      // of that load (groundSinkPlate over the sole's area, groundSinkWheel for the tyre), plastic, never past zMax
+      const S = SKI_SOFT.at(SO, SX, vr_);
       SKI_SOFT.relax(c.eS, vr_, dt); SKI_SOFT.relax(c.eT, vr_, dt);
-      if (dS > 0) { const z = dS < S.depth ? dS : S.depth; FS = SKI_SOFT.press(S, c.eS, z, vr_) * c.A + (dS > S.depth ? KGn[i] * (dS - S.depth) : 0);
-                    Rp += SKI_SOFT.resist(S, c.W, z, vr_); zMax = z; }
-      else c.eS.zc = 0;
-      if (dT > 0) { const z = dT < S.depth ? dT : S.depth; FT = SKI_SOFT.press(S, c.eT, z, vr_) * SKI_SOFT.tyreA(c.bT, c.R, z) + (dT > S.depth ? KGn[i] * (dT - S.depth) : 0);
-                    Rp += SKI_SOFT.resist(S, c.bT, z, vr_); if (dS <= 0 && z > zMax) zMax = z; }
-      else c.eT.zc = 0;
+      if (dS > c.eS.zc) {
+        FS = KGn[i] * (dS - c.eS.zc);
+        SKI_SOFT.sink(c.eS, SKI_SOFT.plate(SO, SX, FS, c.A, c.W, vr_), dt);
+      }
+      if (FS > 0 || dS > 0) { Rp += SKI_SOFT.resist(S, SX, c.W, c.eS.zc, true); zMax = c.eS.zc; }
+      if (dT > c.eT.zc) {
+        FT = KGn[i] * (dT - c.eT.zc);
+        if (SKW[i] === 0) softWheel(i, !c.third);
+        groundSinkWheel(S, FT, SKW[i], SKD[i], SKA[i]); SKI_SOFT.sink(c.eT, GROUND_SINK.z, dt);
+      }
+      if (FT > 0 || dT > 0) { Rp += SKI_SOFT.resist(S, SX, SKW[i], c.eT.zc, false); if (c.eT.zc > zMax) zMax = c.eT.zc; }
+      if (!softLive) { out.softZ = 0; out.softF = 0; softLive = true; }   // (SNOW-MUD's readouts: the deepest, the drag summed)
+      if (zMax > out.softZ) out.softZ = zMax;
+      out.softF += Rp;
     } else {
       if (dS > 0) FS = KGn[i] * dS;
       if (dT > 0) FT = KGn[i] * dT;
@@ -1680,20 +1692,24 @@ function makeSim(def, world) {
     if (!(Fs > 0)) { c.fnS = c.fnT = 0; c.load = 0; c.on = 0; return 0; }
     let Fn = Fs - CGn[i] * v[i3+1];
     if (Fn < 0) Fn = 0;
-    const fS = Fn * FS / Fs, fT = Fn - fS;
+    // (an element that does not touch carries exactly nothing: Fn - Fn FS / FS can be an ulp over zero, and a straight
+    // ski's tyre share must be none - else the wheel pass brakes it)
+    const fS = FT > 0 ? (FS > 0 ? Fn * FS / Fs : 0) : Fn, fT = FT > 0 ? Fn - fS : 0;
     c.fnS = fS; c.fnT = fT; c.load = Fn; c.on = 1;
     if (!(fS > 0) && !(Rp > 0)) return fT;
     if (out.gndDump) out.gndPitch -= (p[i3] - out.gndCgx) * fS;
     f[i3+1] += fS;
     cIy += fS * dt;
-    // along: the sole sliding (its breakout under 0.3 m/s; no brake reaches it) and the plough of every sunk element
-    const sc = world && world.surface ? world.surface(p[i3], p[i3+2]) : 0, avr = Math.abs(vr_);
-    let mS = S ? (SKI.alu ? S.muAlu : S.muSki) : (SKI_HARD_MU[sc] != null ? SKI_HARD_MU[sc] : SKI_HARD_MU[0]);
-    if (avr < 0.3) mS = Math.max(mS, S ? (SKI.alu ? S.muAlu : S.muSki0) : 1.5 * mS);
+    // along: the sole sliding (GROUND_SKI_MU: its breakout under 0.3 m/s; no brake reaches it) and the plough of every
+    // sunk element
+    const avr = Math.abs(vr_), MU = (sc >= 0 && GROUND_SKI_MU[sc]) || (sc === 4 ? SKI_WATER_MU : GROUND_SKI_MU[0]);
+    let mS = MU[0];
+    if (SKI.alu && SX !== undefined && mS < SKI_ALU_MU[0]) mS = SKI_ALU_MU[0];
+    if (avr < 0.3) { const m0 = SKI.alu && SX !== undefined ? SKI_ALU_MU[1] : MU[1]; if (m0 > mS) mS = m0; }
     let kR = mS * fS / Math.max(avr, 0.2) + Rp / Math.max(avr, 0.3);
     if (kR > m[i] / dt) kR = m[i] / dt;
     // across: the ski's edges and runners (Coulomb, a 0.15 m/s drift - "sideways drift in turns is normal")
-    const lS = S ? S.latSki : (SKI_HARD_LAT[sc] != null ? SKI_HARD_LAT[sc] : SKI_HARD_LAT[0]);
+    const lS = SX !== undefined ? SX.lat : (SKI_LAT[sc] != null ? SKI_LAT[sc] : SKI_LAT[0]);
     // (its side force builds with the slip angle - the runners and edges as a keel, SKI_RULES.cn per radian - up to the
     // Coulomb limit: the tyre's own law, G1844, with a ski's slope; a bang-bang edge gave no yaw damping on a take-off)
     let kL = lS * fS / Math.max(Math.abs(vl), 0.15, avr * lS / SKI_RULES.cn) + 0.5 * Rp / Math.max(avr, 0.3);
@@ -4115,7 +4131,7 @@ function makeSim(def, world) {
       // SKIS: a ski node's elements meet the ground by their own law; what comes back is the tyre's share for the wheel pass
       let FnT = null;
       if (SKI !== null && SKI.of[i] >= 0) { FnT = skiGround(SKI.C[SKI.of[i]], i, i3, gy, dt); if (!(FnT > 0)) continue; }
-      else skiSu = null;
+      else skiSoft = false;
       const pen = FnT !== null ? 1 : gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
       if (pen <= 0) continue;
       if (NOSE_G[i]) noseGnd = true;                 // G1470: the nose on the ground - the prop has struck it
@@ -4146,7 +4162,7 @@ function makeSim(def, world) {
         // grass row, which equals the classic constants — so HOME, the
         // calibration datum, is unchanged to the last bit.
         const sc = world && world.surface ? world.surface(p[i3], p[i3+2]) : -1;
-        const su = skiSu !== null ? skiSu : sc !== -1 ? (GROUND_SURF[sc] || GROUND_DEF) : GROUND_DEF;   // (SKIS: a wheel-ski's tyre element's rows)
+        const su = sc !== -1 ? (GROUND_SURF[sc] || GROUND_DEF) : GROUND_DEF;
         // G1938: the differential brake, per main (its side of the built pose); brakeD 0 is the old line exactly
         const bkI = !isMain ? 0 : ctl.brakeD ? Math.max(0, Math.min(1, ctl.brake + (def.nodes[i].p[2] > 0 ? 1 : -1) * ctl.brakeD)) : ctl.brake;
         // THE BRAKES' HOLD (GEN_BRAKES): a main's braking friction is the surface's or what its brake can hold at this load,
@@ -4155,7 +4171,7 @@ function makeSim(def, world) {
         // SNOW-MUD: A SOFT LAYER (GROUND_SOFT, the codes past the hard ones) - the tyre sinks by its load over its footprint
         // and pays the trench it compacts (groundSinkWheel: Bekker's rigid wheel, the tyre flattening at its own pressure,
         // never deeper than the layer), added to the rolling coefficient as F / N. On every hard surface: this compare only
-        if (sc >= SOFT_MIN && Fn > 0) {
+        if (sc >= SOFT_MIN && Fn > 0 && !skiSoft) {      // (SKIS: a ski node's tyre sank in its own rut, its plough paid there)
           const SO = GROUND_SOFT[sc];
           if (SO !== undefined) {
             if (SKW[i] === 0) softWheel(i, isMain);

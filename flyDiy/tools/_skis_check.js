@@ -17,7 +17,7 @@
 //    flown CdA carry it; the PC-6's kit inside the references' 100-150 kg
 //  4 WHAT IS DRAWN FLIES: the validation cards through the game's own load door (the editor draws, the join measures):
 //    spec.gear.ski is the drawn ski (the rows' length, width; the toe, the kind), the tail ski's too
-//  5 THE AREA SETS THE PRESSURE (the physics stops the aberrations): on a powder layer (SOFT_GROUND.powder over the
+//  5 THE AREA SETS THE PRESSURE (the physics stops the aberrations): on a powder layer (SNOW-MUD's code 9 over the
 //    HOME field) the sinkage falls as the ski grows, a well-sized ski sinks under 12 cm and lifts off within 120 m with
 //    the game's pilot; the same aeroplane on 0.6 x 0.12 m skis sinks to the bed and never leaves (the pilot aborts)
 //  6 NO WHEEL BRAKES ON STRAIGHT SKIS: a plain-ski slide-out is the same, to the bit, with the brake held or not; a
@@ -51,11 +51,14 @@ function bytesAll() {
     });
   })));
 }
-// a world over HOME whose every metre is a soft layer (the SNOW-MUD interface: world.soft)
+// a world over HOME whose every metre is SNOW-MUD's snow (its SURFACE codes: 8 packed, 9 powder, 10 wet - the one soft
+// ground the wheels and the skis share)
+const SNOW = { packed: 8, powder: 9, wet: 10 };
 function softWorld(kind) {
   const W0 = C.makeWorld();
   if (!kind) return W0;
-  return Object.assign(Object.create(Object.getPrototypeOf(W0)), W0, { soft: () => C.SOFT_GROUND[kind] });
+  const code = SNOW[kind];
+  return Object.assign(Object.create(Object.getPrototypeOf(W0)), W0, { surface: () => code });
 }
 const defOf = (spec, ski) => { const s = clone(spec); if (ski !== undefined) { if (ski) s.gear.ski = ski; else delete s.gear.ski; } return C.buildGen(C.genMigrateSpec(s)); };
 function settle(def, W) { const sim = C.makeSim(def, W); sim.reset(0); if (sim.stance) sim.stance(); for (let k = 0; k < 600; k++) sim.step(1 / 60); return sim; }
@@ -188,7 +191,7 @@ async function main() {
     const sinks = sizes.map(([L, Wd]) => { const sim = settle(defOf(ccBare, { kind: 'plain', L, W: Wd, third: { L: 0.55, W: 0.15 } }), W);
                                            return Math.max(sim.out.skiSink[0], sim.out.skiSink[1]); });
     ok(sinks[0] > sinks[1] && sinks[1] > sinks[2], 'the sinkage falls as the ski grows: ' + sizes.map((s, i) => s.join(' x ') + ' m ' + (100 * sinks[i]).toFixed(1) + ' cm').join(', '));
-    ok(sinks[2] < 0.12 && sinks[0] > 2 * sinks[2], `a well-sized ski sinks ${(100 * sinks[2]).toFixed(1)} cm (< 12), the 0.6 x 0.12 m ski ${(100 * sinks[0]).toFixed(1)} (to the bed: ${100 * C.SOFT_GROUND.powder.depth} cm)`);
+    ok(sinks[2] < 0.12 && sinks[0] > 2 * sinks[2], `a well-sized ski sinks ${(100 * sinks[2]).toFixed(1)} cm (< 12), the 0.6 x 0.12 m ski ${(100 * sinks[0]).toFixed(1)} (the layer: ${100 * C.GROUND_SOFT[9].zMax} cm)`);
     const good = takeoff(defOf(ccSpec), W), bad = takeoff(defOf(ccBare, { kind: 'plain', L: 0.6, W: 0.12, third: { L: 0.55, W: 0.15 } }), W);
     ok(good.d != null && good.d < 120, `the Carbon Cub on its drawn skis lifts off in ${good.d && good.d.toFixed(0)} m (${good.t.toFixed(1)} s)`);
     ok(bad.d == null, `...on 0.6 x 0.12 m skis it never leaves (${bad.phase} at ${bad.t.toFixed(1)} s, ${bad.moved && bad.moved.toFixed(1)} m moved)`);
