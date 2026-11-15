@@ -1000,6 +1000,10 @@ const GATES = [
   // the contacts (groundSinkPose), the drawn aeroplane's rigid motion (groundSinkMatrix): every drawn wheel stands its own
   // sinkage in the layer, the contact stays at the hard ground; the absent case one compare (~3 s; --selftest, --show)
   { id: 'SINKVIS', file: '_sinkvis_check.js', tier: 'core', wall: 10 },
+  // SNOW-MUD FINISH (15 Nov): THE MUD COAT - mud builds on the gear, the belly and the flap undersides while the mains roll on
+  // mud (faster deeper in, faster at speed), rain and water wash it; drawn through the wheel mud / belly / depression layers
+  // over the macros', none at nought; app.js's wiring (~8 s; --selftest, --show)
+  { id: 'MUDCOAT', file: '_mudcoat_check.js', tier: 'core', wall: 20 },
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)

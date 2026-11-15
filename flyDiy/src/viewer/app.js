@@ -8006,6 +8006,27 @@
     soilNow = typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null;
     if (soilNow && typeof PAVEMENT !== 'undefined' && PAVEMENT.setSoilWet) PAVEMENT.setSoilWet(soilNow.wet);
   }
+  // SNOW-MUD FINISH: THE MUD COAT (aeroweather.js aeroMudStep / aeroWxSetMud): the flight's own - it builds while the mains
+  // roll on mud (SURFACE 11 / 12: two world.surface reads a frame, only on the ground), washes in the day's rain (soilNow.rainNow)
+  // and in water (the solver's contacts or hydro pass), and draws through the wheel mud / belly / depression layers. A new
+  // aeroplane starts clean; the garage shows the build without it (the weathering uniforms are shared). Off mud, dry and clean:
+  // the law's arithmetic and one compare (aeroWxSetMud refreshes the block only when the coat moved)
+  let mudCoat = 0, mudCoatDef = null;
+  function mudCoatFrame(dt) {
+    if (typeof AEROWX === 'undefined' || !AEROWX.aeroMudStep || !sim || !def || !def.refs) return;
+    if (def !== mudCoatDef) { mudCoatDef = def; mudCoat = 0; }
+    if (inGarage) { AEROWX.aeroWxSetMud(THREE, 0); return; }
+    if (dt > 0) {
+      const WC = typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null, M = def.refs.mains || [], P = sim.p;
+      let on = 0, mud = 0;
+      if (WC && !WC.water && world && typeof world.surface === 'function')
+        for (let k = 0; k < M.length; k++) if (WC.mains[k]) { on++; const i = M[k], sc = world.surface(P[i * 3], P[i * 3 + 2]); if (sc === 11 || sc === 12) mud++; }
+      const v = sim.cgVel ? sim.cgVel() : [0, 0, 0], o = sim.out || {};
+      mudCoat = AEROWX.aeroMudStep(mudCoat, dt, { mud: M.length ? mud / M.length : 0, V: Math.hypot(v[0], v[2]), sink: o.softZ > 0 ? o.softZ : 0,
+        rain: soilNow ? soilNow.rainNow : 0, water: !!(WC && WC.water) || o.hydroWet > 0 });
+    }
+    AEROWX.aeroWxSetMud(THREE, mudCoat);
+  }
   function dustMake() {
     if (dustFx || DUST_Q === 0 || typeof DUST === 'undefined' || !THREE.InstancedBufferGeometry) return dustFx;
     const G = window.GFX && window.GFX.get ? window.GFX.get() : null;
@@ -21043,6 +21064,7 @@
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
+    mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets
