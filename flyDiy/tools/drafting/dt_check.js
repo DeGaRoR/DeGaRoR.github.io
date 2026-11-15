@@ -71,6 +71,21 @@ const DT = require('./dt_node.js'), C = DT.CORE;
     }
   }
   ok(worst < 1e-9, 'the view mapping round-trips every turn and mirror (worst ' + worst.toExponential(1) + ')');
+  // TWO SCALES (13 Nov, the Skymaster's stretched scan): ky != k round-trips every turn, and a turned view's metres
+  // along the sheet's vertical take ky (the top view at rot 270: a station 1 m aft is ky pixels up the page)
+  let worstK = 0;
+  for (const rot of [0, 90, 180, 270]) for (const flip of [false, true]) {
+    const V = { ox: 120, oy: 340, k: 100, ky: 97, rot, flip };
+    for (const [x, y] of [[0, 0], [3.2, 1.1], [-2, 0.4], [7, -1.5]]) {
+      const p = C.toPx(V, x, y), q = C.fromPx(V, p[0], p[1]);
+      worstK = Math.max(worstK, Math.abs(q[0] - x), Math.abs(q[1] - y));
+    }
+  }
+  const up = C.toPx({ ox: 0, oy: 0, k: 100, ky: 97, rot: 270 }, 1, 0)[1];
+  ok(worstK < 1e-9 && Math.abs(up + 97) < 1e-9, 'two sheet scales round-trip every turn, the vertical one along the page (' + up.toFixed(1) + ' px)');
+  // THE TRICYCLE READER (13 Nov): the mains are the gear off the centreline, the third wheel a nose or a tail wheel
+  // by its station - the KM table carries both rows
+  ok(['nosewheel.a', 'nosewheel.bottom', 'tailwheel.a', 'tailwheel.bottom'].every(id => C.KM.some(r => r[0] === id)), 'the key measurements carry the nose wheel and the tail wheel rows');
 }
 console.log('GATE DRAFTING: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);

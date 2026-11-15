@@ -35,15 +35,19 @@
     // screen: X right, Y up -> pixels y down; then the drawing's turn (clockwise on screen)
     return [c, -sn * f, sn, c * f];   // applied to (X, -Y)
   }
+  // THE SHEET'S OWN TWO SCALES (13 Nov, the Skymaster): a scanned or resized sheet is often stretched one way - the 337's
+  // reads 100.3 px/m across (29 ft 10 in) and 97.4 down (9 ft 4 in), and its top view, length running DOWN the page,
+  // came out 3-6 % short. `k` is the sheet's horizontal pixels per metre, `ky` its vertical (absent = k, as before):
+  // both act on the SHEET's axes, after the drawing's turn
   function toPx(V, X, Y) {
-    const M = rotM(V.rot, V.flip), k = V.k, x = X * k, y = -Y * k;
-    return [V.ox + M[0] * x + M[1] * y, V.oy + M[2] * x + M[3] * y];
+    const M = rotM(V.rot, V.flip), k = V.k, ky = V.ky || V.k, x = X, y = -Y;
+    return [V.ox + k * (M[0] * x + M[1] * y), V.oy + ky * (M[2] * x + M[3] * y)];
   }
   function fromPx(V, px, py) {
-    const M = rotM(V.rot, V.flip), k = V.k, dx = px - V.ox, dy = py - V.oy;
+    const M = rotM(V.rot, V.flip), dx = (px - V.ox) / V.k, dy = (py - V.oy) / (V.ky || V.k);
     const det = M[0] * M[3] - M[1] * M[2];
     const x = (M[3] * dx - M[1] * dy) / det, y = (-M[2] * dx + M[0] * dy) / det;
-    return [x / k, -y / k];
+    return [x, -y];
   }
 
   // ---- the raster: the plane's parts drawn into a view's pixel grid, front-most part a pixel ------------------
@@ -319,30 +323,33 @@
     if (rMax) put('prop.dia', 2 * rMax);
     const cowl = extent(T, Pt, S(['cowl']));
     if (cowl) put('body.front', cowl.lo[0]);
-    // the wheels: the gear's lowest parts, fore half (mains) and aft half (tail or nose wheel)
+    // the wheels: the MAINS are the gear off the centreline (a side's tyre, starboard), the third wheel the gear ON it -
+    // a tail wheel when it is aft of the mains, a nose wheel when ahead (13 Nov, the Skymaster: the fore / aft halves
+    // of the body read a tricycle's nose wheel as the mains and its mains as a tail wheel)
     const gear = extent(T, Pt, S(['gear']));
     if (gear && body) {
-      const mid = (body.lo[0] + body.hi[0]) / 2;
-      const fore = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05);
+      const SIDE = 0.2, ON = 0.1;
+      const fore = extent(T, Pt, S(['gear']), (a, h, s) => s > SIDE);
+      let ac = null;
       if (fore) {
-        const w = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05 && h < fore.lo[1] + 0.7);
-        const tyre = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05 && h < fore.lo[1] + 0.12);
-        if (w && tyre) {
-          const ac = (tyre.lo[0] + tyre.hi[0]) / 2;
-          // the tyre's diameter: the gear's points within 4 cm (fore / aft) of the wheel's centre, top to bottom
-          const col = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05 && Math.abs(a - ac) < 0.04 && h < fore.lo[1] + 1.2);
+        const tyre = extent(T, Pt, S(['gear']), (a, h, s) => s > SIDE && h < fore.lo[1] + 0.12);
+        if (tyre) {
+          ac = (tyre.lo[0] + tyre.hi[0]) / 2;
           put('wheel.a', ac); put('wheel.bottom', fore.lo[1]);
           // the tyre's diameter from its chord a little above the ground (the legs above it never reach that low):
           // a circle's chord c at height y from its bottom gives D = c^2 / (4 y) + y
-          const y = 0.06, ch = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05 && h < fore.lo[1] + y);
+          const y = 0.06, ch = extent(T, Pt, S(['gear']), (a, h, s) => s > SIDE && h < fore.lo[1] + y);
           if (ch) { const c = ch.hi[0] - ch.lo[0]; put('wheel.dia', c * c / (4 * y) + y); }
           put('track', 2 * (tyre.lo[2] + tyre.hi[2]) / 2);
         }
       }
-      const aft = extent(T, Pt, S(['gear']), (a, h, s) => a > mid);
-      if (aft) { put('tailwheel.a', (aft.lo[0] + aft.hi[0]) / 2); put('tailwheel.bottom', aft.lo[1]); }
-      const nose = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && Math.abs(s) < 0.05);
-      if (nose && !(fore && Math.abs(nose.lo[1] - fore.lo[1]) > 0.5)) { /* a nose wheel reads here when there is one */ }
+      const third = extent(T, Pt, S(['gear']), (a, h, s) => Math.abs(s) < ON);
+      if (third) {
+        const low = extent(T, Pt, S(['gear']), (a, h, s) => Math.abs(s) < ON && h < third.lo[1] + 0.12);
+        const at = low ? (low.lo[0] + low.hi[0]) / 2 : (third.lo[0] + third.hi[0]) / 2;
+        if (ac == null || at > ac) { put('tailwheel.a', at); put('tailwheel.bottom', third.lo[1]); }
+        else { put('nosewheel.a', at); put('nosewheel.bottom', third.lo[1]); }
+      }
     }
     put('height', all.hi[1] - all.lo[1]);
     // PROBES: a point marked on the drawing's OUTLINE is compared with ours at the same height (or station): the part
@@ -470,6 +477,8 @@
     ['wheel.bottom',     'main wheel bottom',            'm',  0.01,   { mark: 'wheel.bottom', view: 'side', c: 'Y' }],
     ['wheel.dia',        'main wheel diameter',          'm',  0.02,   { mark: 'wheel.dia', view: 'side', c: 'dist' }],
     ['track',            'track',                        'm',  0.01,   { fig: 'geometry.track' }],
+    ['nosewheel.a',      'nose wheel, aft',              'm',  0.03,   { mark: 'nosewheel', view: 'side', c: 'X' }],
+    ['nosewheel.bottom', 'nose wheel bottom',            'm',  0.02,   { mark: 'nosewheel.bottom', view: 'side', c: 'Y' }],
     ['tailwheel.a',      'tail wheel, aft',              'm',  0.03,   { mark: 'tailwheel', view: 'side', c: 'X' }],
     ['tailwheel.bottom', 'tail wheel bottom',            'm',  0.02,   { mark: 'tailwheel.bottom', view: 'side', c: 'Y' }],
   ];

@@ -693,3 +693,13 @@ to forget". A first cut (a declared `wgStolFly` row) was dropped for exactly tha
   already reads its sheets at +-10 %.
 - THE TOOL FOR EVERY SESSION: CLAUDE.md now points at this file; tools/drafting/KICKOFF.md is the message to paste with
   a new plane's blueprint; GATE DRAFTING (tools/drafting/dt_check.js, 4 s) joins the core battery.
+
+## Two sheet scales and the tricycle reader (FIT-PROCEDURE 6e89f590a, 13 Nov; taken without the Skymaster)
+
+- A view's optional **`ky`**: the sheet's vertical pixels per metre (absent = `k`). A scanned sheet is often stretched
+  one way (the 337's by 2.9 %). `toPx` / `fromPx` apply `k` across the sheet and `ky` down it, after the view's turn.
+  Every renderer that maps sheet pixels goes through `toPx` / `fromPx`, never `V.k` alone.
+- **The tricycle reader** in `measure()`: the mains are the gear off the centreline; the wheel on it is a tail wheel
+  when it is aft of the mains, a nose wheel when ahead. The KM table gains `nosewheel.a` / `nosewheel.bottom` (marks
+  `nosewheel`, `nosewheel.bottom`).
+- GATE DRAFTING checks both: `ky` round-trips every turn and mirror, and the KM table carries both third-wheel rows.
