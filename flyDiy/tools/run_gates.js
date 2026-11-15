@@ -1293,6 +1293,10 @@ const GATES = [
   // and the aeroplane in it (not the clear colour; the aeroplane hidden changes it). Full tier: a software GL boots in
   // ~15-20 min on a 4-core box; the whole machine's cores (weight 4). SKIP where there is no Playwright (the box)
   { id: 'SOFTGPU', file: '_softgpu_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 4, wall: 1800 },
+  // PAGE-RIG (15 Nov, the user: "they all reinvent their harness"): tools/page_rig.js, the ONE page harness
+  // (RIG-PROCEDURE.md): its module, views check, GPU test and the procedure's rules in its source, in node, seconds.
+  // The page half (boot, fly, one grab that is not blank) is `--gpu`, by hand in A0's GPU slot - never in the battery
+  { id: 'PAGERIG', file: '_pagerig_check.js', tier: 'core', wall: 10 },
   // structural realism instrument (appended: keeps the battery log prefix
   // diffable). Measures only — it asserts finiteness and determinism, not
   // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.

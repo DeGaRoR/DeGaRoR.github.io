@@ -28,7 +28,7 @@ Read this before you write or arm any rig. It collects every trap that cost a sl
 
 ## 3. Grab frames the one way that works
 - NEVER `Page.captureScreenshot` for the world. Headless shows the canvas see-through: you get the page background (#cfe0ec).
-- Wrap `FLYDIY_AA.render`, call the original, then `gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(...)` right after it, alpha forced opaque, and encode the PNG/JPEG yourself. Row order: check ONE frame before flipping. On this box (ANGLE D3D11, headless) Game got upright frames with no flip (15 Nov); LOOK-1's rig flips.
+- Wrap `FLYDIY_AA.render`, call the original, then `gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(...)` right after it, alpha forced opaque, and encode the PNG/JPEG yourself. Row order: page_rig.js flips GL's bottom-up rows, and its frames are upright on this box (ANGLE D3D11, headless; LOOK-1's stills 13-15 Nov; `.info.topMean`/`botMean` are there to check). Game got upright frames with no flip on its own read path (15 Nov). If you read pixels any other way, check ONE frame before flipping.
 - Wait frames with requestAnimationFrame (`FRAMES(30)`), never with sleep alone.
 - Camera: `FLIGHT_PROBE.devFree(x, y, z, yaw, pitch)` (the free eye), near the aircraft. Terrain and the cover ring stream around the AIRCRAFT, so a free eye far away shows flat sky. If the subject is far from the spawn, first move the aircraft there with `FLIGHT_PROBE.place`, then put the eye near it with devFree (DIRT-STRIP, 15 Nov).
 - Pause with the game's own `#bPause`, as a player would. If no frame arrives in 5 s, check renderer.info.render.frame over 1 s; if it doesn't move, the loop is not drawing.
@@ -39,8 +39,11 @@ Read this before you write or arm any rig. It collects every trap that cost a sl
 - Before you call it the game's bug: does the same rig work on the previous master? Does a known-good rig (section 5) work on yours?
 
 ## 5. The reference rig
-- LOOK-1's rig drew real frames on 13 Nov: `C:/Users/denis/AppData/Local/Temp/claude/dbc9121edd5fa991/66476fa0-7270-4212-adb4-12046e55605a/scratchpad/rig_wabk.js`. Copy it, don't edit it in place. It does sections 2-3 exactly: launch, CDP, boot wait, Go, pause, the AA.render wrap with readPixels, devFree, a hard cap, and its own Chrome killed by PID tree.
-- Coming: `flyDiy/tools/page_rig.js`, the shared harness built from it (boot, fly, grab, WHY). When it lands, use it and add only your views.
+- `flyDiy/tools/page_rig.js` (LOOK-1, 15 Nov) is the shared harness. It does sections 2-4: the server, Chrome on a free debugging port with its own profile, the real-GPU check (before the boot is spent), the flydiy.* wipe and an optional logged seed, the boot wait, Go until flying, `#bPause`, devFree, the AA.render grab, WHY on a miss, the hard cap, and its own Chrome killed by PID tree. Use it and add only your views:
+  - Stills: `node tools/page_rig.js --views views.json --out <dir> [--q ...] [--cap 600]`. A view is `{ name, yaw, pitch, x y z | near: [dx, dy, dz] | agl, place: [x, z, agl], settle, wait, eval }`; `near` is relative to the aircraft. It writes `<name>.png` plus `page_rig.json` (base sha, GPU, every eye and the blank test). Exit 1 means a view was blank or failed; its WHY is in the JSON.
+  - Your own measurements: `const rig = await require('./page_rig.js').start({ cap, q, seed, init })`, then `rig.fly()`, `rig.pause()`, `rig.place(x, z, agl)` (the aircraft to a far subject first), `rig.eye(...)`, `rig.grab()` (PNG Buffer, `.info` has mean/sd/blank/eye), `rig.why()`, `rig.ev()` / `rig.J()` / `rig.frames(n)`, and `rig.close()`. The full usage is at the top of the file.
+  - Self-test: GATE PAGERIG (node, in the battery). The page half is `node tools/_pagerig_check.js --gpu --out <dir>`, by hand in a GPU slot.
+- The rig it came from: LOOK-1's `rig_wabk.js` (13 Nov), in that session's scratchpad. Use it only for its measurements (flicker, clips), never as a template.
 
 ## 6. Results
 - Pictures for the user go to the flydiy-notes evidence folder, never only to Temp. Sent inline.
