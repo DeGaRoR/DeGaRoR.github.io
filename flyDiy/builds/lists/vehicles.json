@@ -65,5 +65,10 @@
    "sheet": "src/cars/car_conquer.json",
    "note": "the imported pickup model (cars_car.js / cars_lods.js / cars_packs.json): selectable in the game, NOT a default - the van is the stock and tow car. No garage build, so the garage's Vehicles category does not list it. Removed once the built cars are proven (the user, 15 Nov)."
   }
- ]
+ ],
+ "stockCar": {
+  "file": "builds/vehicles/utility_retro_2026-11.json",
+  "sheet": "src/cars/car_utility.json",
+  "note": "THE STOCK CAR (the user, 15 Nov: \"the van is the default, with the dark blue livery\"): the drive, the line tow and the trailer tow take this build when no car is handed - src/viewer/drive_mode.js stockVan (VAN), captured through parked.js; the Conquer pickup drives with ctx.stock 'pickup' or where no editor can capture (node, the gates)."
+ }
 }

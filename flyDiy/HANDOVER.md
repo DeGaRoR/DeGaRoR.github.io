@@ -317047,3 +317047,19 @@ CAR x L40e (15 Nov, the user: "do the merge"): claude/tow-launch-l40e merged int
   a garage car drives only from the stand (FLYDIY_GARAGE_CAR -> carFromGarage measures the live garage scene). The van
   as a default needs its mesh built from builds/vehicles/utility_retro_2026-11.json outside the garage (parked.js's
   capture machinery is the candidate) and src/cars/car_utility.json as its sheet.
+
+CAR - THE VAN IS THE STOCK CAR (15 Nov, the user: "Yes, the van is the default, with the dark blue livery"). drive_mode.js
+  useCar: with no car handed (the drive, towStart, trailerStart) it takes THE VAN - builds/vehicles/utility_retro_2026-11.json
+  (the Retro: navy, "Home Field", TOW 3) with its sheet src/cars/car_utility.json. Its body is CAPTURED by parked.js
+  (PARKED.capture('car:utility_retro_2026-11', spec): the garage editor's round trip, the build's own livery block, kept in
+  the record for the session; PARKED.build draws it) and fitted into the sheet's frame by its sampled vertices: the long
+  axis on +x, the front the end with the lower top (the bonnet), the front bumper on the sheet box's front, the tyres on
+  y = 0, centred; rotations only. Its drawn wheels stay in the body (they do not spin - the garage car's MVP).
+  ctx.stock 'pickup' drives the Conquer '89, which also drives wherever no editor can capture (node: the gates' PAGE
+  rows). vehicles.json names it (stockCar). tools/car_drive_shot.js takes '-' for the build: no import, the stock car.
+  PAGE CHECK (dev.html, SwiftShader): "Field Wagon (TOW 3)", HOME -> Cedar Harbour, 41 km/h at 15 s, the van on the road
+  the right way round. COST: the first drive of a session captures the van - 23 s here plus a 29 s far-level bake on
+  the idle path (parked.js's own figure on a real GPU: ~10 s for a C172's round trip); later drives reuse the record.
+  OWED: the plate's and the tow sign's textures in the game (propBuild knows neither: the bucket colour shows); a
+  capture under the boot screen (or a cooked record) would take the first-drive wait away; the van's wheels spinning.
+  GATES: VEHICLE DRIVE-TRIP TRAILER UISMOKE PASS; TOW run alone (its CIRCUIT archaeopteryx red is the card's, named).
