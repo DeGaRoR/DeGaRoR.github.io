@@ -624,6 +624,63 @@ function fitCheeksStream(spec, o) {
   o._cheekFit = { both, az: +az.toFixed(1), t0: +t0.toFixed(3), t1: +t1.toFixed(3), barePoke: c.worst, left };
   return o;
 }
+// THE HEAD CYLINDERS (the user, 9 Nov, the Carbon Cub: "keep the base cowl shapes unaltered ... and add 2 cylinders on the
+// sides, engulfing the heads, then cut and merge"): the build's own cowl kept to the row; the drawn heads standing through
+// it (clear.js, all round, the exhaust aside), the left folded onto the right; per candidate axis distance along the heads'
+// azimuth, the radius covering every point by 12 mm AND sinking 2 cm into the skin (so the union merges); the least such
+// cylinder; full over the heads' length, a round cap in front, a taper aft until it sinks; probed to 0 mm.
+function fitCylinders(spec, o) {
+  const C = require('./clear.js'), THREE = SH.context().THREE, MARGIN = 0.012, SINK = 0.02;
+  o = Object.assign({}, o, { cw_cylOn: 0, cw_lobeN: 0, cw_lobeAmp: 0 });
+  const m = measure(spec, o), CW = m.W.COWL_GEN, zE = CW.zEnd();
+  const c = C.clearance(m.S, THREE, { all: true });
+  if (!c || !c.n || c.worst < 0.002) { o._cyl = { none: true }; return o; }
+  const deg = 180 / Math.PI;
+  const all = c.pts.map(([x, y, z, d]) => ({ x: Math.abs(x), y: y - CW.spineY(z), z, d }));
+  let sx = 0, sy = 0; for (const p of all) { const r = Math.hypot(p.x, p.y) || 1; sx += p.d * p.d * p.x / r; sy += p.d * p.d * p.y / r; }
+  const az = Math.atan2(sy, sx), ux = Math.cos(az), uy = Math.sin(az);
+  // THE HEADS ONLY: the points within 40 deg of the heads' azimuth and 2 cm deep or more (a shallow poke elsewhere - the
+  // bowl's top over the crankcase nose - is not what a side cylinder is for; it is reported, not swallowed)
+  const near = p => Math.abs(Math.atan2(p.y, p.x) - az) <= 40 / deg;
+  const pts = all.filter(p => near(p) && p.d >= 0.02);
+  const zs = pts.map(p => p.z).sort((a, b) => a - b), z0 = zs[0], z1 = zs[zs.length - 1];
+  // the skin's radius at the heads' azimuth, at the heads' stations (the cylinder must sink into it everywhere)
+  const rSkin = z => { let r = 0; for (let k = -6; k <= 6; k++) { const th = az + k * 0.01, q = CW.surfPoint(th, z); r = Math.max(r, Math.hypot(q[0], q[1] - CW.spineY(z))); } return r; };
+  // (the merge needs the cylinder sunk into the BARREL - the nose bowl closes onto the spinner, and a cylinder's front
+  // may stand proud of it, as a Carbon Cub's cheek fronts do: the barrel's skin over the heads' length, its median)
+  const zb = Math.min(z1, +CW.P.cowlLen), rs = [];
+  for (let i = 0; i <= 8; i++) rs.push(rSkin(z0 + (Math.max(z0, zb) - z0) * i / 8));
+  rs.sort((a, b) => a - b); const rMin = rs[4];
+  let best = null;
+  for (let sc = 0.3 * rMin; sc <= rMin + 0.4; sc += 0.004) {
+    let R = 0;
+    for (const p of pts) R = Math.max(R, Math.hypot(p.x - sc * ux, p.y - sc * uy) + MARGIN);
+    R = Math.max(R, sc - rMin + SINK);
+    if (!best || R < best.R) best = { R, sc };
+  }
+  const R = best.R, sc = best.sc;
+  const nose = Math.max(0.02, Math.min(0.8 * R, zE - 0.012 - z1));
+  const z1c = Math.min(z1, zE - 0.012 - nose);
+  const tail = Math.max(0.03, Math.min(1.6 * R, z0 - 0.02));
+  const rEnd = rSkin(Math.max(0.01, z0 - tail));
+  const offIn = Math.min(sc, rEnd - 0.02), rin = Math.max(0, Math.min(R * 0.5, rEnd - offIn - 0.006));
+  Object.assign(o, { cw_cylOn: 1, cw_cylAz: +(az * deg).toFixed(2), cw_cylOff: +sc.toFixed(4), cw_cylR: +R.toFixed(4),
+    cw_cylZ0: +z0.toFixed(4), cw_cylZ1: +z1c.toFixed(4), cw_cylNose: +nose.toFixed(4), cw_cylTail: +tail.toFixed(4),
+    cw_cylRin: +Math.min(rin, R).toFixed(4), cw_cylOffIn: +offIn.toFixed(4) });
+  let left = null;
+  let elsewhere = 0;
+  for (let pass = 0; pass < 4; pass++) {
+    const k = C.clearance(measure(spec, o).S, THREE, { all: true });
+    const mine = k ? k.pts.filter(([x, y, z]) => near({ x: Math.abs(x), y: y - CW.spineY(z) })) : [];
+    elsewhere = k ? Math.max(0, ...k.pts.filter(([x, y, z]) => !near({ x: Math.abs(x), y: y - CW.spineY(z) })).map(q => q[3])) : 0;
+    left = mine.length ? Math.max(...mine.map(q => q[3])) : 0;
+    if (left < 0.002) break;
+    o.cw_cylR = +(o.cw_cylR + left + 0.004).toFixed(4);
+  }
+  o._cyl = { elsewhere: +elsewhere.toFixed(4), az: +(az * deg).toFixed(1), off: +sc.toFixed(3), R: o.cw_cylR, z0: +z0.toFixed(3), z1: +z1.toFixed(3), ze: +zE.toFixed(3),
+             barePoke: c.worst, left };
+  return o;
+}
 function fitCheeksRound(spec, o, type) {
   const C = require('./clear.js'), THREE = SH.context().THREE;
   o = Object.assign({}, o, { cw_lobeN: 0 });
@@ -798,6 +855,14 @@ if (require.main === module) {
   const spec = j.spec || j;
   if (arg('radialR')) RADIAL_R = +arg('radialR');
   if (argv.includes('--roundCheeks')) ROUND_CHEEKS = true;
+  // --cylOnly: the build's own cowl kept to the row, the two head cylinders added and merged (fitCylinders)
+  if (argv.includes('--cylOnly')) {
+    const o = fitCylinders(spec, {}), fit = o._cyl; delete o._cyl;
+    const s2 = JSON.parse(JSON.stringify(spec)); s2.cage = Object.assign({}, s2.cage, o);
+    fs.writeFileSync(OUT, JSON.stringify(j.spec ? Object.assign({}, j, { spec: s2 }) : s2));
+    console.log(JSON.stringify({ out: OUT, cylOnly: true, fit, over: o }));
+    process.exit(0);
+  }
   // --cheeksOnly: the build's own cowl kept, only its cheeks refitted (streamlined, off the drawn heads)
   if (argv.includes('--cheeksOnly')) {
     const o = fitCheeksStream(spec, {}), fit = o._cheekFit, left = o._cheeks; delete o._cheekFit; delete o._cheeks;
