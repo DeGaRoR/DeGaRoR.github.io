@@ -188,6 +188,9 @@ var COVER_RING = (() => {
     borders:       { h: 0.40, sigma: 0.40, dens: 1.1 },                      // lush (15): the field edge
     village:       { h: 0.18, sigma: 0.25, dens: 0.6 },                      // built (10)
     city_trees:    { h: 0.15, sigma: 0.25, dens: 0.5 },                      // the town's wood (16)
+    // (16 Nov, with MOUNTAIN-VEG: its mix 'subalpine', BIOMES 19 via BIO.mixHere above the 450 -> 600 m ramp; the user: 'the ground
+    //  covers in these altitudes need a lot more grass') short, dense, in clumps - the alpine turf between the blueberries
+    subalpine:     { h: 0.18, sigma: 0.30, dens: 0.9, clumpM: 2, clumpAmp: 0.35 },
     // THE BARE BIOMES (the user 9-10 Oct: "add grass where it is bare"): no reed row and no cover in their mixes, so nothing grew
     // there; `fill` plants the field's own sparse grass in them all the same (a mix row of the reed, once the user adds one on the
     // biome's card, wins). The land test still keeps it off sand, water and paving (okAt): what grows is on their grassy ground
