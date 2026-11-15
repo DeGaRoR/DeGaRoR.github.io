@@ -316359,3 +316359,4 @@ NEW REDS (8), NAMED with owners (fix or re-pin with reason for L40d/L40e):
   - UNIFY EMERG (the student): known red on the pu2 base, Pilot owns.
 
 COLD LOAD (the user 14 Nov: before/after every train): before 143 s (L40a 6a8d705c4); after 138 s (programs 501, world 26.1, settle 17.1, shader compile 56.5+4.0): no load cost from this train. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+- PETREL-TRIM GATE (SEAPLANES, 15 Nov, L40d): PETRELTRIM registered (core, 60 s) on builds/candidates/superpetrel_V4_2.json; needs claude/ready/petrel-skin (REAL-CANON 4/5 brings the card) merged first. Read on master 58c681347 + the card: foot -0.09 m (bound -0.15), boom -0.17 (-0.40), lift-off 28.7 s; on petrel-skin 87a86a4a5: foot -0.11, boom -0.21, lift-off 28.8 s. PASS both.
