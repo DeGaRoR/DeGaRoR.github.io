@@ -18,12 +18,16 @@
 //          (here with NO roll-out screen at all - the train-36 blind spot)
 //   diag   THE SELF-TEST (G1997): index.html?diag=quick's module run to its report on the same harness - every variant
 //          measured frames, the census by owner, the report's text, the graphics put back exactly as they were
+//   under  BOOT-LOOP-GUARD (15 Nov 2026, DIRT-STRIP's census on the box): Fly pressed UNDER the garage boot's cover, NOT lifted, while
+//          its chain is at 'compile' - before 'first light', the loop's first start (a key reaches #bGo behind the cover: Tab,
+//          Enter). The roll-out's screen supersedes the chain (G640) and replaces its done(): before the guard neither start ran -
+//          the roll-out gave up ('nothing landed for 20 s') and nothing was ever drawn. Now: the roll-out lands, the world is drawn.
 //   hard   BOOT.opt.hard set to 1 ms as the boot reaches 'world' (the slow machine's case): the boot is NOT lifted while
 //          its chain still lands steps (G1995's watchdog) - it ends on its own ('ready'), never 'hard timeout'
 //
 //   node tools/_bootlift_check.js                       the gate (the three children, one after the other)
-//   node tools/_bootlift_check.js --only fly|stay|hard|diag  one of them
-//   node tools/_bootlift_check.js --child fly|stay|hard|diag one child, its JSON on stdout's last line
+//   node tools/_bootlift_check.js --only fly|stay|hard|diag|under  one of them
+//   node tools/_bootlift_check.js --child fly|stay|hard|diag|under one child, its JSON on stdout's last line
 //   BOOTLIFT_QUERY='simw=0'  the page's query (default: the page's own, the physics worker on)
 // The RED/GREEN proof against older trains: copy this file into an old tree's tools/ and run it there (HANDOVER G1996).
 'use strict';
@@ -100,6 +104,12 @@ async function child(which) {
     await P.until(() => W.BOOT.state === 'gone', V_MAX);
     const L = bootLog(W);
     out.end = { state: W.BOOT.state, ready: L.some(e => e.k === 'ready'), fails: L.filter(e => e.k === 'fail').map(e => e.reason), steps: L.filter(e => e.k === 'step').map(e => e.id), vS: Math.round(P.clock.t / 1000) };
+  } else if (which === 'under') {
+    const ok = await P.until(() => W.BOOT && W.BOOT.state === 'loading' && W.BOOT.set === 'garage' && W.BOOT.current && W.BOOT.current.id === 'compile', V_MAX);
+    const stepsAt = bootLog(W).filter(e => e.k === 'step').map(e => e.id);
+    out.under = { reached: ok, state: W.BOOT.state, firstLightBefore: stepsAt.includes('firstFrame'), steps: stepsAt.slice(-3) };
+    out.fly = await fly(ctx);
+    out.fly.firstLightEver = bootLog(W).some(e => e.k === 'step' && e.id === 'firstFrame');
   } else {
     out.lift = await lift(ctx, 'compile');
     if (which === 'fly') {
@@ -140,6 +150,12 @@ function verdict(r) {
     ok(r.fly.worldDrawn > 0, 'stay: the world drawn (' + r.fly.worldDrawn + ')');
     ok(r.fly.reveals >= 1, 'stay: a reveal marked with or without a roll-out screen (' + r.fly.reveals + ')');
   }
+  if (r.which === 'under') {
+    ok(r.under.reached && r.under.state === 'loading' && !r.under.firstLightBefore, 'under: Fly pressed under the garage boot cover at compile, before first light (' + JSON.stringify(r.under.steps) + ')');
+    ok(r.fly.landed && !r.fly.inShed, 'under: the roll-out landed (trip ' + JSON.stringify(r.fly.trip) + ', first light ever: ' + r.fly.firstLightEver + ')');
+    ok(r.fly.worldDrawn > 0, 'under: the world drawn after it - the loop started (' + r.fly.worldDrawn + ' renders in 60 frames; BOOT-LOOP-GUARD)');
+    ok(!r.fly.fails.some(f => /nothing landed/.test(f)), 'under: the roll-out screen did not give up (' + JSON.stringify(r.fly.fails) + ')');
+  }
   if (r.which === 'diag') {
     const d = r.diag || {};
     ok(d.ok && d.variants && d.variants.length >= 3 && d.variants.every(v => +v.split(':')[1] > 0), 'diag: ?diag=quick ran to its report, every variant measured frames (' + JSON.stringify(d.variants) + ')');
@@ -156,7 +172,7 @@ function verdict(r) {
 (async () => {
   const ch = opt('child', null);
   if (ch) { const r = await child(ch); console.log(JSON.stringify(r)); process.exit(0); }
-  const only = opt('only', null), list = only ? only.split(',') : ['fly', 'stay', 'hard', 'diag'];
+  const only = opt('only', null), list = only ? only.split(',') : ['fly', 'stay', 'hard', 'under', 'diag'];
   const all = [];
   for (const w of list) {
     const t0 = Date.now();

@@ -15877,12 +15877,13 @@
     const bR = $('bootRoute');
     if (bR) { bR.hidden = false; if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); }
     const steps = plan.map(s => ({ id: s.id, label: s.label, w: s.w, fn: () => tripRun(s, t) }));
+    startLoop();   // BOOT-LOOP-GUARD: shown over a garage boot that never reached 'first light', nothing else starts it
     BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', idle: 20000, hard: 90000, quietFrames: 1,
-      done: () => {
+      done: loopDone(() => {
         // the steps the plan left out, logged as skipped (in their order, after the ones that ran)
         for (const s of TRIP_STEPS) if (s.part === part && !t.steps.some(r => r.id === s.id)) t.steps.push({ id: s.id, ran: false, key: tripNeed(s, t.ran).key, why: 'same' });
         holdRender = false; rollHold = false; if (PK) { PK.async = false; parkedFlush(); } if (bR) bR.hidden = true; done();
-      },
+      }),
       probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
   }
   function needsRollOutScreen() {
@@ -15917,7 +15918,7 @@
     // B9: the way back is logged with the trips (GATE ROUNDTRIP: it stays instant, and nothing of the world runs in it)
     const trip = tripOpen('rollin');
     for (const s of steps) { const fn = s.fn; s.fn = () => { trip.steps.push({ id: s.id, ran: true }); return fn(); }; }
-    BOOT.show('garage', { steps, set: 'garage', deck: 'rollin', require: [], landingLabel: 'the last pieces', done: () => { tripClose(trip); if (after) after(); }, idle: 20000, hard: 60000, quietFrames: 1 });
+    BOOT.show('garage', { steps, set: 'garage', deck: 'rollin', require: [], landingLabel: 'the last pieces', done: loopDone(() => { tripClose(trip); if (after) after(); }), idle: 20000, hard: 60000, quietFrames: 1 });
   }
   // G640: A SETTINGS CHANGE HAS A SCREEN TOO (the 2026-09-26 playtest: "progress bars for every loading
   // screen ... This includes possible setting changes"). A graphics row that re-keys the lit programs
@@ -15953,7 +15954,7 @@
           .then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }) },   // G732 (G1998e: the clouds' march, a cloud row may have rebuilt it)
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
-      done: () => { holdRender = false; if (held && !inGarage) running = true; if (garage) setTimeout(worldPrelinkGfx, 0); }, idle: 20000, hard: 90000, quietFrames: 1 });   // (REVEAL: the world's link starts in the shed)
+      done: loopDone(() => { holdRender = false; if (held && !inGarage) running = true; if (garage) setTimeout(worldPrelinkGfx, 0); }), idle: 20000, hard: 90000, quietFrames: 1 });   // (REVEAL: the world's link starts in the shed)
   }
   if (typeof window !== 'undefined') { window.FLYDIY_SETTLE = settleScreen; window.FLYDIY_SETTLE.warmViews = worldViewWarmDraw; }
   // every texture a material of the scene holds (its uniforms' too), the environment and the background, sent to the
@@ -20968,6 +20969,19 @@
   // no frame ever drawn. The boot's done() starts it too.
   let loopOn = false;
   function startLoop() { if (loopOn) return; loopOn = true; loop(); }
+  // BOOT-LOOP-GUARD (15 Nov 2026, DIRT-STRIP's census on the box): a screen shown while the garage boot was still up (a Go under
+  // its cover: Tab reaches #bGo behind it, Enter presses it; a rig's click) superseded that chain before 'first light' (G640: a
+  // newer run owns the chain) and replaced its done() (BOOT.show sets B.opt): neither of the loop's two starts ran - the roll-out's
+  // frames never came ('nothing landed for 20 s'), and the page drew nothing, ever. Now every screen the app shows starts the
+  // loop as it opens, and every done() starts it last even when something before it throws (said once, loudly; boot.js logs it too).
+  let loopGuardSaid = false;
+  function loopDone(f) {
+    return function () {
+      try { return f.apply(this, arguments); }
+      catch (e) { if (!loopGuardSaid) { loopGuardSaid = true; console.error('flyDiy: a loading screen done() threw - the loop starts anyway (BOOT-LOOP-GUARD):', e); } throw e; }
+      finally { startLoop(); }
+    };
+  }
   function loop(ts) {
     requestAnimationFrame(loop);
     POSE_LERP.back();                  // G1100: a frame that threw between the swap and its restore leaves nothing drawn behind
@@ -22132,7 +22146,7 @@
   // the first frame renders UNDER the overlay: this is where the shaders
   // compile, and the frames after it are where the late landings re-bake
   bootStep('firstFrame', 'first light', 10, () => {
-    hud(); startLoop();
+    try { hud(); } finally { startLoop(); }   // BOOT-LOOP-GUARD
     // G441: the see-through programs, after the room is up. G1027 (B8B9 on train 14): UNDER THE SCREEN, a task after first
     // light, not on a 1.5 s timer - "no background loading in the garage" (B9), and the timer fired into the first
     // roll-out's shot when Roll out came quickly (22 links counted in roll-out 1 by the page in node)
@@ -22213,10 +22227,10 @@
     window.FLYDIY_PHONE_FLY = { started: went, card: c, at: Date.now() };
   }
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
-    done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
+    done: loopDone(() => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
       if (SIMW) SIMW.prewarm(); startLoop();
       if (PHONE_FLY) setTimeout(phoneFlyGo, 0);   // G3791: the phone's test flight rolls out as the screen lifts
-      if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); },   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
+      if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); }),   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) };
