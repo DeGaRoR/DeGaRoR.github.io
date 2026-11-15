@@ -485,8 +485,11 @@
   //   PROP WASH  (propJet) a fast wall jet strips wet mud into drops thrown aft
   // A wheel throws at most L.projMax a second (the pool's and the eye's budget)
   const UP3 = [0, 1, 0];
+  // (SNOW-MUD FINISH: a SKI - w.ski { W, L }, SKIS' unit - has no tread to shed: its bow wave runs from its toe across its
+  // width, x W / 0.25 m of a tyre's)
   function projWheel(sys, w, PJ, ci, was, V, pud, dt, K) {
-    const R = w.R || 0.2, sk = Math.min(1, Math.max(0, w.sink || 0) / 0.05);
+    const R = w.R || 0.2, sk = Math.min(1, Math.max(0, w.sink || 0) / 0.05), SKI = w.ski || null;
+    const wf = SKI ? Math.max(1, SKI.W / 0.25) : 1, toe = SKI ? 0.45 * SKI.L : R * 0.6, half = SKI ? 0.5 * SKI.W : 0.08;
     const ux = V > 0.3 ? w.vx / V : 1, uz = V > 0.3 ? w.vz / V : 0, lx = -uz, lz = ux;
     let room = Math.ceil(L.projMax * dt * K * Math.min(1, sys.G.n / 400));   // (a smaller tier's pool: fewer, not a ring that eats its own)
     // (the stills, 13 Nov: drops of their true 1-5 mm drew under a pixel and vanished - a DROP is a CLUSTER of them as the eye
@@ -503,7 +506,8 @@
       if (pud > 0.01) splash(sys, w, pud, Math.max(vs, 1), V, ci);
     }
     if (V < 1) return;
-    // TREAD RELEASE
+    // TREAD RELEASE (a wheel's: a ski has none)
+    if (!SKI) {
     const gT = V * V / R / 9.81, shed = smooth(PJ.adh, PJ.adh * 3, gT), early = smooth(PJ.adh * 3, PJ.adh * 30, gT);
     for (let j = n(PJ.tread * shed * V * (0.4 + sk) * K * dt); j > 0; j--) {
       const phi = 0.25 + rnd() * (0.4 + 1.2 * (1 - early)), keep = 0.4 + 0.3 * rnd(), cs = Math.cos(phi), sn = Math.sin(phi), la = (rnd() - 0.5) * 0.16 * V;
@@ -511,24 +515,29 @@
       one(pick(), w.x + ux * hx + lx * (rnd() - 0.5) * 0.1, w.y + hy, w.z + uz * hx + lz * (rnd() - 0.5) * 0.1,
         ux * V * (1 - cs) * keep + lx * la, Math.min(L.projUp, V * sn * keep), uz * V * (1 - cs) * keep + lz * la);   // (a lump's rise held: the mud reaches the legs and the wing's underside, ~1.3 m)
     }
+    }
     // THE BOW WAVE
-    if (sk > 0.05) for (let j = n(PJ.bow * sk * Math.min(V, 15) / 15 * K * dt); j > 0; j--) {
+    if (sk > 0.05) for (let j = n(PJ.bow * sk * wf * Math.min(V, 15) / 15 * K * dt); j > 0; j--) {
       const side = rnd() < 0.5 ? -1 : 1, f = (0.1 + 0.3 * rnd()) * V, o = (0.15 + 0.3 * rnd()) * V * side, up = (0.5 + 1.5 * rnd()) * Math.min(1, V / 6) * (1 + sk);
-      one(rnd() < 0.25 ? 2 : 5, w.x + ux * R * 0.6 + lx * side * 0.08, w.y + 0.02, w.z + uz * R * 0.6 + lz * side * 0.08, ux * f + lx * o, up, uz * f + lz * o);
+      const at = SKI ? (rnd() - 0.3) * SKI.L * 0.6 : 0;          // (a ski parts the mud along its fore half)
+      one(rnd() < 0.25 ? 2 : 5, w.x + ux * (toe + at) + lx * side * half, w.y + 0.02, w.z + uz * (toe + at) + lz * side * half, ux * f + lx * o, up, uz * f + lz * o);
     }
     if (pud > 0.01 && V > 2) { const N = Math.min(12, V * 0.6 * Math.min(1, pud / 0.04)) * dt * 3; for (let j = 0; j < N; j++) splashDrop(sys, w, V, ci); }
   }
   // ---- SNOW-MUD: POWDER'S PLOUGH - a sinking tyre (or a ski's toe) pushes the snow ahead aside: CLUMPS (kind 4, 1-4 cm,
   // white, ballistic) thrown to the sides and forward, and the fines it breaks up a cloud (a puff topped up, x the sinkage)
+  // (SNOW-MUD FINISH: a SKI ploughs from its toe across its width - x W / 0.25 m of a tyre's - and throws its spray wider to
+  // the sides, a bow wave's; its cloud the wider puff)
   function plough(sys, w, ci, V, dt, K) {
-    const sk = Math.min(1, w.sink / 0.08), R = w.R || 0.2, ux = w.vx / V, uz = w.vz / V, lx = -uz, lz = ux;
-    let r = 40 * sk * Math.min(V, 15) / 15 * K * dt, N = Math.floor(r); if (rnd() < r - N) N++;
+    const sk = Math.min(1, w.sink / 0.08), R = w.R || 0.2, ux = w.vx / V, uz = w.vz / V, lx = -uz, lz = ux, SKI = w.ski || null;
+    const wf = SKI ? Math.max(1, SKI.W / 0.25) : 1, toe = SKI ? 0.45 * SKI.L : R * 0.5, half = SKI ? 0.5 * SKI.W : 0;
+    let r = 40 * sk * wf * Math.min(V, 15) / 15 * K * dt, N = Math.floor(r); if (rnd() < r - N) N++;
     for (let j = 0; j < Math.min(N, Math.ceil(L.projMax * dt)); j++) {
-      const side = rnd() < 0.5 ? -1 : 1, f = (0.2 + 0.3 * rnd()) * V, o = (0.1 + 0.25 * rnd()) * V * side, up = 0.8 + 1.7 * rnd();
-      emitGrit(sys, 4, w.x + ux * R * 0.5, w.y + 0.05, w.z + uz * R * 0.5, ux * f + lx * o, up * Math.min(1, V / 5), uz * f + lz * o, 0.006 + 0.012 * rnd(), ci);
+      const side = rnd() < 0.5 ? -1 : 1, f = (0.2 + 0.3 * rnd()) * V, o = (SKI ? 0.2 : 0.1) * (1 + 1.5 * rnd()) * V * side, up = 0.8 + 1.7 * rnd();
+      emitGrit(sys, 4, w.x + ux * toe + lx * side * half, w.y + 0.05, w.z + uz * toe + lz * side * half, ux * f + lx * o, up * Math.min(1, V / 5), uz * f + lz * o, 0.006 + 0.012 * rnd(), ci);
     }
-    const vv = Math.max(0, V - L.wheelV0), rate = L.wheelK * 3 * sk * (1 + vv) * K;
-    if (rate > 1e-4) sourcePuff(sys, 'pl' + (w.key != null ? w.key : 0), w.x + ux * R, w.y + 0.25, w.z + uz * R, w.vx * 0.25, 0.4 + 0.4 * rnd(), w.vz * 0.25, 0.3 + 0.4 * sk, rate * dt, 0.3, ci);
+    const vv = Math.max(0, V - L.wheelV0), rate = L.wheelK * 3 * sk * wf * (1 + vv) * K;
+    if (rate > 1e-4) sourcePuff(sys, 'pl' + (w.key != null ? w.key : 0), w.x + ux * toe, w.y + 0.25, w.z + uz * toe, w.vx * 0.25, 0.4 + 0.4 * rnd(), w.vz * 0.25, (0.3 + 0.4 * sk) * (SKI ? 1.5 : 1), rate * dt, 0.3, ci);
   }
   function splash(sys, w, depth, vs, V, ci) {
     const n = Math.round(Math.min(50, 10 * vs * Math.min(1, depth / 0.03)));

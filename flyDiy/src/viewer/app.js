@@ -4396,7 +4396,7 @@
   }
   // SNOW-MUD FINISH: THE VISUAL SINK. The solver's contact stays at the hard ground (its sinkage is a drag and a readout); the
   // DRAWN aeroplane is lowered and tilted so its wheels stand in mud or soft snow by what each sinks - sim.out.softW [main 0,
-  // main 1, tail 1, tail 2] (soft frames only), and a ski's out.skiSink[k] at its def.refs.skis[k] (SKIS' contract). The plane
+  // main 1, tail 1, tail 2] (soft frames only), and a ski's out.skiSink[k] at its unit's node (SKIS' def.parts.ski). The plane
   // through those contacts (groundSinkPose, 00_registry) is eased over SINK_TAU and applied as a small rigid motion about the
   // CG over the ground: a drop, a pitch and a roll, the slopes held to SINK_SLOPE. Off every soft layer, once eased back to
   // nought: one compare a frame, no matrix touched. Nothing else reads model.grp's pose for physics
@@ -4408,11 +4408,15 @@
     const P = sim.p, R = def && def.refs;
     if (SW && R) {
       const ids = [R.mains && R.mains[0], R.mains && R.mains[1], R.tw, R.tw2];
-      for (let k = 0; k < 4; k++) { const i = ids[k]; if (i != null && i >= 0 && SW[k] > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], SW[k]]); }
+      for (let k = 0; k < 4; k++) { const i = ids[k]; if (i != null && i >= 0 && SW[k] > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], SW[k], i]); }
     }
-    if (SK && R && Array.isArray(R.skis)) for (let k = 0; k < R.skis.length; k++) {
-      const sk = R.skis[k], nd = sk && sk.nodes, i = nd ? nd[Math.min(1, nd.length - 1)] : -1;
-      if (i != null && i >= 0 && SK[k] > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], SK[k]]);
+    // SKIS (def.parts.ski): the contacts are the mains' nodes then the third's (29c_ski skiSimMake's order), out.skiSink the same
+    // order; a ski unit's sinkage stands for its node (the wheel's softW of the same node, if any, is the tyre's: the ski's wins)
+    if (SK && R && def.parts && def.parts.ski) {
+      const ids = (R.mains || []).slice(0, 2); if (def.parts.ski.third && R.tw != null && R.tw >= 0) ids.push(R.tw);
+      for (let k = 0; k < ids.length && k < SK.length; k++) { const i = ids[k]; if (!(SK[k] > 0)) continue;
+        for (let q = SINK_PTS.length - 1; q >= 0; q--) if (SINK_PTS[q][3] === i) SINK_PTS.splice(q, 1);
+        SINK_PTS.push([P[i * 3], P[i * 3 + 2], SK[k], i]); }
     }
     if (SINK_PTS.length) groundSinkPose(SINK_PTS, cg[0], cg[2], SINK_T); else { SINK_T[0] = SINK_T[1] = SINK_T[2] = 0; }
     SINK_T[1] = Math.max(-SINK_SLOPE, Math.min(SINK_SLOPE, SINK_T[1])); SINK_T[2] = Math.max(-SINK_SLOPE, Math.min(SINK_SLOPE, SINK_T[2]));
@@ -8063,6 +8067,10 @@
     const refs = def.refs, ids = (refs.mains || []).slice();
     if (refs.tw != null && refs.tw >= 0) ids.push(refs.tw);
     const airborneAll = !WC || WC.water;
+    // SNOW-MUD FINISH: each wheel's OWN sinkage (sim.out.softW: mains 0, 1, tail), and a ski unit (SKIS, def.parts.ski: its
+    // contacts are the mains' nodes then the third's, out.skiSink in that order) its own sink, width and length - the ski
+    // ploughs and throws across its width, it has no tread to shed
+    const oS = sim.out || {}, SWd = oS.softW, SKR = def.parts && def.parts.ski, SKs = SKR ? oS.skiSink : null, nM = (refs.mains || []).length;
     for (let k = 0; k < ids.length; k++) {
       const i = ids[k], x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
       const pv = F.prev.get(i);
@@ -8073,8 +8081,11 @@
       if (pv) { pv[0] = x; pv[1] = y; pv[2] = z; } else F.prev.set(i, [x, y, z]);
       const on = !airborneAll && (k < (refs.mains || []).length ? !!(WC.mains && WC.mains[k]) : !!WC.tw);
       let R = 0.2; if (model && model.wheelParts) for (const w of model.wheelParts) if (w.idx === i && w.R > 0) { R = w.R; break; }
+      let sink = SWd ? (SWd[k < nM ? k : 2] || 0) : 0, ski = null;
+      const skRec = SKs ? (k < nM ? SKR.mains : SKR.third) : null;
+      if (skRec && !(SKR.kind === 'retract' && oS.ski != null && oS.ski < 0.5)) { ski = { W: skRec.Wmax || skRec.W || 0.3, L: skRec.L || 1.5 }; sink = SKs[k] > 0 ? SKs[k] : 0; }
       st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0,
-                       sink: sim.out && sim.out.softZ > 0 ? sim.out.softZ : 0 });   // (SNOW-MUD: the solver's sinkage this frame - the plough's, the bow wave's)
+                       sink, ski });   // (SNOW-MUD: the solver's own sinkage of THIS contact - the plough's, the bow wave's)
     }
     // the props: one disc a thrust node (the mean disc's wash - the solver's out.wash), the axis forward = -xAft
     st.props.length = 0;

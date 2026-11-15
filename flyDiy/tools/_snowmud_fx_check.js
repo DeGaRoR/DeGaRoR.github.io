@@ -45,6 +45,8 @@ function runup(t) {
 }
 // a roll at constant speed V for T s, then stopped (the splats' persistence)
 const roll = (V, T) => (t, sink) => ({ wheels: [0, 1].map(k => ({ key: k, x: Math.min(t, T) * V, y: 0, z: k ? 0.9 : -0.9, vx: t < T ? V : 0, vy: 0, vz: 0, on: true, R: 0.3, brake: 0, sink })), props: [], wing: null });
+// SNOW-MUD FINISH: the same roll on SKIS (SKIS' unit: the PC-6's SS-class ski, ~0.45 m wide, 2.4 m long)
+const rollSki = (V, T) => (t, sink) => { const st = roll(V, T)(t, sink); for (const w of st.wheels) w.ski = { W: 0.45, L: 2.4 }; return st; };
 function run(D, scen, ci, sink, T) {
   const sys = D.makeSystem('gamer');
   const env = { groundH: () => 0, wind: () => [2, 0, 2], cls: () => ci, wet: () => 0, puddle: () => 0, k: 1 };
@@ -94,18 +96,41 @@ function check(D, o) {
   yes(Math.max(...sp) > 20 && sp[stopF + 15 * 30] >= 0.8 * sp[stopF], 'C landed mud splats and lies (15 s after the stop, >= 80 % still there)', sp[stopF] + ' -> ' + sp[stopF + 15 * 30]);
   yes(R.mudTo.perFrame <= Math.ceil(D.L.projMax / 30) * 2 + 4 && R.slushTo.perFrame <= Math.ceil(D.L.projMax / 30) * 2 + 4, 'C a wheel throws within its budget (' + D.L.projMax + ' a second)', R.mudTo.perFrame + ' / ' + R.slushTo.perFrame + ' a frame for two wheels');
   yes(R.mudTo.overwrote === 0 && R.slushTo.overwrote === 0, 'C a full ring of fresh splats is never overwritten (no pop)', R.mudTo.overwrote);
+  // E: SKIS (SKIS' unit on the wheel list: w.ski { W, L }) and the cost
+  if (R.powderSki) {
+    yes((R.powderSki.kinds[4] || 0) > 1.4 * (R.powderRoll.kinds[4] || 0), 'E a ski ploughs powder across its width (more clumps than a tyre at the same sinkage)', (R.powderSki.kinds[4] || 0) + ' vs ' + (R.powderRoll.kinds[4] || 0));
+    yes(tot(R.mudFastSki) === 0 && tot(R.mudFast) > 200, 'E a ski has no tread to shed (18 m/s on mud, no sinkage: nothing; a wheel sheds)', tot(R.mudFastSki) + ' vs ' + tot(R.mudFast));
+    yes(tot(R.mudTaxiSki) > 0, 'E a sinking ski parts the mud (its bow wave)', tot(R.mudTaxiSki));
+    log('E skis: powder clumps ' + (R.powderSki.kinds[4] || 0) + ' (a tyre ' + (R.powderRoll.kinds[4] || 0) + '); mud at 18 m/s ' + tot(R.mudFastSki) + ' (a wheel ' + tot(R.mudFast) + '); a sinking ski on mud ' + tot(R.mudTaxiSki));
+  }
+  if (R.cost) for (const k in R.cost) { const c = R.cost[k];
+    yes(c.p99 < 1.0 && c.inst <= 256 + 700 + 200, 'E the cost on ' + k + ': the frame\'s simulation p99 under 1 ms (node), the batch within the pools', 'median ' + (c.med * 1000).toFixed(0) + ' us, p99 ' + (c.p99 * 1000).toFixed(0) + ' us, ' + c.inst + ' instances');
+    log('E cost, a ' + k + ' take-off (gamer, node): median ' + (c.med * 1000).toFixed(0) + ' us, p99 ' + (c.p99 * 1000).toFixed(0) + ' us a frame; at most ' + c.inst + ' instances in the one draw'); }
   // D
   if (o.src) {
     const V = D.GLSL.vert, F = D.GLSL.frag;
     yes(/iA\.w > 5\.5/.test(V) && /iPos \+ vec3\(cr \* c\.x - sr \* c\.y, 0\.035/.test(V), 'D the splat lies in the ground\'s plane');
     yes(/uniform vec3 uCol\[9\]/.test(V) && /mix\(uG, 0\.8, vSnow\)/.test(F) && /alpha erosion/.test(F), 'D nine class colours, snow\'s own phase, the splat\'s erosion');
     const a = o.src.app;
-    yes(/const DUST_SURF = \[[^\]]*'snow', 'powder', 'slush', 'mud', 'mud'\]/.test(a) && /DUST_BY_CODE\[q\.cls\]/.test(a) && /sink: sim\.out && sim\.out\.softZ > 0/.test(a), 'D app.js maps 8-12, lets the code decide under the pavement\'s snow / mud, hands the sinkage');
+    yes(/const DUST_SURF = \[[^\]]*'snow', 'powder', 'slush', 'mud', 'mud'\]/.test(a) && /DUST_BY_CODE\[q\.cls\]/.test(a) && /let sink = SWd \? \(SWd\[k < nM \? k : 2\] \|\| 0\) : 0, ski = null;/.test(a) && /sink = SKs\[k\] > 0 \? SKs\[k\] : 0/.test(a), 'D app.js maps 8-12, lets the code decide under the pavement\'s snow / mud, hands each contact its OWN sinkage (a wheel\'s softW, a ski unit\'s skiSink)');
     yes(/data-v="7"[^>]*>Powder/.test(o.src.bench) && /data-v="5"[^>]*>Mud/.test(o.src.bench), 'D the bench lists the soft surfaces');
   }
   return fail;
 }
 
+// THE COST: the simulation a frame (sources + step) over a soft-mud and a powder take-off, gamer tier, node - and the most
+// instances the draw would hold (puffs + thrown + splats), the batch's size
+function costOf(D) {
+  const res = {};
+  for (const [nm, sc, ci, sink] of [['mud', takeoff, 5, 0.06], ['powder', takeoff, 7, 0.10]]) {
+    const sys = D.makeSystem('gamer'), env = { groundH: () => 0, wind: () => [2, 0, 2], cls: () => ci, wet: () => 0, puddle: () => 0, k: 1 };
+    const ms = []; let inst = 0;
+    for (let f = 0; f < 25 * 30; f++) { const a = process.hrtime.bigint(); D.sources(sys, sc(f / 30, sink), env, 1 / 30); D.step(sys, 1 / 30, env); ms.push(Number(process.hrtime.bigint() - a) / 1e6);
+      inst = Math.max(inst, sys.P.live + sys.G.live + sys.S.live); }
+    ms.sort((a, b) => a - b); res[nm] = { med: ms[ms.length >> 1], p99: ms[Math.floor(ms.length * 0.99)], inst };
+  }
+  return res;
+}
 function measure(D) {
   return {
     dirtRun: run(D, runup, 0, 0, 60), snowRun: run(D, runup, 6, 0, 60), powderRun: run(D, runup, 7, 0, 60),
@@ -113,6 +138,9 @@ function measure(D) {
     mudTo: run(D, takeoff, 5, 0.06, 25), mudRun: run(D, runup, 5, 0, 20), slushTo: run(D, takeoff, 8, 0.07, 25),
     mudWalk: run(D, roll(1.5, 20), 5, 0, 20), mudFast: run(D, roll(18, 10), 5, 0, 10),
     mudTaxi: run(D, roll(5, 20), 5, 0.06, 20), mudTaxi0: run(D, roll(5, 20), 5, 0, 20), mudStop: run(D, roll(16, 6), 5, 0.06, 30),
+    powderRoll: run(D, roll(10, 15), 7, 0.06, 15), powderSki: run(D, rollSki(10, 15), 7, 0.06, 15),
+    mudFastSki: run(D, rollSki(18, 10), 5, 0, 10), mudTaxiSki: run(D, rollSki(5, 20), 5, 0.04, 20),
+    cost: costOf(D),
   };
 }
 const src = { app: fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), bench: fs.readFileSync(path.join(ROOT, 'tools', '_dust.html'), 'utf8') };
@@ -131,7 +159,7 @@ if (SELF) {
   process.exit(bad.length ? 1 : 0);
 }
 const t0 = Date.now(), D = fresh(), R = measure(D);
-for (const k in R) { const r = R[k]; log(k.padEnd(10) + ' cloud peak ' + r.peak.toFixed(0).padStart(5) + ' (30 s on ' + (r.after30 * 100).toFixed(0).padStart(3) + ' %)  thrown ' + JSON.stringify(r.kinds) + '  highest ' + r.maxH.toFixed(2) + ' m  splats max ' + Math.max(...r.splat)); }
+for (const k in R) { if (k === 'cost') continue; const r = R[k]; log(k.padEnd(10) + ' cloud peak ' + r.peak.toFixed(0).padStart(5) + ' (30 s on ' + (r.after30 * 100).toFixed(0).padStart(3) + ' %)  thrown ' + JSON.stringify(r.kinds) + '  highest ' + r.maxH.toFixed(2) + ' m  splats max ' + Math.max(...r.splat)); }
 const fail = check(D, { R, src });
 for (const f of fail) console.log('  FAIL ' + f);
 console.log('  (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');

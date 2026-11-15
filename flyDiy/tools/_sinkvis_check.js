@@ -4,8 +4,8 @@
 // A0 for the user (15 Nov): "wheels, tailwheels and skis sink visibly into mud and soft snow (depth from the surface + load;
 // the physics contact stays honest)". The solver's contact is at the hard ground and its sinkage is a drag and a readout
 // (SNOW-MUD's named cut); the DRAWN aeroplane is lowered and tilted by the plane through each contact's own sinkage:
-// sim.out.softW [main 0, main 1, tail 1, tail 2] (a soft frame's only), a ski's out.skiSink[k] at def.refs.skis[k] (SKIS'
-// contract), groundSinkPose (the best-fit plane, 00_registry), groundSinkMatrix (the rigid motion), app.js sinkPoseApply
+// sim.out.softW [main 0, main 1, tail 1, tail 2] (a soft frame's only), a ski's out.skiSink[k] at its unit's node (SKIS'
+// def.parts.ski), groundSinkPose (the best-fit plane, 00_registry), groundSinkMatrix (the rigid motion), app.js sinkPoseApply
 // (eased over SINK_TAU, premultiplied on model.grp's matrix).
 //
 //   node tools/_sinkvis_check.js            -> "GATE SINKVIS: PASS|FAIL"
@@ -88,7 +88,7 @@ function run(o) {
     yes(/model\.grp\.matrix\.copy\(mBasis\);\n\s*sinkPoseApply\(cg\);/.test(a), 'E applied right after the solver\'s basis');
     yes(/if \(!SW && !SK && SINK_V\[0\] < 1e-4/.test(a), 'E off a soft layer and eased back: one compare, nothing touched');
     yes(/groundSinkMatrix\(SINK_V/.test(a) && /groundSinkPose\(SINK_PTS/.test(a), 'E the core\'s fit and matrix');
-    yes(/R\.skis/.test(a) && /o\.skiSink/.test(a), 'E reads the skis\' contract (def.refs.skis, out.skiSink)');
+    yes(/def\.parts && def\.parts\.ski/.test(a) && /o\.skiSink/.test(a), 'E reads the skis\' contract (def.parts.ski, out.skiSink in the units\' order)');
   }
   // F
   const t0 = process.hrtime.bigint(), N = 20000, out = [0, 0, 0], A2 = new Array(16);
