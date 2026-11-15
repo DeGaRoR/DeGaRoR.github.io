@@ -37,6 +37,10 @@ cutout; skis down 6 cm below the tyre, up 3 cm above it, a 15 s cycle) and a tai
 
 (The wheel rows: the first run; the ski rows: after the two fixes below. GATE SKISARDENT re-flies the four ski legs.)
 
+RE-FLOWN ON L40c (claude/ready/skis-pc6 on master 58c68134, with OBSERVATORY-SITE overlaid for mt_strip): GATE SKISARDENT
+PASS 5/5 - powder landing run 80 m, 90 m left, the 15.8 cm rut; powder take-off 88 m (70 m left), 15 m at 248 m; packed
+take-off 85 m (73 m left); packed landing 222 m, 52 m past the end (REPORTED). On L40c alone (no mt_strip) the gate SKIPs.
+
 ## THE FINDINGS
 
 1. THE PC-6 ON ITS WHEEL-SKIS DOES THE ARDENT ALTIPORT ON POWDER: down uphill in 79 m with 90 m to spare, off downhill in

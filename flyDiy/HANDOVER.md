@@ -316433,3 +316433,66 @@ reports/evidence/SKIS/README.md.
 - SNOW-MUD FX (the user 13 Nov: "a professional looking particle system ... first a literature scouting ... snow clouds, particularly in the powder snow ... mud doesn't have a cloud, but it should have projection, maybe inspired by what we have for the water"), claude/ready/snow-mud: futureDesigns/SNOW-MUD-FX-2026-11-13.md (the scout's sources, the decision, as built, what the stills taught). ONE SYSTEM: the dust's (dust.js), one draw and one program, its pools and its overdraw budget. Four soft classes (mud 5, packed snow 6, powder 7, slush 8) with their own laws on the class row (lum, fall, g, drift, plough, rise, proj; absent on the dust's five, which fly and draw as before - GATE DUST 52/52). SNOW: powder lifts at a low threshold (u*t 0.07-0.25 m/s, Pomeroy & Gray), clouds ~2.4 x dirt at a run-up, billows up (rise) and SETTLES in seconds (fall); packed snow drifts (a saltation skin of sparkling streaks under 15 cm) and hardly clouds; snow puffs scatter forward (g 0.8) with a multiple-scattering fill and a blue shade; powder's plough throws clumps off a sinking wheel (the solver's out.softZ, handed in as wheels[k].sink). MUD / SLUSH: never a cloud; clods (6-24 mm, tumbling, lumpy-lit) and drop clusters from the touchdown's spin-up, the tread (v^2/R over the adhesion: held at a walk, shed at speed - aeroplane wheels are not driven, no rooster tail), the bow wave (x the sinkage) and the prop wash; their rise held to 5 m/s (~1.3 m); landed ones SPLAT (5-18 cm, wet then drying, alpha-eroded, a ring per tier that never overwrites a fresh one). THE BENCH (tools/_dust.html): was broken on master (no matlib.js - MATLIB is not defined); fixed, + Mud / Packed snow / Powder / Wet snow, a Wheel camera, ?scen=&cls=&cam=&sun=&t=&still=1 for stills; the stills drove six fixes (the doc's list: dark backlit snow, flat cloud, invisible mud, sparkler streaks, ember clods, the mud pavement). GATE SNOWMUDFX (new, core, ~1 s, --selftest 7/7 red). NOT DONE: no full-screen whiteout fog inside a cloud; no mud on the airframe from a roll on mud (aeroweather's BUSH is career wear); per-wheel sinkage (the frame's deepest serves all).
 
 - SNOW-MUD FINISH (A0 for the user, Sun 15 Nov 00:50: "visual sinking, mud testing, mud splash on planes, particles for all"), claude/ready/snow-mud-finish: futureDesigns/SNOW-MUD-FINISH-2026-11-15.md. Based on 6a8d705c4 (L40a) with claude/ready/snow-mud merged in. MERGE: master's brake hold (GEN_BRAKES) and the soft layer's drag on one rolling line. SOFTGROUND's legacy fixture was re-recorded off 6a8d705c4's OWN flight_core in a clean worktree (L40a moved the ground roll itself); the merge rolls bit-for-bit as pure L40a on all 16 rolls. (1) VISUAL SINKING (GATE SINKVIS, core ~3 s): the contact stays at the hard ground; sim.out.softW [main 0, main 1, tail 1, tail 2] (soft frames only) -> groundSinkPose (the plane through the contacts) -> groundSinkMatrix (a drop, a pitch, a roll about the CG) -> app.js sinkPoseApply (eased 0.2 s, premultiplied on model.grp.matrix); one compare off soft ground, 0.45 us on it. SKIS' def.refs.skis: a POSED unit (already low by its rut in the solver's pose, SKIS' moving datum) enters at nought - never sunk twice. (2) MUD FLOWN (GATE MUDFLY, FULL tier ~9 min, three children): the pilot's circuits from HOME. Take-off / landing roll, grass -> firm mud -> soft mud: Cub 104/95 -> 105/104 -> 119/79 m; C172 (list:50) 312/228 -> 379/194 m, soft mud REJECTED at 8 s (its 0.28 m nose wheel sinks 15.6 cm and cannot break out); PC-6 (drafting card, wheels) 59/227 -> 59/211 -> 61/148 m. Stuck limits (soft mud's k x f, full power from rest): the Cub stuck at f 0.5, the C172 at f 1, the PC-6 gets off at f 0.15. FIRM MUD RETUNED (k 3.3e6 / 6 cm -> 1.2e7 / 3 cm): the first fit bottomed the C172's nose wheel and it could not fly off; now +22 % with the pilot. (3) THE MUD COAT (GATE MUDCOAT, core ~8 s): aeroweather.js AERO_MUD + aeroMudStep (pure) + aeroWxSetMud. It builds on SURFACE 11/12 x speed x sinkage, the day's rain (soilNow.rainNow) and water wash it, drawn through the wheel mud cone (gear, belly, flap undersides), belly and depression layers over the macros', none at nought. A new aeroplane starts clean and the garage hides it. The Cub's soft-mud take-off cakes it to 0.57; 0.09 us a frame. (4) PARTICLES FOR ALL (GATE SNOWMUDFX + ski and cost rows): each contact its OWN sinkage (softW, skiSink); a ski has no tread, ploughs from its toe across its width; one draw. Cost (node, gamer): mud take-off 47 us median / 397 us p99, powder 104 / 450 us, at most 588 instances. CONTRACT WITH SKIS: one soft ground - SKIS reads GROUND_SOFT / GROUND_SKI_MU / groundSinkPlate; its optional row fields (skis, vP, lat, plough, fresh) are on the snow rows only, absent = my law; softW is node-slotted and a posed ski node writes none. NOT DONE: the pilot keeps no stick back on a soft roll (soft-field technique - Pilot's); per-wheel sinkage on a ski build comes from SKIS.
+
+## SKIS-PC6 - THE PC-6 ON SKIS AT THE OBSERVATORY'S ALTIPORT, AND ONE SOFT GROUND WITH SNOW-MUD (cloud session SKIS, 15 Nov 2026)
+
+A0 (Sun 15 Nov 00:50, the user's ask): "start the snow/mud finish now, with PC-6 SKIS in it" - (1) the PC-6 (validated:
+its flight figures not re-tuned) on skis as the real Porter; (2) THE ULTIMATE TEST, the user's own: PC-6 + skis + snow at
+the OBSERVATORY's runway, flown in node, take-off and landing, persona Expert, tabled; (3) the skis sink and plume through
+SNOW-MUD's work - one contact API, not two. Design note: futureDesigns/SKIS-2026-11-13.md section 3 (rewritten); the
+evidence and the table: reports/evidence/SKIS-PC6/README.md.
+
+- ONE SOFT GROUND, SNOW-MUD'S (agreed with SNOW-MUD 15 Nov, both sides coded): the skis read the world's SURFACE code
+  (8 packed, 9 powder, 10 wet, 11-12 mud), GROUND_SOFT[code] {k, n, zMax}, GROUND_SKI_MU[code] and SNOW-MUD's own laws
+  groundSinkPlate (a sole) / groundSinkWheel (a wheel-ski's tyre). world.soft and SOFT_GROUND are retired. What only a ski
+  needs are OPTIONAL FIELDS ON SNOW-MUD'S ROWS (set from 29c; their k / n / zMax / ski untouched): skis (a ski's ground -
+  the selector lowers there), vP (planing), lat (side grip), plough (bulldozing), and fresh {k, n, z} - the two-regime
+  snow SNOW-MUD named as a cut: a virgin top only a SOLE reads (tyres stay on SNOW-MUD's law exactly). Without it the
+  settled powder let 0.6 x 0.12 m skis sink 4 cm and lift off before proper ones; with it the Carbon Cub's sizes sink
+  28 / 18 / 11 cm and the tiny ones bog (GATE SKIS 5).
+- THE RUT, A MOVING DATUM (SNOW-MUD's named next step, built for the ski elements): each element's rut deepens (filtered
+  0.06 s, plastic) toward SNOW-MUD's quasi-static sinkage and the node's own ground spring acts from its floor - the gear's
+  stiffness, no stiff loop. A ski node is LOW BY ITS RUT IN THE PHYSICS' POSE: def.refs.skis[k].posed = true, and
+  SNOW-MUD's visual drop leaves posed units out. A wheel-ski's tyre in its rut pays its drag there (the wheel branch skips
+  its own sink drag for that node: skiSoft). The skis write SNOW-MUD's readouts softZ / softF (their softLive rule).
+- THE PLUME AND THE VISUAL SINKING ARE SNOW-MUD'S (their ask: one hand in dust.js / syncDustFx); the data handed over:
+  def.refs.skis = [{ nodes: [node], w, L, fwd, aft, main, kind, posed }] in the solver's order, out.skiSink[k] /
+  out.skiLoad[k] in the same order, out.ski (the selector).
+- THE PC-6 ON SKIS: the real Porter's factory option - hydraulic main WHEEL-SKIS + a tailwheel ski - on FIT-PROCEDURE's
+  landed card, ski rows only (tools/fixtures/skis/pc6_skis.json: aluminium shell, 2.9 x 0.66 m, the tail ski 0.95 x 0.28).
+- FIXED: (a) the wheel-ski's reset snap - the game's placement stands the aeroplane on its TYRES, the snap assumed the skis:
+  it pushed the PC-6's mains 6 cm into the ground (38 fuselage yields at the HOME stand) -> the gap MEASURED, the airframe
+  turned about the tail contact: 0 yields; (b) THE PILOT SETS A HYDRAULIC WHEEL-SKI FOR THE DESTINATION's ground before the
+  approach (43_pilot, beside the amphibian's wheels: SKISEL; nothing without a 'retract' ski) - the solver's rule alone
+  lowered them only over the snow (42 % at the touchdown); (c) a straight ski's tyre share was an ulp over zero and the
+  wheel pass braked it (GATE SKIS 6 caught it on SNOW-MUD's packed snow).
+- THE ULTIMATE TEST (tools/_skis_ardent.js; GATE SKISARDENT, full tier, needs OBSERVATORY-SITE's mt_strip): the game's
+  flight, persona Expert, the take-offs from the line-up. mt_strip 210 x 12 m, 1020 -> 1039 m, landed west uphill:
+    PC-6 wheels, gravel (datum)   landing run 97 m, 73 m left      take-off roll 67 m, 15 m at 199 m
+    PC-6 wheel-skis, POWDER       landing run 79 m, 90 m left, 15.8 cm rut, skis down, no damage
+                                  take-off roll 88 m (70 m of strip left), 15 m at 248 m, no damage
+    PC-6 wheel-skis, PACKED       landing run 221 m - 52 m PAST THE END (no brakes on skis, mu 0.04; no reverse)
+                                  take-off roll 85 m (73 m left)
+- THE BASE (claude/ready/skis-pc6): master 58c68134 (train L40c) + claude/ready/skis 03f22959d + claude/ready/snow-mud-finish
+  dc8667014 (merged as they are) + the SKIS-PC6 commits. ON L40c: (a) the gen frame's ski price / masses sit beside L40c's
+  MONOWHEEL and BICYCLE wheel (a monowheel on skis: no ski, not modelled; a wheel-ski keeps its own mWheel); (b) L40c's
+  TIP-SKID declares `SKD` in the solver's scope where SNOW-MUD's soft wheel's diameter array was `SKD` too - the core did
+  not build ("Identifier 'SKD' has already been declared"): SNOW-MUD's is SKDIA here (four uses; master's untouched) -
+  whoever lands snow-mud-finish on L40c alone needs the same; (c) GATE SKIS's no-ski witnesses re-blessed in a PURE L40c
+  worktree, reproduced byte for byte; (d) GATE SKISARDENT SKIPs (the runner's SKIP, never a PASS) where mt_strip is not
+  on the tree - OBSERVATORY-SITE (683d9cf30, on L39b) is not on L40c; flown on an overlay of it.
+- THE GATES on claude/ready/skis-pc6 (L40c, 15 Nov): SKIS, SKISARDENT (SKIP here; PASS 5/5 on the overlay of
+  OBSERVATORY-SITE: powder down in 80 m / 90 m left, off in 88 m; packed off in 85 m, the landing 52 m over, REPORTED),
+  SKISFLY, SOFTGROUND, SINKVIS, SNOWMUDFX (alone; its p99 cost row trips under a loaded machine), MUDFLY, MUDCOAT, PILOT,
+  PILOTCANFLY, PILOTS, PILOTACT, TAKEOFF, LINEUP, RETRACT, MONOWHEEL, SEAPLANE, STOL, CREWLOAD, INPUT, PANEL, UISMOKE,
+  STAND, STARTCHOOSER: PASS. RED AND RED ON PURE L40c 58c68134 THE SAME ROWS (run in a master worktree): GEN, ALTIPORT
+  (rows 2 / 3, tw_ski), UNIFY (EMERG, ARCH), DESIGNCHECK, JOINPARITY, POD, CANDIDATES, LOAD, PARTS (L40c's canClear row
+  unclaimed - 1439 vs 1440 on master); FRAMECOST: 75 rows on pure L40c with ?parkcook=0, the same 75 here (counts within
+  0.2 %) - with the cook on, the stand / taxi rows are the STALE parked cook (manifest 49bed5eb, any new build id).
+- FOR A0 / THE OWNERS:
+  - ENGINE (A0): the B2-H4's REVERSING PROPELLER is not in the game - on rolled snow the PC-6 on skis cannot stop in 210 m.
+  - PILOT: the landing-run sheet assumes wheel brakes (said 195 m; 221 slid); a pivot at a "push only" strip.
+  - FIT-PROCEDURE: the PC-6 breaks a tail member in the pilot's 252-deg pivot on the mt_strip apron - on plain wheels on
+    gravel too (1.2 m/s, flat apron, no strike); the 94-deg pivot at HOME is clean. Its card is not in
+    builds/candidates/index.json (GATE CANDIDATES, red on master).
+  - SNOW-MUD: wheels on powder - the bulldozing / ram drag is their named cut (A0's call whether the observatory wants it).
