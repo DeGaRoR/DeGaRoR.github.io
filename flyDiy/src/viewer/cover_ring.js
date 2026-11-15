@@ -270,7 +270,8 @@ var COVER_RING = (() => {
           lakeMargin: 0.03,      // G2572: how far ABOVE a lake's water the ground must stand for a tuft (m; render_world okAt; the sea keeps 0.3)
           tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
           colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1,
-          green: 1, greenDens: 0.8, greenLo: 1.05, greenSpan: 0.3 }   // GRASS ON GREEN (15 Nov): green 0 = today's (the A/B)
+          green: 1, greenDens: 0.8, greenLo: 1.05, greenSpan: 0.3,   // GRASS ON GREEN (15 Nov): green 0 = today's (the A/B)
+          feather: 0 }   // (16 Nov) the density blended across class boundaries, 0..1 - off until the user's frame says (the A/B)
       : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true,
           aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140, trunc: 1 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     // THE FIELD SHIPS OFF until its cost is cut (A0, train 43: the dials early, the field behind its editor switch - VEGETATION > the
@@ -740,6 +741,41 @@ var COVER_RING = (() => {
     // cell's own (hashed on it) and draws the same eight numbers for every candidate whatever is kept, so a tier is a PREFIX of
     // the next: a candidate stands at dTier when its fade threshold (aRand, its own rand) is under what its own size can show
     // from there (x the shrink band) - nearer, the cell is planted again and only adds (G2563 tiers).
+    // the field's row per mix (its length, spread, density, clumps): the mix's own reed row, else a bare biome's `fill` row, else
+    // none - a fresh table per call (a cell's build, or the instrument below)
+    function fieldTypes(c) {
+      const types = new Map();
+      return mix => {
+        if (types.has(mix)) return types.get(mix);
+        const M = mix ? BIO.mixOf(mix) : null, row = M && M.species && M.species[c.name];
+        let T = null;
+        const D = FIELD_TYPES[mix] || FIELD_MEADOW;
+        if (row || (M && D.fill)) { const F = M.forest || {}, R0 = row || {}, pick = (k, d) => (R0[k] !== undefined ? R0[k] : (F[k] !== undefined ? F[k] : (D[k] !== undefined ? D[k] : d)));
+          // (a bare biome's `forest.cover` is 0 - its own flowers' and the old patches' - so the field's own density stands there)
+          const cov = (R0.dens !== undefined || D.fill) ? 1 : (F.cover === undefined ? 1 : F.cover);
+          T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * cov, clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp) }; }
+        types.set(mix, T); return T; };
+    }
+    // THE FIELD AT A POINT (the instrument, 16 Nov - the false-colour frame): what the field plants at (x, z) by the same rules as
+    // buildField, before the blotch, the tiers and the fade - its tufts per m2, the length, and why (the node's class, the land
+    // test, the kill, the cut, the drawn colour's greenness). The cells' sub-grids are kept until fieldAtReset() (or a replant)
+    const FA = new Map();
+    function fieldAt(x, z) {
+      if (!FIELD || !BIO) return null;
+      const c = speciesOf()[0]; if (!c) return null;
+      const C = S.cell, cx = Math.floor(x / C), cz = Math.floor(z / C), key = cellKey(cx, cz);
+      let E = FA.get(key); if (!E) { if (FA.size > 4096) FA.clear(); E = { G: subGrid(cx * C, cz * C, C), typeOf: fieldTypes(c) }; FA.set(key, E); }
+      const G = E.G, k = G.at(x, z), T0 = E.typeOf(G.mix[k]), gD = S.green > 0 ? Math.max(0, +S.greenDens || 0) : 0;
+      const dT = T0 ? T0.dens : 0, dG = gD * (G.green ? G.green[k] : 0), d = Math.max(dT, dG);
+      const ok = !!G.ok[k], kill = G.kill[k], cut = G.cut[k], surf = G.surf[k], kind = G.kind[k], boost = G.boost[k];
+      const cutF = cut > 0 ? 1 + ((surf ? S.stripDens : S.cutDens) - 1) * cut : 1;
+      const live = ok && kill < 1 && kind !== 1 && kind !== 3;
+      const T = T0 || FIELD_MEADOW, hw = T.h * S.hK, hc = surf ? S.stripH : S.cutH;
+      return { mix: G.mix[k], code: G.code[k], ok, kill: +kill.toFixed(3), cut: +cut.toFixed(3), surf: !!surf, cls: !!G.cls[k], kind,
+        green: G.green ? +G.green[k].toFixed(3) : 0, col: [G.col[k * 3], G.col[k * 3 + 1], G.col[k * 3 + 2]],
+        dType: dT, dGreen: +dG.toFixed(3), perM2: live ? +(S.on ? S.tufts * d * cutF * (1 - kill) * (1 + boost) : 0).toFixed(2) : 0,
+        h: +(hw + (hc - hw) * cut).toFixed(3), why: !S.on ? 'field off' : !ok ? 'land test' : kill >= 1 ? 'kill' : kind === 1 ? 'lawn' : kind === 3 ? 'none' : !(d > 0) ? 'no row, not green' : cut > 0.5 ? 'mown' : 'wild' };
+    }
     function buildField(cx, cz, dTier, born) {
       const t0 = performance.now();
       const C = S.cell, x0 = cx * C, z0 = cz * C;
@@ -751,22 +787,20 @@ var COVER_RING = (() => {
       for (const p of P) for (const q of p.parts) if (LEAF.fadeOwn) LEAF.fadeOwn(q.mat, FSET);
       fieldH0 = P.reduce((a, p) => a + p.h0, 0) / P.length;
       const G = subGrid(x0, z0, C);
-      const types = new Map(), typeOf = mix => {
-        if (types.has(mix)) return types.get(mix);
-        const M = mix ? BIO.mixOf(mix) : null, row = M && M.species && M.species[c.name];
-        let T = null;
-        const D = FIELD_TYPES[mix] || FIELD_MEADOW;
-        if (row || (M && D.fill)) { const F = M.forest || {}, R0 = row || {}, pick = (k, d) => (R0[k] !== undefined ? R0[k] : (F[k] !== undefined ? F[k] : (D[k] !== undefined ? D[k] : d)));
-          // (a bare biome's `forest.cover` is 0 - its own flowers' and the old patches' - so the field's own density stands there)
-          const cov = (R0.dens !== undefined || D.fill) ? 1 : (F.cover === undefined ? 1 : F.cover);
-          T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * cov, clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp) }; }
-        types.set(mix, T); return T; };
+      const typeOf = fieldTypes(c);
       // GRASS ON GREEN (15 Nov): a node's density is at least greenDens x its greenness; a green node of a type with no row of
       // its own (a bare biome, no mix) grows the meadow's length at that floor
       const gD = S.green > 0 ? Math.max(0, +S.greenDens || 0) : 0, GR = G.green;
       const densAt = (T, k) => Math.max(T ? T.dens : 0, gD * GR[k]);
       const FIELD_GREEN_T = { h: FIELD_MEADOW.h, sigma: FIELD_MEADOW.sigma, dens: 0, clumpM: S.clumpM, clumpAmp: S.clumpAmp };
-      let dmax = 0; for (let k = 0; k < G.N * G.N; k++) { const d = densAt(typeOf(G.mix[k]), k); if (d > dmax) dmax = d; }
+      // THE FEATHER (16 Nov; the user: "grass covers more of the transition between zones"): a node's density blended bilinearly
+      // over the four nodes round a candidate instead of the nearest one's alone (`feather` 0..1), so the grass runs through a
+      // class boundary instead of stopping on it. The land test, the kill and the plot's kind stay the candidate's own node's
+      // (never onto a runway, into water or a lawn); only the density between grassy classes is feathered
+      const NN = G.N * G.N, Dn = new Float32Array(NN), fth = Math.max(0, Math.min(1, +S.feather || 0));
+      let dmax = 0; for (let k = 0; k < NN; k++) { const d = Dn[k] = densAt(typeOf(G.mix[k]), k); if (d > dmax) dmax = d; }
+      const densB = (x, z) => { const fx = Math.min(G.N - 1.001, Math.max(0, (x - x0) / SG)), fz = Math.min(G.N - 1.001, Math.max(0, (z - z0) / SG)), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, k = j * G.N + i;
+        return Dn[k] * (1 - tx) * (1 - tz) + Dn[k + 1] * tx * (1 - tz) + Dn[k + G.N] * (1 - tx) * tz + Dn[k + G.N + 1] * tx * tz; };
       const cutMax = Math.max(1, S.cutDens, S.stripDens);
       const env = S.tufts * dmax * cutMax * (1 + G.bmax);   // the candidates' density: every keep below is a share of it
       if (env <= 0) { STAT.lastMs = performance.now() - t0; return cell; }
@@ -778,7 +812,7 @@ var COVER_RING = (() => {
       for (let i = 0; i < n; i++) {
         const x = x0 + R() * C, z = z0 + R() * C, rand = R(), rA = R(), rV = R(), rY = R(), rH1 = R(), rH2 = R(), rJ = R();
         if (rand >= tierMax) continue;
-        const gk = G.at(x, z), T0 = typeOf(G.mix[gk]), dK = densAt(T0, gk); if (!(dK > 0)) continue;
+        const gk = G.at(x, z), T0 = typeOf(G.mix[gk]), dK = fth > 0 ? Dn[gk] + (densB(x, z) - Dn[gk]) * fth : Dn[gk]; if (!(dK > 0)) continue;
         const T = T0 || FIELD_GREEN_T;
         const fk = F ? F.at(x, z) : -1;
         const kill = fk >= 0 ? F.kill[fk] : G.kill[gk], kind = fk >= 0 ? F.kind[fk] : G.kind[gk], ok = fk >= 0 ? F.ok[fk] : G.ok[gk];
@@ -1371,7 +1405,8 @@ var COVER_RING = (() => {
       fadeSet: () => FSET,   // the field's own fade uniforms (null: the shared set) - GATE COVER reads them
       lakeMargin: () => (FIELD ? Math.max(0, +S.lakeMargin || 0) : 0.3),   // G2572: render_world okAt reads it (both rings), no copy a call
       field: FIELD,
-      replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
+      fieldAt, fieldAtReset: () => FA.clear(),   // (16 Nov) the instrument: what the field plants at a point, and why
+      replant: () => { FA.clear(); for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
       // SHED-FLOOR: only the cells a box touches (a shed stood or came down: render_world floorsChanged) - dropped, so the
       // ring plants them again on its budget, nearest first, with what the land test now says
       replantBox: (x0, z0, x1, z1) => { const C = S.cell; let n = 0;
