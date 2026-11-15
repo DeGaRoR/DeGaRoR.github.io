@@ -2788,6 +2788,31 @@ const AERO_KIT = [
         g.globalCompositeOperation = 'source-over';
       }
     } },
+
+  // CARBON-CUB-LIVERY (the user 16 Nov via A0: the yellow over metallic grey, "with pinstripe sweeps"): THE SWEEP'S OWN
+  // LINE REPEATED as up to three stripes under it, the gaps closing up aft. Laid over a sweep layer with the same place,
+  // level and bend they run with its line, whatever the aeroplane. Nothing is filled: the paint, or the sweep's colour
+  // below, shows between the stripes. A stripe whose colour is transparent is left out (a two-stripe scheme).
+  { name: 'sweep stripes', cn: ['first stripe', 'second stripe', 'third stripe'],
+    help: 'the sweep’s line repeated as up to three stripes under it, closing up aft. Give it the same place, ' +
+          'level and bend as a sweep layer and the stripes run with its line; a transparent colour leaves its stripe out',
+    k: [{ n: 'level', lo: 0.05, hi: 0.95, st: 0.01, def: 0.44 },
+        { n: 'bend', lo: 0, hi: 0.60, st: 0.01, def: 0.24 },
+        { n: 'spacing', lo: 0.01, hi: 0.20, st: 0.005, def: 0.05 },
+        { n: 'width', lo: 0.004, hi: 0.08, st: 0.002, def: 0.02 }],
+    draw(g, P, o) {
+      // the sweep's curve (its draw above), each stripe a spacing further down at the nose and 45 % of it at the tail
+      const y0 = (1 - o.p) * P, y1 = y0 - o.q * P, sp = o.r * P, w = Math.max(1, o.s * P);
+      const ink = [o.a, o.b, o.d], wk = [1, 0.45, 0.45];
+      g.lineCap = 'butt';
+      for (let i = 0; i < 3; i++) {
+        if (ink[i] === AERO_KIT_CLEAR) continue;
+        const d0 = sp * (i + 1), d1 = d0 * 0.45;
+        g.beginPath(); g.moveTo(-2, y0 + d0);
+        g.bezierCurveTo(P * 0.46, y0 + d0, P * 0.60, y1 + d1, P + 2, y1 + d1);
+        g.lineWidth = Math.max(1, w * wk[i]); aeroKitInk(g, ink[i]); g.stroke();
+      }
+    } },
 ];
 
 // ---- LIVERY-5: the pattern generator's lattice and shapes ----------------------------------------------------------
