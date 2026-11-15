@@ -20,6 +20,9 @@
 //   do      board        nothing flies: the aeroplane is checked (mass, fuel, no damage)
 //           start        the first leg begins (the page's Go: 'start')
 //           leg          a next leg { "to": id } from where the aeroplane stopped (the page's nextLeg: 'leg')
+//           lift         { "by": m } the aeroplane raised (or lowered) in place, its speeds kept - the pilot finds itself that
+//                        much higher where it was (DESCENT, 15 Nov: "high on final"; the in-game twin is the player handing
+//                        the autopilot back high). Read the step after it, not this one
 //           (absent)     nothing new: the step watches the flight go on
 //   until   (all must hold, read every step; a step with no until passes at once)
 //           phase        a phase or a list of phases (43's: TAXI, HOLD, LINEUP, ROLL, LIFTOFF, CLIMB, ENROUTE, DOWNWIND,
@@ -29,6 +32,11 @@
 //           stoppedAt    an aerodrome id: STOPPED on its strip (38b_dest flightWhere, as the tour judges a landing)
 //           declined     true: the pilot declined the take-off at the hold, its reason said (43 go / no-go)
 //   capS    the step's time cap (sim seconds); past it the step FAILS with its WHY
+// A STEP'S FLIGHT FIGURES ('step' line .fly): the least air speed and the most sink while airborne, the highest and lowest CG,
+//   and at its first touch (airborne, then wheels down): the sink, the air speed and the pitch - a landing step's table row.
+//   No prop strike is a pass condition of EVERY step (the faults below) unless the step allows it
+// trees  (the scenario's, optional) [[x, z, r, h], ...]: standing canopy h metres tall within r of (x, z), added to the node
+//   world's canopyH - the page's trees where the node world has none (the runway model's obstacle cone reads canopyH)
 //   allow   faults this step tolerates: 'yield', 'prop-strike', 'dent', 'declined' (a break, a crash, NaN, ABORT: never)
 // A FAILED STEP STOPS THE RUN (never run on blind): its WHY = the fault or the unmet conditions, the phase, the pilot's
 // goal and conditions (ap.status), its last verdicts, the position and the speeds.
@@ -61,19 +69,21 @@ function loadScenario(arg) {
   S.file = f;
   return S;
 }
-const DO = new Set(['board', 'start', 'leg']);
+const DO = new Set(['board', 'start', 'leg', 'lift']);
 const UNTIL = new Set(['phase', 'agl', 'engine', 'stoppedAt', 'declined']);
 const ALLOW = new Set(['yield', 'prop-strike', 'dent', 'declined']);
 function checkScenario(S) {
   const bad = [];
   if (!S.plane) bad.push('no plane');
   if (!S.from) bad.push('no from');
+  if (S.trees != null && !(Array.isArray(S.trees) && S.trees.every(q => Array.isArray(q) && q.length === 4 && q.every(Number.isFinite)))) bad.push('trees: a list of [x, z, r, h]');
   if (!Array.isArray(S.steps) || !S.steps.length) bad.push('no steps');
   (S.steps || []).forEach((st, i) => {
     const tag = 'step ' + (i + 1) + ' (' + (st.name || '?') + ')';
     if (!st.name) bad.push(tag + ': no name');
     if (st.do && !DO.has(st.do)) bad.push(tag + ': do "' + st.do + '" unknown');
     if (st.do === 'leg' && !st.to) bad.push(tag + ': a leg needs its to');
+    if (st.do === 'lift' && !(typeof st.by === 'number' && isFinite(st.by))) bad.push(tag + ': a lift needs its by (metres)');
     for (const k of Object.keys(st.until || {})) if (!UNTIL.has(k)) bad.push(tag + ': until.' + k + ' unknown');
     for (const a of st.allow || []) if (!ALLOW.has(a)) bad.push(tag + ': allow "' + a + '" unknown');
     if (st.until && !(st.capS > 0)) bad.push(tag + ': a step that waits needs its capS');
@@ -116,6 +126,11 @@ function runNode(S, opt) {
   const def = TR.defOf(C, PT, P.key);
   const TW = TR.tourWorld(C, IN, fs);
   const W = TW.W;
+  // the scenario's standing trees (the page's canopy the node world lacks): on top of the world's own canopyH
+  if (Array.isArray(S.trees) && S.trees.length) {
+    const can0 = typeof W.canopyH === 'function' ? W.canopyH.bind(W) : null;
+    W.canopyH = (x, z, r) => { let h = can0 ? can0(x, z, r) : 0; for (const q of S.trees) if (Math.hypot(x - q[0], z - q[1]) <= q[2] + (r || 0)) h = Math.max(h, q[3]); return h; };
+  }
   const A = id => { const a = W.aerodromes.find(q => q.id === id); if (!a) throw new Error('no aerodrome ' + id + ' on Jolene'); return a; };
   const from = A(S.from), to = A(S.to || S.from);
   const day = S.day === 'calm' ? null : (S.day && typeof S.day === 'object' ? S.day : undefined);   // undefined = the game's
@@ -206,13 +221,18 @@ function runNode(S, opt) {
       if (Dm && (Dm.breaks || Dm.crashed)) m.push('damaged before the flight');
       if (m.length) failed = { step: si, name: st.name, why: why(st, s, 'not ready to board: ' + m.join(', ')) };
     } else if (st.do === 'start') H.queueCmd({ cmd: 'start' });
-    else if (st.do === 'leg') {
+    else if (st.do === 'lift') {
+      for (let i = 0; i < sim.n; i++) sim.p[i * 3 + 1] += st.by;   // (sim_host simHostPlace's own move: every node, the speeds kept)
+      s = state();
+    } else if (st.do === 'leg') {
       const here = whereId(s.cg[0], s.cg[2]) || curFrom;
       H.queueCmd({ cmd: 'leg', from: here, to: st.to });
       curFrom = here;
     }
     // the wait
     let miss = st.until ? until(st.until, s) : [];
+    const fly = { iasMin: null, sinkMax: null, hMax: null, hMin: null, touch: null };
+    let wasAir = !s.onG;
     const cap = st.capS || 0;
     while (!failed && miss.length) {
       if (t - t0 >= cap) { failed = { step: si, name: st.name, why: why(st, s, 'the cap: ' + cap + ' s passed with ' + miss.join('; ')) }; break; }
@@ -222,6 +242,12 @@ function runNode(S, opt) {
       t += dt;
       s = state();
       if (phases[phases.length - 1] !== s.ph) phases.push(s.ph);
+      if (!s.onG) {
+        if (s.agl > 3) { fly.iasMin = fly.iasMin == null ? s.Va : Math.min(fly.iasMin, s.Va); fly.sinkMax = fly.sinkMax == null ? s.vs : Math.min(fly.sinkMax, s.vs); }
+        fly.hMax = fly.hMax == null ? s.cg[1] : Math.max(fly.hMax, s.cg[1]); fly.hMin = fly.hMin == null ? s.cg[1] : Math.min(fly.hMin, s.cg[1]);
+        wasAir = true;
+      } else if (wasAir && !fly.touch) { fly.touch = { t: r1(t), sink: r2(s.vs), Va: r1(s.Va), pitch: r1(s.pitch), ph: s.ph }; wasAir = false; }
+      else wasAir = false;
       hear(si, s);
       if (Math.floor(t) !== Math.floor(t - dt)) sample(si, s);
       const f = faultOf(st, s);
@@ -234,6 +260,8 @@ function runNode(S, opt) {
     const rec = { type: 'step', i: si, name: st.name, do: st.do || null, ok, t0: r1(t0), t1: r1(t), dur: r1(t - t0), phases,
                   end: { ph: s.ph, pos: [r1(s.cg[0]), r1(s.cg[1]), r1(s.cg[2])], agl: r1(s.agl), Vg: r1(s.Vg), Va: r1(s.Va), where: whereId(s.cg[0], s.cg[2]),
                          fuel: sim.fuel ? r1(sim.fuel.litres) : null },
+                  fly: { iasMin: fly.iasMin == null ? null : r1(fly.iasMin), sinkMax: fly.sinkMax == null ? null : r1(fly.sinkMax),
+                         hMax: fly.hMax == null ? null : r1(fly.hMax), hMin: fly.hMin == null ? null : r1(fly.hMin), touch: fly.touch },
                   said, solverMs: ms.length ? { n: ms.length, p50: r2(pct(ms, 0.5)), p99: r2(pct(ms, 0.99)), max: r2(Math.max(...ms)) } : null,
                   why: failed ? failed.why : null };
     J(rec); results.push(rec);

@@ -3119,6 +3119,7 @@ function makePilot(sim, def, world, opts) {
     const planFromHere = () => {
       const { from, to } = ap.route;
       ap.climbHold = null;   // G2450 / G2520: a new arrival plan ends a climb hold
+      ap.fafCapped = false;  // DESCENT: set by a designed approach whose FAF was capped (below)
       const climbDir = [F.ux * ap.dirX, 0, F.uz * ap.dirX];
       let u;
       // G1945 DEST-TO: a re-plan in the air (ap.setDest) arrives the cross-country way, whatever the To
@@ -3155,6 +3156,7 @@ function makePilot(sim, def, world, opts) {
           const hDesG = aimAlt() + ap.gs * dFaf - ap.altRef, hTypeG = aimAlt() + A.gs * dFaf - ap.altRef;
           P.hC = Math.max(A.hSafe + 10, Math.min(hDesG, Math.max(hTypeG, ap.hCruise)));
           if (ap.appr) ap.appr.designed = { dFaf: Math.round(dFaf), hFaf: Math.round(P.hC), hSlope: Math.round(hDesG) };
+          ap.fafCapped = P.hC < hDesG - 4;   // (FINAL: level under the steep slope until it comes down to meet the aeroplane)
           P.sIaf = P.sFaf - Math.max(400, 10 * VTurn);
           const R2 = 2 * Rturn, tlD = Math.hypot(vcg[0], vcg[2]);
           const RcD = 2 * (1.05 * Math.max(V, 8)) ** 2 / (9.81 * Math.tan(bankLim));
@@ -5136,7 +5138,11 @@ function makePilot(sim, def, world, opts) {
         const d = ap.xAim - sAl;
         const hGS = aimAlt() + Math.max(0, d) * ap.gs;
         const above = cg[1] - hGS;
-        if (!slopeCaptured && above < 4) slopeCaptured = true;
+        // DESCENT: UNDER A CAPPED DRAWN FAF THE SLOPE COMES DOWN TO MEET THE AEROPLANE (G381's own words). Below the slope, the
+        // capture made at once flew the slope's law UP to it - the fixed Rufus off Cabin Strip, its FAF kept at 326 m under an
+        // 0.10 slope's 524, climbed 55 m on its final. There the latched level is held until the slope is within 4 m; every
+        // other final captures as before
+        if (!slopeCaptured && above < 4 && !(ap.fafCapped && above < -4)) slopeCaptured = true;
         // G381: THE LEVEL SEGMENT IS LATCHED — its target was min(cg[1],
         // hGS + 10) re-read every tick, so a sag was never corrected (25 m
         // on the cub, then a climb back into the slope). And THE BANK: the
@@ -5145,7 +5151,7 @@ function makePilot(sim, def, world, opts) {
         // then the tracking bank of 0.18 — the 10 deg cap alone could not
         // finish a turn planned at 23 and crossed the centreline by 147 m.
         if (finalLevel == null) finalLevel = Math.min(cg[1], hGS + 10);
-        { const aim = wp(F, ap.xAim, 0); pubH = (slopeCaptured || above < 0 || above > 4) ? hGS : finalLevel; pubN = 'AIM'; pubX = aim[0]; pubZ = aim[1]; }
+        { const aim = wp(F, ap.xAim, 0); pubH = (slopeCaptured || (above < 0 && !ap.fafCapped) || above > 4) ? hGS : finalLevel; pubN = 'AIM'; pubX = aim[0]; pubZ = aim[1]; }
         // P0.6: the last fillet (base -> final) is the path's; LOC takes over
         // once the nose is within 11 deg of the runway and 60 m of the line
         const nS = nose[0] * F.ux + nose[1] * F.uz;
@@ -5189,7 +5195,7 @@ function makePilot(sim, def, world, opts) {
         }
         // P0.5: the slope and the level before it are two references of the one law
         // (G3914: the elevator cannot hold the reference in a slip - the same Cub, 20.6 m/s on 0.35-0.41 of it for 19.2 - and asking it anyway winds the pitch up)
-        if (slopeCaptured || above < 0) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF + (P3_ ? 1.5 * slipK : 0), bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs), spdPri: P3_ || ap.shortFld });
+        if (slopeCaptured || (above < 0 && !ap.fafCapped)) engage(latF, 'TECS', 'TECS', { gs: ap.gs, alt: null, vs: null, ias: iasF + (P3_ ? 1.5 * slipK : 0), bank: bFs, vsUp: 1.5, vsDn: Math.min(-3.0, -1.6 * V * ap.gs), spdPri: P3_ || ap.shortFld });
         // ABOVE THE SLOPE ON ENTRY (G434, the hill strip on Jolene): the enroute leg's clearance over
         // the ground under it (hClear) had left the aeroplane 30 m over the pattern height, the
         // level was latched THERE and the slope, descending to the aim, only fell away under it -

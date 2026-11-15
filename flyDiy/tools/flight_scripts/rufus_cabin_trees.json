@@ -1,0 +1,63 @@
+{
+  "name": "rufus_cabin_trees",
+  "what": "rufus_cabin with a 25 m stand of trees 150 m before the threshold (the page's canopy, which the node world lacks there): the obstacle steepens the slope to the cap, 0.16 - the user's 989 m FAF",
+  "plane": "list:7",
+  "from": "w1",
+  "to": "w1",
+  "day": "game",
+  "persona": "expert",
+  "trees": [
+    [
+      2506.8,
+      -16351.9,
+      40,
+      25
+    ]
+  ],
+  "steps": [
+    {
+      "name": "board",
+      "do": "board"
+    },
+    {
+      "name": "start-up",
+      "do": "start",
+      "until": {
+        "engine": true
+      },
+      "capS": 10
+    },
+    {
+      "name": "taxi to the hold",
+      "until": {
+        "phase": [
+          "HOLD",
+          "LINEUP",
+          "ROLL"
+        ]
+      },
+      "capS": 400
+    },
+    {
+      "name": "take-off",
+      "until": {
+        "agl": 30
+      },
+      "capS": 120
+    },
+    {
+      "name": "the circuit to the final",
+      "until": {
+        "phase": "FINAL"
+      },
+      "capS": 900
+    },
+    {
+      "name": "land and stop on Cabin Strip",
+      "until": {
+        "stoppedAt": "w1"
+      },
+      "capS": 900
+    }
+  ]
+}

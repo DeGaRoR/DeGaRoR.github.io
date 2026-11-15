@@ -1,0 +1,55 @@
+{
+  "name": "rufus_cabin",
+  "what": "Rufus (list:7) off Cabin Strip, one circuit on the drawn approach, the game's day (the user's flight of 15 Nov: its BASE must not climb; read the steps' fly.hMax)",
+  "plane": "list:7",
+  "from": "w1",
+  "to": "w1",
+  "day": "game",
+  "persona": "expert",
+  "steps": [
+    {
+      "name": "board",
+      "do": "board"
+    },
+    {
+      "name": "start-up",
+      "do": "start",
+      "until": {
+        "engine": true
+      },
+      "capS": 10
+    },
+    {
+      "name": "taxi to the hold",
+      "until": {
+        "phase": [
+          "HOLD",
+          "LINEUP",
+          "ROLL"
+        ]
+      },
+      "capS": 400
+    },
+    {
+      "name": "take-off",
+      "until": {
+        "agl": 30
+      },
+      "capS": 120
+    },
+    {
+      "name": "the circuit to the final",
+      "until": {
+        "phase": "FINAL"
+      },
+      "capS": 900
+    },
+    {
+      "name": "land and stop on Cabin Strip",
+      "until": {
+        "stoppedAt": "w1"
+      },
+      "capS": 900
+    }
+  ]
+}
