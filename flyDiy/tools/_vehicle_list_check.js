@@ -6,7 +6,7 @@
 //   - the switches: showVehicles false empties the category, showCandidates false empties the candidate layer only;
 //   - the user's statuses (15 Nov): the van's three liveries and the roadster validated, the UTV and the Dune Bug
 //     candidates, the Conquer pickup selectable (no garage build: in neither layer);
-//   - the garage's Fleet draws the category through VEHICLE_KIND.layers, the two layers in their own boxes.
+//   - the Fleet (fleet_screen.js's Vehicles tab) gets the category through the garage's vehicleLists door, two headed layers.
 // check(ROOT) -> [{ ok, msg }]
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -34,9 +34,13 @@ function check(ROOT) {
   const conq = J.vehicles.find(v => v && /conquer/i.test(v.name || ''));
   row(!bad.length && conq && conq.status === 'selectable' && !conq.file,
     'the user\'s statuses (15 Nov): van x3 + roadster validated, UTV + Dune Bug candidates, the Conquer selectable with no garage build' + (bad.length ? ' - WRONG: ' + bad.join(', ') : ''));
+  // (L40e: the garage's popup Fleet went - fleet_screen.js draws the Fleet; its Vehicles tab reads the garage's
+  // vehicleLists door, which is VEHICLE_KIND.layers, and heads the two layers)
   const G = fs.readFileSync(path.join(ROOT, 'src/viewer/garage.js'), 'utf8');
-  row(/VEHICLE_KIND\.layers\(j\)/.test(G) && /class="gfVeh"/.test(G) && /class="gfVehCand"/.test(G),
-    'the Fleet draws the category through VEHICLE_KIND.layers, validated (.gfVeh) and candidate (.gfVehCand) apart');
+  const FS = fs.readFileSync(path.join(ROOT, 'src/viewer/fleet_screen.js'), 'utf8');
+  row(/VEHICLE_KIND\.layers\(j\)/.test(G) && /vehicleLists: vehicleList/.test(G) && /g\.vehicleLists/.test(FS) &&
+      /layer === 'candidate' \? 'Candidates/.test(FS),
+    'the Fleet\'s Vehicles tab (fleet_screen.js) reads the garage\'s vehicleLists door (VEHICLE_KIND.layers) and heads the layers: Validated, Candidates');
   return out;
 }
 module.exports = { check };
