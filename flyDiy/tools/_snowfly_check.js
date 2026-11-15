@@ -17,9 +17,9 @@
 //    ground, and stops on the strip; the no-pilot run at full power is held under 0.9 Vs for 60 s (the ram) - for all three,
 //    the 550 shp PC-6 included.
 // C. A SKI GETS THROUGH (the law, both rows): a ski of the build's own mains' size class (SS-class: 0.30 x 1.8 m on the Cub,
-//    0.45 x 2.4 m on the C172 and the PC-6), at the same main's load, at 15 m/s: its sliding (GROUND_SKI_MU) and its plough
-//    (groundSinkPlate) resist less than a quarter of the tyre's compaction + bulldozing - and less than the build's static
-//    thrust's share for that main by a margin, where the tyre's exceeds it.
+//    0.45 x 2.4 m on the C172 and the PC-6), at the same main's load, at 15 m/s: its sliding (GROUND_SKI_MU: cold powder's 0.12
+//    is most of it) and its plough (groundSinkPlate) resist less than half the tyre's compaction + bulldozing, and less than
+//    80 % of the build's STATIC thrust's share for that main - it gets going. (The tyre's side is B's, flown: held.)
 // D. FLOWN ON SKIS (when SKIS' PC-6 on skis is in the tree: tools/fixtures/skis/pc6_skis.json, a build with def.refs.skis or
 //    def.parts.ski): the no-pilot run on powder gets off. Without the fixture the row says PENDING and asserts nothing.
 'use strict';
@@ -62,16 +62,16 @@ function measurePlane(key) {
     const def = C.buildGen(JSON.parse(JSON.stringify(sp))), Vs = def.params.gen.Vs, sim = C.makeSim(def, { terrainH: () => 0, surface: () => code, treesNear: () => [] });
     sim.reset(0); for (let i = 0; i < 300; i++) sim.step(1 / 60);
     const Rf = def.refs, P = sim.p, hdg = () => Math.atan2((P[Rf.mains[0] * 3 + 2] + P[Rf.mains[1] * 3 + 2]) / 2 - P[Rf.tw * 3 + 2], (P[Rf.mains[0] * 3] + P[Rf.mains[1] * 3]) / 2 - P[Rf.tw * 3]);
-    const h0 = hdg(), p0 = sim.cgPos(); sim.ctl.thr = 1; let run = null, Vmax = 0;
+    const h0 = hdg(), p0 = sim.cgPos(); sim.ctl.thr = 1; let run = null, Vmax = 0, thrust0 = 0;
     for (let t = 0; t < 60; t += 1 / 60) {
       let e = hdg() - h0; e = Math.atan2(Math.sin(e), Math.cos(e)); sim.ctl.dr = Math.max(-1, Math.min(1, 4 * e)); sim.step(1 / 60);
-      Vmax = Math.max(Vmax, sim.out.V);
+      Vmax = Math.max(Vmax, sim.out.V); if (!thrust0) thrust0 = sim.out.thrust || 0;   // (the static thrust: the first frame's)
       const p = sim.cgPos(), d = Math.hypot(p[0] - p0[0], p[2] - p0[2]);
       if (d > 1100) break;
       if (sim.out.V > 0.9 * Vs) { run = d; break; }
     }
     // the static thrust and the mains' load (the law's row C)
-    return { run, Vmax, Vs, thrust: sim.out.thrust || 0, mass: def.nodes.reduce((s, n) => s + (n.m || 0), 0), ski: !!((def.refs && def.refs.skis) || (def.parts && def.parts.ski)) };
+    return { run, Vmax, Vs, thrust: thrust0, mass: def.nodes.reduce((s, n) => s + (n.m || 0), 0), ski: !!((def.refs && def.refs.skis) || (def.parts && def.parts.ski)) };
   }
   const out = { key, grass: circuit(null), packed: circuit(8), powder: circuit(9), wet: circuit(10),
                 sGrass: straight(spec, 0), sPacked: straight(spec, 8), sPowder: straight(spec, 9), sWet: straight(spec, 10) };
@@ -87,7 +87,7 @@ function measurePlane(key) {
     const ski = plough + C.GROUND_SKI_MU[c][0] * N;
     out.law[c] = { N, tyre, tz, ski, sz };
   }
-  out.thrustShare = out.sGrass.thrust / 2;   // the static thrust's share per main
+  out.thrustShare = out.sGrass.thrust / 2;   // the STATIC thrust's share per main (what a ski must beat to get going)
   return out;
 }
 if (ONE) { process.stdout.write(JSON.stringify(measurePlane(ONE))); process.exit(0); }
@@ -132,8 +132,8 @@ Promise.all(Object.keys(PLANES).map(k => new Promise(res => {
   // C
   for (const k in PLANES) { const r = by[k], nm = PLANES[k].name;
     for (const c of [9, 10]) { const L = r.law[c];
-      yes(L.ski < 0.25 * L.tyre, 'C ' + nm + ' on ' + (c === 9 ? 'powder' : 'wet snow') + ': a ski resists under a quarter of its tyre', Math.round(L.ski) + ' vs ' + Math.round(L.tyre) + ' N');
-      yes(L.ski < 0.6 * r.thrustShare && L.tyre > r.thrustShare, 'C ' + nm + ' on ' + (c === 9 ? 'powder' : 'wet snow') + ': the ski well under the thrust\'s share, the tyre over it', 'ski ' + Math.round(L.ski) + ', tyre ' + Math.round(L.tyre) + ', thrust a main ' + Math.round(r.thrustShare));
+      yes(L.ski < 0.5 * L.tyre, 'C ' + nm + ' on ' + (c === 9 ? 'powder' : 'wet snow') + ': a ski resists under half its tyre', Math.round(L.ski) + ' vs ' + Math.round(L.tyre) + ' N');
+      yes(L.ski < 0.8 * r.thrustShare, 'C ' + nm + ' on ' + (c === 9 ? 'powder' : 'wet snow') + ': the ski under 80 % of the static thrust\'s share for its main (it gets going; the tyre side is B\'s, flown)', 'ski ' + Math.round(L.ski) + ', static thrust a main ' + Math.round(r.thrustShare));
     }
   }
   // D

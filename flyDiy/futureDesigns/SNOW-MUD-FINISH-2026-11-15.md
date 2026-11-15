@@ -128,12 +128,48 @@ The physics is honest by its law:
 - The 30 cm softZ SKIS read is the 0.14 m tail wheel bottoming, and the tail lifts in 3 s.
 - Against 7.1 kN of static thrust on 1277 kg, plus 1.5 m/s^2 of slope, the drag barely shows.
 
-A NAMED CUT: a tyre's BULLDOZING / RAM drag in snow - the snow pushed ahead at the wheel's speed, ~rho b z v^2. This law has
-compaction only. SKIS' rows add a plough for the skis; for tyres it is the candidate if the eye says deep snow is too easy
-at speed. Adding it moves the stock runs and needs a re-fit of k on 9 and 10.
+(SUPERSEDED the same day by section 5: the user asked for it - deep snow is now a virgin layer and the tyre's bulldozing is
+modelled; on wheels the PC-6 is held at 15 m/s in powder.)
 
 The probe also found a readout bug, fixed here: sim.out.softF was summed over the substeps. It is now the frame's mean (N),
 the compaction drag the wheels pay when rolling.
+
+## 5. DEEP SNOW STOPS A WHEEL (the user, 15 Nov; GATE SNOWFLY, full tier, ~9 min)
+
+The user: "model the deep snow wheel effect ... your tests should cover simple wheels and deep snow, and I would expect this to
+fail without skis. That's the whole point".
+
+THE MODEL:
+- Powder (9) and wet snow (10) are now a VIRGIN layer, no longer a settled strip.
+  - Powder: Bekker's fresh-snow stiffness (Wong's table: n 1.6, k ~2e5 at a tyre's width), 30 cm over the base.
+  - Wet snow: k 4e5, n 1.2, 15 cm over the base.
+  - SKIS' soles read the same fresh snow.
+- A light aeroplane's tyre (100-300 kPa) goes through to the base.
+- There it pays its BULLDOZING (`bull` on the row; 00_registry groundBullWheel, added to the wheel's drag in 30_solver):
+  F = b min(z, D) (sig + rho v^2). That is the snow shoved ahead of the buried face, by its strength (sig: 5 kPa powder,
+  8 kPa wet) and by its momentum driven to the wheel's speed (rho: 150 kg/m^3 powder, 400 wet).
+  - The ram grows as v^2, so no power gets a wheel to flying speed.
+  - The stock tyre at 3 kN in powder: 430 N of compaction + 192 / 768 / 2496 N at 0 / 10 / 20 m/s.
+- Packed snow (8) and the muds pay compaction only, as before. MUDFLY's numbers do not move.
+- The FAA's wheel limits (4 in of dry snow, 1 in of wet) are far under these layers.
+
+THE RESULT (GATE SNOWFLY: the pilot's circuits and the no-pilot full-power runs, all on WHEELS):
+
+| aeroplane | grass | packed snow | powder (30 cm) | wet snow (15 cm) |
+|---|---|---|---|---|
+| Cub | 104 m, flies | 101 m, flies | REJECTED; held at 0.2 m/s | REJECTED; held at 0.3 m/s |
+| C172 | 312 m, flies | 320 m, flies | REJECTED; held at 4.9 m/s | REJECTED; held at 5.1 m/s |
+| PC-6 | 59 m, flies | 58 m, flies | REJECTED; held at 15.2 of 18.6 m/s | REJECTED; held at 13.7 of 18.6 m/s |
+
+A SKI GETS THROUGH. This is checked on the law: a ski of the build's class at the same load and 15 m/s against its tyre. On
+powder: the Cub's 302 N against 2110, the C172's 665 against 1774, the PC-6's 797 against 3309. Every ski resists under half
+its tyre, and under 80 % of the static thrust's share for its main.
+
+FLOWN ON SKIS: the PC-6 on skis on powder, with SKIS' fixture (tools/fixtures/skis/pc6_skis.json). The row is PENDING here
+and switches on, asserting that it gets off, the moment SKIS lands. The observatory's final test (PC-6 + skis + snow) is that
+row in the world.
+
+SKIS' optional `fresh` on rows 9 and 10 is now the base law itself. Kept on their rows it reads the same; it can go.
 
 ## Gates
 
@@ -143,4 +179,5 @@ the compaction drag the wheels pay when rolling.
 | MUDCOAT | core | ~8 s | 5 red |
 | MUDFLY | full | ~9 min | - |
 | SNOWMUDFX | core | ~1 s | 7 red |
+| SNOWFLY | full | ~9 min | - |
 | SOFTGROUND | core | ~2 min | re-recorded fixture |

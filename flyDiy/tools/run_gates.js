@@ -1008,6 +1008,10 @@ const GATES = [
   // grass, firm and soft mud (take-off roll, landing roll, outcome) and the stuck limits (soft mud's k scaled down, full power
   // from rest); the table printed. Three child processes; ~9 min - the full tier's, as the archetype sweeps
   { id: 'MUDFLY', file: '_mudfly_check.js', tier: 'full', timeout: 1800_000, wall: 600 },
+  // DEEP SNOW (the user, 15 Nov: "wheels in deep snow ... fail without skis. That's the whole point"): the Cub, the C172 and the
+  // PC-6 on WHEELS - packed snow flies; deep powder and wet snow do not (the pilot rejects, full power held under 0.9 Vs: the
+  // tyre's bulldozing); a ski of their class gets through (the law); the PC-6 ON SKIS flown when SKIS' fixture is in the tree
+  { id: 'SNOWFLY', file: '_snowfly_check.js', tier: 'full', timeout: 1800_000, wall: 600 },
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)

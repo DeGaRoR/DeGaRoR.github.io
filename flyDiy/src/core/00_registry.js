@@ -1117,8 +1117,9 @@ const GROUND_DEF = GROUND_SURF[0];
 // settled, and these k are 10-30 x stiffer. Fit at the stock wheel, read at the others (GATE SOFTGROUND prints all):
 //                   the extra rolling coefficient F/N, sinkage   stock 3 kN   C172 5 kN   tundra 3 kN   slim 3 kN
 //   packed snow                                                  0.015 5 mm   0.019 7 mm  0.001 1 mm    0.023 7 mm
-//   powder                                                       0.25 10 cm   0.28 12 cm  0.04 3.5 cm   0.34 13 cm
-//   wet snow                                                     0.20 7 cm    0.24 9 cm   0.025 2 cm    0.29 10 cm
+//   powder (DEEP SNOW: fresh)  all four through to the 30 cm base: compaction F/N 0.14 at 3 kN + the bulldozing, 192 N at rest,
+//                              768 at 10 m/s, 2496 at 20 (the stock tyre) - no light aeroplane on wheels reaches flying speed
+//   wet snow (DEEP SNOW)       through to the 15 cm base: compaction 0.12 at 3 kN + the bulldozing, 154 / 922 / 3226 N at 0 / 10 / 20 m/s
 //   firm mud                                                     0.014 4 mm   0.019 6 mm  0.001 1 mm    0.023 6 mm   (FINISH 15 Nov: stiffened -
 //                the C172's 0.28 m nose wheel at ~310 kPa bottomed the first fit's 6 cm and could not fly; now it rolls +36 %)
 //   soft mud                                                     0.22 6.5 cm  0.30 10 cm  0.014 9 mm    0.29 9 cm
