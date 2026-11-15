@@ -316678,3 +316678,25 @@ the next steps).
   (drive_mode.js, the vehicle files, app.js's DRIVE section, vehicles.json) is the CAR session's. TOW-LAUNCH's half:
   GATE TOW and TRAILER default to the van's sheet with every moved figure named, the Conquer kept as a second car's
   rows; tow.js / trailer.js hook to the car's drawn ball (def.hitch) and keep the Conquer's fallback.
+
+#### READY NOTE - claude/tow-launch-l40d (15 Nov)
+
+- slope-fix: inside (claude/tow-launch-slope-reaction 9c059baf4 is an ancestor); no separate slope-fix-l40d.
+- THE LUG TYRE whProfile 3 -> 4, THE VAN'S PHYSICS DON'T MOVE: no gate builds the van, so measured directly
+  (scratch probe: a car spec, the cage's whProfile set, buildGen, then a 4 s roll). On l40d's core whProfile 4
+  builds a def byte-identical to the standard tyre (0), with the same mass and the same 4 s roll; on l40c-3's core,
+  3 was byte-identical to 0 too. Left at 3, the van would take the bicycle wheel's laws (-47.6 kg).
+- GATES on l40d (--no-build after the build, 4 jobs): PASS STOL, BENCH, SNAPSHOTS, TRAILER, UISMOKE, DRIVE-TRIP,
+  MONOWHEEL, GEAR, HUB, MAPBAKE, PREMCOOK, CITYCOOK. RED, each run on master 58c681347 too:
+  - POD: pod off, "the whole def / the shakedown sheet is the base's bytes" on all six builds. The measured hashes
+    are identical on master: master's (_pod_base.json wants master's re-pin).
+  - SCENERYED: 20b only (Metlakatla compose 3334 ms vs 2500 ms). Master fails it too: timing.
+  - GLIDE: CIRCUIT archaeopteryx (motor off) capsizes. Master fails it too.
+  - UNIFY: EMERG (C172 list:50 to Cannery) and ARCH. Both fail on master with identical text.
+  - TOW (TOW-LAUNCH's gate, no master row): CIRCUIT archaeopteryx - "released at 1 m; rejected-takeoff". Every
+    other row passes (LAUNCH, GLIDE, RELEASE, WEAK, AUTOPILOT, CIRCUIT motorglider, ALTIPORT, PERF, PAGE; alone,
+    ~25 min - in a 4-job battery it can hit the 1800 s wall). The cause is L40c's Archaeopteryx card (the monowheel):
+    l40d builds it as master does (only the neutral rodOn / spinOn echo differs; same mass, same rest). On the
+    line it pitches 23 deg nose down as the line takes up and rolls onto its side at 6 s (bank -88 deg) - the ground
+    handling that capsizes it on master's GLIDE / UNIFY landings. TOW-LAUNCH's follow-up (L40e): a wing runner and a
+    monowheel ground roll in tow.js's hands.
