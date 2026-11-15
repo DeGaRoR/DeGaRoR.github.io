@@ -1698,7 +1698,7 @@ function makeSim(def, world) {
       if (dT > c.eT.zc) {
         FT = KGn[i] * (dT - c.eT.zc);
         if (SKW[i] === 0) softWheel(i, !c.third);
-        groundSinkWheel(S, FT, SKW[i], SKD[i], SKA[i]); SKI_SOFT.sink(c.eT, GROUND_SINK.z, dt);
+        groundSinkWheel(S, FT, SKW[i], SKDIA[i], SKA[i]); SKI_SOFT.sink(c.eT, GROUND_SINK.z, dt);
       }
       if (FT > 0 || dT > 0) { Rp += SKI_SOFT.resist(S, SX, SKW[i], c.eT.zc, false); if (c.eT.zc > zMax) zMax = c.eT.zc; }
       if (!softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; out.softW = SOFTW; softLive = true; }   // (SNOW-MUD's readouts, opened as their wheel branch opens them; a posed ski writes no softW slot - their rule)
@@ -3617,7 +3617,7 @@ function makeSim(def, world) {
   // its cornering class, read back - tundra 4.5, slim 10, else standard), the third wheel's what it is. out.softZ (the
   // deepest sinkage, m) and out.softF (the compaction drag summed, N) exist only on a frame that met a soft layer
   const SOFT_MIN = 8;
-  const SKW = new Float64Array(n), SKD = new Float64Array(n), SKA = new Float64Array(n);
+  const SKW = new Float64Array(n), SKDIA = new Float64Array(n), SKA = new Float64Array(n);
   const softMainCls = TYRE_.cls || (TYRE_.main === TYRE_CN.tundra ? 'tundra' : TYRE_.main === TYRE_CN.slim ? 'slim' : 'standard');
   let softLive = false;
   // SNOW-MUD FINISH: PER WHEEL - out.softW [main 0, main 1, tail 1, tail 2]: each wheel's sinkage this frame (m), the drawn
@@ -3628,7 +3628,7 @@ function makeSim(def, world) {
   function softWheel(i, isMain) {
     const D = Math.max(0.1, 2 * r[i]);
     const fp = tyreFootprint(isMain ? softMainCls : (P_.twSteer < 0 ? 'nosewheel' : 'tailwheel'), D);
-    SKW[i] = fp[0]; SKD[i] = D; SKA[i] = fp[1];
+    SKW[i] = fp[0]; SKDIA[i] = D; SKA[i] = fp[1];
   }
   // G3800 (TAILWHEELS, the user 29 Oct / 3 Nov): THE TAIL CONTACT'S FOUR LAWS (params.twMode, a taildragger's only; a
   // tricycle's nose wheel is the rudder's, linked, as ever - TWL null, not one line below runs). The gear page's
@@ -4207,7 +4207,7 @@ function makeSim(def, world) {
           const SO = GROUND_SOFT[sc];
           if (SO !== undefined) {
             if (SKW[i] === 0) softWheel(i, isMain);
-            const Fs = groundSinkWheel(SO, Fn, SKW[i], SKD[i], SKA[i]);
+            const Fs = groundSinkWheel(SO, Fn, SKW[i], SKDIA[i], SKA[i]);
             muR += Fs / Fn;
             if (!softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; out.softW = SOFTW; softLive = true; }
             if (GROUND_SINK.z > out.softZ) out.softZ = GROUND_SINK.z;
