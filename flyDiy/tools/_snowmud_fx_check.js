@@ -16,7 +16,7 @@
 //    0.07-0.25 m/s fresh, 4-10 x that packed - Pomeroy & Gray); it SETTLES - 30 s after its peak it keeps under half what
 //    dirt's keeps; the saltation skin (drift) on both snows under the jet, none on dirt; its albedo a snow's
 //    (>= 0.5) where the dust's is held to a soil's (<= 0.32); powder's plough throws clumps only from a sinking wheel.
-// C. MUD (and slush): NO CLOUD in any scenario; clods and drops thrown, none higher than 2 m (the legs, the wing's underside);
+// C. MUD (and slush): NO CLOUD in any scenario; clods and drops thrown, none higher than 2 m on a roll that does not sink, 4 m on a heavy (sinking) take-off (GROUND-FX re-pin, the user 15 Nov: heavy mud reaches the tail);
 //    the tread sheds at speed and not at a walk (v^2/R against the adhesion); the bow wave grows with the sinkage; landed ones SPLAT and lie (still there 15 s after the aeroplane stopped); a wheel never throws past its
 //    budget; a full ring of fresh splats is never overwritten.
 // D. THE WIRING: the shader draws the splat in the ground's plane and the snow's own phase; app.js maps the codes 8-12
@@ -87,7 +87,11 @@ function check(D, o) {
   // C
   for (const nm of ['mudTo', 'mudRun', 'slushTo', 'mudTaxi']) yes(R[nm].puffs === 0, 'C no cloud off mud / slush (' + nm + ')', R[nm].puffs);
   yes((R.mudTo.kinds[2] || 0) > 100 && (R.mudTo.kinds[5] || 0) > 100, 'C mud throws clods and drops');
-  for (const nm of ['mudTo', 'slushTo', 'mudFast']) yes(R[nm].maxH <= 2.0, 'C nothing thrown over 2 m (' + nm + ')', R[nm].maxH.toFixed(2));
+  // (GROUND-FX re-pin, 15 Nov - THE USER: heavy mud "can engulf the stabilizers and even the fin ... if there's really a lot, it
+  // can splatter even further": a HEAVY throw (fast and sinking: the soft take-off) rises to the tail, under 4 m; a roll that
+  // does not sink stays under the wing, 2 m)
+  yes(R.mudFast.maxH <= 2.0, 'C a roll that does not sink throws nothing over 2 m (mudFast)', R.mudFast.maxH.toFixed(2));
+  for (const nm of ['mudTo', 'slushTo']) yes(R[nm].maxH <= 4.0, 'C a heavy throw (a sinking take-off) nothing over 4 m (' + nm + ')', R[nm].maxH.toFixed(2));
   yes((R.mudWalk.kinds[2] || 0) + (R.mudWalk.kinds[5] || 0) === 0, 'C the tread holds its mud at a walk (1.5 m/s, no sink)', JSON.stringify(R.mudWalk.kinds));
   yes((R.mudFast.kinds[2] || 0) + (R.mudFast.kinds[5] || 0) > 200, 'C the tread sheds at speed (18 m/s)', JSON.stringify(R.mudFast.kinds));
   const tot = r => (r.kinds[2] || 0) + (r.kinds[5] || 0);
