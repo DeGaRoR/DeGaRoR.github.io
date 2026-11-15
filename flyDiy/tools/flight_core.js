@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d870de5e194ef2d3
+// body-sha256: 7e4de3198bbd8565
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -43964,7 +43964,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   sec('gear');
   // FLOATS-CLASSIC (the user 3 Nov: floats "need to come with weight and price"): a float build has no wheels to pay
   // for - it pays for its floats (HYDRO.floatPrice, billed with the pair below)
-  if (S.gear.type !== 'floats') spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
+  // PC6-BILL: an oleo tailwheel (gear.twOleo) pays for its parts, each priced as the part it is (the drawing's bill:
+  // _gear_gen PC6_USD, the strut a machined sealed unit), and its wheel and tyre ($500) - not the leaf third wheel's set price
+  const twOleoUsd = S.gear.twOleo && S.gear.twOleo.usd > 0 ? S.gear.twOleo.usd + 500 : 0;
+  if (S.gear.type !== 'floats') spend(2 * GEN_PRICES.wheel + (twOleoUsd || GEN_PRICES.thirdWheel) + (ARCH.price || 0));
   // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
   // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
   // deeper shell 88·R², its leg shroud included), stretched a little by the
@@ -44259,7 +44262,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw + (TO.kgSlider || 0));   // the wheel, its fork, piston and V
     pt(OB, 0.6 * (TO.kgCyl || 0)); pt(OA, 0.4 * (TO.kgCyl || 0));
     if (SH >= 0) pt(SH, TO.kgStab || 0);
-    TWOLEO = { tw: TW, oa: OA, ob: OB, sh: SH, hd, S: TO.S, sSt: TO.sSt, dPiston: TO.dPiston };
+    TWOLEO = { tw: TW, oa: OA, ob: OB, sh: SH, hd, S: TO.S, sSt: TO.sSt, dPiston: TO.dPiston,
+               // PC6-BILL: the parts as billed (the drawing's, and the wheel's row here), for the fiche and the gates
+               bill: (Array.isArray(TO.bill) ? TO.bill.slice() : []).concat([{ part: 'wheel and tyre', at: 'slider',
+                 kg: Math.round(twKgK * R.wheelTwKg(S.gear.twR) * 1000) / 1000, usd: 500 }]) };
   } else {
     twX = S.gear.twX !== null && S.gear.twX !== undefined
       ? S.gear.twX : fu.postX - 0.10;
