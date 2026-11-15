@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 22f5c8c8d1d9c4d1
+// body-sha256: d7be57b704abab97
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -779,6 +779,16 @@ const POWERPLANTS = {
     engine: { name: 'P&W PT6A-60A', mass: 218, powerW: 783000, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.20, length: 1.85, rpm: 1700, cs: true },
     prop:   { name: 'Hartzell 4-blade 2.67 m', D: 2.67, Tstatic: 10767, kV2: 0.5355 },
   },
+  // THE PC-6's PT6A-27 (12 Nov, FIT-PROCEDURE; the user: "create your engine"), off the locked reference
+  // tools/drafting/refs/pc6.json: 550 shp take-off and max continuous (FOCA TCDS F 56-10), 680 shp thermodynamic
+  // (flatK 680/550), the P&WC dry mass ~149 kg (thin: the reference marks it so), the Hartzell HC-B3TN-3D three-blade
+  // of 99-101 in (2.54 m, the middle) turning 2 200 rpm; the prop is genPropSynth's output (alu, standard) like every
+  // PT6 row; length the -34's frame (62 in). PRICE: P&WC's 2026 flat-rate overhaul for the -27, $372k (capped $450k)
+  pt6a27_hartzell3: {
+    price: 410000,   // P&WC flat rate $372-450k (2026), the middle as the -114A / -34 rows take theirs
+    engine: { name: 'P&W PT6A-27', mass: 149, powerW: 410135, aspiration: 'turbine', family: 'turbine', cooling: 'air', flatK: 1.236, length: 1.57, rpm: 2200, cs: true },
+    prop:   { name: 'Hartzell 3-blade 2.54 m', D: 2.54, Tstatic: 6432, kV2: 0.4161 },
+  },
 };
 // ============================================================
 // ENGINE THERMO LAWS (G134). Two numbers per family, both quoted at RATED
@@ -949,8 +959,11 @@ function genEnginePrice(family, powerW) {
 // _eng_page.js preset, through CAGE_JOIN_ENGINES), which is the sum of the
 // resolve's mass items along the crank. GATE ENGID §10 re-measures each one
 // against the bench and goes red at 2 cm, so this table cannot drift from the
-// engine it describes. A row without an entry (no preset behind it) hangs its
-// mass where it always did — absent means today, byte for byte.
+// engine it describes. A row whose entry is null (no preset behind it: the
+// 3548 outrunner) hangs its mass where it always did, byte for byte. A row with
+// NO entry at all (a row added later, in this file or at runtime) is not left
+// at the flange: genEngineCgAft below reads the same engine's measurement
+// under another key, else the table's own law (2026-11-12, the runtime-row fix).
 const GEN_ENG_CG = {
   a65_sensenich74: 0.20, o200_eprops: 0.21, io360_mccauley: 0.24,
   jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23, rotax912is_warp: 0.23,
@@ -965,14 +978,61 @@ const GEN_ENG_CG = {
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
   fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
   sp260d_class: 0.31, emrax268_carbon: 0.14,
-  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71,
+  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71, pt6a27_hartzell3: 0.61,   // (the -27: measured on its preset, 0.606 - GATE ENGID's bench)
   pt6a60a_hartzell4: 0.78,
+  outrunner3548_12x6: null,
 };
-// the one reader: a custom row's own number outranks the table's
+// THE SAME ENGINE UNDER ANOTHER KEY (2026-11-12). The per-key tables (GEN_ENG_CG
+// here, GEN_DRIVE.eng in 33_drive) are keyed by the registry key, so a row they
+// were never told about read NOTHING off them. Measured: a PC-6 on a runtime copy
+// of the PT6A-114A row (the row unchanged, a new key) hung its 160 kg on the
+// flange nodes instead of 0.63 m behind them, its prop bit the ground 0.5 s into
+// the settle (the strike seized the engine) and the pilot rejected the take-off
+// at 0 thrust, while every probe, which flies no settle, saw the full power.
+// `genEngineRowKey(table, key, engine)` is the key a table knows for this row:
+// the key itself when the table has it (every registry row today: no number
+// moves), else the first key of the table whose registry engine is the SAME
+// ENGINE (GEN_ENG_SAME: what fixes the block - name, dry mass, family, layout,
+// length; power, rpm and the prop move neither its CG nor its cylinders), else
+// the key (absent stays absent).
+const GEN_ENG_SAME = ['name', 'mass', 'family', 'layout', 'length'];
+function genEngineRowKey(table, key, engine) {
+  if (!table || key == null || Object.prototype.hasOwnProperty.call(table, key)) return key;
+  const E = engine || (POWERPLANTS[key] && POWERPLANTS[key].engine);
+  if (!E) return key;
+  for (const k of Object.keys(table)) {
+    const R = POWERPLANTS[k] && POWERPLANTS[k].engine;
+    if (R && GEN_ENG_SAME.every(f => R[f] === E[f])) return k;
+  }
+  return key;
+}
+// THE LAW FOR AN ENGINE NOBODY MEASURED: the CG aft of the flange goes as the
+// block's size, mass^(1/3), with the coefficient the median of the measured
+// rows of its class (a radial; else its family) - read off the table itself,
+// so it cannot drift from it. Leave-one-out over the 43 measured rows: within
+// 5 cm on most, 18 cm at worst (the inverted Ranger) - hanging the lump on the
+// flange is wrong by the whole cgAft (0.63 m on a PT6). null when the class has
+// no measured row.
+function genEngineCgLaw(engine) {
+  if (!engine || !(engine.mass > 0)) return null;
+  const cls = e => (e.layout === 'radial' ? 'radial' : e.family);
+  const c = cls(engine), cs = [];
+  for (const k of Object.keys(GEN_ENG_CG)) {
+    const v = GEN_ENG_CG[k], R = POWERPLANTS[k] && POWERPLANTS[k].engine;
+    if (v != null && R && R.mass > 0 && cls(R) === c) cs.push(v / CORE_MATH.pow(R.mass, 1 / 3));
+  }
+  if (!cs.length) return null;
+  cs.sort((a, b) => a - b);
+  const n = cs.length, med = n % 2 ? cs[(n - 1) / 2] : (cs[n / 2 - 1] + cs[n / 2]) / 2;
+  return Math.round(med * CORE_MATH.pow(engine.mass, 1 / 3) * 100) / 100;
+}
+// the one reader: a custom row's own number outranks the table's; a key the
+// table does not know reads the same engine's entry, else the law
 function genEngineCgAft(key, engine) {
   if (engine && engine.cgAft != null && isFinite(engine.cgAft)) return engine.cgAft;
-  const v = GEN_ENG_CG[key];
-  return v == null ? null : v;
+  const k = genEngineRowKey(GEN_ENG_CG, key, engine);
+  if (Object.prototype.hasOwnProperty.call(GEN_ENG_CG, k)) { const v = GEN_ENG_CG[k]; return v == null ? null : v; }
+  return genEngineCgLaw(engine || (POWERPLANTS[key] && POWERPLANTS[key].engine));
 }
 
 const POLARS = {
@@ -23228,7 +23288,9 @@ function genDriveSpec(def) {
   // ENGINE-DIALS (2026-11-09): A CUSTOM ENGINE READS NOTHING OFF THE TABLE'S ROW - its powerplant key is the join's
   // fallback (the A-65's: four cylinders), never its engine; its own row carries its cylinders and its maximum
   const custom = !!(def && def.spec && Array.isArray(def.spec.engines) && def.spec.engines[0] && def.spec.engines[0].custom);
-  const row = custom ? {} : (GEN_DRIVE.eng[P.powerplant] || {});
+  // (a key the table does not know reads the same engine's row: 00_registry genEngineRowKey - a runtime copy of the
+  // 582's row keeps its 6 800 rpm maximum and its two cylinders, not the 6 500 rated as its limit)
+  const row = custom ? {} : (GEN_DRIVE.eng[genEngineRowKey(GEN_DRIVE.eng, P.powerplant, PP && PP.engine)] || {});
   const rated = E.rpm > 0 ? E.rpm : 2300, gear = E.gear > 0 ? E.gear : 1;
   const cyl = (custom && E.cyl > 0 ? E.cyl : row.cyl) || (E.layout === 'radial' ? 7 : GEN_DRIVE.famCyl[E.family] || 4);
   const D = PR.D > 0 ? PR.D : 1.8, R = D / 2;
@@ -36111,7 +36173,8 @@ const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFai
                            engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
 // WILGA-GEAR: the trailing-link leg's rows per station (tools/_gear_page.js LEG_ROWS[4]) at the value a build without them
 // draws (_cage_gen CAGE_DEFAULT_ABSENT holds the same)
-const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0 }, o = {};
+const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0,
+      twStyle: 0, twPostLen: 0.28, twPostD: 0.07, twGuard: 1 }, o = {};   // (PC6-TAILWHEEL: + the post-and-link tailwheel's rows, _gear_page.js)
   for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the flat base copy too)
   return o; })();
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
@@ -38028,8 +38091,14 @@ function clampWing(w, S, k) {
 // that hid every over-size drawing until 2026-09-07. Metres, and chord
 // FRACTIONS for the controls. Widen here, nowhere else.
 const GEN_TAIL_ENVELOPE = {
-  hSpan: [1.50, 4.50], hChord: [0.40, 1.60],
-  vHeight: [0.60, 2.20], vChord: [0.40, 1.80],
+  // PC6-TAIL (2026-11-12): the stab's span to 6.0 m and the fin's height to 3.0 m (were 4.5 / 2.2). A 2.8 t STOL
+  // utility aeroplane under 18 m of wing - the Pilatus PC-6/B2-H4, a 5.13 m tailplane and a ~2.5 m fin - flew
+  // clamped. Nothing downstream was sized to the old ceiling: the stab truss takes 2..4 bays on any span, the fin the
+  // same up the post, the polars read hSpan^2/Sh and vHeight^2/Sv, mass and inertia are billed per bay off the area,
+  // and the big envelope below already flies an 8 m stab and a 4.3 m fin. A tail inside the old bounds is not touched
+  // (the clamp is the identity there); only a value the old ceiling cut moves.
+  hSpan: [1.50, 6.00], hChord: [0.40, 1.60],
+  vHeight: [0.60, 3.00], vChord: [0.40, 1.80],
   // G3503 (DC3-BUILD): A BIG AEROPLANE'S TAIL (genBig: a wing over 18 m) - the
   // DC-3's 8.2 m x 2.25 m stab and its 3 m fin of 2.9 m chord, with headroom
   // (DC3-EDITABLE: the ~40 m class's - a 12 m x 4 m stab, a 5.5 m fin of 4.5 m chord)
@@ -64596,7 +64665,7 @@ const TECH_TABLE = {
   'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3, 'eng:rotax912is_warp': 2,
   'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
   'eng:fes_folding_100': 3, 'eng:outrunner2212_9x47': 3, 'eng:outrunner3548_12x6': 3, 'eng:outrunner6374_18x10': 3,
-  'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3,
+  'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3, 'eng:pt6a27_hartzell3': 3,
   'cfg:twin': 2,
   'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
   'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,
