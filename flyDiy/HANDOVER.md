@@ -316695,3 +316695,71 @@ STANDING (L40c's, unchanged): FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT GLIDE U
 COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); after 143 s (programs 501 -> 508, world 26.1, settle 17.4, shader compile 46.2 + 11.8 s): +5 s, 7 more programs. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
 
 - WHEEL SIZE IN MUD AND ON STONES (the user, 15 Nov: "small wheels should struggle more than large wheels ... maybe we can test that too" and "does a large tundra wheel help on a bumpy road with stones? Normally we should have one"), on claude/ready/snow-mud-finish (futureDesigns/SNOW-MUD-FINISH-2026-11-15.md sections 6-7). GATE WHEELSIZE (core ~45 s): the Cub's main wheels 0.15 / 0.22 (built) / 0.30 m standard and 0.36 m tundra, full power from rest - on soft mud the 0.15 m is STUCK and the penalty falls x1.40 / x1.18 / x1.12, the sinkage 8.5 / 3.3 / 1.6 / 0.6 cm; firm mud is every wheel's ground; grass the control. THE STONES: the solver read the ground at ONE POINT under each node - a stone was a step under the axle, no stone cost any wheel speed, and the tundra jolted harder. 30_solver now rides THE TANDEM CAM on a bumpy strip only (world.roughAt: a micro strip's box, 27_premises roughAt; Schmeitz & Pacejka VSD 2004): two cams of the tyre's radius one footprint apart (tyreFootprint's 4A / pi b: 0.15 m on the 0.15 m wheel, 0.46 m on the tundra), the axle's ground their mean, the stone's push-back their difference over the footprint. The ground is read once a frame per wheel on the strip (a 5 cm profile, 49-76 reads a frame, out.envN); a world without roughAt reads nothing (flat ground: the same bits, checked). GATE ROUGHWHEEL (core ~100 s): against the strip's own stones (STRIP_MICRO's paraboloid caps) the 0.15 m wheel STOPS at a 15 cm stone at 0.3 power where the others cross keeping 33 / 49 / 61 %; over the strip's biggest (20 cm) at 0.4 power they keep 25 / 48 / 61 / 74 % and the jolt falls 11.1 -> 7.7 m/s^2; at a 10 m/s taxi over 15 cm stones the jolt 13.2 -> 10.1 and the gear's strain 8.40 -> 7.42 %; the old point read fails it (the self-test). GARAGE GAP for the DIRT session: the ride on the strip's LUMPS is not softer on a big wheel (no tyre filters a 2-3 m wave - right - but the peak still grows with the wheel): the solver's ground spring scales with the node's mass (KGn), so the tundra rides STIFFER (2.8e5 against 9e4 N/m); a carcass's vertical rate beside TYRE_SOFT is the row to build, and it moves every rolling fixture. CORRECTION to DEEP SNOW above: "SKIS' soles read the same" was wrong - SKIS' fresh top double-counted on the virgin rows; SKIS fixed it at a809ac6ae (ruts 29.7 / 18.3 / 11.5 cm, the Cub off in 89 m, the PC-6 on skis off powder in 53 m).
+
+
+## SKIS - ONE SKI LANDING GEAR FOR EVERY AEROPLANE (cloud session SKIS, 13 Nov 2026)
+
+The user (13 Nov): a generic ski gear, "one main type and a few options, not a list of 10"; dimensions adjustable;
+PHYSICS STOPS ABERRATIONS (the ski's area sets the contact pressure); no wheel brakes on straight skis; mass, drag and
+price paid; drawn by the gear generator, WYSIWYG. The reference ski (the user's photographs and the maker's sheet): the
+Summit Aircraft SS2300 - "the Pilatus uses similar skis". Design note futureDesigns/SKIS-2026-11-13.md (the model, the
+soft-ground interface, the rows, the cuts); A0's research futureDesigns/SKI-REFERENCES-2026-11-13.md; evidence
+reports/evidence/SKIS/README.md.
+
+- ONE SKI (src/core/29c_ski.js `skiPlan`, the drawing and the physics read the same outline): the shell on UHMW bottom
+  skins, the aft beam keeping 0.57 of the width inboard, the wheel's cutout outboard from 0.49 of the length, the toe a
+  half-round upturned, the pedestal 0.585 from the toe. THREE MOUNTINGS (`gear.ski.kind`): 'plain' (the wheel off, no
+  brake), 'wheel' (the wheel beside the ski, 3 cm below the sole: the SS2300's), 'retract' (the hydraulic wheel-ski:
+  the PC-6's; ctl.ski 1 down / 0 up, unset it follows the surface). OPTIONS: the tail / nose ski (`third`), the heel
+  wheel. ABSENT IS AS TODAY: no key, the def, the sheet and 300 flown steps of seven builds identical to the core
+  before the skis (GATE SKIS 1, tools/fixtures/skis/base.json - re-bless with `--bless` in a base worktree if a
+  chantier landing first moves them).
+- THE PHYSICS (30_solver `skiGround`): per ski node two ELEMENTS, the sole and the tyre; on hard ground the node's
+  spring, the tyre's share handed back to the wheel pass bit for bit (brakes, twLine); the sole slides (SKI_HARD_MU,
+  no brake) and grips sideways with a keel's slope (SKI_RULES.cn). On a SOFT layer the plastic Bekker law over each
+  element's own area, the rut's memory, compaction + bulldozing, planing past the hump.
+- THE SOFT GROUND, THE SNOW-MUD INTERFACE: `world.soft(x, z)` -> null (hard: every world today) or { kind, depth, k,
+  vP, kEl, plough, muSki, muSki0, muAlu, latSki, roll, muBrake, muLat } (terrainH is the layer's TOP). SOFT_GROUND
+  presets (powder, packed, wet, ice); SKI_SOFT the per-element law (a wheel on snow can read it: SNOW-MUD's to wire).
+- MASS / PRICE / DRAG: by the skins' area, the shell's material (carbon solved on the SS2300's 27 lb, aluminium, glass)
+  and the mounting; a plain ski replaces its wheel. The frame bills it (parts.ski), 62 adds its CdA (drag.ski).
+- THE DRAWING (tools/_gear_gen.js `ski`, `skiRigRun`; tools/_cage_gear.js the "skis" rows, all absent at default -
+  GEN_SKI_ROW_OFF / CAGE_DEFAULT_ABSENT, skiPos never saved; the join writes spec.gear.ski from CAGE_GEAR.skis; app.js
+  ski rigs pose each ski on its axle node by out.skiPitch / out.skiDy, the tail ski inside the castor, the rigging
+  runs stretched pin -> lug).
+- GATES: SKIS (core, ~4 min: absent, the spec, mass/price/drag, drawn = flown, the area sets the pressure, no brakes,
+  the selector, THE BELLY POD on the Carbon Cub end to end) and SKISFLY (full: the circuits on powder).
+- THE BELLY POD (the user: "the garage has it, nothing uses it"): fitted on the Carbon Cub (tools/fixtures/skis/
+  carbon_cub_ss_pod.json): mass/CG, drag, clearance, the freight packed into it and strapped onto its nodes all work
+  (GATE SKIS 8). THE OPEN POINT: a player's build has no freight card (FREIGHT_CARDS holds the catalogue's designs;
+  freightLoadCard / app.js frCard return null - FREIGHT-MODEL's open point): the career cannot load the pod of a
+  garage build. The gate measures a card off the aeroplane (tools/_freight_site.js) to prove the rest of the chain.
+- Rigs drop the aeroplane level from reset; the game stands it in three-point first (sim.stance()): a tail ski on a
+  marginal tail (FIT-PROCEDURE's PC-6 card: its aft belly 1 cm off the ground) can settle on its belly after the drop.
+  The ski rigs and GATE SKIS take the stance, as the game does.
+- THE CUTOUT IS THE TYRE'S (the user: "the wheel has to be able to go down through the little opening"): skiPlan
+  starts the cutout forward of the axle by the tyre's chord at the deck's and the skins' top at its lowest (skis up)
+  + 3 cm + the fillet, the tyre's inner wall 15 mm off the beam's skins, the tyre's width the drawn carcass's
+  (skiTyreW); GATE SKIS 4 walks the tyre through every height. The Carbon Cub's SS2300s are WHEEL-SKIS (gearSki 3).
+- THE CONTROLS: input action `ski` (key 0; under the AP too, the gear key's rule); THE CONTROL BOX, an ADD-ON (the
+  user: "clearly bolted on after the fact"): _cage_panel skiAddonAt - a 4 x 2 in bent aluminium box (its parts at their
+  standards' sizes: MS35058 toggle, MS25041 lamps, Klixon 7277 breaker, 3/8 in tape, 1 in pitch) hung under the panel's
+  lower edge at the first spot clear of the panel's own parts, on a screwed flange, the toggle (law 'ski', clickable), amber PUMP / green DN lamps (law
+  'skiLamp' off out.ski), a breaker, tape labels, its loom (after Wipaire's Fli-Lite 4000 ICA and Airglas' manuals).
+- THE LOAD DOOR AND THE POD: tools/_load_build.js now hands the spec to the pod layer (CAGE_POD.fromSpec) where the
+  page's applySpec does - every headless look (quick_view, quickshot, the gates' scenes) drew no belly pod before.
+- READY (13 Nov, for L40d): claude/ready/skis = master 6a8d705c (train L40a) + the SKIS commits rebased (the conflicts:
+  60_gen_spec / 61_gen_frame - L40a's GEN_BRAKES and the skis side by side, a straight ski drops the brakes with its
+  wheel; 90_node_exports - the ski exports on L40a's list; this file - master's bytes + this block, CRLF). The PC-6
+  validation card is FIT-PROCEDURE's card as landed (fuel 1257 L) + the ski rows; GATE SKIS's no-ski witnesses
+  re-blessed on 6a8d705c (tools/fixtures/skis/base.json).
+- GATES on the rebased tree (cloud, 4 cores, no GPU; --all does not finish here: 18 of 363 jobs in 2 h): PASS SKIS,
+  PANEL, INPUT, PARTS, UISMOKE, UISMOKE-PHONE, DRAFTING, GROUNDQUERY, TAILWHEEL, DRAG, MASS, GEARFALL, WILGAGEAR,
+  CARDDRAG, GROUNDLIB, JOIN, GEOPARITY, SPECFIX, GEAR, FLOATS, FLOATSCLASSIC, PODEDITOR, CERTGATES, PRICE, FREIGHT,
+  AERO, STRIPGROUND, GENPAIRS. RED AND MASTER'S (the same checks, the same bytes, on a clean 6a8d705c worktree in this
+  container): STOL (spitfire fly vs dea18da34), POD (pod off vs its base's bytes), CANDIDATES (pc6_drafting not in
+  builds/candidates/index.json), GEN (cruise is quiet in wind), DESIGNCHECK (the carbon boom's post), CREWLOAD (the
+  clock's retry), LOAD (the glass cantilever), JOINPARITY. FRAMECOST: the stale PARKED COOK - the parked packs' sig
+  holds FLYDIY_BUILD, a new core refuses them and the census captures live (+124 draws, shadows, uniforms); with
+  FRAMECOST_QUERY='parkcook=0' on both trees the stand and the taxi are identical (two boot counters fall). The train's
+  cook (node tools/parked_cook.js, under the gpu lock) clears it. --all is the integrator's.
