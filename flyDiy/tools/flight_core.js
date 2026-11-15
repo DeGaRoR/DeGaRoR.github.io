@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c2e36b53e48f1688
+// body-sha256: afc97bcf88b04904
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1351,6 +1351,7 @@ var GAME_NAMES = {
     w8:       'Hiking Strip',                 // in a little valley east of the Cabin Strip (was strip 13)
     w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
+    mt_strip: 'Ardent Altiport',              // (OBSERVATORY-SITE 13 Nov: the observatory's strip on Mount Ardent's north-east spur, landed uphill)
   },
 };
 
@@ -12888,7 +12889,7 @@ function compose(rec0, world, opts) {
     // THE LATTICE EARNS ITS CELL: from a quarter of the finest feather (1 m at most), halved (to 0.25 m) while any
     // cell's midpoint reads more than GR_TOL (1 cm) off the analytic ground there - a deep cut's feather (twenty metres
     // of target over the DEM) needs a finer lattice than a road's half metre
-    let n = Math.min(64, Math.max(16, Math.ceil(GR_TS / Math.max(0.25, Math.min(1, fe / 4))))), N, r, A, B, hc;
+    let n = Math.min(64, Math.max(16, Math.ceil(GR_TS / Math.max(0.25, Math.min(1, fe / 4))))), N, r, A, B, hc, relief;
     for (;;) {
       N = n + 1; r = GR_TS / n; A = new Float64Array(N * N); B = new Float64Array(N * N);
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -12898,15 +12899,20 @@ function compose(rec0, world, opts) {
         B[j * N + i] = b0; A[j * N + i] = b1 - b0;
       }
       if (n >= 64) break;
-      // (the error at a midpoint is dA h + dB: h is the tile centre's ground, give or take GR_RELIEF of the DEM)
-      if (hc === undefined) { const w = F.toWorld(x0 + GR_TS / 2, z0 + GR_TS / 2); hc = world.terrainH(w[0], w[1]); }
+      // (the error at a midpoint is dA h + dB: h is the tile centre's ground, give or take the tile's RELIEF of the DEM)
+      // (OBSERVATORY-SITE 13 Nov: the relief MEASURED - the DEM at the tile's corners and edge midpoints about its centre, at
+      //  least GR_RELIEF. A fixed 2 m held on the lowland; a 16 m tile on Mount Ardent's 20-40 % spans 4-6 m, and the lattice
+      //  stopped refining with the midpoint error |dA| x (h - hc) over the 1 cm it promises - GATE PREMRASTER's p99 went
+      //  2.07 mm with the summit's altiport, 92 of 93 bad probes in such tiles; measured: 1.94 mm, master's own probes better too)
+      if (hc === undefined) { const w = F.toWorld(x0 + GR_TS / 2, z0 + GR_TS / 2); hc = world.terrainH(w[0], w[1]); relief = GR_RELIEF;
+        for (const q of [[0, 0], [GR_TS, 0], [0, GR_TS], [GR_TS, GR_TS], [GR_TS / 2, 0], [0, GR_TS / 2], [GR_TS, GR_TS / 2], [GR_TS / 2, GR_TS]]) { const v = F.toWorld(x0 + q[0], z0 + q[1]); relief = Math.max(relief, Math.abs(world.terrainH(v[0], v[1]) - hc)); } }
       let bad = false;
       for (let j = 0; j < n && !bad; j++) for (let i = 0; i < n && !bad; i++) {
         const x = x0 + (i + 0.5) * r, z = z0 + (j + 0.5) * r;
         let b0 = 0, b1 = 1;
         for (let q = 0; q < hit.length; q++) { b0 = hit[q].apply(x, z, b0); b1 = hit[q].apply(x, z, b1); }
         const k = j * N + i, da = (A[k] + A[k + 1] + A[k + N] + A[k + N + 1]) / 4 - (b1 - b0), db = (B[k] + B[k + 1] + B[k + N] + B[k + N + 1]) / 4 - b0;
-        if (Math.abs(da * hc + db) + Math.abs(da) * GR_RELIEF > GR_TOL) bad = true;
+        if (Math.abs(da * hc + db) + Math.abs(da) * relief > GR_TOL) bad = true;
       }
       if (!bad) break;
       n *= 2;
@@ -56004,8 +56010,9 @@ const PREM_STORE = {
   shells: { club: { inside: 2, outside: 6 }, works: { inside: 4, outside: 6 }, field: { inside: 0, outside: 2 } },
   outsideMax: 6,
   // w5-w8: the field club's and SHIP-2's contract fields, cooked since train 52 / 53 (GATE STORAGE caught the pack ahead of this table);
-  // w4 strip 9 + w1 the Cabin Strip (G3097, SCENERY-ED-2's cook)
-  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12, w4: 0, w1: 3, cb_sea: 12 },
+  // w4 strip 9 + w1 the Cabin Strip (G3097, SCENERY-ED-2's cook); mt_strip Ardent Altiport (OBSERVATORY-SITE: 0 - the flat top is the
+  // stand and the helipad, no tie-down row fits, as tw_ski)
+  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12, w4: 0, w1: 3, cb_sea: 12, mt_strip: 0 },
   kinds: ['floor', 'inside', 'outside', 'long', 'away'],
 };
 // THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
@@ -58135,6 +58142,9 @@ const CONTRACT_FIELDS = {
   // (G2745, the user's save 17, 18 Oct: the Cabin Strip - the story's start, an S of gravel up a lake valley)
   w1:       { id: 'w1',       name: GAME_NAMES.fields.w1,        x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true },   // (22 Oct, the user: no PAPI at the Cabin Strip - a bush strip, no glideslope lights)
   cb_sea:   { id: 'cb_sea',   name: GAME_NAMES.fields.cb_sea,          x: 1890,  z: -17804, len: 1400, surf: 'water', lit: false },   // (CABIN-LAKE 26 Oct: the lake below the Cabin Strip; no job flies there yet - CABIN-LAKE-JOBS)
+  // (OBSERVATORY-SITE 13 Nov: the observatory's altiport on Mount Ardent, 210 m landed uphill to 1 039 m - in no provider's
+  //  fields yet: the Game coordinator joins it to the jobs; OBSERVATORY-2 15 Nov: SNOW-MUD's powder - surf 'snow', skis)
+  mt_strip: { id: 'mt_strip', name: GAME_NAMES.fields.mt_strip,      x: 9317,  z: -5962,  len: 210,  surf: 'snow', alti: true, lit: true },
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -58180,6 +58190,10 @@ const CONTRACT_TRACKS = {
   resort:   { max: 3, stages: ['trk.resort.1', 'trk.resort.2', 'trk.resort.3'] },
   survey:   { max: 3, stages: ['trk.survey.1', 'trk.survey.2', 'trk.survey.3'] },
   clients:  { max: 2, stages: ['trk.clients.1', 'trk.clients.2'] },
+  // OBSERVATORY-SITE (13 Nov, the user: "the observatory PROJECT builds them ONE AT A TIME"): the Mount Ardent station's three
+  // buildings, one per step (the tower, the drum, the hall; the pillar stands from the start) - a PROJECT's track, no provider's:
+  // nothing in play advances it yet (ECON_BOOK.landmarks 'observatory' is data only); the Game coordinator wires the project
+  observatory: { max: 3, stages: ['trk.observatory.1', 'trk.observatory.2', 'trk.observatory.3'] },
 };
 
 // ---- THE PROVIDERS (§R G-PROV: five) ----------------------------------------------------------------------
@@ -58546,6 +58560,9 @@ const CONTRACT_TEXT = {
   'trk.survey.3': CT_('The weather mast on ' + GAME_NAMES.hill),
   'trk.clients.1': CT_('The club house'),
   'trk.clients.2': CT_('A small museum hangar for your best design'),
+  'trk.observatory.1': CT_('The observatory\'s instrument tower on ' + GAME_NAMES.mountain),
+  'trk.observatory.2': CT_('The observatory\'s station'),
+  'trk.observatory.3': CT_('The observatory\'s hall'),
   // goods (the load words)
   'goods.mail': CT_('mail'), 'goods.tools': CT_('tools'), 'goods.crew': CT_('crew'),
   'goods.parts': CT_('parts'), 'goods.samples': CT_('ore samples'), 'goods.rods': CT_('drill rods'),
@@ -62375,7 +62392,7 @@ const cwMoney = n => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g,
 // 76_stages.js - THE BUILDINGS THAT MISSIONS PUT UP: the career's side of the premises' `stage` (G2300-G2309 STAGES,
 // GAME-2026-10-06.md §11; the record's side is 27_premises.js stageView / stageIssues, contract v1.33).
 //
-// A track (72_contract_data.js CONTRACT_TRACKS: field 2, minedock 4, resort 3, survey 3, clients 2) is a small integer in
+// A track (72_contract_data.js CONTRACT_TRACKS: field 3, minedock 4, resort 3, survey 3, clients 2, observatory 3) is a small integer in
 // the career document (`career.tracks`), advanced by a contract's `unlock: { stage: '<track>:<n>' }` (74_career.js
 // careerComplete). The world record stands an element only while its track lies in the element's band. This file:
 //   stageTracksOf(doc)          the tracks a composition reads: the career's, or NULL - the sandbox, every track at its max
@@ -62417,6 +62434,11 @@ const STAGE_REVEALS = {
   'survey:3':   { at: 'w3',       caption: 'trk.survey.3',   world: false },   // (no mast exists today: HANDOVER G2300)
   'clients:1':  { at: 'HOME',     caption: 'trk.clients.1',  world: true },    // the flying club's house
   'clients:2':  { at: 'HOME',     caption: 'trk.clients.2',  world: false },   // (no museum hangar exists today: HANDOVER G2300)
+  // OBSERVATORY-SITE (13 Nov): the Mount Ardent station, one building a step (mt_s_meteo's items; the kits sg_k_obs_*), seen from
+  // its altiport (mt_strip)
+  'observatory:1': { at: 'mt_strip', caption: 'trk.observatory.1', world: true },   // the tower: the core and the top saucer
+  'observatory:2': { at: 'mt_strip', caption: 'trk.observatory.2', world: true },   // the drum: the two-tier disc
+  'observatory:3': { at: 'mt_strip', caption: 'trk.observatory.3', world: true },   // the hall: the flat disc
 };
 // the shot's eye about its target (A0's GPU still frames it: tools/stages_shot.js): metres back, elevation, and the
 // caption's time on screen
