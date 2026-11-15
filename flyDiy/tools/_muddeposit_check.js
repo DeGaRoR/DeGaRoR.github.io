@@ -23,7 +23,7 @@
 // F. THE EDGE: the texture's cover blurred a cell (no square per hit); the spatter's streaks run aft; its erosion keeps
 //    the amount (a thin coat flecks, it does not vanish).
 // G. HEAVY MUD reaches the Cub's stab underside and fin, the Jodel's (low) wing undersides; DRY DUST films the band from the
-//    wheels to the fin (no mud, tops clean); THE PROP is a source (the dust film, the heavy mud at the fin); THE PBR: fresh mud
+//    wheels to the fin (no mud, tops clean); THE PROP is a source (the dust film); the tail and the wing undersides read as MEANS over seeds; THE PBR: fresh mud
 //    glossy, dry matte, rain re-wets; the bump follows the mud; dust matte.
 // E. DETERMINISM AND COST: the same seed, the same deposit; the grid built under 600 ms and a 20 s run (1200 frames) under
 //    2 s in node, i.e. the collide well under the 64-march budget a frame.
@@ -124,13 +124,25 @@ function pb(R) {
   return k => out[k] || { mud: 0, dust: 0 };
 }
 const scen = (name, spec, S, o) => MR.run(spec, Object.assign({ seed: 7, S, scen: name }, o || {}));
+// THE TAIL AND THE WING'S UNDERSIDE ARE READ OVER SEEDS (re-pin, 15 Nov eve): their faces are small (the Cub's fin front is
+// 0.07 m2) and a few drawn clods decide them, so one seed is a coin - over 8 seeds the Cub's fin front read 0.03-0.46 on the
+// same law, and master's 6 extra triangles (L40d) reshuffled seed 7's throw and flipped three rows. The mean over SEEDS
+// is the claim; the cover of one run is a sample of it.
+const SEEDS = [1, 2, 3, 4, 5, 6];
+function seedMean(name, spec, S, keys, o) {
+  const acc = {}; keys.forEach(k => acc[k] = 0);
+  for (const seed of SEEDS) { const F = pb(MR.run(spec, Object.assign({ seed, S, scen: name }, o || {}))); keys.forEach(k => acc[k] += F(k).mud / SEEDS.length); }
+  return acc;
+}
 {
   const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cub_2026-09-20_corrected.json'), 'utf8')), spec = raw.spec || raw;
   const Hr = scen('heavy', spec, cub.S), M = pb(cub), H = pb(Hr), H0 = pb(scen('heavy', spec, cub.S, { thrust: 0 }));
   const Dr = scen('dust', spec, cub.S), D = pb(Dr), D0r = scen('dust', spec, cub.S, { thrust: 0 }), D0 = pb(D0r);
   if (SHOW) for (const [nm, F] of [['mud', M], ['heavy', H], ['heavy, no prop', H0], ['dust', D], ['dust, no prop', D0]])
     say('    ' + nm.padEnd(15) + ['gear side', 'leg side', 'body under', 'stab front', 'stab under', 'fin front', 'fin side', 'wing under', 'wing top', 'cowl top'].map(k => k + ' ' + F(k).mud.toFixed(2) + '/' + F(k).dust.toFixed(2)).join('  '));
-  ok(H('stab under').mud > 0.3 && H('stab under').mud > M('stab under').mud && H('fin front').mud > 0.2, 'G1 CUB heavy mud engulfs the tail: stab underside ' + H('stab under').mud.toFixed(2) + ' (mud ' + M('stab under').mud.toFixed(2) + '), fin front ' + H('fin front').mud.toFixed(2));
+  const TK = ['stab under', 'fin front'], Ms = seedMean('mud', spec, cub.S, TK), Hs = seedMean('heavy', spec, cub.S, TK);
+  ok(Hs['stab under'] > 0.45 && Hs['stab under'] > Ms['stab under'] + 0.05 && Hs['fin front'] > 0.1,
+    'G1 CUB heavy mud engulfs the tail (means over ' + SEEDS.length + ' seeds): stab underside ' + Hs['stab under'].toFixed(2) + ' (mud ' + Ms['stab under'].toFixed(2) + '), the fin front reached ' + Hs['fin front'].toFixed(2));
   ok(H('wing top').mud < 0.01 && H('cowl top').mud < 0.01, 'G1 CUB heavy mud: wing tops and cowl top still clean');
   const band = ['gear side', 'body under', 'stab front', 'stab under', 'fin side'];
   ok(D('gear side').dust > 0.5 && D('body under').dust > 0.15 && D('stab under').dust > 0.15 && D('fin side').dust > 0.08,
@@ -138,7 +150,8 @@ const scen = (name, spec, S, o) => MR.run(spec, Object.assign({ seed: 7, S, scen
   ok(D('wing top').dust < 0.02 && D('cowl top').dust < 0.02, 'G2 CUB dry dust: wing tops and cowl top clean (' + D('wing top').dust.toFixed(3) + ', ' + D('cowl top').dust.toFixed(3) + ')');
   ok(Dr.stats.hits === 0 && D('body under').mud === 0, 'G2 CUB dry dirt throws no mud on the aeroplane');
   ok(Dr.stats.dustMass > 2.5 * D0r.stats.dustMass, 'G3 CUB the prop is a source: the dust film with the prop ' + Dr.stats.dustMass.toFixed(1) + ' over 2.5x without (' + D0r.stats.dustMass.toFixed(1) + ')');
-  ok(H('fin front').mud > 3 * H0('fin front').mud, 'G3 CUB the slipstream carries the heavy mud to the fin (' + H('fin front').mud.toFixed(2) + ' vs ' + H0('fin front').mud.toFixed(2) + ' without the prop)');
+  // (G3's "the slipstream carries the heavy mud to the fin, x7" was ONE SEED: over 8 seeds the fin front reads the same with
+  // the prop and without it (0.15 / 0.21) - a claim the law does not make, removed; the prop's dust film below is robust)
   // G4 THE PBR moves with wet and dry: fresh mud glossy, dried matte, rain re-wets; dust matte; the bump follows the mud
   const G = Hr.G, wet0 = Float32Array.from(G.wet), dep0 = Float32Array.from(G.dep), dust0 = Float32Array.from(G.dust);
   const pts = [];
@@ -159,8 +172,8 @@ const scen = (name, spec, S, o) => MR.run(spec, Object.assign({ seed: 7, S, scen
 // the LOW WING (the Jodel): the throw reaches the wing's underside, heavy mud more - the same law as the Cub's, the geometry decides
 {
   const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/jodel_2026-09-20_corrected.json'), 'utf8')), spec = raw.spec || raw;
-  const R = MR.run(spec, { seed: 7 }), M = pb(R), H = pb(scen('heavy', spec, R.S));
-  ok(M('wing under').mud > 0.05 && H('wing under').mud > M('wing under').mud, 'G1 JODEL (low wing) mud reaches the wing undersides (' + M('wing under').mud.toFixed(2) + '), heavy mud more (' + H('wing under').mud.toFixed(2) + ')');
+  const R = MR.run(spec, { seed: 7 }), Ms = seedMean('mud', spec, R.S, ['wing under']), Hs = seedMean('heavy', spec, R.S, ['wing under']);
+  ok(Ms['wing under'] > 0.1 && Hs['wing under'] > Ms['wing under'] + 0.02, 'G1 JODEL (low wing) mud reaches the wing undersides (' + Ms['wing under'].toFixed(2) + ' over ' + SEEDS.length + ' seeds), heavy mud more (' + Hs['wing under'].toFixed(2) + ')');
 }
 const c172 = plane('C172', 'builds/cessna172r_2026-11-08.json', (m, C) => {
   ok(m('leg side') > 0.3 && m('gear side') > 0.5, 'C172 legs and fairings caked (leg ' + m('leg side').toFixed(3) + ', fairing ' + m('gear side').toFixed(3) + ')');
