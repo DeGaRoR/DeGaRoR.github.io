@@ -909,6 +909,7 @@ function makePilot(sim, def, world, opts) {
   // water lane: surface 4 / water, stripAllows' own test); on the surface, the one under the aeroplane (the world's
   // water over its terrain). Every other build - a fixed gear, a land retract - is untouched (AMPHG false)
   const AMPHG = GEAR && !!(def.parts && def.parts.amph);
+  const SKISEL = !!(def.parts && def.parts.ski && def.parts.ski.kind === 'retract' && sim.ctl && 'ski' in sim.ctl);   // SKIS-PC6: a hydraulic wheel-ski
   // (no destination - a glide with nowhere picked: null, and the surface under the aeroplane decides)
   const gearWetDest = () => { const to = ap.route && ap.route.to; return to ? !!(to.surface === 4 || to.water || to.kind === 'water') : null; };
   const gearWetUnder = (x, z) => { try { return typeof world.waterH === 'function' && typeof world.terrainH === 'function' && world.waterH(x, z) > world.terrainH(x, z) + 0.2; } catch (e) { return false; } };
@@ -3601,6 +3602,22 @@ function makePilot(sim, def, world, opts) {
       if ((!O && up) || ap.t - Hd.t0 > 600) { ap.climbHold = null; go(planFromHere()); }
       return false;
     };
+    // SKIS-PC6 (15 Nov): THE WHEEL-SKIS' SELECTOR, as the amphibian's wheels (SEAPLANES-LAND): in the air, from the inbound
+    // (within 6 km) and the circuit on, SET FOR THE DESTINATION'S GROUND - a SNOW-MUD row a ski belongs on (GROUND_SOFT[code]
+    // .skis): skis down; any other: up, on the wheels - long before the flare (the kit's hydraulic cycle, ~15 s); in a
+    // glide the ground under it. On the ground, the lift-off and the climb-out: unset (the solver's own: the surface under
+    // the mains). The Ardent test (tools/_skis_ardent.js) touched down with the skis 42 % down: the solver's rule alone
+    // lowers them only over the snow. Nothing without a hydraulic wheel-ski (no ctl.ski key)
+    if (SKISEL) {
+      const ph = ap.phase, to = ap.route && ap.route.to;
+      const skiOn = (x, z) => { const c = world && world.surface ? world.surface(x, z) : -1;
+        return typeof GROUND_SOFT !== 'undefined' && GROUND_SOFT[c] && GROUND_SOFT[c].skis ? 1 : 0; };
+      let want = null;
+      if (ph === 'GLIDE' && agl < 150) want = skiOn(cg[0], cg[2]);
+      else if (to && Number.isFinite(to.x) && (ph === 'DOWNWIND' || ph === 'BASE' || ph === 'FINAL' || ph === 'CROSSWIND' ||
+               ph === 'FLARE' || (ph === 'INBOUND' && Math.hypot(to.x - cg[0], to.z - cg[2]) < 6000))) want = skiOn(to.x, to.z);
+      sim.ctl.ski = want;
+    }
     // RETRACT-1: THE GEAR, by the phase (RETRACT-STUDY §3.6). UP after a positive climb (15 m over the field, climbing at
     // 1 m/s) in the climb-out and the go-around, and anywhere en route; DOWN for the circuit (downwind, base, final), on an
     // inbound within 4 km of the field, in a glide under 150 m, and on the ground. A pilot who finds it not coming down
