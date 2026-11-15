@@ -316530,3 +316530,9 @@ GATES (cloud, node only; `--no-build`, jobs 2-3 on a 4-core box), on this branch
   re-cook ends it.
   NOT RUN: FRAMECOST, the parked cook (GPU, A0's), the full tier (TOUR, ARCHETYPES ...), the GPU stills. The Cub's two legs
   were flown with tools/altiport_trace.js (above; reports/evidence/OBSERVATORY-SITE).
+## CANON-C172-GATES CORRECTION (Pilot, 14 Nov)
+
+Every pilot gate flies the one Cessna, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50), since L40a/L40c (d85750d7e).
+The aluminium test copy tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is kept ONLY for its structure / audio users (HINGE,
+HONESTY, JOINPARITY, PARKED, RETRACT, ROLLSND); its c172fx tour row is dropped and pilot_persona.js flies F-HCSN. Older entries above
+that name the fixture as "the metal Cessna" in a flying gate describe the gates before that change.
