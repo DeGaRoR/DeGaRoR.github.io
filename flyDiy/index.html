@@ -4837,7 +4837,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='47fa6aa15591';window.FLYDIY_BUILD_DATE='2026-11-15T19:55:13.224Z';</script>
+<script>window.FLYDIY_BUILD='cc219ce693a8';window.FLYDIY_BUILD_DATE='2026-11-15T21:19:52.872Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -29660,6 +29660,40 @@ function makeSim(def, world) {
                  // per vessel, in the order the spec lists them: litres now
                  vessels: (ENERGY.vessels || []).map(v => ({ bay: v.bay,
                    litres0: v.litres || 0, litres: v.litres || 0 })) };
+  // WATER TANKS (GEN_RULES.water, the user 15 Nov: a release, a water shower): THE DUMP VALVE. The frame records the
+  // water's kilos on its nodes (`mWater`, as `mFuel`); with the valve open (ctl.dump - the cockpit's, carried to the
+  // worker as every ctl field is) they drain, every tank by the same fraction, at the outlets' Torricelli rate
+  // (params.water.rateLs a tank still holding water). WDEF[i] is what has left node i: every door that rewrites a
+  // node's mass from its base - the burn, the load (setFreight) - takes it off, so a burn after a dump does not put
+  // the water back; reset fills the tanks again. No water: WDEF null and not one line below reads differently.
+  const WAT = P_.water || null;
+  const WAT_IDX = [], WAT0 = [];
+  if (WAT) for (let i = 0; i < n; i++) if (def.nodes[i].mWater > 0) { WAT_IDX.push(i); WAT0.push(def.nodes[i].mWater); }
+  const WDEF = WAT_IDX.length ? new Float64Array(n) : null;
+  const water = { kg0: WDEF !== null ? WAT.kg0 : 0, kg: WDEF !== null ? WAT.kg0 : 0, frac: 1, open: false, flowKgS: 0,
+                  rateLs: WAT ? WAT.rateLs : 0, kgL: (WAT && WAT.kgL) || 1,
+                  tanks: WAT ? WAT.tanks.length : 0, outlets: WAT ? WAT.outlets : [] };
+  if (WDEF !== null) ctl.dump = 0;          // (the valve's key: only a build with water carries it - input.js writes it then)
+  // a node's mass from its base (the def's, or the burn's while the tanks are drawn down), its load on top, its water off
+  const massBase = i => {
+    const k = FUEL_K[i];
+    const base = (k >= 0 && fuel.frac !== 1) ? DRY0[k] + FUEL0[k] * fuel.frac : def.nodes[i].m;
+    return FRX && FRX[i] !== 0 ? Math.max(0.5, base + FRX[i]) : base;
+  };
+  function waterFrame(dt) {
+    water.open = !!ctl.dump;
+    water.flowKgS = 0;
+    if (!water.open || !(water.kg > 0) || !(water.kg0 > 0)) { out.waterKg = water.kg; out.waterFlow = 0; return; }
+    const dkg = Math.min(water.kg, water.rateLs * water.kgL * Math.max(1, water.tanks) * dt);
+    const f2 = Math.max(0, water.frac - dkg / water.kg0);
+    water.frac = f2; water.kg = water.kg0 * f2; water.flowKgS = dkg / Math.max(1e-9, dt);
+    for (let k = 0; k < WAT_IDX.length; k++) {
+      const i = WAT_IDX[k];
+      WDEF[i] = WAT0[k] * (1 - f2);
+      setNodeMass(i, Math.max(0.5, massBase(i) - WDEF[i]));
+    }
+    out.waterKg = water.kg; out.waterFlow = water.flowKgS;
+  }
   // the load factor and the rates: finite differences over one frame,
   // filtered (a node-beam sim's raw acceleration is the truss ringing)
   let vPrev = null, hdgPrev = null;
@@ -29693,6 +29727,7 @@ function makeSim(def, world) {
     fuel.starved = false; fuel.starvedAt = null; fuel.enduranceS = Infinity;
     out.starved = false; out.energyFrac = 1; out.submerged = false;
     for (const vs of fuel.vessels) vs.litres = vs.litres0;
+    if (WDEF !== null) { WDEF.fill(0); water.kg = water.kg0; water.frac = 1; water.flowKgS = 0; water.open = false; ctl.dump = 0; out.waterKg = water.kg; out.waterFlow = 0; }   // (WATER: the tanks as filled, the valve shut)
     vPrev = null; hdgPrev = null;
     out.nz = 1; out.nzMax = 1; out.nzMin = 1; out.r = 0;
     VG.vMax = 0; VG.node = -1; VG.peak = 0; VG.fault = null;   // G1801
@@ -29758,7 +29793,9 @@ function makeSim(def, world) {
     fuel.kg = fuel.kg0 * f2; fuel.litres = fuel.litres0 * f2;
     for (const vs of fuel.vessels) vs.litres = vs.litres0 * f2;
     for (let k = 0; k < FUEL_IDX.length; k++)
-      setNodeMass(FUEL_IDX[k], FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2);   // (G2400: a load on a tank's node stays aboard)
+      setNodeMass(FUEL_IDX[k], WDEF === null
+        ? (FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2)   // (G2400: a load on a tank's node stays aboard)
+        : Math.max(0.5, (FRX ? DRY0[k] + FUEL0[k] * f2 + FRX[FUEL_IDX[k]] : DRY0[k] + FUEL0[k] * f2) - WDEF[FUEL_IDX[k]]));   // (WATER: what the valve let go stays gone)
     if (f2 <= 0) { for (const e of eng) e.running = false; starve(); }   // tanks dry
   }
   function starve() {
@@ -31038,6 +31075,7 @@ function makeSim(def, world) {
       // (a tank's node: what the burn last wrote, or the def's own number while the tanks are as built - reset's)
       const base = (k >= 0 && fuel.frac !== 1) ? DRY0[k] + FUEL0[k] * fuel.frac : def.nodes[i].m;
       m[i] = b !== 0 ? Math.max(0.5, base + b) : base;
+      if (WDEF !== null && WDEF[i] > 0) m[i] = Math.max(0.5, m[i] - WDEF[i]);   // (WATER: the dumped kilos stay gone)
       rigGround(i, m[i]);
       if (m[i] !== mOld[i]) chg[i] = 1;
     }
@@ -31635,6 +31673,7 @@ function makeSim(def, world) {
       if (occRec) genOccSub(OCC, OCS, p, v, dt, simT);
       if (subHook !== null) subHook(s, dt);
     }
+    if (WDEF !== null) waterFrame(dtFrame);         // WATER TANKS: the dump valve, once a frame
     readPanel(dtFrame);
     dmgFrame(dtFrame);
     if (DRV) driveFrame(dtFrame);                   // G1826 (DMG-DRIVE)
@@ -31809,7 +31848,9 @@ function makeSim(def, world) {
           vPrev && vPrev.slice(), hdgPrev, totalM, coneOn, coneLive, coneS2, hbLive, hbH, hbX0, hbX1, hbZ0, hbZ1, wetArm,
           _tkN, _prN, _tkHits, postLive, clMs, clArm, clDirty, _w0x, _w0y, _w0z],
       // G2400: the load aboard rides the snapshot (its masses are in `m` above; the list says what they are on top of)
-      X: FRX ? FRX.slice() : null, L: FRL ? FRL.map(a => a.slice()) : null };
+      X: FRX ? FRX.slice() : null, L: FRL ? FRL.map(a => a.slice()) : null,
+      // WATER TANKS: what has left each node, and the tanks' state (the masses themselves are in `m` above)
+      W: WDEF !== null ? [WDEF.slice(), water.kg, water.frac, water.open] : null };
   }
   function unsnap(Sn) {
     if (!Sn || Sn.nodes !== def.nodes || Sn.beams !== def.beams || Sn.n !== n || Sn.nb !== nb || !whole()) return false;
@@ -31817,6 +31858,7 @@ function makeSim(def, world) {
     [p, v, f, m, r, rC, KGn, CGn, KTn, CTn, gcx, gcy, gcz, Gam, GamPrev, vi, AIC, sA, sB, sZA, sZB, cpt, Ez, Dz, Wg, pG, pS, pDz, pEDz, bHalf, _tk, _pr]
       .forEach((a, k) => a.set(Sn.A[k]));
     FRX = Sn.X ? Float64Array.from(Sn.X) : null; FRL = Sn.L ? Sn.L.map(a => a.slice()) : null;   // G2400
+    if (WDEF !== null && Sn.W) { WDEF.set(Sn.W[0]); water.kg = Sn.W[1]; water.frac = Sn.W[2]; water.open = Sn.W[3]; }   // WATER TANKS
     const O = Sn.O, B = O[7];
     [xAft, yUp, zRt, t1, t2, sD, sC].forEach((a, k) => snapPut(a, O[k]));
     // (a field written only where it differs: a whole aeroplane's members hold their reset's values but the strain, and
@@ -31851,6 +31893,8 @@ function makeSim(def, world) {
            setFreight, freight: () => (FRL ? FRL.map(a => a.slice()) : null),
            // the panel arc: the tanks, the engines and their one writer
            fuel, eng, setEngine, thrEffOf, hydro: HY, get wetBody() { return WB; },
+           // WATER TANKS: the dump's state (kg, frac, open, flowKgS) and its outlets (node weights + the drop), null with none
+           water: WDEF !== null ? water : null,
            // G2090 (WATER-LOOK): the wet body's contacts for the page's spray / wake / bubbles (32_hydro.js wetFx; reading
            // clears the slam peaks it hands over); null while no wet body was ever built
            wetFx: dst => (WB && HYDRO.wetFx ? HYDRO.wetFx(WB, dst) : null),
@@ -48773,7 +48817,7 @@ function genEngPropD0(S, e0, PP0) {
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
-                               brkHold: 0, noseBallast: 0 };
+                               brkHold: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -49362,12 +49406,15 @@ const GEN_RULES = {
   // recalled: ~0.4 / ~0.6 kg with the ring and the cable). 61_gen_frame builds the hook's node on the hard structure and
   // names it refs.towHook - what TOW-LAUNCH's line (src/vehicle/tow.js makeTowLine, `o.hook`) pulls on
   towHook: { nose: { kg: 0.4, price: 450 }, cg: { kg: 0.6, ahead: 0.25, price: 650 } },
-  // THE NOSE BALLAST (the user, 15 Nov: "add 5 kg weight ballast in nose, make it a new element available from garage"):
-  // lead bolted to the nose ring's floor (the cage's `noseBallast`, kg -> spec.ballast.nose), billed in its own ledger
-  // line 'ballast' on the nose ring's two bottom nodes. A glider's trim ballast (a pilot under the placard's minimum
-  // flies with lead in the nose); on the Archaeopteryx it stands for the rescue parachute and the kit stowed in the
-  // very nose, which nothing else bills. maxKg a ceiling for the row; pricePerKg INFERRED (lead, its box and bolts)
-  noseBallast: { maxKg: 20, pricePerKg: 15 },
+  // WATER TANKS (the user, 15 Nov: "remove the ballast option and replace with the tanks ... We need to be able to put
+  // tanks, and fill them with water ... they will have a release mechanism, and a particle animation when it releases
+  // (water shower). There will be a release point, by default a simple downwards opening"): spec.water.vessels, the
+  // fuel tank's list again (a bay, a capacity in litres, a station and a level) plus `fill` (0..1, the garage's). The
+  // vessel is GEN_VESSELS.waterPoly, the contents GEN_WATER; the OUTLET is a round hole `outletD` m across in the tank's
+  // floor, straight down through the skin (not cut yet: the garage checks the run is clear - "little checks regarding
+  // collision"), emptying by Torricelli: Q = Cd x A x sqrt(2 g head), `head` the water's mean height over it. maxL a
+  // ceiling a tank. INFERRED: a 40 mm dump valve, Cd 0.6 (a sharp-edged hole), a 0.25 m head -> ~1.6 L/s
+  water: { maxL: 400, outletD: 0.04, Cd: 0.6, head: 0.25 },
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
@@ -51008,6 +51055,33 @@ function genEngLayoutEngines(layout, type, base) {
     sense: (layout === 'pushPull' && i === 1) ? -1 : 1 }));
 }
 
+// WATER TANKS, CLAMPED (GEN_RULES.water; the list the garage's energy layer draws beside the fuel's): each tank a bay
+// the aeroplane can have (no strut pod), its litres, its fill, its station and level and turn, its form and its own
+// look - the fuel vessel's rules; the list gone when it is empty
+function genWaterClamp(S) {
+  const Wt = S.water;
+  if (!Wt || typeof Wt !== 'object' || !Array.isArray(Wt.vessels)) { delete S.water; return; }
+  const out = [];
+  for (const v0 of Wt.vessels) {
+    if (!v0 || typeof v0 !== 'object') continue;
+    const v = Object.assign({}, v0);
+    if (!GEN_BAYS[v.bay] || GEN_BAYS[v.bay].on === 'strut') v.bay = 'cabin';
+    v.capacity = genClamp(+v.capacity || 0, 0, GEN_RULES.water.maxL);
+    if (!(v.capacity > 0)) continue;
+    v.fill = v.fill == null ? 1 : genClamp(+v.fill || 0, 0, 1);
+    v.along = v.along == null ? null : genClamp(+v.along, -1, 12);
+    v.lv = v.lv == null ? null : genClamp(+v.lv, 0, 1);
+    v.rot = genClamp(+v.rot || 0, -90, 90);
+    if (v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) && v.dims.profile.length >= 2 && v.dims.profile.length <= 33)
+      v.dims.profile = v.dims.profile.map(x => genClamp(+x || 0, 0, 1));
+    else v.form = v.form === 'cyl' ? 'cyl' : 'box';
+    if (v.finish != null && !['paint', 'alu', 'plastic', 'rubber', 'bluePoly'].includes(v.finish)) v.finish = null;
+    v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
+    if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint))) v.tint = null;
+    out.push(v);
+  }
+  if (out.length) S.water = { vessels: out }; else delete S.water;
+}
 function clampSpec(spec) {
   const S = genNormaliseSpec(spec);
   genNullToDefault(S, GEN_DEFAULT);                  // B13 (above)
@@ -51360,6 +51434,9 @@ function clampSpec(spec) {
         !['paint', 'alu', 'plastic', 'rubber'].includes(E.finish)) E.finish = null;
     E.hue = genClamp(E.hue || 0, 0, 359);
     if (E.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(E.tint))) E.tint = null;
+    // WATER TANKS (GEN_RULES.water): the fuel tank's own fields, clamped the same way, plus the fill; a body or wing
+    // bay (not a strut pod); the key only while a tank is listed (a build without one is the bytes it was)
+    genWaterClamp(S);
     // THE VESSELS ARE THE CAPACITY (G99). Each one is clamped on its own, and
     // the section's total is their sum — so `fuel.litres` and `energy.kWh`
     // stop being settable facts and become readings, which is what stops a
@@ -51538,11 +51615,6 @@ function clampSpec(spec) {
   //  built from its cage without the join - a design bake - reads the cage's row, as the frame reads whProfile)
   if (S.gear.towHook == null && S.cage && Math.round(+S.cage.towHook || 0) > 0) S.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+S.cage.towHook)) - 1];
   if (!((S.gear.towHook === 'nose' || S.gear.towHook === 'cg') && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))) delete S.gear.towHook;
-  // (THE NOSE BALLAST, GEN_RULES.noseBallast: kg of lead on the nose ring - the key only when there is some; a design
-  //  bake reads the cage's row, as the tow hook)
-  if (S.ballast == null && S.cage && +S.cage.noseBallast > 0) S.ballast = { nose: +S.cage.noseBallast };
-  if (S.ballast && +S.ballast.nose > 0) S.ballast = { nose: Math.round(genClamp(+S.ballast.nose, 0, GEN_RULES.noseBallast.maxKg) * 10) / 10 };
-  else delete S.ballast;
   // MONOWHEEL: THE SUNK MAINS - the share of the wheel's diameter inside the body (the cage's s1Sink, the join's); the
   // drag counts the rest, no leg in the stream. Absent at 0
   if (+S.gear.sink > 0) S.gear.sink = genClamp(+S.gear.sink, 0, 0.7); else delete S.gear.sink;
@@ -53235,7 +53307,16 @@ const GEN_VESSELS = {
   //  is: the cells' packK (0.70) already counts some of the case and the BMS)
   packCase:{ name: 'Pack case',        holds: 'battery',
              shapeK: 6.2, kgM2: 4.1, fixed: 3.0, fixedKWh: 10, fixedMin: 0.3, priceM2: 2300, priceFixed: 300 },
+  // WATER TANKS (the user, 15 Nov: "we need to be able to put tanks, and fill them with water ... reuse the fuel tank
+  // mechanism, but give it another appearance ... out of plastic this time, maybe blue plastic"): rotomoulded blue
+  // polyethylene, a water bowser's or a crop sprayer's hopper - the moulded row's skin, lighter fittings (a cap, a vent
+  // and the outlet's valve: no sender, no fuel-rated drain). INFERRED, as the moulded row is
+  waterPoly: { name: 'Water tank (blue polyethylene)', holds: 'water',
+               shapeK: 6.8, kgM2: 2.2, fixed: 0.5, priceM2: 380, priceFixed: 60 },
 };
+// WHAT A WATER TANK HOLDS (the ballast today; later what is sprayed): kg a litre, and the outlet that empties it - a
+// plain round hole in the tank's floor, its valve the pilot's (GEN_RULES.water, 60_gen_spec)
+const GEN_WATER = { water: { name: 'Water', kgL: 1.0 } };
 
 // The volume a vessel needs, and what it and its contents weigh. ONE function,
 // so the editor's readout, the ledger and the gate cannot disagree.
@@ -53244,12 +53325,17 @@ const GEN_VESSELS = {
 // Returns litres of INSTALLED VOLUME (what has to fit in a bay), the vessel's
 // own mass, the contents' mass, and what the pair costs.
 function genVesselResolve(kind, capacity, vesselKey, mediumKey) {
-  const battery = kind === 'battery';
+  const battery = kind === 'battery', water = kind === 'water';
   const V = Math.max(0, capacity || 0);
   const ves = GEN_VESSELS[vesselKey] ||
-              (battery ? GEN_VESSELS.packCase : GEN_VESSELS.alu);
+              (battery ? GEN_VESSELS.packCase : water ? GEN_VESSELS.waterPoly : GEN_VESSELS.alu);
   let litres, contents, mediumPrice;
-  if (battery) {
+  if (water) {
+    // (WATER: litres of water, full; the fill is the loading's - 61_gen_frame bills capacity x fill)
+    litres = V;
+    contents = V * ((GEN_WATER[mediumKey] || GEN_WATER.water).kgL);
+    mediumPrice = 0;
+  } else if (battery) {
     const cell = GEN_CELLS[mediumKey] || GEN_CELLS.lifepo4;
     const packWhKg = cell.WhKg * cell.packK;
     const packWhL  = cell.WhL  * cell.packK;
@@ -54752,7 +54838,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // same reason `cover` lives in the skin payload (63_gen_skin.js): the thing
   // that billed the mass knows what it was, and a list maintained anywhere else
   // goes stale the first time a section is added.
-  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1, podLoad: 1 };   // podLoad: the freight in the belly pod (G2410)
+  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1, podLoad: 1, water: 1 };   // water: the water tanks' contents (GEN_RULES.water)   // podLoad: the freight in the belly pod (G2410)
   const bill = (mass, cost) => {
     const e = ledger[SEC] ||
       (ledger[SEC] = { mass: 0, cost: 0, payload: !!PAYLOAD_SECS[SEC] });
@@ -57915,6 +58001,61 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       nodes[n2].mFuel = (nodes[n2].mFuel || 0) + w2 * m;
     }
   }
+  // ---- WATER TANKS (GEN_RULES.water; the user 15 Nov: tanks filled with water, a release, a shower) ----------------
+  // The fuel tank's billing again, on its own list: the shell (GEN_VESSELS.waterPoly) is the airframe's ('waterTank'),
+  // the water - capacity x fill - the loading's ('water', a payload section), each on the pair of nodes its bay and
+  // station give (bodyRing / the spar pairs), and recorded per node (`mWater`) for the solver's dump valve as `mFuel`
+  // is for the burn. THE OUTLET: a round hole in the tank's floor, straight down - a body tank's on the centreline at
+  // its station, at the keel's level (bodyRing at lv 0); a wing tank's one a side under its spar pair. parts.water says
+  // where (node weights, the drop below them) and how fast it empties (Torricelli on GEN_RULES.water's hole).
+  const WVES = (S.water && Array.isArray(S.water.vessels)) ? S.water.vessels : [];
+  let WATER = null;
+  if (WVES.length && R.water) {
+    const RW = R.water, outs = [], tanks = [];
+    sec('waterTank');
+    for (const v of WVES) {
+      const BAY = GEN_BAYS[v.bay] || GEN_BAYS.cabin;
+      const bay = genBayResolve(S, GEN_BAYS[v.bay] ? v.bay : 'cabin', ST);
+      const r = genVesselResolve('water', v.capacity, 'waterPoly', 'water');
+      let pair, outl;
+      if (BAY.on === 'wing') {
+        const frac = v.along != null ? v.along : (v.bay === 'wingPanel' || v.bay === 'wing2Panel' ? 0.34 : 0);
+        const [wl, wr] = wingPair(frac, BAY.plane || 0);
+        const rr = wingPairRear(frac, BAY.plane || 0);
+        pair = rr ? [[wl, 0.3], [wr, 0.3], [rr[0], 0.2], [rr[1], 0.2]] : [[wl, 0.5], [wr, 0.5]];
+        outl = rr ? [{ pts: [[wl, 0.6], [rr[0], 0.4]], dy: 0.06 }, { pts: [[wr, 0.6], [rr[1], 0.4]], dy: 0.06 }]
+                  : [{ pts: [[wl, 1]], dy: 0.06 }, { pts: [[wr, 1]], dy: 0.06 }];
+      } else {
+        const xW = v.along != null ? v.along : bay.xMid;
+        const lvW = v.lv != null ? v.lv : 0.5 * ((BAY.lv || [0, 1])[0] + (BAY.lv || [0, 1])[1]);
+        pair = bodyRing(xW, lvW);
+        // (the floor's pair at the station; a tank ahead of the nose ring has its own nodes - bodyRing made them - so its own pair)
+        outl = [{ pts: xW < ST[0].x - 0.05 ? pair : bodyRing(xW, 0), dy: 0.03 }];
+      }
+      if (r.vesselKg > 0) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.vesselKg); spend(r.price); }
+      v._pair = pair; v._res = r; v._out = outl;
+    }
+    sec('water');
+    let kg0 = 0;
+    for (const v of WVES) {
+      const kgW = v._res.contentsKg * (v.fill == null ? 1 : v.fill);
+      const share = 1 / v._out.length;
+      for (const o of v._out) outs.push({ pts: o.pts, dy: o.dy, share, tank: tanks.length });
+      tanks.push({ bay: v.bay, litres: v.capacity, fill: v.fill == null ? 1 : v.fill, kg: kgW });
+      if (!(kgW > 0)) continue;
+      kg0 += kgW;
+      for (const [n2, w2] of v._pair) {
+        if (w2 <= 0) continue;
+        pt(n2, w2 * kgW);
+        nodes[n2].mWater = (nodes[n2].mWater || 0) + w2 * kgW;
+      }
+    }
+    // Torricelli: one hole a tank (a wing tank's two share its flow), litres a second, full head - the valve's rate
+    const A = Math.PI * RW.outletD * RW.outletD / 4;
+    const rateLs = 1000 * RW.Cd * A * Math.sqrt(2 * 9.81 * RW.head);
+    WATER = { kg0, rateLs, kgL: GEN_WATER.water.kgL, outlets: outs, tanks };
+    for (const v of WVES) { delete v._pair; delete v._res; delete v._out; }
+  }
   // ---- THE FIT, ITEMISED (the panel arc, session 2) ------------------------
   // One lump on the firewall top pair used to stand for the whole fit. Now
   // genSystemsResolve's own rows are billed, each where the thing sits:
@@ -57951,17 +58092,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const eltKg = (SYS.rows.find(r => r.key === 'elt:fitted') || {}).kg || 0;
   halfOn(F[0].TL, F[0].TR, eltKg ? SYS.bill.avionics.kg - eltKg : SYS.bill.avionics.kg);
   if (eltKg) { const Ft = F[Math.max(1, F.length - 2)]; halfOn(Ft.TL, Ft.TR, eltKg); }
-  // THE NOSE BALLAST (GEN_RULES.noseBallast; spec.ballast.nose kg): lead on the nose ring's floor, its own ledger line
-  // (opened only when there is some: a build without it bills the sections it always did). On a SOFT shell (a fuselage
-  // row naming a hard one) the box bolts to the keel tubes' front nodes, as the tow hook's nose release: the pod's nose
-  // ring is poles (GATE NACELLE C: 5 kg on S0BL / S0BR sagged the nose's keel 27 mm under 2 g, past its 25)
-  if (S.ballast && +S.ballast.nose > 0 && R.noseBallast) {
-    sec('ballast');
-    const kl = M && M.hard && keelRef ? (keelRef.twin ? [keelRef.left[0], keelRef.right[0]] : keelRef.bottom ? [keelRef.bottom[0], keelRef.bottom[0]] : null) : null;
-    const [ba, bb] = kl && kl[0] != null && kl[1] != null ? kl : [F[0].BL, F[0].BR];
-    halfOn(ba, bb, +S.ballast.nose);
-    spend(+S.ballast.nose * R.noseBallast.pricePerKg);
-  }
   // ---- THE OUTFIT (G159) ------------------------------------------------
   // Everything a real aeroplane carries between its structure and its payload.
   // Each item hangs off a CHOICE or a MEASUREMENT of this aeroplane, never a
@@ -58294,6 +58424,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // repaint (the paint alone) and a recover (the cloth and its paint) off the airframe actually built (76_ econRestoreCost)
   parts.cover = { paintA: coverA, clothA: clothAll };
   if (podR) parts.pod = podR;   // G2410: the resolved belly pod (absent with none: the parts keep their bytes)
+  if (WATER) parts.water = WATER;   // WATER TANKS: the water aboard, the outlets, the dump rate (absent with none: the bytes kept)
   // WILGA-GEAR: THE STRUTS, each designed for this aeroplane (62c gearOleoDesign: the charge for the static deflection
   // at the design gross, the second stage, the orifice for the limit sink) - on the final masses: the wheel's static
   // load is the gross's share the mains carry at the built CG (the third wheel's lever arm), split per side. The
@@ -58428,7 +58559,9 @@ function genDesignGross(S, a, cg) {
   const fu = S.fuse || {}, cb = S.cab || {};
   const freight = fu.cargoLen > 1e-6
     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
-  const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
+  // WATER TANKS: the structure carries them full (their capacity, whatever the garage's fill) - absent, 0
+  const waterFull = (S.water && Array.isArray(S.water.vessels)) ? S.water.vessels.reduce((t, v) => t + (+v.capacity || 0) * GEN_WATER.water.kgL, 0) : 0;
+  const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight + waterFull;
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
   // THE BUILD WEIGHT (the foot-launch D-tube, GEN_SURF_MATERIALS.dtube): a wing built for buildKg thins below it but
   // never grows past it
@@ -59997,7 +60130,7 @@ function genSubstepsTrue(nodes, beams) {
     // wood 66->79 (0.565->0.448), alloy 109 (0.448), carbon 152->156
     // (0.470->0.448). The floor alone read 76/83/109/159 — past the 80 GATE
     // MOUNT allows, which is why the bow lands with it and not after it.
-    const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
+    const dry = i => ((nodes[i].mFuel || nodes[i].mWater) ? Math.max(0.5, nodes[i].m - (nodes[i].mFuel || 0) - (nodes[i].mWater || 0)) : nodes[i].m);
     const inv = 1 / dry(b.a) + 1 / dry(b.b);           // 1/reduced mass, dry
     wMax = Math.max(wMax, Math.sqrt(b.k * inv));
     cMax = Math.max(cMax, b.c * inv);
@@ -60017,7 +60150,7 @@ function genSubstepsTrue(nodes, beams) {
   // give <= GEN_NET_MAX; the smallest step that does is taken, never more than the old rule's, and a
   // build whose springs set the step is untouched - the same number, no beam changed.
   const byW = Math.min(200, Math.max(24, Math.ceil(wMax / (60 * GEN_WDT_MAX))));
-  const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
+  const dry = i => ((nodes[i].mFuel || nodes[i].mWater) ? Math.max(0.5, nodes[i].m - (nodes[i].mFuel || 0) - (nodes[i].mWater || 0)) : nodes[i].m);
   const invOf = b => 1 / dry(b.a) + 1 / dry(b.b);
   // G2630 (RADIAL-DIVERGE): THE CAP CANNOT CARRY THE DAMPERS. Where the dampers alone ask more than the 200 cap, the
   // old rule flew 200 with every damper as built - outside the integrator. The user's Mosquito (carbon, oleo gear,
@@ -60105,7 +60238,7 @@ function genRigidFloatOf(nodes, clusters) {
 }
 function genFlightBox(nodes, beams, N0, clusters) {
   if (!(N0 > GEN_BOX_N)) return N0;
-  const dry = i => (nodes[i].mFuel ? Math.max(0.5, nodes[i].m - nodes[i].mFuel) : nodes[i].m);
+  const dry = i => ((nodes[i].mFuel || nodes[i].mWater) ? Math.max(0.5, nodes[i].m - (nodes[i].mFuel || 0) - (nodes[i].mWater || 0)) : nodes[i].m);
   const invOf = b => 1 / dry(b.a) + 1 / dry(b.b);
   const hull = genRigidFloatOf(nodes, clusters);
   const net = hull ? beams.filter(b => !hull(b)) : beams;   // G790: the network the integrator carries
@@ -60562,6 +60695,9 @@ function genParams(S, fr, strips) {
           // per tank, in spec order, what the frame billed (the fuel gauges)
           vessels: ((S.energy && S.energy.vessels) || []).map(v => ({
             bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
+    // WATER TANKS (GEN_RULES.water): what the dump valve drains (the frame's `mWater` records) and where it leaves - the
+    // outlets as node weights and a drop below them, for the solver and the viewer's shower (absent with none)
+    ...(fr.parts && fr.parts.water ? { water: fr.parts.water } : {}),
     // (WILGA-GEAR: a trailing-link leg's struts are no members - each stands in here at its stiffest, bottomed on its
     // stops, so the step is one the integrator carries; its orifice is semi-implicit and asks no step - 62c gearOleoF)
     ...genSubsteps(fr.nodes, fr.parts && fr.parts.lever ? fr.beams.concat(fr.parts.lever.sides.map(q => ({ a: q.u, b: q.h, k: q.O.kS + q.O.kFull, c: 0, L: q.O.Lx }))) : fr.beams, fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
@@ -70270,7 +70406,7 @@ function freightStrapNext(doc, slot, card) {
   return { doc: r.doc, rec: r.rec, how: 'proposed', why: '' };
 }
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_TIP_SKID, genTipSkidZ, GEN_HANG, genGearCdA, genCertGroundLoads, GEN_BRAKES, genBrakeOf, GEN_FICHE_PAGES_V, genFichePages, genFicheModel, genFicheLoad, genFicheDestroy, genFicheDrag, genFicheGearTerms, genFicheElec, genFicheTanks, GEN_COOL, genCooling, genCoolOpen, genCoolOilC, genCoolSummary, genHeadsFrontal, genCoolRows, genFicheCooling, RESTORE_WORDS, RESTORE_STEPS, restoreStage, playerRestoreState, playerRestoreStart, playerRestoreSettle };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, GEN_WATER, genWaterClamp, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_TIP_SKID, genTipSkidZ, GEN_HANG, genGearCdA, genCertGroundLoads, GEN_BRAKES, genBrakeOf, GEN_FICHE_PAGES_V, genFichePages, genFicheModel, genFicheLoad, genFicheDestroy, genFicheDrag, genFicheGearTerms, genFicheElec, genFicheTanks, GEN_COOL, genCooling, genCoolOpen, genCoolOilC, genCoolSummary, genHeadsFrontal, genCoolRows, genFicheCooling, RESTORE_WORDS, RESTORE_STEPS, restoreStage, playerRestoreState, playerRestoreStart, playerRestoreSettle };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
@@ -70287,7 +70423,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='4a5da9eb316c';window.FLYDIY_BUILD='47fa6aa15591';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='dedfcc58ea80';window.FLYDIY_BUILD='cc219ce693a8';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -70736,7 +70872,7 @@ const CAGE_PARTS = [
   { key: 'design', name: 'Design & construction', parent: null, layer: 'cage',
     groups: [
       ['construction', ['intCons']],
-      ['configuration', ['boomStyle', 'mirror', 'canopy', 'canClear', 'noseBallast']],
+      ['configuration', ['boomStyle', 'mirror', 'canopy', 'canClear']],
       ['wing', ['wgPos', 'wgBrace', 'w2On']],
       ['what it has', ['wingOn', 'gearOn', 'crewOn']],
     ] },
@@ -76476,9 +76612,6 @@ const ARCHETYPES = [
                     // (A0 for the user, 13 Nov: the tow hook, the Archaeopteryx first - a CG release ahead of the wheel: the
                     //  auto-tow behind the car and the winch)
                     towHook: 2,
-                    // THE NOSE BALLAST (the user, 15 Nov: "add 5 kg weight ballast in nose"): the rescue parachute and the
-                    // kit stowed in the very nose, which nothing else bills - 5 kg of lead on the nose ring (GEN_RULES.noseBallast)
-                    noseBallast: 5,
                     // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
@@ -76673,6 +76806,14 @@ const ARCHETYPES = [
                     // to sill). A real figure, not a re-tune
                     energy: { kind: 'battery', cell: 'nmc', vessels: [{ bay: 'cabin', capacity: 1, along: 0.85, lv: 0.35 },
                                                                       { bay: 'cabin', capacity: 1, along: 0.85, lv: 0.35 }] },
+                    // THE NOSE WATER TANK (the user, 15 Nov: "add 5 kg weight ballast in nose", then "remove the ballast
+                    // option and replace with the tanks, including for the archaeopteryx"): 5 L of water in the very nose,
+                    // full - standing for the rescue parachute and the kit stowed there, which nothing else bills - and
+                    // the pilot can dump it (GEN_RULES.water: the outlet straight down, the valve, the shower). The nose bay
+                    // (this pod's datum, x 0, is the panel's ring; the nose cone runs to -0.43): a long slim cylinder
+                    // 0.52 x 0.115 x 0.12 m centred 0.06 m ahead of it - the pod's nose is tight, the layer reads it 1 mm
+                    // into the nose's shoulder (a cubic 5 L tank 17-47 mm; a slimmer one fits and holds 4 L)
+                    water: { vessels: [{ bay: 'nose', capacity: 5, fill: 1, along: -0.06, lv: 0.3, form: 'cyl', dims: { L: 0.52, W: 0.115, H: 0.12 } }] },
                     systems: { fit: 'minimal', items: ['asi', 'alt', 'vsi'] },   // (L3: airspeed, altimeter, vario)
                     // (WEIGHT STUDY: white from the gelcoat and the cloth - no paint, 5.1 -> 0 kg; the registration is vinyl)
                     paint: { job: 'self', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
@@ -78822,9 +78963,6 @@ window.CAGE_PAGE = {
                                                   'open', 'bubble']],
         // (the LS4, 13 Nov: the arch between the panes drawn as glass - a look only, the geometry and the physics untouched)
         ['canClear',  'canopy arch',    0, 1, 1, ['framed', 'clear (drawn as glass)'], { absent: 0 }],
-        // THE NOSE BALLAST (the user, 15 Nov: "add 5 kg weight ballast in nose, make it a new element available from
-        // garage"): kg of lead on the nose ring's floor (GEN_RULES.noseBallast), its own ledger line - mass only
-        ['noseBallast', 'nose ballast (kg of lead)', 0, 20, 0.5, { absent: 0 }],
         // THE LABEL IS THE SHAPE, NOT THE MECHANISM (NEW-AIRCRAFT §5.3):
         // a builder chooses what the top of the fuselage does behind the
         // cockpit — cabin roof running aft, or a turtledeck falling away.
@@ -93848,13 +93986,12 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
 // (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
-const CAGE_DEFAULT_ABSENT = { canClear: 0, noseBallast: 0, towHook: 0, instPod: 0, s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+const CAGE_DEFAULT_ABSENT = { canClear: 0, towHook: 0, instPod: 0, s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
   s1Ul: 0,                           // (WEIGHT STUDY L6: no ultralight monowheel)
   towHook: 0,                        // (no tow hook)
-  noseBallast: 0,                    // (no lead in the nose)
   rodHub: 0,                         // (the hub's rear socket: the rod on the aft bulkhead, as ever)
   hangOn: 0, hangAt: 0.50, hangLen: 0.35, hangKeels: 1,   // (the hanging nacelle: the cabin carries the wing, as ever; GEN_HANG's mast)
   bpCabPyAt: 0.40, bpCabPyLen: 0.55, // (the hub's pylon on the chord: HULL-B78's own)
@@ -138361,6 +138498,7 @@ const SHAPES = {
   moulded:  { aspect: [1.40, 1.00, 0.80], fill: 0.86, form: 'box'  },
   bladder:  { aspect: [1.60, 1.00, 0.58], fill: 0.80, form: 'box'  },
   packCase: { aspect: [2.00, 1.40, 0.36], fill: 0.94, form: 'box'  },
+  waterPoly:{ aspect: [1.30, 1.00, 0.90], fill: 0.86, form: 'box'  },   // WATER TANKS: a rotomoulded blue tank, near cubic
   wet:      { aspect: [1, 1, 1],          fill: 1.00, form: 'bay'  },
 };
 
@@ -140071,7 +140209,28 @@ function liftedVessels(spec) {
     return Array.isArray(v) && v.length ? v : null;
   } catch (e) { return null; }
 }
-function fromSpec(energy, spec) {
+// WATER TANKS (GEN_RULES.water; the user 15 Nov: "We need to be able to put tanks, and fill them with water. These will
+// be called water tanks ... Let's simply reuse the fuel tank mechanism, but give it another appearance ... blue
+// plastic"): THEY LIVE IN THIS LIST, flagged `holds: 'water'`, so every placement, fit, drag and drawing door here is
+// theirs too - and they LEAVE it as their own section, spec.water.vessels (toWater), which the physics' fuel and pack
+// readers never see. `fill` (0..1) is the tank's own, the garage's row. WATER_KNOWN: the list was seeded from a spec
+// that could carry water; until then the join leaves the spec's water alone (a harness that seeds the fuel list only
+// must not empty a card's water tanks).
+let WATER_KNOWN = false;
+const isWater = v => !!(v && v.holds === 'water');
+const waterOf = (spec, water) => water !== undefined ? water : (spec ? (spec.water || null) : undefined);
+function waterVessel(v) {
+  return { holds: 'water', bay: v.bay || 'cabin', capacity: +v.capacity || 0,
+    fill: v.fill == null ? 1 : MathL.max(0, MathL.min(1, +v.fill)),
+    along: v.along == null ? null : +v.along, lv: v.lv == null ? null : +v.lv, rot: +v.rot || 0,
+    form: v.form === 'cyl' ? 'cyl' : (v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) && v.dims.profile.length >= 2) ? 'deck' : 'box',
+    dims: (v.dims && v.dims.L > 0) ? Object.assign({ L: +v.dims.L, W: +v.dims.W, H: +v.dims.H },
+      (Array.isArray(v.dims.profile) && v.dims.profile.length >= 2) ? { profile: v.dims.profile.map(Number) } : {}) : null,
+    finish: FINISH[v.finish] ? v.finish : null, hue: v.hue == null ? null : +v.hue || 0, tint: v.tint || null };
+}
+function fromSpec(energy, spec, water) {
+  const WL = waterOf(spec, water);
+  const keepW = WL === undefined ? EN.vessels.filter(isWater) : null;
   let E = energy || {};
   if (spec && !(Array.isArray(E.vessels) && E.vessels.length)) {
     const L = liftedVessels(spec);
@@ -140104,6 +140263,12 @@ function fromSpec(energy, spec) {
         v.fit === 'auto' ? { fit: 'auto' } : {}, v.gap != null && isFinite(+v.gap) ? { gap: +v.gap } : {},
         v.room != null && isFinite(+v.room) ? { room: +v.room } : {}))
     : defaultVessels();
+  // (a fuel or pack list never holds a water tank: the water rides beside it)
+  EN.vessels = EN.vessels.filter(v => !isWater(v));
+  if (WL !== undefined) {
+    WATER_KNOWN = true;
+    if (WL && Array.isArray(WL.vessels)) for (const v of WL.vessels) if (v && +v.capacity > 0) EN.vessels.push(waterVessel(v));
+  } else if (keepW && keepW.length) EN.vessels.push(...keepW);
   seeded = true;
   savePrefs();
   if (panelBody) renderPanel();
@@ -140116,7 +140281,7 @@ function fromSpec(energy, spec) {
 function toSpec() {
   return { kind: EN.kind, fuel: EN.fuel, cell: EN.cell, vessel: EN.vessel,
            finish: EN.finish, hue: EN.hue, tint: EN.tint,
-           vessels: EN.vessels.map(v => ({ bay: v.bay, capacity: v.capacity,
+           vessels: EN.vessels.filter(v => !isWater(v)).map(v => ({ bay: v.bay, capacity: v.capacity,
              along: v.along, lv: v.lv, rot: v.rot, form: v.form || 'box',
              // G1150: a deck's profile rides with its dims (without it the core makes it a box)
              dims: v.dims ? Object.assign({ L: v.dims.L, W: v.dims.W, H: v.dims.H }, Array.isArray(v.dims.profile) ? { profile: v.dims.profile.slice() } : {}) : null,
@@ -140126,19 +140291,27 @@ function toSpec() {
              ...(v.fit === 'auto' ? { fit: 'auto' } : {}), ...(v.gap != null ? { gap: v.gap } : {}), ...(v.room != null ? { room: v.room } : {}) })) };
 }
 
+// THE WATER TANKS' OWN SECTION (spec.water): undefined until the list was seeded from a spec that could carry water
+function toWater() {
+  if (!WATER_KNOWN) return undefined;
+  return { vessels: EN.vessels.filter(isWater).map(v => ({ bay: v.bay, capacity: v.capacity, fill: v.fill == null ? 1 : v.fill,
+    along: v.along, lv: v.lv, rot: v.rot, form: v.form || 'box',
+    dims: v.dims ? Object.assign({ L: v.dims.L, W: v.dims.W, H: v.dims.H }, Array.isArray(v.dims.profile) ? { profile: v.dims.profile.slice() } : {}) : null,
+    finish: v.finish || null, hue: v.hue == null ? null : v.hue, tint: v.tint || null })) };
+}
 // the bench remembers; the game's memory is the spec
 const LSKEY = () => 'cageEnergy:' + (typeof location !== 'undefined' ? location.pathname : '');
 function loadPrefs() {
   if (inGame() || typeof localStorage === 'undefined') return false;
   try {
     const j = JSON.parse(localStorage.getItem(LSKEY()) || 'null');
-    if (j && Array.isArray(j.vessels)) { fromSpec(j); return true; }
+    if (j && Array.isArray(j.vessels)) { fromSpec(j, undefined, j.water || null); return true; }
   } catch (e) {}
   return false;
 }
 function savePrefs() {
   if (inGame() || typeof localStorage === 'undefined') return;
-  try { localStorage.setItem(LSKEY(), JSON.stringify(toSpec())); } catch (e) {}
+  try { localStorage.setItem(LSKEY(), JSON.stringify(Object.assign(toSpec(), { water: toWater() || null }))); } catch (e) {}
 }
 
 // ---------------------------------------------------------------------------
@@ -140162,11 +140335,11 @@ const vesselKey = () => EN.vessel || (EN.kind === 'battery' ? 'packCase' : 'alu'
 const formOf = v => (v && v.form === 'cyl' ? 'cyl' : v && v.form === 'ogive' ? 'ogive'
   : v && v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) ? 'deck' : 'box');
 // installed litres of a drawn box -> the capacity unit the spec stores
-function capacityFromDims(dims, form) {
+function capacityFromDims(dims, form, v) {
   const G = VG(), C = core();
   if (!G || !G.installedFromDims) return 0;
-  const inst = G.installedFromDims(vesselKey(), dims, form);
-  if (EN.kind === 'battery') {
+  const inst = G.installedFromDims(v ? vesselKeyV(v) : vesselKey(), dims, form);
+  if (EN.kind === 'battery' && !isWater(v)) {
     const cell = (C.CELLS || {})[EN.cell] || { WhL: 250, packK: 0.7 };
     return MathL.max(0, MathL.round((inst / 1.18) * (cell.WhL * cell.packK) / 1000 * 10) / 10);
   }
@@ -140174,6 +140347,11 @@ function capacityFromDims(dims, form) {
 }
 const medium = () => (EN.kind === 'battery' ? EN.cell : EN.fuel);
 const unit = () => (EN.kind === 'battery' ? 'kWh' : 'L');
+// PER VESSEL (WATER TANKS): a water tank is water in blue polyethylene whatever the section's kind
+const kindV = v => isWater(v) ? 'water' : (EN.kind === 'battery' ? 'battery' : 'fuel');
+const vesselKeyV = v => isWater(v) ? 'waterPoly' : vesselKey();
+const mediumV = v => isWater(v) ? 'water' : medium();
+const unitV = v => isWater(v) ? 'L' : unit();
 
 // THE RESOLVED SPEC the bay rule reads. The game has one; the bench
 // reconstructs the four numbers the join measures, off the same rings.
@@ -140512,7 +140690,7 @@ function placeAll(ctx, inv) {
   if (!C.vesselResolve || !G) return results;
   // ENGINELESS (the LS4: the engine page's switch off, engOn 0 - a sailplane): no tank, no pack drawn - the core holds
   // none (60_gen_spec genUnpowered) and the join writes none
-  if (ctx && ctx.P && ctx.P.engOn != null && !+ctx.P.engOn) return results;
+  const engineless = !!(ctx && ctx.P && ctx.P.engOn != null && !+ctx.P.engOn);   // (WATER TANKS: a sailplane keeps its water)
   let wroteBack = false;
   // ONE SWEEP PER BAY PER BODY, not per layout and not per build: a drag
   // moves the tank and nothing else, and a wing or engine row moves nothing
@@ -140538,8 +140716,9 @@ function placeAll(ctx, inv) {
   // (The user's Cub booted to a 29 L tank shaped against the waiting crew and loaded from the shelf to 27 L.)
   const crewPending = !FIT_ASKING && typeof window.CAGE_CREW_PENDING === 'function' && window.CAGE_CREW_PENDING();
   for (const v of EN.vessels) {
+    if (engineless && !isWater(v)) continue;
     if (v.bay === 'strut' && !BAYS.find(b => b.key === 'strut') && !legacyFit()) {
-      const res0 = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel', v.capacity, vesselKey(), medium());
+      const res0 = C.vesselResolve(kindV(v), v.capacity, vesselKeyV(v), mediumV(v));
       results.push({ on: 'strut', ok: false, unmounted: true, pods: [], v, res: res0, needL: res0.installedL, roomL: 0,
         bay: { key: 'strut', name: 'On the lift struts', on: 'strut', span: [0.25, 0.8] },
         why: ['this aeroplane has no lift struts to hang it on: the pod is not fitted and carries no fuel (give the wing ' +
@@ -140555,10 +140734,9 @@ function placeAll(ctx, inv) {
     // litres derived from them (installed volume, less the shell's rounding,
     // back through the same ullage factor genVesselResolve applies), so the
     // ledger bills what the drawn box holds and nothing else.
-    if (v.dims) v.capacity = capacityFromDims(v.dims, formOf(v));
-    const res = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
-                                v.capacity, vesselKey(), medium());
-    let dims = G.vesselDims(vesselKey(), res.installedL, v.dims, formOf(v));
+    if (v.dims) v.capacity = capacityFromDims(v.dims, formOf(v), v);
+    const res = C.vesselResolve(kindV(v), v.capacity, vesselKeyV(v), mediumV(v));
+    let dims = G.vesselDims(vesselKeyV(v), res.installedL, v.dims, formOf(v));
     let pl, resOver = null, autoY = null;
     if (bay.on === 'strut') {
       // G477: A POD ON EACH FRONT LIFT STRUT — the vessel's litres shared by
@@ -140568,9 +140746,8 @@ function placeAll(ctx, inv) {
       // the body at its foot by a hand, and the litres are the pair's.
       v.form = 'ogive';
       if (v.dims) v.capacity = capacityFromDims(v.dims, 'ogive') * 2;
-      const resH = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
-                                   v.capacity / 2, vesselKey(), medium());
-      dims = G.vesselDims(vesselKey(), resH.installedL, v.dims, 'ogive');
+      const resH = C.vesselResolve(kindV(v), v.capacity / 2, vesselKeyV(v), mediumV(v));
+      dims = G.vesselDims(vesselKeyV(v), resH.installedL, v.dims, 'ogive');
       const t0 = v.along != null ? v.along : 0.5 * (bay.span[0] + bay.span[1]);
       if (v.along == null) { v.along = t0; wroteBack = true; }
       const S2 = (W && W.struts) || [];
@@ -140683,8 +140860,8 @@ function placeAll(ctx, inv) {
           if (!same) { v.form = 'deck'; v.dims = na.dims; v.along = na.along; v.lv = na.lv; v.rot = 0; v.fit = 'auto'; wroteBack = true; }
           v.capacity = capacityFromDims(v.dims, 'deck');
           v.shaped = 'auto';
-          resOver = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel', v.capacity, vesselKey(), medium());
-          dims = G.vesselDims(vesselKey(), resOver.installedL, v.dims, 'deck');
+          resOver = C.vesselResolve(kindV(v), v.capacity, vesselKeyV(v), mediumV(v));
+          dims = G.vesselDims(vesselKeyV(v), resOver.installedL, v.dims, 'deck');
           delete v.autoWhy;
           autoY = na.yc;
         } else if (na && na.why) v.autoWhy = na.why;
@@ -140726,11 +140903,10 @@ function placeAll(ctx, inv) {
               if (free > 0.06 && free < bf.H) { bf.H = free; bf.capped = true; bf.crew = true; }
             }
             v.dims = { L: +bf.L.toFixed(3), W: +bf.W.toFixed(3), H: +bf.H.toFixed(3) };
-            v.capacity = capacityFromDims(v.dims, formOf(v));
+            v.capacity = capacityFromDims(v.dims, formOf(v), v);
             v.shaped = bf.crew ? 'crew' : (bf.capped ? 'band' : true);
-            const res2 = C.vesselResolve(EN.kind === 'battery' ? 'battery' : 'fuel',
-                                         v.capacity, vesselKey(), medium());
-            dims = G.vesselDims(vesselKey(), res2.installedL, v.dims, formOf(v));
+            const res2 = C.vesselResolve(kindV(v), v.capacity, vesselKeyV(v), mediumV(v));
+            dims = G.vesselDims(vesselKeyV(v), res2.installedL, v.dims, formOf(v));
             // a new shape settles its own level; the station stays the player's
             v.lv = null;
             wroteBack = true;
@@ -141759,8 +141935,75 @@ function lightBox(r, sol) {
   return [c[0] - ex, c[1] - e[1], c[2] - ez, c[0] + ex, c[1] + e[1], c[2] + ez];
 }
 // ALL BODY TANKS (the layout's and fitOf's door)
+// WATER TANKS: THE OUTLET'S RUN, CHECKED (the user, 15 Nov: "a release point, by default a simple downwards opening with
+// little checks" - "Little checks means regarding collision. Ideally we'd need to cut through the fuselage, let's not
+// do that yet"). The hole is in the tank's floor and the water goes straight down: from there a ray down the drawn
+// surfaces (the soup every tank is judged against) must meet the SKIN first - the floor boards it may go through (a
+// hole in the board); a frame tube, a keel, a seat, the gear, anything else first is a blocked run, named. Past the
+// skin, 0.35 m more: the jet must not land on the wheel or a strut. Not cut yet: the pipe stops at the skin, and the
+// verdict is the readout's and the drawn pipe's (red where it is blocked) - the tank flies either way.
+const OUTLET_BELOW = 0.35;
+function outletJudge(ctx, scene, inv, r) {
+  r.outlet = null;
+  let S, O;
+  try { S = surfAll(ctx, scene, inv); O = obstIndex(S); } catch (e) { return; }
+  if (!S || !O) return;
+  const x = r.c[0], z = r.c[2], y0 = r.c[1] - r.e[1] - 0.003;
+  const raw = h => TAG_NAMES[S.tag[h.i]] || 'surface';
+  const isSkin = t => TAG_WORDS[t] === 'skin' || /^(body|plywood|skin|sheet|fabric|shell|hull|cover)/i.test(t);
+  let y = y0, skinY = null, why = null, at = null;
+  for (let k = 0; k < 8 && skinY == null && !why; k++) {
+    const h = obstSeg(O, [x, y, z], [x, y - 2, z]);
+    if (!h) break;
+    const yh = y - 2 * h.t, t = raw(h);
+    if (isSkin(t)) { skinY = yh; break; }
+    if (t === 'floorBoard') { y = yh - 0.002; continue; }
+    at = [x, yh, z];
+    why = 'runs into the ' + tagWord(S.tag[h.i], at) + ' ' + ((y0 - yh) * 1000).toFixed(0) + ' mm under the tank';
+  }
+  if (!why && skinY != null) {
+    const h2 = obstSeg(O, [x, skinY - 0.002, z], [x, skinY - OUTLET_BELOW, z]);
+    if (h2) { const yh = skinY - 0.002 - (OUTLET_BELOW - 0.002) * h2.t; at = [x, yh, z];
+      why = 'the water falls on the ' + tagWord(S.tag[h2.i], at) + ' ' + ((skinY - yh) * 1000).toFixed(0) + ' mm under the skin'; }
+  }
+  const len = MathL.max(0.01, skinY != null ? y0 - skinY : 0.06);
+  r.outlet = { ok: !why, why, at, len, top: [x, y0, z], bot: [x, y0 - len, z], skin: skinY != null };
+}
+// the water itself: clear, a little blue (the fuel's own look, lighter)
+let WATER_MAT = null;
+function waterMat() {
+  if (WATER_MAT) return WATER_MAT;
+  const m = new THREE.MeshStandardMaterial({ color: 0x8fd0ff, roughness: 0.08, metalness: 0.0,
+    transparent: true, opacity: 0.45, depthWrite: false });
+  m.userData.aeroskin = 1;
+  return (WATER_MAT = m);
+}
+// the outlet: a short pipe from the tank's floor to the skin and the valve on it - the tank's steel where it is clear
+// (it flies with the tank), red and the editor's alone where the run is blocked (a bead where it meets something)
+let OUT_GEO = null, VALVE_GEO = null;
+function drawOutlet(group, r, i) {
+  const o = r.outlet, T3 = window.THREE;
+  if (!o || !T3) return;
+  if (!OUT_GEO) { OUT_GEO = new T3.CylinderGeometry(0.014, 0.014, 1, 14, 1, false); VALVE_GEO = new T3.CylinderGeometry(0.024, 0.024, 0.035, 16); }
+  const mat = o.ok ? slotMat('hard', false, i, r.v) : clashMat();
+  const pipe = new T3.Mesh(OUT_GEO, mat);
+  pipe.scale.set(1, o.len, 1);
+  pipe.position.set(o.top[0], o.top[1] - o.len / 2, o.top[2]);
+  pipe.name = 'edVessel_' + i + '_outlet';
+  const valve = new T3.Mesh(VALVE_GEO, mat);
+  valve.position.set(o.top[0], o.top[1] - MathL.min(0.03, o.len / 2), o.top[2]);
+  valve.name = 'edVessel_' + i + '_valve';
+  for (const m of [pipe, valve]) { if (!o.ok) { m.userData.edMarker = 1; m.userData.edUnfit = 1; } group.add(m); }
+  if (!o.ok && o.at) {
+    const b = new T3.Mesh(clashGeo(), clashMat());
+    b.position.set(o.at[0], o.at[1], o.at[2]);
+    b.name = 'edTankClash_' + i + '_outlet'; b.userData.edMarker = 1; b.userData.edUnfit = 1; b.renderOrder = 10;
+    group.add(b);
+  }
+}
 function judgeAll(scene, inv, results, ctx) {
   for (const r of results) if (r.on === 'body' && r.c) judgeTank(ctx, scene, inv, r);
+  for (const r of results) if (r.on === 'body' && r.c && isWater(r.v)) outletJudge(ctx, scene, inv, r);   // WATER TANKS: the outlet's run
   // RETRACT G3 (RETRACT-STUDY §8.3): THE GEAR'S WELLS ARE STRUCTURE - a tank that meets the volume a retracting gear's
   // stowed unit reserves is red, as one through the skin is (the gear layer ran before this one: its wells are this
   // build's). No retraction, no wells: nothing here runs
@@ -141803,6 +142046,7 @@ const NOSE_CASE_DEPTH = 0.10;     // m: the instruments' cases behind the panel'
 const NOSE_CLR = 0.02;            // m to the firewall and the walls (the pads, the straps)
 const NOSE_AUTO = new Map();      // the fitted shape, by body, gap and the crew's points
 function noseAutoWanted(v, bay) {
+  if (isWater(v)) return false;   // (WATER TANKS: free, never shaped behind the panel)
   if (!NOSE_AUTO_ON || !bay || bay.key !== 'nose' || legacyFit()) return false;
   if (v.fit === 'auto') return true;
   // the user, 3 Nov ("Yes"): the saves' nose tanks left to the bay rule (no station, no box of their own - the
@@ -142075,13 +142319,15 @@ const FINISH = {
   plastic: { name: 'moulded plastic', set: 'plastic', col: 0xdedac9 },
   rubber:  { name: 'rubber',          set: 'plastic', col: 0x33333a },
   steel:   { name: 'steel',           set: 'steel',   col: 0xffffff },
+  // WATER TANKS (the user: "blue plastic, so we can tell them apart with the eventual fuel tanks")
+  bluePoly: { name: 'blue polyethylene', set: 'plastic', col: 0x2f6fd0 },
 };
 // what a catalogue vessel is made of when the player has not said. A rubber
 // bladder is rubber, a moulded tank is polythene, a welded one is bare alloy,
 // and a pack case is painted — which is also the one the hue row recolours, so
 // an electric build is where a player first meets it.
 const FINISH_OF = { alu: 'alu', moulded: 'plastic', bladder: 'rubber',
-                    packCase: 'paint', wet: null };
+                    packCase: 'paint', wet: null, waterPoly: 'bluePoly' };
 // THE SECTION'S ANSWER, and what a tank falls back to.
 const finishKey = () => (FINISH[EN.finish] ? EN.finish : null) ||
                         FINISH_OF[vesselKey()] || 'alu';
@@ -142092,9 +142338,9 @@ const finishKey = () => (FINISH[EN.finish] ? EN.finish : null) ||
 // the strap pads and the filler cap are NOT in here: they are steel, rubber
 // and the one spot of colour wherever they are, and they are not the
 // builder's.
-const finishOf = v => (v && FINISH[v.finish] ? v.finish : null) || finishKey();
-const hueOf = v => (v && v.hue != null ? +v.hue : (EN.hue || 0));
-const tintOf = v => (v && v.tint) || EN.tint || null;
+const finishOf = v => (v && FINISH[v.finish] ? v.finish : null) || (isWater(v) ? 'bluePoly' : finishKey());
+const hueOf = v => (v && v.hue != null ? +v.hue : (isWater(v) ? 0 : (EN.hue || 0)));
+const tintOf = v => (v && v.tint) || (isWater(v) ? null : EN.tint) || null;
 // what a row writes: the RESOLVED look, all three, onto the tank itself. A
 // half-inherited tank ("its tint is its own, its hue is the section's") is a
 // state nobody can read off the panel, and the section-wide values stay
@@ -142521,10 +142767,11 @@ function vesselSolid(r) {
   const fin = finishOf(r.v);
   const form = formOf(r.v);
   const prof = form === 'deck' && r.v && r.v.dims && r.v.dims.profile ? r.v.dims.profile : null;
-  const key = r.e.map(x => x.toFixed(4)).join(',') + '|' + form + '|' + EN.kind + '|' + fin + (prof ? '|' + prof.map(x => (+x).toFixed(3)).join(',') : '');
+  const kd = isWater(r.v) ? 'fuel' : EN.kind;   // (WATER TANKS: the fuel tank's own solid and fittings, in blue)
+  const key = r.e.map(x => x.toFixed(4)).join(',') + '|' + form + '|' + kd + '|' + fin + (prof ? '|' + prof.map(x => (+x).toFixed(3)).join(',') : '');
   let s = solids.get(key);
   if (!s) {
-    s = VM.build({ e: r.e, form, kind: EN.kind, profile: prof,
+    s = VM.build({ e: r.e, form, kind: kd, profile: prof,
                    tile: { shell: tileOf(fin), hard: tileOf('steel'),
                            seal: tileOf('rubber') } });
     if (solids.size > 24) solids.clear();
@@ -142685,7 +142932,15 @@ function drawResults(group, ctx, results) {
       // fuel has a round bottom and a flat top, and the level itself is placed
       // by VOLUME, not by height (VESSEL_MESH.contents). A pack does not
       // drain, so nothing is drawn inside one.
-      if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
+      if (isWater(r.v)) {
+        // WATER TANKS: the water at the tank's own fill, and the outlet run straight down (outletJudge's verdict)
+        const fw = r.v.fill == null ? 1 : r.v.fill;
+        if (fw > 0.02) {
+          const mw = slotMesh(group, contentsMemo(sol, fw), waterMat(), 'edFuel_' + i, r.c, yaw, true);
+          if (mw && bad) mw.userData.edUnfit = 1;
+        }
+        drawOutlet(group, r, i);
+      } else if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
         const mf = slotMesh(group, legacyFit() ? VM.contents(sol, VIEW.fill, 0.008) : contentsMemo(sol, VIEW.fill), fuelMat(),
                             'edFuel_' + i, r.c, yaw, true);
         if (mf && bad) mf.userData.edUnfit = 1;
@@ -142737,15 +142992,16 @@ function drawResults(group, ctx, results) {
         // (VESSEL_GEN.wingRibs off the wing layer's probes): the loft, and
         // the fuel inside it cut flat at the slider's level. The box below
         // is what a wing with no probe still gets.
-        if (!wet && EN.kind !== 'battery') wingTankDress(group, s, i, bad, r.v);   // WING-STRUCTURE: its hardware (the cutaway shows it)
+        if (!wet && (EN.kind !== 'battery' || isWater(r.v))) wingTankDress(group, s, i, bad, r.v);   // WING-STRUCTURE: its hardware (the cutaway shows it)
         if (s.ribs && s.ribs.length >= 2 && VM.wingLoft) {
           const mat = wet ? matWet(bad) : wingShellMat(bad, i, r.v);
           if (!wet)
             slotMesh(group, VM.wingLoft(s.ribs, tileOf(finishOf(r.v))), mat,
                      'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
-          if (EN.kind !== 'battery' && VIEW.fill > 0.02)
-            slotMesh(group, VM.wingLoft(wet ? s.ribs : fuelSpan(s, 0.006), 0.4, { fill: MathL.min(1, VIEW.fill), inset: wet ? 0.0 : 0.008 }),
-                     wet ? matWet(bad) : fuelMat(),
+          const fW = isWater(r.v) ? (r.v.fill == null ? 1 : r.v.fill) : VIEW.fill;
+          if ((EN.kind !== 'battery' || isWater(r.v)) && fW > 0.02)
+            slotMesh(group, VM.wingLoft(wet ? s.ribs : fuelSpan(s, 0.006), 0.4, { fill: MathL.min(1, fW), inset: wet ? 0.0 : 0.008 }),
+                     wet ? matWet(bad) : isWater(r.v) ? waterMat() : fuelMat(),
                      'edFuel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
           continue;
         }
@@ -142758,8 +143014,9 @@ function drawResults(group, ctx, results) {
         if (!wet)
           slotMesh(group, VM.wingBox(p8, tileOf(finishOf(r.v))), mat,
                    'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
-        if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
-          const inset = wet ? 0.0 : 0.008, f = MathL.min(1, VIEW.fill);
+        const fW2 = isWater(r.v) ? (r.v.fill == null ? 1 : r.v.fill) : VIEW.fill;
+        if ((EN.kind !== 'battery' || isWater(r.v)) && fW2 > 0.02) {
+          const inset = wet ? 0.0 : 0.008, f = MathL.min(1, fW2);
           const g0 = y0 + inset, g1 = g0 + MathL.max(0.004, (s.d - 2 * inset) * f);
           const dx = s.x1 > s.x0 ? inset : -inset;
           const q8 = [
@@ -142768,7 +143025,7 @@ function drawResults(group, ctx, results) {
             [s.x1 - dx, g0, s.zR1 + inset], [s.x1 - dx, g0, s.zF1 - inset],
             [s.x1 - dx, g1, s.zF1 - inset], [s.x1 - dx, g1, s.zR1 + inset],
           ];
-          slotMesh(group, VM.wingBox(q8, 0.4), wet ? matWet(bad) : fuelMat(),
+          slotMesh(group, VM.wingBox(q8, 0.4), wet ? matWet(bad) : isWater(r.v) ? waterMat() : fuelMat(),
                    'edFuel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
         }
       }
@@ -143008,6 +143265,7 @@ function commit() {
   // or the file would say 50 litres over a 60-litre tank.
   try {
     const patch = { energy: toSpec() };
+    const wNow = toWater();   // WATER TANKS: their own section (undefined: not known, left alone)
     // resolveSpec, not genNormaliseSpec: normalise migrates and defaults,
     // and it is clampSpec — which only the resolve runs — that derives the
     // litres from the list
@@ -143026,7 +143284,12 @@ function commit() {
     const canon = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)) ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = x[kk]; return o; }, {}) : x);
     const same = had && canon(had.energy) === canon(patch.energy)
       && (!patch.fuel || (had.fuel && canon({ litres: had.fuel.litres, tank: had.fuel.tank }) === canon(patch.fuel)));
-    if (!same) G.update(patch);
+    // WATER TANKS: written beside the energy, or the key taken off when the last one goes (update merges, remove deletes)
+    const wHad = had ? (had.water || null) : null, wWant = wNow && wNow.vessels.length ? wNow : null;
+    const wSame = wNow === undefined || canon(wHad) === canon(wWant);
+    if (!wSame && wWant) patch.water = wWant;
+    if (!same || (!wSame && wWant)) G.update(patch);
+    if (!wSame && !wWant && G.remove) G.remove('water');
   } catch (e) { console.error('energy:', e); }
   scheduleReadouts(250);
   // `update` rebuilds the aeroplane rather than committing the join, so the
@@ -143614,7 +143877,7 @@ function renderPanel() {
       EN.vessel = null;                 // the vessel follows the kind
       // a capacity in litres is not a capacity in kWh: start each vessel at a
       // sensible size for the new kind rather than carrying a number across
-      for (const vs of EN.vessels) vs.capacity = EN.kind === 'battery' ? 8 : 45;
+      for (const vs of EN.vessels) if (!isWater(vs)) vs.capacity = EN.kind === 'battery' ? 8 : 45;
       renderPanel(); relayout(); commit();
     });
   const meds = EN.kind === 'battery'
@@ -143645,8 +143908,10 @@ function renderPanel() {
   if (!inGame()) B.appendChild(lookElement());
 
   // ---- each vessel --------------------------------------------------------
+  const nWat = EN.vessels.filter(isWater).length, nOwn = EN.vessels.length - nWat;
   EN.vessels.forEach((v, i) => {
     const bay = BAYS.find(b => b.key === v.bay) || BAYS[0];
+    const wat = isWater(v);
     const det = document.createElement('details');
     det.open = true;
     // the entry a viewport click lands on (see `selectVessel`): the list is
@@ -143655,7 +143920,8 @@ function renderPanel() {
     det.dataset.ves = i;
     if (i === selected) det.classList.add('on');
     const sum = document.createElement('summary');
-    sum.textContent = (EN.kind === 'battery' ? 'pack ' : 'tank ') + (i + 1) +
+    sum.textContent = (wat ? 'water tank ' + (EN.vessels.filter(isWater).indexOf(v) + 1)
+                           : (EN.kind === 'battery' ? 'pack ' : 'tank ') + (EN.vessels.filter(x => !isWater(x)).indexOf(v) + 1)) +
       ' · ' + (bay ? bay.name.toLowerCase() : '?');
     sum.onclick = () => { selectVessel(i); };
     det.appendChild(sum);
@@ -143664,7 +143930,7 @@ function renderPanel() {
     B.appendChild(det);
 
     select(box, 'bay', 'a predetermined place. The nose bay is the only one ' +
-      'gravity can feed from; the wing bays relieve the spar', bayOptions(),
+      'gravity can feed from; the wing bays relieve the spar', wat ? bayOptions().filter(o => o[0] !== 'strut') : bayOptions(),
       v.bay, nb => {
         v.bay = nb; v.along = null; v.lv = null; v.rot = 0;
         // TANK-FIT Part 2: a tank moved to the nose is fitted to it (the shape row can make it free again)
@@ -143690,7 +143956,7 @@ function renderPanel() {
             delete v.fit;
             // an auto shape left for a free one keeps its size as a squared box of the same footprint
             v.form = nf === 'cyl' ? 'cyl' : 'box';
-            if (v.dims) { v.dims = { L: v.dims.L, W: v.dims.W, H: v.dims.H }; v.capacity = capacityFromDims(v.dims, formOf(v)); }
+            if (v.dims) { v.dims = { L: v.dims.L, W: v.dims.W, H: v.dims.H }; v.capacity = capacityFromDims(v.dims, formOf(v), v); }
           }
           selected = i; renderPanel(); relayout(); commit();
         });
@@ -143708,16 +143974,21 @@ function renderPanel() {
     // capacity: as much as the bay can take, less the vessel's own ullage
     const room = bay ? (bay.roomL || 0) : 0;
     let capMax;
-    if (EN.kind === 'battery') {
+    if (EN.kind === 'battery' && !wat) {
       const cell = (C.CELLS || {})[EN.cell] || { WhL: 250, packK: 0.7 };
       capMax = MathL.max(1, MathL.floor(room / 1.18 * (cell.WhL * cell.packK) / 1000));
     } else capMax = MathL.max(1, MathL.floor(room / 1.06));
     if (!(bay && bay.key === 'nose' && noseAutoWanted(v, bay))) range(box, 'capacity', 'what it holds. The top of the slider is what the ' +
       'bay can take; the readout says whether the SHAPE fits. Moving this ' +
       'gives the vessel its catalogue shape again', 1,
-      MathL.max(capMax, 1), 1, MathL.min(v.capacity, MathL.max(capMax, 1)), fmtL,
+      MathL.max(capMax, 1), 1, MathL.min(v.capacity, MathL.max(capMax, 1)), wat ? (x => x.toFixed(0) + ' L') : fmtL,
       x => { v.capacity = x; v.dims = null; dragLayout(false, i); },
       x => { v.capacity = x; v.dims = null; relayout(); commitSoon(); });
+    // WATER TANKS: HOW FULL (the user: "Offer to partially fill the tank in the garage") - the water aboard, drawn and
+    // weighed (a payload: the ledger's 'water'); the pilot's valve empties it in flight
+    if (wat) range(box, 'filled', 'how full this water tank is, drawn and weighed - the structure is built for it full; ' +
+      'in flight the dump valve empties it', 0, 1, 0.01, v.fill == null ? 1 : v.fill, x => (x * 100).toFixed(0) + ' %',
+      x => { v.fill = x; dragLayout(false, i); }, x => { v.fill = x; relayout(); commitSoon(); });
     // THE GEOMETRY IS THE PLAYER'S, AND THE CAPACITY FOLLOWS IT. Three rows
     // for the box; the first touch copies the catalogue shape so the sliders
     // start from what is drawn, and from then on the litres are calculated.
@@ -143790,10 +144061,10 @@ function renderPanel() {
     box.appendChild(rd);
     READ[i] = rd;
 
-    if (EN.vessels.length > 1) {
+    if (wat || nOwn > 1) {
       const rm = row(box, '', '');
       const b = document.createElement('button');
-      b.textContent = 'remove this ' + (EN.kind === 'battery' ? 'pack' : 'tank');
+      b.textContent = 'remove this ' + (wat ? 'water tank' : EN.kind === 'battery' ? 'pack' : 'tank');
       b.className = 'wide';
       b.onclick = () => { EN.vessels.splice(i, 1); selected = 0;
         renderPanel(); relayout(); commit(); };
@@ -143817,6 +144088,23 @@ function renderPanel() {
       EN.vessels.push(Object.assign({ bay: nk,
         capacity: EN.kind === 'battery' ? 6 : 30, along: null, lv: null, rot: 0,
         form: 'box' }, nk === 'nose' && NOSE_AUTO_ON && !legacyFit() ? { fit: 'auto' } : {}));
+      selected = EN.vessels.length - 1;
+      renderPanel(); relayout(); commit();
+    };
+    r.appendChild(b);
+  }
+  // WATER TANKS: one more, blue, in the cabin (or the first body bay), 20 L full - free to move like any tank
+  {
+    const r = row(B, '', '');
+    const b = document.createElement('button');
+    b.textContent = '+ add a water tank';
+    b.className = 'wide';
+    b.title = 'a blue polyethylene water tank: ballast you fill in the garage and the pilot can dump in flight ' +
+      '(an outlet straight down, checked clear of the structure)';
+    b.onclick = () => {
+      const bw = BAYS.find(x => x.key === 'cabin') || BAYS.find(x => x.on === 'body') || BAYS[0];
+      EN.vessels.push({ holds: 'water', bay: bw ? bw.key : 'cabin', capacity: 20, fill: 1, along: null, lv: null, rot: 0, form: 'box' });
+      WATER_KNOWN = true;
       selected = EN.vessels.length - 1;
       renderPanel(); relayout(); commit();
     };
@@ -143919,7 +144207,7 @@ function syncReadouts() {
   rs.forEach((r, i) => {
     const d = READ[i];
     // a pod with no strut is not aboard (the core's `unmounted`): not in the totals
-    if (!r.unmounted) { totCap += r.v.capacity; totKg += r.res.contentsKg; totVes += r.res.vesselKg; price += r.res.price; }
+    if (!r.unmounted && !isWater(r.v)) { totCap += r.v.capacity; totKg += r.res.contentsKg; totVes += r.res.vesselKg; price += r.res.price; }
     if (!d) return;
     const bits = [];
     bits.push('needs ' + r.needL.toFixed(0) + ' of ' + (r.roomL || 0).toFixed(0) + ' L');
@@ -143932,6 +144220,11 @@ function syncReadouts() {
       bits.push('a ' + r.pods[0].L.toFixed(2) + ' x ' + r.pods[0].D.toFixed(2) + ' m pod each side');
     if (r.unmounted) { d.textContent = '✗ NOT FITTED, CARRIES NO FUEL — ' + r.why.join('; '); d.classList.add('bad'); return; }
     if (r.pending) { d.textContent = '… fitting the tank to the nose'; d.classList.remove('bad'); return; }
+    if (isWater(r.v)) {
+      const fw = r.v.fill == null ? 1 : r.v.fill;
+      bits.push(r.res.vesselKg.toFixed(1) + ' kg tank + ' + (r.res.contentsKg * fw).toFixed(1) + ' kg water (' + (fw * 100).toFixed(0) + ' %)');
+      if (r.outlet) bits.push(r.outlet.ok ? 'outlet clear (' + (r.outlet.len * 1000).toFixed(0) + ' mm to the skin)' : '✗ outlet: ' + r.outlet.why);
+    } else
     bits.push(r.res.vesselKg.toFixed(1) + ' kg ' + (EN.kind === 'battery' ? 'case + cells' : 'tank') +
       (EN.kind === 'battery' ? '' : ' + ' + r.res.contentsKg.toFixed(1) + ' kg fuel'));
     if (r.on === 'body' && !r.crewHits) bits.push('clears the crew');
@@ -143952,7 +144245,7 @@ function syncReadouts() {
 }
 
 window.CAGE_ENERGY = {
-  EN, fromSpec, toSpec, relayout, commit, setEnv: vesselSetEnv, fitOf, capacityFromDims,
+  EN, fromSpec, toSpec, toWater, relayout, commit, setEnv: vesselSetEnv, fitOf, capacityFromDims,
   // the flown aeroplane's door into the factory (app.js matFor, `m.ves`)
   material: vesselMatFor,
   // the two columns' doors: structure gets the whole panel, finish gets the
@@ -146564,7 +146857,6 @@ function cageJoinSpec(P, M, T) {
     if (M.mono) spec.gear.mono = true;             // MONOWHEEL: one main on the centreline (no track)
     if (M.mono && +P.s1Ul) spec.gear.ul = true;   // WEIGHT STUDY L6: the ultralight monowheel (GEN_RULES.ulGear)
     if (Math.round(+P.towHook || 0) > 0) spec.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+P.towHook)) - 1];   // THE TOW HOOK (GEN_RULES.towHook)
-    if (+P.noseBallast > 0) spec.ballast = { nose: +P.noseBallast };   // THE NOSE BALLAST (GEN_RULES.noseBallast)
     // MONOWHEEL: the mains sunk into the body (their share; the drag counts what stands out)
     if (+P.s1Sink > 0 && +P.s1On) spec.gear.sink = Math.min(0.7, +P.s1Sink);
     if (M.contactR > 0) spec.gear.wheelR = M.contactR;
@@ -147031,6 +147323,8 @@ function cageJoinSpec(P, M, T) {
   // paint", so a build that had a tint could never go back to plain.
   if (M.finish !== undefined) spec.finish = M.finish;
   if (M.energy !== undefined) spec.energy = M.energy;
+  // WATER TANKS: the layer's answer when it has one - a list, or none (the key off)
+  if (M.water !== undefined) { if (M.water && M.water.vessels && M.water.vessels.length) spec.water = M.water; else delete spec.water; }
   // the panel arc, session 2: the fit, the same way (a null inside it is
   // 'the tier's answer' and must survive — garage.js's merge keeps nulls)
   if (M.systems !== undefined) spec.systems = M.systems;
@@ -148278,7 +148572,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // The list is written WHOLE - garage.js's merge replaces an array - so a
     // removed tank stays removed.
     if (window.CAGE_ENERGY && window.CAGE_ENERGY.toSpec)
-      try { M.energy = window.CAGE_ENERGY.toSpec(); if (P.engOn != null && !+P.engOn) M.energy.vessels = []; }   // (ENGINELESS: no tank)
+      try { M.energy = window.CAGE_ENERGY.toSpec(); if (P.engOn != null && !+P.engOn) M.energy.vessels = [];   // (ENGINELESS: no tank)
+            // WATER TANKS: their own section (undefined until the layer knows the spec's water: then the spec's stays)
+            if (window.CAGE_ENERGY.toWater) M.water = window.CAGE_ENERGY.toWater(); }
       catch (e) { ERRS.push('the tanks could not be written to the build: '
                             + e.message); }
     // ...AND THE FIT (the panel arc, session 2), through the same door: the
@@ -153057,7 +153353,7 @@ function applySpec(spec, what, steps) {
   // and unconditional for the same reason: a file with no `energy` describes
   // the default tank, not "whatever the last aeroplane carried".
   if (window.CAGE_ENERGY && window.CAGE_ENERGY.fromSpec)
-    try { window.CAGE_ENERGY.fromSpec(spec && spec.energy); }
+    try { window.CAGE_ENERGY.fromSpec(spec && spec.energy, undefined, spec ? (spec.water || null) : null); }   // (WATER TANKS: theirs too)
     catch (e) { console.error('energy from spec:', e); }
   // THE BELLY POD COMES WITH THE AEROPLANE (G2675): a spec with no pod has none
   if (window.CAGE_POD && window.CAGE_POD.fromSpec)
@@ -213709,6 +214005,7 @@ function makeSimHost(CORE, init, keptWorld) {
     if ('wr' in h) c.wr = h.wr === 0 || h.wr === 1 ? h.wr : null;
     if (h.twLock === 0 || h.twLock === 1) c.twLock = h.twLock;   // G3800: the tailwheel lock (the hand's own handle)
     if ('gear' in c && (h.gear === 0 || h.gear === 1)) c.gear = h.gear;   // RETRACT-1: the gear handle (a retract build's ctl only)
+    if ('dump' in c && (h.dump === 0 || h.dump === 1)) c.dump = h.dump;   // WATER TANKS: the dump valve (a build with water only)
     if (Array.isArray(h.eng) && Array.isArray(c.eng))
       for (let i = 0; i < c.eng.length && i < h.eng.length; i++) if (h.eng[i] != null && c.eng[i]) c.eng[i].thr = h.eng[i];
   }
@@ -215185,6 +215482,7 @@ const SIM_LINK = (() => {
         // (G2480: the differential brake and the water rudders' handle ride with the rest - INP.write sets every field)
         const h = { de: null, da: null, dr: null, thr: null, brake: null, brakeD: null, wr: null, twLock: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
         if ('gear' in F.realCtl) h.gear = null;   // RETRACT-1: the gear handle - only an aeroplane that has one (INP.write fills it)
+        if ('dump' in F.realCtl) h.dump = null;   // WATER TANKS: the dump valve - only an aeroplane with water (INP.write fills it)
         S.INP.write(h);
         cmd({ cmd: 'hand', ctl: Object.assign({}, h, { eng: h.eng ? h.eng.map(e => (e.thr != null ? e.thr : null)) : null }) });
       }
@@ -218806,6 +219104,11 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
     // retract rows; the key itself stays bound, inert on a fixed build)
     { id: 'gear', kind: 'step', ctl: 'gear', label: 'landing gear', group: 'flying', lab: true,
       hint: 'UP · DOWN (retractable gear only)', keys: { key: 'Digit9' } },
+    // WATER TANKS (the user 15 Nov: "they will have a release mechanism, and a particle animation when it releases"):
+    // the dump valve, OPEN <-> CLOSED - the sim drains every water tank through its outlet while it is open (ctl.dump,
+    // a key only a build with water carries: inert on any other, as the gear handle on a fixed gear)
+    { id: 'dump', kind: 'step', ctl: 'dump', label: 'water dump', group: 'flying',
+      hint: 'OPEN · CLOSED (water tanks only)', keys: { key: 'Digit0' } },
     { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'trim',
       hint: 'a hand held on the stick; repeats while held', repeat: 0.15,
       keys: { key: 'Numpad1' } },
@@ -219111,6 +219414,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
     let wr = null;                          // G2480: the water rudders - null THE RULE (32_hydro), 0 up, 1 down
     let twLock = 1;                         // G3800: the tailwheel lock - 1 in (straight), 0 out (castoring)
     let gearH = 1;                          // RETRACT-1: the gear handle - 1 down, 0 up (written only on a retract build)
+    let dumpH = 0;                          // WATER TANKS: the dump valve - 1 open (written only on a build with water)
     let parkFn = null;                      // G2480: the parking brake's owner (cockpit.js CK.park), read in write()
     let padsNow = [], keysNow = [], rawNow = {};
     let firedNow = [];
@@ -219319,6 +219623,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
       wr = null;
       twLock = c.twLock === 0 ? 0 : 1;        // G3800: the hand takes the lock as the aeroplane has it
       gearH = c.gear === 0 ? 0 : 1;          // RETRACT-1: the handle where the aeroplane has it (the AP's or the reset's)
+      dumpH = c.dump ? 1 : 0;                // WATER TANKS: the valve as the aeroplane has it (a reset closes it)
       for (const a of ACTIONS) {
         const s = S[a.id];
         s.owner = null; s.last = {};
@@ -219435,6 +219740,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
         else if (id === 'waterRudder') wr = wr === null ? 0 : wr === 0 ? 1 : null;   // AUTO -> UP -> DOWN -> AUTO
         else if (id === 'twLock') twLock = twLock ? 0 : 1;                              // G3800: IN <-> OUT
         else if (id === 'gear') gearH = gearH === 0 ? 1 : 0;                           // RETRACT-1: UP <-> DOWN
+        else if (id === 'dump') dumpH = dumpH ? 0 : 1;                                 // WATER TANKS: OPEN <-> CLOSED
         else if (id === 'flapDown') flapI = Math.min(notches.length - 1, flapI + 1);
         else if (id === 'flapUp') flapI = Math.max(0, flapI - 1);
       }
@@ -219479,6 +219785,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
       ctl.wr = wr;
       ctl.twLock = twLock;                             // G3800: the tailwheel lock (read by a lockable wheel only)
       if ('gear' in ctl) ctl.gear = gearH;   // RETRACT-1: a fixed build's ctl has no gear key, and gets none
+      if ('dump' in ctl) ctl.dump = dumpH;   // WATER TANKS: a build without water has no dump key, and gets none
       ctl.flap = clamp(fin(flapOut, 0), 0, 1);
       if (Array.isArray(ctl.eng))
         for (let i = 0; i < ctl.eng.length && i < 4; i++) {
@@ -219527,6 +219834,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
       waterRudder: () => wr,
       twLock: () => twLock, setTwLock: v => { twLock = v ? 1 : 0; },   // G3800 (the hand-off seeds it from the aeroplane's)
       gear: () => gearH,                     // RETRACT-1: the gear handle (1 down, 0 up)
+      dump: () => dumpH,                     // WATER TANKS: the dump valve (1 open)
       opt: k => profile.opts ? profile.opts[k] : undefined,
       setOpt: (k, v) => { if (!(k in OPTS) || typeof v !== typeof OPTS[k]) return false; profile.opts[k] = v; save(); return true; },
       parkFrom: f => { parkFn = typeof f === 'function' ? f : null; },
@@ -248982,6 +249290,77 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     for (let j = 0; j < Math.round(n / 5); j++) { const a = Math.random() * 6.2832, rr = 1.2 * Math.random();
       sprayEmit(D, 1, x + Math.cos(a) * rr, h + 0.15, z + Math.sin(a) * rr, Math.cos(a) * 0.8 * Math.min(2, vy), 0.6 + 0.8 * Math.random() * Math.min(2, vy), Math.sin(a) * 0.8 * Math.min(2, vy)); }
     return n; }, get fx() { return waterFx; } };
+  // ---- WATER TANKS: THE SHOWER (the user, 15 Nov: "they will have a release mechanism, and a particle animation when it
+  // releases (water shower). There will be a release point, by default a simple downwards opening") -------------------
+  // The solver drains the tanks while the valve is open (ctl.dump, the 'water dump' key) and says how fast
+  // (out.waterFlow, kg/s - carried whole by the physics worker's snapshot); the outlets are the frame's (sim.water.outlets:
+  // node weights and the drop under the skin). Here, once a frame, each outlet throws droplets - the aeroplane's own
+  // velocity plus the jet out of the hole (Torricelli's ~2.2 m/s down) and a little spread - in proportion to the flow;
+  // in the air they slow toward the air they are in (the wind too) and fall, a curtain trailing behind and down, with a
+  // faint mist hanging in it; a droplet dies on the ground or the water. spray.js's sprites (the floats' look): one pool,
+  // made the first time water leaves, in the world scene; nothing flowing and nothing alive: hidden, nothing integrated.
+  const DUMP_N = 1200, DUMP_DROP = { life: [1.1, 2.0], size: [0.006, 0.016], drag: 1.5 }, DUMP_MIST = { life: [1.2, 2.2], size: [0.22, 0.42], drag: 2.4, grow: 1.4, gravity: 0.12 };
+  let dumpFx = null;
+  function dumpFxGet() {
+    if (dumpFx || !window.SPRAY || !THREE.InstancedBufferGeometry) return dumpFx;
+    const pool = SPRAY.make(THREE, DUMP_N); pool.mesh.visible = false; scene.add(pool.mesh);
+    dumpFx = { pool, p: new Float32Array(DUMP_N * 3), v: new Float32Array(DUMP_N * 3), age: new Float32Array(DUMP_N).fill(9),
+               life: new Float32Array(DUMP_N).fill(1), size: new Float32Array(DUMP_N), seed: new Float32Array(DUMP_N),
+               kind: new Uint8Array(DUMP_N), next: 0, live: 0, acc: 0 };
+    return dumpFx;
+  }
+  function dumpEmit(F, kind, x, y, z, vx, vy, vz) {
+    const q = F.next, K = kind === 2 ? DUMP_MIST : DUMP_DROP;
+    F.next = (F.next + 1) % DUMP_N;
+    F.p[q * 3] = x; F.p[q * 3 + 1] = y; F.p[q * 3 + 2] = z; F.v[q * 3] = vx; F.v[q * 3 + 1] = vy; F.v[q * 3 + 2] = vz;
+    F.age[q] = 0; F.life[q] = K.life[0] + (K.life[1] - K.life[0]) * Math.random();
+    F.size[q] = K.size[0] + (K.size[1] - K.size[0]) * Math.random(); F.seed[q] = Math.random(); F.kind[q] = kind; F.live++;
+  }
+  function syncDumpFx(dt) {
+    const W = sim && sim.water, flow = sim && sim.out ? +sim.out.waterFlow || 0 : 0;
+    if ((!W || !(flow > 0)) && !(dumpFx && dumpFx.live)) { if (dumpFx && dumpFx.pool.mesh.visible) dumpFx.pool.mesh.visible = false; return; }
+    const F = dumpFxGet(); if (!F || !(dt > 0)) return;
+    const G = 9.81, P = sim.p;
+    if (W && flow > 0 && W.outlets && W.outlets.length) {
+      const vc = sim.cgVel ? sim.cgVel() : [0, 0, 0];
+      F.acc += 240 * Math.min(3, flow / 1.6) * dt;            // ~240 droplets a second for one tank's full jet
+      while (F.acc >= 1) {
+        F.acc -= 1;
+        const o = W.outlets[(Math.random() * W.outlets.length) | 0];
+        let x = 0, y = 0, z = 0, ws = 0;
+        for (const [i, w] of o.pts) { x += w * P[i * 3]; y += w * P[i * 3 + 1]; z += w * P[i * 3 + 2]; ws += w; }
+        if (!(ws > 0)) continue;
+        x /= ws; y = y / ws - (o.dy || 0.03); z /= ws;
+        const sx = (Math.random() - 0.5) * 0.8, sz = (Math.random() - 0.5) * 0.8;
+        dumpEmit(F, Math.random() < 0.12 ? 2 : 0, x + sx * 0.03, y, z + sz * 0.03, vc[0] + sx, vc[1] - 2.2 - Math.random() * 0.6, vc[2] + sz);
+      }
+    }
+    const S = F.pool, wv = LKW(), ax = wv ? wv[0] : 0, az = wv ? wv[1] : 0;
+    const floor = (x, z) => { const t = world.terrainH ? world.terrainH(x, z) : 0, h = world.waterH ? world.waterH(x, z) : -1e9;
+                              return Math.max(Number.isFinite(t) ? t : -1e9, Number.isFinite(h) ? h : -1e9); };
+    let live = 0;
+    for (let q = 0; q < DUMP_N; q++) {
+      if (F.age[q] >= F.life[q]) { S.hide(q); continue; }
+      live++;
+      const K = F.kind[q] === 2 ? DUMP_MIST : DUMP_DROP;
+      F.age[q] += dt;
+      const dr = Math.max(0, 1 - K.drag * dt);
+      F.v[q * 3] = ax + (F.v[q * 3] - ax) * dr;
+      F.v[q * 3 + 2] = az + (F.v[q * 3 + 2] - az) * dr;
+      F.v[q * 3 + 1] = F.v[q * 3 + 1] * (F.kind[q] === 2 ? dr : 1) - G * (K.gravity != null ? K.gravity : 1) * dt;
+      F.p[q * 3] += F.v[q * 3] * dt; F.p[q * 3 + 1] += F.v[q * 3 + 1] * dt; F.p[q * 3 + 2] += F.v[q * 3 + 2] * dt;
+      if (F.p[q * 3 + 1] < floor(F.p[q * 3], F.p[q * 3 + 2])) { F.age[q] = F.life[q]; S.hide(q); continue; }
+      const a01 = F.age[q] / F.life[q];
+      S.set(q, [F.p[q * 3], F.p[q * 3 + 1], F.p[q * 3 + 2]], [F.v[q * 3], F.v[q * 3 + 1], F.v[q * 3 + 2]], a01,
+            F.size[q] * (1 + ((K.grow || 1) - 1) * a01), F.seed[q], F.kind[q]);
+    }
+    F.live = live;
+    S.mesh.visible = live > 0;
+    S.commit();
+    if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity);
+      skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity); S.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); }
+  }
+  if (typeof window !== 'undefined') window.DUMP_FX = { get fx() { return dumpFx; }, sync: dt => syncDumpFx(dt) };
   // ---- DIRT-DUST (2026-11-09): THE DUST A DRY STRIP THROWS - dust.js's system fed the aeroplane's own numbers --------------
   // The user (9 Nov): "when it's really dry, there are huge puffs of dirt clouds ... at every take-off and landing ... they
   // tend to stay a long time ... and diffuse slowly". dust.js holds the laws (the sources, the puffs, the draw); here, once a
@@ -250066,9 +250445,21 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     }
     gearHandSeen = h;
   }
+  // WATER TANKS: THE DUMP KEY WHOEVER FLIES. The valve is the pilot's whatever the autopilot does with the stick (a
+  // dump is a utility, not a flight control): under the AP the hand is not written (INP.write), so the key's state is
+  // written through sim.ctl when it CHANGES (the worker's ctl patch under ?simw=1) - a reset that shuts the valve is then
+  // not re-opened by a stale hand. A build without water has no dump key and nothing runs.
+  let dumpHandSeen = null;
+  function dumpKeyUnderAP() {
+    if (manual || !INP || typeof INP.dump !== 'function' || !sim.ctl || !('dump' in sim.ctl)) { dumpHandSeen = null; return; }
+    const h = INP.dump();
+    if (dumpHandSeen !== null && h !== dumpHandSeen) sim.ctl.dump = h;
+    dumpHandSeen = h;
+  }
   function scriptView(dt) {
     if (!started) { setRail(null); return; }
     gearKeyUnderAP();
+    dumpKeyUnderAP();
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
@@ -262045,6 +262436,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (sceneSample) FR.sceneDetail.lap(4);
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
+    if (!inGarage) syncDumpFx(running ? fdt : 0);                // WATER TANKS: the dump's shower (nothing flowing, nothing alive: nothing)
     if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
