@@ -134,7 +134,7 @@ async function runPage(page) {
       if (!d || d.exceptionDetails) throw new Error('page: ' + (d && d.exceptionDetails ? (d.exceptionDetails.exception && d.exceptionDetails.exception.description || d.exceptionDetails.text) : JSON.stringify(r))); return d.result.value; };
     await cmd('Page.enable'); await cmd('Runtime.enable');
     const wip = fs.readFileSync(path.join(ROOT, BUILD), 'utf8');
-    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{if(!sessionStorage.getItem("__ds")){sessionStorage.setItem("__ds","1");localStorage.removeItem("flydiy.gfx");localStorage.removeItem("flydiy.premises.game.jolene");localStorage.setItem("flydiy.wip",' + JSON.stringify(wip) + ');' + (MICRO_REC ? 'localStorage.setItem("flydiy.premises.bootWip","1");localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(MICRO_REC) + ');' : '') + '}}catch(e){}' });
+    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{if(!sessionStorage.getItem("__ds")){sessionStorage.setItem("__ds","1");localStorage.removeItem("flydiy.gfx");localStorage.removeItem("flydiy.premises.game.jolene");' + (process.env.NOSEED === '1' ? '' : 'localStorage.setItem("flydiy.wip",' + JSON.stringify(wip) + ');') + (MICRO_REC ? 'localStorage.setItem("flydiy.premises.bootWip","1");localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(MICRO_REC) + ');' : '') + '}}catch(e){}' });
     await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: 1, mobile: false });
     await cmd('Page.navigate', { url: 'http://localhost:' + SPORT + '/flyDiy/' + page });
     await sleep(1500);
