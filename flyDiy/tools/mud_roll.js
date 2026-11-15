@@ -142,6 +142,7 @@ function run(spec, opts) {
       hits += GD.collide(G, sys.G, toCraft, [0, 0, V], o.dt, o.wet, 1);
       vPrev = V;
     }
+    GD.smooth(G);   // (the texture's cover: what the page uploads and the pictures draw)
     const stats = { cells: G.N, dims: [G.nx, G.ny, G.nz], occupied: G.occupied, tris: gat.label.length, contacts: CT, a0: a0 * 180 / Math.PI, tail, emitted, hits, mass: G.mass, msGrid: tGrid, msAll: Date.now() - t0, coat: GD.total(G) };
     if (o.log) o.log(stats);
     return { G, tris: gat.tris, part: gat.part, label: gat.label, norm: gat.norm, stats, S };

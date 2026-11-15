@@ -221,22 +221,15 @@ console.log('tris: sheet ' + (tris.length - nLayer) + ', layers ' + nLayer + ' (
 // ---- --mud [seconds]: GROUND-FX's computed mud (tools/mud_roll.js: the drawn aeroplane voxelised, a taxi and a take-off
 // run on soft mud, dust.js's own throw marched against it) tinted over each face by the shader's arithmetic
 // (GROUND_DEPOSIT.sample at the face's centre, its normal). --mudcell m: the grid's cell (0.08 gamer, 0.12 phone)
+let MUDF = null;
 if (argv.includes('--mud')) {
   const MR = require(path.join(ROOT, 'tools', 'mud_roll.js')), GDq = require(path.join(ROOT, 'src', 'viewer', 'ground_deposit.js'));
   const mt = +opt('mud', 20) > 0 ? +opt('mud', 20) : 20;
   const R = MR.run(spec, { S, T: mt, h: +opt('mudcell', 0.08) });
   const st = R.stats, MUD = [74, 58, 42];
   console.log('mud: ' + mt + ' s on soft mud, grid ' + st.dims.join('x') + ', thrown ' + st.emitted + ', hits ' + st.hits + ', coat ' + st.coat.toFixed(3) + ' (' + st.msAll + ' ms)');
-  for (const t of tris) {
-    let nx, ny, nz;
-    if (t.n) { nx = t.n[0] + t.n[3] + t.n[6]; ny = t.n[1] + t.n[4] + t.n[7]; nz = t.n[2] + t.n[5] + t.n[8]; }
-    else { const ux = t[3] - t[0], uy = t[4] - t[1], uz = t[5] - t[2], vx = t[6] - t[0], vy = t[7] - t[1], vz = t[8] - t[2]; nx = uy * vz - uz * vy; ny = uz * vx - ux * vz; nz = ux * vy - uy * vx; }
-    const l = Math.hypot(nx, ny, nz) || 1;
-    // editor (x, y up, z fwd) -> craft (x, y aft, z up)
-    const c = GDq.sample(R.G, (t[0] + t[3] + t[6]) / 3, -(t[2] + t[5] + t[8]) / 3, (t[1] + t[4] + t[7]) / 3, nx / l, -nz / l, ny / l);
-    if (c > 0.01) for (let k = 0; k < 3; k++) t[9 + k] = Math.round(t[9 + k] + (MUD[k] - t[9 + k]) * Math.min(1, c * 1.1));
-    if (c > 0.01 && t.c) t.c = null;
-  }
+  // per PIXEL in the raster (the shader's own arithmetic: the smoothed cover, eroded by the spatter): editor -> craft
+  MUDF = (x, y, z, nx, ny, nz) => GDq.mudAt(R.G, x, -z, y, nx, -nz, ny);
 }
 
 // ---- the marks: fittings placed, quad corners ---------------------------------------------------------------
@@ -346,6 +339,10 @@ function view(name) {
         let lm = 0.32 + 0.68 * dl;
         const tc = t.c, vr = tc ? w0_ * tc[0] + w1_ * tc[3] + w2_ * tc[6] : 1, vg = tc ? w0_ * tc[1] + w1_ * tc[4] + w2_ * tc[7] : 1, vb = tc ? w0_ * tc[2] + w1_ * tc[5] + w2_ * tc[8] : 1;
         img[i * 3] = Math.min(255, t[9] * vr * lm + 255 * sp * vr); img[i * 3 + 1] = Math.min(255, t[10] * vg * lm + 255 * sp * vg); img[i * 3 + 2] = Math.min(255, t[11] * vb * lm + 255 * sp * vb);
+        if (MUDF) {   // GROUND-FX: the computed mud at this pixel, wet-dark and a little glossy
+          const mc = MUDF(w0_ * t[0] + w1_ * t[3] + w2_ * t[6], w0_ * t[1] + w1_ * t[4] + w2_ * t[7], w0_ * t[2] + w1_ * t[5] + w2_ * t[8], qx, qy, qz);
+          if (mc > 0.004) { const M = [74, 58, 42]; for (let k = 0; k < 3; k++) img[i * 3 + k] = Math.round(img[i * 3 + k] + (Math.min(255, M[k] * lm + 120 * sp) - img[i * 3 + k]) * mc); }
+        }
       } else { img[i * 3] = r; img[i * 3 + 1] = g; img[i * 3 + 2] = b; }
     }
   }
