@@ -3194,7 +3194,7 @@
    }
   },
   "metal": {
-   "file": "bugReports/cessnaMetal (1).json",
+   "file": "tools/fixtures/test_copies/cessnaMetal (1).json",
    "page": {
     "n": 107,
     "nb": 452,

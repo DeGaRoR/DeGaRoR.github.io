@@ -4220,7 +4220,7 @@
   "list:40": {
    "name": "Cessna 172 (career)",
    "file": "cessnaMetal",
-   "listFile": "bugReports/cessnaMetal (1).json",
+   "listFile": "tools/fixtures/test_copies/cessnaMetal (1).json",
    "listRow": "list:40",
    "data": {
     "name": "Cessna 172 (career)",

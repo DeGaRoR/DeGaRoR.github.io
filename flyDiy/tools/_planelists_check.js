@@ -58,7 +58,7 @@ const CLASSES = {
   "Camel-alike": ["reproduction", "builds/candidates/camel_2026-10.json", "B6313"],
   "Rufus": ["story", "builds/rufus_2026-10-18_certified.json", "N47RF"],
   "Client Cub": ["story", "builds/cub_2026-09-20.json", "N1938J"],
-  "Cessna 172 (career)": ["story", "bugReports/cessnaMetal (1).json", "B-CESS"],
+  // ("Cessna 172 (career)", list:40 B-CESS: retired by the user 13 Nov, "one official Cessna" - list:50; now a test copy)
   "Cessna 172 floats (career)": ["story", "bugReports/cessnaFloatsWOrks.json", "B-CESF"],
   "Twin busher floats 4b": ["original", "builds/candidates/Twin_busher_floats_4b.json", "F-FORE"],
   "Ultralight twin on floats": ["original", "builds/candidates/build_v7_ultralight_2026-09-05_floats.json", "F-JTWF"],

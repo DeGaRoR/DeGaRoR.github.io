@@ -183,11 +183,7 @@ for (const k of KEYS) {
 console.log('== 5. every loader of a validated build goes through tools/_load_build.js ==');
 // the validated files and the metal Cessna's fixture copy (the same spec, byte for byte - checked below)
 const FILES = KEYS.map(k => LB.VALIDATED[k].build).concat(['builds/cessna172r_2026-11-08.json']);
-{
-  const a = JSON.parse(fs.readFileSync(path.join(FLY, 'builds', 'cessna172r_2026-11-08.json'), 'utf8')).spec;
-  const b = JSON.parse(fs.readFileSync(path.join(FLY, 'builds', 'cessna172r_2026-11-08.json'), 'utf8')).spec;
-  ok(JSON.stringify(a) === JSON.stringify(b), 'builds/cessna172r_2026-11-08.json is the metal Cessna\'s spec to the byte (so it is held like it)');
-}
+// (ONE-CESSNA 15 Nov: the tour's fixture copy of the metal Cessna was a copy and is gone; its byte check went with it)
 // THE DECLARED DOORS. Anything else naming a validated file must require tools/_load_build.js.
 const DOORS = {
   // the real page loads the build itself (flydiy.wip / the shelf): its own chain, nothing to align

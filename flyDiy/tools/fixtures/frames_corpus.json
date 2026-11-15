@@ -29267,7 +29267,7 @@
     }
    }
   },
-  "file:bugReports/cessnaMetal (1).json": {
+  "file:tools/fixtures/test_copies/cessnaMetal (1).json": {
    "rings": "98e4c742f0f5dcc647cedbb84557a149c67bf1ea",
    "mesh": {
     "nV": 192,

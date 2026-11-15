@@ -244,7 +244,7 @@
    ],
    "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
   },
-  "file:bugReports/cessnaMetal (1).json": {
+  "file:tools/fixtures/test_copies/cessnaMetal (1).json": {
    "nV": 55162,
    "nF": 29780,
    "loops": [
