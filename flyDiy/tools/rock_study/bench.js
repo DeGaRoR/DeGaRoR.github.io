@@ -21,6 +21,7 @@
 'use strict';
 (async () => {
 const Q = new URLSearchParams(location.search);
+const TROND = Q.get('trond') === '1', TSKIRT = +(Q.get('tskirt') || 0);   // (15 Nov: the island's own rock, see trond_gen.py)
 const P = { rock: Q.get('rock') || 'base', tri: Q.get('tri') || 'tri', expo: +(Q.get('expo') || 0), strata: +(Q.get('strata') || 0),
   scatter: +(Q.get('scatter') || 0), skirt: +(Q.get('skirt') || 0), view: Q.get('view') || 'face', count: +(Q.get('count') || 0),
   w: +(Q.get('w') || 1280), h: +(Q.get('h') || 720), shadows: Q.get('shadows') === '0' ? 0 : 1, hex: Q.get('hex') === '0' ? 0 : 1 };
@@ -86,6 +87,35 @@ const TA = mkArr(AD), TN = mkArr(ND);
 // the open ground's grass, measured (splat_ground uSGrassC): grassRock's mean after its grade - the colour a rock set's DARK texels walk to
 const GRASSC = new THREE.Vector3(MRGB[0][0] * GRADE[0].x, MRGB[0][1] * GRADE[0].y, MRGB[0][2] * GRADE[0].z);
 const MEAN = MEAN0.map((m, L) => { const g = GRADE[L]; const lg = 0.2126 * g.x + 0.7152 * g.y + 0.0722 * g.z; return m * lg; });
+// ---- THE ISLAND'S OWN ROCK (?trond=1): trond_gen.py's maps - slab + face (2048^2 over 24 m: colour + height, normal + rough,
+// one height field read for all four) and the world-space macro over the patch's middle 1.6 km (normal + veg + height,
+// the colour multiplier; the same height displaces the rock mesh, ?tskirt=<step m>)
+let TRD = null;
+if (TROND) {
+  const T = 'data/trond/';
+  const [jS, jF, jM] = await Promise.all([J(T + 'slab.json'), J(T + 'face.json'), J(T + 'macro.json')]);
+  const pixN = async (u, n) => { const im = await img(u); const c = document.createElement('canvas'); c.width = c.height = n;
+    const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0); return x.getImageData(0, 0, n, n).data; };
+  const pack = async (a, b, n, chB) => { const [A, Bp] = await Promise.all([pixN(a, n), pixN(b, n)]); const o = new Uint8Array(n * n * 4);
+    for (let i = 0; i < n * n; i++) { o[i * 4] = A[i * 4]; o[i * 4 + 1] = A[i * 4 + 1]; o[i * 4 + 2] = A[i * 4 + 2]; o[i * 4 + 3] = Bp[i * 4 + chB]; } return o; };
+  const tex = (d, n, wrap) => { const t = new THREE.DataTexture(d, n, n, THREE.RGBAFormat, THREE.UnsignedByteType);
+    t.wrapS = t.wrapT = wrap ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+    t.generateMipmaps = true; t.anisotropy = 8; t.needsUpdate = true; return t; };
+  const n = jS.n;
+  const [sA, sN, fA, fN] = await Promise.all([pack(T + 'slab_albedo.png', T + 'slab_height.png', n, 0), pack(T + 'slab_normal.png', T + 'slab_rough.png', n, 0),
+    pack(T + 'face_albedo.png', T + 'face_height.png', n, 0), pack(T + 'face_normal.png', T + 'face_rough.png', n, 0)]);
+  const mNH = await pixN(T + 'macro_nh.png', jM.n), mMu = await pixN(T + 'macro_mult.png', jM.n);
+  const mH = new Float32Array(await B(T + 'macro_h.f32'));
+  TRD = { jS, jF, jM, mH, U: { uTSA: { value: tex(sA, n, 1) }, uTSN: { value: tex(sN, n, 1) }, uTFA: { value: tex(fA, n, 1) }, uTFN: { value: tex(fN, n, 1) },
+    uTMNH: { value: tex(new Uint8Array(mNH), jM.n, 0) }, uTMM: { value: tex(new Uint8Array(mMu), jM.n, 0) },
+    uTM: { value: new THREE.Vector4(jM.x0, jM.z0, jM.ext, jM.multScale) }, uTScale: { value: new THREE.Vector2(jS.tile, jF.tile) } } };
+  // the macro's height at (x, z), bilinear, 0 off its extent (the rock mesh's displacement, on the CPU: the shadows see it)
+  const med = (() => { const a = Array.from(mH.filter((v, i) => i % 97 === 0)).sort((p, q) => p - q); return a[a.length >> 1]; })();
+  TRD.hAt = (x, z) => { const m = jM, fi = (x - m.x0) / m.px - 0.5, fj = (z - m.z0) / m.px - 0.5;
+    if (fi < 0 || fj < 0 || fi >= m.n - 1 || fj >= m.n - 1) return 0;
+    const i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j, k = j * m.n + i;
+    return (mH[k] * (1 - u) + mH[k + 1] * u) * (1 - v) + (mH[k + m.n] * (1 - u) + mH[k + m.n + 1] * u) * v - med; };
+}
 
 // the macro's exposure (render_world / splat_ground autoExposure, simplified to this patch): the sets' mean over the albedo's
 let la = 0; for (let i = 0; i < N * N; i++) la += 0.2126 * lin(ALB[i * 3]) + 0.7152 * lin(ALB[i * 3 + 1]) + 0.0722 * lin(ALB[i * 3 + 2]);
@@ -101,7 +131,9 @@ const vSlope = k => Math.acos(Math.min(1, vNorm[k * 3 + 1])) * 180 / Math.PI;
 const SK = { lo: 38, hi: 50 };
 const DIP = { x: Math.cos(0.7), z: Math.sin(0.7), k: Math.tan(18 * Math.PI / 180) };   // the beds' dip (direction, tan) - skirt and shader   // the skirt's mask: 0 under lo deg, 1 over hi
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-const vMask = new Float32Array(N * N); for (let k = 0; k < N * N; k++) vMask[k] = P.skirt > 0 ? ss(SK.lo, SK.hi, vSlope(k)) : 0;
+if (TSKIRT) P.skirt = TSKIRT;
+// (?tskirt: the mask is the ROCK - the raster's rock share or a slope over 40 deg - not the slope alone: every outcrop is re-meshed)
+const vMask = new Float32Array(N * N); for (let k = 0; k < N * N; k++) vMask[k] = P.skirt > 0 ? (TSKIRT ? Math.max(ss(0.3, 0.6, CODES[k * 4] / 255), ss(40, 52, vSlope(k))) : ss(SK.lo, SK.hi, vSlope(k))) : 0;
 // the skirt is a RING round the eye (as a game would draw it): cells within SKR m of the camera (set before the build)
 let SKR = 1e9, SKX = 0, SKZ = 0;
 const cellSkirt = (i, j) => P.skirt > 0 && Math.hypot(-HALF + (i + 0.5) * ST - SKX, -HALF + (j + 0.5) * ST - SKZ) < SKR && (vMask[j * N + i] > 0 || vMask[j * N + i + 1] > 0 || vMask[(j + 1) * N + i] > 0 || vMask[(j + 1) * N + i + 1] > 0);
@@ -159,7 +191,11 @@ function buildSkirt(step) {
     const y = (hAt(ci, cj) * (1 - u) + hAt(ci + 1, cj) * u) * (1 - w) + (hAt(ci, cj + 1) * (1 - u) + hAt(ci + 1, cj + 1) * u) * w;
     const m = (vMask[cj * N + ci] * (1 - u) + vMask[cj * N + ci + 1] * u) * (1 - w) + (vMask[(cj + 1) * N + ci] * (1 - u) + vMask[(cj + 1) * N + ci + 1] * u) * w;
     let X = x, Y = y, Z = z;
-    if (m > 0) {
+    if (m > 0 && TSKIRT && TRD) {
+      // THE MACRO'S RELIEF, as geometry: along the DEM's normal by the same height the colour and the normal maps were read off
+      const g = gradXZ(x, z, 5), l = Math.hypot(g[0], 1, g[1]), dd = TRD.hAt(x, z) * m;
+      X += -g[0] / l * dd; Y += dd / l; Z += -g[1] / l * dd;
+    } else if (m > 0) {
       const g = gradXZ(x, z, 5), gl2 = Math.hypot(g[0], g[1]) || 1e-6, ox = -g[0] / gl2, oz = -g[1] / gl2;   // outward = downhill
       const sl = Math.atan(gl2), T = 8.0 + 8.0 * vn3(x / 60, 0, z / 60);
       // THE BEDS DIP (18 deg toward DIP, plus a 9 m warp at 60 m): flat beds on a dome are its contour lines - rings, a
@@ -191,6 +227,7 @@ function buildSkirt(step) {
   g.setAttribute('aCodes', new THREE.BufferAttribute(new Uint8Array(CO), 4, true)); g.setAttribute('aCurv', new THREE.BufferAttribute(new Float32Array(CU), 2));
   g.setAttribute('aFlow', new THREE.BufferAttribute(new Uint8Array(FL), 1, true)); g.setAttribute('aAlb', new THREE.BufferAttribute(new Uint8Array(AL), 3, true));
   g.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1)); g.computeVertexNormals();
+  g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(P3.length / 3).fill(TSKIRT ? 1 : 0), 1));
   return { g, cells: cells.length };
 }
 
@@ -199,9 +236,10 @@ const ROCKSET_G = { cliff: 3, darkRock: 5, rocksG: 2 }[Q.get('rset') || 'cliff']
 const ROCKSCALE_G = ({ 3: 6.86, 5: 2.0, 2: 2.03 }[ROCKSET_G] * 1.6).toFixed(2);
 const D = {};
 D.ROCK_DETAIL = P.rock === 'detail' ? 1 : 0; D.TRI_MODE = P.tri === 'bi' ? 1 : (P.tri === 'one' ? 2 : 0);
-D.PLAIN = Q.get('plain') === '1' ? 1 : 0; D.FACESET = Q.get('mesh') && Q.get('faceset') !== '0' ? 1 : 0; D.EXPO = P.expo ? 1 : 0; D.STRATA = P.strata ? 1 : 0; D.COUNT = P.count ? 1 : 0; D.HEX = P.hex ? 1 : 0;
+D.TROND = TROND ? 1 : 0; D.PLAIN = Q.get('plain') === '1' ? 1 : 0; D.FACESET = Q.get('mesh') && Q.get('faceset') !== '0' ? 1 : 0; D.EXPO = P.expo ? 1 : 0; D.STRATA = P.strata ? 1 : 0; D.COUNT = P.count ? 1 : 0; D.HEX = P.hex ? 1 : 0;
 const U = { uA: { value: TA }, uN: { value: TN }, uGrade: { value: GRADE }, uGr2: { value: GR2 }, uMean: { value: MEAN }, uMean0: { value: MEAN0 },
   uMacExp: { value: MACEXP }, uGrassC: { value: GRASSC } };
+if (TRD) Object.assign(U, TRD.U);
 const GLSL_COMMON = `
 uniform highp sampler2DArray uA, uN;
 uniform vec4 uGrade[${NL}], uGr2[${NL}];
@@ -229,6 +267,8 @@ Smp sFetch(float L, vec2 uv, vec2 cs){
     o.c.rgb = mix(o.c.rgb, uGrassC / max(luma3(uGrassC), 1e-4) * l, dark * g2.z); }
   return o;
 }
+vec2 hw2(float ha, float wa, float hb, float wb, float depth){
+  float ma = max(ha + wa, hb + wb) - depth; vec2 b = max(vec2(ha + wa, hb + wb) - ma, 0.0); return b / (b.x + b.y); }
 vec3 hw3(float ha, float wa, float hb, float wb, float hc, float wc, float depth){
   float ma = max(max(ha + wa, hb + wb), hc + wc) - depth;
   vec3 b = max(vec3(ha + wa, hb + wb, hc + wc) - ma, 0.0); return b / (b.x + b.y + b.z); }
@@ -282,6 +322,87 @@ Smp sRock(float Lm, float sN, float sF, vec3 P, vec3 tw, float fw, float d, floa
   return m;
 }
 #endif
+#if TROND
+// THE ISLAND'S OWN ROCK. Two tiled materials, one height field each, and the world-space macro.
+//   SLAB on the top projection: hex-tiled (three taps), each tap's frame turned to the local FALL LINE (its +v is downhill)
+//     and turned ABOUT ITS OWN HEX VERTEX, so the turn bends nothing beyond a cell (a turn about the origin would swirl);
+//   FACE on the side projections (biplanar x / z): hex-tiled with offsets only, never turned - its streaks stay vertical;
+//   the two blended by slope (42-58 deg) through their heights; the macro multiplies the colour and, off the displaced mesh,
+//   bends the normal (on the displaced mesh the geometry IS the macro's relief).
+// The normal comes back as a WORLD perturbation at the maps' own scale (m/m), the colour linear, .a the height (0..1).
+uniform sampler2D uTSA, uTSN, uTFA, uTFN, uTMNH, uTMM; uniform vec4 uTM; uniform vec2 uTScale;
+varying float vDisp;
+vec2 tVst(vec2 v){ return vec2(v.x + 0.5 * v.y, v.y * 0.8660254) * 0.5; }
+// one hex lattice for both: the three corners in the 3-colour order (splat_ground sTile's line-free fetch), their weights
+void tHex(vec2 st, out vec2 V1, out vec2 V2, out vec2 V3, out vec3 W){
+  vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * 2.0);
+  vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
+  float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
+  vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
+  vec2 v1 = base + vec2(s, s), v2 = base + vec2(s, 1.0 - s), v3 = base + vec2(1.0 - s, s);
+  float cb = base.x - base.y; cb -= 3.0 * floor((cb + 0.5) / 3.0);
+  float c2 = cb + s2; c2 -= 3.0 * floor((c2 + 0.5) / 3.0);
+  vec3 cc = vec3(cb, c2, 3.0 - cb - c2);
+  V1 = cc.x < 0.5 ? v1 : (cc.y < 0.5 ? v2 : v3); V2 = abs(cc.x - 1.0) < 0.5 ? v1 : (abs(cc.y - 1.0) < 0.5 ? v2 : v3); V3 = cc.x > 1.5 ? v1 : (cc.y > 1.5 ? v2 : v3);
+  W = vec3(cc.x < 0.5 ? w.x : (cc.y < 0.5 ? w.y : w.z), abs(cc.x - 1.0) < 0.5 ? w.x : (abs(cc.y - 1.0) < 0.5 ? w.y : w.z), cc.x > 1.5 ? w.x : (cc.y > 1.5 ? w.y : w.z));
+}
+// a slab tap: the frame turned to the fall line (jittered +-15 deg per vertex), about the vertex
+Smp tSlabTap(vec2 st, vec2 V, vec2 dn){
+  vec2 r = hash2(V); float a = (r.y - 0.5) * 0.52; float ca = cos(a), sa = sin(a);
+  vec2 dv = vec2(ca * dn.x - sa * dn.y, sa * dn.x + ca * dn.y), du = vec2(dv.y, -dv.x);
+  vec2 q = st - tVst(V);
+  vec2 uv = vec2(dot(q, du), dot(q, dv)) + r * 7.3;
+  gCnt += 2.0;
+  vec4 A = texture(uTSA, uv), N = texture(uTSN, uv);
+  vec2 t = N.xy * 2.0 - 1.0;
+  Smp o; o.c = vec4(pow(A.rgb, vec3(2.2)), A.a);
+  vec2 g = t.x * du + t.y * dv;                       // the map's gradient, back in world x / z
+  o.n = vec4(g.x, 0.0, g.y, N.a); return o;
+}
+Smp tFaceTap(vec2 st, vec2 V, int plane){
+  vec2 uv = st;   // (a PLAIN tile on the faces: the hex's blend chopped the streaks into a patchwork; the 40 m tile and the macro break the repeat)
+  gCnt += 2.0;
+  vec4 A = texture(uTFA, uv), N = texture(uTFN, uv);
+  vec2 t = N.xy * 2.0 - 1.0;
+  Smp o; o.c = vec4(pow(A.rgb, vec3(2.2)), A.a);
+  o.n = plane == 0 ? vec4(0.0, t.y, t.x, N.a) : vec4(t.x, t.y, 0.0, N.a); return o;
+}
+Smp tBlend3(Smp a, Smp b, Smp c, vec3 W){ vec3 h = hw3(a.c.a, W.x, b.c.a, W.y, c.c.a, W.z, 0.08);
+  Smp o; o.c = a.c * h.x + b.c * h.y + c.c * h.z; o.n = a.n * h.x + b.n * h.y + c.n * h.z; return o; }
+Smp sTrond(vec3 P, vec3 nGeo, float slope){
+  vec2 V1, V2, V3; vec3 W;
+  float fw = smoothstep(42.0, 58.0, slope);
+  Smp o; o.c = vec4(0.0); o.n = vec4(0.0);
+  Smp sl = o, fa = o;
+  if (fw < 0.999) {
+    vec2 dn = length(nGeo.xz) > 0.02 ? normalize(nGeo.xz) : vec2(0.0, 1.0);
+    vec2 st = P.xz / uTScale.x; tHex(st, V1, V2, V3, W);
+    sl = tBlend3(tSlabTap(st, V1, dn), tSlabTap(st, V2, dn), tSlabTap(st, V3, dn), W);
+  }
+  if (fw > 0.001) {
+    float fx = nGeo.x * nGeo.x, fz = nGeo.z * nGeo.z, kx = fx / max(fx + fz, 1e-6);
+    Smp a = o, b = o;
+    if (kx > 0.08) a = tFaceTap(P.zy / uTScale.y + vec2(0.37, 0.0), vec2(0.0), 0);
+    if (kx < 0.92) b = tFaceTap(P.xy / uTScale.y, vec2(0.0), 1);
+    float k = smoothstep(0.3, 0.7, kx);
+    fa.c = mix(b.c, a.c, k); fa.n = mix(b.n, a.n, k);
+  }
+  if (fw <= 0.001) o = sl; else if (fw >= 0.999) o = fa;
+  else { vec2 h = hw2(sl.c.a, 1.0 - fw, fa.c.a, fw, 0.1); o.c = sl.c * h.x + fa.c * h.y; o.n = sl.n * h.x + fa.n * h.y; }
+  // the macro: the colour multiplier everywhere on it; its normal off the displaced mesh; its height into the blend's height
+  vec2 mu = (P.xz - uTM.xy) / uTM.z;
+  float inM = step(0.0, mu.x) * step(mu.x, 1.0) * step(0.0, mu.y) * step(mu.y, 1.0);
+  if (inM > 0.5) {
+    vec4 nh = texture(uTMNH, mu); vec3 mm = texture(uTMM, mu).rgb * uTM.w;
+    o.c.rgb *= mm;
+    if (vDisp < 0.5) o.n.xyz += vec3(nh.r * 2.0 - 1.0, 0.0, nh.g * 2.0 - 1.0);
+    o.c.a = clamp(o.c.a * 0.6 + nh.a * 0.6 - 0.1, 0.0, 1.0);
+  }
+  o.c.rgb *= ${(+(Q.get('rockk') || 1)).toFixed(3)};   // (?rockk=: the rock's brightness, a knob for the user's eye)
+  o.n.xyz /= 3.0;   // (sSplat multiplies the sets' relief by nrmK 3; these maps are at their own scale)
+  return o;
+}
+#endif
 #if EXPO || STRATA
 float fbm2(vec2 p){ return vnoise(p) * 0.5 + vnoise(p * 2.03 + 17.1) * 0.3 + vnoise(p * 4.11 - 5.3) * 0.2; }
 #endif
@@ -330,7 +451,10 @@ vec3 sSplat(vec3 nGeo){
   if (wH >= 0.004) sH = sType(0.0, 15.04, 15.0, P, tw, fw, hexOn);
   if (wF >= 0.004) sF = sType(1.0, 17.5, 81.0, P, tw, fw, hexOn);
   if (wS >= 0.004) sS = sType(2.0, 41.5, 90.0, P, tw, fw, hexOn);
-#if ROCK_DETAIL
+#if TROND
+  if (wR + wC >= 0.004) { sR = sTrond(P, nGeo, slope); sC = sR; }
+  const float SEAM = 0.15;
+#elif ROCK_DETAIL
   if (wR >= 0.004) sR = sRock(4.0, 51.5, 120.0, P, tw, fw, d, hexOn);
   if (wC >= 0.004) sC = sRock(4.0, 51.5, 120.0, P, tw, fw, d, hexOn);
   const float SEAM = 0.12;
@@ -355,7 +479,7 @@ vec3 sSplat(vec3 nGeo){
   float tot = max(bH + bF + bS + bR + bC, 1e-5);
   vec3 col = (sH.c.rgb * bH + sF.c.rgb * bF + sS.c.rgb * bS + sR.c.rgb * bR + sC.c.rgb * bC) / tot;
   vec4 nrm = (sH.n * bH + sF.n * bF + sS.n * bS + sR.n * bR + sC.n * bC) / tot;
-  float meanL = (uMean[0] * bH + uMean[1] * bF + uMean[2] * bS + uMean[${D.ROCK_DETAIL ? 4 : 3}] * bR + uMean[${D.FACESET ? ROCKSET_G : 4}] * bC) / tot;
+  float meanL = ${TROND ? '0.0 +' : ''} (uMean[0] * bH + uMean[1] * bF + uMean[2] * bS + uMean[${D.ROCK_DETAIL ? 4 : 3}] * bR + uMean[${D.FACESET ? ROCKSET_G : 4}] * bC) / tot;
   float rockB = (bR + bC) / tot;
 #if EXPO
   // (c) MACRO VARIATION on the rock (lichen, oxide, the fresh scar): two octaves, 70 m and 260 m, value and a warm/cool turn
@@ -388,7 +512,7 @@ vec3 sSplat(vec3 nGeo){
   // THE MACRO IN THE NEAR GROUND (splat_ground: macroNear 0.5, macroLum 0.55; 70 % less on the faces, 30-48 deg)
   vec3 mac = pow(vAlb, vec3(2.2)) * uMacExp;
   { float lc = luma3(col); float rel = lc / max(meanL, 1e-3); vec3 tinted = mac * mix(lc / max(luma3(mac), 1e-3), rel, 0.55);
-    col = mix(col, tinted, 0.5 * (1.0 - 0.7 * smoothstep(30.0, 48.0, slope))); }
+    col = mix(col, tinted, 0.5 * (1.0 - 0.7 * smoothstep(30.0, 48.0, slope)) * (1.0 - ${TROND ? 1 : 0}.0 * rockB)); }   // (trond: the rock's colour is its own)
   float nf = 1.0 - smoothstep(250.0, 1400.0, d);
   gSN = nrm.xyz * 3.0 * nf;
   gSRough = clamp(nrm.w, 0.05, 1.0);
@@ -401,10 +525,10 @@ function groundMat() {
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
-attribute vec4 aCodes; attribute vec2 aCurv; attribute float aFlow; attribute vec3 aAlb;
+attribute vec4 aCodes; attribute vec2 aCurv; attribute float aFlow; attribute vec3 aAlb; attribute float aDisp; varying float vDisp;
 varying vec3 vW; varying vec4 vCodes; varying vec2 vCurv; varying float vFlow; varying vec3 vAlb; varying vec3 vNs;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-vW = (modelMatrix * vec4(position, 1.0)).xyz; vCodes = aCodes; vCurv = aCurv; vFlow = aFlow; vAlb = aAlb; vNs = normalize(mat3(modelMatrix) * normal);`);
+vW = (modelMatrix * vec4(position, 1.0)).xyz; vDisp = aDisp; vCodes = aCodes; vCurv = aCurv; vFlow = aFlow; vAlb = aAlb; vNs = normalize(mat3(modelMatrix) * normal);`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + GLSL_COMMON)
       .replace('#include <map_fragment>', `#include <map_fragment>
   { vec3 nS = normalize(vNs); diffuseColor.rgb = sSplat(nS); }`)
@@ -461,7 +585,7 @@ async function buildScatter() {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vFoot; uniform float uH;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFoot = position.y / max(uH, 1e-3);');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFoot;')
-        .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.55, 1.0, smoothstep(0.08, 0.45, vFoot));');
+        .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.55, 1.0, smoothstep(0.08, 0.45, vFoot));' + (TROND ? '\n { float l = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)); diffuseColor.rgb = mix(vec3(l), diffuseColor.rgb, 0.15) * vec3(0.96, 0.99, 1.04); }' : ''));
       sh.uniforms.uH = { value: m.userData.h || 1 }; };
     return m; };
   // candidates
@@ -506,7 +630,7 @@ async function buildScatter() {
     const ar = lin(sampleK(ALB, 3, 0, x, z)), ag = lin(sampleK(ALB, 3, 1, x, z)), ab = lin(sampleK(ALB, 3, 2, x, z));
     const la2 = (0.2126 * ar + 0.7152 * ag + 0.0722 * ab) * MACEXP;
     const t = Math.min(1.3, Math.max(0.45, la2 / 0.16));
-    S.list.push([M.clone(), new THREE.Color(t * 0.97, t * 0.97, t * 0.94)]);
+    S.list.push([M.clone(), TROND ? new THREE.Color(t * 2.1, t * 2.1, t * 2.15) : new THREE.Color(t * 0.97, t * 0.97, t * 0.94)]);
   }
   const root = new THREE.Group(); scene.add(root);
   for (const S of subs) { if (!S.list.length) continue; S.mat.userData.h = S.s.h;
@@ -796,7 +920,7 @@ function setView(name) {
   const sc = sun.shadow.camera; sc.left = -r; sc.right = r; sc.top = r; sc.bottom = -r; sc.near = 100; sc.far = 3500; sc.updateProjectionMatrix();
 }
 setView(P.view);
-SKX = camera.position.x; SKZ = camera.position.z; SKR = 700;
+SKX = camera.position.x; SKZ = camera.position.z; SKR = TSKIRT ? 450 : 700;
 const base = new THREE.Mesh(buildBase(), gMat); base.castShadow = true; base.receiveShadow = true; scene.add(base);
 const STAT = { skirtCells: 0, skirtTris: 0, rocks: 0, rockTris: 0, rockDraws: 0 };
 if (P.skirt > 0) { const s = buildSkirt(P.skirt); const m = new THREE.Mesh(s.g, gMat); m.castShadow = true; m.receiveShadow = true; scene.add(m);
