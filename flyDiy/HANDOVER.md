@@ -316661,3 +316661,18 @@ the next steps).
 - tow.js slopePull (TOW-LAUNCH's page push and GATE TOW's ALTIPORT row, not on master) is now REDUNDANT: the solver pulls downhill itself. It stays until the merge removes it (A0's side), so the two slopes must not both reach one aeroplane once both are in.
 - PUSHED WITHOUT THE FULL BATTERY (A0's call, 13 Nov: the core battery is ~16 h of wall on the cloud box; train L40b runs every gate on its own box). The targeted branch-vs-master comparison of the ground gates was run side by side.
 - TRAP (named, not fixed here - 39c_placement is not this change's): placeAtAerodrome without seatOnGround on a sloped strip (the spawn identity) drops the aeroplane onto a buried third wheel; on a downhill spawn with the ground's slope now real, a taildragger can go over its nose. The game seats (app.js applyRoute); a gate that spawns raw on Jolene's sloped strips is the place to look first if one goes red on this change.
+
+### TOW-LAUNCH L40d (15 Nov) - the set on L40c, and the cars' decision
+
+- claude/tow-launch-l40d = claude/tow-launch-l40c-3 merged onto master 58c681347 (L40c), then (baked), then (built).
+  43_pilot.js is the Pilot's, verbatim (it holds every TOW-LAUNCH hook). The solver's slope hold sits before master's
+  skid branch (isTW || SKD[i]). GEN_CAGE_ROW_NEUTRAL = master's rows plus rodOn / spinOn.
+- THE MILITARY LUG TYRE IS whProfile 4 (MONOWHEEL's bicycle wheel took 3 first): _cage_design, _gear_gen TYRE[4],
+  _gear_page 0..4, the van's edits. The core reads 4 as a standard tyre, as it read the car branch's 3: the van's
+  physics did not move. The car session has been told.
+- THE CARS (the user via A0, 15 Nov: "let's exclusively use our own ... the van ... the speedster is just a little
+  easter egg ... we don't use the external 3d pickup model"): NOT in L40d. It goes as claude/cars-own for L40e. The
+  stock car's swap (drive_mode.js's sheet, the Conquer's packs, media, sw.js, vehicles.json) is the CAR session's: it
+  owns drive_mode.js, the vehicle files and app.js's DRIVE section. TOW-LAUNCH's half: GATE TOW and TRAILER on the van's
+  sheet instead of car_conquer.json, with every figure that moves named; tow.js / trailer.js already hook to the
+  car's drawn ball (def.hitch) - their Conquer fallback goes with the pickup.
