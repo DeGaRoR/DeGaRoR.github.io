@@ -703,3 +703,21 @@ to forget". A first cut (a declared `wgStolFly` row) was dropped for exactly tha
   when it is aft of the mains, a nose wheel when ahead. The KM table gains `nosewheel.a` / `nosewheel.bottom` (marks
   `nosewheel`, `nosewheel.bottom`).
 - GATE DRAFTING checks both: `ky` round-trips every turn and mirror, and the KM table carries both third-wheel rows.
+
+## The free tilt (15 Nov, A0 for FLAGSHIP's Cessna fit)
+
+Real brochure sheets are drawn tilted (the 172's side view is 4.8 deg off, along its 26'11" line). A view's `rot` is
+now any angle in degrees: its nearest quarter turn is applied exactly, as before, and the rest tilts the view about its
+pivot, clockwise on the sheet like `rot`.
+- `rotAt` absent: the pivot is the view's origin (ox, oy).
+- `rotAt: [px, py]`: a sheet pixel.
+- `rotAt: { mark: 'wheel', at: [px, py] }`: a named mark. `DT_CORE.setTilt(ref, view, deg, mark)` sets the angle about the
+  mark, copies its pixel into `at` (so the page's worker maps the view from the view alone) and re-places the untilted
+  origin so the mark keeps its metres. With a pivot off the origin, (ox, oy) is the origin's place BEFORE the tilt;
+  `DT_CORE.placeOrigin(V, px, py)` (the page's "place the origin") turns the click back.
+- The tilt acts in the drawing's own metres, inside the sheet's two scales: p = P + K Rf K^-1 (p0 - P), K = diag(k, ky).
+
+It lives inside `toPx` / `fromPx`, so the table, `quickshot.js --sheet` and the in-game page all honour it. GATE DRAFTING:
+every pivot form round-trips with a mirror and two scales, a view's X axis runs at the angle on the sheet, `setTilt`
+keeps its mark, and the PC-6's sheet turned 4.8 deg (its side marks and lines turned with it) scores what the level
+sheet scores (136 / 175 both).
