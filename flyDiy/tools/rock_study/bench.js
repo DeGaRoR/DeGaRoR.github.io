@@ -104,13 +104,18 @@ if (TROND) {
   const n = jS.n;
   const [sA, sN, fA, fN] = await Promise.all([pack(T + 'slab_albedo.png', T + 'slab_height.png', n, 0), pack(T + 'slab_normal.png', T + 'slab_rough.png', n, 0),
     pack(T + 'face_albedo.png', T + 'face_height.png', n, 0), pack(T + 'face_normal.png', T + 'face_rough.png', n, 0)]);
-  const mNH = await pixN(T + 'macro_nh.png', jM.n), mMu = await pixN(T + 'macro_mult.png', jM.n);
+  const mNH = await pixN(T + 'macro_nh.png', jM.n), mMu = await pixN(T + 'macro_mult.png', jM.n), mRk = await pixN(T + 'macro_rock.png', jM.n);
   const mH = new Float32Array(await B(T + 'macro_h.f32'));
   TRD = { jS, jF, jM, mH, U: { uTSA: { value: tex(sA, n, 1) }, uTSN: { value: tex(sN, n, 1) }, uTFA: { value: tex(fA, n, 1) }, uTFN: { value: tex(fN, n, 1) },
-    uTMNH: { value: tex(new Uint8Array(mNH), jM.n, 0) }, uTMM: { value: tex(new Uint8Array(mMu), jM.n, 0) },
+    uTMNH: { value: tex(new Uint8Array(mNH), jM.n, 0) }, uTMM: { value: tex(new Uint8Array(mMu), jM.n, 0) }, uTRK: { value: tex(new Uint8Array(mRk), jM.n, 0) },
     uTM: { value: new THREE.Vector4(jM.x0, jM.z0, jM.ext, jM.multScale) }, uTScale: { value: new THREE.Vector2(jS.tile, jF.tile) } } };
   // the macro's height at (x, z), bilinear, 0 off its extent (the rock mesh's displacement, on the CPU: the shadows see it)
   const med = (() => { const a = Array.from(mH.filter((v, i) => i % 97 === 0)).sort((p, q) => p - q); return a[a.length >> 1]; })();
+  // the rock's exposure at (x, z) (0..1), bilinear; -1 off the macro's extent (the raster decides there)
+  TRD.eAt = (x, z) => { const m = jM, fi = (x - m.x0) / m.px - 0.5, fj = (z - m.z0) / m.px - 0.5;
+    if (fi < 0 || fj < 0 || fi >= m.n - 1 || fj >= m.n - 1) return -1;
+    const i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j, k = (j * m.n + i) * 4, k2 = k + m.n * 4;
+    return ((mRk[k] * (1 - u) + mRk[k + 4] * u) * (1 - v) + (mRk[k2] * (1 - u) + mRk[k2 + 4] * u) * v) / 255; };
   TRD.hAt = (x, z) => { const m = jM, fi = (x - m.x0) / m.px - 0.5, fj = (z - m.z0) / m.px - 0.5;
     if (fi < 0 || fj < 0 || fi >= m.n - 1 || fj >= m.n - 1) return 0;
     const i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j, k = j * m.n + i;
@@ -134,6 +139,43 @@ const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
 if (TSKIRT) P.skirt = TSKIRT;
 // (?tskirt: the mask is the ROCK - the raster's rock share or a slope over 40 deg - not the slope alone: every outcrop is re-meshed)
 const vMask = new Float32Array(N * N); for (let k = 0; k < N * N; k++) vMask[k] = P.skirt > 0 ? (TSKIRT ? Math.max(ss(0.3, 0.6, CODES[k * 4] / 255), ss(40, 52, vSlope(k))) : ss(SK.lo, SK.hi, vSlope(k))) : 0;
+// (?tskirt on the macro: the EXPOSURE is the mask - any cell with exposed rock is re-meshed, the rock rises where it shows)
+if (TSKIRT && TRD) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const e = TRD.eAt(-HALF + i * ST, -HALF + j * ST); if (e >= 0) vMask[j * N + i] = ss(0.02, 0.25, e); }
+// THE MEDIUM RELIEF - the user's Blender 'Cliff-Rock' group (Mountain_rock.blend), its height path transcribed node for node
+// (tools: a .blend reader, the SDNA walked for bNode / bNodeLink): the object coordinates WARPED by a Musgrave fBm (/10);
+// a Voronoi F2 in MANHATTAN distance (angular, faceted masses) and the distance to its EDGE (the fractures), each remapped;
+// two more Manhattan F2 at other scales, one to the power 0.025 (it flattens to plateaus with sharp steps), one to 0.2;
+// max of the two families, minus log_0.05(F2) (sharpens the crests), minus fBm/40, to the power 1.2 ('pointiness').
+// Evaluated in 3D at every vertex of the rock mesh (no stretch on a face), at UNIT metres (one Blender unit = 9 m here).
+const MED = { unit: 12.0, amp: 1.5, lift: 0.6 };
+const vor3 = (x, y, z, sc, seed) => {   // -> [F1 manhattan, F2 manhattan, edge (euclid F2 - F1) / 2, cell id]
+  x *= sc; y *= sc; z *= sc; const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z);
+  let f1 = 1e9, f2 = 1e9, e1 = 1e9, e2 = 1e9, id = 0;
+  for (let k = -1; k <= 1; k++) for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+    const cx = X + i, cy = Y + j, cz = Z + k;
+    const px = cx + hh(cx, cy, cz + seed), py = cy + hh(cx + 31, cy, cz + seed), pz = cz + hh(cx, cy + 57, cz + seed);
+    const dx = px - x, dy = py - y, dz = pz - z, dm = Math.abs(dx) + Math.abs(dy) + Math.abs(dz), de = Math.hypot(dx, dy, dz);
+    if (dm < f1) { f2 = f1; f1 = dm; id = hh(cx, cy + 7, cz + seed); } else if (dm < f2) f2 = dm;
+    if (de < e1) { e2 = e1; e1 = de; } else if (de < e2) e2 = de;
+  }
+  return [f1, f2, (e2 - e1) * 0.5, id];
+};
+const fbm3 = (x, y, z, oct) => { let s = 0, a = 1, f = 1; for (let o = 0; o < oct; o++) { s += a * (vn3(x * f, y * f, z * f + o * 17) * 2 - 1); a *= 0.536; f *= 2; } return s; };   // (dimension 0.9: gain 2^-0.9)
+function medium(x, y, z) {
+  const u = 1 / MED.unit, qx = x * u, qy = y * u, qz = z * u;
+  const m = fbm3(qx * 3.2, qy * 3.2, qz * 3.2, 6);
+  const wx = qx + m / 10, wy = qy + m / 10, wz = qz + m / 10;
+  const A = vor3(wx, wy, wz, 2.0, 11), Bv = vor3(wx, wy, wz, 2.5, 23), Cv = vor3(qx, qy, qz, 1.2, 37);
+  const r1 = (1 - A[1]) / 5, r2 = (1 - A[2] * 2) / 4;
+  const b = Math.pow(Math.max(r1 + r2, 0), 2) + 0.5;
+  const e = (Math.pow(Math.pow(Bv[1], 0.025) + Math.pow(Cv[1], 0.2), 2) - 2) / 3.75;
+  const t = Math.max(b, e) - Math.log(Math.max(A[1], 1e-3)) / Math.log(0.05) - m / 40;
+  return { h: Math.pow(Math.max(t, 0), 1.2), crev: 1 - ss(0.0, 0.12, A[2]), id: A[3] };
+}
+let MEDN = null;   // its normalisation (mean, sd), measured once on the patch's own points
+const medNorm = () => { if (MEDN) return MEDN; let s1 = 0, s2 = 0, n = 0;
+  for (let k = 0; k < 4000; k++) { const x = (hh(k, 1, 2) - 0.5) * 800, z = (hh(k, 3, 4) - 0.5) * 800, y = hXZ(x, z), h = medium(x, y, z).h; s1 += h; s2 += h * h; n++; }
+  const mu = s1 / n; return (MEDN = [mu, Math.sqrt(Math.max(1e-6, s2 / n - mu * mu))]); };
 // the skirt is a RING round the eye (as a game would draw it): cells within SKR m of the camera (set before the build)
 let SKR = 1e9, SKX = 0, SKZ = 0;
 const cellSkirt = (i, j) => P.skirt > 0 && Math.hypot(-HALF + (i + 0.5) * ST - SKX, -HALF + (j + 0.5) * ST - SKZ) < SKR && (vMask[j * N + i] > 0 || vMask[j * N + i + 1] > 0 || vMask[(j + 1) * N + i] > 0 || vMask[(j + 1) * N + i + 1] > 0);
@@ -182,7 +224,7 @@ function buildSkirt(step) {
   //   plus a block noise (2.2 m at 4.5 m, 0.9 m at 1.9 m) so nothing is a plane.
   const sub = Math.max(1, Math.round(ST / step));
   const cells = []; for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) if (cellSkirt(i, j)) cells.push([i, j]);
-  const key = new Map(); const P3 = [], CO = [], CU = [], FL = [], AL = []; let nv = 0;
+  const key = new Map(); const P3 = [], CO = [], CU = [], FL = [], AL = [], MD = []; let nv = 0;
   const tmp4 = new Uint8Array(4), tmp2 = new Float32Array(2), tmp1 = new Uint8Array(1), tmp3 = new Uint8Array(3);
   const vert = (gi, gj) => {
     const k0 = gi * 1048576 + gj; let v = key.get(k0); if (v !== undefined) return v;
@@ -191,9 +233,19 @@ function buildSkirt(step) {
     const y = (hAt(ci, cj) * (1 - u) + hAt(ci + 1, cj) * u) * (1 - w) + (hAt(ci, cj + 1) * (1 - u) + hAt(ci + 1, cj + 1) * u) * w;
     const m = (vMask[cj * N + ci] * (1 - u) + vMask[cj * N + ci + 1] * u) * (1 - w) + (vMask[(cj + 1) * N + ci] * (1 - u) + vMask[(cj + 1) * N + ci + 1] * u) * w;
     let X = x, Y = y, Z = z;
+    let med = null, eX = 0;
     if (m > 0 && TSKIRT && TRD) {
-      // THE MACRO'S RELIEF, as geometry: along the DEM's normal by the same height the colour and the normal maps were read off
-      const g = gradXZ(x, z, 5), l = Math.hypot(g[0], 1, g[1]), dd = TRD.hAt(x, z) * m;
+      // THE MACRO'S RELIEF + THE MEDIUM RELIEF, as geometry, along the DEM's normal: the macro's height (the veins, the
+      // formations) and the Blender masses, both where the rock is EXPOSED - the outcrop rises out of the vegetation by
+      // MED.lift and its masses stand up to MED.amp more; the green between stays at the DEM
+      // (the geometry reads the exposure SMOOTHED over ~5 m: the 2-5 m speckles are colour, a mass is an outcrop - read raw,
+      // every speck stood up as a tooth)
+      let ex0 = TRD.eAt(x, z);
+      if (ex0 >= 0) { let a = ex0, nn = 1; for (const [ox, oz] of [[2.5, 0], [-2.5, 0], [0, 2.5], [0, -2.5], [1.8, 1.8], [-1.8, -1.8], [1.8, -1.8], [-1.8, 1.8]]) { const e = TRD.eAt(x + ox, z + oz); if (e >= 0) { a += e; nn++; } } ex0 = a / nn; }
+      eX = ex0 < 0 ? m : ss(0.25, 0.75, ex0) * Math.min(1, m * 3);
+      med = medium(x, y, z); const [mu, sd] = medNorm();
+      const g = gradXZ(x, z, 5), l = Math.hypot(g[0], 1, g[1]);
+      const dd = TRD.hAt(x, z) * Math.min(1, m * 3) + eX * (MED.lift + MED.amp * Math.max(-1.2, Math.min(2.2, (med.h - mu) / sd)) * 0.5);
       X += -g[0] / l * dd; Y += dd / l; Z += -g[1] / l * dd;
     } else if (m > 0) {
       const g = gradXZ(x, z, 5), gl2 = Math.hypot(g[0], g[1]) || 1e-6, ox = -g[0] / gl2, oz = -g[1] / gl2;   // outward = downhill
@@ -214,6 +266,7 @@ function buildSkirt(step) {
     }
     P3.push(X, Y, Z); attrsAt(x, z, null, tmp4, tmp2, tmp1, tmp3, 0, 0, 0, 0);
     CO.push(tmp4[0], tmp4[1], tmp4[2], tmp4[3]); CU.push(tmp2[0], tmp2[1]); FL.push(tmp1[0]); AL.push(tmp3[0], tmp3[1], tmp3[2]);
+    MD.push(med ? med.crev * eX : 0, med ? med.id : 0.5);
     key.set(k0, nv); return nv++;
   };
   const idx = [];
@@ -228,6 +281,7 @@ function buildSkirt(step) {
   g.setAttribute('aFlow', new THREE.BufferAttribute(new Uint8Array(FL), 1, true)); g.setAttribute('aAlb', new THREE.BufferAttribute(new Uint8Array(AL), 3, true));
   g.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1)); g.computeVertexNormals();
   g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(P3.length / 3).fill(TSKIRT ? 1 : 0), 1));
+  g.setAttribute('aMed', new THREE.BufferAttribute(new Float32Array(MD), 2));
   return { g, cells: cells.length };
 }
 
@@ -330,8 +384,8 @@ Smp sRock(float Lm, float sN, float sF, vec3 P, vec3 tw, float fw, float d, floa
 //   the two blended by slope (42-58 deg) through their heights; the macro multiplies the colour and, off the displaced mesh,
 //   bends the normal (on the displaced mesh the geometry IS the macro's relief).
 // The normal comes back as a WORLD perturbation at the maps' own scale (m/m), the colour linear, .a the height (0..1).
-uniform sampler2D uTSA, uTSN, uTFA, uTFN, uTMNH, uTMM; uniform vec4 uTM; uniform vec2 uTScale;
-varying float vDisp;
+uniform sampler2D uTSA, uTSN, uTFA, uTFN, uTMNH, uTMM, uTRK; uniform vec4 uTM; uniform vec2 uTScale;
+varying float vDisp; varying vec2 vMed;
 vec2 tVst(vec2 v){ return vec2(v.x + 0.5 * v.y, v.y * 0.8660254) * 0.5; }
 // one hex lattice for both: the three corners in the 3-colour order (splat_ground sTile's line-free fetch), their weights
 void tHex(vec2 st, out vec2 V1, out vec2 V2, out vec2 V3, out vec3 W){
@@ -389,6 +443,8 @@ Smp sTrond(vec3 P, vec3 nGeo, float slope){
   }
   if (fw <= 0.001) o = sl; else if (fw >= 0.999) o = fa;
   else { vec2 h = hw2(sl.c.a, 1.0 - fw, fa.c.a, fw, 0.1); o.c = sl.c * h.x + fa.c * h.y; o.n = sl.n * h.x + fa.n * h.y; }
+  float hm = o.c.a;   // the tile's own height (0..1): its cracks are the low texels
+  float vegM = 0.0;
   // the macro: the colour multiplier everywhere on it; its normal off the displaced mesh; its height into the blend's height
   vec2 mu = (P.xz - uTM.xy) / uTM.z;
   float inM = step(0.0, mu.x) * step(mu.x, 1.0) * step(0.0, mu.y) * step(mu.y, 1.0);
@@ -397,6 +453,28 @@ Smp sTrond(vec3 P, vec3 nGeo, float slope){
     o.c.rgb *= mm;
     if (vDisp < 0.5) o.n.xyz += vec3(nh.r * 2.0 - 1.0, 0.0, nh.g * 2.0 - 1.0);
     o.c.a = clamp(o.c.a * 0.6 + nh.a * 0.6 - 0.1, 0.0, 1.0);
+    vegM = nh.b;
+  }
+  // THE GREEN (15 Nov, the user: "green stuff grows on every suitable surface, every crack"): the macro's chance (its veins,
+  // hollows, flat tops, the outcrop's margin), the tile's own cracks (its low texels), and whatever the GEOMETRY turns up to
+  // the sky (on the displaced mesh: the masses' tops and ledges) - broken by two noises, and filling the LOW texels first
+  // (a height blend against the rock's own height: moss in the cracks before it climbs the crowns). The green is the
+  // ground's own grass set (grassRock, layer 0) read from above, pushed lusher, darkened to moss where it is thin.
+  {
+    float n1 = vnoise(P.xz / 7.0 + 3.1), n2 = vnoise(P.xz / 1.7 - 9.4);
+    float crackM = max(1.0 - smoothstep(0.10, 0.32, hm), vMed.x * 0.9);
+    o.c.rgb *= mix(1.0, 0.55, vMed.x) * (0.9 + 0.2 * vMed.y);   // the medium relief's crevices darker, each mass its own tone
+    float up = smoothstep(0.80, 0.96, nGeo.y) * (0.35 + 0.65 * n1);
+    float G = clamp(vegM * 1.15 + crackM * 0.6 + up * 0.55, 0.0, 1.0) * (0.55 + 0.6 * n2);
+    float gw = clamp((G * 1.35 - hm) * 3.0, 0.0, 1.0);
+    if (gw > 0.003) {
+      gCnt += 1.0;
+      vec3 gr = pow(texture(uA, vec3(P.xz / 5.0, 0.0)).rgb, vec3(2.2)) * vec3(0.78, 1.0, 0.62);
+      vec3 moss = vec3(0.045, 0.058, 0.022) * (0.8 + 0.6 * n2);
+      vec3 green = mix(moss, gr, smoothstep(0.3, 0.8, G));
+      o.c.rgb = mix(o.c.rgb, green, gw); o.n.xyz *= 1.0 - 0.6 * gw; o.n.w = mix(o.n.w, 0.95, gw);
+      o.c.a = mix(o.c.a, 0.2, gw);
+    }
   }
   o.c.rgb *= ${(+(Q.get('rockk') || 1)).toFixed(3)};   // (?rockk=: the rock's brightness, a knob for the user's eye)
   o.n.xyz /= 3.0;   // (sSplat multiplies the sets' relief by nrmK 3; these maps are at their own scale)
@@ -430,6 +508,24 @@ vec3 sSplat(vec3 nGeo){
   wF = veg * wF / vegO; wH = veg * (wH + (vegO < 0.01 ? 1.0 : 0.0)) / max(vegO, 1e-3);
   wR = rock; wS = scree;
 #endif
+#if TROND
+  // SMOOTH, RAGGED EDGES INTO THE SURROUNDING GROUND (the user): the raster's rock share pushed by two noises inside its own
+  // margin (0 at the core and outside), the other types scaled to make room - the outcrop breaks into patches and green
+  // tongues before the open ground, instead of the vote's soft band
+  // (and, on the macro's extent, THE EXPOSURE decides: trond_gen's mosaic - rock on the tops, ridges and steeps, vegetation
+  // down the drainage, in the hollows and in every pocket; where the raster had only rock, the vegetation it never knew is
+  // the heath and the dark krummholz green of the reference, half each)
+  { float rk = wR, band = 4.0 * rk * (1.0 - rk);
+    float nz = vnoise(P.xz / 9.0 + 1.3) * 0.6 + vnoise(P.xz / 3.1 - 4.2) * 0.4 - 0.5;
+    float rk2 = clamp(rk + nz * 1.1 * band, 0.0, 1.0);
+    vec2 mu = (P.xz - uTM.xy) / uTM.z;
+    float inM = step(0.0, mu.x) * step(mu.x, 1.0) * step(0.0, mu.y) * step(mu.y, 1.0);
+    if (inM > 0.5) rk2 = texture(uTRK, mu).r;
+    float vg = wH + wF + wS;
+    if (vg < 0.05) { wH = 0.3; wF = 0.7; vg = 1.0; }
+    float ko = (1.0 - rk2) / max(vg, 1e-3);
+    wH *= ko; wF *= ko; wS *= ko; wR = rk2; }
+#endif
   float sCliff = smoothstep(32.0, 42.0, slope);
   float wC = wR * sCliff; wR *= 1.0 - sCliff;
   // THE TRIPLANAR WEIGHTS (splat_ground: one side weight |n.xz| against |n.y|, split x : z by nx^4 : nz^4, triK 8)
@@ -453,7 +549,7 @@ vec3 sSplat(vec3 nGeo){
   if (wS >= 0.004) sS = sType(2.0, 41.5, 90.0, P, tw, fw, hexOn);
 #if TROND
   if (wR + wC >= 0.004) { sR = sTrond(P, nGeo, slope); sC = sR; }
-  const float SEAM = 0.15;
+  const float SEAM = 0.28;
 #elif ROCK_DETAIL
   if (wR >= 0.004) sR = sRock(4.0, 51.5, 120.0, P, tw, fw, d, hexOn);
   if (wC >= 0.004) sC = sRock(4.0, 51.5, 120.0, P, tw, fw, d, hexOn);
@@ -525,10 +621,10 @@ function groundMat() {
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
-attribute vec4 aCodes; attribute vec2 aCurv; attribute float aFlow; attribute vec3 aAlb; attribute float aDisp; varying float vDisp;
+attribute vec4 aCodes; attribute vec2 aCurv; attribute float aFlow; attribute vec3 aAlb; attribute float aDisp; varying float vDisp; attribute vec2 aMed; varying vec2 vMed;
 varying vec3 vW; varying vec4 vCodes; varying vec2 vCurv; varying float vFlow; varying vec3 vAlb; varying vec3 vNs;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-vW = (modelMatrix * vec4(position, 1.0)).xyz; vDisp = aDisp; vCodes = aCodes; vCurv = aCurv; vFlow = aFlow; vAlb = aAlb; vNs = normalize(mat3(modelMatrix) * normal);`);
+vW = (modelMatrix * vec4(position, 1.0)).xyz; vDisp = aDisp; vMed = aMed; vCodes = aCodes; vCurv = aCurv; vFlow = aFlow; vAlb = aAlb; vNs = normalize(mat3(modelMatrix) * normal);`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + GLSL_COMMON)
       .replace('#include <map_fragment>', `#include <map_fragment>
   { vec3 nS = normalize(vNs); diffuseColor.rgb = sSplat(nS); }`)
@@ -594,7 +690,8 @@ async function buildScatter() {
   for (let z = -R; z < R; z += 2) for (let x = -R; x < R; x += 2) {
     const jx = x + (hh(Math.round(x * 3), Math.round(z * 3), 1) - 0.5) * 2, jz = z + (hh(Math.round(x * 3), Math.round(z * 3), 2) - 0.5) * 2;
     const sl = slopeAt(jx, jz); if (sl > 50) continue;
-    const cR = sampleK(CODES, 4, 0, jx, jz) / 255, cS = sampleK(CODES, 4, 1, jx, jz) / 255, cF = sampleK(CODES, 4, 2, jx, jz) / 255;
+    let cR = sampleK(CODES, 4, 0, jx, jz) / 255; const cS = sampleK(CODES, 4, 1, jx, jz) / 255, cF = sampleK(CODES, 4, 2, jx, jz) / 255;
+    if (TRD) { const e = TRD.eAt(jx, jz); if (e >= 0) cR = e; }   // (trond: the exposure is the rock)
     const cv = sampleK(CURV, 2, 1, jx, jz);
     // a face uphill: walk 35 m up the gradient and look for slope > 45
     const g = gradXZ(jx, jz, 3), gl2 = Math.hypot(g[0], g[1]) || 1e-6; let face = 0;

@@ -237,6 +237,108 @@ Triangles drawn (rocks only, eco ladder):
   cost is §6's: **bake each pack as ONE cluster mesh** (the big crag with its medium and small rocks merged and
   decimated), and an impostor beyond ~600 m. The pack layout is the right unit for that bake.
 
+### 5c. The island's own rock: trondhjemite, weathered, in a mosaic, with Blender-style masses (15 Nov)
+
+**The user's mission** (15 Nov):
+- A normal-map pattern that makes sense for the island's geology, and a texture that makes sense at large scale.
+- Displacement, normal and colour influencing each other ("crevices greyer").
+- Then: weathering (sandstone-yellow, much dirtier), rock formations at medium scale, a denser vein network, and green
+  growth in every crack.
+- Then: no vast plain areas. Rock on the tops and ridges with vegetation cutting through it, as in their Google Maps view
+  of Annette, and inspiration taken from their Blender rock generator.
+
+Switch: `?trond=1&tskirt=1.25&scatter=1`. Stills: `reports/evidence/ROCK-STUDY/trond/`.
+
+**The geology.** Jolene is Annette Island, and its rock is **trondhjemite**: a massive, light-grey plutonic rock with no
+bedding. It breaks along joint sets, peels in sheets, weathers buff, carries dark water streaks on its faces, and fills its
+cracks with dirt and moss. The two earlier generators the user attached (cliff-material, cliff-generator) were built on
+sedimentary strata. That is why their pattern "did not make sense".
+
+**The maps** (`tools/rock_study/trond_gen.py`, python + numpy, ~2 min). Every map is read off ONE height field per
+material, so colour, normal and roughness agree:
+- **slab**: 2048² over 24 m, 1.2 cm a texel, for rock under ~50°.
+  - Long warped joints across the slope, at irregular spacing (2.5-6.5 m).
+  - Cross joints down the slope, slanted and staggered band by band, so they END on the long ones: the T-junctions of
+    the user's Yosemite photo.
+  - A master gully, curved splits, rounded lips, peeled sheets.
+- **face**: 2048² over 40 m, for the cliffs.
+  - Smooth sheeting, gentle flutes, leaning sheet joints, rare short ledges.
+  - Water streaks that rise out of their seeps and taper down.
+- **Roughness everywhere**: spalled Voronoi flakes, pits, and a granular relief.
+- **The weathering pass**, the town houses' recipe (`house_tarr.js`: age = desaturate + darken, dirt where it is occluded,
+  a noise to break it up):
+  - an uneven AGE film;
+  - DIRT in the hollows at 0.3 m and 2 m;
+  - GRIME drips from every lip;
+  - a brown DIRT FILM;
+  - crustose LICHENS as warped blotches in colonies (black, grey-green, map-yellow, the coast's orange).
+
+  Colours lean sandstone-yellow, as asked.
+- **macro**: world space over the patch's middle 1.6 km, 0.78 m a pixel. It is what the far view reads and what displaces
+  the rock mesh.
+  - Four joint sets: two regional (28-110 m) and two secondary (9-34 m), each staggered on the others.
+  - FORMATIONS: every block the veins bound is its own mass, at its own height.
+  - Medium knobs.
+  - Wet streaks down the REAL fall line, by line-integral convolution along the DEM's downhill field. (A coordinate
+    along the contour swirled into contour bands; this does not.)
+  - A dirt line at the outcrop's margin.
+  - **The EXPOSURE mosaic**: rock where the ground is high, convex and steep; vegetation down the drainage (the flow
+    field), in the hollows and lower down; noise at 40 m, 8 m and 3 m, plus speckles of green at 2-5 m all over the rock.
+    It comes to 27 % rock over the extent, mottled like the user's Google view.
+
+**The Blender file** (`Mountain_rock.blend`, its "Cliff-Rock" node group). It was read without Blender: the `.blend`'s own
+SDNA walked node by node, with `tools/rock_study/blend_nodes.py`.
+
+Its HEIGHT path:
+
+```
+P  = object coords × Scale;  m = Musgrave fBm(P, scale 3.2, detail 15, dim 0.9);  Pw = P + m/10
+d1 = Voronoi 4D F2 MANHATTAN(Pw, 2);   e1 = Voronoi distance-to-edge(Pw, 2)
+b  = ((1-d1)/5 + (1-e1)/4)² + 0.5
+e  = ((F2man(Pw, 2.5)^0.025 + F2man(P, 1.2)^0.2)² - 2) / 3.75
+h  = (max(b, e) - log_0.05(d1) - m/40) ^ 1.2      (× Height)
+```
+
+Manhattan F2 gives the angular, faceted masses; distance-to-edge gives the fractures; ^0.025 flattens to plateaus with
+sharp steps; the log sharpens the crests.
+
+Its COLOUR path reads the same geometry: AO darkens the crevices, the up-facing and side-facing normals get their own
+tints, fBm patches, and a high-frequency noise gives mineral speckle.
+
+**We took the height path as is**, in 3D, at every vertex of the bench's rock mesh (one Blender unit = 12 m, no stretch
+on a face). Its edge distance becomes a per-vertex CREVICE value, and the shader darkens and greens it.
+
+**The bench** (`bench.js ?trond=1`):
+- The slab is hex-tiled on the top projection, each tap's frame turned to the local fall line ABOUT ITS OWN VERTEX (no
+  swirl).
+- The face is a plain tile on the side planes, so the streaks stay vertical.
+- The macro multiplies the colour, bends the normal off the displaced mesh, and drives the exposure.
+- GREEN fills the low texels first, in this order: the macro's veins and hollows, the tile's cracks, the geometry's
+  up-facing tops and ledges, the medium relief's crevices. It uses the ground's own grass set, darkened to moss where thin.
+- The rock's edge into the other types is ragged, by noise in its margin.
+- `?tskirt=1.25` re-meshes every cell with exposed rock at 1.25 m within 450 m. It displaces along the DEM normal by the
+  macro height, plus a lift of 0.6 m and the Blender masses (1.5 m), where the SMOOTHED exposure says rock. Read raw, every
+  speck of rock stood up as a tooth; smoothed over ~5 m, the outcrops rise out of the vegetation.
+- `?rockk=` is a brightness knob for the user's eye.
+
+**Costs** (SwiftShader, 1280 x 720, no shadows; texture reads per ground pixel, ms per frame, triangles):
+
+| | face | near |
+|---|---|---|
+| today | 38.6 reads, 3658 ms, 0.32 M | 23.1, 3259 ms, 0.32 M |
+| trondhjemite texture alone | **13.1, 2024 ms** | **10.7, 1984 ms** |
+| + displaced rock mesh + game rocks (first state, before the mosaic) | 12.4, 2967 ms, 1.71 M | 9.9, 2791 ms, 1.97 M |
+| **final** (mosaic + Blender masses + green + weathering + rocks) | 32.1, 3982 ms, 1.88 M | 29.6, 3890 ms, 2.20 M |
+
+(Final row: the vegetation is back on about half the rock area, and its sets (hex x triplanar) cost more per pixel than the rock's. So the frame comes out about level with today (+9 % / +19 %), for a very different picture. Details in `trond/costs.txt`.)
+
+The material is CHEAPER than today's, which stacks triplanar x hex x two maps per type. The cost of the look is the mesh:
+0.4-0.6 M triangles for the rock ring at 1.25 m, plus the game's rock kits at ~1 M. A phone needs a coarser ring (2.5 m
+past 150 m) and the kits' LOD.
+
+**What it still lacks** (the user's next mission): the vegetation that GROWS in the green zones (tufts, shrubs, krummholz
+from the cover ring, placed by the same masks), and calibration of the colours against the game's own grade on a GPU.
+
 ## 6. Recommendation: what to build first, what it costs, what it changes
 
 **Build first: rock clusters in the cover ring.** It changes the most of what an aeroplane sees, for the least risk.

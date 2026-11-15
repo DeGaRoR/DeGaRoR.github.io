@@ -107,8 +107,11 @@ def mixc(a, b, t):
 
 # THE COLOURS (sRGB, then linear): trondhjemite weathers light grey; fresh breaks are near white; iron gives a buff film;
 # lichens and the wet give the dark greys and the near-black streaks; dirt and moss fill the cracks
-C = dict(fresh='#cdcac3', grey='#a9a6a0', buff='#bba890', pink='#b8aaa2', lichen='#6e6f6a', lichenD='#4b4c48',
-         dirt='#4a463f', moss='#556236', streakK='#3a3835', streakO='#5d5c45', scar='#dcd8d1')
+C = dict(fresh='#c9bd9f', grey='#a89d84', buff='#b89f76', pink='#b4a28a', lichen='#6a6656', lichenD='#3e3c33',
+         dirt='#3f3a2e', moss='#4f5a2c', streakK='#2e2b25', streakO='#555036', scar='#d3c7a6',
+         grime='#5a5040', lichY='#a3a14e', lichO='#b07a3c', lichG='#7f8a6c')
+# (15 Nov, the user: "a little more towards sandstone yellow, and a lot more dirty" - the colours lean warm, and WEATHER below
+# ages them: a desaturating, darkening film, dirt in every hollow, grime drips under every edge, crustose lichens)
 C = {k: srgb(v) for k, v in C.items()}
 
 def save_maps(name, h, alb, rough, px, relief_note):
@@ -120,7 +123,7 @@ def save_maps(name, h, alb, rough, px, relief_note):
     n = np.stack([-gx, -gy, np.ones_like(h)], -1); n /= np.linalg.norm(n, axis=-1, keepdims=True)
     to8 = lambda a: np.clip(np.round(a * 255), 0, 255).astype(np.uint8)
     lin2s = lambda a: np.where(a <= 0.0031308, a * 12.92, 1.055 * np.power(np.clip(a, 0, None), 1 / 2.4) - 0.055)
-    alb = alb * np.array([0.74, 0.77, 0.81], np.float32)   # (15 Nov, first look: too white; Annette's rock is mid blue-grey)
+    alb = alb * np.float32(0.92)
     Image.fromarray(to8(lin2s(np.clip(alb, 0, 1)))).save(os.path.join(OUT, name + '_albedo.png'))
     Image.fromarray(to8(hn)).save(os.path.join(OUT, name + '_height.png'))
     Image.fromarray(to8(n * 0.5 + 0.5)).save(os.path.join(OUT, name + '_normal.png'))
@@ -129,6 +132,75 @@ def save_maps(name, h, alb, rough, px, relief_note):
                 meanAlbedo=[float(x) for x in alb.reshape(-1, 3).mean(0)])
     json.dump(meta, open(os.path.join(OUT, name + '.json'), 'w'), indent=1)
     return meta
+
+# ---------------------------------------------------------------------------------------------------------------- WEATHER
+def worley(Ut, Vt, n, seed):
+    """periodic F1, F2 and cell id on an n x n jittered lattice (Ut, Vt in tile units)"""
+    X = Ut * n; Y = Vt * n; ix = np.floor(X).astype(np.int64); iy = np.floor(Y).astype(np.int64)
+    f1 = np.full(X.shape, 9.0, np.float32); f2 = f1.copy(); cid = np.zeros(X.shape, np.float32)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            cx = ix + dx; cy = iy + dy; wx = np.mod(cx, n); wy = np.mod(cy, n)
+            ox = hash2(wx, wy, seed); oy = hash2(wx, wy, seed + 7)
+            d = np.hypot(cx + ox - X, cy + oy - Y).astype(np.float32)
+            closer = d < f1
+            f2 = np.where(closer, f1, np.minimum(f2, d)); cid = np.where(closer, hash2(wx, wy, seed + 13), cid); f1 = np.where(closer, d, f1)
+    return f1, f2, cid
+
+def roughen(h, Ut, Vt, T, S, k=1.0):
+    """NOT SO SMOOTH (the user): spalled flakes (Voronoi plates ~0.6-1.5 m, each a few cm proud or sunk, their rims chipped),
+    pits, and a granular relief - the grain the crystals and the frost leave"""
+    f1, f2, cid = worley(Ut, Vt, int(round(T / 0.9)), S + 501)
+    edge = f2 - f1
+    h = h + k * ((cid - 0.5) * 0.035 * ss(0.0, 0.18, edge) - 0.012 * (1 - ss(0.0, 0.06, edge)))
+    g1, g2, _ = worley(Ut, Vt, int(round(T / 0.18)), S + 502)
+    h = h - k * 0.008 * (1 - ss(0.0, 0.35, g1)) * (hash2(np.floor(Ut * 1e3).astype(np.int64), 0, S) > -1)
+    h = h + k * (fbm_at(Ut, Vt, int(round(T / 0.35)), S + 503, 3) - 0.5) * 0.03
+    return h, edge
+
+def weather(h, col, px, Ut, Vt, S, down, lipmask=None):
+    """THE WEATHERING PASS, as the town's houses age (house_tarr: age = desaturate + darken, the dirt in the occluded, a
+    noise to break it): an AGE film; DIRT in every hollow at two scales; GRIME DRIPS below every edge and crack (the rain
+    leaves what it carries a little way under where it falls off - `down` = +1 if the rows run downhill, -1 if up);
+    CRUSTOSE LICHENS (black, grey-green, map-yellow, and the coast's orange, in rosettes)"""
+    N = h.shape[0]
+    # age: desaturate and darken, unevenly
+    age = 0.55 + 0.45 * fbm_at(Ut, Vt, 3, S + 600, 3)
+    l = col.mean(-1, keepdims=True)
+    col = col * (1 - 0.35 * age[..., None]) + l * 0.35 * age[..., None]
+    col *= (1 - 0.22 * age)[..., None]
+    # dirt in the hollows: two scales of concavity (0.3 m and 2 m)
+    c1 = np.clip((blur2(h, 0.3 / px) - h) * 14, 0, 1); c2 = np.clip((blur2(h, 2.0 / px) - h) * 3, 0, 1)
+    dirt = np.clip(c1 * 0.8 + c2 * 0.6, 0, 1) * (0.7 + 0.3 * fbm_at(Ut, Vt, 12, S + 601, 2))
+    col = mixc(col, C['dirt'] * 1.1, dirt * 0.75)
+    # grime drips: sources where the surface turns down (a lip, a crack's edge) - propagated a few metres down the rows
+    # (only from the LIPS - a crack's edge, a ledge's, a flake's - where the surface turns down sharply: a general slope draws curtains)
+    gy = (np.roll(h, -down, 0) - h) / px
+    src = np.clip(-gy * 2.5 - 0.6, 0, 1) * ss(0.45, 0.7, fbm_at(Ut * 6, Vt * 0.4, 6, S + 602, 2))
+    if lipmask is not None: src *= lipmask
+    acc = np.zeros(N, np.float32); drip = np.zeros_like(h); dec = 1 - px / (0.7 if lipmask is not None else 2.5)
+    rows = range(N * 2) if down > 0 else range(N * 2)
+    for r in rows:
+        row = (r % N) if down > 0 else ((N - 1 - r) % N)
+        acc = acc * dec + src[row] * 0.03
+        if r % 20 == 0: acc = 0.86 * acc + 0.07 * (np.roll(acc, 1) + np.roll(acc, -1))
+        if r >= N: drip[row] = acc
+    drip = np.clip(drip * 3, 0, 1)
+    col = mixc(col, C['grime'] * 0.8, drip * 0.6)
+    # the dirt film: large soft patches of brown-grey
+    film = ss(0.4, 0.75, fbm_at(Ut, Vt, 4, S + 603, 4))
+    col = mixc(col, col * np.array([0.78, 0.72, 0.6], np.float32), film * 0.7)
+    # crustose lichens: rosettes of four kinds, in colonies
+    # (blotches, not discs: a warped high-frequency noise thresholded inside its colonies - each kind its own size and share)
+    colony = ss(0.45, 0.7, fbm_at(Ut, Vt, 6, S + 604, 3))
+    def blot(n, seed, th, sh):
+        wx = (fbm_at(Ut, Vt, n // 4, seed + 1, 2) - 0.5) * 0.6 / n; wy = (fbm_at(Ut, Vt, n // 4, seed + 2, 2) - 0.5) * 0.6 / n
+        return ss(th, th + 0.04, fbm_at(Ut + wx, Vt + wy, n, seed, 3)) * colony * sh
+    col = mixc(col, C['lichenD'], blot(96, S + 605, 0.66, 0.75))
+    col = mixc(col, C['lichG'], blot(64, S + 606, 0.64, 0.55))
+    col = mixc(col, C['lichY'], blot(160, S + 607, 0.74, 0.6))
+    col = mixc(col, C['lichO'], blot(220, S + 608, 0.78, 0.6))
+    return col, np.clip(dirt + drip * 0.5 + film * 0.3, 0, 1)
 
 # ---------------------------------------------------------------------------------------------------------------- SLAB
 def slab(N, T, S):
@@ -182,6 +254,7 @@ def slab(N, T, S):
     groove = np.maximum.reduce([gro(d1, o1, 0.09, 0.22), gro(d2, o2, 0.07, 0.16), gro(d3, o3, 0.26, 0.38), gro(d4, o4, 0.045, 0.08)])
     h -= groove
     h += (fbm_at(Ut, Vt, 64, S + 40, 3) - 0.5) * 0.012 + (rng(S + 41).random((N, N)).astype(np.float32) - 0.5) * 0.002
+    h, flake = roughen(h, Ut, Vt, T, S)
     # ---- the colour, read off the surface
     patch = fbm_at(Ut, Vt, 3, S + 50, 4)
     col = mixc(C['grey'], C['fresh'], ss(0.38, 0.72, patch))
@@ -205,7 +278,9 @@ def slab(N, T, S):
     sp = rng(S + 60).random((N, N)).astype(np.float32)
     col *= (0.94 + 0.12 * blur(sp, 1))[..., None]
     col = mixc(col, col * 0.45, (sp > 0.992).astype(np.float32))
-    rough = np.clip(0.82 + 0.15 * fill - 0.08 * ss(0.5, 0.8, patch) + 0.1 * lich, 0.4, 1)
+    col = mixc(col, col * 0.85, (1 - ss(0.0, 0.05, flake)) * 0.3)          # the flakes' rims: a faint hairline
+    col, wd = weather(h, col, px, Ut, Vt, S, +1, lipmask=np.clip(lip * 1.5, 0, 1))
+    rough = np.clip(0.82 + 0.15 * fill - 0.08 * ss(0.5, 0.8, patch) + 0.1 * lich + 0.1 * wd, 0.4, 1)
     m = save_maps('slab', h, col, rough, px, '+v downhill; relief m')
     print(f'slab {N}^2, {T} m ({px * 100:.2f} cm/px), h {m["hmin"]:.2f}..{m["hmax"]:.2f} m, {time.time() - t0:.1f} s')
     return h, col
@@ -240,6 +315,7 @@ def face(N, T, S):
     ledge = open_l * (1 - ss(0.0, 0.28, dl))
     h -= ledge * 0.12
     h += (fbm_at(Ut, Vt, 64, S + 9, 3) - 0.5) * 0.012 + (rng(S + 10).random((N, N)).astype(np.float32) - 0.5) * 0.002
+    h, flake = roughen(h, Ut, Vt, T, S, 1.3)
     # ---- the colour: light pinkish grey, sheets of fresher rock, lichen-grey zones, and the STREAKS
     col = mixc(C['grey'], C['pink'], ss(0.4, 0.7, fbm_at(Ut, Vt * 0.5, 2, S + 20, 3)))
     col = mixc(col, C['fresh'], ss(0.6, 0.8, fbm_at(Ut, Vt * 0.4, 3, S + 21, 3)) * 0.6)
@@ -265,7 +341,7 @@ def face(N, T, S):
         if r >= N: streak[row] = np.roll(a2, int(round(wob[row, 0] / px)))
     streak = np.clip(streak * 1.6, 0, 1) ** 0.85 * (0.55 + 0.45 * flute)
     kind = fbm_at(Ut * 3, Vt * 0.2, 3, S + 24, 2)
-    col = mixc(col, mixc(C['streakO'], C['streakK'], ss(0.4, 0.6, kind)), streak * 0.85)
+    col = mixc(col, mixc(C['streakO'], C['streakK'], ss(0.4, 0.6, kind)) * 0.8, np.clip(streak * 1.25, 0, 1))
     cv = h - blur2(h, 0.35 / px)
     col = col * (1 + np.clip(cv * 4, -0.3, 0.15))[..., None]
     fill = np.clip(slit + ledge * 0.6, 0, 1)
@@ -274,7 +350,9 @@ def face(N, T, S):
     sp = rng(S + 30).random((N, N)).astype(np.float32)
     col *= (0.95 + 0.1 * blur(sp, 1))[..., None]
     col = mixc(col, col * 0.45, (sp > 0.993).astype(np.float32))
-    rough = np.clip(0.8 - 0.3 * streak + 0.15 * fill, 0.35, 1)
+    col = mixc(col, col * 0.85, (1 - ss(0.0, 0.05, flake)) * 0.3)
+    col, wd = weather(h, col, px, Ut, Vt, S, -1)
+    rough = np.clip(0.8 - 0.3 * streak + 0.15 * fill + 0.1 * wd, 0.35, 1)
     m = save_maps('face', h, col, rough, px, '+v up; relief m')
     print(f'face {N}^2, {T} m ({px * 100:.2f} cm/px), h {m["hmin"]:.2f}..{m["hmax"]:.2f} m, {time.time() - t0:.1f} s')
     return h, col
@@ -338,19 +416,31 @@ def macro(N, EXT, S):
         op = ss(0.45, 0.6, vnoise_at(t / 160.0 + li * 13.1, li.astype(np.float32) * 0.0 + 0.5, 64, seed + 3))   # segments 100-400 m
         wid = 0.8 + 1.7 * hash2(li, 1, seed)
         return d, li, band, op, wid
-    dA, lA, bA, oA, wA = jset(150, 35, 110, S + 1, 22.0)
-    dB, lB, bB, oB, wB = jset(60, 45, 140, S + 11, 18.0, shiftBand=(hash2(bA, 5, S) * 150).astype(np.float32))
-    oB = oB * (hash2(bA * 97 + lB, 6, S) < 0.6)
+    dA, lA, bA, oA, wA = jset(150, 28, 85, S + 1, 22.0)
+    dB, lB, bB, oB, wB = jset(60, 35, 110, S + 11, 18.0, shiftBand=(hash2(bA, 5, S) * 150).astype(np.float32))
+    oB = oB * (hash2(bA * 97 + lB, 6, S) < 0.65)
+    # THE DENSER NETWORK (15 Nov, the user): two SECONDARY sets, closer (9-30 m), narrower, shorter, each staggered on the
+    # primaries' bands so they end on them
+    dC, lC, bC, oC, wC = jset(105, 9, 28, S + 21, 6.0, shiftBand=(hash2(bA * 7 + bB, 7, S) * 80).astype(np.float32))
+    dD, lD, bD, oD, wD = jset(15, 12, 34, S + 31, 6.0, shiftBand=(hash2(bB * 5 + bA, 8, S) * 80).astype(np.float32))
+    oC = oC * (hash2(bA * 31 + lC, 9, S) < 0.7); oD = oD * (hash2(bB * 17 + lD, 10, S) < 0.6)
+    wC = wC * 0.4; wD = wD * 0.35
     # ---- the surface: domed blocks (rounded within ~10 m of a joint), the joints cut into them
-    eff = lambda d, o, w: np.where(o > 0.05, d / np.maximum(o, 0.05), 999.0) / w
-    de = np.minimum(eff(dA, oA, wA), eff(dB, oB, wB))          # in joint widths
     dm = np.minimum(np.where(oA > 0.05, dA, 999), np.where(oB > 0.05, dB, 999))
-    dome = ss(0.0, 14.0, dm)                                    # 0 at a joint, 1 at 14 m from it
-    hgt = 1.1 * dome ** 0.7
-    groove = np.maximum(oA * (1 - ss(0.3, 1.0, dA / wA)) * (0.6 + 0.9 * hash2(lA, 2, S)),
-                        oB * (1 - ss(0.3, 1.0, dB / wB)) * (0.5 + 0.8 * hash2(lB, 3, S)))
+    dm2 = np.minimum(np.where(oC > 0.05, dC, 999), np.where(oD > 0.05, dD, 999))
+    # FORMATIONS: every block the veins bound is its own mass - its own height (a tor, a step, a buttress, a sunk floor),
+    # rounded down into its bounding veins (the primaries over ~10 m, the secondaries over ~4 m)
+    fid = (bA * 7919 + bB * 104729 + bC * 13 + bD * 1009)
+    lift = (hash2(fid, 11, S) - 0.42) * 3.2
+    edgeF = ss(0.0, 10.0, dm) * ss(0.0, 4.0, dm2)
+    hgt = 0.9 * ss(0.0, 14.0, dm) ** 0.7 + lift * edgeF
+    groove = np.maximum.reduce([oA * (1 - ss(0.3, 1.0, dA / wA)) * (0.6 + 0.9 * hash2(lA, 2, S)),
+                                oB * (1 - ss(0.3, 1.0, dB / wB)) * (0.5 + 0.8 * hash2(lB, 3, S)),
+                                oC * (1 - ss(0.3, 1.0, dC / wC)) * (0.35 + 0.5 * hash2(lC, 4, S)),
+                                oD * (1 - ss(0.3, 1.0, dD / wD)) * (0.3 + 0.45 * hash2(lD, 5, S))])
     hgt -= groove
-    hgt += (fbm_at(Xt, Zt, 256, S + 30, 3) - 0.5) * 0.6                         # a little block-scale roughness
+    # NOT SO SMOOTH: the medium relief - knobs and hollows of 3-12 m and 1-3 m on every mass
+    hgt += (fbm_at(Xt, Zt, 192, S + 30, 3) - 0.5) * 1.1 + (fbm_at(Xt, Zt, 768, S + 34, 2) - 0.5) * 0.35
     # (no height-keyed sheet steps on the faces: massive trondhjemite has no benches, and any law keyed to the height draws
     # the contour lines - the user's 'fingerprint' twice over; the faces' relief is the joints, the domes and the tiles' own)
     steep = ss(38, 55, slope)
@@ -359,8 +449,14 @@ def macro(N, EXT, S):
     mult = np.ones((N, N, 3), np.float32)
     mult *= (0.55 + 0.40 * ss(0.3, 0.75, zone))[..., None]   # (the lichen-darkened rock is most of an outcrop seen from afar)
     mult = mixc(mult, np.array([1.06, 1.0, 0.9], np.float32), ss(0.6, 0.8, fbm_at(Xt, Zt, 6, S + 41, 3)) * 0.7)    # a buff film
-    jf = np.clip(groove / 0.6, 0, 1)
-    mult = mixc(mult, np.array([0.42, 0.44, 0.36], np.float32), jf * 0.85)                                           # the joints: dirt and moss
+    jf = np.clip(groove / 0.5, 0, 1)
+    mult = mixc(mult, np.array([0.40, 0.38, 0.30], np.float32), jf * 0.85)                                           # the joints: dirt
+    # dirt in the masses' hollows and at their feet, and the DIRT LINE where the outcrop meets the ground (the houses' own)
+    lap = hgt - blur2(hgt, 4.0 / px)
+    mult = mixc(mult, np.array([0.55, 0.5, 0.4], np.float32), np.clip(-lap * 1.2, 0, 1) * 0.8)
+    rb = blur2(rock, 6.0 / px)   # (the raster is 10 m: its stairs, blurred out)
+    edgeR = ss(0.15, 0.35, rb) * (1 - ss(0.45, 0.8, rb))
+    mult = mixc(mult, np.array([0.5, 0.46, 0.36], np.float32), edgeR * 0.7)
     # WET STREAKS DOWN THE REAL FALL LINE: a noise smeared along the downhill field (line-integral convolution, 48 steps of
     # 0.9 m each way) - a coordinate along the contour swirls far from the origin, the smear cannot
     nz0 = fbm_at(Xt, Zt, 1024, S + 42, 2)
@@ -377,7 +473,26 @@ def macro(N, EXT, S):
     st = ss(0.6, 1.6, lic) * steep * (0.35 + 0.65 * ss(0.2, 0.7, flow))
     mult = mixc(mult, np.array([0.38, 0.38, 0.34], np.float32), st * 0.75)                                          # wet streaks
     # ---- the vegetation's chance (not drawn yet: the next chantier): in the joints, the hollows, the low-angle benches
-    veg = np.clip(jf * 0.9 + ss(0.0, -1.5, cvv) * 0.4 + (1 - ss(12, 26, slope)) * 0.5 * rock, 0, 1)
+    # (the joints, the hollows, the masses' flat tops and the low-angle benches, the outcrop's margin - broken by a noise)
+    gxt = (np.roll(hgt + Y, -1, 1) - np.roll(hgt + Y, 1, 1)) / (2 * px); gzt = (np.roll(hgt + Y, -1, 0) - np.roll(hgt + Y, 1, 0)) / (2 * px)
+    slT = np.degrees(np.arctan(np.hypot(gxt, gzt)))
+    veg = np.clip(jf * 1.0 + np.clip(-lap * 0.8, 0, 1) * 0.6 + (1 - ss(14, 30, slT)) * 0.55 + edgeR * 0.6, 0, 1)
+    veg *= 0.55 + 0.45 * ss(0.3, 0.7, fbm_at(Xt, Zt, 96, S + 50, 3))
+    # ---- THE ROCK'S EXPOSURE (15 Nov, the user's Google Maps view of Annette: "vegetation cuts through a lot of stuff, rock
+    # is concentrated on the top parts and the ridges"): rock where the ground is HIGH, CONVEX and STEEP and the raster says
+    # rock; vegetation down the drainage lines (the flow field), in the hollows and on the lower slopes - then a mosaic of two
+    # noises (40 m patches, 8 m blotches) so it breaks into the mottled grey-and-green of the reference
+    cz = cvv / max(1e-3, float(np.std(cvv)))
+    Ef = (0.42 * ss(250, 760, Y) + 0.22 * ss(22, 48, slope) + 0.20 * np.clip(cz * 0.45, -1, 1)
+          - 0.35 * ss(0.45, 0.8, flow) + 0.30 * rb - 0.08)
+    mos = fbm_at(Xt, Zt, 48, S + 70, 4); fine = fbm_at(Xt, Zt, 256, S + 71, 3)
+    ufine = fbm_at(Xt, Zt, 640, S + 72, 2)
+    Ef = Ef + (mos - 0.5) * 0.5 + (fine - 0.5) * 0.5 + (ufine - 0.5) * 0.35   # (the reference is mottled at 2-10 m, not in blobs)
+    expo = ss(0.42, 0.50, Ef) * (1 - jf * 0.7)
+    # and the green SPECKLES all over the rock (the reference: heath and krummholz in every pocket, 2-5 m, up to the top)
+    sp1 = fbm_at(Xt, Zt, 420, S + 73, 3); sp2 = fbm_at(Xt, Zt, 1000, S + 74, 2)
+    expo *= 1 - np.clip(ss(0.56, 0.63, sp1) + ss(0.6, 0.66, sp2) * 0.8, 0, 1) * (0.55 + 0.45 * ss(0.3, 0.7, fine))
+    veg = np.clip(np.maximum(veg, 1 - expo), 0, 1)
     # ---- out
     os.makedirs(OUT, exist_ok=True)
     gxh = (np.roll(hgt, -1, 1) - np.roll(hgt, 1, 1)) / (2 * px); gzh = (np.roll(hgt, -1, 0) - np.roll(hgt, 1, 0)) / (2 * px)
@@ -387,6 +502,8 @@ def macro(N, EXT, S):
     nh = np.stack([nn[..., 0] * 0.5 + 0.5, nn[..., 2] * 0.5 + 0.5, veg, (hgt - lo) / (hi - lo)], -1)
     Image.fromarray(to8(nh), 'RGBA').save(os.path.join(OUT, 'macro_nh.png'))
     Image.fromarray(to8(np.clip(mult / 1.5, 0, 1))).save(os.path.join(OUT, 'macro_mult.png'))
+    Image.fromarray(to8(expo)).save(os.path.join(OUT, 'macro_rock.png'))
+    print(f'  rock exposed: {float(expo.mean()) * 100:.0f} % of the extent ({float((expo > 0.5).mean()) * 100:.0f} % over 0.5)')
     hgt.astype(np.float32).tofile(os.path.join(OUT, 'macro_h.f32'))
     json.dump(dict(n=N, ext=EXT, px=px, x0=-EXT / 2, z0=-EXT / 2, hmin=lo, hmax=hi, multScale=1.5,
                    note='rows = z, cols = x, the bench local frame (origin at the patch centre); nh = (nx, nz, veg, height)'),
@@ -396,9 +513,9 @@ def macro(N, EXT, S):
     sh = (nn[..., 0] * -0.6 + nn[..., 1] * 0.8)
     a = Image.fromarray(to8(np.clip(mult / 1.5, 0, 1))).resize((768, 768))
     b = Image.fromarray(to8(np.clip(0.5 + (sh - 0.8) * 2.5, 0, 1))).resize((768, 768))
-    c = Image.fromarray(to8(veg)).resize((768, 768))
+    c = Image.fromarray(to8(np.clip(0.25 + expo * 0.5 + (sh - 0.8) * 1.5, 0, 1))).resize((768, 768))   # (the exposure over the hillshade)
     W = Image.new('RGB', (768 * 3, 768)); W.paste(a, (0, 0)); W.paste(b.convert('RGB'), (768, 0)); W.paste(c.convert('RGB'), (1536, 0))
-    W.save(os.path.join(EVID, 'macro_mult_relief_veg.jpg'), quality=85)
+    W.save(os.path.join(EVID, 'macro_mult_relief_expo.jpg'), quality=85)
     print(f'macro {N}^2 over {EXT} m ({px:.2f} m/px), relief {lo:.2f}..{hi:.2f} m, {time.time() - t0:.1f} s')
 
 # ---------------------------------------------------------------------------------------------------------------- sheet

@@ -1,0 +1,9 @@
+ROCK-STUDY trond costs (15 Nov 2026), SwiftShader, 1280x720, shadows off, the bench's face / near views.
+case                                                         reads/px (face, near)   ms (face, near)   triangles (face, near)
+today (BASE)                                                 38.6, 23.1              3658, 3259        0.32 M, 0.32 M
+trond=1 (texture alone, before the mosaic)                   13.1, 10.7              2024, 1984        0.32 M, 0.32 M
+trond=1&tskirt=1.25 (before the mosaic)                      12.7, 10.2              2810, 2479        0.66 M, 0.70 M
+trond=1&tskirt=1.25&scatter=1 (before the mosaic)            12.4, 9.9               2967, 2791        1.71 M, 1.97 M
+FINAL trond=1&tskirt=1.25&scatter=1 (mosaic, Blender masses, 32.1, 29.6              3982, 3890        1.88 M, 2.20 M
+  green growth, weathering; vegetation on ~half the rock area again)
+rock ring at 1.25 m: 0.51-0.60 M triangles (15.9-18.8 k cells); the game's rock kits: 1.09-1.24 M (2200-2530 instances)
