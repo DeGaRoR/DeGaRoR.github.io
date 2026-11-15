@@ -138,7 +138,7 @@ function check(o) {
       rc.per[a.id] + ' px for ' + expect.toFixed(1) + ' px of true area');
   }
   // (G3014: the user's rev 26 / 27 strips w5, w6, w7 shipped - eleven; G3020 rev 28: w4 strip 9, w8 strip 13 - thirteen)
-  ok(proj.aerodromes.length === 15, 'the 15 runways are in the projection (' + proj.aerodromes.map(a => a.id).join(', ') + ')');   // (CABIN-LAKE: + cb_sea)
+  ok(proj.aerodromes.length === 16, 'the 16 runways are in the projection (' + proj.aerodromes.map(a => a.id).join(', ') + ')');   // (CABIN-LAKE: + cb_sea; OBSERVATORY-SITE: + mt_strip)
 
   console.log('THE BUDGET');
   ok(png.length <= 2 * 1024 * 1024, 'the picture ' + (png.length / 1024).toFixed(0) + ' KB <= 2048 KB');
