@@ -1056,6 +1056,7 @@ const GATES = [
   // catalogue fitted and drawn WYSIWYG, the style through the join (core, ~1 min); the DC-3 on EDO 78-28000s and the
   // PA-18 in the classic style stand, float at gross, taxi and lift off (full, ~6 min)
   { id: 'FLOATSCLASSIC', file: '_floatsclassic_check.js', tier: 'core', wall: 60 },
+  { id: 'PETRELTRIM', file: '_petrel_trim_check.js', tier: 'core', wall: 60 },   // SEAPLANES: the Super Petrel LS (V4.2) on the water - rest, run, level, away
   // LOOKS-ROUND2 (the user 4 Nov): a float keeps its paint and takes no letters: the table, the shader, the join, the three doors. ~1 s
   { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   // AIRCRAFT-BOARD (the user 4 Nov: the fiche, awarded on passed certification): plane_fiche.js's views, award, matte, clone, target. ~1 s
