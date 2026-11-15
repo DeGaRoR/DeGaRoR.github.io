@@ -1702,7 +1702,7 @@ function makeSim(def, world) {
         groundSinkWheel(S, FT, SKW[i], SKD[i], SKA[i]); SKI_SOFT.sink(c.eT, GROUND_SINK.z, dt);
       }
       if (FT > 0 || dT > 0) { Rp += SKI_SOFT.resist(S, SX, SKW[i], c.eT.zc, false); if (c.eT.zc > zMax) zMax = c.eT.zc; }
-      if (!softLive) { out.softZ = 0; out.softF = 0; softLive = true; }   // (SNOW-MUD's readouts: the deepest, the drag summed)
+      if (!softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; out.softW = SOFTW; softLive = true; }   // (SNOW-MUD's readouts, opened as their wheel branch opens them; a posed ski writes no softW slot - their rule)
       if (zMax > out.softZ) out.softZ = zMax;
       out.softF += Rp;
     } else {
