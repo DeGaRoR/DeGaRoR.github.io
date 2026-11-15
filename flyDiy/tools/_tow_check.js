@@ -83,9 +83,12 @@ function launch(o) {
     //  the take-up and the run to TAKEUP_V (the line taut, the runner's run, the roll on the wheel) and on to the lift-off:
     //  the lowest pitch (a nose-over is the nose below the horizon - a taildragger's tail lifting is not one) and the bank
     if (R.lift === null) { const xR = sim.axes()[0], zR = sim.axes()[2], pi = -Math.asin(Math.max(-1, Math.min(1, xR[1]))) * 57.3, bk = Math.abs(Math.asin(Math.max(-1, Math.min(1, zR[1]))) * 57.3);
-      const U = R.up || (R.up = { pMin: Infinity, bank: 0 }), Rn = R.run || (R.run = { pMin: Infinity, bank: 0 });
-      if (Vg < TAKEUP_V) { U.pMin = Math.min(U.pMin, pi); U.bank = Math.max(U.bank, bk); }
-      Rn.pMin = Math.min(Rn.pMin, pi); Rn.bank = Math.max(Rn.bank, bk); }
+      // (the nose DOWN below its base: the lower of its rest attitude and the horizon - a taildragger's tail coming up is
+      //  not a nose-over, nor is a glider resting nose-down on its skid: the joined Archaeopteryx sits at -8.4 deg)
+      if (R.pitch0 == null) R.pitch0 = pi; const base = Math.min(R.pitch0, 0);
+      const U = R.up || (R.up = { pMin: Infinity, down: 0, bank: 0 }), Rn = R.run || (R.run = { pMin: Infinity, down: 0, bank: 0 });
+      if (Vg < TAKEUP_V) { U.pMin = Math.min(U.pMin, pi); U.down = Math.max(U.down, base - pi); U.bank = Math.max(U.bank, bk); }
+      Rn.pMin = Math.min(Rn.pMin, pi); Rn.down = Math.max(Rn.down, base - pi); Rn.bank = Math.max(Rn.bank, bk); }
     if (R.lift === null && !sim.wheelsOnGround()) R.lift = { t, V: Vg, x: Math.hypot(cg[0] - P0.x, cg[2] - P0.z) };
     if (tow && o.releaseAt && tow.on && agl >= o.releaseAt) tow.release();
     if (tow && !tow.on && R.rel === null) { R.rel = tow.released; R.relT = t; R.relH = agl; R.relV = Vg; R.carU = car.out.u; R.extAfter = car.extF; }
@@ -129,16 +132,16 @@ const L = launch({});
 // ---- TAKEUP: THE CG RELEASE (the user, 15 Nov: "you should have them towed from an anchor at their main wheel position,
 //      just forward of it. That's more realistic and may avoid nose over"): the line on the belly release just ahead of
 //      the main wheel (tow.js towHookNodes - the build's refs.towHook, or the same site) against the NOSE hook the car tow
-//      pulled before (towNoseNodes) - each glider from the start to its lift-off (or 25 s): its lowest pitch, its worst bank. Judged: the take-up and the run to TAKEUP_V - never nose below 5 deg
-//      under the horizon, never banked 5 deg; the run on to the lift-off reported beside it ----
+//      pulled before (towNoseNodes) - each glider from the start to its lift-off (or 25 s): its lowest pitch, its worst bank. Judged: the take-up and the run to TAKEUP_V - the nose never 5 deg under its base (the lower of
+//      its rest attitude and the horizon), never banked 5 deg; the run on to the lift-off reported beside it ----
 {
   const tab = [], bad = [];
   for (const key of ['motorglider', 'archaeopteryx']) {
     const A = launch({ key, T: 25, after: 1 }), B = launch({ key, nose: true, T: 25, after: 1 });
-    const fmt = (R) => 'to ' + TAKEUP_V + ' m/s: pitch ' + f(R.up.pMin, 1) + ' at its lowest, bank ' + f(R.up.bank, 1) + ' deg; to the lift-off: ' + f(R.run.pMin, 1) + ', ' + f(R.run.bank, 1) + ' deg' +
+    const fmt = (R) => 'at rest ' + f(R.pitch0, 1) + ' deg; to ' + TAKEUP_V + ' m/s: pitch ' + f(R.up.pMin, 1) + ' at its lowest (' + f(Math.max(0, R.up.down), 1) + ' under its base), bank ' + f(R.up.bank, 1) + ' deg; to the lift-off: ' + f(R.run.pMin, 1) + ' (' + f(Math.max(0, R.run.down), 1) + '), ' + f(R.run.bank, 1) + ' deg' +
       (R.lift ? ' (' + f(R.lift.t, 1) + ' s at ' + f(R.lift.V, 1) + ' m/s)' : ' (no lift-off in 25 s)');
     tab.push(key + ' - CG release: ' + fmt(A) + ' | the nose hook (before): ' + fmt(B));
-    if (A.up.pMin < -5 || A.up.bank > 5 || A.bad) bad.push(key);
+    if (A.up.down > 5 || A.up.bank > 5 || A.bad) bad.push(key);
   }
   row('TAKEUP', !bad.length, 'the take-up to the lift-off - ' + tab.join('; ') + (bad.length ? ' - FAILED: ' + bad.join(', ') : ''));
 }
