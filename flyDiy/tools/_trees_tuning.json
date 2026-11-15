@@ -1667,6 +1667,30 @@
      "density": 0.2,
      "patch": 5,
      "patchShare": 0.5
+    },
+    "alp_greyred": {
+     "proportion": 1,
+     "density": 0.02,
+     "patch": 8,
+     "patchShare": 0.5
+    },
+    "alp_vaccinium": {
+     "proportion": 1,
+     "density": 0.02,
+     "patch": 6,
+     "patchShare": 0.5
+    },
+    "alp_elliottia": {
+     "proportion": 1,
+     "density": 0.01,
+     "patch": 6,
+     "patchShare": 0.4
+    },
+    "alp_cassiope": {
+     "proportion": 1,
+     "density": 0.03,
+     "patch": 10,
+     "patchShare": 0.6
     }
    },
    "forest": {
@@ -2656,6 +2680,130 @@
     0.31
    ],
    "noTint": 1
+  },
+  "alp_greyred": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "sink": 0,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "noTint": 1,
+   "vary": 0.06,
+   "root": 0.6,
+   "rootH": 0.5,
+   "alpha": 0.3,
+   "size": 1.9,
+   "shape": "crown",
+   "aspects": [
+    1.118,
+    0.961
+   ],
+   "aspect": 1.04,
+   "maps": [
+    "../assets/vegetation/flowers/alp_greyred_round.png",
+    "../assets/vegetation/flowers/alp_greyred_tall.png"
+   ],
+   "density": 0.02,
+   "patch": 8,
+   "patchShare": 0.5
+  },
+  "alp_vaccinium": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "sink": 0,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "noTint": 1,
+   "vary": 0.06,
+   "root": 0.6,
+   "rootH": 0.5,
+   "alpha": 0.3,
+   "size": 1.4,
+   "shape": "carpet",
+   "aspect": 1.455,
+   "maps": [
+    "../assets/vegetation/flowers/alp_vaccinium.png"
+   ],
+   "density": 0.02,
+   "patch": 6,
+   "patchShare": 0.5
+  },
+  "alp_elliottia": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "sink": 0,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "noTint": 1,
+   "vary": 0.06,
+   "root": 0.6,
+   "rootH": 0.5,
+   "alpha": 0.3,
+   "size": 1.3,
+   "shape": "carpet",
+   "aspects": [
+    0.91,
+    1.61
+   ],
+   "aspect": 1.26,
+   "maps": [
+    "../assets/vegetation/flowers/alp_elliottia_tall.png",
+    "../assets/vegetation/flowers/alp_elliottia_low.png"
+   ],
+   "density": 0.01,
+   "patch": 6,
+   "patchShare": 0.4
+  },
+  "alp_cassiope": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "sink": 0,
+   "proportion": 1,
+   "dead": 0,
+   "stick": 0.045,
+   "impa": 6,
+   "implight": 1,
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "noTint": 1,
+   "vary": 0.06,
+   "root": 0.6,
+   "rootH": 0.5,
+   "alpha": 0.3,
+   "size": 1.1,
+   "shape": "carpet",
+   "tilt": 70,
+   "upright": 0.3,
+   "aspect": 2.016,
+   "maps": [
+    "../assets/vegetation/flowers/alp_cassiope.png"
+   ],
+   "density": 0.03,
+   "patch": 10,
+   "patchShare": 0.6
   }
  },
  "biomes": {
