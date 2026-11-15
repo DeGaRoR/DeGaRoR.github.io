@@ -200,6 +200,9 @@ rodFit.door = 'CAGE_ROD_FIT_NEXT';
 // HULL-B3: ...and the boat's starting lines off the flown CG on the next builds (_cage_float.js CAGE_HULL_FIT_NEXT:
 // the step by the 12-deg rule, the afterbody keel on a 7-deg run - _cage_gen.js cageHullFit)
 const hullFit = () => { if (W.CAGE_HULL_FIT_NEXT) W.CAGE_HULL_FIT_NEXT(); };
+// MONOWHEEL: leaving the single wheel for a pair, the pair's half track comes back (the gear page's own default);
+// any pair the build already has is kept as it is
+const mainsPairX = P => (+P.s1X > 0.01 ? +P.s1X : 0.86);
 hullFit.door = 'CAGE_HULL_FIT_NEXT';
 
 // FLAP — the classic trailing-edge cross-sections: none, hinged plain, the
@@ -231,6 +234,7 @@ function iconCons(key) {
   if (key === 'aluFabric') { tube(17); tube(37); }
   if (key === 'glass') p.push({ d: 'M4 22 Q8 12 22 11 Q44 11 60 21 L58 21 Q44 13 22 13 Q10 14 6 22 Z' });
   if (key === 'fabricAlu') { spar(17, 2); spar(37, 2); p.push({ d: 'M4 22 Q8 12 22 11 L22 13 Q10 14 6 22 Z' }); }   // metal spars, the leading-edge sheet
+  if (key === 'dtube') { spar(21, 2); p.push({ d: 'M4 22 Q8 12 22 11 L22 13 Q10 14 6 22 Z' }); p.push({ d: 'M22 11.6 Q44 11.4 60 21 L59.4 21.2 Q44 12.4 22 12.4 Z' }); }   // the D-box closed by one spar, a thin film aft
   return { vb: '0 0 64 34', paths: p };
 }
 
@@ -422,6 +426,9 @@ function iconSide(o) {
   if (gr === 'trike') paths.push({ d: 'M10 26 L10 32', w: 1 }, { d: 'M30 26 L30 32', w: 1 },
                                  { d: 'M10 32 a2.6 2.6 0 1 0 0.1 0', w: 1 },
                                  { d: 'M30 32 a2.6 2.6 0 1 0 0.1 0', w: 1 });
+  // MONOWHEEL: one wheel under the body, the nose skid's blade ahead of it
+  if (gr === 'mono') paths.push({ d: 'M24 26 L24 30', w: 1 }, { d: 'M24 30 a3 3 0 1 0 0.1 0', w: 1 },
+                                { d: 'M9 26 L11 31 L17 31.5', w: 1 });
   // a pair of floats: two struts down to a long hull with a step
   if (gr === 'floats') paths.push({ d: 'M14 26 L12 32', w: 1 }, { d: 'M26 26 L28 32', w: 1 },
                                   { d: 'M4 32 L8 30 L24 30 L24 32 L32 33 L32 35 L4 35 Z', w: 1 });
@@ -606,6 +613,9 @@ const ICON = {
     { d: 'M8 10 L24 30 M24 30 L40 10 M40 10 L56 30', w: 1 }] },
   conPly: { vb: '0 0 64 40', paths: [{ d: 'M8 8 L56 8 L56 32 L8 32 Z', w: 1 },
     { d: 'M14 8 L14 32 M26 8 L26 32 M38 8 L38 32 M50 8 L50 32', w: 1 }] },
+  // (WEIGHT STUDY L4) the soft shell: a tent's poles bowed under its cloth
+  conSoft: { vb: '0 0 64 40', paths: [{ d: 'M8 32 Q32 2 56 32', w: 1 }, { d: 'M16 32 Q32 12 48 32', w: 1 },
+    { d: 'M8 32 L56 32', w: 1 }, { d: 'M12 26 Q32 10 52 26', w: 0.6 }] },
   conAlu: { vb: '0 0 64 40', paths: [{ d: 'M8 8 L56 8 L56 32 L8 32 Z', w: 1 },
     { d: 'M8 20 L56 20', w: 1 },
     ...[12, 22, 32, 42, 52].map(x => ({ d: 'M' + x + ' 11 a1 1 0 1 0 0.1 0', w: 1 })),
@@ -1097,9 +1107,27 @@ function iconSteer(mode) {
     { d: 'M32 6 a2.4 2.4 0 1 0 0.1 0', w: 1 }, { d: 'M32 8.4 L35 16', w: 1.6 },
     { d: box(37, 24, 0.4) }] };
 }
+
+// THE BRAKES (GEN_BRAKES): a wheel seen from the side; 0 none drawn, 1 a drum (an inner ring), 2 a disc with one
+// caliper, 3 a disc with two calipers
+function iconBrake(mode) {
+  const ring = r => 'M' + P2(32 - r, 20) + ' a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0 a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0 Z';
+  const cal = (x, y) => ({ d: 'M' + P2(x - 3, y - 4) + ' L' + P2(x + 3, y - 4) + ' L' + P2(x + 3, y + 4) + ' L' + P2(x - 3, y + 4) + ' Z', w: 1 });
+  const paths = [{ d: ring(16) }, { d: ring(4) }];
+  if (mode === 1) paths.push({ d: ring(10), w: 1 });
+  if (mode >= 2) { paths.push({ d: ring(9), w: 1 }); paths.push(cal(32, 11)); }
+  if (mode === 3) paths.push(cal(32, 29));
+  return { vb: '0 0 64 40', paths };
+}
 // THE CARCASS in section, as the tyre meets the ground: a standard tyre, the
 // tundra's fat round balloon, a slim one — each round its rim
 function iconCarcass(mode) {
+  // MONOWHEEL: the bicycle wheel - a thin tyre ring, its spokes
+  if (mode === 3) {
+    const sp = [];
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; sp.push({ d: 'M32 20 L' + P2(32 + 13 * Math.cos(a), 20 + 13 * Math.sin(a)), w: 0.6 }); }
+    return { vb: '0 0 64 40', paths: [{ d: 'M17 20 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0 Z', w: 2.2 }].concat(sp) };
+  }
   const ell = (rx, ry) => 'M' + P2(32 - rx, 20) + ' a' + rx + ' ' + ry +
     ' 0 1 0 ' + (2 * rx) + ' 0 a' + rx + ' ' + ry + ' 0 1 0 ' + (-2 * rx) + ' 0 Z';
   const rx = mode === 1 ? 17 : mode === 2 ? 5 : mode === 3 ? 8 : 9;
@@ -1286,6 +1314,10 @@ const DESIGN_ROWS = [
       // (GEN_MATERIALS.glass)
       { value: 5, label: 'Glassfibre', icon: ICON.conCompo,
         writes: { cage: { intCons: 5 } } },
+      // WEIGHT STUDY L4: the soft shell - poles under ripstop (GEN_MATERIALS.softShell): a tent of a cabin, built for
+      // ~250 kg; on a hanging nacelle the mast, the keel and the motor's mount stay hard; on anything heavier it folds
+      { value: 6, label: 'Soft shell', icon: ICON.conSoft, note: 'poles + ripstop; ultralight-only - heavier, it folds',
+        writes: { cage: { intCons: 6 } } },
     ] },
 
   { key: 'boomStyle', label: 'Fuselage style', kind: 'discriminator',
@@ -1473,7 +1505,10 @@ const DESIGN_ROWS = [
     options: () => [['auto', 'As the aeroplane', 'follows the fuselage'], ['carbon', 'Carbon', 'moulded'],
                     ['steel', 'Steel tube', 'fabric over welded tube'], ['fabric', 'Wood + fabric', 'spruce spars, ply leading edge'],
                     ['alloy', 'Aluminium', 'stressed skin'], ['aluFabric', 'Aluminium tube', 'Dacron over 6061 tube'],
-                    ['glass', 'Glassfibre', 'moulded'], ['fabricAlu', 'Aluminium spar + fabric', 'the PA-18\'s and the Carbon Cub\'s']]
+                    ['glass', 'Glassfibre', 'moulded'], ['fabricAlu', 'Aluminium spar + fabric', 'the PA-18\'s and the Carbon Cub\'s'],
+                    // WEIGHT STUDY (12 Nov): APPENDED (the index is the saved value) - light, soft, built for ~250 kg: on a
+                    // heavier aeroplane it breaks (GATE LIGHTWING)
+                    ['dtube', 'Foot-launch D-tube', 'hang-glider light; built for ~250 kg - heavier, it breaks']]
       .map(([k, label, note], i) => ({ value: i, label, note, icon: iconCons(k), writes: { cage: { wgCons: i } } })) },
 
   // ---- G2820: THE STOL WING (60_gen_spec GEN_SLATS / GEN_STOL) ----------
@@ -1875,7 +1910,8 @@ const DESIGN_ROWS = [
     pair: [{ cage: 's2Leg', spec: 'gear.type', via: 'join' }],
     help: 'different aeroplanes on the ground — the placement rule ' +
           'inverts and the rest attitude follows',
-    read: P => +P.hullOn ? 'hull' : +P.gearFloats ? 'floats' : +P.s2Leg === 3 ? 'tail' : 'trike',
+    read: P => +P.hullOn ? 'hull' : +P.gearFloats ? 'floats'
+      : (+P.s1On && +P.s1X <= 0.01) ? 'mono' : +P.s2Leg === 3 ? 'tail' : 'trike',
     // the spec channel carries the INTENT (`gear.type` is a real spec field
     // with a default); the join then measures the built cage and overwrites
     // it, and the two agreeing is exactly what the starter's cage values are
@@ -1886,7 +1922,7 @@ const DESIGN_ROWS = [
         icon: iconSide({ canopy: 'screen', gear: 'tail' }),
         writes: { cage: { s2On: 1, s2Leg: 3, s2Z: 0.06, s2X: 0, s2R: 0.07,
                           s2Steer: 1, s2Brake: 0, s1Z: 2.00, s1Steer: 0,
-                          s1On: 1, gearFloats: 0, hullOn: 0 },
+                          s1On: 1, gearFloats: 0, hullOn: 0, s1X: mainsPairX, s2Nose: 0 },
                   spec: { gear: { type: 'taildragger' } } } },
       // THE STRUT IS THE LONG PART AND THE FORK IS THE SHORT ONE
       // (2026-09-11, alongside the nose-fairing repair). The height from the
@@ -1909,8 +1945,20 @@ const DESIGN_ROWS = [
         writes: { cage: { s2On: 1, s2Leg: 2, s2Z: 2.60, s2X: 0, s2R: 0.14,
                           s2Steer: 1, s2Brake: 0, s1Z: 0.95, s1Steer: 0,
                           s2Drop: 0.37, s2_twLegDrop: 0.09,
-                          s1On: 1, gearFloats: 0, hullOn: 0 },
+                          s1On: 1, gearFloats: 0, hullOn: 0, s1X: mainsPairX, s2Nose: 0 },
                   spec: { gear: { type: 'tricycle' } } } },
+      // MONOWHEEL (the Archaeopteryx study's stage 1, 11 Nov; the user: "a true single-wheel gear type, we will reuse it
+      // on other gliders"): THE MAINS ON THE CENTRELINE (half track 0: the join measures a single main and writes
+      // gear.mono), a little aft of the CG as a tricycle's; ahead, the NOSE SKID - the third unit's leaf spring and shoe
+      // (the tail skid's, the Tail contact row's Skid) at the nose; the wing rests on its WINGTIP SKID (the wing's own
+      // row, on any tip). Any of these is the builder's to change after: a nose wheel, a tail skid behind instead
+      { value: 'mono', label: 'Monowheel',
+        icon: iconSide({ canopy: 'screen', gear: 'mono' }),
+        note: 'one wheel on the centreline, a nose skid, the wing resting on a wingtip skid (a sailplane\'s)',
+        writes: { cage: { s1On: 1, s1X: 0, s1Z: 0.95, s1Steer: 0,
+                          s2On: 1, s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2X: 0, s2R: 0.07, s2Steer: 4, s2Brake: 0,
+                          wgTipSkid: 1, gearFloats: 0, hullOn: 0 },
+                  spec: { gear: { type: 'tricycle', mono: true } } } },
       // THE FLOATS (H1, G383): both wheel stations off, the flag on; the
       // frame builds two floats sized by the gross (32_hydro's
       // floatParamsFor) and the flight starts on the water. Not drawn in the
@@ -2187,6 +2235,23 @@ const DESIGN_ROWS = [
       { value: 4, label: 'Skid', icon: iconSteer(4),
         note: 'a sprung skid on a steel shoe: it drags, and that is the brake', writes: { cage: { s2Steer: 4 } } },
     ] },
+  // THE BRAKES (GEN_BRAKES, the user 9 Nov: "if you want better brakes, then it's gonna add weight to your plane"): the
+  // brakes' hold row's twin - and the drawn brake follows (drums drawn as drums, discs as discs)
+  { key: 'brakesT', label: 'Brakes', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['brkHold'],
+    help: 'how hard the brakes can hold: stronger brakes stop shorter, weigh more and cost more',
+    read: P => Math.round(P.brkHold || 0),
+    options: () => [['as it was', 'locks the wheels on any surface (the old law, no mass)', 0],
+                    ['Heel drums', 'about 0.2 g on a 550 kg aeroplane: the J-3, the D.112', 1],
+                    ['Single-caliper discs', 'Cleveland class: about the grass grip of a 600 kg aeroplane', 0],
+                    ['Double-caliper discs', 'Beringer / Grove class: the bush builds', 0]]
+      .map(([label, note, drum], i) => {
+        const B = typeof GEN_BRAKES !== 'undefined' ? GEN_BRAKES : (W.GEN_BRAKES || null), k = [null, 'drum', 'disc', 'double'][i];
+        const R = B && k ? B[k] : null;
+        // (a slot tile writes its own row only, GATE DESIGN: the drawn brake stays the gear page's whBrake row)
+        void drum;
+        return { value: i, label, icon: iconBrake(i), note: R ? note + ' - ' + R.kg + ' kg, ' + R.perWheelN + ' N a wheel' : note,
+                 writes: { cage: { brkHold: i } } }; }) },
   { key: 'carcassT', label: 'Tyre carcass', kind: 'discriminator',
     group: 'undercarriage', status: 'live', slot: true, twin: ['whProfile'],
     read: P => Math.round(P.whProfile || 0),
@@ -2195,9 +2260,13 @@ const DESIGN_ROWS = [
       { value: 1, label: 'Tundra balloon', icon: iconCarcass(1),
         note: 'a fat low-pressure tyre for rough strips', writes: { cage: { whProfile: 1 } } },
       { value: 2, label: 'Slim', icon: iconCarcass(2), writes: { cage: { whProfile: 2 } } },
-      // CAR-3: the 1940s truck's military lug tyre (the van's)
-      { value: 3, label: 'Military lug', icon: iconCarcass(3),
-        note: 'a tall 1940s truck tyre, chevron lugs', writes: { cage: { whProfile: 3 } } },
+      // MONOWHEEL (the user, 11 Nov: "for gliders, we need to allow super light wheels ... a new model"): wire spokes, a
+      // narrow tube tyre - its own mass law, price and drag (GEN_RULES.wheelCycleKg, GEN_PRICES.wheelCycle)
+      { value: 3, label: 'Bicycle (light)', icon: iconCarcass(3),
+        note: 'a wire-spoked wheel on a narrow tube tyre: a glider\'s, a third of an aircraft wheel\'s weight', writes: { cage: { whProfile: 3 } } },
+      // CAR-3: the 1940s truck's military lug tyre (the van's; 4 since L40d - MONOWHEEL's bicycle took 3 first)
+      { value: 4, label: 'Military lug', icon: iconCarcass(3),
+        note: 'a tall 1940s truck tyre, chevron lugs', writes: { cage: { whProfile: 4 } } },
     ] },
 
   // THE COWL PRESETS (G2760, the user: "we need presets for the cowl shape,
@@ -2232,11 +2301,15 @@ const DESIGN_ROWS = [
     read: (P, S) => {
       const p = S && S.paint; if (!p) return null;
       if (p.job === 'bare') return 'bare';
+      if (p.job === 'self') return 'white';
       return p.sweep >= 0.5 ? 'sweep' : 'trim';
     },
     options: [
       { value: 'bare', label: 'Bare / primer', icon: ICON.schemeBare,
         writes: { spec: { paint: { job: 'bare' } } } },
+      // WEIGHT STUDY: white from the material (gelcoat, pre-dyed cloth, ripstop) - no paint, no kilos; the base is white
+      { value: 'white', label: 'White (self-coloured)', icon: ICON.schemeBare, note: 'no paint: the gelcoat or the cloth is the white; a scheme on it adds its share',
+        writes: { spec: { paint: { job: 'self', sweep: 0, base: 0xf3f4f1 } } } },
       { value: 'trim', label: 'Trim line', icon: ICON.schemeTrim,
         writes: { spec: { paint: { job: 'full', sweep: 0.35 } } } },
       { value: 'sweep', label: 'Full sweep', icon: ICON.schemeSweep,
@@ -3133,22 +3206,255 @@ const ARCHETYPES = [
   // keeps its skin and its full canopy, the aero nose follows from the
   // mount, the rod rides high on the bulkhead and the electric pusher hangs
   // LOW on the bulkhead's back (engY down).
+  // THE PROPORTIONS, TO THE MAKER'S THREE-VIEW (2026-11-10, the user: "get the proportions all right on the
+  // archaeopteryx existing card, so I have a reasonable starting point"): the 'Class 2 Hang Glider, 2005' drawing,
+  // traced and matched with tools/ref_match/blueprint.py (refs/archaeopteryx_bp.json; REF_MATCH.md section 12). The
+  // wing (cantilever, 13.4 m to the winglets' tops, the trailing edge straight and the taper on the leading edge - a
+  // crank for the drawing's curve -, winglets; LE 1.08 m behind the nose), the rod (0.22 m, at the wing, to the aft
+  // bulkhead) and the tail (the stab 2.66 m on the rod at the fin's foot, the fin's outline by fit_tail.js, no dorsal)
+  // are the drawing's: IoU plan 0.90, front 0.55. The cabin is the Chinook's (below): the user shapes it from here.
+  // The aft bulkhead about mid-chord (the user: "you don't see it really well on your drawing, but it's sitting at the
+  // middle of the wing"). Left as it was: the E-811 and its fuel (the study's chantier, futureDesigns/archaeopteryx/
+  // STUDY.md). The gear: one sunk bicycle wheel, a faired nose skid and wingtip skids (CONFIG_STUDY.md stage 1); the rod
+  // in the wing's hub (stage 2). Not flown since (stage 4 rebuilds and flies it).
   { key: 'archaeopteryx', kind: 'recreation', name: 'Archaeopteryx-alike', note: 'suspended pod, ' +
       'rod on the wing, electric pusher low on the bulkhead',
     sel: { class: 'ul1', role: 'glider', seatLayout: 0, paxCount: 0,
-           canopy: 'bubble', mirror: 0, intCons: 0, covering: 'skin',
+           // (WEIGHT STUDY L4: the soft shell - poles + ripstop, GEN_MATERIALS.softShell; the mast, the keel tubes and
+           // the hub's box hard (carbon), the rod named carbon below: the pod 25.0 -> 4.5 kg)
+           canopy: 'screen', mirror: 0, intCons: 6, covering: 'skin',
            boomStyle: 1, section: 3,
-           wgPos: 0, wgBrace: 0, wgTip: 2, wgFlapType: 0,
-           engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
-           gearLayout: 'trike', suspension: 'spring', s1Fair: 0,
+           wgPos: 0, wgBrace: 1, wgTip: 5, wgFlapType: 1,
+           // (L7 OF THE WEIGHT PATH, 12 Nov: the real drive - the e-PPG 12 kW direct drive, 7 kg, the real one's ~10.5 kW;
+           // it was the Velis's 57.6 kW, 30 kg E-811)
+           engFamily: 'electric', engModel: 'e-PPG 12 kW', engMount: 'pusher',
+           gearLayout: 'mono', suspension: 'spring', s1Fair: 0,
            finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
-    // the wing 0.30 m aft (2026-09-06, the flight-test pass): the third
-    // electric card with the margin under zero as drawn (-4.8 %); at
-    // wgDx -0.30 it is 10.4 % and the circuit is unchanged (253 s, sink 1.07)
-    over: { cage: Object.assign({}, PLAN_RECT, { rodY: 0.42, engY: -0.30,
-                                                 wgSpan: 11.0, wgChord: 1.30,
-                                                 wgChordTip: 1.30, wgDx: -0.30 }),
-            spec: { fuel: { litres: 0 } } } },
+    over: { cage: { rodY: 0.8129, rodD: 0.27, boomLen: 4.326,
+                    // THE REPROJECTION (12 Nov, the user: "time for a reprojection on the blueprints ... the rod's diameter
+                    // is a little high ... get the waist up ... our cabin is not long enough ... the angle of the cabin is
+                    // much more than ours ... ensure that we have the pillar where it should be ... really at the back of the
+                    // wing"; tools/ref_match/blueprint.py on refs/archaeopteryx_bp, our parts drawn over the drawing): the rod
+                    // 0.20 m (rodD 0.30 -> 0.27; rodY the hump's refit); the waist up (waistY -0.4 -> -0.2: the side window's
+                    // sill 0.38 m over the keel, the drawing's ~0.35); more nose and a longer windscreen run (noseLen 0.38 ->
+                    // 0.61, wsRun 1.28 -> 1.75: the window's front edge from 0.61 m aft of the nose at its sill to 1.71 at
+                    // the wing, the drawing's 0.57 / 1.72 - 31 deg, it was 42); the cabin's aft frame at 2.07 m (pilotLen
+                    // 0.52; the drawing's window ends at 2.07); the wing put back on the drawing (wgDx 0.5: LE 1.08, TE 2.26);
+                    // the mast at the back of the wing (hangAt 0.86: 2.00 - 2.21 m), the cabin's aft frame on it; the aft
+                    // section to 2.97 m (aeroAftLen 1.0; the drawing's aft face 3.0), the shaft 0.41 (the prop just past its
+                    // tip); the tail where it was (boomLen 4.46). IoU side 0.805 -> 0.831, plan 0.902 -> 0.908, the length
+                    // 6.01 as the drawing's. THE CG goes aft with the cabin: 73 % of the root chord, the static margin -14 %
+                    // - the masses' chantier (stage 4: the 54 kg, the battery beside the pilot) brings it forward
+                    // THE HUB (the study's stage 2, 11 Nov): the rod slots into the wing's centre section, the top skin
+                    // raised over it in a Gaussian hump, the rod's crown at the wing's highest point - rodY is the hump's
+                    // own fit on this wing (_cage_wing.js hubHump), a ring with screws where the rod leaves the TE
+                    rodHub: 1,
+                    // THE FOOT-LAUNCH D-TUBE WING (12 Nov, the user: "I'm definitely okay to change the wing of the
+                    // Archaeopteryx, but I want to keep track of the path"; WEIGHT_STUDY.md THE PATH): the Wing structure
+                    // tile's 9th option - the wing 47.9 -> 34.7 kg, the empty 169.1 -> 155.0 kg, certified (built for 250 kg)
+                    wgCons: 8,
+                    // (WEIGHT STUDY L4: the rod's own row named - carbon, as it was - so the soft shell is the pod's alone)
+                    rodMat: 1,
+                    // (WEIGHT STUDY, the user 13 Nov: no dashboard - the three gauges in glider size, 57 mm, on a small pod)
+                    intDash: 0, instPod: 1,
+                    // (A0 for the user, 13 Nov: the tow hook, the Archaeopteryx first - a CG release ahead of the wheel: the
+                    //  auto-tow behind the car and the winch)
+                    towHook: 2,
+                    // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
+                    // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
+                    // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
+                    // disc 0.24 m off the ground and ~0.19 m under the rod (engY)
+                    cw_propD: 0.95, cowlOn: 0,     // (engY, cw_noseOff: A SMALL ENGINE, below)
+                    // THE DRIVE PARED DOWN (12 Nov, the user: "limit the engine mount to the minimum ... the nose cone
+                    // slimmer, the prop blades with a lower chord and the whole assembly in carbon fiber, including the
+                    // shaft"): the mount at the engine bench's least (stand-off 0.4 of the case, tubes x0.5, no diagonals);
+                    // the cone 6 cm in radius (10.1), the blades 0.10 / 0.035 m of chord (0.165 / 0.05); blades, cone and
+                    // shaft carbon / epoxy (the cone and its shaft are one part, worn as the blades: spinMat 0)
+                    eng_mountGap: 0.4, eng_mountR: 0.5, eng_mountX: 0,
+                    // ...AND NO MOUNT AT ALL (12 Nov, the user: "on the real thing it really bolts into it, so we don't even
+                    // have the support there"): the engine bolted on the mast's back face; the thrust line midway between
+                    // the ground and the rod's underside (engY -0.38 -> -0.318: 0.60 m either way), so a bigger prop
+                    // ("a slightly bigger propeller"): 0.75 -> 0.95 m, 12 cm clear of the rod and of the ground
+                    eng_mount: 0,
+                    cw_material: 3, spinMat: 0,     // (the cone and the chords: A SMALL ENGINE, below)
+                    // A SMALL ENGINE, A SMALL PROP (12 Nov, the user: "the rod is much smaller. The nose cone is much smaller,
+                    // it's actually not even a cone ... the chord of the blades is even smaller. This is really a small
+                    // engine ... adapt the length so that there is no clipping ... move it up a notch ... Make all the nose
+                    // cones and the blades and everything thinner"): the cone at the row's least and short and round - a
+                    // hub, not a cone (cw_spinR 0.04, cw_spinLen 0.25 -> 0.07, cw_spinRound 1) - and the shaft it grows
+                    // back to the engine with it (its radius is a third of the cone's: 20 -> 14 mm); the blades narrower and
+                    // thinner (chord 0.07 / 0.03, t/c 0.12 / 0.06, the shank 45 -> 20 mm, the cuff 0.10); the thrust line
+                    // up a notch (engY -0.343 -> -0.29, ~4 cm); the shaft 0.41 -> 0.50 m so the blades, now further
+                    // forward on the short hub, clear the aft pod's tip (0.46 still cut it: the join's own check)
+                    engY: -0.29, cw_noseOff: 0.58, cw_spinR: 0.04, cw_spinLen: 0.07, cw_spinRound: 1, cw_bladeStation: 0.45,
+                    cw_rootChord: 0.07, cw_tipChord: 0.03, cw_thickRoot: 0.12, cw_thickTip: 0.06, cw_shankR: 0.02, cw_cuff: 0.1,
+                    // THE AFT POD: THE AERO AFT OVER THE PUSHER (11 Nov, the user: "try again with the aero aft instead of
+                    // the cowl ... the real thing is straight tapers; the cowl looks odd and bulby"). aeroAftOver is a row
+                    // of this branch (_cage_gen.js, _cage_cowl.js): the aero aft drawn over a pusher's bulkhead, the engine
+                    // staying on it; a page without the row draws no aft pod. The blade, 0.89 m (to ~2.99 m behind the
+                    // nose; the plans' aft face 2.95), continuous skin from the pillar (no gap): its width tapers straight
+                    // to a 4 cm edge (aeroAftTip 0.85 - 0.5 bows in, 1.0 sags), its tip 0.75 of the height raised to the rod
+                    // (aeroAftDroop -0.2): the bottom line climbs 0.25 m to the tip, near straight (the fin shape climbs
+                    // dead straight, but from the pillar and 0.5 m: too steep)
+                    aeroAftOver: 1, aeroAftOn: 1, aeroAftShape: 1, aeroAftLen: 1.0, aeroAftTip: 0.85, aeroAftEdge: 0.75,
+                    aeroAftDroop: -0.2,
+                    // THE HANGING NACELLE (the study's stage 3; the user's photo of the real one, 11 Nov: the cabin, then the
+                    // aft section with "the pillar and the wheel ... at the back of the cabin pillar"): one mast from the hub
+                    // down to the keel inside the aft section, at 0.85 of the root chord (its middle ~1.79 m behind the nose,
+                    // about the CG; 0.30 of the chord, 0.36 m), the wheel hung from its foot, the pusher on its back face.
+                    // The cabin slides free of it: pulled 0.30 m forward (pilotLen 1.05 -> 0.75, the rod as much longer,
+                    // boomLen 4.63 -> 4.93, the aft section 1.2 -> 1.5 so its tip stays where it was)
+                    // (12 Nov, the user: "make the main pillar 40% less wide": 0.30 -> 0.18 of the chord, 0.21 m)
+                    // (SUPERSEDED by THE REPROJECTION above: the mast at the back of the wing, as drawn - what follows was the
+                    // first placement) ON THE CG (12 Nov, the user: "compute the CG already and put the pillar just on the CG ... to get the
+                    // engine a little further forward"): the mast's middle on the loaded CG (genShakedown, 1.38 m behind the
+                    // nose, 0.50 of the root chord; it was 1.79) - the cabin brought forward with it to its least, the
+                    // Chinook's own (pilotLen 0.42), the rod as much longer (boomLen 5.26), the aft section 1.33 m (its
+                    // tip 7 cm ahead of the prop); the cabin's aft pillar bolts onto the mast's front (its depth of
+                    // overlap). The static margin -4 % -> +11 %. The wheel 6 cm aft of the mast's middle (s1AxZ, under its
+                    // chord): at the CG exactly it rocked back onto the tail post; 6 cm aft it parks on the nose skid
+                    // the keel as the real one's (12 Nov, the user: "it's actually 2 of them and the pilot fits between, mounted
+                    // at the level of the bottom of the pilot window"): twin carbon tubes at the sill, nose to mast
+                    hangKeels: 2,
+                    hangOn: 1, hangAt: 0.86, hangLen: 0.18,
+                    // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
+                    wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
+                    wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0.5,
+                    // THE CABIN IS THE CHINOOK'S (the user, 10 Nov: "take the setting of the Birdman Chinook for the
+                    // cabin only ... the architecture, and in particular the very low waistline ... a pax out; you
+                    // are not allowed to modify how it looks, you are just allowed to scale it"): the shape rows of
+                    // builds/chinook_2026-09-21_corrected.json verbatim (its planeScale is this card's 0.745 and its
+                    // pod is this one's size, 0.72 x 1.14 m: no scaling), the pax bay off (sel paxCount 0); the
+                    // covering and the material stay this card's.
+                    halfW: 0.48, roofHalfW: 0.195, keelY: -0.576, floorY: -0.446, ceilInset: 0.2, waistY: -0.2,
+                    bandH: 0.052, ringPullIn: 0, wsRun: 1.75, wsBaseBow: 0.48, wsCeilBow: 0.115, wsBaseLift: 0,
+                    noseLen: 0.61, noseW: 0.8, noseH: 0.06, noseCrown: 0, noseDroop: 0.15,
+                    topRound: 0, topAngCeil: 52, crSill: 3, crCeil: 3, crFrontCap: 0.65, crKeel: 3, crSillNose: 3,
+                    cowlLoops: 2,
+                    // no taper section (11 Nov, the user: "remove the taper section"): the rod straight off the aft pillar
+                    taperOn: 0,
+                    // doorless, as the Chinook (11 Nov, the user: "the window joint is drawing wrong, as a staircase
+                    // across the window" - the door's front edge, cut along the lattice where it crossed the long
+                    // raked windscreen run)
+                    doorOn: 0,
+                    // THE STANCE (11 Nov, the user: "the main wheels on the back pillar as far back as you can, and the
+                    // front wheel almost at the tip ... as little as you can ... if not, we just push the back pillar
+                    // back a little bit until it stands"): the mains on the aft pillar, the nose wheel 0.2 m behind the
+                    // tip, both at the row's 0.05 m minimum; the pillar pushed 0.47 m aft (pilotLen 0.42 -> 1.05) with
+                    // the wing and the tail held where they were (boomLen). THEN (the
+                    // user: "it really looks toyish"): the wheels a little bigger (0.13 / 0.10 m), the mains' anchor
+                    // on the pillar kept and the wheels 0.2 m aft of it, the legs as short as the pod floor allows
+                    // (0.15 m clear; a 45-deg leg from that anchor would put the axle above the floor): ~19 deg from
+                    // vertical, level. Measured: the mains 2.23 m behind the nose, the CG empty 1.93, loaded 1.77
+                    // ...AND WITH THE ENGINE ON THE BULKHEAD the mains 0.2 m further back: 0.40 m aft of the anchor (the
+                    // user's 45 deg max), angled legs
+                    // THE SECTION STRAIGHT TO THE PILLAR (11 Nov, the user: "a little thing that is going downwards just
+                    // aft of the cabin ... the section should remain straight"): with no taper section the aft rows act
+                    // at the pillar, and the original card's aftKeelY (-0.765) / aftRoofY (0.78) stood off the Chinook
+                    // cabin's keelY / roofY - the last ring dipped 4 cm. Equal now
+                    aftKeelY: -0.576, aftRoofY: 0.815,
+                    // THE CABIN 10 CM LESS DEEP (12 Nov, the user: "our cabin is still a little too high, let's chop off 10
+                    // cm out of it, to match the drawing"): its bottom up 0.10 m (keelY, floorY, aftKeelY and the windscreen
+                    // frame's bottom frWinBotY up 0.134), the nose a touch more droop (noseDroop 0.08 -> 0.15: its tip on the
+                    // drawing's), the wing, the rod and the window's sill where the drawing has them; the bottom now on the
+                    // drawing's from 0.75 to 2.25 m (side IoU 0.832 -> 0.847). The wheel and the skid rise with it
+                    frWinBotY: -0.538,
+                    // ...THEN ON ONE WHEEL (the study's stage 1, 11 Nov, the user's photo of the real one: "for gliders,
+                    // we need to allow super light wheels ... sunk wheels"): the Undercarriage tile's Monowheel - the main
+                    // on the centreline under the mast (below), a bicycle wheel (whProfile 3, 0.20 m) half sunk
+                    // through a square cut in the skin (s1Sink), the nose unit a skid 0.45 m behind the nose faired as the
+                    // nose grown down (s2Fair) - its shoe level with the wheel's contact (12 Nov, the user: "the skid so
+                    // it's at the same level as the wheel": s2_twLegDrop 0.09 -> 0, within 7 mm), a skid under each wingtip
+                    // (wgTipSkid)
+                    pilotLen: 0.52, s1Z: 1.13, s1X: 0, s1AxZ: -0.06, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45, s1Ul: 1,   /* (WEIGHT STUDY L6: the ultralight monowheel) */
+                    whProfile: 3,
+                    s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0.055,
+                    wgTipSkid: 1,
+                    // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
+                    stSpan: 0.98, stChord: 0.44, stChordTip: 1.35, stZ: 0.262,
+                    finDorsal: 0, finDorsalTube: 0,
+                    finHeight: 1.25, finChord: 1.05, finChordTip: 0.7, finSweep: 0, finHinge: 0.29,
+                    finTipZ: 0, finTipY: -0.3, finAftZ: -0.12, finAftY: -0.275, finBaseZ: 0, finBaseY: 0.2,
+                    // THE CONTROL SURFACES ON THE DRAWING (12 Nov, the user: "the fin-rudder proportion is still a little
+                    // off, and the length of the beam too, as I assume it stop at the rudder leading edge ... the rudder to
+                    // go below, covering the boom's height ... matching the control surfaces is not [optional]"): the rod
+                    // ends on the hinge (boomLen 4.46 -> 4.326, its end 5.57 m from the nose, the drawing's 5.57), the fin
+                    // slid aft on it (finZ, the fin's station row - master's DRAFTING TABLE; this branch's finShiftZ merged into it) with its leading edge upright (finSweep 0: 5.24 vs 5.25), the
+                    // hinge vertical (finHinge 0.29, finAftZ: 5.57 / 5.57), the trailing edge 5.99 / 5.92 (drawing 6.00 /
+                    // 5.94), the rudder down over the rod's height (finRudBelow, the new row: its foot 0.21 m under the
+                    // rod's top, the drawing's 0.20); the stab unswept (stSweep 0) at the drawing's station (stZ, stTipZ,
+                    // stChordTip), then on the PLAN (the user: "also fix the stab shape pls, so it matches well"): the root chord
+                    // 0.47 -> 0.44 and the stab swept 2 deg forward so the trailing edge comes forward to the tip as drawn -
+                    // LE 4.93 -> 5.06 (drawing 4.93 -> 5.07), TE 5.54 -> 5.53 (5.55 -> 5.53), the elevator 0.10 m deep (stHinge)
+                    // the rudder's foot raked up to its trailing edge as drawn, a crisp corner (finBaseY 0.05 -> 0.2,
+                    // finSharpBase), within a pixel of the drawing's diagonal
+                    finZ: -0.134, finRudBelow: 1, stSweep: -2, stTipZ: -0.12, stHinge: 0.15, finSharpBase: 3,
+                    // THE PILOT LAID BACK, THE BELLY FLATTER, THE WING'S SURFACES, NO LIGHTS (12 Nov, the user: "the bottom of
+                    // our fuselage is still too rounded ... the pilot barely fits ... You may choose another one, like a
+                    // sports recline ... a much bigger recline ... put the feet much further forward ... into the nose";
+                    // "the flaps, which are, I think, acting as aero brakes ... from the center section to half of the
+                    // wing ... the rest is for the ailerons"; "You can remove the lights in the wings. That thing probably
+                    // has no electrics"): the belly flatter (botRound 1 -> 0.3); the aerobatic recline seat (seatType 7)
+                    // laid back 42 deg on the floor (seatRake, seatH 0), slid forward (seatZ 0.205 -> 0.32) with the
+                    // pedals 1.0 m off its back (pedalZ, pedalH 0.25): the feet in the nose, the head clear of the roof.
+                    // Past ~1.3 m from the cockpit's aft ring the nose's floor falls away and the feet stand through the
+                    // skin, so that is where they stop. Plain flaps from the centre section to mid-span (wgFlapType 1 - the
+                    // garage has no airbrake flap: a GARAGE GAP, REF_MATCH section 7), the ailerons the rest (0.54 / 0.55 meet);
+                    // the lights off (lightOn 0); the windows' joint thin (rimW 0.012 -> 0.008: under ~6 mm the bead draws dotted)
+                    botRound: 0.3, seatType: 11, seatRake: 42, seatTilt: 3, seatH: 0, seatZ: 0.32, pedalZ: 1.0, pedalH: 0.25,
+                    // L3 OF THE WEIGHT PATH - THE FIXED ITEMS (12 Nov, the user: "we have already very light seats ... the
+                    // controls ... should be fitted in the tubes ... no central levers. There should be no dashboard ...
+                    // an even lighter glazing option, like soft glazing"; WEIGHT_STUDY.md THE PATH): the reclined tub
+                    // (seatType 11, 3.0 kg, the aerobatic recline's 6.0), the soft film glazing (glazeMat 3, 0.7 kg/m2),
+                    // the light control runs (ctlRuns 1: push-pull carbon rods and Dyneema, 0.15 kg/m of reach), the stick
+                    // at the side, on the right keel tube (ctlStick 2, stickX 0.1 inboard: at its default the side
+                    // stick's console stood through this narrow pod's skin) and three instruments (spec.systems.items:
+                    // airspeed, altimeter, vario). The DASHBOARD STAYS (0.2 kg): without it the instruments float in the
+                    // air - a GARAGE GAP, an instrument mount with no dashboard (the real one's varios on the shoulders)
+                    glazeMat: 3, ctlRuns: 1, ctlStick: 2, stickX: 0.1,   // (and seatType 11, above)
+                    wgFlapType: 1, wgFlapSpan: 0.54, wgAilOn: 1, wgAilSpan: 0.55, lightOn: 0, rimW: 0.008,
+                    // THE TWO AFT WINDOWS (12 Nov, the user with a photo of the real aeroplane: "draw these 2 little windows
+                    // at the back, with their subtleties (the bottom one has an angle)"): two drawn windows (4b) side by side
+                    // on the aft section under the rod, between the pilot's window and the engine's face - the upper a
+                    // free quad (its corners placed in the side view, so they land as drawn on the tapering skin), the
+                    // lower the same with the new fifth corner (win2Q5On, THE KINK): its bottom edge level aft, then
+                    // rising forward from 65 % of its length as on the photo; the proportions read off the photo
+                    paxWinN: 1, paxWinShape: 2, paxWinZ: 1.56, paxWinPitch: 0.5, paxWinY: 0.52, paxWinW: 1.06, paxWinH: 0.26,
+                    paxWinR: 0.02, paxWinQ1Z: 2.089, paxWinQ1Y: 0.647, paxWinQ2Z: 1.033, paxWinQ2Y: 0.647,
+                    paxWinQ3Z: 1.033, paxWinQ3Y: 0.392, paxWinQ4Z: 2.089, paxWinQ4Y: 0.392,
+                    // (the merge with master's fifth corner, FIT-PROCEDURE: master's Q5 sits between Q4 and Q1, so the
+                    // same pentagon is written round from its top-aft corner - Q1 top-aft, Q2 bottom-aft, Q3 the kink,
+                    // Q4 bottom-fwd, Q5 top-fwd: the outline and its winding unchanged)
+                    win2N: 1, win2Shape: 2, win2Z: 1.56, win2Pitch: 0.5, win2Y: 0.24, win2W: 1.08, win2H: 0.23, win2R: 0.02,
+                    win2Q1Z: 1.021, win2Q1Y: 0.345, win2Q2Z: 1.021, win2Q2Y: 0.125, win2Q3Z: 1.398, win2Q3Y: 0.116,
+                    win2Q4Z: 2.102, win2Q4Y: 0.212, win2Q5On: 1, win2Q5Z: 2.102, win2Q5Y: 0.345,
+                    finMidY: 0, finUY: -0.4, finLEZ: -0.65, finLEY: -0.09, finShoulderZ: 0,
+                    finShoulderY: 0, finTopY: 0, finTERoot: -0.055, finTEU: -0.075, finTEMid: 0.01,
+                    finSharpShoulder: 0, finSharpTip: 3, finSharpLE: 3, finSharpAft: 3,
+                    // THE FIN SQUARED (12 Nov, the user, drawing it in red: "fix the inelegant shape up top of the fin. Make
+                    // everything perfectly straight over there"): the shoulder straight under the tip on the mid row
+                    // (finShoulderZ / Y 0, finTipZ 0, finMidY 0), the top flat (finTopY 0), its corners crisp - the leading
+                    // edge straight within 2 mm from the root to the tip, the trim's line level across fin and rudder
+                    },
+            // THE LIVERY (12 Nov, the user: "do a little nice livery"; then "keep it white ... I can't really judge the
+            // volumes ... get rid of the livery. You may keep the registration"): the real aeroplane's gloss white
+            // overall, no cheat line, the registration in navy low on the nose's flank, clear of
+            // the windows' and the cheat line's lines (on the fin it fought the hinge: 12 Nov, the user: "messy where it is")
+            // L7 OF THE WEIGHT PATH (12 Nov, the user: "Let's go next weight level. You might also save on engine mount"):
+            // the e-PPG 12 kW (sel) on a 2 kWh NMC pack under the floor (the real one's ~2 kWh; the nose bay holds 1.2),
+            // no fuel - the card's avgas nose tank under an electric motor was a stage-1 leftover; the shaft 0.50 ->
+            // 0.58 m (the shorter case brought the blades into the aft pod). And the motor BOLTED ON THE MAST in the frame
+            // (61_gen_frame: a hanging nacelle's pusher ties to the mast's back face, no 4130 bearers billed: -3.6 kg)
+            spec: { fuel: { litres: 0 },
+                    energy: { kind: 'battery', cell: 'nmc', vessels: [{ bay: 'underFloor', capacity: 2 }] },
+                    systems: { fit: 'minimal', items: ['asi', 'alt', 'vsi'] },   // (L3: airspeed, altimeter, vario)
+                    // (WEIGHT STUDY: white from the gelcoat and the cloth - no paint, 5.1 -> 0 kg; the registration is vinyl)
+                    paint: { job: 'self', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
+                    finish: { decals: {
+                      regTarget: 0, regMode: 0, regL: 0.95, regC: -0.30, regH: 0.12 },
+                      sections: { ...BODY_PAINT(0xf3f4f1), wingSkin: { tint: 0xf3f4f1 }, finSkin: { tint: 0xf3f4f1 },
+                                  stabSkin: { tint: 0xf3f4f1 }, boomTube: { tint: 0xf3f4f1 }, boomSkin: { tint: 0xf3f4f1 } } },
+                    meta: { reg: 'HB-WXA' } } } },
   // 2026-09-04 (the user): "We need a twin engine aircraft archetype, maybe
   // a couple of them. I'm thinking a luxury, small tourer, like the Diamond
   // DA62 or the Beechcraft Baron, and a larger plane (maybe our first)".
@@ -3535,8 +3841,140 @@ function designFull(sel, over) {
   if (!stock && 'engPreset' in cage && W.CAGE_ENG_APPLY_PRESET) {
     const nm = designPresetNames()[Math.round(cage.engPreset)];
     if (nm) W.CAGE_ENG_APPLY_PRESET(full, nm);
+    // (12 Nov: A CARD'S OWN ENGINE-BENCH ROWS WIN over the preset it picked - the Archaeopteryx's mount pared to nothing
+    // on its E-811 was overwritten here, the preset applied after the card; a card without such rows is untouched)
+    if (over && over.cage) for (const k in over.cage) if (/^eng_/.test(k) && typeof over.cage[k] !== 'function') full[k] = cage[k] = over.cage[k];
   }
+  // ENGINE-COOLING 3: the birth opens the cowl to what the engine needs (designCoolBirth); a stock tile is not a birth
+  if (!stock) { const cw = designCoolBirth(full); for (const k in cw) cage[k] = cw[k]; }
   return { full, cage, spec };
+}
+
+// ENGINE-COOLING 3 - THE BIRTH OPENS THE COWL (the user 12 Nov: "the starting designs ... have never been authored, so
+// they come as what they are ... just add a rule and regenerate them"). An archetype is born with the openings its
+// engine needs - sized to its heat by GEN_COOL's own law (62_gen_aero genCooling: the inlet, the engine's passages and
+// the outlet in series) at a light aeroplane's hot climb, to TARGET x the need (headroom over the 1.15 pass line) - and
+// never smaller than its card draws (the rule only opens):
+//   a puller (the nose, a pulling wing or pylon engine; a layout's pullers): the cowl's front, round the spinner
+//   a pusher on the body (and a push-pull's or a tandem's rear engine): the chin scoop turned into the air, riding the
+//     bottom line (the rear engine of a layout: its own scoop turned, cw_scoopAft), and the face round the spinner
+//     opened as its way out
+//   a pusher in a nacelle closed by its tail cone (aftMode 1): the cone's inlet
+//   where the front cannot hold it - a wing nacelle's small face round its spinner, a narrow inline or vee - a chin
+//   scoop into the air as well, riding the bottom line; a turbine's oil cooler: that scoop alone
+//   a liquid engine with wing radiators (radMode): the radiators' mouths, the nose left as drawn
+// Untouched: no cowl, an electric engine, a fin mount. Returns the rows it changed (the bake's cage gets them; GATE
+// COOL's sweep checks every archetype the shed births then passes).
+// (the climb's inlet speed grows with the engine: a light aeroplane's 32 m/s at 100 kW, a fighter's twice it - a fixed
+// light-aeroplane speed sized the Spitfire-alike's radiators three times too big; Vy x the slipstream, roughly kW^0.3)
+const COOL_BIRTH = { target: 1.4, V100: 32, Vexp: 0.3, Vmin: 28, Vmax: 75, push: 0.88, rho: 1.134, lip: 0.015, follow: 0.67, lenK: 3.2, hold: 0.33, slot: 2.2 };
+function designCoolBirth(full) {
+  const out = {};
+  if (full.cowlOn != null && !+full.cowlOn) return out;
+  let R = null;
+  try { R = W.CAGE_ENG_SPEC && W.ENG_GEN && W.ENG_GEN.engResolve ? W.ENG_GEN.engResolve(W.CAGE_ENG_SPEC(full)) : null; } catch (e) { R = null; }
+  if (!R || !(R.powerW > 0) || R.arch === 'electric') return out;
+  const turbine = R.arch === 'turbine';
+  const GC = typeof GEN_COOL !== 'undefined' ? GEN_COOL
+    : { cp: 1005, path: { air: { Tlim: 160, eps: 0.30 }, liquid: { Tlim: 110, eps: 0.55 }, turbine: { Tlim: 90, eps: 0.50 } },
+        ivr: 0.8, passages: 3.0, outRatio: 1.3, radMouth: 0.8 };
+  const TH = typeof GEN_ENG_THERMO !== 'undefined' ? GEN_ENG_THERMO
+    : { four: { cool: { air: 0.45, liquid: 0.42 } }, two: { cool: { air: 0.55, liquid: 0.50 } }, turbine: { cool: { air: 0.05, liquid: 0.05 } } };
+  const liquid = !!(R.P && +R.P.liquid), two = !!(R.P && +R.P.twoStroke);
+  const frac = ((TH[turbine ? 'turbine' : two ? 'two' : 'four'] || TH.four).cool || {})[liquid ? 'liquid' : 'air'] || 0.45;
+  const pth = GC.path[turbine ? 'turbine' : liquid ? 'liquid' : 'air'];
+  const need = frac * R.powerW / (GC.cp * pth.eps * (pth.Tlim - 38));          // kg/s at 38 C, full power
+  const T = COOL_BIRTH.target * need, rhs = 1 / (T * T) - 1 / Math.pow(GC.passages * need, 2);
+  const flowIn = rhs > 0 ? 1 / Math.sqrt(rhs) : T * 2;
+  const areaAt = V => flowIn / (GC.ivr * COOL_BIRTH.rho * V);                   // m2 of inlet
+  // a superellipse's area (the cowl's own apertures, cw_*Sq through its sqExp)
+  const sqExp = q => { q = Math.max(0, Math.min(1, +q || 0)); return q < 0.5 ? 1 + q / 0.5 : 2 * Math.pow(5, (q - 0.5) / 0.5); };
+  const sArea = (a, b, n) => { let S = 0; const N = 64;
+    for (let i = 0; i < N; i++) { const t0 = i / N * 2 * Math.PI, t1 = (i + 1) / N * 2 * Math.PI;
+      const p = t => [Math.sign(Math.cos(t)) * Math.pow(Math.abs(Math.cos(t)), 2 / n) * a, Math.sign(Math.sin(t)) * Math.pow(Math.abs(Math.sin(t)), 2 / n) * b];
+      const P0 = p(t0), P1 = p(t1); S += P0[0] * P1[1] - P1[0] * P0[1]; }
+    return Math.abs(S) / 2; };
+  const set = (k, v) => { out[k] = v; full[k] = v; };
+  const g = k => +full[k] || 0;
+  // the cowl's front as drawn (its central opening net of the spinner, its pair), m2 - an estimate: the cowl fits an
+  // opening to its face when it draws it
+  const faceHave = () => {
+    const mode = Math.round(g('cw_apMode'));
+    const pairs = mode === 2 || mode === 3 ? 2 * sArea(g('cw_pairW'), g('cw_pairH'), sqExp(full.cw_pairSq)) : 0;
+    const n = sqExp(full.cw_apSq != null ? full.cw_apSq : 0.47);
+    return (mode === 1 || mode === 3 ? Math.max(0, sArea(Math.max(0.02, g('cw_apW')), Math.max(0.02, g('cw_apH')), n) - Math.PI * Math.pow(g('cw_spinR'), 2)) : 0) + pairs;
+  };
+  // the cowl's front, round the spinner, opened to `A` m2 (grown, never shrunk; the pair kept); `tall` a slot that
+  // many times as tall as it is wide (a narrow inline's or vee's nose: a round opening is fitted down to its width)
+  const openFace = (A, tall) => {
+    const mode = Math.round(g('cw_apMode'));
+    const pairs = mode === 2 || mode === 3 ? 2 * sArea(g('cw_pairW'), g('cw_pairH'), sqExp(full.cw_pairSq)) : 0;
+    const spin = Math.PI * Math.pow(g('cw_spinR'), 2);
+    const n = sqExp(full.cw_apSq != null ? full.cw_apSq : 0.47);
+    const w0 = mode === 1 || mode === 3 ? Math.max(0.02, g('cw_apW')) : 0.1, h0 = mode === 1 || mode === 3 ? Math.max(0.02, g('cw_apH')) : 0.1;
+    const have = faceHave();
+    if (have >= A) return;
+    if (mode === 0) set('cw_apMode', 1); else if (mode === 2) set('cw_apMode', 3);
+    const want = A - pairs + spin;
+    if (tall > 0) {
+      const w = Math.sqrt(want / Math.max(1e-6, sArea(1, tall, n)));
+      set('cw_apW', +Math.min(0.7, Math.max(w0 > 0.1 ? 0 : w0, w)).toFixed(3)); set('cw_apH', +Math.min(0.7, tall * w).toFixed(3));
+      return;
+    }
+    const f = Math.sqrt(want / Math.max(1e-6, sArea(w0, h0, n)));
+    set('cw_apW', +Math.min(0.7, w0 * f).toFixed(3)); set('cw_apH', +Math.min(0.7, h0 * f).toFixed(3));
+  };
+  // the chin scoop into the air, riding the bottom line, its open mouth (about two thirds of it stands out) `A` m2; `how`
+  // 'pull' its mouth to the propeller (a tractor: into the air), 'push' turned round (a pusher), 'aft' the rear cowl's
+  // own (a layout's rear engine)
+  const scoop = (A, how) => {
+    const hOpen = Math.sqrt(A / (COOL_BIRTH.follow * Math.PI * 1.25));
+    const H = Math.min(0.2, hOpen + COOL_BIRTH.lip), Wd = Math.min(0.3, 1.25 * hOpen + COOL_BIRTH.lip);
+    const turned = how === 'aft' ? +full.cw_scoopAft : how === 'push' ? +full.cw_scoopRev : !+full.cw_scoopRev;
+    if (+full.cw_scoopOn > 0 && g('cw_scoopW') >= Wd && g('cw_scoopH') >= H && turned && +full.cw_scoopFollow) return;
+    set('cw_scoopOn', 1); set('cw_scoopFollow', 1); set('cw_scoopAp', Math.max(0.9, g('cw_scoopAp')));
+    if (how === 'aft') set('cw_scoopAft', 1); else if (how === 'push') set('cw_scoopRev', 1); else if (+full.cw_scoopRev) set('cw_scoopRev', 0);
+    set('cw_scoopW', +Math.max(g('cw_scoopW'), Wd).toFixed(3)); set('cw_scoopH', +Math.max(g('cw_scoopH'), H).toFixed(3));
+    // AN INLET, NOT A DISC (the user 12 Nov: "most of them have no length and look like a disc"): the length about 3.2 x
+    // its height, within the cowl's barrel, its full section held over the front third (FIT-PROCEDURE's scoopHold)
+    const Hn = g('cw_scoopH'), barrel = Math.max(0.3, 0.95 * (g('cw_cowlLen') || 0.6));
+    set('cw_scoopLen', +Math.min(barrel, Math.max(g('cw_scoopLen'), COOL_BIRTH.lenK * Hn)).toFixed(3));
+    if (!(g('cw_scoopHold') > 0)) set('cw_scoopHold', COOL_BIRTH.hold);
+  };
+  // the wing radiators' mouths (mode 1 a pair, 2 one and an oil cooler), grown to `A` m2 in all (cage metres x planeScale)
+  const radiators = A => {
+    const rm = Math.round(g('radMode')), ps = g('planeScale') > 0 ? g('planeScale') : 1, oilK = g('radOilK') || 0.55;
+    const per = rm === 1 ? 2 : 1 + oilK * oilK, w0 = Math.max(0.05, g('radW')), h0 = Math.max(0.03, g('radH'));
+    const have = per * w0 * h0 * (GC.radMouth || 0.8) * ps * ps;
+    if (have >= A) return;
+    const f = Math.sqrt(A / have);
+    set('radW', +(w0 * f).toFixed(3)); set('radH', +(h0 * f).toFixed(3));
+  };
+  const mK = Math.round(g('engMount')), aim = Math.round(g('engAim'));
+  const Vp = Math.max(COOL_BIRTH.Vmin, Math.min(COOL_BIRTH.Vmax, COOL_BIRTH.V100 * Math.pow(R.powerW / 1e5, COOL_BIRTH.Vexp)));
+  const pullA = areaAt(Vp), pushA = areaAt(COOL_BIRTH.push * Vp);
+  if (mK === 8) return out;                                                      // a fin mount: left as drawn
+  if (liquid && Math.round(g('radMode')) > 0) { radiators(Math.max(0, pullA - faceHave())); return out; }   // the radiators: what the nose leaves
+  if (turbine) { scoop(pullA, mK === 1 ? 'push' : 'pull'); return out; }       // the oil cooler's scoop
+  if (mK === 4 || mK === 7) {                                                    // push-pull, tandem: nose pulls, rear pushes
+    openFace(Math.max(pullA, pushA * GC.outRatio)); scoop(pushA, 'aft'); return out;
+  }
+  const pushes = mK === 1 || (mK === 2 && aim !== 1) || ((mK === 3 || mK === 6) && aim === 2);
+  if (!pushes) {
+    // a narrow inline's or vee's nose: a proper front opening, a tall slot (the user 12 Nov, the Tiger Moth: "a proper
+    // cowl front opening rather than this scoop")
+    const inline = R.arch === 'inline' || R.arch === 'vee';
+    openFace(pullA, inline ? COOL_BIRTH.slot : 0);
+    // a wing nacelle's face is small and round its spinner, whatever the engine: a chin scoop as well
+    if (mK === 3 || mK === 5 || mK === 6) scoop(pullA, 'pull');
+    return out;
+  }
+  if ((mK === 2 || mK === 3 || mK === 6) && Math.round(g('cw_aftMode')) === 1) {   // a nacelle's tail cone: its inlet
+    if (!+full.cw_inletOn) { set('cw_inletOn', 1); set('cw_inletW', Math.max(0.5, g('cw_inletW'))); set('cw_inletH', Math.max(0.5, g('cw_inletH'))); }
+    return out;
+  }
+  scoop(pushA, 'push'); openFace(pushA * GC.outRatio);
+  return out;
 }
 
 function designBake(sel, over) {
@@ -3599,8 +4037,8 @@ function designBake(sel, over) {
   // The MW5-alike's sailcloth on tubes was billed as a ply D-box (0.80
   // kg/m2 against 0.42) until the card could say `steel`.
   if (Math.round(+full.wgCons || 0) > 0)
-    wing.material = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'][   // G466: the fifth stop; G2047 the sixth; the aluminium spar the seventh
-      Math.min(6, Math.round(+full.wgCons) - 1)];
+    wing.material = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'][   // G466: the fifth stop; G2047 the sixth; the aluminium spar the seventh; the foot-launch D-tube the eighth
+      Math.min(7, Math.round(+full.wgCons) - 1)];
   const wings = [wing];
   const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut',
                     struts: Math.round(+full.wgStruts) === 1 ? 1 : 2 };   // T2.3 (83)
@@ -3662,8 +4100,8 @@ function designBake(sel, over) {
   // fuselage's material at all. The mappings are the join's own, verbatim
   // (_cage_join.js fus.material / spec.gear.fairing..twLegFair); the join
   // rewrites them on the very next build in the app.
-  designMerge(out, { fuselage: { material: ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'][
-    Math.max(0, Math.min(5, Math.round(+full.intCons || 0)))] } });
+  designMerge(out, { fuselage: { material: ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass', 'softShell'][
+    Math.max(0, Math.min(6, Math.round(+full.intCons || 0)))] } });
   if (full.canopy != null)
     designMerge(out, { cabin: { canopy: { style: Math.round(+full.canopy) === 3 ? 'bubble' : 'screen' } } });
   designMerge(out, { gear: {

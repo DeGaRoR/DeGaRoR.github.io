@@ -75,6 +75,7 @@ const CAGE_JOIN_ENGINES = {
   // A-65 through the fallback below, which is the four-orphan trap
   'P&W PT6A-114A': 'pt6a114a_hartzell3',
   'P&W PT6A-34': 'pt6a34_hartzell4',
+  'P&W PT6A-27': 'pt6a27_hartzell3',   // (12 Nov, FIT-PROCEDURE: the PC-6's)
 };
 
 // G132: THE DRAWN BLADE IS THE PHYSICS' AUTHOR. cw_material indexes the cowl
@@ -246,6 +247,14 @@ function cageJoinSpec(P, M, T) {
         ? { tipShape: +P.wgTipBow > 0 || +P.wgTipDroop > 0 || +P.wgTipFull > 1
             ? { bow: +P.wgTipBow > 0 ? +P.wgTipBow : null, droop: +P.wgTipDroop > 0 ? +P.wgTipDroop : null,
                 full: +P.wgTipFull > 1 ? +P.wgTipFull : null } : null } : {}),
+      // TIP-SKID (60_gen_spec GEN_TIP_SKID): the wingtip skid, its shoe's depth under the skin - absent when off (no key
+      // moves the hash of a wing without one)
+      ...(+P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {}),
+      // THE HUB (the rod rooted in the centre section): the centre's rows and the first bay's loop cuts the rod's hump
+      // is shaped on (_cage_wing hubHump) - the same keys the wing layer draws with
+      // THE HUB (the rod rooted in the centre section): the centre's rows the rod's hump is shaped on - the wing layer's
+      // own (_cage_wing CAGE_HUB_ROWS / CAGE_HUB_CUTS), so the flown loft has the drawn one's rows
+      ...(typeof window !== 'undefined' && window.CAGE_HUB_ROWS ? window.CAGE_HUB_ROWS(P) : {}),
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
@@ -255,7 +264,7 @@ function cageJoinSpec(P, M, T) {
       beam: P.wgBeam == null || +P.wgBeam ? 'on' : 'off',              // T2.3 (48)
       // G189: the lamp bay's edges as loft stations (null = none), the same
       // arithmetic the wing layer uses, so the flown loft has the bay's rows
-      cuts: cageWingCuts(P),
+      cuts: (typeof window !== 'undefined' && window.CAGE_HUB_CUTS) ? window.CAGE_HUB_CUTS(P, cageWingCuts(P)) : cageWingCuts(P),
       // G2820: THE STOL WING (60_gen_spec genStolCage) - STATED in both
       // states (A3): the record, or null when every device is off, so the
       // garage's per-key merge can take a slat back off. A P without the
@@ -274,7 +283,7 @@ function cageJoinSpec(P, M, T) {
       // the row came home. A P without the key (a headless caller) says nothing.
       ...(P.wgCons != null ? { material: Math.round(P.wgCons) > 0
         ? ['carbon', 'steel', 'fabric',
-           'alloy', 'aluFabric', 'glass', 'fabricAlu'][Math.round(P.wgCons) - 1] : null } : {}),   // G466: the fifth stop; G2047 the sixth
+           'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'][Math.round(P.wgCons) - 1] : null } : {}),   // G466: the fifth stop; G2047 the sixth; the D-tube the eighth
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
@@ -287,7 +296,10 @@ function cageJoinSpec(P, M, T) {
                // wires in the file.
                cabane: (Math.round(P.wgPos) === 3 || +P.w2On) && Math.round(P.bpCabane || 0) ? 'V' : 'N',
                // HULL-B78: the cabane as one central faired pylon (the frame's narrow truss inside it)
-               ...((Math.round(P.wgPos) === 3 || +P.w2On) && +P.bpCabPylon ? { cabPylon: 1 } : {}),
+               ...((Math.round(P.wgPos) === 3 || +P.w2On) && +P.bpCabPylon ? { cabPylon: 1,
+                 // (the hub's pylon: its place and chord - written only off HULL-B78's 0.40 / 0.55)
+                 ...(P.bpCabPyAt != null && Math.abs(+P.bpCabPyAt - 0.40) > 1e-6 ? { cabPyAt: +P.bpCabPyAt } : {}),
+                 ...(P.bpCabPyLen != null && Math.abs(+P.bpCabPyLen - 0.55) > 1e-6 ? { cabPyLen: +P.bpCabPyLen } : {}) } : {}),
                ...(+P.w2On ? { interplane: ['N', 'I', 'none'][Math.round(P.bpInter || 0)] || 'N',
                                interplaneAt: +P.bpInterAt || 0.62,
                                wires: ['none', 'both', 'flying'][Math.round(P.bpWires == null ? 1 : P.bpWires)] || 'both' }
@@ -383,6 +395,9 @@ function cageJoinSpec(P, M, T) {
           ? (((LAY ? wingK(i) % 2 : i) === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
       });
       const wingK = i => LAY ? LAYM.slice(0, i).filter(m => m === 'wing').length : i;
+      // ENGINELESS (the LS4): the engine page's switch off (engOn 0) is a sailplane - one nose entry flagged `none`
+      // (60_gen_spec GEN_NO_POWERPLANT: no mass, no power, no propeller, no tank)
+      if (P.engOn != null && !+P.engOn) return [Object.assign(one(0, 'nose'), { none: true })];
       if (LAY) return LAYM.map((m, i) => one(i, m));
       return mk === 'wing' ? [one(0, mk), one(1, mk)] : [one(0, mk)];
     })(),
@@ -416,6 +431,11 @@ function cageJoinSpec(P, M, T) {
   if (M.gearType) {
     spec.gear = { type: M.gearType };
     if (M.track > 0) spec.gear.track = M.track;
+    if (M.mono) spec.gear.mono = true;             // MONOWHEEL: one main on the centreline (no track)
+    if (M.mono && +P.s1Ul) spec.gear.ul = true;   // WEIGHT STUDY L6: the ultralight monowheel (GEN_RULES.ulGear)
+    if (Math.round(+P.towHook || 0) > 0) spec.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+P.towHook)) - 1];   // THE TOW HOOK (GEN_RULES.towHook)
+    // MONOWHEEL: the mains sunk into the body (their share; the drag counts what stands out)
+    if (+P.s1Sink > 0 && +P.s1On) spec.gear.sink = Math.min(0.7, +P.s1Sink);
     if (M.contactR > 0) spec.gear.wheelR = M.contactR;
     // G51: the measured third wheel — axle height in the keel datum,
     // station firewall-anchored. clampSpec bounds them.
@@ -433,7 +453,7 @@ function cageJoinSpec(P, M, T) {
       // numbers, the details, the water rudder, the mass) plus the placement
       const HYj = window.HYDRO_GEN || (typeof HYDRO !== 'undefined' ? HYDRO : null);
       const keys = (HYj && HYj.FLOAT_SPEC_KEYS) || ['L', 'xs', 'B', 'H', 'beta', 'betaA', 'hs', 'aftAngle', 'bStern'];
-      for (const k of keys.concat(['y', 'track', 'volDeck', 'inc', 'frontRing']))
+      for (const k of keys.concat(['y', 'track', 'volDeck', 'inc', 'frontRing', 'rigFwd']))
         if (typeof M.floats[k] === 'number' && isFinite(M.floats[k])) spec.gear.floats[k] = M.floats[k];
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
       if (typeof M.floats.preset === 'string') spec.gear.floats.preset = M.floats.preset;
@@ -471,9 +491,12 @@ function cageJoinSpec(P, M, T) {
     // RETRACT-1 (RETRACT-STUDY §3.1): THE RETRACTABLE GEAR reaches the physics - a low-wing tricycle's in the garage
     // (the gear layer's GEAR_RETRACTABLE; clampSpec drops it on any type but a tricycle); written only when chosen, so a
     // fixed build's spec is what it was, to the bit
-    if (+P.gearRetract && M.gearType === 'tricycle' && !+P.gearFloats) {        // (GR: any wing - the Catalina's hull)
-      spec.gear.retract = { time: +P.gearRetT || 6,
-                            act: ['electric', 'hydraulic', 'manual'][Math.round(+P.gearRetAct || 0)] || 'hydraulic' };
+    if (+P.gearRetract && (M.gearType === 'tricycle' || (M.mono && +P.s1Ul)) && !+P.gearFloats) {        // (GR: any wing - the Catalina's hull; the ultralight monowheel, its main alone)
+      // (the ultralight monowheel's is a sailplane's - the pilot's lever, an over-centre link and a gas strut: manual,
+      // ~3 s, no user choice; GEN_RULES.ulGear.retractKg)
+      const ulR = M.gearType !== 'tricycle' && M.mono && +P.s1Ul;
+      spec.gear.retract = { time: ulR ? 3 : +P.gearRetT || 6,
+                            act: ulR ? 'manual' : ['electric', 'hydraulic', 'manual'][Math.round(+P.gearRetAct || 0)] || 'hydraulic' };
       // G1: the fraction, and the LIFT the gear layer MEASURED (foldChain: the stowed wheel's lowest point over the
       // down one) - the physics' contact plane follows the drawn wheel, not a rule
       const fr = +P.gearRetFrac;
@@ -512,6 +535,10 @@ function cageJoinSpec(P, M, T) {
     spec.gear.twFairTail = +P.s2FairTail || 1;
     spec.gear.fairMat = ['glass', 'carbon', 'alloy'][Math.round(P.fairCons || 0)]
                         || 'glass';
+    // THE BRAKES' HOLD (GEN_BRAKES, the user 9 Nov): the key only when chosen - absent flies as it always did (G3800's
+    // twMode rule), so no saved build moves and no certificate is withdrawn
+    { const bk = [null, 'drum', 'disc', 'double'][Math.round(+P.brkHold || 0)];
+      if (bk) spec.gear.brakes = bk; else delete spec.gear.brakes; }
     // G132: THE DRAWN LEG IS THE SUSPENSION. GEN_SUSPENSION (spring rate,
     // damping, price) read spec.gear.suspension while the mains' shock rows
     // drew coil-over/bungee/oleo from s1_shockKind with nothing between
@@ -591,7 +618,9 @@ function cageJoinSpec(P, M, T) {
   // T2.2: the glazing MATERIAL (the cage's one row) and the glazed AREA the
   // editor measured off its built sheet (CAGE_UI.glazedM2, m2 after the scale)
   if (P.glazeMat != null)
-    cabin.glazingMat = ['acrylic', 'polycarbonate', 'glass'][Math.max(0, Math.min(2, Math.round(+P.glazeMat)))];
+    cabin.glazingMat = ['acrylic', 'polycarbonate', 'glass', 'film'][Math.max(0, Math.min(3, Math.round(+P.glazeMat)))];   // (film: WEIGHT STUDY L3)
+  // WEIGHT STUDY L3: the light control runs (latent - the row at 0 writes nothing)
+  if (+P.ctlRuns) cabin.ctlRuns = 'light';
   {
     const UI = typeof window !== 'undefined' ? window.CAGE_UI : null;   // headless joins measure no sheet
     if (UI && UI.glazedM2 > 0) cabin.glazedM2 = +UI.glazedM2.toFixed(3);
@@ -643,6 +672,24 @@ function cageJoinSpec(P, M, T) {
   if (typeof M.seats === 'number' && M.seats >= 1) cabin.seats = M.seats;
   if (Array.isArray(M.occupied) && M.occupied.length) cabin.occupied = M.occupied;
   if (Object.keys(cabin).length) spec.cabin = cabin;
+  // ENGINE-COOLING: THE COWL'S OPENINGS, measured by the cowl layer off the cowl it drew (CAGE_COOL_OPEN, m2: the
+  // face, the scoop and its facing, a nacelle's inlet, the exit, the gills). Every key written every time, so the
+  // garage's per-key merge takes a closed opening back to 0; a headless join (no layer) says nothing, and the core then
+  // keeps the per-kW cooling drag (62_gen_aero genCoolOpen 'legacy'). MEASURED, never the player's: certStrip drops it
+  {
+    const co = typeof window !== 'undefined' ? window.CAGE_COOL_OPEN : null;
+    // ENGINE-COOLING 3: the heads in the wind (the engine layer, CAGE_COOL_HEADS: m2 out of the drawn skin, m2 in all),
+    // the scoop's other end (a push-pull's aft cowl, cw_scoopAft) and each unit's area factor; an uncowled engine
+    // writes its heads alone (all in the wind: the bare engine's own figure)
+    const hd = typeof window !== 'undefined' ? window.CAGE_COOL_HEADS : null;
+    const heads = hd && typeof hd === 'object' ? { headsOut: +hd.out || 0, headsAll: +hd.all || 0 } : { headsOut: null, headsAll: null };
+    if (co && typeof co === 'object')
+      spec.cooling = Object.assign({ face: +co.face || 0, scoop: +co.scoop || 0, scoopAlt: +co.scoopAlt || 0, scoopRev: co.scoopRev ? 1 : 0,
+                       nacInlet: +co.nacInlet || 0, exit: +co.exit || 0, gills: +co.gills || 0,
+                       units: Array.isArray(co.units) ? co.units.map(u => ({ aft: u.aft ? 1 : 0, k: +u.k || 1, turned: u.scoopTurned ? 1 : 0 })) : null }, heads);
+    else if (hd && typeof hd === 'object' && (P.cowlOn != null && !+P.cowlOn))
+      spec.cooling = Object.assign({ face: 0, scoop: 0, scoopAlt: 0, scoopRev: 0, nacInlet: 0, exit: 0, gills: 0, units: null }, heads);
+  }
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE)) {
     spec.wings[0].xLE = M.wingXLE;
@@ -696,14 +743,37 @@ function cageJoinSpec(P, M, T) {
   // material it has; the cage default is 0 (composite) and would have
   // put every such build on carbon.
   if (P.intCons != null)
-    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'][   // G2047: glassfibre, the sixth stop
-      Math.max(0, Math.min(5, Math.round(+P.intCons || 0)))];
+    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass', 'softShell'][   // G2047: glassfibre, the sixth stop; L4 the soft shell
+      Math.max(0, Math.min(6, Math.round(+P.intCons || 0)))];
   // G199.5: THE BOOM'S CONSTRUCTION is the cage's own declaration — the frame
   // keys a rod boom's stiffening on it (GEN_RULES.rodBoomK), because the
   // lattice it flies is not the tube it draws. Written on every join: the
   // cage IS the declaration, a save predating the field takes it on load.
   fus.boom = (+P.boomTwin || Math.round(+P.boomStyle || 0) === 2) ? 'twin'
            : Math.round(+P.boomStyle || 0) === 1 ? 'rod' : 'loft';
+  // THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2): the rod rooted in the wing's centre section
+  if (fus.boom === 'rod' && +P.rodHub) fus.rodHub = true;
+  // THE ROD ROW (WEIGHT STUDY L2b): latent - written only when moved off its default (the fuselage's material, 1.2 mm)
+  if (fus.boom === 'rod') {
+    const rm = Math.round(+P.rodMat || 0);
+    if (rm > 0) fus.rodMat = ['carbon', 'tubeFabric', 'aluTube', 'glass'][Math.min(4, rm) - 1];
+    if (P.rodWallMm != null && Number.isFinite(+P.rodWallMm) && Math.abs(+P.rodWallMm - 1.2) > 1e-9) fus.rodWall = +P.rodWallMm / 1000;
+  }
+  // THE HANGING NACELLE (the study's stage 3): the cabin on one structural mast from the wing's centre section to the
+  // keel, its station and chord on the root chord (the hub's: the cabin slides free of it), and where the drawn one stood
+  // (hangX, measured below; the spec drops it all under a wing that is not above the cabin)
+  if (+P.hangOn && P.wingOn) {
+    fus.hang = true;
+    if (P.hangAt != null) fus.hangAt = +P.hangAt;
+    // the twin keel tubes, at the window's sill: its height in the cabin's (the cabin ring's waist over its keel and roof)
+    if (Math.round(+P.hangKeels || 1) === 2) {
+      fus.hangKeel = 2;
+      try { const C2 = window.CAGE2, RR = C2.cageResolve(C2.cageSpec(P)), r = RR.rings.find(q => q.name === 'ring'), lv = r && r.lv;
+        if (lv && lv.waist && lv.keel && lv.roof && lv.roof.y > lv.keel.y) fus.hangKeelK = Math.round((lv.waist.y - lv.keel.y) / (lv.roof.y - lv.keel.y) * 1e4) / 1e4; } catch (e) {}
+    }
+    if (Array.isArray(M.hangX)) fus.hangX = M.hangX.slice();
+    if (P.hangLen != null) fus.hangLen = +P.hangLen;
+  }
   if (M.tailArm > 0) fus.tailArm = M.tailArm;
   if (M.postGap > 0) fus.postGap = M.postGap;
   // G54: the boom's path between the measured endpoints. clampSpec
@@ -833,6 +903,8 @@ function cageJoinSpec(P, M, T) {
   // the panel arc, session 2: the fit, the same way (a null inside it is
   // 'the tier's answer' and must survive — garage.js's merge keeps nulls)
   if (M.systems !== undefined) spec.systems = M.systems;
+  // WEIGHT STUDY: the instrument pod (the cage's instPod) - no dash, the dials on a pod (GEN_INSTR_POD)
+  if (+P.instPod) spec.systems = Object.assign({}, spec.systems || {}, { mount: 'pod' });
   return spec;
 }
 
@@ -1355,6 +1427,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         M.contactR = mains[0].R;
         const mz = mains.reduce((s, c) => s + c.p[2], 0) / mains.length;
         M.gearType = single && single.p[2] > mz ? 'tricycle' : 'taildragger';
+        // MONOWHEEL (60_gen_spec gear.mono): the mains row on the centreline - one wheel, no track
+        if (M.track < 0.02) M.mono = true;
       }
     }
     const AF = G2.AF, W = window.CAGE_WING;
@@ -1656,6 +1730,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const mains2 = (G2.contacts || []).filter(c => c.st && !isSingle(c));
         if (mains2.length)
           M.gearX = zFw - mains2.reduce((s, c) => s + c.p[2], 0) / mains2.length;
+        // THE HANGING NACELLE'S MAST, as drawn (the wing layer's CAGE_HANG: its back face on the drawn aft bulkhead): its
+        // front and back stations on the same firewall datum, so the frame's mast stands where the drawn one does
+        const HGm = window.CAGE_HANG;
+        if (+P.hangOn && HGm && isFinite(HGm.zF) && isFinite(HGm.zR))
+          M.hangX = [Math.round((zFw - HGm.zF) * 1e4) / 1e4, Math.round((zFw - HGm.zR) * 1e4) / 1e4];
         const zRing = zOf2('ring');
         if (zRing != null) {
           const sparF = (typeof GEN_RULES !== 'undefined' &&
@@ -2069,7 +2148,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // The list is written WHOLE - garage.js's merge replaces an array - so a
     // removed tank stays removed.
     if (window.CAGE_ENERGY && window.CAGE_ENERGY.toSpec)
-      try { M.energy = window.CAGE_ENERGY.toSpec(); }
+      try { M.energy = window.CAGE_ENERGY.toSpec(); if (P.engOn != null && !+P.engOn) M.energy.vessels = []; }   // (ENGINELESS: no tank)
       catch (e) { ERRS.push('the tanks could not be written to the build: '
                             + e.message); }
     // ...AND THE FIT (the panel arc, session 2), through the same door: the
@@ -2342,7 +2421,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const GB = window.CAGE_GEAR || {};
       for (const c of GB.contacts || [])
         PARTS.wheels.push({
-          kind: c.st.x <= 0.01 ? 'tw' : (c.p[0] > 0 ? 'mainsL' : 'mainsR'),
+          // (MONOWHEEL: the mains row on the centreline is the one main, 'mainsR' - the gear layer's kind R, the flown
+          // wheel the app hangs on refs.mains[0] - never the third wheel)
+          kind: c.st.x <= 0.01 && c.st.single !== false ? 'tw' : (c.p[0] > 0 ? 'mainsL' : 'mainsR'),
           R: c.R, cx: c.p[0], cy2: c.p[1], cz2: c.p[2], groups: {} });
       // G58.3: the legs stretch-follow their axle (suspension visually
       // compresses); the castor fork yaws for ground manoeuvring
@@ -3568,7 +3649,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const axv = sim2.axes();
       out.push(row('SETTLED TW over ground (want 0)', 0, agl('TW')));
       out.push(row('SETTLED mains over ground (want 0)', 0,
-        Math.min(agl('AXLEL'), agl('AXLER'))));
+        Math.min(...['AXLEL', 'AXLER', 'AXLEC'].map(agl).filter(v => isFinite(v)))));   // (MONOWHEEL: AXLEC)
       // the BODY AXIS (noseFrame→tailMid) is itself inclined in the
       // design frame — the settled axis pitch equals stance MINUS that
       // inclination. Comparing raw axis pitch to stance is the trap

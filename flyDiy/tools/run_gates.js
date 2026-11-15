@@ -177,6 +177,14 @@ const GATES = [
   // and the Cub HOME > Skyline Altiport (stopped, no fault; the final begun at the circuit height; every flare armed over
   // the strip and at most FLARE_ARM_MAX above it) and the flare guard's own row (a doctored arrival 250 m low is caught)
   { id: 'ALTIPORT', file: '_altiport_check.js', tier: 'core', shards: 4, timeout: 3600_000, wall: 900 },   // G2530: + 4 the metal Cessna (a fourth job, a fourth shard)
+  // TOW-LAUNCH GLIDE: unpowered flight, from the air - the motorglider (key off) and the Archaeopteryx on a glider's
+  // circuit at Jolene, Skyline Altiport > Jolene (the route's To first), a To out of reach (the nearest field), and the
+  // C172-alike's engine failures (300 m, 1000 m, the tanks dry: the nearest field its glide reaches, the circuit, landed)
+  { id: 'GLIDE', file: '_glide_check.js', tier: 'core', shards: 4, timeout: 3600_000, wall: 900 },
+  // PILOT-UNIFY (13 Nov, the user: one coherent pilot, abilities it triggers itself, declined into the story's persons): the
+  // ability table, the strip deciding the technique (feel / STOL / the short law by person and airframe), the glider rating
+  // deciding glide-to-goal or emergency, every person gliding an engine failure, the Archaeopteryx card when the tree has it
+  { id: 'UNIFY', file: '_unify_check.js', tier: 'core', shards: 4, timeout: 3600_000, wall: 1200 },
   // G2500 CESSNA-VREF: the metal Cessna as the game loads it into Tamgas Hill's 520 m in the game's flight, damage on -
   // stopped on the strip, or the strip refused with its reason said and the diversion landed; the C172 file build the control
   { id: 'CESSNAVREF', file: '_cessnavref_check.js', tier: 'full', shards: 2, timeout: 2400_000, wall: 700 },
@@ -196,6 +204,24 @@ const GATES = [
   // fixed wheel), a twin boom's wheel a boom, the inverted V on its tip wheels flying HOME's circuit, its controls'
   // signs and volumes, the old saves' migration (~10 min, four probes at a time)
   { id: 'TAILWHEEL', file: '_tailwheel_check.js', tier: 'core', weight: 4, wall: 900 },
+  // MONOWHEEL (the Archaeopteryx study's stage 1): the single wheel on the centreline (gear.mono: the spec's flag, one axle
+  // node, one wheel billed, the cert's ground loads on it), the wingtip skid under any tip (its shoe's node and the drawn
+  // hoop on one contact), the nose skid; the motor glider on one wheel and a tail skid parks on one wingtip skid, rolls to
+  // 25 m/s and flies HOME's circuit; the tile's Monowheel parks on its nose skid (~8 min, one probe in parallel)
+  { id: 'MONOWHEEL', file: '_monowheel_check.js', tier: 'core', weight: 2, wall: 900 },
+  // HUB (the Archaeopteryx study's stage 2): the rod slotted into the wing's centre section - the spec's key, the root bay
+  // in the rod's rigid cluster and tied to its root ring, the socket's mass, the tail held off the wing alone, the drawn
+  // collar (~1 min)
+  { id: 'HUB', file: '_hub_check.js', tier: 'core', wall: 300 },
+  { id: 'NACELLE', file: '_nacelle_check.js', tier: 'core', wall: 200 },   // the Archaeopteryx study's stage 3: the hanging nacelle's mast
+  // WEIGHT STUDY (2026-11-12): the foot-launch D-tube wing - light, built for ~250 kg, certified there; on a Cub, a C172 and a
+  // Caravan it breaks under the 3.8 g limit at its root, and without its build weight the exploit reopens (negative control)
+  { id: 'LIGHTWING', file: '_lightwing_check.js', tier: 'core', wall: 320 },
+  // WEIGHT STUDY L2b (2026-11-12): the rod row - the rod's material and wall, latent; its stiffness and its breaking follow the
+  // section (the solver's tube cut): the Archaeopteryx holds on carbon 0.8 mm, a 0.5 mm rod on the pusher pod parts at its root
+  { id: 'RODROW', file: '_rodrow_check.js', tier: 'core', wall: 300 },
+  { id: 'ULTRALIGHT', file: '_ultralight_check.js', tier: 'core', wall: 420 },   // (WEIGHT STUDY L4-L6: the soft shell, the hub, the ultralight monowheel)
+  { id: 'ENGINELESS', file: '_engineless_check.js', tier: 'core', wall: 90 },   // (the LS4: the sailplane - engines[0].none, no powerplant, no propeller, no tank)
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
   // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)
@@ -548,6 +574,15 @@ const GATES = [
   // the classes (reproduction / story / original / wip for the player, next / legacy / archive for the dev), one row per plane, nothing deleted; the pool agrees, the Market's files stay; the All planes screen's source rows, internal for the dev only;
   // the empty stand's R1 and R2 (EMPTY-STAND-RELOOK). ~1 s
   { id: 'PLANELISTS', file: '_planelists_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },
+  // REALBAND (REAL-FIGURES made perennial, 12 Nov): the live set of tools/real_refs.js PLANES (the planes the REAL-CHECK
+  // report stands behind) still flies its quick band - the airframe at MIN / TYP / MTOW, the shape, the empty mass - against
+  // tools/realband_baseline.json. A meant move (physics, a refit) is accepted with `node tools/_realband_check.js --write --reason="..."`,
+  // then the set re-flown for the report. Two children (weight 2), ~4 min
+  // REALREFS: every reference figure states what it is, its conditions (weight, flaps, surface) and - for a reference made
+  // from 12 Nov - its trail (variant, sources with url / date read / quality, each row's source); every PLANES row resolves.
+  // Pure node, ~0.1 s
+  { id: 'REALREFS', file: '_realrefs_lint.js', argv: ['--selftest'], tier: 'core', wall: 3 },
+  { id: 'REALBAND', file: '_realband_check.js', argv: ['--selftest', '--jobs=2'], tier: 'core', weight: 2, wall: 300 },
   // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
   // (every card-like id draggable or allow-listed with its reason), the manifest (before app.js), the gesture in a stub DOM
   // (threshold, save per key, buttons never drag, re-render / re-made cards put back, on screen, the double-click). ~1 s
@@ -600,6 +635,10 @@ const GATES = [
   // LIVERY-TEXT (9 Nov): six text pieces a plane in six faces fetched on first use - the slots, the pages, the stand-in
   // and the arrival, no synthesised style, the official builds unchanged, the files and their licences
   { id: 'LIVERYTEXT', file: '_livery_text_check.js', tier: 'core' },
+  // THE LIVERY STICKERS (LIVERY-STICKERS, 9 Nov): the twelve Alaska marks - the cutter-ready art, the game's copy the
+  // cutter's (raster-compared), every row absent at default, the official builds unchanged and saved back byte for
+  // byte, the placement and the sides, the draw on a recording canvas, the lazy file; --selftest
+  { id: 'LIVERYSTICKERS', file: '_liverystickers_check.js', tier: 'core', wall: 60 },
   // THE WEATHERING (G345): the module's GLSL rules, its tables, its load order
   { id: 'WEATHER', file: '_weather_check.js', tier: 'core' },
   // THE SURFACE FIELD (G66): the coordinate AEROSKIN tiles and structures on
@@ -691,6 +730,7 @@ const GATES = [
   { id: 'CAGEFIT', file: '_cage_fit.js', tier: 'core' },      // the cage vs its 3 reference OBJs
   { id: 'FRAMES', file: '_frames_check.js', tier: 'core' },   // T2.1: the frames — corpus identity, locality, follow, migration, profile
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
+  { id: 'DRAFTING', file: 'drafting/dt_check.js', tier: 'core', wall: 6 },   // FIT-PROCEDURE: the drafting table's own checks and the PC-6 fitted to its reference (4 s)
   // WINDOWS-FREE (2026-10-27): the free quad window - an unplaced quad is its rectangle, the Cub's quad rear window cut
   // watertight with each corner where it was put (read off the cut loop), its fore part on the old window's, a concave
   // and a crossed quad refused with their reason, the corners saved exact and absent from every other save (~20 s; --selftest)
@@ -770,6 +810,10 @@ const GATES = [
   // step ahead of the CG, the floats short, the margin's remedy sized by rebuilt levers; the corners against the
   // envelope; the tiers only relax; the indicators' menu replaces the reference-cut button; ~40 s
   { id: 'AIDS', file: '_aids_check.js', tier: 'core', wall: 45 },
+  // ENGINE COOLING (ENGINE-COOLING, 12 Nov; futureDesigns/ENGINE-COOLING-2026-11.md): the drawn openings' facing, the
+  // reference-fitted cowls' hot-day margins, the cowled pusher's remedy path, the momentum drag, the proposed rows and
+  // the fingerprint, the turned scoop. ~75 s (six cards through the load door)
+  { id: 'COOL', file: '_cool_check.js', tier: 'core', wall: 420 },
   // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
   // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
   // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,
@@ -868,6 +912,13 @@ const GATES = [
   // Generate, always reaches the editor), three fixed joined builds (one per gear kind) + the saved failure
   // fixtures, five seeded random pre-join builds. The once is tools/newplane_validate.js, NOT here.
   { id: 'NEWPLANE', file: '_newplane_check.js', tier: 'core' },
+  // GATE FLEET (the user 13 Nov: 'load aircraft' full screen, a tile per aeroplane with Load and Fiche, ordered and filtered):
+  // fleet_screen.js on a DOM stub - the render held, the tile asks (no browser pop-up), one load behind the spinner, the fiche's
+  // own key, the list's classes in order; and the wiring (garage.js hands the hangar over, no #gFleet); --selftest: 7 reds
+  { id: 'FLEET', file: '_fleet_check.js', argv: ['--selftest'], tier: 'core', wall: 10 },
+  // GATE STARTCHOOSER (the user 13 Nov: the sandbox's Fly / Drive with where from and where to, on TOW-LAUNCH's FLYDIY_START):
+  // start_chooser.js on a DOM stub - the story untouched, the remembered start, the greyed reasons, Surprise me only reachable
+  { id: 'STARTCHOOSER', file: '_startchooser_check.js', argv: ['--selftest'], tier: 'core', wall: 10 },
   // ...its joined builds: one per gear kind + the saved failure fixtures (tools/fixtures/newplane/), ~3 min - full
   { id: 'NEWPLANE-BUILDS', file: '_newplane_check.js', argv: ['--builds'], tier: 'full' },
   // ...and the declared canonical builds actually FLY: designBake -> clamp
@@ -918,6 +969,7 @@ const GATES = [
   // the baked raster agrees with the live composition (WORLD-V2 6.3), and no
   // catalogue key is a literal in the editor (the contract held).
   { id: 'PREMISES', file: '_premises_check.js', tier: 'core' },
+  { id: 'PARKING', file: '_parking_check.js', tier: 'core' },   // PARKING-AREA (13 Nov): an area the parked fleet fills (25_airfield fleetSpots)
   // G2890 (SCENERY-ED-1): the scenery editor's HAND, headless - premises_ui.js under a DOM stub on the real core: a polygon's
   // corner added on its edge / picked / removed / subdivided / undone, the round pad, the smooth road's handles, the plot pick (~1 s)
   { id: 'SCENERYED', file: '_scenery_ed_check.js', tier: 'core' },
@@ -1021,6 +1073,10 @@ const GATES = [
   { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   // AIRCRAFT-BOARD (the user 4 Nov: the fiche, awarded on passed certification): plane_fiche.js's views, award, matte, clone, target. ~1 s
   { id: 'PLANEFICHE', file: '_plane_fiche_check.js', argv: ['--selftest'], tier: 'core', wall: 2 },
+  // PHYSICS-PAGES (the user 11 Nov: the physics a player never sees, as fiche pages): 66c genFichePages' data held to the
+  // functions it reads (a second load test, bench_worker's own test to destruction, the drag rows, genSystemsResolve and
+  // makeBus, the tanks, the model) on the Cub, the Cessna and the Twin; fiche_physics.js's fit and its pages in both themes. ~90 s
+  { id: 'PHYSPAGES', file: '_physpages_check.js', argv: ['--selftest'], tier: 'full', wall: 100 },
   // WING-STRUCTURE (the user 9 Nov: the cutaway's missing wing, its structure in its place): wing_struct.js on the validated
   // aeroplanes - the spars on their nodes and the printed rails, the ribs at the field's stations, the wires on the
   // solver's members, the stringers at the grammar's pitch, the budget, inside the covering, no physics. ~10 s

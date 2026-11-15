@@ -37,6 +37,9 @@ const DEF = {
   // the wheel
   whProfile: 0, whTread: 0, whRibs: 3, whRim: 0, whBolts: 6, whCap: 1,
   whValve: 1, whBrake: 0,
+  // THE BRAKES' HOLD (GEN_BRAKES, 9 Nov): 0 as it always was (the surface's friction, no mass), 1 heel drums, 2 single-
+  // caliper discs, 3 double-caliper discs - a PHYSICS row: the join writes gear.brakes from it
+  brkHold: 0,
   whSlick: 0,        // G3852: a tundra's tread - 0 the bush lugs, 1 smooth, 2 the bevelled lugs (G3851b)
                      // (a look: the fingerprints skip it, bench.js)
   whBulge: 1,        // sidewall inflation x (G33: the balloon look, on
@@ -57,7 +60,7 @@ const DEF = {
   // up the leg, the axle ahead of the fitting, the static deflection at gross (the strut's charge), the leg's fairing
   // chord, the fitting round the body. Every row is ABSENT AT ITS DEFAULT (_cage_gen CAGE_DEFAULT_ABSENT): no saved
   // build gains a key
-  lvArm: 0.400, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.070, lvLegW: 0.090, lvRootAng: 80, lvBoot: 0,
+  lvArm: 0.400, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.070, lvLegW: 0.090, lvRootAng: 80, lvBoot: 0, lvJoint: 0,
   // the tailwheel assembly
   twR: 0.10, twSpringLen: 0.52, twSpringDrop: 0.30, twSpringW: 0.052,
   twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
@@ -120,7 +123,8 @@ const LEG_ROWS = {
     ['lvLegW', 'leg fairing chord', 0.04, 0.16, 0.002],
     ['lvRootAng', 'fitting round the body', 40, 120, 1],
     // (the leg fairing's shape - shown with the leg-fairing row: _cage_gear legRowWhen)
-    ['lvBoot', 'leg fairing shape', 0, 2, 1, ['trailing (Wilga)', 'tapered', 'flared']],   // (the user, 10 Nov: "trailing should be the default")
+    ['lvBoot', 'leg fairing shape', 0, 2, 1, ['trailing (Wilga)', 'tapered', 'flared']],
+    ['lvJoint', 'leg fairing root', 0, 2, 1, ['plain', 'fitted to the body, riveted strip', 'fitted to the body, no strip']],   // (the user, 10 Nov: "trailing should be the default")
   ],
   3: [
     ['twSpringLen', 'spring length', 0.20, 1.00, 0.01],
@@ -159,26 +163,30 @@ const TW_STEERS = ['steerable', 'steerable', 'lockable', 'fixed', 'skid'];
 // THE WHEEL ROWS, shared (G33 — the cage panel had lost this group
 // entirely; the port-the-full-surface rule again). Lifted verbatim from
 // the bench's own group + the new sidewall bulge.
+// MONOWHEEL: the bicycle wheel (3) draws its own spokes, rim and hub - the aircraft wheel's rows step aside for it
+const notCycle = { when: P => Math.round(+P.whProfile || 0) !== 3 };
 const WHEEL_ROWS = [
-  ['whProfile', 'carcass', 0, 3, 1, ['standard', 'tundra balloon', 'slim', 'military lug (1940s)']],
+  ['whProfile', 'carcass', 0, 4, 1, ['standard', 'tundra balloon', 'slim', 'bicycle (light)', 'military lug (1940s)']],
   // G3852: the 'tread' row (ribbed / smooth / blocked) is gone - each carcass draws its own; whTread stays in DEF
   // and in every file as loaded (a hashed cage row); the tundra keeps a choice of its own (the user: "a Tundra tyre
   // with no pattern"), shown only on that carcass
   ['whSlick', 'tundra tread', 0, 2, 1, ['bush lugs', 'smooth', 'bevelled lugs'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
-  ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
-  ['whRibs', 'ribs', 1, 5, 1],
-  ['whRim', 'rim', 0, 4, 1, ['cast disc', 'spoked', 'lightened', 'steel disc + lock ring', 'pressed, round holes']],
-  ['whRimD', 'rim diameter (× the wheel\'s; 0 = the carcass\'s own)', 0, 0.85, 0.01],   // CAR-1
-  ['whWide', 'tyre width (× the carcass\'s; 0 = its own)', 0, 1.5, 0.01],   // CAR-1
-  ['whBolts', 'rim bolts', 3, 10, 1],
-  ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
-  ['whValve', 'valve stem', 0, 1, 1],
-  ['whBrake', 'brake type', 0, 2, 1, ['disc', 'drum', 'car drum (inside the rim)']],
+  ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01, notCycle],
+  ['whRibs', 'ribs', 1, 5, 1, notCycle],
+  ['whRim', 'rim', 0, 4, 1, ['cast disc', 'spoked', 'lightened', 'steel disc + lock ring', 'pressed, round holes'], notCycle],
+  ['whRimD', 'rim diameter (× the wheel\'s; 0 = the carcass\'s own)', 0, 0.85, 0.01, notCycle],   // CAR-1
+  ['whWide', 'tyre width (× the carcass\'s; 0 = its own)', 0, 1.5, 0.01, notCycle],   // CAR-1
+  ['whBolts', 'rim bolts', 3, 10, 1, notCycle],
+  ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat'], notCycle],
+  ['whValve', 'valve stem', 0, 1, 1, notCycle],
+  ['whBrake', 'brake type', 0, 2, 1, ['disc', 'drum', 'car drum (inside the rim)'], notCycle],
+  ['brkHold', 'brakes (hold, mass)', 0, 3, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs']],
   // CAR-3 (WHEEL-TEX): the tyres' and rims' own PBR maps - the tread, the sidewall's lettering, the wear and the dirt
-  // (absent = the plain materials); the pattern (auto: a car all-season, an aeroplane ribbed) and the dirt
-  ['whTex', 'textured tyres and rims (PBR)', 0, 1, 1, { absent: 0 }],
-  ['whTexPat', 'tread pattern', 0, 3, 1, ['auto', 'vintage wavy ribs', 'modern all-season', 'aviation ribbed'], { when: P => +P.whTex === 1, absent: 0 }],
-  ['whTexDirt', 'tyre and rim dirt', 0, 1, 0.01, { when: P => +P.whTex === 1, absent: 0.4 }],
+  // (absent = the plain materials); the pattern (auto: a car all-season, an aeroplane ribbed) and the dirt. Not on the
+  // bicycle wheel (wheelCycle draws its own)
+  ['whTex', 'textured tyres and rims (PBR)', 0, 1, 1, { when: notCycle.when, absent: 0 }],
+  ['whTexPat', 'tread pattern', 0, 3, 1, ['auto', 'vintage wavy ribs', 'modern all-season', 'aviation ribbed'], { when: P => notCycle.when(P) && +P.whTex === 1, absent: 0 }],
+  ['whTexDirt', 'tyre and rim dirt', 0, 1, 0.01, { when: P => notCycle.when(P) && +P.whTex === 1, absent: 0.4 }],
   // CAR (12 Nov): THE CAR SWITCH and the car-only rows (absent = an aeroplane; nothing changes for one)
   ['isCar', 'this build is a car', 0, 1, 1, ['no (an aeroplane)', 'yes (a car)']],
   ['carDrive', 'driven wheels', 0, 1, 1, ['rear', 'all four (4WD)'], { when: P => +P.isCar }],
@@ -292,6 +300,7 @@ const gearStations = P => {
                leg: Math.round(P['s' + i + 'Leg']), R: P['s' + i + 'R'],
                drop: P['s' + i + 'Drop'], brake: P['s' + i + 'Brake'],
                axZ: +P['s' + i + 'AxZ'] || 0,
+               sink: Math.max(0, Math.min(0.7, +P['s' + i + 'Sink'] || 0)),   // MONOWHEEL: the sunk wheel's share in the body
                // NEW-SHAPES-1: where the legs root - 0 auto (a wing under the body takes them), 1 the fuselage
                root: Math.round(+P['s' + i + 'Root'] || 0),
                fair: Math.round(P['s' + i + 'Fair'] || 0),

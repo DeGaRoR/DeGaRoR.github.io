@@ -551,6 +551,10 @@
     go.classList.add('wgo');
     row('garage', '✎', 'Garage only', READY.garage ? 'build without loading the island' : 'build without loading the island: not built yet', READY.garage ? '' : 'coming',
       READY.garage ? () => done('garage') : null);
+    // THE DRAFTING TABLE (tools/DRAFTING_TABLE.md, the user 11 Nov: "a button from the main menu ... build new reference
+    // plane"): a light page of its own (drafting.html), so the game is left, not loaded - nothing heavy rides along
+    row('drafting', '⌖', 'New reference plane', 'match a real aeroplane to its blueprints: the light drafting table', '',
+      () => { try { location.href = 'drafting.html'; } catch (e) {} });
     const pre = presetNow(store, search(), API.pick);
     row('settings', '⚙', 'Settings', 'graphics: ' + (LABEL[pre] || pre || 'not chosen yet'), '', () => {
       o.remove();

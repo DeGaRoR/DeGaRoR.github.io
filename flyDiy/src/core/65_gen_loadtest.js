@@ -298,8 +298,12 @@ function makeLoadTest(sim, def, cfg) {
     // clear of the ground so contact never joins in, then bolt the rig down
     for (let i = 0; i < sim.n; i++) sim.p[i*3+1] += GEN_LOAD_LIFT;
     pin.length = 0;
+    // THROUGH THE BOOM (WEIGHT STUDY L2, GATE LIGHTROD): a tail surface's bags carried through the rod - only the cabin
+    // (forward of the box's rear) on the trestles, the rod and the tail free - so the rod takes the tail's load as in
+    // flight; the default pins everything but the surface, as ever
+    const xFree = cfg.throughBoom && def.spec && def.spec.fuse && def.spec.fuse.boxRear != null ? def.spec.fuse.boxRear + 0.05 : Infinity;
     def.nodes.forEach(function (nd, i) {
-      if (!wingTag[nd.tag] && !carriedTag[i])
+      if (!wingTag[nd.tag] && !carriedTag[i] && !(nd.p[0] > xFree))
         pin.push([i, sim.p[i*3], sim.p[i*3+1], sim.p[i*3+2]]);
     });
   }

@@ -48,6 +48,7 @@ const BENCH = [
   ['P&W R-1830', () => ENG('r1830_hs23e50'), [60e3, 100e3], 'ESTIMATE'],
   ['P&W PT6A-114A', () => ENG('pt6a114a_hartzell3'), [350e3, 433e3], 'P&WC flat-rate overhaul 2025'],
   ['P&W PT6A-34', () => ENG('pt6a34_hartzell4'), [387e3, 455e3], 'P&WC flat rate 2026'],
+  ['P&W PT6A-27', () => ENG('pt6a27_hartzell3'), [372e3, 450e3], 'P&WC flat rate 2026 (PT6A-27)'],
   ['P&W PT6A-42', () => ENG('pt6a42_hartzell4'), [420e3, 489e3], 'P&WC flat rate 2026'],
   // props (GEN_PROP_MATS through the frame's law)
   ['prop: fixed wood, Cub 1.88 m', () => propP('wood', 2, 1.88), [3.5e3, 4.4e3], 'Sensenich W72 (Univair)'],

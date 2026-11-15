@@ -502,6 +502,17 @@ function makeSim(def, world) {
     const i3 = i * 3, vn = v[i3] * nx + v[i3+2] * nz, tx = v[i3] - vn * nx, ty = v[i3+1], tz = v[i3+2] - vn * nz;
     const st = Math.sqrt(tx * tx + ty * ty + tz * tz);
     if (st > 0.05) scuffAdd(i, 0.5 * F * st * dt, tx / st, ty / st, tz / st, -nx, 0, -nz, false);
+    // G4101 (CRASH-LOOK, the user 13 Nov: "if it touches anything, the scuff goes on"): the PRESS - the work of the
+    // approach into the bark (F x the speed into it), no direction (a mark, not a streak: it lowers the record's coherence)
+    if (vn < -0.05) scuffAdd(i, F * -vn * dt, 0, 0, 0, -nx, 0, -nz, false);
+  }
+  // G4101: THE NOSE'S MARK - the crushable nose (nosePass) pushes on its thrust nodes and never touched the record: a
+  // nose into a trunk or ploughing the ground left no scuff on the cowl (a 3 m/s taxi into a trunk: nothing drawn). Its
+  // work - the approach (F x the speed into the obstacle) and the slide (F x mu x the slip) - on each thrust node by its
+  // share, the slide's direction where it slid, pushed from the obstacle's side
+  function scuffNose(i, w, F, vin, sx, sy, sz, sp, nx, ny, nz, soft, dt) {
+    const wk = w * F * ((vin > 0 ? vin : 0) + GEN_NOSE.mu * sp) * dt;
+    if (wk > 0) scuffAdd(i, wk, sp > 0.05 ? sx / sp : 0, sp > 0.05 ? sy / sp : 0, sp > 0.05 ? sz / sp : 0, -nx, -ny, -nz, soft);
   }
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
@@ -764,7 +775,7 @@ function makeSim(def, world) {
   const PCORE = CMP ? new Float64Array(nb).fill(Infinity) : null;
   function dmgMember(bi, b, R) {
     const Lb = b.L > 0 ? b.L : 0, ph = typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS[b.mat] ? GEN_MATERIALS[b.mat].phys : null;
-    const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube'));
+    const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube')) || (b.mat === 'softShell' && b.cls !== 'gear');   // (L4: a pole buckles wherever it stands)
     if (tube && !b.tens && !ISO[bi] && !LUMP[bi] && ph && ph.E > 0 && Lb > 0) {   // (G2361: an isolator does not buckle; G2367: nor a lumped fan)
       const fe = Math.PI * Math.PI * ph.E * (b.A * (GEN_CRASH_TUBE_DT * b.A / Math.PI) / 8) / (Lb * Lb);
       if (fe < b.fc0) b.fc0 = fe;
@@ -1576,7 +1587,7 @@ function makeSim(def, world) {
   const RFRAC = RET ? (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1) : 1, RSEMI = RFRAC < 1;
   if (RET) {
     const isMainN = new Set(def.refs.mains || []);
-    for (const i of [...(def.refs.mains || []), def.refs.tw]) {
+    for (const i of [...(def.refs.mains || []), ...(RET.fixedTw ? [] : [def.refs.tw])]) {   // (the ultralight monowheel: the tail wheel stays down)
       if (!(i >= 0 && i < n)) continue;
       GW[i] = 1;
       const meas = RET.lift ? (isMainN.has(i) ? RET.lift.mains : RET.lift.nose) : null;
@@ -1967,6 +1978,22 @@ function makeSim(def, world) {
     NOSE.forEach((N, k) => { if (!N) return; for (const i of N.body) { NZ.node[i] = k + 1; NZ.K[k] += KGn0(i); } NZ.C[k] = 1.6 * Math.sqrt(NZ.K[k] * N.m); });
     for (let bi = 0; bi < nb; bi++) { const a = NZ.node[beams[bi].a], b = NZ.node[beams[bi].b]; NZ.beam[bi] = a && a === b ? 2 : (a || b) ? 1 : 0; }
   }
+  // ENGINE-LUMP (33_drive GEN_NOSE.lumpZ): per member inside one engine's body (NZ.beam 2), its extra damping along its
+  // length - lumpZ x 2 sqrt(k mu), mu the pair's reduced mass - held under 0.5 mu / dt (the substep's, set on first use)
+  const ENGLUMP = NOSE && GEN_NOSE.lumpZ > 0 ? { bi: [], c: [], mu: [], dt: 0 } : null;
+  if (ENGLUMP) for (let bi = 0; bi < nb; bi++) if (NZ.beam[bi] === 2) { const b = beams[bi], ma = def.nodes[b.a].m || 1, mb = def.nodes[b.b].m || 1; ENGLUMP.bi.push(bi); ENGLUMP.mu.push(ma * mb / (ma + mb)); ENGLUMP.c.push(0); }
+  function lumpPass(dt) {
+    const E = ENGLUMP;
+    if (E.dt !== dt) { E.dt = dt; for (let j = 0; j < E.bi.length; j++) { const b = beams[E.bi[j]], mu = E.mu[j];
+      E.c[j] = Math.min(GEN_NOSE.lumpZ * 2 * Math.sqrt(Math.max(0, b.k) * mu), 0.5 * mu / dt); } }
+    for (let j = 0; j < E.bi.length; j++) {
+      const b = beams[E.bi[j]]; if (b.broken) continue;
+      const ia = b.a * 3, ib = b.b * 3, ex = p[ib] - p[ia], ey = p[ib+1] - p[ia+1], ez = p[ib+2] - p[ia+2], L = Math.sqrt(ex*ex + ey*ey + ez*ez);
+      if (!(L > 1e-6)) continue;
+      const ux = ex / L, uy = ey / L, uz = ez / L, dv = (v[ib] - v[ia]) * ux + (v[ib+1] - v[ia+1]) * uy + (v[ib+2] - v[ia+2]) * uz, F = E.c[j] * dv;
+      f[ia] += F * ux; f[ia+1] += F * uy; f[ia+2] += F * uz; f[ib] -= F * ux; f[ib+1] -= F * uy; f[ib+2] -= F * uz;
+    }
+  }
   // the node contact's spring as rigGround sets it (the core's: the engine's nodes against the obstacle)
   function KGn0(i) { const mi = def.nodes[i].m; return mi <= 6 ? Math.min(9e4, 2.5e5 * mi) : 1.5e4 * mi; }
   // engine k's nose now: its centre (the spinner's tip less Rn along the engine's own axis - its mass centre to its thrust
@@ -2066,8 +2093,9 @@ function makeSim(def, world) {
       // across the engine (the contact point's station on the line between them, clamped: a corner hit is the corner
       // case). (By mass share it went 81 % to the Cub's 90 kg crankcase node, whose tubes no case loads that way: they
       // crushed at their floor and the mount's bottom fittings tore, 10 of 49 winds)
-      const TN = N.thrust;
-      if (TN.length === 2) {
+      const TN = GEN_NOSE.pushCg && N.body.length <= 8 ? N.body : N.thrust;   // (ENGINE-LUMP's A/B: on the body's CG by its mass shares)
+      if (TN === N.body) for (let j = 0; j < TN.length; j++) NZ.wt[j] = N.w[j];
+      else if (TN.length === 2) {
         const a3 = TN[0] * 3, b3 = TN[1] * 3, ex = p[b3] - p[a3], ez = p[b3+2] - p[a3+2], e2 = ex * ex + ez * ez;
         const px = gx - nx * Rn, pz = gz - nz * Rn;
         let t = e2 > 1e-9 ? ((px - p[a3]) * ex + (pz - p[a3+2]) * ez) / e2 : 0.5; t = t < 0 ? 0 : t > 1 ? 1 : t;
@@ -2077,6 +2105,12 @@ function makeSim(def, world) {
         const i = TN[j], i3 = i * 3, w = NZ.wt[j];
         f[i3] += fx * w; f[i3+1] += fy * w; f[i3+2] += fz * w;
         if (tkPush !== null && onT) tkPush[i] += F * w;
+        if (DMG_ON) {                                // G4101: the nose's mark (the record only: no force, no state the step reads)
+          let sx = _nzV[0], sy = _nzV[1], sz = _nzV[2];
+          if (onT) { const vt = -sx * nz + sz * nx; sx = -vt * nz; sy = 0; sz = vt * nx; } else sy = 0;
+          scuffNose(i, w, F, vin, sx, sy, sz, Math.sqrt(sx * sx + sy * sy + sz * sz), nx, ny, nz,
+            !onT && SCUFF_SOFT[world && world.surface ? world.surface(gx, gz) : 0] === 1, dt);
+        }
       }
       cIx += fx * dt; cIy += fy * dt; cIz += fz * dt;
       if (onT) _tkHits++;
@@ -2093,6 +2127,7 @@ function makeSim(def, world) {
     const dx = p[ia] + t * (p[ib] - p[ia]) - NZ.g[o], dz = p[ia+2] + t * (p[ib+2] - p[ia+2]) - NZ.g[o+2];
     return dx * dx + dz * dz < NZ.g[o+3] * NZ.g[o+3];
   }
+  const GEN_DRIVE_SEP_RIGID = 0.01;   // ENGINE-LUMP: a separated prop's rigid allowance past the bite it lost (m: the hard 1 cm)
   // A STRIKE on engine k: `bite` m into the disc, on a surface 'soft' (the ground), 'water' or 'rigid' (a trunk); the tier
   // only ever rises (genDriveStrikeTier: the bite over R, the tip speed now against the blade's)
   function driveStrike(k, what, bite, surf) {
@@ -2107,8 +2142,14 @@ function makeSim(def, world) {
       // takes the mount. Only a prop that lost its blade TO THE GROUND is stopped by the ground it digs on into (the 172's
       // tip on the turf, full power): a trunk's separation keeps turning when the shake then drops the nose on the turf -
       // run 2's metal Cessna graze; run 3's 'hard ground only' let the 172 on the turf run on again)
-      const sepOnGround = st.strikeAt && st.strikeAt.surf !== 'rigid' && st.strikeAt.surf !== 'water';
-      if (!(cur === 4 && tier === 4 && surf !== 'rigid' && sepOnGround && !e.seized && bite / S.R > stopR0)) return;
+      // ENGINE-LUMP (13 Nov, the user: "if the prop is going through anything, I do mind"): the lump holds the engine on its
+      // mount, so a separated prop keeps turning where before its engine tore off first - it turns on SHORT of what it
+      // struck, by the bite it lost there (strikeAt.bite), never through: anything rigid reaching past that bite by more than
+      // the hard surface's 1 cm (NOSE-STRIKE's allowance) stops it, and so does the ground past its stop whatever took the
+      // blade (before: only after a separation ON the ground - a trunk's separated prop dug on into the turf unseen)
+      const sepBite = st.strikeAt && st.strikeAt.bite > 0 ? st.strikeAt.bite : 0;
+      const past = surf === 'rigid' ? bite > sepBite + GEN_DRIVE_SEP_RIGID : (tier === 4 && bite / S.R > stopR0);
+      if (!(cur === 4 && past && !e.seized)) return;
       st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0, stopAfterSep: true };
       st.imbN = 0;
       if (S.gear > 1 && e.running && thrEffOf(k) > GEN_DRIVE.gear.stopPow) { st.gearbox = 'failed'; DK[k] = 0; }
@@ -3467,8 +3508,14 @@ function makeSim(def, world) {
   // hold TW_SCOTT.hold of that grip, the kingpin's friction by the Scott figure at a Cessna 170's tail load.
   // Two tail contacts (a twin boom's, refs.tw2) fly the same law with their own state each.
   const TW1 = def.refs ? def.refs.tw : -1, TW2 = def.refs && def.refs.tw2 != null ? def.refs.tw2 : -1;
+  // TIP-SKID (61_gen_frame refs.skids): THE WINGTIP SKIDS' SHOES slide on the tail skid's law below (TW_SKID_MU, Coulomb
+  // in every direction, held parked at 0.02 m/s) - a wing down on its skid slides, it does not scrape (no `scrape`, no
+  // scar, no scuff). Absent on every aeroplane without them: the array is all zeros, the branch the bytes it was
+  const SKD = new Uint8Array(n);
+  if (def.refs && Array.isArray(def.refs.skids)) for (const i of def.refs.skids) if (i >= 0 && i < n) SKD[i] = 1;
   const TW_ARC = TW_SCOTT.arc;
-  const TWM = (P_.twSteer > 0 && TW1 >= 0) ? (P_.twMode || 1) : 0;
+  // (MONOWHEEL: a NOSE skid flies the skid's law too - twMode 4 on a nose unit; a nose wheel stays the rudder's, 0)
+  const TWM = (TW1 >= 0 && (P_.twSteer > 0 || P_.twMode === 4)) ? (P_.twMode || 1) : 0;
   const TWL = TWM ? { m: TWM, k: 0, trail: 0, Mf: 0, E: TW_SCOTT.E,
     st: [0, 0], ang: [0, 0], df: [0, 0], F: [0, 0], ff: [0, 0], fMax: [0, 0] } : null;
   if (TWL) out.twState = [0, 0], out.twAng = [0, 0], out.twF = [0, 0], out.twFmax = TWL.fMax;
@@ -3996,7 +4043,7 @@ function makeSim(def, world) {
       }
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
-      if ((isMain || (isTW && TWM !== 4)) && (GR === null || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
+      if ((isMain || (isTW && TWM !== 4)) && (GR === null || (isTW && RET.fixedTw) || GR.pos > 0.98 || (RSEMI && GR.pos < 0.02))) {   // RETRACT-1: a wheel rolls down and locked (G1: or up on a partial gear); else it scrapes
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
@@ -4025,8 +4072,10 @@ function makeSim(def, world) {
           ? (GROUND_SURF[world.surface(p[i3], p[i3+2])] || GROUND_DEF)
           : GROUND_DEF;
         // G1938: the differential brake, per main (its side of the built pose); brakeD 0 is the old line exactly
-        const bkI = !isMain ? 0 : ctl.brakeD ? Math.max(0, Math.min(1, ctl.brake + (def.nodes[i].p[2] > 0 ? 1 : -1) * ctl.brakeD)) : ctl.brake;
-        const muR = su[0] + (isMain ? bkI * su[1] : 0);
+        const bkI = !isMain ? 0 : ctl.brakeD ? Math.max(0, Math.min(1, ctl.brake + (def.nodes[i].p[2] > 1e-6 ? 1 : def.nodes[i].p[2] < -1e-6 ? -1 : 0) * ctl.brakeD)) : ctl.brake;   // (MONOWHEEL: a centreline wheel has no side)
+        // THE BRAKES' HOLD (GEN_BRAKES): a main's braking friction is the surface's or what its brake can hold at this load,
+        // the lesser; no `brakeN` (every build without brakes chosen) is the surface's, the old line exactly
+        const muR = su[0] + (isMain ? bkI * (P_.brakeN ? Math.min(su[1], P_.brakeN / Math.max(Fn, 1)) : su[1]) : 0);
         // G121.3: BELOW WALKING PACE THE COEFFICIENT IS A DAMPER, NOT A
         // RESISTANCE. The 0.2 m/s regularization means the sub-0.2 regime
         // was never physical rolling — and it turned out to be load-bearing
@@ -4075,8 +4124,8 @@ function makeSim(def, world) {
           if (isTW && TWL) TWL.F[twQ] = -Fl;
           f[i3] += Fr * hx + Fl * lx; f[i3+1] += Fr * hy + Fl * ly; f[i3+2] += Fr * hz + Fl * lz;
         }
-      } else if (isTW) {
-        // G3800: THE TAIL SKID (twMode 4) - a steel shoe sliding, Coulomb in every direction at its surface's mu
+      } else if (isTW || SKD[i]) {
+        // G3800: THE TAIL SKID (twMode 4) - and TIP-SKID's wingtip shoes, the same law - a steel shoe sliding, Coulomb in every direction at its surface's mu
         // (TW_SKID_MU), regularised at 0.02 m/s so it holds parked as a wheel's creep does; no rolling, no steering
         const sk = TW_SKID_MU[world && world.surface ? world.surface(p[i3], p[i3+2]) : 0];
         if (flat) {
@@ -4147,6 +4196,7 @@ function makeSim(def, world) {
       // hold a taxiing aeroplane inside a 0.3 m radius - the axis crossed the beam and pushed it on through
     }
     if (noseArm) nosePass(dt);                       // G2013 (DMG-NOSE): the crushable nose (an armed frame only)
+    if (ENGLUMP !== null && (noseArm || DMG.crashed)) lumpPass(dt);   // ENGINE-LUMP: the crankcase a lump (armed / a crash only)
     if (_prN) trunkPass(dt);                         // G1883: its own function (the hot substep stays the base's size)
     // G1470: DEBRIS (a node every member of which broke - an engine torn off its mount) meets the trunks as a point:
     // with no beam left to test it would fly through the tree it was torn off on
@@ -4517,6 +4567,9 @@ function makeSim(def, world) {
            // t0 (made), torn (when; -1 live); n of them, nLive. Views on the solver's own arrays (read-only by contract)
            coverTies: () => COV ? { n: nTie, nLive: nTieL, a: TA, b: TB, Ls: TLs, k: TK, ku: TKu, Fy: TFy, eu: TEu, c: TC, Lp: TLp, Fp: TFp, F: TF, w: TW, sheet: TSh, t0: TT0, torn: TT, live: TLIVE } : null,
            reset, stance, step, trueBox, probe, stats, impulse, wheelsOnGround, wheelContacts, cgPos, cgVel, axes,
+           // TOW-LAUNCH (15 Nov): the build's named nodes (def.refs - the mains, the tow hook, the skids), read-only by contract:
+           // the tow line finds its release on the sim it pulls (src/vehicle/tow.js towHookNodes)
+           refs: () => def.refs,
            // G197: the kernel's sources, readable (the gate asserts the weights' normalisation)
            induction: () => ({ WS: WS.slice(), plane: Array.from(PLANE), bHalf: Array.from(bHalf), Ez: Array.from(Ez), Dz: Array.from(Dz), Gam: Array.from(Gam), Wg: Array.from(Wg), zA: WS.map(j => sZA[j]), zB: WS.map(j => sZB[j]), A: WS.map(j => [sA[j*3], sA[j*3+1], sA[j*3+2]]), B: WS.map(j => [sB[j*3], sB[j*3+1], sB[j*3+2]]), d: sD.slice(), cpt: Array.from(cpt), pairs: pairs.length, loading: LOADING }),
            bodyOrigin,

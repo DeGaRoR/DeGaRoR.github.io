@@ -348,6 +348,55 @@ const GEN_MATERIALS = {
     price: 110,
     cd0: 0.0004, clmaxK: 1.05,
   },
+  // THE SOFT SHELL (WEIGHT STUDY L4, the user 12 Nov: "a cabin ... tent-like material ... very, very low stiffness ...
+  // load any wing on top of it ... it should crumble"; "the soft material, yeah, we put it everywhere"). A TENT: thin
+  // 7075 poles under a ripstop skin, the pod's shape and nothing more - a cabin that keeps the wind off and carries
+  // nothing it was not built for. AS RECALLED, not opened here (A0 opens the sources):
+  //   phys    7075-T6 drawn tube (the tent pole's alloy: 7001 / 7075, Easton / DAC) E 71.7 GPa, rho 2810, sigY 503 MPa
+  //           (MIL-HDBK-5 / MMPDS 7075-T6 tube) - its OWN row so the damage model, the bench and the certificate know a
+  //           pole from the bolted 6061 of the aluTube row (GEN_CRASH.softShell; Euler on, 30_solver dmgMember).
+  //   lin     fus 0.07: an 11 mm x 0.6 mm pole is ~0.055 kg/m, a ferrule and a sleeve a metre on top - a SIXTH of the
+  //           bolted ultralight's 0.42 (whose members are 1.75 in tube); the lattice's member count is the frame's, so
+  //           the per-metre is what a pole frame of that many bays weighs (a pod's ~4 kg of poles).
+  //   cover   0.15: 70 den ripstop / silnylon (~70 g/m2) with its taped seams, sleeves and zips doubled - the tent's
+  //           own figure (a 2-person tent's fly ~0.12-0.18 kg/m2 finished). Not gauged: cloth is cloth at any gross.
+  //   k, c    an EIGHTH of the bolted 6061 row's fuselage (6e4 against 4.8e5): a pole frame is held by its tension and
+  //           its sleeves, not by triangulated joints - it sways; the damping by root(k m) at its mass (lin x0.17).
+  //           THE WING ROW IS A POLE TOO: the fuselage's row bills the wing-class members the aeroplane builds of
+  //           itself - the struts, the carry-through, a cantilever's box (the 'bracing' section) - so on a soft shell
+  //           they are poles (lin 0.07, k a third of the 6061 row's, c by root(k m)). Measured: with the 6061 row's
+  //           wing figures (0.40 kg/m of 7075) the soft-shell C172 held 9.7 g on the wing bench, past its alloy self
+  //           (6.1) - the certificate never stamps a member under its floor share of its physics, so only the section
+  //           can make it weak. (The wing's own surface is its own part: the default aluFabric, GEN_SURF_DEFAULT.)
+  //           The GEAR row is the carbon row's (the sprung fork of the composite pod it replaces): the gear is its own
+  //           part, and a pod's construction does not move it (the 6061 row's bungee gear put the Archaeopteryx's
+  //           7.5 kg against its 5.5, and its springs a fifth as stiff).
+  //   refMass the carbon row's (the moulded pod it replaces on the Archaeopteryx, so kScale - the wing's and the tail's
+  //           springs - reads the same); refGross 250: a foot-launch-class pod.
+  //   buildKg BUILT FOR A WEIGHT, as the foot-launch D-tube (GEN_SURF_MATERIALS.dtube): its gauge never grows past it
+  //           ('fusB', 61_gen_frame genDesignGross), its springs no gain past it (KSB), and it is CERTIFIED as if its
+  //           aeroplane weighed buildKg (66_gen_cert: its members' limit loads x min(1, buildKg / W0)) - so a tent on a
+  //           Cessna sags and comes down at rest, and nothing makes a light pod free (GATE SOFTSHELL).
+  //   hard    THE ROLES THAT STAY HARD: on a hanging nacelle the cabin is not what flies - the mast (cabane class: steel,
+  //           as every truss; the motor's mount on it: a mount, steel), the keel tubes the seat and the pack hang from,
+  //           and the wing's box and carry-through on the hub (the 'bracing' section) are built of this row - carbon
+  //           tube, the frame a modern soft pod hangs from; the pod's skin and its poles are the tent. A wing on a soft
+  //           shell WITHOUT the mast stands on the poles, and they fold.
+  //   price   the cheapest: a sewn skin over poles.
+  softShell: {
+    name: 'poles + ripstop',
+    phys: { E: 71.7e9, rho: 2810, sigY: 503e6 },
+    lin:   { fus: 0.07, wing: 0.07, gear: 0.38 },
+    cover: 0.15,
+    k:     { fus: 6.0e4, wing: 1.0e5, gear: 8.53e4 },
+    c:     { fus: 12,    wing: 76,    gear: 933 },
+    refMass: 420,
+    refGross: 250, coverGauged: false,
+    buildKg: 250, kFloorK: 0.5, hard: 'carbon',
+    cdWet: 0.0140,                      // cloth between poles: it sags, the doped-fabric figure and a little
+    price: 22,
+    cd0: 0.0024, clmaxK: 1.00,
+  },
 };
 // G2047 (DMG-COMPOSITE): a moulded composite (carbon or glass): no laced rings, no screwed panels, bonded joints
 function genComposite(m) { return m === 'carbon' || m === 'glass'; }
@@ -492,6 +541,9 @@ const GEN_CRASH = {
                 scat: 0.10, fitE: 0.5, tauC: 0.9e6, cC: 0.0095, tS: 0.0006 },
   glass:      { ty: 300e6, tu: 300e6,           etu: 0,    cy: 180e6, ecu: 0,    thf: 0,
                 scat: 0.10, fitE: 0.5, tauC: 0.9e6, cC: 0.0095, tS: 0.0008 },
+  // (WEIGHT STUDY L4: the soft shell's 7075-T6 poles, MMPDS as recalled - 503 / 572 MPa, 11 % elongation; a pole FOLDS
+  //  a long way before it tears: thf 1.0)
+  softShell:  { ty: 503e6, tu: 572e6,           etu: 0.11, cy: 503e6, ecu: 0.03, thf: 1.0 },
   fabric:     { cover: true, tuN_m: 14e3, etu: 0.15 },   // reported only (above)
 };
 // the GEN_MATERIALS key a phys row is (surface rows share their structure's phys object)
@@ -600,6 +652,22 @@ const GEN_SURF_MATERIALS = {
   // the fuselage rows' (GEN_MATERIALS.glass)
   glass:  Object.assign({}, GEN_MATERIALS.glass,  { shop: 'composite', cover: 2.0,
             tail: { cover: 0.70, section: 0.10 } }),
+  // THE FOOT-LAUNCH D-TUBE (WEIGHT STUDY, 12 Nov; the user: "offer the ultralight options, but with the cost in terms of
+  // rigidity ... if I put such a lightweight wing on another plane, it should probably break"): the Archaeopteryx's,
+  // the Swift's, the Atos's wing - a carbon D-box leading edge, carbon ribs, a film / fabric aft. Carbon's phys, its
+  // members at 0.3 of the moulded row's rate and its cover at 0.6 kg/m2 (1.6), its springs at half. BUILT FOR A WEIGHT:
+  // `buildKg` is the aeroplane it was designed for, and three things follow (the frame, the certificate):
+  //   - its gauge thins below it but never grows past it ((buildKg / refGross)^e caps GEN_GAUGE.hi);
+  //   - its members' section has no floor (`noFloor`: the section is what was paid for), its springs no gain past it;
+  //   - it is CERTIFIED as if its aeroplane weighed buildKg (66_gen_cert: its members' limit loads x min(1, buildKg /
+  //     W0)), so on a heavier aeroplane it breaks where its physics says. Measured (weight_proto/, the garage's destroy
+  //     bench): the Archaeopteryx 6.3 g (certified), a Cub 3.7 g, a C172 2.7 g, a Caravan 1.6 g - the spar folding at
+  //     its root. Without the certificate's part, a 31 kg wing on the C172 held 6 g: the exploit GATE LIGHTWING keeps shut.
+  dtube:  Object.assign({}, GEN_MATERIALS.carbon, { name: 'foot-launch D-tube', shop: 'composite', cover: 0.6,
+            lin: Object.assign({}, GEN_MATERIALS.carbon.lin, { wing: GEN_MATERIALS.carbon.lin.wing * 0.3 }),
+            k: Object.assign({}, GEN_MATERIALS.carbon.k, { wing: GEN_MATERIALS.carbon.k.wing * 0.5 }),
+            refGross: 190, buildKg: 250, noFloor: true, kFloorK: 0.7,
+            tail: { cover: 0.70, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
 // THE WING: fabric over a wooden structure on both a wood and a tube
@@ -612,9 +680,11 @@ const GEN_SURF_MATERIALS = {
 // stiffness (k.fus 8.0e5 -> 4.15e5) and the stab rolled 3.7 deg against the
 // mains through a taxi, over GATE TAKEOFF's 3.5 deg bar set with the tube.
 const GEN_SURF_DEFAULT = { tubeFabric: 'fabric', wood: 'fabric',
-                           alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
+                           alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass',
+  softShell: 'aluFabric' };   // (L4: a tent's wing and tail are the ultralight's sail)
 const GEN_SURF_DEFAULT_TAIL = { tubeFabric: 'steel', wood: 'fabric',
-                                alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
+                                alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass',
+  softShell: 'aluFabric' };   // (L4: a tent's wing and tail are the ultralight's sail)
 // the tokens a saved spec may still carry from before G213, read as what
 // they always meant on a flying surface: a "wood" wing was fabric over
 // wood, a "tubeFabric" wing was fabric over tube
@@ -630,6 +700,18 @@ function genSurfKey(S, which, k) {
   // a resolved spec carries `material`; a raw one only `fuselage.material`
   const fus = S.material || (S.fuselage && S.fuselage.material);
   const D = which === 'wing' ? GEN_SURF_DEFAULT : GEN_SURF_DEFAULT_TAIL;
+  // THE TAIL FOLLOWS A CHOSEN WING (WEIGHT STUDY L2, 12 Nov, the user: "have the tail material just follow the wing
+  // material"): a tail that says nothing is built as the wing when the wing's construction was CHOSEN (wings[0].material
+  // stated); a wing left to the aeroplane leaves the tail to the fuselage as before - the Cub's welded tail under its
+  // wooden wing stays (G213's measured reason). Measured: of the 33 cards only the Archaeopteryx's tail moves; no saved
+  // build in builds/ states a wing over a silent tail.
+  if (!key && which !== 'wing') {
+    const w0 = S.wings && S.wings[0] && S.wings[0].material;
+    const wk = w0 == null ? null : (GEN_SURF_MATERIALS[w0] ? w0 : (GEN_SURF_LEGACY[w0] || null));
+    // (...a wing CHOSEN, not named: the wing's own default said out loud is the aeroplane's, and the tail stays the
+    //  aeroplane's too - GATE BUILD G116/G213/G117: naming the default changes nothing)
+    if (wk && wk !== GEN_SURF_DEFAULT[fus]) return wk;
+  }
   return key || D[fus] || 'fabric';
 }
 function genSurfMaterial(S, which, k) {
@@ -807,6 +889,10 @@ GEN_BUILD_GRAMMAR.fabricAlu = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: 'aluminium spar + fabric', alias: 'tubeFabric' });
 // G2047: a glass moulding reads as the carbon one - no fasteners, no seams, the mould's parting line
 GEN_BUILD_GRAMMAR.glass = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'glass + epoxy', alias: 'carbon' });
+// the foot-launch D-tube: its moulded D-box is what shows (the film aft is taut, no rib print at this scale)
+GEN_BUILD_GRAMMAR.dtube = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'foot-launch D-tube', alias: 'carbon' });
+// (L4) the soft shell: a sewn skin over poles reads as the sail over its tube
+GEN_BUILD_GRAMMAR.softShell = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric, { name: 'poles + ripstop', alias: 'tubeFabric' });
 
 
 // ===========================================================================
@@ -1033,7 +1119,7 @@ const GEN_ACCESS = {
     at: R => R.booms ? { sL: R.booms.len * 0.78, lv: 'flank' }
                      : { sL: R.tailArm * 0.62, lv: 'keel' },
     snap: 'bay', side: R => R.booms ? 'both' : 'centre',
-    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube') ? 'ringLace' : 'plateOval',
+    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube' || R.material === 'softShell') ? 'ringLace' : 'plateOval',
     size: { w: 0.130, h: 0.130 },
   },
   inspBelly: {
@@ -1042,7 +1128,7 @@ const GEN_ACCESS = {
     need: R => genComposite(R.material) ? 0 : 1,
     at: R => ({ sL: R.cabinAft * 0.72, lv: 0.55 }),
     snap: 'bay', side: 'centre',
-    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube') ? 'ringLace' : 'plateOval',
+    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube' || R.material === 'softShell') ? 'ringLace' : 'plateOval',
     size: { w: 0.200, h: 0.150 },
   },
   inspAileron: {
@@ -1883,13 +1969,16 @@ function genFurnK(S) {
 //   glass   3 mm acrylic, which is what a light aeroplane's screen is
 const GEN_OUTFIT = {
   panelKgM2: 6.0,
-  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6, glass: 2.4 },
+  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6, glass: 2.4, softShell: 1.6 },
   glassKgM2: 3.6,
   // THE GLAZING MATERIAL (T2.2, 2026-09-22): acrylic is the 3 mm sheet above;
   // polycarbonate (Lexan, 1.20 g/cc against acrylic's 1.19) weighs the same
   // at the same gauge; tempered GLASS at 3 mm is 2.5 g/cc — 7.5 kg/m2, twice
   // the acrylic, which is why light aeroplanes do not carry it
-  glassKgM2By: { acrylic: 3.6, polycarbonate: 3.6, glass: 7.5 },
+  // ...and SOFT GLAZING (WEIGHT STUDY L3, 12 Nov, the user: "maybe we can have an even lighter glazing option, like
+  // soft glazing"): a 0.5 mm PET / PETG film stretched on the frame, ~0.7 kg/m2 with its edge tape - a fifth of the
+  // sheet; it hazes, wrinkles and cracks sooner (aeroskin GLASS_MATS.film), the foot-launch gliders' and the trikes'
+  glassKgM2By: { acrylic: 3.6, polycarbonate: 3.6, glass: 7.5, film: 0.7 },
   // EXHAUST scales with the power it has to carry away: an A-65's two short
   // stacks are about 3 kg on 48.5 kW, and a collector ring on a big radial is
   // heavier per kW because it is longer as well as fatter.
@@ -1904,6 +1993,10 @@ const GEN_OUTFIT = {
   // driver is the reach — semi-span plus tail arm — and dual controls cost a
   // second stick and a second set of pedals.
   ctlKgM: 0.62, ctlDualKg: 3.4,
+  // LIGHT CONTROL RUNS (WEIGHT STUDY L3, 12 Nov, the user: "they should be fitted in the tubes ... no central levers"):
+  // push-pull carbon rods and Dyneema lines on the keel tubes, small bellcranks, no torque tube -
+  // cabin.ctlRuns 'light' (latent: absent, the 0.62 above)
+  ctlKgMLight: 0.15,
   // FURNISHING (PERF STUDY chantier 1, 2026-09-15): what a cabin is lined
   // with — side panels, floor, trim, headliner, soundproofing, carpet, the
   // heater and its ducting — by the fit's tier, as a fraction of Raymer's
@@ -1965,6 +2058,57 @@ const GEN_DRAG = {
   exhStack: 0.003,
 };
 
+// ENGINE COOLING (ENGINE-COOLING, the user 12 Nov: "planes look the way they look because they need these things ...
+// I'd rather that be encoded in physics"; futureDesigns/ENGINE-COOLING-2026-11.md, its defaults ruled "OK"). The heat
+// genEngineThermo says the engine rejects is carried off by AIR, and the air comes in through what is DRAWN: the cowl's
+// forward-facing openings, a scoop that faces the flight, a pusher nacelle's nose inlet, the wing radiators' mouths, the
+// cylinder heads left in the wind. Read by 62_gen_aero genCooling; the join measures the openings (spec.cooling).
+//   path      the air may warm by dT = eps (Tlim - T_ambient) before the hot side is at its limit: a hot day shrinks
+//             the gap, which is why a hot climb is the sizing case. PROPOSED constants, calibrated so the cowls fitted
+//             to real reference models (the Cub, the V2-172, the Jodel) pass the hot climb with a real margin (GATE COOL)
+//   ivr       the inlet's BEST velocity ratio V_inlet / V_free (ENGINE-COOLING 3): a small inlet, the engine's passages
+//             pulling hard behind it, runs near it (0.6-0.9 in a climb); a big one spills (the passages limit it)
+//   passages  the engine's own fins and baffles: `passages` x the air its hot climb needs, at that climb's inlet speed,
+//             with nothing ahead of them (an engine is built to be cooled); in series with the inlet and a drawn outlet,
+//             mdot = 1 / sqrt(sum 1 / mdot_i^2). Calibrated so the reference-fitted cowls (the Cub, the V2-172, the
+//             Jodel) keep a real margin and a big inlet stops buying air past ~3 x (it spills round the cowl)
+//   kappaBare the heads and fins left in the stream (the Cub's, a bare engine's), beside the cowl's air
+//   r         the exit velocity over the free stream: the momentum the air keeps (a baffled cowl 0.7, a radiator duct
+//             with a diffuser 0.8): cooling drag D = mdot V (1 - r), CdA = 2 (mdot / rho V) (1 - r)
+//   outRatio  the drawn outlet that passes the inlet's flow (the heated air is thinner: the classic 1.3 x)
+//   slip      the slipstream's share at a nose inlet (behind the propeller's roots), of the actuator disc's velocity
+//             ratio; a pusher's own inlets on the ground get `pushInflow` of the disc's static velocity (the prop sucks)
+//   suck      IN FLIGHT a pusher's prop sucks on the cowl's OUTLET, just ahead of the disc (the user 12 Nov, the Super
+//             Petrel: "it has quite a large opening"): the static pressure there falls by rho/2 ((V + v)^2 - V^2) of
+//             the disc's induced velocity v, so the pressure that drives the air through the engine grows and the flow
+//             with its root: V_in = V sqrt(1 + suck (f^2 - 1)), f = (V + v) / V the actuator disc's ratio; `suck` the
+//             share of v at the outlet (the hub's inner disc, like `slip`)
+//   hot       FAR 23.1043's climb cooling day: 38 C (100 F) at sea level, ISA + 23, full power at Vy
+//   taxi      the hot strip: 5 m/s, 20 % power, the slipstream does the work
+//   meredith  the heat added in a radiator DUCT is a little ramjet: thrust power ~ k M^2 Q (Meredith, RAE 1935); none on
+//             a cowl
+//   pass/warn the margin (air passed / air needed) the design check reads: under `pass` the engine overheats, under
+//             `warn` it runs hot
+const GEN_COOL = {
+  cp: 1005,
+  path: { air:      { Tlim: 160, eps: 0.30 },
+          liquid:   { Tlim: 110, eps: 0.55 },
+          electric: { Tlim: 70,  eps: 0.50 },
+          turbine:  { Tlim: 90,  eps: 0.50 } },
+  ivr: 0.8, passages: 3.0, kappaBare: 0.5,
+  r: { cowl: 0.70, duct: 0.80 },
+  outRatio: 1.3,
+  slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25, suck: 0.6,
+  hot: { dISA: 23, h: 0 },
+  taxi: { V: 5, power: 0.2 },
+  cruisePower: 0.75,
+  meredith: 0.1,
+  radMouth: 0.8,
+  pass: 1.0, warn: 1.15,
+  // the oil's red line, C (a light aero engine's 118 C / 245 F): the cockpit's needle reaches it at exactly enough air
+  oilRed: 118,
+};
+
 const GEN_GAUGE = {
   e: { fus: 0.30, wing: 0.49, tail: 0.41, gear: 0.75 },
   lo: 0.6, hi: 3.0,
@@ -2000,6 +2144,13 @@ const GEN_GAUGE = {
 //   d       dial cut-out, m (3-1/8 in = 79.4 mm, 2-1/4 in = 57.2 mm; 0 = no dial)
 //   coaming the compass sits on the coaming, not the panel (iron)
 //   perTank a sender per tank, billed with the gauge
+// THE INSTRUMENT POD (WEIGHT STUDY, the user 13 Nov: no dashboard, the gauges in glider size on a small mount): a
+// moulded pod on a stalk ahead of the stick, the dash gone - systems.mount 'pod' (the cage's instPod, the join). Its
+// dials are the glider's 57 mm (2 1/4 in) flight instruments: d, and kgK of an 80 mm one's mass (a 57 mm ASI or vario
+// ~0.25 kg, an altimeter ~0.30, against the 0.40-0.50 of an 80 mm one - INFERRED, glider-instrument catalogue weights
+// as recalled); the pod itself podKg (a glass shell and its stalk). The frame bills it in the dash board's place
+// (61_gen_frame panelM), the board none
+const GEN_INSTR_POD = { d: 0.0572, kgK: 0.6, podKg: 0.2 };
 const GEN_INSTR = {
   asi:     { name: 'airspeed indicator',   d: 0.0794, kg: 0.40, price: 350,
              power: 'none', note: 'UMA / Falcon 3-1/8 in; a TSO\'d United is ~700' },
@@ -2300,6 +2451,8 @@ function genSystemsResolve(S, opts) {
     const r = rowOf(k);
     let kg = r.kg, price = r.price;
     if (r.perTank) { kg += r.perTank.kg * nTanks; price += r.perTank.price * nTanks; }
+    // (the instrument pod: a big dial is the glider's 57 mm one, GEN_INSTR_POD)
+    if (S && S.systems && S.systems.mount === 'pod' && r.d > GEN_INSTR_POD.d + 1e-6) kg = +(kg * GEN_INSTR_POD.kgK).toFixed(3);
     rows.push({ key: k, group: 'panel', name: r.name, kg, price, amps: r.amps || 0 });
     if (r.power === 'elec') { nPowered++; loads.push({ key: k, amps: r.amps || 0 }); }
   }
@@ -2603,7 +2756,8 @@ const GEN_SEAPLANE_PROPS = {
                     for: 'Cessna 172 / 172R / 172S on Wipline 2350 (Wipaire STC)' },
 };
 
-// COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
+// COWL INTAKES. Texture only, deliberately (and still: ENGINE-COOLING measures the cowl's DRAWN openings - its
+// apertures, its scoop, its exits - not these louvres; 62_gen_aero genCoolOpen): a grill drawn on the cover reads at
 // every distance the aeroplane is ever seen from, and a modelled duct would cost
 // a hole in the one panel whose whole job since G1.7 has been to have no holes
 // in it ("a big opening… either the prop attachment or an air intake").
@@ -2646,6 +2800,7 @@ function genAgingOf(S) {
 const GEN_PRICES = {
   wheel: 790,          // each: wheel, tyre, brake (a Matco 5.00-5 pair $1 096 + a tyre $254-294 = $680-900); was 320
   thirdWheel: 1200,    // tailwheel or nosewheel assembly (ABI / Scott 3200, $1.0-1.4k); was 260
+  wheelCycle: 160,     // MONOWHEEL: a bicycle wheel (whProfile 3) - a 16-20" wheel, tyre and tube ($80-250, catalogue)
   // `instruments` retired (the panel arc, session 2): GEN_INSTR prices the fit
   paintM2: 40,         // the colour coats a builder sprays, per m2 painted (DIY materials for a C172, ~60 m2, $1.5-4k est.)
   coverM2: 75,         // a fabric covering system's materials per m2 of CLOTH, over the row's kilos (a Cub's $3-6k)
@@ -2669,6 +2824,28 @@ const GEN_PRICES = {
 // for it. NOTE `paint.gloss` is NOT touched here: it is a spec field nothing
 // currently reads, and wiring a dead field would be a second change wearing
 // this one's clothes.
+// THE BRAKES (the user, 9 Nov: "we have to account for the power of brakes as well ... if you want better brakes, then
+// it's gonna add weight to your plane"). The solver's wheel brake was the surface's friction only (GROUND_SURF's brake mu
+// x the brake command x the wheel's load): every aeroplane's brakes could lock its wheels. A real light aeroplane's
+// often cannot - the J-3's and the D.112's heel drums are why their books' landing rolls are long. `perWheelN` is the
+// most a main's brake holds (N, at the tyre): the braking friction becomes min(the surface's, perWheelN / the wheel's
+// load). `kg` the pair with their lines and master cylinders, billed on the mains; `price` the pair, new.
+// ABSENT IS AS IT WAS: a gear without `brakes` brakes to the surface's friction (no cap, no mass), so every saved build
+// flies bit for bit and keeps its certificate. Values (estimates, stated as such):
+//   drum    a cable / heel drum in a 6 in wheel (J-3, D.112): ~0.2 g on a 550 kg aeroplane
+//   disc    one Cleveland 30-9 class caliper a wheel: about the grass friction limit of a 600 kg aeroplane
+//   double  two calipers / a double-puck heavy-duty disc (Beringer, Grove class: the bush builds), past it
+const GEN_BRAKES = {
+  drum:   { name: 'heel drum brakes',            perWheelN: 600,  kg: 2.4, price: 400,
+            note: 'cable or heel-operated drums in 6 in wheels: the J-3 and D.112 era' },
+  disc:   { name: 'single-caliper discs',        perWheelN: 1400, kg: 3.6, price: 1300,
+            note: 'Cleveland 30-9 class, one caliper a wheel' },
+  double: { name: 'double-caliper heavy discs',  perWheelN: 2600, kg: 5.4, price: 3200,
+            note: 'Beringer / Grove class, two pucks a wheel: the bush builds' },
+};
+// the build's brake row, or null (absent / unknown: the surface's friction, as it always was)
+function genBrakeOf(S) { const k = S && S.gear && S.gear.brakes; return (k && GEN_BRAKES[k]) || null; }
+
 const GEN_FINISH = {
   // `kgM2` is the COLOUR COATS ONLY, and the distinction matters. The covering
   // system itself -- fabric and its dope, or the alloy skin -- is already
@@ -2682,6 +2859,14 @@ const GEN_FINISH = {
           kgM2: 0.12 },
   bare: { name: 'Bare / primer', perM2: 0,                  sweep: 0,
           kgM2: 0.03 },
+  // WEIGHT STUDY (the user, 13 Nov: "if we say 0 kilo, I guess that's fine, but then it's got to be white ... and if you
+  // put a livery onto it, then it's a little bit more"): WHITE FROM THE MATERIAL - a moulding's gelcoat as it leaves the
+  // mould (the white of every sailplane: the gelcoat is in the composite rows' cover), a pre-dyed covering (Oratex), a
+  // ripstop skin. No colour coats: kgM2 0, nothing to pay a painter. The base IS white (clampSpec holds it); a trim line
+  // or a sweep on it is colour coats on its share only - liveryKgM2 x sweep over the covered area (the full job's
+  // 0.12 kg/m2 x the share the scheme paints). The registration's vinyl is grams
+  self: { name: 'White (self-coloured)', perM2: 0, sweep: 1,
+          kgM2: 0, liveryKgM2: 0.12, base: 0xf3f4f1 },
 };
 
 // Cabin box per seating layout: half-width, height above the lower longeron,
@@ -2775,6 +2960,48 @@ const GEN_TIPS = {
 // PHI <= 85 deg, so a tip of length L drops at most ~0.59 L; a deeper drop is a longer tip. One function for the drawn
 // loft (63_gen_wing), the flown buoyant tip (61_gen_frame, genTipBuoyTable) and the boat's fit (_cage_gen.js)
 const GEN_TIP_SHAPE = { bow: [0.15, 0.80], droop: [0, 0.45], full: [1, 2.6], phiMax: 85 };
+// TIP-SKID (the Archaeopteryx study, 11 Nov; the user: "do the skid under any tip type. It's better"): THE WINGTIP SKID,
+// a SETTING ON ANY TIP, not a kind - a hoop of tube under the tip joint (genTipJoint's frame: where the tip's bow starts,
+// a square or winglet tip's end), its shoe `wings[0].tipSkid` metres under the lower skin (absent = none: no key moves
+// the hash of a wing without one), standing from xc[0] to xc[1] of the joint's chord and touching the ground at xs. One
+// ground contact a side (61_gen_frame refs.skids) that SLIDES on the tail skid's law (30_solver TW_SKID_MU) - the wing
+// that goes down at rest on a single main wheel, a sailplane's - instead of scraping. Its drag: the hoop's two legs, a
+// round tube (Cd 1.2 on h x 2r each), on the tip's strip. The first plane's only. Mass and price INFERRED (a glider's
+// bolt-on tip skid: a bent 6061 tube and a nylon shoe, ~0.3 kg, the STOL fence's 90 a side) - WEIGHT STUDY (the user,
+// 13 Nov): 0.1 kg, a moulded skid on a sailplane's tip (a nylon or glass shoe bonded under the tip, ~0.1 kg as recalled)
+// THE HANGING NACELLE'S MAST (61_gen_frame 3d, the Archaeopteryx study's stage 3): its station (at, the middle) and chord
+// (len) as fractions of the root chord when the spec leaves them out (the hub's: the cabin slides free of it); tc its section's thickness over chord (the drawn
+// blade's 12 %, _cage_eng pylonOutline); kgM its mass a metre - a carbon blade, spar and fairing, ~2.4 kg/m INFERRED (a
+// sailplane's fin post class); lv the lattice's bay height (m)
+const GEN_HANG = { at: 0.50, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.30,
+  // THE KEEL BEAM (61_gen_frame 3e): the cabin's floor beam to the mast's foot - its depth (m) and its mass a metre, a
+  // carbon box ~80 x 60 mm, ~1.2 kg/m INFERRED
+  keelD: 0.08, keelKgM: 1.2,
+  // ...or TWO (the user, 12 Nov: "in the real plane, it's actually 2 of them and the pilot fits between, mounted at the
+  // level of the bottom of the pilot window"): carbon tubes ~50 mm, ~0.5 kg/m each INFERRED, at keelK of the cabin's
+  // height when the join measured none, inset keelIn of the half-width
+  tubeKgM: 0.5, keelK: 0.33, keelIn: 0.85,
+  // THE HUB (WEIGHT STUDY L5, the user 12 Nov: "the wing attachment ... just giving it some number"): the wing goes on
+  // the mast's head in one piece - a machined fitting, its pins and the mast's head plate, ~1.5 kg INFERRED (a hang
+  // glider's keel-to-hang-block hardware is ~0.5 kg; this one takes a 13 m wing and a 200 kg aeroplane), billed on the
+  // wing's root nodes (where it is) as the carry-through ('bracing'). And THE BOX: a cantilever wing's 'bracing' lattice
+  // is its torsion box billed in the fuselage's row (6.5 kg of carbon on the Archaeopteryx) - on a hub that box is the
+  // wing's own (the D-tube's D-box, billed in 'wings'), so it is built at boxK of its mass AND its springs (dampers by
+  // the root: the integrator's ratio held). boxK is the integrator's floor, not the structure's: the box's bottom
+  // nodes carry nothing but the box, and under a quarter (0.15, 0.10) the card at the 200-substep cap diverged parked
+  // (measured 12 Nov, scratch soft.js / stiff.js); at a quarter, with the hub on the root, it holds 5.9 g on the bench
+  hubKg: 1.5, boxK: 0.25 };
+const GEN_TIP_SKID = { h: [0.02, 0.30], h0: 0.10, xc: [0.15, 0.75], xs: 0.45, bow: 0.6, r: 0.008, cd: 1.2, kg: 0.10, each: 90 };
+// ...its STATION (m from the centreline): `bow` of the way out along a tip's bow (a rounded, clipped, Hoerner or
+// elliptic tip: the bow's own outer reach would otherwise touch the ground first, the wing tilted on a single main), at
+// the tip joint on a tip that bends (drooped, upturned: the bend is its own) and at the tip on one without a bow (square,
+// winglet, endplate). Measured on the motor glider at rest on its tip: a skid at the joint left the rounded tip's last
+// 0.34 m to touch first. One function, so the frame's shoe and the loft's hoop are the same station
+function genTipSkidZ(w, semi) {
+  if (!(w && w.tipR > 1e-6)) return semi;
+  const K = genTipOf(w) || {};
+  return (K.droop > 0 || K.up) ? w.tipZ : w.tipZ + GEN_TIP_SKID.bow * w.tipR;
+}
 function genTipOf(w) {
   const K = GEN_TIPS[w && w.tip] || GEN_TIPS.rounded, T = w && w.tipShape;
   if (!T) return K;
@@ -3031,10 +3258,13 @@ function genEngPropD0(S, e0, PP0) {
   if (e0 && e0.custom) return (S.prop && S.prop.D > 0) ? S.prop.D : 1.80;
   return PP0.prop.D;
 }
-// (CAR, 12 Nov: the boom's rod and the spinner's cone, both ON by default - every build as it was - and the join writes them
-//  into every cage: at 1 they are absent from every key, as the dials above; GATE STOL found them moving the bench /
-//  certificate / parked / procurement keys of all six validated builds at the TOW-LAUNCH x CAR merge)
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1, rodOn: 1, spinOn: 1 };
+// (the Archaeopteryx branch's rows, each absent = this value = every build before it: the fin's rudder below the
+//  stab, the hub's pylon, the wingtip skid, the light control runs, the rod's own material and wall, the ultralight
+//  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
+                               finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
+                               ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
+                               brkHold: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -3062,7 +3292,7 @@ const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFai
                            engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
 // WILGA-GEAR: the trailing-link leg's rows per station (tools/_gear_page.js LEG_ROWS[4]) at the value a build without them
 // draws (_cage_gen CAGE_DEFAULT_ABSENT holds the same)
-const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0 }, o = {};
+const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0, lvJoint: 0 }, o = {};
   for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the flat base copy too)
   return o; })();
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
@@ -3594,6 +3824,35 @@ const GEN_RULES = {
   // reproduces the 3.5 / 2.0 literals it had.
   wheelKg:     R => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, 2.5),
   wheelTwKg:   R => 2.0 * CORE_MATH.pow(Math.max(0.03, R) / 0.10, 1.5),
+  // MONOWHEEL (the user, 11 Nov, the Archaeopteryx's main: "for gliders, we need to allow super light wheels"): THE
+  // BICYCLE WHEEL (the cage's whProfile 3) - a wire-spoked rim, a narrow tube tyre and a small hub: a 16" wheel (R 0.25)
+  // with its tyre and tube ~1.3 kg (a 20" ~1.6), INFERRED from bicycle catalogue weights; no brake drum of its own
+  wheelCycleKg: R => 1.3 * CORE_MATH.pow(Math.max(0.03, R) / 0.25, 1.5),
+  // THE ULTRALIGHT MONOWHEEL (WEIGHT STUDY L6, the user 12 Nov: "the gear has been specifically developed for that plane
+  // ... give it the weight you want, provided it remains something unique as a gear type ... it's really like a
+  // bicycle wheel. It's like an ultralight wheel"): gear.ul, on a monowheel only - the bicycle wheel (wheelCycleKg) in a
+  // sprung fork that bolts to the pod's hard points, the pod's box carrying it. Its members (the fork, its legs and
+  // braces in the lattice) are the gear row's at linK of their section and mass (a bicycle fork ~0.6 kg against a
+  // light aeroplane's spring leg ~3 kg; INFERRED), their springs as built (the ground handling is the card's); and it
+  // is BUILT FOR A WEIGHT as the D-tube and the soft shell: certified as if its aeroplane weighed buildKg (66_gen_cert),
+  // so on anything heavier it folds where it lands. Its NOSE SKID (the third unit as a skid ahead, twMode 'skid') is its
+  // own too: a rubber-sprung shoe on a short leaf, skidKg (a glider's nose skid ~0.3-0.5 kg, INFERRED) - not the
+  // tailwheel assembly's law the tricycle branch bills a skid by (2.0 kg at R 0.10). A FAIRED one (twFairing) is its
+  // fairing: the moulded nose shell with a rubber shoe bonded under it - the shell's mass (the fairing row) and no more
+  // (the user, 13 Nov: "for real this is almost just the fairing")
+  // ...and ITS RETRACTION (the user, 13 Nov: "a tiny retraction mechanism, weighing almost nothing ... billed as ultra
+  // light too, no need for a user choice"): a glider's - the pilot's lever, a push rod to an over-centre link, a gas strut,
+  // two doors on hinges and springs - retractKg on the axle (not GEN_RULES.retractKg's powered kit, 12 kg at the least),
+  // retractPrice; the tail wheel stays down. INFERRED: a 15 m sailplane's gear retraction weighs well under a kilogram
+  ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4, retractKg: 0.6, retractPrice: 600 },
+  // THE TOW HOOK (A0 for the user, 13 Nov: "a tow hook (nose or CG release, as real gliders have) ... with its mass, and make
+  // the TOW-LAUNCH car tow use it"): gear.towHook 'nose' | 'cg' (the gear page's towHook). A NOSE release (Tost E 85
+  // class: aerotow - the line pulls from ahead, the glider stays in line behind the tug) at the nose's keel; a CG release
+  // (Tost Europa G 88 class: winch and auto-tow - the pull near the CG lets the glider rotate into the climb, and it
+  // back-releases itself when overrun) `ahead` of the main wheel on the belly. kg / price per release INFERRED (as
+  // recalled: ~0.4 / ~0.6 kg with the ring and the cable). 61_gen_frame builds the hook's node on the hard structure and
+  // names it refs.towHook - what TOW-LAUNCH's line (src/vehicle/tow.js makeTowLine, `o.hook`) pulls on
+  towHook: { nose: { kg: 0.4, price: 450 }, cg: { kg: 0.6, ahead: 0.25, price: 650 } },
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
@@ -3731,6 +3990,15 @@ const PHYSICS_V = 7;
 // GATE ENERGYBASE caught this the moment the list landed: three of its cases
 // stopped differing from each other, because "panel tank", "dry" and "brimmed"
 // were all writing to a field that had stopped listening.
+// ENGINELESS (the LS4, 13 Nov - A0 for the user: "remove the engine completely ... engineless support"): A SAILPLANE.
+// `engines[0].none` (the cage's engine switch off, engOn 0: tools/_cage_join.js) - the aeroplane carries no powerplant:
+// resolveSpec resolves it to GEN_NO_POWERPLANT (no mass, no power, no price) and a propeller of nothing (no blades' mass,
+// no thrust, no price), the energy section holds no vessel (no tank, no pack), the frame bills no cowl and no exhaust
+// (no power). The entry stays (every reader of engines[0] keeps its shape: the mount, the station); absent, every build
+// is the bit it was.
+const GEN_NO_POWERPLANT = { price: 0, engine: { name: 'none (sailplane)', mass: 0, powerW: 0, rpm: 2300, aspiration: 'na', family: 'four', cooling: 'air', none: true },
+                            prop: { D: 0.20 } };
+function genUnpowered(S) { const e0 = S && S.engines && S.engines[0]; return !!(e0 && e0.none === true); }
 function genEnergyLift(S) {
   const f = S.fuel || {};
   const E = S.energy || (S.energy = {});
@@ -4496,6 +4764,9 @@ const GEN_DEFAULT = {
   // price; GEN_FAIR_MATS). All defaults reproduce a pre-G133 build exactly —
   // genNormaliseSpec is the migration path, no version bump (the G85 rule).
   gear: { type: 'taildragger', fairing: 'none', twFairing: 'none',
+          // MONOWHEEL: one main on the centreline - false here, and the clamp DELETES it unless true (a resolved spec
+          // carries the key only on a monowheel; genNormaliseSpec drops the false the defaults fill in)
+          mono: false,
           legFair: 'none', twLegFair: 'none',
           fairTail: 1.0, twFairTail: 1.0, fairMat: 'glass',
           suspension: 'bungee',
@@ -4594,7 +4865,14 @@ function genNormaliseSpec(raw) {
   // list at RESOLVE time, which is derivation and the right place for it.
   // GATE BUILD caught the first cut doing it here: the stock spec came back
   // from a round trip carrying a vessel list it never had.
-  if (genIsSectioned(r)) return genDefaults(r, GEN_DEFAULT);
+  if (genIsSectioned(r)) {
+    const monoSaid = !!(r.gear && typeof r.gear === 'object' && 'mono' in r.gear);   // (before the fill: genDefaults fills in place)
+    const d = genDefaults(r, GEN_DEFAULT);
+    // (MONOWHEEL: the false the defaults fill in is the absent key - a two-wheel spec carries none, as before the row;
+    //  GATE STOL's join-to-master parity read the filled `gear.mono: false` on every saved build as a moved spec)
+    if (d && d.gear && d.gear.mono === false && !monoSaid) delete d.gear.mono;
+    return d;
+  }
   // --- pre-G3 flat shape ---
   const p = r.place || {}, w = r.wing || {}, f = r.fuse || {};
   const out = {
@@ -4809,7 +5087,8 @@ function genPlanePair(pos0, pos1) {
 // the DC-3 sits inside the old big box, so nothing it flies moves; the small box is unchanged.
 const GEN_WING_ENVELOPE = {
   chord: [0.80, 3.00], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
-  taper: [0.45, 1.0], xLE: [-1.20, 3.00],
+  // (the LS4, 13 Nov: a sailplane's outer panel to 0.40 of the root - 0.36 m on 0.90; 0.45 held it at 0.405)
+  taper: [0.35, 1.0], xLE: [-1.20, 3.00],
   placeDx: [-1.2, 1.8], placeDy: [-1.0, 1.5],
   // G3579 (DC3-2, the reference model's fit): a big wing's taper to 0.25 (the DC-3's outer panel, 4.63 -> 1.4 m) and its
   // crank chord to the big chord (its constant-chord centre section, 4.63 m) - past 18 m only: every validated build's
@@ -4915,6 +5194,14 @@ function clampWing(w, S, k) {
     }
     if (Object.keys(o).length) w.tipShape = o; else delete w.tipShape;
   }
+  // THE HUB: the centre section's rows across (63_gen_wing; the wing layer shapes them) - 3..48, absent otherwise
+  if ('centreRows' in w) { const n = Math.round(+w.centreRows); if (n > 2) w.centreRows = Math.min(48, n); else delete w.centreRows; }
+  // TIP-SKID: the skid's depth under the skin, clamped; absent, zero or not a number = none (the key gone). The first
+  // plane's only (the frame hangs it on plane 0's tip joint)
+  if ('tipSkid' in w) {
+    const h = +w.tipSkid;
+    if (k === 0 && Number.isFinite(h) && h > 0) w.tipSkid = genClamp(h, GEN_TIP_SKID.h[0], GEN_TIP_SKID.h[1]); else delete w.tipSkid;
+  }
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
   // This is the Jodel's wing — a flat centre section and sharply dihedralled
@@ -4979,8 +5266,14 @@ function clampWing(w, S, k) {
 // that hid every over-size drawing until 2026-09-07. Metres, and chord
 // FRACTIONS for the controls. Widen here, nowhere else.
 const GEN_TAIL_ENVELOPE = {
-  hSpan: [1.50, 4.50], hChord: [0.40, 1.60],
-  vHeight: [0.60, 2.20], vChord: [0.40, 1.80],
+  // PC6-TAIL (2026-11-12): the stab's span to 6.0 m and the fin's height to 3.0 m (were 4.5 / 2.2). A 2.8 t STOL
+  // utility aeroplane under 18 m of wing - the Pilatus PC-6/B2-H4, a 5.13 m tailplane and a ~2.5 m fin - flew
+  // clamped. Nothing downstream was sized to the old ceiling: the stab truss takes 2..4 bays on any span, the fin the
+  // same up the post, the polars read hSpan^2/Sh and vHeight^2/Sv, mass and inertia are billed per bay off the area,
+  // and the big envelope below already flies an 8 m stab and a 4.3 m fin. A tail inside the old bounds is not touched
+  // (the clamp is the identity there); only a value the old ceiling cut moves.
+  hSpan: [1.50, 6.00], hChord: [0.40, 1.60],
+  vHeight: [0.60, 3.00], vChord: [0.40, 1.80],
   // G3503 (DC3-BUILD): A BIG AEROPLANE'S TAIL (genBig: a wing over 18 m) - the
   // DC-3's 8.2 m x 2.25 m stab and its 3 m fin of 2.9 m chord, with headroom
   // (DC3-EDITABLE: the ~40 m class's - a 12 m x 4 m stab, a 5.5 m fin of 4.5 m chord)
@@ -5095,7 +5388,7 @@ const GEN_FIELDS = {
                                          v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
                                              'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
                                          twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
-  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'] } },
   'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
   'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
   'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },
@@ -5252,6 +5545,7 @@ function clampSpec(spec) {
       const seen = new Set();
       sy.items = sy.items.filter(k => GEN_INSTR[k] && !seen.has(k) && seen.add(k));
     } else sy.items = null;
+    if (sy.mount !== 'pod') delete sy.mount;          // (the instrument pod, GEN_INSTR_POD - the key only when on)
     if (sy.fit === 'custom' && !sy.items) sy.items = GEN_SYSTEMS.basic.items.slice();
     if (!sy.elec || typeof sy.elec !== 'object') sy.elec = {};
     for (const k of ['battery', 'alternator', 'starter', 'vac'])
@@ -5377,6 +5671,7 @@ function clampSpec(spec) {
 
   S.paint.regX = genClamp(S.paint.regX == null ? 0.30 : S.paint.regX, 0, 1);
   if (!GEN_FINISH[S.paint.job]) S.paint.job = 'full';
+  if (S.paint.job === 'self') S.paint.base = GEN_FINISH.self.base;   // (the self-coloured finish: the material's own white)
 
   // G296: the birth flow's labels are retired (see GEN_DEFAULT.meta); an
   // older save still carrying them is tidied here, on the clone.
@@ -5397,6 +5692,7 @@ function clampSpec(spec) {
   fu.tailY = 0;
 
   for (const e of S.engines) {
+    if (!(e.none === true && e === S.engines[0])) delete e.none;   // (ENGINELESS: the first entry's flag, true or absent)
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
     if (e.pylonForm !== 'blade') delete e.pylonForm;  // HULL-B14: 'blade' or absent (the V legs)
     if (e.pylonAt !== 'roof' || !isFinite(+e.pylonFwd) || !+e.pylonFwd) delete e.pylonFwd; else e.pylonFwd = Math.max(-0.6, Math.min(0.8, +e.pylonFwd));   // HULL-B52
@@ -5487,6 +5783,14 @@ function clampSpec(spec) {
   // before) or a single front strut (1); the truss is the same either way
   S.bracing.struts = Math.round(+S.bracing.struts) === 1 ? 1 : 2;
   if (+S.bracing.cabPylon === 1) S.bracing.cabPylon = 1; else delete S.bracing.cabPylon;   // HULL-B78: the central pylon (absent = struts)
+  // THE HUB'S PYLON (the Archaeopteryx study's stage 3; the user: "the pylon ... have controls for moving these fore and
+  // aft"): the central pylon's place along the centre section's chord (its middle, a share from the leading edge) and its
+  // own chord (a share of the wing's) - it is the HUB's, so the wing's fore / aft row carries it. Absent: HULL-B78's 0.40
+  // and 0.55 (the frame's own rings, every build before); only with the pylon
+  for (const [k, lo, hi] of [['cabPyAt', 0.10, 0.95], ['cabPyLen', 0.20, 0.95]]) {
+    const v = +S.bracing[k];
+    if (S.bracing.cabPylon && S.bracing[k] != null && Number.isFinite(v)) S.bracing[k] = genClamp(v, lo, hi); else delete S.bracing[k];
+  }
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
@@ -5539,7 +5843,8 @@ function clampSpec(spec) {
     // NO LIST? BUILD ONE FROM THE CAPACITY THE SPEC NAMES. genEnergyLift is
     // that rule, shared with the v6 migrator, so a lifted save and a
     // hand-written spec land on the same aeroplane.
-    if (!Array.isArray(E.vessels) || !E.vessels.length) genEnergyLift(S);
+    if (genUnpowered(S)) E.vessels = [];               // (ENGINELESS: no tank, no pack - nothing to feed)
+    else if (!Array.isArray(E.vessels) || !E.vessels.length) genEnergyLift(S);
     let total = 0;
     // TANK-FIT (Part 3): A POD ON A STRUT THE AEROPLANE DOES NOT HAVE IS NOT FITTED. It stays in the list (the
     // builder's fuel is never dropped silently: the editor says so, red, and a strut put back hangs it again), but it
@@ -5593,7 +5898,9 @@ function clampSpec(spec) {
   }
   cb.baggage = genClamp(cb.baggage, 0, 60);
   if (!['glass', 'none'].includes(cb.glazing)) cb.glazing = 'glass';
-  if (!['acrylic', 'polycarbonate', 'glass'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
+  if (!['acrylic', 'polycarbonate', 'glass', 'film'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
+  // (WEIGHT STUDY L3: the light control runs, GEN_OUTFIT.ctlKgMLight - latent, 'light' the only stated value)
+  if (cb.ctlRuns != null && cb.ctlRuns !== 'light') delete cb.ctlRuns;
   cb.glazedM2 = (typeof cb.glazedM2 === 'number' && isFinite(cb.glazedM2) && cb.glazedM2 >= 0)
     ? genClamp(cb.glazedM2, 0, 40) : null;
   // G3516 (NEW-SHAPES-1): an OPEN COCKPIT'S SCREENS, m2 as the join measured them (cabin.glazing 'none' because every
@@ -5693,6 +6000,23 @@ function clampSpec(spec) {
   S.tail.hInc = genClamp(S.tail.hInc || 0, -10, 10);
   // HULL-B1: 'hull' - the fuselage is the boat (the cage's hullOn; its measured lines ride gear.hull)
   if (!['taildragger', 'tricycle', 'floats', 'hull'].includes(S.gear.type)) S.gear.type = 'taildragger';
+  // MONOWHEEL (the Archaeopteryx study's stage 1, 11 Nov; the user: "a true single-wheel gear type, we will reuse it on
+  // other gliders"): THE MAINS ARE ONE WHEEL ON THE CENTRELINE - a sailplane's, a motor glider's. A flag on a wheeled
+  // gear, not a type: the third unit keeps its own end (a nose wheel or a nose skid ahead - 'tricycle' -, a tail wheel or
+  // a tail skid behind - 'taildragger'), and every rule that reads the type reads the same unit. At rest the wing goes
+  // down on a tip (the wingtip skid, wings[0].tipSkid, is the wing's own row). The key only when on (a two-wheel build's
+  // spec is the bytes it was); no retraction, no trailing link (both are built per side)
+  if (S.gear.mono === true && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle')) {
+    if (S.gear.ul !== true) { delete S.gear.retract; delete S.gear.ul; }   // (the ULTRALIGHT monowheel may retract: GEN_RULES.ulGear.retractKg)
+    if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';     // (L6: the ultralight monowheel, GEN_RULES.ulGear - the key only when on)
+  } else { delete S.gear.mono; delete S.gear.ul; }
+  // (THE TOW HOOK, GEN_RULES.towHook: a nose or a CG release on a wheeled gear - the key only when one is fitted; a spec
+  //  built from its cage without the join - a design bake - reads the cage's row, as the frame reads whProfile)
+  if (S.gear.towHook == null && S.cage && Math.round(+S.cage.towHook || 0) > 0) S.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+S.cage.towHook)) - 1];
+  if (!((S.gear.towHook === 'nose' || S.gear.towHook === 'cg') && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))) delete S.gear.towHook;
+  // MONOWHEEL: THE SUNK MAINS - the share of the wheel's diameter inside the body (the cage's s1Sink, the join's); the
+  // drag counts the rest, no leg in the stream. Absent at 0
+  if (+S.gear.sink > 0) S.gear.sink = genClamp(+S.gear.sink, 0, 0.7); else delete S.gear.sink;
   // H2 (G389): the measured floats — the drawn hull's parameters and its
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
   if (S.gear.floats && typeof S.gear.floats === 'object') {
@@ -5780,7 +6104,7 @@ function clampSpec(spec) {
   // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
   // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
   // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
-  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
+  if (S.gear.retract && typeof S.gear.retract === 'object' && (S.gear.type === 'tricycle' || (S.gear.mono && S.gear.ul))) {   // (the ultralight monowheel: its main alone, the tail wheel fixed)
     const r = S.gear.retract;
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
@@ -5861,6 +6185,7 @@ function clampSpec(spec) {
   S.gear.twFairTail = genClamp(S.gear.twFairTail == null ? 1 : S.gear.twFairTail,
                                0.70, 1.60);
   if (!GEN_FAIR_MATS[S.gear.fairMat]) S.gear.fairMat = 'glass';
+  if (S.gear.brakes != null && !GEN_BRAKES[S.gear.brakes]) delete S.gear.brakes;   // (the brakes: absent is as it was)
   // G121 (the review's B8): ONE ENGINE UNTIL THE MOUNTS ARE REAL. `engines`
   // is an array by design and `nEngines` multiplies thrust honestly — but
   // every mount today is the one nose pair, so a second entry would fly as
@@ -5918,6 +6243,35 @@ function clampSpec(spec) {
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
   fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
+  // THE HUB'S REAR SOCKET (61_gen_frame 3c): the rod slots into the wing's centre section - a rod's only, the key only
+  // when on
+  if (!(fu.rodHub === true && fu.boom === 'rod')) delete fu.rodHub;
+  // THE ROD ROW (WEIGHT STUDY L2b, 12 Nov; the user: "an ultralight rod ... whose stiffness would be impacted"; A0: "the
+  // rod row, material + wall per build"): LATENT - absent, the rod is the fuselage's material at GEN_RULES.rodWall, as
+  // ever. A rod's only: `rodMat` a GEN_MATERIALS key with a phys row, `rodWall` its tube wall in metres, 0.3 - 3 mm
+  if (fu.boom !== 'rod') { delete fu.rodMat; delete fu.rodWall; }
+  else {
+    if (fu.rodMat != null && !(GEN_MATERIALS[fu.rodMat] && GEN_MATERIALS[fu.rodMat].phys)) delete fu.rodMat;
+    if (fu.rodWall != null) { const t = +fu.rodWall; if (Number.isFinite(t) && t > 0) fu.rodWall = genClamp(t, 3e-4, 3e-3); else delete fu.rodWall; }
+  }
+  // THE HANGING NACELLE (the Archaeopteryx study's stage 3, 61_gen_frame 3d): the cabin hangs on ONE structural mast from
+  // the wing's centre section down to the keel - a first plane above the cabin (high or parasol) only; the mast's station
+  // on the root chord (hangAt, its middle) and its chord (hangLen), both fractions of the root chord, only with the key
+  {
+    const w0h = S.wings && S.wings[0], posH = w0h ? (w0h.position || 'high') : null;
+    // (hangX: the drawn mast's front and back stations, the join's measure - the frame stands it there)
+    const hx = fu.hangX, hxOk = Array.isArray(hx) && hx.length === 2 && hx.every(Number.isFinite) && hx[1] - hx[0] > 0.05 && hx[1] - hx[0] < 2;
+    if (!(fu.hang === true && hxOk)) delete fu.hangX;
+    // (hangKeel 2: the twin keel tubes either side of the pilot, at hangKeelK of the cabin's height - absent, the single
+    // box on the centreline)
+    if (!(fu.hang === true && +fu.hangKeel === 2)) { delete fu.hangKeel; delete fu.hangKeelK; }
+    else { fu.hangKeel = 2; const kk = +fu.hangKeelK; if (fu.hangKeelK != null && Number.isFinite(kk)) fu.hangKeelK = genClamp(kk, 0.05, 0.95); else delete fu.hangKeelK; }
+    if (!(fu.hang === true && (posH === 'high' || posH === 'parasol'))) { delete fu.hang; delete fu.hangAt; delete fu.hangLen; delete fu.hangX; delete fu.hangKeel; delete fu.hangKeelK; }
+    else for (const [k, lo, hi] of [['hangAt', 0.10, 0.95], ['hangLen', 0.10, 0.60]]) {
+      const v = +fu[k];
+      if (fu[k] != null && Number.isFinite(v)) fu[k] = genClamp(v, lo, hi); else delete fu[k];
+    }
+  }
   fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
@@ -6526,8 +6880,8 @@ function resolveSpec(spec) {
   const CU = S.engines[0] && S.engines[0].custom;
   // (ENGINE-DIALS: a custom row's default propeller is the generic 1.80 m, never the registry row's it fell back to -
   // the A-65's 1.88 for every custom engine; a drawn build always states its own D, so only a bare spec reads it)
-  const PP = CU
-    ? { price: CU.price, engine: CU, prop: { D: 1.80 } }
+  const PP = genUnpowered(S) ? GEN_NO_POWERPLANT
+    : CU ? { price: CU.price, engine: CU, prop: { D: 1.80 } }
     : REG;
   S.pplant = PP;
   // WHERE THE ENGINE'S MASS SITS (2026-09-05, the cgFwd half-session): the CG
@@ -6535,7 +6889,7 @@ function resolveSpec(spec) {
   // measured table (GEN_ENG_CG); null = no entry = the frame hangs the lump
   // on the mount nodes as it always did. A READING on the spec, never
   // written into the registry row (a registry dict is shared by every build).
-  S.engCgAft = (typeof genEngineCgAft === 'function' && PP)
+  S.engCgAft = genUnpowered(S) ? null : (typeof genEngineCgAft === 'function' && PP)   // (ENGINELESS: no engine's CG - the frame's old rig, no CG node of nothing)
     ? genEngineCgAft(S.engine, PP.engine) : null;
   // G445.8 (the MASS chantier, the forward item): THE INSTALLATION. A
   // registry row's `mass` is the DRY engine — the number a Lycoming sheet
@@ -6576,6 +6930,8 @@ function resolveSpec(spec) {
     pr.autoPitch = (pr.pitch === 'auto');
     pr.powerW = P;
     genPropSynth(pr, pr.autoPitch ? 'standard' : pr.pitch);
+    // (ENGINELESS: a propeller of nothing - no blades, no thrust, no price; the disc's D stays the clamp's least, unread)
+    if (genUnpowered(S)) { pr.powerW = 0; pr.Tstatic = 0; pr.kV2 = 0; pr.V0 = 0; pr.VPeak = 0; pr.mass = 0; pr.price = 0; pr.none = true; pr.name = 'none'; }
   }
   const propR = S.prop.D / 2;
   S.propR = propR;

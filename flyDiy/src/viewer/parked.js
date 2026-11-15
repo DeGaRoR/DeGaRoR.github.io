@@ -522,7 +522,9 @@
   function usedPages(A, block) {
     const N = (A && A.AERO_ATLAS_N) || 4, out = new Set();
     const n = block && block.uDecN ? block.uDecN.value | 0 : 0, B = block && block.uDecB ? block.uDecB.value : null;
-    for (let i = 0; i < n && B && B[i]; i++) { const r = B[i]; const px = Math.round(r.x * N), py = N - 1 - Math.round(r.y * N); if (px >= 0 && px < N && py >= 0 && py < N) out.add(py * N + px); }
+    // LIVERY-STICKERS (9 Nov): BY THE RECT'S CENTRE - a sticker's rect is a cell of page 15, not a page, and its corner
+    // rounded to the next column (off the atlas) and the wrong row (page 11); for a whole page the centre gives the same
+    for (let i = 0; i < n && B && B[i]; i++) { const r = B[i]; const px = Math.floor((r.x + r.z / 2) * N), py = N - 1 - Math.floor((r.y + r.w / 2) * N); if (px >= 0 && px < N && py >= 0 && py < N) out.add(py * N + px); }
     return Array.from(out).sort((a, b) => a - b);
   }
   function copyAtlas(THREE, A, pages) {

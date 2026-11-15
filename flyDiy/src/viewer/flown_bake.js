@@ -1400,6 +1400,8 @@
     const U = A.aeroSharedU(THREE), saved = {}; for (const k in U) saved[k] = { value: cloneVal(U[k].value) };
     const macro0 = (WX && WX.aeroWxSetMacro) ? Object.assign({}, WX.aeroWxSetMacro(THREE, null)) : null;
     let at;
+    // LIVERY-STICKERS: the stickers' geometry is a lazy file - the bake (and its cache, keyed by the build) waits for it
+    if (spec && A.aeroVinylWait) { try { await A.aeroVinylWait(spec); } catch (e) {} }
     try {
       blockFor(THREE, vis, spec);
       at = await bakeAtlas(THREE, R, vis, list, t, S);

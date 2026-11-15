@@ -23,6 +23,11 @@
 //   called "official" or "Metal"; every test plane's name starts "Test copy: "; a row whose file rides another branch is the
 //   developer's until it lands.
 //
+// THE CHOOSER (the user 10 Nov, Q5): the 8 types with a real plane are opened by their chooser shape (a row's alike: the
+//   archetype's key, each on its one real row, a player plane with a file); a shape row (shape, no file: the Spitfire and the
+//   Skymaster, WIP) is a chooser shape that exists, its registration given at its birth; new_plane.js opens both (GATE NEWPLANE
+//   runs the flow).
+//
 //   node tools/_planelists_check.js [--selftest]  -> "GATE PLANELISTS: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -59,9 +64,15 @@ const CLASSES = {
   "Pawnee": ["wip", "builds/candidates/pawnee (1).json", "F-HPAW"],
   "sailPlane": ["wip", "builds/candidates/sailPlane.json", "F-CSWS"],
   "Cessna 172 on floats (draft)": ["wip", "builds/cessna172r_floats_2026-11-08.json", "F-HCSF"],
+  "Spitfire": ["wip", "shape:spitfire", ""],
+  "Skymaster": ["wip", "shape:skymaster", ""],
   // (the Ruckus x2 join as reproductions with REAL-FIGURES' cards - Solo 103 = ruckus_std, Back-Country = ruckus_2026-11-09;
-  //  the Spitfire and the Skymaster as WIP with the chooser's shapes ready)
+  //  the Spitfire and the Skymaster: shape rows, the chooser's shapes - no file, a registration at birth)
 };
+// THE CHOOSER'S REAL PLANES (the user 10 Nov, Q5): archetype key -> the row its "-alike" tile opens
+const ALIKES = { cub: 'Piper Cub', jodel: 'Jodel D112', c172: 'Cessna 172', chinook: 'Chinook', tigermoth: 'Tiger Moth-alike',
+  stearman: 'Stearman-alike', camel: 'Camel-alike', floatplane: 'Ultralight twin on floats' };
+const ARCH_KEYS = require('./_cage_design.js').ARCHETYPES.map(a => a.key);
 const PLAYER = ['reproduction', 'story', 'original', 'wip'], ALL = PLAYER.concat(['next', 'legacy', 'archive']);
 const named = [];
 // REAL-FIGURES' set (tools/real_refs.js PLANES): a known entry is not dropped, a live one is not superseded either
@@ -73,7 +84,7 @@ const PENDING = {
   'builds/candidates/ruckus_struts_2026-11-10.json': 'the Ruckus struts card (Q3): a test plane row with the cards',
 };
 
-function listRows(lists, index, thumbs, exists, contractFiles, refs = RF) {
+function listRows(lists, index, thumbs, exists, contractFiles, refs = RF, archKeys = ARCH_KEYS) {
   const bad = [];
   let L = null, I = null;
   try { L = JSON.parse(lists); } catch (e) { return ['plane_lists.json does not parse: ' + e.message]; }
@@ -85,7 +96,9 @@ function listRows(lists, index, thumbs, exists, contractFiles, refs = RF) {
     if (nums.has(p.n)) bad.push('number ' + p.n + ' twice'); nums.add(p.n);
     if (!p.name || names.has(p.name)) bad.push('name missing or twice: ' + id); names.add(p.name);
     if (!ALL.includes(p.list)) bad.push(id + ': no class (' + p.list + ')');
-    if ((p.file ? 1 : 0) + (p.stock ? 1 : 0) + (p.gen ? 1 : 0) !== 1) bad.push(id + ': not exactly one door');
+    if ((p.file ? 1 : 0) + (p.stock ? 1 : 0) + (p.gen ? 1 : 0) + (p.shape ? 1 : 0) !== 1) bad.push(id + ': not exactly one door');
+    if (p.shape && (p.list !== 'wip' || !archKeys.includes(p.shape))) bad.push(id + ': shape ' + p.shape + ' is not a WIP row of a chooser shape that exists');
+    if (p.alike && (!p.file || !PLAYER.includes(p.list) || ALIKES[p.alike] !== p.name || !archKeys.includes(p.alike))) bad.push(id + ': alike ' + p.alike + ' is not the chooser\'s shape for this plane');
     if (p.file) {
       if (!exists(p.file)) { if (p.rides) named.push(id + ': ' + p.file + ' rides ' + p.rides); else bad.push(id + ': ' + p.file + ' is not there'); }
       if (!['legacy', 'archive'].includes(p.list) && /review\//.test(p.file)) bad.push(id + ': ' + p.list + ' reads review/');
@@ -94,7 +107,8 @@ function listRows(lists, index, thumbs, exists, contractFiles, refs = RF) {
   }
   { const seen = {}; for (const p of P) if (p.file) { if (seen[p.file]) bad.push('one plane, one row: ' + p.file + ' on rows ' + seen[p.file] + ' and ' + p.n); seen[p.file] = p.n; } }
   for (let n = 1; n <= 38; n++) if (!nums.has(n)) bad.push('the sheet\'s number ' + n + ' has no row (nothing is deleted)');
-  for (const n of Object.keys(CLASSES)) { const r = P.find(p => p.name === n), [c, f, g] = CLASSES[n]; if (!r || r.list !== c || r.file !== f) bad.push(c + ': ' + n + ' is not ' + f); else if (r.reg !== g) bad.push(c + ': ' + n + '\'s registration is not ' + g); }
+  for (const k of Object.keys(ALIKES)) { const on = P.filter(p => p.alike === k); if (on.length !== 1) bad.push('chooser: the ' + k + ' shape opens ' + on.length + ' rows, not its real plane'); }
+  for (const n of Object.keys(CLASSES)) { const r = P.find(p => p.name === n), [c, f, g] = CLASSES[n]; if (!r || r.list !== c || (r.file || (r.shape ? 'shape:' + r.shape : undefined)) !== f) bad.push(c + ': ' + n + ' is not ' + f); else if ((r.reg || '') !== g) bad.push(c + ': ' + n + '\'s registration is not ' + g); }
   for (const r of P.filter(p => PLAYER.includes(p.list))) if (!CLASSES[r.name]) bad.push(r.list + ': ' + r.name + ' is not on the table');
   // THE CANON (the user 12 Nov, "yes to all"): (a) the reproductions are the planes REAL-FIGURES tests, both ways; (b) one name
   // and one registration per player plane; (c) "official" and "Metal" are retired as names, a test plane's name says so
@@ -104,9 +118,10 @@ function listRows(lists, index, thumbs, exists, contractFiles, refs = RF) {
       if (PENDING[e.file]) named.push('canon: REAL-FIGURES tests ' + e.file + ' - pending: ' + PENDING[e.file]); else bad.push('canon: REAL-FIGURES tests ' + e.file + ', on no row of the list'); }
     const regs = {};
     for (const r of P.filter(p => PLAYER.includes(p.list))) {
+      if (/official|metal/i.test(r.name)) bad.push('canon: a player plane named ' + r.name + ' ("official" and "Metal" are retired)');
+      if (r.shape) continue;   // a shape row: its registration is given at its birth (the chooser's field)
       if (typeof r.reg !== 'string' || !r.reg.trim()) { bad.push('canon: ' + r.name + ' has no registration'); continue; }
       if (regs[r.reg]) bad.push('canon: registration ' + r.reg + ' on ' + regs[r.reg] + ' and ' + r.name); regs[r.reg] = r.name;
-      if (/official|metal/i.test(r.name)) bad.push('canon: a player plane named ' + r.name + ' ("official" and "Metal" are retired)');
     }
     for (const r of P.filter(p => p.list === 'legacy')) if (!/^Test copy: /.test(r.name)) bad.push('canon: test plane ' + r.n + ' ' + r.name + ' does not say "Test copy: "'); }
   // the pool agrees: a card the rack offers is a player's plane; a hidden card is a test plane or a next version; the pool's
@@ -141,12 +156,19 @@ function pageRows(S) {
   if (/gfStock/.test(S.garage)) bad.push("garage: the stock-designs shelf is back (the user 10 Nov: no duplicated planes)");
   need('garage', /\.filter\(p => p && p\.official && labOk\(p\)\)/, 'a lab row is off the official pool (SEA-OFF)');
   need('garage', /planeLists, openListed, officialPool,/, 'GARAGE_SPEC carries the lists');
+  need('np', /for \(const p of l \|\| \[\]\) if \(p && p\.alike && p\.file\) m\[p\.alike\] = p;/, "the chooser reads each shape's real plane off the lists (Q5)");
+  need('np', /else realTile\(b, a, real, \(\) => generateCard\(a\)\);/, "an authored shape with a real plane opens that plane (Q5)");
+  need('garage', /if \(p\.shape\) \{ const why = window\.NEW_PLANE && window\.NEW_PLANE\.openShape \? window\.NEW_PLANE\.openShape\(p\.shape\)/, "the garage's list door builds a shape row from its shape (the FLEET screen's door)");
+  need('np', /window\.NEW_PLANE = \{ open, close, isOpen, LOG, openShape, shapeWhy,/, 'the chooser exports its shape door and its pure query');
+  need('np', /realTile\(b, a, real, \(\) => \{ choices = g\.complete\(g\.fromArchetype\(a\)\)\.choices;/, "a shed's shape with a real plane opens that plane (Q5: the Twin-582 floatplane)");
   need('np', /poolCards\(g0\.officialPool, 'official', 'official'\)/, "the chooser's official group (the user 4 Nov: \"yes, both on the chooser\")");
-  need('garage', /class="dfPill gfAll">all planes</, "the rack's button");
-  need('garage', /\.gfAll'\)\.addEventListener\('click', \(\) => \{ closeFleet\(\); if \(window\.NEW_PLANE\) window\.NEW_PLANE\.open\(\{ all: true \}\)/, 'the button opens the screen');
+  // FLEET (13 Nov): the All planes tab of the full-screen Fleet; the chooser's old door forwards to it
+  need('fleet', /data-tab="all">All planes</, "the Fleet's All planes tab");
+  need('np', /if \(opts && opts\.all\) return !!\(window\.FLEET_SCREEN && window\.FLEET_SCREEN\.open\(\{ tab: 'all' \}\)\)/, 'the chooser\'s All planes door forwards to the Fleet');
   need('garage', /for \(const k in p\.over \|\| \{\}\) g\.spec\[k\] = Object\.assign\(\{\}, g\.spec\[k\], p\.over\[k\]\); loadSpec\(g\.spec, ''\)/, 'a row opens unnamed, no plaque, its sections laid over');
-  need('np', /g0\.planeLists\(\)\.then\(list =>[\s\S]{0,1400}?g0\.openListed\(p\)/, 'the screen draws the lists and opens through the garage');
-  need('np', /const LIST_CLASSES = \[\['reproduction', 'reproductions', 'reproduction'\], \['story', 'story', 'story'\], \['original', 'originals', 'original'\],\s*\['wip', 'work in progress', 'work in progress'\], \['next', /, 'the classes, each its heading and its word');
+  need('fleet', /g\.planeLists\(\)\.then\(l => \{ lists = l/, 'the Fleet reads the lists through the garage');
+  need('fleet', /if \(t\.kind === 'list'\) \{ if \(t\.why\) return; return loadNow\(\(\) => g\.openListed\(t\.p\)\)/, 'a list tile opens through the garage (openListed), behind the spinner');
+  need('fleet', /const CLASSES = \[\['reproduction', 'Reproductions'\], \['story', 'Story'\], \['original', 'Originals'\], \['wip', 'Work in progress'\],/, "the player's four classes first, in the list's order");
   if (/plane_lists/.test(S.core)) bad.push('core: the career, the Market and the contracts must not read the lists');
   // internal + notes: the dev's, the garage's own filter on stubs
   const m = /const LISTS_FILE = [\s\S]*?const planeLists = \(\) => \{[\s\S]*?\n  \};/.exec(S.garage);
@@ -180,7 +202,7 @@ function stand(S, bad) {
   const C = require('./flight_core.js');
   const contractFiles = Object.values(C.CONTRACT_DESIGNS).map(d => d.build).filter(Boolean);
   const coreDir = path.join(ROOT, 'src', 'core');
-  const S = { garage: read('src/viewer/garage.js'), np: read('src/viewer/new_plane.js'), css: read('src/viewer/editor.css'), app: read('src/viewer/app.js'),
+  const S = { garage: read('src/viewer/garage.js'), fleet: read('src/viewer/fleet_screen.js'), np: read('src/viewer/new_plane.js'), css: read('src/viewer/editor.css'), app: read('src/viewer/app.js'),
     core: fs.readdirSync(coreDir).filter(f => /\.js$/.test(f)).map(f => fs.readFileSync(path.join(coreDir, f), 'utf8')).join('\n') };
   const bad = listRows(lists, index, thumbs, exists, contractFiles).concat(await pageRows(S));
   const L = JSON.parse(lists).planes;
@@ -202,7 +224,7 @@ function stand(S, bad) {
     await red('a Market file gone', listRows(lists, index, thumbs, f => f !== contractFiles[0] && exists(f), contractFiles));
     await red('the filter shows internal to a player', pageRows(Object.assign({}, S, { garage: S.garage.replace("(dev || (PLAYER_CLASSES.includes(p.list) && labOk(p) && !p.rides))", 'true') })));
     await red('the stock shelf back', pageRows(Object.assign({}, S, { garage: S.garage + '\n<div class="gfStock"></div>' })));
-    await red('the rack without its button', pageRows(Object.assign({}, S, { garage: S.garage.replace('gfAll">all planes<', 'gfAll"><') })));
+    await red('the Fleet without its All planes tab', pageRows(Object.assign({}, S, { fleet: S.fleet.replace('data-tab="all">All planes<', 'data-tab="all"><') })));
     await red('the chooser without its official group', pageRows(Object.assign({}, S, { np: S.np.replace("poolCards(g0.officialPool, 'official', 'official')", '0') })));
     await red('R1 undone', pageRows(Object.assign({}, S, { css: S.css.replace('--ws-right:0px !important', '--ws-right:0px') })));
     await red('R2 undone', pageRows(Object.assign({}, S, { app: S.app.replace('!!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen())', 'false') })));
@@ -216,6 +238,12 @@ function stand(S, bad) {
     await red('canon (b): a player plane without its registration', rows(edit(o => { delete o.planes.find(p => p.n === 6).reg; })), /^canon: Twin busher floats 4b has no registration/);
     await red('canon (c): "Metal" back on a player plane', rows(edit(o => { o.planes.find(p => p.n === 40).name = 'Metal Cessna'; })), /^canon: a player plane named Metal/);
     await red('canon (c): a test plane not called a test copy', rows(edit(o => { o.planes.find(p => p.n === 5).name = 'B-CESS'; })), /^canon: test plane 5 /);
+    await red('chooser: a shape opening two rows', rows(edit(o => { o.planes.find(p => p.n === 3).alike = 'cub'; })), /^chooser: the cub shape opens 2 rows/);
+    await red('chooser: a real plane without its shape', rows(edit(o => { delete o.planes.find(p => p.n === 9).alike; })), /^chooser: the stearman shape opens 0 rows/);
+    await red('chooser: an alike on the wrong plane', rows(edit(o => { o.planes.find(p => p.n === 10).alike = 'camel'; o.planes.find(p => p.n === 11).alike = 'tigermoth'; })), /alike camel is not the chooser/);
+    await red('chooser: a shape row of a shape that does not exist', rows(edit(o => { o.planes.find(p => p.n === 55).shape = 'nope'; })), /shape nope is not a WIP row/);
+    await red('chooser: a shape row with a file too', rows(edit(o => { o.planes.find(p => p.n === 56).file = 'builds/cub_2026-09-20.json'; })), /^56 Skymaster: not exactly one door/);
+    await red('chooser: the shape tile builds the shape again', pageRows(Object.assign({}, S, { np: S.np.replace('else realTile(b, a, real, () => generateCard(a));', "else b.addEventListener('click', () => generateCard(a));") })), /authored shape with a real plane/);
     await red('the floats draft shown to a player before its file lands', pageRows(Object.assign({}, S, { garage: S.garage.replace('labOk(p) && !p.rides))', 'labOk(p)))') })), /rides another branch/);
   }
   for (const b of bad) console.log('  FAIL ' + b);

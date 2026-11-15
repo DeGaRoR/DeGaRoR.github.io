@@ -224,9 +224,16 @@ const COWL_ROWS = [
     { k: 'blinkOn', label: 'blinkers (wingtip teardrops) on the bonnet\'s sides', lo: 0, hi: 1, step: 1 },   // CAR-3
     { k: 'blinkY', label: 'blinkers under the headlamps (m)', lo: -0.3, hi: 0.4, step: 0.005, when: 'P.blinkOn>0' },
   ] },
-  // ---- Chin scoop ----
+  // ---- Chin scoop (or a top one) ----
   { id: 'g_scoop', name: 'Chin scoop', rows: [
     { k: 'scoopOn', label: 'chin scoop', lo: 0, hi: 1, step: 1 },
+    // ENGINE-COOLING (12 Nov): the same scoop on the cowl's top (absent 0: under it, as every scoop was)
+    { k: 'scoopTop', label: 'sits', lo: 0, hi: 1, step: 1, names: ['under the cowl (a chin scoop)', 'on top of the cowl'], when: 'P.scoopOn>0' },
+    // ENGINE-COOLING 3: a push-pull's AFT cowl (the nose cowl turned round) with its scoop turned on its own (absent 0)
+    { k: 'scoopAft', label: 'the rear engine\'s scoop (push-pull)', lo: 0, hi: 1, step: 1, names: ['as the nose cowl\'s', 'turned: into the air'], when: 'P.scoopOn>0' },
+    // ENGINE-COOLING (12 Nov): the mouth turned round - on a pusher the cowl runs from the firewall to the propeller, so
+    // only a turned scoop faces the air (absent 0: every scoop as it was)
+    { k: 'scoopRev', label: 'mouth faces', lo: 0, hi: 1, step: 1, names: ['the propeller', 'the firewall (a pusher: into the air)'], when: 'P.scoopOn>0' },
     // PROPER-COWLS V5: the scoop rides the keel (absent 0)
     { k: 'scoopFollow', label: 'rides the bottom line', lo: 0, hi: 1, step: 1, when: 'P.scoopOn>0' },
     // 2026-09-05 (TURBOPROP §7): where along the cowl the scoop sits —
@@ -246,7 +253,7 @@ const COWL_ROWS = [
     { k: 'scoopTaperH', label: 'taper: aft-end height (× the mouth)', lo: 0.2, hi: 1.5, step: 0.01, when: 'P.scoopOn>0' },
     { k: 'scoopTaperW', label: 'taper: aft-end width (× the mouth)', lo: 0.2, hi: 1.5, step: 0.01, when: 'P.scoopOn>0' },
     { k: 'scoopSq', label: 'angularity (round → box)', lo: 0, hi: 1, step: 0.01, when: 'P.scoopOn>0' },
-    { k: 'scoopDrop', label: 'drop below the axis', lo: 0.2, hi: 1.2, step: 0.02, when: 'P.scoopOn>0' },
+    { k: 'scoopDrop', label: 'distance from the axis', lo: 0.2, hi: 1.2, step: 0.02, when: 'P.scoopOn>0' },
     { k: 'scoopRake', label: 'mouth rake', lo: 0, hi: 1.2, step: 0.02, when: 'P.scoopOn>0' },
     { k: 'scoopAp', label: 'mouth opening', lo: 0.2, hi: 0.95, step: 0.02, when: 'P.scoopOn>0' },
     { k: 'scoopLipH', label: 'lip height', lo: 0.002, hi: 0.05, step: 0.001, when: 'P.scoopOn>0' },
@@ -270,7 +277,7 @@ const COWL_ROWS = [
     { k: 'partY', label: 'height (widest line → top line)', lo: -0.9, hi: 0.9, step: 0.02, when: 'P.partOn>0' },
     { k: 'partW', label: 'width', lo: 0.001, hi: 0.006, step: 0.0002, when: 'P.partOn>0' },
     // PROPER-COWLS: held level at the firewall's height, the groove a constant width (partW, metres)
-    { k: 'partLevel', label: 'split line level (a fixed height and width)', lo: 0, hi: 1, step: 1, when: 'P.partOn>0' },
+    // (partLevel: no row - the split line is always level, a fixed height and width; the user 13 Nov via A0)
     // PROPER-COWLS: the groove's width in metres on a parameter split too (0 = the old width by the section's turn)
     { k: 'partArc', label: 'groove width even (metres)', lo: 0, hi: 1, step: 1, when: 'P.partOn>0' },
   ] },

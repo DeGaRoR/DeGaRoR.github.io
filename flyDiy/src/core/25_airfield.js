@@ -439,7 +439,12 @@ function siteScoreDirections(model, wind, lim, pref, oneWay) {
     if (!land && D.grade > 0) { sc -= 60 * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }
     if (land && reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
     else if (land && reqGs > gsNom) { sc -= 100 * (reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
-    if (D.reqClimb > climb) { sc -= 1000; why.push((land ? 'go-around' : 'climb-out') + ' needs ' + (D.reqClimb * 100).toFixed(1) + '% climb'); }
+    // PILOT-UNIFY (the user, 13 Nov: the Jodel must take off from Jumbo Mine): A CLIMB-OUT PAST THE AEROPLANE'S IS GRADED. Both of
+    // Jumbo Mine's ways out failed the Jodel's 8 % - the valley's by 9.3 %, the mountain's by 207 % - and at a flat -1000 each the
+    // one-way's -500 sent it at the mountain (capsized 300 m past the end; the Cub, whose climb makes 9.3, took the valley). Past
+    // the limit a take-off's way costs 100 more per climb's worth over it: of two ways out the aeroplane cannot climb, the
+    // one that asks least. A landing's go-around, and every way within the limit, as before
+    if (D.reqClimb > climb) { sc -= 1000 + (land ? 0 : 100 * Math.min(50, (D.reqClimb - climb) / Math.max(1e-3, climb))); why.push((land ? 'go-around' : 'climb-out') + ' needs ' + (D.reqClimb * 100).toFixed(1) + '% climb'); }
     else if (D.reqClimb > 0.5 * climb) { sc -= 100 * (D.reqClimb - 0.5 * climb) / climb; why.push('climb-out ' + (D.reqClimb * 100).toFixed(1) + '%' + (D.climbTurn ? (D.climbTurn > 0 ? ' turning right' : ' turning left') : '')); }
     if (pref) { const pl = Math.hypot(pref[0], pref[1]) || 1, p = (D.u[0] * pref[0] + D.u[1] * pref[1]) / pl; sc += 0.5 * p; if (oneWay && p < 0) { sc -= 500; why.push('one-way'); } }
     out.push({ k: D.k, score: Math.round(sc * 100) / 100, why });
@@ -1138,11 +1143,12 @@ function fleetField(aero, site, pave) {
     return false;
   };
   // a stand polygon belongs to this field when its centre does
-  const polys = (pave || []).filter(p => p && p.poly && p.stands && base(...fleetPolyCentre(p.poly)));
+  const polys = (pave || []).filter(p => p && p.poly && (p.stands || p.parking) && base(...fleetPolyCentre(p.poly)));   // (PARKING-AREA: an area the fleet fills, as a painted stand row)
   const f = (x, z) => base(x, z) || polys.some(p => inPoly(p.poly, x, z));
   f.polys = polys;
   return f;
 }
+const fleetInPoly = (poly, x, z) => { let ins = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) ins = !ins; } return ins; };
 const fleetPolyCentre = poly => { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of poly) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); } return [(x0 + x1) / 2, (z0 + z1) / 2]; };
 function fleetSpots(aero, site, opts) {
   // G2300 (STAGES, contract v1.33): a field whose stage says `ties: false` has no tie-down spots yet (East Point before
@@ -1203,7 +1209,33 @@ function fleetSpots(aero, site, opts) {
   // 1 THE PAINTED STANDS of this field, in their order: the nose at the stop, the box the envelope's (a stand whose
   // neighbour is taken - by a spot before it, or by a thing the record parks there - is refused by the rules above)
   const near = field.polys.slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  // 0 THE PARKING AREAS (PARKING-AREA, the user 13 Nov: "parking = an area, a polygon or a circle, sized in the editor; the
+  // parked planes fill it"): a grid over the area in its own lanes' frame (its yaw), the nose along the lanes, across them
+  // a span and a gap apart, the rows a length and a row gap apart; tried nearest the field's stand first, each through the
+  // rules above (inside the area by its four corners, flat, clear, off the runway and the routes, no overlap)
   for (const p of near) {
+    if (!p.parking) continue;
+    const pk = p.parking, ctr = fleetPolyCentre(p.poly), c = CORE_MATH.cos(p.yaw || 0), s = CORE_MATH.sin(p.yaw || 0);
+    const pitchV = 2 * env.half + (+pk.gap > 0 ? +pk.gap : F.gap), pitchU = env.fwd + env.aft + (+pk.rowGap > 0 ? +pk.rowGap : F.rowGap);
+    let u0 = Infinity, u1 = -Infinity, w0 = Infinity, w1 = -Infinity;
+    for (const q of p.poly) { const dx = q[0] - ctr[0], dz = q[1] - ctr[1], u = dx * c + dz * s, w = -dx * s + dz * c; u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
+    const cand = [];
+    // the grid centred in the area, 0.25 m in from its edges (a corner ON an edge is neither in nor out); a circle clips it
+    const nU = Math.max(0, Math.floor((u1 - u0 - env.fwd - env.aft - 0.5) / pitchU) + 1), nW = Math.max(0, Math.floor((w1 - w0 - 2 * env.half - 0.5) / pitchV) + 1);
+    const uMid = (u0 + u1) / 2 - (env.fwd - env.aft) / 2, wMid = (w0 + w1) / 2;
+    for (let i = 0; i < nU; i++) for (let j = 0; j < nW; j++) {
+      const u = uMid + (i - (nU - 1) / 2) * pitchU, w = wMid + (j - (nW - 1) / 2) * pitchV;
+      const x = ctr[0] + u * c - w * s, z = ctr[1] + u * s + w * c;
+      const sp = { id: 'park:' + p.id + ':' + cand.length, kind: 'park', x: r3(x), z: r3(z), ry: r3(-(p.yaw || 0)), half: env.half, fwd: env.fwd, aft: env.aft, _d: Math.hypot(x - ref.x, z - ref.z) };
+      // inside ITS area by all four corners (the field's own test is looser: anything near the stand is the field)
+      if (fleetSpotPts(sp, 1e9).every(q => fleetInPoly(p.poly, q[0], q[1]))) cand.push(sp); else why.field++;
+    }
+    cand.sort((a, b) => a._d - b._d || (a.id < b.id ? -1 : 1));
+    const cap = Math.min(max, ok.length + (+pk.max > 0 ? +pk.max | 0 : max));
+    for (const sp of cand) { if (ok.length >= cap) break; delete sp._d; if (test(sp)) ok.push(sp); }
+  }
+  for (const p of near) {
+    if (!p.stands) continue;
     const so = p.stands, n = Math.max(1, Math.min(24, (so.n | 0) || 6)), pitch = +so.pitch > 0 ? +so.pitch : 11, lead = +so.lead > 0 ? +so.lead : 9;
     const v0 = -(n - 1) * pitch / 2 + (+so.vOff || 0), uStop = (so.u0 === undefined ? -lead / 2 : +so.u0) + lead, ctr = fleetPolyCentre(p.poly);
     const c = CORE_MATH.cos(p.yaw || 0), s = CORE_MATH.sin(p.yaw || 0);

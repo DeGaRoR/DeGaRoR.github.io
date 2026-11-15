@@ -72,7 +72,7 @@ if (argv[0] === '--part') {
         return Object.assign({}, c, { running: r.running, d: (r.drive || []).map(slim), groups: r.groups, finite: r.finite }); });
     }
     for (const thr of [1, 0]) { const r = D.tipStrike(k, Object.assign({ thr, bite: 0.03, secs: 3 }, o));
-      (out.graze = out.graze || []).push({ thr, rpm0: r.rpm0, d: (r.drive || []).map(slim), mountAt: r.mountAt, imbMax: r.imbMax, running: r.running, groups: r.groups, finite: r.finite }); }
+      (out.graze = out.graze || []).push({ thr, rpm0: r.rpm0, d: (r.drive || []).map(slim), mountAt: r.mountAt, imbMax: r.imbMax, running: r.running, groups: r.groups, finite: r.finite, sepBite: r.sepBite, pastMax: r.pastMax, sepStop: r.sepStop, lagF: r.lagF }); }
     if (C.genDriveSpec(def).gear > 1) for (const thr of [1, 0.1]) { const r = D.tipStrike(k, Object.assign({ thr, bite: 0.6, secs: 4 }, o));
       (out.gear = out.gear || []).push({ thr, rpm0: r.rpm0, d: (r.drive || []).map(slim), failAt: r.failAt, peakEng: r.peakEng, running: r.running, finite: r.finite }); }
   } else if (part === 'mount') {
@@ -214,7 +214,15 @@ const rep = msg => console.log('  --    ' + msg);
       // in a beyond-design shake is Deform's open question (G2398) - OPEN beside the twin's, the strike itself asserted
       if (g.thr === 1 && k === 'floats' && g.finite && d.strike === 'separation' && d.bladeLost > 0 && g.mountAt == null) console.log('  OPEN  the Cessna on floats, a trunk grazing the tips at full power (' + Math.round(g.rpm0) + ' rpm): a blade breaks off, ' + f2(g.imbMax / 1000) + ' kN of imbalance, the mount holds; first to go: ' + ((g.groups || []).join(' > ') || 'nothing') + ' [owner Deform G2398; opened 2026-10-25 by HYDRO-TRIM G3448]');
       else if (g.thr === 1 && k === 'twinFloats' && !(g.finite && d.strike === 'separation' && d.bladeLost > 0 && g.mountAt != null)) console.log('  OPEN  the twin on floats, a trunk grazing the tips at full power (' + Math.round(g.rpm0) + ' rpm): ' + (d.bladeLost > 0 ? 'a blade breaks off, ' : '') + f2(g.imbMax / 1000) + ' kN of imbalance, the mount holds; first to go: ' + ((g.groups || []).join(' > ') || 'nothing') + ' [owner Deform G2398, opened 2026-10-08]');
-      else if (g.thr === 1) yes(g.finite && d.strike === 'separation' && d.bladeLost > 0 && g.mountAt != null,'a trunk grazing the tips (3 cm) at full power (' + Math.round(g.rpm0) + ' rpm, tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s): a blade breaks off and the prop turns on short of it - ' + f2(g.imbMax / 1000) + ' kN of imbalance (m e w^2) - the mount lets go ' + f2(g.mountAt) + ' s later (the engine leaves) ' + GAME);
+      // ENGINE-LUMP (re-pinned 13 Nov, the user's "less disassembly" on the crash review, 11-12 Nov: "things break too quick";
+      // A0's default, the question with the user): the crankcase a lump (GEN_NOSE.lumpZ + pushCg) no longer rings its own mount
+      // apart - the Jodel's graze holds its engine where master let it go 0.22 s later. Either is a pass: the strike (a blade
+      // off, the imbalance) is asserted; the mount letting go, or holding with the engine shaking, is printed
+      else if (g.thr === 1) { yes(g.finite && d.strike === 'separation' && d.bladeLost > 0,'a trunk grazing the tips (3 cm) at full power (' + Math.round(g.rpm0) + ' rpm, tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s): a blade breaks off and the prop turns on short of it - ' + f2(g.imbMax / 1000) + ' kN of imbalance (m e w^2) - ' + (g.mountAt != null ? 'the mount lets go ' + f2(g.mountAt) + ' s later (the engine leaves)' : 'the mount holds, the engine shakes (ENGINE-LUMP)') + ' ' + GAME);
+        // ENGINE-LUMP (13 Nov, the user: "if the prop is going through anything, I do mind"): the prop never turns through
+        // the trunk - after the blade breaks, the trunk reaching past the bite it lost + the hard 1 cm stops it in the next
+        // frame at the latest (the solver looks once a frame: _dmg_drive_lib.js tipStrike's lagF)
+        yes(g.finite && g.sepBite != null && (g.lagF == null || g.lagF <= 1), '  ... and the prop never turns on through the trunk: after the blade breaks (' + f2((g.sepBite || 0) * 100) + ' cm bite) the trunk ' + (g.lagF == null ? 'never reaches past it + 1 cm while it turns' : 'reaching past it + 1 cm (deepest ' + f2(Math.max(0, g.pastMax) * 100) + ' cm, one frame of the shaking hub) stops it ' + (g.lagF === Infinity ? 'NEVER' : g.lagF + ' frame(s) later')) + (g.sepStop ? '' : (g.mountAt != null ? ' - the engine leaves' : ' - it turns clear')) + ' (the next frame at the latest)'); }
       else yes(g.finite && d.strike === 'brush' && g.running[0] && g.mountAt == null, 'the same graze at idle (' + Math.round(g.rpm0) + ' rpm, tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s): \'' + d.strike + '\', the engine runs, the mount holds'); }
     // 4. the gearbox
     for (const g of (S.gear || [])) { const d = g.d[0];

@@ -118,6 +118,11 @@ function make(THREE) {
                 : (spec && spec.fuel && spec.fuel.designL > 0) ? +spec.fuel.designL : +((spec && spec.fuel && spec.fuel.litres) || 0);
       CK.energy = { kind: battery ? 'battery' : 'fuel', capacity: cap > 0 ? cap : 0 };
     }
+    // ENGINE-COOLING (12 Nov): the resolved spec the oil needle reads its cooling off (62_gen_aero genCoolOilC: the air
+    // the drawn openings pass now against the air the engine needs now). Null = the needle's old 82 C
+    CK.coolS = null;
+    try { if (typeof resolveSpec === 'function' && typeof genCoolOilC === 'function') CK.coolS = resolveSpec(spec || {}).spec; }
+    catch (e) { CK.coolS = null; }
     // G2801: each load on its breaker, the radios on the avionics bus; a light's on its circuit's breaker
     const breakers = fit && fit.breakers ? fit.breakers : [];
     const hasCb = k => breakers.some(b => b.key === k);
@@ -353,7 +358,18 @@ function make(THREE) {
     raw.rpmEng = (o.rpmEng && o.rpmEng[0]) || 0;
     raw.nz = o.nz != null ? o.nz : 1; raw.nzMax = o.nzMax != null ? o.nzMax : 1; raw.nzMin = o.nzMin != null ? o.nzMin : 1;
     raw.oilP = E.running ? 62 * PSI * Math.min(1, 0.5 + 0.5 * raw.rpmEng / 2000) : 0;
-    raw.oilT = E.running ? 82 : Math.max(15, (CK.readings.oilT || 15));
+    // ENGINE-COOLING: the oil temperature from the cooling air (display only: nothing flies differently for it yet - the
+    // power pull-back over the red line waits for the user's ruling on the proposed cooling rows). The needle's own lag
+    // (LAG.oilT) is the oil's warming; an unmeasured cowl reads the 82 C it always did
+    let oilNow = 82;
+    if (E.running && CK.coolS && sim.probeAir) {
+      try {
+        const A = sim.probeAir();
+        const G = genCoolOilC(CK.coolS, { air: A.air, h: A.h, pFrac: Math.max(0.1, +(sim.ctl && sim.ctl.thr) || 0), Veas: ias, ground: ias < 15 });
+        if (G && isFinite(G.oilC)) oilNow = G.oilC;
+      } catch (e) {}
+    }
+    raw.oilT = E.running ? oilNow : Math.max(15, (CK.readings.oilT || 15));
     // THE FUEL / CHARGE GAUGE (A3): the fraction of the DESIGN capacity
     // aboard - a pack's state of charge (`soc`; `frac` stays 1 on a battery
     // build, which is why a charge gauge reading it sat on F for ever), a

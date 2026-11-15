@@ -3,7 +3,7 @@
   {
    "id": "jolene",
    "fixture": "tools/fixtures/island_jolene.json",
-   "cooked": "2026-11-12",
+   "cooked": "2026-11-15",
    "variants": [
     {
      "name": "default",
@@ -16,7 +16,7 @@
       "mk_mf_air"
      ],
      "record": "bb1f7ee9c6dc7bd2",
-     "mods": 111,
+     "mods": 112,
      "places": {
       "things": 310,
       "cells": 41,
@@ -24,10 +24,10 @@
       "failed": 0
      },
      "raster": {
-      "tiles": 30218,
+      "tiles": 30222,
       "cells": 495,
-      "nodes": 44454058,
-      "raw": 356365616,
+      "nodes": 44473422,
+      "raw": 356520624,
       "worstMm": 0.0331
      }
     },
@@ -35,7 +35,7 @@
      "name": "town",
      "drop": [],
      "record": "3f55aefc1c21a928",
-     "mods": 184,
+     "mods": 185,
      "places": {
       "things": 798,
       "cells": 71,
@@ -43,10 +43,10 @@
       "failed": 0
      },
      "raster": {
-      "tiles": 34247,
+      "tiles": 34251,
       "cells": 520,
-      "nodes": 58773743,
-      "raw": 471020192,
+      "nodes": 58793107,
+      "raw": 471175200,
       "worstMm": 0.0331
      }
     }
@@ -69,19 +69,19 @@
      "town"
     ],
     "bytes": {
-     "raw": 564479840,
-     "ship": 87293328
+     "raw": 564634848,
+     "ship": 87327155
     },
     "fetched": {
      "default": {
       "cells": 495,
-      "raw": 356365616,
-      "ship": 57051180
+      "raw": 356520624,
+      "ship": 57085007
      },
      "town": {
       "cells": 520,
-      "raw": 471020192,
-      "ship": 71039195
+      "raw": 471175200,
+      "ship": 71073022
      }
     },
     "cells": [
@@ -9419,10 +9419,10 @@
        39,
        -46
       ],
-      "sig": "g1-a1f9bc2cf85d85bc",
-      "src": "media/world/jolene/premises/r_39_m46.9e3be613.bin",
-      "raw": 574512,
-      "tiles": 97,
+      "sig": "g1-793e13d1b9a174c1",
+      "src": "media/world/jolene/premises/r_39_m46.69df9a7f.bin",
+      "raw": 729520,
+      "tiles": 101,
       "in": [
        "default",
        "town"

@@ -11,7 +11,7 @@
 //   CLEARED FLYDIY_GLASS_TEST(null): the crop against the no-mark frame again.
 // Writes <out>/<build>_{none,mark1,mark03}.jpg (the whole view), <build>_{none,mark1,mark03,cleared}_crop.png, and a
 // line DMG_GLASS_STILLS {json} per build.
-//   node tools/dmg_glass_stills.js [--builds cub,metal] [--out <dir>] [--page dev.html] [--at view]
+//   node tools/dmg_glass_stills.js [--builds cub,metal] [--out <dir>] [--page dev.html] [--at view] [--look acrylic|laminated]
 // (--at view: the mark on the glazing's point nearest the middle of the view - FLYDIY_GLASS_TEST(sev, 'view') - not the
 // windscreen's middle, which the metal Cessna's left seat sees only at its top right edge)
 // (dev.html is the parts: run node tools/build.js first if the manifest moved. Slow: ~20 min a build on SwiftShader.)
@@ -22,6 +22,7 @@ const BUILDS = { cub: null, jodel: 'builds/jodel_2026-09-20_corrected.json', met
 
 module.exports = async (page, { frames, shot, log }) => {
   const OUT = process.env.GS_OUT || '.', TAG = process.env.GS_TAG || 'x', AT = process.env.GS_AT || null;   // (null: the windscreen's middle)
+  const LOOK = process.env.GS_LOOK || null;   // CANOPY-CRACKS: 'acrylic' | 'laminated', the crack sheet by hand (else the aeroplane's own)
   const faces = await page.evaluate(() => {
     const P = window.FLIGHT_PROBE, M = P.model(), cam = P.camera(), e = cam.getWorldPosition(new THREE.Vector3()), out = [];
     M.grp.updateMatrixWorld(true);
@@ -44,12 +45,13 @@ module.exports = async (page, { frames, shot, log }) => {
   log('FACES ' + JSON.stringify(faces));
   // the mark's place on the screen
   const place = await page.evaluate(at => {
-    const r = window.FLYDIY_GLASS_TEST(1, at); window.FLYDIY_GLASS_TEST(null); if (!r) return null;
+    const r = window.FLYDIY_GLASS_TEST(1, at[0], at[1]); window.FLYDIY_GLASS_TEST(null); if (!r) return null;
     const U = AEROSKIN.aeroSharedU(THREE), cam = window.FLIGHT_PROBE.camera(), inv = U.uCraftInv.value.clone().invert();
     const s = new THREE.Vector3(r.p[0], r.p[1], r.p[2]).applyMatrix4(inv).project(cam), cv = window.FLYDIY_RENDERER.domElement, W = cv.clientWidth, H = cv.clientHeight;
     return { r, sx: Math.round((s.x + 1) / 2 * W), sy: Math.round((1 - s.y) / 2 * H), W, H, onScreen: Math.abs(s.x) < 1 && Math.abs(s.y) < 1 && s.z < 1 };
-  }, AT);
+  }, [AT, LOOK]);
   log('PLACE ' + JSON.stringify(place));
+  await frames(6);   // (CANOPY-CRACKS: the crack sheet, fetched by the first test mark, is in before the stills)
   if (!place) return { skipMain: true, err: 'no mark (FLYDIY_GLASS_TEST null: is dmg_glass.js in the page?)' };
   const C = 150, x0 = Math.max(0, Math.min(place.W - 2 * C, place.sx - C)), y0 = Math.max(0, Math.min(place.H - 2 * C, place.sy - C)), clip = { x: x0, y: y0, width: 2 * C, height: 2 * C };
   const diff = (a, b) => page.evaluate(async ([a, b]) => {
@@ -68,7 +70,7 @@ module.exports = async (page, { frames, shot, log }) => {
   log('NOISE ' + JSON.stringify(res.noise));
   for (const sev of [1, 0.3]) {
     const k = String(sev).replace('.', '');
-    await page.evaluate(([s, at]) => window.FLYDIY_GLASS_TEST(s, at), [sev, AT]); await frames(3);
+    await page.evaluate(([s, at, lk]) => window.FLYDIY_GLASS_TEST(s, at, lk), [sev, AT, LOOK]); await frames(3);
     const c1 = await crop('mark' + k); await shot(path.join(OUT, TAG + '_mark' + k + '.jpg'));
     res['m' + k] = await diff(base, c1); log('MARK ' + sev + ' ' + JSON.stringify(res['m' + k]));
   }
@@ -83,7 +85,8 @@ if (require.main === module) {
   for (const b of opt('builds', 'cub,metal').split(',')) {
     const a = [path.join(__dirname, 'soft_still.js'), '--page', opt('page', 'dev.html'), '--place', 'stand', '--cam', 'cockpit', '--size', '960x540', '--secs', '2300',
       '--stage', __filename, '--out', path.join(out, b + '_main.jpg')].concat(BUILDS[b] ? ['--build', BUILDS[b]] : []);
-    const r = cp.spawnSync(process.execPath, a, { cwd: path.join(__dirname, '..'), env: Object.assign({}, process.env, { GS_OUT: out, GS_TAG: b + (opt('at', null) ? '_' + opt('at') : ''), GS_AT: opt('at', '') }), encoding: 'utf8', maxBuffer: 1 << 26 });
+    const look = opt('look', '');   // CANOPY-CRACKS: --look acrylic | laminated
+    const r = cp.spawnSync(process.execPath, a, { cwd: path.join(__dirname, '..'), env: Object.assign({}, process.env, { GS_OUT: out, GS_TAG: b + (opt('at', null) ? '_' + opt('at') : '') + (look ? '_' + look : ''), GS_AT: opt('at', ''), GS_LOOK: look }), encoding: 'utf8', maxBuffer: 1 << 26 });
     const lines = (r.stdout || '').split('\n'), pick = k => lines.filter(l => l.includes(k + ' ')).map(l => l.slice(l.indexOf(k + ' ') + k.length + 1));
     console.log('DMG_GLASS_STILLS ' + JSON.stringify({ build: b, exit: r.status, faces: pick('FACES')[0], place: pick('PLACE')[0], noise: pick('NOISE')[0], mark: pick('MARK'), cleared: pick('CLEARED')[0] }));
     if (r.status !== 0) console.log((r.stdout || '').slice(-1500) + (r.stderr || '').slice(-1500));

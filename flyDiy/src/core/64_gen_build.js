@@ -540,7 +540,7 @@ function genShakedown(def, opts) {
   if (st.setEngine) for (let i = 0; i < st.eng.length; i++) st.setEngine(i, { key: 'off' });
   for (let i = 0; i < 150; i++) st.step(1/60);
   const idOf = t => def.nodes.findIndex(n => n.tag === t);
-  const iAx = idOf('AXLER'), iTw = def.refs.tw;
+  const iAx = idOf('AXLER') >= 0 ? idOf('AXLER') : idOf('AXLEC'), iTw = def.refs.tw;   // (MONOWHEEL: the centreline axle)
   const aglOf = i => st.p[i*3+1] - st.r[i];
   let gearStrain = 0, chassisStrain = 0, lowY = 1e9, lowTag = '';
   for (const b of st.beams) {
@@ -614,6 +614,9 @@ function genShakedown(def, opts) {
     engineName: ENr.name, hp, engineMass: ENr.mass,
     engineFamily: THr.family, engineCooling: THr.cooling,
     coolKW: THr.coolKW, burnKgH: THr.burnKgH, drawKW: THr.drawKW,
+    // ENGINE-COOLING (12 Nov): what the drawn openings make of that duty - the hot-day climb's air needed and passed,
+    // the margin, the cooling drag (62_gen_aero genCooling; null when the cowl was never measured)
+    cooling: genCoolSummary(def),
     powerLoad: sim.totalM / Math.max(1e-6, hp),
     onWheels, restsOn: lowTag, gearStrain, restChassisStrain: chassisStrain,
     springStrain, susTravel, susShift, gearFolded: susShift > 0.5,

@@ -181,10 +181,12 @@ const TYRE = {
   1: { hw: 0.44, bead: 0.25, bulge: 1.04, bulgeAt: 0.72, crown: 0.10,
        torus: 1, beadW: 0.60, faceW: 0.50 },
   2: { hw: 0.29, bead: 0.46, bulge: 1.00, bulgeAt: 0.84, crown: 0.02 },
+  // MONOWHEEL: the bicycle wheel (wheelCycle draws it): a narrow tube tyre on a big thin rim
+  3: { hw: 0.10, bead: 0.82, bulge: 1.00, bulgeAt: 0.90, crown: 0.02 },
   // CAR-3 (the user, 12 Nov: "proper tires for our van ... a 1940s Power Wagon, American ... its own wheels"): the
   // military lug tyre - a 9.00-16 on a 16" rim (bead 0.46 of the tyre's radius), taller and narrower than the tundra,
-  // its chevron lugs (MIL_LUG) meeting across the crown
-  3: { hw: 0.27, bead: 0.46, bulge: 1.00, bulgeAt: 0.80, crown: 0.03, torus: 1, beadW: 0.80, faceW: 0.70, mil: 1 },
+  // its chevron lugs (MIL_LUG) meeting across the crown (4 since L40d: MONOWHEEL's bicycle took 3 first)
+  4: { hw: 0.27, bead: 0.46, bulge: 1.00, bulgeAt: 0.80, crown: 0.03, torus: 1, beadW: 0.80, faceW: 0.70, mil: 1 },
 };
 // the torus section, [radius, axial] from one bead round the crown to the
 // other: an ellipse whose outer extremity is R and whose inner side passes
@@ -407,9 +409,37 @@ function pressedDisc(bag, at, ax, s, hf, Rh, bead, N) {
       if (s > 0) bag.quad(F[p], F[p2], B[p2], B[p]); else bag.quad(F[p], B[p], B[p2], F[p2]); }
   }
 }
+// MONOWHEEL (the user, 11 Nov, the Archaeopteryx's photograph: "super light wheels ... a new model"): THE BICYCLE WHEEL
+// (whProfile 3) - its own drawing: a narrow tube tyre (a round section 0.20 R wide on a 0.16 R wall), a thin box-section
+// rim, a small barrel hub with its two flanges, 24 wire spokes crossing from alternate flanges to the rim, a valve.
+// Every part in the spinning bags (tyre, hub, alloy, dark), as wheel()'s are; no brake (a glider's wheel has none)
+function wheelCycle(bags, ctr, axis, R) {
+  const ax = nrm(axis);
+  let e1 = Math.abs(ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+  e1 = nrm(sub(e1, mul(ax, dot(e1, ax))));
+  const e2 = crs(ax, e1);
+  const at = (rad, hh, an) => add(ctr, add(mul(ax, hh), add(mul(e1, Math.cos(an) * rad), mul(e2, Math.sin(an) * rad))));
+  const h = 0.16 * R, w = 0.20 * R, rc = R - 0.5 * h, Rr = R - h;
+  const tyre = [];
+  for (let i = 0; i <= 20; i++) { const a = -Math.PI / 2 + Math.PI * 2 * i / 20; tyre.push([rc + 0.5 * h * Math.cos(a), 0.5 * w * Math.sin(a)]); }
+  revolve(bags.tyre, ctr, ax, tyre, 48);
+  const rw = 0.42 * w, rd = Math.max(0.012, 0.07 * R);
+  revolve(bags.hub, ctr, ax, [[Rr + 0.004, -rw], [Rr + 0.004, rw], [Rr - rd, rw * 0.7], [Rr - rd, -rw * 0.7], [Rr + 0.004, -rw]], 48);
+  const hb = Math.max(0.012, 0.06 * R), hw2 = Math.max(0.035, 0.30 * R), fl = Math.max(0.022, 0.11 * R);
+  revolve(bags.alloy, ctr, ax, [[hb, -hw2], [hb, hw2]], 18, true);
+  for (const s of [-1, 1]) revolve(bags.alloy, ctr, ax, [[hb, s * hw2 * 0.80], [fl, s * hw2 * 0.80], [fl, s * hw2 * 0.70], [hb, s * hw2 * 0.70]], 18, true);
+  const NS = 24, sr = Math.max(0.0011, 0.0045 * R);
+  for (let k = 0; k < NS; k++) {
+    const an = 2 * Math.PI * k / NS, s = k % 2 ? 1 : -1;
+    taper(bags.alloy, at(fl * 0.95, s * hw2 * 0.75, an + s * 0.30), at(Rr - rd * 0.6, s * rw * 0.25, an), sr, sr, 4);
+  }
+  const b0 = at(Rr - rd, 0, 0.4), b1 = at(Rr - rd - 0.03, 0, 0.4);
+  taper(bags.dark, b0, b1, 0.003, 0.0025, 6);
+}
 function wheel(bags, ctr, axis, R, opt) {
   opt = opt || {};
   const P = opt.P || {};
+  if (Math.round(+P.whProfile || 0) === 3) return wheelCycle(bags, ctr, axis, R);
   const prof0 = TYRE[Math.round(P.whProfile || 0)] || TYRE[0];
   // G3851: the proposal's carcass (null = today's, untouched). The tundra's bevelled lugs (G3851b) come with it when the
   // tundra row picks them (whSlick 2) or the page asks (?tyres=new&lugs=1); the proposal itself stays off by default
@@ -1221,6 +1251,87 @@ function fitPad(bags, AF, z, ang, L, W, opt) {
         bolt(bags.alloy, off(p, n, (opt.thick || 0.006)), n, 0.011, 0.010);
       }
   }
+}
+
+// THE TOW RELEASE (the user via A0, 15 Nov: "you should have them towed from an anchor at their main wheel position,
+// just forward of it ... Do the 3d anchor properly and professionally"). A CG release in its belly housing - the Tost
+// Europa G 88 class GEN_RULES.towHook.cg names - on the keel (ang 0) at `z`, the station 61_gen_frame builds the
+// release's node at (`ahead` of the main axle). Generated on the surface, like every fitting here:
+//   THE DOUBLER   the plate the housing bolts through (fitPad: painted with the aeroplane, four bolt heads)
+//   THE HOUSING   a blister lofted ON the skin - each section a superellipse in the belly's own frame at its station
+//                 (fitFrame), so it follows the keel's curve - blunt and OPEN at the front (the ring's way in: the line
+//                 pulls forward and down), its width and depth easing to the skin aft (a faired tail, no step)
+//   THE THROAT    the mouth's lip (a rolled edge, steel) and its recess (dark): the release's body in the dark inside
+//   THE JAW       the hook's claw across the throat (a bright steel bar, its bight forward: the ring hangs in it), its
+//                 pivot pin through the throat's walls
+// opt: { fore, aft (the housing's reach ahead of and behind the jaw, m), W (its width), D (its depth below the skin) }. Returns the jaw's point (where
+// the line's ring sits) and the frame there - the page hangs the rope's rings on it.
+function towRelease(bags, AF, z, opt) {
+  opt = opt || {};
+  // (the mouth `fore` ahead of the jaw's station; the faired tail `aft` behind it - the caller clears it of the main
+  //  wheel: a monowheel's sunk tyre stands 5 cm behind the release on the Archaeopteryx)
+  const W = opt.W || 0.072, D = opt.D || 0.034, fore = opt.fore || 0.06, aft = Math.max(0.025, opt.aft == null ? 0.11 : opt.aft);
+  const zF = z + fore, zA = z - aft, L = fore + aft;
+  const steel = bags.steel || bags.alloy, chrome = bags.chrome || bags.alloy, dark = bags.dark || steel;
+  fitPad(bags, AF, z + (fore - aft) / 2 + 0.008, 0, L + 0.03, W + 0.04, { thick: 0.003 });
+  const EXP = 2.6, NS = 18, NR = 14;
+  // the section's half-width and depth at t (0 the mouth, 1 the tail): a swell just aft of the mouth, a cosine tail
+  const wOf = t => (W / 2) * (t < 0.18 ? 0.92 + 0.08 * Math.sin(Math.PI / 2 * t / 0.18) : Math.max(0.06, Math.max(0, Math.cos(Math.PI / 2 * Math.min(1, (t - 0.18) / 0.82))) ** 0.8));
+  const dOf = t => D * (t < 0.18 ? 0.94 + 0.06 * Math.sin(Math.PI / 2 * t / 0.18) : Math.max(0.03, Math.max(0, Math.cos(Math.PI / 2 * Math.min(1, (t - 0.18) / 0.82))) ** 1.15));
+  const se = (c, e) => Math.sign(c) * Math.abs(c) ** (2 / e);
+  // a section: from one skin edge round the belly to the other (phi 0..pi), in the frame at its station
+  const ring = (zz, w, d, inset) => {
+    const F = fitFrame(AF, zz, 0), out = [];
+    for (let k = 0; k <= NS; k++) {
+      const ph = Math.PI * k / NS, u = se(Math.cos(ph), EXP), v = se(Math.sin(ph), EXP);
+      const x = (w - inset) * u, y = Math.max(0, (d - inset) * v) - 0.0012;   // (sunk 1.2 mm into the skin at the edges: no seam)
+      out.push(add(add(F.p, mul(F.side, x)), mul(F.n, y)));
+    }
+    return { pts: out, F };
+  };
+  // orient a quad outward from an inside point (the loft's own winding cannot be trusted on a mirrored belly frame)
+  const oq = (bag, ia, ib, ic, id, P, inside) => {
+    const a = P[0], b = P[1], c = P[2];
+    const nn = crs(sub(b, a), sub(c, a)), m = mul(add(add(a, b), add(c, P[3])), 0.25);
+    if (dot(nn, sub(m, inside)) >= 0) bag.quad(ia, ib, ic, id); else bag.quad(id, ic, ib, ia);
+  };
+  // THE HOUSING'S SHELL: rings from the mouth (t 0) to the tail (t 1), the tail closed on the skin
+  const rings = [];
+  for (let i = 0; i <= NR; i++) { const t = i / NR, zz = zF - (zF - zA) * t; rings.push(ring(zz, wOf(t), dOf(t), 0)); }
+  const ids = rings.map(r => r.pts.map(q => steel.v(q)));
+  for (let i = 0; i < NR; i++) {
+    const inside = add(rings[i].F.p, mul(rings[i].F.n, 0.3 * dOf(i / NR)));
+    for (let k = 0; k < NS; k++)
+      oq(steel, ids[i][k], ids[i][k + 1], ids[i + 1][k + 1], ids[i + 1][k],
+         [rings[i].pts[k], rings[i].pts[k + 1], rings[i + 1].pts[k + 1], rings[i + 1].pts[k]], inside);
+  }
+  { const r = rings[NR], tip = steel.v(off(r.F.p, r.F.n, -0.001)), inside = off(r.F.p, r.F.n, 0.004);
+    for (let k = 0; k < NS; k++) { const a = r.pts[k], b = r.pts[k + 1], nn = crs(sub(b, a), sub(r.F.p, a));
+      if (dot(nn, sub(a, inside)) >= 0) steel.tri(ids[NR][k], ids[NR][k + 1], tip); else steel.tri(tip, ids[NR][k + 1], ids[NR][k]); } }
+  // THE MOUTH: the lip (a rolled edge, 2.5 mm, steel) to the throat's opening, the throat recessed 26 mm (dark), its back
+  const w0 = wOf(0), d0 = dOf(0), lip = 0.0045;
+  const mouthIn = ring(zF - 0.003, w0, d0, lip), throatEnd = ring(zF - 0.026, w0 * 0.92, d0 * 0.92, lip);
+  const outerI = ids[0], inI = mouthIn.pts.map(q => steel.v(q));
+  const inside0 = add(rings[0].F.p, mul(rings[0].F.n, 0.45 * d0));
+  for (let k = 0; k < NS; k++)   // (the lip's face looks forward)
+    oq(steel, outerI[k], outerI[k + 1], inI[k + 1], inI[k], [rings[0].pts[k], rings[0].pts[k + 1], mouthIn.pts[k + 1], mouthIn.pts[k]], off(inside0, rings[0].F.fore, -0.05));
+  const tA = mouthIn.pts.map(q => dark.v(q)), tB = throatEnd.pts.map(q => dark.v(q));
+  const axisIn = add(rings[0].F.p, mul(rings[0].F.n, 0.45 * d0));
+  for (let k = 0; k < NS; k++)   // (the throat's walls look inward, toward its axis)
+  { const P4 = [mouthIn.pts[k], mouthIn.pts[k + 1], throatEnd.pts[k + 1], throatEnd.pts[k]], nn = crs(sub(P4[1], P4[0]), sub(P4[2], P4[0]));
+    if (dot(nn, sub(axisIn, P4[0])) >= 0) dark.quad(tA[k], tA[k + 1], tB[k + 1], tB[k]); else dark.quad(tB[k], tB[k + 1], tA[k + 1], tA[k]); }
+  { // the back wall: a fan, facing forward (seen through the mouth)
+    const c = dark.v(add(throatEnd.F.p, mul(throatEnd.F.n, 0.4 * d0)));
+    for (let k = 0; k < NS; k++) { const a = throatEnd.pts[k], b = throatEnd.pts[k + 1], nn = crs(sub(b, a), sub(add(throatEnd.F.p, mul(throatEnd.F.n, 0.4 * d0)), a));
+      if (dot(nn, throatEnd.F.fore) >= 0) dark.tri(tB[k], tB[k + 1], c); else dark.tri(c, tB[k + 1], tB[k]); } }
+  // THE JAW: a 7 mm steel bar bent to a claw across the throat - from its pivot up in the housing, down and forward to
+  // the bight just inside the mouth, back up to its tip - and the pivot pin through the throat's walls
+  const F0 = fitFrame(AF, zF - 0.012, 0), J = (a, dn) => add(add(F0.p, mul(F0.fore, a)), mul(F0.n, dn * d0));
+  const claw = [J(-0.012, 0.22), J(-0.004, 0.42), J(0.006, 0.62), J(0.006, 0.80), J(-0.004, 0.86), J(-0.012, 0.74)];
+  sweep(chrome, fillet(claw, 0.004, 4), () => secRound(0.0035, 10), true);
+  const pin = J(-0.012, 0.22);
+  tube(chrome, add(pin, mul(F0.side, -w0 * 0.82)), add(pin, mul(F0.side, w0 * 0.82)), 0.0028, 10);
+  return { ring: J(0.002, 0.82), F: F0 };
 }
 
 // G133: WHERE A LEG MEETS THE AEROPLANE IS NOW A CHOICE. `st.mount`, when
@@ -2146,15 +2257,15 @@ function leverRowsOf(P) {
 const LEVER_BOOT_CACHE = new Map();
 function leverBoot(bag, F) {
   const r6 = v => Array.isArray(v) ? v.map(r6) : (typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v);
-  const key = JSON.stringify(r6([F.root, F.piv, F.ax, F.w, F.axle, F.horn, F.top, F.comp, F.leg && [F.leg.a, F.leg.b, F.leg.chord, F.leg.thick], F.style || 0, F.tau || 0, F.clearKey || null, !!F.det]));
-  const bags = [bag, F.det && F.det.dark, F.det && F.det.alloy];
+  const key = JSON.stringify(r6([F.root, F.piv, F.ax, F.w, F.axle, F.horn, F.top, F.comp, F.leg && [F.leg.a, F.leg.b, F.leg.chord, F.leg.thick], F.style || 0, F.tau || 0, F.clearKey || null, !!F.det, F.rootN || null, F.joint !== false])) + '|' + (F.skinKey || '');
+  const bags = [bag, F.det && F.det.dark, F.det && F.det.alloy, F.det && F.det.steel];
   const hit = LEVER_BOOT_CACHE.get(key);
   if (hit) { hit.ops.forEach((ops, bi) => { const B = bags[bi]; if (!B) return; const map = [];
       for (const o of ops) { if (o[0] === 0) map[o[2]] = B.v(o[1]); else if (o[0] === 1) B.quad(map[o[1]], map[o[2]], map[o[3]], map[o[4]]); else B.tri(map[o[1]], map[o[2]], map[o[3]]); } });
     return Object.assign({}, hit.res); }
   const ops = bags.map(() => []), rec = bags.map((B, bi) => B && { v: p => { const r = B.v(p); ops[bi].push([0, [p[0], p[1], p[2]], r]); return r; },
     quad: (a, b, c, d) => { B.quad(a, b, c, d); ops[bi].push([1, a, b, c, d]); }, tri: (a, b, c) => { B.tri(a, b, c); ops[bi].push([2, a, b, c]); } });
-  const res = leverBootBuild(rec[0], Object.assign({}, F, F.det ? { det: { dark: rec[1], alloy: rec[2] } } : {}));
+  const res = leverBootBuild(rec[0], Object.assign({}, F, F.det ? { det: { dark: rec[1], alloy: rec[2], steel: rec[3] || undefined } } : {}));
   LEVER_BOOT_CACHE.set(key, { ops, res }); if (LEVER_BOOT_CACHE.size > 12) LEVER_BOOT_CACHE.delete(LEVER_BOOT_CACHE.keys().next().value);
   return res;
 }
@@ -2293,7 +2404,8 @@ function leverBootBuild(bag, F) {
   // (the round toe it replaces was crossed by the strut through its side: a gaiter poking out of the wall)
   const tOf = y => Math.min(1, Math.max(0, (yTop - y) / (yTop - yBot))), RE = 0.012;
   const sta = [];
-  for (let j = 0; j <= 48; j++) sta.push({ y: yTop - (yTop - yBot) * j / 48, sh: 0, f: 1 });
+  const EXT = F.skin ? 0.30 : 0;                  // (fitted to the skin: the grid runs on into the body, then is trimmed to it)
+  for (let j = 0; j <= 48; j++) sta.push({ y: yTop + EXT - (yTop + EXT - yBot) * j / 48, sh: 0, f: 1 });
   for (let j = 1; j <= 4; j++) { const q = (Math.PI / 2) * j / 4; sta.push({ y: yBot - RE * Math.sin(q), sh: RE * (1 - Math.cos(q)), f: 1 }); }
   for (const f of [0.875, 0.75, 0.625, 0.5, 0.375, 0.25, 0.125, 0]) sta.push({ y: yBot - RE, sh: RE, f });   // (fine: the floor is cut round the pivot - a cut across a wide triangle is a chord inside the true outline)
   const J = sta.length, Pg = [], Ctr = [];
@@ -2302,6 +2414,80 @@ function leverBootBuild(bag, F) {
     Ctr.push(sh > 0 ? add(cen, mul(sF, -0.05)) : cen);                // (the rim and floor face down the leg: their side from above)
     Pg.push(sec.pts.map(([u, v]) => { let du = u - sec.cen[0], dv = v - sec.cen[1]; const r = Math.hypot(du, dv) || 1;
       const k = Math.max(0, 1 - sh / r) * f; return add(cen, add(mul(FW, du * k), mul(LT, dv * k))); }));
+  }
+  // THE ROOT, FITTED TO THE BODY (the user, 10 Nov: "where the leg meets the fuselage, to have a fairing that fits", as the
+  // engine's and the cabane's pylons do - _cage_eng pylonHug's rays, its fillet and its joint): the leg is fixed, so each of
+  // the boot's 36 lengthwise columns is TRIMMED where it meets the drawn skin - a ray from the column's point 0.30 m down
+  // the leg, up the leg (or, for a column running beside the body - a long slab's trailing edge along a vertical side -
+  // into the body along the fitting's normal, then straight up, then straight inboard); the column re-spaced from that point to the hit, its last
+  // RF flared out to the skin (the pylons' quarter circle), the foot sunk 6 mm; a rubber bead round the foot (the joint)
+  let rootFit = null, tubeFit = null;
+  const RF0 = 0.04, SINK = 0.006;
+  // (one trim for any grid of columns G[row][k], KK round, rows 0..jS to fit; `refOf(p)` a point inside it, for the
+  // normals' side). Returns the fit and, per column, the foot on the skin, the column's direction and the flare's
+  let jS = 0; while (jS < 47 && sta[jS + 1].y > -0.30) jS++;
+  // ONE AXIS FOR THE WHOLE TRIM (the user: "the joint now has some clipping ... not really smooth"): each column choosing
+  // its own ray zig-zagged the foot and pinched the boot (measured: neighbours trimmed along different axes). The fairing's
+  // axis is the FIRST of [up the leg, into the body along the fitting's normal, straight up, straight inboard] that reaches
+  // the skin from 90 % of its columns (a column it misses falls back down the list alone); the tube takes the boot's
+  const inb0 = nrm(mul(F.ax, -1));
+  const AXES = [mul(dl, -1), F.rootN ? mul(F.rootN, -1) : null, [0, 1, 0], inb0].filter(Boolean);
+  const castCol = (G, k, a) => F.skin(a === 0 ? G[jS][k] : G[Math.max(0, jS - Math.round(jS * 0.6))][k], AXES[a], a === 0 ? 0.8 : 0.9);
+  let axisUsed = -1;
+  const trimToSkin = (G, KK, refOf, force, RF = RF0) => {
+    let a0 = force != null ? force : -1;
+    if (a0 < 0) { for (let a = 0; a < AXES.length && a0 < 0; a++) { let n = 0; for (let k = 0; k < KK; k++) if (castCol(G, k, a)) n++; if (n >= 0.9 * KK) a0 = a; } if (a0 < 0) a0 = 0; }
+    const order = [a0].concat(AXES.map((_, i) => i).filter(i => i !== a0));
+    let hits = 0; const lens = [], dirs = [], HH = [];
+    for (let k = 0; k < KK; k++) { let H = null; for (const a of order) { const h = castCol(G, k, a); if (h) { H = h.p; break; } } HH.push(H); }
+    // (a ray that slipped through an opening - a window, the door's gap - and found the cabin's far side stretched its column
+    // up the body as a fin: a hit 15 cm farther than its six neighbours' median is a miss; a miss takes the length of the
+    // nearest good columns either side, interpolated round the ring, up the trim's axis)
+    const L0 = HH.map((H, k) => H ? len(sub(H, G[jS][k])) : null);
+    const ok = L0.map((L, k) => { if (L == null) return false; const nb = [];
+      for (let d = -3; d <= 3; d++) if (d && L0[(k + d + KK) % KK] != null) nb.push(L0[(k + d + KK) % KK]);
+      nb.sort((x, y) => x - y); return !nb.length || L <= nb[nb.length >> 1] + 0.15; });
+    const Lfill = k => { let i = 1, j = 1; while (i < KK && !ok[(k - i + KK) % KK]) i++; while (j < KK && !ok[(k + j) % KK]) j++;
+      if (i >= KK) return 0; return (L0[(k - i + KK) % KK] * j + L0[(k + j) % KK] * i) / (i + j); };
+    for (let k = 0; k < KK; k++) {
+      const P0 = G[jS][k]; let H = ok[k] ? HH[k] : null;
+      if (H) hits++; else { const Lf = Lfill(k); H = Lf > 0 ? add(P0, mul(AXES[a0], Lf)) : G[Math.max(0, Math.round(EXT / ((yTop + EXT - yBot) / 48)))][k]; }
+      const L = len(sub(H, P0)); lens.push(L);
+      const dir = L > 1e-9 ? mul(sub(H, P0), 1 / L) : mul(dl, -1); dirs.push(dir);
+      for (let j = 0; j <= jS; j++) { const s = (jS - j) / jS; G[j][k] = add(P0, mul(dir, L * s + (j === 0 ? SINK : 0))); }
+    }
+    // the fillet: each column's last RF flares out along the surface's own normal there (its row's tangent x its column)
+    const flare = [], fN = [];
+    for (let j = 0; j <= jS; j++) { const row = [];
+      for (let k = 0; k < KK; k++) { const tk = sub(G[j][(k + 1) % KK], G[j][(k + KK - 1) % KK]), tc = sub(G[Math.max(0, j - 1)][k], G[Math.min(jS, j + 1)][k]);
+        let nn = nrm(crs(tk, tc)); if (dot(nn, sub(G[j][k], refOf(G[j][k]))) < 0) nn = mul(nn, -1);
+        if (j === 0) fN.push(nn);
+        const dTop = lens[k] * j / jS, e = dTop < RF ? RF - Math.sqrt(Math.max(0, RF * RF - (RF - dTop) * (RF - dTop))) : 0;
+        row.push(mul(nn, e)); }
+      flare.push(row); }
+    for (let j = 0; j <= jS; j++) for (let k = 0; k < KK; k++) G[j][k] = add(G[j][k], flare[j][k]);
+    const feet = G[0].map((p, k) => sub(p, mul(dirs[k], SINK)));      // (the flare's foot, on the skin)
+    return { columns: KK, hits, reach: Math.max(...lens), jS, feet, dirs, fN, axis: a0, wall: G.slice(0, jS + 1).map(r => r.slice()) };
+  };
+  const legPt = p => Ay(hOf(p));                  // (the leg's line beside a point)
+  if (F.skin) {
+    const c0 = Ctr[Math.min(J - 1, jS + 4)];
+    const fit = trimToSkin(Pg, KS, p => add(c0, mul(sF, dot(sub(p, c0), sF))));
+    rootFit = { columns: fit.columns, hits: fit.hits, reach: fit.reach, jS, axis: fit.axis }; axisUsed = fit.axis;
+    rootFit._f = fit;
+  }
+  // THE WILGA'S LEG TUBE, FITTED WITH IT (the user: "the darker gray part in front ... would need to follow"): in the trailing
+  // shape the round tube is the leading edge - drawn here, on the boot's own rows (round in the same slice planes, its
+  // radius the slab's, the slab's nose 1.5 mm inside it) from the fitting down to the leg's foot, and trimmed and filleted
+  // on the skin by the same rule, into the leg's own paint (F.det.steel)
+  let TG = null; const KT = 24;
+  if (STYLE === 2 && F.det && F.det.steel && F.skin) {   // (only with the fitted root: the plain root keeps legLever's own tube, as before)
+    const hEnd = hOf(F.leg ? F.leg.b : F.piv); TG = [];
+    for (let j = 0; j < J && sta[j].y >= hEnd && sta[j].sh === 0; j++) {
+      const A = Ay(sta[j].y); TG.push(Array.from({ length: KT }, (_, m) => { const q = 2 * Math.PI * m / KT; return add(A, add(mul(FW, tubeR * Math.cos(q)), mul(LT, tubeR * Math.sin(q)))); }));
+    }
+    { const A = Ay(hEnd); TG.push(Array.from({ length: KT }, (_, m) => { const q = 2 * Math.PI * m / KT; return add(A, add(mul(FW, tubeR * Math.cos(q)), mul(LT, tubeR * Math.sin(q)))); })); }
+    if (F.skin && TG.length > jS + 1) { const tf = trimToSkin(TG, KT, legPt, axisUsed >= 0 ? axisUsed : null, 0.003); tubeFit = { columns: KT, hits: tf.hits, _f: tf }; }   // (no fillet of its own: the slab's covers the junction - the tube's stood through the slab's thin sides)
   }
   const d = sF;                                   // (the floor looks down the leg; the root's cap up it)
   // each point's outward normal (from the grid; the toe's point looks down the leg)
@@ -2363,8 +2549,67 @@ function leverBootBuild(bag, F) {
     face([[j, k], [j, k2], [j + 1, k2]]); face([[j, k], [j + 1, k2], [j + 1, k]]);
   }
   // the root closes against the fitting (a fan, never cut: nothing moves up there)
-  const c0p = Ctr[0], cR = bag.v(c0p);
-  for (let k = 0; k < KS; k++) { const k2 = (k + 1) % KS; triOut(cR, vO(0, k2), vO(0, k), c0p, Pg[0][k2], Pg[0][k], mul(d, -1)); }
+  if (!rootFit) { const c0p = Ctr[0], cR = bag.v(c0p);
+    for (let k = 0; k < KS; k++) { const k2 = (k + 1) % KS; triOut(cR, vO(0, k2), vO(0, k), c0p, Pg[0][k2], Pg[0][k], mul(d, -1)); } }
+  if (TG) {                                       // the tube's skin, outward, and its foot closed
+    const ST = F.det.steel, ids = TG.map(row => row.map(p => ST.v(p)));
+    for (let j = 0; j + 1 < TG.length; j++) for (let m = 0; m < KT; m++) { const m2 = (m + 1) % KT, a = TG[j][m], b = TG[j][m2], c = TG[j + 1][m2];
+      const nn = crs(sub(b, a), sub(c, a)); if (dot(nn, sub(a, legPt(a))) >= 0) ST.quad(ids[j][m], ids[j][m2], ids[j + 1][m2], ids[j + 1][m]); else ST.quad(ids[j][m2], ids[j][m], ids[j + 1][m], ids[j + 1][m2]); }
+    const last = TG[TG.length - 1], cc = mul(last.reduce((acc, p) => add(acc, p), [0, 0, 0]), 1 / KT), ic = ST.v(cc);
+    for (let m = 0; m < KT; m++) { const m2 = (m + 1) % KT, nn = crs(sub(last[m], cc), sub(last[m2], cc)); if (dot(nn, sF) >= 0) ST.tri(ic, ids[TG.length - 1][m], ids[TG.length - 1][m2]); else ST.tri(ic, ids[TG.length - 1][m2], ids[TG.length - 1][m]); }
+  }
+  // THE JOINT (the user: "the joint now has some clipping ... not really smooth"; "a rivet structure ... like you've done
+  // before"), THE PYLONS' WAY (_cage_eng pylonHug's strip): per column a quadratic Bezier from the wall JW up the column,
+  // over the foot, to the skin JW outside it - that point found by ITS OWN ray along the trim's axis, so it lies on the
+  // skin whatever the skin's curvature - its middle a 2.5 mm bead; round the slab's sides and the front half of the tube
+  // in the trailing shape; in the gear's alloy, a rivet every 3.5 cm along its outer half. lvJoint 1 (2: fitted with no strip; 0, the default: no fitted root at all)
+  if (rootFit && F.det && F.joint !== false) {
+    const fB = rootFit._f, cols = [], JW = 0.018, NJ = 5, AL = F.det.alloy, ax = AXES[fB.axis];
+    if (TG && tubeFit) { for (let k = 0; k <= 12; k++) cols.push([fB, k]); for (let m = KT / 4; m >= -KT / 4; m--) cols.push([tubeFit._f, (m + KT) % KT]); for (let k = 23; k < KS; k++) cols.push([fB, k]); }
+    else for (let k = 0; k < KS; k++) cols.push([fB, k]);
+    const rows = [], outer = [], Q = [];
+    for (const [fit, k] of cols) {
+      const foot = fit.feet[k], d0 = fit.dirs[k], nO = fit.fN[k];
+      // the wall point JW up the column (walking the trimmed column's rows from the foot)
+      let W = fit.wall[Math.min(fit.jS, 2)][k]; { let acc = 0; for (let j = 0; j < fit.jS; j++) { const a2 = fit.wall[j][k], b2 = fit.wall[j + 1][k], l = len(sub(b2, a2)); if (acc + l >= JW) { W = lerp3(a2, b2, (JW - acc) / l); break; } acc += l; } }
+      // (the skin's own normal at the foot from three short rays along the axis - a ray from foot + nO JW grazed a steep
+      // side and stood the strip off it as a lid; the strip runs out along the skin's tangent, then is snapped onto it)
+      const e1 = nrm(Math.abs(ax[1]) < 0.9 ? crs(ax, [0, 1, 0]) : crs(ax, [1, 0, 0])), e2 = crs(ax, e1), E = 0.012;
+      const sk = q => { const h = F.skin(add(q, mul(ax, -0.05)), ax, 0.1); return h ? h.p : null; };
+      const h0 = sk(foot), h1 = sk(add(foot, mul(e1, E))), h2 = sk(add(foot, mul(e2, E)));
+      let nS = h0 && h1 && h2 ? nrm(crs(sub(h1, h0), sub(h2, h0))) : nrm(mul(d0, -1));
+      if (!isFinite(nS[0])) nS = nrm(mul(d0, -1));
+      if (dot(nS, ax) > 0) nS = mul(nS, -1);
+      let u = sub(nO, mul(nS, dot(nO, nS))); u = len(u) > 1e-6 ? nrm(u) : nO;
+      Q.push({ foot, W, nS, u });
+    }
+    // (smoothed round the ring - the trim's columns, the slab's and the tube's, kink where they meet: two passes of
+    // 1-2-1 on the normals and the outward directions, then each outer point snapped onto the skin)
+    const NQ = Q.length, sm = key => { for (let pass = 0; pass < 3; pass++) { const o = Q.map(q => q[key]);
+      for (let i = 0; i < NQ; i++) Q[i][key] = nrm(add(add(o[(i + NQ - 1) % NQ], o[(i + 1) % NQ]), mul(o[i], 2))); } };
+    sm('nS'); sm('u');
+    for (const q of Q) { const S0 = add(q.foot, mul(q.u, JW)), hS = F.skin(add(S0, mul(q.nS, 0.02)), mul(q.nS, -1), 0.05); q.Sx = hS && len(sub(hS.p, S0)) < 0.015 ? hS.p : S0; }
+    for (let pass = 0; pass < 2; pass++) { const o = Q.map(q => q.Sx); for (let i = 0; i < NQ; i++) Q[i].Sx = mul(add(add(o[(i + NQ - 1) % NQ], o[(i + 1) % NQ]), mul(o[i], 2)), 0.25); }
+    for (const { foot, W, nS, Sx } of Q) {
+      const row = [];
+      for (let j = 0; j <= NJ; j++) { const t = j / NJ, m = 1 - t, lift = 0.0025 * 4 * t * m;
+        row.push([m * m * W[0] + 2 * t * m * foot[0] + t * t * Sx[0] + nS[0] * lift, m * m * W[1] + 2 * t * m * foot[1] + t * t * Sx[1] + nS[1] * lift, m * m * W[2] + 2 * t * m * foot[2] + t * t * Sx[2] + nS[2] * lift]); }
+      rows.push(row); outer.push({ p: lerp3(row[3], row[4], 0.5), n: nS });
+    }
+    const ids = rows.map(r => r.map(p => AL.v(p))), NC = rows.length;
+    for (let i = 0; i < NC; i++) { const i2 = (i + 1) % NC;
+      for (let j = 0; j < NJ; j++) { const a2 = rows[i][j], b2 = rows[i2][j], c2 = rows[i2][j + 1], nn = crs(sub(b2, a2), sub(c2, a2));
+        if (dot(nn, outer[i].n) >= 0) AL.quad(ids[i][j], ids[i2][j], ids[i2][j + 1], ids[i][j + 1]); else AL.quad(ids[i][j + 1], ids[i2][j + 1], ids[i2][j], ids[i][j]); } }
+    // the rivets, by arc length along the strip's outer half
+    let acc = 0.0175, nR = 0;
+    for (let i = 0; i < NC; i++) { const A = outer[i], B = outer[(i + 1) % NC], L = len(sub(B.p, A.p));
+      while (acc <= L) { const f = acc / Math.max(1e-9, L), p = lerp3(A.p, B.p, f), nn = nrm(lerp3(A.n, B.n, f));
+        revolve(AL, add(p, mul(nn, -0.0004)), nn, [[0.0026, 0], [0.0024, 0.0006], [0.0016, 0.0011], [0.0005, 0.0013]], 6, true); nR++; acc += 0.035; }
+      acc -= L; }
+    rootFit.joint = NC; rootFit.rivets = nR;
+  }
+  if (rootFit) delete rootFit._f;
+  if (tubeFit) delete tubeFit._f;
   // THE DETAILING (the user: "details on bolts and seams ... a proper professional 3D model"; the Wilga's own fairing,
   // IMG_5504 / 5527: a screw line down its side, a joint at the root): SEAMS - 1.5 mm dark ribbons 0.4 mm proud of the
   // skin - down each side at the section's thickest point, round the root joint 7 cm under the fitting and round the
@@ -2392,9 +2637,10 @@ function leverBootBuild(bag, F) {
     const ring = j => { const r = Pg[j].map((p, k) => ({ p, n: Ng[j][k] })); r.push(r[0]); return r; };
     const jAt = y => Math.max(1, Math.min(47, Math.round((yTop - y) / ((yTop - yBot) / 48))));
     for (const sg of [1, -1]) { const k = kSide(sg); if (k >= 0) { ribbon(down(k)); screws(down(k), 0.07); } }
-    for (const j of [jAt(yTop - 0.10), jAt(yBot + 0.10)]) { ribbon(ring(j)); screws(ring(j), 0.06); }
+    const jRoot = rootFit ? Math.max(2, Math.min(rootFit.jS - 1, Math.round(0.12 / (rootFit.reach / rootFit.jS)))) : jAt(yTop - 0.10);
+    for (const j of [jRoot, jAt(yBot + 0.10)]) { ribbon(ring(j)); screws(ring(j), 0.06); }
   }
-  return { style: STYLE, tubeR, cut: !!cut, cuts: xc.size, screws: nScrew, chord: STYLE === 2 ? null : [lawC(0), lawC(1)] };
+  return { style: STYLE, tubeR, cut: !!cut, cuts: xc.size, screws: nScrew, chord: STYLE === 2 ? null : [lawC(0), lawC(1)], rootFit, tubeFit, tubeDrawn: !!TG };
 }
 // THE ARTICULATION'S SWEPT SPACE (WILGA-GEAR, the fairing's cuts): every moving part as capsules (a segment and a radius
 // from its drawing's own sizes, a little generous) at 25 poses from full extension to full stroke - the arm turned about
@@ -2549,8 +2795,12 @@ function legLever(bags, AF, P, st, sgn) {
   // (the trailing link wears no wheel fairing - the gear layer zeroes st.fair - so the leg-fairing row is its only one)
   const clearIn = { piv, ax, w, axle, horn, top, comp: g.comp, pOut, axleIn, hBase, rodL, cylL, R: st.R };
   const clear = (st.legFair && GL) ? leverClear(GL, clearIn) : null;
-  const boot = st.legFair ? leverBoot(bags.fair, { root, piv, ax, w, axle, horn, top, comp: g.comp, leg: { a: root, b: pivTop, chord, thick }, clear, clearKey: clear ? clearIn : null, style: bootStyle, det: { dark: bags.dark, alloy: bags.alloy } }) : null;
-  if (bootStyle === 2) sweep(bags.steel, resample([off(root, nrm(sub(root, piv)), 0.03), pivTop], 12), () => secRound(boot && boot.tubeR || thick / 2, 20), true, [0, 0, 1]);
+  const boot = st.legFair ? leverBoot(bags.fair, { root, piv, ax, w, axle, horn, top, comp: g.comp, leg: { a: root, b: pivTop, chord, thick }, clear, clearKey: clear ? clearIn : null, style: bootStyle, det: { dark: bags.dark, alloy: bags.alloy, steel: bags.steel },
+    // (lvJoint - the root: 0 plain, the default; 1 fitted to the body with the riveted strip; 2 fitted, no strip. The user,
+    // 10 Nov: the fitted root glitches where its rays cross a window's or a seam's cut - an option, "when it works, why not")
+    joint: Math.round(+P.lvJoint || 0) === 1,
+    skin: st.leverSkin && Math.round(+P.lvJoint || 0) >= 1 ? st.leverSkin.cast : null, skinKey: st.leverSkin ? st.leverSkin.key : '', rootN: F.n }) : null;
+  if (bootStyle === 2 && !(boot && boot.tubeDrawn)) sweep(bags.steel, resample([off(root, nrm(sub(root, piv)), 0.03), pivTop], 12), () => secRound(boot && boot.tubeR || thick / 2, 20), true, [0, 0, 1]);
   return { axle, axis: [sgn, 0, 0], root: F.p, travel: [0, 1, 0], tip: axle,
            lever: { piv, ax, w, axle, horn, top, root, axleIn, rows: R0, boot } };
 }
@@ -2634,6 +2884,9 @@ function legTailwheel(bags, AF, P, st) {
     sweep(bags.steel, resample([[x0, yS + 0.010, shoe[2] + 0.105], [x0, yS + 0.030, shoe[2] + 0.140]], 3),
           () => secBlade(Math.max(0.03, P.twSpringW * 0.9) * 2, 0.008), true, [1, 0, 0]);   // the toe, upturned
     for (const sz of [-0.05, 0.05]) bolt(bags.alloy, [x0, yS + 0.018, shoe[2] + sz], [0, 1, 0], 0.006, 0.016);
+    // MONOWHEEL (the user, 11 Nov: "a skid with a fairing is in the end a protrusion of the fuselage with a protective
+    // skid behind it"): a FAIRED skid wears no spat - the cage layer hangs the body's own protrusion over the spring down
+    // to the shoe (_cage_gear skidProtrusion, the engine pylon's blended blade); here the spring and the shoe as ever
     return { axle: [x0, yS + st.R, shoe[2]], axis: [1, 0, 0], root, tip, travel: nrm([0, 1, 0.35]), skid: true };
   }
   // G58.3: a caller that wants the castor assembly separable (the cage
@@ -2868,6 +3121,6 @@ window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
-                    fitPad, legBeam, legLink, legOleo, castorUnit, steerRun,
+                    fitPad, towRelease, legBeam, legLink, legOleo, castorUnit, steerRun,
                     legTailwheel, legTipWheel, legLever, leverRowsOf, Bag };
 })();

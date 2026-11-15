@@ -1,0 +1,18 @@
+{
+ "datums_px": {
+  "side": {
+   "noseX": 489,
+   "datumY": 264
+  },
+  "plan": {
+   "noseY": 529,
+   "cx": 337.0
+  },
+  "front": {
+   "cx": 337.0,
+   "wingTopY": 108.0,
+   "wingTopH": 0.08948
+  }
+ },
+ "mmPerPx": 22.37
+}

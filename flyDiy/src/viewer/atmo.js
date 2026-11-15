@@ -446,6 +446,7 @@ var ATMO = (function () {
     // near face you fly into. The march is bounded to the slice of the ray that is actually inside
     // the layer's band, which is what keeps it affordable at 10 km.
     uniform vec4 uMist[7];
+    float atmoFwdK = 1.0;   // LOOK-HALO: the mist's forward peak, x (1 - the sun hidden) in the land's splice only (the dome and the clouds keep 1)
     float slabLen(float y0, float dy, float D, float yb, float yt) {   // the length of [0, D] along the ray inside the slab
       if (abs(dy) < 1e-5) return (y0 >= yb && y0 <= yt) ? D : 0.0;
       float ta = (yb - y0) / dy, tb = (yt - y0) / dy;
@@ -534,7 +535,7 @@ ${FM_ON ? FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : ''}
                                    : mistOD(y0, d.y, D));
       if (uMist[3].x > 0.0) od += uMist[3].x * slabLen(y0, d.y, D, uMist[3].y, uMist[3].z);
 ${FM_ON ? '      float odP = fmOD(vec3(uMist[4].x, y0, uMist[4].z), d, D);   // FOREST-MIST (?fmist): the pockets\n' : ''}      float T = exp(-od${FM_ON ? ' - odP' : ''});
-      float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
+      float fwd = 1.0 + uMist[1].w * atmoFwdK * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
 ${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-6, od + odP);   // two media, each its own light (the pockets: the beam, fmCol)\n      return col * T + Lin * (1.0 - T);\n' : ''}
       return col * T + uMist[1].rgb * fwd * (1.0 - T);
     }`.replace(FM_ON ? 'uniform vec4 uMist[' + '7];' : '\u0000', 'uniform vec4 uMist[' + '13];');   // FOREST-MIST's lanes, only when it is on (off: the text as it was)
@@ -544,7 +545,7 @@ ${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-
     #define ATMO_AP_SAMPLER
     uniform sampler2D uApAtlas;
     #endif
-    uniform vec2 uApK;         // x: the aerial perspective's optical-depth scale (1 = the atlas as baked; LOOK-1 8 Nov)
+    uniform vec2 uApK;         // x: the aerial perspective's optical-depth scale (1 = the atlas as baked; LOOK-1 8 Nov); y: the sun hidden from the eye by terrain (LOOK-HALO, 0 = seen)
     uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: the tables' gain (A6: the night's stops)
     vec4 apSample(vec3 d, float dist) {
       float el = asin(clamp(d.y, -1.0, 1.0)), az = atan(d.x, -d.z);
@@ -579,8 +580,14 @@ ${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-
     #ifdef USE_FOG
     if (uAtmoAP.z > 0.5) {
       vec4 ap = apScaled(atmoAP());
+      // LOOK-HALO (the user 13 Nov on the golden lake: "the halo ... still feels like it's going through [the mountain]"): the atlas's
+      // in-scatter knows the Earth's shadow, not the terrain's - so the Mie forward lobe of a sun behind the ridge lit the air in front of it,
+      // the air that ridge shades. On the land, the sunward lobe (cos^8 round the sun) goes with the sun hidden from the eye (uApK.y, app.js);
+      // the haze away from the sun, and the sky over the ridge (the dome), stay as they were
+      if (uApK.y > 0.0) ap.rgb *= 1.0 - uApK.y * pow(max(0.0, dot(normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), uMist[2].xyz)), 8.0);
       gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a;
     }
+    atmoFwdK = 1.0 - uApK.y;
     gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
     #endif
   `;
@@ -598,6 +605,7 @@ ${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-
   // would carry the old unit); applyDay then writes the same value from the day
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre((P, old) => { const r = P / old; U.scale.value *= r; apScalars[0] = U.scale.value; for (let i = 4; i < 7; i++) mistScalars[i] *= r; });
                                                               //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
+  const HALO_OFF = typeof location !== 'undefined' && /[?&]halo=0/.test(location.search || '');   // LOOK-HALO off switch: master to the bit
   const apK_ = new Float32Array([1, 0]);                     // LOOK-1: the aerial perspective's optical-depth scale (x), by reference like apScalars
   // THE HAZE FROM THE WEATHER (LOOK-1, 8 Nov 2026). The atlas is baked from the day's TURBIDITY on Hillaire's Mie
   // (mieK above), and at the default T2.8 its sea-level extinction is 0.0246 /km - a Koschmieder visibility of 159 km.
@@ -1363,6 +1371,7 @@ ${MIST_GLSL}
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe, probes,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
+    sunHidden: h => { if (h != null) apK_[1] = HALO_OFF ? 0 : Math.max(0, Math.min(1, +h) || 0); return apK_[1]; },   // LOOK-HALO (app.js, every frame)
     install, inject, setAP, apK, HAZE, hazeK, bakeField, blit, mistODcpu, seeT, seeRange,
     // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
     // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that

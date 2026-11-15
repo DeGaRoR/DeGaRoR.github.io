@@ -1,0 +1,447 @@
+<title>Wingsmith Engine Cooling</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column (an engineering note), diagrams and tables break out to full column width and scroll inside themselves on a phone */
+:root{
+  --bg:#f3f5f6; --panel:#ffffff; --ink:#15191c; --ink2:#4a535a; --muted:#7b858c; --rule:#d6dcdf;
+  --air:#1f7fb8; --airSoft:#d9ecf6; --heat:#d2552b; --heatSoft:#f8e3d9; --metal:#8c979e; --metalSoft:#e4e8ea;
+  --good:#1d8a4e; --goodSoft:#dcf1e4; --warn:#b77900; --warnSoft:#f7ecd2; --bad:#c4372f; --badSoft:#f7dddb;
+  --s1:#2a78d6; --s2:#eb6834;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --body:Barlow,"Segoe UI",Arial,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111518; --panel:#1a2024; --ink:#eef1f2; --ink2:#b9c2c7; --muted:#8a959b; --rule:#2e373c;
+  --air:#4fa8dc; --airSoft:#16303f; --heat:#ec7a52; --heatSoft:#3a2219; --metal:#8f9aa1; --metalSoft:#262e33;
+  --good:#45b878; --goodSoft:#173325; --warn:#e0a32c; --warnSoft:#3a2f14; --bad:#ec6a62; --badSoft:#3d1e1c;
+  --s1:#3987e5; --s2:#d95926; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111518; --panel:#1a2024; --ink:#eef1f2; --ink2:#b9c2c7; --muted:#8a959b; --rule:#2e373c;
+  --air:#4fa8dc; --airSoft:#16303f; --heat:#ec7a52; --heatSoft:#3a2219; --metal:#8f9aa1; --metalSoft:#262e33;
+  --good:#45b878; --goodSoft:#173325; --warn:#e0a32c; --warnSoft:#3a2f14; --bad:#ec6a62; --badSoft:#3d1e1c;
+  --s1:#3987e5; --s2:#d95926; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--body)}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px;display:flex;flex-direction:column;gap:36px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:.01em}
+h1{font-size:2.6rem;line-height:1.02;font-weight:700}
+h2{font-size:1.75rem;font-weight:600;line-height:1.1}
+h3{font-size:1.2rem;font-weight:600}
+p{margin:0}
+section{display:flex;flex-direction:column;gap:14px;min-width:0}
+.eyebrow{font:600 .78rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lead{font-size:1.08rem;color:var(--ink2)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+code,.mono{font-family:var(--mono);font-size:.86em}
+code{background:var(--metalSoft);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.quote{border-left:3px solid var(--heat);padding:4px 0 4px 14px;color:var(--ink2);font-style:italic}
+ul.tight{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.finding{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.finding b{font-family:var(--display);font-size:1.15rem;font-weight:600}
+.tag{display:inline-block;font:600 .72rem/1 var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:4px 7px;border-radius:4px;white-space:nowrap}
+.t-good{background:var(--goodSoft);color:var(--good)} .t-warn{background:var(--warnSoft);color:var(--warn)} .t-bad{background:var(--badSoft);color:var(--bad)} .t-info{background:var(--airSoft);color:var(--air)}
+.fig{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.fig .scroll{overflow-x:auto}
+.fig svg{display:block;width:100%;height:auto}
+.cap{font-size:.88rem;color:var(--muted)}
+.formula{font-family:var(--mono);font-size:.95rem;background:var(--metalSoft);border-radius:6px;padding:10px 12px;overflow-x:auto;white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font:600 .72rem/1.2 var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+td.r,th.r{text-align:right}
+.tbl{overflow-x:auto;background:var(--panel);border:1px solid var(--rule);border-radius:8px}
+.tbl table{min-width:560px}
+/* the garage's own sheet look for the mock-ups */
+.sheet{background:var(--panel);border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.sheet .hd{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 14px;background:var(--metalSoft);font:600 .8rem/1.2 var(--mono);letter-spacing:.04em;text-transform:uppercase;color:var(--ink2);flex-wrap:wrap}
+.crow{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 14px;border-top:1px solid var(--rule)}
+.crow .lab{font-weight:600}
+.crow .val{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.crow .sub{grid-column:1/-1;font-size:.86rem;color:var(--ink2)}
+.crow .fix{grid-column:1/-1;font-size:.86rem;color:var(--ink);background:var(--warnSoft);border-radius:5px;padding:7px 9px}
+.crow.fail .fix{background:var(--badSoft)}
+.crow.fail{box-shadow:inset 4px 0 0 var(--bad)} .crow.pass{box-shadow:inset 4px 0 0 var(--good)} .crow.warn{box-shadow:inset 4px 0 0 var(--warn)}
+.issue{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--bad);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.issue .what{font-weight:600}
+.issue .do{font-size:.92rem;color:var(--ink2)}
+.qa{display:flex;flex-direction:column;gap:10px}
+.q{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.q .d{font-size:.92rem;color:var(--ink2)} .q .d b{color:var(--ink)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.svgt{fill:var(--ink);font:12px var(--body)} .svgm{fill:var(--muted);font:11px var(--mono)} .svgs{fill:var(--ink2);font:11px var(--body)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+footer{font-size:.82rem;color:var(--muted);border-top:1px solid var(--rule);padding-top:14px}
+@media (max-width:480px){h1{font-size:2.1rem} h2{font-size:1.5rem}}
+</style>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:12px">
+  <div class="eyebrow">Study · 12 Nov 2026 · nothing lands</div>
+  <h1>Engine cooling: making the openings mean something</h1>
+  <p class="lead">Today the radiators, scoops and inlets are drawn but not read. Cooling costs a fixed drag per kilowatt of heat, whatever is on the cowl. This page measures what the cards draw, proposes one small model, and shows what it would change: the climb on a hot day, the drag, the certificate, and the pusher that has nowhere to take its air.</p>
+  <p class="quote">"The Mustang has this huge protrusion and it has to serve a purpose; I'd rather that be encoded in physics."</p>
+</header>
+
+<section>
+  <div class="eyebrow">In one screen</div>
+  <div class="findings">
+    <div class="finding"><span class="tag t-info">Today</span><b>Nothing drawn is read</b><p>Cooling drag = a constant × kW of heat. The wing radiators' own comment says "drawn here, billed once". The oil gauge shows 82 °C whenever the engine runs.</p></div>
+    <div class="finding"><span class="tag t-good">Light planes</span><b>Barely move</b><p>Cub, V2-172 and Jodel pass a 38 °C climb with 1.3 to 3.4 × the air they need. Their cooling drag moves by less than 0.005 m², under 1 km/h.</p></div>
+    <div class="finding"><span class="tag t-bad">Gap</span><b>Cowled pushers can't breathe</b><p>Every cowl opening faces the propeller, which on a pusher faces backwards. list:6 Twin busher 4b has 0.004 m² of inlet, facing aft. It needs 0.07.</p></div>
+    <div class="finding"><span class="tag t-warn">Error</span><b>Big engines pay 5× too much</b><p>The per-kW law charges the Spitfire WIP 0.32 m² of cooling drag. The momentum of the air it actually needs says about 0.06.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">1 · What exists</div>
+  <h2>Drawn, not read</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Piece</th><th>Where</th><th>Read by the physics?</th></tr></thead>
+    <tbody>
+      <tr><td>Heat to reject, per family</td><td><code>00_registry.js:796</code> GEN_ENG_THERMO, <code>:817</code> genEngineThermo</td><td><span class="tag t-good">yes</span> coolKW = 0.45 × shaft (air), 0.42 (liquid), 0.11 (electric), 0.05 (turbine)</td></tr>
+      <tr><td>Cooling drag</td><td><code>60_gen_spec.js:1941</code> GEN_DRAG.kCool, <code>62_gen_aero.js:636-656</code></td><td><span class="tag t-good">yes</span> m² per kW: 0.0004 cowl, 0.0006 liquid, 0.0030 bare radial, 0.0009 ring</td></tr>
+      <tr><td>Cylinders outside the cowl</td><td><code>62_gen_aero.js:648-655</code> heads</td><td><span class="tag t-good">yes</span> Cd 0.9 on their frontal</td></tr>
+      <tr><td>Cowl intakes</td><td><code>60_gen_spec.js:2606</code> GEN_INTAKES</td><td><span class="tag t-bad">no</span> "Texture only, deliberately"</td></tr>
+      <tr><td>Face apertures, nostrils</td><td><code>_cowl_gen.js:628</code> apertureList</td><td><span class="tag t-bad">no</span> geometry only</td></tr>
+      <tr><td>Chin scoop</td><td><code>_cowl_gen.js:994</code> buildScoop</td><td><span class="tag t-bad">no</span> mouth always faces the propeller</td></tr>
+      <tr><td>Exits: lowered bottom, gills</td><td><code>_cowl_gen.js:499</code>, <code>:1119</code></td><td><span class="tag t-bad">no</span> geometry only</td></tr>
+      <tr><td>Wing radiators</td><td><code>_cage_wing.js:346-360</code></td><td><span class="tag t-bad">no</span> no <code>src/core</code> file reads a rad* row</td></tr>
+      <tr><td>Oil temperature</td><td><code>cockpit.js:356</code></td><td><span class="tag t-bad">no</span> constant 82 °C when running</td></tr>
+      <tr><td>Cowl flaps</td><td>none</td><td><span class="tag t-info">absent</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="eyebrow">2 · The physics, kept simple</div>
+  <h2>Heat in, air through, momentum lost</h2>
+  <div class="fig">
+    <div class="scroll"><svg viewBox="0 0 720 300" role="img" aria-label="Side section of a pressure cowl: air enters the inlet at V, slows in the diffuser, picks up heat in the fins, and leaves through the exit at r times V">
+      <defs>
+        <marker id="aA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--air)"/></marker>
+        <marker id="aH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--heat)"/></marker>
+      </defs>
+      <!-- flight direction: nose left -->
+      <text x="20" y="24" class="svgm">flight →  nose on the left, air moves left to right relative to the aeroplane</text>
+      <!-- propeller -->
+      <rect x="92" y="62" width="8" height="176" rx="3" fill="var(--metal)"/>
+      <path d="M100,128 q22,0 30,22 q-8,22 -30,22 z" fill="var(--metal)"/>
+      <!-- cowl outer -->
+      <path d="M140,96 C170,74 230,66 330,66 L560,70 L560,92 L330,92 C250,92 200,100 168,112 Z" fill="var(--metalSoft)" stroke="var(--metal)" stroke-width="2"/>
+      <path d="M140,204 C170,226 230,234 330,236 L520,236 L560,262 L560,240 L520,214 L330,212 C250,210 200,200 168,188 Z" fill="var(--metalSoft)" stroke="var(--metal)" stroke-width="2"/>
+      <!-- firewall -->
+      <rect x="560" y="66" width="10" height="200" fill="var(--metal)"/>
+      <!-- engine block + fins -->
+      <rect x="330" y="122" width="170" height="56" rx="6" fill="var(--heatSoft)" stroke="var(--heat)" stroke-width="1.5"/>
+      <g stroke="var(--heat)" stroke-width="1.5">
+        <line x1="350" y1="104" x2="350" y2="122"/><line x1="370" y1="104" x2="370" y2="122"/><line x1="390" y1="104" x2="390" y2="122"/><line x1="410" y1="104" x2="410" y2="122"/><line x1="430" y1="104" x2="430" y2="122"/><line x1="450" y1="104" x2="450" y2="122"/><line x1="470" y1="104" x2="470" y2="122"/>
+      </g>
+      <text x="415" y="155" text-anchor="middle" class="svgt">engine · Q kW of heat</text>
+      <!-- baffle -->
+      <line x1="330" y1="92" x2="330" y2="104" stroke="var(--ink2)" stroke-width="3"/>
+      <line x1="500" y1="96" x2="500" y2="104" stroke="var(--ink2)" stroke-width="3"/>
+      <!-- airflow -->
+      <path d="M30,118 L136,118" stroke="var(--air)" stroke-width="2.5" fill="none" marker-end="url(#aA)"/>
+      <text x="30" y="110" class="svgs">V (free stream)</text>
+      <path d="M150,112 C220,100 300,98 340,100 L480,100 C520,106 520,190 510,200 C500,214 470,222 520,236" stroke="var(--air)" stroke-width="2.5" fill="none" stroke-dasharray="6 4" marker-end="url(#aA)"/>
+      <path d="M528,248 L640,282" stroke="var(--heat)" stroke-width="2.5" fill="none" marker-end="url(#aH)"/>
+      <text x="600" y="268" class="svgs">r·V, hot</text>
+      <!-- labels -->
+      <text x="148" y="140" class="svgt" font-weight="600">1 inlet</text>
+      <text x="148" y="156" class="svgs">area A_in</text>
+      <text x="215" y="58" class="svgt" font-weight="600">2 diffuser: V → κ·V</text>
+      <text x="345" y="58" class="svgt" font-weight="600">3 baffles push the air through the fins</text>
+      <text x="380" y="290" class="svgt" font-weight="600">4 exit (lowered bottom, cowl flaps)</text>
+      <text x="380" y="276" class="svgs">area A_out ≈ 1.3 × A_in</text>
+    </svg></div>
+    <p class="cap">A pressure cowl as the model sees it. Three measured areas (inlet, outlet, cylinders left in the wind) and two constants per cooling path. No fins, no CFD.</p>
+  </div>
+
+  <h3>Four lines</h3>
+  <div class="formula">ΔT = ε · (T_limit − T_ambient)</div>
+  <p>The air may warm by ΔT before the engine is too hot. On a hot day the gap is smaller, so it needs more air. Fins: 160 °C and ε 0.30 → 43 K at 15 °C, 37 K at 38 °C. Radiator: 110 °C, ε 0.55. Electric pack: 70 °C, which makes it the most hot-day sensitive.</p>
+  <div class="formula">ṁ_need = Q / (cp · ΔT)      cp = 1005 J/kg·K</div>
+  <div class="formula">ṁ_pass = κ · ρ · V_inlet · A_in   (capped by the outlet)</div>
+  <p>κ is the inlet velocity ratio: about 0.45 behind a fixed exit, 0.6 with the exit open wide. V_inlet is the true airspeed plus a share of the slipstream: an actuator-disc estimate gives 1.09 to 1.27 in the probed climbs for a nose inlet; a pusher's forward inlets get nothing. On the ground the slipstream is all there is.</p>
+  <div class="formula">CdA_cool = 2 ṁ (1 − r) / (ρV) = 2 κ A (1 − r)</div>
+  <p>The drag is the momentum the air loses: in at V, out at r·V (r ≈ 0.7 for a cowl exit, 0.8 for a radiator duct). For fixed geometry it does not depend on speed. The outlet sets the flow, not the inlet: a bigger inlet spills, a small outlet throttles everything.</p>
+
+  <h3>What the Mustang's scoop is for</h3>
+  <div class="fig">
+    <div class="scroll"><svg viewBox="0 0 720 220" role="img" aria-label="A belly radiator duct: mouth held off the fuselage by a gap, a diffuser slowing the air onto a large radiator face, and a nozzle with an exit flap">
+      <path d="M20,40 L700,40" stroke="var(--metal)" stroke-width="3"/>
+      <text x="24" y="30" class="svgm">fuselage underside</text>
+      <path d="M20,52 C160,52 200,58 260,62" stroke="var(--muted)" stroke-dasharray="3 4" fill="none"/>
+      <text x="24" y="70" class="svgm">boundary layer</text>
+      <path d="M180,62 L180,58 L250,58" stroke="var(--ink2)" stroke-width="2" fill="none"/>
+      <text x="186" y="54" class="svgm">gap</text>
+      <!-- duct -->
+      <path d="M190,74 L250,74 C300,74 330,70 380,62 L380,62 L520,62 C560,62 600,70 660,86" fill="none" stroke="var(--metal)" stroke-width="2"/>
+      <path d="M190,104 L250,104 C310,108 340,160 380,172 L520,172 C570,172 610,140 660,112" fill="var(--metalSoft)" stroke="var(--metal)" stroke-width="2"/>
+      <rect x="400" y="66" width="22" height="104" fill="var(--heatSoft)" stroke="var(--heat)" stroke-width="1.5"/>
+      <text x="411" y="190" text-anchor="middle" class="svgs">radiator, big face</text>
+      <path d="M660,112 L700,100" stroke="var(--ink2)" stroke-width="3"/>
+      <text x="610" y="206" class="svgs">exit flap: the throttle</text>
+      <!-- air -->
+      <path d="M40,89 L182,89" stroke="var(--air)" stroke-width="2.5" marker-end="url(#aA)" fill="none"/>
+      <text x="44" y="104" class="svgs">V</text>
+      <path d="M260,90 L392,110" stroke="var(--air)" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#aA)" fill="none"/>
+      <text x="270" y="134" class="svgs">diffuser: slow air → small loss</text>
+      <path d="M430,112 L560,112 L690,96" stroke="var(--heat)" stroke-width="2.5" marker-end="url(#aH)" fill="none"/>
+      <text x="470" y="132" class="svgs">heated, accelerated: Meredith</text>
+    </svg></div>
+    <p class="cap">The matrix loses pressure with the square of the speed through it, so a big face fed by a diffuser keeps r near 1 and the drag low. The heat added in a duct is a small ramjet (the Meredith effect, about 0.1·M² of the heat): under 1 % of the duct's drag at a light aeroplane's speed, a large share at a fighter's. One line of physics, and the reason the scoop is that big.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">3 · The cases, measured on the cards</div>
+  <h2>Who has enough air on a hot day</h2>
+  <p>Inlet areas measured off each card's own cowl rows through the cowl generator (face apertures net of the spinner, the scoop's mouth). Hot-day climb = 38 °C at sea level, full power at Vy (the regulation's climb cooling case). 1.0 means exactly enough air.</p>
+  <div class="fig">
+    <div class="legend"><span><i class="sw" style="background:var(--good)"></i>passes (≥ 1.15)</span><span><i class="sw" style="background:var(--warn)"></i>runs hot (1.0 – 1.15)</span><span><i class="sw" style="background:var(--bad)"></i>overheats (&lt; 1.0)</span><span><i class="sw" style="background:var(--metal)"></i>hand estimate</span></div>
+    <div class="scroll"><svg id="mchart" viewBox="0 0 720 420" role="img" aria-label="Hot-day climb cooling margin per aeroplane"></svg></div>
+    <p class="cap">Tiger Moth-alike and Carbon Cub SS count their bare cylinder heads as inlet (both have heads in the wind, already billed as drag). The Spitfire, Caravan and electric rows use assumed areas. Planes with no cowl (list:7 Rufus, list:8 Chinook, list:21 pusherLight) cool in the open and pass.</p>
+  </div>
+
+  <div class="tbl"><table>
+    <thead><tr><th>Plane</th><th class="r">Heat kW</th><th class="r">Inlet drawn m²</th><th class="r">Needed m²</th><th class="r">Hot climb</th><th class="r">Cruise</th><th class="r">Taxi</th></tr></thead>
+    <tbody>
+      <tr><td>list:1 Piper Cub</td><td class="r num">20.0</td><td class="r num">0.052</td><td class="r num">0.039</td><td class="r num">1.33</td><td class="r num">2.6</td><td class="r num">2.7</td></tr>
+      <tr><td>list:50 V2-172</td><td class="r num">48.8</td><td class="r num">0.099</td><td class="r num">0.063</td><td class="r num">1.58</td><td class="r num">3.1</td><td class="r num">2.5</td></tr>
+      <tr><td>list:2 Jodel D112</td><td class="r num">20.0</td><td class="r num">0.117</td><td class="r num">0.035</td><td class="r num">3.36</td><td class="r num">6.4</td><td class="r num">6.1</td></tr>
+      <tr><td>list:10 Tiger Moth-alike</td><td class="r num">40.0</td><td class="r num">0.008 + heads</td><td class="r num">0.065</td><td class="r num">~1.8</td><td class="r">–</td><td class="r">–</td></tr>
+      <tr><td>list:47 Carbon Cub SS</td><td class="r num">55.3</td><td class="r num">0.041 + heads</td><td class="r num">0.091</td><td class="r num">~1.6</td><td class="r">–</td><td class="r">–</td></tr>
+      <tr><td>list:6 Twin busher floats 4b</td><td class="r num">49.1</td><td class="r num">0 fwd</td><td class="r num">0.068</td><td class="r num">0</td><td class="r num">0</td><td class="r num">0</td></tr>
+      <tr><td>list:41 Super Petrel LS</td><td class="r num">28.3</td><td class="r num">0</td><td class="r num">0.047</td><td class="r num">0</td><td class="r num">0</td><td class="r num">0</td></tr>
+      <tr><td>Spitfire-alike WIP (hand)</td><td class="r num">539</td><td class="r num">0.161</td><td class="r num">0.335</td><td class="r num">0.48</td><td class="r num">1.2</td><td class="r num">0.54</td></tr>
+      <tr><td>Caravan card, oil (hand)</td><td class="r num">23.3</td><td class="r num">0.014</td><td class="r num">0.033</td><td class="r num">0.43</td><td class="r num">1.3</td><td class="r num">0.63</td></tr>
+      <tr><td>E-811-class electric (hand)</td><td class="r num">6.4</td><td class="r num">0.010</td><td class="r num">0.022</td><td class="r num">0.45</td><td class="r num">1.5</td><td class="r num">0.79</td></tr>
+    </tbody>
+  </table></div>
+  <ul class="tight">
+    <li>The cowls fitted to real reference models land at 1.3 to 3.4: the constants put real aeroplanes where real aeroplanes are. That is the calibration target, held by a gate.</li>
+    <li>Cruise margins of 2.6 to 6.4 are air a fixed exit pays for, which is why fast aeroplanes grew cowl flaps.</li>
+    <li>The Spitfire's taxi margin of 0.54 matches its history: Spitfires overheated waiting on the ground.</li>
+    <li>A turbo or supercharged engine keeps its power as the air thins, so it runs hotter as it climbs. A naturally aspirated one cools better high up.</li>
+  </ul>
+
+  <h3>Cooling drag: today against momentum</h3>
+  <p>With the outlet sized for the hot climb (the default for every card that draws none):</p>
+  <div class="fig">
+    <div class="legend"><span><i class="sw" style="background:var(--s1)"></i>today: kCool × kW</span><span><i class="sw" style="background:var(--s2)"></i>proposed: 2κA(1−r)</span></div>
+    <div class="scroll"><svg id="dchart" viewBox="0 0 720 360" role="img" aria-label="Cooling drag area today and proposed, per aeroplane"></svg></div>
+    <p class="cap">Air-cooled light cards move by under 0.005 m² (under 1 km/h). The liquid pushers were overcharged by about half. The Spitfire's blue bar is cut: 0.32 m² today against 0.06. One constant per kW, tuned on light aeroplanes climbing at 25 to 35 m/s, charges an aeroplane climbing at 70 m/s about five times too much.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">4 · The pusher gap</div>
+  <h2>Every opening faces the propeller</h2>
+  <div class="fig">
+    <div class="scroll"><svg viewBox="0 0 720 300" role="img" aria-label="A tractor cowl's inlets face forward; a cowled pusher's openings face aft; the proposed scoop faces the flight">
+      <text x="20" y="22" class="svgm">flight ←  (both aeroplanes fly to the left)</text>
+      <!-- tractor -->
+      <text x="20" y="52" class="svgt" font-weight="600">Tractor: the cowl runs forward from the firewall</text>
+      <rect x="250" y="70" width="200" height="56" rx="8" fill="var(--metalSoft)" stroke="var(--metal)" stroke-width="2"/>
+      <path d="M250,78 C210,80 190,86 180,98 C190,110 210,116 250,118 Z" fill="var(--metalSoft)" stroke="var(--metal)" stroke-width="2"/>
+      <rect x="168" y="62" width="6" height="72" rx="2" fill="var(--metal)"/>
+      <rect x="196" y="82" width="10" height="10" rx="3" fill="var(--air)"/>
+      <path d="M96,87 L188,87" stroke="var(--air)" stroke-width="2.5" marker-end="url(#aA)"/>
+      <text x="470" y="96" class="svgs">firewall, cabin →</text>
+      <text x="40" y="112" class="svgs">air in at the nose ✓</text>
+      <!-- pusher -->
+      <text x="20" y="172" class="svgt" font-weight="600">Cowled pusher: built from the firewall towards the prop, i.e. backwards</text>
+      <rect x="120" y="190" width="200" height="56" rx="8" fill="var(--panel)" stroke="var(--metal)" stroke-width="2"/>
+      <text x="140" y="222" class="svgs">← cabin, firewall</text>
+      <path d="M320,198 C360,200 380,206 390,218 C380,230 360,236 320,238 Z" fill="var(--metalSoft)" stroke="var(--metal)" stroke-width="2"/>
+      <rect x="396" y="182" width="6" height="72" rx="2" fill="var(--metal)"/>
+      <rect x="362" y="214" width="10" height="10" rx="3" fill="var(--bad)"/>
+      <text x="420" y="214" class="svgs">face aperture: 0.004 m², faces aft</text>
+      <path d="M248,246 l30,0 l0,10 l-30,0 z" fill="var(--bad)" opacity=".85"/>
+      <text x="420" y="232" class="svgs">chin scoop: mouth faces aft too ✗</text>
+      <!-- proposed -->
+      <path d="M150,246 l0,14 l40,0 l0,-14" fill="var(--goodSoft)" stroke="var(--good)" stroke-width="2"/>
+      <path d="M60,253 L144,253" stroke="var(--air)" stroke-width="2.5" marker-end="url(#aA)"/>
+      <text x="20" y="282" class="svgs" fill="var(--good)">proposed: the scoop "faces the flight" (mouth at the other end) ✓</text>
+      <path d="M404,236 L470,268" stroke="var(--heat)" stroke-width="2.5" marker-end="url(#aH)"/>
+      <text x="480" y="280" class="svgs">aft face = the outlet, the prop sucks it out</text>
+    </svg></div>
+    <p class="cap">On list:6 Twin busher floats 4b the cowl's face aperture nets 0.004 m² round the spinner, and its 0.006 m² scoop mouth faces aft. list:41 Super Petrel LS draws no opening at all. A pusher without a cowl (list:8, list:21) cools in the open and is fine.</p>
+  </div>
+  <p><b>The smallest editor addition: two rows on the existing scoop.</b></p>
+  <ul class="tight">
+    <li><code>cw_scoopFace</code>: 0 = faces the propeller (today, byte-identical), 1 = faces the flight. On a tractor both are the same; a pusher born from now gets 1.</li>
+    <li><code>cw_scoopAz</code>: belly (today's), a cheek pair, or dorsal (a Long-EZ or Cozy style).</li>
+    <li>Later, if wanted: a NACA flush inlet as a scoop style (no protrusion, about 1.5 × the area).</li>
+  </ul>
+  <p>The Twin busher then needs about 0.07 m² of forward-facing mouth (a belly scoop near 30 × 25 cm, or two cheeks), and its aft face becomes the outlet, helped by the propeller's inflow: the way real Rotax pushers and canards do it.</p>
+</section>
+
+<section>
+  <div class="eyebrow">5 · What the player sees</div>
+  <h2>A gauge that means something</h2>
+  <div class="cols">
+    <div class="fig">
+      <svg viewBox="0 0 240 150" role="img" aria-label="Oil temperature gauge: green to 110, amber to 118, red line 118 degrees">
+        <path d="M30,120 A90,90 0 0 1 172,46" fill="none" stroke="var(--good)" stroke-width="12"/>
+        <path d="M172,46 A90,90 0 0 1 196,78" fill="none" stroke="var(--warn)" stroke-width="12"/>
+        <path d="M196,78 A90,90 0 0 1 210,120" fill="none" stroke="var(--bad)" stroke-width="12"/>
+        <line x1="120" y1="120" x2="186" y2="62" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="120" cy="120" r="6" fill="var(--ink)"/>
+        <text x="120" y="145" text-anchor="middle" class="svgm">OIL °C · live, 3 min lag</text>
+      </svg>
+      <p class="cap">Engine temperature follows T_amb + (Q / cp·ṁ) / ε. Amber: "engine hot". Over the red line the engine pulls back power (2 % per K, to 30 %), and the player feels it in the climb. No damage in v1.</p>
+    </div>
+    <div class="fig">
+      <h3>Moments it makes</h3>
+      <ul class="tight">
+        <li>A heavy climb out of a summer strip runs hot; lower the nose, gain speed, it cools.</li>
+        <li>A turbo Rotax climbing to 5 000 m runs hot: step-climb.</li>
+        <li>A pusher taxiing on a hot day, waiting at the hold.</li>
+        <li>An electric pack on a hot day: a hard climb gets shorter.</li>
+        <li>The Jodel's big face: lots of margin, more drag if its exit is drawn big.</li>
+      </ul>
+    </div>
+  </div>
+  <p>Cowl flaps: not in v1 (the exit is what is drawn, or sized for you). In v2, one cowl row the pilot opens on the ground and in the climb and closes in cruise, automatic by default. The radiators' existing <code>radFlap</code> row becomes their exit opening.</p>
+</section>
+
+<section>
+  <div class="eyebrow">6 · The certificate</div>
+  <h2>A cooling row, and a clear failure</h2>
+  <p>Two rows in the design check the bench already reads (<code>64b_gen_design.js</code>, tiers in <code>GEN_CERT_TIER</code>). The hot-day climb is a safety row: an engine that overheats in the climb is not safe. The ground row is commercial: impractical, not unsafe.</p>
+
+  <div class="sheet">
+    <div class="hd"><span>Bench · list:50 V2-172</span><span class="tag t-good">airworthy</span></div>
+    <div class="crow pass"><span class="lab">Engine cooling, hot-day climb</span><span class="val">1.58 ×</span>
+      <span class="sub">38 °C at sea level, full power at Vy: the inlets (0.099 m²) pass 2.10 kg/s of air, the engine needs 1.33. Limit: fail under 1.00, warn under 1.15.</span></div>
+    <div class="crow pass"><span class="lab">Engine cooling on the ground</span><span class="val">2.5 ×</span>
+      <span class="sub">Hot strip, taxi power: the slipstream alone passes enough. Commercial tier.</span></div>
+  </div>
+
+  <div class="sheet">
+    <div class="hd"><span>Bench · list:6 Twin busher floats 4b</span><span class="tag t-bad">not safe to fly</span></div>
+    <div class="crow fail"><span class="lab">Engine cooling, hot-day climb</span><span class="val">0.00 ×</span>
+      <span class="sub">No opening faces the air. This cowl's openings face the propeller, which on a pusher is backwards: in a 38 °C climb the engine gets none of the 1.23 kg/s of air it needs.</span>
+      <span class="fix">Turn the scoop to face the flight (cowl page → scoop faces → the flight) and size it to about 0.07 m², for example a mouth of 30 × 25 cm. The aft face stays as the outlet.</span></div>
+    <div class="crow warn"><span class="lab">Engine cooling on the ground</span><span class="val">0.00 ×</span>
+      <span class="sub">Commercial: it would overheat taxiing.</span></div>
+  </div>
+  <p class="cap">While the rows are <code>proposed</code> (the existing door for a new safety check), the fail shows as "safety · proposed: a warning for now", exactly as the bench tags such rows today.</p>
+
+  <h3>The same failure in the key issues</h3>
+  <div class="issue">
+    <div class="eyebrow">safety · engine</div>
+    <div class="what">Engine cooling: the inlets pass 0.45 of the air a 38 °C climb needs.</div>
+    <div class="do">Enlarge the nose inlets to about 0.09 m² (now 0.041), or open the exit (lower the cowl's bottom, add gills).</div>
+  </div>
+  <div class="issue">
+    <div class="eyebrow">safety · engine</div>
+    <div class="what">Engine cooling: the radiators pass 0.48 of the air.</div>
+    <div class="do">Grow each radiator's mouth to about 0.17 m², or open the exit flaps to 20°.</div>
+  </div>
+  <div class="issue">
+    <div class="eyebrow">safety · engine</div>
+    <div class="what">Engine cooling: the inlet is big enough but the air cannot leave.</div>
+    <div class="do">Outlet 0.02 m², 0.08 needed: lower the cowl's bottom (exit gap) or add gills.</div>
+  </div>
+
+  <h3>On the fiche's Physics page</h3>
+  <div class="sheet">
+    <div class="hd"><span>Powerplant</span><span></span></div>
+    <div class="crow"><span class="lab">cooling duty</span><span class="val">53 kW · by fins</span></div>
+    <div class="crow"><span class="lab">hot-day climb air</span><span class="val">2.10 / 1.33 kg/s</span><span class="sub">1.58 × what it needs · inlets 0.099 m² · outlet sized for you</span></div>
+    <div class="crow"><span class="lab">cooling drag</span><span class="val">0.017 m²</span><span class="sub">2 × 0.45 × 0.063 m² × (1 − 0.7): 5 % of the aeroplane's drag</span></div>
+  </div>
+
+  <h3>Existing certificates (R3: a game update is not a change to the aeroplane)</h3>
+  <p>A certificate is a signature on the design's major rows, with no version tag. But the bench re-signs at every roll-out (<code>74_career.js:361</code>), so a new failing row would withdraw a certificate the next time a plane rolled out. The proposal:</p>
+  <ul class="tight">
+    <li>The rows land <code>proposed</code>: a warning until the user rules, after a fleet sweep.</li>
+    <li>After the ruling, a signature records the rule set it was signed under. An unchanged airframe signed before the cooling rule keeps its pass, with a notice: <i>"Certified before the cooling rule. In a hot climb this engine gets 0.6 of the air it needs: climb at reduced power on hot days, watch the oil temperature."</i> That is an operating limit in R2's sense, not a withdrawal. The live gauge tells the same truth in flight.</li>
+    <li>Any major change (cowl, engine, structure) re-runs the bench, and the row judges like every other.</li>
+    <li>Maker planes must pass before they ship (a gate over the catalogue).</li>
+    <li>Affected today: list:6 Twin busher floats 4b (official) and list:41 Super Petrel LS (internal). Everything else probed passes.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="eyebrow">7 · What it would take</div>
+  <h2>About 1 000 lines, two or three sessions</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Where</th><th>What</th><th class="r">Lines</th></tr></thead>
+    <tbody>
+      <tr><td><code>60_gen_spec.js</code></td><td>GEN_COOL: per-path T_limit and ε, κ, r, slipstream share, the 38 °C case, Meredith factor</td><td class="r num">60</td></tr>
+      <tr><td><code>62d_gen_cool.js</code> (new)</td><td>genCooling(S, def, case) → need, pass, margin, drag, temperature</td><td class="r num">220</td></tr>
+      <tr><td><code>62_gen_aero.js</code></td><td>the cool term = the momentum figure (kCool kept for a spec with no cooling block)</td><td class="r num">40</td></tr>
+      <tr><td>the join (<code>_cage_cowl.js</code>, <code>_cage_wing.js</code>)</td><td>measure spec.cooling: forward inlets, outlets, bare heads, "outlet sized for you"</td><td class="r num">160</td></tr>
+      <tr><td><code>_cowl_gen.js</code> buildScoop + rows</td><td>cw_scoopFace, cw_scoopAz, the pair</td><td class="r num">120</td></tr>
+      <tr><td><code>64b_gen_design.js</code>, <code>64c_gen_aids.js</code></td><td>cool.climb, cool.taxi, remedies with sizes</td><td class="r num">90</td></tr>
+      <tr><td><code>66b_cert_rule.js</code>, <code>74_career.js</code>, <code>bench.js</code></td><td>CERT_MEASURED.cooling, the signature's rule set, the notice</td><td class="r num">60</td></tr>
+      <tr><td><code>30_solver.js</code>, <code>cockpit.js</code>, <code>gps_face.js</code></td><td>engine temperature state, power pull-back, the gauge</td><td class="r num">80</td></tr>
+      <tr><td><code>app.js</code>, the cowl page</td><td>the fiche's lines, the cowl page's cooling line</td><td class="r num">60</td></tr>
+      <tr><td><code>_cool_check.js</code> (GATE COOL)</td><td>fleet sweep, calibration rows, pusher with and without the scoop, Spitfire drag sanity, R3's kept signature</td><td class="r num">150</td></tr>
+    </tbody>
+  </table></div>
+  <p>Gates that move: GEN (shakedown anchors re-read, never hand-edited), DRAG, DESIGN, AIDS, CERT, and the full tier's ARCHETYPES and HOTHIGH. Certified numbers: under 1 % on the air-cooled cards, +1 to 2 % top speed on the liquid pushers (they were overcharged), nothing on bare engines. Session 1: model, measured block, gate, rows proposed. Session 2: the scoop's facing, the pusher cards, the gauge. Session 3: cowl flaps, if wanted.</p>
+</section>
+
+<section>
+  <div class="eyebrow">8 · Questions</div>
+  <h2>For you to rule</h2>
+  <div class="qa">
+    <div class="q"><b>1. The hot case</b><div class="d">The regulation's 38 °C at sea level, full power at Vy, or the game's 1 000 m strip at ISA+20? <b>Default: 38 °C at sea level.</b> The strip stays on the performance page.</div></div>
+    <div class="q"><b>2. The tiers</b><div class="d">Hot-day climb = safety, ground = commercial. <b>Default: yes, both landing as proposed first.</b></div></div>
+    <div class="q"><b>3. Existing certificates</b><div class="d">Kept until the design's major rows change, with a notice, or re-checked at the next roll-out? <b>Default: kept, with the notice (R3).</b></div></div>
+    <div class="q"><b>4. In flight</b><div class="d">Live oil temperature and a power pull-back over the red line, or also engine damage after minutes over the limit? <b>Default: no damage in v1.</b></div></div>
+    <div class="q"><b>5. Cowl flaps</b><div class="d"><b>Default: v2, a cowl row, automatic.</b></div></div>
+    <div class="q"><b>6. The pusher scoop</b><div class="d">"Faces the flight" plus belly / cheeks / dorsal on the existing scoop, NACA flush later? <b>Default: yes, NACA flush later.</b></div></div>
+    <div class="q"><b>7. Undrawn outlets</b><div class="d">An undrawn outlet counts as sized for the hot climb (old builds barely move), or as nothing (they fail)? <b>Default: sized for you, with a design aid saying "draw it".</b></div></div>
+    <div class="q"><b>8. Meredith</b><div class="d">The one-line thrust credit on drawn radiator ducts? <b>Default: yes.</b> It rounds to zero on everything the garage flies today.</div></div>
+  </div>
+</section>
+
+<footer>Study only, nothing landed. Record: <code>flyDiy/futureDesigns/ENGINE-COOLING-2026-11.md</code> on branch <code>claude/festive-faraday-w3w40x</code>. Probes ran on the real build files (list:1, 2, 6, 7, 8, 10, 21, 41, 47, 50; the Stearman, Camel, DC-3 and Mosquito candidates). Spitfire, Caravan and electric rows are hand estimates.</footer>
+</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;};
+  // margin chart
+  const M=[
+    ['list:1 Piper Cub',1.33,0],['list:50 V2-172',1.58,0],['list:2 Jodel D112',3.36,0],['list:10 Tiger Moth-alike',1.8,0],
+    ['list:47 Carbon Cub SS',1.6,0],['list:6 Twin busher 4b',0,0],['list:41 Super Petrel LS',0,0],
+    ['Spitfire WIP (hand)',0.48,1],['Caravan oil (hand)',0.43,1],['Electric 58 kW (hand)',0.45,1]];
+  const s=document.getElementById('mchart'), L=190, R=690, top=20, rowH=36, max=3.5, x=v=>L+(R-L)*Math.min(v,max)/max;
+  for(let t=0;t<=3.5;t+=0.5){ el('line',{x1:x(t),x2:x(t),y1:top-6,y2:top+rowH*M.length,stroke:'var(--rule)','stroke-width':1},s);
+    const tx=el('text',{x:x(t),y:top+rowH*M.length+16,'text-anchor':'middle',class:'svgm'},s); tx.textContent=t.toFixed(1); }
+  M.forEach(([n,v,hand],i)=>{ const y=top+i*rowH;
+    const c=v<1?'var(--bad)':v<1.15?'var(--warn)':'var(--good)';
+    const lt=el('text',{x:L-8,y:y+21,'text-anchor':'end',class:'svgs'},s); lt.textContent=n;
+    if(v>0){ const r=el('rect',{x:L,y:y+8,width:Math.max(4,x(v)-L),height:20,rx:4,fill:c,opacity:hand?0.55:1},s);
+      if(hand) r.setAttribute('stroke','var(--metal)'); const tt=el('title',{},r); tt.textContent=n+': '+v.toFixed(2)+' × the air it needs'; }
+    const vt=el('text',{x:(v>0?x(v):L)+6,y:y+23,class:'svgm'},s); vt.textContent=v>0?v.toFixed(2)+'×':'0  no forward inlet';
+  });
+  el('line',{x1:x(1),x2:x(1),y1:top-10,y2:top+rowH*M.length,stroke:'var(--ink)','stroke-width':2,'stroke-dasharray':'4 3'},s);
+  const ol=el('text',{x:x(1)+4,y:top-8,class:'svgm'},s); ol.textContent='1.0 = just enough';
+  // drag chart
+  const D=[['list:1 Cub',0.0087,0.0106],['list:50 V2-172',0.0213,0.0169],['list:2 Jodel',0.0087,0.0094],['list:47 Carbon Cub SS',0.0241,0.0245],
+    ['list:6 Twin busher 4b',0.0295,0.0122],['list:41 Super Petrel',0.0185,0.0085],['Caravan card',0.0050,0.0089],['Spitfire WIP',0.3234,0.0604]];
+  const d=document.getElementById('dchart'), dmax=0.065, rh=40, X=v=>L+(R-L)*Math.min(v,dmax)/dmax;
+  for(let t=0;t<=0.065001;t+=0.01){ el('line',{x1:X(t),x2:X(t),y1:10,y2:10+rh*D.length,stroke:'var(--rule)'},d);
+    const tx=el('text',{x:X(t),y:10+rh*D.length+16,'text-anchor':'middle',class:'svgm'},d); tx.textContent=t.toFixed(2); }
+  D.forEach(([n,a,b],i)=>{ const y=10+i*rh;
+    const lt=el('text',{x:L-8,y:y+22,'text-anchor':'end',class:'svgs'},d); lt.textContent=n;
+    [[a,'var(--s1)',4,'today'],[b,'var(--s2)',20,'proposed']].forEach(([v,c,dy,w])=>{
+      const r=el('rect',{x:L,y:y+dy,width:Math.max(3,X(v)-L),height:14,rx:3,fill:c},d); const tt=el('title',{},r); tt.textContent=n+' '+w+': '+v.toFixed(4)+' m²';
+      const vt=el('text',{x:X(v)+5,y:y+dy+11,class:'svgm'},d); vt.textContent=v>dmax?v.toFixed(2)+' m² (cut)':v.toFixed(4);
+      if(v>dmax){ vt.setAttribute('x',X(v)-6); vt.setAttribute('text-anchor','end'); vt.setAttribute('style','fill:#fff'); }
+    });
+  });
+})();
+</script>

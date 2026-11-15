@@ -65,9 +65,21 @@ const SLAT_KEYS = Object.keys(GEN_SLATS);                 // G2820
 // G189: the lamp bay's edges as loft stations — the join's cageWingCuts,
 // the same arithmetic off the same declaration, so the drawn loft and the
 // flown loft have the same rows (see the join's note)
-const wingCutsOf = P => (typeof CAGE_JOIN_WING_CUTS === 'function')
+const wingCutsOf0 = P => (typeof CAGE_JOIN_WING_CUTS === 'function')
   ? CAGE_JOIN_WING_CUTS(P)
   : (window.CAGE_JOIN_WING_CUTS ? window.CAGE_JOIN_WING_CUTS(P) : null);
+// THE HUB (the rod rooted in the wing's centre section, rodHub): the rod's hump is shaped on the wing's own skin
+// (hubHump) - across the centre (`centreRows` rows: one on the centreline) and out over the first bay, whose rows the loop
+// cuts give (metres from the centreline, out to where the hump's bell has died). The join takes the same two (the flown
+// loft has the drawn one's rows)
+const hubOnP = P => !!P && +P.rodHub && Math.round(+P.boomStyle || 0) === 1 && !+P.boomTwin && +P.wingOn;
+const HUB_CUTS = [0.30, 0.34, 0.38, 0.43, 0.49, 0.56, 0.64];
+window.CAGE_HUB_ROWS = P => hubOnP(P) ? { centreRows: 25 } : {};
+window.CAGE_HUB_CUTS = (P, base) => {
+  if (!hubOnP(P)) return base;
+  return (base || []).concat(HUB_CUTS.map(v => v * (+P.planeScale || 1))).sort((a, b) => a - b).map(v => +v.toFixed(4));
+};
+const wingCutsOf = P => window.CAGE_HUB_CUTS(P, wingCutsOf0(P));
 PAGE.defaults = Object.assign({
   // G140: wgSweep is RETIRED — the planform is three stations now (root,
   // crank, tip), each with a chord and a fore/aft offset in metres. The
@@ -83,6 +95,8 @@ PAGE.defaults = Object.assign({
   // HULL-B26: the tip's own shape (60_gen_spec GEN_TIP_SHAPE) - its length and drop in tip chords, 0 = the kind's own;
   // its fullness over the wing's aerofoil, 1 = the aerofoil
   wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+  // TIP-SKID (60_gen_spec GEN_TIP_SKID): the wingtip skid under any tip, and its shoe's depth under the skin (m)
+  wgTipSkid: 0, wgTipSkidH: 0.10,
   wgCentre: 0, wgCentreW: 0, wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6,
   wgStruts: 2,                     // T2.3 (83): lift struts per side (2 = the V pair, 1 = a single front strut)
   wgBeam: 1,                       // T2.3 (48): the carry-through beam drawn in a cut centre section
@@ -197,6 +211,8 @@ const tipShapeNote = key => P => {
 const tipShapeOf = P => (+P.wgTipBow > 0 || +P.wgTipDroop > 0 || +P.wgTipFull > 1)
   ? { tipShape: { bow: +P.wgTipBow > 0 ? +P.wgTipBow : null, droop: +P.wgTipDroop > 0 ? +P.wgTipDroop : null,
                   full: +P.wgTipFull > 1 ? +P.wgTipFull : null } } : {};
+// (TIP-SKID: the same key the join flies - _cage_join.js cageJoinSpec; absent when off)
+const tipSkidOf = P => +P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {};
 const WING_ITEMS = [
   ['wingOn',   'wings',          0, 1, 1],
   // G185: 'parasol' — on cabane struts above the deck, lift struts to the
@@ -210,7 +226,7 @@ const WING_ITEMS = [
   // DC3-EDITABLE: to its ~40 m class's 40 m and 6 m (the user, 7 Nov: "allowing us to build wider planes")
   ['wgSpan',   'span',           6.5, 40, 0.1, { ...on, dim: 'm', note: spanNote }],
   ['wgChord',  'root chord',     0.80, 6.00, 0.05, { ...on, dim: 'm' }],
-  ['wgChordTip', 'tip chord',    0.55, 6.00, 0.05, { when: P => +P.wingOn && !+P.wgPlan, dim: 'm', note: tipNote }],
+  ['wgChordTip', 'tip chord',    0.30, 6.00, 0.01, { when: P => +P.wingOn && !+P.wgPlan, dim: 'm', note: tipNote }],   // (the LS4: 0.36 m - 0.55 was the floor)
   // THE ELLIPTIC PLANFORM (the user, 27 Oct, the Spitfire: "a truly elliptic wing"): the chord follows one
   // ellipse over the whole semispan from the root chord on the centreline, the line at `straight line at` of
   // the chord runs straight (swept by `tip aft`); the tip chord, the crank and the tip type stand down
@@ -225,6 +241,10 @@ const WING_ITEMS = [
   ['wgTipBow',   'tip length (tip chords, 0 = its own)', 0, 0.8, 0.01, { when: tipBowed, note: tipShapeNote('bow') }],
   ['wgTipDroop', 'tip drop (tip chords, 0 = its own)', 0, 0.45, 0.01, { when: tipBowed, note: tipShapeNote('droop') }],
   ['wgTipFull',  'tip fullness (x the aerofoil)', 1, 2.6, 0.05, { when: tipBowed }],
+  // TIP-SKID (the user, 11 Nov: "do the skid under any tip type"): a hoop of tube under the tip joint, ON ANY TIP - the
+  // wing that goes down at rest on a single main wheel slides on it (the tail skid's law) instead of scraping
+  ['wgTipSkid',  'wingtip skid', 0, 1, 1, ['none', 'skid'], { when: P => +P.wingOn }],
+  ['wgTipSkidH', 'skid depth under the skin', 0.02, 0.30, 0.005, { when: P => +P.wingOn && +P.wgTipSkid, dim: 'm' }],
   ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { when: P => +P.wingOn && !+P.wgPlan, note: heldNote('wgCrankAt') }],
   // G140: the crank SECTION — its own chord and fore/aft seat, the same
   // two numbers the root and tip carry. On a strutted wing the crank is
@@ -276,8 +296,9 @@ const WING_ITEMS = [
   // aluminium (never plywood: a wooden wing is fabric-covered, the ply is the
   // leading-edge D-box only); 'as the aeroplane' is fabric on a wood or tube
   // fuselage, alloy on alloy, carbon on carbon (GEN_SURF_DEFAULT)
-  ['wgCons', 'construction', 0, 7, 1,
-   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre', 'fabric on aluminium spar'],
+  ['wgCons', 'construction', 0, 8, 1,
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre', 'fabric on aluminium spar',
+    'foot-launch D-tube'],
    on],
   // G3503 (DC3-BUILD): aft to 6 m (negative is aft) - a full-size DC-3's wing stands
   // ~4 m behind its cockpit ring; the flown envelope's xLE window still holds it (DC3-EDITABLE: to 9 m, the big box's 12 m LE)
@@ -370,7 +391,7 @@ const WING_ITEMS = [
 // generated twin was a second row of the same key that moved nothing)
 const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH',
-                         'wgTipBow', 'wgTipDroop', 'wgTipFull',   // HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
+                         'wgTipBow', 'wgTipDroop', 'wgTipFull', 'wgTipSkid', 'wgTipSkidH',   // TIP-SKID too; HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
                          // G2820: the STOL devices are the first plane's in the
                          // editor (the spec and the physics take them per plane)
                          'wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan',
@@ -599,13 +620,13 @@ function wingMat(cl, plane) {
   // dresses every class
   // G213: the wing's own tokens in the row's order, and 'as the aeroplane'
   // through GEN_SURF_DEFAULT (fabric on a wood or tube fuselage)
-  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'];   // G466: the fifth stop; G2047 the sixth
-  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'];
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'];   // G466: the fifth stop; G2047 the sixth; the D-tube the eighth
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass', 'softShell'];
   const SD = (typeof GEN_SURF_DEFAULT !== 'undefined' && GEN_SURF_DEFAULT) ||
-    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
+    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass', softShell: 'aluFabric' };
   const kc = Math.round((plane ? P0.w2Cons : P0.wgCons) || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
-    : SD[FUS4[Math.max(0, Math.min(5, Math.round(P0.intCons || 0)))]] ||
+    : SD[FUS4[Math.max(0, Math.min(6, Math.round(P0.intCons || 0)))]] ||
       'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
@@ -956,6 +977,7 @@ function wingGSpec(P) {
       cabaneH: Math.round(P.wgPos) === 3 ? (+P.wgParaH || 0.45) : null,
       tip: TIP_KEYS[Math.round(P.wgTip)] || 'rounded',
       ...tipShapeOf(P),
+      ...tipSkidOf(P),
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
@@ -966,9 +988,14 @@ function wingGSpec(P) {
       // G189: the lamp bay's two edges as loft stations, so the cut is the
       // width asked for (the same declaration the bay below resolves)
       cuts: wingCutsOf(P),
+      ...window.CAGE_HUB_ROWS(P),                                     // (the hub: the centre's rows, as the join)
       // G2820: the STOL devices, drawn as the join flies them
       ...((st => st ? { stol: st } : {})(genStolCage(P))),
     }, ...(+P.w2On ? [w2SpecOf()] : [])],
+    // THE HANGING NACELLE (the join's fuselage.hang): the first plane stands on the mast, no cabane, no root ties to the
+    // cabin's rings (61_gen_frame 3 / 3d) - the drawn struts follow
+    ...(+P.hangOn && (Math.round(+P.wgPos || 0) === 0 || Math.round(+P.wgPos || 0) === 3)
+      ? { fuselage: { hang: true, ...(P.hangAt != null ? { hangAt: +P.hangAt } : {}), ...(P.hangLen != null ? { hangLen: +P.hangLen } : {}) } } : {}),
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
                cabane: Math.round(P.bpCabane || 0) ? 'V' : 'N',
@@ -1029,13 +1056,308 @@ let radGroup = null;                         // the wing radiators (27 Oct)
 // G2880: the build below, then its early readers (above) - after every exit
 PAGE.post = ctx => {
   wingPost(ctx);
+  hangMastDraw(ctx);                  // (the hanging nacelle's mast: after the wing it carries, before its early readers - the pusher on its back face)
   early.publish(ctx);
+  hubSocketDraw(ctx);                 // (the hub's rear socket: after the wing, which it reads)
+  cabPylonDraw(ctx);                  // (HULL-B78's central pylon: after the wing it stands under)
   // HULL-B5: the boat's tip floats hang off THIS wing (the float layer draws them from the flown records)
   if (window.CAGE_TIPFLOAT_DRAW) { try { window.CAGE_TIPFLOAT_DRAW(ctx); } catch (e) { console.error('tip floats:', e); } }
   // WING-STRUCTURE: the wing's inside (src/viewer/wing_struct.js), drawn off this build's def - only under the see-inside
   // view or the cutaway box; otherwise it builds nothing
   if (window.CAGE_WINGSTRUCT_DRAW) window.CAGE_WINGSTRUCT_DRAW(ctx);
 };
+// THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2; the frame's 61_gen_frame 3c ties the rod's root into the wing's
+// centre section): where the rod meets the wing, drawn after the wing (it reads its trailing edge and its underside). Under
+// a GAP - the rod's crown below the wing's underside at its root - the socket is the engine pylon's blended blade standing on
+// the rod and hugging the wing (_cage_eng CAGE_PYLON); where the rod already runs INTO the centre section, a bolted sleeve
+// where it leaves the trailing edge, its four bolts - the rod reads slotted into the wing
+// THE HUB'S HUMP (the Archaeopteryx study's stage 2; the user, 11 Nov: "start from the geometry of the center wing ... only
+// the top surface ... raise the center section of the aft edge proportionally over the chord ... until it gets higher
+// than the rod ... the rod should be positioned in a way that the highest point of the wing corresponds to the highest
+// point of the rod ... maybe you start deforming the bottom section of the wing a bit in the same way ... with a little
+// tolerance, so that there is sort of a ring emerging where they intersect ... if you would look at the back of the wing,
+// that would look like a Gauss curve, more or less, with the center section able to swallow the rod").
+// THE WING'S OWN SKIN, MOVED - before any mesh is made of it (so every reader - the struts, the gear, the fin, the flown
+// aeroplane - sees the wing that is drawn). In cage metres (x the span, y up, z forward):
+//   - the undeformed section at the centreline (the centre's own vertices: centreRows puts a row on it), its top and its
+//     bottom as functions of z, its highest point (zTop, yTop);
+//   - THE ROD FITTED: its crown at the wing's highest point (P.rodY, the editor's row - written and rebuilt when it is
+//     off by a millimetre), its axis yA(z) on its inclination; it runs forward through the wing to zTop;
+//   - the TOP raised by up0(z) = how far the rod's crown and HUB_TOL stand over the top skin at z (smoothly zero ahead
+//     of the point where it starts, so it grows from the highest point to the trailing edge); the BOTTOM lowered by lo0(z),
+//     the same for the rod's underside, carried on past the rod's front end and eased out over a quarter of the chord;
+//   - across the span a GAUSSIAN, exp(-(x / sigma)^2), sigma the narrowest that holds the rod's whole section at that z
+//     (never under HUB_SIG of its radius) - from behind, the trailing edge is a bell over the rod.
+// The trailing edge's own face (the curb, upper to lower) becomes the wall the rod comes out of. Returns the fit (for
+// the rod's own drawing); null when off
+const HUB_TOL = 0.006, HUB_SIG = 1.25;
+let HUB_HUMP = null;
+function hubHump(groups, toCage, P) {
+  if (!hubOnP(P) || !CG2 || !CG2.cageResolve) return null;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  let Sp, Rr;
+  try { Sp = CG2.cageSpec(P); Rr = CG2.cageResolve(Sp); } catch (e) { return null; }
+  if (!Sp.rod || !Rr.rodSpan) return null;
+  const G = ['skin', 'canopy'].map(k => groups[k]).filter(g => g && g.nv);
+  if (!G.length) return null;
+  // the centreline section (the centre's middle row), undeformed
+  const C = [];
+  for (const g of G) for (let i = 0; i < g.nv; i++) {
+    const q = toCage([g.pos[i * 3], g.pos[i * 3 + 1], g.pos[i * 3 + 2]]);
+    if (Math.abs(q[0]) < 0.012) C.push([q[2], q[1]]);
+  }
+  if (C.length < 10) return null;
+  let iLE = 0, iTE = 0;
+  for (let i = 1; i < C.length; i++) { if (C[i][0] > C[iLE][0]) iLE = i; if (C[i][0] < C[iTE][0]) iTE = i; }
+  const LE = C[iLE], TE = C[iTE], chord = LE[0] - TE[0];
+  const midY = z => TE[1] + (LE[1] - TE[1]) * (z - TE[0]) / (chord || 1);
+  const up = C.filter(q => q[1] >= midY(q[0])).sort((a, b) => a[0] - b[0]), lo = C.filter(q => q[1] < midY(q[0])).sort((a, b) => a[0] - b[0]);
+  const yOf = (L, z) => { if (!L.length) return 0; if (z <= L[0][0]) return L[0][1]; for (let k = 1; k < L.length; k++) if (z <= L[k][0]) {
+    const a = L[k - 1], b = L[k]; return a[1] + (b[1] - a[1]) * (z - a[0]) / ((b[0] - a[0]) || 1e-9); } return L[L.length - 1][1]; };
+  let zTop = TE[0], yTop = -Infinity;
+  for (const q of up) if (q[1] > yTop) { yTop = q[1]; zTop = q[0]; }
+  // THE ROD FITTED: the crown at the wing's highest point
+  const rr = Sp.rod.r * FS, tI = Math.tan(Sp.rod.incl || 0), zR0 = Rr.rodSpan.zRoot * FS;
+  const yA0 = yTop - rr - tI * (zR0 - zTop);                      // the axis at the rod's root station
+  const rodYfit = +(yA0 / FS).toFixed(4);
+  if (Math.abs(rodYfit - (+P.rodY || 0)) > 1.5e-3 / FS) {
+    P.rodY = rodYfit;
+    if (typeof setTimeout === 'function') setTimeout(() => { const U = window.CAGE_UI; if (U && U.syncSliders) U.syncSliders(); if (U && U.build) U.build(); }, 0);
+  }
+  const yA = z => yA0 + tI * (zR0 - z);
+  const sm = (e0, e1, v) => { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  const sp = v => { const k = 0.015; return v >= k ? v : v <= -k ? 0 : (v + k) * (v + k) / (4 * k); };   // a smooth max(0, v)
+  const zEase = 0.25 * chord;
+  const up0 = z => z <= zTop ? sp(yA(z) + rr + HUB_TOL - yOf(up, z))
+                             : sp(yA(zTop) + rr + HUB_TOL - yOf(up, zTop)) * (1 - sm(zTop, zTop + 0.12 * chord, z));   // (eased out ahead: no step)
+  const lo0 = z => z <= zTop ? sp(yOf(lo, z) - (yA(z) - rr - HUB_TOL))
+                             : sp(yOf(lo, zTop) - (yA(zTop) - rr - HUB_TOL)) * (1 - sm(zTop, zTop + zEase, z));
+  // sigma at z: the narrowest bell holding the rod's section (its top over the skin at every x), never under HUB_SIG r
+  const sigOf = (d0, need) => { let s = HUB_SIG * rr; if (!(d0 > 1e-4)) return s;
+    for (let k = 1; k <= 24; k++) { const x = rr * k / 24, n = need(x); if (n > 1e-4 && n < d0) s = Math.max(s, x / Math.sqrt(Math.log(d0 / n))); else if (n >= d0) s = Math.max(s, 3 * rr); }
+    return s; };
+  const SIG = new Map();
+  const sigAt = (z, upper) => { const key = (upper ? 'u' : 'l') + Math.round(z * 500); if (SIG.has(key)) return SIG.get(key);
+    const d0 = upper ? up0(z) : lo0(z), c = Math.max(-1, Math.min(1, 0));
+    const zz = upper ? z : Math.min(z, zTop);
+    const need = upper ? (x => yA(zz) + Math.sqrt(Math.max(0, rr * rr - x * x)) + HUB_TOL - yOf(up, zz))
+                       : (x => yOf(lo, zz) - (yA(zz) - Math.sqrt(Math.max(0, rr * rr - x * x)) - HUB_TOL));
+    const sgv = sigOf(d0, x => z > zTop && !upper ? need(x) * (1 - sm(zTop, zTop + zEase, z)) : need(x)); SIG.set(key, sgv); return sgv; };
+  // the cage's vertical, back in the payload's frame (toCage is rigid: its linear part's inverse)
+  const o0 = toCage([0, 0, 0]), M = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map(e => { const q = toCage(e); return [q[0] - o0[0], q[1] - o0[1], q[2] - o0[2]]; });
+  // M[k] = the image of e_k; for a rotation the inverse is the transpose: raw = sum_k (dcage . M[k]) e_k
+  const back = d => [0, 1, 2].map(k => d[0] * M[k][0] + d[1] * M[k][1] + d[2] * M[k][2]);
+  let moved = 0, maxUp = 0, maxLo = 0;
+  for (const g of G) for (let i = 0; i < g.nv; i++) {
+    const q = toCage([g.pos[i * 3], g.pos[i * 3 + 1], g.pos[i * 3 + 2]]);
+    const z = q[2], x = q[0];
+    if (z < TE[0] - 0.02 || z > LE[0] + 0.02) continue;
+    const upper = q[1] >= midY(z);
+    const d0 = upper ? up0(z) : lo0(z);
+    if (!(d0 > 1e-5)) continue;
+    const s = sigAt(z, upper), dy = (upper ? 1 : -1) * d0 * Math.exp(-(x / s) * (x / s));
+    if (Math.abs(dy) < 1e-5) continue;
+    const r = back([0, dy, 0]);
+    g.pos[i * 3] += r[0]; g.pos[i * 3 + 1] += r[1]; g.pos[i * 3 + 2] += r[2];
+    moved++; if (upper) maxUp = Math.max(maxUp, dy); else maxLo = Math.max(maxLo, -dy);
+  }
+  return { rr, yA0, tI, zR0, zTop, yTop, te: TE[0], le: LE[0], chord, rodYfit, moved, maxUp, maxLo };
+}
+// HULL-B78: THE CABANE AS A CENTRAL PYLON (bpCabPylon) - the engine pylon's blended blade (_cage_eng CAGE_PYLON), standing
+// on the roof's crown under the first plane's centre section and hugging the wing's underside. Drawn here, after the wing
+// it reads (the engine layer drew it before the wing was built - off the previous build's, missing on a first build);
+// the same geometry
+let cabPyGroup = null;
+function cabPylonDraw(ctx) {
+  const { scene, P } = ctx;
+  if (cabPyGroup) { cabPyGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); if (cabPyGroup.parent) cabPyGroup.parent.remove(cabPyGroup); cabPyGroup = null; }
+  if (!+P.bpCabPylon || !(Math.round(+P.wgPos || 0) === 3 || +P.w2On) || !P.wingOn || +P.hangOn) return;   // (a hanging nacelle: the mast)
+  const W = window.CAGE_WING, GK = window.GEAR_KIT, PY = window.CAGE_PYLON;
+  if (!W || !GK || !PY || !PY.drawPylonBlade || !GG || !GG.cageAirframe) return;
+  try {
+    const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+    const le = W.leAt ? W.leAt(0) : null;
+    const chPl = W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[0]) || W.def.parts);
+    const ch = chPl && chPl.chordAt ? chPl.chordAt(0) : 1.0;
+    const AFp = GG.cageAirframe(ctx.mesh, FS);
+    if (!le || !W.underAt || !AFp) return;
+    const top = z => { try { const zc = Math.min(AFp.z1 - 1e-3, Math.max(AFp.z0 + 1e-3, z)); const y = AFp.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
+    const at = P.bpCabPyAt != null ? +P.bpCabPyAt : 0.40, lenK = P.bpCabPyLen != null ? +P.bpCabPyLen : 0.55;   // (the hub's pylon on the chord)
+    const Lp = Math.max(0.30, lenK * ch), zc = le.z - at * ch, u = W.underAt(0, zc), yb = top(zc);
+    if (!(u && yb != null && u.y > yb + 0.05)) return;
+    const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
+                foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
+    cabPyGroup = new THREE.Group(); cabPyGroup.name = 'cageLayer:cabPylon';
+    PY.drawPylonBlade(cabPyGroup, f, Object.assign({}, P, { engPylonFair: 3 }), GK, false,
+                      PY.pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]));
+    scene.add(cabPyGroup);
+  } catch (e) { console.error('cabane pylon:', e); }
+}
+// THE HANGING NACELLE'S MAST (the Archaeopteryx study's stage 3; the user, 11 Nov: "the pylon is structural and should
+// go down to the bottom of the plane, where the supporting beam will go ... a proper cut to allow the pylon through, and
+// be constrained at its bottom to the supporting beam"): ONE straight blade on the centreline (the engine pylon's 12 %
+// wing section, _cage_eng pylonOutline), its middle and chord on the root chord (hangAt, hangLen - the
+// frame's own, 61_gen_frame 3d), its station the hub's (hangAt, on the root chord: the cabin slides free of it), from the KEEL inside the cabin straight up through the roof to the wing's underside,
+// blended into the wing (the hugging body, pylonHug: its top flared into the wing, its foot on the keel's inside). The
+// ROOF IS CUT round it: the blade's outline and a finger's clearance, looked at from above (the knife's top cut,
+// _knife_gen knifeWells), handed on with the gear's cuts (CAGE_GEAR.cuts) - the editor and quickshot cut the drawn
+// sheet with them after the chain. The mast's paint is the body's
+const HANG_CLR = 0.008;
+const KEEL_W = 0.06, KEEL_D = 0.08, KEEL_DN = 0.02;      // the keel beam's drawn box: GEN_HANG.keelD deep, 2 cm of it under the floor
+const KEEL_R = 0.025, KEEL_IN = 0.85;                       // the twin keel's tubes: 50 mm, at GEN_HANG.keelIn of the half-width
+let hangGroup = null;
+function hangMastDraw(ctx) {
+  const { scene, P } = ctx;
+  if (hangGroup) { hangGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); if (hangGroup.parent) hangGroup.parent.remove(hangGroup); hangGroup = null; }
+  window.CAGE_HANG_CUTS = null; window.CAGE_HANG = null;
+  const pos = Math.round(+P.wgPos || 0);
+  if (!+P.hangOn || !P.wingOn || !(pos === 0 || pos === 3)) return;
+  const W = window.CAGE_WING, GK = window.GEAR_KIT, PY = window.CAGE_PYLON;
+  if (!W || !GK || !PY || !PY.pylonHug || !PY.pylonOutline || !GG || !GG.cageAirframe) return;
+  try {
+    const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+    const le = W.leAt ? W.leAt(0) : null;
+    const chPl = W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[0]) || W.def.parts);
+    const ch = chPl && chPl.chordAt ? chPl.chordAt(0) : 1.0;
+    const AF = GG.cageAirframe(ctx.mesh, FS);
+    if (!le || !W.underAt || !AF) return;
+    // ITS STATION IS THE HUB'S, on the root chord (hangAt its middle): the cabin moves free of it (the user, 11 Nov: "the
+    // whole cabin should be able to move relative to the pillar ... the cabin in front of the pillar"; the wing's fore /
+    // aft row moves the hub, the mast with it)
+    const at = P.hangAt != null ? +P.hangAt : 0.50, lenK = P.hangLen != null ? +P.hangLen : 0.35;
+    const Lp = Math.max(0.10, lenK * ch), zc = le.z - at * ch;
+    if (!(zc > AF.z0 + 0.02 && zc < AF.z1 - 0.02)) return;
+    const u = W.underAt(0, zc), yK = AF.keelAt(zc), yR = AF.surf(zc, Math.PI)[1];
+    if (!(u && isFinite(yK) && isFinite(yR) && u.y > yK + 0.2)) return;
+    const out = e => PY.pylonOutline('foil', Lp, 0.12, 0, e);
+    hangGroup = new THREE.Group(); hangGroup.name = 'cageLayer:hangMast';
+    // THE FOOT: on the keel - or, a SUNK monowheel hanging from it (the gear layer's sunk fork), on the tyre's fork, a
+    // finger over the tyre (its top 2 R sink over the keel line), not down through it
+    const sunkR = +P.s1On && !(+P.s1X > 0.01) && Math.round(+P.s1Leg || 0) !== 3 && +P.s1Sink > 0 ? +P.s1R || 0 : 0;
+    const yFoot = sunkR > 0 ? yK + 2 * sunkR * Math.min(0.7, +P.s1Sink) + 0.02 : null;
+    const CST = PY.pylonCaster(ctx, FS, [-0.6, 0.6, zc - Lp, zc + Lp]);
+    // THE ROOF UNDER THE WING: the body's skin straight down from the wing's underside (the section's own crown can be the
+    // rod's, over an aft section) - the gap the mast crosses in the open, and the skin it goes through
+    // (a roof is over the cabin's middle: a ray that reaches the keel started inside the body - the wing set into its crown)
+    const hR0 = CST.cast([0, u.y - 0.003, zc], [0, -1, 0], ['body'], 3), hR = hR0 && hR0.p[1] > 0.5 * (yK + u.y) ? hR0 : null;
+    const yRoof = hR ? hR.p[1] : yR;
+    const fair = GK.Bag(), jb = GK.Bag(), O = [0, 0.5 * (yK + Math.min(yRoof, u.y)), zc];
+    PY.pylonHug(fair, jb, CST,
+                { O, ax: [0, 1, 0], eu: [1, 0, 0], ew: [0, 0, 1], out, fB: yFoot != null ? 0 : 0.03, fT: 0.07,
+                  dn: yFoot != null ? [] : ['body'], up: ['wing'],
+                  top0: u.y - O[1], bot0: (yFoot != null ? yFoot : yK) - O[1], topJoint: true, botCap: yFoot != null });
+    let bm = null;
+    try { if (window.CAGE_SECMAT) bm = window.CAGE_SECMAT('boomSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
+    const m = fair.mesh(hangGroup, bm || MAT.liftstrut);
+    if (m) m.name = 'hangMast';
+    const j = jb.mesh(hangGroup, GG.gearMat ? GG.gearMat('dark') : MAT.liftstrut);
+    if (j) j.name = 'hangMastJoint';
+    // THE KEEL BEAM (61_gen_frame 3e; the user, 12 Nov: "this keel beam is actually the cabin floor and length"): the
+    // cabin's own floor line, on the centreline, from its first station with a floor to the mast's front face - no length
+    // of its own; a carbon box KEEL_W wide and the frame's depth, most of it over the floor (the spine the seat and the
+    // pedals bolt on), a hand under it
+    // THE TWIN KEEL (hangKeels 2; the user, 12 Nov: "2 of them and the pilot fits between, mounted at the level of the bottom
+    // of the pilot window ... tubes ... they anchor on the nose part, they're straight"): two carbon tubes at the window's
+    // sill (the cabin ring's waist), KEEL_IN of the cabin's half-width out, straight and level from where each meets the
+    // nose's skin to the mast's front face
+    if (Math.round(+P.hangKeels || 1) === 2) try {
+      const RR = CG2.cageResolve(CG2.cageSpec(P)), rg = RR.rings.find(q => q.name === 'ring'), zF = zc + 0.5 * Lp;
+      const ys = rg && rg.lv && rg.lv.waist ? rg.lv.waist.y * FS : null, zr = rg && rg.lv && rg.lv.waist ? rg.lv.waist.z * FS : null;
+      if (ys != null) {
+        const xk = KEEL_IN * AF.halfWAt(zr);
+        // forward until the nose closes in on the tubes: their anchor
+        let zN = zr; for (let z = zr; z < AF.z1 - 0.02; z += 0.01) { if (AF.halfWAt(z) < xk + KEEL_R + 0.01) break; zN = z; }
+        const tb = GK.Bag();
+        for (const s of [-1, 1]) GK.taper(tb, [s * xk, ys, zN], [s * xk, ys, zF], KEEL_R, KEEL_R, 16);
+        // and a cross tube at each end: through the mast's front at the aft end (the tubes' anchor on the mast, the frame's
+        // ties), across the nose at the fore end
+        for (const z of [zF + KEEL_R, zN - KEEL_R]) GK.taper(tb, [-xk - KEEL_R, ys, z], [xk + KEEL_R, ys, z], KEEL_R, KEEL_R, 16);
+        const tm = tb.mesh(hangGroup, GG.gearMat ? GG.gearMat('dark') : MAT.liftstrut);
+        if (tm) { tm.name = 'hangKeel'; tm.userData.keel = { twin: 1, z0: zN, z1: zF, y: ys, x: xk }; }
+      }
+    } catch (e) { console.error('keel tubes:', e); }
+    else try {
+      const RR = CG2.cageResolve(CG2.cageSpec(P)), zF = zc + 0.5 * Lp, pts = [];
+      for (const r of RR.rings) { const f = r.lv && r.lv.floor; if (f && isFinite(f.y) && isFinite(f.z) && f.z * FS > zF + 0.01) pts.push([f.z * FS, f.y * FS]); }
+      pts.sort((a, b) => b[0] - a[0]);
+      if (pts.length) {
+        const flAt = z => { if (z >= pts[0][0]) return pts[0][1]; for (let i = 1; i < pts.length; i++) if (z >= pts[i][0]) {
+          const a = pts[i - 1], b = pts[i]; return b[1] + (a[1] - b[1]) * (z - b[0]) / ((a[0] - b[0]) || 1); } return pts[pts.length - 1][1]; };
+        // STRAIGHT AND LEVEL (12 Nov, the user: "make it straight ... it's not that much of a problem if it goes between
+        // the wheels, between the legs of the pilot"; then "completely straight, keep it anchored where it is ... just
+        // anchor the nose, like the real thing, and the nose goes a little bit further down"): one level beam at its
+        // anchor on the mast's foot (on a sunk wheel's fork: its top a finger into the foot), forward to the cabin's
+        // first floor station, where the nose hangs on it - through the tyre if it must
+        const z0 = pts[0][0], yE = yFoot != null ? yFoot + 0.04 - KEEL_D + KEEL_DN : flAt(zF);
+        const zs = [z0, zF];
+        const kb = GK.Bag(), hw = 0.5 * KEEL_W, up = KEEL_D - KEEL_DN;
+        const yAt = () => yE;
+        const sec = z => { const y = yAt(z); return [[-hw, y - KEEL_DN, z], [hw, y - KEEL_DN, z], [hw, y + up, z], [-hw, y + up, z]].map(q => kb.v(q)); };
+        const S = zs.map(sec);
+        for (let i = 0; i + 1 < S.length; i++) for (let k = 0; k < 4; k++) {
+          const a = S[i][k], b = S[i][(k + 1) % 4], c = S[i + 1][(k + 1) % 4], d = S[i + 1][k];
+          kb.quad(a, b, c, d); kb.quad(d, c, b, a);
+        }
+        for (const E of [S[0], S[S.length - 1]]) { kb.quad(E[0], E[1], E[2], E[3]); kb.quad(E[3], E[2], E[1], E[0]); }
+        const km = kb.mesh(hangGroup, GG.gearMat ? GG.gearMat('dark') : MAT.liftstrut);
+        if (km) { km.name = 'hangKeel'; km.userData.keel = { z0: zs[0], z1: zF }; }
+      }
+    } catch (e) { console.error('keel beam:', e); }
+    scene.add(hangGroup);
+    // (for the gear layer, after this one: a monowheel hangs from the mast's foot)
+    window.CAGE_HANG = { zc, zF: zc + 0.5 * Lp, zR: zc - 0.5 * Lp, yK, yFoot: yFoot != null ? yFoot : yK };
+    // THE CUT through the roof (only where the roof is under the wing: a wing on the roof meets the blade there), handed to
+    // the gear layer (it runs after this one and publishes CAGE_GEAR.cuts, the list the sheet is cut with)
+    if (hR && yRoof < u.y - 0.005) {
+      let o = out(HANG_CLR).map(q => [(zc + q[1]) / FS, q[0] / FS]);
+      let a2 = 0; for (let i = 0; i < o.length; i++) { const p0 = o[i], p1 = o[(i + 1) % o.length]; a2 += p0[0] * p1[1] - p1[0] * p0[1]; }
+      if (a2 < 0) o = o.reverse();
+      window.CAGE_HANG_CUTS = [{ units: ['MAST'], top: 1, outline: o, ceil: (yRoof - 0.15) / FS, yMin: (yRoof - 0.15) / FS }];
+    }
+  } catch (e) { console.error('hanging mast:', e); }
+}
+let hubGroup = null;
+function hubSocketDraw(ctx) {
+  const { scene, P } = ctx;
+  if (hubGroup) { hubGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); if (hubGroup.parent) hubGroup.parent.remove(hubGroup); hubGroup = null; }
+  const W = window.CAGE_WING, GK = window.GEAR_KIT, PY = window.CAGE_PYLON;
+  if (!+P.rodHub || +P.boomStyle !== 1 || +P.boomTwin || !P.wingOn || !W || !GK || !CG2 || !CG2.cageResolve) return;
+  try {
+    const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+    const Sp = CG2.cageSpec(P), Rr = CG2.cageResolve(Sp), te = W.teAt ? W.teAt(0) : null;
+    if (!Sp.rod || !Rr.rodSpan || !te || !W.underAt) return;
+    const zR = Rr.rodSpan.zRoot * FS, rr = Sp.rod.r * FS, tI = Math.tan(Sp.rod.incl || 0);
+    const yAx = z => (Sp.rod.y + tI * (Rr.rodSpan.zRoot - z / FS)) * FS;
+    hubGroup = new THREE.Group(); hubGroup.name = 'cageLayer:hubSocket';
+    // THE ROD THROUGH THE WING: from its root (the bulkhead's station) forward to the wing's highest point, where the
+    // hump begins - the same tube, in the body's paint; inside the hump wherever it is covered, out of the trailing
+    // edge's wall where it is not (the ring)
+    const H = HUB_HUMP;
+    if (H && H.zTop > zR + 0.02) {
+      const bag = GK.Bag(), ax = [0, 0, 1], zA = zR - 0.01, zB = H.zTop;
+      const ring = (z) => [0, H.yA0 + H.tI * (H.zR0 - z), z];
+      GK.revolve(bag, ring(zA), ax, [[rr * 0.999, 0], [rr * 0.999, zB - zA]], 48);
+      GK.revolve(bag, ring(zB), ax, [[rr * 0.999, 0], [0, 0]], 48);
+      let bm = null;
+      try { if (window.CAGE_SECMAT) bm = window.CAGE_SECMAT('boomSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
+      const m = bag.mesh(hubGroup, bm || MAT.liftstrut);
+      if (m) m.name = 'rodHubSocket';
+      // THE RING (the user, 11 Nov: "a little ring on the rod that has exactly the same diameter as the Gauss curve ... so
+      // that it's very, very clean ... a little screw or some detail"): where the rod comes out of the trailing edge's wall,
+      // a bare alloy collar as wide as the bell's own clearance round the rod's crown (the rod and HUB_TOL), a hand into
+      // the wall and a finger proud of it, its aft edge chamfered; six screw heads round its proud band
+      const rb = GK.Bag(), zW = H.te, rO = rr + HUB_TOL, zi = zW + 0.012, zo = zW - 0.018;
+      GK.revolve(rb, ring(zi), ax, [[rr * 1.001, 0], [rO, 0], [rO, -(zi - zo) + 0.004], [rO - 0.004, -(zi - zo)], [rr * 1.001, -(zi - zo)]], 48, true);
+      for (let k = 0; k < 6; k++) {
+        const a = (k + 0.5) * Math.PI / 3, c = ring(zW - 0.008);
+        GK.bolt(rb, [c[0] + Math.sin(a) * rO, c[1] + Math.cos(a) * rO, c[2]], [Math.sin(a), Math.cos(a), 0], 0.0045, 0.0025);
+      }
+      const rm = rb.mesh(hubGroup, (GG && GG.gearMat) ? GG.gearMat('alloy') : MAT.pitot);
+      if (rm) rm.name = 'rodHubRing';
+    }
+    scene.add(hubGroup);
+  } catch (e) { console.error('hub socket:', e); }
+}
 // THE TWIN BOOMS' DRAWING (CAR-4: lifted out of wingPost so a wingless chassis - the booms rooted on the body - draws
 // them too; with a wing it runs where it always did, at the end of wingPost, on the wing's trailing-edge probe)
 const drawBooms = (scene, P, teAt, leAt) => {
@@ -1262,6 +1584,9 @@ const wingPost = ctx => {
             zCab - (p[0] - refP[0]) + dx];
   };
 
+  // THE HUB: the centre section swallows the rod (hubHump) - the skin's own vertices moved, before any mesh is made of them
+  HUB_HUMP = hubHump(pay.groups, toCage, P);
+
   // wing verts bind to spar nodes ONLY; a face is wing iff all its verts do
   const G_INFL = typeof GEN_INFL === 'number' ? GEN_INFL : 4;
   const wingVert = g => i => {
@@ -1291,6 +1616,7 @@ const wingPost = ctx => {
                    : new THREE.Mesh(pr.geo, mat);
     // RETRACT G5: the skin's own meshes are the ones a wheel well is cut into (_cage_ui wellApply, after the gear)
     if (o.isMesh && (cl === 'main' || cl === 'centre' || cl === 'tip' || cl === 'stol')) o.userData.wingSkin = cl;
+    if (o.isMesh && pr.wire) o.userData.wireGeo = pr.wire;          // (the quads' own edges: quickshot --wire)
     if (offset) o.position.set(offset[0], offset[1], offset[2]);
     group.add(o);
     return pr;

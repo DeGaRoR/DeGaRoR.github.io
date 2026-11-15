@@ -523,6 +523,9 @@ function placeAll(ctx, inv) {
   const C = core(), G = VG();
   const results = [];
   if (!C.vesselResolve || !G) return results;
+  // ENGINELESS (the LS4: the engine page's switch off, engOn 0 - a sailplane): no tank, no pack drawn - the core holds
+  // none (60_gen_spec genUnpowered) and the join writes none
+  if (ctx && ctx.P && ctx.P.engOn != null && !+ctx.P.engOn) return results;
   let wroteBack = false;
   // ONE SWEEP PER BAY PER BODY, not per layout and not per build: a drag
   // moves the tank and nothing else, and a wing or engine row moves nothing

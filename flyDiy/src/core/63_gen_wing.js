@@ -1123,6 +1123,33 @@ function genWingInto(def, out) {
         chord: (1 - hf) * fm.chord, side,
         infl: frameAt(zm).wF });
     }
+    // ---- TIP-SKID (60_gen_spec GEN_TIP_SKID): THE WINGTIP SKID's HOOP, a fitting in the pitot's group ----
+    // Off the numbers the frame hangs the shoe's node on (61_gen_frame 5c): the tip joint's station (where the bow
+    // starts; a square or winglet tip's end), the aerofoil's own lower contour (genAfEval), from xc[0] to xc[1] of the
+    // chord, its underside h under the skin at the middle (xs, where the node touches the ground). Each piece bound to the
+    // joint bay's spar nodes as the loft's own points are (wingSectionAt), so it rides the wing as the pitot does; the
+    // ends start just under the skin's line (the pitot's rule: a tube's rim must not cut the skin). Plane 0's only, and
+    // nothing on a wing without one (the pitot group is the bytes it was)
+    if (kPl === 0 && W.tipSkid > 0 && typeof GEN_TIP_SKID !== 'undefined') {
+      const K = GEN_TIP_SKID, hS = +W.tipSkid, zS = genTipSkidZ(W, zAll[zAll.length - 1]);
+      const f = frameAt(zS), E = genAfEval(W.naca), NSEG = 14;
+      const ch = genV3.norm(genV3.sub(f.pR, f.pF));
+      let nr = genV3.norm(genV3.cross(ch, [0, 0, 1])); if (nr[1] < 0) nr = genV3.mul(nr, -1);
+      const sm = t => t * t * (3 - 2 * t);
+      const pts = [];
+      for (let i = 0; i <= NSEG; i++) {
+        const u = i / NSEG, xc = K.xc[0] + (K.xc[1] - K.xc[0]) * u;
+        // the hoop: down from just under the skin, a flat run along the bottom, back up (a rounded trapezoid); the
+        // bottom's centreline 1.6 r over its underside - the shoe's radius (the frame's contact radius)
+        const dep = K.r * 0.9 + (hS - 1.6 * K.r - K.r * 0.9) * sm(Math.min(1, CORE_MATH.sin(Math.PI * u) / 0.62));
+        const q = wingSectionAt(f.pF, f.pR, f.wF, f.wR, f.chord, [E.lo(xc)])[0];
+        pts.push({ p: genV3.sub(q.p, genV3.mul(nr, dep)), infl: q.infl });
+      }
+      for (let i = 0; i < NSEG; i++) genTubeInto(pitot, pts[i].p, pts[i + 1].p, K.r, 8, pts[i].infl, B);
+      // the shoe: a nylon sleeve over the bottom run's middle third
+      const i0 = Math.round(NSEG / 3), i1 = NSEG - i0;
+      for (let i = i0; i < i1; i++) genTubeInto(pitot, pts[i].p, pts[i + 1].p, K.r * 1.6, 8, pts[i].infl, B);
+    }
     // ---- G2820: THE STOL DEVICES, drawn where the strips fly them -------
     // Into the plane's own skin (they are painted with it, flex with it and
     // need no new group anywhere downstream); every point a blend of the
@@ -1312,6 +1339,20 @@ function genWingInto(def, out) {
       wingSectionAt(N[PP.wf.L.F[0]].p, N[PP.wf.L.R[0]].p, [[PP.wf.L.F[0], 1]], [[PP.wf.L.R[0], 1]], W.chord, ctrPts),
       wingSectionAt(N[PP.wf.R.F[0]].p, N[PP.wf.R.R[0]].p, [[PP.wf.R.F[0], 1]], [[PP.wf.R.R[0], 1]], W.chord, ctrPts),
     ];
+    // THE HUB (the Archaeopteryx study, 11 Nov; the user: "start from the geometry of the centre wing ... even if you need
+    // to add a couple of subdivisions"): `centreRows` rows across the centre section instead of its two root rows - each
+    // the section between the root ribs, its spar points and their weights blended - so the wing layer can shape the
+    // centre (the rod's hump). Display topology only; absent, the two rows as ever
+    if (W.centreRows > 2) {
+      const nC = Math.round(W.centreRows), LF = PP.wf.L.F[0], LR = PP.wf.L.R[0], RF = PP.wf.R.F[0], RR = PP.wf.R.R[0];
+      const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+      rows = [];
+      for (let i = 0; i < nC; i++) {
+        const t = i / (nC - 1);
+        rows.push(wingSectionAt(lerp(N[LF].p, N[RF].p, t), lerp(N[LR].p, N[RR].p, t),
+                                [[LF, 1 - t], [RF, t]], [[LR, 1 - t], [RR, t]], W.chord, ctrPts));
+      }
+    }
     // the carry-through IS the root: both rows sit at span fraction 0. Row
     // index put the tip band on one side of it and the wing walk on the other.
     // the aerofoil contour runs TE -> upper -> LE -> lower -> TE, so its first

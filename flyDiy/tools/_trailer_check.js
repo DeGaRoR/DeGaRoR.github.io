@@ -289,7 +289,7 @@ const clipWords = c => (c.n ? c.n + ' points inside a tyre (the worst ' + (c.wor
       // the drive mode
       await DM.enter({ THREE, scene, world: W, at: [st.x, 0, st.z] }); for (let i = 0; i < 30; i++) DM.frame(1); DM.words(); DM.trip(); DM.choices(); DM.leave(); did.push('drive');
       // the glider tow
-      const gA = DS.ARCHETYPES.find(x => x.key === 'motorglider'), gD = C.buildGen(DS.designBake(gA.sel, gA.over)), gs = C.makeSim(gD, W); gs.reset(0);
+      const gA = DS.ARCHETYPES.find(x => x.key === 'motorglider'), g0 = DS.designBake(gA.sel, gA.over), gD = C.buildGen(C.genMigrateSpec(require('./_load_build.js').gameSpecFull({ v: g0.v, birth: 1, spec: g0 }).spec)), gs = C.makeSim(gD, W); gs.reset(0);   // (the game's build: through the join)
       C.placeAtLineup(gs, aH, { x: P0.x, z: P0.z, hdg }, W, gD.refs); for (let i = 0; i < 60; i++) gs.step(1 / 60);
       await DM.towStart({ THREE, scene, world: W, sim: gs }); DM.tow.start();
       for (let i = 0; i < 30; i++) { DM.towPre(); gs.step(1 / 60); DM.towPost(1 / 60); DM.towDraw(); } DM.towWords(); DM.towStop(); did.push('tow');
