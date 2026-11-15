@@ -203,3 +203,51 @@ The method lives in `flyDiy/tools/cowl_study/straight.js` (the rule: `measure`, 
 - **No gate covers `straight.js` / `clear.js`.** A small fixture set should run the rule and require 0 mm: Cub, C172,
   Tiger, Mosquito, DC-3, Carbon Cub SS, a pod of each engine type.
 - **Lit renders are slow and use the built file.** A cheaper lit preview would help the visual checks.
+
+---
+
+## 6. Addendum (15 Nov, for A0): extreme, near-spherical head bulges with a face opening (the Carbon Cub CC340)
+
+**Branch note first.** I had already pushed `claude/proper-cowls-2` at `7c420d5d` before A0's message: rounds 10-13 on
+master L40c (`58c68134`), as source `60d63b94` plus (built) `7c420d5d`. A0's local job can overwrite it or reuse it. If
+reused, it already has these master adaptations:
+- the rule writes `cw_podFit` 1 on pods and `cw_partArc` 1 on every cowl;
+- master flies `engY`, so the rule keeps it and holds the cowl's axis on the prop with `cw_apOffY = -engY` (drawn only);
+- the DC-3 overlay re-made on master: the bake there measures the drawn cowl, so climb 8.183 -> 8.136 m/s and Vs
+  30.716 -> 30.718, empty mass identical.
+
+On that branch's gates: JOINPARITY (the Jodel's node mass), ENGINE, PARTS (`canClear`) and CANDIDATES (`pc6_drafting`)
+fail identically on master `58c68134` alone. The other ten pass. I will not rebase it again.
+
+### What the CC340 case taught (`601be971`, `reports/evidence/PROPER-COWLS/carbon_cub_ss_cheeks.json`)
+
+- **The numbers, on the Carbon Cub SS's own cowl** (claude/real-figures-3 `builds/candidates/carbon_cub_ss.json`):
+  - The heads stood 17.4 cm through the bare cowl, over t 0.32-0.96 of its length, at 10.7 deg off the flank.
+  - Cheeks fitted: `lobeN` 2, `lobeAmp` 0.214 m, `lobeSig` 51 deg, full over t 0.58-0.97 (`lobeT` 0.773, `lobeTSig`
+    0.192), `lobeNose` 0.995, `lobeTail` 0.04, `lobeStream` 1. Nothing pokes (0 mm).
+  - With the rule's own cowl the same heads needed 14 cm at 58 deg. Most of the 21 cm comes from that cowl's own front
+    taper (`taperW` .93, `taperH` .77): a nose that narrows forward over a front-heavy engine.
+- **Widen the barrel before you bulge it.** A real Carbon Cub cowl is wide at the front: its cheeks ARE the front
+  corners. For a near-spherical bulge, first take `taperW`/`taperH` to ≥ 1 (or let the front width follow the drawn
+  heads), then fit the cheeks on what still pokes. The cheeks then stay a fairing, not a dome.
+- **The ogive's shape rules.** Full height only where the deepest points are (the front heads). The rise from the
+  firewall may carry the rear heads on its way up, which avoids the pinch at the firewall. The front ramp is short. The
+  spread narrows as it fades (sig x (0.55 + 0.45 w)). Fit the start of the full part AND the spread together, for the
+  least cheek over every point plus 12 mm. Fitting at the worst point alone gives the "mole".
+- **The displacement is radial from the section's centre** (`_cowl_gen.js surfPoint`: `x += x/L*d`). At 20 cm on a
+  boxy flank it tilts the cheek's top and bottom outward, not along the skin's normal. For near-spherical bulges, move
+  along `cowlNormalAt` instead, or the dome leans.
+- **Mesh density:** the skin gets extra azimuth samples only for `lobeN` ≥ 3 (radial helmets). Two big cheeks at
+  51 deg draw as faceted bands in quickshot. Extend the rule to any `lobeAmp` > ~5 cm: three samples across the spread.
+- **THE FACE OPENING is the hard part.** The face's aperture cutter does not see the cheeks: `sectF` says "lobes
+  ignored". When a cheek reaches into the nose bowl (`lobeNose` near 1), a pair of inlets (`apMode` 2: `pairX`, `pairY`,
+  `pairW`, `pairH`) is cut on the un-bulged section and smears into black arcs. Seen on the rule's own CC340 cowl. Two
+  ways out:
+  1. **Make the cutter lobe-aware:** `sectF` and the rim solver evaluate the section plus `lobeAt`. Then the Carbon
+     Cub's real layout follows: one round inlet in the FRONT of each cheek, centred on the cheek's azimuth
+     (`pairX`/`pairY` from `lobeAz` at the face). The cooling air enters straight in front of the cylinders, as on the
+     real CC340 cowl.
+  2. **Or stop the cheek at the bowl** (`lobeNose` ≤ `cowlLen` / `zEnd`) and keep the inlets on the plain bowl. That
+     is simpler, but it loses the cheek-front inlets that make it read as a Carbon Cub.
+- **Probe to 0 mm, all round, the exhaust aside** (`clear.js`). Then look at the face head-on: on a near-spherical
+  cheek, the face's outline must follow the cheek, or the bowl shows a step.
