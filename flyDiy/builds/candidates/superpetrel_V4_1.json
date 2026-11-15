@@ -98,7 +98,7 @@
    "crNoseCap": 3,
    "crKeel": 3,
    "botRound": 0,
-   "hullOn": 1,
+   "hullOn": 1, "tailDrawn": 1,
    "hullBeta": 12,
    "hullBetaBow": 22,
    "hullBetaA": 10,

@@ -1135,12 +1135,17 @@ if (typeof window !== 'undefined') window.CAGE_PYLON = { caster: pylonCaster, hu
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
 // MONOWHEEL: THE HUGGING BODY for another layer - the gear layer's faired skid is this blade hung under the keel
 window.CAGE_PYLON = { pylonCaster, pylonHug, pylonOutline, drawPylonBlade };
-function pylonMeshes(group, fair, jb) {
+function pylonMeshes(group, fair, jb, blendTop) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
-  const m = fair.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
+  // (PETREL-LS: the fairing's own livery section, 'pylon' - following the engine mount's when unset, as matOf did)
+  const A = AKM(), pm = SM && SM('pylon', { fin: A && A.aeroHardFinish && A.aeroHardFinish('eng', 'emMount'),
+                                          tint0: EP.COL.emMount || EP.NEUTRAL, surf: 0, fieldM: 1, side: THREE.DoubleSide });
+  const m = fair.mesh(group, pm || (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
   if (m) m.name = 'engPylon';
-  const j = jb.mesh(group, matOf('emPuck'));
-  if (j) j.name = 'engPylonJoint';
+  // (PETREL-LS, the user: "very strange shading at the bottom of the engine nacelle"): a FAIRED cabane pylon is not an
+  // engine mount on rubber - its joints are the fairing's own skin, not the black puck band
+  const j = jb.mesh(group, blendTop && m ? m.material : matOf('emPuck'));
+  if (j) j.name = blendTop ? 'engPylon' : 'engPylonJoint';
 }
 // HULL-B14: THE SINGLE BLADE - one symmetric wing-section post on the mount's centreline, 12 % thick
 // (HULL-B38: a vertical prism under the plate - its chord the mean of the feet's spread and the plate's - hugging what
@@ -1154,9 +1159,11 @@ function drawPylonBlade(group, f, P, GK, aft, C) {
   const c = blend ? Lp + 0.06 : 0.5 * (Math.abs(ft.zF - ft.zR) + 0.10 + Lp + 0.06);
   const C2 = C || { cowl: false, cast: () => null }, fair = GK.Bag(), jb = GK.Bag(), O = [ox, yF + 0.5 * H, zc];
   pylonHug(fair, jb, C2, { O, ax: [0, 1, 0], eu: [1, 0, 0], ew: [0, 0, 1], out: e => pylonOutline('foil', c, 0.12, 0, e),
-    fB: blend ? Math.min(PYLON_FIL_B, 0.35 * H) : 0, fT: blend ? Math.min(PYLON_FIL_T, 0.25 * H) : 0,
+    // (PETREL-LS, the user's 'strange shading at the bottom of the engine nacelle': under a nacelle the cabane pylon's top
+    // flare was squeezed between the nacelle's flat belly and its sides into a twisted band - it meets a nacelle plain)
+    fB: blend ? Math.min(PYLON_FIL_B, 0.35 * H) : 0, fT: blend && !(f.kind === 'cabPylon' && C2.cowl) ? Math.min(PYLON_FIL_T, 0.25 * H) : 0,
     dn: ['body', 'wing'], up: C2.cowl ? ['wing', 'cowl'] : ['wing'], top0: y0 - O[1], bot0: yF - O[1], topJoint: C2.cowl });
-  pylonMeshes(group, fair, jb);
+  pylonMeshes(group, fair, jb, f.kind === 'cabPylon');
 }
 const matOf = name => {
   const A = AKM();
