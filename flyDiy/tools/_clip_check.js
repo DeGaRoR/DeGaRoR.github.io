@@ -354,7 +354,7 @@ const BUILDS = [
   // C172-CLIP (9 Nov 2026, AVIONICS-PFD-LAND via A0): THE Cessna, the corrected 172, through the load door. Given as
   // BOTH spec and garage: the spec alone draws its body without GARAGE_SPEC (its radio aerials drop), the garage alone
   // draws the stock body. When the V2-172 (builds/cessna172r_2026-11-08.json) is official, this entry swaps to it.
-  { name: 'c172', file: 'builds/cessna172_2026-09-20_corrected.json' },
+  { name: 'c172', file: 'builds/cessna172r_2026-11-08.json' },
 ];
 for (const B of BUILDS) if (B.file) { B.spec = B.garage = LB.loadBuild(B.file).spec; }
 

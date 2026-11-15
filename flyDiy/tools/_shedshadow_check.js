@@ -25,7 +25,7 @@ const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined ? argv[i + 1] : d; };
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json' };
 const BK = opt('build', 'jodel');
 // the page in node wants ~5 GB of heap: under the runner (no flag) the gate re-runs itself with it
 if (require('v8').getHeapStatistics().heap_size_limit < 5e9 && !process.env.SHEDSHADOW_CHILD) {

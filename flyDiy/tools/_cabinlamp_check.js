@@ -31,7 +31,7 @@ const SET = {
   cub: { v: 'cub' }, jodel: { v: 'jodel' }, metal: { v: 'metal' }, floats: { v: 'floats' },
   twinFloats: { v: 'twinFloats' }, rufus: { f: 'tools/fixtures/repro/rufus_2026-10-18.json' },
   bubble: { f: 'tools/fixtures/build_v8_twin-boom_2026-09-11.json' },
-  skylight: { f: 'tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json' },
+  skylight: { f: 'bugReports/cessnaFloatsWOrks.json' },
   twin2: { f: 'tools/fixtures/Twin_busher_floats_2.json' },
   // CABIN-INTERIOR G1: the user's twin with the overhead console (and the headliner it hangs from): the front row's
   // lamps in the console's bezels, the rear row's on the roof

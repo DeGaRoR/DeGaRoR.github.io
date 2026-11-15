@@ -20,7 +20,7 @@ const flag = k => argv.includes('--' + k);
 const BUILDS = {
   cub: 'builds/cub_2026-09-20_corrected.json',
   jodel: 'builds/jodel_2026-09-20_corrected.json',
-  metal: 'bugReports/cessnaMetal (1).json',
+  metal: 'builds/cessna172r_2026-11-08.json',
   floats: 'bugReports/cessnaFloatsWOrks.json',
   twinFloats: 'twinFloats',
   rufus: 'tools/fixtures/repro/rufus_2026-10-18.json',

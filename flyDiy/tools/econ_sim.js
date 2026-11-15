@@ -89,7 +89,7 @@ const DESIGN_SRC = {
   jodel:   { build: 'builds/jodel_2026-09-20_corrected.json', label: 'Jodel', seg: 1, work: true },
   chinook: { build: 'builds/chinook_2026-09-21_corrected.json', label: 'Chinook (2-seat ultralight)', seg: 1, work: true },
   twinf:   { table: 'twinf', label: 'twin floatplane', seg: 1, work: true },
-  c172:    { build: 'bugReports/cessnaMetal (1).json', label: 'metal Cessna (4 seats)', seg: 2, work: true },
+  c172:    { build: 'builds/cessna172r_2026-11-08.json', label: 'metal Cessna (4 seats)', seg: 2, work: true },
   c172f:   { build: 'bugReports/cessnaFloatsWOrks.json', label: 'Cessna floats', seg: 2, work: true },
   cjodel:  { build: 'builds/composite_jodel_2026-10-07.json', label: 'composite Jodel', seg: 3, work: true },
 };

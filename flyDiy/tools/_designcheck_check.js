@@ -57,7 +57,7 @@ const row = (dc, id) => dc.rows.find(r => r.id === id) || {};
 const CUB = 'builds/cub_2026-09-20_corrected.json';
 const VALID = [
   ['cub', CUB], ['jodel', 'builds/jodel_2026-09-20_corrected.json'],
-  ['cessna', 'bugReports/cessnaMetal (1).json'], ['floats', 'bugReports/cessnaFloatsWOrks.json'],
+  ['cessna', 'builds/cessna172r_2026-11-08.json'], ['floats', 'bugReports/cessnaFloatsWOrks.json'],
   ['twinFloats', 'tools/fixtures/build_v7_ultralight_2026-09-05.json', floats],
 ];
 

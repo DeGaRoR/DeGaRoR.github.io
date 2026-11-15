@@ -7,7 +7,7 @@
 // THE REPORT (the user): "at some point, tests were loading the cessna, then
 // the default plane came back, but with the cessna livery, the metallic paint,
 // but still the original plane's color." Reproduced in headless Chrome before
-// anything was changed: load bugReports/cessnaMetal (1).json, drop the
+// anything was changed: load builds/cessna172r_2026-11-08.json, drop the
 // working build, reload — the default aeroplane booted in its OWN colour
 // (the colour is `spec.paint`, which the finish does not carry) under the
 // Cessna's metal flake on twelve sections and its two metallic markings, and
@@ -230,7 +230,7 @@ function state(pg, spec) {
 }
 
 // ---- the builds ---------------------------------------------------------------
-const A_ENV = JSON.parse(rd('bugReports/cessnaMetal (1).json'));
+const A_ENV = JSON.parse(rd('builds/cessna172r_2026-11-08.json'));
 const SPEC_A = CORE.genNormaliseSpec(A_ENV.spec);
 const SPEC_B = CORE.genNormaliseSpec({});                          // the default plane: no cage
 // ...with a finish of its own. Laid on the NORMALISED default: a bare

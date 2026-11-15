@@ -18,7 +18,7 @@
 // As a soft_still.js --stage module (what the driver passes it): module.exports, GS_OUT / GS_TAG from the environment.
 'use strict';
 const path = require('path'), fs = require('fs'), cp = require('child_process');
-const BUILDS = { cub: null, jodel: 'builds/jodel_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: null, jodel: 'builds/jodel_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json' };
 
 module.exports = async (page, { frames, shot, log }) => {
   const OUT = process.env.GS_OUT || '.', TAG = process.env.GS_TAG || 'x', AT = process.env.GS_AT || null;   // (null: the windscreen's middle)

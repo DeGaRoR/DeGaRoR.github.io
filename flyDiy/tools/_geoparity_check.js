@@ -60,7 +60,7 @@ const BUILDS = [
   // the validated five (GATE SPECFIX's list)
   { key: 'cub', file: 'builds/cub_2026-09-20_corrected.json' },
   { key: 'jodel', file: 'builds/jodel_2026-09-20_corrected.json' },
-  { key: 'cessna', file: 'bugReports/cessnaMetal (1).json' },
+  { key: 'cessna', file: 'builds/cessna172r_2026-11-08.json' },
   { key: 'floats', file: 'bugReports/cessnaFloatsWOrks.json' },
   { key: 'twinFloats', file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', patch: floats },
   // the user's mosquito (a turtledeck pod, two boom lengths, two fins)

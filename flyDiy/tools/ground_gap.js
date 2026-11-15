@@ -15,7 +15,7 @@
 // contact (node y - rC) over the ground, and the drawn axle against its physics node (mm).
 //
 //   node tools/ground_gap.js [--build <json>|cub|stock|<archetype key>]... [--settle s] [--json]
-//     default: cub, stock (GEN_DEFAULT on the page's default cage), "bugReports/cessnaMetal (1).json",
+//     default: cub, stock (GEN_DEFAULT on the page's default cage), "builds/cessna172r_2026-11-08.json",
 //     "bugReports/cessnaFloats.json"
 'use strict';
 const fs = require('fs');
@@ -26,7 +26,7 @@ const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
 const builds = [];
 for (let i = 0; i < argv.length; i++) if (argv[i] === '--build') builds.push(argv[i + 1]);
-if (!builds.length) builds.push('cub', 'stock', path.join(T, '..', 'bugReports', 'cessnaMetal (1).json'),
+if (!builds.length) builds.push('cub', 'stock', path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json'),
   path.join(T, '..', 'bugReports', 'cessnaFloats.json'));
 const SETTLE = +arg('--settle', 6);
 // app.js's G1383 dial, read off app.js itself (G1540: 0 since GROUND-LATTICE - the ground drawn where the wheels stand)

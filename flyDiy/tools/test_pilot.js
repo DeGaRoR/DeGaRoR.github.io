@@ -682,7 +682,7 @@ part('-- STOL-QUAL: who flies the STOL law - a STOL sheet and a STOL-qualified p
   check(!!qk && qk.on === false, 'STOL: the kit Cub does not (the elevator-held Vs0, ' + (qk && qk.ratio) + ' x - its tail cannot use the slot)');
   const vals = [...Object.keys(LB.VALIDATED).map(k => [k, LB.loadValidated(k).spec]),
                 ['rufus', LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'rufus_2026-10-18_certified.json'), 'utf8')))],
-                ['c172', LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'cessna172_2026-09-20_corrected.json'), 'utf8')))]];
+                ['c172', LB.gameSpec(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'builds', 'cessna172r_2026-11-08.json'), 'utf8')))]];
   const qv = vals.map(([k, sp]) => [k, pilotOf(sp).stol]);
   console.log('   validated: ' + qv.map(([k, q]) => k + ' ' + JSON.stringify(q)).join(', '));
   check(qv.every(([, q]) => q === null), 'STOL: no validated build (' + qv.map(q => q[0]).join(', ') + ') carries a STOL device - the law is never even probed');

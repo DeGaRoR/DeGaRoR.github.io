@@ -38,7 +38,7 @@ const CACHE_DIR = path.join(T, '.joincache');
 const VALIDATED = {
   cub: { label: 'Cub', build: 'builds/cub_2026-09-20_corrected.json' },
   jodel: { label: 'Jodel', build: 'builds/jodel_2026-09-20_corrected.json' },
-  metal: { label: 'metal Cessna', build: 'bugReports/cessnaMetal (1).json' },
+  metal: { label: 'metal Cessna', build: 'builds/cessna172r_2026-11-08.json' },
   floats: { label: 'Cessna floats', build: 'bugReports/cessnaFloatsWOrks.json' },
   twinFloats: { label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
     patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 });

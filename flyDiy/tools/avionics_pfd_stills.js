@@ -18,7 +18,7 @@
 // Writes <out>/<NN_state>.png and <out>/pfd_page.json.
 //
 // Usage (the GPU lock held - tools/perf/boxlock.sh take gpu <WHO> "UNTIMED ... ends by HH:MM"):
-//   node tools/live_driver.js <repo root> "flyDiy/bugReports/cessnaMetal (1).json" dev.html 8573
+//   node tools/live_driver.js <repo root> "flyDiy/builds/cessna172r_2026-11-08.json" dev.html 8573
 //   node tools/avionics_pfd_stills.js 8573 <outDir> [flatPair|flat|glass|none] [pilot|copilot]
 // `none` takes the GPS off the build: the roll-out with nothing fitted, for the A/B against a fitted unit.
 'use strict';

@@ -52,7 +52,7 @@ const R1830_DIALS = { engOn: 1, engPreset: 28, engPower: 0, eng_screws: 1, eng_r
 // ---- the raw spec: the metal Cessna's file, the DC-3's rows -------------------------------------------------------
 // `k` is the drawing's scale against the full-size DC-3 at planeScale 1.6 (1 = full size, 0.62 = the fit build)
 function dc3Raw(k) {
-  const j = JSON.parse(fs.readFileSync(path.join(ROOT, 'bugReports', 'cessnaMetal (1).json'), 'utf8'));
+  const j = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json'), 'utf8'));
   const cub = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), 'utf8')).spec.cage;
   const s = j.spec, c = s.cage;
   const ps = 1.6 * k;                                   // the cage is drawn in units x planeScale

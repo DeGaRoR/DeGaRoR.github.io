@@ -21,7 +21,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const ROOT = path.join(__dirname, '..', '..'), REPO = path.resolve(ROOT, '..');
 const MODE = opt('mode', 'garage'), BK = opt('build', 'cub'), SECS = +opt('secs', 2400), ROWS = opt('rows', 'wgSpan,stSpan').split(',');
 const [VW, VH] = opt('size', '412x915').split('x').map(Number);
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json' };
 const OUT = path.resolve(opt('out', path.join(ROOT, 'reports/evidence/MOBILE-GARAGE', 'swift_' + MODE + '_' + BK + '.json')));
 const SHOT = opt('shot', OUT.replace(/\.json$/, '.jpg'));
 const sleep = ms => new Promise(r => setTimeout(r, ms));

@@ -536,7 +536,7 @@ const doorAxisErr = q => {
     const preset = (name, over) => { const o = Object.assign({}, W0.CAGE2.CAGE_PARAMS); const pre = PR[name] || {};
       for (const k in pre) if (k !== '_base') o[k] = pre[k]; return Object.assign(o, over || {}); };
     const STOL = path.join(T, 'fixtures/stol_cub_showcase.json');
-    const METAL = path.join(T, 'fixtures/build_v10_cessnaMetal_2026-09-26.json');
+    const METAL = path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json');
     const fs = require('fs');
     const PLANES = [
       ['stock Cub (clamshell)', over => SH.sceneBuild(null, { over: preset('piper cub', over) })],
@@ -819,7 +819,7 @@ const coincidence = (() => {
   if (SH) {
     const THREE = SH.context().THREE;
     const BUILDS = [['jodel', '../builds/jodel_2026-09-20_corrected.json'], ['cub', '../builds/cub_2026-09-20_corrected.json'],
-                    ['cessna', '../builds/cessna172_2026-09-20_corrected.json'], ['twin', 'fixtures/build_v7_ultralight_2026-09-05.json']];
+                    ['cessna', '../builds/cessna172r_2026-11-08.json'], ['twin', 'fixtures/build_v7_ultralight_2026-09-05.json']];
     for (const [name, file] of BUILDS) {
       const S = SH.sceneBuild(SH.loadFixture(path.join(T, file)).spec, {});
       const meshes = []; S.scene.traverse(o => { if (o.isMesh) meshes.push(o); });

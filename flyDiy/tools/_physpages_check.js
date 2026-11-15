@@ -18,7 +18,7 @@
 'use strict';
 const path = require('path'), fs = require('fs'), { spawn } = require('child_process');
 const T = __dirname, FLY = path.join(T, '..');
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', c172: 'builds/cessna172_2026-09-20.json',
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', c172: 'builds/cessna172r_2026-11-08.json',
                  twin: 'builds/candidates/Twin_busher_floats_4b.json' };
 const argv = process.argv.slice(2);
 

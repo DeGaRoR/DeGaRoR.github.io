@@ -9,7 +9,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
-const BUILDS = { cub: null, cessna: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: null, cessna: 'builds/cessna172r_2026-11-08.json' };
 (async () => {
   const build = process.argv[2] || 'cessna';
   const { openPage } = require('./_page_node.js');
