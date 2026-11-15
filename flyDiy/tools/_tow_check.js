@@ -33,7 +33,14 @@ const st = C.siteOf('HOME').stand;
 const I = VI.vehIslandFromWorld(W, { siteOf: C.siteOf, fieldName: C.fieldName, town: null, from: [st.x, st.z] });
 const G = Dr.vehRoadGraph(I.spec);
 const A = DS.ARCHETYPES.find(x => x.key === 'motorglider');
-const DEF0 = C.buildGen(DS.designBake(A.sel, A.over));
+// THE GAME'S BUILD (A0 for the Archaeopteryx's owner, 15 Nov): every glider through the game's load door - the card's bake,
+// the join measured (_load_build.js gameSpecFull), the spec migrated - as the game flies it. The raw bake had no mast: the
+// Archaeopteryx's wing sat on the soft pod's poles, and released with the controls frozen it pitched 85 deg up and banked
+// 116 deg in a second (the joined card holds within ~1 deg for 5 s) - GATE GLIDE's root too
+const LB = require('./_load_build.js'), JOINED = {};
+const joinedDef = key => JOINED[key] || (JOINED[key] = (() => { const a = DS.ARCHETYPES.find(x => x.key === key), s0 = DS.designBake(a.sel, a.over);
+  return C.buildGen(C.genMigrateSpec(LB.gameSpecFull({ v: s0.v, birth: 1, spec: s0 }).spec)); })());
+const DEF0 = joinedDef('motorglider');
 const aH = W.aerodromes.find(a => a.id === 'HOME');
 const P0 = G.places['rwy:HOME:0'], P1 = G.places['rwy:HOME:1'];
 const dl = Math.hypot(P1.x - P0.x, P1.z - P0.z), dx = (P1.x - P0.x) / dl, dz = (P1.z - P0.z) / dl;
@@ -42,7 +49,7 @@ const dl = Math.hypot(P1.x - P0.x, P1.z - P0.z), dx = (P1.x - P0.x) / dl, dz = (
 const TAKEUP_V = 10;   // (m/s: the take-up and the run TAKEUP judges - the line taut, the wing runner's sprint, the roll on the wheel)
 function launch(o) {
   o = Object.assign({ L0: 400, Vtow: 28, T: 150 }, o || {});
-  const def = o.key ? C.buildGen(DS.designBake(DS.ARCHETYPES.find(x => x.key === o.key).sel, DS.ARCHETYPES.find(x => x.key === o.key).over)) : DEF0;
+  const def = o.key ? joinedDef(o.key) : DEF0;
   const sim = C.makeSim(def, W); sim.reset(0);
   let hdg = Math.atan2(dz, dx);
   C.placeAtLineup(sim, aH, { x: P0.x, z: P0.z, hdg }, W, def.refs); for (let i = 0; i < 120; i++) sim.step(1 / 60);
