@@ -145,6 +145,40 @@ const WATER = (() => {
     uniform sampler2D uWCalm; uniform vec4 uWCalmG; uniform float uWCalmOn; uniform float uWRipple;   // BAY-MIRROR: the sea's shelter (28_island.js calmAt's bytes): x0, z0, 1 / the field's width and depth (m); the wind's ripple kept in a bay (its dials.ripple)
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
+    // SUBMERGED BODIES (SWIMMERS, ANIMALS 15 Nov 2026; LOOK-1's yes): up to WSUB capsules - A: centre xyz, radius; B: unit axis
+    // xyz, half-length; uWSubN live. The column over a body is the depth to the body along the refracted view ray, not
+    // to the bed: a whale 2 m down shows through 2 m of sea (G797's absorption), drawn by its own opaque pass.
+    uniform vec4 uWSubA[6]; uniform vec4 uWSubB[6]; uniform float uWSubN;
+    // the nearest hit of a ray (ro, rd unit) on a capsule (pa..pb, r): t, or -1 (Quilez's capsule intersection)
+    float wCapsule(vec3 ro, vec3 rd, vec3 pa, vec3 pb, float r) {
+      vec3 ba = pb - pa, oa = ro - pa;
+      float baba = dot(ba, ba), bard = dot(ba, rd), baoa = dot(ba, oa), rdoa = dot(rd, oa), oaoa = dot(oa, oa);
+      float a = baba - bard * bard, b = baba * rdoa - baoa * bard, c = baba * oaoa - baoa * baoa - r * r * baba;
+      float h = b * b - a * c;
+      if (h >= 0.0 && a > 1.0e-6) {
+        float t = (-b - sqrt(h)) / a, y = baoa + t * bard;
+        if (y > 0.0 && y < baba) return t;
+        vec3 oc = (y <= 0.0) ? oa : ro - pb;
+        b = dot(rd, oc); c = dot(oc, oc) - r * r; h = b * b - c;
+        if (h > 0.0) return -b - sqrt(h);
+      }
+      return -1.0;
+    }
+    // the column over the nearest submerged body under this surface point, as a vertical depth (m); 1e4 = none
+    float wSubDepth(vec3 wp) {
+      vec3 d = normalize(wp - cameraPosition);
+      if (d.y >= -0.02) return 1.0e4;                       // a ray going up from the surface sees no body below
+      vec3 rd = refract(d, vec3(0.0, 1.0, 0.0), 0.7502);    // into the water (1 / 1.333)
+      if (dot(rd, rd) < 0.5) return 1.0e4;
+      float best = 1.0e4;
+      for (int i = 0; i < 6; i++) {
+        if (float(i) >= uWSubN) break;
+        vec3 c = uWSubA[i].xyz, ax = uWSubB[i].xyz * uWSubB[i].w;
+        float t = wCapsule(wp, rd, c - ax, c + ax, uWSubA[i].w);
+        if (t > 0.0) best = min(best, t * -rd.y);
+      }
+      return best;
+    }
     #ifdef W_HULL
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
     #endif
@@ -286,6 +320,7 @@ const WATER = (() => {
         }
         vec2 wF = wField(vWP.xz);
         float wD = wDepth(wF, wB);
+        if (uWSubN > 0.5) wD = min(wD, wSubDepth(vWP0));   // SWIMMERS: a submerged body under this point (none: no cost)
         // THE FOOTPRINT (G460.7): the GEOMETRIC MEAN of the pixel's two axes on the water, not the longer one.
         // At a grazing eye the along-view axis runs to metres while the across-view axis stays centimetres;
         // the longer one put the horizon's roughness at the Cox-Munk total and the far sea reflected the
@@ -691,7 +726,9 @@ const WATER = (() => {
       uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
       uWSky: { value: v4(1) },   // G2839 x: the probe lookup's lobe scale under the mirror's weight (MIR.skyK; 1 = the GGX lobe of the roughness)
       uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
+      uWSubA: { value: arr(SUB_N) }, uWSubB: { value: arr(SUB_N) }, uWSubN: { value: 0 },   // SWIMMERS: setSubmerged()
     };
+    subPack();
     applyPresets();
   }
   function applyPresets() {
@@ -1645,6 +1682,31 @@ const WATER = (() => {
     if (F) U.uWCalmG.value.set(F.x0, F.z0, 1 / (F.w * F.cell), 1 / (F.h * F.cell));
     U.uWRipple.value = F ? calmRipple() : 1;
   }
+  // SUBMERGED BODIES (SWIMMERS, 15 Nov 2026): setSubmerged(owner, list) - each host (a runner of animals today, boats later)
+  // hands its own list [{ x, y, z, r, ax, ay, az, h }] (centre, radius, unit axis, half-length; world metres), nearest
+  // first, every frame it has any; an empty list or null clears that owner's. The nearest SUB_N over all owners go to the
+  // shader (an owner that stops calling is dropped after a second). No body, uWSubN 0: the shader's branch costs nothing.
+  const SUB_N = 6, SUB = new Map();
+  function setSubmerged(owner, list) {
+    if (!list || !list.length) SUB.delete(owner);
+    else SUB.set(owner, { list, at: (typeof performance !== 'undefined' ? performance.now() : 0) });
+    subPack();
+  }
+  function subPack() {
+    if (!U) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    let n = 0;
+    for (const [k, e] of SUB) {
+      if (now - e.at > 1000) { SUB.delete(k); continue; }
+      for (const b of e.list) {
+        if (n >= SUB_N) break;
+        U.uWSubA.value[n].set(b.x, b.y, b.z, b.r);
+        U.uWSubB.value[n].set(b.ax, b.ay, b.az, b.h);
+        n++;
+      }
+    }
+    U.uWSubN.value = n;
+  }
   // THE INTERACTION SLOT (H7 writes it): a world-locked texture over [x0, x0+size] x [z0, z0+size];
   // RG = slope over [-2, 2] (0.5 = flat), B = foam, A unused. Linear, clamped, no mips.
   function setInteraction(tex, x0, z0, size) {
@@ -1780,7 +1842,7 @@ const WATER = (() => {
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
     mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, waveK: waveKCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
-    stamp, fieldStep, fieldOn, fieldProbe, warmList, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
+    stamp, fieldStep, fieldOn, fieldProbe, warmList, setSubmerged, SUB_N: 6, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;
   return API;

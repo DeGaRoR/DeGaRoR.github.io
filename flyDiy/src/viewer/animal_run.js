@@ -121,6 +121,40 @@ AR.make = function (THREE, ctx) {
   let T = 0;
   let HSEQ = 0;                     // the herds' integers for the sound (G1705)
 
+  // THE WAKES (SWIMMERS): the layer the swimmers' hulls write, made when the first one is sown (wakes.js, asked for)
+  let WK = null;
+  function wakesOn() { if (!WK && typeof window !== 'undefined' && window.WAKES) WK = window.WAKES.make(THREE, { parent: root, waterH }); }
+
+  // THE BODIES UNDER THE SURFACE (SWIMMERS): the nearest sea animals with any of the body under water, as capsules for
+  // the water's column (water.js setSubmerged): the water over a whale is the water down to the whale, so it shows,
+  // drawn as itself, tinted by the sea it is under. One owner name per runner; nothing allocated a frame.
+  const SUBK = 'animals:' + Math.random().toString(36).slice(2, 8), SUBL = [], SUBP = [];
+  for (let i = 0; i < 6; i++) SUBP.push({ x: 0, y: 0, z: 0, r: 1, ax: 0, ay: 0, az: 1, h: 1, d2: 0 });
+  const bySub = (a, b) => a.d2 - b.d2;
+  function submerged(e) {
+    const W = (typeof window !== 'undefined' && window.WATER && window.WATER.setSubmerged) ? window.WATER : null;
+    if (!W && !ctx.submerged) return;
+    SUBL.length = 0;
+    let k = 0;
+    for (const [, h] of HERDS) {
+      if (h.kind !== 'sea') continue;
+      for (const one of h.ones) {
+        if (!one.H.obj.visible || !(one.depth > 0)) continue;
+        const S = one.a.sea || SEA0, beam = (S.beam || 2) * (one.size || 1);
+        const d2 = e ? (one.x - e.x) ** 2 + (one.z - e.z) ** 2 : 0;
+        // the pool keeps the nearest 6
+        let q;
+        if (k < 6) q = SUBP[k++];
+        else { SUBL.sort(bySub); if (d2 >= SUBL[5].d2) continue; q = SUBL.pop(); }
+        q.x = one.x; q.y = one.y; q.z = one.z; q.r = beam * 0.5; q.d2 = d2;
+        q.ax = one.dir.x; q.ay = one.dir.y; q.az = one.dir.z; q.h = seaLen(one) * 0.36;
+        SUBL.push(q);
+      }
+    }
+    SUBL.sort(bySub);
+    if (ctx.submerged) ctx.submerged(SUBL); else W.setSubmerged(SUBK, SUBL);
+  }
+
   // ---- the frames ---------------------------------------------------------
   const _F = new THREE.Vector3(), _U = new THREE.Vector3(), _R = new THREE.Vector3();
   const _M = new THREE.Matrix4(), _Mb = new THREE.Matrix4(), _Q = new THREE.Quaternion();
@@ -362,56 +396,151 @@ AR.make = function (THREE, ctx) {
     }
   }
 
-  // ---- SEA: the circuit, the dive, the blow -------------------------------
-  // the depth of the dive cycle at phase p, and its rate — ONE law, so the
-  // pitch is the motion's own derivative and not a second guess
-  function diveAt(S, p) {
-    const s = S.surface === undefined ? 0.2 : S.surface, w = 0.16;
-    if (p < s) return 0;
-    if (p < s + w) return sm((p - s) / w);
-    if (p < 1 - w) return 1;
-    return 1 - sm((p - (1 - w)) / w);
+  // ---- SEA: THE SWIMMING (SWIMMERS, 15 Nov 2026) ----------------------------------------------------------------
+  // The user: "the orcas ... do not swim realistically ... the same for the whales and for everything that swims". G498
+  // flew each animal round a circle about its hotspot with one dive cycle. Now (futureDesigns/SWIMMERS-2026-11-15.md):
+  //   THE PATH    the pod's LEADER wanders to points inside the hotspot; it turns at most at speed / (2 x its length)
+  //               (a 25 m whale does not pivot), and BANKS into the turn (the roll a turn of that rate and speed asks:
+  //               atan(v w / g), x 2.5 for a body this long, smoothed). The members hold places off the leader (abreast
+  //               and astern, a length or two apart), steering to them and easing their speed to keep station.
+  //   THE BREATH  the leader's: a SERIES of breaths (an orca 2-4, a blue whale 3-5) - up at the surface for a few
+  //               seconds (the blow fires as the back breaks it), a shallow arc under between them - then a TERMINAL
+  //               DIVE to `depth` for most of the cycle. The members follow the leader's depth on their own spring, so a
+  //               pod surfaces together but not in lockstep.
+  //   THE BODY    the depth is a damped spring on the target, its rate limited to a dive angle (35 deg, 45 in a
+  //               terminal dive); the PITCH is that rate over the speed - the arch is the motion. The fluke beat (the
+  //               clip's rate) follows the speed, and beats harder going up.
+  //   THE WAKE    every frame the body's vertical extent goes to the WAKES layer (wakes.js): it leaves a trail and the
+  //               Kelvin arms only while the surface CROSSES it; a breach drops a ring.
+  const SEA0 = { speed: 3, depth: 12, cycle: 60, surface: 0.2, blow: 1, beam: 2 };
+  function seaLen(one) { return (one.a.length || 8) * (one.size || 1); }
+  function seaSow(one, h, i) {
+    const S = one.a.sea || SEA0, r = one.rnd;
+    one.hd = r() * TWO_PI; one.v = S.speed; one.vy = 0; one.bank = 0; one.w = 0; one.pitch = 0;
+    one.depth = S.depth * 0.5; one.dTarget = one.depth; one.wasUp = false;
+    if (i === 0) {
+      one.lead = null;
+      one.br = { mode: 'dive', n: 0, t: 6 + r() * 20 };    // (a pod is found mid-dive: it surfaces within half a minute)
+    } else {
+      // a place off the leader: abreast at 1.1-1.5 lengths, the next ones astern, alternating sides
+      const k = Math.ceil(i / 2), side = (i % 2) ? 1 : -1;
+      one.lead = h.ones[0];
+      one.off = [side * (1.1 + 0.4 * r()) * k, -(0.6 + 0.9 * r()) * (k - 0.5)];   // (across, along) in lengths
+      one.lag = 0.8 + 0.4 * r();                          // its depth spring's own pace, x the leader's
+      // it starts in its place
+      const ld = one.lead, c = Math.cos(ld.hd), sn = Math.sin(ld.hd), Lw = seaLen(ld);
+      one.x = ld.x + (c * one.off[0] + sn * one.off[1]) * Lw; one.z = ld.z + (-sn * one.off[0] + c * one.off[1]) * Lw;
+      one.hd = ld.hd;
+    }
+  }
+  function seaTarget(one) {
+    const ang = one.rnd() * TWO_PI, rr = one.spot.r * 0.85 * Math.sqrt(one.rnd());
+    one.tgt = { x: one.spot.x + Math.cos(ang) * rr, z: one.spot.z + Math.sin(ang) * rr };
+  }
+  // the leader's breathing: the target depth now, and the series' clock
+  function seaBreath(one, S, flt, dt) {
+    const B = one.br, isOrca = (S.cycle || 60) < 70;
+    // at the surface the breath's seconds count only once the back is there (a rise from 28 m takes its own time)
+    if (B.mode !== 'up' || one.depth < flt + (S.beam || 2) * 0.2) B.t -= dt;
+    if (B.mode === 'dive') {
+      one.dTarget = S.depth;
+      if (B.t <= 0) { B.mode = 'up'; B.n = (isOrca ? 2 : 3) + Math.floor(one.rnd() * 3); B.t = isOrca ? 3 : 4.5; }
+    } else if (B.mode === 'up') {
+      one.dTarget = flt * 0.6;                            // (aimed a little high: the spring settles ON the surface, not under it)
+      if (B.t <= 0) {
+        if (--B.n > 0) { B.mode = 'arc'; B.t = (isOrca ? 5 : 11) + one.rnd() * (isOrca ? 6 : 7); }
+        else { B.mode = 'dive'; B.t = (S.cycle || 60) * (0.55 + 0.3 * one.rnd()); }
+      }
+    } else {                                                 // 'arc': a shallow pass under, between two breaths
+      one.dTarget = flt + (S.beam || 2) * 1.8;
+      if (B.t <= 0) { B.mode = 'up'; B.t = isOrca ? 3 : 4.5; }
+    }
   }
   function seaStep(one, dt) {
-    const S = one.a.sea || { speed: 3, depth: 12, cycle: 60, surface: 0.2, blow: 1, beam: 2 };
-    const spot = one.spot;
-    const r = Math.max(30, spot.r) * one.rJit;
-    const om = S.speed / r;                              // the circuit's rate
+    const S = one.a.sea || SEA0;
+    const L = seaLen(one);
     const flt = S.float === undefined ? Math.max(0.3, (one.a.dim[1] || 2) * 0.2) : S.float;
-    one.a0 += om * dt;
-    const cx = spot.x + Math.cos(one.a0) * r, cz = spot.z + Math.sin(one.a0) * r;
+    const beam = (S.beam || 2) * (one.size || 1);
+    // THE PATH: the leader to its point; a member to its place off the leader
+    let want, vWant = S.speed;
+    if (!one.lead) {
+      if (!one.tgt || Math.hypot(one.tgt.x - one.x, one.tgt.z - one.z) < Math.max(20, 2 * L)) seaTarget(one);
+      want = Math.atan2(one.tgt.x - one.x, one.tgt.z - one.z);
+      seaBreath(one, S, flt, dt);
+      if (one.br.mode === 'up') vWant *= 0.8;               // slower at the surface, breathing
+    } else {
+      const ld = one.lead, c = Math.cos(ld.hd), sn = Math.sin(ld.hd), Lw = seaLen(ld);
+      // the place: across (right = (cos hd, -sin hd)) and along (forward = (sin hd, cos hd)), in the leader's lengths
+      const px = ld.x + (c * one.off[0] + sn * one.off[1]) * Lw, pz = ld.z + (-sn * one.off[0] + c * one.off[1]) * Lw;
+      const ex = px - one.x, ez = pz - one.z, d = Math.hypot(ex, ez);
+      // far from its place: head for it; near: swim the leader's heading, nudged toward the place
+      const toP = Math.atan2(ex, ez), blend = clamp(d / (2 * L), 0, 1);
+      let e0 = toP - ld.hd; while (e0 > Math.PI) e0 -= TWO_PI; while (e0 < -Math.PI) e0 += TWO_PI;
+      want = ld.hd + e0 * blend;
+      const along = ex * Math.sin(ld.hd) + ez * Math.cos(ld.hd);          // + ahead of me: hurry
+      vWant = clamp((ld.v || S.speed) + along * 0.15, S.speed * 0.6, S.speed * 1.5);
+      // ITS OWN BREATH while the leader breathes: up to the surface, its own seconds there, then under again (a
+      // follower that only tracked the leader's depth would lag it and never break the surface)
+      const lUp = ld.br && ld.br.mode === 'up';
+      if (!lUp) { one.upT = 0; one.upDone = false; one.dTarget = ld.dTarget; }
+      else if (!one.upDone) {
+        one.dTarget = flt * 0.6;
+        if (one.depth < flt + (S.beam || 2) * 0.2 && (one.upT = (one.upT || 0) + dt) > ((S.cycle || 60) < 70 ? 2.5 : 3.5)) one.upDone = true;
+      } else one.dTarget = flt + (S.beam || 2) * 1.2;
+    }
+    // THE SEABED: never a dive through it (Jolene's shelf is 5-14 m deep, a blue whale's `depth` 28): the target and the
+    // body stay a body's height over the bed under it
+    // (no column at all - the bed above the surface, a pod an author put over the land, or the gate's synthetic island:
+    // the bed is not known there, and the dive goes on as G498's did)
+    const lv0 = waterH(one.x, one.z), bed0 = Number.isFinite(lv0) ? lv0 - ground(one.x, one.z) : Infinity;
+    const bed = bed0 > flt + beam ? bed0 : Infinity;
+    const floorD = Math.max(flt, bed - beam * 0.8);
+    one.dTarget = Math.min(one.dTarget, floorD);
+    let e = want - one.hd;
+    while (e > Math.PI) e -= TWO_PI;
+    while (e < -Math.PI) e += TWO_PI;
+    one.v += (vWant - one.v) * Math.min(1, dt * 0.5);
+    const wmax = one.v / (2 * L);
+    const w = clamp(0.4 * e, -wmax, wmax);
+    one.w = w;
+    one.hd += w * dt;
+    // THE BODY: the depth on a damped spring, its rate a dive angle at most; the pitch is the rate over the speed
+    const wn = ((S.cycle || 60) < 70 ? 0.45 : 0.28) * (one.lead ? one.lag : 1);
+    const dive = one.lead ? !!(one.lead.br && one.lead.br.mode === 'dive') : one.br.mode === 'dive';
+    const vyMax = one.v * Math.tan((dive ? 45 : 35) * Math.PI / 180);
+    one.vy += (wn * wn * (one.dTarget - one.depth) - 2 * wn * one.vy) * dt;
+    one.vy = clamp(one.vy, -vyMax, vyMax);
+    one.depth = Math.max(flt * 0.6, Math.min(Math.max(flt * 0.6, bed - beam * 0.5), one.depth + one.vy * dt));
+    if (one.depth <= flt * 0.6 && one.vy < 0) one.vy = 0;
+    const depth = one.depth;
+    one.x += Math.sin(one.hd) * one.v * dt;
+    one.z += Math.cos(one.hd) * one.v * dt;
+    const cx = one.x, cz = one.z;
     const wl = waterH(cx, cz);
     const lvl = Number.isFinite(wl) ? wl : 0;
-    const ph0 = one.phase;
-    one.phase = (one.phase + dt / Math.max(4, S.cycle)) % 1;
-    const d0 = diveAt(S, ph0), d1 = diveAt(S, one.phase);
-    // `float` is how deep the PIVOT sits when the animal rests at the surface
-    // (the pivot is the body's own centre, so a whale at the surface is not
-    // half out of it); the dive goes from there to `depth`
-    const depth = flt + d1 * Math.max(0, S.depth - flt);
-    const rate = (d1 - d0) * Math.max(0, S.depth - flt) / Math.max(1e-4, dt);   // m/s down
-    // the heading is the circuit's tangent; the pitch the dive's own slope
-    const tx = -Math.sin(one.a0), tz = Math.cos(one.a0);
-    const pitch = clamp(Math.atan2(-rate, Math.max(0.5, S.speed)), -0.7, 0.7);
-    one.dir.set(tx * Math.cos(pitch), Math.sin(pitch), tz * Math.cos(pitch)).normalize();
-    // a little roll into the turn, so a pod on a circuit is not a carousel
-    const bank = clamp(S.speed * om / 9.81 * 3.0, -0.35, 0.35);
-    one.up.set(Math.cos(one.a0) * -bank, 1, Math.sin(one.a0) * -bank).normalize();
-    one.x = cx; one.z = cz;
+    const tx = Math.sin(one.hd), tz = Math.cos(one.hd);
+    const pitch = clamp(Math.atan2(-one.vy, Math.max(0.5, one.v)), -0.8, 0.8);
+    one.pitch += (pitch - one.pitch) * Math.min(1, dt * 2);
+    one.dir.set(tx * Math.cos(one.pitch), Math.sin(one.pitch), tz * Math.cos(one.pitch)).normalize();
+    // THE BANK: the roll this turn asks, smoothed; up = Y rolled about the track toward the turn's inside
+    const bankW = clamp(Math.atan(one.v * w / 9.81) * 2.5, -0.45, 0.45);
+    one.bank += (bankW - one.bank) * Math.min(1, dt * 1.5);
+    const rx = Math.cos(one.hd), rz = -Math.sin(one.hd);    // the right, for a heading (sin hd, cos hd)
+    one.up.set(-rx * Math.sin(one.bank), Math.cos(one.bank), -rz * Math.sin(one.bank)).normalize();
     one.y = lvl - depth;
     one.H.obj.position.set(cx, one.y, cz);
-    orient(one, one.dir, one.up, one.t > 0 ? Math.min(1, dt * 2) : 1);
+    orient(one, one.dir, one.up, 1);
     one.t += dt;
-    one.depth = depth;
-    // the body's own loop, its rate with the speed (the clip was authored at
-    // one beat; a cruising whale beats slower than a hurrying one)
+    // the fluke beat: the clip's rate from the speed, harder going up
     if (!one.H.clip()) one.H.play('swim', { loop: true });
-    if (one.H.player) one.H.player.rate = clamp(0.5 + S.speed / 4, 0.4, 1.6);
+    if (one.H.player) one.H.player.rate = clamp(0.35 + 0.65 * one.v / Math.max(0.5, S.speed) + Math.max(0, -one.vy) * 0.12, 0.35, 1.7);
     one.H.step(dt);
-    // THE LOOM: how far under the surface the body sits
-    one.H.loomSet(depth);
+    // THE WAKE: the body's vertical extent, the surface crossing it or not (wakes.js decides; nothing is drawn under)
+    if (WK) WK.hull(one.wid || (one.wid = 'sea:' + one.spot.id + ':' + one.i), { x: cx, z: cz, hd: one.hd, speed: one.v, beam, length: L,
+      top: one.y + beam * 0.6, bottom: one.y - beam * 0.5 });
+    // (THE LOOM is retired: the body is drawn as itself and the water knows where it is - setSubmerged in tick())
     // THE WATER (the aeroplane's own): only when the back is out
-    const beam = S.beam || 2;
+    // (beam: the body's own, x its size, above)
     const up = depth < flt + beam * 0.35;               // the back is through
     // THE FIELD IS ASKED FOR, not assumed: it is the aeroplane's, and it only runs when the
     // aeroplane is itself near water - so a surfaced animal within 150 m of the eye asks, and a
@@ -430,6 +559,7 @@ AR.make = function (THREE, ctx) {
     }
     // BREAKING OUT: the frame the back comes through, a ring and a burst
     if (up && !one.wasUp) {
+      if (WK) WK.ring(cx, cz, beam * 0.9, Math.min(1, 0.4 + Math.max(0, -one.vy) * 0.4));
       if (S.blow > 0) one.blowT = T;                // the sound's mark (G1705): the frame the plume is fired below
       if (ctx.stamp && stats.stamps < STAMP_BUDGET) {
         ctx.stamp(cx, cz, beam * 1.8, -0.35, 0.7, 'ring');
@@ -548,6 +678,7 @@ AR.make = function (THREE, ctx) {
           const one = makeOne(s, i);
           if (!one) continue;
           if (a.kind === 'land') { landStart(one, 'idle'); one.callT = -1; }   // (being sown is not a call)
+          if (a.kind === 'sea') { seaSow(one, h, h.ones.length); wakesOn(); }
           one.herd = h.n;
           h.ones.push(one);
         }
@@ -636,6 +767,8 @@ AR.make = function (THREE, ctx) {
       }
     }
     ambientTick(dt);
+    if (WK) WK.step(dt);
+    submerged(e);
     for (const F of FLOCKS) flockStep(F, dt);
     return stats.shown;
   }
@@ -643,7 +776,7 @@ AR.make = function (THREE, ctx) {
   // ---- THE SOUND'S READER (G1705) -----------------------------------------------------------------------------------
   // rows of SOUND.ROW into RD.out (see the header); the callbacks made once, nothing allocated, nothing written but `out`
   const RD = { out: null, n: 0, max: 0 };
-  const SEA0 = { speed: 3, depth: 12, cycle: 60, surface: 0.2, blow: 1, beam: 2 };
+  // (SEA0: the sea defaults, with the swimming above)
   function rdRow(one, kind) {
     if (RD.n >= RD.max) return;
     const o = RD.out, q = RD.n * 12, a = one.a, sz = one.size || 1, len = (a.length || 1) * sz;
@@ -683,6 +816,8 @@ AR.make = function (THREE, ctx) {
   }
 
   function dispose() {
+    if (WK) { WK.dispose(); WK = null; }
+    if (typeof window !== 'undefined' && window.WATER && window.WATER.setSubmerged) window.WATER.setSubmerged(SUBK, null);
     for (const [, h] of HERDS) drop(h);
     HERDS.clear();
     for (const F of FLOCKS) for (const one of F.ones) one.H.dispose();
@@ -690,7 +825,7 @@ AR.make = function (THREE, ctx) {
     if (root.parent) root.parent.remove(root);
   }
 
-  return { root, sync, tick, ambient, dispose, stats,
+  return { root, sync, tick, ambient, dispose, stats, wakes: () => WK,
            sound, clock: () => T,                     // G1705 (SND-ANIMALS): the sound's read-only reader and the run's clock
            herds: () => Array.from(HERDS.keys()),
            // the probe the gate and the bench read: every individual, flat
