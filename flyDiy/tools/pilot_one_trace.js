@@ -40,7 +40,7 @@ const BUILDS = {
   c172f:   { file: 'builds/cessna172r_2026-11-08.json', floats: true },
   wip:     { file: 'bugReports/cessnaFloatsWOrks.json' },
   ultraf:  { file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', floats: true },
-  twinf:   { file: 'tools/fixtures/build_v7_twin_2026-09-04.json', floats: true },
+  twinf:   { file: 'tools/fixtures/test_copies/build_v7_twin_2026-09-04.json', floats: true },
 };
 const ONLY = arg('only', Object.keys(BUILDS).join(',')).split(',');
 

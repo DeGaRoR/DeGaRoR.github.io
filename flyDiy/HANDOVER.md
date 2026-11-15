@@ -316391,3 +316391,12 @@ physics): WINGSPLIT, ENERGYBASE (carbon left at master's), PROCURE, FREIGHT, JOI
 node tools/join_parity_page.js --only twinFloats / --only petrel: the twin floatplane's masses, the V4.1's FIN-MOUNT bars).
 Stack reds with causes: CANDIDATES (+V4.1, +jodel_geo), DMGINTEGRITY (knife edge), DMGGEAR (the V4.1's tail tie),
 FRAMECOST / PARKED (the parked cook is stale: re-cook on a GPU after the train's build), BENCH (the Rufus stamp is V 7).
+
+
+## CANON-CLEAN phase 1 + FLAPLESS-SAID (FLAGSHIP, Sat 14 Nov, for the integration batch) - one file per plane (the user 12 Nov ~23:59: "land the official list of planes and get rid of the other copies ... once and for all")
+
+- THE RULE: a plane is its list row (builds/lists/plane_lists.json); never copy a plane file; a test plane lives ONLY in tools/fixtures/test_copies/ with its "Test copy: ..." row (legacy), and only while some gate or tool reads it. Name a plane by its row: "list:50 Cessna 172".
+- THE CLEAN (inventory: https://claude.ai/artifact/Bj8g1fVPZAcSyi3ctoWBde, master 23ce68c1f): test copies MOVED to tools/fixtures/test_copies/ (same bytes, same file names; every reader re-pointed, a path change only); copies of a list plane DELETED and their readers re-pointed to the list plane's file; files nobody read DELETED. A list row whose file went keeps its number with a `deleted` note; a test copy without a row got one (from 60: 53/54 the Ruckus, 55/56 the chooser's shapes, 57-59 free). HELD: tools/fixtures/build_v7_ultralight_2026-09-05.json, the career's twin floatplane (CONTRACT_DESIGNS.twinf), until the career flies list:27. reports/ (the evidence) is not touched.
+- GATE PLANELISTS - THE FILES: every tracked plane file (a JSON whose spec has wings) is a list row's file (reports/ aside); a test plane's file lives in test_copies/ (HELD aside) and some tool or gate reads it; no two plane files are the same aeroplane (paint, finish, name, registration aside); a deleted row has no door. 4 selftest breaks.
+- FLAPLESS-SAID (A0 13 Nov, out of the list:40 read: genTrim says "say so in the shakedown" and nothing did): genShakedown carries `landing` {flapless, partial, full, trimFail} only when genTrim could not land the build as built; the shakedown sheet prints "landing flaps" / "approach trim", the fiche "lands" / "approach trim". GATE PLANEFICHE: the four places, numbers() on a stub sheet, 4 breaks.
+- The Cessna copies are ONE-CESSNA's (the user 13 Nov ~00:40: "one official Cessna" = list:50): its ready re-points them and deletes them; this one moves only what is still there.

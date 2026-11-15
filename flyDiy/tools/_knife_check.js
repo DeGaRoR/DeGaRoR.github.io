@@ -76,7 +76,8 @@ function corpus() {
   const files = [].concat(
     fs.readdirSync(path.join(ROOT, 'builds')).filter(f => /\.json$/i.test(f)).map(f => 'builds/' + f),
     fs.readdirSync(path.join(ROOT, 'bugReports')).filter(f => /\.json$/i.test(f)).map(f => 'bugReports/' + f),
-    fs.readdirSync(path.join(T, 'fixtures')).filter(f => /^build_v.*\.json$/i.test(f)).map(f => 'tools/fixtures/' + f));
+    fs.readdirSync(path.join(T, 'fixtures')).filter(f => /^build_v.*\.json$/i.test(f)).map(f => 'tools/fixtures/' + f),
+    fs.readdirSync(path.join(T, 'fixtures', 'test_copies')).filter(f => /\.json$/i.test(f)).map(f => 'tools/fixtures/test_copies/' + f));   // (CANON-CLEAN 13 Nov: the copies moved there)
   for (const f of files) {
     let raw; try { raw = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); } catch (e) { continue; }
     const c = raw && (raw.cage || (raw.spec && raw.spec.cage));

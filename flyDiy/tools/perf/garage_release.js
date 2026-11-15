@@ -25,7 +25,7 @@ const flag = k => argv.includes('--' + k);
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
   cessna: 'builds/cessna172r_2026-11-08.json', floats: 'bugReports/cessnaFloatsWOrks.json',
   // PHONE-EDIT-PERF (2 Nov): the user's twin-boom pusher on floats, the plane of their S20 FE log (the file's own name)
-  twin: 'bugReports/Twin_busher_floats_2.json' };
+  twin: 'tools/fixtures/test_copies/Twin_busher_floats_2.json' };
 // PHONE-EDIT-PERF: --keepjobs lets the workers answer after the boot (the balance worker's CG handshake rebuilds a floatplane:
 // its build lands in idle); --typed sets the row's typed field (v_<key> change) instead of a drag; the page's garage edit log
 // (_cage_ui 'gedit', the named tasks 'gtask') is kept per row when the recorder is on the page

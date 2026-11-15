@@ -231,7 +231,7 @@ console.log('THE WORD');
 console.log('THE RULE');
 if (!CORE || !CORE.certMajor) console.log('  skip  tools/flight_core.js not built');
 else {
-  const fx = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
+  const fx = JSON.parse(rd('tools/fixtures/test_copies/_bench_fixture_build.json')).spec;
   const M0 = BE.benchMajor(fx, null);
   ok(M0 && /^[0-9a-f]{8}$/.test(M0.fp) && Object.keys(M0.groups).join() === 'structure,engine,gear,tail,wb', 'f3: the major fingerprint and its five groups (' + (M0 && M0.fp) + ')');
   const mut = f => { const c = JSON.parse(JSON.stringify(fx)); f(c); return BE.benchMajor(c, null); };
@@ -444,7 +444,7 @@ console.log('THE THREAD');
 
 // ---- THE FLIGHT (G208.3) --------------------------------------------------
 // The default garage build — the join's own export of the stock aeroplane,
-// tube-and-fabric, 10 m high wing, 65 hp (tools/_bench_fixture_build.json,
+// tube-and-fabric, 10 m high wing, 65 hp (tools/fixtures/test_copies/_bench_fixture_build.json,
 // taken off the page 2026-09-07) — flies the test circuit on the test pilot
 // and comes home. It did not: airborne at 23 m/s it climbed at 9.6° for
 // ever, 0.5 m/s under VClimbMin, and the bench read GAVE UP on the aeroplane
@@ -457,7 +457,7 @@ console.log('THE FLIGHT');
   try { core = require(path.join(ROOT, 'tools', 'flight_core.js')); } catch (e) {}
   if (!core || !core.makePilot) console.log('  skip  tools/flight_core.js not built');
   else {
-    const spec = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
+    const spec = JSON.parse(rd('tools/fixtures/test_copies/_bench_fixture_build.json')).spec;
     const def = core.buildGen(spec), world = core.makeWorld();
     const sim = core.makeSim(def, world); sim.reset(0);
     for (let i = 0; i < 600; i++) sim.step(1 / 60);
@@ -532,7 +532,7 @@ function benchSession(store, join, opts) {
 {
   const arrival = { report: { verdicts: [], outcome: 'completed', landing: { run: 180, sink: 0.5, pastAim: 8 } }, arrived: true, t: 240, manual: false, td: null, armed: null };
   const run = pre => {
-    const store = { pq: null }, join = { up: true, spec: JSON.parse(rd('tools/_bench_fixture_build.json')).spec };
+    const store = { pq: null }, join = { up: true, spec: JSON.parse(rd('tools/fixtures/test_copies/_bench_fixture_build.json')).spec };
     const S1 = benchSession(store, join, { preG700: pre });
     // roll out from the garage (app.js rollOut calls BENCH_ROLLOUT first), then fly: the editor is closed
     if (typeof S1.window.BENCH_ROLLOUT === 'function') S1.window.BENCH_ROLLOUT();
@@ -565,7 +565,7 @@ function benchSession(store, join, opts) {
     const lg = (RF.log && RF.log.flights) || [], hrs = lg.reduce((a, r) => a + (r.t || 0), 0) / 3600;
     ok(fl && fl.ok && fl.used && fl.when < '2026' && RF.plaque.masterShown === true && RF.log.built && lg.length >= 3 && lg.every(r => r.t > 0 && r.on) && hrs >= 2,
        "Rufus ships used: its flight awarded " + (fl && fl.when) + ", built " + (RF.log && RF.log.built) + ', ' + lg.length + ' logged flights, ' + hrs.toFixed(1) + ' h');
-    const store = { pq: JSON.parse(JSON.stringify(RF.plaque)) }, join = { up: true, spec: JSON.parse(rd('tools/_bench_fixture_build.json')).spec };
+    const store = { pq: JSON.parse(JSON.stringify(RF.plaque)) }, join = { up: true, spec: JSON.parse(rd('tools/fixtures/test_copies/_bench_fixture_build.json')).spec };
     const S = benchSession(store, join);
     S.window.BENCH_RESTORE(store.pq); S.flush();
     const r0 = S.window.BENCH_STATE().results.flight;
@@ -582,7 +582,7 @@ function benchSession(store, join, opts) {
   // garage changes nothing; back in the garage the same aeroplane holds; and the guard is not vacuous - the same
   // world export, hashed in the garage, would have superseded them
   {
-    const G = { on: true }, spec0 = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
+    const G = { on: true }, spec0 = JSON.parse(rd('tools/fixtures/test_copies/_bench_fixture_build.json')).spec;
     const worldSpec = Object.assign(JSON.parse(JSON.stringify(spec0)), { engines: [{ type: 'rotax912_warp', mount: 'nose', place: { dx: 0, dy: 0 }, sense: 1 }],
       prop: Object.assign({}, spec0.prop, { D: 2.2 }) });                       // (the fixture flies the a65 on a 1.91 m prop)
     const store = { pq: null }, join = { up: true, spec: JSON.parse(JSON.stringify(spec0)) };
@@ -609,7 +609,7 @@ function benchSession(store, join, opts) {
   // GARAGE AT REST. Under the roll-out's screen (FLYDIY_HOLDS rollHold) a rebuild's fingerprint waits, and once it is
   // taken R4's quiet re-run does not start while a screen is held; the restore's re-check and the run queue ask too
   {
-    const spec0 = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
+    const spec0 = JSON.parse(rd('tools/fixtures/test_copies/_bench_fixture_build.json')).spec;
     const H = { inGarage: true, holdRender: false, rollHold: false, craftAway: 0 };
     const BENCH_SRC = rd('src/viewer/bench.js');
     const store = { pq: null }, join = { up: true, spec: JSON.parse(JSON.stringify(spec0)) };
@@ -644,7 +644,7 @@ function benchSession(store, join, opts) {
   // G3780 CERT-POD: IN THE GARAGE, the pod fitted, resized and removed supersedes nothing (the bolt-on is outside the
   // certificate); and the session is not vacuous - a tank change on the same stand does supersede
   {
-    const spec0 = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
+    const spec0 = JSON.parse(rd('tools/fixtures/test_copies/_bench_fixture_build.json')).spec;
     const pod = { on: 1, len: 1.6, width: 0.5, depth: 0.35, noseFair: 0.3, tailFair: 0.5, x: 0.9, loadKg: 40, door: 'side' };
     const store = { pq: null }, join = { up: true, spec: JSON.parse(JSON.stringify(spec0)) };
     const S = benchSession(store, join, { api: { inGarage: () => true } });

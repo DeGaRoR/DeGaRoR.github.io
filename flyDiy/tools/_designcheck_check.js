@@ -73,15 +73,15 @@ if (!ONLY_SIM) {
   }
   console.log('THE USER\'S MOSQUITO (the repro builds, joined) - printed');
   for (const k of ['mosquito_2', 'mosquito_3']) {
-    const { dc } = check(joined('tools/fixtures/repro/' + k + '.json'), null, true);
+    const { dc } = check(joined('tools/fixtures/test_copies/' + k + '.json'), null, true);
     console.log('           ' + k + ': ' + dc.verdict.toUpperCase() + ' ' + line(dc));
   }
-  // G3271 (RUFUS-CERT): the user's Rufus as built (tools/fixtures/repro/rufus_2026-10-18.json, a copy of their
+  // G3271 (RUFUS-CERT): the user's Rufus as built (tools/fixtures/test_copies/rufus_2026-10-18.json, a copy of their
   // inbox file) - flown power off with the stick on its stop it settles at 1.16 Vs and never stalls; ctl.elevator
   // passed it, ctl.flare must not, and must read within 0.08 of the flown 1.16
   console.log('THE USER\'S RUFUS (nose-heavy: the elevator runs out before the stall) - ctl.flare catches it');
   {
-    const { dc } = check(joined('tools/fixtures/repro/rufus_2026-10-18.json'), null, true);
+    const { dc } = check(joined('tools/fixtures/test_copies/rufus_2026-10-18.json'), null, true);
     const r = row(dc, 'ctl.flare');
     ok(r.level !== 'pass' && !!r.fix && Math.abs(r.value - 1.16) <= 0.08,
        `rufus: ctl.flare ${r.level} (${r.value} x Vs; flown 1.16) -> ${r.fix || 'no fix'}`);
@@ -169,7 +169,7 @@ if (!ONLY_SIM) {
     run(false, 1200); const p0 = ids.map(i => [0, 1, 2].map(k => sim.p[i*3+k])); run(true, 2400);
     return ids.reduce((a, i, j) => a + [0, 1, 2].reduce((b, k) => b + (sim.p[i*3+k] - p0[j][k]) * dir[k], 0), 0) / 2;
   };
-  const mq = joined('tools/fixtures/repro/mosquito_3.json');
+  const mq = joined('tools/fixtures/test_copies/mosquito_3.json');
   const dS = C.buildGen(mq), sh = (dS.clusters || []).find(c => c.cls === 'shell');
   ok(!!sh, "the carbon mosquito's boom flies on a shell cluster (omega " + (sh ? sh.omega.toFixed(0) : '-') + ' rad/s)');
   const ref = sh ? 200 / sh.shell.Kt : 0, dShell = post(dS, [0, 0, 1]);
@@ -232,7 +232,7 @@ if (SIM) {
     const anti = runs[0].map((v, i) => (v - runs[1][i]) / 2);
     return Math.log(Math.abs(anti[20]) / Math.abs(anti[4])) / 16;       // 4 s .. 20 s
   };
-  for (const [k, f] of [['cub', CUB], ['mosquito_3', 'tools/fixtures/repro/mosquito_3.json']]) {
+  for (const [k, f] of [['cub', CUB], ['mosquito_3', 'tools/fixtures/test_copies/mosquito_3.json']]) {
     const { def, dc } = check(joined(f));
     const lp = dc.modes.spiral.lambda, ls = fly(def);
     const agree = Math.sign(lp) === Math.sign(ls) && (lp < 0 || (ls > 0.5 * lp && ls < 2 * lp));

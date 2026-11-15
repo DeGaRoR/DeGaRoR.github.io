@@ -21,7 +21,7 @@ const PORT = +opt('port', 8127);
 let pw;
 try { pw = require('playwright'); } catch (e) { pw = require(path.join(cp.execSync('npm root -g').toString().trim(), 'playwright')); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const WIP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_cub_wip.json'), 'utf8');
+const WIP = fs.readFileSync(path.join(__dirname, 'fixtures', 'test_copies', 'garage_lag_cub_wip.json'), 'utf8');
 const RUNS = opt('runs', 'before,after').split(',');
 const PAGES = { before: '_ev_before.html', after: 'index.html' };
 const ROUTE = JSON.stringify({ from: 'HOME', dest: 'w3' });

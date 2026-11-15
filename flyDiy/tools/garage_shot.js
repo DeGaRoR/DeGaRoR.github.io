@@ -2,7 +2,7 @@
 //
 //   node tools/garage_shot.js --url http://localhost:8450/flyDiy/dev.html --stock "cessna 172" \
 //        --out screenshots/c172 [--views q,s,f,t,x,fleet,air] [--wait 15000] [--log]
-//   node tools/garage_shot.js --file tools/fixtures/build_v10_engcfg_pushpull_2026-10-22.json --out screenshots/pp
+//   node tools/garage_shot.js --file tools/fixtures/test_copies/build_v10_engcfg_pushpull_2026-10-22.json --out screenshots/pp
 //        (ENGINE-CONFIGS-2: a BUILD FILE in place of a stock row - dropped on the garage as the user drops one,
 //        the DROP-JSON door G2799 opened: the page's own import, readFile)
 //

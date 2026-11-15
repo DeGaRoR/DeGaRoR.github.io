@@ -347,7 +347,7 @@ const KEEL = {};
 const BUILDS = [
   { name: 'stock', over: { ...KEEL } },
   { name: 'rod', over: { boomStyle: 1, ...KEEL } },
-  { name: 'twin', spec: FIX('build_v8_twin-boom_2026-09-11.json') },
+  { name: 'twin', spec: FIX('test_copies/build_v8_twin-boom_2026-09-11.json') },
   { name: 'stock+ifr', garage: IFR, over: { ...KEEL } },
   // G3xx: the door inner panel on — the wall controls must stand off it
   { name: 'stock+panel', over: { doorPanelOn: 1, ...KEEL } },
@@ -499,7 +499,7 @@ function selftest() {
   }
   // 4. a static tail fitting on the twin must be flagged at tail+ (a box glued to the fin, unnamed => static)
   {
-    const S3 = SH.sceneBuild(FIX('build_v8_twin-boom_2026-09-11.json'), {});
+    const S3 = SH.sceneBuild(FIX('test_copies/build_v8_twin-boom_2026-09-11.json'), {});
     const fin = S3.scene.getObjectByName('edFinSkin');
     check(!!fin && !!S3.W.CAGE_BOOMS, 'twin fixture has edFinSkin and CAGE_BOOMS');
     const objs = PH.collect(S3, THREE);

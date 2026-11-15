@@ -7,7 +7,7 @@
 // editor's layers draw it headless, the join measures it, the energy layer fits the tanks) -> buildGen -> the sheets.
 //   full    the DC-3 drawn at full size (29 m class: planeScale 1.6, the editor's rows at their ends). Today's clamps
 //           cut it: the join's ERRS rows and the flown lattice's extent say where. Evidence only, not flown.
-//   fit     THE FIXTURE (tools/fixtures/dc3_study_2026-10-23.json): the DC-3's wing and section at 0.62 scale (span 18 m =
+//   fit     THE FIXTURE (tools/fixtures/test_copies/dc3_study_2026-10-23.json): the DC-3's wing and section at 0.62 scale (span 18 m =
 //           the envelope's end), its fuselage SHORTENED to the 6.5 m tail-arm clamp, so the drawn and the flown
 //           aeroplane agree. Two R-1830s, alloy, low cantilever wing, plain flaps (the split flap's nearest row),
 //           taildragger, 2 crew + 4.
@@ -27,8 +27,8 @@
 const fs = require('fs'), path = require('path'), Module = require('module');
 const T = __dirname, ROOT = path.join(T, '..');
 const LB = require('./_load_build.js');
-const FIX = path.join(T, 'fixtures', 'dc3_study_2026-10-23.json');
-const FIX_FULL = path.join(T, 'fixtures', 'dc3_study_fullsize_2026-10-23.json');
+const FIX = path.join(T, 'fixtures', 'test_copies', 'dc3_study_2026-10-23.json');
+const FIX_FULL = path.join(T, 'fixtures', 'test_copies', 'dc3_study_fullsize_2026-10-23.json');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const flag = k => argv.includes('--' + k);
@@ -320,7 +320,7 @@ if (require.main === module) {
   if (!only || only === 'fit' || only === 'widened' || only === 'fitGauge') fitSpec = LB.loadBuild(path.relative(ROOT, FIX)).spec;
   if (!only || only === 'fit') {
     const def = C.buildGen(JSON.parse(JSON.stringify(fitSpec)));
-    const s = sheet(C, def, 'FIT - tools/fixtures/dc3_study_2026-10-23.json (0.62 scale, today\'s clamps, the page\'s load chain)');
+    const s = sheet(C, def, 'FIT - tools/fixtures/test_copies/dc3_study_2026-10-23.json (0.62 scale, today\'s clamps, the page\'s load chain)');
     printSheet(s);
     s.cost = stepCost(C, def, 600);
     console.log(`  solver ${s.cost.msPerFrame.toFixed(2)} ms / 60 Hz frame (node, airborne)`);

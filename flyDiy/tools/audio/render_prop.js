@@ -42,7 +42,7 @@ const PROP_BUILDS = [
   { key: 'pt6', file: 'builds/cessna172r_2026-11-08.json', label: 'a PT6A-114A archetype (the Caravan engine, 3 blades 2.69 m)',
     vr: 33, vy: 45, mutate: s => { s.engines[0].type = 'pt6a114a_hartzell3'; delete s.engines[0].custom; delete s.engines[0].sound; s.prop.blades = 3; s.prop.D = 2.69; } },
   // THE ELECTRIC ARCHETYPE: the twin-boom fixture, a Pipistrel E-811 on 2 blades
-  { key: 'electric', file: 'tools/fixtures/build_v8_twin-boom_2026-09-11.json', label: 'an electric archetype (Pipistrel E-811, the twin-boom fixture)', vr: 24, vy: 30 },
+  { key: 'electric', file: 'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json', label: 'an electric archetype (Pipistrel E-811, the twin-boom fixture)', vr: 24, vy: 30 },
 ];
 
 let FC = null;
