@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e3943ae03a0a15f1
+// body-sha256: 723e9c7716d02cd3
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -19933,6 +19933,7 @@ function makeSim(def, world) {
       if (occRec) genOccSub(OCC, OCS, p, v, dt, simT);
       if (subHook !== null) subHook(s, dt);
     }
+    if (softLive) out.softF /= sub;                  // SNOW-MUD FINISH: softF summed over the substeps -> the frame's mean drag (N)
     readPanel(dtFrame);
     dmgFrame(dtFrame);
     if (DRV) driveFrame(dtFrame);                   // G1826 (DMG-DRIVE)
