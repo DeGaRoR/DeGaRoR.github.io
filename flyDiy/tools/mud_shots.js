@@ -114,11 +114,12 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
     const RESUME = async () => { await ev("(()=>{const b=document.getElementById('bPause');if(b&&/resume|run/i.test(b.textContent))b.click();return b&&b.textContent})()"); await rig.frames(2);
       const t = await ev("(()=>{const b=document.getElementById('bPause');return b&&b.textContent})()"); if (!/pause/i.test(t || '')) throw new Error('RESUME failed: #bPause reads ' + t); };
     // (15 Nov slot: the button reads 'Run' when paused, not 'Resume' - the first run never resumed and sat paused at HOLD 11 min)
-    // the plane's place: camGet().target, the drawn CG (cgD). The craft Group sits at the ORIGIN - its parts are posed in world space:
-    // the 17:05 slot shot ten stills of the grass at 0,0,0. The sim's own cgPos beside it, their gap logged
-    const where = () => J(`(() => { const t = FLIGHT_PROBE.camGet().target, s0 = FLIGHT_PROBE.sim(); let g0 = null; try { g0 = s0 && s0.cgPos ? Array.from(s0.cgPos()) : null; } catch (e) {} const c = t;
+    // the plane's place: the SIM's cgPos (A0 15 Nov: the plane's real place), camGet().target (the drawn CG, cgD) its cross-check -
+    // never FLIGHT_PROBE.craft(): a Group at the ORIGIN, its parts posed in world space (the 17:05 slot: ten stills of grass at
+    // 0,0,0). The two disagree by more than 5 m (one stale: run 1's target or 14 Nov's cgPos) -> every shot is taken from both.
+    const where = () => J(`(() => { const t = FLIGHT_PROBE.camGet().target, s0 = FLIGHT_PROBE.sim(); let g0 = null; try { g0 = s0 && s0.cgPos ? Array.from(s0.cgPos()) : null; } catch (e) {} const ok = g0 && g0.every(Number.isFinite) && Math.hypot(g0[0], g0[2]) > 1, c = ok ? g0 : t;
       const W = FLIGHT_PROBE.world(), s = FLIGHT_PROBE.sim(), o = s && s.out || {};
-      return { P: c.map(v => +v.toFixed(2)), sim: g0 && g0.map(v => +(+v).toFixed(2)), gap: g0 ? +Math.hypot(g0[0] - t[0], g0[1] - t[1], g0[2] - t[2]).toFixed(2) : null, g: +W.terrainH(c[0], c[2]).toFixed(2), surf: W.surface(c[0], c[2]), softZ: o.softZ != null ? +(+o.softZ).toFixed(3) : null,
+      return { P: c.map(v => +(+v).toFixed(2)), from: ok ? 'sim' : 'target', alt: ok ? t.map(v => +v.toFixed(2)) : null, gap: g0 ? +Math.hypot(g0[0] - t[0], g0[1] - t[1], g0[2] - t[2]).toFixed(2) : null, g: +W.terrainH(c[0], c[2]).toFixed(2), surf: W.surface(c[0], c[2]), softZ: o.softZ != null ? +(+o.softZ).toFixed(3) : null,
         softW: o.softW ? Array.from(o.softW).map(v => +(+v).toFixed(3)) : null, coat: (typeof AERO_WX !== 'undefined' && AERO_WX.live) ? +AERO_WX.live.m.toFixed(3) : 0,
         puffs: window.DUST_FX && DUST_FX.fx ? DUST_FX.fx.sys.P.live : null, v: s && s.v ? Array.from(s.v).slice(0, 3).map(v => +(+v).toFixed(2)) : null }; })()`);
     // d: along the run (HOME's hdg, the sign that points from the aeroplane to the strip's far end); n: beside it, on the sun's side
@@ -157,8 +158,8 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
     // hold, lined up, engine running, the pilot at HOLD). 15 Nov 15:15 slot: the taxi took 665 s (Sat on master ~190 s) - the
     // minute's trace (speed over the ground, throttle, rpm, the surface under the craft) says whether the Cub bogs on the soft mud.
     const TAXI_S = +opt('taxi', 60);
-    const tq = () => J("(()=>{const W=FLIGHT_PROBE.world(),s=FLIGHT_PROBE.sim(),o=s&&s.out||{},ap=FLIGHT_PROBE.ap();const c=FLIGHT_PROBE.camGet().target;"
-      + "return {ph:ap&&ap.phase,P:c.map(v=>+v.toFixed(2)),surf:W.surface(c[0],c[2]),thr:s&&s.ctl&&s.ctl.thr!=null?+(+s.ctl.thr).toFixed(3):null,rpm:o.rpm!=null?Math.round(o.rpm):null,softZ:o.softZ!=null?+(+o.softZ).toFixed(3):null}})()");
+    const tq = () => J("(()=>{const W=FLIGHT_PROBE.world(),s=FLIGHT_PROBE.sim(),o=s&&s.out||{},ap=FLIGHT_PROBE.ap();const t=FLIGHT_PROBE.camGet().target;let g=null;try{g=s&&s.cgPos?Array.from(s.cgPos()):null}catch(e){}const c=g&&Math.hypot(g[0],g[2])>1?g:t;"
+      + "return {ph:ap&&ap.phase,P:c.map(v=>+(+v).toFixed(2)),tgt:t.map(v=>+v.toFixed(2)),surf:W.surface(c[0],c[2]),thr:s&&s.ctl&&s.ctl.thr!=null?+(+s.ctl.thr).toFixed(3):null,rpm:o.rpm!=null?Math.round(o.rpm):null,softZ:o.softZ!=null?+(+o.softZ).toFixed(3):null}})()");
     rec.taxi = [];
     for (let t0 = Date.now(), prev = null; Date.now() - t0 < TAXI_S * 1000;) {
       const q = await tq().catch(e => ({ err: String(e.message || e) })); q.t = Math.round((Date.now() - t0) / 1000);
@@ -172,6 +173,9 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
       await rig.frames(30); rec.lined = await tq().catch(() => null); say('lined up: ' + JSON.stringify(rec.lined)); }
     save();
 
+    const shoot2 = async (name, w, ...a) => { await shoot(name, w, ...a);
+      if (w.alt && w.gap != null && w.gap > 5) await shoot(name + '_tgt', Object.assign({}, w, { P: w.alt }), ...a); };
+
     // ---- the take-off, the pilot's own
     let last = null, holdDone = false, washDone = false, midDone = false, lateDone = false, liftT = 0, rollT = 0, mid = null;
     const tEnd = Date.now() + Math.max(60, CAP - (Date.now() - T0) / 1000 - 45) * 1000;
@@ -181,17 +185,17 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
       if (s.ph !== last) { rec.trace.push([((Date.now() - T0) / 1000).toFixed(1), s.ph, s.ias]); last = s.ph; say(s.ph + ' ias=' + s.ias); save(); }
       if (!holdDone && (s.ph === 'HOLD' || s.ph === 'ROLL')) { holdDone = true; await PAUSE(); const w = await where(); ({ d: D, n: N } = frameAt(w)); rec.frame = { d: D, n: N, at: w };
         rec.coat.hold = w.coat; say('hold ' + JSON.stringify(w));
-        await shoot('clean_rear34', w, -7, 5, 0.9, 0, -0.5); await shoot('clean_front34', w, 7, 5.5, 0.9, 0, -0.5); await RESUME(); continue; }
+        await shoot2('clean_rear34', w, -7, 5, 0.9, 0, -0.5); await shoot2('clean_front34', w, 7, 5.5, 0.9, 0, -0.5); await RESUME(); continue; }
       if (s.ph === 'ROLL' && !rollT) rollT = Date.now();
       if (rollT && !washDone && Date.now() - rollT > 2500) { washDone = true; await PAUSE(); const w = await where(); say('wash ' + JSON.stringify(w));
-        await shoot('wash_rear', w, -16, 7, 3.0, -3, -0.8); await shoot('wash_side', w, -2, 11, 1.2, -3, -0.6); await RESUME(); continue; }
+        await shoot2('wash_rear', w, -16, 7, 3.0, -3, -0.8); await shoot2('wash_side', w, -2, 11, 1.2, -3, -0.6); await RESUME(); continue; }
       if (rollT && !midDone && s.ias > 11 && s.ph === 'ROLL') { midDone = true; await PAUSE(); const w = await where(); mid = w; say('mid ' + JSON.stringify(w));
-        await shoot('roll_side', w, -3, 12, 1.3, -2, -0.6); await shoot('roll_rear34', w, -15, 7, 2.2, -2, -0.5); await shoot('roll_front34', w, 12, 6, 1.0, -1, -0.6); await RESUME(); continue; }
+        await shoot2('roll_side', w, -3, 12, 1.3, -2, -0.6); await shoot2('roll_rear34', w, -15, 7, 2.2, -2, -0.5); await shoot2('roll_front34', w, 12, 6, 1.0, -1, -0.6); await RESUME(); continue; }
       if (rollT && !lateDone && s.ias > 15.5 && s.ph === 'ROLL') { lateDone = true; await PAUSE(); const w = await where(); rec.coat.late = w.coat; say('late ' + JSON.stringify(w));
-        await shoot('muddy_rear34', w, -7, 5, 0.9, 0, -0.5); await shoot('muddy_front34', w, 7, 5.5, 0.9, 0, -0.5); await RESUME(); continue; }
+        await shoot2('muddy_rear34', w, -7, 5, 0.9, 0, -0.5); await shoot2('muddy_front34', w, 7, 5.5, 0.9, 0, -0.5); await RESUME(); continue; }
       if (s.ph === 'LIFTOFF' && !liftT) liftT = Date.now();
       if (liftT && Date.now() - liftT > 6000) { await PAUSE(); const w = await where(); rec.coat.air = w.coat; say('air ' + JSON.stringify(w));
-        if (mid) await shoot('trail', mid, -10, 16, 5, 25, -1.0);
+        if (mid) await shoot2('trail', mid, -10, 16, 5, 25, -1.0);
         break; }
       await sleep(100);
     }
