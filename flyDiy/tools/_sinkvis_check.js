@@ -86,7 +86,8 @@ function run(o) {
   if (o.src) {
     const a = o.src;
     yes(/model\.grp\.matrix\.copy\(mBasis\);\n\s*sinkPoseApply\(cg\);/.test(a), 'E applied right after the solver\'s basis');
-    yes(/if \(!SW && !SK && SINK_V\[0\] < 1e-4/.test(a), 'E off a soft layer and eased back: one compare, nothing touched');
+    yes(/if \(!SW && !\(SK && !\(def\.refs && def\.refs\.skis && def\.refs\.skis\.every\(u => u && u\.posed\)\)\) && SINK_V\[0\] < 1e-4/.test(a), 'E off a soft layer and eased back: one compare, nothing touched');
+    yes(/const z = u\.posed \? 0 :/.test(a), 'E a POSED ski unit (SKIS\' moving datum: already low in the solver\'s pose) enters the fit at nought - never sunk twice');
     yes(/groundSinkMatrix\(SINK_V/.test(a) && /groundSinkPose\(SINK_PTS/.test(a), 'E the core\'s fit and matrix');
     yes(/def\.parts && def\.parts\.ski/.test(a) && /o\.skiSink/.test(a), 'E reads the skis\' contract (def.parts.ski, out.skiSink in the units\' order)');
   }

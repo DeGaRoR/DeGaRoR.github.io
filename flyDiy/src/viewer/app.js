@@ -4403,16 +4403,24 @@
   const SINK_TAU = 0.2, SINK_SLOPE = 0.08, SINK_V = [0, 0, 0], SINK_T = [0, 0, 0], SINK_PTS = [], SINK_M = new THREE.Matrix4(), SINK_A = new Array(16);
   function sinkPoseApply(cg) {
     const o = sim && sim.out, SW = !inGarage && o ? o.softW : null, SK = !inGarage && o ? o.skiSink : null;
-    if (!SW && !SK && SINK_V[0] < 1e-4 && Math.abs(SINK_V[1]) + Math.abs(SINK_V[2]) < 1e-5) return;
+    if (!SW && !(SK && !(def.refs && def.refs.skis && def.refs.skis.every(u => u && u.posed))) && SINK_V[0] < 1e-4 && Math.abs(SINK_V[1]) + Math.abs(SINK_V[2]) < 1e-5) return;
     SINK_PTS.length = 0;
     const P = sim.p, R = def && def.refs;
     if (SW && R) {
       const ids = [R.mains && R.mains[0], R.mains && R.mains[1], R.tw, R.tw2];
       for (let k = 0; k < 4; k++) { const i = ids[k]; if (i != null && i >= 0 && SW[k] > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], SW[k], i]); }
     }
-    // SKIS (def.parts.ski): the contacts are the mains' nodes then the third's (29c_ski skiSimMake's order), out.skiSink the same
-    // order; a ski unit's sinkage stands for its node (the wheel's softW of the same node, if any, is the tyre's: the ski's wins)
-    if (SK && R && def.parts && def.parts.ski) {
+    // SKIS. def.refs.skis (SKIS' record, one per unit in the solver's order: { nodes: [node], w, L, fwd, aft, main, kind, posed }):
+    // a POSED unit is already low by its rut in the solver's own pose (SKIS' moving datum) - it enters the fit at nought (it
+    // pivots the plane, it is not sunk twice), its node's softW (if any) dropped; an unposed unit by its out.skiSink. Without
+    // refs.skis, the first SKIS shape (def.parts.ski: the mains' nodes then the third's) by out.skiSink
+    if (R && Array.isArray(R.skis) && R.skis.length) {
+      for (let k = 0; k < R.skis.length; k++) { const u = R.skis[k], i = u && u.nodes ? u.nodes[0] : -1; if (i == null || i < 0) continue;
+        const z = u.posed ? 0 : (SK && SK[k] > 0 ? SK[k] : 0);
+        for (let q = SINK_PTS.length - 1; q >= 0; q--) if (SINK_PTS[q][3] === i) SINK_PTS.splice(q, 1);
+        if (u.posed || z > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], z, i]); }
+      if (!SINK_PTS.some(q => q[2] > 0)) SINK_PTS.length = 0;   // (every unit posed, no wheel sinking: nothing to draw)
+    } else if (SK && R && def.parts && def.parts.ski) {
       const ids = (R.mains || []).slice(0, 2); if (def.parts.ski.third && R.tw != null && R.tw >= 0) ids.push(R.tw);
       for (let k = 0; k < ids.length && k < SK.length; k++) { const i = ids[k]; if (!(SK[k] > 0)) continue;
         for (let q = SINK_PTS.length - 1; q >= 0; q--) if (SINK_PTS[q][3] === i) SINK_PTS.splice(q, 1);
@@ -8082,8 +8090,11 @@
       const on = !airborneAll && (k < (refs.mains || []).length ? !!(WC.mains && WC.mains[k]) : !!WC.tw);
       let R = 0.2; if (model && model.wheelParts) for (const w of model.wheelParts) if (w.idx === i && w.R > 0) { R = w.R; break; }
       let sink = SWd ? (SWd[k < nM ? k : 2] || 0) : 0, ski = null;
-      const skRec = SKs ? (k < nM ? SKR.mains : SKR.third) : null;
-      if (skRec && !(SKR.kind === 'retract' && oS.ski != null && oS.ski < 0.5)) { ski = { W: skRec.Wmax || skRec.W || 0.3, L: skRec.L || 1.5 }; sink = SKs[k] > 0 ? SKs[k] : 0; }
+      const RU = refs.skis && refs.skis.length ? refs.skis.find(u => u && u.nodes && u.nodes[0] === i) : null, ku = RU ? refs.skis.indexOf(RU) : -1;
+      const skRec = RU ? null : SKs ? (k < nM ? SKR.mains : SKR.third) : null;
+      const retractUp = oS.ski != null && oS.ski < 0.5 && ((RU && RU.kind === 'retract') || (SKR && SKR.kind === 'retract'));
+      if (RU && !retractUp) { ski = { W: RU.w || 0.3, L: RU.L || 1.5, fwd: RU.fwd }; sink = oS.skiSink && oS.skiSink[ku] > 0 ? oS.skiSink[ku] : 0; }
+      else if (skRec && !retractUp) { ski = { W: skRec.Wmax || skRec.W || 0.3, L: skRec.L || 1.5 }; sink = SKs[k] > 0 ? SKs[k] : 0; }
       st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0,
                        sink, ski });   // (SNOW-MUD: the solver's own sinkage of THIS contact - the plough's, the bow wave's)
     }

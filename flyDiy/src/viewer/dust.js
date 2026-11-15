@@ -489,7 +489,7 @@
   // width, x W / 0.25 m of a tyre's)
   function projWheel(sys, w, PJ, ci, was, V, pud, dt, K) {
     const R = w.R || 0.2, sk = Math.min(1, Math.max(0, w.sink || 0) / 0.05), SKI = w.ski || null;
-    const wf = SKI ? Math.max(1, SKI.W / 0.25) : 1, toe = SKI ? 0.45 * SKI.L : R * 0.6, half = SKI ? 0.5 * SKI.W : 0.08;
+    const wf = SKI ? Math.max(1, SKI.W / 0.25) : 1, toe = SKI ? (SKI.fwd > 0 ? SKI.fwd : 0.45 * SKI.L) : R * 0.6, half = SKI ? 0.5 * SKI.W : 0.08;
     const ux = V > 0.3 ? w.vx / V : 1, uz = V > 0.3 ? w.vz / V : 0, lx = -uz, lz = ux;
     let room = Math.ceil(L.projMax * dt * K * Math.min(1, sys.G.n / 400));   // (a smaller tier's pool: fewer, not a ring that eats its own)
     // (the stills, 13 Nov: drops of their true 1-5 mm drew under a pixel and vanished - a DROP is a CLUSTER of them as the eye
@@ -530,7 +530,7 @@
   // the sides, a bow wave's; its cloud the wider puff)
   function plough(sys, w, ci, V, dt, K) {
     const sk = Math.min(1, w.sink / 0.08), R = w.R || 0.2, ux = w.vx / V, uz = w.vz / V, lx = -uz, lz = ux, SKI = w.ski || null;
-    const wf = SKI ? Math.max(1, SKI.W / 0.25) : 1, toe = SKI ? 0.45 * SKI.L : R * 0.5, half = SKI ? 0.5 * SKI.W : 0;
+    const wf = SKI ? Math.max(1, SKI.W / 0.25) : 1, toe = SKI ? (SKI.fwd > 0 ? SKI.fwd : 0.45 * SKI.L) : R * 0.5, half = SKI ? 0.5 * SKI.W : 0;
     let r = 40 * sk * wf * Math.min(V, 15) / 15 * K * dt, N = Math.floor(r); if (rnd() < r - N) N++;
     for (let j = 0; j < Math.min(N, Math.ceil(L.projMax * dt)); j++) {
       const side = rnd() < 0.5 ? -1 : 1, f = (0.2 + 0.3 * rnd()) * V, o = (SKI ? 0.2 : 0.1) * (1 + 1.5 * rnd()) * V * side, up = 0.8 + 1.7 * rnd();
