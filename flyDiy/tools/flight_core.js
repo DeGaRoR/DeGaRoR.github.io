@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 12822757f5f90f5c
+// body-sha256: 4a5da9eb316c0c43
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -46153,10 +46153,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   halfOn(F[0].TL, F[0].TR, eltKg ? SYS.bill.avionics.kg - eltKg : SYS.bill.avionics.kg);
   if (eltKg) { const Ft = F[Math.max(1, F.length - 2)]; halfOn(Ft.TL, Ft.TR, eltKg); }
   // THE NOSE BALLAST (GEN_RULES.noseBallast; spec.ballast.nose kg): lead on the nose ring's floor, its own ledger line
-  // (opened only when there is some: a build without it bills the sections it always did)
+  // (opened only when there is some: a build without it bills the sections it always did). On a SOFT shell (a fuselage
+  // row naming a hard one) the box bolts to the keel tubes' front nodes, as the tow hook's nose release: the pod's nose
+  // ring is poles (GATE NACELLE C: 5 kg on S0BL / S0BR sagged the nose's keel 27 mm under 2 g, past its 25)
   if (S.ballast && +S.ballast.nose > 0 && R.noseBallast) {
     sec('ballast');
-    halfOn(F[0].BL, F[0].BR, +S.ballast.nose);
+    const kl = M && M.hard && keelRef ? (keelRef.twin ? [keelRef.left[0], keelRef.right[0]] : keelRef.bottom ? [keelRef.bottom[0], keelRef.bottom[0]] : null) : null;
+    const [ba, bb] = kl && kl[0] != null && kl[1] != null ? kl : [F[0].BL, F[0].BR];
+    halfOn(ba, bb, +S.ballast.nose);
     spend(+S.ballast.nose * R.noseBallast.pricePerKg);
   }
   // ---- THE OUTFIT (G159) ------------------------------------------------
