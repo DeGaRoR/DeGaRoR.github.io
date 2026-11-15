@@ -6,7 +6,8 @@
 //   LANDING   HOME > mt_strip: the arrival, the flare, the roll-out up the slope, the stop
 //   TAKE-OFF  mt_strip > HOME: from the stand at the head, the turn, the roll down the slope, lift-off, the climb
 // and the numbers tabled per case.
-//   node tools/_skis_ardent.js [--case all|<name>[,<name>]] [--persona expert] [--json out.json] [--legs land,to]
+//   node tools/_skis_ardent.js [--case all|<name>[,<name>]] [--persona expert] [--json out.json] [--legs land,to] [--lineup]
+//   node tools/_skis_ardent.js --gate     -> "GATE SKISARDENT: PASS|FAIL" (the full tier: the four ski legs in parallel)
 // THE SNOW: SNOW-MUD's soft ground (its SURFACE codes: 8 packed, 9 powder, 10 wet). mt_strip's own record carries
 // `surface` - gravel (6) until SNOW-MUD switches the altiport to snow (OBSERVATORY-SITE's SNOW HOOK). A case's `snow`
 // lays that code over the summit's snowfield (the ground above SNOW_ALT within SNOW_R of the strip's centre) by wrapping
@@ -128,6 +129,34 @@ function fly(cs, leg) {
   return r;
 }
 
+// GATE SKISARDENT (--gate, the full tier): the four legs in child processes, in parallel, then the verdicts
+if (argv.includes('--gate')) {
+  const cp = require('child_process');
+  const jobs = [['skis_powder', 'land'], ['skis_powder', 'to'], ['skis_packed', 'land'], ['skis_packed', 'to']];
+  let fails = 0;
+  const ok = (c, label) => { console.log((c ? '  ok   ' : '  FAIL ') + label); if (!c) fails++; };
+  Promise.all(jobs.map(([c, l]) => new Promise(res => cp.execFile(process.execPath, [__filename, '--case', c, '--legs', l, '--lineup', '--persona', persona],
+    { maxBuffer: 64 << 20, timeout: 2400e3 }, (e, so) => { const line = String(so || '').split('\n').find(x => x.startsWith('ARDENT '));
+      res(line ? JSON.parse(line.slice(7)) : { case: c, leg: l, error: (e && e.message) || 'no output' }); })))).then(R => {
+    const get = (c, l) => R.find(r => r.case === c && r.leg === l) || {};
+    console.log('GATE SKISARDENT - the PC-6 on its wheel-skis at the Ardent altiport (mt_strip), the game\'s flight, persona ' + persona);
+    for (const r of R) console.log('  ' + JSON.stringify(Object.assign({}, r, { says: undefined })));
+    const pl = get('skis_powder', 'land'), pt = get('skis_powder', 'to'), kl = get('skis_packed', 'land'), kt = get('skis_packed', 'to');
+    const clean = r => r.damage && r.damage.yields === 0 && r.damage.breaks === 0 && !r.damage.over;
+    const L = pl.landing || {};
+    ok(pl.phase === 'STOPPED' && pl.stopLeft > 0 && L.onStrip && clean(pl) && pl.skiPos && pl.skiPos[0] === 1,
+       `POWDER, LANDING uphill: the skis down at the touchdown (${pl.skiPos}), ${L.tdIn} m in at ${L.V} m/s, run ${L.run} m, stopped with ${pl.stopLeft} m left, no damage`);
+    ok(pl.maxSkiSinkCm > 8 && pl.maxSkiSinkCm < 30, `...the skis in powder: a ${pl.maxSkiSinkCm} cm rut (the fresh top's decimetres, not the layer's bottom)`);
+    ok(pt.roll != null && pt.stripLeftAtLiftoff > 0 && pt.to15m != null && clean(pt),
+       `POWDER, TAKE-OFF downhill: off in ${pt.roll} m (${pt.stripLeftAtLiftoff} m of the strip left), 15 m over the lift-off point at ${pt.to15m} m, no damage`);
+    ok(kt.roll != null && kt.stripLeftAtLiftoff > 0 && clean(kt), `PACKED, TAKE-OFF: off in ${kt.roll} m (${kt.stripLeftAtLiftoff} m left), no damage`);
+    ok(kl.phase === 'STOPPED' && clean(kl) && kl.skiPos && kl.skiPos[0] === 1,
+       `PACKED, LANDING: down on its skis, no damage - REPORTED: run ${kl.landing && kl.landing.run} m, ${kl.stopLeft >= 0 ? kl.stopLeft + ' m left' : (-kl.stopLeft) + ' m PAST THE END'} (no brakes on skis, mu 0.04 on rolled snow; the B2-H4's reversing propeller is not in the game)`);
+    console.log(fails ? `GATE SKISARDENT: FAIL (${fails})` : 'GATE SKISARDENT: PASS');
+    process.exitCode = fails ? 1 : 0;
+  });
+  return;
+}
 const res = [];
 for (const nm of names) {
   const cs = Object.assign({ name: nm }, CASES[nm]);
