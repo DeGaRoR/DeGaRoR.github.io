@@ -316713,19 +316713,25 @@ more realistic and may avoid nose over. Do the 3d anchor properly and profession
   firmer, damped roll; the rudder damped by the heading's rate (undamped, the nose swung 4.6 deg either side and on
   one tall wheel each swing's tyre force rolled the glider); on the line the angle of attack held (6 deg under 15 m,
   9 above).
-- THE TAKE-UP, before vs after (GATE TOW TAKEUP; pitch at its lowest / bank at its worst):
-    Archaeopteryx  l40d (nose hook = its nosewheel, old hands): pitch -23 deg at 2 s, on its side (bank 88) at 6 s
-                   nose hook, new hands:   to 10 m/s 2.0 / 7.1 deg;  to the lift-off 2.0 / 46.7 (6.2 s, 13.7 m/s)
-                   CG release, new hands:  to 10 m/s 1.3 / 0.5 deg;  to the lift-off 1.3 / 17.6 (10.1 s, 19.0 m/s)
-    motorglider    nose hook:  to 10 m/s 11.6 / 0.1;  lift-off 14.5 s at 25.5 m/s
-                   CG release: to 10 m/s 11.7 / 0.0;  lift-off 12.7 s at 24.7 m/s
-- MOVED FIGURES (GATE TOW, motorglider): LAUNCH lift-off 14.8 -> 12.7 s, released at 278 -> 364 m, the line's peak
-  4.43 -> 4.96 kN (the CG release climbs it steeper under the line, as an auto-tow does); AUTOPILOT released at 364 m;
-  CIRCUIT burns 360 m over the field. ALTIPORT, PERF, PAGE, RELEASE, WEAK unchanged in kind.
-- STILL RED: TOW CIRCUIT archaeopteryx. The take-up is clean; at the lift-off (19 m/s, well above its 12.9 m/s stall)
-  it rolls past 70 deg on full opposite aileron. It is THE CARD: with no line, released 300 m up at 23 m/s with the
-  controls FROZEN, L40c's Archaeopteryx swings to 31 deg bank in a second (the motorglider stays at 0.0) - the same
-  instability that capsizes it in master's GLIDE / UNIFY landings. The card's owner's.
+- THE GAME'S BUILD (A0 for the Archaeopteryx's owner, 15 Nov): GATE TOW and TRAILER now build every glider through the
+  load door (_load_build.js gameSpecFull: the join measured, then genMigrateSpec), as the game flies it. The raw bake
+  had no mast: the Archaeopteryx's wing sat on the soft pod's poles. MY EARLIER NOTE HERE WAS WRONG - its "in-air roll
+  with the controls frozen" was that harness build; joined, it holds its bank within ~1 deg for 7 s.
+- THE TAKE-UP (GATE TOW TAKEUP, joined builds; at rest / the lowest pitch to 10 m/s (under its base: the lower of the
+  rest attitude and the horizon) / the worst bank to 10 m/s; then to the lift-off):
+    Archaeopteryx  rests at -8.4 deg on its nose skid
+                   CG release:  -11.1 (2.7 under) / bank 2.0;  to the lift-off 6.6 deg bank (7.4 s at 16.7 m/s)
+                   nose hook:   -9.3 (0.9 under) / bank 2.7;   to the lift-off 9.0 deg bank (8.8 s at 17.1 m/s)
+                   l40d (the unjoined build, the "nose" its nosewheel, the old hands): -23 deg, on its side at 6 s
+    motorglider    rests at 5.3 deg; CG release 0.0 under / 0.0 bank (lift-off 11.5 s at 23.0 m/s); nose hook 0.0 /
+                   0.0 (13.4 s at 24.0 m/s)
+- MOVED FIGURES (GATE TOW, the joined motorglider, 273 kg): LAUNCH lift-off 11.5 s at 23.0 m/s, 139 m down; released
+  at 364 m (was 278 m on the nose hook, raw bake), the line 4.72 kN at most; CIRCUIT downwind 404 m out, glide ratio
+  13.8, landed 835 m in; ALTIPORT now a direct glide (597 m) and final, landed 1859 m in, 47 m left.
+- STILL RED: TOW CIRCUIT archaeopteryx (joined). The take-up is clean; it lifts off at 16.7 m/s and pitches up
+  16 -> 61 -> 71 deg within 2 s with the elevator FULL nose-down, the weak link breaking at 6 kN, then capsizes: the
+  card's pitch instability (static margin -11.6 %, A0's figure), the owner's with the user. A CG release pulls below
+  the CG, so an unstable glider cannot be held on it - the hands already give it the full down elevator.
 - THE GARAGE (towHook 2): _gear_gen towRelease, drawn by _cage_gear at the main axle + GEN_RULES.towHook.cg.ahead -
   the doubler (fitPad: painted, four bolts), the housing lofted on the skin (open forward, a rolled lip, a dark throat
   26 mm deep), the steel jaw and its pin; its tail kept 2 cm clear of the main tyre. Quickshot close-ups: side,
