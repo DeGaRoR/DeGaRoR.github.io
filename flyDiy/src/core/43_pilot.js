@@ -475,6 +475,8 @@ function makePilot(sim, def, world, opts) {
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
     deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : (rotPull && ap.phase === 'ROLL') ? (A.deRotateFull ?? 0.70)
       : (ap.phase === 'FLARE' || ap.phase === 'ROLLOUT') ? ((ap.stolFld || ap.feelFld || (ap.phase === 'ROLLOUT' && feelOn())) ? (A.deStol ?? 0.70) : (A.deFlare ?? 0.70)) : 0.35 } });   // STOL-PILOT + G2813 + the FEEL STOP (PILOT-UNIFY): the stick's full travel
+  // PILOT-GONOGO: the static thrust over the weight (taxiFF's numbers), for the hold's go / no-go
+  const T0W = (() => { try { const PP = POWERPLANTS[def.params.powerplant], PR = def.params.prop || PP.prop; return Math.max(1, PR.Tstatic * (def.params.nEngines || 1)) / (Math.max(1, sim.totalM) * 9.81); } catch (e) { return 0.25; } })();
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -4144,11 +4146,33 @@ function makePilot(sim, def, world, opts) {
               // (0.85 of it: the rotation comes before the sheet's 2.5 m point - runNeeded's and the roll's own arithmetic, so
               // the hold and the roll never disagree; the whole 2.5 m distance refused the Cub East Point in calm air, where
               // it lifts off 104 m into the 112 m ahead - G1938, GATE TAKEOFF's turn-around)
-              const needW = 0.85 * toRun * clamp(((vr0 - hw) / vr0) ** 2, 0.3, 4);
+              // PILOT-GONOGO (A0 13 Nov, the user's Jumbo Mine ruling: the Cessna need not take off there, but says so): THE SURFACE AND
+              // THE SLOPE TOO. The sheet's run is on the datum grass (CRR) on the level; the roll's acceleration is the mean thrust (0.7 of
+              // the static: the propeller's thrust falls with speed) less the rolling resistance less the grade, so the run scales with
+              // (tw - CRR) / (tw - crr - grade) - the surface under the strip (GROUND_SURF) and the grade to the end of the run
+              const rowS = (typeof GROUND_SURF === 'object' && GROUND_SURF[fr.surface]) || null, crrS = rowS ? rowS[0] : CRR;
+              const grS = left > 20 ? (groundH(cg[0] + tD[0] * left, cg[2] + tD[1] * left) - groundH(cg[0], cg[2])) / left : 0;
+              const twS = 0.7 * T0W;
+              const kS = clamp((twS - CRR) / Math.max(0.02, twS - crrS - grS), 0.5, 4);
+              const needW = 0.85 * toRun * clamp(((vr0 - hw) / vr0) ** 2, 0.3, 4) * kS;
+              // the run it will have: a taildragger on a strip under 300 m backtracks to the end first (below) - the strip behind it too
+              const behS = (cg[0] - fr.x) * tD[0] + (cg[2] - fr.z) * tD[1] + (fr.len || 0) / 2, spS = pivRoom();
+              const runS = left + ((!trike && (fr.len || 1100) < 300 && behS - spS >= 20) ? behS - spS : 0);
               // (only a TAILWIND makes it a no-go here: in calm air or into wind the roll's own call judges, as before -
               // the sheet's run is a chart's, conservative against the roll it measures: GATE LINEUP's East Point skip)
               if (needW > left && hw < -0.5) noFit = { needW, hw, toRun };
+              // ...AND A RUN CLEARLY OUT OF REACH IN ANY WIND IS DECLINED AT ONCE, SAID: over 1.3 x the run it will have (the Cub at East
+              // Point, 131 m of chart for 112 ahead - 1.17 - lifts off 104 m in: the roll judges that; F-HCSN at Jumbo Mine, 328 for 200
+              // - 1.64 - aborted at 78 s, 'will not reach Vr'). Waiting changes nothing but a tailwind: declined now, with its numbers
+              else if (needW > 1.3 * runS) noFit = { needW, hw, toRun, hard: true, kS, grS, crrS, runS };
             }
+          }
+          if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && noFit && noFit.hard) {
+            say('takeoff-declined', 'not taking off from ' + (ap.route.from.name || ap.route.from.id) + ': the take-off run needs ' + Math.round(noFit.needW) + ' m, ' + Math.round(noFit.runS) + ' m of strip' +
+                (noFit.grS > 0.005 ? ', ' + (noFit.grS * 100).toFixed(1) + ' % uphill' : '') + (noFit.crrS > CRR + 0.005 ? ', a soft surface' : '') + (noFit.hw < -0.5 ? ', ' + (-noFit.hw).toFixed(1) + ' m/s of tailwind' : '') + ' - too short for this aeroplane');
+            ap.report.outcome = ap.report.outcome || 'declined';
+            go('STOPPED');
+            break;
           }
           if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && left >= need && noFit) {
             if (ap.toWaitT == null) { ap.toWaitT = ap.t; say('takeoff-wait', 'the take-off run needs ' + Math.round(noFit.needW) + ' m ' + (noFit.hw < 0 ? 'with ' + (-noFit.hw).toFixed(1) + ' m/s of tailwind' : 'in ' + noFit.hw.toFixed(1) + ' m/s of headwind') + ' (' + Math.round(0.85 * noFit.toRun) + ' m in calm air), ' + Math.round(left) + ' m ahead - waiting for the wind'); }
@@ -4634,7 +4658,8 @@ function makePilot(sim, def, world, opts) {
           // AND THE NEAR GROUND ONLY: HOME's rise 1-1.5 km out (10 % from the lift-off, the C172's 7) is CLIMB's terrain turn's,
           // from hSafe + 10 (~340 m of an 8 % climb) - the valley departure is for ground nearer than that turn can be flown
           const gTerr = (dx, dz) => { let g = -1; for (let k = 1; k <= 5; k++) { const d = 150 * k; g = Math.max(g, (groundH(cg[0] + dx * d, cg[2] + dz * d) + 15 - cg[1]) / d); } return g; };
-          if (!ap.valleyChecked && onG === 0) {
+          // (NO WORLD, NO VALLEY: a pilot made without a world - tools/test_stress.js, GATE STRESS - reads no ground here and departs as before)
+          if (!ap.valleyChecked && onG === 0 && world && typeof world.terrainH === 'function') {
             ap.valleyChecked = true;
             const tdV = [F.ux * ap.dirX, F.uz * ap.dirX], gG = gammaGA();
             const n0 = gTerr(tdV[0], tdV[1]);

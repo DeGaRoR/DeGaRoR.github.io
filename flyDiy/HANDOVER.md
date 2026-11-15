@@ -316364,3 +316364,10 @@ COLD LOAD (the user 14 Nov: before/after every train): before 143 s (L40a 6a8d70
 - tools/flight_script.js: one scenario JSON (plane list:N, from/to, day game|calm, persona, steps {do, until, capS, allow}), the NODE runner through the game's own host (_tour_lib gameHost); one JSONL per run (run / sample 1 Hz / say / step with solver ms / end). A failed step stops the run with its WHY. The page runner (page_rig.js, frame ms per step) follows Thu 19 Nov.
 - The library tools/flight_scripts/: home_circuit (F-HCSN), east_point (the Cub, CALM: on the game's day it diverts, said), strip_jumbo (the Jodel), altiport (the Cub), float_circuit (B-CESF list:4). All five pass on 58c681347.
 - GATE FLIGHTSCRIPT (core, ~6 min): the library well formed, a bad scenario refused, a capped step failing with its WHY, the home circuit flown step by step, its JSONL read back. The card: tools/workbench/cards/flight_script.md.
+
+## CANON-C172-GATES CORRECTION (Pilot, 14 Nov)
+
+Every pilot gate flies the one Cessna, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50), since L40a/L40c (d85750d7e).
+The aluminium test copy tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is kept ONLY for its structure / audio users (HINGE,
+HONESTY, JOINPARITY, PARKED, RETRACT, ROLLSND); its c172fx tour row is dropped and pilot_persona.js flies F-HCSN. Older entries above
+that name the fixture as "the metal Cessna" in a flying gate describe the gates before that change.

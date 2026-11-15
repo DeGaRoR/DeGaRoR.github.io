@@ -44,7 +44,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const BUILDS = {
   cub:   { file: '../builds/cub_2026-09-20_corrected.json', label: 'Cub' },
   jodel: { file: '../builds/jodel_2026-09-20_corrected.json', label: 'Jodel' },
-  c172:  { file: '../builds/cessna172_2026-09-20_corrected.json', label: 'C172' },
+  c172:  { file: '../builds/cessna172r_2026-11-08.json', label: 'Cessna 172 (F-HCSN)' },   // CANON-CLEAN (14 Nov): the one Cessna, plane-canon list:50
   // the user's Cessna on floats: the C172 on Wipline 2350s (G1937's validated water take-off - one lift-off at 27.7 m/s);
   // the corrected C172 with its wheels swapped for floats cannot get off the water at all (G1937: 'stuck on the hump',
   // T/W 0.20 on undersized floats - every profile, the expert's too, rejected: a build, not a person)
