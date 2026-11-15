@@ -8088,18 +8088,8 @@
       if (pv) { pv[0] = x; pv[1] = y; pv[2] = z; } else F.prev.set(i, [x, y, z]);
       const on = !airborneAll && (k < (refs.mains || []).length ? !!(WC.mains && WC.mains[k]) : !!WC.tw);
       let R = 0.2; if (model && model.wheelParts) for (const w of model.wheelParts) if (w.idx === i && w.R > 0) { R = w.R; break; }
-      let sink = sim.out && sim.out.softZ > 0 ? sim.out.softZ : 0;   // (SNOW-MUD: the solver's sinkage this frame - the plough's, the bow wave's)
-      // SKIS (15 Nov): A SKI IS A PLATE ON THE SNOW - its own rut (out.skiSink[k], the solver's per unit), its LENGTH as the
-      // dust's radius: the plough's clumps leave its toe (R / 2 ahead of the pedestal, ~ the ski's at x L), its rolling cloud
-      // rises behind the heel, and a ski does not turn - no tread to shed (V^2 / R under any mud's adhesion). A wheel-ski
-      // with its skis up runs on its tyre: a wheel as before
-      const SKP = def.parts && def.parts.ski, so = sim.out;
-      if (SKP && so && so.skiSink && so.skiSink[k] != null) {
-        const rec = k < (refs.mains || []).length ? SKP.mains : SKP.third;
-        if (rec && !(SKP.kind === 'retract' && rec === SKP.mains && !(so.ski > 0.5))) { R = rec.L; sink = +so.skiSink[k] || 0; }
-        else sink = +so.skiSink[k] || 0;
-      }
-      st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0, sink });
+      st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0,
+                       sink: sim.out && sim.out.softZ > 0 ? sim.out.softZ : 0 });   // (SNOW-MUD: the solver's sinkage this frame - the plough's, the bow wave's)
     }
     // the props: one disc a thrust node (the mean disc's wash - the solver's out.wash), the axis forward = -xAft
     st.props.length = 0;
