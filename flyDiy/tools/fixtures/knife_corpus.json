@@ -1,6 +1,6 @@
 {
- "recordedAt": "2026-11-10T20:13:36.564Z",
- "head": "fb08da77e",
+ "recordedAt": "2026-11-13T13:46:14.645Z",
+ "head": "23ce68c1",
  "items": {
   "file:builds/c172r_wipline2350_landprop_2026-10-20.json": {
    "nV": 54842,
@@ -95,53 +95,6 @@
     }
    ],
    "hash": "2035f4a12cd2531d344050bbb30bd21546285ddf"
-  },
-  "file:builds/cessna172r_2026-11-08.json": {
-   "nV": 54842,
-   "nF": 29512,
-   "loops": [
-    {
-     "n": 68,
-     "side": 1,
-     "mat": "pasengerWindow",
-     "p0": [
-      0.505991252,
-      0.682703927,
-      0.568291
-     ]
-    },
-    {
-     "n": 68,
-     "side": -1,
-     "mat": "pasengerWindow",
-     "p0": [
-      -0.605647875,
-      0.698221794,
-      0.815791
-     ]
-    },
-    {
-     "n": 54,
-     "side": 1,
-     "mat": "pasengerWindow",
-     "p0": [
-      0.629844014,
-      0.622651952,
-      1.240310644
-     ]
-    },
-    {
-     "n": 54,
-     "side": -1,
-     "mat": "pasengerWindow",
-     "p0": [
-      -0.655133001,
-      0.375780557,
-      1.240357591
-     ]
-    }
-   ],
-   "hash": "5bc133d9a5211eeb521354bbb079ea8c842e4c74"
   },
   "file:builds/cessna172_2026-09-20.json": {
    "nV": 55082,
@@ -284,32 +237,133 @@
    ],
    "hash": "58d30022745404cc7fdb2768818cdfc912273734"
   },
-  "file:builds/cub_2026-09-20.json": {
-   "nV": 20478,
-   "nF": 16520,
+  "file:builds/cessna172r_2026-11-08.json": {
+   "nV": 54842,
+   "nF": 29512,
    "loops": [
     {
-     "n": 38,
+     "n": 68,
      "side": 1,
      "mat": "pasengerWindow",
      "p0": [
-      0.453760633,
-      0.824590923,
-      1.805547027
+      0.505991252,
+      0.682703927,
+      0.568291
      ]
     },
     {
-     "n": 38,
+     "n": 68,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.605647875,
+      0.698221794,
+      0.815791
+     ]
+    },
+    {
+     "n": 54,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.629844014,
+      0.622651952,
+      1.240310644
+     ]
+    },
+    {
+     "n": 54,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.655133001,
+      0.375780557,
+      1.240357591
+     ]
+    }
+   ],
+   "hash": "5bc133d9a5211eeb521354bbb079ea8c842e4c74"
+  },
+  "file:builds/client_cub_floats_2026-11-13.json": {
+   "nV": 20942,
+   "nF": 16762,
+   "loops": [
+    {
+     "n": 70,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.453756128,
+      0.762620017,
+      1.3840565
+     ]
+    },
+    {
+     "n": 70,
      "side": -1,
      "mat": "pasengerWindow",
      "p0": [
       -0.453760633,
-      0.825599999,
-      1.812406807
+      0.826067256,
+      1.815583254
      ]
     }
    ],
-   "hash": "471b231420f191742e6c4bdd4f73fe35e4bd444a"
+   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
+  },
+  "file:builds/client_cub_upgraded_2026-11-13.json": {
+   "nV": 20942,
+   "nF": 16762,
+   "loops": [
+    {
+     "n": 70,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.453756128,
+      0.762620017,
+      1.3840565
+     ]
+    },
+    {
+     "n": 70,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.453760633,
+      0.826067256,
+      1.815583254
+     ]
+    }
+   ],
+   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
+  },
+  "file:builds/cub_2026-09-20.json": {
+   "nV": 20942,
+   "nF": 16762,
+   "loops": [
+    {
+     "n": 70,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.453756128,
+      0.762620017,
+      1.3840565
+     ]
+    },
+    {
+     "n": 70,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.453760633,
+      0.826067256,
+      1.815583254
+     ]
+    }
+   ],
+   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
   },
   "file:builds/cub_2026-09-20_corrected.json": {
    "nV": 20942,

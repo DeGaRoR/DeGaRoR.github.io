@@ -543,6 +543,10 @@
     const cont = c ? row('continue', '▶', 'Continue', '“' + c.name + '” · ' + c.line, '', () => { careersPick(store, c.id); careerChoose(c.id); done('career'); }) : null;
     row('career', '✚', 'New career', all.length ? 'a new career beside your ' + (all.length === 1 ? 'other one' : all.length + ' others') : 'contracts, money, your own fleet', READY.career ? '' : 'coming',
       READY.career ? () => { const n = careersNew(store, Date.now()); careerChoose(n.id, n.name); done('career'); } : null);
+    // TUTORIAL-LOCK (the user 13 Nov: "skip tutorial = a choice at the start, later a menu item"): a new career that starts
+    // where the tutorial ends - the one checkpoint (79_story.js storySkip): Rufus, the cabin and the WWII field, day 3
+    if (READY.career) row('careerSkip', '⏭', 'New career, no tutorial', 'start where the tutorial ends: your ultralight, the cabin and the field, day 3', '',
+      () => { const n = careersNew(store, Date.now()); careerChoose(n.id, n.name); W.FLYDIY_CAREER_SKIP = true; done('career'); });
     if (all.length) row('careers', '☰', 'Careers…', all.length + (all.length === 1 ? ' career' : ' careers') + ': continue, rename or delete', '', () => {
       o.remove();
       showCareers(store).then(m => (m ? res(m) : showMenu(env, d, store).then(res)));

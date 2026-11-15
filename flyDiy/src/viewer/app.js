@@ -620,8 +620,11 @@
     if (CAREER_DEV && born && STORY_PAGE) try {
       const taken = new Set(playerSlotNames());
       let slot = STORY_SLOTS.starter, i = 2; while (taken.has(slot)) slot = STORY_SLOTS.starter + ' ' + i++;
-      const r = CAREER_DEV ? storyNewCareer(player, { aeros: (world && world.aerodromes) || [], starter: slot }) : { ok: false, why: 'not a career' };
-      if (r.ok) { player = r.doc; stIntroArm = true; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
+      // TUTORIAL-LOCK: "New career, no tutorial" (welcome.js FLYDIY_CAREER_SKIP) starts on the tutorial's one checkpoint
+      // (storySkip), no opening; else the story from its first beat
+      const skip = !!window.FLYDIY_CAREER_SKIP, args = { aeros: (world && world.aerodromes) || [], starter: slot };
+      const r = CAREER_DEV ? (skip ? storySkip(player, args) : storyNewCareer(player, args)) : { ok: false, why: 'not a career' };
+      if (r.ok) { player = r.doc; stIntroArm = !skip; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
     } catch (e) { console.warn('flyDiy (story): the story did not start -', e && e.message); }
     // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
@@ -10821,7 +10824,7 @@
     if (!s) return null;
     const o = { aeros: world.aerodromes, jobs: {} };
     for (const id of STORY_JOBS) { try { const c = careerContract(d, id); if (c) o.jobs[id] = contractText(c.title, contractVars(c)); } catch (e) {} }
-    if (s.beat === 'T2' && s.planes.client) {
+    if (s.beat === 'T3' && s.planes.client) {   // TUTORIAL v2: the build is T3
       let spec = null;
       if (slotOnStand() === s.planes.client) spec = storyLiveSpec();
       if (!spec) { try { const env = JSON.parse(prefGet('flydiy.build.' + s.planes.client, 'null')); spec = env && env.spec; } catch (e) {} }
@@ -10874,7 +10877,9 @@
   // so the dev career greys nothing); the sandbox never calls it. On the editor's open and at every story card.
   function techMaskSync() {
     if (!CAREER_DEV || !window.TECH_MASK) return;
-    try { window.TECH_MASK.set(careerTechOf(playerLoad())); } catch (e) {}
+    // TUTORIAL v2: while a build beat stands (T3, T7) the client's parts join the entries (79_story.js STORY_BUILDS.parts)
+    try { const d = playerLoad(), t = careerTechOf(d), x = t ? storyBuildEntries(d) : [];
+      window.TECH_MASK.set(t && x.length ? Object.assign({}, t, { entries: t.entries.concat(x.filter(k => !t.entries.includes(k))) }) : t); } catch (e) {}
   }
   // the tech mask's tutorial mode (TECH-MASK G3230: editor.js window.TECH_MASK.tutorial; also the event)
   function storyMaskNote() {
@@ -11182,14 +11187,28 @@
     store: () => ({ allow: '#fbName, #gStore' }),
     storeClient: s => ({ allow: stTutCard(s.planes.client) + ', #hsStore .hsFloor', deny: '#hsStore .hsFly, #hsStore .hsRoute, #hsStore .hsSend' }),
     storeStarter: s => ({ allow: stTutCard(s.planes.starter) + ', #hsStore .hsCol[data-col="inside"]', deny: '#hsStore .hsFly, #hsStore .hsRoute, #hsStore .hsSend, #hsStore .hsWork' }),
+    // TUTORIAL v2 a build row: the part tree, the section heads, the Shape tab and the one row are allowed (the 3D view
+    // picks parts too); the part's tree row and the row are lit (CAGE_PARTS.paramOwner: the part that owns the row)
+    buildRow: (s, st) => { const B = st && STORY_BUILDS[st.build], r = B && B.rows[st.row];
+      if (!r) return { allow: '#edWrap' };
+      const P = window.CAGE_PARTS, part = P && P.paramOwner ? P.paramOwner[r.k] : null, row = '[data-k="' + r.k + '"], #p_' + r.k;
+      return { allow: '#edTree, #edRows .rsecHead, #edTabShape, ' + row, lit: (part ? '#edTree [data-p="' + part + '"], ' : '') + row }; },
   };
+  // TUTORIAL v2 THE EXACT BUILDS: the build's plane as it stands - live on the stand, else its saved build
+  function stBuildSpec(s, beat) {
+    const B = STORY_BUILDS[beat], slot = B ? (s.planes[B.plane] || (B.plane === 'gift' ? s.planes.client : null)) : null;
+    if (!slot) return null;
+    if (slotOnStand() === slot) { const sp = storyLiveSpec(); if (sp) return sp; }
+    try { const env = JSON.parse(prefGet('flydiy.build.' + slot, 'null')); return (env && env.spec) || null; } catch (e) { return null; }
+  }
   // the beat's step now (the tutor ticked on the page's facts), or null when the beat has no steps
   function storyTutorNow(id) {
     if (!storyTutorSteps(id)) return null;
     const s = stLive();
     if (!stTut) { try { const k = JSON.parse(prefGet(stTutKey(), 'null')); if (k && typeof k.beat === 'string') stTut = { beat: k.beat, i: k.i | 0 }; } catch (e) {} }
     const was = stTut ? stTut.beat + ':' + stTut.i : '';
-    const r = storyTutorTick(stTut, id, k => { const f = STORY_TUTOR_FACTS[k]; try { return !!(f && f(s)); } catch (e) { return false; } });
+    const r = storyTutorTick(stTut, id, k => { const f = STORY_TUTOR_FACTS[k], b = /^build:(T\d):(\d+)$/.exec(k);
+      try { if (b) { const sp = stBuildSpec(s, b[1]); return !!sp && !!storyBuildDone(sp, STORY_BUILDS[b[1]].rows)[+b[2]]; } return !!(f && f(s)); } catch (e) { return false; } });
     stTut = r.T;
     if (stTut.beat + ':' + stTut.i !== was) { prefSet(stTutKey(), JSON.stringify(stTut)); stTutSnap = null; }
     // what a paint or a registration step compares against: the build as the step found it
@@ -11209,12 +11228,13 @@
     const s = stLive(), last = stTut.i >= (storyTutorSteps(stTut.beat) || []).length - 1;
     // the last step carries the beat's checklist (T2), as Tim's last line did (G3357)
     let rows = '';
-    if (last && !step.wait) { try { const K = storyCardNow(); if (K && K.rows && K.rows.length) rows = '<ul class="stTimRows">' + K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '\u2713 ' : '') + stEsc(r.words) + '</li>').join('') + '</ul>'; } catch (e) {} }
+    if ((last || step.rows) && !step.wait) { try { const K = storyCardNow();   // (TUTORIAL v2: `rows` - the build's list on its first and last words)
+      if (K && K.rows && K.rows.length) rows = '<ul class="stTimRows">' + K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '\u2713 ' : '') + stEsc(r.words) + '</li>').join('') + '</ul>'; } catch (e) {} }
     const btn = step.wait ? (step.pass ? '<button type="button" class="stTimBtn" data-tim="tpass">' + stEsc(step.pass) + '</button>' : '')
       : '<button type="button" class="stTimBtn" data-tim="tnext">' + (last ? 'OK' : 'Next') + '</button>';
     stTimPut(step.wait ? 'tut' : '', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(step.say) + '</p>' + rows + '</div>' + btn);
-    const A = step.allow && STORY_TUTOR_ALLOW[step.allow] ? STORY_TUTOR_ALLOW[step.allow](s) : { allow: null };
-    storyTutorLock(step.free ? { allow: A.allow, deny: null, free: true, id: step.id } : { allow: A.allow, deny: A.deny || null, id: step.id });
+    const A = step.allow && STORY_TUTOR_ALLOW[step.allow] ? STORY_TUTOR_ALLOW[step.allow](s, step) : { allow: null };
+    storyTutorLock(step.free ? { allow: A.allow, deny: null, free: true, id: step.id, lit: A.lit } : { allow: A.allow, deny: A.deny || null, id: step.id, lit: A.lit });
     if (step.open === 'hire') storyHireOpen();
   }
   // G3585 T6b: the hire screen, opened from the story in the garage (never over a flight; it closes only after a hire).
@@ -11241,7 +11261,8 @@
     stTutLockV = lock;
     if (typeof document === 'undefined' || !document.body) return;
     if (document.body.classList.contains('stTut') !== !!lock) document.body.classList.toggle('stTut', !!lock);
-    const css = on && L.allow ? 'body.stTut :is(' + L.allow + '), body.stTutFree :is(' + L.allow + ') { outline: 2px solid var(--ed-acc, #e8a33a) !important; outline-offset: 2px; }' +
+    const lit = on ? (L.lit || L.allow) : null;   // (TUTORIAL v2: a build row lights its part and its row, not the whole tree)
+    const css = on && L.allow ? 'body.stTut :is(' + lit + '), body.stTutFree :is(' + lit + ') { outline: 2px solid var(--ed-acc, #e8a33a) !important; outline-offset: 2px; }' +
       (lock ? ' body.stTut :is(#ui, #wsUI, #hsStore) :is(button, select, input):not(' + L.allow + ', :is(' + L.allow + ') *) { opacity: .45; }' : '') : '';
     if (document.body.classList.contains('stTutFree') !== !!(on && L.free)) document.body.classList.toggle('stTutFree', !!(on && L.free));
     if (!stTutCssEl && css) { stTutCssEl = document.createElement('style'); stTutCssEl.id = 'stTutCss'; (document.head || document.body).appendChild(stTutCssEl); }
@@ -11564,7 +11585,7 @@
     try { const s = stLive(); if (s && s.planes && s.planes.starter) window.FLYDIY_STORY_STARTER = s.planes.starter; } catch (e) {}
     // T2's checklist follows the build on the stand (its ledger memoised on the spec's fingerprint); T6's hire step opens
     // the hire screen once the garage is up (T6b: the beat may begin in the air)
-    setInterval(() => { try { const s = stLive(); if (s && !s.open && (s.beat === 'T2' || (s.beat === 'T6' && inGarage && !STORY_TUTOR_FACTS.hiredPilot()))) storyCardSync(); } catch (e) {} }, 3000);
+    setInterval(() => { try { const s = stLive(); if (s && !s.open && s.beat === 'T3') storyCardSync(); } catch (e) {} }, 3000);   // TUTORIAL v2: the build (T3) ticks; no hire any more
     window.FLYDIY_STORY = {
       story: () => { const s = stLive(); return s ? JSON.parse(JSON.stringify(s)) : null; },
       mask: () => storyMask(playerLoad()), jobsOpen: () => storyJobsOpen(playerLoad()), card: () => storyCardNow(),
@@ -19874,6 +19895,23 @@
         return () => { if (home && route.parentNode !== home) home.insertBefore(route, home.firstChild); };
       } });
   } catch (e) { console.warn('flyDiy: the destination button -', e && e.message); }
+  // TUTORIAL-LOCK (the user 13 Nov: "skip tutorial = a choice at the start, later a menu item"): in the garage, while the
+  // story is on its rails, the menu offers to skip the rest - two presses (the row asks once), then the one checkpoint
+  // (79_story.js storyCheckpoint: the career as the tutorial's end leaves it) and the page reloaded on it
+  let gmSkipAsk = false;
+  try {
+    window.FLYDIY_MENU.add({ k: 'skipTut', sec: 'Story', before: 'main',
+      label: () => (gmSkipAsk ? 'Skip it: start the career (day 3)' : 'Skip the tutorial'),
+      when: () => { try { const s = STORY_PAGE && CAREER_DEV ? storyOf(playerLoad()) : null; return !!(s && !s.open && inGarage); } catch (e) { return false; } },
+      act: () => {
+        if (!gmSkipAsk) { gmSkipAsk = true; return; }
+        gmSkipAsk = false;
+        const r = CAREER_DEV ? storyCheckpoint(playerLoad()) : { ok: false, why: 'not a career' };
+        if (!r.ok) { console.warn('flyDiy (story): the skip did not apply - ' + r.why); return; }
+        player = r.doc; playerSave();
+        try { location.reload(); } catch (e) {}
+      } });
+  } catch (e) { console.warn('flyDiy: the skip-tutorial row -', e && e.message); }
   // G3791 (PHONE-TESTFLIGHT): THE PHONE MENU'S TEST FLIGHT - one line, in the garage, while the profile's switch is on
   // (fly 'testfield'): the bench's own row run (bench.js BENCH_RUN), which hands off to the test field (startTestFlight)
   // (the profile asked directly: GARAGE_ONLY is declared further down, in its temporal dead zone here)
