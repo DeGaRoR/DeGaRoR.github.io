@@ -165,8 +165,9 @@ function skinDraw(THREE, a, dec, geos) {
 // is realistic as soon as they can be observed ... do not modify the meshed and skinned and rigged model." G498 swapped
 // the moving skin for the static cuts at 40 m (land) / 90 m (sea), so a walking elk 41 m off slid along as a statue. The
 // whole skinned animal now stands until its LENGTH covers MOTION.lodPx[0] pixels on a 1080p screen (1 094 px a radian,
-// props.js's PROP_CULL_K basis: an elk 456 m, a doe 292 m, a bear 401 m, an orca 1.3 km); the baked cuts, untouched,
-// only past that (the second at lodPx[1]). The table's own distance stays the floor.
+// props.js's PROP_CULL_K basis). The user, 15 Nov: "make it 3 px, the elk should move out to 900 m": a doe 583 m, a bear
+// 802 m, an elk 912 m, an orca 3.1 km. The baked cuts, untouched, only past that (the second at lodPx[1]). The table's
+// own distance stays the floor.
 const PX_PER_RAD = 1094;
 function farDist(a, li, dist) {
   const px = MOTION.lodPx[Math.min(li, MOTION.lodPx.length - 1)];
@@ -272,7 +273,7 @@ function instance(THREE, key) {
 //          to a stand keeps its legs - and its travel - going under the fade). A grazing clip that kept playing would
 //          push the head down while the fade lifts it. A fade interrupted by another play() leaves the pose on screen too.
 // The flags exist for GATE ANIMOTION's negative control (tools/_animal_motion_check.js): off = the G498 player.
-const MOTION = { ease: true, span: true, pace: true, far: true, lodPx: [6, 3], headCap: 90, fadeCap: 75, bodyCap: 120, look: 0.3, fadeMin: 0.3, fadeMax: 1.8 };
+const MOTION = { ease: true, span: true, pace: true, far: true, lodPx: [3, 1.5], headCap: 90, fadeCap: 75, bodyCap: 120, look: 0.3, fadeMin: 0.3, fadeMax: 1.8 };
 const GAIT = { walk: 1, trot: 1, toWalk: 1 };
 const smooth01 = u => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
 // the head's chain, root first ([] for an animal with no head bone: the sea and the air)
