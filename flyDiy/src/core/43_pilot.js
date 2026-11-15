@@ -3627,8 +3627,17 @@ function makePilot(sim, def, world, opts) {
       const ph = ap.phase, to = ap.route && ap.route.to;
       const skiOn = (x, z) => { const c = world && world.surface ? world.surface(x, z) : -1;
         return typeof GROUND_SOFT !== 'undefined' && GROUND_SOFT[c] && GROUND_SOFT[c].skis ? 1 : 0; };
+      // ON THE GROUND (A0 15 Nov, the Ardent stand turned to the take-off: the PC-6 broke its tail pivoting ON ITS SKIS - no
+      // brakes, 2.9 m soles across the turn - where on its wheels it pivots clean): A WHEEL-SKI TAXIS AND LINES UP ON ITS
+      // WHEELS (the brakes, the pivot; at taxi speed a tyre crosses even the deep snow - SNOW-MUD's bulldozing stops it at
+      // the take-off's speeds, GATE SNOWFLY) and AT THE HOLD sets the skis for the strip it rolls on, and waits for the
+      // cycle (the HOLD below) - the roll and the lift-off keep that. (Lowered as it reached the Ardent powder, mid-turn,
+      // it could not finish its line-up turn on them.)
+      const fr = ap.route && ap.route.from;
       let want = null;
-      if (ph === 'GLIDE' && agl < 150) want = skiOn(cg[0], cg[2]);
+      if (ph === 'DEPART' || ph === 'TAXI' || ph === 'STOP' || ph === 'LINEUP') want = 0;
+      else if ((ph === 'HOLD' || ph === 'ROLL' || ph === 'LIFTOFF') && fr && Number.isFinite(fr.x)) want = skiOn(fr.x, fr.z);
+      else if (ph === 'GLIDE' && agl < 150) want = skiOn(cg[0], cg[2]);
       else if (to && Number.isFinite(to.x) && (ph === 'DOWNWIND' || ph === 'BASE' || ph === 'FINAL' || ph === 'CROSSWIND' ||
                ph === 'FLARE' || (ph === 'INBOUND' && Math.hypot(to.x - cg[0], to.z - cg[2]) < 6000))) want = skiOn(to.x, to.z);
       sim.ctl.ski = want;
@@ -4235,6 +4244,12 @@ function makePilot(sim, def, world, opts) {
               go('TAXI');
               break;
             }
+          }
+          // SKIS-PC6-2: a wheel-ski rolls only with its skis where the hold set them (the kit's ~15 s cycle: the selector's
+          // own position, out.ski) - none: the line as it was
+          if (SKISEL && sim.ctl.ski != null && Math.abs((sim.out.ski != null ? sim.out.ski : sim.ctl.ski) - sim.ctl.ski) > 0.02) {
+            setStatus('holding: the wheel-skis ' + (sim.ctl.ski ? 'coming down for the snow' : 'going up for the wheels'), []);
+            break;
           }
           if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && left >= need) {
             go('ROLL'); ap.t = Math.max(ap.t, 1);

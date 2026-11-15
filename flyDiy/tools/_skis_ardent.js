@@ -88,9 +88,12 @@ function fly(cs, leg) {
     if (ski) { for (const z of out.skiSink || []) if (z > maxSink) maxSink = z; }
     if (out.softZ > maxSoftZ) maxSoftZ = out.softZ;
     if (leg === 'to') {
-      if (c0 === null && (ph === 'HOLD' || ph === 'ROLL')) c0 = clr();
-      if (rollAt === null && ph === 'ROLL') { rollAt = { t, x: cg[0], z: cg[2], s: along(cg[0], cg[2]) }; if (ski) skiPos.push(+out.ski.toFixed(2)); }
-      if (rollAt && offAt === null) {
+      if (c0 === null && ph === 'ROLL') c0 = clr();   // (standing, as it starts to roll: a wheel-ski's skis set at the hold)
+      // (the run is measured FROM THE HOLD, lined up: a wheel-ski waiting there for its skis has no brakes and may creep
+      //  down the slope - that creep is the run's too; holdSlide says how much)
+      if (rollAt === null && (ph === 'HOLD' || ph === 'ROLL')) rollAt = { t, x: cg[0], z: cg[2], s: along(cg[0], cg[2]) };
+      if (rollAt && rollAt.roll == null && ph === 'ROLL') { rollAt.roll = Math.hypot(cg[0] - rollAt.x, cg[2] - rollAt.z); if (ski) skiPos.push(+out.ski.toFixed(2)); }
+      if (rollAt && c0 && offAt === null) {
         const c = clr();
         if (c.every((h, j) => h > c0[j] + 0.10)) offAt = { t, d: Math.hypot(cg[0] - rollAt.x, cg[2] - rollAt.z), V: Vg, s: along(cg[0], cg[2]), off: across(cg[0], cg[2]) };
       }
@@ -126,6 +129,7 @@ function fly(cs, leg) {
   if (leg === 'to') {
     r.roll = offAt ? +offAt.d.toFixed(0) : null; r.vLiftoff = offAt ? +offAt.V.toFixed(1) : null;
     r.tRoll = offAt && rollAt ? +(offAt.t - rollAt.t).toFixed(1) : null;
+    r.holdSlide = rollAt && rollAt.roll != null ? +rollAt.roll.toFixed(1) : null;
     r.to15m = screenAt ? +screenAt.d.toFixed(0) : null;
     r.stripLeftAtLiftoff = offAt ? +(STRIP.len / 2 + offAt.s * (rollAt.s < 0 ? 1 : -1) * -1).toFixed(0) : null;
     // (the roll runs from the head (the top, s at the stand's end) down the strip: what remained of it at lift-off)
