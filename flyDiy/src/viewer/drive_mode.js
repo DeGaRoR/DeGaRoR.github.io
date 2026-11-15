@@ -327,6 +327,9 @@
     if (!rig) { rig = buildRig(); } if (!rig.g.parent) scene_.add(rig.g);
     const T = THREE_, gm = new T.BufferGeometry(); gm.setAttribute('position', new T.BufferAttribute(new Float32Array(25 * 3), 3));
     TW.rope = new T.Line(gm, new T.LineBasicMaterial({ color: 0xf2e6c8 })); TW.rope.frustumCulled = false; scene_.add(TW.rope);
+    // (15 Nov: the rope's end - the Tost ring pair in the CG release's jaw, the rope spliced to it: tow.js towRingRig; a page
+    //  with an older tow.js draws the rope from the hook as before)
+    if (typeof towRingRig === 'function') { TW.rings = towRingRig(T); scene_.add(TW.rings.group); }
     TW.sim = sim; TW.active = true; TW.why = null; TW.t = 0;
     // (?towhands=1: the gate's hands fly the glider - a rig's, a player without a stick's; the player flies otherwise)
     // (ctx.hands: the autopilot flies the launch - app.js's LAUNCH; ?towhands=1 the rig's)
@@ -405,12 +408,13 @@
     poseRig();
     if (TW.kind === 'trailer') { TW.model.update(TW.launch.trailer, TW.launch.cradle.latched); return; }
     const A = TW.rope.geometry.attributes.position, L = TW.line;
-    if (!L || !L.on) { TW.rope.visible = false; return; }
+    if (!L || !L.on) { TW.rope.visible = false; if (TW.rings) TW.rings.group.visible = false; return; }
     TW.rope.visible = true;
     const P = TW.car.toWorld(L.hitch), sim = TW.sim; let hx = 0, hy = 0, hz = 0; for (const i of L.hook) { hx += sim.p[i * 3] / L.hook.length; hy += sim.p[i * 3 + 1] / L.hook.length; hz += sim.p[i * 3 + 2] / L.hook.length; }
+    const R0 = TW.rings ? TW.rings.pose([hx, hy, hz], P) : [hx, hy, hz]; if (TW.rings) TW.rings.group.visible = true;   // (the rope from the rings' splice)
     // a sag the line's own weight gives it, less as it pulls (a few metres slack, a few decimetres taut)
     const sag = Math.max(0.3, 6 * (1 - Math.min(1, L.T / 1500)));
-    for (let k = 0; k <= 24; k++) { const u = k / 24; A.setXYZ(k, hx + (P[0] - hx) * u, hy + (P[1] - hy) * u - sag * 4 * u * (1 - u), hz + (P[2] - hz) * u); }
+    for (let k = 0; k <= 24; k++) { const u = k / 24; A.setXYZ(k, R0[0] + (P[0] - R0[0]) * u, R0[1] + (P[1] - R0[1]) * u - sag * 4 * u * (1 - u), R0[2] + (P[2] - R0[2]) * u); }
     A.needsUpdate = true;
   };
   DM.towWords = () => {
@@ -434,8 +438,9 @@
     if (TW.hitch && TW.hitch.parent) TW.hitch.parent.remove(TW.hitch);
     if (TW.line) TW.line.detach();
     if (TW.rope && TW.rope.parent) TW.rope.parent.remove(TW.rope);
+    if (TW.rings && TW.rings.group.parent) TW.rings.group.parent.remove(TW.rings.group);
     if (rig && rig.g.parent && !DM.on) rig.g.parent.remove(rig.g);
-    Object.assign(TW, { active: false, line: null, car: null, D: null, rope: null, go: false, kind: null, launch: null, model: null, hitch: null });
+    Object.assign(TW, { active: false, line: null, car: null, D: null, rope: null, rings: null, go: false, kind: null, launch: null, model: null, hitch: null });
   };
   // the graph's report (the joins made vehicle-side, the spans rebuilt): the console and the dev's handle
   DM.report = () => rep;
