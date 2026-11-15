@@ -45,7 +45,12 @@ const names = pick === 'all' ? Object.keys(CASES) : pick.split(',');
 const TW = TR.tourWorld(C, IN, fs);
 const W = TW.W, A = id => W.aerodromes.find(q => q.id === id);
 const STRIP = A('mt_strip'), HOME = A('HOME');
-if (!STRIP) { console.error('_skis_ardent: no mt_strip in this world (OBSERVATORY-SITE not on this tree)'); process.exit(2); }
+// (no mt_strip: OBSERVATORY-SITE is not on this tree - the gate CANNOT RUN here: the runner's SKIP (train 31: shown as
+//  SKIP, never as a PASS); flown by hand it is an error)
+if (!STRIP) {
+  if (argv.includes('--gate')) { console.log('_skis_ardent: no mt_strip in this world (OBSERVATORY-SITE not on this tree)\nGATE SKISARDENT: SKIP'); process.exit(0); }
+  console.error('_skis_ardent: no mt_strip in this world (OBSERVATORY-SITE not on this tree)'); process.exit(2);
+}
 const surf0 = W.surface.bind(W);
 // the strip's own frame: s along it from its centre (+ toward hdg), its two ends' ground
 const along = (x, z) => (x - STRIP.x) * Math.cos(STRIP.hdg) + (z - STRIP.z) * Math.sin(STRIP.hdg);
