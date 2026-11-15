@@ -2913,6 +2913,9 @@ function seatPlaces(A, P) {
     const i = bays - n;
     const r = rg('pilPaxB' + (i || ''));
     if (!r) continue;                          // a mirrored pod has no bays
+    // CAR-3 (the user, 12 Nov: "the seats and then the well, the trunk"): only the first paxSeatBays bays from the front
+    // carry seats - the rest is load space (a rear bay's reclined backs stood through the van's flat back wall); absent = all
+    if (P.paxSeatBays != null && n > Math.max(0, Math.round(+P.paxSeatBays))) continue;
     const zBack = r.lv.waist.z * A.k + 0.05 + (P.paxSeatZ || 0);
     const halfW = (r.lv.waist.x != null ? r.lv.waist.x * A.k : A.halfW);
     const want = Math.max(0, Math.round(+P['paxOcc' + n] || 0));

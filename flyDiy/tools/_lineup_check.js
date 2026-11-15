@@ -56,14 +56,20 @@ const wheelGap = (sim, def, W) => {
 };
 
 // where the departure begins in the game: the site's stand (taxi out), else the spawn identity
-function startPose(sim, a, site) {
+// TOW-LAUNCH SLOPE (re-pin, 2026-11-13): then onto the true ground as the game's placement puts it (app.js applyRoute's
+// seatOnGround, G700). The raw spawn identity on a sloped strip with no stand buried the Cub's tailwheel 33 cm into
+// Jolene's w4 (6.5 % downhill): the ground spring threw the tail up to -15.7 deg of pitch, and master's restH was read
+// at 3 s with the tail still 0.8 m in the air (w4 "rest -5.2 cm" against a bounce, not a rest). With the ground pushing
+// along its normal the same throw tips the Cub onto its nose there (pitch -44 deg) - a start no game flight makes.
+function startPose(sim, a, site, W, def) {
   sim.reset(0); if (sim.stance) sim.stance();
   if (site && site.stand) C.placeAtStand(sim, a, site.stand); else C.placeAtAerodrome(sim, a);
+  if (W && typeof C.seatOnGround === 'function') C.seatOnGround(sim, (x, z) => W.terrainH(x, z), def.refs);
 }
 // the pose the pilot's taxi would end on, asked from the start pose (as app.js asks it)
 function poseFor(def, W, a, site) {
   const sim = C.makeSim(def, W);
-  startPose(sim, a, site);
+  startPose(sim, a, site, W, def);
   const ap = C.makePilot(sim, def, W, {});
   ap.setRoute(a, a); ap.departFrom(a, a, site);
   // the rest height the aeroplane settles to where it starts - what the gear must read at the hold too
@@ -147,7 +153,7 @@ function toClimb(def, S, a, tag) {
 function taxiRoll(def, W, a, fix) {
   const site = C.siteOf(a.id);
   const sim = C.makeSim(def, W);
-  startPose(sim, a, site);
+  startPose(sim, a, site, W, def);
   const ap = C.makePilot(sim, def, W, {});
   ap.setRoute(a, a); ap.departFrom(a, a, site);
   const span = spanOf(def);
