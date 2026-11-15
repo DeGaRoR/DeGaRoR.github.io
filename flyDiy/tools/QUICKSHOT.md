@@ -11,6 +11,7 @@ node tools/quickshot.js my_build.json /tmp/try --over '{"halfW": 0.6}'    # try 
 node tools/quickshot.js my_build.json /tmp/nose --views side --crop 1.5,3.5,-1,1 --w 1400   # a close-up
 node tools/quickshot.js --key ttail /tmp/tt --views front,side --over '{"gearRetract":1}' --gear 0.5   # the gear half up
 node tools/quickshot.js --key ttail /tmp/tt --views bottom,qb --over '{"gearRetract":1}' --gear 0 --noedges   # the wells, stowed
+node tools/quickshot.js builds/cub_2026-09-20_corrected.json /tmp/mud --views qb,qr,bottom --mud 20   # GROUND-FX: the mud a 20 s soft-mud run leaves (tools/mud_roll.js)
 ```
 
 Writes `<out-prefix>_<view>.png`. Views:

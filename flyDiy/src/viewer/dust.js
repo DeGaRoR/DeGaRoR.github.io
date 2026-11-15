@@ -147,7 +147,7 @@
     // SNOW-MUD: the new kinds' laws. DRIFT (3) a saltating streak: 0.3-0.7 s, drag-held near the ground; CLUMP (4) a snow
     // lump off a plough (ballistic); DROP (5) a mud / slush drop, 1-5 mm (its terminal speed 6-8 m/s: a little drag); SPLAT
     // the landed mud: splatLife s, its wet gloss gone by splatDry of it, eroded away over the last half
-    driftDrag: 2.5, dropDrag: 0.35, clumpDrag: 0.12, splatLife: 22, splatDry: 0.4, splatMax: 0.18, projMax: 220, projUp: 5,
+    driftDrag: 2.5, dropDrag: 0.35, clumpDrag: 0.12, splatLife: 22, splatDry: 0.4, splatMax: 0.18, projMax: 220, projUp: 5, treadCone: 0.58,
     z0: 0.03,                        // m: the strip's roughness length for the log wind
     // the wheels
     wheelK: 0.075, wheelV0: 2.0,     // optical m^2 a second per (m/s over V0)^2 at fines 1, dry (AP-42: per metre ~linear in speed, so ~V^2 a second;
@@ -173,7 +173,7 @@
   };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
-  const rnd = Math.random;
+  let rnd = Math.random;   // (GROUND-FX: DUST.random(fn) seeds it for a node run - GATE MUDDEPOSIT's determinism; the page never sets it)
 
   // ================================================================================================================
   // THE SYSTEM
@@ -510,7 +510,7 @@
     if (!SKI) {
     const gT = V * V / R / 9.81, shed = smooth(PJ.adh, PJ.adh * 3, gT), early = smooth(PJ.adh * 3, PJ.adh * 30, gT);
     for (let j = n(PJ.tread * shed * V * (0.4 + sk) * K * dt); j > 0; j--) {
-      const phi = 0.25 + rnd() * (0.4 + 1.2 * (1 - early)), keep = 0.4 + 0.3 * rnd(), cs = Math.cos(phi), sn = Math.sin(phi), la = (rnd() - 0.5) * 0.16 * V;
+      const phi = 0.25 + rnd() * (0.4 + 1.2 * (1 - early)), keep = 0.4 + 0.3 * rnd(), cs = Math.cos(phi), sn = Math.sin(phi), la = (rnd() + rnd() - 1) * L.treadCone * V * keep;   // (GROUND-FX, 15 Nov: a tyre's spray is a CONE, not a sheet - +-30 deg about the release, peaked at its middle; the old +-4 deg missed the belly between a wide track)
       const hx = -sn * R, hy = R - cs * R;                         // the point round the tyre: behind the hub, above the contact
       one(pick(), w.x + ux * hx + lx * (rnd() - 0.5) * 0.1, w.y + hy, w.z + uz * hx + lz * (rnd() - 0.5) * 0.1,
         ux * V * (1 - cs) * keep + lx * la, Math.min(L.projUp, V * sn * keep), uz * V * (1 - cs) * keep + lz * la);   // (a lump's rise held: the mud reaches the legs and the wing's underside, ~1.3 m)
@@ -1161,7 +1161,8 @@
     return api;
   }
 
-  const DUST = { makeSystem, step, sources, make, emitPuff, emitGrit, billow, sixWay, eddyAt, albedoFrom, LOOK, CLASSES, CLS, TIERS, TIER_OF, L, dryK, utK, GLSL: { vert: VERT, frag: FRAG } };
+  const random = fn => { rnd = typeof fn === 'function' ? fn : Math.random; };
+  const DUST = { makeSystem, step, sources, make, random, emitPuff, emitGrit, billow, sixWay, eddyAt, albedoFrom, LOOK, CLASSES, CLS, TIERS, TIER_OF, L, dryK, utK, GLSL: { vert: VERT, frag: FRAG } };
   if (typeof window !== 'undefined') window.DUST = DUST;
   if (typeof module !== 'undefined' && module.exports) module.exports = DUST;
 })();
