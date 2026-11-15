@@ -434,7 +434,6 @@ function cageJoinSpec(P, M, T) {
     if (M.mono) spec.gear.mono = true;             // MONOWHEEL: one main on the centreline (no track)
     if (M.mono && +P.s1Ul) spec.gear.ul = true;   // WEIGHT STUDY L6: the ultralight monowheel (GEN_RULES.ulGear)
     if (Math.round(+P.towHook || 0) > 0) spec.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+P.towHook)) - 1];   // THE TOW HOOK (GEN_RULES.towHook)
-    if (+P.noseBallast > 0) spec.ballast = { nose: +P.noseBallast };   // THE NOSE BALLAST (GEN_RULES.noseBallast)
     // MONOWHEEL: the mains sunk into the body (their share; the drag counts what stands out)
     if (+P.s1Sink > 0 && +P.s1On) spec.gear.sink = Math.min(0.7, +P.s1Sink);
     if (M.contactR > 0) spec.gear.wheelR = M.contactR;
@@ -901,6 +900,8 @@ function cageJoinSpec(P, M, T) {
   // paint", so a build that had a tint could never go back to plain.
   if (M.finish !== undefined) spec.finish = M.finish;
   if (M.energy !== undefined) spec.energy = M.energy;
+  // WATER TANKS: the layer's answer when it has one - a list, or none (the key off)
+  if (M.water !== undefined) { if (M.water && M.water.vessels && M.water.vessels.length) spec.water = M.water; else delete spec.water; }
   // the panel arc, session 2: the fit, the same way (a null inside it is
   // 'the tier's answer' and must survive — garage.js's merge keeps nulls)
   if (M.systems !== undefined) spec.systems = M.systems;
@@ -2148,7 +2149,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // The list is written WHOLE - garage.js's merge replaces an array - so a
     // removed tank stays removed.
     if (window.CAGE_ENERGY && window.CAGE_ENERGY.toSpec)
-      try { M.energy = window.CAGE_ENERGY.toSpec(); if (P.engOn != null && !+P.engOn) M.energy.vessels = []; }   // (ENGINELESS: no tank)
+      try { M.energy = window.CAGE_ENERGY.toSpec(); if (P.engOn != null && !+P.engOn) M.energy.vessels = [];   // (ENGINELESS: no tank)
+            // WATER TANKS: their own section (undefined until the layer knows the spec's water: then the spec's stays)
+            if (window.CAGE_ENERGY.toWater) M.water = window.CAGE_ENERGY.toWater(); }
       catch (e) { ERRS.push('the tanks could not be written to the build: '
                             + e.message); }
     // ...AND THE FIT (the panel arc, session 2), through the same door: the

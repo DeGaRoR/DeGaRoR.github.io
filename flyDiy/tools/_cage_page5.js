@@ -645,9 +645,6 @@ window.CAGE_PAGE = {
                                                   'open', 'bubble']],
         // (the LS4, 13 Nov: the arch between the panes drawn as glass - a look only, the geometry and the physics untouched)
         ['canClear',  'canopy arch',    0, 1, 1, ['framed', 'clear (drawn as glass)'], { absent: 0 }],
-        // THE NOSE BALLAST (the user, 15 Nov: "add 5 kg weight ballast in nose, make it a new element available from
-        // garage"): kg of lead on the nose ring's floor (GEN_RULES.noseBallast), its own ledger line - mass only
-        ['noseBallast', 'nose ballast (kg of lead)', 0, 20, 0.5, { absent: 0 }],
         // THE LABEL IS THE SHAPE, NOT THE MECHANISM (NEW-AIRCRAFT §5.3):
         // a builder chooses what the top of the fuselage does behind the
         // cockpit — cabin roof running aft, or a turtledeck falling away.

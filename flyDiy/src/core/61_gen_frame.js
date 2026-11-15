@@ -672,7 +672,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // same reason `cover` lives in the skin payload (63_gen_skin.js): the thing
   // that billed the mass knows what it was, and a list maintained anywhere else
   // goes stale the first time a section is added.
-  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1, podLoad: 1 };   // podLoad: the freight in the belly pod (G2410)
+  const PAYLOAD_SECS = { cabin: 1, fuel: 1, cargo: 1, podLoad: 1, water: 1 };   // water: the water tanks' contents (GEN_RULES.water)   // podLoad: the freight in the belly pod (G2410)
   const bill = (mass, cost) => {
     const e = ledger[SEC] ||
       (ledger[SEC] = { mass: 0, cost: 0, payload: !!PAYLOAD_SECS[SEC] });
@@ -3835,6 +3835,61 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       nodes[n2].mFuel = (nodes[n2].mFuel || 0) + w2 * m;
     }
   }
+  // ---- WATER TANKS (GEN_RULES.water; the user 15 Nov: tanks filled with water, a release, a shower) ----------------
+  // The fuel tank's billing again, on its own list: the shell (GEN_VESSELS.waterPoly) is the airframe's ('waterTank'),
+  // the water - capacity x fill - the loading's ('water', a payload section), each on the pair of nodes its bay and
+  // station give (bodyRing / the spar pairs), and recorded per node (`mWater`) for the solver's dump valve as `mFuel`
+  // is for the burn. THE OUTLET: a round hole in the tank's floor, straight down - a body tank's on the centreline at
+  // its station, at the keel's level (bodyRing at lv 0); a wing tank's one a side under its spar pair. parts.water says
+  // where (node weights, the drop below them) and how fast it empties (Torricelli on GEN_RULES.water's hole).
+  const WVES = (S.water && Array.isArray(S.water.vessels)) ? S.water.vessels : [];
+  let WATER = null;
+  if (WVES.length && R.water) {
+    const RW = R.water, outs = [], tanks = [];
+    sec('waterTank');
+    for (const v of WVES) {
+      const BAY = GEN_BAYS[v.bay] || GEN_BAYS.cabin;
+      const bay = genBayResolve(S, GEN_BAYS[v.bay] ? v.bay : 'cabin', ST);
+      const r = genVesselResolve('water', v.capacity, 'waterPoly', 'water');
+      let pair, outl;
+      if (BAY.on === 'wing') {
+        const frac = v.along != null ? v.along : (v.bay === 'wingPanel' || v.bay === 'wing2Panel' ? 0.34 : 0);
+        const [wl, wr] = wingPair(frac, BAY.plane || 0);
+        const rr = wingPairRear(frac, BAY.plane || 0);
+        pair = rr ? [[wl, 0.3], [wr, 0.3], [rr[0], 0.2], [rr[1], 0.2]] : [[wl, 0.5], [wr, 0.5]];
+        outl = rr ? [{ pts: [[wl, 0.6], [rr[0], 0.4]], dy: 0.06 }, { pts: [[wr, 0.6], [rr[1], 0.4]], dy: 0.06 }]
+                  : [{ pts: [[wl, 1]], dy: 0.06 }, { pts: [[wr, 1]], dy: 0.06 }];
+      } else {
+        const xW = v.along != null ? v.along : bay.xMid;
+        const lvW = v.lv != null ? v.lv : 0.5 * ((BAY.lv || [0, 1])[0] + (BAY.lv || [0, 1])[1]);
+        pair = bodyRing(xW, lvW);
+        // (the floor's pair at the station; a tank ahead of the nose ring has its own nodes - bodyRing made them - so its own pair)
+        outl = [{ pts: xW < ST[0].x - 0.05 ? pair : bodyRing(xW, 0), dy: 0.03 }];
+      }
+      if (r.vesselKg > 0) { for (const [n2, w2] of pair) if (w2 > 0) pt(n2, w2 * r.vesselKg); spend(r.price); }
+      v._pair = pair; v._res = r; v._out = outl;
+    }
+    sec('water');
+    let kg0 = 0;
+    for (const v of WVES) {
+      const kgW = v._res.contentsKg * (v.fill == null ? 1 : v.fill);
+      const share = 1 / v._out.length;
+      for (const o of v._out) outs.push({ pts: o.pts, dy: o.dy, share, tank: tanks.length });
+      tanks.push({ bay: v.bay, litres: v.capacity, fill: v.fill == null ? 1 : v.fill, kg: kgW });
+      if (!(kgW > 0)) continue;
+      kg0 += kgW;
+      for (const [n2, w2] of v._pair) {
+        if (w2 <= 0) continue;
+        pt(n2, w2 * kgW);
+        nodes[n2].mWater = (nodes[n2].mWater || 0) + w2 * kgW;
+      }
+    }
+    // Torricelli: one hole a tank (a wing tank's two share its flow), litres a second, full head - the valve's rate
+    const A = Math.PI * RW.outletD * RW.outletD / 4;
+    const rateLs = 1000 * RW.Cd * A * Math.sqrt(2 * 9.81 * RW.head);
+    WATER = { kg0, rateLs, kgL: GEN_WATER.water.kgL, outlets: outs, tanks };
+    for (const v of WVES) { delete v._pair; delete v._res; delete v._out; }
+  }
   // ---- THE FIT, ITEMISED (the panel arc, session 2) ------------------------
   // One lump on the firewall top pair used to stand for the whole fit. Now
   // genSystemsResolve's own rows are billed, each where the thing sits:
@@ -3871,17 +3926,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const eltKg = (SYS.rows.find(r => r.key === 'elt:fitted') || {}).kg || 0;
   halfOn(F[0].TL, F[0].TR, eltKg ? SYS.bill.avionics.kg - eltKg : SYS.bill.avionics.kg);
   if (eltKg) { const Ft = F[Math.max(1, F.length - 2)]; halfOn(Ft.TL, Ft.TR, eltKg); }
-  // THE NOSE BALLAST (GEN_RULES.noseBallast; spec.ballast.nose kg): lead on the nose ring's floor, its own ledger line
-  // (opened only when there is some: a build without it bills the sections it always did). On a SOFT shell (a fuselage
-  // row naming a hard one) the box bolts to the keel tubes' front nodes, as the tow hook's nose release: the pod's nose
-  // ring is poles (GATE NACELLE C: 5 kg on S0BL / S0BR sagged the nose's keel 27 mm under 2 g, past its 25)
-  if (S.ballast && +S.ballast.nose > 0 && R.noseBallast) {
-    sec('ballast');
-    const kl = M && M.hard && keelRef ? (keelRef.twin ? [keelRef.left[0], keelRef.right[0]] : keelRef.bottom ? [keelRef.bottom[0], keelRef.bottom[0]] : null) : null;
-    const [ba, bb] = kl && kl[0] != null && kl[1] != null ? kl : [F[0].BL, F[0].BR];
-    halfOn(ba, bb, +S.ballast.nose);
-    spend(+S.ballast.nose * R.noseBallast.pricePerKg);
-  }
   // ---- THE OUTFIT (G159) ------------------------------------------------
   // Everything a real aeroplane carries between its structure and its payload.
   // Each item hangs off a CHOICE or a MEASUREMENT of this aeroplane, never a
@@ -4214,6 +4258,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // repaint (the paint alone) and a recover (the cloth and its paint) off the airframe actually built (76_ econRestoreCost)
   parts.cover = { paintA: coverA, clothA: clothAll };
   if (podR) parts.pod = podR;   // G2410: the resolved belly pod (absent with none: the parts keep their bytes)
+  if (WATER) parts.water = WATER;   // WATER TANKS: the water aboard, the outlets, the dump rate (absent with none: the bytes kept)
   // WILGA-GEAR: THE STRUTS, each designed for this aeroplane (62c gearOleoDesign: the charge for the static deflection
   // at the design gross, the second stage, the orifice for the limit sink) - on the final masses: the wheel's static
   // load is the gross's share the mains carry at the built CG (the third wheel's lever arm), split per side. The
@@ -4348,7 +4393,9 @@ function genDesignGross(S, a, cg) {
   const fu = S.fuse || {}, cb = S.cab || {};
   const freight = fu.cargoLen > 1e-6
     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
-  const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
+  // WATER TANKS: the structure carries them full (their capacity, whatever the garage's fill) - absent, 0
+  const waterFull = (S.water && Array.isArray(S.water.vessels)) ? S.water.vessels.reduce((t, v) => t + (+v.capacity || 0) * GEN_WATER.water.kgL, 0) : 0;
+  const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight + waterFull;
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
   // THE BUILD WEIGHT (the foot-launch D-tube, GEN_SURF_MATERIALS.dtube): a wing built for buildKg thins below it but
   // never grows past it

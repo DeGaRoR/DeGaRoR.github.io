@@ -3264,7 +3264,7 @@ function genEngPropD0(S, e0, PP0) {
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
-                               brkHold: 0, noseBallast: 0 };
+                               brkHold: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -3853,12 +3853,15 @@ const GEN_RULES = {
   // recalled: ~0.4 / ~0.6 kg with the ring and the cable). 61_gen_frame builds the hook's node on the hard structure and
   // names it refs.towHook - what TOW-LAUNCH's line (src/vehicle/tow.js makeTowLine, `o.hook`) pulls on
   towHook: { nose: { kg: 0.4, price: 450 }, cg: { kg: 0.6, ahead: 0.25, price: 650 } },
-  // THE NOSE BALLAST (the user, 15 Nov: "add 5 kg weight ballast in nose, make it a new element available from garage"):
-  // lead bolted to the nose ring's floor (the cage's `noseBallast`, kg -> spec.ballast.nose), billed in its own ledger
-  // line 'ballast' on the nose ring's two bottom nodes. A glider's trim ballast (a pilot under the placard's minimum
-  // flies with lead in the nose); on the Archaeopteryx it stands for the rescue parachute and the kit stowed in the
-  // very nose, which nothing else bills. maxKg a ceiling for the row; pricePerKg INFERRED (lead, its box and bolts)
-  noseBallast: { maxKg: 20, pricePerKg: 15 },
+  // WATER TANKS (the user, 15 Nov: "remove the ballast option and replace with the tanks ... We need to be able to put
+  // tanks, and fill them with water ... they will have a release mechanism, and a particle animation when it releases
+  // (water shower). There will be a release point, by default a simple downwards opening"): spec.water.vessels, the
+  // fuel tank's list again (a bay, a capacity in litres, a station and a level) plus `fill` (0..1, the garage's). The
+  // vessel is GEN_VESSELS.waterPoly, the contents GEN_WATER; the OUTLET is a round hole `outletD` m across in the tank's
+  // floor, straight down through the skin (not cut yet: the garage checks the run is clear - "little checks regarding
+  // collision"), emptying by Torricelli: Q = Cd x A x sqrt(2 g head), `head` the water's mean height over it. maxL a
+  // ceiling a tank. INFERRED: a 40 mm dump valve, Cd 0.6 (a sharp-edged hole), a 0.25 m head -> ~1.6 L/s
+  water: { maxL: 400, outletD: 0.04, Cd: 0.6, head: 0.25 },
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
@@ -5499,6 +5502,33 @@ function genEngLayoutEngines(layout, type, base) {
     sense: (layout === 'pushPull' && i === 1) ? -1 : 1 }));
 }
 
+// WATER TANKS, CLAMPED (GEN_RULES.water; the list the garage's energy layer draws beside the fuel's): each tank a bay
+// the aeroplane can have (no strut pod), its litres, its fill, its station and level and turn, its form and its own
+// look - the fuel vessel's rules; the list gone when it is empty
+function genWaterClamp(S) {
+  const Wt = S.water;
+  if (!Wt || typeof Wt !== 'object' || !Array.isArray(Wt.vessels)) { delete S.water; return; }
+  const out = [];
+  for (const v0 of Wt.vessels) {
+    if (!v0 || typeof v0 !== 'object') continue;
+    const v = Object.assign({}, v0);
+    if (!GEN_BAYS[v.bay] || GEN_BAYS[v.bay].on === 'strut') v.bay = 'cabin';
+    v.capacity = genClamp(+v.capacity || 0, 0, GEN_RULES.water.maxL);
+    if (!(v.capacity > 0)) continue;
+    v.fill = v.fill == null ? 1 : genClamp(+v.fill || 0, 0, 1);
+    v.along = v.along == null ? null : genClamp(+v.along, -1, 12);
+    v.lv = v.lv == null ? null : genClamp(+v.lv, 0, 1);
+    v.rot = genClamp(+v.rot || 0, -90, 90);
+    if (v.form === 'deck' && v.dims && Array.isArray(v.dims.profile) && v.dims.profile.length >= 2 && v.dims.profile.length <= 33)
+      v.dims.profile = v.dims.profile.map(x => genClamp(+x || 0, 0, 1));
+    else v.form = v.form === 'cyl' ? 'cyl' : 'box';
+    if (v.finish != null && !['paint', 'alu', 'plastic', 'rubber', 'bluePoly'].includes(v.finish)) v.finish = null;
+    v.hue = v.hue == null ? null : genClamp(v.hue, 0, 359);
+    if (v.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(v.tint))) v.tint = null;
+    out.push(v);
+  }
+  if (out.length) S.water = { vessels: out }; else delete S.water;
+}
 function clampSpec(spec) {
   const S = genNormaliseSpec(spec);
   genNullToDefault(S, GEN_DEFAULT);                  // B13 (above)
@@ -5851,6 +5881,9 @@ function clampSpec(spec) {
         !['paint', 'alu', 'plastic', 'rubber'].includes(E.finish)) E.finish = null;
     E.hue = genClamp(E.hue || 0, 0, 359);
     if (E.tint != null && !/^#[0-9a-fA-F]{6}$/.test(String(E.tint))) E.tint = null;
+    // WATER TANKS (GEN_RULES.water): the fuel tank's own fields, clamped the same way, plus the fill; a body or wing
+    // bay (not a strut pod); the key only while a tank is listed (a build without one is the bytes it was)
+    genWaterClamp(S);
     // THE VESSELS ARE THE CAPACITY (G99). Each one is clamped on its own, and
     // the section's total is their sum — so `fuel.litres` and `energy.kWh`
     // stop being settable facts and become readings, which is what stops a
@@ -6029,11 +6062,6 @@ function clampSpec(spec) {
   //  built from its cage without the join - a design bake - reads the cage's row, as the frame reads whProfile)
   if (S.gear.towHook == null && S.cage && Math.round(+S.cage.towHook || 0) > 0) S.gear.towHook = ['nose', 'cg'][Math.min(2, Math.round(+S.cage.towHook)) - 1];
   if (!((S.gear.towHook === 'nose' || S.gear.towHook === 'cg') && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle'))) delete S.gear.towHook;
-  // (THE NOSE BALLAST, GEN_RULES.noseBallast: kg of lead on the nose ring - the key only when there is some; a design
-  //  bake reads the cage's row, as the tow hook)
-  if (S.ballast == null && S.cage && +S.cage.noseBallast > 0) S.ballast = { nose: +S.cage.noseBallast };
-  if (S.ballast && +S.ballast.nose > 0) S.ballast = { nose: Math.round(genClamp(+S.ballast.nose, 0, GEN_RULES.noseBallast.maxKg) * 10) / 10 };
-  else delete S.ballast;
   // MONOWHEEL: THE SUNK MAINS - the share of the wheel's diameter inside the body (the cage's s1Sink, the join's); the
   // drag counts the rest, no leg in the stream. Absent at 0
   if (+S.gear.sink > 0) S.gear.sink = genClamp(+S.gear.sink, 0, 0.7); else delete S.gear.sink;

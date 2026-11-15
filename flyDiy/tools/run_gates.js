@@ -218,7 +218,7 @@ const GATES = [
   { id: 'RODROW', file: '_rodrow_check.js', tier: 'core', wall: 300 },
   { id: 'ULTRALIGHT', file: '_ultralight_check.js', tier: 'core', wall: 420 },   // (WEIGHT STUDY L4-L6: the soft shell, the hub, the ultralight monowheel)
   { id: 'ENGINELESS', file: '_engineless_check.js', tier: 'core', wall: 90 },   // (the LS4: the sailplane - engines[0].none, no powerplant, no propeller, no tank)
-  { id: 'BALLAST', file: '_ballast_check.js', tier: 'core', wall: 200 },   // (the user 15 Nov: the nose ballast, a garage row - noseBallast -> spec.ballast.nose, its own ledger line)
+  { id: 'WATERTANK', file: '_watertank_check.js', tier: 'core', wall: 300 },   // (the user 15 Nov: water tanks - spec.water, the blue tank, the fill, the dump valve, the outlet's checked run)
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
   // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)

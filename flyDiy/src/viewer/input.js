@@ -114,6 +114,11 @@
     // retract rows; the key itself stays bound, inert on a fixed build)
     { id: 'gear', kind: 'step', ctl: 'gear', label: 'landing gear', group: 'flying', lab: true,
       hint: 'UP · DOWN (retractable gear only)', keys: { key: 'Digit9' } },
+    // WATER TANKS (the user 15 Nov: "they will have a release mechanism, and a particle animation when it releases"):
+    // the dump valve, OPEN <-> CLOSED - the sim drains every water tank through its outlet while it is open (ctl.dump,
+    // a key only a build with water carries: inert on any other, as the gear handle on a fixed gear)
+    { id: 'dump', kind: 'step', ctl: 'dump', label: 'water dump', group: 'flying',
+      hint: 'OPEN · CLOSED (water tanks only)', keys: { key: 'Digit0' } },
     { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'trim',
       hint: 'a hand held on the stick; repeats while held', repeat: 0.15,
       keys: { key: 'Numpad1' } },
@@ -419,6 +424,7 @@
     let wr = null;                          // G2480: the water rudders - null THE RULE (32_hydro), 0 up, 1 down
     let twLock = 1;                         // G3800: the tailwheel lock - 1 in (straight), 0 out (castoring)
     let gearH = 1;                          // RETRACT-1: the gear handle - 1 down, 0 up (written only on a retract build)
+    let dumpH = 0;                          // WATER TANKS: the dump valve - 1 open (written only on a build with water)
     let parkFn = null;                      // G2480: the parking brake's owner (cockpit.js CK.park), read in write()
     let padsNow = [], keysNow = [], rawNow = {};
     let firedNow = [];
@@ -627,6 +633,7 @@
       wr = null;
       twLock = c.twLock === 0 ? 0 : 1;        // G3800: the hand takes the lock as the aeroplane has it
       gearH = c.gear === 0 ? 0 : 1;          // RETRACT-1: the handle where the aeroplane has it (the AP's or the reset's)
+      dumpH = c.dump ? 1 : 0;                // WATER TANKS: the valve as the aeroplane has it (a reset closes it)
       for (const a of ACTIONS) {
         const s = S[a.id];
         s.owner = null; s.last = {};
@@ -743,6 +750,7 @@
         else if (id === 'waterRudder') wr = wr === null ? 0 : wr === 0 ? 1 : null;   // AUTO -> UP -> DOWN -> AUTO
         else if (id === 'twLock') twLock = twLock ? 0 : 1;                              // G3800: IN <-> OUT
         else if (id === 'gear') gearH = gearH === 0 ? 1 : 0;                           // RETRACT-1: UP <-> DOWN
+        else if (id === 'dump') dumpH = dumpH ? 0 : 1;                                 // WATER TANKS: OPEN <-> CLOSED
         else if (id === 'flapDown') flapI = Math.min(notches.length - 1, flapI + 1);
         else if (id === 'flapUp') flapI = Math.max(0, flapI - 1);
       }
@@ -787,6 +795,7 @@
       ctl.wr = wr;
       ctl.twLock = twLock;                             // G3800: the tailwheel lock (read by a lockable wheel only)
       if ('gear' in ctl) ctl.gear = gearH;   // RETRACT-1: a fixed build's ctl has no gear key, and gets none
+      if ('dump' in ctl) ctl.dump = dumpH;   // WATER TANKS: a build without water has no dump key, and gets none
       ctl.flap = clamp(fin(flapOut, 0), 0, 1);
       if (Array.isArray(ctl.eng))
         for (let i = 0; i < ctl.eng.length && i < 4; i++) {
@@ -835,6 +844,7 @@
       waterRudder: () => wr,
       twLock: () => twLock, setTwLock: v => { twLock = v ? 1 : 0; },   // G3800 (the hand-off seeds it from the aeroplane's)
       gear: () => gearH,                     // RETRACT-1: the gear handle (1 down, 0 up)
+      dump: () => dumpH,                     // WATER TANKS: the dump valve (1 open)
       opt: k => profile.opts ? profile.opts[k] : undefined,
       setOpt: (k, v) => { if (!(k in OPTS) || typeof v !== typeof OPTS[k]) return false; profile.opts[k] = v; save(); return true; },
       parkFrom: f => { parkFn = typeof f === 'function' ? f : null; },

@@ -3082,9 +3082,6 @@ const ARCHETYPES = [
                     // (A0 for the user, 13 Nov: the tow hook, the Archaeopteryx first - a CG release ahead of the wheel: the
                     //  auto-tow behind the car and the winch)
                     towHook: 2,
-                    // THE NOSE BALLAST (the user, 15 Nov: "add 5 kg weight ballast in nose"): the rescue parachute and the
-                    // kit stowed in the very nose, which nothing else bills - 5 kg of lead on the nose ring (GEN_RULES.noseBallast)
-                    noseBallast: 5,
                     // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
@@ -3279,6 +3276,14 @@ const ARCHETYPES = [
                     // to sill). A real figure, not a re-tune
                     energy: { kind: 'battery', cell: 'nmc', vessels: [{ bay: 'cabin', capacity: 1, along: 0.85, lv: 0.35 },
                                                                       { bay: 'cabin', capacity: 1, along: 0.85, lv: 0.35 }] },
+                    // THE NOSE WATER TANK (the user, 15 Nov: "add 5 kg weight ballast in nose", then "remove the ballast
+                    // option and replace with the tanks, including for the archaeopteryx"): 5 L of water in the very nose,
+                    // full - standing for the rescue parachute and the kit stowed there, which nothing else bills - and
+                    // the pilot can dump it (GEN_RULES.water: the outlet straight down, the valve, the shower). The nose bay
+                    // (this pod's datum, x 0, is the panel's ring; the nose cone runs to -0.43): a long slim cylinder
+                    // 0.52 x 0.115 x 0.12 m centred 0.06 m ahead of it - the pod's nose is tight, the layer reads it 1 mm
+                    // into the nose's shoulder (a cubic 5 L tank 17-47 mm; a slimmer one fits and holds 4 L)
+                    water: { vessels: [{ bay: 'nose', capacity: 5, fill: 1, along: -0.06, lv: 0.3, form: 'cyl', dims: { L: 0.52, W: 0.115, H: 0.12 } }] },
                     systems: { fit: 'minimal', items: ['asi', 'alt', 'vsi'] },   // (L3: airspeed, altimeter, vario)
                     // (WEIGHT STUDY: white from the gelcoat and the cloth - no paint, 5.1 -> 0 kg; the registration is vinyl)
                     paint: { job: 'self', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
