@@ -68,6 +68,7 @@ function makeContext(opts) {
   g.Image = function () { return el(); };
   const ctx = vm.createContext(g);
   vm.runInContext('var window = globalThis; window.window = window;', ctx);
+  if (process.env.PC6_COMP) ctx.PC6_COMP = +process.env.PC6_COMP;   // (PC6-OLEO: quickshot --pc6comp, the tailwheel drawn compressed)
   // opts.before(ctx): what the page has in scope before the editor's files (G1985: the characters' registry, which
   // _cage_page5.js reads for the default pilot when it loads)
   if (opts && typeof opts.before === 'function') opts.before(ctx);

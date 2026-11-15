@@ -3060,7 +3060,7 @@ const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFai
 // WILGA-GEAR: the trailing-link leg's rows per station (tools/_gear_page.js LEG_ROWS[4]) at the value a build without them
 // draws (_cage_gen CAGE_DEFAULT_ABSENT holds the same)
 const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0,
-      twStyle: 0, twPostLen: 0.28, twPostD: 0.07, twGuard: 1 }, o = {};   // (PC6-TAILWHEEL: + the post-and-link tailwheel's rows, _gear_page.js)
+      twStyle: 0, twPostLen: 0.28, twPostD: 0.07, twGuard: 1, twNode: 0 }, o = {};   // (PC6-TAILWHEEL: + the post-and-link tailwheel's rows, _gear_page.js)
   for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the flat base copy too)
   return o; })();
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed

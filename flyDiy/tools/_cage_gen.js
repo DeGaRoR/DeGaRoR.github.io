@@ -9247,7 +9247,7 @@ const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow:
   s1Stiff: 1,   // (ENGINE-DIALS C: the mains' suspension stiffness)
   // WILGA-GEAR: the trailing-link leg's rows, per station (the core's GEN_LEVER_ROW_OFF: the same table)
   ...(() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0,
-      twStyle: 0, twPostLen: 0.28, twPostD: 0.07, twGuard: 1 }, o = {};   // (PC6-TAILWHEEL: + the post-and-link tailwheel's rows, _gear_page.js)
+      twStyle: 0, twPostLen: 0.28, twPostD: 0.07, twGuard: 1, twNode: 0 }, o = {};   // (PC6-TAILWHEEL: + the post-and-link tailwheel's rows, _gear_page.js)
     for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the gear page's flat base copy too)
     return o; })() };
 // RETRACT (G3511's rule): THE RETRACTABLE GEAR'S ROWS ARE ABSENT WHILE THE GEAR IS FIXED - a build that never chose

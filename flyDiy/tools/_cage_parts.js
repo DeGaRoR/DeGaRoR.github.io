@@ -1126,7 +1126,7 @@ const CAGE_PARTS = [
       ['castor', ['s1_twSpringLen', 's1_twSpringDrop', 's1_twSpringW',
                   's1_twSpringT', 's1_twLeaves', 's1_twRake', 's1_twTrail',
                   's1_twLegDrop', 's1_twSteer', 's1_twSteerVis',
-                  's1_twStyle', 's1_twPostLen', 's1_twPostD', 's1_twGuard']],
+                  's1_twStyle', 's1_twPostLen', 's1_twPostD', 's1_twGuard', 's1_twNode']],
       // WILGA-GEAR: the trailing-link leg (the Wilga's) and its preview
       ['trailing link', ['s1_lvArm', 's1_lvAng', 's1_lvComp', 's1_lvTop', 's1_lvReach', 's1_lvStat', 's1_lvLegW', 's1_lvRootAng', 's1_lvBoot',
                          'gearLvPos']],
@@ -1182,7 +1182,7 @@ const CAGE_PARTS = [
       ['castor', ['s2_twSpringLen', 's2_twSpringDrop', 's2_twSpringW',
                   's2_twSpringT', 's2_twLeaves', 's2_twRake', 's2_twTrail',
                   's2_twLegDrop', 's2_twSteer', 's2_twSteerVis',
-                  's2_twStyle', 's2_twPostLen', 's2_twPostD', 's2_twGuard']],
+                  's2_twStyle', 's2_twPostLen', 's2_twPostD', 's2_twGuard', 's2_twNode']],
       // WILGA-GEAR: the station's copy of the trailing-link rows (the leg row offers the kind on the mains only)
       ['trailing link', ['s2_lvArm', 's2_lvAng', 's2_lvComp', 's2_lvTop', 's2_lvReach', 's2_lvStat', 's2_lvLegW', 's2_lvRootAng', 's2_lvBoot']],
     ] },
