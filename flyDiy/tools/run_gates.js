@@ -1066,6 +1066,11 @@ const GATES = [
   // mud (faster deeper in, faster at speed), rain and water wash it; drawn through the wheel mud / belly / depression layers
   // over the macros', none at nought; app.js's wiring (~8 s; --selftest, --show)
   { id: 'MUDCOAT', file: '_mudcoat_check.js', tier: 'core', wall: 20 },
+  // GROUND-FX (15 Nov): THE MUD ON THE AEROPLANE FROM ITS GEOMETRY - the drawn build voxelised (ground_deposit.js), dust.js's own
+  // clods marched against it on a 20 s soft-mud run (tools/mud_roll.js): the stock Cub's legs, belly and tail-wheel fork and the
+  // C172's legs and fairings hold mud, the wing tops, windscreen, cowl and fuselage tops none, a leg's lee under a third of its
+  // front; rain and water wash it; seeded (~12 s; --selftest, --show)
+  { id: 'MUDDEPOSIT', file: '_muddeposit_check.js', tier: 'core', wall: 30 },
   // SNOW-MUD FINISH (15 Nov): THE CUB, THE C172 (list:50) AND THE PC-6 FLOWN ON MUD - the pilot's circuits from HOME on
   // grass, firm and soft mud (take-off roll, landing roll, outcome) and the stuck limits (soft mud's k scaled down, full power
   // from rest); the table printed. Three child processes; ~9 min - the full tier's, as the archetype sweeps
