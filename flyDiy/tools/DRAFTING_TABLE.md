@@ -721,3 +721,16 @@ It lives inside `toPx` / `fromPx`, so the table, `quickshot.js --sheet` and the 
 every pivot form round-trips with a mirror and two scales, a view's X axis runs at the angle on the sheet, `setTilt`
 keeps its mark, and the PC-6's sheet turned 4.8 deg (its side marks and lines turned with it) scores what the level
 sheet scores (136 / 175 both).
+
+## One projector: quickshot --sheet (QUICKSHOT-ONE, 15 Nov)
+
+A0's call on the user's "Unify it, not 3 modes ... Decide for the outline projection tool": one renderer (quickshot's,
+the garage's own layers) and one projection (this table's sheet logic). `quickshot.js <plane.json> <prefix> --sheet
+<img>` draws each view's drawing scaled by `dt_core.toPx`, quickshot's render over it, the red veil (our parts outside
+the drawing's lines), the parts' outline, the marks, the score table and the dimensions diff, stacked in one PNG
+(`tools/drafting/dt_sheet.js`). `table.js check --png` and `compare --png` call it (`--parts`, at the table's level), so
+`--png` now writes `<prefix>_sheet.png` instead of three files. Quickshot measures its own scene with the table's rules
+(`dt_build.collect`, split out of `build`). GATE QSPARITY: at level 0 the frame and every key measurement agree (the
+largest gap strut.at, 12 mm: the table's cut core and context against the garage's; the layers it leaves out are not
+the cause) and the score is the same 136 / 175; at the garage's level 2 the PC-6 scores 122, and the load door's
+clamps move no row on it.
