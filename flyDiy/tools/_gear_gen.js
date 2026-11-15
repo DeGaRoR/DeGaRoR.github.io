@@ -1907,6 +1907,27 @@ function pc6PistonRun(hd, R) { return Math.max(0.05, hd - R - 0.07); }
 //   pcClevis  two lugs and the pin through them, a nut on its end;
 //   pcEye     the bored boss a member ends in, between a clevis's lugs or a gusset pair;
 //   pcNut     a hex nut (with bolt(): a hex head and a shank).
+// PC6-BILL (15 Nov, the user via A0: "proper price and weight billing for the new tailwheel ... such a specialised
+// tailwheel would be a bit more expensive"): every part weighed from its drawn size and its material, and priced as
+// the part it is. Densities (kg/m3): steel 7850 (4130 tube, the chromed piston, the forged crosshead), aluminium
+// forging 2800 (the V, its bands, the plates), hydraulic oil 870. Prices DERIVED (USD, 2026) from the anchors named in
+// pc6Price below; `at` says which node carries the part in the flight (cyl: the cylinder's anchors, slider: the
+// wheel, stab: the stabiliser's node)
+const PC6_RHO = { steel: 7850, alloy: 2800, oil: 870 };
+const pcTube = (od, wall, L, rho) => Math.PI * Math.max(0, od - wall) * wall * L * rho;   // a tube's mass, its mean wall
+const pcBar = (a, b, L, rho, fill) => a * b * L * rho * (fill || 1);                         // a bar's (fill: lightened)
+// THE PRICES (USD, DERIVED - no PC-6 tail gear price is published): the anchors - a complete ABI/Scott 3200 leaf
+// tailwheel ~$1 410 and ~4.1 kg (Wagaero; Aircraft Spruce: "approximately 9 lbs"); an Aeronca oleo shock strut, 1.75 in,
+// $2 357 (Aircraft Spruce 05-08750); a 14 in heavy tailwheel assembly $7 085 (McFarlane). The strut unit here (a 2.4 in
+// piston: the cylinder, the piston, the seals and the charging valve) at the Aeronca's scaled by its bore, $3 400; the
+// machined and forged parts at shop rates; the wheel and tyre (the frame's row) $500. Sum ~$7 700: ~6.4 x the game's
+// $1 200 third wheel, beside the McFarlane heavy assembly
+const PC6_USD = { 'oleo cylinder': 1900, 'oleo charge (oil, gas valve, seals)': 400, 'oleo piston (chromed)': 1100,
+  'clamps and bulkhead plates (2)': 600, 'stabiliser tubes (3, 4130)': 450, 'belly doublers, clevises, link band': 250,
+  'steering collar and ears': 450, 'crosshead (forged)': 350, 'fork legs and axle': 300,
+  'V upper arm and hinge pin (forged alloy)': 500, 'V bands (2, forged alloy)': 350,
+  'steering arm, cables and springs': 300, 'mudguard, strap and doubler': 250 };
+function pc6Price(bill) { for (const b of bill) b.usd = PC6_USD[b.part] || 0; return bill; }
 function pcSecPlate(a, b, r) {               // a rounded rectangle, a along the sweep's reference, b across, corners r
   const out = [], A = 3, ha = Math.max(1e-4, a / 2 - r), hb = Math.max(1e-4, b / 2 - r);
   for (const [cx, cy, a0] of [[ha, hb, 0], [-ha, hb, Math.PI / 2], [-ha, -hb, Math.PI], [ha, -hb, -Math.PI / 2]])
@@ -2069,8 +2090,24 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
       const c = cM * k / 24, Vk = pc6Scissor(top, ax, W, eC, hdR, P.twTrail, R, c), hk = hubAt(c);
       tab.comp.push(c); tab.phi.push(sgnA(sub(V0.apex, eC), sub(Vk.apex, eC))); tab.psi.push(sgnA(sub(V0.apex, hub0), sub(Vk.apex, hk)));
     }
+    // PC6-BILL: the moving parts from their drawn sizes (the relaxed pose: comp 0) - the piston (chromed 4130, 3 mm wall,
+    // its run and a third of the cylinder inside), the collar and its ears, the crosshead (forged, 45 % of its block),
+    // the fork's legs and the axle, the V (forged alloy: the U and its pin, the two bands), the steering arm and the
+    // cables with their springs (~0.9 m a side), the mudguard (3 mm alloy sheet, its strap and doubler)
+    const RH = PC6_RHO, run0 = pc6PistonRun(hdR, R), V00 = pc6Scissor(top, ax, W, eC, hdR, P.twTrail, R, 0);
+    const TYb = TYRE[Math.round(P.whProfile || 0)] || TYRE[0], hwb = Math.min(R * TYb.hw * (TYb.bulge || 1) + 0.010, bx - tB / 2 - 0.004);
+    const pc6Bill = [
+      { part: 'oleo piston (chromed)', at: 'slider', kg: pcTube(0.72 * Dp, 0.003, run0 + 0.33 * hdR, RH.steel) },
+      { part: 'steering collar and ears', at: 'cyl', kg: Math.PI * 0.25 * ((1.32 * Dp) ** 2 - Dp * Dp) * 0.56 * Dp * RH.steel + 0.12 },
+      { part: 'crosshead (forged)', at: 'slider', kg: pcBar(2 * (xH + 0.008), 0.75 * Dp, 0.5 * Dp, RH.steel, 0.45) },
+      { part: 'fork legs and axle', at: 'slider', kg: 2 * pcBar(0.55 * Dp, 0.008, hdR - run0, RH.steel) + pcBar(0.26 * Dp, 0.26 * Dp, 2 * xH, RH.steel, 0.6) },
+      { part: 'V upper arm and hinge pin (forged alloy)', at: 'slider', kg: pcBar(tU, 0.6 * Dp, 2 * V00.a + 0.1, RH.alloy) + 0.12 },
+      { part: 'V bands (2, forged alloy)', at: 'slider', kg: 2 * pcBar(0.6 * Dp, tB, V00.b, RH.alloy) },
+      { part: 'steering arm, cables and springs', at: 'slider', kg: pcTube(0.34 * Dp, 0.003, 2 * armS, RH.steel) + 2 * (0.9 * 0.03 + 0.08) },
+      { part: 'mudguard, strap and doubler', at: 'slider', kg: (R + 0.022) * (110 * D2R) * (2 * hwb + 2 * R * 0.30) * 0.003 * RH.alloy + 0.12 },
+    ];
     pc6Arm = armS;
-    pc6Out = { pin: eC, apex: vP, hub, hub0, pB, comp, compMax: cM, armS, a: V.a, b: V.b, reach: V.reach, ok: V.ok, wA, bx, xH, S, W, ax, top, tab };
+    pc6Out = { pin: eC, apex: vP, hub, hub0, pB, comp, compMax: cM, armS, bill: pc6Bill, a: V.a, b: V.b, reach: V.reach, ok: V.ok, wA, bx, xH, S, W, ax, top, tab };
   } else {
   boxIn(bags.steel, yokeC, [0.030, 0.014, 0.026],
         F(side), ax, F(fwd));
@@ -2831,9 +2868,17 @@ function legTailwheel(bags, AF, P, st) {
     // relaxed drop came down from), the piston's bore, the masses (INFERRED: a 3 mm wall steel cylinder with its
     // clamps ~4 kg, the piston, fork, V and guard ~4 kg, the welded truss ~2 kg)
     {
-      const Sx = pc6CompMax(P, st.R);
-      pc6Rec = { rake: 8, hd: +P.twLegDrop, Lc, S: Sx, sSt: 0.74 * Sx, dPiston: D * 0.72, stab: +P.twGuard !== 0 ? 1 : 0,
-                 kgCyl: 4.0, kgSlider: 4.0, kgStab: +P.twGuard !== 0 ? 2.0 : 0 };
+      const Sx = pc6CompMax(P, st.R), RH = PC6_RHO, bill = [];
+      pc6Rec = { rake: 8, hd: +P.twLegDrop, Lc, S: Sx, sSt: 0.74 * Sx, dPiston: D * 0.72, stab: +P.twGuard !== 0 ? 1 : 0, bill };
+      // the fixed parts: the cylinder (a 4130 tube, its wall 4.5 % of its bore), its charge (the oil over the stroke and a
+      // third more), the two clamps (a steel band, two alloy cheeks, an alloy base plate, the pinch lugs and six bolts)
+      const tw = Math.max(0.003, 0.045 * D), Ap = Math.PI * 0.25 * (0.72 * D) * (0.72 * D);
+      bill.push({ part: 'oleo cylinder', at: 'cyl', kg: pcTube(D, tw, Lc, RH.steel) + 0.15, usd: 0 });
+      bill.push({ part: 'oleo charge (oil, gas valve, seals)', at: 'cyl', kg: Ap * Sx * 1.33 * RH.oil + 0.08, usd: 0 });
+      const clampKg = 2 * (Math.PI * (D + 0.013) * 0.0065 * 0.9 * D * RH.steel            // the band
+                          + 2 * pcBar(0.06, 0.9 * D, 0.005, RH.alloy)                      // two cheeks
+                          + pcBar(2.0 * D, 2.8 * D, 0.006, RH.alloy) + 0.12);              // the base plate, lugs, bolts
+      bill.push({ part: 'clamps and bulkhead plates (2)', at: 'cyl', kg: clampKg, usd: 0 });
     }
     // THE STABILISER (fixed): the node ahead and low, its two tubes to the belly (each foot the skin's own point with a
     // doubler: "make these robust, it's a generic option"), its link aft and up to a band on the CYLINDER's foot - the
@@ -2867,6 +2912,12 @@ function legTailwheel(bags, AF, P, st) {
       pcEye(bags.steel, eL, pin, D * 0.19, D * 0.26);
       // the members: tubes from the eyes to the node
       const ends = [feet[0], feet[1], eL], rad = [D * 0.24, D * 0.24, D * 0.26];
+      // its bill: the three 4130 tubes (1.2 mm wall), the doublers, the clevises, the link's band, the node
+      {
+        const L3 = ends.map(e => Math.hypot(...sub(H, e)));
+        pc6Rec.bill.push({ part: 'stabiliser tubes (3, 4130)', at: 'stab', kg: pcTube(0.48 * D, 0.0012, L3[0] + L3[1], PC6_RHO.steel) + pcTube(0.52 * D, 0.0012, L3[2], PC6_RHO.steel), usd: 0 });
+        pc6Rec.bill.push({ part: 'belly doublers, clevises, link band', at: 'stab', kg: 2 * pcBar(2.4 * D, 1.7 * D, 0.006, PC6_RHO.alloy) + 3 * 0.09 + 0.25, usd: 0 });
+      }
       const welded = Math.round(+P.twNode || 0) !== 1;
       ends.forEach((e, i) => { const d = nrm(sub(H, e));
         sweep(bags.steel, resample([off(e, d, D * 0.22), welded ? H : off(H, d, -D * 0.2)], 4), () => secRound(rad[i], 12), true, pin);
@@ -2988,6 +3039,14 @@ function legTailwheel(bags, AF, P, st) {
   }
   // G58.7: the leaf spring's two ends — `root` bolts to the fuselage and
   // must not move; `tip` is the castor's swivel top. The join pins both.
+  if (pc6Rec && u.pc6 && u.pc6.bill) {
+    for (const b of u.pc6.bill) pc6Rec.bill.push(b);
+    pc6Price(pc6Rec.bill);
+    const sumAt = a => pc6Rec.bill.filter(b => b.at === a).reduce((s, b) => s + b.kg, 0);
+    pc6Rec.kgCyl = sumAt('cyl'); pc6Rec.kgSlider = sumAt('slider'); pc6Rec.kgStab = sumAt('stab');
+    pc6Rec.usd = pc6Rec.bill.reduce((s, b) => s + b.usd, 0);
+    for (const b of pc6Rec.bill) { b.kg = Math.round(b.kg * 1000) / 1000; }
+  }
   return { axle: u.hub, axis: u.axis, root, tip, travel: nrm([0, 1, 0.35]),
            castor: u, pc6Oleo: pc6Rec };
 }
