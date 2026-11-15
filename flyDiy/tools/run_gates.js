@@ -392,6 +392,7 @@ const GATES = [
   // validation planes' circuits on the powder layer (and the PC-6 on its wheels)
   { id: 'SKIS', file: '_skis_check.js', tier: 'core', wall: 240 },
   { id: 'SKISFLY', file: '_skis_check.js', argv: ['--fly'], tier: 'full', wall: 900 },
+  { id: 'SKISARDENT', file: '_skis_ardent.js', argv: ['--gate'], tier: 'full', wall: 1500 },   // SKIS-PC6: the PC-6 on its wheel-skis at the Ardent altiport (needs OBSERVATORY-SITE's mt_strip)
   // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
   // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
   // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round
