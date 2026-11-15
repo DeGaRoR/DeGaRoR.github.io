@@ -315838,3 +315838,22 @@ CAR-3 VAN STANCE (13 Nov, the user: "Tyres 70% their current width, + 7 cm outwa
   ring (noseW 0.8 from task #23) was 0.75 m half-width against the bonnet's rear 0.865 m and the cabin's 0.92 m - a
   pinch; noseW 0.914 puts the ring on the bonnet's rear edge (measured on the dumped triangles); the plan view now runs
   bonnet -> scuttle -> windscreen without a step. The three vans rejoined.
+
+CAR VEHICLES CATEGORY (15 Nov, A0 for the user: "The UTV car is also a candidate. Ensure the cars have their own
+  category for loading into the garage for now, so we can easily hide two layers if need be").
+  THE TWO SWITCHES - in builds/lists/vehicles.json, top level, no code to touch:
+    showVehicles   false = no Vehicles category in the garage's Fleet at all (absent / true = shown)
+    showCandidates false = the candidate layer hidden, the validated kept       (absent / true = shown)
+  Each row's `status`: validated | candidate (absent = candidate) | selectable (a car with no garage build).
+  VALIDATED: the Field Wagon van x3 (Retro, base, Alpine) and the boat-tail roadster. CANDIDATES: the Ranch Hand UTV,
+  the Dune Bug. SELECTABLE: the Conquer '89 pickup (file null, sheet src/cars/car_conquer.json) - in the game, not a
+  default, in neither garage layer; removed once the built cars are proven. The rule is one function,
+  VEHICLE_KIND.layers(json) (src/viewer/vehicle_kind.js); the Fleet (garage.js) draws it as "vehicles" (.gfVeh) and
+  "vehicles, candidates" (.gfVehCand), a layer's header hidden with it. No vehicle sits in the plane candidates' index
+  or plane_lists.json. GATE VEHICLE row LIST (tools/_vehicle_list_check.js): every garage-built row lands in one layer
+  and is a car by VEHICLE_KIND, none among the planes, the two switches empty what they should, the user's statuses,
+  the Fleet's two boxes. Page check (dev.html, the Load door): 4 validated, 2 candidates, no page error.
+  ALSO: src/cars/car_utility.json re-measured after the stance change (da97f638; track 1.94 / 2.06 m).
+  PENDING THE USER: merging TOW-LAUNCH's claude/tow-launch-l40d (it holds our car work only to 9819055c, 64 commits
+  behind; its van is old and on the lug tyre, now whProfile 4 there) and the van-as-default swap in drive_mode.js on
+  claude/cars-own for L40e (the Conquer kept selectable).

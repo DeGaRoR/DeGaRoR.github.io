@@ -797,8 +797,11 @@ function garageInit(api) {
   let vehP = null;
   const vehicleList = () => {
     if (!vehP) {
+      // (the layers and the switches: VEHICLE_KIND.layers, src/viewer/vehicle_kind.js - the list is validated then candidate,
+      // each row carrying its layer as `layer`)
       vehP = (typeof fetch === 'function' ? fetch(VEHICLES_FILE).then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
-        .then(j => (j && Array.isArray(j.vehicles) ? j.vehicles.filter(v => v && typeof v.file === 'string').map(v => Object.assign({ kind: 'car' }, v)) : []), () => []);
+        .then(j => { const L = window.VEHICLE_KIND && window.VEHICLE_KIND.layers ? window.VEHICLE_KIND.layers(j) : { validated: [], candidate: [] };
+          return L.validated.map(v => Object.assign({ layer: 'validated' }, v)).concat(L.candidate.map(v => Object.assign({ layer: 'candidate' }, v))); }, () => []);
       vehP.then(l => { if (!l.length) vehP = null; });
     }
     return vehP;
@@ -1145,8 +1148,12 @@ function garageInit(api) {
         '<div class="gfGroupH gfCandH">built here, not yet certified</div>' +
         '<div class="gfCand"></div>' +
         // CAR: the vehicles (builds/lists/vehicles.json) - cars, not planes: their own group, never among the planes
-        '<div class="gfGroupH gfVehH">vehicles (cars)</div>' +
+        // (A0 for the user, 15 Nov: "the cars have their own category for loading into the garage ... hide two layers"):
+        // the VEHICLES category, two layers - validated, candidate - each emptied by its switch in vehicles.json
+        '<div class="gfGroupH gfVehH">vehicles</div>' +
         '<div class="gfVeh"></div>' +
+        '<div class="gfGroupH gfVehCandH">vehicles, candidates</div>' +
+        '<div class="gfVehCand"></div>' +
         '<div class="gfFoot">' +
           '<span class="gfHint">import and export are on the ribbon' +
             ' \u2014 or drop a .json on the window</span>' +
@@ -1312,11 +1319,14 @@ function garageInit(api) {
       });
     }
     // CAR: the vehicles list, drawn when it answers
-    const vehBox = fleetEl.querySelector('.gfVeh');
+    const vehBox = fleetEl.querySelector('.gfVeh'), vehCand = fleetEl.querySelector('.gfVehCand');
     if (vehBox) {
-      vehBox.innerHTML = '';
+      vehBox.innerHTML = ''; if (vehCand) vehCand.innerHTML = '';
       vehicleList().then(list => {
-        vehBox.innerHTML = '';
+        vehBox.innerHTML = ''; if (vehCand) vehCand.innerHTML = '';
+        // a layer with nothing in it (its switch off) shows no header either
+        const show = (sel, on) => { const h = fleetEl.querySelector(sel); if (h) h.hidden = !on; };
+        show('.gfVehH', list.some(v => v.layer === 'validated')); show('.gfVehCandH', list.some(v => v.layer === 'candidate'));
         for (const v of list) {
           const row = document.createElement('div');
           row.className = 'gfRow gfVehRow';
@@ -1325,7 +1335,7 @@ function garageInit(api) {
           b.title = v.file;
           b.addEventListener('click', () => { closeFleet(); openListed(v); });
           row.appendChild(b);
-          vehBox.appendChild(row);
+          (v.layer === 'candidate' && vehCand ? vehCand : vehBox).appendChild(row);
         }
       });
     }

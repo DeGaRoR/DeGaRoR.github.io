@@ -30,6 +30,24 @@
     if (k === 'plane') delete spec.kind; else spec.kind = k; return spec; };
   vehicleKind.row = r => (r && KINDS.includes(r.kind) ? r.kind : 'car');
   vehicleKind.KINDS = KINDS;
+  // THE GARAGE'S VEHICLES CATEGORY (A0 for the user, 15 Nov: "Ensure the cars have their own category for loading into
+  // the garage for now, so we can easily hide two layers if need be"): builds/lists/vehicles.json -> the Fleet's
+  // Vehicles group, never among the planes, in two layers - VALIDATED and CANDIDATE (a row's `status`; absent =
+  // candidate). THE TWO SWITCHES live in the file itself: `showVehicles: false` empties the whole category,
+  // `showCandidates: false` empties the candidate layer (absent = shown). A row without a garage build (`file`) - the
+  // Conquer pickup, an imported model selectable in the game - is in neither layer.
+  // VEHICLE_KIND.layers(vehiclesJson) -> { validated: [rows], candidate: [rows] }
+  vehicleKind.layers = j => {
+    const out = { validated: [], candidate: [] };
+    if (!j || !Array.isArray(j.vehicles) || j.showVehicles === false) return out;
+    for (const v of j.vehicles) {
+      if (!v || typeof v.file !== 'string' || !v.file) continue;
+      const r = Object.assign({ kind: 'car' }, v);
+      if (r.status === 'validated') out.validated.push(r);
+      else if (j.showCandidates !== false) out.candidate.push(r);
+    }
+    return out;
+  };
   root.VEHICLE_KIND = vehicleKind;
-  if (typeof module !== 'undefined') module.exports = { vehicleKind };
+  if (typeof module !== 'undefined') module.exports = { vehicleKind, layers: vehicleKind.layers };
 })(typeof window !== 'undefined' ? window : globalThis);
