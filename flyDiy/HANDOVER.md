@@ -316371,3 +316371,11 @@ Every pilot gate flies the one Cessna, F-HCSN (builds/cessna172r_2026-11-08.json
 The aluminium test copy tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is kept ONLY for its structure / audio users (HINGE,
 HONESTY, JOINPARITY, PARKED, RETRACT, ROLLSND); its c172fx tour row is dropped and pilot_persona.js flies F-HCSN. Older entries above
 that name the fixture as "the metal Cessna" in a flying gate describe the gates before that change.
+
+## DESCENT D1 (Pilot, 15 Nov 2026; the user via A0: Rufus "unable to lose altitude fast enough ... stuck at -2,5 m/s")
+
+- Cause (the user's log, Rufus w1 circuit): the DESIGNED APPROACH (43 planFromHere, G3326) flew ENROUTE and BASE at aimAlt + ap.gs x dFaf; Cabin Strip's drawn FAF is 4923 m out, so a steepened slope (an obstacle's reqGs, the STOL slope, up to gsMax 0.16) put the FAF ~800 m over the strip and the aeroplane climbed to it. Node never reproduced it: its canopyH is 0 on that approach (the page's trees steepen it).
+- D1: the drawn FAF is held at max(the type's slope A.gs x dFaf, hCruise), never above the steep slope's; ap.fafCapped makes FINAL hold its latched level under the steep slope until it comes down (the capture no longer flies the slope law UP to it); the slip arms anywhere on the final when above the slope by A.slipHigh (15 m); ap.appr.gsWhy (type / obstacle / stol / airframe), .obst, .designed; the page's flight log gets the pilot's words (event 'say') and its approach (event 'appr').
+- Not yet (L40f): D2 the flap as drag when high (Rufus's card has ldg 0: its final is clean), D3 circling / S-turns down when a final cannot absorb the height (high_final +300 m: every plane goes round once).
+- Tools: flight_script lift {by}, scenario trees [[x,z,r,h]], each step's fly figures; tools/flight_table.js; scenarios rufus_cabin(_trees), high_final_rufus/cub/cessna. Logs D:/Dev/pilot_runs/descent/.
+- Gates (fixed tree): FLIGHTSCRIPT STOL PILOT PILOTCANFLY PILOTACT TOUR PASS; TAXICLEAR (archaeopteryx footprint), UNIFY (EMERG student, ARCH glider), ARCHETYPES (Chinook-alike rejected-takeoff, Archaeopteryx-alike capsized): the same reds on L40c / the base tree.
