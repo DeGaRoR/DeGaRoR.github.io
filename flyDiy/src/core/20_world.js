@@ -653,18 +653,27 @@ function makeWorld(seed, opts) {
   // there. The declared running box itself keeps its surface (G130: the registry's declaration wins on the strip).
   const hardOn = () => typeof PREMISES_GEN !== 'undefined' && !!PREMISES_GEN.grassHard && PREMISES_GEN.grassHard();   // (27_premises is its own scope: through its API)
   const drawnAt = (x, z) => { const c = coverAt(x, z); return !!(c && (c.kill >= 1 || c.surf)); };
-  const regMargin = (x, z) => {   // the point is in a strip box's margin, outside its declared running box
+  // the point is in SOME strip box's margin AND in NO strip's declared running box (DIRT-STRIP's review: where boxes overlap or abut,
+  // a point on strip B's own running box may sit in A's margin - a declared, undrawn B has no kill to save it)
+  const regMargin = (x, z) => {
+    let inMargin = false;
     for (const a of aerodromes) {
-      if (a.surface == null || a.kind === 'meadow') continue;
+      if (a.surface == null) continue;
+      if (a.kind === 'meadow') { const dx = x - a.x, dz = z - a.z; if (dx * dx + dz * dz <= a.r * a.r) return false; continue; }
       const c = CORE_MATH.cos(a.hdg), s = CORE_MATH.sin(a.hdg), u = (x - a.x) * c + (z - a.z) * s, v = -(x - a.x) * s + (z - a.z) * c;
-      if (Math.abs(u) <= a.len / 2 + 20 && Math.abs(v) <= a.wid / 2 + 6) return Math.abs(u) > a.len / 2 || Math.abs(v) > a.wid / 2;
+      if (Math.abs(u) <= a.len / 2 && Math.abs(v) <= a.wid / 2) return false;
+      if (Math.abs(u) <= a.len / 2 + 20 && Math.abs(v) <= a.wid / 2 + 6) inMargin = true;
     }
-    return false;
+    return inMargin;
   };
+  const inRunBox = (x, z) => { for (const a of aerodromes) { if (a.surface == null || a.kind === 'meadow') continue;
+    const c = CORE_MATH.cos(a.hdg), s = CORE_MATH.sin(a.hdg), u = (x - a.x) * c + (z - a.z) * s, v = -(x - a.x) * s + (z - a.z) * c;
+    if (Math.abs(u) <= a.len / 2 && Math.abs(v) <= a.wid / 2) return true; } return false; };
   // -> the island's own class where the margin / a shoulder gives way, else -1. Only a NATURAL class takes over (grass, the forest
   // floor, scree, rock): where the island calls the airfield built-up (HOME, w2: PAVED) the declared gravel stays
   function giveWay(x, z) {
     if (!ISL || !hardOn()) return -1;
+    if (inRunBox(x, z)) return -1;   // (never on any strip's declared running box - the shoulders' branch too)
     let cand;
     if (PM) { const s = PM.surfaceAt(x, z); cand = s >= 0 ? !!(PM.shoulderAt && PM.shoulderAt(x, z)) : (regSurf(x, z) >= 0 && regMargin(x, z)); }
     else cand = regSurf(x, z) >= 0 && regMargin(x, z);
