@@ -562,10 +562,10 @@ function faceSuite(GPS) {
 const PANELS = [
   ['cub', 'builds/cub_2026-09-20_corrected.json', 'glass', 'plate', true, true],
   ['cub', 'builds/cub_2026-09-20_corrected.json', 'portable', 'plate', true, true],
-  ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'glass', 'plate', true, true],
+  ['cessna', 'builds/cessna172r_2026-11-08.json', 'glass', 'plate', true, true],
   // the shipped metal Cessna (tools/_load_build.js VALIDATED.metal): A0's evidence build for tools/avionics_stills.js
-  ['metal', 'bugReports/cessnaMetal (1).json', 'glass', 'plate', true, true],
-  ['metal', 'bugReports/cessnaMetal (1).json', 'portable', 'plate', true, true],
+  ['metal', 'builds/cessna172r_2026-11-08.json', 'glass', 'plate', true, true],
+  ['metal', 'builds/cessna172r_2026-11-08.json', 'portable', 'plate', true, true],
   // the Jodel's plate: since master's L28-0 (merged 28 Oct) the portable fits ON it, on the pilot's line, every dial and
   // breaker kept - so it stands there (its glareshield cradle is for a plate that would cost a dial: the CRADLE rows
   // below hold that rule); the glass unit fits only in the middle, and gauges give way to it
@@ -579,10 +579,10 @@ const PANELS = [
   // and the yokes leave no 208 mm under the crown); the Cub's one, in the middle, keeps every dial (GATE GPSFACE 3 Nov:
 // this row said it cost three small gauges, but G2815's own branch already laid out all twelve beside the 271 mm screen
 // on the 620 mm plate - the rows above hold the layout clean: no dial overlap, the GPS clear of every dial and switch)
-  ['metal', 'bugReports/cessnaMetal (1).json', 'flatPair', 'plate', false, true],
-  ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'flat', 'plate', false, true],
-  ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'flat:copilot', 'plate', false, true],
-  ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'flatPair', 'plate', false, true],
+  ['metal', 'builds/cessna172r_2026-11-08.json', 'flatPair', 'plate', false, true],
+  ['cessna', 'builds/cessna172r_2026-11-08.json', 'flat', 'plate', false, true],
+  ['cessna', 'builds/cessna172r_2026-11-08.json', 'flat:copilot', 'plate', false, true],
+  ['cessna', 'builds/cessna172r_2026-11-08.json', 'flatPair', 'plate', false, true],
   ['cub', 'builds/cub_2026-09-20_corrected.json', 'flat', 'plate', false, true],
 ];
 function dashOf(file, gps) {

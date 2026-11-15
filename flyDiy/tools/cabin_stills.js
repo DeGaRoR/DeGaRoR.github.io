@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // cabin_stills.js - WHERE THE CABIN LAMPS SIT, AS PICTURES (CABIN-CRAFT, 2026-11-02)
 //
-//   node tools/cabin_stills.js --build tools/fixtures/Twin_busher_floats_2.json --out <dir>/twin_after
+//   node tools/cabin_stills.js --build tools/fixtures/test_copies/Twin_busher_floats_2.json --out <dir>/twin_after
 //        [--tools <dir>] [--over '{"canopy":3}'] [--roi <json from a first run>] [--px 900]
 //
 // tools/dash_stills.js's bench scene and rasteriser (the page's PAGE.post chain headless, the crew and the panel

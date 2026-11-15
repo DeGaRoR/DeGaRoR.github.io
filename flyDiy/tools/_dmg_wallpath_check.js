@@ -25,7 +25,7 @@ const { spawnSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json' };
 
 // ---- in the page: the hashes and the giant triangles ----
 const fnv = a => { let h = 2166136261 >>> 0; const u = new Uint8Array(a.buffer, a.byteOffset, a.byteLength); for (let i = 0; i < u.length; i++) { h ^= u[i]; h = Math.imul(h, 16777619) >>> 0; } return h; };

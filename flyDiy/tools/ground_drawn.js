@@ -36,7 +36,7 @@ const arg = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] :
 const ALL = !argv.some(a => /^--(lattice|stands|taxi|none)$/.test(a));   // --none: the module alone (require it)
 const DO = { lattice: ALL || argv.includes('--lattice'), stands: ALL || argv.includes('--stands'), taxi: ALL || argv.includes('--taxi') };
 const BUILDS = { cub: path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), jodel: path.join(ROOT, 'builds', 'jodel_2026-09-20_corrected.json'),
-  cessna: path.join(ROOT, 'bugReports', 'cessnaMetal (1).json') };
+  cessna: path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json') };
 const buildKeys = String(arg('--builds', 'cub,jodel,cessna')).split(',');
 
 let GG = null;   // tools/ground_gap.js (poseWheels, the panel's core): loaded only for --stands / --taxi

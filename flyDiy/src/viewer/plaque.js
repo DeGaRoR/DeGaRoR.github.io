@@ -69,6 +69,10 @@ const PLAQUE_WHY = {
     fix: 'this is power against weight: a bigger engine, a coarser propeller, '
       + 'less structure, or more wing area. Check the empty weight first - '
       + 'covering and fittings add up faster than they look.' },
+  'landing flaps': { what: 'how much of its flap it can land on: the shakedown tried the full notch and could not trim it on the approach or flare it, so it lands on less, or on none at the clean stall.',
+    fix: 'move the CG forward, give the tail more area or the elevator more travel - or a smaller flap that the elevator can hold.' },
+  'approach trim': { what: 'the elevator the approach needs, against what the trim and the stick can hold.',
+    fix: 'out of reach means the CG is too far from where the tail can balance it: move the CG, or a bigger tail or elevator.' },
   'take-off run': { what: 'ground roll plus the climb to the 15 m screen.',
     fix: 'more power or less weight shortens it; so does more wing area and a '
       + 'flap that actually lifts (a plain flap does little). A fine-pitch '

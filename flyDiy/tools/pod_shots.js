@@ -13,7 +13,7 @@
 //   node tools/pod_shots.js [--builds cub,metal] [--out reports/evidence/POD4] [--cams quarter,side,below,aft,front,whole]
 //        [--size 1400x800] [--pod '{"on":1,...}'] [--litres 160 --shape 0.5] [--tint 1] [--nopod 1] [--tag x]
 //   builds: a key of tools/_load_build.js VALIDATED (cub, jodel, metal, floats ...) or 'metalFix' (the fixture
-//   tools/fixtures/cessnaMetal_pod_2026-10-22.json, its pod as written). With no --pod / --litres a build gets the
+//   tools/fixtures/test_copies/cessnaMetal_pod_2026-10-22.json, its pod as written). With no --pod / --litres a build gets the
 //   default pod ({ on: 1 }). --tint 1 draws the pod in a flat test colour (the shape alone, not the livery); --single 1
 //   draws it one-sided (an opening, a missing face, shows as a hole).
 'use strict';
@@ -44,7 +44,7 @@ function dump(key) {
   const LB = require(path.join(T, '_load_build.js'));
   const BJ = require(path.join(T, '_bake_joined.js'));
   const spec = key === 'metalFix'
-    ? (j => j.spec || j)(JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'cessnaMetal_pod_2026-10-22.json'), 'utf8')))
+    ? (j => j.spec || j)(JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'test_copies', 'cessnaMetal_pod_2026-10-22.json'), 'utf8')))
     : LB.loadValidated(key).spec;
   const pod = podFor(key, spec, C);
   if (pod) spec.pod = pod; else delete spec.pod;

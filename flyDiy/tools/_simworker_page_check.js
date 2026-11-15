@@ -49,7 +49,7 @@ const { spawnSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
-const BUILDS = { cub: null, cessna: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: null, cessna: 'builds/cessna172r_2026-11-08.json' };
 const RATE = 2;
 
 const fnv = (h, a) => { const u = new Uint8Array(a.buffer, a.byteOffset, a.byteLength); for (let i = 0; i < u.length; i++) h = Math.imul(h ^ u[i], 16777619) >>> 0; return h; };

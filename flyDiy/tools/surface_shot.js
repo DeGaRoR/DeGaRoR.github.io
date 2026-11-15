@@ -20,7 +20,7 @@ try { pw = require('playwright'); } catch (e) { pw = require(path.join(cp.execSy
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const BUILDS = {
-  cub: fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_cub_wip.json'), 'utf8'),
+  cub: fs.readFileSync(path.join(__dirname, 'fixtures', 'test_copies', 'garage_lag_cub_wip.json'), 'utf8'),
   floats: JSON.stringify(JSON.parse(fs.readFileSync(path.join(ROOT, 'bugReports', 'cessnaFloatsWOrks.json'), 'utf8')).spec),
 };
 // [page, build, saved route, shot name]

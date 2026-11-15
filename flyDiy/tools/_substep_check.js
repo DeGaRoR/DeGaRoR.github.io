@@ -60,7 +60,8 @@ function netEig(def, val) {
 
 const builds = [];
 for (const a of D.ARCHETYPES) if (!D.archInactive(a)) builds.push([a.key, D.designBake(a.sel, a.over)]);
-for (const f of fs.readdirSync(path.join(T, 'fixtures')).filter(f => /^build_.*\.json$/.test(f)))
+for (const f of fs.readdirSync(path.join(T, 'fixtures')).filter(f => /^build_.*\.json$/.test(f))
+  .concat(fs.readdirSync(path.join(T, 'fixtures', 'test_copies')).filter(f => /^build_.*\.json$/.test(f)).map(f => 'test_copies/' + f)))   // (CANON-CLEAN)
   try { const j = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', f), 'utf8')); builds.push([f, C.genMigrateSpec(j.spec || j)]); } catch (e) {}
 
 let cut = 0, saved = 0, total = 0, boxes = 0, boxSaved = 0;

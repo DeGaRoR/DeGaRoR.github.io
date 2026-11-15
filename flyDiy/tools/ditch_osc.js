@@ -28,7 +28,7 @@ if (C.HYDRO && C.HYDRO.WB_OPT) for (const k of ['rad', 'grad', 'cap', 'now']) if
 const BUILDS = {
   cub: { file: 'builds/cub_2026-09-20_corrected.json' },
   jodel: { file: 'builds/jodel_2026-09-20_corrected.json' },
-  metal: { file: 'bugReports/cessnaMetal (1).json' },
+  metal: { file: 'builds/cessna172r_2026-11-08.json' },
   cfloats: { file: 'bugReports/cessnaFloatsWOrks.json', floats: true },
   twin: { file: 'tools/fixtures/build_v7_ultralight_2026-09-05.json', floats: true,
           patch: s => { s.gear.type = 'floats'; s.cage = Object.assign({}, s.cage, { gearFloats: 1 }); } },

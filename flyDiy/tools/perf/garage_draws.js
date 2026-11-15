@@ -20,8 +20,8 @@ const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..', '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
+  cessna: 'builds/cessna172r_2026-11-08.json' };
 const BK = opt('build', 'jodel'), PRESET = opt('preset', 'retro'), FRAMES = +opt('frames', 6), WARM = +opt('warm', 40);
 const OUT = opt('out', null), EVAL = opt('eval', null);
 const Q = 'gfx=' + PRESET + (opt('query', '') ? '&' + opt('query', '') : '');

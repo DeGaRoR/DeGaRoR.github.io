@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // GATE CESSNAVREF (G2500, CESSNA-VREF) - THE METAL CESSNA INTO TAMGAS HILL, AS THE GAME FLIES IT.
 //
-// The finding (the game on the GPU, the 8 kt day, damage on; the user's metal Cessna bugReports/cessnaMetal (1).json):
+// The finding (the game on the GPU, the 8 kt day, damage on; the user's metal Cessna, list:40 B-CESS - now the test copy
+// tools/fixtures/test_copies/cessnaMetal (1).json):
 // 'vref-raised: the elevator cannot hold 28.9 m/s at this power', a touchdown at 30.5-31.1 m/s on Tamgas Hill's 520 m
 // and the aeroplane stopped 51 m (train 40) / 100 m (pilot-42) PAST THE END. Node reproduces both to the metre in the
 // game's flight (tools/_tour_lib.js gameHost: the worker's host and placement, DAY_CLOCK's day ticked, the page's pilot
@@ -15,7 +16,7 @@
 //   - THE BAR: stopped ON the strip (the touch past the threshold, the stop short of the far end, on the centreline's
 //     box), or the strip REFUSED with its reason said ('strip-too-short') and the aeroplane landed and stopped on the
 //     strip it diverted to; either way no member yielded or broken, no dent, no prop strike, no ground loop
-// 2 (shard 1) THE CONTROL: the C172 file build (builds/cessna172_2026-09-20_corrected.json, the load door's) on the
+// 2 (shard 1) THE CONTROL: THE Cessna 172, list:50 (builds/cessna172r_2026-11-08.json, the load door's) on the
 //   same leg - its elevator holds Vref (no 'vref-raised'), and it lands and stops on Tamgas Hill as it did
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -35,8 +36,10 @@ const check = (ok, what, detail) => {
 };
 const ROOT = path.join(T, '..');
 const JOBS = [
-  { id: 'metal', key: path.join(ROOT, 'bugReports', 'cessnaMetal (1).json'), name: 'the metal Cessna (the load door\'s)', finding: true },
-  { id: 'c172', key: path.join(ROOT, 'builds', 'cessna172_2026-09-20_corrected.json'), name: 'the C172 file build (the control)', finding: false },
+  // (ONE-CESSNA 15 Nov: the finding is list:40 B-CESS's, retired from the career to a test copy - this gate is one of its
+  //  readers; the control is THE Cessna, list:50)
+  { id: 'metal', key: path.join(ROOT, 'tools', 'fixtures', 'test_copies', 'cessnaMetal (1).json'), name:'the metal Cessna (the load door\'s)', finding: true },
+  { id: 'c172', key: path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json'), name: 'the C172 file build (the control)', finding: false },
 ];
 for (const J of JOBS) {
   if (!SHD.take()) continue;

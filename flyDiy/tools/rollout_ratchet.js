@@ -7,11 +7,11 @@
 // work in node; this is the other half - real time, the GPU, the evenness of the frames.
 //
 // The scenario (the coordinator's, one GPU_BENCH.lock hold, no CPU_BATTERY lock):
-//   for b in default "bugReports/cessnaMetal (1).json"; do for r in 1 2; do
+//   for b in default "builds/cessna172r_2026-11-08.json"; do for r in 1 2; do
 //     node tools/rollout_perf.js --build "$b" --label ratchet_<cub|metal>_$r [--settings on the Cub runs]; done; done
 //   THE COCKPIT PROFILE (A5-CAP, the user: the interior view "feels a tad more laggy than exterior"): the same two builds
 //   at the taxi in the cockpit, two runs each - the view the player watches the frame pacing from:
-//   for b in default "bugReports/cessnaMetal (1).json"; do for r in 1 2; do
+//   for b in default "builds/cessna172r_2026-11-08.json"; do for r in 1 2; do
 //     node tools/rollout_perf.js --build "$b" --cam cockpit --label ratchet_<cub|metal>_cockpit_$r; done; done
 //   A run that asked for a view (--cam) is its own group (" | view cockpit"); the default runs keep their groups.
 // then:  node tools/rollout_ratchet.js tools/perf/rollout_ratchet_*.json            (compare, exit 1 on red)

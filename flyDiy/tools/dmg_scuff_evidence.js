@@ -7,7 +7,7 @@
 // (bash flyDiy/tools/perf/boxlock.sh take gpu DMG-SCUFF "<note>"), drop it after.
 //   SPORT=8701 DPORT=9601 UDD=C:/dmgscuff Q='damage=1&simw=0' node tools/live_driver.js <repo> builds/cub_2026-09-20_corrected.json dev.html 8702
 //   node tools/dmg_scuff_evidence.js --cmd 8702 --boot [--out reports/evidence/DMG-SCUFF/box/cub] [--cases trunk-0,taxi,noseover]
-//   ...and the metal Cessna (bare-alloy scrapes): the same with 'bugReports/cessnaMetal (1).json' and --out .../box/metal
+//   ...and the metal Cessna (bare-alloy scrapes): the same with 'builds/cessna172r_2026-11-08.json' and --out .../box/metal
 //   --keys: the program cache keys and their count only (run once with Q='damage=0' on this branch and once on the base:
 //           the two lists must be the same - damage OFF changes no program)
 // Per case: <case>_<cam>_intact.jpg (staged, before the crash), <case>_<cam>_after.jpg (the wreck, the damage drawn),

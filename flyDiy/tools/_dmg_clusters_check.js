@@ -3,7 +3,7 @@
 // §7.1 #8, §7.4), on the user's validated builds, damage ON (params.damage true). The clusters they carry: the FIN on all
 // five (the user's Cub, the Jodel, the metal Cessna, the Cessna on floats, the twin on floats), the twin's ROD (its tail
 // boom: a tube cluster with a twist constraint and a mid-span station), the rigid FLOATS of both floatplanes. No validated
-// build has a twin boom: the boom is flown on the twin-boom FIXTURE (tools/fixtures/build_v8_twin-boom_2026-09-11.json) and
+// build has a twin boom: the boom is flown on the twin-boom FIXTURE (tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json) and
 // REPORTED, tuned on nothing.
 //   1. THE CUTS (G1840): every cluster of every build has its root cut, its limits finite and positive (the fitting rule on
 //      the section of its EI / GJ); the rod and the boom their station (G1842) and their twist limits (G1841)
@@ -27,7 +27,7 @@
 const path = require('path'), fs = require('fs');
 const argv = process.argv.slice(2);
 const L = require('./_treecrash_lib.js');
-L.BUILDS.twinBoom = { label: 'twin boom (FIXTURE, report only)', build: 'tools/fixtures/build_v8_twin-boom_2026-09-11.json' };
+L.BUILDS.twinBoom = { label: 'twin boom (FIXTURE, report only)', build: 'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json' };
 const VALID = ['cub', 'jodel', 'metal', 'floats', 'twinFloats'];
 
 const cutsOf = sim => sim.clusterCuts();

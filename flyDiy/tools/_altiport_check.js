@@ -163,7 +163,7 @@ if (SHD.take()) {
 //   stopped ON the altiport with no fault (a / c / d as 1 and 2), or THE STRIP REFUSED WITH ITS REASON SAID
 //   ('strip-too-short') and the aeroplane landed and stopped on the strip it diverted to - no flare ever armed at the
 //   altiport, nothing yielded, broken or dented either way
-const METAL = path.join(ROOT, 'bugReports', 'cessnaMetal (1).json');
+const METAL = path.join(ROOT, 'tools', 'fixtures', 'test_copies', 'cessnaMetal (1).json');   // (ONE-CESSNA 15 Nov: case 4 is list:40 B-CESS's finding - its test copy; this gate is one of its readers)
 if (SHD.take()) {
   const t0 = Date.now();
   const R = flyWatched(METAL, {});

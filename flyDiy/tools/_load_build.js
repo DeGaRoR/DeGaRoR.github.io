@@ -38,7 +38,7 @@ const CACHE_DIR = path.join(T, '.joincache');
 const VALIDATED = {
   cub: { label: 'Cub', build: 'builds/cub_2026-09-20_corrected.json' },
   jodel: { label: 'Jodel', build: 'builds/jodel_2026-09-20_corrected.json' },
-  metal: { label: 'metal Cessna', build: 'bugReports/cessnaMetal (1).json' },
+  metal: { label: 'metal Cessna', build: 'builds/cessna172r_2026-11-08.json' },
   floats: { label: 'Cessna floats', build: 'bugReports/cessnaFloatsWOrks.json' },
   twinFloats: { label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
     patch: j => { j.spec.gear.type = 'floats'; j.spec.cage = Object.assign({}, j.spec.cage, { gearFloats: 1 });
@@ -54,7 +54,7 @@ const VALIDATED = {
   // SEAPLANES-LAND (the user 7 Nov: "The super petrel ... will join our official testing trinity. It's the first one in
   // carbon, one with a hull, a biplane, a pusher, with retractable wheels"; "The Petrel V4.1 is the final one"): the test
   // reference set's first carbon build, hull, sesquiplane, pylon pusher and retracting tricycle (an amphibian)
-  petrel: { label: 'Super Petrel', build: 'builds/candidates/superpetrel_V4_1.json' },
+  petrel: { label: 'Super Petrel', build: 'tools/fixtures/test_copies/superpetrel_V4_1.json' },
 };
 
 // ---- the inputs' fingerprint ----------------------------------------------------------------------------------------

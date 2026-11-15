@@ -118,7 +118,7 @@ function loadPanel() {
   console.log('FLOWN');
   {
     const LB = require(path.join(T, '_load_build.js'));
-    const raw = JSON.parse(fs.readFileSync(path.join(FLY, 'builds', 'cessna172_2026-09-20_corrected.json'), 'utf8'));
+    const raw = JSON.parse(fs.readFileSync(path.join(FLY, 'builds', 'cessna172r_2026-11-08.json'), 'utf8'));
     const land = LB.gameSpec(JSON.parse(JSON.stringify(raw)));
     const fl = JSON.parse(JSON.stringify(raw)), C = fl.spec.cage;
     C.gearFloats = 1; C.fltPreset = idx('Wipline 2350');

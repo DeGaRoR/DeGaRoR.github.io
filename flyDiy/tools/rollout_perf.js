@@ -29,7 +29,7 @@
 // (`dist`): the histogram (< 20, 20-40, 40-60, 60-100, 100-250, 250-1000, > 1000 ms), p50 / p90 / p99 / p99.9, the share
 // over 1.5x and 3x the frame's own cap (r[6]), the frames over 100 ms and 1 s - rollout_ratchet.js gates on them.
 //
-// Usage: node tools/rollout_perf.js [--cold] [--secs 150] [--build "bugReports/cessnaMetal (1).json"]
+// Usage: node tools/rollout_perf.js [--cold] [--secs 150] [--build "builds/cessna172r_2026-11-08.json"]
 //          [--variant base|nomet|nopremises] [--gfx '<json>'] [--world jolene|none] [--page index.html|dev.html]
 //          [--size 2216x1023] [--label name] [--out tools/perf/rollout_<label>.json] [--quiet]
 //          [--port 8531] [--fallback D:/Dev/DeGaRoR.github.io] [--q 'depth=log'] [--shot 5,20]

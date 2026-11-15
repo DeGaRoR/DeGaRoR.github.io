@@ -26,7 +26,7 @@ const yes = (c, msg) => { checks++; if (!c) fails++; console.log((c ? '  ok    '
 const DT = 1 / 60, SETTLE = 240;
 
 function stolDef() {
-  const raw = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'stol_cub_showcase.json'), 'utf8'));
+  const raw = JSON.parse(fs.readFileSync(path.join(T, '..', 'builds', 'candidates', 'stol_cub_showcase.json'), 'utf8'));
   const d = C.buildGen(LB.gameSpec(raw));
   return Object.assign({}, d, { params: Object.assign({}, d.params, { damage: true }) });
 }

@@ -272,9 +272,9 @@ const tick = () => new Promise(r => setImmediate(r));
   const T0 = Date.now();
   const PLACE = { from: 'HOME', to: 'CIRCUIT', stand: true }, PILOT = { kind: 'auto' };
   const specOf = f => { const j = JSON.parse(fs.readFileSync(f, 'utf8')); return genMigrateSpec(j.spec || j); };
-  const BUILDS = [['stock', specOf(path.join(__dirname, 'fixtures', 'build_v9_stock_2026-09-15.json'))],
+  const BUILDS = [['stock', specOf(path.join(__dirname, 'fixtures', 'test_copies', 'build_v9_stock_2026-09-15.json'))],
                   // G1985 (JOIN-PARITY): the metal Cessna as the game flies it (tools/_load_build.js)
-                  ['cessnaMetal', process.env.FLYDIY_RAW_BUILDS === '1' ? specOf(path.join(ROOT, 'bugReports', 'cessnaMetal (1).json')) : genMigrateSpec(require('./_load_build.js').loadValidated('metal').spec)],
+                  ['cessnaMetal', process.env.FLYDIY_RAW_BUILDS === '1' ? specOf(path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json')) : genMigrateSpec(require('./_load_build.js').loadValidated('metal').spec)],
                   // G2678 (BELLY-POD-2): THE POD FLOWN ON THE WORKER - the user's Cub with a 0.60 m belly pod, which sits on
                   // the pod's aft nodes at rest (it strikes three-point: GATE POD's refusal) and scrapes them as it taxis:
                   // the pod's mass, drag and its scraping contacts on the host's thread, to the page's bits

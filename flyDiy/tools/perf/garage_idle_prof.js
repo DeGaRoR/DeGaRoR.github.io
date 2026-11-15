@@ -15,7 +15,7 @@ const fs = require('fs'), path = require('path'), inspector = require('inspector
 const ROOT = path.join(__dirname, '..', '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json' };
 const BK = opt('build', 'jodel'), PRESET = opt('preset', 'retro'), WARM = +opt('warm', 90), FRAMES = +opt('frames', 150), TOP = +opt('top', 40);
 const OUT = opt('out', null);
 const post = (s, m, p) => new Promise((res, rej) => s.post(m, p || {}, (e, r) => e ? rej(e) : res(r)));
