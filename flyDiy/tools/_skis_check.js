@@ -2,7 +2,7 @@
 // GATE SKIS (SKIS, 13 Nov 2026) - the generic ski landing gear: one ski, three mountings (src/core/29c_ski.js; the
 // design note futureDesigns/SKIS-2026-11-13.md; A0's references futureDesigns/SKI-REFERENCES-2026-11-13.md).
 //
-//   node tools/_skis_check.js            -> "GATE SKIS: PASS|FAIL"   (core: sections 1-7)
+//   node tools/_skis_check.js            -> "GATE SKIS: PASS|FAIL"   (core: sections 1-9)
 //   node tools/_skis_check.js --fly      -> "GATE SKISFLY: PASS|FAIL" (full: the two validation planes' circuits)
 //   node tools/_skis_check.js --bless    write tools/fixtures/skis/base.json from THIS tree (run it in a base worktree)
 //
@@ -24,6 +24,10 @@
 //    wheel-ski in wheel mode keeps its wheel brakes (the stop shorter braked)
 //  7 THE WHEEL-SKI'S SELECTOR: with no pilot's choice the skis are up over a hard field and down over a soft one; the
 //    pilot's selector moves them in the kit's cycle time, the drawn ski with them (out.skiDy), the contact with it
+//  8 THE BELLY POD on the Carbon Cub, end to end (mass and CG, drag, the freight's path, the pod's gates; with the skis on)
+//  9 ONE SOFT GROUND (SNOW-MUD's, agreed 15 Nov): no world.soft, the ski's rut is SNOW-MUD's plate law at rest when the
+//    fresh top is off, SNOW-MUD's row drives it, the skis write its readouts (softZ / softF) and feed the dust's plume
+//    their own ruts; the sole slides on GROUND_SKI_MU
 //  FLY (--fly, the full tier): the Carbon Cub on straight skis and the PC-6 on wheel-skis fly the game's circuit off
 //    the powder layer and land and stop on it (no brakes: the snow's drag); the PC-6 also off the grass on its wheels
 'use strict';
@@ -263,6 +267,35 @@ async function main() {
     const both = clone(podSpec); both.gear.ski = clone(ccSpec.gear.ski);
     const d3 = defOf(both), RO3 = C.genPodReadout(d3, C.genShakedown(d3, { corners: false }));
     ok(RO3 && !(RO3.red && RO3.red.length), 'the pod and the skis together: no red (' + JSON.stringify(RO3.clearance.map(r => [r.id, +r.clear.toFixed(2)])) + ')');
+  }
+  console.log('9 ONE SOFT GROUND - SNOW-MUD\'S (its SURFACE codes, GROUND_SOFT, GROUND_SKI_MU; no second version)');
+  {
+    const core = ['29c_ski.js', '30_solver.js'].map(f => fs.readFileSync(path.join(ROOT, 'src', 'core', f), 'utf8')).join('\n');
+    ok(!/world\.soft\b|SOFT_GROUND\b/.test(core.replace(/\/\/.*$/gm, '')) && C.SOFT_GROUND === undefined && typeof C.groundSinkPlate === 'function',
+       'no second soft ground: world.soft and SOFT_GROUND are gone, the skis call SNOW-MUD\'s groundSinkPlate / groundSinkWheel');
+    // the ski reads SNOW-MUD's row: its layer softer, the same ski deeper (the fresh top off: the settled law alone)
+    const W = softWorld('powder'), dC = defOf(ccSpec, Object.assign({}, ccSpec.gear.ski, { kind: 'plain', prot: null }));
+    const F = C.SKI_SNOW[9].fresh, k0 = C.GROUND_SOFT[9].k;
+    try {
+      delete C.SKI_SNOW[9].fresh;
+      const a = settle(dC, W), za = Math.max(...a.out.skiSink);
+      const R = dC.parts.ski.mains, load = Math.max(...a.out.skiLoad);
+      C.groundSinkPlate(C.GROUND_SOFT[9], load, R.A, R.Wmax || R.W);
+      const zq = C.GROUND_SINK.z;
+      ok(Math.abs(za - zq) < 0.05 * zq + 2e-4, `with no fresh layer the rut is SNOW-MUD's plate law at rest: ${(100 * za).toFixed(2)} cm against groundSinkPlate's ${(100 * zq).toFixed(2)} (${(load / 1000).toFixed(2)} kN on ${R.A.toFixed(2)} m2)`);
+      C.GROUND_SOFT[9].k = k0 / 4;
+      const b = settle(dC, W), zb = Math.max(...b.out.skiSink);
+      ok(zb > 1.5 * za, `SNOW-MUD's row drives it: its powder 4 x softer, the ski ${(100 * zb).toFixed(2)} cm deep (n ${C.GROUND_SOFT[9].n}: x ${Math.pow(4, 1 / C.GROUND_SOFT[9].n).toFixed(2)} expected)`);
+    } finally { C.SKI_SNOW[9].fresh = F; C.GROUND_SOFT[9].k = k0; }
+    const s9 = settle(dC, W);
+    ok(s9.out.softZ > 0 && Math.abs(s9.out.softZ - Math.max(...s9.out.skiSink)) < 1e-12 && s9.out.softF >= 0,
+       `the skis write SNOW-MUD's readouts: out.softZ ${(100 * s9.out.softZ).toFixed(1)} cm = the deepest ski (the dust's plough reads it)`);
+    const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+    ok(/so\.skiSink\[k\]/.test(app) && /R = rec\.L; sink = \+so\.skiSink\[k\]/.test(app),
+       'the plume: each ski a source of the dust\'s with its OWN rut (out.skiSink[k]) and its length (the plough at its toe, no tread to shed)');
+    const mu = C.GROUND_SKI_MU;
+    ok(mu[8] === C.GROUND_SOFT[8].ski && mu[9] === C.GROUND_SOFT[9].ski && C.SKI_SNOW[11] === undefined && C.SKI_SNOW[12] === undefined,
+       'the sole slides on GROUND_SKI_MU (the snow rows are GROUND_SOFT\'s own); no ski row on the mud (no ski belongs there: its selector stays up)');
   }
   console.log(fails ? `GATE ${ID}: FAIL (${fails})` : `GATE ${ID}: PASS`);
   process.exitCode = fails ? 1 : 0;
