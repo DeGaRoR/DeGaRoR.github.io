@@ -316337,3 +316337,25 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   sailplane's drag (laminar skin, faired junctions, a cantilever T stab without wires); the CG; the card in ARCHETYPES.
   PRE-EXISTING REDS seen on the way, not this branch's: ENERGYBASE's carbon case (since the L39b merge), LIVERY's two
   builds/cub_2026-09-20.json strut checks.
+
+# L40c (Sun 15 Nov 00:18, full battery 284 PASS / 45 FAIL)
+
+LANDED (merged, 10 + the L40a re-pin): start-chooser-2, stand-pad (East Point stand pad), fiche-metal, look-halo, chooser-alikes-onfleet3, archaeopteryx-2, pilot-unify-2 (+ jumbo), floatletters-repin, roommerge-outdoor, cowl-split-level; c7020a536 L40a RE-PIN (REALBAND + STOL baseline).
+DROPPED to L40d: tow-launch-l40c-3 + slope-fix (real conflicts with the merged autopilot -> TOW-LAUNCH rebases), livery-manager-2 (build.js conflict -> A0 re-makes), elec-systems (HANDOVER CR 0 -> A0 fixed: claude/ready/elec-systems-eol). Skymaster CANCELLED by the user.
+
+FIXED vs L40a (5): STOL, ROLLANIM, MEDIA, ROOMMERGE, FLOATLETTERS.
+STANDING (L40a's, unchanged): FLIGHTREC GEN RADIALDIV ALTIPORT DESTTO TREECRASH DMGCERT DMGGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGSKINGPU DMGWALL DMGDAMP DMGTYRE DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP REALBAND SHADOWSKY LIVERY DESIGNCHECK JOINPARITY ENGINE POD DMGPOD CANDIDATES NAMES TECH NODUMMY ENERGYBASE ENGTORQUE FLEX LOAD ENGCONFIG.
+NEW REDS (8), NAMED with owners (fix or re-pin with reason for L40d/L40e):
+- archaeopteryx-2 (ARCHAEOPTERYX, cloud), 7 checks:
+  - WINGROWS §9.1 + sibling: the new taper clamp [0.35, 1.0] holds a 0.55/2.10 tip at 0.735 (the flown 0.945 wanted); the validated KEPT rows are bit-identical.
+  - PARTS: canClear rows no part claims (1439 vs 1440).
+  - WILGAGEAR 7b: the trailing link draws no spat/boot (host + Cub, 4 rows).
+  - TANKMOUNT: archaeopteryx x0.45 tank past a surface / something inside it.
+  - TAXICLEAR 1: the archaeopteryx footprint (half 6.50 > 5.5).
+  - GLIDE CIRCUIT + UNIFY ARCH: the archaeopteryx motor-off circuit at Jolene (capsized at 21.8 m/s sink; ARCH 0.6 m off the runway).
+- pilot-unify-2 (Pilot), 1 check + 2 rows:
+  - STRESS: ap.update -> groundH with no world (test_stress passes none): crash in the harness.
+  - TAXICLEAR 9/11c: the Cessna aborts at Jumbo Mine -> FIXED by claude/ready/pilot-gonogo (L40d: it declines at the hold with the numbers, per the user's 13 Nov ruling).
+  - UNIFY EMERG (the student): known red on the pu2 base, Pilot owns.
+
+COLD LOAD (the user 14 Nov: before/after every train): before 143 s (L40a 6a8d705c4); after 138 s (programs 501, world 26.1, settle 17.1, shader compile 56.5+4.0): no load cost from this train. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
