@@ -146,7 +146,7 @@ function run(o) {
     const p1 = plate(S, 6000, 0.8, 0.4), z1 = SINK.z, p2 = plate(S, 6000, 0.4, 0.4), z2 = SINK.z, p3 = plate(S, 6000, 0.4, 0.2), z3 = SINK.z;
     check(z2 > z1 && p2 > p1, 'C ' + c + ': a ski on half the area sinks deeper and ploughs more', (z1 * 1000).toFixed(1) + ' -> ' + (z2 * 1000).toFixed(1) + ' mm');
     check(z3 === z2 && p3 < p2, 'C ' + c + ': at one pressure the plough is the width\'s', p3.toFixed(1) + ' < ' + p2.toFixed(1));
-    log('C ' + c + ' F/N, sinkage: standard 3 kN ' + b.r.toFixed(3) + ' ' + (b.z * 1000).toFixed(0) + ' mm | tundra ' + tu.r.toFixed(3) + ' ' + (tu.z * 1000).toFixed(0) + ' mm | slim ' + sl.r.toFixed(3) + ' ' + (sl.z * 1000).toFixed(0) + ' mm | ski 0.8 m2 ' + (z1 * 1000).toFixed(1) + ' mm');
+    log('C ' + c + ' F/N, sinkage: standard ' + (3 * q).toFixed(2) + ' kN ' + b.r.toFixed(3) + ' ' + (b.z * 1000).toFixed(0) + ' mm | tundra ' + tu.r.toFixed(3) + ' ' + (tu.z * 1000).toFixed(0) + ' mm | slim ' + sl.r.toFixed(3) + ' ' + (sl.z * 1000).toFixed(0) + ' mm | ski 0.8 m2 ' + (z1 * 1000).toFixed(1) + ' mm');
   }
   check(wheel(GSO[9], 0, 0.1, 0.4, 0.01) === 0 && SINK.z === 0 && plate(GSO[9], 100, 0, 0.2) === 0, 'C no load, no area: no sink, no drag');
   // DEEP SNOW: the bulldozing - only on the rows that declare it (powder, wet snow), none on packed snow or mud; it grows
