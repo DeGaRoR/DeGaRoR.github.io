@@ -64,6 +64,9 @@ function rigidityRank(nodes, beams) {           // GATE GEN's (tools/test_gen.js
   return rank;
 }
 const mass = d => d.nodes.reduce((a, n) => a + n.m, 0);
+// the body's axial row less its measured cooling (ENGINE-COOLING, L40a: the momentum drag is taken at GEN_VRATIO x Vs, and
+// Vs follows the mass the jury adds - the cowl's air, not the struts' drag; the rest of the row must not move)
+const bodyRow = d => d.params.fusCdA[0] - ((d.params.gen && d.params.gen.drag && d.params.gen.drag.cool) || 0);
 const sideMass = (d, s) => d.nodes.reduce((a, n) => a + (Math.sign(n.p[2]) === s ? n.m : 0), 0);
 const same = (a, b) => JSON.stringify(a.nodes) === JSON.stringify(b.nodes) && JSON.stringify(a.beams) === JSON.stringify(b.beams)
   && JSON.stringify(a.params) === JSON.stringify(b.params) && C.genCertKey(a) === C.genCertKey(b);
@@ -84,7 +87,7 @@ for (const k of ['cub', 'ruckus']) {
   const s = load(BUILDS[k]);
   for (const struts of [1, 2]) {
     const sb = clone(s); sb.bracing.struts = struts;
-    const d0 = C.buildGen(clone(sb)), m0 = mass(d0), cda0 = d0.params.fusCdA[0];
+    const d0 = C.buildGen(clone(sb)), m0 = mass(d0), cda0 = bodyRow(d0);
     const kLift = d0.beams.find(b => b.ext && b.cls === 'wing').k;
     const semi = d0.spec.geom.semi;
     for (const section of [null, 'tube']) for (const jury of [null, 'wing', 'cabin']) {
@@ -115,7 +118,7 @@ for (const k of ['cub', 'ruckus']) {
         + (section ? lift * T.cdRound * T.tubeD - 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0);
       // ON THE STRUTS' OWN BLOBS (one a side, refs.strutDrag), the body's row untouched
       const sbl = d.refs.strutDrag || [];
-      check(Math.abs(d.params.fusCdA[0] - cda0) < 1e-12 && sbl.length === 2 && sbl.every(ids => ids.length === 4)
+      check(Math.abs(bodyRow(d) - cda0) < 1e-12 && sbl.length === 2 && sbl.every(ids => ids.length === 4)
             && sbl[0].every(i => d.nodes[i].p[2] * d.nodes[sbl[0][0]].p[2] > 0),
             `${tag}: the drag on two strut blobs (one a side), not on the body's axial row`);
       const dc = d.params.strutCdA ? d.params.strutCdA[0] * sbl.length : 0;

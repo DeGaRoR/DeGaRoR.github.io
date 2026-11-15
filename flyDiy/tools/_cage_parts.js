@@ -538,7 +538,7 @@ const CAGE_PARTS = [
              at: 'aft of the last bay; on a rod, the boom’s first stretch' },
     groups: [
       // (taperW = the boom FRAME's widths since T2.1)
-      ['tightening', ['taperOn', 'boomMatch', 'taperLen', 'taperPanels', 'hullTailCut']],   // (PETREL-LS: the float's tail cut, on a hull)
+      ['tightening', ['taperOn', 'boomMatch', 'taperLen', 'taperPanels', 'hullTailCut', 'tailDrawn']],   // (PETREL-LS: the float's tail cut, on a hull; REAL-CANON: the drawn tail, its row beside boomMatch)
     ] },
 
   // G267 (the user: "the tail cone options appear under boom, while it has
