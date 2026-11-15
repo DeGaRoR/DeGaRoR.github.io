@@ -5987,7 +5987,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const wetBy = (x, z, h, lake) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - (lake && wy > 0.05 ? lakeM() : 0.3); };
           const landBy = (x, z, lake) => { const h = world.terrainH(x, z), wl = world.waterH(x, z); if (h < 0.3 || wl > h - (lake && wl > 0.05 ? lakeM() : 0.3) || wetBy(x, z, h, lake)) return false;
             const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
-          const okAt = (x, z) => landBy(x, z, false), okLake = (x, z) => landBy(x, z, true);
+          // (GRASS-ON-GREEN 16 Nov: a strip box's margin / a shoulder that gives way to the island's ground under the grass law `hard`
+          //  - world.marginGrassAt - grows the grass field's grass, never the first ring's rocks, bushes or flowers: an overrun stays clear)
+          const okAt = (x, z) => landBy(x, z, false) && !(world.marginGrassAt && world.marginGrassAt(x, z)), okLake = (x, z) => landBy(x, z, true);
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
           // tuft on a band or a grass road takes its own ground's colour; null where no pavement is drawn

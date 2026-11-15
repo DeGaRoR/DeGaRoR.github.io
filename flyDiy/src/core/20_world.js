@@ -645,7 +645,37 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     }
     return -1;
   };
+  // GRASS-ON-GREEN (LOOK-1 with DIRT-STRIP, 16 Nov; the user: "green ground without grass looks bad"; WYSIWYG): THE MARGIN GIVES WAY.
+  // The registry box's MARGIN past the declared strip (its 20 m ends and 6 m sides - the overrun included, on purpose) and a
+  // premises gravel SHOULDER are the wheels' gravel but are drawn as the island's own ground. Under the premises' grass law
+  // `hard` (27_premises GRASS_SIDES - ONE dial for the look and the surface, so they never disagree) such a point with nothing
+  // DRAWN on it (no pavement's kill - a drawn running surface of any class, mud and sand included, a road's band - and not a
+  // grass strip's own running surface) answers the island's ground: grass where the island is grass, and the grass field grows
+  // there. The declared running box itself keeps its surface (G130: the registry's declaration wins on the strip).
+  const hardOn = () => typeof PREMISES_GEN !== 'undefined' && !!PREMISES_GEN.grassHard && PREMISES_GEN.grassHard();   // (27_premises is its own scope: through its API)
+  const drawnAt = (x, z) => { const c = coverAt(x, z); return !!(c && (c.kill >= 1 || c.surf)); };
+  const regMargin = (x, z) => {   // the point is in a strip box's margin, outside its declared running box
+    for (const a of aerodromes) {
+      if (a.surface == null || a.kind === 'meadow') continue;
+      const c = CORE_MATH.cos(a.hdg), s = CORE_MATH.sin(a.hdg), u = (x - a.x) * c + (z - a.z) * s, v = -(x - a.x) * s + (z - a.z) * c;
+      if (Math.abs(u) <= a.len / 2 + 20 && Math.abs(v) <= a.wid / 2 + 6) return Math.abs(u) > a.len / 2 || Math.abs(v) > a.wid / 2;
+    }
+    return false;
+  };
+  // -> the island's own class where the margin / a shoulder gives way, else -1. Only a NATURAL class takes over (grass, the forest
+  // floor, scree, rock): where the island calls the airfield built-up (HOME, w2: PAVED) the declared gravel stays
+  function giveWay(x, z) {
+    if (!ISL || !hardOn()) return -1;
+    let cand;
+    if (PM) { const s = PM.surfaceAt(x, z); cand = s >= 0 ? !!(PM.shoulderAt && PM.shoulderAt(x, z)) : (regSurf(x, z) >= 0 && regMargin(x, z)); }
+    else cand = regSurf(x, z) >= 0 && regMargin(x, z);
+    if (!cand || drawnAt(x, z)) return -1;
+    let g; try { g = islandGround(x, z); } catch (e) { return -1; }   // (a query during the world's own build: the declared surface)
+    return (g === SURFACE.GRASS || g === SURFACE.FOREST_FLOOR || g === SURFACE.SCREE || g === SURFACE.ROCK) ? g : -1;
+  }
+  const marginGrassAt = (x, z) => giveWay(x, z) >= 0;
   const aeroSurfAll = (x, z) => {
+    if (giveWay(x, z) >= 0) return -1;   // (the margin gives way: the island's ground - islandSurface answers it)
     if (PM) { const s = PM.surfaceAt(x, z); if (s >= 0) return s; }   // a premises surface (an apron, a strip, a road) answers first
     const r = regSurf(x, z);
     return r >= 0 ? r : AERO.surfaceAt(x, z);
@@ -1241,7 +1271,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
-    TILE, tile, aerodromes, settlements: SET.settlements,
+    TILE, tile, aerodromes, marginGrassAt, settlements: SET.settlements,   // marginGrassAt: GRASS-ON-GREEN (16 Nov) the margin gives way
     treesNear, canopyH,
     // G1481 (WOODLAND): whether the solver tests the woodland's cylinders (world.trees). True in a world no viewer
     // stands on (the gates, a replay); the game's viewer draws the fill in their place and turns them off - the
