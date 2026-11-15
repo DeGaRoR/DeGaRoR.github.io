@@ -134,13 +134,28 @@ function fly(cs, leg) {
   return r;
 }
 
+// THE STAND'S FACING: the PC-6 on skis placed at mt_strip's stand by the game (gameHost), its nose (the tail wheel to the
+// mains' midpoint) against the take-off's way, downhill (STRIP.hdg + pi). OBSERVATORY-3 turned the stand to face the
+// take-off (hdg 0, nose east): from such a stand the take-off is flown FROM THE STAND; a stand that needs the pivot
+// (the 252-degree turn that broke the PC-6's tail, FIT-PROCEDURE's) is left out by the line-up, and the gate says so
+function standFacing() {
+  const def = TR.defOf(C, PT, PC6_SKIS), H = TR.gameHost(C, W, def, STRIP, HOME, { profile: persona, lineup: false });
+  const p = H.sim.p, R = def.refs, ms = R.mains;
+  const mx = 0.5 * (p[ms[0] * 3] + p[ms[ms.length - 1] * 3]), mz = 0.5 * (p[ms[0] * 3 + 2] + p[ms[ms.length - 1] * 3 + 2]);
+  const fx = mx - p[R.tw * 3], fz = mz - p[R.tw * 3 + 2], tx = -Math.cos(STRIP.hdg), tz = -Math.sin(STRIP.hdg);
+  const c = (fx * tx + fz * tz) / (Math.hypot(fx, fz) || 1);
+  return Math.acos(Math.max(-1, Math.min(1, c))) * 180 / Math.PI;
+}
+if (argv.includes('--facing')) { console.log('stand facing the take-off within ' + standFacing().toFixed(1) + ' deg'); return; }
 // GATE SKISARDENT (--gate, the full tier): the four legs in child processes, in parallel, then the verdicts
 if (argv.includes('--gate')) {
   const cp = require('child_process');
   const jobs = [['skis_powder', 'land'], ['skis_powder', 'to'], ['skis_packed', 'land'], ['skis_packed', 'to']];
   let fails = 0;
   const ok = (c, label) => { console.log((c ? '  ok   ' : '  FAIL ') + label); if (!c) fails++; };
-  Promise.all(jobs.map(([c, l]) => new Promise(res => cp.execFile(process.execPath, [__filename, '--case', c, '--legs', l, '--lineup', '--persona', persona],
+  const facing = standFacing(), fromStand = facing < 60;
+  console.log(`  the stand faces the take-off within ${facing.toFixed(1)} deg: the take-offs ${fromStand ? 'FROM THE STAND (taxi, the turn onto the strip, the roll)' : 'from the LINE-UP (the stand needs the pivot: OBSERVATORY-3 turns it)'}`);
+  Promise.all(jobs.map(([c, l]) => new Promise(res => cp.execFile(process.execPath, [__filename, '--case', c, '--legs', l, ...(fromStand ? [] : ['--lineup']), '--persona', persona],
     { maxBuffer: 64 << 20, timeout: 2400e3 }, (e, so) => { const line = String(so || '').split('\n').find(x => x.startsWith('ARDENT '));
       res(line ? JSON.parse(line.slice(7)) : { case: c, leg: l, error: (e && e.message) || 'no output' }); })))).then(R => {
     const get = (c, l) => R.find(r => r.case === c && r.leg === l) || {};
