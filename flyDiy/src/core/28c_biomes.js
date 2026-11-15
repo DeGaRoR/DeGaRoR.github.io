@@ -45,8 +45,8 @@ const BIOMES = (() => {
     // Only the real high summits have no trees, or the top of the ridges, and these ones have lush grass formations"). The
     // tree fill gated heath by the canopy map, which reads under 0.5 m on subalpine ground (it cannot see a tree under ~2 m):
     // Skyline and Mount Ardent went bare from ~550 m (tools/veg_bench.js). The ramp 450 -> 600 m (+-40 m by a 140 m noise),
-    // thinning to 15 % between 700 and 950 m and to 20 % where a point stands 8 m over its surroundings (four taps at 110 m)
-    subH0: 450, subH1: 600, subJit: 40, subTop0: 700, subTop1: 950, subTopKeep: 0.15, subRidgeDh: 8, subRidgeKeep: 0.2 };   // shoreSlope: the bank's bankLo unless set
+    // thinning to 15 % between 800 and 1 000 m (the real high summits: Ardent's cap; Skyline tops out at ~710 m and keeps its trees round the altiport) and to 35 % where a point stands 8 m over its surroundings (four taps at 110 m)
+    subH0: 450, subH1: 600, subJit: 40, subTop0: 800, subTop1: 1000, subTopKeep: 0.15, subRidgeDh: 8, subRidgeKeep: 0.35 };   // shoreSlope: the bank's bankLo unless set
   // 18 LAKESHORE (G3430, the user 25 Oct: "a proper biome with its mask, and we can paint it and everything, like the
   // other"): a VEGETATION code - the band along the drawn lakes is its mask, a premises polygon paints it (or erases it)
   // like any biome; the ground under it stays its own code's (no splat row: NCODE 17)
