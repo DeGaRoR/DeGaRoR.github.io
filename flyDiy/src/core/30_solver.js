@@ -1619,7 +1619,7 @@ function makeSim(def, world) {
       let want = ctl.ski;
       if (want !== 0 && want !== 1) {
         const i3 = SKI.C[0].node * 3, sc0 = world && world.surface ? world.surface(p[i3], p[i3+2]) : -1;
-        want = SKI_SNOW[sc0] !== undefined ? 1 : 0;      // (the snow under the mains: SKI_SNOW's codes)
+        want = sc0 >= SOFT_MIN && GROUND_SOFT[sc0] && GROUND_SOFT[sc0].skis ? 1 : 0;   // (the snow under the mains: the rows a ski belongs on)
       }
       if (SKI.snap) {   // (the airframe lowered with it: the reset stood it on the skis-down contact)
         const r0 = rC[SKI.C[0].node]; SKI.pos = want; SKI.snap = false; skiSetHeights();
@@ -1656,7 +1656,7 @@ function makeSim(def, world) {
   let skiSoft = false;                                // this node's tyre on a soft layer is the ski's (the wheel pass adds no sink)
   function skiGround(c, i, i3, gy, dt) {
     const sc = world && world.surface ? world.surface(p[i3], p[i3+2]) : -1;
-    const SO = sc >= SOFT_MIN ? GROUND_SOFT[sc] : undefined, SX = SKI_SNOW[sc];
+    const SO = sc >= SOFT_MIN ? GROUND_SOFT[sc] : undefined, SX = SO !== undefined && SO.skis ? SO : undefined;   // (SX: the row's ski fields)
     skiSoft = SO !== undefined;
     const dS = gy + c.hS - p[i3+1], dT = c.kind === 'plain' ? -1 : gy + c.hT - p[i3+1];   // (the wheel pass's own arithmetic: a tyre element is its wheel, bit for bit)
     let hx = -xAft[0], hz = -xAft[2];

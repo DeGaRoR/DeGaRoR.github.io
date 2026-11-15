@@ -24,12 +24,15 @@
 // THE SOFT GROUND IS SNOW-MUD'S (one version, agreed 15 Nov): the world's SURFACE code under the contact, its layer
 // GROUND_SOFT[code] (Bekker's p = k z^n, its depth zMax over the firm base) and a ski bottom's friction GROUND_SKI_MU[code]
 // (00_registry). A ski element sinks by SNOW-MUD's own laws - groundSinkPlate for the sole, groundSinkWheel for a
-// wheel-ski's tyre - and pays SNOW-MUD's plough (w k z^(n+1) / (n+1)) at its rut's depth. What only a ski needs is
-// SKI_SNOW below, keyed by the same codes; absent = SNOW-MUD's law exactly.
+// wheel-ski's tyre - and pays SNOW-MUD's plough (w k z^(n+1) / (n+1)) at its rut's depth. What only a ski needs are
+// OPTIONAL FIELDS ON SNOW-MUD'S OWN ROWS (their ask, 15 Nov: no second table), set below; absent = SNOW-MUD's law exactly,
+// and SNOW-MUD's k, n, zMax, ski are never touched (GATE SOFTGROUND and SNOWMUDFX read those).
 // Pure: no THREE, no world, no random; CORE_MATH-free arithmetic (+ - * / sqrt only: bit-identical page and worker).
 // ============================================================
 
-// WHAT ONLY A SKI NEEDS ON SNOW-MUD'S SNOW (codes 8 packed, 9 powder, 10 wet), [EST] per SKI-REFERENCES 4.1 / 4.6:
+// WHAT ONLY A SKI NEEDS ON SNOW-MUD'S SNOW (codes 8 packed, 9 powder, 10 wet) - optional fields on GROUND_SOFT's rows,
+// [EST] per SKI-REFERENCES 4.1 / 4.6:
+//   skis    1: a ski's ground - a wheel-ski lowers its skis here by itself (its selector unset); the mud carries none
 //   vP      m/s, the planing speed: the layer stiffens as (1 + (v/vP)^2) under a running ski (it cannot compact as fast
 //           as the ski crosses it: the "hump" a skiplane gets over; the FAA text: "keep enough power to stay on top")
 //   lat     the ski's side grip (its edges and runners in the snow; "sideways drift in turns is normal")
@@ -41,14 +44,12 @@
 //           references' "a well-sized light ski sinks ~8 cm in fresh powder", and a ski too small for its load sinks
 //           through. A TYRE does not read it: at 50-300 kPa the fresh snow collapses at once, which SNOW-MUD's fit at
 //           the tyres already holds (so a wheel, and a wheel-ski's tyre, are SNOW-MUD's law exactly)
-// A code with no row (the hard ground, the mud: no ski belongs there) is SNOW-MUD's law alone; a wheel-ski lowers its
-// skis by itself only where a row stands (the selector unset: the snow under the mains)
-const SKI_SNOW = {
-  8:  { vP: 12, lat: 0.35, plough: 0.6 },                                         // packed (rolled: no fresh snow)
-  9:  { vP: 7,  lat: 0.30, plough: 1.0, fresh: { k: 2.0e5, n: 1.5, z: 0.25 } },   // powder (dry, cold: deep and light)
-  10: { vP: 6,  lat: 0.35, plough: 1.4, fresh: { k: 4.0e5, n: 1.2, z: 0.12 } },   // wet ("worse than mud or even beach sand")
-};
-// a ski's side grip on the codes with no SKI_SNOW row (GROUND_SURF's classes 0 grass .. 7 sand; 11 / 12 mud) [EST]
+if (typeof GROUND_SOFT !== 'undefined') {
+  Object.assign(GROUND_SOFT[8],  { skis: 1, vP: 12, lat: 0.35, plough: 0.6 });                                        // packed (rolled: no fresh snow)
+  Object.assign(GROUND_SOFT[9],  { skis: 1, vP: 7,  lat: 0.30, plough: 1.0, fresh: { k: 2.0e5, n: 1.5, z: 0.25 } });   // powder (dry, cold: deep and light)
+  Object.assign(GROUND_SOFT[10], { skis: 1, vP: 6,  lat: 0.35, plough: 1.4, fresh: { k: 4.0e5, n: 1.2, z: 0.12 } });   // wet ("worse than mud or even beach sand")
+}
+// a ski's side grip on the codes with no `lat` (GROUND_SURF's classes 0 grass .. 7 sand; 11 / 12 mud) [EST] - (GROUND_SURF's classes 0 grass .. 7 sand; 11 / 12 mud) [EST]
 const SKI_LAT = { 0: 0.45, 1: 0.55, 2: 0.50, 3: 0.50, 4: 0.10, 5: 0.50, 6: 0.50, 7: 0.50, 11: 0.45, 12: 0.40 };
 // a bare aluminium bottom on the snow (0.35-0.40: why everyone fits plastic) and a ski on the water (GROUND_SKI_MU's
 // null: the water's own pass carries a ski that is in it; this only keeps it from sticking) [EST]
@@ -168,7 +169,7 @@ function skiPlan(o) {
 const SKI_SOFT = {
   tau: 0.06,                                     // s, the rut's filter (the sinkage follows the load, not the spring's buzz)
   S: { k: 0, n: 1, zMax: 0, f: 1 },              // the scratch layer at speed, f its planing factor (no allocation in the loop)
-  // the layer under a running element: SNOW-MUD's row, its k stiffened by the planing term (no SKI_SNOW row: the row)
+  // the layer under a running element: SNOW-MUD's row, its k stiffened by the planing term (no ski fields: the row)
   at(SO, X, vr) {
     const q = X && X.vP > 0 ? vr / X.vP : 0, S = SKI_SOFT.S;
     S.f = 1 + q * q; S.k = SO.k * S.f; S.n = SO.n; S.zMax = SO.zMax; return S;
