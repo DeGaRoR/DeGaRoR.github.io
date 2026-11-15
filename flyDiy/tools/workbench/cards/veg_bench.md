@@ -5,7 +5,7 @@ rule change would plant, without a browser or a GPU. Pictures of the summits, be
 cost estimate. (MOUNTAIN-VEG, 15 Nov 2026; A0's yes for the row the same day.)
 
 ```
-node flyDiy/tools/veg_bench.js --out <dir> [--areas skyline,ardent,cabin,north] [--w 760] [--eyes 2] [--try subalpine]
+node flyDiy/tools/veg_bench.js --out <dir> [--areas skyline,ardent,cabin,north] [--w 760] [--eyes 2] [--subalpine 0]
 ```
 
 - ~35 s for the four areas (the world composes in ~3 s, a 6 km window walks in ~6 s).
@@ -15,8 +15,8 @@ node flyDiy/tools/veg_bench.js --out <dir> [--areas skyline,ardent,cabin,north] 
   thinned.
 - Writes per area `<area>_map.png` (relief | terrain code | trees/ha | refusing rule | ground cover), `<area>_eye<k>.png`
   (relief | code | the planted trees), `<area>.json` (by 50 m band: trees/ha, on ridges, codes, reasons) and `index.html`.
-- `--try subalpine` plants the candidate subalpine rule (heath and scrub above a height ramp get a floored small-conifer
-  mix, thinned on ridge tops) beside today's: the files get `_try`.
+- `--subalpine 0` plants the game without 19 SUBALPINE (the before; files get `_off`). The rule itself is the game's
+  (`BIOMES.subCode` / `subKeep`, the baked `subalpine` mix); the two hooks are copied from render_world.js.
 
 ## Traps
 - It copies the fill's rule by hand. If `walkRows`, `forestHere`, `openHere`, `codeAt` or `FILL` change, change
