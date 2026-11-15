@@ -275,9 +275,9 @@ async function main() {
        'no second soft ground: world.soft and SOFT_GROUND are gone, the skis call SNOW-MUD\'s groundSinkPlate / groundSinkWheel');
     // the ski reads SNOW-MUD's row: its layer softer, the same ski deeper (the fresh top off: the settled law alone)
     const W = softWorld('powder'), dC = defOf(ccSpec, Object.assign({}, ccSpec.gear.ski, { kind: 'plain', prot: null }));
-    const F = C.SKI_SNOW[9].fresh, k0 = C.GROUND_SOFT[9].k;
+    const F = C.GROUND_SOFT[9].fresh, k0 = C.GROUND_SOFT[9].k;
     try {
-      delete C.SKI_SNOW[9].fresh;
+      delete C.GROUND_SOFT[9].fresh;
       const a = settle(dC, W), za = Math.max(...a.out.skiSink);
       const R = dC.parts.ski.mains, load = Math.max(...a.out.skiLoad);
       C.groundSinkPlate(C.GROUND_SOFT[9], load, R.A, R.Wmax || R.W);
@@ -286,15 +286,19 @@ async function main() {
       C.GROUND_SOFT[9].k = k0 / 4;
       const b = settle(dC, W), zb = Math.max(...b.out.skiSink);
       ok(zb > 1.5 * za, `SNOW-MUD's row drives it: its powder 4 x softer, the ski ${(100 * zb).toFixed(2)} cm deep (n ${C.GROUND_SOFT[9].n}: x ${Math.pow(4, 1 / C.GROUND_SOFT[9].n).toFixed(2)} expected)`);
-    } finally { C.SKI_SNOW[9].fresh = F; C.GROUND_SOFT[9].k = k0; }
+    } finally { C.GROUND_SOFT[9].fresh = F; C.GROUND_SOFT[9].k = k0; }
     const s9 = settle(dC, W);
     ok(s9.out.softZ > 0 && Math.abs(s9.out.softZ - Math.max(...s9.out.skiSink)) < 1e-12 && s9.out.softF >= 0,
        `the skis write SNOW-MUD's readouts: out.softZ ${(100 * s9.out.softZ).toFixed(1)} cm = the deepest ski (the dust's plough reads it)`);
-    const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
-    ok(/so\.skiSink\[k\]/.test(app) && /R = rec\.L; sink = \+so\.skiSink\[k\]/.test(app),
-       'the plume: each ski a source of the dust\'s with its OWN rut (out.skiSink[k]) and its length (the plough at its toe, no tread to shed)');
+    // the plume is SNOW-MUD's (dust.js / app.js syncDustFx, their ask): what they read is the data - one record a ski in the
+    // solver's order (def.refs.skis), its rut and load in the same order, `posed` (the rut is in the physics' pose already)
+    const RS = dC.refs.skis, dP = defOf(pcSpec), RP = dP.refs.skis;
+    ok(RS && RS.length === s9.out.skiSink.length && RS[0].main && RS[2] && !RS[2].main &&
+       RS.every(r => r.w > 0 && r.L > r.w && r.fwd > 0 && r.aft > 0 && r.posed === true) && RP && RP[0].kind === 'retract' && RP.length === 3 &&
+       defOf(ccBare).refs.skis === undefined && RS[0].nodes[0] === dC.refs.mains[0] && RS[2].nodes[0] === dC.refs.tw,
+       'the plume\'s data (SNOW-MUD owns the plume): def.refs.skis ' + JSON.stringify(RS.map(r => [r.nodes[0], +r.w.toFixed(2), +r.L.toFixed(2), r.main, r.kind])) + ' in out.skiSink\'s order; no key without skis');
     const mu = C.GROUND_SKI_MU;
-    ok(mu[8] === C.GROUND_SOFT[8].ski && mu[9] === C.GROUND_SOFT[9].ski && C.SKI_SNOW[11] === undefined && C.SKI_SNOW[12] === undefined,
+    ok(mu[8] === C.GROUND_SOFT[8].ski && mu[9] === C.GROUND_SOFT[9].ski && !C.GROUND_SOFT[11].skis && !C.GROUND_SOFT[12].skis && C.GROUND_SOFT[9].skis === 1,
        'the sole slides on GROUND_SKI_MU (the snow rows are GROUND_SOFT\'s own); no ski row on the mud (no ski belongs there: its selector stays up)');
   }
   console.log(fails ? `GATE ${ID}: FAIL (${fails})` : `GATE ${ID}: PASS`);

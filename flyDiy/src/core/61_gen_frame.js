@@ -4175,6 +4175,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     ...(TOWH >= 0 ? { towHook: [TOWH] } : {}),       // THE TOW HOOK: the release's node, for the tow line (the key only then)
     ...(mastRef ? { mast: mastRef } : {}),          // THE HANGING NACELLE: the mast (3d; the key only then)
     ...(keelRef ? { keel: keelRef } : {}),          // ...and its keel beam (3e)
+    // SKIS (15 Nov, SNOW-MUD's ask): one record a ski, in the solver's order (out.skiSink[k] / skiLoad[k]: the mains, then the
+    // tail / nose ski) - its node (the pedestal on the axle: the contact acts there), its width and length over the skins,
+    // the toe `fwd` metres ahead of the node and the heel `aft` behind (along the body), main or not, its mounting; `posed`:
+    // the physics already sinks the node into its rut (a visual drop must not sink a ski twice). The key only with skis
+    ...(SKR ? { skis: [GAL, GAR, ...(SKR.third ? [TW] : [])].map((nd, k) => { const r = k < 2 ? SKR.mains : SKR.third;
+      return { nodes: [nd], w: r.Wmax || r.W, L: r.Lmax || r.L, fwd: r.at * (r.Lmax || r.L), aft: (1 - r.at) * (r.Lmax || r.L),
+               main: k < 2, kind: k < 2 ? SKR.kind : r.kind, posed: true }; }) } : {}),
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
     // have to treat the whole wing consistently, and get rid of that
     // different treatment for the central part"). The centre section is
