@@ -28,7 +28,7 @@ cutout; skis down 6 cm below the tyre, up 3 cm above it, a 15 s cycle) and a tai
 |---|---|---|---|---|---|---|---|---|---|---|
 | PC-6 on wheels (the datum) | gravel (today) | landing | stopped, 3-point, touchdown 40 m in | 97 m | 38 kt, sink 1.38 m/s | - | 73 m | - | - | none |
 | PC-6 on wheels (the datum) | gravel (today) | take-off | off | 67 m | 50 kt | 199 m | 92 m | - | - | none |
-| PC-6 on wheels | powder | landing | stopped, 3-point, touchdown 40 m in | 74 m | 38 kt | - | 96 m | (wheels: 30 cm, the layer's bottom) | - | none |
+| PC-6 on wheels | powder | landing | stopped, 3-point, touchdown 40 m in | 74 m | 38 kt | - | 96 m | (the tail wheel 30 cm, the mains ~7) | - | none |
 | PC-6 on wheels | powder | take-off | off | 67 m | 48 kt | 210 m | 91 m | (30 cm) | - | none |
 | **PC-6 on wheel-skis** | **powder** | **landing** | **stopped, 3-point, touchdown 40 m in** | **79 m** | **40 kt, sink 1.55 m/s** | - | **90 m** | **15.8 cm** | **down at the touchdown** | **none** |
 | **PC-6 on wheel-skis** | **powder** | **take-off** | **off** | **88 m** | **53 kt** | **248 m** | **70 m** | **14.9 cm** | down | **none** |
@@ -45,8 +45,12 @@ cutout; skis down 6 cm below the tyre, up 3 cm above it, a 15 s cycle) and a tai
    brakes on skis, the slope easing to flat over the last 40 m). The real B2-H4 stops on its REVERSING PROPELLER - the game
    has no reverse thrust (A GAP: the engine's / A0's). The pilot's own landing-run sheet said 195 m (its wheels' brakes):
    the Pilot's landing sheet does not know that skis have none (A GAP: the Pilot's).
-3. WHY SKIS: on wheels the PC-6's tyres go to the powder's bottom (30 cm, SNOW-MUD's layer depth) - and yet the roll is the
-   gravel's (67 m): SNOW-MUD's to look at (the wheel's sinkage drag on a 550 shp aeroplane on a 15 % downhill).
+3. ON WHEELS ON POWDER the roll is the gravel's (67 m against 67). SNOW-MUD measured it (15 Nov): the 0.69 m mains at
+   ~100 kPa sink 7 cm (rolling coefficient ~0.1 at rest, falling as the wing takes the load); the 30 cm read is the 0.14 m
+   TAIL WHEEL bottoming the layer until the tail lifts (~3 s); against the PC-6's thrust (T/W 0.57) and the 15 % downhill
+   the ~1 kN barely shows. What SNOW-MUD's tyre law leaves out is the BULLDOZING / ram drag of the snow pushed ahead (~rho b
+   z v^2) - their named cut (futureDesigns/SNOW-MUD-FINISH-2026-11-15.md): if the wheels on powder should read visibly
+   harder at the observatory, it is A0's call (it moves SNOW-MUD's stock runs and re-fits k on 9 and 10).
 4. FIXED HERE (they were the skis'): (a) the wheel-ski's reset snap pushed the PC-6's mains 6 cm into the ground at its
    stand (the game stands it on its tyres, not on its skis): 38 fuselage yields -> 0 (the gap measured, the airframe turned
    about the tail contact); (b) the skis touched down 42 % lowered (the solver's selector follows the surface UNDER the
