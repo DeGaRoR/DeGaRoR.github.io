@@ -197,7 +197,10 @@ function runNode(S, opt) {
     J({ type: 'sample', t: r1(t), step: si, ph: s.ph, goal: s.ap.status ? s.ap.status.goal : null,
         x: r1(s.cg[0]), y: r1(s.cg[1]), z: r1(s.cg[2]), agl: r1(s.agl), Vg: r1(s.Vg), Va: r1(s.Va), vs: r1(s.vs),
         pitch: r1(s.pitch), bank: r1(s.bank), hdg: r1(s.hdg), onG: s.onG, thr: r2(c.thr || 0), brake: r2(c.brake || 0), flap: r2(c.flap || 0),
-        fuel: sim.fuel ? r1(sim.fuel.litres) : null });
+        fuel: sim.fuel ? r1(sim.fuel.litres) : null,
+        // (the ground under the CG - world.surface's code - the soft layer's sink when one is met (SNOW-MUD out.softZ), the shaft rpm)
+        surf: typeof W.surface === 'function' ? W.surface(s.cg[0], s.cg[2]) : null, softZ: (sim.out && sim.out.softZ != null) ? r2(sim.out.softZ) : null,
+        rpm: sim.out && sim.out.rpm && sim.out.rpm.length ? Math.round(sim.out.rpm[0]) : null });
   };
   // the verdicts the pilot speaks, as they come (a new pilot per leg: its report restarts)
   let apSeen = null;
