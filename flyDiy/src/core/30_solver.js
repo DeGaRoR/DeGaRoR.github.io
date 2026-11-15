@@ -1699,7 +1699,7 @@ function makeSim(def, world) {
       if (dT > c.eT.zc) {
         FT = KGn[i] * (dT - c.eT.zc);
         if (SKW[i] === 0) softWheel(i, !c.third);
-        groundSinkWheel(S, FT, SKW[i], SKD[i], SKA[i]); SKI_SOFT.sink(c.eT, GROUND_SINK.z, dt);
+        groundSinkWheel(S, FT, SKW[i], SKDIA[i], SKA[i]); SKI_SOFT.sink(c.eT, GROUND_SINK.z, dt);
       }
       if (FT > 0 || dT > 0) {
         Rp += SKI_SOFT.resist(S, SX, SKW[i], c.eT.zc, false); if (c.eT.zc > zMax) zMax = c.eT.zc;
