@@ -8096,7 +8096,7 @@
   let dustFx = null;
   // (SNOW-MUD, 13 Nov: dust.js's soft classes - 8 packed snow, 9 powder, 10 wet snow (slush), 11-12 mud; the pavement's
   // snow and mud looks name one class for their three / two kinds, so under them the SURFACE code decides - DUST_BY_CODE)
-  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand', 'snow', 'powder', 'slush', 'mud', 'mud'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
+  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand', 'snow', 'powder', 'slush', 'mud', 'mud', 'grass', 'sand'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none; LADDER 13 wet grass, 14 wet sand - their water damps them, env.wet)
   const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4, mud: 5, snow: 6, powder: 7, slush: 8 };
   const DUST_BY_CODE = { snow: 1, mud: 1 };   // the pavement classes whose dust class is the surface code's
   const DUST_GROUND = ['dirt', 'sand', 'gravel', 'dirt', null, 'mud', 'snow', 'snow', null];   // a dust class -> the pavement surface whose colour it takes
@@ -8104,8 +8104,13 @@
   // pavement (PAVEMENT.setSoilWet: one shared uniform - the strip's damp tint and its drawn puddles) and to the dust (the same
   // R: the water drawn is the water splashed in). Runs with the dust off too (?dust=0 is the dust's lever, not the puddles').
   let soilNow = null;
+  // (SNOW-MUD LADDER) ?ground=dry|firm|soft holds every weather strip on a rung from the boot (the weather panel's 'the ground' row)
+  let groundQ = (() => { try { const m = /[?&]ground=(dry|firm|soft)\b/.exec(location.search || ''); return m ? m[1] : null; } catch (e) { return null; } })();
   function soilFrame() {
-    soilNow = typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null;
+    if (groundQ && world && world.setGround) { world.setGround(groundQ); groundQ = null; }
+    // (SNOW-MUD LADDER: the world's own read - SOIL_WET at the day, or the ground's dev override world.setGround - one soil for
+    // the wheels' rung, the drawn ground, the dust and the puddles)
+    soilNow = world && typeof world.soilNow === 'function' ? world.soilNow() : (typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null);
     if (soilNow && typeof PAVEMENT !== 'undefined' && PAVEMENT.setSoilWet) PAVEMENT.setSoilWet(soilNow.wet);
   }
   // SNOW-MUD FINISH: THE MUD COAT (aeroweather.js aeroMudStep / aeroWxSetMud): the flight's own - it builds while the mains
@@ -8140,6 +8145,8 @@
       groundH: (x, z) => groundH(x, z),
       wind: () => LKW(),
       cls(x, z) {
+        // (SNOW-MUD LADDER: a weather dirt strip on a mud rung throws MUD - its pavement says 'dirt', its ground says 11 / 12)
+        if (world && world.surface) { const sc = world.surface(x, z); if (sc === 11 || sc === 12) return DUST_CLS.mud; }
         const O = world && world.premises && world.premises.overlay;
         const q = O && O.pavedAt ? O.pavedAt(x, z, 0) : null;
         if (q && q.cls != null && DUST_CLS[q.cls] != null && !DUST_BY_CODE[q.cls]) return DUST_CLS[q.cls];
@@ -8219,6 +8226,13 @@
     // the dust is its ground's colour (the user, 10 Nov): the drawn surface of each class (a grass strip's dust is the soil
     // under it: dirt's), memoised in the pavement - five map reads a frame while a cloud lives
     if (typeof PAVEMENT !== 'undefined' && PAVEMENT.surfaceColor && F.draw.setGround && DUST.LOOK.ground) for (let ci = 0; ci < DUST_GROUND.length; ci++) if (DUST_GROUND[ci]) F.draw.setGround(ci, PAVEMENT.surfaceColor(DUST_GROUND[ci]));
+    // SNOW-MUD LADDER (15 Nov, the user: "match the color of the projections to what we are doing here, so to unify these two
+    // systems"): on a WEATHER strip the ground's drawn colour is its rung's (PAVEMENT.groundWxColor - darker with its water, a
+    // dirt toward the mud's own) and what the wheels throw off it is that colour: its class's dust, and the mud a mud rung throws
+    if (PAVEMENT.groundWxColor && F.draw.setGround && DUST.LOOK.ground && world && world.wxAt && sim) {
+      const c = sim.cgPos ? sim.cgPos() : null, W = c ? world.wxAt(c[0], c[2]) : null;
+      if (W) { const col = PAVEMENT.groundWxColor(W.cls, W); if (col) { if (DUST_CLS[W.cls] != null) F.draw.setGround(DUST_CLS[W.cls], col); if (W.cls === 'dirt') F.draw.setGround(DUST_CLS.mud, col); } }
+    }
     camera.updateMatrixWorld();
     F.draw.sync(camera, L);
     F.ms = performance.now() - t0;

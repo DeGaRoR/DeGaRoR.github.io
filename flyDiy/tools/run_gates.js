@@ -1068,6 +1068,12 @@ const GATES = [
   // against the strip's own stones: the small one stops, the bigger keeps more speed and jolts less; the old point read as
   // the self-test; flat ground the same bits; the strip's field taxied, its reads counted (~110 s)
   { id: 'ROUGHWHEEL', file: '_roughwheel_check.js', tier: 'core', wall: 150 },
+  // SNOW-MUD LADDER (15 Nov, the user: "a mud ladder? Dirt to firm mud to soft mud as a function of the weather ... and maybe an
+  // auto setting"): the weather looks (dirt / grass / sand (weather)) on their rung off the soil's water (07f GROUND_WX) - the
+  // rungs, the island's two (Old Community, Hiking), the season's storm and its drying, the Cub on every rung bit for bit as the
+  // fixed code, the worn relief scaled on the box and nowhere else, the colour one law for the ground and its projections, the
+  // override on the worker (~65 s)
+  { id: 'MUDLADDER', file: '_mudladder_check.js', tier: 'core', wall: 120 },
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)

@@ -77,6 +77,9 @@ const AF_SURF = [
   [0.35, 0.60, 900, 0.6, 3, 1100, 12, 0],       // 10 snow, wet: slush
   [0.60, 0.35, 600, 0.6, 2, 700, 16, 0],        // 11 mud, firm
   [0.55, 0.50, 500, 0.5, 2, 600, 18, 0],        // 12 mud, soft
+  // SNOW-MUD LADDER (15 Nov): wet grass the grass's brush, wetter and duller; wet sand packed - less hiss, a firmer roll
+  [0.50, 0.95, 2000, 0.6, 2, 1200, 13, 0],      // 13 grass, wet
+  [0.55, 0.55, 1100, 0.6, 4, 1100, 9, 0],       // 14 sand, wet
 ];
 const AF_SURF_W = 8;
 // the events, and the one-shot voices' kinds

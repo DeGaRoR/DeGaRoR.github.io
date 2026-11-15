@@ -206,7 +206,8 @@ function makeWorld(seed, opts) {
   // surface enum — reserved classes included (PAVED/GRAVEL/... arrive with
   // WORLD-GEN-PROC stages); the classifier below is the honest v1 minimum.
   // SNOW-MUD (13 Nov): 8-12 the soft rows (00_registry GROUND_SURF / GROUND_SOFT) - placed only where a record says so
-const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12 };
+const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12, GRASS_WET: 13, SAND_WET: 14,
+                  DIRT_WX: 20, GRASS_WX: 21, SAND_WX: 22 };   // (SNOW-MUD LADDER, 15 Nov: the wet rungs; 20-22 a weather look's code, resolved by 07f GROUND_WX)
 
   // aerodrome registry — DESCRIPTIVE for now: the AP still flies the
   // def.params.ap constants (contract rule 6 deferred), and the h0 runway
@@ -424,7 +425,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
       const dx = Math.max(ax - m.x, 0, m.x - bx), dz = Math.max(az - m.z, 0, m.z - bz);
       if (dx * dx + dz * dz < m.r * m.r) B = Math.max(B, Number.isFinite(m.h) ? m.h : Infinity);
     }
-    return PM && PM.hMaxRect ? PM.hMaxRect(ax, az, bx, bz, B) : B;
+    const H = PM && PM.hMaxRect ? PM.hMaxRect(ax, az, bx, bz, B) : B;
+    // (SNOW-MUD LADDER: a weather strip's worn relief may stand up to |wear - 1| x its bound over the raster's: 0.35 covers every rung)
+    return PM && PM.wearBoundRect ? H + PM.wearBoundRect(ax, az, bx, bz, 0.35) : H;
   }
   // the terrainH it bounds: a world re-wrapped with another ground (HOTHIGH's tilt, pilot_trace --slope)
   // keeps this function but not its ground, and the solver reads it only where the two still agree
@@ -571,9 +574,15 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     // THE STONES' BODIES (DIRT-STRIP, 27_premises stonesAt): a bumpy strip's stones on the composed ground, exact (not the
     // raster's) - the wheels and every node feel them; the DRAWN ground is this less stoneH (the stone's mesh stands there)
     if (PM && PM.stonesAt) { const s = PM.stonesAt(x, z); if (s > 0) h += s; }
+    // SNOW-MUD LADDER (15 Nov): a weather strip's worn relief at its rung (27_premises wearDelta; 0 at the record's own) -
+    // on its box the answer is never memoised (the rung moves with the soil; the memo would hold the last one)
+    if (PM && PM.wearDelta) { const d = PM.wearDelta(x, z, wearScale); if (d !== null) return h + d; }
     thX[i] = x; thZ[i] = z; thH[i] = h;
     return h;
   }
+  // a weather code's worn-relief scale now (07f GROUND_WX's rung off this world's soil)
+  function wearScale(code) { return typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(code, soilNow()).wear : 1; }
+  const wearOf = (x, z) => { if (!(PM && PM.wearDelta)) return 0; const d = PM.wearDelta(x, z, wearScale); return d === null ? 0 : d; };
 
   // G1406 (METLA-LOAD): THE BUILD READ - the composed ground for a ONE-OFF read (a mesh's vertices, a road's samples, a
   // placement's test): terrainH where the premises' raster is cooked or absent (the same bits), the ANALYTIC composer
@@ -583,7 +592,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   function terrainHBuild(x, z) {
     if (!(PM && PM.rasterLazyAt && PM.rasterLazyAt(x, z))) return terrainH(x, z);
     const h0 = baseH(x, z), h = PM.terrainH(x, z, h0);
-    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;   // (the bed, as terrainH carves it)
+    return (LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h) + wearOf(x, z);   // (the bed, as terrainH carves it; LADDER: the worn relief's rung)
   }
   // THE EXACT GROUND (COLD-LINKS x LAKE-HOLES, lakes-2): the ANALYTIC composer everywhere, carved as terrainH carves - the
   // source the premises' raster approximates (GATE PREMRASTER / PREMCOOK hold the raster and the cook to it). The raster
@@ -593,7 +602,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     const h0 = baseH(x, z);
     if (!PM) return LAKE_BED ? lakeCarve(x, z, h0, h0, null) : h0;
     const h = PM.terrainH(x, z, h0);
-    return LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h;
+    return (LAKE_BED ? lakeCarve(x, z, h0, h, hb => PM.terrainH(x, z, hb)) : h) + wearOf(x, z);   // (LADDER: as terrainH)
   }
   // the carve as one function (A0, train 28): terrainH and METLA-LOAD's build read (terrainHBuild) BOTH carve - the build
   // read composed the uncooked town cells on the raw ground and skipped the bed (GATE LAKEBED: a ring over a lake there)
@@ -645,11 +654,35 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     }
     return -1;
   };
-  const aeroSurfAll = (x, z) => {
+  const aeroSurfRaw = (x, z) => {
     if (PM) { const s = PM.surfaceAt(x, z); if (s >= 0) return s; }   // a premises surface (an apron, a strip, a road) answers first
     const r = regSurf(x, z);
     return r >= 0 ? r : AERO.surfaceAt(x, z);
   };
+  // SNOW-MUD LADDER (15 Nov): a WEATHER look's code (20-22: dirt, grass, sand (weather)) is resolved here, where every reader of
+  // the ground asks - the wheels, the pilot, the dust, the HUD - to the rung the soil's water puts it on (07f GROUND_WX off
+  // SOIL_WET at this world's day, or the dev override world.setGround). A fixed code passes through (one compare).
+  const aeroSurfAll = (x, z) => { const s = aeroSurfRaw(x, z); return s >= 20 && s <= 22 ? surfaceNow(s) : s; };
+  // THE SOIL THIS WORLD STANDS ON (one read for every consumer: the rung, the drawn ground's tint, the dust, the puddles):
+  // SOIL_WET at the day (pure in the instant: the page and the physics worker read the same), or the override's held water.
+  // Memoised on what SOIL_WET reads (the instant, the sandbox's rain and humidity, the plan's id, its force)
+  let groundForce = null, dayRef = null;   // (dayRef: the day once made - the composer reads the ground before it exists: the dry rung)
+  const soilMemo = { k0: NaN, k1: NaN, k2: NaN, k3: NaN, k4: null, k5: null, R: null };
+  function soilNow() {
+    if (typeof GROUND_WX === 'undefined' || typeof SOIL_WET === 'undefined') return null;
+    if (groundForce) return GROUND_WX.forced(groundForce);
+    if (!dayRef) return null;
+    const d = dayRef, k0 = d.jdn * 86400 + d.utc, k1 = +d.rain || 0, k2 = +d.rh || 0, k3 = d.planSpec ? 1 : 0, k4 = d.planSpec || null, k5 = SOIL_WET.force;
+    const M = soilMemo;
+    if (M.R && M.k0 === k0 && M.k1 === k1 && M.k2 === k2 && M.k3 === k3 && M.k4 === k4 && M.k5 === k5) return M.R;
+    M.k0 = k0; M.k1 = k1; M.k2 = k2; M.k3 = k3; M.k4 = k4; M.k5 = k5; M.R = SOIL_WET.at(d);
+    return M.R;
+  }
+  // a code -> the code the ground has now (a weather code's rung; any other itself)
+  function surfaceNow(code) { return code >= 20 && code <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.resolve(code, soilNow()) : code; }
+  // the dev override: 'dry' | 'firm' | 'soft' (the soil's water held for every reader), null = the weather's. sim_link replays it
+  // on the physics worker's world (as setDay)
+  function setGround(level) { groundForce = level && typeof GROUND_WX !== 'undefined' && GROUND_WX.FORCE[level] !== undefined ? level : null; }
   const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear, aeroSurf: aeroSurfAll });
 
   // G1091: THE TREES BY THE RUNWAYS - ONE RULE FOR THE TREE YOU SEE AND THE TREE YOU HIT (POLISH-2). On an island
@@ -1007,7 +1040,8 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   function treeGround(x, z, sc) {
     const m = rwyTrees();
     if (m === 'today') return sc !== undefined ? sc : surface(x, z);
-    const p = PM.surfaceAt(x, z);
+    let p = PM.surfaceAt(x, z);
+    if (p >= 20 && p <= 22 && typeof GROUND_WX !== 'undefined') p = GROUND_WX.dryOf(p);   // (LADDER: a tree reads a weather strip's dry rung - never the day's)
     if (p >= 0 && !(m === 'map' && PM.shoulderAt(x, z))) return p;
     const a = AERO.surfaceAt(x, z); if (a >= 0) return a;
     return islandGround(x, z);
@@ -1059,6 +1093,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   // terrain-following flow, the breeze, the thermals and the winds aloft are
   // its rich terms. The day is made first: the climate's slow terms read it.
   const day = DAY.makeDay((opts && opts.day) || null, GEO);
+  dayRef = day;   // (SNOW-MUD LADDER: soilNow reads it from here on)
   const climate = CLIMATE.make({
     terrainH, surface, SURFACE, bounds: BOUNDS, day, geo: GEO, seed: SEED,
     atmos: () => airNow(),                    // the column, live (K2)
@@ -1241,6 +1276,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
     roughAt: (x, z) => !!(PM && PM.roughAt && PM.roughAt(x, z)),   // (SNOW-MUD: on a bumpy strip's box - the wheel's envelope, 30_solver)
+    // (SNOW-MUD LADDER: the soil's water this world reads, a weather code's rung now, the dev override - 07f GROUND_WX)
+    soilNow, surfaceNow, setGround, get groundForce() { return groundForce; },
+    wxAt: (x, z) => { const s = aeroSurfRaw(x, z); return s >= 20 && s <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(s, soilNow()) : null; },   // a weather strip's rung here (null off one)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
