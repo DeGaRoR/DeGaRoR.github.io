@@ -20,6 +20,8 @@
 //    tops, the windscreen and the cowl's top clean; a leg's lee under a third of its front.
 // D. WASH: ten minutes of steady rain takes more than half off what faces sideways, less off the undersides; a water line
 //    clears what is under it; the coat's one number falls with both.
+// F. THE EDGE: the texture's cover blurred a cell (no square per hit); the spatter's streaks run aft; its erosion keeps
+//    the amount (a thin coat flecks, it does not vanish).
 // E. DETERMINISM AND COST: the same seed, the same deposit; the grid built under 600 ms and a 20 s run (1200 frames) under
 //    2 s in node, i.e. the collide well under the 64-march budget a frame.
 'use strict';
@@ -127,6 +129,40 @@ const c172 = plane('C172', 'builds/cessna172r_2026-11-08.json', (m, C) => {
   const R2 = MR.run(raw.spec || raw, { seed: 7, S: c172.S });
   ok(Math.abs(R2.G.mass - c172.G.mass) < 1e-6 && R2.stats.hits === c172.stats.hits, 'E1 the same seed, the same deposit (' + R2.stats.hits + ' hits, mass ' + R2.G.mass.toFixed(2) + ')');
   if (SELF) { const R3 = MR.run(raw.spec || raw, { seed: 8, S: c172.S }); say('  selftest: another seed gives ' + R3.stats.hits + ' hits (must differ from ' + c172.stats.hits + ')'); if (R3.stats.hits === c172.stats.hits && Math.abs(R3.G.mass - c172.G.mass) < 1e-6) fail('selftest: the seed does not reach the throw'); }
+}
+// ---- F. THE EDGE (A0, 15 Nov: the first pictures' belly "hard voxel squares", "the user will call that slapped too") ----
+{
+  const G = cub.G;
+  // F1 the texture's cover is smooth: neighbouring cells (along any axis) differ by little where there is mud - no cell
+  // draws as a square; measured against the raw deposit's own steps
+  // (between neighbouring AIRFRAME cells only: those are what a fragment on the skin reads; the air round it is never drawn)
+  const steps = (get) => { const d = [], nx = G.nx, ny = G.ny, nz = G.nz;
+    for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const c = (k * ny + j) * nx + i; if (G.occ[c] !== 1) continue;
+      for (const [di, dj, dk] of [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) {
+        if (i + di >= nx || j + dj >= ny || k + dk >= nz) continue;
+        const c2 = c + di + dj * nx + dk * nx * ny; if (G.occ[c2] !== 1) continue;
+        for (let b = 0; b < 4; b++) { const a = get(c * 4 + b), e = get(c2 * 4 + b); if (a > 0.02 || e > 0.02) d.push(Math.abs(a - e)); }
+      } }
+    d.sort((x, y) => x - y); return { p99: d[Math.floor(0.99 * d.length)] || 0, max: d[d.length - 1] || 0, n: d.length }; };
+  GD.smooth(G);
+  const raw = steps(q => 1 - Math.exp(-G.dep[q] / GD.K.D0)), sm = steps(q => G.cov[q]);
+  ok(sm.p99 < 0.4 && sm.p99 < 0.5 * raw.p99, 'F1 the cover, cell to cell: step: p99 ' + sm.p99.toFixed(2) + ' (raw ' + raw.p99.toFixed(2) + '), max ' + sm.max.toFixed(2) + ' (raw ' + raw.max.toFixed(2) + ') over ' + sm.n + ' channel-cells');
+  // F2 the spatter runs along the airflow: its correlation falls to a half 2.5x further along y (aft) than across
+  let s0 = 0; const P = []; let x = 0.123;
+  const rr = () => { x = (x * 9301 + 49297) % 233280; return x / 233280; };
+  for (let i = 0; i < 6000; i++) { const p = [rr() * 4 - 2, rr() * 6 - 3, rr() * 2 - 1]; P.push(p); const n = GD.spatter(p[0], p[1], p[2]) - 0.5; s0 += n * n; }
+  s0 /= P.length;
+  const corr = (dx, dy, dz) => { let s = 0; for (const p of P) s += (GD.spatter(p[0], p[1], p[2]) - 0.5) * (GD.spatter(p[0] + dx, p[1] + dy, p[2] + dz) - 0.5); return s / P.length / s0; };
+  const half = (u) => { for (let d = 0.002; d < 0.5; d *= 1.15) if (corr(u[0] * d, u[1] * d, u[2] * d) < 0.5) return d; return 0.5; };
+  const Lx = half([1, 0, 0]), Ly = half([0, 1, 0]), Lz = half([0, 0, 1]);
+  ok(Ly > 2.5 * Lx && Ly > 2.5 * Lz, 'F2 the spatter streaks run aft: half-correlation ' + (Ly * 100).toFixed(1) + ' cm along vs ' + (Lx * 100).toFixed(1) + ' / ' + (Lz * 100).toFixed(1) + ' cm across');
+  // F3 the erosion keeps the mud's amount: the eroded cover's mean within 0.08 of the cover, from a trace to caked
+  let worst = 0;
+  for (const c of [0.05, 0.15, 0.3, 0.5, 0.7, 0.9]) { let m = 0; for (const p of P) m += GD.erode(c, GD.spatter(p[0], p[1], p[2])); m /= P.length; worst = Math.max(worst, Math.abs(m - c)); }
+  ok(worst < 0.08, 'F3 the spatter keeps the amount: eroded mean within ' + worst.toFixed(3) + ' of the cover (< 0.08)');
+  if (SELF) { const sv = GD.SP.spread; GD.SP.spread = 1; let m = 0; for (const p of P) m += GD.erode(0.15, GD.spatter(p[0], p[1], p[2])); GD.SP.spread = sv; m /= P.length;
+    say('  selftest: without the spread, a 0.15 cover erodes to ' + m.toFixed(3) + ' (F3 must catch it)'); if (Math.abs(m - 0.15) < 0.08) fail('selftest: F3 blind to the unspread noise'); }
 }
 say('GATE MUDDEPOSIT: ' + (fails.length ? 'FAIL (' + fails.length + ')' : 'PASS'));
 process.exit(fails.length ? 1 : 0);

@@ -170,21 +170,88 @@
     return n;
   }
 
+  // ---- THE SMOOTHED COVER (what the texture holds): each channel's cover 1 - e^(-D/D0), blurred so a hit never draws as its
+  // voxel (A0, 15 Nov: the first pictures' belly "hard voxel squares"). A NORMALISED blur over the AIRFRAME's cells only
+  // (sum of w c / sum of w, w = 1 on an airframe cell): the mud spreads along the skin, never into the air round it - a plain
+  // blur thinned a 4 cm leg's mud by a third. [1 2 1] / 4 twice an axis = [1 4 6 4 1] / 16 (one pass left a full-to-empty
+  // step at 0.5 a cell). An empty cell next to the skin takes its neighbours' value, so the trilinear read at a fragment on
+  // the skin sees the skin's. box: [i0, j0, k0, i1, j1, k1], the dirty cells (all when absent) -> G.cov (Float32, N x 4)
+  function smooth(G, box) {
+    const nx = G.nx, ny = G.ny, nz = G.nz, N4 = G.N * 4, F = 5;
+    if (!G.cov) { G.cov = new Float32Array(N4); G._t = new Float32Array(G.N * F); G._u = new Float32Array(G.N * F); box = null; }
+    // a hit changes its kernel (the dirty box) and the blur reaches 2 cells further; the reads 2 more (stale beyond: unused)
+    const B = box ? [Math.max(0, box[0] - 2), Math.max(0, box[1] - 2), Math.max(0, box[2] - 2), Math.min(nx - 1, box[3] + 2), Math.min(ny - 1, box[4] + 2), Math.min(nz - 1, box[5] + 2)]
+                  : [0, 0, 0, nx - 1, ny - 1, nz - 1];
+    if (B[3] < B[0]) return G.cov;
+    const A = G.cov, T = G._t, U = G._u, D0 = K.D0;
+    const lo = [Math.max(0, B[0] - 2), Math.max(0, B[1] - 2), Math.max(0, B[2] - 2)], hi = [Math.min(nx - 1, B[3] + 2), Math.min(ny - 1, B[4] + 2), Math.min(nz - 1, B[5] + 2)];
+    for (let k = lo[2]; k <= hi[2]; k++) for (let j = lo[1]; j <= hi[1]; j++) for (let i = lo[0]; i <= hi[0]; i++) {
+      const c = (k * ny + j) * nx + i, q = c * 4, t = c * F, w = G.occ[c] === 1 ? 1 : 0;
+      for (let b = 0; b < 4; b++) T[t + b] = w ? 1 - Math.exp(-G.dep[q + b] / D0) : 0;
+      T[t + 4] = w;
+    }
+    const pass = (src, dst, ax) => {
+      const st = ax === 0 ? F : ax === 1 ? nx * F : nx * ny * F, n = ax === 0 ? nx : ax === 1 ? ny : nz;
+      for (let k = lo[2]; k <= hi[2]; k++) for (let j = lo[1]; j <= hi[1]; j++) for (let i = lo[0]; i <= hi[0]; i++) {
+        const t = ((k * ny + j) * nx + i) * F, at = ax === 0 ? i : ax === 1 ? j : k;
+        const tm = at > (ax === 0 ? lo[0] : ax === 1 ? lo[1] : lo[2]) ? t - st : t, tp = at < (ax === 0 ? hi[0] : ax === 1 ? hi[1] : hi[2]) ? t + st : t;
+        for (let b = 0; b < F; b++) dst[t + b] = 0.25 * src[tm + b] + 0.5 * src[t + b] + 0.25 * src[tp + b];
+      }
+    };
+    pass(T, U, 0); pass(U, T, 1); pass(T, U, 2); pass(U, T, 0); pass(T, U, 1); pass(U, T, 2);
+    for (let k = B[2]; k <= B[5]; k++) for (let j = B[1]; j <= B[4]; j++) for (let i = B[0]; i <= B[3]; i++) {
+      const c = (k * ny + j) * nx + i, q = c * 4, t = c * F, w = T[t + 4];
+      if (w > 0.02) { for (let b = 0; b < 4; b++) A[q + b] = Math.min(1, T[t + b] / w); } else { A[q] = A[q + 1] = A[q + 2] = A[q + 3] = 0; }
+    }
+    G.covVer = G.ver;
+    return A;
+  }
+
   // ---- THE LOOK (the shader's arithmetic): cover 0..1 at craft point p with outward normal n ----------------------------
+  // smooth: the texture's cover (G.cov, trilinear) when it is up to date, else the raw deposit's
   function sample(G, px, py, pz, nx, ny, nz) {
     const h = G.h, fx = (px - G.o[0]) / h - 0.5, fy = (py - G.o[1]) / h - 0.5, fz = (pz - G.o[2]) / h - 0.5;
     const i = Math.floor(fx), j = Math.floor(fy), k = Math.floor(fz), tx = fx - i, ty = fy - j, tz = fz - k;
-    // (the texture holds each channel's COVER, 1 - e^(-D/D0), filtered trilinearly: the same here)
-    const cv = d => 1 - Math.exp(-d / K.D0);
+    const C = G.cov && G.covVer === G.ver ? G.cov : null, D0 = K.D0;
     let d0 = 0, d1 = 0, d2 = 0, d3 = 0;
     for (let c = 0; c < 8; c++) {
       const ii = i + (c & 1), jj = j + ((c >> 1) & 1), kk = k + ((c >> 2) & 1);
       if (ii < 0 || jj < 0 || kk < 0 || ii >= G.nx || jj >= G.ny || kk >= G.nz) continue;
       const w = ((c & 1) ? tx : 1 - tx) * (((c >> 1) & 1) ? ty : 1 - ty) * (((c >> 2) & 1) ? tz : 1 - tz), q = ((kk * G.ny + jj) * G.nx + ii) * 4;
-      d0 += w * cv(G.dep[q]); d1 += w * cv(G.dep[q + 1]); d2 += w * cv(G.dep[q + 2]); d3 += w * cv(G.dep[q + 3]);
+      if (C) { d0 += w * C[q]; d1 += w * C[q + 1]; d2 += w * C[q + 2]; d3 += w * C[q + 3]; }
+      else { d0 += w * (1 - Math.exp(-G.dep[q] / D0)); d1 += w * (1 - Math.exp(-G.dep[q + 1] / D0)); d2 += w * (1 - Math.exp(-G.dep[q + 2] / D0)); d3 += w * (1 - Math.exp(-G.dep[q + 3] / D0)); }
     }
     return look(d0, d1, d2, d3, nx, ny, nz);
   }
+  // ---- THE SPATTER: the cover broken into streaks along the airflow and flecks (A0, 15 Nov: "mud reads as spatter streaks
+  // along the airflow, not cubes"). A value noise in craft space, STRETCHED along y (aft: the airflow over a moving
+  // aeroplane, and the throw's own direction), ~4 cm across and ~20 cm along, with a fleck octave; the cover ERODES it
+  // (alpha erosion): full cover is solid, a thin one is a few streaks, a trace is flecks - never a fade of a whole cell.
+  // GLSL mirrors this (the hash, the octaves, the smoothstep) in aeroweather.
+  const fr = x => x - Math.floor(x);
+  const hs = (x, y, z) => fr(Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453);
+  function vn(x, y, z) {
+    const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+    let fx = x - ix, fy = y - iy, fz = z - iz; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy); fz = fz * fz * (3 - 2 * fz);
+    const l = (a, b, t) => a + (b - a) * t;
+    return l(l(l(hs(ix, iy, iz), hs(ix + 1, iy, iz), fx), l(hs(ix, iy + 1, iz), hs(ix + 1, iy + 1, iz), fx), fy),
+             l(l(hs(ix, iy, iz + 1), hs(ix + 1, iy, iz + 1), fx), l(hs(ix, iy + 1, iz + 1), hs(ix + 1, iy + 1, iz + 1), fx), fy), fz);
+  }
+  // (the lattice SHEARED - x and z lean with y - so the stretched noise's cells never line up with the body's axes: an
+  // axis-aligned stretch drew stair-steps, 15 Nov)
+  const SP = { fx: 22, fy: 7, ff: 70, ffy: 20, sh: 0.9, w: 0.55, edge: 0.12, spread: 2.08 };
+  function spatter(x, y, z) {
+    const X = x * SP.fx + y * SP.sh, Z = z * SP.fx - y * SP.sh * 0.7, Y = y * SP.fy + (x + z) * 1.3;
+    const n = SP.w * vn(X, Y, Z) + (1 - SP.w) * vn(x * SP.ff + y * 2.1 + 31.7, y * SP.ffy + (x - z) * 3.1 - 7.3, z * SP.ff - y * 1.7 + 11.1);
+    // spread to ~uniform on 0..1 (the two octaves' sum bunches round 0.5: 5-95 % in 0.28-0.72, measured): so the eroded
+    // cover's MEAN is the cover itself (a thin coat stays a thin coat of flecks, not nothing; GATE MUDDEPOSIT F3)
+    const u = 0.5 + (n - 0.5) * SP.spread;
+    return u < 0 ? 0 : u > 1 ? 1 : u;
+  }
+  const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  function erode(c, n) { return c <= 0 ? 0 : sstep(n - SP.edge, n + SP.edge, c); }
+  // the drawn mud at a point: the smoothed cover, eroded by the spatter
+  function mudAt(G, px, py, pz, nx, ny, nz) { const c = sample(G, px, py, pz, nx, ny, nz); return c > 0.003 ? erode(c, spatter(px, py, pz)) : 0; }
   // how squarely a surface of normal n faces an arrival b: (-n . b) eased, 0 when it faces away
   const face = d => (d > 0 ? Math.min(1, d * 1.15) : 0);
   // the four channels' covers (0..1) on a surface of normal n: each arrival covers what faces it, independently
@@ -223,12 +290,12 @@
   }
   // the texture's bytes (RGBA8 a cell: each channel as 1 - e^(-D/D0) x 255, so the shader's sum stays in range); into out
   function bytes(G, out) {
-    const o = out || new Uint8Array(G.N * 4);
-    for (let q = 0; q < G.N * 4; q++) o[q] = Math.min(255, Math.round(255 * (1 - Math.exp(-G.dep[q] / K.D0))));
+    const o = out || new Uint8Array(G.N * 4), C = G.cov && G.covVer === G.ver ? G.cov : null;
+    for (let q = 0; q < G.N * 4; q++) o[q] = Math.min(255, Math.round(255 * (C ? C[q] : 1 - Math.exp(-G.dep[q] / K.D0))));
     return o;
   }
 
-  const GROUND_DEPOSIT = { K, BINS, make, march, deposit, collide, sample, look, wash, clear, total, bytes };
+  const GROUND_DEPOSIT = { K, SP, BINS, make, march, deposit, collide, smooth, sample, look, spatter, erode, mudAt, wash, clear, total, bytes };
   if (typeof window !== 'undefined') window.GROUND_DEPOSIT = GROUND_DEPOSIT;
   if (typeof module !== 'undefined' && module.exports) module.exports = GROUND_DEPOSIT;
 })();
