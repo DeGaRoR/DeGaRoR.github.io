@@ -436,7 +436,9 @@ function run(mut) {
     const rB = M.freightLoadTarget(c172, sB, 'big', { x: 1.5, z: 0 });
     ok(!sB.placed.length && !rB.ok && /passes no door/.test(rB.why) && M.freightLoadAshore(c172, sB)[0].door === false, 'refused: an item no door takes stays on the ground (' + rB.why + ')');
     const crate = M.freightItem({ id: 'crate', kind: 'crate', kg: 30, dims: [0.6, 0.5, 0.4] }), box = M.freightItem({ id: 'box', kind: 'box', kg: 10, dims: [0.4, 0.3, 0.3] });
-    const drum = M.freightItem({ id: 'drum', kind: 'drum', kg: 60, dims: [0.45, 0.45, 0.6] });
+    // (ONE-CESSNA 15 Nov: the scenario's Cessna is THE Cessna, list:50, whose cabin top closes lower than B-CESS's - a 0.6 m drum
+    //  on the 0.4 m crate met an 18 cm wide hold; the drum is 0.45 m tall, the stack still the scenario's)
+    const drum = M.freightItem({ id: 'drum', kind: 'drum', kg: 60, dims: [0.45, 0.45, 0.45] });
     let sC = { v: 1, card: 'c172', pax: 0, seatsOut: [2, 3], items: [crate, box, drum], placed: [] };
     sC = M.freightLoadMove(c172, sC, 'crate', { x: 1.3, z: 0 }).st;
     const onTop = M.freightLoadMove(c172, sC, 'box', { x: 1.3, z: 0 });

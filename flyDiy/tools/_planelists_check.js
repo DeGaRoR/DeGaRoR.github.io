@@ -265,13 +265,16 @@ function canonFiles(L, files, read) {
     await red('R2 undone', pageRows(Object.assign({}, S, { app: S.app.replace('!!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen())', 'false') })));
     const rf = fn => { const o = Object.assign({}, RF); fn(o); return o; };
     await red('canon (a): a reproduction REAL-FIGURES does not test', listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.jodel = Object.assign({}, o.jodel, { dropped: 'selftest' }); })), /^canon: reproduction Jodel/);
-    { const n0 = named.length; const r = await listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.selftest = { file: 'builds/candidates/ruckus_2026-11-09.json' }; }));
-      const ok = !r.some(m => /ruckus_2026-11-09/.test(m)) && named.slice(n0).some(m => /pending/.test(m)); named.length = n0;
+    // (CANON-CLEAN 15 Nov: the break plants its OWN pending entry - the Ruckus has its rows, jodel_geo its row 90: nothing real is
+    //  pending, and a break that leans on the day's list goes inert)
+    { const n0 = named.length, PF = 'builds/candidates/selftest_pending.json'; PENDING[PF] = 'selftest';
+      const r = await listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.selftest = { file: PF }; })); delete PENDING[PF];
+      const ok = !r.some(m => /selftest_pending/.test(m)) && named.slice(n0).some(m => /selftest_pending\.json - pending/.test(m)); named.length = n0;
       console.log('  selftest canon (a): a pending Ruckus is named, not red: ' + (ok ? 'ok' : 'WRONG')); if (!ok) bad.push('selftest: a pending plane turned red or went unnamed'); }
     await red('canon (a): a plane REAL-FIGURES tests on no row', listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.selftest = { file: 'builds/selftest_x.json' }; })), /^canon: REAL-FIGURES tests builds\/selftest_x/);
     await red('canon (b): two player planes, one registration', rows(edit(o => { o.planes.find(p => p.n === 13).reg = 'N340SS'; })), /^canon: registration N340SS/);
     await red('canon (b): a player plane without its registration', rows(edit(o => { delete o.planes.find(p => p.n === 6).reg; })), /^canon: Twin busher floats 4b has no registration/);
-    await red('canon (c): "Metal" back on a player plane', rows(edit(o => { o.planes.find(p => p.n === 40).name = 'Metal Cessna'; })), /^canon: a player plane named Metal/);
+    await red('canon (c): "Metal" back on a player plane', rows(edit(o => { o.planes.find(p => p.n === 50).name = 'Metal Cessna'; })), /^canon: a player plane named Metal/);
     await red('canon (c): a test plane not called a test copy', rows(edit(o => { o.planes.find(p => p.n === 5).name = 'B-CESS'; })), /^canon: test plane 5 /);
     await red('chooser: a shape opening two rows', rows(edit(o => { o.planes.find(p => p.n === 3).alike = 'cub'; })), /^chooser: the cub shape opens 2 rows/);
     await red('chooser: a real plane without its shape', rows(edit(o => { delete o.planes.find(p => p.n === 9).alike; })), /^chooser: the stearman shape opens 0 rows/);

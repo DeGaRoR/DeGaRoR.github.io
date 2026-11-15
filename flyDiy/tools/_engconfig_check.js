@@ -261,7 +261,8 @@ const PIN = {
   'builds/jodel_2026-09-20_corrected.json': '071aec8b30f75954 91de808589c2b7bd',
   // ONE-CESSNA (15 Nov): the corrected C172 and the metal Cessna were two Cessnas - one now, THE Cessna list:50; its pin taken on
   // claude/canon-onecessna (master 58c681347's core, no physics moved by the chantier): the two rows' old pins were other files'
-  'builds/cessna172r_2026-11-08.json': '67060a5c8649fb4e 3e5275835d6f9d38',
+  // (15 Nov, on real-canon 123c7b63f's core: re-pinned there - real-canon moves every row's def, its other rows are its own reds)
+  'builds/cessna172r_2026-11-08.json': '29b63f0af774d526 e7d6edfc42051ef7',
   'builds/chinook_2026-09-21_corrected.json': '23410ab32b1cb6c1 9a62a6a61fcc8556',
   'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'd2ed8ef26a86b6c5 a04a230e8d631667',
   'tools/fixtures/test_copies/build_v8_twin-boom_2026-09-11.json': 'fe78edfd3ef1fea5 77b62ab7c4146aaa',
