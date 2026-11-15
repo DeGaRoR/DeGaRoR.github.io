@@ -4,7 +4,7 @@
 // On the shared harness tools/page_rig.js (RIG-PROCEDURE.md): its server, Chrome on the real GPU, the boot wait, the grab
 // read after FLYDIY_AA.render, the hard cap, WHY on a miss. This file adds only the mud and the eyes.
 //
-//   node tools/mud_shots.js --out <dir> [--cap 1500] [--build cub] [--look softmud|mud] [--q k=v]
+//   node tools/mud_shots.js --out <dir> [--cap 1500] [--build cub] [--look softmud|mud] [--q k=v] [--taxi 60 (s of taxi traced before the skip to line-up)]
 //
 // THE MUD. Nothing in the world is mud by default (SNOW-MUD: a strip or an area record places it). In the garage, before the
 // roll-out, HOME's own strip in the premises record is given the look `softmud` (SURFACE 12) and recomposed through the world
@@ -119,7 +119,7 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
       const W = FLIGHT_PROBE.world(), s = FLIGHT_PROBE.sim(), o = s && s.out || {};
       return { P: c.map(v => +v.toFixed(2)), tgt: t.map(v => +v.toFixed(2)), craft: !!(k && k.matrixWorld), g: +W.terrainH(c[0], c[2]).toFixed(2), surf: W.surface(c[0], c[2]), softZ: o.softZ != null ? +(+o.softZ).toFixed(3) : null,
         softW: o.softW ? Array.from(o.softW).map(v => +(+v).toFixed(3)) : null, coat: (typeof AERO_WX !== 'undefined' && AERO_WX.live) ? +AERO_WX.live.m.toFixed(3) : 0,
-        puffs: window.DUST_FX && DUST_FX.fx ? DUST_FX.fx.sys.P.live : null }; })()`);
+        puffs: window.DUST_FX && DUST_FX.fx ? DUST_FX.fx.sys.P.live : null, v: s && s.v ? Array.from(s.v).slice(0, 3).map(v => +(+v).toFixed(2)) : null }; })()`);
     // d: along the run (HOME's hdg, the sign that points from the aeroplane to the strip's far end); n: beside it, on the sun's side
     let D = null, N = null;
     const frameAt = w => {
@@ -149,6 +149,25 @@ const say = s => console.log('[' + new Date().toTimeString().slice(0, 8) + '] mu
       } catch (e) { misses++; rec.eyes[name] = { err: String(e.message || e), why: e.why || null }; say('MISS ' + name + ': ' + e.message); }
       save(); if (misses >= 2) throw new Error('two misses: stop (RIG-PROCEDURE 4)');
     };
+
+    // ---- THE TAXI, A MINUTE OF IT, THEN THE GAME'S OWN "Skip to line-up" (#bSkip: placeLinedUp - the aeroplane at the runway
+    // hold, lined up, engine running, the pilot at HOLD). 15 Nov 15:15 slot: the taxi took 665 s (Sat on master ~190 s) - the
+    // minute's trace (speed over the ground, throttle, rpm, the surface under the craft) says whether the Cub bogs on the soft mud.
+    const TAXI_S = +opt('taxi', 60);
+    const tq = () => J("(()=>{const k=FLIGHT_PROBE.craft&&FLIGHT_PROBE.craft(),W=FLIGHT_PROBE.world(),s=FLIGHT_PROBE.sim(),o=s&&s.out||{},ap=FLIGHT_PROBE.ap();let c=FLIGHT_PROBE.camGet().target;if(k&&k.matrixWorld){k.updateMatrixWorld(true);const e=k.matrixWorld.elements;c=[e[12],e[13],e[14]];}"
+      + "return {ph:ap&&ap.phase,P:c.map(v=>+v.toFixed(2)),surf:W.surface(c[0],c[2]),thr:s&&s.ctl&&s.ctl.thr!=null?+(+s.ctl.thr).toFixed(3):null,rpm:o.rpm!=null?Math.round(o.rpm):null,softZ:o.softZ!=null?+(+o.softZ).toFixed(3):null}})()");
+    rec.taxi = [];
+    for (let t0 = Date.now(), prev = null; Date.now() - t0 < TAXI_S * 1000;) {
+      const q = await tq().catch(e => ({ err: String(e.message || e) })); q.t = Math.round((Date.now() - t0) / 1000);
+      if (prev && q.P && prev.P) q.gs = +(Math.hypot(q.P[0] - prev.P[0], q.P[2] - prev.P[2]) / Math.max(1, q.t - prev.t)).toFixed(2);
+      rec.taxi.push(q); say('taxi ' + JSON.stringify(q)); prev = q; if (q.ph && !/DEPART|TAXI|LINEUP|STOP/.test(q.ph)) break; await sleep(5000);
+    }
+    rec.skip = await ev("(()=>{const b=document.getElementById('bSkip');if(!b)return 'none';if(b.hidden)return 'hidden';if(b.disabled)return 'disabled: '+b.title;b.click();return 'clicked'})()").catch(e => 'err ' + e.message);
+    say('skip to line-up: ' + rec.skip);
+    if (rec.skip === 'clicked') { await sleep(3000);
+      for (let i = 0; i < 150; i++) { if (await ev(coverGone).catch(() => false)) break; await sleep(2000); }
+      await rig.frames(30); rec.lined = await tq().catch(() => null); say('lined up: ' + JSON.stringify(rec.lined)); }
+    save();
 
     // ---- the take-off, the pilot's own
     let last = null, holdDone = false, washDone = false, midDone = false, lateDone = false, liftT = 0, rollT = 0, mid = null;
