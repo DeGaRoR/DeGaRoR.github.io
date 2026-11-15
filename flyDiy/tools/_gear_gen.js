@@ -1346,9 +1346,13 @@ function legShroud(bag, path, yStop, chord, thick) {
 //   turning fork, and the housing's own height is exactly where the turning
 //   part begins (CASTOR_HOUSE, the profile castorUnit revolves).
 const CASTOR_HOUSE = 0.062;
+// LEG-FAIR-TO (the user 15 Nov, the C172 refit: the main legs' fairings "look broke now, spending only half/a third of the
+// total arm length"): with a wheel pant on (fair 1) and legFairTo set, the leg's shroud runs on INTO the pant - its end
+// hidden in the pant's inboard face, 0.4 tyre radii over the axle - as a spring-steel leg's fairing meets the spat on the
+// real aeroplane. Absent / no pant: it stops above the tyre as it always has.
 const fairStopY = (st, axleY) =>
   (st.steer > 0 && st.x <= 0.01) ? axleY + CASTOR_HOUSE
-                                 : axleY + st.R * 1.04;
+                                 : axleY + st.R * (st.legFairTo && st.fair === 1 ? 0.4 : 1.04);
 
 // the STUB AXLE: from where the leg ends, out through the hub and a
 // little past it — the piece that was missing when legs ran to the

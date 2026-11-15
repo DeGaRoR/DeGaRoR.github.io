@@ -248,6 +248,8 @@ const gearStations = P => {
                fairRake: +P['s' + i + 'FairRake'] || 0,
                fairW: +P['s' + i + 'FairW'] || 1,
                legFair: Math.round(P['s' + i + 'LegFair'] || 0),
+               // LEG-FAIR-TO (15 Nov): the leg fairing runs down into the wheel pant (absent: stops above the wheel)
+               legFairTo: Math.round(+P['s' + i + 'LegFairTo'] || 0),
                steer: Math.round(P['s' + i + 'Steer']), P: gearLegP(P, i) });
   }
   return out;

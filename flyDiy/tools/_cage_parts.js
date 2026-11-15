@@ -372,7 +372,7 @@ const CAGE_PARTS = [
       // "the bubble sliders should be part of the windshield selection")
       // (the window ring and cabin pillar offsets, and the cabin pillar's
       // lean, are the door-post and cabin FRAMES' rows under Fuselage, T2.1)
-      ['pillars', ['pillarW', 'cabPillarW'], EXPERT],
+      ['pillars', ['pillarW', 'cabPillarW', 'pillarFollow'], EXPERT],
       // G3511: THE PILOT'S SECTION OPEN AT THE TOP, and the rows every
       // opening shares (the coaming is the window joints' strip, the screens
       // are glazing: their sections stay those parts')
@@ -393,7 +393,7 @@ const CAGE_PARTS = [
     place: { at: 'on the cabin front ring' },
     groups: [
       // (the windscreen frame is the CABIN's again - G1321.2)
-      ['shape', ['wsBaseBow', 'wsCeilBow']],
+      ['shape', ['wsBaseBow', 'wsCeilBow', 'wsToWaist', 'wsShoulder', 'wsShoulderX', 'wsShoulderTop']],
       // the bubble canopy IS the screen's own continuation (2026-09-04)
       ['bubble canopy', ['bubble', 'bubH', 'bubAt', 'bubW',
                          'canLoops', '_viewLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',
@@ -577,7 +577,7 @@ const CAGE_PARTS = [
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
       ['boom frame', ['aftRoofY', 'frBoomWaistW', 'aftKeelY']],
-      ['boom frame, detail', ['frBoomWaistY', 'frBoomTopW', 'frBoomBotW',
+      ['boom frame, detail', ['frBoomWaistY', 'aftFloorDy', 'frBoomTopW', 'frBoomBotW',
                               'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ'], EXPERT],
       ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch', 'boomMidPinchW']],
     ] },
@@ -646,7 +646,7 @@ const CAGE_PARTS = [
       ['covering', ['skinOn', 'skinT', 'shellT']],
       // G214: the skin's screws along the rings and rails
       ['fasteners', ['memFast', 'memPitch', 'memDia', 'memRise']],
-      ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ']],
+      ['members', ['intPillars', 'intFire', 'fireSealW', 'intBulk', 'bulkZ', 'bulkAt']],
       // AFT-BULKHEAD (3 Nov): the aft wall's own rows, absent at default
       ['aft wall', ['bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhRelief', 'bhReliefH', 'bhFast', 'bhNet', 'bhLamp', 'bhLampY', 'bhSling']],
       // (the 'cutting' group — `cutParts` — retired 2026-09-14: always on)
@@ -1117,7 +1117,7 @@ const CAGE_PARTS = [
       ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Root', 's1Brake',
                    's1Steer', 's1Sink', 's1Ul', 'towHook']],
       ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
-                   's1FairW', 's1LegFair']],
+                   's1FairW', 's1LegFair', 's1LegFairTo']],
       ['blade', ['s1_beamAng', 's1_beamW', 's1_beamT', 's1_beamTaper',
                  's1_beamBow', 's1_beamRake']],
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW',
@@ -1172,7 +1172,7 @@ const CAGE_PARTS = [
       ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Root', 's2Brake',
                    's2Steer', 's2Sink', 's2Nose']],
       ['fairing', ['s2Fair', 's2FairSkirt', 's2FairTail', 's2FairRake',
-                   's2FairW', 's2LegFair']],
+                   's2FairW', 's2LegFair', 's2LegFairTo']],
       ['blade', ['s2_beamAng', 's2_beamW', 's2_beamT', 's2_beamTaper',
                  's2_beamBow', 's2_beamRake']],
       ['linkage', ['s2_linkAng', 's2_linkSwing', 's2_linkArmW',

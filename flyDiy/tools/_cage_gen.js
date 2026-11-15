@@ -1165,6 +1165,42 @@ function cageResolve(S) {
   }
   }
   frameZ(false);
+  // PILLAR-FOLLOW (the user 15 Nov, the C172 refit: "the pillars stay straight whatever, even though they're part of a
+  // curved profile ... an option so they too follow nicely the curvature, so they don't generate steps in a profile"):
+  // a pillar is a ring pair of one frame section, so the band between them runs flat whatever the bays either side do
+  // and the profile steps at every pillar. On: the section is held at the pillar's CENTRE station and each of its two
+  // rings takes its place on the straight run from that centre to the ring beyond it on its own side - x and y of every
+  // level move, z stays (the frames' fore/aft above is kept). A neighbour across another pillar, a non-full ring or a
+  // ring outside the run leaves that side as built. Off / absent: nothing here runs (fit identity).
+  if (S.pillarFollow && !MIR) {
+    const zOf = r => (r.lv.waist || r.lv.roof).z;
+    const snap = rings.map(r => ({ name: r.name, kind: r.kind, lv: JSON.parse(JSON.stringify(r.lv)) }));
+    const setXY = (r, src) => {
+      for (const k in r.lv) {
+        const l = r.lv[k], s = src.lv[k];
+        if (!s) continue;
+        l.x = s.x; l.y = s.y;
+        if (l.yC != null && s.yC != null) l.yC = s.yC;
+      }
+    };
+    for (let i = 0; i + 1 < rings.length; i++) {
+      const bay = bays[i];
+      if (!bay || !isPillarMat(bay.mat)) continue;
+      const A = snap[i], B = snap[i + 1];
+      if (A.kind !== 'full' || B.kind !== 'full') continue;
+      const C = lerpRing(A, B, 0.5, 'pilC'), c = 0.5 * (zOf(A) + zOf(B));
+      const side = (ri, ni, bi) => {
+        if (ni < 0 || ni >= rings.length || !bays[bi] || isPillarMat(bays[bi].mat)) return;
+        const N = snap[ni];
+        if (N.kind !== 'full') return;
+        const t = (zOf(snap[ri]) - c) / (zOf(N) - c);
+        if (!(t > 0 && t < 1)) return;
+        setXY(rings[ri], lerpRing(C, N, t, rings[ri].name));
+      };
+      side(i, i - 1, i - 1);
+      side(i + 1, i + 2, i + 1);
+    }
+  }
   openBays();
 
   // (the G16 bubble-canopy repositioning experiment lived here — DELETED
@@ -2449,12 +2485,53 @@ function buildCage2(S, step) {
     const slopeMat = (hi, lo) =>
         hi === 'roof' ? (lo === 'ceil' && !bub ? 'ceilingLoop' : 'windshield')
       : hi === 'ceil' || hi === 'bandG' ? 'windshield'
+      // WS-TO-WAIST (the user, 15 Nov, the 172: 'a little vertical part of fuselage on the windshield which the real
+      // plane doesn't have ... make this all glass'): the screen's waistband strip glazed down to the waist. Absent: as built
+      : S.wsToWaist ? 'windshield'
       : 'waistband';
     const cutSlope = CNCUT
       && (CNCUT.mode === 'open' || CNCUT.mode === 'bubble');
+    // WS-SHOULDER (15 Nov, the 172, the user: "our windscreen is sort of a V, while the original shape is very much a U
+    // ... a lot flatter in the middle ... curves much more outward"): a SHOULDER COLUMN each side between the pillar and
+    // the centre chain, on every slope level under the roof. Seen from above the screen's rails run pillar -> shoulder ->
+    // centre: the shoulder sits `x` of the way out (a fraction of the pillar's half-width) and `f` of the way forward
+    // from the straight pillar-to-centre line to the centre's own station - f 1 is a flat front turning at the
+    // shoulders. The top band (roof -> ceiling) and the first deck band close as five-cornered faces, so the roof and
+    // the nose keep their columns. Absent (S.wsShoulder unset): the two-column screen, byte for byte
+    const SHO = !cutSlope && !CNBUB && S.wsShoulder ? S.wsShoulder : null;
+    const shP = {}, shM = {};
+    if (SHO) {
+      const X = Math.max(0.05, Math.min(0.98, SHO.x)), u = 1 - X;
+      // the forward share eases from the base (full) to the ceiling (x `top`) by the pillar's own height
+      const yW = a.P.waist != null ? V[a.P.waist][1] : 0, yT = a.P.ceil != null ? V[a.P.ceil][1] : yW + 1;
+      const fAt = y => { const w = Math.max(0, Math.min(1, (yT - y) / ((yT - yW) || 1e-9))); return SHO.f * (SHO.top + (1 - SHO.top) * w); };
+      const mk = (pi, k) => {
+        const p = V[pi], c = V[chain[k]], fw = fAt(p[1]);
+        const aP = A[pi], aC = A[chain[k]];
+        const at = aP && aC ? aP.map((v, i) => v + (aC[i] - v) * u) : (aP || aC);
+        return P(p[0] * X, p[1] + (c[1] - p[1]) * u, p[2] + (c[2] - p[2]) * (u + (1 - u) * fw), at);
+      };
+      for (const k of chLv) if (a.P[k] != null && a.M[k] != null && chain[k] != null) {
+        shP[k] = mk(a.P[k], k); shM[k] = mk(a.M[k], k);
+      }
+    }
     for (let k = 0; k < sOrd.length - 1; k++) {
       const hi = sOrd[k], lo = sOrd[k + 1], m = slopeMat(hi, lo);
       if (cutSlope && cutHi(hi)) continue;      // 'open': no windshield
+      if (SHO && shP[lo] != null && (hi === 'roof' || shP[hi] != null)) {
+        const f0 = F.length;
+        if (hi === 'roof') {
+          F.push({ v: [a.P[hi], a.P[lo], shP[lo], chain[lo], chain[hi]], m });
+          F.push({ v: [chain[hi], chain[lo], shM[lo], a.M[lo], a.M[hi]], m });
+        } else {
+          face(a.P[hi], a.P[lo], shP[lo], shP[hi], m);
+          face(shP[hi], shP[lo], chain[lo], chain[hi], m);
+          face(chain[hi], chain[lo], shM[lo], shM[hi], m);
+          face(shM[hi], shM[lo], a.M[lo], a.M[hi], m);
+        }
+        if (creaseMode && m === 'windshield') for (let q = f0; q < F.length; q++) F[q].win = 1;
+        continue;
+      }
       face(a.P[hi], a.P[lo], chain[lo], chain[hi], m);
       face(chain[hi], chain[lo], a.M[lo], a.M[hi], m);
       // the windshield glass gets a joint too; left and right share the
@@ -2468,8 +2545,13 @@ function buildCage2(S, step) {
     if (E && !CNBUB) for (const [k, w] of [['waist', CW.sill], ['band', CW.band],
                                  ['ceil', CW.ceil]]) {
       if (a.P[k] != null && chain[k] != null) {
-        tagE(a.P[k], chain[k], w);
-        tagE(chain[k], a.M[k], w);
+        if (shP[k] != null) {                     // WS-SHOULDER: the rail runs through the shoulders
+          tagE(a.P[k], shP[k], w); tagE(shP[k], chain[k], w);
+          tagE(chain[k], shM[k], w); tagE(shM[k], a.M[k], w);
+        } else {
+          tagE(a.P[k], chain[k], w);
+          tagE(chain[k], a.M[k], w);
+        }
       }
     }
     // the exposed slope rail is a boundary: weight 3, and it is the
@@ -2656,7 +2738,8 @@ function buildCage2(S, step) {
     // low bands: wsFront -> [cowl loops] -> [twin] -> ring; deck at waist
     const lowSets = [];
     lowSets.push({ a: { P: a.P, M: a.M, C: { waist: chain.waist, keel: a.C.keel } },
-                   b: nIds[0], mat: CAGE_MAT.plain, deck: 'body' });
+                   b: nIds[0], mat: CAGE_MAT.plain, deck: 'body',
+                   shP: shP.waist, shM: shM.waist });   // WS-SHOULDER: the deck's first band closes through them
     for (let i = 0; i + 1 < nIds.length; i++) {
       const pf = noseSeq[i].name === 'noseTwin'
               && noseSeq[i + 1].name === 'noseRing'
@@ -2668,8 +2751,13 @@ function buildCage2(S, step) {
     const lowOrd = LV.filter(k =>
       k === 'waist' || k === 'waistG' || FLOWS.has(k));
     for (const s of lowSets) {
-      face(s.a.P.waist, s.b.P.waist, s.b.C.waist, s.a.C.waist, s.deck);
-      face(s.a.C.waist, s.b.C.waist, s.b.M.waist, s.a.M.waist, s.deck);
+      if (s.shP != null && s.shM != null) {
+        F.push({ v: [s.a.P.waist, s.b.P.waist, s.b.C.waist, s.a.C.waist, s.shP], m: s.deck });
+        F.push({ v: [s.a.C.waist, s.b.C.waist, s.b.M.waist, s.a.M.waist, s.shM], m: s.deck });
+      } else {
+        face(s.a.P.waist, s.b.P.waist, s.b.C.waist, s.a.C.waist, s.deck);
+        face(s.a.C.waist, s.b.C.waist, s.b.M.waist, s.a.M.waist, s.deck);
+      }
       const sh = lowOrd.filter(k => s.a.P[k] != null && s.b.P[k] != null);
       for (let k = 0; k < sh.length - 1; k++) {
         const hi = sh[k], lo = sh[k + 1];
@@ -4835,9 +4923,15 @@ function cageInterior(m, S) {
   if (I.bulk) (() => {
     // group pillarPassenger faces into bands; the aft-most band is the
     // pilPaxA station (pax mid pillars share the material)
+    // BULK-AT (the user 15 Nov, the C172 refit: "an option for bringing the aft bulkhead from the passengers aft pillar
+    // to the taper aft pillar, that would be more accurate here"): bulkAt 1 builds the same wall from the TAPER's aft
+    // pillar (pilTaperA, the pillarTaper band) - the baggage bay then runs through the taper section. No taper pillar
+    // (no taper, a rod's truss): the passengers' aft pillar, as before. Absent / 0: every build as it was, to the bit.
+    const atTaper = +I.bulkAt > 0 && F.some(f => f.m === 'pillarTaper' && f.v.length === 4);
+    const BMAT = atTaper ? 'pillarTaper' : 'pillarPassenger';
     const idx = [];
     F.forEach((f, i) => {
-      if (f.m === 'pillarPassenger' && f.v.length === 4) idx.push(i);
+      if (f.m === BMAT && f.v.length === 4) idx.push(i);
     });
     if (!idx.length) return;
     const byIdx = new Map(idx.map((fi, k) => [fi, k]));
@@ -4914,7 +5008,7 @@ function cageInterior(m, S) {
     // cycle it is built from does not exist. `room` is the half-pillar less
     // the panel's own thickness (BTH, 5 mm, declared below where it is used)
     // and the 10 mm base setback, so the slider's ends stay INSIDE the band.
-    const PW = Math.max(0, I.paxPillarW || 0);
+    const PW = Math.max(0, (atTaper ? I.taperPillarW : I.paxPillarW) || 0);   // (BULK-AT: the bounding pillar's own width)
     const bz = Math.max(-1, Math.min(1, +I.bulkZ || 0));
     const room = Math.max(0, PW * 0.5 - 0.005 - 0.010);
     const SETB = 0.010 + bz * room;
@@ -9787,6 +9881,8 @@ function cageSpec(P) {
   S.aft.floorYB = ap(fr(T.aft.floorYB, T.waistY, T.aft.keelYB),
                      P.waistY, P.aftKeelY);
   S.aft.keelYA = S.aft.keelYB + aLean.keel;
+  // BOOM-CORNER (15 Nov): the boom frame's bottom corner moved off its template seat (absent = as it always was)
+  if (+P.aftFloorDy) S.aft.floorYB += +P.aftFloorDy;
   S.aft.floorYA = S.aft.floorYB + aLean.floor;
 
   S.tail.len = P.tailLen;
@@ -9912,6 +10008,11 @@ function cageSpec(P) {
     const cw1 = +P.ringCowl1W || 0, cw2 = +P.ringCowl2W || 0;
     if (cw1 || cw2) S.ringOff = { cowl: [cw1, cw2] };
   }
+  // PILLAR-FOLLOW (15 Nov): written only when on (absent = every ring as built)
+  if (+P.pillarFollow > 0) S.pillarFollow = 1;
+  if (+P.wsToWaist > 0) S.wsToWaist = 1;
+  // WS-SHOULDER (15 Nov): the windscreen's shoulder columns (written only when on)
+  if (+P.wsShoulder > 0) S.wsShoulder = { f: +P.wsShoulder, x: P.wsShoulderX != null ? +P.wsShoulderX : 0.65, top: P.wsShoulderTop != null ? +P.wsShoulderTop : 1 };          // (15 Nov) the windscreen glazed down to the waist (written only when on)
   // THE PASSENGER RUN'S PROFILE (T2.1): off = the linear lerp verbatim
   S.paxProfile = Math.round(+P.frPaxProfile || 0) ? {
     on: 1,
@@ -10039,6 +10140,9 @@ function cageSpec(P) {
                  // the aft bulkhead's own station, and the pillar that bounds
                  // it — the panel needs BOTH, and the width is resolved above
                  bulkZ: P.bulkZ || 0, paxPillarW: S.paxPillarW,
+                 // BULK-AT (15 Nov): the wall at the taper's aft pillar instead (absent: 0), and that pillar's width
+                 // (the taper pillar is pillarW wide, paxPillarW when pillarW is unset - the generator's tpW)
+                 bulkAt: +P.bulkAt > 0 ? 1 : 0, taperPillarW: S.pillarW > 0 ? S.pillarW : S.paxPillarW,
                  skinT: skinTv,
                  cons: consG,
                  // the SECTION MODEL: one technique per {boom|pax|

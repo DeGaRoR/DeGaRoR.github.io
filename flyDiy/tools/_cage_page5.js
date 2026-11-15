@@ -354,6 +354,10 @@ window.CAGE_PAGE = {
          { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len', follow: 'boom.waistY' }],
         ['aftKeelY',     'bottom height',   -1.40, 0.60, 0.005,
          { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len' }],
+        // BOOM-CORNER (the user, 15 Nov, the 172: the boom's bottom rounds differently from the cabin's): the boom frame's
+        // bottom corner (its floor level) moved off the template's fraction, so its corner can match the cabin's. Absent = 0
+        ['aftFloorDy',   'bottom corner height', -0.80, 0.80, 0.005,
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len', absent: 0 }],
         ['frBoomTopW',   'top half-width',   0.00, 1.20, 0.005,
          { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn) && !(+P.topRound >= 1), dim: 'len', follow: 'boom.topW' }],
         ['frBoomWaistW', 'waist half-width', 0.00, 1.20, 0.005,
@@ -518,6 +522,10 @@ window.CAGE_PAGE = {
         // 0 where it has always sat, +1 the aft face.
         ['bulkZ',     'bulkhead station', -1, 1, 0.05,
          { when: P => +P.intOn && +P.intBulk }],
+        // BULK-AT (the user 15 Nov, the C172 refit): the wall on the passengers' aft pillar (as always) or on the
+        // taper's aft pillar - the baggage bay through the taper section. Absent at 0: no build changes
+        ['bulkAt',    'bulkhead at',      0, 1, 1, ["the passengers' aft pillar", "the taper's aft pillar"],
+         { when: P => +P.intOn && +P.intBulk, absent: 0 }],
         // AFT-BULKHEAD (the user 3 Nov: "focus on the aft bulkhead ... design interesting aft bulkheads"): the aft
         // wall's own rows (_cage_gen.js bulkWall; the lamp is _cage_light.js's). NOT IN THE DEFAULTS TABLE (G3570):
         // a build that never sets one saves no key and draws the plain panel as before
@@ -632,6 +640,14 @@ window.CAGE_PAGE = {
         // (wsRun / wsTopOff are the windscreen frame's waist / top fore-aft)
         ['wsBaseBow', 'base bow',       0.00, 1.20, 0.01],
         ['wsCeilBow', 'ceiling bow',    0.00, 0.60, 0.005],
+        // WS-TO-WAIST (15 Nov, the 172): the windscreen's strip under the glass (its waistband) glazed down to the waist
+        ['wsToWaist', 'windscreen reaches', 0, 1, 1, ['the waistband', 'the waist (no strip)'], { absent: 0 }],
+        // WS-SHOULDER (15 Nov, the 172: "a V ... the original is very much a U"): a shoulder column each side of the
+        // screen - how far forward it comes (0 = on the straight pillar-to-centre line, 1 = level with the centre: a
+        // flat front), and how far out it sits (a fraction of the pillar's half-width)
+        ['wsShoulder',  'shoulders forward', 0, 1, 0.01, { absent: 0 }],
+        ['wsShoulderX', 'shoulders out',     0.30, 0.95, 0.01, { when: P => +P.wsShoulder > 0, absent: 0.65 }],
+        ['wsShoulderTop', 'shoulders at the top x', 0, 1, 0.01, { when: P => +P.wsShoulder > 0, absent: 1 }],
         // G2770 (the user: "the bubble glass option is misleading. It's more
         // like an additional adjourning, that should be hidden in real canopy
         // bubble mode"): the row hides under a bubble canopy (its value kept)
@@ -1412,6 +1428,10 @@ window.CAGE_PAGE = {
       ['pillarW',   'pillar width',    0.00, 0.30, 0.005],
       ['cabPillarW','cabin pillar',    0.02, 0.30, 0.005],
       ['paxPillarW','pax pillar',      0.02, 0.30, 0.005],
+      // PILLAR-FOLLOW (the user 15 Nov, the C172 refit: "the pillars stay straight whatever, even though they're part
+      // of a curved profile ... an option so they too follow nicely the curvature, so they don't generate steps"):
+      // each pillar's section held at its centre, its two rings on the runs to their neighbours. Absent at 0
+      ['pillarFollow', 'pillars follow the profile', 0, 1, 1, ['straight (as built)', 'follow the profile'], { absent: 0 }],
       ['apilW',     'A-pillar w ×',    0.20, 3.00, 0.01],
       ['apilPerp',  'A-pillar perp',   0, 1, 0.05],
       ['pfW',       'front pillar ×',  0.30, 3.00, 0.01],
