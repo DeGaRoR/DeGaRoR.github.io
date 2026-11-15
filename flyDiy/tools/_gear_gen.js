@@ -2449,6 +2449,41 @@ function legTailwheel(bags, AF, P, st) {
   const ctrl = [x0, root[1] - P.twSpringDrop * 0.30,
                 lerp3(root, tip, 0.55)[2]];
   const path = resample(bez(root, ctrl, tip, 12), 16);
+  // PC6-TAILWHEEL (15 Nov, the user: "mounted vertically on the aft back of the fuselage ... much more robust"): the POST
+  // style (twStyle 1, absent 0) - a stout vertical post from the fitting down `twPostLen`, a trailing ARM from its foot
+  // to the castor's top (the very point the leaf spring's tip stands on: the castor, the wheel and the contact are the
+  // spring's, so the flight is unchanged), a SHOCK from high on the post's aft face to the arm (the V on its side), and a
+  // GUARD triangle ahead of the tyre (tubes from the post's foot forward-down and back to the arm). A skid (steer 4)
+  // keeps its leaf blade
+  if (Math.round(+P.twStyle || 0) === 1 && st.steer !== 4) {
+    const D = Math.max(0.03, +P.twPostD || 0.07), Lp = Math.max(0.10, +P.twPostLen || 0.28);
+    // ON THE AFT FACE (the user: "mounted vertically on the aft back of the fuselage"): the post stands just aft of the
+    // tail's aft face (AF.z0, the body's aft-most station; a twin boom's own mount keeps the fitting's station), from
+    // 60 % of `twPostLen` up the face down past the keel by the rest - never lower than one tube above the castor's top
+    const zP = (st.mount && st.mount.keelAt) ? F.p[2] : AF.z0 - D * 0.5;
+    const kP = keelAt(zP + D * 0.5), hP = AF.heightAt ? AF.heightAt(AF.z0 + 0.01) : Lp;
+    const top = [x0, kP + Math.min(Lp * 0.6, 0.8 * hP), zP], foot = [x0, Math.max(kP - Lp * 0.4, tip[1] + D), zP];
+    // the post: two clamp plates on the aft face and a round tube down
+    for (const f of [0.25, 0.85]) boxIn(bags.alloy, lerp3(foot, top, f), [D * 1.1, D * 0.7, 0.010], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    sweep(bags.steel, resample([top, foot], 6), () => secRound(D / 2, 18), true, [1, 0, 0]);
+    // the arm: post foot -> the castor's top, a slimmer tube, a pivot boss at the foot
+    sweep(bags.steel, resample([foot, tip], 8), () => secRound(D * 0.36, 16), true, [1, 0, 0]);
+    revolve(bags.alloy, [x0 - D * 0.6, foot[1], foot[2]], [1, 0, 0], [[D * 0.42, 0], [D * 0.42, D * 1.2]], 18, true);
+    // the shock: from a third down the post's aft face to 60 % along the arm - a cylinder and its rod
+    const sTop = [x0, top[1] - Lp * 0.30, top[2] - D * 0.55], sBot = lerp3(foot, tip, 0.60);
+    const sMid = lerp3(sTop, sBot, 0.55);
+    sweep(bags.steel, resample([sTop, sMid], 6), () => secRound(D * 0.30, 14), true, [1, 0, 0]);
+    sweep(bags.alloy, resample([sMid, sBot], 6), () => secRound(D * 0.15, 12), true, [1, 0, 0]);
+    for (const e of [sTop, sBot]) revolve(bags.alloy, [x0 - D * 0.25, e[1], e[2]], [1, 0, 0], [[D * 0.20, 0], [D * 0.20, D * 0.5]], 12, true);
+    // the guard: a triangle ahead of the tyre (protection only - no load)
+    if (+P.twGuard !== 0) {
+      const hub = [x0, tip[1] - (+P.twLegDrop || 0.1), tip[2] - (+P.twTrail || 0.05)];
+      const g = [x0, hub[1] - st.R * 0.15, hub[2] + st.R * 1.35];
+      const armAt = lerp3(foot, tip, 0.85);
+      sweep(bags.steel, resample([foot, g], 6), () => secRound(D * 0.20, 12), true, [1, 0, 0]);
+      sweep(bags.steel, resample([g, armAt], 6), () => secRound(D * 0.20, 12), true, [1, 0, 0]);
+    }
+  } else {
   // A LEAF SPRING IS LAMINATED: 3 leaves, each shorter than the one above
   //
   // ...AND EACH ONE SITS UNDER THE LAST (2026-09-10, the user: "the blade
@@ -2492,6 +2527,7 @@ function legTailwheel(bags, AF, P, st) {
     bolt(bags.alloy, off(add(root, mul(F.fore, s * 0.022)), F.n,
                          P.twSpringT * (leaves - 0.5) + 0.016),
          mul(F.n, -1), 0.009, 0.024);
+  }   // (PC6-TAILWHEEL: the leaf spring's own drawing)
   // G3800 (TAILWHEELS): THE TAIL SKID (the row's 4) - no castor, no wheel: the leaf spring runs on down as the skid's
   // blade to a STEEL SHOE (a hardened plate with an upturned toe, bolted under the blade) whose sole stands on the
   // contact line the wheel's tyre would have touched (the castor's own hub geometry, P.twLegDrop / twTrail / twRake,
