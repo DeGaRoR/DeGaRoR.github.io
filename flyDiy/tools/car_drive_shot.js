@@ -7,7 +7,7 @@
 // (DRIVE_MODE.ahead) and takes a still at each time asked, printing the vehicle's name, its sheet, the rig and the HUD.
 // Serve the REPO ROOT first:
 //   python3 -m http.server 8765 --bind 127.0.0.1        (from the repository root)
-//   node tools/car_drive_shot.js <build.json> <out-prefix> [dev.html|index.html] [t1,t2,...  seconds of driving] [--to <place>]
+//   node tools/car_drive_shot.js <build.json | - (no import: the stock car)> <out-prefix> [dev.html|index.html] [t1,t2,...  seconds of driving] [--to <place>]
 // Writes <out-prefix>_t<sec>.png and <out-prefix>_log.txt.
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -33,9 +33,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     if (ok) break; await sleep(2000);
   }
   console.log('garage up', el());
-  await page.setInputFiles('#gFile', path.resolve(BUILD));
+  // (15 Nov) BUILD '-': no import - the stand keeps its aeroplane, so the drive gets no car and takes THE STOCK CAR
+  // (the van, drive_mode.js stockVan)
+  if (BUILD !== '-') await page.setInputFiles('#gFile', path.resolve(BUILD));
   let st = null;
-  for (let i = 0; i < 120; i++) {
+  for (let i = 0; BUILD !== '-' && i < 120; i++) {
     st = await page.evaluate(() => { const s = GARAGE_SPEC.get(); const G = window.CAGE_GEAR;
       return { kind: window.VEHICLE_KIND ? window.VEHICLE_KIND(s) : null, name: s && s.meta && s.meta.name, contacts: G && G.contacts ? G.contacts.length : 0 }; }).catch(e => ({ err: e.message }));
     if (st.kind === 'car' && st.contacts === 4) break; await sleep(1000);

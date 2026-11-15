@@ -85,9 +85,77 @@
   //      stock Conquer '89 pickup unless the caller hands one - ctx.sheet (a car sheet: tools/car_sheet.js's, the shell's
   //      format - src/cars/car_*.json) or ctx.sheetUrl, and ctx.mesh (its drawing, THREE.Object3D in the sheet's body frame;
   //      ctx.meshMatrix, ctx.wheels, ctx.name optional). A new car drops the old one's rig; the same car keeps it ----
+  // THE STOCK CAR IS THE VAN (the user, 15 Nov: "the van is the default, with the dark blue livery"; A0: "the van is the
+  // default and the tow car ... the Conquer pickup stays selectable"): with no car handed (the drive, the line tow, the
+  // trailer tow), the garage-built Field Wagon in its Retro livery drives - its sheet src/cars/car_utility.json
+  // (tools/car_sheet.js, measured off this very build) and its body CAPTURED by parked.js (PARKED.capture: the garage
+  // editor's round trip, the build's own livery block, kept in its record for the session) and fitted into the sheet's
+  // frame by its box: the long axis along +x, the front the end whose top is lower (the bonnet, not the roof), the
+  // front bumper on the sheet's box front, the tyres' bottom on y = 0, centred across; rotations only (never a mirror:
+  // the plate and the lettering read). Its drawn wheels stay part of the body (the garage car's MVP: they do not spin).
+  // ctx.stock 'pickup' (or no PARKED / no editor - node, a gate) drives the Conquer as before.
+  const VAN = { sheetUrl: 'src/cars/car_utility.json', build: 'builds/vehicles/utility_retro_2026-11.json', key: 'car:utility_retro_2026-11', name: 'Field Wagon (TOW 3)' };
+  let vanSrc = null;                       // { sheet, rec } once captured; false once refused (the pickup then)
+  async function stockVan() {
+    if (vanSrc !== null) return vanSrc || null;
+    const P = window.PARKED;
+    if (!P || typeof P.capture !== 'function' || typeof P.build !== 'function' || !THREE_) return null;
+    try {
+      const [sh, env] = await Promise.all([VAN.sheetUrl, VAN.build].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u + ': ' + r.status); return r.json(); })));
+      const spec = env && env.spec ? env.spec : env;
+      const rec = P.capture(VAN.key, spec);
+      if (!rec) throw new Error('the capture refused (no editor on this page)');
+      vanSrc = { sheet: sh, rec };
+    } catch (e) { console.warn('drive: the stock van is not available - the pickup drives:', e && e.message); vanSrc = false; }
+    return vanSrc || null;
+  }
+  // the captured body, a fresh holder per car (the drive owns what it is given), in the sheet's frame
+  function vanMesh(src) {
+    const T = THREE_, inner = new T.Group(); inner.name = 'drive:van';
+    window.PARKED.build(T, src.rec, inner);
+    inner.updateMatrixWorld(true);
+    // the vertices' extent, sampled (the LOD's near rung only: the same shape at every rung)
+    const v = new T.Vector3(), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity], pts = [];
+    inner.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      for (let a = o; a && a !== inner; a = a.parent) if (a.isLOD) { if (a.levels && a.levels[0] && !isAncestor(a.levels[0].object, o)) return; break; }
+      const A = o.geometry.attributes.position, step = Math.max(1, Math.floor(A.count / 4000));
+      for (let i = 0; i < A.count; i += step) { v.fromBufferAttribute(A, i).applyMatrix4(o.matrixWorld);
+        lo[0] = Math.min(lo[0], v.x); lo[1] = Math.min(lo[1], v.y); lo[2] = Math.min(lo[2], v.z);
+        hi[0] = Math.max(hi[0], v.x); hi[1] = Math.max(hi[1], v.y); hi[2] = Math.max(hi[2], v.z); pts.push(v.x, v.y, v.z); }
+    });
+    const ax = (hi[2] - lo[2]) > (hi[0] - lo[0]) ? 2 : 0, lat = 2 - ax;
+    // the front: the end whose top (within 0.4 m of it) is lower
+    let topLo = -Infinity, topHi = -Infinity;
+    for (let i = 0; i < pts.length; i += 3) { const a = pts[i + ax], y = pts[i + 1];
+      if (a < lo[ax] + 0.4) topLo = Math.max(topLo, y); if (a > hi[ax] - 0.4) topHi = Math.max(topHi, y); }
+    const fwdPlus = topHi < topLo;          // the front at the axis's + end
+    // the rotation about y taking the front onto +x: +z -> +x is +90 deg, -z -> -90, +x 0, -x 180
+    const yaw = ax === 2 ? (fwdPlus ? Math.PI / 2 : -Math.PI / 2) : (fwdPlus ? 0 : Math.PI);
+    const front = fwdPlus ? hi[ax] : lo[ax], mid = (lo[lat] + hi[lat]) / 2;
+    const rot = new T.Group(); rot.rotation.y = yaw; rot.add(inner);
+    // move the body so its front is at the origin, its middle on the centreline and its tyres on the ground (before the yaw)
+    inner.position.set(ax === 0 ? -front : -mid, -lo[1], ax === 2 ? -front : -mid);
+    const holder = new T.Group(); holder.name = 'drive:stockVan';
+    holder.position.x = src.sheet.box && src.sheet.box.hi ? src.sheet.box.hi[0] : 0;
+    holder.add(rot);
+    return holder;
+  }
+  function isAncestor(a, o) { for (let q = o; q; q = q.parent) if (q === a) return true; return false; }
   async function useCar(ctx) {
     let sh = ctx.sheet || null;
     if (!sh && ctx.sheetUrl) { const r = await fetch(ctx.sheetUrl); if (!r.ok) throw new Error('the car sheet ' + ctx.sheetUrl + ': ' + r.status); sh = await r.json(); }
+    // no car handed: THE VAN (its sheet + its captured body); the pickup when asked for, or when the van cannot be had
+    if (!sh && ctx.stock !== 'pickup') {
+      const V = await stockVan();
+      if (V) {
+        if (sheet === V.sheet && carCtx && carCtx.van) return;   // the van already: its def and rig stand
+        if (rig && rig.g.parent) rig.g.parent.remove(rig.g);
+        rig = null; sheet = V.sheet; carCtx = { mesh: vanMesh(V), meshMatrix: null, wheels: null, van: true }; def = vehicleDef(sheet, sheet.tune);
+        DM.name = ctx.name || VAN.name;
+        return;
+      }
+    }
     if (!sh) { if (!stockSheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); stockSheet = await r.json(); } sh = stockSheet; }
     const next = sh === stockSheet ? null : { mesh: ctx.mesh || null, meshMatrix: ctx.meshMatrix || null, wheels: ctx.wheels || null };
     if (sh === sheet && (next ? !!carCtx && carCtx.mesh === next.mesh : !carCtx)) return;   // the same car: its def and rig stand
