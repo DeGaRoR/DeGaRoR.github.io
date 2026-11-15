@@ -13,16 +13,17 @@
 //
 // A. THE RUNGS: GROUND_WX's table - the soil's water S puts a weather code on its rung (dirt 6 / 11 / 12, grass 0 / 13, sand
 //    7 / 14), the wear (dirt 0.85 / 1 / 1.3, sand 1 / 0.9), the darkening bounded (sand <= 10 %); a fixed code passes through.
-// B. THE ISLAND (the shipped fixture): w6 (Old Community) is dirt (weather), w8 (Hiking) sand (weather), w7 (New Community, the
+// B. THE ISLAND (the shipped fixture): w6 (Old Community) and w8 (Hiking, the user's showcase: 'Do the hiking strip as our
+//    showcase') are dirt (weather), w7 (New Community, the
 //    story's) and every other strip untouched; world.setGround holds them on dry / firm / soft and lets go; THE SEASON (the
 //    plan): the first storm day's 17:00 puts w6 on soft mud, and the days after walk it back down to dirt; the pilot plans on
 //    the rung (world.surfaceNow).
 // C. THE WHEELS: the Cub, full power from rest to 0.9 Vs, on a weather code at each rung rolls bit for bit as on that rung's
 //    fixed code; dirt < firm mud < soft mud (soft at least 1.3 x dirt); wet sand shorter than dry sand; wet grass brakes longer
 //    than dry grass.
-// D. THE BUMPS: the Hiking Strip relooked dirt (weather) in a copy of the record: the ground on its box is the record's plus
+// D. THE BUMPS: the Hiking Strip (chaos 0.4, the showcase): the ground on its box is the record's plus
 //    (wear - 1) x the worn relief, exactly; the ruts deepest on soft mud and shallowest dry; the ceiling holds the ground on
-//    every rung; off the box nothing moves; the shipped sand (weather) firms its ruts wet (x 0.9).
+//    every rung; off the box nothing moves; relooked sand (weather) in a copy, it firms its ruts wet (x 0.9).
 // E. THE COLOUR: the drawn ground's multiplier is the projections' (PAVEMENT.groundWxColor = surfaceColor x groundWxMult), a
 //    soaked dirt strip IS the mud's colour, the sand darkens by 10 % at most; the page wires it (app.js, render_world.js).
 // F. THE OVERRIDE REACHES THE WORKER: setGround is replayed (sim_link / sim_host) and handed at a flight's start.
@@ -56,13 +57,13 @@ const W = IN.islandWorld('jolene', { premises: JTXT });
 const A = id => W.aerodromes.find(a => a.id === id);
 {
   const w6 = A('w6'), w8 = A('w8'), w7 = A('w7');
-  yes(w6 && w6.look === 'dirtwx' && w8 && w8.look === 'sandwx', 'the Old Community Runway is dirt (weather), the Hiking Strip sand (weather)', w6 && w6.look + ', ' + (w8 && w8.look));
+  yes(w6 && w6.look === 'dirtwx' && w8 && w8.look === 'dirtwx', 'the Old Community Runway and the Hiking Strip (the showcase) are dirt (weather)', w6 && w6.look + ', ' + (w8 && w8.look));
   yes(w7 && w7.look === 'dirt', 'the New Community Runway (the story\'s) is untouched', w7 && w7.look);
   const others = W.aerodromes.filter(a => a.premises && a.id !== 'w6' && a.id !== 'w8');
   const fixedNow = () => others.map(a => W.surface(a.x, a.z)).join();
   const f0 = fixedNow(), seen = {};
   for (const lv of ['dry', 'firm', 'soft', null]) { W.setGround(lv); seen[lv] = [W.surface(w6.x, w6.z), W.surface(w8.x, w8.z), fixedNow() === f0]; }
-  yes(seen.dry.join() === '6,7,true' && seen.firm.join() === '11,14,true' && seen.soft.join() === '12,14,true', 'world.setGround holds them on dirt / firm mud / soft mud and dry / wet / wet sand; every other strip as it was',
+  yes(seen.dry.join() === '6,6,true' && seen.firm.join() === '11,11,true' && seen.soft.join() === '12,12,true', 'world.setGround holds both on dirt / firm mud / soft mud; every other strip as it was',
     ['dry', 'firm', 'soft'].map(k => k + ' ' + seen[k][0] + '/' + seen[k][1]).join(', '));
   yes(seen.null[0] === 6 && W.groundForce === null, 'let go: the weather\'s (the sandbox day: dry)');
   // THE SEASON: the first storm day of the plan (rain >= 0.9) at 17:00, then the next days at 15:00 until the dirt is back
@@ -120,9 +121,8 @@ console.log('C. the wheels');
 
 console.log('D. the bumps');
 {
-  // the Hiking Strip (chaos 0.4) relooked dirt (weather) in a copy of the record: the mud ladder on a bumpy strip
-  const J = JSON.parse(JTXT); const r8 = J.layers.runways.find(r => r.id === 'w8'); r8.look = 'dirtwx'; r8.surface = 20;
-  const W2 = IN.islandWorld('jolene', { premises: JSON.stringify(J) }), a = W2.aerodromes.find(q => q.id === 'w8'), O = W2.premises.overlay;
+  // the Hiking Strip (chaos 0.4) as shipped - dirt (weather), the showcase: the mud ladder on a bumpy strip
+  const W2 = W, a = W2.aerodromes.find(q => q.id === 'w8'), O = W2.premises.overlay;
   const c = Math.cos(a.hdg), s = Math.sin(a.hdg), pts = [];
   for (let u = -a.len / 2 + 6; u <= a.len / 2 - 6; u += 1.3) for (let v = -a.wid / 2 + 0.2; v <= a.wid / 2 - 0.2; v += 0.21) pts.push([a.x + c * u - s * v, a.z + s * u + c * v]);
   const H = lv => { W2.setGround(lv); return pts.map(p => W2.terrainH(p[0], p[1])); };
@@ -141,10 +141,12 @@ console.log('D. the bumps');
   const o1 = (W2.setGround('dry'), off.map(p => W2.terrainH(p[0], p[1]))), o2 = (W2.setGround('soft'), off.map(p => W2.terrainH(p[0], p[1])));
   yes(o1.every((v, i) => v === o2[i]), 'off the box nothing moves');
   W2.setGround(null);
-  // the shipped Hiking Strip, sand (weather): wet firms its ruts (x 0.9)
-  const b8 = A('w8'), q = [b8.x + Math.cos(b8.hdg) * 30, b8.z + Math.sin(b8.hdg) * 30];
-  const O1 = W.premises.overlay, wq = O1.wearAtWorld(q[0], q[1], 'w8'); W.setGround('dry'); const hd = W.terrainH(q[0], q[1]); W.setGround('firm'); const hw = W.terrainH(q[0], q[1]); W.setGround(null);
-  yes(Math.abs(hw - hd + 0.1 * wq) < 1e-9, 'the shipped Hiking Strip (sand): wet, its worn relief x 0.9', ((hw - hd) * 1000).toFixed(2) + ' mm where the relief is ' + (wq * 100).toFixed(1) + ' cm');
+  // the same strip relooked sand (weather) in a copy of the record: wet sand firms its ruts (x 0.9)
+  const J = JSON.parse(JTXT); const r8 = J.layers.runways.find(r => r.id === 'w8'); r8.look = 'sandwx'; r8.surface = 22;
+  const W3 = IN.islandWorld('jolene', { premises: JSON.stringify(J) }), b8 = W3.aerodromes.find(q2 => q2.id === 'w8');
+  let q = null, wq = 0; for (let u = -150; u <= 150 && !q; u += 0.37) { const p = [b8.x + Math.cos(b8.hdg) * u - Math.sin(b8.hdg) * 1.1, b8.z + Math.sin(b8.hdg) * u + Math.cos(b8.hdg) * 1.1], w = W3.premises.overlay.wearAtWorld(p[0], p[1], 'w8'); if (w < -0.01) { q = p; wq = w; } }
+  W3.setGround('dry'); const hd = W3.terrainH(q[0], q[1]); W3.setGround('firm'); const hw = W3.terrainH(q[0], q[1]); W3.setGround(null);
+  yes(Math.abs(hw - hd + 0.1 * wq) < 1e-9 && hw > hd, 'sand (weather) on the same strip: wet, its worn relief x 0.9 (the trough fills a little)', ((hw - hd) * 1000).toFixed(2) + ' mm where the relief is ' + (wq * 100).toFixed(1) + ' cm');
   yes(/wearUV/.test(src('src/core/26b_strip_micro.js')) && /glslRow\(id, wear\)/.test(src('src/core/26b_strip_micro.js')), 'the field names its worn relief and the shader rows scale by it');
 }
 
@@ -166,6 +168,11 @@ console.log('E. the colour');
   yes(/if \(sc === 11 \|\| sc === 12\) return DUST_CLS\.mud/.test(app), 'a weather dirt strip on a mud rung throws mud');
   yes(/world\.soilNow\(\)/.test(app), 'the dust and the puddles read the world\'s soil (the override included)');
   yes(/PAV\.setGroundWx\(THREE, W\.part, st\)/.test(rw) && /wxGroundFrame\(\)/.test(rw) && /O\.wearAtWorld/.test(rw), 'the drawn strip follows its rung (render_world: the row re-applied, a bumpy one re-draped)');
+  // the aprons, pads and roads of a weather look (the user: "the aprons around should probably follow the same trend")
+  const rp = src('src/viewer/render_premises.js'), LK = C.PREMISES_GEN.RUNWAY_LOOKS;
+  const P2 = require(path.join(ROOT, 'src', 'viewer', 'pavement.js')), RSx = P2.resolve(null, null, LK.sandwx), RSf = P2.resolve(null, null, LK.sand);
+  yes(RSx.wx === 22 && RSf.wx === 0, 'a weather look\'s pavement carries its code (PAVEMENT.resolve -> make\'s wx), a fixed one none', RSx.wx + ' / ' + RSf.wx);
+  yes((rp.match(/wx: RS\.wx/g) || []).length === 3 && /wx: RS\.wx/.test(rw) && /PAV\.groundWxTick\(THREE/.test(rw) && /pavWxOwned = true/.test(rw), 'every pavement of a weather look is re-tinted on its rung - the strips by their owner (re-draped), the aprons, pads and roads by the tick');
 }
 
 console.log('F. the override reaches the worker');

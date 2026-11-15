@@ -232,7 +232,7 @@ const PAVEMENT = (() => {
     lay(rec && rec.pavement);
     const pav = entry && entry.pav; if (pav) { const own = {}; for (const k of ENTRY_KNOBS) if (pav[k] !== undefined && pav[k] !== null) own[k] = pav[k]; lay(own); }
     const band = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (CLASS_DEF[cls] ? CLASS_DEF[cls].band : 2);
-    return { recipe: r, cls, band, marks: (pav && pav.marks) || 'auto', preset: L && L.preset || null };
+    return { recipe: r, cls, band, marks: (pav && pav.marks) || 'auto', preset: L && L.preset || null, wx: L && L.wx ? +L.surface : 0 };   // (SNOW-MUD LADDER: a weather look's code)
   }
 
   // ---- the attributes: strip -------------------------------------------------
@@ -1944,6 +1944,17 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     return [0, 1, 2].map(i => b + (M[i] / Math.max(1e-4, D[i]) - b) * m);
   }
   function groundWxColor(cls, st) { const c = surfaceColor(cls); if (!c) return null; const k = groundWxMult(cls, st); return [c[0] * k[0], c[1] * k[1], c[2] * k[2]]; }
+  // groundWxTick(THREE, stateOf): EVERY weather pavement (a strip, an apron, a pad, a road whose look is a weather one: its make's
+  // `wx`) on its rung - re-applied when the rung or its water (2 %) moves; a part another owner drives (render_world's strips,
+  // which also re-drape) is skipped. The user, 15 Nov: "the aprons around should probably follow the same trend"
+  function groundWxTick(THREE, stateOf) {
+    for (const m of MATS) {
+      const c = m.userData && m.userData.pavWx; if (!c || m.userData.pavWxOwned) continue;
+      const st = stateOf(c); if (!st) continue;
+      const key = st.rung + ':' + Math.round(st.S * 50); if (m.userData.pavWxKey === key) continue;
+      m.userData.pavWxKey = key; setGroundWx(THREE, m, st);
+    }
+  }
   // setGroundWx(THREE, part, st | null): a pavement part's rung (st: GROUND_WX.state's dark, mud, film, wear - copied); re-applied
   // (its row re-packed). The caller (render_world) calls it when the rung's numbers move, not every frame
   function setGroundWx(THREE, m, st) {
@@ -2338,7 +2349,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk },
       uSide: v4(), uRoadEnd: { value: new THREE.Vector4(+o.fadeA || 0, +o.fadeB || 0, 0, 0) }, uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
     // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, a road's only when the caller says (a taxiway, G980)
-    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null; m.userData.pavMicro = Array.isArray(o.micro) ? o.micro.slice(0, 12) : null;   // (DIRT-STRIP) STRIP_MICRO.glslRow: a bumpy strip's puddles   // a resolved recipe of its own (the game), or the module's (the bench)
+    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null; m.userData.pavWx = +o.wx || 0; m.userData.pavMicro = Array.isArray(o.micro) ? o.micro.slice(0, 12) : null;   // (DIRT-STRIP) STRIP_MICRO.glslRow: a bumpy strip's puddles   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     if (table) {
       // THE ROW: cls, seed, halfW, halfL off the geometry's aPavK (constant over a part), the row id on every vertex
@@ -2584,7 +2595,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   }
   function merge(THREE, parts, o) { const out = [], it = mergeSteps(THREE, parts, o, out); while (!it.next().done); return out; }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, setGroundWx, groundWxMult, groundWxColor, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, surfaceColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
+    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, setGroundWx, groundWxTick, groundWxMult, groundWxColor, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, surfaceColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
     // G925-G928: the table, the one material, the merge, the A/B
     // G1390-G1393: the runway look (per surface type), its live overlay, the alpha's CPU twin
     LOOK_GROUPS, LOOK_KEYS, LOOK_WEAR, groupOf, lookOf, look, tintRGB, alphaTwin, twinNoise: { hash: tHash, noise: tNoise, fbm: tFbm },

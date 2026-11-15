@@ -15814,8 +15814,8 @@
     "name": "Hiking Strip",
     "len": 391.7,
     "wid": 12,
-    "surface": 22,
-    "look": "sandwx",
+    "surface": 20,
+    "look": "dirtwx",
     "slope": 0,
     "crossfall": 0,
     "disp": [
