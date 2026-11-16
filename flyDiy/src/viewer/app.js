@@ -657,6 +657,13 @@
       doc = playerLift(dims, parts);
     }
     player = CAREER_DEV ? careerNormalise(doc) : playerNormalise(playerMigrate(doc));
+    // HANGAR-OUTDOORS (the user 17 Nov via A0: "I launched the sandbox mode, and it put me into the new big garage ... I want to
+    // keep in the club hangar"): the SANDBOX opens in the club at HOME at every start - a saved `here` (the last "go there", a
+    // restored HOME.2) is not where the game starts; a career keeps its own (the story moves it)
+    if (!CAREER_DEV && player && player.sheds && player.sheds.HOME && player.here !== 'HOME') {
+      try { console.info('flyDiy: the sandbox starts in the club hangar (the saved ' + player.here + ' left)'); } catch (e) {}
+      player.here = 'HOME';
+    }
     // G2742 (STORY-PAGE): A NEW CAREER IS THE STORY'S - the starter (the user's Rufus: its slot named here, never over a
     // saved build of that name; the page's story half fetches its file) at the cabin strip, the smallest shed there, the
     // WWII field's hangar held for the move (79_story.js storyNewCareer). Before the lift, so the shelf stands at the cabin
@@ -1502,7 +1509,10 @@
   // sky, L37a). HVIEW-ON (the user 10 Nov ~20:55 via A0: "When we land the new scenery, we have to regenerate these because all
   // hangars have moved"): ON by default with the scenery train - the capture is live, keyed on the room's place (hviewKeyNow),
   // so every moved hangar takes its own view; ?hview=0 turns it off (the room's own outdoors)
-  const hviewOff = () => { try { return /[?&]hview=0\b/.test(location.search || ''); } catch (e) { return true; } };
+  // HANGAR-OUTDOORS (the user 17 Nov via A0, of the captured view: "as soon as it moves, it's completely stretched ... a huge
+  // glitch"): OFF again - the room's own outdoors (the site's apron, strip and field: real geometry, right from any eye) under
+  // the live sky and clouds; ?hview=1 keeps the capture as an opt-in for tests only
+  const hviewOff = () => { try { return !/[?&]hview=1\b/.test(location.search || ''); } catch (e) { return true; } };
   function hviewSize() {
     const G = window.GFX; if (G && G.soft && G.soft()) return 0;
     let q = null; try { q = /[?&]hviewn=(\d+)/.exec(location.search || ''); } catch (e) {}   // (the proof rig's resolution A/B)
