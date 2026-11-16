@@ -300,6 +300,8 @@ RUNWAYS = [{'id': PREFIX + 'rough', 'name': 'Jolene AFB 02R/20L', 'c': list(LANE
 # ---- 8. w2 ITSELF (the user's entry): applied by the splice as a fieldPatch, never a part entry ---------------------
 W2_PATCH = {'wid': BAND_W, 'band': 1.5, 'falloff': 8,
             # the old concrete at its worst: cracks everywhere, moss over it, patched, the paint nearly gone, damp
-            'pav': {'rubberK': 0, 'laneW': 5, 'crackK': 1, 'mossK': 1, 'patchK': 0.3, 'paintAge': 1.2, 'wet': 0.6}}
+            'pav': {'rubberK': 0, 'laneW': 5, 'crackK': 1, 'mossK': 1, 'patchK': 0.3, 'paintAge': 1.2, 'wet': 0.6},
+            # THE BUMPINESS (the user 16 Nov ~23:00, red marks on the Jolene Airstrips table: 02/20 two dots = chaos 0.4)
+            'micro': {'chaos': 0.4, 'seed': 2}}
 
 PART = {'runways': RUNWAYS, 'areas': AREAS, 'objects': OBJ}
