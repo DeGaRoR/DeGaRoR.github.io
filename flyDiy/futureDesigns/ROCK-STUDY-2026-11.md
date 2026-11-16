@@ -572,6 +572,35 @@ moves. As a one-shot build on the main thread it would be a visible hitch. The m
 on a phone) and a chunked worker build. The two real risks are the D3D cold compile and the sampler budget; both have
 known mitigations, and both must be measured on the box.
 
+### 5h. v2 ledges: along the contours, big, broken, soft (16 Nov, work in progress over v1)
+
+**The user on v1's ledges:** they "should all be in the direction of the slope", and the problems were "the random
+orientation with regard to the slope, and the too small scale"; "break the pattern a lot, otherwise it looks like a
+quarry". The reference was the early shader-strata still: contour-following bands. Stills: `reports/evidence/ROCK-STUDY/v2/`.
+`?view=ledge` finds the densest ledge patch; `?ledgev=1` gives v1's law; `?ledges=0` none.
+
+- **Orientation.** The steps follow the contours: a dip of 0-4° at most, drifting per 300 m cell, bent by two SMALL warps
+  (±4 m at 120 m, ±0.8 m at 40 m).
+  - A first v2 used ±8 m and ±3 m warps. A height profile measured down a face showed their gradient reaching ±1.2 m/m
+    on a 1.5 m/m slope, squeezing the steps into lumps. Kept ≤ 0.25 m/m now.
+- **Scale.** Steps of 8-16 m, up to x1.8 on steep ground, so a step spans 8+ vertices of the 1.25 m mesh. On 15-76°.
+- **Broken at four scales:**
+  - a 120 m patch mask (about half the exposed rock);
+  - 70 % of the beds carry a ledge at all;
+  - along a ledge, a 45 m noise cuts it into segments with gaps;
+  - each segment has its own strength (0.45-1) and its own riser position (45-75 % of the step).
+- **Soft:** the riser takes the last 25-55 % of the step, then two smoothing passes over the mesh.
+- **Inside a ledge patch the Blender masses yield** (x0.3), or they drown the steps.
+- **Colour follows:** treads take green, risers stay bare and darker.
+- **Measured:** 15 % of the rock mesh's vertices are moved by more than 0.3 m, up to 7 m.
+
+**Honest state.**
+- In the ledge view the benches read as broken, curved, contour-following steps: no rings, no quarry.
+- They are moderate, not bold, and the views of the steep south face show few, because the patches fell on the east face.
+- The next lever, if the user wants more: patch coverage and per-bed odds (two numbers in `stairDY`), or a step height
+  keyed to the regional joints rather than to noise.
+- If v2 does not convince, `claude/rock-study-v1` is the fall-back.
+
 ## 6. Recommendation: what to build first, what it costs, what it changes
 
 **Build first: rock clusters in the cover ring.** It changes the most of what an aeroplane sees, for the least risk.
