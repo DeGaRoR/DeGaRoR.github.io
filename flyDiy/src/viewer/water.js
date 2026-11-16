@@ -145,7 +145,7 @@ const WATER = (() => {
     uniform sampler2D uWCalm; uniform vec4 uWCalmG; uniform float uWCalmOn; uniform float uWRipple;   // BAY-MIRROR: the sea's shelter (28_island.js calmAt's bytes): x0, z0, 1 / the field's width and depth (m); the wind's ripple kept in a bay (its dials.ripple)
     uniform sampler2D uWDetail;
     uniform sampler2D uWInter; uniform vec4 uWInterBox;   // x0, z0, 1/size, on
-    // SUBMERGED BODIES (SWIMMERS, ANIMALS 15 Nov 2026; LOOK-1's yes): up to 6 capsules - A: centre xyz, radius; B: unit axis
+    // SUBMERGED BODIES (SWIMMERS, ANIMALS 15 Nov 2026; LOOK-1's yes): up to 12 capsules - A: centre xyz, radius; B: unit axis
     // xyz, half-length; uWSubN live. Each is the trunk's INSCRIBED capsule (ANIMALS.seaCore), so wherever it is hit the
     // body's own opaque pixels are behind the water. The column over a body is the depth of the body under this point,
     // not of the bed: a whale 1 m down shows through 1 m of sea (G797's optics). THE STRAIGHT RAY, not the refracted one:
@@ -153,7 +153,11 @@ const WATER = (() => {
     // where the body IS on screen - the refracted ray (the first slot, 15 Nov) opened it a body-length toward the eye, onto
     // the clear colour under the sea: a turquoise lozenge around every orca. A soft rim (the ray's miss distance over the
     // radius) closes the window toward the skin's edge, so the outline is the sea's, never the capsule's.
-    uniform vec4 uWSubA[6]; uniform vec4 uWSubB[6]; uniform float uWSubN;
+    uniform vec4 uWSubA[12]; uniform vec4 uWSubB[12]; uniform float uWSubN;
+    // THE SLICKS (SWIMMERS, 16 Nov): up to 6 calm patches - x, z, radius, strength 0..1 - where a whale surfaced, blew or
+    // dove: the upwelling smooths the wind's ripple into a glassy oval (a whale's 'footprint'), the swell untouched. The
+    // ripple tile and the sub-pixel roughness drop under it, so it mirrors the sky as a bay does; its edge torn by the tile.
+    uniform vec4 uWSlick[6]; uniform float uWSlickN;
     // a ray (ro, rd unit) on a capsule (pa..pb, r): (t of the nearest hit, how central: 1 on the axis .. 0 grazing), t -1: miss
     // (Quilez's capsule intersection; the centrality from the same discriminant: 1 - (miss distance / r)^2)
     vec2 wCapsule(vec3 ro, vec3 rd, vec3 pa, vec3 pb, float r) {
@@ -175,13 +179,26 @@ const WATER = (() => {
       vec3 rd = normalize(wp - cameraPosition);
       if (rd.y >= -0.01) return wD;                         // the eye under the surface, or the ray leaving it
       float best = wD;
-      for (int i = 0; i < 6; i++) {
+      for (int i = 0; i < 12; i++) {
         if (float(i) >= uWSubN) break;
         vec3 c = uWSubA[i].xyz, ax = uWSubB[i].xyz * uWSubB[i].w;
         vec2 hit = wCapsule(wp, rd, c - ax, c + ax, uWSubA[i].w);
         if (hit.x > 0.0) best = min(best, mix(wD, hit.x * -rd.y, smoothstep(0.05, 0.6, hit.y)));
       }
       return best;
+    }
+    float wSlick(vec2 xz) {
+      float s = 0.0;
+      for (int i = 0; i < 6; i++) {
+        if (float(i) >= uWSlickN) break;
+        vec4 q = uWSlick[i];
+        float d = length(xz - q.xy) / max(q.z, 0.1);
+        if (d < 1.4) {
+          float tear = texture2D(uWDetail, xz / 9.0 + vec2(0.53, 0.19)).a;
+          s = max(s, q.w * (1.0 - smoothstep(0.45, 1.0, d * (0.75 + 0.5 * tear))));
+        }
+      }
+      return s;
     }
     #ifdef W_HULL
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
@@ -339,8 +356,10 @@ const WATER = (() => {
         vec4 wRow = wB == 0 ? mix(uWBody[1], uWBody[0], wK) : uWBody[wB];
         vec3 wS = wGerstnerS(vWP.xz, wFp) * wRow.x;
         vec4 wDet = detailNormal(vWP.xz, wFp); wDet.xy *= wRow.y;
+        float wSl = uWSlickN > 0.5 ? 0.85 * wSlick(vWP0.xz) : 0.0;   // SWIMMERS: a whale's slick (none: no cost)
+        wDet.xy *= 1.0 - wSl;
         vec4 wIn = wInter(vWP.xz);
-        float wSig = uWWave.w > 0.5 ? wSigma2(wFp) : 0.0;
+        float wSig = uWWave.w > 0.5 ? wSigma2(wFp) * (1.0 - wSl) : 0.0;
         // foam: the fold's crests, the tile's crests where the fold is high, the shore's lap, the field's own
         float wFoam = 0.0;
         if (uWMisc.w > 0.5) {
@@ -731,8 +750,9 @@ const WATER = (() => {
       uWSky: { value: v4(1) },   // G2839 x: the probe lookup's lobe scale under the mirror's weight (MIR.skyK; 1 = the GGX lobe of the roughness)
       uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
       uWSubA: { value: arr(SUB_N) }, uWSubB: { value: arr(SUB_N) }, uWSubN: { value: 0 },   // SWIMMERS: setSubmerged()
+      uWSlick: { value: arr(SLICK_N) }, uWSlickN: { value: 0 },   // SWIMMERS: setSlicks()
     };
-    subPack();
+    subPack(); slickPack();
     applyPresets();
   }
   function applyPresets() {
@@ -1690,7 +1710,7 @@ const WATER = (() => {
   // hands its own list [{ x, y, z, r, ax, ay, az, h }] (centre, radius, unit axis, half-length; world metres), nearest
   // first, every frame it has any; an empty list or null clears that owner's. The nearest SUB_N over all owners go to the
   // shader (an owner that stops calling is dropped after a second). No body, uWSubN 0: the shader's branch costs nothing.
-  const SUB_N = 6, SUB = new Map();
+  const SUB_N = 12, SUB = new Map();
   function setSubmerged(owner, list) {
     if (!list || !list.length) SUB.delete(owner);
     else SUB.set(owner, { list, at: (typeof performance !== 'undefined' ? performance.now() : 0) });
@@ -1710,6 +1730,28 @@ const WATER = (() => {
       }
     }
     U.uWSubN.value = n;
+  }
+  // THE SLICKS (SWIMMERS, 16 Nov): setSlicks(owner, list) - [{ x, z, r, k }] (centre, radius m, strength 0..1), the same
+  // rules as setSubmerged: an owner's list every frame it has any, the first SLICK_N over all owners, dropped after a second.
+  const SLICK_N = 6, SLK = new Map();
+  function setSlicks(owner, list) {
+    if (!list || !list.length) SLK.delete(owner);
+    else SLK.set(owner, { list, at: (typeof performance !== 'undefined' ? performance.now() : 0) });
+    slickPack();
+  }
+  function slickPack() {
+    if (!U) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    let n = 0;
+    for (const [k, e] of SLK) {
+      if (now - e.at > 1000) { SLK.delete(k); continue; }
+      for (const b of e.list) {
+        if (n >= SLICK_N) break;
+        U.uWSlick.value[n].set(b.x, b.z, b.r, b.k);
+        n++;
+      }
+    }
+    U.uWSlickN.value = n;
   }
   // THE INTERACTION SLOT (H7 writes it): a world-locked texture over [x0, x0+size] x [z0, z0+size];
   // RG = slope over [-2, 2] (0.5 = flat), B = foam, A unused. Linear, clamped, no mips.
@@ -1846,7 +1888,7 @@ const WATER = (() => {
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
     mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, waveK: waveKCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
-    stamp, fieldStep, fieldOn, fieldProbe, warmList, setSubmerged, SUB_N: 6, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
+    stamp, fieldStep, fieldOn, fieldProbe, warmList, setSubmerged, SUB_N: 12, setSlicks, SLICK_N: 6, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;
   return API;

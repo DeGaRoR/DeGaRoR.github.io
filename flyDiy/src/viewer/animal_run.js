@@ -128,35 +128,62 @@ AR.make = function (THREE, ctx) {
   // THE BODIES UNDER THE SURFACE (SWIMMERS): the nearest sea animals with any of the body under water, as capsules for
   // the water's column (water.js setSubmerged): the water over a whale is the water down to the whale, so it shows,
   // drawn as itself, tinted by the sea it is under. One owner name per runner; nothing allocated a frame.
-  const SUBK = 'animals:' + Math.random().toString(36).slice(2, 8), SUBL = [], SUBP = [];
-  for (let i = 0; i < 6; i++) SUBP.push({ x: 0, y: 0, z: 0, r: 1, ax: 0, ay: 0, az: 1, h: 1, d2: 0 });
-  const bySub = (a, b) => a.d2 - b.d2;
-  const _SA = new THREE.Vector3(), _SU = new THREE.Vector3();
+  // THE BUDGET (16 Nov): the water takes SUB_MAX capsules. Every body under the surface gets its trunk first (a pod of 12 is
+  // seen through the sea, never half of it - the first slot's 6 nearest left the rest under the bed's full column); what is
+  // left goes, nearest first, to the head and the tail stock (ANIMALS.seaCore's seg), so the near bodies show whole.
+  const SUB_MAX = 12;
+  const SUBK = 'animals:' + Math.random().toString(36).slice(2, 8), SUBL = [], SUBP = [], SUBA = [];
+  for (let i = 0; i < SUB_MAX; i++) SUBP.push({ x: 0, y: 0, z: 0, r: 1, ax: 0, ay: 0, az: 1, h: 1, d2: 0 });
+  const bySd2 = (a, b) => a._sd2 - b._sd2;
+  const _SA = new THREE.Vector3(), _SU = new THREE.Vector3(), _SP = new THREE.Vector3(), _SQ = new THREE.Vector3();
+  const _SM = new THREE.Matrix4(), _SMb = new THREE.Matrix4();
+  // a section's capsule (seg: a, b, r in the handle's frame; A, B on its bone) into q, world metres
+  function segCap(q, one, seg, d2) {
+    const H = one.H, sz = one.size || 1, oq = H.obj.quaternion, op = H.obj.position;
+    const bone = seg.A && H.inst && H.inst.meshes[seg.mi] && H.inst.meshes[seg.mi].skeleton ? H.inst.meshes[seg.mi].skeleton.bones[seg.bi] : null;
+    if (bone) {
+      // the bone's pose relative to the handle (both the renderer's matrices, the same frame): the stock beats with the flukes
+      _SM.copy(H.obj.matrixWorld).invert(); _SMb.multiplyMatrices(_SM, bone.matrixWorld);
+      _SP.fromArray(seg.A).applyMatrix4(_SMb); _SQ.fromArray(seg.B).applyMatrix4(_SMb);
+    } else { _SP.fromArray(seg.a); _SQ.fromArray(seg.b); }
+    _SP.applyQuaternion(oq).multiplyScalar(sz).add(op); _SQ.applyQuaternion(oq).multiplyScalar(sz).add(op);
+    q.x = (_SP.x + _SQ.x) / 2; q.y = (_SP.y + _SQ.y) / 2; q.z = (_SP.z + _SQ.z) / 2;
+    _SQ.sub(_SP);
+    const len = _SQ.length();
+    if (len > 1e-4) { q.ax = _SQ.x / len; q.ay = _SQ.y / len; q.az = _SQ.z / len; } else { _SA.set(0, 0, 1).applyQuaternion(oq); q.ax = _SA.x; q.ay = _SA.y; q.az = _SA.z; }
+    q.h = len / 2; q.r = seg.r * sz; q.d2 = d2;
+  }
   function submerged(e) {
     const W = (typeof window !== 'undefined' && window.WATER && window.WATER.setSubmerged) ? window.WATER : null;
     if (!W && !ctx.submerged) return;
-    SUBL.length = 0;
-    let k = 0;
+    SUBL.length = 0; SUBA.length = 0;
     for (const [, h] of HERDS) {
       if (h.kind !== 'sea') continue;
       for (const one of h.ones) {
-        const C = one.H.core;
-        if (!C || !one.H.obj.visible || !(one.depth > 0)) continue;
-        const d2 = e ? (one.x - e.x) ** 2 + (one.z - e.z) ** 2 : 0;
-        // the pool keeps the nearest 6
-        let q;
-        if (k < 6) q = SUBP[k++];
-        else { SUBL.sort(bySub); if (d2 >= SUBL[5].d2) continue; q = SUBL.pop(); }
-        // the trunk's own capsule (ANIMALS.seaCore: inside the skin, fitted once per species) through the body's frame -
-        // its pitch and bank included (this frame's quaternion; the matrices are the renderer's, a frame late)
-        const sz = one.size || 1, oq = one.H.obj.quaternion, op = one.H.obj.position;
-        _SA.set(0, 0, 1).applyQuaternion(oq); _SU.set(0, 1, 0).applyQuaternion(oq);
-        q.x = op.x + (_SU.x * C.cy + _SA.x * C.cz) * sz; q.y = op.y + (_SU.y * C.cy + _SA.y * C.cz) * sz; q.z = op.z + (_SU.z * C.cy + _SA.z * C.cz) * sz;
-        q.ax = _SA.x; q.ay = _SA.y; q.az = _SA.z; q.r = C.r * sz; q.h = C.h * sz; q.d2 = d2;
-        SUBL.push(q);
+        if (!one.H.core || !one.H.obj.visible || !(one.depth > 0)) continue;
+        one._sd2 = e ? (one.x - e.x) ** 2 + (one.z - e.z) ** 2 : 0;
+        SUBA.push(one);
       }
     }
-    SUBL.sort(bySub);
+    SUBA.sort(bySd2);
+    const n = Math.min(SUBA.length, SUB_MAX);
+    let k = 0, spare = SUB_MAX - n;
+    for (let i = 0; i < n; i++) {
+      const one = SUBA[i], C = one.H.core, d2 = one._sd2, q = SUBP[k++];
+      // the trunk's own capsule (ANIMALS.seaCore: inside the skin, fitted once per species) through the body's frame -
+      // its pitch and bank included (this frame's quaternion)
+      const sz = one.size || 1, oq = one.H.obj.quaternion, op = one.H.obj.position;
+      _SA.set(0, 0, 1).applyQuaternion(oq); _SU.set(0, 1, 0).applyQuaternion(oq);
+      q.x = op.x + (_SU.x * C.cy + _SA.x * C.cz) * sz; q.y = op.y + (_SU.y * C.cy + _SA.y * C.cz) * sz; q.z = op.z + (_SU.z * C.cy + _SA.z * C.cz) * sz;
+      q.ax = _SA.x; q.ay = _SA.y; q.az = _SA.z; q.r = C.r * sz; q.h = C.h * sz; q.d2 = d2;
+      SUBL.push(q);
+    }
+    for (let i = 0; i < n; i++) {
+      const one = SUBA[i], segs = one.H.core.seg;
+      if (!segs || !segs.length || spare < segs.length) continue;
+      for (const sg of segs) { const q = SUBP[k++]; segCap(q, one, sg, one._sd2); SUBL.push(q); }
+      spare -= segs.length;
+    }
     if (ctx.submerged) ctx.submerged(SUBL); else W.setSubmerged(SUBK, SUBL);
   }
 
@@ -222,7 +249,7 @@ AR.make = function (THREE, ctx) {
                   // their own object shapes, and the sound's reader (G1705) then reads them through boxed doubles (GATE AUDIO
                   // ANIALLOC: 3.7 B a read)
                   v: 0, vy: 0, bank: 0, pitch: 0, dTarget: 0, br: null, lead: null, off: null, lag: 1, wid: null,
-                  upT: 0, upDone: false };
+                  upT: 0, upDone: false, _sd2: 0 };   // (_sd2: the water's sort key, submerged())
     // where it starts: scattered in the hotspot, seeded per individual so
     // adding one never moves the others (the premises contract's rule 5)
     let ang = rnd() * TWO_PI, rr = spot.r * Math.sqrt(rnd());

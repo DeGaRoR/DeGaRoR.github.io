@@ -416,20 +416,24 @@ async function swimmers(g) {
     R.dispose();
   }
   // S7 THE SEABED: a whale pod over a 12 m shelf never dives into the bed; S8 THE WATER'S LIST: the bodies handed to the
-  // water (ctx.submerged, else WATER.setSubmerged) are the nearest, at most 6, each with some of its body under
+  // water (ctx.submerged, else WATER.setSubmerged): at most 12 capsules, every body's trunk first, nearest first, then the
+  // heads and tail stocks of the nearest while the budget lasts (16 Nov: a body seen through the sea whole, not its middle)
   {
     const a = AN.reg('whale') || AN.list('sea')[0], k = a.key, S = a.sea;
     const eye = { x: 0, y: 50, z: 0 };
-    let lists = 0, bad = '', worst = 0;
+    let lists = 0, bad = '', worst = 0, most = 0;
     const R = AR.make(THREE, { scene: new THREE.Group(), ground: () => -12, waterH: () => 0, eye: () => eye,
-      submerged: L => { lists++; if (L.length > 6) bad = bad || 'a list of ' + L.length;
-        for (let i = 1; i < L.length; i++) if (L[i].d2 < L[i - 1].d2) bad = bad || 'not nearest first';
-        for (const q of L) if (!(q.r > 0 && q.h > 0 && Math.abs(Math.hypot(q.ax, q.ay, q.az) - 1) < 1e-3)) bad = bad || 'a capsule malformed'; } });
+      submerged: L => { lists++; most = Math.max(most, L.length); if (L.length > 12) bad = bad || 'a list of ' + L.length;
+        const nb = R.list().filter(o => o.depth > 0 && o.shown).length, nt = Math.min(nb, 12);
+        if (L.length < nt) bad = bad || L.length + ' capsules for ' + nb + ' bodies under';
+        for (let i = 1; i < nt; i++) if (L[i].d2 < L[i - 1].d2) bad = bad || 'the trunks not nearest first';
+        for (const q of L) if (!(q.r > 0 && q.h >= 0 && Math.abs(Math.hypot(q.ax, q.ay, q.az) - 1) < 1e-3 && Number.isFinite(q.x + q.y + q.z))) bad = bad || 'a capsule malformed'; } });
     R.sync([{ id: 'shelf', key: k, x: 0, z: 0, n: 8, r: 400 }]);
     for (let i = 0; i < 30 * 240; i++) { R.tick(DT); for (const o of R.list()) worst = Math.max(worst, o.depth - (12 - S.beam * (o.size || 1) * 0.5)); }
-    say('S7/S8 ' + k + ' x8 over a 12 m shelf, 4 min: the closest to the bed ' + f2(-worst) + ' m above (bed less half its own beam), ' + lists + ' lists to the water');
+    say('S7/S8 ' + k + ' x8 over a 12 m shelf, 4 min: the closest to the bed ' + f2(-worst) + ' m above (bed less half its own beam), ' + lists + ' lists to the water, ' + most + ' capsules at most');
     check(worst <= 1e-3, 'S7 ' + k + ': a swimmer dives into the seabed', f2(worst) + ' m past bed less half its beam');
     check(lists > 0 && !bad, 'S8 the bodies handed to the water', bad || 'none handed');
+    check(most > 8, 'S8 the nearest bodies handed whole (head and tail stock beside the trunk)', most + ' capsules at most for 8 bodies');
     R.dispose();
   }
   // S9 THE CORE (the first GPU slot, 15 Nov: a capsule centred on the pivot at half the beam spilled past the skin and the
@@ -447,6 +451,27 @@ async function swimmers(g) {
     }
     say('S9 ' + a.key + ': the trunk capsule ' + (C ? 'centre y ' + f2(C.cy) + ' z ' + f2(C.cz) + ', r ' + f2(C.r) + ', half-length ' + f2(C.h) : '-') + ' m');
     check(!why, 'S9 ' + a.key + ': the trunk capsule', why);
+    // S9 the head and the tail stock (16 Nov): two sections, each inside the box, thinner than the trunk, and on the bone
+    // that carries its skin - its ends in that bone's frame land back on the section's own at rest
+    let sw = '';
+    const segs = C && C.seg || [];
+    if (segs.length !== 2) sw = segs.length + ' sections fitted';
+    H.obj.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(H.obj.matrixWorld).invert(), M = new THREE.Matrix4(), v = new THREE.Vector3();
+    for (const sg of segs) {
+      const ylo = bb[1] - pv[1], yhi = bb[4] - pv[1], zlo = bb[2] - pv[2], zhi = bb[5] - pv[2];
+      for (const e of [sg.a, sg.b]) if (!(e[1] - sg.r > ylo && e[1] + sg.r < yhi && e[2] - sg.r > zlo && e[2] + sg.r < zhi)) sw = sw || 'a section out of the box';
+      if (!(sg.r > 0 && sg.r <= C.r * 1.01)) sw = sw || 'a section r ' + f2(sg.r) + ' past the trunk ' + f2(C.r);
+      if (sg.A) {
+        const bone = H.inst.meshes[sg.mi].skeleton.bones[sg.bi];
+        M.multiplyMatrices(inv, bone.matrixWorld);
+        const d = v.fromArray(sg.A).applyMatrix4(M).distanceTo(new THREE.Vector3().fromArray(sg.a));
+        if (d > 1e-3) sw = sw || 'the bone frame misses its section by ' + f2(d) + ' m';
+      }
+      say('S9 ' + a.key + ': a section z ' + f2(sg.a[2]) + '..' + f2(sg.b[2]) + ', r ' + f2(sg.r) + (sg.A ? ', on bone ' + H.inst.meshes[sg.mi].skeleton.bones[sg.bi].name : ', rigid'));
+    }
+    if (!segs.some(sg => sg.A && sg.a[2] < C.cz)) sw = sw || 'the tail stock on no bone';
+    check(!sw, 'S9 ' + a.key + ': the head and the tail stock', sw);
   }
   // S4 directly: the layer itself - a hull 10 m down, one at the surface, one in the air
   const W = g.WAKES.make(THREE, { waterH: () => 0 });
@@ -461,6 +486,24 @@ async function swimmers(g) {
   W.ring(0, 0, 2, 1); W.step(0.1);
   check(W.stats.rings === 1, 'S4 the layer: a breach ring is not drawn');
   W.dispose();
+  // S10 THE SLICKS (16 Nov): a breath leaves a glassy patch handed to the water, larger than its ring, gone after its life;
+  // ten at once hand over the strongest SLICK_N
+  {
+    let last = [], most = 0;
+    const W2 = g.WAKES.make(THREE, { waterH: () => 0, slicks: L => { last = L.map(q => ({ ...q })); most = Math.max(most, L.length); } });
+    const K = g.WAKES.K;
+    W2.ring(5, 5, 2, 1);
+    for (let i = 0; i < 30; i++) W2.step(0.1);
+    const s3 = last[0];
+    check(last.length === 1 && s3.k > 0.3 && s3.r > 2, 'S10 a breath leaves a slick for the water', JSON.stringify(last));
+    for (let i = 0; i < (K.SLICK_LIFE + 2) * 10; i++) W2.step(0.1);
+    check(last.length === 0, 'S10 a slick outlives its life', last.length + ' left');
+    for (let i = 0; i < 10; i++) W2.ring(i * 20, 0, 2, 0.5 + i * 0.05);
+    for (let i = 0; i < 20; i++) W2.step(0.1);
+    check(most === K.SLICK_N && last.every(q => q.k >= 0.5 * K.SLICK_K * Math.min(1, 1.9 / 1.5) * 0.5), 'S10 ten slicks: the strongest ' + K.SLICK_N + ' handed', most + ' at most');
+    say('S10 the slick: ' + (s3 ? 'r ' + f2(s3.r) + ' m, k ' + f2(s3.k) + ' at 3 s' : '-') + '; ' + most + ' handed of 10');
+    W2.dispose();
+  }
 }
 
 async function directed(g) {

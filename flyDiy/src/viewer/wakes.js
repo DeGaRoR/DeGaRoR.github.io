@@ -30,14 +30,19 @@
 //               RING_V m/s and fading over RING_LIFE seconds, RING_A at most. (The first slot, 15 Nov: a white annulus
 //               spreading at 1.6 m/s for 9 s - a bright donut round every orca at every breath. A surfacing whale's
 //               water is a turbulent patch the size of its back, gone in a few seconds, never a ring.)
+//   THE SLICKS  what the upwelling leaves after the foam (16 Nov; the user: "the water effects are quite rough"): a glassy
+//               oval where the wind's ripple is smoothed - the whale's 'footprint' - SLICK_GROW times the ring's radius
+//               by the end of SLICK_LIFE seconds, SLICK_K at most. Not drawn here: the water draws it (WATER.setSlicks, the
+//               ripple and the sub-pixel roughness drop under it), the strongest SLICK_N handed over every rebuild.
 // The foam is a lit standard material (MATLIB's, so the census and the day's light rules hold) with a tiled noise as
 // its alpha map at world scale, so the foam tears like foam and not like a ribbon; vertex alpha carries the fade.
 'use strict';
 (function () {
 const WK = {};
 const TRAIL_DS = 1.5, TRAIL_LIFE = 30, SPREAD = 0.18, ARM_TAN = Math.tan(19.47 * Math.PI / 180), ARM_W = 0.9;
-const RING_V = 0.35, RING_LIFE = 6, RING_A = 0.45, MAXP = 4096, MAXR = 32, MAXV = 24000;
-WK.K = { TRAIL_DS, TRAIL_LIFE, SPREAD, ARM_TAN, RING_V, RING_LIFE, RING_A };
+const RING_V = 0.35, RING_LIFE = 6, RING_A = 0.3, MAXP = 4096, MAXR = 32, MAXV = 24000;
+const SLICK_LIFE = 40, SLICK_K = 0.9, SLICK_GROW = 1.8, SLICK_N = 6;
+WK.K = { TRAIL_DS, TRAIL_LIFE, SPREAD, ARM_TAN, RING_V, RING_LIFE, RING_A, SLICK_LIFE, SLICK_K, SLICK_GROW, SLICK_N };
 
 // the crossing: how much of a body from `bottom` to `top` the surface at `lvl` cuts, 0 (clear above or below) to 1
 // (the surface at mid-body), a tent - a body just breaking the surface makes a little wake, half out the most
@@ -80,7 +85,11 @@ WK.make = function (THREE, o) {
   let rHead = 0;
   const HULLS = new Map();          // id -> { last point index, last x z, seen (clock) }
   let T = 0;
-  const stats = { hulls: 0, points: 0, rings: 0, verts: 0, ms: 0 };
+  const stats = { hulls: 0, points: 0, rings: 0, verts: 0, slicks: 0, ms: 0 };
+  // THE SLICKS' list for the water (o.slicks(list) for a gate, else WATER.setSlicks), reused: nothing allocated a rebuild
+  const SLK = 'wakes:' + Math.random().toString(36).slice(2, 8), SLL = [], SLP = [];
+  for (let i = 0; i < SLICK_N; i++) SLP.push({ x: 0, z: 0, r: 1, k: 0 });
+  let slHad = false;
 
   // the one draw
   const pos = new Float32Array(MAXV * 3), col = new Float32Array(MAXV * 4), uv = new Float32Array(MAXV * 2), nrm = new Float32Array(MAXV * 3);
@@ -211,6 +220,24 @@ WK.make = function (THREE, o) {
         p0 = q0; p1 = q1;
       }
     }
+    // the slicks: every ring younger than SLICK_LIFE, the strongest SLICK_N (fading in over 1.5 s, out as (1 - u)^1.5)
+    SLL.length = 0;
+    for (let r = 0; r < MAXR; r++) {
+      const age = T - RT[r];
+      if (age < 0 || age > SLICK_LIFE) continue;
+      const u = age / SLICK_LIFE, k = SLICK_K * RK[r] * Math.min(1, age / 1.5) * Math.pow(1 - u, 1.5);
+      if (k < 0.02) continue;
+      let q;
+      if (SLL.length < SLICK_N) q = SLP[SLL.length];
+      else { let w = 0; for (let i = 1; i < SLL.length; i++) if (SLL[i].k < SLL[w].k) w = i; if (SLL[w].k >= k) continue; q = SLL[w]; SLL[w] = SLL[SLL.length - 1]; SLL.pop(); }
+      q.x = RX[r]; q.z = RZ[r]; q.r = RR[r] * 1.3 * (1 + (SLICK_GROW - 1) * u); q.k = k;
+      SLL.push(q);
+    }
+    stats.slicks = SLL.length;
+    const WA = typeof window !== 'undefined' && window.WATER && window.WATER.setSlicks ? window.WATER : null;
+    if (o.slicks) o.slicks(SLL);
+    else if (WA && (SLL.length || slHad)) WA.setSlicks(SLK, SLL.length ? SLL : null);
+    slHad = SLL.length > 0;
     geo.setDrawRange(0, ni);
     if (nv) { aPos.needsUpdate = true; aCol.needsUpdate = true; aUv.needsUpdate = true; aIdx.needsUpdate = true;
       if (aPos.updateRanges !== undefined && aPos.clearUpdateRanges) { for (const A of [aPos, aCol, aUv]) { A.clearUpdateRanges(); A.addUpdateRange(0, nv * A.itemSize); } aIdx.clearUpdateRanges(); aIdx.addUpdateRange(0, ni); } }
@@ -219,6 +246,7 @@ WK.make = function (THREE, o) {
     stats.ms = typeof performance !== 'undefined' ? performance.now() - t0 : 0;
   }
   function dispose() {
+    if (slHad && typeof window !== 'undefined' && window.WATER && window.WATER.setSlicks) window.WATER.setSlicks(SLK, null);
     if (mesh.parent) mesh.parent.remove(mesh);
     geo.dispose();
     if (mat && typeof MATLIB !== 'undefined' && MATLIB.release) MATLIB.release(mat);
