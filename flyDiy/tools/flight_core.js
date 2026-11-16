@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5a9ca52b627f5d11
+// body-sha256: def10abb304f963e
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -40008,6 +40008,9 @@ function clampSpec(spec) {
   // had) and its jury strut ('wing' | 'cabin'; absent = none). Anything else, null included (the join STATES a row back
   // at its default as null, so the garage's merge can take it off), is deleted: absent is the old bytes
   if (S.bracing.section !== 'tube') delete S.bracing.section;
+  // STRUT-FOOT (16 Nov, the 172): the lift strut's foot at its own station, metres aft of the firewall (absent: its ring)
+  if (S.bracing.strutFoot != null && Number.isFinite(+S.bracing.strutFoot) && +S.bracing.strutFoot > 0)
+    S.bracing.strutFoot = genClamp(+S.bracing.strutFoot, 0.05, 8); else delete S.bracing.strutFoot;
   if (S.bracing.jury !== 'wing' && S.bracing.jury !== 'cabin') delete S.bracing.jury;
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
@@ -44192,7 +44195,30 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // that ring - the C pillar's included, the box clamp being the auto rule's; absent, the rule above, unchanged
     const strutAt = S.bracing && S.bracing.strutAt != null ? +S.bracing.strutAt : null;
     const iStrutRing = strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox);
-    const strutRoot = F[iStrutRing][opposeTag + sd];
+    let strutRoot = F[iStrutRing][opposeTag + sd];
+    // A-POST STRUT (16 Nov, the 172, the user: "the anchor of the strut on the body should be at the base of the cabin
+    // pillar ... that has the windscreen ... a very valid place to put a strut"): S.bracing.strutFoot (metres aft of the
+    // firewall - the join writes the A post's station when the strut is picked onto it) stands the foot at its own
+    // station on the lower longeron - a node between the two rings around it, tied to both and to the upper longeron
+    // of the aft one (stand-ins: no mass, the longeron already bills its tube). Absent: the ring, as always
+    const SFT = S.bracing && S.bracing.strutFoot > 0 ? +S.bracing.strutFoot : 0;
+    if (SFT > 0) {
+      let i0 = 0;
+      ST.forEach((s2, i) => { if (s2.x <= SFT) i0 = i; });
+      const i1 = Math.min(ST.length - 1, i0 + 1), la = F[i0][opposeTag + sd], lb = F[i1][opposeTag + sd];
+      const tt = ST[i1].x > ST[i0].x ? Math.max(0, Math.min(1, (SFT - ST[i0].x) / (ST[i1].x - ST[i0].x))) : 0;
+      if (tt < 0.03) strutRoot = la;
+      else if (tt > 0.97) strutRoot = lb;
+      else {
+        const pa = P[la], pb = P[lb];
+        const nf = N(pa[0] + (pb[0] - pa[0]) * tt, pa[1] + (pb[1] - pa[1]) * tt, pa[2] + (pb[2] - pa[2]) * tt, 'SFT' + sd);
+        const up = F[i1][(opposeTag === 'B' ? 'T' : 'B') + sd];
+        B(nf, la, 'fus', false, 'inner', false, { noMass: true });
+        B(nf, lb, 'fus', false, 'inner', false, { noMass: true });
+        if (up != null) B(nf, up, 'fus', false, 'inner', false, { noMass: true });
+        strutRoot = nf;
+      }
+    }
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
