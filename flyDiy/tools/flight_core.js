@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5a9ca52b627f5d11
+// body-sha256: 1bfda2da2dcd2dd8
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -5472,6 +5472,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
     terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
+    roughAt: (x, z) => !!(PM && PM.roughAt && PM.roughAt(x, z)),   // (SNOW-MUD: on a bumpy strip's box - the wheel's envelope, 30_solver)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
@@ -13204,6 +13205,17 @@ function compose(rec0, world, opts) {
       for (let i = 0; i < cell.length; i++) h = cell[i].apply(lx, lz, h);
       return h;
     },
+    // ROUGH GROUND (SNOW-MUD, 15 Nov: the wheel's envelope, 30_solver): whether (x, z) lies on a bumpy strip's box, grown a
+    // metre - where a wheel reads the ground under its arc, not under its axle; false off every micro strip (one compare)
+    roughAt(x, z) {
+      if (!microStrips.length) return false;
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      for (let k = 0; k < microStrips.length; k++) {
+        const b = microStrips[k].f.bbox;
+        if (lx >= b.x0 - 1 && lx <= b.x1 + 1 && lz >= b.z0 - 1 && lz <= b.z1 + 1) return true;
+      }
+      return false;
+    },
     // THE STONES' BODIES (DIRT-STRIP, 26b stoneUV): a bumpy strip's stones, added ON the composed ground by the world's
     // terrainH - not baked in the raster (its 0.25 m lattice would flatten a 14-54 cm stone by up to 13 cm); 0 off them
     stonesAt(x, z) {
@@ -15776,6 +15788,281 @@ const TREE_HITS = (() => {
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { OBSTACLES, TREE_HITS };
 // ============================================================
+// THE SKIS (SKIS, 13 Nov 2026) - one ski landing gear for every aeroplane, and the soft ground it stands on.
+// The user (13 Nov): "one main type and a few options, not a list of 10 ... PHYSICS STOPS ABERRATIONS: the ski's area
+// sets the contact pressure, so small skis on a heavy plane sink ... no wheel brakes on straight skis ... mass, drag and
+// price paid for the skis". The references: futureDesigns/SKI-REFERENCES-2026-11-13.md (A0's research; [SRC]/[EST]
+// labels there), the design note futureDesigns/SKIS-2026-11-13.md.
+//
+// ONE SKI, THREE MOUNTINGS (gear.ski.kind). A ski is a plank of length L and width W with an upturned toe (tip, its
+// height), pivoting on the existing leg's axle at `at` of its length from the toe. What differs is only where the TYRE
+// stands against the ski's bottom:
+//   'plain'    the wheel comes off; the ski's pedestal sits on the axle (the straight / wheel-replacement ski). No tyre,
+//              no brake. `ped` is the axle's height over the ski's bottom (default the wheel's own contact radius: the
+//              stance is unchanged; AC 43.13-2B: at most 130 % of the axle height with the wheel on).
+//   'wheel'    the tyre pokes through a slot `prot` below the ski's bottom (the fixed wheel-penetration ski): on a hard
+//              surface the tyre carries and brakes, in snow the tyre sinks until the ski bears.
+//   'retract'  the hydraulic wheel-ski (the PC-6's, Wipline, Genaire): the ski moves between `prot` above the tyre's
+//              bottom (UP: a penetration ski, the tyre on the runway) and `drop` below it (DOWN: the aeroplane on its
+//              skis, the tyre clear of the snow), in `time` seconds, on the pilot's selector (ctl.ski: 1 down, 0 up).
+// THE THIRD UNIT (gear.ski.third, { L, W, tip }): the tail ski on a taildragger's tailwheel, the nose ski on a tricycle's
+// nose wheel. It is a penetration ski (the tailwheel through its slot, steered with it - patent US4390151), or a plain
+// tail ski when the mains are plain (the Airglas L250 replaces the tailwheel).
+// ABSENT IS AS TODAY: a build without gear.ski carries no key, its frame, def and flight are what they were, to the bit.
+//
+// THE SOFT GROUND IS SNOW-MUD'S (one version, agreed 15 Nov): the world's SURFACE code under the contact, its layer
+// GROUND_SOFT[code] (Bekker's p = k z^n, its depth zMax over the firm base) and a ski bottom's friction GROUND_SKI_MU[code]
+// (00_registry). A ski element sinks by SNOW-MUD's own laws - groundSinkPlate for the sole, groundSinkWheel for a
+// wheel-ski's tyre - and pays SNOW-MUD's plough (w k z^(n+1) / (n+1)) at its rut's depth. What only a ski needs are
+// OPTIONAL FIELDS ON SNOW-MUD'S OWN ROWS (their ask, 15 Nov: no second table), set below; absent = SNOW-MUD's law exactly,
+// and SNOW-MUD's k, n, zMax, ski are never touched (GATE SOFTGROUND and SNOWMUDFX read those).
+// Pure: no THREE, no world, no random; CORE_MATH-free arithmetic (+ - * / sqrt only: bit-identical page and worker).
+// ============================================================
+
+// WHAT ONLY A SKI NEEDS ON SNOW-MUD'S SNOW (codes 8 packed, 9 powder, 10 wet) - optional fields on GROUND_SOFT's rows,
+// [EST] per SKI-REFERENCES 4.1 / 4.6:
+//   skis    1: a ski's ground - a wheel-ski lowers its skis here by itself (its selector unset); the mud carries none
+//   vP      m/s, the planing speed: the layer stiffens as (1 + (v/vP)^2) under a running ski (it cannot compact as fast
+//           as the ski crosses it: the "hump" a skiplane gets over; the FAA text: "keep enough power to stay on top")
+//   lat     the ski's side grip (its edges and runners in the snow; "sideways drift in turns is normal")
+//   plough  the bulldozing over SNOW-MUD's compaction: the snow a sunk ski pushes ahead, x k z^(n+1)
+//   fresh   THE TWO-REGIME SNOW (SNOW-MUD's named cut, left to this session as "a row field, absent = this law"): the
+//           top z metres of the layer are VIRGIN snow, { k, n, z } - the published fresh snowpack's ~200 kPa/m^n
+//           (SNOW-MUD's own note: "a man sinks into it to the knee") - over SNOW-MUD's settled law. A SKI'S SOLE (a plate
+//           at 5-15 kPa) compacts the fresh snow first and sinks decimetres, then meets the settled base: the
+//           references' "a well-sized light ski sinks ~8 cm in fresh powder", and a ski too small for its load sinks
+//           through. A TYRE does not read it: at 50-300 kPa the fresh snow collapses at once, which SNOW-MUD's fit at
+//           the tyres already holds (so a wheel, and a wheel-ski's tyre, are SNOW-MUD's law exactly)
+// (the fresh top only over a SETTLED base - a row stiffer than it; where SNOW-MUD's row IS the virgin law (DEEP SNOW,
+//  15 Nov: powder k 2e5, wet 4e5) there is no second layer to add: the sole reads their row alone, never the law twice)
+if (typeof GROUND_SOFT !== 'undefined') {
+  const fresh = (c, F) => GROUND_SOFT[c].k > F.k ? { fresh: F } : {};
+  Object.assign(GROUND_SOFT[8],  { skis: 1, vP: 12, lat: 0.35, plough: 0.6 });                                                  // packed (rolled: no fresh snow)
+  Object.assign(GROUND_SOFT[9],  { skis: 1, vP: 7,  lat: 0.30, plough: 1.0 }, fresh(9,  { k: 2.0e5, n: 1.5, z: 0.25 }));   // powder (dry, cold: deep and light)
+  Object.assign(GROUND_SOFT[10], { skis: 1, vP: 6,  lat: 0.35, plough: 1.4 }, fresh(10, { k: 4.0e5, n: 1.2, z: 0.12 }));   // wet ("worse than mud or even beach sand")
+}
+// a ski's side grip on the codes with no `lat` (GROUND_SURF's classes 0 grass .. 7 sand; 11 / 12 mud) [EST] - (GROUND_SURF's classes 0 grass .. 7 sand; 11 / 12 mud) [EST]
+const SKI_LAT = { 0: 0.45, 1: 0.55, 2: 0.50, 3: 0.50, 4: 0.10, 5: 0.50, 6: 0.50, 7: 0.50, 11: 0.45, 12: 0.40 };
+// a bare aluminium bottom on the snow (0.35-0.40: why everyone fits plastic) and a ski on the water (GROUND_SKI_MU's
+// null: the water's own pass carries a ski that is in it; this only keeps it from sticking) [EST]
+const SKI_ALU_MU = [0.35, 0.40], SKI_WATER_MU = [0.05, 0.08];
+
+// THE RULES (sizing, mass, price, drag). Every number labelled; [EST] are fits to SKI-REFERENCES §2.1's table.
+const SKI_RULES = {
+  pDesign: 8000,       // Pa: the static pressure a ski is sized at by default (the references' 1.0-1.5 psi, 7-10 kPa)
+  mainShare: 0.46,     // of the gross on each main ski (the third unit carries ~8 %)
+  thirdShare: 0.08,
+  // THE PLANFORM (skiPlan): the reference ski is the Summit Aircraft SS2300 (the user's photographs and the maker's sheet,
+  // 13 Nov: 2300 lb gross, the Carbon Cub's and the Super Cub's; carbon monocoque; 18 x 79 in, 22 x 81 in with its UHMW
+  // bottom skins; 27 lb a ski with rigging; 8.50x6 tyres; a single 4 in heel wheel; "option to run as straight ski").
+  // The PC-6's wheel-skis are the same family (the user: "the pilatus uses similar skis"), larger. Measured off the
+  // top-view photograph against its 22 x 81 in skins: the aft BEAM keeps 0.57 of the body's width on the inboard side,
+  // the WHEEL'S CUTOUT starts 0.49 of the length from the toe (outboard), the pedestal (the axle) 0.585 from the toe,
+  // the toe a half-round of the full width, the heel square with small radii
+  ref: { L: 2.007, W: 0.457, skin: 0.051, skinL: 0.0255 },
+  beam: 0.57, notchAt: 0.49, at: 0.585, aspectThird: 3.4,
+  tipK: 0.045,         // the toe's upturn, x L (the SS2300's ~9 cm; light skis 4-8 in over the last 12-18 in)
+  tipRun: 0.16,        // the upturn's run, x L
+  heelR: 0.03,         // m: the heel's corner radii
+  gap: 0.015,          // m: the tyre's sidewall off the beam's skin in the cutout
+  clr: 0.03,           // m: the tyre's tread off the cutout's face, at its lowest through the ski
+  deckH: 0.075,        // m: the deck's height over the skins at the reference's width (the drawing's; it scales with W)
+  skinT: 0.009,        // m: the bottom skins' thickness
+  inc: 3,              // deg: the rigged flight incidence (the aft check cable; +1..+6, AC 43.13-2B 0..+5)
+  droop: -20,          // deg: the safety cable's stop (AC 43.13-2B -20..-35; TC AC 500-010 -15 in flight)
+  prot: 0.03,          // m: the tyre below the ski's sole beside it (the SS2300 set for its 8.50x6: a hand's width under 2 in; the
+                       //    take-off in powder is sensitive to it - the Carbon Cub on SS2300s 78 / 87 / 198 m at 1.5 / 3 / 5 cm: the
+                       //    references' "the protruding tyre ploughs, so it is worse in deep snow")
+  drop: 0.06,          // m: a wheel-ski's bottom below the tyre, skis down
+  protThird: 0.06,     // m: the tailwheel / nose wheel below its ski ("a few inches": past its tyre's deflection under the tail's load)
+  time: 15,            // s: a hydraulic wheel-ski's cycle ([EST] 10-20, no source)
+  // MASS per ski, kg = rig + mounting x (k0 + kA x A), A the bottom skins' outline (m2), by the shell's material:
+  // aluminium through the Aero M1500 / M2000 / M3000H (7.3 / 9.1 / 13.2 kg at 0.34 / 0.52 / 0.74 m2), glassfibre through
+  // the Airglas LW3600 (28.6 kg with rigging at 1.16 m2, a penetration ski), carbon through the Summit SS2300 (27 lb =
+  // 12.25 kg with rigging, a penetration ski: kA solved below on its own outline); the mounting x1 plain, x1.5 the
+  // wheel beside it (the pedestal's reach, the heel wheel), x2.0 the hydraulic wheel-ski (Wipline C2200 / C3000: 19 / 23
+  // kg a ski) plus the power pack (17 lb on a Cub, scaled by the gross)
+  mats: { carbon: { k0: 1.0, kA: 0, usdK: 0.75 }, alu: { k0: 2.5, kA: 14.5, usdK: 1 }, glass: { k0: 2.5, kA: 13.7, usdK: 0.9 } },
+  kgRig: 1.0, kgK: { plain: 1.0, wheel: 1.5, retract: 2.0 }, refKg: 12.25,
+  packKg: g => 7.7 * Math.max(0.6, Math.min(2.2, g / 800)),
+  // PRICE per ski (USD, GEN_PRICES' unit): (600 + 3000 A) x mounting (plain 1, beside 2, wheel-ski 4) x the material's
+  // factor, + the pack ~$4k [EST, catalogue orders of magnitude: an Aero M2000 pair ~$4.2k, an LW3600 pair ~$16k, a
+  // Wipline pair ~$30-35k]
+  usd0: 600, usdA: 3000, usdK: { plain: 1, wheel: 2, retract: 4 }, packUsd: 4000,
+  // DRAG per ski (axial CdA, m2): the nose - the toe's upturn and the deck's front over the skins' width - at a rounded
+  // body's 0.5, the sole's friction (1.5 A x 0.006), the rigging (0.006) and the pedestal (0.4 x its height x 0.06); the
+  // wheel-ski x1.6 (its jack and slide). A plain ski REPLACES the wheel's drag; the others add to it. [EST] calibrated on
+  // the C185's 130 -> 115 kt on wheel-skis (+44 % of the aeroplane's CdA, ~0.12 m2 a ski) and the references' 0.15-0.3
+  // m2 at Porter scale
+  cdNose: 0.5, deckH: 0.075, cfSole: 0.006, cdRig: 0.006, cdPed: 0.4, cdK: { plain: 1.0, wheel: 1.15, retract: 1.6 },
+  cn: 4,               // /rad: a ski's side force per unit load per radian of slip (its runners and edges as a keel) [EST]
+  tyreW: 0.62,         // a tyre's width over its radius (the tyre element's footprint; a 31" tundra ~0.3 m on 0.39)
+};
+
+// THE TYRE'S WIDTH as drawn (tools/_gear_gen.js TYRE: the carcass's half-width over R - standard 0.40, tundra 0.44,
+// slim 0.29 - its bulge to 1.04, the cage's whBulge): the cutout and the tyre element take the drawn tyre, not a rule
+function skiTyreW(R, cage) {
+  const prof = Math.round(+((cage && cage.whProfile) || 0)), hw = prof === 1 ? 0.44 : prof === 2 ? 0.29 : 0.40;
+  const bulge = cage && cage.whBulge != null ? Math.max(0.5, +cage.whBulge) : 1;
+  return 2 * hw * 1.04 * R * (prof === 1 ? 1 : bulge);
+}
+// THE PLANFORM - one function the drawing and the physics share (what is drawn is what bears). o: { L, W (the shell),
+// skin, skinL (the bottom skins' margin, sides and ends), at (the axle from the toe, x L), beam (the aft beam's share of
+// W, inboard; 1 = no cutout, a straight plank), notchAt (the cutout's start from the toe, x L), tip (the upturn, m) }.
+// Frame: s along the ski from the AXLE (+ forward), w across from the shell's centreline (+ OUTBOARD). Returns the
+// shell's and the skins' edges at s, the upturn, the beam's centre and edge, the tyre's place in the cutout, the areas.
+function skiPlan(o) {
+  const R = SKI_RULES, L = o.L, W = o.W, m = o.skin != null ? o.skin : 0, mL = o.skinL != null ? o.skinL : 0;
+  const at = o.at != null ? o.at : R.at, beam = o.beam != null ? Math.max(0.3, Math.min(1, o.beam)) : 1;
+  const sToe = at * L, sHeel = -(1 - at) * L, bE = -W / 2 + beam * W, notch = beam < 0.999;
+  const tN = Math.min(0.10, 0.22 * W);
+  // THE CUTOUT IS THE TYRE'S (the user, 13 Nov: "the wheel has to be able to go down through the little opening"): the
+  // wheel-ski moves the ski past its tyre (up: the tyre `prot` under the sole; down: the ski under the tyre), so the
+  // opening must take the tyre at its lowest through the ski - its chord at the deck's top and at the skins' top, a
+  // clearance, the fillet - forward of the axle; the row's start holds when it is further forward already
+  const chord = d => d <= 0 ? 0 : d >= o.R ? o.R : Math.sqrt(2 * o.R * d - d * d);
+  const m0 = o.skin != null ? o.skin : 0, kS0 = Math.max(0.6, Math.min(1.8, W / 0.457));
+  const need = (notch && o.R > 0 && o.prot != null) ? Math.max(chord(o.prot + R.skinT + R.deckH * kS0) + R.clr + tN,
+                                                                chord(o.prot + R.skinT) + R.clr + tN + m0) : 0;
+  const sN = Math.max(sToe - (o.notchAt != null ? o.notchAt : R.notchAt) * L, Math.min(need, sToe - 0.25 * L));
+  const sm = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+  const mk = (Wd, sT, sH, bEd, sNd) => (s, out) => {
+    let wi = -Wd / 2, wo = notch ? Wd / 2 + (bEd - Wd / 2) * sm((sNd - s) / tN) : Wd / 2;
+    const rT = Wd / 2, s0 = sT - rT;
+    if (s > s0) { const u = Math.min(1, (s - s0) / rT), h = rT * Math.sqrt(Math.max(0, 1 - u * u)); if (-h > wi) wi = -h; if (h < wo) wo = h; }
+    const rH = R.heelR;
+    if (s < sH + rH) { const u = Math.min(rH, sH + rH - s), d = rH - Math.sqrt(Math.max(0, rH * rH - u * u)); wi += d; wo -= d; }
+    out[0] = wi; out[1] = Math.max(wi, wo); return out;
+  };
+  const body = mk(W, sToe, sHeel, bE, sN), skin = mk(W + 2 * m, sToe + mL, sHeel - mL, bE + m, sN - m);
+  const tip = o.tip != null ? o.tip : Math.max(0.03, Math.min(0.25, R.tipK * L)), sT = sToe - R.tipRun * L;
+  const up = s => s > sT ? tip * Math.pow((s - sT) / (sToe + mL - sT), 2) : s < sHeel + 0.04 * L ? 0.012 * Math.pow((sHeel + 0.04 * L - s) / (0.04 * L + mL), 2) : 0;
+  // the areas: the skins' outline (the mass, the drag's sole) and the BEARING area (the upturn bears less as it rises:
+  // linearly to nothing at the toe - on firm snow the toe carries nothing, in powder it ploughs)
+  let A = 0, Ab = 0; const N = 240, s0 = sHeel - mL, s1 = sToe + mL, q = [0, 0];
+  for (let k = 0; k < N; k++) {
+    const s = s0 + (s1 - s0) * (k + 0.5) / N, ds = (s1 - s0) / N; skin(s, q);
+    const w = q[1] - q[0]; A += w * ds; Ab += w * ds * (s < sT ? 1 : 1 - (s - sT) / (s1 - sT));
+  }
+  return { L, W, m, mL, at, beam, notch, sToe, sHeel, sN, tN, bE, wc: -W / 2 + beam * W / 2, tip, sT,
+           wTyre: o.bT != null ? bE + m + o.bT / 2 + R.gap : 0, body, skin, up, A, Ab, Wmax: W + 2 * m, Lmax: L + 2 * mL,
+           deckH: R.deckH * kS0, skinT: R.skinT, need };
+}
+// the carbon shell's areal mass, solved so the SS2300 (a penetration ski) weighs its 27 lb with rigging
+(() => { const R = SKI_RULES, P = skiPlan(Object.assign({ beam: R.beam, notchAt: R.notchAt, at: R.at }, R.ref));
+         R.mats.carbon.kA = ((R.refKg - R.kgRig) / R.kgK.wheel - R.mats.carbon.k0) / P.A; })();
+
+// THE RUT (per element: a ski's sole or a wheel-ski's tyre). SNOW-MUD's laws are quasi-static (the sinkage the load
+// gives); a contact in the solver is a spring. THE MOVING DATUM (SNOW-MUD's own named next step): each element keeps the
+// depth of its rut zc - its ground is the snow's top lowered by zc, met on the node's own spring (the solver's stiffness
+// stays the gear's: the snow's k, 10^6-10^7 Pa/m^n over a square metre, would be a stiff loop) - and zc follows the
+// quasi-static sinkage of the load it carries, PLASTICALLY: it deepens (filtered over tau) and never springs back
+// while the element stands; running into fresh snow relaxes it over one bearing length (x 1/(1 + ds / Lb)).
+const SKI_SOFT = {
+  tau: 0.06,                                     // s, the rut's filter (the sinkage follows the load, not the spring's buzz)
+  S: { k: 0, n: 1, zMax: 0, f: 1 },              // the scratch layer at speed, f its planing factor (no allocation in the loop)
+  // the layer under a running element: SNOW-MUD's row, its k stiffened by the planing term (no ski fields: the row)
+  at(SO, X, vr) {
+    const q = X && X.vP > 0 ? vr / X.vP : 0, S = SKI_SOFT.S;
+    S.f = 1 + q * q; S.k = SO.k * S.f; S.n = SO.n; S.zMax = SO.zMax; return S;
+  },
+  relax(e, vr, dt) { const ds = (vr < 0 ? -vr : vr) * dt; if (e.zc > 0) e.zc = e.zc / (1 + ds / e.Lb); },
+  // deepen the rut toward the target zt (m), filtered
+  sink(e, zt, dt) { if (zt > e.zc) { const a = dt / SKI_SOFT.tau; e.zc += (zt - e.zc) * (a < 1 ? a : 1); } },
+  // A SKI'S SOLE: the sinkage of pressure p (Pa) at speed q2 = (v/vP)^2 - the fresh snow (X.fresh, its top) and SNOW-MUD's
+  // settled layer under it, in series (each carries p), never past the layer's depth zMax; GROUND_SINK holds it
+  plate(SO, X, N, A, w, vr) {
+    const S = SKI_SOFT.at(SO, X, vr), F = X && X.fresh;
+    groundSinkPlate(S, N, A, w);
+    if (F && N > 0 && A > 0) {
+      let zf = Math.pow(N / A / (F.k * S.f), 1 / F.n); if (zf > F.z) zf = F.z;
+      let z = zf + GROUND_SINK.z; if (z > SO.zMax) z = SO.zMax;
+      GROUND_SINK.z = z;
+    }
+    return GROUND_SINK.z;
+  },
+  // the motion resistance (N) of an element w wide in its rut z: the work of compacting the trench per metre - SNOW-MUD's
+  // w k z^(n+1) / (n+1) of each layer it went through (the fresh top first, for a sole), + the plough's bulldozing
+  resist(S, X, w, z, sole) {
+    if (!(z > 0)) return 0;
+    const pl = X ? X.plough : 0, F = sole && X && X.fresh;
+    if (!F) return w * S.k * Math.pow(z, S.n + 1) * (1 / (S.n + 1) + pl);
+    const k0 = F.k * S.f, zf = z < F.z ? z : F.z, zs = z - zf;   // (the fresh k at the same speed as S's)
+    return w * (k0 * Math.pow(zf, F.n + 1) * (1 / (F.n + 1) + pl) + (zs > 0 ? S.k * Math.pow(zs, S.n + 1) * (1 / (S.n + 1) + pl) : 0));
+  },
+};
+
+// RESOLVE a spec's ski record against the build (gross kg, the mains' wheel contact radius, the third wheel's radius,
+// the gear type): every dimension the spec leaves out is sized at pDesign from the gross. Returns null without skis.
+function skiResolve(S, gross) {
+  const K = S && S.gear && S.gear.ski;
+  if (!K || typeof K !== 'object') return null;
+  const R = SKI_RULES, g = (gross > 0 ? gross : 700) * 9.81;
+  const kind = K.kind === 'wheel' || K.kind === 'retract' ? K.kind : 'plain';
+  const mat = R.mats[K.mat] ? K.mat : 'carbon', MT = R.mats[mat];
+  const wR = S.gear.contactR || S.gear.wheelR || 0.2;
+  // a dimension the spec leaves out: the reference ski scaled until it bears its share at pDesign (its own proportions)
+  const ref = skiPlan(Object.assign({ beam: R.beam, notchAt: R.notchAt, at: R.at }, R.ref));
+  const kM = Math.sqrt(R.mainShare * g / R.pDesign / ref.Ab);
+  const plan = (o, third, k) => skiPlan({ L: o.L > 0 ? o.L : (third ? 0.55 : R.ref.L * k), W: o.W > 0 ? o.W : (third ? 0.55 / R.aspectThird : R.ref.W * k),
+    skin: o.skin != null ? o.skin : (third ? 0.02 : R.ref.skin * Math.min(1.5, k)), skinL: o.skinL != null ? o.skinL : (third ? 0.01 : R.ref.skinL * Math.min(1.5, k)),
+    at: o.at != null ? o.at : (third ? 0.55 : R.at), beam: third ? 1 : (o.beam != null ? o.beam : R.beam),
+    notchAt: o.notchAt != null ? o.notchAt : R.notchAt, tip: o.tip, bT: third ? null : skiTyreW(wR, S.cage),
+    R: third ? 0 : wR, prot: third ? null : (kind === 'plain' ? null : (K.prot != null ? K.prot : R.prot)) });
+  const unit = (P, k, third) => ({ L: P.L, W: P.W, Wmax: P.Wmax, Lmax: P.Lmax, tip: P.tip, at: P.at, A: P.Ab, Aplan: P.A, beam: P.beam,
+    notchAt: (P.sToe - P.sN) / P.L, skin: P.m, skinL: P.mL, wTyre: P.wTyre, wc: P.wc, kind: k, third });
+  const M = unit(plan(K, false, kM), kind, false);
+  M.ped = kind === 'plain' ? (K.ped > 0 ? K.ped : wR) : wR;
+  M.prot = kind === 'plain' ? 0 : (K.prot != null ? K.prot : R.prot);
+  M.drop = kind === 'retract' ? (K.drop != null ? K.drop : R.drop) : 0;
+  M.bT = skiTyreW(wR, S.cage);
+  let T = null;
+  if (K.third && typeof K.third === 'object') {
+    // the tail / nose ski: a straight plank (no cutout: its wheel runs through it), sized for its share when unsized
+    const kT = Math.sqrt(R.thirdShare * g / R.pDesign / (0.55 * (0.55 / R.aspectThird) * 0.9));
+    const t = Object.assign({}, K.third); if (!(t.L > 0)) t.L = 0.55 * kT; if (!(t.W > 0)) t.W = 0.55 / R.aspectThird * kT;
+    const tk = kind === 'plain' ? 'plain' : 'wheel';
+    T = unit(plan(t, true, kT), tk, true);
+    T.prot = tk === 'plain' ? 0 : (K.third.prot != null ? K.third.prot : R.protThird);
+    T.bT = R.tyreW * (S.gear.twR || 0.1);
+  }
+  const kg = (o, k) => R.kgRig + R.kgK[k] * (MT.k0 + MT.kA * o.Aplan);
+  const usd = (o, k) => (R.usd0 + R.usdA * o.Aplan) * R.usdK[k] * MT.usdK;
+  const cda = (o, k, ped) => (R.cdNose * (o.tip + R.deckH) * o.Wmax + R.cfSole * 1.5 * o.Aplan + R.cdRig + R.cdPed * ped * 0.06) * R.cdK[k];
+  M.kg = kg(M, kind); M.usd = usd(M, kind); M.cdA = cda(M, kind, M.ped);
+  if (T) { T.kg = kg(T, T.kind); T.usd = usd(T, T.kind); T.cdA = cda(T, T.kind, S.gear.twR || 0.1); }
+  const packKg = kind === 'retract' ? R.packKg(gross > 0 ? gross : 700) : 0;
+  return { kind, mat, mains: M, third: T, time: kind === 'retract' ? (K.time > 0 ? K.time : R.time) : 0,
+           inc: K.inc != null ? K.inc : R.inc, droop: R.droop, bottom: K.bottom === 'alu' ? 'alu' : 'uhmw',
+           packKg, packUsd: kind === 'retract' ? R.packUsd : 0,
+           kg: 2 * M.kg + (T ? T.kg : 0) + packKg, usd: 2 * M.usd + (T ? T.usd : 0) + (kind === 'retract' ? R.packUsd : 0),
+           cdA: 2 * M.cdA + (T ? T.cdA : 0) };
+}
+
+// THE SOLVER'S SIDE: one record per sim (null without skis - the solver's ground pass never asks then). `def.parts.ski`
+// is the resolved record the frame published; the contacts are the mains (0, 1) and the third unit (2), each with its
+// elements' heights below the axle node, set at reset from the node's own contact radius (the drawn tyre, G661's share).
+function skiSimMake(def, n) {
+  const R = def.parts && def.parts.ski;
+  if (!R) return null;
+  const refs = def.refs || {}, M = refs.mains || [], tw = refs.tw;
+  const of = new Int8Array(n).fill(-1), C = [];
+  const mk = (node, rec, kind, third) => ({ node, third, kind, L: rec.L, W: rec.Wmax || rec.W, A: rec.A, at: rec.at, tip: rec.tip,
+    prot: rec.prot || 0, drop: third ? 0 : (rec.drop || 0), ped: rec.ped || 0, bT: rec.bT || 0.1,
+    hT: 0, hS: 0, hS0: 0, R: 0,
+    eS: { zc: 0, Lb: 0.85 * rec.L }, eT: { zc: 0, Lb: 0.3 }, fnS: 0, fnT: 0, z: 0, load: 0, pitch: 0, on: 0 });
+  for (let k = 0; k < M.length && k < 2; k++) if (M[k] >= 0 && M[k] < n) { of[M[k]] = C.length; C.push(mk(M[k], R.mains, R.kind, false)); }
+  if (R.third && tw != null && tw >= 0 && tw < n) { of[tw] = C.length; C.push(mk(tw, R.third, R.third.kind, true)); }
+  return { R, of, C, kind: R.kind, pos: 1, time: R.time, inc: R.inc * Math.PI / 180, droop: R.droop * Math.PI / 180,
+           alu: R.bottom === 'alu' };
+}
+// the ski's bottom below the axle node at the selector's position (the tyre's, hT, is the node's own)
+function skiHeight(SK, c) {
+  if (c.kind === 'plain') return c.hT;                       // (the plain ski's pedestal IS the node's contact radius)
+  if (c.kind === 'wheel' || c.third) return c.hT - c.prot;
+  return c.hT - c.prot + SK.pos * (c.prot + c.drop);         // 'retract': up (-prot) .. down (+drop)
+}
+// ============================================================
 // ---------------------------------------------------------------------------
 // THE VORTEX KERNEL (G185.5) — the mutual interference between the planes of
 // a biplane, and the wing's downwash on the tail, as the induced velocity of
@@ -15929,6 +16216,12 @@ function makeSim(def, world) {
   // and the orifice. null on every other build - one compare a substep, nothing else (no beam changes shape)
   const OLEO = (def.parts && def.parts.lever && def.parts.lever.sides)
     ? def.parts.lever.sides.map(q => ({ a: q.u, b: q.h, O: q.O, s: 0, sd: 0, F: 0, sMax: 0, fMax: 0 })) : null;
+  // PC6-OLEO: THE TELESCOPIC TAIL STRUT (61_gen_frame parts.twOleo): the wheel TW rides the line of the cylinder's two
+  // anchors (TOA top, TOB foot) - along it the oleo's law (62c gearOleoF on the designed O; s = Lx less the wheel's
+  // drop below the foot, + compressed), across it the piston's bearing (kLat, cLat), each reaction on the two anchors
+  // by the lever rule (the force's line through the wheel: momentum and moment kept). null on every other build
+  const TELE = (def.parts && def.parts.twOleo && def.parts.twOleo.O)
+    ? Object.assign({ s: 0, sd: 0, F: 0, sMax: 0, fMax: 0, bottomed: 0 }, def.parts.twOleo) : null;
   // THE TUBE (G294): RIGID CLUSTERS, shape-matched every substep. A group of
   // nodes (a twin boom's) is pulled onto the best-fit rigid transform of
   // its rest shape — Müller's shape matching: the mass-weighted centre,
@@ -17377,6 +17670,152 @@ function makeSim(def, world) {
   }
   // the effective contact radius: a wheel node's plane rises with the wheel (rC itself is the reset's, untouched)
   const rCe = i => (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]);
+  // SKIS (13 Nov, 29c_ski.js): THE SKI CONTACTS - null without skis (the ground pass never asks: every build without
+  // gear.ski flies its old lines, to the bit). Each main's and the third unit's node carries up to two ELEMENTS below
+  // it: the ski's bottom (hS) and, on a wheel-ski or a penetration ski, the tyre's (hT). Each element meets the ground
+  // by its own law: on hard ground the node's own spring (KGn); on SNOW-MUD's soft layer (the SURFACE code's GROUND_SOFT
+  // row) its RUT deepens to SNOW-MUD's sinkage of the load over the element's own area (29c SKI_SOFT: the moving datum) -
+  // so a small ski on a heavy aeroplane sinks, its rut's compaction and bulldozing hold it back, and past the hump it planes. A ski slides (its bottom's mu, no brake: the
+  // brake reaches the tyre element only), grips sideways with its edges, and the tail / nose ski steers with its wheel.
+  // ctl.ski: the wheel-ski's selector (1 down, 0 up; a reset picks the surface's - down on a soft layer).
+  const SKI = typeof skiSimMake === 'function' ? skiSimMake(def, n) : null;
+  function skiSetHeights() {
+    for (const c of SKI.C) { c.hS = skiHeight(SKI, c); rC[c.node] = c.kind === 'plain' ? c.hS : Math.max(c.hS, c.hT); }
+  }
+  function skiStep(dtF) {
+    if (SKI.time > 0) {
+      // the selector: the pilot's (ctl.ski 1 / 0), or with none the surface's - down over a soft layer under the mains,
+      // up over a hard one (the pilot looking where he will land); a reset snaps to it (the aeroplane parked as set)
+      let want = ctl.ski;
+      if (want !== 0 && want !== 1) {
+        const i3 = SKI.C[0].node * 3, sc0 = world && world.surface ? world.surface(p[i3], p[i3+2]) : -1;
+        want = sc0 >= SOFT_MIN && GROUND_SOFT[sc0] && GROUND_SOFT[sc0].skis ? 1 : 0;   // (the snow under the mains: the rows a ski belongs on)
+      }
+      if (SKI.snap) {   // (the airframe lowered with it: the reset stood it on the skis-down contact)
+        SKI.pos = want; SKI.snap = false; skiSetHeights();
+        // THE MAINS ONTO THEIR NEW CONTACT, THE THIRD CONTACT STAYS (15 Nov): dy is the mains' gap over the ground at the new
+        // contact radius, MEASURED (the game's placement stands the aeroplane on its tyres, a gate's reset on the skis
+        // down: neither is assumed), and the airframe turns rigidly about the tail / nose contact (the horizontal axis
+        // square to the line from it to the mains) until the mains have come down by it. A uniform drop of the ski's
+        // travel pushed the PC-6's mains 6 cm into the ground at its stand and the tail skid with them (38 yields)
+        const M = def.refs.mains, tw = def.refs && def.refs.tw != null && def.refs.tw >= 0 ? def.refs.tw : -1;
+        let dy = 0;
+        if (world && M && M.length === 2) {
+          for (const i of M) dy += 0.5 * (p[i*3+1] - world.terrainH(p[i*3], p[i*3+2]) - rC[i]);
+          if (dy > -1e-4 && dy < 1e-4) dy = 0;
+        }
+        if (dy !== 0 && tw >= 0 && M && M.length === 2) {
+          const px = p[tw*3], py = p[tw*3+1], pz = p[tw*3+2];
+          const dx = 0.5 * (p[M[0]*3] + p[M[1]*3]) - px, dz = 0.5 * (p[M[0]*3+2] + p[M[1]*3+2]) - pz, L = hyp2(dx, dz) || 1e-9;
+          const ax = -dz / L, az = dx / L, th = -dy / L, cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
+          for (let i = 0; i < n; i++) {   // Rodrigues, the axis (ax, 0, az) through the third contact
+            const rx = p[i*3] - px, ry = p[i*3+1] - py, rz = p[i*3+2] - pz, dot = ax * rx + az * rz;
+            const cx = -az * ry, cy = az * rx - ax * rz, cz = ax * ry;   // axis x r
+            p[i*3]   = px + rx * cs + cx * sn + ax * dot * (1 - cs);
+            p[i*3+1] = py + ry * cs + cy * sn;
+            p[i*3+2] = pz + rz * cs + cz * sn + az * dot * (1 - cs);
+          }
+        } else if (dy !== 0) for (let i = 0; i < n; i++) p[i*3+1] -= dy;
+      }
+      const d = Math.max(-dtF / SKI.time, Math.min(dtF / SKI.time, want - SKI.pos));
+      if (d !== 0) { SKI.pos += d; if (SKI.pos > 1) SKI.pos = 1; else if (SKI.pos < 0) SKI.pos = 0; skiSetHeights(); }
+    }
+    // THE SKI'S PITCH ABOUT ITS AXLE (what the drawing shows; the contact acts through the pivot): on the ground it lies on
+    // the surface along its heading; in the air the bungee holds the toe up against the check cable (+inc to the body),
+    // the swing a 0.3 s lag; never past the safety cable (droop) nor the check cable
+    bodyAxes();
+    const thB = Math.asin(Math.max(-1, Math.min(1, -xAft[1])));          // the body's pitch, nose up +
+    const hx = -xAft[0], hz = -xAft[2], hL = hyp2(hx, hz) || 1e-9;
+    const a = Math.min(1, dtF / 0.3);
+    for (const c of SKI.C) {
+      const i3 = c.node * 3;
+      let tgt = SKI.inc;
+      if (c.on) {
+        const gh = world ? world.terrainH : null;
+        const s = gh ? (gh(p[i3] + 0.5 * hx / hL, p[i3+2] + 0.5 * hz / hL) - gh(p[i3] - 0.5 * hx / hL, p[i3+2] - 0.5 * hz / hL)) : 0;
+        tgt = Math.atan(s) - thB;
+      }
+      if (tgt > SKI.inc) tgt = SKI.inc; else if (tgt < SKI.droop) tgt = SKI.droop;
+      c.pitch += (tgt - c.pitch) * a;
+    }
+    out.ski = SKI.pos; out.skiPitch = SKI.C.map(c => c.pitch); out.skiSink = SKI.C.map(c => c.z);
+    out.skiLoad = SKI.C.map(c => c.load); out.skiDy = SKI.C.map(c => c.hS - c.hS0);
+  }
+  // the ground pass for a ski node (i, its contact c): both elements' normal force, the SKI's share applied here with its
+  // own laws (the sole's sliding - no brake -, its edges' side grip, the plough of everything sunk); returns the TYRE's
+  // share (0: none), which the wheel pass below rolls, brakes and steers as any wheel (twLine for a tail ski's wheel)
+  let skiSoft = false;                                // this node's tyre on a soft layer is the ski's (the wheel pass adds no sink)
+  function skiGround(c, i, i3, gy, dt) {
+    const sc = world && world.surface ? world.surface(p[i3], p[i3+2]) : -1;
+    const SO = sc >= SOFT_MIN ? GROUND_SOFT[sc] : undefined, SX = SO !== undefined && SO.skis ? SO : undefined;   // (SX: the row's ski fields)
+    skiSoft = SO !== undefined;
+    const dS = gy + c.hS - p[i3+1], dT = c.kind === 'plain' ? -1 : gy + c.hT - p[i3+1];   // (the wheel pass's own arithmetic: a tyre element is its wheel, bit for bit)
+    let hx = -xAft[0], hz = -xAft[2];
+    if (c.third) { const s = P_.twSteer * ctl.dr, cs = CORE_MATH.cos(s), sn_ = CORE_MATH.sin(s);
+                   const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs; hx = nx; hz = nz; }
+    const hL = hyp2(hx, hz) || 1e-9; hx /= hL; hz /= hL;
+    const lx = -hz, lz = hx, vr_ = v[i3]*hx + v[i3+2]*hz, vl = v[i3]*lx + v[i3+2]*lz;
+    let FS = 0, FT = 0, Rp = 0, zMax = 0;
+    if (SO !== undefined) {
+      // SNOW-MUD'S LAYER: each element on the node's spring from its rut's floor; the rut deepens to the layer's sinkage
+      // of that load (groundSinkPlate over the sole's area, groundSinkWheel for the tyre), plastic, never past zMax
+      const S = SKI_SOFT.at(SO, SX, vr_);
+      SKI_SOFT.relax(c.eS, vr_, dt); SKI_SOFT.relax(c.eT, vr_, dt);
+      if (dS > c.eS.zc) {
+        FS = KGn[i] * (dS - c.eS.zc);
+        SKI_SOFT.sink(c.eS, SKI_SOFT.plate(SO, SX, FS, c.A, c.W, vr_), dt);
+      }
+      if (FS > 0 || dS > 0) { Rp += SKI_SOFT.resist(S, SX, c.W, c.eS.zc, true); zMax = c.eS.zc; }
+      if (dT > c.eT.zc) {
+        FT = KGn[i] * (dT - c.eT.zc);
+        if (SKW[i] === 0) softWheel(i, !c.third);
+        groundSinkWheel(S, FT, SKW[i], SKDIA[i], SKA[i]); SKI_SOFT.sink(c.eT, GROUND_SINK.z, dt);
+      }
+      if (FT > 0 || dT > 0) {
+        Rp += SKI_SOFT.resist(S, SX, SKW[i], c.eT.zc, false); if (c.eT.zc > zMax) zMax = c.eT.zc;
+        // (DEEP SNOW: the tyre through the ski shoves the snow ahead as SNOW-MUD's wheel does - groundBullWheel on a row
+        //  with `bull`, at the tyre's own rut; the sole has its plough and planing instead)
+        if (SO.bull && c.eT.zc > 0) Rp += groundBullWheel(SO, c.eT.zc, SKW[i], SKDIA[i], vr_);
+      }
+      if (!softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; out.softW = SOFTW; softLive = true; }   // (SNOW-MUD's readouts, opened as their wheel branch opens them; a posed ski writes no softW slot - their rule)
+      if (zMax > out.softZ) out.softZ = zMax;
+      out.softF += Rp;
+    } else {
+      if (dS > 0) FS = KGn[i] * dS;
+      if (dT > 0) FT = KGn[i] * dT;
+    }
+    c.z = zMax;
+    const Fs = FS + FT;
+    if (!(Fs > 0)) { c.fnS = c.fnT = 0; c.load = 0; c.on = 0; return 0; }
+    let Fn = Fs - CGn[i] * v[i3+1];
+    if (Fn < 0) Fn = 0;
+    // (an element that does not touch carries exactly nothing: Fn - Fn FS / FS can be an ulp over zero, and a straight
+    // ski's tyre share must be none - else the wheel pass brakes it)
+    const fS = FT > 0 ? (FS > 0 ? Fn * FS / Fs : 0) : Fn, fT = FT > 0 ? Fn - fS : 0;
+    c.fnS = fS; c.fnT = fT; c.load = Fn; c.on = 1;
+    if (!(fS > 0) && !(Rp > 0)) return fT;
+    if (out.gndDump) out.gndPitch -= (p[i3] - out.gndCgx) * fS;
+    f[i3+1] += fS;
+    cIy += fS * dt;
+    // along: the sole sliding (GROUND_SKI_MU: its breakout under 0.3 m/s; no brake reaches it) and the plough of every
+    // sunk element
+    const avr = Math.abs(vr_), MU = (sc >= 0 && GROUND_SKI_MU[sc]) || (sc === 4 ? SKI_WATER_MU : GROUND_SKI_MU[0]);
+    let mS = MU[0];
+    if (SKI.alu && SX !== undefined && mS < SKI_ALU_MU[0]) mS = SKI_ALU_MU[0];
+    if (avr < 0.3) { const m0 = SKI.alu && SX !== undefined ? SKI_ALU_MU[1] : MU[1]; if (m0 > mS) mS = m0; }
+    let kR = mS * fS / Math.max(avr, 0.2) + Rp / Math.max(avr, 0.3);
+    if (kR > m[i] / dt) kR = m[i] / dt;
+    // across: the ski's edges and runners (Coulomb, a 0.15 m/s drift - "sideways drift in turns is normal")
+    const lS = SX !== undefined ? SX.lat : (SKI_LAT[sc] != null ? SKI_LAT[sc] : SKI_LAT[0]);
+    // (its side force builds with the slip angle - the runners and edges as a keel, SKI_RULES.cn per radian - up to the
+    // Coulomb limit: the tyre's own law, G1844, with a ski's slope; a bang-bang edge gave no yaw damping on a take-off)
+    let kL = lS * fS / Math.max(Math.abs(vl), 0.15, avr * lS / SKI_RULES.cn) + 0.5 * Rp / Math.max(avr, 0.3);
+    if (kL > m[i] / dt) kL = m[i] / dt;
+    f[i3]   -= kR*vr_*hx + kL*vl*lx;
+    f[i3+2] -= kR*vr_*hz + kL*vl*lz;
+    return fT;
+  }
+
   function gearStep(dtF) {
     // the squat switch: any wheel within 3 cm of its (effective) ground
     let wow = false;
@@ -18427,6 +18866,15 @@ function makeSim(def, world) {
     // A Jodel's wing that came off rested on its lower caps, its drawn covering 12 cm over the ground; flight never
     // reaches the ground with these nodes, and the law (K, C, friction) is unchanged
     for (let i = 0; i < n; i++) rC[i] = r[i] - (def.nodes[i].so || 0);
+    // PC6-OLEO: the telescopic tail strut starts at its STATIC stroke (the charge's: the wheel up its axis by sSt from the
+    // drawn, fully extended place) - the rest pose is the parked one; airborne, the gas extends it to the drawing
+    if (TELE !== null) {
+      const T = TELE, w3 = T.tw * 3, a3 = T.oa * 3, b3 = T.ob * 3;
+      let ux = p[a3] - p[b3], uy = p[a3 + 1] - p[b3 + 1], uz = p[a3 + 2] - p[b3 + 2];
+      const Lu = hyp3(ux, uy, uz) || 1e-9, sS = T.O.sSt || 0;
+      p[w3] += ux / Lu * sS; p[w3 + 1] += uy / Lu * sS; p[w3 + 2] += uz / Lu * sS;
+      T.s = sS; T.sd = 0; T.F = 0; T.sMax = sS; T.fMax = 0; T.bottomed = 0;
+    }
     {
       const M = (def.refs && def.refs.mains) || [], tw = def.refs ? def.refs.tw : null, W = totalM * 9.81;
       if (M.length) {
@@ -18440,6 +18888,14 @@ function makeSim(def, world) {
         if (hasTw) { rC[tw] = r[tw] + def0(tw, sT / nT); if (nT === 2) rC[TW2] = r[TW2] + def0(TW2, sT / nT); }
         if (TWL) twSize(sT * W / nT);                          // G3800: the tail contact's law sized off its static load
       }
+    }
+    // SKIS: each contact's elements off the node's own contact radius (the tyre's, G661's share in it; a plain ski's
+    // pedestal), the drawn ski's height (skis down), and the selector back to the surface's at the first step
+    if (SKI !== null) {
+      ctl.ski = null; SKI.snap = SKI.time > 0;
+      for (const c of SKI.C) { c.hT = rC[c.node]; c.R = r[c.node]; c.eS.zc = c.eT.zc = 0; c.pitch = 0; c.on = 0; c.z = 0; c.load = 0; }
+      SKI.pos = 1; for (const c of SKI.C) c.hS0 = skiHeight(SKI, c);
+      skiSetHeights();
     }
     for (const b of beams) {
       b.L0 = hyp3(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
@@ -19293,6 +19749,72 @@ function makeSim(def, world) {
   const TW_ARC = TW_SCOTT.arc;
   // (MONOWHEEL: a NOSE skid flies the skid's law too - twMode 4 on a nose unit; a nose wheel stays the rudder's, 0)
   const TWM = (TW1 >= 0 && (P_.twSteer > 0 || P_.twMode === 4)) ? (P_.twMode || 1) : 0;
+  // ROUGH GROUND (SNOW-MUD, 15 Nov - the user: "does a large tundra wheel help on a bumpy road with stones?"): THE TYRE'S
+  // ENVELOPE. The ground was read at one point under each node, so a wheel met a stone when its AXLE was over it - a 0.15 m
+  // wheel and a 0.36 m tundra wheel took the same step, and no stone cost any wheel speed. On a bumpy strip (world.roughAt:
+  // a micro strip's box) a rolling wheel now reads the EFFECTIVE ROAD of the TANDEM CAM (Schmeitz & Pacejka, Vehicle System
+  // Dynamics 2004; Zegelaar 1998): two cams of the tyre's radius R, one footprint length l apart (tyreFootprint's, 4A / pi b:
+  // the carcass's - 0.51 D standard, 0.64 D tundra), each riding the profile (the highest of h(x + s u) less the rim's rise
+  // R - sqrt(R^2 - s^2), |s| < 0.95 R, along the heading u). The axle's ground is their MEAN and the road's effective slope
+  // their DIFFERENCE over l, by which the stone pushes back along u (capped at ENV_TC). A stone shorter than the footprint
+  // lifts the axle by about half its height and over the footprint's length - the soft long tundra print swallows what a
+  // small hard wheel climbs whole; a hole narrower than it is bridged. THE COST: the ground is read ONCE A FRAME per wheel
+  // on the strip, a profile along u every ENV_DS over the cams and the frame's travel (envFrame); the substeps take the cams
+  // off it, arithmetic only. Off a bumpy strip one roughAt compare a wheel a frame; on a world without roughAt nothing at
+  // all: the bytes as before
+  const WHL = [];
+  // (SKIS: a ski node is not a wheel here - its sole and its tyre element read the point probe under the node, as
+  //  agreed with SNOW-MUD: def.refs.skis' nodes stay out of the tandem cam)
+  const SKN = new Set(((def.refs && def.refs.skis) || []).map(u => u && u.nodes && u.nodes[0]));
+  for (const i of (def.refs && def.refs.mains) || []) if (i >= 0 && i < n && !SKN.has(i)) WHL.push(i);
+  if (TWM !== 4) { if (TW1 >= 0 && !SKN.has(TW1)) WHL.push(TW1); if (TW2 >= 0 && !SKN.has(TW2)) WHL.push(TW2); }
+  const ENV_TC = 3, ENV_NEAR = 0.6, ENV_DS = 0.05, ENV_M = 160, ENV_Q2 = 0.95 * 0.95;
+  const ENVK = new Int8Array(n).fill(-1); WHL.forEach((i, k) => { ENVK[i] = k; });
+  const ENVL = new Uint8Array(WHL.length), ENVO = new Float64Array(WHL.length * 7), ENVH = new Float64Array(WHL.length * ENV_M);
+  const nMainW = ((def.refs && def.refs.mains) || []).filter(i => i >= 0 && i < n && !SKN.has(i)).length;   // (the mains in WHL: they lead it)
+  let envLive = false;
+  out.envW = 0; out.envN = 0;                         // (the wheel-substeps the cams rode, and the ground reads, a frame)
+  // once a frame: each wheel near a bumpy strip's ground samples its profile (origin, heading, first offset, spacing, count)
+  function envFrame(RGH, dtFrame) {
+    envLive = false;
+    const gH = world.terrainH;
+    let axesOk = false, ux = 0, uz = 0;
+    for (let k = 0; k < WHL.length; k++) {
+      ENVL[k] = 0;
+      const i = WHL[k], i3 = i * 3, x0 = p[i3], z0 = p[i3+2], R = rC[i];
+      if ((GR !== null && !(GR.pos > 0.98)) || !RGH(x0, z0)) continue;
+      if (p[i3+1] - R - gH(x0, z0) > ENV_NEAR + 2 * Math.max(0, -v[i3+1]) * dtFrame) continue;
+      if (!axesOk) { bodyAxes(); const hl = hyp2(xAft[0], xAft[2]) || 1; ux = -xAft[0] / hl; uz = -xAft[2] / hl; axesOk = true; }
+      if (SKW[i] === 0) softWheel(i, k < nMainW);     // (the carcass's footprint: the soft layer's own, sized once)
+      const lf = Math.max(ENV_DS, 4 * SKA[i] / (Math.PI * SKW[i]));
+      // the window: the cams' reach about the axle, stretched the way the wheel rolls by the frame's travel (and a margin)
+      const reach = R + 0.5 * lf + ENV_DS, tr = 1.25 * (v[i3] * ux + v[i3+2] * uz) * dtFrame;
+      const s0 = -reach + (tr < 0 ? tr : 0), span = 2 * reach + Math.abs(tr) + 0.25 * Math.abs(hyp2(v[i3], v[i3+2]) * dtFrame);
+      let ds = ENV_DS, N = Math.ceil(span / ds) + 1;
+      if (N > ENV_M) { N = ENV_M; ds = span / (N - 1); }
+      const o = k * 7, b = k * ENV_M;
+      ENVO[o] = x0; ENVO[o+1] = z0; ENVO[o+2] = ux; ENVO[o+3] = uz; ENVO[o+4] = s0; ENVO[o+5] = ds; ENVO[o+6] = lf;
+      for (let j = 0; j < N; j++) { const s = s0 + j * ds; ENVH[b + j] = gH(x0 + s * ux, z0 + s * uz); }
+      out.envN += N;
+      for (let j = N; j < ENV_M; j++) ENVH[b + j] = ENVH[b + N - 1];   // (past the window: its last reading)
+      ENVL[k] = 1; envLive = true;
+    }
+  }
+  // one cam of radius R centred at c along wheel k's profile: the highest of the profile less the rim's rise
+  function envCam(k, c, R) {
+    const o = k * 7, b = k * ENV_M, ds = ENVO[o+5], R2 = R * R;
+    let j = Math.ceil((c - 0.95 * R) / ds), j1 = Math.floor((c + 0.95 * R) / ds), best = -Infinity;
+    // (the profile under the cam's own centre, interpolated, no rise: a flat road reads exactly flat)
+    const jc = Math.floor(c / ds);
+    if (jc >= 0 && jc + 1 < ENV_M) { const f = c / ds - jc, h0 = ENVH[b + jc], h1 = ENVH[b + jc + 1]; best = f === 0 ? h0 : h0 + f * (h1 - h0); }
+    if (j < 0) j = 0; if (j1 > ENV_M - 1) j1 = ENV_M - 1;
+    for (; j <= j1; j++) {
+      const sq = j * ds - c, s2 = sq * sq; if (s2 > ENV_Q2 * R2) continue;
+      const h = ENVH[b + j] - (R - Math.sqrt(R2 - s2));
+      if (h > best) best = h;
+    }
+    return best;
+  }
   const TWL = TWM ? { m: TWM, k: 0, trail: 0, Mf: 0, E: TW_SCOTT.E,
     st: [0, 0], ang: [0, 0], df: [0, 0], F: [0, 0], ff: [0, 0], fMax: [0, 0] } : null;
   if (TWL) out.twState = [0, 0], out.twAng = [0, 0], out.twF = [0, 0], out.twFmax = TWL.fMax;
@@ -19728,6 +20250,49 @@ function makeSim(def, world) {
       if (F > Q.fMax) Q.fMax = F;
     }
   }
+  // PC6-OLEO: the telescope's pass - the strut's axis u up from the foot to the top anchor, the wheel's offset r from the
+  // foot: its drop along -u (the stroke) and its offset across (the bearing)
+  function telePass(dt) {
+    const T = TELE, w3 = T.tw * 3, a3 = T.oa * 3, b3 = T.ob * 3;
+    let ux = p[a3] - p[b3], uy = p[a3 + 1] - p[b3 + 1], uz = p[a3 + 2] - p[b3 + 2];
+    const Lu = hyp3(ux, uy, uz) || 1e-9; ux /= Lu; uy /= Lu; uz /= Lu;
+    const rx = p[w3] - p[b3], ry = p[w3 + 1] - p[b3 + 1], rz = p[w3 + 2] - p[b3 + 2], ru = rx * ux + ry * uy + rz * uz;
+    const vx = v[w3] - v[b3], vy = v[w3 + 1] - v[b3 + 1], vz = v[w3 + 2] - v[b3 + 2], vu = vx * ux + vy * uy + vz * uz;
+    const s = T.O.Lx + ru, sd = vu, mw = m[T.tw], mb = m[T.ob];
+    const F = gearOleoF(T.O, s, sd, dt, mw * mb / (mw + mb));          // + pushes the wheel down the axis
+    // the bearing: the wheel's offset across the axis and its speed across it, pulled back to the line
+    const qx = rx - ru * ux, qy = ry - ru * uy, qz = rz - ru * uz, wx = vx - vu * ux, wy = vy - vu * uy, wz = vz - vu * uz;
+    const lx = -T.kLat * qx - T.cLat * wx, ly = -T.kLat * qy - T.cLat * wy, lz = -T.kLat * qz - T.cLat * wz;
+    const fx = -F * ux + lx, fy = -F * uy + ly, fz = -F * uz + lz;
+    f[w3] += fx; f[w3 + 1] += fy; f[w3 + 2] += fz;
+    // the reactions: the axial on the foot; the bearing's by the lever rule along the cylinder (tau: the wheel's place
+    // along TOB -> TOA, negative below the foot - a cantilever, the top anchor pulled the other way)
+    const tau = ru / Lu, kb = 1 - tau, ka = tau;
+    f[b3] += F * ux - kb * lx; f[b3 + 1] += F * uy - kb * ly; f[b3 + 2] += F * uz - kb * lz;
+    f[a3] += -ka * lx; f[a3 + 1] += -ka * ly; f[a3 + 2] += -ka * lz;
+    T.s = s; T.sd = sd; T.F = F;
+    if (s > T.sMax) T.sMax = s;
+    if (F > T.fMax) T.fMax = F;
+  }
+  // ...and its bottom stop, as the Wilga's: past S the wheel put back to S along the axis against the foot (mass-
+  // weighted), its closing speed taken out - the load then goes into the cylinder's clamps
+  function teleStop() {
+    const T = TELE, w3 = T.tw * 3, a3 = T.oa * 3, b3 = T.ob * 3;
+    let ux = p[a3] - p[b3], uy = p[a3 + 1] - p[b3 + 1], uz = p[a3 + 2] - p[b3 + 2];
+    const Lu = hyp3(ux, uy, uz) || 1e-9; ux /= Lu; uy /= Lu; uz /= Lu;
+    const ru = (p[w3] - p[b3]) * ux + (p[w3 + 1] - p[b3 + 1]) * uy + (p[w3 + 2] - p[b3 + 2]) * uz;
+    const ex = T.O.Lx + ru - T.O.S;
+    if (!(ex > 0)) return;
+    const mw = m[T.tw], mb = m[T.ob], ww = mb / (mw + mb), wb = mw / (mw + mb);
+    p[w3] -= ux * ex * ww; p[w3 + 1] -= uy * ex * ww; p[w3 + 2] -= uz * ex * ww;
+    p[b3] += ux * ex * wb; p[b3 + 1] += uy * ex * wb; p[b3 + 2] += uz * ex * wb;
+    const vc = (v[w3] - v[b3]) * ux + (v[w3 + 1] - v[b3 + 1]) * uy + (v[w3 + 2] - v[b3 + 2]) * uz;
+    if (vc > 0) {
+      v[w3] -= ux * vc * ww; v[w3 + 1] -= uy * vc * ww; v[w3 + 2] -= uz * vc * ww;
+      v[b3] += ux * vc * wb; v[b3 + 1] += uy * vc * wb; v[b3 + 2] += uz * vc * wb;
+    }
+    T.bottomed++;
+  }
   // WILGA-GEAR: THE BOTTOM STOP, AS A CONSTRAINT (after the step's integration, as the clusters' projection is): a strut
   // past its stroke S has its eyes put back to S along their line, mass-weighted (the pair's centre unmoved), and their
   // closing speed taken out (inelastic, momentum kept) - the load then goes into the steel leg and arm, as on the real
@@ -19774,6 +20339,7 @@ function makeSim(def, world) {
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
     if (OLEO !== null) oleoPass(dt);                 // WILGA-GEAR: the trailing-link legs' struts
+    if (TELE !== null) telePass(dt);                 // PC6-OLEO: the telescopic tail strut
     if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
       if (nFlr) floorPass();                         // G1813: the kinked members' floors
       if (nTieL) tiePass();                          // G2040 (DMG-FABRIC): the covering's ties
@@ -19783,7 +20349,7 @@ function makeSim(def, world) {
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
       const i3 = i*3;
-      let gy;
+      let gy, tcE = 0, kE = -1;
       if (coneLive) {
         const dx = p[i3] - gcx[i], dz = p[i3+2] - gcz[i];
         const c = p[i3+1] - rC[i] - gcy[i] - GROUND_CONE_EPS;
@@ -19792,14 +20358,26 @@ function makeSim(def, world) {
       } else if (hbLive && p[i3+1] - rC[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
         out.gndSkipped++; continue;
       } else { gy = gH ? gH(p[i3], p[i3+2]) : 0; if (hbLive) out.gndSampled++; }
-      const pen = gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
+      if (envLive && (kE = ENVK[i]) >= 0 && ENVL[kE]) {   // ROUGH GROUND: the tandem cam off the frame's profile
+        const o = kE * 7, lf = ENVO[o+6];
+        const a = (p[i3] - ENVO[o]) * ENVO[o+2] + (p[i3+2] - ENVO[o+1]) * ENVO[o+3] - ENVO[o+4];   // the axle along the profile
+        const hF = envCam(kE, a + 0.5 * lf, rC[i]), hR = envCam(kE, a - 0.5 * lf, rC[i]);
+        gy = 0.5 * (hF + hR); out.envW++;
+        tcE = (hF - hR) / lf; if (tcE > ENV_TC) tcE = ENV_TC; else if (tcE < -ENV_TC) tcE = -ENV_TC;
+      }
+      // SKIS: a ski node's elements meet the ground by their own law; what comes back is the tyre's share for the wheel pass
+      let FnT = null;
+      if (SKI !== null && SKI.of[i] >= 0) { FnT = skiGround(SKI.C[SKI.of[i]], i, i3, gy, dt); if (!(FnT > 0)) continue; }
+      else skiSoft = false;
+      const pen = FnT !== null ? 1 : gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
       if (pen <= 0) continue;
       if (NOSE_G[i]) noseGnd = true;                 // G1470: the nose on the ground - the prop has struck it
-      let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
+      let Fn = FnT !== null ? FnT : KGn[i] * pen - CGn[i] * v[i3+1];
       if (out.gndDump) out.gndPitch -= (p[i3] - out.gndCgx) * Fn;
 
       if (Fn < 0) Fn = 0;
       f[i3+1] += Fn;
+      if (tcE !== 0) { f[i3] -= Fn * tcE * ENVO[kE*7+2]; f[i3+2] -= Fn * tcE * ENVO[kE*7+3]; }   // ROUGH GROUND: the stone pushes back by its angle
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
@@ -19831,7 +20409,7 @@ function makeSim(def, world) {
         // SNOW-MUD: A SOFT LAYER (GROUND_SOFT, the codes past the hard ones) - the tyre sinks by its load over its footprint
         // and pays the trench it compacts (groundSinkWheel: Bekker's rigid wheel, the tyre flattening at its own pressure,
         // never deeper than the layer), added to the rolling coefficient as F / N. On every hard surface: this compare only
-        if (sc >= SOFT_MIN && Fn > 0) {
+        if (sc >= SOFT_MIN && Fn > 0 && !skiSoft) {      // (SKIS: a ski node's tyre sank in its own rut, its plough paid there)
           const SO = GROUND_SOFT[sc];
           if (SO !== undefined) {
             if (SKW[i] === 0) softWheel(i, isMain);
@@ -19982,6 +20560,7 @@ function makeSim(def, world) {
     if (clusterFresh) { for (const C of clusters) clusterRest(C); clusterFresh = false; }
     integrate(dt);
     if (OLEO !== null) oleoStop();                   // WILGA-GEAR: a bottomed strut stops on steel
+    if (TELE !== null) teleStop();                   // PC6-OLEO: ...and the tail's
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
     for (const C of clusters) { if (C.off) continue; shapeMatch(C, dt); twistHold(C, dt); }
@@ -20004,12 +20583,14 @@ function makeSim(def, world) {
     const dt = dtFrame / sub;
     if (softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; softLive = false; }   // SNOW-MUD: the soft layer's readouts (out.softZ / softF) are the frame's
     if (GR !== null) gearStep(dtFrame);              // RETRACT-1: the gear moves once a frame
+    if (SKI !== null) skiStep(dtFrame);              // SKIS: the wheel-ski's selector and the skis' pitch
     aicFresh = true;
     rigFresh = true;               // G1885: the frame's first substep sums the second moments
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
-    out.gndSampled = 0; out.gndSkipped = 0;
+    out.gndSampled = 0; out.gndSkipped = 0; out.envW = 0; out.envN = 0;
+    if (world && typeof world.roughAt === 'function') envFrame(world.roughAt, dtFrame);   // ROUGH GROUND: the wheels' profiles
     if (coneLive) {
       coneS2 = S * S;
       const gH = world.terrainH;
@@ -20328,6 +20909,8 @@ function makeSim(def, world) {
            // WILGA-GEAR: the trailing-link legs' struts - null on every other build; per side { s (m, + compressed), sd
            // (m/s), F (N), S (the stroke), sMax / fMax since the last oleoPeak(true) }
            oleo: () => (OLEO === null ? null : OLEO.map(Q => ({ s: Q.s, sd: Q.sd, F: Q.F, S: Q.O.S, sMax: Q.sMax, fMax: Q.fMax, bottomed: Q.bottomed || 0 }))),
+           // PC6-OLEO: the telescopic tail strut's state (null without one): s, sd, F, S, sMax / fMax, bottomed
+           twOleo: () => (TELE === null ? null : { s: TELE.s, sd: TELE.sd, F: TELE.F, S: TELE.O.S, sSt: TELE.O.sSt, sMax: TELE.sMax, fMax: TELE.fMax, bottomed: TELE.bottomed }),
            oleoPeak: clear => { if (OLEO !== null && clear) for (const Q of OLEO) { Q.sMax = Q.s; Q.fMax = Q.F; Q.bottomed = 0; } },
            gearPower: on => { if (GR !== null) GR.power = !!on; },
            gearEmergency: () => { if (GR !== null) { GR.emerg = true; ctl.gear = 1; } } };
@@ -27665,6 +28248,7 @@ function makePilot(sim, def, world, opts) {
   // water lane: surface 4 / water, stripAllows' own test); on the surface, the one under the aeroplane (the world's
   // water over its terrain). Every other build - a fixed gear, a land retract - is untouched (AMPHG false)
   const AMPHG = GEAR && !!(def.parts && def.parts.amph);
+  const SKISEL = !!(def.parts && def.parts.ski && def.parts.ski.kind === 'retract' && sim.ctl && 'ski' in sim.ctl);   // SKIS-PC6: a hydraulic wheel-ski
   // (no destination - a glide with nowhere picked: null, and the surface under the aeroplane decides)
   const gearWetDest = () => { const to = ap.route && ap.route.to; return to ? !!(to.surface === 4 || to.water || to.kind === 'water') : null; };
   const gearWetUnder = (x, z) => { try { return typeof world.waterH === 'function' && typeof world.terrainH === 'function' && world.waterH(x, z) > world.terrainH(x, z) + 0.2; } catch (e) { return false; } };
@@ -30370,6 +30954,31 @@ function makePilot(sim, def, world, opts) {
       if ((!O && up) || ap.t - Hd.t0 > 600) { ap.climbHold = null; go(planFromHere()); }
       return false;
     };
+    // SKIS-PC6 (15 Nov): THE WHEEL-SKIS' SELECTOR, as the amphibian's wheels (SEAPLANES-LAND): in the air, from the inbound
+    // (within 6 km) and the circuit on, SET FOR THE DESTINATION'S GROUND - a SNOW-MUD row a ski belongs on (GROUND_SOFT[code]
+    // .skis): skis down; any other: up, on the wheels - long before the flare (the kit's hydraulic cycle, ~15 s); in a
+    // glide the ground under it. On the ground, the lift-off and the climb-out: unset (the solver's own: the surface under
+    // the mains). The Ardent test (tools/_skis_ardent.js) touched down with the skis 42 % down: the solver's rule alone
+    // lowers them only over the snow. Nothing without a hydraulic wheel-ski (no ctl.ski key)
+    if (SKISEL) {
+      const ph = ap.phase, to = ap.route && ap.route.to;
+      const skiOn = (x, z) => { const c = world && world.surface ? world.surface(x, z) : -1;
+        return typeof GROUND_SOFT !== 'undefined' && GROUND_SOFT[c] && GROUND_SOFT[c].skis ? 1 : 0; };
+      // ON THE GROUND (A0 15 Nov, the Ardent stand turned to the take-off: the PC-6 broke its tail pivoting ON ITS SKIS - no
+      // brakes, 2.9 m soles across the turn - where on its wheels it pivots clean): A WHEEL-SKI TAXIS AND LINES UP ON ITS
+      // WHEELS (the brakes, the pivot; at taxi speed a tyre crosses even the deep snow - SNOW-MUD's bulldozing stops it at
+      // the take-off's speeds, GATE SNOWFLY) and AT THE HOLD sets the skis for the strip it rolls on, and waits for the
+      // cycle (the HOLD below) - the roll and the lift-off keep that. (Lowered as it reached the Ardent powder, mid-turn,
+      // it could not finish its line-up turn on them.)
+      const fr = ap.route && ap.route.from;
+      let want = null;
+      if (ph === 'DEPART' || ph === 'TAXI' || ph === 'STOP' || ph === 'LINEUP') want = 0;
+      else if ((ph === 'HOLD' || ph === 'ROLL' || ph === 'LIFTOFF') && fr && Number.isFinite(fr.x)) want = skiOn(fr.x, fr.z);
+      else if (ph === 'GLIDE' && agl < 150) want = skiOn(cg[0], cg[2]);
+      else if (to && Number.isFinite(to.x) && (ph === 'DOWNWIND' || ph === 'BASE' || ph === 'FINAL' || ph === 'CROSSWIND' ||
+               ph === 'FLARE' || (ph === 'INBOUND' && Math.hypot(to.x - cg[0], to.z - cg[2]) < 6000))) want = skiOn(to.x, to.z);
+      sim.ctl.ski = want;
+    }
     // RETRACT-1: THE GEAR, by the phase (RETRACT-STUDY §3.6). UP after a positive climb (15 m over the field, climbing at
     // 1 m/s) in the climb-out and the go-around, and anywhere en route; DOWN for the circuit (downwind, base, final), on an
     // inbound within 4 km of the field, in a glide under 150 m, and on the ground. A pilot who finds it not coming down
@@ -30972,6 +31581,12 @@ function makePilot(sim, def, world, opts) {
               go('TAXI');
               break;
             }
+          }
+          // SKIS-PC6-2: a wheel-ski rolls only with its skis where the hold set them (the kit's ~15 s cycle: the selector's
+          // own position, out.ski) - none: the line as it was
+          if (SKISEL && sim.ctl.ski != null && Math.abs((sim.out.ski != null ? sim.out.ski : sim.ctl.ski) - sim.ctl.ski) > 0.02) {
+            setStatus('holding: the wheel-skis ' + (sim.ctl.ski ? 'coming down for the snow' : 'going up for the wheels'), []);
+            break;
           }
           if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && left >= need) {
             go('ROLL'); ap.t = Math.max(ap.t, 1);
@@ -37470,6 +38085,9 @@ function genStolCageOff(cage) {
   // aeroplane) - no certificate withdrawn, no cache re-keyed, no procured fingerprint moved
   for (const k in GEN_LEVER_ROW_OFF) if (k in cage && cage[k] === GEN_LEVER_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   if ('gearLvPos' in cage) { out = out || Object.assign({}, cage); delete out.gearLvPos; }
+  // SKIS: the ski rows at "no skis" (absent IS that) and the wheel-ski's preview (state, never the aeroplane)
+  for (const k in GEN_SKI_ROW_OFF) if (k in cage && cage[k] === GEN_SKI_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  if ('skiPos' in cage) { out = out || Object.assign({}, cage); delete out.skiPos; }
   for (const k in GEN_CAGE_ROW_NEUTRAL) if (k in cage && cage[k] === GEN_CAGE_ROW_NEUTRAL[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
@@ -37479,9 +38097,13 @@ const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFai
                            engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
 // WILGA-GEAR: the trailing-link leg's rows per station (tools/_gear_page.js LEG_ROWS[4]) at the value a build without them
 // draws (_cage_gen CAGE_DEFAULT_ABSENT holds the same)
-const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0, lvJoint: 0 }, o = {};
+const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0, lvJoint: 0,
+      twStyle: 0, twPostLen: 0.28, twPostD: 0.07, twGuard: 1, twNode: 0 }, o = {};   // (PC6-TAILWHEEL: + the oleo tailwheel's rows, _gear_page.js)
   for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the flat base copy too)
   return o; })();
+// SKIS (29c_ski.js): the gear layer's ski rows (tools/_cage_gear.js) at the value a build without skis draws (_cage_gen
+// CAGE_DEFAULT_ABSENT holds the same): gearSki 0 none / 1 plain / 2 wheel-through / 3 wheel-ski; L, W, tip 0 = sized
+const GEN_SKI_ROW_OFF = { gearSki: 0, skiL: 0, skiW: 0, skiTip: 0, skiAt: 0.585, skiInc: 3, skiT: 1, skiTL: 0, skiTW: 0, skiSkin: 0.051, skiBeam: 0.57, skiNotchAt: 0.49, skiMat: 0, skiColor: 0, skiHeelW: 1, skiProt: 0.03 };
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
                           'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor'];
@@ -40408,6 +41030,36 @@ function clampSpec(spec) {
                                0.70, 1.60);
   if (!GEN_FAIR_MATS[S.gear.fairMat]) S.gear.fairMat = 'glass';
   if (S.gear.brakes != null && !GEN_BRAKES[S.gear.brakes]) delete S.gear.brakes;   // (the brakes: absent is as it was)
+  // SKIS (13 Nov, 29c_ski.js): THE SKI GEAR - the key only when chosen (absent: no key, the build as it was, to the bit).
+  // On the wheels' legs only (a taildragger or a tricycle, not folding, not on floats); a ski wears no spat (the wheel-
+  // ski's tyre runs through the slot, a plain ski has no wheel): the drag and the mass price the gear bare. Lengths in
+  // metres; null / absent = sized at SKI_RULES.pDesign from the gross by the frame
+  if (S.gear.ski && typeof S.gear.ski === 'object' && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle') && !S.gear.retract) {
+    const k = S.gear.ski, o = { kind: k.kind === 'wheel' || k.kind === 'retract' ? k.kind : 'plain' };
+    const num = (v, lo, hi) => Number.isFinite(+v) && v !== null && v !== '' ? genClamp(+v, lo, hi) : undefined;
+    const put = (dst, key, v) => { if (v !== undefined) dst[key] = v; };
+    put(o, 'L', num(k.L, 0.4, 6)); put(o, 'W', num(k.W, 0.08, 1.5)); put(o, 'tip', num(k.tip, 0, 0.5));
+    put(o, 'at', num(k.at, 0.35, 0.85)); put(o, 'inc', num(k.inc, -5, 10));
+    // (the planform, 29c skiPlan: the bottom skins' margin, the aft beam's share of the width - 1 a straight plank -, the
+    // wheel's cutout's start from the toe; the shell's material: carbon (absent), aluminium, glassfibre)
+    put(o, 'skin', num(k.skin, 0, 0.15)); put(o, 'skinL', num(k.skinL, 0, 0.1)); put(o, 'beam', num(k.beam, 0.3, 1));
+    put(o, 'notchAt', num(k.notchAt, 0.2, 0.8));
+    if (k.mat === 'alu' || k.mat === 'glass') o.mat = k.mat;
+    if (o.kind === 'plain') put(o, 'ped', num(k.ped, 0.05, 0.6));
+    else put(o, 'prot', num(k.prot, 0, 0.2));
+    if (o.kind === 'retract') { put(o, 'drop', num(k.drop, 0.01, 0.3)); put(o, 'time', num(k.time, 2, 60)); }
+    if (k.bottom === 'alu') o.bottom = 'alu';
+    if (k.third && typeof k.third === 'object') {
+      const t = { };
+      put(t, 'L', num(k.third.L, 0.2, 3)); put(t, 'W', num(k.third.W, 0.05, 1)); put(t, 'tip', num(k.third.tip, 0, 0.3));
+      put(t, 'at', num(k.third.at, 0.3, 0.8)); if (o.kind !== 'plain') put(t, 'prot', num(k.third.prot, 0, 0.15));
+      put(t, 'skin', num(k.third.skin, 0, 0.1)); put(t, 'skinL', num(k.third.skinL, 0, 0.1));
+      o.third = t;
+    }
+    S.gear.ski = o;
+    S.gear.fairing = S.gear.twFairing = 'none';
+    if (o.kind === 'plain') delete S.gear.brakes;      // (a straight ski has no wheel to brake: GEN_BRAKES' pair comes off with it)
+  } else delete S.gear.ski;
   // G121 (the review's B8): ONE ENGINE UNTIL THE MOUNTS ARE REAL. `engines`
   // is an array by design and `nEngines` multiplies thrust honestly — but
   // every mount today is the one nose pair, so a second entry would fly as
@@ -41093,6 +41745,8 @@ function resolveSpec(spec) {
   //    track of about 1.5 m — an honest cut, and the only one camber makes.
   S.gear.camberRad = S.gear.camber * Math.PI / 180;
   S.gear.contactR = S.gear.wheelR * CORE_MATH.cos(S.gear.camberRad);
+  // SKIS: a PLAIN ski's pedestal is the mains' contact (the wheel is off; `ped` the axle over the ski's bottom)
+  if (S.gear.ski && S.gear.ski.kind === 'plain' && S.gear.ski.ped > 0) S.gear.contactR = S.gear.ski.ped;
   const REG = (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[S.engine]) || null;
   // G134: a CUSTOM row (the editor's dials, resolved + clamped) outranks the
   // registry row it started from. Shape-compatible with a registry entry so
@@ -45787,7 +46441,20 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // ...and THE BICYCLE WHEEL (the cage's whProfile 3, every wheel of the build as the row draws them): its own mass law
   // and price (GEN_RULES.wheelCycleKg, GEN_PRICES.wheelCycle). Every other carcass: the rule as before
   const CYCLE = Math.round(+((S.cage && S.cage.whProfile) || 0)) === 3;
-  if (S.gear.type !== 'floats') spend(nMn * (CYCLE ? GEN_PRICES.wheelCycle : GEN_PRICES.wheel) + GEN_PRICES.thirdWheel + (ARCH.price || 0));
+  // PC6-BILL: an oleo tailwheel (gear.twOleo) pays for its parts, each priced as the part it is (the drawing's bill:
+  // _gear_gen PC6_USD, the strut a machined sealed unit), and its wheel and tyre ($500) - not the leaf third wheel's set price
+  const twOleoUsd = S.gear.twOleo && S.gear.twOleo.usd > 0 ? S.gear.twOleo.usd + 500 : 0;
+  // SKIS (29c_ski.js): the resolved ski gear (null without: every line below as it was). A plain ski replaces its wheel
+  // (the wheel, tyre and brake come off - neither bought nor carried); the others keep the wheel and add the ski.
+  // (A MONOWHEEL on skis is not modelled: no ski)
+  const SKR = S.gear.ski && !MONO ? skiResolve(S, gross) : null;
+  if (SKR && BOOMS) SKR.third = null;                  // (a twin boom's two tail contacts: no tail ski - not modelled)
+  if (SKR) {
+    spend((SKR.kind === 'plain' ? 0 : 2 * (CYCLE ? GEN_PRICES.wheelCycle : GEN_PRICES.wheel))
+          + (SKR.third && SKR.third.kind === 'plain' ? 0 : (twOleoUsd || GEN_PRICES.thirdWheel)) + (ARCH.price || 0));
+    spend(SKR.usd);
+  } else
+  if (S.gear.type !== 'floats') spend(nMn * (CYCLE ? GEN_PRICES.wheelCycle : GEN_PRICES.wheel) + (twOleoUsd || GEN_PRICES.thirdWheel) + (ARCH.price || 0));
   // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
   // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
   // deeper shell 88·R², its leg shroud included), stretched a little by the
@@ -45848,7 +46515,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const fwdL = engFwd ? EL : F[iFwd].BL, fwdR = engFwd ? ER : F[iFwd].BR;
   const AA = F[Math.max(iAft, engFwd ? 0 : Math.min(iFwd + 1, F.length - 1))];
   const trike = S.gear.type === 'tricycle';
-  let GAL, GAR, TW, TW2 = -1, twX, twY, FLOATS = null;
+  let GAL, GAR, TW, TW2 = -1, twX, twY, FLOATS = null, TWOLEO = null;   // (PC6-OLEO: the telescopic tail's record)
   // HULL-B3: THE FUSELAGE IS THE BOAT (gear.type 'hull', its measured lines in gear.hull - the join's cageHullTable)
   // (HULL-B55: an AMPHIBIAN - a tricycle that carries the hull's lines (the join's, a retracting gear on a boat hull):
   // the wheels below AND the hull after them; its mains / nose refs stay the wheels', the water's record rides FLOATS)
@@ -45972,7 +46639,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // (MONOWHEEL: the one main carries the whole of it)
   const BRK = genBrakeOf(S), mBrk = BRK ? 0.5 * BRK.kg : 0;
   if (BRK) spend(BRK.price);
-  pt(GAL, mWheel + mFairMain + (MONO ? 2 : 1) * mBrk); if (!MONO) pt(GAR, mWheel + mFairMain + mBrk);
+  if (SKR) {   // SKIS: the ski (and half the wheel-ski's power pack) on each axle; a plain ski's wheel is off (and its brakes: clampSpec)
+    const mS = (SKR.kind === 'plain' ? 0 : mWheel) + SKR.mains.kg + 0.5 * SKR.packKg + mFairMain + mBrk;
+    pt(GAL, mS); pt(GAR, mS);
+  } else { pt(GAL, mWheel + mFairMain + (MONO ? 2 : 1) * mBrk); if (!MONO) pt(GAR, mWheel + mFairMain + mBrk); }
   // (THE ULTRALIGHT MONOWHEEL'S RETRACTION, GEN_RULES.ulGear: the lever, the push rod, the over-centre link, the gas strut
   //  and the doors' hinges - on its axle)
   if (S.gear.retract && GUL && GUL.retractKg > 0) { pt(GAL, GUL.retractKg); spend(GUL.retractPrice || 0); }
@@ -46046,7 +46716,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else { B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire'); }
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
-    pt(TW, (GUL && SKID && GUL.skidKg > 0 ? (mFairTw > 0 ? 0 : GUL.skidKg) : CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);   // (L6: the ultralight monowheel's nose skid, its own)        // the nosewheel with its fork, by size (a bicycle wheel's own)
+    pt(TW, (SKR && SKR.third ? (SKR.third.kind === 'plain' ? 0 : R.wheelTwKg(S.gear.twR)) + SKR.third.kg : GUL && SKID && GUL.skidKg > 0 ? (mFairTw > 0 ? 0 : GUL.skidKg) : CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);   // (L6: the ultralight monowheel's nose skid, its own)        // the nosewheel with its fork, by size (a bicycle wheel's own) (SKIS: + its nose ski)
     // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
     // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
     if (S.gear.retract && !GUL) {                   // (the ultralight monowheel's own kit: below)
@@ -46104,6 +46774,47 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       twId.push(W_);
     }
     [TW, TW2] = twId;
+  } else if (S.gear.twOleo && !SKID && S.gear.twX != null && S.gear.twY != null) {
+    // PC6-OLEO (15 Nov, the user: "we really need to build the actual [suspension] piece to it. That's essential, that's
+    // its reason to be"): THE PC-6's TAILWHEEL, A TELESCOPIC OLEO. The cylinder (TOA its top, TOB its foot: on the
+    // strut's line through the wheel's RELAXED place - the drawing is the strut fully extended, in flight) clamped to
+    // the tail post and the last frame (the drawn clamps, the aft bulkhead: steel fittings, gear-class members); the
+    // STABILISER (TSH, the drawn node) braced to the belly's frames and linked to the cylinder's foot; the wheel (TW)
+    // rides the strut's line - the solver's telescope pass (30_solver, parts.twOleo): along it the oleo's gas and
+    // orifice (62c gearOleoDesignTele, designed on the final masses below), across it the piston's bearing. The member
+    // TW-TOB is the piston drawn (no force: kMul ~0 - the stroke is the solver's; it keeps the wheel in the airframe's
+    // part). twX / twY: the relaxed axle; the static stroke settles it onto the drawn three-point attitude's ground
+    const TO = S.gear.twOleo;
+    twX = S.gear.twX; twY = S.gear.twY;
+    TW = N(twX, twY, 0, 'TW', twRN);
+    const rk = (TO.rake || 0) * D, u = [-CORE_MATH.sin(rk), CORE_MATH.cos(rk), 0];   // up the strut (x aft: it leans forward)
+    const hd = TO.hd, Lc = Math.max(0.1, TO.Lc || 0.4);
+    const OB = N(twX + u[0] * hd, twY + u[1] * hd, 0, 'TOB'), OA = N(twX + u[0] * (hd + Lc), twY + u[1] * (hd + Lc), 0, 'TOA');
+    // (steel fittings, not a spring: the gear class's k, a tenth of its damper - the Wilga's leg and arm, R.lever.cMul;
+    // kMul 8 or the class's full damper on the light tail-post nodes cost 40 % more substeps)
+    const KC = { cMul: R.lever.cMul };
+    for (const q of [TPB, TPT, last.BL, last.BR]) B(OB, q, 'gear', false, 'inner', undefined, KC);
+    for (const q of [TPT, TPB, last.TL, last.TR]) B(OA, q, 'gear', false, 'inner', undefined, KC);
+    B(OA, OB, 'gear', false, 'leg', undefined, KC);                      // the cylinder
+    B(TW, OB, 'gear', false, 'leg', undefined, { kMul: 1e-9 });          // the piston (its force: the telescope pass)
+    let SH = -1;
+    if (TO.stab) {
+      // the node ahead and low (the drawing's: twice the V's reach ahead, 0.62 of the static drop down), its tubes to the
+      // belly's frames nearest the drawn feet (both corners: the truss's lateral spread), its link to the cylinder's foot
+      const hS = 0.7 * hd, ahead = 2 * Math.max(0.16, 1.7 * (S.gear.twR || 0.1));
+      SH = N(P[OB][0] - ahead, P[OB][1] - 0.62 * hS, 0, 'TSH');
+      const nearF = x => { let j = 0, dd = Infinity; for (let q = 0; q < ST.length; q++) { const e = Math.abs(ST[q].x - x); if (e < dd) { dd = e; j = q; } } return F[j]; };
+      const fa = nearF(P[OB][0] - 3.2 * hS), fb = nearF(P[OB][0] - 2.0 * hS);
+      for (const fr of fa === fb ? [fa] : [fa, fb]) { B(SH, fr.BL, 'gear', false, 'wire', undefined, KC); B(SH, fr.BR, 'gear', false, 'wire', undefined, KC); }
+      B(SH, OB, 'gear', false, 'wire', undefined, KC);
+    }
+    pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw + (TO.kgSlider || 0));   // the wheel, its fork, piston and V
+    pt(OB, 0.6 * (TO.kgCyl || 0)); pt(OA, 0.4 * (TO.kgCyl || 0));
+    if (SH >= 0) pt(SH, TO.kgStab || 0);
+    TWOLEO = { tw: TW, oa: OA, ob: OB, sh: SH, hd, S: TO.S, sSt: TO.sSt, dPiston: TO.dPiston,
+               // PC6-BILL: the parts as billed (the drawing's, and the wheel's row here), for the fiche and the gates
+               bill: (Array.isArray(TO.bill) ? TO.bill.slice() : []).concat([{ part: 'wheel and tyre', at: 'slider',
+                 kg: Math.round(twKgK * R.wheelTwKg(S.gear.twR) * 1000) / 1000, usd: 500 }]) };
   } else {
     twX = S.gear.twX !== null && S.gear.twX !== undefined
       ? S.gear.twX : fu.postX - 0.10;
@@ -46130,7 +46841,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // a snap-blocking near-vertical member, AND a wide lateral pyramid.
     B(TW, TPT, 'gear', false, 'inner');
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
-    pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
+    pt(TW, (SKR && SKR.third ? (SKR.third.kind === 'plain' ? 0.5 : twKgK) * R.wheelTwKg(S.gear.twR) + 0.4 * SKR.third.kg : twKgK * R.wheelTwKg(S.gear.twR)) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it; SKIS: + the tail ski, a plain one on the spring's half)
+    // SKIS: the tail ski's mass mostly on the tailpost foot (its pedestal and rigging hang off the spring's root): on the
+    // wheel's node alone 8 kg let a PC-6's spring snap through under full rudder at the take-off's start (measured)
+    if (SKR && SKR.third) pt(TPB, 0.6 * SKR.third.kg);
   }
   // TAIL-RETRACT (2026-11-09): A TAILDRAGGER'S RETRACTION KIT, on the mains' axles (their actuators, locks and
   // trunnions; the tailwheel stays fixed); priced once, as the tricycle's
@@ -47120,6 +47834,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     ...(TOWH >= 0 ? { towHook: [TOWH] } : {}),       // THE TOW HOOK: the release's node, for the tow line (the key only then)
     ...(mastRef ? { mast: mastRef } : {}),          // THE HANGING NACELLE: the mast (3d; the key only then)
     ...(keelRef ? { keel: keelRef } : {}),          // ...and its keel beam (3e)
+    // SKIS (15 Nov, SNOW-MUD's ask): one record a ski, in the solver's order (out.skiSink[k] / skiLoad[k]: the mains, then the
+    // tail / nose ski) - its node (the pedestal on the axle: the contact acts there), its width and length over the skins,
+    // the toe `fwd` metres ahead of the node and the heel `aft` behind (along the body), main or not, its mounting; `posed`:
+    // the physics already sinks the node into its rut (a visual drop must not sink a ski twice). The key only with skis
+    ...(SKR ? { skis: [GAL, GAR, ...(SKR.third ? [TW] : [])].map((nd, k) => { const r = k < 2 ? SKR.mains : SKR.third;
+      return { nodes: [nd], w: r.Wmax || r.W, L: r.Lmax || r.L, fwd: r.at * (r.Lmax || r.L), aft: (1 - r.at) * (r.Lmax || r.L),
+               main: k < 2, kind: k < 2 ? SKR.kind : r.kind, posed: true }; }) } : {}),
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
     // have to treat the whole wing consistently, and get rid of that
     // different treatment for the central part"). The centre section is
@@ -47164,6 +47885,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // repaint (the paint alone) and a recover (the cloth and its paint) off the airframe actually built (76_ econRestoreCost)
   parts.cover = { paintA: coverA, clothA: clothAll };
   if (podR) parts.pod = podR;   // G2410: the resolved belly pod (absent with none: the parts keep their bytes)
+  if (SKR) parts.ski = SKR;     // SKIS: the resolved ski gear - the solver's contacts and the drag read it (absent: no key)
   // WILGA-GEAR: THE STRUTS, each designed for this aeroplane (62c gearOleoDesign: the charge for the static deflection
   // at the design gross, the second stage, the orifice for the limit sink) - on the final masses: the wheel's static
   // load is the gross's share the mains carry at the built CG (the third wheel's lever arm), split per side. The
@@ -47191,6 +47913,34 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       sd.O = gearOleoDesign(L, LEVREC.geom.comp, W, sink, D);
     }
     parts.lever = LEVREC;
+  }
+  // PC6-OLEO: THE TAIL'S STRUT designed for this aeroplane on the final masses (62c gearOleoDesignTele): the tail wheel's
+  // static share of the gross at the built CG, the limit sink as the Wilga's, GEN_RULES.lever's rules on the drawn
+  // piston; the bearing across the axis at 15 x the strut's static stiffness (~7 mm of give under a side load of the
+  // static's order - as stiff as the bottom stop, which sets the substep: 60 x cost 40 % more substeps), damped at a
+  // third of critical on the wheel's mass
+  if (TWOLEO) {
+    let Mx = 0, Mt = 0;
+    for (const nd of nodes) { Mx += nd.m * nd.p[0]; Mt += nd.m; }
+    const xc = Mx / Math.max(1e-9, Mt), xm = 0.5 * (P[GAL][0] + P[GAR][0]), xt = P[TWOLEO.tw][0];
+    const share = Math.abs(xt - xm) > 0.2 ? Math.max(0.02, Math.min(0.5, (xc - xm) / (xt - xm))) : 0.1;
+    const Wg = Math.max(Mt, gross || 0) * 9.81, W = share * Wg;
+    const WS = (Wg / 4.4482) / (Math.max(1, (S.geom && S.geom.Sw) || 15) * 10.7639);
+    const sink = 0.3048 * Math.max(7, Math.min(10, 4.4 * CORE_MATH.pow(Math.max(1e-6, WS), 0.25)));
+    // THE TAIL'S OWN THREE (DERIVED, the three-point drops of 15 Nov on the PC-6, tools/... tw_drop): a three-point
+    // touchdown loads the tail strut with the aeroplane's pitch-up onto it - 11-12 kN held through the stroke against
+    // its 3.3 kN static share at the limit sink - so its orifice is sized for nLim 9 x the static at cd 1 (the mains'
+    // rule, 2.67 at 0.5, bottomed it at the limit sink with nothing absorbed) and its charge is softer extended (rp 4.5:
+    // the long relaxed stroke a tail oleo hangs out in flight, its gas rising steeply into the stroke's last quarter).
+    // Measured: 1.0 / 1.5 m/s touchdowns 0.20 / 0.21 m of 0.23, no stop; the limit sink a brush of the stop, no set;
+    // 1.2 x it no set; 4.5 - 7.5 m/s sets, nothing broken (the leaf's pyramid: 35 - 61 members broken)
+    const D = Object.assign({}, R.lever, { dPiston: TWOLEO.dPiston || R.lever.dPiston, rp: 4.5, nLim: 9, cd: 1.0 });
+    const O = gearOleoDesignTele(TWOLEO.S, TWOLEO.sSt, W, sink, D);
+    O.Lx = TWOLEO.hd;
+    const mW = Math.max(1, nodes[TWOLEO.tw].m);
+    TWOLEO.O = O; TWOLEO.W = W; TWOLEO.share = share; TWOLEO.sink = sink;
+    TWOLEO.kLat = 15 * O.kSt; TWOLEO.cLat = (1 / 3) * 2 * Math.sqrt(TWOLEO.kLat * mW);
+    parts.twOleo = TWOLEO;
   }
   // G2678: the flown pod's own nodes and members (the damage hook's data: HANDOVER G2675-G2679)
   if (podM) parts.podFrame = podM;
@@ -49310,7 +50060,15 @@ function genParams(S, fr, strips) {
   // HONEST's relative checks are written against (spats buy, tyres cost).
   // Axial only — the cross-flow blobs keep the body's own calibrated numbers.
   const gearDCdA = genGearCdADelta(S, S.geom.semi);
-  const gearCdA = genGearCdA(S, S.geom.semi);
+  let gearCdA = genGearCdA(S, S.geom.semi);
+  // SKIS (29c_ski.js): the skis' own drag (the frame's resolved record); a PLAIN ski replaces its wheel, so that wheel's
+  // bare term comes off (a ski wears no spat: clampSpec). Absent: no term, the sum as it was
+  if (fr.parts && fr.parts.ski) {
+    const SK = fr.parts.ski, R0 = S.gear.wheelR || 0.20, Rt = S.gear.twR || 0.10;
+    gearCdA += SK.cdA - (SK.kind === 'plain' ? 2 * 0.55 * (2 * R0 * 0.76 * R0) : 0)
+                      - (SK.third && SK.third.kind === 'plain' ? 0.55 * (2 * Rt * 0.76 * Rt) : 0);
+    cda.drag.ski = SK.cdA;
+  }
   cda.fusCdA[0] += gearCdA;
   cda.drag.gear = gearCdA;
   // THE NACELLES (G179.5, the user: "add the nacelle drag for wing-mounted
@@ -49509,7 +50267,10 @@ function genParams(S, fr, strips) {
             bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
     // (WILGA-GEAR: a trailing-link leg's struts are no members - each stands in here at its stiffest, bottomed on its
     // stops, so the step is one the integrator carries; its orifice is semi-implicit and asks no step - 62c gearOleoF)
-    ...genSubsteps(fr.nodes, fr.parts && fr.parts.lever ? fr.beams.concat(fr.parts.lever.sides.map(q => ({ a: q.u, b: q.h, k: q.O.kS + q.O.kFull, c: 0, L: q.O.Lx }))) : fr.beams, fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
+    // (PC6-OLEO: the telescopic tail strut likewise - its stop and its bearing as two members on the wheel and the foot)
+    ...genSubsteps(fr.nodes, (fr.parts && fr.parts.lever ? fr.beams.concat(fr.parts.lever.sides.map(q => ({ a: q.u, b: q.h, k: q.O.kS + q.O.kFull, c: 0, L: q.O.Lx }))) : fr.beams)
+                    .concat(fr.parts && fr.parts.twOleo && fr.parts.twOleo.O ? [{ a: fr.parts.twOleo.tw, b: fr.parts.twOleo.ob, k: fr.parts.twOleo.O.kS + fr.parts.twOleo.O.kFull, c: 0, L: fr.parts.twOleo.hd },
+                                                                              { a: fr.parts.twOleo.tw, b: fr.parts.twOleo.ob, k: fr.parts.twOleo.kLat, c: fr.parts.twOleo.cLat, L: fr.parts.twOleo.hd }] : []), fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
     polarWing, polarTail, polarFin,
     // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —
     // GATE GEN's G9 and every reader of the flat name keep working)
@@ -49895,6 +50656,35 @@ function gearOleoDesign(L, angFull, W, sink, D) {
   O.sSt = sSt; O.angSt = aSt; O.mrSt = mrSt; O.Fst = Fst; O.kFull = kFull;
   return O;
 }
+// PC6-OLEO: THE TELESCOPIC STRUT (the PC-6's tailwheel: an oleo whose piston carries the axle straight along the
+// strut's axis - a motion ratio of 1, the wheel's travel IS the stroke). gearOleoDesign's rules, every one, on the
+// stroke S (m) and the static stroke sSt (m: the charge, the static deflection at the design gross); W the wheel's static
+// load (N), sink the limit sink (m/s), D GEN_RULES.lever with the strut's own piston (D.dPiston)
+function gearOleoDesignTele(S, sSt, W, sink, D) {
+  const A = Math.PI * 0.25 * D.dPiston * D.dPiston, n = D.n;
+  const Fst = W, Pst = Fst / A + GEAR_PA, P1 = Pst / D.rp;
+  const V1 = A * sSt / (1 - CORE_MATH.pow(D.rp, -1 / n));
+  const P2 = D.p2k * Pst, s2 = (V1 / A) * (1 - CORE_MATH.pow(P1 / P2, 1 / n));
+  const Ptgt = D.nFull * W / A + GEAR_PA;
+  let V2 = 0;
+  if (s2 < S) {
+    const pAt = v => P2 * CORE_MATH.pow((V1 + v - A * s2) / Math.max(1e-12, V1 + v - A * S), n);
+    let lo = 0, hi = 50 * V1;
+    for (let k = 0; k < 80; k++) { const m = 0.5 * (lo + hi); if (pAt(m) > Ptgt) lo = m; else hi = m; }
+    V2 = 0.5 * (lo + hi);
+  }
+  const O = { Lx: 0, S, A, n, P1, V1, P2, V2, s2, kc: 0, kr: 0, cl: 0, kS: 0 };
+  const kFull = (gearOleoSpring(O, S) - gearOleoSpring(O, S - 1e-4)) / 1e-4;
+  O.kS = D.stopK * kFull;
+  const Flim = D.nLim * W;
+  O.kc = D.cd * Flim / (sink * sink);
+  O.kr = D.rb * O.kc;
+  const kSt = (gearOleoSpring(O, sSt + 1e-4) - gearOleoSpring(O, sSt - 1e-4)) / 2e-4;
+  O.cl = D.zl * 2 * Math.sqrt(kSt * (W / 9.81));
+  O.ff = D.ff * Fst; O.vf = D.vf;
+  O.sSt = sSt; O.mrSt = 1; O.Fst = Fst; O.kFull = kFull; O.kSt = kSt;
+  return O;
+}
 // THE PART'S POSE FROM ITS NODES: the rigid transform (3 x 4 row-major, gearMechPose's shape) taking the rest points
 // r[0..2] onto the current c[0..2] - a triad on the first three (origin r0, axis r0->r1, the plane with r2). The garage
 // poses the drawn arm and strut with it from gearLeverAt's points; the flight from the solver's nodes; so the two
@@ -49921,7 +50711,7 @@ function gearLeverRef(o, legDir) {
   return { piv, horn, top, w: o.w, comp: (o.ang - o.comp) * D };
 }
 const GEAR_LEVER = { GEAR_PA, gearLeverRef, gearLeverTurn, gearLeverInit, gearLeverAt, gearLeverAngOf, gearLeverMR, gearOleoP, gearOleoSpring,
-                     gearOleoF, gearOleoDesign, gearNodeFrame };
+                     gearOleoF, gearOleoDesign, gearOleoDesignTele, gearNodeFrame };
 // ============================================================
 // THE WING, AND THE MESH TOOLS THE GENERATOR IS BUILT FROM.
 //
@@ -68354,7 +69144,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_TIP_SKID, genTipSkidZ, GEN_HANG, genGearCdA, genCertGroundLoads, GEN_BRAKES, genBrakeOf, GEN_FICHE_PAGES_V, genFichePages, genFicheModel, genFicheLoad, genFicheDestroy, genFicheDrag, genFicheGearTerms, genFicheElec, genFicheTanks, GEN_COOL, genCooling, genCoolOpen, genCoolOilC, genCoolSummary, genHeadsFrontal, genCoolRows, genFicheCooling, RESTORE_WORDS, RESTORE_STEPS, restoreStage, playerRestoreState, playerRestoreStart, playerRestoreSettle, STORY_JOB, STORY_DAY1, STORY_CHECKPOINT, storyCheckpoint, storySkip, STORY_EDIT_SKIP, storyEditDiff, storyEditDone, STORY_BUILDS, storyBuildDone, storyBuildList, storyBuildSteps, storyBuildEntries, missionPackUse, missionProjectNormalise, missionProjectsWhy, missionProjectNeeds, careerProjectsTick, MISSION_DAY_S, GEN_ELEC_SETS, GEN_ELEC_AS_BUILT, genElecSetOf, genHarnessKg, GEN_STRUT_OPT, genStrutOpts, genStrutOptCdA, GROUND_SOFT, GROUND_SKI_MU, TYRE_SOFT, tyreFootprint, GROUND_SINK, groundSinkWheel, groundBullWheel, groundSinkPlate, groundSinkPose, groundSinkMatrix };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL, GEN_TIP_SKID, genTipSkidZ, GEN_HANG, genGearCdA, genCertGroundLoads, GEN_BRAKES, genBrakeOf, GEN_FICHE_PAGES_V, genFichePages, genFicheModel, genFicheLoad, genFicheDestroy, genFicheDrag, genFicheGearTerms, genFicheElec, genFicheTanks, GEN_COOL, genCooling, genCoolOpen, genCoolOilC, genCoolSummary, genHeadsFrontal, genCoolRows, genFicheCooling, RESTORE_WORDS, RESTORE_STEPS, restoreStage, playerRestoreState, playerRestoreStart, playerRestoreSettle, STORY_JOB, STORY_DAY1, STORY_CHECKPOINT, storyCheckpoint, storySkip, STORY_EDIT_SKIP, storyEditDiff, storyEditDone, STORY_BUILDS, storyBuildDone, storyBuildList, storyBuildSteps, storyBuildEntries, missionPackUse, missionProjectNormalise, missionProjectsWhy, missionProjectNeeds, careerProjectsTick, MISSION_DAY_S, GEN_ELEC_SETS, GEN_ELEC_AS_BUILT, genElecSetOf, genHarnessKg, GEN_STRUT_OPT, genStrutOpts, genStrutOptCdA, GROUND_SOFT, GROUND_SKI_MU, TYRE_SOFT, tyreFootprint, GROUND_SINK, groundSinkWheel, groundBullWheel, groundSinkPlate, groundSinkPose, groundSinkMatrix, SKI_RULES, SKI_SOFT, skiResolve, skiSimMake, skiHeight, skiPlan, skiTyreW, SKI_LAT, SKI_ALU_MU, SKI_WATER_MU };
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
 // worktree) runs an older core than its src/core says - DMG-COMPOSITE's "Jodel 154 -> 204" (read as V8's optimiser) was, to

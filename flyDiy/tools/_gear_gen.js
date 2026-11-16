@@ -53,6 +53,10 @@ const MAT = {
   dark:    lam(0x3a4048),      // rubber, boots, bungee
   bronze:  lam(0xa8843c),      // bushes, castor pivot
   fair:    lam(0xcfd6de),      // spats
+  // SKIS (13 Nov): the shell's finishes (the SS2300's standard white; red, yellow, black, the carbon weave), the UHMW
+  // bottom skins, the non-skid walk, the heel wheel's polyurethane tyre
+  skiWhite: lam(0xf1f0ea), skiRed: lam(0xb8261e), skiYellow: lam(0xe9b81c), skiBlack: lam(0x1c1d20), skiCarbon: lam(0x2b2e33),
+  skiSole: lam(0xf6f5f0), skiPad: lam(0x1a1b1d), skiHeel: lam(0xe3a91e),
   mark:    new THREE.MeshBasicMaterial({ color: 0xff4d3d }),  // pre-ok: a bench marker (not used in the world)
 };
 
@@ -1890,25 +1894,221 @@ function legOleo(bags, AF, P, st, sgn) {
 // makes the wheel follow and self-centre. Steering springs and chains run
 // from the steering arm to the rudder horn; past `breakout` degrees the
 // unit unlocks and free-castors.
+// PC6-TAILWHEEL: the oleo's rake (its foot aft of its top), the piston's run below the collar (to just above the
+// tyre) and how far ahead of the strut the V's hinge and the stabiliser's node sit - one source for the leg and castor
+const PC6_RAKE = 8 * D2R;
+const PC6_GUARD_SGN = 1;   // (sweep's second section axis against the arc's outward radial)
+// (the crosshead stands 7 cm over the tyre's crown: room for the mudguard's channel and its spoke under it)
+function pc6PistonRun(hd, R) { return Math.max(0.05, hd - R - 0.07); }
+// PC6-FITTINGS (15 Nov, the user: "proper attachments to the fuselage. Real technique and elements, no smooth shaded
+// boxes, pro quality"; "all your connections and hinge points are clean, everything has a fixation plate"): the parts
+// a welded-and-bolted tail gear is assembled from, so every joint reads as the hardware it is -
+//   pcPlate   a machined plate (radiused corners, a real edge) with its rivets or bolts in rows;
+//   pcClevis  two lugs and the pin through them, a nut on its end;
+//   pcEye     the bored boss a member ends in, between a clevis's lugs or a gusset pair;
+//   pcNut     a hex nut (with bolt(): a hex head and a shank).
+// PC6-BILL (15 Nov, the user via A0: "proper price and weight billing for the new tailwheel ... such a specialised
+// tailwheel would be a bit more expensive"): every part weighed from its drawn size and its material, and priced as
+// the part it is. Densities (kg/m3): steel 7850 (4130 tube, the chromed piston, the forged crosshead), aluminium
+// forging 2800 (the V, its bands, the plates), hydraulic oil 870. Prices DERIVED (USD, 2026) from the anchors named in
+// pc6Price below; `at` says which node carries the part in the flight (cyl: the cylinder's anchors, slider: the
+// wheel, stab: the stabiliser's node)
+const PC6_RHO = { steel: 7850, alloy: 2800, oil: 870 };
+const pcTube = (od, wall, L, rho) => Math.PI * Math.max(0, od - wall) * wall * L * rho;   // a tube's mass, its mean wall
+const pcBar = (a, b, L, rho, fill) => a * b * L * rho * (fill || 1);                         // a bar's (fill: lightened)
+// THE PRICES (USD, DERIVED - no PC-6 tail gear price is published): the anchors - a complete ABI/Scott 3200 leaf
+// tailwheel ~$1 410 and ~4.1 kg (Wagaero; Aircraft Spruce: "approximately 9 lbs"); an Aeronca oleo shock strut, 1.75 in,
+// $2 357 (Aircraft Spruce 05-08750); a 14 in heavy tailwheel assembly $7 085 (McFarlane). The strut unit here (a 2.4 in
+// piston: the cylinder, the piston, the seals and the charging valve) at the Aeronca's scaled by its bore, $3 400; the
+// machined and forged parts at shop rates; the wheel and tyre (the frame's row) $500. Sum ~$7 700: ~6.4 x the game's
+// $1 200 third wheel, beside the McFarlane heavy assembly
+const PC6_USD = { 'oleo cylinder': 1900, 'oleo charge (oil, gas valve, seals)': 400, 'oleo piston (chromed)': 1100,
+  'clamps and bulkhead plates (2)': 600, 'stabiliser tubes (3, 4130)': 450, 'belly doublers, clevises, link band': 250,
+  'steering collar and ears': 450, 'crosshead (forged)': 350, 'fork legs and axle': 300,
+  'V upper arm and hinge pin (forged alloy)': 500, 'V bands (2, forged alloy)': 350,
+  'steering arm, cables and springs': 300, 'mudguard, strap and doubler': 250 };
+function pc6Price(bill) { for (const b of bill) b.usd = PC6_USD[b.part] || 0; return bill; }
+function pcSecPlate(a, b, r) {               // a rounded rectangle, a along the sweep's reference, b across, corners r
+  const out = [], A = 3, ha = Math.max(1e-4, a / 2 - r), hb = Math.max(1e-4, b / 2 - r);
+  for (const [cx, cy, a0] of [[ha, hb, 0], [-ha, hb, Math.PI / 2], [-ha, -hb, Math.PI], [ha, -hb, -Math.PI / 2]])
+    for (let k = 0; k <= A; k++) { const q = a0 + (Math.PI / 2) * k / A; out.push([cx + Math.cos(q) * r, cy + Math.sin(q) * r]); }
+  return out;
+}
+function pcRivet(bag, p, n, r) { revolve(bag, p, n, [[r, 0], [r * 0.85, r * 0.4], [r * 0.45, r * 0.68], [0.0002, r * 0.75]], 8, true); }
+function pcNut(bag, p, d, R) { revolve(bag, p, d, [[R, 0], [R, R * 0.8]], 6, true); }
+// c: the point of the surface it sits on; n: out of that surface; u: the plate's length L; nf: fasteners 2 / 4 / 6
+function pcPlate(bag, fast, c, n, u, L, W, t, nf, boltR) {
+  const r = Math.min(L, W) * 0.22;
+  sweep(bag, [c, off(c, n, t)], () => pcSecPlate(L, W, r), true, u);
+  if (!nf || !fast) return;
+  const v = nrm(crs(n, u)), top = off(c, n, t), eL = L / 2 - r * 0.85, eW = W / 2 - r * 0.85;
+  const pts = nf >= 6 ? [[-1, -1], [0, -1], [1, -1], [-1, 1], [0, 1], [1, 1]] : nf >= 4 ? [[-1, -1], [1, -1], [1, 1], [-1, 1]] : [[-1, 0], [1, 0]];
+  for (const [a, b] of pts) {
+    const q = add(top, add(mul(u, a * eL), mul(v, b * eW)));
+    if (boltR) bolt(fast, off(q, n, boltR * 0.34), n, boltR, 0.004); else pcRivet(fast, q, n, Math.max(0.0022, Math.min(L, W) * 0.045));
+  }
+}
+// the pin's axis `pin`, the lugs rising along `up` from a root `reach` behind the eye; gap between the lugs
+function pcClevis(bag, fast, eye, pin, up, R, t, gap, reach) {
+  for (const s of [-1, 1]) lug(bag, off(eye, pin, s * (gap / 2 + t / 2)), pin, up, R, t, reach);
+  const L = gap + 2 * t + 0.010, b0 = off(eye, pin, -(gap / 2 + t + 0.002));
+  bolt(fast, b0, pin, R * 0.42, L);
+  pcNut(fast, off(eye, pin, gap / 2 + t + 0.001), pin, R * 0.62);
+}
+function pcEye(bag, p, pin, R, w) { revolve(bag, off(p, pin, -w / 2), pin, [[R, 0], [R, w]], 14, true); }
+
+function pc6Ahead(R) { return Math.max(0.16, 1.7 * R); }
+// the stroke's end: the crosshead stops under the collar's wiper (the piston's shortest show)
+function pc6CompMax(P, R) {
+  const Dp = Math.max(0.03, +P.twPostD || 0.07), hd = +P.twLegDrop || 0.3;
+  return Math.max(0, hd - (R + 0.07 + Dp * 1.3));
+}
+// THE SCISSOR (PC6-OLEO): the upper arm from the collar's pin `E` to the hinge, the lower from the hinge to the axle, their
+// lengths the relaxed pose's (the hinge half way down the relaxed drop, pc6Ahead forward); under a compression `comp`
+// the axle rides up the axis and the hinge is the forward crossing of the two circles (in the strut's plane: W ahead,
+// -ax up). ok false = the arms cannot reach (a lock-out the mechanism check catches); reach = the hinge's swing
+function pc6Scissor(top, ax, W, E, hdR, trail, R, comp) {
+  const UP = mul(ax, -1), pl = p => [dot(sub(p, top), W), dot(sub(p, top), UP)];
+  const at = (w, u) => add(top, add(mul(W, w), mul(UP, u)));
+  const hub0 = add(off(top, ax, hdR), mul(W, -trail)), apex0 = add(off(top, ax, 0.5 * hdR), mul(W, pc6Ahead(R)));
+  const [ew, eu] = pl(E), [aw, au] = pl(apex0), [hw0, hu0] = pl(hub0);
+  const a = Math.hypot(aw - ew, au - eu), b = Math.hypot(aw - hw0, au - hu0);
+  const hub = add(off(top, ax, hdR - comp), mul(W, -trail)), [hw, hu] = pl(hub);
+  const dw = hw - ew, du = hu - eu, d = Math.hypot(dw, du);
+  const ok = d <= a + b - 1e-6 && d >= Math.abs(a - b) + 1e-6;
+  const x = (a * a - b * b + d * d) / (2 * d), h = Math.sqrt(Math.max(0, a * a - x * x));
+  const bw = ew + dw * x / d, bu = eu + du * x / d, pw = -du / d, pu = dw / d;
+  const s1 = [bw + pw * h, bu + pu * h], s2 = [bw - pw * h, bu - pu * h];
+  const s = s1[0] >= s2[0] ? s1 : s2, apex = at(s[0], s[1]);
+  return { apex, a, b, ok, uDir: nrm(add(nrm(sub(apex, E)), nrm(sub(apex, hub)))), reach: s[0] - aw };
+}
 function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
-  const rake = P.twRake * D2R;
-  // swivel axis: down, tilted top-forward (+z is the nose)
-  const ax = nrm([0, -Math.cos(rake), Math.sin(rake)]);
+  const rake = P.twRake * D2R, pc6 = Math.round(+P.twStyle || 0) === 1, Dp = Math.max(0.03, +P.twPostD || 0.07);
+  // swivel axis: down, tilted top-forward (+z is the nose); the PC-6's oleo: its own axis, the foot aft (PC6_RAKE)
+  const ax = pc6 ? nrm([0, -Math.cos(PC6_RAKE), -Math.sin(PC6_RAKE)]) : nrm([0, -Math.cos(rake), Math.sin(rake)]);
   const fwd = nrm(sub([0, 0, 1], mul(ax, dot([0, 0, 1], ax))));
   const side = crs(ax, fwd);
   const yaw = steer * D2R;
   const F = v => rot(v, ax, yaw);            // steered frame
-  // the housing on the swivel axis
-  revolve(bags.alloy, top, ax,
+  // the housing on the swivel axis (the PC-6: the steering collar at the cylinder's foot, drawn below)
+  if (!pc6) revolve(bags.alloy, top, ax,
           [[0.026, -0.010], [0.030, 0.004], [0.030, CASTOR_HOUSE - 0.010],
            [0.022, CASTOR_HOUSE]],
           18, true);
-  revolve(bags.bronze, off(top, ax, 0.060), ax,
+  if (!pc6) revolve(bags.bronze, off(top, ax, 0.060), ax,
           [[0.016, 0], [0.016, 0.020]], 14, true);
-  // the fork: offset BEHIND the axis by trail, straddling the wheel
-  const hub = add(off(top, ax, P.twLegDrop), mul(F(fwd), -P.twTrail));
+  // the fork: offset BEHIND the axis by trail, straddling the wheel (PC6-OLEO: the hub rides the stroke - `_twComp`, a
+  // runtime compression in metres from the drawn, RELAXED pose; the game and the mechanism check hand it in)
+  const comp = pc6 ? Math.max(0, Math.min(pc6CompMax(P, R), +P._twComp || (typeof window !== 'undefined' && +window.PC6_COMP) || 0)) : 0;   // (window.PC6_COMP: a preview's pose, quickshot --pc6comp)
+  const hub = add(off(top, ax, P.twLegDrop - comp), mul(F(fwd), -P.twTrail));
   const yoke = off(top, ax, P.twLegDrop * 0.42);
   const yokeC = add(yoke, mul(F(fwd), -P.twTrail * 0.55));
+  // PC6-TAILWHEEL (twStyle 1, the user's drawing over the render): below the collar everything turns with the wheel -
+  //   the PISTON down to just above the tyre, a CROSSHEAD across the tyre at its foot;
+  //   the "V on its side": its top member a U band clasping the collar, closed round a hinge AHEAD (pc6Ahead) and half
+  //     way down; its lower members two bands, one each side of the wheel, from that hinge straight to the axle - a
+  //     trailing link; the crosshead's two links press on them (the oleo is the link's spring);
+  //   the steering cables hook at the hinge (the ears); a little MUDGUARD over the tyre's top and front.
+  let vP = null, pc6Out = null, pc6Arm = 0;
+  if (pc6) {
+    // THE PARTS, each its own bag-set when the caller hands them (bags.pc6: the game poses each by the stroke): the
+    // COLLAR (turns with the steering only), the UPPER arm of the V (turns, and swings on the collar's pin), the LOWER
+    // arms (turn, swing on the axle), the SLIDER (turns and strokes: the piston, the crosshead, the fork, the axle, the
+    // mudguard - and the wheel the game hangs in it)
+    const PB = bags.pc6 || { collar: bags, upper: bags, lower: bags, slider: bags };
+    const hdR = P.twLegDrop, bx = R * 0.46, S = F(side), W = F(fwd), UP = mul(ax, -1);
+    const pB = off(top, ax, pc6PistonRun(hdR - comp, R));
+    const tB = Dp * 0.16, tU = Dp * 0.18, wU = Dp * 0.75, wA = Dp * 0.55, xH = bx + tB / 2 + 0.012;
+    // the steering collar (a ring round the cylinder's foot, the swivel's bearing) and its two ears forward
+    revolve(PB.collar.alloy, off(top, ax, -0.004), ax, [[Dp * 0.62, 0], [Dp * 0.66, Dp * 0.06], [Dp * 0.66, Dp * 0.50], [Dp * 0.62, Dp * 0.56]], 24, true);
+    const eC = add(off(top, ax, Dp * 0.28), mul(W, Dp * 0.62 + Dp * 0.30));
+    for (const s of [-1, 1]) lug(PB.collar.steel, add(eC, mul(S, s * (wU - tU / 2 - 0.003))), S, W, Dp * 0.24, 0.006, Dp * 0.30 + Dp * 0.4);
+    bolt(PB.collar.steel, add(eC, mul(S, -(wU + tU / 2 + 0.002))), S, Dp * 0.10, 2 * wU + tU + 0.012);
+    pcNut(PB.collar.steel, add(eC, mul(S, wU + tU / 2 + 0.001)), S, Dp * 0.15);
+    // THE V IS A SCISSOR: the upper arm's length (the ears' pin to the hinge) and the lower's (the hinge to the axle) are
+    // the RELAXED pose's; under a stroke the hinge is where both still reach - the two circles' forward crossing
+    const V = pc6Scissor(top, ax, W, eC, hdR, P.twTrail, R, comp);
+    vP = V.apex;
+    // the piston: chromed, its wiper under the collar, a boss into the crosshead
+    sweep(PB.slider.alloy, resample([off(top, ax, 0.01), pB], 6), () => secRound(Dp * 0.36, 16), true, S);
+    revolve(PB.collar.alloy, off(top, ax, Dp * 0.56), ax, [[Dp * 0.45, 0], [Dp * 0.40, Dp * 0.16]], 16, true);
+    revolve(PB.slider.steel, off(pB, ax, -Dp * 0.55), ax, [[Dp * 0.42, 0], [Dp * 0.48, Dp * 0.30]], 16, true);
+    // the crosshead: a machined bar across the tyre; the FORK: a flat leg from each end straight down to the axle
+    sweep(PB.slider.steel, [add(pB, mul(S, -(xH + 0.008))), add(pB, mul(S, xH + 0.008))], () => pcSecPlate(Dp * 0.75, Dp * 0.5, Dp * 0.12), true, W);
+    for (const s of [-1, 1]) {
+      const c0 = add(pB, mul(S, s * xH)), c1 = add(hub, mul(S, s * xH)), dd = nrm(sub(c1, c0));
+      sweep(PB.slider.steel, resample([add(c0, mul(dd, Dp * 0.2)), c1], 6), () => secBlade(Dp * 0.55, 0.008), true, nrm(crs(dd, S)));
+      pcEye(PB.slider.steel, c1, S, Dp * 0.30, 0.009);
+      pcNut(PB.slider.steel, add(hub, mul(S, s * (xH + 0.0045))), mul(S, s), Dp * 0.22);
+    }
+    sweep(PB.slider.alloy, [add(hub, mul(S, -(xH + 0.006))), add(hub, mul(S, xH + 0.006))], () => secRound(Dp * 0.13, 12), true, W);   // the axle
+    // THE V: its top member a U of flat bar from the collar's ears round the hinge; the hinge pin, its nut
+    const Upath = [add(eC, mul(S, -wU)), add(add(vP, mul(S, -wA)), mul(V.uDir, Dp * 0.5)),
+                   add(add(vP, mul(S, wA)), mul(V.uDir, Dp * 0.5)), add(eC, mul(S, wU))];
+    sweep(PB.upper.steel, resample(fillet(Upath, Dp * 0.4), 16), () => secBlade(tU, Dp * 0.6), true, S);
+    bolt(PB.upper.steel, add(vP, mul(S, -(wA + tB + 0.006))), S, Dp * 0.13, 2 * (wA + tB) + 0.016);
+    pcNut(PB.upper.steel, add(vP, mul(S, wA + tB + 0.004)), S, Dp * 0.19);
+    // THE STEERING ARM (the user: "how could strings move that wheel?"): a cross-bar on the hinge's pin, its eyes ~0.7 R
+    // each side - the cables pull across the strut's axis there, and the scissor (stiff in twist: what a torque link is
+    // for) turns the collar, the piston and the wheel together. The ears (castorUnit's, where the runs hook) are its eyes
+    const armS = Math.max(0.10, 0.7 * R);
+    sweep(PB.upper.steel, [add(vP, mul(S, -armS)), add(vP, mul(S, armS))], () => secRound(Dp * 0.17, 12), true, W);
+    for (const s of [-1, 1]) revolve(PB.upper.steel, add(add(vP, mul(S, s * armS)), mul(UP, -Dp * 0.06)), UP, [[Dp * 0.26, 0], [Dp * 0.26, Dp * 0.12]], 12, true);
+    for (const s of [-1, 1]) {
+      // ...its lower members: a flat bar each side of the wheel, an eye at the hinge, an eye on the axle inside the fork
+      const a0 = add(vP, mul(S, s * wA)), a1 = add(hub, mul(S, s * bx)), d = sub(a1, a0), dn = nrm(d);
+      sweep(PB.lower.steel, resample([add(a0, mul(dn, Dp * 0.25)), add(a1, mul(dn, -Dp * 0.25))], 6), () => secBlade(Dp * 0.6, tB), true, nrm(crs(d, S)));
+      pcEye(PB.lower.steel, a0, S, Dp * 0.32, tB);
+      pcEye(PB.lower.steel, a1, S, Dp * 0.36, tB);
+    }
+    // THE MUDGUARD: a channel (a U section round the tyre's crown, its flanges down the sides) over the top, and the
+    // central spoke - a strap from the crosshead's underside to the channel's back, bolted at both ends
+    {
+      const TY = TYRE[Math.round(P.whProfile || 0)] || TYRE[0];
+      const hw = Math.min(R * TY.hw * (TY.bulge || 1) + 0.010, bx - tB / 2 - 0.004), rg = R + 0.022, fd = R * 0.30, tg = 0.003;
+      const a0 = 40, a1 = 150, N = 18, arc = [];
+      for (let k = 0; k <= N; k++) { const a = (a0 + (a1 - a0) * k / N) * D2R; arc.push(add(hub, mul(add(mul(W, Math.cos(a)), mul(UP, Math.sin(a))), rg))); }
+      // the channel's section across the tyre (x along the axle, y out from the hub: the crown at 0, the flanges down)
+      const U = [[-hw, -fd], [-hw + tg, -fd], [-hw + tg, -tg], [hw - tg, -tg], [hw - tg, -fd], [hw, -fd], [hw, 0], [-hw, 0]];
+      sweep(PB.slider.alloy, arc, () => U.map(([x, y]) => [x, PC6_GUARD_SGN * y]), true, S);
+      const rel = sub(pB, hub), aS = Math.atan2(dot(rel, UP), dot(rel, W)), rS = add(mul(W, Math.cos(aS)), mul(UP, Math.sin(aS)));
+      const gTop = add(hub, mul(rS, rg)), xBot = add(pB, mul(UP, -Dp * 0.25));
+      if (dot(sub(xBot, gTop), rS) > 0.008) {
+        sweep(PB.slider.steel, [gTop, xBot], () => secBlade(Dp * 0.55, 0.005), true, S);
+        pcPlate(PB.slider.alloy, PB.slider.steel, gTop, rS, S, Dp * 1.4, Dp * 0.9, 0.003, 4);
+        bolt(PB.slider.steel, add(xBot, mul(rS, -0.004)), rS, Dp * 0.09, 0.012);
+      }
+    }
+    // THE GAME'S TABLE (PC6-OLEO): over the stroke, the V's upper arm's swing about the collar's pin (phi) and the lower
+    // bands' about the axle (psi), signed about the pin's axis S, from the relaxed pose - the flight poses the arms by it
+    // off the wheel node's travel up the axis (app.js castorTu / castorTl), so they are this solver's to the bit
+    const sgnA = (a, b) => Math.atan2(dot(crs(a, b), S), dot(a, b));
+    const hubAt = c => add(off(top, ax, hdR - c), mul(W, -P.twTrail));
+    const V0 = pc6Scissor(top, ax, W, eC, hdR, P.twTrail, R, 0), hub0 = hubAt(0), tab = { comp: [], phi: [], psi: [] };
+    const cM = pc6CompMax(P, R);
+    for (let k = 0; k <= 24; k++) {
+      const c = cM * k / 24, Vk = pc6Scissor(top, ax, W, eC, hdR, P.twTrail, R, c), hk = hubAt(c);
+      tab.comp.push(c); tab.phi.push(sgnA(sub(V0.apex, eC), sub(Vk.apex, eC))); tab.psi.push(sgnA(sub(V0.apex, hub0), sub(Vk.apex, hk)));
+    }
+    // PC6-BILL: the moving parts from their drawn sizes (the relaxed pose: comp 0) - the piston (chromed 4130, 3 mm wall,
+    // its run and a third of the cylinder inside), the collar and its ears, the crosshead (forged, 45 % of its block),
+    // the fork's legs and the axle, the V (forged alloy: the U and its pin, the two bands), the steering arm and the
+    // cables with their springs (~0.9 m a side), the mudguard (3 mm alloy sheet, its strap and doubler)
+    const RH = PC6_RHO, run0 = pc6PistonRun(hdR, R), V00 = pc6Scissor(top, ax, W, eC, hdR, P.twTrail, R, 0);
+    const TYb = TYRE[Math.round(P.whProfile || 0)] || TYRE[0], hwb = Math.min(R * TYb.hw * (TYb.bulge || 1) + 0.010, bx - tB / 2 - 0.004);
+    const pc6Bill = [
+      { part: 'oleo piston (chromed)', at: 'slider', kg: pcTube(0.72 * Dp, 0.003, run0 + 0.33 * hdR, RH.steel) },
+      { part: 'steering collar and ears', at: 'cyl', kg: Math.PI * 0.25 * ((1.32 * Dp) ** 2 - Dp * Dp) * 0.56 * Dp * RH.steel + 0.12 },
+      { part: 'crosshead (forged)', at: 'slider', kg: pcBar(2 * (xH + 0.008), 0.75 * Dp, 0.5 * Dp, RH.steel, 0.45) },
+      { part: 'fork legs and axle', at: 'slider', kg: 2 * pcBar(0.55 * Dp, 0.008, hdR - run0, RH.steel) + pcBar(0.26 * Dp, 0.26 * Dp, 2 * xH, RH.steel, 0.6) },
+      { part: 'V upper arm and hinge pin (forged alloy)', at: 'slider', kg: pcBar(tU, 0.6 * Dp, 2 * V00.a + 0.1, RH.alloy) + 0.12 },
+      { part: 'V bands (2, forged alloy)', at: 'slider', kg: 2 * pcBar(0.6 * Dp, tB, V00.b, RH.alloy) },
+      { part: 'steering arm, cables and springs', at: 'slider', kg: pcTube(0.34 * Dp, 0.003, 2 * armS, RH.steel) + 2 * (0.9 * 0.03 + 0.08) },
+      { part: 'mudguard, strap and doubler', at: 'slider', kg: (R + 0.022) * (110 * D2R) * (2 * hwb + 2 * R * 0.30) * 0.003 * RH.alloy + 0.12 },
+    ];
+    pc6Arm = armS;
+    pc6Out = { pin: eC, apex: vP, hub, hub0, pB, comp, compMax: cM, armS, bill: pc6Bill, a: V.a, b: V.b, reach: V.reach, ok: V.ok, wA, bx, xH, S, W, ax, top, tab };
+  } else {
   boxIn(bags.steel, yokeC, [0.030, 0.014, 0.026],
         F(side), ax, F(fwd));
   for (const s of [-1, 1]) {
@@ -1918,10 +2118,11 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
                                       0.03), 10),
           t => secBlade(0.026 - 0.006 * t, 0.012), true, F(fwd));
   }
-  taper(bags.alloy, add(hub, mul(F(side), -R * 0.56)),
+  }
+  if (!pc6) taper(bags.alloy, add(hub, mul(F(side), -R * 0.56)),
         add(hub, mul(F(side), R * 0.56)), 0.011, 0.011, 12);
   // the STEERING ARM and its springs/chains to the rudder horn
-  if (showLink && P.twSteerVis) {
+  if (showLink && P.twSteerVis && !pc6) {
     for (const s of [1, -1])
       sweep(bags.alloy, resample([off(top, ax, 0.030),
               add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
@@ -1954,7 +2155,7 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
     // old picture (showLink === true).
     if (showLink === true)
       for (const s of [1, -1]) {
-        const e = add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
+        const e = pc6 ? add(vP, mul(F(side), s * pc6Arm)) : add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
                       mul(F(side), s * 0.052));
         const h = add(horn, mul(side, s * 0.045));
         steerRun(bags, e, h);
@@ -1962,10 +2163,11 @@ function castorUnit(bags, P, top, sgn, R, steer, showLink, hornClamp) {
       }
   }
   // the steering arm's two ears — where a spring hooks on — port first
-  const ears = [1, -1].map(s => add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
+  const ears = pc6 ? [1, -1].map(s => add(vP, mul(F(side), s * pc6Arm)))
+                   : [1, -1].map(s => add(add(off(top, ax, 0.030), mul(F(fwd), -0.010)),
                                     mul(F(side), s * 0.052)));
   // (G3800: no link, no ears - a lockable or a fixed wheel has no steering arm for the springs to hook on)
-  return { hub, axis: F(side), ax, top, trail: P.twTrail, ears: showLink ? ears : null };
+  return { hub, axis: F(side), ax, top, trail: P.twTrail, ears: showLink ? ears : null, pc6: pc6Out };
 }
 
 // ONE STEERING RUN: a coil spring at the wheel end (`e`, the steering arm's
@@ -2614,10 +2816,124 @@ function legTailwheel(bags, AF, P, st) {
   const rise = st.rodRise || (st.mount && st.mount.rise) || 0;
   // G3800: a mount may carry its own keel and its own line (a twin boom's: the boom's belly, off the centreline)
   const keelAt = (st.mount && st.mount.keelAt) || AF.keelAt, x0 = (st.mount && st.mount.x0) || 0;
-  const tip = [x0, keelAt(st.z) - P.twSpringDrop - rise, tipZ];
+  let tip = [x0, keelAt(st.z) - P.twSpringDrop - rise, tipZ];   // (let: the oleo style moves it under the strut)
   const ctrl = [x0, root[1] - P.twSpringDrop * 0.30,
                 lerp3(root, tip, 0.55)[2]];
   const path = resample(bez(root, ctrl, tip, 12), 16);
+  // PC6-TAILWHEEL (15 Nov, the user's own drawing over the render, the last word on it): the OLEO style (twStyle 1,
+  // absent 0) is a TRAILING LINK -
+  //   the CYLINDER (fixed, "spans the full height of the fuselage") clamped along the tail's aft face, its foot at the
+  //     keel ~8 deg aft of its top; the steering COLLAR at its foot is the castor's top (the swivel);
+  //   below the fuselage everything turns with the wheel (castorUnit, pc6): the PISTON down to just above the tyre, a
+  //     crosshead over the tyre; the "V on its side": its top member a U clasping the collar out to a hinge AHEAD, its
+  //     lower members two bands (one each side of the wheel) from that hinge straight to the axle, the crosshead's links
+  //     pressing on them; the steering cables hook at the V's hinge; a little mudguard;
+  //   the STABILISER (fixed, `twGuard` 0 drops it): two tubes from the belly ahead converging on a node low and forward,
+  //     a link from that node aft to the piston's foot (on the swivel's axis, so the steering does not move it).
+  // The wheel hangs `twLegDrop` below the collar (the contact: the keel less that drop less the radius); the collar sits
+  // `twSpringDrop` below the keel. A skid keeps its leaf
+  let pc6Rec = null;   // (PC6-OLEO: the strut's record for the flight: the join hands it to the frame as gear.twOleo)
+  if (Math.round(+P.twStyle || 0) === 1 && st.steer !== 4) {
+    const D = Math.max(0.03, +P.twPostD || 0.07), Lp = Math.max(0.10, +P.twPostLen || 0.28), RAKE = PC6_RAKE;
+    const zS = (st.mount && st.mount.keelAt) ? F.p[2] : AF.z0 - D * 0.5 - 0.008;   // aft of the aft face by the clamps' base plate (a twin boom: its fitting)
+    // (the face's top: the section's centre plus its half-height - AF.cyAt / heightAt - less a hand for the clamp)
+    const kP = keelAt(zS + D * 0.5), zF = AF.z0 + 0.01;
+    const roofF = (AF.cyAt && AF.heightAt && !(st.mount && st.mount.keelAt)) ? AF.cyAt(zF) + AF.heightAt(zF) : kP + Lp;
+    const cylTop = [x0, Math.min(kP + Lp, roofF - D * 0.6), zS];
+    const yT = Math.min(tip[1], kP - 0.01);                               // the collar: at the keel (or below it)
+    tip = [x0, yT, zS - (cylTop[1] - yT) * Math.tan(RAKE)];               // the cylinder's foot, raked aft
+    const ax = nrm(sub(tip, cylTop)), at = s => add(cylTop, mul(ax, s)), Lc = Math.hypot(...sub(tip, cylTop));
+    // the cylinder, two clamp bands on the aft face (reaching the skin - a band that stops short floats: the user)
+    sweep(bags.steel, resample([cylTop, tip], 6), () => secRound(D / 2, 20), true, [1, 0, 0]);
+    revolve(bags.alloy, at(-D * 0.1), ax, [[D * 0.58, 0], [D * 0.58, D * 0.3]], 20, true);       // its cap
+    const zFace = (st.mount && st.mount.keelAt) ? zS + D * 0.5 : AF.z0 + 0.006;
+    // THE CLAMPS (two, the photograph's): each a split BAND round the cylinder, its pinch bolt through two ears aft;
+    // two CHEEKS from the band forward to a BASE PLATE on the aft bulkhead, bolted through it (six bolts)
+    const zBase = (st.mount && st.mount.keelAt) ? zS + D * 0.5 : AF.z0;
+    for (const f of [0.18, 0.62]) {
+      const c = at(Lc * f), rI = D / 2 + 0.0015, rO = D / 2 + 0.008, w = D * 0.9, tP = 0.006;
+      revolve(bags.alloy, off(c, ax, -w / 2), ax, [[rI, 0], [rO, 0], [rO, w], [rI, w], [rI, 0]], 24, false);
+      pcPlate(bags.alloy, bags.steel, [x0, c[1], zBase], [0, 0, -1], [0, 1, 0], D * 2.0, D * 2.8, tP, 6, 0.0045);
+      const zA = zBase - tP, zB = c[2] - rO * 0.2, Lc2 = Math.max(0.01, zA - zB);
+      for (const s of [-1, 1]) {
+        pcPlate(bags.alloy, null, [x0 + s * (rO - 0.001), c[1], 0.5 * (zA + zB)], [s, 0, 0], [0, 0, 1], Lc2, w, 0.005, 0);
+        bolt(bags.steel, [x0 + s * (rO + 0.006), c[1], c[2] + rO * 0.2], [-s, 0, 0], 0.004, 0.012);   // cheek to band
+      }
+      const eye = [x0, c[1], c[2] - rO - D * 0.16];                                                   // the pinch
+      pcClevis(bags.alloy, bags.steel, eye, [1, 0, 0], [0, 0, -1], D * 0.16, 0.005, 0.003, D * 0.24);
+    }
+    // THE FLIGHT'S STRUT (PC6-OLEO, 61_gen_frame): the relaxed drop (the drawing: fully extended), the cylinder, the
+    // stroke to the crosshead's stop, the static stroke at three quarters of it (the charge: the user's "with this
+    // weight pushed on it, it would have to stand with its boom aft horizontal" - the drawn three-point pose the
+    // relaxed drop came down from), the piston's bore, the masses (INFERRED: a 3 mm wall steel cylinder with its
+    // clamps ~4 kg, the piston, fork, V and guard ~4 kg, the welded truss ~2 kg)
+    {
+      const Sx = pc6CompMax(P, st.R), RH = PC6_RHO, bill = [];
+      pc6Rec = { rake: 8, hd: +P.twLegDrop, Lc, S: Sx, sSt: 0.74 * Sx, dPiston: D * 0.72, stab: +P.twGuard !== 0 ? 1 : 0, bill };
+      // the fixed parts: the cylinder (a 4130 tube, its wall 4.5 % of its bore), its charge (the oil over the stroke and a
+      // third more), the two clamps (a steel band, two alloy cheeks, an alloy base plate, the pinch lugs and six bolts)
+      const tw = Math.max(0.003, 0.045 * D), Ap = Math.PI * 0.25 * (0.72 * D) * (0.72 * D);
+      bill.push({ part: 'oleo cylinder', at: 'cyl', kg: pcTube(D, tw, Lc, RH.steel) + 0.15, usd: 0 });
+      bill.push({ part: 'oleo charge (oil, gas valve, seals)', at: 'cyl', kg: Ap * Sx * 1.33 * RH.oil + 0.08, usd: 0 });
+      const clampKg = 2 * (Math.PI * (D + 0.013) * 0.0065 * 0.9 * D * RH.steel            // the band
+                          + 2 * pcBar(0.06, 0.9 * D, 0.005, RH.alloy)                      // two cheeks
+                          + pcBar(2.0 * D, 2.8 * D, 0.006, RH.alloy) + 0.12);              // the base plate, lugs, bolts
+      bill.push({ part: 'clamps and bulkhead plates (2)', at: 'cyl', kg: clampKg, usd: 0 });
+    }
+    // THE STABILISER (fixed): the node ahead and low, its two tubes to the belly (each foot the skin's own point with a
+    // doubler: "make these robust, it's a generic option"), its link aft and up to a band on the CYLINDER's foot - the
+    // fixed part: a link to the piston would jam its stroke (the piston slides straight; a link's end swings on an arc).
+    // The node is WELDED (twNode 0, the user: "I'd rather have them welded") or a bolted GUSSET pair (twNode 1, kept).
+    // Its proportions follow hS, the static drop (0.7 of the relaxed): the stroke never moves the fixed truss
+    if (+P.twGuard !== 0) {
+      const hS = 0.7 * Math.max(0.12, +P.twLegDrop || 0.3), zMax = (AF.z1 != null ? AF.z1 : zS + 3) - 0.05;
+      // (the node twice the V's reach ahead: the V's hinge swings forward and up as the strut closes - its whole path
+      // stays aft of the node and under the link: pc6_mech_check's table)
+      const zH = Math.min(zMax - 0.3, tip[2] + 2.0 * pc6Ahead(st.R));
+      const za = Math.min(zMax, zS + 3.2 * hS), zb = Math.min(za - 0.10, zS + 2.0 * hS);
+      const FA = fitOn(AF, st, za, 0), FB = fitOn(AF, st, zb, 0), A = FA.p, B = FB.p;
+      const H = [x0, Math.min(yT - 0.62 * hS, Math.min(A[1], B[1]) - D * 1.5), zH];
+      const pin = [1, 0, 0], gap = D * 0.5, tG = 0.005;
+      // the feet: a doubler draped on the belly skin (its fasteners), a clevis standing on it, the tube's eye on the pin
+      const feet = [];
+      for (const [Fp, z] of [[FA, za], [FB, zb]]) {
+        padOn(bags, AF, st, z, 0, D * 2.4, D * 1.7, { thick: 0.006 });
+        const eye = off(Fp.p, Fp.n, 0.006 + D * 0.40);
+        pcClevis(bags.alloy, bags.steel, eye, pin, Fp.n, D * 0.24, 0.005, D * 0.30, D * 0.40 + 0.004);
+        pcEye(bags.steel, eye, pin, D * 0.22, D * 0.28);
+        feet.push(eye);
+      }
+      // the link's band on the cylinder just above its foot (a split clamp, its pinch bolt aft), a clevis forward
+      const pL = at(Lc - D * 0.75), rO = D / 2 + 0.008, toH = nrm(sub(sub(H, pL), mul(ax, dot(sub(H, pL), ax))));
+      revolve(bags.alloy, off(pL, ax, -D * 0.3), ax, [[D / 2 + 0.0015, 0], [rO, 0], [rO, D * 0.6], [D / 2 + 0.0015, D * 0.6], [D / 2 + 0.0015, 0]], 24, false);
+      pcClevis(bags.alloy, bags.steel, add(pL, mul(toH, -(rO + D * 0.16))), pin, mul(toH, -1), D * 0.14, 0.005, 0.003, D * 0.22);
+      const eL = add(pL, mul(toH, rO + D * 0.22));
+      pcClevis(bags.alloy, bags.steel, eL, pin, toH, D * 0.20, 0.005, D * 0.28, D * 0.22 + 0.012);
+      pcEye(bags.steel, eL, pin, D * 0.19, D * 0.26);
+      // the members: tubes from the eyes to the node
+      const ends = [feet[0], feet[1], eL], rad = [D * 0.24, D * 0.24, D * 0.26];
+      // its bill: the three 4130 tubes (1.2 mm wall), the doublers, the clevises, the link's band, the node
+      {
+        const L3 = ends.map(e => Math.hypot(...sub(H, e)));
+        pc6Rec.bill.push({ part: 'stabiliser tubes (3, 4130)', at: 'stab', kg: pcTube(0.48 * D, 0.0012, L3[0] + L3[1], PC6_RHO.steel) + pcTube(0.52 * D, 0.0012, L3[2], PC6_RHO.steel), usd: 0 });
+        pc6Rec.bill.push({ part: 'belly doublers, clevises, link band', at: 'stab', kg: 2 * pcBar(2.4 * D, 1.7 * D, 0.006, PC6_RHO.alloy) + 3 * 0.09 + 0.25, usd: 0 });
+      }
+      const welded = Math.round(+P.twNode || 0) !== 1;
+      ends.forEach((e, i) => { const d = nrm(sub(H, e));
+        sweep(bags.steel, resample([off(e, d, D * 0.22), welded ? H : off(H, d, -D * 0.2)], 4), () => secRound(rad[i], 12), true, pin);
+        if (welded) {   // the fillet weld round each tube where it meets the cluster
+          const prof = []; for (let k = 0; k <= 10; k++) { const q = Math.PI * k / 10; prof.push([rad[i] + 0.0032 * Math.sin(q), -0.0032 * Math.cos(q)]); }
+          revolve(bags.steel, off(H, d, -rad[i] * 1.6), d, prof, 14, false);
+        } });
+      if (!welded) {
+        const gC = add(H, mul(nrm(add(add(nrm(sub(ends[0], H)), nrm(sub(ends[1], H))), nrm(sub(ends[2], H)))), D * 0.30));
+        for (const s of [-1, 1]) pcPlate(bags.alloy, null, add(gC, mul(pin, s * gap / 2)), mul(pin, s), [0, 0, 1], D * 1.9, D * 1.35, tG, 0);
+        const holes = [H].concat(ends.map(e => off(H, nrm(sub(e, H)), D * 0.62)));
+        for (const hq of holes) { bolt(bags.steel, off(hq, pin, -(gap / 2 + tG + 0.002)), pin, D * 0.08, gap + 2 * tG + 0.008);
+          pcNut(bags.steel, off(hq, pin, gap / 2 + tG + 0.001), pin, D * 0.12); }
+      }
+    }
+  } else {
   // A LEAF SPRING IS LAMINATED: 3 leaves, each shorter than the one above
   //
   // ...AND EACH ONE SITS UNDER THE LAST (2026-09-10, the user: "the blade
@@ -2661,6 +2977,7 @@ function legTailwheel(bags, AF, P, st) {
     bolt(bags.alloy, off(add(root, mul(F.fore, s * 0.022)), F.n,
                          P.twSpringT * (leaves - 0.5) + 0.016),
          mul(F.n, -1), 0.009, 0.024);
+  }   // (PC6-TAILWHEEL: the leaf spring's own drawing)
   // G3800 (TAILWHEELS): THE TAIL SKID (the row's 4) - no castor, no wheel: the leaf spring runs on down as the skid's
   // blade to a STEEL SHOE (a hardened plate with an upturned toe, bolted under the blade) whose sole stands on the
   // contact line the wheel's tyre would have touched (the castor's own hub geometry, P.twLegDrop / twTrail / twRake,
@@ -2722,8 +3039,16 @@ function legTailwheel(bags, AF, P, st) {
   }
   // G58.7: the leaf spring's two ends — `root` bolts to the fuselage and
   // must not move; `tip` is the castor's swivel top. The join pins both.
+  if (pc6Rec && u.pc6 && u.pc6.bill) {
+    for (const b of u.pc6.bill) pc6Rec.bill.push(b);
+    pc6Price(pc6Rec.bill);
+    const sumAt = a => pc6Rec.bill.filter(b => b.at === a).reduce((s, b) => s + b.kg, 0);
+    pc6Rec.kgCyl = sumAt('cyl'); pc6Rec.kgSlider = sumAt('slider'); pc6Rec.kgStab = sumAt('stab');
+    pc6Rec.usd = pc6Rec.bill.reduce((s, b) => s + b.usd, 0);
+    for (const b of pc6Rec.bill) { b.kg = Math.round(b.kg * 1000) / 1000; }
+  }
   return { axle: u.hub, axis: u.axis, root, tip, travel: nrm([0, 1, 0.35]),
-           castor: u };
+           castor: u, pc6Oleo: pc6Rec };
 }
 
 // G3800 (TAILWHEELS): THE INVERTED V's TIP WHEEL - the tail's contact at a panel's tip (st.mount: the tip, metres, the
@@ -2750,10 +3075,231 @@ function legTipWheel(bags, AF, P, st) {
   return { axle: u.hub, axis: u.axis, root: top, tip: top, travel: [0, 1, 0], castor: u };
 }
 
+// SKIS (13 Nov, the core's 29c_ski.js; futureDesigns/SKIS-2026-11-13.md): THE SKI, after the Summit Aircraft SS2300
+// (the user's photographs, the maker's sheet) - one family for every aeroplane, the PC-6's wheel-skis a larger one.
+// THE PLANFORM IS THE CORE'S (skiPlan): what is drawn is the outline the physics bears on. Pieces, all lofted on that
+// outline (a grid of stations along the ski and columns across it, so the toe's half-round, the cutout's fillet and the
+// upturn are smooth):
+//   the BOTTOM SKINS   white UHMW, the outline grown by the skins' margin (the SS2300's 22 x 81 in under its 18 x 79)
+//   the SHELL          the monocoque: a screwed flange round its edge, the walk-on DECK forward (flat, a slight crown),
+//                      the aft BEAM a faceted spine rising from the heel to the pedestal and running into the deck;
+//                      the toe's upturn lifts everything; its colour the row's (white, red, yellow, black, carbon)
+//   the WALK           the non-skid pad on the deck
+//   the SCREWS         round the flange, at a pitch
+//   the PEDESTAL       on the beam over the axle: a base plate, two gussets, the axle's socket (a wheel beside it in the
+//                      cutout: the axle runs on from the hub to the socket); the wheel-ski's is a slide and its jack
+//   the RIGGING        the toe's and the heel's lugs (the flown rig runs the spring and the cables to the airframe) and
+//                      the cable along the top between them, clamped
+//   the HEEL WHEEL     the 4 in polyurethane wheel in its fork at the heel (just proud of the sole: the hard-surface rule)
+// A tail / nose ski is the same lofts on a straight plank with its wheel through a slot, a cheek each side.
+// o: the core's resolved unit (L, W, skin, skinL, at, beam, notchAt, tip) + { h (the axle over the ski's bottom), R,
+// bT (the tyre's width), kind, third, out (+1 / -1: which side is outboard), heel (the heel wheel), retract }.
+// Returns the drawing's record (the fittings, the bottom's height, the plan) for the join and the flown rig.
+const SKI_GEO = { skinT: 0.009, flange: 0.022, rim: 0.035, hf: 0.007, deckH: 0.075, pitch: 0.075, ns: 72, nw: 14 };
+function ski(bags, axle, o) {
+  const G = SKI_GEO, CP = typeof skiPlan === 'function' ? skiPlan : (window && window.skiPlan);
+  const P = CP({ L: o.L, W: o.W, skin: o.skin, skinL: o.skinL, at: o.at, beam: o.third ? 1 : o.beam, notchAt: o.notchAt, tip: o.tip,
+                 bT: o.third ? null : o.bT, R: o.third ? 0 : o.R, prot: o.third || o.kind === 'plain' ? null : o.prot });
+  const out = o.out || 1, kS = Math.max(0.6, Math.min(1.8, o.W / 0.457));
+  // the ski's lateral place: the wheel in the cutout (its tyre's centre wTyre off the shell's centreline), or - a plain
+  // ski, a tail ski - the pedestal (the beam's centre) under the axle
+  const wAx = (o.kind === 'plain' || o.third) ? (o.third ? 0 : P.wc) : P.wTyre;
+  const xc = axle[0] - out * wAx, yB0 = axle[1] - o.h, zc = axle[2];
+  const X = (s, w, y) => [xc + out * w, y, zc + s];
+  const E = [0, 0], sm = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+  // ---- the loft: a closed solid over [s0, s1], its columns between edges(s), bottom yb(s, w), height hh(s, w, wi, wo)
+  const loft = (bag, s0, s1, edges, yb, hh, ns, nw) => {
+    const R2 = [], R1 = [], cs = k => 0.5 - 0.5 * Math.cos(Math.PI * k / nw);
+    const ss = i => { const u = i / ns, c = 0.5 - 0.5 * Math.cos(Math.PI * u); return s0 + (s1 - s0) * (0.35 * u + 0.65 * c); };
+    for (let i = 0; i <= ns; i++) {
+      const s = ss(i); edges(s, E); const wi = E[0], wo = E[1], top = [], bot = [];
+      for (let j = 0; j <= nw; j++) { const w = wi + (wo - wi) * cs(j), y = yb(s, w); bot.push(bag.v(X(s, w, y))); top.push(bag.v(X(s, w, y + hh(s, w, wi, wo)))); }
+      R2.push(top); R1.push(bot);
+    }
+    // each face outward: against a point inside its station (the column's middle, half height) - robust to the mirror
+    const face = (a, b, c, d, inside) => {
+      const pa = vp(a), pb = vp(b), pc = vp(c);
+      const n = crs(sub(pb, pa), sub(pc, pa)), cen = mul(add(add(pa, pb), add(pc, vp(d))), 0.25);
+      if (dot(n, sub(cen, inside)) >= 0) bag.quad(a, b, c, d); else bag.quad(a, d, c, b);
+    };
+    const mid = (i, j) => mul(add(vp(R2[i][j]), vp(R1[i][j])), 0.5);
+    for (let i = 0; i < ns; i++) for (let j = 0; j < nw; j++) {
+      const inC = mul(add(mid(i, j), mid(i + 1, j + 1)), 0.5);
+      face(R2[i][j], R2[i][j + 1], R2[i + 1][j + 1], R2[i + 1][j], inC);
+      face(R1[i][j], R1[i + 1][j], R1[i + 1][j + 1], R1[i][j + 1], inC);
+    }
+    for (let i = 0; i < ns; i++) {
+      const cI = mid(i, nw >> 1);
+      face(R2[i][0], R2[i + 1][0], R1[i + 1][0], R1[i][0], cI);
+      face(R2[i][nw], R1[i][nw], R1[i + 1][nw], R2[i + 1][nw], cI);
+    }
+    for (const i of [0, ns]) for (let j = 0; j < nw; j++) {
+      const cI = i === 0 ? mid(1, j) : mid(ns - 1, j);
+      face(R2[i][j], R1[i][j], R1[i][j + 1], R2[i][j + 1], cI);
+    }
+  };
+  // a bag's vertex back (the kit's Bag keeps them in a flat array: read through its own accessor or the closure's copy)
+  const VP = new Map();
+  const tap = bag => { if (bag._tapped) return bag; const v0 = bag.v; bag.v = p => { const i = v0(p); VP.set(bag._id + ':' + i, p); return i; };
+                       bag._id = (ski._n = (ski._n || 0) + 1); bag._tapped = true; return bag; };
+  let curBag = null;
+  const vp = i => VP.get(curBag._id + ':' + i);
+  const loftOn = (bag, ...a) => { curBag = tap(bag); loft(curBag, ...a); };
+  // ---- the heights
+  const up = P.up, sT = P.sT, sN = P.sN, tN = P.tN;
+  const Hd = P.deckH || G.deckH * kS, Hp = Hd * (o.third ? 0.9 : 1.25), Hh = Hd * 0.45, hf = G.hf, fw = G.flange * kS, rim = G.rim * kS;
+  const ridge = s => s < 0 ? Hh + (Hp - Hh) * sm((s - P.sHeel) / (0 - P.sHeel)) : Hp + (Hd - Hp) * sm(s / Math.max(0.05, sN - 0));
+  const shellT = (s, w, wi, wo) => {
+    const half = Math.max(1e-6, (wo - wi) / 2), u = Math.abs(w - (wi + wo) / 2) / half;
+    const beamT = ridge(s) * (1 - 0.38 * Math.pow(u, 1.4)), deckT = Hd * (1 - 0.08 * u * u);
+    const q = (P.notch && !o.third) ? sm((s - (sN - tN)) / tN) : 1;
+    let T = (P.notch && !o.third) ? beamT + (deckT - beamT) * q : deckT;
+    if (s > sT) T *= 1 - 0.5 * (s - sT) / Math.max(0.05, P.sToe - sT);
+    if (s < P.sHeel + 0.08 * P.L && !(P.notch && !o.third)) T *= 0.6 + 0.4 * sm((s - P.sHeel) / (0.08 * P.L));
+    return T;
+  };
+  const shellH = (s, w, wi, wo) => { const d = Math.min(w - wi, wo - w, s - P.sHeel); const e = sm((d - fw) / rim); return hf + (shellT(s, w, wi, wo) - hf) * e; };
+  const skinT = P.skinT || G.skinT, skinY = (s) => yB0 + up(s), shellY = (s) => yB0 + up(s) + skinT;
+  const skinH = (s, w, wi, wo) => { const d = Math.min(w - wi, wo - w); return skinT * (0.55 + 0.45 * sm(d / 0.01)); };
+  // the tail ski's slot (its wheel through it): the plank in four pieces round it
+  const slot = o.third && o.kind !== 'plain' ? { L: 2 * Math.sqrt(Math.max(0, 2 * o.R * (o.prot + 0.04))) + 0.05, W: o.bT + 0.035 } : null;
+  const pieces = (edgesFn, s0, s1) => {
+    if (!slot) return [[s0, s1, edgesFn]];
+    const sF = slot.L / 2, sB = -slot.L / 2, hw = slot.W / 2;
+    return [[sF, s1, edgesFn], [s0, sB, edgesFn],
+            [sB, sF, (s, e) => { edgesFn(s, e); e[1] = -hw; return e; }], [sB, sF, (s, e) => { edgesFn(s, e); e[0] = hw; return e; }]];
+  };
+  // ---- 1 the bottom skins
+  for (const [s0, s1, ed] of pieces(P.skin, P.sHeel - P.mL, P.sToe + P.mL))
+    loftOn(bags.skiSole, s0, s1, ed, (s) => skinY(s), skinH, Math.max(8, Math.round(G.ns * (s1 - s0) / P.Lmax)), 6);
+  // ---- 2 the shell
+  for (const [s0, s1, ed] of pieces(P.body, P.sHeel, P.sToe))
+    loftOn(bags.skiShell, s0, s1, ed, (s) => shellY(s), shellH, Math.max(8, Math.round(G.ns * (s1 - s0) / P.L)), G.nw);
+  const topY = (s, w) => { P.body(s, E); return shellY(s) + shellH(s, w, E[0], E[1]); };
+  // ---- 3 the walk (the SS2300's: 0.15-0.35 of the length from the toe, half the deck's width, round-cornered)
+  if (!o.third) {
+    const a0 = P.sToe - 0.36 * P.L, a1 = P.sToe - 0.15 * P.L, pw = 0.47 * P.W, rc = 0.05 * kS;
+    const pc = P.notch ? -0.04 * P.W : 0;
+    const pe = (s, e) => { const c = Math.min(rc, s - a0, a1 - s), d = rc - Math.sqrt(Math.max(0, rc * rc - Math.pow(Math.max(0, rc - c), 2)));
+                           e[0] = pc - pw / 2 + d; e[1] = pc + pw / 2 - d; return e; };
+    loftOn(bags.skiPad, a0, a1, pe, (s, w) => topY(s, w) - 0.0015, () => 0.0035, 16, 6);
+  }
+  // ---- 4 the screws round the flange (a dome each, at the pitch, on the flange's middle)
+  {
+    const pts = [], N = 400;
+    for (let k = 0; k <= N; k++) { const s = P.sHeel + 0.012 + (P.sToe - 0.004 - P.sHeel - 0.012) * k / N; P.body(s, E); pts.push([s, E[1] - fw / 2]); }
+    for (let k = N; k >= 0; k--) { const s = P.sHeel + 0.012 + (P.sToe - 0.004 - P.sHeel - 0.012) * k / N; P.body(s, E); pts.push([s, E[0] + fw / 2]); }
+    let acc = G.pitch * kS;
+    for (let k = 1; k < pts.length; k++) {
+      const a = pts[k - 1], b = pts[k], d = Math.hypot(b[0] - a[0], b[1] - a[1]); acc += d;
+      if (acc < G.pitch * kS) continue; acc = 0;
+      const sp = b[0], wp = b[1], y = topY(sp, wp);
+      if (slot && Math.abs(sp) < slot.L / 2 + 0.01) continue;
+      revolve(bags.alloy, X(sp, wp, y - 0.0005), [0, 1, 0], [[0.0048, 0], [0.0042, 0.0018], [0.0022, 0.0032]], 6, true);
+    }
+  }
+  // ---- 5 the pedestal (over the axle, on the beam's spine) and the axle's run to it
+  const wP = o.third ? 0 : P.wc, sP = 0, yTop = topY(sP, wP), yAx = axle[1];
+  const fitPts = {};
+  if (o.third) {
+    // two cheeks straddling the wheel, on the slot's sides, up to the axle; a bush through them
+    const hw = (slot ? slot.W / 2 : 0.04) + 0.008;
+    for (const sg of [-1, 1]) {
+      const yS = topY(0, sg * (hw + 0.02)), c = X(0, sg * (hw + 0.004), 0.5 * (yS + yAx + 0.025));
+      boxIn(bags.alloy, c, [0.004, 0.5 * (yAx + 0.025 - yS), 0.05 * kS], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    }
+    revolve(bags.alloy, X(0, -hw - 0.012, yAx), [out, 0, 0], [[0.012, 0], [0.012, 2 * hw + 0.024]], 12, true);
+  } else {
+    const pl = 0.11 * kS, pw2 = 0.045 * kS;
+    boxIn(bags.alloy, X(sP, wP, yTop + 0.003), [pw2, 0.003, pl], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    for (const bs of [-1, 1]) for (const bw of [-1, 1])
+      revolve(bags.alloy, X(sP + bs * 0.8 * pl, wP + bw * 0.7 * pw2, yTop + 0.006), [0, 1, 0], [[0.005, 0], [0.004, 0.003]], 6, true);
+    if (o.kind === 'retract') {
+      // THE WHEEL-SKI'S SLIDE: a column the axle's carrier runs in, and the jack that lowers the ski (its body on the
+      // column's head, its rod to the deck)
+      const cH = Math.max(0.12, yAx - yTop + 0.16);
+      boxIn(bags.alloy, X(sP, wP, yTop + cH / 2), [0.028 * kS, cH / 2, 0.045 * kS], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+      const jA = X(sP + 0.05 * kS, wP, yTop + cH - 0.03), jB = X(sP + 0.42 * Math.min(P.sToe, 0.5 * P.L), wP, topY(0.42 * Math.min(P.sToe, 0.5 * P.L), wP) + 0.02);
+      const jm = lerp3(jA, jB, 0.55);
+      tube(bags.dark, jA, jm, 0.024 * kS, 12); tube(bags.chrome, jm, jB, 0.011 * kS, 10);
+      revolve(bags.alloy, jB, [out, 0, 0], [[0.016, -0.02], [0.016, 0.02]], 10, true);
+    } else {
+      // two gussets (a triangle each, fore and aft of the socket), the socket across the ski at the axle's height
+      const gT = 0.005, gH = Math.max(0.03, yAx - yTop - 0.012);
+      for (const gw of [-1, 1]) {
+        const w0 = wP + gw * 0.022 * kS;
+        const tri = [X(sP - pl * 0.92, w0, yTop + 0.006), X(sP + pl * 0.92, w0, yTop + 0.006), X(sP, w0, yTop + 0.006 + gH)];
+        const nrmW = [out * gT / 2, 0, 0];
+        const V = tri.map(p => bags.alloy.v(add(p, nrmW))).concat(tri.map(p => bags.alloy.v(sub(p, nrmW))));
+        bags.alloy.tri(V[0], V[1], V[2]); bags.alloy.tri(V[3], V[5], V[4]);
+        bags.alloy.quad(V[0], V[3], V[4], V[1]); bags.alloy.quad(V[1], V[4], V[5], V[2]); bags.alloy.quad(V[2], V[5], V[3], V[0]);
+      }
+      const sock0 = X(sP, wP - 0.045 * kS, yAx), sock1 = X(sP, wP + 0.045 * kS, yAx);
+      tube(bags.alloy, sock0, sock1, 0.024 * kS, 14);
+    }
+    // the axle's run from the hub's inboard face to the socket (a wheel beside the ski)
+    if (o.kind !== 'plain') {
+      const hubIn = wAx - (o.bT / 2) * 0.85;
+      tube(bags.steel, X(sP, wP - 0.03, yAx), X(sP, hubIn, yAx), 0.017 * kS, 12);
+    }
+  }
+  // ---- 6 the rigging's lugs and the cable along the top
+  {
+    const lug = (s, w) => { const y = topY(s, w); boxIn(bags.alloy, X(s, w, y + 0.008), [0.004, 0.009, 0.016], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+                            revolve(bags.alloy, X(s, w - 0.006, y + 0.014), [out, 0, 0], [[0.007, 0], [0.007, 0.012]], 8, true);
+                            return X(s, w, y + 0.016); };
+    const sTo = P.sToe - (o.third ? 0.1 : 0.07) * P.L, sHe = P.sHeel + (o.third ? 0.1 : 0.07) * P.L;
+    const wTo = o.third ? 0 : 0.02 * P.W, wHe = o.third ? 0 : P.wc;
+    fitPts.toe = lug(sTo, wTo); fitPts.heel = lug(sHe, wHe);
+    if (!o.third) {
+      const path = [];
+      for (let k = 0; k <= 40; k++) {
+        const u = k / 40, s = sHe + (sTo - sHe) * u, wq = wHe + (wTo - wHe) * sm((s - (sN - tN)) / (2 * tN)) + 0.06 * P.W * Math.sin(Math.PI * u);
+        path.push(X(s, wq, topY(s, wq) + 0.006));
+      }
+      sweep(bags.steel, path, () => secRound(0.0028, 6), true);
+      for (const u of [0.22, 0.5, 0.78]) { const q = path[Math.round(40 * u)]; boxIn(bags.dark, q, [0.008, 0.004, 0.012], [1, 0, 0], [0, 1, 0], [0, 0, 1]); }
+    }
+  }
+  // ---- 7 the heel wheel (a 4 in polyurethane wheel in its fork, proud of the sole by a hair)
+  if (o.heel && !o.third) {
+    const Rw = 0.0508 * Math.max(0.8, Math.min(1.4, kS)), bw = 0.034, sW = P.sHeel - 0.25 * Rw, wW = P.wc, yW = yB0 + Rw - 0.008;
+    const hub = X(sW, wW, yW), ax = [out, 0, 0];
+    revolve(bags.skiHeel, add(hub, [-out * bw / 2, 0, 0]), ax, [[Rw * 0.55, 0], [Rw * 0.92, 0.002], [Rw, bw * 0.3], [Rw, bw * 0.7], [Rw * 0.92, bw - 0.002], [Rw * 0.55, bw]], 20, true);
+    revolve(bags.hub, add(hub, [-out * (bw / 2 + 0.004), 0, 0]), ax, [[0.012, 0], [0.012, bw + 0.008]], 10, true);
+    for (const sg of [-1, 1]) {
+      const fx = sg * (bw / 2 + 0.007), a = X(P.sHeel + 0.06 * kS, wW + fx, topY(P.sHeel + 0.06 * kS, wW + fx) - 0.003), b = add(hub, [out * fx, 0, 0]);
+      sweep(bags.alloy, [a, lerp3(a, b, 0.5), b], () => secBlade(0.024, 0.005, 2), true, [1, 0, 0]);
+    }
+  }
+  return { yBottom: yB0, plan: { L: P.L, W: P.W, A: P.Ab, notchAt: (P.sToe - P.sN) / P.L, wTyre: P.wTyre }, fittings: { toe: fitPts.toe, heel: fitPts.heel }, slot, xc, wAx };
+}
+
+// SKIS: A RIGGING RUN from the airframe's fitting (a) to the ski's lug (b): the cable (a swaged eye each end), and on the
+// front run the long coil spring that holds the toe up against the check cable (the SS2300's, the photographs: a closed
+// coil over the run's middle, a cable each side of it). Its own bags: the flown aeroplane stretches it pin to tip
+function skiRigRun(bags, a, b, coil, kS) {
+  const k = kS || 1, d = sub(b, a), L = len(d), t = nrm(d);
+  const cab = (p, q) => sweep(bags.steel, [p, q], () => secRound(0.0024 * k, 6), true);
+  for (const e of [a, b]) revolve(bags.alloy, off(e, t, e === a ? 0 : -0.02 * k), t, [[0.0042 * k, 0], [0.0042 * k, 0.02 * k]], 8, true);
+  if (!coil) { cab(a, b); return; }
+  const u0 = 0.30, u1 = 0.82, p0 = off(a, t, u0 * L), p1 = off(a, t, u1 * L);
+  cab(a, p0); cab(p1, b);
+  const n0 = nrm(Math.abs(t[1]) < 0.9 ? crs(t, [0, 1, 0]) : crs(t, [1, 0, 0])), n1 = crs(t, n0);
+  const Rh = 0.013 * k, pitch = 0.0075 * k, turns = Math.max(6, Math.round((u1 - u0) * L / pitch)), path = [];
+  for (let i = 0; i <= turns * 10; i++) {
+    const f = i / (turns * 10), ang = 2 * Math.PI * turns * f, c = off(a, t, (u0 + (u1 - u0) * f) * L);
+    path.push(add(c, add(mul(n0, Rh * Math.cos(ang)), mul(n1, Rh * Math.sin(ang)))));
+  }
+  sweep(bags.chrome, path, () => secRound(0.0019 * k, 5), true);
+  for (const e of [p0, p1]) revolve(bags.alloy, off(e, t, e === p0 ? -0.012 * k : 0), t, [[0.004 * k, 0], [Rh, 0.006 * k], [0.004 * k, 0.012 * k]], 10, true);
+}
+
 window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
+                    ski, SKI_GEO, skiRigRun,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
-                    fitPad, legBeam, legLink, legOleo, castorUnit, steerRun,
+                    fitPad, legBeam, legLink, legOleo, castorUnit, steerRun, pc6Scissor, pc6CompMax, pc6PistonRun, PC6_RAKE,
                     legTailwheel, legTipWheel, legLever, leverRowsOf, Bag };
 })();

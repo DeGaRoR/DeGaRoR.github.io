@@ -114,6 +114,11 @@
     // retract rows; the key itself stays bound, inert on a fixed build)
     { id: 'gear', kind: 'step', ctl: 'gear', label: 'landing gear', group: 'flying', lab: true,
       hint: 'UP · DOWN (retractable gear only)', keys: { key: 'Digit9' } },
+    // SKIS (13 Nov): THE WHEEL-SKIS' SELECTOR (30_solver ctl.ski: 1 down - the aeroplane on its skis -, 0 up - on its
+    // wheels through the skis' cutouts). Unset (null) the skis follow the surface under the mains; the first press takes
+    // them from where they are (the solver's out.ski, skiFrom), then UP <-> DOWN. Inert on every other build
+    { id: 'ski', kind: 'step', ctl: 'ski', label: 'wheel-skis', group: 'flying',
+      hint: 'UP (on the wheels) · DOWN (on the skis) - wheel-skis only', keys: { key: 'Digit0' } },
     { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'trim',
       hint: 'a hand held on the stick; repeats while held', repeat: 0.15,
       keys: { key: 'Numpad1' } },
@@ -419,6 +424,7 @@
     let wr = null;                          // G2480: the water rudders - null THE RULE (32_hydro), 0 up, 1 down
     let twLock = 1;                         // G3800: the tailwheel lock - 1 in (straight), 0 out (castoring)
     let gearH = 1;                          // RETRACT-1: the gear handle - 1 down, 0 up (written only on a retract build)
+    let skiH = null, skiPosFn = null;       // SKIS: the wheel-skis' selector (null: the surface's), the skis' place
     let parkFn = null;                      // G2480: the parking brake's owner (cockpit.js CK.park), read in write()
     let padsNow = [], keysNow = [], rawNow = {};
     let firedNow = [];
@@ -627,6 +633,7 @@
       wr = null;
       twLock = c.twLock === 0 ? 0 : 1;        // G3800: the hand takes the lock as the aeroplane has it
       gearH = c.gear === 0 ? 0 : 1;          // RETRACT-1: the handle where the aeroplane has it (the AP's or the reset's)
+      skiH = c.ski === 0 || c.ski === 1 ? c.ski : null;   // SKIS: the selector as the aeroplane has it
       for (const a of ACTIONS) {
         const s = S[a.id];
         s.owner = null; s.last = {};
@@ -743,6 +750,8 @@
         else if (id === 'waterRudder') wr = wr === null ? 0 : wr === 0 ? 1 : null;   // AUTO -> UP -> DOWN -> AUTO
         else if (id === 'twLock') twLock = twLock ? 0 : 1;                              // G3800: IN <-> OUT
         else if (id === 'gear') gearH = gearH === 0 ? 1 : 0;                           // RETRACT-1: UP <-> DOWN
+        else if (id === 'ski') { let p = null; try { p = skiPosFn ? skiPosFn() : null; } catch (e) {}   // SKIS: UP <-> DOWN
+          skiH = skiH === 1 ? 0 : skiH === 0 ? 1 : (typeof p === 'number' && p > 0.5 ? 0 : 1); }
         else if (id === 'flapDown') flapI = Math.min(notches.length - 1, flapI + 1);
         else if (id === 'flapUp') flapI = Math.max(0, flapI - 1);
       }
@@ -787,6 +796,7 @@
       ctl.wr = wr;
       ctl.twLock = twLock;                             // G3800: the tailwheel lock (read by a lockable wheel only)
       if ('gear' in ctl) ctl.gear = gearH;   // RETRACT-1: a fixed build's ctl has no gear key, and gets none
+      if ('ski' in ctl && skiH !== null) ctl.ski = skiH;   // SKIS: a ski build's only; unset leaves the surface's rule
       ctl.flap = clamp(fin(flapOut, 0), 0, 1);
       if (Array.isArray(ctl.eng))
         for (let i = 0; i < ctl.eng.length && i < 4; i++) {
@@ -835,6 +845,7 @@
       waterRudder: () => wr,
       twLock: () => twLock, setTwLock: v => { twLock = v ? 1 : 0; },   // G3800 (the hand-off seeds it from the aeroplane's)
       gear: () => gearH,                     // RETRACT-1: the gear handle (1 down, 0 up)
+      ski: () => skiH, skiFrom: f => { skiPosFn = typeof f === 'function' ? f : null; },   // SKIS: the selector, the skis' place
       opt: k => profile.opts ? profile.opts[k] : undefined,
       setOpt: (k, v) => { if (!(k in OPTS) || typeof v !== typeof OPTS[k]) return false; profile.opts[k] = v; save(); return true; },
       parkFrom: f => { parkFn = typeof f === 'function' ? f : null; },

@@ -3641,6 +3641,17 @@ function compose(rec0, world, opts) {
       for (let i = 0; i < cell.length; i++) h = cell[i].apply(lx, lz, h);
       return h;
     },
+    // ROUGH GROUND (SNOW-MUD, 15 Nov: the wheel's envelope, 30_solver): whether (x, z) lies on a bumpy strip's box, grown a
+    // metre - where a wheel reads the ground under its arc, not under its axle; false off every micro strip (one compare)
+    roughAt(x, z) {
+      if (!microStrips.length) return false;
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      for (let k = 0; k < microStrips.length; k++) {
+        const b = microStrips[k].f.bbox;
+        if (lx >= b.x0 - 1 && lx <= b.x1 + 1 && lz >= b.z0 - 1 && lz <= b.z1 + 1) return true;
+      }
+      return false;
+    },
     // THE STONES' BODIES (DIRT-STRIP, 26b stoneUV): a bumpy strip's stones, added ON the composed ground by the world's
     // terrainH - not baked in the raster (its 0.25 m lattice would flatten a 14-54 cm stone by up to 13 cm); 0 off them
     stonesAt(x, z) {
