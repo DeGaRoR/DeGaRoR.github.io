@@ -114,10 +114,12 @@ for (let z = PJ.cz - 400; z <= PJ.cz + 400; z += 10) for (let x = PJ.cx - 400; x
   const dd = Math.hypot(x - best[0], z - best[1]); if (!sl2 || dd < sl2[2]) sl2 = [x, z, dd]; }
 // THE LANDING (16 Nov, the user: "what would it look like if I was to try and land on that?"): the flattest rocky ground near the
 // face (slope under 9 deg, the map's rock over 0.3), approached from the south-west down a 4 deg path - 450 m out, 120 m out, the flare
-let ld = null;
+let ld = null;   // (the gentlest ground under 12 deg with the map's rock within 60 m of it - a strip a bush plane could take - nearest the face)
 for (let z = PJ.cz - 450; z <= PJ.cz + 450; z += 10) for (let x = PJ.cx - 450; x <= PJ.cx + 450; x += 10) {
-  const sv = slope(x, z); if (codeAt(x, z) < 0.3 || sv > 9) continue; const s9 = Math.max(slope(x + 40, z), slope(x - 40, z), slope(x, z + 40), slope(x, z - 40));
-  if (s9 > 14) continue; const dd = Math.hypot(x - best[0], z - best[1]); if (!ld || dd < ld[2]) ld = [x, z, dd]; }
+  const sv = slope(x, z); if (sv > 12) continue; const s9 = Math.max(slope(x + 40, z), slope(x - 40, z), slope(x, z + 40), slope(x, z - 40)); if (s9 > 16) continue;
+  let rk = codeAt(x, z); for (const [ox, oz] of [[60, 0], [-60, 0], [0, 60], [0, -60], [42, 42], [-42, 42], [42, -42], [-42, -42]]) rk = Math.max(rk, codeAt(x + ox, z + oz)); if (rk < 0.3) continue;
+  const sc = sv + Math.hypot(x - best[0], z - best[1]) / 60; if (!ld || sc < ld[2]) ld = [x, z, sc]; }
+console.log('LANDING ' + (ld ? 'at ' + ld[0] + ', ' + ld[1] + ' slope ' + slope(ld[0], ld[1]).toFixed(1) : 'none - the face'));
 if (!ld) ld = [best[0], best[1], 0];
 const land = (out, agl) => { const [tx, tz] = ld, ty = hXZ(tx, tz), ex = tx - 0.7071 * out, ez = tz + 0.7071 * out;
   const ey = Math.max(hXZ(ex, ez) + agl, ty + out * Math.tan(4 * Math.PI / 180) + 2); return [[ex, ey, ez], [tx + 0.7071 * 60, ty + 1, tz - 0.7071 * 60]]; };
