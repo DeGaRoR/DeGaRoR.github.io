@@ -396,7 +396,20 @@ for (const seed of [0, 1, 6, 12, 42]) {
     }
     // the altiport's 190 m (SKYLINE-RESORT; 380 m before) is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
     // there is the roll's own call (G531: a short field's reserve), printed
-    if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
+    // SKYLINE-RESORT (A0's call, 15 Nov): THE CANON CESSNA DOES NOT LEAVE THE 190 m ALTIPORT. F-HCSN (CANON-C172-GATES) needs
+    // a 386 m take-off on the flat - ~290 m with CONTRACT_FIT.altiK - and is refused tw_ski at dispatch (its 237-249 m landing
+    // run). Placed on the apron here it lines up 30 m below the top end and rejects 5 s into the roll ('will not reach Vr:
+    // 1.30 m/s^2 needs 168 m more, 126 m left'); with that rule off (a scratch core) it ran off the low end on its wheels and
+    // broke up 50 m down the hill - the rejection is right. Held: the rejection SAID, stopped ON the strip, nothing touched (the
+    // rows below). OWED TO PILOT: "go/no-go misses the altiport credit case" - L40d's go/no-go declines at the HOLD elsewhere
+    // (Jumbo Mine for the Cessna, East Point for the Jodel) but rolls here; when it declines at the hold, this row holds that
+    if (Fl.a === tw && !F.air && B.key === METAL && tw.len < 300) {
+      const rj = F.verdicts.find(v => /^rejected-takeoff/.test(v)), p = F.track[F.track.length - 1];
+      const ux = Math.cos(tw.hdg), uz = Math.sin(tw.hdg), along = (p[0] - tw.x) * ux + (p[1] - tw.z) * uz, lat = -(p[0] - tw.x) * uz + (p[1] - tw.z) * ux;
+      check(!!rj && F.phases.includes('ABORT') && p[2] === 'STOPPED' && Math.abs(along) <= tw.len / 2 && Math.abs(lat) <= (tw.wid || 9) / 2 + 1,
+        tag + ': the 190 m altiport is too short for it - the take-off rejected, said, and stopped on the strip',
+        (rj || 'no rejection said') + ' | ' + F.phases.join('>') + ', stopped ' + along.toFixed(1) + ' m along / ' + lat.toFixed(1) + ' m across the strip (len ' + tw.len + ')');
+    } else if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     // PILOT-GONOGO (the user's ruling, 13 Nov - row 9's): the Cessna alone may end this taxi at the HOLD, lined up, with the take-off
     // declined and said with its numbers (the go / no-go's 'needs N m, M m of strip - too short'); the taxi to the run is what this
     // row holds, and a hold reached is that run reached. Any other build, or a decline without its numbers, still asks the roll
