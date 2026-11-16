@@ -85,7 +85,7 @@ const P={
   lidRW:null, lidRTop:null, lidRBot:null,
   // PROPER-COWLS: the head cylinders, merged into the skin (cylOn 0 = none)
   cylOn:0, cylAz:0, cylOff:0.3, cylR:0.12, cylZ0:0.1, cylZ1:0.4, cylNose:0.1, cylTail:0.15, cylRin:0, cylOffIn:null, cylBlend:0.025, cylOgive:0, cylProfile:0, cylFront:0.7, cylInlet:0, cylVert:1, cylSq:0.5,
-  gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
+  gillOn:0, gillN:6, gillZ:0.35, gillY:0.5, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
   // chin scoop
   // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
   // ENGINE-COOLING (12 Nov, the user: "let's have at least a top scoop"): scoopTop 1 puts it on the cowl's TOP
@@ -1245,7 +1245,10 @@ function gillsFit(){
   if(!(L>=0.06 && H>=0.04)) return {ok:false, why:'no room on the lower flank ('+(Math.max(0,zHi-zLo)*100).toFixed(0)+' x '+(Math.max(0,(thHi-thLo)*rad)*100).toFixed(0)+' cm clear)'};
   // the centre: the station asked, kept inside; round, low in the clear band (the gills sit under the heads)
   const zc=clamp(zLo+clamp(P.gillZ,0,1)*(zHi-zLo), zLo+L/2, zHi-L/2);
-  const thc=Math.max(thLo+H/2/rad, Math.min(thHi-H/2/rad, 0.5*(thLo+thHi)));
+  // the height (the user, 16 Nov: "I'm missing a height position lever"): gillY 0 = the panel at the bottom of the clear
+  // band, 1 = at its top; absent = 0.5, the band's middle, as before
+  const gy=clamp(P.gillY!=null?+P.gillY:0.5,0,1);
+  const thc=Math.max(thLo+H/2/rad, Math.min(thHi-H/2/rad, thLo+H/2/rad+gy*Math.max(0,(thHi-thLo)-H/rad)));
   return {ok:true, zc, thc, rad, L, H, zLo, zHi, thLo, thHi};
 }
 function buildGills(group,mats){
@@ -1428,7 +1431,9 @@ function buildCylinders(group,mats){
         const cb=ip.length/3; ip.push(AF[0],AF[1],zF-dl);
         for(let j=0;j<NA;j++) ii.push(cb,NA+j,NA+(j+1)%NA);
         g2.setAttribute('position',new THREE.Float32BufferAttribute(ip,3)); g2.setIndex(ii); g2.computeVertexNormals();
-        const md=new THREE.Mesh(g2,innerMat(mats)); md.name='cowlCylInlet'; group.add(md);
+        // (the user, 16 Nov: "a big black stuff hiding everything": the duct and its back wall in the shell's matte black,
+        // not the cowl's inside, which a livery paints)
+        const md=new THREE.Mesh(g2,mats.dark||innerMat(mats)); md.name='cowlCylInlet'; group.add(md);
       } else {
         const cf=pos.length/3; pos.push(AF[0],AF[1],zF);
         for(let j=0;j<NA;j++) idx.push(cf,(zs.length-1)*NA+j,(zs.length-1)*NA+(j+1)%NA);

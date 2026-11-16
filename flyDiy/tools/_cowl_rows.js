@@ -78,6 +78,7 @@ const COWL_ROWS = [
     { k: 'gillOn', label: 'side gills (a raised panel of slanted slots, each flank)', lo: 0, hi: 1, step: 1 },
     { k: 'gillN', label: 'slots', lo: 2, hi: 12, step: 1, when: 'P.gillOn>0' },
     { k: 'gillZ', label: 'station (in the clear band, aft → forward)', lo: 0, hi: 1, step: 0.01, when: 'P.gillOn>0' },
+    { k: 'gillY', label: 'height (in the clear band, bottom → top)', lo: 0, hi: 1, step: 0.01, when: 'P.gillOn>0' },
     { k: 'gillL', label: 'panel length (m)', lo: 0.06, hi: 0.5, step: 0.005, when: 'P.gillOn>0' },
     { k: 'gillH', label: 'panel height (m)', lo: 0.04, hi: 0.3, step: 0.005, when: 'P.gillOn>0' },
     { k: 'gillSlant', label: 'slant (deg, the top leaning aft)', lo: -45, hi: 45, step: 1, when: 'P.gillOn>0' },

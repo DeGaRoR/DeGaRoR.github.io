@@ -690,24 +690,53 @@ function fitCylinders(spec, o, opts) {
   if (opts && opts.spindle) {
     // (its section: opts.vert / opts.sq, set on the generator before the norm is read)
     if (opts.vert != null) CW.P.cylVert = +opts.vert; if (opts.sq != null) CW.P.cylSq = +opts.sq;
-    const k = opts.front != null ? +opts.front : 0.7, zN = zE, rs = rSkinAt(aBest, zm);
-    let bs = null;
-    for (let zp0 = Math.max(0.05, z0 - 0.15); zp0 <= zN - 0.06; zp0 += 0.01)
-      for (let zp1 = zp0; zp1 <= zN - 0.05; zp1 += 0.01) {
-        const Lt = Math.max(0.03, Math.min(zp0 - 0.02, 1.8 * 0.2)), Ln = zN - zp1;
-        let Rq = Math.max(0.02, sc - rs + SINK);
-        for (const p of pts) {
-          const need = (CW.cylNorm ? CW.cylNorm(p.x - cxB, p.y - cyB) : Math.hypot(p.x - cxB, p.y - cyB)) + MARGIN;
-          if (p.z > zp1) { const u = (p.z - zp1) / Ln; if (u > 1) { Rq = Infinity; break; } Rq = Math.max(Rq, need / (k + (1 - k) * (1 - u * u))); }
-          else if (p.z < zp0) { const u = (zp0 - p.z) / Lt, w = 1 - u * u; if (w <= 0.05) { Rq = Infinity; break; } Rq = Math.max(Rq, rin + (need - rin) / w); }
-          else Rq = Math.max(Rq, need);
-        }
-        const score = Rq + 0.05 * (zp1 - zp0);
-        if (isFinite(Rq) && (!bs || score < bs.score)) bs = { score, R: Rq, zp0, zp1, Lt, Ln };
+    const k = opts.front != null ? +opts.front : 0.7, zN = zE;
+    // the head points, thinned for the search (every one is probed after)
+    const P0 = pts.length > 600 ? pts.filter((_, i) => i % Math.ceil(pts.length / 600) === 0) : pts;
+    const norm = (dx, dy) => CW.cylNorm(dx, dy);
+    // the least half-width for a given axis (cx, cy) and full part [zp0, zp1], under the spindle's own profile
+    const Rfor = (cx, cyA, zp0, zp1, rs, scA) => {
+      const Lt = Math.max(0.03, Math.min(zp0 - 0.02, 0.36)), Ln = zN - zp1;
+      let Rq = Math.max(0.02, scA - rs + SINK);
+      for (const p of P0) {
+        const need = norm(p.x - cx, p.y - cyA) + MARGIN;
+        if (p.z > zp1) { const u = (p.z - zp1) / Ln; if (u > 1) return Infinity; Rq = Math.max(Rq, need / (k + (1 - k) * (1 - u * u))); }
+        else if (p.z < zp0) { const u = (zp0 - p.z) / Lt, w = 1 - u * u; if (w <= 0.05) return Infinity; Rq = Math.max(Rq, rin + (need - rin) / w); }
+        else Rq = Math.max(Rq, need);
       }
-    if (bs) Object.assign(o, { cw_cylR: +bs.R.toFixed(4), cw_cylZ0: +bs.zp0.toFixed(4), cw_cylZ1: +bs.zp1.toFixed(4),
-      cw_cylNose: +bs.Ln.toFixed(4), cw_cylTail: +bs.Lt.toFixed(4), cw_cylProfile: 1, cw_cylFront: k, cw_cylInlet: opts.inlet ? 1 : 0,
-      cw_cylOgive: 0, cw_cylVert: opts.vert != null ? +opts.vert : 1, cw_cylSq: opts.sq != null ? +opts.sq : 0.5 });
+      return Rq;
+    };
+    // THE AXIS AND THE FULL PART TOGETHER (the user, 16 Nov: "smaller, more towards the center, more vertically squeezed"):
+    // alternate - the full part for the axis, then the axis (in the section's plane, on the squeezed section's own norm)
+    // for the full part - three rounds
+    let ax2 = { a2: aBest, sc }, pl = null;
+    for (let round = 0; round < 3; round++) {
+      const rs = rSkinAt(ax2.a2, zm), cx = ax2.sc * Math.cos(ax2.a2), cyA = ax2.sc * Math.sin(ax2.a2);
+      let bp = null;
+      for (let zp0 = Math.max(0.05, z0 - 0.15); zp0 <= zN - 0.06; zp0 += 0.02)
+        for (let zp1 = zp0; zp1 <= zN - 0.05; zp1 += 0.02) {
+          const R1 = Rfor(cx, cyA, zp0, zp1, rs, ax2.sc), sc1 = R1 + 0.05 * (zp1 - zp0);
+          if (isFinite(R1) && (!bp || sc1 < bp.s)) bp = { s: sc1, R: R1, zp0, zp1 };
+        }
+      if (!bp) break; pl = bp;
+      let ba = null;
+      for (let a3 = aBest - 25 / deg; a3 <= aBest + 25 / deg; a3 += 1 / deg) {
+        const rs3 = rSkinAt(a3, zm);
+        for (let s3 = 0.3 * rs3; s3 <= rs3 + 0.3; s3 += 0.004) {
+          const R3 = Rfor(s3 * Math.cos(a3), s3 * Math.sin(a3), pl.zp0, pl.zp1, rs3, s3);
+          if (isFinite(R3) && (!ba || R3 < ba.R)) ba = { R: R3, a2: a3, sc: s3 };
+        }
+      }
+      if (!ba) break; ax2 = ba; pl.R = ba.R;
+    }
+    if (pl) {
+      const Lt = Math.max(0.03, Math.min(pl.zp0 - 0.02, 0.36));
+      const rE = rSkinAt(ax2.a2, Math.max(0.01, pl.zp0 - Lt)), oIn = Math.min(ax2.sc, rE - 0.02);
+      Object.assign(o, { cw_cylAz: +(ax2.a2 * deg).toFixed(2), cw_cylOff: +ax2.sc.toFixed(4), cw_cylOffIn: +oIn.toFixed(4),
+        cw_cylR: +pl.R.toFixed(4), cw_cylZ0: +pl.zp0.toFixed(4), cw_cylZ1: +pl.zp1.toFixed(4),
+        cw_cylNose: +(zN - pl.zp1).toFixed(4), cw_cylTail: +Lt.toFixed(4), cw_cylProfile: 1, cw_cylFront: k,
+        cw_cylInlet: opts.inlet ? 1 : 0, cw_cylOgive: 0, cw_cylVert: opts.vert != null ? +opts.vert : 1, cw_cylSq: opts.sq != null ? +opts.sq : 0.5 });
+    }
   }
   let left = null, elsewhere = 0;
   for (let pass = 0; pass < 4; pass++) {
@@ -715,8 +744,10 @@ function fitCylinders(spec, o, opts) {
     const mine = k ? k.pts.filter(([x, y, z]) => near({ x: Math.abs(x), y: y - CW.spineY(z) })) : [];
     elsewhere = k ? Math.max(0, ...k.pts.filter(([x, y, z]) => !near({ x: Math.abs(x), y: y - CW.spineY(z) })).map(q => q[3])) : 0;
     left = mine.length ? Math.max(...mine.map(q => q[3])) : 0;
-    if (left < 0.001) break;
-    o.cw_cylR = +(o.cw_cylR + left + 0.001).toFixed(4);
+    // a negative margin (the user, 16 Nov: "I want to see them poking through a little") lets the heads stand that far out
+    const allow = Math.max(0, -MARGIN);
+    if (left < allow + 0.001) break;
+    o.cw_cylR = +(o.cw_cylR + left - allow + 0.001).toFixed(4);
   }
   o._cyl = { elsewhere: +elsewhere.toFixed(4), az: +(aBest * deg).toFixed(1), off: +sc.toFixed(3), R: o.cw_cylR, z0: +z0.toFixed(3),
              z1: +z1.toFixed(3), ze: +zE.toFixed(3), nose: +nose.toFixed(3), barePoke: c.worst, left };
@@ -898,7 +929,7 @@ if (require.main === module) {
   if (argv.includes('--roundCheeks')) ROUND_CHEEKS = true;
   // --cylOnly: the build's own cowl kept to the row, the two head cylinders added and merged (fitCylinders)
   if (argv.includes('--cylOnly')) {
-    const o = fitCylinders(spec, {}, { spindle: argv.includes('--spindle'), inlet: argv.includes('--inlet'), front: arg('front') != null ? +arg('front') : 0.7, vert: arg('vert') != null ? +arg('vert') : null, sq: arg('sq') != null ? +arg('sq') : null }), fit = o._cyl; delete o._cyl;
+    const o = fitCylinders(spec, {}, { spindle: argv.includes('--spindle'), inlet: argv.includes('--inlet'), front: arg('front') != null ? +arg('front') : 0.7, margin: arg('margin') != null ? +arg('margin') : null, vert: arg('vert') != null ? +arg('vert') : null, sq: arg('sq') != null ? +arg('sq') : null }), fit = o._cyl; delete o._cyl;
     const s2 = JSON.parse(JSON.stringify(spec)); s2.cage = Object.assign({}, s2.cage, o);
     fs.writeFileSync(OUT, JSON.stringify(j.spec ? Object.assign({}, j, { spec: s2 }) : s2));
     console.log(JSON.stringify({ out: OUT, cylOnly: true, fit, over: o }));
