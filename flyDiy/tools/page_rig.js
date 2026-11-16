@@ -20,6 +20,7 @@
 //   await rig.close();                    // Chrome by its own PID tree, the server, the profile folder
 //   also: rig.ev(js) -> value, rig.J(js) -> JSON-parsed value, rig.frames(n) (rAF), rig.gpu, rig.plane, rig.errors, rig.log,
 //         rig.anchor() (the aircraft's CG, cross-checked), rig.inFrame([x, y, z]) (projected through the game's camera), rig.misses
+//         rig.cmd(method, params) (the raw CDP call: Emulation, a DOM-layer screenshot - never for the world, RIG-PROCEDURE 3)
 //
 // THE AIRCRAFT IS WHERE THE SIM'S CG IS (page-rig-2, 16 Nov - two traps that cost slots):
 //   - FLIGHT_PROBE.craft() is the drawn Group, its position (0, 0, 0) - the meshes move inside it. An eye 'near the craft' from it
@@ -193,6 +194,7 @@ async function start(o) {
     };
     rig.J = async expr => { const s = await rig.ev('Promise.resolve(' + expr + ').then(v => JSON.stringify(v === undefined ? null : v))'); return s == null ? null : JSON.parse(s); };
     rig.frames = n => rig.ev(FRAMES(n || 1));
+    rig.cmd = cmd;   // CONTROLS-STRIP (16 Nov): the raw CDP call, for a rig that must resize the viewport (Emulation) or read the DOM layer
     rig.why = async () => { try { const w = JSON.parse(await rig.ev(WHY, 10000)); w.errors = rig.errors.slice(-10); w.ageS = Math.round((Date.now() - t0) / 1000); return w; } catch (e) { return { whyFailed: String(e.message || e), errors: rig.errors.slice(-10) }; } };
 
     await cmd('Page.enable'); await cmd('Runtime.enable');
