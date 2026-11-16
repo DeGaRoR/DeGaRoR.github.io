@@ -448,6 +448,130 @@ Stills: `reports/evidence/ROCK-STUDY/rough/`.
 - **Caveat:** the sky's reflection tints the stone a little cool on SwiftShader. On the GPU the game's own probe and grade
   decide, and the `sheen` knob is the lever if it reads too glossy.
 
+### 5g. v1: ledges (first try), more rocks to 2 km, what it touches, the performance audit (16 Nov)
+
+**v1 is saved:** branch `claude/rock-study-v1`, stills in `reports/evidence/ROCK-STUDY/v1/`. It is the state the user called
+"looks great, maybe apart from the ledges", and the fall-back if the work after it goes nowhere. `?ledges=0` gives v1
+without its first-try ledges.
+
+**v1's ledges** (`bench.js stairDY`, first try, superseded in 5h):
+- Patches of the exposed rock on 16-54°.
+- The height quantised into 5-10 m steps (flat treads, risers in the last half of each step).
+- Each 120 m cell has its own random dip, and steps break into segments.
+- Treads take green and risers stay bare and darker (`aLedge` -> the shader).
+- On faces over ~50° a step spans too few 1.25 m vertices: a comb, so they are left out there.
+- The user's verdict: the orientation is random with respect to the slope, and the scale too small.
+
+**More rocks, real geometry to 2 km:**
+- +25 % density.
+- A far grid (6 m, 9x the odds) out to the patch's edge, big blocks only.
+- Each kit subject decimated by vertex clustering into rungs:
+
+  | rung | from | tris/block |
+  |---|---|---|
+  | full | 0 | ~400 |
+  | n = 7 | 200 m | ~245 |
+  | n = 4 | 600 m to 2 km | ~100 |
+
+- The triplanar material needs no UVs, so the rungs keep the look. No baking into the land texture (the user prefers
+  geometry).
+- Near view: 4624 blocks drawn, 1.05 M triangles (was 3338 and 1.33 M without LODs), 39 draws. Decimation takes 14 ms at
+  load.
+
+**What the modifications touch, and by what rule** (the user asked). Not "only cliffs": it is the ROCK, decided as follows.
+1. **The rock material** (trondhjemite slab/face, weathering, micro detail, roughness) is drawn wherever the rock's weight
+   is: the game's terrain types 6 (rock) and 12 (cliff, rock over 32-42°). It applies by WEIGHT, so it blends at the edges.
+2. **On the macro extent** (the 1.6 km baked round Ardent in the bench), the EXPOSURE replaces the raster's rock share.
+   The exposure is: height (250-760 m), slope (22-48°), convexity (20 m Laplacian), minus the flow field (drainage),
+   + 0.3 x the raster's own rock, + noises at 2-40 m. Measured on the extent:
+   - the raster says 40.5 % rock; the exposure keeps 28.3 %;
+   - where the raster has rock (> 0.5), the exposure averages 0.50, so vegetation now cuts through half of it;
+   - where the raster has no rock (< 0.1), 8.4 % of those cells become rock: the high convex steep ground the 10 m
+     raster called heath (14 % of heath / scrub cells) or forest (3.9 %);
+   - the freed rock area is drawn as heath + forest (0.3 / 0.7) where the raster had nothing else.
+3. **The rock mesh** (the 1.25 m skirt, the masses, the ledges) covers the cells where the raster says rock (> 0.3) or the
+   slope is over 40°, and on the macro extent wherever the exposure is over ~0.02. It is displaced only by the exposure
+   (smoothed over ~5 m), so the green between stays at the DEM. Within 450 m of the eye.
+4. **The scattered rocks** follow the talus (a face over 44° within 40 m uphill, concave), outcrop (rock, 20-30°+,
+   convex), and edge (the rock's margin) rules, on rock and its surroundings only.
+5. **Untouched:** forest, heath, muskeg, beach, shingle, built ground, water. They keep today's material, except at the
+   rock's ragged edge.
+6. **Island-wide**, the exposure must come from the island's own fields, not a bench bake: see the audit below.
+
+**THE PERFORMANCE AUDIT** (the user: "big loads, big loading times, heavy shader compiles? Or can we keep it lightweight?")
+
+*Runtime* (SwiftShader, 1280 x 720, no shadows):
+
+| | reads/px | ms per frame | triangles drawn | draws |
+|---|---|---|---|---|
+| today, near | 23.1 | 3259 | 0.32 M | 2 |
+| v1, near | 43.6 | 4643 | 1.92 M | 42 |
+| v1, face | 32.7 | 4792 | 1.72 M | 42 |
+
+- The rock material alone is CHEAPER than today's (13 vs 39 reads on a face). The extra reads in v1 are the PBR micro
+  detail (hex x triplanar: ~15 reads, within 180 m only) and the vegetation's own sets on the half of the old rock now
+  green.
+- Triangles: the rock mesh is 0.5-0.6 M (1.25 m, 450 m ring) and the blocks ~1 M with LODs. The shadow pass draws them
+  again.
+- **A phone tier**, not measured on a device:
+  - the rock mesh at 2.5 m in a 250 m ring: ~0.08 M;
+  - blocks: full rung under 60 m, n = 7 under 200 m, n = 4 to 1 km, small blocks to 120 m: ~0.25 M;
+  - no PBR micro detail.
+
+  An estimated +0.3 M triangles and +5-10 reads/px over today.
+
+*Load and build times* (the bench, on this machine's CPU, single thread):
+- rock mesh (450 m ring at 1.25 m, the Blender masses and ledges per vertex): **0.8-2.2 s**;
+- block placement: **0.6-0.9 s**;
+- LODs: 14 ms;
+- the bench page in total: 6-8 s, including 13 PNG decodes.
+
+**In the game this must be CHUNKED in a worker**, like the cover ring: 64 m chunks at ~20-60 ms each, built as the eye
+moves. As a one-shot build on the main thread it would be a visible hitch. The macro bake (`trond_gen.py`, 30-45 s for
+1.6 km in numpy) is offline.
+
+*Textures and memory:*
+- The slab and face materials are 2048² x 4 maps: 64 MB uncompressed (85 MB with mips) on the GPU. That is too much for a
+  phone; at **1024²** it is 21 MB, and as KTX2 (the game already ships KTX2 for the ground) ~5 MB.
+- The macro is 2048² x 3 maps for 1.6 km. It **cannot scale to the island** (39 km at 0.78 m is 2.5 G pixels). Island-wide
+  it has to be PROCEDURAL in the shader and in the mesh worker: the joints are warped line sets (a hash per band), and the
+  exposure is a function of fields at 10 m. The island packs already carry most of them; flow and curvature would be one
+  new 10 m channel (12 MB).
+
+*Shader compile, the real risk:*
+- The game's near-ring program is already the long pole on ANGLE/D3D11 (COLD-LINKS: fxc inlines every call; 144 inlined
+  fetches were a 110-220 s cold compile; today's 27 fetch sites link in seconds).
+- The trondhjemite path adds ~**33 fetch sites**, counted from the code (the bench can't read back the translated
+  shader):
+
+  | source | fetch sites |
+  |---|---|
+  | slab taps | 6 |
+  | face planes | 4 |
+  | macro | 4 |
+  | green | 1 |
+  | the PBR micro sSet (hex x 3 planes x 2 maps) | 18 |
+
+  That roughly doubles the sites, which **would** risk the cold compile.
+- On SwiftShader the first frame (compile + link) is 1.4-1.7 s for both today and v1, which proves nothing about D3D.
+- **Mitigations:**
+  - the micro detail as ONE plain-tile biplanar fetch pair (4 sites, not 18);
+  - the macro packed into 2 textures;
+  - a lean phone variant (`SPLAT_ONE`-style) without the micro detail;
+  - measure it with `tools/perf/cold_links_bench.js` on the box before anything lands.
+
+*Samplers, a hard limit:*
+- The game's near ring uses **12 of 16** units, the outer ring 14, the premises patch 15 (`splat_ground.js` header, GATE
+  SPLAT --gpu ratchet).
+- The bench's trond path adds 7. In the game it must be **≤ 4**:
+  - slab + face as two more layers in a separate pair of 1024² arrays (colour + height, normal + rough): 2 samplers;
+  - the macro packed in 2: (normal xz, vegetation, height) and (colour multiplier, exposure);
+  - or, island-wide, the procedural path with one new 10 m channel in the existing packs: **0-1 new samplers**.
+
+**Verdict.** Lightweight is reachable. The material costs about what today's does. The cost is triangles (tiered: ~0.3 M
+on a phone) and a chunked worker build. The two real risks are the D3D cold compile and the sampler budget; both have
+known mitigations, and both must be measured on the box.
+
 ## 6. Recommendation: what to build first, what it costs, what it changes
 
 **Build first: rock clusters in the cover ring.** It changes the most of what an aeroplane sees, for the least risk.
