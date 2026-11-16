@@ -618,7 +618,7 @@ AR.make = function (THREE, ctx) {
       if (window.PLUME && S.blow > 0) {
         if (!one.plume) {
           one.plume = window.PLUME.make(THREE, Object.assign({}, window.PLUME.PRESETS.mist || window.PLUME.PRESETS.blow,
-            { rise: 4.0 * S.blow - 1.4, spread: 1.1 * S.blow + 0.1, r0: 0.11 * S.blow + 0.01, k: 0.55 + 0.05 * S.blow }));
+            { rise: 4.0 * S.blow - 1.4, spread: 1.1 * S.blow + 0.1, r0: 0.11 * S.blow + 0.01, k: 0.4 + 0.03 * S.blow }));
           root.add(one.plume.mesh);
         }
         const w = ctx.wind ? ctx.wind() : [0, 0];

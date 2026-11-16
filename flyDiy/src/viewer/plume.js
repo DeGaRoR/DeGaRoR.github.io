@@ -60,7 +60,7 @@ P.PRESETS = {
   // a small one-shot: a splash's hanging mist, a snort
   puff:    { n: 5, rise: 1.6, spread: 0.9, life: 2.2, delay: 0.5, k: 0.5, lean: 0.2, r0: 0.12 },
   // A WHALE'S BLOW AS WATER (the mist above): 28 droplet clouds, up in ~0.3 s (tau), hanging, gone in five
-  mist:    { kind: 'mist', n: 28, rise: 7.5, spread: 2.2, life: 5.0, delay: 0.12, tau: 0.3, k: 0.62, lean: 0.35, r0: 0.16,
+  mist:    { kind: 'mist', n: 28, rise: 7.5, spread: 2.2, life: 5.0, delay: 0.12, tau: 0.3, k: 0.45, lean: 0.35, r0: 0.16,
              colour: 0xf1f4f6, fwd: 1.4 },
 };
 
@@ -229,9 +229,10 @@ const MIST_FRAG_BODY = `
     float d = length(vQ);
     vec2 q = vQ * 2.6 + vSeed.yz * 9.0 + vec2(0.0, uTime * 0.6);
     float n = mNoise(q) * 0.55 + mNoise(q * 3.1 + 5.0) * 0.45;   // the droplets' grain, not the smoke's lumps
-    float a = exp(-3.2 * d * d) * (1.0 - smoothstep(0.75, 1.0, d)) * (0.3 + 0.7 * n) * sF * uK;
+    // (GROUND-FX review: ~10 quads overlap in the core - at full k the column read opaque; the top thins, the low skirt stays dense)
+    float a = exp(-3.2 * d * d) * (1.0 - smoothstep(0.75, 1.0, d)) * (0.3 + 0.7 * n) * sF * uK * (1.0 - 0.5 * vSeed.x);
     diffuseColor.a *= a;
-    diffuseColor.rgb *= (0.8 + 0.2 * n + vScat) * uSmokeLit;
+    diffuseColor.rgb *= min(0.8 + 0.2 * n + 0.8 * vScat, 1.6) * uSmokeLit;   // (capped: into the sun, a glow, not a bloom ball)
   }`;
 // the key light: the scene's brightest directional light, found once per scene (none: the default sun below)
 const KEY = new WeakMap();
@@ -290,6 +291,10 @@ function makeMist(THREE, o) {
     fire(x, y, z, dx, dz) {
       mesh.position.set(x, y, z);
       u.uLean.value.set(dx || 0, dz || 0);
+      // the cull sphere round where the mist WILL be: half way along its drift, wide enough for all of it (GROUND-FX review:
+      // the blowhole's sphere left the frustum while the drifted cloud was still on screen)
+      g.boundingSphere.center.set((dx || 0) * o.life * 0.5, o.rise * 0.5, (dz || 0) * o.life * 0.5);
+      g.boundingSphere.radius = o.rise * 0.6 + o.spread * 1.5 + o.r0 * 2 + Math.hypot(dx || 0, dz || 0) * o.life * 0.5;
       u.uT.value = 0;
       mesh.visible = true;
       const L = keyLight(mesh);

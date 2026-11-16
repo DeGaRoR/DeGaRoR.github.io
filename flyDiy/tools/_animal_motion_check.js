@@ -545,7 +545,9 @@ async function swimmers(g) {
       else if (!/mvPosition\.xy \+= aQuad \* rad/.test(sh.vertexShader) || /#include <project_vertex>/.test(sh.vertexShader)) why = 'the billboard did not patch';
       else if (!sh.uniforms.uSun || !/vScat/.test(sh.fragmentShader)) why = 'no forward scatter';
       else if (M.mesh.geometry.index.count !== K.n * 6) why = M.mesh.geometry.index.count / 6 + ' quads for ' + K.n;
-      M.fire(0, 0, 0, 1, 0); M.step(1);
+      M.fire(0, 0, 0, 6, 0); M.step(1);
+      const bs = M.mesh.geometry.boundingSphere, far = 6 * (K.life + K.delay);   // (a 10 m/s wind: the cloud 30 m downwind)
+      if (!why && !(Math.abs(bs.center.x - far / 2) < far * 0.1 && bs.radius >= far / 2)) why = 'the cull sphere does not follow the drift (' + f2(bs.center.x) + ', r ' + f2(bs.radius) + ')';
       const top = 9 * (1 - Math.exp(-1 / K.tau));
       if (!why && !(M.alive && M.mesh.visible && top > 0.9 * 9)) why = 'not up at 1 s (' + f2(top) + ' m)';
       M.step(K.life + K.delay);
