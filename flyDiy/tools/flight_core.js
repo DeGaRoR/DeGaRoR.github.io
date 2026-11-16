@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 245957ffa746b554
+// body-sha256: e3f817801e0e0123
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -11249,7 +11249,9 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 6, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 3.8 };   // trackW 3.8: tw_ski's narrow drawn track (DIRT-STRIP dirt-look-3) - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 // (GRASS-ON-GREEN 16 Nov) a gate's or a rig's override of the one dial for the margin's look AND surface: FLYDIY_GRASS_HARD=1 (node env or window)
-try { const v = (typeof window !== 'undefined' && window.FLYDIY_GRASS_HARD != null) ? window.FLYDIY_GRASS_HARD : (typeof process !== 'undefined' && process.env && process.env.FLYDIY_GRASS_HARD); if (v != null && v !== '' && isFinite(+v)) GRASS_SIDES.hard = Math.max(0, +v); } catch (e) {}
+// (16 Nov, the page boot: with no process the old `a && b` read FALSE, +false = 0 - the page shipped hard 0 while every node gate saw 1.
+//  Only a string or a number is an override)
+try { const v = (typeof window !== 'undefined' && window.FLYDIY_GRASS_HARD != null) ? window.FLYDIY_GRASS_HARD : (typeof process !== 'undefined' && process.env ? process.env.FLYDIY_GRASS_HARD : undefined); if ((typeof v === 'string' || typeof v === 'number') && v !== '' && isFinite(+v)) GRASS_SIDES.hard = Math.max(0, +v); } catch (e) {}
 function grassSides(o) {
   if (o && typeof o === 'object') for (const k in o) {
     if (!(k in GRASS_SIDES_DEF)) continue;
