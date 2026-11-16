@@ -102,6 +102,10 @@
     //   EDDIES  (Ghost of Tsushima's curl noise on particles; Chen et al. 1999's turbulent wake stage): the puffs ride a
     //       divergence-free swirl field of the surface layer, so a trail breaks into lobes and gaps instead of a smooth tube
     v2: true,
+    // THE DRAWN SIZES (GROUND-FX, the world editor's Ground FX section, the user 16 Nov via A0: "every new world setting
+    // editable"): the grit and drift, and the clods, drops and clumps, drawn this many times their thrown size - the look
+    // only (the throw, its flight and the deposit on the aeroplane keep the thrown size)
+    gritSize: 1, clodSize: 1,
   };
   // ?dustlook=0: the 9 Nov look (the class rows, the full density, the 4x lobe) - the before/after's lever
   try { if (typeof location !== 'undefined' && /[?&]dustlook=0/.test(location.search || '')) { LOOK.dens = 1; LOOK.fwdMax = 4; LOOK.ground = false; LOOK.v2 = false; } } catch (e) {}
@@ -1088,7 +1092,7 @@
     g.instanceCount = 0;
     const bt = billow(128), tex = new THREE.DataTexture(bt.data, bt.N, bt.N, THREE.RGBAFormat);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.needsUpdate = true;
-    const colV = CLASSES.map(k => new THREE.Vector3(CLS[k].col[0], CLS[k].col[1], CLS[k].col[2]));
+    const colV = CLASSES.map(k => new THREE.Vector3(CLS[k].col[0], CLS[k].col[1], CLS[k].col[2])), gotGround = new Uint8Array(CLASSES.length);
     // V2: the six-way atlases, shared by every batch. THE PAGE LOADS THEM SHIPPED (tools/dust_atlas_bake.js: two images
     // under media/tex/dust, decoded off the main thread - the bake is ~1 s, never paid at load); node, or a page without
     // the table (the bench), bakes here. Until both images are in, the puffs draw the 9 Nov way (uV2 0).
@@ -1125,6 +1129,10 @@
       mesh, material: mat, sys, cover: 0, drawn: 0,
       sync(camera, light) {
         const P = sys.P, G = sys.G, e = camera.matrixWorldInverse.elements, pm = camera.projectionMatrix.elements, p00 = pm[0], p11 = pm[5];
+        // the look's knobs read every frame (the world editor's Ground FX section moves them live): the density, the backlit
+        // cap, and a class's own colour where no drawn ground handed one in (or the look's "colour from the ground" is off)
+        mat.uniforms.uDens.value = LOOK.dens; mat.uniforms.uFwdMax.value = LOOK.fwdMax;
+        for (let ci = 0; ci < colV.length; ci++) if (!LOOK.ground || !gotGround[ci]) { const c = CLS[CLASSES[ci]].col; colV[ci].set(c[0], c[1], c[2]); }
         let m = 0;
         for (let i = 0; i < P.n; i++) if (P.age[i] >= 0 && P.tau[i] >= L.tauMin) {
           const x = P.p[i * 3], y = P.p[i * 3 + 1], z = P.p[i * 3 + 2];
@@ -1202,7 +1210,7 @@
             const q = j - P.n;
             pos[w * 3] = G.p[q * 3]; pos[w * 3 + 1] = G.p[q * 3 + 1]; pos[w * 3 + 2] = G.p[q * 3 + 2];
             vel[w * 3] = G.v[q * 3]; vel[w * 3 + 1] = G.v[q * 3 + 1]; vel[w * 3 + 2] = G.v[q * 3 + 2];
-            A[w * 4] = G.age[q] / G.life[q]; A[w * 4 + 1] = G.s[q]; A[w * 4 + 2] = G.seed[q]; A[w * 4 + 3] = G.kind[q];
+            A[w * 4] = G.age[q] / G.life[q]; A[w * 4 + 1] = G.s[q] * (G.kind[q] === 0 || G.kind[q] === 3 ? LOOK.gritSize : LOOK.clodSize); A[w * 4 + 2] = G.seed[q]; A[w * 4 + 3] = G.kind[q];
             B[w * 4] = 1; B[w * 4 + 1] = -1e4; B[w * 4 + 2] = G.cls[q]; B[w * 4 + 3] = 0;
             Cs[w * 2] = 1; Cs[w * 2 + 1] = 1;
           }
@@ -1223,7 +1231,7 @@
         return w;
       },
       // the dust of class ci takes this ground's colour (linear rgb of the drawn surface; albedoFrom's lift and range)
-      setGround(ci, rgb) { const c = albedoFrom(rgb, ci), v = colV[ci]; if (!c || !v) return false; v.set(c[0], c[1], c[2]); return true; },
+      setGround(ci, rgb) { const c = albedoFrom(rgb, ci), v = colV[ci]; if (!c || !v) return false; v.set(c[0], c[1], c[2]); gotGround[ci] = 1; return true; },
       dispose() { g.dispose(); mat.dispose(); tex.dispose(); texA.dispose(); texB.dispose(); },
     };
     return api;

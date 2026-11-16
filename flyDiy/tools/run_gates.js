@@ -1071,6 +1071,7 @@ const GATES = [
   // C172's legs and fairings hold mud, the wing tops, windscreen, cowl and fuselage tops none, a leg's lee under a third of its
   // front; rain and water wash it; seeded (~12 s; --selftest, --show)
   { id: 'MUDDEPOSIT', file: '_muddeposit_check.js', tier: 'core', wall: 45 },
+  { id: 'GFXLOOK', file: '_gfxlook_check.js', tier: 'core', wall: 10 },   // GROUND-FX: the dust and the mud in the world editor (16 Nov)
   // SNOW-MUD FINISH (15 Nov): THE CUB, THE C172 (list:50) AND THE PC-6 FLOWN ON MUD - the pilot's circuits from HOME on
   // grass, firm and soft mud (take-off roll, landing roll, outcome) and the stuck limits (soft mud's k scaled down, full power
   // from rest); the table printed. Three child processes; ~9 min - the full tier's, as the archetype sweeps
