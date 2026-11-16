@@ -1,6 +1,6 @@
 {
  "what": "join-parity-page",
- "at": "2026-11-16T06:35:07.130Z",
+ "at": "2026-11-16T06:46:03.943Z",
  "door": "load (GARAGE_SPEC.set)",
  "chainSig": "e1e7caed433e3e9e49e516e3cf9b14237b08b213",
  "builds": {
@@ -7919,8 +7919,8 @@
    "page": {
     "n": 184,
     "nb": 811,
-    "mass": 591.7811162380489,
-    "build": "2a36b5e669c1"
+    "mass": 594.9849163229894,
+    "build": "05439a9e0838"
    },
    "spec": {
     "cage": {
@@ -8107,6 +8107,7 @@
      "aeroAftTip": 0.5,
      "aeroAftShape": 0,
      "aeroAftEdge": 0.6,
+     "aeroAftOver": 0,
      "crestH": 0,
      "crestAt": 0.55,
      "crestLoops": 1,
@@ -8462,6 +8463,7 @@
      "whCap": 1,
      "whValve": 1,
      "whBrake": 0,
+     "brkHold": 0,
      "whSlick": 0,
      "whBulge": 1,
      "beamAng": 62,
@@ -9222,7 +9224,7 @@
      "class": "n23",
      "role": "touring",
      "name": "cessnaFloatsWOrks",
-     "reg": "F-PGAR"
+     "reg": "PU-PTL"
     },
     "fuel": {
      "litres": 72,
@@ -9282,8 +9284,8 @@
      "seatY": 0.1,
      "seatPitch": 0.86,
      "seatsX": [
-      0.42409999999999964,
-      0.42409999999999964
+      0.5180999999999997,
+      0.5180999999999997
      ],
      "seats": 2,
      "occupied": [
@@ -9696,7 +9698,7 @@
       "regL": 3.6,
       "regC": 0.14,
       "regCol": 0,
-      "regW": 0.7986085841966712,
+      "regW": 0.7871997070312501,
       "m1On": 1,
       "m1Pat": 1,
       "m1A": 2902577,
@@ -9880,6 +9882,24 @@
      "hInc": 0,
      "finMaterial": null,
      "stabMaterial": null
+    },
+    "cooling": {
+     "face": 0,
+     "scoop": 0,
+     "scoopAlt": 0,
+     "scoopRev": 0,
+     "nacInlet": 0.03834,
+     "exit": 0,
+     "gills": 0,
+     "units": [
+      {
+       "aft": 1,
+       "k": 1,
+       "turned": 0
+      }
+     ],
+     "headsOut": 0,
+     "headsAll": 0.10621
     }
    }
   }
