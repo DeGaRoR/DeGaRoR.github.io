@@ -1162,6 +1162,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     for (let i = 0; i < ST.length; i++) if (ST[i].x > x + 0.05) { a = i; break; }
     return [f, Math.max(a, Math.min(f + 1, F.length - 1))];
   };
+  // STRADDLE-FIX (LS4 READY, 16 Nov; the user: "fix it in the release"): WHERE A MASS SITS, the two stations that
+  // BRACKET x - the last at or ahead of it and the next. straddle() keeps a 5 cm dead band round every station and,
+  // for x inside it, skips that station for the ones either side: right for the structure's ties (the wing root's,
+  // which add the nearest ring themselves), wrong for a mass - the Archaeopteryx's pilot (SEAT-CG's 0.129 m, 1.117 m
+  // aft) put 24 kg on the nose ring S0 and 57 on S2 instead of on S1, the ring it sits at (GATE NACELLE C, the nose
+  // keel 27 -> 39 mm). billAt and bodyRing (the masses' two doors) take this; every tie keeps straddle(). Outside the
+  // bands the pair is straddle's; inside, the lever now runs to the station itself
+  const bracket = x => {
+    let f = 0;
+    for (let i = 0; i < ST.length; i++) if (ST[i].x <= x) f = i;
+    return [f, Math.min(f + 1, F.length - 1)];
+  };
   const nearestRing = x => {
     let best = 0, bd = 1e9;
     ST.forEach((s, i) => { const d = Math.abs(s.x - x); if (d < bd) { bd = d; best = i; } });
@@ -3914,7 +3926,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     pt(b, m * (1 - w)); pt(t, m * w);
   };
   const billAt = (x, m, up) => {
-    const [f, a] = straddle(x);
+    const [f, a] = bracket(x);   // (STRADDLE-FIX: the bracket, not the ties' straddle)
     const put = up ? onRing : (rg, sd, mm) => pt(rg['B' + sd], mm);
     if (f === a || !F[a]) { put(F[f], 'L', 0.5 * m); put(F[f], 'R', 0.5 * m); return; }
     const x0 = ST[f].x, x1 = ST[a].x;
@@ -3986,7 +3998,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const bodyRing = (xWant, lvWant) => {
     const pick = rg => (lvWant >= 0.5) ? [rg.TL, rg.TR] : [rg.BL, rg.BR];
     if (xWant < ST[0].x - 0.05) return noseNodes(xWant, lvWant);
-    const [f, a] = straddle(xWant);
+    const [f, a] = bracket(xWant);   // (STRADDLE-FIX: the bracket, not the ties' straddle)
     if (f === a || !F[a] || !F[f]) { const [n0, n1] = pick(F[f] || F[0]); return [[n0, 0.5], [n1, 0.5]]; }
     const x0 = ST[f].x, x1 = ST[a].x;
     const wa = Math.max(0, Math.min(1, (xWant - x0) / Math.max(1e-6, x1 - x0)));
