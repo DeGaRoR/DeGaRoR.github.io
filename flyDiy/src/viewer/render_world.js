@@ -19,11 +19,68 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const g = buildWorldSceneSteps(scene, world, renderer, camera, shedDims);
   for (;;) { const r = g.next(); if (r.done) return r.value; }
 }
+// ROCK-STUDY R1: THE ROCK'S TERRAIN BIAS (splat_ground sTrExpo reads it in the tint's alpha). The exposure wants the
+// ground's convexity (a ridge is bare) and its drainage (a valley line holds soil): both from the hydrology's own 1024^2
+// heights (world.hydro.grids.H, ~38 m; its accumulation is all 1 in the island's 'map' mode, so the drainage is the 300 m
+// CONCAVITY - a valley is a concave line), two box blurs: the 76 m Laplacian (convex +) and the 300 m concavity, each over its
+// land std; bias = 0.20 x clamp(0.45 z_convex) - 0.35 x smoothstep(0.6, 1.6, z_valley), stored as (bias + 0.6) / 0.8, bilinear
+// onto the tint's grid (W2 x H2 cells of cs metres from gx0, gz0). Self-contained: its source text is the worker's.
+function ROCK_BIAS(Hf, sea, N, hx0, hz0, hdx, hdz, gx0, gz0, cs, W2, H2) {
+  const n = N * N;
+  const box = (src, r) => { const tmp = new Float32Array(n), out = new Float32Array(n), w = 2 * r + 1;
+    for (let y = 0; y < N; y++) { let acc = 0; const o = y * N;
+      for (let k = -r; k <= r; k++) acc += src[o + Math.min(N - 1, Math.max(0, k))];
+      for (let x = 0; x < N; x++) { tmp[o + x] = acc / w; acc += src[o + Math.min(N - 1, x + r + 1)] - src[o + Math.max(0, x - r)]; } }
+    for (let x = 0; x < N; x++) { let acc = 0;
+      for (let k = -r; k <= r; k++) acc += tmp[Math.min(N - 1, Math.max(0, k)) * N + x];
+      for (let y = 0; y < N; y++) { out[y * N + x] = acc / w; acc += tmp[Math.min(N - 1, y + r + 1) * N + x] - tmp[Math.max(0, y - r) * N + x]; } }
+    return out; };
+  const b2 = box(Hf, 2), b8 = box(box(Hf, 4), 4);
+  let sL = 0, sC = 0, m = 0;
+  for (let k = 0; k < n; k += 7) { if (sea && sea[k]) continue; const l = Hf[k] - b2[k], c = b8[k] - Hf[k]; sL += l * l; sC += c * c; m++; }
+  const zL = 1 / Math.max(1e-3, Math.sqrt(sL / Math.max(1, m))), zC = 1 / Math.max(1e-3, Math.sqrt(sC / Math.max(1, m)));
+  const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const B = new Float32Array(n);
+  for (let k = 0; k < n; k++) B[k] = 0.20 * Math.min(1, Math.max(-1, (Hf[k] - b2[k]) * zL * 0.45)) - 0.35 * ss(0.6, 1.6, (b8[k] - Hf[k]) * zC);
+  const out = new Uint8Array(W2 * H2);
+  for (let j = 0; j < H2; j++) { const fz = (gz0 + (j + 0.5) * cs - hz0) / hdz - 0.5, z0 = Math.max(0, Math.min(N - 2, Math.floor(fz))), v = Math.min(1, Math.max(0, fz - z0));
+    for (let i = 0; i < W2; i++) { const fx = (gx0 + (i + 0.5) * cs - hx0) / hdx - 0.5, x0 = Math.max(0, Math.min(N - 2, Math.floor(fx))), u = Math.min(1, Math.max(0, fx - x0)), k = z0 * N + x0;
+      const b = (B[k] * (1 - u) + B[k + 1] * u) * (1 - v) + (B[k + N] * (1 - u) + B[k + N + 1] * u) * v;
+      out[j * W2 + i] = Math.round(Math.min(1, Math.max(0, (b + 0.6) / 0.8)) * 255); } }
+  return out;
+}
+// the job: { done, out } - the worker fills it; ROCK_STATS { biasWorkerMs (inside the worker), biasMainMs (the post here + the
+// copy back), biasWorker: true }. null = no worker (the step makes it on the main thread)
+function rockBiasStart(world, BUD) {
+  try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
+  if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return null;
+  const I = world.island, g = world.hydro && world.hydro.grids;
+  if (!I || !I.albedo || !I.grid || !I.tint || !g || !g.H || !g.N) return null;
+  const IG = I.grid, half = !!(BUD && BUD.islandHalf), W2 = half ? Math.ceil(IG.w / 2) : IG.w, H2 = half ? Math.ceil(IG.h / 2) : IG.h;
+  const t0 = performance.now(), job = { done: false, out: null };
+  try {
+    const src = 'const ROCK_BIAS = ' + ROCK_BIAS.toString() + ';\nonmessage = e => { const a = e.data, t = performance.now();\n' +
+      '  const out = ROCK_BIAS(a.H, a.sea, a.N, a.hx0, a.hz0, a.hdx, a.hdz, a.gx0, a.gz0, a.cs, a.W2, a.H2);\n' +
+      '  postMessage({ out, ms: performance.now() - t }, [out.buffer]); };';
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url);
+    const fail = why => { console.warn('rock bias worker: ' + why + ' - made on the main thread'); job.done = true; job.out = null; try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); };
+    w.onmessage = e => { const t1 = performance.now(); job.out = e.data.out; job.done = true; w.terminate(); URL.revokeObjectURL(url);
+      if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWorker: true, biasWorkerMs: Math.round(e.data.ms), biasWallMs: Math.round(t1 - t0), biasMainMs: Math.round(job.postMs + (performance.now() - t1)), biasGrid: g.N, tint: [W2, H2] }); };
+    w.onerror = e => fail(e && e.message || 'error');
+    const H = Float32Array.from(g.H), sea = g.sea ? Uint8Array.from(g.sea) : null;
+    w.postMessage({ H, sea, N: g.N, hx0: g.x0, hz0: g.z0, hdx: g.dx, hdz: g.dz, gx0: IG.x0, gz0: IG.z0, cs: IG.cell * (half ? 2 : 1), W2, H2 }, [H.buffer].concat(sea ? [sea.buffer] : []));
+    job.postMs = performance.now() - t0;
+  } catch (e) { console.warn('rock bias worker: ' + (e && e.message || e)); return null; }
+  return job;
+}
 function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // G1230 (MEM-BUDGET): the build budget of the player's preset (gfx_settings.js BUDGETS) - what this build makes and
   // holds; null (a gate's stub, no GFX): everything at full
   const BUD = (typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function') ? window.GFX.budget() : null;
   const BUILT = { done: false, q: [] };
+  // ROCK-STUDY R1: the rock's terrain bias, in a worker from here (the 'island ground' step waits for it): null = made on the
+  // main thread there (no Worker), or not at all (?rocks=0, no island, no hydrology)
+  const rockBiasJob = rockBiasStart(world, BUD);
   const afterBuild = fn => { if (BUILT.done) fn(); else BUILT.q.push(fn); };
   // (12 Nov, FIT-PROCEDURE: under r186's MANAGED colour, Color(hex) already decodes sRGB - the second conversion drew
   // every world colour twice decoded; convert only when management is off, the 'as authored' step: once in either mode)
@@ -1911,44 +1968,23 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const pk2 = (r, g0) => { const make = () => { const g = typeof g0 === 'function' ? g0() : g0;   // (a function: made with the texels - G2075's flagged type)
         const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
-      // ROCK-STUDY R1: THE TERRAIN BIAS IN THE TINT'S ALPHA (it was 255 and never read - no new texture, no sampler). The
-      // rock's exposure (splat_ground sTrExpo) wants the ground's convexity (a ridge is bare) and its drainage (a valley line
-      // holds soil): both from the hydrology's own 1024^2 heights (world.hydro.grids.H, ~38 m; its accumulation is all 1 in the
-      // island's 'map' mode, so the drainage is the 300 m CONCAVITY - a valley is a concave line), two box blurs: the 76 m
-      // Laplacian (convex +) and the 300 m concavity, each over its land std; bias = 0.20 x clamp(0.45 z_convex) - 0.35 x
-      // smoothstep(0.6, 1.6, z_valley), stored as (bias + 0.6) / 0.8. Built once (cached for a context restore), timed:
-      // ROCK_STATS.biasMs. ?rocks=0 skips it (the alpha stays 255: no rock reads it).
+      // ROCK-STUDY R1: THE TERRAIN BIAS IN THE TINT'S ALPHA (it was 255 and never read - no new texture, no sampler): made by
+      // ROCK_BIAS (below the file's steps) IN A WORKER started at the build's first line (rockBiasJob) - the box read it at 246 ms
+      // on the main thread (A0, 16 Nov). Waited for here, a yield at a time, if it is not in yet (ROCK_STATS.biasWaitMs); no
+      // Worker (node, a gate's stub): made here. ?rocks=0: never asked for (the alpha stays 255: no rock reads it).
       let rockBiasA = null;
+      if (rockBiasJob) { const t0w = (typeof performance !== 'undefined') ? performance.now() : 0;
+        while (!rockBiasJob.done) yield 'rock bias';
+        rockBiasA = rockBiasJob.out;
+        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWaitMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0w) }); }
       const rockBias = () => {
         if (rockBiasA) return rockBiasA;
         try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
         const g = world.hydro && world.hydro.grids; if (!g || !g.H || !g.N) return null;
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
-        const N = g.N, n = N * N, Hf = Float32Array.from(g.H), sea = g.sea;
-        const box = (src, r) => { const tmp = new Float32Array(n), out = new Float32Array(n), w = 2 * r + 1;
-          for (let y = 0; y < N; y++) { let acc = 0; const o = y * N;
-            for (let k = -r; k <= r; k++) acc += src[o + Math.min(N - 1, Math.max(0, k))];
-            for (let x = 0; x < N; x++) { tmp[o + x] = acc / w; acc += src[o + Math.min(N - 1, x + r + 1)] - src[o + Math.max(0, x - r)]; } }
-          for (let x = 0; x < N; x++) { let acc = 0;
-            for (let k = -r; k <= r; k++) acc += tmp[Math.min(N - 1, Math.max(0, k)) * N + x];
-            for (let y = 0; y < N; y++) { out[y * N + x] = acc / w; acc += tmp[Math.min(N - 1, y + r + 1) * N + x] - tmp[Math.max(0, y - r) * N + x]; } }
-          return out; };
-        const b2 = box(Hf, 2), b8 = box(box(Hf, 4), 4);
-        let sL = 0, sC = 0, m = 0;
-        for (let k = 0; k < n; k += 7) { if (sea && sea[k]) continue; const l = Hf[k] - b2[k], c = b8[k] - Hf[k]; sL += l * l; sC += c * c; m++; }
-        const zL = 1 / Math.max(1e-3, Math.sqrt(sL / Math.max(1, m))), zC = 1 / Math.max(1e-3, Math.sqrt(sC / Math.max(1, m)));
-        const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-        const B = new Float32Array(n);
-        for (let k = 0; k < n; k++) B[k] = 0.20 * Math.min(1, Math.max(-1, (Hf[k] - b2[k]) * zL * 0.45)) - 0.35 * ss(0.6, 1.6, (b8[k] - Hf[k]) * zC);
-        // onto the tint's own grid (bilinear)
-        const cs = G.cell * (IHALF ? 2 : 1), out = new Uint8Array(W2 * H2);
-        for (let j = 0; j < H2; j++) { const fz = (G.z0 + (j + 0.5) * cs - g.z0) / g.dz - 0.5, z0 = Math.max(0, Math.min(N - 2, Math.floor(fz))), v = Math.min(1, Math.max(0, fz - z0));
-          for (let i = 0; i < W2; i++) { const fx = (G.x0 + (i + 0.5) * cs - g.x0) / g.dx - 0.5, x0 = Math.max(0, Math.min(N - 2, Math.floor(fx))), u = Math.min(1, Math.max(0, fx - x0)), k = z0 * N + x0;
-            const b = (B[k] * (1 - u) + B[k + 1] * u) * (1 - v) + (B[k + N] * (1 - u) + B[k + N + 1] * u) * v;
-            out[j * W2 + i] = Math.round(Math.min(1, Math.max(0, (b + 0.6) / 0.8)) * 255); } }
-        rockBiasA = out;
-        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0), biasGrid: N, tint: [W2, H2] });
-        return out; };
+        rockBiasA = ROCK_BIAS(Float32Array.from(g.H), g.sea || null, g.N, g.x0, g.z0, g.dx, g.dz, ISLA.grid.x0, ISLA.grid.z0, ISLA.grid.cell * (IHALF ? 2 : 1), W2, H2);
+        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0), biasWorker: false, biasGrid: g.N, tint: [W2, H2] });
+        return rockBiasA; };
       const tintRGBA = () => { const o = rgbTexels(ISLA.tint), a = rockBias(); if (a) for (let k = 0, j = 3; k < a.length; k++, j += 4) o[j] = a[k]; return o; };
       const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
@@ -2046,7 +2082,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // object of the LAST compile: a plain compile's set (no uSplat / uSplatN) left the reused lean program's array samplers on
         // unit 0, where a 2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn (GROUND-COST, 6 Oct)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
-        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '');   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
+        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '')
+          + (side === 0 && SP ? '#define GS_TRLITE 1\n' : '');   // ROCK-STUDY R1: the outer ring and the premises patch - the rock's micro and joints out   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nuniform vec4 uTier;\nattribute float aPav; varying float vPav;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))

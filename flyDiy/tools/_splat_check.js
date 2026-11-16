@@ -172,7 +172,8 @@ function checkRecipe(G, splatSrc, quiet) {
   if (K.rocks !== undefined) {
     rng('rocks', 0, 1); rng('rockHLo', -100, 3000); rng('rockHHi', -100, 3000); rng('rockBias', 0, 1); rng('rockOff', -1, 1); rng('rockMicro', 0, 1); rng('rockK', 0.1, 3);
     rng('rockJoint', 0.1, 8); rng('rockJointSoil', 0, 1); rng('rockJointDirt', 0, 1); rng('rockHollow', 0, 1); rng('rockGreen', 0, 4); rng('rockGreenRough', 0, 1); rng('rockWet', 0, 1); rng('rockRough', 0.1, 3);
-    rng('rockMicroK', 0, 1); rng('rockMicroN', 0, 3); rng('rockMicroFrom', 0, 5000); rng('rockMicroTo', 0, 5000); rng('rockFarFrom', 0, 20000); rng('rockFarTo', 0, 20000); rng('rockNdvi', 0, 3); rng('rockNdviMid', -1, 1);
+    rng('rockMicroK', 0, 1); rng('rockMicroN', 0, 3); rng('rockMicroFrom', 0, 5000); rng('rockMicroTo', 0, 5000); rng('rockFarFrom', 0, 20000); rng('rockFarTo', 0, 20000); rng('rockNdvi', 0, 3); rng('rockNdviMid', -1, 1); rng('rockSlabM', 1, 200); rng('rockFaceM', 1, 200); rng('rockFaceTile', 0, 1); rng('rockFaceLo', 0, 89); rng('rockFaceHi', 1, 90); rng('rockGreenSat', 0, 2); rng('rockJointFar', 0, 5000);
+    if (!(K.rockFaceLo < K.rockFaceHi)) kb.push('rockFaceLo >= rockFaceHi');
     if (!(K.rockHLo < K.rockHHi)) kb.push('rockHLo >= rockHHi'); if (!(K.rockMicroFrom < K.rockMicroTo)) kb.push('rockMicroFrom >= rockMicroTo'); if (!(K.rockFarFrom < K.rockFarTo)) kb.push('rockFarFrom >= rockFarTo');
   }
   say(!kb.length, `knobs in range, the split pairs ordered, the parallax off${kb.length ? ' - ' + kb.join('; ') : ''}`);
@@ -253,12 +254,7 @@ function checkShader(G, splice, quiet) {
   // FEW CALL SITES, NO NESTED LOOP (G568): HLSL inlines every call site - the old chain's 144 inlined fetches were
   // a 412 KB program and a 110-220 s COLD compile per ground program under ANGLE/D3D11; a loop holding the sets
   // inside the candidate loop compiled in 3 s but drew the ground 1.5-2x slower (even where it ran zero times)
-  // ROCK-STUDY R1: the island's rock (sTrond and its slab tap) is its OWN chain, inlined ONCE a pixel before the candidate loop
-  // (its rule below) - the material chain's counts are taken without its two bodies
-  const cutFn = (tx, sig) => { const i = tx.indexOf(sig); if (i < 0) return tx; let d = 0, k = tx.indexOf('{', i);
-    for (; k < tx.length; k++) { if (tx[k] === '{') d++; else if (tx[k] === '}' && --d === 0) break; } return tx.slice(0, i) + tx.slice(k + 1); };
-  const noRock = tx => cutFn(cutFn(tx, 'Smp sTrond('), 'Smp sTrTap(');
-  for (const [nm, tx0] of [['full', glsl], ['lean', lean]]) { const tx = noRock(tx0), n = fn => (tx.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
+  for (const [nm, tx] of [['full', glsl], ['lean', lean]]) { const n = fn => (tx.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
     say(n('sMatPass') === 1 && n('sTriplet') === 1 && n('sSet') <= 3 && n('sTile') <= 3 && n('sFetch') <= 3,
       `the sample chain inlined small (${nm}): call sites sMatPass ${n('sMatPass')}, sTriplet ${n('sTriplet')}, sSet ${n('sSet')}, sTile ${n('sTile')}, sFetch ${n('sFetch')} (1, 1, <=3, <=3, <=3)`); }
   { const n = fn => (glsl.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
@@ -266,12 +262,18 @@ function checkShader(G, splice, quiet) {
       for (; k < glsl.length; k++) { if (glsl[k] === '{') d++; else if (glsl[k] === '}' && --d === 0) break; } return glsl.slice(k0, k); };
     say(!/\bfor\s*\(/.test(['bool sMatPass(', 'Smp sTriplet(', 'Smp sSet(', 'Smp sTile(', 'Smp sFetch('].map(body).join('')), 'no loop inside the sample chain (nested in the candidate loop it costs the GPU)'); }
   say(/o\.c\.rgb = sRGBTransferEOTF\(vec4\(o\.c\.rgb, 1\.0\)\)\.rgb;/.test(glsl), 'the colour array decoded in the shader (no sRGB array upload: GL 1281) - in the fetch itself (R1\'s green decodes its own too)');
-  if (/Smp sTrond\(/.test(glsl)) for (const [nm, tx] of [['full', glsl], ['lean', lean]]) {
+  // ROCK-STUDY R1 RIDES THE CHAIN (A0's box, 16 Nov: its own sample chain, 7 more inlined sFetch, linked every ground program
+  // ~15 s slower): the tiles are the rock codes' sets; R1's own functions call nothing of the chain, its post runs once a
+  // program (in the candidate loop), its exposure once (in the vote), and reads at most three plain textures
+  if (/Smp sTrPost\(/.test(glsl)) for (const [nm, tx] of [['full', glsl], ['lean', lean]]) {
+    const bodyOf = sig => { const i = tx.indexOf(sig); if (i < 0) return ''; let d = 0, k = tx.indexOf('{', i); const k0 = k;
+      for (; k < tx.length; k++) { if (tx[k] === '{') d++; else if (tx[k] === '}' && --d === 0) break; } return tx.slice(k0, k); };
+    const own = ['Smp sTrPost(', 'float sTrExpo(', 'float sTrJoints(', 'float sTrLine('].map(bodyOf).join('\n');
     const sites = (t, fn) => (t.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length;
-    const rockOnly = tx.length - noRock(tx).length, tr = tx.slice(tx.indexOf('Smp sTrTap('), tx.indexOf('Smp gTrS;'));   // (the tap and sTrond, written in a row)
-    const loopAt = tx.indexOf(nm === 'lean' ? 'for (int j = 0; j < uSNSlot; j++)' : 'for (int j = 0; j < uSNCand; j++)'), callAt = tx.indexOf('gTrS = sTrond(');
-    say(sites(tx, 'sTrond') === 2 && callAt > 0 && loopAt > callAt && !/sMatPass\([^]*?\{[^]*?sTrond\(/.test(tx.slice(tx.indexOf('bool sMatPass('), tx.indexOf('bool sMatPass(') + 1500)) && sites(tr, 'sFetch') <= 5 && rockOnly > 0,
-      `R1: the island's rock inlined once a pixel (${nm}): sTrond called once, before the candidate loop, sMatPass hands its sample on; its own fetch sites ${sites(tr, 'sFetch')} (<=5)`);
+    const chain = ['sFetch', 'sTile', 'sSet', 'sTriplet', 'sMatPass'].filter(f => sites(own, f));
+    const reads = sites(bodyOf('Smp sTrPost('), 'texture');
+    say(!chain.length && sites(tx, 'sTrPost') === 2 && sites(tx, 'sTrExpo') === 2 && reads <= 3 && !/\bfor\s*\(/.test(own),
+      `R1 (${nm}): the rock rides the material chain - its own functions call none of it${chain.length ? ' (CALLS ' + chain.join(', ') + ')' : ''}, sTrPost once, sTrExpo once, no loop, ${reads} plain texture reads in the post (<=3)`);
   }
   say(!/\bout\s+(Smp|vec4|vec3|float)\s+\w+\s*[,)]/.test(glsl), 'no `out` parameter on the sample chain (one struct through it)');
   say(/struct Smp \{ vec4 c; vec4 n; \};/.test(glsl), 'the one struct Smp { c, n }');

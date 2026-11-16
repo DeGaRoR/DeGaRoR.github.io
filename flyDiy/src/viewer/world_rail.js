@@ -1111,7 +1111,7 @@
   // and recolour (the materials' editor). Kept as the other ground rows are: the splat's own store (flydiy.ground.splat.v1),
   // the export's `splat` block and its changes against the recipe; 'reset the rock' puts the recipe's numbers back.
   const ROCK_KEYS = ['rocks', 'rockHLo', 'rockHHi', 'rockBias', 'rockOff', 'rockK', 'rockJoint', 'rockJointSoil', 'rockJointDirt', 'rockHollow',
-    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid'];
+    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar'];
   function buildRock(body) {
     const sp = SP();
     if (!sp || sp.knobs().rocks === undefined) { note(body, 'the island’s own rock is not in this build'); return; }
@@ -1126,6 +1126,11 @@
     range(E, 'exposure threshold', -0.3, 0.5, 0.01, kn('rockOff'), ss('rockOff'), null, RK.rockOff);
     range(E, 'the imagery\u2019s green', 0, 1.5, 0.02, kn('rockNdvi'), ss('rockNdvi'), null, RK.rockNdvi);
     range(E, '... green from NDVI', 0.3, 0.95, 0.01, kn('rockNdviMid'), ss('rockNdviMid'), v => v.toFixed(2), RK.rockNdviMid);
+    range(E, 'slab tile', 2, 80, 0.5, kn('rockSlabM'), ss('rockSlabM'), v => v + ' m', RK.rockSlabM);
+    range(E, 'steep tile', 2, 80, 0.5, kn('rockFaceM'), ss('rockFaceM'), v => v + ' m', RK.rockFaceM);
+    pills(row(E, 'on the steep faces'), [{ label: 'slab', v: 0 }, { label: 'face tile', v: 1 }], o => (sp.knobs().rockFaceTile | 0) === o.v, o => { sp.set({ rockFaceTile: o.v }); changed(); });
+    range(E, 'steep from', 10, 80, 1, kn('rockFaceLo'), ss('rockFaceLo'), v => v + '\u00b0', RK.rockFaceLo);
+    range(E, '... fully by', 11, 89, 1, kn('rockFaceHi'), ss('rockFaceHi'), v => v + '\u00b0', RK.rockFaceHi);
     note(E, 'the exposure: how much of the map’s rock shows bare - high, steep, convex ground and the map’s own rock share, less the hollows and the valleys (the terrain bias). A higher threshold shows less bare rock.');
     const J = sec(body, 'joints, green and wet', false, 'the crack network and what grows in it');
     range(J, 'joint density', 0.25, 4, 0.05, kn('rockJoint'), ss('rockJoint'), v => 'x' + v.toFixed(2), RK.rockJoint);
@@ -1134,7 +1139,9 @@
     range(J, 'hollow dirt', 0, 1, 0.02, kn('rockHollow'), ss('rockHollow'), null, RK.rockHollow);
     range(J, 'green in the cracks', 0, 2.5, 0.05, kn('rockGreen'), ss('rockGreen'), v => 'x' + v.toFixed(2), RK.rockGreen);
     range(J, 'wet streaks', 0, 1, 0.02, kn('rockWet'), ss('rockWet'), null, RK.rockWet);
-    note(J, 'joint density x2 halves the spacing of the four joint sets; the soil they hold cuts the bare rock along them, their dirt darkens them. The green fills the joints, the hollows, the benches and the tile’s own cracks.');
+    range(J, 'green\u2019s saturation', 0, 1.5, 0.02, kn('rockGreenSat'), ss('rockGreenSat'), null, RK.rockGreenSat);
+    range(J, 'joints gone by', 0, 2000, 10, kn('rockJointFar'), ss('rockJointFar'), v => v ? v + ' m' : 'off', RK.rockJointFar);
+    note(J, 'joint density x2 halves the spacing of the two joint sets; the soil they hold cuts the bare rock along them, their dirt darkens them. The green fills the joints, the hollows, the benches and the tile’s own cracks.');
     const Rg = sec(body, 'roughness', false, 'bare stone glossier than the green');
     range(Rg, 'bare stone', 0.3, 1.6, 0.02, kn('rockRough'), ss('rockRough'), v => 'x' + v.toFixed(2), RK.rockRough);
     range(Rg, 'the green', 0.5, 1, 0.01, kn('rockGreenRough'), ss('rockGreenRough'), null, RK.rockGreenRough);
@@ -1147,7 +1154,7 @@
     range(Mi, 'micro gone by', 10, 1000, 5, kn('rockMicroTo'), ss('rockMicroTo'), v => v + ' m', RK.rockMicroTo);
     range(Mi, 'far fade from', 0, 3000, 25, kn('rockFarFrom'), ss('rockFarFrom'), v => v + ' m', RK.rockFarFrom);
     range(Mi, 'far fade full by', 50, 6000, 25, kn('rockFarTo'), ss('rockFarTo'), v => v + ' m', RK.rockFarTo);
-    note(Mi, 'micro: the cliff photograph’s grain over the tiles (one biplanar pair) near the eye. Far fade: the tiles give way to their mean colour, so their large patterns never repeat across a far ridge.');
+    note(Mi, 'micro: the cliff photograph’s grain over the tiles (one read, the dominant plane) near the eye. Far fade: the tiles give way to their mean colour, so their large patterns never repeat across a far ridge.');
     const acts = $('div', 'wr-acts'); E.appendChild(acts);
     button(acts, 'reset the rock', () => { const o = {}; for (const k of ROCK_KEYS) if (RK[k] !== undefined) o[k] = RK[k]; sp.set(o); sp.rocks(!!o.rocks); changed(); open('cliffs', true); });
     for (const k of ['trondSlab', 'trondFace']) if (sp.layers().includes(k) || sp.library().some(x => x.key === k)) {
