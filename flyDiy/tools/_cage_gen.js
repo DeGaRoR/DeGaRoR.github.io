@@ -2504,7 +2504,11 @@ function buildCage2(S, step) {
       const X = Math.max(0.05, Math.min(0.98, SHO.x)), u = 1 - X;
       // the forward share eases from the base (full) to the ceiling (x `top`) by the pillar's own height
       const yW = a.P.waist != null ? V[a.P.waist][1] : 0, yT = a.P.ceil != null ? V[a.P.ceil][1] : yW + 1;
-      const fAt = y => { const w = Math.max(0, Math.min(1, (yT - y) / ((yT - yW) || 1e-9))); return SHO.f * (SHO.top + (1 - SHO.top) * w); };
+      // (16 Nov, the user: "the little protrusion around the windshield"): `base` the forward share AT THE BASE (absent
+      // 1: full, as before) - a shoulder pushed forward at the waist stands over a deck already curving down to the nose,
+      // and the screen's corner hung outside the skin; 0 keeps the base on the straight pillar-to-centre line
+      const B0 = SHO.base != null ? SHO.base : 1;
+      const fAt = y => { const w = Math.max(0, Math.min(1, (yT - y) / ((yT - yW) || 1e-9))); return SHO.f * (SHO.top + (B0 - SHO.top) * w); };
       const mk = (pi, k) => {
         const p = V[pi], c = V[chain[k]], fw = fAt(p[1]);
         const aP = A[pi], aC = A[chain[k]];
@@ -7961,6 +7965,45 @@ function cageInterior(m, S) {
       for (const f of F) if (SIDEG.has(f.m)) for (const vi of f.v) zA = Math.min(zA, V[vi][2]);
       if (!(zA < 1e8)) zA = zCab0;
     }
+    // THE PADDED HEADLINER (CAR-3, 13 Nov; the user: "a real liner engulfs the pillar structure, and adds 5-10 cm of
+    // depth ... model the roof liner, because this one does nothing"): hdlDepth > 0 - the cabin's ceiling skin (its
+    // inward normal at least 0.8 down, between zA and the windscreen) extruded INTO the cabin as a closed slab hdlDepth
+    // deep, starting on the shell's inner face (the composite's skin liner, skinT), in the headliner's material - the
+    // roof's hoops and the pillars' heads inside it, its edge a padded step down to the wall trim. Absent / 0 = the
+    // recoloured skin liner, as before
+    if (I.hdl && I.hdlD > 0) {
+      const GLH = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows', 'joint', 'doorSeal']);
+      const t0 = I.pillars ? (I.skinT > 0 ? I.skinT : (I.shellT || 0.035) * 0.35) : 0;
+      const sel = [], hoop = [];
+      F.forEach((f, i) => {
+        if (f.v.length !== 4 || GLH.has(f.m) || f.paneEdge || f.capFace || f.doorKey) return;
+        const p = f.v.map(k => V[k]);
+        const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]], w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+        const nx = u[1]*w[2]-u[2]*w[1], ny = u[2]*w[0]-u[0]*w[2], nz = u[0]*w[1]-u[1]*w[0];
+        const cz = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4, cy = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4;
+        // the skin's outward normal points UP on the roof: the cabin sees it from below
+        if (cz < zA || cz >= zNose0 || cy < S.bandY) return;
+        if (ny / (Math.hypot(nx, ny, nz) || 1) >= 0.8) sel.push(i);
+        else if (f.m === 'ceilingLoop' || PM.has(f.m)) hoop.push([i, cy]);
+      });
+      // the roof hoops' own steps (their sides, near the crown) join the slab: it runs on over each hoop as a padded rib
+      // instead of breaking at it - the break left a black slit over every hoop. Below that, THE PILLARS (the user: "a
+      // real liner engulfs the pillar structure ... I want to stop seeing the bare metal pillars"): the hoops' descent
+      // and the pillar bands from the sill up, a moulded trim (the upper wall trim's material) min(hdlDepth, 5 cm) deep
+      let crown = -1e9; for (const i of sel) for (const k of F[i].v) crown = Math.max(crown, V[k][1]);
+      const pil = [];
+      for (const [i, cy] of hoop) (cy > crown - 0.12 ? sel : pil).push(i);
+      if (pil.length) { const n1 = add.length;
+        liner(pil, t0 + Math.min(I.hdlD, 0.05), () => 'cabWall', t0);
+        for (let k = n1; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'cabWall') { f.v = f.v.slice().reverse(); f.back = 1; } } }
+      if (sel.length) {
+        const n0 = add.length;
+        liner(sel, t0 + I.hdlD, () => 'headliner', t0);
+        // the slab's UNDERSIDE drawn as the skin liner's copies are (LINER-BACK): the skin's winding, flagged back - the
+        // headliner's lit path (a front-facing underside took the interior's shade unlit: a black ceiling)
+        for (let k = n0; k < add.length; k++) { const f = add[k]; if (f.lin && f.m === 'headliner') { f.v = f.v.slice().reverse(); f.back = 1; } }
+      }
+    }
     for (const f of add) {
       if (!f.lin || !LINM.has(f.m) || f.v.length !== 4) continue;
       const p = f.v.map(i => V[i]);
@@ -9692,6 +9735,10 @@ function cageSpec(P) {
         // BUBBLE-WINDOWS: the blister's height, absent unless set (an unset row leaves the window as it was)
         if (+Pw[pre + 'Bulge'] > 0) w.bulge = +Pw[pre + 'Bulge'];
         if (quad) Object.assign(w, cageQuadWindow(Pw, pre, i));
+        // WIN-TOP (16 Nov, the 172's rear windows, the user: "project the aft ones (in the taper section) from the top"):
+        // the row drawn in PLAN - its station along the body, its width along the body, its height ACROSS it, its
+        // height row (Y) the window's lateral centre - and cut straight down onto the roof. Absent: from the side
+        if (+Pw[pre + 'Proj'] > 0 && !quad) w.proj = 'top';
         // (12 Nov) a fifth corner takes its own radius (R5; absent / < 0: the row's)
         if (quad && w.q && w.q.length === 5) {
           const v5 = Pw[pre + 'R5'];
@@ -9729,6 +9776,7 @@ function cageSpec(P) {
           for (let j = 0; j < i; j++) {
             if (S.windows[i].refused) break;            // WINDOWS-FREE: a quad refused for its shape
             if (S.windows[j].refused) continue;
+            if ((S.windows[i].proj || '') !== (S.windows[j].proj || '')) continue;   // WIN-TOP: a plan outline and a side one are not in one view
             if (!sep(polys[i], polys[j])) {
               S.windows[i].refused = 'overlaps row ' + S.windows[j].row + ' window ' + (S.windows[j].i + 1);
               break;
@@ -10012,7 +10060,7 @@ function cageSpec(P) {
   if (+P.pillarFollow > 0) S.pillarFollow = 1;
   if (+P.wsToWaist > 0) S.wsToWaist = 1;
   // WS-SHOULDER (15 Nov): the windscreen's shoulder columns (written only when on)
-  if (+P.wsShoulder > 0) S.wsShoulder = { f: +P.wsShoulder, x: P.wsShoulderX != null ? +P.wsShoulderX : 0.65, top: P.wsShoulderTop != null ? +P.wsShoulderTop : 1 };          // (15 Nov) the windscreen glazed down to the waist (written only when on)
+  if (+P.wsShoulder > 0) S.wsShoulder = { f: +P.wsShoulder, x: P.wsShoulderX != null ? +P.wsShoulderX : 0.65, top: P.wsShoulderTop != null ? +P.wsShoulderTop : 1, ...(P.wsShoulderBase != null ? { base: +P.wsShoulderBase } : {}) };          // (15 Nov) the windscreen glazed down to the waist (written only when on)
   // THE PASSENGER RUN'S PROFILE (T2.1): off = the linear lerp verbatim
   S.paxProfile = Math.round(+P.frPaxProfile || 0) ? {
     on: 1,
@@ -10158,6 +10206,7 @@ function cageSpec(P) {
                  shellT: Math.max(0.005, P.shellT || 0.035),
                  // CABIN-INTERIOR (T1/T2): the headliner / the upper wall trim - keys only when on (absent rows)
                  ...(+P.hdlOn ? { hdl: 1 } : {}), ...(+P.wallTrimOn ? { wall: 1 } : {}),
+                 ...(+P.hdlOn && +P.hdlDepth > 0 ? { hdlD: +P.hdlDepth } : {}),   // CAR-3: the padded headliner's depth
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth, dashCrease: P.dashCrease,
@@ -11231,6 +11280,17 @@ function sheetStage(slot, spec, memo, input, salt, run) {
   return out;
 }
 const sheetShallow = m => { const o = Object.assign({}, m); for (const k of ['V', 'F', 'A', 'N']) if (Array.isArray(m[k])) o[k] = m[k].slice(); return o; };
+// one drawn window cut on one flank: from the side (as always), or - WIN-TOP (16 Nov) - laid in plan and cut straight
+// down (the knife's frame: n0 up, t1 along the body, t2 across; the faces under the cabin's waist are not the roof's)
+function cageKnifeWin(KG, s, w, side) {
+  if (w.proj !== 'top') return KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal' });
+  // the row's "top" is OUTBOARD on both flanks: the port pane is the starboard one mirrored across the centreline
+  // (v -> -v, re-wound counter-clockwise), so a pane rounded on its outer side stays rounded outboard on both
+  let outline = KG.knifeOutline(Object.assign({}, w, { z: 0, y: 0 }));
+  if (side < 0) outline = outline.map(p => [p[0], -p[1]]).reverse();
+  return KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal', outline, yMin: 0,
+                             frame: { n0: [0, 1, 0], c0: [side * w.y, 0, w.z], t1: [0, 0, 1], t2: [1, 0, 0] } });
+}
 function cageSheetKept(spec, step, L) {
   const memo = {};
   const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
@@ -11258,8 +11318,7 @@ function cageSheetKept(spec, step, L) {
       s.N = KG.knifeNormals(s);
       for (const w of S.windows) {
         if (w.refused) continue;
-        for (const side of [1, -1])
-          s = KG.knifeCut(s, w, { side, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal' });
+        for (const side of [1, -1]) s = cageKnifeWin(KG, s, w, side);
       }
     }
     s = cageCanopy(s, S);
@@ -11317,9 +11376,7 @@ function cageSheet(P, opts) {
       s.N = KG.knifeNormals(s);
       for (const w of spec.windows) {
         if (w.refused) continue;                    // T2.2: an overlapping window is never cut
-        for (const side of [1, -1])
-          s = KG.knifeCut(s, w, { side, depth: w.depth,
-                                  paneMat: 'drawnPane', wallMat: 'reveal' });
+        for (const side of [1, -1]) s = cageKnifeWin(KG, s, w, side);
       }
       // G316: the drawn panes explode as parts — one part per pane (the
       // knife's copies are per window, a pane's polygons share them and

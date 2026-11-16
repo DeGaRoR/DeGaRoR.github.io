@@ -81,6 +81,8 @@ const winRowMore = (n) => {
     rad('R1', 'fwd top'), rad('R2', 'aft top'), rad('R3', 'aft bottom'), rad('R4', 'fwd bottom'),
     [pre + 'Depth', 'reveal depth',    0.0, 0.03, 0.001, Object.assign({ when: on, dim: 'len' }, ab('Depth'))],
     [pre + 'Bulge', 'bubble',          0.0, 0.2, 0.005, { when: on, absent: 0, dim: 'len' }],
+    // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+    [pre + 'Proj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => on(P) && Math.round(+P[pre + 'Shape']) !== 2, absent: 0 }],
   ], {}];
 };
 // AFT-BULKHEAD (3 Nov): the aft wall's rows show with the panel on; the wall's own rows give way to the sling, which
@@ -648,6 +650,8 @@ window.CAGE_PAGE = {
         ['wsShoulder',  'shoulders forward', 0, 1, 0.01, { absent: 0 }],
         ['wsShoulderX', 'shoulders out',     0.30, 0.95, 0.01, { when: P => +P.wsShoulder > 0, absent: 0.65 }],
         ['wsShoulderTop', 'shoulders at the top x', 0, 1, 0.01, { when: P => +P.wsShoulder > 0, absent: 1 }],
+        // (16 Nov) how far forward at the screen's BASE (absent 1: full) - 0 keeps the base corner on the deck
+        ['wsShoulderBase', 'shoulders at the base x', 0, 1, 0.01, { when: P => +P.wsShoulder > 0, absent: 1 }],
         // G2770 (the user: "the bubble glass option is misleading. It's more
         // like an additional adjourning, that should be hidden in real canopy
         // bubble mode"): the row hides under a bubble canopy (its value kept)
@@ -815,6 +819,7 @@ window.CAGE_PAGE = {
       // NOT IN THE DEFAULTS TABLE (G3570, as floorUp): a build that never turns one on saves no key and draws as before
       ['headliner', [
         ['hdlOn',       'headliner',        0, 1, 1, { when: P => +P.intOn, absent: 0 }],
+        ['hdlDepth',    'headliner depth (padded, m; 0 = the skin)', 0, 0.15, 0.005, { when: P => +P.intOn && +P.hdlOn, absent: 0, dim: 'len' }],   // CAR-3
         ['wallTrimOn',  'upper wall trim',  0, 1, 1, { when: P => +P.intOn, absent: 0 }],
         ['ohConsoleOn', 'overhead console', 0, 1, 1,
          { when: P => +P.crewOn && Math.round(+P.canopy || 0) === 0, absent: 0 }],
@@ -1101,6 +1106,8 @@ window.CAGE_PAGE = {
         ['paxWinDepth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.paxWinN > 0, dim: 'len' }],
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['paxWinBulge', 'bubble',          0.0, 0.2, 0.005, { when: P => +P.paxWinN > 0, absent: 0, dim: 'len' }],
+        // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+        ['paxWinProj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => +P.paxWinN > 0 && Math.round(+P.paxWinShape) !== 2, absent: 0 }],
       ], 'open'],
       ['row 2', [
         ['win2N',     'windows',         0, 4, 1,
@@ -1131,6 +1138,8 @@ window.CAGE_PAGE = {
         ['win2Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win2N > 0, dim: 'len' }],
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['win2Bulge',   'bubble',          0.0, 0.2, 0.005, { when: P => +P.win2N > 0, absent: 0, dim: 'len' }],
+        // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+        ['win2Proj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => +P.win2N > 0 && Math.round(+P.win2Shape) !== 2, absent: 0 }],
       ], {}],
       ['row 3', [
         ['win3N',     'windows',         0, 4, 1,
@@ -1161,6 +1170,8 @@ window.CAGE_PAGE = {
         ['win3Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win3N > 0, dim: 'len' }],
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['win3Bulge',   'bubble',          0.0, 0.2, 0.005, { when: P => +P.win3N > 0, absent: 0, dim: 'len' }],
+        // WIN-TOP (16 Nov, the 172): the row drawn in plan and cut down onto the roof (Y = its lateral centre)
+        ['win3Proj', 'projected', 0, 1, 1, ['from the side', 'from the top'], { when: P => +P.win3N > 0 && Math.round(+P.win3Shape) !== 2, absent: 0 }],
       ], {}],
       winRowMore(4), winRowMore(5), winRowMore(6),
     ]],

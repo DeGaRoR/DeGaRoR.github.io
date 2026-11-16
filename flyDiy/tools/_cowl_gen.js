@@ -73,7 +73,7 @@ const P={
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
   // before them is drawn to the bit.
-  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, scoopTaperH:1, scoopTaperW:1, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, keelLevel:0, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, scoopTaperH:1, scoopTaperW:1, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
   // PROPER-COWLS: the side gills (the Carbon Cub's): off by default
   // PROPER-COWLS: a radial's helmets as the engine draws them - how many (0 = lobeN) and every other one's station (a
   // two-row radial's rear row; null = lobeT)
@@ -353,10 +353,11 @@ function prepareLid(){
   // one recipe, used for the deck and the keel with their own scale and sweep
   // (q1 / q2: this line's own shoulder and fullness - the keel's may differ from the rest, see keelShoulder)
   // (level: the line leaves z0 LEVEL - the fuselage's own bottom carried on - rather than on the barrel's taper)
-  const half=(k,sweep,end,q1,q2,level)=>{
+  // (lvl: KEEL-LEVEL, 16 Nov - the slope the line leaves z0 on when `level`, so it can cancel the spine's climb)
+  const half=(k,sweep,end,q1,q2,level,lvl)=>{
     const a1c=q1!=null?q1:c1, a2c=q2!=null?q2:c2;
     const z0=cl-clamp(sweep,0,0.95)*cl, Lh=ze-z0;
-    const v0=k*lerp(h0,h1,z0/cl), sv=level?0:sh*k;
+    const v0=k*lerp(h0,h1,z0/cl), sv=level?(lvl||0):sh*k;
     return {z0, k, c:mkCurve([z0, z0+Lh*a1c, ze-Lh*0.05, ze],
                              [v0, v0+sv*Lh*a1c, end+(v0-end)*a2c, end])};
   };
@@ -383,7 +384,12 @@ function prepareLid(){
   // Absent (null) = the bowl's pair, to the bit.
   const K=half(kB, P.keelSweep, lidRB()-fr,
                P.keelShoulder==null?null:clamp(+P.keelShoulder,0,0.92), P.keelRound==null?null:clamp(+P.keelRound,0,1),
-               P.keelShoulder!=null);   // its own bend leaves the firewall level and rounds up into the face
+               P.keelShoulder!=null,    // its own bend leaves the firewall level and rounds up into the face
+               // KEEL-LEVEL (16 Nov, the 172, the user: "this gentle, easing curve, where the tangent aligns at the firewall
+               // bottom with the fuselage, then curves upwards"): level as SEEN - the line is drawn about the spine, which
+               // climbs over the barrel (lidRise), so it leaves on the spine's own slope and stays level in the side view.
+               // Absent: level along the spine, as always
+               +P.keelLevel>0 ? (+P.lidRise||0)/cl : 0);
   // PROPER-COWLS (2026-11-08): `waistF` - THE WIDEST LINE'S HEIGHT AT THE BARREL END, as a fraction of the front's
   // half-height. A straight cowl's front is centred on the thrust line and shorter than the firewall, so a waist held at
   // ONE fraction of the height would fall or climb along the barrel; with waistF the widest line runs straight from the

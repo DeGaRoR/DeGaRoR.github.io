@@ -196,6 +196,12 @@ const station = (i, name) => [name, [
   ['s' + i + 'FairTail', 'tail droplet ×', 0.70, 1.60, 0.01, fairOn(i)],
   ['s' + i + 'FairRake', 'fairing rake °', -25, 25, 1, fairOn(i)],
   ['s' + i + 'FairW',   'fairing width ×', 0.80, 1.50, 0.01, fairOn(i)],
+  // SPAT-NOSE-DEPTH (15 Nov, the 172): the nose's reach ahead of the axle and the shell's depth (absent 1: as built)
+  ['s' + i + 'FairNose', 'fairing nose length ×', 0.70, 1.80, 0.01, Object.assign({ absent: 1 }, fairOn(i))],
+  ['s' + i + 'FairH',    'fairing depth ×',       0.70, 1.50, 0.01, Object.assign({ absent: 1 }, fairOn(i))],
+  // FAIR-FACET (16 Nov, the 172): the alternative shell - pointed and bevelled - and the tail swept up behind the tyre
+  ['s' + i + 'FairStyle', 'fairing style', 0, 1, 1, ['rounded', 'faceted, pointed'], Object.assign({ absent: 0 }, fairOn(i))],
+  ['s' + i + 'FairKick',  'tail upsweep (× tyre radius)', 0, 0.8, 0.01, Object.assign({ absent: 0 }, fairOn(i))],
   // the leg's own streamline shroud, without buying the wheel a spat.
   // Hidden on trousers (they already shroud the leg) and on the castor
   // (its spring shroud is the trouser state's own).
@@ -2900,7 +2906,8 @@ PAGE.post = ctx => {
       const wu = wheelProxy(st.leg === 3 ? null : lb);
       // the fairing's instruments ride the station (G133)
       const fOpt = { full: st.fair === 2, skirt: st.fairSkirt,
-                     tail: st.fairTail, rake: st.fairRake, width: st.fairW };
+                     tail: st.fairTail, rake: st.fairRake, width: st.fairW, nose: st.fairNose, depth: st.fairH,
+                     style: st.fairStyle, kick: st.fairKick };
       // NEW-SHAPES-1 (the Camel, 27 Oct): a biplane's V bolts to the fuselage's lower longerons, ahead of and under
       // the lower plane - the low-wing rule below would root it on that plane. `s<i>Root` 1 says the fuselage.
       const bm = boomMount(st, sgn);             // G3800: a twin boom's tailwheel on its boom
