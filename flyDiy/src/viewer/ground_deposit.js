@@ -51,7 +51,8 @@
     // WET AND DRY (the PBR's roughness): fresh mud is the throw's water; it dries over tDry s in the open, rain re-wets it
     tDry: 300, kRewet: 1 / 40, rainDust: 1 / 60,
   };
-  const DEF = { h: 0.08, reach: 4.0, pad: 0.12 };   // (reach: the whole tail - heavy mud and the dust reach the fin, the user 15 Nov)
+  const DEF = { h: 0.08, reach: 4.0, pad: 0.12 };   // (exported: the world editor's Ground FX section edits reach and h; a grid made after takes them)
+  // (reach: the whole tail - heavy mud and the dust reach the fin, the user 15 Nov)
 
   // ---- THE GRID ------------------------------------------------------------------------------------------------------
   // tris: Float32Array / Array of 9 numbers a triangle (craft space); part: Uint8Array a triangle (1 airframe, 2 tyre)
@@ -410,7 +411,7 @@
     return o;
   }
 
-  const GROUND_DEPOSIT = { K, SP, PBR, BINS, make, march, deposit, collide, dustRays, filmAt, smooth, sample, sample2, look, spatter, erode, mudAt, pbrAt, wash, clear, total, bytes };
+  const GROUND_DEPOSIT = { K, SP, PBR, DEF, BINS, make, march, deposit, collide, dustRays, filmAt, smooth, sample, sample2, look, spatter, erode, mudAt, pbrAt, wash, clear, total, bytes };
   if (typeof window !== 'undefined') window.GROUND_DEPOSIT = GROUND_DEPOSIT;
   if (typeof module !== 'undefined' && module.exports) module.exports = GROUND_DEPOSIT;
 })();
