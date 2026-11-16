@@ -399,7 +399,7 @@ const SIM_HOST_AP_SKIP = ['nav', 'sheet'];
 // ---- THE WORLD'S OPS (G815): the page world's registry and day calls, replayed on this one. The page's
 // obstacle ids map to this registry's own (a record the page's makeWorld made - the settle buildings - has
 // the same id here: the same record, the same order). Returns true when the world changed (the version).
-const SIM_HOST_WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setSea'];
+const SIM_HOST_WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setGrassSides', 'setSea', 'setGround'];
 const simHostIsWorldOp = c => !!c && (c.cmd === 'obst' || c.cmd === 'world' || c.cmd === 'premises');
 function simHostWorldOp(world, c) {
   if (!world) return false;
@@ -447,6 +447,7 @@ function simHostMakeWorld(CORE, W, onWorld) {
   if (W.premises != null) wo.premises = W.premises;
   const world = CORE.makeWorld(W.seed || 0, wo);
   if (W.day) world.setDay(W.day);
+  if (W.ground && world.setGround) world.setGround(W.ground);   // (SNOW-MUD LADDER: the page's ground override)
   world.__simV = 0;
   if (onWorld) onWorld(world);   // G815: the ops that came before the world (the page's registry so far)
   return world;
@@ -456,6 +457,7 @@ function makeSimHost(CORE, init, keptWorld) {
   let world = keptWorld || null;
   if (!world) world = simHostMakeWorld(CORE, W, init.onWorld);
   else if (init.day) world.setDay(init.day);   // G815: a kept world takes the page's day at each new flight
+  if (keptWorld && world.setGround && 'ground' in init) world.setGround(init.ground || null);   // (LADDER: and its ground override)
   // G820 (C1c): THE SAME SIM ACROSS FLIGHTS OF ONE BUILD, as the page keeps its own (fullReset, the skip, the shed's
   // round trip reset and re-place ONE sim object; a new build makes a new one). A reset is not a new sim: sim.out (the
   // airspeed, the wind, easK - read by the pilot's first update before the first step, when a flight starts `started`,

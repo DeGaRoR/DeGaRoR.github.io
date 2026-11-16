@@ -173,8 +173,8 @@
    "len": 311.5,
    "wid": 21,
    "surface": {
-    "key": "gravel",
-    "word": "gravel",
+    "key": "dirt",
+    "word": "dirt",
     "cls": "hard"
    },
    "elev": 132,
@@ -224,8 +224,8 @@
    "len": 391.7,
    "wid": 12,
    "surface": {
-    "key": "sand",
-    "word": "sand",
+    "key": "dirt",
+    "word": "dirt",
     "cls": "hard"
    },
    "elev": 207,

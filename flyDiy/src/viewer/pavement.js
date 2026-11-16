@@ -164,6 +164,14 @@ const PAVEMENT = (() => {
   // strip (the world look's RUNWAY section) and saved with the premises (PAVEMENT section). No new program: two free row slots.
   LOOK_KEYS.push('grMatch', 'grMowA');
   RECIPE.grMatch = 1; RECIPE.grMowA = 0.12;
+  // DIRT-STRIP LOOK 3 IN THE WORLD EDITOR (A0 for the user, 16 Nov: "every new world setting editable in the world editor" - F9's
+  // RUNWAYS section builds itself from these rows, the PAVEMENT section saves them with the premises). The soft ground's micro
+  // relief (the bumpy strips): sfMound a hazard's mound drier (0.3), sfCrownLift a crown's lift (0.06 = x 1.06), sfGrassK the
+  // painted grass on the untrafficked ridge (0.25), sfPudMirror the depth (m) the puddles' mirror is full at (0.02; it starts at a
+  // tenth of it). The grass strip's trail: grTrackW the tundra's reach past the worn lanes (0.3 m), grTrackFade its fade into the
+  // island's ground (1 m; 16 Nov 10:53 stills: at 0.7 + 2 m the fade read as a pale blurred band either side). Otherwise look 3; a row texel of their own (uLookS, uLookG)
+  LOOK_KEYS.push('sfMound', 'sfCrownLift', 'sfGrassK', 'sfPudMirror', 'grTrackW', 'grTrackFade');
+  Object.assign(RECIPE, { sfMound: 0.3, sfCrownLift: 0.06, sfGrassK: 0.25, sfPudMirror: 0.02, grTrackW: 0.3, grTrackFade: 1 });
   // what WEAR scales, per surface type: the paved class's ageing, the soft ground's traffic
   const LOOK_WEAR = { pv: ['crackK', 'damageK', 'patchK', 'mossK', 'stainK', 'rubberK'], sf: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'], gr: ['wheelBand', 'coarseK', 'rutDepth', 'treadK'] };
   const groupOf = cls => (cls === 'concrete' || cls === 'asphalt') ? 'pv' : (cls === 'grass' ? 'gr' : 'sf');
@@ -204,6 +212,9 @@ const PAVEMENT = (() => {
     ['edgeChip', 'edge chipping (m)', 0, 2, 0.05], ['band', 'gravel band (m, -1 = class)', -1, 40, 0.5], ['bandNoise', 'band raggedness', 0, 1, 0.02], ['grassReach', 'grass creeps in over (m)', 0.5, 30, 0.5], ['fadeW', 'fade to terrain over (m)', 0.5, 30, 0.5],
     ...Object.keys(LOOK_GROUPS).flatMap(g => [['— runway look: ' + LOOK_NAMES[g] + ' —'],
       ...(g === 'gr' ? [['grMatch', 'a grass strip shows the ground under it (1) / its own lawn (0)', 0, 1, 0.05], ['grMowA', 'the mown tint over it (lighter, yellower)', 0, 0.5, 0.01]] : []),
+      ...(g === 'sf' ? [['sfMound', 'bumpy strip: a hazard mound drier (0 = none)', 0, 1, 0.02], ['sfCrownLift', 'bumpy strip: crowns lighter by', 0, 0.3, 0.01],
+        ['sfGrassK', 'bumpy strip: grass on the middle ridge', 0, 1, 0.02], ['sfPudMirror', 'puddles: full mirror at depth (m)', 0.002, 0.1, 0.001]] : []),
+      ...(g === 'gr' ? [['grTrackW', 'grass strip trail: tundra past the lanes (m)', 0, 10, 0.1], ['grTrackFade', 'grass strip trail: fade into the ground over (m)', 0.1, 10, 0.1]] : []),
       [g + 'Bright', 'surface brightness', 0.3, 2, 0.02], [g + 'Hue', 'surface tint hue (0 red, .17 yellow, .33 green, .67 blue)', 0, 1, 0.01], [g + 'Tint', 'surface tint amount', 0, 1, 0.02],
       [g + 'Sat', 'surface saturation (1 = the sets as graded, 0 = grey)', 0, 2, 0.02],
       [g + 'Wear', "wear (x the class's cracks, patches, ruts...)", 0, 2, 0.05],
@@ -232,7 +243,7 @@ const PAVEMENT = (() => {
     lay(rec && rec.pavement);
     const pav = entry && entry.pav; if (pav) { const own = {}; for (const k of ENTRY_KNOBS) if (pav[k] !== undefined && pav[k] !== null) own[k] = pav[k]; lay(own); }
     const band = entry && entry.band !== undefined && entry.band !== null ? +entry.band : (CLASS_DEF[cls] ? CLASS_DEF[cls].band : 2);
-    return { recipe: r, cls, band, marks: (pav && pav.marks) || 'auto', preset: L && L.preset || null };
+    return { recipe: r, cls, band, marks: (pav && pav.marks) || 'auto', preset: L && L.preset || null, wx: L && L.wx ? +L.surface : 0 };   // (SNOW-MUD LADDER: a weather look's code)
   }
 
   // ---- the attributes: strip -------------------------------------------------
@@ -730,7 +741,7 @@ varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; v
 precision highp sampler2DArray;
 uniform highp sampler2DArray uPavA, uPavN;
 uniform float uPavOn, uPavDbg, uPavWet;
-uniform vec4 uMicro, uMicro2, uMicro3;
+uniform vec4 uMicro, uMicro2, uMicro3, uLookS, uLookG;
 uniform vec4 uLayer, uLayer2, uTile, uTile2, uHex, uMacro, uLane, uLane2, uCrack, uPatch, uMoss, uStain, uWet, uMark, uPaint0, uPaint1, uRubber, uRubber2, uRut, uRut2, uRoad, uEdge, uEdge2, uDist, uSpec, uClass, uSoft, uSoft2;
 uniform vec4 uGrade[8], uTint[8];
 uniform vec4 uMean;
@@ -1410,7 +1421,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         float cR = -kR * lc * sigM * sigM * 0.6;                                        // concave bottom < 0, convex shoulders > 0
         float sM = clamp(0.5 * kF * cF + 0.45 * kM * cM + 0.8 * cueK * rn + cR, -1.6, 1.6);
         float crown = smoothstep(0.05, 1.0, sM) * sK, hollow = smoothstep(0.05, 1.0, -sM) * sK;
-        crown = max(crown, 0.8 * smoothstep(0.03, 0.10, gMicH.w) * cueK);              // a hazard's mound: dry, stony
+        // (the user 15 Nov, a golden-hour shot: "things looking like rocks, but actually rendering in a glitchy way. Or maybe these
+        //  are puddles? ... they look bad and need to go") a hazard's mound was painted dry and stony from a 3-10 cm contour: a 2-4 m
+        //  pale flat sheet with a hard outline, the bump's own normals crumpling it. Now a faint dryness over its whole rise
+        crown = max(crown, uLookS.x * smoothstep(0.02, 0.3, gMicH.w) * cueK);          // a hazard's mound: a little drier (sfMound)
         hollow = max(hollow, smoothstep(0.01, 0.05, gMicH.x) * cueK);                  // a pothole, a hazard's hole: mud
         hollow = max(hollow, smoothstep(0.03, 0.10, -gMicH.w) * cueK);
         // THE WAYS, READ (RUTS FIRST - the user, 9 Nov 17:00: "the main relief should come from the ruts themselves ... used by
@@ -1433,7 +1447,9 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         if (crown > 0.02) { Smp g = pvSet(1, uvS); float gk = 0.45 * crown; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
         if (hollow > 0.02) { Smp g = pvSet(4, uvS); float gk = 0.55 * hollow; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y * 0.7; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
         float lumM = dot(col, vec3(0.299, 0.587, 0.114));
-        col = mix(col, mix(col, vec3(lumM), 0.25) * 1.24 + vec3(0.02, 0.018, 0.015), crown); rough += 0.08 * crown;
+        // (15 Nov, the same shot) the crowns' lift was x 1.24 + 0.02: a low sun behind turned every convex patch into a pale sheet;
+        // a crown now reads by its coarse set (above) and a faint lift, no paler than the ground round it by more than ~6 %
+        col = mix(col, mix(col, vec3(lumM), 0.15) * (1.0 + uLookS.y) + vec3(0.067, 0.058, 0.05) * uLookS.y, crown); rough += 0.08 * crown;   // (sfCrownLift)
         col = mix(col, col * vec3(0.66, 0.58, 0.48) * (1.0 - 0.18 * clamp(uPavWet, 0.0, 1.0)), hollow); rough -= (0.10 + 0.15 * clamp(uPavWet, 0.0, 1.0)) * hollow;
         nT.xy -= gR * PV_MICRO_NRM;                                                     // the bumps' slope between the rows (after the blends)
         nT.y += gW;                                                                     // the ways' walls (the ribbon's v = -the field's)
@@ -1492,9 +1508,12 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         }
         float worn = max(exp(-l1 * l1), 0.55 * exp(-l2 * l2));
         float wild = clamp(uMicro2.z / 0.26, 0.0, 1.0);                                // a rough strip is a less tended one
-        float grassK = (1.0 - clamp(worn * 1.4, 0.0, 1.0)) * (0.25 + 0.75 * (1.0 - smoothstep(0.5, 2.0, dE))) * wild;
-        grassK = max(grassK, smoothstep(0.03, 0.10, gMicH.w));                           // a hazard's mound: nobody drives it
-        grassK *= smoothstep(0.35, 0.65, pvNoise(uvS / 1.4 + 23.0) * 0.6 + pvNoise(uvS / 5.0 + 3.0) * 0.4 + 0.15 * crown) * cueK;
+        // (the user 15 Nov, the same shot: "they look bad and need to go") the painted grass - a flat texture, its own normals
+        // crumpling it - lay in hard-edged sheets on a hazard's mound (from a 3-10 cm contour) and along the edges, beige under a low
+        // sun. Gone from the mounds and the edges (the grass field's blades grow beside the strip - LOOK-1's GRASS-ON-GREEN); a
+        // faint, soft-edged share stays on the untrafficked middle ridge
+        float grassK = (1.0 - clamp(worn * 1.4, 0.0, 1.0)) * uLookS.z * wild;   // (sfGrassK)
+        grassK *= smoothstep(0.25, 0.85, pvNoise(uvS / 1.4 + 23.0) * 0.6 + pvNoise(uvS / 5.0 + 3.0) * 0.4) * cueK;
         if (grassK > 0.02) { Smp g = pvSet(3, uvS); vec2 w2 = pvHw2(hgt, 1.0 - grassK, g.c.a, grassK, uHex.x); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
       }
       // a grass strip is mown: stripes across, 3.5 m, a few per cent - the cut, not a colour
@@ -1673,8 +1692,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         col = mix(col, mix(col * 0.35, murk, 0.55 + 0.45 * dz), pudA);
         // (11 Nov stills: a film under ~3 mm took the mirror with the ground's grain still in its normal - a glitter, neither wet earth
         //  nor flat water) the mirror and the level normal come in only as the water deepens: pudA cubed
-        float pdk = pudA * pudA * pudA;
-        rough = mix(rough, 0.015, pdk);
+        // (13 Nov stills: pale, hard-edged ribbons - the mirror began at 3 mm, a bright sky line at every film's edge) the mirror
+        // comes in over 2-20 mm of depth, the shallow edge dark muddy water, and it is murky water's 0.05, not glass
+        float pdk = pudA * pudA * pudA * smoothstep(0.1 * uLookS.w, uLookS.w, pw.x);   // (sfPudMirror)
+        rough = mix(rough, 0.05, pdk);
       }
     }
     // ---- the normal into the world, the roughness, the alpha
@@ -1740,7 +1761,9 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       float wv = pvNoise(vec2(u / 45.0, seed + 21.0)) * 0.65 + pvNoise(vec2(u / 140.0, seed + 23.0)) * 0.35;
       float gap = smoothstep(0.62, 0.8, pvNoise(vec2(u / 9.0, seed + 29.0)));
       float merge = smoothstep(0.62, 0.82, wv) * exp(-v * v / 3.2);
-      float trS = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) + 0.45 * (wv - 0.5) + 0.6 * merge - 0.35 * gap + 0.35 * (edgeN - 0.5);
+      // (13 Nov, Skyline up close: "too many even stripes" - each single pass's line crossed the thresholds) the trail is the worn
+      // LANES (wheel: the passes' density across), the single passes a faint share
+      float trS = clamp(wheel * 1.2 + rut * 0.3 + tread * 0.15, 0.0, 1.0) + 0.45 * (wv - 0.5) + 0.6 * merge - 0.35 * gap + 0.35 * (edgeN - 0.5);
       float soil = smoothstep(0.3, 0.58, trS), trail = smoothstep(0.55, 0.85, trS);
       // THE TUNDRA ROUND IT (the user 12 Nov, Skyline: "the transparent surrounding don't work. Nothing blends, it's really just
       // slapped there ... convincing surrounding in the greenery setting, but well done, not lawn grass, then integrate with the
@@ -1777,8 +1800,16 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
           float pbV = (1.0 - smoothstep(0.7 * pr, pr, length(pq * vec2(1.0, 1.0 + 0.6 * ph.y)))) * smoothstep(0.5, 1.5, pr / max(fwidth(uvS.x), 1e-4));
           col = mix(col, vec3(0.3, 0.285, 0.26) * (0.7 + 0.6 * ph.x / 0.4) * min(lum / 0.18, 1.6), pbV * 0.9); }
       }
-      // opaque over the strip (the drawn tundra, not a hole); the torn side's own fade does the margin, ragged by its noise
-      gPavA = mix(gPavA, max(soil, smoothstep(-0.9 * shW, 0.2 * shW, dE + 1.6 * shW * (m4 - 0.5) + 0.8 * (m2 - 0.5))) * gPavA, uMacro.w);
+      // THE TRACK, NOT THE STRIP (the user 15 Nov, Skyline: "the track is too wide, and the sides have to do too heavy lifting ...
+      // some blending of the sides with the texture around (and below), so the surrounding texture keep penetrating the sides until
+      // the ruts? Or simply reducing the width of the track to only include a couple of meters of side track"): the drawn tundra
+      // stands opaque only round the worn lanes (their half-track + 0.7 m) and fades over ~2 m into the island's ground under it,
+      // its edge ragged (a 7.5 m and a 1.2 m noise) and wider where the lanes run together; past that the island's own ground (its
+      // grass field) up to the trail. The strip's torn side still caps it (a short strip's ends). Was: opaque over the whole width
+      float tReach = abs(v) - (PV_FLEET_MEAN + uLookG.x) + 1.6 * (m4 - 0.5) + 0.7 * (m2 - 0.5) - 0.8 * merge;   // (grTrackW)
+      float trackA = 1.0 - smoothstep(0.0, uLookG.y, tReach);   // (grTrackFade)
+      float sideA = smoothstep(-0.9 * shW, 0.2 * shW, dE + 1.6 * shW * (m4 - 0.5) + 0.8 * (m2 - 0.5));
+      gPavA = mix(gPavA, max(soil, min(trackA, sideA)) * gPavA, uMacro.w);
     }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
@@ -1813,7 +1844,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   // become globals, pvLoad() fills them from the row at the top of the chain, the array reads become texel reads), so
   // `?pave=old` draws exactly the pre-G925 program and the two cannot drift apart silently (GATE PAVEMENT 12).
   const PV_VEC = ['uLayer', 'uLayer2', 'uTile', 'uTile2', 'uHex', 'uMacro', 'uLane', 'uLane2', 'uCrack', 'uPatch', 'uMoss', 'uStain', 'uWet', 'uMark',
-    'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd', 'uMicro', 'uMicro2', 'uMicro3'];   // (uMicro: DIRT-STRIP's puddles, a row's last)
+    'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd', 'uMicro', 'uMicro2', 'uMicro3', 'uLookS', 'uLookG'];   // (uMicro: DIRT-STRIP's puddles, a row's last)
   const PV = { K: PV_VEC.length, N: PV_VEC.length + 1, G: PV_VEC.length + 2 };
   PV.T = PV.G + 8; PV.KA = PV.T + 8; PV.KB = PV.KA + NKEEP; PV.S = PV.KB + NKEEP; PV.SK = PV.S + NSEG; PV.MR = PV.SK + NSEG; PV.MK = PV.MR + NMARK; PV.W = PV.MK + NMARK;
   // ?pave=old: every pavement its own material and mesh, as shipped before G925 (the A/B); default: the table
@@ -1835,7 +1866,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     c = rep(c, '\nuniform vec4 ' + PV_VEC.slice(0, 28).join(', ') + ';', '');
     c = rep(c, '\nuniform vec4 uGrade[8], uTint[8];', '');
     c = rep(c, '\nuniform vec4 uMean;', '');
-    c = rep(c, '\nuniform vec4 uMicro, uMicro2, uMicro3;', '');   // (DIRT-STRIP) a row's texel like the rest
+    c = rep(c, '\nuniform vec4 uMicro, uMicro2, uMicro3, uLookS, uLookG;', '');   // (DIRT-STRIP) a row's texel like the rest
     c = rep(c, '\nuniform int uMarkN, uSegN;', '\nint uMarkN, uSegN;');
     c = rep(c, `\nuniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];`,
       '\nuniform highp sampler2D uPavT;\nint gPavRow; float gSegHW;\n#define PVT(i) texelFetch(uPavT, ivec2(i, gPavRow), 0)\n' + PV_VEC.map((n, i) => '#define ' + n + ' PVT(' + i + ')').join('\n'));
@@ -1931,6 +1962,38 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     if (row && row.base) { const lk = lookOf(cls, R), m = gradedMean(row.base, R, SHARED, lk.sat, recolorGrade(row, 'base', row.base, SHARED)); c = [m[0] * lk.surf[0], m[1] * lk.surf[1], m[2] * lk.surf[2]]; }
     SC_MEMO.m.set(cls, c); return c;
   }
+  // SNOW-MUD LADDER (15 Nov): THE RUNG'S COLOUR, ONE LAW FOR THE DRAWN GROUND AND WHAT A WHEEL THROWS OF IT.
+  // groundWxMult(cls, st) -> an rgb multiplier on the class's surface: 1 - dark (its water: dirt 30 %, grass 12 %, sand 10 % at
+  // saturation - the sand a shade, the island around it does not darken), and a dirt toward the mud's own drawn colour by
+  // its mud (the 'mud' class over the 'dirt' one, channel by channel); groundWxColor(cls, st): the class's surfaceColor times
+  // it - the dust's and the mud's colour on that strip (app.js), so the projections are the ground they come off
+  function groundWxMult(cls, st) {
+    const b = 1 - Math.max(0, Math.min(0.9, (st && st.dark) || 0)), m = Math.max(0, Math.min(1, (st && st.mud) || 0));
+    if (cls !== 'dirt' || m <= 0) return [b, b, b];
+    const D = surfaceColor('dirt'), M = surfaceColor('mud');
+    if (!D || !M) return [b, b, b];
+    return [0, 1, 2].map(i => b + (M[i] / Math.max(1e-4, D[i]) - b) * m);
+  }
+  function groundWxColor(cls, st) { const c = surfaceColor(cls); if (!c) return null; const k = groundWxMult(cls, st); return [c[0] * k[0], c[1] * k[1], c[2] * k[2]]; }
+  // groundWxTick(THREE, stateOf): EVERY weather pavement (a strip, an apron, a pad, a road whose look is a weather one: its make's
+  // `wx`) on its rung - re-applied when the rung or its water (2 %) moves; a part another owner drives (render_world's strips,
+  // which also re-drape) is skipped. The user, 15 Nov: "the aprons around should probably follow the same trend"
+  function groundWxTick(THREE, stateOf) {
+    for (const m of MATS) {
+      const c = m.userData && m.userData.pavWx; if (!c || m.userData.pavWxOwned) continue;
+      const st = stateOf(c); if (!st) continue;
+      const key = st.rung + ':' + Math.round(st.S * 50); if (m.userData.pavWxKey === key) continue;
+      m.userData.pavWxKey = key; setGroundWx(THREE, m, st);
+    }
+  }
+  // setGroundWx(THREE, part, st | null): a pavement part's rung (st: GROUND_WX.state's dark, mud, film, wear - copied); re-applied
+  // (its row re-packed). The caller (render_world) calls it when the rung's numbers move, not every frame
+  function setGroundWx(THREE, m, st) {
+    if (!m || !m.uniforms) return false;
+    m.userData.pavWxSt = st ? { dark: +st.dark || 0, mud: +st.mud || 0, film: +st.film || 0, wear: st.wear > 0 ? +st.wear : 1 } : null;
+    applyOne(THREE, m);
+    return true;
+  }
   // ---- THE RUNWAY LOOK (G1392) -------------------------------------------------------------------------------
   // LIVE: the world look's overlay (look()), laid over every pavement's own recipe for the look's keys only
   let LIVE = null;
@@ -1941,8 +2004,11 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     const r = recipe || R, g = groupOf(cls), q = k => (LIVE && LIVE[g + k] !== undefined ? +LIVE[g + k] : (r[g + k] !== undefined ? +r[g + k] : RECIPE[g + k]));
     const mul = (b, h, k) => tintRGB(h, k).map(c => Math.max(0, c * b));
     const sw = q('SideW'), sa = q('SideA');
+    const qa = k => (LIVE && LIVE[k] !== undefined ? +LIVE[k] : (r[k] !== undefined ? +r[k] : RECIPE[k]));   // (DIRT-STRIP look 3's keys)
+    const dirt = [Math.max(0, qa('sfMound')), Math.max(0, qa('sfCrownLift')), Math.max(0, qa('sfGrassK')), Math.max(0.002, qa('sfPudMirror'))], trail = [Math.max(0, qa('grTrackW')), Math.max(0.1, qa('grTrackFade'))];
     return { g, surf: mul(q('Bright'), q('Hue'), q('Tint')), side: mul(q('SideBright'), q('SideHue'), q('SideTint')), wear: Math.max(0, q('Wear')), sat: isFinite(q('Sat')) ? Math.max(0, q('Sat')) : 1,
       match: g === 'gr' ? Math.max(0, Math.min(1, q('Match'))) : 0, mowA: g === 'gr' ? Math.max(0, Math.min(1, q('MowA'))) : 0,   // G2570
+      dirt, trail,
       sideW: sw >= 0 ? sw : (g === 'pv' ? (r.sideW || 1.2) : (r.edgeSoft || 2.6)), sideA: sa >= 0 ? sa : (r.sideA === undefined ? 0.35 : r.sideA) };
   }
   const KNOB_MAX = {};
@@ -2043,6 +2109,17 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     { const q = m.userData.pavMicro; if (U.uMicro) U.uMicro.value.set(q ? q[0] : 0, q ? q[1] : 0, q ? q[2] : 0, q ? q[3] : 0);   // DIRT-STRIP: 0 = a flat strip
       if (U.uMicro2) U.uMicro2.value.set(q ? q[4] : 0, q ? q[5] : 0, q ? q[6] : 0, q ? q[7] : 0);
       if (U.uMicro3) U.uMicro3.value.set(q && q.length > 8 ? q[8] : 0, q && q.length > 9 ? q[9] : 0, q && q.length > 10 ? q[10] : 0, q && q.length > 11 ? q[11] : 0); }
+    if (U.uLookS) U.uLookS.value.set(lk.dirt[0], lk.dirt[1], lk.dirt[2], lk.dirt[3]);   // DIRT-STRIP look 3's keys (the world editor's)
+    if (U.uLookG) U.uLookG.value.set(lk.trail[0], lk.trail[1], 0, 0);
+    // SNOW-MUD LADDER (15 Nov; 07f GROUND_WX): a WEATHER strip's rung, set by setGroundWx - its colour darker with its water
+    // and (dirt) toward the mud's own, a little film, and its worn relief's knobs (the hole depth, the ways' ruts, the lumps)
+    // scaled as the world scales the ground the wheels stand on. Absent on every other pavement (as it was)
+    { const W = m.userData.pavWxSt;
+      if (W) {
+        const k = groundWxMult(d.cls, W);
+        U.uWet.value.set(Math.max(U.uWet.value.x, W.film), U.uWet.value.y * k[0], U.uWet.value.z * k[1], U.uWet.value.w * k[2]);
+        if (W.wear !== 1 && U.uMicro && U.uMicro3) { U.uMicro.value.z *= W.wear; U.uMicro3.value.x *= W.wear; U.uMicro3.value.y *= W.wear; }
+      } }
     U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, lk.sideW, lk.sideA, d.road ? 1 : 0);   // .w: the surface hands over inside a strip's box (roads, aprons); .yz the surface type's side (G1392)
     if (m.isPavPart) pack(m);
   }
@@ -2299,7 +2376,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     for (let i = 0; i < NMARK; i++) { const r = marks.rects[i]; mR.push(new THREE.Vector4(r ? r[0] : 0, r ? r[1] : 0, r ? r[2] : 0, r ? r[3] : 0)); mK.push(new THREE.Vector4(r ? r[4] : 0, r ? r[5] : 0, r ? r[6] : 0, r ? r[7] : 0)); }
     const sg = [], sk = [];
     for (let i = 0; i < NSEG; i++) { const s = marks.segs[i]; sg.push(new THREE.Vector4(s ? s[0] : 0, s ? s[1] : 0, s ? s[2] : 0, s ? s[3] : 0)); sk.push(new THREE.Vector4(s ? s[4] : 0, s ? s[5] : 0, 0, 0)); }
-    m.uniforms = { uPavA: { value: lib.texA }, uPavN: { value: lib.texN }, uPavOn: { value: (lib.ready || lib.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavWet: WET, uMicro: v4(), uMicro2: v4(), uMicro3: v4(),
+    m.uniforms = { uPavA: { value: lib.texA }, uPavN: { value: lib.texN }, uPavOn: { value: (lib.ready || lib.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavWet: WET, uMicro: v4(), uMicro2: v4(), uMicro3: v4(), uLookS: v4(), uLookG: v4(),
       uLayer: v4(), uLayer2: v4(), uTile: v4(), uTile2: v4(), uClass: v4(), uHex: v4(), uMacro: v4(), uLane: v4(), uLane2: v4(), uCrack: v4(), uPatch: v4(),
       uMoss: v4(), uStain: v4(), uWet: v4(), uMark: v4(), uPaint0: { value: new THREE.Vector4(0.62, 0.60, 0.55, 1) }, uPaint1: { value: new THREE.Vector4(0.70, 0.54, 0.14, 1) },
       uRubber: v4(), uRubber2: v4(), uRut: v4(), uRut2: v4(), uRoad: v4(), uEdge: v4(), uEdge2: v4(), uDist: v4(), uSpec: v4(), uSoft: v4(), uSoft2: v4(),
@@ -2308,7 +2385,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk },
       uSide: v4(), uRoadEnd: { value: new THREE.Vector4(+o.fadeA || 0, +o.fadeB || 0, 0, 0) }, uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
     // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, a road's only when the caller says (a taxiway, G980)
-    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null; m.userData.pavMicro = Array.isArray(o.micro) ? o.micro.slice(0, 12) : null;   // (DIRT-STRIP) STRIP_MICRO.glslRow: a bumpy strip's puddles   // a resolved recipe of its own (the game), or the module's (the bench)
+    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null; m.userData.pavWx = +o.wx || 0; m.userData.pavMicro = Array.isArray(o.micro) ? o.micro.slice(0, 12) : null;   // (DIRT-STRIP) STRIP_MICRO.glslRow: a bumpy strip's puddles   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     if (table) {
       // THE ROW: cls, seed, halfW, halfL off the geometry's aPavK (constant over a part), the row id on every vertex
@@ -2554,7 +2631,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   }
   function merge(THREE, parts, o) { const out = [], it = mergeSteps(THREE, parts, o, out); while (!it.next().done); return out; }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, surfaceColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
+    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, setGroundWx, groundWxTick, groundWxMult, groundWxColor, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, surfaceColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
     // G925-G928: the table, the one material, the merge, the A/B
     // G1390-G1393: the runway look (per surface type), its live overlay, the alpha's CPU twin
     LOOK_GROUPS, LOOK_KEYS, LOOK_WEAR, groupOf, lookOf, look, tintRGB, alphaTwin, twinNoise: { hash: tHash, noise: tNoise, fbm: tFbm },

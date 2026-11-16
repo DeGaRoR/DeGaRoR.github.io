@@ -6911,8 +6911,64 @@ function cageInterior(m, S) {
         }
         // the MAIN lines are as thick as the pillars (user): waistband
         // longeron + bottom-corner longeron at TUBE_RP; the rest slim
+        // NOSE-TUBES: the nose bay's longerons chord a pinched skin (windscreen -> firewall): sample each span that
+        // reaches the nose and pull every sample that stands within the tube's clearance of the skin IN ALONG ITS RAY
+        // from the section centre (the skin is never moved; a span already clear stays one straight tube)
+        const secSeg = zk => {
+          const seg = [];
+          for (const f of F) {
+            if (f.v.length !== 4 || f.m === 'joint' || f.m === 'doorSeal' || f.paneEdge || f.capFace) continue;
+            const o = f.cutPart && f.cutOff ? f.cutOff : null, h = [];
+            for (let e = 0; e < 4; e++) {
+              const a = V[f.v[e]], b = V[f.v[(e + 1) % 4]];
+              const ax = o ? [a[0] - o[0], a[1] - o[1], a[2] - o[2]] : a, bx = o ? [b[0] - o[0], b[1] - o[1], b[2] - o[2]] : b;
+              const za = ax[2] - zk, zb = bx[2] - zk;
+              if (za * zb > 0 || za === zb) continue;
+              const t = za / (za - zb);
+              h.push([ax[0] + (bx[0] - ax[0]) * t, ax[1] + (bx[1] - ax[1]) * t]);
+            }
+            if (h.length >= 2) seg.push([h[0][0], h[0][1], h[1][0], h[1][1]]);
+          }
+          return seg;
+        };
+        const hugPt = (q, inset) => {
+          const sec = sliceAt(q[2]);
+          if (!sec) return q;
+          const seg = secSeg(q[2]);
+          const dx0 = q[0] - sec.cx, dy0 = q[1] - sec.cy, r = Math.hypot(dx0, dy0);
+          if (!(r > 1e-6)) return q;
+          const dx = dx0 / r, dy = dy0 / r;
+          let tS = -1;
+          for (const s of seg) {
+            const ex = s[2] - s[0], ey = s[3] - s[1], den = dx * ey - dy * ex;
+            if (Math.abs(den) < 1e-12) continue;
+            const wx = s[0] - sec.cx, wy = s[1] - sec.cy;
+            const t = (wx * ey - wy * ex) / den, u = (wx * dy - wy * dx) / den;
+            if (t > 1e-4 && u >= -1e-6 && u <= 1 + 1e-6 && t > tS) tS = t;
+          }
+          return tS > inset && r > tS - inset ? [sec.cx + dx * (tS - inset), sec.cy + dy * (tS - inset), q[2]] : q;
+        };
+        const hugRun = ch => {
+          const out = [];
+          for (let i = 0; i < ch.length; i++) {
+            out.push(ch[i]);
+            if (i + 1 >= ch.length) break;
+            const A = ch[i], B = ch[i + 1];
+            if (!(Math.max(A[2], B[2]) > zNose0)) continue;
+            const n = Math.floor(Math.abs(B[2] - A[2]) / 0.06), mid = [];
+            let moved = false;
+            for (let k = 1; k < n; k++) {
+              const t = k / n, q = [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t];
+              const L = hugPt(q, TUBE_RP + TUBE_CLR);
+              if (L !== q) moved = true;
+              mid.push(L);
+            }
+            if (moved) out.push(...mid);
+          }
+          return out;
+        };
         for (const ch of [...runsP, ...runsM, chnP, chnM, chnPb, chnMb])
-          tubeRuns(ch, TUBE_RP, false);
+          tubeRuns(hugRun(ch), TUBE_RP, false);
         for (const s2 of [0, 1])
           for (let i = 0; i + 1 < topCh[s2].length; i++)
             seg(i % 2 ? botCh[s2][i] : topCh[s2][i],

@@ -62,7 +62,7 @@
 // ============================================================
 const SIM_LINK = (() => {
   'use strict';
-  const WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setSea'];
+  const WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setGrassSides', 'setSea', 'setGround'];   // setGrassSides: GRASS-ON-GREEN, the grass law is the wheels' ground too
   // the pilot's fields assigned whole (never merged into the page's objects: a site or a plan may be shared)
   const AP_WHOLE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'report', 'drawn'];   // G2120: the drawn route's state, whole
   const AP_SKIP = ['route', 'nav', 'sheet'];
@@ -251,8 +251,8 @@ const SIM_LINK = (() => {
     // (which B8B9 made instant: no screen) does not hold the stand for it. The registry so far goes first.
     function worldMsg() {
       const isl = W.ISLAND_BOOT;
-      return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null,
-               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER, flat: !!world.flat },   // G3790: the test field's flat world, the same on the worker
+      return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null, ground: world.groundForce || null,   // (SNOW-MUD LADDER: the ground's dev override)
+               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER, flat: !!world.flat, grassSides: typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.grassSides ? PREMISES_GEN.grassSides() : null },   // grassSides: GRASS-ON-GREEN, the page's grass law (look + wheels) on the worker's world   // G3790: the test field's flat world, the same on the worker
                fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT } : null, boot: null };
     }
     function prewarm() {
@@ -336,7 +336,7 @@ const SIM_LINK = (() => {
       let shake = null;
       try { shake = S.shake ? S.shake() : null; } catch (e) { shake = null; }
       const m = { cmd: 'init', spec: S.genSpec ? JSON.parse(JSON.stringify(S.genSpec)) : null, place,
-                  pilot: { kind: S.pilotChoice || 'auto', profile: S.pilotProfile || undefined, shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null,
+                  pilot: { kind: S.pilotChoice || 'auto', profile: S.pilotProfile || undefined, shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null, ground: world.groundForce || null,
                   damage: typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : null };   // G1898: the page's ?damage
       // G2400 (FREIGHT-STRAP): the load the page's sim carries (sim.setFreight at the roll-out), flown there too; absent
       // with none (the init message as it always was)

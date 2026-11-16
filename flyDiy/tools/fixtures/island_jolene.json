@@ -2146,6 +2146,40 @@
      ]
     ],
     "surface": 6
+   },
+   {
+    "id": "mt_u_apron",
+    "surface": 8,
+    "poly": [
+     [
+      9244.2,
+      -5955.9
+     ],
+     [
+      9212.2,
+      -5955.9
+     ],
+     [
+      9212.2,
+      -5968.9
+     ],
+     [
+      9204.2,
+      -5968.9
+     ],
+     [
+      9204.2,
+      -5951.9
+     ],
+     [
+      9211.2,
+      -5941.9
+     ],
+     [
+      9244.2,
+      -5941.9
+     ]
+    ]
    }
   ],
   "material": [
@@ -15653,8 +15687,8 @@
     "name": "Old Community Runway",
     "len": 311.5,
     "wid": 21,
-    "surface": 6,
-    "look": "gravel",
+    "surface": 20,
+    "look": "dirtwx",
     "slope": 0,
     "crossfall": 0,
     "disp": [
@@ -15814,8 +15848,8 @@
     "name": "Hiking Strip",
     "len": 391.7,
     "wid": 12,
-    "surface": 7,
-    "look": "sand",
+    "surface": 20,
+    "look": "dirtwx",
     "slope": 0,
     "crossfall": 0,
     "disp": [
@@ -16044,11 +16078,11 @@
     "stand": {
      "x": 9230.2,
      "z": -5950.4,
-     "hdg": null
+     "hdg": 0
     },
     "taxiOut": [
      [
-      9230.2,
+      9245.2,
       -5961.9
      ]
     ],

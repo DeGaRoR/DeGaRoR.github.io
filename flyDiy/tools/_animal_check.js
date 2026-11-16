@@ -311,7 +311,7 @@ function viewerContext() {
   // ASSET_FETCH off the disk: the same bytes the page would fetch
   g.ASSET_FETCH = rel => Promise.resolve(readGeo(rel));
   // props.js FIRST (after the material library it asks, AS4a): the animals land on the prop library's one material factory
-  for (const f of ['matlib.js', 'props.js', 'plume.js', 'animals.js', 'animal_run.js'])
+  for (const f of ['matlib.js', 'props.js', 'plume.js', 'wakes.js', 'animals.js', 'animal_run.js'])
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', f), 'utf8'), ctx, { filename: f });
   // the payload, into this context's own registries
   for (const f of JSON.parse(fs.readFileSync(path.join(SRC, 'animals_index.json'), 'utf8')))

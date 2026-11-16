@@ -7,7 +7,8 @@
 //        birth a card (its choices changed by --sel: the architecture step), attach the reference
 //   node tools/drafting/table.js check <plane.json> [--over JSON] [--level 0] [--sheet <img> --png <out-prefix>] [--json <out>]
 //        builds the plane through the garage's generator, measures it, prints the key-measurements table against the
-//        reference; --png writes <out>_{side,top,front}.png: the sheet faded, our outline in parts over it
+//        reference; --png writes <out>_sheet.png through quickshot.js --sheet --parts (tools/drafting/dt_sheet.js, the one
+//        projector): side / top / front stacked, the sheet faded, our render and outline, the red veil, the score table
 //   node tools/drafting/table.js set   <plane.json> '<rows JSON>' [--why "..."]     writes cage rows (garage rows only)
 //   node tools/drafting/table.js rows  [filter]                                     the garage's row definitions
 //   node tools/drafting/table.js fit   <plane.json> '{"row":[lo,hi,step],...}' --km id,id [--write]
@@ -46,34 +47,16 @@ function printTable(T, title) {
       (r.tol == null ? '' : ('  ' + fmt(r.tol, r.unit))).padEnd(9) + ' ' + r.src);
   }
 }
-// the overlay: each view's box of the sheet, faded, with our outline over it
-function overlays(ref, B, sheetFile, prefix) {
-  const S = PNG.decode(fs.readFileSync(sheetFile));
-  const out = [];
-  for (const view of C.VIEWS) {
-    const V = ref.views[view]; if (!V) continue;
-    const [x0, y0, x1, y1] = V.box, W = x1 - x0, H = y1 - y0;
-    const id = C.raster(view, B.tris, B.parts, V, W, H, x0, y0), E = C.edges(id, W, H);
-    const img = Buffer.alloc(W * H * 4);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const si = ((y0 + y) * S.W + (x0 + x)) * 4, o = (y * W + x) * 4;
-      const g = S.rgba[si + 3] ? (S.rgba[si] + S.rgba[si + 1] + S.rgba[si + 2]) / 3 : 255;
-      const v = 255 - (255 - g) * 0.45;                   // the sheet, faded
-      img[o] = img[o + 1] = img[o + 2] = v; img[o + 3] = 255;
-      const e = E[y * W + x];
-      if (e) { const c = C.COLOURS[C.PARTS[e]] || '#000'; img[o] = parseInt(c.slice(1, 3), 16); img[o + 1] = parseInt(c.slice(3, 5), 16); img[o + 2] = parseInt(c.slice(5, 7), 16); }
-    }
-    // the reference's marks: small black crosses
-    for (const k of Object.keys(ref.marks || {})) {
-      const m = ref.marks[k]; if (m.view !== view) continue;
-      for (const p of m.pts) for (let d = -3; d <= 3; d++) for (const [dx, dy] of [[d, 0], [0, d]]) {
-        const x = Math.round(p[0] - x0 + dx), y = Math.round(p[1] - y0 + dy);
-        if (x < 0 || y < 0 || x >= W || y >= H) continue; const o = (y * W + x) * 4; img[o] = 0; img[o + 1] = 0; img[o + 2] = 0;
-      }
-    }
-    const f = prefix + '_' + view + '.png'; fs.writeFileSync(f, PNG.encode(W, H, img)); out.push(f);
-  }
-  return out;
+// THE OVERLAY IS QUICKSHOT'S (QUICKSHOT-ONE, 15 Nov: one projector): quickshot.js --sheet draws the plane on the drawing
+// through dt_core's toPx (tools/drafting/dt_sheet.js) - the drawing faded, our render, the red veil outside the drawing's
+// lines, the parts' outline, the marks, the score table and the dimensions diff - in the part-colour view (--parts) at the
+// table's own level, so its numbers are the ones printed here. One file: <prefix>_sheet.png
+function overlays(planeFile, sheetFile, prefix, extra) {
+  const args = [path.join(__dirname, '..', 'quickshot.js')].concat(planeFile.key ? ['--key', planeFile.key, prefix, '--ref', planeFile.ref] : [planeFile, prefix],
+    ['--sheet', sheetFile, '--parts', '--level', String(opt('level', 0))], extra || []);
+  const r = require('child_process').spawnSync(process.execPath, args, { encoding: 'utf8', maxBuffer: 1 << 26 });
+  if (r.status !== 0) { console.log('quickshot --sheet failed: ' + (r.stderr || r.stdout || '').split('\n').slice(-4).join(' | ')); return []; }
+  return [prefix + '_sheet.png'];
 }
 function bornOrFile(doc) { return doc.spec; }
 
@@ -98,7 +81,7 @@ if (cmd === 'new') {
   const FO = C.folds(B);
   console.log('\n' + (FO.len > 0.04 ? 'X FOLDS in the skin: ' + FO.len + ' m of the body, the worst at ' + FO.at + ' m aft, ' + FO.h + ' m up (' + FO.depth + ' m deep)' : '+ no fold in the skin'));
   console.log('our windows (side, starboard): ' + r.win.map(w => w.a0.toFixed(2) + '-' + w.a1.toFixed(2) + ' x ' + w.h0.toFixed(2) + '..' + w.h1.toFixed(2)).join(' | '));
-  if (opt('png') && opt('sheet')) console.log('overlays: ' + overlays(doc.ref, B, opt('sheet'), opt('png')).join(' '));
+  if (opt('png') && opt('sheet')) console.log('overlays: ' + overlays(pos[1], opt('sheet'), opt('png'), opt('over') ? ['--over', opt('over')] : []).join(' '));
   if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify({ ours: r.ours, windows: r.win, table: r.T }, null, 1));
 } else if (cmd === 'fit') {
   // A SCOPED SEARCH (the old fitters' way, kept for sessions; the page's way is marks and sliders): the rows of ONE
@@ -265,7 +248,7 @@ if (cmd === 'new') {
     const B = DT.build(DT.birth(key), null, { level: 0 });
     const r = table(ref, B);
     printTable(r.T, 'CARD ' + key);
-    if (opt('png') && opt('sheet')) console.log('overlays: ' + overlays(ref, B, opt('sheet'), opt('png') + '_' + key).join(' '));
+    if (opt('png') && opt('sheet')) console.log('overlays: ' + overlays({ key, ref: pos[1] }, opt('sheet'), opt('png') + '_' + key).join(' '));
   }
 } else {
   console.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 17).join('\n'));

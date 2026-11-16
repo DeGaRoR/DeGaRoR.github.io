@@ -244,6 +244,70 @@ mass (KGn = 1.5e4 x m above 6 kg), so a heavier wheel rides STIFFER (9e4 N/m on 
 a low-pressure carcass's vertical rate is nowhere. A carcass's vertical rate (beside TYRE_SOFT) is the row to build. It moves
 every fixture that rolls, so it belongs to a session that owns the ground's calibration.
 
+## 8. THE GROUND'S WEATHER LADDER (the user, 15 Nov; GATE MUDLADDER, core, ~65 s; branch claude/snow-mud-ladder)
+
+The user: "should we have a mud ladder? Dirt to firm mud to soft mud as a function of the weather? ... these 3 options, and
+maybe an auto setting? So we can keep doing tests, or mark a runway as always dry or muddy, and let some evolve with the
+weather." Then: grass and sand the same (wet sand firmer and "slightly darker ... don't make the sand go too dark", because the
+aprons and the ground around would not follow); "the more soft the mud is, the deeper the ruts and the holes ... they sort of
+firm up slightly with the dry setting"; "match the color of the projections to what we are doing here, so to unify these two
+systems"; the Hiking Strip and the Old Community Runway on it, the New Community Runway kept clear (the story's). Snow and
+gravel climb no ladder (the user's ruling).
+
+THE RAIN WAS ALREADY THERE. The weather plan's days carry a rain curve (the gale, the storm, the showers), and DIRT-DUST's
+SOIL_WET (07e) keeps the top soil's water as a 96 h bucket per class (dirt, sand, gravel, grass): the rain fills it, the sun
+and the wind dry it, the subsoil re-wets it overnight; pure in the instant, so the page, the physics worker and a gate read
+the same. Until now it drove the dust, the puddles and the mud coat's wash - never the wheels.
+
+THE SETTING IS THE LOOK. The fixed rungs: dirt, mud (firm), mud (soft), grass, grass (wet), sand, sand (wet). The WEATHER
+looks: dirt (weather), grass (weather), sand (weather) - their feel a code 20 / 21 / 22 that 20_world resolves where the
+ground is read (07f GROUND_WX off the soil now):
+
+| look | rung by the soil's water S (of its class) | surface codes | worn relief | drawn |
+|---|---|---|---|---|
+| dirt (weather) | mud = smoothstep(0.55, 0.9, S): < 0.25 dirt, < 0.75 firm mud, else soft mud | 6 / 11 / 12 | x 0.85 / 1 / 1.3 | 30 % darker at S 1, toward the mud's colour by its mud |
+| grass (weather) | S < 0.5 dry, else wet | 0 / 13 | x 1 | 12 % darker at S 1 |
+| sand (weather) | S < 0.45 dry, else wet | 7 / 14 | x 1 / 0.9 (wet sand firms) | 10 % darker at S 1 |
+
+New rows: 13 wet grass [0.080, 0.20, 0.45] (Raymer table 17.1: wet grass rolls 0.08, brakes 0.2), 14 wet sand
+[0.050, 0.40, 0.65] (ESTIMATE: a packed damp beach - firm where dry sand is loose). Every code-keyed side table to 15.
+
+THE SEASON (the plan's first storm, 27 May, at 17:00): the dirt's water 0.90 - the Old Community Runway is SOFT MUD; the next
+afternoon 0.47 (dirt again: the bucket drains and the sun dries it), then 0.09, 0.04 ... A light rain makes firm mud.
+
+THE WHEELS (the Cub, full power from rest to 0.9 Vs; a weather code at each rung rolls bit for bit as the fixed code):
+dirt 63 m, firm mud 65 m, soft mud 80 m (x1.27 - the soft rows' operational fit, 20-50 %); dry sand 74 m, wet sand 64 m;
+braked from 0.6 Vs: dry grass 10 m, wet grass 20 m.
+
+THE BUMPS: on a bumpy weather strip the world adds (wear - 1) x the field's WORN relief (26b wearUV: the aeroplanes' lanes,
+the vehicles' ways and berms, the holes, the lumps - each linear in its knob, so the scaled field is the field of the scaled
+knobs) to the composed ground - exact (1e-14 m over 16 408 points), not memoised on the box, the ceiling widened by
+0.35 x its bound; the raster and the cook are the record's (nothing to re-cook). The ribbon is re-drawn on the same ground:
+render_world reads each vertex's worn relief once and re-drapes it when the rung moves; the shader's rows scale the same
+knobs. The Hiking Strip relooked dirt (weather) in the gate: its deepest trough 6.7 / 7.9 / 10.3 cm dry / firm / soft.
+
+THE COLOUR, ONE LAW: PAVEMENT.groundWxMult(cls, st) - 1 - dark, and a dirt toward 'mud' / 'dirt' channel by channel by its
+mud (a soaked dirt strip IS the mud's colour) - is the drawn strip's (applyOne, the row re-packed when the rung moves) and
+the projections' (app.js: the strip under the aeroplane, world.wxAt -> PAVEMENT.groundWxColor -> the dust's setGround, its
+class and the mud's); a mud rung throws MUD (dust class by the surface code). dust.js and aeroweather untouched (GROUND-FX's).
+
+FOR TESTS: the weather panel's 'the ground' row (the weather / dry / firm mud / soft mud) = world.setGround - the soil held
+at 0.05 / 0.70 / 0.95 for every reader (the wheels, the drawn ground, the dust, the puddles), replayed on the physics worker
+and handed at a flight's start; ?ground=dry|firm|soft at load. The fixed looks never move; every gate's sandbox day is dry.
+
+JOLENE: w6 Old Community Runway gravel -> dirt (weather) (its CONTRACT_FIELDS word 'dirt'); w8 HIKING STRIP sand -> dirt
+(weather), THE SHOWCASE (the user: "Do the hiking strip as our showcase"): its chaos-0.4 bumps climb the ladder - the deepest
+trough 6.7 / 7.9 / 10.3 cm dry / firm / soft, its colour toward the mud's, its dust and mud its colour; w7 (the story's)
+untouched. The stills (pavement bench, the real shader): dirt dry / firm / soft, sand dry / wet, grass dry / wet.
+
+THE APRONS (the user: "the aprons around should probably follow the same trend"): a pad, an apron or a road drawn with a
+weather look feels its rung and is re-tinted on it (PAVEMENT.resolve carries the look's code to make; groundWxTick re-applies
+every weather pavement when its rung moves; the strips stay render_world's, which also re-drapes them). The island's own
+ground (the terrain, the grass around) does not darken - why the sand's step is a shade (10 %).
+
+NOT DONE: the terrain's own ground does not take the soil's water (a renderer's question); a bumpy ROAD or pad has no worn
+relief to scale (only strips carry `micro`). The editor's look lists carry the five new looks.
+
 ## Gates
 
 | gate | tier | runtime | self-test |
@@ -256,3 +320,4 @@ every fixture that rolls, so it belongs to a session that owns the ground's cali
 | SOFTGROUND | core | ~2 min | re-recorded fixture |
 | WHEELSIZE | core | ~45 s | - (the table's order is the check) |
 | ROUGHWHEEL | core | ~100 s | the old point read fails A |
+| MUDLADDER | core | ~65 s | the rungs, the island, the season, the Cub, the bumps, the colour, the worker |

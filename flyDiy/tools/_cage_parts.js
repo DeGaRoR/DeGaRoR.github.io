@@ -1001,7 +1001,7 @@ const CAGE_PARTS = [
       ['section at the firewall', ['cw_waist', 'cw_deckH', 'cw_keelH',
                                    'cw_sqAftTop', 'cw_sqAftBot',
                                    'cw_wAftTop', 'cw_wAftBot', 'cw_waistF']],   // CABIN-CRAFT: the width by level; PROPER-COWLS: the front's waist
-      ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillL', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
+      ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillY', 'cw_gillL', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
       ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
                      'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',
@@ -1012,6 +1012,7 @@ const CAGE_PARTS = [
       ['section at the nose ring', ['cw_lidSqTop', 'cw_lidSqBot']],
       ['cheeks & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
                             'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig', 'cw_lobeT2', 'cw_lobeCount', 'cw_lobeStream', 'cw_lobeNose', 'cw_lobeTail',
+                            'cw_cylOn', 'cw_cylAz', 'cw_cylOff', 'cw_cylR', 'cw_cylZ0', 'cw_cylZ1', 'cw_cylNose', 'cw_cylTail', 'cw_cylRin', 'cw_cylOffIn', 'cw_cylBlend', 'cw_cylOgive', 'cw_cylProfile', 'cw_cylFront', 'cw_cylInlet', 'cw_cylVert', 'cw_cylSq', 'cw_cylLipT', 'cw_cylDuctLen', 'cw_cylDuctEnd', 'cw_cylDuctBack',
                             'cw_cutSpan', 'cw_cutAz']],
       ['inlets', ['cw_apMode', 'cw_apW', 'cw_apH', 'cw_apSq',
                   'cw_apOffX', 'cw_apOffY', 'cw_pairX', 'cw_pairW',

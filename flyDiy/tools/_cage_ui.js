@@ -4264,6 +4264,9 @@ const DEC = (typeof window !== 'undefined' && window.AEROSKIN
   // LIVERY-TEXT (9 Nov): the registration takes a text piece's controls - a face (null: the old row above), bold,
   // italic, slant, an outline (null: none) and the side (0 both, 1 left, 2 right); aeroskin AERO_DEC_DEF's own
   regFace: null, regB: 1, regI: 0, regSl: 0, regLine: null, regSide: 0,
+  // CARBON-CUB-LIVERY (16 Nov): the registration's drop shadow (aeroskin AERO_DEC_DEF's regShd*): on, its colour (null:
+  // near-black), its offset to the reader's right and down, in fractions of the letters' height
+  regShd: 0, regShdCol: null, regShdX: 0.06, regShdY: 0.08,
   // LIVERY-5: THE TWO IMAGE CHANNELS ARE GONE (img* / wim*): an old save's rows are dropped on load; their atlas
   // pages carry kit layers 4 and 5
   // G2829: THE REGISTRATION ON THE WING TOP (aeroskin AERO_DEC_DEF's wreg*: the registration's page placed a second
@@ -5291,6 +5294,22 @@ function buildDecPanel() {
   // LIVERY-TEXT (9 Nov, the user: "registration is just a dedicated text field"): the registration's face, bold,
   // italic, slant, outline and side are a text piece's rows (txtRows) - its old four faces first in the list
   txtRows('reg', null, true);
+  // CARBON-CUB-LIVERY (the user 16 Nov: "the drop shadow effect they use as an outline"): a tick and its colour, then
+  // how far right and down - each glyph copied whole under the letters, so it draws as sharp as they do
+  {
+    const r = row('drop shadow', 'a copy of the letters in its own colour, set down and to the right under them - the ' +
+                  'shadow that outlines a registration on a bright flank. Off by default');
+    const c = document.createElement('input'); c.type = 'checkbox';
+    const w = document.createElement('input'); w.type = 'color'; w.style.flex = 'none'; w.style.marginLeft = '6px';
+    wellRecent(w);
+    const lk = () => { const on = !!+DEC.regShd, v = DEC.regShdCol; c.checked = on; w.disabled = !on;
+      w.style.opacity = on ? '' : '.35'; w.value = '#' + ((v != null ? v : 0x1c1e22) >>> 0).toString(16).padStart(6, '0'); };
+    c.onchange = () => { DEC.regShd = c.checked ? 1 : 0; lk(); decSavePrefs(); applyDecals(); draw(); };
+    w.oninput = () => { DEC.regShdCol = parseInt(w.value.slice(1), 16); decSavePrefs(); applyDecals(); draw(); };
+    r.appendChild(c); r.appendChild(w); SYNC.regShd = lk; DEC_RELOAD.push(lk); lk();
+  }
+  num('shadow right', 'regShdX', 0, 0.3, 0.01, 'how far the shadow sits to the right, a fraction of the letters\' height');
+  num('shadow down', 'regShdY', 0, 0.3, 0.01, 'how far the shadow sits below, a fraction of the letters\' height');
   num('station', 'regL', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len');
   num('height on side', 'regC', -1.0, 1.2, 0.02,
       'metres around the section from the waist rail, + upward', 'up');
