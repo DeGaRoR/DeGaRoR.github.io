@@ -160,6 +160,10 @@
       else if (s === 'state') a.sort((x, y) => k(x) - k(y) || certIdx(x.state) - certIdx(y.state) || byName(x, y));
       else if (s === 'price') a.sort((x, y) => k(x) - k(y) || ((y.r.sale ? y.r.sale.value : -1) - (x.r.sale ? x.r.sale.value : -1)) || byName(x, y));
       else a.sort((x, y) => k(x) - k(y) || byName(x, y));
+    } else if (tab === 'veh') {
+      // the validated layer first, the candidates after, whatever the sort (its headings are the layers)
+      const k = t => (t.v && t.v.layer === 'candidate' ? 1 : 0);
+      a.sort((x, y) => k(x) - k(y) || byName(x, y));
     } else {
       if (s === 'name') a.sort(byName);
       else if (s === 'number') a.sort((x, y) => (x.n == null ? 1e9 : x.n) - (y.n == null ? 1e9 : y.n) || byName(x, y));
@@ -170,7 +174,9 @@
   // the headings the sort draws: All planes by class -> one per class; Your hangar -> the bought-in shelf apart
   function headOf(t) {
     if (tab === 'mine') return t.kind === 'bring' ? 'From the sandbox: buy into this career' : t.car ? 'Your cars' : 'Your aeroplanes';
-    if (tab === 'veh') return '';
+    // (A0 for the user, 15 Nov: the vehicles in two layers, each hidden by its switch in vehicles.json - the garage's
+    // vehicleLists door hands each row its `layer`; a row without one, read off the file directly, is validated)
+    if (tab === 'veh') return t.v && t.v.layer === 'candidate' ? 'Candidates: built here, not yet validated' : 'Validated';
     if (ui.all.sort !== 'class') return '';
     const c = CLASSES.find(x => x[0] === t.cls);
     return c ? (t.cls === 'cand' ? 'Candidates: built here, not yet certified' : c[1]) : '';

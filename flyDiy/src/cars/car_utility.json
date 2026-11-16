@@ -1,5 +1,5 @@
 {
- "car": "utility_2026-11",
+ "car": "utility_retro_2026-11",
  "authored": "MEASURED off the garage drawing by tools/car_sheet.js (CAR-1); the mass, the CG height and the inertia are ESTIMATES (the ledger less the wings and tail, plus a chassis; 40 % of the body height; a uniform box)",
  "frame": "+x forward, y up, +z right; metres; x = the garage z, z = the garage x, y over the ground under the tyres",
  "wheels": {
@@ -7,7 +7,7 @@
    "centre": [
     3.7,
     0.45,
-    -0.88
+    -1.03
    ],
    "radius": 0.45,
    "width": 0.144,
@@ -18,7 +18,7 @@
    "centre": [
     3.7,
     0.45,
-    0.88
+    1.03
    ],
    "radius": 0.45,
    "width": 0.144,
@@ -28,8 +28,8 @@
   "RL": {
    "centre": [
     0.5,
-    0.4526,
-    -0.82
+    0.4579,
+    -0.97
    ],
    "radius": 0.45,
    "width": 0.144,
@@ -39,8 +39,8 @@
   "RR": {
    "centre": [
     0.5,
-    0.4526,
-    0.82
+    0.4579,
+    0.97
    ],
    "radius": 0.45,
    "width": 0.144,
@@ -50,25 +50,25 @@
  },
  "wheelbase": 3.2,
  "track": {
-  "front": 1.76,
-  "rear": 1.64
+  "front": 2.06,
+  "rear": 1.94
  },
  "ground": 0,
  "hitch": [
   -0.9283,
-  0.607,
+  0.6122,
   0
  ],
  "box": {
   "lo": [
    -0.973,
-   0.165,
-   -0.989
+   0.246,
+   -0.99
   ],
   "hi": [
    4.366,
-   2.21,
-   0.989
+   2.369,
+   0.99
   ]
  },
  "collision": {
@@ -77,28 +77,28 @@
     "name": "body",
     "lo": [
      -0.973,
-     0.165,
-     -0.989
+     0.246,
+     -0.99
     ],
     "hi": [
      4.366,
-     2.21,
-     0.989
+     2.369,
+     0.99
     ]
    }
   ]
  },
  "estimates": {
-  "mass_kg": 1267.7,
+  "mass_kg": 1268.8,
   "cg": [
-   1.6376,
-   0.7883,
+   1.6368,
+   0.8388,
    0
   ],
   "inertia_kgm2": [
-   855.4,
-   3425.7,
-   3453.9
+   891.4,
+   3429.2,
+   3491.6
   ],
   "ledger": [
    [
@@ -111,7 +111,7 @@
    ],
    [
     "gear",
-    81.9
+    82.9
    ],
    [
     "cabin",
@@ -139,7 +139,7 @@
    ],
    [
     "furnish",
-    82.1
+    82.2
    ],
    [
     "paint",
@@ -176,21 +176,21 @@
     "RR"
    ],
    "P": 141507,
-   "F0": 9327,
-   "Frev": 5596,
+   "F0": 9335,
+   "Frev": 5601,
    "vRev": 6,
    "engBrake": 373,
    "tc": 0.85
   },
   "brake": {
-   "F": 9949,
+   "F": 9958,
    "front": 0.6,
    "abs": 0.8,
    "hand": [
     "RL",
     "RR"
    ],
-   "handF": 3109
+   "handF": 3112
   },
   "steer": {
    "wheels": [

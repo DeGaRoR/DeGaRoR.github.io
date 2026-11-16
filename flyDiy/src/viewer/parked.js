@@ -693,6 +693,8 @@
         return cache[ck] = onBlock(s);
       }
       if (m.panel && rec.panel && rec.panel[m.panel]) return cache[ck] = rec.panel[m.panel];
+      if (m.carTex && W.CAGE_CARTEX) { const cm = W.CAGE_CARTEX.material(m.carTex); if (cm) return cache[ck] = cm; }   // CAR-TEX: the plate, the tow sign
+      if (m.tyreTex && W.CAGE_WHEELTEX) { const tm = W.CAGE_WHEELTEX.material(m.tyreTex); if (tm) return cache[ck] = tm; }   // WHEEL-TEX
       if (m.propMat && typeof W.propBuild === 'function') {
         try {
           const [pk, pm] = m.propMat.split('|');

@@ -7,6 +7,8 @@
 //   node tools/drive_shot.js <out-prefix> [dev.html|index.html] [t1,t2,...  seconds of driving]
 // Writes <out-prefix>_t<sec>.png and <out-prefix>_log.txt. Under SwiftShader the HUD's text lags the 3D frame by a
 // still (its 0.1 s cadence at seconds a frame); on a GPU it does not. GATE DRIVE-TRIP's PAGE row source-checks the wiring.
+'use strict';
+const fs = require('fs'), pw = require('playwright');
 const OUT = process.argv[2], PAGE = process.argv[3] || 'dev.html';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
