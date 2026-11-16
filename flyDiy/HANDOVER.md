@@ -316693,3 +316693,17 @@ HOUSEWORKER: green in this battery (it was Game's one red on its stack).
 STANDING (L40c's, unchanged): FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT GLIDE UNIFY DESTTO TREECRASH DMGCERT DMGGEAR WILGAGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGWALL DMGDAMP DMGTYRE DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY WINGROWS DESIGNCHECK JOINPARITY ENGINE PARTS POD DMGPOD CANDIDATES NAMES NODUMMY ENERGYBASE TANKMOUNT ENGTORQUE FLEX LOAD ENGCONFIG.
 
 COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); after 143 s (programs 501 -> 508, world 26.1, settle 17.4, shader compile 46.2 + 11.8 s): +5 s, 7 more programs. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+
+## STAR-DIRECT - the water draws the reflected stars itself, at the sky's size (NIGHT-LOOK, 16 Nov)
+- why: the user 15 Nov: the reflected stars "still much too big" after STAR-REFLECT (L38b). The mirror capture is 40 % of the screen
+  (MIR.res 0.4): a capture pixel is 2.5 screen pixels, so no star read from it could be under ~5 px (the sky's are ~3).
+- src/viewer/atmo.js: the dome's star points + the Milky Way band as ONE GLSL function, starField(d, pxA, wash, pts, fCap) (STAR_FIELD_GLSL,
+  exported ATMO.GLSL.STARS; stHash13/stNoise2 = the old hash13/vnoise2, so the same stars). The dome calls it as before. New uniforms:
+  uStarPts (0 = the band only, no points) and uSkyA (the dome writes alpha uSkyA and rgb x uSkyA: 1 everywhere but the mirror's sky pass).
+- src/viewer/water.js: the mirror's sky pass draws NO points when NIGHT_SEA.direct (the glow stays) and flags its sky with alpha 2; the water
+  calls starField along its own rippled reflected ray mR at the screen pixel's footprint, where the capture is sky (alpha > 1.2: trees and
+  ridges in the reflection hide them), jittered vertically by the unresolved slopes (dJit x the NIGHT-SHINE stretch's spread), light =
+  uStars x MIR.starsK x uScale x dK, the same flux cap 25. Dials: WATER.nightSea.{direct 1, dK 1, dJit 0.3} (direct 0 = the L38b look).
+- stills 16 Nov 09:35 (page_rig.js, Cabin Lake eye 1 m, 7 Jan 18:00 moonless, RTX 3080): v0 live / direct / half light / jitter .3 / jitter 1;
+  jitter .3 kept: sky-sized glints in short columns. Gates: WATER ATMO LOOKS NIGHTVISIBILITY LIGHT PASS (SHADOWSKY's red is master's own).
+- Evidence: flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/direct/.
