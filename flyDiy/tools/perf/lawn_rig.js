@@ -113,7 +113,7 @@ const CABIN = { eye: [2696.3, 197.03, -15925.44], yp: [Math.atan2(-0.4062, 0.913
   }
   const capS = UNTIL ? Math.max(120, Math.floor((UNTIL - Date.now()) / 1000) - 90) : +opt('cap', 2500);
   log('cap ' + capS + ' s; eyes ' + EYES.join(',') + '; configs ' + CONFIGS.join(','));
-  const rig = await require('../page_rig.js').start({ cap: capS, q: opt('q', ''), size: opt('size', '1600x900'), name: 'lawn_rig' });
+  const rig = await require('../page_rig.js').start({ cap: capS, q: opt('q', ''), size: opt('size', '1280x720'), name: 'lawn_rig' });
   const rows = [];
   try {
     await rig.fly(); await rig.pause();
@@ -145,7 +145,7 @@ const CABIN = { eye: [2696.3, 197.03, -15925.44], yp: [Math.atan2(-0.4062, 0.913
           const idleMs = await rig.ev('__LWN.idle()');
           if (!mode) await rig.eye(eye.eye[0], eye.eye[1], eye.eye[2], eye.yp[0], eye.yp[1]);
           await rig.frames(30);
-          const png = await rig.grab({ jpeg: 0.9 }).catch(err => ({ err: String(err) }));
+          const png = await rig.grab({ jpeg: 0.82 }).catch(err => ({ err: String(err) }));
           const name = e + '__' + c + '.jpg';
           if (png && png.length) fs.writeFileSync(path.join(OUT, name), png);
           const cost = await rig.ev('__LWN.cost(' + FR + ',' + (GPU ? 'true' : 'false') + ')');
