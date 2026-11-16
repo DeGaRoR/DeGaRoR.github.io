@@ -55,6 +55,7 @@
     {"n":32,"list":"archive","name":"Garage Special","gen":1,"note":"the first test aircraft (GEN_DEFAULT, no file)"},
     {"n":35,"list":"archive","name":"Twin busher floats 3b","file":"builds/candidates/review/Twin_busher_floats_3b.json","note":"Rotax 916 iS"},
     {"n":36,"list":"archive","name":"Twin busher floats 4","file":"builds/candidates/review/Twin_busher_floats_4.json"},
-    {"n":37,"list":"archive","name":"Stock sailplane","stock":"sailplane","thumb":"stock:sailplane","note":"stock preset"}
+    {"n":37,"list":"archive","name":"Stock sailplane","stock":"sailplane","thumb":"stock:sailplane","note":"stock preset"},
+    {"n":57,"list":"reproduction","name":"LS4-alike","reg":"D-4LS4","file":"builds/candidates/ls4_2026-11.json","alike":"ls4","thumb":"cand:ls4_2026-11.json","note":"the Rolladen-Schneider LS4 reproduction (the user 16 Nov: add the LS4 to the candidate lists proudly) - a candidate; its glide waits for the drag study"}
   ]
 }

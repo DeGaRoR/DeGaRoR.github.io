@@ -1722,9 +1722,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const CRW = window.CAGE_CREW;
         if (CRW && Array.isArray(CRW.seatsAt) && CRW.seatsAt.length) {
           const SEAT_CG_FWD = 0.20;
+          // (SEAT SLIDE, 16 Nov 2026 - the user, the LS4: "that seat should be allowed to slide back from the
+          // firewall to the aft bulkhead"): a seat slid up to the firewall keeps its station, held at the core's own
+          // floor (60_gen_spec: seatsX >= 0.05) - it used to be DROPPED there, and with it every seat's station: the
+          // occupants fell back to the pillar rings, a CG cliff in the last quarter metre of the slider
           const xs = CRW.seatsAt
             .map(s => zFw - s.zBack - SEAT_CG_FWD)
-            .filter(x => isFinite(x) && x > 0.05);
+            .filter(x => isFinite(x)).map(x => Math.max(0.05, x));
           if (xs.length === CRW.seatsAt.length) M.seatsX = xs;
           // SEATS (2026-11-02): each drawn seat's own mass, the same list and order - a cabin of vintage airliner
           // seats behind two crew seats weighs what it draws, seat for seat (the user: "MASS/CG honest")

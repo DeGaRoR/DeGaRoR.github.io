@@ -3331,7 +3331,7 @@ const ARCHETYPES = [
                     gearRetAct: 2, gearFold: 0, gearFoldNose: 0, gearRetFrac: 1, gearWellCut: 0, gearDoors: 2,
                     gearLegDoor: 1, gearNacFit: 1, gearNacPod: 0, gearShort: 0, gearShortNose: 0, gearKneeDoor: 0,
                     gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0, gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0,
-                    gnTwist: 0, seatType: 11, seatZ: 0, seatH: 0, seatRake: 42, seatGap: 0.285, consoleOn: 1,
+                    gnTwist: 0, seatType: 11, seatZ: -0.15, seatH: 0, seatRake: 42, seatGap: 0.285, consoleOn: 1,
                     stickY: -0.095, pedalZ: 0.965, pedalH: 0.27, pedalSpread: 0.09, pilElbows: 0, pilRecline: 6,
                     noseDome: 0.3, s1Sink: 0.5, finZ: -0.25, s1Ul: 1, hgHorn: 0, hgFamily: 2, towHook: 2, certCat: 2, brkHold: 4,
                     wgBrake: 1, wgBrakeAt: 0.3, wgBrakeLen: 0.16, wgBrakeH: 0.2,

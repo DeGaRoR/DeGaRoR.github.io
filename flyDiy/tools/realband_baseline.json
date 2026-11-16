@@ -27,6 +27,22 @@
     "dc3",
     "camel"
    ]
+  },
+  {
+   "date": "2026-11-16",
+   "reason": "the LS4-alike joins the live set (the user 16 Nov: add the LS4 to the candidate lists): its row ONLY - every other plane kept as it was (carboncubss's standing move is not accepted here)",
+   "core": "d1fec958ae4a488c",
+   "moved": [
+    "ls4"
+   ]
+  },
+  {
+   "date": "2026-11-16",
+   "reason": "the LS4-alike's seat 0.15 m aft (the user 16 Nov: check the seat position; the head under the canopy's crown, the CG toward the type's range): its row ONLY - carboncubss's standing move is still not accepted here",
+   "core": "d1fec958ae4a488c",
+   "moved": [
+    "ls4"
+   ]
   }
  ],
  "planes": {
@@ -665,6 +681,64 @@
      "TOgrass": 289,
      "cgMAC": 40.7441,
      "sm": 18.7796
+    }
+   }
+  },
+  "ls4": {
+   "stamp": {
+    "file": "builds/candidates/ls4_2026-11.json",
+    "blob": "ae50602faf0dd70feee085d3fa6e3bde68d4ec82",
+    "core": "d1fec958ae4a488c"
+   },
+   "facts": {
+    "empty": 230.515,
+    "fuelKg": 0
+   },
+   "dims": {
+    "S": 10.6233,
+    "Sh": 0.886173,
+    "Sv": 0.924669,
+    "cRoot": 0.9,
+    "cTip": 0.36,
+    "hSpan": 2.49544,
+    "height": 1.21476,
+    "length": 6.80823,
+    "span": 15.06,
+    "track": null
+   },
+   "cases": {
+    "min": {
+     "mass": 470.515,
+     "Vs": 76.5058,
+     "V75": null,
+     "Vmax": null,
+     "roc": 0,
+     "LD": 19.3554,
+     "TOgrass": 2015,
+     "cgMAC": 19.2147,
+     "sm": 42.6719
+    },
+    "typ": {
+     "mass": 480.515,
+     "Vs": 77.3145,
+     "V75": null,
+     "Vmax": null,
+     "roc": 0,
+     "LD": 19.3554,
+     "TOgrass": 2058,
+     "cgMAC": 16.5348,
+     "sm": 45.7161
+    },
+    "mtow": {
+     "mass": 525,
+     "Vs": 80.8142,
+     "V75": null,
+     "Vmax": null,
+     "roc": 0,
+     "LD": 19.3554,
+     "TOgrass": 2249,
+     "cgMAC": 11.1228,
+     "sm": 52.702
     }
    }
   }

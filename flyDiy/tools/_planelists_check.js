@@ -49,6 +49,7 @@ const CLASSES = {
   "Stearman-alike": ["reproduction", "builds/candidates/stearman_2026-10.json", "40-1749"],
   "Tiger Moth-alike": ["reproduction", "builds/candidates/tigermoth_2026-10.json", "T7230"],
   "Camel-alike": ["reproduction", "builds/candidates/camel_2026-10.json", "B6313"],
+  "LS4-alike": ["reproduction", "builds/candidates/ls4_2026-11.json", "D-4LS4"],   // (the user 16 Nov: "add the LS4 to the candidate lists proudly")
   "Rufus": ["story", "builds/rufus_2026-10-18_certified.json", "N47RF"],
   "Client Cub": ["story", "builds/cub_2026-09-20.json", "N1938J"],
   "Cessna 172 (career)": ["story", "bugReports/cessnaMetal (1).json", "B-CESS"],
@@ -71,7 +72,7 @@ const CLASSES = {
 };
 // THE CHOOSER'S REAL PLANES (the user 10 Nov, Q5): archetype key -> the row its "-alike" tile opens
 const ALIKES = { cub: 'Piper Cub', jodel: 'Jodel D112', c172: 'Cessna 172', chinook: 'Chinook', tigermoth: 'Tiger Moth-alike',
-  stearman: 'Stearman-alike', camel: 'Camel-alike', floatplane: 'Ultralight twin on floats' };
+  stearman: 'Stearman-alike', camel: 'Camel-alike', floatplane: 'Ultralight twin on floats', ls4: 'LS4-alike' };
 const ARCH_KEYS = require('./_cage_design.js').ARCHETYPES.map(a => a.key);
 const PLAYER = ['reproduction', 'story', 'original', 'wip'], ALL = PLAYER.concat(['next', 'legacy', 'archive']);
 const named = [];
