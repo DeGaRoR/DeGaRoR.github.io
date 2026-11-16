@@ -487,6 +487,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // or worn grass tracks ('track'). THE STONES along the bands are the tree pack's rocks (kind 'rock',
   // the user: "use our existing stone pack"), stood once the pack has settled.
   const PAV = (typeof PAVEMENT !== 'undefined') ? PAVEMENT : null;
+  const WXG = [];   // (SNOW-MUD LADDER: the weather strips drawn - wxGroundAdd / wxGroundFrame; declared before the strips' build that fills it)
   const PGm = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
   const pavSeed = id => { let h = 2166136261; for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h % 1000) / 37; };
   const pavLookOf = a => { if (!PGm) return null; if (a.premises && a.look) return PGm.RUNWAY_LOOKS[a.look] || null; const k = a.surface === world.SURFACE.PAVED ? 'asphalt' : a.surface === world.SURFACE.GRAVEL ? 'gravel' : 'grass'; return PGm.RUNWAY_LOOKS[k]; };
@@ -8085,7 +8086,6 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // the mud's colour, its film, the worn relief's knobs) and a bumpy one is RE-DRAPED - each vertex moved by (wear - the wear
   // it was built at) x the field's worn relief there (27_premises wearAtWorld, read once, the first time it moves): the
   // ground the wheels stand on (20_world terrainH adds the same), drawn. A few times a game day; one compare a strip a frame
-  const WXG = [];
   function wxGroundAdd(o) {
     const R = world.soilNow ? world.soilNow() : null;
     o.key = ''; o.wear0 = R && typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(o.code, R).wear : 1; o.wear = o.wear0;
