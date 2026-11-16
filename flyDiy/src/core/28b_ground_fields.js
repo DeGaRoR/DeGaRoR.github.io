@@ -171,7 +171,7 @@ const GROUND_FIELDS = (() => {
       // roughness, the wet streaks, the bare stone's roughness (x the tiles'), the micro detail's strengths and fade, the far fade
       rockJoint: 1, rockJointSoil: 0.7, rockJointDirt: 0.6, rockHollow: 0.5, rockGreen: 1.8, rockGreenRough: 0.97, rockWet: 0.2, rockRough: 1,
       rockMicroK: 0.85, rockMicroN: 1.0, rockMicroFrom: 80, rockMicroTo: 260, rockFarFrom: 6000, rockFarTo: 9000,
-      rockNdvi: 0.45, rockNdviMid: 0.74,   // the imagery's NDVI (pack B) takes the exposure down where the map's rock is green
+      rockNdvi: 0, rockNdviMid: 0.74,   // the imagery's NDVI (pack B) takes the exposure down where the map's rock is green
       // the tiles as the rock codes' sets (slab m, steep m, the face tile on the steep split or the slab, the split's degrees), the
       // green's saturation, the joints gone by (m)
       rockSlabM: 24, rockFaceM: 40, rockFaceTile: 0, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 0.6, rockJointFar: 600, rockSlabTone: 0.3, rockSlabTilt: 0.1,

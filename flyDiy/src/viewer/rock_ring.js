@@ -130,7 +130,7 @@ Smp rRock(vec3 P, vec3 nG){
   float crackM = max(1.0 - smoothstep(0.10, 0.32, hm), vR1.x * 0.9);
   o.c.rgb *= mix(1.0, 0.55, vR1.x) * (0.9 + 0.2 * vR1.y);   // the masses' crevices darker, each mass its own tone
   float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * n1);
-  float G = clamp(vR0.w * 1.15 + crackM * 0.6 + up * 0.55, 0.0, 1.0) * (0.55 + 0.6 * n2);
+  float G = clamp(vR0.w * 1.35 + crackM * 0.7 + up * 0.55, 0.0, 1.0) * (0.55 + 0.6 * n2);   // (v1's, weighted up: our 512 tiles' cracks are softer than its 2048)
   G = max(G, vR1.w);   // (the seam, under the ground: the green it emerges from)
   float gw = clamp((G * 1.35 - hm) * 3.0, 0.0, 1.0);
   float rough = o.n.w;
@@ -186,9 +186,9 @@ Smp rRock(vec3 P, vec3 nG){
       for (let v = 0; v < nv; v++) { for (let k = 0; k < 4; k++) { a0[v * 4 + k] = r.attr[v * 8 + k]; a1[v * 4 + k] = r.attr[v * 8 + 4 + k]; } }
       g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4));
       g.computeBoundingSphere();
-      if (c.mesh) { group.remove(c.mesh); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; c.mesh.geometry.dispose(); }   // (a rebuild across a LOD band)
+      if (c.mesh) { group.remove(c.mesh); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; ST.boulderTris -= c.boulders || 0; c.mesh.geometry.dispose(); }   // (a rebuild across a LOD band)
       const mesh = new THREE.Mesh(g, mat); mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = true; group.add(mesh);
-      c.mesh = mesh; ST.built++; ST.verts += nv; ST.tris += r.nt; ST.boulderTris = (ST.boulderTris || 0) + (r.boulders || 0); ST.workerMs += r.ms; ST.workerLast = r.ms; ST.mainMs += performance.now() - t0;
+      c.mesh = mesh; ST.built++; ST.verts += nv; ST.tris += r.nt; ST.boulderTris = (ST.boulderTris || 0) + (r.boulders || 0); c.boulders = r.boulders || 0; ST.workerMs += r.ms; ST.workerLast = r.ms; ST.mainMs += performance.now() - t0;
     };
     const build = (key, x0, z0) => {
       const c0 = chunks.get(key), cam = ctx.camera.position, d = Math.hypot(x0 + S.chunk / 2 - cam.x, z0 + S.chunk / 2 - cam.z); c0.band = band(d);
@@ -199,12 +199,12 @@ Smp rRock(vec3 P, vec3 nG){
     };
     if (worker && ctx.kit) worker.postMessage({ kit: ctx.kit });
     if (worker) worker.onmessage = e => { const key = inflight.get(e.data.id); inflight.delete(e.data.id); if (key && chunks.has(key)) place(key, e.data.r); };
-    const drop = key => { const c = chunks.get(key); if (c && c.mesh) { group.remove(c.mesh); c.mesh.geometry.dispose(); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; } chunks.delete(key); };
+    const drop = key => { const c = chunks.get(key); if (c && c.mesh) { group.remove(c.mesh); c.mesh.geometry.dispose(); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; ST.boulderTris -= c.boulders || 0; } chunks.delete(key); };
     const sync = () => {   // the layers and knobs from the splat (its arrays may grow)
       const li = LIB(), ix = k => li.indexOf(k);
       L.uRL.value.set(ix('trondSlab'), ix('trondFace'), ix('cliff'), ix('grassRock'));
       const K = SP.api.knobsLive ? SP.api.knobsLive() : SP.api.knobs();
-      L.uRK.value.set(S.slabM || 24, S.faceM || 40, S.bright === undefined ? 1 : S.bright, S.micro === undefined ? 1 : S.micro);
+      L.uRK.value.set(S.slabM || 24, S.faceM || 40, S.bright === undefined ? 0.9 : S.bright, S.micro === undefined ? 1 : S.micro);
       return K && K.rocks && L.uRL.value.x >= 0 && L.uRL.value.y >= 0;
     };
     const ring = {

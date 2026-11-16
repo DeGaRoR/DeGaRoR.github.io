@@ -1152,7 +1152,7 @@ const SPLAT_GROUND = (() => {
       // R1: the island's own rock (sTrExpo, sTrPost; the tiles ride the rock codes' sets)
       uTrOn: { value: 0 }, uTrL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uTrK: { value: new THREE.Vector4(400, 1200, 1, 0.5) },
       uTrE: { value: new THREE.Vector4(250, 760, 0.3, 0.08) }, uTrMeanS: { value: new THREE.Vector4(0.3, 0.27, 0.2, 1) }, uTrS: { value: new THREE.Vector4(42, 58, 0, 0) },
-      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0.45, 0.74) },
+      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) },
     };
     let ready = false;
     const push = () => {
@@ -1243,7 +1243,7 @@ const SPLAT_GROUND = (() => {
         U.uTrJ.value.set(kv('rockJoint', 1), kv('rockJointSoil', 0.7), kv('rockJointDirt', 0.6), kv('rockHollow', 0.5));
         U.uTrG.value.set(kv('rockGreen', 1), kv('rockGreenRough', 0.97), kv('rockGreenSat', 0.6), kv('rockRough', 1));
         U.uTrF.value.set(kv('rockMicroFrom', 80), kv('rockMicroTo', 260), kv('rockJointFar', 450), kv('rockWet', 0.2));
-        U.uTrM.value.set(kv('rockMicroK', 0.65), kv('rockMicroN', 0.6), kv('rockNdvi', 0.45), kv('rockNdviMid', 0.74)); }
+        U.uTrM.value.set(kv('rockMicroK', 0.65), kv('rockMicroN', 0.6), kv('rockNdvi', 0), kv('rockNdviMid', 0.74)); }
     };
     push();
     // ---- THE GROUND'S COLOUR AS DRAWN, ON THE CPU (GRASS-DENSE G2562; GRASS-STUDY §4.5.1, agreed with GROUND-LOOK G2610) ------
