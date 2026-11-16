@@ -366,6 +366,10 @@ const DECLARED = {
   'c172|edLegT [gear]|INTO fuselage': { mm: 20.0,
     why: 'the 172\'s nose strut enters the lower cowl, as on the type; physics-bound (only s2AxZ, the nosewheel\'s station, ' +
          'clears it); the honest fix is a strut boot where a leg passes the skin (garage gap)' },
+  // CESSNA-REFIT (16 Nov, A0): the same strut, now inside the refit cowl's lower bowl (434.9 mm at every pose on 01f713078)
+  'c172|edLegT [gear]|INTO cageLayer:cowl': { mm: 436.0,
+    why: 'the 172\'s nose strut enters the lower cowl, as on the type; the refit cowl now encloses the strut; physics-bound ' +
+         '(only s2AxZ, the nosewheel\'s station, clears it); the honest fix is a strut boot where a leg passes the skin (garage gap)' },
 };
 const declKey = f => f.build + '|' + f.label + '|' + (f.cross ? 'INSIDE ' : 'INTO ') + f.skin;
 

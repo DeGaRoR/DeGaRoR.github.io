@@ -316729,3 +316729,6 @@ projection) also paints the cabin's inner lining (shows through the windows); th
 TOUCH-UP (the user, same day): the screen bulge sat too high and the cowl top had a corner at the nose ring - wsCeilBow 0.88 -> 0.70
 and wsBaseBow 0.65 -> 0.85 (the screen line back on the drawing with wsShoulderBase 0.4 kept: no lip), cw_lidLen 0.095 -> 0.17
 and cw_lidRound 0.06 -> 0.2 (the top line one smooth rise from the ring to the firewall, measured per pixel column). Registration T-RUEX.
+CLIP (A0, same day): the 172 nose strut (edLegT) inside the refit cowl, 434.9 mm at every pose, is a DECLARED gap in
+tools/_clip_check.js (c172 x cageLayer:cowl, cap 436 mm) beside the fuselage one - the same strut, the same reason, the refit cowl
+now encloses it. Its own commit: revert it if REAL-FIGURES' read of the three-view says otherwise.
