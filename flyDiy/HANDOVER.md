@@ -317202,3 +317202,9 @@ NEW REDS (named, owners fix in L40f):
 - BENCHTIME: 2 bench checks at 6.0-6.5 s vs 6.0 under the train's load (timing).
 LOAD TIME (cold, RTX 3080, ledger): L40d 143 s -> L40e 215 s (205 s re-measured on a quiet box): world 26 -> 40-51 s, settle 17 -> 22-27 s, shader compile 58 -> 67-93 s. LANDED WITH THE COST NAMED (the user's rule); suspects: subalpine (+7-14 % trees, walk), grass-on-green, animals on land (31 drawn), the ground ladder. First item of the perf round; bisect owed.
 KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes evict grit on low tiers (GROUND-FX splash-budget L40f); MEDIA career_core 720 KB budget (Game).
+
+## STAR-V4-DEFAULT - the reflected stars' default is the scattered sparkle (NIGHT-LOOK, 16 Nov)
+- why: the user 16 Nov on the STAR-DIRECT page: "Stars finally right. V4 looks right." (v4 = direct, jitter 1).
+- src/viewer/water.js: NIGHT_SEA.dJit 0.3 -> 1. The other looks stay as settings: WATER.nightSea.dJit 0 = clean points,
+  0.3 = the L40e glints, direct 0 = the L38b look. No gate pins dJit. No new stills: page_rig variant v4_direct_jit1
+  (flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/direct/) is this exact setting.
