@@ -3670,6 +3670,10 @@ function compose(rec0, world, opts) {
       let lx = NaN, lz = 0;
       for (let k = 0; k < microStrips.length; k++) {
         const q = microStrips[k]; if (!q.wx) continue;
+        // (A0's L40e trial: SCENERYED 20b's compose read every terrainH through the rotation - the box in WORLD axes first, once)
+        if (!q.wb) { const b = q.f.bbox, P = [[b.x0, b.z0], [b.x1, b.z0], [b.x0, b.z1], [b.x1, b.z1]].map(p => F.toWorld(p[0], p[1]));
+          q.wb = [Math.min(...P.map(p => p[0])), Math.min(...P.map(p => p[1])), Math.max(...P.map(p => p[0])), Math.max(...P.map(p => p[1]))]; }
+        if (x < q.wb[0] || x > q.wb[2] || z < q.wb[1] || z > q.wb[3]) continue;
         if (lx !== lx) { const dx = x - F.anchor.x, dz = z - F.anchor.z; lx = dx * F.c - dz * F.s; lz = dx * F.s + dz * F.c; }   // (no weather strip: no transform)
         const b = q.f.bbox;
         if (lx < b.x0 || lx > b.x1 || lz < b.z0 || lz > b.z1) continue;
