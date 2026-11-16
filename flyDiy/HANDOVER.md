@@ -316693,3 +316693,12 @@ HOUSEWORKER: green in this battery (it was Game's one red on its stack).
 STANDING (L40c's, unchanged): FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT GLIDE UNIFY DESTTO TREECRASH DMGCERT DMGGEAR WILGAGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGWALL DMGDAMP DMGTYRE DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY WINGROWS DESIGNCHECK JOINPARITY ENGINE PARTS POD DMGPOD CANDIDATES NAMES NODUMMY ENERGYBASE TANKMOUNT ENGTORQUE FLEX LOAD ENGCONFIG.
 
 COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); after 143 s (programs 501 -> 508, world 26.1, settle 17.4, shader compile 46.2 + 11.8 s): +5 s, 7 more programs. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+
+BOOT-LOOP-GUARD (DIRT-STRIP, 16 Nov, ready/boot-loop-guard on fb8fb633b): a Go under the garage boot's cover (Tab reached #bGo
+behind it, Enter pressed it; a rig's click) superseded the chain before first light and replaced its done(): the loop never
+started, nothing was ever drawn. Now (app.js) every loading screen starts the loop as it opens and every done() starts it last
+even when it throws (loopDone); onGo refuses while BOOT.state != gone; boot.js B.setUnder makes the app's layers behind the
+cover inert while it is up. Pointer and phone could not reach the button; the keyboard could. GATE BOOTLIFT gains 'under':
+RED on master 6/7 (nothing landed for 20 s, 0 renders), GREEN with the guard. The 19 Go-pressing gates: 15 PASS; the 4 reds
+are master's, same checks by name (BOOTLIFT hard - "hard timeout" at 2 virtual s on master too, an owner's look; FRAMECOST,
+ROUNDTRIP, SIMWORKER-EDGES NaN bounding sphere).
