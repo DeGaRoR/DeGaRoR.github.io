@@ -2094,6 +2094,11 @@ function kitGate() {
   check(regPush.indexOf('noMirror') < 0,
     'kit: the registration has been marked as paint — it will read backwards ' +
     'from the far flank, which is the trap G4.5 needed three looks to see');
+  // WING-REG TURN (the user 16 Nov): the wing letters' tops face the leading edge, half a turn on from the page.
+  const wregPush = fn.slice(fn.indexOf('if (D.wregOn)'), fn.indexOf('if (D.wregOn)') + 900);
+  check(/rot: \(\+D\.wregRot \|\| 0\) \+ AERO_WREG_TURN/.test(wregPush) && /const AERO_WREG_TURN = Math\.PI;/.test(SRC),
+    'wing reg: the letters lost their half turn - their tops face the trailing edge again (the user 16 Nov: ' +
+    '"It looked wrong")');
 
   // 9 — THE CACHE COVERS THE WHOLE RECIPE. A page is redrawn only when its
   //     signature changes; a field the draw reads and the signature omits is a

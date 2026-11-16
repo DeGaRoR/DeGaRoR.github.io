@@ -2329,6 +2329,7 @@ const AERO_TXT_PAGES = [8, 9, 10, 11, 12, 13];
 // CARBON-CUB-LIVERY: the registration's drop shadow (regShd*) - the atlas's one free page (15 is the stickers'), its
 // default colour (a near-black, as a shadow on paint reads), and which way "the reader's right" runs on the +x flank
 const AERO_REG_SHADOW_PAGE = 14, AERO_REG_SHADOW_DEF = 0x1c1e22, AERO_REG_SHADOW_AFT = 1;
+const AERO_WREG_TURN = Math.PI;   // the wing letters' half turn: tops to the leading edge (aeroDecalsFor, WING-REG TURN)
 const AERO_TXT_LDEF = {
   On: 0, Txt: '', Face: 'barlow', B: 1, I: 0, Sl: 0,
   Col: null,                // null follows the paint's trim, as the registration's ink
@@ -3378,9 +3379,13 @@ function aeroDecalsFor(THREE, D, opts) {
                   rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode), one: Math.max(0, Math.min(2, Math.round(+D.regSide || 0))) });
   if (D.wregOn) {
+    // WING-REG TURN (the user 16 Nov via A0: "Turn the wing registration on every plane ... It looked wrong"): the
+    // letters' tops face the LEADING edge (FAA 45.25), half a turn from what the page drew (tops to the trailing
+    // edge). The 'wing turn' row stays a trim on top of it.
     const ww = D.wregH * Math.max(1.2, aspect);
     list.push({ page: 0, sL: D.wregL, sC: D.wregC, w: ww / Math.max(0.05, fit.w), h: D.wregH / Math.max(0.05, fit.h),
-                rot: D.wregRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0, on: { wing: 1 }, mode: modeOf(D.wregMode) });
+                rot: (+D.wregRot || 0) + AERO_WREG_TURN, rough: -0.06, sdf: 1, metal: +D.regMetal || 0, on: { wing: 1 },
+                mode: modeOf(D.wregMode) });
   }
   // G208: THE CERTIFICATION STICKERS — placements the bench's sticker module
   // hands over (page 6, one strip of roundels under the cockpit); it draws
