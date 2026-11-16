@@ -1095,6 +1095,7 @@
         range(S2, 'bare past a soft edge', 0, 10, 0.1, () => P.grassSides().softClear, gs('softClear'), v => v.toFixed(1) + ' m', D2.softClear);
         range(S2, 'bush strips: their own cut band', 0, 1, 0.05, () => P.grassSides().softBandK, gs('softBandK'), v => (v > 0 ? 'x ' + v.toFixed(2) : 'none: wild to the edge'), D2.softBandK);
         range(S2, 'the slight cut band past it', 0, 60, 0.5, () => P.grassSides().mowBand, gs('mowBand'), v => v + ' m', D2.mowBand);
+        toggle(S2, 'town lawns (houses, shops, parks)', () => P.grassSides().townLawn > 0, v => gs('townLawn')(v ? 1 : 0));
         range(S2, 'cut to wild over', 0, 20, 0.5, () => P.grassSides().mowBlend, gs('mowBlend'), v => v + ' m', D2.mowBlend);
         range(S2, 'a road’s mown verge', 0, 10, 0.5, () => P.grassSides().roadMow, gs('roadMow'), v => v + ' m', D2.roadMow);
         toggle(S2, 'grass on a grass runway', () => P.grassSides().stripGrass, v => { gsSet({ stripGrass: v ? 1 : 0 }); replantGrass(); });

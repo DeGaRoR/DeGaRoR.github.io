@@ -280,7 +280,10 @@ console.log('6. COVERAT - what the cover ring may plant');
   verdict(far === null, 'the far field answers null');
   const plot = O.records.plots.find(p => p.kind === 'residential');
   const inP = plot && at(plot.front[0] + plot.n[0] * (plot.depth * 0.5), plot.front[1] + plot.n[1] * (plot.depth * 0.5));
-  verdict(inP && inP.kind === 'lawn' && inP.grass && inP.grass.h > 0 && inP.kill === 0, `a residential plot's middle: ${JSON.stringify(inP)}`);
+  // (TOWN LAWNS, 16 Nov eve, the user via A0: town lawns "can be anything" - none by default, GRASS_SIDES.townLawn 1 = the lawn as before)
+  verdict(inP && inP.kind === 'lawn' && inP.grass && inP.grass.h > 0 && inP.kill === 0, `a residential plot's middle (townLawn 1, the default): ${JSON.stringify(inP)}`);
+  PG.grassSides({ townLawn: 0 }); const inP0 = plot && at(plot.front[0] + plot.n[0] * (plot.depth * 0.5), plot.front[1] + plot.n[1] * (plot.depth * 0.5)); PG.grassSides({ townLawn: 1 });
+  verdict(inP0 && inP0.kind === 'none' && inP0.grass && inP0.grass.town, `townLawn 0 (the cost measure): no lawn: ${JSON.stringify(inP0)}`);
   verdict(PG.zoneGrass({ kind: 'industrial' }).kind === 'none' && PG.zoneGrass({ kind: 'residential', rules: { grass: { kind: 'meadow' } } }).kind === 'meadow', 'the zone rule: industrial none, an override wins');
   const rd = w0.roadNet.roads.find(r => r.cls === 'road'), q = w0.coverAt(rd.pts[2][0], rd.pts[2][1]), h0 = w0.coverAt(-520, 0);
   verdict(q && q.kill === 1 && q.cls === 'gravel', `the analytic road: ${JSON.stringify(q)}`);

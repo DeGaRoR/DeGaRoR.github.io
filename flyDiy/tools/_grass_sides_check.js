@@ -112,5 +112,16 @@ const D = PG.GRASS_SIDES_DEF;
   ok(back.cut === 1 && slight.cut === 1 && !past.cut, '7d softBandK 1 puts the strip\'s own cut band back; mowBand 3 m cuts a slight band and no further', '+3.5 m cut ' + back.cut + ' (K 1), +2 m ' + slight.cut + ' / +4.5 m ' + (past.cut || 0) + ' (mowBand 3)');
   ok(at(W1, 3.5).surf === 0 || at(W1, 3.5).surf == null, '7e look only: past the edge the surface is never the strip\'s (the wheels read the ground)'); }
 
+// 8 TOWN LAWNS (16 Nov eve, the user via A0: they "can be anything" - none, to save the frame; a little grass along the street verges):
+//   (then "if it's cheap it's OK and no exception then": townLawn 1, the lawn, the default) townLawn 0 - a town plot plants nothing, a road's mown verge on it keeps its cut grass
+{ const R = J.premises.overlay.records, Z = J.premises.rec.layers.zones, zs = {}; for (const z of Z) zs[z.id] = z;
+  const town = R.plots.filter(p => p.poly && zs[p.zone] && /residential|commercial|park/.test(zs[p.zone].kind) && !p.noGround);
+  let lawn1 = 0, none0 = 0, verge = 0, n = 0;
+  for (const p of town.slice(0, 120)) { const b = PG.polyBBox(p.poly); for (let x = b.x0; x <= b.x1; x += 2) for (let z = b.z0; z <= b.z1; z += 2) { if (!PG.inPoly(p.poly, x, z)) continue; n++;
+    PG.grassSides({ townLawn: 0 }); const c = J.coverAt(x, z); PG.grassSides({ townLawn: 1 }); const a = J.coverAt(x, z);
+    if (a && a.kind === 'lawn') lawn1++; if (c && c.kind === 'none') none0++; if (c && !c.kind && c.cut > 0 && c.kill < 1) verge++; } }
+  ok(PG.grassSides().townLawn === 1 && n > 500 && none0 > n * 0.7 && verge > 0 && lawn1 > n * 0.7,
+     '8 town plots: the lawn by default (townLawn 1); townLawn 0 none on ' + Math.round(100 * none0 / Math.max(1, n)) + ' %), the street verge keeps its cut grass (' + verge + ' points), townLawn 1 the lawn back (' + Math.round(100 * lawn1 / Math.max(1, n)) + ' %)', n + ' points on ' + Math.min(120, town.length) + ' plots'); }
+
 console.log('GATE GRASSSIDES: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
