@@ -79,6 +79,13 @@ const fakeGrab = async (draw) => {
   ok(/getElementById\('bSkip'\)/.test(code2) && /rig\.skipToLineUp = /.test(code2) && /flag\('skip'\)/.test(code2), "7i skipToLineUp clicks the game's own #bSkip (CLI --skip)");
   ok(/path\.join\(repo, 'flyDiy', 'tools', '_serve\.js'\)/.test(code2) && fs.existsSync(path.join(__dirname, '_serve.js')), '7j _serve.js by absolute path from the repo served (a copy of page_rig.js elsewhere still serves)');
   ok(/INFRAME\(A\.at\)\); rig\.plane\.inFrame = frameVerdict\(v\)/.test(code2), '7k fly() anchors on the CG and records whether the chase camera has it in frame'); }
+// (page-rig-3) the settle after a long jump, and one more grab on a BLANK frame (DIRT-STRIP 16 Nov: 2 blanks = 2 misses = a stopped slot)
+{ const code3 = SRC.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+  ok(parses(P.RAFRATE) && P.SETTLE_RAF >= 10, '7l the frame-rate probe parses; the settle floor is ' + P.SETTLE_RAF + ' frames a second');
+  ok(/await rig\.frames\(settle \|\| 60\);\s*await rig\.settleLoad\(\)/.test(code3) && /await rig\.settleLoad\(\);\s*\/\/ \(page-rig-3\) a far eye/.test(SRC),
+     '7m place() and every CLI view wait for the frame rate to come back before the grab');
+  ok(/if \(r\.info\.blank && go\.retryBlank !== false\)/.test(code3) && /r\.info\.retried = true/.test(code3) && /SETTLE_MS/.test(code3),
+     '7n a BLANK grab settles and grabs once more (capped wait), the second frame returned as it is'); }
 // 5 the CLI's usage
 const u = spawnSync(process.execPath, [path.join(__dirname, 'page_rig.js')], { encoding: 'utf8', timeout: 20000 });
 ok(u.status === 2 && /usage: node tools\/page_rig\.js --views/.test(u.stderr), '5 the CLI without arguments: usage, exit 2');

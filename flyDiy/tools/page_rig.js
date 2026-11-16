@@ -133,6 +133,11 @@ const WHY = `new Promise(res => { const R = window.FLYDIY_RENDERER, f0 = R ? R.i
     res(JSON.stringify({ boot: window.BOOT ? BOOT.state : 'none', body: document.body ? document.body.className : null, holds, visibility: document.visibilityState,
       rafPerS: n, rafByName: names, rendererFramesPerS: R ? R.info.render.frame - f0 : null, aaRenderPerS: aa0 == null ? null : PAGE_RIG.aaCalls() - aa0, simT: ${SIMT}, url: location.href })); }, 1100); })`;
 
+// (page-rig-3) the frame rate over one second: low while a new place streams in after a long jump (DIRT-STRIP 16 Nov:
+// the first grab after w8 4 km / w7 came back BLANK at rafPerS 9-10, the second at the same place was fine)
+const RAFRATE = `new Promise(res => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1000) requestAnimationFrame(f); else res(n); }; requestAnimationFrame(f); })`;
+const SETTLE_RAF = 20, SETTLE_RUN = 2, SETTLE_MS = 90000;
+
 async function start(o) {
   o = o || {};
   const t0 = Date.now(), name = o.name || 'page_rig', size = parseSize(o.size), cap = +(o.cap || 600);
@@ -265,12 +270,23 @@ async function start(o) {
     const t = await rig.ev("(() => { const b = document.getElementById('bPause'); if (!b) return null; if (/pause/i.test(b.textContent)) b.click(); return b.textContent; })()");
     await rig.frames(2); return t;
   };
+  // (page-rig-3) settleLoad: wait until the page draws at least SETTLE_RAF frames a second, SETTLE_RUN seconds in a row
+  // (the place has streamed in), at most SETTLE_MS. Never a miss on its own: a page still slow at the cap is logged, and the grab says the rest
+  rig.settleLoad = async (so) => {
+    so = so || {}; const minRaf = so.minRaf || SETTLE_RAF, run = so.run || SETTLE_RUN, maxMs = so.maxMs || SETTLE_MS, t = Date.now(), seen = [];
+    let ok = 0;
+    while (ok < run && Date.now() - t < maxMs) { const n = await rig.ev(RAFRATE, 10000); seen.push(n); ok = n >= minRaf ? ok + 1 : 0; }
+    const r = { settled: ok >= run, ms: Date.now() - t, rafPerS: seen.slice(-6) };
+    if (!r.settled || seen.length > run) log('settleLoad ' + JSON.stringify(r));
+    return r;
+  };
   // place: the aircraft's CG to (x, the ground or water + agl, z), its velocities zeroed, on the sim that flies (G1096). Pause
   // first. The world streams round the AIRCRAFT: move it to a far subject, then the eye near it (DIRT-STRIP, 15 Nov)
   rig.place = async (x, z, agl, settle) => {
     const at = await rig.J(`(async () => { const W = FLIGHT_PROBE.world(), x = ${+x}, z = ${+z}; let g = W && W.terrainH ? W.terrainH(x, z) : 0; if (W && W.waterH) { const w = W.waterH(x, z); if (Number.isFinite(w) && w > g) g = w; }
       const at = [x, g + ${agl == null ? 3 : +agl}, z]; await FLIGHT_PROBE.place({ at, zeroV: true }); return at; })()`);
     rig.plane = { target: at.map(v => +v.toFixed(2)), placed: true }; await rig.frames(settle || 60);
+    await rig.settleLoad();   // (page-rig-3) a long jump streams a new place in: wait until the frame rate is back
     await rig.anchor(); rig.plane.placed = true;   // (page-rig-2) the CG where it settled, not where it was asked
     log('placed the aircraft: asked ' + JSON.stringify(at.map(v => +v.toFixed(2))) + ', CG ' + JSON.stringify(rig.plane.target)); return rig.plane;
   };
@@ -291,8 +307,17 @@ async function start(o) {
       const A = await rig.anchor(); if (A.miss) await miss(A.miss);
       const fr = await rig.inFrame(A.at, go.margin); if (!fr.ok) await miss('the aircraft is not in the frame (its CG ' + JSON.stringify(A.at.map(v => +v.toFixed(1))) + ' at NDC ' + JSON.stringify(fr.ndc) + ')');
     }
-    const r = await rig.J('PAGE_RIG.grab(' + (go.jpeg ? +go.jpeg : 0) + ')');
+    let r = await rig.J('PAGE_RIG.grab(' + (go.jpeg ? +go.jpeg : 0) + ')');
     if (!r || r.miss) await miss(r && r.miss || 'no grab');
+    // (page-rig-3) a BLANK frame: settle (the place may still be streaming in) and grab ONCE more before anyone counts it.
+    // The second frame is returned as it is: still blank, the caller sees info.blank (the CLI counts it bad)
+    if (r.info.blank && go.retryBlank !== false) {
+      log('blank grab (sd ' + r.info.sd + ', page-background share ' + r.info.bgShare + '): settling, one more grab');
+      await rig.settleLoad(); await rig.frames(60);
+      r = await rig.J('PAGE_RIG.grab(' + (go.jpeg ? +go.jpeg : 0) + ')');
+      if (!r || r.miss) await miss(r && r.miss || 'no grab');
+      r.info.retried = true;
+    }
     const b = Buffer.from(r.data, 'base64'); b.info = r.info; return b;
   };
   rig.close = async () => {
@@ -344,6 +369,7 @@ async function cli(argv) {
         if (v.eval) await rig.ev('(async () => { ' + v.eval + '; return 1; })()');
         await rig.eye(x, y, z, v.yaw, v.pitch);
         await rig.frames(v.settle || 60); await sleep(v.wait != null ? v.wait : 5000);
+        await rig.settleLoad();   // (page-rig-3) a far eye or a place: the frame rate back before the grab
         const b = await rig.grab({ settle: 30, jpeg, craft: v.craft != null ? !!v.craft : Array.isArray(v.near) });
         const f = path.join(out, v.name + (jpeg ? '.jpg' : '.png')); fs.writeFileSync(f, b);
         R.views[v.name] = { asked: { x, y, z, yaw: v.yaw, pitch: v.pitch }, info: b.info, file: path.basename(f) };
@@ -357,5 +383,5 @@ async function cli(argv) {
   return bad ? 1 : 0;
 }
 
-module.exports = { start, parseViews, cli, REAL_GPU, SIMT, PAGE_HOOK, WHY, pickAnchor, frameVerdict, ANCHOR, INFRAME, ORIGIN_R, STALE_M };
+module.exports = { start, parseViews, cli, REAL_GPU, SIMT, PAGE_HOOK, WHY, RAFRATE, SETTLE_RAF, pickAnchor, frameVerdict, ANCHOR, INFRAME, ORIGIN_R, STALE_M };
 if (require.main === module) cli(process.argv.slice(2)).then(c => process.exit(c), e => { console.error('page_rig: ' + (e && e.stack || e)); process.exit(1); });
