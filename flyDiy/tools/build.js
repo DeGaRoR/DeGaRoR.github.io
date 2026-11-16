@@ -447,7 +447,12 @@ const MANIFEST = {
          ['src/viewer', 'crowd.js'],
          // LIVERY-STICKERS (9 Nov): THE TWELVE ALASKA MARKS' GEOMETRY (tools/livery_marks_prep.js) - fetched by aeroskin.js
          // the first time a livery sticker is drawn (aeroVinylGeo), never by an aeroplane that wears none
-         ['src/viewer', 'livery_marks.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'livery_marks.js'],
+         // MISSIONS-LIVE (13 Nov): A MISSION IN FLIGHT - the tracker's page half and its drawing (mission_live.js) and the
+         // mission props (tools/_mission_gen.js: the pylon, the balloon column, the ring, the flag, the tie-down spot; it
+         // reads TOWER_GEN, inlined above) - fetched by app.js missionLiveArm at the first departure with an accepted
+         // mission that has places; never by the sandbox
+         ['tools', '_mission_gen.js'], ['src/viewer', 'mission_live.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
