@@ -683,6 +683,32 @@ function fitCylinders(spec, o, opts) {
   Object.assign(o, { cw_cylOn: 1, cw_cylAz: +(aBest * deg).toFixed(2), cw_cylOff: +sc.toFixed(4), cw_cylR: +R.toFixed(4),
     cw_cylZ0: +z0.toFixed(4), cw_cylZ1: +z1Best.toFixed(4), cw_cylNose: +nose.toFixed(4), cw_cylTail: +tail.toFixed(4),
     cw_cylRin: +Math.min(rin, R).toFixed(4), cw_cylOffIn: +offIn.toFixed(4), cw_cylOgive: 1 });
+  // THE SPINDLE (opts.spindle; the user, 16 Nov: "smaller in diameter again ... ogival looking by shrinking its end on
+  // the windshield side, and shrinking 30% the inlet side, keeping a smooth profile"): its front plane the cowl's face,
+  // its inlet cylFront x R across; the full part [zp0, zp1] placed over the heads where it gives the least radius - each
+  // head point under the spindle's own profile by MARGIN (the parabola forward to the inlet, aft to the sunk tail)
+  if (opts && opts.spindle) {
+    // (its section: opts.vert / opts.sq, set on the generator before the norm is read)
+    if (opts.vert != null) CW.P.cylVert = +opts.vert; if (opts.sq != null) CW.P.cylSq = +opts.sq;
+    const k = opts.front != null ? +opts.front : 0.7, zN = zE, rs = rSkinAt(aBest, zm);
+    let bs = null;
+    for (let zp0 = Math.max(0.05, z0 - 0.15); zp0 <= zN - 0.06; zp0 += 0.01)
+      for (let zp1 = zp0; zp1 <= zN - 0.05; zp1 += 0.01) {
+        const Lt = Math.max(0.03, Math.min(zp0 - 0.02, 1.8 * 0.2)), Ln = zN - zp1;
+        let Rq = Math.max(0.02, sc - rs + SINK);
+        for (const p of pts) {
+          const need = (CW.cylNorm ? CW.cylNorm(p.x - cxB, p.y - cyB) : Math.hypot(p.x - cxB, p.y - cyB)) + MARGIN;
+          if (p.z > zp1) { const u = (p.z - zp1) / Ln; if (u > 1) { Rq = Infinity; break; } Rq = Math.max(Rq, need / (k + (1 - k) * (1 - u * u))); }
+          else if (p.z < zp0) { const u = (zp0 - p.z) / Lt, w = 1 - u * u; if (w <= 0.05) { Rq = Infinity; break; } Rq = Math.max(Rq, rin + (need - rin) / w); }
+          else Rq = Math.max(Rq, need);
+        }
+        const score = Rq + 0.05 * (zp1 - zp0);
+        if (isFinite(Rq) && (!bs || score < bs.score)) bs = { score, R: Rq, zp0, zp1, Lt, Ln };
+      }
+    if (bs) Object.assign(o, { cw_cylR: +bs.R.toFixed(4), cw_cylZ0: +bs.zp0.toFixed(4), cw_cylZ1: +bs.zp1.toFixed(4),
+      cw_cylNose: +bs.Ln.toFixed(4), cw_cylTail: +bs.Lt.toFixed(4), cw_cylProfile: 1, cw_cylFront: k, cw_cylInlet: opts.inlet ? 1 : 0,
+      cw_cylOgive: 0, cw_cylVert: opts.vert != null ? +opts.vert : 1, cw_cylSq: opts.sq != null ? +opts.sq : 0.5 });
+  }
   let left = null, elsewhere = 0;
   for (let pass = 0; pass < 4; pass++) {
     const k = C.clearance(measure(spec, o).S, THREE, { all: true });
@@ -872,7 +898,7 @@ if (require.main === module) {
   if (argv.includes('--roundCheeks')) ROUND_CHEEKS = true;
   // --cylOnly: the build's own cowl kept to the row, the two head cylinders added and merged (fitCylinders)
   if (argv.includes('--cylOnly')) {
-    const o = fitCylinders(spec, {}), fit = o._cyl; delete o._cyl;
+    const o = fitCylinders(spec, {}, { spindle: argv.includes('--spindle'), inlet: argv.includes('--inlet'), front: arg('front') != null ? +arg('front') : 0.7, vert: arg('vert') != null ? +arg('vert') : null, sq: arg('sq') != null ? +arg('sq') : null }), fit = o._cyl; delete o._cyl;
     const s2 = JSON.parse(JSON.stringify(spec)); s2.cage = Object.assign({}, s2.cage, o);
     fs.writeFileSync(OUT, JSON.stringify(j.spec ? Object.assign({}, j, { spec: s2 }) : s2));
     console.log(JSON.stringify({ out: OUT, cylOnly: true, fit, over: o }));

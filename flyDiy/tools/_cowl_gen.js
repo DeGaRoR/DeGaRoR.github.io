@@ -84,7 +84,7 @@ const P={
   // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
   lidRW:null, lidRTop:null, lidRBot:null,
   // PROPER-COWLS: the head cylinders, merged into the skin (cylOn 0 = none)
-  cylOn:0, cylAz:0, cylOff:0.3, cylR:0.12, cylZ0:0.1, cylZ1:0.4, cylNose:0.1, cylTail:0.15, cylRin:0, cylOffIn:null, cylBlend:0.025, cylOgive:0,
+  cylOn:0, cylAz:0, cylOff:0.3, cylR:0.12, cylZ0:0.1, cylZ1:0.4, cylNose:0.1, cylTail:0.15, cylRin:0, cylOffIn:null, cylBlend:0.025, cylOgive:0, cylProfile:0, cylFront:0.7, cylInlet:0, cylVert:1, cylSq:0.5,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
   // chin scoop
   // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
@@ -540,6 +540,16 @@ function rampAt(th,z){
    the cut where they meet is the crease. cylOn 0 (absent) = nothing, to the bit. */
 function cylRad(z){
   const z0=+P.cylZ0, z1=+P.cylZ1, R=+P.cylR, rin=+P.cylRin||0;
+  /* THE SPINDLE (cylProfile 1; the user, 16 Nov: "make it ogival looking by shrinking its end on the windshield side, and
+     shrinking 30% the inlet side, keeping a smooth profile"): full radius only over [cylZ0, cylZ1] (the heads' fullest
+     station), a parabola each way - forward over cylNose down to cylFront x R at the inlet plane (cut there, open when
+     cylInlet), aft over cylTail down to cylRin where it sinks into the skin; level at the full part, so the profile is
+     smooth */
+  if(+P.cylProfile>0){
+    if(z>z1){ const Ln=Math.max(1e-3,+P.cylNose), u=(z-z1)/Ln; if(u>1+1e-9) return 0; const Rf=R*clamp(+P.cylFront||0.7,0.2,1); return Rf+(R-Rf)*(1-u*u); }
+    if(z<z0){ const Lt=Math.max(1e-3,+P.cylTail), u=(z0-z)/Lt; if(u>1+1e-9) return 0; return rin+(R-rin)*(1-u*u); }
+    return R;
+  }
   if(z>z1){ const Ln=Math.max(1e-3,+P.cylNose), x=z-z1; if(x>=Ln) return 0;
     // OGIVAL (cylOgive 1; the user, 16 Nov: "make the cylinders ... ogival"): the tangent ogive - leaves the cylinder
     // tangent, closes to a point over cylNose; 0 = the round (elliptical) cap
@@ -557,6 +567,12 @@ function cylOffAt(z){
   const u=Math.min(1,(z0-z)/Math.max(1e-3,+P.cylTail)), w=u*u*(3-2*u);
   return off+(oi-off)*w;
 }
+/* THE CYLINDER'S SECTION (the user, 16 Nov: "it has a bit of a squared profile, and is wider than tall"): a superellipse,
+   cylR across, cylVert x cylR high, its squareness cylSq (0.5 round, sqExp's scale); absent = the circle, to the bit */
+const cylVert=()=>clamp(+P.cylVert||1,0.3,1.5);
+const cylN=()=>sqExp(P.cylSq==null?0.5:+P.cylSq);
+function cylShape(ps){ return superPt(ps,1,cylVert(),cylN()); }
+function cylNorm(dx,dy){ const n=cylN(); return Math.pow(Math.pow(Math.abs(dx),n)+Math.pow(Math.abs(dy)/cylVert(),n),1/n); }
 function cylMerge(x,y,cy,z){
   if(!(+P.cylOn>0)||!(+P.cylR>0)) return null;
   const R=cylRad(z); if(!(R>0)) return null;
@@ -566,11 +582,16 @@ function cylMerge(x,y,cy,z){
   // knife edge (a hard crease, drawn on the skin's grid, read as a saw), as a real cowl's joined panels do
   const k=0;                                    // (the probes' union: the fillet is its own mesh - buildCylFillet)
   let best=rc;
+  const round=(cylVert()===1&&Math.abs(cylN()-2)<1e-9);
   for(const sg of [1,-1]){
     const ax=sg*Math.cos(a)*off, ay=Math.sin(a)*off;         // the axis, about the spine
-    const b=ux*ax+uy*ay, c2=ax*ax+ay*ay-R*R, disc=b*b-c2;
-    if(disc<0) continue;
-    const sFar=b+Math.sqrt(disc);
+    let sFar;
+    if(round){ const b=ux*ax+uy*ay, c2=ax*ax+ay*ay-R*R, disc=b*b-c2; if(disc<0) continue; sFar=b+Math.sqrt(disc); }
+    else { // the ray's last point inside the superellipse: march out, then bisect
+      const inside=s=>cylNorm(ux*s-ax, uy*s-ay)<=R, sMax=Math.hypot(ax,ay)+2.5*R; let last=-1;
+      for(let s=0;s<=sMax;s+=R/40) if(inside(s)) last=s;
+      if(last<0) continue;
+      let lo=last, hi=last+R/40; for(let q=0;q<30;q++){ const m=0.5*(lo+hi); if(inside(m)) lo=m; else hi=m; } sFar=lo; }
     const u=k>0 ? 0.5*(best+sFar+Math.sqrt((sFar-best)*(sFar-best)+k*k)) : Math.max(best,sFar);
     if(u>best) best=u;
   }
@@ -1378,7 +1399,7 @@ function buildCylinders(group,mats){
   for(const sg of [1,-1]){
     const pos=[], idx=[];
     for(const z of zs){ const R=cylRad(z), A=cylAxisAt(z,sg);
-      for(let j=0;j<NA;j++){ const ps=j/NA*TAU; pos.push(A[0]+R*Math.cos(ps), A[1]+R*Math.sin(ps), z); } }
+      for(let j=0;j<NA;j++){ const q=cylShape(j/NA*TAU); pos.push(A[0]+R*q[0], A[1]+R*q[1], z); } }
     for(let i=0;i<zs.length-1;i++) for(let j=0;j<NA;j++){
       const a=i*NA+j, b=i*NA+(j+1)%NA, c=(i+1)*NA+(j+1)%NA, e=(i+1)*NA+j;
       idx.push(a,b,c, a,c,e);
@@ -1386,6 +1407,33 @@ function buildCylinders(group,mats){
     // the tail's end disc (inside the skin, closed all the same)
     const base=pos.length/3, A0=cylAxisAt(zs[0],sg); pos.push(A0[0],A0[1],zs[0]);
     for(let j=0;j<NA;j++) idx.push(base,(j+1)%NA,j);
+    // THE FRONT, where the spindle is cut at cylFront x R: an INLET (cylInlet 1 - the Carbon Cub's: a rolled lip, a duct
+    // into the cylinder, its back wall in the shell's dark) or a plain disc
+    const zF=zs[zs.length-1], RF=cylRad(zF-1e-6), AF=cylAxisAt(zF,sg);
+    if(+P.cylProfile>0&&RF>0.005){
+      if(+P.cylInlet>0){
+        const lipT=Math.min(0.35*RF,Math.max(0.006,0.12*RF)), ri=RF-lipT, dl=Math.max(0.04,0.8*RF), NL=6;
+        const ring=(r,z)=>{ const o=[]; for(let j=0;j<NA;j++){ const q=cylShape(j/NA*TAU); o.push([AF[0]+r*q[0],AF[1]+r*q[1],z]); } return o; };
+        // the lip: a half-roll from the outer skin at zF over to the inner radius, bulging forward by lipT
+        const rings=[];
+        for(let k=0;k<=NL;k++){ const a=k/NL*Math.PI, r=ri+lipT*0.5+0.5*lipT*Math.cos(a), z=zF+0.5*lipT*Math.sin(a); rings.push(ring(r,z)); }
+        const b0=pos.length/3; for(const rg of rings) for(const q of rg) pos.push(q[0],q[1],q[2]);
+        for(let k=0;k<NL;k++) for(let j=0;j<NA;j++){ const a=b0+k*NA+j, b=b0+k*NA+(j+1)%NA, c=b0+(k+1)*NA+(j+1)%NA, e=b0+(k+1)*NA+j; idx.push(a,b,c, a,c,e); }
+        const g2=new THREE.BufferGeometry();
+        const ip=[], ii=[];
+        // the duct (inner wall, facing in) and its back wall, dark
+        const d0=ring(ri,zF), d1=ring(ri*0.92,zF-dl);
+        for(const q of d0) ip.push(q[0],q[1],q[2]); for(const q of d1) ip.push(q[0],q[1],q[2]);
+        for(let j=0;j<NA;j++){ const a=j, b=(j+1)%NA, c=NA+(j+1)%NA, e=NA+j; ii.push(a,b,c, a,c,e); }   // (facing the axis)
+        const cb=ip.length/3; ip.push(AF[0],AF[1],zF-dl);
+        for(let j=0;j<NA;j++) ii.push(cb,NA+j,NA+(j+1)%NA);
+        g2.setAttribute('position',new THREE.Float32BufferAttribute(ip,3)); g2.setIndex(ii); g2.computeVertexNormals();
+        const md=new THREE.Mesh(g2,innerMat(mats)); md.name='cowlCylInlet'; group.add(md);
+      } else {
+        const cf=pos.length/3; pos.push(AF[0],AF[1],zF);
+        for(let j=0;j<NA;j++) idx.push(cf,(zs.length-1)*NA+j,(zs.length-1)*NA+(j+1)%NA);
+      }
+    }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
     const m=new THREE.Mesh(g,mats.skin); m.name='cowlCylinder'; group.add(m);
@@ -1409,7 +1457,7 @@ function buildCylFillet(group,mats){
     for(let i=0;i<=NZ;i++){
       const z=zT+(zN-zT)*i/NZ, R=cylRad(z); if(!(R>1e-3)||z>zEnd()-0.004){ runs.up.push(null); runs.dn.push(null); continue; }
       const O0=outline(z), Om=outline(Math.max(0,z-dz)), Op=outline(z+dz), A=cylAxisAt(z,sg), cy=O0.cy;
-      const fpsi=ps=>{ const x=A[0]+R*Math.cos(ps), y=A[1]+R*Math.sin(ps); return Math.hypot(x,y-cy)-O0.at(Math.atan2(y-cy,x)); };
+      const fpsi=ps=>{ const q=cylShape(ps), x=A[0]+R*q[0], y=A[1]+R*q[1]; return Math.hypot(x,y-cy)-O0.at(Math.atan2(y-cy,x)); };
       const cross=[];
       let f0=fpsi(0);
       for(let j=1;j<=NP;j++){ const ps=j/NP*TAU, f1=fpsi(ps);
@@ -1417,11 +1465,13 @@ function buildCylFillet(group,mats){
         f0=f1; }
       let up=null, dn=null;
       for(const ps of cross){
-        const C=[A[0]+R*Math.cos(ps), A[1]+R*Math.sin(ps), z];
-        // the cylinder's normal (its radius and axis change along z: the slope)
-        const Rm=cylRad(Math.max(zT,z-dz)), Rp=cylRad(Math.min(zN,z+dz)), Am=cylAxisAt(Math.max(zT,z-dz),sg), Ap=cylAxisAt(Math.min(zN,z+dz),sg);
-        const pm=[Am[0]+Rm*Math.cos(ps),Am[1]+Rm*Math.sin(ps)], pp=[Ap[0]+Rp*Math.cos(ps),Ap[1]+Rp*Math.sin(ps)];
-        const n2=nrm([Math.cos(ps), Math.sin(ps), -(((pp[0]-pm[0])*Math.cos(ps)+(pp[1]-pm[1])*Math.sin(ps))/(2*dz))]);
+        const qC=cylShape(ps), C=[A[0]+R*qC[0], A[1]+R*qC[1], z];
+        // the cylinder's normal, numerically off its own surface (its section, radius and axis all vary)
+        const S2=(p2,z2)=>{ const r2=cylRad(z2), A2=cylAxisAt(z2,sg), q2=cylShape(p2); return [A2[0]+r2*q2[0], A2[1]+r2*q2[1], z2]; };
+        const sa=S2(ps-0.01,z), sb=S2(ps+0.01,z), sm=S2(ps,Math.max(zT,z-dz)), sp=S2(ps,Math.min(zN,z+dz));
+        const tA=[sb[0]-sa[0],sb[1]-sa[1],0], tB=[sp[0]-sm[0],sp[1]-sm[1],sp[2]-sm[2]];
+        let n2=nrm([tA[1]*tB[2]-tA[2]*tB[1], tA[2]*tB[0]-tA[0]*tB[2], tA[0]*tB[1]-tA[1]*tB[0]]);
+        if(n2[0]*(C[0]-A[0])+n2[1]*(C[1]-A[1])<0) n2=[-n2[0],-n2[1],-n2[2]];
         // the cowl's normal at C: the outline's own (in the section) and its slope along z
         const ph=Math.atan2(C[1]-cy,C[0]), e=0.01, ra=O0.at(ph-e), rb=O0.at(ph+e);
         const pa=[Math.cos(ph-e)*ra,Math.sin(ph-e)*ra], pb=[Math.cos(ph+e)*rb,Math.sin(ph+e)*rb];
@@ -2052,7 +2102,14 @@ function coolOpenings(aps){
   }
   if(P.exitGap>0) out.exit=Math.max(0,+P.aftW||0)*P.exitGap;
   if(P.gillOn>0){ const F=gillsFit(); if(F.ok) out.gills=2*Math.max(2,Math.round(P.gillN))*Math.max(0.002,P.gillLip)*F.H*0.8; }
-  for(const k of ['face','scoop','scoopAlt','nacInlet','exit','gills']) out[k]=+out[k].toFixed(5);
+  // the head cylinders' INLETS (cylInlet; the user, 16 Nov: "they'll have to be accounted for in the heat balance"): two
+  // round mouths facing the propeller - in `face` with the cowl's own, and on their own key
+  out.cylInlet=0;
+  if(+P.cylOn>0&&+P.cylProfile>0&&+P.cylInlet>0&&+P.cylR>0){
+    const zF=cylSpan()[1], RF=cylRad(zF-1e-6), ri=Math.max(0,RF-Math.min(0.35*RF,Math.max(0.006,0.12*RF)));
+    out.cylInlet=2*area(ri,ri*cylVert(),cylN()); out.face+=out.cylInlet;
+  }
+  for(const k of ['face','scoop','scoopAlt','nacInlet','exit','gills','cylInlet']) out[k]=+out[k].toFixed(5);
   return out;
 }
 
@@ -2082,6 +2139,6 @@ function coolHeads(R, toCowl){
   return { out:+out.toFixed(5), all:+all.toFixed(5) };
 }
 
-const COWL_API = { surfPointU, buildCylinders, buildCylFillet, cylMerge, coolOpenings, coolHeads, gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { cylNorm, cylShape, surfPointU, buildCylinders, buildCylFillet, cylMerge, coolOpenings, coolHeads, gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;
