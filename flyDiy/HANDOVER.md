@@ -316726,3 +316726,6 @@ band glass; it covered the new pilot window from inside); the light layer's taxi
 NOT DONE: the floats Cessna (c172f, bugReports/cessnaFloatsWOrks.json) and every other Cessna copy keep the old body -
 the one-Cessna integration waits for REAL-FIGURES' verdict (the user, 15 Nov); the red cheat line (a side box
 projection) also paints the cabin's inner lining (shows through the windows); the door shape (bottom 10-15 cm high).
+TOUCH-UP (the user, same day): the screen bulge sat too high and the cowl top had a corner at the nose ring - wsCeilBow 0.88 -> 0.70
+and wsBaseBow 0.65 -> 0.85 (the screen line back on the drawing with wsShoulderBase 0.4 kept: no lip), cw_lidLen 0.095 -> 0.17
+and cw_lidRound 0.06 -> 0.2 (the top line one smooth rise from the ring to the firewall, measured per pixel column). Registration T-RUEX.
