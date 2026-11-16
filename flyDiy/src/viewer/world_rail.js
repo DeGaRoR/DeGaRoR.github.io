@@ -1111,7 +1111,7 @@
   // and recolour (the materials' editor). Kept as the other ground rows are: the splat's own store (flydiy.ground.splat.v1),
   // the export's `splat` block and its changes against the recipe; 'reset the rock' puts the recipe's numbers back.
   const ROCK_KEYS = ['rocks', 'rockHLo', 'rockHHi', 'rockBias', 'rockOff', 'rockK', 'rockJoint', 'rockJointSoil', 'rockJointDirt', 'rockHollow',
-    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar'];
+    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar', 'rockSlabTone', 'rockSlabTilt'];
   function buildRock(body) {
     const sp = SP();
     if (!sp || sp.knobs().rocks === undefined) { note(body, 'the island’s own rock is not in this build'); return; }
@@ -1134,6 +1134,8 @@
     note(E, 'the exposure: how much of the map’s rock shows bare - high, steep, convex ground and the map’s own rock share, less the hollows and the valleys (the terrain bias). A higher threshold shows less bare rock.');
     const J = sec(body, 'joints, green and wet', false, 'the crack network and what grows in it');
     range(J, 'joint density', 0.25, 4, 0.05, kn('rockJoint'), ss('rockJoint'), v => 'x' + v.toFixed(2), RK.rockJoint);
+    range(J, 'slab tone swing', 0, 0.8, 0.01, kn('rockSlabTone'), ss('rockSlabTone'), null, RK.rockSlabTone);
+    range(J, 'slab tilt', 0, 0.3, 0.005, kn('rockSlabTilt'), ss('rockSlabTilt'), null, RK.rockSlabTilt);
     range(J, 'soil in the joints', 0, 1, 0.02, kn('rockJointSoil'), ss('rockJointSoil'), null, RK.rockJointSoil);
     range(J, 'joint dirt', 0, 1, 0.02, kn('rockJointDirt'), ss('rockJointDirt'), null, RK.rockJointDirt);
     range(J, 'hollow dirt', 0, 1, 0.02, kn('rockHollow'), ss('rockHollow'), null, RK.rockHollow);
