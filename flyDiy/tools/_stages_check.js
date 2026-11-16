@@ -197,10 +197,11 @@ function main() {
     check(kits.every(o => (o.kind === 'prop' ? BB.has(o.key) : !!CAT.entries.get(o.key))), '2 ' + tag + ' every kit object resolves (a registry prop, a catalogue frame)', kits.length + ' objects');
     check(plotsOf(O, 'z_village') === villageSandbox, '2 ' + tag + ' the village stands the sandbox\'s plots', O.records.plots.length + ' plots');
     const ski = O.aerodromes.find(a => a.id === 'tw_ski'), east = O.aerodromes.find(a => a.id === 'nv_strip');
-    // SKYLINE-RESORT (the user 13 Nov: "much too wide and much too long"): 190 x 9 m at EVERY stage (the 320 -> 380 m growth
-    // step is gone), its top end where the 380 m strip had it (352.00, -7872.00); the tired station (resort 0) has no
-    // windsock and no tie-down spots, the deal (resort 1) puts them there
-    const wantLen = 190, wantWid = 9, skiBare = V.t.resort < 1;
+    // SKYLINE-RESORT (the user 13 Nov: "much too wide and much too long"; 16 Nov: "make it the limit for the cessna in terms of
+    // length ... 6 meters only of runway"): 280 x 6 m at EVERY stage (the C172's take-off limit from the top end, flown - the
+    // 320 -> 380 m growth step is gone), its top end where the 380 m strip had it (352.00, -7872.00); the tired station
+    // (resort 0) has no windsock and no tie-down spots, the deal (resort 1) puts them there
+    const wantLen = 280, wantWid = 6, skiBare = V.t.resort < 1;
     const top = (() => { const r = SV.rec.layers.runways.find(q => q.id === 'tw_ski'); return PG.runwayEnds(Object.assign({}, PG.RUNWAY_DEF, r)).end1; })();
     check(ski && ski.len === wantLen && ski.wid === wantWid && Math.hypot(top[0] - skiTop[0], top[1] - skiTop[1]) < 0.01 && Math.hypot(top[0] - 352.0, top[1] + 7872.0) < 0.01, '2 ' + tag + ' the altiport is ' + wantLen + ' x ' + wantWid + ' m, its top end where it was', ski ? ski.len + ' x ' + ski.wid + ' m, top ' + top.map(v => v.toFixed(3)).join(', ') : 'missing');
     check(!!ski && (ski.sock === false) === skiBare && (ski.ties === false) === skiBare, '2 ' + tag + ' Skyline Altiport ' + (skiBare ? 'has no windsock and no tie-down spot (the tired station)' : 'has its windsock and its tie-downs'), 'sock ' + (ski && ski.sock) + ', ties ' + (ski && ski.ties));

@@ -283,7 +283,7 @@ function run(mut) {
     unknown: { from: 'HOME', to: 'HOME', gear: 'wheels' },
   };
   // what fires on each leg (the altiport is grass: snow AND unpaved; a water lane is never "unpaved"; SKYLINE-RESORT 13 Nov: the
-  // altiport is 190 m since, under PILOTS_SHORT_M - its leg is a short strip's too)
+  // altiport is 280 m since (190 m on 13 Nov), under PILOTS_SHORT_M - its leg is a short strip's too)
   const skiShort = (M.CONTRACT_FIELDS.tw_ski.len < M.PILOTS_SHORT_M);
   const fire = { weather: ['weather'], night: ['night'], short: ['short'], unpaved: ['unpaved'], water: ['water'], floats: ['water'], snow: ['snow', 'unpaved'].concat(skiShort ? ['short'] : []), skis: ['snow'] };
   // the four recruits: only brian refuses, on the weather and the night

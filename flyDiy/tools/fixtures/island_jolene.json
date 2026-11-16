@@ -15840,8 +15840,8 @@
    {
     "id": "tw_ski",
     "name": "Skyline Altiport",
-    "len": 190,
-    "wid": 9,
+    "len": 280,
+    "wid": 6,
     "surface": 0,
     "look": "grass",
     "slope": 0,
@@ -15854,7 +15854,7 @@
      false,
      false
     ],
-    "falloff": 12,
+    "falloff": 8,
     "site": null,
     "pattern": null,
     "stand": {
@@ -15871,36 +15871,40 @@
     "profile": [
      [
       0,
-      -10.32
+      -15.54
      ],
      [
-      0.3684,
-      -4.08
+      0.3214,
+      -6.54
      ],
      [
-      0.6316,
-      -1.01
+      0.5714,
+      -0.3
      ],
      [
-      0.8421,
-      -0.39
+      0.75,
+      2.77
+     ],
+     [
+      0.8929,
+      3.39
      ],
      [
       1,
-      -0.26
+      3.52
      ]
     ],
     "approach": 0,
     "hangar": null,
     "circuit": null,
-    "band": 3,
+    "band": 2,
     "pav": {
      "marks": "none"
     },
     "altiport": true,
     "c": [
-     304.5,
-     -7789.73
+     282.0,
+     -7750.76
     ],
     "hdg": -1.0472,
     "stage": {

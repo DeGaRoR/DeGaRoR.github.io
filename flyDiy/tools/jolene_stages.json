@@ -280,5 +280,5 @@
    }
   ]
  },
- "note_skyline": "SKYLINE-RESORT (13 Nov): tw_ski is 190 x 9 m at every resort value (the 320 -> 380 m step is gone; resort 0 no windsock, no tie-downs); the resort's other staged entries (the launch pad, the paths and signposts at 1; the terrace, the parking area, the glider hangar's kit at 2; the glider hangar at 3) are written into the fixture by tools/skyline_resort.py, which is their source"
+ "note_skyline": "SKYLINE-RESORT (13 Nov, 16 Nov): tw_ski is 280 x 6 m at every resort value (the Cessna 172's take-off limit, flown) (the 320 -> 380 m step is gone; resort 0 no windsock, no tie-downs); the resort's other staged entries (the launch pad, the paths and signposts at 1; the terrace, the parking area, the glider hangar's kit at 2; the glider hangar at 3) are written into the fixture by tools/skyline_resort.py, which is their source"
 }

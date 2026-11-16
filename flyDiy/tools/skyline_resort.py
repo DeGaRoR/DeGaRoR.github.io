@@ -35,22 +35,37 @@ def st(lo, hi=None, **kw):
     o = {'track': 'resort', 'show': [lo, hi]}
     o.update(kw); return o
 
-# ---- 1 THE STRIP: half the length, half the width -----------------------------------------------------------------
-LEN, WID = 190, 9
+# ---- 1 THE STRIP: the Cessna's limit long, 6 m wide ---------------------------------------------------------------------
+# THE USER (16 Nov, via A0): "skyline: make it the limit for the cessna in terms of length. Width should be even smaller. Make
+# it 6 meters only of runway, hopefully mainly used by the tracks then." (13 Nov it was halved: 380 x 18 -> 190 x 9.)
+# THE LIMIT, FLOWN (game host, the 8 kt / 250 deg day, damage on; the canon Cessna 172 F-HCSN, the refit card of
+# claude/cessna-refit-l40d 3f7decee0, as built: pilot + 1 pax + 40 kg, 1067 kg; sheet LDGrun 242 m, TORun 412 m flat):
+# lined up AT THE TOP END (on the centreline 8 m down, nose downhill - Pilot's L40f line-up) it releases 5.7 m down,
+# lifts off 228 m down and is 2.5 m up 269 m down, whatever the strip below: 260 m -> 24 m past the end (no), 270 m -> 1 m
+# inside, 280 m -> 11 m inside, 300 m -> 31 m. Dispatch (LDGrun 242 <= len) accepts it from 242 m. So 280 m: the take-off
+# limit with 11 m to spare. (The uphill landing gave no length limit: the refit ground-loops at Skyline at every length,
+# master's 380 x 18 m too - FLAGSHIP / Pilot; the Cub and the Jodel land clean on 280 x 6 m.)
+LEN, WID = 280, 6
 C = P(LEN / 2)
-# the profile: the old strip's upper half as it was composed (its ground, metres MSL, `a` from the top) - the flat top
-# (~1 %), the ease, the 9 % at the threshold. dy is relative to the strip's elevation (the ground at its new centre
-# before it is graded: ELEV, read off the composed world - tools/skyline_resort.js --elev).
-ELEV = 709.08
-PROF_MSL = [(190, 698.76), (120, 705.00), (70, 708.07), (30, 708.69), (0, 708.82)]
+# the profile: the kept top as it was composed (metres MSL, `a` from the top: the flat top ~1 %, the ease, 9 % by 190 m
+# down), then the old 380 m strip's own line on down (its record: 10 % from its threshold to 0.55 of it) - so the strip
+# below 190 m lies where the old strip's lower half lay. dy is relative to the strip's elevation (the engine's T1 at the
+# new centre, before the strip's grade: ELEV, read off the composed world with tw_ski's grade taken out)
+ELEV = 705.30
+OLD_T1, OLD_PROF = 695.72, [[0, -15.96], [0.55, 4.94], [0.82, 12.6], [1, 13.3]]     # the 380 m strip (c (257, -7707.46))
+def old_msl(a):
+    t = (380 - a) / 380
+    for (t0, y0), (t1, y1) in zip(OLD_PROF, OLD_PROF[1:]):
+        if t0 <= t <= t1: return OLD_T1 + y0 + (y1 - y0) * (t - t0) / (t1 - t0)
+PROF_MSL = [(LEN, R(old_msl(LEN))), (190, 698.76), (120, 705.00), (70, 708.07), (30, 708.69), (0, 708.82)]
 
 def runway(old, elev):
     r = dict(old)
     tn = lambda v: int(v) if v == int(v) else v          # the ends as 0 and 1, as the editor writes them
     prof = [[tn(R((LEN - a) / LEN, 4)), R(h - elev)] for a, h in PROF_MSL]
-    # the shoulder (the grade's falloff) 30 -> 12 m: half the strip, a narrower cut - and the parking terrace beside it keeps
-    # its own grade (a 30 m shoulder pulled it 0.4 m across toward the strip: its spots were not flat)
-    r.update({'len': LEN, 'wid': WID, 'c': C, 'profile': prof, 'band': 3, 'falloff': 12})
+    # the shoulder (the grade's falloff) 30 -> 8 m and the band 6 -> 2 m: scaled to the 6 m strip (18 m: 30 / 6), a narrow cut -
+    # and the parking terrace beside it keeps its own grade (a 30 m shoulder pulled it 0.4 m toward the strip: not flat)
+    r.update({'len': LEN, 'wid': WID, 'c': C, 'profile': prof, 'band': 2, 'falloff': 8})
     # the stage: one strip at every value (its ground is physics, composed with the stage); the tired station's strip
     # has no windsock and no tie-down spots - the deal (resort 1) puts them back. (The 320 -> 380 m growth step is gone.)
     r.pop('stage', None)

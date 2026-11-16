@@ -394,7 +394,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
       F = L.flyTurn(C, WI, IX, B.def, Fl.a, WI.aerodromes.find(q => q.id === 'w2'), Fl.pose, { tMax: 150 });
       console.log('  11c ' + B.name.padEnd(16) + ' declines East Point (' + why + ') - flown to 02/20');
     }
-    // the altiport's 190 m (SKYLINE-RESORT; 380 m before) is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
+    // the altiport's 280 m (SKYLINE-RESORT: 380 m, then 190 m, then the C172's limit) is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
     // there is the roll's own call (G531: a short field's reserve), printed
     // SKYLINE-RESORT (A0's call, 15 Nov): THE CANON CESSNA DOES NOT LEAVE THE 190 m ALTIPORT. F-HCSN (CANON-C172-GATES) needs
     // a 386 m take-off on the flat - ~290 m with CONTRACT_FIT.altiK - and is refused tw_ski at dispatch (its 237-249 m landing
@@ -407,7 +407,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
       const rj = F.verdicts.find(v => /^rejected-takeoff/.test(v)), p = F.track[F.track.length - 1];
       const ux = Math.cos(tw.hdg), uz = Math.sin(tw.hdg), along = (p[0] - tw.x) * ux + (p[1] - tw.z) * uz, lat = -(p[0] - tw.x) * uz + (p[1] - tw.z) * ux;
       check(!!rj && F.phases.includes('ABORT') && p[2] === 'STOPPED' && Math.abs(along) <= tw.len / 2 && Math.abs(lat) <= (tw.wid || 9) / 2 + 1,
-        tag + ': the 190 m altiport is too short for it - the take-off rejected, said, and stopped on the strip',
+        tag + ': the altiport (' + tw.len + ' m) too short for it from where it lines up - the take-off rejected, said, and stopped on the strip',
         (rj || 'no rejection said') + ' | ' + F.phases.join('>') + ', stopped ' + along.toFixed(1) + ' m along / ' + lat.toFixed(1) + ' m across the strip (len ' + tw.len + ')');
     } else if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     // PILOT-GONOGO (the user's ruling, 13 Nov - row 9's): the Cessna alone may end this taxi at the HOLD, lined up, with the take-off
