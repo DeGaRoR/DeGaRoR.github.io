@@ -1778,6 +1778,13 @@ const AERO_TXT_FACES = [
     why: 'the heavy slab: the boldest here, it reads furthest',
     files: { '400': 'media/fonts/alfa-slab-one-400.25afe043.woff' },
     miss: 'ſ' },
+  // CARBON-CUB-LIVERY (the user 16 Nov: "change the police of the registration too, to match references"): the painted
+  // registration of a modern bush aeroplane - bold, tall, a little condensed. One style (Bold); Reserved Font Name
+  // "Saira", so it ships whole (45 KB). The census found no letter of the three Latin blocks missing.
+  { key: 'saira', ofl: 'media/fonts/OFL-sairacondensed.txt', name: 'Saira Condensed', fam: 'LT Saira Condensed', r: 700, b: 0, it: false, track: 2,
+    why: 'the sign writer\'s registration: bold, tall and a little condensed, as on the bush aeroplanes of today',
+    files: { '700': 'media/fonts/saira-condensed-700.144b04aa.woff' },
+    miss: '' },
   { key: 'plexsans', name: 'IBM Plex Sans', fam: 'IBM Plex Sans', r: 400, b: 700, it: false, track: 4,
     why: 'the game\'s own face: plain and clear', files: null, miss: '' },
   { key: 'plexmono', name: 'IBM Plex Mono', fam: 'IBM Plex Mono', r: 400, b: 600, it: false, track: 8,

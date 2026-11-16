@@ -263,7 +263,10 @@
    "regShd": 1,
    "regShdCol": 1842722,
    "regShdX": 0.06,
-   "regShdY": 0.08
+   "regShdY": 0.08,
+   "regFace": "saira",
+   "regB": 1,
+   "regI": 0
   },
   "glass": {
    "opacity": 0.35,
