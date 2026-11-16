@@ -1,0 +1,210 @@
+{
+ "car": "buggy_2026-11",
+ "authored": "MEASURED off the garage drawing by tools/car_sheet.js (CAR-1); the mass, the CG height and the inertia are ESTIMATES (the ledger less the wings and tail, plus a chassis; 40 % of the body height; a uniform box)",
+ "frame": "+x forward, y up, +z right; metres; x = the garage z, z = the garage x, y over the ground under the tyres",
+ "wheels": {
+  "FL": {
+   "centre": [
+    3.28,
+    0.453,
+    -0.82
+   ],
+   "radius": 0.36,
+   "width": 0.1152,
+   "side": "left",
+   "steered": true
+  },
+  "FR": {
+   "centre": [
+    3.28,
+    0.453,
+    0.82
+   ],
+   "radius": 0.36,
+   "width": 0.1152,
+   "side": "right",
+   "steered": true
+  },
+  "RL": {
+   "centre": [
+    1.42,
+    0.38,
+    -0.82
+   ],
+   "radius": 0.38,
+   "width": 0.1216,
+   "side": "left",
+   "steered": false
+  },
+  "RR": {
+   "centre": [
+    1.42,
+    0.38,
+    0.82
+   ],
+   "radius": 0.38,
+   "width": 0.1216,
+   "side": "right",
+   "steered": false
+  }
+ },
+ "wheelbase": 1.86,
+ "track": {
+  "front": 1.64,
+  "rear": 1.64
+ },
+ "ground": 0,
+ "box": {
+  "lo": [
+   1.204,
+   0.24,
+   -0.671
+  ],
+  "hi": [
+   3.424,
+   1.891,
+   0.671
+  ]
+ },
+ "collision": {
+  "boxes": [
+   {
+    "name": "body",
+    "lo": [
+     1.204,
+     0.24,
+     -0.671
+    ],
+    "hi": [
+     3.424,
+     1.891,
+     0.671
+    ]
+   }
+  ]
+ },
+ "estimates": {
+  "mass_kg": 415,
+  "cg": [
+   2.302,
+   0.658,
+   0
+  ],
+  "inertia_kgm2": [
+   156.5,
+   232.7,
+   264.7
+  ],
+  "ledger": [
+   [
+    "fuselage",
+    27.8
+   ],
+   [
+    "engines",
+    72.2
+   ],
+   [
+    "gear",
+    55.8
+   ],
+   [
+    "cabin",
+    80
+   ],
+   [
+    "vessel",
+    3.6
+   ],
+   [
+    "fuel",
+    11.5
+   ],
+   [
+    "panel",
+    3
+   ],
+   [
+    "elec",
+    16.6
+   ],
+   [
+    "outfit",
+    18.7
+   ],
+   [
+    "furnish",
+    4.5
+   ],
+   [
+    "paint",
+    1.2
+   ]
+  ],
+  "chassis": {
+   "kg": 120,
+   "note": "GAP: a ladder frame, two beam axles, the steering box and the differential - no garage row (a 1930s light car's, ~110-140 kg); placed at the wheelbase's middle, axle height"
+  },
+  "firewall_z": 2.6342
+ },
+ "engine": {
+  "type": "rotax912_warp",
+  "name": "Rotax 912 UL",
+  "powerW": 59600,
+  "mass": 58,
+  "driveline": {
+   "eta": 0.85,
+   "note": "a manual gearbox and a live rear axle: ~85 % of the crank power at the wheels"
+  }
+ },
+ "tune": {
+  "drive": {
+   "wheels": [
+    "RL",
+    "RR"
+   ],
+   "P": 50660,
+   "F0": 3053,
+   "Frev": 1832,
+   "vRev": 6,
+   "engBrake": 122,
+   "tc": 0.85
+  },
+  "brake": {
+   "F": 3257,
+   "front": 0.6,
+   "abs": 0.8,
+   "hand": [
+    "RL",
+    "RR"
+   ],
+   "handF": 1018
+  },
+  "steer": {
+   "wheels": [
+    "FL",
+    "FR"
+   ],
+   "innerDeg": 36,
+   "ackermann": 1,
+   "rate": 0.9
+  },
+  "susp": {
+   "bump": 0.07,
+   "droop": 0.09,
+   "hz": [
+    1.6,
+    1.8
+   ],
+   "zeta": 0.35,
+   "kStop": 150000
+  },
+  "tyre": {
+   "Ca": 9,
+   "u0": 1.5
+  },
+  "aero": {
+   "CdA": 0.8
+  }
+ }
+}

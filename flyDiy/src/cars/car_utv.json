@@ -1,0 +1,226 @@
+{
+ "car": "utv_2026-11",
+ "authored": "MEASURED off the garage drawing by tools/car_sheet.js (CAR-1); the mass, the CG height and the inertia are ESTIMATES (the ledger less the wings and tail, plus a chassis; 40 % of the body height; a uniform box)",
+ "frame": "+x forward, y up, +z right; metres; x = the garage z, z = the garage x, y over the ground under the tyres",
+ "wheels": {
+  "FL": {
+   "centre": [
+    2.5167,
+    0.3721,
+    -0.72
+   ],
+   "radius": 0.34,
+   "width": 0.1088,
+   "side": "left",
+   "steered": true
+  },
+  "FR": {
+   "centre": [
+    2.5167,
+    0.3721,
+    0.72
+   ],
+   "radius": 0.34,
+   "width": 0.1088,
+   "side": "right",
+   "steered": true
+  },
+  "RL": {
+   "centre": [
+    0.397,
+    0.34,
+    -0.72
+   ],
+   "radius": 0.34,
+   "width": 0.1088,
+   "side": "left",
+   "steered": false
+  },
+  "RR": {
+   "centre": [
+    0.397,
+    0.34,
+    0.72
+   ],
+   "radius": 0.34,
+   "width": 0.1088,
+   "side": "right",
+   "steered": false
+  }
+ },
+ "wheelbase": 2.1197,
+ "track": {
+  "front": 1.44,
+  "rear": 1.44
+ },
+ "ground": 0,
+ "hitch": [
+  -0.308,
+  0.612,
+  0
+ ],
+ "box": {
+  "lo": [
+   -0.353,
+   0.102,
+   -0.66
+  ],
+  "hi": [
+   3.205,
+   1.705,
+   0.66
+  ]
+ },
+ "collision": {
+  "boxes": [
+   {
+    "name": "body",
+    "lo": [
+     -0.353,
+     0.12,
+     -0.66
+    ],
+    "hi": [
+     3.205,
+     1.705,
+     0.66
+    ]
+   }
+  ]
+ },
+ "estimates": {
+  "mass_kg": 535.8,
+  "cg": [
+   1.9119,
+   0.5908,
+   0
+  ],
+  "inertia_kgm2": [
+   192.5,
+   643,
+   680
+  ],
+  "ledger": [
+   [
+    "fuselage",
+    38.6
+   ],
+   [
+    "engines",
+    99.8
+   ],
+   [
+    "gear",
+    66.1
+   ],
+   [
+    "cabin",
+    80
+   ],
+   [
+    "vessel",
+    5
+   ],
+   [
+    "fuel",
+    32.4
+   ],
+   [
+    "panel",
+    4.5
+   ],
+   [
+    "elec",
+    17
+   ],
+   [
+    "avionics",
+    1
+   ],
+   [
+    "outfit",
+    25.2
+   ],
+   [
+    "furnish",
+    3
+   ],
+   [
+    "paint",
+    3.1
+   ],
+   [
+    "cargo",
+    10
+   ]
+  ],
+  "chassis": {
+   "kg": 150,
+   "note": "GAP: a ladder frame, two beam axles, the steering box and the differential - no garage row (a 1930s light car's, ~110-140 kg); placed at the wheelbase's middle, axle height"
+  },
+  "firewall_z": 2.2981
+ },
+ "engine": {
+  "type": "a65_sensenich74",
+  "name": "Continental A-65",
+  "powerW": 48500,
+  "mass": 80,
+  "driveline": {
+   "eta": 0.8,
+   "note": "a manual gearbox, a transfer case and two live axles: ~80 % of the crank power at the wheels"
+  }
+ },
+ "drive": "4wd",
+ "tune": {
+  "drive": {
+   "wheels": [
+    "FL",
+    "FR",
+    "RL",
+    "RR"
+   ],
+   "P": 38800,
+   "F0": 3942,
+   "Frev": 2365,
+   "vRev": 6,
+   "engBrake": 158,
+   "tc": 0.85
+  },
+  "brake": {
+   "F": 4205,
+   "front": 0.6,
+   "abs": 0.8,
+   "hand": [
+    "RL",
+    "RR"
+   ],
+   "handF": 1314
+  },
+  "steer": {
+   "wheels": [
+    "FL",
+    "FR"
+   ],
+   "innerDeg": 36,
+   "ackermann": 1,
+   "rate": 0.9
+  },
+  "susp": {
+   "bump": 0.07,
+   "droop": 0.09,
+   "hz": [
+    1.6,
+    1.8
+   ],
+   "zeta": 0.35,
+   "kStop": 150000
+  },
+  "tyre": {
+   "Ca": 9,
+   "u0": 1.5
+  },
+  "aero": {
+   "CdA": 0.8
+  }
+ }
+}
