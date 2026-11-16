@@ -112,7 +112,17 @@ let sl2 = null;
 for (let z = PJ.cz - 400; z <= PJ.cz + 400; z += 10) for (let x = PJ.cx - 400; x <= PJ.cx + 400; x += 10) {
   const sv = slope(x, z); if (codeAt(x, z) < 0.6 || sv < 26 || sv > 38) continue;
   const dd = Math.hypot(x - best[0], z - best[1]); if (!sl2 || dd < sl2[2]) sl2 = [x, z, dd]; }
+// THE LANDING (16 Nov, the user: "what would it look like if I was to try and land on that?"): the flattest rocky ground near the
+// face (slope under 9 deg, the map's rock over 0.3), approached from the south-west down a 4 deg path - 450 m out, 120 m out, the flare
+let ld = null;
+for (let z = PJ.cz - 450; z <= PJ.cz + 450; z += 10) for (let x = PJ.cx - 450; x <= PJ.cx + 450; x += 10) {
+  const sv = slope(x, z); if (codeAt(x, z) < 0.3 || sv > 9) continue; const s9 = Math.max(slope(x + 40, z), slope(x - 40, z), slope(x, z + 40), slope(x, z - 40));
+  if (s9 > 14) continue; const dd = Math.hypot(x - best[0], z - best[1]); if (!ld || dd < ld[2]) ld = [x, z, dd]; }
+if (!ld) ld = [best[0], best[1], 0];
+const land = (out, agl) => { const [tx, tz] = ld, ty = hXZ(tx, tz), ex = tx - 0.7071 * out, ez = tz + 0.7071 * out;
+  const ey = Math.max(hXZ(ex, ez) + agl, ty + out * Math.tan(4 * Math.PI / 180) + 2); return [[ex, ey, ez], [tx + 0.7071 * 60, ty + 1, tz - 0.7071 * 60]]; };
 const VIEWS = {
+  approach: () => land(450, 60), final: () => land(120, 15), flare: () => land(35, 4),
   face: () => { const [tx, tz] = best, ty = hXZ(tx, tz), ex = tx + dnX * 230 + dnZ * 60, ez = tz + dnZ * 230 - dnX * 60; return [[ex, Math.max(hXZ(ex, ez) + 30, ty + 55), ez], [tx, ty + 5, tz]]; },
   near: () => { const [tx, tz] = best, ty = hXZ(tx, tz), ex = tx + dnX * 105 + dnZ * 35, ez = tz + dnZ * 105 - dnX * 35; return [[ex, Math.max(hXZ(ex, ez) + 12, ty + 10), ez], [tx, ty + 10, tz]]; },
   high: () => { const tx = best[0] - dnX * 60, tz = best[1] - dnZ * 60, ty = hXZ(tx, tz), ex = tx + dnX * 620 - dnZ * 160, ez = tz + dnZ * 620 + dnX * 160; return [[ex, Math.max(ty, hXZ(ex, ez)) + 520, ez], [tx, ty - 80, tz]]; },
