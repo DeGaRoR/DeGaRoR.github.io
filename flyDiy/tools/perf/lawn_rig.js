@@ -13,6 +13,7 @@
 // threshold (10 m), and the user's Cabin Strip back eye (the 15 Nov purple mask: the aircraft placed there first).
 // Usage: node tools/perf/lawn_rig.js --out <dir> [--gpu] [--frames 60] [--cap 2500] [--eyes cockpit,rwyside,app10,cabin]
 //          [--configs master,edge,A,B,C,D,phone] [--size 1600x900] [--q ''] [--at HH:MM (start no earlier)] [--until HH:MM (hard end)]
+//          [--latest HH:MM (the GPU not free by then: skip)]
 // A GPU RUN NEEDS A0's SLOT: the script takes `boxlock.sh take gpu GRASS-CARDS` itself (waiting while the GPU is held), drops it on
 // exit, and ends itself before --until.
 'use strict';
@@ -25,7 +26,7 @@ const EYES = opt('eyes', 'cockpit,rwyside,app10,cabin').split(','), CONFIGS = op
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // HH:MM -> the NEXT such time (armed at 22:00 for 06:00 means tomorrow's; a time up to 2 h past is today's, the slot running)
 const hm = s => { if (!s) return null; const [h, m] = s.split(':').map(Number), d = new Date(); d.setHours(h, m, 0, 0); if (d.getTime() < Date.now() - 2 * 3600e3) d.setDate(d.getDate() + 1); return d.getTime(); };
-const AT = hm(opt('at', null)), UNTIL = hm(opt('until', null));
+const AT = hm(opt('at', null)), UNTIL = hm(opt('until', null)), LATEST = hm(opt('latest', null));   // --latest HH:MM: the GPU not free by then = skip the slot (A0)
 const BOX = 'D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh';   // (the main checkout's: the locks live there, whatever the worktree)
 fs.mkdirSync(OUT, { recursive: true });
 const LOG = [], log = s => { const l = new Date().toTimeString().slice(0, 8) + ' ' + s; LOG.push(l); console.log(l); try { fs.appendFileSync(path.join(OUT, 'lawn_rig.log'), l + '\n'); } catch (e) {} };
@@ -108,6 +109,7 @@ const CABIN = { eye: [2696.3, 197.03, -15925.44], yp: [Math.atan2(-0.4062, 0.913
       const rv = /^RESERVED: (\S+) (\d\d):(\d\d)/m.exec(s); let resv = !!rv && rv[1] !== 'GRASS-CARDS';
       if (resv) { const t = new Date(); t.setHours(+rv[2], +rv[3], 0, 0); if (t.getTime() > Date.now()) t.setDate(t.getDate() - 1); if (Date.now() - t.getTime() > 180 * 60e3) resv = false; }
       if (!/GPU_BENCH\.lock/.test(s) && !resv) break;
+      if (LATEST && Date.now() > LATEST) { log('the GPU was not free by ' + opt('latest') + ': the slot is skipped'); process.exit(4); }
       if (UNTIL && Date.now() > UNTIL - 20 * 60e3) { log('the GPU never came free before ' + opt('until') + ' - 20 min: stop'); process.exit(4); }
       log('the GPU is held: ' + s.trim().replace(/\n/g, ' | ')); await sleep(15000); }
     execSync('bash "' + BOX + '" take gpu GRASS-CARDS "lawn variants x eyes + GPU timer"', { stdio: 'inherit' }); took = true;
