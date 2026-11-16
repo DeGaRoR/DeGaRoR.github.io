@@ -110,79 +110,79 @@
   "sections": {
    "strut": {
     "fin": "bareAlu",
-    "tint": 13225683,
+    "tint": 9805222,
     "metal": 0.9
    },
    "body": {
-    "tint": 6979734,
+    "tint": 2438990,
     "metal": 0.35
    },
    "waistband": {
-    "tint": 1358028
+    "tint": 162458
    },
    "ceilingLoop": {
-    "tint": 6979734,
+    "tint": 2438990,
     "metal": 0.35
    },
    "pillarFront": {
-    "tint": 6979734,
+    "tint": 2438990,
     "metal": 0.35
    },
    "pillarCabin": {
-    "tint": 6979734,
+    "tint": 2438990,
     "metal": 0.35
    },
    "floorLoop": {
-    "tint": 6979734,
+    "tint": 2438990,
     "metal": 0.35
    },
    "gearLeg": {
-    "tint": 1447963,
+    "tint": 131587,
     "metal": 0.15
    },
    "pillarWindow": {
-    "tint": 6979734,
+    "tint": 2438990,
     "metal": 0.35
    },
    "dummy2": {
-    "tint": 6083612
+    "tint": 1812483
    },
    "pillarPassenger": {
-    "tint": 6979734,
+    "tint": 2438990,
     "metal": 0.35
    },
    "pillarTail": {
-    "tint": 6979734,
+    "tint": 2438990,
     "metal": 0.35
    },
    "joint": {
-    "tint": 3817285
+    "tint": 724239
    },
    "wingTip": {
-    "tint": 1358028,
+    "tint": 162458,
     "metal": 0.3
    },
    "finRud": {
-    "tint": 1358028,
+    "tint": 162458,
     "metal": 0.3
    },
    "spinner": {
     "fin": "chrome"
    },
    "wingSkin": {
-    "tint": 15922160,
+    "tint": 14869982,
     "metal": 0.3
    },
    "finSkin": {
-    "tint": 15922160,
+    "tint": 14869982,
     "metal": 0.3
    },
    "stabSkin": {
-    "tint": 15922160,
+    "tint": 14869982,
     "metal": 0.3
    },
    "wingStol": {
-    "tint": 1358028
+    "tint": 162458
    },
    "cowlSkin": {
     "fin": "composite"
