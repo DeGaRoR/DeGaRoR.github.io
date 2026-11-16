@@ -46,6 +46,14 @@
     "carboncubss",
     "petrel42"
    ]
+  },
+  {
+   "date": "2026-11-16",
+   "reason": "ARCHAEO-REFS: real_refs PLANES.archaeo (the Archaeopteryx, HB-WXA) taken in as a live plane; no other row moved",
+   "core": "5a9ca52b627f5d11",
+   "moved": [
+    "archaeo"
+   ]
   }
  ],
  "planes": {
@@ -800,6 +808,64 @@
      "TOgrass": 290,
      "cgMAC": 40.6847,
      "sm": 18.8473
+    }
+   }
+  },
+  "archaeo": {
+   "stamp": {
+    "file": "builds/archaeopteryx_2026-11-10.json",
+    "blob": "e083ce571c1b2f9a977abfef432a2c3e5765c313",
+    "core": "5a9ca52b627f5d11"
+   },
+   "facts": {
+    "empty": 79.5743,
+    "fuelKg": 0
+   },
+   "dims": {
+    "S": 12.8143,
+    "Sh": 1.34929,
+    "Sv": 1.32168,
+    "cRoot": 1.19,
+    "cTip": 0.56,
+    "hSpan": 2.65325,
+    "height": 3.69948,
+    "length": 6.02,
+    "span": 13.5,
+    "track": null
+   },
+   "cases": {
+    "min": {
+     "mass": 149.574,
+     "Vs": 38.4397,
+     "V75": 101.851,
+     "Vmax": 116.653,
+     "roc": 2.20701,
+     "LD": 14.776,
+     "TOgrass": 50,
+     "cgMAC": 69.8776,
+     "sm": 2.26517
+    },
+    "typ": {
+     "mass": 159.574,
+     "Vs": 39.7039,
+     "V75": 101.317,
+     "Vmax": 116.315,
+     "roc": 2.02025,
+     "LD": 14.776,
+     "TOgrass": 58,
+     "cgMAC": 68.1017,
+     "sm": 4.40105
+    },
+    "mtow": {
+     "mass": 191,
+     "Vs": 43.4379,
+     "V75": 99.3353,
+     "Vmax": 115.103,
+     "roc": 1.5454,
+     "LD": 14.776,
+     "TOgrass": 91,
+     "cgMAC": 69.0298,
+     "sm": 4.32702
     }
    }
   }

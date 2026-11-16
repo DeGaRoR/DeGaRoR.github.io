@@ -215,6 +215,35 @@ Object.assign(REFS, {
       TO:    { v: 350 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '350 ft' },
       LDG:   { v: 300 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '300 ft' },
     } },
+  // RUPPERT ARCHAEOPTERYX (Ruppert Composite, Switzerland; the foot-launched microlift glider, HB-WXA). The figures are the
+  // GLIDER's (the 2005 type; the maker's and the encyclopedia's): the build carries an electric pusher as the Electeryx
+  // does, whose drive (~18 kg, futureDesigns/archaeopteryx/STUDY.md section 2) no source weighs - so the empty row is
+  // the glider's, and the build reads heavy against it by the drive at least. Climb and take-off are the electric
+  // version's (one thin source). Read 15 Nov 2026 through search excerpts (the pages themselves are outside this
+  // session's network): what the excerpts state is what is written here.
+  archaeo: {
+    name: 'Ruppert Archaeopteryx (foot-launched glider; the build: an electric pusher, as the Electeryx)', mtow: 191, empty: 54, fuelL: 0, S: 12.8,
+    variant: 'Ruppert Composite Archaeopteryx, the 2005 glider (13.6 m); the electric drive is the Electeryx\'s, unweighed',
+    sources: {
+      wiki:  { what: 'Wikipedia "Ruppert Archaeopteryx", Specifications (from the Sailplane Directory, the maker\'s site and flight manual): span 13.6 m, empty 54 kg, gross 160 kg, max take-off 191 kg, L/D 28, min sink 0.50 m/s, stall 30-39 km/h, cruise 57 km/h, VNE 130 km/h; pilot 55-100 kg',
+               quality: 'encyclopedia', read: '2026-11-15', url: 'https://en.wikipedia.org/wiki/Ruppert_Archaeopteryx' },
+      maker: { what: 'Ruppert Composite, archaeopteryx.ch: "the lightest sailplane in the World (61 kg | 134 lbs)", glide ratio 28, sink 0.5 m/s | 98 fpm',
+               quality: 'maker', read: '2026-11-15', url: 'http://www.archaeopteryx.ch/en/index.php' },
+      fai:   { what: 'FAI CIAM Flyer 3/2011, "The flying capabilities of the Archaeopteryx": unladen 54 kg, span 13.6 m',
+               quality: 'review', read: '2026-11-15', url: 'https://www.fai.org/sites/default/files/documents/ciam-flyer_3-2011-email.pdf' },
+      ostiv: { what: 'Hesselbarth & Ruppert, "Experiences with the Archaeopteryx", OSTIV 2015: the 54 kg empty includes the 6.7 kg cockpit cladding and the 5.5 kg parachute',
+               quality: 'review', read: '2026-11-15', url: 'https://www.pa.op.dlr.de/ostiv/Activities/2015Hesselbarth.pdf' },
+      elec:  { what: 'the Electeryx (search excerpt): take-off roll 50 m, climb 2.5 m/s fully charged, 11 min at full throttle',
+               quality: 'thin', read: '2026-11-15', url: 'https://all-aero.com/2025/03/28/ruppert-composite-archaeopteryx' },
+    },
+    poh: { vr: 1.15, vy: 1.30, flapTO: 0, flapLDG: 0, brake: 0.3, note: 'no handbook speeds in the sources: the cub\'s ratios; its flaps are glide-path brakes (45-70 deg), not lift flaps' },
+    rows: {
+      empty: { v: 54, tol: 0.15, src: '54 kg, parachute and cladding in (the maker now says 61 kg: tol 15 %); the GLIDER\'s', from: ['wiki', 'fai', 'ostiv'] },
+      Vs1:   { v: [30, 39], tol: 0.10, kg: 'unknown', flaps: 'unknown', src: 'stall 30-39 km/h (light to heavy pilot)', from: 'wiki' },
+      LD:    { v: 28, tol: 0.10, kg: 'unknown', src: 'glide ratio 28', from: ['wiki', 'maker'] },
+      roc:   { v: 2.5, tol: 0.20, kg: 'unknown', src: '2.5 m/s fully charged (the Electeryx)', from: 'elec' },
+      TO:    { v: 50, tol: 0.20, kg: 'unknown', flaps: 'unknown', surface: 'unknown', src: 'take-off roll 50 m (the Electeryx)', from: 'elec' },
+    } },
   // SOPWITH CAMEL F.1 (Clerget 9B 130 hp). Weights and dimensions agree across sources; the speed is one database's
   // (185 km/h) and the climb is not found stated as a rate: no climb row.
   camel: {
@@ -344,6 +373,9 @@ const GEO = {
   stearman: { dims: { span: 9.80, length: [7.39, 7.54], height: [2.79, 2.95], heightAs: 'level', S: [27.6, 27.7] },
               specs: { engine: 'Continental R-670 / W-670', hp: 220, nE: 1, blades: 2, empty: [876, 878], mtow: [1195, 1232], fuelL: 174, seats: 2 },
               src: 'PT-17 (search extracts above); fuel 46 US gal (THIN)' },
+  archaeo:  { dims: { span: 13.6, S: 12.8 },
+              specs: { engine: 'electric pusher (the Electeryx\'s ~10.5 kW)', hp: 14, nE: 1, empty: 54, mtow: 191, fuelL: 0, seats: 1 },
+              src: 'Wikipedia (span 13.6 m, 12.8 m2, AR 14.5; futureDesigns/archaeopteryx/STUDY.md section 1); the motor 10.5 kW (Wikipedia, via the study)' },
   carboncub:{ dims: { span: 10.36, S: 16.6 },
               specs: { engine: 'CubCrafters CC340', hp: 180, nE: 1, blades: 2, empty: 408, mtow: 599, fuelL: 91, seats: 2 },
               src: 'Carbon Cub SS: 34 ft span (Wikipedia CC11-160), wing area as the Cub family (THIN); 1320 lb / 900 lb / 24 gal' },
@@ -400,6 +432,7 @@ const PLANES = {
   skymaster:{ dropped: 'the user 8 Nov: not wanted in the set', label: 'Skymaster-alike (archetype card)', card: 'skymaster', ref: 'skymaster', group: 'archetype',
               note: 'an engine-configuration archetype, never hand-authored to the type: a light check' },
   // PETREL-LS (10 Nov): the V4.2, fitted round by round to the maker's three LS drawings (reports/evidence/PETREL-LS-2026-11-10)
+  archaeo:  { listRow: null, label: 'Ruppert Archaeopteryx, HB-WXA (the Archaeopteryx study, 10 Nov; an electric pusher)', short: 'Archaeopteryx', file: 'builds/archaeopteryx_2026-11-10.json', ref: 'archaeo', group: 'ultralight' },
   petrel42: { listRow: 41, label: 'Super Petrel V4.2 (fitted to the maker\'s LS drawings, 10 Nov)', short: 'Super Petrel', file: 'builds/candidates/superpetrel_V4_2.json', ref: 'petrel', water: true, land: true, group: 'seaplane' },
   petrelL:  { label: 'Super Petrel V4.1, land (claude/seaplanes-merge; PROVISIONAL)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', land: true, supersededBy: 'petrel42',
               branch: 'claude/seaplanes-merge', provisional: true, note: 'not flyable on water on that branch yet: land figures only, to redo once it flies' },

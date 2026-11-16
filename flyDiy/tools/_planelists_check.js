@@ -81,6 +81,7 @@ const named = [];
 const RF = require('./real_refs.js').PLANES;
 // planes REAL-FIGURES may test before their rows land (A0 12 Nov: named, never a red train): file -> why
 const PENDING = {
+  'builds/archaeopteryx_2026-11-10.json': 'the Archaeopteryx, HB-WXA (the user 15 Nov 10:00: under Reproductions; REAL-FIGURES tests it, real_refs PLANES.archaeo) - FLAGSHIP adds its Reproductions row (L40e), sets PLANES.archaeo.listRow to it and drops this entry in the same commit',
   // (REAL-CANON, 12 Nov: the Ruckus rows landed as 53 / 54; the struts card is a test plane in review/, not a PLANES row)
   'builds/candidates/jodel_geo.json': 'the Jodel D112 to the D.112 drawings and its 60 L tank (REAL-FIGURES canon): it REPLACES list:2 (the user 13 Nov, "ok default": one Jodel, like the Cessna) - FLAGSHIP re-points list:2 and drops this entry in the same commit (L40c)',
 };
