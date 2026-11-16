@@ -80,5 +80,36 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
   ok(C.indexOf('rainEye = rainAt(camera.position.x, camera.position.z, camera.position.y)') > 0 && C.indexOf('get rain() { return rainEye; }') > 0 && C.indexOf('S, init, rainAt,') > 0,
      "6c CLOUDS.rain is the eye's local rain, updated each frame; CLOUDS.rainAt is public"); }
 
+// 7 THE STREAKS ROUND THE EYE (src/viewer/rain.js + app.js syncRainFx; the shader itself is compiled on the page, by hand in a GPU slot)
+{ const fsx = require('fs'), px = require('path'), RF = require('../src/viewer/rain.js');
+  const SRC = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'rain.js'), 'utf8'), APP = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  // 7a the offsets: wrapped into [0, L) per box at any clock and any eye (a day's seconds x the fall is far past a float)
+  let bad = 0; const o = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], B = [[11], [27], [61]];
+  for (const t of [0, 1.5, 86400 * 3.7, 1e7]) for (const cam of [[0, 0, 0], [-15432.7, 812.2, 20311.1]]) {
+    RF.offsets(t, cam, [7.5, -3], RF.LOOK.vFall, B, o);
+    for (let b = 0; b < 3; b++) for (let i = 0; i < 3; i++) if (!(o[b][i] >= 0 && o[b][i] < B[b][0])) bad++; }
+  // the fall moves the field DOWN: one second later the y offset is vFall lower (mod L)
+  RF.offsets(100, [0, 0, 0], [0, 0], 6.5, B, o); const y0 = o[0][1]; RF.offsets(101, [0, 0, 0], [0, 0], 6.5, B, o);
+  const dy = ((y0 - o[0][1]) % 11 + 11) % 11;
+  ok(bad === 0 && Math.abs(dy - 6.5) < 1e-6, '7a the boxes\' offsets stay in [0, L) at any clock and eye; the field falls vFall a second', bad + ' out, ' + dy.toFixed(3) + ' m/s');
+  // 7b the counts: a dry eye draws none; the full tier at full rain 18 000 in three boxes, lean 4 000 in two; half rain half
+  const f1 = RF.ranges('full', 1), l1 = RF.ranges('lean', 1), f5 = RF.ranges('full', 0.5), z = RF.ranges('full', 0), off = RF.ranges('off', 1);
+  const drawn = r => r.R.reduce((a, x) => a + x[2], 0);
+  ok(drawn(f1) === 18000 && f1.R.filter(x => x[2] > 0).length === 3 && drawn(l1) === 4000 && l1.R.filter(x => x[2] > 0).length === 2 && drawn(f5) === 9000 && z.count === 0 && off.count === 0,
+     '7b the drops: full 18 000 / 3 boxes, lean 4 000 / 2, half rain half, a dry eye or the off tier none', [drawn(f1), drawn(l1), drawn(f5), z.count, off.count].join(' / '));
+  ok(RF.density(0, {}) === 0 && RF.density(1, { cockpit: true, V: 80 }) === RF.LOOK.cockpitK && RF.density(1, { cockpit: true, V: 0 }) === 1 && RF.density(0.6, {}) === 0.6,
+     '7c the density: the local rain; in the cockpit at speed down to cockpitK (the windscreen carries the rest), parked whole');
+  // 7d the program: no texture, no sampler, MATLIB's shader only, GLSL3 (gl_InstanceID), the cabin and the roofs in the vertex shader
+  const shader = RF.VERT + RF.FRAG;
+  ok(!/sampler|texture/.test(shader) && !/new THREE\.[A-Za-z]*Material/.test(SRC) && SRC.indexOf("MATLIB.make(THREE, 'shader', {") > 0 && SRC.indexOf('glslVersion: THREE.GLSL3') > 0 && RF.VERT.indexOf('gl_InstanceID') > 0,
+     '7d the program: no texture, no sampler; made by MATLIB (GLSL3, the drops from gl_InstanceID)');
+  ok(RF.VERT.indexOf('uCabinInv') > 0 && RF.VERT.indexOf('uRoofA[') > 0 && RF.VERT.indexOf('uLen.y') > 0 && RF.VERT.indexOf('uLen.z') > 0 && RF.VERT.indexOf('uPx.z') > 0,
+     '7e each streak: cut in the cabin box and under a roof, clamped in the world and on screen, at least minPx wide');
+  // 7f LAZY: the page makes it only when the eye's rain is above 0 and the tier is not off; ?rain=0 never makes it
+  const sy = APP.slice(APP.indexOf('function syncRainFx(dt) {'), APP.indexOf("window.RAIN_LIVE ="));
+  const guard = sy.indexOf("if (!(R > 0) || tier === 'off'"), make = sy.indexOf('RAIN_FX.make(THREE)');
+  ok(guard > 0 && make > guard && sy.indexOf("RAIN_Q === 0 ? 'off'") > 0 && APP.indexOf('if (!inGarage) syncRainFx(running ? fdt : 0);') > 0,
+     '7f the program is made the first time it rains near the eye, never on a dry day or under ?rain=0; synced each frame out of the shed'); }
+
 console.log('GATE RAIN: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
