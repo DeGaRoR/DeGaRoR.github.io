@@ -114,6 +114,8 @@ const COWL_ROWS = [
     { k: 'keelRound', label: 'bottom line: fullness (cone → round)', lo: 0, hi: 1, step: 0.01 },
     // KEEL-LEVEL (16 Nov, the 172): the bottom leaves the firewall level as SEEN from the side (the axis's climb cancelled)
     { k: 'keelLevel', label: 'bottom line: leaves the firewall level (as seen)', lo: 0, hi: 1, step: 1 },
+    // DECK-LEVEL (16 Nov): the same for the top line (absent 0)
+    { k: 'deckLevel', label: 'top line: leaves the firewall level (as seen)', lo: 0, hi: 1, step: 1 },
     // PROPER-COWLS V5: the top line's own bend (absent = the bowl's pair)
     { k: 'deckShoulder', label: 'top line: carries the barrel (bend late)', lo: 0, hi: 0.92, step: 0.01 },
     { k: 'deckRound', label: 'top line: fullness (cone → round)', lo: 0, hi: 1, step: 0.01 },

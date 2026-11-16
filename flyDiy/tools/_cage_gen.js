@@ -3982,6 +3982,32 @@ function cageCut(m, S) {
     for (const [k, mats] of own)
       if (mats.has('windshield') && mats.has('waistband'))
         m.wsBase.push(k.split('_').map(Number));
+    // WS-TO-WAIST (16 Nov, the user: "why don't you render the dash?"): the strip under the glass is glass, so there
+    // is no windshield / waistband edge and the dash was silently skipped. The base is then the glass's own LOW edge
+    // against the skin: the edges a windshield face shares with a non-glass face, lying (|dy| under half their run)
+    // and in the screen's lowest fifth - the pillar sides stand, the roof edge is high. Absent row: never reached
+    if (!m.wsBase.length && S.wsToWaist) {
+      const GL = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows']);
+      let y0 = 1e9, y1 = -1e9;
+      for (const f of F) if (f.m === 'windshield') for (const vi of f.v) { y0 = Math.min(y0, V[vi][1]); y1 = Math.max(y1, V[vi][1]); }
+      const yCap = y0 + (y1 - y0) * 0.2, own2 = new Map();
+      for (const f of F) {
+        if (f.v.length < 3) continue;
+        const gl = f.m === 'windshield' ? 1 : GL.has(f.m) ? 0 : 2;
+        if (!gl) continue;
+        for (let e = 0; e < f.v.length; e++) {
+          const k = cageEdgeKey(f.v[e], f.v[(e + 1) % f.v.length]);
+          if (!own2.has(k)) own2.set(k, 0);
+          own2.set(k, own2.get(k) | gl);
+        }
+      }
+      for (const [k, b] of own2) {
+        if (b !== 3) continue;
+        const [a, c] = k.split('_').map(Number), p = V[a], q = V[c];
+        const run = Math.hypot(p[0] - q[0], p[2] - q[2]);
+        if (Math.abs(p[1] - q[1]) < run * 0.5 && Math.max(p[1], q[1]) <= yCap) m.wsBase.push([a, c]);
+      }
+    }
   }
   const groups = (kind, filt) => {
     const idx = [];
