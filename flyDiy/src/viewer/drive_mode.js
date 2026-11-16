@@ -171,6 +171,22 @@
     // pivots; they leave the body and become the rig's wheels, each about its hub in the sheet's frame (its axle on z:
     // the rig spins it about z and steers it about y), matched to the sheet's nearest wheel
     holder.updateMatrixWorld(true);
+    // LEVEL ON THE HUBS: parked.js stood the record as an aeroplane (its resting pitch off the mains and a third wheel) -
+    // the van came out ~1.8 deg nose-up (the front hubs 10 cm over the sheet's). Turned about z so the front and rear
+    // hubs lie as the sheet's do, then lifted so the rear hubs sit at the sheet's rear axle height
+    if (parts.length >= 2 && src.sheet.wheels) {
+      const hubOf = list => { const v = new T.Vector3(); list[0].getWorldPosition(v); return v; };
+      const avg = (L, f) => L.reduce((a, q) => a + f(q), 0) / L.length;
+      let H = parts.map(hubOf); const xMax = Math.max(...H.map(h => h.x)), xMin = Math.min(...H.map(h => h.x));
+      const SW = Object.values(src.sheet.wheels).map(w => w.centre), sMax = Math.max(...SW.map(c => c[0])), sMin = Math.min(...SW.map(c => c[0]));
+      const SF = SW.filter(c => c[0] > sMax - 0.3), SR = SW.filter(c => c[0] < sMin + 0.3);
+      const want = Math.atan2(avg(SF, c => c[1]) - avg(SR, c => c[1]), avg(SF, c => c[0]) - avg(SR, c => c[0]));
+      const F = H.filter(h => h.x > xMax - 0.3), R = H.filter(h => h.x < xMin + 0.3);
+      const have = Math.atan2(avg(F, h => h.y) - avg(R, h => h.y), avg(F, h => h.x) - avg(R, h => h.x));
+      holder.rotation.z = want - have; holder.updateMatrixWorld(true);
+      H = parts.map(hubOf); const R2 = H.filter(h => h.x < Math.min(...H.map(q => q.x)) + 0.3);
+      holder.position.y += avg(SR, c => c[1]) - avg(R2, h => h.y); holder.updateMatrixWorld(true);
+    }
     // (the holder has no parent yet: its WORLD frame is the sheet's - the rig hangs the holder in the sheet's frame as is)
     const wheels = {}, inv = new T.Matrix4(), hubW = new T.Vector3(), hubs = [];
     const ids = Object.keys(src.sheet.wheels || {});

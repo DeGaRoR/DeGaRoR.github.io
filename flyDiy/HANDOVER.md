@@ -317063,3 +317063,23 @@ CAR - THE VAN IS THE STOCK CAR (15 Nov, the user: "Yes, the van is the default, 
   OWED: the plate's and the tow sign's textures in the game (propBuild knows neither: the bucket colour shows); a
   capture under the boot screen (or a cooked record) would take the first-drive wait away; the van's wheels spinning.
   GATES: VEHICLE DRIVE-TRIP TRAILER UISMOKE PASS; TOW run alone (its CIRCUIT archaeopteryx red is the card's, named).
+
+CAR - THE STOCK VAN'S WHEELS, TEXTURES, SIGN (16 Nov, the user: "No further load on the global loading screen ...
+  only take the hit when required ... Make the wheels spin and the textures show. The tow service sign ... span the
+  whole area on top of the windshield"). LOADING: the van is captured only on demand (drive_mode.js stockVan, the first
+  drive / line tow / trailer tow that needs it) - nothing on the boot screen. WHEELS: _cage_join.js - with four or more
+  contacts a wheel mesh goes to the NEAREST contact of any kind (the van's front pair classes as 'tw' while its groups
+  are edWheelL / R: both left wheels had landed in one part), so each car wheel is its own part about its own axle
+  (aeroplanes: the name rule as before). drive_mode.js vanMesh: parked.js merges a record per material (the near rung
+  too), so the BODY is built from a copy of the record without its wheel parts (its own key: its own cut and bake) and
+  each wheel part is drawn alone (PARKED.levelMeshes; the tyres on CAGE_WHEELTEX, the rest plain in the record's
+  colour) in build()'s frame, then handed to the rig (matched to the sheet's nearest wheel in the holder's WORLD frame =
+  the sheet's): they spin and the front pair steers. The body LEVELLED on the hubs (parked.js stood it as an aeroplane:
+  ~1.8 deg nose-up, the front hubs 10 cm high). DRIVE_MODE.vanInfo (parts, hubs, matched) for the page rigs; check:
+  4 parts, hubs [0.52, 0.46, +-0.97] / [3.72, 0.45, +-1.03], matched RR RL FR FL. TEXTURES: window.CAGE_CARTEX
+  (_cage_gear.js) - the plate's and the tow sign's canvas faces from ONE factory keyed by what they show (JSON: plate
+  top/main/bottom/bg/fg, sign text/aspect); the material carries userData.carTex, the join keeps it (its bucket, its uv),
+  app.js and parked.js rebuild it: the game's plate reads HF 1003. THE SIGN: the header's whole width (the windscreen's
+  top edge, 3 % in each end) and its height the larger of 88 % of the found band and 70 % of the glass-top-to-roof gap.
+  GATES: VEHICLE JOIN KNIFE GEAR CAGEFIT LIVERYREACH DESIGN DRIVE-TRIP TRAILER UISMOKE PASS; PARTS red on master's
+  canClear only (named, ARCHAEOPTERYX's).
