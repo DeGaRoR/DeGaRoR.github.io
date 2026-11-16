@@ -316874,3 +316874,123 @@ GATES on this branch (its final tree, re-cooked; node only, jobs 2):
   NOT RUN: SKISARDENT on this branch alone (it SKIPs without SKIS - flown above on the scratch with skis-pc6), RWYTREES (the
   runner's 1800 s on a merged tree: PASS run directly on OBSERVATORY-2's tree, no strip box added since), FRAMECOST / the
   parked cook (GPU), the full tier.
+
+## SKIS - ONE SKI LANDING GEAR FOR EVERY AEROPLANE (cloud session SKIS, 13 Nov 2026)
+
+The user (13 Nov): a generic ski gear, "one main type and a few options, not a list of 10"; dimensions adjustable;
+PHYSICS STOPS ABERRATIONS (the ski's area sets the contact pressure); no wheel brakes on straight skis; mass, drag and
+price paid; drawn by the gear generator, WYSIWYG. The reference ski (the user's photographs and the maker's sheet): the
+Summit Aircraft SS2300 - "the Pilatus uses similar skis". Design note futureDesigns/SKIS-2026-11-13.md (the model, the
+soft-ground interface, the rows, the cuts); A0's research futureDesigns/SKI-REFERENCES-2026-11-13.md; evidence
+reports/evidence/SKIS/README.md.
+
+- ONE SKI (src/core/29c_ski.js `skiPlan`, the drawing and the physics read the same outline): the shell on UHMW bottom
+  skins, the aft beam keeping 0.57 of the width inboard, the wheel's cutout outboard from 0.49 of the length, the toe a
+  half-round upturned, the pedestal 0.585 from the toe. THREE MOUNTINGS (`gear.ski.kind`): 'plain' (the wheel off, no
+  brake), 'wheel' (the wheel beside the ski, 3 cm below the sole: the SS2300's), 'retract' (the hydraulic wheel-ski:
+  the PC-6's; ctl.ski 1 down / 0 up, unset it follows the surface). OPTIONS: the tail / nose ski (`third`), the heel
+  wheel. ABSENT IS AS TODAY: no key, the def, the sheet and 300 flown steps of seven builds identical to the core
+  before the skis (GATE SKIS 1, tools/fixtures/skis/base.json - re-bless with `--bless` in a base worktree if a
+  chantier landing first moves them).
+- THE PHYSICS (30_solver `skiGround`): per ski node two ELEMENTS, the sole and the tyre; on hard ground the node's
+  spring, the tyre's share handed back to the wheel pass bit for bit (brakes, twLine); the sole slides (SKI_HARD_MU,
+  no brake) and grips sideways with a keel's slope (SKI_RULES.cn). On a SOFT layer the plastic Bekker law over each
+  element's own area, the rut's memory, compaction + bulldozing, planing past the hump.
+- THE SOFT GROUND, THE SNOW-MUD INTERFACE: `world.soft(x, z)` -> null (hard: every world today) or { kind, depth, k,
+  vP, kEl, plough, muSki, muSki0, muAlu, latSki, roll, muBrake, muLat } (terrainH is the layer's TOP). SOFT_GROUND
+  presets (powder, packed, wet, ice); SKI_SOFT the per-element law (a wheel on snow can read it: SNOW-MUD's to wire).
+- MASS / PRICE / DRAG: by the skins' area, the shell's material (carbon solved on the SS2300's 27 lb, aluminium, glass)
+  and the mounting; a plain ski replaces its wheel. The frame bills it (parts.ski), 62 adds its CdA (drag.ski).
+- THE DRAWING (tools/_gear_gen.js `ski`, `skiRigRun`; tools/_cage_gear.js the "skis" rows, all absent at default -
+  GEN_SKI_ROW_OFF / CAGE_DEFAULT_ABSENT, skiPos never saved; the join writes spec.gear.ski from CAGE_GEAR.skis; app.js
+  ski rigs pose each ski on its axle node by out.skiPitch / out.skiDy, the tail ski inside the castor, the rigging
+  runs stretched pin -> lug).
+- GATES: SKIS (core, ~4 min: absent, the spec, mass/price/drag, drawn = flown, the area sets the pressure, no brakes,
+  the selector, THE BELLY POD on the Carbon Cub end to end) and SKISFLY (full: the circuits on powder).
+- THE BELLY POD (the user: "the garage has it, nothing uses it"): fitted on the Carbon Cub (tools/fixtures/skis/
+  carbon_cub_ss_pod.json): mass/CG, drag, clearance, the freight packed into it and strapped onto its nodes all work
+  (GATE SKIS 8). THE OPEN POINT: a player's build has no freight card (FREIGHT_CARDS holds the catalogue's designs;
+  freightLoadCard / app.js frCard return null - FREIGHT-MODEL's open point): the career cannot load the pod of a
+  garage build. The gate measures a card off the aeroplane (tools/_freight_site.js) to prove the rest of the chain.
+- Rigs drop the aeroplane level from reset; the game stands it in three-point first (sim.stance()): a tail ski on a
+  marginal tail (FIT-PROCEDURE's PC-6 card: its aft belly 1 cm off the ground) can settle on its belly after the drop.
+  The ski rigs and GATE SKIS take the stance, as the game does.
+- THE CUTOUT IS THE TYRE'S (the user: "the wheel has to be able to go down through the little opening"): skiPlan
+  starts the cutout forward of the axle by the tyre's chord at the deck's and the skins' top at its lowest (skis up)
+  + 3 cm + the fillet, the tyre's inner wall 15 mm off the beam's skins, the tyre's width the drawn carcass's
+  (skiTyreW); GATE SKIS 4 walks the tyre through every height. The Carbon Cub's SS2300s are WHEEL-SKIS (gearSki 3).
+- THE CONTROLS: input action `ski` (key 0; under the AP too, the gear key's rule); THE CONTROL BOX, an ADD-ON (the
+  user: "clearly bolted on after the fact"): _cage_panel skiAddonAt - a 4 x 2 in bent aluminium box (its parts at their
+  standards' sizes: MS35058 toggle, MS25041 lamps, Klixon 7277 breaker, 3/8 in tape, 1 in pitch) hung under the panel's
+  lower edge at the first spot clear of the panel's own parts, on a screwed flange, the toggle (law 'ski', clickable), amber PUMP / green DN lamps (law
+  'skiLamp' off out.ski), a breaker, tape labels, its loom (after Wipaire's Fli-Lite 4000 ICA and Airglas' manuals).
+- THE LOAD DOOR AND THE POD: tools/_load_build.js now hands the spec to the pod layer (CAGE_POD.fromSpec) where the
+  page's applySpec does - every headless look (quick_view, quickshot, the gates' scenes) drew no belly pod before.
+- READY (13 Nov, for L40d): claude/ready/skis = master 6a8d705c (train L40a) + the SKIS commits rebased (the conflicts:
+  60_gen_spec / 61_gen_frame - L40a's GEN_BRAKES and the skis side by side, a straight ski drops the brakes with its
+  wheel; 90_node_exports - the ski exports on L40a's list; this file - master's bytes + this block, CRLF). The PC-6
+  validation card is FIT-PROCEDURE's card as landed (fuel 1257 L) + the ski rows; GATE SKIS's no-ski witnesses
+  re-blessed on 6a8d705c (tools/fixtures/skis/base.json).
+- GATES on the rebased tree (cloud, 4 cores, no GPU; --all does not finish here: 18 of 363 jobs in 2 h): PASS SKIS,
+  PANEL, INPUT, PARTS, UISMOKE, UISMOKE-PHONE, DRAFTING, GROUNDQUERY, TAILWHEEL, DRAG, MASS, GEARFALL, WILGAGEAR,
+  CARDDRAG, GROUNDLIB, JOIN, GEOPARITY, SPECFIX, GEAR, FLOATS, FLOATSCLASSIC, PODEDITOR, CERTGATES, PRICE, FREIGHT,
+  AERO, STRIPGROUND, GENPAIRS. RED AND MASTER'S (the same checks, the same bytes, on a clean 6a8d705c worktree in this
+  container): STOL (spitfire fly vs dea18da34), POD (pod off vs its base's bytes), CANDIDATES (pc6_drafting not in
+  builds/candidates/index.json), GEN (cruise is quiet in wind), DESIGNCHECK (the carbon boom's post), CREWLOAD (the
+  clock's retry), LOAD (the glass cantilever), JOINPARITY. FRAMECOST: the stale PARKED COOK - the parked packs' sig
+  holds FLYDIY_BUILD, a new core refuses them and the census captures live (+124 draws, shadows, uniforms); with
+  FRAMECOST_QUERY='parkcook=0' on both trees the stand and the taxi are identical (two boot counters fall). The train's
+  cook (node tools/parked_cook.js, under the gpu lock) clears it. --all is the integrator's.
+
+## SKIS-PC6-2 - THE PC-6 ON SKIS AT ARDENT ON L40d: ONE SOFT GROUND WITH SNOW-MUD (DEEP SNOW), THE WHEELS ON THE GROUND (cloud session SKIS, 15-16 Nov 2026)
+
+A0 (Sun 15 Nov 00:50, the user's ask): "start the snow/mud finish now, with PC-6 SKIS in it" - the PC-6 (validated: its
+flight figures not re-tuned) on skis as the real Porter; THE ULTIMATE TEST, the user's: PC-6 + skis + snow at the
+OBSERVATORY's runway, flown in node, persona Expert, tabled; the skis sink and plume through SNOW-MUD's work - one contact
+API. claude/ready/skis-pc6 (e5cb2ad1d, on L40c) was dropped from L40d for conflicts; this is it rebased (A0 15 Nov):
+L40d fb8fb633b + SNOW-MUD's snow-mud-finish-l40d 192ae6a1b + claude/ready/skis 03f22959d + the SKIS-PC6 commits. Design
+note futureDesigns/SKIS-2026-11-13.md section 3; evidence and tables reports/evidence/SKIS-PC6/README.md.
+
+- ONE SOFT GROUND, SNOW-MUD'S: the skis read the SURFACE code (8 packed, 9 powder, 10 wet, 11-12 mud), GROUND_SOFT[code],
+  GROUND_SKI_MU[code] and SNOW-MUD's laws groundSinkPlate (a sole) / groundSinkWheel + groundBullWheel (a wheel-ski's
+  tyre). world.soft / SOFT_GROUND retired. A ski's own needs are OPTIONAL FIELDS ON SNOW-MUD'S ROWS (set from 29c): skis,
+  vP (planing), lat, plough, and fresh {k, n, z} - a virgin top a SOLE reads, ONLY OVER A SETTLED BASE (a row stiffer than
+  it): on DEEP SNOW's virgin rows (powder k 2e5, wet 4e5) it is off - read twice it sank the Carbon Cub's skis 20.5 cm,
+  never off (SNOW-MUD's doc carries the correction). A wheel-ski's tyre pays DEEP SNOW's bulldozing in the ski pass.
+- THE RUT, A MOVING DATUM: each ski element's rut deepens (0.06 s, plastic) toward SNOW-MUD's quasi-static sinkage; the
+  node's own ground spring acts from its floor. def.refs.skis[k].posed = true (SNOW-MUD's visual drop leaves them out).
+  The plume and the visual sinking are SNOW-MUD's (data: def.refs.skis, out.skiSink / skiLoad, out.ski).
+- ROUGH GROUND (SNOW-MUD's tandem cam, on L40e's snow-mud-finish-l40d): the cam is a WHEEL's - a ski node (def.refs.skis)
+  stays out of WHL and reads the point probe, as SNOW-MUD stated; nMainW counts the mains left in it.
+- ON L40c/L40d: L40c's TIP-SKID declares SKD in the solver's scope; SNOW-MUD's soft-wheel diameter is SKDIA - the ski
+  pass's own use carried SKD after the rebase (it built silently: a 0/1 flag as a diameter): fixed. The gen frame's ski
+  price / masses sit beside MONOWHEEL, the BICYCLE wheel and REAL-CANON's carcass law (mWheel); a monowheel gets no ski.
+  GATE SKIS weighs a plain ski's removed wheel by BUSH-WHEELS' law (the tundra 9.3 kg, not 16.1).
+- THE PC-6 ON SKIS (the Porter's factory option): hydraulic main WHEEL-SKIS + a tailwheel ski, FIT-PROCEDURE's card + the
+  ski rows (tools/fixtures/skis/pc6_skis.json). The tail ski rides node TW: FIT-PROCEDURE's oleo tail (telePass moves TW)
+  carries it with the stroke - nothing to add (their pc6-tail-refs re-derives pc6_skis.json and re-flies SKIS/SKISARDENT).
+- THE PILOT (43_pilot SKISEL; nothing without a hydraulic wheel-ski): in the air, the DESTINATION's ground before the
+  approach (skis down over a ski row); ON THE GROUND it TAXIS AND LINES UP ON ITS WHEELS (the brakes, the pivot) and AT THE
+  HOLD sets the skis for the strip it rolls on, and waits for the cycle (out.ski). From OBSERVATORY-3's turned stand, with
+  the skis down (the solver's own rule over the packed apron), the PC-6 broke its tail in the pivot - no brakes, 2.9 m
+  soles across the turn; lowered on reaching the powder it could not finish its line-up turn on them.
+- THE RESET SNAP measures the mains' gap and turns the airframe about the tail contact (the game stands it on its tyres).
+- GATE SKISARDENT (full tier, tools/_skis_ardent.js): the four ski legs; the take-offs FROM THE STAND where it faces the
+  take-off (measured in the game's placement, < 60 deg: OBSERVATORY-3's hdg 0), else from the line-up (L40d: 90 deg); the
+  run measured from the hold; the record's own snow off the strip (OBSERVATORY-3's packed apron). RE-PIN (its own commit):
+  the packed landing holds NO DAMAGE ON THE STRIP and NO BREAK; past the top end the ground rises 4.5 m in 20 m and the 19 m
+  overrun meets it at 1.1 m/s (624 yields, no break) - reported, the engine's gap.
+- THE GATES (16 Nov, claude/ready/skis-pc6-2 on 192ae6a1b): SKIS, SKISARDENT (5/5 from the line-up; 5/5 from the stand on
+  an overlay of OBSERVATORY-3), SKISFLY, SNOWFLY (the PC-6 on skis off powder), SOFTGROUND, ROUGHWHEEL, WHEELSIZE, SINKVIS,
+  MUDFLY, MUDCOAT, SNOWMUDFX (alone: its p99 cost row trips under a loaded machine), PILOT, PILOTCANFLY, PILOTS, PILOTACT,
+  TAKEOFF, LINEUP, RETRACT, MONOWHEEL, SEAPLANE, STOL, CREWLOAD, INPUT, PANEL, UISMOKE, STAND, STARTCHOOSER, COMMITHYGIENE:
+  PASS. RED ON THE BASE 192ae6a1b THE SAME ROWS (a git archive of it, by check name): GEN, ALTIPORT, UNIFY, DESIGNCHECK,
+  JOINPARITY, POD, CANDIDATES, LOAD, PARTS (canClear unclaimed: 1454 vs 1455 there, 1471 vs 1472 here - the ski rows all
+  claimed), FRAMECOST (the same 51 rows).
+- THE BELLY POD (tools/fixtures/skis/carbon_cub_ss_pod.json, carbon_cub_ss_skis_pod.json) lands with this ref: GATE SKIS
+  holds its mass and balance, drag, freight and clearances - AIRCRAFT-LOOKS builds the yellow / metallic-grey Carbon Cub SS
+  with the pod from it (A0 15 Nov).
+- FOR A0 / THE OWNERS: ENGINE - the B2-H4's REVERSING PROPELLER is not in the game: on packed snow the PC-6 on skis
+  overruns Ardent by 19 m (into the bank). PILOT - the landing-run sheet assumes wheel brakes. OBSERVATORY-3 is not on L40d
+  (its cooked packs conflict with L40d's): SKISARDENT flies from the line-up until it lands, from the stand after.
+  FIT-PROCEDURE - the PC-6 contact: the tail ski on TW rides the oleo; pc6_skis.json follows their card.
