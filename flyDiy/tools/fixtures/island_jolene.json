@@ -15894,8 +15894,21 @@
     "falloff": 75,
     "site": null,
     "pattern": null,
-    "stand": null,
-    "taxiOut": null,
+    "stand": {
+     "x": -1316.49,
+     "z": -17598.73,
+     "hdg": null
+    },
+    "taxiOut": [
+     [
+      -1329.76,
+      -17614.13
+     ],
+     [
+      -1340.24,
+      -17626.21
+     ]
+    ],
     "taxiOut1": null,
     "profile": [
      [
@@ -40385,6 +40398,45 @@
         }
        }
       }
+     }
+    }
+   },
+   {
+    "id": "w3_toppad",
+    "name": "Fishing Village top pad",
+    "poly": [
+     [
+      -1070.24,
+      -2306.93
+     ],
+     [
+      -1108.88,
+      -2296.59
+     ],
+     [
+      -1119.23,
+      -2335.23
+     ],
+     [
+      -1080.59,
+      -2345.57
+     ]
+    ],
+    "props": {
+     "terraform": {
+      "kind": "flatten",
+      "level": 30.49,
+      "abs": true,
+      "falloff": 15,
+      "order": 0
+     },
+     "wheels": {
+      "surface": 6
+     },
+     "draw": {
+      "look": "gravel",
+      "band": 2,
+      "z": 0
      }
     }
    }
