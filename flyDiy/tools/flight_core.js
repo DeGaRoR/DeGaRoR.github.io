@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c8150549d805b9c6
+// body-sha256: 61429d7541f6b917
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36624,6 +36624,11 @@ const GEN_BRAKES = {
             note: 'Cleveland 30-9 class, one caliper a wheel' },
   double: { name: 'double-caliper heavy discs',  perWheelN: 2600, kg: 5.4, price: 3200,
             note: 'Beringer / Grove class, two pucks a wheel: the bush builds' },
+  // (the LS4-alike, 15 Nov, the user: "what about our wheel ... Is this billed accurately?"): A SAILPLANE'S WHEEL DRUM - one
+  // small drum in a 5 in glider wheel (Tost class), pulled by the airbrake handle's end of travel or a lever on the stick;
+  // INFERRED ~1 kg with its cable, a gentle hold (a glider stops on its skid and its wingtip as much as on its brake)
+  sailplane: { name: 'sailplane wheel drum', perWheelN: 450, kg: 1.0, price: 300,
+               note: 'one small drum in the main wheel (Tost class), on the airbrake handle\'s end of travel' },
 };
 // the build's brake row, or null (absent / unknown: the surface's friction, as it always was)
 function genBrakeOf(S) { const k = S && S.gear && S.gear.brakes; return (k && GEN_BRAKES[k]) || null; }
@@ -37626,7 +37631,11 @@ const GEN_RULES = {
   // light too, no need for a user choice"): a glider's - the pilot's lever, a push rod to an over-centre link, a gas strut,
   // two doors on hinges and springs - retractKg on the axle (not GEN_RULES.retractKg's powered kit, 12 kg at the least),
   // retractPrice; the tail wheel stays down. INFERRED: a 15 m sailplane's gear retraction weighs well under a kilogram
-  ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4, retractKg: 0.6, retractPrice: 600 },
+  // (retractKg 0.6 -> 2.0, 15 Nov, the user: "what about our wheel retraction system? Is this billed accurately?" - 0.6
+  //  counted the lever alone: a Standard Class's manual retraction is the steel swing frame the fork hangs in, the
+  //  over-centre link, the handle and its push-rod down the cockpit, the gas strut, the two doors and their springs and
+  //  the well's own moulded box - INFERRED ~2 kg, the wheel and its fork apart)
+  ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4, retractKg: 2.0, retractPrice: 600 },
   // AIRBRAKES (the user, 15 Nov, the LS4: "We can model airbrakes, along with their dashboard control"): a sailplane's
   // Schempp-Hirth plates - a pair of boxes in the wing behind the spar, each a plate that rises out of the upper skin
   // on a parallelogram when the blue handle is pulled. Unlike a flap (which cambers the section: more lift at a given
