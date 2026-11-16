@@ -186,8 +186,12 @@ console.log('GATE GFX');
   const twice = inG.filter((k, i) => inG.indexOf(k) !== i), none = keys.filter(k => !inG.includes(k)), alien = inG.filter(k => !keys.includes(k));
   ok(!twice.length && !none.length && !alien.length, 'every option in exactly one group' +
      (twice.length ? ' - twice: ' + twice.join(', ') : '') + (none.length ? ' - in none: ' + none.join(', ') : '') + (alien.length ? ' - not an option: ' + alien.join(', ') : ''));
-  ok(G.GROUPS.map(g => g.label).join('|') === 'performance|light & shadows|terrain & vegetation|water|sky|post-fx|town',
-     'the seven groups of PLAYTEST-2026-09-26 §3, in its order: ' + G.GROUPS.map(g => g.label).join(' · '));
+  // CONTROLS-STRIP (the user 16 Nov, "a switch in Graphics > Interface"): the seven, then the eighth fold, `interface`
+  ok(G.GROUPS.map(g => g.label).join('|') === 'performance|light & shadows|terrain & vegetation|water|sky|post-fx|town|interface',
+     'the seven groups of PLAYTEST-2026-09-26 §3, in its order, then interface (CONTROLS-STRIP): ' + G.GROUPS.map(g => g.label).join(' · '));
+  ok(keys.includes('ctlstrip') && G.OPTIONS.find(o => o.k === 'ctlstrip').free && G.get().ctlstrip === 'on' &&
+     Object.keys(G.PRESETS).every(p => !('ctlstrip' in G.PRESETS[p])),
+     'the controls strip: a free row, on by default, set by no preset (CONTROLS-STRIP)');
   ok(G.GROUPS[0].rows.slice(0, 3).join() === 'fps,scale,aa', 'performance carries the frame rate, the scale and the smoothing (the preset heads it)');
   const collect = grouped => {
     const got = { rows: [], pills: [], secs: [] };

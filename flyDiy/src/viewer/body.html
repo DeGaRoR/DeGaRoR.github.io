@@ -248,6 +248,23 @@
     </div>
   </div>
 
+  <!-- THE CONTROLS STRIP (CONTROLS-STRIP, the user 16 Nov: "option A"): what the hands are doing, bottom centre, read
+       THROUGH like the PFD's plate - the stick (a dot, its last half second as a trail, the trim's arrow), the rudder,
+       the toe brakes, the throttle, the flaps, and the gear on a retractable only. Amber while the autopilot flies, white
+       by hand, the AP/HAND tag saying which. app.js ctlStrip() writes it from the HUD's tick (0.1 s), transforms only;
+       Graphics > interface > controls strip turns it off. The PFD's own throttle cell stays. -->
+  <div id="ctlStrip" class="flPlate ap" hidden aria-hidden="true">
+    <div class="csSide"><span class="csTag" id="csTag">AP</span><span class="csLab" id="csTrimT">TRIM</span></div>
+    <div class="csMid">
+      <div class="csStick"><i class="csAx csAxV"></i><i class="csAx csAxH"></i><i class="csTrim" id="csTrim"></i><i class="csTr"></i><i class="csTr"></i><i class="csTr"></i><i class="csTr"></i><i class="csDot" id="csDot"></i></div>
+      <div class="csRud"><i class="csRudC"></i><i class="csRudM" id="csRud"></i></div>
+      <div class="csToe"><i><b id="csToeL"></b></i><i><b id="csToeR"></b></i></div>
+    </div>
+    <div class="csCol"><div class="csBar"><b id="csThr"></b></div><span class="csLab">THR</span><span class="csNum" id="csThrT">0 %</span></div>
+    <div class="csCol"><div class="csBar csFlapBar"><b id="csFlap"></b></div><span class="csLab">FLAP</span><span class="csNum" id="csFlapT">UP</span></div>
+    <div class="csCol" id="csGearC" hidden><i class="csLamp" id="csGear"></i><span class="csLab">GEAR</span><span class="csNum" id="csGearT">DOWN</span></div>
+  </div>
+
   <!-- THE VERBS, BOTTOM RIGHT (the user: "the action buttons back on the
        bottom right"). Their own surface, not a passenger on the top row: the
        top row is WHAT YOU FLY and this is WHAT YOU DO, and with the look

@@ -1320,6 +1320,35 @@ try {
       if (!/^Autopilot: ON/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' on the autopilot');
       console.log('the autopilot toggle (G3325): in sight, on by default, handed over and back');
     }
+    // CONTROLS-STRIP (the user 16 Nov, variant A): the hands at the bottom of the flight screen - shown in flight by
+    // default, amber/AP on the autopilot and white/HAND by hand, its marks moved by transforms off sim.ctl, the gear cell
+    // only on a retractable, and Graphics > interface > controls strip turning it off and back on
+    {
+      const AP = sandbox.window.FLYDIY_AP, G = sandbox.window.GFX, s = sandbox.window.FLIGHT_PROBE.sim();
+      frames(12);
+      const cs = els['ctlStrip'];
+      if (!cs) throw new Error('#ctlStrip was never asked for (app.js ctlStrip, CONTROLS-STRIP)');
+      if (cs.hidden) throw new Error('#ctlStrip is hidden in flight (CONTROLS-STRIP: on by default)');
+      if (!cs.classList.contains('ap') || els['csTag'].textContent !== 'AP') throw new Error('#ctlStrip is not amber/AP on the autopilot (tag ' + JSON.stringify(els['csTag'].textContent) + ')');
+      const tf = els['csDot'] && els['csDot'].style.transform;
+      if (!/^translate\(-?\d+(\.\d)?px,-?\d+(\.\d)?px\)$/.test(tf || '')) throw new Error('the stick dot is not moved by its transform (' + JSON.stringify(tf) + ')');
+      const thrT = els['csThrT'].textContent, want = Math.round(Math.max(0, Math.min(1, s.ctl.thr || 0)) * 100) + ' %';
+      if (!/^\d+ %$/.test(thrT)) throw new Error('the strip\'s throttle reads ' + JSON.stringify(thrT));
+      if (!/^scaleY\(/.test(els['csThr'].style.transform || '')) throw new Error('the throttle bar is not scaled by its transform');
+      const retract = typeof (s.out && s.out.gear) === 'number';
+      if (els['csGearC'].hidden === retract) throw new Error('the gear cell is ' + (retract ? 'hidden on a retractable' : 'shown on a fixed gear'));
+      AP.set(false); frames(12);
+      if (cs.classList.contains('ap') || !cs.classList.contains('hand') || els['csTag'].textContent !== 'HAND') throw new Error('#ctlStrip did not turn white/HAND by hand');
+      AP.set(true); frames(12);
+      if (!cs.classList.contains('ap')) throw new Error('#ctlStrip did not turn amber again when the autopilot took it back');
+      if (!G || !G.GROUPS.some(g => g.k === 'ui' && g.rows.includes('ctlstrip'))) throw new Error('Graphics has no interface fold with the controls strip');
+      G.set('ctlstrip', 'off'); frames(12);
+      if (!cs.hidden) throw new Error('#ctlStrip still shown with Graphics > interface > controls strip off');
+      G.set('ctlstrip', 'on'); frames(12);
+      if (cs.hidden) throw new Error('#ctlStrip did not come back with the switch on');
+      console.log('the controls strip (CONTROLS-STRIP): in flight by default, AP amber / HAND white, transforms only, throttle ' + thrT +
+                  ' (ctl ' + want + '), gear cell ' + (retract ? 'shown (retractable)' : 'hidden (fixed gear)') + ', the interface switch off and on');
+    }
   }
 
   // ---- THE RAILS (G760, the Jolene playtest §3): five items, folds, DEV behind a toggle, nothing lost --------
