@@ -66,7 +66,8 @@ R.open('veg');
 const warn = all(ui).filter(e => (e.className || '').includes('wr-warn')).map(e => e._text);
 ok(!warn.some(t => /failed to build/.test(t)), 'vegetation builds', warn.join(' / ').slice(0, 200));
 const yt = labelled('young trees to'), cell = labelled('cell');
-ok(!!yt && !!cell && !!labelled('weeds to (outside)') && !!labelled('size at the edge'), 'the forest edge rows are there');
+ok(!!yt && !!cell && !!labelled('weeds to (past the reach)') && !!labelled('size at the edge') && !!labelled('trees reach out to') && !!labelled('size at the reach') && !!labelled('ramp inside'), 'the forest edge rows are there (the outward band, the old inside ramp, the band)');
+{ const rr = labelled('trees reach out to'); if (rr) { rr.value = '25'; rr.oninput(); } ok(BIO.knobs().edgeReach === 25, 'the outward band reach moves', 'edgeReach ' + BIO.knobs().edgeReach); BIO.setKnobs({ edgeReach: null }); }
 if (yt) { yt.value = '10'; yt.oninput(); }
 ok(BIO.knobs().edgeYoung === 10 && replants > 0, 'a forest edge slider moves the knob and replants', 'edgeYoung ' + BIO.knobs().edgeYoung + ', replants ' + replants);
 // TYPES: the subalpine
@@ -104,7 +105,8 @@ BIO.set(18, 'shore'); R.apply({ biomes: { map: L.biomes.map } }, false); ok(!BIO
 R.apply({ biomes: { map: { 2: 'heath' } } }, false); ok(BIO.map[19] === 'subalpine', 'a look without code 19 leaves the subalpine alone');
 // full import of the defaults resets
 R.importLook({ bioKnobs: {}, shrubCards: {} });
-ok(BIO.knobs().subH0 === 450 && BIO.knobs().edgeYoung === 6 && pack.collections[0].tint.alpha === 0.3, 'a full import without them resets to the shipped', 'subH0 ' + BIO.knobs().subH0 + ', alpha ' + pack.collections[0].tint.alpha);
+const SHIP = BIOMES.make({ biomes: { map: {}, mixes: {} } }).knobs();   // the shipped knobs, whatever they are
+ok(BIO.knobs().subH0 === SHIP.subH0 && BIO.knobs().edgeYoung === SHIP.edgeYoung && pack.collections[0].tint.alpha === 0.3, 'a full import without them resets to the shipped', 'subH0 ' + BIO.knobs().subH0 + ', alpha ' + pack.collections[0].tint.alpha);
 const ex = R.export(); ok(ex.where.bioKnobs && Array.isArray(ex.changes), 'the export names where they go', ex.changes.length + ' changes');
 console.log('GATE WORLDRAIL: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

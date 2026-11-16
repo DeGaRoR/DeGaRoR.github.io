@@ -809,6 +809,10 @@
     range(St, 'clumps: bare', 0, 0.9, 0.05, () => F().clump || 0, fs('clump'), v => v ? (v * 100).toFixed(0) + ' % of the ground bare' : 'off (an even stand)');
     range(St, 'clump size', 8, 80, 1, () => F().clumpM || 30, fs('clumpM'), v => v + ' m');
     range(St, 'canopy floor', 0, 20, 0.5, () => F().canopyFloor || 0, fs('canopyFloor'), v => v ? v + ' m' + (v >= 6 ? ' (the full stand everywhere)' : '') : 'off (the canopy map rules)');
+    // the clumps' own edge and density (the user 16 Nov: the muskeg "higher density when there are trees, and therefore subject to the forest border as well")
+    range(St, 'clump edge', 0, 0.4, 0.01, () => F().clumpEdge || 0, fs('clumpEdge'), v => v ? 'fades over ' + v.toFixed(2) + ' (noise)' : 'off (a cut-out island)');
+    range(St, 'clump edge: trees', 0, 1, 0.05, () => (F().clumpEdgeDens === undefined ? 0.8 : F().clumpEdgeDens), fs('clumpEdgeDens'), v => (v * 100).toFixed(0) + ' % at the line');
+    range(St, 'second tree in a clump', 0, 1, 0.05, () => F().extra || 0, fs('extra'), v => v ? (v * 100).toFixed(0) + ' % of the points' : 'off');
     range(St, 'shrubs', 0, 100, 0.5, () => F().under || 0, fs('under'), v => v + ' /1000 m²');
     range(St, 'stones', 0, 1000, 1, () => F().rocks || 0, fs('rocks'), v => v + ' /1000 m²');
     range(St, 'debris', 0, 1000, 1, () => F().debris || 0, fs('debris'), v => v + ' /1000 m²');
@@ -1107,18 +1111,26 @@
     // number of it here): the size ramp inside the edge, the band of bushes and weeds outside it, the distance field's cells
     const B0 = BIO();
     if (B0 && B0.edgeField && t.knobs) {
-      const E = sec(body, 'the forest edge', true, 'a ramp of tree sizes, then bushes and weeds');
+      const E = sec(body, 'the forest edge', true, 'trees fading out from the wood, then bushes and weeds');
       bkDial(E, 'the edge', 'edgeOn', 'forestedge');
-      const m = v => v.toFixed(0) + ' m', x = v => 'x' + v.toFixed(2);
-      bk(E, 'young trees to', 'edgeYoung', 0, 40, 0.5, m); bk(E, 'full size at', 'edgeFull', 1, 80, 0.5, m);
-      bk(E, 'size at the edge', 'edgeMin', 0.3, 1, 0.01, x); bk(E, 'size at "young to"', 'edgeMid', 0.3, 1, 0.01, x);
-      bk(E, 'handed back by', 'edgeOut', 5, 200, 1, m); bk(E, 'size there', 'edgeOutK', 0.3, 1.2, 0.01, x);
-      note(E, 'inside a forest a tree takes the wood’s own canopy (the tallest of 16 points 30 to 45 m round it) times this ramp: the edge’s size, up to the second size by "young to", to full size; past full size the canopy map takes over again by "handed back by" (at that size of the interior). The thinning by the vegetation index is lifted over the same metres. Off: the canopy map as it is (the trees thin and shrink over ~50 m).');
-      const Bd = sec(body, 'the edge’s band', true, 'bushes, then weeds, outside the trees');
-      bk(Bd, 'bushes from (inside)', 'edgeShrubIn', 0, 10, 0.5, m); bk(Bd, 'bushes to (outside)', 'edgeShrubOut', 0, 20, 0.5, m);
-      bk(Bd, 'weeds to (outside)', 'edgeWeedOut', 0, 30, 0.5, m);
+      const m = v => v.toFixed(0) + ' m', x = v => 'x' + v.toFixed(2), pc = v => (v * 100).toFixed(0) + ' %';
+      bk(E, 'trees reach out to', 'edgeReach', 0, 60, 0.5, m); bk(E, 'reach wanders', 'edgeReachVar', 0, 1, 0.05, v => '±' + (v * 100).toFixed(0) + ' %');
+      bk(E, 'wander size', 'edgeReachM', 10, 300, 5, m);
+      bk(E, 'trees at the line', 'edgeTreeDens', 0, 1, 0.01, pc); bk(E, 'fall-off', 'edgeFall', 0.3, 4, 0.1, v => '^' + v.toFixed(1));
+      bk(E, 'gaps', 'edgeClump', 0, 0.9, 0.05, v => pc(v) + ' bare'); bk(E, 'gap size', 'edgeClumpM', 4, 60, 1, m);
+      bk(E, 'size at the line', 'edgeSizeIn', 0.1, 1.2, 0.01, x); bk(E, 'size at the reach', 'edgeSizeOut', 0.05, 1, 0.01, x);
+      note(E, 'outside a forest the wood’s own trees (its mix, read 10 m inside) stand out to the reach, which wanders by that share over a noise of that size: the share of points planted falls from "trees at the line" to none at the reach (by the fall-off), with gaps between clumps, and a tree is that size of the wood’s canopy at the line, down to a sapling at the reach. Off: the forest stops at its drawn line, as before.');
+      const Ei = sec(body, 'inside the edge', false, 'the old ramp (off)');
+      bk(Ei, 'ramp inside', 'edgeIn', 0, 1, 1, v => v ? 'on' : 'off');
+      bk(Ei, 'young trees to', 'edgeYoung', 0, 40, 0.5, m); bk(Ei, 'full size at', 'edgeFull', 1, 80, 0.5, m);
+      bk(Ei, 'size at the edge', 'edgeMin', 0.3, 1, 0.01, x); bk(Ei, 'size at "young to"', 'edgeMid', 0.3, 1, 0.01, x);
+      bk(Ei, 'handed back by', 'edgeOut', 5, 200, 1, m); bk(Ei, 'size there', 'edgeOutK', 0.3, 1.2, 0.01, x);
+      note(Ei, 'the first version, off since the user’s read of it (it filled and grew the first 60 m inside): a tree inside takes the wood’s own canopy (the tallest of 16 points 30 to 45 m round it) times this ramp.');
+      const Bd = sec(body, 'the edge’s band', true, 'bushes, then weeds, past the trees');
+      bk(Bd, 'bushes from', 'edgeShrubIn', 0, 1, 0.05, v => pc(v) + ' of the reach'); bk(Bd, 'bushes to (past the reach)', 'edgeShrubOut', 0, 20, 0.5, m);
+      bk(Bd, 'weeds to (past the reach)', 'edgeWeedOut', 0, 30, 0.5, m);
       bk(Bd, 'bushes', 'edgeShrubDens', 0, 2, 0.01, v => v.toFixed(2) + ' /m²'); bk(Bd, 'weeds', 'edgeWeedDens', 0, 2, 0.01, v => v.toFixed(2) + ' /m²');
-      note(Bd, 'the cover ring’s, near the eye: bushes (shrub, raspberry, sapling, holly) from a little inside the trees out to the first distance, weeds (fireweed, foam flower) from there to the second. The taller weedy grass in the same band is the grass field’s (below).');
+      note(Bd, 'the cover ring’s, near the eye: bushes (the blueberry and Elliottia cards, raspberry, sapling; none in the subalpine) from that share of the reach to past it, weeds (fireweed, foam flower) from there on. The taller weedy grass in the same band is the grass field’s (below).');
       const Fe = sec(body, 'the edge’s distance field', false, 'how the edge is measured');
       bk(Fe, 'cell', 'edgeCell', 2, 24, 1, m); bk(Fe, 'tile', 'edgeTile', 64, 512, 16, m); bk(Fe, 'margin', 'edgeMargin', 12, 120, 6, m);
       note(Fe, 'the distance to the edge is measured on cells of this size, a tile at a time, seeing an edge up to the margin past the tile’s side (further out a point counts as deep in the wood). A finer cell follows the edge closer and costs more to build; each move here re-measures.');

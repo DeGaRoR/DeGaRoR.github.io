@@ -5086,6 +5086,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     }
     // FOREST-EDGE (the user 16 Nov; 28c_biomes KNOBS edge*): the signed distance to the forest's edge over the trees' own ground
     // (FOREST_FLOOR, no strip) - a tree inside it stands at the interior's canopy x the size ramp (walkRows). ?forestedge=0 = before
+    const EDGE_CAN = 1000;   // a fill record's canopy over this is an edge tree's own (EDGE_CAN + canopy x its size): the build sizes it under the island's floor
     const edgeD = (BIO && BIO.edgeField && islRule && ISLC) ? BIO.edgeField((x, z) => world.treeGround(x, z) === world.SURFACE.FOREST_FLOOR && !world.treeAeroBlocked(x, z)) : null;
     if (edgeD) { try { if (/[?&]forestedge=0/.test(location.search)) BIO.edgeOn = false; } catch (e) {} }
     const biomeAt = (x, z, r) => BIO.mixHere(codeAt(x, z, r), x, z);
@@ -5645,6 +5646,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
+          const x0r = x, z0r = z;
           const pm = ISLC ? polyMix(x, z, BIO) : undefined;   // G2935: a polygon's own mix (undefined: no polygon speaks)
           const fh = forestHere(x, z);
           if (!fh && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
@@ -5653,12 +5655,31 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
           // above `full`, a ramp between - and rides with the record to size it.
-          let can = 0, mixHere = null, floored = false, lift = 0;
+          let can = 0, mixHere = null, floored = false, lift = 0, ksz = 1, MFx = null;   // ksz < 1: an edge tree, at ksz x its wood's canopy (EDGE_CAN)
+          let band = null;
           if (ISLC) {
             can = ISLC.canopyAt(x, z);
-            // FOREST-EDGE: inside the edge the interior's canopy x the ramp (young, medium, full), the NDVI's thinning lifted
-            if (edgeD && BIO.edgeOn && fh && pm === undefined) { const d = edgeD(x, z);
+            // FOREST-EDGE: inside the edge the interior's canopy x the ramp (young, medium, full), the NDVI's thinning lifted -
+            // only with edgeIn (off by default since the user's read, 16 Nov eve: it made the deep forest denser)
+            if (edgeD && BIO.edgeOn && fh && pm === undefined && BIO.knobs().edgeIn) { const d = edgeD(x, z);
               if (d < BIO.knobs().edgeOut) { lift = BIO.edgeLift(d); can = Math.max(can, BIO.edgeCanIn(ISLC.canopyAt, x, z) * BIO.edgeRamp(d)); } }
+            // THE OUTWARD BAND (the user 16 Nov eve: the ramp did not "extend wooded zones" - a gradient outward): outside the
+            // forest's ground, within the band's wandering reach (28c edgeBandAt), the WOOD's own trees - its mix read 10 m in
+            // along the distance field's gradient - planted at the band's share, sized ksz of the wood's canopy (0.7 at the
+            // line to a sapling at the reach), in clumps; past the reach the open ground's own rule as before
+            if (edgeD && BIO.edgeOn && !fh && pm === undefined && BIO.edgeBandAt) { const d = edgeD(x, z);
+              if (d < 0 && d > -BIO.edgeReachMax()) band = BIO.edgeBandAt(d, x, z); }
+          }
+          // a band point that its draw refuses (or with no wood behind it) falls back to the open ground's own rule below - the
+          // band only adds trees (the same hash: planted where it is under the larger of the two shares)
+          if (band && (hsh(ix + 13, iz + 29) > band.p || world.treeAeroBlocked(x, z))) band = null;
+          if (band) {
+            const d = edgeD(x, z), gx0 = edgeD(x + 6, z) - edgeD(x - 6, z), gz0 = edgeD(x, z + 6) - edgeD(x, z - 6), gl = Math.hypot(gx0, gz0) || 1;
+            const xi = x + gx0 / gl * (-d + 10), zi = z + gz0 / gl * (-d + 10);
+            const mI = BIO.mixAt(BIO.subAt(codeAt(xi, zi, hsh(ix + 21, iz + 23)), xi, zi)), MF = mI ? BIO.mixOf(mI).forest : null;
+            if (MF && MF.count > 0) { mixHere = mI; can = Math.max(BIO.edgeCanIn(ISLC.canopyAt, xi, zi), MF.canopyFloor || 0, 4); ksz = band.k; } else band = null;
+          }
+          if (band) { /* the band's tree: planted below */ } else if (ISLC) {
             // THE RULE (G406, the user: "with the crazy amount of layers we have, we
             // should be able to be quite clever"): the TERRAIN TYPE says what kind of
             // stand can be here (forest full, scrub half, muskeg a stunted few, heath
@@ -5689,7 +5710,15 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
                 // islands"): a mix may say forest.clump (the share of its ground left bare, 0..1) and clumpM (the
                 // island's size, m) - a value noise at that cell keeps the top 1 - clump of the ground and the
                 // trees stand at the grid's density inside it, nothing outside
-                if (MF && MF.clump > 0 && vnoise(x, z, MF.clumpM || 30, 41) < MF.clump) continue; }
+                // THE MUSKEG'S CLUMPS (the user 16 Nov eve: "the muskegs have really too little tree density ... higher density when
+                // there are trees, and therefore subject to the forest border as well"): forest.clumpEdge (noise units, 0 = the old cut-out
+                // island) fades a clump outward - the share falls from clumpEdgeDens to 0, the size from edgeSizeIn to edgeSizeOut
+                // (28c) - and forest.extra plants a second tree at that share of the points inside a clump (MFx: read below)
+                if (MF && MF.clump > 0) { const v = vnoise(x, z, MF.clumpM || 30, 41);
+                  if (v < MF.clump) { const ce = BIO.edgeOn ? (MF.clumpEdge || 0) : 0, t = ce > 0 ? (MF.clump - v) / ce : 1; if (t >= 1) continue;
+                    if (hsh(ix + 51, iz + 53) > (MF.clumpEdgeDens === undefined ? 0.8 : MF.clumpEdgeDens) * Math.pow(1 - t, 1.4)) continue;
+                    const K = BIO.knobs(); ksz = K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * Math.pow(t, 0.8); }
+                  else MFx = MF; } }
               if (kind <= 0.0) continue; }
             // a floored mix is at its count: the map's ramp and vigour said "nothing here" and the mix overrules them
             let p = floored ? 1 : (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
@@ -5699,16 +5728,23 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             p *= kind;
             if (p < 1 && hsh(ix + 13, iz + 29) > p) continue;
           }
+          const canR = ksz < 1 ? EDGE_CAN + can * ksz : can;
+          const reps = (MFx && MFx.extra > 0 && hsh(ix + 61, iz + 67) < MFx.extra) ? 2 : 1;
+          for (let rp = 0; rp < reps; rp++) {
+          const jx = rp ? ix + 977 : ix, jz = rp ? iz + 541 : iz;
+          const x = rp ? x0r + (hsh(ix + 71, iz + 73) - 0.5) * spc * 0.9 : x0r, z = rp ? z0r + (hsh(ix + 79, iz + 83) - 0.5) * spc * 0.9 : z0r;
+          if (rp && premTreeEx(x, z)) continue;
           const ti = nearTree(x, z);
           const h = world.terrainH(x, z);
-          const sp = (ti >= 0 && hsh(ix + 3, iz + 5) < 0.88) ? world.trees[ti].sp
-                                                             : (hsh(ix + 9, iz + 1) * 5) | 0;
+          const sp = (ti >= 0 && hsh(jx + 3, jz + 5) < 0.88) ? world.trees[ti].sp
+                                                             : (hsh(jx + 9, jz + 1) * 5) | 0;
           let gi;
           let md = -1;   // the mix's snag share for this species (G1975: -1 none, the collection's then)
-          if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); const E = P.length ? P[poolPick(P, hsh(ix + 11, iz + 17), x, z, h)] : null; gi = E ? E.gi : -1; if (gi < 0) continue; md = E.dead; }
-          else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
-          recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can, md);   // FILL_REC floats a tree
+          if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); const E = P.length ? P[poolPick(P, hsh(jx + 11, jz + 17), x, z, h)] : null; gi = E ? E.gi : -1; if (gi < 0) continue; md = E.dead; }
+          else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(jx + 11, jz + 17), x, z, h) : (sp < 2 ? 0 : 1);
+          recs[gi].push(x, h, z, sp, hsh(jx + 2, jz + 8), canR, md);   // FILL_REC floats a tree
           if (PROBE) PROBE.push(x, z, fh ? 1 : 0);
+          }
         }
       }
       // one chunk, whole, in this frame - the teleport's path and the gate's
@@ -5806,6 +5842,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // spread as jitter; elsewhere the collection's size
             if (can < 0) { (rec.town || (rec.town = new Uint8Array(n)))[i] = 1; rec.townN = (rec.townN || 0) + 1; }   // TOWN-1
             const s = can < 0 ? -can   // TOWN-1: a town tree, at its record's own size
+              : (can >= EDGE_CAN && SH.h)   // FOREST-EDGE's outward band / a grove's fade: its wood's canopy x the band's size, under the island's floor (a sapling)
+              ? Math.max(0.1, Math.min(FILL.island.max, (can - EDGE_CAN) * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
               : (ISLC && can > 0 && SH.h)
               ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
               : SH.white ? sizeOf(SH.size, w)
@@ -6112,7 +6150,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const tt = ttypeAt(x, z); if (tt < 0) return null;
             const d = 8, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
             const slopeDeg = Math.atan(sl) * 180 / Math.PI, canopy = ISLC.canopyAt(x, z);
-            const code = BIO.codeOf(tt, slopeDeg, canopy, 0.5);
+            const code0 = BIO.codeOf(tt, slopeDeg, canopy, 0.5), code = BIO.subAt ? BIO.subAt(code0, x, z) : code0;   // 19 SUBALPINE: the walk's own derivation (the probe read heath / scrub up there)
             const k = ISLC.cellAt ? ISLC.cellAt(x, z) : -1;
             return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixHere(code, x, z), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };

@@ -867,9 +867,13 @@ var COVER_RING = (() => {
     // shrubs 3-0 m outside the forest, weeds 6-3 m outside; 28c_biomes KNOBS edge*). ctx.edgeD is the tree fill's signed distance
     // to the forest's edge (+ in). Its own stream (the points' hashes), so the cell's R() - every other species - is untouched; the
     // cover's land tests (a strip's bush clearance, a lawn, a pavement, the mown sides, the lake band); none on a cell far from an edge
-    const EDGE_SHRUB = [['shrub_deciduous', 1], ['raspberry', 0.6], ['sapling_deciduous', 0.6], ['holly', 0.2]], EDGE_WEED = [['flower_fireweed', 1], ['flower_foam', 0.7]];
+    // the bushes: the user 16 Nov eve - "you may use the new cards as bushes ... don't put everything in everything": the lowland
+    // edge takes the blueberry and the Elliottia cards (no Cassiope: subalpine) with today's raspberry and sapling meshes
+    const EDGE_SHRUB = [['alp_vaccinium', 1], ['alp_elliottia', 0.7], ['raspberry', 0.6], ['sapling_deciduous', 0.6]], EDGE_WEED = [['flower_fireweed', 1], ['flower_foam', 0.7]];
     function edgeBand(G, x0, z0, C, push, cell) {
-      const K = BIO.knobs(), D = ctx.edgeD, reach = C * 0.75 + K.edgeWeedOut;
+      // past the outward band's trees (28c edgeBandAt): bushes from edgeShrubIn x its local reach R out to R + edgeShrubOut, the
+      // weeds from there to R + edgeWeedOut (d < 0 outside)
+      const K = BIO.knobs(), D = ctx.edgeD, reach = C * 0.75 + (BIO.edgeReachMax ? BIO.edgeReachMax() : 0) + K.edgeWeedOut;
       if ([[0.5, 0.5], [0, 0], [1, 0], [0, 1], [1, 1]].every(([u, v]) => Math.abs(D(x0 + u * C, z0 + v * C)) > reach)) return;
       const cols = speciesOf(), set = L => { const out = []; let tot = 0;
         for (const [n, w] of L) { const c = cols.find(q => q.name === n), P = c && protosOf(c); if (P && P.length) { out.push([c, P, w]); tot += w; } }
@@ -879,18 +883,19 @@ var COVER_RING = (() => {
       const ix0 = Math.round(x0), iz0 = Math.round(z0);
       for (let i = 0; i < nS + nW; i++) {
         const weed = i >= nS, x = x0 + hsh(ix0 + i * 7919, iz0 - 31) * C, z = z0 + hsh(ix0 - 17, iz0 + i * 104729) * C;
-        const d = D(x, z);
-        if (weed ? (d >= -K.edgeShrubOut || d < -K.edgeWeedOut) : (d >= K.edgeShrubIn || d < -K.edgeShrubOut)) continue;
+        const d = D(x, z), R = BIO.edgeReachAt ? BIO.edgeReachAt(x, z) : 0, o = -d;
+        if (weed ? (o < R + K.edgeShrubOut || o > R + K.edgeWeedOut) : (o < K.edgeShrubIn * R || o > R + K.edgeShrubOut)) continue;
         const gk = G.at(x, z);
         if (!G.ok[gk] || G.shore[gk] || G.kind[gk] === 1 || G.kind[gk] === 3 || G.cut[gk] > 0.05 || G.kill[gk] > 0.01) continue;
         if (!weed && G.bush[gk]) continue;   // a strip's own bush clearance
+        if (!weed && G.mix[gk] === 'subalpine') continue;   // the user 16 Nov: "I don't want deciduous over there": the edge's bushes are all deciduous
         const S0 = weed ? WD : SH; if (!S0.out.length) continue;
         let r = hsh(ix0 + i * 31, iz0 + i * 17) * S0.tot, pick = S0.out[0]; for (const e of S0.out) { r -= e[2]; if (r <= 0) { pick = e; break; } }
         const [c, P] = pick, place = c.place || {}, p = draw(P, hsh(ix0 + i * 13, iz0 - i * 7)), rr = hsh(ix0 - i * 11, iz0 + i * 23);
         const j = 1 + (hsh(ix0 + i * 5, iz0 + i * 3) * 2 - 1) * 0.12;
         let s;
         if (!weed && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0)   // the bush's own range, smaller the further out
-          s = (place.hMin + rr * (place.hMax - place.hMin)) * (0.75 + 0.25 * Math.max(0, Math.min(1, (d + K.edgeShrubOut) / K.edgeShrubOut))) / p.h0;
+          s = (place.hMin + rr * (place.hMax - place.hMin)) * (0.75 + 0.25 * Math.max(0, Math.min(1, (R + K.edgeShrubOut - o) / Math.max(1, R + K.edgeShrubOut - K.edgeShrubIn * R)))) / p.h0;
         else s = (place.size || 1) * (0.8 + 0.35 * rr);
         push(p, x, world.terrainH(x, z) - (place.sink || 0), z, s, hsh(ix0 + i * 3, iz0 - i * 5) * Math.PI * 2, [j, j, j], 0, 0);
         STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1; STAT.edge = (STAT.edge || 0) + 1;

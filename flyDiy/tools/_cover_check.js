@@ -319,16 +319,16 @@ function edgeRing(on) {
   const B = boot(), { THREE, ctx } = B;
   B.load(path.join('src', 'viewer', 'trees.js'));
   const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
-  const cols = [{ name: 'shrub_deciduous', kind: 'shrub', place: { hMin: 0.6, hMax: 1.4 } }, { name: 'flower_fireweed', kind: 'cover', place: { size: 1.2 } },
+  const cols = [{ name: 'raspberry', kind: 'shrub', place: { hMin: 0.6, hMax: 1.4 } }, { name: 'flower_fireweed', kind: 'cover', place: { size: 1.2 } },
     { name: 'tuft', kind: 'cover', place: { density: 0.3, size: 0.3 } }];
-  const H = { shrub_deciduous: 1, flower_fireweed: 1.2, tuft: 0.4 }, built = new Map();
+  const H = { raspberry: 1, flower_fireweed: 1.2, tuft: 0.4 }, built = new Map();
   const treeList = () => cols.map(c => ({ key: c.name + '_m', col: c, sub: { bb: [-0.5, 0, -0.5, 0.5, H[c.name], 0.5], h: H[c.name] } }));
   const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const n = key.replace(/_m$/, ''), g = new THREE.BoxGeometry(1, H[n], 1); g.translate(0, H[n] / 2, 0);
     const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial({ map: t }) }] }; built.set(key, b); return b; };
   ctx.TREE_PACK = { collections: cols };
-  const K = { edgeShrubIn: 1, edgeShrubOut: 3, edgeWeedOut: 6, edgeShrubDens: 0.2, edgeWeedDens: 0.25 };
+  const K = { edgeShrubIn: 0.5, edgeShrubOut: 3, edgeWeedOut: 6, edgeShrubDens: 0.2, edgeWeedDens: 0.25 };   // the outward trees' reach R = 10 m here
   const mix = { species: { tuft: { density: 0.3 } }, forest: { cover: 1, reach: 220 } };
-  const BIO = { mixAt: () => 'mix', mixOf: () => mix, knobs: () => K, edgeOn: on };
+  const BIO = { mixAt: () => 'mix', mixOf: () => mix, knobs: () => K, edgeOn: on, edgeReachAt: () => 10, edgeReachMax: () => 15 };
   const world = { terrainH: () => 0, waterH: () => -10, island: null };
   const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(40, 3, 0); camera.lookAt(80, 0, 0); camera.updateMatrixWorld();
   B.load(path.join('src', 'viewer', 'cover_ring.js'));
@@ -345,9 +345,9 @@ function edgeRing(on) {
   try { on = edgeRing(true); off = edgeRing(false); } catch (e) { ok(false, '9 the edge band plants', (e && e.message || String(e)).slice(0, 200)); }
   if (on && off) {
     const sh = on.shrub || [], weeds = (on.cover || []).filter(([x, h]) => h > 1), tuftsOn = (on.cover || []).filter(([x, h]) => h < 1).length, tuftsOff = (off.cover || []).filter(([x, h]) => h < 1).length;
-    const shOk = sh.length > 20 && sh.every(([x]) => x >= 57 - 1e-6 && x < 61 + 1e-6), wdOk = weeds.length > 20 && weeds.every(([x]) => x >= 54 - 1e-6 && x < 57 + 1e-6);
+    const shOk = sh.length > 20 && sh.every(([x]) => x >= 47 - 1e-6 && x <= 55 + 1e-6), wdOk = weeds.length > 20 && weeds.every(([x]) => x >= 44 - 1e-6 && x <= 47 + 1e-6);   // the edge at x 60, R 10: bushes 5-13 m out, weeds 13-16
     ok(shOk && wdOk && !(off.shrub || []).length && !(off.cover || []).some(([x, h]) => h > 1) && tuftsOn === tuftsOff,
-       '9 FOREST-EDGE: the bushes stand from 1 m in to 3 m out, the weeds from 3 to 6 m out, nothing with the band off, the cell\'s other species untouched',
+       '9 FOREST-EDGE: past the outward trees (R 10 m) the bushes stand from 5 to 13 m out, the weeds from 13 to 16 m out, nothing with the band off, the cell\'s other species untouched',
        sh.length + ' bushes in x ' + (sh.length ? Math.min(...sh.map(e => e[0])).toFixed(1) + '..' + Math.max(...sh.map(e => e[0])).toFixed(1) : '-') + ', ' + weeds.length + ' weeds in x ' +
        (weeds.length ? Math.min(...weeds.map(e => e[0])).toFixed(1) + '..' + Math.max(...weeds.map(e => e[0])).toFixed(1) : '-') + '; tufts ' + tuftsOn + ' / ' + tuftsOff + ' off'); } }
 

@@ -109,8 +109,18 @@ function plantAt(ix, iz) {
   const polyOk = pm && g !== S.PAVED && g !== S.GRAVEL && g !== S.WATER;
   if (!forest && !open && !polyOk) return { r: R.BARE, x, z, h, g };
   if (premTreeEx(x, z)) return { r: R.EXCL, x, z, h };
-  let can = I.canopyAt(x, z), floored = false, band = 0;   // band: the share of the NDVI's thinning the edge lifts (1 to edgeFull, 0 at edgeOut)
-  if (EDGEON && forest && pm === undefined) { const d = edgeD(x, z); if (d < EK.edgeOut) { band = BIO.edgeLift(d); can = Math.max(can, BIO.edgeCanIn(I.canopyAt, x, z) * BIO.edgeRamp(d)); } }
+  let can = I.canopyAt(x, z), floored = false, band = 0, ksz = 1, MFx = null;   // band: the share of the NDVI's thinning the edge lifts (1 to edgeFull, 0 at edgeOut)
+  if (EDGEON && forest && pm === undefined && BIO.knobs().edgeIn) { const d = edgeD(x, z); if (d < EK.edgeOut) { band = BIO.edgeLift(d); can = Math.max(can, BIO.edgeCanIn(I.canopyAt, x, z) * BIO.edgeRamp(d)); } }
+  // THE OUTWARD BAND (render_world walkRows): outside the forest, the wood's own trees at the band's share and size; a refused
+  // point falls back to the open ground's rule
+  if (EDGEON && !forest && pm === undefined) { const d = edgeD(x, z);
+    const bd = (d < 0 && d > -BIO.edgeReachMax()) ? BIO.edgeBandAt(d, x, z) : null;
+    if (bd && hsh(ix + 13, iz + 29) <= bd.p) {
+      const gx0 = edgeD(x + 6, z) - edgeD(x - 6, z), gz0 = edgeD(x, z + 6) - edgeD(x, z - 6), gl = Math.hypot(gx0, gz0) || 1;
+      const xi = x + gx0 / gl * (-d + 10), zi = z + gz0 / gl * (-d + 10);
+      const mI = BIO.mixAt(BIO.subAt(codeAt(xi, zi, hsh(ix + 21, iz + 23)), xi, zi)), MF = mI ? BIO.mixOf(mI).forest : null;
+      if (MF && MF.count > 0) { const cI = Math.max(BIO.edgeCanIn(I.canopyAt, xi, zi), MF.canopyFloor || 0, 4);
+        return { r: R.PLANT, x, z, h, code: BIO.subAt(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z), mix: mI, can: cI, ksz: bd.k, edge: 1, sp: pickSpecies(mI, hsh(ix + 11, iz + 17), h) }; } } }
   const tt = ttypeAt(x, z);
   const code = BIO.subAt(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);
   const mix = pm !== undefined ? pm : BIO.mixAt(code);
@@ -119,7 +129,11 @@ function plantAt(ix, iz) {
   if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);
   if (mix && pm) { const MF = BIO.mixOf(mix).forest; floored = true; can = Math.max(can, (MF && MF.canopyFloor) || 0, 12); }
   if (mix) { const MF = BIO.mixOf(mix).forest; if (MF && MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
-    if (MF && MF.clump > 0 && vnoise(x, z, MF.clumpM || 30, 41) < MF.clump) return { r: R.CLUMP, x, z, h, code, mix, can }; }
+    if (MF && MF.clump > 0) { const v = vnoise(x, z, MF.clumpM || 30, 41);
+      if (v < MF.clump) { const ce = EDGEON ? (MF.clumpEdge || 0) : 0, t = ce > 0 ? (MF.clump - v) / ce : 1;
+        if (t >= 1 || hsh(ix + 51, iz + 53) > (MF.clumpEdgeDens === undefined ? 0.8 : MF.clumpEdgeDens) * Math.pow(1 - t, 1.4)) return { r: R.CLUMP, x, z, h, code, mix, can };
+        const K = BIO.knobs(); ksz = K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * Math.pow(t, 0.8); }
+      else MFx = MF; } }
   if (kind <= 0) return { r: R.NOMIX, x, z, h, code, mix, can };
   let p = floored ? 1 : (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
   const p0 = p;
@@ -127,7 +141,11 @@ function plantAt(ix, iz) {
   if (slopeAt(x, z, 8) > 0.7) p *= 0.33;
   p *= kind;
   if (p < 1 && hsh(ix + 13, iz + 29) > p) return { r: p0 <= 0 ? R.CANOPY : R.THIN, x, z, h, code, mix, can, p };
-  return { r: R.PLANT, x, z, h, code, mix, can, sp: pickSpecies(mix, hsh(ix + 11, iz + 17), h) };
+  const P0 = { r: R.PLANT, x, z, h, code, mix, can, ksz, sp: pickSpecies(mix, hsh(ix + 11, iz + 17), h) };
+  if (MFx && MFx.extra > 0 && hsh(ix + 61, iz + 67) < MFx.extra) {   // the clump's second tree
+    const x2 = x + (hsh(ix + 71, iz + 73) - 0.5) * SPC * 0.9, z2 = z + (hsh(ix + 79, iz + 83) - 0.5) * SPC * 0.9;
+    if (!premTreeEx(x2, z2)) P0.extra = { r: R.PLANT, x: x2, z: z2, h: H(x2, z2), code, mix, can, ksz: 1, sp: pickSpecies(mix, hsh(ix + 977 + 11, iz + 541 + 17), h) }; }
+  return P0;
 }
 
 // the species, by the mix's proportions and the fill's altitude bands (SPECIES_PREF) - not the per-subject patches
@@ -192,7 +210,9 @@ const AREAS = {
   cabin: { name: 'The ridges round the Cabin Strip (peaks 876, 790, 786, 742 m)', cx: 300, cz: -15500, half: 3000, marks: [[2670, -15908, 'Cabin Strip'], [4361, -16251, 'Hiking Strip']] },
   north: { name: 'The north summit (853 m) and its ridge', cx: 6176, cz: -2391, half: 2000, marks: [] },
   // FOREST-EDGE: the home field's woods - the western forest's edge over the open muskeg, from 40 m over the field 600 m east
-  home: { name: 'Home field and its woods (the forest edges)', cx: -1600, cz: 0, half: 1500, marks: [], eyesAt: [{ name: 'west edge', from: [-1900, -200, 40], at: [-2520, -200, 8] }] },
+  home: { name: 'Home field and its woods (the forest edges)', cx: -1600, cz: 0, half: 1500, marks: [], eyesAt: [{ name: 'west edge', from: [-1900, -200, 40], at: [-2520, -200, 8] },
+    { name: 'west edge ground', from: [-2330, -260, 1.7], at: [-2560, -200, 7] }, { name: 'west edge ground2', from: [-2420, -120, 1.7], at: [-2600, -150, 7] }, { name: 'west edge high', from: [-1500, -200, 160], at: [-2450, -200, 0] },
+    { name: 'muskeg 40', from: [-1700, 850, 40], at: [-1700, 1400, 4] }, { name: 'muskeg ground', from: [-1700, 1150, 1.7], at: [-1700, 1400, 5] }] },
 };
 const want = (opt('areas', Object.keys(AREAS).filter(k => k !== 'home').join(','))).split(',');
 
@@ -206,7 +226,7 @@ function runArea(key) {
   const trees = [];
   const bands = {};   // altitude band (50 m) -> { pts, reasons[], planted, ridge: {pts, planted} }
   const ridgeAt = (x, z, h) => h - (H(x + 120, z) + H(x - 120, z) + H(x, z + 120) + H(x, z - 120) + H(x + 85, z + 85) + H(x - 85, z - 85) + H(x + 85, z - 85) + H(x - 85, z + 85)) / 8;
-  const spCount = {};
+  const spCount = {}, mixStat = {};
   for (let iz = iz0; iz < iz1; iz++) for (let ix = ix0; ix < ix1; ix++) {
     const P = plantAt(ix, iz);
     if (P.x === undefined) continue;
@@ -214,10 +234,11 @@ function runArea(key) {
     if (ci < 0 || cj < 0 || ci >= NC || cj >= NC) continue;
     const k = cj * NC + ci;
     why[P.r][k]++;
-    if (P.r === R.PLANT) { cnt[k]++; trees.push(P); spCount[P.sp] = (spCount[P.sp] || 0) + 1; }
+    if (P.mix) { const Q = mixStat[P.mix] || (mixStat[P.mix] = { pts: 0, gap: 0, trees: 0 }); Q.pts++; if (P.r === R.CLUMP) Q.gap++; if (P.r === R.PLANT) Q.trees += P.extra ? 2 : 1; }
+    if (P.r === R.PLANT) { cnt[k]++; trees.push(P); spCount[P.sp] = (spCount[P.sp] || 0) + 1; if (P.extra) { cnt[k]++; trees.push(P.extra); spCount[P.extra.sp] = (spCount[P.extra.sp] || 0) + 1; } }
     if (P.r === R.WATER || P.h < 2) continue;
     const b = Math.floor(P.h / 50) * 50, B = bands[b] || (bands[b] = { pts: 0, planted: 0, reasons: new Array(R.THIN + 1).fill(0), codes: {}, ridgePts: 0, ridgePlanted: 0 });
-    B.pts++; B.reasons[P.r]++; if (P.r === R.PLANT) B.planted++;
+    B.pts++; B.reasons[P.r]++; if (P.r === R.PLANT) B.planted += P.extra ? 2 : 1;
     if (P.code !== undefined) B.codes[P.code] = (B.codes[P.code] || 0) + 1; else { const c0 = ttypeAt(P.x, P.z); B.codes[c0] = (B.codes[c0] || 0) + 1; }
     if (ridgeAt(P.x, P.z, P.h) > 12) { B.ridgePts++; if (P.r === R.PLANT) B.ridgePlanted++; }
   }
@@ -281,7 +302,8 @@ function runArea(key) {
   }
 
   // 4. the stats
-  const stat = { key, name: A.name, window: [x0, z0, SZ], peak: peak.map(v => Math.round(v)), walkMs: tWalk, trees: trees.length, species: spCount, bands: {} };
+  const stat = { key, name: A.name, window: [x0, z0, SZ], peak: peak.map(v => Math.round(v)), walkMs: tWalk, trees: trees.length, species: spCount, bands: {}, mixes: {} };
+  for (const m in mixStat) { const Q = mixStat[m], ha = SPC * SPC / 1e4; stat.mixes[m] = { pts: Q.pts, openShare: +(100 * Q.gap / Q.pts).toFixed(1), treesPerHa: +(Q.trees / Q.pts / ha).toFixed(1), treesPerHaInClumps: +(Q.trees / Math.max(1, Q.pts - Q.gap) / ha).toFixed(1) }; }
   for (const b of Object.keys(bands).map(Number).sort((a, c) => a - c)) { const B = bands[b];
     const shares = {}; B.reasons.forEach((n, r) => { if (n && r !== R.LATTICE) shares[RNAME[r]] = +(100 * n / B.pts).toFixed(1); });
     const cs = {}; for (const c in B.codes) cs[CODE_NAME[c] || c] = +(100 * B.codes[c] / B.pts).toFixed(1);
@@ -343,7 +365,8 @@ function renderEye(A, x0, z0, SZ, eye, at, trees) {
   // model's own height x [0.45, 2.4]), drawn as a vertical stroke tested against the terrain's depth
   const P = panels[2];
   for (const T of trees) {
-    const mh = MODEL_H[T.sp] || 12, th = Math.max(FILL.island.min * mh, Math.min(FILL.island.max * mh, (T.can || 0) * FILL.island.gain)) || 6;
+    const mh = MODEL_H[T.sp] || 12, th = (T.ksz !== undefined && T.ksz < 1) ? Math.max(0.1 * mh, Math.min(FILL.island.max * mh, (T.can || 0) * T.ksz * FILL.island.gain))
+      : Math.max(FILL.island.min * mh, Math.min(FILL.island.max * mh, (T.can || 0) * FILL.island.gain)) || 6;
     const b0 = proj(T.x, T.h, T.z), t1 = proj(T.x, T.h + th, T.z); if (!b0 || !t1) continue;
     const dead = KIND[T.sp] === 'dead', small = th < 8;
     const col = dead ? [120, 100, 80] : small ? [70, 150, 40] : [25, 85, 35];
@@ -379,10 +402,10 @@ function edgeArea(key) {
   const sd = (x, z) => { const i = Math.floor((x - x0) / g), j = Math.floor((z - z0) / g); if (i < 0 || j < 0 || i >= NG || j >= NG) return null;
     const k = j * NG + i; return F[k] ? Din[k] - g / 2 : -(Dout[k] - g / 2); };
   const ix0 = Math.floor(x0 / SPC), ix1 = Math.ceil((x0 + SZ) / SPC), iz0 = Math.floor(z0 / SPC), iz1 = Math.ceil((z0 + SZ) / SPC);
-  const BW = 2, BMIN = -12, BMAX = 60, NB = (BMAX - BMIN) / BW, bins = Array.from({ length: NB }, () => ({ n: 0, planted: 0, can: 0, size: 0, reasons: new Array(R.THIN + 1).fill(0), codes: {} }));
+  const BW = 2, BMIN = -48, BMAX = 60, NB = (BMAX - BMIN) / BW, bins = Array.from({ length: NB }, () => ({ n: 0, planted: 0, can: 0, size: 0, reasons: new Array(R.THIN + 1).fill(0), codes: {} }));
   const deep = { n: 0, planted: 0, can: 0, size: 0 };
   const trees = [];
-  const sizeOf = P => { const mh = MODEL_H[P.sp] || 12; return Math.max(FILL.island.min, Math.min(FILL.island.max, P.can * FILL.island.gain / mh)); };
+  const sizeOf = P => { const mh = MODEL_H[P.sp] || 12; return (P.ksz !== undefined && P.ksz < 1) ? Math.max(0.1, Math.min(FILL.island.max, P.can * P.ksz * FILL.island.gain / mh)) : Math.max(FILL.island.min, Math.min(FILL.island.max, P.can * FILL.island.gain / mh)); };
   for (let iz = iz0; iz < iz1; iz++) for (let ix = ix0; ix < ix1; ix++) {
     const P = plantAt(ix, iz); if (P.x === undefined || P.r === R.LATTICE || P.r === R.AERO || P.r === R.WATER) continue;
     const d = sd(P.x, P.z); if (d === null) continue;

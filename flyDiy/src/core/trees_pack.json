@@ -10524,6 +10524,12 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.75
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.01,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -10635,6 +10641,12 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.75
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.008,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -10782,6 +10794,18 @@
       "density": 0.1,
       "patch": 8,
       "patchShare": 0.8
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.03,
+      "patch": 6,
+      "patchShare": 0.5
+     },
+     "alp_greyred": {
+      "proportion": 1,
+      "density": 0.03,
+      "patch": 8,
+      "patchShare": 0.5
      }
     },
     "forest": {
@@ -10804,7 +10828,10 @@
      "canopyFloor": 3.5,
      "clump": 0.55,
      "clumpM": 28,
-     "debris": 131
+     "debris": 131,
+     "clumpEdge": 0.12,
+     "clumpEdgeDens": 0.8,
+     "extra": 0.6
     }
    },
    "grassland": {
@@ -10899,6 +10926,18 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.6
+     },
+     "alp_greyred": {
+      "proportion": 1,
+      "density": 0.01,
+      "patch": 8,
+      "patchShare": 0.4
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.008,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11021,6 +11060,18 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.75
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.02,
+      "patch": 6,
+      "patchShare": 0.5
+     },
+     "alp_elliottia": {
+      "proportion": 1,
+      "density": 0.015,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11308,6 +11359,12 @@
       "size": 1.1,
       "h": 0.49,
       "dens": 0.2
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.012,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11444,6 +11501,12 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.75
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.008,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11580,6 +11643,18 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.75
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.02,
+      "patch": 6,
+      "patchShare": 0.5
+     },
+     "alp_greyred": {
+      "proportion": 1,
+      "density": 0.015,
+      "patch": 8,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11980,27 +12055,36 @@
    },
    "subalpine": {
     "species": {
-     "pine_evolveduk.glb": {
+     "realistic_fir_trees_pack_lods_gameready.glb": {
       "proportion": 3,
-      "dead": 0
-     },
-     "pine_georgeous.glb": {
-      "proportion": 2,
-      "dead": 0
+      "dead": 0.03
      },
      "spruce_tree.glb": {
-      "proportion": 1.5,
+      "proportion": 2,
       "dead": 0.04
      },
-     "realistic_fir_trees_pack_lods_gameready.glb": {
+     "fir_tree_georgeous.glb": {
       "proportion": 1.5,
+      "dead": 0.03
+     },
+     "larch_tree.glb": {
+      "proportion": 0.5,
       "dead": 0.04
+     },
+     "cedar_tree.glb": {
+      "proportion": 0.4,
+      "dead": 0.04
+     },
+     "pine_georgeous.glb": {
+      "proportion": 1,
+      "dead": 0
+     },
+     "pine_evolveduk.glb": {
+      "proportion": 1,
+      "dead": 0
      },
      "dead_conifer": {
       "proportion": 0.3
-     },
-     "shrub_deciduous": {
-      "proportion": 1
      },
      "rocks": {
       "proportion": 1,
@@ -12054,25 +12138,25 @@
      },
      "alp_greyred": {
       "proportion": 1,
-      "density": 0.02,
+      "density": 0.08,
       "patch": 8,
       "patchShare": 0.5
      },
      "alp_vaccinium": {
       "proportion": 1,
-      "density": 0.02,
+      "density": 0.08,
       "patch": 6,
       "patchShare": 0.5
      },
      "alp_elliottia": {
       "proportion": 1,
-      "density": 0.01,
+      "density": 0.04,
       "patch": 6,
       "patchShare": 0.4
      },
      "alp_cassiope": {
       "proportion": 1,
-      "density": 0.03,
+      "density": 0.12,
       "patch": 10,
       "patchShare": 0.6
      }
@@ -12093,8 +12177,8 @@
      "rocks": 18,
      "ttype": 2,
      "coverSpread": 0.1,
-     "canopyFloor": 4,
-     "clump": 0.3,
+     "canopyFloor": 6,
+     "clump": 0.15,
      "clumpM": 24,
      "debris": 15
     }

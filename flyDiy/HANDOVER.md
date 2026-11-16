@@ -316713,5 +316713,15 @@ COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); afte
   the band, the field, the dial), a shaped species' card rows (cut, height, bend, lean, tilt, upright: cover_ring reshape). The
   knobs: BIOMES.setKnobs / tuned (the look's bioKnobs; TREE_FILL.knobs replants); the planters read the splat's LIVE knobs
   (BIOMES.ground - the split sliders never moved them). GATE WORLDRAIL holds the rows: a new world setting adds its line there.
+- 16 NOV EVENING, THE USER'S CALLS (all in claude/world-rail-veg for L40f): the subalpine "a little too sparse ... the forest
+  conifers, about 50-70% the size ... I don't want deciduous over there" -> the mix is the forest's conifers at canopyFloor 6
+  (7-9.5 m; the median forest conifer 11.7 m), no shrub_deciduous, the edge band's bushes skip it, ridge keep 0.6, clump 0.15,
+  ramp 420-540 m, the shrub cards x4. The forest edge "made the deep forest denser" -> the inside ramp is OFF (edgeIn 0) and an
+  OUTWARD BAND plants the wood's own trees outside its line (28c edgeBandAt / edgeReachAt: reach 30 m +-50 %, clumps, 0.7 ->
+  sapling; render_world walkRows: a band point refused falls back to the ground's rule; the record's canopy EDGE_CAN + size so the
+  build sizes it under the island's floor). The muskeg "higher density when there are trees ... subject to the forest border" ->
+  forest.clumpEdge (the clump fades outward) + forest.extra (a second tree in a clump). The shrub cards as bushes in every biome,
+  each its own set (my ecology default, a question on the page). Bench home: trees +51 % (muskeg extra +33, band 17.5). GAP: the
+  far stand cards do not draw the band. veg_bench mirrors it all; GATE COVER 9 holds the band's new geometry.
 - BACKLOG: the flowers and the subalpine shrubs carry simple_grass_chunks' CC-BY credit (3dhdscan) but they are the user's own
   art - fix tree_prep's credit source (a species' own `credit` in the tuning, or none for the user's pictures).
