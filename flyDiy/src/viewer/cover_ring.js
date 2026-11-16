@@ -800,6 +800,40 @@ var COVER_RING = (() => {
       return cell;
     }
 
+    // ---- FOREST-EDGE's band (the user 16 Nov: "a ramp of tree sizes on the surroundings, then bushes"; the spec of 25 Oct:
+    // shrubs 3-0 m outside the forest, weeds 6-3 m outside; 28c_biomes KNOBS edge*). ctx.edgeD is the tree fill's signed distance
+    // to the forest's edge (+ in). Its own stream (the points' hashes), so the cell's R() - every other species - is untouched; the
+    // cover's land tests (a strip's bush clearance, a lawn, a pavement, the mown sides, the lake band); none on a cell far from an edge
+    const EDGE_SHRUB = [['shrub_deciduous', 1], ['raspberry', 0.6], ['sapling_deciduous', 0.6], ['holly', 0.2]], EDGE_WEED = [['flower_fireweed', 1], ['flower_foam', 0.7]];
+    function edgeBand(G, x0, z0, C, push, cell) {
+      const K = BIO.knobs(), D = ctx.edgeD, reach = C * 0.75 + K.edgeWeedOut;
+      if ([[0.5, 0.5], [0, 0], [1, 0], [0, 1], [1, 1]].every(([u, v]) => Math.abs(D(x0 + u * C, z0 + v * C)) > reach)) return;
+      const cols = speciesOf(), set = L => { const out = []; let tot = 0;
+        for (const [n, w] of L) { const c = cols.find(q => q.name === n), P = c && protosOf(c); if (P && P.length) { out.push([c, P, w]); tot += w; } }
+        return { out, tot }; };
+      const SH = set(EDGE_SHRUB), WD = set(EDGE_WEED);
+      const nS = Math.round(K.edgeShrubDens * C * C), nW = Math.round(K.edgeWeedDens * C * C);   // drawn over the cell, kept in their band: the density there
+      const ix0 = Math.round(x0), iz0 = Math.round(z0);
+      for (let i = 0; i < nS + nW; i++) {
+        const weed = i >= nS, x = x0 + hsh(ix0 + i * 7919, iz0 - 31) * C, z = z0 + hsh(ix0 - 17, iz0 + i * 104729) * C;
+        const d = D(x, z);
+        if (weed ? (d >= -K.edgeShrubOut || d < -K.edgeWeedOut) : (d >= K.edgeShrubIn || d < -K.edgeShrubOut)) continue;
+        const gk = G.at(x, z);
+        if (!G.ok[gk] || G.shore[gk] || G.kind[gk] === 1 || G.kind[gk] === 3 || G.cut[gk] > 0.05 || G.kill[gk] > 0.01) continue;
+        if (!weed && G.bush[gk]) continue;   // a strip's own bush clearance
+        const S0 = weed ? WD : SH; if (!S0.out.length) continue;
+        let r = hsh(ix0 + i * 31, iz0 + i * 17) * S0.tot, pick = S0.out[0]; for (const e of S0.out) { r -= e[2]; if (r <= 0) { pick = e; break; } }
+        const [c, P] = pick, place = c.place || {}, p = draw(P, hsh(ix0 + i * 13, iz0 - i * 7)), rr = hsh(ix0 - i * 11, iz0 + i * 23);
+        const j = 1 + (hsh(ix0 + i * 5, iz0 + i * 3) * 2 - 1) * 0.12;
+        let s;
+        if (!weed && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0)   // the bush's own range, smaller the further out
+          s = (place.hMin + rr * (place.hMax - place.hMin)) * (0.75 + 0.25 * Math.max(0, Math.min(1, (d + K.edgeShrubOut) / K.edgeShrubOut))) / p.h0;
+        else s = (place.size || 1) * (0.8 + 0.35 * rr);
+        push(p, x, world.terrainH(x, z) - (place.sink || 0), z, s, hsh(ix0 + i * 3, iz0 - i * 5) * Math.PI * 2, [j, j, j], 0, 0);
+        STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1; STAT.edge = (STAT.edge || 0) + 1;
+      }
+    }
+
     // ---- one cell -------------------------------------------------------------------
     function buildCell(cx, cz, dTier, born) {
       if (BIO && BIO.hold && !BIO.held) { BIO.hold(true); try { return buildCell(cx, cz, dTier, born); } finally { BIO.hold(false); } }   // the biomes' knobs once a pass (28c hold)
@@ -973,6 +1007,7 @@ var COVER_RING = (() => {
           }
         }
       }
+      if (ctx.edgeD && BIO.edgeOn) edgeBand(G, x0, z0, C, push, cell);   // FOREST-EDGE: the bushes and weeds on the open side of an edge
       // the meshes: one InstancedMesh per prototype part
       const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
       let yLo = Infinity, yHi = -Infinity; for (const it of items.values()) for (let i = 1; i < it.xs.length; i += 7) { if (it.xs[i] < yLo) yLo = it.xs[i]; if (it.xs[i] > yHi) yHi = it.xs[i]; }

@@ -311,5 +311,44 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
     const nl = inBand(L), ns = inBand(S0);
     ok(nl > 0 && ns === 0, '8g a lake-coded bank grows grass (the nearest land code), a sea-coded band none', nl + ' tufts on the lake band, ' + ns + ' on the sea band'); } }
 
+// 9 FOREST-EDGE's BAND (the user 16 Nov; the spec of 25 Oct): on the open side of a forest edge the ring plants the edge's bushes
+// from 1 m in to 3 m out and its weeds from 3 to 6 m out, on their own hashes (every other species' instances the same as with
+// the band off), and nothing of it with BIOMES.edgeOn false. A straight edge at x = 60 (the forest east of it)
+function edgeRing(on) {
+  const B = boot(), { THREE, ctx } = B;
+  B.load(path.join('src', 'viewer', 'trees.js'));
+  const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
+  const cols = [{ name: 'shrub_deciduous', kind: 'shrub', place: { hMin: 0.6, hMax: 1.4 } }, { name: 'flower_fireweed', kind: 'cover', place: { size: 1.2 } },
+    { name: 'tuft', kind: 'cover', place: { density: 0.3, size: 0.3 } }];
+  const H = { shrub_deciduous: 1, flower_fireweed: 1.2, tuft: 0.4 }, built = new Map();
+  const treeList = () => cols.map(c => ({ key: c.name + '_m', col: c, sub: { bb: [-0.5, 0, -0.5, 0.5, H[c.name], 0.5], h: H[c.name] } }));
+  const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const n = key.replace(/_m$/, ''), g = new THREE.BoxGeometry(1, H[n], 1); g.translate(0, H[n] / 2, 0);
+    const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial({ map: t }) }] }; built.set(key, b); return b; };
+  ctx.TREE_PACK = { collections: cols };
+  const K = { edgeShrubIn: 1, edgeShrubOut: 3, edgeWeedOut: 6, edgeShrubDens: 0.2, edgeWeedDens: 0.25 };
+  const mix = { species: { tuft: { density: 0.3 } }, forest: { cover: 1, reach: 220 } };
+  const BIO = { mixAt: () => 'mix', mixOf: () => mix, knobs: () => K, edgeOn: on };
+  const world = { terrainH: () => 0, waterH: () => -10, island: null };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(40, 3, 0); camera.lookAt(80, 0, 0); camera.updateMatrixWorld();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const CR = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null,
+    biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true, edgeD: (x, z) => x - 60 });
+  CR.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });
+  for (let i = 0; i < 4; i++) CR.update();
+  const xs = { shrub: [], cover: [] };
+  CR.root.traverse(o => { if (!o.isInstancedMesh) return; const M = o.instanceMatrix.array, k = o.userData.coverKind, h = (o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox)).max.y;
+    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) (xs[k] || (xs[k] = [])).push([M[i * 16 + 12], h]); });
+  return xs;
+}
+{ let on = null, off = null;
+  try { on = edgeRing(true); off = edgeRing(false); } catch (e) { ok(false, '9 the edge band plants', (e && e.message || String(e)).slice(0, 200)); }
+  if (on && off) {
+    const sh = on.shrub || [], weeds = (on.cover || []).filter(([x, h]) => h > 1), tuftsOn = (on.cover || []).filter(([x, h]) => h < 1).length, tuftsOff = (off.cover || []).filter(([x, h]) => h < 1).length;
+    const shOk = sh.length > 20 && sh.every(([x]) => x >= 57 - 1e-6 && x < 61 + 1e-6), wdOk = weeds.length > 20 && weeds.every(([x]) => x >= 54 - 1e-6 && x < 57 + 1e-6);
+    ok(shOk && wdOk && !(off.shrub || []).length && !(off.cover || []).some(([x, h]) => h > 1) && tuftsOn === tuftsOff,
+       '9 FOREST-EDGE: the bushes stand from 1 m in to 3 m out, the weeds from 3 to 6 m out, nothing with the band off, the cell\'s other species untouched',
+       sh.length + ' bushes in x ' + (sh.length ? Math.min(...sh.map(e => e[0])).toFixed(1) + '..' + Math.max(...sh.map(e => e[0])).toFixed(1) : '-') + ', ' + weeds.length + ' weeds in x ' +
+       (weeds.length ? Math.min(...weeds.map(e => e[0])).toFixed(1) + '..' + Math.max(...weeds.map(e => e[0])).toFixed(1) : '-') + '; tufts ' + tuftsOn + ' / ' + tuftsOff + ' off'); } }
+
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
