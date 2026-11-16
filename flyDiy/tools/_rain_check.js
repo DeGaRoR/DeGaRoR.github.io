@@ -15,6 +15,10 @@
 //      0 before sampling on a dry day, falls back to the day's rain with the cloud pass off; CLOUDS.rain is the eye's.
 //   5. THE SHAFTS SLANT: below the base rainAt reads the map UP-WIND by wind x (base - h) / vFall; at the base no shift;
 //      no wind no shift; above the deck's top 0.
+//   7. THE STREAKS ROUND THE EYE (src/viewer/rain.js, app.js): the boxes' offsets wrapped at any clock, the counts per tier
+//      and rain, the cockpit's density, no texture / sampler (MATLIB, GLSL3), the cabin and roof cuts, MADE LAZILY (a dry
+//      day and ?rain=0 never make the program). The shader compiles on the page only: by hand, in a GPU slot.
+//   8. THE WORLD EDITOR: the "rain" block carries every numeric LOOK key, kept in THE LOOK, applied, diffed, mounted.
 // Run: node tools/_rain_check.js   (contract: one final `GATE RAIN: ...`)
 // ============================================================
 'use strict';
@@ -110,6 +114,14 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
   const guard = sy.indexOf("if (!(R > 0) || tier === 'off'"), make = sy.indexOf('RAIN_FX.make(THREE)');
   ok(guard > 0 && make > guard && sy.indexOf("RAIN_Q === 0 ? 'off'") > 0 && APP.indexOf('if (!inGarage) syncRainFx(running ? fdt : 0);') > 0,
      '7f the program is made the first time it rains near the eye, never on a dry day or under ?rain=0; synced each frame out of the shed'); }
+
+// 8 THE WORLD EDITOR (the user: every new world setting in F9): a "rain" block in air & map with every numeric LOOK key, kept in THE LOOK
+{ const fsx = require('fs'), px = require('path'), RF = require('../src/viewer/rain.js'), WR = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'world_rail.js'), 'utf8');
+  const a = WR.indexOf("const RAIN_KEYS = ["), keys = a < 0 ? [] : WR.slice(a + 19, WR.indexOf(']', a)).split(',').map(x => x.trim().replace(/'/g, ''));
+  const num = Object.keys(RF.LOOK).filter(k => typeof RF.LOOK[k] === 'number');
+  ok(num.every(k => keys.indexOf(k) >= 0) && keys.every(k => num.indexOf(k) >= 0), '8a the rain block carries every numeric LOOK key (' + num.length + ')', 'missing: ' + num.filter(k => keys.indexOf(k) < 0).join(',') + ' extra: ' + keys.filter(k => num.indexOf(k) < 0).join(','));
+  ok(WR.indexOf("put('rain', deltaOf(N.rain, DEF.rain))") > 0 && WR.indexOf('if (W.RAIN_FX && o.rain) rainSet(o.rain);') > 0 && WR.indexOf("ch.push(...diff(DEF.rain, out.rain, 'rain'))") > 0 && WR.indexOf('    rainCard(body);') > 0,
+     '8b it is saved in THE LOOK, applied on import / reset, listed in the changes, and mounted in air & map'); }
 
 console.log('GATE RAIN: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
