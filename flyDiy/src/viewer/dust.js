@@ -89,6 +89,7 @@
                          // "a little too dense / not transparent enough": 0.6 -> 0.45)
     fwdMax: 1.8,         // the forward lobe's cap (was 4): a backlit puff glows, it no longer blows out to white at low sun
     ground: true,        // the ground's colour handed in (false: the class rows)
+    splashRate: 160,     // (DIRT-STRIP 13 Nov) drops a second a wheel throws from a puddle at 6 m/s in 2 cm (x speed, x depth, by rate)
     // V2 (the user, 10 Nov: "more interesting patterns in this cloud ... vortices ... zones where they are more and less
     // dense ... here it's mostly a big blur ... the sprites ... really old school"). The industry's three answers, none
     // invented here (research: flydiy-notes/DIRT-DUST-V2-RESEARCH-2026-11-10.md):
@@ -465,7 +466,7 @@
       }
       // a PUDDLE: the tyre parts the water - brown water thrown out both sides and up
       // (DIRT-STRIP 13 Nov: ~1 drop a frame read as no spray at all) ~160 drops a second a wheel at 6 m/s in 2 cm, by rate
-      if (pud > 0.01 && V > 2) { const r = 160 * Math.min(1.5, V / 6) * Math.min(1, pud / 0.02) * K * dt; let n = Math.floor(r); if (rnd() < r - n) n++; for (let j = 0; j < n; j++) splashDrop(sys, w, V, ci); }
+      if (pud > 0.01 && V > 2) { const r = LOOK.splashRate * Math.min(1.5, V / 6) * Math.min(1, pud / 0.02) * K * dt; let n = Math.floor(r); if (rnd() < r - n) n++; for (let j = 0; j < n; j++) splashDrop(sys, w, V, ci); }
     }
     // ---- the props: the slipstream's wall jet ----
     const PR = st.props || [];

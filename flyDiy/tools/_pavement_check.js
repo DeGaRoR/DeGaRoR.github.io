@@ -692,7 +692,7 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   // (c) THE LOOK: 9 knobs x 3 surface types, every one a KNOB row with its default inside its range; a class's look
   // through lookOf; the defaults draw the plain surface (multipliers 1, the edge zone's side)
   const K = {}; for (const row of P.KNOBS) if (row.length > 1) K[row[0]] = row;
-  const okK = P.LOOK_KEYS.length === 30 + 2 &&   // + G2570's two grass-strip keys (grMatch, grMowA)
+  const okK = P.LOOK_KEYS.length === 30 + 2 + 6 &&   // + G2570's two grass-strip keys (grMatch, grMowA) + DIRT-STRIP look 3's six (16 Nov)
     P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
   verdict(okK, `the runway look: ${P.LOOK_KEYS.length} knobs (${Object.keys(P.LOOK_GROUPS).join(', ')} x 10), each a KNOBS row, its default in range`);
   // (G3018) THE SATURATION knob: 1 is today's grading exactly (the look carries 1, the graded mean the same bits), 0 is grey
@@ -739,7 +739,7 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
     // include a couple of meters of side track": the drawn tundra stands round the worn lanes only, ~2 m of ragged fade into the
     // ground under it, the strip's torn side its cap - the same strength, the new law, read in GLSL.map)
     const law = P.GLSL.map.indexOf('if (grassy && !road && uMacro.w > 0.0) {') >= 0 && P.GLSL.map.indexOf('col = mix(col, tun, tunK);') >= 0
-      && P.GLSL.map.indexOf('float trackA = 1.0 - smoothstep(0.0, 2.0, tReach);') >= 0
+      && P.GLSL.map.indexOf('float trackA = 1.0 - smoothstep(0.0, uLookG.y, tReach);') >= 0
       && P.GLSL.map.indexOf('float sideA = smoothstep(-0.9 * shW, 0.2 * shW, dE + 1.6 * shW * (m4 - 0.5) + 0.8 * (m2 - 0.5));') >= 0
       && P.GLSL.map.indexOf('gPavA = mix(gPavA, max(soil, min(trackA, sideA)) * gPavA, uMacro.w);') >= 0;
     verdict(P.RECIPE.grMatch === 1 && P.groundColor('grass', mr) === null && P.opaqueDepth('grass', 9, mr, 'strip') === Infinity && MU.uMacro.value.w === 1
