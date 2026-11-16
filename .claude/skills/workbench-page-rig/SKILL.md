@@ -35,3 +35,7 @@ There's no GPU. `node flyDiy/tools/soft_still.js --out x.jpg` gives a SwiftShade
 - A free eye far from the aircraft gives flat sky, because terrain streams around the aircraft.
 - HOLD/HOLDING text is not flying.
 - If you seeded a design before the load, try without the seed before blaming the game.
+- `FLIGHT_PROBE.craft()` is a Group at (0, 0, 0), so an eye "near the craft" taken from it looks at the world origin. Plane-relative eyes go on the sim's CG: use `R.eyeNear(dx, dy, dz, yaw, pitch)` or a `near` view, which read `sim().cgPos()` just before the view.
+- `camGet().target` can be stale after `fly()` or `place()`, so it is only a cross-check. Before a plane-relative grab, the rig projects the CG through the game's camera. If the aircraft is not in the frame, that is a MISS, and two misses stop the run.
+- To start lined up at the runway instead of on the stand, use `R.skipToLineUp()` or the CLI's `--skip` (the game's own `#bSkip`).
+- A copy of page_rig.js outside the repo still finds `_serve.js`: it is resolved from the repo served (`repo` option).
