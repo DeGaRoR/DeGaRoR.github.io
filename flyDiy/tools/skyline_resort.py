@@ -66,6 +66,15 @@ def runway(old, elev):
     # the shoulder (the grade's falloff) 30 -> 8 m and the band 6 -> 2 m: scaled to the 6 m strip (18 m: 30 / 6), a narrow cut -
     # and the parking terrace beside it keeps its own grade (a 30 m shoulder pulled it 0.4 m toward the strip: not flat)
     r.update({'len': LEN, 'wid': WID, 'c': C, 'profile': prof, 'band': 2, 'falloff': 8})
+    # THE TURN ON THE APRON (the user, 16 Nov: "you run uphill when it's flat, and there's actually a huge apron next to the
+    # cabin car station where you can easily maneuver ... You should always reach the flat part, and there normally you would
+    # expect to have something a bit wider to be able to turn and park"). The apron is the summit platform (tw_t_platform,
+    # gravel, level at 708.70 m): a -2..92 m down from the top end, 9..50 m across on the station side, its free part above
+    # the buildings (the pilot hut at a 64.7) ~60 x 41 m - beside the strip's flat top over its whole length, the 6 m shoulder
+    # between at the strip's own level (708.5-708.9). The way out (stand (45, -22) -> the runway) runs up the apron and joins
+    # the strip at its top end: the reversal is the apron's, the strip only sees the last 90 deg at its line-up point, 8 m
+    # below the top end (the take-off limit was flown from there; past the end the ridge falls away - 702 m 10 m out)
+    r['taxiOut'] = [P(24, -24), P(8, -14), P(8, 0)]
     # the stage: one strip at every value (its ground is physics, composed with the stage); the tired station's strip
     # has no windsock and no tie-down spots - the deal (resort 1) puts them back. (The 320 -> 380 m growth step is gone.)
     r.pop('stage', None)
