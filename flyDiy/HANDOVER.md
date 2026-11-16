@@ -316655,6 +316655,19 @@ re-cooked (premises, city, map, fleet; mt_strip 0 spots):
   the site's own branch): the runner gave FAIL at 1800.1 s with no failing row. Its wall wants a look when the trains merge.
   NOT RUN: FRAMECOST / the parked cook (GPU), the full tier, SKISFLY (SKIS's), the stills.
 
+## PAGE-RIG-2 (LOOK-1, 16 Nov 2026; the user via A0: "They really need the screenshot tool soon, they keep failing their test runs")
+- tools/page_rig.js: plane-relative eyes are anchored on the sim's CG (FLIGHT_PROBE.sim().cgPos()), read just before each view;
+  camGet().target is only a cross-check (stale after fly / place: noted, the CG wins); an aim within 5 m of the world origin is a
+  MISS (FLIGHT_PROBE.craft() is a Group at 0,0,0 - never aim at it). rig.eyeNear(dx, dy, dz, yaw, pitch); a CLI `near` view does
+  the same. Before a plane-relative grab the CG is projected through FLIGHT_PROBE.camera(): out of frame = a MISS; two misses
+  stop the run. fly() records whether the chase camera has the aircraft in frame (rig.plane.inFrame). rig.skipToLineUp() / --skip
+  = the game's own #bSkip. _serve.js is spawned by absolute path from the repo served (a scratchpad copy of the rig still serves).
+- GATE PAGERIG 7a-7k (node): the anchor rules, the projection on a fake camera, the source. --gpu (by hand, in a GPU slot) adds
+  6b (the CG anchor + the aircraft in the chase frame after fly()) and grabs by eyeNear. The two traps are in RIG-PROCEDURE.md
+  section 3 and the workbench-page-rig skill.
+- NOT RUN on a page yet: the --gpu half of this version (A0: the node gate is enough for the ready). INFRAME uses
+  camera.matrixWorldInverse / projectionMatrix as last drawn; a sim on the worker without cgPos falls back to camGet, said so.
+
 ## FLIGHT-SCRIPT (Pilot, 15 Nov 2026; the user via A0: scripted flights in steps with a deep log)
 - tools/flight_script.js: one scenario JSON (plane list:N, from/to, day game|calm, persona, steps {do, until, capS, allow}), the NODE runner through the game's own host (_tour_lib gameHost); one JSONL per run (run / sample 1 Hz / say / step with solver ms / end). A failed step stops the run with its WHY. The page runner (page_rig.js, frame ms per step) follows Thu 19 Nov.
 - The library tools/flight_scripts/: home_circuit (F-HCSN), east_point (the Cub, CALM: on the game's day it diverts, said), strip_jumbo (the Jodel), altiport (the Cub), float_circuit (B-CESF list:4). All five pass on 58c681347.
