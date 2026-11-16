@@ -858,6 +858,9 @@ function mount(host, ctx) {
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
       if (len < 150) { strip.status('refused: a strip is at least 150 m (' + len.toFixed(0) + ')'); return; }
       const e = Object.assign({ id: PG.newId(rec, 'runways') }, JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'strip ' + (rec.layers.runways.length + 1), c: [+((a[0] + b[0]) / 2).toFixed(2), +((a[1] + b[1]) / 2).toFixed(2)], hdg: +Math.atan2(b[1] - a[1], b[0] - a[0]).toFixed(4), len: +len.toFixed(1), wid: 24 });
+      // (BUMPINESS, the user 16 Nov: "dirt runways come with a default 2 as base bumpiness" - two dots of the strip table, chaos 0.4):
+      // a new strip (grass, unpaved) is born bumpy; its own seed from its id (a paved strip: drop its micro from the record)
+      e.micro = { chaos: 0.4, seed: [...String(e.id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 997, 7) };
       run({ layer: 'runways', id: e.id, before: null, after: e, label: 'runway ' + e.id });
       // (G3016, the user 12 Oct: two strips stacked - rev 24's w1 + w4: the tool stayed armed after a strip, so the next two
       //  clicks drew another) a strip placed hands the tool back to SELECT; another strip is the runway tool picked again
