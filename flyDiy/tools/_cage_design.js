@@ -3319,7 +3319,7 @@ const ARCHETYPES = [
                     aftWsBaseLift: 0.255, aftWsTopOff: 0.081824, aftWsBaseBow: 0.45, aftWsCeilBow: 0.3,
                     aftCowlLoops: 2, aftRingNoseTop: 0.285, aftRingNoseBot: -0.14, frNoseTopY: -0.39999999999999997,
                     frWinBotY: -0.68329950868154, frPostWaistW: 0.545, frPostBotW: 0.545, frCabWaistW: 0.545,
-                    frCabBotW: 0.545, rimW: 0.01, doorSill: 0.094, dashBack: 0.1, dashDepth: 0.42, dashHood: 1, dashCrown: 0.1, canClear: 1,
+                    frCabBotW: 0.545, rimW: 0.01, doorSill: 0.094, dashHood: 1, canClear: 1,
                     stY: -0.06, stZ: 0.25, stSpan: 1.027, stChord: 0.59, finVentralOn: 0, finFillet: 0.04,
                     finDorsal: 0, finTipZ: 0.25, finTipY: -0.3, finAftZ: 0, finAftY: -0.3, finBaseZ: 0, finBaseY: 0,
                     finMidY: -0.2, finUY: 0, finLEZ: -0.1, finShoulderZ: 0.15, finSharpBase: 3, finSharpLE: 3,
@@ -3331,7 +3331,7 @@ const ARCHETYPES = [
                     gearRetAct: 2, gearFold: 0, gearFoldNose: 0, gearRetFrac: 1, gearWellCut: 0, gearDoors: 2,
                     gearLegDoor: 1, gearNacFit: 1, gearNacPod: 0, gearShort: 0, gearShortNose: 0, gearKneeDoor: 0,
                     gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0, gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0,
-                    gnTwist: 0, seatType: 11, seatH: 0, seatGap: 0.285, pedalH: 0.27, pedalSpread: 0.09, pilElbows: 0,
+                    gnTwist: 0, seatType: 11, seatH: 0, seatGap: 0.285, pedalSpread: 0.09, pilElbows: 0,
                     pilRecline: 6,
                     // THE PILOT LYING BACK (the user 16 Nov: "the pilot is still sitting a little forward. In the
                     // pictures, the head is really at the back of the canopy ... ensure that the pedals and the controls
@@ -3341,8 +3341,16 @@ const ARCHETYPES = [
                     // inside the belly), the feet on the pedals under the panel; no throttle (an engineless glider) and so
                     // the airbrakes' blue handle on the LEFT wall in the left hand; no centre console. Every crew part
                     // inside the skin (the cut and the poke check: scratchpad tools, HANDOVER 16 Nov)
-                    seatZ: -0.44, seatRake: 50, floorLift: 0.025, consoleOn: 0, ctlThr: 3,
-                    stickZ: -0.15, stickY: -0.015, stickLen: 0.36, pedalZ: 0.96,
+                    seatZ: -0.40, seatRake: 50, floorLift: 0.025, consoleOn: 0, ctlThr: 3,
+                    stickZ: -0.15, stickY: 0.02, stickLen: 0.33, pedalZ: 1.03, pedalH: 0.15,
+                    // THE INSTRUMENT POD (the user 16 Nov: "The dash in the real plane really protrudes ... maybe 40,
+                    // even 50 centimeters ... have this thing go slightly up and bulge a little"; "bring the pedals ...
+                    // closer to the feet ... extend his feet a tad more"): the moulded hood 0.42 m further aft (dashBack
+                    // 0.10 -> 0.70 cage, its range opened to 1.00), crowned 0.18 m, its face shallow (dashDepth 0.42 ->
+                    // 0.12) so the extended legs run under it, the seat 4 cm forward again; no clash of the body with the
+                    // pod (the clash check), nothing through the skin. The portable GPS finds no room for its cradle under
+                    // the glass: named, not drawn (still billed)
+                    dashBack: 0.70, dashCrown: 0.30, dashDepth: 0.12,
                     noseDome: 0.3, s1Sink: 0.5, finZ: -0.25, s1Ul: 1, hgHorn: 0, hgFamily: 2, towHook: 2, certCat: 2, brkHold: 4,
                     wgBrake: 1, wgBrakeAt: 0.3, wgBrakeLen: 0.16, wgBrakeH: 0.2,
                     },
