@@ -1,7 +1,269 @@
 {
- "recordedAt": "2026-11-13T13:46:14.645Z",
- "head": "23ce68c1",
+ "recordedAt": "2026-11-16T22:28:50.612Z",
+ "head": "b8f52a7ec",
  "items": {
+  "file:builds/archaeopteryx_2026-11-10.json": {
+   "nV": 29951,
+   "nF": 23316,
+   "loops": [
+    {
+     "n": 110,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.017415207,
+      0.648022151,
+      1.032090023
+     ]
+    },
+    {
+     "n": 6,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.33202166,
+      0.326088374,
+      2.165765743
+     ]
+    },
+    {
+     "n": 110,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.017245006,
+      0.635433204,
+      1.025828652
+     ]
+    },
+    {
+     "n": 6,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.33202166,
+      0.326088374,
+      2.165765743
+     ]
+    },
+    {
+     "n": 167,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.023964187,
+      0.329363748,
+      1.006260306
+     ]
+    },
+    {
+     "n": 7,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.39316214,
+      0.088696964,
+      2.165765743
+     ]
+    },
+    {
+     "n": 169,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.032359191,
+      0.138346773,
+      1.018291
+     ]
+    },
+    {
+     "n": 7,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.403833321,
+      0.047263749,
+      2.165765743
+     ]
+    }
+   ],
+   "hash": "fe2315a468247335d1f0323a7a8bfb0949072d53"
+  },
+  "file:builds/cessna172r_2026-11-08.json": {
+   "nV": 54124,
+   "nF": 30898,
+   "loops": [
+    {
+     "n": 56,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.698411028,
+      0.763328505,
+      2.154855124
+     ]
+    },
+    {
+     "n": 56,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.719214621,
+      0.487825021,
+      2.157360346
+     ]
+    },
+    {
+     "n": 75,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.678991252,
+      0.632993237,
+      1.022688761
+     ]
+    },
+    {
+     "n": 75,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.691079027,
+      0.52566829,
+      1.006564253
+     ]
+    },
+    {
+     "n": 112,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.115011292,
+      0.744523144,
+      0.4637
+     ]
+    },
+    {
+     "n": 112,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.32600604,
+      0.73969124,
+      0.4637
+     ]
+    }
+   ],
+   "hash": "7a99c3b486577a2286c2d0efaf2c9706e892ebd0"
+  },
+  "file:builds/client_cub_floats_2026-11-13.json": {
+   "nV": 21054,
+   "nF": 16874,
+   "loops": [
+    {
+     "n": 70,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.453756128,
+      0.762620017,
+      1.3840565
+     ]
+    },
+    {
+     "n": 70,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.453760633,
+      0.826067256,
+      1.815583254
+     ]
+    }
+   ],
+   "hash": "af7f0612d89ce80388676237facba85f4c0eecc9"
+  },
+  "file:builds/client_cub_upgraded_2026-11-13.json": {
+   "nV": 21054,
+   "nF": 16874,
+   "loops": [
+    {
+     "n": 70,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.453756128,
+      0.762620017,
+      1.3840565
+     ]
+    },
+    {
+     "n": 70,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.453760633,
+      0.826067256,
+      1.815583254
+     ]
+    }
+   ],
+   "hash": "af7f0612d89ce80388676237facba85f4c0eecc9"
+  },
+  "file:builds/cub_2026-09-20.json": {
+   "nV": 21054,
+   "nF": 16874,
+   "loops": [
+    {
+     "n": 70,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.453756128,
+      0.762620017,
+      1.3840565
+     ]
+    },
+    {
+     "n": 70,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.453760633,
+      0.826067256,
+      1.815583254
+     ]
+    }
+   ],
+   "hash": "af7f0612d89ce80388676237facba85f4c0eecc9"
+  },
+  "file:builds/cub_2026-09-20_corrected.json": {
+   "nV": 21054,
+   "nF": 16874,
+   "loops": [
+    {
+     "n": 70,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.453756128,
+      0.762620017,
+      1.3840565
+     ]
+    },
+    {
+     "n": 70,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.453760633,
+      0.826067256,
+      1.815583254
+     ]
+    }
+   ],
+   "hash": "af7f0612d89ce80388676237facba85f4c0eecc9"
+  },
   "file:tools/fixtures/test_copies/c172r_wipline2350_landprop_2026-10-20.json": {
    "nV": 54842,
    "nF": 29512,
@@ -96,53 +358,6 @@
    ],
    "hash": "2035f4a12cd2531d344050bbb30bd21546285ddf"
   },
-  "file:builds/cessna172r_2026-11-08.json": {
-   "nV": 54842,
-   "nF": 29512,
-   "loops": [
-    {
-     "n": 68,
-     "side": 1,
-     "mat": "pasengerWindow",
-     "p0": [
-      0.505991252,
-      0.682703927,
-      0.568291
-     ]
-    },
-    {
-     "n": 68,
-     "side": -1,
-     "mat": "pasengerWindow",
-     "p0": [
-      -0.605647875,
-      0.698221794,
-      0.815791
-     ]
-    },
-    {
-     "n": 54,
-     "side": 1,
-     "mat": "pasengerWindow",
-     "p0": [
-      0.629844014,
-      0.622651952,
-      1.240310644
-     ]
-    },
-    {
-     "n": 54,
-     "side": -1,
-     "mat": "pasengerWindow",
-     "p0": [
-      -0.655133001,
-      0.375780557,
-      1.240357591
-     ]
-    }
-   ],
-   "hash": "5bc133d9a5211eeb521354bbb079ea8c842e4c74"
-  },
   "file:tools/fixtures/test_copies/cessna172_2026-09-20_corrected.json": {
    "nV": 55010,
    "nF": 29724,
@@ -189,60 +404,6 @@
     }
    ],
    "hash": "3f1c740a1da6d152f8b5058ba811e11a376d6311"
-  },
-  "file:builds/cub_2026-09-20.json": {
-   "nV": 20942,
-   "nF": 16762,
-   "loops": [
-    {
-     "n": 70,
-     "side": 1,
-     "mat": "pasengerWindow",
-     "p0": [
-      0.453756128,
-      0.762620017,
-      1.3840565
-     ]
-    },
-    {
-     "n": 70,
-     "side": -1,
-     "mat": "pasengerWindow",
-     "p0": [
-      -0.453760633,
-      0.826067256,
-      1.815583254
-     ]
-    }
-   ],
-   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
-  },
-  "file:builds/cub_2026-09-20_corrected.json": {
-   "nV": 20942,
-   "nF": 16762,
-   "loops": [
-    {
-     "n": 70,
-     "side": 1,
-     "mat": "pasengerWindow",
-     "p0": [
-      0.453756128,
-      0.762620017,
-      1.3840565
-     ]
-    },
-    {
-     "n": 70,
-     "side": -1,
-     "mat": "pasengerWindow",
-     "p0": [
-      -0.453760633,
-      0.826067256,
-      1.815583254
-     ]
-    }
-   ],
-   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
   },
   "file:tools/fixtures/test_copies/cessnaMetal (1).json": {
    "nV": 55162,
@@ -291,9 +452,244 @@
    ],
    "hash": "3bcfabe81cb37e865b9f265dc988aa2d5c21e84b"
   },
+  "file:tools/fixtures/test_copies/cessnaMetal_pod_2026-10-22.json": {
+   "nV": 55162,
+   "nF": 29780,
+   "loops": [
+    {
+     "n": 64,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.691106508,
+      0.692770617,
+      0.568291
+     ]
+    },
+    {
+     "n": 64,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.703365641,
+      0.694637811,
+      0.601799034
+     ]
+    },
+    {
+     "n": 54,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.75458702,
+      0.690384089,
+      1.284671381
+     ]
+    },
+    {
+     "n": 54,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.786038824,
+      0.407837437,
+      1.24
+     ]
+    }
+   ],
+   "hash": "3bcfabe81cb37e865b9f265dc988aa2d5c21e84b"
+  },
+  "file:tools/fixtures/test_copies/cub_quadwin_2026-10.json": {
+   "nV": 21054,
+   "nF": 16874,
+   "loops": [
+    {
+     "n": 70,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.453756128,
+      0.762620017,
+      1.3840565
+     ]
+    },
+    {
+     "n": 70,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.453760633,
+      0.826067256,
+      1.815583254
+     ]
+    }
+   ],
+   "hash": "af7f0612d89ce80388676237facba85f4c0eecc9"
+  },
+  "file:tools/fixtures/test_copies/dc3_2026-10.json": {
+   "nV": 75523,
+   "nF": 39092,
+   "loops": [
+    {
+     "n": 66,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.507626206,
+      0.575163435,
+      0.490008288
+     ]
+    },
+    {
+     "n": 66,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.436105221,
+      0.657028813,
+      0.543926984
+     ]
+    },
+    {
+     "n": 66,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.513490706,
+      0.576685448,
+      1.240006977
+     ]
+    },
+    {
+     "n": 66,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.445091261,
+      0.65429556,
+      1.285791
+     ]
+    }
+   ],
+   "hash": "5a589eee21a6e07957a765c8141a0c00104fd631"
+  },
+  "file:tools/fixtures/test_copies/dc3_study_2026-10-23.json": {
+   "nV": 52363,
+   "nF": 31038,
+   "loops": [
+    {
+     "n": 52,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.720798717,
+      0.689024714,
+      0.535902081
+     ]
+    },
+    {
+     "n": 52,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.770988044,
+      0.405118687,
+      0.49
+     ]
+    },
+    {
+     "n": 38,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.720798717,
+      0.689024714,
+      1.285728556
+     ]
+    },
+    {
+     "n": 30,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.716720715,
+      0.689059069,
+      1.49573945
+     ]
+    },
+    {
+     "n": 38,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.770988044,
+      0.405118687,
+      1.239983434
+     ]
+    },
+    {
+     "n": 30,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.766846247,
+      0.405149627,
+      1.495738738
+     ]
+    }
+   ],
+   "hash": "ff4de8583b81aa13acb4e92ba8773f5b741f2613"
+  },
+  "file:tools/fixtures/test_copies/dc3_study_fullsize_2026-10-23.json": {
+   "nV": 68857,
+   "nF": 34474,
+   "loops": [
+    {
+     "n": 54,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.720798717,
+      0.689024714,
+      0.535902081
+     ]
+    },
+    {
+     "n": 54,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.781666082,
+      0.328428353,
+      0.510791
+     ]
+    },
+    {
+     "n": 52,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.715535276,
+      0.689352601,
+      1.285474079
+     ]
+    },
+    {
+     "n": 52,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.765322391,
+      0.405198742,
+      1.239974887
+     ]
+    }
+   ],
+   "hash": "d4eba0ed80458b041502cb470be1df82fb95a986"
+  },
   "file:tools/fixtures/test_copies/flydiy-build (3).json": {
-   "nV": 13558,
-   "nF": 11310,
+   "nV": 13654,
+   "nF": 11406,
    "loops": [
     {
      "n": 119,
@@ -316,7 +712,58 @@
      ]
     }
    ],
-   "hash": "454716e4ed953f07b3a8e1d961ed5d8b8c1ff50b"
+   "hash": "02ee46f78e1750a73501b7f1694533fee17dc11d"
+  },
+  "file:tools/fixtures/test_copies/mosquito.json": {
+   "nV": 17205,
+   "nF": 15516,
+   "loops": [],
+   "hash": "5a24f9a962b8903aac152aee09193401ed972ccb"
+  },
+  "file:tools/fixtures/test_copies/mosquito_1.json": {
+   "nV": 17205,
+   "nF": 15516,
+   "loops": [],
+   "hash": "5a24f9a962b8903aac152aee09193401ed972ccb"
+  },
+  "file:tools/fixtures/test_copies/mosquito_2.json": {
+   "nV": 17205,
+   "nF": 15516,
+   "loops": [],
+   "hash": "25d3a9b4992bb070c6214667f7cb45d2ca7ccd39"
+  },
+  "file:tools/fixtures/test_copies/mosquito_3.json": {
+   "nV": 17205,
+   "nF": 15516,
+   "loops": [],
+   "hash": "f22d35dfec206bd4f770c216db62676e9ecc2d7a"
+  },
+  "file:tools/fixtures/test_copies/Twin_busher_floats_3.json": {
+   "nV": 27792,
+   "nF": 16086,
+   "loops": [
+    {
+     "n": 70,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.542792992,
+      0.591105885,
+      1.294583027
+     ]
+    },
+    {
+     "n": 70,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.612241599,
+      0.313362602,
+      1.236
+     ]
+    }
+   ],
+   "hash": "48faea53ff738140a8bc789d7844671ced72ebc1"
   },
   "preset:cessna 172": {
    "nV": 54842,
@@ -364,60 +811,6 @@
     }
    ],
    "hash": "2035f4a12cd2531d344050bbb30bd21546285ddf"
-  },
-  "file:builds/client_cub_floats_2026-11-13.json": {
-   "nV": 20942,
-   "nF": 16762,
-   "loops": [
-    {
-     "n": 70,
-     "side": 1,
-     "mat": "pasengerWindow",
-     "p0": [
-      0.453756128,
-      0.762620017,
-      1.3840565
-     ]
-    },
-    {
-     "n": 70,
-     "side": -1,
-     "mat": "pasengerWindow",
-     "p0": [
-      -0.453760633,
-      0.826067256,
-      1.815583254
-     ]
-    }
-   ],
-   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
-  },
-  "file:builds/client_cub_upgraded_2026-11-13.json": {
-   "nV": 20942,
-   "nF": 16762,
-   "loops": [
-    {
-     "n": 70,
-     "side": 1,
-     "mat": "pasengerWindow",
-     "p0": [
-      0.453756128,
-      0.762620017,
-      1.3840565
-     ]
-    },
-    {
-     "n": 70,
-     "side": -1,
-     "mat": "pasengerWindow",
-     "p0": [
-      -0.453760633,
-      0.826067256,
-      1.815583254
-     ]
-    }
-   ],
-   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
   }
  }
 }
