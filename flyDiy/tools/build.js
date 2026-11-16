@@ -51,6 +51,9 @@ const MANIFEST = {
     // THE SOIL'S WETNESS (DIRT-DUST, 2026-11-09): the plan's rain over the last 96 h as the top soil's water - the dust
     // and the strip's puddles read it; pure, after the plan it integrates.
     '07e_soil_wet.js',
+    // THE GROUND'S WEATHER LADDER (SNOW-MUD, 2026-11-15): a weather look's rung (dirt / firm mud / soft mud; grass dry / wet;
+    // sand dry / wet) off the soil's water - pure, after the soil it reads, before the world that resolves its codes.
+    '07f_ground_wx.js',
     '08_cloud_field.js',
     // THE CLIMATE (K0, 2026-09-22): the one wind field w(x,y,z,t) - the G72
     // legacy column moved in verbatim, the rich terms, the relief raster;

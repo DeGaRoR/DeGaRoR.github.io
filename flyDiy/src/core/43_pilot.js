@@ -340,6 +340,9 @@ function pilotCanFly(profile, def, strip, wind, opts) {
 }
 
 function makePilot(sim, def, world, opts) {
+  // (SNOW-MUD LADDER, 15 Nov: an aerodrome's weather look (codes 20-22) is planned on its rung NOW - the world's soil - as
+  // its wheels will feel it; a fixed code is itself)
+  const surfNow = c => (world && typeof world.surfaceNow === 'function' ? world.surfaceNow(+c) : c);
   opts = opts || {};
   const A = def.params.ap;
   const ST = PILOT_STYLES[opts.style] || PILOT_STYLES.normal;
@@ -1498,7 +1501,7 @@ function makePilot(sim, def, world, opts) {
     // The record is on the report (`appr`) so the matrix can read what was
     // flown. The slope is the runway model's (below).
     {
-      const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[to.surface]) || null;
+      const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[surfNow(to.surface)]) || null;
       const water = to.surface === 4 || !!sim.hydro;            // the water has its own laws (H4): no technique
       const soft = !water && !!row && row[0] >= 0.10;
       const runNeed = sheetOf() && sheetOf().LDGrun ? sheetOf().LDGrun : null;
@@ -3042,7 +3045,7 @@ function makePilot(sim, def, world, opts) {
       const Vtd = ap.VAppr * ST.VapprK + tVAdapt, tail = tailOf(to), Vg = Vtd + tail;
       const sEnd = (to.x - F.ox) * F.ux + (to.z - F.oz) * F.uz + to.len / 2, sThr0 = sEnd - to.len;
       const stopOn = (a, grade, v) => {
-        const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[a.surface]) || [CRR, MU_BRAKE, 0.8];
+        const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[surfNow(a.surface)]) || [CRR, MU_BRAKE, 0.8];
         const aS = A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * brkMu(row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * grade;
         return v * v / (2 * Math.max(0.5, aS)) + v * 1.0;
       };
@@ -4303,7 +4306,7 @@ function makePilot(sim, def, world, opts) {
           // went to the tail-down schedule and the hump law (H4) lost the
           // floatplane 780 m off its lane — the water has its own laws
           const onWaterNow = !!sim.hydro || from0.surface === 4;
-          const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[from0.surface]) || null;
+          const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[surfNow(from0.surface)]) || null;
           const soft = !onWaterNow && !!row && row[0] >= 0.10;
           const runNeed = sheetOf() && sheetOf().TORun ? sheetOf().TORun : null;
           const short = !onWaterNow && runNeed != null && (from0.len || 1100) < 2.0 * runNeed;   // an accelerate-stop wants about two runs

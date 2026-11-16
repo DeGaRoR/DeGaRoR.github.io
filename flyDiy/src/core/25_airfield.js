@@ -1029,10 +1029,12 @@ const STRIP_SURFACES = {
   water:    { word: 'water',    cls: 'water' },
 };
 const STRIP_LOOK_SURF = { asphalt: 'asphalt', concrete: 'concrete', worn: 'concrete', gravel: 'gravel', dirt: 'dirt', sand: 'sand', grass: 'grass', snow: 'snow',
-                          powder: 'snow', slush: 'snow', mud: 'mud', softmud: 'mud' };
+                          powder: 'snow', slush: 'snow', mud: 'mud', softmud: 'mud',
+                          wetgrass: 'grass', wetsand: 'sand', dirtwx: 'dirt', grasswx: 'grass', sandwx: 'sand' };   // (SNOW-MUD LADDER)
 // the SURFACE enum's index -> the vocabulary (GRASS 0, ROCK 1, SCREE 2, FOREST_FLOOR 3, WATER 4, PAVED 5, GRAVEL 6, SAND 7;
 // SNOW-MUD: SNOW_PACKED 8, SNOW_POWDER 9, SNOW_WET 10, MUD_FIRM 11, MUD_SOFT 12)
-const STRIP_ENUM_SURF = ['grass', 'gravel', 'gravel', 'dirt', 'water', 'paved', 'gravel', 'sand', 'snow', 'snow', 'snow', 'mud', 'mud'];
+const STRIP_ENUM_SURF = ['grass', 'gravel', 'gravel', 'dirt', 'water', 'paved', 'gravel', 'sand', 'snow', 'snow', 'snow', 'mud', 'mud', 'grass', 'sand'];   // (LADDER: 13 wet grass, 14 wet sand)
+STRIP_ENUM_SURF[20] = 'dirt'; STRIP_ENUM_SURF[21] = 'grass'; STRIP_ENUM_SURF[22] = 'sand';   // (the weather codes: their class)
 function stripSurface(a) {
   const mk = key => Object.assign({ key }, STRIP_SURFACES[key]);
   if (!a) return mk('grass');
