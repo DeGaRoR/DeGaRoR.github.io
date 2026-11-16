@@ -178,7 +178,7 @@ const WHEEL_ROWS = [
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat'], notCycle],
   ['whValve', 'valve stem', 0, 1, 1, notCycle],
   ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum'], notCycle],
-  ['brkHold', 'brakes (hold, mass)', 0, 3, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs']],
+  ['brkHold', 'brakes (hold, mass)', 0, 4, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs', 'sailplane wheel drum']],
 ];
 
 const PRESETS = {

@@ -1115,7 +1115,8 @@ function iconBrake(mode) {
   const cal = (x, y) => ({ d: 'M' + P2(x - 3, y - 4) + ' L' + P2(x + 3, y - 4) + ' L' + P2(x + 3, y + 4) + ' L' + P2(x - 3, y + 4) + ' Z', w: 1 });
   const paths = [{ d: ring(16) }, { d: ring(4) }];
   if (mode === 1) paths.push({ d: ring(10), w: 1 });
-  if (mode >= 2) { paths.push({ d: ring(9), w: 1 }); paths.push(cal(32, 11)); }
+  if (mode === 4) paths.push({ d: ring(7), w: 1 });   // (the sailplane's one small drum)
+  if (mode >= 2 && mode <= 3) { paths.push({ d: ring(9), w: 1 }); paths.push(cal(32, 11)); }
   if (mode === 3) paths.push(cal(32, 29));
   return { vb: '0 0 64 40', paths };
 }
@@ -2244,9 +2245,10 @@ const DESIGN_ROWS = [
     options: () => [['as it was', 'locks the wheels on any surface (the old law, no mass)', 0],
                     ['Heel drums', 'about 0.2 g on a 550 kg aeroplane: the J-3, the D.112', 1],
                     ['Single-caliper discs', 'Cleveland class: about the grass grip of a 600 kg aeroplane', 0],
-                    ['Double-caliper discs', 'Beringer / Grove class: the bush builds', 0]]
+                    ['Double-caliper discs', 'Beringer / Grove class: the bush builds', 0],
+                    ['Sailplane drum', 'one small drum in a glider\'s wheel, on the airbrake handle', 1]]
       .map(([label, note, drum], i) => {
-        const B = typeof GEN_BRAKES !== 'undefined' ? GEN_BRAKES : (W.GEN_BRAKES || null), k = [null, 'drum', 'disc', 'double'][i];
+        const B = typeof GEN_BRAKES !== 'undefined' ? GEN_BRAKES : (W.GEN_BRAKES || null), k = [null, 'drum', 'disc', 'double', 'sailplane'][i];
         const R = B && k ? B[k] : null;
         // (a slot tile writes its own row only, GATE DESIGN: the drawn brake stays the gear page's whBrake row)
         void drum;
@@ -3331,7 +3333,7 @@ const ARCHETYPES = [
                     gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0, gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0,
                     gnTwist: 0, seatType: 11, seatZ: 0, seatH: 0, seatRake: 42, seatGap: 0.285, consoleOn: 1,
                     stickY: -0.095, pedalZ: 0.965, pedalH: 0.27, pedalSpread: 0.09, pilElbows: 0, pilRecline: 6,
-                    noseDome: 0.3, s1Sink: 0.5, finZ: -0.25, s1Ul: 1, hgHorn: 0, hgFamily: 2, towHook: 2, certCat: 2,
+                    noseDome: 0.3, s1Sink: 0.5, finZ: -0.25, s1Ul: 1, hgHorn: 0, hgFamily: 2, towHook: 2, certCat: 2, brkHold: 4,
                     wgBrake: 1, wgBrakeAt: 0.3, wgBrakeLen: 0.16, wgBrakeH: 0.2,
                     },
             // THE KIT (the user 15 Nov: "let's try to bridge the weight gap ... More avionics, heavier batteries? Paint,
