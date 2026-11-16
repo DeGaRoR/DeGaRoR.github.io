@@ -5174,7 +5174,9 @@ function buildDecPanel() {
     const sel = document.createElement('select'); sel.style.flex = '1';
     if (legacy) (A.AERO_DEC_FONTS || []).forEach((f, i) => {
       const o = document.createElement('option'); o.value = 'L' + i;
-      o.textContent = 'Plex ' + f.name + (i === 0 ? ' (the registration\'s own)' : ''); sel.appendChild(o); });
+      // REG-JOST: rows 0-1 draw Jost now (AEROSKIN.AERO_DEC_FONT_FACE names what each old row draws)
+      const rn = ((A.AERO_DEC_FONT_FACE || [])[i] || {}).name || ('Plex ' + f.name);
+      o.textContent = rn + (i === 0 ? ' (the registration\'s own)' : ''); sel.appendChild(o); });
     for (const f of TXF) { const o = document.createElement('option'); o.value = f.key; o.textContent = f.name; sel.appendChild(o); }
     d.appendChild(sel);
     const nd = row('', '', parent), nk = nd.querySelector('span.k');

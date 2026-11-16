@@ -216,7 +216,7 @@
    "m1Rot": 0,
    "m1Tgt": 0,
    "m1Mode": 1,
-   "regFont": 2,
+   "regFont": 0,
    "wregOn": 0,
    "wregH": 0.55,
    "wregL": 2.6,
@@ -263,10 +263,7 @@
    "regShd": 1,
    "regShdCol": 1842722,
    "regShdX": 0.06,
-   "regShdY": 0.08,
-   "regFace": "saira",
-   "regB": 1,
-   "regI": 0
+   "regShdY": 0.08
   },
   "glass": {
    "opacity": 0.35,
