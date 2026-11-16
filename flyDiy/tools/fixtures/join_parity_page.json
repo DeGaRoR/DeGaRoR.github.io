@@ -1,8 +1,8 @@
 {
  "what": "join-parity-page",
- "at": "2026-11-10T13:57:17.370Z",
+ "at": "2026-11-16T06:35:07.130Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "2bb8a847d807f9b12ee49057734ff671e8326c3a",
+ "chainSig": "e1e7caed433e3e9e49e516e3cf9b14237b08b213",
  "builds": {
   "cub": {
    "file": "builds/cub_2026-09-20_corrected.json",
@@ -10,7 +10,7 @@
     "n": 97,
     "nb": 404,
     "mass": 475.74760786056004,
-    "build": "11193a934954"
+    "build": "05439a9e0838"
    },
    "spec": {
     "cage": {
@@ -159,6 +159,7 @@
      "aeroAftTip": 0.5,
      "aeroAftShape": 0,
      "aeroAftEdge": 0.6,
+     "aeroAftOver": 0,
      "crestH": 0,
      "crestAt": 0.55,
      "crestLoops": 1,
@@ -514,6 +515,7 @@
      "whCap": 1,
      "whValve": 1,
      "whBrake": 0,
+     "brkHold": 0,
      "whSlick": 0,
      "whBulge": 1,
      "beamAng": 62,
@@ -1182,7 +1184,7 @@
      },
      "seatsX": [
       0.6202989600000002,
-      2.00283456
+      2.03253456
      ],
      "seats": 2,
      "occupied": [
@@ -1534,7 +1536,7 @@
       "regL": 3.66,
       "regC": 0.012,
       "regCol": 1315860,
-      "regW": 1.1577380952380953,
+      "regW": 1.0669763513513515,
       "m1Pat": 3,
       "m1A": 1315860,
       "m1B": 16765568,
@@ -1595,6 +1597,24 @@
     "outfit": {
      "seats": "sling",
      "trim": "bare"
+    },
+    "cooling": {
+     "face": 0.05675,
+     "scoop": 0.00654,
+     "scoopAlt": 0,
+     "scoopRev": 0,
+     "nacInlet": 0,
+     "exit": 0,
+     "gills": 0,
+     "units": [
+      {
+       "aft": 0,
+       "k": 1,
+       "turned": 0
+      }
+     ],
+     "headsOut": 0,
+     "headsAll": 0.15727
     }
    }
   },
