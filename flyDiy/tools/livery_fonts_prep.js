@@ -16,7 +16,11 @@
 // usage: node tools/livery_fonts_prep.js <fonts-cut dir> <google fonts dir>   (writes media/fonts/, prints stem -> file)
 //        node tools/livery_fonts_prep.js --check   (every file aeroskin names is there, its name its hash; a WHOLE one
 //                                                  unwraps to its original's bytes when that original is given:
-//                                                  --check <google fonts dir>)
+//                                                  --check <google fonts dir>; the originals found there)
+//        node tools/livery_fonts_prep.js --add <stem> <google fonts dir>   (ONE reserved-name face added beside the set,
+//                                                  the set untouched: <dir>/<WHOLE[stem]> wrapped whole and proved,
+//                                                  <dir>/<family>/OFL.txt copied as OFL-<family>.txt; prints its file -
+//                                                  the way a face joins when the set's own sources are not at hand)
 'use strict';
 const fs = require('fs'), path = require('path'), crypto = require('crypto'), zlib = require('zlib');
 const ROOT = path.join(__dirname, '..'), OUT = path.join(ROOT, 'media', 'fonts');
@@ -30,6 +34,7 @@ const WHOLE = {
   'lobster-two-400-italic': 'lobstertwo/LobsterTwo-Italic.ttf',
   'lobster-two-700': 'lobstertwo/LobsterTwo-Bold.ttf',
   'lobster-two-700-italic': 'lobstertwo/LobsterTwo-BoldItalic.ttf',
+  'saira-condensed-700': 'sairacondensed/SairaCondensed-Bold.ttf',        // CARBON-CUB-LIVERY 16 Nov: "Saira"
 };
 // WOFF 1.0 (W3C, 2012): the sfnt's tables as they are, each deflated when that is smaller, the directory carrying each
 // one's original length and checksum - nothing in the font is read, recomputed or rewritten
@@ -84,11 +89,24 @@ if (arg === '--check') {
     let whole = true;
     const stem = path.basename(p).replace(/\.[0-9a-f]{8}\.woff2?$/, '');
     if (ok && WHOLE[stem] && !/\.woff$/.test(p)) whole = false;           // a reserved name must ship whole
-    if (ok && WHOLE[stem] && G) whole = woffSame(fs.readFileSync(p), fs.readFileSync(path.join(G, WHOLE[stem])));
+    if (ok && WHOLE[stem] && G && fs.existsSync(path.join(G, WHOLE[stem]))) whole = woffSame(fs.readFileSync(p), fs.readFileSync(path.join(G, WHOLE[stem])));
     if (!ok || !same || !whole) { bad++; console.log('BAD', f.key, st, f.files[st], !ok ? 'missing' : !same ? 'hash differs' : 'not the original, whole'); }
   }
   console.log((bad ? 'FAIL' : 'PASS') + ' media/fonts: ' + kb.toFixed(1) + ' KB');
   process.exit(bad ? 1 : 0);
+}
+if (arg === '--add') {
+  const stem = process.argv[3], G = process.argv[4];
+  if (!WHOLE[stem] || !G) { console.error('usage: --add <stem> <google fonts dir>; stems: ' + Object.keys(WHOLE).join(', ')); process.exit(2); }
+  const orig = fs.readFileSync(path.join(G, WHOLE[stem])), buf = woff1(orig);
+  if (!woffSame(buf, orig)) { console.error('the WOFF of ' + stem + ' does not give back its original'); process.exit(1); }
+  fs.mkdirSync(OUT, { recursive: true });
+  for (const f of fs.readdirSync(OUT)) if (f.startsWith(stem + '.') && /\.[0-9a-f]{8}\.woff2?$/.test(f)) fs.unlinkSync(path.join(OUT, f));
+  const name = stem + '.' + h8(buf) + '.woff', fam = path.dirname(WHOLE[stem]);
+  fs.writeFileSync(path.join(OUT, name), buf);
+  fs.copyFileSync(path.join(G, fam, 'OFL.txt'), path.join(OUT, 'OFL-' + fam + '.txt'));
+  console.log(JSON.stringify({ [stem]: 'media/fonts/' + name, ofl: 'media/fonts/OFL-' + fam + '.txt' }) + ' ' + (buf.length / 1024).toFixed(1) + ' KB');
+  process.exit(0);
 }
 const G = process.argv[3];
 if (!G) { console.error('the google fonts dir is needed for the reserved-name families'); process.exit(2); }
