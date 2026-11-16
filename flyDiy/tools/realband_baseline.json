@@ -54,6 +54,14 @@
    "moved": [
     "pc6"
    ]
+  },
+  {
+   "date": "2026-11-16",
+   "reason": "PC6-WINDSCREEN (FIT-PROCEDURE, the user 16 Nov): the PC-6's windscreen base back to the three-view (wsBaseBow 0.63 -> 0.25, wsBaseLift 0.125 -> 0.17, wsCeilBow 0.57 -> 0.62); the nose tank under the deck shrinks 144 -> 124 L (fuel 115 -> 99 kg), empty -8 kg",
+   "core": "1bfda2da2dcd2dd8",
+   "moved": [
+    "pc6"
+   ]
   }
  ],
  "planes": {
@@ -115,6 +123,64 @@
     }
    }
   },
+  "pc6": {
+   "stamp": {
+    "file": "builds/candidates/pc6_drafting_2026-11-11.json",
+    "blob": "416d1c3dce6c66ae31e662b66b365397d4899c94",
+    "core": "1bfda2da2dcd2dd8"
+   },
+   "facts": {
+    "empty": 1073.59,
+    "fuelKg": 99.2
+   },
+   "dims": {
+    "S": 30.3117,
+    "Sh": 5.9488,
+    "Sv": 2.49679,
+    "cRoot": 1.91,
+    "cTip": 1.91,
+    "hSpan": 5.14269,
+    "height": 3.70348,
+    "length": 10.83,
+    "span": 15.94,
+    "track": 3
+   },
+   "cases": {
+    "min": {
+     "mass": 1168.39,
+     "Vs": 68.239,
+     "V75": 253.924,
+     "Vmax": 269.544,
+     "roc": 17.7526,
+     "LD": 11.5466,
+     "TOgrass": 46,
+     "cgMAC": 38.963,
+     "sm": 11.3158
+    },
+    "typ": {
+     "mass": 1203.19,
+     "Vs": 69.2477,
+     "V75": 253.821,
+     "Vmax": 275.909,
+     "roc": 17.198,
+     "LD": 11.5466,
+     "TOgrass": 49,
+     "cgMAC": 37.0458,
+     "sm": 13.3677
+    },
+    "mtow": {
+     "mass": 2800,
+     "Vs": 105.637,
+     "V75": 244.315,
+     "Vmax": 269.787,
+     "roc": 5.95531,
+     "LD": 11.5466,
+     "TOgrass": 335,
+     "cgMAC": 77.5962,
+     "sm": -17.5012
+    }
+   }
+  },
   "jodelg": {
    "stamp": {
     "file": "builds/candidates/jodel_geo.json",
@@ -173,61 +239,61 @@
     }
    }
   },
-  "pc6": {
+  "pa18f": {
    "stamp": {
-    "file": "builds/candidates/pc6_drafting_2026-11-11.json",
-    "blob": "903f7559cbd90809293ba1a0965ebd5ebc8863a5",
+    "file": "builds/pa18_floats_2026-10-23.json",
+    "blob": "e26c73535d82d96d830acc93bd7aa2e7f857677e",
     "core": "1bfda2da2dcd2dd8"
    },
    "facts": {
-    "empty": 1081.44,
-    "fuelKg": 115.2
+    "empty": 565.363,
+    "fuelKg": 97.92
    },
    "dims": {
-    "S": 30.3117,
-    "Sh": 5.9488,
-    "Sv": 2.49679,
-    "cRoot": 1.91,
-    "cTip": 1.91,
-    "hSpan": 5.14269,
-    "height": 3.66125,
-    "length": 10.83,
-    "span": 15.94,
-    "track": 3
+    "S": 17.5698,
+    "Sh": 2.47818,
+    "Sv": 1.05777,
+    "cRoot": 1.7,
+    "cTip": 1.7,
+    "hSpan": 2.83914,
+    "height": 3.44801,
+    "length": 7.72,
+    "span": 10.7,
+    "track": 1.78
    },
    "cases": {
     "min": {
-     "mass": 1180.24,
-     "Vs": 68.7029,
-     "V75": 253.449,
-     "Vmax": 274.812,
-     "roc": 17.5389,
-     "LD": 11.5354,
-     "TOgrass": 49,
-     "cgMAC": 38.7593,
-     "sm": 11.3684
+     "mass": 659.843,
+     "Vs": 67.3984,
+     "V75": 164.663,
+     "Vmax": 186.353,
+     "roc": 5.54982,
+     "LD": 8.9772,
+     "TOgrass": 110,
+     "cgMAC": 19.3092,
+     "sm": 21.2949
     },
     "typ": {
-     "mass": 1219.04,
-     "Vs": 69.8231,
-     "V75": 253.331,
-     "Vmax": 275.45,
-     "roc": 16.93,
-     "LD": 11.5354,
-     "TOgrass": 52,
-     "cgMAC": 36.6276,
-     "sm": 13.64
+     "mass": 694.323,
+     "Vs": 69.1369,
+     "V75": 163.987,
+     "Vmax": 185.958,
+     "roc": 5.16145,
+     "LD": 8.9772,
+     "TOgrass": 116,
+     "cgMAC": 19.8686,
+     "sm": 20.6541
     },
     "mtow": {
-     "mass": 2800,
-     "Vs": 105.82,
-     "V75": 243.966,
-     "Vmax": 269.425,
-     "roc": 5.9507,
-     "LD": 11.5354,
-     "TOgrass": 345,
-     "cgMAC": 76.3842,
-     "sm": -16.7308
+     "mass": 806,
+     "Vs": 74.4898,
+     "V75": 161.397,
+     "Vmax": 184.459,
+     "roc": 4.09806,
+     "LD": 8.9772,
+     "TOgrass": 140,
+     "cgMAC": 29.4518,
+     "sm": 11.1193
     }
    }
   },
@@ -344,64 +410,6 @@
      "TOgrass": 43,
      "cgMAC": 27.0999,
      "sm": 29.4686
-    }
-   }
-  },
-  "pa18f": {
-   "stamp": {
-    "file": "builds/pa18_floats_2026-10-23.json",
-    "blob": "e26c73535d82d96d830acc93bd7aa2e7f857677e",
-    "core": "1bfda2da2dcd2dd8"
-   },
-   "facts": {
-    "empty": 565.363,
-    "fuelKg": 97.92
-   },
-   "dims": {
-    "S": 17.5698,
-    "Sh": 2.47818,
-    "Sv": 1.05777,
-    "cRoot": 1.7,
-    "cTip": 1.7,
-    "hSpan": 2.83914,
-    "height": 3.44801,
-    "length": 7.72,
-    "span": 10.7,
-    "track": 1.78
-   },
-   "cases": {
-    "min": {
-     "mass": 659.843,
-     "Vs": 67.3984,
-     "V75": 164.663,
-     "Vmax": 186.353,
-     "roc": 5.54982,
-     "LD": 8.9772,
-     "TOgrass": 110,
-     "cgMAC": 19.3092,
-     "sm": 21.2949
-    },
-    "typ": {
-     "mass": 694.323,
-     "Vs": 69.1369,
-     "V75": 163.987,
-     "Vmax": 185.958,
-     "roc": 5.16145,
-     "LD": 8.9772,
-     "TOgrass": 116,
-     "cgMAC": 19.8686,
-     "sm": 20.6541
-    },
-    "mtow": {
-     "mass": 806,
-     "Vs": 74.4898,
-     "V75": 161.397,
-     "Vmax": 184.459,
-     "roc": 4.09806,
-     "LD": 8.9772,
-     "TOgrass": 140,
-     "cgMAC": 29.4518,
-     "sm": 11.1193
     }
    }
   },
