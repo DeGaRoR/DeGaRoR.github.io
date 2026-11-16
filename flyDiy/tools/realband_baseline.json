@@ -51,6 +51,14 @@
    "moved": [
     "ls4"
    ]
+  },
+  {
+   "date": "2026-11-16",
+   "reason": "SEAT-CG (the user 16 Nov: 'Fix the balance'): a reclined seat's occupant billed where the drawn body's mass is (the LS4's 56 deg back: 0.103 m ahead of the seat back, was 0.20); the GPS on a side arm (0.7 kg drawn where billed): the ls4 row ONLY - carboncubss's standing move is still not accepted here",
+   "core": "7acc86bd71a3a250",
+   "moved": [
+    "ls4"
+   ]
   }
  ],
  "planes": {
@@ -699,7 +707,7 @@
     "core": "7acc86bd71a3a250"
    },
    "facts": {
-    "empty": 230.272,
+    "empty": 231.27,
     "fuelKg": 0
    },
    "dims": {
@@ -709,44 +717,44 @@
     "cRoot": 0.9,
     "cTip": 0.36,
     "hSpan": 2.49544,
-    "height": 1.21418,
-    "length": 6.79384,
+    "height": 1.21434,
+    "length": 6.79376,
     "span": 15.06,
     "track": null
    },
    "cases": {
     "min": {
-     "mass": 470.272,
-     "Vs": 76.2912,
+     "mass": 471.27,
+     "Vs": 76.3132,
      "V75": null,
      "Vmax": null,
      "roc": 0,
-     "LD": 19.4834,
-     "TOgrass": 2000,
-     "cgMAC": 25.0147,
-     "sm": 36.8883
+     "LD": 19.5134,
+     "TOgrass": 2001,
+     "cgMAC": 26.7819,
+     "sm": 35.1179
     },
     "typ": {
-     "mass": 480.272,
-     "Vs": 77.0981,
+     "mass": 481.27,
+     "Vs": 77.1186,
      "V75": null,
      "Vmax": null,
      "roc": 0,
-     "LD": 19.4834,
+     "LD": 19.5134,
      "TOgrass": 2043,
-     "cgMAC": 22.9206,
-     "sm": 39.3394
+     "cgMAC": 24.9294,
+     "sm": 37.3226
     },
     "mtow": {
      "mass": 525,
-     "Vs": 80.6083,
+     "Vs": 80.5461,
      "V75": null,
      "Vmax": null,
      "roc": 0,
-     "LD": 19.4834,
-     "TOgrass": 2233,
-     "cgMAC": 18.3831,
-     "sm": 45.4257
+     "LD": 19.5134,
+     "TOgrass": 2229,
+     "cgMAC": 20.8753,
+     "sm": 42.8791
     }
    }
   }
