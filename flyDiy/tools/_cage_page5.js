@@ -744,7 +744,10 @@ window.CAGE_PAGE = {
          { when: P => +P.doorOn }],
       ]],
       ['cockpit', [
-        ['dashBack',  'dash setback',   0.01, 0.30, 0.005,
+        // (16 Nov 2026, the LS4 - the user: "The dash in the real plane really protrudes ... maybe 40, even 50
+        // centimeters": a sailplane's instrument pod reaches back over the pilot's knees - the range 0.30 -> 1.00; a
+        // range only clamps the slider)
+        ['dashBack',  'dash setback',   0.01, 1.00, 0.005,
          { when: P => +P.intOn && +P.intDash, dim: 'len' }],
         ['dashLip',   'dash lip',       0.01, 0.10, 0.002,
          { when: P => +P.intOn && +P.intDash }],
