@@ -81,7 +81,7 @@ footer { font-size: 12px; color: var(--mute); display: grid; gap: 4px }
   <div class="ask"><b>Which mown grass should ship?</b><p>Default: <b style="font-size:inherit">${esc(SHORT[DEF])}</b> (${esc(WHAT[DEF])}), the variant that reads as a lawn at the lowest cost. The others stay as settings in the F9 world editor.</p></div>
   ${sections}
   <section class="eye"><h2>What each variant costs</h2><p class="mute">The worst of the four eyes, on the RTX 3080 at 1280×720. Lawn GPU is the time of the cards’ own draws in a frame. A cell is 8 m of ground planted once as you move.</p>${table}</section>
-  <footer><span>GPU: ${esc(J.gpu || '')}. Frames timed: ${esc(J.frames)}. Built from claude/grass-cards on grass-edge.</span><span>Tap a picture to see it full size.</span></footer>
+  <footer><span>GPU: ${esc(J.gpu || '')}. Frames timed: ${esc(J.frames)}. Built from claude/grass-cards on grass-edge.</span><span>Known limit, wild grass only: the tall tufts decide where to grow from the nearest 1 m point, so they can reach up to half a metre onto a paved edge. The cards read the ground between points and stop at the pavement. The tufts are not changed this week.</span><span>The phone row is the phone’s settings shot on the desktop GPU, not a real phone.</span><span>Tap a picture to see it full size.</span></footer>
 </main>
 ${bigs}`;
 fs.writeFileSync(OUT, html);
