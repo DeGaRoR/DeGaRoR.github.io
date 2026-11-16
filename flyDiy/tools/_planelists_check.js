@@ -68,6 +68,8 @@ const CLASSES = {
   "Cessna 172 on floats (draft)": ["wip", "builds/cessna172r_floats_2026-11-08.json", "F-HCSF"],
   "Spitfire": ["wip", "shape:spitfire", ""],
   "Skymaster": ["wip", "shape:skymaster", ""],
+  "PC-6 Turbo Porter": ["wip", "builds/candidates/pc6_drafting_2026-11-11.json", "HB-FDY"],
+  "PC-6 on Wiplines": ["wip", "builds/candidates/pc6_floats_2026-11-13.json", "PT-ZPO"],
   // (the Ruckus x2 join as reproductions with REAL-FIGURES' cards - Solo 103 = ruckus_std, Back-Country = ruckus_2026-11-09;
   //  the Spitfire and the Skymaster: shape rows, the chooser's shapes - no file, a registration at birth)
 };
