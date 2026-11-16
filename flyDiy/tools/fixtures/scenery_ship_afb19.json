@@ -204,21 +204,37 @@
    }
   },
   "w4": {
-   "name": "Mountainside Strip"
+   "name": "Mountainside Strip",
+   "micro": {
+    "chaos": 0.2,
+    "seed": 4
+   }
   },
   "w5": {
-   "name": "Cannery Runway"
+   "name": "Cannery Runway",
+   "micro": {
+    "chaos": 0.4,
+    "seed": 5
+   }
   },
   "w6": {
-   "name": "Old Community Runway"
+   "name": "Old Community Runway",
+   "micro": {
+    "chaos": 0.8,
+    "seed": 6
+   }
   },
   "w7": {
-   "name": "New Community Runway"
+   "name": "New Community Runway",
+   "micro": {
+    "chaos": 0.4,
+    "seed": 7
+   }
   },
   "w8": {
    "name": "Hiking Strip",
    "micro": {
-    "chaos": 0.4,
+    "chaos": 0.6,
     "seed": 13
    }
   },
@@ -226,7 +242,11 @@
    "name": "Greywater Dock"
   },
   "mn_strip": {
-   "name": "Copperhead Mine Street"
+   "name": "Copperhead Mine Street",
+   "micro": {
+    "chaos": 0.4,
+    "seed": 21
+   }
   },
   "s_strip": {
    "name": "Ridgeback"
@@ -438,6 +458,28 @@
     "patchK": 0.3,
     "paintAge": 1.2,
     "wet": 0.6
+   },
+   "micro": {
+    "chaos": 0.4,
+    "seed": 2
+   }
+  },
+  "nv_strip": {
+   "micro": {
+    "chaos": 0.4,
+    "seed": 22
+   }
+  },
+  "tw_ski": {
+   "micro": {
+    "chaos": 0.2,
+    "seed": 23
+   }
+  },
+  "w1": {
+   "micro": {
+    "chaos": 0.6,
+    "seed": 1
    }
   }
  },
@@ -451,6 +493,6 @@
   }
  },
  "itemPatchesWhy": "SCENERY-PLACE (the user, 3 Nov ~20:55 via A0: 'there is a sign at the old mine, next to the parking spot. It's in the way, remove it. It does not collide, but goes through'): the air taxi office's board stood on its posts by the path 10.8 m from mn_strip's stand - inside a parked aeroplane's wing; its P.signAt 0 puts it over the door. Applied after the ship - a re-ship must apply it again",
- "fieldPatchesWhyStrips": "DIRT-STRIP (L37a strip-names + chaos-on, 10 Nov; A0, SCENERYED row 15): the six unpaved strips w3-w8 carry the names the user gave them on the strip map (9 Nov) - w3 was Ridgeback Strip here - and w3/w8 the bumps the Pilot vetted (micro chaos 0.2 seed 3, 0.4 seed 13); the save keeps its own strip 9-13 names, byte for byte",
+ "fieldPatchesWhyStrips": "DIRT-STRIP (L37a strip-names + chaos-on, 10 Nov; A0, SCENERYED row 15): the six unpaved strips w3-w8 carry the names the user gave them on the strip map (9 Nov) - w3 was Ridgeback Strip here - and w3/w8 the bumps the Pilot vetted (micro chaos 0.2 seed 3, 0.4 seed 13); the save keeps its own strip 9-13 names, byte for byte | BUMPINESS (the user 16 Nov ~23:00, red marks on the Jolene Airstrips table, a dot = 0.2 chaos): w1 0.6, w3 0.2, w5 0.4, w6 0.8, w7 0.4, w8 0.6, mn_strip 0.4, nv_strip 0.4, w4 0.2, tw_ski 0.2 (+ mt_strip 0.2 and 02/20 w2 0.4 outside the save: the record and B's part); HOME flat; seeds kept, new ones the strip's own",
  "fieldPatchesWhyAfb0220": "AFB-0220 (the user 13 Nov via A0: 02/20 \"an UNMAINTAINED, DEGRADED strip divided into several runways\"): w2 is the NARROW CENTRAL BAND where the old concrete still shows - 45 -> 15 m wide, its band 40 -> 1.5 m (the grass to its edge), its grade's falloff 60 -> 8 m (the old corridor's rough ground and its ponds come back beside it), the pavement at its worst (crackK 1, mossK 1, patchK 0.3, paintAge 1.2, wet 0.6, laneW 5); the rough lane xw_rough, the crash playground and the forest are ship-only xw_ entries (tools/jolene_parts/afb0220.py, spliced by tools/afb0220_splice.py) - applied after the ship: a re-ship must apply it again"
 }
