@@ -90,5 +90,12 @@ const D = PG.GRASS_SIDES_DEF;
      "5d the worker gets it: sim_link WORLD_FNS + worldMsg, sim_host SIM_HOST_WORLD_FNS");
   ok(!WR.includes('P.grassSides({') && !WR.includes('GSD().grassSides(d)') && /gsSet/.test(WR), "5e the editor's grass rows set the law through the world (gsSet), never PREMISES_GEN alone"); }
 
+// 6 THE PAGE HAS NO process (16 Nov, the page boot: the override line read FALSE there, +false = 0, and the page shipped hard 0 while
+//   every node gate saw 1): the override line run in a browser-like scope (window, no process) leaves the default; a set flag wins
+{ const src = fs.readFileSync(path.join(T, '..', 'src', 'core', '27_premises.js'), 'utf8'), line = src.split(/\r?\n/).find(l => l.startsWith('try {') && l.includes('FLYDIY_GRASS_HARD'));
+  const run = win => { const G = { hard: 1 }; new Function('window', 'GRASS_SIDES', line)(win, G); return G.hard; };
+  ok(!!line && run({}) === 1 && run({ FLYDIY_GRASS_HARD: 0 }) === 0 && run({ FLYDIY_GRASS_HARD: '0' }) === 0 && run({ FLYDIY_GRASS_HARD: 1 }) === 1,
+     "6 the page (no process): hard stays the default unless window.FLYDIY_GRASS_HARD is set", line ? [run({}), run({ FLYDIY_GRASS_HARD: 0 }), run({ FLYDIY_GRASS_HARD: '0' })].join(' / ') : 'no override line'); }
+
 console.log('GATE GRASSSIDES: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
