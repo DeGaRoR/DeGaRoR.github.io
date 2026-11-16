@@ -473,6 +473,32 @@ async function swimmers(g) {
     if (!segs.some(sg => sg.A && sg.a[2] < C.cz)) sw = sw || 'the tail stock on no bone';
     check(!sw, 'S9 ' + a.key + ': the head and the tail stock', sw);
   }
+  // F1 FAR, NOT GONE (the user 15 Nov: "From the starting place of the cabin strip, all animals should show"): a land herd
+  // 2 km off stays DRAWN - on the ground, frozen (not stepped), parked out of the matrix walk; the eye coming back steps it
+  {
+    const k = AN.reg('elk') ? 'elk' : AN.list('land')[0].key;
+    const eye = { x: 0, y: 30, z: 0 }, GR = (x, z) => 20 + 0.01 * x;
+    const R = AR.make(THREE, { scene: new THREE.Group(), ground: GR, waterH: () => -Infinity, eye: () => eye });
+    R.sync([{ id: 'far', key: k, x: 2000, z: 0, n: 6, r: 40 }]);
+    for (let i = 0; i < 60; i++) R.tick(DT);
+    const L0 = R.list();
+    for (let i = 0; i < 120; i++) R.tick(DT);
+    const L1 = R.list();
+    let why = '';
+    if (R.stats.far !== L1.length) why = R.stats.far + ' of ' + L1.length + ' counted far';
+    L1.forEach((o, i) => {
+      if (!o.shown) why = why || 'one hidden';
+      if (Math.hypot(o.x - L0[i].x, o.z - L0[i].z) > 1e-6) why = why || 'one moved while far';
+      if (Math.abs(o.y - GR(o.x, o.z)) > 1e-3) why = why || 'one off the ground by ' + f2(o.y - GR(o.x, o.z));
+    });
+    eye.x = 1990;
+    for (let i = 0; i < 300; i++) R.tick(DT);
+    const L2 = R.list(), moved = L2.filter((o, i) => Math.hypot(o.x - L1[i].x, o.z - L1[i].z) > 1e-3 || o.clip).length;
+    if (R.stats.far !== 0 || R.stats.shown !== L2.length) why = why || 'back in reach: ' + R.stats.shown + ' stepped, ' + R.stats.far + ' far';
+    say('F1 ' + k + ' x' + L1.length + ' at 2 km: ' + (why || 'all shown, frozen on the ground') + '; back in reach ' + R.stats.shown + ' stepped, ' + moved + ' with a clip or moved');
+    check(!why, 'F1 a land herd past its reach is drawn frozen on the ground', why);
+    R.dispose();
+  }
   // S4 directly: the layer itself - a hull 10 m down, one at the surface, one in the air
   const W = g.WAKES.make(THREE, { waterH: () => 0 });
   for (let i = 0; i < 60; i++) {

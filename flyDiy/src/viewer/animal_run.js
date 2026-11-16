@@ -117,7 +117,7 @@ AR.make = function (THREE, ctx) {
 
   const HERDS = new Map();          // spot id -> { key, spec, ones: [...] }
   const FLOCKS = [];                // the ambient ones (no record)
-  const stats = { herds: 0, animals: 0, shown: 0, stamps: 0, blows: 0 };
+  const stats = { herds: 0, animals: 0, shown: 0, far: 0, stamps: 0, blows: 0 };
   let T = 0;
   let HSEQ = 0;                     // the herds' integers for the sound (G1705)
 
@@ -249,7 +249,7 @@ AR.make = function (THREE, ctx) {
                   // their own object shapes, and the sound's reader (G1705) then reads them through boxed doubles (GATE AUDIO
                   // ANIALLOC: 3.7 B a read)
                   v: 0, vy: 0, bank: 0, pitch: 0, dTarget: 0, br: null, lead: null, off: null, lag: 1, wid: null,
-                  upT: 0, upDone: false, _sd2: 0 };   // (_sd2: the water's sort key, submerged())
+                  upT: 0, upDone: false, _sd2: 0, farPosed: false };   // (_sd2: the water's sort key, submerged())
     // where it starts: scattered in the hotspot, seeded per individual so
     // adding one never moves the others (the premises contract's rule 5)
     let ang = rnd() * TWO_PI, rr = spot.r * Math.sqrt(rnd());
@@ -783,7 +783,7 @@ AR.make = function (THREE, ctx) {
     dt = Math.min(0.1, dt);
     T += dt;
     stats.stamps = 0;
-    stats.shown = 0;
+    stats.shown = 0; stats.far = 0;
     const e = eye ? eye() : null;
     for (const [, h] of HERDS) {
       const reach = REACH[h.kind] || 1200;
@@ -795,6 +795,22 @@ AR.make = function (THREE, ctx) {
       }
       for (const one of h.ones) {
         const on = !e || Math.hypot(one.x - e.x, one.z - e.z) < reach;
+        // FAR, NOT GONE (the user 15 Nov: "From the starting place of the cabin strip, all animals should show. We could
+        // reduce their numbers if need be"): a land animal past its reach stays DRAWN where it stands, frozen - at 1.4 km
+        // the ladder draws its static cut (ANIMALS-MOTION: the skin ends at 6 px, an elk at 456 m), so nothing that would
+        // walk is seen standing still. It is posed once (on the ground, its heading), composed once, then parked: no step,
+        // no matrix walk. Sea animals past theirs stay hidden (a frozen whale at the surface is a dead whale).
+        if (!on && h.kind === 'land') {
+          if (!one.H.ready) { one.H.obj.visible = false; continue; }
+          if (!one.farPosed) {
+            if (!one.posed) orient(one, one.dir, one.upS, 1);
+            one.H.obj.visible = true; park(one.H.obj, true); one.H.obj.updateMatrixWorld(true); park(one.H.obj, false);
+            one.farPosed = true;
+          }
+          one.H.obj.visible = true; stats.far++;
+          continue;
+        }
+        one.farPosed = false;
         one.H.obj.visible = on; park(one.H.obj, on);
         if (!on) { if (one.H.loomSet) one.H.loomSet(0); continue; }
         if (!one.H.ready) continue;
