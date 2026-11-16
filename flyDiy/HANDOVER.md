@@ -317202,3 +317202,23 @@ NEW REDS (named, owners fix in L40f):
 - BENCHTIME: 2 bench checks at 6.0-6.5 s vs 6.0 under the train's load (timing).
 LOAD TIME (cold, RTX 3080, ledger): L40d 143 s -> L40e 215 s (205 s re-measured on a quiet box): world 26 -> 40-51 s, settle 17 -> 22-27 s, shader compile 58 -> 67-93 s. LANDED WITH THE COST NAMED (the user's rule); suspects: subalpine (+7-14 % trees, walk), grass-on-green, animals on land (31 drawn), the ground ladder. First item of the perf round; bisect owed.
 KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes evict grit on low tiers (GROUND-FX splash-budget L40f); MEDIA career_core 720 KB budget (Game).
+## PC6-WINDSCREEN + PC6-SHOULDERS + PC6-MTOW (FIT-PROCEDURE, 16 Nov) - claude/fit-procedure-pc6-l40e on L40e 2157a2f98
+- THE SCREEN (the user, 16 Nov): the base bow back to the three-view (wsBaseBow 0.63 -> 0.25, wsBaseLift 0.125 -> 0.17),
+  then the user's bulge B: wsCeilBow 0.78 over FLAGSHIP's shoulder columns (wsShoulder 1, X 0.85, Top 0.7, Base 0.3:
+  flat in the middle, rounded on the sides, the glass wrapping round its upper corners as on the user's photographs; the
+  base low, no lip at the cowl's corner). On the four PC-6 cards (drafting, floats, the two livery studies).
+- FLAGSHIP's WS-SHOULDER generator hunks taken ALONE (A0: not the Cessna before REAL-FIGURES' verdict), byte-identical
+  to claude/cessna-refit-l40d 78bd48de6 (_cage_gen.js six hunks, _cage_page5.js the rows, _cage_parts.js the 'shape'
+  group): they carry wsToWaist with its dash fix (shared hunks) and an inert S.pillarFollow line. Every row absent at
+  default. merge-tree with cessna-refit-l40d: the three sources auto-merge.
+- THE FUEL AND THE MTOW LOADING (A0, for REAL-FIGURES' retest): spec.energy on the four cards - a 492 L Jet A-1 tank in
+  the wing-root bay (TCDS 2.23), not the generic nose tank; empty 1181 kg (the factsheet's band). tools/real_check.js
+  takes an opt-in PLANES row `mtowCase` (seats, fuel, the top-up as freight at seat stations `topAt`); PLANES.pc6: every
+  seat, the tanks full, the rest at the cabin front: CG 38 % MAC at 2800 kg (TCDS 2.44: 32-38 %). Other planes as before.
+- real_check pc6 (full): inside - empty, Vs1, roc (game), TO50 (POH, game), LDG50 (POH); near - Vmax, roc (POH);
+  outside - roc (airframe), LDG50 (game: flap 0.60, td 115 km/h at MTOW). NAMED, not tuned: the EMPTY CG IS AFT (MIN 43 %,
+  TYP 42 % MAC; the TCDS's 11-38 % at 1450 kg) - the tail oleo, the tank's hardware, no nose ballast row: the user's call.
+- GATES (box, L40e): TAILWHEEL, MASS, PLANELISTS, REALBAND (re-written: pc6 alone), DRAFTING, JOIN, GEAR, PLANEFICHE, PRICE,
+  PROCURE, SNAPSHOTS: PASS; PC6 MECHANISM: PASS. PARTS (canClear, 1508 vs 1509) and CANDIDATES (jodel_geo,
+  superpetrel_V4_1): red on bare L40e master the same rows.
+- Also: the fitting lessons (futureDesigns/lessons/FIT-PROCEDURE-fitting.md, docs).
