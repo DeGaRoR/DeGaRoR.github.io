@@ -68,6 +68,8 @@ const SKIP_SHEET = new Set(['tube', 'cloth', 'dash', 'dashFace', 'bulkhead', 'fi
 const GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'skyWindows', 'drawnPane']);
 const tris = [];   // [ax,ay,az, bx,by,bz, cx,cy,cz, r,g,b]
 const P = S.P, FS = S.FS;
+const CREW = process.argv.includes('--crew');
+const CG2W = S.W && S.W.CAGE2, SPEC_C = S.spec;   // NOSE-DECK: the cage module and the built cage spec (the editor's own)
 // RETRACT G4: the wells cut into the drawn sheet as the editor cuts its fuselage (_knife_gen knifeWells, the gear
 // layer's CAGE_GEAR.cuts); --nowells draws the sheet whole
 // HULL-B55: --fit prints the gear layer's own fit verdict (foldFit: the rows it reddens and why; CAGE_ROW_BAD)
@@ -87,8 +89,18 @@ const inReg = f => { if (!sheet.A || f.v.some(i => !sheet.A[i])) return false;
 // --half: THE CUTAWAY - the body's starboard half (+x, the side the side view looks from) left out, so what runs inside
 // the cabin shows (the hanging nacelle's mast down to the keel)
 const HALF = argv.includes('--half');
+// AN OPEN FRAME (the user 9 Nov: "quick view renders a back pod and ignores the options"): with skinOn 0 the editor
+// (_cage_ui.js ZERO SKIN, skinCull) draws no covering and no lining - what stands is the glass, the joints and the bare
+// structure (INTSTRUCT: the truss tubes, the rod, the taper panels, the bulkheads, the dash). The same here, the
+// structure drawn in the frame's own colour
+const OPEN = P.skinOn != null && !+P.skinOn;
+const OPEN_KEEP = new Set(['bulkhead', 'bulkTrim', 'baggage', 'firewall', 'fireProof', 'fireSeal', 'dash', 'dashFace', 'tube',
+  'woodFrame', 'aluminium', 'boomTube', 'taperPanel', 'joint', 'doorSeal', 'paneEdge', ...GLASS]);
+// NOSE-DECK (the user 10 Nov): the open frame's kept nose deck, as the editor keeps it (_cage_ui.js deckOf)
+const NOSE_DECK = OPEN && +P.noseDeck && CG2W && CG2W.cageNoseDeck ? CG2W.cageNoseDeck(sheet, SPEC_C) : null;
 for (const f of sheet.F) {
-  if (SKIP_SHEET.has(f.m) || f.v.length < 3) continue;
+  if (f.v.length < 3) continue;
+  if (OPEN ? !(OPEN_KEEP.has(f.m) || (NOSE_DECK && NOSE_DECK(f))) : SKIP_SHEET.has(f.m)) continue;
   if (HALF && f.v.reduce((a, i) => a + sheet.V[i][0], 0) / f.v.length > 1e-4) continue;
   const col = MARKS.includes('reg') && inReg(f) ? [245, 245, 245] : GLASS.has(f.m) ? (f.m === 'drawnPane' ? [70, 170, 230] : [60, 110, 160])
     : f.m === 'joint' || f.m === 'paneEdge' || f.m === 'doorSeal' || f.m === 'reveal' ? [40, 40, 44]
@@ -175,15 +187,21 @@ S.scene.traverse(o => {
       if (i + 1 < Gd.length) wires.push({ a: Wm(Gd[i][k]), b: Wm(Gd[i + 1][k]) });
     }
   }
-  if (o.visible === false || /^edVessel_|^edFuel_|^edCrew/.test(o.name || '')) return;
+  // --crew (the user 10 Nov: "render the seat"): the crew layer's meshes (the seat, the pilot) are drawn too
+  if (o.visible === false || /^edVessel_|^edFuel_/.test(o.name || '') || (!CREW && /^edCrew/.test(o.name || ''))) return;
   let hidden = false; for (let q = o; q; q = q.parent) if (q.visible === false) hidden = true;
   if (hidden) return;
   const m = Array.isArray(o.material) ? o.material[0] : o.material;
   let col = m && m.color ? [m.color.r * 255, m.color.g * 255, m.color.b * 255].map(Math.round) : [180, 180, 180];
-  if (/^edAcc_/.test(o.name || '') || (o.parent && /access/.test(o.parent.name || ''))) col = [220, 40, 40];
+  if ((/^edAcc_/.test(o.name || '') || (o.parent && /access/.test(o.parent.name || ''))) && o.name !== 'edRodSocket') col = [220, 40, 40];   // (PETREL-LS: the rod's socket is skin, not a fitting)
   // (the hub's blend wears the body's paint in the editor - its livery section follows the fuselage's; here the sheet's
   // own colour, as the rod it grows out of is drawn)
   if (o.name === 'rodHubSocket' || o.name === 'hangMast') col = hex(skin);   // (and the hanging nacelle's mast: the body's paint)
+  // PETREL-LS: a livery section's explicit tint (spec.finish.sections) on the parts the headless page draws in its flat
+  // palette - the pylon fairing ('pylon', else the engine mount's)
+  { const SEC = (spec.finish && spec.finish.sections) || {}, chain = o.name === 'engPylon' ? ['pylon', 'engMount'] : null;
+    const t = chain && chain.map(k => SEC[k] && SEC[k].tint).find(x => x != null);
+    if (t != null) col = [(t >> 16) & 255, (t >> 8) & 255, t & 255]; }
   if (m && m.transparent && m.opacity < 0.3) return;
   const pos = o.geometry.attributes.position, idx = o.geometry.index;
   const n = idx ? idx.count : pos.count;

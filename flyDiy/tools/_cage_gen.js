@@ -443,6 +443,28 @@ function cageResolve(S) {
   // taper section. Same architecture as with pod and rod planes really": the tube's root is the bulkhead on a hull too -
   // it runs inside the buoyant taper and leaves through the cone's collar; B23/B27 had rooted it at the cone's tip)
   let zConeTip = null, zRodRoot = zPaxA;
+  // PETREL-LS (the user, 10 Nov: "the base of the rod sticking through ... it stops a little before"): THE ROD'S AXIS
+  // stays anchored at the bulkhead (rodY / rodIncl are read there, as before), but the TUBE may start `rodRootAft` aft
+  // of it - held where it enters the body (the socket, _cage_access.js) instead of running on to the bulkhead and out of
+  // a hull's underside on the way. 0 (absent): the bulkhead, every build before
+  const zRodAx = zPaxA;
+  if (ROD && ROD.rootAft > 0) zRodRoot = zPaxA - ROD.rootAft;
+  // THE RULE (the user, 10 Nov: "when there is a hull and taper ... we don't have to reach the aft bulkhead section right
+  // behind the cabin. We have to reach the float section, which will generate the proper socket"): a rod over a hull's
+  // buoyant taper (HTAP) roots INSIDE the float section - two diameters forward of the float's own pillar, never forward
+  // of the bulkhead - and enters it through its socket (_cage_access.js, on by default there). rodRootAft > 0 overrides
+  // (measured once the float's rings exist, rodRootIn below: a few diameters forward of the first station where the
+  // tube is wholly inside the float's section, at least two forward of its pillar)
+  const rodRootIn = () => {
+    if (!ROD || ROD.rootAft > 0 || !HTAP) return zRodRoot;
+    const r = ROD.r, yAx = z => ROD.y + Math.tan(ROD.incl || 0) * (zRodAx - z);
+    const pts = rings.filter(Q => !Q.rod && Q.lv && Q.lv.roof && Q.lv.keel && Q.lv.waist && Q.lv.waist.z <= zPaxA + 1e-6)
+      .map(Q => ({ z: Q.lv.waist.z, top: Q.lv.roof.y, bot: Q.lv.keel.y })).sort((a, b) => a.z - b.z);
+    let zIn = null;
+    for (const q of pts) { const y = yAx(q.z); if (y + 1.25 * r <= q.top && y - 1.25 * r >= q.bot) { zIn = q.z; break; } }
+    const floor = zTaperA + 4 * r;
+    return Math.min(zPaxA, Math.max(floor, zIn != null ? zIn + 4 * r : floor));
+  };
   // rod rings are regular 14-gons on the rod circle (6 levels + the two
   // centre columns): even spacing = the CC limit is a circle. Control
   // radius compensates the n-gon shrink so the DISPLAYED tube hits
@@ -451,7 +473,7 @@ function cageResolve(S) {
     const rc = ROD.r * 3 / (2 + Math.cos(2 * Math.PI / 14));
     const th = k => k * Math.PI / 7;
     // G267.1: the axis climbs tan(incl) per metre aft of the bulkhead
-    const yA = ROD.y + Math.tan(ROD.incl || 0) * (zRodRoot - z);
+    const yA = ROD.y + Math.tan(ROD.incl || 0) * (zRodAx - z);   // (PETREL-LS: the axis's own anchor)
     const at = k => ({ x: rc * Math.sin(th(k)),
                        y: yA + rc * Math.cos(th(k)), z });
     const lv = { roof: at(1), ceil: at(2), band: at(3),
@@ -533,7 +555,7 @@ function cageResolve(S) {
   // afterbody line (the planing run's: a straight buttock releases the water cleanly), the gunwale a straight line. Four rings; the
   // hull's V goes on each (cageHullVee), so the water's table reads the same body (cageHullLines)
   if (!MIR && ROD && HTAP) {
-    const yAx = z => ROD.y + Math.tan(ROD.incl || 0) * (zRodRoot - z);
+    const yAx = z => ROD.y + Math.tan(ROD.incl || 0) * (zRodAx - z);
     const e = taperD, Wk1 = e.Wk != null ? e.Wk : e.Ww, yc1 = 0.5 * (e.roofY + e.keelY);
     const hT = 0.5 * (e.roofY - e.keelY), rCol = HT_COLLAR * ROD.r;
     // the cone: tip -> taper end (added aft first). Its section shrinks on an ogive (1 - u^1.6, u from the taper end),
@@ -550,25 +572,31 @@ function cageResolve(S) {
     // under the tube, its plan closing on the tube's own width - so the tail ends WRAPPING the rod's lower half, a fillet,
     // and the tube grows out of the float's deck as the Super Petrel's boom does. The same ogive (g = 1 - u^1.6, 1 at the
     // taper's end): every level eases from its taper-end height (relative to the rod's axis there) onto the tip's
+    // PETREL-LS (the user, 10 Nov: "the float aft in the real plane is cut straight ... the 20-30 last centimetres on the
+    // aft part are not existing"): THE TAIL CUT - `hullTailCut` (cage units, 0 = the whole cone) off the cone's tip, the
+    // float ending on its cut section, the aft cap a flat transom; the cone's own stations aft of the cut go
+    const cutL = Math.max(0, Math.min(0.85 * (zTaperP - zConeTip), +S.hullTailCut || 0));
+    const uC = cutL > 0 ? 1 - cutL / Math.max(1e-6, zTaperP - zConeTip) : 1;
+    const US = cutL > 0 ? [uC, ...[0.86, 0.62, 0.34].filter(u => u < uC - 0.06)] : [1, 0.86, 0.62, 0.34];
     if (own) {
       const rr = ROD.r, yA0 = yAx(zTaperP), kT = 1.05 * rr, wT = 1.12 * rr;
-      for (const u of [1, 0.86, 0.62, 0.34]) {
+      for (const u of US) {
         const z = zTaperP + (zConeTip - zTaperP) * u, g = 1 - Math.pow(u, 1.6), yA = yAx(z);
         const roof = yA + (e.roofY - yA0) * g, keel = yA - kT + (e.keelY - (yA0 - kT)) * g;
         // the inner levels keep their share of the section between the keel and the deck
         const fr = v => keel + (roof - keel) * (v - e.keelY) / Math.max(1e-6, e.roofY - e.keelY);
         const wd = v => wT + (v - wT) * g;
-        add(fullRing(u === 1 ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
+        add(fullRing(u === US[0] ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
           Ww: wd(e.Ww), Wr: wd(e.Wr), Wk: wd(Wk1), roofY: roof, keelY: keel, ceilY: fr(e.ceilY), floorY: fr(e.floorY),
           waistY: e.waistY != null ? fr(e.waistY) : undefined }), { mat: CAGE_MAT.taper });
       }
     }
-    if (!own) for (const u of [1, 0.86, 0.62, 0.34]) {
+    if (!own) for (const u of US) {
       const z = zTaperP + (zConeTip - zTaperP) * u, g = 1 - Math.pow(u, 1.6);
       // (the centreline STRAIGHT from the taper end's centre onto the rod's axis at the tip - a line, never an S - or
       // onto the float tail's own tip)
       const yc = own ? yc1 + (yTip - yc1) * u : yAx(z) + (yc1 - yAx(zTaperP)) * (1 - u), sc = h => rTip + (h - rTip) * g;
-      add(fullRing(u === 1 ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
+      add(fullRing(u === US[0] ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
         Ww: sc(e.Ww), Wr: sc(e.Wr), Wk: sc(Wk1), roofY: yc + sc(hT), keelY: yc - sc(hT),
         ceilY: yc + sc(e.ceilY - yc1), floorY: yc + sc(e.floorY - yc1),
         waistY: e.waistY != null ? yc + sc(e.waistY - yc1) : undefined }), { mat: CAGE_MAT.taper });
@@ -873,7 +901,7 @@ function cageResolve(S) {
     // cap the cowl and the engine bolt to (capFace, as the cowl nose's);
     // an aerodynamic one in G19's domed point
     return { rings, bays, aero: true, aeroFace: CFG.noseFinish !== 'aero',
-             rodSpan: ROD ? { zRoot: zRodRoot, zTip: zCap, ring: rodRing }
+             rodSpan: ROD ? { zRoot: (zRodRoot = rodRootIn()), zAx: zRodAx, zTip: zCap, ring: rodRing }
                           : null };
   }
 
@@ -1146,7 +1174,7 @@ function cageResolve(S) {
   // for whatever the bubble becomes.)
 
   return { rings, bays, chain, noseTwin, noseRing, mirrorZ, noseBody: !!S.noseBody,
-           rodSpan: ROD ? { zRoot: zRodRoot, zTip: zCap, ring: rodRing } : null };
+           rodSpan: ROD ? { zRoot: (zRodRoot = rodRootIn()), zAx: zRodAx, zTip: zCap, ring: rodRing } : null };
 }
 
 // ---------------------------------------------------------------------------
@@ -4189,6 +4217,48 @@ const CAGE_ZONE_RINGS = [
   { key: 'tail',  ring: null },        // the flat part at the tail
 ];
 
+// NOSE-DECK: the faces an open frame keeps on top of the nose. The nose zone (CAGE_ZONE_RINGS 'nose': the windscreen
+// base's ring forward to the firewall's, bar to bar) down to its upper side tubes (the user 10 Nov: "draw down back to
+// the tubes") - of the skin ('body') and of
+// the waistband, and the waistband's run under the glass (the windscreen's base frame, DECK_BASE aft of the zone's
+// ring: "connect completely with the windshield"). S is the cage spec (cageSpec). A predicate over the sheet's faces,
+// or null.
+const DECK_BASE = 0.15;
+function cageNoseDeck(sheet, S) {
+  if (!sheet || !sheet.F || !S) return null;
+  const R = cageResolve(S), Z = cageBodyZones(S).find(z => z.key === 'nose');
+  const wf = R.rings.find(r => r.name === 'wsFront'), nr = R.noseRing;
+  if (!Z || !wf || !wf.lv.waist || !nr || !nr.lv || !nr.lv.waist) return null;
+  const z0 = wf.lv.waist.z, y0 = wf.lv.waist.y, z1 = nr.lv.waist.z, y1 = nr.lv.waist.y;
+  // THE BAR (the user 10 Nov: "a triangular gap between the bar and the bottom edge"): the cut is the nose's upper side
+  // tube where the frame publishes it (sheet.members: the highest tube spanning the zone on the side, below the waist),
+  // else the waist line
+  const zLo = Math.min(z0, z1), zHi = Math.max(z0, z1);
+  let bar = null;
+  for (const m of sheet.members || []) {
+    if (m.kind !== 'tube' || !m.a || !m.b) continue;
+    const za = m.a[2], zb = m.b[2];
+    if (Math.min(za, zb) > zLo + 0.06 || Math.max(za, zb) < zHi - 0.06 || Math.abs(za - zb) < 0.3) continue;
+    if (Math.abs(m.a[0]) < 0.15 || Math.abs(m.b[0]) < 0.15) continue;
+    const ym = (m.a[1] + m.b[1]) / 2;
+    if (ym > Math.max(y0, y1) + 0.02) continue;
+    if (!bar || ym > (bar.a[1] + bar.b[1]) / 2) bar = m;
+  }
+  const lineAt = (za, ya, zb, yb) => z => ya + (yb - ya) * Math.max(0, Math.min(1, (z - za) / ((zb - za) || 1)));
+  const cutAt = bar ? lineAt(bar.a[2], bar.a[1], bar.b[2], bar.b[1]) : lineAt(z0, y0, z1, y1);
+  const rBar = bar ? (bar.r || 0.015) : 0.02;
+  const V = sheet.V, keep = new Set();
+  for (const f of sheet.F) {
+    if ((f.m !== 'body' && f.m !== 'waistband') || f.v.length < 3) continue;
+    const c = [0, 0, 0]; for (const i of f.v) for (let k = 0; k < 3; k++) c[k] += V[i][k] / f.v.length;
+    const zMin = f.m === 'waistband' ? Z.z0 - DECK_BASE : Z.z0;
+    if (c[2] < zMin || c[2] > Z.z1) continue;
+    let yHi = -Infinity; for (const i of f.v) if (V[i][1] > yHi) yHi = V[i][1];   // a face that reaches over the bar is kept
+    if (yHi > cutAt(c[2]) + rBar * 0.5) keep.add(f);
+  }
+  return keep.size ? (f => keep.has(f)) : null;
+}
+
 function cageBodyZones(S) {
   const R = cageResolve(S);
   const zOf = name => {
@@ -4967,8 +5037,26 @@ function cageInterior(m, S) {
       const l = Math.hypot(n[0], n[1], n[2]) || 1;
       return [n[0]/l, n[1]/l, n[2]/l];
     };
+    // THE LINER GOES IN (PETREL-SKIN 13 Nov, the user: "I don't want the black part on the Petrel"): a face's normal is its
+    // winding's, and a section wound the other way (the Super Petrel's taper, aft of the cabin) pushed its liner OUTWARD -
+    // the carbon monocoque's shell stood 2-6 cm outside the skin it lines and hid it (and its livery) behind raw twill. Each
+    // face is turned to look away from the fuselage's axis at its own station (x = 0, the selection's mid height there)
+    // before the extrusion; a face already looking out - every section wound as the body is - is unchanged, and a face
+    // whose normal is mostly fore-aft (a cap) or that sits on the axis keeps its winding's.
+    const stY = new Map(), stK = z => Math.round(z * 10);
+    for (const fi of sel) for (const vi of F[fi].v) {
+      const p = V[vi], k = stK(p[2]), r = stY.get(k) || [1e9, -1e9];
+      stY.set(k, [Math.min(r[0], p[1]), Math.max(r[1], p[1])]);
+    }
+    const outward = (fi, n) => {
+      const p = F[fi].v.map(i => V[i]), c = [0, 1, 2].map(a => (p[0][a] + p[1][a] + p[2][a] + p[3][a]) / 4);
+      const r = stY.get(stK(c[2])); if (!r) return n;
+      const rx = c[0], ry = c[1] - (r[0] + r[1]) / 2;
+      if (Math.hypot(rx, ry) < 0.05 || Math.hypot(n[0], n[1]) < 0.3) return n;
+      return (n[0] * rx + n[1] * ry) < 0 ? [-n[0], -n[1], -n[2]] : n;
+    };
     for (const fi of sel) {
-      const n = fN(fi);
+      const n = outward(fi, fN(fi));
       for (const vi of F[fi].v) {
         const s = vN.get(vi) || [0, 0, 0];
         vN.set(vi, [s[0]+n[0], s[1]+n[1], s[2]+n[2]]);
@@ -6956,11 +7044,13 @@ function cageInterior(m, S) {
       // ---- the bolted socket on the aft face ----
       // (the user, 11 Nov: "get rid of the flange there, which was meant at fixing it on a flat surface" - a rod rooted in
       // the wing's centre section (S.rod.hub) is blended into it; no plate, sleeve or bolts on the bulkhead)
+      // (PETREL-LS: none when the tube's root is aft of the bulkhead - nothing to bolt; held at its socket instead)
+      const rootHW = !(S.rod.hub || S.rod.rootAft > 0 || S.hullTaper);   // (and the float-rooted rod, the rule above; and the hub's socket)
       const zF = zPax0 - 0.012;
       if (!S.rod.hub) {
-      plate(rr + 0.055, rr + 0.006, zF, 0.008);
-      sleeve(rr + 0.007, zF - 0.004, zF - 0.095);
-      for (let k = 0; k < 8; k++) {
+      if (rootHW) plate(rr + 0.055, rr + 0.006, zF, 0.008);
+      if (rootHW) sleeve(rr + 0.007, zF - 0.004, zF - 0.095);
+      for (let k = 0; rootHW && k < 8; k++) {
         const a2 = (k + 0.5) * Math.PI / 4;
         bolt(Math.sin(a2) * (rr + 0.038),
              yAxR(zF) + Math.cos(a2) * (rr + 0.038), zF - 0.004, 0.018, 0.0085);
@@ -6982,7 +7072,7 @@ function cageInterior(m, S) {
       // inside, bolts through the bulkhead) — members land on the
       // ring's rim, never graze the cap skin at glancing angles
       const zXi = zPax0 + 0.015;
-      if ((md || cl) && !S.rod.hub) {   // (the flange's backing ring and its X: none on a rod rooted in the wing)
+      if (rootHW && (md || cl)) {   // (the flange's backing ring and its X: none on a rod rooted in the wing, or aft of the bulkhead)
         plate(rr + 0.052, rr + 0.006, zXi, 0.007);
         const XN = [
           fb(md && jn(md.tL), cl && -cl.ceil.x, cl && cl.ceil.y),
@@ -8262,6 +8352,41 @@ function cageSubdivide(m) {
   return out;
 }
 
+// THE AFTERBODY LOOKS OUT (PETREL-SKIN 13 Nov, the user via A0: "an undesired texture darkening on the aft part of the
+// plane"). orientCage leaves the skin consistent, but where the body folds onto its taper (the Super Petrel's pod-and-
+// rod tightening section, aft of the cabin) a consistent surface is geometrically inside-out behind the fold: 2198 of
+// the taper's 2326 triangles faced INTO the body (measured in the page; with every face inverted the body flips and the
+// taper comes out right, so the walk does reach it). A back face reads as the cabin's inside to the skin shader
+// (aeroskin.js uInside.y: the cabin darkening on a skin's back face), so the whole afterbody and its livery went near-
+// black. Behind the taper's front (the station range the taper's own faces span), each outer skin face is turned on its
+// own to look away from the fuselage's axis at its station; the body forward of it, the caps and the inner parts keep
+// the walk's winding. Drawing only: the physics fingerprint through the load door is unchanged (see the commit).
+const CAGE_AFT_SKIN = new Set(['taper', 'taperPanel', 'body', 'waistband', 'floorLoop', 'pillarTaper', 'pillarTail']);
+function cageAftOutward(m) {
+  let zHi = -1e9, zLo = 1e9;
+  for (const f of m.F) if (f.m === 'taper') for (const vi of f.v) { const z = m.V[vi][2]; if (z > zHi) zHi = z; if (z < zLo) zLo = z; }
+  if (!(zHi > zLo)) return;                                  // no taper: nothing to do
+  const stY = new Map(), stK = z => Math.round(z * 10);
+  for (const f of m.F) for (const vi of f.v) {
+    const p = m.V[vi], k = stK(p[2]), r = stY.get(k) || [1e9, -1e9];
+    stY.set(k, [Math.min(r[0], p[1]), Math.max(r[1], p[1])]);
+  }
+  for (const f of m.F) {
+    if (f.v.length < 3 || f.capFace || !CAGE_AFT_SKIN.has(f.m)) continue;
+    const p = f.v.map(i => m.V[i]), L = p.length;
+    const c = [0, 1, 2].map(a => p.reduce((t, q) => t + q[a], 0) / L);
+    if (c[2] > zHi + 1e-6 || c[2] < zLo - 1e-6) continue;   // forward of the taper (or past it): the walk's
+    const u = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
+    const w = [p[L - 1][0] - p[1][0], p[L - 1][1] - p[1][1], p[L - 1][2] - p[1][2]];
+    const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+    const nl = Math.hypot(n[0], n[1], n[2]); if (!(nl > 0) || Math.hypot(n[0], n[1]) < 0.3 * nl) continue;
+    const r = stY.get(stK(c[2])); if (!r) continue;
+    const rx = c[0], ry = c[1] - (r[0] + r[1]) / 2;
+    if (Math.hypot(rx, ry) < 0.05) continue;
+    if (n[0] * rx + n[1] * ry < 0) f.v.reverse();
+  }
+}
+
 // make face windings globally consistent and outward (positive volume) —
 // the emitters above build bands in whatever order was convenient
 function orientCage(m) {
@@ -8421,6 +8546,7 @@ const CAGE_PARAMS = {
   hullSkirt: 0,                                              // (HULL-B44: the chine's skirt - its reach past the topsides)
   hullTips: 1, hullTipAt: 0.85, hullTipKg: 0, hullTipY: -1,
   hullTipPlane: 0,                     // HULL-B45: the strut floats under the first plane (0) or a biplane's second (1)
+  hullTipLen: 0,                       // PETREL-LS: the strut floats' length, m (0 = the family's own; the displacement kept)
   // HULL-B12: the afterbody keel's run (deg, the fit's 7-deg rule by default; less for a tail-heavy boat's deeper
   // afterbody) and the bow the builder drew before the balance first lengthened it (0: the fit has not moved the bow)
   hullAftDeg: 7, hullNoseBase: 0,
@@ -8487,6 +8613,7 @@ const CAGE_PARAMS = {
   taperOn: 0, taperLen: 0.6, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12, rodIncl: 0,
   hangOn: 0, hangAt: 0.50, hangLen: 0.35, hangKeels: 1,   // (the hanging nacelle, the Archaeopteryx study's stage 3: off; GEN_HANG's mast)
+  rodRootAft: 0, rodSocket: 0, rodSocketLen: 0.12, rodSocketGap: 0.012, rodSocketWall: 0.33, hullTailCut: 0,   // PETREL-LS: the tube's root aft of the bulkhead (0 = the rule: the bulkhead, or a hull's float section); its socket (0 auto, 1 on, 2 off)
   // twin booms (2026-09-04): drawn by the wing layer off the trailing edge.
   // G267: the LOFT — a section (width x height) at each end of the body, a
   // squareness, and a fairing (length, cone -> ogive, cap) at each end.
@@ -8729,6 +8856,10 @@ const CAGE_PARAMS = {
   // family (skin, pillars, taper, panels, doors) outright, beyond the
   // alpha slider; glass and all structure stay. Inert in this file.
   skinOn: 1,
+  // NOSE-DECK (the user 10 Nov, the Ruckus: "the only fuselage part is the one on top of the nose where it meets the
+  // windshield"): on an open frame (skinOn 0) the nose zone's top skin is drawn anyway - bar to bar, the firewall's ring
+  // to the windscreen base's, on the computed surface (cageNoseDeck). Display-level like skinOn; absent at 0
+  noseDeck: 0,
   // THE GLAZING SWITCH (2026-09-04): 0 drops every glass face from the drawn
   // (and so the flown) mesh — an open cockpit; display-level like skinOn,
   // JOINED as cabin.glazing so the glass is not billed either
@@ -9270,11 +9401,11 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
   'openCut', 'openFore', 'openAft', 'openRim', 'openScreen', 'openScreenH', 'openScreenRake'];
 // G3515: a layer row that is ABSENT at 0 the same way (the rear-pilot seat): a
 // build that never set it keeps every key it had
-const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
+const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn', 'noseDeck'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps', 'hullStep2Z', 'hullHs2',
   'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih',
-  'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt', 'hullTipPlane'];
+  'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt', 'hullTipPlane', 'hullTipLen', 'hullTailCut'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
@@ -9288,7 +9419,8 @@ const CAGE_DEFAULT_ABSENT = { canClear: 0, towHook: 0, instPod: 0, s1Ul: 0, finR
   rodHub: 0,                         // (the hub's rear socket: the rod on the aft bulkhead, as ever)
   hangOn: 0, hangAt: 0.50, hangLen: 0.35, hangKeels: 1,   // (the hanging nacelle: the cabin carries the wing, as ever; GEN_HANG's mast)
   bpCabPyAt: 0.40, bpCabPyLen: 0.55, // (the hub's pylon on the chord: HULL-B78's own)
-  hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0, hullTipPlane: 0,   // (HULL-B39, B43, B44, B45)
+  wgStrutSec: 0, wgJury: 0,   // STRUT-OPTIONS (2026-11-10): the strut's section and jury strut, absent at none
+  hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0, hullTipPlane: 0, hullTipLen: 0,   // (HULL-B39, B43, B44, B45, PETREL-LS)
   // COMMS-SECTION ready 2 (9 Nov): the GPS puck's and the ELT whip's nudges - every older row's are written at 0 in
   // every save; these two rows' are absent at 0, so no saved build gains a key (L35d's STOL lesson)
   acc_gpsAerial_sL: 0, acc_gpsAerial_lv: 0, acc_eltAerial_sL: 0, acc_eltAerial_lv: 0,
@@ -9633,6 +9765,7 @@ function cageSpec(P) {
     ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0,
         incl: (+P.rodIncl || 0) * Math.PI / 180,            // G267.1, tail up +
         twin: +P.boomTwin ? 1 : 0,
+        rootAft: Math.max(0, Math.min((P.boomLen || 2.2) - 0.4, +P.rodRootAft || 0)),   // PETREL-LS: the tube's root aft of the bulkhead
         hub: +P.rodHub && +P.wingOn ? 1 : 0 }               // (the rod rooted in the wing's centre section: no flange)
     : 0;
   // G189: on a rod the taper's truss lives INSIDE the boom's length (see
@@ -9644,6 +9777,7 @@ function cageSpec(P) {
                            Math.max(0.08, (P.boomLen || 2.2) - 0.3));
   // HULL-B23: a boat hull on a single rod lofts its taper (buoyant, skinned) - cageResolve's HTAP
   S.hullTaper = !!(+P.hullOn && S.rod && !S.rod.twin && S.taper && S.taper.len > 0);
+  S.hullTailCut = S.hullTaper ? Math.max(0, +P.hullTailCut || 0) : 0;   // PETREL-LS: the float's tail cut straight
 
   const aLean = { keel: T.aft.keelYA - T.aft.keelYB,
                   floor: T.aft.floorYA - T.aft.floorYB };
@@ -11002,6 +11136,7 @@ function cageSheetKept(spec, step, L) {
     let s = m;
     for (let i = 0; i < L; i++) s = cageSubdivide(s);
     if (L > 0) s = cageRefitArc(s);
+    cageAftOutward(s);                         // PETREL-SKIN 13 Nov: the afterbody looks out (see cageAftOutward)
     const drawn = KG && S.windows && S.windows.length;
     // THE PILOT'S GLASS AS A PANEL (12 Nov, FIT-PROCEDURE; the user: "make it a full panel where the window part is
     // actually just a panel and we cut through"): S.glaze.pilotPanel turns the cockpit's glazed band into skin, as
@@ -11045,6 +11180,7 @@ function cageSheet(P, opts) {
   for (let i = 0; i < L; i++) s = cageSubdivide(s);
   if (eye && L > 0) s = cageEyeLevel(s, spec, eye);
   if (L > 0) s = cageRefitArc(s);
+  cageAftOutward(s);                           // PETREL-SKIN 13 Nov: the afterbody looks out (see cageAftOutward)
   // DRAWN WINDOWS (G245): with any drawn, the pax glass BAND is skin again —
   // before the sill and the cut see it, so neither extends nor separates a
   // window that no longer exists. The knife itself runs after cageCut: a
@@ -11195,7 +11331,7 @@ if (typeof module !== 'undefined')
                      CAGE_UNIT,
                      buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullFitAll, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                      cageRims, cageInterior, cageCut, cageGlassSill,
-                     cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
+                     cageCanopy, cageShoulder, cageBodyZones, cageNoseDeck, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
                      CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS, CAGE_WIN_ROWS, CAGE_WIN_ABSENT, cageWinRow,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
@@ -11208,7 +11344,7 @@ if (typeof window !== 'undefined')
                    CAGE_UNIT,
                    buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullFitAll, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                    cageRims, cageInterior, cageCut, cageGlassSill,
-                   cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
+                   cageCanopy, cageShoulder, cageBodyZones, cageNoseDeck, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
                    CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS, CAGE_WIN_ROWS, CAGE_WIN_ABSENT, cageWinRow,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

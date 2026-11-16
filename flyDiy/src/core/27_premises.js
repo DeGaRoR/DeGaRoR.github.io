@@ -68,8 +68,8 @@ const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways',
 // AREA { id, kind: 'sound', poly, key, on }: `key` an ambience bed (amb.*), `on` true = the bed at full there (fading out
 // over the bed's own reach), false = the bed silenced there (coming back over the same reach). How far a bed carries is
 // the ambience's (AMBIENCE_MODEL.REACH), never the record's.
-const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7 };
-const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND'];
+const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12 };
+const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND', 'SNOW_PACKED', 'SNOW_POWDER', 'SNOW_WET', 'MUD_FIRM', 'MUD_SOFT'];
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
 const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
 // THE CATEGORIES (G393, the asset session): the seven words every generator's catOf answers with, the
@@ -805,7 +805,8 @@ function migrate(rec) {
 // A look with no feel of its own (markings only), a texture draw, wheels with nothing drawn and a water lane are left as they are.
 // An area that felt HARD (paved / gravel / sand: no tree, no plot) and now feels soft keeps them out - its exclude gains trees and
 // plots (A0 for the user: the feel follows the look, no new trees grow in). Idempotent: a converted record converts to itself.
-const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND];
+// (SNOW-MUD, 13 Nov: a snow or mud strip or apron is a worked surface too - no tree grows on it, no plot is cut into it)
+const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND, SURFACE.SNOW_PACKED, SURFACE.SNOW_POWDER, SURFACE.SNOW_WET, SURFACE.MUD_FIRM, SURFACE.MUD_SOFT];
 function feelFollowsLook(r) {
   const feelOf = k => { const L = k && RUNWAY_LOOKS[k]; return L && L.surface !== null && L.surface !== undefined ? +L.surface : null; };
   for (const w of r.layers.runways) if (w && w.look && +w.surface !== SURFACE.WATER) { const f = feelOf(w.look); if (f !== null && (w.surface === undefined || w.surface === null ? SURFACE.GRASS : +w.surface) !== f) w.surface = f; }
@@ -1406,12 +1407,20 @@ const RUNWAY_LOOKS = {
   gravel:   { name: 'gravel',         surface: SURFACE.GRAVEL, set: 'pebble',  cls: 'gravel',   preset: null },
   dirt:     { name: 'dirt',           surface: SURFACE.GRAVEL, set: 'dirt',    cls: 'dirt',     preset: null },   // no DIRT in the SURFACE enum: gravel's friction
   sand:     { name: 'sand',           surface: SURFACE.SAND,   set: 'dry',     cls: 'sand',     preset: null },
+  // SNOW-MUD (13 Nov 2026; the observatory's altiport on Mount Ardent, the community field's first stages): the soft looks.
+  // Each feels its own GROUND_SURF / GROUND_SOFT row (what the wheels sink into and pay for) and draws the pavement's snow
+  // or mud class (src/viewer/pavement.js); `set` (the old renderer's tile) the nearest it has
+  snow:     { name: 'snow (packed)',  surface: SURFACE.SNOW_PACKED, set: 'brushed', cls: 'snow', preset: null },
+  powder:   { name: 'snow (powder)',  surface: SURFACE.SNOW_POWDER, set: 'brushed', cls: 'snow', preset: null },
+  slush:    { name: 'snow (wet)',     surface: SURFACE.SNOW_WET,    set: 'brushed', cls: 'snow', preset: null },
+  mud:      { name: 'mud (firm)',     surface: SURFACE.MUD_FIRM,    set: 'dirt',    cls: 'mud',  preset: null },
+  softmud:  { name: 'mud (soft)',     surface: SURFACE.MUD_SOFT,    set: 'dirt',    cls: 'mud',  preset: null },
 };
 const ROAD_LOOK = { gravel: 'gravel', paved: 'asphalt', track: 'grass', path: 'grass' };
 // THE BAND a pavement class draws beside itself when the entry says nothing (metres; a road's is
 // capped at 1.2) - the same numbers as src/viewer/pavement.js's CLASS_DEF.band, which GATE PAVEMENT
 // holds equal: the core needs them for coverAt (v1.17) without reaching the viewer
-const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, grass: 1.5 };
+const PAVE_BAND = { concrete: 4, asphalt: 1.5, gravel: 2.5, dirt: 1.5, sand: 1, grass: 1.5, snow: 2, mud: 1.5 };
 // WHAT A `pav` MAY SAY (v1.16's per-entry knobs, mirrored from src/viewer/pavement.js's ENTRY_KNOBS,
 // which GATE PAVEMENT holds equal): the record is validated against these so a misspelt key is an
 // ISSUE and not a silent no-op - `pav: { mark: 'none' }` used to be read, ignored and never reported
@@ -3078,8 +3087,8 @@ function compose(rec0, world, opts) {
   // (G1385: a strip with its own `clear` hands its trees to that clearance - the box + 30 m keeps the plots and the
   // settlements off, and a clearance narrower than 30 m is then what the user asked for, not the box's)
   for (const r of runways) { if (runwayIsWater(r)) continue; const box = runwayBox(r, 30); excl.push({ poly: box, bbox: polyBBox(box), what: runwayClearOf(r) ? ['settle', 'plots'] : ['trees', 'settle', 'plots'], derived: true, runway: r.id, rwy: true }); }
-  // a hard surface (paved / gravel / sand) grows no tree and takes no plot: an apron is an apron
-  for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND].indexOf(+sp.surface) >= 0) {
+  // a hard surface (paved / gravel / sand; SNOW-MUD: snow, mud) grows no tree and takes no plot: an apron is an apron
+  for (const sp of rec.layers.surface) if (sp.poly && sp.poly.length >= 3 && FEEL_HARD.indexOf(+sp.surface) >= 0) {
     const sh = +sp.surface !== SURFACE.PAVED ? shoulderOf(sp.poly) : null;
     excl.push(Object.assign({ poly: sp.poly, bbox: polyBBox(sp.poly), what: ['trees', 'plots'], derived: true, surface: sp.id }, sh ? { shoulder: sh } : {}));
   }
@@ -3317,7 +3326,7 @@ function compose(rec0, world, opts) {
     // THE LATTICE EARNS ITS CELL: from a quarter of the finest feather (1 m at most), halved (to 0.25 m) while any
     // cell's midpoint reads more than GR_TOL (1 cm) off the analytic ground there - a deep cut's feather (twenty metres
     // of target over the DEM) needs a finer lattice than a road's half metre
-    let n = Math.min(64, Math.max(16, Math.ceil(GR_TS / Math.max(0.25, Math.min(1, fe / 4))))), N, r, A, B, hc;
+    let n = Math.min(64, Math.max(16, Math.ceil(GR_TS / Math.max(0.25, Math.min(1, fe / 4))))), N, r, A, B, hc, relief;
     for (;;) {
       N = n + 1; r = GR_TS / n; A = new Float64Array(N * N); B = new Float64Array(N * N);
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -3327,15 +3336,20 @@ function compose(rec0, world, opts) {
         B[j * N + i] = b0; A[j * N + i] = b1 - b0;
       }
       if (n >= 64) break;
-      // (the error at a midpoint is dA h + dB: h is the tile centre's ground, give or take GR_RELIEF of the DEM)
-      if (hc === undefined) { const w = F.toWorld(x0 + GR_TS / 2, z0 + GR_TS / 2); hc = world.terrainH(w[0], w[1]); }
+      // (the error at a midpoint is dA h + dB: h is the tile centre's ground, give or take the tile's RELIEF of the DEM)
+      // (OBSERVATORY-SITE 13 Nov: the relief MEASURED - the DEM at the tile's corners and edge midpoints about its centre, at
+      //  least GR_RELIEF. A fixed 2 m held on the lowland; a 16 m tile on Mount Ardent's 20-40 % spans 4-6 m, and the lattice
+      //  stopped refining with the midpoint error |dA| x (h - hc) over the 1 cm it promises - GATE PREMRASTER's p99 went
+      //  2.07 mm with the summit's altiport, 92 of 93 bad probes in such tiles; measured: 1.94 mm, master's own probes better too)
+      if (hc === undefined) { const w = F.toWorld(x0 + GR_TS / 2, z0 + GR_TS / 2); hc = world.terrainH(w[0], w[1]); relief = GR_RELIEF;
+        for (const q of [[0, 0], [GR_TS, 0], [0, GR_TS], [GR_TS, GR_TS], [GR_TS / 2, 0], [0, GR_TS / 2], [GR_TS, GR_TS / 2], [GR_TS / 2, GR_TS]]) { const v = F.toWorld(x0 + q[0], z0 + q[1]); relief = Math.max(relief, Math.abs(world.terrainH(v[0], v[1]) - hc)); } }
       let bad = false;
       for (let j = 0; j < n && !bad; j++) for (let i = 0; i < n && !bad; i++) {
         const x = x0 + (i + 0.5) * r, z = z0 + (j + 0.5) * r;
         let b0 = 0, b1 = 1;
         for (let q = 0; q < hit.length; q++) { b0 = hit[q].apply(x, z, b0); b1 = hit[q].apply(x, z, b1); }
         const k = j * N + i, da = (A[k] + A[k + 1] + A[k + N] + A[k + N + 1]) / 4 - (b1 - b0), db = (B[k] + B[k + 1] + B[k + N] + B[k + N + 1]) / 4 - b0;
-        if (Math.abs(da * hc + db) + Math.abs(da) * GR_RELIEF > GR_TOL) bad = true;
+        if (Math.abs(da * hc + db) + Math.abs(da) * relief > GR_TOL) bad = true;
       }
       if (!bad) break;
       n *= 2;

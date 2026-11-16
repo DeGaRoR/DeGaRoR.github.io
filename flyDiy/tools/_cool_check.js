@@ -23,7 +23,7 @@
 //                 moves the major fingerprint (certStrip) nor the bench's old f2 body (R3)
 //   THE SERIES    (ENGINE-COOLING 3) the inlet, the engine's passages and a drawn outlet in series: a tiny inlet runs at
 //                 its best velocity ratio, a huge one stops at the passages, more inlet never passes less
-//   THE HEADS     the cylinders measured against the DRAWN skin: list:26 Client Cub's poke through (counted), list:1 Cub's
+//   THE HEADS     the cylinders measured against the DRAWN skin: the old Client Cub's (fixture) poke through (counted), list:1 Cub's
 //                 are covered, list:7 Rufus (no cowl) gets its own figure, list:10 Tiger Moth-alike's are inside
 //   THE BIRTH     the archetypes' birth rule (designCoolBirth): never shrinks, opens what each kind of mount needs
 //   THE PUSH-PULL every engine on the body judged; the rear one breathes through its own turned scoop (cw_scoopAft)
@@ -108,9 +108,11 @@ console.log('THE SERIES (the inlet, the engine\'s passages, the outlet)');
 
 console.log('THE HEADS (measured against the drawn cowl; a bare engine\'s figure)');
 {
-  const CC = card('builds/cub_2026-09-20.json'), Kc = coolOf(CC.def), rc = rowOf(CC.def, 'cool.climb');
+  // (TUTORIAL-CUBS 13 Nov: list:26 Client Cub became the validated J-3, its cowl covers its heads; the heads-out card is
+  // kept as it stood on L40c, a fixture for this row)
+  const CC = card('tools/fixtures/cool_heads_out_cub.json'), Kc = coolOf(CC.def), rc = rowOf(CC.def, 'cool.climb');
   ok(CC.spec.cooling.headsOut > 0.03 && Math.abs(Kc.bareA - CC.spec.cooling.headsOut) < 1e-9 && rc && rc.level === 'pass',
-     'list:26 Client Cub: its heads poke through the drawn skin (' + r3(CC.spec.cooling.headsOut) + ' m2), counted, the row passes (' + (rc && rc.value) + ')');
+     'the old Client Cub (fixture cool_heads_out_cub): its heads poke through the drawn skin (' + r3(CC.spec.cooling.headsOut) + ' m2), counted, the row passes (' + (rc && rc.value) + ')');
   ok(CUB.spec.cooling.headsOut === 0 && CUB.spec.cooling.headsAll > 0.1, 'list:1 Cub: its cowl covers its heads (0 of ' + r3(CUB.spec.cooling.headsAll) + ' m2 out)');
   const R = C.genCoolRows(RUF.def), Kr = coolOf(RUF.def);
   ok(R.length === 1 && Kr.kind === 'bare' && R[0].value > 1.5 && R[0].level === 'pass',

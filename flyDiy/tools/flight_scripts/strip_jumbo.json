@@ -1,0 +1,78 @@
+{
+  "name": "strip_jumbo",
+  "what": "the Jodel F-PJDL: HOME to Jumbo Mine (250 m, the mine street) and back",
+  "plane": "list:2",
+  "from": "HOME",
+  "to": "mn_strip",
+  "day": "game",
+  "persona": "expert",
+  "steps": [
+    {
+      "name": "board",
+      "do": "board"
+    },
+    {
+      "name": "start-up",
+      "do": "start",
+      "until": {
+        "engine": true
+      },
+      "capS": 10
+    },
+    {
+      "name": "taxi to the hold",
+      "until": {
+        "phase": [
+          "HOLD",
+          "LINEUP",
+          "ROLL"
+        ]
+      },
+      "capS": 400
+    },
+    {
+      "name": "take-off",
+      "until": {
+        "agl": 30
+      },
+      "capS": 120
+    },
+    {
+      "name": "en route to mn_strip's final",
+      "until": {
+        "phase": "FINAL"
+      },
+      "capS": 1200
+    },
+    {
+      "name": "land and stop on mn_strip",
+      "until": {
+        "stoppedAt": "mn_strip"
+      },
+      "capS": 400
+    },
+    {
+      "name": "leg back: taxi and take-off",
+      "do": "leg",
+      "to": "HOME",
+      "until": {
+        "agl": 30
+      },
+      "capS": 900
+    },
+    {
+      "name": "en route to HOME's final",
+      "until": {
+        "phase": "FINAL"
+      },
+      "capS": 1200
+    },
+    {
+      "name": "land and stop on HOME",
+      "until": {
+        "stoppedAt": "HOME"
+      },
+      "capS": 400
+    }
+  ]
+}

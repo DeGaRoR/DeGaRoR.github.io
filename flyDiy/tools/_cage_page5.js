@@ -271,6 +271,9 @@ window.CAGE_PAGE = {
         // is really the section's LENGTH"): the nose's size row, labelled so
         ['noseLen',    'length', 0.20, 2.50, 0.01, { dim: 'len' }],
         ['frNoseBotZ', 'bottom fore/aft', -0.60, 0.60, 0.005, { dim: 'len' }],
+        // NOSE-DECK (the user 10 Nov, the Ruckus): an open frame (fuselage skin off) keeps the nose's top skin, firewall
+        // bar to windscreen-base bar, on the surface the cage computes (cageNoseDeck)
+        ['noseDeck',   'deck skin (open frame)', 0, 1, 1, { when: P => P.skinOn != null && !+P.skinOn }],
       ], 'open'],
       ['windscreen frame', [
         ['frWinTopY',   'top height',      -1.60, 1.80, 0.005, { dim: 'len', follow: 'win.topY' }],
@@ -341,25 +344,28 @@ window.CAGE_PAGE = {
       // the boom-root ring: the tightening's aft pair with a taper, the aft
       // ring of the passenger band without. On a rod boom with a taper the
       // truss replaces the section and the rows go inert (measured, G26)
+      // (PETREL-LS, measured on the Super Petrel V4.2: on a HULL the rod's taper is the buoyant FLOAT section, skinned
+      // (HULL-B23) - these rows shape it (its deck, bottom, widths, fore/aft) and were hidden while active; hidden now
+      // only for the bare rod's truss)
       ['boom frame', [
         ['aftRoofY',     'top height',      -0.60, 1.40, 0.005,
-         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len' }],
         ['frBoomWaistY', 'waist height',    -1.60, 1.80, 0.005,
-         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len', follow: 'boom.waistY' }],
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len', follow: 'boom.waistY' }],
         ['aftKeelY',     'bottom height',   -1.40, 0.60, 0.005,
-         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len' }],
         ['frBoomTopW',   'top half-width',   0.00, 1.20, 0.005,
-         { when: P => !(+P.boomStyle && +P.taperOn) && !(+P.topRound >= 1), dim: 'len', follow: 'boom.topW' }],
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn) && !(+P.topRound >= 1), dim: 'len', follow: 'boom.topW' }],
         ['frBoomWaistW', 'waist half-width', 0.00, 1.20, 0.005,
-         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len', follow: 'boom.waistW' }],
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len', follow: 'boom.waistW' }],
         ['frBoomBotW',   'bottom half-width', 0.00, 1.20, 0.005,
-         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len', follow: 'boom.botW' }],
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len', follow: 'boom.botW' }],
         ['frBoomTopZ',   'top fore/aft',    -0.60, 0.60, 0.005,
-         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len' }],
         ['frBoomWaistZ', 'waist fore/aft',  -0.60, 0.60, 0.005,
-         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len' }],
         ['frBoomBotZ',   'bottom fore/aft', -0.60, 0.60, 0.005,
-         { when: P => !(+P.boomStyle && +P.taperOn), dim: 'len' }],
+         { when: P => !(+P.boomStyle && +P.taperOn && !+P.hullOn), dim: 'len' }],
       ], 'open'],
       // the tail frame: the cone's roof and keel may go NEGATIVE now (the
       // playtest's 172: a tail cone below the datum)
@@ -444,6 +450,7 @@ window.CAGE_PAGE = {
         ['hullSkirt',   'skirt (chine reach, of the half-beam)', 0, 0.3, 0.005, { when: P => +P.hullOn }],
         // HULL-B18: the tub's afterbody under the boom (a pod ending at its aft face: the Icon's, the SeaRey's)
         ['hullTubLen',  'afterbody under the boom', 0, 3, 0.01, { when: P => +P.hullOn, dim: 'len' }],
+        ['hullTailCut', 'float tail cut straight (off its tip)', 0, 1.5, 0.005, { when: P => +P.hullOn && +P.boomStyle === 1 && !+P.boomTwin && +P.taperOn, dim: 'len', absent: 0 }],   // PETREL-LS
         // HULL-B19: sponsons on the hull's sides (the Icon's, the Seastar's, the Wal's)
         // (HULL-B29: 'planing wing roots' - a low wing's inner panel planes and floats: the Be-103's, the Equator's)
         ['hullSpon',    'sponsons', 0, 3, 1, ['none', 'stub wings', 'floats on the sides', 'planing wing roots (a low wing\'s own)'], { when: P => +P.hullOn }],
@@ -469,6 +476,7 @@ window.CAGE_PAGE = {
         ['hullTipAt',   'tip floats at (of the semispan)', 0.30, 0.98, 0.01, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)) }],
         // HULL-B45: under which plane the strut floats hang (a biplane: the second - the Super Petrel's lower wing)
         ['hullTipPlane', 'tip floats under', 0, 1, 1, ['the first plane', 'the second plane'], { when: P => +P.hullOn && +P.w2On && [1, 3].includes(Math.round(+P.hullTips)) }],
+        ['hullTipLen',  'tip float length (0 = the family\'s own)', 0, 2.5, 0.01, { when: P => +P.hullOn && Math.round(+P.hullTips) === 1, absent: 0 }],   // (PETREL-LS)
         ['hullTipKg',   'tip float, each (displacement)', 0, 600, 1, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)), dim: 'kg' }],
         ['hullTipY',    'tip float keel over the step keel', -1, 2.5, 0.005, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)), dim: 'len' }],
       ], 'open'],
@@ -1276,13 +1284,18 @@ window.CAGE_PAGE = {
       ['taperOn',   'taper section',   0, 1, 1],
       // (12 Nov, FIT-PROCEDURE: the user, "Match to cabin size" - the boom root is the cabin's aft frame, no step)
       ['boomMatch', 'match to cabin size', 0, 1, 1, { when: P => !+P.taperOn, absent: 0 }],
+      // (REAL-CANON, A0 13 Nov: PETREL-LS's drawn-tail rules made LATENT - the tail's taper read as the straight planform
+      // through its 25 % / 75 % chords (floor 0.15, the tail post's gap to 0.05), a stab raised up the fin hung on the fin,
+      // a swept fin root tied to the bay under it. Absent at 0: on the Super Petrel V4.2's card only, until the user rules
+      // on the fleet with pictures)
+      ['tailDrawn', 'tail as drawn (true taper, stab on the fin, swept root)', 0, 1, 1, { absent: 0 }],
       // the `when` rules below are MEASURED, not assumed (P1 probe,
       // 2026-08-26): each hidden row was varied through the full display
       // pipeline in the mode that hides it and the mesh hash did not
       // move. Cone shape + pod ring are loft-only; aft roof/keel go
       // inert only when the rod's tightening TRUSS replaces the taper
       // bay; panels exist only on that truss.
-      ['taperLen',  'taper length',    0.08, 1.6, 0.01,
+      ['taperLen',  'taper length (on a hull: the aft float)', 0.08, 4, 0.01,   // (PETREL-LS: 1.6 -> 4, the Petrel's float is 2.06)
        { when: P => +P.taperOn, dim: 'len' }],
       ['taperPanels','taper panels',   0, 1, 1,
        { when: P => +P.taperOn && +P.boomStyle === 1 }],
@@ -1317,7 +1330,7 @@ window.CAGE_PAGE = {
       // G267.1: the rod's inclination against the body, tail up positive,
       // about the bulkhead flange (the user: "set inclination for the twin
       // boom and boom rod options, compared to the body")
-      ['rodIncl',   'rod inclination (tail up)', -12, 12, 0.1,
+      ['rodIncl',   'rod inclination (tail up)', -12, 20, 0.1,   // (PETREL-LS: the LS boom climbs ~12-13 deg; 12 was the cap)
        { when: P => +P.boomStyle === 1 && !+P.boomTwin }],
       // THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2; the user: "the centre section is the heart of the plane
       // ... a rear socket for the rod to slot in"): the rod's root tied into the wing's centre section, a streamlined
@@ -1348,6 +1361,20 @@ window.CAGE_PAGE = {
        { when: P => +P.hangOn && +P.wingOn }],
       ['hangLen',   'mast chord (of the chord)', 0.10, 0.60, 0.01,
        { when: P => +P.hangOn && +P.wingOn }],
+      // PETREL-LS (the user, 10 Nov: the rod "stops a little before" the bulkhead, and "the boom cut through that part ...
+      // enlarge the cut slightly and extrude it in the direction of the boom ... bevel the edges"): the tube's root aft of
+      // the bulkhead (the axis still read there), and the SOCKET where it enters the body - a bevelled sleeve of the
+      // body's skin round it, found where the axis meets the skin (_cage_access.js)
+      ['rodRootAft', 'rod root aft of the bulkhead (0 = the bulkhead, or in a hull\'s float section)', 0, 3, 0.005,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len', absent: 0 }],
+      ['rodSocket', 'socket where the rod enters', 0, 2, 1, ['auto (with a hull\'s float section)', 'bevelled sleeve', 'none'],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 0 }],
+      ['rodSocketLen', 'socket sleeve length past the skin (m)', 0, 0.5, 0.005,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin && Math.round(+P.rodSocket || 0) !== 2, absent: 0.12 }],
+      ['rodSocketWall', 'socket wall (x the rod radius)', 0.05, 1, 0.01,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin && Math.round(+P.rodSocket || 0) !== 2, absent: 0.33 }],
+      ['rodSocketGap', 'socket clearance round the rod (m)', 0.002, 0.06, 0.001,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin && Math.round(+P.rodSocket || 0) !== 2, absent: 0.012 }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
       // (aft roof/keel = the boom frame; the cone's section = the tail
       // frame, both in 0 · frames since T2.1)

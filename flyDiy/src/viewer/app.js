@@ -332,6 +332,21 @@
   const CK = (window.FLYDIY_COCKPIT && window.FLYDIY_COCKPIT.make)
     ? window.FLYDIY_COCKPIT.make(THREE) : null;
   window.FLYDIY_COCKPIT_I = CK;
+  // THE ELECTRICS' LINE (ELEC-SYSTEMS, 9 Nov): the cockpit's alarms (cockpit.js elecAlarms - low volts, not charging,
+  // battery flat, a refused start) in one small plate over the flight; written only when the words change, and gone
+  // half a second after the last frame that said them (a flight ended, the garage up)
+  const elecLine = (() => {
+    let el = null, last = '', tm = 0;
+    const hide = () => { if (el) el.hidden = true; last = ''; };
+    return list => {
+      const txt = list && list.length ? list.map(a => a.text).join('  ·  ') : '';
+      if (!txt) { if (last) hide(); return; }
+      if (!el) { el = document.createElement('div'); el.id = 'flElec'; el.hidden = true; document.body.appendChild(el); }
+      if (txt !== last) { el.textContent = txt; last = txt; }
+      el.hidden = false;
+      clearTimeout(tm); tm = setTimeout(hide, 500);
+    };
+  })();
   // G2480 (HAND-CONTROLS): THE PARKING BRAKE UNDER THE HAND. cockpit.js wrote ctl.brake = 1 once a frame, after the
   // steps - and the hand's write before EVERY step put its own brake back, so a parked aeroplane flown by hand rolled
   // (inline and in the worker alike). The hand's write reads the knob now, as a floor on both mains
@@ -591,6 +606,33 @@
   // its start, Tim, the opening once); the dev career (?career=1) keeps none, so every gate's fixture career stays
   // rail-free; the sandbox: never (its page half below)
   const STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev' && typeof storyNewCareer === 'function';
+  // MISSIONS-LIVE switch (13 Nov, the switch to mission packs - the loader; dev until the switch-over): ?pack=<id> installs
+  // src/missions/<id>.json (fetched by index.html's career loader: window.FLYDIY_PACK_TEXT) over the contract tables,
+  // ?pack=draft the mission editor's draft (flydiy.missionEditor.draft, the same origin) - once, before the first offers
+  // (73b_missions.js missionPackUse: a pack that does not validate changes nothing, said in the console)
+  const CAREER_PACK = (() => {
+    if (!CAREER_DEV || typeof missionPackUse !== 'function') return null;
+    let id = null; try { id = (/[?&]pack=([\w.-]+)/.exec(window.location.search || '') || [])[1] || null; } catch (e) { id = null; }
+    if (!id) return null;
+    let txt = null;
+    try { txt = id === 'draft' ? window.localStorage.getItem('flydiy.missionEditor.draft') : (window.FLYDIY_PACK_TEXT || null); } catch (e) { txt = null; }
+    if (!txt) { console.warn('flyDiy (missions): ?pack=' + id + ' - no pack text (not fetched, or no editor draft)'); return { id, ok: false }; }
+    try {
+      const r = missionPackUse(JSON.parse(txt));
+      if (r.ok) console.info('flyDiy (missions): pack ' + id + ' in use - ' + r.n + ' missions' + (r.held.length ? ', ' + r.held.length + ' held (' + r.held.slice(0, 3).map(h => h.id + ': ' + h.why).join('; ') + ')' : ''));
+      else console.warn('flyDiy (missions): pack ' + id + ' refused - ' + r.why);
+      return Object.assign({ id }, r);
+    } catch (e) { console.warn('flyDiy (missions): pack ' + id + ' -', e && e.message); return { id, ok: false }; }
+  })();
+  window.FLYDIY_PACK = () => CAREER_PACK;
+  // a project event's line for the arrival card (PROJECTS): the works started, a step done, the project done
+  function projectLine(e, now) {
+    const P = (CAREER_PACK && CAREER_PACK.projects || []).find(p => p.id === e.project), name = (P && P.name) || e.project;
+    if (e.k === 'works') return name + ': the works started - ready in ' + Math.round((e.ready - (+now || 0)) / 86400) + ' days' + (e.cost ? ' (' + Math.round(e.cost).toLocaleString('en-GB') + ' paid)' : '');
+    if (e.k === 'step') return name + ': a step done';
+    if (e.k === 'projectDone') return name + ': done' + (e.abilities && e.abilities.length ? ' - the hangar gains: ' + e.abilities.join(', ') : '');
+    return null;
+  }
   // G3380 (STORY-INTRO): the opening's arm - set by a NEW career's story start (playerLoad), once; Continue never sets it
   let stIntroArm = false;
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
@@ -620,8 +662,11 @@
     if (CAREER_DEV && born && STORY_PAGE) try {
       const taken = new Set(playerSlotNames());
       let slot = STORY_SLOTS.starter, i = 2; while (taken.has(slot)) slot = STORY_SLOTS.starter + ' ' + i++;
-      const r = CAREER_DEV ? storyNewCareer(player, { aeros: (world && world.aerodromes) || [], starter: slot }) : { ok: false, why: 'not a career' };
-      if (r.ok) { player = r.doc; stIntroArm = true; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
+      // TUTORIAL-LOCK: "New career, no tutorial" (welcome.js FLYDIY_CAREER_SKIP) starts on the tutorial's one checkpoint
+      // (storySkip), no opening; else the story from its first beat
+      const skip = !!window.FLYDIY_CAREER_SKIP, args = { aeros: (world && world.aerodromes) || [], starter: slot };
+      const r = CAREER_DEV ? (skip ? storySkip(player, args) : storyNewCareer(player, args)) : { ok: false, why: 'not a career' };
+      if (r.ok) { player = r.doc; stIntroArm = !skip; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
     } catch (e) { console.warn('flyDiy (story): the story did not start -', e && e.message); }
     // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
@@ -4407,6 +4452,46 @@
     model.restBaked = true;
     if (window.AEROSKIN && window.AEROSKIN.aeroRestBake) window.AEROSKIN.aeroRestBake(THREE, model.grp);
   }
+  // SNOW-MUD FINISH: THE VISUAL SINK. The solver's contact stays at the hard ground (its sinkage is a drag and a readout); the
+  // DRAWN aeroplane is lowered and tilted so its wheels stand in mud or soft snow by what each sinks - sim.out.softW [main 0,
+  // main 1, tail 1, tail 2] (soft frames only), and a ski's out.skiSink[k] at its unit's node (SKIS' def.parts.ski). The plane
+  // through those contacts (groundSinkPose, 00_registry) is eased over SINK_TAU and applied as a small rigid motion about the
+  // CG over the ground: a drop, a pitch and a roll, the slopes held to SINK_SLOPE. Off every soft layer, once eased back to
+  // nought: one compare a frame, no matrix touched. Nothing else reads model.grp's pose for physics
+  const SINK_TAU = 0.2, SINK_SLOPE = 0.08, SINK_V = [0, 0, 0], SINK_T = [0, 0, 0], SINK_PTS = [], SINK_M = new THREE.Matrix4(), SINK_A = new Array(16);
+  function sinkPoseApply(cg) {
+    const o = sim && sim.out, SW = !inGarage && o ? o.softW : null, SK = !inGarage && o ? o.skiSink : null;
+    if (!SW && !(SK && !(def.refs && def.refs.skis && def.refs.skis.every(u => u && u.posed))) && SINK_V[0] < 1e-4 && Math.abs(SINK_V[1]) + Math.abs(SINK_V[2]) < 1e-5) return;
+    SINK_PTS.length = 0;
+    const P = sim.p, R = def && def.refs;
+    if (SW && R) {
+      const ids = [R.mains && R.mains[0], R.mains && R.mains[1], R.tw, R.tw2];
+      for (let k = 0; k < 4; k++) { const i = ids[k]; if (i != null && i >= 0 && SW[k] > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], SW[k], i]); }
+    }
+    // SKIS. def.refs.skis (SKIS' record, one per unit in the solver's order: { nodes: [node], w, L, fwd, aft, main, kind, posed }):
+    // a POSED unit is already low by its rut in the solver's own pose (SKIS' moving datum) - it enters the fit at nought (it
+    // pivots the plane, it is not sunk twice), its node's softW (if any) dropped; an unposed unit by its out.skiSink. Without
+    // refs.skis, the first SKIS shape (def.parts.ski: the mains' nodes then the third's) by out.skiSink
+    if (R && Array.isArray(R.skis) && R.skis.length) {
+      for (let k = 0; k < R.skis.length; k++) { const u = R.skis[k], i = u && u.nodes ? u.nodes[0] : -1; if (i == null || i < 0) continue;
+        const z = u.posed ? 0 : (SK && SK[k] > 0 ? SK[k] : 0);
+        for (let q = SINK_PTS.length - 1; q >= 0; q--) if (SINK_PTS[q][3] === i) SINK_PTS.splice(q, 1);
+        if (u.posed || z > 0) SINK_PTS.push([P[i * 3], P[i * 3 + 2], z, i]); }
+      if (!SINK_PTS.some(q => q[2] > 0)) SINK_PTS.length = 0;   // (every unit posed, no wheel sinking: nothing to draw)
+    } else if (SK && R && def.parts && def.parts.ski) {
+      const ids = (R.mains || []).slice(0, 2); if (def.parts.ski.third && R.tw != null && R.tw >= 0) ids.push(R.tw);
+      for (let k = 0; k < ids.length && k < SK.length; k++) { const i = ids[k]; if (!(SK[k] > 0)) continue;
+        for (let q = SINK_PTS.length - 1; q >= 0; q--) if (SINK_PTS[q][3] === i) SINK_PTS.splice(q, 1);
+        SINK_PTS.push([P[i * 3], P[i * 3 + 2], SK[k], i]); }
+    }
+    if (SINK_PTS.length) groundSinkPose(SINK_PTS, cg[0], cg[2], SINK_T); else { SINK_T[0] = SINK_T[1] = SINK_T[2] = 0; }
+    SINK_T[1] = Math.max(-SINK_SLOPE, Math.min(SINK_SLOPE, SINK_T[1])); SINK_T[2] = Math.max(-SINK_SLOPE, Math.min(SINK_SLOPE, SINK_T[2]));
+    const e = 1 - Math.exp(-Math.max(0, frameDt()) / SINK_TAU);
+    for (let k = 0; k < 3; k++) SINK_V[k] += (SINK_T[k] - SINK_V[k]) * e;
+    if (SINK_V[0] < 1e-4 && Math.abs(SINK_V[1]) + Math.abs(SINK_V[2]) < 1e-5) { SINK_V[0] = SINK_V[1] = SINK_V[2] = 0; return; }
+    // about the CG (the tilt is a few mrad: the pivot's height moves the drawn wheels by mm)
+    model.grp.matrix.premultiply(SINK_M.fromArray(groundSinkMatrix(SINK_V, cg[0], cg[1], cg[2], SINK_A)));
+  }
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -4432,6 +4517,7 @@
       cg[1] + ox*xA[1] + oy*yU[1] + oz*vZ.y,
       cg[2] + ox*xA[2] + oy*yU[2] + oz*vZ.z);
     model.grp.matrix.copy(mBasis);
+    sinkPoseApply(cg);                           // SNOW-MUD FINISH: the drawn aeroplane stands IN a soft layer (the contact stays honest)
     // r186: a hand-set matrix must flag itself, or a getWorldPosition between
     // this pose and the render reads last frame's world (see buildPeople's mkFrame)
     model.grp.matrixWorldNeedsUpdate = true;
@@ -8008,9 +8094,12 @@
   // strength; window.DUST_FX the rig's handle.
   const DUST_Q = (() => { try { const m = /[?&]dust=([0-9.]+)/.exec(location.search || ''); return m ? +m[1] : null; } catch (e) { return null; } })();
   let dustFx = null;
-  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
-  const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4 };
-  const DUST_GROUND = ['dirt', 'sand', 'gravel', 'dirt', null];   // a dust class -> the pavement surface whose colour it takes
+  // (SNOW-MUD, 13 Nov: dust.js's soft classes - 8 packed snow, 9 powder, 10 wet snow (slush), 11-12 mud; the pavement's
+  // snow and mud looks name one class for their three / two kinds, so under them the SURFACE code decides - DUST_BY_CODE)
+  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand', 'snow', 'powder', 'slush', 'mud', 'mud'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
+  const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4, mud: 5, snow: 6, powder: 7, slush: 8 };
+  const DUST_BY_CODE = { snow: 1, mud: 1 };   // the pavement classes whose dust class is the surface code's
+  const DUST_GROUND = ['dirt', 'sand', 'gravel', 'dirt', null, 'mud', 'snow', 'snow', null];   // a dust class -> the pavement surface whose colour it takes
   // THE SOIL'S WATER, ONCE A FRAME, FOR EVERYONE WHO SHOWS IT (DIRT-STRIP's ask, 9 Nov): SOIL_WET off the day, handed to the
   // pavement (PAVEMENT.setSoilWet: one shared uniform - the strip's damp tint and its drawn puddles) and to the dust (the same
   // R: the water drawn is the water splashed in). Runs with the dust off too (?dust=0 is the dust's lever, not the puddles').
@@ -8018,6 +8107,27 @@
   function soilFrame() {
     soilNow = typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null;
     if (soilNow && typeof PAVEMENT !== 'undefined' && PAVEMENT.setSoilWet) PAVEMENT.setSoilWet(soilNow.wet);
+  }
+  // SNOW-MUD FINISH: THE MUD COAT (aeroweather.js aeroMudStep / aeroWxSetMud): the flight's own - it builds while the mains
+  // roll on mud (SURFACE 11 / 12: two world.surface reads a frame, only on the ground), washes in the day's rain (soilNow.rainNow)
+  // and in water (the solver's contacts or hydro pass), and draws through the wheel mud / belly / depression layers. A new
+  // aeroplane starts clean; the garage shows the build without it (the weathering uniforms are shared). Off mud, dry and clean:
+  // the law's arithmetic and one compare (aeroWxSetMud refreshes the block only when the coat moved)
+  let mudCoat = 0, mudCoatDef = null;
+  function mudCoatFrame(dt) {
+    if (typeof AEROWX === 'undefined' || !AEROWX.aeroMudStep || !sim || !def || !def.refs) return;
+    if (def !== mudCoatDef) { mudCoatDef = def; mudCoat = 0; }
+    if (inGarage) { AEROWX.aeroWxSetMud(THREE, 0); return; }
+    if (dt > 0) {
+      const WC = typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null, M = def.refs.mains || [], P = sim.p;
+      let on = 0, mud = 0;
+      if (WC && !WC.water && world && typeof world.surface === 'function')
+        for (let k = 0; k < M.length; k++) if (WC.mains[k]) { on++; const i = M[k], sc = world.surface(P[i * 3], P[i * 3 + 2]); if (sc === 11 || sc === 12) mud++; }
+      const v = sim.cgVel ? sim.cgVel() : [0, 0, 0], o = sim.out || {};
+      mudCoat = AEROWX.aeroMudStep(mudCoat, dt, { mud: M.length ? mud / M.length : 0, V: Math.hypot(v[0], v[2]), sink: o.softZ > 0 ? o.softZ : 0,
+        rain: soilNow ? soilNow.rainNow : 0, water: !!(WC && WC.water) || o.hydroWet > 0 });
+    }
+    AEROWX.aeroWxSetMud(THREE, mudCoat);
   }
   function dustMake() {
     if (dustFx || DUST_Q === 0 || typeof DUST === 'undefined' || !THREE.InstancedBufferGeometry) return dustFx;
@@ -8032,7 +8142,7 @@
       cls(x, z) {
         const O = world && world.premises && world.premises.overlay;
         const q = O && O.pavedAt ? O.pavedAt(x, z, 0) : null;
-        if (q && q.cls != null && DUST_CLS[q.cls] != null) return DUST_CLS[q.cls];
+        if (q && q.cls != null && DUST_CLS[q.cls] != null && !DUST_BY_CODE[q.cls]) return DUST_CLS[q.cls];
         const s = world && world.surface ? world.surface(x, z) : 0, c = DUST_SURF[s];
         return c === -1 || c == null ? -1 : DUST_CLS[c];
       },
@@ -8055,6 +8165,10 @@
     const refs = def.refs, ids = (refs.mains || []).slice();
     if (refs.tw != null && refs.tw >= 0) ids.push(refs.tw);
     const airborneAll = !WC || WC.water;
+    // SNOW-MUD FINISH: each wheel's OWN sinkage (sim.out.softW: mains 0, 1, tail), and a ski unit (SKIS, def.parts.ski: its
+    // contacts are the mains' nodes then the third's, out.skiSink in that order) its own sink, width and length - the ski
+    // ploughs and throws across its width, it has no tread to shed
+    const oS = sim.out || {}, SWd = oS.softW, SKR = def.parts && def.parts.ski, SKs = SKR ? oS.skiSink : null, nM = (refs.mains || []).length;
     for (let k = 0; k < ids.length; k++) {
       const i = ids[k], x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
       const pv = F.prev.get(i);
@@ -8065,7 +8179,14 @@
       if (pv) { pv[0] = x; pv[1] = y; pv[2] = z; } else F.prev.set(i, [x, y, z]);
       const on = !airborneAll && (k < (refs.mains || []).length ? !!(WC.mains && WC.mains[k]) : !!WC.tw);
       let R = 0.2; if (model && model.wheelParts) for (const w of model.wheelParts) if (w.idx === i && w.R > 0) { R = w.R; break; }
-      st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0 });
+      let sink = SWd ? (SWd[k < nM ? k : 2] || 0) : 0, ski = null;
+      const RU = refs.skis && refs.skis.length ? refs.skis.find(u => u && u.nodes && u.nodes[0] === i) : null, ku = RU ? refs.skis.indexOf(RU) : -1;
+      const skRec = RU ? null : SKs ? (k < nM ? SKR.mains : SKR.third) : null;
+      const retractUp = oS.ski != null && oS.ski < 0.5 && ((RU && RU.kind === 'retract') || (SKR && SKR.kind === 'retract'));
+      if (RU && !retractUp) { ski = { W: RU.w || 0.3, L: RU.L || 1.5, fwd: RU.fwd }; sink = oS.skiSink && oS.skiSink[ku] > 0 ? oS.skiSink[ku] : 0; }
+      else if (skRec && !retractUp) { ski = { W: skRec.Wmax || skRec.W || 0.3, L: skRec.L || 1.5 }; sink = SKs[k] > 0 ? SKs[k] : 0; }
+      st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0,
+                       sink, ski });   // (SNOW-MUD: the solver's own sinkage of THIS contact - the plough's, the bow wave's)
     }
     // the props: one disc a thrust node (the mean disc's wash - the solver's out.wash), the axis forward = -xAft
     st.props.length = 0;
@@ -9575,6 +9696,19 @@
     if (apWhySeen.ap !== ap) { apWhySeen.ap = ap; apWhySeen.n = 0; }
     const n = V ? V.length : 0;
     if (n < apWhySeen.n) apWhySeen.n = n;
+    // DESCENT (15 Nov; A0: "the page confirms the canopy steepening"): THE FLIGHT LOG HEARS THE PILOT. Each new verdict is an
+    // event 'say' { t, code, note }, and the approach planned (ap.appr: the slope flown and its source - type / obstacle / stol /
+    // airframe - the obstacles' slope and the obstacle, the aim, Vref, the flap, a drawn approach's FAF height) an event 'appr'
+    // when it changes: the user's Rufus off Cabin Strip climbed to an 800 m FAF and the log could not say which slope did it
+    const FRl = typeof window !== 'undefined' && window.FLIGHT_REC && window.FLIGHT_REC.event && !window.FLIGHT_REC.off ? window.FLIGHT_REC : null;
+    if (FRl) {
+      if (apWhySeen.rAp !== ap || (apWhySeen.rn || 0) > n) { apWhySeen.rAp = ap; apWhySeen.rn = 0; }   // (its own count: a new pilot, a shorter report)
+      if (n > apWhySeen.rn) { for (const v of V.slice(apWhySeen.rn)) FRl.event('say', null, { t: v.t, code: v.code, note: String(v.note || '').slice(0, 240) }); apWhySeen.rn = n; }
+      const Ap = ap.report && ap.report.appr;
+      const aK = Ap ? [Ap.gs, Ap.reqGs, Ap.gsWhy, Ap.aimIn, Ap.Vref, Ap.flap, Ap.designed && Ap.designed.hFaf].join('|') : '';
+      if (aK !== apWhySeen.appr) { apWhySeen.appr = aK; if (Ap) FRl.event('appr', null, { to: ap.route && ap.route.to ? ap.route.to.id : null, gs: Ap.gs, reqGs: Ap.reqGs, why: Ap.gsWhy || null,
+        obst: Ap.obst || null, technique: Ap.technique, aimIn: Ap.aimIn, Vref: Ap.Vref, flap: Ap.flap, designed: Ap.designed || null }); }
+    }
     if (n > apWhySeen.n && typeof AP_WHY !== 'undefined') {
       const fresh = V.slice(apWhySeen.n);
       apWhySeen.n = n;
@@ -9683,6 +9817,9 @@
       // G3585 (B'1): the stop's story effects can lift that hangar's lock (T1 done: the WWII field's hangar is ours) -
       // the roll-in opens there now, where the go-to above was refused while it was still locked
       if (out.moved && out.moved.kind === 'in' && out.moved.hangar && out.moved.hangar !== d.here && !out.room) { const g = playerGoTo(d, out.moved.hangar); if (g.ok) { d = g.doc; out.room = out.moved.hangar; } }
+      // PROJECTS (13 Nov): the pack's projects meet the stop - a step's missions done start its works, works ready finish
+      // the step and set its site's state, the last step grants its abilities (73b careerProjectsTick, the career's day)
+      if (CAREER_DEV && d.career && CAREER_PACK && CAREER_PACK.projects && CAREER_PACK.projects.length) { const now = dayAbs(careerDay(d)), pj = careerProjectsTick(d, CAREER_PACK.projects, now); d = pj.doc; if (out.career) for (const e of pj.events) { const L = projectLine(e, now); if (L) out.career.lines.push({ k: 'project', ok: true, text: L }); } }
       if (CAREER_DEV && out.career && rtSettled && rtSettled.lines.length) out.career.lines.unshift(...rtSettled.lines);   // (G3260: the routes' line)
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
@@ -10821,7 +10958,7 @@
     if (!s) return null;
     const o = { aeros: world.aerodromes, jobs: {} };
     for (const id of STORY_JOBS) { try { const c = careerContract(d, id); if (c) o.jobs[id] = contractText(c.title, contractVars(c)); } catch (e) {} }
-    if (s.beat === 'T2' && s.planes.client) {
+    if (s.beat === 'T3' && s.planes.client) {   // TUTORIAL v2: the build is T3
       let spec = null;
       if (slotOnStand() === s.planes.client) spec = storyLiveSpec();
       if (!spec) { try { const env = JSON.parse(prefGet('flydiy.build.' + s.planes.client, 'null')); spec = env && env.spec; } catch (e) {} }
@@ -10874,7 +11011,9 @@
   // so the dev career greys nothing); the sandbox never calls it. On the editor's open and at every story card.
   function techMaskSync() {
     if (!CAREER_DEV || !window.TECH_MASK) return;
-    try { window.TECH_MASK.set(careerTechOf(playerLoad())); } catch (e) {}
+    // TUTORIAL v2: while a build beat stands (T3, T7) the client's parts join the entries (79_story.js STORY_BUILDS.parts)
+    try { const d = playerLoad(), t = careerTechOf(d), x = t ? storyBuildEntries(d) : [];
+      window.TECH_MASK.set(t && x.length ? Object.assign({}, t, { entries: t.entries.concat(x.filter(k => !t.entries.includes(k))) }) : t); } catch (e) {}
   }
   // the tech mask's tutorial mode (TECH-MASK G3230: editor.js window.TECH_MASK.tutorial; also the event)
   function storyMaskNote() {
@@ -11182,14 +11321,28 @@
     store: () => ({ allow: '#fbName, #gStore' }),
     storeClient: s => ({ allow: stTutCard(s.planes.client) + ', #hsStore .hsFloor', deny: '#hsStore .hsFly, #hsStore .hsRoute, #hsStore .hsSend' }),
     storeStarter: s => ({ allow: stTutCard(s.planes.starter) + ', #hsStore .hsCol[data-col="inside"]', deny: '#hsStore .hsFly, #hsStore .hsRoute, #hsStore .hsSend, #hsStore .hsWork' }),
+    // TUTORIAL v2 a build row: the part tree, the section heads, the Shape tab and the one row are allowed (the 3D view
+    // picks parts too); the part's tree row and the row are lit (CAGE_PARTS.paramOwner: the part that owns the row)
+    buildRow: (s, st) => { const B = st && STORY_BUILDS[st.build], r = B && B.rows[st.row];
+      if (!r) return { allow: '#edWrap' };
+      const P = window.CAGE_PARTS, part = P && P.paramOwner ? P.paramOwner[r.k] : null, row = '[data-k="' + r.k + '"], #p_' + r.k;
+      return { allow: '#edTree, #edRows .rsecHead, #edTabShape, ' + row, lit: (part ? '#edTree [data-p="' + part + '"], ' : '') + row }; },
   };
+  // TUTORIAL v2 THE EXACT BUILDS: the build's plane as it stands - live on the stand, else its saved build
+  function stBuildSpec(s, beat) {
+    const B = STORY_BUILDS[beat], slot = B ? (s.planes[B.plane] || (B.plane === 'gift' ? s.planes.client : null)) : null;
+    if (!slot) return null;
+    if (slotOnStand() === slot) { const sp = storyLiveSpec(); if (sp) return sp; }
+    try { const env = JSON.parse(prefGet('flydiy.build.' + slot, 'null')); return (env && env.spec) || null; } catch (e) { return null; }
+  }
   // the beat's step now (the tutor ticked on the page's facts), or null when the beat has no steps
   function storyTutorNow(id) {
     if (!storyTutorSteps(id)) return null;
     const s = stLive();
     if (!stTut) { try { const k = JSON.parse(prefGet(stTutKey(), 'null')); if (k && typeof k.beat === 'string') stTut = { beat: k.beat, i: k.i | 0 }; } catch (e) {} }
     const was = stTut ? stTut.beat + ':' + stTut.i : '';
-    const r = storyTutorTick(stTut, id, k => { const f = STORY_TUTOR_FACTS[k]; try { return !!(f && f(s)); } catch (e) { return false; } });
+    const r = storyTutorTick(stTut, id, k => { const f = STORY_TUTOR_FACTS[k], b = /^build:(T\d):(\d+)$/.exec(k);
+      try { if (b) { const sp = stBuildSpec(s, b[1]); return !!sp && !!storyBuildDone(sp, STORY_BUILDS[b[1]].rows)[+b[2]]; } return !!(f && f(s)); } catch (e) { return false; } });
     stTut = r.T;
     if (stTut.beat + ':' + stTut.i !== was) { prefSet(stTutKey(), JSON.stringify(stTut)); stTutSnap = null; }
     // what a paint or a registration step compares against: the build as the step found it
@@ -11209,12 +11362,13 @@
     const s = stLive(), last = stTut.i >= (storyTutorSteps(stTut.beat) || []).length - 1;
     // the last step carries the beat's checklist (T2), as Tim's last line did (G3357)
     let rows = '';
-    if (last && !step.wait) { try { const K = storyCardNow(); if (K && K.rows && K.rows.length) rows = '<ul class="stTimRows">' + K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '\u2713 ' : '') + stEsc(r.words) + '</li>').join('') + '</ul>'; } catch (e) {} }
+    if ((last || step.rows) && !step.wait) { try { const K = storyCardNow();   // (TUTORIAL v2: `rows` - the build's list on its first and last words)
+      if (K && K.rows && K.rows.length) rows = '<ul class="stTimRows">' + K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '\u2713 ' : '') + stEsc(r.words) + '</li>').join('') + '</ul>'; } catch (e) {} }
     const btn = step.wait ? (step.pass ? '<button type="button" class="stTimBtn" data-tim="tpass">' + stEsc(step.pass) + '</button>' : '')
       : '<button type="button" class="stTimBtn" data-tim="tnext">' + (last ? 'OK' : 'Next') + '</button>';
     stTimPut(step.wait ? 'tut' : '', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(step.say) + '</p>' + rows + '</div>' + btn);
-    const A = step.allow && STORY_TUTOR_ALLOW[step.allow] ? STORY_TUTOR_ALLOW[step.allow](s) : { allow: null };
-    storyTutorLock(step.free ? { allow: A.allow, deny: null, free: true, id: step.id } : { allow: A.allow, deny: A.deny || null, id: step.id });
+    const A = step.allow && STORY_TUTOR_ALLOW[step.allow] ? STORY_TUTOR_ALLOW[step.allow](s, step) : { allow: null };
+    storyTutorLock(step.free ? { allow: A.allow, deny: null, free: true, id: step.id, lit: A.lit } : { allow: A.allow, deny: A.deny || null, id: step.id, lit: A.lit });
     if (step.open === 'hire') storyHireOpen();
   }
   // G3585 T6b: the hire screen, opened from the story in the garage (never over a flight; it closes only after a hire).
@@ -11241,7 +11395,8 @@
     stTutLockV = lock;
     if (typeof document === 'undefined' || !document.body) return;
     if (document.body.classList.contains('stTut') !== !!lock) document.body.classList.toggle('stTut', !!lock);
-    const css = on && L.allow ? 'body.stTut :is(' + L.allow + '), body.stTutFree :is(' + L.allow + ') { outline: 2px solid var(--ed-acc, #e8a33a) !important; outline-offset: 2px; }' +
+    const lit = on ? (L.lit || L.allow) : null;   // (TUTORIAL v2: a build row lights its part and its row, not the whole tree)
+    const css = on && L.allow ? 'body.stTut :is(' + lit + '), body.stTutFree :is(' + lit + ') { outline: 2px solid var(--ed-acc, #e8a33a) !important; outline-offset: 2px; }' +
       (lock ? ' body.stTut :is(#ui, #wsUI, #hsStore) :is(button, select, input):not(' + L.allow + ', :is(' + L.allow + ') *) { opacity: .45; }' : '') : '';
     if (document.body.classList.contains('stTutFree') !== !!(on && L.free)) document.body.classList.toggle('stTutFree', !!(on && L.free));
     if (!stTutCssEl && css) { stTutCssEl = document.createElement('style'); stTutCssEl.id = 'stTutCss'; (document.head || document.body).appendChild(stTutCssEl); }
@@ -11564,7 +11719,7 @@
     try { const s = stLive(); if (s && s.planes && s.planes.starter) window.FLYDIY_STORY_STARTER = s.planes.starter; } catch (e) {}
     // T2's checklist follows the build on the stand (its ledger memoised on the spec's fingerprint); T6's hire step opens
     // the hire screen once the garage is up (T6b: the beat may begin in the air)
-    setInterval(() => { try { const s = stLive(); if (s && !s.open && (s.beat === 'T2' || (s.beat === 'T6' && inGarage && !STORY_TUTOR_FACTS.hiredPilot()))) storyCardSync(); } catch (e) {} }, 3000);
+    setInterval(() => { try { const s = stLive(); if (s && !s.open && s.beat === 'T3') storyCardSync(); } catch (e) {} }, 3000);   // TUTORIAL v2: the build (T3) ticks; no hire any more
     window.FLYDIY_STORY = {
       story: () => { const s = stLive(); return s ? JSON.parse(JSON.stringify(s)) : null; },
       mask: () => storyMask(playerLoad()), jobsOpen: () => storyJobsOpen(playerLoad()), card: () => storyCardNow(),
@@ -18016,7 +18171,9 @@
     // go dark for the shot and come back with it; the pick handlers below
     // ask SHOT.on before they throw a ray.
     edSitP.traverse(o => {
-      if (o.name === 'edCanopyLoops' || (o.userData && o.userData.edHi)) o.visible = !on;
+      // (PETREL-SKIN 13 Nov: the retractable gear's reserved wells - RETRACT G3 `edWellGhost`, amber edges drawn through
+      // everything - stood in every shot and every thumb: an editor's instrument, the Petrel's three little yellow boxes)
+      if (o.name === 'edCanopyLoops' || o.name === 'edWellGhost' || (o.userData && o.userData.edHi)) o.visible = !on;
     });
     // G1370 (UI-LAYER, the user: the path ribbons "are not hidden in screenshot mode"): every helper on the UI layer
     // - the pattern's ribbons, the pilot's legs, the CG posts, the editor's outlines - leaves the shot with the layer
@@ -19874,6 +20031,23 @@
         return () => { if (home && route.parentNode !== home) home.insertBefore(route, home.firstChild); };
       } });
   } catch (e) { console.warn('flyDiy: the destination button -', e && e.message); }
+  // TUTORIAL-LOCK (the user 13 Nov: "skip tutorial = a choice at the start, later a menu item"): in the garage, while the
+  // story is on its rails, the menu offers to skip the rest - two presses (the row asks once), then the one checkpoint
+  // (79_story.js storyCheckpoint: the career as the tutorial's end leaves it) and the page reloaded on it
+  let gmSkipAsk = false;
+  try {
+    window.FLYDIY_MENU.add({ k: 'skipTut', sec: 'Story', before: 'main',
+      label: () => (gmSkipAsk ? 'Skip it: start the career (day 3)' : 'Skip the tutorial'),
+      when: () => { try { const s = STORY_PAGE && CAREER_DEV ? storyOf(playerLoad()) : null; return !!(s && !s.open && inGarage); } catch (e) { return false; } },
+      act: () => {
+        if (!gmSkipAsk) { gmSkipAsk = true; return; }
+        gmSkipAsk = false;
+        const r = CAREER_DEV ? storyCheckpoint(playerLoad()) : { ok: false, why: 'not a career' };
+        if (!r.ok) { console.warn('flyDiy (story): the skip did not apply - ' + r.why); return; }
+        player = r.doc; playerSave();
+        try { location.reload(); } catch (e) {}
+      } });
+  } catch (e) { console.warn('flyDiy: the skip-tutorial row -', e && e.message); }
   // G3791 (PHONE-TESTFLIGHT): THE PHONE MENU'S TEST FLIGHT - one line, in the garage, while the profile's switch is on
   // (fly 'testfield'): the bench's own row run (bench.js BENCH_RUN), which hands off to the test field (startTestFlight)
   // (the profile asked directly: GARAGE_ONLY is declared further down, in its temporal dead zone here)
@@ -20901,6 +21075,7 @@
       if (window.WATER && WATER.setTime) WATER.setTime(sw && sw.drawnT != null ? sw.drawnT : sim.t);
       if (CK) CK.frame(simDt, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       if (CK && CK.gpsFit && window.FLYDIY_GPS) window.FLYDIY_GPS.tick(simDt, CK);   // G2803: the GPS screen (numbers every frame, a repaint at 4 Hz)
+      if (CK) elecLine(CK.alarms);                                       // ELEC-SYSTEMS: the bus's alarms, said
       // (G820: under the worker, its snapshot's flag too - read every frame)
       // G1801: ...or a node past the solver's velocity guard (150 m/s off the CG: a sim fault caught before NaN; the flag is
       // the solver's own, read every frame - the worker's is in its snapshot's F_DIVERGED)
@@ -21059,6 +21234,7 @@
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
+    mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets

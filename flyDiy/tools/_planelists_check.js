@@ -44,7 +44,9 @@ const CLASSES = {
   "PA-18 on floats": ["reproduction", "builds/pa18_floats_2026-10-23.json", "F-AMOR"],
   "Carbon Cub SS": ["reproduction", "builds/candidates/carbon_cub_ss.json", "N340SS"],
   "Chinook": ["reproduction", "builds/chinook_2026-09-21_corrected.json", "C-ICHK"],
-  "Super Petrel LS": ["reproduction", "builds/candidates/superpetrel_V4_1.json", "PU-PTL"],
+  "Super Petrel LS": ["reproduction", "builds/candidates/superpetrel_V4_2.json", "PU-PTL"],
+  "Ruckus Solo 103": ["reproduction", "builds/candidates/ruckus_std_2026-11-09.json", "103"],
+  "Ruckus Back-Country": ["reproduction", "builds/candidates/ruckus_2026-11-09.json", "N103RB"],
   "DC-3-alike": ["reproduction", "builds/candidates/dc3_2026-10.json", "B-DAKO"],
   "Stearman-alike": ["reproduction", "builds/candidates/stearman_2026-10.json", "40-1749"],
   "Tiger Moth-alike": ["reproduction", "builds/candidates/tigermoth_2026-10.json", "T7230"],
@@ -79,9 +81,8 @@ const named = [];
 const RF = require('./real_refs.js').PLANES;
 // planes REAL-FIGURES may test before their rows land (A0 12 Nov: named, never a red train): file -> why
 const PENDING = {
-  'builds/candidates/ruckus_std_2026-11-09.json': 'the Ruckus Solo 103 (the user 12 Nov, Q3): its reproduction row comes with REAL-FIGURES\' cards',
-  'builds/candidates/ruckus_2026-11-09.json': 'the Ruckus Back-Country (Q3): its reproduction row comes with REAL-FIGURES\' cards',
-  'builds/candidates/ruckus_struts_2026-11-10.json': 'the Ruckus struts card (Q3): a test plane row with the cards',
+  // (REAL-CANON, 12 Nov: the Ruckus rows landed as 53 / 54; the struts card is a test plane in review/, not a PLANES row)
+  'builds/candidates/jodel_geo.json': 'the Jodel D112 to the D.112 drawings and its 60 L tank (REAL-FIGURES canon): it REPLACES list:2 (the user 13 Nov, "ok default": one Jodel, like the Cessna) - FLAGSHIP re-points list:2 and drops this entry in the same commit (L40c)',
 };
 
 function listRows(lists, index, thumbs, exists, contractFiles, refs = RF, archKeys = ARCH_KEYS) {

@@ -133,6 +133,11 @@ const GATES = [
   // design check / Vref / damage on the STOL wing, the user's Cub with a STOL kit FLOWN (one circuit, ~2 min)
   { id: 'STOL', file: '_stol_check.js', argv: ['--selftest'], tier: 'core', wall: 480 },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
+  // FLIGHTSCRIPT (PILOT, 15 Nov; the user via A0: scripted flights in steps with a deep log, for the perf round and the tests):
+  // tools/flight_script.js's node runner - the library well formed, a bad scenario refused, a capped step failing with its
+  // WHY and stopping the run, the home circuit (the Cessna 172 F-HCSN off HOME's stand, the game's day) flown step by step
+  // and its JSONL read back. ~6 min, one process
+  { id: 'FLIGHTSCRIPT', file: '_flightscript_check.js', tier: 'core', wall: 720 },
   // G384: under core, GEN builds every configuration but flies four of the
   // sixteen circuits (test_gen.js CORE_FLY); --all flies them all
   { id: 'GEN', file: 'test_gen.js', tier: 'core', shards: 4, wall: 1500 },
@@ -151,6 +156,11 @@ const GATES = [
   // skis) holds for the stock Cub, the float Cessna and an amphibian, and the three pilots never plan a landing on the
   // wrong surface (~10 s; --selftest)
   { id: 'STRIPSURF', file: '_surface_check.js', tier: 'core', wall: 15 },
+  // SNOW-MUD (13 Nov): the five soft rows (packed / powder / wet snow, firm / soft mud) and their layer - the eight hard
+  // rows frozen and 16 legacy rolls bit-identical to master; the sinking with pressure (load, width, diameter, the
+  // carcass, the layer's depth; the ski's plate); the take-off runs and braked rolls of the stock, tundra and tricycle
+  // builds on each; the looks and the gear rule (~100 s; --selftest, --show)
+  { id: 'SOFTGROUND', file: '_softground_check.js', tier: 'core', wall: 230 },
   // G193: the user's ultralight off the stand through the declared pattern —
   // the stop, the straight roll, in calm air and in wind (~3 min)
   { id: 'TAKEOFF', file: '_takeoff_check.js', tier: 'core', wall: 300 },
@@ -327,6 +337,11 @@ const GATES = [
   // clip libraries and the cut levels; and the behaviours run headless
   // against the real vendor three (a herd, a pod and a flock, 900 steps).
   { id: 'ANIMALS', file: '_animal_check.js', tier: 'core' },
+  // THE ANIMALS' MOTION (ANIMALS-MOTION, 15 Nov 2026; the user: "no walking animation when they turn, harsh transition
+  // when they bend their heads"): a turn only ever on a gait clip, at the ground speed over a radius of the body, on the
+  // spot at the stepping rate; the head never over 5 deg in a 30 fps frame through every transition the machine makes;
+  // a negative control with the rules off. ~20 s.
+  { id: 'ANIMOTION', file: '_animal_motion_check.js', tier: 'core', wall: 40 },
   // THE CROWD (CHARACTERS G2970): the passengers' cast and clips round-trip from media/, the run walks, queues and
   // boards them (spacing, order, the door, the fade summing to one, the seat's own pose at the end), the fade twins,
   // the wire budget, and nothing of it in index.html (~1 s)
@@ -718,6 +733,8 @@ const GATES = [
   { id: 'FRAMES', file: '_frames_check.js', tier: 'core' },   // T2.1: the frames — corpus identity, locality, follow, migration, profile
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
   { id: 'DRAFTING', file: 'drafting/dt_check.js', tier: 'core', wall: 6 },   // FIT-PROCEDURE: the drafting table's own checks and the PC-6 fitted to its reference (4 s)
+  { id: 'WORKBENCH', file: '_workbench_check.js', tier: 'core', wall: 1 },   // A0 15 Nov: the workbench's rows and skills name tools that exist
+  { id: 'COMMITHYGIENE', file: '_commit_hygiene.js', tier: 'core', wall: 2 },   // A0 15 Nov: no built files in source commits, HANDOVER CRs, line endings, final newlines, index chunks, the exports union
   // WINDOWS-FREE (2026-10-27): the free quad window - an unplaced quad is its rectangle, the Cub's quad rear window cut
   // watertight with each corner where it was put (read off the cut loop), its fore part on the old window's, a concave
   // and a crossed quad refused with their reason, the corners saved exact and absent from every other save (~20 s; --selftest)
@@ -930,6 +947,7 @@ const GATES = [
   // frame's own strut root snapped to the built skin — and the declared
   // fitting's own dimensions
   { id: 'STRUT', file: '_strut_check.js', tier: 'core' },
+  { id: 'STRUTOPT', file: '_strutopt_check.js', tier: 'core' },   // STRUT-OPTIONS: the strut's section and jury strut
   // THE REFERENCE PLANE (G89-G93): the two in-repo aeroplanes the garage can
   // stand beside your build, held to their PUBLISHED span and length — every
   // measurement taken against a reference is worth exactly what that check is
@@ -1021,6 +1039,26 @@ const GATES = [
   { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
   { id: 'WATER', file: '_water_check.js', tier: 'core' },   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
   { id: 'DUST', file: '_dust_check.js', tier: 'core' },   // DIRT-DUST (2026-11-09): the strip's dust - the weather, the sources, the pools, the batch, the cost
+  // SNOW-MUD FX (13 Nov): the snow's cloud and the mud's projection on the dust's one system - the dust's five classes
+  // unchanged; powder clouds (>= 1.5 x dirt) and settles, packed snow drifts; mud and slush never cloud, throw clods and
+  // drops no higher than 2 m, shed at speed not at a walk, plough with the sinkage, splat and lie (~1 s; --selftest, --show)
+  { id: 'SNOWMUDFX', file: '_snowmud_fx_check.js', tier: 'core', wall: 10 },
+  // SNOW-MUD FINISH (15 Nov): THE VISUAL SINK - the solver's per-wheel sinkage (out.softW, soft frames only), the plane through
+  // the contacts (groundSinkPose), the drawn aeroplane's rigid motion (groundSinkMatrix): every drawn wheel stands its own
+  // sinkage in the layer, the contact stays at the hard ground; the absent case one compare (~3 s; --selftest, --show)
+  { id: 'SINKVIS', file: '_sinkvis_check.js', tier: 'core', wall: 10 },
+  // SNOW-MUD FINISH (15 Nov): THE MUD COAT - mud builds on the gear, the belly and the flap undersides while the mains roll on
+  // mud (faster deeper in, faster at speed), rain and water wash it; drawn through the wheel mud / belly / depression layers
+  // over the macros', none at nought; app.js's wiring (~8 s; --selftest, --show)
+  { id: 'MUDCOAT', file: '_mudcoat_check.js', tier: 'core', wall: 20 },
+  // SNOW-MUD FINISH (15 Nov): THE CUB, THE C172 (list:50) AND THE PC-6 FLOWN ON MUD - the pilot's circuits from HOME on
+  // grass, firm and soft mud (take-off roll, landing roll, outcome) and the stuck limits (soft mud's k scaled down, full power
+  // from rest); the table printed. Three child processes; ~9 min - the full tier's, as the archetype sweeps
+  { id: 'MUDFLY', file: '_mudfly_check.js', tier: 'full', timeout: 1800_000, wall: 600 },
+  // DEEP SNOW (the user, 15 Nov: "wheels in deep snow ... fail without skis. That's the whole point"): the Cub, the C172 and the
+  // PC-6 on WHEELS - packed snow flies; deep powder and wet snow do not (the pilot rejects, full power held under 0.9 Vs: the
+  // tyre's bulldozing); a ski of their class gets through (the law); the PC-6 ON SKIS flown when SKIS' fixture is in the tree
+  { id: 'SNOWFLY', file: '_snowfly_check.js', tier: 'full', timeout: 1800_000, wall: 600 },
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)
@@ -1056,6 +1094,7 @@ const GATES = [
   // catalogue fitted and drawn WYSIWYG, the style through the join (core, ~1 min); the DC-3 on EDO 78-28000s and the
   // PA-18 in the classic style stand, float at gross, taxi and lift off (full, ~6 min)
   { id: 'FLOATSCLASSIC', file: '_floatsclassic_check.js', tier: 'core', wall: 60 },
+  { id: 'PETRELTRIM', file: '_petrel_trim_check.js', tier: 'core', wall: 60 },   // SEAPLANES: the Super Petrel LS (V4.2) on the water - rest, run, level, away
   // LOOKS-ROUND2 (the user 4 Nov): a float keeps its paint and takes no letters: the table, the shader, the join, the three doors. ~1 s
   { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   // AIRCRAFT-BOARD (the user 4 Nov: the fiche, awarded on passed certification): plane_fiche.js's views, award, matte, clone, target. ~1 s
@@ -1143,6 +1182,7 @@ const GATES = [
   // preferences, the client's airframe, the failure rules + restart, the in-flight tracker, timers, markers. ~40 s.
   // `--selftest`: 37 doctored rules, each red (~25 min)
   { id: 'MISSIONS', file: '_missions_check.js', tier: 'core', wall: 45 },
+  { id: 'PROJECTS', file: '_projects_check.js', tier: 'core', wall: 15 },   // PROJECTS (13 Nov): a pack's projects - steps, works, site states, abilities (73b_missions.js, 74_career.js)
   // THE MISSION PROPS (MISSIONS-PROPS): tools/_mission_gen.js - the air-race pylon, the balloon column, the ring, the marker
   // flag, the tie-down spot, the site's stages; their strike dimensions are the core's (73c MISSION_PROP_DIMS)
   { id: 'MISSIONPROPS', file: '_mission_props_check.js', tier: 'core' },
@@ -1155,6 +1195,7 @@ const GATES = [
   // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
   // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
   { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },
+  { id: 'TUTORLOCK', file: '_tutorlock_check.js', argv: ['--selftest'], tier: 'core', wall: 15 },   // TUTORIAL-LOCK (13 Nov): the end checkpoint, Skip, the exact-build diff (79_story.js)
   // CANDIDATE OFFICIAL (the user, 2 Nov): the staging pool builds/candidates/ - the index and its files (the user's names,
   // no orphan, no plaque), every candidate through the page's own load door headless (_load_build.js) and buildGen, the
   // review/ folder not offered (none in the index, each in REVIEW.md; its load chain reported, never red), the garage's
@@ -1293,6 +1334,10 @@ const GATES = [
   // and the aeroplane in it (not the clear colour; the aeroplane hidden changes it). Full tier: a software GL boots in
   // ~15-20 min on a 4-core box; the whole machine's cores (weight 4). SKIP where there is no Playwright (the box)
   { id: 'SOFTGPU', file: '_softgpu_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 4, wall: 1800 },
+  // PAGE-RIG (15 Nov, the user: "they all reinvent their harness"): tools/page_rig.js, the ONE page harness
+  // (RIG-PROCEDURE.md): its module, views check, GPU test and the procedure's rules in its source, in node, seconds.
+  // The page half (boot, fly, one grab that is not blank) is `--gpu`, by hand in A0's GPU slot - never in the battery
+  { id: 'PAGERIG', file: '_pagerig_check.js', tier: 'core', wall: 10 },
   // structural realism instrument (appended: keeps the battery log prefix
   // diffable). Measures only — it asserts finiteness and determinism, not
   // bounds. See test_flex.js's header and HANDOVER's STRUCTURAL REALISM.

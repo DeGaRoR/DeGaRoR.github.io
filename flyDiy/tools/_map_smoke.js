@@ -171,8 +171,8 @@ module.exports = function mapSmoke(html, phone) {
     need(A.includes('At ' + escH(p.name)) && /data-act="atx"/.test(A), 'the "At ' + p.name + ' ✕" row');
   }
   need(!MM.atHTML(M, st) && /No contract involves/.test(MM.listHTML({ ...M, contracts: [] }, { at: 'nv_strip' })), 'the filter row without a place, or the empty place');
-  need(M.places.map(p => p.name).join() === ['Jolene AFB', NF.w3, NF.SEA, NF.mk_sea, NF.mn_strip, NF.nv_strip, NF.tw_ski, NF.w5, NF.w6, NF.w7, NF.w4, NF.w8, 'Cabin Strip', NF.cb_sea].join() &&
-       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport,strip,strip,strip,altiport,strip,strip,seaplane',   // (CABIN-LAKE: + Cabin Lake)   // + the user's strips 10-12 (w5-w7, SCENERY-SHIP rev27); strip 9 (w4, an altiport) + strip 13 (w8) appended (G3020 rev28); the Cabin Strip (w1, G3097)
+  need(M.places.map(p => p.name).join() === ['Jolene AFB', NF.w3, NF.SEA, NF.mk_sea, NF.mn_strip, NF.nv_strip, NF.tw_ski, NF.w5, NF.w6, NF.w7, NF.w4, NF.w8, 'Cabin Strip', NF.cb_sea, NF.mt_strip].join() &&
+       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport,strip,strip,strip,altiport,strip,strip,seaplane,altiport',   // (OBSERVATORY-SITE, L40d: + Ardent Altiport, mt_strip)   // (CABIN-LAKE: + Cabin Lake)   // + the user's strips 10-12 (w5-w7, SCENERY-SHIP rev27); strip 9 (w4, an altiport) + strip 13 (w8) appended (G3020 rev28); the Cabin Strip (w1, G3097)
        'the places and their kinds: ' + M.places.map(p => p.name + ' (' + p.kind + ')').join(', '));
   say('the place filter: ' + M.places.length + ' places (' + M.places.map(p => p.name + ' ' + MM.rowsOf(M, { at: p.id }).length).join(', ') + '), each listing exactly the contracts involving it, under "At <place> ✕"');
   // Track: accept and track are one gesture, a second tap untracks

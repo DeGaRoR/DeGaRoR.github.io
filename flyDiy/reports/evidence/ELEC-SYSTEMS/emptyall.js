@@ -1,0 +1,3 @@
+const fs=require('fs'),path=require('path');const R=path.resolve(process.argv[2]);const C=require(R+'/tools/flight_core.js');const LB=require(R+'/tools/_load_build.js');
+for(const f of fs.readdirSync(R+'/builds').filter(f=>f.endsWith('.json')&&!f.endsWith('.edits.json')).sort()){const s=LB.loadBuild('builds/'+f).spec;const d=C.buildGen(s);const sh=C.genShakedown(d);const p=x=>((x-sh.xLEmac)/sh.cBar*100).toFixed(2);const h=(C.genSystemsResolve(s).rows.find(r=>r.key==='harness')||{kg:0}).kg;
+console.log([f.replace('.json','').padEnd(42),sh.empty.toFixed(2),p(sh.cgEmptyX),p(sh.cgX),h.toFixed(2),C.genCertKey(d)].join('  '));}

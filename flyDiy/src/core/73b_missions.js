@@ -33,6 +33,7 @@
 //                                                     { fail: <band> } (34_occupant GEN_OCC.bands: the index or the word)
 //                                                     strike: 'penalty' (+3 s on the laps running) | { penalty: s } | 'fail' | 'ignore'
 //   timers?    [ { id, start, stop, target: s | { refKmh }, splits?, medals?: [ { medal, le } ] } ]          §3.3
+//   stol? course?  (COMPETE: HANDOVER COMPETE-SCORE; timers' regularity tol ghost too)
 //   startFrom? 'player' | <CONTRACT_DESIGNS id> | { build: 'path.json' }                                      §3.6
 //   prefs?     [ { k, v, need: 'bonus' | 'mandatory', pct? } ]   a configuration the client would like (bonus: +pct)
 //                                                     or insists on (mandatory: no delivery without it)        §7
@@ -46,7 +47,7 @@
 //     require?: { when, maxMin, depart, plane: [criterion] }, medals?, say?: { who, text }, onDone?, split?, auto? }
 //   do         carry | fly | land | photo | pass | park | deliver | accept | wait | talk
 //   place      { field } | { pt: [x, z], r, alt? } | { gate: [[x1, z1], [x2, z2]], alt?, prop?, dir? }
-//              | { ring: [x, y, z], r, dir?, prop? } | { spot: '<field>:<spot id>' } | { site: '<site id>' }
+//              | { ring: [x, y, z], r, dir?, pitch?, prop? } | { spot: '<field>:<spot id>' } | { site: '<site id>' }
 //              (a field may be written as its id: 'w3'); alt { min?, max?, ref: 'agl' | 'msl' }
 //   from       where a carry is picked up / a fly or a photo departs (a field)
 //   photo over a FIELD is today's survey (the 450 m overflight); over a point it is phase 1's (the shutter + a line)
@@ -84,7 +85,8 @@ const MISSION_PREF_KINDS = {
 };
 const MISSION_NEED = ['bonus', 'mandatory'];
 // the record's fields a mission adds (the legacy projection strips them: missionStrip)
-const MISSION_RIDE = { rec: ['client', 'onDone', 'rules', 'timers', 'startFrom', 'prefs', 'delivery', 'route', 'rally', 'order', 'pack', 'campaign', 'chapter'],
+const MISSION_RIDE = { rec: ['client', 'onDone', 'rules', 'timers', 'startFrom', 'prefs', 'delivery', 'route', 'rally', 'order', 'pack', 'campaign', 'chapter',
+                             'stol', 'course'],
                        stage: ['order'], sub: ['id', 'say', 'onDone', 'embark', 'disembark', 'require', 'split', 'auto', 'place'], load: ['who'] };
 // THE PEOPLE are 72_people.js's (GAME_PEOPLE, the one list - §8): a person in a pack is its id, never a free name; the
 // provider's client is peopleClientOf's. '' when `id` names a person, else why not
@@ -162,6 +164,21 @@ function msAltWhy(a) {
   return '';
 }
 const msXZ = q => Array.isArray(q) && q.length === 2 && q.every(v => msNum(v) && Math.abs(v) < 60000);
+const msIn = (v, a, b) => msNum(v) && v >= a && v <= b;
+const MS_ATT = { hdg: [0, 360], pitch: [-90, 90], roll: [-180, 180], tol: [1, 90], pen: [0, 60] };
+function msAttWhy(a) {
+  if (a == null) return '';
+  if (!msObj(a) || !['hdg', 'pitch', 'roll'].some(k => a[k] != null)) return 'att asks one angle at least';
+  for (const k of Object.keys(a)) if (!MS_ATT[k] || !msIn(a[k], ...MS_ATT[k])) return 'att.' + k + (MS_ATT[k] ? ' is ' + MS_ATT[k].join('..') : ' is unknown');
+  return '';
+}
+const msMedalsOk = L => Array.isArray(L) && L.length > 0 && L.every(x => msObj(x) && ['gold', 'silver', 'bronze'].includes(x.medal) && msNum(x.le) && x.le > 0);
+function msGhostOk(G, k, more, at, why) {
+  if (!msObj(G) || !msIn(G[k], 0, 1e5) || Object.keys(G).some(x => ![k, 'who'].concat(more).includes(x))) { why.push(at + ': ghost is { ' + [k, 'who?'].concat(more).join(', ') + ' }'); return false; }
+  const w = G.who != null && missionPersonWhy(G.who, 'the ghost');
+  if (w) why.push(at + ': ' + w);
+  return true;
+}
 // '' when the place is well formed (a known field, a site of the pack, a spot of the field), else why not.
 // ctx: { fields, sites: { id: site }, spots: { field: [[x, z, ry, id]] } (src/viewer/fleet_spots_pack.js's `aero`) }
 function missionPlaceWhy(p, ctx) {
@@ -181,14 +198,15 @@ function missionPlaceWhy(p, ctx) {
     if (!(w >= 5 && w <= 2000)) return 'a gate is 5-2000 m wide, got ' + Math.round(w);
     if (p.prop != null && !MISSION_PROPS.gate.includes(p.prop)) return 'gate.prop is ' + MISSION_PROPS.gate.join(' | ');
     if (p.dir != null && !msNum(p.dir)) return 'gate.dir is a heading in degrees';
-    return msAltWhy(p.alt);
+    return msAltWhy(p.alt) || msAttWhy(p.att);
   }
   if (k === 'ring') {
     if (!Array.isArray(p.ring) || p.ring.length !== 3 || !p.ring.every(msNum) || !msXZ([p.ring[0], p.ring[2]])) return 'ring must be [x, y, z] (y the altitude, m MSL)';
     if (!(msNum(p.r) && p.r >= 2 && p.r <= 100)) return 'ring.r must be 2-100 m';
     if (p.dir != null && !msNum(p.dir)) return 'ring.dir is a heading in degrees';
+    if (p.pitch != null && !(msIn(p.pitch, -90, 90) && p.dir != null)) return 'ring.pitch is -90..90, with a dir';
     if (p.prop != null && !MISSION_PROPS.ring.includes(p.prop)) return 'ring.prop is ' + MISSION_PROPS.ring.join(' | ');
-    return '';
+    return msAttWhy(p.att);
   }
   if (k === 'spot') {
     const m = /^([^:]+):(.+)$/.exec(String(p.spot));
@@ -238,6 +256,10 @@ function missionPackNormalise(p) {
     return C;
   });
   o.missions = o.missions.map(missionNormalise);
+  // PROJECTS (13 Nov, the user: projects = ordered steps tied to a site and its meshes, configuration not coding):
+  // { id, name, client, requires: { projects, rep: { provider: n }, abilities }, offer, steps: [{ id, order, missions,
+  //   works: { cost, days } | null, site: { id, state } | null }], onDone: { abilities, projects, missions, clients } }
+  o.projects = (Array.isArray(o.projects) ? o.projects : []).map(missionProjectNormalise);
   return o;
 }
 
@@ -286,6 +308,7 @@ function missionToContract(m, ctx) {
   for (const k of ['pay', 'rep', 'unlock', 'needs', 'repeat', 'followUp']) if (M[k] != null) r[k] = msClone(M[k]);
   for (const k of MISSION_RIDE.rec) if (k !== 'order' && M[k] != null) r[k] = msClone(M[k]);
   msSiteTrack(r.onDone, sites);
+  if (r.timers == null && Array.isArray(M.stol) && M.stol.length) r.timers = [];
   if (M.order != null && M.order !== 'seq') r.order = M.order;
   return contractNormalise(r);
 }
@@ -321,6 +344,7 @@ function missionFromContract(rec) {
   if (rec.repeat != null && rec.repeat !== MS_REPEAT_DEFAULT(r)) m.repeat = msClone(rec.repeat);
   if (r.kind === 'build' && rec.followUp) { const f = {}; for (const k of ['prefer', 'add']) if (rec.followUp[k] && rec.followUp[k].length) f[k] = msClone(rec.followUp[k]); if (Object.keys(f).length) m.followUp = f; }
   for (const k of MISSION_RIDE.rec) if (r[k] != null) m[k] = msClone(r[k]);
+  if (Array.isArray(m.timers) && !m.timers.length && Array.isArray(m.stol) && m.stol.length) delete m.timers;
   return m;
 }
 // THE LEGACY PROJECTION: a record with the mission's ride-along fields taken off - what today's code reads (the gate
@@ -445,11 +469,51 @@ function missionWhy(m, ctx) {
         // in the same leg, the start first
         if (stepIds[t.start] && stepIds[t.stop] && (stepLeg[t.start] !== stepLeg[t.stop] || stepPos[t.start] > stepPos[t.stop])) why.push(at + ': starts and stops in one leg, the start first');
         if (t.start === t.stop) why.push(at + ': starts and stops on the same step');
-        const tg = t.target;
-        if (!((msNum(tg) && tg > 0) || (msObj(tg) && msNum(tg.refKmh) && tg.refKmh > 0))) why.push(at + ': target is seconds or { refKmh }');
+        const tg = t.target, inCourse = msObj(m.course) && Array.isArray(m.course.timers) && m.course.timers.includes(t.id);
+        if (!(inCourse && tg == null) && !((msNum(tg) && tg > 0) || (msObj(tg) && msNum(tg.refKmh) && tg.refKmh > 0))) why.push(at + ': target is seconds or { refKmh }');
         if (t.medals != null && (!Array.isArray(t.medals) || !t.medals.length || t.medals.some(x => !['gold', 'silver', 'bronze'].includes(x && x.medal) || !(x.le > 0))))
           why.push(at + ': a medal is { medal: gold|silver|bronze, le: seconds }');
+        if (t.regularity != null && t.regularity !== true) why.push(at + ': regularity is true');
+        if (t.regularity && tg == null) why.push(at + ': a regularity lap needs its target');
+        if (t.regularity && t.medals == null && !msIn(t.tol, 0.1, 600)) why.push(at + ': a regularity lap needs medals or tol');
+        if (!t.regularity && t.tol != null) why.push(at + ': tol is a regularity lap\'s');
+        if (t.ghost != null && msGhostOk(t.ghost, 's', ['splits'], at, why) && t.ghost.splits != null)
+          for (const [k, v] of Object.entries(msObj(t.ghost.splits) ? t.ghost.splits : { '?': -1 }))
+            if (!(stepLeg[k] === stepLeg[t.start] && stepPos[k] > stepPos[t.start] && stepPos[k] < stepPos[t.stop] && msIn(v, 0, t.ghost.s))) why.push(at + ': ghost.splits.' + k + ' is no step / time inside the lap');
       });
+    }
+  }
+  if (m.course != null) {   // COMPETE
+    const C = m.course, at = id + ' course', T = Array.isArray(m.timers) ? m.timers : [];
+    if (!msObj(C) || !Array.isArray(C.timers) || C.timers.length < 2) why.push(at + ': course is { timers: [2+ ids], medals?, ghost? }');
+    else {
+      let prev = -1;
+      for (const tid of C.timers) {
+        const t = T.find(x => x && x.id === tid), leg = t && stepLeg[t.start];
+        if (!t) why.push(at + ': ' + tid + ' is no timer of the mission');
+        else if (leg != null && !(leg > prev)) why.push(at + ': ' + tid + ' not in a later leg');
+        if (leg != null) prev = Math.max(prev, leg);
+      }
+      if (C.medals != null && !msMedalsOk(C.medals)) why.push(at + ': a medal is { medal, le }');
+      const G = C.ghost, L = G && G.legs;
+      if (G != null && msGhostOk(G, 's', ['legs'], at, why) && L != null && (!Array.isArray(L) || L.length !== C.timers.length || !L.every(v => msIn(v, 0, 1e5)) || Math.abs(L.reduce((a, v) => a + v, 0) - G.s) > 0.5))
+        why.push(at + ': ghost.legs must add up');
+    }
+  }
+  if (m.stol != null) {   // COMPETE
+    const seen = {};
+    for (const S of Array.isArray(m.stol) ? m.stol : [null]) {
+      const at = id + ' stol ' + (S && S.id), ln = S && S.line;
+      if (!msObj(S) || !S.id || seen[S.id]) { why.push(at + ': a STOL line has an id of its own'); continue; }
+      seen[S.id] = 1;
+      if (!['takeoff', 'landing', 'spot'].includes(S.kind)) why.push(at + ': kind is takeoff | landing | spot');
+      if (!stepIds[S.stop]) why.push(at + ': stop names no step (' + S.stop + ')');
+      if (S.medals != null ? !msMedalsOk(S.medals) || S.max != null : S.max != null && !msIn(S.max, 1, 2000)) why.push(at + ': medals or max (m), not both');
+      if (S.ghost != null) msGhostOk(S.ghost, 'm', [], at, why);
+      if (!Array.isArray(ln) || ln.length !== 2 || !ln.every(msXZ)) { why.push(at + ': line is [[x1, z1], [x2, z2]]'); continue; }
+      const dx = ln[1][0] - ln[0][0], dz = ln[1][1] - ln[0][1], off = Math.abs((((S.dir - Math.atan2(dx, -dz) * 180 / Math.PI) % 180) + 180) % 180 - 90);
+      if (!msIn(Math.hypot(dx, dz), 5, 200)) why.push(at + ': a line is 5-200 m long');
+      if (!msIn(S.dir, 0, 360) || off > 15) why.push(at + ': dir is 15 deg off square at most');
     }
   }
   if (m.startFrom != null) {
@@ -496,6 +560,8 @@ function missionPackValidate(pack, opts) {
   if (P.what !== MISSION_PACK_WHAT) why.push('what must be ' + MISSION_PACK_WHAT);
   if (P.v !== MISSION_PACK_V) why.push('v must be ' + MISSION_PACK_V + ' (got ' + P.v + ')');
   for (const k of ['campaigns', 'missions']) if (!Array.isArray(P[k])) why.push(k + ' is not a list');
+  if (P.projects != null && !Array.isArray(P.projects)) why.push('projects is not a list');
+  else if (Array.isArray(P.projects)) why.push(...missionProjectsWhy(Object.assign({}, P, { projects: P.projects.map(missionProjectNormalise) })));
   if (why.length) return why;
   const T = missionText(P), F = opts.fields || CONTRACT_FIELDS;
   for (const k of Object.keys(P.text || {})) if (!msObj(P.text[k]) || typeof P.text[k].t !== 'string') why.push('text ' + k + ' is not { t }');
@@ -609,15 +675,19 @@ function missionPackContracts(pack) {
 function missionPackInstall(pack, providers) {
   const P = missionPackNormalise(pack), base = providers || CONTRACT_PROVIDERS, out = {}, held = [];
   const recs = missionPackContracts(P);
+  const PN = missionProjectNeeds(P);   // PROJECTS: a step's missions offered while their project stands at that step
+  // ...installed as one campaign per project (its steps as chapters, any order: needs.project does the gating)
+  const CAMPS = P.campaigns.concat((P.projects || []).map(pj => ({ id: 'project:' + pj.id, provider: pj.client || '', order: 'any', needs: null,
+    chapters: pj.steps.map(s => ({ id: 'project:' + pj.id + ':' + s.id, order: 'any', missions: s.missions.slice() })) })));
   for (const p of Object.keys(base)) out[p] = Object.assign({}, base[p], { arc: [], builds: [], night: [] });
   const boxes = {};
-  for (const c of P.campaigns) { boxes[c.id] = c; for (const h of c.chapters) boxes[h.id] = h; }
+  for (const c of CAMPS) { boxes[c.id] = c; for (const h of c.chapters) boxes[h.id] = h; }
   // a container's DONE as conditions [{ ids, n }] (null: not expressible - a choose:N campaign)
   const chDone = h => { const O = missionOrder(h.order); return [{ ids: h.missions.slice(), n: O && O.kind === 'choose' ? O.n : h.missions.length }]; };
   const doneOf = id => { const B = boxes[id]; if (!B) return []; if (!B.chapters) return chDone(B);
     const O = missionOrder(B.order); return O && O.kind === 'choose' ? null : [].concat(...B.chapters.map(chDone)); };
   const needsOf = N => { if (!N || !Array.isArray(N.after)) return []; const L = N.after.map(doneOf); return L.some(x => x == null) ? null : [].concat(...L); };
-  for (const c of P.campaigns) {
+  for (const c of CAMPS) {
     if (c.tutorial) continue;
     const all = [].concat(...c.chapters.map(h => h.missions)), CO = missionOrder(c.order);
     if (CO && CO.kind === 'choose') { for (const id of all) held.push({ id, why: 'campaign ' + c.id + ' is ' + c.order + ' (N chapters of many: no runtime yet)' }); continue; }
@@ -634,6 +704,7 @@ function missionPackInstall(pack, providers) {
         if (rw) { held.push({ id, why: rw }); continue; }
         const T = out[r.provider];
         if (!T) { held.push({ id, why: 'no provider ' + r.provider }); continue; }
+        if (PN[id]) { r = msClone(r); r.needs = Object.assign({}, r.needs || { after: [], rep: 0 }, PN[id]); }
         if (conds.length || closed) {
           r = msClone(r);
           if (conds.length) r.needs = Object.assign({}, r.needs || { after: [], rep: 0 }, { of: msClone(conds) });
@@ -645,6 +716,103 @@ function missionPackInstall(pack, providers) {
     });
   }
   return { providers: out, held, text: Object.assign({}, MISSION_TEXT, msClone(P.text || {})) };
+}
+
+// ---- PROJECTS (13 Nov) ---------------------------------------------------------------------------------------------------
+const MISSION_PROJECT_ORDERS = ['any', 'seq'];
+function missionProjectNormalise(p) {
+  const P = msObj(p) ? msClone(p) : {}, arr = v => (Array.isArray(v) ? v.filter(x => typeof x === 'string') : []);
+  const R = msObj(P.requires) ? P.requires : {}, D = msObj(P.onDone) ? P.onDone : {};
+  return { id: typeof P.id === 'string' ? P.id : '', name: typeof P.name === 'string' ? P.name : '', client: typeof P.client === 'string' ? P.client : '',
+    requires: { projects: arr(R.projects), rep: msObj(R.rep) ? msClone(R.rep) : {}, abilities: arr(R.abilities) },
+    offer: msObj(P.offer) ? msClone(P.offer) : null,
+    steps: (Array.isArray(P.steps) ? P.steps : []).map((s, i) => { const S = msObj(s) ? s : {};
+      const W = msObj(S.works) && msNum(S.works.days) ? { cost: msNum(S.works.cost) ? +S.works.cost : 0, days: +S.works.days } : null;
+      const st = msObj(S.site) && typeof S.site.id === 'string' ? { id: S.site.id, state: S.site.state } : null;
+      return { id: typeof S.id === 'string' && S.id ? S.id : 's' + (i + 1), order: MISSION_PROJECT_ORDERS.includes(S.order) ? S.order : 'any', missions: arr(S.missions), works: W, site: st }; }),
+    onDone: { abilities: arr(D.abilities), projects: arr(D.projects), missions: arr(D.missions), clients: arr(D.clients) } };
+}
+// the projects' own refusals (missionPackValidate adds them): ids, steps, missions that exist, projects named that exist
+function missionProjectsWhy(P) {
+  const why = [], ids = new Set((P.missions || []).map(m => m.id)), pids = new Set();
+  for (const p of P.projects || []) {
+    if (!p.id) { why.push('a project without an id'); continue; }
+    if (pids.has(p.id)) why.push('project ' + p.id + ' twice');
+    pids.add(p.id);
+    if (!p.steps.length) why.push('project ' + p.id + ' has no step');
+    for (const s of p.steps) for (const m of s.missions) if (!ids.has(m)) why.push('project ' + p.id + ' step ' + s.id + ' names no mission ' + m);
+  }
+  for (const p of P.projects || []) for (const r of p.requires.projects.concat(p.onDone.projects)) if (!pids.has(r)) why.push('project ' + p.id + ' names no project ' + r);
+  return why;
+}
+// a project step's missions, as the install marks them: needs.project { id, step } (offered while the project stands at
+// that step) and needs.projects (the projects it requires, done) - 74_ careerNeedsOk reads both
+function missionProjectNeeds(P) {
+  const out = {};
+  for (const p of P.projects || []) p.steps.forEach((s, k) => { for (const m of s.missions) out[m] = { project: { id: p.id, step: k }, projects: p.requires.projects.slice() }; });
+  return out;
+}
+// careerProjectsTick(doc, projects, now) -> { doc, events }: each open project's current step - its missions all done:
+// its works start (their cost charged, ready `days` later on the career's clock); the works ready (or none): the step is
+// done, its site takes its state (career.sites), the next step opens; the last step done: the project is done and its
+// onDone applies (abilities into career.abilities; the projects it opens and its missions follow from being done).
+// Pure; `now` the career's clock (seconds). A project is open when its requires are met (projects done, rep, abilities).
+const MISSION_DAY_S = 86400;
+function careerProjectsTick(doc, projects, now) {
+  const d = msClone(doc), c = d.career, events = [];
+  if (!c) return { doc, events };
+  c.projects = msObj(c.projects) ? c.projects : {}; c.sites = msObj(c.sites) ? c.sites : {};
+  c.abilities = Array.isArray(c.abilities) ? c.abilities : [];
+  const done = new Set(((c.contracts && c.contracts.done) || []).map(r => r.id)), t = +now || 0;
+  const open = p => p.requires.projects.every(id => (c.projects[id] || {}).done) && p.requires.abilities.every(a => c.abilities.includes(a))
+    && Object.keys(p.requires.rep).every(k => ((c.providers && c.providers[k]) || { rep: 0 }).rep + 1e-9 >= +p.requires.rep[k]);
+  let moved = true, guard = 0;
+  while (moved && guard++ < 64) {
+    moved = false;
+    for (const p of projects || []) {
+      const S = c.projects[p.id] || (c.projects[p.id] = { step: 0 });
+      if (S.done || !open(p)) continue;
+      const st = p.steps[S.step | 0];
+      if (!st) { S.done = true; moved = true; continue; }
+      if (!st.missions.every(id => done.has(id))) continue;
+      if (st.works && !S.works) {
+        S.works = { start: t, ready: t + st.works.days * MISSION_DAY_S, cost: st.works.cost };
+        if (st.works.cost && typeof playerCharge === 'function') playerCharge(d, st.works.cost, 'works', p.id + ':' + st.id);
+        events.push({ k: 'works', project: p.id, step: st.id, ready: S.works.ready, cost: st.works.cost });
+        moved = true; continue;
+      }
+      if (st.works && t < S.works.ready) continue;
+      S.step = (S.step | 0) + 1; S.works = null;
+      if (st.site) { c.sites[st.site.id] = st.site.state; events.push({ k: 'site', id: st.site.id, state: st.site.state, project: p.id }); }
+      events.push({ k: 'step', project: p.id, step: st.id });
+      if (S.step >= p.steps.length) {
+        S.done = true;
+        for (const a of p.onDone.abilities) if (!c.abilities.includes(a)) c.abilities.push(a);
+        events.push({ k: 'projectDone', project: p.id, abilities: p.onDone.abilities.slice(), projects: p.onDone.projects.slice(), missions: p.onDone.missions.slice(), clients: p.onDone.clients.slice() });
+      }
+      moved = true;
+    }
+  }
+  return { doc: d, events };
+}
+
+// ---- THE PACK IN USE (MISSIONS-LIVE switch, 13 Nov: "the switch to mission packs: the loader") ----------------------------
+// missionPackUse(pack, providers?, text?) -> { ok, n, held, why }: the pack installed (missionPackInstall) OVER the live
+// tables - every provider's arc / builds / night replaced by the pack's, the pack's words merged into the text - so the
+// career's offers, records and pay read the pack from then on (the generated jobs and the goods stay the providers').
+// A pack that does not validate changes nothing. The page calls it once, before the career's first offers (?pack=).
+function missionPackUse(pack, providers, text) {
+  const base = providers || CONTRACT_PROVIDERS, T = text || CONTRACT_TEXT;
+  const why = missionPackValidate(pack);
+  if (why && why.length) return { ok: false, n: 0, held: [], why: why.slice(0, 5).join('; ') };
+  const I = missionPackInstall(pack, base);
+  let n = 0;
+  for (const p of Object.keys(I.providers)) {
+    if (!base[p]) continue;
+    for (const k of ['arc', 'builds', 'night']) { base[p][k] = I.providers[p][k] || []; n += base[p][k].length; }
+  }
+  Object.assign(T, I.text || {});
+  return { ok: true, n, held: I.held, why: '', projects: missionPackNormalise(pack).projects };   // (PROJECTS: the page ticks them)
 }
 
 // ---- THE REWARD (the editor's live line) ----------------------------------------------------------------------------

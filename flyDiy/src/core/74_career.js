@@ -320,6 +320,11 @@ function careerNeedsOk(doc, rec) {
   const nOf = c => (c.ids || []).filter(i => done.includes(i)).length;
   if ((N.of || []).some(c => nOf(c) < c.n)) return false;
   if (rec.closed && nOf(rec.closed) >= rec.closed.n) return false;
+  // (PROJECTS, 13 Nov) a project step's mission (73b missionPackInstall from a pack's projects): offered while its project
+  // stands at that step (career.projects[id].step === the step's index: the steps before done, their works finished), and
+  // once the projects it requires are done
+  if (N.project) { const S = (doc.career.projects || {})[N.project.id] || { step: 0 }; if (S.done || (S.step | 0) !== (N.project.step | 0)) return false; }
+  if ((N.projects || []).some(id => !((doc.career.projects || {})[id] || {}).done)) return false;
   return (N.after || []).every(a => done.includes(a));
 }
 
@@ -413,6 +418,9 @@ function careerOfferIds(doc) {
     for (const r of P.night || []) if (!taken.has(r.id) && careerNeedsOk(doc, A[r.id]) && contractFlyable(A[r.id])) out.push(r.id);
     for (const j of contractJobs(c.seed, p, done.length, { rep: c.providers[p].rep, sky })) if (!taken.has(j.id)) out.push(j.id);
   }
+  // TUTORIAL v2 (TUTORIAL-LOCK): the story's own job is offered while its beat holds, whatever its chain's `after` says
+  // (field.02 waits for field.01 in the career; the tutorial teaches it alone) - first on the list
+  if (typeof storyJobIds === 'function') for (const id of storyJobIds(doc).slice().reverse()) if (!taken.has(id) && !out.includes(id)) out.unshift(id);
   // G2260 (ECONOMY, GQ6): no bankruptcy - below the floor the Field Trust offers its loan job (76_ econLoanOffer)
   const loan = typeof econLoanOffer === 'function' ? econLoanOffer(doc) : null;
   if (loan && !taken.has(loan)) out.unshift(loan);

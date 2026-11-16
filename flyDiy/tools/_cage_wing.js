@@ -114,6 +114,10 @@ PAGE.defaults = Object.assign({
   // turns it off. It moves drawings only: the frame already roots these loads on the pillars' rings
   pilSnap: 1,
   wgStrutPil: 0,                   // P4: the lift strut's pillar - 0 auto (the frame's own ring), 1 A, 2 B, 3 C
+  // STRUT-OPTIONS (2026-11-10): the lift strut's section (0 profiled = every build before, 1 round tube) and its
+  // jury strut (0 none, 1 up to the wing's spar - the J-3 / PA-18's, 2 aft to the cabin - the Ruckus's). Both at 0
+  // are absent from every key (GEN_CAGE_ROW_NEUTRAL) and from the spec (bracing.section / .jury, 60_gen_spec)
+  wgStrutSec: 0, wgJury: 0,
   wgFlapType: Math.max(0, FLAP_KEYS.indexOf('none')),
   wgFlapSpan: 0.50, wgFlapChord: 0.20,
   // G185: ailerons are a switch per plane (a biplane's upper plane may carry
@@ -208,6 +212,12 @@ const tipShapeNote = key => P => {
     + 'a tip ' + bow.toFixed(2) + ' long drops at most ' + mx.toFixed(2);
 };
 // (HULL-B26: the same record the join flies - _cage_join.js cageJoinSpec)
+// STRUT-OPTIONS (2026-11-10): the strut rows as the wing's own preview spec states them (only when off their default:
+// this spec is built fresh, never merged)
+const cageStrutOpts = P => ({
+  ...(Math.round(+P.wgStrutSec || 0) === 1 ? { section: 'tube' } : {}),
+  ...(Math.round(+P.wgJury || 0) > 0 ? { jury: [null, 'wing', 'cabin'][Math.round(+P.wgJury)] } : {}),
+});
 const tipShapeOf = P => (+P.wgTipBow > 0 || +P.wgTipDroop > 0 || +P.wgTipFull > 1)
   ? { tipShape: { bow: +P.wgTipBow > 0 ? +P.wgTipBow : null, droop: +P.wgTipDroop > 0 ? +P.wgTipDroop : null,
                   full: +P.wgTipFull > 1 ? +P.wgTipFull : null } } : {};
@@ -336,6 +346,15 @@ const WING_ITEMS = [
     // P4 (the user, 3 Nov): the lift strut's pillar, picked - the frame follows (bracing.strutAt)
     ['wgStrutPil', 'strut pillar', 0, 3, 1, ['auto (the frame\'s)', 'A post', 'B pillar', 'C pillar'],
      { when: P => +P.wingOn && !Math.round(P.wgBrace) && Math.round(+P.pilSnap) === 1 }],
+    // STRUT-OPTIONS (2026-11-10, the user: "we have by default these profile struts. I would like an option so that
+    // these are simply tubes ... from the middle of the truss, you got another half one going back towards the
+    // cabin ... maybe all of these could be options of the struts"). The section is the drawing AND the drag (a round
+    // tube ~11x a streamline strut's on the same frontal, 62_gen_aero genStrutOptCdA); the jury strut is a member of
+    // the truss (61_gen_frame), drawn, weighed and billed its drag
+    ['wgStrutSec', 'strut section', 0, 1, 1, ['profiled', 'round tube'],
+     { when: P => +P.wingOn && !Math.round(P.wgBrace) }],
+    ['wgJury', 'jury strut', 0, 2, 1, ['none', 'up to the wing', 'back to the cabin'],
+     { when: P => +P.wingOn && !Math.round(P.wgBrace) }],
   ], on],
   ['control surfaces', [
     ['wgFlapType', 'flaps',      0, FLAP_KEYS.length - 1, 1,
@@ -389,7 +408,7 @@ const WING_ITEMS = [
 // (biplane audit, 2026-09-21: wgDy dropped too — the second plane's
 // `up / down` is the explicit row below, in the spec's own metres; the
 // generated twin was a second row of the same key that moved nothing)
-const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil',   // T2.3: the strut count is the fuselage fan's
+const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil', 'wgStrutSec', 'wgJury',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH',
                          'wgTipBow', 'wgTipDroop', 'wgTipFull', 'wgTipSkid', 'wgTipSkidH',   // TIP-SKID too; HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
                          // G2820: the STOL devices are the first plane's in the
@@ -998,6 +1017,7 @@ function wingGSpec(P) {
       ? { fuselage: { hang: true, ...(P.hangAt != null ? { hangAt: +P.hangAt } : {}), ...(P.hangLen != null ? { hangLen: +P.hangLen } : {}) } } : {}),
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
+               ...cageStrutOpts(P),                                     // STRUT-OPTIONS
                cabane: Math.round(P.bpCabane || 0) ? 'V' : 'N',
                // G185: the biplane's truss, from the brace layer's rows
                ...(+P.w2On ? { interplane: ['N', 'I', 'none'][Math.round(P.bpInter || 0)] || 'N',
@@ -1183,13 +1203,17 @@ function cabPylonDraw(ctx) {
     if (!le || !W.underAt || !AFp) return;
     const top = z => { try { const zc = Math.min(AFp.z1 - 1e-3, Math.max(AFp.z0 + 1e-3, z)); const y = AFp.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
     const at = P.bpCabPyAt != null ? +P.bpCabPyAt : 0.40, lenK = P.bpCabPyLen != null ? +P.bpCabPyLen : 0.55;   // (the hub's pylon on the chord)
-    const Lp = Math.max(0.30, lenK * ch), zc = le.z - at * ch, u = W.underAt(0, zc), yb = top(zc);
+    // PETREL-LS (the user, 10 Nov: "the pylon... has to move back a lot and get a lot longer"): bpPylonZ (m, + forward)
+    // and bpPylonLen (m) move and stretch it past the hub's chord fractions; set, the caster is the centreline's only
+    // (+-0.4 m: the centre section and a central nacelle, never a wing nacelle), so the blade hugs what is over it
+    const pyZ = +P.bpPylonZ || 0, pyL = +P.bpPylonLen > 0 ? +P.bpPylonLen : 0, PLS = pyZ !== 0 || pyL > 0;
+    const Lp = pyL > 0 ? pyL : Math.max(0.30, lenK * ch), zc = le.z - at * ch + pyZ, u = W.underAt(0, zc), yb = top(zc);
     if (!(u && yb != null && u.y > yb + 0.05)) return;
     const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
                 foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
     cabPyGroup = new THREE.Group(); cabPyGroup.name = 'cageLayer:cabPylon';
     PY.drawPylonBlade(cabPyGroup, f, Object.assign({}, P, { engPylonFair: 3 }), GK, false,
-                      PY.pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]));
+                      PY.pylonCaster(ctx, FS, PLS ? [-0.4, 0.4, zc - Math.max(1.2, Lp), zc + Math.max(1.2, Lp)] : [-1.0, 1.0, zc - 1.2, zc + 1.2]));
     scene.add(cabPyGroup);
   } catch (e) { console.error('cabane pylon:', e); }
 }
@@ -2415,11 +2439,24 @@ const wingPost = ctx => {
     // rather than assuming it. A wing whose fan ever roots elsewhere gets
     // its own plate there with no edit here.
     const byRoot = new Map();
+    // STRUT-OPTIONS (2026-11-10): a lift strut with a JURY strut is two members either side of its clamp node
+    // (61_gen_frame bm.strut 'half', the clamp tagged 'JS'): the strut is drawn ONE piece, foot to wing, and the jury
+    // ('jury', clamp -> wing spar or cabin longeron) drawn off it. Without the rows no member carries `strut` and
+    // this is the loop it always was
+    const halfTop = new Map(), juryOf = new Map();
     for (const b of (def.beams || []))
       if (b.ext && b.cls === 'wing') {
+        if (b.strut === 'jury') { juryOf.set(b.a, b.b); continue; }
+        if (b.strut === 'half' && N2[b.a] && N2[b.a].tag === 'JS') { halfTop.set(b.a, b.b); continue; }
         if (!byRoot.has(b.a)) byRoot.set(b.a, []);
         byRoot.get(b.a).push(b.b);
       }
+    const midOf = new Map();
+    for (const tips of byRoot.values())
+      for (let i = 0; i < tips.length; i++)
+        if (halfTop.has(tips[i])) { midOf.set(halfTop.get(tips[i]), tips[i]); tips[i] = halfTop.get(tips[i]); }
+    const SOPT = typeof genStrutOpts === 'function' ? genStrutOpts(def.spec) : { round: false, jury: null };
+    const SOT = typeof GEN_STRUT_OPT !== 'undefined' ? GEN_STRUT_OPT : { juryAt: 0.5, juryT: 0.025 };
 
     // THE FORE/AFT TRIM MOVES BOTH ENDS, AND IS BOUNDED BY THE WING'S OWN
     // STRUCTURE (user). A strut is straight and unraked: shifting only its
@@ -2516,9 +2553,26 @@ const wingPost = ctx => {
         const ends = tips
           .map(id => { const q = N2[id].p;
                        return { top: nodeCage([q[0] + sx, q[1], q[2]]),
-                                beam: nodeCage(q) }; })
+                                beam: nodeCage(q), id }; })
           .sort((a, b) => b.top[2] - a.top[2]);
-        const r = SG.strutBuild(bags, AF, site, ends, { wingRay, mount });
+        const r = SG.strutBuild(bags, AF, site, ends, { wingRay, mount, round: SOPT.round });
+        // the jury strut off each drawn member: from its clamp on the DRAWN strut (pin -> tip at juryAt) to the
+        // beam's far end - a wing spar node is on the mean line, so it stops on the wing's arriving face (the
+        // strut's own ray rule, strutBuild), a cabin longeron node where it is
+        if (r && SOPT.jury)
+          r.struts.forEach((st2, i) => {
+            const md = midOf.get(ends[i] && ends[i].id), to = md != null ? juryOf.get(md) : null;
+            if (to == null) return;
+            const q = N2[to].p;
+            const a0 = st2.pin.map((v, k) => v + SOT.juryAt * (st2.tip[k] - v));
+            let e = nodeCage([q[0] + (pil ? 0 : sx), q[1], q[2]]);
+            if (wingRay && /^W[FR]$/.test(N2[to].tag || '')) {
+              const up = a0[1] < e[1] ? -1 : 1;
+              const hit = wingRay([e[0], e[1] + up * 0.6, e[2]], [0, -up, 0]);
+              if (hit) e = hit.p;
+            }
+            SG.juryBuild(bags, a0, e, st2, { round: SOPT.round, t: SOT.juryT });
+          });
         if (r) {
           if (r.pivot) onFrame++;
           dSnap = Math.max(dSnap, site.snap.d);

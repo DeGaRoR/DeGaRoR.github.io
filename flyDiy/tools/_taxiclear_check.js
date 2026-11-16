@@ -242,7 +242,13 @@ for (const seed of [0, 1, 6, 12, 42]) {
   const JODEL = (() => { const key = path.join(T, '..', 'builds', 'jodel_2026-09-20_corrected.json'); return { key, name: 'the Jodel', def: C.buildGen(PT.specOf(key).spec) }; })();
   for (const B of VB.filter(b => b.key !== 'stock').concat([JODEL])) {
     const F = L.flyOut(C, WI, IX, B.def, a, s);
-    check(F.air, '9 ' + B.name + ' taxied from the mill and took off', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
+    // PILOT-GONOGO (THE USER'S RULING, 13 Nov, via A0: "It doesn't matter that the Cessna can't take off from Jumbo Mine. But the CUB must
+    // be able to do it, and the JODEL must be able to do it"): THE CESSNA'S ROW ALONE passes on a take-off DECLINED AT THE HOLD, said
+    // with its numbers (43_pilot.js HOLD's go / no-go: 'not taking off from ...: the take-off run needs N m, M m of strip - too short');
+    // an abort mid-roll (the old 'will not reach Vr' at 78 s) stays red, and the Cub's and the Jodel's rows ask the take-off as before
+    const cessDecl = B.key === METAL && !F.air && F.outcome === 'declined' && /needs \d+ m, \d+ m of strip/.test(F.declined || '') && /too short/.test(F.declined || '') && !F.phases.includes('ROLL');
+    check(F.air || cessDecl, '9 ' + B.name + ' taxied from the mill and took off' + (B.key === METAL ? ', or declined at the hold with its reason said (the user, 13 Nov)' : ''),
+      't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>') + (F.declined ? ' | ' + F.declined : ''));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, '9 ' + B.name + ' touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
     check(F.minWing >= wingNeed(B, F.at), '9 ' + B.name + ' wing kept ' + wingNeed(B, F.at) + ' m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
     console.log('  ' + B.name.padEnd(15) + ' span ' + F.span.toFixed(1) + ' m from the mill: ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off the nearest footprint (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts, ' + F.trunkHits + ' trunk hits');
@@ -260,7 +266,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
   foots.default = { half: C.GP_PARKED_DEFAULT[0], fwd: C.GP_PARKED_DEFAULT[1], aft: C.GP_PARKED_DEFAULT[2] };
   const t0 = Date.now(), SC = L.spotCensus(C, WI, IX, VB, foots);
   // (G3014: the user's rev 26 shipped strips 10 and 11 (w5, w6) - ten runways; the count is the shipped record's)
-  const NRW = 15;   // (rev 27: w7, the North East strip; rev 28: w4 strip 9, w8 strip 13; G3097: w1 the Cabin Strip; CABIN-LAKE: cb_sea)
+  const NRW = 16;   // (rev 27: w7, the North East strip; rev 28: w4 strip 9, w8 strip 13; G3097: w1 the Cabin Strip; CABIN-LAKE: cb_sea; OBSERVATORY-SITE: mt_strip)
   check(WI.aerodromes.length === NRW && SC.per.length === NRW, '10 Jolene\'s ' + NRW + ' runways', SC.per.map(p => p.id).join(' '));
   for (const p of SC.per) {
     // a field with no room stands no spot (never a bad one): every candidate it had was refused by a rule
@@ -383,7 +389,11 @@ for (const seed of [0, 1, 6, 12, 42]) {
     // the altiport's 380 m is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
     // there is the roll's own call (G531: a short field's reserve), printed
     if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
-    else check(F.phases.includes('ROLL'), tag + ': taxied to the take-off run', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>') + (F.air ? ', airborne' : ', ' + (F.verdicts.find(v => /reject|abort|declin/i.test(v)) || 'not airborne')));
+    // PILOT-GONOGO (the user's ruling, 13 Nov - row 9's): the Cessna alone may end this taxi at the HOLD, lined up, with the take-off
+    // declined and said with its numbers (the go / no-go's 'needs N m, M m of strip - too short'); the taxi to the run is what this
+    // row holds, and a hold reached is that run reached. Any other build, or a decline without its numbers, still asks the roll
+    else check(F.phases.includes('ROLL') || (B.key === METAL && F.phases.includes('HOLD') && F.verdicts.some(v => /^takeoff-declined: .*needs \d+ m, \d+ m of strip.*too short/.test(v))),
+      tag + ': taxied to the take-off run' + (B.key === METAL ? ' (or to its hold, the take-off declined and said - the user, 13 Nov)' : ''), 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>') + (F.air ? ', airborne' : ', ' + (F.verdicts.find(v => /reject|abort|declin/i.test(v)) || 'not airborne')));
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, tag + ': touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
     check(F.minWing >= wingNeed(B, F.at), tag + ': the wing ' + wingNeed(B, F.at) + ' m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
     console.log('  11c ' + B.name.padEnd(16) + ' from ' + Fl.what + ': ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts | ' + F.verdicts.filter(v => /pivot|taxi-clearance/.test(v)).join('; '));

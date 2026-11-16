@@ -105,7 +105,7 @@ const CHECKS = {
   inBand: (m, R) => Math.abs(m.empty / R.real - 1) <= R.band,
   gearFrac: m => m.W0 > 0 && m.gear / m.W0 >= SHAPE.gearFrac[0] && m.gear / m.W0 <= SHAPE.gearFrac[1],
   structFrac: m => m.struct / m.empty >= SHAPE.structFrac[0] && m.struct / m.empty <= SHAPE.structFrac[1],
-  gaugeSane: m => Object.keys(m.gauge).filter(c => c !== 'W0').every(c => m.gauge[c] >= C.GEN_GAUGE.lo && m.gauge[c] <= C.GEN_GAUGE.hi),
+  gaugeSane: m => Object.keys(m.gauge).filter(c => c !== 'W0').every(c => m.gauge[c] >= C.GEN_GAUGE.lo && m.gauge[c] <= ((C.GEN_GAUGE.hiBy && C.GEN_GAUGE.hiBy[c]) || C.GEN_GAUGE.hi)),
   grossOverEmpty: m => m.W0 > m.empty + 60,          // at least one person and some fuel
 };
 

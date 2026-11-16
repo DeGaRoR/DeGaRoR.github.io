@@ -1,0 +1,6 @@
+struts 2 profiled jury none      SM pass 0.150 | spiral warn 10.470 | dutch pass 0.260 | verdict warn
+struts 2 profiled jury cabin     SM pass 0.151 | spiral warn 9.920 | dutch pass 0.261 | verdict warn
+struts 2 tube jury none          SM pass 0.256 | spiral fail 3.800 | dutch pass 0.359 | verdict fail
+struts 2 tube jury cabin         SM pass 0.258 | spiral fail 3.710 | dutch pass 0.368 | verdict fail
+struts 1 profiled jury none      SM pass 0.150 | spiral warn 10.470 | dutch pass 0.260 | verdict warn
+struts 1 tube jury cabin         SM pass 0.212 | spiral fail 5.250 | dutch pass 0.316 | verdict fail

@@ -52,6 +52,7 @@ var GAME_NAMES = {
     w8:       'Hiking Strip',                 // in a little valley east of the Cabin Strip (was strip 13)
     w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
+    mt_strip: 'Ardent Altiport',              // (OBSERVATORY-SITE 13 Nov: the observatory's strip on Mount Ardent's north-east spur, landed uphill)
   },
 };
 

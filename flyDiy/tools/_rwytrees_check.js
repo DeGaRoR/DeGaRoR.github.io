@@ -121,7 +121,8 @@ console.log('GATE RWYTREES - the trees by the runways (' + (FULL ? 'core + full'
   //  shoulders y_sh13_0/1, y_sh02_0/1 + the fan x_fan02_0 (the 40 m tree cut at HOME) - 5 fans, no shoulder)
   // (G3097: + w1 the Cabin Strip - 12 boxes; its approach over end 0 cleared by the fan x_fan_w1_0 - 6 fans: the pilot's cone
   //  met the drawn woods 25 m before the threshold, 19 Oct)
-  check(by('fan').length === 6 && by('box').length === 12 && by('shoulder').join() === '',
+  // (OBSERVATORY-SITE 13 Nov: + mt_strip Ardent Altiport - 13 boxes; no fan: its approach over end 0 is the spur's nose, falling away)
+  check(by('fan').length === 6 && by('box').length === 13 && by('shoulder').join() === '',
     '1 Jolene\'s runway clearances are named', 'fans ' + by('fan').join(' ') + ' | boxes ' + by('box').length + ' | shoulders ' + by('shoulder').join(' '));
   for (const v of VARIANTS) {
     const O = worlds[v].premises.overlay, off = O.rwyClearances().filter(c => c.off), kinds = [...new Set(off.map(c => c.kind))].sort().join('+') || 'none';

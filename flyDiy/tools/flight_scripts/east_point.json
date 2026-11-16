@@ -1,0 +1,78 @@
+{
+  "name": "east_point",
+  "what": "the Cub F-BCUB: HOME to East Point Clearing (150 m) and back, on a CALM day (on the game's day, 8 kt from 250, the Cub judges East Point too short with the wind behind and diverts to Hiking Strip - the pilot's own call, GATE TOUR 5/6)",
+  "plane": "list:1",
+  "from": "HOME",
+  "to": "nv_strip",
+  "day": "calm",
+  "persona": "expert",
+  "steps": [
+    {
+      "name": "board",
+      "do": "board"
+    },
+    {
+      "name": "start-up",
+      "do": "start",
+      "until": {
+        "engine": true
+      },
+      "capS": 10
+    },
+    {
+      "name": "taxi to the hold",
+      "until": {
+        "phase": [
+          "HOLD",
+          "LINEUP",
+          "ROLL"
+        ]
+      },
+      "capS": 400
+    },
+    {
+      "name": "take-off",
+      "until": {
+        "agl": 30
+      },
+      "capS": 120
+    },
+    {
+      "name": "en route to nv_strip's final",
+      "until": {
+        "phase": "FINAL"
+      },
+      "capS": 1200
+    },
+    {
+      "name": "land and stop on nv_strip",
+      "until": {
+        "stoppedAt": "nv_strip"
+      },
+      "capS": 400
+    },
+    {
+      "name": "leg back: taxi and take-off",
+      "do": "leg",
+      "to": "HOME",
+      "until": {
+        "agl": 30
+      },
+      "capS": 900
+    },
+    {
+      "name": "en route to HOME's final",
+      "until": {
+        "phase": "FINAL"
+      },
+      "capS": 1200
+    },
+    {
+      "name": "land and stop on HOME",
+      "until": {
+        "stoppedAt": "HOME"
+      },
+      "capS": 400
+    }
+  ]
+}

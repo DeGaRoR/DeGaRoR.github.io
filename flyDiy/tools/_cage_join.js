@@ -287,6 +287,11 @@ function cageJoinSpec(P, M, T) {
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
+               // STRUT-OPTIONS (2026-11-10): the lift strut's section and its jury strut, STATED in both states (A3:
+               // null when the row is back at 0, so the garage's merge takes it off; the normaliser deletes the null,
+               // so the resolved spec of a build without them is the bytes it was). A P without the row says nothing
+               ...(P.wgStrutSec != null ? { section: Math.round(+P.wgStrutSec) === 1 ? 'tube' : null } : {}),
+               ...(P.wgJury != null ? { jury: [null, 'wing', 'cabin'][Math.round(+P.wgJury)] || null } : {}),
                // G185: the cabane's drawing style where there is one, and the
                // truss on a biplane. SPEC-FIXPOINT (A3): STATED in every state
                // - the defaults (GEN_FIELDS 'bracing.*') where the aeroplane
@@ -491,7 +496,8 @@ function cageJoinSpec(P, M, T) {
     // RETRACT-1 (RETRACT-STUDY §3.1): THE RETRACTABLE GEAR reaches the physics - a low-wing tricycle's in the garage
     // (the gear layer's GEAR_RETRACTABLE; clampSpec drops it on any type but a tricycle); written only when chosen, so a
     // fixed build's spec is what it was, to the bit
-    if (+P.gearRetract && (M.gearType === 'tricycle' || (M.mono && +P.s1Ul)) && !+P.gearFloats) {        // (GR: any wing - the Catalina's hull; the ultralight monowheel, its main alone)
+    // (TAIL-RETRACT: a taildragger's mains retract too, its tailwheel stays down)
+    if (+P.gearRetract && (M.gearType === 'tricycle' || (M.gearType === 'taildragger' && !M.mono) || (M.mono && +P.s1Ul)) && !+P.gearFloats) {        // (GR: any wing - the Catalina's hull; the ultralight monowheel, its main alone)
       // (the ultralight monowheel's is a sailplane's - the pilot's lever, an over-centre link and a gas strut: manual,
       // ~3 s, no user choice; GEN_RULES.ulGear.retractKg)
       const ulR = M.gearType !== 'tricycle' && M.mono && +P.s1Ul;
@@ -817,6 +823,7 @@ function cageJoinSpec(P, M, T) {
   if (M.Sh > 0) tl.Sh = M.Sh;
   if (M.Sv > 0) tl.Sv = M.Sv;
   if (M.Svt > 0) tl.Svt = M.Svt;
+  if (+P.tailDrawn) tl.drawn = 1;                  // REAL-CANON: PETREL-LS's drawn-tail rules (60_gen_spec, 61_gen_frame), latent
   if (M.hTaper > 0) tl.hTaper = M.hTaper;          // P4: the trusses' trapezoids
   if (M.vTaper > 0) tl.vTaper = M.vTaper;
   if (typeof M.dorsalArea === 'number' && isFinite(M.dorsalArea))
@@ -1626,7 +1633,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const TB = C2.cageHullTable(C2.cageHullLines({ ...P }), FSh);
           if (TB && fwOk) {
             M.hull = { sta: TB.sta, x: zFw - TB.zStep * FSh, y: TB.yStep * FSh - yD, steps: TB.steps,
-                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY, mode: Math.round(+P.hullTips) === 2 ? 'wing' : Math.round(+P.hullTips) === 3 ? 'outrigger' : null,
+                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY, ...(+P.hullTipLen > 0 ? { len: +P.hullTipLen } : {}), mode: Math.round(+P.hullTips) === 2 ? 'wing' : Math.round(+P.hullTips) === 3 ? 'outrigger' : null,
                               ...(Math.round(+P.hullTipPlane || 0) === 1 && +P.w2On ? { plane: 1 } : {}) },   // (HULL-B45)
                        ...(+P.hullSpon ? { spon: { on: 1, mode: Math.round(+P.hullSpon) === 1 ? 'stub' : Math.round(+P.hullSpon) === 3 ? 'root' : 'float', kg: +P.hullSponKg, y: +P.hullSponY, x: +P.hullSponX, w: +P.hullSponW,
                                                    c: +P.hullSponC, k: +P.hullSponK, t: +P.hullSponT } } : {}) };
@@ -1759,9 +1766,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // the built one GROUNDS before the tailwheel and holds the
         // tail up — this row is why the sim's boom follows the built
         // boom.
-        if (zPost != null && zCabA != null && zCabA > zPost + 0.5 &&
+        // PETREL-LS (measured on the Super Petrel V4.2): A ROD BOOM HAS NO TAIL RINGS, so zPost is null and this block -
+        // the shape family and the nine-row profile - never ran on a rod: the build kept whatever an earlier join had
+        // written (the V4.2 flew V4.1's straight taper, 0.94 m wide at 3.3 m where the rod is 0.17 m: a body volume of
+        // 4.0 m3 for the Munk moment - 10 % of the chord off the neutral point - and the frame's boom lattice 0.27 m
+        // over the keel, in the water at rest). On a single rod the run ends at the rod's tip (the aft skin extreme,
+        // where tailArm and the tail datum already end), so the frame's boom is the drawn body: the float, then the tube
+        const zEnd = zPost != null ? zPost
+          : (Math.round(+P.boomStyle || 0) === 1 && !+P.boomTwin && isFinite(AF.z0) ? AF.z0 + 0.02 : null);
+        if (zEnd != null && zCabA != null && zCabA > zEnd + 0.5 &&
             typeof GEN_SHAPES !== 'undefined') {
-          const zMid = (zCabA + zPost) / 2;
+          const zMid = (zCabA + zEnd) / 2;
           const es = [];
           const chan = (v0, vm, v1) => {
             const d = v1 - v0;
@@ -1770,10 +1785,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             if (u > 0.02 && u < 0.98) es.push(Math.log(u) / Math.log(0.5));
           };
           chan(AF.surf(zCabA, 0)[1], AF.surf(zMid, 0)[1],
-               AF.surf(zPost, 0)[1]);                       // belly
+               AF.surf(zEnd, 0)[1]);                       // belly
           chan(AF.surf(zCabA, Math.PI)[1], AF.surf(zMid, Math.PI)[1],
-               AF.surf(zPost, Math.PI)[1]);                 // deck
-          chan(AF.halfWAt(zCabA), AF.halfWAt(zMid), AF.halfWAt(zPost));
+               AF.surf(zEnd, Math.PI)[1]);                 // deck
+          chan(AF.halfWAt(zCabA), AF.halfWAt(zMid), AF.halfWAt(zEnd));
           if (es.length) {
             const e = es.reduce((s, v) => s + v, 0) / es.length;
             let best = null, bd = 1e9;
@@ -1793,7 +1808,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const NP = 9, prof = [];
           for (let i = 0; i < NP; i++) {
             const t = i / (NP - 1);
-            const z = zCabA + (zPost - zCabA) * t;
+            const z = zCabA + (zEnd - zCabA) * t;
             prof.push({ t: +t.toFixed(4),
               w: AF.halfWAt(z),
               yb: AF.surf(z, 0)[1] - yD,
@@ -1874,9 +1889,15 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // THE TAPER (P4): tip chord over root chord, read as the 75 %
           // slice over the 25 % — the trapezoid the frame's truss stands on
           // (a rounded planform has no single taper; this is its straight fit)
+          // (FIN-TAPER, 10 Nov: the 75 %/25 % chord RATIO is not the tip/root taper - a straight planform through those
+          // two chords has root c25 + (c25 - c75)/2 and tip c75 - (c25 - c75)/2, so tip/root = (3r - 1)/(3 - r).
+          // The ratio flew the Petrel's 0.23 fin as 0.53: a parallel box leaning aft, its swept root missing)
+          // (REAL-CANON, A0 13 Nov: LATENT - only a card with the row tailDrawn on (the Super Petrel V4.2's) reads the
+          // tail this way; every other card keeps the ratio, so no validated plane's tail moves until the user rules)
+          const lamOf = r => Math.max(0.05, Math.min(1, +P.tailDrawn ? (3 * r - 1) / (3 - r) : r));
           const taperOf = m => {
             const a = m.chordAt(0.25 * m.span), b = m.chordAt(0.75 * m.span);
-            return a > 1e-6 ? Math.max(0.05, Math.min(1, b / a)) : 1;
+            return a > 1e-6 ? lamOf(b / a) : 1;
           };
           // THE FIN'S TAPER IS ITS PLANFORM ABOVE THE DECK (NEW-PLANE, the user 3 Nov: "make the join measure the fin
           // above the deck"). The drawn sheet runs down the tail post to the keel, so its 25 % slice sat at the tail
@@ -1900,7 +1921,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             const above = m.span - t0;
             if (!isFinite(t0) || t0 <= 0 || above < 0.25 * m.span) return taperOf(m);
             const a = m.chordAt(t0 + 0.25 * above), b = m.chordAt(t0 + 0.75 * above);
-            return a > 1e-6 ? Math.max(0.05, Math.min(1, b / a)) : taperOf(m);
+            return a > 1e-6 ? lamOf(b / a) : taperOf(m);
           };
           if (stabM && stabM.areaTail > 0) {
             if (isV) M.Svt = 2 * stabM.areaTail;

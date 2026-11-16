@@ -12,13 +12,15 @@
 //
 //   LAND (bear, elk, doe) — a CLIP MACHINE over the animal's own library:
 //   idle / browse / walk / lie, with the asset's own transitions played
-//   through where the pair exists and a quarter-second cross-fade where it
-//   does not. A walking animal advances at the CLIP'S OWN measured ground
-//   speed (tools/animal_prep.py took the root's travel out of the frames and
-//   put it in `travel`), so the feet do not skate; its y is the ground under
-//   it and its attitude the ground's normal, low-passed. A step into water,
+//   through where the pair exists and an eased cross-fade, as long as the head
+//   has to travel, where it does not (animals.js, ANIMALS-MOTION). A walking
+//   animal advances at the CLIP'S OWN measured ground speed (tools/animal_prep.py
+//   took the root's travel out of the frames and put it in `travel`), so the feet
+//   do not skate, and it TURNS at that speed over a radius of its own length
+//   (half of it in a hard turn) - never on a standing pose; its y is the ground
+//   under it and its attitude the ground's normal, low-passed. A step into water,
 //   up a slope over 28 deg, or out of the hotspot's radius is refused and the
-//   animal turns instead. Mostly idle, as asked.
+//   animal turns on the spot, stepping, toward the middle. Mostly idle, as asked.
 //
 //   SEA (blue whale, orca) — the body keeps its one delivered loop, whose
 //   rate follows the speed; everything else is the ROOT. A slow circuit about
@@ -174,7 +176,9 @@ AR.make = function (THREE, ctx) {
                   tgt: null, depth: 0, phase: rnd(), wasUp: false, plume: null,
                   // the sound's marks (G1705): the run's clock at the last blow / call opportunity, the herd, the species
                   blowT: -1, callT: -1, herd: 0, F: null, sp: SOUND.SPECIES.indexOf(spot.key),
-                  up: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, 0, 1) };
+                  up: new THREE.Vector3(0, 1, 0), dir: new THREE.Vector3(0, 0, 1),
+                  // THE TURN (ANIMALS-MOTION): the smoothed ground normal, the stride's rate, the ground speed, the yaw rate
+                  upS: new THREE.Vector3(0, 1, 0), posed: false, rho: 1, vs: 0, w: 0, pivot: false, pivotT: 0 };
     // where it starts: scattered in the hotspot, seeded per individual so
     // adding one never moves the others (the premises contract's rule 5)
     let ang = rnd() * TWO_PI, rr = spot.r * Math.sqrt(rnd());
@@ -211,13 +215,17 @@ AR.make = function (THREE, ctx) {
     return 'idle';
   }
   function landEnter(one, state) {
+    // AN ANIMAL LIES DOWN FROM A STAND (ANIMALS-MOTION): the asset's Stand_to_Lying starts from the standing pose, so a
+    // walker or a grazer that wants to lie stands first (the machine picks again from there) - never a fade from a
+    // walk straight into a lying body
+    if (state === 'lie' && one.state !== 'idle' && one.state !== 'lie' && CLIPS(one.a, 'toLie').length) state = 'idle';
     // the asset's own transition, where the pair has one: played through, and
-    // the state entered when it ends (`next`)
-    const via = (one.state === 'idle' && state === 'walk') ? 'toWalk'
+    // the state entered when it ends (`next`); a grazer sets off through the same stand-to-walk as a stander
+    const via = ((one.state === 'idle' || one.state === 'browse') && state === 'walk') ? 'toWalk'
       : (one.state === 'idle' && state === 'lie') ? 'toLie'
       : (one.state === 'lie' && state !== 'lie') ? 'fromLie' : null;
     if (via && CLIPS(one.a, via).length) {
-      one.state = 'trans'; one.next = state; one.t = 0;
+      one.state = 'trans'; one.next = state; one.t = 0; one.via = via;
       const c = H_clip(one, via);
       one.H.play(c, { fade: 0.22, loop: false });
       one.dwell = c ? c.dur : 0.5;
@@ -228,15 +236,13 @@ AR.make = function (THREE, ctx) {
   const H_clip = (one, role) => CLIP(one.a, role, one.rnd());
   function landStart(one, state) {
     one.state = state; one.t = 0; one.next = null;
+    one.pivot = false; one.pivotT = 0;
     if (state !== 'lie') one.callT = T;             // a call opportunity (G1705): it stands, walks or browses anew
     const c = H_clip(one, state === 'walk' ? 'walk' : state);
     if (c) one.H.play(c, { fade: 0.25, loop: true, rate: 1 });
     if (state === 'walk') {
-      // somewhere else inside the hotspot, and never more than 60 m off
-      const ang = one.rnd() * TWO_PI, rr = one.spot.r * Math.sqrt(one.rnd());
-      one.tgt = { x: one.spot.x + Math.cos(ang) * rr, z: one.spot.z + Math.sin(ang) * rr };
-      const d = Math.hypot(one.tgt.x - one.x, one.tgt.z - one.z);
-      if (d > 60) { one.tgt.x = one.x + (one.tgt.x - one.x) * 60 / d; one.tgt.z = one.z + (one.tgt.z - one.z) * 60 / d; }
+      one.tgt = landTarget(one, false);
+      one.vs = 0; one.rho = 1;
       one.dwell = 4 + one.rnd() * 20;
     } else {
       one.tgt = null;
@@ -251,44 +257,102 @@ AR.make = function (THREE, ctx) {
     const s = Math.max(Math.abs(ground(x + d, z) - h), Math.abs(ground(x, z + d) - h)) / d;
     return s < 0.53;                                  // 28 degrees
   }
+  // THE TURN (ANIMALS-MOTION, 15 Nov 2026). The user: "no walking animation when they turn". G498 turned a walker at a
+  // fixed 0.5-0.7 rad/s whatever its speed - a bear at 0.42 m/s swung its 2.2 m body round a 0.84 m circle, its feet
+  // dragged sideways - and a refused step added 0.9 rad AT ONCE, the body then spun after it on a treading clip. Now:
+  //   ARC    the yaw rate is the GROUND SPEED over a turn radius: v / R, R = the body's length going straight, half of
+  //          it in a hard turn (the stride shortens to TURN_RATE of itself for that); v is the clip's own travel, so a
+  //          walker that is not moving does not turn, and a walk fading out turns less as it slows.
+  //   PIVOT  a step refused (water, a wall of a slope, the hotspot's edge) turns the animal ON THE SPOT toward a new
+  //          target: the walk clip stepping at the rate the turn asks (the feet sweep the half-length at the turn's
+  //          speed), no travel, until it faces the way; then it walks off.
+  // Nothing else turns a land animal: idle, browse, lie and the transitions keep their heading.
+  const TURN_RATE = 0.65;                            // the stride in a hard turn, x the clip's own
+  const PIVOT_RATE = 0.6;                            // the stepping rate on the spot, x the clip's own
+  function landTarget(one, home) {
+    // somewhere else inside the hotspot, never more than 60 m off; `home`: toward the middle (a refused step). A place
+    // it may stand on, in six tries (a hotspot with a pond in it: never a walk to the middle of the pond)
+    const t = { x: one.x, z: one.z };
+    for (let k = 0; k < 6; k++) {
+      const ang = one.rnd() * TWO_PI, rr = one.spot.r * (home ? 0.5 : 1) * Math.sqrt(one.rnd());
+      t.x = one.spot.x + Math.cos(ang) * rr; t.z = one.spot.z + Math.sin(ang) * rr;
+      const d = Math.hypot(t.x - one.x, t.z - one.z);
+      if (d > 60) { t.x = one.x + (t.x - one.x) * 60 / d; t.z = one.z + (t.z - one.z) * 60 / d; }
+      if (landOk(one, t.x, t.z)) break;
+    }
+    return t;
+  }
   function landStep(one, dt) {
     one.t += dt;
     const P = one.H.player;
+    const walking = one.state === 'walk' && !!one.tgt;
     const mv = one.H.step(dt);
-    if (one.state === 'walk' && one.tgt) {
-      // the heading turns toward the target; the STEP is the clip's own
-      let want = Math.atan2(one.tgt.x - one.x, one.tgt.z - one.z);
-      let e = want - one.hd;
+    const gait = !!(P && P.cur && (P.cur.role === 'walk' || P.cur.role === 'trot'));
+    one.w = 0;
+    if (walking) {
+      let e = Math.atan2(one.tgt.x - one.x, one.tgt.z - one.z) - one.hd;
       while (e > Math.PI) e -= TWO_PI;
       while (e < -Math.PI) e += TWO_PI;
-      const turn = (one.a.mood && one.a.mood.turn) || 0.6;
-      one.hd += clamp(e, -turn * dt, turn * dt);
-      if (mv && (mv[0] || mv[2])) {
-        _V.set(mv[0], 0, mv[2]).applyQuaternion(one.H.obj.quaternion);
-        const nx = one.x + _V.x, nz = one.z + _V.z;
-        if (landOk(one, nx, nz) && Math.hypot(nx - one.spot.x, nz - one.spot.z) < one.spot.r * 1.25) {
-          one.x = nx; one.z = nz;
-        } else {
-          one.hd += (one.rnd() < 0.5 ? -1 : 1) * 0.9;   // refused: turn away and try again
-          one.tgt = null;
-          one.dwell = Math.min(one.dwell, one.t + 1.5);
+      const cap = (one.a.mood && one.a.mood.turn) || 0.6;
+      const L = Math.max(0.5, one.a.length * (one.size || 1));
+      const vc = gait && P.cur.speed > 0 ? P.cur.speed : 0.5;     // the clip's own measured ground speed, m/s
+      if (one.pivot) {
+        // PIVOT: the turn's rate is the stepping rate's - the feet sweep the half-length as fast as the stride does
+        const wmax = Math.min(cap, PIVOT_RATE * vc / (0.5 * L));
+        one.w = clamp(2 * e, -wmax, wmax);
+        if (gait) P.rate = Math.max(0.25, Math.abs(one.w) * 0.5 * L / vc);
+        one.hd += one.w * dt;
+        one.pivotT += dt;
+        if (Math.abs(e) < 0.3) { one.pivot = false; one.vs = 0; }
+        else if (one.pivotT > TWO_PI / Math.max(0.05, wmax) + 2) one.dwell = one.t;   // never a carousel
+      } else {
+        // ARC: the stride shortens in a hard turn, and the turn is the ground speed over the radius
+        const k = sm(Math.min(1, Math.abs(e) / (Math.PI / 2)));
+        one.rho += ((1 - (1 - TURN_RATE) * k) - one.rho) * Math.min(1, dt * 2);
+        if (gait) P.rate = one.rho;
+        let v = 0;
+        if (mv && (mv[0] || mv[2])) {
+          _V.set(mv[0], 0, mv[2]).applyQuaternion(one.H.obj.quaternion);
+          const nx = one.x + _V.x, nz = one.z + _V.z;
+          if (landOk(one, nx, nz) && Math.hypot(nx - one.spot.x, nz - one.spot.z) < one.spot.r * 1.25) {
+            one.x = nx; one.z = nz;
+            v = Math.hypot(_V.x, _V.z) / Math.max(1e-4, dt);
+          } else {
+            // refused: a new way, toward the middle of the hotspot, turned to ON THE SPOT
+            one.tgt = landTarget(one, true);
+            one.pivot = true; one.pivotT = 0;
+          }
         }
+        one.vs += (v - one.vs) * Math.min(1, dt * 4);           // the ground speed, low-passed (a stride is not uniform)
+        const R = L * (1 - 0.5 * k);
+        const wmax = Math.min(cap, one.vs / R);
+        one.w = clamp(1.5 * e, -wmax, wmax);
+        one.hd += one.w * dt;
       }
-      if (Math.hypot(one.tgt ? one.tgt.x - one.x : 0, one.tgt ? one.tgt.z - one.z : 0) < 2.5) one.dwell = one.t;
-    } else if (one.state === 'trans' && mv && (mv[0] || mv[2])) {
-      // a transition that shifts the body (a bear lies down a metre to one
-      // side) moves the animal, which is the point of extracting the root
+      if (Math.hypot(one.tgt.x - one.x, one.tgt.z - one.z) < 2.5) one.dwell = one.t;
+    } else if (mv && (mv[0] || mv[2])) {
+      // a transition that shifts the body (a bear lies down a metre to one side) moves the animal, which is the point
+      // of extracting the root; so does a walk fading out under a stand (its legs slow, the ground still passes)
       _V.set(mv[0], 0, mv[2]).applyQuaternion(one.H.obj.quaternion);
-      if (landOk(one, one.x + _V.x, one.z + _V.z)) { one.x += _V.x; one.z += _V.z; }
+      if (landOk(one, one.x + _V.x, one.z + _V.z) && Math.hypot(one.x + _V.x - one.spot.x, one.z + _V.z - one.spot.z) < one.spot.r * 1.25) { one.x += _V.x; one.z += _V.z; }
     }
-    // the pose on the ground
+    // the pose on the ground: the heading AS IS (it only ever moves by the law above), the ground's normal low-passed
     const y = ground(one.x, one.z);
     one.H.obj.position.set(one.x, y, one.z);
     normalAt(one.x, one.z, Math.max(1, one.a.length * 0.5), one.up);
+    if (!one.posed) { one.upS.copy(one.up); one.posed = true; }
+    else one.upS.lerp(one.up, Math.min(1, dt * 3)).normalize();
     one.dir.set(Math.sin(one.hd), 0, Math.cos(one.hd));
-    orient(one, one.dir, one.up, one.t < 0.05 ? 1 : Math.min(1, dt * 3));
+    orient(one, one.dir, one.upS, 1);
     if (one.state === 'trans') {
-      if (!P || P.done || one.t > one.dwell + 0.5) landStart(one, one.next || 'idle');
+      // the transition ends when ITS CLIP does (paced, it may run longer than its nominal length), with a backstop.
+      // Up from lying and off walking: through Stand_to_WalkSlow, from the stand Trans_Lying_to_Stand ends in - never a
+      // fade from a stand straight into a stride (ANIMALS-MOTION)
+      if (!P || P.done || one.t > one.dwell * 3 + 1) {
+        const nx = one.next || 'idle';
+        if (nx === 'walk' && one.via === 'fromLie' && CLIPS(one.a, 'toWalk').length) { one.state = 'idle'; landEnter(one, 'walk'); }
+        else landStart(one, nx);
+      }
       return;
     }
     if (one.t >= one.dwell) {
@@ -635,7 +699,13 @@ AR.make = function (THREE, ctx) {
              for (const [id, h] of HERDS) for (const one of h.ones)
                out.push({ id, key: one.a.key, kind: h.kind, i: one.i, x: one.x, y: one.H.obj.position.y,
                           z: one.z, hd: one.hd, state: one.state, depth: one.depth, size: +(one.size || 1).toFixed(3),
-                          clip: one.H.clip() ? one.H.clip().key : null, shown: one.H.obj.visible });
+                          clip: one.H.clip() ? one.H.clip().key : null, shown: one.H.obj.visible,
+                          // ANIMALS-MOTION (GATE ANIMOTION): the clip's role and rate, the yaw rate, on the spot or not
+                          role: one.H.clip() ? one.H.clip().role : null, rate: one.H.player ? one.H.player.rate : 0,
+                          w: one.w || 0, pivot: !!one.pivot,
+                          from: one.H.player && one.H.player.prev ? one.H.player.prev.key : null,
+                          fadeU: one.H.player && one.H.player.prev ? one.H.player.fadeT / Math.max(1e-6, one.H.player.fade) : 1,
+                          ct: one.H.player ? one.H.player.t : 0 });
              for (const F of FLOCKS) for (const one of F.ones)
                out.push({ id: 'ambient', key: one.a.key, kind: 'air', i: one.i, x: one.x, y: one.y, z: one.z,
                           hd: F.hd, state: 'fly', depth: 0, clip: one.H.clip() ? one.H.clip().key : null, shown: true });

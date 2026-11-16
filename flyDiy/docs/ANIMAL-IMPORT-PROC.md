@@ -86,6 +86,35 @@ An animal is placed as a HOTSPOT — one `objects` record of a premises, kind
 OBJECTS section has the tool; every individual is seeded from `(id, index)`,
 so changing the count never moves the ones already standing.
 
+## HOW THEY MOVE (ANIMALS-MOTION, 15 Nov 2026)
+
+The user: "no walking animation when they turn, harsh transition when they
+bend their heads." The rules, none of them a joint curve (the vendors' clips
+only, G498's ruling):
+
+- **A land animal turns only while its gait clip steps.** Walking, its yaw
+  rate is its ground speed over a radius of its own length (half of it in a
+  hard turn, where the stride slows to 0.65). A refused step (water, a slope
+  over 28 deg, the hotspot's edge) turns it on the spot: the walk clip
+  stepping at the rate the turn needs, no travel. Idle, browse, lie and the
+  transitions keep their heading.
+- **Cross-fades are eased and as long as the head has to travel** (the
+  fade's own peak head speed under 75 deg/s; 0.3 s floor, 1.8 s ceiling). A
+  fade leaves the pose on screen, frozen, unless the outgoing clip is a gait,
+  which keeps stepping, and keeps its travel, under the fade.
+- **A non-gait clip is paced** where its own head moves faster than 90 deg/s
+  (the doe's and elk's Stand_Eating_01 drops the head 60 deg in 0.4 s).
+- **Lying down goes through Stand_to_Lying**, from a stand, every time; getting up into a walk goes through
+  Stand_to_WalkSlow.
+- **The body is timed too**: a fade adds at most 120 deg/s to what the two clips do to any limb, spine or neck bone.
+- **The whole animal, far out**: the moving skin is drawn until the animal is 6 px long at 1080p (a doe 292 m, an
+  elk 456 m, an orca 1.5 km); the baked static cuts, untouched, only past that. The user: "static mesh is barely
+  acceptable ... when the animal is only a few pixels large"; never re-skin or re-mesh a cut. (3 px was tried on 15 Nov;
+  the user, 18:25: "try 6 pixels back then". The one number: `MOTION.lodPx` in animals.js.)
+- GATE ANIMOTION (`tools/_animal_motion_check.js`) holds all of it,
+  `--root <tree>` runs it on another tree's code (the before numbers). A new
+  land animal needs a bone whose name contains "head".
+
 ## TRAPS THIS PIPELINE HAS ALREADY PAID FOR
 
 - **A skinned mesh's node transform is a lie.** glTF says it is ignored, and

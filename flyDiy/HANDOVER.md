@@ -316359,6 +316359,340 @@ NEW REDS (8), NAMED with owners (fix or re-pin with reason for L40d/L40e):
   - UNIFY EMERG (the student): known red on the pu2 base, Pilot owns.
 
 COLD LOAD (the user 14 Nov: before/after every train): before 143 s (L40a 6a8d705c4); after 138 s (programs 501, world 26.1, settle 17.1, shader compile 56.5+4.0): no load cost from this train. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+## TUTORIAL-CUBS - THE TUTORIAL'S THREE CUBS: THE CLIENT CUB IS THE VALIDATED J-3 IN ITS OWN LIVERY; UPGRADED IN 5 ROWS, ON FLOATS IN 4; THE PAGE WROTE THE TARGETS AND PROVES THEM (13 Nov 2026, cloud, for the GAME coordinator via A0; branch claude/tutorial-cubs-1 off origin/master 23ce68c1)
+
+The user (13 Nov): tutorial v2 is FULLY DETERMINISTIC - each tutorial build ends EXACTLY on a reference file, 4-5 modifications from its start, the tutor pointing at the exact row and value. The recipe, the edit lists and the proof are ONE tool: `tools/tutorial_cubs.js` (--build node's draft, --check node, --page the page's proof [--write], --fly the game's pilot).
+
+- **1 CLIENT CUB (the start), `builds/cub_2026-09-20.json` REPLACED** (it was the uncorrected September Cub, 832 leaves off list:1): the validated J-3 file (list:1, `cub_2026-09-20_corrected.json`) leaf for leaf but paint / finish / meta - the client's paint and finish whole (CLIENT-CUB-LOOK: white + faded blue, wear 0.8 as the page writes it, `weather {age, flight}`), N1938J, name Client Cub. Written AS THE J-3 IS SAVED (raw; the game joins it on open), so row 26's `over` stays storyClientSpec of it (GATE PLANELISTS: `over` lays systems over the file's, storyClientSpec replaces them). ONE LOOK CHANGE: the struts lose the September file's `castAlu` pin and keep their own tint #dcd8cc (painted like the gear legs) - that pin was GATE LIVERY's standing red on master (2 of 328, L32b); AIRCRAFT-LOOKS to confirm. DROPPED as shape, not livery: the near-triangle window (paxWinQ2Y/Q3Y/R2/R3) and the narrow cowl (cw_aftW 0.37, cw_taperW 0.72) - the J-3's own are kept.
+- **2 CLIENT CUB UPGRADED, `builds/client_cub_upgraded_2026-11-13.json`**, toward the Carbon Cub SS (list:47), five rows: engPreset 21 'rotax 915 iS' (65 -> 141 hp, +9 kg), s1R 0.37 (29 in tundra; the slider's 0.005 grid, the Carbon Cub's 0.368 is typed), wgVG 1, wgCons 7 'fabric on aluminium spar' (-22 kg), stSpan 1.59 (the Carbon Cub's 1.589 on the 0.01 grid). Plaque: 491 kg, Vs 15.97 -> 15.33 m/s, take-off run 153 -> 68 m, climb 2.98 -> 6.16 m/s; design check: only roll.spiral warns (the J-3 and the Carbon Cub warn on it too; the J-3's pitch.sm warn is gone). Measured and NOT taken: the O-320 (the CC340's chassis) warns ctl.flare 1.07 with the bigger stab alone, 1.15 with the five rows; the STOL flap over the J-3's fowler moves the take-off run 5 m.
+- **3 CLIENT CUB ON FLOATS, `builds/client_cub_floats_2026-11-13.json`**, four rows from file 2: gearFloats 1, fltPreset 0 'Wipline 1450' (the frame's sizing, floatParamsFor - a pair displaces 1.8 x the gross - asks 552 kg a float at the float gross 613 kg; the 1450 is the smallest row: 658 kg, rated 650 kg gross; the catalogue sells it for the Carbon Cub SS), fltDrop 1.00 (the PA-18 on floats' keel; its track 0.80, struts 55 deg, spreaders and wires are the defaults already), propPitch 4 'seaplane' (take-off run 80 -> 57 m, climb 5.7 -> 7.9 m/s). The float row writes HYDRO-SCALE's hull (claude/ready/hydro-scale): on a tree without it the row writes the ~11 % bigger hull and step 3 does not land on the file. The FILE itself loads and flies the same on master (its hull is in its rows).
+- **THE PAGE WROTE THE TARGETS** (the game is the page): files 2 and 3 are GARAGE_SPEC.get() after the rows were moved through their own widgets (#p_<k>: select / checkbox change, the slider's typed value) on dev.html headless. Node's load door (_load_build) lands on them to 1e-9 but (a) the tail's derived areas in the 15th digit, (b) the float station: node 0.9566 m aft of the firewall, the page 0.9445 (the step follows the CG each one measures). Also seen, not this work's: the page opens a raw file with `cage.wgChordTip` as saved (the J-3's 1.75) where node writes 1.7, and migrates an old finish (`wear` -> `weather`, decal defaults dropped) that node keeps - JOINPARITY holds defs only, so neither shows there.
+- **The plane list**: row 26 keeps its number, name, reg and `over`; new `stages` (the two targets) + note. No new rows: a separate player row needs its own registration (canon) and a line in PLANELISTS' CLASSES (the user's table) - the same airframe is one plane. Coordinator's call if it wants them listed.
+- **For the Game coordinator**: (1) storyClientSpec's flapless handover does not survive the load door - `controls.flap` none, but the cage still says fowler, so the first join brings the flaps back; only `systems.fit 'minimal'` survives. From that handover the five rows land on file 2 but for `systems.fit` (minimal vs basic) - the instruments' `fit` select has no data-k. (2) T2's checklist on file 2 against the handover: engine, flaps, tyres, lights, panel ticked; paint open. (3) The fiche / hero / thumb of list:26 still show the September Cub (fiche_bake.js, AIRCRAFT-LOOKS). (4) carbon_cub_ss.json's meta.reg is F-STOL where the list says N340SS (reported, not fixed).
+- RE-PINNED with the reason: KNIFE corpus - `file:builds/cub_2026-09-20.json` now hashes as the validated J-3 (e37cbe02, 20942/16762, the J-3's window loops), the two new files added with the same sheet; no other entry moved.
+- **Proof** (tools/tutorial_cubs.js, this branch; floats on the HYDRO-SCALE tree 0c007ef7): --page, a fresh dev.html boot each: file 1 + 5 rows = file 2 to the leaf and file 2 re-opens as written; file 2 opens as written, + 4 rows = file 3 to the leaf (the same result on two separate boots), file 3 re-opens as written. --check (node) PASS. --fly, the game's pilot, calm: Client Cub 476 kg off HOME after 104 m (11.7 s), circuit, touch 17.3 m/s, stopped; upgraded 491 kg off after 50 m (6.8 s), circuit, touch 19.7 m/s, stopped; floats 533 kg off the SEA lane, hump R/W 0.13 at 6.1 m/s, off the water after 54 m (7.9 s, 16.9 m/s), circuit, touch on the water 20.5 m/s, stopped (the same on master: the file's hull is in its rows). Bench design check: warn / warn / warn (roll.spiral on all; + pitch.sm on the J-3; + ctl.flare 1.06 on floats), both certificates held (a warn is a certificate).
+- **Gates** (node, --no-build, on this branch): PLANELISTS STORY KNIFE FRAMES LIVERY LIVERYTEXT HULL WEARTAB WEARPRICE PLANEFICHE CANDIDATES NEWPLANE SNAPSHOTS POD STOL PASS (LIVERY: master's standing 2 of 328 gone). DESIGNCHECK (carbon shell post 4.2 vs 1.8 mm) and JOINPARITY (the Jodel's node = page; large_hangar_shot.js / large_hangar_store_shot.js fly a validated build raw) FAIL with the same lines on clean master 23ce68c1. Not run: the full tier, the Chrome gates beyond the page proofs above.
+## COMPETE-SCORE: THE AERO CLUB'S SCORING (2026-11-13, pure core in 73b/73c + GATE MISSIONS)
+The competition events, all pure (no clock, no random), all in the mission format, each judged on a STOP STEP like a
+timer (73c missionTimerOnSub, which now ends in missionScoreOnSub):
+- STOL (the user's top ask): a mission's `stol: [{ id, kind: takeoff|landing|spot, line, dir, stop, medals?|max?, ghost? }]`.
+  The tracker measures it off the samples (new optional sample fields: `gnd` wheels on the ground, `v` m/s, and the
+  attitude `hdg pitch roll`), with the tour's definitions (tools/_tour_lib.js: roll -> lift-off, touchdown -> stop):
+  take-off = stopped 0-3 m behind the line, the line to the lift-off (held 1 s; a hop is not it); landing = the first
+  touchdown past the line (short: a FOUL, Valdez) to the stop, after 5 s in the air, a go-around (5 s up) drops it;
+  spot = |distance| from the line at the first touchdown (`short` says which side). The first measure of a flight stands.
+  r.scores [{ id, kind, m, short?, ghost? }] on the step's result.
+- 3-D GATES: a ring's `pitch` tilts its facing (90 = a loop's vertical gate; the ring's frame n/l/u, msrRingFrame,
+  pitch 0 = the old ring exactly); a gate or ring may ask `att { hdg?, pitch?, roll?, tol 20, pen 2 }` - outside the
+  tolerance a SOFT penalty on the laps running (msrPenalise, shared with the strike), never a miss. The heading of a
+  near-vertical line is not judged; an angle the samples lack is `unknown`, not judged. A rolled wing changes the
+  strikes: a knife-edge wing reaches up, not out (pylons and rings).
+- REGULARITY: a timer with `regularity: true`: the score is |lap - target| (timer.dev); medals' le are seconds OFF the
+  target, else `tol`. The faster lap does not win.
+- MULTI-LEG COURSE: `course { timers: [one lap per leg, leg order], medals?, ghost? }`: on the last lap's stop step the
+  result is the SUM of the legs (each with its penalties), r.course { s, legs: [{ id, s, ghost? }] }; its medal replaces
+  the leg's. The earlier legs come from live.timers (74_ keeps every judged lap) through missionTrackNew(rec, live) into
+  the evidence (`course: { id: s }`) - so NO new 74_ code.
+- FIXED GHOST: `ghost { s, who?, splits?: { step: s } }` on a timer (`{ m }` on a STOL line, `{ s, legs }` on a course):
+  an authored rival record, the same for every player; split and stop events carry `ghost` (+ behind, - ahead), the
+  judge timer.ghost { s, beat, by }.
+SEAMS FOR A0 / MISSIONS-LIVE: (1) the career's stop seam keys on rec.timers: missionToContract gives a STOL-only record
+an empty timers list (missionScored(rec) says a record is scored), so the career already judges it; 74_ keeps only
+r.medal and r.timer - to show the STOL metres / the course sum on the card, 74_ contractOnStop should also keep
+r.scores / r.course (live.scores, an event); (2) the page's samples should add gnd, v (and the main wheels' x z for a
+fair STOL measure) and hdg/pitch/roll in the stated convention (pitch -90..90, roll right-wing-down +, inverted 180);
+(3) missionMarkers gives `kind: 'line'` markers for the STOL lines and `pitch`/`att` on rings and gates to draw;
+(4) the new functions are not in 90_node_exports.js (the gate loads 73b/73c fresh).
+GATE MISSIONS: +80 rows (the compete pack: 5 tiny missions, no story text), the checker's breaks, the converter's
+round trip, a course and a STOL event flown through careerOnStop; the selftest +37 doctored rules.
+BUDGET: the career chunk (GATE MEDIA, CAREER_BUDGET_KB 640) was at 624.9 KB on claude/mission-packs; COMPETE fits at
+639.2 KB only by keeping 73b/73c terse (the explanations live here, not in the code). The next career feature needs
+A0's budget call (rule b), not more squeezing.
+## OBSERVATORY-SITE - MOUNT ARDENT: THE STATION IN FOUR PIECES, BUILT ONE A STEP (THE OBSERVATORY TRACK), AND ITS ALTIPORT - 210 x 12 m UP THE NORTH-EAST SPUR, 15 % AT THE BOTTOM EASING TO A FLAT TOP THAT IS THE HELIPAD AND THE STAND (2026-11-13, OBSERVATORY-SITE for A0, cloud - node only, no GPU; branch claude/observatory-site-a off origin/master 23ce68c1)
+
+The user (13 Nov, via A0): the observatory on Mount Ardent (mt_s_meteo, G3660-G3664) "has not really been well done" - a FIRST
+PASS that the user then edits by hand in the world editor. No road leads there; everything is flown in, by an aeroplane that
+climbs in poor weather and lands on snow (the snow ground and the skis are SNOW-MUD's and SKIS': hooks only, below).
+
+1. THE STATION IN PARTS (tools/_meteo_gen.js). A `part` dial: 0 the whole station as before - BUILT IDENTICAL TO MASTER at LOD
+   0/1/2 in both eras (every bag's vertices hashed, old file against new); 1 the drum (the two-tier disc, its stack, mast and
+   lantern), 2 the hall (the flat disc), 3 the tower (the core and the top saucer with its instruments), 4 the triangulation
+   pillar. Each is a preset - 'meteo drum', 'meteo hall', 'meteo tower', 'meteo pillar' - so each is its own catalogue entry
+   (meteo/<preset>, landmark), its own foot, outline and pad (ground need 'ramp', the outline of its own discs). A part keeps
+   THE STATION'S FRAME: its origin the drum's centre, its datum the drum's floor - the four items stand on one site at one
+   origin and meet exactly as the whole one does. A part alone is CLOSED: a wall or a window band the whole station leaves out
+   where another part buries it (the drum's ground storey in the hall and the core; the hall's glazing in the drum and the
+   core) is drawn when that part is not in the build; the small things (seams, patches, hatches, vents, the core's lower
+   windows) still keep off a neighbour's place, which it covers once it stands. LOD 0 triangles: drum 13 720, hall 10 236,
+   tower 13 184, pillar 192 (the whole station 36 698; the parts' sum is 634 more - the closed walls and bands).
+   TRAP (cost a run): `membrane` (the tarred roof's flag) was declared inside the drum's code and read by the hall's - hoisted.
+   THE PILLAR'S TOP PLATE 0.5 -> 0.66 m half (in the whole station too - the one change to its geometry): GATE LODS' roof row on
+   the pillar ALONE read 0.68 - its battered shaft (0.62 m half at the foot) showed round the 1 m plate from above, and the row
+   counts a near-vertical face as no roof (even an identical far mesh scores ~0.7). A survey pillar's plate overhangs; now
+   the gate's 842 rows pass, no ledger touched.
+2. THE PAD IS AUTHORED (island_jolene.json terrain mt_t_pad): today's computed pad (siteShelves' ramp for the whole station:
+   its hull, the least-squares plane capped at 6 %, falloff 8) written as a `ramp` entry in the editor's own form (level
+   1093.631 at the polygon's centroid, slope 0.06, hdg 1.222 deg, abs) - reconstructed to 0.2 mm. WHY: a part's pad fitted
+   on its own outline would put each stage's floors on another plane (the hall alone, then the drum: the floor moves). Over
+   the authored pad every part's own pad refits the same plane (the composer reads authored terrain first: siteShelves' T1s),
+   so the ground and every floor are the same at every stage (measured: the four parts' pads all read the plane; the ground
+   at their centres within 1.7 cm of the authored one - the shelf's own 5-decimal rounding).
+3. THE PROJECT, ONE BUILDING A STEP: a sixth track `observatory` (72_contract_data CONTRACT_TRACKS, max 3; captions
+   trk.observatory.1-3 - labels only, no story), mt_s_meteo's items `tower` [1, null], `drum` [2, null], `hall` [3, null] and
+   `pillar` (no stage: it stands from the start, the summit's survey mark); a construction kit ('build': the fence, the
+   materials, the frame going up) on each one's place the step before it stands - sg_k_obs_tower [0, 0] (12 x 10 on the
+   core), sg_k_obs_drum [1, 1] (18 x 18, kept off the standing core), sg_k_obs_hall [2, 2] (19.5 x 20, west of the core and
+   the drum). THE ORDER IS THE GEOMETRY'S: the core stands at the junction inside the hall's ring, so its site comes first,
+   on open ground; the hall wraps its foot last. STAGE_REVEALS observatory:1-3 at mt_strip. The sandbox (every track at its
+   max) is the whole station as before, on the same ground.
+   A PROJECT'S TRACK, NO PROVIDER'S: nothing in play advances it yet (ECON_BOOK.landmarks 'observatory' is data only) - so a
+   CAREER (track 0) shows the summit with the pillar and the tower's building site, not the station, until the Game
+   coordinator wires the project (and its contract or landmark payment) to `unlock: { stage: 'observatory:<n>' }`. That is
+   the point of a project, and it is a change a player will see: flagged to the Game coordinator.
+4. THE ALTIPORT (runways mt_strip "Ardent Altiport", GAME_NAMES.fields.mt_strip, CONTRACT_FIELDS row). Searched on the DEM
+   (reports/evidence/OBSERVATORY-SITE: search.js, fit.js, design.js), not guessed: the spur that runs east-north-east off the
+   summit, 70-90 m north of it, already rises the way the user asked - ~15 % on its lower part, ~5 % above, flat at the top.
+     length 210 m, width 12 m, gravel (surface 6, look 'gravel', no marks, no PAPI), altiport, approach 0 (landed WEST,
+     uphill, over the east end), hdg 3.1416, centre (9317.2, -5961.9), falloff 30, band 6.
+     ground (the composed centreline): end 0 1020.0 m -> end 1 1038.9 m, 18.9 m of rise; profile [[0, -13.62], [0.3, -4.33],
+     [0.8, 4.89], [1, 5.29]] over the centre's 1033.65 m; the slope 14.8-15.7 % over the first 60 m, 11-12 % to 100 m, 7 %
+     at 140 m, 1.3 % at 180 m, flat (0.3 %) over the last 40 m; worst 15.7 %, crest 4.5 % per 30 m (the altiport's 20 / 5).
+     cut/fill at +-12 m: within 2.5 m over the lower 100 m; the north edge of the upper part up to 4-8 m of fill (the spur falls
+     north there), the south 3-6 m of cut.
+     the top: mt_t_platform, a flatten at 1038.94 abs (the strip's own top), the strip's last 40 m + 8 m beyond the end + a
+     30 x 12 m apron on the south side, falloff 10; cut up to ~9 m at the apron's back edge (the summit's slope). Its ground
+     paved gravel (material mt_m_platform, 4 m past the flatten's back and 3 m past its ends): on the bare patch the stand's
+     tailwheel read 24 mm off terrainH (GATE CONTACT), and with the gravel cut to the flatten the Jodel's wheel sat on its rim
+     (31 mm, GATE TERRAINMATCH) - now 0.0 / 3.6 mm and 5.3 mm at worst.
+     THE HELIPAD: the strip's flat top, as asked - a 14 x 14 m concrete square (material mt_m_helipad) on its last metres.
+     THE STAND: (9230.2, -5950.4) on the apron, 1038.9 m, beside the head; taxiOut one point on the centreline 11.5 m away.
+     "A SIMPLE PUSH ONLY": no hangar, no taxiway - the stand is at the head and the way out is one step onto it. No launch
+     rule exists in the code to set (the start chain's 'front'): owed, the Game coordinator's.
+     trees off the platform (exclude mt_x_platform); the fleet cook finds NO tie-down spot (120 refused not flat, 32 on the
+     strip) - as tw_ski: PREM_STORE.spots mt_strip 0.
+   THE STAND PAD (A0's STAND-PAD-SHAPES, claude/stand-pad, lands Sat): the stand's `pad` is left absent (= auto); the stand
+   is on the authored flatten, which an automatic pad steps aside for - it plugs in as is.
+   SNOW HOOK: mt_strip's `surface` / `look` (gravel today) and mt_m_helipad's look are the entries SNOW-MUD switches to the snow
+   ground; CONTRACT_FIELDS' `surf` follows the record (contractFieldsOf). Skis: stripAllows already lets skis on snow or grass.
+5. THE PILOT FLIES IT AS IT FLIES SKYLINE - NOTHING CHANGED IN 43_pilot (every altiport branch reads the aerodrome's
+   `altiport`; no tw_ski id in the code). The Cub (the short-strip reference), the game's flight (8 kt / 250 deg, damage on):
+     HOME > mt_strip: the arrival climbed to the field's circuit (FINAL at 1175 m MSL, 136 m over the strip, 1.6 km out), the
+     flare armed 27 m before the threshold, three-point, sink -0.07 m/s at 13.4 m/s, touchdown 37 m in, 51 m roll, stopped
+     88 m up the strip with 122 m left; no yield, no break. (Traced BEFORE the platform's gravel and the raster commit; the
+     strip's own ground is the same in both.)
+     mt_strip > HOME: from the stand - turned on the spot (252 deg), lined up, the altiport's committed take-off ("past the
+     point of stopping at V=8.0 with 132 m left - Vr in 73 m"), off downhill in ~75 m, flown home, landed, stopped; no damage.
+   WHAT THE PILOT WOULD NEED (not done - the Pilot's): (a) a HELIPAD is nothing to it (no helicopter); (b) the arrival does not
+   taxi to the stand at an away field (TAXI-HOME's arrive is the own field only) - at a one-way strip the stop is on the
+   slope, the next start turns there; (c) a launch rule ("push only") has no field to read; (d) snow: the roll-out law's
+   friction on the snow ground, when it exists, is untested here; (e) GATE ALTIPORT flies tw_ski only - a mt_strip row is
+   the Pilot coordinator's call.
+6. RE-COOKED as documented: premises_cook --island jolene (4 cells + the two terrain-type files), city_cook (manifest hashes
+   only), map_bake (16 runways), fleet_spots --cook (mt_strip 0). NOT the parked cook (GPU: the train's).
+   Unrelated, seen: the premises cook prints "premises dress site:s41/i1 Cannot read properties of null (reading '0')" - s41,
+   the lookout cab by Cabin Lake, 13 km away, not touched here.
+7. GATES THAT SPELL THE ISLAND'S COUNTS, re-pinned exactly (no check loosened): CONTRACTS (16 runways; the tracks list + the
+   observatory's; the new career's tracks + observatory 0; + a row: no provider's arc unlocks the observatory track), MAPBAKE
+   (16 in the projection), TAXICLEAR (NRW 16), RWYTREES (13 strip boxes). PREM_STORE.spots mt_strip 0 (GATE STORAGE's key).
+8. THE RASTER ON A MOUNTAIN (27_premises grBake - SEPARABLE, A0's CALL; commits 03144ca0 + its cook aafa4f64): GATE PREMRASTER
+   went red with the site - p99 2.07 mm over its 2 mm (master 1.96: 1 508 probes over 2 mm of 1 552 allowed, 44 to spare; my
+   three terrain modifiers add 900 probes, 110 over). 92 of the 93 bad probes sat in 16 m tiles whose DEM spans 4-6 m about
+   the centre: the lattice's refinement test reads |dA h + dB| at the centre's h "give or take GR_RELIEF (2 m)", so on a
+   mountain it stopped refining with the 1 cm it promises broken. Data could not fix it (falloffs 6-25 m, a smaller apron,
+   no authored pad: 65 over at best, the budget ~40). THE FIX: the relief MEASURED per tile (the DEM at the 4 corners and 4
+   edge midpoints, at least 2 m). p99 1.94 mm on this record, master's own bad probes 1 508 -> 1 433. COST: tiles baked
+   12 346 -> 12 374, 0.25 m tiles 2 804 -> 2 919, 1.67 -> 1.69 ms a tile, the cache 50.3 MB as before; the cook re-wrote 148
+   raster cells - 26.5 MB in git, the shipped raster 87.34 -> 90.93 MB, a default page's 57.09 -> 59.24 MB (+2.15 MB a
+   player downloads). WITHOUT IT (drop 03144ca0 + aafa4f64): re-run premises_cook + city_cook on f069d1d6 and PREMRASTER is
+   red on the site's 110 probes - nothing else of the site depends on it. FRAMECOST (GPU) not run here: A0's.
+
+WHAT TO LOOK AT AND TWEAK IN THE EDITOR (the first pass is the user's to finish):
+- the four station items on mt_s_meteo share one origin (the drum's centre): select one by its footprint; rotating a part
+  turns it about the drum's centre. The pad (mt_t_pad) is a slope polygon - its level / slope / heading rows.
+- the strip's head: the platform's back-edge cut (up to ~9 m into the summit's slope, mt_t_platform) and the north edge's fill
+  on the upper part - widen the falloff, move the apron, or slide the strip a few metres south.
+- the helipad square (mt_m_helipad) and the stand's spot on the apron; whether the kits' sizes read right at the summit.
+- no path from the platform to the station (~110 m and 55 m of climb): a footpath with switchbacks is the user's to draw.
+- views: the strip from the east on final (the spur's nose falls away under it), the summit from the platform.
+
+GATES (cloud, node only; `--no-build`, jobs 2-3 on a 4-core box), on this branch's final tree:
+  PASS (42): GROUNDQUERY PATCHBOUNDS PILOTCANFLY TAKEOFF TAXICLEAR (4 shards) LINEUP MAPBAKE CONTACT TERRAINMATCH LAKEBED MEDIA
+  ASSETS HOUSE LODS SITE PREMISES PATCHFAR GROUNDBOX PREMRASTER PREMCOOK CITYCOOK PARKED (solo; it ran out of heap twice beside
+  other jobs) OBSTACLE PAVEMENT MICRO RWYTREES GAMEPREM STORAGE STORESPOT CONTRACTS MISSIONS STAGES NAMES ROUTES ECON WORLD AERO
+  STRIPGROUND. (The stand's last 1 m move came after the first battery; the gates that read the record and its cooks were re-run
+  on it: GROUNDQUERY PATCHBOUNDS TAXICLEAR MAPBAKE CONTACT TERRAINMATCH MEDIA SITE PREMISES PREMRASTER PREMCOOK CITYCOOK
+  PAVEMENT GAMEPREM STORAGE STORESPOT CONTRACTS STAGES WORLD STRIPGROUND PARKED - all PASS.)
+  RED, MASTER'S OWN (a clean origin/master 23ce68c1 worktree, the same rows): ALTIPORT (tw_ski rows 2b, 3, 4 - the Cub's final
+  begun under the circuit height, the doctored arrival's calibration, the metal Cessna's break-up; mt_strip is in no row),
+  LAZY (route_draw.551be74d.js), SCENERYED 20b (the town composition's 2500 ms on this box: 3086 ms on master).
+  RED, THE STALE PARKED COOK: HOUSEWORKER cold / warm / partial (G844, the parked aeroplanes still pending at 120 s) -
+  master 23ce68c1 with ONE comment changed fails the identical three rows (parked_cook --check: STALE); the train's GPU
+  re-cook ends it.
+  NOT RUN: FRAMECOST, the parked cook (GPU, A0's), the full tier (TOUR, ARCHETYPES ...), the GPU stills. The Cub's two legs
+  were flown with tools/altiport_trace.js (above; reports/evidence/OBSERVATORY-SITE).
+## CANON-C172-GATES CORRECTION (Pilot, 14 Nov)
+
+Every pilot gate flies the one Cessna, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50), since L40a/L40c (d85750d7e).
+The aluminium test copy tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is kept ONLY for its structure / audio users (HINGE,
+HONESTY, JOINPARITY, PARKED, RETRACT, ROLLSND); its c172fx tour row is dropped and pilot_persona.js flies F-HCSN. Older entries above
+that name the fixture as "the metal Cessna" in a flying gate describe the gates before that change.
+## ELEC-SYSTEMS — THE ELECTRICS, AUDITED, TILED, AND SAID (2026-11-09)
+
+The user: "Where do we set that? ... Do we even compute the discharge? Do we refuse lamps without electrics? And
+electrical instruments? If we need to manage that, we need to manage that well." The audit, the plan and the sources:
+futureDesigns/ELEC-SYSTEMS-2026-11.md; the hand-over: ELEC-SYSTEMS-READY.md.
+- WHERE: Fit > Instruments (_cage_panel.js), its `electrics` fold - TILES (`.dfTile`, the design tiles' one look), one
+  row per part (battery, charging, starter, suction), the system on one line (Ah, charge A, day / night load, endurance
+  on the battery alone), the engine's usual set marked "for this engine" on each part's tiles with one button to fit it,
+  every refusal said there in red. NO 'class' choice (the user: classes were a new concept nobody asked for).
+- GEN_ELEC_SETS / GEN_ELEC_AS_BUILT / genElecSetOf(engine, key): a suggestion only. As-built history first (the A-65,
+  Clerget, Gipsy Major, W-670, Mikron: no electrics), else the registry's mass/family. Kept OUT of POWERPLANTS: its rows
+  ride into the build's params, a field there moves every fingerprint. RULE: a per-engine row is never put in a tier
+  without the user's ruling (GATE ELEC 7a and its selftest catch it).
+- A GENERATOR WITH NO BATTERY: a self-exciting machine (`selfExcited`: the DC generators, the Rotax coil and integrated
+  generator) is a bus - live only above cut-in (31_elec.js altSelf); the 60 A alternator, whose field the battery
+  excites (FAA AC 20-40), is not. The dash's MASTER / ALT rockers follow hasBus / altA (_panel_gen.js).
+- THE BUS was already real (31_elec.js, cockpit.js): soc, discharge, cut-in, starter draw, breakers, a flat battery
+  refusing the crank. New: the catalogue's `cutIn` / starter `amps` reach it (absent = the old 1100 / 150), and
+  cockpit.js elecAlarms says LOW VOLTS / NOT CHARGING / BATTERY FLAT / a refused start on the flight's #flElec line.
+- genSystemsResolve `warnings[]`: said, never re-billed (the player's problem, the user's ruling).
+- PARKED: the harness as a fraction of empty mass (REAL-FIGURES: no-go on the Cub / Jodel / 172 until the user rules;
+  the total there stays). 12 V everywhere (the user).
+
+# REAL-CANON READY (Sun 15 Nov, claude/ready/real-canon; rides L40d)
+
+The stack claude/real-canon (= claude/tail-retract-canon) ON MASTER L40c 58c681347, no built files: L40c, then ALL of
+ELEC-SYSTEMS (e0ec0363b merged, its whole history an ancestor: L40d can take elec-systems-eol out), then PHYS-SCALE,
+STRUT-OPTIONS, the RUCKUS pieces, PETREL-LS, THE CANON, TAIL-RETRACT, PETREL-FRAME, TAIL-LATENT; PHYSICS_V 9.
+flyDiy/REAL-CANON-READY.md places every red of the 249 non-standing gates against 58c681347. Fixed here: ULTRALIGHT's G
+(TAIL-RETRACT x the ultralight monowheel: the standard monowheel no longer retracts, its kit billed once). Stack reds:
+NACELLE B and ULTRALIGHT B / D (one cause: RUCKUS's rod-boom profile makes the Archaeopteryx fly its own drawn pod,
+80.4 -> 79.6 kg; its checks were pinned on a stale profile - the user's call via A0), BENCH (the Rufus stamp, V 7), PARKED (re-cook on a GPU after L40d's build). The rest is L40c's own
+or timing under load. Re-pinned on the line: WINGSPLIT, ENERGYBASE, PROCURE, FREIGHT, JOINPARITY (two rows), STOL,
+REALBAND.
+
+A0's question - what toM is: CONTRACT_DESIGNS.toM (src/core/72_contract_data.js) is genShakedown's TORun at the design's
+massKg (64_gen_build.js genTORunAt): the ground roll (CRR 0.05, 00_registry; the take-off flap notch, the roll attitude,
+ground effect, the sim's sea-level air) PLUS an air segment to a 2.5 m screen (an energy height over the excess-thrust
+gradient) - not 50 ft, and not the roll alone. A contract scales it by (W/W0)^2 x the surface (73_contracts.js
+CONTRACT_FIT.surf: paved 1.0, gravel / dirt 1.1, grass 1.15, sand 1.25, snow 1.3, water 1.0). The list:50 cessna172r at
+its gross 1128 kg rolls 290 m (REALBAND TOgrass) against the POH's 945 ft = 288 m; its toM 331 m is that roll plus the
+air segment at the snapshot's mass. The old 144 m was the 880 kg bugReports Cessna.
+- PETREL-TRIM GATE (SEAPLANES, 15 Nov, L40d): PETRELTRIM registered (core, 60 s) on builds/candidates/superpetrel_V4_2.json; needs claude/ready/petrel-skin (REAL-CANON 4/5 brings the card) merged first. Read on master 58c681347 + the card: foot -0.09 m (bound -0.15), boom -0.17 (-0.40), lift-off 28.7 s; on petrel-skin 87a86a4a5: foot -0.11, boom -0.21, lift-off 28.8 s. PASS both.
+
+- SNOW-MUD (the user 13 Nov: "if we develop snow, maybe we just develop mud"; the observatory's altiport, the community field), claude/ready/snow-mud: five soft SURFACE codes, placed ONLY by a record (the premises looks `snow` `powder` `slush` `mud` `softmud` - the strip SURFACE pills and the area DRAW select list them by themselves): 8 SNOW_PACKED, 9 SNOW_POWDER, 10 SNOW_WET, 11 MUD_FIRM, 12 MUD_SOFT. PHYSICS (00_registry): GROUND_SURF 8-12 = the firm base (Raymer 17.1, ICAO GRF bands); GROUND_SOFT = the LAYER, Bekker p = k z^n with its depth zMax, k FIT so the stock wheel reads the operational rules (soft field +20-50 %, powder / wet snow 2-3 x or no-go); the tyre presses its load over its FOOTPRINT (TYRE_SOFT / tyreFootprint: carcass width and rated deflection on the wheel's own diameter) and flattens rather than press harder; groundSinkWheel's compaction drag F / N is added to the wheel's rolling coefficient (30_solver, a soft code only: one integer compare on every hard one). Heavier, narrower, smaller, softer all sink and drag more; tundra tyres float. SKIS' INTERFACE: groundSinkPlate (a plate's sink and plough), GROUND_SKI_MU (kinetic / breakout per code, SKI-REFERENCES 4.1/4.6), GROUND_SINK (z, p, F, cap) - futureDesigns/SNOW-MUD-2026-11-13.md section 3. Readouts sim.out.softZ / softF exist only on a frame that met a layer. RUNS (stock taildragger to 0.9 Vs, x grass): packed 0.95, powder 1.87, wet 1.49, firm mud 1.10, soft mud 1.55; tundra 0.94-1.32; the tricycle's small nose wheel STUCK in powder, wet snow, soft mud (stick back frees it from soft mud, slowly). LOOK: pavement classes `snow` (RECOLOURS fine grain to snow per slot through the existing grade uniforms - no new uniform or program; the far tier, surfaceColor and the dust follow) and `mud` (the library's mudAir / tracksM, a wet film always); the shader's `grassy` is class 5 alone now; dust classes `mud` (clods) and `snow` (white powder), their water their own; GROUND_ALBEDO, AF_SURF / AF_ROUGH (the worklet's row bound is the table's length), VEH_SURF, SCAR_SURF, turfS, SCUFF_SOFT, TW_SKID_MU carry 8-12. A snow / mud area keeps trees and plots out (FEEL_HARD). CUTS: the contact does not move down (the sink is a drag and a readout); no speed effect (no slush planing, no ski lift); one power law per layer (a light ski sinks only cm into powder - a two-regime snow is SKIS' to add if its gates need it). GATES: SOFTGROUND (new, core ~100 s, --selftest 9/9 red, --bless): the eight hard rows frozen, 16 legacy rolls BIT-IDENTICAL to master 23ce68c1 (tools/fixtures/softground_legacy_rolls.json), sinking with pressure, the runs, the vocabulary; HONEST's exact row count 8 -> 13. PICTURED (the pavement bench, headless Chromium on SwiftShader): the snow strip white with its tread imprints; the mud strip re-based on plain dirt recoloured to wet clay (aerial mud's tyre fans everywhere and a sky-pink film on the first still).
+
+- SNOW-MUD FX (the user 13 Nov: "a professional looking particle system ... first a literature scouting ... snow clouds, particularly in the powder snow ... mud doesn't have a cloud, but it should have projection, maybe inspired by what we have for the water"), claude/ready/snow-mud: futureDesigns/SNOW-MUD-FX-2026-11-13.md (the scout's sources, the decision, as built, what the stills taught). ONE SYSTEM: the dust's (dust.js), one draw and one program, its pools and its overdraw budget. Four soft classes (mud 5, packed snow 6, powder 7, slush 8) with their own laws on the class row (lum, fall, g, drift, plough, rise, proj; absent on the dust's five, which fly and draw as before - GATE DUST 52/52). SNOW: powder lifts at a low threshold (u*t 0.07-0.25 m/s, Pomeroy & Gray), clouds ~2.4 x dirt at a run-up, billows up (rise) and SETTLES in seconds (fall); packed snow drifts (a saltation skin of sparkling streaks under 15 cm) and hardly clouds; snow puffs scatter forward (g 0.8) with a multiple-scattering fill and a blue shade; powder's plough throws clumps off a sinking wheel (the solver's out.softZ, handed in as wheels[k].sink). MUD / SLUSH: never a cloud; clods (6-24 mm, tumbling, lumpy-lit) and drop clusters from the touchdown's spin-up, the tread (v^2/R over the adhesion: held at a walk, shed at speed - aeroplane wheels are not driven, no rooster tail), the bow wave (x the sinkage) and the prop wash; their rise held to 5 m/s (~1.3 m); landed ones SPLAT (5-18 cm, wet then drying, alpha-eroded, a ring per tier that never overwrites a fresh one). THE BENCH (tools/_dust.html): was broken on master (no matlib.js - MATLIB is not defined); fixed, + Mud / Packed snow / Powder / Wet snow, a Wheel camera, ?scen=&cls=&cam=&sun=&t=&still=1 for stills; the stills drove six fixes (the doc's list: dark backlit snow, flat cloud, invisible mud, sparkler streaks, ember clods, the mud pavement). GATE SNOWMUDFX (new, core, ~1 s, --selftest 7/7 red). NOT DONE: no full-screen whiteout fog inside a cloud; no mud on the airframe from a roll on mud (aeroweather's BUSH is career wear); per-wheel sinkage (the frame's deepest serves all).
+
+- SNOW-MUD FINISH (A0 for the user, Sun 15 Nov 00:50: "visual sinking, mud testing, mud splash on planes, particles for all"), claude/ready/snow-mud-finish: futureDesigns/SNOW-MUD-FINISH-2026-11-15.md. Based on 6a8d705c4 (L40a) with claude/ready/snow-mud merged in. MERGE: master's brake hold (GEN_BRAKES) and the soft layer's drag on one rolling line. SOFTGROUND's legacy fixture was re-recorded off 6a8d705c4's OWN flight_core in a clean worktree (L40a moved the ground roll itself); the merge rolls bit-for-bit as pure L40a on all 16 rolls. (1) VISUAL SINKING (GATE SINKVIS, core ~3 s): the contact stays at the hard ground; sim.out.softW [main 0, main 1, tail 1, tail 2] (soft frames only) -> groundSinkPose (the plane through the contacts) -> groundSinkMatrix (a drop, a pitch, a roll about the CG) -> app.js sinkPoseApply (eased 0.2 s, premultiplied on model.grp.matrix); one compare off soft ground, 0.45 us on it. SKIS' def.refs.skis: a POSED unit (already low by its rut in the solver's pose, SKIS' moving datum) enters at nought - never sunk twice. (2) MUD FLOWN (GATE MUDFLY, FULL tier ~9 min, three children): the pilot's circuits from HOME. Take-off / landing roll, grass -> firm mud -> soft mud: Cub 104/95 -> 105/104 -> 119/79 m; C172 (list:50) 312/228 -> 379/194 m, soft mud REJECTED at 8 s (its 0.28 m nose wheel sinks 15.6 cm and cannot break out); PC-6 (drafting card, wheels) 59/227 -> 59/211 -> 61/148 m. Stuck limits (soft mud's k x f, full power from rest): the Cub stuck at f 0.5, the C172 at f 1, the PC-6 gets off at f 0.15. FIRM MUD RETUNED (k 3.3e6 / 6 cm -> 1.2e7 / 3 cm): the first fit bottomed the C172's nose wheel and it could not fly off; now +22 % with the pilot. (3) THE MUD COAT (GATE MUDCOAT, core ~8 s): aeroweather.js AERO_MUD + aeroMudStep (pure) + aeroWxSetMud. It builds on SURFACE 11/12 x speed x sinkage, the day's rain (soilNow.rainNow) and water wash it, drawn through the wheel mud cone (gear, belly, flap undersides), belly and depression layers over the macros', none at nought. A new aeroplane starts clean and the garage hides it. The Cub's soft-mud take-off cakes it to 0.57; 0.09 us a frame. (4) PARTICLES FOR ALL (GATE SNOWMUDFX + ski and cost rows): each contact its OWN sinkage (softW, skiSink); a ski has no tread, ploughs from its toe across its width; one draw. Cost (node, gamer): mud take-off 47 us median / 397 us p99, powder 104 / 450 us, at most 588 instances. CONTRACT WITH SKIS: one soft ground - SKIS reads GROUND_SOFT / GROUND_SKI_MU / groundSinkPlate; its optional row fields (skis, vP, lat, plough, fresh) are on the snow rows only, absent = my law; softW is node-slotted and a posed ski node writes none. NOT DONE: the pilot keeps no stick back on a soft roll (soft-field technique - Pilot's); per-wheel sinkage on a ski build comes from SKIS.
+
+- DEEP SNOW (the user, 15 Nov: "model the deep snow wheel effect ... I would expect this to fail without skis. That's the whole point, let's test that"), on claude/ready/snow-mud-finish: powder (9) and wet snow (10) are a VIRGIN layer (Bekker's fresh stiffness: powder k 2e5 n 1.6 30 cm, wet 4e5 n 1.2 15 cm; SKIS' soles read the same) and a sunk tyre pays its BULLDOZING (00_registry groundBullWheel, the row's optional `bull`: b min(z, D) (sig + rho v^2) - the snow shoved ahead, its ram growing as v^2), added in 30_solver's wheel branch; packed snow and the muds unchanged (MUDFLY's numbers hold). GATE SNOWFLY (new, FULL tier ~9 min, three children): the Cub, the C172 (list:50), the PC-6 on WHEELS - packed snow FLIES (101 / 320 / 58 m with the pilot, within 1.3 x grass); deep powder and wet snow DO NOT (the pilot rejects at 7-14 s, never airborne, stops on the strip; full power held at 0.2 / 4.9 / 15.2 m/s in powder against 0.9 Vs 14.7 / 23.5 / 18.6); a ski of each class gets through on the law (under half its tyre, under 80 % of the static thrust's share); THE PC-6 ON SKIS on powder is a row that switches on with SKIS' tools/fixtures/skis/pc6_skis.json (PENDING here) - the observatory's final test in miniature. GATE SOFTGROUND re-posed (no wheel - stock, tundra, tricycle - gets off powder or wet snow; the bulldozing law; the deep rows' laws read at light loads). The day's earlier note (the PC-6 rolling through powder as through gravel, SKIS' Ardent run) is answered: on wheels it is now held at 15 m/s.
+## OBSERVATORY-2 - ARDENT ALTIPORT UNDER SNOW: the strip SNOW-MUD's POWDER, the flat top PACKED; the figures and the start point for SKIS's test (PC-6 + skis + snow at Mount Ardent); the wire nobody owns yet (2026-11-15, OBSERVATORY-SITE for A0, cloud - node only; branch claude/ready/observatory-2 = claude/ready/observatory-site 683d9cf30 + one commit)
+
+A0 (15 Nov 00:50, the user: "start the snow/mud finish now; the final test is PC-6 + skis + snow at YOUR runway"): (1) the
+altiport's surface snow by SNOW-MUD's material, so skis sink and plume; (2) a start point and the runway's figures for SKIS's
+node test; (3) what is still open on the station.
+
+1. THE RECORD (island_jolene.json; nothing else of the world): mt_strip look `powder`, surface 9 (SNOW_POWDER - the only snow a
+   ski sinks into, SNOW-MUD's table: 1.5 cm at 1.2 psi, the plough, and SNOW-MUD FX's big cloud; packed snow is near zero sink
+   and drift streaks only); the platform mt_m_platform and the helipad mt_m_helipad `snow` (SNOW_PACKED, the groomed apron).
+   CONTRACT_FIELDS mt_strip surf 'gravel' -> 'snow' (contractFieldsOf off the record: stripSurface reads powder as snow; the
+   gear rule lets skis on, and wheels too - they bog, below). The stand and the helipad lie inside the strip's graded band
+   (6 m): they FEEL the strip's powder (W.surface 9 there), the packed look is drawn.
+   DEPENDS ON SNOW-MUD (claude/ready/snow-mud): without it `powder` / `snow` are unknown looks and PG.issues refuses the
+   record. Merge it AFTER snow-mud. No cooks in this commit: the train's merged tree re-cooks (premises, city, map, fleet) -
+   gated below on such a tree.
+2. THE FIGURES (the composed ground, the merged tree; x east, z south, heights MSL):
+     Ardent Altiport `mt_strip`: 210 x 12 m, powder, altiport, landed WEST (uphill) over end 0, left EAST (downhill).
+     end 0 (threshold) (9422.2, -5961.9) 1020.03 m; end 1 (top) (9212.2, -5961.9) 1038.94 m; centre (9317.2, -5961.9),
+     record elevation 1033.65 m; rise 18.9 m, mean 9.0 %.
+     slope from end 0: 0-60 m 14.9 %, 60-100 m 11.4 %, 100-140 m 9.0 %, 140-170 m 4.8 %, 170-210 m 0.9 % (the flat top).
+     the aerodrome's hdg -3.1416 (= landing hdg; (cos, sin) points west), tdz (9267.2, -5961.9).
+     stand (9230.2, -5950.4) 1038.88 m, on the flat top beside the head; the PC-6's 15.87 m span clears every way (the
+     ground under its tips within +0.33 m of the stand).
+   THE START POINT FOR THE TEST: the game's own skip-to-line-up - _tour_lib gameHost(C, W, def, mt_strip, to, { lineup: true })
+   (the page: place.lineup) - puts the aeroplane on the strip at (9263.6, -5961.9), 1038.2 m, nose EAST, downhill, no taxi.
+   Measured on the merged tree with the wire below added IN THE RIG ONLY: the PC-6 on wheel-skis (tools/fixtures/skis/
+   pc6_skis.json), the 8 kt day: the skis down, the altiport's committed take-off ("past the point of stopping at V=8.5 with
+   144 m left - Vr in 94 m"), off in 75 m of powder, climbing over the spur's nose, no damage.
+   FROM THE STAND INSTEAD: the PC-6 turns on the spot (252 deg) on its skis in the powder and the fin's attachment breaks at
+   16 s (562 yields, 16 breaks) - the same PC-6 pivots 93 deg at HOME on wheels unbroken. The pilot's on-the-spot turn on skis
+   in a soft layer: SKIS's / the Pilot's, not the site's; start the test lined up.
+3. THE WIRE NOBODY OWNS YET: SNOW-MUD gives the record's codes their physics (GROUND_SOFT for a WHEEL; the FX classes), SKIS
+   reads a soft layer through `world.soft(x, z)` with its SOFT_GROUND presets - and no world answers `world.soft` from the
+   surface codes. Today a ski on the powder strip reads SKI_HARD_MU[0] (grass, 0.22) and sinks nothing; the wheel-skis stay
+   UP (the world says hard) and the tyres sink 21 cm in the powder (SNOW-MUD's wheel law): the PC-6 sits bogged. The rig's
+   wire (scratch, NOT committed): `W.soft = (x, z) => ({ 8: SOFT_GROUND.packed, 9: SOFT_GROUND.powder, 10:
+   SOFT_GROUND.wet })[W.surface(x, z)] || null` - the codes' rows are both sessions' (SOFT_GROUND vs GROUND_SOFT: one law or
+   two), so it is theirs to place (20_world / 27_premises compose) and to reconcile. The PLUME needs no wire: SNOW-MUD FX
+   keys its cloud off the surface code (app.js SURFACE 8-12 -> the dust classes).
+   WHEELS ON THE STRIP NOW: the user's Cub on wheels in this powder is not flown here (G-OBSERVATORY's Cub legs were on gravel).
+   SNOW-MUD's table: a tyre pays 0.25 rolling and sinks ~10 cm - with the 15 % uphill landing it stops at once, the downhill
+   take-off is doubtful. The altiport is now, in effect, a SKI field (the brief: "lands on SNOW").
+4. STILL OPEN ON THE STATION (none of it needs this session; the Game coordinator / the user):
+   - the `observatory` track advances from nothing in play: a career shows the pillar and the tower's building site until
+     the project (ECON_BOOK.landmarks 'observatory') is wired to `unlock: { stage: 'observatory:<n>' }`;
+   - no footpath from the platform to the station (~110 m, 55 m of climb) - the user's to draw;
+   - no helipad H (no mark kind for it - a pavement.js MARK_KINDS row);
+   - the raster commit (03144ca0 + its cook) rides with 683d9cf30 - A0's call stands as made;
+   - the station's look: the summit's own ground is summer scree around a snow strip; a winter season for the summit is no
+     part of this (no new world content).
+5. THE LANDING, the same rig (the wire in the rig only): the PC-6 on skis HOME > mt_strip, the game's flight - FINAL at
+   1 185 m MSL 1.6 km out, the flare 35 m before the threshold, touchdown ~42 m in on the powder, stopped ~123 m up the strip,
+   the skis 4.0-7.0 cm in; no break (its 38 yields are HOME's taxi). Said: 'strip-short: 210 m of strip for a 195 m landing
+   run - landing short-field, no margin'; 'gave-up: still in ROLLOUT at t=977 s' (the leg's patience, 6 s before the stop).
+   At HOME the PC-6 on skis cycled LINEUP / STOP / HOLD for ~7 min before its roll (SKIS / the Pilot's).
+GATES - on a SCRATCH tree, never pushed: origin/master 6a8d705c (L40a) + claude/ready/observatory-site 683d9cf30 +
+claude/ready/snow-mud ae0c12609 + claude/ready/skis 03f22959d (their source conflicts resolved mechanically for the test: 30_solver's
+muR keeps L40a's brake hold AND SNOW-MUD's soft drag; SKIS' skiSu over SNOW-MUD's `sc`; the exports' union) + this commit,
+re-cooked (premises, city, map, fleet; mt_strip 0 spots):
+  PASS: STAGES PREMISES PREMCOOK CONTRACTS TERRAINMATCH CONTACT STRIPGROUND PAVEMENT SKIS SNOWMUDFX STORAGE TAXICLEAR (4)
+  MAPBAKE CITYCOOK WORLD PREMRASTER LODS HOUSE GAMEPREM.
+  RED, NOT THIS COMMIT: SOFTGROUND A (SNOW-MUD's 16 legacy rolls pinned to 23ce68c1 / L39b; L40a's brake hold moved 9 - stock
+  builds braking on the hard tables, no record in them: SNOW-MUD re-blesses on L40a); NAMES ("Alaska" in L40a's aeroskin.js /
+  livery_marks.js / index.html); SCENERYED 20b (the town composition's 2500 ms on this box, red on master too).
+  RWYTREES: PASS (43 rows) run directly, in 30 min 18 s - over the runner's 1 800 s timeout on this merged tree (22-25 min on
+  the site's own branch): the runner gave FAIL at 1800.1 s with no failing row. Its wall wants a look when the trains merge.
+  NOT RUN: FRAMECOST / the parked cook (GPU), the full tier, SKISFLY (SKIS's), the stills.
+
+## FLIGHT-SCRIPT (Pilot, 15 Nov 2026; the user via A0: scripted flights in steps with a deep log)
+- tools/flight_script.js: one scenario JSON (plane list:N, from/to, day game|calm, persona, steps {do, until, capS, allow}), the NODE runner through the game's own host (_tour_lib gameHost); one JSONL per run (run / sample 1 Hz / say / step with solver ms / end). A failed step stops the run with its WHY. The page runner (page_rig.js, frame ms per step) follows Thu 19 Nov.
+- The library tools/flight_scripts/: home_circuit (F-HCSN), east_point (the Cub, CALM: on the game's day it diverts, said), strip_jumbo (the Jodel), altiport (the Cub), float_circuit (B-CESF list:4). All five pass on 58c681347.
+- GATE FLIGHTSCRIPT (core, ~6 min): the library well formed, a bad scenario refused, a capped step failing with its WHY, the home circuit flown step by step, its JSONL read back. The card: tools/workbench/cards/flight_script.md.
+
+## CANON-C172-GATES CORRECTION (Pilot, 14 Nov)
+
+Every pilot gate flies the one Cessna, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50), since L40a/L40c (d85750d7e).
+The aluminium test copy tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is kept ONLY for its structure / audio users (HINGE,
+HONESTY, JOINPARITY, PARKED, RETRACT, ROLLSND); its c172fx tour row is dropped and pilot_persona.js flies F-HCSN. Older entries above
+that name the fixture as "the metal Cessna" in a flying gate describe the gates before that change.
+
+## DESCENT D1 (Pilot, 15 Nov 2026; the user via A0: Rufus "unable to lose altitude fast enough ... stuck at -2,5 m/s")
+
+- Cause (the user's log, Rufus w1 circuit): the DESIGNED APPROACH (43 planFromHere, G3326) flew ENROUTE and BASE at aimAlt + ap.gs x dFaf; Cabin Strip's drawn FAF is 4923 m out, so a steepened slope (an obstacle's reqGs, the STOL slope, up to gsMax 0.16) put the FAF ~800 m over the strip and the aeroplane climbed to it. Node never reproduced it: its canopyH is 0 on that approach (the page's trees steepen it).
+- D1: the drawn FAF is held at max(the type's slope A.gs x dFaf, hCruise), never above the steep slope's; ap.fafCapped makes FINAL hold its latched level under the steep slope until it comes down (the capture no longer flies the slope law UP to it); the slip arms anywhere on the final when above the slope by A.slipHigh (15 m); ap.appr.gsWhy (type / obstacle / stol / airframe), .obst, .designed; the page's flight log gets the pilot's words (event 'say') and its approach (event 'appr').
+- Not yet (L40f): D2 the flap as drag when high (Rufus's card has ldg 0: its final is clean), D3 circling / S-turns down when a final cannot absorb the height (high_final +300 m: every plane goes round once).
+- Tools: flight_script lift {by}, scenario trees [[x,z,r,h]], each step's fly figures; tools/flight_table.js; scenarios rufus_cabin(_trees), high_final_rufus/cub/cessna. Logs D:/Dev/pilot_runs/descent/.
+- Gates (fixed tree): FLIGHTSCRIPT STOL PILOT PILOTCANFLY PILOTACT TOUR PASS; TAXICLEAR (archaeopteryx footprint), UNIFY (EMERG student, ARCH glider), ARCHETYPES (Chinook-alike rejected-takeoff, Archaeopteryx-alike capsized): the same reds on L40c / the base tree.
+
+# L40d (Sun 15 Nov 19:01, full battery 288 PASS / 54 FAIL; after A0's re-cook 8 of those cleared)
+
+LANDED (16): mission-packs-l40d (tutorial-lock + mission packs, COOL fixture re-pin), compete-score, observatory-site, pilot-gonogo (the go/no-go: declines at the hold with the numbers), real-canon 0b54a49ae (the physics canon, ELEC inside), petrel-skin-l40d, petrel-skin-livery, petrel-trim-gate, snow-mud-finish 3c11907d2 (sinking, mud coat, particles, MUDFLY, deep snow), observatory-2 (Ardent snow), rig-procedure, page-rig, workbench (+ the commit hook, 6 skills, GATE WORKBENCH + COMMITHYGIENE), flight-script, animals-motion ed36a130b (walk on turns, eased heads, 6 px skins), descent (D1: FAF capped, early slip, the recorder's say/appr).
+DROPPED for real conflicts with refs merged before them (A0 did not trial-merge the whole list; re-made for L40e): onecessna + canon-clean (plane_lists/knife_corpus vs mission-packs; _tour_lib/pilot_persona vs pilot-gonogo/descent), livery-manager-3 (66_gen_cert vs real-canon), tow-launch-l40d (cage tools vs real-canon), skis-pc6 (30_solver vs snow-mud-finish; _cage_gear vs real-canon), quickshot-one (quickshot.js vs real-canon), missions-live (build.js). Old Friday refs dropped too: snow-mud, skis (both superseded), community-airport, docks-lodge, afb-0220-b, gear-lever.
+A0 FIXES IN THE TRAIN: the premises / city / map were NOT re-cooked (ltrain's PREM flag keyed on ref names missed observatory/snow-mud); A0 ran premises_cook + city_cook + map_bake + build on the merged tree: UISMOKE, UISMOKE-PHONE, UISMOKE-PHONEFLY, MAPBAKE, TERRAINMATCH, PREMCOOK, CITYCOOK, STAGES green. UISMOKE's place list gains Ardent Altiport (a6d3490df, a stale pin).
+
+FIXED vs L40c (5): STRESS (gonogo's no-world guard), TECH (ELEC), REALBAND, LIVERY, DMGSKINGPU.
+NEW REDS (6), named with owners:
+- SOFTGROUND A (16 rows): the legacy rolls are pinned bit-identical to L40a 6a8d705c4; real-canon's physics moves them by cm. SNOW-MUD re-pins with that reason (L40e).
+- NACELLE B (2): high-wing and parasol mast tie (head to hub root nodes, foot on keel corners). REAL-FIGURES / ARCHAEOPTERYX (the mast).
+- ULTRALIGHT D: "without the mast, parked 10 s: 74074 yields, the wing sinks 3.4 cm". REAL-FIGURES.
+- BENCH: rufus_2026-10-18_certified.json stamped under physics 7, now 9 (real-canon's bump): the certified card needs its re-stamp. REAL-FIGURES.
+- MEDIA: career_core is 654.3 KB against its 640 KB budget (mission packs + story). GAME (or the perf round).
+- COMMITHYGIENE (new gate, first battery): final newlines dropped/added by real-canon (camel/dc3/tigermoth candidates) and the Cub file (mission-packs). Owners fix in their next ready; the hook stops new ones.
+HOUSEWORKER: green in this battery (it was Game's one red on its stack).
+STANDING (L40c's, unchanged): FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT GLIDE UNIFY DESTTO TREECRASH DMGCERT DMGGEAR WILGAGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGWALL DMGDAMP DMGTYRE DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY WINGROWS DESIGNCHECK JOINPARITY ENGINE PARTS POD DMGPOD CANDIDATES NAMES NODUMMY ENERGYBASE TANKMOUNT ENGTORQUE FLEX LOAD ENGCONFIG.
+
+COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); after 143 s (programs 501 -> 508, world 26.1, settle 17.4, shader compile 46.2 + 11.8 s): +5 s, 7 more programs. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
 - PROPER-COWLS round 10 (9 Nov, the user: the Carbon Cub SS "would need big bulging ... ogival and where it matters ... we mostly get a bump that looks like a mole"): THE CHEEK FIT IS STREAMLINED (straight.js fitCheeksStream; the round fit stays as fitCheeksRound, --roundCheeks): every drawn vertex through the bare cowl (clear.js all round, the exhaust aside), folded onto one side when both flanks stand out (two mirrored cheeks); the cheek is an OGIVE - full height only from p0 to the heads' front p1, a smoothstep rise from the firewall (lobeTail) that may carry the rear heads on its way up, a short front to lobeNose, narrowing as it fades; p0 and the spread fitted for the least cheek standing 12 mm over every point, then probed to 0 mm. --cheeksOnly keeps a build's own cowl and refits only its cheeks. The Carbon Cub SS (claude/real-figures-3 builds/candidates/carbon_cub_ss.json, a custom O-320-chassis engine whose heads stood 17 cm through its cowl): reports/evidence/PROPER-COWLS/carbon_cub_ss_cheeks.json - lobeN 2, 21 cm, 51 deg, full over t 0.58-0.97 - 0 mm left; the file itself is the real-figures session's, not changed here. OPEN: the face apertures' cutter ignores the cheeks (sectF: "lobes ignored"), so a cheek reaching into the nose bowl smears a pair of inlets into black arcs (the rule's own cowl on the Carbon Cub) - the cheeks should stop at the bowl, or the cutter learn them.
 - PROPER-COWLS round 11 (9 Nov, the user: "the DC3, this poor thing really needs a proper radial cowl. Make the updated copy available quickly to other sessions"): reports/evidence/PROPER-COWLS/dc3_radial_cowl_rows.json (48 rows over tools/fixtures/dc3_2026-10.json's cage or DC3_FIT) and dc3_2026-10_radial_cowl.json (the whole build): a round drum per nacelle centred on the R-1830, 14 streamlined helmets over its two rows (3 cm; the bare drum let the heads through by 1.7 cm; 0 mm after), the build's own nacelle tail (cw_tailLen 3.35) kept; engY 0.164 of offset moved from cw_faceRise into engBlockY - the propeller unmoved: empty 6440.617 kg, Vs 30.621, climb 8.066 identical. The fixture and dc3_build.js are NOT edited (the DC-3 sessions own them). The rows need this branch's generator (lobeT2/lobeCount/lobeStream/lobeNose/lobeTail). Rule fixes found on it: clear.js measured EVERY unit's engine against the last cowl copy (a twin: 5 m "pokes") - now the first unit's pair; a pod's drum was put 16 cm under its engine (the body cowls' faceRise override ran on pods too) - body cowls only now; the pod's radial drum 0.92 like the body's; merged radial heads (a two-row 14's points are one ring) are placed by _eng_mesh's own layout rule.
 - PROPER-COWLS round 12 (9 Nov, the user: "cut this plate exactly at the shape of the nacelle behind, making it the firewall of the nacelle"): a pod that houses its engine (podSized) draws its mount plate again, as THE NACELLE'S FIREWALL - _cage_eng podOutline: the pod's own section at the face (the cowl's z = aftStart), 6 mm inside its skin, in the engine's frame (minus the cowl's axis and engY), handed to the mesh as `fwShape`; _eng_mesh fwPlateAt prisms that outline in place of the rounded rectangle (no metre strip on it). Measured on the DC-3, the boxer and the Gipsy pods: the plate's rim exactly 6 mm inside the skin all round. Display only; COWL NACLAG ENGMESH ENGINE ENGID STARTER SAVE PARTS DESIGN NEWPLANE CANDIDATES green. NOTED, not changed: the E-811's motor controller (_eng_mesh 'esc', 1.55 case radii beside the motor on the plate) hangs outside a pod as tight as its motor.

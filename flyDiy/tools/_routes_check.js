@@ -148,14 +148,16 @@ function story(M) {
   d = M.storyStart(d, 'Rufus').doc;
   d.fleet.Rufus = { hangar: 'HOME', aero: 'HOME' }; d.fleet['Client Cub'] = { hangar: null, aero: 'SEA' };
   d.career.airframes['Client Cub'] = { from: 'story', story: 'client', factory: false, modified: false, paid: 0, at: 0, gift: true };
-  const s = d.career.story; s.beat = 'T6'; s.done = ['T0', 'T1', 'T2', 'T3', 'T4', 'T5']; s.planes.client = s.planes.gift = 'Client Cub';
+  const s = d.career.story; s.beat = 'T7'; s.done = ['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6']; s.planes.client = s.planes.gift = 'Client Cub';
   d = M.careerNormalise(d);
   const w0 = d.wallet;
   const stop = M.careerStopRecord({ how: 'stopped', aero: 'SEA', slot: 'Client Cub', gear: 'floats', row: { from: 'HOME', to: 'SEA', t: 600 } });
   const st = M.storyStep(d, { k: 'stop', stop, slot: 'Client Cub', gear: 'floats' }, { aeros });
-  const eff = (st.effects || []).find(x => x.k === 'routeOffer');
-  ok(st.ok && eff, 'T6 met on floats at the seaplane base: the route effect handed over', st.why);
-  const a = M.storyApply(st.doc, eff, { aeros });
+  // TUTORIAL v2 (TUTORIAL-LOCK, 13 Nov): the tutorial signs no route any more - T7 (the floats) ends on the checkpoint; the
+  // routeOffer effect stays a mechanism (a project may offer a route), held below applied directly
+  ok(st.ok && (st.effects || []).some(x => x.k === 'checkpoint') && !(st.effects || []).some(x => x.k === 'routeOffer'), 'v2: T7 met on floats at the seaplane base ends on the checkpoint, no route', st.why);
+  const eff = { k: 'routeOffer', beat: 'T6', plane: 'gift', a: 'harbour', b: 'water' };
+  const a = M.storyApply(d, eff, { aeros });
   const D = a.doc, R = M.routesActive(D)[0] || {}, O = (M.storyOf(D).offers || []).find(x => x.k === 'route') || {};
   ok(a.ok && R.plane === 'Client Cub' && R.pilot === M.PILOTS_COMPANION && R.a === 'mk_sea' && R.b === 'SEA' && R.home === 'SEA',
      "storyApply's routeOffer signs a REAL route: the gift Cub, the companion, water to water - Cedar Harbour <-> the seaplane base, the Cub's home where it landed (no stub)", J({ plane: R.plane, pilot: R.pilot, a: R.a, b: R.b }));
@@ -164,11 +166,11 @@ function story(M) {
   ok(/Route signed/.test(a.line) && a.line.includes(money(R.down)), 'the line (arrival card, beat card) names the down payment', a.line);
   const tim = M.storyTimLines('T7', D);
   ok(tim.length === M.storyTimLines('T7').length + 1 && /paid/.test(tim[0]) && tim[0].includes(money(R.down)), "Tim's band at T7 names the route and the down payment first", tim[0]);
-  const nopilot = JSON.parse(J(st.doc)); nopilot.career.roster = [];
+  const nopilot = JSON.parse(J(d)); nopilot.career.roster = [];
   const np = M.storyApply(M.careerNormalise(nopilot), eff, { aeros });
   ok(np.ok && !M.routesActive(np.doc).length && (M.storyOf(np.doc).offers || []).some(x => x.k === 'route' && x.signed === false && x.why), 'no free pilot: nothing signed, the offer kept with its reason (never a guess)', np.why);
   // G3585 T6b ("the tutorial must hire"): a pilot hired at T6 flies the route, not the companion
-  const hd = JSON.parse(J(st.doc)); hd.wallet = 1e6;
+  const hd = JSON.parse(J(d)); hd.wallet = 1e6;
   const pick = M.pilotsOffers(M.careerNormalise(hd))[0], hr = pick ? M.pilotsHire(M.careerNormalise(hd), pick) : { ok: false, why: 'nobody on offer' };
   const ha = hr.ok ? M.storyApply(hr.doc, eff, { aeros }) : { ok: false };
   const HR = ha.ok ? M.routesActive(ha.doc)[0] || {} : {};
@@ -249,7 +251,7 @@ async function page() {
   d = M.storyStart(d, 'Rufus').doc;
   d.fleet.Rufus = { hangar: 'HOME', aero: 'HOME' }; d.fleet['Client Cub'] = { hangar: null, aero: 'SEA' };
   d.career.airframes['Client Cub'] = { from: 'story', story: 'client', factory: false, modified: false, paid: 0, at: 0, gift: true };
-  Object.assign(d.career.story, { beat: 'T6', done: ['T0', 'T1', 'T2', 'T3', 'T4', 'T5'] }); d.career.story.planes.client = d.career.story.planes.gift = 'Client Cub';
+  Object.assign(d.career.story, { beat: 'T7', done: ['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6'] }); d.career.story.planes.client = d.career.story.planes.gift = 'Client Cub';
   d = M.careerNormalise(d); player = d;
   prefs.set('flydiy.build.Rufus', '{}'); prefs.set('flydiy.build.Client Cub', '{}');
   let fn = null;
@@ -261,8 +263,9 @@ async function page() {
   d = fn.storyOnFlightEnd(d, out);
   const R = M.routesActive(d)[0] || {};
   const L = out.career.lines.find(l => l.k === 'story') || {};
-  ok(R.plane === 'Client Cub' && d.wallet === w0 + R.down + (M.econPay || C.econPay)(M.STORY_T6_FEE) && M.storyOf(d).beat === 'T7', "the page's T6 (storyOnFlightEnd): the route signed, the down payment + the commitment fee in the wallet, T7", R.down);
-  ok(/Route signed/.test(L.text || '') && /Three aeroplanes/.test(L.text || ''), "the arrival card carries the route's line (with T7's occasions after it)", L.text);
+  // TUTORIAL v2: the page's T7 (storyOnFlightEnd) ends the tutorial on the checkpoint - no route signed, the wallet the checkpoint's
+  ok(!R.plane && M.storyOf(d).open && d.wallet === M.STORY_CHECKPOINT.wallet && !d.fleet['Client Cub'], "v2: the page's T7 (storyOnFlightEnd) ends on the checkpoint: no route, the wallet fixed, the client's Cub gone back", J({ beat: M.storyOf(d).beat, wallet: d.wallet }));
+  ok(/well-deserved rest/.test(L.text || '') && !/Route signed/.test(L.text || ''), "the arrival card carries the end's line (a well-deserved rest), no route", L.text);
   return fails;
 }
 
