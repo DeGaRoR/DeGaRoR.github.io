@@ -171,14 +171,26 @@ const REFS = {
   pc6: {
     name: 'Pilatus PC-6/B2-H4 Turbo Porter (PT6A-27, 550 shp)', mtow: 2800, empty: 1250, fuelL: 484, S: 30.15,
     src: 'FOCA TCDS F 56-10 issue 7 (the B2-H4 column) + Pilatus factsheet "PC-6 The world\'s leading STOL" (ISA): 2800 kg, 30.15 m2, flaps 28 / 38 deg, Vs1 58 KEAS / Vs0 52 KEAS at gross, climb 5.13 m/s, max cruise 125 KTAS, TO50 440 m, LDG50 315 m',
+    // THE TRAIL (PC6-TRAIL, 16 Nov): the sources as tools/drafting/refs/pc6.json locked them (FIT-PROCEDURE's "references"
+    // step, 2026-11-11: "variant locked; TCDS, factsheet, TAR"). That file keeps the TCDS's and the factsheet's titles and
+    // issues, not their links: noUrl says so, and no link is guessed here
+    variant: 'Pilatus PC-6/B2-H4 Turbo-Porter (the H4 index, SB 149A 1985: MTOW 2800 kg, extended composite tips, span 15.87 m) on the P&WC PT6A-27, 550 shp, Hartzell HC-B3TN-3D three-blade',
+    sources: {
+      tcds:      { what: 'FOCA Type Certificate Data Sheet F 56-10, issue 7, 20 Sep 2006 (PC-6 series, the B2-H4 column): MTOW 2800 kg, 30.15 m2, the PT6A-27 at 550 shp, fuel, seats, flaps',
+                   quality: 'typeSheet', read: '2026-11-11', noUrl: 'tools/drafting/refs/pc6.json records the TCDS by number, issue and date, not its link' },
+      factsheet: { what: 'Pilatus factsheet "PC-6 The world\'s leading STOL" (the PC-6/B2-H4, ISA): basic operating 1250 kg, Vs1 58 KEAS / Vs0 52 KEAS at gross, climb 1010 fpm, max cruise 125 KTAS, TO50 440 m, LDG50 315 m (STOL technique)',
+                   quality: 'maker', read: '2026-11-11', noUrl: 'tools/drafting/refs/pc6.json records the factsheet by title, not its link' },
+      tar:       { what: 'CAA New Zealand Type Acceptance Report TAR 1/21B/14 Rev 1, 8 Sep 2023 (the PC-6 series accepted on the FOCA TC)',
+                   quality: 'typeSheet', read: '2026-11-11', url: 'https://www.aviation.govt.nz/assets/aircraft/type-acceptance-reports/Pilatus_PC-6.pdf' },
+    },
     poh: { vr: 1.10, vy: 1.30, flapTO: 28, flapLDG: 38, brake: 0.7, note: 'the STOL technique (the factsheet\'s): rotate near the take-off flap\'s stall, full flap and firm braking to land' },
     rows: {
-      empty: { v: 1250, tol: 0.08, src: 'basic operating 1250 kg, "depends on configuration" (factsheet)' },
-      Vs1:   { v: 58 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: '58 KEAS at gross (factsheet)' },
-      Vmax:  { v: 125 * KT, tol: 0.10, kg: 'unknown', src: 'max cruise 125 KTAS, altitude not stated (factsheet) - max continuous power, read as the full-power level speed' },
-      roc:   { v: 5.13, tol: 0.05, kg: 'gross', src: '1010 fpm, 5.13 m/s at gross (factsheet)' },
-      TO50:  { v: 440, tol: 0.10, kg: 'unknown', flaps: 28, surface: 'unknown', src: 'over 15 m, STOL technique, ISA (factsheet)' },
-      LDG50: { v: 315, tol: 0.10, kg: 'unknown', flaps: 38, surface: 'unknown', src: 'from 15 m, STOL technique, ISA (factsheet)' },
+      empty: { v: 1250, tol: 0.08, src: 'basic operating 1250 kg, "depends on configuration" (factsheet)', from: 'factsheet' },
+      Vs1:   { v: 58 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: '58 KEAS at gross (factsheet)', from: 'factsheet' },
+      Vmax:  { v: 125 * KT, tol: 0.10, kg: 'unknown', src: 'max cruise 125 KTAS, altitude not stated (factsheet) - max continuous power, read as the full-power level speed', from: 'factsheet' },
+      roc:   { v: 5.13, tol: 0.05, kg: 'gross', src: '1010 fpm, 5.13 m/s at gross (factsheet)', from: 'factsheet' },
+      TO50:  { v: 440, tol: 0.10, kg: 'unknown', flaps: 28, surface: 'unknown', src: 'over 15 m, STOL technique, ISA (factsheet)', from: 'factsheet' },
+      LDG50: { v: 315, tol: 0.10, kg: 'unknown', flaps: 38, surface: 'unknown', src: 'from 15 m, STOL technique, ISA (factsheet)', from: 'factsheet' },
     } },
 };
 
