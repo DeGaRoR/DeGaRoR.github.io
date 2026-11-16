@@ -169,7 +169,7 @@ function medium(x, y, z) {
   const r1 = (1 - A[1]) / 5, r2 = (1 - A[2] * 2) / 4;
   const b = Math.pow(Math.max(r1 + r2, 0), 2) + 0.5;
   const e = (Math.pow(Math.pow(Bv[1], 0.025) + Math.pow(Cv[1], 0.2), 2) - 2) / 3.75;
-  const t = Math.max(b, e) - Math.log(Math.max(A[1], 1e-3)) / Math.log(0.05) - m / 40;
+  const t = Math.max(b, e) - 0.5 * Math.log(Math.max(A[1], 1e-3)) / Math.log(0.05) - m / 40;   // (the crest's sharpening HALVED: trondhjemite weathers to rounded masses, not spires)
   return { h: Math.pow(Math.max(t, 0), 1.2), crev: 1 - ss(0.0, 0.12, A[2]), id: A[3] };
 }
 let MEDN = null;   // its normalisation (mean, sd), measured once on the patch's own points
@@ -224,7 +224,7 @@ function buildSkirt(step) {
   //   plus a block noise (2.2 m at 4.5 m, 0.9 m at 1.9 m) so nothing is a plane.
   const sub = Math.max(1, Math.round(ST / step));
   const cells = []; for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) if (cellSkirt(i, j)) cells.push([i, j]);
-  const key = new Map(); const P3 = [], CO = [], CU = [], FL = [], AL = [], MD = []; let nv = 0;
+  const key = new Map(); const P3 = [], CO = [], CU = [], FL = [], AL = [], MD = [], DEF = []; let nv = 0;   // DEF: [nx, ny, nz, macro m, medium z * exposure, exposure]
   const tmp4 = new Uint8Array(4), tmp2 = new Float32Array(2), tmp1 = new Uint8Array(1), tmp3 = new Uint8Array(3);
   const vert = (gi, gj) => {
     const k0 = gi * 1048576 + gj; let v = key.get(k0); if (v !== undefined) return v;
@@ -245,9 +245,9 @@ function buildSkirt(step) {
       eX = ex0 < 0 ? m : ss(0.25, 0.75, ex0) * Math.min(1, m * 3);
       med = medium(x, y, z); const [mu, sd] = medNorm();
       const g = gradXZ(x, z, 5), l = Math.hypot(g[0], 1, g[1]);
-      const dd = TRD.hAt(x, z) * Math.min(1, m * 3) + eX * (MED.lift + MED.amp * Math.max(-1.2, Math.min(2.2, (med.h - mu) / sd)) * 0.5);
-      X += -g[0] / l * dd; Y += dd / l; Z += -g[1] / l * dd;
-    } else if (m > 0) {
+      DEF.push(-g[0] / l, 1 / l, -g[1] / l, TRD.hAt(x, z) * Math.min(1, m * 3), (med.h - mu) / sd, eX);
+    } else if (m > 0 || TSKIRT) {
+      if (TSKIRT) { DEF.push(0, 1, 0, 0, 0, 0); } else {
       const g = gradXZ(x, z, 5), gl2 = Math.hypot(g[0], g[1]) || 1e-6, ox = -g[0] / gl2, oz = -g[1] / gl2;   // outward = downhill
       const sl = Math.atan(gl2), T = 8.0 + 8.0 * vn3(x / 60, 0, z / 60);
       // THE BEDS DIP (18 deg toward DIP, plus a 9 m warp at 60 m): flat beds on a dome are its contour lines - rings, a
@@ -262,8 +262,8 @@ function buildSkirt(step) {
       const joint = (hh(jb, bed, 11) - 0.5) * 4.0 * m;
       const block = ((vn3(x / 4.5, y / 4.5, z / 4.5) - 0.5) * 2.2 + (vn3(x / 1.9 + 5, y / 1.9, z / 1.9) - 0.5) * 0.9) * m;
       const dd = -(1 - frs) * run * k + joint + block;
-      X += ox * dd; Z += oz * dd; Y += (vn3(x / 7, y / 7 + 9, z / 7) - 0.5) * 0.6 * m;
-    }
+      X += ox * dd; Z += oz * dd; Y += (vn3(x / 7, y / 7 + 9, z / 7) - 0.5) * 0.6 * m; }
+    } else if (TSKIRT) DEF.push(0, 1, 0, 0, 0, 0);
     P3.push(X, Y, Z); attrsAt(x, z, null, tmp4, tmp2, tmp1, tmp3, 0, 0, 0, 0);
     CO.push(tmp4[0], tmp4[1], tmp4[2], tmp4[3]); CU.push(tmp2[0], tmp2[1]); FL.push(tmp1[0]); AL.push(tmp3[0], tmp3[1], tmp3[2]);
     MD.push(med ? med.crev * eX : 0, med ? med.id : 0.5);
@@ -274,6 +274,20 @@ function buildSkirt(step) {
     const gi = ci * sub + a, gj = cj * sub + b;
     const p = vert(gi, gj), q = vert(gi + 1, gj), r = vert(gi, gj + 1), t = vert(gi + 1, gj + 1);
     idx.push(p, r, q, q, r, t);
+  }
+  if (TSKIRT && DEF.length === nv * 6) {
+    // THE MEDIUM RELIEF, ROUNDED (16 Nov, the user: "at very close range ... very blocky and pointy"): the Blender masses'
+    // value SOFT-CLIPPED (a tall peak is compressed - z / (1 + 0.55 z) - a hollow less so) and SMOOTHED over the mesh
+    // (two Laplacian passes on the 1.25 m lattice: a mass keeps its facets at 5-15 m, loses its needles at 1-3 m). Then
+    // the vertex goes out along the DEM's normal by the macro's height + exposure x (lift + amp x the masses).
+    let zc = new Float32Array(nv); for (let v = 0; v < nv; v++) { const z0 = DEF[v * 6 + 4]; zc[v] = z0 > 0 ? z0 / (1 + 0.55 * z0) : z0 / (1 - 0.25 * z0); }
+    const nb = Array.from({ length: nv }, () => []);
+    for (let t = 0; t < idx.length; t += 3) { const a = idx[t], b = idx[t + 1], c = idx[t + 2]; nb[a].push(b, c); nb[b].push(a, c); nb[c].push(a, b); }
+    for (let pass = 0; pass < 2; pass++) { const o = new Float32Array(nv);
+      for (let v = 0; v < nv; v++) { const L = nb[v]; if (!L.length) { o[v] = zc[v]; continue; } let s = 0; for (const u of L) s += zc[u]; o[v] = zc[v] * 0.5 + 0.5 * s / L.length; }
+      zc = o; }
+    for (let v = 0; v < nv; v++) { const k = v * 6, dd = DEF[k + 3] + DEF[k + 5] * (MED.lift + MED.amp * 0.6 * zc[v]);
+      P3[v * 3] += DEF[k] * dd; P3[v * 3 + 1] += DEF[k + 1] * dd; P3[v * 3 + 2] += DEF[k + 2] * dd; }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P3), 3));
@@ -443,6 +457,20 @@ Smp sTrond(vec3 P, vec3 nGeo, float slope){
   }
   if (fw <= 0.001) o = sl; else if (fw >= 0.999) o = fa;
   else { vec2 h = hw2(sl.c.a, 1.0 - fw, fa.c.a, fw, 0.1); o.c = sl.c * h.x + fa.c * h.y; o.n = sl.n * h.x + fa.n * h.y; }
+  // THE PBR MICRO DETAIL (16 Nov, the user: "take a PBR texture of rock, probably one we have already ... blended with your
+  // own ... with the invisible tiling ... at close range"): the game's own 'cliff' layer (Poly Haven's rock face, at its
+  // natural 6.86 m) HEX-tiled and triplanar on the smooth normal - its LUMINANCE over its mean modulates our colour (our
+  // colour stays ours) and its NORMAL is added to ours; faded out by 60-180 m (past that a 6.86 m tile is a few pixels)
+  { float kd = 1.0 - smoothstep(60.0, 180.0, distance(P, cameraPosition));
+    if (kd > 0.01) {
+      vec2 a = pow(vec2(length(nGeo.xz), abs(nGeo.y)), vec2(8.0)); vec2 h2 = nGeo.xz * nGeo.xz; h2 *= h2;
+      float f = h2.y / max(h2.x + h2.y, 1e-8); vec3 twd = vec3(a.x * (1.0 - f), a.y, a.x * f) / max(a.x + a.y, 1e-6);
+      Smp t = sSet(3.0, 6.86, P, twd, 1.0);
+      float rel = clamp(luma3(t.c.rgb) / max(uMean[3], 1e-3), 0.35, 2.2);
+      o.c.rgb *= mix(1.0, rel, 0.65 * kd);
+      o.n.xyz += t.n.xyz * 3.0 * 0.6 * kd;
+      o.c.a = mix(o.c.a, o.c.a * 0.75 + t.c.a * 0.25, kd);
+    } }
   float hm = o.c.a;   // the tile's own height (0..1): its cracks are the low texels
   float vegM = 0.0;
   // the macro: the colour multiplier everywhere on it; its normal off the displaced mesh; its height into the blend's height
@@ -676,12 +704,20 @@ async function buildScatter() {
   const mapR = await tex(kitR.subjects[0].parts[0].map), norR = await tex(kitR.subjects[0].parts[0].nor);
   const mapC = await tex(kitC.subjects[0].parts[0].map), norC = await tex(kitC.subjects[0].parts[0].nor);
   if (norR) norR.colorSpace = THREE.NoColorSpace; if (norC) norC.colorSpace = THREE.NoColorSpace;
-  const rockMat = (map, nor) => { const m = new THREE.MeshStandardMaterial({ map, normalMap: nor, roughness: 0.95, metalness: 0 });
+  // (16 Nov, the user: the 3D rocks "a little too shiny ... keep their own detail pattern, but ... match our cliff color"):
+  // under ?trond the kit's map gives only its LUMINANCE over its own mean; the colour is the trondhjemite slab's mean
+  // (trond_gen's measure), fully matte, and the faces that look up take a little moss
+  const kitMean = im => { if (!im || !im.image) return 0.2; const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d');
+    x.drawImage(im.image, 0, 0, 32, 32); const d = x.getImageData(0, 0, 32, 32).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]); return s / 1024; };
+  const TC = TRD ? TRD.jS.meanAlbedo : [0.3, 0.28, 0.24];
+  const rockMat = (map, nor) => { const m = new THREE.MeshStandardMaterial({ map, normalMap: nor, roughness: TROND ? 1.0 : 0.95, metalness: 0 });
+    const km = kitMean(map);
     m.onBeforeCompile = sh => {   // THE FOOT IN THE GROUND: the lowest 25 % of a block darkened toward the ground's own shade
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vFoot; uniform float uH;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFoot = position.y / max(uH, 1e-3);');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFoot;')
-        .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.55, 1.0, smoothstep(0.08, 0.45, vFoot));' + (TROND ? '\n { float l = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)); diffuseColor.rgb = mix(vec3(l), diffuseColor.rgb, 0.15) * vec3(0.96, 0.99, 1.04); }' : ''));
+        .replace('#include <map_fragment>', '#include <map_fragment>\n' + (TROND ? ' { float l = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)); diffuseColor.rgb = vec3(' + TC.map(v => v.toFixed(4)).join(', ') + ') * clamp(pow(l / ' + km.toFixed(4) + ', 0.8), 0.35, 2.0); }\n' : '') + ' diffuseColor.rgb *= mix(0.55, 1.0, smoothstep(0.08, 0.45, vFoot));')
+        .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>' + (TROND ? '\n { float up = smoothstep(0.55, 0.9, inverseTransformDirection(normal, viewMatrix).y); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.065, 0.025), up * 0.55); }' : ''));
       sh.uniforms.uH = { value: m.userData.h || 1 }; };
     return m; };
   // candidates
@@ -727,7 +763,7 @@ async function buildScatter() {
     const ar = lin(sampleK(ALB, 3, 0, x, z)), ag = lin(sampleK(ALB, 3, 1, x, z)), ab = lin(sampleK(ALB, 3, 2, x, z));
     const la2 = (0.2126 * ar + 0.7152 * ag + 0.0722 * ab) * MACEXP;
     const t = Math.min(1.3, Math.max(0.45, la2 / 0.16));
-    S.list.push([M.clone(), TROND ? new THREE.Color(t * 2.1, t * 2.1, t * 2.15) : new THREE.Color(t * 0.97, t * 0.97, t * 0.94)]);
+    S.list.push([M.clone(), TROND ? new THREE.Color(0.62 + 0.2 * r3, 0.62 + 0.2 * r3, 0.6 + 0.2 * r3) : new THREE.Color(t * 0.97, t * 0.97, t * 0.94)]);
   }
   const root = new THREE.Group(); scene.add(root);
   for (const S of subs) { if (!S.list.length) continue; S.mat.userData.h = S.s.h;

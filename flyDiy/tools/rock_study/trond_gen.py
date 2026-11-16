@@ -416,13 +416,16 @@ def macro(N, EXT, S):
         op = ss(0.45, 0.6, vnoise_at(t / 160.0 + li * 13.1, li.astype(np.float32) * 0.0 + 0.5, 64, seed + 3))   # segments 100-400 m
         wid = 0.8 + 1.7 * hash2(li, 1, seed)
         return d, li, band, op, wid
-    dA, lA, bA, oA, wA = jset(150, 28, 85, S + 1, 22.0)
-    dB, lB, bB, oB, wB = jset(60, 35, 110, S + 11, 18.0, shiftBand=(hash2(bA, 5, S) * 150).astype(np.float32))
+    # (16 Nov, the user: "the network a little denser ... twice or maybe even 3 times denser" - every set at about a third of
+    # its spacing, the primaries a little narrower so the denser net does not turn into trenches)
+    dA, lA, bA, oA, wA = jset(150, 10, 30, S + 1, 22.0)
+    dB, lB, bB, oB, wB = jset(60, 12, 38, S + 11, 18.0, shiftBand=(hash2(bA, 5, S) * 150).astype(np.float32))
+    wA = wA * 0.65; wB = wB * 0.65
     oB = oB * (hash2(bA * 97 + lB, 6, S) < 0.65)
     # THE DENSER NETWORK (15 Nov, the user): two SECONDARY sets, closer (9-30 m), narrower, shorter, each staggered on the
     # primaries' bands so they end on them
-    dC, lC, bC, oC, wC = jset(105, 9, 28, S + 21, 6.0, shiftBand=(hash2(bA * 7 + bB, 7, S) * 80).astype(np.float32))
-    dD, lD, bD, oD, wD = jset(15, 12, 34, S + 31, 6.0, shiftBand=(hash2(bB * 5 + bA, 8, S) * 80).astype(np.float32))
+    dC, lC, bC, oC, wC = jset(105, 3.5, 10, S + 21, 6.0, shiftBand=(hash2(bA * 7 + bB, 7, S) * 80).astype(np.float32))
+    dD, lD, bD, oD, wD = jset(15, 4.5, 12, S + 31, 6.0, shiftBand=(hash2(bB * 5 + bA, 8, S) * 80).astype(np.float32))
     oC = oC * (hash2(bA * 31 + lC, 9, S) < 0.7); oD = oD * (hash2(bB * 17 + lD, 10, S) < 0.6)
     wC = wC * 0.4; wD = wD * 0.35
     # ---- the surface: domed blocks (rounded within ~10 m of a joint), the joints cut into them

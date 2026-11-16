@@ -339,6 +339,40 @@ past 150 m) and the kits' LOD.
 **What it still lacks** (the user's next mission): the vegetation that GROWS in the green zones (tufts, shrubs, krummholz
 from the cover ring, placed by the same masks), and calibration of the colours against the game's own grade on a GPU.
 
+### 5d. The user's fourth pass (16 Nov)
+
+**What they asked for:**
+- A PBR rock texture blended in for close-range micro detail, with tiling you can't see.
+- A vein network 2-3x denser.
+- Something done about the close-up of a top, which looked "very blocky and pointy".
+- The 3D rocks no longer shiny, keeping their own detail but in the cliff's colour.
+
+Stills: `reports/evidence/ROCK-STUDY/trond2/`, 15 Nov above and 16 Nov below.
+
+- **The PBR micro detail.** The game's own `cliff` layer (Poly Haven rock face, at its natural 6.86 m), hex-tiled and
+  triplanar on the smooth normal.
+  - Only its LUMINANCE over its mean and its NORMAL go onto our rock, so our colour stays ours.
+  - It fades out between 60 and 180 m.
+  - Cost: near view 29.6 -> 44.7 texture reads per ground pixel, 3890 -> 4354 ms (+12 %). Face 32.1 -> 34.5 reads,
+    4621 ms.
+- **Veins x3.** Every joint set at a third of its spacing (primaries 10-38 m, secondaries 3.5-12 m); the primaries 35 %
+  narrower.
+- **The blocky tops: a geology answer.** Trondhjemite weathers to ROUNDED masses (whalebacks, exfoliation domes) and
+  stepped joint blocks, not spires.
+  - The Blender masses' crest sharpening (the log term) is halved.
+  - The value is soft-clipped (a peak compressed by z / (1 + 0.55 z)) and smoothed over the mesh (two Laplacian passes on
+    the 1.25 m lattice).
+  - The masses keep their 5-15 m facets and lose their 1-3 m needles. `trond2/ground_geometry_plain.jpg` is the
+    geometry alone.
+  - Real plants in the flats and pockets (the next mission) will cover much of what is left.
+- **The 3D rocks** (the game's kits, scattered):
+  - fully matte (roughness 1);
+  - their map gives only its luminance over its own mean, and the colour is the trondhjemite slab's mean, x 0.62-0.82 to
+    sit with the macro-darkened ground;
+  - their up-facing faces take some moss.
+  - Known flaw: one kit's UVs smear on the largest blocks (the ground view's right-hand rock). The fix is to give those
+    the same triplanar material as the ground.
+
 ## 6. Recommendation: what to build first, what it costs, what it changes
 
 **Build first: rock clusters in the cover ring.** It changes the most of what an aeroplane sees, for the least risk.
