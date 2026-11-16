@@ -277,8 +277,12 @@ var COVER_RING = (() => {
     // ---- the prototypes: every species of the kinds the ring plants, built once ------
     // (debris - the logs, sticks and stumps of vegetation/branches - is the rock machinery on its own density: F.debris)
     // (the field plants FIELD_SPECIES alone; the first ring every cover kind but what the field holds while it is on - ctx.owned)
+    const SHAPES = ['carpet', 'cluster', 'crown'];   // the shaped cards' shapes (shapedCards below)
+    const shapedOf = c => !!(c.maps && c.place && SHAPES.includes(c.place.shape));
+    // ?alpshrubs=0 (MOUNTAIN-VEG): the shaped species left out - the A/B of their cost (the subalpine mix plants the rest as before)
+    let SHAPED_ON = true; try { const m = /[?&]alpshrubs=([01])/.exec(location.search); if (m) SHAPED_ON = m[1] === '1'; } catch (e) {}
     const speciesOf = () => (pack ? pack.collections : []).filter(c => FIELD ? FIELD_SPECIES.includes(c.name)
-      : ['cover', 'shrub', 'rock', 'debris'].includes(c.kind) && !(ctx.owned && ctx.owned(c.name)));
+      : ['cover', 'shrub', 'rock', 'debris'].includes(c.kind) && !(ctx.owned && ctx.owned(c.name)) && (SHAPED_ON || !shapedOf(c)));
     const rockish = c => c.kind === 'rock' || c.kind === 'debris';
     const measureMean = mat => {   // the map's mean lightness (HSL l of the sRGB mean over the kept texels) - the bench's measureMats
       const img = mat.map && mat.map.image; if (!img || !img.width) return;
@@ -310,13 +314,68 @@ var COVER_RING = (() => {
       g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
       return g;
     }
-    const flowerMat = url => {
+    // THE SHAPED CARDS (MOUNTAIN-VEG, the user 15 Nov: "something between the basic cross and the full bush geometry ... a few
+    // angled cards, possibly with breaks in them"; picked on the shrub bench the same night: the CARPET for the heath and the
+    // low shrubs, the CLUSTER + CROWN for the big grey-red thicket). A picture species whose `place.shape` names one of these is
+    // built here instead of flowerCards; the shapes are the bench's (cardInto / shapeGeo of the MOUNTAIN-VEG page) at unit
+    // height. Each card is a grid of quads bent along its height; the normals point into the upper half and lean halfway to
+    // the sky (the bench's uUp 0.5), and the material keeps them on both faces (shapedMat) - a card tilted past 45 degrees
+    // shows its back to the sky half the time, and three's back-face flip would draw it black from above.
+    const CARD_DEF = { bend: 0.22, lean: 0.18, tilt: 60, upright: 0.85 };
+    function cardInto(G, o) {
+      const rows = o.rows || 1, base = G.pos.length / 3, ax = Math.cos(o.yaw), az = Math.sin(o.yaw), nx = -az, nz = ax, tl = o.tilt || 0;
+      const u0 = o.u0 === undefined ? 0 : o.u0, u1 = o.u1 === undefined ? 1 : o.u1, v0 = o.v0 || 0, v1 = o.v1 === undefined ? 1 : o.v1;
+      for (let r = 0; r <= rows; r++) for (let c = 0; c <= 1; c++) {
+        const t = r / rows, s = c - 0.5;
+        const out = (o.lean || 0) * t * Math.cos(tl) + Math.sin(tl) * t + (o.bend || 0) * t * t;
+        const y = (o.y0 || 0) + o.h * t * Math.cos(tl) * Math.cos(Math.atan(o.lean || 0) * 0.5);
+        G.pos.push(o.cx + ax * s * o.w + nx * out * o.h, y, o.cz + az * s * o.w + nz * out * o.h);
+        G.uv.push(u0 + (s + 0.5) * (u1 - u0), 1 - (v0 + t * (v1 - v0)));   // the picture's top row is v = 0 (flipY false)
+      }
+      for (let r = 0; r < rows; r++) { const a = base + r * 2, b = a + 1, d = a + 2, e = d + 1; G.idx.push(a, b, e, a, e, d); }
+    }
+    function shapedCards(shape, W, seed, pl) {
+      const r = rng(seed), G = { pos: [], uv: [], idx: [] }, B = pl.bend === undefined ? CARD_DEF.bend : +pl.bend, L = pl.lean === undefined ? CARD_DEF.lean : +pl.lean;
+      if (shape === 'cluster' || shape === 'crown') {
+        cardInto(G, { cx: 0, cz: 0, yaw: r() * Math.PI, w: W * 0.8, h: 1, y0: -0.04, rows: 2, bend: B * 0.5 });
+        for (let k = 0; k < 5; k++) {
+          const a = k * 2 * Math.PI / 5 + r() * 0.4, u0 = [0, 0.2, 0.4, 0.1, 0.3][k];
+          cardInto(G, { cx: Math.cos(a) * 0.2 * W, cz: Math.sin(a) * 0.2 * W, yaw: a + Math.PI / 2, w: W * 0.6, h: 0.7 + r() * 0.2, y0: -0.04, rows: 2, lean: L + 0.1, bend: B, u0, u1: u0 + 0.6, v0: 0, v1: 0.75 + r() * 0.25 });
+        }
+        if (shape === 'crown') for (let k = 0; k < 3; k++) { const a = k * 2 * Math.PI / 3 + 0.5 + r() * 0.3;
+          cardInto(G, { cx: Math.cos(a) * 0.08 * W, cz: Math.sin(a) * 0.08 * W, yaw: a + Math.PI / 2, w: W * 0.55, h: 0.5, y0: 0.38, rows: 2, lean: 1.1, bend: 0.2, u0: 0.2, u1: 0.8, v0: 0.4, v1: 1 }); }
+      } else {   // 'carpet': 4 cards tilted past 45 degrees in a rosette (seen from above) and 2 upright ones (its volume)
+        const tl = (pl.tilt === undefined ? CARD_DEF.tilt : +pl.tilt) * Math.PI / 180, up = pl.upright === undefined ? CARD_DEF.upright : +pl.upright;
+        for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + r() * 0.5;
+          cardInto(G, { cx: Math.cos(a) * 0.06 * W, cz: Math.sin(a) * 0.06 * W, yaw: a + Math.PI / 2, w: W * 0.75, h: 1.1, y0: -0.02, rows: 3, tilt: tl, bend: -B * 0.6 }); }
+        const a0 = r() * Math.PI;
+        for (let k = 0; k < 2; k++) cardInto(G, { cx: 0, cz: 0, yaw: a0 + k * Math.PI / 2, w: W * 0.7, h: up, y0: -0.03, rows: 1 });
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(G.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(G.uv, 2)); g.setIndex(G.idx);
+      g.computeVertexNormals();
+      const N = g.getAttribute('normal');
+      for (let i = 0; i < N.count; i++) { let x = N.getX(i), y = N.getY(i), z = N.getZ(i); if (y < 0) { x = -x; y = -y; z = -z; } y += 1; const l = Math.hypot(x, y, z) || 1; N.setXYZ(i, x / l, y / l, z / l); }
+      g.computeBoundingBox(); g.computeBoundingSphere();
+      return g;
+    }
+    const flowerMat = (url, c) => {
       let t = flowerTex.get(url);
       if (!t) { t = new THREE.TextureLoader().load(url); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4; flowerTex.set(url, t); }
-      const m = MATLIB.make(THREE, 'cut', { map: t, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
+      // a shaped species' own cut (the user 15 Nov: "they would all need the alpha fairly low"): its tint's alpha; a flower keeps 0.5
+      const cut = c && shapedOf(c) && c.tint && c.tint.alpha > 0 ? +c.tint.alpha : 0.5;
+      const m = MATLIB.make(THREE, 'cut', { map: t, alphaTest: cut, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
       // no normal override (the bench has none): upHook forced the object normal up on this
       // DoubleSide card, which three flips to (0,-1,0) on the back face - half of every flower dark
-      LEAF.fadeHook(m); if (LEAF.flowerHook) LEAF.flowerHook(m); return m;   // G2566: the flowers' colour (VEGETATION > the flowers' colour)
+      LEAF.fadeHook(m); if (LEAF.flowerHook) LEAF.flowerHook(m);   // G2566: the flowers' colour (VEGETATION > the flowers' colour)
+      if (c && shapedOf(c)) {   // the shaped cards' normals hold on both faces (see shapedCards): three's back-face flip undone, as a leaf's crown (trees.js uCrownN)
+        const prev = m.onBeforeCompile;
+        m.onBeforeCompile = sh => { if (prev) prev(sh);
+          sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nif (faceDirection < 0.0) { normal = -normal; nonPerturbedNormal = normal; }'); };
+        const key = m.customProgramCacheKey ? m.customProgramCacheKey() : '';
+        m.customProgramCacheKey = () => key + '-shaped';
+      }
+      return m;
     };
     // VEG-ROOT: a flower's cards are built at unit height, the picture's top at 0.95 (flowerCards)
     const flowerRoot = (m, c) => { m.userData.uRoot = rootOf(c, 'flower', 0.95); return m; };
@@ -325,7 +384,11 @@ var COVER_RING = (() => {
       if (P) return P;
       P = [];
       const place = c.place || {};
-      if (c.maps && c.maps.length) {                         // a flower: its pictures on cards
+      if (c.maps && c.maps.length && shapedOf(c)) {          // a shaped species (MOUNTAIN-VEG): its pictures on the bench's shapes
+        c.maps.forEach((url, v) => { const asp = (place.aspects && place.aspects[v]) || place.aspect || 1, geo = shapedCards(place.shape, asp, hashStr(c.name) + v * 977, place);
+          const m = flowerMat(url, c); m.userData.uRoot = rootOf(c, 'flower', geo.boundingBox.max.y);   // VEG-ROOT on its own top (place.root / rootH win)
+          P.push({ key: c.name + '|' + v, w: 1 / c.maps.length, kind: 'cover', h: place.size || 1, noTint: true, parts: [{ geo, mat: m }], tris: geo.index.count / 3 }); });
+      } else if (c.maps && c.maps.length) {                  // a flower: its pictures on cards
         c.maps.forEach((url, v) => P.push({ key: c.name + '|' + v, w: 1 / c.maps.length, kind: 'cover', h: place.size || 1, noTint: true,
                                             // built at UNIT height: the instance scale carries `size`, in metres, once -
                                             // as the bench (flowerCards(t.size) and a jitter). Built at size AND scaled by
@@ -891,7 +954,7 @@ var COVER_RING = (() => {
           const P = protosOf(c); if (!P.length) continue;
           if (c.kind === 'cover' && LEAF.fadeOwn) for (const p of P) for (const q of p.parts) LEAF.fadeOwn(q.mat, null);   // (the reed back from the field: the shared fade)
           const sSeed = hashStr(c.name);
-          const isRock = rockish(c), isShrub = c.kind === 'shrub';
+          const isRock = rockish(c), isShrub = c.kind === 'shrub', tallCard = shapedOf(c) && (place.size || 0) >= 0.8;
           if (isRock) {   // the rocks and the debris: their own stream, shared with the rock map (placeRocks above)
             if (band) continue;   // (the lake shore's band: its tufts, flowers and bushes; the stones stay the centre's)
             const made = placeRocks(c, row, F, G, centreMix, cx, cz, C, push);
@@ -932,7 +995,7 @@ var COVER_RING = (() => {
             if (blotch && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
             const gk = G.at(x, z);
             if (!G.ok[gk] || (band ? !G.shore[gk] : (G.mix[gk] !== centreMix || G.shore[gk]))) continue;
-            if (isShrub && G.bush[gk]) continue;   // G1385: a strip's own clearance with `bushes` keeps the tall vegetation out
+            if ((isShrub || tallCard) && G.bush[gk]) continue;   // G1385: a strip's own clearance with `bushes` keeps the tall vegetation out (and a shaped bush's cards, MOUNTAIN-VEG)
             // the cover's query: nothing on a pavement (kill), more on a border (boost), a plot's lawn or
             // meadow or nothing instead of the biome's rows (the LAWN row is planted below, on its own)
             if (G.kind[gk] === 1 || G.kind[gk] === 3) continue;
