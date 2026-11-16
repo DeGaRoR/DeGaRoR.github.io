@@ -203,7 +203,7 @@ const WATER = (() => {
     #ifdef W_HULL
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
     #endif
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight; uniform float uWStretch; uniform vec4 uWGlint; uniform vec2 uWStrL; uniform float uWMirMax; uniform vec4 uWDirN; uniform vec4 uWLampP[12]; uniform vec4 uWLampC[12]; uniform vec4 uWLampK;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight; uniform float uWStretch; uniform vec4 uWGlint; uniform vec2 uWStrL; uniform vec4 uWStar, uWStar2; uniform float uWMirMax; uniform vec4 uWDirN; uniform vec4 uWLampP[12]; uniform vec4 uWLampC[12]; uniform vec4 uWLampK;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     vec3 wIblP;   // (G2839, debug view 14: the probe lookup itself, before the mirror's mix)
     float wIblR, wIblR0;   // (G2839, debug views 15 / 17: the lookup's roughness, the material's)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
@@ -308,9 +308,16 @@ const WATER = (() => {
     }`;
 
   // ---- THE HOOK: one function object, the program's cache key ----------------------------------
+  // STAR-DIRECT: the star field's GLSL for the reflected ray (ATMO.GLSL.STARS, the dome's own function) - a stub without ATMO
+  const STAR_PARS = () => 'uniform mat3 uStarM; uniform vec4 uStarMag; uniform float uStarA; uniform vec2 uStarK;\n' + ((typeof ATMO !== 'undefined' && ATMO.GLSL && ATMO.GLSL.STARS) ? ATMO.GLSL.STARS
+    : 'vec4 starField(vec3 d, float pxA, float wash, float pts, float fCap) { return vec4(0.0); }\n');
   function hook(sh) {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
     Object.assign(sh.uniforms, U);
+    // STAR-DIRECT: the star field's own uniforms, the dome's objects themselves (one source; stubs without ATMO)
+    const AU = typeof ATMO !== 'undefined' && ATMO.U && ATMO.U.starM ? ATMO.U : null;
+    sh.uniforms.uStarM = AU ? AU.starM : { value: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]) }; sh.uniforms.uStarMag = AU ? AU.starMag : { value: { x: 1e5, y: 0.3, z: 0, w: 0 } };
+    sh.uniforms.uStarA = AU ? AU.starA : { value: 0.8 }; sh.uniforms.uStarK = AU ? AU.starK : { value: { x: 1.5, y: 1.5e-4 } };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec2 aWater; varying vec3 vWP; varying vec3 vWP0; varying vec2 vWBody;\nuniform vec4 uWTrA[32]; uniform vec4 uWTrD[32]; uniform int uWTrN; uniform vec4 uWWave; uniform vec4 uWNear;\nuniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;\nuniform sampler2D uWCalm; uniform vec4 uWCalmG; uniform float uWCalmOn; uniform float uWRipple;' + GLSL_GERSTNER)
       .replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
@@ -328,7 +335,7 @@ const WATER = (() => {
         transformed.y += wh;
         vWP = vec3(wp0.x, wp0.y + wh, wp0.z); vWP0 = wp0; vWBody = aWater;`);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\n' + GLSL_FRAG_PARS)
+      .replace('#include <common>', '#include <common>\n' + GLSL_FRAG_PARS + STAR_PARS())
       // the body colour: the column's own colour rising with depth, times what the surface lets in
       .replace('#include <map_fragment>', `
         int wB = int(vWBody.x + 0.5);
@@ -509,6 +516,7 @@ const WATER = (() => {
             // reflection's own. It is CAPPED at uWMirror4.y of the view distance: a facet at grazing has
             // R.y near zero and h / R.y near infinity, and an uncapped walk sends the lookup past the horizon
             vec3 mEye = cameraPosition;
+            vec3 wVd = normalize(vWP0 - mEye); float wPxA = 0.5 * (length(dFdx(wVd)) + length(dFdy(wVd)));   // STAR-DIRECT: the screen pixel's footprint (rad), the sky's own
             vec3 mR = reflect(normalize(vWP0 - mEye), wNw);
             float mH = mEye.y - uWMirror4.w, mL = max(distance(vWP0, mEye), 1.0e-3);
             float mT = mH / max(mR.y, min(mH / mL, 0.02));   // the floor never bites the FLAT ray (whose R.y is mH / mL): flat water must give back the point, at any grazing
@@ -533,6 +541,23 @@ const WATER = (() => {
                 // canopy is made OPAQUE from a sixth of a sample up - a true gap between the trees (alpha 0) still
                 // shows the sky, a thin twig no longer paints the sky over the wood
                 vec3 mcol = mr.rgb / max(mr.a, 0.02);
+                // STAR-DIRECT (the user 15 Nov: the reflected stars "still much too big"; 10 Nov: "I would rather blur something which is already
+                // smaller from the start", "the more distorted, the better"): the capture is 40 % of the screen, so a star in it could never be under
+                // ~5 px. The water now draws the stars itself along its OWN rippled reflected ray (mR) at the screen's resolution, the dome's function:
+                // the sky's stars at the sky's size, moved by the drawn ripples, optionally jittered by the slopes the pixel cannot draw (uWStar.z).
+                // Only where the capture is SKY (its pass writes alpha 2) - a tree or a ridge in the reflection hides them. x on, y the light
+                // (uStars x the mirror's starsK x uScale x dK), w the moon's wash; uWStar2: x 1 / uScale (the day hide), y the flux cap
+                if (uWStar.x > 0.5 && mR.y > -0.02) {
+                  float skyF = smoothstep(1.2, 1.8, mr.a);
+                  if (skyF > 0.0) {
+                    float jS = uWStretch * 6.0 * sqrt(max(wSig, 0.0)) * uWStar.z;
+                    float nJ = fract(52.9829189 * fract(dot(gl_FragCoord.xy + 17.0, vec2(0.06711056, 0.00583715))));
+                    vec3 sR = normalize(mR + vec3(0.0, (nJ - 0.5) * 2.0 * jS, 0.0));
+                    vec4 sf = starField(sR, wPxA, uWStar.w, 1.0, uWStar2.y);
+                    float lumS = dot(mcol, vec3(0.2126, 0.7152, 0.0722)) * uWStar2.x;
+                    mcol += sf.rgb * uWStar.y * skyF * (1.0 - smoothstep(0.0, 3e-6, lumS));
+                  }
+                }
                 if (uWStretch > 0.0) mcol = min(mcol, vec3(uWMirMax));   // NIGHT-SHINE: a hot point in the capture must not become a white bar when it is stretched
                 float mmask = smoothstep(0.06, 0.35, mr.a);
                 // ONE PLANE, ONE BODY (G2830): the capture is the reflection about ITS plane - a lake 38 m over the sea read
@@ -744,7 +769,7 @@ const WATER = (() => {
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
       uWGlint: { value: new THREE.Vector4(1, 1, 0, 0) },   // LOOK-GLINT (frame()): x the sun's visibility from the glint, y gain, z the hidden sun's cap (r3), w the day's weight
-      uWStretch: { value: 0 }, uWStrL: { value: new THREE.Vector2(1, 1) }, uWMirMax: { value: 1e9 }, uWDirN: { value: new THREE.Vector4(0, 150, 600, 0) },   // NIGHT-SHINE (frame())
+      uWStretch: { value: 0 }, uWStar: { value: new THREE.Vector4(0, 0, 0, 0) }, uWStar2: { value: new THREE.Vector4(1, 25, 0, 0) }, uWStrL: { value: new THREE.Vector2(1, 1) }, uWMirMax: { value: 1e9 }, uWDirN: { value: new THREE.Vector4(0, 150, 600, 0) },   // NIGHT-SHINE (frame())
       uWLampP: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampC: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampK: { value: v4(0) },   // NIGHT-SHINE: lamps()
       uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
       uWSky: { value: v4(1) },   // G2839 x: the probe lookup's lobe scale under the mirror's weight (MIR.skyK; 1 = the GGX lobe of the roughness)
@@ -1392,8 +1417,10 @@ const WATER = (() => {
       // draws the stars at MIR.starsK of their light, as discs of MIR.starPx capture pixels (a capture pixel is 2.5 of the screen's; the ripples move the read)
       const SU = typeof ATMO !== 'undefined' && ATMO.U && ATMO.U.stars && ATMO.U.starK ? ATMO.U : null, st0 = SU ? SU.stars.value : 0, sp0 = SU ? SU.starK.value.x : 0;
       if (SU) { SU.stars.value = st0 * MIR.starsK; SU.starK.value.x = MIR.starPx; }
+      // STAR-DIRECT: the water draws the points itself (NIGHT_SEA.direct) - the capture keeps the Milky Way's glow, no points; its sky is flagged (alpha 2)
+      const sPts = SU && SU.starPts ? SU.starPts.value : 1; if (SU && SU.starPts && NIGHT_SEA.direct) SU.starPts.value = 0; if (SU && SU.skyA) SU.skyA.value = 2;
       renderer.render(MIR.skyScene, mc);
-      if (SU) { SU.stars.value = st0; SU.starK.value.x = sp0; }
+      if (SU) { SU.stars.value = st0; SU.starK.value.x = sp0; if (SU.starPts) SU.starPts.value = sPts; if (SU.skyA) SU.skyA.value = 1; }
       sky.visible = skyVis;
     }
     // THE CLOUDS ARE IN THE MIRROR (the user: "the lake needs to reflect an accurate sky"): the clouds' own march run
@@ -1816,7 +1843,7 @@ const WATER = (() => {
   // OFF SWITCH: ?glint=0 (a rig's A/B) = master to the bit; WATER.glint.<key> live.
   const GLINT = { vis: 1, gain: 1, calm: 0.3, cap: 6 };
   const GLINT_OFF = typeof location !== 'undefined' && /[?&]glint=0/.test(location.search || '');
-  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
+  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, direct: 1, dK: 1, dJit: 0.3, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
@@ -1832,7 +1859,12 @@ const WATER = (() => {
       // LOOK-GLINT r4 (t53 17:54: the column stood under the hidden sun at every cap and with the mirror off): the day's weight is 1 - the DEEP
       // night's ramp tS - on the sheen's tN (from dusk) the golden hour was half night, the path half hidden and half its old sharp lobe
       if (U.uWGlint) U.uWGlint.value.set(GLINT_OFF ? 1 : GLINT.vis, GLINT_OFF ? 1 : GLINT.gain, GLINT.cap, GLINT_OFF ? 0 : 1 - tS);
-      if (U.uWStretch) { U.uWStretch.value = NIGHT_SEA.stretch * tS; U.uWMirMax.value = tS > 0 ? NIGHT_SEA.cap * kE : 1e9; U.uWDirN.value.x = NIGHT_SEA.glintFar * tS; if (U.uWStrL) U.uWStrL.value.set(NIGHT_SEA.slod, NIGHT_SEA.rmip); U.uWLampK.value.w = NIGHT_SEA.lamps ? tS : 0; }
+      if (U.uWStretch) { U.uWStretch.value = NIGHT_SEA.stretch * tS; U.uWMirMax.value = tS > 0 ? NIGHT_SEA.cap * kE : 1e9; U.uWDirN.value.x = NIGHT_SEA.glintFar * tS; if (U.uWStrL) U.uWStrL.value.set(NIGHT_SEA.slod, NIGHT_SEA.rmip);
+        // STAR-DIRECT: the reflected stars' light = the dome's level x the mirror's starsK x the dome's scale x dK; the moon's wash as the dome's
+        const AU = typeof ATMO !== 'undefined' && ATMO.U && ATMO.U.stars && ATMO.U.scale ? ATMO.U : null;
+        if (U.uWStar && AU) { const st = AU.stars.value, sc = AU.scale.value, eM = AU.eMoon ? AU.eMoon.value : 0, mY = AU.moon && AU.moon.value ? AU.moon.value.y : -1;
+          const sm = Math.min(1, Math.max(0, (mY + 0.02) / 0.12)), wash = Math.min(1, Math.max(0, eM / 2.5e-6)) * sm * sm * (3 - 2 * sm);
+          U.uWStar.value.set(NIGHT_SEA.direct && st > 0 ? 1 : 0, st * MIR.starsK * sc * NIGHT_SEA.dK, NIGHT_SEA.dJit, wash); U.uWStar2.value.set(1 / Math.max(sc, 1e-30), 25, 0, 0); } U.uWLampK.value.w = NIGHT_SEA.lamps ? tS : 0; }
     }
     if (!T.set) T.t += (dt || 0); else T.seen++;
     T.set = false;
