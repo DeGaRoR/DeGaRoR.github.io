@@ -70,6 +70,14 @@
    "moved": [
     "pc6"
    ]
+  },
+  {
+   "date": "2026-11-16",
+   "reason": "PC6-SHOULDERS more bulge (the user 16 Nov: 'you can even try a little more'): wsCeilBow 0.70 -> 0.78, wsShoulderTop 0.5 -> 0.7 on the PC-6 cards",
+   "core": "1bfda2da2dcd2dd8",
+   "moved": [
+    "pc6"
+   ]
   }
  ],
  "planes": {
@@ -134,11 +142,11 @@
   "pc6": {
    "stamp": {
     "file": "builds/candidates/pc6_drafting_2026-11-11.json",
-    "blob": "21a85a849f6bcccd3ac17a95d766ba2a1a1632c6",
+    "blob": "303df6c1af1b8ccfbedb3faf3723bd3f546d8c30",
     "core": "1bfda2da2dcd2dd8"
    },
    "facts": {
-    "empty": 1074.55,
+    "empty": 1075.18,
     "fuelKg": 99.2
    },
    "dims": {
@@ -148,44 +156,44 @@
     "cRoot": 1.91,
     "cTip": 1.91,
     "hSpan": 5.14269,
-    "height": 3.68182,
+    "height": 3.66703,
     "length": 10.83,
     "span": 15.94,
     "track": 3
    },
    "cases": {
     "min": {
-     "mass": 1169.35,
-     "Vs": 68.3247,
-     "V75": 253.716,
-     "Vmax": 273.299,
-     "roc": 17.7252,
-     "LD": 11.5399,
-     "TOgrass": 47,
-     "cgMAC": 38.9328,
-     "sm": 11.2864
+     "mass": 1169.98,
+     "Vs": 68.3606,
+     "V75": 253.577,
+     "Vmax": 270.024,
+     "roc": 17.7081,
+     "LD": 11.5356,
+     "TOgrass": 48,
+     "cgMAC": 38.9121,
+     "sm": 11.2666
     },
     "typ": {
-     "mass": 1204.15,
-     "Vs": 69.3339,
-     "V75": 253.613,
-     "Vmax": 273.869,
-     "roc": 17.1721,
-     "LD": 11.5399,
-     "TOgrass": 50,
-     "cgMAC": 37.0181,
-     "sm": 13.3336
+     "mass": 1204.78,
+     "Vs": 69.3698,
+     "V75": 253.475,
+     "Vmax": 274.011,
+     "roc": 17.155,
+     "LD": 11.5356,
+     "TOgrass": 51,
+     "cgMAC": 36.9989,
+     "sm": 13.3106
     },
     "mtow": {
      "mass": 2800,
-     "Vs": 105.727,
-     "V75": 244.145,
-     "Vmax": 269.618,
-     "roc": 5.95266,
-     "LD": 11.5399,
-     "TOgrass": 340,
-     "cgMAC": 77.5512,
-     "sm": -17.5212
+     "Vs": 105.754,
+     "V75": 244.032,
+     "Vmax": 269.501,
+     "roc": 5.95079,
+     "LD": 11.5356,
+     "TOgrass": 343,
+     "cgMAC": 77.5213,
+     "sm": -17.535
     }
    }
   },
