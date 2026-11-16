@@ -1,5 +1,20 @@
 # ROCK-STUDY: the island's rock, delivered whole (material + relief ring + boulders)
 
+## Update 16 Nov, late: the blend with the grass, the face tile plain, rebased on L40e
+
+- **The blend** (the user: "we have a value issue - the new grass is a lot darker than the grass you had used"). v1's bench
+  drew its green as grassRock x (0.78, 1, 0.62). The game grades it by the imagery (~0.26 / 0.47 / 0.90): about half the
+  value, and bluer.
+  - The rock now scales by that ratio to a dial ('value to the grass', 0.5).
+  - A film of the grass's hue sits on the stone ('weathering film', 0.25).
+  - `slope_blend_ABC.jpg` (the bench): A today, B the defaults, C v1's exact proportion with a 0.4 film.
+- **The face tile is plain** (the user's circles: the dark dashes). Its water streaks were hex-turned into chevrons; they now
+  run down the fall line, as v1 drew them.
+- **Merged on L40e** (origin/master 2157a2f98). GATE LOOKS check 5 (the cover ring and the drawn water) is red on master
+  L40e too.
+- The `*_v1_vs_game.jpg` pictures are the macro-texture state, before the blend and the face fix. The bench is not the game:
+  the in-game stills (A0's GPU run) are the judge.
+
 ## Update 16 Nov, night: v1's macro TEXTURE, the boulders' footprint, the rock's textures in the editor
 
 **Why the far render was patchy (the user: "terribly patchy, unacceptably downgraded").** v1's ground read its macro (the
