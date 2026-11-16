@@ -1385,6 +1385,10 @@ const SPLAT_GROUND = (() => {
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
       meanAt: (x, z, code, slopeDeg) => meanAt(x, z, code, slopeDeg),   // GRASS-DENSE G2562: the ground's colour as drawn, less its texture (below)
+      // GRASS-ON-GREEN (16 Nov; the user: 'several ground layers use the same texture'): the near sets drawn at a point of code
+      // `code` and their weights, as meanAt blends them (tex[0] alone at the lean blend; else the A | B pair by the fields' mask)
+      setsAt: (x, z, code) => { const m = R.codes[code]; if (!m || !m.tex || !m.tex[0]) return null; if (U.uSNearN.value < 1.5 || !m.tex[1]) return [[m.tex[0], 1]];
+        const k = G.mixK(x, z, Math.round(m.mix[0] * 6), 0.52 - m.mix[2], m.mix[1] * 2); return [[m.tex[0], 1 - k], [m.tex[1], k]]; },   // GRASS-DENSE G2562: the ground's colour as drawn, less its texture (below)
       // R1: the rock dial live (a uniform: no program re-keys); turning it on grows the arrays by the rock's sets if the load had it off
       // (OFF, the programs carry none of R1's text - GS_NOTROND, keyed ':norock': ?rocks=0 links master's program; a live turn re-keys them once)
       rocks: v => { if (v === undefined) return !!R.knobs.rocks; const was = !!R.knobs.rocks; R.knobs.rocks = v ? 1 : 0; grow(); push();

@@ -52,7 +52,7 @@ function loadPanel() {
       return function () { return { set: noop, x: 0, y: 0, z: 0 }; };
     return class extends Obj {};
   } });
-  global.window = { THREE: global.THREE };
+  global.window = { THREE: global.THREE, PC6_COMP: global.window && global.window.PC6_COMP };   // (PC6-OLEO: a preview's pose survives)
   for (const f of ['_cage_parts.js', '_cage_page5.js', '_cage_gen.js',
     '_seat_gen.js', '_cage_crew.js', '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     '_cage_gear.js', '_float_gen.js', '_cage_float.js', '_fit_site.js', '_fit_gen.js',

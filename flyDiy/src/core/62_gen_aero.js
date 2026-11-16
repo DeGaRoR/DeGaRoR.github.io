@@ -1879,7 +1879,15 @@ function genParams(S, fr, strips) {
   // HONEST's relative checks are written against (spats buy, tyres cost).
   // Axial only — the cross-flow blobs keep the body's own calibrated numbers.
   const gearDCdA = genGearCdADelta(S, S.geom.semi);
-  const gearCdA = genGearCdA(S, S.geom.semi);
+  let gearCdA = genGearCdA(S, S.geom.semi);
+  // SKIS (29c_ski.js): the skis' own drag (the frame's resolved record); a PLAIN ski replaces its wheel, so that wheel's
+  // bare term comes off (a ski wears no spat: clampSpec). Absent: no term, the sum as it was
+  if (fr.parts && fr.parts.ski) {
+    const SK = fr.parts.ski, R0 = S.gear.wheelR || 0.20, Rt = S.gear.twR || 0.10;
+    gearCdA += SK.cdA - (SK.kind === 'plain' ? 2 * 0.55 * (2 * R0 * 0.76 * R0) : 0)
+                      - (SK.third && SK.third.kind === 'plain' ? 0.55 * (2 * Rt * 0.76 * Rt) : 0);
+    cda.drag.ski = SK.cdA;
+  }
   cda.fusCdA[0] += gearCdA;
   cda.drag.gear = gearCdA;
   // THE NACELLES (G179.5, the user: "add the nacelle drag for wing-mounted
@@ -2078,7 +2086,10 @@ function genParams(S, fr, strips) {
             bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
     // (WILGA-GEAR: a trailing-link leg's struts are no members - each stands in here at its stiffest, bottomed on its
     // stops, so the step is one the integrator carries; its orifice is semi-implicit and asks no step - 62c gearOleoF)
-    ...genSubsteps(fr.nodes, fr.parts && fr.parts.lever ? fr.beams.concat(fr.parts.lever.sides.map(q => ({ a: q.u, b: q.h, k: q.O.kS + q.O.kFull, c: 0, L: q.O.Lx }))) : fr.beams, fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
+    // (PC6-OLEO: the telescopic tail strut likewise - its stop and its bearing as two members on the wheel and the foot)
+    ...genSubsteps(fr.nodes, (fr.parts && fr.parts.lever ? fr.beams.concat(fr.parts.lever.sides.map(q => ({ a: q.u, b: q.h, k: q.O.kS + q.O.kFull, c: 0, L: q.O.Lx }))) : fr.beams)
+                    .concat(fr.parts && fr.parts.twOleo && fr.parts.twOleo.O ? [{ a: fr.parts.twOleo.tw, b: fr.parts.twOleo.ob, k: fr.parts.twOleo.O.kS + fr.parts.twOleo.O.kFull, c: 0, L: fr.parts.twOleo.hd },
+                                                                              { a: fr.parts.twOleo.tw, b: fr.parts.twOleo.ob, k: fr.parts.twOleo.kLat, c: fr.parts.twOleo.cLat, L: fr.parts.twOleo.hd }] : []), fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
     polarWing, polarTail, polarFin,
     // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —
     // GATE GEN's G9 and every reader of the flat name keep working)

@@ -1001,7 +1001,7 @@ const CAGE_PARTS = [
       ['section at the firewall', ['cw_waist', 'cw_deckH', 'cw_keelH',
                                    'cw_sqAftTop', 'cw_sqAftBot',
                                    'cw_wAftTop', 'cw_wAftBot', 'cw_waistF']],   // CABIN-CRAFT: the width by level; PROPER-COWLS: the front's waist
-      ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillL', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
+      ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillY', 'cw_gillL', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
       ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
                      'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',
@@ -1012,6 +1012,7 @@ const CAGE_PARTS = [
       ['section at the nose ring', ['cw_lidSqTop', 'cw_lidSqBot']],
       ['cheeks & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
                             'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig', 'cw_lobeT2', 'cw_lobeCount', 'cw_lobeStream', 'cw_lobeNose', 'cw_lobeTail',
+                            'cw_cylOn', 'cw_cylAz', 'cw_cylOff', 'cw_cylR', 'cw_cylZ0', 'cw_cylZ1', 'cw_cylNose', 'cw_cylTail', 'cw_cylRin', 'cw_cylOffIn', 'cw_cylBlend', 'cw_cylOgive', 'cw_cylProfile', 'cw_cylFront', 'cw_cylInlet', 'cw_cylVert', 'cw_cylSq', 'cw_cylLipT', 'cw_cylDuctLen', 'cw_cylDuctEnd', 'cw_cylDuctBack',
                             'cw_cutSpan', 'cw_cutAz']],
       ['inlets', ['cw_apMode', 'cw_apW', 'cw_apH', 'cw_apSq',
                   'cw_apOffX', 'cw_apOffY', 'cw_pairX', 'cw_pairW',
@@ -1129,7 +1130,8 @@ const CAGE_PARTS = [
                 's1_oleoBrace', 's1_oleoBraceZ']],
       ['castor', ['s1_twSpringLen', 's1_twSpringDrop', 's1_twSpringW',
                   's1_twSpringT', 's1_twLeaves', 's1_twRake', 's1_twTrail',
-                  's1_twLegDrop', 's1_twSteer', 's1_twSteerVis']],
+                  's1_twLegDrop', 's1_twSteer', 's1_twSteerVis',
+                  's1_twStyle', 's1_twPostLen', 's1_twPostD', 's1_twGuard', 's1_twNode']],
       // WILGA-GEAR: the trailing-link leg (the Wilga's) and its preview
       ['trailing link', ['s1_lvArm', 's1_lvAng', 's1_lvComp', 's1_lvTop', 's1_lvReach', 's1_lvStat', 's1_lvLegW', 's1_lvRootAng', 's1_lvBoot', 's1_lvJoint',
                          'gearLvPos']],
@@ -1138,6 +1140,9 @@ const CAGE_PARTS = [
       // G1: the fold - the mains' preset or custom turns, the nose's
       ['fold', ['gearFold', 'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist',
                 'gearFoldNose', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist']],
+      // SKIS (13 Nov): the ski gear on these legs - the kind, the planform (the SS2300's by default), the rig, the finish
+      ['skis', ['gearSki', 'skiL', 'skiW', 'skiTip', 'skiAt', 'skiInc', 'skiSkin', 'skiBeam', 'skiNotchAt', 'skiProt',
+                'skiMat', 'skiColor', 'skiHeelW', 'skiT', 'skiTL', 'skiTW', 'skiPos']],
     ] },
 
   // THE FLOATS (H2, G389): one part, both pontoons and their struts; the
@@ -1184,7 +1189,8 @@ const CAGE_PARTS = [
                 's2_oleoBrace', 's2_oleoBraceZ']],
       ['castor', ['s2_twSpringLen', 's2_twSpringDrop', 's2_twSpringW',
                   's2_twSpringT', 's2_twLeaves', 's2_twRake', 's2_twTrail',
-                  's2_twLegDrop', 's2_twSteer', 's2_twSteerVis']],
+                  's2_twLegDrop', 's2_twSteer', 's2_twSteerVis',
+                  's2_twStyle', 's2_twPostLen', 's2_twPostD', 's2_twGuard', 's2_twNode']],
       // WILGA-GEAR: the station's copy of the trailing-link rows (the leg row offers the kind on the mains only)
       ['trailing link', ['s2_lvArm', 's2_lvAng', 's2_lvComp', 's2_lvTop', 's2_lvReach', 's2_lvStat', 's2_lvLegW', 's2_lvRootAng', 's2_lvBoot', 's2_lvJoint']],
     ] },

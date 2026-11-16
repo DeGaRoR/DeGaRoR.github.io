@@ -17,8 +17,13 @@ function keptVerts(o) {
 function clearance(S, THREE, opts) {
   const W = S.W, CW = W.COWL_GEN;
   let eng = null, cowl = null;
-  S.scene.traverse(o => { if (o.name === 'cageLayer:eng') eng = o; if (o.name === 'cageLayer:cowl') cowl = o; });
+  S.scene.traverse(o => { if (!eng && o.name === 'cageLayer:eng') eng = o; if (!cowl && o.name === 'cageLayer:cowl') cowl = o; });
   if (!eng || !cowl) return null;
+  // SEVERAL UNITS (a twin's nacelles): the layer holds one cowl copy and one engine per unit - the first unit's pair,
+  // the engine the drawing tools measure too (straight.js drawnEngine: the engine layer's first child)
+  const cc = cowl.children.find(c => c.name === 'cageLayer:cowl');
+  if (cc) cowl = cc;
+  if (eng.children.length > 1 && /^edEng/.test(eng.children[0].name || '')) eng = eng.children[0];
   eng.updateMatrixWorld(true); cowl.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(cowl.matrixWorld).invert();
   const ze = CW.zEnd(), v = new THREE.Vector3();
@@ -28,7 +33,7 @@ function clearance(S, THREE, opts) {
     if (cache.has(k)) return cache.get(k);
     const zz = k / 200, cy = CW.spineY(zz), r = new Float32Array(N);
     for (let i = 0; i < 720; i++) {
-      const p = CW.surfPoint(i / 720 * 2 * Math.PI, zz);
+      const p = (CW.surfPointU || CW.surfPoint)(i / 720 * 2 * Math.PI, zz);   // (the cowl with its head cylinders)
       const a = Math.atan2(p[1] - cy, p[0]), j = ((Math.round(a / (2 * Math.PI) * N) % N) + N) % N;
       r[j] = Math.max(r[j], Math.hypot(p[0], p[1] - cy));
     }

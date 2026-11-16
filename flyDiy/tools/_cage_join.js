@@ -470,6 +470,7 @@ function cageJoinSpec(P, M, T) {
       spec.gear.twX = M.twX;
     if (typeof M.twY === 'number' && isFinite(M.twY))
       spec.gear.twY = M.twY;
+    if (M.twOleo && typeof M.twOleo === 'object') spec.gear.twOleo = M.twOleo; else delete spec.gear.twOleo;
     if (M.twR > 0) spec.gear.twR = M.twR;
     // G121.1: THE FAIRING SWITCH REACHES THE PHYSICS. The mains' three-state
     // row ('none'/'spat'/'trousers') has drawn the shell since the gear
@@ -526,6 +527,29 @@ function cageJoinSpec(P, M, T) {
           ...(w.lv ? { lv: [r3(w.lv[0]), r3(w.lv[1])] } : {}),
           ...(w.span ? { span: [r3(w.span[0]), r3(w.span[1])] } : {}),
           bodyL: r3(w.vol * w.fBody * 1000), wingL: r3(w.vol * w.fWing * 1000) }));
+      }
+    }
+    // SKIS (13 Nov, 29c_ski.js): THE DRAWN SKI IS THE FLOWN SKI - the gear layer's skis (CAGE_GEAR.skis: each unit's
+    // dimensions as drawn) are the record; the kind and the rig are the rows' (the G121.1 rule: the drawing is generated
+    // from them). A build without skis writes no key - unless the spec it joins carried one (a merge would keep it: null
+    // takes it off, clampSpec drops the null)
+    {
+      const SKd = typeof window !== 'undefined' && window.CAGE_GEAR && window.CAGE_GEAR.skis, sk = Math.round(+P.gearSki || 0);
+      const m = SKd && sk > 0 && !+P.gearRetract && !+P.gearFloats ? SKd.find(u => u.kind !== 'T') : null;
+      if (m) {
+        const d = m.dims, r3 = v => +(+v).toFixed(3);
+        const o = { kind: d.kind, L: r3(d.L), W: r3(d.W), tip: r3(d.tip), at: r3(d.at), inc: P.skiInc == null ? 3 : +P.skiInc,
+                    skin: r3(d.skin), skinL: r3(d.skinL), beam: r3(d.beam), notchAt: r3(d.notchAt), mat: d.mat === 'carbon' ? null : d.mat,
+                    ped: null, prot: null, drop: null, time: null, third: null };
+        if (d.kind === 'plain') o.ped = r3(d.h); else o.prot = r3(d.prot);
+        if (d.kind === 'retract') { o.drop = r3(d.drop); o.time = 15; }
+        const t = SKd.find(u => u.kind === 'T');
+        if (t) o.third = { L: r3(t.dims.L), W: r3(t.dims.W), tip: r3(t.dims.tip), at: r3(t.dims.at), skin: r3(t.dims.skin), skinL: r3(t.dims.skinL), ...(t.dims.kind !== 'plain' ? { prot: r3(t.dims.prot) } : {}) };
+        spec.gear.ski = o;
+      } else {
+        let had = false;
+        try { const cur = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(cur && cur.gear && cur.gear.ski); } catch (e) {}
+        if (had) spec.gear.ski = null;
       }
     }
     // (...and it is drawn bare: the fairing fields the drag and the mass read follow the drawing - clampSpec says so too)
@@ -1111,12 +1135,15 @@ function cagePartMatch(name, ud, twin) {
   if (name.lastIndexOf('edProp', 0) === 0 || name.lastIndexOf('edSpinner', 0) === 0) return { prop: true };
   if (name === 'edWheelL' || name === 'edWheelR' || name === 'edWheelT')
     return { wheel: name === 'edWheelT' ? 'tw' : (name === 'edWheelL' ? 'mainsL' : 'mainsR') };
+  if (name === 'edSkiL' || name === 'edSkiR' || name === 'edSkiT') return { src: name, ctl: true };   // SKIS: a rigid part
+  if (name.lastIndexOf('edSkiLink', 0) === 0) return { src: name, ctl: true };                     // SKIS: a rigging run
   if (name.lastIndexOf('edLeg', 0) === 0 || name.lastIndexOf('edSurf_', 0) === 0 ||
       name.lastIndexOf('edLink_', 0) === 0 || name.lastIndexOf('edCtl_', 0) === 0 ||
       name.lastIndexOf('edGauge_', 0) === 0 ||           // the panel arc
       name.lastIndexOf('edMech', 0) === 0 ||             // RETRACT GM3: a retracting gear's brace links and actuator
       name.lastIndexOf('edLv', 0) === 0 ||               // WILGA-GEAR: the trailing-link leg's arm and strut halves
-      name === 'edCastorT')
+      name === 'edCastorT' ||
+      name === 'edCastorTc' || name === 'edCastorTu' || name === 'edCastorTl')   // PC6-OLEO: the tailwheel's mechanism
     return { src: name, ctl: true };
   // G179.2: the struts and the engine units (the prop and spinner under a
   // unit were matched above, deeper in the walk); G267.2: the boom and tail
@@ -1598,6 +1625,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           M.twX = zFw - single.p[2];      // model x aft of the firewall
           M.twY = single.p[1] - yD;
           if (single.R > 0) M.twR = single.R;
+          // PC6-OLEO: the PC-6 tailwheel's strut (twStyle 1) flies as a telescopic oleo (61_gen_frame's twOleo)
+          M.twOleo = single.oleo || null;
         }
         // G53: the RIDE HEIGHT — the mains' axle in the keel datum. This
         // is the row whose absence floated the whole frame 0.36 m above
@@ -2452,8 +2481,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const LVp = GB.lever || [];
       for (const lv of LVp) for (const [nm, role, at] of [['edLeg', 'leg', lv.piv], ['edLvArm', 'arm', lv.piv], ['edLvCyl', 'cyl', lv.top], ['edLvRod', 'rod', lv.horn]])
         PARTS.others.push({ src: nm + lv.kind, kind: 'lever', lever: { role, axle: lv.axle }, axleC: at, groups: {} });
+      // PC6-OLEO: a FIXED leg (the PC-6 oleo's cylinder, clamps and truss) is no part: its meshes stay the airframe's -
+      // a stretch toward the wheel node dragged the clamps and the truss with the stroke (the user's in-game render)
       for (const u of (GB.units && GB.units.legs) || [])
-        if (!LVp.some(lv => lv.kind === u.kind))
+        if (!LVp.some(lv => lv.kind === u.kind) && !u.fixed)
         PARTS.others.push({ src: 'edLeg' + u.kind,
           kind: 'leg' + (u.kind === 'T' ? 'T' : u.kind),
           stretch: true, axleC: u.moving || u.axle, rootC: u.root || null,
@@ -2520,10 +2551,27 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             stretch: true, groups: {} });
         }
       }
+      // SKIS: EACH SKI IS A RIGID PART ON ITS AXLE NODE (app.js ski rigs): it rides the node as the wheel does and is
+      // turned about its axle by the solver's ski pitch (sim.out.skiPitch); a wheel-ski also slides by out.skiDy, the
+      // tail / nose ski rides inside the castor (it yaws with its wheel)
+      for (const su of (GB.skis || [])) {
+        PARTS.others.push({ src: 'edSki' + su.kind, kind: 'ski' + su.kind, axleC: su.axle, fit: su.fittings, groups: {} });
+        // its rigging runs: a line from the airframe's fitting (pin) to the ski's lug (tip) - the tip rides the ski
+        for (const l of (su.links || []))
+          PARTS.others.push({ src: l.name, kind: 'skiLink', stretch: true, ski: su.kind, pinC: l.pin, tipC: l.tip, axleC: l.tip, groups: {} });
+      }
       if (GB.units && GB.units.castor)
         PARTS.others.push({ src: 'edCastorT', kind: 'castorT',
           topC: GB.units.castor.top, axC: GB.units.castor.ax,
           axleC: GB.units.castor.axle, groups: {} });
+      // PC6-OLEO: the PC-6 tailwheel's mechanism - the collar (turns), the V's upper arm (turns, swings on the collar's
+      // pin), its lower bands (turn, ride the axle, swing about it); the slider is castorT above. Pivots: the collar's
+      // top, the pin, the relaxed axle; the swing table and the pin's axis go with them
+      if (GB.units && GB.units.castor && GB.units.castor.pc6) {
+        const Q = GB.units.castor.pc6, cs = GB.units.castor;
+        for (const [src, kind, pv] of [['edCastorTc', 'castorTc', cs.top], ['edCastorTu', 'castorTu', Q.pin], ['edCastorTl', 'castorTl', Q.hub0]])
+          PARTS.others.push({ src, kind, pivotC: pv, topC: cs.top, axC: cs.ax, pinAxC: Q.S, tab: Q.tab, groups: {} });
+      }
       // G179.2: THE LIFT STRUTS ARE A PART — every vertex a point on a
       // line between the member's own drawn pin (on the fuselage) and tip
       // (on the wing), published by the wing layer on the group it built
@@ -3177,6 +3225,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         : pt.kind === 'prop' ? pt.hub
         : pt.kind === 'castorT'
           ? rotP(-pt.topC[2], pt.topC[1], pt.topC[0])
+        : pt.pivotC ? rotP(-pt.pivotC[2], pt.pivotC[1], pt.pivotC[0])   // PC6-OLEO: the mechanism's parts
           : pt.axleC ? rotP(-pt.axleC[2], pt.axleC[1], pt.axleC[0])
                      : rotP(-pt.cz2, pt.cy2, pt.cx);
       if (!pv) continue;
@@ -3197,8 +3246,16 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           pin: rotP(-m.pin[2], m.pin[1], m.pin[0]),
           tip: rotP(-m.tip[2], m.tip[1], m.tip[0]),
           ...(m.pinAt ? { pinAt: m.pinAt, tipAt: m.tipAt } : {}) }));
+      if (pt.kind === 'castorTc' || pt.kind === 'castorTu' || pt.kind === 'castorTl') {   // PC6-OLEO
+        const dM = d => { const a = rotP(-d[2], d[1], d[0]), L = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / L, a[1] / L, a[2] / L]; };
+        out2.top = rotP(-pt.topC[2], pt.topC[1], pt.topC[0]);
+        out2.axis = dM(pt.axC); out2.pinAxis = dM(pt.pinAxC); out2.tab = pt.tab;
+      }
       if (pt.kind === 'eng') out2.unit = pt.unit;
       if (pt.kind === 'gearMech') out2.name = pt.mechName;          // RETRACT GM3
+      if (pt.kind === 'skiLink') { out2.pin = rotP(-pt.pinC[2], pt.pinC[1], pt.pinC[0]); out2.tip = rotP(-pt.tipC[2], pt.tipC[1], pt.tipC[0]); out2.ski = pt.ski; }
+      if (/^ski[LRT]$/.test(pt.kind) && pt.fit)                   // SKIS: the rigging's lugs (toe, heel), model frame
+        out2.fit = { toe: rotP(-pt.fit.toe[2], pt.fit.toe[1], pt.fit.toe[0]), heel: rotP(-pt.fit.heel[2], pt.fit.heel[1], pt.fit.heel[0]) };
       if (pt.kind === 'lever') out2.lever = { role: pt.lever.role, axle: rotP(-pt.lever.axle[2], pt.lever.axle[1], pt.lever.axle[0]) };   // WILGA-GEAR
       if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);

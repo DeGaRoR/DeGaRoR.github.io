@@ -90,7 +90,7 @@ const lastFont = page => { for (let i = drawn.length - 1; i >= 0; i--) if (drawn
     if (F.files ? !F.files[s.st] : ![F.r, F.b].includes(s.w) || s.it) synth.push(F.key + ' b' + b + ' i' + i);
     if (i && !F.it && s.it) synth.push(F.key + ' italic without a file');
   }
-  ok(!synth.length && A.AERO_TXT_FACES.length === 8, 'bold and italic only where the face ships them (8 faces)', synth.join(', '));
+  ok(!synth.length && A.AERO_TXT_FACES.length === 9, 'bold and italic only where the face ships them (9 faces)', synth.join(', '));
 
   // 5. A PIECE: drawn on its page with the stand-in, then in its own face when the file arrives - and the list remade
   const D = A.aeroDecalMerge({ finish: { decals: { t3On: 1, t3Txt: 'Hélène du Lac', t3Face: 'lobster2', t3B: 1, t3I: 1, t3Sl: 0.2,

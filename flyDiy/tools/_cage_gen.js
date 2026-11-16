@@ -6911,8 +6911,64 @@ function cageInterior(m, S) {
         }
         // the MAIN lines are as thick as the pillars (user): waistband
         // longeron + bottom-corner longeron at TUBE_RP; the rest slim
+        // NOSE-TUBES: the nose bay's longerons chord a pinched skin (windscreen -> firewall): sample each span that
+        // reaches the nose and pull every sample that stands within the tube's clearance of the skin IN ALONG ITS RAY
+        // from the section centre (the skin is never moved; a span already clear stays one straight tube)
+        const secSeg = zk => {
+          const seg = [];
+          for (const f of F) {
+            if (f.v.length !== 4 || f.m === 'joint' || f.m === 'doorSeal' || f.paneEdge || f.capFace) continue;
+            const o = f.cutPart && f.cutOff ? f.cutOff : null, h = [];
+            for (let e = 0; e < 4; e++) {
+              const a = V[f.v[e]], b = V[f.v[(e + 1) % 4]];
+              const ax = o ? [a[0] - o[0], a[1] - o[1], a[2] - o[2]] : a, bx = o ? [b[0] - o[0], b[1] - o[1], b[2] - o[2]] : b;
+              const za = ax[2] - zk, zb = bx[2] - zk;
+              if (za * zb > 0 || za === zb) continue;
+              const t = za / (za - zb);
+              h.push([ax[0] + (bx[0] - ax[0]) * t, ax[1] + (bx[1] - ax[1]) * t]);
+            }
+            if (h.length >= 2) seg.push([h[0][0], h[0][1], h[1][0], h[1][1]]);
+          }
+          return seg;
+        };
+        const hugPt = (q, inset) => {
+          const sec = sliceAt(q[2]);
+          if (!sec) return q;
+          const seg = secSeg(q[2]);
+          const dx0 = q[0] - sec.cx, dy0 = q[1] - sec.cy, r = Math.hypot(dx0, dy0);
+          if (!(r > 1e-6)) return q;
+          const dx = dx0 / r, dy = dy0 / r;
+          let tS = -1;
+          for (const s of seg) {
+            const ex = s[2] - s[0], ey = s[3] - s[1], den = dx * ey - dy * ex;
+            if (Math.abs(den) < 1e-12) continue;
+            const wx = s[0] - sec.cx, wy = s[1] - sec.cy;
+            const t = (wx * ey - wy * ex) / den, u = (wx * dy - wy * dx) / den;
+            if (t > 1e-4 && u >= -1e-6 && u <= 1 + 1e-6 && t > tS) tS = t;
+          }
+          return tS > inset && r > tS - inset ? [sec.cx + dx * (tS - inset), sec.cy + dy * (tS - inset), q[2]] : q;
+        };
+        const hugRun = ch => {
+          const out = [];
+          for (let i = 0; i < ch.length; i++) {
+            out.push(ch[i]);
+            if (i + 1 >= ch.length) break;
+            const A = ch[i], B = ch[i + 1];
+            if (!(Math.max(A[2], B[2]) > zNose0)) continue;
+            const n = Math.floor(Math.abs(B[2] - A[2]) / 0.06), mid = [];
+            let moved = false;
+            for (let k = 1; k < n; k++) {
+              const t = k / n, q = [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t];
+              const L = hugPt(q, TUBE_RP + TUBE_CLR);
+              if (L !== q) moved = true;
+              mid.push(L);
+            }
+            if (moved) out.push(...mid);
+          }
+          return out;
+        };
         for (const ch of [...runsP, ...runsM, chnP, chnM, chnPb, chnMb])
-          tubeRuns(ch, TUBE_RP, false);
+          tubeRuns(hugRun(ch), TUBE_RP, false);
         for (const s2 of [0, 1])
           for (let i = 0; i + 1 < topCh[s2].length; i++)
             seg(i % 2 ? botCh[s2][i] : topCh[s2][i],
@@ -9431,8 +9487,11 @@ const CAGE_DEFAULT_ABSENT = { canClear: 0, towHook: 0, instPod: 0, s1Ul: 0, finR
   // save would carry them into every cage
   eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0,
   s1Stiff: 1,   // (ENGINE-DIALS C: the mains' suspension stiffness)
+  // SKIS (13 Nov): the ski gear's rows at "no skis" (the core's GEN_SKI_ROW_OFF: the same table)
+  gearSki: 0, skiL: 0, skiW: 0, skiTip: 0, skiAt: 0.585, skiInc: 3, skiT: 1, skiTL: 0, skiTW: 0, skiSkin: 0.051, skiBeam: 0.57, skiNotchAt: 0.49, skiMat: 0, skiColor: 0, skiHeelW: 1, skiProt: 0.03,
   // WILGA-GEAR: the trailing-link leg's rows, per station (the core's GEN_LEVER_ROW_OFF: the same table)
-  ...(() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0, lvJoint: 0 }, o = {};
+  ...(() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0, lvJoint: 0,
+      twStyle: 0, twPostLen: 0.28, twPostD: 0.07, twGuard: 1, twNode: 0 }, o = {};   // (PC6-TAILWHEEL: + the oleo tailwheel's rows, _gear_page.js)
     for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the gear page's flat base copy too)
     return o; })() };
 // RETRACT (G3511's rule): THE RETRACTABLE GEAR'S ROWS ARE ABSENT WHILE THE GEAR IS FIXED - a build that never chose
@@ -9472,7 +9531,7 @@ function cageToSpec(P) {
     // whose two switches agree saves - and joins, and hashes - to master's bits
     if (k === 'accBeacon' && Math.round(+P[k]) === Math.round(P.accAerials == null ? 1 : +P.accAerials)) continue;
     if (k === 'gearPos' || (!(+P.gearRetract) && CAGE_RETRACT_ROWS.includes(k))) continue;   // RETRACT
-    if (k === 'gearLvPos') continue;                         // WILGA-GEAR: the trailing-link preview is the editor's, not the aeroplane
+    if (k === 'gearLvPos' || k === 'skiPos') continue;      // (SKIS: the wheel-ski's preview too)                         // WILGA-GEAR: the trailing-link preview is the editor's, not the aeroplane
     out[k] = P[k]; n++;
   }
   return n ? out : null;

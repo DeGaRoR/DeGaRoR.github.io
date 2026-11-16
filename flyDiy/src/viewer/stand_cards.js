@@ -160,6 +160,7 @@ const STAND_CARDS = (() => {
     const inSlice = () => !!(typeof window !== 'undefined' && window.FLYDIY_SLICE);
     const chunkJob = k => { const [cx, cz] = k.split(',').map(Number); return { k, cx, cz, iz: 0, xs: [], ms: 0 }; };
     function chunkRows(J) {   // -> true once every row is done
+      if (BIO && BIO.hold && !BIO.held) { BIO.hold(true); try { return chunkRows(J); } finally { BIO.hold(false); } }   // the biomes' knobs once a pass (28c hold)
       const t0 = performance.now(), C = S.cell, sp = S.spacing, n = C / sp, cx = J.cx, cz = J.cz, x0 = cx * C, z0 = cz * C, xs = J.xs;
       const spc = sp / S.block;   // the block's tree spacing: the density the fill would plant at
       while (J.iz < n) { const iz = J.iz++; for (let ix = 0; ix < n; ix++) {
@@ -170,14 +171,16 @@ const STAND_CARDS = (() => {
         const pm = polyMix ? polyMix(x, z, BIO) : undefined;
         if (!forestHere(x, z) && !openHere(x, z) && !(pm && polyGround && polyGround(x, z))) continue;
         const tt = ttypeAt(x, z); if (tt < 2 && !pm) continue;
-        const mix = pm !== undefined ? pm : BIO.mixAt(codeAt(x, z, hsh(gx + 21, gz + 23))); if (!mix) continue;
+        const cd = pm !== undefined ? -1 : (BIO.subAt ? BIO.subAt(codeAt(x, z, hsh(gx + 21, gz + 23)), x, z) : codeAt(x, z, hsh(gx + 21, gz + 23)));   // 19 SUBALPINE: the vegetation's code
+        const mix = pm !== undefined ? pm : BIO.mixAt(cd); if (!mix) continue;
         const MF = BIO.mixOf(mix).forest || {};
         let can = ISLC.canopyAt(x, z), floored = false;
         if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);
         if (pm) { floored = true; can = Math.max(can, MF.canopyFloor || 0, POLY_CAN || 12); }
         if (MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
         if (MF.clump > 0 && vnoise(x, z, MF.clumpM || 30, 41) < MF.clump) continue;
-        const kind = Math.min(1, BIO.density(mix) * spc * spc * FILL.island.biomeGain); if (kind <= 0) continue;
+        let kind = Math.min(1, BIO.density(mix) * spc * spc * FILL.island.biomeGain); if (kind <= 0) continue;
+        if (cd === BIO.SUBALPINE && BIO.keepAt) kind *= BIO.keepAt(cd, x, z, world.terrainH(x, z));   // 19 SUBALPINE: the walk's thinning (render_world)
         let p = floored ? 1 : (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
         p *= kind;
         if (p < 1 && hsh(gx + 13, gz + 29) > p) continue;

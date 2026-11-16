@@ -1102,7 +1102,17 @@ const GROUND_SURF = {
   10: [0.035, 0.18, 0.22],          // SNOW, WET: near 0 C, heavy and sticky ("worse than mud or even beach sand")
   11: [0.050, 0.28, 0.45],          // MUD, FIRM: a drying clay strip, the community field's first stage
   12: [0.060, 0.18, 0.30],          // MUD, SOFT: wet clay after rain - the wheels go in
+  // SNOW-MUD LADDER (15 Nov, the user: grass "dry grass and wet grass and auto", "the sand gets firmer"): the WET RUNGS a
+  // weather look climbs (07f GROUND_WX) or a fixed wet look stands on. Raymer table 17.1: wet grass rolls 0.08 and brakes
+  // 0.2 (dry hard turf 0.05 / 0.4 - the grass row's datum); its side grip a little over its braking (ESTIMATE, as above).
+  // Wet sand: a packed, damp beach - firm where dry sand is loose (the sand row's 0.10 is the loose one): rolls ~0.05,
+  // brakes and grips better than the loose (ESTIMATE: no table in hand; the beach pilots' rule, firm wet sand below the
+  // tide line, soft dry sand above it)
+  13: [0.080, 0.20, 0.45],          // GRASS, WET: after rain or under dew - slippery to brake, a little draggier to roll
+  14: [0.050, 0.40, 0.65],          // SAND, WET: firm, packed by its water
 };
+// (the weather codes 20-22 read their DRY rung's row wherever a reader has no world to resolve them with - 07f GROUND_WX)
+GROUND_SURF[20] = GROUND_SURF[6]; GROUND_SURF[21] = GROUND_SURF[0]; GROUND_SURF[22] = GROUND_SURF[7];
 const GROUND_DEF = GROUND_SURF[0];
 // SNOW-MUD: THE SOFT LAYER - what a contact sinks into, keyed by the SURFACE code (GROUND_SURF's soft rows only; absent =
 // a hard surface, the solver's line is the one it always was). THE FORM is Bekker's pressure-sinkage law p = k z^n
@@ -1147,7 +1157,7 @@ const GROUND_SOFT = {
 // A SKI's sliding friction on EVERY surface (the ski gear's interface, SKIS session): [kinetic, static breakout]. The
 // soft rows read GROUND_SOFT's; the rest are ESTIMATES (a UHMW bottom on wet grass slides, on the hard ground it
 // grinds; no source in hand) and water none (the water's own pass carries a ski that is in it)
-const GROUND_SKI_MU = { 0: [0.25, 0.40], 1: [0.50, 0.60], 2: [0.45, 0.55], 3: [0.35, 0.50], 4: null, 5: [0.40, 0.50], 6: [0.45, 0.55], 7: [0.40, 0.50] };
+const GROUND_SKI_MU = { 0: [0.25, 0.40], 1: [0.50, 0.60], 2: [0.45, 0.55], 3: [0.35, 0.50], 4: null, 5: [0.40, 0.50], 6: [0.45, 0.55], 7: [0.40, 0.50], 13: [0.18, 0.30], 14: [0.40, 0.50], 20: [0.45, 0.55], 21: [0.25, 0.40], 22: [0.40, 0.50] };   // (LADDER: a ski on wet grass slides better than on dry - ESTIMATE; the weather codes their dry rung's)
 for (const k in GROUND_SOFT) GROUND_SKI_MU[k] = GROUND_SOFT[k].ski;
 // THE TYRE ON SOFT GROUND, per carcass (TYRE_CN's keys): w the tread's width over the wheel's diameter, d its rated
 // deflection over its section height (taken = its width). A tyre's FOOTPRINT on firm ground is then an ellipse
@@ -1293,5 +1303,5 @@ const TW_SCOTT = { arc: 0.61, vSlide: 0.15, Mf0: 2.8, Nref: 980, trailK: 0.35, d
 // lakebed) - the grass row; steel on concrete 0.45 (casex's aircraft-materials table) - the paved rows; the loose and
 // soft rows dig the shoe in a little more; on a lakebed under water the shoe hardly drags (the water's own drag is the
 // wet pass's)
-const TW_SKID_MU = { 0: 0.36, 1: 0.45, 2: 0.50, 3: 0.40, 4: 0.10, 5: 0.45, 6: 0.42, 7: 0.45, 8: 0.10, 9: 0.15, 10: 0.15, 11: 0.40, 12: 0.40 };   // SNOW-MUD: a steel shoe on snow ~0.10-0.15 (ESTIMATE: a sled's steel runner; Engineering Toolbox's 0.35-0.40 is aluminium on snow), on mud the soft ground's
+const TW_SKID_MU = { 0: 0.36, 1: 0.45, 2: 0.50, 3: 0.40, 4: 0.10, 5: 0.45, 6: 0.42, 7: 0.45, 8: 0.10, 9: 0.15, 10: 0.15, 11: 0.40, 12: 0.40, 13: 0.30, 14: 0.45 };   // (LADDER 13 wet grass: the shoe slides a little more; 14 wet sand: as sand)   // SNOW-MUD: a steel shoe on snow ~0.10-0.15 (ESTIMATE: a sled's steel runner; Engineering Toolbox's 0.35-0.40 is aluminium on snow), on mud the soft ground's
 
