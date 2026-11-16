@@ -23,7 +23,8 @@ const flag = k => argv.includes('--' + k);
 const OUT = path.resolve(opt('out', 'lawn_rig_out')), GPU = flag('gpu'), FR = +opt('frames', 60);
 const EYES = opt('eyes', 'cockpit,rwyside,app10,cabin').split(','), CONFIGS = opt('configs', 'master,edge,A,B,C,D,phone').split(',');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const hm = s => { if (!s) return null; const [h, m] = s.split(':').map(Number), d = new Date(); d.setHours(h, m, 0, 0); return d.getTime(); };
+// HH:MM -> the NEXT such time (armed at 22:00 for 06:00 means tomorrow's; a time up to 2 h past is today's, the slot running)
+const hm = s => { if (!s) return null; const [h, m] = s.split(':').map(Number), d = new Date(); d.setHours(h, m, 0, 0); if (d.getTime() < Date.now() - 2 * 3600e3) d.setDate(d.getDate() + 1); return d.getTime(); };
 const AT = hm(opt('at', null)), UNTIL = hm(opt('until', null));
 const BOX = 'D:/Dev/DeGaRoR.github.io/flyDiy/tools/perf/boxlock.sh';   // (the main checkout's: the locks live there, whatever the worktree)
 fs.mkdirSync(OUT, { recursive: true });
