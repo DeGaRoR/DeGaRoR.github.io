@@ -123,7 +123,7 @@ AR.make = function (THREE, ctx) {
 
   // THE WAKES (SWIMMERS): the layer the swimmers' hulls write, made when the first one is sown (wakes.js, asked for)
   let WK = null;
-  function wakesOn() { if (!WK && typeof window !== 'undefined' && window.WAKES) WK = window.WAKES.make(THREE, { parent: root, waterH }); }
+  function wakesOn() { if (!WK && typeof window !== 'undefined' && window.WAKES) WK = window.WAKES.make(THREE, { parent: root, waterH, eye }); }
 
   // THE BODIES UNDER THE SURFACE (SWIMMERS): the nearest sea animals with any of the body under water, as capsules for
   // the water's column (water.js setSubmerged): the water over a whale is the water down to the whale, so it shows,
@@ -131,7 +131,7 @@ AR.make = function (THREE, ctx) {
   // THE BUDGET (16 Nov): the water takes SUB_MAX capsules. Every body under the surface gets its trunk first (a pod of 12 is
   // seen through the sea, never half of it - the first slot's 6 nearest left the rest under the bed's full column); what is
   // left goes, nearest first, to the head and the tail stock (ANIMALS.seaCore's seg), so the near bodies show whole.
-  const SUB_MAX = 12;
+  const SUB_MAX = 12, SUB_PX = 2, SUB_PXRAD = 1094;   // (the ladder's eye: 1094 px per radian at 1080p)
   const SUBK = 'animals:' + Math.random().toString(36).slice(2, 8), SUBL = [], SUBP = [], SUBA = [];
   for (let i = 0; i < SUB_MAX; i++) SUBP.push({ x: 0, y: 0, z: 0, r: 1, ax: 0, ay: 0, az: 1, h: 1, d2: 0 });
   const bySd2 = (a, b) => a._sd2 - b._sd2;
@@ -157,11 +157,18 @@ AR.make = function (THREE, ctx) {
     const W = (typeof window !== 'undefined' && window.WATER && window.WATER.setSubmerged) ? window.WATER : null;
     if (!W && !ctx.submerged) return;
     SUBL.length = 0; SUBA.length = 0;
-    for (const [, h] of HERDS) {
+    // THE GUARD (16 Nov, A0 on the slot-3 cost: +3.6 ms over open sea with the swimmers hidden): the water's loop runs only
+    // for a body that is drawn - the runner's root shown up its parents, the trunk at least SUB_PX across. None: the list
+    // goes empty, uWSubN 0, the shader's loop costs nothing.
+    let shownUp = true;
+    for (let p = root; p; p = p.parent) if (p.visible === false) { shownUp = false; break; }
+    if (shownUp) for (const [, h] of HERDS) {
       if (h.kind !== 'sea') continue;
       for (const one of h.ones) {
         if (!one.H.core || !one.H.obj.visible || !(one.depth > 0)) continue;
-        one._sd2 = e ? (one.x - e.x) ** 2 + (one.z - e.z) ** 2 : 0;
+        one._sd2 = e ? (one.x - e.x) ** 2 + (one.z - e.z) ** 2 + (one.y - (e.y || 0)) ** 2 : 0;
+        const rr = one.H.core.r * (one.size || 1) * SUB_PXRAD * 2;
+        if (e && one._sd2 * SUB_PX * SUB_PX > rr * rr) continue;            // under SUB_PX across: the sea alone
         SUBA.push(one);
       }
     }

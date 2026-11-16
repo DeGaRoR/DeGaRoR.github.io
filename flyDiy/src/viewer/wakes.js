@@ -41,7 +41,7 @@
 const WK = {};
 const TRAIL_DS = 1.5, TRAIL_LIFE = 30, SPREAD = 0.18, ARM_TAN = Math.tan(19.47 * Math.PI / 180), ARM_W = 0.9;
 const RING_V = 0.35, RING_LIFE = 6, RING_A = 0.3, MAXP = 4096, MAXR = 32, MAXV = 24000;
-const SLICK_LIFE = 40, SLICK_K = 0.9, SLICK_GROW = 1.8, SLICK_N = 6;
+const SLICK_LIFE = 40, SLICK_K = 0.9, SLICK_GROW = 1.8, SLICK_N = 6, SLICK_PX = 3, SLICK_PXRAD = 1094;   // (a slick under SLICK_PX across: not handed)
 WK.K = { TRAIL_DS, TRAIL_LIFE, SPREAD, ARM_TAN, RING_V, RING_LIFE, RING_A, SLICK_LIFE, SLICK_K, SLICK_GROW, SLICK_N };
 
 // the crossing: how much of a body from `bottom` to `top` the surface at `lvl` cuts, 0 (clear above or below) to 1
@@ -220,11 +220,18 @@ WK.make = function (THREE, o) {
         p0 = q0; p1 = q1;
       }
     }
-    // the slicks: every ring younger than SLICK_LIFE, the strongest SLICK_N (fading in over 1.5 s, out as (1 - u)^1.5)
+    // the slicks: every ring younger than SLICK_LIFE, the strongest SLICK_N (fading in over 1.5 s, out as (1 - u)^1.5).
+    // THE GUARD (16 Nov, A0 on the slot-3 cost): none while the layer is hidden up its parents, none under SLICK_PX
+    // across from the eye (o.eye) - the water's slick loop then costs nothing (uWSlickN 0)
     SLL.length = 0;
-    for (let r = 0; r < MAXR; r++) {
+    let slShown = true;
+    for (let p = mesh; p; p = p.parent) if (p !== mesh && p.visible === false) { slShown = false; break; }
+    const se = slShown && o.eye ? o.eye() : null;
+    for (let r = 0; r < MAXR && slShown; r++) {
       const age = T - RT[r];
       if (age < 0 || age > SLICK_LIFE) continue;
+      if (se) { const d2 = (RX[r] - se.x) ** 2 + (RZ[r] - se.z) ** 2 + ((RY[r] || 0) - (se.y || 0)) ** 2, rr = RR[r] * 2.6 * SLICK_PXRAD;
+        if (d2 * SLICK_PX * SLICK_PX > rr * rr) continue; }
       const u = age / SLICK_LIFE, k = SLICK_K * RK[r] * Math.min(1, age / 1.5) * Math.pow(1 - u, 1.5);
       if (k < 0.02) continue;
       let q;

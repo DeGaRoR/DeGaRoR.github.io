@@ -436,6 +436,26 @@ async function swimmers(g) {
     check(most > 8, 'S8 the nearest bodies handed whole (head and tail stock beside the trunk)', most + ' capsules at most for 8 bodies');
     R.dispose();
   }
+  // S12 THE GUARD (16 Nov, A0 on the slot-3 cost: +3.6 ms over open sea with every swimmer hidden): the water's capsule
+  // loop gets nothing while the runner is hidden up its parents or every trunk is under 2 px from the eye
+  {
+    const a = AN.reg('orca') || AN.list('sea')[0], k = a.key;
+    const eye = { x: 0, y: 30, z: 0 }, scene = new THREE.Group();
+    let last = -1;
+    const R = AR.make(THREE, { scene, ground: () => -40, waterH: () => 0, eye: () => eye, submerged: L => { last = L.length; } });
+    R.sync([{ id: 'guard', key: k, x: 0, z: 0, n: 4, r: 60 }]);
+    let near = 0;
+    for (let i = 0; i < 60 * 60; i++) { R.tick(DT); near = Math.max(near, last); }
+    scene.visible = false; let hid = 0;
+    for (let i = 0; i < 60 * 20; i++) { R.tick(DT); hid = Math.max(hid, last); }
+    scene.visible = true; eye.x = 6000; let far = 0;
+    for (let i = 0; i < 60 * 20; i++) { R.tick(DT); far = Math.max(far, last); }
+    say('S12 the guard: ' + near + ' capsules near, ' + hid + ' hidden, ' + far + ' at 6 km');
+    check(near > 0, 'S12 a pod under the near eye is handed to the water', near + ' capsules');
+    check(hid === 0, 'S12 a hidden runner hands the water nothing (uWSubN 0)', hid + ' capsules');
+    check(far === 0, 'S12 a pod under 2 px hands the water nothing (uWSubN 0)', far + ' capsules');
+    R.dispose();
+  }
   // S9 THE CORE (the first GPU slot, 15 Nov: a capsule centred on the pivot at half the beam spilled past the skin and the
   // water opened onto the clear colour - a turquoise lozenge round every orca): each sea animal's trunk capsule
   // (ANIMALS.seaCore) exists, is thinner than half its beam, and both caps lie inside the model's own box (bb - pivot)
@@ -529,6 +549,18 @@ async function swimmers(g) {
     check(most === K.SLICK_N && last.every(q => q.k >= 0.5 * K.SLICK_K * Math.min(1, 1.9 / 1.5) * 0.5), 'S10 ten slicks: the strongest ' + K.SLICK_N + ' handed', most + ' at most');
     say('S10 the slick: ' + (s3 ? 'r ' + f2(s3.r) + ' m, k ' + f2(s3.k) + ' at 3 s' : '-') + '; ' + most + ' handed of 10');
     W2.dispose();
+    // S12 the slicks' guard: none while the layer is hidden up its parents, none under 3 px from the eye
+    const par = new THREE.Group(), se = { x: 0, y: 20, z: 0 };
+    const W3 = g.WAKES.make(THREE, { parent: par, waterH: () => 0, eye: () => se, slicks: L => { last = L.length; } });
+    W3.ring(0, 30, 2, 1);
+    for (let i = 0; i < 20; i++) W3.step(0.1);
+    const sNear = last;
+    par.visible = false; for (let i = 0; i < 5; i++) W3.step(0.1);
+    const sHid = last;
+    par.visible = true; se.x = 5000; for (let i = 0; i < 5; i++) W3.step(0.1);
+    const sFar = last;
+    check(sNear === 1 && sHid === 0 && sFar === 0, 'S12 a slick handed only while shown and over 3 px', 'near ' + sNear + ', hidden ' + sHid + ', at 5 km ' + sFar);
+    W3.dispose();
   }
   // S11 THE BLOW IS WATER (16 Nov; the user: "the water effects are quite rough" - the chimney's grey smoke as a blow): the
   // swimmers fire plume.js's mist - white, camera-facing droplet clouds lit by the key light - which builds, patches its
