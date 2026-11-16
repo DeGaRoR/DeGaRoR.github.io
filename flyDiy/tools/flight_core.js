@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: f9226d4119b5f3ee
+// body-sha256: 868f806c5087f8f8
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -11246,7 +11246,7 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 // `hard` (the user's call - default 1 since 15 Nov, look AND surface: 20_world giveWay): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 0, softBandK: 0, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 2.7 };   // GRASS TO THE EDGE (16 Nov eve, the user: "the best looking is ... wild grass coming close up. Then maybe we could extend with a slight band of cut grass, but I think not even necessary"): softBandK 0 - a SOFT strip's (gravel, dirt, grass, snow) own cut band x this (1 = as before: w1's 4 m, w4's 14.5 m), so the wild grass runs to its drawn edge; mowBand 0 m - the slight cut band past it, a dial; the paved fields (HOME, w2: 40 m) and the aprons keep their mown bands. LOOK ONLY   // mowBand 1 (was 6; 16 Nov, the user's purple bands at the Cabin Strip: the 7 cm mown band hid the grass there - the Monday shoot's mowBand 1 changed 37 % of the purple, 2 % elsewhere; LOOK ONLY, the wheels never read it)   // trackW 2.7: tw_ski's drawn track ends 1.098 + grTrackW 0.3 + grTrackFade 1.0 = 2.4 m out (DIRT-STRIP's L40e ready, 16 Nov) + 0.3 - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 1.5, softBandK: 0, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 2.7 };   // GRASS TO THE EDGE (16 Nov eve, the user: "the best looking is ... wild grass coming close up. Then maybe we could extend with a slight band of cut grass, but I think not even necessary"): softBandK 0 - a SOFT strip's (gravel, dirt, grass, snow) own cut band x this (1 = as before: w1's 4 m, w4's 14.5 m), so the wild grass runs to its drawn edge; mowBand 1.5 m - the slight cut band past it (the user's refinement, 16 Nov eve: "taller grass on the strip side and the wild grass I validated" - a soft strip's cut answers `tall`, drawn at the field's tallH 20 cm, not the lawn's 8 cm); the paved fields (HOME, w2: 40 m) and the aprons keep their mown bands. LOOK ONLY   // mowBand 1 (was 6; 16 Nov, the user's purple bands at the Cabin Strip: the 7 cm mown band hid the grass there - the Monday shoot's mowBand 1 changed 37 % of the purple, 2 % elsewhere; LOOK ONLY, the wheels never read it)   // trackW 2.7: tw_ski's drawn track ends 1.098 + grTrackW 0.3 + grTrackFade 1.0 = 2.4 m out (DIRT-STRIP's L40e ready, 16 Nov) + 0.3 - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 // (GRASS-ON-GREEN 16 Nov) a gate's or a rig's override of the one dial for the margin's look AND surface: FLYDIY_GRASS_HARD=1 (node env or window)
 // (16 Nov, the page boot: with no process the old `a && b` read FALSE, +false = 0 - the page shipped hard 0 while every node gate saw 1.
@@ -13830,7 +13830,7 @@ function compose(rec0, world, opts) {
   // cut across the band and the mow band, wild past the blend; a grass strip's surface cut; a road as today plus a mown verge
   function coverSides(lx, lz, cell) {
     const G = GRASS_SIDES, VERGE = PAVE_FADE + 6;
-    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity;
+    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity, tall = 0;
     if (cell) for (const it of cell) {
       const d = dEdgeOf(it, lx, lz), out = -d;
       const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
@@ -13861,8 +13861,11 @@ function compose(rec0, world, opts) {
       if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * CORE_MATH.sin(Math.PI * (out - v0) / VERGE));
       if (k > kill) kill = k;
       if (c > cut) cut = c;
+      if (c > 0 && aero && it.soft && d < 0 && c > tall) tall = c;   // GRASS TO THE EDGE: the band beside a soft strip is cut TALL
     }
-    return withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
+    const R = withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
+    if (R && tall > 0 && kill < 1) R.tall = tall;
+    return R;
   }
 
   // G1542 (GROUND-LATTICE): A ROAD'S RIBBON ENDS SQUARE (pavement.js roadGeometry: s from 0 to the length, the rows
