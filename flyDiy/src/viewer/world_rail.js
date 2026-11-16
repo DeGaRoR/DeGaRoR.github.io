@@ -68,9 +68,9 @@
   const ready = () => !!(WF() && G() && G().on && G().on());
 
   // ---- THE TERRAIN TYPES: names, colours (the ground's own palette, gTTCol) and the derivations ----
-  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 17: 'bank', 18: 'lake shore' };
+  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 17: 'bank', 18: 'lake shore', 19: 'subalpine' };
   const TTC = { 0: [5, 13, 77], 1: [13, 89, 242], 2: [191, 217, 64], 3: [89, 140, 38], 4: [242, 217, 140], 5: [140, 128, 115], 6: [77, 71, 71],
-                7: [153, 166, 13], 8: [5, 89, 13], 9: [250, 250, 255], 10: [242, 26, 26], 11: [168, 156, 132], 12: [120, 104, 98], 13: [3, 61, 8], 14: [111, 122, 10], 17: [70, 62, 58], 18: [110, 150, 70] };
+                7: [153, 166, 13], 8: [5, 89, 13], 9: [250, 250, 255], 10: [242, 26, 26], 11: [168, 156, 132], 12: [120, 104, 98], 13: [3, 61, 8], 14: [111, 122, 10], 17: [70, 62, 58], 18: [110, 150, 70], 19: [128, 140, 92] };
   const css = c => `rgb(${c[0]},${c[1]},${c[2]})`;
   const DERIVED = { 12: { from: 6, lo: 'cliffLo', hi: 'cliffHi', unit: '°', what: 'rock steeper than', max: 70 },
                     13: { from: 8, lo: 'oldLo', hi: 'oldHi', unit: ' m', what: 'forest under a canopy taller than', max: 35 },
@@ -82,7 +82,26 @@
   // 18 THE LAKE SHORE (G3430, the user 25 Oct: "a proper biome with its mask"): derived from every type by a lake's line
   // (28c_biomes SHORE, the cover ring's band) - a biome; its ground is its own type's until the splat carries an 18
   const SHORE = 18;
-  const EDITABLE = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, BANK, SHORE];
+  // 19 SUBALPINE (MOUNTAIN-VEG 15 Nov, 28c_biomes subCode): derived from heath and scrub above a height ramp - a VEGETATION code like
+  // the lake shore (its biome; the ground stays the type below it). Its own panel: the ramp, the thinning and the dial (subPanel)
+  const SUB = 19;
+  const EDITABLE = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, BANK, SHORE, SUB];
+  // WORLD-RAIL-VEG (16 Nov, the user: every world setting in the world editor): the biomes' own knobs (28c_biomes KNOBS - the
+  // subalpine's, the forest edge's) and the shaped cards' rows (the alpine shrubs: cover_ring.js shapedCards)
+  const BKN = () => (typeof BIOMES !== 'undefined' && BIOMES.KNOBS) || {};
+  const SHAPE_KEYS = [['alpha', 'cut (alpha)', 0.05, 0.9, 0.01], ['size', 'height (the card)', 0.1, 5, 0.05, ' m'], ['bend', 'bend', 0, 0.8, 0.01], ['lean', 'lean', 0, 0.8, 0.01],
+    ['tilt', 'tilt (carpet)', 0, 89, 1, '°'], ['upright', 'upright cards (carpet)', 0, 1.5, 0.05]];
+  const colOf = name => { const P = PACK(); return (P && P.collections.find(c => c.name === name)) || null; };
+  const shapedNames = () => { const r = RING(); return (r && r.shapes) ? r.shapes() : []; };
+  const shapeNow = name => { const c = colOf(name), r = RING(); if (!c) return null; const pl = c.place || {}, D = (r && r.cardDef) ? r.cardDef() : {};
+    return { alpha: (c.tint && c.tint.alpha) || 0.5, size: pl.size || 1, bend: pl.bend === undefined ? D.bend : pl.bend, lean: pl.lean === undefined ? D.lean : pl.lean,
+             tilt: pl.tilt === undefined ? D.tilt : pl.tilt, upright: pl.upright === undefined ? D.upright : pl.upright }; };
+  const shapesNow = () => { const o = {}; for (const n of shapedNames()) o[n] = shapeNow(n); return o; };
+  // one shaped species' row moved: its pack row (tint.alpha, place), then the ring re-builds its cards
+  const shapeSet = (name, o) => { const c = colOf(name); if (!c) return; c.place = c.place || {}; c.tint = c.tint || {};
+    for (const k in o) { if (k === 'alpha') c.tint.alpha = +o[k]; else c.place[k] = +o[k]; }
+    const r = RING(); if (r && r.reshape) r.reshape(name); };
+  const urlHas = k => { try { return new RegExp('[?&]' + k + '=').test(location.search); } catch (e) { return false; } };
   // the catalogue's kinds, as the user's five categories (+ the cliffs, their own section)
   const CATS = [
     { k: 'trees', label: 'trees', kinds: ['tree', 'dead'] },
@@ -95,7 +114,7 @@
   const pretty = name => name.replace(/\.glb$/, '').replace(/_trees_pack_lods_gameready|realistic_|_-_free_download/g, '').replace(/_/g, ' ');
 
   // ---- THE DEFAULTS, for the diff (taken at load, before any look is put back) ------------------
-  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, grass: null, gsides: null, env: null, cliffs: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null };
+  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, grass: null, gsides: null, env: null, cliffs: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null, bioKnobs: null, shrubCards: null };
   const tintsNow = () => { const L = W.TREE_LEAF, o = {}; if (L && L.collections) for (const col of L.collections()) o[col.name] = clone(col.tint || {}); return o; };
   // G1385 (EDITOR-VEG): the grass's and the bushes' own masters (trees.js KIND_MASTER: cover, shrub)
   const kindTintNow = () => { const L = W.TREE_LEAF; if (!L || !L.kinds) return null; const o = {}; for (const k of L.kinds()) o[k] = L.kindMaster(k); return o; };
@@ -113,6 +132,8 @@
     const L = W.TREE_LEAF; if (L && L.collections && !DEF.tints) { DEF.tints = tintsNow(); if (L.master) DEF.leafMaster = clone(L.master()); }
     if (L && L.kinds && !DEF.kindTint) DEF.kindTint = kindTintNow();
     if (W.TREE_MIX && !DEF.treeMix) DEF.treeMix = { furnished: W.TREE_MIX.furnished, spread: W.TREE_MIX.spread };
+    if (t && t.knobs && !DEF.bioKnobs) DEF.bioKnobs = clone(t.knobs());
+    if (RING() && RING().shapes && !DEF.shrubCards) DEF.shrubCards = shapesNow();
   };
 
   // ---- THE LOOK: what the handles do not keep, kept here ----------------------------------------
@@ -129,8 +150,11 @@
     const g = G(); if (g) { const q = g.get(); o.ground = {}; for (const k of GROUND_KEYS) if (k in q) o.ground[k] = q[k]; }
     if (WF() && WF().envAlbedo) o.envAlbedo = WF().envAlbedo();
     const t = TF(); if (t) { if (t.island) o.island = t.island(); if (t.speciesSizes) o.speciesSize = t.speciesSizes(); if (t.get) o.fillDensity = t.get(); if (t.thin) o.thin = t.thin(); }
-    const B = BIO(); if (B) o.biomes = { map: clone(B.map), mixes: clone(ownMixes(B.mixes)) };
+    // (a code the shipped map names and this one does not is saved as null: "none" - a code missing from a saved map is left alone)
+    const B = BIO(); if (B) { const map = clone(B.map); if (DEF.biomes) for (const k in DEF.biomes.map) if (!(k in map)) map[k] = null; o.biomes = { map, mixes: clone(ownMixes(B.mixes)) }; }
+    if (t && t.knobs) o.bioKnobs = t.knobs();
     const r = RING(); if (r) o.ring = r.get();
+    if (r && r.shapes) o.shrubCards = shapesNow();
     if (FLD()) { o.grass = fieldNow(); o.grassOn = !!FLD().get().on; }   // (the switch apart: the look keeps the user's choice)
     if (GSD()) o.gsides = GSD().grassSides();
     const c = CLF(); if (c) o.cliffs = c.get();
@@ -151,6 +175,7 @@
     if (N.biomes && DEF.biomes) { const map = same(N.biomes.map, DEF.biomes.map) ? null : N.biomes.map, mixes = deltaOf(N.biomes.mixes, DEF.biomes.mixes);
       if (map || mixes) o.biomes = Object.assign({}, map ? { map } : {}, mixes ? { mixes } : {}); }
     put('ring', deltaOf(N.ring, DEF.ring)); put('cliffs', deltaOf(N.cliffs, DEF.cliffs));
+    put('bioKnobs', deltaOf(N.bioKnobs, DEF.bioKnobs)); put('shrubCards', deltaOf(N.shrubCards, DEF.shrubCards));
     put('grass', deltaOf(N.grass, DEF.grass)); put('gsides', deltaOf(N.gsides, DEF.gsides));
     if (N.grassOn !== undefined && DEF.grassOn !== undefined && N.grassOn !== DEF.grassOn) o.grassOn = N.grassOn;
     put('tints', deltaOf(N.tints, DEF.tints)); put('leafMaster', deltaOf(N.leafMaster, DEF.leafMaster)); put('kindTint', deltaOf(N.kindTint, DEF.kindTint)); put('treeMix', deltaOf(N.treeMix, DEF.treeMix));
@@ -182,11 +207,21 @@
       if (o.biomes.mixes) for (const name in o.biomes.mixes) if (!same(B.mixes[name], o.biomes.mixes[name])) { B.mixes[name] = clone(o.biomes.mixes[name]); dirty = true; }
       if (full && o.biomes.mixes) for (const name of Object.keys(B.mixes)) if (name[0] !== '@' && !(name in o.biomes.mixes) && DEF.biomes && !(name in DEF.biomes.mixes)) { delete B.mixes[name]; dirty = true; }
       const map = o.biomes.map || o.biomes.biomes;
-      if (map) for (let c = 0; c <= 14; c++) { const want = map[c] || null; if ((B.map[c] || null) !== want) { B.set(c, want); dirty = true; } }
+      // every code the look names (WORLD-RAIL-VEG: it was 0..14, so the lake shore's and the subalpine's never came back); a code it does
+      // not name keeps what stands - a look saved before a code existed does not take it away (null in the look is "none")
+      if (map) for (const k of Object.keys(map)) { const c = +k; if (!(c >= 0)) continue; const want = map[k] || null; if ((B.map[c] || null) !== want) { B.set(c, want); dirty = true; } }
       // ONE replant for the lot (setMix clears the pools, evicts the fill and replants the ring once)
       if (dirty) { const any = Object.keys(B.mixes)[0]; if (any) t.setMix(any, ['forest', 'count'], (B.mixOf(any).forest || {}).count || 0); }
     }
+    // the biomes' knobs (one replant for the lot); a dial the address bar sets (?subalpine=, ?forestedge=: an A/B) is the address bar's
+    if (t && t.knobs && (o.bioKnobs || full)) { const cur = t.knobs(), want = Object.assign({}, full ? (DEF.bioKnobs || {}) : {}, o.bioKnobs || {}), d = {};
+      if (full) for (const k in cur) if (!(k in want) && k !== 'subOn' && k !== 'edgeOn') d[k] = null;
+      for (const k in want) if (!same(cur[k], want[k])) d[k] = want[k];
+      if (urlHas('subalpine')) delete d.subOn; if (urlHas('forestedge')) delete d.edgeOn;
+      if (Object.keys(d).length) t.knobs(d); }
     const r = RING(); if (r && o.ring) { const d = deltaOf(Object.assign({}, r.get(), o.ring), r.get()); if (d) r.set(d); }
+    if (r && r.shapes && (o.shrubCards || full)) for (const n of r.shapes()) { const want = Object.assign({}, full && DEF.shrubCards ? DEF.shrubCards[n] : {}, (o.shrubCards || {})[n] || {}), cur = shapeNow(n), d = {};
+      for (const k in want) if (cur && !same(cur[k], want[k])) d[k] = want[k]; if (Object.keys(d).length) shapeSet(n, d); }
     if (o.grassOn !== undefined && FLD() && !!FLD().get().on !== !!o.grassOn && t && t.field) t.field(!!o.grassOn);
     const fl = FLD(); if (fl && o.grass) { const cur = fieldNow(), d = deltaOf(Object.assign({}, cur, o.grass), cur); if (d) { delete d.on; delete d.off; fl.set(d); } }
     if (GSD() && o.gsides) { const cur = GSD().grassSides(), d = deltaOf(Object.assign({}, cur, o.gsides), cur); if (d) { GSD().grassSides(d); replantGrass(); } }
@@ -226,7 +261,9 @@
         biomes: 'tools/_trees_tuning.json { biomes, mixes }, then python tools/tree_prep.py',
         stack: 'src/viewer/render_world.js STACK', ground: 'src/viewer/render_world.js GROUND',
         island: 'src/viewer/render_world.js FILL.island', ring: 'src/viewer/cover_ring.js defaults', cliffs: 'src/viewer/cliffs.js S',
-        speciesSize: 'render_world.js SP_SIZE (new)', tints: 'tools/_trees_tuning.json per-collection tint',
+        speciesSize: 'render_world.js SP_SIZE (new)',
+        bioKnobs: 'src/core/28c_biomes.js KNOBS (sub*: the subalpine, edge*: the forest edge); subOn / edgeOn: the dials (?subalpine=0, ?forestedge=0)',
+        shrubCards: "tools/_trees_tuning.json the species' place (size, bend, lean, tilt, upright) and tint.alpha, then python tools/tree_prep.py", tints: 'tools/_trees_tuning.json per-collection tint',
         leafMaster: 'src/viewer/trees.js MASTER', kindTint: 'src/viewer/trees.js KIND_MASTER (cover = the grass, shrub = the bushes)',
         runway: "the premises' rec.pavement (the editor's PAVEMENT section, runway look) or src/viewer/pavement.js RECIPE (pv / sf / gr keys)",
       },
@@ -251,6 +288,8 @@
     if (DEF.grass && out.grass) ch.push(...diff(DEF.grass, out.grass, 'grass'));
     if (DEF.gsides && out.gsides) ch.push(...diff(DEF.gsides, out.gsides, 'gsides'));
     if (DEF.cliffs && out.cliffs) ch.push(...diff(DEF.cliffs, out.cliffs, 'cliffs'));
+    if (DEF.bioKnobs && out.bioKnobs) ch.push(...diff(DEF.bioKnobs, out.bioKnobs, 'bioKnobs'));
+    if (DEF.shrubCards && out.shrubCards) ch.push(...diff(DEF.shrubCards, out.shrubCards, 'shrubCards'));
     if (DEF.env !== null && out.envAlbedo !== undefined && Math.abs(DEF.env - out.envAlbedo) > 1e-9) ch.push({ path: 'envAlbedo', was: DEF.env, now: out.envAlbedo });
     if (out.speciesSize && Object.keys(out.speciesSize).length) for (const k in out.speciesSize) ch.push({ path: 'speciesSize.' + k, was: 1, now: out.speciesSize[k] });
     // G1385: the colours - every species' tint, the trees' master, the grass's and the bushes' - with the rest
@@ -589,7 +628,7 @@
     for (const c of EDITABLE) {
       const b = $('button', 'wr-leg'); b.type = 'button';
       const sw = $('span', 'wr-sw'); sw.style.background = css(TTC[c]); b.appendChild(sw);
-      b.appendChild($('span', null, NAMES[c])); b.appendChild($('em', null, SH[c] ? (SH[c] * 100).toFixed(1) + '%' : (PARENT_OF[c] || c === BANK || c === SHORE ? 'derived' : '-')));
+      b.appendChild($('span', null, NAMES[c])); b.appendChild($('em', null, SH[c] ? (SH[c] * 100).toFixed(1) + '%' : (PARENT_OF[c] || c === BANK || c === SHORE || c === SUB ? 'derived' : '-')));
       b.onclick = () => { UI.code = c; open('types'); };
       lg.appendChild(b);
     }
@@ -668,23 +707,49 @@
     const hx = $('div'); hd.appendChild(hx);
     hx.appendChild($('div', 'wr-tname', NAMES[code]));
     const SH = shares();
-    hx.appendChild($('div', 'wr-tsub', code === BANK ? 'derived from every type by the water: the steep faces of the lake banks and the coast' : code === SHORE ? 'derived from every type by a lake: the gentle land within the shore band - its biome here (a premises biome polygon paints or erases it); the ground stays the type below it' : PARENT_OF[code] ? 'derived from ' + NAMES[PARENT_OF[code]] + ' in the shader and the planters' : ((SH[code] ? (SH[code] * 100).toFixed(1) + '% of the land' : 'not on this map') + ' · biome ' + ((B && B.mixAt(code)) || 'none'))));
+    hx.appendChild($('div', 'wr-tsub', code === BANK ? 'derived from every type by the water: the steep faces of the lake banks and the coast' : code === SHORE ? 'derived from every type by a lake: the gentle land within the shore band - its biome here (a premises biome polygon paints or erases it); the ground stays the type below it' : code === SUB ? 'derived from heath and scrub above a height ramp: their biome there, thinned on the high summits and the ridge tops; the ground stays the type below it · biome ' + ((B && B.mixAt(code)) || 'none') : PARENT_OF[code] ? 'derived from ' + NAMES[PARENT_OF[code]] + ' in the shader and the planters' : ((SH[code] ? (SH[code] * 100).toFixed(1) + '% of the land' : 'not on this map') + ' · biome ' + ((B && B.mixAt(code)) || 'none'))));
     const pk = button(hd, 'under the eye', () => { const cam = camNow(); const t = TF(); if (!cam || !t || !t.at) return; const a = t.at(cam.position.x, cam.position.z); if (a && a.code >= 2) { UI.code = a.code; open('types', true); } });
     pk.title = 'the terrain type under the camera (or alt+click the ground)';
     if (DERIVED[code] && sp) {
-      const D = DERIVED[code], K = sec(body, 'the split', true, D.what);
-      range(K, 'from', 0, D.max, 0.5, () => sp.knobs()[D.lo], v => sp.set({ [D.lo]: v }), v => v + D.unit);
-      range(K, 'full at', 0, D.max, 0.5, () => sp.knobs()[D.hi], v => sp.set({ [D.hi]: v }), v => v + D.unit);
-      note(K, 'the ground blends across the split; the planters draw per point on the same curve');
+      // WORLD-RAIL-VEG: the planters read the splat's live knobs now (BIOMES.ground), so a move here replants (TREE_FILL.knobs({}))
+      const D = DERIVED[code], K = sec(body, 'the split', true, D.what), RD = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS.RECIPE.knobs : {};
+      const tf = TF(), put = k => v => { sp.set({ [k]: v }); if (tf && tf.knobs) tf.knobs({}); };
+      range(K, 'from', 0, D.max, 0.5, () => sp.knobs()[D.lo], put(D.lo), v => v + D.unit, RD[D.lo]);
+      range(K, 'full at', 0, D.max, 0.5, () => sp.knobs()[D.hi], put(D.hi), v => v + D.unit, RD[D.hi]);
+      note(K, 'the ground blends across the split; the trees and the cover ring draw per point on the same curve (each move replants)');
     }
+    if (code === SUB) subPanel(body);
     if (code === BANK && sp) bankPanel(body, sp);
     // where it is
     const Mp = sec(body, 'where it is', false);
     mapWidget(Mp, 300, code);
     // the tabs
     const tabs = $('div', 'wr-tabs'); body.appendChild(tabs);
-    for (const [k, l] of (code === BANK ? [['ground', 'ground']] : code === SHORE ? [['biome', 'biome']] : [['biome', 'biome'], ['ground', 'ground']])) { const b = $('button', 'wr-tab' + (UI.tab === k || code === BANK || code === SHORE ? ' on' : ''), l); b.type = 'button'; b.onclick = () => { UI.tab = k; saveUI(); open('types', true); }; tabs.appendChild(b); }
-    if ((UI.tab === 'ground' && code !== SHORE) || code === BANK) groundTab(body, code); else biomeTab(body, code);
+    for (const [k, l] of (code === BANK ? [['ground', 'ground']] : (code === SHORE || code === SUB) ? [['biome', 'biome']] : [['biome', 'biome'], ['ground', 'ground']])) { const b = $('button', 'wr-tab' + (UI.tab === k || code === BANK || code === SHORE || code === SUB ? ' on' : ''), l); b.type = 'button'; b.onclick = () => { UI.tab = k; saveUI(); open('types', true); }; tabs.appendChild(b); }
+    if ((UI.tab === 'ground' && code !== SHORE && code !== SUB) || code === BANK) groundTab(body, code); else biomeTab(body, code);
+  }
+  // A ROW OF THE BIOMES' KNOBS (WORLD-RAIL-VEG): the value standing (the editor's over the shipped), set through TREE_FILL.knobs (one
+  // replant); double-click: the shipped value (28c_biomes KNOBS)
+  const bk = (p, label, k, lo, hi, st, f) => { const t = TF(), B = BIO(); if (!t || !t.knobs || !B) return;
+    range(p, label, lo, hi, st, () => B.knobs()[k], v => t.knobs({ [k]: v }), f, BKN()[k]); };
+  const bkDial = (p, label, k, url) => { const t = TF(), B = BIO(); if (!t || !t.knobs || !B) return;
+    toggle(p, label, () => B[k] !== false, v => t.knobs({ [k]: !!v }));
+    if (urlHas(url)) note(p, 'the address bar sets this one (?' + url + '=): a saved look does not override it', 'wr-warn'); };
+  // THE SUBALPINE'S OWN ROWS (MOUNTAIN-VEG 15 Nov; the user 16 Nov: every new world setting in the world editor): where heath and scrub
+  // take the subalpine biome (a height ramp, its edge broken by a noise), and where it thins (the high summits, the ridge tops)
+  function subPanel(body) {
+    const B = BIO(); if (!B || !TF() || !TF().knobs) return;
+    const R = sec(body, 'where it grows', true, 'heath and scrub above a height');
+    bkDial(R, 'the subalpine', 'subOn', 'subalpine');
+    const m = v => v.toFixed(0) + ' m';
+    bk(R, 'from', 'subH0', 0, 1500, 5, m); bk(R, 'full at', 'subH1', 0, 1500, 5, m); bk(R, 'ragged edge', 'subJit', 0, 200, 1, v => '±' + v.toFixed(0) + ' m');
+    note(R, 'heath and scrub take the subalpine biome from the first height and fully by the second; the ragged edge swings that height by a 140 m noise, so the line wanders up and down the slopes. Off: heath and scrub keep their own biomes everywhere.');
+    const T = sec(body, 'where it thins', true, 'the high summits, the ridge tops');
+    bk(T, 'summits from', 'subTop0', 0, 2000, 5, m); bk(T, 'summits at', 'subTop1', 0, 2000, 5, m);
+    bk(T, 'summits keep', 'subTopKeep', 0, 1, 0.01, v => Math.round(v * 100) + ' %');
+    bk(T, 'ridge: over its surroundings', 'subRidgeDh', 0, 60, 0.5, v => v.toFixed(1) + ' m');
+    bk(T, 'ridge keeps', 'subRidgeKeep', 0, 1, 0.01, v => Math.round(v * 100) + ' %');
+    note(T, 'between the two summit heights the biome’s trees and cover thin to the share kept; a point standing that far over the mean of four points 110 m round it is a ridge top and keeps the ridge’s share. What it plants is the biome below (the subalpine mix).');
   }
   // THE BANK'S OWN ROWS (SHORES-2 G1958, the user: "these textures should be accessible through the world editor"): where the
   // bank's rock comes (the reach, the slope it takes over between), how it blends (the ramp's softness, the noise that breaks
@@ -806,6 +871,15 @@
         range(body, 'bark', 0, 4, 0.02, () => (c.tint.bark === undefined ? 1 : c.tint.bark), v => L.tintOf(sp, { bark: v }), null, 1);
       }
       note(body, 'a tree’s height is the canopy map’s x the size gain (VEGETATION); size and colour here are the species’, in every biome');
+    } else if (kd === 'cover' && col && col.maps && shapedNames().includes(sp)) {
+      // WORLD-RAIL-VEG: A SHAPED CARD'S ROWS (the alpine shrubs, MOUNTAIN-VEG): its cut, its size, the shape's bend and lean, and for the
+      // carpet its tilt and its upright cards - the species' own, in every biome; each move re-builds its cards (COVER ring reshape)
+      const D = (DEF.shrubCards && DEF.shrubCards[sp]) || {};
+      for (const [k, label, lo, hi, st, unit] of SHAPE_KEYS) {
+        if ((k === 'tilt' || k === 'upright') && (col.place || {}).shape !== 'carpet') continue;
+        range(body, label, lo, hi, st, () => { const q = shapeNow(sp); return q ? q[k] : NaN; }, v => shapeSet(sp, { [k]: v }), v => (st >= 1 ? v.toFixed(0) : v.toFixed(2)) + (unit || ''), D[k]);
+      }
+      note(body, 'the picture on the shrub bench’s shapes: the cut is the alpha under which a texel is dropped (lower: fuller, more painted); the size its height; bend and lean curve and splay the cards; a carpet’s tilt lays its cards toward the ground and its upright cards stand between them');
     } else if (kd === 'shrub' || (kd === 'cover' && !(col && col.maps))) {
       // GRASS-DENSE G2566: the grass field's length here (GRASS-STUDY §4.4): the tuft's median top, its spread, the density by this
       // biome (1 = the meadow's) - the row's own, else the field's table for the mix
@@ -1028,6 +1102,26 @@
       range(R, 'AGL full', 10, 200, 5, () => r.get().aglFull, cs('aglFull'), v => v + ' m', D.aglFull);
       range(R, 'AGL off', 30, 400, 5, () => r.get().aglOff, cs('aglOff'), v => v + ' m', D.aglOff);
       liveNote(R, () => { const st = r.stat(); return st ? 'under the eye: ' + (st.mixAt || 'no biome') + ' · ' + st.live + ' cells, ' + st.instances + ' instances · ' + st.lastMs.toFixed(1) + ' ms last build' : ''; });
+    }
+    // THE FOREST EDGE (FOREST-EDGE 16 Nov, the user: "a ramp of tree sizes on the surroundings, then bushes"; WORLD-RAIL-VEG: every
+    // number of it here): the size ramp inside the edge, the band of bushes and weeds outside it, the distance field's cells
+    const B0 = BIO();
+    if (B0 && B0.edgeField && t.knobs) {
+      const E = sec(body, 'the forest edge', true, 'a ramp of tree sizes, then bushes and weeds');
+      bkDial(E, 'the edge', 'edgeOn', 'forestedge');
+      const m = v => v.toFixed(0) + ' m', x = v => 'x' + v.toFixed(2);
+      bk(E, 'young trees to', 'edgeYoung', 0, 40, 0.5, m); bk(E, 'full size at', 'edgeFull', 1, 80, 0.5, m);
+      bk(E, 'size at the edge', 'edgeMin', 0.3, 1, 0.01, x); bk(E, 'size at "young to"', 'edgeMid', 0.3, 1, 0.01, x);
+      bk(E, 'handed back by', 'edgeOut', 5, 200, 1, m); bk(E, 'size there', 'edgeOutK', 0.3, 1.2, 0.01, x);
+      note(E, 'inside a forest a tree takes the wood’s own canopy (the tallest of 16 points 30 to 45 m round it) times this ramp: the edge’s size, up to the second size by "young to", to full size; past full size the canopy map takes over again by "handed back by" (at that size of the interior). The thinning by the vegetation index is lifted over the same metres. Off: the canopy map as it is (the trees thin and shrink over ~50 m).');
+      const Bd = sec(body, 'the edge’s band', true, 'bushes, then weeds, outside the trees');
+      bk(Bd, 'bushes from (inside)', 'edgeShrubIn', 0, 10, 0.5, m); bk(Bd, 'bushes to (outside)', 'edgeShrubOut', 0, 20, 0.5, m);
+      bk(Bd, 'weeds to (outside)', 'edgeWeedOut', 0, 30, 0.5, m);
+      bk(Bd, 'bushes', 'edgeShrubDens', 0, 2, 0.01, v => v.toFixed(2) + ' /m²'); bk(Bd, 'weeds', 'edgeWeedDens', 0, 2, 0.01, v => v.toFixed(2) + ' /m²');
+      note(Bd, 'the cover ring’s, near the eye: bushes (shrub, raspberry, sapling, holly) from a little inside the trees out to the first distance, weeds (fireweed, foam flower) from there to the second. The taller weedy grass in the same band is the grass field’s (below).');
+      const Fe = sec(body, 'the edge’s distance field', false, 'how the edge is measured');
+      bk(Fe, 'cell', 'edgeCell', 2, 24, 1, m); bk(Fe, 'tile', 'edgeTile', 64, 512, 16, m); bk(Fe, 'margin', 'edgeMargin', 12, 120, 6, m);
+      note(Fe, 'the distance to the edge is measured on cells of this size, a tile at a time, seeing an edge up to the margin past the tile’s side (further out a point counts as deep in the wood). A finer cell follows the edge closer and costs more to build; each move here re-measures.');
     }
     // THE GRASS FIELD (GRASS-DENSE G2566; the user: "the parameters touched will be implemented in the editor, so I can further
     // tune things myself"): every number the field plants and fades by, and the law the premises answer by beside the runways.

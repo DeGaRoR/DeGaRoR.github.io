@@ -16,6 +16,7 @@
 //   4. SHADOWS FROM 0.35 m. No prototype under castMinH (0.35 m since 2026-10-03, 0.5 since G585) casts, in either path.
 //   5. NOTHING LEAKS. The eye leaves and comes back: cells drop and replant, the batches hold exactly the live
 //      cells' instances (a dropped cell's ids are reused without switching anybody else's).
+//   (7-9: the count truncation, the grass field, the forest edge's band; 10: the world editor's vegetation knobs - below)
 //   6. THE FADE READS THE BATCH. The batched program takes aRand from the colour's alpha after <color_vertex>,
 //      the instanced one reads its attribute.
 //
@@ -349,6 +350,71 @@ function edgeRing(on) {
        '9 FOREST-EDGE: the bushes stand from 1 m in to 3 m out, the weeds from 3 to 6 m out, nothing with the band off, the cell\'s other species untouched',
        sh.length + ' bushes in x ' + (sh.length ? Math.min(...sh.map(e => e[0])).toFixed(1) + '..' + Math.max(...sh.map(e => e[0])).toFixed(1) : '-') + ', ' + weeds.length + ' weeds in x ' +
        (weeds.length ? Math.min(...weeds.map(e => e[0])).toFixed(1) + '..' + Math.max(...weeds.map(e => e[0])).toFixed(1) : '-') + '; tufts ' + tuftsOn + ' / ' + tuftsOff + ' off'); } }
+
+// 10 THE WORLD EDITOR'S VEGETATION KNOBS (WORLD-RAIL-VEG 16 Nov, the user: every new world setting editable in the world editor):
+//   a. BIOMES.setKnobs lays the editor's knobs over the shipped (and drops them back), the dials ride it, tuned() is what the look saves;
+//   b. the planters read the ground's LIVE knobs (BIOMES.ground: the splat the editor's split sliders move) under the editor's own;
+//   c. the edge's distance field re-lays its cells when the editor moves the cell / tile / margin, and only then;
+//   d. the cover ring's reshape re-builds a shaped species' cards from its pack row (the alpine shrubs' rows), and nothing else's
+{
+  const BIOMES = require(path.join(__dirname, '..', 'src', 'core', '28c_biomes.js'));
+  const B = BIOMES.make({ biomes: { map: { 2: 'heath', 19: 'subalpine' }, mixes: { heath: { species: {} }, subalpine: { species: {} } } } });
+  const K0 = B.knobs();
+  const t1 = B.setKnobs({ subH0: 300, edgeMin: 0.8, subOn: false });
+  const aOk = B.knobs().subH0 === 300 && B.knobs().edgeMin === 0.8 && B.subOn === false && t1.subH0 === 300 && t1.subOn === false && t1.edgeOn === true && !('subOn' in B.user);
+  B.setKnobs({ subH0: null, subOn: true }); const aBack = B.knobs().subH0 === K0.subH0 && B.knobs().edgeMin === 0.8 && B.subOn === true;
+  B.setKnobs(null); const aNull = B.knobs().edgeMin === K0.edgeMin && !Object.keys(B.user).length;
+  ok(aOk && aBack && aNull, '10a the biomes\' knobs: the editor\'s over the shipped, back by null, the dials apart', 'subH0 ' + K0.subH0 + ' -> 300 -> ' + B.knobs().subH0 + ', edgeMin ' + B.knobs().edgeMin);
+  // b: rock at 25 degrees is cliff only when the split starts under 25
+  const r0 = B.codeOf(6, 25, 0, 0.5); B.ground = () => ({ cliffLo: 10, cliffHi: 20 }); const r1 = B.codeOf(6, 25, 0, 0.5);
+  B.setKnobs({ cliffLo: 30, cliffHi: 40 }); const r2 = B.codeOf(6, 25, 0, 0.5); B.setKnobs(null); B.ground = null;
+  ok(r0 === 6 && r1 === 12 && r2 === 6, '10b the split: the ground\'s live knobs reach the planters, the editor\'s own over them', 'shipped ' + r0 + ', live split ' + r1 + ', editor ' + r2);
+  // c
+  let calls = 0; const at = B.edgeField((x, z) => { calls++; return x > 60; });
+  const d6 = at(70, 0), n6 = calls; calls = 0; at(80, 0); const nSame = calls;
+  B.setKnobs({ subH0: 500 }); calls = 0; at(70, 0); const nSub = calls; B.setKnobs({ subH0: null });
+  B.setKnobs({ edgeCell: 2 }); calls = 0; const d2 = at(70, 0), n2 = calls; B.setKnobs(null);
+  const want = c => { const M = Math.ceil(K0.edgeMargin / c), n = Math.round(K0.edgeTile / c) + 2 * M; return n * n; };
+  ok(n6 === want(6) && nSame === 0 && nSub === 0 && n2 === want(2) && Math.abs(d6 - 10) < 3.1 && Math.abs(d2 - 10) < 1.1,
+     '10c the edge field re-lays on a cell / tile / margin move, and only then', 'cell 6: ' + n6 + ' reads, d ' + d6.toFixed(2) + '; another knob ' + nSub + ' reads; cell 2: ' + n2 + ' reads, d ' + d2.toFixed(2));
+}
+{ let res = null;
+  try {
+    const Bt = boot(), { THREE, ctx } = Bt;
+    // a picture species needs an <img> (three's TextureLoader): a stand-in that never loads
+    ctx.document = { createElementNS: () => ({ style: {}, addEventListener() {}, removeEventListener() {}, setAttribute() {} }) };
+    Bt.load(path.join('src', 'viewer', 'trees.js'));
+    const cols = [{ name: 'alp', kind: 'cover', maps: ['alp.png'], place: { shape: 'carpet', size: 1, density: 0.5 }, tint: { alpha: 0.3 } },
+      { name: 'tuft', kind: 'cover', place: { density: 0.3, size: 0.3 } }];
+    const built = new Map();
+    const treeList = () => [{ key: 'tuft_m', col: cols[1], sub: { bb: [-0.5, 0, -0.5, 0.5, 0.4, 0.5], h: 0.4 } }];
+    const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const g = new THREE.BoxGeometry(1, 0.4, 1); g.translate(0, 0.2, 0);
+      const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial() }] }; built.set(key, b); return b; };
+    ctx.TREE_PACK = { collections: cols };
+    const mix = { species: { alp: { density: 0.5 }, tuft: { density: 0.3 } }, forest: { cover: 1, reach: 220 } };
+    const BIO = { mixAt: () => 'mix', mixOf: () => mix };
+    const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(0, 3, 0); camera.lookAt(60, 0, 0); camera.updateMatrixWorld();
+    Bt.load(path.join('src', 'viewer', 'cover_ring.js'));
+    const CR = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world: { terrainH: () => 0, waterH: () => -10, island: null }, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null,
+      biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true });
+    CR.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });
+    const grow = () => { for (let i = 0; i < 4; i++) CR.update(); };
+    // the shaped species' meshes are the ones on its picture (a texture map); the tufts' have none
+    const census = () => { const o = { geos: new Set(), alp: 0, tuft: 0, cut: null, top: 0 };
+      CR.root.traverse(m => { if (!m.isInstancedMesh) return; const n = m.userData.n === undefined ? m.count : m.userData.n; if (!n) return;
+        if (!m.material.map) { o.tuft += n; return; }
+        o.alp += n; o.geos.add(m.geometry.attributes.position); o.cut = m.material.alphaTest;
+        const P = m.geometry.attributes.position; let top = 0; for (let i = 0; i < P.count; i++) top = Math.max(top, P.getY(i)); o.top = top; });
+      return o; };
+    grow(); const a = census();
+    cols[0].tint.alpha = 0.12; cols[0].place.tilt = 30; const r = CR.reshape('alp'); grow(); const b = census();
+    res = { a, b, r, shapes: CR.shapes(), none: CR.reshape('nope') };
+  } catch (e) { ok(false, '10d the shaped cards re-build', (e && e.message || String(e)).slice(0, 200)); }
+  if (res) {
+    const { a, b } = res, aG = [...a.geos], bG = [...b.geos];
+    ok(res.r && !res.none && res.shapes.join() === 'alp' && a.alp > 0 && b.alp === a.alp && a.tuft === b.tuft && a.cut === 0.3 && b.cut === 0.12 && !bG.some(g => aG.includes(g)) && Math.abs(a.top - b.top) > 1e-3,
+       '10d the cover ring\'s reshape: a shaped species\' cards re-built from its row (cut, tilt), the same instances, every other species as it was',
+       a.alp + ' -> ' + b.alp + ' cards, cut ' + a.cut + ' -> ' + b.cut + ', top ' + a.top.toFixed(3) + ' -> ' + b.top.toFixed(3) + ', tufts ' + a.tuft + ' / ' + b.tuft + ', shapes [' + res.shapes.join() + ']'); } }
 
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

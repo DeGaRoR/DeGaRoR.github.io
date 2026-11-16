@@ -5073,6 +5073,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // summits, and a ridge top - the point's height over the mean of four taps at 110 m (read for a subalpine point only)
     if (BIO) {
       try { if (/[?&]subalpine=0/.test(location.search)) BIO.subOn = false; } catch (e) {}
+      // WORLD-RAIL-VEG: the biomes read the splat's LIVE knobs (the world editor's cliff / old-forest / dense-scrub split moves
+      // those; the recipe's copy never moved, so the planters kept the shipped split)
+      BIO.ground = () => { const sp = groundApi.splat ? groundApi.splat() : null; return sp && sp.knobsLive ? sp.knobsLive() : null; };
       BIO.subAt = (code, x, z) => (!BIO.subOn || !(code === 2 || code === 7 || code === 14)) ? code
         : BIO.subCode(code, world.terrainH(x, z), vnoise(x, z, 140, 61), hsh(Math.floor(x * 0.731), Math.floor(z * 0.731) + 97));
       BIO.keepAt = (code, x, z, h) => {
@@ -6114,6 +6117,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixHere(code, x, z), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
           },
+          // WORLD-RAIL-VEG (the world editor's TYPES > subalpine and VEGETATION > forest edge): the biomes' knobs over the defaults
+          // (BIOMES.setKnobs: the subalpine's ramp and thinning, the forest edge's ramp and band, the dials) - one replant for the
+          // lot, as setMix. knobs() with no argument reads them (tuned: the editor's own, with the dials)
+          knobs: o => { if (!BIO) return null; if (o === undefined) return BIO.tuned();
+            const r = BIO.setKnobs(o); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return r; },
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed

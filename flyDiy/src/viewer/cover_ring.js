@@ -1441,6 +1441,14 @@ var COVER_RING = (() => {
       lakeMargin: () => (FIELD ? Math.max(0, +S.lakeMargin || 0) : 0.3),   // G2572: render_world okAt reads it (both rings), no copy a call
       field: FIELD,
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
+      // WORLD-RAIL-VEG: a shaped species re-built (the world editor's alpine shrub rows moved its pack row's place - size, aspect,
+      // bend, lean, tilt, upright - or its cut, tint.alpha): its prototypes dropped (geometry and material; the picture is kept),
+      // the ring replanted. A shaped card is a per-block InstancedMesh (kind cover, never batched), so nothing else holds them
+      reshape: name => { const old = protos.get(name); if (!old) return false; protos.delete(name); api.replant();
+        for (const p of old) for (const q of p.parts) { if (q.geo && q.geo.dispose) q.geo.dispose(); if (q.mat && q.mat.dispose) q.mat.dispose(); }
+        return true; },
+      shapes: () => (FIELD || !pack ? [] : pack.collections).filter(shapedOf).map(c => c.name),   // the shaped species (the editor's rows; none on the grass field)
+      cardDef: () => Object.assign({}, CARD_DEF),   // the shaped cards' defaults where a species' place says nothing
       // SHED-FLOOR: only the cells a box touches (a shed stood or came down: render_world floorsChanged) - dropped, so the
       // ring plants them again on its budget, nearest first, with what the land test now says
       replantBox: (x0, z0, x1, z1) => { const C = S.cell; let n = 0;

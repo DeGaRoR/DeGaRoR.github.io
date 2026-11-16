@@ -543,6 +543,7 @@ const GATES = [
   { id: 'PROGRAMS', file: '_program_check.js', tier: 'core' },
   // G585: the cover ring's rocks and debris as batches - the same instances, reach and thresholds, a draw per batch
   { id: 'COVER', file: '_cover_check.js', tier: 'core' },   // G585 the batches; G2561 the count truncation (the picture to the pixel); G2563 the grass field (tufts, lengths, colour, tiers)
+  { id: 'WORLDRAIL', file: '_world_rail_check.js', tier: 'core' },   // WORLD-RAIL-VEG: the world editor's vegetation rows move their settings, the look keeps them
   { id: 'GRASSSIDES', file: '_grass_sides_check.js', tier: 'core' },   // GRASS-DENSE G2565: the premises' grass laws by the runways ('today' unchanged, the pave half never moves, 'sides' cut / bare / wild)
   // G1010-G1014: the frame's WORK, counted and ratcheted - the page itself in node (dev.html's scripts, the real three on
   // a recording GL, a virtual clock): per-frame draws, uniform / buffer uploads, matrix updates, callbacks, frustum tests,

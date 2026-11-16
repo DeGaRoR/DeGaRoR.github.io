@@ -316708,5 +316708,10 @@ COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); afte
   edgeLift / edgeCanIn; walkRows + stand cards) and the bushes + weeds band outside (cover_ring edgeBand, GATE COVER 9);
   ?forestedge=0. The grass field's weeds band is LOOK-1's (the field's ctx carries edgeD).
 - The tool: tools/veg_bench.js (WORKBENCH row; card cards/veg_bench.md): --subalpine 0, --forestedge 0, --edge <areas>.
+- THE WORLD EDITOR (F9, world_rail.js; the user 16 Nov: every world setting editable there) - claude/world-rail-veg, on top of
+  forest-edge + the shrubs: TYPES > subalpine (code 19: the ramp, the thinning, the dial), VEGETATION > the forest edge (the ramp,
+  the band, the field, the dial), a shaped species' card rows (cut, height, bend, lean, tilt, upright: cover_ring reshape). The
+  knobs: BIOMES.setKnobs / tuned (the look's bioKnobs; TREE_FILL.knobs replants); the planters read the splat's LIVE knobs
+  (BIOMES.ground - the split sliders never moved them). GATE WORLDRAIL holds the rows: a new world setting adds its line there.
 - BACKLOG: the flowers and the subalpine shrubs carry simple_grass_chunks' CC-BY credit (3dhdscan) but they are the user's own
   art - fix tree_prep's credit source (a species' own `credit` in the tuning, or none for the user's pictures).

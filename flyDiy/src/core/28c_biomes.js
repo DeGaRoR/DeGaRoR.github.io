@@ -26,6 +26,7 @@
 //                     The COVER RING's band (tufts, flowers, bushes); the trees keep their own code's mix
 //     B.density(name) the mix's trees per m2 (its `count` in its `radius`)
 //     B.set(code, mixName) / B.export()   F8's handle
+//     B.setKnobs(o) / B.tuned() / B.ground   the world editor's knobs over KNOBS (WORLD-RAIL-VEG), the splat's live knobs
 //     B.SUBALPINE / B.subOn / B.subCode(code, h, n, r2) / B.subKeep(h, ridgeDh) / B.subAt / B.keepAt
 //                     19 SUBALPINE (MOUNTAIN-VEG, 15 Nov 2026): heath (2) and scrub (7, 14) above a height ramp take the
 //                     subalpine mix - a VEGETATION code like 18: the GROUND keeps its own code (codeAt, the splat, the
@@ -77,8 +78,25 @@ const BIOMES = (() => {
       knobs: () => {
         if (B.held) return B.held;   // a walk's snapshot (hold below)
         const R = (typeof GROUND_FIELDS !== 'undefined' && GROUND_FIELDS && GROUND_FIELDS.RECIPE) ? GROUND_FIELDS.RECIPE.knobs : null;
-        return Object.assign({}, KNOBS, R || {}, (opts && opts.knobs) || {});
+        // the ground's LIVE knobs (B.ground: the renderer's splat, which the world editor's split sliders move - the recipe's
+        // copy above never moves), then the caller's, then the world editor's own (B.user, setKnobs)
+        const L = B.ground ? B.ground() : null;
+        return Object.assign({}, KNOBS, R || {}, L || {}, (opts && opts.knobs) || {}, B.user);
       },
+      // THE WORLD EDITOR'S KNOBS (WORLD-RAIL-VEG 16 Nov, the user: every world setting editable for hand-tuning): setKnobs(o)
+      // merges o over the rest (null or undefined values drop a key back to the default; setKnobs(null) drops them all);
+      // `subOn` and `edgeOn` in o are the dials. kver counts the field's changes (edgeField re-lays its cells on one). The caller
+      // replants (TREE_FILL.setKnobs); tuned() is the editor's own: what the world look saves
+      ground: null, user: {}, kver: 0,
+      setKnobs: o => {
+        if (o === null) B.user = {};
+        else for (const k in (o || {})) {
+          if (k === 'subOn' || k === 'edgeOn') { B[k] = !!o[k]; continue; }
+          if (o[k] === null || o[k] === undefined || !isFinite(+o[k])) delete B.user[k]; else B.user[k] = +o[k];
+        }
+        B.held = null; if (o === null || ['edgeCell', 'edgeTile', 'edgeMargin'].some(k => k in (o || {}))) B.kver++; return B.tuned();
+      },
+      tuned: () => Object.assign({}, B.user, { subOn: B.subOn !== false, edgeOn: B.edgeOn !== false }),
       // HOLD (MOUNTAIN-VEG 16 Nov): knobs() merges three objects per call, and the per-point rules (subCode, subKeep) made it the
       // walk's top cost (5 of 11 s in veg_bench's Cabin window). A caller that runs many points in one synchronous pass holds a
       // snapshot for it - hold(true) before, hold(false) after (the editor's live knobs reach the next pass)
@@ -108,7 +126,9 @@ const BIOMES = (() => {
     // field per tile, cached, read bilinear; the renderer's tree fill and tools/veg_bench.js build it on the same test
     B.edgeOn = true;
     B.edgeField = isForest => {
-      const K = B.knobs(), c = K.edgeCell, T = K.edgeTile, M = Math.ceil(K.edgeMargin / c), n = Math.round(T / c) + 2 * M, cache = new Map();
+      let K, c, T, M, n, ver = -1; const cache = new Map();
+      const lay = () => { K = B.knobs(); c = K.edgeCell; T = K.edgeTile; M = Math.ceil(K.edgeMargin / c); n = Math.round(T / c) + 2 * M; cache.clear(); ver = B.kver; };   // (again on a setKnobs: the cell, the tile, the margin)
+      lay();
       const build = (ti, tj) => {
         const ox = ti * T - M * c, oz = tj * T - M * c, F = new Uint8Array(n * n), Din = new Float32Array(n * n), Dout = new Float32Array(n * n), BIG = 1e6, a = c, b = c * Math.SQRT2;
         for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; F[k] = isForest(ox + (i + 0.5) * c, oz + (j + 0.5) * c) ? 1 : 0; Din[k] = F[k] ? BIG : 0; Dout[k] = F[k] ? 0 : BIG; }
@@ -121,6 +141,7 @@ const BIOMES = (() => {
         return { ox, oz, S };
       };
       const at = (x, z) => {
+        if (ver !== B.kver) lay();
         const ti = Math.floor(x / T), tj = Math.floor(z / T), key = ti * 100003 + tj;
         let t = cache.get(key); if (!t) { if (cache.size > 512) cache.clear(); t = build(ti, tj); cache.set(key, t); }
         const u = (x - t.ox) / c - 0.5, v = (z - t.oz) / c - 0.5, i = Math.max(0, Math.min(n - 2, Math.floor(u))), j = Math.max(0, Math.min(n - 2, Math.floor(v)));
