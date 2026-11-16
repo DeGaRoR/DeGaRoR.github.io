@@ -743,6 +743,8 @@ const GATES = [
   { id: 'FRAMES', file: '_frames_check.js', tier: 'core' },   // T2.1: the frames — corpus identity, locality, follow, migration, profile
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
   { id: 'DRAFTING', file: 'drafting/dt_check.js', tier: 'core', wall: 6 },   // FIT-PROCEDURE: the drafting table's own checks and the PC-6 fitted to its reference (4 s)
+  { id: 'QSPARITY', file: '_qsparity_check.js', tier: 'core', weight: 3, wall: 40 },   // QUICKSHOT-ONE 15 Nov: the table and quickshot measure the same PC-6 (frame, every key measurement, the score), --sheet writes the projection; the garage's level 2 and the load door's moves said (~15 s, three quickshot children)
+  { id: 'QSCUT', file: '_qscut_check.js', tier: 'core', weight: 1, wall: 20 },   // 16 Nov, the user: "cut views with the pilot and the controls shown": quickshot --cut side on the Cub draws the pilot, seats, controls, panel and the sheet's dash whole, the rest clipped with a section line (~13 s, one quickshot child)
   { id: 'WORKBENCH', file: '_workbench_check.js', tier: 'core', wall: 1 },   // A0 15 Nov: the workbench's rows and skills name tools that exist
   { id: 'COMMITHYGIENE', file: '_commit_hygiene.js', tier: 'core', wall: 2 },   // A0 15 Nov: no built files in source commits, HANDOVER CRs, line endings, final newlines, index chunks, the exports union
   // WINDOWS-FREE (2026-10-27): the free quad window - an unplaced quad is its rectangle, the Cub's quad rear window cut
