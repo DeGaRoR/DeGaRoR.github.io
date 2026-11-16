@@ -40,6 +40,8 @@ function run(liveSrc) {
   const ok = (c, m) => { checks++; if (!c) fails.push(m); return !!c; };
   const N = loadMissions({ core: true });
   const ctx = N.__ctx;
+  // the page's material library (the drawing makes its materials there: GATE ASSETS / LIGHT), as the core has it
+  if (typeof ctx.MATLIB === 'undefined') vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'matlib.js'), 'utf8'), ctx, { filename: 'matlib.js' });
   vm.runInContext(liveSrc, ctx, { filename: 'mission_live.js' });
   const ML = ctx.MISSION_LIVE;
   if (!ok(!!ML, 'mission_live.js publishes MISSION_LIVE')) return { fails, checks };
