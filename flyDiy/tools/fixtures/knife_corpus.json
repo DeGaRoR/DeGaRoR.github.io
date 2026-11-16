@@ -1,7 +1,94 @@
 {
- "recordedAt": "2026-11-13T13:46:14.645Z",
- "head": "23ce68c1",
+ "recordedAt": "2026-11-16T22:04:01.871Z",
+ "head": "f0cd07448",
  "items": {
+  "file:builds/archaeopteryx_2026-11-10.json": {
+   "nV": 29951,
+   "nF": 23316,
+   "loops": [
+    {
+     "n": 110,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.017415207,
+      0.648022151,
+      1.032090023
+     ]
+    },
+    {
+     "n": 6,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.33202166,
+      0.326088374,
+      2.165765743
+     ]
+    },
+    {
+     "n": 110,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.017245006,
+      0.635433204,
+      1.025828652
+     ]
+    },
+    {
+     "n": 6,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.33202166,
+      0.326088374,
+      2.165765743
+     ]
+    },
+    {
+     "n": 167,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.023964187,
+      0.329363748,
+      1.006260306
+     ]
+    },
+    {
+     "n": 7,
+     "side": 1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.39316214,
+      0.088696964,
+      2.165765743
+     ]
+    },
+    {
+     "n": 169,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      -0.032359191,
+      0.138346773,
+      1.018291
+     ]
+    },
+    {
+     "n": 7,
+     "side": -1,
+     "mat": "pasengerWindow",
+     "p0": [
+      0.403833321,
+      0.047263749,
+      2.165765743
+     ]
+    }
+   ],
+   "hash": "fe2315a468247335d1f0323a7a8bfb0949072d53"
+  },
   "file:builds/c172r_wipline2350_landprop_2026-10-20.json": {
    "nV": 54842,
    "nF": 29512,
@@ -285,8 +372,8 @@
    "hash": "5bc133d9a5211eeb521354bbb079ea8c842e4c74"
   },
   "file:builds/client_cub_floats_2026-11-13.json": {
-   "nV": 20942,
-   "nF": 16762,
+   "nV": 21054,
+   "nF": 16874,
    "loops": [
     {
      "n": 70,
@@ -309,11 +396,11 @@
      ]
     }
    ],
-   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
+   "hash": "af7f0612d89ce80388676237facba85f4c0eecc9"
   },
   "file:builds/client_cub_upgraded_2026-11-13.json": {
-   "nV": 20942,
-   "nF": 16762,
+   "nV": 21054,
+   "nF": 16874,
    "loops": [
     {
      "n": 70,
@@ -336,11 +423,11 @@
      ]
     }
    ],
-   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
+   "hash": "af7f0612d89ce80388676237facba85f4c0eecc9"
   },
   "file:builds/cub_2026-09-20.json": {
-   "nV": 20942,
-   "nF": 16762,
+   "nV": 21054,
+   "nF": 16874,
    "loops": [
     {
      "n": 70,
@@ -363,11 +450,11 @@
      ]
     }
    ],
-   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
+   "hash": "af7f0612d89ce80388676237facba85f4c0eecc9"
   },
   "file:builds/cub_2026-09-20_corrected.json": {
-   "nV": 20942,
-   "nF": 16762,
+   "nV": 21054,
+   "nF": 16874,
    "loops": [
     {
      "n": 70,
@@ -390,7 +477,7 @@
      ]
     }
    ],
-   "hash": "e37cbe029fa1dc4e37a928e2fa36ec18733ea476"
+   "hash": "af7f0612d89ce80388676237facba85f4c0eecc9"
   },
   "file:bugReports/cessnaMetal (1).json": {
    "nV": 55162,
@@ -440,8 +527,8 @@
    "hash": "3bcfabe81cb37e865b9f265dc988aa2d5c21e84b"
   },
   "file:bugReports/flydiy-build (3).json": {
-   "nV": 13558,
-   "nF": 11310,
+   "nV": 13654,
+   "nF": 11406,
    "loops": [
     {
      "n": 119,
@@ -464,11 +551,11 @@
      ]
     }
    ],
-   "hash": "454716e4ed953f07b3a8e1d961ed5d8b8c1ff50b"
+   "hash": "02ee46f78e1750a73501b7f1694533fee17dc11d"
   },
   "file:bugReports/flydiy-build (4).json": {
-   "nV": 13558,
-   "nF": 11310,
+   "nV": 13654,
+   "nF": 11406,
    "loops": [
     {
      "n": 119,
@@ -491,7 +578,7 @@
      ]
     }
    ],
-   "hash": "454716e4ed953f07b3a8e1d961ed5d8b8c1ff50b"
+   "hash": "02ee46f78e1750a73501b7f1694533fee17dc11d"
   },
   "file:tools/fixtures/build_v10_cessnaMetal_2026-09-26.json": {
    "nV": 55162,
