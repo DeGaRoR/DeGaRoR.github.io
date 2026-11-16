@@ -59,12 +59,14 @@ function rockBiasStart(world, BUD) {
   const IG = I.grid, half = !!(BUD && BUD.islandHalf), W2 = half ? Math.ceil(IG.w / 2) : IG.w, H2 = half ? Math.ceil(IG.h / 2) : IG.h;
   const t0 = performance.now(), job = { done: false, out: null };
   try {
-    const src = 'const ROCK_BIAS = ' + ROCK_BIAS.toString() + ';\nonmessage = e => { const a = e.data, t = performance.now();\n' +
+    const hasCore = typeof ROCK_RING_CORE_SRC !== 'undefined';
+    const src = (hasCore ? ROCK_RING_CORE_SRC + '\n' : '') + 'const ROCK_BIAS = ' + ROCK_BIAS.toString() + ';\nonmessage = e => { const a = e.data, t = performance.now();\n' +
       '  const out = ROCK_BIAS(a.H, a.sea, a.N, a.hx0, a.hz0, a.hdx, a.hdz, a.gx0, a.gz0, a.cs, a.W2, a.H2);\n' +
-      '  postMessage({ out, ms: performance.now() - t }, [out.buffer]); };';
+      '  const flow = (typeof ROCK_RING_CORE !== "undefined") ? ROCK_RING_CORE.flowGrid(a.H, a.N, a.hdx * a.hdx / 25) : null;\n' +
+      '  postMessage({ out, flow, ms: performance.now() - t }, [out.buffer].concat(flow ? [flow.buffer] : [])); };';
     const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url);
     const fail = why => { console.warn('rock bias worker: ' + why + ' - made on the main thread'); job.done = true; job.out = null; try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); if (job.onDone) job.onDone(); };
-    w.onmessage = e => { const t1 = performance.now(); job.out = e.data.out; job.done = true; w.terminate(); URL.revokeObjectURL(url);
+    w.onmessage = e => { const t1 = performance.now(); job.out = e.data.out; job.flow = e.data.flow ? { g: e.data.flow, N: g.N, x0: g.x0, z0: g.z0, dx: g.dx } : null; job.done = true; w.terminate(); URL.revokeObjectURL(url);
       if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWorker: true, biasWorkerMs: Math.round(e.data.ms), biasWallMs: Math.round(t1 - t0), biasMainMs: Math.round(job.postMs + (performance.now() - t1)), biasGrid: g.N, tint: [W2, H2] });
       if (job.onDone) job.onDone(); };
     w.onerror = e => fail(e && e.message || 'error');
@@ -388,6 +390,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   function floorsChanged(f) {
     for (const r of [coverRing, grassField]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
   }
+  let rockRing = null;   // ROCK-STUDY: the island's rock as geometry round the eye (rock_ring.js; set with the cover ring)
   let coverRing = null, grassField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -2299,6 +2302,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     }
     groundApi = {
       splat: () => (SPL ? SPL.api : null),
+      splatFull: () => SPL,   // ROCK-STUDY: the whole splat (its uniforms: the rock ring's material reads its arrays)
       fine: () => fineRing,   // the fine disc's state (tiles, radius, off) for the rigs and F8
       tier: () => groundTier,   // G2115: the contact tier (its dials S, mode, centre, stats) for the rigs and F8
       ringLod: () => ringLod,   // the inner ring's chunks: tolPx / minQuads / rimE dials, stats (PERF 2026-09-23)
@@ -6109,6 +6113,34 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
+          // ROCK-STUDY: THE ISLAND'S ROCK AS GEOMETRY (rock_ring.js): the outcrops round the eye, built in a worker from the ground's
+          // own heights, the map's types and NDVI and the drainage (the bias worker's D8), with the 'rocks' collection's boulders
+          // seated on them; their own material (the splat's arrays). ?rocks=0 none, ?ring=0 the ring off (the cost A/B)
+          if (typeof ROCK_RING !== 'undefined' && world.island && groundApi.splatFull && groundApi.splatFull()) {
+            let rocksOn = true; try { if (/[?&]rocks=0/.test(location.search)) rocksOn = false; } catch (e) {}
+            if (rocksOn) try {
+              const kit = [];
+              for (const e of treeList('all').filter(q => q.col && q.col.name === 'rocks')) {
+                let b = null; try { b = treeBuild(THREE, e.key, 0, 'rungs'); } catch (err) { continue; }
+                const g = b && b.parts && b.parts[0] && b.parts[0].geo; if (!g || !g.attributes.position || !g.index) continue;
+                const P = g.attributes.position, Nn = g.attributes.normal;
+                const pos = new Float32Array(P.count * 3), nor = new Float32Array(P.count * 3);
+                for (let v = 0; v < P.count; v++) { pos[v * 3] = P.getX(v); pos[v * 3 + 1] = P.getY(v); pos[v * 3 + 2] = P.getZ(v);
+                  if (Nn) { nor[v * 3] = Nn.getX(v); nor[v * 3 + 1] = Nn.getY(v); nor[v * 3 + 2] = Nn.getZ(v); } }
+                const sb = e.sub || {}, bb = sb.bb || [-0.5, 0, -0.5, 0.5, sb.h || 1, 0.5];
+                kit.push({ h: sb.h || (bb[4] - bb[1]), bb, pos, nor, idx: Uint32Array.from(g.index.array) }); }
+              let flowSync = null;
+              const flowOf = () => { if (rockBiasJob && rockBiasJob.flow) return rockBiasJob.flow;
+                if (!flowSync && typeof ROCK_RING_CORE !== 'undefined' && world.hydro && world.hydro.grids) { const hg = world.hydro.grids;
+                  flowSync = { g: ROCK_RING_CORE.flowGrid(Float32Array.from(hg.H), hg.N, hg.dx * hg.dx / 25), N: hg.N, x0: hg.x0, z0: hg.z0, dx: hg.dx }; }
+                return flowSync; };
+              // THE PHONE TIER (A0's brief): the GRAPHICS row's lean ground builds the ring at 2.5 m within 250 m, no micro detail; plain: no ring
+              const gq = (typeof window !== 'undefined' && window.GFX && window.GFX.get) ? window.GFX.get().ground : null;
+              const K = gq === 'lean' ? { step: 2.5, reachCap: 250, reach: 250, micro: 0 } : {};
+              if (gq !== 'plain') rockRing = ROCK_RING.make(THREE, { scene, world, camera, splat: groundApi.splatFull(), terrainH: (x, z) => world.terrainH(x, z), isla: world.island, flow: flowOf, kit: kit.length ? kit : null, K });
+              if (typeof window !== 'undefined') window.ROCK_RING_LIVE = rockRing;
+            } catch (e) { console.warn('rock ring: ' + (e && e.message)); }
+          }
           // G1460 (SOFT-GPU) THE MENU'S ROWS REACH THE RING. GFX.onWorld (app.js worldBuilt) ran before this block made
           // the ring, and nothing applies the menu again: the cover row never reached it - potato's 'off' drew the full
           // ring (reach 220, density 2: ~30 M triangles a frame, 3-9 MINUTES a frame on SwiftShader). The same is true on
@@ -7988,6 +8020,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     lodUpdate(cg);
     if (FRw) FRw.push(FRw.S.cover);
     if (coverRing) coverRing.update();
+    if (rockRing) rockRing.update();
     if (grassField) grassField.update();
     if (FRw) FRw.pop();
     if (standCards) standCards.update((isFinite(uCam.value.x) && (uCam.value.x || uCam.value.y || uCam.value.z)) ? [uCam.value.x, uCam.value.y, uCam.value.z] : cg);   // G2930: the eye (the fill's ring is the eye's too)

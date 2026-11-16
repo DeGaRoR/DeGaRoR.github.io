@@ -1111,7 +1111,7 @@
   // and recolour (the materials' editor). Kept as the other ground rows are: the splat's own store (flydiy.ground.splat.v1),
   // the export's `splat` block and its changes against the recipe; 'reset the rock' puts the recipe's numbers back.
   const ROCK_KEYS = ['rocks', 'rockHLo', 'rockHHi', 'rockBias', 'rockOff', 'rockK', 'rockJoint', 'rockJointSoil', 'rockJointDirt', 'rockHollow',
-    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar', 'rockSlabTone', 'rockSlabTilt'];
+    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar', 'rockSlabTone', 'rockSlabTilt', 'rockRing', 'rockRingReach', 'rockLift', 'rockAmp', 'rockProud', 'rockBoulders', 'rockScatter'];
   function buildRock(body) {
     const sp = SP();
     if (!sp || sp.knobs().rocks === undefined) { note(body, 'the island’s own rock is not in this build'); return; }
@@ -1157,6 +1157,18 @@
     range(Mi, 'far fade from', 0, 3000, 25, kn('rockFarFrom'), ss('rockFarFrom'), v => v + ' m', RK.rockFarFrom);
     range(Mi, 'far fade full by', 50, 6000, 25, kn('rockFarTo'), ss('rockFarTo'), v => v + ' m', RK.rockFarTo);
     note(Mi, 'micro: the cliff photograph’s grain over the tiles (one read, the dominant plane) near the eye. Far fade: the tiles give way to their mean colour, so their large patterns never repeat across a far ridge.');
+    // the outcrops as geometry round the eye and the boulders seated on them (rock_ring.js) - splat knobs, the ring reads them
+    const Rg2 = sec(body, 'outcrops and boulders', true, 'the rock as geometry round the eye');
+    toggle(Rg2, 'outcrops', () => sp.knobs().rockRing, v => { sp.set({ rockRing: v ? 1 : 0 }); changed(); });
+    range(Rg2, 'reach', 100, 1200, 10, kn('rockRingReach'), ss('rockRingReach'), v => v + ' m', RK.rockRingReach);
+    range(Rg2, 'outcrop lift', 0, 3, 0.05, kn('rockLift'), ss('rockLift'), v => v.toFixed(2) + ' m', RK.rockLift);
+    range(Rg2, 'masses', 0, 4, 0.05, kn('rockAmp'), ss('rockAmp'), v => v.toFixed(2) + ' m', RK.rockAmp);
+    range(Rg2, 'stand-off', 0, 1, 0.01, kn('rockProud'), ss('rockProud'), v => v.toFixed(2) + ' m', RK.rockProud);
+    toggle(Rg2, 'boulders', () => sp.knobs().rockBoulders, v => { sp.set({ rockBoulders: v ? 1 : 0 }); changed(); });
+    range(Rg2, 'boulder density', 0, 4, 0.05, kn('rockScatter'), ss('rockScatter'), v => 'x' + v.toFixed(2), RK.rockScatter);
+    liveNote(Rg2, () => { const R = W.ROCK_RING_LIVE; if (!R) return 'no ring in this world'; const t = R.stat();
+      return t.chunks + ' chunks, ' + (t.tris / 1e6).toFixed(2) + ' M tris (boulders ' + (t.boulderTris / 1e6).toFixed(2) + ' M), worker ' + t.workerMs + ' ms, main ' + t.mainMs + ' ms'; });
+    note(Rg2, 'the outcrops rise out of the 5 m ground by the macro\u2019s relief and the Blender masses, within reach of the eye; the boulders sit on them (v1\u2019s placement). Every change rebuilds the ring in its worker.');
     const acts = $('div', 'wr-acts'); E.appendChild(acts);
     button(acts, 'reset the rock', () => { const o = {}; for (const k of ROCK_KEYS) if (RK[k] !== undefined) o[k] = RK[k]; sp.set(o); sp.rocks(!!o.rocks); changed(); open('cliffs', true); });
     for (const k of ['trondSlab', 'trondFace']) if (sp.layers().includes(k) || sp.library().some(x => x.key === k)) {

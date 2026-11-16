@@ -105,6 +105,13 @@ for (let z = PJ.cz - 450; z <= PJ.cz + 450; z += 15) for (let x = PJ.cx - 450; x
   if (!best || s > best[2]) best = [x, z, s]; }
 const fg = grad(best[0], best[1], 15), fl = Math.hypot(fg[0], fg[1]), dnX = -fg[0] / fl, dnZ = -fg[1] / fl;
 const at = (x, z, dy) => [x, hXZ(x, z) + dy, z];
+// the bench v1's slope eye: a rocky slope (the raster's rock > 0.6, 26-38 deg) nearest the face
+const cL = PJ.layout.find(l => l.name === 'codes'), CODES = new Uint8Array(PB, cL.off, cL.len);
+const codeAt = (x, z) => { const i = Math.min(N - 1, Math.max(0, Math.round((x - PJ.x0) / ST))), j = Math.min(N - 1, Math.max(0, Math.round((z - PJ.z0) / ST))); return CODES[(j * N + i) * 4] / 255; };
+let sl2 = null;
+for (let z = PJ.cz - 400; z <= PJ.cz + 400; z += 10) for (let x = PJ.cx - 400; x <= PJ.cx + 400; x += 10) {
+  const sv = slope(x, z); if (codeAt(x, z) < 0.6 || sv < 26 || sv > 38) continue;
+  const dd = Math.hypot(x - best[0], z - best[1]); if (!sl2 || dd < sl2[2]) sl2 = [x, z, dd]; }
 const VIEWS = {
   face: () => { const [tx, tz] = best, ty = hXZ(tx, tz), ex = tx + dnX * 230 + dnZ * 60, ez = tz + dnZ * 230 - dnX * 60; return [[ex, Math.max(hXZ(ex, ez) + 30, ty + 55), ez], [tx, ty + 5, tz]]; },
   near: () => { const [tx, tz] = best, ty = hXZ(tx, tz), ex = tx + dnX * 105 + dnZ * 35, ez = tz + dnZ * 105 - dnX * 35; return [[ex, Math.max(hXZ(ex, ez) + 12, ty + 10), ez], [tx, ty + 10, tz]]; },
@@ -113,6 +120,10 @@ const VIEWS = {
   far: () => { const tx = PJ.cx, tz = PJ.cz; let top = [tx, tz, -1]; for (let z = tz - 300; z <= tz + 300; z += 10) for (let x = tx - 300; x <= tx + 300; x += 10) { const h = hXZ(x, z); if (h > top[2]) top = [x, z, h]; }
     return [[top[0] - 850, top[2] + 300, top[1] + 850], [top[0], top[2] - 60, top[1]]]; },
   top: () => { const [tx, tz] = best, ty = hXZ(tx, tz); return [[tx + 0.1, ty + 700, tz + 0.1], [tx, ty, tz]]; },
+  slope: () => { const [tx, tz] = sl2, ty = hXZ(tx, tz), g = grad(tx, tz, 10), l = Math.hypot(g[0], g[1]), ex = tx - g[0] / l * 70, ez = tz - g[1] / l * 70;
+    return [[ex, Math.max(hXZ(ex, ez) + 14, ty + 18), ez], [tx, ty, tz]]; },
+  ground: () => { const [tx, tz] = sl2, ty = hXZ(tx, tz), g = grad(tx, tz, 10), l = Math.hypot(g[0], g[1]), ex = tx - g[0] / l * 30, ez = tz - g[1] / l * 30;
+    return [[ex, hXZ(ex, ez) + 2.2, ez], [tx, ty + 6, tz]]; },
 };
 const sAz = Math.atan2(dnZ, dnX) + 1.1, sEl = 32 * Math.PI / 180, SUN = new THREE.Vector3(Math.cos(sAz) * Math.cos(sEl), Math.sin(sEl), Math.sin(sAz) * Math.cos(sEl));
 const view = name => { const [e, t] = (VIEWS[name] || VIEWS.face)();

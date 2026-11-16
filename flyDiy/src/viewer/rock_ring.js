@@ -33,7 +33,7 @@ var ROCK_RING = (() => {
   // fall line about its own vertex, the face plain on the side planes, blended by slope 42-58 deg; the 'cliff' photograph's
   // micro detail (biplanar, out by 180 m); the macro colour, the green and the crevices from the vertex attributes
   function material(THREE, U, L) {
-    const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });   // (the cover lies 0.3 m proud of the ground: it wins the depth test)
+    const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });   // (the cover lies 0.15 m proud of the ground: it wins the depth test)
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { uSplat: U.uSplat, uSplatN: U.uSplatN, uSGrade: U.uSGrade, uSLum: U.uSLum, uSFilt: U.uSFilt,
         uRL: L.uRL, uRK: L.uRK, uRFade: L.uRFade });
@@ -162,8 +162,7 @@ Smp rRock(vec3 P, vec3 nG){
       return (at(i, j) * (1 - u) + at(i + 1, j) * u) * (1 - v) + (at(i, j + 1) * (1 - u) + at(i + 1, j + 1) * u) * v; };
     const ndvi = (x, z) => { if (!IG || !I.ndvi) return 0.5; const i = Math.max(0, Math.min(IG.w - 1, Math.floor((x - IG.x0) / IG.cell))), j = Math.max(0, Math.min(IG.h - 1, Math.floor((z - IG.z0) / IG.cell)));
       return I.ndvi[j * IG.w + i] / 255 * 2 - 1; };
-    const F = ctx.flow;
-    const flow = (x, z) => { if (!F) return 0.3; const fx = (x - F.x0) / F.dx - 0.5, fz = (z - F.z0) / F.dx - 0.5, i = Math.max(0, Math.min(F.N - 2, Math.floor(fx))), j = Math.max(0, Math.min(F.N - 2, Math.floor(fz))), u = Math.min(1, Math.max(0, fx - i)), v = Math.min(1, Math.max(0, fz - j)), k = j * F.N + i;
+    const flow = (x, z) => { const F = typeof ctx.flow === 'function' ? ctx.flow() : ctx.flow; if (!F) return 0.3; const fx = (x - F.x0) / F.dx - 0.5, fz = (z - F.z0) / F.dx - 0.5, i = Math.max(0, Math.min(F.N - 2, Math.floor(fx))), j = Math.max(0, Math.min(F.N - 2, Math.floor(fz))), u = Math.min(1, Math.max(0, fx - i)), v = Math.min(1, Math.max(0, fz - j)), k = j * F.N + i;
       return ((F.g[k] * (1 - u) + F.g[k + 1] * u) * (1 - v) + (F.g[k + F.N] * (1 - u) + F.g[k + F.N + 1] * u) * v) / 255; };
     // the LOD band of a chunk at d m: [rung of its boulders, small blocks on] - a chunk rebuilds when the eye moves it across one
     const band = d => d < 200 ? 0 : (d < 250 ? 1 : 2);
@@ -200,7 +199,13 @@ Smp rRock(vec3 P, vec3 nG){
     if (worker && ctx.kit) worker.postMessage({ kit: ctx.kit });
     if (worker) worker.onmessage = e => { const key = inflight.get(e.data.id); inflight.delete(e.data.id); if (key && chunks.has(key)) place(key, e.data.r); };
     const drop = key => { const c = chunks.get(key); if (c && c.mesh) { group.remove(c.mesh); c.mesh.geometry.dispose(); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; ST.boulderTris -= c.boulders || 0; } chunks.delete(key); };
+    // the splat's rock* knobs that are the ring's (the world rail's rows, persisted and exported with the splat's): read each frame,
+    // a change of a geometry knob rebuilds the chunks
+    const KMAP = { rockRing: 'on', rockRingReach: 'reach', rockLift: 'lift', rockAmp: 'amp', rockProud: 'proud', rockBoulders: 'boulders', rockScatter: 'scatter' };
     const sync = () => {   // the layers and knobs from the splat (its arrays may grow)
+      { const K0 = SP.api.knobsLive ? SP.api.knobsLive() : SP.api.knobs(), o = {};
+        for (const k in KMAP) { if (K0[k] === undefined) continue; let v = +K0[k]; if (k === 'rockRingReach' && S.reachCap) v = Math.min(v, S.reachCap); if (v !== S[KMAP[k]]) o[KMAP[k]] = v; }   // (a tier's cap holds the reach)
+        if (Object.keys(o).length) ring.set(o); }
       const li = LIB(), ix = k => li.indexOf(k);
       L.uRL.value.set(ix('trondSlab'), ix('trondFace'), ix('cliff'), ix('grassRock'));
       const K = SP.api.knobsLive ? SP.api.knobsLive() : SP.api.knobs();
@@ -226,7 +231,7 @@ Smp rRock(vec3 P, vec3 nG){
       },
       get: () => Object.assign({}, S),
       set(o) { const rebuild = ['chunk', 'step', 'lift', 'amp', 'unit', 'sink', 'proud', 'scatter', 'boulders', 'ndvi', 'ndviMid', 'off', 'hLo', 'hHi', 'jointDirt', 'wet', 'M', 'hs'].some(k => k in o && o[k] !== S[k]);
-        Object.assign(S, o); if (rebuild) { for (const k of [...chunks.keys()]) drop(k); queue.length = 0; cx0 = cz0 = NaN; } return ring.get(); },
+        Object.assign(S, o); if (rebuild) { for (const k of [...chunks.keys()]) drop(k); queue.length = 0; } if (rebuild || 'reach' in o) cx0 = cz0 = NaN; return ring.get(); },
       stat: () => ({ chunks: [...chunks.values()].filter(c => c.mesh).length, queued: queue.length, inflight: inflight.size, verts: ST.verts, tris: ST.tris,
         built: ST.built, boulderTris: ST.boulderTris || 0, workerMs: Math.round(ST.workerMs), workerLastMs: ST.workerLast, mainMs: Math.round(ST.mainMs), worker: !!worker }),
       whenIdle: () => new Promise(res => { const tick = () => { ring.update(); if (!queue.length && !inflight.size) res(ring.stat()); else setTimeout(tick, 30); }; tick(); }),

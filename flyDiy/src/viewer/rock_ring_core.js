@@ -249,7 +249,7 @@ function ROCK_RING_CORE_FACTORY() {
     const i0 = Math.round(M / st), i1 = i0 + Math.round(C / st), m1 = i1 - i0 + 1, E = 2, me = m1 + 2 * E, ke = (a, b) => (b + i0 - E) * n + (a + i0 - E);
     const zc = new Float32Array(me * me), cvD = new Float32Array(me * me), eXe = new Float32Array(me * me), cre = new Float32Array(me * me), ide = new Float32Array(me * me), dd = new Float32Array(me * me);
     for (let b = 0; b < me; b++) for (let a = 0; a < me; a++) { const k = ke(a, b), q = b * me + a, x = X(a + i0 - E), z = Z(b + i0 - E);
-      eXe[q] = ss(0.25, 0.75, exs[k]); cvD[q] = ss(0.0, 0.25, ss(0.25, 0.75, exD[k]));
+      eXe[q] = ss(0.25, 0.75, exs[k]); cvD[q] = ss(0.0, 1.0, ss(0.15, 0.75, exD[k]));   // (the cover's edge ramps over its whole dilation band: a sharp ramp stood as a thin sheet at eye level)
       if (eXe[q] > 0) { medium(x, Y[k], z, K.unit || 12, med); const z0m = (med[0] - mu) / sd; zc[q] = z0m > 0 ? z0m / (1 + 0.55 * z0m) : z0m / (1 - 0.25 * z0m); cre[q] = med[1]; ide[q] = med[2]; }
       else { zc[q] = 0; cre[q] = 0; ide[q] = 0.5; } }
     for (let pass = 0; pass < 2; pass++) { const o = zc.slice();
@@ -261,7 +261,7 @@ function ROCK_RING_CORE_FACTORY() {
     for (let b = 0; b < me; b++) for (let a = 0; a < me; a++) { const k = ke(a, b), q = b * me + a, eX = eXe[q];
       const tg = Math.tan(slope[k] / 57.2958), gx = -dn[k * 2] * tg, gz = -dn[k * 2 + 1] * tg, l = Math.hypot(gx, 1, gz);
       nrmD[q * 3] = -gx / l; nrmD[q * 3 + 1] = 1 / l; nrmD[q * 3 + 2] = -gz / l;
-      dd[q] = mac[k * 7] * Math.min(1, eX * 3) + eX * (lift + amp * 0.6 * zc[q]) + (K.proud === undefined ? 0.3 : K.proud) * cvD[q] - sink * (1 - cvD[q]); }   // (under the cover: 0.3 m proud - the ground's 5 m TRIANGLES stand up to that over the bilinear DEM the ring follows; outside it, sunk)
+      dd[q] = mac[k * 7] * Math.min(1, eX * 3) + eX * (lift + amp * 0.6 * zc[q]) + (K.proud === undefined ? 0.15 : K.proud) * cvD[q] - sink * (1 - cvD[q]); }   // (under the cover: 0.3 m proud - the ground's 5 m TRIANGLES stand up to that over the bilinear DEM the ring follows; outside it, sunk)
     const PX = (a, b, c) => { const q = b * me + a, k = ke(a, b); return c === 0 ? X(a + i0 - E) + nrmD[q * 3] * dd[q] : c === 1 ? Y[k] + nrmD[q * 3 + 1] * dd[q] : Z(b + i0 - E) + nrmD[q * 3 + 2] * dd[q]; };
     // the chunk's own vertices: those of cells where the smoothed exposure shows rock
     const vid = new Int32Array(m1 * m1).fill(-1), cellOn = new Uint8Array((m1 - 1) * (m1 - 1));
