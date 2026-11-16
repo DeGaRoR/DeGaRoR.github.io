@@ -19,7 +19,9 @@
   "factsheet": "Pilatus factsheet 'PC-6 The world's leading STOL' (performance stated for the PC-6/B2-H4, ISA)",
   "tar": "CAA New Zealand Type Acceptance Report TAR 1/21B/14 Rev 1, 8 Sep 2023 (https://www.aviation.govt.nz/assets/aircraft/type-acceptance-reports/Pilatus_PC-6.pdf)",
   "sheet": "the user's upload (12 Nov 2026): a three-view of a PC-6 B2/H4 on amphibious floats (N908PL), 500 x 729 px",
-  "wipaire-6100": "Wipline 6100 float figures as given by the user (12 Nov 2026), from Wipaire's product page"
+  "wipaire-6100": "Wipline 6100 float figures as given by the user (12 Nov 2026), from Wipaire's product page",
+  "user-aopa": "the user (13 Nov 2026), quoting the published specification note for the PC-6 on Wipline amphibians (AOPA Pilot, July 2019, \"A flying Swiss Army knife\": the Brazilian air ambulance)",
+  "wipaire-sman": "Wipaire Service Manual & ICA P/N 1002553 Rev R, \"6000 & 6100 floats on DeHavilland DHC-2 and Pilatus PC-6/B2-H4\" (displacement 5664 / 5518 lb each; tyres; W&B datum 200 in ahead of the wing quarter chord for the PC-6)"
  },
  "figures": {
   "geometry.span": {
@@ -120,6 +122,16 @@
    "v": 2854,
    "unit": "kg",
    "src": "wipaire-6100"
+  },
+  "floats.addedMass.amphibian": {
+   "v": 407.3,
+   "unit": "kg",
+   "src": "user-aopa",
+   "note": "\"Specifications are for a PC-6 on wheels. Amphibious floats add 898 pounds.\" (the user, 13 Nov; Wipaire's Beaver page gives the 6100 amphibian exchange weight as 885 lb, the same order)"
+  },
+  "floats.tyres": {
+   "v": "mains dual 6.00x6 6-ply type III, nose 5.00x5 6-ply, 40 psi; quadricycle, castering nose wheels, differential braking, 4 brakes",
+   "src": "wipaire-sman"
   }
  },
  "image": {
@@ -147,6 +159,22 @@
    "scaleBy": "geometry.length (1368 px (the x3 sheet) = 10.90 m: the spinner tip to the elevator trailing edge)",
    "check": "float deck-to-keel 32 px = 0.77 m vs the 6100 row 0.78; the drawn hull 288 px = 6.9 m vs Wipaire 7.49 (-8 %): the sheet places the floats, Wipaire sizes them; the propeller is drawn short",
    "note": "origin = the spinner tip; the plan views are drawn at 45 deg (not read); the sheet is registered at 3.0 deg (clockwise, about the spinner tip): the drawing shows the airframe 3.0 deg nose-up on its floats (the user, 13 Nov: \"tilted ... 2 degrees ... anchored from your nose point\", then +0.5), then +0.5 again: 3.0 deg, the floats-to-fuselage angle too"
+  },
+  "top": {
+   "box": [
+    660,
+    645,
+    1500,
+    1500
+   ],
+   "ox": 1288,
+   "oy": 842,
+   "k": 67.2,
+   "rot": 135,
+   "flip": false,
+   "scaleBy": "geometry.span (356 px = 15.87 m on the 500 px sheet: the plan views are drawn at ~0.54 the side view scale)",
+   "note": "the right-hand plan (top) view, drawn at 45 deg: nose to the upper right",
+   "check": "at fltTrack 1.40 both drawn floats sit under ours (centrelines 2.8 m apart)"
   }
  },
  "marks": {
@@ -212,6 +240,72 @@
      597
     ]
    ]
+  },
+  "float.frontStrut": {
+   "view": "side",
+   "pts": [
+    [
+     497.7,
+     381.2
+    ],
+    [
+     486.4,
+     506.2
+    ]
+   ],
+   "by": "the user, 13 Nov"
+  },
+  "float.vApex": {
+   "view": "side",
+   "pts": [
+    [
+     690.9,
+     517.5
+    ]
+   ],
+   "by": "the user, 13 Nov"
+  },
+  "float.vRoots": {
+   "view": "side",
+   "pts": [
+    [
+     593.5,
+     389.3
+    ],
+    [
+     837.0,
+     403.2
+    ]
+   ],
+   "by": "the user, 13 Nov"
+  },
+  "float.railUpper": {
+   "view": "side",
+   "pts": [
+    [
+     440.9,
+     425.0
+    ],
+    [
+     840.3,
+     436.4
+    ]
+   ],
+   "by": "the user, 13 Nov"
+  },
+  "float.railLower": {
+   "view": "side",
+   "pts": [
+    [
+     463.6,
+     475.3
+    ],
+    [
+     781.8,
+     481.2
+    ]
+   ],
+   "by": "the user, 13 Nov"
   }
  },
  "architecture": {
@@ -227,10 +321,5 @@
    "what": "birth: the land PC-6 reference + the Wipline 6100 figures (user) + the float sheet (user upload)"
   }
  ],
- "gaps": [
-  {
-   "d": "2026-11-13",
-   "what": "the float rigging's front strut station: the sheet draws the front strut ~0.9 m ahead of the deck fitting the garage hangs it on (Wipline 2350 parts-manual stations); no row moves it"
-  }
- ]
+ "gaps": []
 }
