@@ -1,5 +1,29 @@
 # ROCK-STUDY: the island's rock, delivered whole (material + relief ring + boulders)
 
+## Update 16 Nov, evening: the faithful v1 port (the user: "go for faithful V1 implementation")
+
+- **The relief wears the ground's own material**, as v1's skirt did.
+  - Every terrain type's PBR sets, hex-tiled and height-blended against the rock: no more flat green "mask" on the outcrops.
+  - The macro computed in the worker reaches the splat through vertex attributes: the colour multiplier, the green's chance,
+    the exposure, the height and the masses' crevices.
+  - The same program as the near ring, so no new link.
+- **The boulders are CLOSED rocks**: the study's procedural kit, boulder and block archetypes, three rungs of one shape. They
+  wear v1's rock material: the cliff photo triplanar through its own grade, the trondhjemite's mean, creases, moss, the foot.
+- **v1's far layer**: big blocks out to 2 km (a 6 m grid at 9 x the odds), v1's LOD ladder.
+- **The micro detail** is v1's: the cliff photo, hex-tiled and triplanar.
+- **The green** in the rock and on the boulders is the game's own grass, graded as the game grades it. The user: "use the same
+  textures as the game already uses".
+- **Every look value is back to v1's.** The v2-v4 notes were the coordinator's, not the user's. The tiles are raw, a touch
+  greyer (sat 0.8; the user: "greyer, but not as much, and not as dim"). Also back to v1: slab 16 m and face tile 24 m, v1's
+  four joint sets, wet, dirt, micro and green values.
+- **The pictures below are this state.** The grass is the game's own green (v1's bench used an olive stand-in).
+
+### Still open
+
+- The ground eye at 2.2 m: the near slab is softer than v1's 1024² tile (the game's layers are 512²).
+- The slope's boulders read smaller and paler than v1's.
+
+
 Branch `claude/rock-study-r1` on master fb8fb633b (L40d); the rebase on L40e follows when it lands. **On by default.**
 `?rocks=0` is the cost A/B. It turns off the material and the ring, links master's ground program, and skips the bias.
 
