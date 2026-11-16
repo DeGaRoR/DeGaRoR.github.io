@@ -5081,6 +5081,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         return BIO.subKeep(h, h - m);
       };
     }
+    // FOREST-EDGE (the user 16 Nov; 28c_biomes KNOBS edge*): the signed distance to the forest's edge over the trees' own ground
+    // (FOREST_FLOOR, no strip) - a tree inside it stands at the interior's canopy x the size ramp (walkRows). ?forestedge=0 = before
+    const edgeD = (BIO && BIO.edgeField && islRule && ISLC) ? BIO.edgeField((x, z) => world.treeGround(x, z) === world.SURFACE.FOREST_FLOOR && !world.treeAeroBlocked(x, z)) : null;
+    if (edgeD) { try { if (/[?&]forestedge=0/.test(location.search)) BIO.edgeOn = false; } catch (e) {} }
     const biomeAt = (x, z, r) => BIO.mixHere(codeAt(x, z, r), x, z);
     // 18 LAKESHORE's MASK (G3430, BIOMES.SHORE): the land within shoreReach m of a drawn lake's line - drawnLakeSD, the
     // splat's own lsd field (+ inside, m) - its edge broken by shoreJit x the reach on a 17 m noise, under the bank's slope
@@ -5639,15 +5643,19 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
           const pm = ISLC ? polyMix(x, z, BIO) : undefined;   // G2935: a polygon's own mix (undefined: no polygon speaks)
-          if (!forestHere(x, z) && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
+          const fh = forestHere(x, z);
+          if (!fh && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
           if (premTreeEx(x, z)) continue;   // the world editor's "no trees" (G527)
           if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
           // above `full`, a ramp between - and rides with the record to size it.
-          let can = 0, mixHere = null, floored = false;
+          let can = 0, mixHere = null, floored = false, lift = 0;
           if (ISLC) {
             can = ISLC.canopyAt(x, z);
+            // FOREST-EDGE: inside the edge the interior's canopy x the ramp (young, medium, full), the NDVI's thinning lifted
+            if (edgeD && BIO.edgeOn && fh && pm === undefined) { const d = edgeD(x, z);
+              if (d < BIO.knobs().edgeOut) { lift = BIO.edgeLift(d); can = Math.max(can, BIO.edgeCanIn(ISLC.canopyAt, x, z) * BIO.edgeRamp(d)); } }
             // THE RULE (G406, the user: "with the crazy amount of layers we have, we
             // should be able to be quite clever"): the TERRAIN TYPE says what kind of
             // stand can be here (forest full, scrub half, muskeg a stunted few, heath
@@ -5682,7 +5690,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               if (kind <= 0.0) continue; }
             // a floored mix is at its count: the map's ramp and vigour said "nothing here" and the mix overrules them
             let p = floored ? 1 : (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
-            if (ISLC.ndvi && !floored) { const nd = ISLC.ndvi[ISLC.cellAt(x, z)] / 127 - 1; p *= Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); }
+            if (ISLC.ndvi && !floored) { const nd = ISLC.ndvi[ISLC.cellAt(x, z)] / 127 - 1, f = Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); p *= f + (1 - f) * lift; }
             { const d = 8, gx2 = ISLC.terrainH ? 0 : 0; const s2 = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
               if (s2 > 0.7) p *= 0.33; }
             p *= kind;
@@ -5697,7 +5705,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); const E = P.length ? P[poolPick(P, hsh(ix + 11, iz + 17), x, z, h)] : null; gi = E ? E.gi : -1; if (gi < 0) continue; md = E.dead; }
           else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
           recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can, md);   // FILL_REC floats a tree
-          if (PROBE) PROBE.push(x, z, forestHere(x, z) ? 1 : 0);
+          if (PROBE) PROBE.push(x, z, fh ? 1 : 0);
         }
       }
       // one chunk, whole, in this frame - the teleport's path and the gate's
@@ -6019,7 +6027,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
             return SPA.meanAt(x, z, code, Math.atan(sl) * 180 / Math.PI); };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
+            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, edgeD, owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
@@ -6029,12 +6037,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;
             const c = world.coverAt ? world.coverAt(x, z) : null; return !(c && c.kill >= 1); };
           grassField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'grass',
-            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt });
+            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt, edgeD });   // edgeD: FOREST-EDGE's distance, for the field's weeds band (LOOK-1)
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
+                                                    ttypeAt, codeAt, forestHere, openHere, edgeD, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot

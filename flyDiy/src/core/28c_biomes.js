@@ -46,7 +46,19 @@ const BIOMES = (() => {
     // tree fill gated heath by the canopy map, which reads under 0.5 m on subalpine ground (it cannot see a tree under ~2 m):
     // Skyline and Mount Ardent went bare from ~550 m (tools/veg_bench.js). The ramp 450 -> 600 m (+-40 m by a 140 m noise),
     // thinning to 15 % between 800 and 1 000 m (the real high summits: Ardent's cap; Skyline tops out at ~710 m and keeps its trees round the altiport) and to 35 % where a point stands 8 m over its surroundings (four taps at 110 m)
-    subH0: 450, subH1: 600, subJit: 40, subTop0: 800, subTop1: 1000, subTopKeep: 0.15, subRidgeDh: 8, subRidgeKeep: 0.35 };   // shoreSlope: the bank's bankLo unless set
+    subH0: 450, subH1: 600, subJit: 40, subTop0: 800, subTop1: 1000, subTopKeep: 0.15, subRidgeDh: 8, subRidgeKeep: 0.35,
+    // FOREST-EDGE (the user 16 Nov: "the sides of the forested areas often show the forest ground with no trees in them anymore
+    // ... What would be much better is to have a ramp of tree sizes on the surroundings, then bushes"; their spec of 25 Oct:
+    // young 0-6 m inside, medium 6-20 m, full beyond, never under x0.7). The canopy map ramps over ~50 m at an edge (its deep
+    // value only 40-60 m in, tools/veg_bench.js --edge), and the fill read it as is: the first 10 m stood at 50-57 % of the
+    // points and half the interior's height. Inside the edge the tree takes the interior's canopy (the tallest of 16 taps at
+    // 30 and 45 m) x the ramp - edgeMin at the edge, edgeMid at edgeYoung, 1 at edgeFull, edgeOutK at edgeOut, where the map's
+    // own takes over - and the NDVI's thinning is lifted to edgeFull, handed back by edgeOut. The field: edgeCell m cells,
+    // edgeTile m tiles with an edgeMargin m margin
+    edgeYoung: 6, edgeFull: 20, edgeMin: 0.72, edgeMid: 0.85, edgeOut: 60, edgeOutK: 0.75, edgeCell: 6, edgeTile: 192, edgeMargin: 36,
+    // outside it (the cover ring's EDGE BAND): bushes from edgeShrubIn m inside to edgeShrubOut m out at edgeShrubDens a m2, the
+    // weeds (fireweed, foam flower) from there to edgeWeedOut m out at edgeWeedDens a m2; the grass field's weeds are LOOK-1's
+    edgeShrubIn: 1, edgeShrubOut: 3, edgeWeedOut: 6, edgeShrubDens: 0.2, edgeWeedDens: 0.25 };   // shoreSlope: the bank's bankLo unless set
   // 18 LAKESHORE (G3430, the user 25 Oct: "a proper biome with its mask, and we can paint it and everything, like the
   // other"): a VEGETATION code - the band along the drawn lakes is its mask, a premises polygon paints it (or erases it)
   // like any biome; the ground under it stays its own code's (no splat row: NCODE 17)
@@ -92,6 +104,41 @@ const BIOMES = (() => {
       const K = B.knobs();
       return (1 - (1 - K.subTopKeep) * smooth(K.subTop0, K.subTop1, h)) * (ridgeDh > K.subRidgeDh ? K.subRidgeKeep : 1);
     };
+    // FOREST-EDGE (KNOBS edge*): the signed distance to the forest's edge (+ in, - out, m) over `isForest(x, z)` - a chamfer
+    // field per tile, cached, read bilinear; the renderer's tree fill and tools/veg_bench.js build it on the same test
+    B.edgeOn = true;
+    B.edgeField = isForest => {
+      const K = B.knobs(), c = K.edgeCell, T = K.edgeTile, M = Math.ceil(K.edgeMargin / c), n = Math.round(T / c) + 2 * M, cache = new Map();
+      const build = (ti, tj) => {
+        const ox = ti * T - M * c, oz = tj * T - M * c, F = new Uint8Array(n * n), Din = new Float32Array(n * n), Dout = new Float32Array(n * n), BIG = 1e6, a = c, b = c * Math.SQRT2;
+        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; F[k] = isForest(ox + (i + 0.5) * c, oz + (j + 0.5) * c) ? 1 : 0; Din[k] = F[k] ? BIG : 0; Dout[k] = F[k] ? 0 : BIG; }
+        for (const D of [Din, Dout]) {
+          for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; if (!D[k]) continue; let v = D[k];
+            if (i > 0) v = Math.min(v, D[k - 1] + a); if (j > 0) { v = Math.min(v, D[k - n] + a); if (i > 0) v = Math.min(v, D[k - n - 1] + b); if (i < n - 1) v = Math.min(v, D[k - n + 1] + b); } D[k] = v; }
+          for (let j = n - 1; j >= 0; j--) for (let i = n - 1; i >= 0; i--) { const k = j * n + i; if (!D[k]) continue; let v = D[k];
+            if (i < n - 1) v = Math.min(v, D[k + 1] + a); if (j < n - 1) { v = Math.min(v, D[k + n] + a); if (i < n - 1) v = Math.min(v, D[k + n + 1] + b); if (i > 0) v = Math.min(v, D[k + n - 1] + b); } D[k] = v; } }
+        const S = new Float32Array(n * n); for (let k = 0; k < S.length; k++) S[k] = F[k] ? Din[k] - c / 2 : -(Dout[k] - c / 2);
+        return { ox, oz, S };
+      };
+      const at = (x, z) => {
+        const ti = Math.floor(x / T), tj = Math.floor(z / T), key = ti * 100003 + tj;
+        let t = cache.get(key); if (!t) { if (cache.size > 512) cache.clear(); t = build(ti, tj); cache.set(key, t); }
+        const u = (x - t.ox) / c - 0.5, v = (z - t.oz) / c - 0.5, i = Math.max(0, Math.min(n - 2, Math.floor(u))), j = Math.max(0, Math.min(n - 2, Math.floor(v)));
+        const fu = u - i, fv = v - j, k = j * n + i, S = t.S;
+        return (S[k] * (1 - fu) + S[k + 1] * fu) * (1 - fv) + (S[k + n] * (1 - fu) + S[k + n + 1] * fu) * fv;
+      };
+      at.clear = () => cache.clear();
+      return at;
+    };
+    // the canopy a tree d m inside the edge stands at (null: the map's own): `canIn` the interior's, read by the caller
+    B.edgeRamp = d => { const K = B.knobs();
+      return d < K.edgeYoung ? K.edgeMin + (K.edgeMid - K.edgeMin) * Math.max(0, d) / K.edgeYoung
+        : d < K.edgeFull ? K.edgeMid + (1 - K.edgeMid) * (d - K.edgeYoung) / (K.edgeFull - K.edgeYoung)
+        : 1 - (1 - K.edgeOutK) * Math.min(1, (d - K.edgeFull) / (K.edgeOut - K.edgeFull)); };
+    // the share of the NDVI's thinning lifted at d (1 to edgeFull, 0 at edgeOut)
+    B.edgeLift = d => { const K = B.knobs(); return d >= K.edgeOut ? 0 : d < K.edgeFull ? 1 : 1 - (d - K.edgeFull) / (K.edgeOut - K.edgeFull); };
+    // the interior's canopy round a point: the tallest of 16 taps, 8 directions at 30 and 45 m
+    B.edgeCanIn = (canopyAt, x, z) => { let m = 0; for (const L of [30, 45]) for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; m = Math.max(m, canopyAt(x + Math.cos(a) * L, z + Math.sin(a) * L)); } return m; };
     B.shoreHere = (x, z) => { if (!B.shore || !B.mixAt(SHORE)) return false; if (B.over && B.over(x, z) !== undefined) return false; return !!B.shore(x, z); };
     B.mixAt = code => { const m = B.map[code]; return (m && B.mixes[m]) ? m : null; };
     B.mixOf = name => B.mixes[name] || null;
