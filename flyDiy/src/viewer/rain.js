@@ -87,19 +87,23 @@ var RAIN_FX = (function () {
     '    if (abs(q.x) < R.x && abs(q.y) < R.y && w.y < R.z) return; }',
     // the streak: from the drop back along the relative velocity x the exposure, clamped in the world
     '  vec3 tail = -uVrel * uLen.x; float tl = length(tail); if (tl > uLen.y) tail *= uLen.y / tl;',
-    '  vec4 c0 = projectionMatrix * viewMatrix * vec4(w, 1.0), c1 = projectionMatrix * viewMatrix * vec4(w + tail, 1.0);',
-    '  if (c0.w < 0.05 || c1.w < 0.05) return;',
+    // THE QUAD IN VIEW SPACE (16 Nov eve: the NDC construction - a width from the projected direction - drew no pixel on SwiftShader
+    // though every input was right, bisected in seven soft runs; this one never divides by a projected length): the streak from
+    // the drop along the tail, the side across both the streak and the line of sight, the half-width the drop's own or minPx pixels
+    // at that depth, the on-screen cap (maxNdc) turned into metres at that depth the same way
+    '  vec4 v0 = viewMatrix * vec4(w, 1.0);',
+    '  vec3 sv = (viewMatrix * vec4(tail, 0.0)).xyz;',
+    '  float zc = -v0.z;',
+    '  if (zc < 0.05 || zc + sv.z * -1.0 < 0.05) return;',
     '  float dist = length(p);',
-    '  vec2 n0 = c0.xy / c0.w, n1 = c1.xy / c1.w, dv = n1 - n0; float sl = length(dv);',
-    '  if (sl > uLen.z) { float f = uLen.z / sl; dv *= f; c1 = vec4((n0 + dv) * c1.w, c1.zw); sl = uLen.z; }',
-    // the width: the world's width projected, at least minPx; the alpha falls by the ratio
-    '  float wpx = uLen.w / max(c0.w, 0.05) * projectionMatrix[1][1] / uPx.y;',   // the world width in pixels (height-relative)
-    '  float px = max(wpx, uPx.z), alpha = clamp(wpx / px, 0.08, 1.0);',
-    '  vec2 dir = sl > 1e-6 ? dv / sl : vec2(0.0, 1.0);',
-    '  vec2 nrm = vec2(-dir.y, dir.x) * px * vec2(uPx.x, uPx.y) * 0.5;',
-    '  vec4 c = mix(c0, c1, position.y);',
-    '  c.xy += nrm * position.x * c.w;',
-    '  gl_Position = c;',
+    '  float mpp = uPx.y * zc / projectionMatrix[1][1];',                     // metres per pixel at this depth
+    '  float slen = length(sv), maxL = uLen.z / uPx.y * mpp;',              // maxNdc in pixels, in metres here
+    '  if (slen > maxL) { sv *= maxL / slen; slen = maxL; }',
+    '  vec3 sd = slen > 1e-5 ? sv / slen : vec3(0.0, 1.0, 0.0);',
+    '  vec3 side = cross(sd, normalize(v0.xyz)); float sl2 = length(side); side = sl2 > 1e-5 ? side / sl2 : vec3(1.0, 0.0, 0.0);',
+    '  float wMin = uPx.z * mpp, hw = 0.5 * max(uLen.w, wMin), alpha = clamp(uLen.w / max(max(uLen.w, wMin), 1e-6), 0.08, 1.0);',
+    '  vec3 vp = v0.xyz + sv * position.y + side * (position.x * hw);',
+    '  gl_Position = projectionMatrix * vec4(vp, 1.0);',
     '  #include <logdepthbuf_vertex>',
     // the fades: near the eye, at the box's edge (the wrap never pops), and the box's share of the rain
     '  float edge = 1.0 - smoothstep(0.30 * L, 0.5 * L, max(abs(p.x), max(abs(p.y), abs(p.z))));',
