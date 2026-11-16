@@ -8362,7 +8362,7 @@
   // window.FLYDIY_GD: the rigs' and the gates' handle - get(), build(), roll({ scen, T }) a canned mud or dust run in the
   // page (the node mud_roll's loop on the aeroplane's own wheels), clear(), the costs.
   const GDX = { G: null, key: null, parkT: 0, mudT: 0, tMud: null, tFw: null, bMud: null, bFw: null, upT: 0, washT: 0, ver: -1,
-                lit: null, rainW: 0, ms: 0, msGrid: 0, msUp: 0, hits: 0 };
+                lit: null, rainW: 0, ms: 0, msGrid: 0, msUp: 0, hits: 0, force: null };
   const gdU = () => (window.AEROSKIN && window.AEROSKIN.aeroSharedU ? window.AEROSKIN.aeroSharedU(THREE) : null);
   function gdCell() {
     const G = window.GFX && window.GFX.get ? window.GFX.get() : null, t = (G && (G.build || G.preset)) || 'gamer';
@@ -8480,6 +8480,7 @@
       U.uGdMudC.value.set(mc[0], mc[1], mc[2], G ? 0 : mudCoat); U.uGdDustC.value.set(dc[0], dc[1], dc[2], PB.dustTop); }
     else U.uGdMudC.value.w = G ? 0 : mudCoat;
     U.uGdDim.value.w = G ? 2 : (mudCoat > 0.002 || GDX.rainW > 0.002 ? 1 : 0);
+    if (GDX.force != null) U.uGdDim.value.w = GDX.force;            // (the rigs' A/B: 0 the term off, 2 on)
     GDX.ms = performance.now() - t0;
   }
   // a canned run in the page (the rigs: the mud on THIS aeroplane without a minute of taxiing): the node mud_roll's loop on
@@ -8524,7 +8525,8 @@
   }
   if (typeof window !== 'undefined') window.FLYDIY_GD = { get: () => GDX, build: () => gdBuild(), roll: o => gdRoll(o),
     clear: () => { if (GDX.G) { GROUND_DEPOSIT.clear(GDX.G); GDX.lit = null; GDX.G.dirty[0] = 0; GDX.G.dirty[1] = 0; GDX.G.dirty[2] = 0; GDX.G.dirty[3] = GDX.G.nx - 1; GDX.G.dirty[4] = GDX.G.ny - 1; GDX.G.dirty[5] = GDX.G.nz - 1; gdUpload(); } },
-    rain: w => { GDX.rainW = Math.max(0, Math.min(1, +w || 0)); return GDX.rainW; } };
+    rain: w => { GDX.rainW = Math.max(0, Math.min(1, +w || 0)); return GDX.rainW; },
+    force: v => { GDX.force = v == null ? null : +v; return GDX.force; } };
   function syncFloats() {
     for (const m of floatMeshes) {
       const fx = m.userData.fx, F = fx.F, W = fx.out.W;
