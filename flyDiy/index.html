@@ -4843,7 +4843,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='af2bd523d94f';window.FLYDIY_BUILD_DATE='2026-11-16T02:53:54.539Z';</script>
+<script>window.FLYDIY_BUILD='44f9c3795725';window.FLYDIY_BUILD_DATE='2026-11-16T05:21:01.761Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -26643,9 +26643,12 @@ const GROUND_FIELDS = (() => {
       rocks: 1, rockHLo: 250, rockHHi: 760, rockBias: 0.30, rockOff: 0.08, rockMicro: 1, rockK: 0.5,
       // the world rail's 'rock & cliffs' rows: the joints' density / soil / dirt, the hollows' dirt, the green's amount and
       // roughness, the wet streaks, the bare stone's roughness (x the tiles'), the micro detail's strengths and fade, the far fade
-      rockJoint: 1, rockJointSoil: 0.7, rockJointDirt: 0.6, rockHollow: 0.5, rockGreen: 1, rockGreenRough: 0.97, rockWet: 0.45, rockRough: 1,
+      rockJoint: 1, rockJointSoil: 0.7, rockJointDirt: 0.6, rockHollow: 0.5, rockGreen: 1, rockGreenRough: 0.97, rockWet: 0.2, rockRough: 1,
       rockMicroK: 0.65, rockMicroN: 0.6, rockMicroFrom: 60, rockMicroTo: 180, rockFarFrom: 400, rockFarTo: 1200,
       rockNdvi: 0.45, rockNdviMid: 0.74,   // the imagery's NDVI (pack B) takes the exposure down where the map's rock is green
+      // the tiles as the rock codes' sets (slab m, steep m, the face tile on the steep split or the slab, the split's degrees), the
+      // green's saturation, the joints gone by (m)
+      rockSlabM: 16, rockFaceM: 24, rockFaceTile: 0, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 0.6, rockJointFar: 450,
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
@@ -71078,7 +71081,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='02a521df1039';window.FLYDIY_BUILD='af2bd523d94f';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=4aed8763"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='d0091ded1f2f';window.FLYDIY_BUILD='44f9c3795725';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=4aed8763"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -71125,7 +71128,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 (function () {
-  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=6e4eebf9","_navaid_gen":"tools/_navaid_gen.js?v=130193d7","_meteo_gen":"tools/_meteo_gen.js?v=dfea6b31","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=bfdaeb36","world_rail":"src/viewer/world_rail.js?v=cdca0339","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=53c25ee1","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=2e0b8354","story_intro":"src/viewer/story_intro.js?v=816a6e70","map_pack":"src/viewer/map_pack.js?v=cc07d27b","map_menu":"src/viewer/map_menu.js?v=707fca69","freight_load":"src/viewer/freight_load.js?v=38ada808","freight_strap":"src/viewer/freight_strap.js?v=409b8090","crowd":"src/viewer/crowd.js?v=ba5b4c86","livery_marks":"src/viewer/livery_marks.js?v=d66a0572"}, got = {}, busy = 0;
+  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=6e4eebf9","_navaid_gen":"tools/_navaid_gen.js?v=130193d7","_meteo_gen":"tools/_meteo_gen.js?v=dfea6b31","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=bfdaeb36","world_rail":"src/viewer/world_rail.js?v=ad661b17","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=53c25ee1","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=2e0b8354","story_intro":"src/viewer/story_intro.js?v=816a6e70","map_pack":"src/viewer/map_pack.js?v=cc07d27b","map_menu":"src/viewer/map_menu.js?v=707fca69","freight_load":"src/viewer/freight_load.js?v=38ada808","freight_strap":"src/viewer/freight_strap.js?v=409b8090","crowd":"src/viewer/crowd.js?v=ba5b4c86","livery_marks":"src/viewer/livery_marks.js?v=d66a0572"}, got = {}, busy = 0;
   window.FLYDIY_LAZY_SRC = SRC;
   var lazy = window.FLYDIY_LAZY = function (names) {
     return Promise.all([].concat(names).map(function (n) {
@@ -169541,17 +169544,18 @@ function siteEdgeFade(THREE, mat, soft, w, d) {
 //     call (144 inlined fetches were a 110-220 s COLD compile), and a loop of
 //     sets nested in the candidate loop drew the ground 1.5-2x slower (GATE SPLAT 3);
 //   - no ?: on a struct (WebGL refuses it: the ground drew flat grey).
-// THE ISLAND'S OWN ROCK (ROCK-STUDY R1, 17 Nov 2026; futureDesigns/ROCK-STUDY-2026-11.md, the hand-off ROCK-STUDY-A0-HANDOFF.md):
-// on the rock codes (6, and 12 - the cliff split is off under it) the sets give way to sTrond: the trondhjemite SLAB (the
-// library's trondSlab, 16 m, hex-tiled with each tap's frame turned to the local fall line - its joints run across the slope)
-// and FACE (trondFace, 24 m, plain on the side planes - its streaks stay vertical), blended by slope; the PBR micro detail
-// (the 'cliff' layer at its own 6.86 m, one biplanar pair: brightness and normal only, out by 180 m); the PROCEDURAL MACRO
-// (four warped joint sets - colour and green, not geometry - weathering zones, a buff film, the hollows' and the margin's
-// dirt, wet streaks down the faces); GREEN GROWTH filling the low places first; the far fade (past 400-1200 m the tiles give
-// way to their mean, the macro carries the variation). THE EXPOSURE (sTrExpo) rewrites the vote's rock share where the
-// raster has rock: rock on the high, convex, steep ground, vegetation down the drainage and in every pocket, a 2-40 m mosaic.
-// Its terrain bias (convexity up, the valleys' concavity down) rides in the TINT's alpha (render_world rockBias - no
-// sampler). No new sampler, 7 sFetch call sites (one in the candidate loop's inlined sTrond), uTrOn the dial (?rocks=0).
+// THE ISLAND'S OWN ROCK (ROCK-STUDY R1, Nov 2026; futureDesigns/ROCK-STUDY-2026-11.md, reports/evidence/ROCK-STUDY/r1): under
+// the dial (uTrOn, ?rocks=0 off) the rock codes WEAR the trondhjemite tiles as their own sets - push() points code 6 at the
+// SLAB (trondSlab, 16 m) and code 12 (the steep split, 42-58 deg under the dial) at the slab at 24 m, or the FACE tile
+// (rockFaceTile) - so the hex tiling, the triplanar, the far set, the grade and the recolour are the material chain's, with
+// no fetch site of their own. R1's own text: THE EXPOSURE (sTrExpo, in the vote, once a pixel) rewrites the vote's rock share -
+// rock on the high, convex, steep ground and where the imagery is not green (NDVI), vegetation down the drainage and in every
+// pocket, a 3-40 m mosaic; its terrain bias rides the TINT's alpha (render_world ROCK_BIAS, in a worker); and sTrPost on a
+// rock candidate's sample: the far fade to the slab's mean, the PBR micro detail (the 'cliff' layer at 6.86 m, one plain
+// read on the dominant plane), the macro colour (zones, two joint sets' dirt, hollows, the margin, wet streaks), the green
+// growth (the ground's grassRock, desaturated) filling the low texels first, the roughness. No new sampler; three plain
+// texture reads (GS_TRLITE: one - the outer ring and the premises patch, no micro, no joints). The first R1 (its own sample
+// chain, 7 more inlined sFetch) linked every ground program ~15 s slower on D3D11 (A0's box, 16 Nov).
 'use strict';
 const SPLAT_GROUND = (() => {
   // NCODE is the WIDTH of the per-code uniform arrays, so it must exceed the highest
@@ -169854,170 +169858,112 @@ const SPLAT_GROUND = (() => {
   // ---- THE ISLAND'S OWN ROCK (R1): see the header ------------------------------------------------------------------
   uniform float uTrOn;           // the dial: 1 = the trondhjemite on the rock codes, 0 = the recipe's sets (?rocks=0)
   uniform vec4 uTrL;             // the layers: slab, face, cliff (the micro detail), grassRock (the green)
-  uniform vec4 uTrK;             // slab metres, face metres, micro detail on, brightness
+  uniform vec4 uTrK;             // the far fade from / full by (m), the micro detail on, brightness
   uniform vec4 uTrE;             // the exposure: height window lo / hi (m), the raster's rock weight, the offset
-  uniform vec4 uTrMeanS, uTrMeanF;   // the two tiles' mean colour (linear, rgb): the far fade's
+  uniform vec4 uTrMeanS;         // the slab's mean colour (linear rgb, graded): the far fade's
   uniform vec4 uTrJ;             // the joints: density (x the network's frequency), the soil they hold (exposure cut), their dirt, the hollows' dirt
-  uniform vec4 uTrG;             // the green: amount, its roughness, the wet streaks, the bare stone's roughness (x the tiles')
-  uniform vec4 uTrF;             // the fades (m): the micro detail from / to, the far fade from / to
+  uniform vec4 uTrG;             // the green: amount, its roughness, its saturation, the bare stone's roughness (x the tile's)
+  uniform vec4 uTrF;             // the micro detail from / to (m), the joints gone by (m), the wet streaks
+  uniform vec4 uTrS;             // the slab -> face split under the dial: from / full by (deg)
   uniform vec4 uTrM;             // the micro detail: brightness strength, normal strength; the NDVI's pull on the exposure, its midpoint
+  // R1 RIDES THE MATERIAL CHAIN (A0's box, 16 Nov: the first R1's own sample chain - 7 more inlined sFetch - linked every ground
+  // program ~15 s slower). The tiles are the rock codes' own sets (push() points codes 6 / 12 at them under the dial: hex, the
+  // triplanar, the far set, the grade and recolour are the chain's); R1's own text is the exposure in the vote (sTrExpo, once a
+  // pixel) and sTrPost on a rock candidate's sample (the macro colour, the joints, the green, the micro detail, the far fade):
+  // ALU and three plain texture reads (the green's colour, the micro's colour + normal). GS_TRLITE (the outer ring, the premises
+  // patch: render_world) leaves the micro and the joints out.
   float gTrR0 = 0.0, gTrR = 0.0, gTrBias = 0.0, gTrJ = 0.0;   // the raster's rock share, the exposed share, the terrain bias, the joints
-  float gTrPx = 0.0;   // the pixel's footprint on the ground (m, x the joints' density): the joints' anti-alias, taken where the flow is uniform (sSplat)
+  float gTrPx = 0.0;   // the pixel's footprint on the ground (m): the joints' anti-alias, taken where the flow is uniform (sSplat)
   vec3 gTrN = vec3(0.0, 1.0, 0.0);                            // the smooth normal (sSplat's nGeo)
   float sTrH1(float n){ return fract(sin(n * 127.1 + 311.7) * 43758.5453); }
-  float sTrFbm(vec2 p){ return gVnoise(p) * 0.5 + gVnoise(p * 2.03 + 17.1) * 0.3 + gVnoise(p * 4.11 - 5.3) * 0.2; }
-  // ONE JOINT SET: warped parallel lines at an irregular spacing (each band's line jittered), open in segments along them;
-  // returns (the groove 0..1, the nearest line's band). The three bands written out (no loop: a loop in this chain is the
-  // cold-compile hazard the header names, even an ALU one); no 'out' parameter (GATE SPLAT)
-  vec2 sTrJoint(vec2 xz, float th, float S, float warpA, float shift, float wid, float seed){
+  // ONE JOINT SET: warped parallel lines S apart, open in segments along them, widened to the pixel and faded by the same ratio
+  float sTrLine(vec2 xz, float th, float S, float wid, float seed){
     vec2 nn = vec2(cos(th), sin(th)), pp = vec2(-nn.y, nn.x);
-    float c = dot(xz, pp) + (gVnoise(xz / 180.0 + seed) - 0.5) * 2.0 * warpA + (gVnoise(xz / 45.0 - seed) - 0.5) * 0.5 * warpA + shift;
-    float b = floor(c / S);
-    float l0 = (b - 0.5 + (sTrH1(b - 1.0 + seed) - 0.5) * 0.6) * S, l1 = (b + 0.5 + (sTrH1(b + seed) - 0.5) * 0.6) * S, l2 = (b + 1.5 + (sTrH1(b + 1.0 + seed) - 0.5) * 0.6) * S;
-    float d0 = abs(c - l0), d1 = abs(c - l1), d2 = abs(c - l2);
-    float dm = d1, band = b; if (d0 < dm) { dm = d0; band = b - 1.0; } if (d2 < dm) { dm = d2; band = b + 1.0; }
-    float op = smoothstep(0.45, 0.6, gVnoise(vec2(dot(xz, nn) / 160.0 + band * 13.1, band * 0.7 + seed)));
-    float w = wid * (0.8 + 1.7 * sTrH1(band * 1.7 + seed)), we = max(w, gTrPx * 0.9);   // (a line under a pixel: widened, faded by the same ratio)
-    return vec2(op * (w / we) * (1.0 - smoothstep(0.3, 1.0, dm / we)) * (0.6 + 0.9 * sTrH1(band * 3.1 + seed)), band);
+    float c = dot(xz, pp) + (gVnoise(xz / 140.0 + seed) - 0.5) * 0.9 * S;
+    float b = floor(c / S), dm = abs(c - (b + 0.5) * S);
+    float op = smoothstep(0.42, 0.62, gVnoise(vec2(dot(xz, nn) / 90.0, b * 1.37 + seed)));
+    float w = wid * (0.7 + 0.9 * sTrH1(b + seed)), we = max(w, gTrPx * 0.9);
+    return op * (w / we) * (1.0 - smoothstep(0.3, 1.0, dm / we));
   }
-  // THE NETWORK: two regional sets (NW-SE 150 deg, 60 deg; 10-38 m) and two secondary (105, 15 deg; 3.5-12 m), each staggered
-  // on the bands of the ones before it so it ends on them
+  // THE NETWORK: two sets (150 and 60 deg, ~18 m apart x the density), gone by uTrF.z (a line under a pixel only fizzes)
   float sTrJoints(vec2 xz){
-    vec2 A = sTrJoint(xz, 2.618, 24.0, 22.0, 0.0, 0.65, 1.3);
-    vec2 B = sTrJoint(xz, 1.047, 25.0, 18.0, sTrH1(A.y * 7.7) * 150.0, 0.65, 4.1);
-    float gC = sTrJoint(xz, 1.833, 6.75, 6.0, sTrH1(A.y * 7.0 + B.y) * 80.0, 0.26, 7.9).x * 0.6;
-    float gD = sTrJoint(xz, 0.262, 8.25, 6.0, sTrH1(B.y * 5.0 + A.y) * 80.0, 0.23, 9.7).x * 0.55;
-    return max(max(A.x, B.x), max(gC, gD));
+#ifdef GS_TRLITE
+    return 0.0;
+#else
+    float d = distance(vWPi, cameraPosition); if (d > uTrF.z) return 0.0;
+    vec2 q = xz * uTrJ.x;
+    return max(sTrLine(q, 2.618, 18.0, 0.45, 1.3), sTrLine(q, 1.047, 21.0, 0.40, 4.1) * 0.8) * (1.0 - smoothstep(uTrF.z * 0.5, uTrF.z, d));
+#endif
   }
   // THE EXPOSURE: the share of rock that shows, from the raster's own rock share r - rock on the high, convex, steep ground,
-  // the valleys' and the hollows' vegetation (the tint's alpha: the terrain bias), a mosaic of 40 / 8 / 3 m, speckles of green
-  // at 2-5 m (faded by distance: they would fizz), and the joints carry soil (trond_gen.py macro(), the bench's exposure)
+  // less the valleys and the hollows (the tint's alpha: the terrain bias) and where the imagery sees green (pack B's NDVI, 10 m:
+  // Ardent's rock cells are mostly vegetated, median 0.79); a mosaic of 40 / 8 m, speckles of green at 3-5 m, the joints' soil
   float sTrExpo(float r, vec2 xz, float slope, vec2 uv){
     gTrBias = texture2D(uGTint, uv).a * 0.8 - 0.6;
-    gTrJ = sTrJoints(xz * uTrJ.x);
-    float dk = 1.0 - smoothstep(900.0, 2500.0, distance(vWPi, cameraPosition));   // (the mosaic's fine grain held to 2.5 km: v1's high still)
-    float fine = sTrFbm(xz / 8.0);
-    // the imagery's own green (pack B's NDVI, 10 m): Ardent's rock cells are mostly vegetated (NDVI median 0.79, p25 0.71) -
-    // the barest stay bare, the green ones go to the cover
+    gTrJ = sTrJoints(xz);
     float nd = texture2D(uGPackB, uv).r * 2.0 - 1.0;
+    float dk = 1.0 - smoothstep(900.0, 2500.0, distance(vWPi, cameraPosition));
+    float fine = gVnoise(xz / 8.0);
     float E = 0.42 * smoothstep(uTrE.x, uTrE.y, vWPi.y) + 0.22 * smoothstep(22.0, 48.0, slope) + gTrBias + uTrE.z * r - uTrE.w
             - uTrM.z * smoothstep(uTrM.w - 0.2, uTrM.w + 0.2, nd)
-            + (sTrFbm(xz / 43.0) - 0.5) * 0.5 + (fine - 0.5) * 0.5 + (gVnoise(xz / 3.2) - 0.5) * 0.35 * dk;
+            + (gVnoise(xz / 43.0 + 3.7) - 0.5) * 0.5 + (fine - 0.5) * 0.45 + (gVnoise(xz / 3.2) - 0.5) * 0.35 * dk;
     float e = smoothstep(0.40, 0.52, E) * (1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y);
-    e *= 1.0 - clamp(smoothstep(0.56, 0.63, sTrFbm(xz / 4.9)) + smoothstep(0.6, 0.66, sTrFbm(xz / 2.0)) * 0.8, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.3, 0.7, fine)) * (0.4 + 0.6 * dk);
+    e *= 1.0 - smoothstep(0.58, 0.68, gVnoise(xz / 4.4 - 9.1)) * (0.55 + 0.45 * fine) * (0.4 + 0.6 * dk);
     return e;
   }
-  vec2 sTrVst(vec2 v){ return vec2(v.x + 0.5 * v.y, v.y * 0.8660254) * 0.5; }
-  // the hex lattice with its corners in the three-colour order (sTile's line-free fetch, G2610)
-  struct TrHex { vec2 V1; vec2 V2; vec2 V3; vec3 W; };   // (a struct back, no 'out' parameter: GATE SPLAT)
-  TrHex sTrHex(vec2 st){
-    vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * 2.0);
-    vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
-    float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
-    vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
-    vec2 v1 = base + vec2(s, s), v2 = base + vec2(s, 1.0 - s), v3 = base + vec2(1.0 - s, s);
-    float cb = base.x - base.y; cb -= 3.0 * floor((cb + 0.5) / 3.0);
-    float c2 = cb + s2; c2 -= 3.0 * floor((c2 + 0.5) / 3.0);
-    vec3 cc = vec3(cb, c2, 3.0 - cb - c2);
-    TrHex o;
-    o.V1 = cc.x < 0.5 ? v1 : (cc.y < 0.5 ? v2 : v3); o.V2 = abs(cc.x - 1.0) < 0.5 ? v1 : (abs(cc.y - 1.0) < 0.5 ? v2 : v3); o.V3 = cc.x > 1.5 ? v1 : (cc.y > 1.5 ? v2 : v3);
-    o.W = vec3(cc.x < 0.5 ? w.x : (cc.y < 0.5 ? w.y : w.z), abs(cc.x - 1.0) < 0.5 ? w.x : (abs(cc.y - 1.0) < 0.5 ? w.y : w.z), cc.x > 1.5 ? w.x : (cc.y > 1.5 ? w.y : w.z));
-    return o;
-  }
-  // a slab tap: its frame turned to the fall line (dn: downhill, +-15 deg per vertex) ABOUT ITS OWN VERTEX (no swirl); the
-  // normal comes back in world x / z (sFetch's turn with cs = (du.x, dv.x))
-  Smp sTrTap(vec2 st, vec2 V, vec2 dn){
-    vec2 r = sHash2(V); float a = (r.y - 0.5) * 0.52; float ca = cos(a), sa = sin(a);
-    vec2 dv = vec2(ca * dn.x - sa * dn.y, sa * dn.x + ca * dn.y), du = vec2(dv.y, -dv.x);
-    vec2 q = st - sTrVst(V);
-    Smp o = sFetch(uTrL.x, vec2(dot(q, du), dot(q, dv)) + r * 7.3, vec2(du.x, dv.x));
-    o.n = vec4(o.n.x, 0.0, o.n.y, o.n.w); return o;
-  }
-  Smp sTrond(vec3 P, float slope){
-    vec3 nG = gTrN; float d = distance(P, cameraPosition);
-    float fwF = smoothstep(42.0, 58.0, slope);
-    Smp o; o.c = vec4(0.0); o.n = vec4(0.0);
-    Smp sl = o, fa = o;
-    if (fwF < 0.999) {
-      vec2 dn = length(nG.xz) > 0.02 ? normalize(nG.xz) : vec2(0.0, 1.0);
-      vec2 st = P.xz / uTrK.x; TrHex hx = sTrHex(st);
-      Smp a = sTrTap(st, hx.V1, dn), b = sTrTap(st, hx.V2, dn), c = sTrTap(st, hx.V3, dn);
-      vec3 h = sHweights3(a.c.a, hx.W.x, b.c.a, hx.W.y, c.c.a, hx.W.z, 0.08);
-      sl.c = a.c * h.x + b.c * h.y + c.c * h.z; sl.n = a.n * h.x + b.n * h.y + c.n * h.z;
-    }
-    float fx = nG.x * nG.x, fz = nG.z * nG.z, kx = fx / max(fx + fz, 1e-6);
-    if (fwF > 0.001) {
-      Smp a = o, b = o;
-      if (kx > 0.08) { a = sFetch(uTrL.y, P.zy / uTrK.y + vec2(0.37, 0.0), vec2(1.0, 0.0)); a.n = vec4(0.0, a.n.y, a.n.x, a.n.w); }
-      if (kx < 0.92) { b = sFetch(uTrL.y, P.xy / uTrK.y, vec2(1.0, 0.0)); b.n = vec4(b.n.x, b.n.y, 0.0, b.n.w); }
-      float k = smoothstep(0.3, 0.7, kx); fa.c = mix(b.c, a.c, k); fa.n = mix(b.n, a.n, k);
-    }
-    // THE FAR FADE: the tiles' own large patterns survive the mips and repeat at a kilometre (the bench's 'dash grid')
-    { float fd = 0.8 * smoothstep(uTrF.z, max(uTrF.w, uTrF.z + 1.0), d);
-      sl.c.rgb = mix(sl.c.rgb, uTrMeanS.rgb, fd); fa.c.rgb = mix(fa.c.rgb, uTrMeanF.rgb, fd); sl.n.xyz *= 1.0 - fd; fa.n.xyz *= 1.0 - fd; }
-    if (fwF <= 0.001) o = sl; else if (fwF >= 0.999) o = fa;
-    else { vec2 h = sHweights2(sl.c.a, 1.0 - fwF, fa.c.a, fwF, 0.1); o.c = sl.c * h.x + fa.c * h.y; o.n = sl.n * h.x + fa.n * h.y; }
-    o.n.xyz /= max(uSNrm.x, 1e-3);   // (the tiles' relief is at its own scale: sSplat multiplies the sets' by nrmK)
-    o.n.w = clamp(o.n.w * uTrG.w, 0.02, 1.0);   // the bare stone's roughness (the tiles' own x the dial)
-    // THE PBR MICRO DETAIL: the 'cliff' photograph at its own 6.86 m - its brightness over its mean and its normal - biplanar
-    // (the top and the dominant side), out by 180 m
+  // THE ROCK CANDIDATE'S SAMPLE, AFTER THE CHAIN: the far fade to the slab's mean, the micro detail (the 'cliff' photograph at
+  // its own 6.86 m: brightness over its mean and its normal, biplanar - the top and the dominant side), the macro colour
+  // (weathering zones, the joints' dirt, the hollows, the outcrop's margin, wet streaks), the green (the macro's chance, the
+  // tile's cracks - its low texels - and what faces the sky; the ground's own grassRock, desaturated), the roughness, brightness
+  Smp sTrPost(Smp o, vec3 P, float slope){
+    vec3 nG = gTrN; float d = distance(P, cameraPosition); vec2 xz = P.xz;
+    { float fd = 0.8 * smoothstep(uTrK.x, max(uTrK.y, uTrK.x + 1.0), d); o.c.rgb = mix(o.c.rgb, uTrMeanS.rgb, fd); o.n.xyz *= 1.0 - fd; }
+    float fx = nG.x * nG.x, fz = nG.z * nG.z;
+#ifndef GS_TRLITE
     float kd = (1.0 - smoothstep(uTrF.x, max(uTrF.y, uTrF.x + 1.0), d)) * step(0.5, uTrK.z);
     if (kd > 0.01) {
       vec2 a2 = pow(vec2(length(nG.xz), abs(nG.y)), vec2(4.0)); float wTop = a2.y / max(a2.x + a2.y, 1e-6);
-      Smp t1 = sFetch(uTrL.z, P.xz / 6.86, vec2(1.0, 0.0));
       bool sx = fx > fz;
-      Smp t2 = sFetch(uTrL.z, (sx ? P.zy : P.xy) / 6.86 + 0.53, vec2(1.0, 0.0));
-      vec3 n2 = sx ? vec3(0.0, t2.n.y, t2.n.x) : vec3(t2.n.x, t2.n.y, 0.0);
-      float rel = clamp((gLuma(t1.c.rgb) * wTop + gLuma(t2.c.rgb) * (1.0 - wTop)) / max(uSLum[int(uTrL.z + 0.5)], 1e-3), 0.35, 2.2);
+      vec2 u1 = wTop > 0.5 ? xz : (sx ? P.zy : P.xy);   // (the dominant plane: one read, its seam under the colour's own)
+      vec4 mc = texture(uSplat, vec3(u1 / 6.86 + 0.53, uTrL.z), uSFilt.x), mn = texture(uSplatN, vec3(u1 / 6.86 + 0.53, uTrL.z), uSFilt.x);
+      float rel = clamp(gLuma(mc.rgb * mc.rgb) / max(uSLum[int(uTrL.z + 0.5)], 1e-3), 0.35, 2.2);
       o.c.rgb *= mix(1.0, rel, uTrM.x * kd);
-      o.n.xyz += (vec3(t1.n.x, 0.0, t1.n.y) * wTop + n2 * (1.0 - wTop)) * uTrM.y * kd;
-      o.c.a = mix(o.c.a, o.c.a * 0.75 + (t1.c.a * wTop + t2.c.a * (1.0 - wTop)) * 0.25, kd);
+      vec2 t = mn.xy * 2.0 - 1.0; vec3 n2 = wTop > 0.5 ? vec3(t.x, 0.0, t.y) : (sx ? vec3(0.0, t.y, t.x) : vec3(t.x, t.y, 0.0));
+      o.n.xyz += n2 * uTrM.y * kd;
     }
-    // THE MACRO'S COLOUR: weathering zones (170 m), a buff film (340 m), the joints' dirt, the hollows (the terrain bias under
-    // 0), the outcrop's margin (the raster's share at 0.15-0.8), wet streaks down the faces
-    vec2 xz = P.xz;
-    vec3 mult = vec3(0.55 + 0.40 * smoothstep(0.3, 0.75, sTrFbm(xz / 170.0)));
-    mult = mix(mult, mult * vec3(1.06, 1.0, 0.9), smoothstep(0.6, 0.8, sTrFbm(xz / 340.0 + 7.0)) * 0.7);
+#endif
+    vec3 mult = vec3(0.62 + 0.36 * smoothstep(0.3, 0.75, gVnoise(xz / 170.0 + 1.3)));
     float jf = clamp(gTrJ / 0.5, 0.0, 1.0);
-    mult = mix(mult, vec3(0.40, 0.38, 0.30), jf * uTrJ.z);
+    mult = mix(mult, vec3(0.42, 0.40, 0.34), jf * uTrJ.z);
     float hollow = clamp(-gTrBias * 2.0, 0.0, 1.0);
-    mult = mix(mult, vec3(0.55, 0.50, 0.40), hollow * uTrJ.w);
+    mult = mix(mult, vec3(0.58, 0.54, 0.46), hollow * uTrJ.w);
     float edgeR = smoothstep(0.15, 0.35, gTrR0) * (1.0 - smoothstep(0.45, 0.8, gTrR0));
-    mult = mix(mult, vec3(0.50, 0.46, 0.36), edgeR * 0.7);
-    { float steep = smoothstep(38.0, 55.0, slope);
-      float st = smoothstep(0.55, 0.85, gVnoise(vec2((kx > 0.5 ? P.z : P.x) / 2.2, P.y / 26.0)) * 0.7 + hollow * 0.45) * steep;
-      mult = mix(mult, vec3(0.38, 0.38, 0.34), st * uTrG.z); o.n.w = mix(o.n.w, 0.35, st * 0.67 * uTrG.z); }
+    mult = mix(mult, vec3(0.55, 0.52, 0.44), edgeR * 0.6);
+    { float st = smoothstep(0.62, 0.9, gVnoise(vec2((fx > fz ? P.z : P.x) / 3.0, P.y / 30.0)) * 0.7 + hollow * 0.4) * smoothstep(40.0, 58.0, slope);
+      mult = mix(mult, vec3(0.45, 0.45, 0.42), st * uTrF.w); }
     o.c.rgb *= mult;
-    // THE GREEN: the macro's chance (the joints, the hollows, the low-angle benches, the margin), the tile's cracks (its low
-    // texels) and what faces the sky - filling the LOW texels first; the ground's own grassRock read from above, moss where thin
     float hm = o.c.a;
-    float n1g = gVnoise(xz / 7.0 + 3.1), n2g = mix(gVnoise(xz / 1.7 - 9.4), 0.5, smoothstep(150.0, 600.0, d));
-    float vegM = clamp(jf + hollow * 0.6 + (1.0 - smoothstep(14.0, 30.0, slope)) * 0.55 + edgeR * 0.6, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.3, 0.7, sTrFbm(xz / 21.0)));
+    float n2g = mix(gVnoise(xz / 1.7 - 9.4), 0.5, smoothstep(150.0, 600.0, d));
+    float vegM = clamp(jf + hollow * 0.6 + (1.0 - smoothstep(14.0, 30.0, slope)) * 0.55 + edgeR * 0.6, 0.0, 1.0) * (0.55 + 0.45 * gVnoise(xz / 21.0 + 5.0));
     float crackM = 1.0 - smoothstep(0.10, 0.32, hm);
-    float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * n1g);
+    float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * gVnoise(xz / 7.0 + 3.1));
     float Gv = clamp((vegM * 1.15 + crackM * 0.6 + up * 0.55) * uTrG.x, 0.0, 1.0) * (0.55 + 0.6 * n2g);
     float gw = clamp((Gv * 1.35 - hm) * 3.0, 0.0, 1.0);
     if (gw > 0.003) {
       vec3 gr = texture(uSplat, vec3(xz / 5.0, uTrL.w), uSFilt.x).rgb;
-#ifdef GS_NOSRGB
-      gr *= gr;
-#else
-      gr = sRGBTransferEOTF(vec4(gr, 1.0)).rgb;
-#endif
-      gr *= uSGrade[int(uTrL.w + 0.5)].rgb * vec3(0.78, 1.0, 0.62);
-      vec3 green = mix(vec3(0.045, 0.058, 0.022) * (0.8 + 0.6 * n2g), gr, smoothstep(0.3, 0.8, Gv));
+      gr *= gr;   // (sRGB -> linear, the square: a green's colour, not a set's texel)
+      gr *= uSGrade[int(uTrL.w + 0.5)].rgb;
+      vec3 green = mix(vec3(0.05, 0.058, 0.032) * (0.8 + 0.6 * n2g), gr, smoothstep(0.3, 0.8, Gv));
+      green = mix(vec3(gLuma(green)), green, uTrG.z);   // (the lichen's yellow held down: A0's box, 16 Nov)
       o.c.rgb = mix(o.c.rgb, green, gw); o.n.xyz *= 1.0 - 0.6 * gw; o.n.w = mix(o.n.w, uTrG.y, gw); o.c.a = mix(o.c.a, 0.2, gw);
     }
+    o.n.w = clamp(mix(o.n.w * uTrG.w, 0.9, smoothstep(250.0, 900.0, d)), 0.02, 1.0);   // (bare stone glossy near, matte far: no bleach)
     o.c.rgb *= uTrK.w;
     return o;
   }
-  Smp gTrS; float gTrRel = 1.0;   // R1: the rock's sample and its relative brightness, made once a pixel (sSplat)
   Smp gSNear, gSFar, gSOut;
   bool sMatPass(int i, int pass, vec3 P, vec3 tw, float seaAng, float fw, float slope){
     vec4 A = uSMatA[i]; vec4 S = uSMatS[i]; vec4 M = uSMatM[i];
-#ifndef GS_NOTROND
-    if (uTrOn > 0.5 && (i == 6 || i == 12)) { if (pass != 0) return false; gSOut = gTrS; gSRel = gTrRel; return true; }   // (sTrond ran once, before the candidate loop: sSplat)
-#endif
     // THE BLEND'S DEPTH, A DIAL (PERF 2026-09-23): a type's 2nd and 3rd sets are its dearest pixels (each set hex-tiled,
     // colour + normal, triplanar on a slope: one set per type measured 8-10 ms cheaper at 5120 x 1440). uSNearN 1 =
     // one set everywhere (the lower tiers), uSFarN 1 = one set past the detail fade, where a blotch is a few pixels
@@ -170074,7 +170020,7 @@ const SPLAT_GROUND = (() => {
   // THE SPLAT: macro = the stack's colour (lit by the game's sun after)
   vec3 sSplat(vec3 macro, vec3 nGeo, vec3 nTri, float canopy, vec2 uv, float sd, float lsd){
     gSN = vec3(0.0); gSRough = 0.9;
-    gTrN = nGeo; gTrR0 = 0.0; gTrR = 0.0; gTrJ = 0.0; gTrBias = 0.0; gTrS.c = vec4(0.0); gTrS.n = vec4(0.0); gTrRel = 1.0; gTrPx = length(fwidth(vWPi.xz)) * uTrJ.x;
+    gTrN = nGeo; gTrR0 = 0.0; gTrR = 0.0; gTrJ = 0.0; gTrBias = 0.0; gTrPx = length(fwidth(vWPi.xz)) * uTrJ.x;
 #ifdef GS_FLAT
     return macro;
 #endif
@@ -170136,7 +170082,7 @@ const SPLAT_GROUND = (() => {
         else if (k0 < 0) { k0 = 4; v0 = sea; } else if (k1 < 0) { k1 = 4; v1 = sea; } else if (k2 < 0) { k2 = 4; v2 = sea; } else if (k3 < 0) { k3 = 4; v3 = sea; } else if (k4 < 0) { k4 = 4; v4 = sea; } } }
     float lakeM = 0.0;
     if (uSLakeE.y > 0.5) lakeM = smoothstep(-uSLakeE.x * 0.5, uSLakeE.x * 0.5, lsd);
-    float sCliff = smoothstep(uSSplit.x, uSSplit.y, slope) * (1.0 - step(0.5, uTrOn));   // (R1: no cliff split under the rock dial - sTrond blends slab and face itself)
+    float sCliff = uTrOn > 0.5 ? smoothstep(uTrS.x, uTrS.y, slope) : smoothstep(uSSplit.x, uSSplit.y, slope);   // (R1: the rock's own slab -> face split)
     float sOld   = smoothstep(uSSplit.z, uSSplit.w, canopy);
     float sDense = smoothstep(uSSplit2.x, uSSplit2.y, canopy);
     // THE CARVED BANK IS ROCK WHERE IT IS STEEP (SHORES G1500, the user 2026-10-04: the lake banks "read as steep, stretched
@@ -170191,9 +170137,8 @@ const SPLAT_GROUND = (() => {
         float e = sTrExpo(r, xz, slope, uv), ko = (1.0 - e) / max(1.0 - r, 1e-3);
         v0 = k0 == 6 ? e : v0 * ko; v1 = k1 == 6 ? e : v1 * ko; v2 = k2 == 6 ? e : v2 * ko; v3 = k3 == 6 ? e : v3 * ko; v4 = k4 == 6 ? e : v4 * ko;
         float fr = 1.0 - r < 1e-3 ? 1.0 - e : 0.0;
-        if (fr > 0.0) {
-          if (k0 < 0) { k0 = 8; v0 = fr * 0.7; } else if (k1 < 0) { k1 = 8; v1 = fr * 0.7; } else if (k2 < 0) { k2 = 8; v2 = fr * 0.7; } else if (k3 < 0) { k3 = 8; v3 = fr * 0.7; } else if (k4 < 0) { k4 = 8; v4 = fr * 0.7; }
-          if (k0 < 0) { k0 = 2; v0 = fr * 0.3; } else if (k1 < 0) { k1 = 2; v1 = fr * 0.3; } else if (k2 < 0) { k2 = 2; v2 = fr * 0.3; } else if (k3 < 0) { k3 = 2; v3 = fr * 0.3; } else if (k4 < 0) { k4 = 2; v4 = fr * 0.3; }
+        if (fr > 0.0) {   // (a kernel all rock fills from k0: the last two slots are free - fewer lines in the program than a search)
+          if (k4 < 0) { k4 = 8; v4 = fr * 0.7; } if (k3 < 0) { k3 = 2; v3 = fr * 0.3; }
         }
         gTrR = e;
       }
@@ -170238,7 +170183,7 @@ const SPLAT_GROUND = (() => {
     // the bed paint and the surface quad do the water (a voteless cell fell back to the stack's pale blue - the
     // stair-step band round every lake)
     w[3] += w[1]; w[1] = 0.0;
-    float sCliff = smoothstep(uSSplit.x, uSSplit.y, slope) * (1.0 - step(0.5, uTrOn));   // (R1: no cliff split under the rock dial - sTrond blends slab and face itself)
+    float sCliff = uTrOn > 0.5 ? smoothstep(uTrS.x, uTrS.y, slope) : smoothstep(uSSplit.x, uSSplit.y, slope);   // (R1: the rock's own slab -> face split)
     float sOld   = smoothstep(uSSplit.z, uSSplit.w, canopy);
     float sDense = smoothstep(uSSplit2.x, uSSplit2.y, canopy);
     w[12] = w[6] * sCliff; w[6] *= 1.0 - sCliff;
@@ -170305,11 +170250,6 @@ const SPLAT_GROUND = (() => {
 #endif
     float fw = smoothstep(uSDist.x, uSDist.y, d);
     float mw = uSDist2.x * smoothstep(uSDist.z, uSDist.w, d);
-#ifndef GS_NOTROND
-    // R1: THE ISLAND'S ROCK ONCE A PIXEL, BEFORE THE CANDIDATE LOOP (GATE SPLAT's call-site rule): one inlined copy of sTrond
-    // and its taps, where the exposed rock weighs anything; the loop's sMatPass hands the sample on (gTrS) for codes 6 / 12
-    if (uTrOn > 0.5 && gTrR >= 0.004) { gTrS = sTrond(vWPi, slope); gTrRel = gLuma(gTrS.c.rgb) / max(gLuma(uTrMeanS.rgb), 1e-3); }
-#endif
     // THE TOP PLANE STAYS OFF A FACE (SHORES-2 G1957, the user: "a good cliff texture, ideally oriented with respect to the
     // slope"): the weights were pow(|n|, k) per axis - on a 45-degree face turned between x and z the TOP plane won (0.64^8
     // over two of 0.54^8) and smeared the set down the face. Now the side is ONE weight, |n.xz| against |n.y|, split between
@@ -170355,6 +170295,9 @@ const SPLAT_GROUND = (() => {
 #endif
       if (wt >= 0.004 && wt > wmin && sMatPass(code, j - code * 2, vWPi, tw, seaAng, fw, slope)) {
         Smp m = gSOut;
+#ifndef GS_NOTROND
+        if (uTrOn > 0.5 && (code == 6 || code == 12)) m = sTrPost(m, vWPi, slope);   // R1
+#endif
         if (W0 == wmin) { C0 = m.c; N0 = m.n; W0 = wt; R0 = gSRel; }
         else if (W1 == wmin) { C1 = m.c; N1 = m.n; W1 = wt; R1 = gSRel; }
         else if (W2 == wmin) { C2 = m.c; N2 = m.n; W2 = wt; R2 = gSRel; }
@@ -170392,6 +170335,9 @@ const SPLAT_GROUND = (() => {
       int i = j / 2;
       if (w[i] >= 0.004 && n < uSNCand && sMatPass(i, j - i * 2, vWPi, tw, seaAng, fw, slope)) {
         Smp m = gSOut;
+#ifndef GS_NOTROND
+        if (uTrOn > 0.5 && (i == 6 || i == 12)) m = sTrPost(m, vWPi, slope);   // R1
+#endif
         C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; Rl[n] = gSRel; ma = max(ma, m.c.a + w[i]); n++;
       }
     }
@@ -170649,7 +170595,7 @@ const SPLAT_GROUND = (() => {
     // GROUND-COST G2075: THE STRIPS - parts of the ground's program cut at COMPILE time (#define GS_<NAME>), a measuring tool
     // (tools/perf/ground_cost.js): ?gstrip=vote4,nohex,... at the load or api.strip([...]) live (the programs re-key: a cold
     // compile each). Empty by default: no define, the key unchanged - the production programs are the same text.
-    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|nrmcut)$/;
+    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|nrmcut|notrond|trlite)$/;   // (notrond / trlite: R1's text out / its lite text - the box's bisect)
     let strips = [];
     try { const m = /[?&]gstrip=([^&]*)/.exec(location.search); if (m) strips = decodeURIComponent(m[1]).split(',').filter(x => GS_OK.test(x)); } catch (e) {}
     const grow = () => {
@@ -170690,10 +170636,10 @@ const SPLAT_GROUND = (() => {
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBank: { value: V4() }, uSBank2: { value: V4() }, uSBankLip: { value: 0 },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 }, uSNSlot: { value: NCODE * 2 }, uSVoteR: { value: 2 },
-      // R1: the island's own rock (sTrond)
-      uTrOn: { value: 0 }, uTrL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uTrK: { value: new THREE.Vector4(16, 24, 1, 1) },
-      uTrE: { value: new THREE.Vector4(250, 760, 0.3, 0.08) }, uTrMeanS: { value: new THREE.Vector4(0.3, 0.27, 0.2, 1) }, uTrMeanF: { value: new THREE.Vector4(0.14, 0.13, 0.09, 1) },
-      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.45, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 400, 1200) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0.45, 0.74) },
+      // R1: the island's own rock (sTrExpo, sTrPost; the tiles ride the rock codes' sets)
+      uTrOn: { value: 0 }, uTrL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uTrK: { value: new THREE.Vector4(400, 1200, 1, 0.5) },
+      uTrE: { value: new THREE.Vector4(250, 760, 0.3, 0.08) }, uTrMeanS: { value: new THREE.Vector4(0.3, 0.27, 0.2, 1) }, uTrS: { value: new THREE.Vector4(42, 58, 0, 0) },
+      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0.45, 0.74) },
     };
     let ready = false;
     const push = () => {
@@ -170760,18 +170706,27 @@ const SPLAT_GROUND = (() => {
       U.uSBankLip.value = (K.bankReach || 0) > 0 ? (K.bankLip || 0) : 0;   // G1959 (off with the bank)
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
-      // R1: the rock's layers (all four in the arrays, or the dial stays off), its tiles' metres and means, the exposure's knobs
+      // R1: the rock's layers (all four in the arrays, or the dial stays off); under the dial the rock codes WEAR the tiles (the
+      // per-code rows written above are overwritten for 6 and 12: the chain samples them - no fetch of R1's own); the knobs
       { const L4 = ['trondSlab', 'trondFace', 'cliff', 'grassRock'].map(k => LIB.indexOf(k)), lib = k => SPLAT_TEX_SETS.find(x => x.key === k) || {};
+        const kv = (k, d) => (K[k] === undefined ? d : +K[k]);   // (the world rail's 'rock & cliffs' rows)
         U.uTrL.value.set(L4[0], L4[1], L4[2], L4[3]);
-        U.uTrOn.value = (ready && K.rocks && L4.every(i => i >= 0)) ? 1 : 0;
-        U.uTrK.value.set(lib('trondSlab').metres || 16, lib('trondFace').metres || 24, K.rockMicro === undefined ? 1 : K.rockMicro, K.rockK === undefined ? 0.5 : K.rockK);
-        U.uTrE.value.set(K.rockHLo === undefined ? 250 : K.rockHLo, K.rockHHi === undefined ? 760 : K.rockHHi, K.rockBias === undefined ? 0.3 : K.rockBias, K.rockOff === undefined ? 0.08 : K.rockOff);
-        const mS = lib('trondSlab').mean, mF = lib('trondFace').mean;
-        if (mS) U.uTrMeanS.value.set(mS[0], mS[1], mS[2], 1); if (mF) U.uTrMeanF.value.set(mF[0], mF[1], mF[2], 1);
-        const kv = (k, d) => (K[k] === undefined ? d : +K[k]);   // (the world rail's 'rock & cliffs' rows: RD below)
+        const on = !!(ready && K.rocks && L4.every(i => i >= 0));
+        U.uTrOn.value = on ? 1 : 0;
+        if (on) {
+          const slabM = kv('rockSlabM', 16), faceM = kv('rockFaceM', 24), face = kv('rockFaceTile', 0) > 0.5 ? L4[1] : L4[0];
+          for (const [c, L, m] of [[6, L4[0], slabM], [12, face, faceM]]) {
+            U.uSMatA.value[c].set(L, -1, -1, 0); U.uSMatS.value[c].set(m, 1, 1, 0);
+            U.uSMatF.value[c].set(L, -1, -1, 0); U.uSMatFS.value[c].set(m, 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
+        }
+        U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), 0, 0);
+        U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.5));
+        U.uTrE.value.set(kv('rockHLo', 250), kv('rockHHi', 760), kv('rockBias', 0.3), kv('rockOff', 0.08));
+        const mS = lib('trondSlab').mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded
+        if (mS) U.uTrMeanS.value.set(mS[0] * (gS ? gS.x : 1), mS[1] * (gS ? gS.y : 1), mS[2] * (gS ? gS.z : 1), 1);
         U.uTrJ.value.set(kv('rockJoint', 1), kv('rockJointSoil', 0.7), kv('rockJointDirt', 0.6), kv('rockHollow', 0.5));
-        U.uTrG.value.set(kv('rockGreen', 1), kv('rockGreenRough', 0.97), kv('rockWet', 0.45), kv('rockRough', 1));
-        U.uTrF.value.set(kv('rockMicroFrom', 60), kv('rockMicroTo', 180), kv('rockFarFrom', 400), kv('rockFarTo', 1200));
+        U.uTrG.value.set(kv('rockGreen', 1), kv('rockGreenRough', 0.97), kv('rockGreenSat', 0.6), kv('rockRough', 1));
+        U.uTrF.value.set(kv('rockMicroFrom', 60), kv('rockMicroTo', 180), kv('rockJointFar', 450), kv('rockWet', 0.2));
         U.uTrM.value.set(kv('rockMicroK', 0.65), kv('rockMicroN', 0.6), kv('rockNdvi', 0.45), kv('rockNdviMid', 0.74)); }
     };
     push();
@@ -170847,7 +170802,9 @@ const SPLAT_GROUND = (() => {
       albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
       meanAt: (x, z, code, slopeDeg) => meanAt(x, z, code, slopeDeg),   // GRASS-DENSE G2562: the ground's colour as drawn, less its texture (below)
       // R1: the rock dial live (a uniform: no program re-keys); turning it on grows the arrays by the rock's sets if the load had it off
-      rocks: v => { if (v === undefined) return !!R.knobs.rocks; R.knobs.rocks = v ? 1 : 0; grow(); push(); return !!R.knobs.rocks; },
+      // (OFF, the programs carry none of R1's text - GS_NOTROND, keyed ':norock': ?rocks=0 links master's program; a live turn re-keys them once)
+      rocks: v => { if (v === undefined) return !!R.knobs.rocks; const was = !!R.knobs.rocks; R.knobs.rocks = v ? 1 : 0; grow(); push();
+        if (was !== !!R.knobs.rocks && api.onInspect) api.onInspect(); return !!R.knobs.rocks; },
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
       // the sets a type blends and where its near sets give way to the far one (GRAPHICS 'ground blend', PERF 2026-09-23):
       // from / to 0 = the recipe's detailFrom / detailTo. 'lean far' pulls the fade in to 100-400 m: with one far set,
@@ -170867,8 +170824,8 @@ const SPLAT_GROUND = (() => {
       // GROUND-COST G2075: the strips (above) - strip() reads them, strip([..]) sets them and re-keys the host's programs
       strip: v => { if (v === undefined) return strips.slice(); strips = [].concat(v).filter(x => GS_OK.test(x)).sort(); if (api.onInspect) api.onInspect(); return strips.slice(); },
       lean: () => lean,   // G2075: the lean program (one set a type compiled in) - the host keys ':lean' and defines SPLAT_ONE
-      stripKey: () => (strips.length ? ':gs-' + strips.join('-') : ''),
-      stripDefs: () => strips.map(x => '#define GS_' + x.toUpperCase() + ' 1\n').join(''),
+      stripKey: () => (strips.length ? ':gs-' + strips.join('-') : '') + (R.knobs.rocks ? '' : ':norock'),
+      stripDefs: () => strips.map(x => '#define GS_' + x.toUpperCase() + ' 1\n').join('') + (R.knobs.rocks || strips.includes('notrond') ? '' : '#define GS_NOTROND 1\n'),
       plain: v => { if (v === undefined) return plain; v = !!v; if (v === plain) return plain; plain = v; if (!plain) ensure(); if (api.onInspect) api.onInspect(); return plain; },
       onInspect: null,                        // the host's re-key (render_world groundSync)
       // the set's images (the rail's previews): diff / nor / height / rough, lazily-made Images
@@ -180488,11 +180445,68 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const g = buildWorldSceneSteps(scene, world, renderer, camera, shedDims);
   for (;;) { const r = g.next(); if (r.done) return r.value; }
 }
+// ROCK-STUDY R1: THE ROCK'S TERRAIN BIAS (splat_ground sTrExpo reads it in the tint's alpha). The exposure wants the
+// ground's convexity (a ridge is bare) and its drainage (a valley line holds soil): both from the hydrology's own 1024^2
+// heights (world.hydro.grids.H, ~38 m; its accumulation is all 1 in the island's 'map' mode, so the drainage is the 300 m
+// CONCAVITY - a valley is a concave line), two box blurs: the 76 m Laplacian (convex +) and the 300 m concavity, each over its
+// land std; bias = 0.20 x clamp(0.45 z_convex) - 0.35 x smoothstep(0.6, 1.6, z_valley), stored as (bias + 0.6) / 0.8, bilinear
+// onto the tint's grid (W2 x H2 cells of cs metres from gx0, gz0). Self-contained: its source text is the worker's.
+function ROCK_BIAS(Hf, sea, N, hx0, hz0, hdx, hdz, gx0, gz0, cs, W2, H2) {
+  const n = N * N;
+  const box = (src, r) => { const tmp = new Float32Array(n), out = new Float32Array(n), w = 2 * r + 1;
+    for (let y = 0; y < N; y++) { let acc = 0; const o = y * N;
+      for (let k = -r; k <= r; k++) acc += src[o + Math.min(N - 1, Math.max(0, k))];
+      for (let x = 0; x < N; x++) { tmp[o + x] = acc / w; acc += src[o + Math.min(N - 1, x + r + 1)] - src[o + Math.max(0, x - r)]; } }
+    for (let x = 0; x < N; x++) { let acc = 0;
+      for (let k = -r; k <= r; k++) acc += tmp[Math.min(N - 1, Math.max(0, k)) * N + x];
+      for (let y = 0; y < N; y++) { out[y * N + x] = acc / w; acc += tmp[Math.min(N - 1, y + r + 1) * N + x] - tmp[Math.max(0, y - r) * N + x]; } }
+    return out; };
+  const b2 = box(Hf, 2), b8 = box(box(Hf, 4), 4);
+  let sL = 0, sC = 0, m = 0;
+  for (let k = 0; k < n; k += 7) { if (sea && sea[k]) continue; const l = Hf[k] - b2[k], c = b8[k] - Hf[k]; sL += l * l; sC += c * c; m++; }
+  const zL = 1 / Math.max(1e-3, Math.sqrt(sL / Math.max(1, m))), zC = 1 / Math.max(1e-3, Math.sqrt(sC / Math.max(1, m)));
+  const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const B = new Float32Array(n);
+  for (let k = 0; k < n; k++) B[k] = 0.20 * Math.min(1, Math.max(-1, (Hf[k] - b2[k]) * zL * 0.45)) - 0.35 * ss(0.6, 1.6, (b8[k] - Hf[k]) * zC);
+  const out = new Uint8Array(W2 * H2);
+  for (let j = 0; j < H2; j++) { const fz = (gz0 + (j + 0.5) * cs - hz0) / hdz - 0.5, z0 = Math.max(0, Math.min(N - 2, Math.floor(fz))), v = Math.min(1, Math.max(0, fz - z0));
+    for (let i = 0; i < W2; i++) { const fx = (gx0 + (i + 0.5) * cs - hx0) / hdx - 0.5, x0 = Math.max(0, Math.min(N - 2, Math.floor(fx))), u = Math.min(1, Math.max(0, fx - x0)), k = z0 * N + x0;
+      const b = (B[k] * (1 - u) + B[k + 1] * u) * (1 - v) + (B[k + N] * (1 - u) + B[k + N + 1] * u) * v;
+      out[j * W2 + i] = Math.round(Math.min(1, Math.max(0, (b + 0.6) / 0.8)) * 255); } }
+  return out;
+}
+// the job: { done, out } - the worker fills it; ROCK_STATS { biasWorkerMs (inside the worker), biasMainMs (the post here + the
+// copy back), biasWorker: true }. null = no worker (the step makes it on the main thread)
+function rockBiasStart(world, BUD) {
+  try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
+  if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return null;
+  const I = world.island, g = world.hydro && world.hydro.grids;
+  if (!I || !I.albedo || !I.grid || !I.tint || !g || !g.H || !g.N) return null;
+  const IG = I.grid, half = !!(BUD && BUD.islandHalf), W2 = half ? Math.ceil(IG.w / 2) : IG.w, H2 = half ? Math.ceil(IG.h / 2) : IG.h;
+  const t0 = performance.now(), job = { done: false, out: null };
+  try {
+    const src = 'const ROCK_BIAS = ' + ROCK_BIAS.toString() + ';\nonmessage = e => { const a = e.data, t = performance.now();\n' +
+      '  const out = ROCK_BIAS(a.H, a.sea, a.N, a.hx0, a.hz0, a.hdx, a.hdz, a.gx0, a.gz0, a.cs, a.W2, a.H2);\n' +
+      '  postMessage({ out, ms: performance.now() - t }, [out.buffer]); };';
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url);
+    const fail = why => { console.warn('rock bias worker: ' + why + ' - made on the main thread'); job.done = true; job.out = null; try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); };
+    w.onmessage = e => { const t1 = performance.now(); job.out = e.data.out; job.done = true; w.terminate(); URL.revokeObjectURL(url);
+      if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWorker: true, biasWorkerMs: Math.round(e.data.ms), biasWallMs: Math.round(t1 - t0), biasMainMs: Math.round(job.postMs + (performance.now() - t1)), biasGrid: g.N, tint: [W2, H2] }); };
+    w.onerror = e => fail(e && e.message || 'error');
+    const H = Float32Array.from(g.H), sea = g.sea ? Uint8Array.from(g.sea) : null;
+    w.postMessage({ H, sea, N: g.N, hx0: g.x0, hz0: g.z0, hdx: g.dx, hdz: g.dz, gx0: IG.x0, gz0: IG.z0, cs: IG.cell * (half ? 2 : 1), W2, H2 }, [H.buffer].concat(sea ? [sea.buffer] : []));
+    job.postMs = performance.now() - t0;
+  } catch (e) { console.warn('rock bias worker: ' + (e && e.message || e)); return null; }
+  return job;
+}
 function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // G1230 (MEM-BUDGET): the build budget of the player's preset (gfx_settings.js BUDGETS) - what this build makes and
   // holds; null (a gate's stub, no GFX): everything at full
   const BUD = (typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function') ? window.GFX.budget() : null;
   const BUILT = { done: false, q: [] };
+  // ROCK-STUDY R1: the rock's terrain bias, in a worker from here (the 'island ground' step waits for it): null = made on the
+  // main thread there (no Worker), or not at all (?rocks=0, no island, no hydrology)
+  const rockBiasJob = rockBiasStart(world, BUD);
   const afterBuild = fn => { if (BUILT.done) fn(); else BUILT.q.push(fn); };
   // (12 Nov, FIT-PROCEDURE: under r186's MANAGED colour, Color(hex) already decodes sRGB - the second conversion drew
   // every world colour twice decoded; convert only when management is off, the 'as authored' step: once in either mode)
@@ -182380,44 +182394,23 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const pk2 = (r, g0) => { const make = () => { const g = typeof g0 === 'function' ? g0() : g0;   // (a function: made with the texels - G2075's flagged type)
         const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
-      // ROCK-STUDY R1: THE TERRAIN BIAS IN THE TINT'S ALPHA (it was 255 and never read - no new texture, no sampler). The
-      // rock's exposure (splat_ground sTrExpo) wants the ground's convexity (a ridge is bare) and its drainage (a valley line
-      // holds soil): both from the hydrology's own 1024^2 heights (world.hydro.grids.H, ~38 m; its accumulation is all 1 in the
-      // island's 'map' mode, so the drainage is the 300 m CONCAVITY - a valley is a concave line), two box blurs: the 76 m
-      // Laplacian (convex +) and the 300 m concavity, each over its land std; bias = 0.20 x clamp(0.45 z_convex) - 0.35 x
-      // smoothstep(0.6, 1.6, z_valley), stored as (bias + 0.6) / 0.8. Built once (cached for a context restore), timed:
-      // ROCK_STATS.biasMs. ?rocks=0 skips it (the alpha stays 255: no rock reads it).
+      // ROCK-STUDY R1: THE TERRAIN BIAS IN THE TINT'S ALPHA (it was 255 and never read - no new texture, no sampler): made by
+      // ROCK_BIAS (below the file's steps) IN A WORKER started at the build's first line (rockBiasJob) - the box read it at 246 ms
+      // on the main thread (A0, 16 Nov). Waited for here, a yield at a time, if it is not in yet (ROCK_STATS.biasWaitMs); no
+      // Worker (node, a gate's stub): made here. ?rocks=0: never asked for (the alpha stays 255: no rock reads it).
       let rockBiasA = null;
+      if (rockBiasJob) { const t0w = (typeof performance !== 'undefined') ? performance.now() : 0;
+        while (!rockBiasJob.done) yield 'rock bias';
+        rockBiasA = rockBiasJob.out;
+        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWaitMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0w) }); }
       const rockBias = () => {
         if (rockBiasA) return rockBiasA;
         try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
         const g = world.hydro && world.hydro.grids; if (!g || !g.H || !g.N) return null;
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
-        const N = g.N, n = N * N, Hf = Float32Array.from(g.H), sea = g.sea;
-        const box = (src, r) => { const tmp = new Float32Array(n), out = new Float32Array(n), w = 2 * r + 1;
-          for (let y = 0; y < N; y++) { let acc = 0; const o = y * N;
-            for (let k = -r; k <= r; k++) acc += src[o + Math.min(N - 1, Math.max(0, k))];
-            for (let x = 0; x < N; x++) { tmp[o + x] = acc / w; acc += src[o + Math.min(N - 1, x + r + 1)] - src[o + Math.max(0, x - r)]; } }
-          for (let x = 0; x < N; x++) { let acc = 0;
-            for (let k = -r; k <= r; k++) acc += tmp[Math.min(N - 1, Math.max(0, k)) * N + x];
-            for (let y = 0; y < N; y++) { out[y * N + x] = acc / w; acc += tmp[Math.min(N - 1, y + r + 1) * N + x] - tmp[Math.max(0, y - r) * N + x]; } }
-          return out; };
-        const b2 = box(Hf, 2), b8 = box(box(Hf, 4), 4);
-        let sL = 0, sC = 0, m = 0;
-        for (let k = 0; k < n; k += 7) { if (sea && sea[k]) continue; const l = Hf[k] - b2[k], c = b8[k] - Hf[k]; sL += l * l; sC += c * c; m++; }
-        const zL = 1 / Math.max(1e-3, Math.sqrt(sL / Math.max(1, m))), zC = 1 / Math.max(1e-3, Math.sqrt(sC / Math.max(1, m)));
-        const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-        const B = new Float32Array(n);
-        for (let k = 0; k < n; k++) B[k] = 0.20 * Math.min(1, Math.max(-1, (Hf[k] - b2[k]) * zL * 0.45)) - 0.35 * ss(0.6, 1.6, (b8[k] - Hf[k]) * zC);
-        // onto the tint's own grid (bilinear)
-        const cs = G.cell * (IHALF ? 2 : 1), out = new Uint8Array(W2 * H2);
-        for (let j = 0; j < H2; j++) { const fz = (G.z0 + (j + 0.5) * cs - g.z0) / g.dz - 0.5, z0 = Math.max(0, Math.min(N - 2, Math.floor(fz))), v = Math.min(1, Math.max(0, fz - z0));
-          for (let i = 0; i < W2; i++) { const fx = (G.x0 + (i + 0.5) * cs - g.x0) / g.dx - 0.5, x0 = Math.max(0, Math.min(N - 2, Math.floor(fx))), u = Math.min(1, Math.max(0, fx - x0)), k = z0 * N + x0;
-            const b = (B[k] * (1 - u) + B[k + 1] * u) * (1 - v) + (B[k + N] * (1 - u) + B[k + N + 1] * u) * v;
-            out[j * W2 + i] = Math.round(Math.min(1, Math.max(0, (b + 0.6) / 0.8)) * 255); } }
-        rockBiasA = out;
-        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0), biasGrid: N, tint: [W2, H2] });
-        return out; };
+        rockBiasA = ROCK_BIAS(Float32Array.from(g.H), g.sea || null, g.N, g.x0, g.z0, g.dx, g.dz, ISLA.grid.x0, ISLA.grid.z0, ISLA.grid.cell * (IHALF ? 2 : 1), W2, H2);
+        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0), biasWorker: false, biasGrid: g.N, tint: [W2, H2] });
+        return rockBiasA; };
       const tintRGBA = () => { const o = rgbTexels(ISLA.tint), a = rockBias(); if (a) for (let k = 0, j = 3; k < a.length; k++, j += 4) o[j] = a[k]; return o; };
       const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
@@ -182515,7 +182508,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // object of the LAST compile: a plain compile's set (no uSplat / uSplatN) left the reused lean program's array samplers on
         // unit 0, where a 2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn (GROUND-COST, 6 Oct)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
-        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '');   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
+        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '')
+          + (side === 0 && SP ? '#define GS_TRLITE 1\n' : '');   // ROCK-STUDY R1: the outer ring and the premises patch - the rock's micro and joints out   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nuniform vec4 uTier;\nattribute float aPav; varying float vPav;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
