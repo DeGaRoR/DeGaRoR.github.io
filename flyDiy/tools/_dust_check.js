@@ -11,6 +11,10 @@
 //   5. THE DRAW      on the real three (no GL): one batch, far to near, the live count drawn, the near fade when the cover
 //                    passes the tier's budget, nothing drawn when nothing lives
 //   6. THE COST      the simulation's time a frame at a take-off's peak
+//   4b. THE SPLASH   (GROUND-FX 16 Nov, A0's review of DIRT-STRIP's 160 drops/s) the puddle spray never overwrites a flying
+//                    grit or clod on any tier; all the wheels' splashes keep within splashShare x the ring a second, shared
+//                    fairly (both sides spray); every class's puddle (the mud's, the slush's) sprays by splashRun
+// Run: node tools/_dust_check.js --selftest   (4b on doctored copies of dust.js: every one must go red)
 // Run: node tools/_dust_check.js   (contract: one final `GATE DUST: ...`)
 // ============================================================
 'use strict';
@@ -140,6 +144,60 @@ console.log('4. the pools');
     yes(ph.sys.stats.absorbed > 0 && ph.live[ph.live.length - 1] > 0, 'a full pool tops up the nearest puff, never deletes one (phone: ' + ph.sys.stats.absorbed + ' absorbed, the cloud alive at 40 s)'); }
   yes(DUST.TIER_OF.laptop === 'phone' && DUST.TIER_OF.gamer === 'gamer' && DUST.TIER_OF.ultra === 'gamer', 'the gfx presets map to the tiers (laptop = the phone\'s)');
 }
+
+// ---- 4b. THE SPLASH: two mains through a 2 cm puddle; a slot overwritten while live is an eviction (the harness's own
+// count: the slot's age reset with its old one under its life), the new drops counted per side
+function splashRows(D, srcText) {
+  const out = [];
+  const wheelsAt = (V, t) => ({ wheels: [0, 1].map(k => ({ key: k, x: V * t, y: 0, z: k ? 0.9 : -0.9, vx: V, vy: 0, vz: 0, on: true, R: 0.3 })), props: [], wing: null });
+  const drive = (tier, cls, V, T) => {
+    const sys = D.makeSystem(tier), G = sys.G, dt = 1 / 30, N = Math.round(T / dt);
+    const env = { groundH: () => 0, wind: () => [2, 0, 2], cls: () => cls, wet: () => 0, puddle: () => 0.02, k: 1 };
+    const a0 = new Float32Array(G.n), l0 = new Float32Array(G.n); let ev = 0, born = 0, side = [0, 0];
+    for (let f = 0; f < N; f++) {
+      a0.set(G.age); l0.set(G.life);
+      D.sources(sys, wheelsAt(V, f * dt), env, dt);
+      for (let q = 0; q < G.n; q++) if (G.age[q] === 0 && a0[q] !== 0) { born++; if (a0[q] < l0[q]) ev++; side[G.p[q * 3 + 2] < 0 ? 0 : 1]++; }
+      D.step(sys, dt, env);
+    }
+    return { sys, ev, perS: born / T, side };
+  };
+  const CI = c => D.CLASSES.indexOf(c);
+  // (a) no live one overwritten: every tier, the dirt's spray and the mud's throw + spray, a taxi to a take-off roll
+  let worst = '', evN = 0;
+  for (const tier of ['phone', 'potato', 'retro', 'gamer']) for (const c of ['dirt', 'mud']) for (const V of [6, 9, 15]) {
+    const r = drive(tier, CI(c), V, 3); if (r.ev) { evN += r.ev; worst = worst || (tier + ' ' + c + ' ' + V + ' m/s: ' + r.ev); } }
+  out.push([evN === 0, '4b no flying grit or clod overwritten by a splash: two mains through 2 cm, every tier, dirt and mud, 6 / 9 / 15 m/s' + (evN ? ' (EVICTED ' + evN + ', first ' + worst + ')' : '')]);
+  // (b) the budget: the paved puddle throws nothing but the spray - at 15 m/s it asks 2 x 240 /s
+  const sh = D.L.splashShare, rows = [];
+  let inB = true;
+  for (const tier of ['phone', 'potato', 'retro', 'gamer']) { const r = drive(tier, CI('paved'), 15, 4), B = sh * r.sys.G.n;
+    rows.push(tier + ' ' + r.perS.toFixed(0) + '/' + B.toFixed(0)); if (!(r.perS <= 1.08 * B && r.perS >= 0.85 * Math.min(B, 480))) inB = false; }
+  out.push([sh > 0 && sh <= 0.45 && inB, '4b the splashes keep within ' + sh + ' x the ring a second (drops/s of the budget: ' + rows.join(', ') + ')']);
+  // (c) fair: past the budget both wheels spray alike
+  { const r = drive('phone', CI('paved'), 15, 4), f = r.side[0] / Math.max(1, r.side[0] + r.side[1]);
+    out.push([f > 0.35 && f < 0.65, '4b over the budget both sides spray (phone, 15 m/s: the left wheel ' + (f * 100).toFixed(0) + ' % of the drops)']); }
+  // (d) every class's puddle through splashRun (the mud's and the slush's took ~5 drops/s)
+  { const pw = srcText.slice(srcText.indexOf('function projWheel('), srcText.indexOf('function splashRun('));
+    out.push([/splashRun\(sys, w, V, pud, dt, K, ci\);/.test(pw) && !/splashDrop\(/.test(pw) && (srcText.match(/splashDrop\(sys, w, V, ci\);/g) || []).length === 1,
+      '4b every class\'s puddle sprays by splashRun (the dirt\'s, and in projWheel the mud\'s and the slush\'s)']); }
+  return out;
+}
+if (process.argv.includes('--selftest')) {
+  const vm = require('vm'), base = src('src/viewer/dust.js'), bad = [];
+  const loadSrc = t => { const m = { exports: {} }; vm.runInNewContext(t, { module: m, console, Math, Float32Array, Uint8Array, Uint16Array, Int32Array, Map, Set, Array, Object, Number, JSON, Infinity, NaN, isFinite, require }, { filename: 'dust_doctored.js' }); return m.exports; };
+  const doctor = (name, from, to) => { if (base.indexOf(from) < 0) { bad.push(name + ' (the line moved)'); return; }
+    const t = base.replace(from, to), r = splashRows(loadSrc(t), t); if (r.every(x => x[0])) bad.push(name); };
+  { const r = splashRows(loadSrc(base), base); if (!r.every(x => x[0])) bad.push('the shipped copy is red under vm'); }
+  doctor('the guard out (a live slot overwritten)', 'while (G.age[q] < G.life[q] && ++k < EVICT_LOOK) q = (q + 1) % G.n;\n    if (G.age[q] < G.life[q]) { sys.stats.refused++; return; }', '');
+  doctor('the budget out', 'const B = L.splashShare * sys.G.n;', 'const B = 1e9;');
+  doctor('the fair scale out', 'sys.splashK = sys.splashDem > B ? B / sys.splashDem : 1;', 'sys.splashK = 1;');
+  doctor('the mud\'s old spray', '    splashRun(sys, w, V, pud, dt, K, ci);   // (GROUND-FX', '    if (pud > 0.01 && V > 2) { const N = V * dt * 3; for (let j = 0; j < N; j++) splashDrop(sys, w, V, ci); } // (GROUND-FX');
+  console.log('GATE DUST selftest (4b): ' + (bad.length ? 'FAIL (' + bad.join('; ') + ' stayed green)' : 'PASS (every doctored copy went red)'));
+  process.exit(bad.length ? 1 : 0);
+}
+console.log('4b. the splash');
+for (const [c, m] of splashRows(DUST, src('src/viewer/dust.js'))) yes(c, m);
 
 console.log('5. the draw');
 {
