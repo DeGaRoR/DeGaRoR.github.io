@@ -43,11 +43,22 @@ const REFS = {
   ls4: {
     name: 'Rolladen-Schneider LS4 (LS4-b)', mtow: 525, empty: 238, fuelL: 0, S: 10.5,
     src: 'Wikipedia (Rolladen-Schneider LS4): 15 m, 10.5 m2, 238 kg empty, 472 kg (LS4) / 525 kg (LS4-b, the flight manual), L/D 40.5 at 100 km/h, min sink 0.61 m/s at 75 km/h, stall 68 km/h, VNE 270 km/h, 140 L water (+15 L a wing on the LS4-a)',
+    // THE TRAIL (LS4 READY, 16 Nov): the article re-read here on 2026-11-16 - span 15 m, 10.5 m2, empty 238 kg, max take-off
+    // 472 kg, 140 L of water, stall 68 km/h, L/D 40.5 at 100 km/h, sink 0.61 m/s at 75 km/h, as the rows say. The article
+    // does NOT give 525 kg (its only "525" is the empty weight in pounds): the LS4-b's 525 kg is the LS4 session's reading
+    // of the flight manual, not seen here - kept as the type's gross (mtow, no row), named thin until a source is read
+    variant: 'Rolladen-Schneider LS4-b (Standard Class, 15 m, engineless; the build: the LS4-alike card, a light 15 m glider in its outline)',
+    sources: {
+      wiki:   { what: 'Wikipedia "Rolladen-Schneider LS4", Specifications (citing the Sailplane Directory and the LS-Flugzeugbau site): 15 m, 10.5 m2, empty 238 kg, max take-off 472 kg, 140 L water, stall 68 km/h, VNE 270 km/h, L/D 40.5 at 100 km/h, min sink 0.61 m/s at 75 km/h',
+                quality: 'encyclopedia', read: '2026-11-16', url: 'https://en.wikipedia.org/wiki/Rolladen-Schneider_LS4' },
+      manual: { what: 'the LS4-b flight manual as the LS4 session cited it (a77779c15): max take-off 525 kg. Not read in REAL-FIGURES; the encyclopedia gives 472 kg for the LS4',
+                quality: 'thin', read: '2026-11-16', noUrl: 'cited on the Archaeopteryx / LS4 branch without a link or a copy' },
+    },
     poh: { vr: 1.10, vy: 1.30, flapTO: 0, flapLDG: 0, brake: 0.3, note: 'a sailplane: no flaps (the airbrakes on the approach), launched by winch or aerotow - no engine' },
     rows: {
-      empty: { v: 238, tol: 0.05, src: '238 kg (Wikipedia)' },
-      Vs1:   { v: 68, tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 68 km/h (Wikipedia; the weight unstated)' },
-      LD:    { v: 40.5, tol: 0.10, kg: 'unknown', src: 'best glide 40.5 at 100 km/h (Wikipedia) - WAITING FOR THE DRAG STUDY' },
+      empty: { v: 238, tol: 0.05, src: '238 kg (Wikipedia)', from: 'wiki' },
+      Vs1:   { v: 68, tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 68 km/h (Wikipedia; the weight unstated)', from: 'wiki' },
+      LD:    { v: 40.5, tol: 0.10, kg: 'unknown', src: 'best glide 40.5 at 100 km/h (Wikipedia) - WAITING FOR THE DRAG STUDY', from: 'wiki' },
     } },
   // PIPER J-3C-65 CUB. The 1940s Piper sheet does not state the weight its figures were flown at; the usual reading is
   // gross (1220 lb), but a club J-3 is mostly flown solo from the rear seat. The surface is unstated: a grass type.
@@ -417,6 +428,9 @@ const GEO = {
   stearman: { dims: { span: 9.80, length: [7.39, 7.54], height: [2.79, 2.95], heightAs: 'level', S: [27.6, 27.7] },
               specs: { engine: 'Continental R-670 / W-670', hp: 220, nE: 1, blades: 2, empty: [876, 878], mtow: [1195, 1232], fuelL: 174, seats: 2 },
               src: 'PT-17 (search extracts above); fuel 46 US gal (THIN)' },
+  ls4:      { dims: { span: 15.0, length: [6.66, 6.83], height: [1.26, 1.43], S: 10.5 },
+              specs: { engine: 'none (an engineless sailplane: winch or aerotow)', nE: 0, empty: 238, mtow: 525, fuelL: 0, seats: 1 },
+              src: 'Wikipedia "Rolladen-Schneider LS4" (read 2026-11-16): span 15 m, 10.5 m2, length 6.83 m and height 1.26 m (the LS4), the LS4-b\'s fuselage 6.66 m and fin raised to 1.43 m - the ranges hold both; mtow the LS4-b\'s 525 kg (thin, REFS.ls4.sources.manual)' },
   archaeo:  { dims: { span: 13.6, S: 12.8 },
               specs: { engine: 'electric pusher (the Electeryx\'s ~10.5 kW)', hp: 14, nE: 1, empty: 54, mtow: 191, fuelL: 0, seats: 1 },
               src: 'Wikipedia (span 13.6 m, 12.8 m2, AR 14.5; futureDesigns/archaeopteryx/STUDY.md section 1); the motor 10.5 kW (Wikipedia, via the study)' },
