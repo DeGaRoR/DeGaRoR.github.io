@@ -48,7 +48,8 @@
 // ============================================================
 var CLOUDS = (function () {
   'use strict';
-  const S = { mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
+  const S = { rainExt: 1, rainLight: 0.6, rainKm: 30, rainSteps: 6,   // RAIN step 1c (16 Nov): the shafts' density (x the 07d law), the sky light in them, their reach (km), the steps (lean 4)
+    mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
               shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, noiseMips: 0, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, tLod: 0.5, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
               erodeK: 1, covGain: 1, calCover: 1, ambDepth: 0.12 };
@@ -67,6 +68,7 @@ var CLOUDS = (function () {
     uAmbTop: { value: null }, uAmbBot: { value: null }, uScale: { value: 1 }, uSteps: { value: null }, uFrame: { value: 0 },
     uDials: { value: null }, uCloudTex: { value: null }, uKeyTex: { value: null }, uTexel: { value: null }, uUp: { value: 1 }, uPM: { value: 0 },
     uShadowK: { value: null }, uDials2: { value: null }, uDepthK: { value: 1 }, uEye: { value: null }, uShape: { value: null },
+    uRain: { value: null }, uRainW: { value: null },   // RAIN step 1c: (the day's rain or 0, the density dial, steps, reach m) / (wind x / vFall, wind z / vFall, the sky light, 0)
   };
   // THE SHADOW'S SHARED UNIFORM: the scalars by reference through ShaderLib and inject(); the tile itself is
   // in ATMO's atlas (uApAtlas, already on every fogged program)
@@ -195,6 +197,7 @@ var CLOUDS = (function () {
   const MARCH_GLSL = () => `
     uniform vec4 uSun, uMoon;   // direction xyz, w: the moon lit?
     uniform vec3 uSunCol, uMoonCol, uAmbTop, uAmbBot;   // sun units
+    uniform vec4 uRain, uRainW;   // RAIN step 1c: x the day's rain (0 = dry: the march is what it was), y the density dial, z steps, w reach (m) / the slant per metre of fall, the sky light
     uniform float uScale, uFrame; uniform vec2 uSteps; uniform vec4 uDials, uDials2;   // dials: powder, g, ms decay, maxKm | jitter, the upper decks' shadow softness, the ambient's depth fall-off, 0
     // set by the screen march's main() only: the angle of a march texel (rad, 0 = the dome and the sky fit: level 0, as they were)
     float gPix = 0.0, gFullJ = 0.0, gTm = 0.0;   // gFullJ: the history is on: a whole step's jitter, per frame, at every distance; gTm: out: the cloud's mean distance (m)
@@ -250,6 +253,32 @@ var CLOUDS = (function () {
       }
       return tIn;
     }
+    // RAIN SHAFTS AND THE VEIL (RAIN step 1c, LOOK-1, 16 Nov 2026; RAIN-STUDY-2026-11-16 section 3 (a)). The ray's stretch BELOW the
+    // lowest live deck's base, to the scene or the reach, in uRain.z steps: each reads the decks' rain potential (the weather map's
+    // A) up-wind by the fall from each base (the shafts slant), x the day's rain; the extinction is the game's own law (07d: R =
+    // 12 rain^1.5 mm/h, 0.25 R^0.63 per km) x a dial; lit by the sky's light and the sun the raining deck lets through. Seen from
+    // afar it is the shaft under the shower; from inside it, the grey of the near distance (the veil) - the same integral, clipped
+    // at the scene's depth. The screen march only (gPix > 0): the dome and the sky's fit never see it.
+    void rainSeg(vec3 o, vec3 d, float r0, float r1, float j, float cosT, inout vec3 col, inout float T, inout float tw, inout float tsum) {
+      float ns = uRain.z, dt = (r1 - r0) / ns;
+      for (int i = 0; i < 8; i++) {
+        if (float(i) >= ns || T < 0.01) break;
+        float t = r0 + (float(i) + j) * dt;
+        vec3 p = o + d * t;
+        float A = 0.0, cov = 0.0;
+        for (int li = 0; li < MAXL; li++) {
+          if (uLayerA[li].z < 0.5 || p.y >= uLayerA[li].x) continue;
+          vec3 ps = p - vec3(uRainW.x, 0.0, uRainW.y) * (uLayerA[li].x - p.y);
+          vec4 w = weather(li, ps);
+          if (w.w > A) { A = w.w; cov = w.x; }
+        }
+        if (A <= 0.0) continue;
+        float R = 12.0 * pow(A * uRain.x, 1.5), ext = 0.00025 * pow(R, 0.63) * uRain.y;
+        float Tstep = exp(-ext * dt), a = 1.0 - Tstep;
+        vec3 Ls = mix(uAmbBot, uAmbTop, 0.5) * uRainW.z + uSunCol * phase(cosT, 0.5) * exp(-cov * 3.0) * step(-0.05, uSun.y);
+        col += T * Ls * a; tw += T * a * t; tsum += T * a; T *= Tstep;
+      }
+    }
     vec4 march(vec3 o, vec3 d, float tScene, float jitterK) {
       float tMax = min(tScene, uDials.w * 1000.0);
       float s0[MAXL], s1[MAXL]; int ord[MAXL]; int n = 0;
@@ -265,14 +294,23 @@ var CLOUDS = (function () {
         for (; k > 0; k--) { if (s0[k - 1] <= t0) break; s0[k] = s0[k - 1]; s1[k] = s1[k - 1]; ord[k] = ord[k - 1]; }
         s0[k] = t0; s1[k] = t1; ord[k] = li; n++;
       }
-      ${FM_A ? '' : 'if (n == 0) return vec4(0.0);'}
+      float r0 = 0.0, r1 = -1.0;
+      if (uRain.x > 0.0 && gPix > 0.0) {
+        float yb = 1e9; for (int li = 0; li < MAXL; li++) if (uLayerA[li].z > 0.5) yb = min(yb, uLayerA[li].x);
+        float rEnd = min(tScene, uRain.w);
+        if (o.y < yb) { r1 = d.y > 1e-5 ? min(rEnd, (yb - o.y) / d.y) : rEnd; }
+        else if (d.y < -1e-5) { r0 = (yb - o.y) / d.y; r1 = rEnd; }
+      }
+      bool rainOn = r1 > r0 + 1.0;
+      ${FM_A ? '' : 'if (n == 0 && !rainOn) return vec4(0.0);'}
       vec3 col = vec3(0.0); float T = 1.0, tw = 0.0, tsum = 0.0;
       vec3 L = uSun.xyz; float cosT = dot(d, L), cosM = dot(d, uMoon.xyz);
       float N = uSteps.x, budget = N * 4.0 + 64.0, used = 0.0;   // the step budget, shared by the decks
       // a jitter per PIXEL (interleaved gradient noise) breaks the banding. Without a history it is frozen to the screen (uFrame 0): the
       // clouds slide under a fixed grain, the "smoke pattern" (the study's C1). With one (the main view) it moves per frame and the history averages it
       float j = fract(52.9829189 * fract(0.06711056 * gl_FragCoord.x + 0.00583715 * gl_FragCoord.y) + uFrame * 0.618034);
-${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
+${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o, d, r0, r1, j, cosT, col, T, tw, tsum); rainOn = false; }
+      for (int s = 0; s < MAXL; s++) {
         if (s >= n || T < 0.01) break;
         int li = ord[s]; float t0 = s0[s], t1 = s1[s];
         // THE STEP: N steps over the slab when the path is short; a floor and a ceiling on the step so a
@@ -316,6 +354,7 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
           t += dt;
         }
       }
+      if (rainOn) rainSeg(o, d, r0, r1, j, cosT, col, T, tw, tsum);
       float alpha = 1.0 - T;
       if (alpha < 0.002) return vec4(0.0);
       // the aerial perspective and the mist at the cloud's transmittance-weighted mean distance
@@ -649,6 +688,7 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     U.uSteps.value = new THREE.Vector2(S.steps, S.lightSteps); U.uDials.value = new THREE.Vector4(S.powder, S.g, S.ms, S.maxKm); U.uTexel.value = new THREE.Vector2();
     U.uShadowK.value = new THREE.Vector2(S.shadowSteps, 1); U.uDials2.value = new THREE.Vector4(S.jitter, 0, 0, 0); U.uEye.value = new THREE.Vector3();
     U.uShape.value = new THREE.Vector4(S.detail, S.curl, 0, 0); U.uDZ.value = new THREE.Vector3(0, 0.5, 1e5);
+    U.uRain.value = new THREE.Vector4(0, 1, 6, 30000); U.uRainW.value = new THREE.Vector4(0, 0, 0.6, 0);
     const uni = Object.assign({}, U);
     if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; if (ATMO.apUniforms.uApK) uni.uApK = ATMO.apUniforms.uApK; }
     else { uni.uAtmoAP = { value: new Float32Array(4) }; uni.uApK = { value: new Float32Array([1, 0]) }; }
@@ -873,6 +913,13 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     } else { U.uSunCol.value.set(1, 1, 1); U.uAmbTop.value.set(0.2, 0.25, 0.35); U.uAmbBot.value.set(0.1, 0.1, 0.1); }
     U.uSteps.value.set(S.steps, S.lightSteps); U.uDials.value.set(S.powder, S.g, S.ms, S.maxKm); U.uDials2.value.set(S.jitter, S.shadowSoft, S.ambDepth, 0);
     U.uShape.value.set(S.detail, S.curl, 0, 0);
+    if (U.uRain.value) {
+      const G = typeof window !== 'undefined' && window.GFX && window.GFX.get ? window.GFX.get() : null, q = typeof location !== 'undefined' && /[?&]rain=0(?![.0-9]*[1-9])/.test(location.search || '');
+      const tier = G && G.rain === 'off' ? 'off' : (G && (G.rain === 'lean' || (G.rain !== 'full' && /^(laptop|potato|retro)$/.test(G.preset || ''))) ? 'lean' : 'full');
+      const r = !q && tier !== 'off' && dayRef && +dayRef.rain > 0 ? Math.min(1, +dayRef.rain) : 0, vF = (typeof CLOUD_FIELD !== 'undefined' && CLOUD_FIELD.VFALL) || 6.5;
+      U.uRain.value.set(r, S.rainExt, tier === 'lean' ? Math.min(4, S.rainSteps) : S.rainSteps, S.rainKm * 1000);
+      U.uRainW.value.set(winds[0][0] / 1.5 / vF, winds[0][1] / 1.5 / vF, S.rainLight, 0);
+    }
     lastCover = L.reduce((m, l) => Math.max(m, l.cover), 0);   // any deck with cover keeps the pass live
     // THE VEIL (C4): cirrus over the low layer - a share of the cover by type (a cumulus day carries a thin
     // one, an overcast a fuller), drifted by the upper wind (twice the surface's, veered), lit by the sun's

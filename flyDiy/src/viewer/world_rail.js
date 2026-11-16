@@ -1175,8 +1175,12 @@
   // (src/viewer/rain.js LOOK) - numbers only, live (the next frame reads them), kept in THE LOOK, exported, reset with it.
   // Where it rains is the day's (the left rail's WEATHER: the rain and the clouds); the readout says what the eye has now.
   const RAIN_KEYS = ['opacity', 'exposure', 'maxLen', 'maxNdc', 'width', 'minPx', 'ambient', 'back', 'backPow', 'vFall', 'nearFade', 'cockpitK', 'cockpitV'];
-  function rainNow() { const L = W.RAIN_FX && W.RAIN_FX.LOOK, o = {}; if (L) for (const k of RAIN_KEYS) o[k] = L[k]; return o; }
-  function rainSet(o) { const L = W.RAIN_FX && W.RAIN_FX.LOOK; if (!L || !o) return; for (const k of RAIN_KEYS) if (typeof o[k] === 'number' && isFinite(o[k])) L[k] = o[k]; }
+  const SHAFT_KEYS = { shaftExt: 'rainExt', shaftLight: 'rainLight', shaftKm: 'rainKm', shaftSteps: 'rainSteps' };   // the shafts' dials: CLOUDS.S (the march)
+  function rainNow() { const L = W.RAIN_FX && W.RAIN_FX.LOOK, C = W.CLOUDS && W.CLOUDS.S, o = {}; if (L) for (const k of RAIN_KEYS) o[k] = L[k];
+    if (C) for (const k in SHAFT_KEYS) if (typeof C[SHAFT_KEYS[k]] === 'number') o[k] = C[SHAFT_KEYS[k]]; return o; }
+  function rainSet(o) { const L = W.RAIN_FX && W.RAIN_FX.LOOK, C = W.CLOUDS && W.CLOUDS.S; if (!o) return;
+    if (L) for (const k of RAIN_KEYS) if (typeof o[k] === 'number' && isFinite(o[k])) L[k] = o[k];
+    if (C) for (const k in SHAFT_KEYS) if (typeof o[k] === 'number' && isFinite(o[k])) C[SHAFT_KEYS[k]] = o[k]; }
   function rainCard(body) {
     const R = sec(body, 'the rain', false, 'the streaks round you');
     if (!W.RAIN_FX) { note(R, 'no rain module on this page'); return; }
@@ -1194,6 +1198,14 @@
     range(R, 'none closer than', 0.2, 4, 0.1, () => L.nearFade, rs('nearFade'), v => v.toFixed(1) + ' m', D.nearFade);
     range(R, 'cockpit at speed: density', 0, 1, 0.05, () => L.cockpitK, rs('cockpitK'), null, D.cockpitK);
     range(R, 'cockpit: full speed at', 5, 100, 1, () => L.cockpitV, rs('cockpitV'), v => v.toFixed(0) + ' m/s', D.cockpitV);
+    const CS = W.CLOUDS && W.CLOUDS.S;
+    if (CS) {
+      const cs = k => v => { CS[k] = v; };
+      range(R, 'shafts: density', 0, 4, 0.05, () => CS.rainExt, cs('rainExt'), v => 'x ' + v.toFixed(2), D.shaftExt);
+      range(R, 'shafts: sky light', 0, 2, 0.05, () => CS.rainLight, cs('rainLight'), null, D.shaftLight);
+      range(R, 'shafts: reach', 2, 60, 1, () => CS.rainKm, cs('rainKm'), v => v.toFixed(0) + ' km', D.shaftKm);
+      range(R, 'shafts: steps', 2, 8, 1, () => CS.rainSteps, cs('rainSteps'), v => v.toFixed(0), D.shaftSteps);
+    }
     liveNote(R, () => { const Q = W.RAIN_LIVE, C = W.CLOUDS; const fx = Q && Q.fx; return 'here: rain ' + (C && C.ready ? C.rain.toFixed(2) : '-') + ', ' + (Q ? Q.st.why : '-') + (fx ? ', ' + fx.drawn + ' drops (' + fx.tier + ')' : ''); });
     note(R, 'where and how hard it rains is the day\u2019s: the left rail\u2019s WEATHER. The tier is GRAPHICS > sky > rain; ?rain=0 switches the streaks off.');
   }

@@ -19,6 +19,9 @@
 //      and rain, the cockpit's density, no texture / sampler (MATLIB, GLSL3), the cabin and roof cuts, MADE LAZILY (a dry
 //      day and ?rain=0 never make the program). The shader compiles on the page only: by hand, in a GPU slot.
 //   8. THE WORLD EDITOR: the "rain" block carries every numeric LOOK key, kept in THE LOOK, applied, diffed, mounted.
+//   9. THE SHAFTS AND THE VEIL (clouds.js march, static): a dry day (uRain.x 0), ?rain=0, the tier off, the dome and the sky
+//      fit leave the march what it was; the shafts read only the weather map; the extinction is 07d's law; they slant
+//      as rainAt does; 4 steps on the lean tier; their four dials in the world editor.
 // Run: node tools/_rain_check.js   (contract: one final `GATE RAIN: ...`)
 // ============================================================
 'use strict';
@@ -122,6 +125,23 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
   ok(num.every(k => keys.indexOf(k) >= 0) && keys.every(k => num.indexOf(k) >= 0), '8a the rain block carries every numeric LOOK key (' + num.length + ')', 'missing: ' + num.filter(k => keys.indexOf(k) < 0).join(',') + ' extra: ' + keys.filter(k => num.indexOf(k) < 0).join(','));
   ok(WR.indexOf("put('rain', deltaOf(N.rain, DEF.rain))") > 0 && WR.indexOf('if (W.RAIN_FX && o.rain) rainSet(o.rain);') > 0 && WR.indexOf("ch.push(...diff(DEF.rain, out.rain, 'rain'))") > 0 && WR.indexOf('    rainCard(body);') > 0,
      '8b it is saved in THE LOOK, applied on import / reset, listed in the changes, and mounted in air & map'); }
+
+// 9 THE SHAFTS AND THE VEIL (clouds.js, static; the march compiles on the page): a dry day leaves the march what it was
+{ const fsx = require('fs'), px = require('path'), C = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'clouds.js'), 'utf8');
+  const P = fsx.readFileSync(px.join(__dirname, '..', 'src', 'core', '07d_weather_plan.js'), 'utf8');
+  const seg = C.slice(C.indexOf('void rainSeg('), C.indexOf('vec4 march(vec3 o, vec3 d, float tScene, float jitterK) {'));
+  const mar = C.slice(C.indexOf('vec4 march(vec3 o, vec3 d, float tScene, float jitterK) {'), C.indexOf('// the fullscreen march: the ray from the inverse projection'));
+  ok(seg.length > 100 && mar.indexOf('if (uRain.x > 0.0 && gPix > 0.0) {') > 0 && mar.indexOf("if (n == 0 && !rainOn) return vec4(0.0);") > 0 && mar.split('rainSeg(').length === 3,
+     '9a uRain.x 0 (a dry day, ?rain=0, the tier off) or the dome / the sky fit (gPix 0): no segment - the early return and the decks as before');
+  ok(seg.indexOf('texture(') < 0 && seg.indexOf('weather(li, ps)') > 0 && seg.indexOf('textureLod') < 0, '9b the shafts read only the decks\' weather map (no new sampler, no noise)');
+  ok(seg.indexOf('12.0 * pow(A * uRain.x, 1.5)') > 0 && seg.indexOf('0.00025 * pow(R, 0.63)') > 0 && P.indexOf('const R = 12 * CORE_MATH.pow(clamp(day.rain || 0, 0, 1), 1.5);') > 0 && P.indexOf('0.25 * CORE_MATH.pow(R, 0.63)') > 0,
+     '9c the extinction is the game\'s own law (07d: R = 12 rain^1.5 mm/h, 0.25 R^0.63 per km)');
+  ok(seg.indexOf('(uLayerA[li].x - p.y)') > 0 && seg.indexOf('uRainW.x') > 0 && C.indexOf('U.uRainW.value.set(winds[0][0] / 1.5 / vF, winds[0][1] / 1.5 / vF') > 0,
+     '9d the shafts slant: read up-wind by the fall from each base, the wind at the base / vFall (the CPU rainAt\'s law)');
+  ok(C.indexOf("const r = !q && tier !== 'off' && dayRef && +dayRef.rain > 0 ? Math.min(1, +dayRef.rain) : 0") > 0 && C.indexOf("tier === 'lean' ? Math.min(4, S.rainSteps) : S.rainSteps") > 0,
+     '9e the uniform: the day\'s rain, 0 under ?rain=0 or the tier off; 4 steps on the lean tier');
+  const WR = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'world_rail.js'), 'utf8');
+  ok(['rainExt', 'rainLight', 'rainKm', 'rainSteps'].every(k => WR.indexOf("cs('" + k + "')") > 0 && WR.indexOf("'" + k + "'") > 0), '9f the shafts\' four dials are in the world editor\'s rain block and THE LOOK'); }
 
 console.log('GATE RAIN: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
