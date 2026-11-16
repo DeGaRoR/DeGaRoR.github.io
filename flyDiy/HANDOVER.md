@@ -317108,3 +317108,11 @@ the wiring (arm points, the boolean, the stop keys, the garage, the lazy rows, t
 6. a pass wide of g2 (the "Missed g2" line, warn colour).
 7. the arrival card at w3 (the gold medal line) and the map's contracts screen with demo.gates open (the places drawn).
 8. FRAMECOST-style: frame time with the mission mounted vs ?pack= absent at the same spot (the props are ~2k tris a post).
+BOOT-LOOP-GUARD (DIRT-STRIP, 16 Nov, ready/boot-loop-guard on fb8fb633b): a Go under the garage boot's cover (Tab reached #bGo
+behind it, Enter pressed it; a rig's click) superseded the chain before first light and replaced its done(): the loop never
+started, nothing was ever drawn. Now (app.js) every loading screen starts the loop as it opens and every done() starts it last
+even when it throws (loopDone); onGo refuses while BOOT.state != gone; boot.js B.setUnder makes the app's layers behind the
+cover inert while it is up. Pointer and phone could not reach the button; the keyboard could. GATE BOOTLIFT gains 'under':
+RED on master 6/7 (nothing landed for 20 s, 0 renders), GREEN with the guard. The 19 Go-pressing gates: 15 PASS; the 4 reds
+are master's, same checks by name (BOOTLIFT hard - "hard timeout" at 2 virtual s on master too, an owner's look; FRAMECOST,
+ROUNDTRIP, SIMWORKER-EDGES NaN bounding sphere).
