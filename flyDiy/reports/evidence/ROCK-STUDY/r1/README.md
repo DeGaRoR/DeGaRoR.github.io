@@ -1,100 +1,122 @@
-# ROCK-STUDY R1: the island's own rock on the splat (ready for the GPU and phone run)
+# ROCK-STUDY R1 (v2): the island's own rock on the splat
 
-Branch `claude/rock-study-r1`, three commits on master fb8fb633b (L40d): the source, the gate re-pins and the (built) commit.
-L40e had not landed when this was cut, so the rebase follows it.
+Branch `claude/rock-study-r1`, on master fb8fb633b (L40d). L40e had not landed when this was cut; the rebase follows it.
+
+v2 answers A0's box run of v1 (8e12b1b04, 16 Nov). v1 linked every ground program about 15 s slower, its terrain bias took
+246 ms on the main thread, and close in it read as dark vertical stripes.
+
+## What changed from v1
+
+1. **R1 rides the material chain.**
+   - Under the dial, `push()` points the rock codes' own sets at the tiles: code 6 wears `trondSlab` at 16 m. Code 12 (the
+     steep split, 42-58 deg under the dial) wears the slab at 24 m, or the face tile if the rail's "on the steep faces"
+     pill asks for it. The hex tiling, the triplanar, the far set, the grade and the recolour are all the chain's own.
+   - R1's own fetch chain is gone: no `sTrond`, no `sTrTap`, no extra inlined `sFetch`. The material chain is back to 3
+     `sFetch` sites.
+   - What R1 adds itself:
+     - `sTrExpo`, the exposure: once a pixel, in the vote;
+     - `sTrPost`, on a rock candidate's sample: the far fade, the micro detail, the macro colour, two cheap joint sets and
+       the green;
+     - three plain texture reads: the micro's colour and normal, and the green's colour.
+   - `GS_TRLITE` (the outer ring and the premises patch) leaves the micro and the joints out.
+   - The splat GLSL without comments, over master: v1 was +9.0 KB, plus seven inlined `sFetch` bodies; v2 is +5.2 KB
+     (+4.3 KB lite), with nothing inlined twice.
+2. **`?rocks=0` links master's program.** With the dial off at the load, the programs carry `GS_NOTROND` and key apart
+   (`:norock`). A live turn re-keys them once.
+   - For the box's bisect: `?gstrip=notrond` (R1's text out) and `?gstrip=trlite` (its lite text everywhere).
+3. **The terrain bias is in a worker.**
+   - `rockBiasStart()` starts it at the build's first line. The 'island ground' step takes the result, or yields until it
+     arrives.
+   - `window.ROCK_STATS` reports `biasWorkerMs` (inside the worker), `biasMainMs` (the post and the copy back),
+     `biasWallMs` and `biasWaitMs` (the step's wait, 0 when it was ready in time).
+   - Measured in headless Chromium on a 1024² grid: the worker's output is byte for byte the main-thread function's.
+     The main thread spent 10 ms; the worker 492 ms, on this busy CPU.
+   - No Worker (node, a gate's stub): the step makes it on the main thread, as before.
+4. **The look.**
+   - The face tile's vertical streaks are off the steep faces by default: the slab, on the triplanar's side planes, reads
+     as jointed slabs.
+   - Wet streaks are down to 0.2 by default.
+   - The joints are two sets, about 18-21 m apart. They are anti-aliased to the pixel and gone by 450 m ("joints gone by").
+   - The green's saturation is down to 0.6 ("green's saturation"), which holds the lichen's yellow down.
+   - Bare stone turns matte from 250 to 900 m, against the bleaching seen from altitude.
+   - The far fade now goes to the slab's graded mean.
 
 ## The dial
 
-- `?rocks=0` at the load: today's ground. The recipe's rock and cliff sets are drawn, no terrain bias is computed and the two
-  new layers are not fetched.
-- `?rocks=1` or no parameter: R1 (the default).
-- Live: `WORLD.ground.splat().rocks(0|1)`, or F9 > **rock & cliffs** > "the island's rock" on/off. The dial is a uniform, so
-  no program re-keys.
+- `?rocks=0` at the load: today's ground. Master's program text, no bias computed, no new layers fetched.
+- Default: on.
+- Live: `WORLD.ground.splat().rocks(0|1)`, or F9 > **rock & cliffs** > "the island's rock". A live turn re-keys the ground
+  programs once.
 
 ## The eyes (world x, y, z; Mount Ardent, Jolene)
 
 | view | pos | target |
 |---|---|---|
-| face (230 m) | 9727.5, 843.1, -4788.2 | 9780, 793.1, -5020 |
-| near (110 m) | 9762.8, 798.1, -4910.7 | 9780, 798.1, -5020 |
-| high (~800 m out, 600 m up) | 9380.4, 1369.9, -4596.3 | 9807.6, 769.9, -5073.3 |
-| far (the summit at 1.2 km) | 8640, 1175.1, -4590 | 9490, 815.1, -5440 |
+| face | 9727.5, 843.1, -4788.2 | 9780, 793.1, -5020 |
+| near | 9762.8, 798.1, -4910.7 | 9780, 798.1, -5020 |
+| high | 9380.4, 1369.9, -4596.3 | 9807.6, 769.9, -5073.3 |
+| far | 8640, 1175.1, -4590 | 9490, 815.1, -5440 |
 
 ## The stills here (`*_off_vs_on.jpg`, top `?rocks=0`, bottom `?rocks=1`)
 
-- They are made by `tools/rock_study/ground_shot.js`, which drives `ground_bench.html`.
-- **The game's code:** `splat_ground.js`, the ground library and the cooked layers, unmodified, on Ardent's own ground inputs:
-  pack A, pack B with NDVI and terrain type, and the tint with R1's bias in its alpha (`export_gpatch.js`).
-- **The glue:** render_world's map_fragment hook, copied.
-- **The headless renderer:**
-  - It is SwiftShader, and it compiles only the **lean** program (`SPLAT_ONE`).
-  - The full program runs SwiftShader out of memory (13 GB) at link time, and **master's does too**: a box limit, not an R1 regression.
-  - R1's text is in both programs.
-- **The light is the study bench's** (hemisphere + sun, ACES), not the game's light rig or atmosphere. Read the stills as
-  "off vs on", not as the game's final look.
+They come from `tools/rock_study/ground_shot.js`: the game's `splat_ground.js` and ground library on Ardent's own ground
+inputs, render_world's map_fragment glue copied, and the study bench's light. SwiftShader links only the lean program (the
+full one runs it out of memory, master's too), so read them as "off vs on", not as the final look.
 
 ## Costs
 
-- **Samplers: +0.** The tiles are two layers of the existing `uSplat` / `uSplatN` arrays. The micro detail reads the existing
-  `cliff` layer and the green the existing `grassRock` layer. The bias rides `uGTint`'s alpha (it was 255 and never read). The
-  NDVI comes from `uGPackB`.
-- **Arrays:** 13 -> 15 layers on the Ardent patch's sets. `cliff` and `grassRock` were already reachable, so only `trondSlab`
-  and `trondFace` are fetched new: 1.27 MB of KTX2 (kAl + kN), or 3.3 MB of raw layers in the fallback.
-- **Main thread at the load: `rockBias()` ~90-130 ms** (node, 1024² hydrology grid, two box blurs, measured three times). In
-  the game it is `window.ROCK_STATS.biasMs`. It runs once, is cached, and is skipped on `?rocks=0`. No worker yet; it could
-  move to one if A0 wants the ~0.1 s back.
-- **The shader:** `sTrond` is inlined ONCE a pixel, before the candidate loop (GATE SPLAT's R1 rule). It does up to
-  8 sample pairs where rock shows (slab 3, face 2, micro 2, green 1), plus the joints' ALU. It costs nothing where the
-  exposed rock weighs under 0.004. **Its cold link and frame cost on D3D11 are the GPU run's to measure** (`node
-  tools/_splat_check.js --gpu`, ground_cost.js).
+- **Samplers: +0.** The tiles are layers of `uSplat` / `uSplatN`. The bias rides `uGTint`'s alpha, and the NDVI comes from
+  `uGPackB`.
+- **Arrays:** two new layers (trondSlab, trondFace): 1.27 MB of KTX2.
+- **Main thread at the load:** about 10 ms for the bias (the worker does the rest).
+- **Link and frame cost on D3D11:** the box's to measure. The bisect: `?rocks=0` against `?rocks=1`, and
+  `?gstrip=notrond` / `trlite`.
 
 ## What to read
 
-- `src/viewer/splat_ground.js`: R1's header, then `sTrJoints` / `sTrExpo` / `sTrond`, the exposure in both vote paths,
-  the single call before the candidates, and `push()`'s rock block.
-- `src/viewer/render_world.js`: `rockBias()` before `tintRGBA`.
+- `src/viewer/splat_ground.js`:
+  - the R1 header;
+  - `sTrLine` / `sTrJoints` / `sTrExpo` / `sTrPost`;
+  - the exposure in both vote paths;
+  - the `sTrPost` call after `sMatPass` in both candidate loops;
+  - `push()`'s rock block, which overwrites codes 6 and 12;
+  - `api.rocks` and `stripDefs`.
+- `src/viewer/render_world.js`:
+  - `ROCK_BIAS` and `rockBiasStart` (above the steps), the job at the build's first line, and the wait at 'island ground';
+  - `GS_TRLITE` on the side-0 hooks.
 - `src/core/28b_ground_fields.js`: the `rock*` knobs.
-- `src/viewer/world_rail.js`: `buildRock`, in the **rock & cliffs** section.
+- `src/viewer/world_rail.js`: `buildRock`.
 
-## The world rail (A0's ask, the user will tune it)
+## The world rail (F9 > rock & cliffs)
 
-F9 > **rock & cliffs** has these rows:
+- **The rock:**
+  - on/off and brightness;
+  - slab tile (m), steep tile (m), and on the steep faces: slab or face tile;
+  - steep from / fully by (deg);
+  - the exposure: shows from / fully by (m), the map's weight, the threshold, the imagery's green and its NDVI midpoint.
+- **Joints, green and wet:**
+  - joint density, soil in the joints, joint dirt, hollow dirt;
+  - green in the cracks, wet streaks, the green's saturation;
+  - joints gone by (m).
+- **Roughness:** bare stone (x the tile's map), the green.
+- **Micro detail and fades:**
+  - micro detail on, its brightness, its relief, fades from / gone by (m);
+  - the far fade from / full by (m).
+- **Each tile:** its grade and recolour.
+- **Reset the rock.**
 
-- on/off and brightness;
-- the exposure: rock shows from / fully by (m), the map's rock weight, the threshold, the imagery's green and its NDVI midpoint;
-- joints, green and wet: joint density, soil in the joints, joint dirt, hollow dirt, green in the cracks, wet streaks;
-- roughness: bare stone (x the tiles' maps), the green;
-- micro detail: on, brightness, relief, fades from / gone by; and the far fade from / full by;
-- each tile's grade and recolour (the materials editor);
-- **reset the rock**.
+These are splat knobs, so they persist as the other ground rows do: `flydiy.ground.splat.v1`, the export's `splat` block and
+its changes.
 
-Every row is a splat knob, so it is kept as the other ground rows are: `flydiy.ground.splat.v1`, the export's `splat` block
-and its "changes" against the recipe.
+## Gates (this tree, `--no-build` after a build)
 
-## Gates
+- **PASS:** SPLAT (the new R1 rule: "the rock rides the material chain - its own functions call none of it, sTrPost once,
+  sTrExpo once, no loop, <=3 plain texture reads"), GROUNDLIB, KTX2, MATLIB, GEO, FADES, PREMISES, WORKBENCH, LOOKS, LIGHT,
+  GEOPARITY, COMMITHYGIENE.
+- **MEDIA, red on master too:** `career_core` 654 KB against 640 KB. The file is identical to master's.
+- **UISMOKE and SCENERYED:** run on v1, untouched since except world_rail rows. SCENERYED 20b is red on master on this box
+  (wall-clock).
 
-`node tools/run_gates.js --no-build` on this tree:
+## Known
 
-- **PASS:** SPLAT, GROUNDLIB, KTX2, MATLIB, GEO, FADES, PREMISES, WORKBENCH, COMMITHYGIENE, LOOKS, LIGHT, GEOPARITY, UISMOKE.
-- **MEDIA, master's:** `career_core` 654 KB against 640 KB. It is master's identical `career_core.713f1a62.js`; R1 does
-  not touch it.
-- **SCENERYED 20b, master's on this box:** a wall-clock row. Master's archive measured 2713 ms against 2500 here, this tree
-  2994 ms; the row is the town's compose and does not read the splat.
-- **Not run:** SPLAT `--gpu` (needs Chrome on the island). It is the GPU slot's.
-- **Re-pins**, in their own commit:
-  - GROUNDLIB `--update`: the two new sets' fingerprints.
-  - KTX2 `MEANM_ALLOW`: `trondFace.kAl` 2.7. Its 4 x 4 mip is blue 2.56 against 2.5, in one UASTC block; RDO lambda 0.5
-    gave the same.
-- **New rules in SPLAT:**
-  - the rock knobs' ranges and order;
-  - the arrays' reach includes R1's four sets;
-  - "R1: the island's rock inlined once a pixel";
-  - the decode rule pinned to the fetch's own line.
-
-## Known, for the eye on the GPU
-
-- The two regional joint sets (24-25 m apart) still draw as long, faint curved lines at ~1 km. Joint dirt and density are
-  rail rows; lowering the dirt is the quick lever.
-- From altitude, bare rock reads lighter than the study's v1 still. Brightness is `rockK` 0.5; the game multiplies the ground
-  by `uGLight` 1.38, which the study bench did not.
-- R1 is texture only. v1's relief (the 1.25 m mesh ring) is R2, and its boulders are R3.
+- R1 is texture only. v1's relief (the 1.25 m mesh) is R2, its boulders R3: close in, the bench v1's shadowed slabs need R2.

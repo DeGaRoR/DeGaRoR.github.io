@@ -1,10 +1,10 @@
 {
  "cases": {
   "rocks0": {
-   "buildMs": 379,
-   "firstMs": 115,
-   "fsLen": 92793,
-   "samplers": 0,
+   "buildMs": 1026,
+   "firstMs": 292,
+   "fsLen": 87935,
+   "samplers": 13,
    "linked": true,
    "layers": [
     "beach",
@@ -87,19 +87,19 @@
    "errs": [],
    "ms": {
     "face": 0.6,
-    "near": 0.4,
-    "high": 0.4,
-    "far": 0.2
+    "near": 0.6,
+    "high": 0.5,
+    "far": 0.4
    },
    "logs": [
     "log: splat: the sets normalised to the imagery (gain r/g/b): grassRock 0.26/0.47/0.90, mud 0.50/0.50/0.50, beach 0.50/0.50/0.50, rocksG 1.00/1.00/1.00, cliff 1.00/1.00/1.00, rockyA 1.00/1.00/1.00, forestAir 1.00/1.00/1.00, snowAir 2.50/2.50/2.50, dirt 0.73/0.73/0.73, coastA 1.30/1.30/1.30, coastSand 1.33/1.33/1.33, rocksB 1.00/1.00/1.00, grass 0.35/0.36/0.67"
    ]
   },
   "rocks1": {
-   "buildMs": 424,
-   "firstMs": 115,
-   "fsLen": 92793,
-   "samplers": 0,
+   "buildMs": 415,
+   "firstMs": 128,
+   "fsLen": 87914,
+   "samplers": 13,
    "linked": true,
    "layers": [
     "beach",
@@ -183,10 +183,10 @@
    },
    "errs": [],
    "ms": {
-    "face": 1,
+    "face": 0.6,
     "near": 0.3,
     "high": 0.3,
-    "far": 0.4
+    "far": 0.2
    },
    "logs": [
     "log: splat: the sets normalised to the imagery (gain r/g/b): grassRock 0.26/0.47/0.90, mud 0.50/0.50/0.50, beach 0.50/0.50/0.50, rocksG 1.00/1.00/1.00, cliff 1.00/1.00/1.00, rockyA 1.00/1.00/1.00, forestAir 1.00/1.00/1.00, snowAir 2.50/2.50/2.50, dirt 0.73/0.73/0.73, coastA 1.30/1.30/1.30, coastSand 1.33/1.33/1.33, rocksB 1.00/1.00/1.00, grass 0.35/0.36/0.67"
