@@ -171,10 +171,11 @@
     // pivots; they leave the body and become the rig's wheels, each about its hub in the sheet's frame (its axle on z:
     // the rig spins it about z and steers it about y), matched to the sheet's nearest wheel
     holder.updateMatrixWorld(true);
-    const wheels = {}, inv = new T.Matrix4().copy(holder.matrixWorld).invert(), hubW = new T.Vector3();
+    // (the holder has no parent yet: its WORLD frame is the sheet's - the rig hangs the holder in the sheet's frame as is)
+    const wheels = {}, inv = new T.Matrix4(), hubW = new T.Vector3(), hubs = [];
     const ids = Object.keys(src.sheet.wheels || {});
     for (const list of parts) {
-      list[0].getWorldPosition(hubW); const hub = hubW.clone().applyMatrix4(inv);
+      list[0].getWorldPosition(hubW); const hub = hubW.clone().applyMatrix4(inv); hubs.push([hub.x, hub.y, hub.z].map(v => +v.toFixed(2)));
       let best = null, bd = 0.6;                     // (a wheel's hub within 0.6 m of a sheet wheel's centre)
       for (const id of ids) { const c = src.sheet.wheels[id].centre; const d = Math.hypot(c[0] - hub.x, c[1] - hub.y, c[2] - hub.z); if (d < bd) { bd = d; best = id; } }
       if (!best || wheels[best]) continue;
@@ -187,6 +188,7 @@
       }
       wheels[best] = w;
     }
+    DM.vanInfo = { parts: parts.length, hubs, matched: Object.keys(wheels) };   // (the page rigs' probe)
     return { mesh: holder, wheels: Object.keys(wheels).length === ids.length ? wheels : null, nWheels: Object.keys(wheels).length };
   }
   function isAncestor(a, o) { for (let q = o; q; q = q.parent) if (q === a) return true; return false; }
