@@ -47,7 +47,7 @@ function run(env, src) {
   const clsCards = G.filter(g => g.cls).map(g => g.cls);
   ok(H.dust.CLASSES.every(c => clsCards.includes(c)) && ['mud', 'slush'].every(c => G.find(g => g.cls === c).rows.some(r => /proj\.tread$/.test(r[0]))),
     'A every surface class has its card (' + clsCards.join(', ') + '); mud and slush their throw');
-  ok(['clouds', 'sources', 'sizes', 'coat', 'deposit'].every(k => G.find(g => g.k === k)), 'A the groups: the clouds, the sources, the sizes, the coat, the computed deposit');
+  ok(['clouds', 'sources', 'sizes', 'coat', 'deposit', 'rain'].every(k => G.find(g => g.k === k)), 'A the groups: the clouds, the sources, the sizes, the coat, the computed deposit, the rain on the skin');
   if (SHOW) for (const g of G) console.log('    ' + g.title.padEnd(36) + g.rows.map(r => r[1]).join(' | '));
   // ---- B. THE LOOK
   const shipped = JSON.stringify(X.now());

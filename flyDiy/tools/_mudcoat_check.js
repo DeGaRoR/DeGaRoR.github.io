@@ -23,6 +23,10 @@
 // D. THE WIRING: app.js steps it every frame beside the dust, reads the mains' surface only on the ground, the solver's
 //    sinkage, the day's rain, the water contact; a new aeroplane starts clean; the garage draws the build without it.
 // E. THE COST: the law a frame under 1 us.
+// F. THE LIVE TERM (GROUND-FX, 16 Nov): the bake (FB_HOOK) and the live shader carry the same term (the computed mud, the
+//    dust film, the wetness, the rain on the skin; the cone coat the bake's fallback), the bake binds the very uniform
+//    objects the page writes, its craft normal, no varnish over the mud; the JS mirror at a fragment; the rain law; the page
+//    steps it after the coat, draws one mud (the grid's or the cone's), throws the live pool at the grid, makes it parked.
 'use strict';
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
@@ -102,8 +106,69 @@ function run(W, o) {
   const us = Number(process.hrtime.bigint() - t0) / 1e3 / N;
   yes(us < 1, 'E the law a frame under 1 us', us.toFixed(3) + ' us');
   log('E ' + us.toFixed(3) + ' us a frame');
+  if (!o.noLive) for (const f of liveTerm(W, o)) fail.push(f);
   return fail;
 }
+// ---- F. THE LIVE TERM (GROUND-FX, 16 Nov; the design's section 7: the bake froze the weathering at roll-out and dropped the
+// live coat - DIRT-DUST's run 3: coat 0.58 in the uniforms, nothing on screen). aeroweather's aeroGdFs spliced into BOTH the
+// live shader and flown_bake.js's FB_HOOK; the page's gdFrame writes the shared block; ground_deposit's rain law.
+function liveTerm(W, o) {
+  const fail = [], yes = (c, m, x) => { if (!c) fail.push(m + (x ? ' (' + x + ')' : '')); else log('ok   ' + m + (x ? ' - ' + x : '')); };
+  const GD = require(path.join(ROOT, 'src', 'viewer', 'ground_deposit.js'));
+  const U = W.aeroWxSharedU(THREE);
+  const KEYS = ['tGdMud', 'tGdFw', 'uGdBox', 'uGdDim', 'uGdMudC', 'uGdDustC', 'uGdPbr', 'uGdRain', 'uGdSp', 'uGdSp2'];
+  yes(KEYS.every(k => U[k]), 'F the shared block carries the term\'s uniforms', KEYS.filter(k => !U[k]).join(', '));
+  // the baked material: FB_HOOK on the physical shader three ships
+  globalThis.THREE = THREE; globalThis.AEROWX = W;
+  const fbPath = path.join(ROOT, 'src', 'viewer', 'flown_bake.js');
+  let FBM = null;
+  if (o.fbSrc) { const vm = require('vm'); vm.runInThisContext(o.fbSrc, { filename: 'flown_bake_doctored.js' }); FBM = globalThis.FLOWN_BAKE; }
+  else { delete require.cache[require.resolve(fbPath)]; require(fbPath); FBM = globalThis.FLOWN_BAKE; }
+  const d = Object.assign({ uCraftInv: { value: new THREE.Matrix4() } }, U);
+  const mat = new THREE.MeshPhysicalMaterial({ clearcoat: 1 }); mat.userData.aeroD = d;
+  const sh = { uniforms: {}, vertexShader: THREE.ShaderLib.physical.vertexShader, fragmentShader: THREE.ShaderLib.physical.fragmentShader };
+  FBM.FB_HOOK.call(mat, sh);
+  const fs_ = sh.fragmentShader, iT = fs_.indexOf('float gdMudK'), iE = fs_.indexOf('#include <emissivemap_fragment>');
+  yes(iT > 0 && iT < iE && /textureLod\(tGdMud, gdUvw, 0\.0\)/.test(fs_) && /gdSpatter\(gdP\)/.test(fs_) && /uGdMudC\.w > 0\.0/.test(fs_),
+    'F the bake carries the term (the grid, the spatter, the cone coat as its fallback), before the emissive: after the normal maps');
+  yes(/vFbCraftN = mat3\(uCraftInv \* modelMatrix\) \* objectNormal;/.test(sh.vertexShader) && /normalize\(vFbCraftN\) \* faceDirection/.test(fs_), 'F the bake\'s craft normal (both faces)');
+  yes(/material\.clearcoat \*= 1\.0 - gdMudK;/.test(fs_), 'F no varnish over the mud on the bake');
+  const ident = KEYS.concat(['uWxW', 'uWxWd', 'uWxN']).filter(k => sh.uniforms[k] !== U[k]);
+  yes(!ident.length, 'F the bake binds the very objects the page writes (identity, not copies)', ident.join(', '));
+  // the live shader: the same term at the surface pass's tail, its uniforms declared
+  yes(/gdSpatter\(gdP\)/.test(W.AERO_WX_SURF_FS) && W.AERO_WX_SURF_FS.lastIndexOf('float gdMudK') > W.AERO_WX_SURF_FS.lastIndexOf('uWxDbg') && !/uGdMudC\.w > 0\.0/.test(W.AERO_WX_SURF_FS)
+      && /uniform highp sampler3D tGdMud;/.test(W.AERO_WX_PARS_FS), 'F the live shader carries the same term (the cone drawn by its layers, not twice)');
+  // the JS mirror at a fragment's point: a plate, mud arriving up at its middle -> the underside takes it, the top none
+  const T = [], part = [];
+  for (let i = 0; i < 10; i++) for (let j = 0; j < 10; j++) { const x = i * 0.1 - 0.5, y = j * 0.1 - 0.5;
+    T.push(x, y, 0.5, x + 0.1, y, 0.5, x, y + 0.1, 0.5, x + 0.1, y, 0.5, x + 0.1, y + 0.1, 0.5, x, y + 0.1, 0.5); part.push(1, 1); }
+  const G = GD.make(Float32Array.from(T), Uint8Array.from(part), { h: 0.08, zLow: 0 });
+  const c = G.occ.findIndex((v, i) => v === 1 && Math.abs((i % G.nx) - G.nx / 2) < 2 && Math.abs((Math.floor(i / G.nx) % G.ny) - G.ny / 2) < 2);
+  GD.deposit(G, c, 0, 0.2, 1, 2, 1); GD.smooth(G);
+  const px = G.o[0] + ((c % G.nx) + 0.5) * G.h, py = G.o[1] + ((Math.floor(c / G.nx) % G.ny) + 0.5) * G.h, pz = 0.5;
+  const under = GD.sample(G, px, py, pz, 0, 0, -1), top = GD.sample(G, px, py, pz, 0, 0, 1);
+  yes(under > 0.3 && top === 0, 'F the mirror at the fragment: the underside takes the mud, the top none', 'under ' + under.toFixed(2) + ', top ' + top.toFixed(2));
+  // the rain on the skin: wets toward the rain over tWet, holds a drizzle at its own level, dries over tDry after
+  const R = GD.RAIN; let w = 0; for (let k = 0; k < 60 * 60; k++) w = GD.rainStep(w, 1 / 60, 1);
+  const wet60 = w; for (let k = 0; k < 600; k++) w = GD.rainStep(w, 1, 0);
+  const dry10 = w; let wd = 0; for (let k = 0; k < 600; k++) wd = GD.rainStep(wd, 1, 0.3);
+  yes(wet60 > 0.9 && dry10 < 0.5 * wet60 && dry10 > 0.1 && Math.abs(wd - 0.3) < 0.15 && GD.rainStep(2, 1, 5) <= 1 && GD.rainStep(-1, 1, 0) >= 0,
+    'F rain on the skin: wet through in a minute of rain, half dry ten minutes after, a drizzle holds its level', 'a minute ' + wet60.toFixed(2) + ', then 10 min dry ' + dry10.toFixed(2) + ', drizzle 0.3 from dry -> ' + wd.toFixed(2));
+  yes(R.darken > 0 && R.gloss > 0 && R.sides < 1, 'F wet skin darker and glossier, the top more than the sides', JSON.stringify(R));
+  // the page
+  if (o.src) {
+    const a = o.src;
+    yes(/mudCoatFrame\(running \? fdt : 0\);[^\n]*\n\s*gdFrame\(running \? fdt : 0\);/.test(a), 'F the page steps it every frame after the coat');
+    yes(/AEROWX\.aeroWxSetMud\(THREE, GDX\.G \? 0 : mudCoat\);/.test(a) && /U\.uGdMudC\.value\.set\(mc\[0\], mc\[1\], mc\[2\], G \? 0 : mudCoat\)/.test(a),
+      'F one mud drawn: the grid\'s, or the cone coat (the live layers, the bake\'s fallback) - never both');
+    yes(/GROUND_DEPOSIT\.collide\(G, F\.sys\.G, inv, v, dt, wet, 1\)/.test(a) && /GROUND_DEPOSIT\.dustRays\(G, F\.sys\.P, inv, v,/.test(a) && /U\.uGdRain\.value\.set\(GDX\.rainW, RN\.darken, RN\.gloss, RN\.sides\)/.test(a),
+      'F the page throws the live pool at the grid, films it, writes the rain');
+    yes(/if \(GDX\.parkT > 0\.5 \|\| GDX\.mudT > 1\.5\)/.test(a) && /if \(t === 'laptop' \|\| t === 'potato' \|\| t === 'phone'\) return 0;/.test(a),
+      'F the grid is made parked (or after 1.5 s on mud), on retro and gamer only');
+  }
+  return fail;
+}
+
 const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
 if (SELF) {
   const bad = [];
@@ -113,6 +178,12 @@ if (SELF) {
   doctor('sinkage ignored', W => { W.AERO_MUD.sinkRef = 1e9; });
   doctor('the coat on the wrong layer', W => { W.AERO_MUD.belly = 0; });
   doctor('not wired', () => {}, { src: src.replace('mudCoatFrame(running ? fdt : 0);', '') });
+  const fb = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'flown_bake.js'), 'utf8'), GDm = require(path.join(ROOT, 'src', 'viewer', 'ground_deposit.js'));
+  doctor('the bake without the term', () => {}, { src, fbSrc: fb.replace("(GW ? GW.aeroGdFs('vFbCraft', 'normalize(vFbCraftN) * faceDirection', true) : '')", "''") });
+  doctor('the bake binds copies', () => {}, { src, fbSrc: fb.replace('if (GW) for (const k of GD_KEYS) if (d[k]) sh.uniforms[k] = d[k];', 'if (GW) for (const k of GD_KEYS) if (d[k]) sh.uniforms[k] = { value: d[k].value };') });
+  doctor('the skin never dries', () => { GDm.RAIN.tDry = 1e9; }); GDm.RAIN.tDry = 600;
+  doctor('the live term not stepped', () => {}, { src: src.replace('gdFrame(running ? fdt : 0);', '') });
+  doctor('both muds drawn', () => {}, { src: src.replace('AEROWX.aeroWxSetMud(THREE, GDX.G ? 0 : mudCoat);', 'AEROWX.aeroWxSetMud(THREE, mudCoat);') });
   console.log('GATE MUDCOAT selftest: ' + (bad.length ? 'FAIL (' + bad.join(', ') + ' stayed green)' : 'PASS (every doctored law went red)'));
   process.exit(bad.length ? 1 : 0);
 }

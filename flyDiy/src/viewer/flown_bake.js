@@ -599,20 +599,27 @@
   // the skin exactly as before - the aeroplane is not made matte, its sun glint is wider and lower. A uniform, so no
   // new program; FLOWN_BAKE.sunRough.value 0 is the old glint.
   FB_U.uFbSun = { value: 0.12 };
+  // GROUND-FX (16 Nov): THE LIVE TERM on the bake (aeroweather's aeroGdFs: the computed mud, the dust film, the wetness,
+  // the rain on the skin; the cone coat as the fallback) - the bake froze the weathering at roll-out, this reads the shared
+  // block's uniforms every frame, the very objects the page writes (GATE MUDCOAT's baked rows)
+  const GD_KEYS = ['tGdMud', 'tGdFw', 'uGdBox', 'uGdDim', 'uGdMudC', 'uGdDustC', 'uGdPbr', 'uGdRain', 'uGdSp', 'uGdSp2', 'uWxW', 'uWxWd', 'uWxN'];
   const FB_HOOK = function (sh) {
     if (typeof ATMO !== 'undefined') ATMO.inject(sh);
     sh.uniforms.uFbGraze = FB_U.uFbGraze; sh.uniforms.uFbSun = FB_U.uFbSun;
     const d = this.userData.aeroD;
     if (d) for (const k of ['uCraftInv', 'uCabin', 'uFootA', 'uFootB']) if (d[k]) sh.uniforms[k] = d[k];
+    const GW = W.AEROWX && W.AEROWX.aeroGdFs && d && d.uGdDim ? W.AEROWX : null;
+    if (GW) for (const k of GD_KEYS) if (d[k]) sh.uniforms[k] = d[k];
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', 'uniform mat4 uCraftInv;\nvarying vec3 vFbCraft;\n#include <common>')
-      .replace('#include <project_vertex>', 'vFbCraft = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>');
+      .replace('#include <common>', 'uniform mat4 uCraftInv;\nvarying vec3 vFbCraft;\n' + (GW ? 'varying vec3 vFbCraftN;\n' : '') + '#include <common>')
+      .replace('#include <project_vertex>', 'vFbCraft = (uCraftInv * modelMatrix * vec4(transformed, 1.0)).xyz;\n' + (GW ? 'vFbCraftN = mat3(uCraftInv * modelMatrix) * objectNormal;\n' : '') + '#include <project_vertex>');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', 'uniform float uFbGraze;\nuniform float uFbSun;\nuniform mat4 uCraftInv;\nuniform vec4 uCabin;\nuniform vec4 uFootA;\nuniform vec4 uFootB;\nvarying vec3 vFbCraft;\n#include <common>')
+      .replace('#include <common>', 'uniform float uFbGraze;\nuniform float uFbSun;\nuniform mat4 uCraftInv;\nuniform vec4 uCabin;\nuniform vec4 uFootA;\nuniform vec4 uFootB;\nvarying vec3 vFbCraft;\n' + (GW ? 'varying vec3 vFbCraftN;\n' + GW.AERO_GD_PARS_FB : '') + '#include <common>')
+      .replace('#include <emissivemap_fragment>', (GW ? GW.aeroGdFs('vFbCraft', 'normalize(vFbCraftN) * faceDirection', true) : '') + '#include <emissivemap_fragment>')
       .replace('#include <map_fragment>', '#include <map_fragment>\n  float fbIn = sampledDiffuseColor.a;\n  diffuseColor.a = opacity;')
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n#if defined( USE_NORMALMAP ) && ( NUM_DIR_LIGHTS > 0 )\n  normal = normalize( mix( nonPerturbedNormal, normal, mix( uFbGraze, 1.0, smoothstep( 0.0, 0.5, abs( dot( nonPerturbedNormal, directionalLights[ 0 ].direction ) ) ) ) ) );\n#endif')
       .replace('#include <clearcoat_normal_fragment_begin>', '#ifdef USE_CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')
-      .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\n  material.clearcoatRoughness = min(max(texture2D(clearcoatMap, vClearcoatMapUv).a, 0.0525) + geometryRoughness, 1.0);\n#endif')
+      .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\n  material.clearcoatRoughness = min(max(texture2D(clearcoatMap, vClearcoatMapUv).a, 0.0525) + geometryRoughness, 1.0);\n' + (GW ? '  material.clearcoat *= 1.0 - gdMudK;   // (GROUND-FX: no varnish over the mud or the film)\n' : '') + '#endif')
       .replace('#include <lights_fragment_begin>', '  float fbR0 = material.roughness; material.roughness = max(fbR0, uFbSun);\n#ifdef USE_CLEARCOAT\n  float fbC0 = material.clearcoatRoughness; material.clearcoatRoughness = max(fbC0, uFbSun);\n#endif\n#include <lights_fragment_begin>\n  material.roughness = fbR0;\n#ifdef USE_CLEARCOAT\n  material.clearcoatRoughness = fbC0;\n#endif')
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
   {

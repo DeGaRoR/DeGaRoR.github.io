@@ -77,6 +77,14 @@
       ['gd:PBR.bump', 'mud relief', 0, 3, 0.05, 'x'],
       ['gd:SP.edge', 'spatter: soft edges', 0.01, 0.4, 0.005],
     ] },
+    // RAIN ON THE SKIN (THE USER via A0, 16 Nov: "upward faces darker + glossier in rain, drying after", its own rows)
+    { k: 'rain', title: 'rain on the aeroplane', sub: 'the skin wets in rain and dries after (ground_deposit.js RAIN)', open: false, rows: [
+      ['gd:RAIN.darken', 'darker when wet', 0, 0.8, 0.01, 'x'],
+      ['gd:RAIN.gloss', 'glossier when wet', 0, 0.95, 0.01, 'x'],
+      ['gd:RAIN.sides', 'the sides wet (of the top)', 0, 1, 0.01, 'x'],
+      ['gd:RAIN.tWet', 'wets through in', 2, 120, 1, 's'],
+      ['gd:RAIN.tDry', 'dries in', 30, 3600, 10, 's'],
+    ] },
   ];
   // per class: how much dust (fines) and grit (loose) it gives, its own colour (used where the ground hands none in, or
   // with "colour from the ground" off); a wet class (mud, slush) its throw: the tread's, the bow wave's, clods vs drops,
@@ -113,9 +121,9 @@
   }
   function groups() {
     const out = [];
-    for (const g of GROUPS) { if (g.k === 'coat' || g.k === 'deposit') continue; out.push(g); }
+    for (const g of GROUPS) { if (g.k === 'coat' || g.k === 'deposit' || g.k === 'rain') continue; out.push(g); }
     out.push(...classGroups());
-    for (const g of GROUPS) if (g.k === 'coat' || g.k === 'deposit') out.push(g);
+    for (const g of GROUPS) if (g.k === 'coat' || g.k === 'deposit' || g.k === 'rain') out.push(g);
     // a row whose handle or key this page does not carry is left out (a group with none is left out)
     return out.map(g => Object.assign({}, g, { rows: g.rows.filter(r => at(r[0])) })).filter(g => g.rows.length);
   }

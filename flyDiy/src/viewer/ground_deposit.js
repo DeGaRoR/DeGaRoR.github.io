@@ -396,6 +396,16 @@
     G.dirty[0] = 0; G.dirty[1] = 0; G.dirty[2] = 0; G.dirty[3] = nx - 1; G.dirty[4] = ny - 1; G.dirty[5] = G.nz - 1;
     G.ver++;
   }
+  // ---- RAIN ON THE SKIN (THE USER via A0, 16 Nov: "upward faces darker + glossier in rain, drying after"): the skin's
+  // wetness w (0..1), the page's state - it rises toward the day's rain over tWet s and dries back over tDry s after (a
+  // drizzle holds it at its own level); the live term (aeroweather aeroGdFs) darkens and glosses what faces up by w, the
+  // sides by RAIN.sides of it. ESTIMATES for the look (a painted skin wets through in a shower, dries in ten minutes of air)
+  const RAIN = { darken: 0.3, gloss: 0.6, sides: 0.35, tWet: 20, tDry: 600 };
+  function rainStep(w, dt, rain) {
+    w = w > 0 ? Math.min(1, w) : 0; const r = rain > 0 ? Math.min(1, rain) : 0;
+    if (!(dt > 0)) return w;
+    return r + (w - r) * Math.exp(-dt / (r > w ? RAIN.tWet : RAIN.tDry));
+  }
   function clear(G) { if (!G) return; G.dep.fill(0); G.dust.fill(0); G.wet.fill(0); G.hits = 0; G.mass = 0; G.rayHits = 0; G.dustMass = 0; G.ver++; }
   // the coat's one number (aeroMudStep's m, the readers of it): the mean cover over the airframe cells that hold any
   function total(G) {
@@ -411,7 +421,7 @@
     return o;
   }
 
-  const GROUND_DEPOSIT = { K, SP, PBR, DEF, BINS, make, march, deposit, collide, dustRays, filmAt, smooth, sample, sample2, look, spatter, erode, mudAt, pbrAt, wash, clear, total, bytes };
+  const GROUND_DEPOSIT = { K, SP, PBR, DEF, RAIN, rainStep, BINS, make, march, deposit, collide, dustRays, filmAt, smooth, sample, sample2, look, spatter, erode, mudAt, pbrAt, wash, clear, total, bytes };
   if (typeof window !== 'undefined') window.GROUND_DEPOSIT = GROUND_DEPOSIT;
   if (typeof module !== 'undefined' && module.exports) module.exports = GROUND_DEPOSIT;
 })();
