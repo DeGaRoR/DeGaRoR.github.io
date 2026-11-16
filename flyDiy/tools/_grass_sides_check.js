@@ -101,10 +101,11 @@ const D = PG.GRASS_SIDES_DEF;
 //   softBandK (0: the wild grass runs to its drawn edge, past softClear and the mowBlend metre), the slight cut band mowBand (0 m);
 //   the paved fields keep their 40 m mown band; softBandK 1 puts the old cut back
 { law('sides'); const G0 = PG.grassSides(), W1 = A('w1'), H = A('HOME');
-  ok(G0.softBandK === 0 && G0.mowBand === 0, '7a the defaults: softBandK 0, mowBand 0 m', 'softBandK ' + G0.softBandK + ', mowBand ' + G0.mowBand);
+  ok(G0.softBandK === 0 && G0.mowBand === 1.5, '7a the defaults: softBandK 0, mowBand 1.5 m (the user\'s refinement: a narrow TALL cut band, then the wild grass)', 'softBandK ' + G0.softBandK + ', mowBand ' + G0.mowBand);
   const at = (a, v) => q(across(a, v, a.len * 0.2));
-  const w2 = at(W1, 2), w3 = at(W1, 3.5), h20 = at(H, 20);
-  ok(!w2.cut && (w2.kill || 0) === 0 && !w3.cut && (w3.kill || 0) === 0, '7b Cabin Strip (gravel, its own band 4 m): wild grass 2 m and 3.5 m past the edge - no cut, no kill', '+2 m cut ' + (w2.cut || 0) + ' kill ' + (w2.kill || 0) + ', +3.5 m cut ' + (w3.cut || 0));
+  const w2 = at(W1, 3), w3 = at(W1, 4), h20 = at(H, 20), w1c = at(W1, 1);
+  ok(!w2.cut && (w2.kill || 0) === 0 && !w3.cut && (w3.kill || 0) === 0, '7b Cabin Strip (gravel, its own band 4 m): wild grass 3 m and 4 m past the edge (past mowBand 1.5 + the 1 m blend) - no cut, no kill', '+3 m cut ' + (w2.cut || 0) + ' kill ' + (w2.kill || 0) + ', +4 m cut ' + (w3.cut || 0));
+  ok(w1c.cut === 1 && w1c.tall === 1 && !h20.tall, '7f 1 m past a soft strip the cut is TALL (the field draws it at tallH); HOME\'s lawn is not', '+1 m cut ' + w1c.cut + ' tall ' + w1c.tall + ', HOME +20 m tall ' + (h20.tall || 0));
   ok(h20.cut === 1 && (h20.kill || 0) === 0, '7c HOME (old concrete): its 40 m band stays cut', '+20 m cut ' + h20.cut);
   PG.grassSides({ softBandK: 1 }); const back = at(W1, 3.5); PG.grassSides({ mowBand: 3, softBandK: 0 }); const slight = at(W1, 2), past = at(W1, 4.5);
   PG.grassSides({ softBandK: G0.softBandK, mowBand: G0.mowBand });

@@ -1065,6 +1065,8 @@
       range(Gf, 'colour: level to the ground', 0, 4, 0.01, () => fl.get().match, fs('match'), v => 'x' + v.toFixed(2), D.match);
       range(Gf, 'colour: tuft to tuft', 0, 1, 0.01, () => fl.get().vary, fs('vary'), v => '±' + Math.round(v * 100) + ' %', D.vary);
       range(Gf, 'cut grass: length', 0, 1, 0.01, () => fl.get().cutH, fs('cutH'), v => v.toFixed(2) + ' m', D.cutH);
+      range(Gf, 'cut beside bush strips: length', 0, 1, 0.01, () => fl.get().tallH, fs('tallH'), v => v.toFixed(2) + ' m', D.tallH);
+      range(Gf, 'cut beside bush strips: variety', 0, 1, 0.01, () => fl.get().tallSigma, fs('tallSigma'), v => v.toFixed(2), D.tallSigma);
       range(Gf, 'cut grass: spread', 0, 0.5, 0.01, () => fl.get().cutSigma, fs('cutSigma'), null, D.cutSigma);
       range(Gf, 'cut grass: density x', 0, 6, 0.05, () => fl.get().cutDens, fs('cutDens'), null, D.cutDens);
       range(Gf, 'grass runway: length', 0, 1, 0.01, () => fl.get().stripH, fs('stripH'), v => v.toFixed(2) + ' m', D.stripH);
