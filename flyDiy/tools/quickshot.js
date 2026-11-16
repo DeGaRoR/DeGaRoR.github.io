@@ -37,7 +37,23 @@
 //     --crop z0,z1,y0,y1         the side view's window, metres (z forward, y up)
 //     --around x,y,z,r           any view framed on a point (layer metres), r either way of it
 //     --wire                     the lofts' grids drawn over the picture (the hub's blend: rows and rays)
-//     --half                     the cutaway: the body's starboard half left out, so what runs inside the cabin shows
+//     --cut side|top|front[@m]   A CUT VIEW (16 Nov, the user: "cut views with the pilot and the controls shown"): a
+//                                section plane through the whole aeroplane, the sheet and every layer clipped on it
+//                                (the wing, the struts, the gear, the glass that would hide the cabin go with it):
+//                                  side  = the centreline plane x = m (default 0), the camera's side (+x) removed;
+//                                  top   = everything above y = m removed (default the pilot's shoulder, 0.17 m under
+//                                          the eye);
+//                                  front = everything ahead of z = m removed (default the pilot's eye station).
+//                                The crew (the pilot, the seated occupants), the seats, the controls (stick or yoke,
+//                                pedals, throttle, levers) and the dash with its instruments are drawn WHOLE, never
+//                                cut (a side cut leaves out, whole, the ones standing on the removed side - the
+//                                other front seat, its occupant, its yoke - but never the pilot's own, whichever side
+//                                the pilot sits: the 172's left seat is +x); the cut faces get a dark section line, so the
+//                                shell's thickness reads. Default view: the cut's own (side / top / front).
+//     --cutq                     the side cut seen three-quarter from above-behind, the cut's side, framed on the cabin
+//                                (the pilot, the seat, the dash): the fitting view (view name cq)
+//     --focus cabin              frame any view on the pilot, the pilot's seat and the dash
+//     --half                     = --cut side (the old cutaway; its default views stay side,top)
 //     --w 1400                   picture width, px
 //     --marks fittings|corners|reg   rings on the placed fittings / a quad window's corners / the registration's box
 //     --gear 0..1                a retractable gear's position (RETRACT G1: 1 down, 0 up) - the editor's own preview row
@@ -50,7 +66,7 @@
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
-const FLAGS = new Set(['parts', 'sheet', 'door', 'flat', 'nowells', 'noedges', 'wire', 'half', 'fit', 'crew']);
+const FLAGS = new Set(['parts', 'sheet', 'door', 'flat', 'nowells', 'noedges', 'wire', 'half', 'fit', 'crew', 'cutq']);
 // positionals: not an option, not an option's value (a flag takes no value; --sheet's image is its own optional value)
 const pos = argv.filter((a, i) => !a.startsWith('--') && !(i > 0 && argv[i - 1].startsWith('--') && !FLAGS.has(argv[i - 1].slice(2))) &&
   !(i > 0 && argv[i - 1] === '--sheet' && /\.(png)$/i.test(a)));
@@ -65,7 +81,13 @@ const PARTS = argv.includes('--parts');
 const SHEET = argv.includes('--sheet');
 const SHEET_IMG = (() => { const i = argv.indexOf('--sheet'); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') && /\.png$/i.test(argv[i + 1]) ? argv[i + 1] : null; })();
 const MEASURE = opt('measure', null);
-const VIEWS = SHEET && !argv.includes('--views') ? [] : opt('views', 'side,top').split(',').filter(v => v && v !== 'none');
+// CUT VIEWS: --cut side|top|front[@m], --cutq (the side cut, three-quarter from above-behind), --half = --cut side
+const CUTQ = argv.includes('--cutq');
+const CUT_ARG = opt('cut', null) || (argv.includes('--half') || CUTQ ? 'side' : null);
+const CUT_K = CUT_ARG ? String(CUT_ARG).split('@')[0] : null;
+if (CUT_K && !/^(side|top|front)$/.test(CUT_K)) { console.error('--cut side|top|front[@metres], not ' + CUT_ARG); process.exit(2); }
+const CUT_AT = CUT_ARG && String(CUT_ARG).includes('@') ? +String(CUT_ARG).split('@')[1] : null;
+const VIEWS = SHEET && !argv.includes('--views') ? [] : opt('views', CUTQ ? 'cq' : opt('cut', null) ? CUT_K : 'side,top').split(',').filter(v => v && v !== 'none');
 const WPX = +opt('w', 1400);
 const MARKS = opt('marks', '');
 const FLAT = argv.includes('--flat');                 // GR: the old flat facets (the default shades smoothly)
@@ -92,7 +114,7 @@ if ((SHEET || MEASURE) && !(REF && REF.views)) { console.error('--sheet / --meas
 const t0 = Date.now();
 if (!PARTS) SH.context({ whole: true });
 // --parts --crew (the user 10 Nov: "render the seat"): the part view with the crew layer loaded (EXCLUDE keeps it out headless)
-else if (argv.includes('--crew')) SH.context({ include: ['_cage_crew.js', '_cage_char.js'] });
+else if (argv.includes('--crew') || CUT_K) SH.context({ include: ['_cage_crew.js', '_cage_char.js'] });
 // --level n: the sheet's subdivision (the garage draws 2, the drafting table measures its draft at 0)
 const LEVEL = opt('level', null) != null ? { level: +opt('level') } : {};
 const S = PARTS ? SH.sceneBuild(spec, Object.assign({ over, garage: spec }, LEVEL)) : await SH.sceneBuildWhole(spec, Object.assign({ over, garage: spec }, LEVEL));
@@ -110,7 +132,7 @@ const GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'skyWindow
 const GLASS_RE = /window|windshield|pane$|^drawnPane|skylight|bubble|canopy|glass/i;   // (dt_build's own)
 const tris = [];
 const P = S.P, FS = S.FS;
-const CREW = process.argv.includes('--crew');
+const CREW = process.argv.includes('--crew') || !!CUT_K;   // (a cut shows the crew, --parts too)
 const CG2W = S.W && S.W.CAGE2, SPEC_C = S.spec;   // NOSE-DECK: the cage module and the built cage spec (the editor's own)
 // RETRACT G4: the wells cut into the drawn sheet as the editor cuts its fuselage (_knife_gen knifeWells, the gear
 // layer's CAGE_GEAR.cuts); --nowells draws the sheet whole
@@ -128,9 +150,20 @@ const DEC = Object.assign({ regL: 2.10, regC: 0.28, regH: 0.30, regW: 0.96 }, (s
 const inReg = f => { if (!sheet.A || f.v.some(i => !sheet.A[i])) return false;
   let sl = 0, sc = 0; for (const i of f.v) { sl += sheet.A[i][0]; sc += sheet.A[i][1]; } sl = sl / f.v.length * FS; sc = sc / f.v.length * FS;
   return Math.abs(sl - DEC.regL) < DEC.regW / 2 && Math.abs(sc - DEC.regC) < DEC.regH / 2; };
-// --half: THE CUTAWAY - the body's starboard half (+x, the side the side view looks from) left out, so what runs inside
-// the cabin shows (the hanging nacelle's mast down to the keel)
-const HALF = argv.includes('--half');
+// THE CUT (--cut / --cutq / --half): a section plane on one axis (x side, y top, z front) at CUT.at; what lies past it
+// (the camera's side: +x starboard, +y above, +z ahead) is clipped away, the sheet and every layer, except the cabin's
+// WHOLE items (the crew layer's occupants, seats, controls, consoles and panel; the sheet's dash), drawn uncut. The
+// defaults: the centreline; the pilot's shoulder (0.17 m under the crew layer's eye, CAGE_CREW_EYE); the eye's station
+const EYE = S.W && S.W.CAGE_CREW_EYE && S.W.CAGE_CREW_EYE.p;
+const CUT = CUT_K ? { k: CUT_K, ax: { side: 0, top: 1, front: 2 }[CUT_K],
+  at: CUT_AT != null && isFinite(CUT_AT) ? CUT_AT : CUT_K === 'side' ? 0 : EYE ? (CUT_K === 'top' ? EYE[1] - 0.17 : EYE[2]) : null } : null;
+if (CUT && CUT.at == null) { CUT.at = CUT.k === 'top' ? 0.35 : 1.5; console.log('--cut ' + CUT.k + ': no pilot\'s eye (no pilot seated) - the plane at ' + CUT.at + ' m; give --cut ' + CUT.k + '@m'); }
+if (CUT) console.log('cut ' + CUT.k + ' at ' + ['x', 'y', 'z'][CUT.ax] + ' = ' + CUT.at.toFixed(3) + ' m' + (EYE ? ' (the pilot\'s eye ' + EYE.map(x => x.toFixed(3)).join(',') + ')' : ''));
+// the crew layer's WHOLE items (by the name of the item under cageLayer:crew) and which of them frame the cabin
+const WHOLE_RE = /^(edSeat|edCtl|edConsole|edPanel|edCrew)/;
+const SEATS_AT = (S.W && S.W.CAGE_CREW && S.W.CAGE_CREW.seatsAt) || [];
+const PILOT_SEAT = 'edSeat' + (SEATS_AT.findIndex(s => s.pilot) + 1);
+const PILOT_X = SEATS_AT.find(s => s.pilot) ? SEATS_AT.find(s => s.pilot).x : EYE ? EYE[0] : null;
 // AN OPEN FRAME (the user 9 Nov: "quick view renders a back pod and ignores the options"): with skinOn 0 the editor
 // (_cage_ui.js ZERO SKIN, skinCull) draws no covering and no lining - what stands is the glass, the joints and the bare
 // structure (INTSTRUCT: the truss tubes, the rod, the taper panels, the bulkheads, the dash). The same here, the
@@ -151,7 +184,7 @@ const sheetCol = {}, sheetPaint = m => {
 for (const f of sheet.F) {
   if (f.v.length < 3) continue;
   if (OPEN ? !(OPEN_KEEP.has(f.m) || (NOSE_DECK && NOSE_DECK(f))) : SKIP_SHEET.has(f.m)) continue;
-  if (HALF && f.v.reduce((a, i) => a + sheet.V[i][0], 0) / f.v.length > 1e-4) continue;
+  const dashF = f.m === 'dash' || f.m === 'dashFace';   // (the cut: the sheet's dash drawn whole)
   let col, al = 1, ok = 0;
   if (MARKS.includes('reg') && inReg(f)) col = [245, 245, 245];
   else if (PARTS) col = GLASS.has(f.m) ? (f.m === 'drawnPane' ? [70, 170, 230] : [60, 110, 160])
@@ -166,6 +199,7 @@ for (const f of sheet.F) {
     // GR: the sheet's own vertex normals (the subdivided surface's), for the smooth shading
     if (sheet.N && !FLAT) { const na = sheet.N[f.v[0]], nb = sheet.N[f.v[t]], nc = sheet.N[f.v[t + 1]]; if (na && nb && nc) tr.n = [...na, ...nb, ...nc]; }
     if (al < 1) tr.al = al;
+    if (dashF) { tr.whole = 1; tr.dash = 1; }
     // LINER-BACK (the editor's matOf sides): a lined skin face shows its front only, the liner on it its back only -
     // drawn both ways, the two coincide and fight (the whole view draws the cabin's linings)
     if (!PARTS && (f.back || f.backed)) tr.cull = f.back ? -1 : 1;
@@ -225,7 +259,11 @@ const TEX = mp => { const im = mp && mp.image; if (!im || !im.data || !im.width)
   if (!texOf.has(im)) texOf.set(im, { W: im.width, H: im.height, px: im.data, ch: 4, flipY: mp.flipY !== false, off: mp.offset ? [mp.offset.x, mp.offset.y] : [0, 0], rep: mp.repeat ? [mp.repeat.x, mp.repeat.y] : [1, 1] });
   return texOf.get(im); };
 const colOf = m => !m || !m.color ? [180, 180, 180] : PARTS ? [m.color.r * 255, m.color.g * 255, m.color.b * 255].map(Math.round) : hex(m.color.getHex());
-let nSkinned = 0, nTex = 0;
+let nSkinned = 0, nTex = 0, nWhole = 0;
+// the crew item a mesh hangs under (the child of cageLayer:crew), its box's centre (cached)
+const itemBox = new Map(), WHOLE_N = {};
+const crewItem = o => { let q = o; while (q && q.parent && q.parent.name !== 'cageLayer:crew') q = q.parent; return q && q.parent ? q : null; };
+const itemCentre = it => { if (!itemBox.has(it)) { const b = new THREE.Box3().setFromObject(it); itemBox.set(it, b.isEmpty() ? null : b.getCenter(new THREE.Vector3())); } return itemBox.get(it); };
 S.scene.traverse(o => {
   if (o.isLineSegments && o.geometry && o.geometry.attributes && o.geometry.attributes.position) {
     let inWell = false; for (let q = o; q; q = q.parent) if (q.name === 'edWellGhost') inWell = true;
@@ -259,6 +297,19 @@ S.scene.traverse(o => {
   if (o.visible === false || /^edVessel_|^edFuel_/.test(o.name || '') || (!(PARTS && CREW) && /^edCrew/.test(o.name || ''))) return;
   let hidden = false; for (let q = o; q; q = q.parent) if (q.visible === false) hidden = true;
   if (hidden) return;
+  // THE CABIN'S WHOLE ITEMS (a cut never slices them): the pilot, the occupants, the seats, the controls, the consoles,
+  // the panel; a side cut leaves out, whole, an item standing past the plane (the right seat, its occupant, its yoke)
+  // but never the pilot's own (edCrew1 is the pilot, the crew layer's rule) nor the panel
+  let whole = 0, cab = 0;
+  const it = crewItem(o);
+  if (it && WHOLE_RE.test(it.name || '')) {
+    const pil = it.name === 'edCrew1' || it.name === PILOT_SEAT;
+    cab = pil || it.name === 'edPanel' ? 1 : 0;
+    // (the pilot's own station - its stick or yoke, its pedals - stands at the pilot's x: kept, whichever side it is)
+    if (CUT && CUT.ax === 0 && !pil && it.name !== 'edPanel') { const c = itemCentre(it); if (c && c.x > CUT.at + 0.12 && !(PILOT_X != null && Math.abs(c.x - PILOT_X) < 0.12)) return; }
+    whole = 1;
+    WHOLE_N[it.name.replace(/\d+$/, '')] = (WHOLE_N[it.name.replace(/\d+$/, '')] || 0) + 1;   // (meshes per item kind: GATE QSCUT)
+  }
   const m = Array.isArray(o.material) ? o.material[0] : o.material;
   if (m && m.visible === false) return;
   let col = colOf(m);
@@ -300,12 +351,46 @@ S.scene.traverse(o => {
       if (nor) t.n = [...N3(i), ...N3(i + 1), ...N3(i + 2)];
       if (vc) t.c = [...C3(i), ...C3(i + 1), ...C3(i + 2)];
       if (al < 1) t.al = al;
+      if (whole) { t.whole = 1; nWhole++; if (cab) t.cab = 1; }
       if (uvA) { t.uv = [...UV(i), ...UV(i + 1), ...UV(i + 2)]; t.tex = tex; }
       if (sec && sec.decOk > 0.25) { t.dk = { cls: sec.cls || 0, ok: sec.decOk }; if (fld) t.f = [...F2(i), ...F2(i + 1), ...F2(i + 2)]; }
       tris.push(t); nLayer++; }
   }
 });
 console.log('tris: sheet ' + (tris.length - nLayer) + ', layers ' + nLayer + (PARTS ? '' : ' (' + nSkinned + ' skinned meshes - the occupants, ' + nTex + ' painted maps)') + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s build' + (S.builds ? ', ' + S.builds + ' builds' : '') + ')');
+
+// ---- THE CUT: every triangle clipped on the plane (its attributes - normals, colours, uv, the field - interpolated
+// along the cut edges), the whole items kept as they are; each clipped edge lying on the plane is a SECTION edge
+const SECT = [];
+function clipTri(t) {
+  const ax = CUT.ax, d = [t[ax] - CUT.at, t[3 + ax] - CUT.at, t[6 + ax] - CUT.at];
+  if (d[0] <= 0 && d[1] <= 0 && d[2] <= 0) return [t];
+  if (d[0] > 0 && d[1] > 0 && d[2] > 0) return [];
+  const AT = [['n', 3], ['c', 3], ['uv', 2], ['f', 2]].filter(([k]) => t[k]);
+  const V = k => { const o = { p: [t[3 * k], t[3 * k + 1], t[3 * k + 2]] }; for (const [a, m] of AT) o[a] = t[a].slice(m * k, m * k + m); return o; };
+  const L = (P, Q, s) => { const o = { p: P.p.map((x, i) => x + (Q.p[i] - x) * s) }; for (const [a] of AT) o[a] = P[a].map((x, i) => x + (Q[a][i] - x) * s); return o; };
+  const vs = [V(0), V(1), V(2)], out = [], on = [];
+  for (let i = 0; i < 3; i++) { const j = (i + 1) % 3, dp = d[i], dq = d[j];
+    if (dp <= 0) out.push(vs[i]);
+    if ((dp <= 0) !== (dq <= 0)) { const X = L(vs[i], vs[j], dp / (dp - dq)); out.push(X); on.push(X.p); } }
+  if (on.length === 2) SECT.push({ a: on[0], b: on[1] });
+  const res = [];
+  for (let k = 1; k + 1 < out.length; k++) {
+    const a = out[0], b = out[k], c = out[k + 1], nt = [...a.p, ...b.p, ...c.p, t[9], t[10], t[11]];
+    for (const key of ['gear', 'al', 'cull', 'tex', 'dk']) if (t[key] !== undefined) nt[key] = t[key];
+    for (const [q] of AT) nt[q] = [...a[q], ...b[q], ...c[q]];
+    res.push(nt);
+  }
+  return res;
+}
+let nCutWhole = 0;
+if (CUT) {
+  const all = tris.splice(0, tris.length);
+  let nIn = 0;
+  for (const t of all) { if (t.whole) { tris.push(t); nCutWhole++; continue; } for (const u of clipTri(t)) { tris.push(u); nIn++; } }
+  console.log('cut ' + CUT.k + ': ' + nCutWhole + ' whole tris (the cabin: crew, seats, controls, panel, the sheet\'s dash), ' + nIn + ' kept of ' + (all.length - nCutWhole) + ' clipped, ' + SECT.length + ' section edges');
+  console.log('cut whole meshes: ' + JSON.stringify(WHOLE_N) + ', the sheet\'s dash ' + tris.filter(t => t.dash).length + ' tris');
+}
 
 // ---- THE LIVERY'S DECALS: aeroskin.js's list, its atlas, its shader's loop in JS -----------------------------------
 const DECALS = !PARTS && S.decals ? S.decals : null;
@@ -440,6 +525,15 @@ function raster(project, Wd, H, bg) {
     const jump = Math.max(...[i - 1, i + 1, i - Wd, i + Wd].map(j => isFinite(zb[j]) ? Math.abs(zb[j] - z) : 1));
     if (jump > 0.04) for (let k = 0; k < 3; k++) out[i * 3 + k] = Math.round(img[i * 3 + k] * 0.35);
   }
+  // THE CUT'S SECTION LINE: the clipped edges on the plane, 2 px dark, where they are seen (depth, a 1.5 cm bias)
+  for (const s of SECT) {
+    const pa = project(s.a), pb = project(s.b), ax = pa[0], ay = pa[1], az = pa[2], bx = pb[0], by = pb[1], bz = pb[2];
+    const n = Math.ceil(Math.max(Math.abs(bx - ax), Math.abs(by - ay))) + 1;
+    for (let k = 0; k <= n; k++) { const t = k / n, x = Math.round(ax + (bx - ax) * t), y = Math.round(ay + (by - ay) * t), z = az + (bz - az) * t;
+      for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= Wd || Y >= H) continue;
+        const i = Y * Wd + X; if (isFinite(zb[i]) && z < zb[i] - 0.015) continue;
+        out[i * 3] = 12; out[i * 3 + 1] = 12; out[i * 3 + 2] = 14; } }
+  }
   for (const m of marks) {
     const pm = project(m.p), x = Math.round(pm[0]), y = Math.round(pm[1]);
     for (let dy = -m.r; dy <= m.r; dy++) for (let dx = -m.r; dx <= m.r; dx++) {
@@ -473,8 +567,15 @@ function view(name) {
     top: { u: p => -p[2], w: p => -p[0], d: p => p[1] },                  // from above, the nose to the left
     front: { u: p => -p[0], w: p => p[1], d: p => p[2] },                // head-on, starboard on the left
     bottom: { u: p => -p[2], w: p => p[0], d: p => -p[1] },              // RETRACT G4: from below, the nose to the left
-    q: {}, qb: {}, qr: {}, qp: {}, qrb: {},                                         // set below
+    q: {}, qb: {}, qr: {}, qp: {}, qrb: {}, cq: {},                                 // set below
   }[name];
+  if (name === 'cq') {   // --cutq: from BEHIND, starboard, ABOVE, steeper than qr (yaw -32 deg, pitch 30 deg): into the cut cabin
+    const cy = Math.cos(-0.56), sy = Math.sin(-0.56), cp = Math.cos(0.52), sp = Math.sin(0.52);
+    V.u = p => -p[2] * cy + p[0] * sy;
+    const dd = p => p[0] * cy + p[2] * sy;
+    V.w = p => p[1] * cp - dd(p) * sp;
+    V.d = p => dd(p) * cp + p[1] * sp;
+  }
   if (!V) { console.log('no view ' + name); return; }
   // (11 Nov, FIT-PROCEDURE: "do some 3/4 views of the latest model") qr = a three-quarter from BEHIND, starboard,
   // above; qp = from ahead, PORT, above - the q view's yaw turned round
@@ -510,14 +611,17 @@ function view(name) {
   let u0 = Infinity, u1 = -Infinity, w0 = Infinity, w1 = -Infinity;
   // RETRACT GR: --focus gear frames the picture on the gear layer's parts (and the wing's wells), with a margin
   const FOCUS = opt('focus', null) === 'gear' && tris.some(t => t.gear);
-  for (const t of tris) if (!FOCUS || t.gear) for (let k = 0; k < 9; k += 3) { const p = [t[k], t[k + 1], t[k + 2]]; const u = V.u(p), w = V.w(p); u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
+  // --focus cabin (and --cutq's cq): frame on the pilot, the pilot's seat and the panel (the crew layer's items)
+  const CABIN = !FOCUS && (opt('focus', null) === 'cabin' || name === 'cq') && tris.some(t => t.cab);
+  if (name === 'cq' && !CABIN) console.log('cq: no pilot or panel drawn - the whole aeroplane framed');
+  for (const t of tris) if (FOCUS ? t.gear : CABIN ? t.cab : true) for (let k = 0; k < 9; k += 3) { const p = [t[k], t[k + 1], t[k + 2]]; const u = V.u(p), w = V.w(p); u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
   const crop = opt('crop', null);
   if (crop && name === 'side') { const [z0, z1, y0, y1] = crop.split(',').map(Number); u0 = -z1; u1 = -z0; w0 = y0; w1 = y1; }
   // --around x,y,z,r: ANY view framed on a point (the layer's metres: x starboard, y up, z forward), r either way of it
   const AR = opt('around', null);
   if (AR) { const [ax, ay, az, ar] = AR.split(',').map(Number), pu = V.u([ax, ay, az]), pw = V.w([ax, ay, az]);
             u0 = pu - ar; u1 = pu + ar; w0 = pw - 0.62 * ar; w1 = pw + 0.62 * ar; }
-  if (FOCUS) { const m = 0.18 * Math.max(u1 - u0, w1 - w0); u0 -= m; u1 += m; w0 -= m; w1 += m; }
+  if (FOCUS || (CABIN && !AR)) { const m = (CABIN ? 0.22 : 0.18) * Math.max(u1 - u0, w1 - w0); u0 -= m; u1 += m; w0 -= m; w1 += m; }
   // --frames '{"qb":[u0,u1,w0,w1]}': a frame given (a series of pictures in one frame); every frame used is printed
   const FR = opt('frames', null) ? JSON.parse(opt('frames', '{}'))[name] : null;
   if (FR) { [u0, u1, w0, w1] = FR; }
