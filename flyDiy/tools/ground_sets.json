@@ -1097,6 +1097,40 @@
     ]
    },
    "cook": true
+  },
+  "trondSlab": {
+   "src": {
+    "diff": [
+     "assets/splat/trondSlab/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/trondSlab/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/trondSlab/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/trondSlab/height_512.jpg"
+    ]
+   },
+   "cook": true
+  },
+  "trondFace": {
+   "src": {
+    "diff": [
+     "assets/splat/trondFace/diff_512.jpg"
+    ],
+    "nor": [
+     "assets/splat/trondFace/nor_gl_512.jpg"
+    ],
+    "rough": [
+     "assets/splat/trondFace/rough_512.jpg"
+    ],
+    "height": [
+     "assets/splat/trondFace/height_512.jpg"
+    ]
+   },
+   "cook": true
   }
  },
  "libs": {
@@ -1299,6 +1333,26 @@
      0.0434,
      0.0344,
      0.0255
+    ]
+   },
+   {
+    "key": "trondSlab",
+    "set": "trondSlab",
+    "metres": 16.0,
+    "mean": [
+     0.2967,
+     0.2645,
+     0.1944
+    ]
+   },
+   {
+    "key": "trondFace",
+    "set": "trondFace",
+    "metres": 24.0,
+    "mean": [
+     0.1429,
+     0.1262,
+     0.0909
     ]
    }
   ],

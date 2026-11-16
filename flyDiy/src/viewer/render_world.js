@@ -1911,7 +1911,45 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const pk2 = (r, g0) => { const make = () => { const g = typeof g0 === 'function' ? g0() : g0;   // (a function: made with the texels - G2075's flagged type)
         const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
-      const tintRGBA = () => rgbTexels(ISLA.tint);
+      // ROCK-STUDY R1: THE TERRAIN BIAS IN THE TINT'S ALPHA (it was 255 and never read - no new texture, no sampler). The
+      // rock's exposure (splat_ground sTrExpo) wants the ground's convexity (a ridge is bare) and its drainage (a valley line
+      // holds soil): both from the hydrology's own 1024^2 heights (world.hydro.grids.H, ~38 m; its accumulation is all 1 in the
+      // island's 'map' mode, so the drainage is the 300 m CONCAVITY - a valley is a concave line), two box blurs: the 76 m
+      // Laplacian (convex +) and the 300 m concavity, each over its land std; bias = 0.20 x clamp(0.45 z_convex) - 0.35 x
+      // smoothstep(0.6, 1.6, z_valley), stored as (bias + 0.6) / 0.8. Built once (cached for a context restore), timed:
+      // ROCK_STATS.biasMs. ?rocks=0 skips it (the alpha stays 255: no rock reads it).
+      let rockBiasA = null;
+      const rockBias = () => {
+        if (rockBiasA) return rockBiasA;
+        try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
+        const g = world.hydro && world.hydro.grids; if (!g || !g.H || !g.N) return null;
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+        const N = g.N, n = N * N, Hf = Float32Array.from(g.H), sea = g.sea;
+        const box = (src, r) => { const tmp = new Float32Array(n), out = new Float32Array(n), w = 2 * r + 1;
+          for (let y = 0; y < N; y++) { let acc = 0; const o = y * N;
+            for (let k = -r; k <= r; k++) acc += src[o + Math.min(N - 1, Math.max(0, k))];
+            for (let x = 0; x < N; x++) { tmp[o + x] = acc / w; acc += src[o + Math.min(N - 1, x + r + 1)] - src[o + Math.max(0, x - r)]; } }
+          for (let x = 0; x < N; x++) { let acc = 0;
+            for (let k = -r; k <= r; k++) acc += tmp[Math.min(N - 1, Math.max(0, k)) * N + x];
+            for (let y = 0; y < N; y++) { out[y * N + x] = acc / w; acc += tmp[Math.min(N - 1, y + r + 1) * N + x] - tmp[Math.max(0, y - r) * N + x]; } }
+          return out; };
+        const b2 = box(Hf, 2), b8 = box(box(Hf, 4), 4);
+        let sL = 0, sC = 0, m = 0;
+        for (let k = 0; k < n; k += 7) { if (sea && sea[k]) continue; const l = Hf[k] - b2[k], c = b8[k] - Hf[k]; sL += l * l; sC += c * c; m++; }
+        const zL = 1 / Math.max(1e-3, Math.sqrt(sL / Math.max(1, m))), zC = 1 / Math.max(1e-3, Math.sqrt(sC / Math.max(1, m)));
+        const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+        const B = new Float32Array(n);
+        for (let k = 0; k < n; k++) B[k] = 0.20 * Math.min(1, Math.max(-1, (Hf[k] - b2[k]) * zL * 0.45)) - 0.35 * ss(0.6, 1.6, (b8[k] - Hf[k]) * zC);
+        // onto the tint's own grid (bilinear)
+        const cs = G.cell * (IHALF ? 2 : 1), out = new Uint8Array(W2 * H2);
+        for (let j = 0; j < H2; j++) { const fz = (G.z0 + (j + 0.5) * cs - g.z0) / g.dz - 0.5, z0 = Math.max(0, Math.min(N - 2, Math.floor(fz))), v = Math.min(1, Math.max(0, fz - z0));
+          for (let i = 0; i < W2; i++) { const fx = (G.x0 + (i + 0.5) * cs - g.x0) / g.dx - 0.5, x0 = Math.max(0, Math.min(N - 2, Math.floor(fx))), u = Math.min(1, Math.max(0, fx - x0)), k = z0 * N + x0;
+            const b = (B[k] * (1 - u) + B[k + 1] * u) * (1 - v) + (B[k + N] * (1 - u) + B[k + N + 1] * u) * v;
+            out[j * W2 + i] = Math.round(Math.min(1, Math.max(0, (b + 0.6) / 0.8)) * 255); } }
+        rockBiasA = out;
+        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0), biasGrid: N, tint: [W2, H2] });
+        return out; };
+      const tintRGBA = () => { const o = rgbTexels(ISLA.tint), a = rockBias(); if (a) for (let k = 0, j = 3; k < a.length; k++, j += 4) o[j] = a[k]; return o; };
       const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;

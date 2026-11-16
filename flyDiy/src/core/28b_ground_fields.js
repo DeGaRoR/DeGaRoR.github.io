@@ -163,6 +163,15 @@ const GROUND_FIELDS = (() => {
       // stands over the other two channels, so moss and leaf in a rock photograph warm up and the boulders
       // in the same photograph do not move at all. 0.4 moves the greenest texel about 3 %.
       vegLush: 0.2,   // pudWet: how dark the margin's wet ground goes (1 = dry, 0 = black); both pudRim and pudFar scale with distance and are 0 at the eye
+      // THE ISLAND'S OWN ROCK (ROCK-STUDY R1, splat_ground sTrond / sTrExpo): rocks 1 = on (?rocks=0 off at the load; api.rocks()
+      // live, a uniform); the exposure's height window (m: the rock shows from rockHLo, fully by rockHHi - Ardent's 250-760),
+      // the raster's rock weight in it and its offset; the PBR micro detail on; the rock's brightness
+      rocks: 1, rockHLo: 250, rockHHi: 760, rockBias: 0.30, rockOff: 0.08, rockMicro: 1, rockK: 0.5,
+      // the world rail's 'rock & cliffs' rows: the joints' density / soil / dirt, the hollows' dirt, the green's amount and
+      // roughness, the wet streaks, the bare stone's roughness (x the tiles'), the micro detail's strengths and fade, the far fade
+      rockJoint: 1, rockJointSoil: 0.7, rockJointDirt: 0.6, rockHollow: 0.5, rockGreen: 1, rockGreenRough: 0.97, rockWet: 0.45, rockRough: 1,
+      rockMicroK: 0.65, rockMicroN: 0.6, rockMicroFrom: 60, rockMicroTo: 180, rockFarFrom: 400, rockFarTo: 1200,
+      rockNdvi: 0.45, rockNdviMid: 0.74,   // the imagery's NDVI (pack B) takes the exposure down where the map's rock is green
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
@@ -179,7 +188,9 @@ const GROUND_FIELDS = (() => {
              // lush's at 88 (blue-green) against the moor's 40-48; the gain pulls the green channel down - grass to hue ~45 at value 0.39, lush to ~50 at 0.29
              grass: { gain: '#ffc8a0', sat: 0.75, gloss: 0.3 }, lush: { gain: '#ffb890', sat: 0.7, gloss: 0.35 }, dirt: { gain: '#ffffff', sat: 1, gloss: 0.5 },
              // THE ROCK GRADES (the user, 2026-10-03, F8 world look): cliff and the two rock sets toned down and hue-selected
-             rocksB: { gain: '#adadad', sat: 0, gloss: 0.5, grass: 1, hue: 58, contrast: 1.42, selHue: 124, selWidth: 48, selShift: -66, selSat: 1.26, selLight: 0.9, selSoft: 0.5 }, rocksG: { gain: '#a1a1a1', sat: 1, gloss: 1, grass: 1, hue: 2, contrast: 1, selHue: 150, selWidth: 22, selShift: 15, selSat: 1.04, selLight: 1.08, selSoft: 0.7 } },
+             rocksB: { gain: '#adadad', sat: 0, gloss: 0.5, grass: 1, hue: 58, contrast: 1.42, selHue: 124, selWidth: 48, selShift: -66, selSat: 1.26, selLight: 0.9, selSoft: 0.5 }, rocksG: { gain: '#a1a1a1', sat: 1, gloss: 1, grass: 1, hue: 2, contrast: 1, selHue: 150, selWidth: 22, selShift: 15, selSat: 1.04, selLight: 1.08, selSoft: 0.7 },
+             // (ROCK-STUDY R1: the trondhjemite's own colour and roughness, as baked - no grade)
+             trondSlab: { gain: '#ffffff', sat: 1, gloss: 1 }, trondFace: { gain: '#ffffff', sat: 1, gloss: 1 } },
     // the library, in LAYER ORDER (the texture arrays are built in this order; a code's set is its index here):
     // assets/splat (splat_tex_import.py, Poly Haven CC0) then the lot's five (ambientCG CC0, lot_tex_prep.js's tiles)
     library: [
@@ -188,6 +199,11 @@ const GROUND_FIELDS = (() => {
       ['lush', 2.4], ['grass', 2.4], ['pebble', 4.5], ['dry', 2.2], ['dirt', 1.8],
       ['coastA', 19.94], ['coastSand', 15.2],   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): appended, never inserted - a set's index is its layer
       ['darkRock', 2.0],   // the bank's face (SHORES-2 G1955): Poly Haven dark_rock_02, CC0 (Amal Kumar), 2.0 m
+      // THE ISLAND'S OWN ROCK (ROCK-STUDY R1, 17 Nov 2026): trondhjemite, baked by tools/rock_study/trond_gen.py --assets (no
+      // photograph; one height field per material, its colour / normal / roughness read off it, weathered) - the slab (rock
+      // under ~50 deg, +v DOWNHILL: the joint network with its T-junctions) and the face (cliffs: sheets, flutes, streaks).
+      // Drawn by splat_ground's sTrond on the rock codes (6, 12) when the rock dial is on (?rocks=0 off)
+      ['trondSlab', 16.0], ['trondFace', 24.0],
     ],
   };
   // ---- PER TERRAIN-TYPE CODE: the ground's arguments to the fields ---------

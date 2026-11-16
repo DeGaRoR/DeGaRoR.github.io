@@ -168,6 +168,13 @@ function checkRecipe(G, splatSrc, quiet) {
   if (!(K.cliffLo < K.cliffHi)) kb.push('cliffLo >= cliffHi'); if (!(K.oldLo < K.oldHi)) kb.push('oldLo >= oldHi'); if (!(K.denseLo < K.denseHi)) kb.push('denseLo >= denseHi');
   if (!(K.detailFrom < K.detailTo)) kb.push('detailFrom >= detailTo'); if (!(K.macroFrom < K.macroTo)) kb.push('macroFrom >= macroTo');
   if (K.para !== 0) kb.push(`para ${K.para}: the parallax stays OFF until real displacement maps (G438.1)`);
+  // ROCK-STUDY R1: the island's own rock (sTrond / sTrExpo) - the dial, the exposure, the joints, the green, the roughness, the fades
+  if (K.rocks !== undefined) {
+    rng('rocks', 0, 1); rng('rockHLo', -100, 3000); rng('rockHHi', -100, 3000); rng('rockBias', 0, 1); rng('rockOff', -1, 1); rng('rockMicro', 0, 1); rng('rockK', 0.1, 3);
+    rng('rockJoint', 0.1, 8); rng('rockJointSoil', 0, 1); rng('rockJointDirt', 0, 1); rng('rockHollow', 0, 1); rng('rockGreen', 0, 4); rng('rockGreenRough', 0, 1); rng('rockWet', 0, 1); rng('rockRough', 0.1, 3);
+    rng('rockMicroK', 0, 1); rng('rockMicroN', 0, 3); rng('rockMicroFrom', 0, 5000); rng('rockMicroTo', 0, 5000); rng('rockFarFrom', 0, 20000); rng('rockFarTo', 0, 20000); rng('rockNdvi', 0, 3); rng('rockNdviMid', -1, 1);
+    if (!(K.rockHLo < K.rockHHi)) kb.push('rockHLo >= rockHHi'); if (!(K.rockMicroFrom < K.rockMicroTo)) kb.push('rockMicroFrom >= rockMicroTo'); if (!(K.rockFarFrom < K.rockFarTo)) kb.push('rockFarFrom >= rockFarTo');
+  }
   say(!kb.length, `knobs in range, the split pairs ordered, the parallax off${kb.length ? ' - ' + kb.join('; ') : ''}`);
   const gb = [];
   for (const k in R.grade) { const g = R.grade[k];
@@ -246,14 +253,26 @@ function checkShader(G, splice, quiet) {
   // FEW CALL SITES, NO NESTED LOOP (G568): HLSL inlines every call site - the old chain's 144 inlined fetches were
   // a 412 KB program and a 110-220 s COLD compile per ground program under ANGLE/D3D11; a loop holding the sets
   // inside the candidate loop compiled in 3 s but drew the ground 1.5-2x slower (even where it ran zero times)
-  for (const [nm, tx] of [['full', glsl], ['lean', lean]]) { const n = fn => (tx.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
+  // ROCK-STUDY R1: the island's rock (sTrond and its slab tap) is its OWN chain, inlined ONCE a pixel before the candidate loop
+  // (its rule below) - the material chain's counts are taken without its two bodies
+  const cutFn = (tx, sig) => { const i = tx.indexOf(sig); if (i < 0) return tx; let d = 0, k = tx.indexOf('{', i);
+    for (; k < tx.length; k++) { if (tx[k] === '{') d++; else if (tx[k] === '}' && --d === 0) break; } return tx.slice(0, i) + tx.slice(k + 1); };
+  const noRock = tx => cutFn(cutFn(tx, 'Smp sTrond('), 'Smp sTrTap(');
+  for (const [nm, tx0] of [['full', glsl], ['lean', lean]]) { const tx = noRock(tx0), n = fn => (tx.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
     say(n('sMatPass') === 1 && n('sTriplet') === 1 && n('sSet') <= 3 && n('sTile') <= 3 && n('sFetch') <= 3,
       `the sample chain inlined small (${nm}): call sites sMatPass ${n('sMatPass')}, sTriplet ${n('sTriplet')}, sSet ${n('sSet')}, sTile ${n('sTile')}, sFetch ${n('sFetch')} (1, 1, <=3, <=3, <=3)`); }
   { const n = fn => (glsl.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length - 1;
     const body = f => { const i = glsl.indexOf(f); if (i < 0) return ''; let d = 0, k = glsl.indexOf('{', i); const k0 = k;
       for (; k < glsl.length; k++) { if (glsl[k] === '{') d++; else if (glsl[k] === '}' && --d === 0) break; } return glsl.slice(k0, k); };
     say(!/\bfor\s*\(/.test(['bool sMatPass(', 'Smp sTriplet(', 'Smp sSet(', 'Smp sTile(', 'Smp sFetch('].map(body).join('')), 'no loop inside the sample chain (nested in the candidate loop it costs the GPU)'); }
-  say(/sRGBTransferEOTF/.test(glsl), 'the colour array decoded in the shader (no sRGB array upload: GL 1281)');
+  say(/o\.c\.rgb = sRGBTransferEOTF\(vec4\(o\.c\.rgb, 1\.0\)\)\.rgb;/.test(glsl), 'the colour array decoded in the shader (no sRGB array upload: GL 1281) - in the fetch itself (R1\'s green decodes its own too)');
+  if (/Smp sTrond\(/.test(glsl)) for (const [nm, tx] of [['full', glsl], ['lean', lean]]) {
+    const sites = (t, fn) => (t.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length;
+    const rockOnly = tx.length - noRock(tx).length, tr = tx.slice(tx.indexOf('Smp sTrTap('), tx.indexOf('Smp gTrS;'));   // (the tap and sTrond, written in a row)
+    const loopAt = tx.indexOf(nm === 'lean' ? 'for (int j = 0; j < uSNSlot; j++)' : 'for (int j = 0; j < uSNCand; j++)'), callAt = tx.indexOf('gTrS = sTrond(');
+    say(sites(tx, 'sTrond') === 2 && callAt > 0 && loopAt > callAt && !/sMatPass\([^]*?\{[^]*?sTrond\(/.test(tx.slice(tx.indexOf('bool sMatPass('), tx.indexOf('bool sMatPass(') + 1500)) && sites(tr, 'sFetch') <= 5 && rockOnly > 0,
+      `R1: the island's rock inlined once a pixel (${nm}): sTrond called once, before the candidate loop, sMatPass hands its sample on; its own fetch sites ${sites(tr, 'sFetch')} (<=5)`);
+  }
   say(!/\bout\s+(Smp|vec4|vec3|float)\s+\w+\s*[,)]/.test(glsl), 'no `out` parameter on the sample chain (one struct through it)');
   say(/struct Smp \{ vec4 c; vec4 n; \};/.test(glsl), 'the one struct Smp { c, n }');
   say(/gSRough = mix\(clamp\(max\(nrm\.a, min\(1\.0, uSFilt\.y \* sqrt\(gSPixM\)\)\), 0\.05, 1\.0\), 1\.0, mw\);/.test(glsl) && /roughnessFactor = 1\.0 - \(1\.0 - gSRough\) \* uSNrm\.y;/.test(splice.glslRough), 'the sets\' roughness reaches roughnessFactor (the Standard ring), faded to matte at the macro range, the sheen knob its lever, widened by the pixel\'s footprint (the specular AA, 2026-09-24)');
@@ -477,6 +496,7 @@ function checkMineral(quiet) {
     if (seen.has(0)) seen.add(4); if (seen.has(1)) seen.add(3); seen.delete(0); seen.delete(1);
     for (const [a, d] of [[6, 12], [8, 13], [7, 14]]) if (seen.has(a)) seen.add(d);
     const need = new Set(); for (const c of seen) { const r = SP.api.code(c); if (r) for (const k of (r.tex || []).concat(r.far || [])) if (k) need.add(k); }
+    if (seen.has(6) && SP.api.knobs().rocks) for (const k of ['trondSlab', 'trondFace', 'cliff', 'grassRock']) need.add(k);   // (ROCK-STUDY R1: the island's rock, where the map has rock)
     const lost = [...need].filter(k => !L.includes(k)), extra = L.filter(k => !need.has(k));
     say(!lost.length && !extra.length && L.length < lib.length && L.every((k, i) => i === 0 || lib.indexOf(L[i - 1]) < lib.indexOf(k)),
         `the arrays hold the ${L.length} of ${lib.length} sets Jolene's codes name, in the library's order (not built: ${lib.filter(k => !L.includes(k)).join(', ')})` + (lost.length ? '; MISSING ' + lost.join(', ') : '') + (extra.length ? '; EXTRA ' + extra.join(', ') : ''));
@@ -606,6 +626,7 @@ async function checkGPU() {
     g = clone(); g.RECIPE.codes[11].far[0] = 'nothing';                       verdict(!checkRecipe(g, splatSrc, true), 'a far slot naming no set is caught');
     g = clone(); g.RECIPE.knobs.cliffLo = 50;                                 verdict(!checkRecipe(g, splatSrc, true), 'a split pair out of order is caught');
     g = clone(); g.RECIPE.knobs.para = 0.5;                                   verdict(!checkRecipe(g, splatSrc, true), 'the parallax turned on is caught');
+    g = clone(); g.RECIPE.knobs.rockFarTo = 100;                              verdict(!checkRecipe(g, splatSrc, true), 'the rock\'s far fade out of order is caught (R1)');
     g = clone(); g.RECIPE.grade.mud = { gain: 'brown', sat: 1 };              verdict(!checkRecipe(g, splatSrc, true), 'a grade gain that is not a hex is caught');
     g = clone(); g.RECIPE.library.push(['extra', 3]); for (let i = 0; i < 8; i++) g.RECIPE.library.push(['x' + i, 1]);
                                                                               verdict(!checkRecipe(g, splatSrc, true), 'a library past NLIB is caught');
