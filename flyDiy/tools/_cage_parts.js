@@ -1247,7 +1247,7 @@ const CAGE_PARTS = [
     place: { on: 'intDash', fore: 'dashBack', len: 'dashDepth',
              high: 'dashLip', at: 'off the windscreen base' },
     groups: [
-      ['dashboard', ['intDash', 'instPod', 'dashBack', 'dashLip', 'dashDepth',
+      ['dashboard', ['intDash', 'instPod', 'dashHood', 'dashBack', 'dashLip', 'dashDepth',
                      'dashCrown', 'dashStyle', 'dashLegs']],
       ['crease', ['dashCrease'], EXPERT],
     ] },

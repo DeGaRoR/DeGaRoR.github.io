@@ -759,6 +759,9 @@ window.CAGE_PAGE = {
          { when: P => +P.intOn && +P.intDash }],
         ['dashLegs',  'arch legs',      0, 2, 1, ['to the panel', 'to a rail', 'to the floor'],
          { when: P => +P.intOn && +P.intDash && +P.dashStyle === 1 }],
+        // THE INSTRUMENT HOOD (GEN_OUTFIT.hoodKgM2, the user 16 Nov: "like the real LS4 hood"): the panel and the
+        // glareshield moulded as one deep glass hood - weighed as the shell the depth row draws, not a flat board
+        ['dashHood',  'instrument hood (moulded)', 0, 1, 1, ['off', 'on'], { when: P => +P.intOn && +P.intDash, absent: 0 }],
       ]],
       // THE SHOULDER (G325): the sill trim — an L-section sheet from the
       // window transition W inboard and H down, from the dash aft. On for

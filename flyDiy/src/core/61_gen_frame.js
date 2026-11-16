@@ -3990,6 +3990,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     let panelM = 0;
     // (the instrument pod, GEN_INSTR_POD: no board - the pod on its stalk, billed where the board was)
     if (S.systems && S.systems.mount === 'pod') panelM = GEN_INSTR_POD.podKg;
+    else if (S.cage && +S.cage.dashHood && +S.cage.intDash && O.hoodKgM2) {
+      // THE INSTRUMENT HOOD (GEN_OUTFIT.hoodKgM2, the cage's dashHood row): the drawn dash's depth, crowned, and its face
+      panelM = 2 * cb.halfW * (1.25 * (+S.cage.dashDepth || 0.25) + 0.22) * O.hoodKgM2;
+    }
     else if (cb.panel && cb.panel.on) {
       const pw = 2 * cb.halfW * (0.6 + 0.8 * (cb.panel.wrap || 0));
       panelM = pw * (cb.panel.depth || 0.25) * O.panelKgM2;
@@ -4054,6 +4058,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       : glassKg * (cb.glazedM2 > 0 ? cb.glazedM2
                    : (2 * cb.halfW * cb.h * 0.55 +
                       (fusCovered ? 2 * cb.len * cb.h * 0.30 : 0)));
+    // THE BUBBLE'S FRAME AND HINGE (GEN_OUTFIT.canopyFrameKgM / canopyHingeKg): its edge off the glazed area as a
+    // half-cylinder over the cabin's width; billed with the glass (where the glass is); nothing on any other canopy
+    const bubble = cb.canopy && cb.canopy.style === 'bubble' && cb.glazing !== 'none' && O.canopyFrameKgM > 0 && glassKg > 0 && cb.halfW > 0;
+    const canopyFrameM = bubble ? (() => { const A = glassM / glassKg, Lc = A / (Math.PI * cb.halfW);
+      return O.canopyFrameKgM * 2 * (Lc + 2 * cb.halfW) + O.canopyHingeKg; })() : 0;
     // THE FURNISHING (PERF STUDY chantier 1): the lining, by the fit's tier
     // as a fraction of Raymer's GA law on the DESIGN GROSS (GEN_OUTFIT.furnK)
     // — pass 2 only, on the gross pass 1 solved (genDesignGross carries the
@@ -4099,10 +4108,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       half(noseEng ? F[0].BL : EL, noseEng ? F[0].BR : ER, exhM);
     }
     half(F[1].TL, F[1].TR, glassM);
+    if (canopyFrameM > 0) half(F[1].TL, F[1].TR, canopyFrameM);   // (the bubble's frame and hinge, with its glass)
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * ctlM);         // G3504: the cabin's rear ring
     { const nCowl = (noseEng && engOn) ? 1 + engCowl.length : engCowl.length ? engCowl.length : 1;
-      outfitKg = { panel: panelM, plumbing: plumbM, cowl: nCowl * cowlM, exhaust: nCowl * exhM, glazing: glassM, controls: ctlM }; }
+      outfitKg = { panel: panelM, plumbing: plumbM, cowl: nCowl * cowlM, exhaust: nCowl * exhM, glazing: glassM, controls: ctlM,
+                   ...(canopyFrameM > 0 ? { canopyFrame: canopyFrameM } : {}) }; }
     // the furnishing on the cabin floor, both rings (G3570: the floor is in it - at the raised floor's height)
     sec('furnish');
     if (floorUp > 0) for (const rg of [F[1], F[iCabR]]) { onRing(rg, 'L', 0.25 * furnM); onRing(rg, 'R', 0.25 * furnM); }

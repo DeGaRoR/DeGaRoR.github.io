@@ -3319,7 +3319,7 @@ const ARCHETYPES = [
                     aftWsBaseLift: 0.255, aftWsTopOff: 0.081824, aftWsBaseBow: 0.45, aftWsCeilBow: 0.3,
                     aftCowlLoops: 2, aftRingNoseTop: 0.285, aftRingNoseBot: -0.14, frNoseTopY: -0.39999999999999997,
                     frWinBotY: -0.68329950868154, frPostWaistW: 0.545, frPostBotW: 0.545, frCabWaistW: 0.545,
-                    frCabBotW: 0.545, rimW: 0.01, doorSill: 0.094, dashBack: 0.1, dashDepth: 0.13, canClear: 1,
+                    frCabBotW: 0.545, rimW: 0.01, doorSill: 0.094, dashBack: 0.1, dashDepth: 0.42, dashHood: 1, dashCrown: 0.1, canClear: 1,
                     stY: -0.06, stZ: 0.25, stSpan: 1.027, stChord: 0.59, finVentralOn: 0, finFillet: 0.04,
                     finDorsal: 0, finTipZ: 0.25, finTipY: -0.3, finAftZ: 0, finAftY: -0.3, finBaseZ: 0, finBaseY: 0,
                     finMidY: -0.2, finUY: 0, finLEZ: -0.1, finShoulderZ: 0.15, finSharpBase: 3, finSharpLE: 3,

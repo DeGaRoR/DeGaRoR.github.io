@@ -1970,6 +1970,18 @@ function genFurnK(S) {
 //   glass   3 mm acrylic, which is what a light aeroplane's screen is
 const GEN_OUTFIT = {
   panelKgM2: 6.0,
+  // THE BUBBLE CANOPY'S FRAME AND HINGE (the user, 16 Nov, the LS4: "maybe you should count a frame for the canopy, and an
+  // opening hinge"): a bubble's sheet stands in its own frame - a moulded glass / alloy channel round its edge (~0.55 kg a
+  // metre with its bonding, INFERRED: a Standard Class's ~4.2 m of frame ~2.3 kg) - and opens on a hinge with a latch,
+  // a gas strut and its jettison pins (canopyHingeKg). The edge is the glazed area's: a half-cylinder over the cabin's
+  // width, so length = area / (pi x halfW) and the edge 2 (length + width). Every bubble canopy (the canopy row's 3);
+  // a framed cabin's windows are its pillars'
+  canopyFrameKgM: 0.55, canopyHingeKg: 0.5,
+  // THE INSTRUMENT HOOD (the LS4, the user 16 Nov: "make the dashboard bigger, like the real LS4 hood"): a sailplane's
+  // panel and its glareshield moulded as one deep glass hood (the cage's dashHood row) - billed from the drawn rows as a
+  // shell (the cabin's width x (the dash's depth x 1.25 for its crown + a 0.22 m face)) at hoodKgM2 (a glass-epoxy hood
+  // with its instrument mounting ring, ~5 kg/m2, INFERRED), in place of the flat board's panelKgM2
+  hoodKgM2: 5.0,
   cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6, glass: 2.4, softShell: 1.6 },
   glassKgM2: 3.6,
   // THE GLAZING MATERIAL (T2.2, 2026-09-22): acrylic is the 3 mm sheet above;
@@ -3291,7 +3303,7 @@ function genEngPropD0(S, e0, PP0) {
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
-                               brkHold: 0, certCat: 0, wgBrake: 0 };
+                               brkHold: 0, certCat: 0, wgBrake: 0, dashHood: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
