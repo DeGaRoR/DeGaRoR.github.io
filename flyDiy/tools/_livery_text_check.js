@@ -75,13 +75,26 @@ const lastFont = page => { for (let i = drawn.length - 1; i >= 0; i--) if (drawn
     if (r.list.some(d => d.page >= 8 && d.page <= 13)) bad.push(f + ' wears a text page');
     const reg = r.list.find(d => d.page === 0);
     if (!reg || reg.one) bad.push(f + ' registration not on both sides');
-    const want = A.AERO_DEC_FONTS[Math.max(0, Math.min(3, Math.round(+D.regFont || 0)))].css;
+    // REG-JOST (the user 16 Nov): rows 0-1 (IBM Plex Mono) draw Jost bold / Jost through the pieces' path; rows 2-3 as before
+    const rk = Math.max(0, Math.min(3, Math.round(+D.regFont || 0))), RF = A.AERO_DEC_FONT_FACE[rk];
+    const want = RF.swap ? A.aeroTxtFont({ face: RF.face, b: RF.b, i: 0, sl: 0 }).css : A.AERO_DEC_FONTS[rk].css;
     if (drawn.length && drawn[0].font !== want) bad.push(f + ' registration face ' + drawn[0].font);
     nb++;
   }
-  ok(nb >= 5 && !bad.length, 'the official builds (' + nb + ') wear what they wore', bad.slice(0, 4).join('; '));
+  ok(nb >= 5 && !bad.length, 'the official builds (' + nb + ') wear what they wore (rows 0-1 in Jost since REG-JOST)', bad.slice(0, 4).join('; '));
   for (let k = 0; k < 4; k++) ok(A.aeroTxtFont(k).css === A.AERO_DEC_FONTS[k].css && A.aeroTxtFont(k).sl === 0,
                                  'the registration\'s old row ' + k + ' draws exactly as before');
+  ok(A.AERO_DEC_FONT_FACE.length === 4 && A.AERO_DEC_FONT_FACE.slice(0, 2).every(r => r.face === 'jost' && r.swap) &&
+     A.AERO_DEC_FONT_FACE[0].b === 1 && A.AERO_DEC_FONT_FACE.every(r => r.face !== 'plexmono') &&
+     A.AERO_DEC_FONT_FACE.slice(2).every(r => r.face === 'plexsans' && !r.swap),
+     'REG-JOST: no registration row draws IBM Plex Mono; the default (row 0) is Jost bold, rows 2-3 stay Plex Sans');
+  {
+    drawn.length = 0;
+    const r0 = A.aeroDecalsFor(THREE, A.aeroDecalMerge({}), { reg: 'F-JOST', trim: 0x1b3a5c });
+    const jb = A.aeroTxtFont({ face: 'jost', b: 1, i: 0, sl: 0 }).css;
+    ok(r0 && drawn.some(d => d.font === jb), 'REG-JOST: an untouched registration is drawn in Jost bold (or its stand-in until the file comes)',
+       drawn.map(d => d.font).slice(-2).join(' | '));
+  }
 
   // 4. NEVER A SYNTHESISED STYLE: every bold / italic the panel can ask for names a real file (or a weight the page ships)
   let synth = [];
