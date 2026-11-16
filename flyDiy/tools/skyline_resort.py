@@ -69,12 +69,16 @@ def runway(old, elev):
     # THE TURN ON THE APRON (the user, 16 Nov: "you run uphill when it's flat, and there's actually a huge apron next to the
     # cabin car station where you can easily maneuver ... You should always reach the flat part, and there normally you would
     # expect to have something a bit wider to be able to turn and park"). The apron is the summit platform (tw_t_platform,
-    # gravel, level at 708.70 m): a -2..92 m down from the top end, 9..50 m across on the station side, its free part above
-    # the buildings (the pilot hut at a 64.7) ~60 x 41 m - beside the strip's flat top over its whole length, the 6 m shoulder
-    # between at the strip's own level (708.5-708.9). The way out (stand (45, -22) -> the runway) runs up the apron and joins
-    # the strip at its top end: the reversal is the apron's, the strip only sees the last 90 deg at its line-up point, 8 m
-    # below the top end (the take-off limit was flown from there; past the end the ridge falls away - 702 m 10 m out)
-    r['taxiOut'] = [P(24, -24), P(8, -14), P(8, 0)]
+    # gravel, level 708.70 m): a -2..92 m down from the top end, 9..50 m across on the station side, beside the strip's flat
+    # top with the 6 m shoulder between at the strip's level (708.5-708.9); past the top end the ridge falls away (702 m 10 m
+    # out). MEASURED against the cooked solids (tools/_taxiclear_lib islandObstacles + trunks): the tram station's structure
+    # crosses it as a band (a 14..34, c -48..-16), so its free parts are the top (a -2..10, the whole width: 10-23 m to the
+    # nearest solid) and the stand's (a 38..58), joined by the corridor beside the strip (c -3..-12). The way out: the stand
+    # (45, -22) -> P(40, -4) -> up the corridor to P(6, -4) -> out onto the top of the apron P(2, -12) -> the centreline 8 m
+    # below the top end P(8, 0) (the line-up the take-off limit was flown from). The wingtip (5.5 m) never under 4.4 m from a
+    # solid (the station's band at a 20); a C172 turning on the spot sweeps 6.3 m (GP_PARKED_FOOT [5.5, 1.5, 6.1]): 9.2 m
+    # past it at P(6, -4), 5.3 m at P(2, -12) - the reversal is the apron's, the strip sees the last turn at its line-up
+    r['taxiOut'] = [P(40, -4), P(6, -4), P(2, -12), P(8, 0)]
     # the stage: one strip at every value (its ground is physics, composed with the stage); the tired station's strip
     # has no windsock and no tie-down spots - the deal (resort 1) puts them back. (The 320 -> 380 m growth step is gone.)
     r.pop('stage', None)
