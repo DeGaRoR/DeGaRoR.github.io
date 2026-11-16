@@ -9,6 +9,9 @@
 // ============================================================
 function makeWorld(seed, opts) {
   const SEED = seed | 0;                     // undefined -> 0: no-arg callers get the validated world
+  // GRASS-ON-GREEN (16 Nov): the premises' grass law as the page has it (the worker's world - sim_link worldMsg opts.grassSides),
+  // set before anything asks the surface: `hard` is the look AND the wheels' ground (giveWay below), the two threads must agree
+  if (opts && opts.grassSides && typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.grassSides) PREMISES_GEN.grassSides(opts.grassSides);
   // THE ISLAND (W2, 2026-09-14): a world source from data (28_island.js). With
   // it, the data's ground stands in for the noise, its cover grid for the
   // classifier, its canopy for the trees' size, its square for the domain;
@@ -1287,6 +1290,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     // page's world and the worker's (sim_link 'wsolid') - so nothing the aeroplane can hit goes undrawn
     woodSolid: true,
     setWoodSolid(on) { this.woodSolid = !!on; return this.woodSolid; },
+    // GRASS-ON-GREEN (16 Nov): the premises' grass law, live - the editor's rows call THIS, so sim_link replays it on the worker's
+    // world (WORLD_FNS): `hard` and the clears move the wheels' ground (giveWay), not only the look. () reads
+    setGrassSides(o) { return typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.grassSides ? PREMISES_GEN.grassSides(o) : null; },
     // THE OBSTACLES (G433): the registry of solid things the solver pushes out of (29_obstacles.js) -
     // the settlements' own buildings stand in it from the start as plain boxes; the viewer adds what
     // it stands (houses, props, cars, parked aeroplanes) and moves the traffic

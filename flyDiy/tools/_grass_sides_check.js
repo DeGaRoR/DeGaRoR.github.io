@@ -70,5 +70,25 @@ const D = PG.GRASS_SIDES_DEF;
   ok(r.law === before.law && r.mowBand === 0 && r.sideClear === 2.5 && !('nonsense' in r), '4 the dials: an unknown law and key refused, a negative clamped to 0, a number read');
   PG.grassSides(Object.assign({}, D)); ok(JSON.stringify(PG.grassSides()) === JSON.stringify(D), '4 back to GRASS_SIDES_DEF'); }
 
+// 5 THE LAW IS THE WHEELS' GROUND TOO (GRASS-ON-GREEN, 16 Nov; A0's audit): `hard` moves the surface (20_world giveWay), so the
+//   editor sets it through world.setGrassSides, which sim_link replays on the physics worker's world (WORLD_FNS / SIM_HOST_WORLD_FNS),
+//   and a worker's world made later takes the page's law first (worldMsg opts.grassSides -> makeWorld)
+{ PG.grassSides(Object.assign({}, D));
+  ok(typeof J.setGrassSides === 'function' && J.setGrassSides({ hard: 0 }).hard === 0 && PG.grassSides().hard === 0 && J.setGrassSides().hard === 0,
+     '5a world.setGrassSides sets and reads the premises law');
+  J.setGrassSides({ hard: 1 });
+  let pt = null; for (const a of J.aerodromes) { if (pt || a.surface == null || a.kind === 'meadow') continue;
+    for (let u = -a.len / 2; u <= a.len / 2 && !pt; u += 10) for (const v of [2, 4, 6]) { const P = across(a, v, u); if (J.marginGrassAt(P[0], P[1])) { pt = P; break; } } }
+  const sOn = pt ? J.surface(pt[0], pt[1]) : null; J.setGrassSides({ hard: 0 }); const sOff = pt ? J.surface(pt[0], pt[1]) : null, mOff = pt ? J.marginGrassAt(pt[0], pt[1]) : null; J.setGrassSides({ hard: 1 });
+  ok(pt && !mOff && sOn !== sOff, "5b a margin point's wheels' ground follows the law: given way under hard 1, the strip's gravel under hard 0", pt ? 'surface ' + sOn + ' -> ' + sOff : 'no margin point found');
+  const J0 = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.json'), 'utf8'), grassSides: { hard: 0 } });
+  ok(PG.grassSides().hard === 0 && (!pt || !J0.marginGrassAt(pt[0], pt[1])), "5c a world made with opts.grassSides (the worker's, sim_link worldMsg) takes the page's law first");
+  PG.grassSides(Object.assign({}, D));
+  const SL = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'sim_link.js'), 'utf8'), SH = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'sim_host.js'), 'utf8'), WR = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'world_rail.js'), 'utf8');
+  const fnsOf = (src, name) => { const a = src.indexOf(name + ' = ['), b = a < 0 ? -1 : src.indexOf(']', a); return a < 0 ? '' : src.slice(a, b); };
+  ok(/'setGrassSides'/.test(fnsOf(SL, 'WORLD_FNS')) && /'setGrassSides'/.test(fnsOf(SH, 'SIM_HOST_WORLD_FNS')) && /grassSides: typeof PREMISES_GEN/.test(SL),
+     "5d the worker gets it: sim_link WORLD_FNS + worldMsg, sim_host SIM_HOST_WORLD_FNS");
+  ok(!WR.includes('P.grassSides({') && !WR.includes('GSD().grassSides(d)') && /gsSet/.test(WR), "5e the editor's grass rows set the law through the world (gsSet), never PREMISES_GEN alone"); }
+
 console.log('GATE GRASSSIDES: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

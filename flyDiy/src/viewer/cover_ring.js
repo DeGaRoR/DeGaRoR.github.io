@@ -1430,7 +1430,7 @@ var COVER_RING = (() => {
         if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again
         if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
-        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD']
+        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD', 'green', 'greenDens', 'greenLo', 'greenSpan', 'feather', 'cutFloor', 'texGrass']
                             : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'castMinDebris', 'trunc'];
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
       species: () => (FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)
