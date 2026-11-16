@@ -317184,3 +317184,21 @@ JOINPARITY (Jodel node vs page mass 470.666/469.732, and the raw-validated-build
 - stills 16 Nov 09:35 (page_rig.js, Cabin Lake eye 1 m, 7 Jan 18:00 moonless, RTX 3080): v0 live / direct / half light / jitter .3 / jitter 1;
   jitter .3 kept: sky-sized glints in short columns. Gates: WATER ATMO LOOKS NIGHTVISIBILITY LIGHT PASS (SHADOWSKY's red is master's own).
 - Evidence: flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/direct/.
+
+## L40e (A0, Mon 16 Nov 2026, 19:00 train, pushed ~23:00)
+TAKEN (21): livery-manager-4, colour-restore, carbon-cub-livery, snow-mud-ladder, observatory-2, skis-pc6-2, pc6-tail-refs, quickshot-cut-2 (A0 union with pc6-tail-refs), missions-live-2, boot-loop-guard, dirt-faults-2 (A0 union with snow-mud-ladder + SNOWMUDFX D regex for ladder codes 13/14), grass-on-green, subalpine, page-rig-3, pc6-trail (= archaeo-refs-2), animals-swim, descent-2, pilot-wingslevel-2, canon-reds, carbon-cub-cowl, star-direct.
+DROPPED -> L40f: tow-launch-l40e-2 (594-file bundle, real conflicts), skyline-resort (island fixture), cars-own (not pushed).
+TRAIN FIXES: land_light_nt.sh merges media/thumbs|heroes/index.json by union (thumbs_union.py) and takes the later side's thumb/hero picture (RE-BAKE OWED: AIRCRAFT-LOOKS' whole bake Tue 01:55 + FLAGSHIP 14:05).
+BATTERY: 301 PASS / 50 FAIL (L40d 54). FIXED vs L40d: BENCH CITYCOOK COMMITHYGIENE MAPBAKE NACELLE PREMCOOK SOFTGROUND STAGES TERRAINMATCH UISMOKE UISMOKE-PHONE UISMOKE-PHONEFLY ULTRALIGHT.
+NEW REDS (named, owners fix in L40f):
+- SAVE: the saved file loses skiPos (1 of 1164 rows) - skis-pc6-2 (SKIS).
+- SKIS: no-ski witnesses' def hashes moved (cub, jodel, superpetrel, carbon_cub_ss) by tonight's card refs - SKIS re-bless with reason.
+- STOL: cub/jodel/rufus joined spec differs from master's (livery/canon keys) - STOL baseline re-capture with reason.
+- KNIFE: IDENTITY of the Cub family moved (pasengerWindow loops, sheet 20942 -> 21054) - carbon-cub-cowl / PROPER-COWLS: re-record if meant.
+- HONEST: surface table lacks rows for the ladder's new ground classes (18) - SNOW-MUD.
+- LOOKS 5: the cover ring does not refuse the drawn water at a lake margin - grass-on-green / subalpine (LOOK-1 + MOUNTAIN-VEG).
+- DMGUPLOAD: metal crash -> shed -> roll-out leaves stale GPU buffers (fold:flownBaked) - Deform.
+- SCENERYED 15: w6/w8 save vs record - fixed in snow-mud-rail (L40f).
+- BENCHTIME: 2 bench checks at 6.0-6.5 s vs 6.0 under the train's load (timing).
+LOAD TIME (cold, RTX 3080, ledger): L40d 143 s -> L40e 215 s (205 s re-measured on a quiet box): world 26 -> 40-51 s, settle 17 -> 22-27 s, shader compile 58 -> 67-93 s. LANDED WITH THE COST NAMED (the user's rule); suspects: subalpine (+7-14 % trees, walk), grass-on-green, animals on land (31 drawn), the ground ladder. First item of the perf round; bisect owed.
+KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes evict grit on low tiers (GROUND-FX splash-budget L40f); MEDIA career_core 720 KB budget (Game).
