@@ -40,7 +40,7 @@
 (function () {
 const WK = {};
 const TRAIL_DS = 1.5, TRAIL_LIFE = 30, SPREAD = 0.18, ARM_TAN = Math.tan(19.47 * Math.PI / 180), ARM_W = 0.9;
-const RING_V = 0.35, RING_LIFE = 6, RING_A = 0.3, MAXP = 4096, MAXR = 32, MAXV = 24000;
+const RING_V = 0.35, RING_LIFE = 6, RING_A = 0.2, MAXP = 4096, MAXR = 32, MAXV = 24000;
 const SLICK_LIFE = 40, SLICK_K = 0.9, SLICK_GROW = 1.8, SLICK_N = 6, SLICK_PX = 3, SLICK_PXRAD = 1094;   // (a slick under SLICK_PX across: not handed)
 WK.K = { TRAIL_DS, TRAIL_LIFE, SPREAD, ARM_TAN, RING_V, RING_LIFE, RING_A, SLICK_LIFE, SLICK_K, SLICK_GROW, SLICK_N };
 

@@ -701,6 +701,9 @@ function seaCore(THREE, H) {
     const k = sxx > 0 ? sxy / sxx : 0, sr = 0.85 * S.rs.slice().sort((p, q) => p - q)[Math.floor(n / 4)];
     let za = sA + sr, zb = sB - sr;
     if (zb < za) za = zb = (sA + sB) / 2;
+    // THE JOINT (16 Nov eve, slot 3: the trunk and a section met cap to cap, a pinch of full sea between them): the end
+    // toward the trunk runs on into it by the trunk's radius, so the windows overlap and the body reads as one
+    if (fb <= 0.3 + 1e-6) zb = Math.min(zA + r, zb + sr + r); else za = Math.max(zB - r, za - sr - r);
     const seg = { a: [0, my + k * (za - mz), za], b: [0, my + k * (zb - mz), zb], r: sr };
     // the bone: the most skin weight over the section's vertices
     const W = new Map();

@@ -482,6 +482,10 @@ async function swimmers(g) {
       const ylo = bb[1] - pv[1], yhi = bb[4] - pv[1], zlo = bb[2] - pv[2], zhi = bb[5] - pv[2];
       for (const e of [sg.a, sg.b]) if (!(e[1] - sg.r > ylo && e[1] + sg.r < yhi && e[2] - sg.r > zlo && e[2] + sg.r < zhi)) sw = sw || 'a section out of the box';
       if (!(sg.r > 0 && sg.r <= C.r * 1.01)) sw = sw || 'a section r ' + f2(sg.r) + ' past the trunk ' + f2(C.r);
+      // the joint (16 Nov eve): the end toward the trunk lies within the trunk's capsule - no pinch of sea between them
+      const nearE = Math.abs(sg.a[2] - C.cz) < Math.abs(sg.b[2] - C.cz) ? sg.a : sg.b;
+      const tz = Math.max(C.cz - C.h, Math.min(C.cz + C.h, nearE[2]));
+      if (Math.hypot(nearE[1] - C.cy, nearE[2] - tz) > C.r) sw = sw || 'a section meets the trunk cap to cap (' + f2(Math.hypot(nearE[1] - C.cy, nearE[2] - tz)) + ' m from its axis)';
       if (sg.A) {
         const bone = H.inst.meshes[sg.mi].skeleton.bones[sg.bi];
         M.multiplyMatrices(inv, bone.matrixWorld);
