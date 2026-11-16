@@ -99,8 +99,10 @@ var RAIN_FX = (function () {
     '  float mpp = uPx.y * zc / projectionMatrix[1][1];',                     // metres per pixel at this depth
     '  float slen = length(sv), maxL = uLen.z / uPx.y * mpp;',              // maxNdc in pixels, in metres here
     '  if (slen > maxL) { sv *= maxL / slen; slen = maxL; }',
-    '  vec3 sd = slen > 1e-5 ? sv / slen : vec3(0.0, 1.0, 0.0);',
-    '  vec3 side = cross(sd, normalize(v0.xyz)); float sl2 = length(side); side = sl2 > 1e-5 ? side / sl2 : vec3(1.0, 0.0, 0.0);',
+    // (no vector ?: - SwiftShader drew nothing through one, 16 Nov eve: a guarded division instead; a still drop gets a 1 mm up stub)
+    '  sv += vec3(0.0, 1e-3, 0.0) * step(slen, 1e-5); slen = max(length(sv), 1e-5);',
+    '  vec3 sd = sv / slen;',
+    '  vec3 side = cross(sd, normalize(v0.xyz)); side = side / max(length(side), 1e-5);',
     '  float wMin = uPx.z * mpp, hw = 0.5 * max(uLen.w, wMin), alpha = clamp(uLen.w / max(max(uLen.w, wMin), 1e-6), 0.08, 1.0);',
     '  vec3 vp = v0.xyz + sv * position.y + side * (position.x * hw);',
     '  gl_Position = projectionMatrix * vec4(vp, 1.0);',
