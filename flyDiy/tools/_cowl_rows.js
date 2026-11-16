@@ -184,6 +184,7 @@ const COWL_ROWS = [
     { k: 'cylRin', label: 'cylinders: radius where the taper sinks', lo: 0, hi: 0.5, step: 0.002, when: 'P.cylOn>0' },
     { k: 'cylOffIn', label: 'cylinders: axis at the taper end (sinks in)', lo: 0, hi: 1.2, step: 0.002, when: 'P.cylOn>0' },
     { k: 'cylBlend', label: 'cylinders: fillet where they merge', lo: 0, hi: 0.1, step: 0.002, when: 'P.cylOn>0' },
+    { k: 'cylOgive', label: 'cylinders: front', lo: 0, hi: 1, step: 1, names: ['round cap', 'ogive'], when: 'P.cylOn>0' },
     { k: 'cutSpan', label: 'cut-out span (horseshoe)', lo: 0, hi: 200, step: 1 },
     { k: 'cutAz', label: 'cut-out azimuth', lo: 0, hi: 359, step: 1, when: 'P.cutSpan>0' },
   ] },

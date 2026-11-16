@@ -84,7 +84,7 @@ const P={
   // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
   lidRW:null, lidRTop:null, lidRBot:null,
   // PROPER-COWLS: the head cylinders, merged into the skin (cylOn 0 = none)
-  cylOn:0, cylAz:0, cylOff:0.3, cylR:0.12, cylZ0:0.1, cylZ1:0.4, cylNose:0.1, cylTail:0.15, cylRin:0, cylOffIn:null, cylBlend:0.025,
+  cylOn:0, cylAz:0, cylOff:0.3, cylR:0.12, cylZ0:0.1, cylZ1:0.4, cylNose:0.1, cylTail:0.15, cylRin:0, cylOffIn:null, cylBlend:0.025, cylOgive:0,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
   // chin scoop
   // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
@@ -540,7 +540,12 @@ function rampAt(th,z){
    the cut where they meet is the crease. cylOn 0 (absent) = nothing, to the bit. */
 function cylRad(z){
   const z0=+P.cylZ0, z1=+P.cylZ1, R=+P.cylR, rin=+P.cylRin||0;
-  if(z>z1){ const u=(z-z1)/Math.max(1e-3,+P.cylNose); return u>=1?0:R*Math.sqrt(Math.max(0,1-u*u)); }
+  if(z>z1){ const Ln=Math.max(1e-3,+P.cylNose), x=z-z1; if(x>=Ln) return 0;
+    // OGIVAL (cylOgive 1; the user, 16 Nov: "make the cylinders ... ogival"): the tangent ogive - leaves the cylinder
+    // tangent, closes to a point over cylNose; 0 = the round (elliptical) cap
+    // (a tangent ogive needs a nose at least as long as its radius; a shorter one is the round cap)
+    if(+P.cylOgive>0&&Ln>=R){ const rho=(R*R+Ln*Ln)/(2*R); return Math.max(0,Math.sqrt(Math.max(0,rho*rho-x*x))-(rho-R)); }
+    const u=x/Ln; return R*Math.sqrt(Math.max(0,1-u*u)); }
   if(z<z0){ const u=(z0-z)/Math.max(1e-3,+P.cylTail); if(u>=1) return 0; const w=u*u*(3-2*u); return R+(rin-R)*w; }
   return R;
 }
@@ -1362,7 +1367,8 @@ function camlocInto(pos,idx,th,z,r,rise){
    cylBlend joins the two: along the crossing line, the ball touching both surfaces, its arc from the cowl's tangent point
    to the cylinder's - a small concave strip that hides the knife edge. */
 function cylAxisAt(z,sg){ const a=+P.cylAz*DEG, off=cylOffAt(z), cy=spineY(z); return [sg*Math.cos(a)*off, cy+Math.sin(a)*off]; }
-function cylSpan(){ const ze=zEnd(); return [Math.max(0.002,+P.cylZ0-(+P.cylTail)), Math.min(ze-0.002,+P.cylZ1+(+P.cylNose))]; }
+// (the front may run ahead of the cowl's face - the Carbon Cub's cheek fronts reach the spinner's base; 0.6 m at most)
+function cylSpan(){ const ze=zEnd(); return [Math.max(0.002,+P.cylZ0-(+P.cylTail)), Math.min(ze+0.6,+P.cylZ1+(+P.cylNose))]; }
 function buildCylinders(group,mats){
   if(!(+P.cylOn>0)||!(+P.cylR>0)) return;
   const d=clamp(P.detail,0.35,2), NA=Math.max(48,Math.round(96*d)), NZ=Math.max(24,Math.round(72*d));
@@ -1401,7 +1407,7 @@ function buildCylFillet(group,mats){
   for(const sg of [1,-1]){
     const runs={up:[],dn:[]};
     for(let i=0;i<=NZ;i++){
-      const z=zT+(zN-zT)*i/NZ, R=cylRad(z); if(!(R>1e-3)){ runs.up.push(null); runs.dn.push(null); continue; }
+      const z=zT+(zN-zT)*i/NZ, R=cylRad(z); if(!(R>1e-3)||z>zEnd()-0.004){ runs.up.push(null); runs.dn.push(null); continue; }
       const O0=outline(z), Om=outline(Math.max(0,z-dz)), Op=outline(z+dz), A=cylAxisAt(z,sg), cy=O0.cy;
       const fpsi=ps=>{ const x=A[0]+R*Math.cos(ps), y=A[1]+R*Math.sin(ps); return Math.hypot(x,y-cy)-O0.at(Math.atan2(y-cy,x)); };
       const cross=[];
