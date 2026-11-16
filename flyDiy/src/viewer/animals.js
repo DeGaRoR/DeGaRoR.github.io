@@ -624,6 +624,110 @@ function levels(key) {
   return lv;
 }
 
+// THE CORE (SWIMMERS, 15-16 Nov 2026): the capsules INSIDE a sea animal's body, in its handle's frame (the pivot at the
+// origin, +z forward, before the individual's size). The trunk { cy, cz, r, h }: the centre (0, cy, cz), the radius, the
+// half-length of the axis along z; core.seg: the head and the tail stock, each { a, b, r } (the axis's two ends in the handle's
+// frame) and, when the skin has bones, { mi, bi, A, B }: the bone that carries most of that section's skin (mesh mi's
+// skeleton, bone bi) and the two ends in THAT bone's rest frame - so the tail's capsule beats with the flukes. The water reads
+// them to open its column over the body (water.js setSubmerged), and a capsule that spilled past the skin opened the water
+// onto nothing (the first slot, 15 Nov: a turquoise lozenge around every orca, the clear colour behind the sea). So each is
+// fitted from the rest pose's own skin, once per species: a section (the trunk 30-80 % of the length from the tail, the tail
+// stock 14-30 %, the head 80-95 %) cut in slices; a slice's centre the enclosed point farthest from the skin (a grid over
+// the slice), that clearance its inscribed radius; the capsule's radius 0.85 of the lower quartile's, its caps inside the
+// section's ends. The trunk alone (the first slot's) left the head and the tail under the bed's full column: a body seen
+// through the sea in its middle only, the user 16 Nov: "the transparency seems random for the orcas". Read-only on the model.
+function seaCore(THREE, H) {
+  const b = BUILT.get(H.key);
+  if (b && b.core) return b.core;
+  const root = H.obj;
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), v = new THREE.Vector3();
+  const P = [], VM = [];                                  // the skin in the handle's frame; each vertex's [mesh, index]
+  H.inst.meshes.forEach((m, mi) => {
+    if (!m.geometry || !m.geometry.attributes.position) return;
+    const n = m.geometry.attributes.position.count;
+    for (let i = 0; i < n; i++) {
+      if (m.isSkinnedMesh) m.getVertexPosition(i, v); else v.fromBufferAttribute(m.geometry.attributes.position, i);
+      v.applyMatrix4(m.matrixWorld).applyMatrix4(inv);
+      P.push(v.x, v.y, v.z); VM.push(mi, i);
+    }
+  });
+  let z0 = Infinity, z1 = -Infinity;
+  for (let i = 2; i < P.length; i += 3) { z0 = Math.min(z0, P[i]); z1 = Math.max(z1, P[i]); }
+  const L = z1 - z0;
+  const med = arr => { const c = arr.slice().sort((p, q) => p - q); return c.length ? c[c.length >> 1] : 0; };
+  // a section zA..zB in NS slices -> { zs, cys, rs } of the slices whose centre is enclosed
+  function slices(zA, zB, NS) {
+    const zs = [], rs = [], cys = [];
+    for (let s = 0; s < NS; s++) {
+      const lo = zA + (zB - zA) * s / NS, hi = lo + (zB - zA) / NS, xs = [], ys = [];
+      for (let i = 0; i < P.length; i += 3) if (P[i + 2] >= lo && P[i + 2] < hi) { xs.push(P[i]); ys.push(P[i + 1]); }
+      if (xs.length < 6) continue;
+      // the centre: the point of the slice's box farthest from any skin vertex among those ENCLOSED by the skin (a vertex in
+      // each of 8 directions around it) - inside the body; never in the gap under a hanging flipper or beside a fin
+      let yLo = Infinity, yHi = -Infinity, xLo = Infinity, xHi = -Infinity;
+      for (const y of ys) { yLo = Math.min(yLo, y); yHi = Math.max(yHi, y); }
+      for (const x of xs) { xLo = Math.min(xLo, x); xHi = Math.max(xHi, x); }
+      let cy = 0, best = 0;
+      const G = 24;
+      for (let gi = 1; gi < G; gi++) for (let gj = 1; gj < G; gj++) {
+        const px = xLo + (xHi - xLo) * gi / G, py = yLo + (yHi - yLo) * gj / G;
+        let d2 = Infinity, sec = 0;
+        for (let j = 0; j < xs.length; j++) {
+          const ex = xs[j] - px, ey = ys[j] - py;
+          d2 = Math.min(d2, ex * ex + ey * ey);
+          sec |= 1 << (((Math.atan2(ey, ex) + Math.PI) / (Math.PI / 4)) & 7);
+        }
+        if (sec === 255 && d2 > best * best) { best = Math.sqrt(d2); cy = py; }
+      }
+      if (!(best > 0)) continue;
+      zs.push((lo + hi) / 2); rs.push(best); cys.push(cy);
+    }
+    return { zs, cys, rs };
+  }
+  const zA = z0 + 0.3 * L, zB = z0 + 0.8 * L;
+  const T = slices(zA, zB, 8);
+  if (T.cys.length < 3) return null;
+  const r = 0.85 * T.rs.slice().sort((p, q) => p - q)[Math.floor(T.rs.length / 4)], core = { cy: med(T.cys), cz: (zA + zB) / 2, r, h: Math.max(0, (zB - zA) / 2 - r), seg: [] };
+  // the head and the tail stock: a capsule along the slices' own centre line (a least-squares line: the head drops, the
+  // stock rises to the flukes), on the bone that carries most of its skin
+  const rel = new THREE.Matrix4(), ri = new THREE.Matrix4();
+  for (const [fa, fb] of [[0.14, 0.3], [0.8, 0.95]]) {
+    const sA = z0 + fa * L, sB = z0 + fb * L, S = slices(sA, sB, 5);
+    if (S.cys.length < 2) continue;
+    const n = S.zs.length, mz = S.zs.reduce((p, q) => p + q, 0) / n, my = S.cys.reduce((p, q) => p + q, 0) / n;
+    let sxy = 0, sxx = 0;
+    for (let i = 0; i < n; i++) { sxy += (S.zs[i] - mz) * (S.cys[i] - my); sxx += (S.zs[i] - mz) ** 2; }
+    const k = sxx > 0 ? sxy / sxx : 0, sr = 0.85 * S.rs.slice().sort((p, q) => p - q)[Math.floor(n / 4)];
+    let za = sA + sr, zb = sB - sr;
+    if (zb < za) za = zb = (sA + sB) / 2;
+    const seg = { a: [0, my + k * (za - mz), za], b: [0, my + k * (zb - mz), zb], r: sr };
+    // the bone: the most skin weight over the section's vertices
+    const W = new Map();
+    for (let i = 0; i < P.length / 3; i++) {
+      const z = P[3 * i + 2];
+      if (z < sA || z >= sB) continue;
+      const m = H.inst.meshes[VM[2 * i]], j = VM[2 * i + 1];
+      if (!m.isSkinnedMesh || !m.skeleton || !m.geometry.attributes.skinIndex) continue;
+      const SI = m.geometry.attributes.skinIndex, SW = m.geometry.attributes.skinWeight;
+      for (let c = 0; c < 4; c++) { const w = SW.getComponent(j, c); if (w > 0) { const key = VM[2 * i] * 256 + SI.getComponent(j, c); W.set(key, (W.get(key) || 0) + w); } }
+    }
+    let bk = -1, bw = 0;
+    for (const [key, w] of W) if (w > bw) { bw = w; bk = key; }
+    if (bk >= 0) {
+      const mi = bk >> 8, bi = bk & 255, bone = H.inst.meshes[mi].skeleton.bones[bi];
+      if (bone) {
+        rel.multiplyMatrices(inv, bone.matrixWorld); ri.copy(rel).invert();
+        seg.mi = mi; seg.bi = bi;
+        seg.A = v.fromArray(seg.a).applyMatrix4(ri).toArray(); seg.B = v.fromArray(seg.b).applyMatrix4(ri).toArray();
+      }
+    }
+    core.seg.push(seg);
+  }
+  if (b) b.core = core;
+  return core;
+}
+
 // place(THREE, key) -> a handle. The object goes into the scene; `step(dt)`
 // runs the clock; `play(role, opts)` chains a clip; `loomSet(depth)` fades the
 // under-water copy in. Everything is null-safe before the bytes land: the
@@ -646,7 +750,7 @@ function place(THREE, key, o) {
     root.addLevel(g, farDist(a, li, l.dist));        // THE LADDER, FAR OUT (ANIMALS-MOTION)
   });
   const H = { key, a, obj: root, inst: null, player: null, L0, pivot: piv,
-              loomList: null, loomMats: null, pending: null, ready: false };
+              loomList: null, loomMats: null, core: null, pending: null, ready: false };
   // A PLAY ASKED FOR BEFORE THE BYTES LAND IS REMEMBERED, not dropped: the
   // behaviour starts its first bout the moment it sows the herd, and the
   // payload is still on the wire. Without this the animal stands in its rest
@@ -698,6 +802,7 @@ function place(THREE, key, o) {
   const fill = () => {
     H.inst = instance(THREE, key);
     L0.add(H.inst.root);
+    if (a.sea) H.core = seaCore(THREE, H);
     H.player = makePlayer(H.inst);
     H.ready = true;
     if (H.pending) { H.player.play(H.pending[0], H.pending[1]); H.pending = null; }
@@ -723,6 +828,7 @@ A.MOTION = MOTION;                     // ANIMALS-MOTION: the fade and pace rule
 A.GAIT = GAIT;
 A.headChain = headChain;
 A.farDist = farDist;
+A.seaCore = seaCore;                   // SWIMMERS: the trunk's inscribed capsule (the water's column over the body)
 if (typeof window !== 'undefined') window.ANIMALS = A;
 if (typeof module !== 'undefined' && module.exports) module.exports = A;
 })();

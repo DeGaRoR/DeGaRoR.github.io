@@ -369,7 +369,7 @@ const MANIFEST = {
     // render_world.js and render_premises.js are the two hosts that make a
     // runner, and both ask for window.ANIMAL_RUN at call time, so the refs
     // landing after the inlined viewer is soon enough.
-    ['src/viewer', 'plume.js'], ['src/viewer', 'animals.js'], ['src/viewer', 'animal_run.js'],
+    ['src/viewer', 'plume.js'], ['src/viewer', 'wakes.js'], ['src/viewer', 'animals.js'], ['src/viewer', 'animal_run.js'],   // wakes.js (SWIMMERS, 15 Nov): the surface layer the swimmers' hulls write, before the runner that makes one
     ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
     ['src/viewer', 'tex_means.js'],   // HLOD-MEANS: the shipped albedo maps' means (tools/tex_means.py) - render_premises meanOf reads them
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
