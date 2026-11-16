@@ -316816,3 +316816,23 @@ note futureDesigns/SKIS-2026-11-13.md section 3; evidence and tables reports/evi
   overruns Ardent by 19 m (into the bank). PILOT - the landing-run sheet assumes wheel brakes. OBSERVATORY-3 is not on L40d
   (its cooked packs conflict with L40d's): SKISARDENT flies from the line-up until it lands, from the stand after.
   FIT-PROCEDURE - the PC-6 contact: the tail ski on TW rides the oleo; pc6_skis.json follows their card.
+## PC6-TAIL-REFS (FIT-PROCEDURE, 16 Nov) - claude/fit-procedure-pc6-tail-refs on claude/ready/skis-pc6-2 (3fe1c5cdd)
+- WHAT: the PC-6 tailwheel as a garage row (twStyle 1, absent 0: the leaf as before) - a fixed oleo cylinder through the
+  keel, a sliding piston, the V scissor (upper arm + bands to the axle), the steering cross-arm, a U-channel mudguard on a
+  spoke, two clamps on the bulkhead, the stabiliser truss (welded node; twNode 1 = bolted gussets). The flight: TW on a
+  telescopic oleo (gearOleoDesignTele, rp 4.5, nLim 9, cd 1.0; static stroke 0.74 S), a lateral bearing; sim.twOleo().
+  The game poses each part by the stroke and the steering (app.js pc6Rigs; tools/pc6_mech_check.js: every joint within
+  0.0000 mm over the stroke and +-30 deg). Billed part by part (PC6-BILL): 30.5 kg, $7,700 (the frame spends twOleoUsd).
+- THE CARDS: pc6_drafting (the oleo rows), the floats card + references, pc6_skis.json re-derived (only the tail rows
+  move: s2R 0.17, twStyle 1, twPostLen 0.9, twPostD 0.085, twLegDrop 0.58, twSpringDrop 0.01). Index rows, plane-list
+  rows 57/58 (wip) and 59/60 (next), thumbs. REAL-FIGURES: REFS.pc6 / GEO.pc6 / PLANES.pc6, the REALBAND baseline row.
+- THE GATES (box run, 16 Nov): SUBSTEP, STOL, TAKEOFF, TAILWHEEL, MASS, SKIS, STAND, PLANELISTS, REALBAND, DRAFTING, JOIN,
+  GEAR, PARKED, FLOWNBAKE, PLANEFICHE, PRICE, PROCURE, SNAPSHOTS: PASS; PC6 MECHANISM: PASS. RED ON THE BASE THE SAME:
+  WILGAGEAR (the 4 lvJoint 1 boot rows, re-run on a git archive of 3fe1c5cdd), PARTS (canClear), CANDIDATES, DMGGEAR
+  (the 1800 s wall). NEW RED, NAMED: SKISARDENT's PACKED LANDING - both trees overrun Ardent by 19-20 m into the bank
+  (the reversing propeller gap); the base meets the bank at 1.1 m/s (624 yields, no break), this branch at 3.5 m/s
+  (717 yields, 10 fus breaks): touchdown 25 m in (vs 40), 1482 kg (vs 1461), ski sink 14 cm (vs 22). The other three
+  ski legs pass. For A0 / ENGINE: the overrun is the gap; for PILOT: the run-out speed at the strip's end.
+- OPEN: the PC-6 MTOW loading for real_check (CG 76 % MAC with the check's aft load); plane_shot's tw: view shows the
+  cockpit when run after board: in the same load (alone it works); the drafting tool's tail-wheel marks do not read the
+  oleo tailwheel yet (0.8 m off on the check, the wheel on the drawing in the overlay).
