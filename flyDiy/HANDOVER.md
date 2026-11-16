@@ -316693,3 +316693,20 @@ HOUSEWORKER: green in this battery (it was Game's one red on its stack).
 STANDING (L40c's, unchanged): FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT GLIDE UNIFY DESTTO TREECRASH DMGCERT DMGGEAR WILGAGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGWALL DMGDAMP DMGTYRE DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY WINGROWS DESIGNCHECK JOINPARITY ENGINE PARTS POD DMGPOD CANDIDATES NAMES NODUMMY ENERGYBASE TANKMOUNT ENGTORQUE FLEX LOAD ENGCONFIG.
 
 COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); after 143 s (programs 501 -> 508, world 26.1, settle 17.4, shader compile 46.2 + 11.8 s): +5 s, 7 more programs. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+
+## MOUNTAIN-VEG - THE SUBALPINE, ITS SHRUB CARDS, THE FOREST EDGES (15-16 Nov 2026; the user: "our mountain tops are too bare"; A0's GO)
+- 19 SUBALPINE (claude/ready/subalpine = claude/mountain-veg f1a92634b, L40e): heath / scrub / dense scrub above a 450-600 m ramp
+  take the `subalpine` mix (28c_biomes subCode / subKeep, render_world's BIO.subAt / keepAt hooks, the walk + stand cards + mixHere;
+  codeAt and the splat untouched); thinned on the high summits and the ridge tops; ?subalpine=0. BIOMES.hold: the knobs once a
+  pass (knobs() per point was 5 of 11 s of the walk).
+- THE SHRUB CARDS (claude/subalpine-shrubs, rides after the subalpine): picture species with place.shape carpet / cluster / crown
+  (cover_ring shapedCards; the user's picks on the shrub bench 15 Nov night: carpet for all, cluster + crown for the 2 m grey-red
+  thicket, cut 0.3, Cassiope as wide as the others); alp_greyred / alp_vaccinium / alp_elliottia / alp_cassiope; ?alpshrubs=0.
+  The pictures: the user's sprites through tools/card_prep.py, baked by tree_prep.py --only (TREE_ASSETS = a folder holding
+  vegetation/flowers/<name>.png). treeReachOf reaches code 19 (derived, not in the ttype grid).
+- FOREST-EDGE (claude/forest-edge, for Thu 19 Nov): the trees' size ramp inside a forest's edge (28c edgeField / edgeRamp /
+  edgeLift / edgeCanIn; walkRows + stand cards) and the bushes + weeds band outside (cover_ring edgeBand, GATE COVER 9);
+  ?forestedge=0. The grass field's weeds band is LOOK-1's (the field's ctx carries edgeD).
+- The tool: tools/veg_bench.js (WORKBENCH row; card cards/veg_bench.md): --subalpine 0, --forestedge 0, --edge <areas>.
+- BACKLOG: the flowers and the subalpine shrubs carry simple_grass_chunks' CC-BY credit (3dhdscan) but they are the user's own
+  art - fix tree_prep's credit source (a species' own `credit` in the tuning, or none for the user's pictures).
