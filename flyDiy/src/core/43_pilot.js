@@ -1221,7 +1221,7 @@ function makePilot(sim, def, world, opts) {
   const P3_ = !!(A.p3 ?? true);
   // G3914: A FLAPLESS AEROPLANE COMING DOWN CLOSES THE THROTTLE. Its idle floor costs as much slope as the whole slip: the Cub in still air at 19.2 m/s, flown steady,
   // 0.109 on the floor, 0.121 slipping at 0.8 of rudder; 0.119 and 0.130 closed. On the descending legs it also rolled in 12 m high without it
-  let hPatDone = false, deFlap0 = null, p3Closed = false, slipAUT = 0, p3FlapOut = false;
+  let hPatDone = false, deFlap0 = null, p3Closed = false, slipAUT = 0, p3FlapOut = false, dragFlap = false, dragSaid = false;
   const gDes = () => { const S = sheetOf(); return S && S.LDbest ? clamp(0.8 / S.LDbest, 0.05, 0.10) : 0.07; };
   // the straight final: 45 s at Vref (60 s and 500 ft on a short field: FAA-H-8083-3 ch. 9, "at least 500 feet"), 400 ft at least (rolled
   // out and lined up over the 300 ft gate: under it the turn itself read as 65 m off the centreline, a go-around), a quarter mile at the very
@@ -3118,7 +3118,7 @@ function makePilot(sim, def, world, opts) {
     // the arrival at the destination, planned from where the aeroplane is now
     const planFromHere = () => {
       const { from, to } = ap.route;
-      ap.climbHold = null;   // G2450 / G2520: a new arrival plan ends a climb hold
+      ap.climbHold = null; ap.descHoldN = 0;   // G2450 / G2520: a new arrival plan ends a climb hold (DESCENT D3: and its count of descent holds)
       ap.fafCapped = false;  // DESCENT: set by a designed approach whose FAF was capped (below)
       const climbDir = [F.ux * ap.dirX, 0, F.uz * ap.dirX];
       let u;
@@ -3153,8 +3153,11 @@ function makePilot(sim, def, world, opts) {
           // a steeper slope (an obstacle's reqGs, the STOL slope, up to gsMax 0.16: 788 m at that distance) is the slope near the
           // threshold, not out at the FAF - the legs keep the type's slope or the circuit height, whichever is higher, and the
           // final flies level from the FAF until the steep slope comes down to meet it (FINAL's latched level), then down it
-          const hDesG = aimAlt() + ap.gs * dFaf - ap.altRef, hTypeG = aimAlt() + A.gs * dFaf - ap.altRef;
-          P.hC = Math.max(A.hSafe + 10, Math.min(hDesG, Math.max(hTypeG, ap.hCruise)));
+          const hDesG = aimAlt() + ap.gs * dFaf - ap.altRef;
+          // DESCENT D2 (16 Nov): THE CIRCUIT'S HEIGHT, NOT THE TYPE'S SLOPE. L40d's physics canon steepened Rufus's own slope 0.066 ->
+          // ~0.10, and max(type slope, circuit) then put the drawn FAF at 494 m - the aeroplane climbed 306 -> 494 on its way in to come
+          // down again (rufus_cabin_trees' top 506 -> 673 m). Never higher than the circuit: FINAL holds level under the slope (fafCapped)
+          P.hC = Math.max(A.hSafe + 10, Math.min(hDesG, ap.hCruise));
           if (ap.appr) ap.appr.designed = { dFaf: Math.round(dFaf), hFaf: Math.round(P.hC), hSlope: Math.round(hDesG) };
           ap.fafCapped = P.hC < hDesG - 4;   // (FINAL: level under the steep slope until it comes down to meet the aeroplane)
           P.sIaf = P.sFaf - Math.max(400, 10 * VTurn);
@@ -3525,7 +3528,7 @@ function makePilot(sim, def, world, opts) {
     }
     const phRun = ap.phase, legRun = ap.legI;   // G710: the phase and leg this step flies (ap.intent names them, not the next)
     const legsRun = ap.legs;                    // G2120: ...and the legs (the step that ends a drawn route plans the arrival's)
-    if (ap.phase !== 'FINAL') { slipK = 0; p3Closed = false; p3FlapOut = false; }   // G1936: the slip is the short final's only
+    if (ap.phase !== 'FINAL') { slipK = 0; p3Closed = false; p3FlapOut = false; dragFlap = false; dragSaid = false; }   // G1936: the slip is the short final's only
     if (!BX.on && c.brakeD) c.brakeD = 0;    // G1938: the differential brake is the pivot's only
     // G3800 (TAILWHEELS): THE TAILWHEEL LOCK (a lockable wheel's; FAA-H-8083-3 and the DC-3's own checklist: unlocked to
     // taxi, locked for the take-off and the landing). In for the runway and the air, out on the taxiways, the stand and
@@ -3596,7 +3599,9 @@ function makePilot(sim, def, world, opts) {
     // Returns true when the orbit hands over to the final (the leg ends: the caller's own hand-over)
     const flyClimbHold = () => {
       const Hd = ap.climbHold, O = Hd.orb;
-      altMode(Hd.h, ap.VClimb || VTurnLeg(), bankLim, 'HDG');
+      // DESCENT D3: the same hold DOWN (Hd.down) - idle on the slow approach speed (Hd.v), the steep sink allowed, the take-off flap as drag
+      if (Hd.down) engage('HDG', 'TECS', 'TECS', { alt: Hd.h, vs: null, gs: null, vsUp: 1.5, vsDn: -(A.descHoldVs ?? 6), ias: Hd.v, bank: bankLim });
+      else altMode(Hd.h, ap.VClimb || VTurnLeg(), bankLim, 'HDG');
       let rr = 0;
       if (O) {
         rr = Math.hypot(cg[0] - O.x, cg[2] - O.z) || 1e-9;
@@ -3604,14 +3609,17 @@ function makePilot(sim, def, world, opts) {
         const rx = CORE_MATH.cos(phA), rz = CORE_MATH.sin(phA), kR = clamp(3 * (rr - O.R) / O.R, -1, 1);
         SEL.hdg = Math.atan2(rx * Hd.sg - kR * rz, -rz * Hd.sg - kR * rx);
       } else SEL.hdg = Math.atan2(vcg[2], vcg[0]) + Hd.sg * 0.87;
-      flapTgt = 0;
+      flapTgt = (Hd.down && FS && V < 1.3 * Hd.v) ? (FS.to ?? 0) : 0;
       ap.budget = Math.max(ap.budget, ap.t + 300);
-      pubH = Hd.h; pubN = 'CLIMB HOLD'; pubX = O ? O.ix : null; pubZ = O ? O.iz : null;
-      const up = Hd.h - cg[1] < 20;
-      setStatus(O ? 'holding at the approach fix, climbing to the final\'s height' : 'circling to climb before the approach', [cond('height', Math.round(cg[1] - ap.altRef), Math.round(Hd.h - ap.altRef), up, 'm')]);
+      pubH = Hd.h; pubN = Hd.down ? 'DESCENT HOLD' : 'CLIMB HOLD'; pubX = O ? O.ix : null; pubZ = O ? O.iz : null;
+      const up = Hd.down ? cg[1] - Hd.h < 20 : Hd.h - cg[1] < 20;
+      setStatus(Hd.down ? 'circling down on the final to the slope\'s height' : O ? 'holding at the approach fix, climbing to the final\'s height' : 'circling to climb before the approach', [cond('height', Math.round(cg[1] - ap.altRef), Math.round(Hd.h - ap.altRef), up, 'm')]);
       if (O && up) {
         const tl = Math.hypot(vcg[0], vcg[2]) || 1e-9;
-        if (Math.hypot(cg[0] - O.ix, cg[2] - O.iz) < 0.35 * O.R && (vcg[0] * O.ux + vcg[2] * O.uz) / tl > 0.87) { ap.climbHold = null; return true; }
+        if (Math.hypot(cg[0] - O.ix, cg[2] - O.iz) < 0.35 * O.R && (vcg[0] * O.ux + vcg[2] * O.uz) / tl > 0.87) {
+          if (Hd.down) { finalT0 += ap.t - Hd.t0; finalLevel = null; slopeCaptured = false; }   // D3: the circle's time is not the final's
+          ap.climbHold = null; return true;
+        }
       }
       if ((!O && up) || ap.t - Hd.t0 > 600) { ap.climbHold = null; go(planFromHere()); }
       return false;
@@ -5138,6 +5146,32 @@ function makePilot(sim, def, world, opts) {
         const d = ap.xAim - sAl;
         const hGS = aimAlt() + Math.max(0, d) * ap.gs;
         const above = cg[1] - hGS;
+        // DESCENT D3 (the user via A0, 15 Nov: Rufus's final began hundreds of metres over its slope; "losing altitude fast while
+        // remaining as slow as possible is really key"): A FINAL THAT CANNOT LOSE ITS HEIGHT IS CIRCLED DOWN, NOT FLOWN AROUND. Over the
+        // slope by more than the rest of the final can take away - half the go-around's height (gaHigh) plus gsExcess (0.06) of a slope
+        // more than its own over the distance left to the 600 m gate - the pilot turns a full circle off the centreline, tangent to it
+        // here, on the side whose ground is lower (the climb hold's orbit, G2520, flown DOWN: idle, the slow approach speed, the take-off
+        // flap), and takes the final up again where the circle meets it, at the slope's height there. The high_final cases (+300 m at the
+        // final, flight_script) went round once on every aeroplane before. Not within 700 m of the aim, not three times on one plan,
+        // never a circle whose ground comes within 60 m of the height it ends at
+        if (P3_ && !BX.on && (ap.descHoldN || 0) < 3 && d > 700 && above - 0.5 * ST.gaHigh - (A.gsExcess ?? 0.06) * (d - 600) > 0) {
+          const vD = 1.1 * ap.VAppr * ST.VapprK;
+          const Rh = Math.max(250, 1.4 * vD * vD / (9.81 * Math.tan(bankLim)));
+          const P0 = wp(F, sAl, 0), hFix = hGS;
+          const side = sg => {
+            const x = P0[0] - sg * Rh * F.uz, z = P0[1] + sg * Rh * F.ux;
+            let g = -1e9;
+            if (world && typeof world.terrainH === 'function') for (let k = 0; k < 16; k++) g = Math.max(g, groundH(x + Rh * CORE_MATH.cos(k * Math.PI / 8), z + Rh * CORE_MATH.sin(k * Math.PI / 8)));
+            return { sg, x, z, g };
+          };
+          const S1 = side(1), S2 = side(-1), O = S1.g <= S2.g ? S1 : S2;
+          if (hFix - O.g > 60) {
+            ap.climbHold = { down: true, h: hFix, v: vD, t0: ap.t, sg: O.sg, orb: { x: O.x, z: O.z, R: Rh, ix: P0[0], iz: P0[1], ux: F.ux, uz: F.uz } };
+            ap.descHoldN = (ap.descHoldN || 0) + 1;
+            say('descent-hold', Math.round(above) + ' m over the slope ' + Math.round(d) + ' m from the aim - circling down to ' + Math.round(hFix - ap.altRef) + ' m before the final');
+            flyClimbHold(); break;
+          }
+        }
         // DESCENT: UNDER A CAPPED DRAWN FAF THE SLOPE COMES DOWN TO MEET THE AEROPLANE (G381's own words). Below the slope, the
         // capture made at once flew the slope's law UP to it - the fixed Rufus off Cabin Strip, its FAF kept at 326 m under an
         // 0.10 slope's 524, climbed 55 m on its final. There the latched level is held until the slope is within 4 m; every
@@ -5217,6 +5251,21 @@ function makePilot(sim, def, world, opts) {
         // 4.1 there. Both went round for ever; with the flap out early they land first try, full flap on 0.05-0.10 of elevator (26.2 m/s, run 254 m: what they did before the stages)
         if (P3_ && deF > 0.18) p3FlapOut = true;
         flapTgt = (P3_ && onPathF && fLDG > 0 && !p3FlapOut) ? Math.max(fTO, 0.5 * fLDG) : fLDG;
+        // DESCENT D2 (the user via A0, 15 Nov: "unable to lose altitude fast enough ... losing altitude fast while remaining as slow as
+        // possible is really key"): THE TAKE-OFF FLAP IS DRAG WHEN THE FINAL IS HIGH, even on a card that lands clean (Rufus: to 0.25,
+        // ldg 0 - its final was flown clean from 800 m over the slope). Out while the aeroplane is over the slope by slipHigh (15 m), over
+        // 50 m above the ground and under 1.3 x the approach speed (the take-off notch flies the climb at those speeds); in again once
+        // the height is lost (4 m over the slope) while still over 50 m - never a retraction in the last 50 m (the crosswind rule's own
+        // reason, G2816: a tailwheel aeroplane lands on its take-off flap). The elevator's budget governs as for the landing flap
+        // (deF over 0.22: the drag flap goes back in). A card with no take-off notch, or one landing on more, is untouched
+        if (P3_ && FS && fTO > fLDG + 0.01) {
+          if (!dragFlap && above > (A.slipHigh ?? 15) && aglG > 50 && V < 1.3 * iasF && deF < 0.18) dragFlap = true;
+          else if (dragFlap && aglG > 50 && (above < 4 || deF > 0.22 || V > 1.4 * iasF)) dragFlap = false;
+          if (dragFlap) {
+            flapTgt = Math.max(flapTgt, fTO);
+            if (!dragSaid) { dragSaid = true; say('flap-drag', 'high on the final (' + Math.round(above) + ' m over the slope) - the take-off flap out as drag'); }
+          }
+        } else dragFlap = false;
         // G975: THE LANDING FLAP COMES OUT AS FAR AS THE ELEVATOR HOLDS IT. genTrim sizes the landing
         // flap in the tunnel, prop OFF (deAppr inside the 0.18 budget); under approach power the
         // propwash over the flaps is another airframe. The twin bush hauler (two wing engines 0.26 m
