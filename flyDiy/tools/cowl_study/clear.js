@@ -33,7 +33,7 @@ function clearance(S, THREE, opts) {
     if (cache.has(k)) return cache.get(k);
     const zz = k / 200, cy = CW.spineY(zz), r = new Float32Array(N);
     for (let i = 0; i < 720; i++) {
-      const p = CW.surfPoint(i / 720 * 2 * Math.PI, zz);
+      const p = (CW.surfPointU || CW.surfPoint)(i / 720 * 2 * Math.PI, zz);   // (the cowl with its head cylinders)
       const a = Math.atan2(p[1] - cy, p[0]), j = ((Math.round(a / (2 * Math.PI) * N) % N) + N) % N;
       r[j] = Math.max(r[j], Math.hypot(p[0], p[1] - cy));
     }
