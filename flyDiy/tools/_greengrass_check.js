@@ -45,14 +45,15 @@ function field(o) {
   const treeBuild = () => ({ parts: [{ geo: g, mat }] });
   const MIX = Object.assign({ grassland: { species: { grass_reed: { proportion: 1, density: 0.48 } }, forest: { cover: 1 } },
     bare: { species: {}, forest: { cover: 0 } } }, o.mixes || {});
-  const BIO = { mixAt: o.mixAt || (() => 'bare'), mixOf: k => MIX[k] || null };
+  const BIO = { mixAt: o.mixAt || (() => 'bare'), mixOf: k => MIX[k] || null, knobs: () => ({ edgeShrubIn: 1, edgeShrubOut: 3, edgeWeedOut: 6 }) };
+  if (o.edgeOn === false) BIO.edgeOn = false;
   const world = { terrainH: () => 0, waterH: () => -10, island: null };
   if (o.surface) { world.surface = o.surface; world.SURFACE = o.SURFACE; }
   const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(0, 2, 0); camera.lookAt(40, 0, 10); camera.updateMatrixWorld();
   B.load(path.join('src', 'viewer', 'cover_ring.js'));
   const col = o.col || LIB.lush;
   const CR = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer: 'grass',
-    biomeAt: () => 'bare', codeAt: o.codeAt || (() => 2), okAt: () => true, coverAt: o.coverAt || (() => null), groundMeanAt: () => col.slice(), groundSetsAt: o.setsAt || null });
+    biomeAt: () => 'bare', codeAt: o.codeAt || (() => 2), okAt: () => true, coverAt: o.coverAt || (() => null), groundMeanAt: () => col.slice(), groundSetsAt: o.setsAt || null, edgeD: o.edgeD || null });
   CR.set(Object.assign({ on: true, budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0, tier: 0 }, o.set || {}));
   for (let i = 0; i < 4; i++) CR.update();
   const c = CR.census(), pts = []; for (let i = 0; i < c.length; i += 3) pts.push([c[i + 1], c[i + 2]]);
@@ -123,6 +124,23 @@ ok(bareB.length === 0, '3 a bare type on brown (dry) ground: none', bareB.length
   const A = P => P.filter(p => inside(p, 0)).length, D = P => P.filter(p => inside(p, 8)).length, H = P => P.filter(p => inside(p, 16)).length;
   ok(off.length === 0, '9a texGrass 0 (today): a bare type on brown ground grows none, whatever is drawn', off.length);
   ok(A(on) > 100 && D(on) === 0 && H(on) > A(on) * 0.25 && H(on) < A(on) * 0.75, '9b texGrass 1: grass on rocks+grass, none on dirt, a half blend about half', A(on) + ' / ' + D(on) + ' / ' + H(on)); }
+
+// 10 THE WEEDS BAND (16 Nov, FOREST-EDGE with MOUNTAIN-VEG; the user's 25 Oct spec: weeds 6-3 m OUTSIDE a forest's edge): a meadow,
+//   the forest's edge at x 40 (edgeD = x - 40, + inside). In the band (x 34-37) the wild grass is ~1.3 x denser and ~1.8 x taller;
+//   away from it (x < 32) nothing moves; no edgeD, weeds 0 or BIOMES.edgeOn false (?forestedge=0): today's field exactly
+{ const o = { col: LIB.lush, mixAt: () => 'grassland', edgeD: (x) => x - 40 };
+  const tufts = F => { const r = []; F.CR.root.traverse(m => { if (!m.isInstancedMesh) return; const M = m.instanceMatrix.array; for (let i = 0; i < m.count; i++) r.push([M[i * 16 + 12], M[i * 16 + 14], Math.hypot(M[i * 16 + 4], M[i * 16 + 5], M[i * 16 + 6])]); }); return r; };
+  const T = set => { try { return tufts(field(Object.assign({}, o, set))); } catch (e) { ok(false, '10 the field plants: ' + String(e && e.stack || e).slice(0, 300)); return []; } };
+  const on = T({}), off = T({ set: { weeds: 0 } }), noEd = T({ edgeD: null }), offB = T({ edgeOn: false });
+  const inB = P => P.filter(p => p[0] > 34.3 && p[0] < 36.7 && Math.abs(p[1]) < 40), away = P => P.filter(p => p[0] > 8 && p[0] < 31 && Math.abs(p[1]) < 40);
+  const mh = P => P.reduce((a, p) => a + p[2], 0) / Math.max(1, P.length), key = P => P.map(p => p.map(v => v.toFixed(4)).join(',')).sort().join(';');
+  const rD = inB(on).length / Math.max(1, inB(off).length), rH = mh(inB(on)) / Math.max(1e-9, mh(inB(off)));
+  ok(inB(off).length > 50 && rD > 1.15 && rD < 1.45 && rH > 1.55 && rH < 2.05, '10a the weeds band: denser and taller (x weedsD 1.3, weedsH 1.8)',
+     inB(off).length + ' -> ' + inB(on).length + ' tufts (x' + rD.toFixed(2) + '), mean scale x' + rH.toFixed(2));
+  ok(key(away(on)) === key(away(off)), '10b away from the edge nothing moves', away(off).length + ' / ' + away(on).length);
+  ok(key(noEd) === key(off) && key(offB) === key(off), "10c no edgeD, or ?forestedge=0: today's field exactly", off.length + ' / ' + noEd.length + ' / ' + offB.length);
+  const F = field(o), w = F.CR.fieldAt(35.5, 0), x = F.CR.fieldAt(20, 0);
+  ok(w && w.weed > 0.9 && x && x.weed === 0 && w.perM2 > x.perM2 * 1.2, '10d fieldAt reports the band (weed 1 at 4.5 m out, 0 at 20 m)', JSON.stringify([w && [w.weed, w.perM2, w.h], x && [x.weed, x.perM2, x.h]])); }
 
 console.log(fails ? `GATE GREENGRASS: FAIL (${fails})` : 'GATE GREENGRASS: PASS');
 process.exit(fails ? 1 : 0);

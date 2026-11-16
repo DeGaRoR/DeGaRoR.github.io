@@ -280,6 +280,7 @@ var COVER_RING = (() => {
           green: 1, greenDens: 0.8, greenLo: 1.05, greenSpan: 0.3,   // GRASS ON GREEN (15 Nov): green 0 = today's (the A/B)
           feather: 0,
           cutFloor: 0,
+          weeds: 1, weedsH: 1.8, weedsD: 1.3,   // (16 Nov, FOREST-EDGE with MOUNTAIN-VEG) the wild grass taller + denser in the weeds band outside a forest's edge (ctx.edgeD; inert without it)
           texGrass: 0 }   // (16 Nov) the density floor by the texture drawn: texGrass x SET_GRASS over the near sets' weights (0 = today)   // (16 Nov; the user: "maybe you have a cut grass setting that does not work") a MOWN node's density floor, whatever the type it is cut from (0 = today: the type's, 0.2 by a forest strip)   // (16 Nov) the density blended across class boundaries, 0..1 - off until the user's frame says (the A/B)
       : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true,
           aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140, trunc: 1 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
@@ -770,20 +771,32 @@ var COVER_RING = (() => {
     // buildField, before the blotch, the tiers and the fade - its tufts per m2, the length, and why (the node's class, the land
     // test, the kill, the cut, the drawn colour's greenness). The cells' sub-grids are kept until fieldAtReset() (or a replant)
     const FA = new Map();
+    // THE WEEDS BAND (16 Nov, FOREST-EDGE; the user's 25 Oct spec across an edge: weeds 6-3 m OUTSIDE, shrubs 3-0 m outside): 0..1 at
+    // a node from ctx.edgeD (signed metres to the forest's edge, + inside): 1 from -edgeWeedOut to -edgeShrubOut, thinning to 0 at the
+    // edge, 0 inside and past -edgeWeedOut - 1. Null when the field has no edgeD, weeds is 0 or BIOMES.edgeOn is false (?forestedge=0)
+    function weedsGrid(G, x0, z0) {
+      if (!(S.weeds > 0) || !ctx.edgeD || !BIO || BIO.edgeOn === false) return null;
+      const K = BIO.knobs ? BIO.knobs() : {}, wo = K.edgeWeedOut > 0 ? K.edgeWeedOut : 6, so = K.edgeShrubOut > 0 ? Math.min(K.edgeShrubOut, wo) : 3;
+      const W = new Float32Array(G.N * G.N); let any = 0;
+      for (let j = 0; j < G.N; j++) for (let i = 0; i < G.N; i++) { const d = ctx.edgeD(x0 + i * SG, z0 + j * SG);
+        const w = !(d < 0) || !(d > -wo - 1) ? 0 : d >= -so ? -d / so : d >= -wo ? 1 : d + wo + 1; if (w > 0) { W[j * G.N + i] = Math.min(1, w) * S.weeds; any = 1; } }
+      return any ? W : null;
+    }
     function fieldAt(x, z) {
       if (!FIELD || !BIO) return null;
       const c = speciesOf()[0]; if (!c) return null;
       const C = S.cell, cx = Math.floor(x / C), cz = Math.floor(z / C), key = cellKey(cx, cz);
-      let E = FA.get(key); if (!E) { if (FA.size > 4096) FA.clear(); E = { G: subGrid(cx * C, cz * C, C), typeOf: fieldTypes(c) }; FA.set(key, E); }
+      let E = FA.get(key); if (!E) { if (FA.size > 4096) FA.clear(); E = { G: subGrid(cx * C, cz * C, C), typeOf: fieldTypes(c) }; E.W = weedsGrid(E.G, cx * C, cz * C); FA.set(key, E); }
       const G = E.G, k = G.at(x, z), T0 = E.typeOf(G.mix[k]), gD = S.green > 0 ? Math.max(0, +S.greenDens || 0) : 0;
       const dT = T0 ? T0.dens : 0, dG = gD * (G.green ? G.green[k] : 0), dX = S.texGrass > 0 && G.tex ? S.texGrass * G.tex[k] : 0, d0 = Math.max(dT, dG, dX), d = G.cut[k] > 0 && S.cutFloor > 0 ? d0 + (Math.max(d0, S.cutFloor) - d0) * G.cut[k] : d0;
       const ok = !!G.ok[k], kill = G.kill[k], cut = G.cut[k], surf = G.surf[k], kind = G.kind[k], boost = G.boost[k];
       const cutF = cut > 0 ? 1 + ((surf ? S.stripDens : S.cutDens) - 1) * cut : 1;
       const live = ok && kill < 1 && kind !== 1 && kind !== 3;
-      const T = T0 || FIELD_MEADOW, hw = T.h * S.hK, hc = surf ? S.stripH : S.cutH;
+      const wd = E.W && !surf ? E.W[k] * (1 - cut) : 0, wD = 1 + (S.weedsD - 1) * wd;
+      const T = T0 || FIELD_MEADOW, hw = T.h * S.hK * (1 + (S.weedsH - 1) * wd), hc = surf ? S.stripH : S.cutH;
       return { mix: G.mix[k], code: G.code[k], ok, kill: +kill.toFixed(3), cut: +cut.toFixed(3), surf: !!surf, cls: !!G.cls[k], kind,
         green: G.green ? +G.green[k].toFixed(3) : 0, col: [G.col[k * 3], G.col[k * 3 + 1], G.col[k * 3 + 2]],
-        dType: dT, dGreen: +dG.toFixed(3), dTex: +dX.toFixed(3), perM2: live ? +(S.on ? S.tufts * d * cutF * (1 - kill) * (1 + boost) : 0).toFixed(2) : 0,
+        dType: dT, dGreen: +dG.toFixed(3), dTex: +dX.toFixed(3), weed: +wd.toFixed(3), perM2: live ? +(S.on ? S.tufts * d * cutF * wD * (1 - kill) * (1 + boost) : 0).toFixed(2) : 0,
         h: +(hw + (hc - hw) * cut).toFixed(3), why: !S.on ? 'field off' : !ok ? 'land test' : kill >= 1 ? 'kill' : kind === 1 ? 'lawn' : kind === 3 ? 'none' : !(d > 0) ? 'no row, not green' : cut > 0.5 ? 'mown' : 'wild' };
     }
     function buildField(cx, cz, dTier, born) {
@@ -813,7 +826,11 @@ var COVER_RING = (() => {
       const densB = (x, z) => { const fx = Math.min(G.N - 1.001, Math.max(0, (x - x0) / SG)), fz = Math.min(G.N - 1.001, Math.max(0, (z - z0) / SG)), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, k = j * G.N + i;
         return Dn[k] * (1 - tx) * (1 - tz) + Dn[k + 1] * tx * (1 - tz) + Dn[k + G.N] * (1 - tx) * tz + Dn[k + G.N + 1] * tx * tz; };
       const cutMax = Math.max(1, S.cutDens, S.stripDens);
-      const env = S.tufts * dmax * cutMax * (1 + G.bmax);   // the candidates' density: every keep below is a share of it
+      // the weeds band (weedsGrid): bilinear over the nodes (a 3 m band on 4 m nodes); its density raises the envelope by wMax
+      const WG = weedsGrid(G, x0, z0), wMax = WG ? Math.max(1, S.weedsD) : 1;
+      const weedB = WG ? (x, z) => { const fx = Math.min(G.N - 1.001, Math.max(0, (x - x0) / SG)), fz = Math.min(G.N - 1.001, Math.max(0, (z - z0) / SG)), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, k = j * G.N + i;
+        return WG[k] * (1 - tx) * (1 - tz) + WG[k + 1] * tx * (1 - tz) + WG[k + G.N] * (1 - tx) * tz + WG[k + G.N + 1] * tx * tz; } : null;
+      const env = S.tufts * dmax * cutMax * wMax * (1 + G.bmax);   // the candidates' density: every keep below is a share of it
       if (env <= 0) { STAT.lastMs = performance.now() - t0; return cell; }
       const n = Math.round(env * C * C), band = bandNow(), tierOn = S.tier && dTier > 0, blotchM = 18;
       const items = new Map(), mats = new Map();
@@ -834,14 +851,15 @@ var COVER_RING = (() => {
         // (16 Nov) mown grass is a lawn: at least cutFloor whatever the forest it is cut from - beside a forest strip the type's 0.2 x 1.2 made
         // ~5 tufts / m2 of 8 cm, unreadable (the 15 Nov probe)
         const dC = cut > 0 && S.cutFloor > 0 ? dK + (Math.max(dK, S.cutFloor) - dK) * cut : dK;
-        let keep = dC * (cut > 0 ? 1 + ((surf ? S.stripDens : S.cutDens) - 1) * cut : 1) / (dmax * cutMax);
+        const wd = weedB && !surf ? weedB(x, z) * (1 - cut) : 0;
+        let keep = dC * (cut > 0 ? 1 + ((surf ? S.stripDens : S.cutDens) - 1) * cut : 1) * (1 + (wMax - 1) * wd) / (dmax * cutMax * wMax);
         if (S.blotch > 0) keep *= 1 - S.blotch * (0.5 + 0.5 * vnoise(x, z, blotchM, 4242)) * (1 - cut);
         keep *= (1 - kill) * (1 + boost) / (1 + G.bmax);
         if (rA >= keep) continue;
         // THE LENGTH (GRASS-STUDY §4.4): the type's median x a lognormal x the clump field (wild); cut: its own length, uniform
         let nz = Math.sqrt(-2 * Math.log(Math.max(1e-9, rH1))) * Math.cos(6.2831853 * rH2); nz = Math.max(-2.5, Math.min(2.5, nz));
         const clump = 1 + T.clumpAmp * (vnoise(x, z, T.clumpM, 977) - 0.5) * 2;
-        const hw = T.h * S.hK * Math.exp(T.sigma * S.sigmaK * nz) * clump, hc = (surf ? S.stripH : S.cutH) * Math.exp(S.cutSigma * nz);
+        const hw = T.h * S.hK * (1 + (S.weedsH - 1) * wd) * Math.exp(T.sigma * S.sigmaK * nz) * clump, hc = (surf ? S.stripH : S.cutH) * Math.exp(S.cutSigma * nz);
         const h = hw + (hc - hw) * cut;
         // THE TIER: what this tuft's own size can show from dTier (the size fade: a short one fades nearer) - its scale over the
         // reference exactly as FADE_VS reads it (h / its variant's top, over hRef / the variants' mean top). Every test is the
@@ -1412,7 +1430,7 @@ var COVER_RING = (() => {
         if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again
         if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
-        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc']
+        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD']
                             : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'castMinDebris', 'trunc'];
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
       species: () => (FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)
