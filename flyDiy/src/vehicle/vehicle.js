@@ -69,6 +69,8 @@ const VEH_SURF = {
   // SNOW-MUD (13 Nov): a car tyre on packed / powder / wet snow, firm / soft mud (Wong's car tyre on snow ~0.025-0.04 rolling,
   // a winter road's grip 0.2-0.3; mud ESTIMATES) - no sinking for the car: its rows only
   8: [0.30, 0.030], 9: [0.20, 0.080], 10: [0.15, 0.060], 11: [0.40, 0.060], 12: [0.25, 0.150],
+  // SNOW-MUD LADDER (15 Nov): wet grass slippery (a car tyre on wet turf ~0.35: ESTIMATE), wet sand firm (rolls easier than dry)
+  13: [0.35, 0.040], 14: [0.55, 0.035],
 };
 const VEH_SURF_NONE = VEH_SURF[5];
 

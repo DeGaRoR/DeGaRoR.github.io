@@ -1359,7 +1359,7 @@ function make(THREE, scene, world, rec0, opts) {
         const marks = RS.marks === 'none' ? { rects: [], segs: [], wid: rd.w } : PAV.roadMarks(pr.length, rd.w, RS.cls, RS.recipe);
         if (RS.marks === 'edges') marks.rects = marks.rects.filter(r => !(r[5] > 0)); else if (RS.marks === 'centre') marks.rects = marks.rects.filter(r => r[5] > 0);
         const rb = geo.boundingSphere, rKeep = rb ? stripBoxesNear(rb.center.x - rb.radius, rb.center.z - rb.radius, rb.center.x + rb.radius, rb.center.z + rb.radius, null) : [];
-        const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, recipe: RS.recipe, band: RS.band, keep: rKeep, fadeA: rd.fadeA, fadeB: rd.fadeB, side: !!(rd.sided || rd.taxiway), geo });   // G981: the junctions; G980: a taxiway's sides; G925: a row of the table
+        const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, road: true, wx: RS.wx, recipe: RS.recipe, band: RS.band, keep: rKeep, fadeA: rd.fadeA, fadeB: rd.fadeB, side: !!(rd.sided || rd.taxiway), geo });   // G981: the junctions; G980: a taxiway's sides; G925: a row of the table
         const m = new THREE.Mesh(geo, mat); m.renderOrder = 3; m.receiveShadow = true; m.name = 'road:' + rd.id;   // culled by its own sphere (G663) m.userData.premId = rd.id;
         G.roads.add(m);
         const railG = buildRail(rd, pr), lineG = buildLine(rd, pr, railG);
@@ -1448,7 +1448,7 @@ function make(THREE, scene, world, rec0, opts) {
         stats.marks = (stats.marks || 0) + AM.rects.length + AM.segs.length;
       }
       const bs = geo.boundingSphere, keep = bs ? stripBoxesNear(bs.center.x - bs.radius, bs.center.z - bs.radius, bs.center.x + bs.radius, bs.center.z + bs.radius, null) : [];
-      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, recipe: RS.recipe, band: RS.band, keep, geo });   // G925: a row of the table
+      const mat = PAV.make(THREE, { lib, cls: RS.cls, marks, poly: true, wx: RS.wx, recipe: RS.recipe, band: RS.band, keep, geo });   // G925: a row of the table
       const m = new THREE.Mesh(geo, mat); m.renderOrder = 2 + (pp.z || 0) * 0.01; m.receiveShadow = true; m.name = 'pave:' + pp.id; m.userData.premId = pp.id;
       G.roads.add(m);
       { const F = !part && PC.map.get(pp.id); if (F) { F.mesh = m; F.row = geo.userData.pavRow || null; } }   // (G3101: filed for the next rebuild)
@@ -1725,7 +1725,7 @@ function make(THREE, scene, world, rec0, opts) {
         const RS = PAV.resolve(r, O.rec, LKp);
         const geo = PAV.stripGeometry(THREE, { len: A.len, wid: A.wid, hdg: A.hdg, cx: A.x, cz: A.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: pavSeed(r.id), heightAt, lift: 0.07, resU: 6, resV: 3, shoulderK: pavedKeep(r) });
         const keep = stripBoxesNear(A.x - A.len / 2, A.z - A.len / 2, A.x + A.len / 2, A.z + A.len / 2, r);
-        const mat = PAV.make(THREE, { lib: pavLib(), cls: RS.cls, marks: RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(R, SITE.sitePaintStrip), recipe: RS.recipe, band: RS.band, keep, geo });
+        const mat = PAV.make(THREE, { lib: pavLib(), cls: RS.cls, wx: RS.wx, marks: RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(R, SITE.sitePaintStrip), recipe: RS.recipe, band: RS.band, keep, geo });
         const pm = new THREE.Mesh(geo, mat); pm.renderOrder = 2; pm.receiveShadow = true; pm.name = 'runway:' + r.id; pm.userData.premId = r.id; pm.userData.pavMat = true;
         G.runways.add(pm);
         if (SITE.sitePattern && window.PATTERN_VIS) {
