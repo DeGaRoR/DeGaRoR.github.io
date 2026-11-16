@@ -1727,7 +1727,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // floor (60_gen_spec: seatsX >= 0.05) - it used to be DROPPED there, and with it every seat's station: the
           // occupants fell back to the pillar rings, a CG cliff in the last quarter metre of the slider
           const xs = CRW.seatsAt
-            .map(s => zFw - s.zBack - SEAT_CG_FWD)
+            .map(s => zFw - s.zBack - (Number.isFinite(s.cgFwd) ? s.cgFwd : SEAT_CG_FWD))   // (SEAT-CG: the seat's own, reclined)
             .filter(x => isFinite(x)).map(x => Math.max(0.05, x));
           if (xs.length === CRW.seatsAt.length) M.seatsX = xs;
           // SEATS (2026-11-02): each drawn seat's own mass, the same list and order - a cabin of vintage airliner

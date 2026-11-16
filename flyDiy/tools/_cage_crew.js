@@ -3842,9 +3842,27 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // ride out with each seat — the join reads the capacity, the occupancy
     // and the loading numbers off this one list
     // SEATS: `kg`, the drawn seat's own mass (its preset's), so the join bills each seat as drawn
-    seatsAt: seats.map(s2 => ({ x: s2.x, zBack: s2.zBack, pilot: !!s2.pilot,
-                                panY: s2.panY, section: s2.section | 0,
-                                filled: !!s2.filled, kg: s2.kg })),
+    // SEAT-CG (16 Nov 2026, the user: "Fix the balance" - the LS4's pilot lying back): `cgFwd`, how far ahead of the
+    // seat's back its occupant's mass centre sits (the join's station). The join's rule was 0.20 m for every seat;
+    // the drawn pilot's own mass centre (its posed bones, Winter's segment fractions) bears it out upright (0.19) but
+    // a reclined back lays the torso aft: 0.127 m in the Archaeopteryx's 42 deg seat, 0.088 m in the LS4's 50. Fitted
+    // on a sweep of the drawn body (13-61 deg, within 4 mm): the torso's shift goes as the sine of the back's
+    // recline (the seat's rake, plus the pilot's own recline row on the pilot's seat), the legs' with the pedals'
+    // distance - anchored on the old rule at the upright default (rake 13, recline 0, pedals 0.90). BLENDED IN between
+    // 28 and 42 deg of back (a smoothstep): the conventional seats - the Cubs' and Jodels' 25-27 deg, the certified
+    // Rufus - keep the old rule to the millimetre (it reads 2-4 cm forward of their drawn body: a fleet-wide re-baseline
+    // that is A0's to call, not done here); the sailplanes' supine seats (34-56 deg) take the measured body. Seat
+    // geometry only (no character needed): the same number headless and in the game
+    seatsAt: seats.map(s2 => {
+      const effD = Math.max(13, (+s2.SP.rake || 13) + (s2.pilot ? (+P.pilRecline || 0) : 0)), eff = effD * D2R;
+      const pz = s2.pilot && P.pedalZ != null ? +P.pedalZ : 0.90;
+      const body = 0.20 - 0.195 * (Math.sin(eff) - Math.sin(13 * D2R)) + 0.16 * (pz - 0.90);
+      const t = Math.min(1, Math.max(0, (effD - 28) / 14)), wB = t * t * (3 - 2 * t);
+      const cgFwd = 0.20 + wB * (body - 0.20);
+      return { x: s2.x, zBack: s2.zBack, pilot: !!s2.pilot,
+               panY: s2.panY, section: s2.section | 0,
+               filled: !!s2.filled, kg: s2.kg, cgFwd: +cgFwd.toFixed(4) };
+    }),
     seats: seats.map(s2 => ({ x: +s2.x.toFixed(3),
       panY: +s2.panY.toFixed(3), h: s2.SP.h, rake: s2.SP.rake,
       tilt: s2.SP.tilt })) };
