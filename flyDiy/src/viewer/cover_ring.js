@@ -1027,6 +1027,7 @@ var COVER_RING = (() => {
 
     // ---- one cell -------------------------------------------------------------------
     function buildCell(cx, cz, dTier, born) {
+      if (BIO && BIO.hold && !BIO.held) { BIO.hold(true); try { return buildCell(cx, cz, dTier, born); } finally { BIO.hold(false); } }   // the biomes' knobs once a pass (28c hold)
       if (LAWN) return buildLawn(cx, cz, dTier || 0, born);
       if (FIELD) return buildField(cx, cz, dTier || 0, born);
       const t0 = performance.now();

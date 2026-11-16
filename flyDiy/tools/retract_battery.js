@@ -38,7 +38,7 @@ for (const c of CASES) {
   let frames = null;                  // the gear down frames the series (--focus gear), the others reuse its frames
   for (const g of gs) {
     const args = [QS].concat(c.key ? ['--key', c.key, pre + '_g' + g] : [c.file, pre + '_g' + g],
-      ['--over', JSON.stringify(c.over), '--gear', g, '--views', views.join(','), '--noedges', '--w', String(WPX)],
+      ['--over', JSON.stringify(c.over), '--gear', g, '--views', views.join(','), '--noedges', '--parts', '--w', String(WPX)],
       frames ? ['--frames', JSON.stringify(frames)] : ['--focus', 'gear']);
     let out = '';
     try { out = execFileSync(process.execPath, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); }

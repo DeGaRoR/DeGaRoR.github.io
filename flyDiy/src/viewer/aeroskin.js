@@ -647,6 +647,10 @@ const AERO_HARD = {
     dark: 'rubber',            // boots, bungee, the rubber in compression
     bronze: 'bronze',          // bushes, the castor pivot
     fair: 'trim',              // a spat is painted, whatever it is made of
+    // SKIS (13 Nov): the shell painted (gelcoat over the carbon), or the carbon weave itself; the UHMW skins, the
+    // non-skid walk, the heel wheel's polyurethane
+    skiWhite: 'trim', skiRed: 'trim', skiYellow: 'trim', skiBlack: 'trim', skiCarbon: 'composite',
+    skiSole: 'plastic', skiPad: 'rubberGrip', skiHeel: 'plastic',
     body: null, mark: null,    // the bench's ghost airframe, and a marker
   },
   // ---- the powerplant (_eng_page.js COL) ----------------------------------
@@ -695,7 +699,7 @@ const AERO_HARD = {
            ball: 'plastic', plate: 'plasticGrn', lever: 'chrome', knob: 'plasticGrn',
            rocker: 'plasticScr', key: 'chrome', barrel: 'chrome', bowl: 'plasticWorn',
            // the hardware kit's flat materials (the panel arc, session 4c)
-           grip: 'plasticGrn', cap: 'plasticScr', amber: 'plastic',
+           grip: 'plasticGrn', cap: 'plasticScr', amber: 'plastic', green: 'plastic',   // (SKIS: the selector's DOWN lens)
            // session 4d: the bats and the lock are plated, the screws steel
            screw: 'steelTube',
            face: null },
@@ -1778,6 +1782,13 @@ const AERO_TXT_FACES = [
     why: 'the heavy slab: the boldest here, it reads furthest',
     files: { '400': 'media/fonts/alfa-slab-one-400.25afe043.woff' },
     miss: 'ſ' },
+  // CARBON-CUB-LIVERY (the user 16 Nov: "change the police of the registration too, to match references"): the painted
+  // registration of a modern bush aeroplane - bold, tall, a little condensed. One style (Bold); Reserved Font Name
+  // "Saira", so it ships whole (45 KB). The census found no letter of the three Latin blocks missing.
+  { key: 'saira', ofl: 'media/fonts/OFL-sairacondensed.txt', name: 'Saira Condensed', fam: 'LT Saira Condensed', r: 700, b: 0, it: false, track: 2,
+    why: 'the sign writer\'s registration: bold, tall and a little condensed, as on the bush aeroplanes of today',
+    files: { '700': 'media/fonts/saira-condensed-700.144b04aa.woff' },
+    miss: '' },
   { key: 'plexsans', name: 'IBM Plex Sans', fam: 'IBM Plex Sans', r: 400, b: 700, it: false, track: 4,
     why: 'the game\'s own face: plain and clear', files: null, miss: '' },
   { key: 'plexmono', name: 'IBM Plex Mono', fam: 'IBM Plex Mono', r: 400, b: 600, it: false, track: 8,
@@ -2271,6 +2282,12 @@ const AERO_DEC_DEF = {
   // an outline (null: none - a new key: LIVERY-5 retired the old keyline, whose rows stay unread) and the side it is on
   // (0 both, 1 the left (port), 2 the right (starboard))
   regFace: null, regB: 1, regI: 0, regSl: 0, regLine: null, regSide: 0,
+  // CARBON-CUB-LIVERY (the user 16 Nov: "that option for the drop shadow effect they use as an outline"): THE DROP
+  // SHADOW - the registration drawn a second time on its own page (AERO_REG_SHADOW_PAGE) in the shadow's colour, a
+  // whole glyph each, set down and to the reader's right by fractions of the letters' height and laid UNDER them. Off
+  // by default: every saved aeroplane wears what it wore. (Not the outline: an outline in the letters' own page shares
+  // their texels, and a two-colour edge in one page is what drew as blocks.)
+  regShd: 0, regShdCol: null, regShdX: 0.06, regShdY: 0.08,   // null colour = AERO_REG_SHADOW_DEF
   // G2829 (STOL-WING-2, the user 27 Oct: "put a large registration on the wing top as well"): THE SAME MARKING A
   // SECOND TIME, on the wing - the registration's own page (its text, colour, font), its own height and place, read
   // in the plan view; off unless a build asks
@@ -2320,6 +2337,10 @@ const AERO_DEC_MODES = ['field', 'side', 'plan'];
 // nobody lettered, and every official one, wears what it always wore.
 const AERO_TXT_N = 6, AERO_TXT_MAX = 24;
 const AERO_TXT_PAGES = [8, 9, 10, 11, 12, 13];
+// CARBON-CUB-LIVERY: the registration's drop shadow (regShd*) - the atlas's one free page (15 is the stickers'), its
+// default colour (a near-black, as a shadow on paint reads), and which way "the reader's right" runs on the +x flank
+const AERO_REG_SHADOW_PAGE = 14, AERO_REG_SHADOW_DEF = 0x1c1e22, AERO_REG_SHADOW_AFT = 1;
+const AERO_WREG_TURN = Math.PI;   // the wing letters' half turn: tops to the leading edge (aeroDecalsFor, WING-REG TURN)
 const AERO_TXT_LDEF = {
   On: 0, Txt: '', Face: 'barlow', B: 1, I: 0, Sl: 0,
   Col: null,                // null follows the paint's trim, as the registration's ink
@@ -2786,6 +2807,31 @@ const AERO_KIT = [
         g.fillRect(-2, -2, x0 + 2, P + 4); g.fillRect(x0 + W, -2, P - x0 - W + 2, P + 4);
         g.fillRect(-2, -2, P + 4, y0 + 2); g.fillRect(-2, y0 + H, P + 4, P - y0 - H + 2);
         g.globalCompositeOperation = 'source-over';
+      }
+    } },
+
+  // CARBON-CUB-LIVERY (the user 16 Nov via A0: the yellow over metallic grey, "with pinstripe sweeps"): THE SWEEP'S OWN
+  // LINE REPEATED as up to three stripes under it, the gaps closing up aft. Laid over a sweep layer with the same place,
+  // level and bend they run with its line, whatever the aeroplane. Nothing is filled: the paint, or the sweep's colour
+  // below, shows between the stripes. A stripe whose colour is transparent is left out (a two-stripe scheme).
+  { name: 'sweep stripes', cn: ['first stripe', 'second stripe', 'third stripe'],
+    help: 'the sweep’s line repeated as up to three stripes under it, closing up aft. Give it the same place, ' +
+          'level and bend as a sweep layer and the stripes run with its line; a transparent colour leaves its stripe out',
+    k: [{ n: 'level', lo: 0.05, hi: 0.95, st: 0.01, def: 0.44 },
+        { n: 'bend', lo: 0, hi: 0.60, st: 0.01, def: 0.24 },
+        { n: 'spacing', lo: 0.01, hi: 0.20, st: 0.005, def: 0.05 },
+        { n: 'width', lo: 0.004, hi: 0.08, st: 0.002, def: 0.02 }],
+    draw(g, P, o) {
+      // the sweep's curve (its draw above), each stripe a spacing further down at the nose and 45 % of it at the tail
+      const y0 = (1 - o.p) * P, y1 = y0 - o.q * P, sp = o.r * P, w = Math.max(1, o.s * P);
+      const ink = [o.a, o.b, o.d], wk = [1, 0.45, 0.45];
+      g.lineCap = 'butt';
+      for (let i = 0; i < 3; i++) {
+        if (ink[i] === AERO_KIT_CLEAR) continue;
+        const d0 = sp * (i + 1), d1 = d0 * 0.45;
+        g.beginPath(); g.moveTo(-2, y0 + d0);
+        g.bezierCurveTo(P * 0.46, y0 + d0, P * 0.60, y1 + d1, P + 2, y1 + d1);
+        g.lineWidth = Math.max(1, w * wk[i]); aeroKitInk(g, ink[i]); g.stroke();
       }
     } },
 ];
@@ -3326,13 +3372,31 @@ function aeroDecalsFor(THREE, D, opts) {
   // here, placed in the list by the budget below
   const vinyl = [];
   for (const L of aeroVinylLayers(D, trim)) { aeroVinylDraw(THREE, L); vinyl.push(aeroVinylRect(L)); }
+  // CARBON-CUB-LIVERY: THE DROP SHADOW, before the letters (the list is mixed in order: the shadow is under them). Its
+  // page holds the same text in the same face and layout, so the registration's own rect fits it. "To the reader's
+  // right" is AFT on the port flank and FORWARD on the starboard one, so a registration on both flanks takes one
+  // shadow a side (one: 1 the +x flank, 2 the -x), each set its own way; down is down on both.
+  const regOne = Math.max(0, Math.min(2, Math.round(+D.regSide || 0)));
+  if (+D.regShd) {
+    aeroDecalText(THREE, AERO_REG_SHADOW_PAGE, opts.reg || D.reg || 'F-PGAR',
+                  D.regShdCol != null ? D.regShdCol : AERO_REG_SHADOW_DEF, null, regFontArg);
+    const dx = (+D.regShdX || 0) * D.regH, dy = (+D.regShdY || 0) * D.regH;
+    for (const one of (regOne ? [regOne] : [1, 2]))
+      list.push({ page: AERO_REG_SHADOW_PAGE, sL: D.regL + (one === 1 ? dx : -dx) * AERO_REG_SHADOW_AFT, sC: D.regC - dy,
+                  w: pw, h: ph, rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
+                  on: onOf(D.regTarget), mode: modeOf(D.regMode), one });
+  }
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode), one: Math.max(0, Math.min(2, Math.round(+D.regSide || 0))) });
   if (D.wregOn) {
+    // WING-REG TURN (the user 16 Nov via A0: "Turn the wing registration on every plane ... It looked wrong"): the
+    // letters' tops face the LEADING edge (FAA 45.25), half a turn from what the page drew (tops to the trailing
+    // edge). The 'wing turn' row stays a trim on top of it.
     const ww = D.wregH * Math.max(1.2, aspect);
     list.push({ page: 0, sL: D.wregL, sC: D.wregC, w: ww / Math.max(0.05, fit.w), h: D.wregH / Math.max(0.05, fit.h),
-                rot: D.wregRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0, on: { wing: 1 }, mode: modeOf(D.wregMode) });
+                rot: (+D.wregRot || 0) + AERO_WREG_TURN, rough: -0.06, sdf: 1, metal: +D.regMetal || 0, on: { wing: 1 },
+                mode: modeOf(D.wregMode) });
   }
   // G208: THE CERTIFICATION STICKERS — placements the bench's sticker module
   // hands over (page 6, one strip of roundels under the cockpit); it draws
@@ -3345,7 +3409,8 @@ function aeroDecalsFor(THREE, D, opts) {
   } catch (e) {}
   // THE BUDGET (LIVERY-STICKERS, the user's cap of 15): the fixed markings and LIVERY-TEXT's pieces first (`list`, never
   // dropped), then in what is left THE STICKERS, then THE KIT - so THE KIT GIVES WAY FIRST (its last layers), THEN THE
-  // STICKERS (their last slots). Worst case today: 4 fixed + 6 text = 10, leaving 5: all four stickers and one kit layer.
+  // STICKERS (their last slots). Worst case today: 4 fixed + 6 text = 10, leaving 5: all four stickers and one kit layer
+  // (CARBON-CUB-LIVERY: a drop shadow on both flanks is 2 more fixed - 12, leaving 3: no kit layer, three stickers).
   // `dropped` says how many pieces found no slot, so a panel can say it. Paint order: the kit, the stickers, the rest.
   const room = Math.max(0, AERO_MAXD - list.length);
   const keepV = Math.min(vinyl.length, room), keepK = Math.min(kit.length, room - keepV);

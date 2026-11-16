@@ -77,7 +77,12 @@ for (const [lab, d, dOff] of [['high wing', d1, d0], ['parasol', dP, dP0]]) {
   const RC = (d.parts.clusters || d.clusters || []).find(c => c.tag === 'ROD');
   const ok1 = M && M.head.length === 4 && M.head.every(h => hub.every(m => tied(h, m))) && (!RC || !RC.hub || M.head.every(h => RC.nodes.includes(h)));
   const lv0 = M ? M.nodes.slice(0, 8) : [];
-  const ok2 = M && lv0.every(t => keel.some(k => tied(t, k))) && M.foot.every(t => Math.abs(P[t][1] - Math.min(...keel.filter(k => Math.abs(P[k][0] - P[t][0]) < 0.7).map(k => P[k][1]))) < 0.08);
+  // the keel's line at a station: its rings' lowest corners, interpolated (REAL-CANON 15 Nov: a rod boom's flown keel follows
+  // the drawn pod - RUCKUS's profile in the join, f9818c3b2 -, so it rises aft of the pod; the lowest corner within 0.7 m
+  // read a flat keel and put a foot standing on the rising line 9 cm "off" it)
+  const kSt = [...new Set(keel.map(k => +P[k][0].toFixed(4)))].sort((a, b) => a - b).map(x => [x, Math.min(...keel.filter(k => Math.abs(P[k][0] - x) < 1e-4).map(k => P[k][1]))]);
+  const keelAt = x => { if (x <= kSt[0][0]) return kSt[0][1]; for (let i = 1; i < kSt.length; i++) if (x <= kSt[i][0]) { const [x0, y0] = kSt[i - 1], [x1, y1] = kSt[i]; return y0 + (y1 - y0) * (x - x0) / (x1 - x0); } return kSt[kSt.length - 1][1]; };
+  const ok2 = M && lv0.every(t => keel.some(k => tied(t, k))) && M.foot.every(t => Math.abs(P[t][1] - keelAt(P[t][0])) < 0.08);
   // the wing's other ties to the cabin's rings: none but the rod's socket (the rod's root ring, 3c)
   const wing = new Set(d.nodes.map((n, i) => /^W/.test(n.tag) ? i : -1).filter(i => i >= 0));
   const sock = new Set(RC && RC.rings ? RC.rings[0] : []);

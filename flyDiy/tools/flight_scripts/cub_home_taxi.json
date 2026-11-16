@@ -1,0 +1,13 @@
+{
+  "name": "cub_home_taxi",
+  "what": "the Cub (list:1) off HOME's stand on the game's day: start-up and the taxi to the hold, nothing more (A0 15 Nov: DIRT-DUST saw a Cub sit at HOME's stand at 0.5 throttle; the samples carry the surface, softZ and rpm)",
+  "plane": "list:1",
+  "from": "HOME", "to": "HOME",
+  "day": "game",
+  "persona": "expert",
+  "steps": [
+    { "name": "board", "do": "board" },
+    { "name": "start-up", "do": "start", "until": { "engine": true }, "capS": 10 },
+    { "name": "taxi to the hold", "until": { "phase": ["HOLD", "LINEUP", "ROLL"] }, "capS": 400 }
+  ]
+}
