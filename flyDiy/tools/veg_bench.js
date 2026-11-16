@@ -33,7 +33,7 @@ if (!OUT) { console.error('usage: node tools/veg_bench.js --out <dir> [--areas s
 fs.mkdirSync(OUT, { recursive: true });
 const PW = +opt('w', 760);
 const SUBON = opt('subalpine', '1') !== '0';   // 19 SUBALPINE as the game has it (BIOMES.subCode); --subalpine 0 = the game before it (files *_off)
-const SFX = SUBON ? '' : '_off';
+const SFX = (SUBON ? '' : '_off') + (opt('forestedge', '1') !== '0' ? '' : '_fe0');
 
 const IN = require(path.join(ROOT, 'tools', 'island_node.js'));
 global.GROUND_FIELDS = require(path.join(ROOT, 'src', 'core', '28b_ground_fields.js'));   // the splat's knobs, as the page has them
@@ -82,6 +82,13 @@ BIO.keepAt = (code, x, z, h) => {
   return BIO.subKeep(h, h - m);
 };
 
+// FOREST-EDGE (the user 16 Nov via A0, the spec of 25 Oct): --forestedge 0 = the game before it (files *_fe0)
+const EDGEON = opt('forestedge', '1') !== '0';
+BIO.edgeOn = EDGEON;
+const EK = BIO.knobs();
+// the game's own (28c_biomes edgeField / edgeRamp / edgeLift / edgeCanIn) on render_world's test: the tree's ground is the forest's, no strip
+const edgeD = BIO.edgeField((x, z) => W.treeGround(x, z) === S.FOREST_FLOOR && !W.treeAeroBlocked(x, z));
+
 // THE REFUSING RULE, in the walk's own order
 const R = { PLANT: 0, LATTICE: 1, AERO: 2, WATER: 3, BARE: 4, EXCL: 5, NOMIX: 6, CLUMP: 7, CANOPY: 8, THIN: 9 };
 const RNAME = ['planted', 'lattice gap (10 %)', 'aerodrome / strip clearance', 'water / shore', 'bare ground class (rock, scree, built)',
@@ -102,7 +109,8 @@ function plantAt(ix, iz) {
   const polyOk = pm && g !== S.PAVED && g !== S.GRAVEL && g !== S.WATER;
   if (!forest && !open && !polyOk) return { r: R.BARE, x, z, h, g };
   if (premTreeEx(x, z)) return { r: R.EXCL, x, z, h };
-  let can = I.canopyAt(x, z), floored = false;
+  let can = I.canopyAt(x, z), floored = false, band = 0;   // band: the share of the NDVI's thinning the edge lifts (1 to edgeFull, 0 at edgeOut)
+  if (EDGEON && forest && pm === undefined) { const d = edgeD(x, z); if (d < EK.edgeOut) { band = BIO.edgeLift(d); can = Math.max(can, BIO.edgeCanIn(I.canopyAt, x, z) * BIO.edgeRamp(d)); } }
   const tt = ttypeAt(x, z);
   const code = BIO.subAt(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);
   const mix = pm !== undefined ? pm : BIO.mixAt(code);
@@ -115,7 +123,7 @@ function plantAt(ix, iz) {
   if (kind <= 0) return { r: R.NOMIX, x, z, h, code, mix, can };
   let p = floored ? 1 : (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
   const p0 = p;
-  if (I.ndvi && !floored) { const nd = I.ndvi[I.cellAt(x, z)] / 127 - 1; p *= Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); }
+  if (I.ndvi && !floored) { const nd = I.ndvi[I.cellAt(x, z)] / 127 - 1, f = Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); p *= f + (1 - f) * band; }
   if (slopeAt(x, z, 8) > 0.7) p *= 0.33;
   p *= kind;
   if (p < 1 && hsh(ix + 13, iz + 29) > p) return { r: p0 <= 0 ? R.CANOPY : R.THIN, x, z, h, code, mix, can, p };
@@ -183,8 +191,10 @@ const AREAS = {
   ardent: { name: 'Mount Ardent (1 096 m, meteo station)', cx: 9112, cz: -5850, half: 2200, marks: [[9112, -5882, 'meteo']] },
   cabin: { name: 'The ridges round the Cabin Strip (peaks 876, 790, 786, 742 m)', cx: 300, cz: -15500, half: 3000, marks: [[2670, -15908, 'Cabin Strip'], [4361, -16251, 'Hiking Strip']] },
   north: { name: 'The north summit (853 m) and its ridge', cx: 6176, cz: -2391, half: 2000, marks: [] },
+  // FOREST-EDGE: the home field's woods - the western forest's edge over the open muskeg, from 40 m over the field 600 m east
+  home: { name: 'Home field and its woods (the forest edges)', cx: -1600, cz: 0, half: 1500, marks: [], eyesAt: [{ name: 'west edge', from: [-1900, -200, 40], at: [-2520, -200, 8] }] },
 };
-const want = (opt('areas', Object.keys(AREAS).join(','))).split(',');
+const want = (opt('areas', Object.keys(AREAS).filter(k => k !== 'home').join(','))).split(',');
 
 function runArea(key) {
   const A = AREAS[key], x0 = A.cx - A.half, z0 = A.cz - A.half, SZ = 2 * A.half;
@@ -343,6 +353,73 @@ function renderEye(A, x0, z0, SZ, eye, at, trees) {
         P[q * 3] = col[0]; P[q * 3 + 1] = col[1]; P[q * 3 + 2] = col[2]; } }
   }
   return { panels, w, h };
+}
+
+// ---- --edge: THE FOREST BORDER (FOREST-EDGE, the user 16 Nov via A0: "the sides of the forested areas often show the forest
+// ground with no trees in them anymore ... a ramp of tree sizes on the surroundings, then bushes"; the spec of 25 Oct: weeds 6-3 m
+// outside, shrubs 3-0 m outside, young trees 0-6 m inside, medium 6-20 m, full beyond, never under x0.7). Every lattice point of the
+// window by its signed distance to the forest's edge (+ inside the FOREST_FLOOR ground the fill reads, - outside), 2 m bands: the
+// share planted, the refusing rule, the canopy map's height and the tree's size factor (the fill's: canopy x gain / the model's
+// height, clamped min..max) against the interior's. Map: the forest ground with no tree within 6 m (orange) - the bare rim.
+function edgeArea(key) {
+  const A = AREAS[key], x0 = A.cx - A.half, z0 = A.cz - A.half, SZ = 2 * A.half, ta = Date.now();
+  const g = 2.5, NG = Math.ceil(SZ / g), F = new Uint8Array(NG * NG);
+  for (let j = 0; j < NG; j++) for (let i = 0; i < NG; i++) { const x = x0 + (i + 0.5) * g, z = z0 + (j + 0.5) * g;
+    F[j * NG + i] = W.treeGround(x, z) === S.FOREST_FLOOR && !wet(x, z, H(x, z)) && !W.treeAeroBlocked(x, z) ? 1 : 0; }
+  // two chamfer passes (3-4 weights, metres), the distance to the nearest cell of the other side
+  const dist = inside => { const D = new Float32Array(NG * NG); const BIG = 1e9;
+    for (let k = 0; k < D.length; k++) D[k] = (F[k] === (inside ? 1 : 0)) ? BIG : 0;
+    const a = g, b = g * Math.SQRT2;
+    for (let j = 0; j < NG; j++) for (let i = 0; i < NG; i++) { const k = j * NG + i; if (!D[k]) continue; let v = D[k];
+      if (i > 0) v = Math.min(v, D[k - 1] + a); if (j > 0) { v = Math.min(v, D[k - NG] + a); if (i > 0) v = Math.min(v, D[k - NG - 1] + b); if (i < NG - 1) v = Math.min(v, D[k - NG + 1] + b); } D[k] = v; }
+    for (let j = NG - 1; j >= 0; j--) for (let i = NG - 1; i >= 0; i--) { const k = j * NG + i; if (!D[k]) continue; let v = D[k];
+      if (i < NG - 1) v = Math.min(v, D[k + 1] + a); if (j < NG - 1) { v = Math.min(v, D[k + NG] + a); if (i < NG - 1) v = Math.min(v, D[k + NG + 1] + b); if (i > 0) v = Math.min(v, D[k + NG - 1] + b); } D[k] = v; }
+    return D; };
+  const Din = dist(true), Dout = dist(false);
+  const sd = (x, z) => { const i = Math.floor((x - x0) / g), j = Math.floor((z - z0) / g); if (i < 0 || j < 0 || i >= NG || j >= NG) return null;
+    const k = j * NG + i; return F[k] ? Din[k] - g / 2 : -(Dout[k] - g / 2); };
+  const ix0 = Math.floor(x0 / SPC), ix1 = Math.ceil((x0 + SZ) / SPC), iz0 = Math.floor(z0 / SPC), iz1 = Math.ceil((z0 + SZ) / SPC);
+  const BW = 2, BMIN = -12, BMAX = 60, NB = (BMAX - BMIN) / BW, bins = Array.from({ length: NB }, () => ({ n: 0, planted: 0, can: 0, size: 0, reasons: new Array(R.THIN + 1).fill(0), codes: {} }));
+  const deep = { n: 0, planted: 0, can: 0, size: 0 };
+  const trees = [];
+  const sizeOf = P => { const mh = MODEL_H[P.sp] || 12; return Math.max(FILL.island.min, Math.min(FILL.island.max, P.can * FILL.island.gain / mh)); };
+  for (let iz = iz0; iz < iz1; iz++) for (let ix = ix0; ix < ix1; ix++) {
+    const P = plantAt(ix, iz); if (P.x === undefined || P.r === R.LATTICE || P.r === R.AERO || P.r === R.WATER) continue;
+    const d = sd(P.x, P.z); if (d === null) continue;
+    if (P.r === R.PLANT) trees.push([P.x, P.z]);
+    const B = d >= BMAX ? deep : d < BMIN ? null : bins[Math.floor((d - BMIN) / BW)]; if (!B) continue;
+    B.n++; B.can += P.can || 0; if (B.reasons) B.reasons[P.r]++;
+    if (B.codes) { const cd = BIO.subAt(codeAt(P.x, P.z, hsh(ix + 21, iz + 23)), P.x, P.z); B.codes[cd] = (B.codes[cd] || 0) + 1; }
+    if (P.r === R.PLANT) { B.planted++; B.size += sizeOf(P); }
+  }
+  // the map: relief grey, forest ground green, forest ground with no tree within 6 m orange, trees dark dots
+  const N = PW, pxM = SZ / N, img = Buffer.alloc(N * N * 3), TC = 6, NT = Math.ceil(SZ / TC), tgrid = new Uint8Array(NT * NT);
+  for (const [x, z] of trees) { const i = Math.floor((x - x0) / TC), j = Math.floor((z - z0) / TC);
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const a = i + di, b = j + dj; if (a >= 0 && b >= 0 && a < NT && b < NT) tgrid[b * NT + a] = 1; } }
+  let rimPx = 0, forPx = 0;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const x = x0 + (i + 0.5) * pxM, z = z0 + (j + 0.5) * pxM, o = (j * N + i) * 3, lit = 0.45 + 0.6 * shadeOf(x, z, pxM), h = H(x, z);
+    const gi = Math.min(NG - 1, Math.floor((x - x0) / g)), gj = Math.min(NG - 1, Math.floor((z - z0) / g)), fo = F[gj * NG + gi];
+    const near = tgrid[Math.min(NT - 1, Math.floor((z - z0) / TC)) * NT + Math.min(NT - 1, Math.floor((x - x0) / TC))];
+    let c = wet(x, z, h) && h < 1.5 ? [90, 130, 190] : [200, 200, 190];
+    if (fo) { forPx++; c = near ? [70, 140, 70] : [240, 150, 40]; if (!near) rimPx++; }
+    for (let q = 0; q < 3; q++) img[o + q] = Math.min(255, c[q] * lit);
+  }
+  for (const [x, z] of trees) { const i = Math.floor((x - x0) / pxM), j = Math.floor((z - z0) / pxM); if (i >= 0 && j >= 0 && i < N && j < N) { const o = (j * N + i) * 3; img[o] = 20; img[o + 1] = 60; img[o + 2] = 20; } }
+  const file = key + '_edge' + SFX + '.png'; writePNG(path.join(OUT, file), N, N, img);
+  const rows = bins.map((B, k) => ({ d: BMIN + k * BW, n: B.n, planted: B.n ? +(B.planted / B.n).toFixed(3) : 0, can: B.n ? +(B.can / B.n).toFixed(2) : 0,
+    size: B.planted ? +(B.size / B.planted).toFixed(2) : 0, codes: Object.fromEntries(Object.entries(B.codes).map(([c, v]) => [c, Math.round(100 * v / Math.max(1, B.n))]).filter(e => e[1] >= 3)), reasons: Object.fromEntries(B.reasons.map((v, r) => [RNAME[r].split(' (')[0], B.n ? Math.round(100 * v / B.n) : 0]).filter(e => e[1] > 0)) }));
+  const out = { key, name: A.name, file, deep: { n: deep.n, planted: +(deep.planted / Math.max(1, deep.n)).toFixed(3), can: +(deep.can / Math.max(1, deep.n)).toFixed(2), size: +(deep.size / Math.max(1, deep.planted)).toFixed(2) },
+    bareForestShare: +(rimPx / Math.max(1, forPx)).toFixed(3), rows, ms: Date.now() - ta };
+  fs.writeFileSync(path.join(OUT, key + '_edge' + SFX + '.json'), JSON.stringify(out, null, 1));
+  console.log(`${key}: deep (>${BMAX} m in) planted ${out.deep.planted} can ${out.deep.can} size ${out.deep.size}; forest ground with no tree within 6 m ${(100 * out.bareForestShare).toFixed(1)} %; ${out.ms} ms`);
+  for (const r of rows) console.log(`  ${String(r.d).padStart(4)}..${String(r.d + BW).padStart(3)} m  pts ${String(r.n).padStart(6)}  planted ${(100 * r.planted).toFixed(0).padStart(3)} %  can ${r.can.toFixed(1).padStart(5)}  size ${r.size.toFixed(2)}  ${Object.entries(r.reasons).filter(([k]) => k !== 'planted').sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => k + ' ' + v + '%').join('; ')}`);
+  return out;
+}
+if (opt('edge', null)) {
+  const list = opt('edge').split(','), res = list.filter(k => AREAS[k]).map(edgeArea);
+  fs.writeFileSync(path.join(OUT, 'edge' + SFX + '.json'), JSON.stringify(res, null, 1));
+  console.log('done', Date.now() - t0, 'ms ->', OUT); process.exit(0);
 }
 
 const results = [];
