@@ -24,10 +24,10 @@
 var ROCK_RING = (() => {
   // (chunk and margin are WHOLE multiples of the 1.25 m step and the 2.5 m input lattice: 64 m left every chunk's last column
   // 0.25 m short of its neighbour's first - a crack - and phased each chunk's inputs differently)
-  const DEF = { on: 1, reach: 450, chunk: 62.5, step: 1.25, M: 37.5, hs: 2.5, lift: 0.6, amp: 1.5, unit: 12, sink: 0.35, perFrame: 2, fadeBand: 90 };
+  const DEF = { on: 1, farOn: 1, farReach: 2000, reach: 450, chunk: 62.5, step: 1.25, M: 37.5, hs: 2.5, lift: 0.6, amp: 1.5, unit: 12, sink: 0.35, perFrame: 2, fadeBand: 90 };
   const workerSrc = () => {
     const core = (typeof ROCK_RING_CORE_SRC !== 'undefined') ? ROCK_RING_CORE_SRC : null;
-    return core + '\nlet KIT = null;\nonmessage = e => { if (e.data.kit) { KIT = ROCK_RING_CORE.kitPrep(e.data.kit); return; } const r = ROCK_RING_CORE.chunk(e.data, KIT); postMessage({ id: e.data.id, r }, [r.pos.buffer, r.disp.buffer, r.nor.buffer, r.idx.buffer, r.attr.buffer]); };';
+    return core + '\nlet KIT = ROCK_RING_CORE.kitPrep(null);\nonmessage = e => { if (e.data.kit) { KIT = ROCK_RING_CORE.kitPrep(e.data.kit); return; } const r = ROCK_RING_CORE.chunk(e.data, KIT); postMessage({ id: e.data.id, r }, [r.pos.buffer, r.disp.buffer, r.nor.buffer, r.idx.buffer, r.attr.buffer]); };';
   };
   // ---- the material: the bench v1's rock (sTrond) on the outcrops - the slab hex-tiled with each tap's frame turned to the
   // fall line about its own vertex, the face plain on the side planes, blended by slope 42-58 deg; the 'cliff' photograph's
@@ -36,7 +36,7 @@ var ROCK_RING = (() => {
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });   // (the cover lies 0.15 m proud of the ground: it wins the depth test)
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { uSplat: U.uSplat, uSplatN: U.uSplatN, uSGrade: U.uSGrade, uSLum: U.uSLum, uSFilt: U.uSFilt,
-        uRL: L.uRL, uRK: L.uRK, uRFade: L.uRFade });
+        uRL: L.uRL, uRK: L.uRK, uRFade: L.uRFade, uRB: L.uRB, uRMean: L.uRMean });
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nattribute vec4 aR0, aR1; attribute vec3 aDisp; uniform vec4 uRFade;\nvarying vec4 vR0, vR1; varying vec3 vRW; varying vec3 vRN;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n' +
@@ -46,7 +46,7 @@ var ROCK_RING = (() => {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\n' + GLSL)
         .replace('#include <map_fragment>', '#include <map_fragment>\n  Smp rk = rRock(vRW, normalize(vRN)); diffuseColor.rgb = rk.c.rgb; gRN = rk.n.xyz; gRR = rk.n.w;')
-        .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n  normal = normalize(normal + (viewMatrix * vec4(gRN, 0.0)).xyz);')
+        .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n  normal = gRB > 0.5 ? normalize((viewMatrix * vec4(gRN, 0.0)).xyz) : normalize(normal + (viewMatrix * vec4(gRN, 0.0)).xyz);')
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = gRR;');
     };
     m.customProgramCacheKey = () => 'rock-ring-v1';
@@ -58,7 +58,9 @@ uniform vec4 uSGrade[24]; uniform float uSLum[24]; uniform vec4 uSFilt;
 uniform vec4 uRL;   // the layers: slab, face, cliff (micro), grassRock (green)
 uniform vec4 uRK;   // slab m, face m, brightness, micro on
 varying vec4 vR0, vR1; varying vec3 vRW; varying vec3 vRN;
-vec3 gRN = vec3(0.0); float gRR = 0.9;
+vec3 gRN = vec3(0.0); float gRR = 0.9; float gRB = 0.0;   // (gRB 1: a boulder - gRN is then its whole world normal)
+uniform vec4 uRB;   // the boulders: the cliff photo's scale (m), its raw mean luminance, the slab's mean luminance; the micro's mean luminance
+uniform vec3 uRMean;   // the slab's raw mean colour (linear): the boulders' tone
 struct Smp { vec4 c; vec4 n; };
 float rH1(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 vec2 rH2(vec2 p){ return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
@@ -70,9 +72,23 @@ Smp rFetch(float L, vec2 uv){
   Smp o; o.c = texture(uSplat, vec3(uv, L), uSFilt.x); o.c.rgb = o.c.rgb * o.c.rgb;   // (the tiles RAW, as the bench v1 drew them: the splat's grade is the far ground's)
   o.n = texture(uSplatN, vec3(uv, L), uSFilt.x); return o; }
 vec2 rVst(vec2 v){ return vec2(v.x + 0.5 * v.y, v.y * 0.8660254) * 0.5; }
+
 vec3 rHw3(float a, float wa, float b, float wb, float c, float wc, float k){
   float ma = max(max(a + wa, b + wb), c + wc) - k; vec3 w = vec3(max(a + wa - ma, 0.0), max(b + wb - ma, 0.0), max(c + wc - ma, 0.0));
   return w / max(w.x + w.y + w.z, 1e-5); }
+// a hex-tiled read (the splat's sTile): three rotated, offset taps on a triangle lattice, height-blended - no repeat
+Smp rHex(float L, vec2 st){
+  vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * 2.0);
+  vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
+  float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
+  vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
+  vec2 v1 = base + vec2(s, s), v2 = base + vec2(s, 1.0 - s), v3 = base + vec2(1.0 - s, s);
+  Smp a, b, c;
+  { vec2 r = rH2(v1); float an = r.x * 6.2832; mat2 R = mat2(cos(an), sin(an), -sin(an), cos(an)); a = rFetch(L, R * (st - rVst(v1)) + r * 7.3); }
+  { vec2 r = rH2(v2); float an = r.x * 6.2832; mat2 R = mat2(cos(an), sin(an), -sin(an), cos(an)); b = rFetch(L, R * (st - rVst(v2)) + r * 7.3); }
+  { vec2 r = rH2(v3); float an = r.x * 6.2832; mat2 R = mat2(cos(an), sin(an), -sin(an), cos(an)); c = rFetch(L, R * (st - rVst(v3)) + r * 7.3); }
+  vec3 h = rHw3(a.c.a, w.x, b.c.a, w.y, c.c.a, w.z, 0.2);
+  Smp o; o.c = a.c * h.x + b.c * h.y + c.c * h.z; o.n = a.n * h.x + b.n * h.y + c.n * h.z; return o; }
 // a slab tap: its frame turned to the fall line (+-15 deg per vertex), about the vertex; the normal back in world x / z
 Smp rSlabTap(vec2 st, vec2 V, vec2 dn){
   vec2 r = rH2(V); float a = (r.y - 0.5) * 0.52; float ca = cos(a), sa = sin(a);
@@ -80,7 +96,38 @@ Smp rSlabTap(vec2 st, vec2 V, vec2 dn){
   vec2 q = st - rVst(V);
   Smp o = rFetch(uRL.x, vec2(dot(q, du), dot(q, dv)) + r * 7.3);
   vec2 t = o.n.xy * 2.0 - 1.0; vec2 g = t.x * du + t.y * dv; o.n = vec4(g.x, 0.0, g.y, o.n.a); return o; }
+// THE BOULDER (the bench v1's rockMat): the game's 'cliff' photograph TRIPLANAR on the rock's world planes (blended by the
+// normal^4), its normal map on each plane's own axes (the whiteout swizzle, x1.6); its colour re-toned to the trondhjemite's
+// (the photo's luminance over its mean x the slab's mean colour x the rock's own tone); the crease darker; MOSS on what looks
+// up, filling the low texels first; the foot darker into the ground. vR0 = tone, foot; vR1 = crease, hash, 2, 0
+Smp rBoulder(vec3 P, vec3 N){
+  vec3 w = pow(abs(N), vec3(4.0)); w /= w.x + w.y + w.z;
+  vec3 p = P / uRB.x;
+  vec4 cx = vec4(0.0), cy = vec4(0.0), cz = vec4(0.0), nx = vec4(0.5, 0.5, 1.0, 1.0), ny = nx, nz = nx;
+  if (w.x > 0.02) { cx = texture(uSplat, vec3(p.zy, uRL.z), uSFilt.x); nx = texture(uSplatN, vec3(p.zy, uRL.z), uSFilt.x); }
+  if (w.y > 0.02) { cy = texture(uSplat, vec3(p.xz + 0.37, uRL.z), uSFilt.x); ny = texture(uSplatN, vec3(p.xz + 0.37, uRL.z), uSFilt.x); }
+  if (w.z > 0.02) { cz = texture(uSplat, vec3(p.xy + 0.71, uRL.z), uSFilt.x); nz = texture(uSplatN, vec3(p.xy + 0.71, uRL.z), uSFilt.x); }
+  vec4 col = cx * w.x + cy * w.y + cz * w.z; col.rgb *= col.rgb;
+  vec3 tX = nx.xyz * 2.0 - 1.0, tY = ny.xyz * 2.0 - 1.0, tZ = nz.xyz * 2.0 - 1.0; tX.xy *= 1.6; tY.xy *= 1.6; tZ.xy *= 1.6;
+  vec3 nX = vec3(tX.xy + N.zy, abs(tX.z) * N.x).zyx, nY = vec3(tY.xy + N.xz, abs(tY.z) * N.y).xzy, nZ = vec3(tZ.xy + N.xy, abs(tZ.z) * N.z);
+  Smp o; o.n.xyz = normalize(nX * w.x + nY * w.y + nZ * w.z);
+  float gr = nx.a * w.x + ny.a * w.y + nz.a * w.z;
+  // (v1: the photo through the game's own 'cliff' grade - luminance only, contrast x2 about its mean - then x the trondhjemite's mean / the
+  // graded mean x 0.9: the gain cancels in the ratio)
+  float rl = rLuma(col.rgb) / max(uRB.y, 1e-3);
+  o.c.rgb = uRMean * max(1.0 + (rl - 1.0) * 2.0, 0.05) * vR0.rgb * 0.9;
+  float h = col.a;
+  o.c.rgb *= mix(1.0, 0.75, clamp(vR1.x * 2.5, 0.0, 1.0));   // the crease
+  float up = smoothstep(0.62, 0.92, N.y);
+  if (up > 0.01) { vec3 g = texture(uSplat, vec3(P.xz / 7.0 + 0.13, uRL.w), uSFilt.x).rgb; g *= g; g *= uSGrade[int(uRL.w + 0.5)].rgb;   // (the game's own grass)
+   
+    float mk = clamp((up * 0.95 - h) * 3.0, 0.0, 1.0) * 0.85; o.c.rgb = mix(o.c.rgb, g, mk); gr = mix(gr, 1.0, mk); }
+  o.c.rgb *= mix(0.8, 1.0, smoothstep(0.0, 0.22, vR0.w));   // the foot
+  o.n.w = clamp(mix(0.42, 0.7, gr) + 0.3 * smoothstep(0.85, 0.95, gr), 0.3, 1.0);
+  o.c.a = h; return o;
+}
 Smp rRock(vec3 P, vec3 nG){
+  if (vR1.z > 1.5) { gRB = 1.0; return rBoulder(P, nG); }
   float slope = degrees(acos(clamp(nG.y, 0.0, 1.0))), d = distance(P, cameraPosition);
   float fw = smoothstep(42.0, 58.0, slope);
   Smp o; o.c = vec4(0.0); o.n = vec4(0.0); Smp sl = o, fa = o;
@@ -106,23 +153,24 @@ Smp rRock(vec3 P, vec3 nG){
   if (fw <= 0.001) o = sl; else if (fw >= 0.999) o = fa;
   else { float ma = max(sl.c.a + 1.0 - fw, fa.c.a + fw) - 0.1; vec2 h = vec2(max(sl.c.a + 1.0 - fw - ma, 0.0), max(fa.c.a + fw - ma, 0.0)); h /= max(h.x + h.y, 1e-5);
     o.c = sl.c * h.x + fa.c * h.y; o.n = sl.n * h.x + fa.n * h.y; }
-  // the PBR micro detail: the 'cliff' photograph at 6.86 m, its brightness over its mean and its normal - biplanar, out by 180 m
+  // THE PBR MICRO DETAIL (the bench v1's): the game's 'cliff' photograph at its natural 6.86 m, HEX-tiled and TRIPLANAR on the
+  // smooth normal (weights ^8) - its LUMINANCE over its mean modulates our colour and its NORMAL is added to ours (x1.8); out by
+  // 60-180 m. A plane is read only where it weighs
   float kd = (1.0 - smoothstep(60.0, 180.0, d)) * uRK.w;
   if (kd > 0.01) {
-    vec2 a2 = pow(vec2(length(nG.xz), abs(nG.y)), vec2(4.0)); float wTop = a2.y / max(a2.x + a2.y, 1e-6);
-    // (the two side planes BLENDED across the diagonal - a hard switch drew a seam where the surface faced 45 deg; the second
-    // read only inside the band)
-    Smp t1 = rFetch(uRL.z, P.xz / 6.86), tx = t1, tz = t1; float kxs = smoothstep(0.35, 0.65, kx);
-    if (kxs > 0.001) tx = rFetch(uRL.z, P.zy / 6.86 + 0.53);
-    if (kxs < 0.999) tz = rFetch(uRL.z, P.xy / 6.86 + 0.53);
-    vec2 n1 = t1.n.xy * 2.0 - 1.0, nx2 = tx.n.xy * 2.0 - 1.0, nz2 = tz.n.xy * 2.0 - 1.0;
-    float lS = mix(rLuma(tz.c.rgb), rLuma(tx.c.rgb), kxs);
-    float rel = clamp((rLuma(t1.c.rgb) * wTop + lS * (1.0 - wTop)) / max(uSLum[int(uRL.z + 0.5)], 1e-3), 0.35, 2.2);
+    vec2 a8 = pow(vec2(length(nG.xz), abs(nG.y)), vec2(8.0)); vec2 h2 = nG.xz * nG.xz; h2 *= h2;
+    float f8 = h2.y / max(h2.x + h2.y, 1e-8); vec3 tw = vec3(a8.x * (1.0 - f8), a8.y, a8.x * f8) / max(a8.x + a8.y, 1e-6);
+    Smp t; t.c = vec4(0.0); t.n = vec4(0.0);
+    if (tw.y > 0.01) { Smp q = rHex(uRL.z, P.xz / 6.86); vec2 n2 = q.n.xy * 2.0 - 1.0; t.c += q.c * tw.y; t.n.xyz += vec3(n2.x, 0.0, n2.y) * tw.y; }
+    if (tw.x > 0.01) { Smp q = rHex(uRL.z, P.zy / 6.86); vec2 n2 = q.n.xy * 2.0 - 1.0; t.c += q.c * tw.x; t.n.xyz += vec3(0.0, n2.y, n2.x) * tw.x; }
+    if (tw.z > 0.01) { Smp q = rHex(uRL.z, P.xy / 6.86); vec2 n2 = q.n.xy * 2.0 - 1.0; t.c += q.c * tw.z; t.n.xyz += vec3(n2.x, n2.y, 0.0) * tw.z; }
+    float rel = clamp(rLuma(t.c.rgb) / max(uRB.w, 1e-3), 0.35, 2.2);
     o.c.rgb *= mix(1.0, rel, 0.65 * kd);
-    vec3 nS = mix(vec3(nz2.x, nz2.y, 0.0), vec3(0.0, nx2.y, nx2.x), kxs);
-    o.n.xyz += (vec3(n1.x, 0.0, n1.y) * wTop + nS * (1.0 - wTop)) * 1.8 * kd;
-    o.c.a = mix(o.c.a, o.c.a * 0.75 + (t1.c.a * wTop + mix(tz.c.a, tx.c.a, kxs) * (1.0 - wTop)) * 0.25, kd);
+    o.n.xyz += t.n.xyz * 3.0 * 0.6 * kd;
+    o.c.a = mix(o.c.a, o.c.a * 0.75 + t.c.a * 0.25, kd);
   }
+  // the macro's height into the blend's height (v1: the green fills the macro's low places first)
+  o.c.a = clamp(o.c.a * 0.6 + vR1.z * 0.6 - 0.1, 0.0, 1.0);
   // the macro (vertex): its colour; the hollows and veins hold the green
   float hm = o.c.a;
   o.c.rgb *= vR0.rgb;
@@ -130,12 +178,12 @@ Smp rRock(vec3 P, vec3 nG){
   float crackM = max(1.0 - smoothstep(0.10, 0.32, hm), vR1.x * 0.9);
   o.c.rgb *= mix(1.0, 0.55, vR1.x) * (0.9 + 0.2 * vR1.y);   // the masses' crevices darker, each mass its own tone
   float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * n1);
-  float G = clamp(vR0.w * 1.35 + crackM * 0.7 + up * 0.55, 0.0, 1.0) * (0.55 + 0.6 * n2);   // (v1's, weighted up: our 512 tiles' cracks are softer than its 2048)
+  float G = clamp(vR0.w * 1.15 + crackM * 0.6 + up * 0.55, 0.0, 1.0) * (0.55 + 0.6 * n2);   // (the bench v1's)
   G = max(G, vR1.w);   // (the seam, under the ground: the green it emerges from)
   float gw = clamp((G * 1.35 - hm) * 3.0, 0.0, 1.0);
   float rough = o.n.w;
   if (gw > 0.003) {
-    vec3 gr = texture(uSplat, vec3(P.xz / 5.0, uRL.w), uSFilt.x).rgb; gr *= gr; gr *= vec3(0.50, 0.60, 0.36);   // (raw, darkened to v1's olive: the game's normalised grassRock reads blue-green)
+    vec3 gr = texture(uSplat, vec3(P.xz / 5.0, uRL.w), uSFilt.x).rgb; gr *= gr; gr *= uSGrade[int(uRL.w + 0.5)].rgb;   // (the game's own grass, graded as the game grades it)
     vec3 green = mix(vec3(0.045, 0.058, 0.022) * (0.8 + 0.6 * n2), gr, smoothstep(0.3, 0.8, G));
     o.c.rgb = mix(o.c.rgb, green, gw); o.n.xyz *= 1.0 - 0.6 * gw; rough = mix(rough, 0.97, gw);
   }
@@ -148,7 +196,7 @@ Smp rRock(vec3 P, vec3 nG){
     const S = Object.assign({}, DEF, ctx.K || {});
     try { const q = /[?&]ring=0/.test(location.search); if (q) S.on = 0; } catch (e) {}
     const SP = ctx.splat, U = SP.uniforms, LIB = () => SP.api.layers();
-    const L = { uRL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uRK: { value: new THREE.Vector4(16, 24, 1, 1) }, uRFade: { value: new THREE.Vector4(0.6, S.reach, S.fadeBand, 0) } };
+    const L = { uRB: { value: new THREE.Vector4(3.43, 0.2, 0.25, 0) }, uRMean: { value: new THREE.Vector3(0.3, 0.27, 0.22) }, uRL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uRK: { value: new THREE.Vector4(16, 24, 1, 1) }, uRFade: { value: new THREE.Vector4(0.6, S.reach, S.fadeBand, 0) } };
     const mat = material(THREE, U, L);
     const group = new THREE.Group(); group.name = 'rock-ring'; ctx.scene.add(group);
     const chunks = new Map(), queue = [], inflight = new Map();
@@ -172,33 +220,52 @@ Smp rRock(vec3 P, vec3 nG){
       for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const x = x0 - M + i * hs, z = z0 - M + j * hs, k = j * nh + i;
         H[k] = ctx.terrainH(x, z); R[k] = share(x, z, 6); V[k] = ndvi(x, z); Fl[k] = flow(x, z); Sc[k] = share(x, z, 5); Fo[k] = Math.max(share(x, z, 8), share(x, z, 13)); if (R[k] > 0) any = 1; }
       const b = band(d), cam = ctx.camera.position;
-      return any ? { x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, rung: b === 0 ? 0 : 1, eye: [cam.x, cam.z], step: S.step, K: { lift: S.lift, amp: S.amp, unit: S.unit, sink: S.sink, ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet, scatter: S.scatter, boulders: S.boulders, proud: S.proud } } : null;
+      return any ? { x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, rung: b === 0 ? 0 : 1, eye: [cam.x, cam.z], reach: S.reach, step: S.step, K: { lift: S.lift, amp: S.amp, unit: S.unit, sink: S.sink, ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet, scatter: S.scatter, boulders: S.boulders, proud: S.proud } } : null;
     };
+    // a chunk's two meshes: the RELIEF wears the GROUND'S OWN material (ctx.groundMat - the near ring's: every type's PBR sets,
+    // height-blended, the rock among them; the bench v1's skirt wore the ground's), its macro in aRM / aRX, its offset in aRD (the
+    // ground's vertex stage folds it back toward the reach); the BOULDERS wear the bench v1's rock material (this file's)
+    const unmesh = c => { for (const k of ['mesh', 'bmesh']) if (c[k]) { group.remove(c[k]); ST.verts -= c[k].geometry.attributes.position.count; ST.tris -= c[k].geometry.index.count / 3; c[k].geometry.dispose(); c[k] = null; }
+      ST.boulderTris -= c.boulders || 0; c.boulders = 0; };
     const place = (key, r) => {
-      const c = chunks.get(key); if (!c || !r.nv) { if (c) c.empty = true; return; }
-      const t0 = performance.now(), g = new THREE.BufferGeometry(), nv = r.nv;
-      // the ground position (the DEM) in 'position', the relief in aDisp (the fade folds it back); the normals are the RELIEF's,
-      // the worker's (central differences across the chunk's edge: no seam)
-      g.setAttribute('position', new THREE.BufferAttribute(r.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(r.nor, 3));
-      g.setIndex(new THREE.BufferAttribute(r.idx, 1)); g.setAttribute('aDisp', new THREE.BufferAttribute(r.disp, 3));
-      const a0 = new Float32Array(nv * 4), a1 = new Float32Array(nv * 4);
-      for (let v = 0; v < nv; v++) { for (let k = 0; k < 4; k++) { a0[v * 4 + k] = r.attr[v * 8 + k]; a1[v * 4 + k] = r.attr[v * 8 + 4 + k]; } }
-      g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4));
-      g.computeBoundingSphere();
-      if (c.mesh) { group.remove(c.mesh); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; ST.boulderTris -= c.boulders || 0; c.mesh.geometry.dispose(); }   // (a rebuild across a LOD band)
-      const mesh = new THREE.Mesh(g, mat); mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = true; group.add(mesh);
-      c.mesh = mesh; ST.built++; ST.verts += nv; ST.tris += r.nt; ST.boulderTris = (ST.boulderTris || 0) + (r.boulders || 0); c.boulders = r.boulders || 0; ST.workerMs += r.ms; ST.workerLast = r.ms; ST.mainMs += performance.now() - t0;
+      const c = chunks.get(key); if (!c) return;
+      const t0 = performance.now();
+      unmesh(c);   // (a rebuild across a LOD band)
+      if (r.nv) {
+        const g = new THREE.BufferGeometry(), nv = r.nv;
+        g.setAttribute('position', new THREE.BufferAttribute(r.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(r.nor, 3));
+        g.setIndex(new THREE.BufferAttribute(r.idx, 1));
+        const rd = new THREE.BufferAttribute(r.disp, 3), a0 = new Float32Array(nv * 4), a1 = new Float32Array(nv * 4);
+        for (let v = 0; v < nv; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = r.attr[v * 8 + k]; a1[v * 4 + k] = r.attr[v * 8 + 4 + k]; }
+        const A0 = new THREE.BufferAttribute(a0, 4), A1 = new THREE.BufferAttribute(a1, 4);
+        g.setAttribute('aRD', rd); g.setAttribute('aRM', A0); g.setAttribute('aRX', A1);
+        g.setAttribute('aDisp', rd); g.setAttribute('aR0', A0); g.setAttribute('aR1', A1);   // (the same buffers, for this file's material when there is no ground's)
+        g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, ctx.groundMat || mat); m.castShadow = m.receiveShadow = true; group.add(m); c.mesh = m; ST.verts += nv; ST.tris += r.nt; }
+      if (r.B) {
+        const B = r.B, g = new THREE.BufferGeometry(), nb = B.nv;
+        g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(B.nor, 3));
+        g.setIndex(new THREE.BufferAttribute(B.idx, 1)); g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
+        const a0 = new Float32Array(nb * 4), a1 = new Float32Array(nb * 4);
+        for (let v = 0; v < nb; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = B.attr[v * 8 + k]; a1[v * 4 + k] = B.attr[v * 8 + 4 + k]; }
+        g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4));
+        g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; group.add(m); c.bmesh = m;
+        ST.verts += nb; ST.tris += B.idx.length / 3; c.boulders = B.idx.length / 3; ST.boulderTris = (ST.boulderTris || 0) + c.boulders; }
+      if (!r.nv && !r.B) c.empty = true;
+      ST.built++; ST.workerMs += r.ms; ST.workerLast = r.ms; ST.mainMs += performance.now() - t0;
     };
     const build = (key, x0, z0) => {
       const c0 = chunks.get(key), cam = ctx.camera.position, d = Math.hypot(x0 + S.chunk / 2 - cam.x, z0 + S.chunk / 2 - cam.z); c0.band = band(d);
       const t0 = performance.now(), inp = inputs(x0, z0, d); ST.mainMs += performance.now() - t0;
       if (!inp) { chunks.get(key).empty = true; return; }
       if (worker) { inp.id = ++seq; inflight.set(inp.id, key); worker.postMessage(inp, [inp.H.buffer, inp.R.buffer, inp.V.buffer, inp.F.buffer]); }
-      else place(key, ROCK_RING_CORE.chunk(inp, KIT0 || (KIT0 = ctx.kit ? ROCK_RING_CORE.kitPrep(ctx.kit) : null)));
+      else place(key, ROCK_RING_CORE.chunk(inp, KIT0 || (KIT0 = ROCK_RING_CORE.kitPrep(ctx.kit || null))));
     };
     if (worker && ctx.kit) worker.postMessage({ kit: ctx.kit });
-    if (worker) worker.onmessage = e => { const key = inflight.get(e.data.id); inflight.delete(e.data.id); if (key && chunks.has(key)) place(key, e.data.r); };
-    const drop = key => { const c = chunks.get(key); if (c && c.mesh) { group.remove(c.mesh); c.mesh.geometry.dispose(); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; ST.boulderTris -= c.boulders || 0; } chunks.delete(key); };
+    if (worker) worker.onmessage = e => { const key = inflight.get(e.data.id); inflight.delete(e.data.id); if (!key) return;
+      if (key.startsWith('f:')) { if (farChunks.has(key.slice(2))) farPlace(key.slice(2), e.data.r); } else if (chunks.has(key)) place(key, e.data.r); };
+    const drop = key => { const c = chunks.get(key); if (c) unmesh(c); chunks.delete(key); };
     // the splat's rock* knobs that are the ring's (the world rail's rows, persisted and exported with the splat's): read each frame,
     // a change of a geometry knob rebuilds the chunks
     const KMAP = { rockRing: 'on', rockRingReach: 'reach', rockLift: 'lift', rockAmp: 'amp', rockProud: 'proud', rockBoulders: 'boulders', rockScatter: 'scatter' };
@@ -208,14 +275,55 @@ Smp rRock(vec3 P, vec3 nG){
         if (Object.keys(o).length) ring.set(o); }
       const li = LIB(), ix = k => li.indexOf(k);
       L.uRL.value.set(ix('trondSlab'), ix('trondFace'), ix('cliff'), ix('grassRock'));
+      { const set = k => (typeof SPLAT_TEX_SETS !== 'undefined' && SPLAT_TEX_SETS.find(x => x.key === k)) || {}, mc = set('cliff').mean || [0.2, 0.2, 0.2], ms = set('trondSlab').mean || [0.3, 0.27, 0.22];
+        const lc = 0.2126 * mc[0] + 0.7152 * mc[1] + 0.0722 * mc[2]; L.uRB.value.set(6.86 * 0.5, lc, 0.2126 * ms[0] + 0.7152 * ms[1] + 0.0722 * ms[2], lc); L.uRMean.value.set(ms[0], ms[1], ms[2]); }
       const K = SP.api.knobsLive ? SP.api.knobsLive() : SP.api.knobs();
-      L.uRK.value.set(S.slabM || 24, S.faceM || 40, S.bright === undefined ? 0.9 : S.bright, S.micro === undefined ? 1 : S.micro);
+      L.uRK.value.set(S.slabM || 16, S.faceM || 24, S.bright === undefined ? 1 : S.bright, S.micro === undefined ? 1 : S.micro);
       return K && K.rocks && L.uRL.value.x >= 0 && L.uRL.value.y >= 0;
     };
+    // THE FAR LAYER (the bench v1's big blocks to 2 km): 500 m chunks from the reach out, boulders only, seated on the DEM; a far
+    // chunk rebuilds once the eye has moved 200 m from where it was built (its near / far split is the eye's distance then)
+    const FAR = { C: 500, M: 40, hs: 10, step: 5 }, farChunks = new Map(), farQueue = [];
+    const farInputs = (x0, z0) => {
+      const C = FAR.C, M = FAR.M, hs = FAR.hs, nh = Math.round((C + 2 * M) / hs) + 1, n = nh * nh, cam = ctx.camera.position;
+      const H = new Float32Array(n), R = new Float32Array(n), V = new Float32Array(n), Fl = new Float32Array(n), Sc = new Float32Array(n), Fo = new Float32Array(n); let any = 0;
+      for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const x = x0 - M + i * hs, z = z0 - M + j * hs, k = j * nh + i;
+        H[k] = ctx.terrainH(x, z); R[k] = share(x, z, 6); V[k] = ndvi(x, z); Fl[k] = flow(x, z); Sc[k] = share(x, z, 5); Fo[k] = Math.max(share(x, z, 8), share(x, z, 13)); if (R[k] > 0 || Sc[k] > 0) any = 1; }
+      return any ? { far: true, x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, step: FAR.step, eye: [cam.x, cam.z], reach: S.reach, farReach: S.farReach || 2000,
+        K: { off: S.off, hLo: S.hLo, hHi: S.hHi, scatter: S.scatter, ndvi: S.ndvi, ndviMid: S.ndviMid } } : null; };
+    const farBuild = (key, x0, z0) => { const c = farChunks.get(key), cam = ctx.camera.position; c.eye = [cam.x, cam.z];
+      const t0 = performance.now(), inp = farInputs(x0, z0); ST.mainMs += performance.now() - t0;
+      if (!inp) { c.empty = true; return; }
+      if (worker) { inp.id = ++seq; inflight.set(inp.id, 'f:' + key); worker.postMessage(inp, [inp.H.buffer, inp.R.buffer, inp.V.buffer, inp.F.buffer]); }
+      else farPlace(key, ROCK_RING_CORE.chunk(inp, KIT0 || (KIT0 = ROCK_RING_CORE.kitPrep(ctx.kit || null)))); };
+    const farPlace = (key, r) => { const c = farChunks.get(key); if (!c) return; const t0 = performance.now();
+      unmesh(c);
+      if (r.B) { const B = r.B, g = new THREE.BufferGeometry(), nb = B.nv;
+        g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(B.nor, 3));
+        g.setIndex(new THREE.BufferAttribute(B.idx, 1)); g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
+        const a0 = new Float32Array(nb * 4), a1 = new Float32Array(nb * 4);
+        for (let v = 0; v < nb; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = B.attr[v * 8 + k]; a1[v * 4 + k] = B.attr[v * 8 + 4 + k]; }
+        g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4)); g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; group.add(m); c.bmesh = m;
+        ST.verts += nb; ST.tris += B.idx.length / 3; c.boulders = B.idx.length / 3; ST.boulderTris = (ST.boulderTris || 0) + c.boulders; ST.farBoulderTris = (ST.farBoulderTris || 0) + c.boulders; }
+      else c.empty = true;
+      ST.workerMs += r.ms; ST.mainMs += performance.now() - t0; };
+    const farUpdate = cam => {
+      const C = FAR.C, R = Math.ceil((S.farReach || 2000) / C) + 1, ccx = Math.floor(cam.x / C), ccz = Math.floor(cam.z / C), want = new Set();
+      for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) { const x0 = (ccx + i) * C, z0 = (ccz + j) * C;
+        const dmin = Math.hypot(Math.max(0, Math.abs(x0 + C / 2 - cam.x) - C / 2), Math.max(0, Math.abs(z0 + C / 2 - cam.z) - C / 2)), dmax = Math.hypot(Math.abs(x0 + C / 2 - cam.x) + C / 2, Math.abs(z0 + C / 2 - cam.z) + C / 2);
+        if (dmin > (S.farReach || 2000) || dmax < S.reach) continue;
+        const key = (ccx + i) + ',' + (ccz + j); want.add(key);
+        const c = farChunks.get(key);
+        if (!c) { farChunks.set(key, { x0, z0 }); farQueue.push([dmin, key, x0, z0]); }
+        else if (c.eye && Math.hypot(c.eye[0] - cam.x, c.eye[1] - cam.z) > 200 && !farQueue.some(q => q[1] === key)) farQueue.push([dmin, key, x0, z0]); }
+      for (const key of [...farChunks.keys()]) if (!want.has(key)) { const c = farChunks.get(key); unmesh(c); farChunks.delete(key); }
+      farQueue.sort((a, b) => a[0] - b[0]); };
     const ring = {
       update() {
         const on = S.on && sync() && SP.api.ready && SP.api.ready(); group.visible = !!on; if (!on) return;
         const cam = ctx.camera.position; L.uRFade.value.set(S.sink + 0.2, S.reach, S.fadeBand, cam.z);   // (sink, reach, band, the eye's z; its x: uREyeX)
+        if (ctx.groundU && ctx.groundU.uRingF) ctx.groundU.uRingF.value.set(S.sink + 0.2, S.reach, S.fadeBand, 0);   // (the ground's vertex stage folds the relief)
         const C = S.chunk, ccx = Math.floor(cam.x / C), ccz = Math.floor(cam.z / C);
         if (ccx !== cx0 || ccz !== cz0) { cx0 = ccx; cz0 = ccz;
           const R = Math.ceil(S.reach / C) + 1, want = new Set();
@@ -228,13 +336,15 @@ Smp rRock(vec3 P, vec3 nG){
         if (!(ring._t = (ring._t || 0) + 1) || ring._t % 30 === 0) for (const [key, c] of chunks) { if (c.band === undefined || c.empty) continue;
           const d = Math.hypot(c.x0 + C / 2 - cam.x, c.z0 + C / 2 - cam.z); if (band(d) !== c.band && !queue.some(q => q[1] === key)) queue.push([d, key, c.x0, c.z0]); }
         let n = 0; while (queue.length && n < S.perFrame && inflight.size < 4) { const [, key, x0, z0] = queue.shift(); if (chunks.has(key)) { build(key, x0, z0); n++; } }
+        if (S.farOn !== 0) { if (!(ring._f = (ring._f || 0) + 1) || ring._f % 20 === 0) farUpdate(cam);
+          if (!queue.length && n < S.perFrame && inflight.size < 4 && farQueue.length) { const [, key, x0, z0] = farQueue.shift(); if (farChunks.has(key)) farBuild(key, x0, z0); } }
       },
       get: () => Object.assign({}, S),
       set(o) { const rebuild = ['chunk', 'step', 'lift', 'amp', 'unit', 'sink', 'proud', 'scatter', 'boulders', 'ndvi', 'ndviMid', 'off', 'hLo', 'hHi', 'jointDirt', 'wet', 'M', 'hs'].some(k => k in o && o[k] !== S[k]);
         Object.assign(S, o); if (rebuild) { for (const k of [...chunks.keys()]) drop(k); queue.length = 0; } if (rebuild || 'reach' in o) cx0 = cz0 = NaN; return ring.get(); },
       stat: () => ({ chunks: [...chunks.values()].filter(c => c.mesh).length, queued: queue.length, inflight: inflight.size, verts: ST.verts, tris: ST.tris,
-        built: ST.built, boulderTris: ST.boulderTris || 0, workerMs: Math.round(ST.workerMs), workerLastMs: ST.workerLast, mainMs: Math.round(ST.mainMs), worker: !!worker }),
-      whenIdle: () => new Promise(res => { const tick = () => { ring.update(); if (!queue.length && !inflight.size) res(ring.stat()); else setTimeout(tick, 30); }; tick(); }),
+        built: ST.built, boulderTris: ST.boulderTris || 0, farChunks: [...farChunks.values()].filter(c => c.bmesh).length, farBoulderTris: ST.farBoulderTris || 0, workerMs: Math.round(ST.workerMs), workerLastMs: ST.workerLast, mainMs: Math.round(ST.mainMs), worker: !!worker }),
+      whenIdle: () => new Promise(res => { const tick = () => { ring.update(); if (!queue.length && !inflight.size && !(S.farOn !== 0 && farQueue.length)) res(ring.stat()); else setTimeout(tick, 30); }; tick(); }),
       dispose() { for (const k of [...chunks.keys()]) drop(k); ctx.scene.remove(group); mat.dispose(); if (worker) worker.terminate(); },
       material: mat, group,
     };

@@ -25,7 +25,7 @@ const srv = http.createServer((q, r) => { const p = path.join(REPO, decodeURICom
     await page.waitForFunction('window.GB', null, { timeout: 900000, polling: 500 });
     const info = await page.evaluate('({ ring0: GB.ring, error: GB.error, buildMs: GB.buildMs, firstMs: GB.firstMs, fsLen: GB.fsLen, samplers: GB.samplers, linked: GB.linked, layers: GB.layers, trOn: GB.trOn, eyes: GB.eyes, errs: GB.errs })');
     if (info.error) { console.log(info.error, logs.join('\n')); process.exit(1); }
-    { const bad = logs.find(l => /Shader Error|not compiled|CONTEXT_LOST/.test(l)); if (bad) { console.log('rocks=' + rk + ' FAILED: ' + bad.slice(0, 1500)); process.exit(1); } }
+    { const bad = logs.find(l => /Shader Error|not compiled|CONTEXT_LOST/.test(l)); if (bad) { console.log('rocks=' + rk + ' FAILED: ' + bad.slice(0, 6000)); process.exit(1); } }
     info.ms = {}; console.log('rocks=' + rk + ' ready', JSON.stringify({ buildMs: info.buildMs, firstMs: info.firstMs, linked: info.linked, samplers: info.samplers, trOn: info.trOn, fsLen: info.fsLen, errs: info.errs }));
     for (const v of VIEWS) { info.ring = info.ring || {}; info.ring[v] = await page.evaluate(`GB.viewRing('${v}')`); info.ms[v] = (await page.evaluate(`GB.measure(${FR})`)).median;
       const url = await page.evaluate('document.querySelector("canvas").toDataURL("image/png")'); fs.writeFileSync(path.join(OUT, `${v}_rocks${rk}${opt('tag', '')}.png`), Buffer.from(url.split(',')[1], 'base64')); }

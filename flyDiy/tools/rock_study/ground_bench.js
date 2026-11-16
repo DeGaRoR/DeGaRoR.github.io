@@ -25,7 +25,7 @@ if (Q.get('env') !== '0') { const sky = new THREE.Scene();
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(sky, 0.02).texture; pm.dispose();
   if ('environmentIntensity' in scene) scene.environmentIntensity = 0.55;
   scene.children.filter(o => o.isHemisphereLight).forEach(h => { h.intensity = 0.6; }); }
-sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 1.5;
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 1.2;   // (the bench v1's)
 // ---- the heights (world x, z) ----
 const hIJ = (i, j) => HT[Math.min(N - 1, Math.max(0, j)) * N + Math.min(N - 1, Math.max(0, i))];
 const hXZ = (x, z) => { const fi = (x - PJ.x0) / ST, fj = (z - PJ.z0) / ST, i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j;
@@ -49,7 +49,7 @@ const gU = { uGTint: { value: tint }, uGPackA: { value: dataTex(new Uint8Array(u
   uGP90: { value: 15 }, uGMode: { value: 0 }, uGHMax: { value: 1100 }, uGBlur: { value: 0 }, uGWobble: { value: 0 }, uGWaterMap: { value: 1 }, uGCell: { value: GJ.cell },
   uGW1: { value: dataTex(new Uint8Array(gw * gh * 4)) }, uGW2: { value: dataTex(new Uint8Array(gw * gh * 4)) },
   uLOn: { value: [1, 1, 1, 1, 1] }, uLMode: { value: [0, 0, 3, 1, 0] }, uLOp: { value: new Float32Array([1, 1, 0.75, 0.7, 1]) }, uLStart: { value: 1 },
-  uFine: { value: new THREE.Vector4(0, 0, 0, 120) } };
+  uFine: { value: new THREE.Vector4(0, 0, 0, 120) }, uRingF: { value: new THREE.Vector4(0.55, 450, 90, 0) } };
 const isla = { ttype: Uint8Array.from(IS.ttype), albedo: Uint8Array.from(IS.albedo), grid: null };
 const T0 = performance.now();
 const LEAN = Q.get('lean') === '1', STRIP = (Q.get('gstrip') || '').split(',').filter(Boolean);
@@ -59,9 +59,9 @@ const SPL = SPLAT_GROUND.make(gU, isla, { lean: LEAN });
 let FS = '';
 const hook = sh => {
   Object.assign(sh.uniforms, gU, SPL.uniforms);
-  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nvarying float vPav;\n')
-    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = 0.0;\n');
-  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\n' +
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nvarying float vPav;\nattribute vec4 aRM, aRX; attribute vec3 aRD; varying vec4 vRM, vRX; uniform vec4 uRingF;\n')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRM = aRM; vRX = aRX; if (aRM.w > 1.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\nvWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = 0.0;\n');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\nvarying vec4 vRM, vRX;\n' +
     'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\nuniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
     'float gLake(vec2 uv){ return texture2D(uGPackA, uv).a; }\n' +
     'float gHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
@@ -142,11 +142,11 @@ if (Q.get('rocks') !== '0' && Q.get('ring') !== '0' && typeof ROCK_RING !== 'und
   const TTg = new Uint8Array(gw * gh), NDg = new Uint8Array(gw * gh); for (let k = 0; k < gw * gh; k++) { TTg[k] = Bs[k * 2 + 1]; NDg[k] = Bs[k * 2]; }
   // the boulders' kit: the game's 'rocks' collection, as export_patch.js wrote it (data/rocks.json + rocks.bin); ?boulders=0 none
   let KIT = null;
-  if (Q.get('boulders') !== '0') { const [kj, kb] = await Promise.all([get('data/rocks.json', 'json'), get('data/rocks.bin')]);
+  if (Q.get('kit') === 'scan') { const [kj, kb] = await Promise.all([get('data/rocks.json', 'json'), get('data/rocks.bin')]);
     const kk = kj.kits.find(k => k.name === 'rocks');
     KIT = kk.subjects.map(s => { const p = s.parts[0];
       return { h: s.h, bb: s.bb, pos: new Float32Array(kb, p.pos, p.nv * 3).slice(), nor: new Float32Array(kb, p.nrm, p.nv * 3).slice(), idx: Uint32Array.from(p.wide ? new Uint32Array(kb, p.idx, p.nt * 3) : new Uint16Array(kb, p.idx, p.nt * 3)) }; }); }
-  RING = ROCK_RING.make(THREE, { scene, world: null, camera, splat: SPL, terrainH: hXZ, kit: KIT,
+  RING = ROCK_RING.make(THREE, { scene, world: null, camera, splat: SPL, groundMat: mat, groundU: gU, terrainH: hXZ, kit: KIT,
     isla: { grid: { x0: GJ.x0, z0: GJ.z0, w: gw, h: gh, cell: GJ.cell }, ttype: TTg, ndvi: NDg },
     flow: { g: FLW, N, x0: PJ.x0 - ST / 2, z0: PJ.z0 - ST / 2, dx: ST } });
 }
@@ -158,6 +158,9 @@ const prog = renderer.info.programs.find(p => p.name && /MeshStandard/.test(p.na
 const errs = []; renderer.debug.onShaderError = (g, p, vs, fs) => errs.push(String(g.getProgramInfoLog(p) || '') + String(g.getShaderInfoLog(fs) || ''));
 // the sampler units the ground program declares (three's own + the hook's + the splat's): every 'uniform ... samplerX a, b;' name
 const samplers = (FS.match(/uniform\s+(?:\w+\s+)?sampler\w*\s+[^;]+;/g) || []).reduce((n, d) => n + d.replace(/^.*sampler\w*\s+/, '').split(',').length, 0);
+window.ROCK_RING_DBG = () => { if (!RING) return null; const out = []; RING.group.children.forEach(m => { const g = m.geometry, P = g.attributes.position, D = g.attributes.aRD || g.attributes.aDisp; if (!P) return;
+  let dy = 0, dmax = 0, dmin = 0, n = 0; for (let v = 0; v < P.count; v += 37) { const x = P.getX(v), y = P.getY(v), z = P.getZ(v); dy = Math.max(dy, Math.abs(y - hXZ(x, z))); if (D) { dmax = Math.max(dmax, D.getY(v)); dmin = Math.min(dmin, D.getY(v)); } n++; }
+  out.push({ mat: m.material === mat ? 'ground' : 'rock', nv: P.count, baseOff: +dy.toFixed(2), dYmax: +dmax.toFixed(2), dYmin: +dmin.toFixed(2) }); }); return out.slice(0, 12); };
 window.GB = { ready: true, ring: RSTAT, buildMs, firstMs, fsLen: FS.length, samplers, linked: !!(prog && gl.getProgramParameter(prog.program, gl.LINK_STATUS)),
   layers: SPL.api.layers(), trOn: SPL.uniforms.uTrOn ? SPL.uniforms.uTrOn.value : -1, view,
   eyes: Object.fromEntries(Object.keys(VIEWS).map(k => { const [e, t] = VIEWS[k](); return [k, { pos: e.map(v => +v.toFixed(1)), target: t.map(v => +v.toFixed(1)) }]; })),

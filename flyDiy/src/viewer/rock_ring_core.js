@@ -11,8 +11,8 @@
 // bench's medium() (the Blender height path, node for node) and its buildSkirt (?tskirt) - rounded masses, two Laplacian
 // passes, the vertex out along the DEM's normal by macro height + exposure x (lift + amp x masses).
 //
-//   ROCK_RING_CORE.chunk(inp) -> { pos (the ground's, Float32Array), disp (the relief, along the DEM normal), idx Uint32Array,
-//                                  attr Float32Array (8 a vertex), nv, nt, ms }
+//   ROCK_RING_CORE.chunk(inp) -> { pos (the ground's), disp (the relief, along the DEM normal), nor, idx, attr (8 a vertex:
+//                                  aRM, aRX - the ground material's), nv, nt, B (the boulders: pos, nor, attr, idx, nv) | null, ms }
 //     inp: { x0, z0, C (m), step (m, 1.25), M (margin m, >= 24: the 20 m curvature), hs (the inputs' lattice m), nh (its side),
 //            H, R, V, F, Sc, Fo (Float32Array nh*nh: height, the map's rock share 0..1, NDVI -1..1, flow 0..1, scree and forest
 //            shares), rung (the boulders' LOD: 0 full, 1, 2), eye [x, z], K (knobs) } ; kit (ROCK_RING_CORE.kitPrep's): the boulders
@@ -180,10 +180,73 @@ function ROCK_RING_CORE_FACTORY() {
     for (let v = 0; v < nor.length; v += 3) { const l = Math.hypot(nor[v], nor[v + 1], nor[v + 2]) || 1; nor[v] /= l; nor[v + 1] /= l; nor[v + 2] /= l; }
     return nor;
   }
+  // ---- THE PROCEDURAL KIT (the study's rock_kit.js, the user: "boulders need closed geometry"): a rock is a CLOSED shape from
+  // a sphere of directions - r(dir) the soft minimum of an ellipsoid and K planes (the faces rock breaks along), roughened by a
+  // low noise - evaluated on icospheres of three densities (1280 / 320 / 80 triangles): the LOD rungs are one rock, all closed.
+  // Archetypes: boulder (rounded, 10-13 planes), block (near-axis planes: jointed), slab (flat plates). Each vertex: its crease
+  // (how deep it sits under the ellipsoid: the cheap AO) and its height in the rock's box (the foot)
+  //   procKit(seeds) -> [{ h, bb, arch, rungs: [{ pos, nor, idx, nv, crease, foot }] x3 }]
+  function procKit(seeds) {
+    const rnd = sd => () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+    const ico = n => { const t = (1 + Math.sqrt(5)) / 2;
+      let V = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]].map(v => { const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; });
+      let F = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+      for (let k = 0; k < n; k++) { const mid = new Map(), F2 = [];
+        const m = (a, b) => { const key = a < b ? a * 100000 + b : b * 100000 + a; let i = mid.get(key); if (i !== undefined) return i;
+          const v = [V[a][0] + V[b][0], V[a][1] + V[b][1], V[a][2] + V[b][2]], l = Math.hypot(v[0], v[1], v[2]); V.push([v[0] / l, v[1] / l, v[2] / l]); i = V.length - 1; mid.set(key, i); return i; };
+        for (const [a, b, c] of F) { const ab = m(a, b), bc = m(b, c), ca = m(c, a); F2.push([a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]); }
+        F = F2; }
+      return { V, F }; };
+    const SPH = [ico(3), ico(2), ico(1)];
+    const vn = (x, y, z, sd) => { const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z), a = sm(x - X), b = sm(y - Y), c = sm(z - Z); let r = 0;
+      for (let dz = 0; dz < 2; dz++) for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) r += hh(X + dx, Y + dy, Z + dz + sd * 101) * (dx ? a : 1 - a) * (dy ? b : 1 - b) * (dz ? c : 1 - c);
+      return r - 0.5; };
+    const shapeOf = (arch, seed) => {
+      const R = rnd(seed * 7919 + 17), P = [];
+      const plane = (nx, ny, nz, o) => { const l = Math.hypot(nx, ny, nz); P.push([nx / l, ny / l, nz / l, o]); };
+      const rdir = () => { const z = R() * 2 - 1, a = R() * 6.2832, q = Math.sqrt(1 - z * z); return [q * Math.cos(a), z, q * Math.sin(a)]; };
+      let E, K, rough, base = -0.42;
+      if (arch === 'boulder') { E = [1.1, 0.85 + 0.15 * R(), 0.95 + 0.1 * R()]; K = 30; rough = 0.045;
+        const n = 10 + Math.floor(R() * 4); for (let i = 0; i < n; i++) { const d = rdir(); plane(d[0], d[1] * 0.8, d[2], 0.55 + 0.3 * R()); } }
+      else if (arch === 'block') { E = [1.3, 1.1, 1.2]; K = 45; rough = 0.03;
+        const yaw = R() * 0.5, c = Math.cos(yaw), sn = Math.sin(yaw);
+        for (const [x, y, z] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]) { const j = () => (R() - 0.5) * 0.5; plane(x * c - z * sn + j(), y + j(), x * sn + z * c + j(), 0.5 + 0.25 * R()); }
+        for (let i = 0; i < 6; i++) { const d = rdir(); plane(d[0], d[1], d[2], 0.6 + 0.25 * R()); } }
+      else { E = [1.1, 0.42, 0.9]; K = 22; rough = 0.03; base = -0.2;
+        plane((R() - 0.5) * 0.3, 1, (R() - 0.5) * 0.3, 0.22 + 0.06 * R());
+        for (let i = 0; i < 6; i++) { const a = R() * 6.2832; plane(Math.cos(a), (R() - 0.5) * 0.6, Math.sin(a), 0.6 + 0.25 * R()); } }
+      plane(0, -1, 0, -base);
+      return { E, K, rough, P }; };
+    const radius = (S, d, seed) => {
+      const re = 1 / Math.sqrt((d[0] / S.E[0]) ** 2 + (d[1] / S.E[1]) ** 2 + (d[2] / S.E[2]) ** 2);
+      let sum = Math.exp(-S.K * re), mn = re;
+      for (const p of S.P) { const c = d[0] * p[0] + d[1] * p[1] + d[2] * p[2]; if (c > 1e-3) { const t = p[3] / c; sum += Math.exp(-S.K * t); if (t < mn) mn = t; } }
+      let r = -Math.log(sum) / S.K; if (!isFinite(r)) r = mn;
+      const q = 2.3; r *= 1 + S.rough * (vn(d[0] * q + 9, d[1] * q, d[2] * q, seed) * 2 + vn(d[0] * q * 3, d[1] * q * 3, d[2] * q * 3 + 5, seed) * 0.8);
+      return [r, Math.max(0, Math.min(1, (re - r) / re))]; };
+    const out = [];
+    for (const arch of ['boulder', 'block', 'slab']) for (let sd = 1; sd <= (seeds || 4); sd++) {
+      const S = shapeOf(arch, sd), rungs = [];
+      for (let L = 0; L < 3; L++) { const sph = SPH[L], nv = sph.V.length, pos = new Float32Array(nv * 3), crease = new Float32Array(nv), foot = new Float32Array(nv);
+        let y0 = 1e9, y1 = -1e9;
+        sph.V.forEach((d, i) => { const [r, cr] = radius(S, d, sd); pos[i * 3] = d[0] * r; pos[i * 3 + 1] = d[1] * r; pos[i * 3 + 2] = d[2] * r; crease[i] = cr; y0 = Math.min(y0, pos[i * 3 + 1]); y1 = Math.max(y1, pos[i * 3 + 1]); });
+        for (let i = 0; i < nv; i++) { pos[i * 3 + 1] -= y0; foot[i] = pos[i * 3 + 1] / Math.max(1e-6, y1 - y0); }
+        const idx = new Uint32Array(sph.F.length * 3); sph.F.forEach((f, i) => { idx[i * 3] = f[0]; idx[i * 3 + 1] = f[1]; idx[i * 3 + 2] = f[2]; });
+        rungs.push({ pos, idx, nor: vnormals(pos, idx), nv, crease, foot }); }
+      const P0 = rungs[0].pos; let mnx = 1e9, mxx = -1e9, mxy = -1e9, mnz = 1e9, mxz = -1e9;
+      for (let v = 0; v < P0.length; v += 3) { mnx = Math.min(mnx, P0[v]); mxx = Math.max(mxx, P0[v]); mxy = Math.max(mxy, P0[v + 1]); mnz = Math.min(mnz, P0[v + 2]); mxz = Math.max(mxz, P0[v + 2]); }
+      out.push({ arch, h: mxy, bb: [mnx, 0, mnz, mxx, mxy, mxz], rungs });
+    }
+    return out;
+  }
   function kitPrep(list) {
-    const subs = list.map(s => ({ h: s.h, bb: s.bb, rungs: [{ pos: s.pos, nor: s.nor, idx: s.idx, nv: s.pos.length / 3 }, decimate(s.pos, s.idx, 7), decimate(s.pos, s.idx, 4)] }));
-    const blocky = subs.map((S, i) => [i, S.h / Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2])]).sort((a, b) => b[1] - a[1]).slice(0, 4).map(a => a[0]);
-    return { subs, blocky };
+    // (list null or 'proc': the procedural kit - CLOSED rocks; a scanned kit (open shells: the tree pack's paving blocks) only if asked)
+    const subs = (!list || list === 'proc') ? procKit(4) : list.map(s => ({ h: s.h, bb: s.bb, rungs: [{ pos: s.pos, nor: s.nor, idx: s.idx, nv: s.pos.length / 3 }, decimate(s.pos, s.idx, 7), decimate(s.pos, s.idx, 4)] }));
+    const blocky = subs.some(S => S.arch) ? subs.map((S, i) => [i, S.arch]).filter(a => a[1] === 'block' || a[1] === 'boulder').map(a => a[0])
+      : subs.map((S, i) => [i, S.h / Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2])]).sort((a, b) => b[1] - a[1]).slice(0, 4).map(a => a[0]);
+    // the scatter draws the BOULDERS and the BLOCKS (the user: "proper boulders" - the slab archetype is a plate)
+    const pick = subs.some(S => S.arch) ? subs.map((S, i) => [i, S.arch]).filter(a => a[1] !== 'slab').map(a => a[0]) : subs.map((S, i) => i);
+    return { subs, blocky, pick };
   }
   // the 20 m curvature's std on Mount Ardent (tools/rock_study export_patch: 1.45 m) - the law's z-score, a constant of the island
   const CZSD = 1.45;
@@ -202,6 +265,49 @@ function ROCK_RING_CORE_FACTORY() {
     return out;
   }
   // ---- one chunk -------------------------------------------------------------------------------------------------------
+  function farChunk(inp, kit, W) {
+    const { x0, z0, C, M } = inp, { n, st, X, Z, Y, slope, dn, cz, ex, mac, bil, t0 } = W, eye = inp.eye || [x0 + C / 2, z0 + C / 2], reach = inp.reach || 450;
+    const lat = (A, x, z) => { const fx = Math.min(n - 1.001, Math.max(0, (x - (x0 - M)) / st)), fz = Math.min(n - 1.001, Math.max(0, (z - (z0 - M)) / st)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, k = j * n + i;
+      return (A[k] * (1 - u) + A[k + 1] * u) * (1 - v) + (A[k + n] * (1 - u) + A[k + n + 1] * u) * v; };
+    const e5 = new Float32Array(n * n); for (let k = 0; k < n * n; k++) e5[k] = mac[k * 7 + 5];
+    const RB = { pos: [], nor: [], attr: [], idx: [] }; let base = 0;
+    const mul = (inp.K && inp.K.scatter !== undefined) ? inp.K.scatter : 1.25;
+    if (kit && kit.subs && kit.subs.length) for (let gz = z0; gz < z0 + C; gz += 6) for (let gx = x0; gx < x0 + C; gx += 6) {
+      const jx = gx + 3 + (hh(Math.round(gx * 3), Math.round(gz * 3), 1) - 0.5) * 6, jz = gz + 3 + (hh(Math.round(gx * 3), Math.round(gz * 3), 2) - 0.5) * 6;
+      const dP = Math.hypot(jx - eye[0], jz - eye[1]); if (dP <= reach || dP > (inp.farReach || 2000)) continue;
+      const sl = lat(slope, jx, jz); if (sl > 50) continue;
+      const cR = lat(e5, jx, jz), cS = inp.Sc ? bil(inp.Sc, jx, jz) : 0, cF = inp.Fo ? bil(inp.Fo, jx, jz) : 0, cv = lat(cz, jx, jz) * CZSD;
+      const fi = Math.min(n - 1, Math.max(0, Math.round((jx - (x0 - M)) / st))), fj = Math.min(n - 1, Math.max(0, Math.round((jz - (z0 - M)) / st))), kk = fj * n + fi;
+      const upx = -dn[kk * 2], upz = -dn[kk * 2 + 1];
+      let face = 0; for (let s2 = 5; s2 <= 35; s2 += 5) if (lat(slope, jx + upx * s2, jz + upz * s2) > 45) { face = 1 - s2 / 45; break; }
+      const talus = face * (sl < 42 ? 1 : 0) * (cv < 0.3 ? 1 : 0.4) * (1 - cF * 0.8);
+      const clus = ss(0.40, 0.70, vn3(jx / 40, 0, jz / 40));
+      const rocky = Math.max(cR, cS) * ss(18, 26, sl) * (1 - ss(44, 50, sl)) * clus * (1 - cF);
+      const edge = (cR > 0.12 && cR < 0.88 ? 1 : 0) * (1 - ss(40, 50, sl)) * (1 - cF) * (0.4 + 0.6 * clus);
+      const p = (talus * 0.33 + rocky * 0.055 + edge * 0.13) * mul;
+      const bigOK = clus > 0.55 && hh(Math.round(jx * 5), Math.round(jz * 5), 9) < 0.07;
+      if (!bigOK || hh(Math.round(jx * 7), Math.round(jz * 7), 3) >= p * 9) continue;
+      const r1 = hh(Math.round(jx * 13), Math.round(jz * 13), 5), r2 = hh(Math.round(jx * 13), Math.round(jz * 13), 6), r3 = hh(Math.round(jx * 13), Math.round(jz * 13), 7);
+      const hT = 2.5 + 2.5 * r2, S = kit.subs[kit.blocky[Math.floor(r1 * kit.blocky.length) % kit.blocky.length]];
+      const bw = Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2]) / Math.max(S.h, 0.02), rr2 = 0.4 * bw * hT;
+      const c = lat(Y, jx, jz), gxp = (lat(Y, jx + rr2, jz) - lat(Y, jx - rr2, jz)) / (2 * rr2), gzp = (lat(Y, jx, jz + rr2) - lat(Y, jx, jz - rr2)) / (2 * rr2), G = Math.hypot(gxp, gzp);
+      const kS = hT / Math.max(S.h, 0.02), kxz = Math.min(1, 2.6 / bw), bury = 0.3 + 0.15 * r3, yB = c - 0.2 * G * rr2 - hT * bury;
+      let nxl = -gxp, nyl = 1, nzl = -gzp; const nl = Math.hypot(nxl, nyl, nzl); nxl /= nl; nyl /= nl; nzl /= nl;
+      nxl *= 0.8; nyl = nyl * 0.8 + 0.2; nzl *= 0.8; const nl2 = Math.hypot(nxl, nyl, nzl); nxl /= nl2; nyl /= nl2; nzl /= nl2;
+      const yaw = r1 * 6.2832 * 7, cy = Math.cos(yaw), sy = Math.sin(yaw), ax = nzl, az = -nxl, al = Math.hypot(ax, az), ct = nyl, st2 = Math.sqrt(Math.max(0, 1 - ct * ct));
+      const kx = al > 1e-6 ? ax / al : 1, kz = al > 1e-6 ? az / al : 0;
+      const rot = (vx, vy, vz) => { const x1 = vx * cy + vz * sy, z1 = -vx * sy + vz * cy, y1 = vy, dot = kx * x1 + kz * z1, crx = -kz * y1, cry = kz * x1 - kx * z1, crz = kx * y1;
+        return [x1 * ct + crx * st2 + kx * dot * (1 - ct), y1 * ct + cry * st2, z1 * ct + crz * st2 + kz * dot * (1 - ct)]; };
+      const sx = kS * kxz * (0.8 + 0.4 * r3), sy2 = kS, sz = kS * kxz * (0.8 + 0.4 * r2);
+      const L = S.rungs[dP < 600 ? 1 : 2], vk = 0.85 + 0.3 * r3;   // (v1's ladder: 7^3 to 600 m, then 4^3)
+      for (let v = 0; v < L.nv; v++) { const p0 = rot(L.pos[v * 3] * sx, L.pos[v * 3 + 1] * sy2, L.pos[v * 3 + 2] * sz); RB.pos.push(jx + p0[0], yB + p0[1], jz + p0[2]);
+        const n0 = rot(L.nor[v * 3] / sx, L.nor[v * 3 + 1] / sy2, L.nor[v * 3 + 2] / sz), q2 = Math.hypot(n0[0], n0[1], n0[2]) || 1; RB.nor.push(n0[0] / q2, n0[1] / q2, n0[2] / q2);
+        RB.attr.push(vk, vk, vk * 0.97, L.foot ? L.foot[v] : 0.5, L.crease ? L.crease[v] : 0, r3, 2, 0); }
+      for (let t = 0; t < L.idx.length; t++) RB.idx.push(base + L.idx[t]); base += L.nv;
+    }
+    const B = RB.idx.length ? { pos: Float32Array.from(RB.pos), nor: Float32Array.from(RB.nor), attr: Float32Array.from(RB.attr), idx: Uint32Array.from(RB.idx), nv: RB.pos.length / 3 } : null;
+    return { pos: new Float32Array(0), disp: new Float32Array(0), nor: new Float32Array(0), idx: new Uint32Array(0), attr: new Float32Array(0), nv: 0, nt: 0, B, boulders: B ? B.idx.length / 3 : 0, ms: Date.now() - t0, n };
+  }
   function chunk(inp, kit) {
     if (Math.abs(inp.C / (inp.step || 1.25) - Math.round(inp.C / (inp.step || 1.25))) > 1e-6 || Math.abs(inp.M / inp.hs - Math.round(inp.M / inp.hs)) > 1e-6 || Math.abs(inp.C / inp.hs - Math.round(inp.C / inp.hs)) > 1e-6)
       throw new Error('rock ring: chunk ' + inp.C + ' / margin ' + inp.M + ' must be whole multiples of the step and the input lattice (a crack between chunks)');
@@ -235,13 +341,16 @@ function ROCK_RING_CORE_FACTORY() {
     // the exposure SMOOTHED over ~5 m (the geometry's mask: read raw, every speck stood up as a tooth - the bench)
     const ex = new Float32Array(n * n); for (let k = 0; k < n * n; k++) ex[k] = mac[k * 7 + 6];
     const MC = {}; const mac7 = c => MC[c] || (MC[c] = (() => { const o = new Float32Array(n * n); for (let k = 0; k < n * n; k++) o[k] = mac[k * 7 + c]; return o; })());
-    const exs = blur(ex, n, Math.max(1, Math.round(2 / st)));
+    const exs = blur(ex, n, Math.max(1, Math.round(2.5 / st)));   // (~5 m across, two passes: the bench v1 averaged the exposure over a 2.5 m ring of 8 points + the centre)
     // the COVER mask: the smoothed exposure DILATED ~4 m - a hole narrower than ~8 m (a drainage line, a joint's soil) is a gully
     // ON the outcrop (no lift, green), not a hole into the ground under it (the ground there wears another material)
     const exD = (() => { const r = Math.max(1, Math.round(4 / st)), o = new Float32Array(n * n), t = new Float32Array(n * n);
       for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { let m = 0; for (let k = -r; k <= r; k++) { const q = exs[j * n + Math.min(n - 1, Math.max(0, i + k))]; if (q > m) m = q; } t[j * n + i] = m; }
       for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { let m = 0; for (let k = -r; k <= r; k++) { const q = t[Math.min(n - 1, Math.max(0, j + k)) * n + i]; if (q > m) m = q; } o[j * n + i] = m; }
       return blur(o, n, Math.max(1, Math.round(2 / st))); })();
+    // THE FAR LAYER (the bench v1's second scatter pass: big blocks only, a 6 m grid at 9 x the odds, to 2 km): no relief, the
+    // boulders seated on the DEM
+    if (inp.far) return farChunk(inp, kit, { n, st, X, Z, Y, slope, dn, cz, ex, mac, bil, t0 });
     const med = new Float32Array(3), [mu, sd] = medNorm(K.unit || 12);
     const lift = K.lift === undefined ? 0.6 : K.lift, amp = K.amp === undefined ? 1.5 : K.amp, sink = K.sink === undefined ? 0.35 : K.sink;
     // THE VERTEX STAGE ON AN EXTENDED LATTICE (the chunk + 2 cells): the masses' smoothing and the normals run across the chunk's
@@ -280,8 +389,11 @@ function ROCK_RING_CORE_FACTORY() {
       const vx = PX(a, b + 1, 0) - PX(a, b - 1, 0), vy = PX(a, b + 1, 1) - PX(a, b - 1, 1), vz = PX(a, b + 1, 2) - PX(a, b - 1, 2);
       let nx = uz * vy - uy * vz, ny = ux * vz - uz * vx, nz = uy * vx - ux * vy; if (ny < 0) { nx = -nx; ny = -ny; nz = -nz; }
       const nl = Math.hypot(nx, ny, nz) || 1; nor[v * 3] = nx / nl; nor[v * 3 + 1] = ny / nl; nor[v * 3 + 2] = nz / nl;
-      const o = v * 8; attr[o] = mac[k * 7 + 1]; attr[o + 1] = mac[k * 7 + 2]; attr[o + 2] = mac[k * 7 + 3]; attr[o + 3] = mac[k * 7 + 4];
-      attr[o + 4] = cre[q] * eXe[q]; attr[o + 5] = ide[q]; attr[o + 6] = eXe[q]; attr[o + 7] = 1 - ss(0.0, 0.25, eXe[q]); }   // (.w: no exposure - the gully's and the seam's green)
+      // FOR THE GROUND'S OWN MATERIAL (the bench v1's skirt wore the ground's material - every type's PBR sets, height-blended -
+      // with the macro read where it is): aRM = the macro's colour multiplier, 2 + the green's chance (2+: an outcrop vertex);
+      // aRX = the exposure (the vote's rock share here), the macro's height 0..1, the masses' crevice, each mass's tone
+      const o = v * 8; attr[o] = mac[k * 7 + 1]; attr[o + 1] = mac[k * 7 + 2]; attr[o + 2] = mac[k * 7 + 3]; attr[o + 3] = 2 + mac[k * 7 + 4];
+      attr[o + 4] = mac[k * 7 + 5]; attr[o + 5] = Math.min(1, Math.max(0, (mac[k * 7] + 1.5) / 3.5)); attr[o + 6] = cre[q] * eXe[q]; attr[o + 7] = ide[q]; }
     const idx = []; for (let j = 0; j < m1 - 1; j++) for (let i = 0; i < m1 - 1; i++) { if (!cellOn[j * (m1 - 1) + i]) continue;
       const p = vid[j * m1 + i], q = vid[j * m1 + i + 1], r = vid[(j + 1) * m1 + i], t = vid[(j + 1) * m1 + i + 1]; idx.push(p, r, q, q, r, t); }
     // ---- THE BOULDERS (the bench v1's scatter, its rules per candidate on a jittered 2 m lattice inside the chunk): a TALUS
@@ -322,8 +434,8 @@ function ROCK_RING_CORE_FACTORY() {
         const pw = Math.pow(1 - r2, 3);
         let hT = big ? 2.5 + 2.5 * r2 : (isTalus ? 0.5 + 2.5 * pw : 1.2 + 4.8 * pw);
         // the eye's reach by size: small blocks to 250 m, mid to 450 m (the ring), the big ones to its edge
-        if (R0 > (hT < 1.5 ? 250 : 470)) continue;
-        const S = big ? kit.subs[kit.blocky[Math.floor(r1 * kit.blocky.length) % kit.blocky.length]] : kit.subs[Math.floor(r1 * kit.subs.length) % kit.subs.length];
+        const dP = Math.hypot(jx - eye[0], jz - eye[1]); if (dP > (hT < 1.5 ? 250 : (inp.reach || 450))) continue;   // (beyond the reach: the far layer's)
+        const S = big ? kit.subs[kit.blocky[Math.floor(r1 * kit.blocky.length) % kit.blocky.length]] : kit.subs[kit.pick[Math.floor(r1 * kit.pick.length) % kit.pick.length]];
         const bw = Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2]) / Math.max(S.h, 0.02);
         let c = 0, G = 0, rmin = 0, rr2 = 0, gxp = 0, gzp = 0;
         for (let pass = 0; pass < 2; pass++) {
@@ -358,21 +470,17 @@ function ROCK_RING_CORE_FACTORY() {
           RB.nor.push(n0[0] / q2, n0[1] / q2, n0[2] / q2);
           // the macro's colour at its foot, x its own tone; the foot (the lowest fifth) takes the ground's green
           const foot = L.pos[v * 3 + 1] / Math.max(S.h, 1e-3);
-          RB.attr.push(lat(mac7(1), jx, jz) * vk, lat(mac7(2), jx, jz) * vk, lat(mac7(3), jx, jz) * vk, 0.15 + 0.6 * (1 - ss(0.05, 0.25, foot)), 0, r3, 2, 0);
+          RB.attr.push(vk, vk, vk * 0.97, L.foot ? L.foot[v] : foot, L.crease ? L.crease[v] : 0, r3, 2, 0);   // (a boulder: its tone, its foot, its crease, its hash, the marker)
         }
-        for (let t = 0; t < L.idx.length; t++) RB.idx.push(nv + base + L.idx[t]);
+        for (let t = 0; t < L.idx.length; t++) RB.idx.push(base + L.idx[t]);
         base += L.nv;
       }
     }
-    if (RB.idx.length) {
-      const nb = RB.pos.length / 3, P2 = new Float32Array((nv + nb) * 3), D2 = new Float32Array((nv + nb) * 3), N2 = new Float32Array((nv + nb) * 3), A2 = new Float32Array((nv + nb) * 8);
-      P2.set(pos); P2.set(RB.pos, nv * 3); D2.set(disp); N2.set(nor); N2.set(RB.nor, nv * 3); A2.set(attr); A2.set(RB.attr, nv * 8);
-      const I2 = new Uint32Array(idx.length + RB.idx.length); I2.set(idx); I2.set(RB.idx, idx.length);
-      return { pos: P2, disp: D2, nor: N2, idx: I2, attr: A2, nv: nv + nb, nt: I2.length / 3, boulders: RB.idx.length / 3, ms: Date.now() - t0, n };
-    }
-    return { pos, disp, nor, idx: Uint32Array.from(idx), attr, nv, nt: idx.length / 3, boulders: 0, ms: Date.now() - t0, n };
+    // the boulders: their own mesh (their own material: the bench v1's rockMat), final positions
+    const B = RB.idx.length ? { pos: Float32Array.from(RB.pos), nor: Float32Array.from(RB.nor), attr: Float32Array.from(RB.attr), idx: Uint32Array.from(RB.idx), nv: RB.pos.length / 3 } : null;
+    return { pos, disp, nor, idx: Uint32Array.from(idx), attr, nv, nt: idx.length / 3, B, boulders: B ? B.idx.length / 3 : 0, ms: Date.now() - t0, n };
   }
-  return { chunk, kitPrep, macroAt, medium, jset, fbm, hh, vn2, ss, flowGrid, CZSD };
+  return { chunk, kitPrep, procKit, macroAt, medium, jset, fbm, hh, vn2, ss, flowGrid, CZSD };
 }
 var ROCK_RING_CORE = ROCK_RING_CORE_FACTORY();
 // the worker's text (rock_ring.js): the factory's own source - one copy of the law
