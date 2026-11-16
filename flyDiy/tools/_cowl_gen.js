@@ -73,7 +73,7 @@ const P={
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
   // before them is drawn to the bit.
-  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, keelLevel:0, deckLevel:0, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, scoopTaperH:1, scoopTaperW:1, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, keelLevel:0, deckLevel:0, deckFall:0, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, scoopTaperH:1, scoopTaperW:1, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
   // PROPER-COWLS: the side gills (the Carbon Cub's): off by default
   // PROPER-COWLS: a radial's helmets as the engine draws them - how many (0 = lobeN) and every other one's station (a
   // two-row radial's rear row; null = lobeT)
@@ -380,10 +380,13 @@ function prepareLid(){
   // the barrel no longer climbs over the fuselage's deck in its first centimetres. Absent: the taper's slope, as always
   const T=half(kT, P.deckSweep, lidRT()+fr,
                P.deckShoulder==null?null:clamp(+P.deckShoulder,0,0.92), P.deckRound==null?null:clamp(+P.deckRound,0,1),
-               +P.deckLevel>0, +P.deckLevel>0 ? -(+P.lidRise||0)/cl : 0);
+               +P.deckLevel>0, +P.deckLevel>0 ? -(+P.lidRise||0)/cl - (+P.deckFall||0) : 0);
   // (and the stretch BEHIND the bend - the last sweep share by the firewall - carries the same level line, not the
   // taper's: else the top still climbs in its first centimetres, the very band the user saw)
-  if(+P.deckLevel>0){ const z0=T.z0; T.lin={ v0:T.c.at(z0), sv:-(+P.lidRise||0)/cl, z0 }; }
+  // DECK-FALL (16 Nov, the 172, the user: "this one dips towards the propeller, and ours don't dip enough"): with deckLevel,
+  // the top line falls by deckFall (m a metre, as seen) toward the nose instead of leaving level - the three-view's
+  // straight descent from the firewall to the nose bowl. Absent 0: level, as deckLevel drew it
+  if(+P.deckLevel>0){ const z0=T.z0; T.lin={ v0:T.c.at(z0), sv:-(+P.lidRise||0)/cl-(+P.deckFall||0), z0 }; }
   // PROPER-COWLS V4 (the user, 8 Nov: "the easing is better but it's not enough ... a Cessna nose is very rounded"):
   // THE KEEL'S OWN BEND. The bowl's shoulder and fullness were one pair for every line, and a cowl whose top must
   // carry the barrel late (shoulder 0.88) bent its bottom late and sharp too. keelShoulder / keelRound give the bottom
