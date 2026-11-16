@@ -111,8 +111,35 @@
   }
   // the captured body, a fresh holder per car (the drive owns what it is given), in the sheet's frame
   function vanMesh(src) {
-    const T = THREE_, inner = new T.Group(); inner.name = 'drive:van';
-    window.PARKED.build(T, src.rec, inner);
+    const T = THREE_, P = window.PARKED, rec = src.rec, inner = new T.Group(); inner.name = 'drive:van';
+    // THE WHEELS APART (16 Nov, the user: "make the wheels spin"): parked.js merges a record's buckets per material, so a
+    // drawn wheel would be welded into the body. The record's WHEEL PARTS (the join gives each of a car's four wheels its
+    // own, about its own axle) are left out of the body - a copy of the record under its own key (its own cut and bake) -
+    // and each is drawn on its own (PARKED.levelMeshes) in the frame build() stands the body in (the stance's pitch and
+    // lift, the nose turned to +x), the tyres on CAGE_WHEELTEX's material, the rest plain in the record's colour
+    const isW = q => /^mains|^tw$/.test(q.kind || '') && q.pivot && !q.stretch;
+    const wParts = (rec.vis && rec.vis.parts || []).filter(isW);
+    const st = rec.stance || (rec.stance = P.stance(rec.vis));
+    if (wParts.length && !src.body) {
+      const vis = Object.assign({}, rec.vis, { parts: rec.vis.parts.filter(q => !isW(q)) });
+      let tris = 0; for (const k in vis.groups) tris += vis.groups[k].idx.length / 3; for (const q of vis.parts) for (const k in q.groups) tris += q.groups[k].idx.length / 3;
+      src.body = { key: rec.key + ':body', spec: rec.spec, vis, block: rec.block, atlas: rec.atlas, panel: rec.panel, t: rec.t, far: null, tris, stance: st, geos: rec.geos };
+    }
+    P.build(T, src.body || rec, inner);
+    const parts = [];
+    if (src.body) {
+      const mats = rec.vis.mats, pool = src.wheelMats || (src.wheelMats = {});
+      const matFor = k => { if (pool[k]) return pool[k]; const m = mats[k] || {};
+        const tm = m.tyreTex && window.CAGE_WHEELTEX ? window.CAGE_WHEELTEX.material(m.tyreTex) : null;
+        return pool[k] = tm || new T.MeshStandardMaterial({ color: m.color !== undefined ? m.color : 0x333333, metalness: m.metal !== undefined ? m.metal : 0.4, roughness: m.rough !== undefined ? m.rough : 0.5 }); };
+      matFor.tint = m0 => m0;
+      for (const q of wParts) {
+        const lv = P.levelMeshes(T, { vis: { groups: {}, parts: [q], mats }, geos: rec.geos || (rec.geos = new Map()) }, matFor, false);
+        const fr = new T.Group(); fr.rotation.z = st.pitch; fr.position.y = st.lift; fr.add(lv);
+        const flip = new T.Group(); flip.rotation.y = Math.PI; flip.add(fr); inner.add(flip);
+        const list = []; lv.traverse(o => { if (o.isMesh) list.push(o); }); parts.push(list);
+      }
+    }
     inner.updateMatrixWorld(true);
     // the vertices' extent, sampled (the LOD's near rung only: the same shape at every rung)
     const v = new T.Vector3(), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity], pts = [];
@@ -144,14 +171,9 @@
     // pivots; they leave the body and become the rig's wheels, each about its hub in the sheet's frame (its axle on z:
     // the rig spins it about z and steers it about y), matched to the sheet's nearest wheel
     holder.updateMatrixWorld(true);
-    const pivots = (src.rec.vis && src.rec.vis.parts || []).filter(q => /^mains|^tw$/.test(q.kind || '') && q.pivot && !q.stretch).map(q => q.pivot);
-    const near = (p, q) => Math.abs(p.x - q[0]) < 1e-3 && Math.abs(p.y - q[1]) < 1e-3 && Math.abs(p.z - q[2]) < 1e-3;
-    const byPivot = new Map();
-    inner.traverse(o => { if (!o.isMesh) return; const i = pivots.findIndex(q => near(o.position, q)); if (i < 0) return;
-      if (!byPivot.has(i)) byPivot.set(i, []); byPivot.get(i).push(o); });
     const wheels = {}, inv = new T.Matrix4().copy(holder.matrixWorld).invert(), hubW = new T.Vector3();
     const ids = Object.keys(src.sheet.wheels || {});
-    for (const [, list] of byPivot) {
+    for (const list of parts) {
       list[0].getWorldPosition(hubW); const hub = hubW.clone().applyMatrix4(inv);
       let best = null, bd = 0.6;                     // (a wheel's hub within 0.6 m of a sheet wheel's centre)
       for (const id of ids) { const c = src.sheet.wheels[id].centre; const d = Math.hypot(c[0] - hub.x, c[1] - hub.y, c[2] - hub.z); if (d < bd) { bd = d; best = id; } }
