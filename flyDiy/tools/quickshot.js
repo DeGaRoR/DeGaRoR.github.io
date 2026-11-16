@@ -52,7 +52,8 @@
 //                                shell's thickness reads. Default view: the cut's own (side / top / front).
 //     --cutq                     the side cut seen three-quarter from above-behind, the cut's side, framed on the cabin
 //                                (the pilot, the seat, the dash): the fitting view (view name cq)
-//     --focus cabin              frame any view on the pilot, the pilot's seat and the dash
+//     --focus cabin              frame any view on the pilot, the pilot's seat and the dash (the default of --cut top
+//                                and --cut front; an explicit --focus or --around wins)
 //     --half                     = --cut side (the old cutaway; its default views stay side,top)
 //     --w 1400                   picture width, px
 //     --marks fittings|corners|reg   rings on the placed fittings / a quad window's corners / the registration's box
@@ -612,7 +613,8 @@ function view(name) {
   // RETRACT GR: --focus gear frames the picture on the gear layer's parts (and the wing's wells), with a margin
   const FOCUS = opt('focus', null) === 'gear' && tris.some(t => t.gear);
   // --focus cabin (and --cutq's cq): frame on the pilot, the pilot's seat and the panel (the crew layer's items)
-  const CABIN = !FOCUS && (opt('focus', null) === 'cabin' || name === 'cq') && tris.some(t => t.cab);
+  // (--cut top / --cut front frame the cabin by default, A0 16 Nov; an explicit --focus, --around or --frames wins)
+  const CABIN = !FOCUS && (opt('focus', null) === 'cabin' || name === 'cq' || (!opt('focus', null) && (CUT_K === 'top' || CUT_K === 'front'))) && tris.some(t => t.cab);
   if (name === 'cq' && !CABIN) console.log('cq: no pilot or panel drawn - the whole aeroplane framed');
   for (const t of tris) if (FOCUS ? t.gear : CABIN ? t.cab : true) for (let k = 0; k < 9; k += 3) { const p = [t[k], t[k + 1], t[k + 2]]; const u = V.u(p), w = V.w(p); u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
   const crop = opt('crop', null);
