@@ -61,7 +61,7 @@ const D = PG.GRASS_SIDES_DEF;
   const lane = q(across(S, -S.wid / 2 + 1.098)), mid = q(across(S, -S.wid / 2));
   ok(lane.kill > 0.7 && lane.surf === 1 && mid.kill > 0 && mid.kill < lane.kill && surf.kill === 0, "3 'sides': the grass strip's trail - its wheel lanes nearly bare, its middle thinned, cut grass beside", 'tw_ski lane ' + lane.kill.toFixed(2) + ', middle ' + mid.kill.toFixed(2) + ', 5 m out ' + surf.kill);
   ok(G.trackW === 2.7 && !wildT.cut && !wildT.surf && (wildT.kill || 0) === 0, "3 'sides': past the narrow drawn track (trackW " + G.trackW + ' m) the trail strip grows the wild grass', 'tw_ski 5 m off the centreline: cut ' + (wildT.cut || 0) + ' surf ' + (wildT.surf || 0));
-  ok(soft.kill === 0 && soft.cut === 1, "3 'sides': a soft (gravel) strip's torn edge lets the cut grass in past " + G.softClear + ' m', 'w3 +1 m kill ' + soft.kill + ' cut ' + soft.cut);
+  ok(soft.kill === 0 && soft.cut === (G.softBandK > 0 || G.mowBand > 0 ? 1 : 0), "3 'sides': a soft (gravel) strip's torn edge lets the grass in past " + G.softClear + ' m (wild since GRASS TO THE EDGE, 7)', 'w3 +1 m kill ' + soft.kill + ' cut ' + soft.cut);
   PG.grassSides({ stripGrass: 0 }); const bare = q(across(S, -4)); PG.grassSides({ stripGrass: 1 });
   ok(bare.kill === 1 && !bare.surf, "3 'sides' with stripGrass 0: the grass strip's surface bare again (G665's answer)");
   law('today'); }
@@ -96,6 +96,20 @@ const D = PG.GRASS_SIDES_DEF;
   const run = win => { const G = { hard: 1 }; new Function('window', 'GRASS_SIDES', 'process', line)(win, G, undefined); return G.hard; };
   ok(!!line && run({}) === 1 && run({ FLYDIY_GRASS_HARD: 0 }) === 0 && run({ FLYDIY_GRASS_HARD: '0' }) === 0 && run({ FLYDIY_GRASS_HARD: 1 }) === 1,
      "6 the page (no process): hard stays the default unless window.FLYDIY_GRASS_HARD is set", line ? [run({}), run({ FLYDIY_GRASS_HARD: 0 }), run({ FLYDIY_GRASS_HARD: '0' })].join(' / ') : 'no override line'); }
+
+// 7 GRASS TO THE EDGE (16 Nov eve, the user: "the best looking is ... wild grass coming close up"): a SOFT strip's own cut band x
+//   softBandK (0: the wild grass runs to its drawn edge, past softClear and the mowBlend metre), the slight cut band mowBand (0 m);
+//   the paved fields keep their 40 m mown band; softBandK 1 puts the old cut back
+{ law('sides'); const G0 = PG.grassSides(), W1 = A('w1'), H = A('HOME');
+  ok(G0.softBandK === 0 && G0.mowBand === 0, '7a the defaults: softBandK 0, mowBand 0 m', 'softBandK ' + G0.softBandK + ', mowBand ' + G0.mowBand);
+  const at = (a, v) => q(across(a, v, a.len * 0.2));
+  const w2 = at(W1, 2), w3 = at(W1, 3.5), h20 = at(H, 20);
+  ok(!w2.cut && (w2.kill || 0) === 0 && !w3.cut && (w3.kill || 0) === 0, '7b Cabin Strip (gravel, its own band 4 m): wild grass 2 m and 3.5 m past the edge - no cut, no kill', '+2 m cut ' + (w2.cut || 0) + ' kill ' + (w2.kill || 0) + ', +3.5 m cut ' + (w3.cut || 0));
+  ok(h20.cut === 1 && (h20.kill || 0) === 0, '7c HOME (old concrete): its 40 m band stays cut', '+20 m cut ' + h20.cut);
+  PG.grassSides({ softBandK: 1 }); const back = at(W1, 3.5); PG.grassSides({ mowBand: 3, softBandK: 0 }); const slight = at(W1, 2), past = at(W1, 4.5);
+  PG.grassSides({ softBandK: G0.softBandK, mowBand: G0.mowBand });
+  ok(back.cut === 1 && slight.cut === 1 && !past.cut, '7d softBandK 1 puts the strip\'s own cut band back; mowBand 3 m cuts a slight band and no further', '+3.5 m cut ' + back.cut + ' (K 1), +2 m ' + slight.cut + ' / +4.5 m ' + (past.cut || 0) + ' (mowBand 3)');
+  ok(at(W1, 3.5).surf === 0 || at(W1, 3.5).surf == null, '7e look only: past the edge the surface is never the strip\'s (the wheels read the ground)'); }
 
 console.log('GATE GRASSSIDES: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
