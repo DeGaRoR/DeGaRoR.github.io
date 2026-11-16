@@ -316732,3 +316732,10 @@ and cw_lidRound 0.06 -> 0.2 (the top line one smooth rise from the ring to the f
 CLIP (A0, same day): the 172 nose strut (edLegT) inside the refit cowl, 434.9 mm at every pose, is a DECLARED gap in
 tools/_clip_check.js (c172 x cageLayer:cowl, cap 436 mm) beside the fuselage one - the same strut, the same reason, the refit cowl
 now encloses it. Its own commit: revert it if REAL-FIGURES' read of the three-view says otherwise.
+NOSE HUMP + ROUND SPINNER OPENING (the user, 16 Nov): the cowl top climbed back before the nose bowl - with deckFall the bend's
+second point was still aimed at the firewall's height. _cowl_gen.js: with deckLevel and deckFall > 0 the top line is drawn AS SEEN, one
+convex cubic (straight on the fall to deckShoulder, deckRound 0 = the chord to the ring .. 1 = the fall carried on), the spine taken
+back out; deckFall 0 is untouched (only the 172 sets it). Refit to the three-view at level 2, the firewall end pinned to the body:
+deckH 1.17 -> 1.1763, deckFall 0.17 -> 0.0594, deckShoulder 0.92 -> 0.6227, deckRound 0.15 -> 0; the slope now steepens from 0.06 at the
+firewall to 0.36 at the ring, within 5 mm of the drawing. The centre opening was a diamond (cw_apSq 0 = n 1): apSq 0.5, apH 0.12 -> 0.113
+(a circle). Figures move < 0.1 %. Gates: COWL CLIP COOL CAGEFIT BLUEPRINT pass; KNIFE / TAXICLEAR pack / REALBAND c172v2 the known reds.

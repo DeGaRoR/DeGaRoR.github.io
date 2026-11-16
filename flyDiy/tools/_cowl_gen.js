@@ -387,6 +387,21 @@ function prepareLid(){
   // the top line falls by deckFall (m a metre, as seen) toward the nose instead of leaving level - the three-view's
   // straight descent from the firewall to the nose bowl. Absent 0: level, as deckLevel drew it
   if(+P.deckLevel>0){ const z0=T.z0; T.lin={ v0:T.c.at(z0), sv:-(+P.lidRise||0)/cl-(+P.deckFall||0), z0 }; }
+  // DECK-FALL AS ONE CONVEX LINE (16 Nov, the 172, the user: "we need to get rid of the little hump close to the nose to get a
+  // purely monotonous curve"). The bowl's bend was aimed at the firewall's height (fullness measured from v0), so a top
+  // that already falls toward the nose dipped under the bend's second point and climbed back to it: a hump. With a fall the
+  // line is drawn AS SEEN (the spine's climb taken out): straight on the fall to the shoulder, then the bowl - its second
+  // point between the chord to the ring (deckRound 0) and the fall carried on (1) - so the control polygon is convex and
+  // the line only ever steepens into the face. Absent (deckFall 0): the bend as it was, to the bit
+  if(+P.deckLevel>0&&+P.deckFall>0){
+    const z0=T.z0, Lh=ze-z0, fall=+P.deckFall, lr=+P.lidRise||0;
+    const s0=T.c.at(z0)+lr*z0/cl, sE=lidRT()+lr+(+P.faceRise||0);            // seen heights: the line's start, the ring's top
+    const line=z=>s0-fall*(z-z0);
+    const z1=z0+Lh*clamp(P.deckShoulder==null?c1:+P.deckShoulder,0,0.92), z2=ze-Lh*0.05, v1=line(z1);
+    const chord=v1+(sE-v1)*(z2-z1)/Math.max(ze-z1,1e-6), r=clamp(P.deckRound==null?c2:+P.deckRound,0,1);
+    const v2=Math.max(chord+(Math.max(line(z2),chord)-chord)*r, sE);
+    T.seen=mkCurve([z0,z1,z2,ze],[s0,v1,v2,sE]);
+  }
   // PROPER-COWLS V4 (the user, 8 Nov: "the easing is better but it's not enough ... a Cessna nose is very rounded"):
   // THE KEEL'S OWN BEND. The bowl's shoulder and fullness were one pair for every line, and a cowl whose top must
   // carry the barrel late (shoulder 0.88) bent its bottom late and sharp too. keelShoulder / keelRound give the bottom
@@ -450,6 +465,8 @@ function sectionAtZ(z){
   }
   const hLin=lerp(P.aftH,P.aftH*P.taperH,clamp(z/cl,0,1));
   let bT = z<=LID.T.z0 ? (LID.T.lin ? Math.max(LID.T.lin.v0+LID.T.lin.sv*(z-LID.T.lin.z0),0.003) : LID.T.k*hLin) : Math.max(LID.T.c.at(z),0.003);
+  // (DECK-FALL: the seen line less the local spine - the bowl's own lift taken back below, as for every shaped ring)
+  if(LID.T.seen&&z>LID.T.z0) bT=Math.max(LID.T.seen.at(z)-(z>cl&&lidShaped()?P.lidRise:cy),0.003)+(z>cl&&lidShaped()?cy-P.lidRise:0);
   let bB = z<=LID.K.z0 ? LID.K.k*hLin : Math.max(LID.K.c.at(z),0.003);
   let yw = z<=LID.W.z0 ? (LID.W.kF==null ? LID.W.k*hLin : lerp(LID.W.yA,LID.W.yF,clamp(z/cl,0,1))) : LID.W.c.at(z);
   if(z>cl&&lidShaped()){ const sh=cy-P.lidRise; bT=Math.max(bT-sh,0.003); bB=Math.max(bB+sh,0.003); if(z>LID.W.z0) yw-=sh; }
