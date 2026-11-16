@@ -118,8 +118,8 @@ view(Q.get('view') || 'face');
 const gl = renderer.getContext(), t1 = performance.now(); renderer.render(scene, camera); gl.finish(); const firstMs = Math.round(performance.now() - t1);
 const prog = renderer.info.programs.find(p => p.name && /MeshStandard/.test(p.name)) || renderer.info.programs[0];
 const errs = []; renderer.debug.onShaderError = (g, p, vs, fs) => errs.push(String(g.getProgramInfoLog(p) || '') + String(g.getShaderInfoLog(fs) || ''));
-let samplers = null; { const p = prog && prog.program; if (p) { samplers = 0; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
-  for (let i = 0; i < n; i++) { const u = gl.getActiveUniform(p, i); if ([gl.SAMPLER_2D, gl.SAMPLER_2D_ARRAY, gl.SAMPLER_CUBE, gl.SAMPLER_3D].includes(u.type)) samplers += u.size; } } }
+// the sampler units the ground program declares (three's own + the hook's + the splat's): every 'uniform ... samplerX a, b;' name
+const samplers = (FS.match(/uniform\s+(?:\w+\s+)?sampler\w*\s+[^;]+;/g) || []).reduce((n, d) => n + d.replace(/^.*sampler\w*\s+/, '').split(',').length, 0);
 window.GB = { ready: true, buildMs, firstMs, fsLen: FS.length, samplers, linked: !!(prog && gl.getProgramParameter(prog.program, gl.LINK_STATUS)),
   layers: SPL.api.layers(), trOn: SPL.uniforms.uTrOn ? SPL.uniforms.uTrOn.value : -1, view,
   eyes: Object.fromEntries(Object.keys(VIEWS).map(k => { const [e, t] = VIEWS[k](); return [k, { pos: e.map(v => +v.toFixed(1)), target: t.map(v => +v.toFixed(1)) }]; })),
