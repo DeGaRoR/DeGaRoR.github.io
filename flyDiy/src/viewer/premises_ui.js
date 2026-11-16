@@ -1189,7 +1189,7 @@ function mount(host, ctx) {
     if (tool === 'probe') {
       const h = R.heightAt(g[0], g[2]);
       const sx = (R.heightAt(g[0] + 1, g[2]) - R.heightAt(g[0] - 1, g[2])) / 2, sz = (R.heightAt(g[0], g[2] + 1) - R.heightAt(g[0], g[2] - 1)) / 2;
-      const s = PG.SURFACE_NAMES[R.overlay.surfaceAt(g[0], g[2])] || 'base';
+      const s = PG.surfaceName(R.overlay.surfaceAt(g[0], g[2])) || 'base';
       strip.status('x ' + L[0].toFixed(1) + ' z ' + L[1].toFixed(1) + ' · ' + h.toFixed(2) + ' m (' + (h - F.y0).toFixed(2) + ' over the anchor) · slope ' + (Math.hypot(sx, sz) * 100).toFixed(1) + ' % · ' + s + (R.overlay.excludeAt(g[0], g[2], 'trees') ? ' · no trees' : '') + ' · road ' + R.overlay.roadNear(g[0], g[2]).toFixed(0) + ' m');
       return;
     }
@@ -1306,7 +1306,7 @@ function mount(host, ctx) {
   }
 
   // ---- the inspector: declared rows for the selected feature ----------------------
-  const SURF_OPTS = PG.SURFACE_NAMES.map((n, i) => [String(i), n.toLowerCase()]);
+  const SURF_OPTS = PG.SURFACE_NAMES.map((n, i) => [String(i), n.toLowerCase()]).concat(Object.keys(PG.SURFACE_WX_NAMES || {}).map(c => [c, PG.SURFACE_WX_NAMES[c].toLowerCase() + ' (follows the weather)']));   // (SNOW-MUD LADDER: the weather codes)
   // ---- A COVER POLYGON'S VEGETATION (G1385 EDITOR-VEG, contract v1.31) ----------------------------------------
   // none, any biome of the payload (tools/_trees_tuning.json's mixes, as the world rail has them), or a new biome
   // defined in place - its species from the catalogue, each its share, and the stand's density. The terrain type it
@@ -1490,7 +1490,7 @@ function mount(host, ctx) {
     } else if (layer === 'surface') {
       // ONE SURFACE (the user, 18 Oct: "remove all options allowing to separately set the surface and wheel feel"): an old
       // file's surface entry - a feel drawn nowhere - is kept as it is and said, never offered (an AREA draws and feels as one)
-      rows.note(insp, 'an old file\'s surface: the wheels feel ' + (PG.SURFACE_NAMES[+e.surface] || '?').toLowerCase() + ' here, nothing drawn - kept as it was');
+      rows.note(insp, 'an old file\'s surface: the wheels feel ' + (PG.surfaceName(e.surface) || '?').toLowerCase() + ' here, nothing drawn - kept as it was');
       rows.slider(insp, 'priority', -5, 5, 1, () => e.z || 0, v => ed(x => { x.z = v; }, 'priority of ' + id, 'z'), v => v.toFixed(0) + (v > 0 ? ' (over)' : v < 0 ? ' (under)' : ''));
     } else if (layer === 'material') {
       const sets = materialSets();
@@ -1938,13 +1938,13 @@ function mount(host, ctx) {
       const bb = PG.polyBBox(poly), c = PG.polyCentroid(poly);
       rows.note(insp, m2(Math.abs(PG.polyArea(poly))) + ' · ' + per.toFixed(0) + ' m round · ' + (PG.roundOk(a.round) ? 'a circle r ' + (+a.round.r).toFixed(1) + ' m' : PG.rectOk(a.rect) ? 'a rectangle' : poly.length + ' corners') + ' · ' + (bb.x1 - bb.x0).toFixed(0) + ' x ' + (bb.z1 - bb.z0).toFixed(0) + ' m');
       const O = R.overlay;
-      if (O && O.frame) { const w = O.frame.toWorld(c[0], c[1]); const s = O.surfaceAt ? PG.SURFACE_NAMES[O.surfaceAt(w[0], w[1])] : null; const tx = O.excludeAt ? O.excludeAt(w[0], w[1], 'trees') : false;
+      if (O && O.frame) { const w = O.frame.toWorld(c[0], c[1]); const s = O.surfaceAt ? PG.surfaceName(O.surfaceAt(w[0], w[1])) : null; const tx = O.excludeAt ? O.excludeAt(w[0], w[1], 'trees') : false;
         rows.note(insp, 'at its middle: ' + (s ? 'the wheels feel ' + s.toLowerCase() : 'the island\'s own ground') + (tx ? ' · no trees' : '') + ' · ' + (R.heightAt(w[0], w[1]) - O.frame.y0).toFixed(1) + ' m over the anchor'); }
     }
     // WHAT IT DOES, one line each - and what it does NOT (the surprise the user met: a gravel band that draws nothing)
     const does = [], keeps = new Set((P.exclude && P.exclude.what) || []);
     if (P.terraform) does.push('moves the ground: ' + (P.terraform.kind === 'flatten' ? 'flat at ' + (+P.terraform.level || 0).toFixed(1) + ' m' : P.terraform.kind === 'raise' ? ((+P.terraform.dh || 0) >= 0 ? 'raised ' : 'lowered ') + Math.abs(+P.terraform.dh || 0).toFixed(1) + ' m' : 'a ' + ((+P.terraform.slope || 0) * 100).toFixed(1) + ' % slope'));
-    if (P.wheels) { does.push('the wheels feel ' + (PG.SURFACE_NAMES[+P.wheels.surface] || '?').toLowerCase() + (P.wheels.apron ? ' (an apron)' : '')); if (HARD.indexOf(+P.wheels.surface) >= 0) { keeps.add('trees'); keeps.add('plots'); } }
+    if (P.wheels) { does.push('the wheels feel ' + (PG.surfaceName(P.wheels.surface) || '?').toLowerCase() + (P.wheels.apron ? ' (an apron)' : '')); if (HARD.indexOf(+P.wheels.surface) >= 0) { keeps.add('trees'); keeps.add('plots'); } }
     if (P.draw) does.push('draws ' + (lookCls(P.draw) ? (PG.RUNWAY_LOOKS[P.draw.look].name || P.draw.look) + ' (the pavement: no repetition)' : 'the texture ' + P.draw.set));
     if (P.marks) does.push('paints ' + P.marks.kind + ' marks');
     if (keeps.size) does.push('keeps out: ' + Array.from(keeps).join(', '));
@@ -1953,7 +1953,7 @@ function mount(host, ctx) {
     rows.section(insp, 'WHAT IT DOES');
     if (!does.length) rows.note(insp, 'nothing yet: a sketch - add a property below', 'warn');
     for (const t of does) rows.note(insp, t, 'ok');
-    if (P.wheels && !P.draw) rows.note(insp, 'it draws NOTHING: the wheels feel ' + (PG.SURFACE_NAMES[+P.wheels.surface] || '?').toLowerCase() + ' and the trees keep out, but the ground looks as it was - add a DRAW', 'warn');
+    if (P.wheels && !P.draw) rows.note(insp, 'it draws NOTHING: the wheels feel ' + (PG.surfaceName(P.wheels.surface) || '?').toLowerCase() + ' and the trees keep out, but the ground looks as it was - add a DRAW', 'warn');
     const ov = overlapsOf(a);
     if (ov.length) {
       const d = $('div', { class: 'r' }); d.appendChild($('span', { class: 'k', text: 'overlaps', title: 'the features that share its ground - a click selects one' }));
@@ -1988,10 +1988,10 @@ function mount(host, ctx) {
     }
     if (P.wheels) {
       const w = P.wheels, edW = (mut, label, key) => edP('wheels', mut, label, key);
-      sec('wheels', (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase());
+      sec('wheels', (PG.surfaceName(w.surface) || '?').toLowerCase());
       // ONE SURFACE (18 Oct): the wheels feel what DRAW's surface is - set there (an old file's other feel is converted on load:
       // FEEL FOLLOWS THE LOOK, 27_premises normalise)
-      { const L = lookCls(P.draw) ? PG.RUNWAY_LOOKS[P.draw.look] : null, nm = (PG.SURFACE_NAMES[+w.surface] || '?').toLowerCase();
+      { const L = lookCls(P.draw) ? PG.RUNWAY_LOOKS[P.draw.look] : null, nm = (PG.surfaceName(w.surface) || '?').toLowerCase();
         if (!P.draw) rows.note(insp, 'an old file\'s: the wheels feel ' + nm + ' and nothing is drawn - kept as it was; add a DRAW to set both');
         else rows.note(insp, L ? 'the wheels feel the drawn surface (DRAW sets both)' : 'the wheels feel ' + nm + ' under the texture'); }
       rows.check(insp, 'an apron (the pilot lists it)', () => !!w.apron, v => edW(q => { if (v) q.apron = true; else delete q.apron; }, 'apron'));
