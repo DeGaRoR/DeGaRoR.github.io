@@ -686,6 +686,22 @@ const gMat = groundMat();
   sea.position.y = 0; scene.add(sea); }
 
 // ---- (d) THE SCATTER: boulders and scree from the game's rock kits ----------------------------------------------------------
+// the ground's drawn height at (x, z): the DEM, plus - inside the rock mesh's ring, where its mask is - the same displacement
+// the skirt applies (the Laplacian smoothing aside: within a few dm of it; the seating rule's sink covers that)
+function surfY(x, z) {
+  const y0 = hXZ(x, z);
+  if (!(TSKIRT && TRD) || Math.hypot(x - SKX, z - SKZ) > SKR) return y0;
+  const fi = (x + HALF) / ST, fj = (z + HALF) / ST, ci = Math.floor(fi), cj = Math.floor(fj), u = fi - ci, w = fj - cj;
+  if (ci < 0 || cj < 0 || ci >= N - 1 || cj >= N - 1) return y0;
+  const m = (vMask[cj * N + ci] * (1 - u) + vMask[cj * N + ci + 1] * u) * (1 - w) + (vMask[(cj + 1) * N + ci] * (1 - u) + vMask[(cj + 1) * N + ci + 1] * u) * w;
+  if (m <= 0) return y0;
+  let ex0 = TRD.eAt(x, z);
+  if (ex0 >= 0) { let a = ex0, nn = 1; for (const [ox, oz] of [[2.5, 0], [-2.5, 0], [0, 2.5], [0, -2.5], [1.8, 1.8], [-1.8, -1.8], [1.8, -1.8], [-1.8, 1.8]]) { const e = TRD.eAt(x + ox, z + oz); if (e >= 0) { a += e; nn++; } } ex0 = a / nn; }
+  const eX = ex0 < 0 ? m : ss(0.25, 0.75, ex0) * Math.min(1, m * 3);
+  const med = medium(x, y0, z), [mu, sd] = medNorm(), z0 = (med.h - mu) / sd, zc = z0 > 0 ? z0 / (1 + 0.55 * z0) : z0 / (1 - 0.25 * z0);
+  const g = gradXZ(x, z, 5), l = Math.hypot(g[0], 1, g[1]);
+  return y0 + (TRD.hAt(x, z) * Math.min(1, m * 3) + eX * (MED.lift + MED.amp * 0.6 * zc)) / l;
+}
 async function buildScatter() {
   // RULES (per candidate on a jittered 2 m lattice, CPU, once): a TALUS field - the concave foot of a face (a cell within
   // 35 m downhill of ground over 45 deg, slope under 40, the 20 m curvature negative) - takes many small and mid blocks; a
@@ -710,7 +726,7 @@ async function buildScatter() {
   const kitMean = im => { if (!im || !im.image) return 0.2; const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d');
     x.drawImage(im.image, 0, 0, 32, 32); const d = x.getImageData(0, 0, 32, 32).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]); return s / 1024; };
   const TC = TRD ? TRD.jS.meanAlbedo : [0.3, 0.28, 0.24];
-  const rockMat = (map, nor) => { const m = new THREE.MeshStandardMaterial({ map, normalMap: nor, roughness: TROND ? 1.0 : 0.95, metalness: 0 });
+  const kitMat = (map, nor) => { const m = new THREE.MeshStandardMaterial({ map, normalMap: nor, roughness: TROND ? 1.0 : 0.95, metalness: 0 });
     const km = kitMean(map);
     m.onBeforeCompile = sh => {   // THE FOOT IN THE GROUND: the lowest 25 % of a block darkened toward the ground's own shade
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vFoot; uniform float uH;')
@@ -737,33 +753,71 @@ async function buildScatter() {
     const rocky = Math.max(cR, cS) * ss(18, 26, sl) * (1 - ss(44, 50, sl)) * clus * (1 - cF);
     // THE EDGE: where the raster's rock thins into heath (a 3 x 3 box share of 0.15-0.85) blocks break the blend's line
     const edge = (cR > 0.12 && cR < 0.88 ? 1 : 0) * (1 - ss(40, 50, sl)) * (1 - cF) * (0.4 + 0.6 * clus);
-    const p = talus * 0.25 + rocky * 0.04 + edge * 0.10;
-    if (hh(Math.round(jx * 7), Math.round(jz * 7), 3) < p) cand.push([jx, jz, talus > rocky * 0.16 ? 1 : 0, sl]);
+    // (16 Nov, the user: "a little bit more ... not all of them bigger, add a slightly bigger category and increase a little
+    // the medium and small ones": +30 % across, and a BIG class - 3.5-8 m, in the packs of the outcrops and the talus, rare)
+    const p = talus * 0.33 + rocky * 0.055 + edge * 0.13;
+    const rr = hh(Math.round(jx * 7), Math.round(jz * 7), 3);
+    if (rr < p) cand.push([jx, jz, talus > rocky * 0.16 ? 1 : 0, sl, (TROND && clus > 0.55 && hh(Math.round(jx * 5), Math.round(jz * 5), 9) < 0.07) ? 1 : 0]);
   }
   // instances by subject
-  const subs = kitR.subjects.map(s => ({ s, mat: rockMat(mapR, norR), list: [] })).concat([{ s: kitC.subjects[0], mat: rockMat(mapC, norC), list: [], group: 1 }]);
+  // (16 Nov, the user: "aren't these rocks UV mapped?" - they are: the pack's own atlas, and some of its faces smear. Under
+  // ?trond the kits drop their UVs altogether and wear the mesh way's TRIPLANAR material - the game's cliff photograph in the
+  // rock's object space, its normal map on the same coordinates - tinted to the trondhjemite: no UV to smear)
+  const triMat = TROND ? rockMat(ROCKSCALE * 0.5) : null;
+  const subs = kitR.subjects.map(s => ({ s, mat: triMat || kitMat(mapR, norR), list: [] })).concat([{ s: kitC.subjects[0], mat: triMat || kitMat(mapC, norC), list: [], group: 1 }]);
+  // the kit's BLOCKIEST subjects (height over width, the tallest first): the big class draws from them only - the flat paving
+  // blocks scaled to 5-8 m were 24 m plates, blades seen edge-on
+  const blocky = subs.slice(0, kitR.subjects.length).map((S, i) => [i, S.s.h / Math.max(S.s.bb[3] - S.s.bb[0], S.s.bb[5] - S.s.bb[2])]).sort((a, b) => b[1] - a[1]).slice(0, 4).map(a => a[0]);
+  const tint = TROND ? TC.map(v => v / Math.max(MEAN[ROCKSET], 1e-3) * 0.9) : [1, 1, 1];
   const M = new THREE.Matrix4(), Qn = new THREE.Quaternion(), Qy = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0), NN = new THREE.Vector3();
-  for (const [x, z, isTalus, sl] of cand) {
+  for (const [x, z, isTalus, sl, big] of cand) {
     const r1 = hh(Math.round(x * 13), Math.round(z * 13), 5), r2 = hh(Math.round(x * 13), Math.round(z * 13), 6), r3 = hh(Math.round(x * 13), Math.round(z * 13), 7);
-    const grp = !isTalus && r3 < 0.12;   // a rocky slope's cluster now and then is the scanned rock group
-    const S = grp ? subs[subs.length - 1] : subs[Math.floor(r1 * (subs.length - 1))];
-    // size: a power law - talus 0.4-2.5 m, slope blocks 1-5 m (height), the group 0.7-1.6 x its scan
+    // (trond: NO scanned coast group - its scan carries a plate of beach sand the game cuts away in its own shader, and leaning
+    // into the relief the plate stood out as a blade; the big class takes the kit's tallest blocks instead)
+    const grp = !TROND && !isTalus && r3 < 0.12;   // a rocky slope's cluster now and then is the scanned rock group
+    const S = big ? (!TROND && r1 < 0.4 ? subs[subs.length - 1] : subs[blocky[Math.floor(r1 * blocky.length) % blocky.length]]) : (grp ? subs[subs.length - 1] : subs[Math.floor(r1 * (subs.length - 1))]);
+    // size: a power law - talus 0.4-2.5 m, slope blocks 1-5 m (height), the group 0.7-1.6 x its scan, the BIG 3.5-8 m
     const pw = Math.pow(1 - r2, 3.0);
-    const hTarget = grp ? S.s.h * (0.7 + 0.9 * r2) : (isTalus ? 0.5 + 2.5 * pw : 1.2 + 4.8 * pw);
-    const k = hTarget / Math.max(S.s.h, 0.02);
-    const g = gradXZ(x, z, 2); NN.set(-g[0], 1, -g[1]).normalize(); NN.lerp(UP, 0.5).normalize();
+    let hTarget = big ? 2.5 + 2.5 * r2 : (grp ? S.s.h * (0.7 + 0.9 * r2) : (isTalus ? 0.5 + 2.5 * pw : 1.2 + 4.8 * pw));
+    const g = gradXZ(x, z, 2); NN.set(-g[0], 1, -g[1]).normalize(); NN.lerp(UP, TROND ? 0.2 : 0.5).normalize();   // (trond: leaning 80 % to its slope)
     Qn.setFromUnitVectors(UP, NN); Qy.setFromAxisAngle(UP, r1 * 6.2832 * 7.0); Qn.multiply(Qy);
-    const bury = 0.35 + 0.15 * r3;
-    V.set(x, hXZ(x, z) - hTarget * bury, z); SC.set(k * (0.8 + 0.4 * r3), k, k * (0.8 + 0.4 * r2));
+    // THE SEATING RULE (16 Nov, the user: "make sure they are quite sunk ... with the relief we have now it's easy to have them
+    // floating ... without sinking them all"): the ground they stand on is the DISPLACED surface (the rock mesh's own law),
+    // read at the centre and at four points round the footprint; the block's base goes to the LOWEST of them, then sinks a
+    // fraction of its height; where the footprint's relief is more than half the block's height it would drown or bridge, so
+    // it GROWS instead (up to 1.4x) to cover it, and is seated again; only a block that would VANISH (its top under the high side) is dropped
+    const bw = Math.max(S.s.bb[3] - S.s.bb[0], S.s.bb[5] - S.s.bb[2]) / Math.max(S.s.h, 0.02);   // width over height
+    // the ground under the footprint as a PLANE (its slope) and the bumps / hollows against it (the slope alone is no relief)
+    let c = 0, G = 0, rmin = 0, rmax = 0, r = 0;
+    for (let pass = 0; pass < 2; pass++) {
+      r = 0.4 * bw * hTarget; c = surfY(x, z);
+      const px_ = surfY(x + r, z), nx_ = surfY(x - r, z), pz_ = surfY(x, z + r), nz_ = surfY(x, z - r);
+      const gx = (px_ - nx_) / (2 * r), gz = (pz_ - nz_) / (2 * r); G = Math.hypot(gx, gz);
+      const res = [px_ - (c + gx * r), nx_ - (c - gx * r), pz_ - (c + gz * r), nz_ - (c - gz * r)];
+      const q = 0.7 * r; for (const [ox, oz] of [[q, q], [-q, q], [q, -q], [-q, -q]]) res.push(surfY(x + ox, z + oz) - (c + gx * ox + gz * oz));
+      rmin = Math.min(0, ...res); rmax = Math.max(0, ...res);
+      if (rmax - rmin > 0.5 * hTarget && pass === 0) hTarget = Math.min(hTarget * 1.3, hTarget + (rmax - rmin) * 0.6); else break;
+    }
+    const k = hTarget / Math.max(S.s.h, 0.02);
+    // (a flat paver is kept, but never wider than 2.6 x its height)
+    const kxz = Math.min(1, 2.6 / bw);
+    const bury = 0.3 + 0.15 * r3;
+    // the base: the deepest hollow under it, minus the stand-off its lean leaves on the downhill side (it leans 80 % to the
+    // slope: a fifth of the plane's drop across the footprint), minus the sink
+    const yB = c + rmin - (TROND ? 0.2 : 0.5) * G * r - hTarget * bury;
+    if (yB + hTarget < c + 0.15 * hTarget) continue;   // (it would vanish: its top not over its centre's ground)
+    V.set(x, yB, z); SC.set(k * kxz * (0.8 + 0.4 * r3), k, k * kxz * (0.8 + 0.4 * r2));
     M.compose(V, Qn, SC);
     STAT.placed = (STAT.placed || 0) + 1;
     // THE RING (as the cover ring would draw it): small blocks to 250 m from the eye, blocks over 1.5 m to 600 m
-    if (Math.hypot(x - camera.position.x, z - camera.position.z) > (hTarget < 1.5 ? 250 : 600)) continue;
+    if (Math.hypot(x - camera.position.x, z - camera.position.z) > (hTarget < 1.5 ? 250 : (hTarget < 2.5 ? 450 : 700))) continue;
+    STAT['size' + (hTarget < 1.5 ? 'S' : (hTarget < 2.5 ? 'M' : 'L'))] = (STAT['size' + (hTarget < 1.5 ? 'S' : (hTarget < 2.5 ? 'M' : 'L'))] || 0) + 1;
     // the tint: the ground's rock at the foot - the macro's luminance over the kit's own (~0.18), clamped, a little warmth kept
     const ar = lin(sampleK(ALB, 3, 0, x, z)), ag = lin(sampleK(ALB, 3, 1, x, z)), ab = lin(sampleK(ALB, 3, 2, x, z));
     const la2 = (0.2126 * ar + 0.7152 * ag + 0.0722 * ab) * MACEXP;
     const t = Math.min(1.3, Math.max(0.45, la2 / 0.16));
-    S.list.push([M.clone(), TROND ? new THREE.Color(0.62 + 0.2 * r3, 0.62 + 0.2 * r3, 0.6 + 0.2 * r3) : new THREE.Color(t * 0.97, t * 0.97, t * 0.94)]);
+    const vk = 0.85 + 0.3 * r3;
+    S.list.push([M.clone(), TROND ? new THREE.Color(tint[0] * vk, tint[1] * vk, tint[2] * vk) : new THREE.Color(t * 0.97, t * 0.97, t * 0.94)]);
   }
   const root = new THREE.Group(); scene.add(root);
   for (const S of subs) { if (!S.list.length) continue; S.mat.userData.h = S.s.h;

@@ -1,0 +1,27 @@
+{
+ "frame": "bench local metres: x east, z south (rows = z, cols = x), origin = Jolene (9540, -5140); world x = local x + 9540, world z = local z - 5140",
+ "extent_m": 1600.0,
+ "n_full": 2048,
+ "px_full": 0.78125,
+ "n_handover": 1024,
+ "px_handover": 1.5625,
+ "x0": -800.0,
+ "z0": -800.0,
+ "veg_maps": "RGBA: R rock exposure, G vegetation suitability (joints, hollows, benches, margins, not-rock), B wetness (flow + concavity + flatness), A soil depth proxy",
+ "veg_class": {
+  "0": "bare rock",
+  "1": "crack & vein flora (moss, grass, ferns)",
+  "2": "heath / dwarf shrubs (shallow soil)",
+  "3": "krummholz / subalpine conifers (deeper pockets, not wet)",
+  "4": "wet sedge / muskeg",
+  "5": "forest (low, deep soil)"
+ },
+ "shares": {
+  "0": 0.225,
+  "1": 0.153,
+  "2": 0.186,
+  "3": 0.243,
+  "4": 0.003,
+  "5": 0.19
+ }
+}

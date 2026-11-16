@@ -496,6 +496,21 @@ def macro(N, EXT, S):
     sp1 = fbm_at(Xt, Zt, 420, S + 73, 3); sp2 = fbm_at(Xt, Zt, 1000, S + 74, 2)
     expo *= 1 - np.clip(ss(0.56, 0.63, sp1) + ss(0.6, 0.66, sp2) * 0.8, 0, 1) * (0.55 + 0.45 * ss(0.3, 0.7, fine))
     veg = np.clip(np.maximum(veg, 1 - expo), 0, 1)
+    # ---- THE VEGETATION MAPS (16 Nov, the user: "generate also a map for the small vegetation ... another session is working on
+    # a subalpine biome ... feed it some maps, so that it would have a more accurate placement"). Same frame as the rest:
+    # world metres, the patch's middle 1.6 km, 0.78 m a pixel. RGBA = exposure / suitability / wetness / soil, and a CLASS map:
+    #   0 bare rock | 1 crack & vein flora (moss, grass, ferns in the joints) | 2 heath, dwarf shrubs (shallow soil on rock)
+    #   3 krummholz, subalpine conifers (deeper pockets, sheltered, not wet) | 4 wet sedge / muskeg (flat, gathering water)
+    #   5 forest (low and deep soil)
+    wet = np.clip(ss(0.3, 0.8, flow) * 0.7 + np.clip(-cvv / 2.0, 0, 1) * 0.4 + (1 - ss(5, 20, slope)) * 0.3, 0, 1)
+    soil = np.clip((1 - expo) * 0.6 + np.clip(-lap * 0.8, 0, 1) * 0.3 + (1 - ss(20, 45, slT)) * 0.3, 0, 1)
+    cls = np.full((N, N), 2, np.uint8)
+    cls[(soil >= 0.5) & (wet < 0.6) & (slT < 40)] = 3
+    cls[(Y < 420) & (soil >= 0.55)] = 5
+    cls[(wet >= 0.6) & (slT < 12)] = 4
+    cls[(jf > 0.35) | ((expo > 0.3) & (veg > 0.65) & (soil < 0.5))] = 1
+    cls[(expo > 0.6) & (jf <= 0.35)] = 0
+    VEG = dict(expo=expo, suit=veg, wet=wet, soil=soil, cls=cls)
     # ---- out
     os.makedirs(OUT, exist_ok=True)
     gxh = (np.roll(hgt, -1, 1) - np.roll(hgt, 1, 1)) / (2 * px); gzh = (np.roll(hgt, -1, 0) - np.roll(hgt, 1, 0)) / (2 * px)
@@ -506,6 +521,23 @@ def macro(N, EXT, S):
     Image.fromarray(to8(nh), 'RGBA').save(os.path.join(OUT, 'macro_nh.png'))
     Image.fromarray(to8(np.clip(mult / 1.5, 0, 1))).save(os.path.join(OUT, 'macro_mult.png'))
     Image.fromarray(to8(expo)).save(os.path.join(OUT, 'macro_rock.png'))
+    vm = np.stack([expo, veg, wet, soil], -1)
+    Image.fromarray(to8(vm), 'RGBA').save(os.path.join(OUT, 'veg_maps.png'))
+    Image.fromarray(cls).save(os.path.join(OUT, 'veg_class.png'))
+    # the hand-over copies: 1024^2 (1.56 m a pixel), committed with their README (reports/evidence/ROCK-STUDY/vegmaps/)
+    HV = os.path.join(EVID, '..', 'vegmaps'); os.makedirs(HV, exist_ok=True)
+    Image.fromarray(to8(vm), 'RGBA').resize((1024, 1024), Image.BILINEAR).save(os.path.join(HV, 'veg_maps_1024.png'))
+    Image.fromarray(cls).resize((1024, 1024), Image.NEAREST).save(os.path.join(HV, 'veg_class_1024.png'))
+    pal = np.array([[150, 146, 136], [120, 140, 60], [170, 150, 80], [40, 90, 45], [90, 120, 120], [20, 60, 30]], np.uint8)
+    shade = np.clip(0.55 + (nn[..., 0] * -0.6 + nn[..., 1] * 0.8 - 0.8) * 2.0, 0.3, 1.2)[..., None] if 'nn' in dir() else 1.0
+    prev = (pal[cls].astype(np.float32))
+    Image.fromarray(np.clip(prev, 0, 255).astype(np.uint8)).resize((1024, 1024), Image.NEAREST).save(os.path.join(HV, 'veg_class_preview.png'))
+    json.dump(dict(frame='bench local metres: x east, z south (rows = z, cols = x), origin = Jolene (9540, -5140); world x = local x + 9540, world z = local z - 5140',
+                   extent_m=EXT, n_full=N, px_full=px, n_handover=1024, px_handover=EXT / 1024, x0=-EXT / 2, z0=-EXT / 2,
+                   veg_maps='RGBA: R rock exposure, G vegetation suitability (joints, hollows, benches, margins, not-rock), B wetness (flow + concavity + flatness), A soil depth proxy',
+                   veg_class={0: 'bare rock', 1: 'crack & vein flora (moss, grass, ferns)', 2: 'heath / dwarf shrubs (shallow soil)', 3: 'krummholz / subalpine conifers (deeper pockets, not wet)', 4: 'wet sedge / muskeg', 5: 'forest (low, deep soil)'},
+                   shares={str(k): round(float((cls == k).mean()), 3) for k in range(6)}),
+              open(os.path.join(HV, 'veg_maps.json'), 'w'), indent=1)
     print(f'  rock exposed: {float(expo.mean()) * 100:.0f} % of the extent ({float((expo > 0.5).mean()) * 100:.0f} % over 0.5)')
     hgt.astype(np.float32).tofile(os.path.join(OUT, 'macro_h.f32'))
     json.dump(dict(n=N, ext=EXT, px=px, x0=-EXT / 2, z0=-EXT / 2, hmin=lo, hmax=hi, multScale=1.5,

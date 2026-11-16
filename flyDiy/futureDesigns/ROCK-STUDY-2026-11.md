@@ -373,6 +373,53 @@ Stills: `reports/evidence/ROCK-STUDY/trond2/`, 15 Nov above and 16 Nov below.
   - Known flaw: one kit's UVs smear on the largest blocks (the ground view's right-hand rock). The fix is to give those
     the same triplanar material as the ground.
 
+### 5e. More, bigger, seated rocks; vegetation maps; the final series (16 Nov)
+
+**The user asked for:**
+- more 3D rocks, plus a bigger class, "within reason";
+- the rocks properly sunk on the new relief;
+- the UV smear fixed;
+- placement maps for the small vegetation, for the session working on a subalpine biome;
+- a final render series.
+
+The final series is in `reports/evidence/ROCK-STUDY/final/`: today against the final state from five views, and the
+final state alone.
+
+- **More and bigger.** Talus, outcrop and edge densities are +30 %. A BIG class sits in the outcrop packs: 7 % of
+  candidates where the cluster noise is high, 2.5-5 m tall, drawn only from the kit's four BLOCKIEST subjects.
+  - A first try at 3.5-8 m from any subject scaled the flat paving blocks to 24 m plates, which read as blades edge-on.
+  - Every block is now held to at most 2.6x as wide as tall.
+  - Draw ring: small blocks to 250 m, medium to 450 m, big to 700 m.
+  - Near view: 3338 blocks drawn (2128 big, 755 medium, 455 small), 1.33 M triangles, 13 draws.
+- **The seating rule.** Blocks used to stand on the DEM, not on the displaced rock mesh, so on the new relief they
+  floated or drowned. `surfY()` now gives the drawn surface: the skirt's own displacement, without its smoothing.
+  - The ground under a block's footprint is fitted as a PLANE.
+  - Its bumps and hollows against that plane are measured at eight points.
+  - The block leans 80 % into the slope. Its base goes to the deepest hollow, minus the stand-off its lean leaves
+    downhill, minus a sink of 30-45 % of its height.
+  - Where the relief under it exceeds half its height, the block GROWS (up to 1.3x) to cover it.
+  - Only a block whose top would not clear the ground at its own centre is dropped.
+  - A first version measured the slope as relief and dropped 93 % of the blocks; fitting the plane fixed that.
+- **The UVs.** The kits are UV-mapped, on a shared atlas from the Sketchfab pack, and some of its faces smear. Under
+  `?trond` the kits drop their UVs and wear the mesh way's TRIPLANAR material: the game's `cliff` photograph projected in
+  the rock's own frame, its normal map on the same coordinates, tinted to the trondhjemite (0.85-1.15 per block). Nothing
+  is left to smear.
+- **The vegetation maps** are in `reports/evidence/ROCK-STUDY/vegmaps/`, with a README for the biome session.
+  - The frame matches the macro bake: 1.6 km round Mount Ardent, 1024² at 1.56 m a pixel (full resolution 0.78 m from
+    `trond_gen.py`).
+  - RGBA: rock exposure, vegetation suitability, wetness, soil depth.
+  - A class map: bare rock 22 %, crack flora 15 %, heath and dwarf shrubs 19 %, krummholz 24 %, muskeg 0.3 %, forest 19 %.
+  - The other session was not reachable from here (no peer listed). The README is the hand-over.
+- **Final cost** (SwiftShader, 1280 x 720, no shadows):
+
+  | view | texture reads per ground pixel | ms | triangles | draws |
+  |---|---|---|---|---|
+  | near | 43.7 | 4406 | 2.21 M | 16 |
+  | face | 33.1 | 4278 | 1.91 M | 16 |
+
+  Today is 23-39 reads, ~3.5 s, 0.32 M triangles. The extra triangles are the rock mesh ring (0.5-0.6 M) and the blocks
+  (1.1-1.3 M; on a phone they would need the kit's LOD rungs and a 150 m small-block ring).
+
 ## 6. Recommendation: what to build first, what it costs, what it changes
 
 **Build first: rock clusters in the cover ring.** It changes the most of what an aeroplane sees, for the least risk.
