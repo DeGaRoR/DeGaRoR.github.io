@@ -2694,7 +2694,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               // (CAR, 16 Nov: "make the wheels spin" - a car's FOUR wheels are two edWheelL and two edWheelR groups, so a
               // kind names two contacts: the mesh goes to the NEAREST of them, each wheel its own part about its own axle;
               // an aeroplane's kinds name one contact each, as before)
-              const C = PARTS.wheels.filter(w => w.kind === m.wheel);
+              // (a car's front pair may class as the third wheel 'tw' while its groups are named edWheelL / R: with four or
+              // more contacts the NEAREST of them all takes the mesh, whatever its kind)
+              const C = PARTS.wheels.length >= 4 ? PARTS.wheels : PARTS.wheels.filter(w => w.kind === m.wheel);
               if (C.length > 1) {
                 if (!geo.boundingSphere) geo.computeBoundingSphere();
                 const c0 = geo.boundingSphere.center.clone().applyMatrix4(tmp);
