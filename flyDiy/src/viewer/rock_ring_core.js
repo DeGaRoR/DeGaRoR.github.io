@@ -148,6 +148,17 @@ function ROCK_RING_CORE_FACTORY() {
     const mu = s1 / 3000; return (MEDN = [mu, Math.sqrt(Math.max(1e-6, s2 / 3000 - mu * mu))]); };
 
   // ---- a box blur on a lattice (n x n), radius r cells, two passes ---------------------------------------------------
+  // ---- THE ROCK GATE: the map's rock share DILATED ~30 m (a max filter, two passes, on the input lattice). The exposure law
+  // needs no rock (height, slope, convexity raise it anywhere); a chunk is only BUILT where the map has rock in its input window
+  // (chunk +- 37.5 m), so the geometry's exposure x this gate keeps every edge next to an unbuilt chunk SUNK - without it a built
+  // chunk lifted its edge where the neighbour had no skin: an open edge standing in the air (the user's ground-level 'sheet',
+  // 16 Nov) - and the macro texture takes the same gate, so the colour and the geometry agree
+  function rockDil(R, nh, hs) {
+    const r = Math.max(1, Math.round(30 / hs)), t = new Float32Array(nh * nh), o = new Float32Array(nh * nh);
+    for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { let m = 0; for (let k = -r; k <= r; k++) { const q = R[j * nh + Math.min(nh - 1, Math.max(0, i + k))]; if (q > m) m = q; } t[j * nh + i] = m; }
+    for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { let m = 0; for (let k = -r; k <= r; k++) { const q = t[Math.min(nh - 1, Math.max(0, j + k)) * nh + i]; if (q > m) m = q; } o[j * nh + i] = m; }
+    return o; }
+  const gateOf = rd => Math.min(1, Math.max(0, rd * 10));   // (0 with no rock within ~30 m, full by a tenth of a cell's share)
   function blur(src, n, r) {
     if (r < 1) return src.slice();
     const t = new Float32Array(n * n), o = new Float32Array(n * n), w = 2 * r + 1;
@@ -339,11 +350,7 @@ function ROCK_RING_CORE_FACTORY() {
     const bil = (A, x, z) => { const fx = Math.min(nh - 1.001, Math.max(0, (x - (x0 - M)) / hs)), fz = Math.min(nh - 1.001, Math.max(0, (z - (z0 - M)) / hs));
       const i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, k = j * nh + i;
       return (A[k] * (1 - u) + A[k + 1] * u) * (1 - v) + (A[k + nh] * (1 - u) + A[k + nh + 1] * u) * v; };
-    // the map's rock dilated ~30 m on the input lattice (a max filter, two passes)
-    const Rd = (() => { const r = Math.max(1, Math.round(30 / hs)), t = new Float32Array(nh * nh), o = new Float32Array(nh * nh);
-      for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { let m = 0; for (let k = -r; k <= r; k++) { const q = R[j * nh + Math.min(nh - 1, Math.max(0, i + k))]; if (q > m) m = q; } t[j * nh + i] = m; }
-      for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { let m = 0; for (let k = -r; k <= r; k++) { const q = t[Math.min(nh - 1, Math.max(0, j + k)) * nh + i]; if (q > m) m = q; } o[j * nh + i] = m; }
-      return o; })();
+    const Rd = rockDil(R, nh, hs);   // (the rock gate: the geometry's own)
     const T = Math.round(C / st), mg = Math.max(3, Math.ceil(9 / st)), n = T + 2 * mg, X = i => x0 + (i - mg + 0.5) * st, Z = j => z0 + (j - mg + 0.5) * st;   // (the work margin: the blurs' 4 m; the 20 m curvature reads the INPUT lattice, M >= 24)
     const Y = new Float32Array(n * n), Rr = new Float32Array(n * n);
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; Y[k] = bil(H, X(i), Z(j)); Rr[k] = bil(R, X(i), Z(j)); }
@@ -362,7 +369,7 @@ function ROCK_RING_CORE_FACTORY() {
     const A = new Uint8Array(T * T * 4), B = new Uint8Array(T * T * 4), b8 = v => Math.max(0, Math.min(255, Math.round(v * 255)));
     for (let b = 0; b < T; b++) for (let a = 0; a < T; a++) { const i = a + mg, j = b + mg, k = j * n + i, o = (b * T + a) * 4;
       macroAt(X(i), Z(j), Y[k], slope[k], Rb[k], cz[k], fl[k], nd[k], hgt[k] - hb[k], [dn[k * 2], dn[k * 2 + 1]], K, tmp);
-      const none = bil(Rd, X(i), Z(j)) <= 0.001, ex = none ? 0 : tmp[5], veg = none ? 1 : tmp[4];
+      const g = gateOf(bil(Rd, X(i), Z(j))), ex = tmp[5] * g, veg = Math.max(tmp[4], 1 - ex);
       A[o] = b8(tmp[1] / 1.5); A[o + 1] = b8(tmp[2] / 1.5); A[o + 2] = b8(tmp[3] / 1.5); A[o + 3] = b8(ex);
       // the height's normal (v1: central differences over the texel)
       const hx = (hgt[j * n + i + 1] - hgt[j * n + i - 1]) / (2 * st), hz = (hgt[(j + 1) * n + i] - hgt[(j - 1) * n + i]) / (2 * st), l = Math.hypot(hx, 1, hz);
@@ -400,6 +407,9 @@ function ROCK_RING_CORE_FACTORY() {
       macroAt(X(i), Z(j), Y[k], slope[k], Rb[k], cz[k], fl[k], bil(V, X(i), Z(j)), hgt[k] - hb[k], [dn[k * 2], dn[k * 2 + 1]], K, tmp);
       for (let c = 0; c < 6; c++) mac[k * 7 + c] = tmp[c]; mac[k * 7 + 6] = tmp[7]; }
     // the exposure SMOOTHED over ~5 m (the geometry's mask: read raw, every speck stood up as a tooth - the bench)
+    { const Rd = rockDil(R, nh, hs);   // THE ROCK GATE (above): the exposure - the geometry's and the colour's - x it
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i, g = gateOf(bil(Rd, X(i), Z(j)));
+        if (g < 1) { mac[k * 7 + 6] *= g; mac[k * 7 + 5] *= g; mac[k * 7 + 4] = Math.max(mac[k * 7 + 4], 1 - mac[k * 7 + 5]); } } }
     const ex = new Float32Array(n * n); for (let k = 0; k < n * n; k++) ex[k] = mac[k * 7 + 6];
     const MC = {}; const mac7 = c => MC[c] || (MC[c] = (() => { const o = new Float32Array(n * n); for (let k = 0; k < n * n; k++) o[k] = mac[k * 7 + c]; return o; })());
     const exs = blur(ex, n, Math.max(1, Math.round(2.5 / st)));   // (~5 m across, two passes: the bench v1 averaged the exposure over a 2.5 m ring of 8 points + the centre)

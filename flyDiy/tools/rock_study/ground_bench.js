@@ -164,6 +164,18 @@ const buildMs = Math.round(performance.now() - T0);
 view(Q.get('view') || 'face');
 if (RING && Q.get('relief') === '0') { const o = RING.update; RING.update = () => { o(); RING.group.children.forEach(m => { if (m.material === mat) m.visible = false; }); }; }   // (?relief=0: the boulders alone - a check)
 let RSTAT = null; if (RING) { const t = performance.now(); RSTAT = await RING.whenIdle(); RSTAT.wallMs = Math.round(performance.now() - t); }
+// ?hang=1: the relief's OPEN EDGES - a vertex on a chunk's side, next to a chunk that has no skin, standing over the ground (the
+// 'sheet' seen at eye level): counted and the worst reported to the console (ground_shot keeps the logs)
+if (RING && Q.get('hang') === '1') { const C = 62.5, built = new Set(), meshes = RING.group.children.filter(m => m.material === mat && m.geometry.attributes.aRD);
+  for (const m of meshes) { m.geometry.computeBoundingBox(); const b = m.geometry.boundingBox; built.add(Math.round((b.min.x + 1) / C) + ',' + Math.round((b.min.z + 1) / C)); }
+  let n = 0, open = 0, worst = 0;
+  for (const m of meshes) { const P = m.geometry.attributes.position.array, D = m.geometry.attributes.aRD.array;
+    for (let v = 0; v < P.length / 3; v++) { const x = P[v * 3], z = P[v * 3 + 2], fx = x / C - Math.round(x / C), fz = z / C - Math.round(z / C);
+      const onX = Math.abs(fx) < 1e-3, onZ = Math.abs(fz) < 1e-3; if (!onX && !onZ) continue; n++;
+      const cx = Math.floor(x / C), cz = Math.floor(z / C), nb = onX ? [[Math.round(x / C) - 1, cz], [Math.round(x / C), cz]] : [[cx, Math.round(z / C) - 1], [cx, Math.round(z / C)]];
+      if (nb.every(k => built.has(k[0] + ',' + k[1]))) continue;
+      const h = P[v * 3 + 1] + D[v * 3 + 1] - hXZ(x, z); if (h > 0.05) { open++; worst = Math.max(worst, h); } } }
+  console.log('HANG built ' + built.size + ' chunks, edge vertices ' + n + ', OPEN over the ground ' + open + ', worst ' + worst.toFixed(2) + ' m'); }
 const gl = renderer.getContext(), t1 = performance.now(); renderer.render(scene, camera); gl.finish(); const firstMs = Math.round(performance.now() - t1);
 const prog = renderer.info.programs.find(p => p.name && /MeshStandard/.test(p.name)) || renderer.info.programs[0];
 const errs = []; renderer.debug.onShaderError = (g, p, vs, fs) => errs.push(String(g.getProgramInfoLog(p) || '') + String(g.getShaderInfoLog(fs) || ''));
