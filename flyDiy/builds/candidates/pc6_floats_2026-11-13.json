@@ -30,7 +30,7 @@
    "wsRun": 0.99,
    "wsTopOff": 0.2,
    "wsBaseBow": 0.25,
-   "wsCeilBow": 0.7,
+   "wsCeilBow": 0.7, "wsShoulder": 1, "wsShoulderX": 0.85, "wsShoulderTop": 0.5, "wsShoulderBase": 0.3,
    "apilW": 0.92,
    "apilPerp": 1,
    "noseLen": 0.6375,

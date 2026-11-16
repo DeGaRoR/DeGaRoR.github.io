@@ -62,6 +62,14 @@
    "moved": [
     "pc6"
    ]
+  },
+  {
+   "date": "2026-11-16",
+   "reason": "PC6-SHOULDERS (FIT-PROCEDURE, the user 16 Nov: the PC-6's screen flat in the middle, rounded on the sides): FLAGSHIP's wsShoulder* generator hunks (byte-identical to claude/cessna-refit-l40d) and the PC-6 cards on wsShoulder 1, X 0.85, Top 0.5, Base 0.3",
+   "core": "1bfda2da2dcd2dd8",
+   "moved": [
+    "pc6"
+   ]
   }
  ],
  "planes": {
@@ -126,11 +134,11 @@
   "pc6": {
    "stamp": {
     "file": "builds/candidates/pc6_drafting_2026-11-11.json",
-    "blob": "416d1c3dce6c66ae31e662b66b365397d4899c94",
+    "blob": "21a85a849f6bcccd3ac17a95d766ba2a1a1632c6",
     "core": "1bfda2da2dcd2dd8"
    },
    "facts": {
-    "empty": 1073.59,
+    "empty": 1074.55,
     "fuelKg": 99.2
    },
    "dims": {
@@ -140,44 +148,44 @@
     "cRoot": 1.91,
     "cTip": 1.91,
     "hSpan": 5.14269,
-    "height": 3.70348,
+    "height": 3.68182,
     "length": 10.83,
     "span": 15.94,
     "track": 3
    },
    "cases": {
     "min": {
-     "mass": 1168.39,
-     "Vs": 68.239,
-     "V75": 253.924,
-     "Vmax": 269.544,
-     "roc": 17.7526,
-     "LD": 11.5466,
-     "TOgrass": 46,
-     "cgMAC": 38.963,
-     "sm": 11.3158
+     "mass": 1169.35,
+     "Vs": 68.3247,
+     "V75": 253.716,
+     "Vmax": 273.299,
+     "roc": 17.7252,
+     "LD": 11.5399,
+     "TOgrass": 47,
+     "cgMAC": 38.9328,
+     "sm": 11.2864
     },
     "typ": {
-     "mass": 1203.19,
-     "Vs": 69.2477,
-     "V75": 253.821,
-     "Vmax": 275.909,
-     "roc": 17.198,
-     "LD": 11.5466,
-     "TOgrass": 49,
-     "cgMAC": 37.0458,
-     "sm": 13.3677
+     "mass": 1204.15,
+     "Vs": 69.3339,
+     "V75": 253.613,
+     "Vmax": 273.869,
+     "roc": 17.1721,
+     "LD": 11.5399,
+     "TOgrass": 50,
+     "cgMAC": 37.0181,
+     "sm": 13.3336
     },
     "mtow": {
      "mass": 2800,
-     "Vs": 105.637,
-     "V75": 244.315,
-     "Vmax": 269.787,
-     "roc": 5.95531,
-     "LD": 11.5466,
-     "TOgrass": 335,
-     "cgMAC": 77.5962,
-     "sm": -17.5012
+     "Vs": 105.727,
+     "V75": 244.145,
+     "Vmax": 269.618,
+     "roc": 5.95266,
+     "LD": 11.5399,
+     "TOgrass": 340,
+     "cgMAC": 77.5512,
+     "sm": -17.5212
     }
    }
   },
