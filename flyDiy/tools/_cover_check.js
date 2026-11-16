@@ -416,5 +416,41 @@ function edgeRing(on) {
        '10d the cover ring\'s reshape: a shaped species\' cards re-built from its row (cut, tilt), the same instances, every other species as it was',
        a.alp + ' -> ' + b.alp + ' cards, cut ' + a.cut + ' -> ' + b.cut + ', top ' + a.top.toFixed(3) + ' -> ' + b.top.toFixed(3) + ', tufts ' + a.tuft + ' / ' + b.tuft + ', shapes [' + res.shapes.join() + ']'); } }
 
+
+// 11 THE ALPINE GROUND (MOUNTAIN-VEG, the user 16 Nov: the mountain tops are "patches of bushes, weeds, moss carpets, and a lot rocks
+// ... identify where it would be likely to have quite a few rocks dispersed"): a rock row's `exposed` keeps its rocks where the soil is
+// likely bare - on a ridge (x < 60 here: the ground convex) - and drops most of them on the flat (x > 60); exposed 0 keeps both alike
+function rockRing(exposed) {
+  const B = boot(), { THREE, ctx } = B;
+  B.load(path.join('src', 'viewer', 'trees.js'));
+  const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
+  const cols = [{ name: 'rocks', kind: 'rock', place: {} }];
+  const built = new Map();
+  const treeList = () => cols.map(c => ({ key: c.name + '_m', col: c, sub: { bb: [-0.5, 0, -0.5, 0.5, 0.6, 0.5], h: 0.6 } }));
+  const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const g = new THREE.BoxGeometry(1, 0.6, 1); g.translate(0, 0.3, 0);
+    const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial({ map: t }) }] }; built.set(key, b); return b; };
+  ctx.TREE_PACK = { collections: cols };
+  const mix = { species: { rocks: { proportion: 1, exposed } }, forest: { cover: 1, reach: 220, rocks: 60 } };
+  const BIO = { mixAt: () => 'mix', mixOf: () => mix, knobs: () => ({}), edgeOn: false };
+  // x < 60: a ridge running along z (a parabola across x, period 24 m: convex on its crests), x > 60: flat
+  const ridge = (x, z) => x < 60 ? -0.06 * Math.pow(((x % 24) + 24) % 24 - 12, 2) : 0;
+  const world = { terrainH: ridge, waterH: () => -10, island: null };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(60, 3, 0); camera.lookAt(60, 0, 40); camera.updateMatrixWorld();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const CR = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null,
+    biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true });
+  CR.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });
+  for (let i = 0; i < 4; i++) CR.update();
+  const xs = [];
+  CR.root.traverse(o => { if (!o.isInstancedMesh || o.userData.coverKind !== 'rock') return; const M = o.instanceMatrix.array;
+    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) xs.push(M[i * 16 + 12]); });
+  const band = (lo, hi) => xs.filter(x => x >= lo && x < hi).length;
+  return { ridge: band(0, 60), flat: band(60, 120) };
+}
+{ let a = null, b = null;
+  try { a = rockRing(0); b = rockRing(0.85); } catch (e) { ok(false, '11 the exposed rocks plant', (e && e.message || String(e)).slice(0, 200)); }
+  if (a && b) ok(a.ridge > 20 && a.flat > 20 && Math.abs(a.ridge - a.flat) / a.flat < 0.35 && b.ridge > 0.55 * a.ridge && b.flat < 0.35 * a.flat,
+    '11 THE ALPINE GROUND: a rock row\'s exposed keeps its rocks on the ridge and drops most on the flat; exposed 0 keeps both alike',
+    'exposed 0: ridge ' + a.ridge + ', flat ' + a.flat + ' | exposed 0.85: ridge ' + b.ridge + ', flat ' + b.flat); }
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

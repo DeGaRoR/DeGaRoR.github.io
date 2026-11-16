@@ -194,6 +194,9 @@ var COVER_RING = (() => {
     shore:         { h: 0.45, sigma: 0.35, dens: 0.15, fill: 1 },           // sand (4): dune grass inland of the beach
     scree:         { h: 0.15, sigma: 0.30, dens: 0.2, fill: 1 },            // scree (5): short tufts between the stones
     shingle:       { h: 0.30, sigma: 0.35, dens: 0.1, fill: 1 },            // shingle (11): the upper shore's tufts
+    // 19 SUBALPINE (the user 16 Nov: "not fields of grass ... patches of bushes, weeds, moss carpets, and a lot rocks"): the grass in
+    // patches (fieldPatch m, over fieldShare of the ground), the rest left to the shrub cards, the flowers and the stones
+    subalpine:     { h: 0.30, sigma: 0.35, dens: 0.6, fieldPatch: 9, fieldShare: 0.45 },
   };
   const FIELD_MEADOW = FIELD_TYPES.grassland;
   // THE TUFT (GRASS-STUDY §4.2): the shipped patch's CARDS (its connected strips, by the index buffer) grouped K nearest to
@@ -636,6 +639,15 @@ var COVER_RING = (() => {
           const lap = (world.terrainH(x + rr, z) + world.terrainH(x - rr, z) + world.terrainH(x, z + rr) + world.terrainH(x, z - rr)) / 4 - y0;
           if (Rq() > (1 - row.hollow) + row.hollow * smooth(0, 0.35, lap)) continue;
         }
+        // THE EXPOSED GROUND (the user 16 Nov: the mountain tops are "patches of bushes, weeds, moss carpets, and a lot rocks ... identify
+        // where it would be likely to have quite a few rocks dispersed"): `exposed` keeps a rock by how bare the soil likely is - a knob or
+        // a ridge (the ground CONVEX over 8 m: the Laplacian under 0) or a slope (the gradient over 8 m) - 0 keeps all, 1 only there
+        if (row.exposed > 0 && !floats) {
+          const r8 = 8, y0 = world.terrainH(x, z), hx1 = world.terrainH(x + r8, z), hx0 = world.terrainH(x - r8, z), hz1 = world.terrainH(x, z + r8), hz0 = world.terrainH(x, z - r8);
+          const lap = (hx1 + hx0 + hz1 + hz0) / 4 - y0, sl = Math.hypot(hx1 - hx0, hz1 - hz0) / (2 * r8);
+          const L = Math.max(smooth(0.05, 0.6, -lap), smooth(0.25, 0.7, sl));
+          if (Rq() > (1 - row.exposed) + row.exposed * L) continue;
+        }
         const gk = G.at(x, z);
         if (G.mix[gk] !== centreMix) continue;
         // NOTHING LIES ON A PAVEMENT (2026-09-22; G502's rule, kept whole, asked PER PIECE). A log has no
@@ -798,7 +810,8 @@ var COVER_RING = (() => {
         if (row || (M && D.fill)) { const F = M.forest || {}, R0 = row || {}, pick = (k, d) => (R0[k] !== undefined ? R0[k] : (F[k] !== undefined ? F[k] : (D[k] !== undefined ? D[k] : d)));
           // (a bare biome's `forest.cover` is 0 - its own flowers' and the old patches' - so the field's own density stands there)
           const cov = (R0.dens !== undefined || D.fill) ? 1 : (F.cover === undefined ? 1 : F.cover);
-          T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * cov, clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp) }; }
+          T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * cov, clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp),
+                fieldPatch: pick('fieldPatch', 0), fieldShare: pick('fieldShare', 1) }; }
         types.set(mix, T); return T; };
       let dmax = 0; for (let k = 0; k < G.N * G.N; k++) { const T = typeOf(G.mix[k]); if (T && T.dens > dmax) dmax = T.dens; }
       const cutMax = Math.max(1, S.cutDens, S.stripDens);
@@ -822,6 +835,7 @@ var COVER_RING = (() => {
         let keep = T.dens * (cut > 0 ? 1 + ((surf ? S.stripDens : S.cutDens) - 1) * cut : 1) / (dmax * cutMax);
         if (S.blotch > 0) keep *= 1 - S.blotch * (0.5 + 0.5 * vnoise(x, z, blotchM, 4242)) * (1 - cut);
         keep *= (1 - kill) * (1 + boost) / (1 + G.bmax);
+        if (T.fieldPatch > 0 && T.fieldShare < 1) keep *= smooth(-0.06, 0.06, T.fieldShare - vnoise(x, z, T.fieldPatch, 515));   // the type's grass patches
         if (rA >= keep) continue;
         // THE LENGTH (GRASS-STUDY §4.4): the type's median x a lognormal x the clump field (wild); cut: its own length, uniform
         let nz = Math.sqrt(-2 * Math.log(Math.max(1e-9, rH1))) * Math.cos(6.2831853 * rH2); nz = Math.max(-2.5, Math.min(2.5, nz));

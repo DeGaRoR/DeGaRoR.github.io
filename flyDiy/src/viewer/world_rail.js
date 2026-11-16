@@ -888,8 +888,9 @@
       // GRASS-DENSE G2566: the grass field's length here (GRASS-STUDY §4.4): the tuft's median top, its spread, the density by this
       // biome (1 = the meadow's) - the row's own, else the field's table for the mix
       const CRm = W.COVER_RING, FT = CRm && CRm.FIELD_TYPES && CRm.FIELD_SPECIES && CRm.FIELD_SPECIES.includes(sp) ? (CRm.FIELD_TYPES[mix] || CRm.FIELD_TYPES.grassland) : null;
-      if (FT) for (const [k, label, lo, hi, st, f] of [['h', 'field: length', 0, 2, 0.01, v => v.toFixed(2) + ' m'], ['sigma', 'field: spread', 0, 0.6, 0.01, null], ['dens', 'field: density x', 0, 6, 0.05, null]])
-        range(body, label, lo, hi, st, () => (rowOf()[k] === undefined ? FT[k] : rowOf()[k]), v => t.setMix(mix, ['species', sp, k], v), f, FT[k]);
+      if (FT) for (const [k, label, lo, hi, st, f] of [['h', 'field: length', 0, 2, 0.01, v => v.toFixed(2) + ' m'], ['sigma', 'field: spread', 0, 0.6, 0.01, null], ['dens', 'field: density x', 0, 6, 0.05, null],
+          ['fieldPatch', 'field: patch size', 0, 40, 0.5, v => v ? v.toFixed(1) + ' m' : 'off (no patches)'], ['fieldShare', 'field: grass share', 0, 1, 0.01, v => (v * 100).toFixed(0) + ' % of the ground']])
+        range(body, label, lo, hi, st, () => (rowOf()[k] === undefined ? (FT[k] === undefined ? (k === 'fieldShare' ? 1 : 0) : FT[k]) : rowOf()[k]), v => t.setMix(mix, ['species', sp, k], v), f, FT[k] === undefined ? (k === 'fieldShare' ? 1 : 0) : FT[k]);
       // G1385: a bush's and a grass's own colour (the flowers are their pictures: no tint); the kind's master is in VEGETATION
       const L = W.TREE_LEAF, c = L && L.collections && L.collections().find(q => q.name === sp);
       if (c) {

@@ -12087,27 +12087,35 @@
       "proportion": 0.3
      },
      "rocks": {
-      "proportion": 1,
+      "proportion": 1.2,
       "size": 14,
-      "tint": 0.7
+      "tint": 0.7,
+      "exposed": 0.85,
+      "cluster": 1
      },
      "sand_rocks_small_01": {
       "proportion": 0.6,
       "size": 0.4,
       "bury": 0.3,
-      "tint": 0.6
+      "tint": 0.6,
+      "exposed": 0.85,
+      "cluster": 1
      },
      "coast_rocks_05": {
       "proportion": 0.4,
       "size": 0.6,
       "bury": 0.3,
-      "tint": 0.6
+      "tint": 0.6,
+      "exposed": 0.85,
+      "cluster": 1
      },
      "coast_land_rocks_03": {
       "proportion": 0.3,
       "size": 0.35,
       "bury": 0.35,
-      "tint": 0.6
+      "tint": 0.6,
+      "exposed": 0.85,
+      "cluster": 1
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.1,
@@ -12132,7 +12140,7 @@
      },
      "flower_bunchberry": {
       "proportion": 0.3,
-      "density": 0.2,
+      "density": 0.3,
       "patch": 5,
       "patchShare": 0.5
      },
@@ -12140,13 +12148,13 @@
       "proportion": 1,
       "density": 0.08,
       "patch": 8,
-      "patchShare": 0.5
+      "patchShare": 0.6
      },
      "alp_vaccinium": {
       "proportion": 1,
       "density": 0.08,
       "patch": 6,
-      "patchShare": 0.5
+      "patchShare": 0.6
      },
      "alp_elliottia": {
       "proportion": 1,
@@ -12158,7 +12166,13 @@
       "proportion": 1,
       "density": 0.12,
       "patch": 10,
-      "patchShare": 0.6
+      "patchShare": 0.75
+     },
+     "flower_fireweed": {
+      "proportion": 0.3,
+      "density": 0.04,
+      "patch": 8,
+      "patchShare": 0.5
      }
     },
     "forest": {
@@ -12174,13 +12188,14 @@
      "blotch": 0.4,
      "blotchM": 18,
      "coverNear": 50,
-     "rocks": 18,
+     "rocks": 90,
      "ttype": 2,
      "coverSpread": 0.1,
      "canopyFloor": 6,
      "clump": 0.15,
      "clumpM": 24,
-     "debris": 15
+     "debris": 15,
+     "rockMap": 1
     }
    }
   },
