@@ -1064,6 +1064,7 @@
       toggle(Gf, 'colour: the ground as drawn', () => fl.get().colour, v => fl.set({ colour: v ? 1 : 0 }));
       range(Gf, 'colour: level to the ground', 0, 4, 0.01, () => fl.get().match, fs('match'), v => 'x' + v.toFixed(2), D.match);
       range(Gf, 'colour: tuft to tuft', 0, 1, 0.01, () => fl.get().vary, fs('vary'), v => '±' + Math.round(v * 100) + ' %', D.vary);
+      range(Gf, 'shortest grass (every mown height)', 0, 1, 0.01, () => fl.get().minH, fs('minH'), v => (v > 0 ? v.toFixed(2) + ' m' : 'no floor'), D.minH);
       range(Gf, 'cut grass: length', 0, 1, 0.01, () => fl.get().cutH, fs('cutH'), v => v.toFixed(2) + ' m', D.cutH);
       range(Gf, 'cut beside bush strips: length', 0, 1, 0.01, () => fl.get().tallH, fs('tallH'), v => v.toFixed(2) + ' m', D.tallH);
       range(Gf, 'cut beside bush strips: variety', 0, 1, 0.01, () => fl.get().tallSigma, fs('tallSigma'), v => v.toFixed(2), D.tallSigma);
