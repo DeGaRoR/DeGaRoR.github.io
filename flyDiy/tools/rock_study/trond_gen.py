@@ -586,6 +586,6 @@ if __name__ == '__main__':
     todo = a.only.split(',')
     if 'slab' in todo: slab(a.n, a.tile, a.seed)
     if 'face' in todo: face(a.n, a.tile, a.seed + 100)
-    if 'macro' in todo: macro(2048, 1600.0, a.seed + 200)
+    if 'macro' in todo: macro(2560, 2000.0, a.seed + 200)   # (17 Nov: the whole 2 km patch - at 1.6 km the far ridge fell outside it and showed the bare tiles)
     names = [n for n in ('slab', 'face') if n in todo]
     if names: contact(names)

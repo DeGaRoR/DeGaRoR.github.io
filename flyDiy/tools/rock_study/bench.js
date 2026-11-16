@@ -17,6 +17,7 @@
 //               (rock_kit.js) laid on the faces as overlapping shards and scattered as outcrops / talus / edge blocks,
 //               instanced by (variant, LOD rung); the face's ground switches to the shards' own photograph (?faceset=0 not);
 //               ?eco=1 the phone's ladder; ?rset=cliff|darkRock|rocksG the rock's photograph; ?kit=1 the kit on a stand
+//   (17 Nov, the user: "forget about ledges, v1 is good as-is": the ledges are OFF unless ?ledges=1)
 //   ?view=face|near|slope|high|top|ground  ?w=&h=  ?shadows=0  ?plain=1 (the geometry alone)  ?count=1 (texture fetches per pixel)
 'use strict';
 (async () => {
@@ -121,7 +122,7 @@ if (TROND) {
   const mH = new Float32Array(await B(T + 'macro_h.f32'));
   TRD = { jS, jF, jM, mH, U: { uTSA: { value: tex(sA, n, 1) }, uTSN: { value: tex(sN, n, 1) }, uTFA: { value: tex(fA, n, 1) }, uTFN: { value: tex(fN, n, 1) },
     uTMNH: { value: tex(new Uint8Array(mNH), jM.n, 0) }, uTMM: { value: tex(new Uint8Array(mMu), jM.n, 0) }, uTRK: { value: tex(new Uint8Array(mRk), jM.n, 0) },
-    uTM: { value: new THREE.Vector4(jM.x0, jM.z0, jM.ext, jM.multScale) }, uTScale: { value: new THREE.Vector2(jS.tile, jF.tile) } } };
+    uTM: { value: new THREE.Vector4(jM.x0, jM.z0, jM.ext, jM.multScale) }, uTMeanS: { value: new THREE.Vector3(...jS.meanAlbedo) }, uTMeanF: { value: new THREE.Vector3(...jF.meanAlbedo) }, uTScale: { value: new THREE.Vector2(jS.tile, jF.tile) } } };
   // the macro's height at (x, z), bilinear, 0 off its extent (the rock mesh's displacement, on the CPU: the shadows see it)
   const med = (() => { const a = Array.from(mH.filter((v, i) => i % 97 === 0)).sort((p, q) => p - q); return a[a.length >> 1]; })();
   // the rock's exposure at (x, z) (0..1), bilinear; -1 off the macro's extent (the raster decides there)
@@ -160,7 +161,7 @@ if (TSKIRT && TRD) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { con
 // two more Manhattan F2 at other scales, one to the power 0.025 (it flattens to plateaus with sharp steps), one to 0.2;
 // max of the two families, minus log_0.05(F2) (sharpens the crests), minus fBm/40, to the power 1.2 ('pointiness').
 // Evaluated in 3D at every vertex of the rock mesh (no stretch on a face), at UNIT metres (one Blender unit = 9 m here).
-const MED = { unit: 12.0, amp: Q.get('medamp') !== null ? +Q.get('medamp') : 1.5, lift: 0.6 };
+const MED = { unit: 12.0, amp: 1.5, lift: 0.6 };
 const vor3 = (x, y, z, sc, seed) => {   // -> [F1 manhattan, F2 manhattan, edge (euclid F2 - F1) / 2, cell id]
   x *= sc; y *= sc; z *= sc; const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z);
   let f1 = 1e9, f2 = 1e9, e1 = 1e9, e2 = 1e9, id = 0;
@@ -193,51 +194,23 @@ function medium(x, y, z) {
 // 120 m has its own dip (6-20 deg, any direction) and the steps are warped by a 9 m noise at 35 m, so they never line up into
 // contour rings (the 'fingerprint' the user rejected in the first trial); along a step, a 25 m noise breaks it into segments
 // of 10-40 m (and gives each its own strength). Vertical, so a tread is level and a riser stands; up to +-T/2.
-let LEDGE_TR = 0, LEDGE_K = 0;   // the last stairDY call's tread (+) / riser (-) state x its strength, and the strength alone
-// THE LEDGES v2 (16 Nov, the user on v1: "should all be in the direction of the slope ... the random orientation and the too
-// small scale ... break the pattern a lot, otherwise it looks like a quarry"): the steps FOLLOW THE CONTOURS (a dip of 0-4 deg
-// at most, its direction drifting per 300 m cell, and two warps - +-4 m at 120 m, +-0.8 m at 40 m - that bend them), they are BIG
-// (8-16 m, up to x1.8 on the steep: a step must span 8+ vertices of the 1.25 m mesh), and they are BROKEN at four scales: a patch
-// mask (120 m, ~half the exposed rock), only ~half the beds carry a ledge at all (hashed per bed), along a ledge a 45 m noise
-// cuts it into 20-80 m segments with gaps, and each segment has its own strength and its own step position (the riser starts
-// at 45-75 % of the step). SOFT: the riser takes the whole last 25-55 % of the step, the amplitude is 0.65 of the stair's,
-// and the mesh smooths it twice. On 15-76 deg; inside a ledge patch the Blender masses yield (x0.3). ?ledgev=1: v1's law (random dip, 5-10 m).
+let LEDGE_TR = 0;   // the last stairDY call's tread (+) / riser (-) state, x its strength
 function stairDY(x, y, z, eX, slopeDeg) {
-  LEDGE_TR = 0; LEDGE_K = 0;
+  LEDGE_TR = 0;
   if (eX < 0.05) return 0;
-  if (Q.get('ledgev') === '1') {
-    const pm = ss(0.40, 0.52, vn3(x / 90, 4.1, z / 90)) * ss(16, 24, slopeDeg) * (1 - ss(46, 54, slopeDeg));
-    if (pm < 0.01) return 0;
-    const cx = Math.floor(x / 120), cz = Math.floor(z / 120);
-    const da = hh(cx, cz, 61) * 6.2832, dk = Math.tan((6 + 14 * hh(cx, cz, 62)) * Math.PI / 180);
-    const T = 5.0 + 5.0 * vn3(x / 90, 7.7, z / 90);
-    const yq = y + dk * (x * Math.cos(da) + z * Math.sin(da)) + (vn3(x / 60, 2.2, z / 60) - 0.5) * 7.0 + (vn3(x / 20, 3.3, z / 20) - 0.5) * 2.0;
-    const sy = yq / T, bed = Math.floor(sy), fr = sy - bed;
-    const seg = ss(0.25, 0.5, vn3(x / 45, bed * 1.37, z / 45)) * (0.6 + 0.4 * hh(bed, Math.floor(x / 30), 63));
-    const K = ss(0.2, 0.5, pm) * ss(0.25, 0.6, seg) * ss(0.2, 0.6, eX);
-    LEDGE_TR = K * ((1 - ss(0.05, 0.5, fr)) * ss(0.0, 0.05, fr) - ss(0.6, 0.85, fr) * (1 - ss(0.95, 1.0, fr)));
-    return (bed + ss(0.5, 1.0, fr) - sy) * T * K;
-  }
-  const pm = ss(0.34, 0.48, vn3(x / 120, 4.1, z / 120)) * ss(15, 22, slopeDeg) * (1 - ss(72, 80, slopeDeg));
+  const pm = ss(0.40, 0.52, vn3(x / 90, 4.1, z / 90)) * ss(16, 24, slopeDeg) * (1 - ss(46, 54, slopeDeg));
   if (pm < 0.01 && Q.get('ledgetest') !== '1') return 0;
-  const cx = Math.floor(x / 300), cz = Math.floor(z / 300);
-  const da = hh(cx, cz, 61) * 6.2832, dk = Math.tan(4 * hh(cx, cz, 62) * Math.PI / 180);
-  const T = (8 + 8 * vn3(x / 110, 7.7, z / 110)) * (1 + 0.8 * ss(35, 65, slopeDeg));   // (x1.8 on the steep: a step spans 8+ vertices)
-  // (the bends' warps SMALL against the slope: at 16 m over 90 m their gradient reached +-1.2 m/m on a 1.5 m/m face and squeezed the
-  // steps into lumps - measured on a profile; now <= 0.25 m/m)
-  const yq = y + dk * (x * Math.cos(da) + z * Math.sin(da)) + (vn3(x / 120, 2.2, z / 120) - 0.5) * 8.0 + (vn3(x / 40, 3.3, z / 40) - 0.5) * 1.6;
+  const cx = Math.floor(x / 120), cz = Math.floor(z / 120);
+  const da = hh(cx, cz, 61) * 6.2832, dk = Math.tan((6 + 14 * hh(cx, cz, 62)) * Math.PI / 180);
+  const T = 5.0 + 5.0 * vn3(x / 90, 7.7, z / 90);
+  const yq = y + dk * (x * Math.cos(da) + z * Math.sin(da)) + (vn3(x / 60, 2.2, z / 60) - 0.5) * 7.0 + (vn3(x / 20, 3.3, z / 20) - 0.5) * 2.0;
   const sy = yq / T, bed = Math.floor(sy), fr = sy - bed;
-  const bedOn = hh(bed, 5, 64) < 0.7 ? 1 : 0;
-  const segN = vn3(x / 45, bed * 1.37, z / 45);
-  const seg = ss(0.34, 0.5, segN) * bedOn;
-  const sk = Math.floor(segN * 7 + x / 400);   // a segment's own key, for its strength and its step position
-  const strength = 0.45 + 0.55 * hh(bed, sk, 65), r0 = 0.45 + 0.3 * hh(bed, sk, 66);
-  if (Q.get('ledgetest') === '1') return (bed + ss(r0, 1.0, fr) - sy) * T * 0.65;
-  const K = ss(0.1, 0.4, pm) * seg * strength * ss(0.15, 0.5, eX);
-  if (K < 0.005) return 0;
-  LEDGE_K = K;
-  LEDGE_TR = K * ((1 - ss(0.0, r0 * 0.8, fr)) * ss(0.0, 0.04, fr) - ss(r0 + 0.05, 0.92, fr) * (1 - ss(0.96, 1.0, fr)) * 0.7);
-  return (bed + ss(r0, 1.0, fr) - sy) * T * 0.9 * K;
+  const seg = ss(0.25, 0.5, vn3(x / 45, bed * 1.37, z / 45)) * (0.6 + 0.4 * hh(bed, Math.floor(x / 30), 63));
+  const q = bed + ss(0.5, 1.0, fr);   // the tread holds the step's floor, the riser climbs in the last 30 %
+  if (Q.get('ledgetest') === '1') return (q - sy) * T;
+  const K = ss(0.2, 0.5, pm) * ss(0.25, 0.6, seg) * ss(0.2, 0.6, eX);
+  LEDGE_TR = K * ((1 - ss(0.05, 0.5, fr)) * ss(0.0, 0.05, fr) * 1.0 - ss(0.6, 0.85, fr) * (1 - ss(0.95, 1.0, fr)));   // the tread's inner half +, the riser -
+  return (q - sy) * T * K;
 }
 let MEDN = null;   // its normalisation (mean, sd), measured once on the patch's own points
 const medNorm = () => { if (MEDN) return MEDN; let s1 = 0, s2 = 0, n = 0;
@@ -312,8 +285,7 @@ function buildSkirt(step) {
       eX = ex0 < 0 ? m : ss(0.25, 0.75, ex0) * Math.min(1, m * 3);
       med = medium(x, y, z); const [mu, sd] = medNorm();
       const g = gradXZ(x, z, 5), l = Math.hypot(g[0], 1, g[1]);
-      { const sdy = stairDY(x, y, z, eX, Math.atan(Math.hypot(g[0], g[1])) * 57.2958);   // (inside a ledge patch the masses yield: the steps read clean)
-        DEF.push(-g[0] / l, 1 / l, -g[1] / l, TRD.hAt(x, z) * Math.min(1, m * 3), (med.h - mu) / sd * (1 - 0.7 * LEDGE_K), eX, sdy, LEDGE_TR); }
+      DEF.push(-g[0] / l, 1 / l, -g[1] / l, TRD.hAt(x, z) * Math.min(1, m * 3), (med.h - mu) / sd, eX, stairDY(x, y, z, eX, Math.atan(Math.hypot(g[0], g[1])) * 57.2958), LEDGE_TR);
     } else if (m > 0 || TSKIRT) {
       if (TSKIRT) { DEF.push(0, 1, 0, 0, 0, 0, 0, 0); } else {
       const g = gradXZ(x, z, 5), gl2 = Math.hypot(g[0], g[1]) || 1e-6, ox = -g[0] / gl2, oz = -g[1] / gl2;   // outward = downhill
@@ -357,10 +329,10 @@ function buildSkirt(step) {
       zc = o; }
     // (the ledges' step smoothed over the mesh too, one pass: a riser sharper than the 1.25 m lattice aliased into a comb)
     let st = new Float32Array(nv); for (let v = 0; v < nv; v++) st[v] = DEF[v * 8 + 6];
-    for (let pass = 0; pass < 2; pass++) { const o = new Float32Array(nv); for (let v = 0; v < nv; v++) { const L = nb[v]; if (!L.length) { o[v] = st[v]; continue; } let a = 0; for (const u of L) a += st[u]; o[v] = st[v] * 0.5 + 0.5 * a / L.length; } st = o; }
+    { const o = new Float32Array(nv); for (let v = 0; v < nv; v++) { const L = nb[v]; if (!L.length) { o[v] = st[v]; continue; } let a = 0; for (const u of L) a += st[u]; o[v] = st[v] * 0.5 + 0.5 * a / L.length; } st = o; }
     for (let v = 0; v < nv; v++) DEF[v * 8 + 6] = st[v];
     for (let v = 0; v < nv; v++) { const k = v * 8, dd = DEF[k + 3] + DEF[k + 5] * (MED.lift + MED.amp * 0.6 * zc[v]);
-      P3[v * 3] += DEF[k] * dd; P3[v * 3 + 1] += DEF[k + 1] * dd + (Q.get('ledges') === '0' ? 0 : DEF[k + 6]); P3[v * 3 + 2] += DEF[k + 2] * dd; }
+      P3[v * 3] += DEF[k] * dd; P3[v * 3 + 1] += DEF[k + 1] * dd + (Q.get('ledges') !== '1' ? 0 : DEF[k + 6]); P3[v * 3 + 2] += DEF[k + 2] * dd; }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P3), 3));
@@ -369,7 +341,7 @@ function buildSkirt(step) {
   g.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1)); g.computeVertexNormals();
   g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(P3.length / 3).fill(TSKIRT ? 1 : 0), 1));
   g.setAttribute('aMed', new THREE.BufferAttribute(new Float32Array(MD), 2));
-  { const L = new Float32Array(nv); if (DEF.length === nv * 8) for (let v = 0; v < nv; v++) L[v] = DEF[v * 8 + 7]; g.setAttribute('aLedge', new THREE.BufferAttribute(L, 1)); }
+  { const L = new Float32Array(nv); if (DEF.length === nv * 8 && Q.get('ledges') === '1') for (let v = 0; v < nv; v++) L[v] = DEF[v * 8 + 7]; g.setAttribute('aLedge', new THREE.BufferAttribute(L, 1)); }
   return { g, cells: cells.length };
 }
 
@@ -472,7 +444,7 @@ Smp sRock(float Lm, float sN, float sF, vec3 P, vec3 tw, float fw, float d, floa
 //   the two blended by slope (42-58 deg) through their heights; the macro multiplies the colour and, off the displaced mesh,
 //   bends the normal (on the displaced mesh the geometry IS the macro's relief).
 // The normal comes back as a WORLD perturbation at the maps' own scale (m/m), the colour linear, .a the height (0..1).
-uniform sampler2D uTSA, uTSN, uTFA, uTFN, uTMNH, uTMM, uTRK; uniform vec4 uTM; uniform vec2 uTScale;
+uniform sampler2D uTSA, uTSN, uTFA, uTFN, uTMNH, uTMM, uTRK; uniform vec4 uTM; uniform vec2 uTScale; uniform vec3 uTMeanS, uTMeanF;
 varying float vDisp; varying vec2 vMed; varying float vLedge;
 vec2 tVst(vec2 v){ return vec2(v.x + 0.5 * v.y, v.y * 0.8660254) * 0.5; }
 // one hex lattice for both: the three corners in the 3-colour order (splat_ground sTile's line-free fetch), their weights
@@ -529,6 +501,11 @@ Smp sTrond(vec3 P, vec3 nGeo, float slope){
     float k = smoothstep(0.3, 0.7, kx);
     fa.c = mix(b.c, a.c, k); fa.n = mix(b.n, a.n, k);
   }
+  // THE FAR FADE (17 Nov, the user's red circle: the far ridge read as a grid of dark dashes): the 24 / 40 m tiles' own
+  // large patterns survive the mips and repeat at a kilometre; past 400 m they give way (to 1200 m, 80 %) to their mean
+  // colour and a flat normal - the macro (colour multiplier, exposure, veins) carries the variation out there
+  { float fd = 0.8 * smoothstep(400.0, 1200.0, distance(P, cameraPosition));
+    if (fd > 0.0) { sl.c.rgb = mix(sl.c.rgb, uTMeanS, fd); fa.c.rgb = mix(fa.c.rgb, uTMeanF, fd); sl.n.xyz *= 1.0 - fd; fa.n.xyz *= 1.0 - fd; } }
   if (fw <= 0.001) o = sl; else if (fw >= 0.999) o = fa;
   else { vec2 h = hw2(sl.c.a, 1.0 - fw, fa.c.a, fw, 0.1); o.c = sl.c * h.x + fa.c * h.y; o.n = sl.n * h.x + fa.n * h.y; }
   // THE PBR MICRO DETAIL (16 Nov, the user: "take a PBR texture of rock, probably one we have already ... blended with your
@@ -564,8 +541,8 @@ Smp sTrond(vec3 P, vec3 nGeo, float slope){
   // ground's own grass set (grassRock, layer 0) read from above, pushed lusher, darkened to moss where it is thin.
   {
     float n1 = vnoise(P.xz / 7.0 + 3.1), n2 = vnoise(P.xz / 1.7 - 9.4);
-    float crackM = max(max(1.0 - smoothstep(0.10, 0.32, hm), vMed.x * 0.9), clamp(vLedge, 0.0, 1.0) * 0.8);   // (a ledge's tread holds soil)
-    o.c.rgb *= 1.0 - 0.25 * clamp(-vLedge, 0.0, 1.0);   // (a riser: the bare, shaded step)
+    float crackM = max(max(1.0 - smoothstep(0.10, 0.32, hm), vMed.x * 0.9), clamp(vLedge, 0.0, 1.0) * 0.95);   // (a ledge's tread holds soil)
+    o.c.rgb *= 1.0 - 0.35 * clamp(-vLedge, 0.0, 1.0);   // (a riser: the bare, shaded step)
     o.c.rgb *= mix(1.0, 0.55, vMed.x) * (0.9 + 0.2 * vMed.y);   // the medium relief's crevices darker, each mass its own tone
     float up = smoothstep(0.80, 0.96, nGeo.y) * (0.35 + 0.65 * n1);
     float G = clamp(vegM * 1.15 + crackM * 0.6 + up * 0.55, 0.0, 1.0) * (0.55 + 0.6 * n2);
@@ -777,7 +754,7 @@ function surfY(x, z) {
   const eX = ex0 < 0 ? m : ss(0.25, 0.75, ex0) * Math.min(1, m * 3);
   const med = medium(x, y0, z), [mu, sd] = medNorm(), z0 = (med.h - mu) / sd, zc = z0 > 0 ? z0 / (1 + 0.55 * z0) : z0 / (1 - 0.25 * z0);
   const g = gradXZ(x, z, 5), l = Math.hypot(g[0], 1, g[1]);
-  return y0 + (TRD.hAt(x, z) * Math.min(1, m * 3) + eX * (MED.lift + MED.amp * 0.6 * zc)) / l + (Q.get('ledges') === '0' ? 0 : stairDY(x, y0, z, eX, Math.atan(Math.hypot(g[0], g[1])) * 57.2958));
+  return y0 + (TRD.hAt(x, z) * Math.min(1, m * 3) + eX * (MED.lift + MED.amp * 0.6 * zc)) / l + (Q.get('ledges') !== '1' ? 0 : stairDY(x, y0, z, eX, Math.atan(Math.hypot(g[0], g[1])) * 57.2958));
 }
 async function buildScatter() {
   // RULES (per candidate on a jittered 2 m lattice, CPU, once): a TALUS field - the concave foot of a face (a cell within
@@ -1207,13 +1184,6 @@ const VIEWS = {
     return [[ex, Math.max(hXZ(ex, ez) + 14, ty + 18), ez], [tx, ty, tz]]; },
   ground: () => { const tx = sl2[0], tz = sl2[1], ty = hXZ(tx, tz); const g = gradXZ(tx, tz, 10), l = Math.hypot(g[0], g[1]); const ex = tx - g[0] / l * 30, ez = tz - g[1] / l * 30;
     return [[ex, hXZ(ex, ez) + 2.2, ez], [tx, ty + 6, tz]]; },
-  // ledge: the densest ledge patch within 500 m (the strength of the ledge law summed over 60 m discs), from 160 m downhill
-  ledge: () => { let bestL = null; const K = [];
-    for (let z = -480; z <= 480; z += 12) for (let x = -480; x <= 480; x += 12) { const e = TRD ? Math.max(0, TRD.eAt(x, z)) : 1; stairDY(x, hXZ(x, z), z, e, slopeAt(x, z)); K.push([x, z, LEDGE_K]); }
-    for (let z = -420; z <= 420; z += 30) for (let x = -420; x <= 420; x += 30) { let a = 0; for (const k of K) if ((k[0] - x) ** 2 + (k[1] - z) ** 2 < 3600) a += k[2]; if (!bestL || a > bestL[2]) bestL = [x, z, a]; }
-    const tx = bestL[0], tz = bestL[1], ty = hXZ(tx, tz), g = gradXZ(tx, tz, 20), l = Math.hypot(g[0], g[1]) || 1;
-    const ex = tx - g[0] / l * 160, ez = tz - g[1] / l * 160;
-    return [[ex, Math.max(hXZ(ex, ez) + 25, ty + 15), ez], [tx, ty + 5, tz]]; },
   top: () => { const tx = best[0], tz = best[1], ty = hXZ(tx, tz); return [[tx + 0.1, ty + 700, tz + 0.1], [tx, ty, tz]]; },
   high: () => { const tx = best[0] - dnX * 60, tz = best[1] - dnZ * 60, ty = hXZ(tx, tz); const ex = tx + dnX * 620 - dnZ * 160, ez = tz + dnZ * 620 + dnX * 160;
     return [[ex, Math.max(ty, hXZ(ex, ez)) + 520, ez], [tx, ty - 80, tz]]; },
@@ -1261,7 +1231,7 @@ function fragSource() { const pr = renderer.info.programs.find(p => p.cacheKey &
   const ext = gl.getExtension('WEBGL_debug_shaders');
   let src = ext ? ext.getTranslatedShaderSource(sh) : ''; const translated = !!src; if (!src) src = gl.getShaderSource(sh);
   return { chars: src.length, lines: src.split('\n').length, textureSites: (src.match(/texture\s*\(/g) || []).length, translated }; }
-window.BENCH = { ready: true, render, measure, counts, info, setView, fragSource, scene, camera, THREE, stairDY, hXZ, slopeAt };
+window.BENCH = { ready: true, render, measure, counts, info, setView, fragSource, scene, camera, THREE };
 render();
 msg(`rock=${P.rock} tri=${P.tri} expo=${P.expo} strata=${P.strata} scatter=${P.scatter} skirt=${P.skirt} view=${P.view} | ${renderer.info.render.calls} draws, ${(renderer.info.render.triangles / 1000).toFixed(0)} k tris`);
 })().catch(e => { document.getElementById('msg').textContent = 'failed: ' + e.message + '\n' + e.stack; window.BENCH = { ready: false, error: String(e) }; });

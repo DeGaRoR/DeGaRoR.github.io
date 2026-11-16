@@ -601,6 +601,22 @@ quarry". The reference was the early shader-strata still: contour-following band
   keyed to the regional joints rather than to noise.
 - If v2 does not convince, `claude/rock-study-v1` is the fall-back.
 
+### 5i. Back to v1, ledges off; the far ridge fixed (17 Nov)
+
+**The user:** "forget about ledges, v1 is good as-is". `bench.js` is v1's again, with the ledges OFF unless `?ledges=1`; that
+includes their colour on treads and risers. Section 5h stays as a record.
+
+**The user's red circle** (the high view's far ridge, white, with a grid of dark dashes) was the bench's own limit. The
+ridge lay outside the 1.6 km macro bake, so the rock fell back to the raw tiles: no colour multiplier, no exposure mosaic,
+and the 40 m face tile's streaks repeating unbroken. Two fixes:
+- **The macro now covers the whole 2 km patch** (2560² at 0.78 m; 77 s to bake). The vegetation maps follow it and their
+  README is updated (2 km, 1.953 m a pixel, origin (8540, -6140)).
+- **THE FAR FADE.** Past 400 m (80 % by 1200 m) the slab and face tiles give way to their mean colour and a flat normal;
+  the macro carries the variation out there.
+
+Stills: `v1/high_farfix.jpg` (as shot, then fixed) and `v1/high_v1.jpg`. **In the game this is the same lesson at island
+scale:** the macro must be procedural, not a bake (5g).
+
 ## 6. Recommendation: what to build first, what it costs, what it changes
 
 **Build first: rock clusters in the cover ring.** It changes the most of what an aeroplane sees, for the least risk.
