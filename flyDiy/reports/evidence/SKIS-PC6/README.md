@@ -59,3 +59,21 @@ cutout; skis down 6 cm below the tyre, up 3 cm above it, a 15 s cycle) and a tai
 5. NOT THE SKIS' (reported): the PC-6 breaks a tail member during the pilot's 252-degree pivot on the mt_strip apron
    (first yield at 1.2 m/s, the tail 0.42 m over a flat apron: no strike), on plain wheels on gravel too; the same pivot at
    HOME (94 degrees) is clean. FIT-PROCEDURE's card (the tail) and the Pilot's (a pivot at a "push only" strip).
+
+## ON L40d WITH DEEP SNOW, FROM OBSERVATORY-3's STAND (claude/skis-pc6-2, 16 Nov)
+
+The base: L40d fb8fb633b + SNOW-MUD's snow-mud-finish-l40d 192ae6a1b (DEEP SNOW: powder and wet snow a virgin layer, a
+tyre's bulldozing). The take-offs FROM THE STAND, which OBSERVATORY-3 (claude/ready/observatory-2 2211a4387, overlaid here:
+it is not on L40d) turned to face the take-off (hdg 0, nose east, downhill), its apron packed snow; the strip's own snow
+the case's. The pilot taxis and lines up on its wheels and lowers the skis at the hold (the run measured from there).
+
+| PC-6 on wheel-skis | leg | result | run | strip left | to 15 m | ski rut | damage |
+|---|---|---|---|---|---|---|---|
+| powder | landing (uphill) | stopped, skis down at the touchdown, 40 m in at 20.7 m/s | 78 m | 93 m | - | 20.5 cm | none |
+| powder | take-off (downhill, from the stand) | off at 24.3 m/s | 71 m | 88 m | 259 m | 19 cm | none |
+| packed | take-off (from the stand) | off at 25.8 m/s | 76 m | 79 m | - | 3 cm | none |
+| packed | landing | stopped 19 m PAST THE END (no brakes, no reverse) | 189 m | -19 m | - | - | 624 member yields past the end, in the bank (4.5 m rise in 20 m); none on the strip, no break |
+
+On L40d alone (its stand 90 deg off the take-off: the line-up) the same four legs fly the same numbers within 4 m.
+On plain wheels from the turned stand (the site's own snow: packed apron, powder strip) the PC-6 taxis and takes off
+clean (104 m); with its skis down on the apron it broke its tail in the pilot's pivot - hence the wheels on the ground.
