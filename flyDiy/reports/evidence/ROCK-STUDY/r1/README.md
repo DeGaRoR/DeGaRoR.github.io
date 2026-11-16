@@ -1,4 +1,23 @@
-# ROCK-STUDY R1 (v3): the island's own rock on the splat
+# ROCK-STUDY R1 (v4): the island's own rock on the splat
+
+## v4 (answers A0's box run of v3, b8d68316e: high and far good; near and face "too smooth, concrete-like")
+
+Only the near look changed; everything else is v3.
+
+- **The slab's grade:** contrast 0.6 -> 1.0, and the slab tile 32 -> 24 m.
+- **Micro detail:** brightness 0.65 -> 0.85, relief 0.6 -> 1.0, and its fade moved out to 80-260 m so it reaches the near
+  eye.
+- **More green in the cracks:** `rockGreen` 1.8, and the cracks' weight 1.2.
+- **New: each slab its own.**
+  - A tone swing and a tilt of the shading normal.
+  - The tone is per cell of the joint network (a hash on its two band indices), plus a 6 m / 2.3 m undulation inside the
+    cells. The tile's own blocks, 5-13 m, are too small for the network's 38-46 m cells to break up alone.
+  - The tilt is per cell plus a 9 m undulation, so the sun picks out facets.
+  - Both fade with the joints (gone by 600 m).
+  - New rail rows: "slab tone swing" (0.3) and "slab tilt" (0.1).
+- **Geometry:** R1 adds none. Its only changes outside the shader are the tint's alpha and the defines. The 9.91 M against
+  8.24 M triangles on the box came from the boot.
+
 
 ## v3 (answers A0's box run of v2, 7b10f6330)
 
