@@ -1,7 +1,7 @@
 // ============================================================================
 // rock_ring.js - ROCK-STUDY: THE ISLAND'S ROCK AS GEOMETRY round the eye (the bench v1's 1.25 m relief, the user's look)
 //
-// 64 m CHUNKS within `reach` of the eye's ground point, each built ONCE in a WORKER (rock_ring_core.js: the macro, the
+// 62.5 m CHUNKS within `reach` of the eye's ground point, each built ONCE in a WORKER (rock_ring_core.js: the macro, the
 // Blender masses, the 1.25 m outcrop mesh) from inputs sampled here on a 2.5 m lattice - the ground's own height
 // (world.terrainH, as the cover ring plants on), the map's rock share (the 10 m terrain type), the imagery's NDVI and the
 // drainage (D8 on the hydrology's heights: ctx.flow). The outcrops rise OUT of the ground (their seam sinks under it: no
@@ -12,7 +12,8 @@
 //
 //   ROCK_RING.make(THREE, ctx) -> ring
 //     ctx = { scene, world, camera, splat (SPLAT_GROUND.make's result: its uniforms - arrays, grades, layers), terrainH(x, z),
-//             isla (the island: grid, ttype, ndvi), flow { g Uint8Array N*N, N, x0, z0, dx } | null, K (knobs) }
+//             isla (the island: grid, ttype, ndvi), flow { g Uint8Array N*N, N, x0, z0, dx } | null,
+//             kit ([{ h, bb, pos, nor, idx }] - the 'rocks' collection's subjects: the boulders) | null, K (knobs) }
 //     ring.update()        once a frame, after the camera
 //     ring.get() / set(o)  the dials: on, reach, chunk, step, lift, amp, unit, sink, perFrame
 //     ring.stat()          chunks live / queued, vertices, triangles, worker ms (sum, last), main ms (sum)
@@ -21,16 +22,18 @@
 // ============================================================================
 'use strict';
 var ROCK_RING = (() => {
-  const DEF = { on: 1, reach: 450, chunk: 64, step: 1.25, M: 24, hs: 2.5, lift: 0.6, amp: 1.5, unit: 12, sink: 0.35, perFrame: 2, fadeBand: 90 };
+  // (chunk and margin are WHOLE multiples of the 1.25 m step and the 2.5 m input lattice: 64 m left every chunk's last column
+  // 0.25 m short of its neighbour's first - a crack - and phased each chunk's inputs differently)
+  const DEF = { on: 1, reach: 450, chunk: 62.5, step: 1.25, M: 37.5, hs: 2.5, lift: 0.6, amp: 1.5, unit: 12, sink: 0.35, perFrame: 2, fadeBand: 90 };
   const workerSrc = () => {
     const core = (typeof ROCK_RING_CORE_SRC !== 'undefined') ? ROCK_RING_CORE_SRC : null;
-    return core + '\nonmessage = e => { const r = ROCK_RING_CORE.chunk(e.data); postMessage({ id: e.data.id, r }, [r.pos.buffer, r.disp.buffer, r.nor.buffer, r.idx.buffer, r.attr.buffer]); };';
+    return core + '\nlet KIT = null;\nonmessage = e => { if (e.data.kit) { KIT = ROCK_RING_CORE.kitPrep(e.data.kit); return; } const r = ROCK_RING_CORE.chunk(e.data, KIT); postMessage({ id: e.data.id, r }, [r.pos.buffer, r.disp.buffer, r.nor.buffer, r.idx.buffer, r.attr.buffer]); };';
   };
   // ---- the material: the bench v1's rock (sTrond) on the outcrops - the slab hex-tiled with each tap's frame turned to the
   // fall line about its own vertex, the face plain on the side planes, blended by slope 42-58 deg; the 'cliff' photograph's
   // micro detail (biplanar, out by 180 m); the macro colour, the green and the crevices from the vertex attributes
   function material(THREE, U, L) {
-    const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 });
+    const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });   // (the cover lies 0.3 m proud of the ground: it wins the depth test)
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { uSplat: U.uSplat, uSplatN: U.uSplatN, uSGrade: U.uSGrade, uSLum: U.uSLum, uSFilt: U.uSFilt,
         uRL: L.uRL, uRK: L.uRK, uRFade: L.uRFade });
@@ -150,24 +153,27 @@ Smp rRock(vec3 P, vec3 nG){
     const group = new THREE.Group(); group.name = 'rock-ring'; ctx.scene.add(group);
     const chunks = new Map(), queue = [], inflight = new Map();
     const ST = { built: 0, workerMs: 0, workerLast: 0, mainMs: 0, verts: 0, tris: 0 };
-    let worker = null, seq = 0, cx0 = NaN, cz0 = NaN;
+    let worker = null, seq = 0, cx0 = NaN, cz0 = NaN, KIT0 = null;
     try { if (typeof Worker !== 'undefined' && typeof ROCK_RING_CORE_SRC !== 'undefined') worker = new Worker(URL.createObjectURL(new Blob([workerSrc()], { type: 'text/javascript' }))); } catch (e) { worker = null; }
     const I = ctx.isla, IG = I && I.grid;
-    const share = (x, z) => {   // the map's rock share at (x, z): the 10 m type, bilinear on 'is rock' (6)
+    const share = (x, z, code) => {   // the map's share of a type at (x, z): the 10 m type, bilinear on 'is it' (6 rock, 5 scree, 8 / 13 forest)
       if (!IG || !I.ttype) return 0; const fx = (x - IG.x0) / IG.cell - 0.5, fz = (z - IG.z0) / IG.cell - 0.5, i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
-      const at = (a, b) => { if (a < 0 || b < 0 || a >= IG.w || b >= IG.h) return 0; return (I.ttype[b * IG.w + a] & 127) === 6 ? 1 : 0; };
+      const at = (a, b) => { if (a < 0 || b < 0 || a >= IG.w || b >= IG.h) return 0; return (I.ttype[b * IG.w + a] & 127) === code ? 1 : 0; };
       return (at(i, j) * (1 - u) + at(i + 1, j) * u) * (1 - v) + (at(i, j + 1) * (1 - u) + at(i + 1, j + 1) * u) * v; };
     const ndvi = (x, z) => { if (!IG || !I.ndvi) return 0.5; const i = Math.max(0, Math.min(IG.w - 1, Math.floor((x - IG.x0) / IG.cell))), j = Math.max(0, Math.min(IG.h - 1, Math.floor((z - IG.z0) / IG.cell)));
       return I.ndvi[j * IG.w + i] / 255 * 2 - 1; };
     const F = ctx.flow;
     const flow = (x, z) => { if (!F) return 0.3; const fx = (x - F.x0) / F.dx - 0.5, fz = (z - F.z0) / F.dx - 0.5, i = Math.max(0, Math.min(F.N - 2, Math.floor(fx))), j = Math.max(0, Math.min(F.N - 2, Math.floor(fz))), u = Math.min(1, Math.max(0, fx - i)), v = Math.min(1, Math.max(0, fz - j)), k = j * F.N + i;
       return ((F.g[k] * (1 - u) + F.g[k + 1] * u) * (1 - v) + (F.g[k + F.N] * (1 - u) + F.g[k + F.N + 1] * u) * v) / 255; };
-    const inputs = (x0, z0) => {
+    // the LOD band of a chunk at d m: [rung of its boulders, small blocks on] - a chunk rebuilds when the eye moves it across one
+    const band = d => d < 200 ? 0 : (d < 250 ? 1 : 2);
+    const inputs = (x0, z0, d) => {
       const C = S.chunk, M = S.M, hs = S.hs, nh = Math.round((C + 2 * M) / hs) + 1, n = nh * nh;
-      const H = new Float32Array(n), R = new Float32Array(n), V = new Float32Array(n), Fl = new Float32Array(n); let any = 0;
+      const H = new Float32Array(n), R = new Float32Array(n), V = new Float32Array(n), Fl = new Float32Array(n), Sc = new Float32Array(n), Fo = new Float32Array(n); let any = 0;
       for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const x = x0 - M + i * hs, z = z0 - M + j * hs, k = j * nh + i;
-        H[k] = ctx.terrainH(x, z); R[k] = share(x, z); V[k] = ndvi(x, z); Fl[k] = flow(x, z); if (R[k] > 0) any = 1; }
-      return any ? { x0, z0, C, M, hs, nh, H, R, V, F: Fl, step: S.step, K: { lift: S.lift, amp: S.amp, unit: S.unit, sink: S.sink, ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet } } : null;
+        H[k] = ctx.terrainH(x, z); R[k] = share(x, z, 6); V[k] = ndvi(x, z); Fl[k] = flow(x, z); Sc[k] = share(x, z, 5); Fo[k] = Math.max(share(x, z, 8), share(x, z, 13)); if (R[k] > 0) any = 1; }
+      const b = band(d), cam = ctx.camera.position;
+      return any ? { x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, rung: b === 0 ? 0 : 1, eye: [cam.x, cam.z], step: S.step, K: { lift: S.lift, amp: S.amp, unit: S.unit, sink: S.sink, ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet, scatter: S.scatter, boulders: S.boulders, proud: S.proud } } : null;
     };
     const place = (key, r) => {
       const c = chunks.get(key); if (!c || !r.nv) { if (c) c.empty = true; return; }
@@ -180,15 +186,18 @@ Smp rRock(vec3 P, vec3 nG){
       for (let v = 0; v < nv; v++) { for (let k = 0; k < 4; k++) { a0[v * 4 + k] = r.attr[v * 8 + k]; a1[v * 4 + k] = r.attr[v * 8 + 4 + k]; } }
       g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4));
       g.computeBoundingSphere();
+      if (c.mesh) { group.remove(c.mesh); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; c.mesh.geometry.dispose(); }   // (a rebuild across a LOD band)
       const mesh = new THREE.Mesh(g, mat); mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = true; group.add(mesh);
-      c.mesh = mesh; ST.built++; ST.verts += nv; ST.tris += r.nt; ST.workerMs += r.ms; ST.workerLast = r.ms; ST.mainMs += performance.now() - t0;
+      c.mesh = mesh; ST.built++; ST.verts += nv; ST.tris += r.nt; ST.boulderTris = (ST.boulderTris || 0) + (r.boulders || 0); ST.workerMs += r.ms; ST.workerLast = r.ms; ST.mainMs += performance.now() - t0;
     };
     const build = (key, x0, z0) => {
-      const t0 = performance.now(), inp = inputs(x0, z0); ST.mainMs += performance.now() - t0;
+      const c0 = chunks.get(key), cam = ctx.camera.position, d = Math.hypot(x0 + S.chunk / 2 - cam.x, z0 + S.chunk / 2 - cam.z); c0.band = band(d);
+      const t0 = performance.now(), inp = inputs(x0, z0, d); ST.mainMs += performance.now() - t0;
       if (!inp) { chunks.get(key).empty = true; return; }
       if (worker) { inp.id = ++seq; inflight.set(inp.id, key); worker.postMessage(inp, [inp.H.buffer, inp.R.buffer, inp.V.buffer, inp.F.buffer]); }
-      else place(key, ROCK_RING_CORE.chunk(inp));
+      else place(key, ROCK_RING_CORE.chunk(inp, KIT0 || (KIT0 = ctx.kit ? ROCK_RING_CORE.kitPrep(ctx.kit) : null)));
     };
+    if (worker && ctx.kit) worker.postMessage({ kit: ctx.kit });
     if (worker) worker.onmessage = e => { const key = inflight.get(e.data.id); inflight.delete(e.data.id); if (key && chunks.has(key)) place(key, e.data.r); };
     const drop = key => { const c = chunks.get(key); if (c && c.mesh) { group.remove(c.mesh); c.mesh.geometry.dispose(); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; } chunks.delete(key); };
     const sync = () => {   // the layers and knobs from the splat (its arrays may grow)
@@ -210,13 +219,16 @@ Smp rRock(vec3 P, vec3 nG){
             if (!chunks.has(key)) { chunks.set(key, { x0, z0, d }); queue.push([d, key, x0, z0]); } }
           for (const key of [...chunks.keys()]) if (!want.has(key)) drop(key);
           queue.sort((a, b) => a[0] - b[0]); }
+        // a chunk the eye has moved across a LOD band rebuilds (its old mesh stands until the new one lands)
+        if (!(ring._t = (ring._t || 0) + 1) || ring._t % 30 === 0) for (const [key, c] of chunks) { if (c.band === undefined || c.empty) continue;
+          const d = Math.hypot(c.x0 + C / 2 - cam.x, c.z0 + C / 2 - cam.z); if (band(d) !== c.band && !queue.some(q => q[1] === key)) queue.push([d, key, c.x0, c.z0]); }
         let n = 0; while (queue.length && n < S.perFrame && inflight.size < 4) { const [, key, x0, z0] = queue.shift(); if (chunks.has(key)) { build(key, x0, z0); n++; } }
       },
       get: () => Object.assign({}, S),
-      set(o) { const rebuild = ['chunk', 'step', 'lift', 'amp', 'unit', 'sink', 'ndvi', 'ndviMid', 'off', 'hLo', 'hHi', 'jointDirt', 'wet', 'M', 'hs'].some(k => k in o && o[k] !== S[k]);
+      set(o) { const rebuild = ['chunk', 'step', 'lift', 'amp', 'unit', 'sink', 'proud', 'scatter', 'boulders', 'ndvi', 'ndviMid', 'off', 'hLo', 'hHi', 'jointDirt', 'wet', 'M', 'hs'].some(k => k in o && o[k] !== S[k]);
         Object.assign(S, o); if (rebuild) { for (const k of [...chunks.keys()]) drop(k); queue.length = 0; cx0 = cz0 = NaN; } return ring.get(); },
       stat: () => ({ chunks: [...chunks.values()].filter(c => c.mesh).length, queued: queue.length, inflight: inflight.size, verts: ST.verts, tris: ST.tris,
-        built: ST.built, workerMs: Math.round(ST.workerMs), workerLastMs: ST.workerLast, mainMs: Math.round(ST.mainMs), worker: !!worker }),
+        built: ST.built, boulderTris: ST.boulderTris || 0, workerMs: Math.round(ST.workerMs), workerLastMs: ST.workerLast, mainMs: Math.round(ST.mainMs), worker: !!worker }),
       whenIdle: () => new Promise(res => { const tick = () => { ring.update(); if (!queue.length && !inflight.size) res(ring.stat()); else setTimeout(tick, 30); }; tick(); }),
       dispose() { for (const k of [...chunks.keys()]) drop(k); ctx.scene.remove(group); mat.dispose(); if (worker) worker.terminate(); },
       material: mat, group,

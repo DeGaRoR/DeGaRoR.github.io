@@ -129,7 +129,13 @@ let RING = null;
 if (Q.get('rocks') !== '0' && Q.get('ring') !== '0' && typeof ROCK_RING !== 'undefined') {
   const fL = PJ.layout.find(l => l.name === 'flow'), FLW = new Uint8Array(PB, fL.off, fL.len);
   const TTg = new Uint8Array(gw * gh), NDg = new Uint8Array(gw * gh); for (let k = 0; k < gw * gh; k++) { TTg[k] = Bs[k * 2 + 1]; NDg[k] = Bs[k * 2]; }
-  RING = ROCK_RING.make(THREE, { scene, world: null, camera, splat: SPL, terrainH: hXZ,
+  // the boulders' kit: the game's 'rocks' collection, as export_patch.js wrote it (data/rocks.json + rocks.bin); ?boulders=0 none
+  let KIT = null;
+  if (Q.get('boulders') !== '0') { const [kj, kb] = await Promise.all([get('data/rocks.json', 'json'), get('data/rocks.bin')]);
+    const kk = kj.kits.find(k => k.name === 'rocks');
+    KIT = kk.subjects.map(s => { const p = s.parts[0];
+      return { h: s.h, bb: s.bb, pos: new Float32Array(kb, p.pos, p.nv * 3).slice(), nor: new Float32Array(kb, p.nrm, p.nv * 3).slice(), idx: Uint32Array.from(p.wide ? new Uint32Array(kb, p.idx, p.nt * 3) : new Uint16Array(kb, p.idx, p.nt * 3)) }; }); }
+  RING = ROCK_RING.make(THREE, { scene, world: null, camera, splat: SPL, terrainH: hXZ, kit: KIT,
     isla: { grid: { x0: GJ.x0, z0: GJ.z0, w: gw, h: gh, cell: GJ.cell }, ttype: TTg, ndvi: NDg },
     flow: { g: FLW, N, x0: PJ.x0 - ST / 2, z0: PJ.z0 - ST / 2, dx: ST } });
 }
