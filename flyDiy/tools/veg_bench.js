@@ -44,6 +44,7 @@ const t0 = Date.now();
 const W = IN.islandWorld('jolene', { premises: fixture });
 const I = W.island, S = W.SURFACE;
 const BIO = BIOMES.make(PACK);
+BIO.hold(true);   // the knobs once for the run (28c hold; nothing edits them here)
 const O = W.premises && W.premises.overlay;
 if (O && O.vegAt) BIO.over = (x, z) => O.vegAt(x, z);
 console.log('world', Date.now() - t0, 'ms; premises overlay', !!O);

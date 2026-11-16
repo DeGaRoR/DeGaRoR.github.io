@@ -63,9 +63,15 @@ const BIOMES = (() => {
       mixes: src.mixes || {},
       names: NAMES,
       knobs: () => {
+        if (B.held) return B.held;   // a walk's snapshot (hold below)
         const R = (typeof GROUND_FIELDS !== 'undefined' && GROUND_FIELDS && GROUND_FIELDS.RECIPE) ? GROUND_FIELDS.RECIPE.knobs : null;
         return Object.assign({}, KNOBS, R || {}, (opts && opts.knobs) || {});
       },
+      // HOLD (MOUNTAIN-VEG 16 Nov): knobs() merges three objects per call, and the per-point rules (subCode, subKeep) made it the
+      // walk's top cost (5 of 11 s in veg_bench's Cabin window). A caller that runs many points in one synchronous pass holds a
+      // snapshot for it - hold(true) before, hold(false) after (the editor's live knobs reach the next pass)
+      held: null,
+      hold: on => { B.held = null; if (on) B.held = B.knobs(); },
     };
     B.codeOf = (tt, slopeDeg, canopyM, r) => {
       const K = B.knobs();

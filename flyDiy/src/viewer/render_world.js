@@ -5628,6 +5628,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         try { return walkRows(cx, cz, recs, g0, g1, part); } finally { world.buildReads(-1); }
       }
       function walkRows(cx, cz, recs, g0, g1, part) {
+        if (BIO && BIO.hold && !BIO.held) { BIO.hold(true); try { return walkRows(cx, cz, recs, g0, g1, part); } finally { BIO.hold(false); } }   // the biomes' knobs once a pass (28c hold)
         const ng = NG, spc = CH / ng;
         if (part === BASE && g0 === 0 && !PROBE) townInto(cx, cz, recs);   // TOWN-1: the chunk's town trees, with its first row
         for (let gz = g0; gz < g1; gz++) for (let gx = 0; gx < ng; gx++) {

@@ -160,6 +160,7 @@ const STAND_CARDS = (() => {
     const inSlice = () => !!(typeof window !== 'undefined' && window.FLYDIY_SLICE);
     const chunkJob = k => { const [cx, cz] = k.split(',').map(Number); return { k, cx, cz, iz: 0, xs: [], ms: 0 }; };
     function chunkRows(J) {   // -> true once every row is done
+      if (BIO && BIO.hold && !BIO.held) { BIO.hold(true); try { return chunkRows(J); } finally { BIO.hold(false); } }   // the biomes' knobs once a pass (28c hold)
       const t0 = performance.now(), C = S.cell, sp = S.spacing, n = C / sp, cx = J.cx, cz = J.cz, x0 = cx * C, z0 = cz * C, xs = J.xs;
       const spc = sp / S.block;   // the block's tree spacing: the density the fill would plant at
       while (J.iz < n) { const iz = J.iz++; for (let ix = 0; ix < n; ix++) {
