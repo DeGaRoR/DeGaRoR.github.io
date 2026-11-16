@@ -3004,6 +3004,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // ...and THE BICYCLE WHEEL (the cage's whProfile 3, every wheel of the build as the row draws them): its own mass law
   // and price (GEN_RULES.wheelCycleKg, GEN_PRICES.wheelCycle). Every other carcass: the rule as before
   const CYCLE = Math.round(+((S.cage && S.cage.whProfile) || 0)) === 3;
+  // PC6-BILL: an oleo tailwheel (gear.twOleo) pays for its parts, each priced as the part it is (the drawing's bill:
+  // _gear_gen PC6_USD, the strut a machined sealed unit), and its wheel and tyre ($500) - not the leaf third wheel's set price
+  const twOleoUsd = S.gear.twOleo && S.gear.twOleo.usd > 0 ? S.gear.twOleo.usd + 500 : 0;
   // SKIS (29c_ski.js): the resolved ski gear (null without: every line below as it was). A plain ski replaces its wheel
   // (the wheel, tyre and brake come off - neither bought nor carried); the others keep the wheel and add the ski.
   // (A MONOWHEEL on skis is not modelled: no ski)
@@ -3011,10 +3014,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   if (SKR && BOOMS) SKR.third = null;                  // (a twin boom's two tail contacts: no tail ski - not modelled)
   if (SKR) {
     spend((SKR.kind === 'plain' ? 0 : 2 * (CYCLE ? GEN_PRICES.wheelCycle : GEN_PRICES.wheel))
-          + (SKR.third && SKR.third.kind === 'plain' ? 0 : GEN_PRICES.thirdWheel) + (ARCH.price || 0));
+          + (SKR.third && SKR.third.kind === 'plain' ? 0 : (twOleoUsd || GEN_PRICES.thirdWheel)) + (ARCH.price || 0));
     spend(SKR.usd);
   } else
-  if (S.gear.type !== 'floats') spend(nMn * (CYCLE ? GEN_PRICES.wheelCycle : GEN_PRICES.wheel) + GEN_PRICES.thirdWheel + (ARCH.price || 0));
+  if (S.gear.type !== 'floats') spend(nMn * (CYCLE ? GEN_PRICES.wheelCycle : GEN_PRICES.wheel) + (twOleoUsd || GEN_PRICES.thirdWheel) + (ARCH.price || 0));
   // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
   // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
   // deeper shell 88·R², its leg shroud included), stretched a little by the
@@ -3075,7 +3078,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const fwdL = engFwd ? EL : F[iFwd].BL, fwdR = engFwd ? ER : F[iFwd].BR;
   const AA = F[Math.max(iAft, engFwd ? 0 : Math.min(iFwd + 1, F.length - 1))];
   const trike = S.gear.type === 'tricycle';
-  let GAL, GAR, TW, TW2 = -1, twX, twY, FLOATS = null;
+  let GAL, GAR, TW, TW2 = -1, twX, twY, FLOATS = null, TWOLEO = null;   // (PC6-OLEO: the telescopic tail's record)
   // HULL-B3: THE FUSELAGE IS THE BOAT (gear.type 'hull', its measured lines in gear.hull - the join's cageHullTable)
   // (HULL-B55: an AMPHIBIAN - a tricycle that carries the hull's lines (the join's, a retracting gear on a boat hull):
   // the wheels below AND the hull after them; its mains / nose refs stay the wheels', the water's record rides FLOATS)
@@ -3334,6 +3337,47 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       twId.push(W_);
     }
     [TW, TW2] = twId;
+  } else if (S.gear.twOleo && !SKID && S.gear.twX != null && S.gear.twY != null) {
+    // PC6-OLEO (15 Nov, the user: "we really need to build the actual [suspension] piece to it. That's essential, that's
+    // its reason to be"): THE PC-6's TAILWHEEL, A TELESCOPIC OLEO. The cylinder (TOA its top, TOB its foot: on the
+    // strut's line through the wheel's RELAXED place - the drawing is the strut fully extended, in flight) clamped to
+    // the tail post and the last frame (the drawn clamps, the aft bulkhead: steel fittings, gear-class members); the
+    // STABILISER (TSH, the drawn node) braced to the belly's frames and linked to the cylinder's foot; the wheel (TW)
+    // rides the strut's line - the solver's telescope pass (30_solver, parts.twOleo): along it the oleo's gas and
+    // orifice (62c gearOleoDesignTele, designed on the final masses below), across it the piston's bearing. The member
+    // TW-TOB is the piston drawn (no force: kMul ~0 - the stroke is the solver's; it keeps the wheel in the airframe's
+    // part). twX / twY: the relaxed axle; the static stroke settles it onto the drawn three-point attitude's ground
+    const TO = S.gear.twOleo;
+    twX = S.gear.twX; twY = S.gear.twY;
+    TW = N(twX, twY, 0, 'TW', twRN);
+    const rk = (TO.rake || 0) * D, u = [-CORE_MATH.sin(rk), CORE_MATH.cos(rk), 0];   // up the strut (x aft: it leans forward)
+    const hd = TO.hd, Lc = Math.max(0.1, TO.Lc || 0.4);
+    const OB = N(twX + u[0] * hd, twY + u[1] * hd, 0, 'TOB'), OA = N(twX + u[0] * (hd + Lc), twY + u[1] * (hd + Lc), 0, 'TOA');
+    // (steel fittings, not a spring: the gear class's k, a tenth of its damper - the Wilga's leg and arm, R.lever.cMul;
+    // kMul 8 or the class's full damper on the light tail-post nodes cost 40 % more substeps)
+    const KC = { cMul: R.lever.cMul };
+    for (const q of [TPB, TPT, last.BL, last.BR]) B(OB, q, 'gear', false, 'inner', undefined, KC);
+    for (const q of [TPT, TPB, last.TL, last.TR]) B(OA, q, 'gear', false, 'inner', undefined, KC);
+    B(OA, OB, 'gear', false, 'leg', undefined, KC);                      // the cylinder
+    B(TW, OB, 'gear', false, 'leg', undefined, { kMul: 1e-9 });          // the piston (its force: the telescope pass)
+    let SH = -1;
+    if (TO.stab) {
+      // the node ahead and low (the drawing's: twice the V's reach ahead, 0.62 of the static drop down), its tubes to the
+      // belly's frames nearest the drawn feet (both corners: the truss's lateral spread), its link to the cylinder's foot
+      const hS = 0.7 * hd, ahead = 2 * Math.max(0.16, 1.7 * (S.gear.twR || 0.1));
+      SH = N(P[OB][0] - ahead, P[OB][1] - 0.62 * hS, 0, 'TSH');
+      const nearF = x => { let j = 0, dd = Infinity; for (let q = 0; q < ST.length; q++) { const e = Math.abs(ST[q].x - x); if (e < dd) { dd = e; j = q; } } return F[j]; };
+      const fa = nearF(P[OB][0] - 3.2 * hS), fb = nearF(P[OB][0] - 2.0 * hS);
+      for (const fr of fa === fb ? [fa] : [fa, fb]) { B(SH, fr.BL, 'gear', false, 'wire', undefined, KC); B(SH, fr.BR, 'gear', false, 'wire', undefined, KC); }
+      B(SH, OB, 'gear', false, 'wire', undefined, KC);
+    }
+    pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw + (TO.kgSlider || 0));   // the wheel, its fork, piston and V
+    pt(OB, 0.6 * (TO.kgCyl || 0)); pt(OA, 0.4 * (TO.kgCyl || 0));
+    if (SH >= 0) pt(SH, TO.kgStab || 0);
+    TWOLEO = { tw: TW, oa: OA, ob: OB, sh: SH, hd, S: TO.S, sSt: TO.sSt, dPiston: TO.dPiston,
+               // PC6-BILL: the parts as billed (the drawing's, and the wheel's row here), for the fiche and the gates
+               bill: (Array.isArray(TO.bill) ? TO.bill.slice() : []).concat([{ part: 'wheel and tyre', at: 'slider',
+                 kg: Math.round(twKgK * R.wheelTwKg(S.gear.twR) * 1000) / 1000, usd: 500 }]) };
   } else {
     twX = S.gear.twX !== null && S.gear.twX !== undefined
       ? S.gear.twX : fu.postX - 0.10;
@@ -4432,6 +4476,34 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       sd.O = gearOleoDesign(L, LEVREC.geom.comp, W, sink, D);
     }
     parts.lever = LEVREC;
+  }
+  // PC6-OLEO: THE TAIL'S STRUT designed for this aeroplane on the final masses (62c gearOleoDesignTele): the tail wheel's
+  // static share of the gross at the built CG, the limit sink as the Wilga's, GEN_RULES.lever's rules on the drawn
+  // piston; the bearing across the axis at 15 x the strut's static stiffness (~7 mm of give under a side load of the
+  // static's order - as stiff as the bottom stop, which sets the substep: 60 x cost 40 % more substeps), damped at a
+  // third of critical on the wheel's mass
+  if (TWOLEO) {
+    let Mx = 0, Mt = 0;
+    for (const nd of nodes) { Mx += nd.m * nd.p[0]; Mt += nd.m; }
+    const xc = Mx / Math.max(1e-9, Mt), xm = 0.5 * (P[GAL][0] + P[GAR][0]), xt = P[TWOLEO.tw][0];
+    const share = Math.abs(xt - xm) > 0.2 ? Math.max(0.02, Math.min(0.5, (xc - xm) / (xt - xm))) : 0.1;
+    const Wg = Math.max(Mt, gross || 0) * 9.81, W = share * Wg;
+    const WS = (Wg / 4.4482) / (Math.max(1, (S.geom && S.geom.Sw) || 15) * 10.7639);
+    const sink = 0.3048 * Math.max(7, Math.min(10, 4.4 * CORE_MATH.pow(Math.max(1e-6, WS), 0.25)));
+    // THE TAIL'S OWN THREE (DERIVED, the three-point drops of 15 Nov on the PC-6, tools/... tw_drop): a three-point
+    // touchdown loads the tail strut with the aeroplane's pitch-up onto it - 11-12 kN held through the stroke against
+    // its 3.3 kN static share at the limit sink - so its orifice is sized for nLim 9 x the static at cd 1 (the mains'
+    // rule, 2.67 at 0.5, bottomed it at the limit sink with nothing absorbed) and its charge is softer extended (rp 4.5:
+    // the long relaxed stroke a tail oleo hangs out in flight, its gas rising steeply into the stroke's last quarter).
+    // Measured: 1.0 / 1.5 m/s touchdowns 0.20 / 0.21 m of 0.23, no stop; the limit sink a brush of the stop, no set;
+    // 1.2 x it no set; 4.5 - 7.5 m/s sets, nothing broken (the leaf's pyramid: 35 - 61 members broken)
+    const D = Object.assign({}, R.lever, { dPiston: TWOLEO.dPiston || R.lever.dPiston, rp: 4.5, nLim: 9, cd: 1.0 });
+    const O = gearOleoDesignTele(TWOLEO.S, TWOLEO.sSt, W, sink, D);
+    O.Lx = TWOLEO.hd;
+    const mW = Math.max(1, nodes[TWOLEO.tw].m);
+    TWOLEO.O = O; TWOLEO.W = W; TWOLEO.share = share; TWOLEO.sink = sink;
+    TWOLEO.kLat = 15 * O.kSt; TWOLEO.cLat = (1 / 3) * 2 * Math.sqrt(TWOLEO.kLat * mW);
+    parts.twOleo = TWOLEO;
   }
   // G2678: the flown pod's own nodes and members (the damage hook's data: HANDOVER G2675-G2679)
   if (podM) parts.podFrame = podM;
