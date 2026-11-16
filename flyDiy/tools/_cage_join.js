@@ -2690,7 +2690,18 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
               // G345.1: WHAT TURNS, named for the weathering — the cone or a
               // blade; they may share a material row and must not share a bucket
               spinKind = a.name.lastIndexOf('edSpinner', 0) === 0 ? 2 : 1; }
-            else if (m.wheel) part = PARTS.wheels.find(w => w.kind === m.wheel) || null;
+            else if (m.wheel) {
+              // (CAR, 16 Nov: "make the wheels spin" - a car's FOUR wheels are two edWheelL and two edWheelR groups, so a
+              // kind names two contacts: the mesh goes to the NEAREST of them, each wheel its own part about its own axle;
+              // an aeroplane's kinds name one contact each, as before)
+              const C = PARTS.wheels.filter(w => w.kind === m.wheel);
+              if (C.length > 1) {
+                if (!geo.boundingSphere) geo.computeBoundingSphere();
+                const c0 = geo.boundingSphere.center.clone().applyMatrix4(tmp);
+                let bd = Infinity; part = null;
+                for (const w of C) { const d = Math.hypot(w.cx - c0.x, w.cy2 - c0.y, w.cz2 - c0.z); if (d < bd) { bd = d; part = w; } }
+              } else part = C[0] || null;
+            }
             else part = PARTS.others.find(u => u.src === m.src) || null;
             // G240: a cockpit control's pivot and axes, IN THE CAGE'S FRAME,
             // taken off the group the crew layer put them on — the crew
@@ -2828,6 +2839,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             // props registry
             (kud.propMat ? 'Pm' + kud.propMat : '') +
             (kud.tyreTex ? 'Tx' + kud.tyreTex : '') +      // WHEEL-TEX: a textured tyre / rim is its own bucket (its uv rides)
+            (kud.carTex ? 'Ct' + kud.carTex : '') +        // CAR-TEX: the plate / the tow sign, one bucket a face (its uv rides)
             (kud.aeroMemF ? 'S' + kud.aeroMemF.join(',') : '') +
             (kud.aeroMetalK ? 'Q' + kud.aeroMetalK : '') +
             (kud.aeroFieldM != null ? 'U' + kud.aeroFieldM : '') +
@@ -2896,6 +2908,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(ud.lampCup ? { lampCup: ud.lampCup, lampCol: ud.lampCol, ...(ud.lampK ? { lampK: ud.lampK } : {}) } : {}),
           ...(ud.propMat ? { propMat: ud.propMat } : {}),
           ...(ud.tyreTex ? { tyreTex: ud.tyreTex } : {}),   // WHEEL-TEX: the game rebuilds it from CAGE_WHEELTEX
+          ...(ud.carTex ? { carTex: ud.carTex } : {}),      // CAR-TEX: the game rebuilds it from CAGE_CARTEX
           // G207: no marking lands here (hardware, structure, the interior)
           ...(ud.aeroNoDec ? { noDec: 1 } : {}),
           ...(ud.aeroNoLet ? { noLet: 1 } : {}),   // LOOKS-ROUND2: a float, paint without letters

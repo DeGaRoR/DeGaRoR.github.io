@@ -2735,28 +2735,63 @@ function beamAxleSide(lg, lu, P, AF, wheelBox, plateX) {
 // registration, '46', navy and cream) and EMBOSSED (the same drawing as its bump map); on a bracket in the right rear
 // door's lower panel (the left carries the spare), two plated bolts, a chrome plate lamp over it. In the gear layer's
 // frame (metres); the door from the cage mesh (rearDoors), else the rear wall's centre.
+// CAR-3 CAR-TEX (16 Nov, the user: "make ... the textures show"): the plate's and the tow sign's canvas faces, ONE factory
+// keyed by what they show, so the GAME rebuilds the very material the garage drew (the join keeps the key on the
+// material record - `carTex`, its own bucket with its uv - and app.js / parked.js call this, as WHEEL-TEX's tyres do).
+// key: JSON { k: 'plate', top, main, bottom, bg, fg } | { k: 'sign', text, a (width / height) }. Pooled per key.
+// window.CAGE_CARTEX.material(key) -> MeshStandardMaterial (map + bump), or null where no canvas draws (node)
+const CARTEX = (() => {
+  const pool = new Map();
+  const FONT = '"Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+  const canvasOk = () => { try { const c = document.createElement('canvas'); return !!(c && c.getContext && c.getContext('2d')); } catch (e) { return false; } };
+  const drawPlate = (q, relief) => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+    g.fillStyle = relief ? '#000' : q.bg; g.fillRect(0, 0, 512, 256);
+    const ink = relief ? '#fff' : q.fg;
+    g.strokeStyle = ink; g.lineWidth = 10; g.beginPath(); g.roundRect ? g.roundRect(9, 9, 494, 238, 22) : g.rect(9, 9, 494, 238); g.stroke();
+    g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '700 34px ' + FONT; g.fillText(q.top, 256, 46);
+    g.font = '800 128px ' + FONT; g.fillText(q.main, 256, 140, 470);
+    g.font = '700 30px ' + FONT; g.fillText(q.bottom, 256, 218);
+    for (const x of [70, 442]) { g.beginPath(); g.arc(x, 46, 9, 0, Math.PI * 2); g.fillStyle = relief ? '#444' : '#0c1220'; g.fill(); g.fillStyle = ink; }   // the bolt holes
+    return c; };
+  const drawSign = (q, relief) => { const c = document.createElement('canvas'); c.width = 2048; c.height = Math.max(64, Math.round(2048 / Math.max(2, q.a || 8)));
+    const g = c.getContext('2d'), w = c.width, h = c.height;
+    g.fillStyle = relief ? '#000' : '#f2a900'; g.fillRect(0, 0, w, h);
+    const ch = Math.min(h * 1.6, w * 0.12);   // the chevron panels at either end
+    for (const side of [0, 1]) { g.save(); g.beginPath(); g.rect(side ? w - ch : 0, 0, ch, h); g.clip();
+      for (let k = -4; k < 12; k++) { g.beginPath(); const x0 = (side ? w - ch : 0) + k * h * 0.5; g.moveTo(x0, h); g.lineTo(x0 + h * 0.25, h); g.lineTo(x0 + h * 0.75, 0); g.lineTo(x0 + h * 0.5, 0); g.closePath();
+        g.fillStyle = relief ? '#555' : '#111'; g.fill(); } g.restore(); }
+    g.strokeStyle = relief ? '#fff' : '#111'; g.lineWidth = Math.max(6, h * 0.06); g.strokeRect(g.lineWidth / 2, g.lineWidth / 2, w - g.lineWidth, h - g.lineWidth);
+    g.fillStyle = relief ? '#fff' : '#111'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = '800 ' + Math.round(h * 0.74) + 'px ' + FONT; g.fillText(q.text, w / 2, h * 0.54, w - 2 * ch - 40);
+    return c; };
+  function material(key) {
+    if (pool.has(key)) return pool.get(key);
+    if (typeof document === 'undefined' || !canvasOk()) return null;
+    let q = null; try { q = JSON.parse(key); } catch (e) { return null; }
+    const draw = q.k === 'plate' ? drawPlate : q.k === 'sign' ? drawSign : null;
+    if (!draw) return null;
+    const map = new THREE.CanvasTexture(draw(q, false)), bump = new THREE.CanvasTexture(draw(q, true));
+    if (THREE.SRGBColorSpace) map.colorSpace = THREE.SRGBColorSpace;
+    const m = q.k === 'plate' ? new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 1.5, metalness: 0.35, roughness: 0.42 })
+                              : new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 1.2, metalness: 0.2, roughness: 0.45 });
+    m.userData.propMat = q.k === 'plate' ? 'carPlate' : 'carTowSign';   // (its own bucket in the join)
+    m.userData.carTex = key;                                            // (the game's rebuild key)
+    m.userData.aeroskin = 1;                                            // (the garage's understudy greys every lit material not so marked)
+    pool.set(key, m); return m;
+  }
+  return { material, plateKey: q => JSON.stringify({ k: 'plate', top: q.top, main: q.main, bottom: q.bottom, bg: q.bg, fg: q.fg }),
+           signKey: (text, a) => JSON.stringify({ k: 'sign', text, a: +(+a).toFixed(2) }) };
+})();
+window.CAGE_CARTEX = CARTEX;
+
 function plateBuild(group, P, AF, mesh) {
   let meta = {}; try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); meta = (S && S.meta) || {}; } catch (e) {}
   const pl = Object.assign({ top: 'JOLENE ISLAND', main: String(meta.reg || 'HF 1003').toUpperCase(), bottom: '46', bg: '#1d2a44', fg: '#efe4c8' }, meta.plate || {});
   const W = 0.305, H = 0.152;
-  // the drawing: a 512 x 256 canvas - the colour, and a grey-scale twin for the relief
-  const draw = relief => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
-    g.fillStyle = relief ? '#000' : pl.bg; g.fillRect(0, 0, 512, 256);
-    const ink = relief ? '#fff' : pl.fg;
-    g.strokeStyle = ink; g.lineWidth = 10; g.beginPath(); g.roundRect ? g.roundRect(9, 9, 494, 238, 22) : g.rect(9, 9, 494, 238); g.stroke();
-    g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = '700 34px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; g.fillText(pl.top, 256, 46);
-    g.font = '800 128px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; g.fillText(pl.main, 256, 140, 470);
-    g.font = '700 30px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; g.fillText(pl.bottom, 256, 218);
-    for (const x of [70, 442]) { g.beginPath(); g.arc(x, 46, 9, 0, Math.PI * 2); g.fillStyle = relief ? '#444' : '#0c1220'; g.fill(); g.fillStyle = ink; }   // the bolt holes
-    return c; };
-  if (typeof document === 'undefined') return;
-  { let ok = false; try { const c = document.createElement('canvas'); ok = !!(c && c.getContext && c.getContext('2d')); } catch (e) {} if (!ok) return; }   // (a headless bench draws no canvas)
-  const map = new THREE.CanvasTexture(draw(false)), bump = new THREE.CanvasTexture(draw(true));
-  if (THREE.SRGBColorSpace) map.colorSpace = THREE.SRGBColorSpace;
-  const face = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 1.5, metalness: 0.35, roughness: 0.42 });
-  face.userData.propMat = 'carPlate';          // (its own bucket in the join: a textured piece keeps its map and uv)
-  face.userData.aeroskin = 1;                   // (the garage's understudy greys every lit material not so marked: the plate drew blank)
+  // the face: CAGE_CARTEX's plate (the same material the game rebuilds from its key)
+  const face = CARTEX.material(CARTEX.plateKey(pl));
+  if (!face) return;                           // (a headless bench draws no canvas)
   const steel = GG.gearMat('steel'), chrome = GG.gearMat('chrome'), dark = GG.gearMat('dark');
   // where: the right door's lower panel (cage units x FS), else the rear wall's centre
   const C2 = window.CAGE2, FS = ((C2 && C2.CAGE_UNIT) || 1) * (+P.planeScale || 1), RD = mesh && mesh.rearDoors;
@@ -2824,26 +2859,24 @@ function towKitBuild(group, P, AF, mesh) {
       cand.push([P3, c]); }
     // the outer skin: the frontmost of them (a liner or trim behind it never counts)
     if (cand.length) { hz = Math.max(...cand.map(q => q[1][2])); for (const [P3, c] of cand) if (c[2] > hz - 0.02) { for (const p of P3) { hy0 = Math.min(hy0, p[1]); hy1 = Math.max(hy1, p[1]); } hn++; } }
-    if (ok && hn) { const H = Math.max(0.05, Math.min(0.16, (hy1 - Math.max(hy0, G.yT)) * 0.78)), W = Math.min(1.2, G.xT * 1.2, H * 11);
-      const draw = relief => { const c = document.createElement('canvas'); c.width = 1024; c.height = Math.round(1024 * H / W); const g = c.getContext('2d'), h = c.height;
-        g.fillStyle = relief ? '#000' : '#f2a900'; g.fillRect(0, 0, 1024, h);
-        const ch = Math.min(h * 1.1, 170);   // the chevron panels at either end
-        for (const side of [0, 1]) { g.save(); g.beginPath(); g.rect(side ? 1024 - ch : 0, 0, ch, h); g.clip();
-          for (let k = -4; k < 8; k++) { g.beginPath(); const x0 = (side ? 1024 - ch : 0) + k * h * 0.5; g.moveTo(x0, h); g.lineTo(x0 + h * 0.25, h); g.lineTo(x0 + h * 0.75, 0); g.lineTo(x0 + h * 0.5, 0); g.closePath();
-            g.fillStyle = relief ? '#555' : '#111'; g.fill(); } g.restore(); }
-        g.strokeStyle = relief ? '#fff' : '#111'; g.lineWidth = Math.max(6, h * 0.06); g.strokeRect(g.lineWidth / 2, g.lineWidth / 2, 1024 - g.lineWidth, h - g.lineWidth);
-        g.fillStyle = relief ? '#fff' : '#111'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.font = '800 ' + Math.round(h * 0.72) + 'px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; g.fillText('TOW  SERVICE', 512, h * 0.54, 1024 - 2 * ch - 30);
-        return c; };
-      const map = new THREE.CanvasTexture(draw(false)), bump = new THREE.CanvasTexture(draw(true)); if (THREE.SRGBColorSpace) map.colorSpace = THREE.SRGBColorSpace;
-      const face = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 1.2, metalness: 0.2, roughness: 0.45 });
-      face.userData.propMat = 'carTowSign'; face.userData.aeroskin = 1;
+    // (16 Nov, the user: "the tow service sign was not big enough ... it needed to span the whole area on top of the
+    // windshield"): the header's whole width (the windscreen's top edge, 3 % in from each end) and 88 % of its height
+    // (the face's own band can read short - its rounded top is not 'facing forward' - so the height is the larger of
+    // 88 % of that band and 70 % of the gap from the glass's top edge to the roof's top just behind it)
+    let roofTop = -Infinity;
+    if (AF && typeof AF.surf === 'function') for (let a = 0; a <= 180; a += 3) { const q = AF.surf(Math.max(AF.z0, Math.min(AF.z1, G.zT - 0.05)), a * D2R); if (q && isFinite(q[1])) roofTop = Math.max(roofTop, q[1]); }
+    const band = Math.max((hy1 - Math.max(hy0, G.yT)) * 0.88, isFinite(roofTop) ? (roofTop - G.yT) * 0.70 : 0);
+    if (ok && hn) { const H = Math.max(0.05, Math.min(0.30, band)), W = Math.max(0.3, 2 * G.xT * 0.94);
+      hy1 = Math.max(hy1, G.yT + H / 0.88);
+      const face = CARTEX.material(CARTEX.signKey('TOW  SERVICE', W / H));
+      if (face) {
       const sg = new THREE.Group(); sg.name = 'edTowKit';
-      const yc = (Math.max(hy0, G.yT) + hy1) / 2;
+      const yc = Math.max(hy0, G.yT) + 0.015 + H / 2;   // (its foot just over the glass's top edge)
       sg.position.set(0, yc, hz + 0.004); root.add(sg);
       mk(new THREE.BoxGeometry(W + 0.02, H + 0.016, 0.008), dark, sg).position.z = 0.004;   // the backing plate
       const fg = new THREE.PlaneGeometry(W, H); mk(fg, face, sg).position.z = 0.0085;
       for (const sx of [-1, 1]) for (const sy of [-1, 1]) { const b = mk(new THREE.CylinderGeometry(0.006, 0.006, 0.004, 10), chrome, sg); b.rotation.x = Math.PI / 2; b.position.set(sx * (W / 2 - 0.02), sy * (H / 2 - 0.012), 0.0105); }
+      }
     }
   }
   // ---- THE BEACONS on the roof's front corners

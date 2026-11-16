@@ -139,7 +139,33 @@
     const holder = new T.Group(); holder.name = 'drive:stockVan';
     holder.position.x = src.sheet.box && src.sheet.box.hi ? src.sheet.box.hi[0] : 0;
     holder.add(rot);
-    return holder;
+    // THE WHEELS SPIN (16 Nov, the user: "make the wheels spin"): the record's wheel parts (the join gives each of a car's
+    // four wheels its own part about its own axle - _cage_join.js's nearest-contact rule) are drawn by parked.js at their
+    // pivots; they leave the body and become the rig's wheels, each about its hub in the sheet's frame (its axle on z:
+    // the rig spins it about z and steers it about y), matched to the sheet's nearest wheel
+    holder.updateMatrixWorld(true);
+    const pivots = (src.rec.vis && src.rec.vis.parts || []).filter(q => /^mains|^tw$/.test(q.kind || '') && q.pivot && !q.stretch).map(q => q.pivot);
+    const near = (p, q) => Math.abs(p.x - q[0]) < 1e-3 && Math.abs(p.y - q[1]) < 1e-3 && Math.abs(p.z - q[2]) < 1e-3;
+    const byPivot = new Map();
+    inner.traverse(o => { if (!o.isMesh) return; const i = pivots.findIndex(q => near(o.position, q)); if (i < 0) return;
+      if (!byPivot.has(i)) byPivot.set(i, []); byPivot.get(i).push(o); });
+    const wheels = {}, inv = new T.Matrix4().copy(holder.matrixWorld).invert(), hubW = new T.Vector3();
+    const ids = Object.keys(src.sheet.wheels || {});
+    for (const [, list] of byPivot) {
+      list[0].getWorldPosition(hubW); const hub = hubW.clone().applyMatrix4(inv);
+      let best = null, bd = 0.6;                     // (a wheel's hub within 0.6 m of a sheet wheel's centre)
+      for (const id of ids) { const c = src.sheet.wheels[id].centre; const d = Math.hypot(c[0] - hub.x, c[1] - hub.y, c[2] - hub.z); if (d < bd) { bd = d; best = id; } }
+      if (!best || wheels[best]) continue;
+      const w = new T.Group(); w.name = 'drive:vanWheel' + best;
+      for (const o of list) {
+        const M = new T.Matrix4().multiplyMatrices(inv, o.matrixWorld), pos = new T.Vector3(), q = new T.Quaternion(), sc = new T.Vector3();
+        M.decompose(pos, q, sc);
+        o.parent.remove(o); o.position.set(0, 0, 0); o.quaternion.copy(q); o.scale.copy(sc); o.updateMatrix();
+        w.add(o);
+      }
+      wheels[best] = w;
+    }
+    return { mesh: holder, wheels: Object.keys(wheels).length === ids.length ? wheels : null, nWheels: Object.keys(wheels).length };
   }
   function isAncestor(a, o) { for (let q = o; q; q = q.parent) if (q === a) return true; return false; }
   async function useCar(ctx) {
@@ -151,7 +177,9 @@
       if (V) {
         if (sheet === V.sheet && carCtx && carCtx.van) return;   // the van already: its def and rig stand
         if (rig && rig.g.parent) rig.g.parent.remove(rig.g);
-        rig = null; sheet = V.sheet; carCtx = { mesh: vanMesh(V), meshMatrix: null, wheels: null, van: true }; def = vehicleDef(sheet, sheet.tune);
+        const vm = vanMesh(V);
+        if (!vm.wheels) console.warn('drive: the van\'s wheels found ' + vm.nWheels + ' of 4 - they stay in the body (no spin)');
+        rig = null; sheet = V.sheet; carCtx = { mesh: vm.mesh, meshMatrix: null, wheels: vm.wheels, van: true }; def = vehicleDef(sheet, sheet.tune);
         DM.name = ctx.name || VAN.name;
         return;
       }

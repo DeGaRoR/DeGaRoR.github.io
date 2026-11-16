@@ -2996,6 +2996,11 @@
       // kit keeps its textures — the props registry rebuilds the very
       // material the editor drew it with
       // WHEEL-TEX (CAR-3): a textured tyre or rim - its maps redrawn by the very factory the garage drew it with
+      // CAR-TEX (16 Nov): the plate's and the tow sign's faces, redrawn by the factory the garage drew them with
+      if (data.cage && m.carTex && window.CAGE_CARTEX) {
+        const cm = window.CAGE_CARTEX.material(m.carTex);
+        if (cm) return matCache[mn] = cm;
+      }
       if (data.cage && m.tyreTex && window.CAGE_WHEELTEX) {
         const tm = window.CAGE_WHEELTEX.material(m.tyreTex);
         if (tm) return matCache[mn] = tm;
