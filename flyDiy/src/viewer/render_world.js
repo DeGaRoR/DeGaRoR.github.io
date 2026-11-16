@@ -7548,10 +7548,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .map(b => ({ b, d: Math.hypot(b.x - a.x, b.z - a.z) - (b.len + a.len) / 2 })).filter(q => q.d < 30).sort((p, q) => p.d - q.d)
           .map(q => ({ cx: q.b.x, cz: q.b.z, hdg: q.b.hdg, halfL: q.b.len / 2, halfW: q.b.wid / 2 }));
         const rank = world.aerodromes.filter(b => b.len && b.kind !== 'meadow' && b.kind !== 'water' && (b.len < a.len || (b.len === a.len && String(b.id) < String(a.id)))).length;
-        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band, keep: others, geo: pgeo,   // G925: a row of the one material (the table)
+        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band, keep: others, geo: pgeo, wx: RS.wx,   // G925: a row of the one material (the table)
           micro: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.glslRow ? STRIP_MICRO.glslRow(a.id) : null });   // DIRT-STRIP: a bumpy strip's puddles
         const pm = new THREE.Mesh(pgeo, pmat); pm.renderOrder = 1.99 + Math.min(19, rank) * 0.0005; pm.receiveShadow = true; pm.name = 'pavement:' + a.id; pm.userData.pavMat = true;
         scene.add(keep(pm));
+        // (SNOW-MUD LADDER) a weather strip's rung drawn: its colour, its film and (bumpy) its worn relief follow the soil - wxGroundFrame
+        if (LKp.wx) wxGroundAdd({ id: a.id, code: +LKp.surface, cls: RS.cls, part: (pgeo.userData && pgeo.userData.pavRow) || pmat, geo: pgeo });
         geo.dispose();
         const F = PAV.field(sd);
         // (DIRT-STRIP) a bumpy strip's stones on it: the field's [u, v, R] (its v the ribbon's flipped), a stone R wide stands 1.1 R tall
@@ -8077,9 +8079,43 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     for (const k of ['sunI', 'hemiI', 'tSunI', 'tHemiI', 'setSunI', 'setHemiI']) if (LE[k] === LE[k]) LE[k] *= r;
     dayVer = -1; preCut = true;
   });
+  // SNOW-MUD LADDER (15 Nov; 07f GROUND_WX): THE WEATHER STRIPS DRAWN AT THEIR RUNG. Each frame the world's soil (world
+  // .soilNow: SOIL_WET at the day, or the dev override) puts each weather strip on its rung; when the rung's numbers move (the
+  // rung, or its water by 2 %) the strip's pavement row is re-applied (PAVEMENT.setGroundWx: darker with water, a dirt toward
+  // the mud's colour, its film, the worn relief's knobs) and a bumpy one is RE-DRAPED - each vertex moved by (wear - the wear
+  // it was built at) x the field's worn relief there (27_premises wearAtWorld, read once, the first time it moves): the
+  // ground the wheels stand on (20_world terrainH adds the same), drawn. A few times a game day; one compare a strip a frame
+  const WXG = [];
+  function wxGroundAdd(o) {
+    const R = world.soilNow ? world.soilNow() : null;
+    o.key = ''; o.wear0 = R && typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(o.code, R).wear : 1; o.wear = o.wear0;
+    o.micro = typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(o.id); o.baseY = null; o.wearV = null;
+    if (o.part && o.part.userData) o.part.userData.pavWxOwned = true;
+    WXG.push(o);
+  }
+  function wxGroundFrame() {
+    if (typeof GROUND_WX === 'undefined' || !world.soilNow || !PAV || !PAV.setGroundWx) return;
+    const R = world.soilNow(); if (!R) return;
+    if (PAV.groundWxTick) PAV.groundWxTick(THREE, c => GROUND_WX.state(c, R));   // the aprons, pads and roads of a weather look
+    for (const W of WXG) {
+      const st = GROUND_WX.state(W.code, R), key = st.rung + ':' + Math.round(st.S * 50);
+      if (key === W.key) continue;
+      W.key = key;
+      PAV.setGroundWx(THREE, W.part, st);
+      if (W.micro && st.wear !== W.wear) {
+        const O = world.premises && world.premises.overlay, P = W.geo.attributes.position;
+        if (!O || !O.wearAtWorld || !P) continue;
+        if (!W.baseY) { W.baseY = new Float32Array(P.count); W.wearV = new Float32Array(P.count); for (let i = 0; i < P.count; i++) { W.baseY[i] = P.getY(i); W.wearV[i] = O.wearAtWorld(P.getX(i), P.getZ(i), W.id); } }
+        const dW = st.wear - W.wear0;
+        for (let i = 0; i < P.count; i++) P.setY(i, W.baseY[i] + dW * W.wearV[i]);
+        P.needsUpdate = true; W.geo.computeVertexNormals(); W.wear = st.wear;
+      }
+    }
+  }
   function dayApply() {
     const day = world.day;
     if (!day) return;
+    wxGroundFrame();
     // G2620: this frame's pre-exposure, FIRST (the atmosphere's and the clouds' scale are copied below): 2^14 under
     // -6.5 deg, 1 above -5.5 (light_rig preFor); 1 under the hand-placed sun and without the physical sky
     if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.setPre) LIGHT_RIG.setPre(ATMO_ON && !rigCur.manual && LIGHT_RIG.preFor ? LIGHT_RIG.preFor(day.sunEl) : 1);

@@ -747,7 +747,7 @@ for (const fx of fixtures) {
   const der = PG.collect({ SHED_GEN: { PRESETS: { 'lean-to': {} }, DEF: {}, catOf: () => 'shed' } });
   check(der.entries.get('shed/lean-to').cat === 'shed' && der.byCat('shed').length === 1, '16 a derived entry carries its generator\'s category');
   // the looks
-  for (const k in PG.RUNWAY_LOOKS) { const L = PG.RUNWAY_LOOKS[k]; check(typeof L.name === 'string' && (L.surface === null || PG.SURFACE_NAMES[L.surface] !== undefined), '16 look ' + k + ' names a class the registry has, or none'); }
+  for (const k in PG.RUNWAY_LOOKS) { const L = PG.RUNWAY_LOOKS[k]; check(typeof L.name === 'string' && (L.surface === null || PG.SURFACE_NAMES[L.surface] !== undefined || (L.wx === true && [PG.SURFACE.DIRT_WX, PG.SURFACE.GRASS_WX, PG.SURFACE.SAND_WX].indexOf(L.surface) === ['dirt', 'grass', 'sand'].indexOf(L.cls) && L.surface >= 20)), '16 look ' + k + ' names a class the registry has, or none (SNOW-MUD LADDER: or a weather code of its own class, resolved by 07f GROUND_WX)'); }
   check(PG.RUNWAY_LOOKS.none.surface === null && PG.RUNWAY_LOOKS.none.set === null, '16 the markings-only look proposes no class and no set');
   check(Object.keys(PG.RUNWAY_LOOKS).filter(k => PG.RUNWAY_LOOKS[k].set).length >= 3, '16 at least three looks wear a PBR set');
   const rw = PG.normalise(PG.DEF()); rw.layers.runways.push({ id: 'w1', c: [0, 0], hdg: 0, len: 400, wid: 20, look: 'velvet' });
