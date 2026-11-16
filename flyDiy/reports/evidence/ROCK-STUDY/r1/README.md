@@ -1,4 +1,32 @@
-# ROCK-STUDY R1 (v2): the island's own rock on the splat
+# ROCK-STUDY R1 (v3): the island's own rock on the splat
+
+## v3 (answers A0's box run of v2, 7b10f6330)
+
+The look regressed in v2. Close in it read as pale tan with a dense dark crack web ("cracked dried mud"); from high and far
+it was flat beige smears. The island-ground step also waited 0.86 s for the bias.
+
+- **The black crack web was the tile's normal at x3.**
+  - The chain multiplies every set's relief by `nrmK` (3), which was made for the old aerial sets' weak normals.
+  - `sTrPost` now divides it back out: the tile's relief is at its own scale, as v1 had it.
+- **Grey, not tan.**
+  - The recipe grades the slab and face tiles `gain #d4d4d0, sat 0.3, contrast 0.6 / 0.7` (the chain's own grade;
+    master's rock sets are graded grey the same way).
+  - `rockK` is 0.8.
+  - The tiles' grooves are lifted toward dirt, not black.
+- **The slab at 32 m** (the steep tile at 40 m): the tile's own joints read 5-13 m apart, not 2.5-6.5 m.
+- **The joints are sparse slab edges.** Two sets, 38 and 46 m apart, a gentle warp, long open runs, and 6 lines in 10
+  drawn. They are gone by 600 m.
+- **The green mosaic in the cracks is back:** `rockGreen` 1.5, and the tile's cracks weigh 0.9.
+- **Far: a textured far set, not a mean.** Only the rock codes' NEAR sets switch to the slab; the far triplet stays the
+  recipe's (code 6: `cliff` at 79 m, code 12: `rocksB` at 120 m), with the macro mosaic and the green over it. The fade
+  to the slab's mean is off by default (`rockFarFrom` 6000 m; the row stays).
+- **The bias does not hold the step any more.**
+  - If the worker has not landed, the tint goes up with a neutral alpha (191 = bias 0).
+  - The bias is written in when the worker lands, and the tint is re-uploaded once.
+  - `ROCK_STATS.biasLateMs` is the main thread's part; `biasWaitMs` is gone.
+  - Tested in Chromium: `onDone` fires once and the bytes equal the main thread's.
+- **Link:** unchanged from v2. The GLSL grew by a few lines of ALU and the same three plain reads.
+
 
 Branch `claude/rock-study-r1`, on master fb8fb633b (L40d). L40e had not landed when this was cut; the rebase follows it.
 
