@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d1fec958ae4a488c
+// body-sha256: 7acc86bd71a3a250
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -46435,7 +46435,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (S.systems && S.systems.mount === 'pod') panelM = GEN_INSTR_POD.podKg;
     else if (S.cage && +S.cage.dashHood && +S.cage.intDash && O.hoodKgM2) {
       // THE INSTRUMENT HOOD (GEN_OUTFIT.hoodKgM2, the cage's dashHood row): the drawn dash's depth, crowned, and its face
-      panelM = 2 * cb.halfW * (1.25 * (+S.cage.dashDepth || 0.25) + 0.22) * O.hoodKgM2;
+      // (16 Nov 2026, the LS4's pod 0.42 m further aft - the user: "The dash in the real plane really protrudes ... 40,
+      //  even 50 centimeters": the moulding's top runs from the glass base to the face, the SETBACK too, and its face
+      //  rises by the CROWN - both drawn rows, cage units x planeScale like the depth; the depth was read as metres)
+      const psH = +S.cage.planeScale || 1;
+      const depH = (S.cage.dashDepth != null ? +S.cage.dashDepth : 0.42) * psH, backH = (+S.cage.dashBack || 0) * psH,
+            crnH = (+S.cage.dashCrown || 0) * psH;
+      panelM = 2 * cb.halfW * (1.25 * (depH + crnH) + 0.22 + backH) * O.hoodKgM2;
     }
     else if (cb.panel && cb.panel.on) {
       const pw = 2 * cb.halfW * (0.6 + 0.8 * (cb.panel.wrap || 0));
