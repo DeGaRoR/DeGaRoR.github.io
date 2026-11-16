@@ -316693,3 +316693,104 @@ HOUSEWORKER: green in this battery (it was Game's one red on its stack).
 STANDING (L40c's, unchanged): FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT GLIDE UNIFY DESTTO TREECRASH DMGCERT DMGGEAR WILGAGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGWALL DMGDAMP DMGTYRE DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY WINGROWS DESIGNCHECK JOINPARITY ENGINE PARTS POD DMGPOD CANDIDATES NAMES NODUMMY ENERGYBASE TANKMOUNT ENGTORQUE FLEX LOAD ENGCONFIG.
 
 COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); after 143 s (programs 501 -> 508, world 26.1, settle 17.4, shader compile 46.2 + 11.8 s): +5 s, 7 more programs. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+
+## SKYLINE-RESORT (13-16 Nov 2026, cloud session for A0; claude/skyline-resort-1..4 -> claude/ready/skyline-resort, on L40d fb8fb633b, for L40e): SKYLINE ALTIPORT AS A PROJECT
+
+THE USER (13 Nov): the ski station's top (tw_ski) becomes the Jolene Aero Club's summer altiport - recreational flying, gliders
+(launched by a PUSH only: no car tow, no winch), small planes; a restaurant and a place to store aeroplanes beside the flattened
+part; later a glider hangar. The strip "much too wide and much too long, probably 2 times for each". DATA ONLY (no code): every
+entry is ordinary editor data, written into tools/fixtures/island_jolene.json by **tools/skyline_resort.py** (idempotent: an id it
+owns is replaced, else appended; `--check` says whether the fixture is as written - re-run it on a rebased fixture). No story text.
+
+THE FRAME the script writes in: the strip's axis, d = (cos -1.0472, sin -1.0472) uphill, n = (-d.z, d.x); P(a, c) = the top end
+(352.00, -7872.00) - a d + c n (a metres DOWN from the top, c across, + away from the tram station).
+
+1 THE STRIP, BEFORE -> AFTER (tw_ski, grass, altiport, landed uphill over end 0):
+  - before: 380 x 18 m, c (257.00, -7707.46), threshold (162.00, -7542.91) 679.6 m, top (352.00, -7872.01) 708.8 m, rise 29.3 m
+    (10 % at the threshold, 1 % over a 68 m top), shoulder 30 m, band 6; a stage vary resort 0-2: 320 m, c (272.0, -7733.44)
+  - after: 190 x 9 m at EVERY stage (the 320 -> 380 m step is gone), c (304.50, -7789.73), threshold (257.00, -7707.46) = the old
+    strip's centre, 698.8 m; top (352.00, -7872.00) 708.8 m (unchanged: the platform, the stand (310.4, -7844), the way out
+    (329.47, -7832.99) untouched); rise 10.1 m - the old strip's UPPER HALF as it was composed (9 % at the threshold, the ease,
+    ~1 % over the top 60 m): profile [[0, -10.32], [0.3684, -4.08], [0.6316, -1.01], [0.8421, -0.39], [1, -0.26]] on elev
+    709.08; shoulder 30 -> 12 m (half the strip, and the parking terrace keeps its own grade beside it), band 3. The tired
+    station (resort 0): `vary` sock false, ties false (no windsock, no tie-down spots); the deal (resort 1) puts them back.
+    The ground below the new threshold is the hill's own again (the old lower half: the dip and the hump 40-90 m out).
+  - the physics: the stage's runway is composed like any (terrainH, surfaceAt) at the load / roll-out (76_stages' queue);
+    GATE STAGES 2 now asserts 190 x 9 m and the top end at (352.00, -7872.00) at every value, and the bare strip below resort:1
+  - THE AUTOPILOT: nothing to change in 43_pilot.js - it reads `len` and the composed ground (judgeHeld's grade, the
+    altiport's slope-line flare, landHdg from the profile's ends). pilotCanFly at 190 m: the stock build (LDGrun 159 m), the
+    user's Cub (110) and Jodel (153) go; the metal C172 (249) is REFUSED at dispatch ('strip-too-short ... 190 m of strip for
+    a 249 m landing run') - on master it flew there and broke up on the 380 m strip (GATE ALTIPORT 4's own red)
+  - THE CONTRACT LAW'S ALTIPORT CREDIT (Game's YES, 14 Nov, on two conditions - both met): CONTRACT_FIT.altiK 0.75
+    (73_contracts.js) multiplies contractTakeoffM when the field is an altiport (left downhill); the halved strip keeps the resort
+    arc flyable (GATE CONTRACTS / ECON green). (1) FLOWN: GATE ALTIPORT 5 flies the credit in node (the game's pilot and day,
+    709 m, contract load, brake release to 2.5 m up): the Cub + 1 pax 126.9 m = 0.528 of the flat law (240 m), the metal
+    Cessna + 2 pax + 40 kg (+184 kg, its baggage cap) 158.4 m = 0.635 (249 m); 0.75 sits above both. (2) THE LIMIT, named in
+    the comment: one constant for tw_ski AND w4 (strip 9, 216 m gravel, ~21 % - cautious there too); a gentler grade needs its
+    own factor, a / (a + g x grade)
+  - GATE ALTIPORT 4 (A0 + Game 14 Nov): the metal Cessna's SAID dispatch refusal at the 190 m altiport passes ('strip-too-short
+    ... not going there', no ROLL, no damage). Rows 2/3 stay master's own reds
+  - GATE TAXICLEAR 11c (A0's call 15 Nov, option (a)): L40c's CANON-C172-GATES flies the canon F-HCSN (386 m flat take-off,
+    ~290 m with altiK) - placed on the apron it rejects 5 s into the roll ('will not reach Vr: 1.30 m/s^2 needs 168 m more,
+    126 m left') and stops on the strip, nothing touched; with that rule off (a scratch core) it ran off the low end and broke
+    up 50 m down the hill. The row holds THAT rejection for F-HCSN on a strip < 300 m (said, ABORT, STOPPED on the strip); the
+    Cub's row is unchanged (airborne). OWED TO PILOT: "go/no-go misses the altiport credit case" - L40d's go/no-go declines at
+    the HOLD at Jumbo Mine / East Point but rolls here; once it declines at the hold, 11c holds that refusal (as ALTIPORT 4)
+  - FOR PILOT (not changed): leaving Skyline the autopilot lines up 30-47 m below the top end, not at it
+  - CONTRACT_FIELDS.tw_ski (72_contract_data.js) follows the record: x 305, z -7790, len 190 (GATE CONTRACTS: byte-equal to
+    contractFieldsOf; its selftest's drift row reads the new line). scenery_ship_afb19.json: fieldPatches.tw_ski (len, wid, c,
+    profile, band, falloff) - the user's AFB (19) save still has the old strip (GATE SCENERYED 15)
+2 THE FOOT-LAUNCH PAD (resort 1): tw_y_launch (surface 5) + tw_m_launch (concrete, band 0.3) = P(0..72, +6.5..+8.5): 2 m of
+  concrete from the top end down the flat top and ~12 m into the slope, beside the strip on the side away from the station
+  (corners (357.63, -7868.76) (321.63, -7806.40) (323.36, -7805.40) (359.36, -7867.76)); ground, no solid
+3 THE FOOTPATHS (resort 1, roads cls track, look dirt, 1.6 m, ungraded): tw_p_ridge (the ridge walk north along the west flank to
+  the old lower slope, the ski piste: (275.86, -7820.12) .. (190.63, -7676.50)), tw_p_launch (round the top end to the pad:
+  (331.37, -7849.27) .. (358.99, -7869.12)), tw_p_lookout (down the east flank: (323.73, -7804.04) .. (320.98, -7758.28));
+  signposts = billboards with the enamel plate (rwy:<text>, w 0.9): RIDGE (273.56, -7819.14), LAUNCH (324.96, -7802.17),
+  LOOKOUT (322.15, -7755.30), PISTE (189.03, -7679.73)
+4 THE TREES AND THE ROCKS (every stage): cover polygons (ttype, code null) of the tree system - `veg` 'new' (fir x2, spruce x1.5,
+  pine 0.8, dead conifer 0.25, shrub 1; 70 trees/ha, under 6): the island's own fill plants them (LODs, impostors); the
+  aerodrome's tree box still keeps the strip clear (polyGround: treeAeroBlocked). Groves tw_k_grove_e (365.4, -7789.2),
+  _w (246.9, -7890.0), _nw (225.5, -7786.9), _se (425.7, -7901.6), _sw (331.3, -7956.1), _le (298.1, -7611.6), _lw
+  (153.4, -7695.1) - the flanks, never the ridge's top, the approach or the way out. LARGE ROCKS: veg 'biome' scree (the tree
+  pack's rock subjects at size 22, the cover ring's) on tw_k_rocks_e (357.4, -7828.4), _n (229.9, -7756.6), _s (386.4, -7885.6),
+  _ne (345.8, -7791.3)
+5 THE RESTAURANT AND THE PARKING AREA (resort 2): the Summit Lodge (house/cafe, already resort 2+; its building site sg_k_lodge
+  resort 1) + tw_m_terrace (concrete, P(72.5..82, -30.5..-39), centre (283.3, -7822.5)) with three tables, five chairs, two
+  planters and two people (tw_o21..o32, existing props). THE PARKING AREA tw_t_park + tw_y_park + tw_m_park = P(92.5..128,
+  -12.75..-29.25), centre (278.7, -7787.0), on the ridge north of the platform (the old strip's west half): the ground falls
+  ~7 % there (> STAND_PAD.grade 2 %), so it is TERRAFORMED - a ramp (slope 4.5 % toward the top, level across; 707.0 m at its
+  uphill edge) so a parked box's corners stay inside FLEET_SPOT.flatTol; gravel, `parking` { gap 2, max 2 } (the design-refs
+  shape, PARKING-AREA). On claude/stand-pad (the fill): 2 spots, park:tw_m_park:0 (276.6, -7783.5) and :1 (283.2, -7794.9), ry
+  1.047. On master the `parking` key is inert (tw_ski cooks 0 spots, as before).
+6 THE GLIDER HANGAR: its building site sg_k_glider (kit 'build', 20 x 12, resort 2 only) and tw_s_summit/glider (hangar/club
+  hangar cut to a glider: HW 9.5, HD 5.5, EAVE 4.4 - 19 m of door for a 15-18 m span; resort 3+) at (262.38, -7759.78), yaw
+  1.0472: the door toward the strip, P(142, -21.5), 14 m off the centreline (door at c -15.5); its own ground block (704.6 m)
+- STAGES: resort 0 the tired station (the strip, no sock/ties; station, patrol cabin, pilot hut, groomer's garage, shed, outhouse)
+  - 1 the deal (the strip's sock and tie-downs, the launch pad, the paths and signs; the lodge's building site) - 2 the summer
+  altiport (the Summit Lodge, the terrace, the parking area; the glider hangar's building site) - 3 the glider hangar. Every band
+  edge is an existing STAGE_REVEALS row (resort:1..3, world true). OWED TO THE GAME COORDINATOR (not edited here - theirs): the
+  STAGE_REVEALS comments (resort:3 "the altiport lengthened, 320 m -> 380 m" is now the glider hangar) and the trk.resort.1..3
+  captions to the new steps; tools/jolene_stages.json's tw_ski row and tools/jolene_parts/tramway.json's strip were brought to the
+  fixture (jolene_author.py no longer reproduces the fixture: it is the editor's since rev 26)
+- RE-COOKED: the premises (node tools/premises_cook.js --island jolene), the fleet pack (fleet_spots.js --cook), the map
+  (map_bake.js). The parked cook needs the GPU (A0 at the train). Since stand-pad (L40c) the `parking` key is live: tw_ski
+  cooks 2 spots. Rebased L39b -> L40a -> L40c -> L40d: each time master's fixture + cooks taken, skyline_resort.py re-applied
+  (--check: as written), re-cooked, rebuilt; the stale career_core removed with its rebuild (GATE BUILT)
+- WHAT COST SUNDAY: the session's git commits were refused overnight by the cloud session's auto-mode permission classifier
+  (twice, 14 Nov evening: "Destructive or Unwanted Actions", then "Unsanctioned Communication") on an ordinary local commit
+  of the rebuilt outputs; nothing could be committed or pushed until the user said "go ahead, commit and push" at 17:35 UTC
+  Sun - past the 17:00 ready, so Skyline left L40d for L40e. Then the session's 06:00 Mon wake-up never fired. Owed to the
+  user: an allow rule for git commit / git push in this repo's cloud sessions, so a gated ready is not held by a prompt
+- GATES: on claude/skyline-resort-4 (L40d fb8fb633b + Skyline), node tools/run_gates.js --no-build, this cloud container (4 CPUs):
+  PASS: STAGES PREMISES PREMRASTER STRIPSURF STRIPGROUND GAMEPREM GRASSSIDES TERRAINMATCH TREES TREEHIT SCENERY WORLD COOKWAIT
+  CONTRACTS ECON MISSIONS STORY ROUTES PROCURE FREIGHT CERTGATES PILOTS UISMOKE BUILT PREMCOOK PARKED STORESPOT
+  (the last three re-run at 3 jobs: at 6 jobs on 4 CPUs they ran past the 1800 s limit)
+  RED, MASTER'S OWN (the same rows on unmodified fb8fb633b, run here): TAXICLEAR 1 (archaeopteryx footprint; master also 10,
+  its stale fleet pack, which this branch's re-cook fixes; 11c green under A0's call above), ALTIPORT 2 + 3 (rows 4 + 5
+  green), NAMES ("Alaska", LIVERY-STICKERS); MEDIA (career_core 655.4 KB > 640: master's own is 654.3 KB, +1.1 KB here is
+  altiK's comment); RWYTREES overruns the runner's 1800 s here on master too (L40c: every row ok, 38/38, before the timeout);
+  SCENERYED 20b (a ms bound) and LAZY (route_draw's door) red on unmodified L40a/L40c here
+  RED, A BUDGET (A0's call, as MEDIA's per train): MAPBAKE "its budget": the infra 20 534 B gzipped > 20 480 (20 KB) - master
+  alone is 20 416 B (64 B left); the summit's 3 footpaths add 118 B (already cut to the fewest points, 14 Nov). Not trimmed:
+  the user's "a size budget never holds their content back" (the gate's own comment, JOLENE-FOLD)
