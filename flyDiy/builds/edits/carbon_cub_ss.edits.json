@@ -139,7 +139,8 @@
    },
    "gearLeg": {
     "tint": 12830668,
-    "metal": 0.75
+    "metal": 0.7,
+    "rough": 1.8
    },
    "pillarWindow": {
     "tint": 15905536,
@@ -165,7 +166,8 @@
    },
    "finRud": {
     "tint": 12830668,
-    "metal": 0.75
+    "metal": 0.7,
+    "rough": 1.8
    },
    "spinner": {
     "tint": 1447963,
@@ -177,11 +179,13 @@
    },
    "finSkin": {
     "tint": 12830668,
-    "metal": 0.75
+    "metal": 0.7,
+    "rough": 1.8
    },
    "stabSkin": {
     "tint": 12830668,
-    "metal": 0.75
+    "metal": 0.7,
+    "rough": 1.8
    },
    "wingStol": {
     "tint": 15905536,
@@ -255,7 +259,7 @@
    "m3Tgt": 0,
    "m3Mode": 1,
    "regLine": null,
-   "m1Metal": 0.75,
+   "m1Metal": 0.7,
    "m1Clr": 0,
    "m2D": 1447963,
    "m2Metal": 0,
@@ -264,6 +268,26 @@
    "regShdCol": 1842722,
    "regShdX": 0.06,
    "regShdY": 0.08,
+   "m4On": 1,
+   "m4Pat": 9,
+   "m4A": 724239,
+   "m4B": 724239,
+   "m4D": 724239,
+   "m4P": 1,
+   "m4Q": 1,
+   "m4R": 0,
+   "m4Clr": 0,
+   "m4Alp": 1,
+   "m4Metal": 0,
+   "m4L": -1.265,
+   "m4C": 0.35,
+   "m4W": 0.11,
+   "m4H": 0.42,
+   "m4Rot": 0,
+   "m4Tgt": 0,
+   "m4Mode": 1,
+   "m4Flip": 0,
+   "m4Fit": 0,
    "regFace": "saira",
    "regB": 1,
    "regI": 0

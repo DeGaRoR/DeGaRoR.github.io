@@ -1,0 +1,18 @@
+{
+ "what": "PROPER-COWLS (9 Nov, the user: \"keep the base cowl shapes unaltered for the carbon cub, and add 2 cylinders on the sides, engulfing the heads, then cut and merge somehow\"): rows over claude/real-figures-3 builds/candidates/carbon_cub_ss.json - its own cowl kept to the row (the round cheeks off: cw_lobeN 0), two mirrored cylinders as TWO JOINED MESHES (the user, 15 Nov: \"it's really more 2 joined meshes and a little joining filet\"): the cowl's own skin untouched, each cylinder its own body of revolution, a rolling-ball fillet of 2.5 cm (cw_cylBlend) along the crossing line: radius 0.184 m, axis 0.374 m out at 10.3 deg over the flank, full over z 0.214-0.633 m, a 2 cm round front, an aft taper sinking in over 0.194 m. The heads (17 cm through the bare cowl) covered: 0 mm; 1.1 cm remains at the top of the nose bowl (not a side cylinder's). Made by node tools/cowl_study/straight.js <build> <out> --cylOnly. Needs this branch rows cylOn..cylBlend.",
+ "rows": {
+  "cw_lobeN": 0,
+  "cw_lobeAmp": 0,
+  "cw_cylOn": 1,
+  "cw_cylAz": 10.27,
+  "cw_cylOff": 0.3738,
+  "cw_cylR": 0.1844,
+  "cw_cylZ0": 0.214,
+  "cw_cylZ1": 0.633,
+  "cw_cylNose": 0.02,
+  "cw_cylTail": 0.194,
+  "cw_cylRin": 0.014,
+  "cw_cylOffIn": 0.3531,
+  "cw_cylBlend": 0.025
+ }
+}
