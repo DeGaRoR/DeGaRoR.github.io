@@ -308,6 +308,17 @@ ground (the terrain, the grass around) does not darken - why the sand's step is 
 NOT DONE: the terrain's own ground does not take the soil's water (a renderer's question); a bumpy ROAD or pad has no worn
 relief to scale (only strips carry `micro`). The editor's look lists carry the five new looks.
 
+THE WORLD EDITOR (A0 for the user, 16 Nov: "every new world setting must be editable in the WORLD EDITOR ... for hand-tuning";
+branch claude/snow-mud-rail): F9, RUNWAYS, the 'weather ladder' block - the ladder's 17 numbers (07f LADDER_DEF / LADDER_RANGE):
+firm mud from / soft mud from (the dirt's mud), wet grass from / wet sand from (the class's water), the ruts on dry dirt, firm
+mud, soft mud and wet sand, the darkening of dirt, grass and sand at saturation and their shine, and the water the weather
+panel's override holds for dry / firm / soft. Live through world.setGroundLadder (the wheels at once, on the page and the
+physics worker - replayed as setDay, handed at a flight's start), the drawn strips and aprons re-applied on GROUND_WX.version;
+kept in THE LOOK (the delta), in the export (its changes, "where": 07f LADDER_DEF), reset ('the weather ladder' / 'back to the
+shipped ladder'). The editor names a weather code (surfaceName; a wheels property set to one offers and reads it), and a grass
+(weather) strip keeps its tufts wet (render_world landBy takes GRASS_WET). MERGE NOTE (A0): LOOK-1's grass-on-green giveWay in
+20_world belongs in aeroSurfRaw (the raw read, before a weather code resolves).
+
 ## Gates
 
 | gate | tier | runtime | self-test |
