@@ -4843,7 +4843,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='2024c6dd6679';window.FLYDIY_BUILD_DATE='2026-11-16T19:54:35.002Z';</script>
+<script>window.FLYDIY_BUILD='6507f3cea20f';window.FLYDIY_BUILD_DATE='2026-11-16T20:46:03.948Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -26640,18 +26640,20 @@ const GROUND_FIELDS = (() => {
       // THE ISLAND'S OWN ROCK (ROCK-STUDY R1, splat_ground sTrond / sTrExpo): rocks 1 = on (?rocks=0 off at the load; api.rocks()
       // live, a uniform); the exposure's height window (m: the rock shows from rockHLo, fully by rockHHi - Ardent's 250-760),
       // the raster's rock weight in it and its offset; the PBR micro detail on; the rock's brightness
-      rocks: 1, rockHLo: 250, rockHHi: 760, rockBias: 0.30, rockOff: 0.08, rockMicro: 1, rockK: 0.8,
+      rocks: 1, rockHLo: 250, rockHHi: 760, rockBias: 0.30, rockOff: 0.08, rockMicro: 1, rockK: 0.72,
       // the world rail's 'rock & cliffs' rows: the joints' density / soil / dirt, the hollows' dirt, the green's amount and
       // roughness, the wet streaks, the bare stone's roughness (x the tiles'), the micro detail's strengths and fade, the far fade
-      rockJoint: 1, rockJointSoil: 0.7, rockJointDirt: 0.6, rockHollow: 0.5, rockGreen: 1.8, rockGreenRough: 0.97, rockWet: 0.2, rockRough: 1,
-      rockMicroK: 0.85, rockMicroN: 1.0, rockMicroFrom: 80, rockMicroTo: 260, rockFarFrom: 6000, rockFarTo: 9000,
+      rockJoint: 1, rockJointSoil: 0.7, rockJointDirt: 0.85, rockHollow: 0.5, rockGreen: 1, rockGreenRough: 0.97, rockWet: 0.75, rockRough: 1,
+      rockMicroK: 0.65, rockMicroN: 0.6, rockMicroFrom: 60, rockMicroTo: 180, rockFarFrom: 400, rockFarTo: 1200,
       rockNdvi: 0, rockNdviMid: 0.74,   // the imagery's NDVI (pack B) takes the exposure down where the map's rock is green
       // the tiles as the rock codes' sets (slab m, steep m, the face tile on the steep split or the slab, the split's degrees), the
-      // green's saturation, the joints gone by (m)
+      // green's saturation, the joints gone by (m: v1's joints were a texture, its mips blurred them into tone past ~500 m; the
+      // procedural lines fade out the same way) - ALL AT THE BENCH v1'S VALUES (the user's reference; 17 Nov: the v2-v4 look
+      // notes were a coordinator's, not the user's, and are dropped)
       // THE ROCK RING (rock_ring.js): the outcrops as geometry round the eye - on, its reach (m), the outcrops' lift and the Blender
       // masses' amplitude (m), the cover's stand-off over the ground (m), the boulders on and their density (x v1's law)
       rockRing: 1, rockRingReach: 450, rockLift: 0.6, rockAmp: 1.5, rockProud: 0.15, rockBoulders: 1, rockScatter: 1.25,
-      rockSlabM: 24, rockFaceM: 40, rockFaceTile: 0, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 0.6, rockJointFar: 600, rockSlabTone: 0.3, rockSlabTilt: 0.1,
+      rockSlabM: 16, rockFaceM: 24, rockFaceTile: 1, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 1, rockJointFar: 900, rockSlabTone: 0, rockSlabTilt: 0,
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
@@ -26670,7 +26672,7 @@ const GROUND_FIELDS = (() => {
              // THE ROCK GRADES (the user, 2026-10-03, F8 world look): cliff and the two rock sets toned down and hue-selected
              rocksB: { gain: '#adadad', sat: 0, gloss: 0.5, grass: 1, hue: 58, contrast: 1.42, selHue: 124, selWidth: 48, selShift: -66, selSat: 1.26, selLight: 0.9, selSoft: 0.5 }, rocksG: { gain: '#a1a1a1', sat: 1, gloss: 1, grass: 1, hue: 2, contrast: 1, selHue: 150, selWidth: 22, selShift: 15, selSat: 1.04, selLight: 1.08, selSoft: 0.7 },
              // (ROCK-STUDY R1: the trondhjemite's own colour and roughness, as baked - no grade)
-             trondSlab: { gain: '#d4d4d0', sat: 0.3, gloss: 1, contrast: 1.0 }, trondFace: { gain: '#d4d4d0', sat: 0.3, gloss: 1, contrast: 0.7 } },
+             trondSlab: { gain: '#ffffff', sat: 0.8, gloss: 1 }, trondFace: { gain: '#ffffff', sat: 0.8, gloss: 1 } },   // (the tiles raw as the bench v1's, a touch greyer: the user, 16 Nov - "greyer indeed, but not as much, and not as dim")
     // the library, in LAYER ORDER (the texture arrays are built in this order; a code's set is its index here):
     // assets/splat (splat_tex_import.py, Poly Haven CC0) then the lot's five (ambientCG CC0, lot_tex_prep.js's tiles)
     library: [
@@ -71084,7 +71086,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='97c022b937c3';window.FLYDIY_BUILD='2024c6dd6679';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=4aed8763"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='96b15d3d5d62';window.FLYDIY_BUILD='6507f3cea20f';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=4aed8763"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -169859,6 +169861,7 @@ const SPLAT_GROUND = (() => {
     gSPoolM = m; gSPoolD = deep;
   }
   // ---- THE ISLAND'S OWN ROCK (R1): see the header ------------------------------------------------------------------
+  // (vRM, vRX: the relief's macro - rock_ring.js - DECLARED BY THE HOST's hook, render_world's: (0,0,0,1) on the ground's own meshes)
   uniform float uTrOn;           // the dial: 1 = the trondhjemite on the rock codes, 0 = the recipe's sets (?rocks=0)
   uniform vec4 uTrL;             // the layers: slab, face, cliff (the micro detail), grassRock (the green)
   uniform vec4 uTrK;             // the far fade from / full by (m), the micro detail on, brightness
@@ -169867,7 +169870,7 @@ const SPLAT_GROUND = (() => {
   uniform vec4 uTrJ;             // the joints: density (x the network's frequency), the soil they hold (exposure cut), their dirt, the hollows' dirt
   uniform vec4 uTrG;             // the green: amount, its roughness, its saturation, the bare stone's roughness (x the tile's)
   uniform vec4 uTrF;             // the micro detail from / to (m), the joints gone by (m), the wet streaks
-  uniform vec4 uTrS;             // the slab -> face split under the dial: from / full by (deg); each slab's tone swing, its tilt
+  uniform vec4 uTrS;             // the slab -> face split under the dial: from / full by (deg); the micro photo's raw mean luminance
   uniform vec4 uTrM;             // the micro detail: brightness strength, normal strength; the NDVI's pull on the exposure, its midpoint
   // R1 RIDES THE MATERIAL CHAIN (A0's box, 16 Nov: the first R1's own sample chain - 7 more inlined sFetch - linked every ground
   // program ~15 s slower). The tiles are the rock codes' own sets (push() points codes 6 / 12 at them under the dial: hex, the
@@ -169897,9 +169900,11 @@ const SPLAT_GROUND = (() => {
 #else
     float d = distance(vWPi, cameraPosition); if (d > uTrF.z) return 0.0;
     vec2 q = xz * uTrJ.x;
-    float jA = sTrLine(q, 2.618, 38.0, 0.55, 1.3), bA = gTrBand, jB = sTrLine(q, 1.047, 46.0, 0.5, 4.1) * 0.85;
+    // the bench v1's network: two regional sets (150 and 60 deg, ~24 / 25 m) and two secondary (105, 15 deg; ~6.75 / 8.25 m)
+    float jA = sTrLine(q, 2.618, 24.0, 0.65, 1.3), bA = gTrBand, jB = sTrLine(q, 1.047, 25.0, 0.65, 4.1);
     gTrCell = sTrH1(bA * 12.9898 + gTrBand * 78.233); gTrCell2 = sTrH1(bA * 39.346 + gTrBand * 11.135 + 0.7);   // (the slab between the two sets' lines)
-    return max(jA, jB) * (1.0 - smoothstep(uTrF.z * 0.5, uTrF.z, d));
+    float jC = sTrLine(q, 1.833, 6.75, 0.26, 7.9) * 0.6, jD = sTrLine(q, 0.262, 8.25, 0.23, 9.7) * 0.55;
+    return max(max(jA, jB), max(jC, jD)) * (1.0 - smoothstep(uTrF.z * 0.5, uTrF.z, d));
 #endif
   }
   // THE EXPOSURE: the share of rock that shows, from the raster's own rock share r - rock on the high, convex, steep ground,
@@ -169922,60 +169927,83 @@ const SPLAT_GROUND = (() => {
   // its own 6.86 m: brightness over its mean and its normal, biplanar - the top and the dominant side), the macro colour
   // (weathering zones, the joints' dirt, the hollows, the outcrop's margin, wet streaks), the green (the macro's chance, the
   // tile's cracks - its low texels - and what faces the sky; the ground's own grassRock, desaturated), the roughness, brightness
+  // the micro detail's hex read (the splat's sTile): three rotated, offset taps on a triangle lattice, height-blended - one read
+  // site (sTrTapM), inlined three times a plane; no 'out' on the sample chain (these are R1's own functions)
+  vec2 sTrVst(vec2 v){ return vec2(v.x + 0.5 * v.y, v.y * 0.8660254) * 0.5; }
+  vec4 gTrMC = vec4(0.0), gTrMN = vec4(0.0), gTrHN = vec4(0.0);   // (the hex read's normal: a global - no 'out' on the chain)
+  void sTrTapM(vec2 uv){ gTrMC = texture(uSplat, vec3(uv, uTrL.z), uSFilt.x); gTrMC.rgb *= gTrMC.rgb; gTrMN = texture(uSplatN, vec3(uv, uTrL.z), uSFilt.x); }
+  vec4 sTrHexM(vec2 st){
+    vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * 2.0);
+    vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
+    float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
+    vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
+    vec2 V1 = base + vec2(s, s), V2 = base + vec2(s, 1.0 - s), V3 = base + vec2(1.0 - s, s);
+    vec2 r1 = sHash2(V1), r2 = sHash2(V2), r3 = sHash2(V3);
+    float a1 = r1.x * 6.2832, a2 = r2.x * 6.2832, a3 = r3.x * 6.2832;
+    sTrTapM(mat2(cos(a1), sin(a1), -sin(a1), cos(a1)) * (st - sTrVst(V1)) + r1 * 7.3); vec4 c1 = gTrMC, n1 = gTrMN;
+    sTrTapM(mat2(cos(a2), sin(a2), -sin(a2), cos(a2)) * (st - sTrVst(V2)) + r2 * 7.3); vec4 c2 = gTrMC, n2 = gTrMN;
+    sTrTapM(mat2(cos(a3), sin(a3), -sin(a3), cos(a3)) * (st - sTrVst(V3)) + r3 * 7.3); vec4 c3 = gTrMC, n3 = gTrMN;
+    vec3 h = sHweights3(c1.a, w.x, c2.a, w.y, c3.a, w.z, 0.2);
+    gTrHN = n1 * h.x + n2 * h.y + n3 * h.z; return c1 * h.x + c2 * h.y + c3 * h.z; }
   Smp sTrPost(Smp o, vec3 P, float slope){
     vec3 nG = gTrN; float d = distance(P, cameraPosition); vec2 xz = P.xz;
     o.n.xyz /= max(uSNrm.x, 1e-3);   // (the tiles' relief is at its own scale: sSplat multiplies every set's by nrmK, 3 - made for the aerials' weak normals; x3 here drew every groove black)
     { float fd = 0.8 * smoothstep(uTrK.x, max(uTrK.y, uTrK.x + 1.0), d); o.c.rgb = mix(o.c.rgb, uTrMeanS.rgb, fd); o.n.xyz *= 1.0 - fd; }
     float fx = nG.x * nG.x, fz = nG.z * nG.z;
+    bool rg = vRM.w > 1.5;   // a RELIEF vertex (rock_ring.js): the macro is its own (the bench v1's macro texture, per vertex)
 #ifndef GS_TRLITE
+    // THE PBR MICRO DETAIL (the bench v1's): the 'cliff' photograph at its natural 6.86 m, HEX-tiled and TRIPLANAR on the smooth
+    // normal (weights ^8) - its luminance over its raw mean modulates the colour, its normal is added (x0.6); out by 60-180 m
     float kd = (1.0 - smoothstep(uTrF.x, max(uTrF.y, uTrF.x + 1.0), d)) * step(0.5, uTrK.z);
     if (kd > 0.01) {
-      vec2 a2 = pow(vec2(length(nG.xz), abs(nG.y)), vec2(4.0)); float wTop = a2.y / max(a2.x + a2.y, 1e-6);
-      bool sx = fx > fz;
-      vec2 u1 = wTop > 0.5 ? xz : (sx ? P.zy : P.xy);   // (the dominant plane: one read, its seam under the colour's own)
-      vec4 mc = texture(uSplat, vec3(u1 / 6.86 + 0.53, uTrL.z), uSFilt.x), mn = texture(uSplatN, vec3(u1 / 6.86 + 0.53, uTrL.z), uSFilt.x);
-      float rel = clamp(gLuma(mc.rgb * mc.rgb) / max(uSLum[int(uTrL.z + 0.5)], 1e-3), 0.35, 2.2);
+      vec2 a8 = pow(vec2(length(nG.xz), abs(nG.y)), vec2(8.0)); vec2 h2 = nG.xz * nG.xz; h2 *= h2;
+      float f8 = h2.y / max(h2.x + h2.y, 1e-8); vec3 tw = vec3(a8.x * (1.0 - f8), a8.y, a8.x * f8) / max(a8.x + a8.y, 1e-6);
+      vec4 tc = vec4(0.0); vec3 tn = vec3(0.0);
+      if (tw.y > 0.01) { tc += sTrHexM(xz / 6.86) * tw.y; vec2 q = gTrHN.xy * 2.0 - 1.0; tn += vec3(q.x, 0.0, q.y) * tw.y; }
+      if (tw.x > 0.01) { tc += sTrHexM(P.zy / 6.86) * tw.x; vec2 q = gTrHN.xy * 2.0 - 1.0; tn += vec3(0.0, q.y, q.x) * tw.x; }
+      if (tw.z > 0.01) { tc += sTrHexM(P.xy / 6.86) * tw.z; vec2 q = gTrHN.xy * 2.0 - 1.0; tn += vec3(q.x, q.y, 0.0) * tw.z; }
+      float rel = clamp(gLuma(tc.rgb) / max(uTrS.z, 1e-3), 0.35, 2.2);
       o.c.rgb *= mix(1.0, rel, uTrM.x * kd);
-      vec2 t = mn.xy * 2.0 - 1.0; vec3 n2 = wTop > 0.5 ? vec3(t.x, 0.0, t.y) : (sx ? vec3(0.0, t.y, t.x) : vec3(t.x, t.y, 0.0));
-      o.n.xyz += n2 * uTrM.y * kd;
+      o.n.xyz += tn * uTrM.y * kd;
+      o.c.a = mix(o.c.a, o.c.a * 0.75 + tc.a * 0.25, kd);
     }
 #endif
-    vec3 mult = vec3(0.62 + 0.36 * smoothstep(0.3, 0.75, gVnoise(xz / 170.0 + 1.3)));
-    float jf = clamp(gTrJ / 0.5, 0.0, 1.0);
-    mult = mix(mult, vec3(0.42, 0.40, 0.34), jf * uTrJ.z);
-    float hollow = clamp(-gTrBias * 2.0, 0.0, 1.0);
-    mult = mix(mult, vec3(0.58, 0.54, 0.46), hollow * uTrJ.w);
+    // THE MACRO: on a relief vertex the worker's (v1's own law: zones, the film, the joints' dirt, the hollows, the margin, the wet
+    // streaks); elsewhere its procedural stand-in (the far ground)
+    float jf = clamp(gTrJ / 0.5, 0.0, 1.0), hollow = clamp(-gTrBias * 2.0, 0.0, 1.0);
     float edgeR = smoothstep(0.15, 0.35, gTrR0) * (1.0 - smoothstep(0.45, 0.8, gTrR0));
-    mult = mix(mult, vec3(0.55, 0.52, 0.44), edgeR * 0.6);
-    { float st = smoothstep(0.62, 0.9, gVnoise(vec2((fx > fz ? P.z : P.x) / 3.0, P.y / 30.0)) * 0.7 + hollow * 0.4) * smoothstep(40.0, 58.0, slope);
-      mult = mix(mult, vec3(0.45, 0.45, 0.42), st * uTrF.w); }
+    vec3 mult;
+    if (rg) mult = vRM.rgb;
+    else {
+      mult = vec3(0.55 + 0.40 * smoothstep(0.3, 0.75, gVnoise(xz / 170.0 + 1.3)));
+      mult = mix(mult, mult * vec3(1.06, 1.0, 0.9), smoothstep(0.6, 0.8, gVnoise(xz / 340.0 + 7.0)) * 0.7);
+      mult = mix(mult, vec3(0.40, 0.38, 0.30), jf * uTrJ.z);
+      mult = mix(mult, vec3(0.55, 0.50, 0.40), hollow * uTrJ.w);
+      mult = mix(mult, vec3(0.50, 0.46, 0.36), edgeR * 0.7);
+      float st = smoothstep(0.55, 0.85, gVnoise(vec2((fx > fz ? P.z : P.x) / 2.2, P.y / 26.0)) * 0.7 + hollow * 0.45) * smoothstep(38.0, 55.0, slope);
+      mult = mix(mult, vec3(0.38, 0.38, 0.34), st * uTrF.w);
+    }
     o.c.rgb *= mult;
-    // EACH SLAB ITS OWN (A0's box, v3: "no tonal break-up inside the slabs"): a tone swing and a tilt of the shading normal per cell
-    // of the joint network, so the sun picks the facets (near only: the cells fade with the joints)
-    // of the joint network, and inside it a 6 m / 2.3 m undulation of tone and a 9 m one of the normal (the tile's own blocks are
-    // too small for the network's cells)
-    { float kc = 1.0 - smoothstep(uTrF.z * 0.5, uTrF.z, d);
-      float tn = (gTrCell - 0.5) + (gVnoise(xz / 6.0 + 11.3) - 0.5) * 1.2 + (gVnoise(xz / 2.3 - 4.1) - 0.5) * 0.6;
-      o.c.rgb *= 1.0 + tn * uTrS.z * kc;
-      o.n.xz += ((vec2(gTrCell, gTrCell2) - 0.5) + (vec2(gVnoise(xz / 9.0), gVnoise(xz / 9.0 + 17.0)) - 0.5) * 1.5) * uTrS.w * kc; }
+    if (rg) o.c.a = clamp(o.c.a * 0.6 + vRX.y * 0.6 - 0.1, 0.0, 1.0);   // the macro's height into the blend's (v1)
+    // THE GREEN (v1): the macro's chance, the tile's cracks (its low texels; on the relief the masses' crevices too) and what faces
+    // the sky, broken by two noises, filling the LOW texels first; the ground's own grass set read from above, moss where thin
     float hm = o.c.a;
-    float ck = 1.0 - smoothstep(0.10, 0.36, hm);
-    o.c.rgb *= 1.0 + ck * 0.7;   // (the tile's grooves: dirt, not black - A0's box: "a dense dark crack web")
-    float n2g = mix(gVnoise(xz / 1.7 - 9.4), 0.5, smoothstep(150.0, 600.0, d));
-    float vegM = clamp(jf + hollow * 0.6 + (1.0 - smoothstep(14.0, 30.0, slope)) * 0.55 + edgeR * 0.6, 0.0, 1.0) * (0.55 + 0.45 * gVnoise(xz / 21.0 + 5.0));
-    float crackM = ck;
-    float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * gVnoise(xz / 7.0 + 3.1));
-    float Gv = clamp((vegM * 1.15 + crackM * 1.2 + up * 0.55) * uTrG.x, 0.0, 1.0) * (0.55 + 0.6 * n2g);
+    float n1g = gVnoise(xz / 7.0 + 3.1), n2g = gVnoise(xz / 1.7 - 9.4);
+    float vegM = rg ? vRM.w - 2.0 : clamp(jf + hollow * 0.6 + (1.0 - smoothstep(14.0, 30.0, slope)) * 0.55 + edgeR * 0.6, 0.0, 1.0) * (0.55 + 0.45 * gVnoise(xz / 21.0 + 5.0));
+    float crackM = 1.0 - smoothstep(0.10, 0.32, hm);
+    if (rg) { crackM = max(crackM, vRX.z * 0.9); o.c.rgb *= mix(1.0, 0.55, vRX.z) * (0.9 + 0.2 * vRX.w); }   // the masses' crevices darker, each mass its own tone
+    float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * n1g);
+    float Gv = clamp((vegM * 1.15 + crackM * 0.6 + up * 0.55) * uTrG.x, 0.0, 1.0) * (0.55 + 0.6 * n2g);
     float gw = clamp((Gv * 1.35 - hm) * 3.0, 0.0, 1.0);
     if (gw > 0.003) {
       vec3 gr = texture(uSplat, vec3(xz / 5.0, uTrL.w), uSFilt.x).rgb;
       gr *= gr;   // (sRGB -> linear, the square: a green's colour, not a set's texel)
-      gr *= uSGrade[int(uTrL.w + 0.5)].rgb;
-      vec3 green = mix(vec3(0.05, 0.058, 0.032) * (0.8 + 0.6 * n2g), gr, smoothstep(0.3, 0.8, Gv));
-      green = mix(vec3(gLuma(green)), green, uTrG.z);   // (the lichen's yellow held down: A0's box, 16 Nov)
+      gr *= uSGrade[int(uTrL.w + 0.5)].rgb;   // (the game's own grass, graded as the game grades it - the user: "use the same textures as the game already uses": the green in the rock is the grass around it)
+      vec3 green = mix(vec3(0.045, 0.058, 0.022) * (0.8 + 0.6 * n2g), gr, smoothstep(0.3, 0.8, Gv));
+      green = mix(vec3(gLuma(green)), green, uTrG.z);   // (the green's saturation: 1 = the bench v1's)
       o.c.rgb = mix(o.c.rgb, green, gw); o.n.xyz *= 1.0 - 0.6 * gw; o.n.w = mix(o.n.w, uTrG.y, gw); o.c.a = mix(o.c.a, 0.2, gw);
     }
-    o.n.w = clamp(mix(o.n.w * uTrG.w, 0.9, smoothstep(250.0, 900.0, d)), 0.02, 1.0);   // (bare stone glossy near, matte far: no bleach)
+    o.n.w = clamp(o.n.w * uTrG.w, 0.02, 1.0);   // the bare stone's roughness (the tile's maps x the dial)
     o.c.rgb *= uTrK.w;
     return o;
   }
@@ -170151,8 +170179,10 @@ const SPLAT_GROUND = (() => {
     if (uTrOn > 0.5) {
       float r = (k0 == 6 ? v0 : 0.0) + (k1 == 6 ? v1 : 0.0) + (k2 == 6 ? v2 : 0.0) + (k3 == 6 ? v3 : 0.0) + (k4 == 6 ? v4 : 0.0);
       gTrR0 = r; gTrR = r;
-      if (r > 0.02) {
-        float e = sTrExpo(r, xz, slope, uv), ko = (1.0 - e) / max(1.0 - r, 1e-3);
+      bool rgv = vRM.w > 1.5;   // a relief vertex: the macro's exposure IS the rock (v1: the macro texture over the raster), a slot made if the raster had none
+      if (rgv && r <= 0.02) { if (k4 < 0) { k4 = 6; v4 = 0.0; } else if (k3 < 0) { k3 = 6; v3 = 0.0; } r = 0.0; }
+      if (r > 0.02 || rgv) {
+        float e = rgv ? vRX.x : sTrExpo(r, xz, slope, uv), ko = (1.0 - e) / max(1.0 - r, 1e-3);
         v0 = k0 == 6 ? e : v0 * ko; v1 = k1 == 6 ? e : v1 * ko; v2 = k2 == 6 ? e : v2 * ko; v3 = k3 == 6 ? e : v3 * ko; v4 = k4 == 6 ? e : v4 * ko;
         float fr = 1.0 - r < 1e-3 ? 1.0 - e : 0.0;
         if (fr > 0.0) {   // (a kernel all rock fills from k0: the last two slots are free - fewer lines in the program than a search)
@@ -170241,8 +170271,9 @@ const SPLAT_GROUND = (() => {
     // R1: THE EXPOSURE (the lean path's twin, above)
     if (uTrOn > 0.5) {
       float r = w[6]; gTrR0 = r; gTrR = r;
-      if (r > 0.02) {
-        float e = sTrExpo(r, xz, slope, uv), ko = (1.0 - e) / max(1.0 - r, 1e-3);
+      bool rgv = vRM.w > 1.5;
+      if (r > 0.02 || rgv) {
+        float e = rgv ? vRX.x : sTrExpo(r, xz, slope, uv), ko = (1.0 - e) / max(1.0 - r, 1e-3);
         for (int i = 0; i < uSNCode; i++) if (i != 6) w[i] *= ko;
         w[6] = e;
         if (1.0 - r < 1e-3) { w[8] += (1.0 - e) * 0.7; w[2] += (1.0 - e) * 0.3; }
@@ -170732,7 +170763,7 @@ const SPLAT_GROUND = (() => {
         const on = !!(ready && K.rocks && L4.every(i => i >= 0));
         U.uTrOn.value = on ? 1 : 0;
         if (on) {
-          const slabM = kv('rockSlabM', 16), faceM = kv('rockFaceM', 24), face = kv('rockFaceTile', 0) > 0.5 ? L4[1] : L4[0];
+          const slabM = kv('rockSlabM', 16), faceM = kv('rockFaceM', 24), face = kv('rockFaceTile', 1) > 0.5 ? L4[1] : L4[0];
           // NEAR only: the far triplet stays the recipe's (its aerial / stretched photographs read as rock from altitude - A0's
           // box, 16 Nov: "fade to a textured far set, not a mean"), its first set named explicitly (an absent far would take the slab)
           for (const [c, L, m] of [[6, L4[0], slabM], [12, face, faceM]]) {
@@ -170740,14 +170771,14 @@ const SPLAT_GROUND = (() => {
             U.uSMatA.value[c].set(L, -1, -1, 0); U.uSMatS.value[c].set(m, 1, 1, 0);
             U.uSMatF.value[c].set(far0 ? LIB.indexOf(far0) : L, -1, -1, 0); U.uSMatFS.value[c].set(far0 && LIB.indexOf(far0) >= 0 ? fs0 : m, 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
         }
-        U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), kv('rockSlabTone', 0.3), kv('rockSlabTilt', 0.1));
-        U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.5));
+        { const mc = (SPLAT_TEX_SETS.find(x => x.key === 'cliff') || {}).mean || [0.2, 0.2, 0.2]; U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), 0.2126 * mc[0] + 0.7152 * mc[1] + 0.0722 * mc[2], 0); }
+        U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.72));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
         U.uTrE.value.set(kv('rockHLo', 250), kv('rockHHi', 760), kv('rockBias', 0.3), kv('rockOff', 0.08));
         const mS = lib('trondSlab').mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded
         if (mS) U.uTrMeanS.value.set(mS[0] * (gS ? gS.x : 1), mS[1] * (gS ? gS.y : 1), mS[2] * (gS ? gS.z : 1), 1);
-        U.uTrJ.value.set(kv('rockJoint', 1), kv('rockJointSoil', 0.7), kv('rockJointDirt', 0.6), kv('rockHollow', 0.5));
-        U.uTrG.value.set(kv('rockGreen', 1), kv('rockGreenRough', 0.97), kv('rockGreenSat', 0.6), kv('rockRough', 1));
-        U.uTrF.value.set(kv('rockMicroFrom', 80), kv('rockMicroTo', 260), kv('rockJointFar', 450), kv('rockWet', 0.2));
+        U.uTrJ.value.set(kv('rockJoint', 1), kv('rockJointSoil', 0.7), kv('rockJointDirt', 0.85), kv('rockHollow', 0.5));
+        U.uTrG.value.set(kv('rockGreen', 1), kv('rockGreenRough', 0.97), kv('rockGreenSat', 1), kv('rockRough', 1));
+        U.uTrF.value.set(kv('rockMicroFrom', 60), kv('rockMicroTo', 180), kv('rockJointFar', 900), kv('rockWet', 0.75));
         U.uTrM.value.set(kv('rockMicroK', 0.65), kv('rockMicroN', 0.6), kv('rockNdvi', 0), kv('rockNdviMid', 0.74)); }
     };
     push();
@@ -170881,8 +170912,8 @@ if (typeof window !== 'undefined') window.SPLAT_GROUND = SPLAT_GROUND;
 // bench's medium() (the Blender height path, node for node) and its buildSkirt (?tskirt) - rounded masses, two Laplacian
 // passes, the vertex out along the DEM's normal by macro height + exposure x (lift + amp x masses).
 //
-//   ROCK_RING_CORE.chunk(inp) -> { pos (the ground's, Float32Array), disp (the relief, along the DEM normal), idx Uint32Array,
-//                                  attr Float32Array (8 a vertex), nv, nt, ms }
+//   ROCK_RING_CORE.chunk(inp) -> { pos (the ground's), disp (the relief, along the DEM normal), nor, idx, attr (8 a vertex:
+//                                  aRM, aRX - the ground material's), nv, nt, B (the boulders: pos, nor, attr, idx, nv) | null, ms }
 //     inp: { x0, z0, C (m), step (m, 1.25), M (margin m, >= 24: the 20 m curvature), hs (the inputs' lattice m), nh (its side),
 //            H, R, V, F, Sc, Fo (Float32Array nh*nh: height, the map's rock share 0..1, NDVI -1..1, flow 0..1, scree and forest
 //            shares), rung (the boulders' LOD: 0 full, 1, 2), eye [x, z], K (knobs) } ; kit (ROCK_RING_CORE.kitPrep's): the boulders
@@ -171050,10 +171081,73 @@ function ROCK_RING_CORE_FACTORY() {
     for (let v = 0; v < nor.length; v += 3) { const l = Math.hypot(nor[v], nor[v + 1], nor[v + 2]) || 1; nor[v] /= l; nor[v + 1] /= l; nor[v + 2] /= l; }
     return nor;
   }
+  // ---- THE PROCEDURAL KIT (the study's rock_kit.js, the user: "boulders need closed geometry"): a rock is a CLOSED shape from
+  // a sphere of directions - r(dir) the soft minimum of an ellipsoid and K planes (the faces rock breaks along), roughened by a
+  // low noise - evaluated on icospheres of three densities (1280 / 320 / 80 triangles): the LOD rungs are one rock, all closed.
+  // Archetypes: boulder (rounded, 10-13 planes), block (near-axis planes: jointed), slab (flat plates). Each vertex: its crease
+  // (how deep it sits under the ellipsoid: the cheap AO) and its height in the rock's box (the foot)
+  //   procKit(seeds) -> [{ h, bb, arch, rungs: [{ pos, nor, idx, nv, crease, foot }] x3 }]
+  function procKit(seeds) {
+    const rnd = sd => () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+    const ico = n => { const t = (1 + Math.sqrt(5)) / 2;
+      let V = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]].map(v => { const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; });
+      let F = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+      for (let k = 0; k < n; k++) { const mid = new Map(), F2 = [];
+        const m = (a, b) => { const key = a < b ? a * 100000 + b : b * 100000 + a; let i = mid.get(key); if (i !== undefined) return i;
+          const v = [V[a][0] + V[b][0], V[a][1] + V[b][1], V[a][2] + V[b][2]], l = Math.hypot(v[0], v[1], v[2]); V.push([v[0] / l, v[1] / l, v[2] / l]); i = V.length - 1; mid.set(key, i); return i; };
+        for (const [a, b, c] of F) { const ab = m(a, b), bc = m(b, c), ca = m(c, a); F2.push([a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]); }
+        F = F2; }
+      return { V, F }; };
+    const SPH = [ico(3), ico(2), ico(1)];
+    const vn = (x, y, z, sd) => { const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z), a = sm(x - X), b = sm(y - Y), c = sm(z - Z); let r = 0;
+      for (let dz = 0; dz < 2; dz++) for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) r += hh(X + dx, Y + dy, Z + dz + sd * 101) * (dx ? a : 1 - a) * (dy ? b : 1 - b) * (dz ? c : 1 - c);
+      return r - 0.5; };
+    const shapeOf = (arch, seed) => {
+      const R = rnd(seed * 7919 + 17), P = [];
+      const plane = (nx, ny, nz, o) => { const l = Math.hypot(nx, ny, nz); P.push([nx / l, ny / l, nz / l, o]); };
+      const rdir = () => { const z = R() * 2 - 1, a = R() * 6.2832, q = Math.sqrt(1 - z * z); return [q * Math.cos(a), z, q * Math.sin(a)]; };
+      let E, K, rough, base = -0.42;
+      if (arch === 'boulder') { E = [1.1, 0.85 + 0.15 * R(), 0.95 + 0.1 * R()]; K = 30; rough = 0.045;
+        const n = 10 + Math.floor(R() * 4); for (let i = 0; i < n; i++) { const d = rdir(); plane(d[0], d[1] * 0.8, d[2], 0.55 + 0.3 * R()); } }
+      else if (arch === 'block') { E = [1.3, 1.1, 1.2]; K = 45; rough = 0.03;
+        const yaw = R() * 0.5, c = Math.cos(yaw), sn = Math.sin(yaw);
+        for (const [x, y, z] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]) { const j = () => (R() - 0.5) * 0.5; plane(x * c - z * sn + j(), y + j(), x * sn + z * c + j(), 0.5 + 0.25 * R()); }
+        for (let i = 0; i < 6; i++) { const d = rdir(); plane(d[0], d[1], d[2], 0.6 + 0.25 * R()); } }
+      else { E = [1.1, 0.42, 0.9]; K = 22; rough = 0.03; base = -0.2;
+        plane((R() - 0.5) * 0.3, 1, (R() - 0.5) * 0.3, 0.22 + 0.06 * R());
+        for (let i = 0; i < 6; i++) { const a = R() * 6.2832; plane(Math.cos(a), (R() - 0.5) * 0.6, Math.sin(a), 0.6 + 0.25 * R()); } }
+      plane(0, -1, 0, -base);
+      return { E, K, rough, P }; };
+    const radius = (S, d, seed) => {
+      const re = 1 / Math.sqrt((d[0] / S.E[0]) ** 2 + (d[1] / S.E[1]) ** 2 + (d[2] / S.E[2]) ** 2);
+      let sum = Math.exp(-S.K * re), mn = re;
+      for (const p of S.P) { const c = d[0] * p[0] + d[1] * p[1] + d[2] * p[2]; if (c > 1e-3) { const t = p[3] / c; sum += Math.exp(-S.K * t); if (t < mn) mn = t; } }
+      let r = -Math.log(sum) / S.K; if (!isFinite(r)) r = mn;
+      const q = 2.3; r *= 1 + S.rough * (vn(d[0] * q + 9, d[1] * q, d[2] * q, seed) * 2 + vn(d[0] * q * 3, d[1] * q * 3, d[2] * q * 3 + 5, seed) * 0.8);
+      return [r, Math.max(0, Math.min(1, (re - r) / re))]; };
+    const out = [];
+    for (const arch of ['boulder', 'block', 'slab']) for (let sd = 1; sd <= (seeds || 4); sd++) {
+      const S = shapeOf(arch, sd), rungs = [];
+      for (let L = 0; L < 3; L++) { const sph = SPH[L], nv = sph.V.length, pos = new Float32Array(nv * 3), crease = new Float32Array(nv), foot = new Float32Array(nv);
+        let y0 = 1e9, y1 = -1e9;
+        sph.V.forEach((d, i) => { const [r, cr] = radius(S, d, sd); pos[i * 3] = d[0] * r; pos[i * 3 + 1] = d[1] * r; pos[i * 3 + 2] = d[2] * r; crease[i] = cr; y0 = Math.min(y0, pos[i * 3 + 1]); y1 = Math.max(y1, pos[i * 3 + 1]); });
+        for (let i = 0; i < nv; i++) { pos[i * 3 + 1] -= y0; foot[i] = pos[i * 3 + 1] / Math.max(1e-6, y1 - y0); }
+        const idx = new Uint32Array(sph.F.length * 3); sph.F.forEach((f, i) => { idx[i * 3] = f[0]; idx[i * 3 + 1] = f[1]; idx[i * 3 + 2] = f[2]; });
+        rungs.push({ pos, idx, nor: vnormals(pos, idx), nv, crease, foot }); }
+      const P0 = rungs[0].pos; let mnx = 1e9, mxx = -1e9, mxy = -1e9, mnz = 1e9, mxz = -1e9;
+      for (let v = 0; v < P0.length; v += 3) { mnx = Math.min(mnx, P0[v]); mxx = Math.max(mxx, P0[v]); mxy = Math.max(mxy, P0[v + 1]); mnz = Math.min(mnz, P0[v + 2]); mxz = Math.max(mxz, P0[v + 2]); }
+      out.push({ arch, h: mxy, bb: [mnx, 0, mnz, mxx, mxy, mxz], rungs });
+    }
+    return out;
+  }
   function kitPrep(list) {
-    const subs = list.map(s => ({ h: s.h, bb: s.bb, rungs: [{ pos: s.pos, nor: s.nor, idx: s.idx, nv: s.pos.length / 3 }, decimate(s.pos, s.idx, 7), decimate(s.pos, s.idx, 4)] }));
-    const blocky = subs.map((S, i) => [i, S.h / Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2])]).sort((a, b) => b[1] - a[1]).slice(0, 4).map(a => a[0]);
-    return { subs, blocky };
+    // (list null or 'proc': the procedural kit - CLOSED rocks; a scanned kit (open shells: the tree pack's paving blocks) only if asked)
+    const subs = (!list || list === 'proc') ? procKit(4) : list.map(s => ({ h: s.h, bb: s.bb, rungs: [{ pos: s.pos, nor: s.nor, idx: s.idx, nv: s.pos.length / 3 }, decimate(s.pos, s.idx, 7), decimate(s.pos, s.idx, 4)] }));
+    const blocky = subs.some(S => S.arch) ? subs.map((S, i) => [i, S.arch]).filter(a => a[1] === 'block' || a[1] === 'boulder').map(a => a[0])
+      : subs.map((S, i) => [i, S.h / Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2])]).sort((a, b) => b[1] - a[1]).slice(0, 4).map(a => a[0]);
+    // the scatter draws the BOULDERS and the BLOCKS (the user: "proper boulders" - the slab archetype is a plate)
+    const pick = subs.some(S => S.arch) ? subs.map((S, i) => [i, S.arch]).filter(a => a[1] !== 'slab').map(a => a[0]) : subs.map((S, i) => i);
+    return { subs, blocky, pick };
   }
   // the 20 m curvature's std on Mount Ardent (tools/rock_study export_patch: 1.45 m) - the law's z-score, a constant of the island
   const CZSD = 1.45;
@@ -171072,6 +171166,49 @@ function ROCK_RING_CORE_FACTORY() {
     return out;
   }
   // ---- one chunk -------------------------------------------------------------------------------------------------------
+  function farChunk(inp, kit, W) {
+    const { x0, z0, C, M } = inp, { n, st, X, Z, Y, slope, dn, cz, ex, mac, bil, t0 } = W, eye = inp.eye || [x0 + C / 2, z0 + C / 2], reach = inp.reach || 450;
+    const lat = (A, x, z) => { const fx = Math.min(n - 1.001, Math.max(0, (x - (x0 - M)) / st)), fz = Math.min(n - 1.001, Math.max(0, (z - (z0 - M)) / st)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, k = j * n + i;
+      return (A[k] * (1 - u) + A[k + 1] * u) * (1 - v) + (A[k + n] * (1 - u) + A[k + n + 1] * u) * v; };
+    const e5 = new Float32Array(n * n); for (let k = 0; k < n * n; k++) e5[k] = mac[k * 7 + 5];
+    const RB = { pos: [], nor: [], attr: [], idx: [] }; let base = 0;
+    const mul = (inp.K && inp.K.scatter !== undefined) ? inp.K.scatter : 1.25;
+    if (kit && kit.subs && kit.subs.length) for (let gz = z0; gz < z0 + C; gz += 6) for (let gx = x0; gx < x0 + C; gx += 6) {
+      const jx = gx + 3 + (hh(Math.round(gx * 3), Math.round(gz * 3), 1) - 0.5) * 6, jz = gz + 3 + (hh(Math.round(gx * 3), Math.round(gz * 3), 2) - 0.5) * 6;
+      const dP = Math.hypot(jx - eye[0], jz - eye[1]); if (dP <= reach || dP > (inp.farReach || 2000)) continue;
+      const sl = lat(slope, jx, jz); if (sl > 50) continue;
+      const cR = lat(e5, jx, jz), cS = inp.Sc ? bil(inp.Sc, jx, jz) : 0, cF = inp.Fo ? bil(inp.Fo, jx, jz) : 0, cv = lat(cz, jx, jz) * CZSD;
+      const fi = Math.min(n - 1, Math.max(0, Math.round((jx - (x0 - M)) / st))), fj = Math.min(n - 1, Math.max(0, Math.round((jz - (z0 - M)) / st))), kk = fj * n + fi;
+      const upx = -dn[kk * 2], upz = -dn[kk * 2 + 1];
+      let face = 0; for (let s2 = 5; s2 <= 35; s2 += 5) if (lat(slope, jx + upx * s2, jz + upz * s2) > 45) { face = 1 - s2 / 45; break; }
+      const talus = face * (sl < 42 ? 1 : 0) * (cv < 0.3 ? 1 : 0.4) * (1 - cF * 0.8);
+      const clus = ss(0.40, 0.70, vn3(jx / 40, 0, jz / 40));
+      const rocky = Math.max(cR, cS) * ss(18, 26, sl) * (1 - ss(44, 50, sl)) * clus * (1 - cF);
+      const edge = (cR > 0.12 && cR < 0.88 ? 1 : 0) * (1 - ss(40, 50, sl)) * (1 - cF) * (0.4 + 0.6 * clus);
+      const p = (talus * 0.33 + rocky * 0.055 + edge * 0.13) * mul;
+      const bigOK = clus > 0.55 && hh(Math.round(jx * 5), Math.round(jz * 5), 9) < 0.07;
+      if (!bigOK || hh(Math.round(jx * 7), Math.round(jz * 7), 3) >= p * 9) continue;
+      const r1 = hh(Math.round(jx * 13), Math.round(jz * 13), 5), r2 = hh(Math.round(jx * 13), Math.round(jz * 13), 6), r3 = hh(Math.round(jx * 13), Math.round(jz * 13), 7);
+      const hT = 2.5 + 2.5 * r2, S = kit.subs[kit.blocky[Math.floor(r1 * kit.blocky.length) % kit.blocky.length]];
+      const bw = Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2]) / Math.max(S.h, 0.02), rr2 = 0.4 * bw * hT;
+      const c = lat(Y, jx, jz), gxp = (lat(Y, jx + rr2, jz) - lat(Y, jx - rr2, jz)) / (2 * rr2), gzp = (lat(Y, jx, jz + rr2) - lat(Y, jx, jz - rr2)) / (2 * rr2), G = Math.hypot(gxp, gzp);
+      const kS = hT / Math.max(S.h, 0.02), kxz = Math.min(1, 2.6 / bw), bury = 0.3 + 0.15 * r3, yB = c - 0.2 * G * rr2 - hT * bury;
+      let nxl = -gxp, nyl = 1, nzl = -gzp; const nl = Math.hypot(nxl, nyl, nzl); nxl /= nl; nyl /= nl; nzl /= nl;
+      nxl *= 0.8; nyl = nyl * 0.8 + 0.2; nzl *= 0.8; const nl2 = Math.hypot(nxl, nyl, nzl); nxl /= nl2; nyl /= nl2; nzl /= nl2;
+      const yaw = r1 * 6.2832 * 7, cy = Math.cos(yaw), sy = Math.sin(yaw), ax = nzl, az = -nxl, al = Math.hypot(ax, az), ct = nyl, st2 = Math.sqrt(Math.max(0, 1 - ct * ct));
+      const kx = al > 1e-6 ? ax / al : 1, kz = al > 1e-6 ? az / al : 0;
+      const rot = (vx, vy, vz) => { const x1 = vx * cy + vz * sy, z1 = -vx * sy + vz * cy, y1 = vy, dot = kx * x1 + kz * z1, crx = -kz * y1, cry = kz * x1 - kx * z1, crz = kx * y1;
+        return [x1 * ct + crx * st2 + kx * dot * (1 - ct), y1 * ct + cry * st2, z1 * ct + crz * st2 + kz * dot * (1 - ct)]; };
+      const sx = kS * kxz * (0.8 + 0.4 * r3), sy2 = kS, sz = kS * kxz * (0.8 + 0.4 * r2);
+      const L = S.rungs[dP < 600 ? 1 : 2], vk = 0.85 + 0.3 * r3;   // (v1's ladder: 7^3 to 600 m, then 4^3)
+      for (let v = 0; v < L.nv; v++) { const p0 = rot(L.pos[v * 3] * sx, L.pos[v * 3 + 1] * sy2, L.pos[v * 3 + 2] * sz); RB.pos.push(jx + p0[0], yB + p0[1], jz + p0[2]);
+        const n0 = rot(L.nor[v * 3] / sx, L.nor[v * 3 + 1] / sy2, L.nor[v * 3 + 2] / sz), q2 = Math.hypot(n0[0], n0[1], n0[2]) || 1; RB.nor.push(n0[0] / q2, n0[1] / q2, n0[2] / q2);
+        RB.attr.push(vk, vk, vk * 0.97, L.foot ? L.foot[v] : 0.5, L.crease ? L.crease[v] : 0, r3, 2, 0); }
+      for (let t = 0; t < L.idx.length; t++) RB.idx.push(base + L.idx[t]); base += L.nv;
+    }
+    const B = RB.idx.length ? { pos: Float32Array.from(RB.pos), nor: Float32Array.from(RB.nor), attr: Float32Array.from(RB.attr), idx: Uint32Array.from(RB.idx), nv: RB.pos.length / 3 } : null;
+    return { pos: new Float32Array(0), disp: new Float32Array(0), nor: new Float32Array(0), idx: new Uint32Array(0), attr: new Float32Array(0), nv: 0, nt: 0, B, boulders: B ? B.idx.length / 3 : 0, ms: Date.now() - t0, n };
+  }
   function chunk(inp, kit) {
     if (Math.abs(inp.C / (inp.step || 1.25) - Math.round(inp.C / (inp.step || 1.25))) > 1e-6 || Math.abs(inp.M / inp.hs - Math.round(inp.M / inp.hs)) > 1e-6 || Math.abs(inp.C / inp.hs - Math.round(inp.C / inp.hs)) > 1e-6)
       throw new Error('rock ring: chunk ' + inp.C + ' / margin ' + inp.M + ' must be whole multiples of the step and the input lattice (a crack between chunks)');
@@ -171105,13 +171242,16 @@ function ROCK_RING_CORE_FACTORY() {
     // the exposure SMOOTHED over ~5 m (the geometry's mask: read raw, every speck stood up as a tooth - the bench)
     const ex = new Float32Array(n * n); for (let k = 0; k < n * n; k++) ex[k] = mac[k * 7 + 6];
     const MC = {}; const mac7 = c => MC[c] || (MC[c] = (() => { const o = new Float32Array(n * n); for (let k = 0; k < n * n; k++) o[k] = mac[k * 7 + c]; return o; })());
-    const exs = blur(ex, n, Math.max(1, Math.round(2 / st)));
+    const exs = blur(ex, n, Math.max(1, Math.round(2.5 / st)));   // (~5 m across, two passes: the bench v1 averaged the exposure over a 2.5 m ring of 8 points + the centre)
     // the COVER mask: the smoothed exposure DILATED ~4 m - a hole narrower than ~8 m (a drainage line, a joint's soil) is a gully
     // ON the outcrop (no lift, green), not a hole into the ground under it (the ground there wears another material)
     const exD = (() => { const r = Math.max(1, Math.round(4 / st)), o = new Float32Array(n * n), t = new Float32Array(n * n);
       for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { let m = 0; for (let k = -r; k <= r; k++) { const q = exs[j * n + Math.min(n - 1, Math.max(0, i + k))]; if (q > m) m = q; } t[j * n + i] = m; }
       for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { let m = 0; for (let k = -r; k <= r; k++) { const q = t[Math.min(n - 1, Math.max(0, j + k)) * n + i]; if (q > m) m = q; } o[j * n + i] = m; }
       return blur(o, n, Math.max(1, Math.round(2 / st))); })();
+    // THE FAR LAYER (the bench v1's second scatter pass: big blocks only, a 6 m grid at 9 x the odds, to 2 km): no relief, the
+    // boulders seated on the DEM
+    if (inp.far) return farChunk(inp, kit, { n, st, X, Z, Y, slope, dn, cz, ex, mac, bil, t0 });
     const med = new Float32Array(3), [mu, sd] = medNorm(K.unit || 12);
     const lift = K.lift === undefined ? 0.6 : K.lift, amp = K.amp === undefined ? 1.5 : K.amp, sink = K.sink === undefined ? 0.35 : K.sink;
     // THE VERTEX STAGE ON AN EXTENDED LATTICE (the chunk + 2 cells): the masses' smoothing and the normals run across the chunk's
@@ -171150,8 +171290,11 @@ function ROCK_RING_CORE_FACTORY() {
       const vx = PX(a, b + 1, 0) - PX(a, b - 1, 0), vy = PX(a, b + 1, 1) - PX(a, b - 1, 1), vz = PX(a, b + 1, 2) - PX(a, b - 1, 2);
       let nx = uz * vy - uy * vz, ny = ux * vz - uz * vx, nz = uy * vx - ux * vy; if (ny < 0) { nx = -nx; ny = -ny; nz = -nz; }
       const nl = Math.hypot(nx, ny, nz) || 1; nor[v * 3] = nx / nl; nor[v * 3 + 1] = ny / nl; nor[v * 3 + 2] = nz / nl;
-      const o = v * 8; attr[o] = mac[k * 7 + 1]; attr[o + 1] = mac[k * 7 + 2]; attr[o + 2] = mac[k * 7 + 3]; attr[o + 3] = mac[k * 7 + 4];
-      attr[o + 4] = cre[q] * eXe[q]; attr[o + 5] = ide[q]; attr[o + 6] = eXe[q]; attr[o + 7] = 1 - ss(0.0, 0.25, eXe[q]); }   // (.w: no exposure - the gully's and the seam's green)
+      // FOR THE GROUND'S OWN MATERIAL (the bench v1's skirt wore the ground's material - every type's PBR sets, height-blended -
+      // with the macro read where it is): aRM = the macro's colour multiplier, 2 + the green's chance (2+: an outcrop vertex);
+      // aRX = the exposure (the vote's rock share here), the macro's height 0..1, the masses' crevice, each mass's tone
+      const o = v * 8; attr[o] = mac[k * 7 + 1]; attr[o + 1] = mac[k * 7 + 2]; attr[o + 2] = mac[k * 7 + 3]; attr[o + 3] = 2 + mac[k * 7 + 4];
+      attr[o + 4] = mac[k * 7 + 5]; attr[o + 5] = Math.min(1, Math.max(0, (mac[k * 7] + 1.5) / 3.5)); attr[o + 6] = cre[q] * eXe[q]; attr[o + 7] = ide[q]; }
     const idx = []; for (let j = 0; j < m1 - 1; j++) for (let i = 0; i < m1 - 1; i++) { if (!cellOn[j * (m1 - 1) + i]) continue;
       const p = vid[j * m1 + i], q = vid[j * m1 + i + 1], r = vid[(j + 1) * m1 + i], t = vid[(j + 1) * m1 + i + 1]; idx.push(p, r, q, q, r, t); }
     // ---- THE BOULDERS (the bench v1's scatter, its rules per candidate on a jittered 2 m lattice inside the chunk): a TALUS
@@ -171192,8 +171335,8 @@ function ROCK_RING_CORE_FACTORY() {
         const pw = Math.pow(1 - r2, 3);
         let hT = big ? 2.5 + 2.5 * r2 : (isTalus ? 0.5 + 2.5 * pw : 1.2 + 4.8 * pw);
         // the eye's reach by size: small blocks to 250 m, mid to 450 m (the ring), the big ones to its edge
-        if (R0 > (hT < 1.5 ? 250 : 470)) continue;
-        const S = big ? kit.subs[kit.blocky[Math.floor(r1 * kit.blocky.length) % kit.blocky.length]] : kit.subs[Math.floor(r1 * kit.subs.length) % kit.subs.length];
+        const dP = Math.hypot(jx - eye[0], jz - eye[1]); if (dP > (hT < 1.5 ? 250 : (inp.reach || 450))) continue;   // (beyond the reach: the far layer's)
+        const S = big ? kit.subs[kit.blocky[Math.floor(r1 * kit.blocky.length) % kit.blocky.length]] : kit.subs[kit.pick[Math.floor(r1 * kit.pick.length) % kit.pick.length]];
         const bw = Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2]) / Math.max(S.h, 0.02);
         let c = 0, G = 0, rmin = 0, rr2 = 0, gxp = 0, gzp = 0;
         for (let pass = 0; pass < 2; pass++) {
@@ -171228,21 +171371,17 @@ function ROCK_RING_CORE_FACTORY() {
           RB.nor.push(n0[0] / q2, n0[1] / q2, n0[2] / q2);
           // the macro's colour at its foot, x its own tone; the foot (the lowest fifth) takes the ground's green
           const foot = L.pos[v * 3 + 1] / Math.max(S.h, 1e-3);
-          RB.attr.push(lat(mac7(1), jx, jz) * vk, lat(mac7(2), jx, jz) * vk, lat(mac7(3), jx, jz) * vk, 0.15 + 0.6 * (1 - ss(0.05, 0.25, foot)), 0, r3, 2, 0);
+          RB.attr.push(vk, vk, vk * 0.97, L.foot ? L.foot[v] : foot, L.crease ? L.crease[v] : 0, r3, 2, 0);   // (a boulder: its tone, its foot, its crease, its hash, the marker)
         }
-        for (let t = 0; t < L.idx.length; t++) RB.idx.push(nv + base + L.idx[t]);
+        for (let t = 0; t < L.idx.length; t++) RB.idx.push(base + L.idx[t]);
         base += L.nv;
       }
     }
-    if (RB.idx.length) {
-      const nb = RB.pos.length / 3, P2 = new Float32Array((nv + nb) * 3), D2 = new Float32Array((nv + nb) * 3), N2 = new Float32Array((nv + nb) * 3), A2 = new Float32Array((nv + nb) * 8);
-      P2.set(pos); P2.set(RB.pos, nv * 3); D2.set(disp); N2.set(nor); N2.set(RB.nor, nv * 3); A2.set(attr); A2.set(RB.attr, nv * 8);
-      const I2 = new Uint32Array(idx.length + RB.idx.length); I2.set(idx); I2.set(RB.idx, idx.length);
-      return { pos: P2, disp: D2, nor: N2, idx: I2, attr: A2, nv: nv + nb, nt: I2.length / 3, boulders: RB.idx.length / 3, ms: Date.now() - t0, n };
-    }
-    return { pos, disp, nor, idx: Uint32Array.from(idx), attr, nv, nt: idx.length / 3, boulders: 0, ms: Date.now() - t0, n };
+    // the boulders: their own mesh (their own material: the bench v1's rockMat), final positions
+    const B = RB.idx.length ? { pos: Float32Array.from(RB.pos), nor: Float32Array.from(RB.nor), attr: Float32Array.from(RB.attr), idx: Uint32Array.from(RB.idx), nv: RB.pos.length / 3 } : null;
+    return { pos, disp, nor, idx: Uint32Array.from(idx), attr, nv, nt: idx.length / 3, B, boulders: B ? B.idx.length / 3 : 0, ms: Date.now() - t0, n };
   }
-  return { chunk, kitPrep, macroAt, medium, jset, fbm, hh, vn2, ss, flowGrid, CZSD };
+  return { chunk, kitPrep, procKit, macroAt, medium, jset, fbm, hh, vn2, ss, flowGrid, CZSD };
 }
 var ROCK_RING_CORE = ROCK_RING_CORE_FACTORY();
 // the worker's text (rock_ring.js): the factory's own source - one copy of the law
@@ -171277,10 +171416,10 @@ if (typeof window !== 'undefined') { window.ROCK_RING_CORE = ROCK_RING_CORE; win
 var ROCK_RING = (() => {
   // (chunk and margin are WHOLE multiples of the 1.25 m step and the 2.5 m input lattice: 64 m left every chunk's last column
   // 0.25 m short of its neighbour's first - a crack - and phased each chunk's inputs differently)
-  const DEF = { on: 1, reach: 450, chunk: 62.5, step: 1.25, M: 37.5, hs: 2.5, lift: 0.6, amp: 1.5, unit: 12, sink: 0.35, perFrame: 2, fadeBand: 90 };
+  const DEF = { on: 1, farOn: 1, farReach: 2000, reach: 450, chunk: 62.5, step: 1.25, M: 37.5, hs: 2.5, lift: 0.6, amp: 1.5, unit: 12, sink: 0.35, perFrame: 2, fadeBand: 90 };
   const workerSrc = () => {
     const core = (typeof ROCK_RING_CORE_SRC !== 'undefined') ? ROCK_RING_CORE_SRC : null;
-    return core + '\nlet KIT = null;\nonmessage = e => { if (e.data.kit) { KIT = ROCK_RING_CORE.kitPrep(e.data.kit); return; } const r = ROCK_RING_CORE.chunk(e.data, KIT); postMessage({ id: e.data.id, r }, [r.pos.buffer, r.disp.buffer, r.nor.buffer, r.idx.buffer, r.attr.buffer]); };';
+    return core + '\nlet KIT = ROCK_RING_CORE.kitPrep(null);\nonmessage = e => { if (e.data.kit) { KIT = ROCK_RING_CORE.kitPrep(e.data.kit); return; } const r = ROCK_RING_CORE.chunk(e.data, KIT); postMessage({ id: e.data.id, r }, [r.pos.buffer, r.disp.buffer, r.nor.buffer, r.idx.buffer, r.attr.buffer]); };';
   };
   // ---- the material: the bench v1's rock (sTrond) on the outcrops - the slab hex-tiled with each tap's frame turned to the
   // fall line about its own vertex, the face plain on the side planes, blended by slope 42-58 deg; the 'cliff' photograph's
@@ -171289,7 +171428,7 @@ var ROCK_RING = (() => {
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });   // (the cover lies 0.15 m proud of the ground: it wins the depth test)
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { uSplat: U.uSplat, uSplatN: U.uSplatN, uSGrade: U.uSGrade, uSLum: U.uSLum, uSFilt: U.uSFilt,
-        uRL: L.uRL, uRK: L.uRK, uRFade: L.uRFade });
+        uRL: L.uRL, uRK: L.uRK, uRFade: L.uRFade, uRB: L.uRB, uRMean: L.uRMean });
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nattribute vec4 aR0, aR1; attribute vec3 aDisp; uniform vec4 uRFade;\nvarying vec4 vR0, vR1; varying vec3 vRW; varying vec3 vRN;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n' +
@@ -171299,7 +171438,7 @@ var ROCK_RING = (() => {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\n' + GLSL)
         .replace('#include <map_fragment>', '#include <map_fragment>\n  Smp rk = rRock(vRW, normalize(vRN)); diffuseColor.rgb = rk.c.rgb; gRN = rk.n.xyz; gRR = rk.n.w;')
-        .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n  normal = normalize(normal + (viewMatrix * vec4(gRN, 0.0)).xyz);')
+        .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n  normal = gRB > 0.5 ? normalize((viewMatrix * vec4(gRN, 0.0)).xyz) : normalize(normal + (viewMatrix * vec4(gRN, 0.0)).xyz);')
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = gRR;');
     };
     m.customProgramCacheKey = () => 'rock-ring-v1';
@@ -171311,7 +171450,9 @@ uniform vec4 uSGrade[24]; uniform float uSLum[24]; uniform vec4 uSFilt;
 uniform vec4 uRL;   // the layers: slab, face, cliff (micro), grassRock (green)
 uniform vec4 uRK;   // slab m, face m, brightness, micro on
 varying vec4 vR0, vR1; varying vec3 vRW; varying vec3 vRN;
-vec3 gRN = vec3(0.0); float gRR = 0.9;
+vec3 gRN = vec3(0.0); float gRR = 0.9; float gRB = 0.0;   // (gRB 1: a boulder - gRN is then its whole world normal)
+uniform vec4 uRB;   // the boulders: the cliff photo's scale (m), its raw mean luminance, the slab's mean luminance; the micro's mean luminance
+uniform vec3 uRMean;   // the slab's raw mean colour (linear): the boulders' tone
 struct Smp { vec4 c; vec4 n; };
 float rH1(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 vec2 rH2(vec2 p){ return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
@@ -171323,9 +171464,23 @@ Smp rFetch(float L, vec2 uv){
   Smp o; o.c = texture(uSplat, vec3(uv, L), uSFilt.x); o.c.rgb = o.c.rgb * o.c.rgb;   // (the tiles RAW, as the bench v1 drew them: the splat's grade is the far ground's)
   o.n = texture(uSplatN, vec3(uv, L), uSFilt.x); return o; }
 vec2 rVst(vec2 v){ return vec2(v.x + 0.5 * v.y, v.y * 0.8660254) * 0.5; }
+
 vec3 rHw3(float a, float wa, float b, float wb, float c, float wc, float k){
   float ma = max(max(a + wa, b + wb), c + wc) - k; vec3 w = vec3(max(a + wa - ma, 0.0), max(b + wb - ma, 0.0), max(c + wc - ma, 0.0));
   return w / max(w.x + w.y + w.z, 1e-5); }
+// a hex-tiled read (the splat's sTile): three rotated, offset taps on a triangle lattice, height-blended - no repeat
+Smp rHex(float L, vec2 st){
+  vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * 2.0);
+  vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
+  float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
+  vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
+  vec2 v1 = base + vec2(s, s), v2 = base + vec2(s, 1.0 - s), v3 = base + vec2(1.0 - s, s);
+  Smp a, b, c;
+  { vec2 r = rH2(v1); float an = r.x * 6.2832; mat2 R = mat2(cos(an), sin(an), -sin(an), cos(an)); a = rFetch(L, R * (st - rVst(v1)) + r * 7.3); }
+  { vec2 r = rH2(v2); float an = r.x * 6.2832; mat2 R = mat2(cos(an), sin(an), -sin(an), cos(an)); b = rFetch(L, R * (st - rVst(v2)) + r * 7.3); }
+  { vec2 r = rH2(v3); float an = r.x * 6.2832; mat2 R = mat2(cos(an), sin(an), -sin(an), cos(an)); c = rFetch(L, R * (st - rVst(v3)) + r * 7.3); }
+  vec3 h = rHw3(a.c.a, w.x, b.c.a, w.y, c.c.a, w.z, 0.2);
+  Smp o; o.c = a.c * h.x + b.c * h.y + c.c * h.z; o.n = a.n * h.x + b.n * h.y + c.n * h.z; return o; }
 // a slab tap: its frame turned to the fall line (+-15 deg per vertex), about the vertex; the normal back in world x / z
 Smp rSlabTap(vec2 st, vec2 V, vec2 dn){
   vec2 r = rH2(V); float a = (r.y - 0.5) * 0.52; float ca = cos(a), sa = sin(a);
@@ -171333,7 +171488,38 @@ Smp rSlabTap(vec2 st, vec2 V, vec2 dn){
   vec2 q = st - rVst(V);
   Smp o = rFetch(uRL.x, vec2(dot(q, du), dot(q, dv)) + r * 7.3);
   vec2 t = o.n.xy * 2.0 - 1.0; vec2 g = t.x * du + t.y * dv; o.n = vec4(g.x, 0.0, g.y, o.n.a); return o; }
+// THE BOULDER (the bench v1's rockMat): the game's 'cliff' photograph TRIPLANAR on the rock's world planes (blended by the
+// normal^4), its normal map on each plane's own axes (the whiteout swizzle, x1.6); its colour re-toned to the trondhjemite's
+// (the photo's luminance over its mean x the slab's mean colour x the rock's own tone); the crease darker; MOSS on what looks
+// up, filling the low texels first; the foot darker into the ground. vR0 = tone, foot; vR1 = crease, hash, 2, 0
+Smp rBoulder(vec3 P, vec3 N){
+  vec3 w = pow(abs(N), vec3(4.0)); w /= w.x + w.y + w.z;
+  vec3 p = P / uRB.x;
+  vec4 cx = vec4(0.0), cy = vec4(0.0), cz = vec4(0.0), nx = vec4(0.5, 0.5, 1.0, 1.0), ny = nx, nz = nx;
+  if (w.x > 0.02) { cx = texture(uSplat, vec3(p.zy, uRL.z), uSFilt.x); nx = texture(uSplatN, vec3(p.zy, uRL.z), uSFilt.x); }
+  if (w.y > 0.02) { cy = texture(uSplat, vec3(p.xz + 0.37, uRL.z), uSFilt.x); ny = texture(uSplatN, vec3(p.xz + 0.37, uRL.z), uSFilt.x); }
+  if (w.z > 0.02) { cz = texture(uSplat, vec3(p.xy + 0.71, uRL.z), uSFilt.x); nz = texture(uSplatN, vec3(p.xy + 0.71, uRL.z), uSFilt.x); }
+  vec4 col = cx * w.x + cy * w.y + cz * w.z; col.rgb *= col.rgb;
+  vec3 tX = nx.xyz * 2.0 - 1.0, tY = ny.xyz * 2.0 - 1.0, tZ = nz.xyz * 2.0 - 1.0; tX.xy *= 1.6; tY.xy *= 1.6; tZ.xy *= 1.6;
+  vec3 nX = vec3(tX.xy + N.zy, abs(tX.z) * N.x).zyx, nY = vec3(tY.xy + N.xz, abs(tY.z) * N.y).xzy, nZ = vec3(tZ.xy + N.xy, abs(tZ.z) * N.z);
+  Smp o; o.n.xyz = normalize(nX * w.x + nY * w.y + nZ * w.z);
+  float gr = nx.a * w.x + ny.a * w.y + nz.a * w.z;
+  // (v1: the photo through the game's own 'cliff' grade - luminance only, contrast x2 about its mean - then x the trondhjemite's mean / the
+  // graded mean x 0.9: the gain cancels in the ratio)
+  float rl = rLuma(col.rgb) / max(uRB.y, 1e-3);
+  o.c.rgb = uRMean * max(1.0 + (rl - 1.0) * 2.0, 0.05) * vR0.rgb * 0.9;
+  float h = col.a;
+  o.c.rgb *= mix(1.0, 0.75, clamp(vR1.x * 2.5, 0.0, 1.0));   // the crease
+  float up = smoothstep(0.62, 0.92, N.y);
+  if (up > 0.01) { vec3 g = texture(uSplat, vec3(P.xz / 7.0 + 0.13, uRL.w), uSFilt.x).rgb; g *= g; g *= uSGrade[int(uRL.w + 0.5)].rgb;   // (the game's own grass)
+   
+    float mk = clamp((up * 0.95 - h) * 3.0, 0.0, 1.0) * 0.85; o.c.rgb = mix(o.c.rgb, g, mk); gr = mix(gr, 1.0, mk); }
+  o.c.rgb *= mix(0.8, 1.0, smoothstep(0.0, 0.22, vR0.w));   // the foot
+  o.n.w = clamp(mix(0.42, 0.7, gr) + 0.3 * smoothstep(0.85, 0.95, gr), 0.3, 1.0);
+  o.c.a = h; return o;
+}
 Smp rRock(vec3 P, vec3 nG){
+  if (vR1.z > 1.5) { gRB = 1.0; return rBoulder(P, nG); }
   float slope = degrees(acos(clamp(nG.y, 0.0, 1.0))), d = distance(P, cameraPosition);
   float fw = smoothstep(42.0, 58.0, slope);
   Smp o; o.c = vec4(0.0); o.n = vec4(0.0); Smp sl = o, fa = o;
@@ -171359,23 +171545,24 @@ Smp rRock(vec3 P, vec3 nG){
   if (fw <= 0.001) o = sl; else if (fw >= 0.999) o = fa;
   else { float ma = max(sl.c.a + 1.0 - fw, fa.c.a + fw) - 0.1; vec2 h = vec2(max(sl.c.a + 1.0 - fw - ma, 0.0), max(fa.c.a + fw - ma, 0.0)); h /= max(h.x + h.y, 1e-5);
     o.c = sl.c * h.x + fa.c * h.y; o.n = sl.n * h.x + fa.n * h.y; }
-  // the PBR micro detail: the 'cliff' photograph at 6.86 m, its brightness over its mean and its normal - biplanar, out by 180 m
+  // THE PBR MICRO DETAIL (the bench v1's): the game's 'cliff' photograph at its natural 6.86 m, HEX-tiled and TRIPLANAR on the
+  // smooth normal (weights ^8) - its LUMINANCE over its mean modulates our colour and its NORMAL is added to ours (x1.8); out by
+  // 60-180 m. A plane is read only where it weighs
   float kd = (1.0 - smoothstep(60.0, 180.0, d)) * uRK.w;
   if (kd > 0.01) {
-    vec2 a2 = pow(vec2(length(nG.xz), abs(nG.y)), vec2(4.0)); float wTop = a2.y / max(a2.x + a2.y, 1e-6);
-    // (the two side planes BLENDED across the diagonal - a hard switch drew a seam where the surface faced 45 deg; the second
-    // read only inside the band)
-    Smp t1 = rFetch(uRL.z, P.xz / 6.86), tx = t1, tz = t1; float kxs = smoothstep(0.35, 0.65, kx);
-    if (kxs > 0.001) tx = rFetch(uRL.z, P.zy / 6.86 + 0.53);
-    if (kxs < 0.999) tz = rFetch(uRL.z, P.xy / 6.86 + 0.53);
-    vec2 n1 = t1.n.xy * 2.0 - 1.0, nx2 = tx.n.xy * 2.0 - 1.0, nz2 = tz.n.xy * 2.0 - 1.0;
-    float lS = mix(rLuma(tz.c.rgb), rLuma(tx.c.rgb), kxs);
-    float rel = clamp((rLuma(t1.c.rgb) * wTop + lS * (1.0 - wTop)) / max(uSLum[int(uRL.z + 0.5)], 1e-3), 0.35, 2.2);
+    vec2 a8 = pow(vec2(length(nG.xz), abs(nG.y)), vec2(8.0)); vec2 h2 = nG.xz * nG.xz; h2 *= h2;
+    float f8 = h2.y / max(h2.x + h2.y, 1e-8); vec3 tw = vec3(a8.x * (1.0 - f8), a8.y, a8.x * f8) / max(a8.x + a8.y, 1e-6);
+    Smp t; t.c = vec4(0.0); t.n = vec4(0.0);
+    if (tw.y > 0.01) { Smp q = rHex(uRL.z, P.xz / 6.86); vec2 n2 = q.n.xy * 2.0 - 1.0; t.c += q.c * tw.y; t.n.xyz += vec3(n2.x, 0.0, n2.y) * tw.y; }
+    if (tw.x > 0.01) { Smp q = rHex(uRL.z, P.zy / 6.86); vec2 n2 = q.n.xy * 2.0 - 1.0; t.c += q.c * tw.x; t.n.xyz += vec3(0.0, n2.y, n2.x) * tw.x; }
+    if (tw.z > 0.01) { Smp q = rHex(uRL.z, P.xy / 6.86); vec2 n2 = q.n.xy * 2.0 - 1.0; t.c += q.c * tw.z; t.n.xyz += vec3(n2.x, n2.y, 0.0) * tw.z; }
+    float rel = clamp(rLuma(t.c.rgb) / max(uRB.w, 1e-3), 0.35, 2.2);
     o.c.rgb *= mix(1.0, rel, 0.65 * kd);
-    vec3 nS = mix(vec3(nz2.x, nz2.y, 0.0), vec3(0.0, nx2.y, nx2.x), kxs);
-    o.n.xyz += (vec3(n1.x, 0.0, n1.y) * wTop + nS * (1.0 - wTop)) * 1.8 * kd;
-    o.c.a = mix(o.c.a, o.c.a * 0.75 + (t1.c.a * wTop + mix(tz.c.a, tx.c.a, kxs) * (1.0 - wTop)) * 0.25, kd);
+    o.n.xyz += t.n.xyz * 3.0 * 0.6 * kd;
+    o.c.a = mix(o.c.a, o.c.a * 0.75 + t.c.a * 0.25, kd);
   }
+  // the macro's height into the blend's height (v1: the green fills the macro's low places first)
+  o.c.a = clamp(o.c.a * 0.6 + vR1.z * 0.6 - 0.1, 0.0, 1.0);
   // the macro (vertex): its colour; the hollows and veins hold the green
   float hm = o.c.a;
   o.c.rgb *= vR0.rgb;
@@ -171383,12 +171570,12 @@ Smp rRock(vec3 P, vec3 nG){
   float crackM = max(1.0 - smoothstep(0.10, 0.32, hm), vR1.x * 0.9);
   o.c.rgb *= mix(1.0, 0.55, vR1.x) * (0.9 + 0.2 * vR1.y);   // the masses' crevices darker, each mass its own tone
   float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * n1);
-  float G = clamp(vR0.w * 1.35 + crackM * 0.7 + up * 0.55, 0.0, 1.0) * (0.55 + 0.6 * n2);   // (v1's, weighted up: our 512 tiles' cracks are softer than its 2048)
+  float G = clamp(vR0.w * 1.15 + crackM * 0.6 + up * 0.55, 0.0, 1.0) * (0.55 + 0.6 * n2);   // (the bench v1's)
   G = max(G, vR1.w);   // (the seam, under the ground: the green it emerges from)
   float gw = clamp((G * 1.35 - hm) * 3.0, 0.0, 1.0);
   float rough = o.n.w;
   if (gw > 0.003) {
-    vec3 gr = texture(uSplat, vec3(P.xz / 5.0, uRL.w), uSFilt.x).rgb; gr *= gr; gr *= vec3(0.50, 0.60, 0.36);   // (raw, darkened to v1's olive: the game's normalised grassRock reads blue-green)
+    vec3 gr = texture(uSplat, vec3(P.xz / 5.0, uRL.w), uSFilt.x).rgb; gr *= gr; gr *= uSGrade[int(uRL.w + 0.5)].rgb;   // (the game's own grass, graded as the game grades it)
     vec3 green = mix(vec3(0.045, 0.058, 0.022) * (0.8 + 0.6 * n2), gr, smoothstep(0.3, 0.8, G));
     o.c.rgb = mix(o.c.rgb, green, gw); o.n.xyz *= 1.0 - 0.6 * gw; rough = mix(rough, 0.97, gw);
   }
@@ -171401,7 +171588,7 @@ Smp rRock(vec3 P, vec3 nG){
     const S = Object.assign({}, DEF, ctx.K || {});
     try { const q = /[?&]ring=0/.test(location.search); if (q) S.on = 0; } catch (e) {}
     const SP = ctx.splat, U = SP.uniforms, LIB = () => SP.api.layers();
-    const L = { uRL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uRK: { value: new THREE.Vector4(16, 24, 1, 1) }, uRFade: { value: new THREE.Vector4(0.6, S.reach, S.fadeBand, 0) } };
+    const L = { uRB: { value: new THREE.Vector4(3.43, 0.2, 0.25, 0) }, uRMean: { value: new THREE.Vector3(0.3, 0.27, 0.22) }, uRL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uRK: { value: new THREE.Vector4(16, 24, 1, 1) }, uRFade: { value: new THREE.Vector4(0.6, S.reach, S.fadeBand, 0) } };
     const mat = material(THREE, U, L);
     const group = new THREE.Group(); group.name = 'rock-ring'; ctx.scene.add(group);
     const chunks = new Map(), queue = [], inflight = new Map();
@@ -171425,33 +171612,52 @@ Smp rRock(vec3 P, vec3 nG){
       for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const x = x0 - M + i * hs, z = z0 - M + j * hs, k = j * nh + i;
         H[k] = ctx.terrainH(x, z); R[k] = share(x, z, 6); V[k] = ndvi(x, z); Fl[k] = flow(x, z); Sc[k] = share(x, z, 5); Fo[k] = Math.max(share(x, z, 8), share(x, z, 13)); if (R[k] > 0) any = 1; }
       const b = band(d), cam = ctx.camera.position;
-      return any ? { x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, rung: b === 0 ? 0 : 1, eye: [cam.x, cam.z], step: S.step, K: { lift: S.lift, amp: S.amp, unit: S.unit, sink: S.sink, ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet, scatter: S.scatter, boulders: S.boulders, proud: S.proud } } : null;
+      return any ? { x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, rung: b === 0 ? 0 : 1, eye: [cam.x, cam.z], reach: S.reach, step: S.step, K: { lift: S.lift, amp: S.amp, unit: S.unit, sink: S.sink, ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet, scatter: S.scatter, boulders: S.boulders, proud: S.proud } } : null;
     };
+    // a chunk's two meshes: the RELIEF wears the GROUND'S OWN material (ctx.groundMat - the near ring's: every type's PBR sets,
+    // height-blended, the rock among them; the bench v1's skirt wore the ground's), its macro in aRM / aRX, its offset in aRD (the
+    // ground's vertex stage folds it back toward the reach); the BOULDERS wear the bench v1's rock material (this file's)
+    const unmesh = c => { for (const k of ['mesh', 'bmesh']) if (c[k]) { group.remove(c[k]); ST.verts -= c[k].geometry.attributes.position.count; ST.tris -= c[k].geometry.index.count / 3; c[k].geometry.dispose(); c[k] = null; }
+      ST.boulderTris -= c.boulders || 0; c.boulders = 0; };
     const place = (key, r) => {
-      const c = chunks.get(key); if (!c || !r.nv) { if (c) c.empty = true; return; }
-      const t0 = performance.now(), g = new THREE.BufferGeometry(), nv = r.nv;
-      // the ground position (the DEM) in 'position', the relief in aDisp (the fade folds it back); the normals are the RELIEF's,
-      // the worker's (central differences across the chunk's edge: no seam)
-      g.setAttribute('position', new THREE.BufferAttribute(r.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(r.nor, 3));
-      g.setIndex(new THREE.BufferAttribute(r.idx, 1)); g.setAttribute('aDisp', new THREE.BufferAttribute(r.disp, 3));
-      const a0 = new Float32Array(nv * 4), a1 = new Float32Array(nv * 4);
-      for (let v = 0; v < nv; v++) { for (let k = 0; k < 4; k++) { a0[v * 4 + k] = r.attr[v * 8 + k]; a1[v * 4 + k] = r.attr[v * 8 + 4 + k]; } }
-      g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4));
-      g.computeBoundingSphere();
-      if (c.mesh) { group.remove(c.mesh); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; ST.boulderTris -= c.boulders || 0; c.mesh.geometry.dispose(); }   // (a rebuild across a LOD band)
-      const mesh = new THREE.Mesh(g, mat); mesh.castShadow = mesh.receiveShadow = true; mesh.frustumCulled = true; group.add(mesh);
-      c.mesh = mesh; ST.built++; ST.verts += nv; ST.tris += r.nt; ST.boulderTris = (ST.boulderTris || 0) + (r.boulders || 0); c.boulders = r.boulders || 0; ST.workerMs += r.ms; ST.workerLast = r.ms; ST.mainMs += performance.now() - t0;
+      const c = chunks.get(key); if (!c) return;
+      const t0 = performance.now();
+      unmesh(c);   // (a rebuild across a LOD band)
+      if (r.nv) {
+        const g = new THREE.BufferGeometry(), nv = r.nv;
+        g.setAttribute('position', new THREE.BufferAttribute(r.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(r.nor, 3));
+        g.setIndex(new THREE.BufferAttribute(r.idx, 1));
+        const rd = new THREE.BufferAttribute(r.disp, 3), a0 = new Float32Array(nv * 4), a1 = new Float32Array(nv * 4);
+        for (let v = 0; v < nv; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = r.attr[v * 8 + k]; a1[v * 4 + k] = r.attr[v * 8 + 4 + k]; }
+        const A0 = new THREE.BufferAttribute(a0, 4), A1 = new THREE.BufferAttribute(a1, 4);
+        g.setAttribute('aRD', rd); g.setAttribute('aRM', A0); g.setAttribute('aRX', A1);
+        g.setAttribute('aDisp', rd); g.setAttribute('aR0', A0); g.setAttribute('aR1', A1);   // (the same buffers, for this file's material when there is no ground's)
+        g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, ctx.groundMat || mat); m.castShadow = m.receiveShadow = true; group.add(m); c.mesh = m; ST.verts += nv; ST.tris += r.nt; }
+      if (r.B) {
+        const B = r.B, g = new THREE.BufferGeometry(), nb = B.nv;
+        g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(B.nor, 3));
+        g.setIndex(new THREE.BufferAttribute(B.idx, 1)); g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
+        const a0 = new Float32Array(nb * 4), a1 = new Float32Array(nb * 4);
+        for (let v = 0; v < nb; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = B.attr[v * 8 + k]; a1[v * 4 + k] = B.attr[v * 8 + 4 + k]; }
+        g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4));
+        g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; group.add(m); c.bmesh = m;
+        ST.verts += nb; ST.tris += B.idx.length / 3; c.boulders = B.idx.length / 3; ST.boulderTris = (ST.boulderTris || 0) + c.boulders; }
+      if (!r.nv && !r.B) c.empty = true;
+      ST.built++; ST.workerMs += r.ms; ST.workerLast = r.ms; ST.mainMs += performance.now() - t0;
     };
     const build = (key, x0, z0) => {
       const c0 = chunks.get(key), cam = ctx.camera.position, d = Math.hypot(x0 + S.chunk / 2 - cam.x, z0 + S.chunk / 2 - cam.z); c0.band = band(d);
       const t0 = performance.now(), inp = inputs(x0, z0, d); ST.mainMs += performance.now() - t0;
       if (!inp) { chunks.get(key).empty = true; return; }
       if (worker) { inp.id = ++seq; inflight.set(inp.id, key); worker.postMessage(inp, [inp.H.buffer, inp.R.buffer, inp.V.buffer, inp.F.buffer]); }
-      else place(key, ROCK_RING_CORE.chunk(inp, KIT0 || (KIT0 = ctx.kit ? ROCK_RING_CORE.kitPrep(ctx.kit) : null)));
+      else place(key, ROCK_RING_CORE.chunk(inp, KIT0 || (KIT0 = ROCK_RING_CORE.kitPrep(ctx.kit || null))));
     };
     if (worker && ctx.kit) worker.postMessage({ kit: ctx.kit });
-    if (worker) worker.onmessage = e => { const key = inflight.get(e.data.id); inflight.delete(e.data.id); if (key && chunks.has(key)) place(key, e.data.r); };
-    const drop = key => { const c = chunks.get(key); if (c && c.mesh) { group.remove(c.mesh); c.mesh.geometry.dispose(); ST.verts -= c.mesh.geometry.attributes.position.count; ST.tris -= c.mesh.geometry.index.count / 3; ST.boulderTris -= c.boulders || 0; } chunks.delete(key); };
+    if (worker) worker.onmessage = e => { const key = inflight.get(e.data.id); inflight.delete(e.data.id); if (!key) return;
+      if (key.startsWith('f:')) { if (farChunks.has(key.slice(2))) farPlace(key.slice(2), e.data.r); } else if (chunks.has(key)) place(key, e.data.r); };
+    const drop = key => { const c = chunks.get(key); if (c) unmesh(c); chunks.delete(key); };
     // the splat's rock* knobs that are the ring's (the world rail's rows, persisted and exported with the splat's): read each frame,
     // a change of a geometry knob rebuilds the chunks
     const KMAP = { rockRing: 'on', rockRingReach: 'reach', rockLift: 'lift', rockAmp: 'amp', rockProud: 'proud', rockBoulders: 'boulders', rockScatter: 'scatter' };
@@ -171461,14 +171667,55 @@ Smp rRock(vec3 P, vec3 nG){
         if (Object.keys(o).length) ring.set(o); }
       const li = LIB(), ix = k => li.indexOf(k);
       L.uRL.value.set(ix('trondSlab'), ix('trondFace'), ix('cliff'), ix('grassRock'));
+      { const set = k => (typeof SPLAT_TEX_SETS !== 'undefined' && SPLAT_TEX_SETS.find(x => x.key === k)) || {}, mc = set('cliff').mean || [0.2, 0.2, 0.2], ms = set('trondSlab').mean || [0.3, 0.27, 0.22];
+        const lc = 0.2126 * mc[0] + 0.7152 * mc[1] + 0.0722 * mc[2]; L.uRB.value.set(6.86 * 0.5, lc, 0.2126 * ms[0] + 0.7152 * ms[1] + 0.0722 * ms[2], lc); L.uRMean.value.set(ms[0], ms[1], ms[2]); }
       const K = SP.api.knobsLive ? SP.api.knobsLive() : SP.api.knobs();
-      L.uRK.value.set(S.slabM || 24, S.faceM || 40, S.bright === undefined ? 0.9 : S.bright, S.micro === undefined ? 1 : S.micro);
+      L.uRK.value.set(S.slabM || 16, S.faceM || 24, S.bright === undefined ? 1 : S.bright, S.micro === undefined ? 1 : S.micro);
       return K && K.rocks && L.uRL.value.x >= 0 && L.uRL.value.y >= 0;
     };
+    // THE FAR LAYER (the bench v1's big blocks to 2 km): 500 m chunks from the reach out, boulders only, seated on the DEM; a far
+    // chunk rebuilds once the eye has moved 200 m from where it was built (its near / far split is the eye's distance then)
+    const FAR = { C: 500, M: 40, hs: 10, step: 5 }, farChunks = new Map(), farQueue = [];
+    const farInputs = (x0, z0) => {
+      const C = FAR.C, M = FAR.M, hs = FAR.hs, nh = Math.round((C + 2 * M) / hs) + 1, n = nh * nh, cam = ctx.camera.position;
+      const H = new Float32Array(n), R = new Float32Array(n), V = new Float32Array(n), Fl = new Float32Array(n), Sc = new Float32Array(n), Fo = new Float32Array(n); let any = 0;
+      for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const x = x0 - M + i * hs, z = z0 - M + j * hs, k = j * nh + i;
+        H[k] = ctx.terrainH(x, z); R[k] = share(x, z, 6); V[k] = ndvi(x, z); Fl[k] = flow(x, z); Sc[k] = share(x, z, 5); Fo[k] = Math.max(share(x, z, 8), share(x, z, 13)); if (R[k] > 0 || Sc[k] > 0) any = 1; }
+      return any ? { far: true, x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, step: FAR.step, eye: [cam.x, cam.z], reach: S.reach, farReach: S.farReach || 2000,
+        K: { off: S.off, hLo: S.hLo, hHi: S.hHi, scatter: S.scatter, ndvi: S.ndvi, ndviMid: S.ndviMid } } : null; };
+    const farBuild = (key, x0, z0) => { const c = farChunks.get(key), cam = ctx.camera.position; c.eye = [cam.x, cam.z];
+      const t0 = performance.now(), inp = farInputs(x0, z0); ST.mainMs += performance.now() - t0;
+      if (!inp) { c.empty = true; return; }
+      if (worker) { inp.id = ++seq; inflight.set(inp.id, 'f:' + key); worker.postMessage(inp, [inp.H.buffer, inp.R.buffer, inp.V.buffer, inp.F.buffer]); }
+      else farPlace(key, ROCK_RING_CORE.chunk(inp, KIT0 || (KIT0 = ROCK_RING_CORE.kitPrep(ctx.kit || null)))); };
+    const farPlace = (key, r) => { const c = farChunks.get(key); if (!c) return; const t0 = performance.now();
+      unmesh(c);
+      if (r.B) { const B = r.B, g = new THREE.BufferGeometry(), nb = B.nv;
+        g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(B.nor, 3));
+        g.setIndex(new THREE.BufferAttribute(B.idx, 1)); g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
+        const a0 = new Float32Array(nb * 4), a1 = new Float32Array(nb * 4);
+        for (let v = 0; v < nb; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = B.attr[v * 8 + k]; a1[v * 4 + k] = B.attr[v * 8 + 4 + k]; }
+        g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4)); g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; group.add(m); c.bmesh = m;
+        ST.verts += nb; ST.tris += B.idx.length / 3; c.boulders = B.idx.length / 3; ST.boulderTris = (ST.boulderTris || 0) + c.boulders; ST.farBoulderTris = (ST.farBoulderTris || 0) + c.boulders; }
+      else c.empty = true;
+      ST.workerMs += r.ms; ST.mainMs += performance.now() - t0; };
+    const farUpdate = cam => {
+      const C = FAR.C, R = Math.ceil((S.farReach || 2000) / C) + 1, ccx = Math.floor(cam.x / C), ccz = Math.floor(cam.z / C), want = new Set();
+      for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) { const x0 = (ccx + i) * C, z0 = (ccz + j) * C;
+        const dmin = Math.hypot(Math.max(0, Math.abs(x0 + C / 2 - cam.x) - C / 2), Math.max(0, Math.abs(z0 + C / 2 - cam.z) - C / 2)), dmax = Math.hypot(Math.abs(x0 + C / 2 - cam.x) + C / 2, Math.abs(z0 + C / 2 - cam.z) + C / 2);
+        if (dmin > (S.farReach || 2000) || dmax < S.reach) continue;
+        const key = (ccx + i) + ',' + (ccz + j); want.add(key);
+        const c = farChunks.get(key);
+        if (!c) { farChunks.set(key, { x0, z0 }); farQueue.push([dmin, key, x0, z0]); }
+        else if (c.eye && Math.hypot(c.eye[0] - cam.x, c.eye[1] - cam.z) > 200 && !farQueue.some(q => q[1] === key)) farQueue.push([dmin, key, x0, z0]); }
+      for (const key of [...farChunks.keys()]) if (!want.has(key)) { const c = farChunks.get(key); unmesh(c); farChunks.delete(key); }
+      farQueue.sort((a, b) => a[0] - b[0]); };
     const ring = {
       update() {
         const on = S.on && sync() && SP.api.ready && SP.api.ready(); group.visible = !!on; if (!on) return;
         const cam = ctx.camera.position; L.uRFade.value.set(S.sink + 0.2, S.reach, S.fadeBand, cam.z);   // (sink, reach, band, the eye's z; its x: uREyeX)
+        if (ctx.groundU && ctx.groundU.uRingF) ctx.groundU.uRingF.value.set(S.sink + 0.2, S.reach, S.fadeBand, 0);   // (the ground's vertex stage folds the relief)
         const C = S.chunk, ccx = Math.floor(cam.x / C), ccz = Math.floor(cam.z / C);
         if (ccx !== cx0 || ccz !== cz0) { cx0 = ccx; cz0 = ccz;
           const R = Math.ceil(S.reach / C) + 1, want = new Set();
@@ -171481,13 +171728,15 @@ Smp rRock(vec3 P, vec3 nG){
         if (!(ring._t = (ring._t || 0) + 1) || ring._t % 30 === 0) for (const [key, c] of chunks) { if (c.band === undefined || c.empty) continue;
           const d = Math.hypot(c.x0 + C / 2 - cam.x, c.z0 + C / 2 - cam.z); if (band(d) !== c.band && !queue.some(q => q[1] === key)) queue.push([d, key, c.x0, c.z0]); }
         let n = 0; while (queue.length && n < S.perFrame && inflight.size < 4) { const [, key, x0, z0] = queue.shift(); if (chunks.has(key)) { build(key, x0, z0); n++; } }
+        if (S.farOn !== 0) { if (!(ring._f = (ring._f || 0) + 1) || ring._f % 20 === 0) farUpdate(cam);
+          if (!queue.length && n < S.perFrame && inflight.size < 4 && farQueue.length) { const [, key, x0, z0] = farQueue.shift(); if (farChunks.has(key)) farBuild(key, x0, z0); } }
       },
       get: () => Object.assign({}, S),
       set(o) { const rebuild = ['chunk', 'step', 'lift', 'amp', 'unit', 'sink', 'proud', 'scatter', 'boulders', 'ndvi', 'ndviMid', 'off', 'hLo', 'hHi', 'jointDirt', 'wet', 'M', 'hs'].some(k => k in o && o[k] !== S[k]);
         Object.assign(S, o); if (rebuild) { for (const k of [...chunks.keys()]) drop(k); queue.length = 0; } if (rebuild || 'reach' in o) cx0 = cz0 = NaN; return ring.get(); },
       stat: () => ({ chunks: [...chunks.values()].filter(c => c.mesh).length, queued: queue.length, inflight: inflight.size, verts: ST.verts, tris: ST.tris,
-        built: ST.built, boulderTris: ST.boulderTris || 0, workerMs: Math.round(ST.workerMs), workerLastMs: ST.workerLast, mainMs: Math.round(ST.mainMs), worker: !!worker }),
-      whenIdle: () => new Promise(res => { const tick = () => { ring.update(); if (!queue.length && !inflight.size) res(ring.stat()); else setTimeout(tick, 30); }; tick(); }),
+        built: ST.built, boulderTris: ST.boulderTris || 0, farChunks: [...farChunks.values()].filter(c => c.bmesh).length, farBoulderTris: ST.farBoulderTris || 0, workerMs: Math.round(ST.workerMs), workerLastMs: ST.workerLast, mainMs: Math.round(ST.mainMs), worker: !!worker }),
+      whenIdle: () => new Promise(res => { const tick = () => { ring.update(); if (!queue.length && !inflight.size && !(S.farOn !== 0 && farQueue.length)) res(ring.stat()); else setTimeout(tick, 30); }; tick(); }),
       dispose() { for (const k of [...chunks.keys()]) drop(k); ctx.scene.remove(group); mat.dispose(); if (worker) worker.terminate(); },
       material: mat, group,
     };
@@ -181472,7 +181721,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   function floorsChanged(f) {
     for (const r of [coverRing, grassField]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
   }
-  let rockRing = null;   // ROCK-STUDY: the island's rock as geometry round the eye (rock_ring.js; set with the cover ring)
+  let rockRing = null, rockGroundMat = null;   // ROCK-STUDY: (rockGroundMat: the near ring's material - the relief wears it)
+  // the island's rock as geometry round the eye (rock_ring.js; set with the cover ring)
   let coverRing = null, grassField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -183122,6 +183372,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // THE ROCK MAP (rock_map.js): the rocks' top view over 2 km round the eye, read where the cover ring's meshes have faded
         uRockMap: { value: (() => { const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; })() },
         uRockRect: { value: new THREE.Vector4(0, 0, 1, 0) }, uRockFade: { value: new THREE.Vector4(50, 220, 0.5, 1) },
+        uRingF: { value: new THREE.Vector4(0.55, 450, 90, 0) },   // ROCK-STUDY: the relief's fold (rock_ring.js sets it)
       });
       GROUND.on = true;
       classWeights();   // a saved stack that starts at the class layer asks for them now
@@ -183183,15 +183434,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           + (side === 0 && SP ? '#define GS_TRLITE 1\n' : '');   // ROCK-STUDY R1: the outer ring and the premises patch - the rock's micro and joints out   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nuniform vec4 uTier;\nattribute float aPav; varying float vPav;\n' +
+            // ROCK-STUDY: the RELIEF's vertices (rock_ring.js) carry the macro (aRM, aRX) and their offset (aRD); on the ground's own
+            // meshes the attributes are absent (aRM.w reads 1: not a relief vertex). The relief folds back under the ground toward
+            // the ring's reach (uRingF: sink, reach, band)
+            'attribute vec4 aRM, aRX; attribute vec3 aRD; varying vec4 vRM, vRX; uniform vec4 uRingF;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
           .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (side > 0 ? '\nobjectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;\n' +
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') +
+            'vRM = aRM; vRX = aRX; if (aRM.w > 1.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n' +
+            '  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\n' +
+            'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;\n' +
             // G2115 (TERRAIN-MATCH): UNDER THE CONTACT TIER (ground_tier.js) a vertex more than a cell inside its square goes uTier.w
             // under - every triangle it is in lies inside the square, under the tier (translation-only model matrices: the patch's
             // blocks, the tiles). Off (uTier.z 0) for every material but the patch's and the fine tiles' (TIER_U)
             '{ vec2 tD = abs(vWPi.xz - uTier.xy); if (max(tD.x, tD.y) < uTier.z) { transformed.y -= uTier.w; vWPi.y -= uTier.w; } }');
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\n' +
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\nvarying vec4 vRM, vRX;\n' +
             (rock ? 'uniform sampler2D uRockMap; uniform vec4 uRockRect, uRockFade;\n' : '') +
             'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\n' +
             'uniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
@@ -183242,7 +183500,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             (SP ? (full ? SP.glslCommonFull : SP.glslCommon) : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             // the fine disc's edge: one of the two surfaces per pixel, decided before any of the ground's cost
-            (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
+            (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z && vRM.w < 1.5) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
             // THE DEEP BED IS NOT PAINTED (PERF 2026-09-23): 25 m under the sea's level the water in front of it is
             // opaque to 1 - exp(-0.3 x 25) = 99.9 % at its clearest (water.js: alpha = 1 - exp(-opa D), opa >= 0.3),
@@ -183594,7 +183852,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const gMatTwin = islandGroundHook ? worldLambert({ map: tex }) : gMat;
     innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
     // the close grain is the analytic ground's; an island's ground is the live stack
-    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; islandKeyed(gMat, 'island-ring');
+    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; islandKeyed(gMat, 'island-ring'); rockGroundMat = gMat;
       gMatTwin.onBeforeCompile = islandGroundHook0; islandKeyed(gMatTwin, 'island-twin'); }   // (the hooks share one source text: the keys keep the programs apart)
     else gMat.onBeforeCompile = sh => {
       if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
@@ -187201,16 +187459,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (typeof ROCK_RING !== 'undefined' && world.island && groundApi.splatFull && groundApi.splatFull()) {
             let rocksOn = true; try { if (/[?&]rocks=0/.test(location.search)) rocksOn = false; } catch (e) {}
             if (rocksOn) try {
-              const kit = [];
-              for (const e of treeList('all').filter(q => q.col && q.col.name === 'rocks')) {
-                let b = null; try { b = treeBuild(THREE, e.key, 0, 'rungs'); } catch (err) { continue; }
-                const g = b && b.parts && b.parts[0] && b.parts[0].geo; if (!g || !g.attributes.position || !g.index) continue;
-                const P = g.attributes.position, Nn = g.attributes.normal;
-                const pos = new Float32Array(P.count * 3), nor = new Float32Array(P.count * 3);
-                for (let v = 0; v < P.count; v++) { pos[v * 3] = P.getX(v); pos[v * 3 + 1] = P.getY(v); pos[v * 3 + 2] = P.getZ(v);
-                  if (Nn) { nor[v * 3] = Nn.getX(v); nor[v * 3 + 1] = Nn.getY(v); nor[v * 3 + 2] = Nn.getZ(v); } }
-                const sb = e.sub || {}, bb = sb.bb || [-0.5, 0, -0.5, 0.5, sb.h || 1, 0.5];
-                kit.push({ h: sb.h || (bb[4] - bb[1]), bb, pos, nor, idx: Uint32Array.from(g.index.array) }); }
+              const kit = null;   // (the boulders are the PROCEDURAL kit, closed rocks - rock_ring_core procKit; the pack's scans are open shells)
               let flowSync = null;
               const flowOf = () => { if (rockBiasJob && rockBiasJob.flow) return rockBiasJob.flow;
                 if (!flowSync && typeof ROCK_RING_CORE !== 'undefined' && world.hydro && world.hydro.grids) { const hg = world.hydro.grids;
@@ -187219,7 +187468,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               // THE PHONE TIER (A0's brief): the GRAPHICS row's lean ground builds the ring at 2.5 m within 250 m, no micro detail; plain: no ring
               const gq = (typeof window !== 'undefined' && window.GFX && window.GFX.get) ? window.GFX.get().ground : null;
               const K = gq === 'lean' ? { step: 2.5, reachCap: 250, reach: 250, micro: 0 } : {};
-              if (gq !== 'plain') rockRing = ROCK_RING.make(THREE, { scene, world, camera, splat: groundApi.splatFull(), terrainH: (x, z) => world.terrainH(x, z), isla: world.island, flow: flowOf, kit: kit.length ? kit : null, K });
+              if (gq !== 'plain') rockRing = ROCK_RING.make(THREE, { scene, world, camera, splat: groundApi.splatFull(), groundMat: rockGroundMat, groundU, terrainH: (x, z) => world.terrainH(x, z), isla: world.island, flow: flowOf, kit, K });
               if (typeof window !== 'undefined') window.ROCK_RING_LIVE = rockRing;
             } catch (e) { console.warn('rock ring: ' + (e && e.message)); }
           }
