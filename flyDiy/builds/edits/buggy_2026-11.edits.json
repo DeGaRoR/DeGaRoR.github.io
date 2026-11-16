@@ -1,0 +1,116 @@
+{
+ "_what": "CAR-2 (the user 12 Nov: 'a buggy from Rufus'): Rufus with no wing, tail, prop or boom; the Rotax 912 stays exposed in front; four tundra wheels on wishbones and coil-overs (front pair steered, rear pair driven - tools/car_sheet.js); it drives, it does not fly",
+ "cage": {
+  "wingOn": 0,
+  "finOn": 0,
+  "stOn": 0,
+  "propOn": 0,
+  "spinOn": 0,
+  "rodOn": 0,
+  "aeroAftOn": 1,
+  "engMount": 0,
+  "taperOn": 0,
+  "s1On": 1,
+  "s1Leg": 1,
+  "s1Z": 1.62,
+  "s1X": 0.82,
+  "s1R": 0.38,
+  "s1Drop": 0.22,
+  "s2On": 1,
+  "s2Leg": 1,
+  "s2Z": 2.78,
+  "s2X": 0.82,
+  "s2R": 0.36,
+  "s2Drop": 0.22,
+  "whProfile": 1,
+  "s1_shockKind": 0,
+  "s2_shockKind": 0,
+  "s1_linkSwing": 0,
+  "s2_linkSwing": 0,
+  "s1_linkPanel": 0,
+  "s2_linkPanel": 0,
+  "s1_linkAng": 55,
+  "s2_linkAng": 55,
+  "s1_linkSpread": 0.5,
+  "s2_linkSpread": 0.5,
+  "s1_linkX": 0,
+  "s2_linkX": 0,
+  "s1_shockAng": 90,
+  "s2_shockAng": 90,
+  "s1_shockAt": 0.85,
+  "s2_shockAt": 0.85,
+  "s1_shockZ": 0,
+  "s2_shockZ": 0,
+  "s1Fair": 0,
+  "s2Fair": 0,
+  "aeroAftLen": 0.45,
+  "aeroAftTip": 0.2,
+  "s1AxZ": -0.2,
+  "s2AxZ": 0.5,
+  "ctlStick": 1,
+  "isCar": 1,
+  "carDrive": 0
+ },
+ "meta": {
+  "class": "ul1",
+  "role": "car",
+  "name": "Dune Bug",
+  "reg": "7"
+ },
+ "finish": {
+  "sections": {
+   "dashFace": {
+    "fin": "sillAlu"
+   },
+   "dash": {
+    "fin": "plasticWorn"
+   },
+   "cowlSkin": {
+    "tint": 13661999
+   },
+   "wingSkin": {
+    "tint": 11819549
+   },
+   "finSkin": {
+    "tint": 13661999
+   },
+   "stabSkin": {
+    "tint": 13661999
+   },
+   "bulkhead": {
+    "tint": 13661999
+   },
+   "tube": {
+    "tint": 13661999
+   },
+   "boomTube": {
+    "tint": 13661999
+   },
+   "wingTip": {
+    "tint": 12016671
+   },
+   "gearLeg": {
+    "tint": 12016671
+   },
+   "engMount": {
+    "tint": 13434880
+   },
+   "engCover": {
+    "tint": 4045595
+   },
+   "seatTrim": {
+    "tint": 12983067
+   },
+   "strut": {
+    "tint": 12983067
+   },
+   "fireProof": {
+    "tile": 0.55,
+    "nrm": 3.15
+   }
+  },
+  "decals": {
+   "regW": 1.7113041089928667
+  }
+ }
+}
