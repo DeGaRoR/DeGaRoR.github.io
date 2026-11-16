@@ -43,6 +43,14 @@
    "moved": [
     "ls4"
    ]
+  },
+  {
+   "date": "2026-11-16",
+   "reason": "the LS4-alike's pilot lying back (seat -0.40, back 50 deg), its instrument pod 0.42 m further aft and the hood billing its setback and crown (the user 16 Nov: the head at the back of the canopy, the dash protruding 40-50 cm): its row ONLY - carboncubss's standing move is still not accepted here",
+   "core": "7acc86bd71a3a250",
+   "moved": [
+    "ls4"
+   ]
   }
  ],
  "planes": {
@@ -687,11 +695,11 @@
   "ls4": {
    "stamp": {
     "file": "builds/candidates/ls4_2026-11.json",
-    "blob": "ae50602faf0dd70feee085d3fa6e3bde68d4ec82",
-    "core": "d1fec958ae4a488c"
+    "blob": "2016bf8f68e7dc334eb436b26131d7f885508a54",
+    "core": "7acc86bd71a3a250"
    },
    "facts": {
-    "empty": 230.515,
+    "empty": 230.272,
     "fuelKg": 0
    },
    "dims": {
@@ -701,44 +709,44 @@
     "cRoot": 0.9,
     "cTip": 0.36,
     "hSpan": 2.49544,
-    "height": 1.21476,
-    "length": 6.80823,
+    "height": 1.21418,
+    "length": 6.79384,
     "span": 15.06,
     "track": null
    },
    "cases": {
     "min": {
-     "mass": 470.515,
-     "Vs": 76.5058,
+     "mass": 470.272,
+     "Vs": 76.2912,
      "V75": null,
      "Vmax": null,
      "roc": 0,
-     "LD": 19.3554,
-     "TOgrass": 2015,
-     "cgMAC": 19.2147,
-     "sm": 42.6719
+     "LD": 19.4834,
+     "TOgrass": 2000,
+     "cgMAC": 25.0147,
+     "sm": 36.8883
     },
     "typ": {
-     "mass": 480.515,
-     "Vs": 77.3145,
+     "mass": 480.272,
+     "Vs": 77.0981,
      "V75": null,
      "Vmax": null,
      "roc": 0,
-     "LD": 19.3554,
-     "TOgrass": 2058,
-     "cgMAC": 16.5348,
-     "sm": 45.7161
+     "LD": 19.4834,
+     "TOgrass": 2043,
+     "cgMAC": 22.9206,
+     "sm": 39.3394
     },
     "mtow": {
      "mass": 525,
-     "Vs": 80.8142,
+     "Vs": 80.6083,
      "V75": null,
      "Vmax": null,
      "roc": 0,
-     "LD": 19.3554,
-     "TOgrass": 2249,
-     "cgMAC": 11.1228,
-     "sm": 52.702
+     "LD": 19.4834,
+     "TOgrass": 2233,
+     "cgMAC": 18.3831,
+     "sm": 45.4257
     }
    }
   }
