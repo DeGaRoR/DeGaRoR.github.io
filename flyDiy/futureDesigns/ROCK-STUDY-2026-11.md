@@ -420,6 +420,34 @@ final state alone.
   Today is 23-39 reads, ~3.5 s, 0.32 M triangles. The extra triangles are the rock mesh ring (0.5-0.6 M) and the blocks
   (1.1-1.3 M; on a phone they would need the kit's LOD rungs and a 150 m small-block ring).
 
+### 5f. Roughness: bare stone shiny, the green matte (16 Nov)
+
+**The user asked** for good roughness maps: whatever bare stone remains should be much shinier than the green parts,
+above all on the flat cliff faces. **The game supports it.** The island's near ring is a `MeshStandardMaterial` with a
+PMREM sky probe, and `splat_ground.js` writes each set's roughness into `roughnessFactor` (`glslRough`, the `sheen`
+knob). The bench had the same wiring.
+
+Stills: `reports/evidence/ROCK-STUDY/rough/`.
+
+- **The maps** (`trond_gen.py`, from the same height field as everything else; `rough/rough_maps_slab_face.png`):
+  - **slab** (the gentle rock): bare 0.50, abraded crowns down to 0.40. Crack fill, lichens, grime, the dirt film and the
+    lips push it to 0.9-1.
+  - **face** (the cliffs, shinier): water-polished sheets at 0.38, flute crests at 0.33, wet streaks down to about 0.2.
+    Slits, ledges and grime are rough.
+- **The shader:**
+  - Green (moss, grass) is 0.97.
+  - SPECULAR ANTI-ALIAS, as `splat_ground`'s: the roughness widened by the pixel's footprint, 0.75 √footprint. At 0.35
+    the fine normals glittered.
+  - The 3D rocks run their photograph's roughness through 0.42-0.7, and moss on them is 1.0.
+- **The sky probe in the bench** (new). It had none, so a smooth surface had only the sun to reflect, and roughness
+  barely showed. Now there is a gradient sky pre-filtered by PMREM: `scene.environment`, at intensity 0.55, with the
+  hemisphere light at 0.6. This is the game's own probe in miniature, used under `?trond` or `?env=1`.
+- `?showrough=1` draws the roughness as grey. `?sunoff=<deg>&sunel=<deg>` move the sun; sun high behind a face is where
+  wet rock glints.
+- **Cost:** none in texture reads (the roughness rides the normal map's alpha, as in the game). One PMREM bake at load.
+- **Caveat:** the sky's reflection tints the stone a little cool on SwiftShader. On the GPU the game's own probe and grade
+  decide, and the `sheen` knob is the lever if it reads too glossy.
+
 ## 6. Recommendation: what to build first, what it costs, what it changes
 
 **Build first: rock clusters in the cover ring.** It changes the most of what an aeroplane sees, for the least risk.

@@ -55,6 +55,19 @@ scene.background = SKY; scene.fog = new THREE.FogExp2(SKY.clone(), 0.00022);
 const camera = new THREE.PerspectiveCamera(50, P.w / P.h, 1, 20000);
 const hemi = new THREE.HemisphereLight(0xbcd2ee, 0x4a4636, 1.1); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff1dc, 3.0); scene.add(sun); scene.add(sun.target);
+// THE SKY PROBE (?trond, or ?env=1): the game's near ring is a Standard material lit by a PMREM sky probe (scene.environment);
+// without one a smooth surface has nothing to reflect but the sun. A gradient sky (zenith, horizon, the dark ground below)
+// pre-filtered by PMREM, at half strength, the hemisphere light lowered to keep the diffuse balance
+if (TROND || Q.get('env') === '1') {
+  const sky = new THREE.Scene();
+  const sm = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'varying vec3 vD; void main(){ float y = vD.y; vec3 zen = vec3(0.25, 0.42, 0.75), hor = vec3(0.75, 0.82, 0.9), gnd = vec3(0.08, 0.09, 0.06);'
+      + ' vec3 c = y > 0.0 ? mix(hor, zen, pow(y, 0.6)) : mix(hor * 0.5, gnd, smoothstep(0.0, 0.25, -y)); gl_FragColor = vec4(c, 1.0); }' });
+  sky.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), sm));
+  const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(sky, 0.02).texture; pm.dispose();
+  if ('environmentIntensity' in scene) scene.environmentIntensity = 0.55;
+  hemi.intensity = 0.6;
+}
 sun.castShadow = !!P.shadows; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 1.2;
 
 // ---- the ground sets: two texture arrays, as the game packs them (colour + height, normal + rough) -----------------------
@@ -500,7 +513,7 @@ Smp sTrond(vec3 P, vec3 nGeo, float slope){
       vec3 gr = pow(texture(uA, vec3(P.xz / 5.0, 0.0)).rgb, vec3(2.2)) * vec3(0.78, 1.0, 0.62);
       vec3 moss = vec3(0.045, 0.058, 0.022) * (0.8 + 0.6 * n2);
       vec3 green = mix(moss, gr, smoothstep(0.3, 0.8, G));
-      o.c.rgb = mix(o.c.rgb, green, gw); o.n.xyz *= 1.0 - 0.6 * gw; o.n.w = mix(o.n.w, 0.95, gw);
+      o.c.rgb = mix(o.c.rgb, green, gw); o.n.xyz *= 1.0 - 0.6 * gw; o.n.w = mix(o.n.w, 0.97, gw);
       o.c.a = mix(o.c.a, 0.2, gw);
     }
   }
@@ -639,7 +652,8 @@ vec3 sSplat(vec3 nGeo){
     col = mix(col, tinted, 0.5 * (1.0 - 0.7 * smoothstep(30.0, 48.0, slope)) * (1.0 - ${TROND ? 1 : 0}.0 * rockB)); }   // (trond: the rock's colour is its own)
   float nf = 1.0 - smoothstep(250.0, 1400.0, d);
   gSN = nrm.xyz * 3.0 * nf;
-  gSRough = clamp(nrm.w, 0.05, 1.0);
+  // SPECULAR ANTI-ALIAS (splat_ground's: the roughness widened by the pixel's footprint, so a glossy face does not sparkle far off)
+  gSRough = clamp(max(nrm.w, min(1.0, 0.75 * sqrt(max(length(fwidth(vW.xz)), 1e-4)))), 0.05, 1.0);
   return col;
 }
 `;
@@ -661,6 +675,7 @@ vW = (modelMatrix * vec4(position, 1.0)).xyz; vDisp = aDisp; vMed = aMed; vCodes
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
   { vec3 pw = (viewMatrix * vec4(gSN, 0.0)).xyz; normal = normalize(normal + pw); }`)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+${Q.get('showrough') === '1' ? 'gl_FragColor = vec4(vec3(roughnessFactor), 1.0);' : ''}
 #if COUNT
   gl_FragColor = vec4(gCnt / 255.0, 1.0, 0.0, 1.0);
 #endif`);
@@ -881,14 +896,15 @@ vec4 rN(vec2 uv, float L){ gCnt += 1.0; return texture(uN, vec3(uv, L)); }`)
     float up = smoothstep(0.62, 0.92, nW.y);
     if (up > 0.01) { vec4 g = rA(vObj.xz / 7.0 + 0.13, 0.0);
       float mk = clamp((up * 0.95 - h) * 3.0, 0.0, 1.0) * 0.85;
-      col.rgb = mix(col.rgb, g.rgb, mk); gRR = mix(gRR, 0.95, mk); }
+      col.rgb = mix(col.rgb, g.rgb, mk); gRR = mix(gRR, 1.0, mk); }
     col.rgb *= mix(0.8, 1.0, smoothstep(0.0, 0.22, vRock.y));   // the foot
     diffuseColor.rgb = col.rgb;
   }`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = clamp(gRR, 0.3, 1.0);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = clamp(' + (TROND ? 'mix(0.42, 0.7, gRR) + 0.3 * smoothstep(0.85, 0.95, gRR)' : 'gRR') + ', 0.3, 1.0);')
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
   normal = normalize(vBX * gRN.x + vBY * gRN.y + vBZ * gRN.z);`)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+${Q.get('showrough') === '1' ? 'gl_FragColor = vec4(vec3(roughnessFactor), 1.0);' : ''}
 #if COUNT
   gl_FragColor = vec4(gCnt / 255.0, 1.0, 0.0, 1.0);
 #endif`);
@@ -1096,7 +1112,8 @@ const VIEWS = {
     return [[ex, Math.max(ty, hXZ(ex, ez)) + 520, ez], [tx, ty - 80, tz]]; },
 };
 // the sun: raking the face from its side, 32 deg up (the same for every view and variant)
-const sAz = Math.atan2(dnZ, dnX) + 1.1, sEl = 32 * Math.PI / 180;
+// ?sunoff=<deg> turns the sun about the vertical from its default (180: behind the face - the backlight where wet rock glints); ?sunel=<deg>
+const sAz = Math.atan2(dnZ, dnX) + 1.1 + (+(Q.get('sunoff') || 0)) * Math.PI / 180, sEl = (+(Q.get('sunel') || 32)) * Math.PI / 180;
 const SUN = new THREE.Vector3(Math.cos(sAz) * Math.cos(sEl), Math.sin(sEl), Math.sin(sAz) * Math.cos(sEl));
 function setView(name) {
   const [e, t] = (VIEWS[name] || VIEWS.face)();

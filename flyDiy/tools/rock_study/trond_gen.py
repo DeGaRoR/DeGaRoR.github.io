@@ -280,7 +280,12 @@ def slab(N, T, S):
     col = mixc(col, col * 0.45, (sp > 0.992).astype(np.float32))
     col = mixc(col, col * 0.85, (1 - ss(0.0, 0.05, flake)) * 0.3)          # the flakes' rims: a faint hairline
     col, wd = weather(h, col, px, Ut, Vt, S, +1, lipmask=np.clip(lip * 1.5, 0, 1))
-    rough = np.clip(0.82 + 0.15 * fill - 0.08 * ss(0.5, 0.8, patch) + 0.1 * lich + 0.1 * wd, 0.4, 1)
+    # ROUGHNESS (16 Nov, the user: "what's remaining of bare stone should be significantly more shiny than the green parts"):
+    # bare trondhjemite is a polished-by-weather crystalline surface, 0.4-0.55; the crowns the rain and the frost abrade are
+    # the smoothest; everything that grows or fills - the cracks' dirt and moss, the lichens, the grime and the dirt film -
+    # goes to 0.9-1 (the moss and the grass on top of it are set to 0.97 in the shader)
+    rough = np.clip(0.50 + 0.06 * (fbm_at(Ut, Vt, 8, S + 61, 2) - 0.5) - 0.10 * np.clip(cv * 6, 0, 1) + 0.12 * ss(0.5, 0.8, patch) * 0
+                    + 0.5 * fill + 0.45 * lich + 0.35 * wd + 0.15 * lip, 0.3, 1)
     m = save_maps('slab', h, col, rough, px, '+v downhill; relief m')
     print(f'slab {N}^2, {T} m ({px * 100:.2f} cm/px), h {m["hmin"]:.2f}..{m["hmax"]:.2f} m, {time.time() - t0:.1f} s')
     return h, col
@@ -352,7 +357,9 @@ def face(N, T, S):
     col = mixc(col, col * 0.45, (sp > 0.993).astype(np.float32))
     col = mixc(col, col * 0.85, (1 - ss(0.0, 0.05, flake)) * 0.3)
     col, wd = weather(h, col, px, Ut, Vt, S, -1)
-    rough = np.clip(0.8 - 0.3 * streak + 0.15 * fill + 0.1 * wd, 0.35, 1)
+    # the FACE is the shiniest: water-polished sheets (0.38, the flutes' crests 0.33), the wet streaks glossier still (to
+    # ~0.2: a seep keeps them damp), the slits, ledges, grime and moss rough
+    rough = np.clip(0.38 - 0.18 * streak - 0.05 * ss(0.55, 0.75, flute) + 0.55 * fill + 0.3 * wd, 0.18, 1)
     m = save_maps('face', h, col, rough, px, '+v up; relief m')
     print(f'face {N}^2, {T} m ({px * 100:.2f} cm/px), h {m["hmin"]:.2f}..{m["hmax"]:.2f} m, {time.time() - t0:.1f} s')
     return h, col
