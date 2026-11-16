@@ -92,7 +92,12 @@ function makeCase(def, F, c) {
       if (cut > 0) fuel -= cut / Math.max(1e-6, F.fuelKg);
       m = massOf();
     }
-    if (m < c.target - 0.5) push(c.fwd ? C.freightStrapSeatBill(def, 0, c.target - m) : C.freightStrapBaggage(def, c.target - m));
+    if (m < c.target - 0.5) {
+      // PC6-MTOW (A0 16 Nov): a plane's own MTOW loading (PLANES row `mtowCase.topAt`) puts the top-up on the cabin
+      // floor at those seats' stations, shared evenly - the TCDS's "the entire cabin may be used as freight space"
+      if (Array.isArray(c.topAt) && c.topAt.length) { const k = (c.target - m) / c.topAt.length; for (const i of c.topAt) push(C.freightStrapSeatBill(def, i, k)); }
+      else push(c.fwd ? C.freightStrapSeatBill(def, 0, c.target - m) : C.freightStrapBaggage(def, c.target - m));
+    }
   }
   return { id: c.id, label: c.label, adds, fuel, mass: massOf() };
 }
@@ -102,7 +107,13 @@ function cases(def, F, R, P, cg) {
   const out = [
     makeCase(def, F, { id: 'min', label: 'MIN: 70 kg pilot, 1/4 fuel', seats: one(70), fuel: 0.25, bag: 0 }),
     makeCase(def, F, { id: 'typ', label: 'TYP: 80 kg pilot, 1/2 fuel', seats: one(80), fuel: 0.5, bag: 0 }),
-    makeCase(def, F, { id: 'mtow', label: 'MTOW ' + mt + ' kg: every seat, full fuel, baggage to gross', seats: all, fuel: 1, bag: F.baggage, target: mt }),
+    // PC6-MTOW (A0 16 Nov): `mtowCase` on the PLANES row - the type's own MTOW loading (its seats, its fuel, the top-up
+    // on the cabin floor at `topAt`'s seat stations) in place of the generic one (every seat, the rest in the baggage).
+    // Absent: the generic case, as before
+    P.mtowCase
+      ? makeCase(def, F, { id: 'mtow', label: 'MTOW ' + mt + ' kg: ' + (P.mtowCase.label || 'the type\'s own loading'),
+          seats: P.mtowCase.seats || all, fuel: P.mtowCase.fuel != null ? P.mtowCase.fuel : 1, bag: P.mtowCase.bag != null ? P.mtowCase.bag : 0, target: mt, topAt: P.mtowCase.topAt })
+      : makeCase(def, F, { id: 'mtow', label: 'MTOW ' + mt + ' kg: every seat, full fuel, baggage to gross', seats: all, fuel: 1, bag: F.baggage, target: mt }),
   ];
   if (cg) {
     out.push(makeCase(def, F, { id: 'mtowF', label: 'MTOW, load forward (front seats, ballast at the pilot)', seats: one(F.occKg).map((v, i) => i < 2 && F.nSeats > 2 ? F.occKg : v), fuel: 1, bag: 0, target: mt, fwd: true }));

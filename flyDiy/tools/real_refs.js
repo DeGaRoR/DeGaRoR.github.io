@@ -429,6 +429,9 @@ for (const k in GEO) if (REFS[k]) Object.assign(REFS[k], { dims: GEO[k].dims, sp
 const PLANES = {
   // FIT-PROCEDURE (16 Nov): the drafting table's PC-6 on its oleo tailwheel (PC6-OLEO: the 30.5 kg tail gear, CG 7.7 cm aft)
   pc6:      { listRow: 57, label: 'Pilatus PC-6/B2-H4 Turbo Porter (the drafting table, the oleo tailwheel; candidate)', short: 'PC-6 Turbo Porter', file: 'builds/candidates/pc6_drafting_2026-11-11.json', ref: 'pc6', group: 'turboprop',
+              // PC6-MTOW (A0 16 Nov): the type's own MTOW loading - every seat, the 492 L wing tank full, the rest as freight on the
+              // cabin floor's front (the first row's station, +3050 mm: TCDS 2.52 'the entire cabin may be used as freight space')
+              mtowCase: { topAt: [0, 1], label: 'every seat, the wing tanks full, the rest as freight at the cabin front' },
               note: 'fitted to the TCDS and the three-view (DRAFTING_TABLE.md); the factsheet Vs0 96 km/h (full flap, gross) has no indicator' },
   cub:      { listRow: 1, label: 'Piper Cub (official)', short: 'Piper Cub', file: 'builds/cub_2026-09-20_corrected.json', ref: 'cub', official: true },
   // (the user, 9 Nov: the J-3's chord, 1.60 m; the shipped file is the calibration datum of 105 checks, so the candidate
