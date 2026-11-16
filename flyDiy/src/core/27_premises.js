@@ -1477,7 +1477,7 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 // `hard` (the user's call - default 1 since 15 Nov, look AND surface: 20_world giveWay): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 6, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 3.8 };   // trackW 3.8: tw_ski's narrow drawn track (DIRT-STRIP dirt-look-3) - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 6, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 2.7 };   // trackW 2.7: tw_ski's drawn track ends 1.098 + grTrackW 0.3 + grTrackFade 1.0 = 2.4 m out (DIRT-STRIP's L40e ready, 16 Nov) + 0.3 - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 // (GRASS-ON-GREEN 16 Nov) a gate's or a rig's override of the one dial for the margin's look AND surface: FLYDIY_GRASS_HARD=1 (node env or window)
 // (16 Nov, the page boot: with no process the old `a && b` read FALSE, +false = 0 - the page shipped hard 0 while every node gate saw 1.
