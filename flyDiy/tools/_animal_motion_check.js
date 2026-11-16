@@ -530,6 +530,35 @@ async function swimmers(g) {
     say('S10 the slick: ' + (s3 ? 'r ' + f2(s3.r) + ' m, k ' + f2(s3.k) + ' at 3 s' : '-') + '; ' + most + ' handed of 10');
     W2.dispose();
   }
+  // S11 THE BLOW IS WATER (16 Nov; the user: "the water effects are quite rough" - the chimney's grey smoke as a blow): the
+  // swimmers fire plume.js's mist - white, camera-facing droplet clouds lit by the key light - which builds, patches its
+  // shader where it means to, rises to its height in a second, and is gone after its life; the chimney's own preset untouched
+  {
+    const PL = g.PLUME, K = PL && PL.PRESETS.mist;
+    let why = '';
+    if (!K || K.kind !== 'mist') why = 'no mist preset';
+    else {
+      const M = PL.make(THREE, Object.assign({}, K, { rise: 9 }));
+      const sh = { uniforms: {}, vertexShader: 'void main() {\n#include <begin_vertex>\n#include <project_vertex>\n}', fragmentShader: 'void main() {\n#include <color_fragment>\n}' };
+      M.mat.onBeforeCompile(sh);
+      if (M.mat.name !== 'plume-mist') why = 'the mist built as ' + M.mat.name;
+      else if (!/mvPosition\.xy \+= aQuad \* rad/.test(sh.vertexShader) || /#include <project_vertex>/.test(sh.vertexShader)) why = 'the billboard did not patch';
+      else if (!sh.uniforms.uSun || !/vScat/.test(sh.fragmentShader)) why = 'no forward scatter';
+      else if (M.mesh.geometry.index.count !== K.n * 6) why = M.mesh.geometry.index.count / 6 + ' quads for ' + K.n;
+      M.fire(0, 0, 0, 1, 0); M.step(1);
+      const top = 9 * (1 - Math.exp(-1 / K.tau));
+      if (!why && !(M.alive && M.mesh.visible && top > 0.9 * 9)) why = 'not up at 1 s (' + f2(top) + ' m)';
+      M.step(K.life + K.delay);
+      if (!why && (M.alive || M.mesh.visible)) why = 'alive after its life';
+      M.dispose();
+    }
+    const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'animal_run.js'), 'utf8');
+    if (!why && !/PRESETS\.mist/.test(src)) why = 'the swimmers still fire the smoke';
+    const ch = PL && PL.PRESETS.chimney;
+    if (!why && !(ch && ch.n === 9 && ch.rise === 3.2 && ch.spread === 1.15 && !ch.kind)) why = 'the chimney preset moved';
+    say('S11 the blow: ' + (why || 'mist, ' + K.n + ' droplet clouds, up in ' + K.tau + ' s, gone after ' + (K.life + K.delay).toFixed(1) + ' s'));
+    check(!why, 'S11 the blow is water (plume.js mist)', why);
+  }
 }
 
 async function directed(g) {

@@ -612,16 +612,18 @@ AR.make = function (THREE, ctx) {
                     Math.sin(ang) * (1 + 2 * one.rnd()) + tz * S.speed * 0.3);
         }
       }
-      // THE BLOW: the plume, on the village chimney's own recipe
+      // THE BLOW: water, not smoke (16 Nov: the chimney's grey column read as "grey eggs") - plume.js's mist, sized by the
+      // species' blow: an orca's bushy 2.5 m (blow 1.0), a blue whale's 9 m column (2.6). The mist is fired where the
+      // blowhole broke the surface and stays in the AIR it was blown into: it drifts with the wind, not with the whale
       if (window.PLUME && S.blow > 0) {
         if (!one.plume) {
-          one.plume = window.PLUME.make(THREE, Object.assign({}, window.PLUME.PRESETS.blow,
-            { rise: 2.2 * S.blow + 3.5, spread: 0.9 * S.blow + 1.0, k: 0.55 + 0.1 * S.blow }));
+          one.plume = window.PLUME.make(THREE, Object.assign({}, window.PLUME.PRESETS.mist || window.PLUME.PRESETS.blow,
+            { rise: 4.0 * S.blow - 1.4, spread: 1.1 * S.blow + 0.1, r0: 0.11 * S.blow + 0.01, k: 0.55 + 0.05 * S.blow }));
           root.add(one.plume.mesh);
         }
         const w = ctx.wind ? ctx.wind() : [0, 0];
         const hx = cx + tx * one.a.length * 0.33, hz = cz + tz * one.a.length * 0.33;
-        one.plume.fire(hx, lvl + 0.2, hz, (w[0] || 0) * 0.12 + tx * 0.2, (w[1] || 0) * 0.12 + tz * 0.2);
+        one.plume.fire(hx, lvl + 0.2, hz, (w[0] || 0) * 0.6, (w[1] || 0) * 0.6);
         stats.blows++;
       }
     }
