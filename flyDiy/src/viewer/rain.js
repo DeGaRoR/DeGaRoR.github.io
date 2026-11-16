@@ -103,6 +103,9 @@ var RAIN_FX = (function () {
     '  vDir = normalize(p);',
     '}'].join('\n');
   const FRAG = [
+    // (GLSL3 on a three ShaderMaterial: no gl_FragColor of its own - declared here, like clouds.js GLSL3_OUT; the soft compile check, 16 Nov eve)
+    'layout(location = 0) out highp vec4 rainC;',
+    '#define gl_FragColor rainC',
     'uniform vec3 uSun, uSunCol, uSkyCol, uLampPos, uLampDir, uLampCol;',
     'uniform vec4 uLook;',                 // opacity, ambient, back, backPow
     'uniform vec2 uLampCone;',             // cos of the cone's half angle, the lamp's range (m)
