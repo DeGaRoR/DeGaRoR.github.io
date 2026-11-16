@@ -559,7 +559,8 @@ const podPlate = (P, face) => {
   // ...AND NO PLATE AT ALL (the user, 9 Nov: "there seem to be a flat plate between the cowl and the nacelle, it should
   // not be there, at all"): the pod is the engine's housing; a rectangle the pod's half-sizes stood out of its rounded,
   // uneven section at the corners and the top. `podSized` tells the engine layer to draw no plate (the mount's spread
-  // still reads the size, inside the pod).
+  // still reads the size, inside the pod) - since PROPER-COWLS round 12, the plate drawn instead is the NACELLE'S
+  // FIREWALL, cut to the pod's own section 6 mm inside its skin (_cage_eng.js podOutline -> _eng_mesh.js fwShape).
   return (w > 0 && h > 0) ? Object.assign(face, { halfW: w, halfH: h, podSized: true }) : face;
 };
 function engineFaces(mesh, FS, P) {
