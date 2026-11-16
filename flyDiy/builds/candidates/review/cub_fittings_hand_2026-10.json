@@ -1238,49 +1238,49 @@
      "tint": 16777215
     },
     "body": {
-     "tint": 16764160
+     "tint": 16751616
     },
     "waistband": {
-     "tint": 2500134
+     "tint": 328965
     },
     "ceilingLoop": {
-     "tint": 16764160
+     "tint": 16751616
     },
     "pillarFront": {
-     "tint": 16764160
+     "tint": 16751616
     },
     "pillarCabin": {
-     "tint": 16764160
+     "tint": 16751616
     },
     "floorLoop": {
-     "tint": 16764160
+     "tint": 16751616
     },
     "gearLeg": {
-     "tint": 16764160
+     "tint": 16751616
     },
     "pillarWindow": {
-     "tint": 16764160
+     "tint": 16751616
     },
     "dummy2": {
-     "tint": 6083612
+     "tint": 1812483
     },
     "pillarPassenger": {
-     "tint": 16764160
+     "tint": 16751616
     },
     "pillarTail": {
-     "tint": 16764160
+     "tint": 16751616
     },
     "joint": {
-     "tint": 7368816
+     "tint": 2697513
     },
     "wingTip": {
      "tint": 0
     },
     "finRud": {
-     "tint": 16764160
+     "tint": 16751616
     },
     "spinner": {
-     "tint": 3684408
+     "tint": 657930
     }
    },
    "wear": 0.15,

@@ -693,3 +693,91 @@ to forget". A first cut (a declared `wgStolFly` row) was dropped for exactly tha
   already reads its sheets at +-10 %.
 - THE TOOL FOR EVERY SESSION: CLAUDE.md now points at this file; tools/drafting/KICKOFF.md is the message to paste with
   a new plane's blueprint; GATE DRAFTING (tools/drafting/dt_check.js, 4 s) joins the core battery.
+
+## ROUND 16 (13 Nov): the PC-6 on Wipline 6100 amphibians; three liveries
+
+The user: "a bigger task. Let's do the Pilatus on floats ... mounted on Wipaire floats ... the Wipline 6100", with the
+float figures (length 7.49 / 7.75 m amphibian, hull 0.86 x 0.99 m, displacement 2,503 kg amphibian / 2,569 kg seaplane
+EACH, maximum flotation 2,781 / 2,854 kg for the pair, FAR 23.751), a three-view (N908PL, 500 px) and photographs.
+- THE REFERENCE: refs/pc6_floats.json - the land PC-6's airframe figures, the 6100's own (src wipaire-6100), the
+  sheet's side view scaled by the length (10.90 m = 456 px; the x3 upscale is the working sheet). The sheet places the
+  floats, Wipaire sizes them: its hull reads 6.9 m against 7.49 (-8 %), its depth 0.77 against the row's 0.78.
+- THE CARD: builds/candidates/pc6_floats_2026-11-13.json, the land card + `gearFloats`, the catalogue's 6100 row
+  (`fltPreset` 9, the rows applied as the starter does), `fltAmph` 1 (Wipline), keel 1.75 m below the belly, the step
+  +0.25 m off the 12-deg rule (the drawn step: the rule's own station moves aft 0.28 m with the deeper keel), the front
+  strut upright over its deck fitting (`fltFrontRing` 1), the sheet's ventral lobe (`finVentral*`).
+- THE ANGLE (the user, three steps: "the plane is tilted ... 2 degrees ... anchored from your nose point", "+1/2", "+1/2
+  again, and use that same angular value as the angle between the floats and the plane fuselage"): 3.0 deg. The sheet
+  is registered turned 3.0 deg about the spinner tip, and `fltInc` 3.0 - POSITIVE is the bow DOWN against the airframe
+  (the sign was found by trying both). With it the fin, the tail cone, the ventral, the deck and the keel all sit on
+  the drawing.
+- THE TABLE LEARNED TWO THINGS: (1) it loaded no hydro core, so the float layer saw no Wipline catalogue and drew
+  NOTHING, silently - dt_manifest now loads src/core/32_hydro.js, and GATE DRAFTING asserts a float card draws its
+  floats (negative-verified: 0 triangles without it); (2) a view turned only by quarter turns (rotM rounded) - any angle
+  now, a quarter turn still exact, GATE DRAFTING asserts a 3-deg turn.
+- WHAT THE FIT FOUND IN THE GAME (reported to A0, not changed here): 32_hydro calibrates each Wipline hull's volume to
+  the catalogue's `flot`, but `flot` = disp / 0.9 on every row - Wipaire's maximum flotation for the PAIR (FAR 23.751),
+  not one hull: every Wipline floats on ~11 % too much volume (the 6100: 2.854 m3 each against 2.569). The amphibian's
+  gear weight (Wipaire +190 kg on the 6100) does not appear in the joined spec (the card weighs +306 kg over the land
+  one: the seaplane installation).
+- GARAGE GAPS (REF_MATCH section 7): the front strut's station; no Brazil flag.
+- THE LIVERIES (the livery kit only; the tints authored under the colour fix, claude/fit-procedure-colour):
+  the floats card wears the photographs' yellow (green-over-blue cheat lines, a green tailplane, the script on the
+  cowl; tools/drafting/refs/pc6_livery_floats_yellow.py); two red-and-white land liveries ride as cards of their own
+  (builds/candidates/pc6_livery_alpengluehn / _nordwind; tools/drafting/refs/pc6_liveries_redwhite.py): a Swiss alpine
+  sweep with a flash, a cross trail and the flag, and a German jump ship with twin cheat lines and red tips. A
+  side-projected text set high on a cowl smears over its top (seen from above): keep a cowl's lettering on the flat
+  flank.
+- THE USER'S CORRECTIONS, same day: (1) "check the spacing between the floats, that's where you make a big mistake ...
+  do a projection": the sheet's PLAN view registered at 135 deg (the any-angle turn) - the drawn floats sit under ours
+  at `fltTrack` 1.40 (the garage's 0.80 gave a 1.6 m stance); the cramped stance had also BENT the forward fuselage on
+  the water take-off (1516 members yielded at 19 m/s on the step; at 1.40, none). (2) The tail end 5 cm wide
+  (`frTailTopW` / `tailHalfW` / `frTailBotW` 0.0336: 0.050 m measured). (3) "reinforcements on the floats struts ...
+  doubling as a ladder": `fltLadder` (new row, 0-3 rails a side, front strut to rear strut; drawn, not flown). (4) The
+  struts drawn on the sheet by the user (marks float.frontStrut / vApex / vRoots / rails): an upright front strut
+  further forward and a V to ONE aft fitting, the rails tying them; measured with the 3-deg registration: the step at
+  4.59 m (ours was 4.93: `fltZ` 0.59), the V apex 4.98 (`fltSpreadAft` 0.24), the front fitting 3.36 (`fltRigFwd` 0.50,
+  new row: the drawing, gear.floats.rigFwd and 61_gen_frame's station together). The main wheel then sits on the
+  drawn main wheel. LESSON: re-measure a station after a turn of the sheet - the 3 deg moved the drawn step 0.34 m in
+  our frame, and an earlier "aligned by eye" was off by that much.
+
+## Two sheet scales and the tricycle reader (FIT-PROCEDURE 6e89f590a, 13 Nov; taken without the Skymaster)
+
+- A view's optional **`ky`**: the sheet's vertical pixels per metre (absent = `k`). A scanned sheet is often stretched
+  one way (the 337's by 2.9 %). `toPx` / `fromPx` apply `k` across the sheet and `ky` down it, after the view's turn.
+  Every renderer that maps sheet pixels goes through `toPx` / `fromPx`, never `V.k` alone.
+- **The tricycle reader** in `measure()`: the mains are the gear off the centreline; the wheel on it is a tail wheel
+  when it is aft of the mains, a nose wheel when ahead. The KM table gains `nosewheel.a` / `nosewheel.bottom` (marks
+  `nosewheel`, `nosewheel.bottom`).
+- GATE DRAFTING checks both: `ky` round-trips every turn and mirror, and the KM table carries both third-wheel rows.
+
+## The free tilt (15 Nov, A0 for FLAGSHIP's Cessna fit)
+
+Real brochure sheets are drawn tilted (the 172's side view is 4.8 deg off, along its 26'11" line). A view's `rot` is
+now any angle in degrees: its nearest quarter turn is applied exactly, as before, and the rest tilts the view about its
+pivot, clockwise on the sheet like `rot`.
+- `rotAt` absent: the pivot is the view's origin (ox, oy).
+- `rotAt: [px, py]`: a sheet pixel.
+- `rotAt: { mark: 'wheel', at: [px, py] }`: a named mark. `DT_CORE.setTilt(ref, view, deg, mark)` sets the angle about the
+  mark, copies its pixel into `at` (so the page's worker maps the view from the view alone) and re-places the untilted
+  origin so the mark keeps its metres. With a pivot off the origin, (ox, oy) is the origin's place BEFORE the tilt;
+  `DT_CORE.placeOrigin(V, px, py)` (the page's "place the origin") turns the click back.
+- The tilt acts in the drawing's own metres, inside the sheet's two scales: p = P + K Rf K^-1 (p0 - P), K = diag(k, ky).
+
+It lives inside `toPx` / `fromPx`, so the table, `quickshot.js --sheet` and the in-game page all honour it. GATE DRAFTING:
+every pivot form round-trips with a mirror and two scales, a view's X axis runs at the angle on the sheet, `setTilt`
+keeps its mark, and the PC-6's sheet turned 4.8 deg (its side marks and lines turned with it) scores what the level
+sheet scores (136 / 175 both).
+
+## One projector: quickshot --sheet (QUICKSHOT-ONE, 15 Nov)
+
+A0's call on the user's "Unify it, not 3 modes ... Decide for the outline projection tool": one renderer (quickshot's,
+the garage's own layers) and one projection (this table's sheet logic). `quickshot.js <plane.json> <prefix> --sheet
+<img>` draws each view's drawing scaled by `dt_core.toPx`, quickshot's render over it, the red veil (our parts outside
+the drawing's lines), the parts' outline, the marks, the score table and the dimensions diff, stacked in one PNG
+(`tools/drafting/dt_sheet.js`). `table.js check --png` and `compare --png` call it (`--parts`, at the table's level), so
+`--png` now writes `<prefix>_sheet.png` instead of three files. Quickshot measures its own scene with the table's rules
+(`dt_build.collect`, split out of `build`). GATE QSPARITY: at level 0 the frame and every key measurement agree (the
+largest gap strut.at, 12 mm: the table's cut core and context against the garage's; the layers it leaves out are not
+the cause) and the score is the same 136 / 175; at the garage's level 2 the PC-6 scores 122, and the load door's
+clamps move no row on it.

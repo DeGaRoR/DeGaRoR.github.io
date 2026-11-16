@@ -299,6 +299,20 @@ const STRIP_MICRO = (() => {
       if (HZ.length) h += ss(0, 0.5, halfW - Math.abs(v)) * hazardsAt(u, v, 0)[0];
       return h * eT;
     }
+    // THE WORN RELIEF (SNOW-MUD LADDER, 15 Nov; 07f GROUND_WX): the part of dh the traffic wore into the ground - the
+    // aeroplanes' lanes, the ways (troughs and berms), the holes, the lumps - which a weather strip scales by its rung (soft
+    // mud cuts it deeper, dry dirt firms it): the world adds (wear - 1) x this on the composed ground (20_world terrainH),
+    // the ribbon is re-draped by the same, and the shader's rows scale the same knobs (glslRow's wear). Every term is
+    // linear in its knob (rut, ruts, holeDepth, lumps), so the scaled field IS the field of the scaled knobs. 0 off the box
+    function wearUV(u, v) {
+      if (u <= 0 || u >= len || v <= -halfW || v >= halfW) return 0;
+      const eT = ss(0, END_IN, u) * ss(0, END_IN, len - u), dT = ss(EDGE_IN[0], EDGE_IN[1], halfW - Math.abs(v));
+      if (eT <= 0 || dT <= 0) return 0;
+      const rut = rutD > 0 ? rutD * lanes(v) * (0.7 + 0.3 * vnoise(u / 23, 0.5, seed + 7)) : 0;
+      return eT * dT * ((lA > 0 ? lumpsAt(u, v) : 0) - rut + waysAt(u, v)[0] - holesAt(u, v, 0)[0]);
+    }
+    // its magnitude's bound (either sign: a scale under 1 lifts the troughs, over 1 the berms and the lumps)
+    const wearBound = lA + rutD + holeD + WAYS.reduce((m, W) => m + W[2] * (1 + W[3]), 0) + 1e-6;
     // the ceiling: the crown's top + every octave's amplitude (the ruts and the holes only go down)
     const bound = crownS * halfW / 2 + amp.reduce((s, a) => s + a, 0) + swA + hzUp + lA + WAYS.reduce((m, W) => m + 2 * W[3] * W[2], 0) + (K.rocks > 0 ? STONE_H * 0.27 : 0) + 1e-6;   // (+ the swell's crest, + the highest hazard bump, + the lumps, + every berm, + the tallest stone)
     // the box in the caller's frame (for the modifier's bbox and its tiles)
@@ -313,7 +327,7 @@ const STRIP_MICRO = (() => {
     return {
       K, bbox, bound, touches, halfW, len, seed, pHole, pudOK,
       at: (x, z) => { const q = toUV(x, z); return atUV(q[0], q[1]); },
-      atUV,
+      atUV, wearUV, wearBound, wearAt: (x, z) => { const q = toUV(x, z); return wearUV(q[0], q[1]); },
       // standing water (m) at (x, z) for a soil wetness 0..1
       puddleAt: (x, z, wet) => {
         if (pudOK <= 0 || !(wet > 0)) return 0;
@@ -348,7 +362,8 @@ const STRIP_MICRO = (() => {
   // puddles x the grade's own, the 1 m octave's amplitude (the others x sqrt of their wavelength), hazards, hazard size m,
   // 1 + the swell m] and uMicro3 [the ways' ruts m, the lumps m, cart + 2 path (the ways the field built), rocks] - pavement.js
   // pvPuddle / pvRelief / pvWays / pvRockIn read exactly these; null when the strip is flat
-  function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100,
-    f.K.ruts / 100, f.K.lumps / 100, (f.ways.some(W => W[7] === 1) ? 1 : 0) + (f.ways.some(W => W[7] === 2) ? 2 : 0), f.K.rocks]; } return null; }
+  // (SNOW-MUD LADDER: `wear`, a weather strip's rung's scale of its worn relief - the hole depth, the ways' ruts, the lumps; 1 = the record's)
+  function glslRow(id, wear) { const k = wear > 0 ? wear : 1; for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, k * f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100,
+    k * f.K.ruts / 100, k * f.K.lumps / 100, (f.ways.some(W => W[7] === 1) ? 1 : 0) + (f.ways.some(W => W[7] === 2) ? 2 : 0), f.K.rocks]; } return null; }
   return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, padOf, stoneAt, STONE_H, BAND_V, BAND_H, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
 })();

@@ -1008,6 +1008,9 @@ function editorInit(api) {
       rowsEl.appendChild(n);
       return;
     }
+    // LIVERY-MANAGER (the user 13 Nov): THE LIVERY PICKER heads the Finish tab whatever part is selected - which saved
+    // livery the rows below are editing, and the swap (livery_ui.js; one element, re-appended like the reference panel)
+    if (window.LIVERY_UI && window.LIVERY_UI.panel) { try { rowsEl.appendChild(window.LIVERY_UI.panel()); } catch (e) {} }
     // the panel's rows, partitioned by the section they are about. Read off the
     // DOM each time rather than cached: buildMatPanel rebuilds the lot whenever
     // the section list changes shape, and CAGE_ON_MAT brings us back here.

@@ -18,12 +18,18 @@
 //          (here with NO roll-out screen at all - the train-36 blind spot)
 //   diag   THE SELF-TEST (G1997): index.html?diag=quick's module run to its report on the same harness - every variant
 //          measured frames, the census by owner, the report's text, the graphics put back exactly as they were
+//   under  BOOT-LOOP-GUARD (15 Nov 2026, DIRT-STRIP's census on the box): a Go UNDER the garage boot's cover, NOT lifted, at 'world'
+//          - before 'first light', the loop's first start. A key reached #bGo behind the cover (Tab, Enter); the roll-out's screen
+//          superseded the chain (G640) and replaced its done(): neither start ran, the roll-out gave up ('nothing landed for 20 s')
+//          and nothing was ever drawn. (1) THE DOOR: the app behind the cover is inert (#ui, #edView) and #bGo refuses - no
+//          roll-out, the garage chain goes on. (2) THE NET: a Go past the door (BOOT.state read 'gone' for that one click, as any
+//          future path might) - the roll-out lands, the world is drawn: the loop started.
 //   hard   BOOT.opt.hard set to 1 ms as the boot reaches 'world' (the slow machine's case): the boot is NOT lifted while
 //          its chain still lands steps (G1995's watchdog) - it ends on its own ('ready'), never 'hard timeout'
 //
 //   node tools/_bootlift_check.js                       the gate (the three children, one after the other)
-//   node tools/_bootlift_check.js --only fly|stay|hard|diag  one of them
-//   node tools/_bootlift_check.js --child fly|stay|hard|diag one child, its JSON on stdout's last line
+//   node tools/_bootlift_check.js --only fly|stay|hard|diag|under  one of them
+//   node tools/_bootlift_check.js --child fly|stay|hard|diag|under one child, its JSON on stdout's last line
 //   BOOTLIFT_QUERY='simw=0'  the page's query (default: the page's own, the physics worker on)
 // The RED/GREEN proof against older trains: copy this file into an old tree's tools/ and run it there (HANDOVER G1996).
 'use strict';
@@ -69,8 +75,9 @@ async function lift(ctx, at) {
 // Fly, then the roll-out: its trip done and no screen up; then 60 frames - the world drawn, the reveal counted
 async function fly(ctx) {
   const { P, W, R } = ctx;
-  const n0 = trips(W).length, rv0 = reveals(W);
-  const b = W.document.getElementById('bGo'); if (b) b.click();
+  // (ctx.n0: the trips counted BEFORE a Go the caller pressed itself - 'under' presses it past the door, then waits here)
+  const n0 = ctx.n0 != null ? ctx.n0 : trips(W).length, rv0 = reveals(W);
+  const b = W.document.getElementById('bGo'); if (b && !ctx.noClick) b.click();
   const ok = await P.until(() => { const t = lastTrip(W); return trips(W).length > n0 && t.kind === 'rollout' && t.done && W.BOOT.state === 'gone'; }, V_MAX);
   const t = lastTrip(W);
   const w0 = R.world; await P.frames(60);
@@ -100,6 +107,19 @@ async function child(which) {
     await P.until(() => W.BOOT.state === 'gone', V_MAX);
     const L = bootLog(W);
     out.end = { state: W.BOOT.state, ready: L.some(e => e.k === 'ready'), fails: L.filter(e => e.k === 'fail').map(e => e.reason), steps: L.filter(e => e.k === 'step').map(e => e.id), vS: Math.round(P.clock.t / 1000) };
+  } else if (which === 'under') {
+    const ok = await P.until(() => W.BOOT && W.BOOT.state === 'loading' && W.BOOT.set === 'garage' && W.BOOT.current && W.BOOT.current.id === 'world', V_MAX);
+    const d = W.document, n0 = trips(W).length;
+    out.door = { reached: ok, inert: ['ui', 'edView'].map(id => { const e = d.getElementById(id); return e ? e.inert === true : null; }) };
+    d.getElementById('bGo').click(); await P.frames(3);
+    out.door.refused = trips(W).length === n0 && W.BOOT.set === 'garage' && W.BOOT.state === 'loading';
+    // the net: a Go past the door, while the chain is still before 'first light'
+    const stepsAt = bootLog(W).filter(e => e.k === 'step').map(e => e.id);
+    out.under = { state: W.BOOT.state, firstLightBefore: stepsAt.includes('firstFrame'), steps: stepsAt.slice(-3) };
+    const nGo = trips(W).length, st = W.BOOT.state; W.BOOT.state = 'gone'; const g = d.getElementById('bGo');
+    try { g.click(); } finally { if (W.BOOT.state === 'gone') W.BOOT.state = st; }
+    out.fly = await fly(Object.assign({}, ctx, { noClick: true, n0: nGo }));
+    out.fly.firstLightEver = bootLog(W).some(e => e.k === 'step' && e.id === 'firstFrame');
   } else {
     out.lift = await lift(ctx, 'compile');
     if (which === 'fly') {
@@ -140,6 +160,14 @@ function verdict(r) {
     ok(r.fly.worldDrawn > 0, 'stay: the world drawn (' + r.fly.worldDrawn + ')');
     ok(r.fly.reveals >= 1, 'stay: a reveal marked with or without a roll-out screen (' + r.fly.reveals + ')');
   }
+  if (r.which === 'under') {
+    ok(r.door.reached && r.door.inert.every(x => x === true), 'under: the app behind the cover is inert while it is up (#ui, #edView: ' + JSON.stringify(r.door.inert) + ')');
+    ok(r.door.refused, 'under: Go under the cover refused - no roll-out, the garage chain goes on (the door)');
+    ok(r.under.state === 'loading' && !r.under.firstLightBefore, 'under: then a Go past the door, before first light (' + JSON.stringify(r.under.steps) + ')');
+    ok(r.fly.landed && !r.fly.inShed, 'under: the roll-out landed (trip ' + JSON.stringify(r.fly.trip) + ', first light ever: ' + r.fly.firstLightEver + ')');
+    ok(r.fly.worldDrawn > 0, 'under: the world drawn after it - the loop started (' + r.fly.worldDrawn + ' renders in 60 frames; BOOT-LOOP-GUARD)');
+    ok(!r.fly.fails.some(f => /nothing landed/.test(f)), 'under: the roll-out screen did not give up (' + JSON.stringify(r.fly.fails) + ')');
+  }
   if (r.which === 'diag') {
     const d = r.diag || {};
     ok(d.ok && d.variants && d.variants.length >= 3 && d.variants.every(v => +v.split(':')[1] > 0), 'diag: ?diag=quick ran to its report, every variant measured frames (' + JSON.stringify(d.variants) + ')');
@@ -156,7 +184,7 @@ function verdict(r) {
 (async () => {
   const ch = opt('child', null);
   if (ch) { const r = await child(ch); console.log(JSON.stringify(r)); process.exit(0); }
-  const only = opt('only', null), list = only ? only.split(',') : ['fly', 'stay', 'hard', 'diag'];
+  const only = opt('only', null), list = only ? only.split(',') : ['fly', 'stay', 'hard', 'under', 'diag'];
   const all = [];
   for (const w of list) {
     const t0 = Date.now();

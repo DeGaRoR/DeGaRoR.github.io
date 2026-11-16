@@ -1878,7 +1878,7 @@ function mount(host, ctx) {
   const PROP_TITLE = { terraform: 'TERRAFORM', wheels: 'WHEELS', draw: 'DRAW', marks: 'MARKS', exclude: 'EXCLUDE', cover: 'COVER', roadside: 'ROADSIDE' };
   const PROP_WHY = { terraform: 'moves the ground: flat, raised or lowered, a slope', wheels: 'the class the wheels feel (a hard one keeps the trees and plots out)', draw: 'a surface drawn on the ground: a pavement (concrete, asphalt, gravel, dirt, sand, grass, snow, mud) or a texture',
                      marks: 'weathered paint on the pavement: parking bays, a dock\'s edge, keep-clear hatching', exclude: 'keeps the trees and / or the plots out', cover: 'what grows here and the terrain type it stamps' };
-  const HARD = [PG.SURFACE.PAVED, PG.SURFACE.GRAVEL, PG.SURFACE.SAND, PG.SURFACE.SNOW_PACKED, PG.SURFACE.SNOW_POWDER, PG.SURFACE.SNOW_WET, PG.SURFACE.MUD_FIRM, PG.SURFACE.MUD_SOFT];   // (SNOW-MUD: 27_premises FEEL_HARD)
+  const HARD = [PG.SURFACE.PAVED, PG.SURFACE.GRAVEL, PG.SURFACE.SAND, PG.SURFACE.SNOW_PACKED, PG.SURFACE.SNOW_POWDER, PG.SURFACE.SNOW_WET, PG.SURFACE.MUD_FIRM, PG.SURFACE.MUD_SOFT, PG.SURFACE.SAND_WET, PG.SURFACE.DIRT_WX, PG.SURFACE.SAND_WX];   // (SNOW-MUD: 27_premises FEEL_HARD)
   const lookCls = d => (d && d.look && PG.RUNWAY_LOOKS[d.look] && PG.RUNWAY_LOOKS[d.look].cls) || null;
   const m2 = A => (A >= 10000 ? (A / 10000).toFixed(2) + ' ha' : Math.round(A).toLocaleString() + ' m²');
   // a fresh property, the way the tools make it (the defaults follow the draw: a pavement proposes the wheels it implies)

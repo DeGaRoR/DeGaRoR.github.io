@@ -33,6 +33,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const zlib = require('zlib');
 
 const T = __dirname;
 const EXCLUDE = new Set(['_cage_crew.js', '_panel_gen.js', '_cage_panel.js',
@@ -40,6 +41,103 @@ const EXCLUDE = new Set(['_cage_crew.js', '_panel_gen.js', '_cage_panel.js',
   '_vessel_mesh.js', '_cage_energy.js', '_cage_join.js', '_cage_ui.js']);
 
 let CTX = null;
+
+// ---- QUICKSHOT-ONE: the whole aeroplane (opts.whole) ------------------------------------------------------------
+// the layers EXCLUDE keeps out that draw what the player sees in and on the cabin
+const WHOLE_LAYERS = ['_cage_crew.js', '_cage_char.js', '_panel_gen.js', '_cage_panel.js'];
+// the construction token the sections' finishes key on (_cage_ui.js consOf / CONS_MAP, the same table)
+const CONS_MAP = { tube: 'tubeFabric', wood: 'wood', metal: 'alloy', carbon: 'carbon', alu: 'aluTube', glass: 'glass', soft: 'softShell' };
+const consOf = P => CONS_MAP[['carbon', 'tube', 'wood', 'metal', 'alu', 'glass', 'soft'][Math.max(0, Math.min(6, Math.round((P && P.intCons) || 0)))]] || 'tubeFabric';
+const SEC_KEYS = { fin: 'fin', tint: 'tint', tile: 'tile', rough: 'rough', nrm: 'nrm', wear: 'wearM', cc: 'cc', field: 'field', metal: 'metal', fieldL: 'fieldL' };
+// the editor's five-plus override maps (its secFin, secTint ... - _cage_ui.js finishFromSpec), from a build's finish
+function finishMaps(A, finish) {
+  const over = {}; for (const k of Object.keys(SEC_KEYS)) over[k] = {};
+  let S = finish && finish.sections && typeof finish.sections === 'object' ? finish.sections : {};
+  if (A && A.aeroFinishLegacy) S = A.aeroFinishLegacy(S).sections;
+  for (const nm in S) { const r = S[nm] || {};
+    if (r.fin) over.fin[nm] = r.fin;
+    for (const k of Object.keys(SEC_KEYS)) if (k !== 'fin' && typeof r[SEC_KEYS[k]] === 'number') over[k][nm] = r[SEC_KEYS[k]]; }
+  return over;
+}
+// THE SECTION'S PAINT, the editor's rule (_cage_ui.js): a LAYER's section walks AEROSKIN's declared chain
+// (aeroSecResolve - secMat), the cage sheet's section takes its own tint or its finish's base (matOf). sRGB hex.
+function secPaint(A, over, name, g, P, sheet) {
+  if (!A) return null;
+  if (sheet) {
+    const fin = over.fin[name] || A.aeroFinishFor(name, consOf(P));
+    const tint = over.tint[name] != null ? over.tint[name] : null;
+    return { hex: tint != null ? tint : (A.AERO_FINISH[fin] || A.AERO_FINISH.fabric).base, fin, metal: over.metal[name] || 0 };
+  }
+  if (!A.AERO_SEC || !A.AERO_SEC[name]) return null;
+  const r = A.aeroSecResolve(name, over, { cons: (g && g.cons) || consOf(P), fin: g && g.fin });
+  const tint = r.tint != null ? r.tint : (g && g.tint0 != null) ? g.tint0 : null;
+  return { hex: tint != null ? tint : (A.AERO_FINISH[r.fin] || A.AERO_FINISH.fabric).base, fin: r.fin, metal: r.metalK || 0 };
+}
+function wholeContext(ctx, g) {
+  const CS = require(path.join(T, '_canvas_soft.js'));
+  // the characters' registry (src/chars/*_char.js) before _cage_page5.js reads the default pilot (GATE CREWLOAD's rule)
+  const CH = path.join(T, '..', 'src', 'chars');
+  for (const f of fs.readdirSync(CH).filter(f => /_char\.js$/.test(f))) vm.runInContext(fs.readFileSync(path.join(CH, f), 'utf8'), ctx, { filename: f });
+  // a canvas that paints: the panel's faces, the livery's atlas (aeroskin.js) run their own painters on it
+  const ce = g.document.createElement;
+  g.document.createElement = tag => String(tag).toLowerCase() === 'canvas' ? CS.canvas(300, 150) : ce(tag);
+  g.requestAnimationFrame = () => 0; g.cancelAnimationFrame = () => {};      // (the characters' idle animation: a still)
+  // THE MATERIAL VIEW IS ON (the garage's #mat select at 'material': the layers dress their parts by livery section, not
+  // the bench's diagnostic palette - _cage_wing.js wingMat and its siblings read the select)
+  const gid = g.document.getElementById, matSel = { value: 'material', checked: true, style: {}, addEventListener() {} };
+  g.document.getElementById = id => id === 'mat' ? matSel : gid(id);
+  g.GFX = { budget: () => ({ aeroAtlas: 2048 }) };                           // (the livery atlas: a page 512 px, the phone's)
+  g.FLYDIY_LAZY = () => Promise.resolve();                                   // (the stickers' geometry: loaded below)
+  // the asset door: the characters' meshes off the disk, each fetch counted so a build can wait for them
+  const pend = new Set();
+  const door = u => { const p = new Promise((res, rej) => fs.readFile(path.join(T, '..', String(u).split('?')[0]), (e, b) => {
+    if (e) return rej(e);
+    const buf = b[0] === 0x1f && b[1] === 0x8b ? zlib.gunzipSync(b) : b;
+    res(new Uint8Array(buf)); }));     // (the page's door hands bytes: decodeChar reads u8.buffer at u8.byteOffset)
+    pend.add(p); p.then(() => pend.delete(p), () => pend.delete(p)); return p; };
+  g.ASSET_FETCH = door; g.ASSET_FETCH_FRESH = door; g.__wholePending = pend;
+  // THE LIVERY: the garage's material module, as the page loads it before the editor's files
+  for (const f of ['livery_marks.js', 'aeroskin.js']) {
+    const p = path.join(T, '..', 'src', 'viewer', f);
+    if (fs.existsSync(p)) vm.runInContext(fs.readFileSync(p, 'utf8'), ctx, { filename: f });
+  }
+  // THE MATERIAL FACTORY'S COLOUR HALF: aeroMaterial / aeroHardMat / aeroGlass answer the colour and the opacity the
+  // garage's factory gives (its own rule: the tint, else the finish's base; the hard table's finish by layer + name),
+  // without baking the detail sheets (normal / roughness / metal maps: ~8 s of procedural canvases a build, and a flat
+  // rasteriser draws none of them)
+  const A0 = g.AEROSKIN;
+  if (A0) {
+    const THREE = g.THREE, lite = (o, kind) => {
+      const fin = o.finish != null ? o.finish : null, row = (fin && A0.AERO_FINISH[fin]) || null;
+      const m = new THREE.MeshLambertMaterial({ side: o.side != null ? o.side : THREE.DoubleSide,
+        transparent: kind === 'glass' || (o.opacity != null && o.opacity < 1), opacity: kind === 'glass' ? Math.min(0.45, o.opacity != null ? o.opacity : 0.45) : (o.opacity != null ? o.opacity : 1) });
+      if (o.tintLin != null) m.color.setHex(o.tintLin, THREE.LinearSRGBColorSpace);
+      else m.color.setHex(o.tint != null ? o.tint : row ? row.base : kind === 'glass' ? 0x6f8fa8 : 0xb0b0b0);
+      m.userData.sec = { name: o.name || null, fin, glass: kind === 'glass' ? 1 : 0, cls: +o.wing || 0, surf: o.surf ? 1 : 0,
+                         fieldM: o.fieldM != null ? o.fieldM : 1, decOk: o.decals != null ? +o.decals : 1, metal: +o.metalK || 0 };
+      return m;
+    };
+    A0.aeroMaterial = (THREE_, o) => lite(o || {}, 'mat');
+    A0.aeroGlass = (THREE_, o) => lite(o || {}, 'glass');
+    A0.aeroGlassCompanion = () => null;
+    A0.aeroHardMat = (THREE_, layer, name, tint, o) => {
+      if (!A0.aeroHardOn()) return null;
+      const fin = A0.aeroHardFinish(layer, name);
+      if (fin == null) return null;
+      return lite(Object.assign({}, o, { finish: fin, tint, surf: 0, fieldM: 1, decals: (o && o.decals != null) ? o.decals : 0 }), 'mat');
+    };
+  }
+  // the editor's per-section material door (window.CAGE_SECMAT, _cage_ui.js secMat): the layers ask it by section; the
+  // answer here is the colour the garage resolves (secPaint), on a plain material that says which section it dresses
+  g.CAGE_SECMAT = (name, gg) => {
+    const A = g.AEROSKIN, pt = secPaint(A, g.__wholeOver || finishMaps(A, null), name, gg, g.__wholeP, false);
+    if (!pt) return null;
+    const m = new g.THREE.MeshLambertMaterial({ color: pt.hex, side: g.THREE.DoubleSide, transparent: gg && gg.opacity != null && gg.opacity < 1, opacity: gg && gg.opacity != null ? gg.opacity : 1 });
+    m.userData.sec = { name, fin: pt.fin, metal: pt.metal, cls: (gg && +gg.wing) || 0, surf: gg && gg.surf ? 1 : 0, fieldM: gg && gg.fieldM != null ? gg.fieldM : 1,
+                       decOk: A.aeroDecOk ? A.aeroDecOk(name) : 1 };
+    return m;
+  };
+}
 
 function makeContext(opts) {
   const THREE = require(path.join(T, '..', 'vendor', 'three.min.js'));
@@ -68,6 +166,7 @@ function makeContext(opts) {
   g.Image = function () { return el(); };
   const ctx = vm.createContext(g);
   vm.runInContext('var window = globalThis; window.window = window;', ctx);
+  if (process.env.PC6_COMP) ctx.PC6_COMP = +process.env.PC6_COMP;   // (PC6-OLEO: quickshot --pc6comp, the tailwheel drawn compressed)
   // opts.before(ctx): what the page has in scope before the editor's files (G1985: the characters' registry, which
   // _cage_page5.js reads for the default pilot when it loads)
   if (opts && typeof opts.before === 'function') opts.before(ctx);
@@ -83,8 +182,15 @@ function makeContext(opts) {
   // ASSETS-GREEN (8 Nov): THE MATERIAL LIBRARY (src/viewer/matlib.js) - the page loads it before the editor's files, and
   // the seat library's plain material (tools/_seat_gen.js, the flat view's) is made there now (GATE ASSETS MATS)
   vm.runInContext(fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'matlib.js'), 'utf8'), ctx, { filename: 'matlib.js' });
+  // QUICKSHOT-ONE (15 Nov, opt-in, opts.whole): WHAT THE PLAYER SEES - the cabin (crew, characters, panel layers: the
+  // pilot and occupants in their seats, the dash, its instruments and the controls) and THE LIVERY (aeroskin.js, the
+  // garage's own material system, on a software 2-D canvas so its painters run). See wholeContext below.
+  if (opts && opts.whole) wholeContext(ctx, g);
   const { MANIFEST } = require(path.join(T, 'build.js'));
   const skip = new Set([...EXCLUDE, ...((opts && opts.exclude) || [])]);
+  if (opts && opts.whole) for (const f of WHOLE_LAYERS) skip.delete(f);
+  // opts.include: layers EXCLUDE keeps out, loaded all the same (quickshot --parts --crew: the crew layer, the seat and the pilot)
+  for (const f of (opts && opts.include) || []) skip.delete(f);
   const loaded = [], errors = [];
   for (const f of MANIFEST.editor) {
     if (skip.has(f)) continue;
@@ -116,6 +222,7 @@ function sceneBuild(spec, opts) {
   const P = opts.base ? Object.assign(JSON.parse(JSON.stringify(opts.base)), CG2.cageFromSpec(spec || null)) : CG2.cageFromSpec(spec || null);
   if (opts.over) Object.assign(P, opts.over);
   if (typeof opts.prebuild === 'function') opts.prebuild(P);
+  if (W.__wholePending) { W.__wholeOver = finishMaps(W.AEROSKIN, spec && (spec.finish || (spec.spec && spec.spec.finish))); W.__wholeP = P; }
   const built = CG2.cageSheet(P, { step: opts.step || PAGE.defaultStep || 'crease',
                                    level: opts.level == null ? 2 : opts.level });
   const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -134,6 +241,39 @@ function sceneBuild(spec, opts) {
   scene.updateMatrixWorld(true);
   return { scene, P, spec: built.spec, built, FS, ms: Date.now() - t0, errors,
            stat: stat.textContent, W };
+}
+
+// THE WHOLE AEROPLANE (QUICKSHOT-ONE), a context made with { whole: true }: the build as the garage loads it - the
+// panel's Instruments column filled from the build (CAGE_PANEL.fromSpec, the editor's load), the characters fetched
+// off the disk and the build made again once they have landed (the crew layer draws a character when its mesh is in;
+// the page rebuilds on CAGE_UI.build, here the loop waits on the fetches). Resolves to sceneBuild's record plus
+// `decals`: the livery's decal list (AEROSKIN.aeroDecalsFor, the flight's own door aeroApplySpecDecals uses) with
+// `atlas`, the soft canvas its painters drew the pages on.
+async function sceneBuildWhole(spec, opts) {
+  opts = Object.assign({ ms: true }, opts || {});
+  const W = context({ whole: true }).ctx;
+  if (!W.__wholePending) throw new Error('sceneBuildWhole: the context was made without { whole: true }');
+  let rebuilds = 0;
+  const first = sceneBuild(spec, opts);
+  W.CAGE_UI.build = () => { rebuilds++; };
+  if (W.CAGE_PANEL && W.CAGE_PANEL.fromSpec) W.CAGE_PANEL.fromSpec((spec && spec.systems) || {});
+  let r = sceneBuild(spec, opts), builds = 2;
+  for (let round = 0; round < 4 && W.__wholePending.size; round++) {
+    await Promise.allSettled([...W.__wholePending]);
+    await new Promise(res => setTimeout(res, 20));
+    r = sceneBuild(spec, opts); builds++;
+  }
+  r.rebuilds = rebuilds; r.builds = builds;
+  const A = W.AEROSKIN;
+  if (A && A.aeroDecalsFor) {
+    const D = A.aeroDecalMerge(spec), paint = (spec && spec.paint) || {};
+    const reg = (spec && spec.meta && spec.meta.reg) || (spec && spec.reg) || null;
+    try { const L = A.aeroDecalsFor(W.THREE, D, { reg, trim: paint.trim, base: paint.base });
+          r.decals = { list: L.list, dropped: L.dropped, atlas: A.aeroAtlas(W.THREE).image, rect: A.aeroPageRect, reg: reg || D.reg || 'F-PGAR' }; }
+    catch (e) { r.errors.push('decals: ' + (e && e.stack || e)); }
+  }
+  r.secPaint = (name, g, sheet) => secPaint(A, W.__wholeOver, name, g, r.P, sheet);
+  return r;
 }
 
 // a saved build file -> its cage object (the _save_check.js pattern)
@@ -170,4 +310,4 @@ function stubCanvas(opts) {
   W.__canvasStub = 1;
 }
 
-module.exports = { sceneBuild, context, loadFixture, EXCLUDE, stubCanvas };
+module.exports = { sceneBuild, sceneBuildWhole, context, loadFixture, EXCLUDE, WHOLE_LAYERS, stubCanvas };

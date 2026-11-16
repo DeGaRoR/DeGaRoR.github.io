@@ -53,12 +53,14 @@ const D = PG.GRASS_SIDES_DEF;
   ok(on.kill === 1 && side.kill === 1, "3 'sides': HOME bare on its surface and its drawn side (" + G.sideClear + ' m)', 'at ' + u.toFixed(0) + ' m along: surface ' + on.kill + ', +' + (G.sideClear * 0.5).toFixed(1) + ' m ' + side.kill);
   ok(band.kill === 0 && band.cut === 1 && mow.kill === 0 && mow.cut === 1, "3 'sides': cut grass across the 40 m band and the " + G.mowBand + ' m mow band past it', '+30 m cut ' + band.cut + ', +' + (H.band + G.mowBand - 1) + ' m cut ' + mow.cut);
   ok(!wild.cut && (wild.kill || 0) === 0, "3 'sides': wild past the blend", '+' + (H.band + G.mowBand + G.mowBlend + 2) + ' m cut ' + (wild.cut || 0));
-  const surf = q(across(S, -4)), soft = q(across(W3, 1));
+  // (16 Nov: inside tw_ski's NARROW drawn track - trackW 2.7 m from the centreline since 16 Nov, DIRT-STRIP's L40e track - so 2.5 m off it)
+  const surf = q(across(S, -6.5)), soft = q(across(W3, 1)), wildT = q(across(S, -4));
   ok(surf.kill === 0 && surf.surf === 1 && surf.cut === 1, "3 'sides': the grass strip's running surface is cut grass (surf 1)", 'tw_ski kill ' + surf.kill + ' surf ' + surf.surf);
   // (DIRT-STRIP 10 Nov, the user: "vegetation grows on the ruts") the trail's wheel lanes bare: a few tufts on a main lane (the fleet's
   //  mean half-track 1.098 m), fewer than everywhere else, the tail wheel's lane down the middle thinned less, none 5 m out
   const lane = q(across(S, -S.wid / 2 + 1.098)), mid = q(across(S, -S.wid / 2));
   ok(lane.kill > 0.7 && lane.surf === 1 && mid.kill > 0 && mid.kill < lane.kill && surf.kill === 0, "3 'sides': the grass strip's trail - its wheel lanes nearly bare, its middle thinned, cut grass beside", 'tw_ski lane ' + lane.kill.toFixed(2) + ', middle ' + mid.kill.toFixed(2) + ', 5 m out ' + surf.kill);
+  ok(G.trackW === 2.7 && !wildT.cut && !wildT.surf && (wildT.kill || 0) === 0, "3 'sides': past the narrow drawn track (trackW " + G.trackW + ' m) the trail strip grows the wild grass', 'tw_ski 5 m off the centreline: cut ' + (wildT.cut || 0) + ' surf ' + (wildT.surf || 0));
   ok(soft.kill === 0 && soft.cut === 1, "3 'sides': a soft (gravel) strip's torn edge lets the cut grass in past " + G.softClear + ' m', 'w3 +1 m kill ' + soft.kill + ' cut ' + soft.cut);
   PG.grassSides({ stripGrass: 0 }); const bare = q(across(S, -4)); PG.grassSides({ stripGrass: 1 });
   ok(bare.kill === 1 && !bare.surf, "3 'sides' with stripGrass 0: the grass strip's surface bare again (G665's answer)");
@@ -67,6 +69,33 @@ const D = PG.GRASS_SIDES_DEF;
 { const before = PG.grassSides(); const r = PG.grassSides({ law: 'jungle', mowBand: -5, nonsense: 3, sideClear: '2.5' });
   ok(r.law === before.law && r.mowBand === 0 && r.sideClear === 2.5 && !('nonsense' in r), '4 the dials: an unknown law and key refused, a negative clamped to 0, a number read');
   PG.grassSides(Object.assign({}, D)); ok(JSON.stringify(PG.grassSides()) === JSON.stringify(D), '4 back to GRASS_SIDES_DEF'); }
+
+// 5 THE LAW IS THE WHEELS' GROUND TOO (GRASS-ON-GREEN, 16 Nov; A0's audit): `hard` moves the surface (20_world giveWay), so the
+//   editor sets it through world.setGrassSides, which sim_link replays on the physics worker's world (WORLD_FNS / SIM_HOST_WORLD_FNS),
+//   and a worker's world made later takes the page's law first (worldMsg opts.grassSides -> makeWorld)
+{ PG.grassSides(Object.assign({}, D));
+  ok(typeof J.setGrassSides === 'function' && J.setGrassSides({ hard: 0 }).hard === 0 && PG.grassSides().hard === 0 && J.setGrassSides().hard === 0,
+     '5a world.setGrassSides sets and reads the premises law');
+  J.setGrassSides({ hard: 1 });
+  let pt = null; for (const a of J.aerodromes) { if (pt || a.surface == null || a.kind === 'meadow') continue;
+    for (let u = -a.len / 2; u <= a.len / 2 && !pt; u += 10) for (const v of [2, 4, 6]) { const P = across(a, v, u); if (J.marginGrassAt(P[0], P[1])) { pt = P; break; } } }
+  const sOn = pt ? J.surface(pt[0], pt[1]) : null; J.setGrassSides({ hard: 0 }); const sOff = pt ? J.surface(pt[0], pt[1]) : null, mOff = pt ? J.marginGrassAt(pt[0], pt[1]) : null; J.setGrassSides({ hard: 1 });
+  ok(pt && !mOff && sOn !== sOff, "5b a margin point's wheels' ground follows the law: given way under hard 1, the strip's gravel under hard 0", pt ? 'surface ' + sOn + ' -> ' + sOff : 'no margin point found');
+  const J0 = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.json'), 'utf8'), grassSides: { hard: 0 } });
+  ok(PG.grassSides().hard === 0 && (!pt || !J0.marginGrassAt(pt[0], pt[1])), "5c a world made with opts.grassSides (the worker's, sim_link worldMsg) takes the page's law first");
+  PG.grassSides(Object.assign({}, D));
+  const SL = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'sim_link.js'), 'utf8'), SH = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'sim_host.js'), 'utf8'), WR = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'world_rail.js'), 'utf8');
+  const fnsOf = (src, name) => { const a = src.indexOf(name + ' = ['), b = a < 0 ? -1 : src.indexOf(']', a); return a < 0 ? '' : src.slice(a, b); };
+  ok(/'setGrassSides'/.test(fnsOf(SL, 'WORLD_FNS')) && /'setGrassSides'/.test(fnsOf(SH, 'SIM_HOST_WORLD_FNS')) && /grassSides: typeof PREMISES_GEN/.test(SL),
+     "5d the worker gets it: sim_link WORLD_FNS + worldMsg, sim_host SIM_HOST_WORLD_FNS");
+  ok(!WR.includes('P.grassSides({') && !WR.includes('GSD().grassSides(d)') && /gsSet/.test(WR), "5e the editor's grass rows set the law through the world (gsSet), never PREMISES_GEN alone"); }
+
+// 6 THE PAGE HAS NO process (16 Nov, the page boot: the override line read FALSE there, +false = 0, and the page shipped hard 0 while
+//   every node gate saw 1): the override line run in a browser-like scope (window, no process) leaves the default; a set flag wins (process shadowed, so a run under FLYDIY_GRASS_HARD=0 cannot leak in)
+{ const src = fs.readFileSync(path.join(T, '..', 'src', 'core', '27_premises.js'), 'utf8'), line = src.split(/\r?\n/).find(l => l.startsWith('try {') && l.includes('FLYDIY_GRASS_HARD'));
+  const run = win => { const G = { hard: 1 }; new Function('window', 'GRASS_SIDES', 'process', line)(win, G, undefined); return G.hard; };
+  ok(!!line && run({}) === 1 && run({ FLYDIY_GRASS_HARD: 0 }) === 0 && run({ FLYDIY_GRASS_HARD: '0' }) === 0 && run({ FLYDIY_GRASS_HARD: 1 }) === 1,
+     "6 the page (no process): hard stays the default unless window.FLYDIY_GRASS_HARD is set", line ? [run({}), run({ FLYDIY_GRASS_HARD: 0 }), run({ FLYDIY_GRASS_HARD: '0' })].join(' / ') : 'no override line'); }
 
 console.log('GATE GRASSSIDES: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

@@ -212,7 +212,7 @@ function draw() {
     for (const L of (ref.lines || [])) { if (L.view !== S.view) continue; const r = 1.1 / S.zoom * (window.devicePixelRatio || 1) + 0.6;
       for (const p of L.pts) cx.fillRect(p[0] - r / 2, p[1] - r / 2, r, r); }
     const V = ref.views && ref.views[S.view];
-    if (V) { cx.strokeStyle = '#e03131'; const r = 6 / S.zoom * (window.devicePixelRatio || 1); cx.beginPath(); cx.arc(V.ox, V.oy, r, 0, 7); cx.stroke(); }
+    if (V) { cx.strokeStyle = '#e03131'; const r = 6 / S.zoom * (window.devicePixelRatio || 1); const o = V.ox != null ? C.toPx(V, 0, 0) : [V.ox, V.oy]; cx.beginPath(); cx.arc(o[0], o[1], r, 0, 7); cx.stroke(); }
   }
   $('#hint').textContent = S.placing ? 'tap the sheet to place "' + S.placing + '"' : 'drag to pan, pinch or wheel to zoom';
 }
@@ -250,7 +250,7 @@ function onTap(e) {
   if (!S.placing || S.view === 'q') return;
   const p = sheetPoint(e).map(v => +v.toFixed(1)), ref = S.doc.ref;
   const k = S.placing;
-  if (k.startsWith('origin:')) { const V = ref.views[k.slice(7)]; V.ox = p[0]; V.oy = p[1]; log('sheet', k + ' at ' + p); S.placing = null; }
+  if (k.startsWith('origin:')) { const V = ref.views[k.slice(7)]; C.placeOrigin(V, p[0], p[1]); log('sheet', k + ' at ' + p); S.placing = null; }
   else {
     const m = ref.marks[k] || (ref.marks[k] = { view: S.view, pts: [] });
     const need = /^(profile\.|window\.|wheel\.dia)/.test(k) ? 2 : 1;
@@ -325,7 +325,7 @@ function sheetHtml() {
   for (const v of C.VIEWS) {
     const V = R.views[v] || {};
     h += '<h3>' + v + '</h3><div class="kv"><div>box</div><div>' + (V.box ? V.box.join(', ') : '-') + '</div><div>origin</div><div>' + (V.ox != null ? V.ox + ', ' + V.oy : '-') + '</div>' +
-      '<div>scale</div><div>' + (V.k ? V.k.toFixed(2) + ' px / m' : '-') + ' <small style="color:var(--dim)">' + (V.scaleBy || '') + '</small></div><div>turn</div><div>' + (V.rot || 0) + ' deg' + (V.flip ? ', mirrored' : '') + '</div></div>' +
+      '<div>scale</div><div>' + (V.k ? V.k.toFixed(2) + ' px / m' : '-') + ' <small style="color:var(--dim)">' + (V.scaleBy || '') + '</small></div><div>turn</div><div>' + (V.rot || 0) + ' deg' + (V.rotAt && V.rotAt.mark ? ' about ' + V.rotAt.mark : '') + (V.flip ? ', mirrored' : '') + (V.ky && V.ky !== V.k ? ', ' + V.ky.toFixed(2) + ' px / m down' : '') + '</div></div>' +
       '<div class="btns"><button data-place="origin:' + v + '">place the origin</button></div>';
   }
   h += '<p class="note">Origin: the spinner\'s tip in the side and top views, the hub head-on. Scale: px per metre from the published figure named.</p>';

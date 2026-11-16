@@ -387,6 +387,13 @@ const GATES = [
   // static deflection at gross, a 23.725-style limit drop with no bottoming and the reserve drop, no pogo, the trailing
   // arc, a broken leg drops, the drawn leg = the physics leg through the game's load chain, nothing else moved
   { id: 'WILGAGEAR', file: '_wilga_gear_check.js', tier: 'core', weight: 1, wall: 150 },
+  // SKIS (13 Nov): the generic ski gear - absent is as today (the core before the skis, to the bit), the spec, mass /
+  // price / drag, what is drawn flies, the area sets the pressure, no brakes on straight skis, the wheel-ski's selector, the
+  // belly pod on the Carbon Cub end to end (tools/_skis_check.js; futureDesigns/SKIS-2026-11-13.md); SKISFLY the two
+  // validation planes' circuits on the powder layer (and the PC-6 on its wheels)
+  { id: 'SKIS', file: '_skis_check.js', tier: 'core', wall: 240 },
+  { id: 'SKISFLY', file: '_skis_check.js', argv: ['--fly'], tier: 'full', wall: 900 },
+  { id: 'SKISARDENT', file: '_skis_ardent.js', argv: ['--gate'], tier: 'full', wall: 1500 },   // SKIS-PC6: the PC-6 on its wheel-skis at the Ardent altiport (needs OBSERVATORY-SITE's mt_strip)
   // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
   // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
   // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round
@@ -545,6 +552,9 @@ const GATES = [
   // G585: the cover ring's rocks and debris as batches - the same instances, reach and thresholds, a draw per batch
   { id: 'COVER', file: '_cover_check.js', tier: 'core' },   // G585 the batches; G2561 the count truncation (the picture to the pixel); G2563 the grass field (tufts, lengths, colour, tiers)
   { id: 'GRASSSIDES', file: '_grass_sides_check.js', tier: 'core' },   // GRASS-DENSE G2565: the premises' grass laws by the runways ('today' unchanged, the pave half never moves, 'sides' cut / bare / wild)
+  // GRASS ON GREEN (LOOK-1 15 Nov; the user: 'everything green should get some grass'): the field grows on ground that draws green
+  // (greenOf on the ground's colour), never on a runway's kill, mud, snow or the sea - on the real ring over the fake GL
+  { id: 'GREENGRASS', file: '_greengrass_check.js', tier: 'core' },
   // G1010-G1014: the frame's WORK, counted and ratcheted - the page itself in node (dev.html's scripts, the real three on
   // a recording GL, a virtual clock): per-frame draws, uniform / buffer uploads, matrix updates, callbacks, frustum tests,
   // terrainH at the stand and the taxi (the Cub, the metal Cessna) and per boot step; tools/perf/framecost_baseline.json.
@@ -635,6 +645,9 @@ const GATES = [
   // back) — B's finish, every section's material and the marking block equal
   // a clean load of B; the pool key covers every dial
   { id: 'LIVERY', file: '_livery_check.js', tier: 'core' },
+  // LIVERY-MANAGER (the user 13 Nov): a plane's saved liveries - the cert key blind to them and seeing the paint job, a swap
+  // never moving the airframe or its masses, the library's operations, the envelope latent. ~10 s
+  { id: 'LIVERYSET', file: '_liveryset_check.js', argv: ['--selftest'], tier: 'core', wall: 30 },
   // LIVERY-TEXT (9 Nov): six text pieces a plane in six faces fetched on first use - the slots, the pages, the stand-in
   // and the arrival, no synthesised style, the official builds unchanged, the files and their licences
   { id: 'LIVERYTEXT', file: '_livery_text_check.js', tier: 'core' },
@@ -734,6 +747,8 @@ const GATES = [
   { id: 'FRAMES', file: '_frames_check.js', tier: 'core' },   // T2.1: the frames — corpus identity, locality, follow, migration, profile
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
   { id: 'DRAFTING', file: 'drafting/dt_check.js', tier: 'core', wall: 6 },   // FIT-PROCEDURE: the drafting table's own checks and the PC-6 fitted to its reference (4 s)
+  { id: 'QSPARITY', file: '_qsparity_check.js', tier: 'core', weight: 3, wall: 40 },   // QUICKSHOT-ONE 15 Nov: the table and quickshot measure the same PC-6 (frame, every key measurement, the score), --sheet writes the projection; the garage's level 2 and the load door's moves said (~15 s, three quickshot children)
+  { id: 'QSCUT', file: '_qscut_check.js', tier: 'core', weight: 1, wall: 20 },   // 16 Nov, the user: "cut views with the pilot and the controls shown": quickshot --cut side on the Cub draws the pilot, seats, controls, panel and the sheet's dash whole, the rest clipped with a section line (~13 s, one quickshot child)
   { id: 'WORKBENCH', file: '_workbench_check.js', tier: 'core', wall: 1 },   // A0 15 Nov: the workbench's rows and skills name tools that exist
   { id: 'COMMITHYGIENE', file: '_commit_hygiene.js', tier: 'core', wall: 2 },   // A0 15 Nov: no built files in source commits, HANDOVER CRs, line endings, final newlines, index chunks, the exports union
   // WINDOWS-FREE (2026-10-27): the free quad window - an unplaced quad is its rectangle, the Cub's quad rear window cut
@@ -1060,6 +1075,21 @@ const GATES = [
   // PC-6 on WHEELS - packed snow flies; deep powder and wet snow do not (the pilot rejects, full power held under 0.9 Vs: the
   // tyre's bulldozing); a ski of their class gets through (the law); the PC-6 ON SKIS flown when SKIS' fixture is in the tree
   { id: 'SNOWFLY', file: '_snowfly_check.js', tier: 'full', timeout: 1800_000, wall: 600 },
+  // SNOW-MUD (the user, 15 Nov: "small wheels should struggle more than large wheels"): the Cub's main wheels 0.15 / 0.22 /
+  // 0.30 m and 0.36 m tundra, full power from rest on grass, firm and soft mud - the mud's penalty falls as the wheel grows,
+  // the smallest is stuck in soft mud, the sinkage falls, firm mud is every wheel's ground, grass the control (~45 s)
+  { id: 'WHEELSIZE', file: '_wheelsize_check.js', tier: 'core', wall: 60 },
+  // SNOW-MUD (the user, 15 Nov: "does a large tundra wheel help on a bumpy road with stones?"): the tandem cam on a bumpy
+  // strip (30_solver: two cams a footprint apart, Schmeitz & Pacejka) - the Cub's 0.15 / 0.22 / 0.30 / 0.36 tundra wheels
+  // against the strip's own stones: the small one stops, the bigger keeps more speed and jolts less; the old point read as
+  // the self-test; flat ground the same bits; the strip's field taxied, its reads counted (~110 s)
+  { id: 'ROUGHWHEEL', file: '_roughwheel_check.js', tier: 'core', wall: 150 },
+  // SNOW-MUD LADDER (15 Nov, the user: "a mud ladder? Dirt to firm mud to soft mud as a function of the weather ... and maybe an
+  // auto setting"): the weather looks (dirt / grass / sand (weather)) on their rung off the soil's water (07f GROUND_WX) - the
+  // rungs, the island's two (Old Community, Hiking), the season's storm and its drying, the Cub on every rung bit for bit as the
+  // fixed code, the worn relief scaled on the box and nowhere else, the colour one law for the ground and its projections, the
+  // override on the worker (~65 s)
+  { id: 'MUDLADDER', file: '_mudladder_check.js', tier: 'core', wall: 120 },
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)
@@ -1187,6 +1217,12 @@ const GATES = [
   // THE MISSION PROPS (MISSIONS-PROPS): tools/_mission_gen.js - the air-race pylon, the balloon column, the ring, the marker
   // flag, the tie-down spot, the site's stages; their strike dimensions are the core's (73c MISSION_PROP_DIMS)
   { id: 'MISSIONPROPS', file: '_mission_props_check.js', tier: 'core' },
+  // MISSIONS-LIVE (13 Nov): A MISSION IN FLIGHT - src/viewer/mission_live.js over the real core with the demo pack in use:
+  // the demo gates mission flown by a scripted path (the page's frames, the tracker's 4 Hz) passes every gate in order, a
+  // missed gate reported, a strike's penalty, the rally's splits recorded, each through the stop record and careerOnStop;
+  // the drawing headless on three.js (mounted only while armed, the beacon on the next objective, the done ones hidden,
+  // gone at end); the page's wiring. ~2 s. `--selftest`: 9 doctored rules, each red
+  { id: 'MISSIONLIVE', file: '_mission_live_check.js', tier: 'core' },
   // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
   // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village
   // unmoved, the altiport and East Point by their stage); MILL-TAXI's census at every stage with the kits' solids; never

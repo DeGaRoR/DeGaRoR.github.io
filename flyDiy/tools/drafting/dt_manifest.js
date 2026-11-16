@@ -7,7 +7,7 @@
 // (tools/drafting/dt_check.js) holds this list against it, so a layer added to the game is noticed here.
 (function (root) {
   'use strict';
-  const CORE = ['00_registry.js', '01_names.js', '05_atmos.js', '60_gen_spec.js', '60b_gen_loft.js', '60c_gen_energy.js',
+  const CORE = ['00_registry.js', '01_names.js', '05_atmos.js', '32_hydro.js', '60_gen_spec.js', '60b_gen_loft.js', '60c_gen_energy.js',
     '60d_gen_pod.js', '61_gen_frame.js', '62_gen_aero.js', '62c_gear_mech.js', '63_gen_wing.js', '64_gen_build.js',
     '64b_gen_design.js', '64c_gen_aids.js', '65_gen_loadtest.js', '66_gen_cert.js', '66b_cert_rule.js']
     .map(f => 'src/core/' + f);

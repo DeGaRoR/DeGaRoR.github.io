@@ -351,6 +351,7 @@
   // steps - and the hand's write before EVERY step put its own brake back, so a parked aeroplane flown by hand rolled
   // (inline and in the worker alike). The hand's write reads the knob now, as a floor on both mains
   if (INP && INP.parkFrom) INP.parkFrom(() => !!(CK && CK.park));
+  if (INP && INP.skiFrom) INP.skiFrom(() => (sim && sim.out && typeof sim.out.ski === 'number') ? sim.out.ski : null);   // SKIS
   const scene = new THREE.Scene();
 
   // THE FAR PLANE (G401, the user: "it is unacceptable that a mountain disappears
@@ -2735,6 +2736,8 @@
   // of the very fiche the sim is running, so it must be that object and not a
   // second call to the builder.
   function buildModel(key, curDef) {
+    // SKIS: the weight the gear layer sizes a new ski for (its rows at 0: the core's pDesign rule)
+    try { if (curDef && curDef.parts && curDef.parts.designGross > 0) window.FLYDIY_LAST_GROSS = curDef.parts.designGross; } catch (e) {}
     // the generated model is never cached — the whole point is that a slider
     // rebuilds it. Everything else decodes once and is kept forever.
     if (key !== 'gen' && modelCache[key]) return modelCache[key];
@@ -3199,7 +3202,10 @@
     const gearMechTags = [];                  // RETRACT GM3: [obj, part name] - a brace's links, an actuator's body and rod
     const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
     const leverRigs = [];                     // WILGA-GEAR: the trailing-link legs' rigid parts, each on three nodes
+    const skiRigs = [];                       // SKIS: each ski rigid on its axle node, pitched about it (sim.out.skiPitch)
+    const skiLinks = [];                      // SKIS: the rigging runs, each a line from its airframe fitting to its ski's lug
     let castorRig = null;
+    const pc6Rigs = [];                       // PC6-OLEO: the PC-6 tailwheel's collar, V arms (castorTc / Tu / Tl)
     let gearSwingRig = null;                  // RETRACT-1: the swing groups (null: a fixed build, nothing moves)
     let gearMechRig = null;                   // RETRACT GM3: the one kinematics (null: an older snapshot - the swing alone)
     if (data.cage && Array.isArray(data.parts)) {
@@ -3825,6 +3831,41 @@
           grp.add(pg);
           gearMechTags.push([pg, pt.name]);
         }
+        else if (/^ski[LRT]$/.test(pt.kind)) {
+          // SKIS (13 Nov): THE SKI RIDES ITS AXLE NODE as its wheel does (drawn place + the node's travel) and turns about
+          // the axle by the solver's pitch (on the ground along the surface, in the air the rigged incidence); a wheel-ski
+          // slides by out.skiDy (its selector); the tail / nose ski rides inside the castor (below: it yaws with its wheel)
+          const u = pt.kind.slice(3), idx = u === 'T' ? nodeOf.tw : nodeOf[u === 'L' ? 'mainsL' : 'mainsR'];
+          if (idx != null) {
+            if (pg.position && pg.position.set) pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+            grp.add(pg);
+            gearTags.push([pg, u]);
+            const km = (curDef.refs.mains || []).indexOf(idx);
+            skiRigs.push({ obj: pg, idx, unit: u, k: km >= 0 ? km : 2, pivot: pt.pivot, rest0: nodeRest(idx), child: false });
+          }
+        }
+        else if (pt.kind === 'skiLink' && pt.pin && pt.tip) {
+          // SKIS: A RIGGING RUN (the front spring and cable, the aft check cable) - the G239 contract: every vertex takes its
+          // share t along the line pin -> tip of the tip's travel; the pin is on the airframe, the tip on its ski (below)
+          grp.add(pg);
+          const dx = pt.tip[0] - pt.pin[0], dy = pt.tip[1] - pt.pin[1], dz = pt.tip[2] - pt.pin[2], L2 = dx * dx + dy * dy + dz * dz || 1;
+          pg.traverse(o => {
+            if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+            const pa = o.geometry.attributes.position, base = pa.array.slice(), W = new Float32Array(pa.count);
+            for (let i = 0; i < pa.count; i++)
+              W[i] = Math.max(0, Math.min(1, ((base[i*3] - pt.pin[0]) * dx + (base[i*3+1] - pt.pin[1]) * dy + (base[i*3+2] - pt.pin[2]) * dz) / L2));
+            skiLinks.push({ posAttr: pa, base, w: W, tip: pt.tip, ski: pt.ski });
+          });
+        }
+        else if ((pt.kind === 'castorTc' || pt.kind === 'castorTu' || pt.kind === 'castorTl') && nodeOf.tw != null && pt.tab) {
+          // PC6-OLEO: a part of the PC-6 tailwheel's mechanism, posed each frame off the wheel node's travel up the
+          // strut's axis and the steering (the rig below the castor's)
+          if (pg.position && pg.position.set) pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          gearTags.push([pg, 'T']);
+          pc6Rigs.push({ obj: pg, kind: pt.kind, pivot: pt.pivot, top: pt.top, axis: pt.axis, pinAxis: pt.pinAxis, tab: pt.tab,
+                         idx: nodeOf.tw, rest0: nodeRest(nodeOf.tw) });
+        }
         else if (pt.kind === 'castorT' && nodeOf.tw != null) {
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
@@ -3856,6 +3897,11 @@
             castorRig.axle[1] - castorRig.pivot[1],
             castorRig.axle[2] - castorRig.pivot[2]);
         twWheel.child = true;              // the castor drives its position
+      }
+      // SKIS: the tail / nose ski inside the castor too (its place relative to the swivel's pivot)
+      for (const sr of skiRigs) if (sr.unit === 'T' && castorRig && castorRig.obj.add) {
+        castorRig.obj.add(sr.obj); sr.child = true;
+        sr.rel = [sr.pivot[0] - castorRig.pivot[0], sr.pivot[1] - castorRig.pivot[1], sr.pivot[2] - castorRig.pivot[2]];
       }
       // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE SWING. A retractable build's snapshot carries
       // gearSwing (_cage_join.js: per unit the hinge, the axis in the true frame, the angle); each unit's parts - the
@@ -4272,11 +4318,14 @@
                         floatRigs: floatRigs.length ? floatRigs : null,   // H2 (G389)
                         stretchRigs: stretchRigs.length ? stretchRigs : null,
                         leverRigs: leverRigs.length ? leverRigs : null,              // WILGA-GEAR
+                        skiRigs: skiRigs.length ? skiRigs : null,                    // SKIS
+                        skiLinks: skiLinks.length && skiRigs.length ? skiLinks.map(l => Object.assign(l, { rig: skiRigs.find(r => r.unit === l.ski) || null })).filter(l => l.rig) : null,
                         surfParts: surfParts.length ? surfParts : null,
                         linkRigs: linkRigs.length ? linkRigs : null,   // G239
                         ctlMoves: ctlMoves.length ? ctlMoves : null,   // G240
                         picks: picks.length ? picks : null,            // G318
                         castorRig,
+                        pc6Rigs: pc6Rigs.length ? pc6Rigs : null,     // PC6-OLEO
                         gearSwingRig,                                  // RETRACT-1
                         gearMechRig,                                   // RETRACT GM3
                         surfaces: data.surfaces,
@@ -4492,6 +4541,7 @@
     // about the CG (the tilt is a few mrad: the pivot's height moves the drawn wheels by mm)
     model.grp.matrix.premultiply(SINK_M.fromArray(groundSinkMatrix(SINK_V, cg[0], cg[1], cg[2], SINK_A)));
   }
+  let PC6Q = null;                           // PC6-OLEO: the mechanism rig's scratch quaternions and vectors
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -4831,6 +4881,33 @@
       }
       w.prev = [sim.p[i3], sim.p[i3 + 1], sim.p[i3 + 2]];
       poseRigid(w.obj);                               // G357: in the true frame
+    }
+    // SKIS: each ski on its axle node, turned about the axle by the solver's pitch (nose up +), a wheel-ski slid by its
+    // selector (out.skiDy: + lower than drawn); inside the castor the tail ski's place is its offset from the swivel
+    if (model.skiRigs) {
+      const so = sim.out || {};
+      for (const sr of model.skiRigs) {
+        if (!sr.obj.position || !sr.obj.position.set) continue;      // smoke stub
+        const dy = so.skiDy ? +so.skiDy[sr.k] || 0 : 0, ph = so.skiPitch ? +so.skiPitch[sr.k] || 0 : 0;
+        if (sr.child) sr.obj.position.set(sr.rel[0], sr.rel[1] - dy, sr.rel[2]);
+        else { const L = nodeLocal(sr.idx);
+               sr.obj.position.set(sr.pivot[0] + L[0] - sr.rest0[0], sr.pivot[1] + L[1] - sr.rest0[1] - dy, sr.pivot[2] + L[2] - sr.rest0[2]); }
+        if (sr.obj.rotation) sr.obj.rotation.z = -ph;
+        if (!sr.child) poseRigid(sr.obj);
+        sr.ph = ph; sr.dy = dy;
+      }
+      // ...and their rigging runs: the lug turned about the axle with its ski, carried by the axle node and the selector
+      if (model.skiLinks) for (const lk of model.skiLinks) {
+        const sr = lk.rig; if (!lk.posAttr || !lk.posAttr.array || sr.child) continue;
+        const L = nodeLocal(sr.idx), R9 = conjRot([0, 0, 1], -(sr.ph || 0), M9);
+        const qx = lk.tip[0] - sr.pivot[0], qy = lk.tip[1] - sr.pivot[1], qz = lk.tip[2] - sr.pivot[2];
+        const tx = R9[0] * qx + R9[1] * qy + R9[2] * qz - qx + L[0] - sr.rest0[0];
+        const ty = R9[3] * qx + R9[4] * qy + R9[5] * qz - qy + L[1] - sr.rest0[1] - (sr.dy || 0);
+        const tz = R9[6] * qx + R9[7] * qy + R9[8] * qz - qz + L[2] - sr.rest0[2];
+        const b = lk.base, o = lk.posAttr.array, W = lk.w;
+        for (let i = 0; i < W.length; i++) { o[i*3] = b[i*3] + W[i] * tx; o[i*3+1] = b[i*3+1] + W[i] * ty; o[i*3+2] = b[i*3+2] + W[i] * tz; }
+        lk.posAttr.needsUpdate = true;
+      }
     }
     // G58.3: the LEGS stretch toward their axle — each vertex moves by its
     // nearness-weight times the node's travel since rest, so the airframe
@@ -5184,6 +5261,39 @@
           c.obj.quaternion.setFromAxisAngle(vY, -sA * up);
         }
         poseRigid(c.obj);                             // G357: in the true frame
+      }
+    }
+    // PC6-OLEO: THE PC-6 TAILWHEEL'S MECHANISM. The slider (the piston, its fork, the wheel) is the castor above: the
+    // wheel node's travel and the steering. The collar turns only; the V's upper arm turns and swings on the collar's
+    // pin by phi; its lower bands ride the axle (the slider's travel), turn, and swing about it by psi - phi and psi the
+    // drawing's own table (castorUnit, the scissor solved over the stroke) at the stroke the wheel node reads: its travel
+    // up the strut's axis from the drawn, relaxed place. Every pin stays a pin at every stroke and every steering angle
+    if (model.pc6Rigs) {
+      const so = typeof sim !== 'undefined' && sim && sim.out, tst = so && so.twState ? so.twState[0] : 0;
+      const tws = (def && def.params && typeof def.params.twSteer === 'number') ? def.params.twSteer : 0.5;
+      const sA = tst === 1 && so.twAng ? so.twAng[0] : (tst === 2 || tst === 3) ? 0 : tws * (link.dr || 0);
+      const Q = PC6Q || (PC6Q = { y: new THREE.Quaternion(), r: new THREE.Quaternion(), a: new THREE.Vector3(), b: new THREE.Vector3(), o: new THREE.Vector3() });
+      for (const r of model.pc6Rigs) {
+        if (!r.obj.position || !r.obj.quaternion) continue;
+        const L = nodeLocal(r.idx), d = [L[0] - r.rest0[0], L[1] - r.rest0[1], L[2] - r.rest0[2]];
+        const up = r.axis[1] < 0 ? -1 : 1;
+        const comp = Math.max(0, (d[0] * r.axis[0] + d[1] * r.axis[1] + d[2] * r.axis[2]) * up);   // the travel up the strut (its axis points down)
+        const tb = r.tab, n = tb.comp.length - 1, cM = tb.comp[n] || 1e-9, f = Math.min(n, Math.max(0, comp / cM * n));
+        const i0 = Math.min(n - 1, Math.floor(f)), w = f - i0, lerp = A => A[i0] + (A[i0 + 1] - A[i0]) * w;
+        Q.a.set(r.axis[0], r.axis[1], r.axis[2]);
+        Q.y.setFromAxisAngle(Q.a, -sA * up);
+        // the part's place: the collar and the arm at their pivots turned about the strut with the steering; the bands at
+        // the relaxed axle turned likewise, then carried with the wheel's travel
+        Q.o.set(r.pivot[0] - r.top[0], r.pivot[1] - r.top[1], r.pivot[2] - r.top[2]).applyQuaternion(Q.y);
+        const carry = r.kind === 'castorTl';
+        r.obj.position.set(r.top[0] + Q.o.x + (carry ? d[0] : 0), r.top[1] + Q.o.y + (carry ? d[1] : 0), r.top[2] + Q.o.z + (carry ? d[2] : 0));
+        if (r.kind === 'castorTc') r.obj.quaternion.copy(Q.y);
+        else {
+          Q.b.set(r.pinAxis[0], r.pinAxis[1], r.pinAxis[2]);
+          Q.r.setFromAxisAngle(Q.b, lerp(r.kind === 'castorTu' ? tb.phi : tb.psi));
+          r.obj.quaternion.copy(Q.y).multiply(Q.r);
+        }
+        poseRigid(r.obj);
       }
     }
     { const oB = [O[0] + oR[0], O[1] + oR[1], oR[2]];
@@ -8096,7 +8206,7 @@
   let dustFx = null;
   // (SNOW-MUD, 13 Nov: dust.js's soft classes - 8 packed snow, 9 powder, 10 wet snow (slush), 11-12 mud; the pavement's
   // snow and mud looks name one class for their three / two kinds, so under them the SURFACE code decides - DUST_BY_CODE)
-  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand', 'snow', 'powder', 'slush', 'mud', 'mud'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
+  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand', 'snow', 'powder', 'slush', 'mud', 'mud', 'grass', 'sand'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none; LADDER 13 wet grass, 14 wet sand - their water damps them, env.wet)
   const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4, mud: 5, snow: 6, powder: 7, slush: 8 };
   const DUST_BY_CODE = { snow: 1, mud: 1 };   // the pavement classes whose dust class is the surface code's
   const DUST_GROUND = ['dirt', 'sand', 'gravel', 'dirt', null, 'mud', 'snow', 'snow', null];   // a dust class -> the pavement surface whose colour it takes
@@ -8104,8 +8214,13 @@
   // pavement (PAVEMENT.setSoilWet: one shared uniform - the strip's damp tint and its drawn puddles) and to the dust (the same
   // R: the water drawn is the water splashed in). Runs with the dust off too (?dust=0 is the dust's lever, not the puddles').
   let soilNow = null;
+  // (SNOW-MUD LADDER) ?ground=dry|firm|soft holds every weather strip on a rung from the boot (the weather panel's 'the ground' row)
+  let groundQ = (() => { try { const m = /[?&]ground=(dry|firm|soft)\b/.exec(location.search || ''); return m ? m[1] : null; } catch (e) { return null; } })();
   function soilFrame() {
-    soilNow = typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null;
+    if (groundQ && world && world.setGround) { world.setGround(groundQ); groundQ = null; }
+    // (SNOW-MUD LADDER: the world's own read - SOIL_WET at the day, or the ground's dev override world.setGround - one soil for
+    // the wheels' rung, the drawn ground, the dust and the puddles)
+    soilNow = world && typeof world.soilNow === 'function' ? world.soilNow() : (typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null);
     if (soilNow && typeof PAVEMENT !== 'undefined' && PAVEMENT.setSoilWet) PAVEMENT.setSoilWet(soilNow.wet);
   }
   // SNOW-MUD FINISH: THE MUD COAT (aeroweather.js aeroMudStep / aeroWxSetMud): the flight's own - it builds while the mains
@@ -8140,6 +8255,8 @@
       groundH: (x, z) => groundH(x, z),
       wind: () => LKW(),
       cls(x, z) {
+        // (SNOW-MUD LADDER: a weather dirt strip on a mud rung throws MUD - its pavement says 'dirt', its ground says 11 / 12)
+        if (world && world.surface) { const sc = world.surface(x, z); if (sc === 11 || sc === 12) return DUST_CLS.mud; }
         const O = world && world.premises && world.premises.overlay;
         const q = O && O.pavedAt ? O.pavedAt(x, z, 0) : null;
         if (q && q.cls != null && DUST_CLS[q.cls] != null && !DUST_BY_CODE[q.cls]) return DUST_CLS[q.cls];
@@ -8219,6 +8336,13 @@
     // the dust is its ground's colour (the user, 10 Nov): the drawn surface of each class (a grass strip's dust is the soil
     // under it: dirt's), memoised in the pavement - five map reads a frame while a cloud lives
     if (typeof PAVEMENT !== 'undefined' && PAVEMENT.surfaceColor && F.draw.setGround && DUST.LOOK.ground) for (let ci = 0; ci < DUST_GROUND.length; ci++) if (DUST_GROUND[ci]) F.draw.setGround(ci, PAVEMENT.surfaceColor(DUST_GROUND[ci]));
+    // SNOW-MUD LADDER (15 Nov, the user: "match the color of the projections to what we are doing here, so to unify these two
+    // systems"): on a WEATHER strip the ground's drawn colour is its rung's (PAVEMENT.groundWxColor - darker with its water, a
+    // dirt toward the mud's own) and what the wheels throw off it is that colour: its class's dust, and the mud a mud rung throws
+    if (PAVEMENT.groundWxColor && F.draw.setGround && DUST.LOOK.ground && world && world.wxAt && sim) {
+      const c = sim.cgPos ? sim.cgPos() : null, W = c ? world.wxAt(c[0], c[2]) : null;
+      if (W) { const col = PAVEMENT.groundWxColor(W.cls, W); if (col) { if (DUST_CLS[W.cls] != null) F.draw.setGround(DUST_CLS[W.cls], col); if (W.cls === 'dirt') F.draw.setGround(DUST_CLS.mud, col); } }
+    }
     camera.updateMatrixWorld();
     F.draw.sync(camera, L);
     F.ms = performance.now() - t0;
@@ -9239,9 +9363,18 @@
     }
     gearHandSeen = h;
   }
+  // SKIS: THE WHEEL-SKIS' KEY UNDER THE AUTOPILOT - the same rule as the gear's: a press flips them from where they are
+  let skiHandSeen = null;
+  function skiKeyUnderAP() {
+    if (manual || !INP || typeof INP.ski !== 'function' || !sim.ctl || !('ski' in sim.ctl)) { skiHandSeen = null; return; }
+    const h = INP.ski();
+    if (skiHandSeen !== null && h !== skiHandSeen) sim.ctl.ski = h === null ? null : h;
+    skiHandSeen = h;
+  }
   function scriptView(dt) {
     if (!started) { setRail(null); return; }
     gearKeyUnderAP();
+    skiKeyUnderAP();
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
@@ -10121,11 +10254,75 @@
     try { const cv = doc && doc.career && world ? careerSkyCover(world.day) : undefined; if (typeof cv === 'number') doc.career.cover = Math.round(cv * 100) / 100; } catch (e) {}
     return doc;
   }
-  function careerFlightStart() { crOver = []; careerPlateSync(); }
+  function careerFlightStart() { crOver = []; careerPlateSync(); missionLiveArm(); }
   function careerFrame(cg) {
     if (!started || inGarage || !cg) return;
     try { careerOverflewAdd(world, cg[0], cg[2], crOver); } catch (e) {}
     if (crPlateEl && !crPlateEl.hidden) careerLegSync();
+    if (MSL.on) missionLiveFrame(cg);
+  }
+  // ---- MISSIONS-LIVE (13 Nov): A MISSION IN FLIGHT - the tracker fed, the gates / rings / points drawn ----------------
+  // At each departure (the roll-out, a chained leg, a restart) an accepted contract whose places 73c can track or draw
+  // arms src/viewer/mission_live.js (lazy: fetched with tools/_mission_gen.js the first time; never for a career with
+  // no such mission, never in the sandbox): one tracker per contract (missionTrackNew, the aeroplane's half-span its
+  // reach), its markers as static props in the world, the next one under a beacon with a screen-edge arrow, the lap's
+  // timer and splits on the flight layer. careerFrame feeds it every frame and it samples at MISSION_LIVE.RATE (4 Hz;
+  // the core tests the whole segment); its evidence, the spot, the spec, the occupants, the people ride the stop record
+  // (careerStopApply). Nothing is armed, drawn or allocated when no mission runs (MSL.on false: one boolean a frame).
+  const MSL = { on: false, gen: 0, departH: null };
+  function missionLiveWanted(d) {
+    const C = d && d.career && d.career.contracts;
+    if (!C || typeof careerContract !== 'function' || typeof contractSubsOf !== 'function') return false;
+    return (C.accepted || []).some(id => { const r = careerContract(d, id); return r && contractSubsOf(r).some(s => s && s.place && typeof s.place === 'object'); });
+  }
+  function missionLiveArm() {
+    const gen = ++MSL.gen;
+    MSL.on = false;
+    if (window.MISSION_LIVE) window.MISSION_LIVE.end();
+    MSL.departH = world && world.day && world.day.localSeconds != null ? world.day.localSeconds / 3600 : null;
+    if (!CAREER_DEV) return;
+    const d = playerLoad();
+    if (!missionLiveWanted(d)) return;
+    const L = window.FLYDIY_LAZY ? window.FLYDIY_LAZY(['_mission_gen', 'mission_live']) : Promise.resolve();
+    Promise.resolve(L).then(() => {
+      if (gen !== MSL.gen || !window.MISSION_LIVE || inGarage) return;
+      const ML = window.MISSION_LIVE, F = flSlot && playerLoad().fleet[flSlot], half = F && F.foot && F.foot.half;
+      const n = ML.arm(playerLoad(), { reach: half, fields: typeof CONTRACT_FIELDS !== 'undefined' ? CONTRACT_FIELDS : null,
+                                       spots: window.FLEET_SPOTS_PACK && window.FLEET_SPOTS_PACK.aero, from: fromId });
+      if (!n) return;
+      ML.mount(scene, { THREE, ground: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : 0), ui: document.getElementById('ui') });
+      MSL.on = true;
+    }).catch(e => console.warn('flyDiy (missions): the mission tracker did not start -', e && e.message));
+  }
+  function missionLiveEnd() { MSL.gen++; MSL.on = false; if (window.MISSION_LIVE) window.MISSION_LIVE.end(); }
+  function missionLiveFrame(cg) {
+    const ML = window.MISSION_LIVE, t = ap ? ap.t : 0;
+    if (ML.due(t)) {
+      const ev = ML.tick(t, cg[0], cg[1], cg[2], cg[1] - surfH(cg[0], cg[2]));
+      if (ev) for (const e of ev) if (e.k === 'photo') try { window.dispatchEvent(new CustomEvent('flydiy:shutter', { detail: { at: Date.now(), mission: e.id } })); } catch (x) {}
+    }
+    ML.frame(camera, performance.now());
+  }
+  // the tie-down spot the aeroplane stopped on ('<aero>:<spot id>'; 25_ fleetSpotDist <= 0 over FLEET_SPOT_FOOT), or null
+  function missionLiveSpot(aero, x, z) {
+    const P = window.FLEET_SPOTS_PACK, list = aero && P && P.aero && P.aero[aero];
+    if (!list || typeof fleetSpotDist !== 'function' || typeof FLEET_SPOT_FOOT === 'undefined') return null;
+    for (const q of list) if (fleetSpotDist({ x: q[0], z: q[1], ry: q[2], half: FLEET_SPOT_FOOT.half, fwd: FLEET_SPOT_FOOT.fwd, aft: FLEET_SPOT_FOOT.aft }, x, z) <= 0) return aero + ':' + q[3];
+    return null;
+  }
+  // what the flight hands the stop record for the missions (careerStopRecord's MISSIONS-P1..P3 keys; only those it has)
+  function missionLiveStop(how, aeroId, cg) {
+    const out = {};
+    const ML = MSL.on && window.MISSION_LIVE;
+    const tr = ML ? ML.evidence() : null;
+    if (tr) out.tracks = tr;
+    if (how === 'stopped' && aeroId && cg) { const sp = missionLiveSpot(aeroId, cg[0], cg[2]); if (sp) out.spot = sp; }
+    if (def && def.spec) out.spec = def.spec;
+    const occ = (() => { try { return occNow(); } catch (e) { return null; } })();
+    if (Array.isArray(occ)) out.occ = occ;
+    if (ML) { const on = ML.aboard(); if (on.length) out.people = { on, off: how === 'stopped' && aeroId ? on : [] }; }
+    if (MSL.departH != null) out.departHour = MSL.departH;
+    return out;
   }
   const careerCargo = () => {
     // G2345 (FREIGHT-LOAD): the accepted placement rides this airframe -> its kilos (the items are the stop's load)
@@ -10162,7 +10359,10 @@
       // G2665 (NIGHT-OPS): every time-of-day window is judged on the day's own almanac (in June dusk is 22:29, in
       // December ~16:40), not the 19.5 h constant - SIM-CLOCK's recommendation (G2653)
       ...careerDuskDawn(),
+      // MISSIONS-LIVE: the flight's mission evidence (the tracks, the spot, the spec, the seats' bands, the people)
+      ...missionLiveStop(how, W && flightCanDepart(W) ? W.aero.id : null, sim.cgPos()),
     });
+    missionLiveEnd();     // the next leg (Fly on) or roll-out arms it again off the document this stop moved
     const hook = careerAcceptHook(crit => (window.ACCEPT_REC ? window.ACCEPT_REC.verdict(crit) : null));
     const res = careerOnStop(d, stop, { acceptVerdict: hook });
     if (res.doc && typeof freightLoadSettle === 'function') res.doc = freightLoadSettle(res.doc);   // G2345: a delivered load leaves the record
@@ -14633,6 +14833,7 @@
   }
   function enterGarage() {
     crowdStop(false);                  // G2970: the stand's passengers seated, the start that waited on them dropped
+    if (CAREER_DEV) missionLiveEnd();  // MISSIONS-LIVE: nothing tracked, nothing drawn in the shed
     parkedFlush();
     // G1490 (HYBRID-TRIPS): the flown model back AT REST on its bake - the hybrid's t is the flight's, and a model left in
     // the band met the shed and the next roll-out shot on programs keyed in no compile (a 5.2 s link) - flown_bake.js rest
@@ -15917,12 +16118,13 @@
     const bR = $('bootRoute');
     if (bR) { bR.hidden = false; if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); }
     const steps = plan.map(s => ({ id: s.id, label: s.label, w: s.w, fn: () => tripRun(s, t) }));
+    startLoop();   // BOOT-LOOP-GUARD: shown over a garage boot that never reached 'first light', nothing else starts it
     BOOT.show('rollout', { steps, set: 'rollout', require: [], landingLabel: 'the last pieces', idle: 20000, hard: 90000, quietFrames: 1,
-      done: () => {
+      done: loopDone(() => {
         // the steps the plan left out, logged as skipped (in their order, after the ones that ran)
         for (const s of TRIP_STEPS) if (s.part === part && !t.steps.some(r => r.id === s.id)) t.steps.push({ id: s.id, ran: false, key: tripNeed(s, t.ran).key, why: 'same' });
         holdRender = false; rollHold = false; if (PK) { PK.async = false; parkedFlush(); } if (bR) bR.hidden = true; done();
-      },
+      }),
       probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) });
   }
   function needsRollOutScreen() {
@@ -15957,7 +16159,7 @@
     // B9: the way back is logged with the trips (GATE ROUNDTRIP: it stays instant, and nothing of the world runs in it)
     const trip = tripOpen('rollin');
     for (const s of steps) { const fn = s.fn; s.fn = () => { trip.steps.push({ id: s.id, ran: true }); return fn(); }; }
-    BOOT.show('garage', { steps, set: 'garage', deck: 'rollin', require: [], landingLabel: 'the last pieces', done: () => { tripClose(trip); if (after) after(); }, idle: 20000, hard: 60000, quietFrames: 1 });
+    BOOT.show('garage', { steps, set: 'garage', deck: 'rollin', require: [], landingLabel: 'the last pieces', done: loopDone(() => { tripClose(trip); if (after) after(); }), idle: 20000, hard: 60000, quietFrames: 1 });
   }
   // G640: A SETTINGS CHANGE HAS A SCREEN TOO (the 2026-09-26 playtest: "progress bars for every loading
   // screen ... This includes possible setting changes"). A graphics row that re-keys the lit programs
@@ -15993,7 +16195,7 @@
           .then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }) },   // G732 (G1998e: the clouds' march, a cloud row may have rebuilt it)
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
-      done: () => { holdRender = false; if (held && !inGarage) running = true; if (garage) setTimeout(worldPrelinkGfx, 0); }, idle: 20000, hard: 90000, quietFrames: 1 });   // (REVEAL: the world's link starts in the shed)
+      done: loopDone(() => { holdRender = false; if (held && !inGarage) running = true; if (garage) setTimeout(worldPrelinkGfx, 0); }), idle: 20000, hard: 90000, quietFrames: 1 });   // (REVEAL: the world's link starts in the shed)
   }
   if (typeof window !== 'undefined') { window.FLYDIY_SETTLE = settleScreen; window.FLYDIY_SETTLE.warmViews = worldViewWarmDraw; }
   // every texture a material of the scene holds (its uniforms' too), the environment and the background, sent to the
@@ -16041,6 +16243,10 @@
     // own done callback starts the flight when it lifts
     if (rollAnimSkip) { rollAnimSkip(); return; }   // B9: a press over the roll-out animation skips it
     if (perfNow() < rollAnimSwallow) return;        // G1027: ...and the click of the press that skipped it is not a start
+    // BOOT-LOOP-GUARD (15 Nov): no Go while a loading screen is up - Tab reached this button behind the boot's cover and Enter
+    // rolled out under it (the garage chain superseded before 'first light': no loop, nothing drawn). #edRoll calls this same
+    // handler; the setup screen's own Fly is #bootFly
+    if (typeof BOOT !== 'undefined' && BOOT.state && BOOT.state !== 'gone') return;
     if (rollHold) return;
     if (CRW.after) { crowdStop(true); return; }   // G2970: a press while the passengers board seats them all and starts
     // G700: ...AND AFTER A LANDING IT FLIES ON FROM WHERE THE AEROPLANE STANDS (the playtest: "Fly on" reloaded -
@@ -16114,6 +16320,7 @@
     if (started && flSlot && !flEnded) playerFlightEnd('abandoned');
     flEnded = false; flLastEnd = null;
     sim.reset(0); ap = mkPilot(curKey); applyRoute(); started = false; running = true;
+    if (CAREER_DEV) missionLiveArm();   // MISSIONS-LIVE: a restart flies the objectives again from the start
     // REVIEW 2026-10-04 (A8): a diverged sim left the chase camera's yaw-rate filter and azimuth at NaN, and only the
     // garage roll-out reveal ever rewrote them - "Fly again" after a crash placed the eye at (NaN, NaN, NaN)
     flYawRate = 0;
@@ -16883,6 +17090,7 @@
       // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
       flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
       flEnded = false; flLastEnd = null;   // PREM-S2: a new leg ends (and moves the airframe) on its own
+      if (CAREER_DEV) missionLiveArm();     // MISSIONS-LIVE: the next leg's objectives (the stop moved the document)
       if (CAREER_DEV) careerCertWarn(true);   // CERT-GATES: the next leg says it too
     }
     flNextLeg = nextLeg;
@@ -21008,6 +21216,19 @@
   // no frame ever drawn. The boot's done() starts it too.
   let loopOn = false;
   function startLoop() { if (loopOn) return; loopOn = true; loop(); }
+  // BOOT-LOOP-GUARD (15 Nov 2026, DIRT-STRIP's census on the box): a screen shown while the garage boot was still up (a Go under
+  // its cover: Tab reaches #bGo behind it, Enter presses it; a rig's click) superseded that chain before 'first light' (G640: a
+  // newer run owns the chain) and replaced its done() (BOOT.show sets B.opt): neither of the loop's two starts ran - the roll-out's
+  // frames never came ('nothing landed for 20 s'), and the page drew nothing, ever. Now every screen the app shows starts the
+  // loop as it opens, and every done() starts it last even when something before it throws (said once, loudly; boot.js logs it too).
+  let loopGuardSaid = false;
+  function loopDone(f) {
+    return function () {
+      try { return f.apply(this, arguments); }
+      catch (e) { if (!loopGuardSaid) { loopGuardSaid = true; console.error('flyDiy: a loading screen done() threw - the loop starts anyway (BOOT-LOOP-GUARD):', e); } throw e; }
+      finally { startLoop(); }
+    };
+  }
   function loop(ts) {
     requestAnimationFrame(loop);
     POSE_LERP.back();                  // G1100: a frame that threw between the swap and its restore leaves nothing drawn behind
@@ -22173,7 +22394,7 @@
   // the first frame renders UNDER the overlay: this is where the shaders
   // compile, and the frames after it are where the late landings re-bake
   bootStep('firstFrame', 'first light', 10, () => {
-    hud(); startLoop();
+    try { hud(); } finally { startLoop(); }   // BOOT-LOOP-GUARD
     // G441: the see-through programs, after the room is up. G1027 (B8B9 on train 14): UNDER THE SCREEN, a task after first
     // light, not on a 1.5 s timer - "no background loading in the garage" (B9), and the timer fired into the first
     // roll-out's shot when Roll out came quickly (22 links counted in roll-out 1 by the page in node)
@@ -22253,11 +22474,14 @@
     try { went = !!startTestFlight(c ? { alt: c.alt || null, V: c.V || null, fp: c.fp || null } : null); } catch (e) { console.warn('flyDiy: the test flight could not start -', e && e.message); }
     window.FLYDIY_PHONE_FLY = { started: went, card: c, at: Date.now() };
   }
+  // BOOT-LOOP-GUARD: the app's own layers behind the boot's cover, inert while it is up (no Tab reaches them); the welcome (90),
+  // the dev tools and the setup panel (inside #boot) are not among them
+  if (typeof BOOT.setUnder === 'function') BOOT.setUnder(['ui', 'wsUI', 'edInfo', 'edInfoTab', 'edWrap', 'edView', 'ctlPanel']);
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
-    done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
+    done: loopDone(() => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
       if (SIMW) SIMW.prewarm(); startLoop();
       if (PHONE_FLY) setTimeout(phoneFlyGo, 0);   // G3791: the phone's test flight rolls out as the screen lifts
-      if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); },   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
+      if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); }),   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) };

@@ -101,7 +101,9 @@ const A1 = certified(arch), LA = ledger(A1.def0);
   const box = (() => { const k = HANG.boxK; HANG.boxK = 1; const kg = HANG.hubKg; HANG.hubKg = 0;
     try { return ledger(C.buildGen(born('archaeopteryx'))).bracing; } finally { HANG.boxK = k; HANG.hubKg = kg; } })();
   const LS = ledger(C.buildGen(born('archaeopteryx', { s1Ul: 0 })));
-  ok(LA.fuselage < 0.2 * LC.fuselage, `B the pod on the soft shell ${r1(LA.fuselage)} kg against its moulded carbon's ${r1(LC.fuselage)}`);
+  // (REAL-CANON 15 Nov, the user: the drawn pod - RUCKUS's rod-boom profile, f9818c3b2 - is smaller: the carbon 24.5 -> 17.8 kg,
+  // the soft shell 4.4 -> 3.8 (its fittings do not shrink with it); the claim, a fraction of the moulded carbon, at a quarter)
+  ok(LA.fuselage < 0.25 * LC.fuselage, `B the pod on the soft shell ${r1(LA.fuselage)} kg against its moulded carbon's ${r1(LC.fuselage)}`);
   ok(LA.bracing < 0.5 * box, `B the carry-through on the hub ${r1(LA.bracing)} kg (the fitting ${HANG.hubKg} + the box at ${HANG.boxK}) against the box billed whole ${r1(box)}`);
   ok(LA.gear < 0.6 * LS.gear, `B the gear on the ultralight monowheel ${r1(LA.gear)} kg against the standard monowheel's ${r1(LS.gear)}`);
   ok(LA.empty < 95, `B the Archaeopteryx empty ${r1(LA.empty)} kg (L7 118.7)`); }
@@ -116,7 +118,10 @@ console.log('C. IT STANDS AND HOLDS');
 
 console.log('D. THE MAST IS WHAT CARRIES IT');
 { const free = certified(born('archaeopteryx', { hangOn: 0 })), p = ground(free.def, 0, 10);
-  ok(p.finite && p.yields > 0 && p.sagCm > ground.archSag + 3,
+  // (REAL-CANON 15 Nov, the user: the Archaeopteryx flies its own drawn pod - RUCKUS's rod-boom profile in the join,
+  // f9818c3b2 -, a smaller, stiffer pod: off the mast 3.4 cm against 1.4 on it; on the stale profile 6.4 against 0.8. The
+  // bound was "3 cm more"; the claim is the mast carries it: off it the wing sinks more than twice as far, and 1.5 cm more)
+  ok(p.finite && p.yields > 0 && p.sagCm > 2 * ground.archSag && p.sagCm > ground.archSag + 1.5,
      `D without the mast (the wing on the poles) parked 10 s: ${p.yields} yields, ${p.breaks} broken, the wing sinks ${r1(p.sagCm)} cm (on the mast ${r1(ground.archSag)})`); }
 
 console.log('E. HEAVIER AEROPLANES COME DOWN AT REST');

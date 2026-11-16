@@ -618,7 +618,12 @@
   }
   // STORY-1 (the user 29 Oct): html.fdBoot while the screen is up - style.css holds the game's layers above it until the
   // reveal (Tim's band, the pills, the corner); the page's start is the first screen, so the class is on from here
-  const upCls = on => { try { if (HAS_UI && doc.documentElement && doc.documentElement.classList) doc.documentElement.classList.toggle('fdBoot', !!on); } catch (e) {} };
+  // BOOT-LOOP-GUARD (15 Nov): the app's layers BEHIND the cover (B.under, named by the app) are inert while it is up: a Tab
+  // reached #bGo behind it and Enter rolled out under the boot. Set as the cover goes up and comes down (upCls)
+  B.under = [];
+  const underSync = on => { try { for (const id of B.under) { const e = $(id); if (e) e.inert = !!on; } } catch (e) {} };
+  B.setUnder = ids => { B.under = (ids || []).slice(); underSync(B.state !== 'gone' && !!(doc.documentElement && doc.documentElement.classList && doc.documentElement.classList.contains('fdBoot'))); };
+  const upCls = on => { try { if (HAS_UI && doc.documentElement && doc.documentElement.classList) doc.documentElement.classList.toggle('fdBoot', !!on); } catch (e) {} underSync(on); };
   function hide() {
     rec('gone'); const b = $('boot'); B.state = 'gone'; B._hold = false; shaders(null); upCls(false);
     if (HAS_UI) { const t = now(); setBar(shown(t), 1, 250, t); text('bootPct', '100 %'); }

@@ -12,7 +12,7 @@
 //   --deadline <s> (stop shooting after that many seconds, keep what is shot); files <strip>_<view>[_fc|_wet].png
 //        [--views along,quarter,top,close,back] [--hour golden] [--size 1600x900] [--port 8547] [--js "<page statements>"]
 //
-// The views (the strip's own frame: u along from end 0, n across; the orbit is FLIGHT_PROBE.camSet(az, el, dist), the
+// The views (the strip's own frame: u along from end 0, n across; the orbit is __eyeOrbit(az, el, dist), the
 // camera at target + dist (cos el cos az, sin el, cos el sin az)):
 //   along    the Cub 30 m in, 3 m off the centreline; the eye behind it, low, down the strip
 //   quarter  the same place, a three-quarter view from 30 m up and back
@@ -93,6 +93,22 @@ const HOLD = (at, agl) => `(async () => {
   // SETTLE (the tail comes down): run ~1.5 s, then pause again
   if (${SETTLE}) { const tg = () => document.getElementById('bPause').click(); tg(); await new Promise(r => setTimeout(r, ${SETTLE})); tg(); }
   return JSON.stringify(s.cgPos().map(v => Math.round(v * 10) / 10)); })()`;
+// (14 Nov: the Saturday stills - no FLYDIY_AA frame at all: the loop draws nothing while uiHold (the new-plane panel, the
+// plane fiche's studio) or holdRender; a seeded build may open the panel under the rig's hidden UI) - closed / released before each grab
+const UNHOLD = "(()=>{ const s = []; try { if (window.NEW_PLANE && NEW_PLANE.isOpen && NEW_PLANE.isOpen()) { NEW_PLANE.close(); s.push('new-plane closed'); } } catch (e) { s.push('np ' + e.message); } try { if (window.FLYDIY_UI_HOLD) FLYDIY_UI_HOLD(false); } catch (e) {} return s.join(', '); })()";
+const COUNT = "new Promise(res => { const R = (window.WORLD && WORLD.renderer) || (window.FLIGHT_PROBE && FLIGHT_PROBE.renderer && FLIGHT_PROBE.renderer()); const AA = window.FLYDIY_AA; let nr = 0, na = 0; const f0 = R && R.info ? R.info.render.frame : -1; const names = {}, errs = []; const oRAF = window.requestAnimationFrame; window.requestAnimationFrame = function (cb) { const k = (cb && cb.name) || 'anon'; names[k] = (names[k] || 0) + 1; return oRAF.call(window, cb); }; const onE = e => { if (errs.length < 3) errs.push(String(e.message || e.reason || e).slice(0, 160)); }; window.addEventListener('error', onE); window.addEventListener('unhandledrejection', onE); const oR = R && R.render, oA = AA && AA.render; if (R) R.render = function () { nr++; return oR.apply(this, arguments); }; if (AA) AA.render = function () { na++; return oA.apply(this, arguments); }; setTimeout(() => { if (R) R.render = oR; if (AA) AA.render = oA; window.requestAnimationFrame = oRAF; window.removeEventListener('error', onE); window.removeEventListener('unhandledrejection', onE); const P = window.FLYDIY_PACE; let p = null; try { p = P && (P.state ? P.state() : Object.keys(P).join('/')); } catch (e) { p = e.message; } res(JSON.stringify({ infoFrameDelta: R && R.info ? R.info.render.frame - f0 : null, rafCallbacks: names, errors: errs, rendererRender: nr, aaRender: na, R: !!R, AA: !!AA, sameR: !!(AA && AA.renderer && AA.renderer === R), pace: p, running: window.FLYDIY_HOLDS && FLYDIY_HOLDS().running, held: window.FLYDIY_HELD })); }, 1000); })";
+const HOLDWAIT = "new Promise(res => { const t0 = Date.now(); const k = () => { let h = null; try { h = window.FLYDIY_HOLDS && FLYDIY_HOLDS(); } catch (e) {} if (!h || !h.holdRender || Date.now() - t0 > 25000) res((h && h.holdRender ? 'still held ' : 'clear ') + ((Date.now() - t0) / 1000).toFixed(1) + ' s'); else setTimeout(k, 250); }; k(); })";
+const WHY = "new Promise(res => { let n = 0; let on = true; const whyF = () => { n++; if (on) requestAnimationFrame(whyF); }; requestAnimationFrame(whyF); setTimeout(() => { on = false; let h = null; try { h = window.FLYDIY_HOLDS ? FLYDIY_HOLDS() : 'none'; } catch (e) { h = 'err ' + e.message; } res(JSON.stringify({ np: !!(window.NEW_PLANE && NEW_PLANE.isOpen && NEW_PLANE.isOpen()), boot: window.BOOT && BOOT.state, body: document.body.className, html: document.documentElement.className, ph: ((document.getElementById('phName')||{}).textContent||'').trim(), fiche: !!document.querySelector('.pfOn,.fiche.on,[data-fiche-open]'), holds: h, vis: document.visibilityState, focus: document.hasFocus(), raf1s: n, rafSince: window.__raf || null, bootRec: (window.BOOT && BOOT.log ? BOOT.log.filter(e => /^(step|error|fail|gone|landing|ready|waiting|hold|go|frame1|show)$/.test(e.k)).slice(-60).map(e => e.k + (e.id ? ':' + e.id : '') + (e.msg ? '!' + String(e.msg).slice(0, 120) : '') + (e.reason ? '!' + e.reason : '') + '@' + e.t) : null), bootLog: window.__bootLog || null, now: Math.round(performance.now()) })); }, 1000); })";
+// one frame read from the default framebuffer right after the game's own FLYDIY_AA.render (LOOK-1's t51 way), as a PNG (base64)
+const GRAB = `new Promise((res, rej) => { const R = (window.WORLD && WORLD.renderer) || (window.FLIGHT_PROBE && FLIGHT_PROBE.renderer && FLIGHT_PROBE.renderer()), AA = window.FLYDIY_AA; if (!R || !AA || !AA.render) return rej(new Error('no WORLD.renderer / FLYDIY_AA'));
+  const gl = R.getContext(), orig = AA.render; let done = false;
+  AA.render = function () { const r = orig.apply(this, arguments); if (done) return r; done = true; AA.render = orig;
+    try { const c = R.domElement, w = c.width, h = c.height, px = new Uint8Array(w * h * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      const k = document.createElement('canvas'); k.width = w; k.height = h; const x = k.getContext('2d'), im = x.createImageData(w, h), D = im.data;
+      for (let y = 0; y < h; y++) { const so = (h - 1 - y) * w * 4, d = y * w * 4; for (let i = 0; i < w * 4; i += 4) { D[d + i] = px[so + i]; D[d + i + 1] = px[so + i + 1]; D[d + i + 2] = px[so + i + 2]; D[d + i + 3] = 255; } }
+      x.putImageData(im, 0, 0); res(k.toDataURL('image/png').split(',')[1]); } catch (e) { rej(e); }
+    return r; };
+  setTimeout(() => { if (!done) { done = true; AA.render = orig; rej(new Error('no FLYDIY_AA frame in 5 s')); } }, 5000); })`;
 const FRAMES = n => `new Promise(r => { let k = 0; const f = () => { if (++k >= ${n}) r(k); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 
 async function runPage(page) {
@@ -112,19 +128,31 @@ async function runPage(page) {
       if (m.method === 'Runtime.exceptionThrown') console.log('  page exception: ' + String((m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description) || m.params.exceptionDetails.text).split('\n')[0]);
       // a shader that does not compile is a console.error (three's WebGLProgram), not an exception: its lines, ERROR: first
       if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') { const t = (m.params.args || []).map(a => String(a.value !== undefined ? a.value : a.description || '')).join(' ');
+        if (!/Shader Error|ERROR:|VALIDATE_STATUS/.test(t) && (global.__ceN = (global.__ceN || 0) + 1) <= 25) console.log('  console.error: ' + t.split(String.fromCharCode(10)).slice(0, 2).join(' | ').slice(0, 400));
         if (/Shader Error|ERROR:|VALIDATE_STATUS/.test(t)) { const er = t.split('\n').filter(l => /ERROR:/.test(l)).slice(0, 6).join(' | ').slice(0, 900); console.log('  SHADER ERROR: ' + (er || t.slice(0, 300))); } } };
     const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
     const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); const d = r.result;
       if (!d || d.exceptionDetails) throw new Error('page: ' + (d && d.exceptionDetails ? (d.exceptionDetails.exception && d.exceptionDetails.exception.description || d.exceptionDetails.text) : JSON.stringify(r))); return d.result.value; };
     await cmd('Page.enable'); await cmd('Runtime.enable');
     const wip = fs.readFileSync(path.join(ROOT, BUILD), 'utf8');
-    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{if(!sessionStorage.getItem("__ds")){sessionStorage.setItem("__ds","1");localStorage.removeItem("flydiy.gfx");localStorage.removeItem("flydiy.premises.game.jolene");localStorage.setItem("flydiy.wip",' + JSON.stringify(wip) + ');' + (MICRO_REC ? 'localStorage.setItem("flydiy.premises.bootWip","1");localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(MICRO_REC) + ');' : '') + '}}catch(e){}' });
+    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__raf={};window.__bootLog=[];(function(){var o=window.requestAnimationFrame;window.requestAnimationFrame=function(cb){var k=(cb&&cb.name)||"anon",t=Math.round(performance.now()),r=window.__raf[k]||(window.__raf[k]=[0,t,t]);r[0]++;r[2]=t;return o.call(window,cb);};var last=null;setInterval(function(){var b=window.BOOT?BOOT.state:"none";if(b!==last){last=b;window.__bootLog.push([Math.round(performance.now()),b]);}},100);})();window.__eyeOrbit=function(a,e,d){var c=FLIGHT_PROBE.sim().cgPos();return FLIGHT_PROBE.devFree(c[0]+d*Math.cos(e)*Math.cos(a),c[1]+d*Math.sin(e),c[2]+d*Math.cos(e)*Math.sin(a),Math.atan2(-Math.cos(a),Math.sin(a)),Math.max(-1.5,Math.min(1.5,-e)));};try{if(!sessionStorage.getItem("__ds")){sessionStorage.setItem("__ds","1");localStorage.removeItem("flydiy.gfx");localStorage.removeItem("flydiy.premises.game.jolene");' + (process.env.SEED !== '1' ? '' : 'localStorage.setItem("flydiy.wip",' + JSON.stringify(wip) + ');') + (MICRO_REC ? 'localStorage.setItem("flydiy.premises.bootWip","1");localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(MICRO_REC) + ');' : '') + '}}catch(e){}' });
     await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: 1, mobile: false });
     await cmd('Page.navigate', { url: 'http://localhost:' + SPORT + '/flyDiy/' + page });
     await sleep(1500);
     try { await ev("Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 18500)), new Promise(r => setTimeout(() => r('timeout'), 150000))])"); } catch (e) {}
+    // (A0 13 Nov, PACE-ON since 11 Nov: the boot cover stays up until every program links, ~96 s and longer under load; a Go
+    //  clicked under it never reaches a flight) - wait for the cover to be gone first, and stop if the flight never comes
+    for (let i = 0; i < 150; i++) { const bs = await ev("(()=>{const c=document.getElementById('boot');return (window.BOOT&&BOOT.state==='gone')||!c||c.classList.contains('gone')||c.offsetParent===null;})()"); if (bs) break; await sleep(1000); }
     let flying = false;
-    for (let a = 0; a < 8 && !flying; a++) { await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); await sleep(6000); flying = await ev("/TAXI|DOWNWIND|FINAL|DEPART|HOLD|PARK/.test(document.body.innerText)"); }
+    // (13 Nov, the blank 03:42 stills: the body text matched /HOLD/ in the shed - the shots were taken under the roll-out
+    //  cinematic and its held frame, the page's own pale blue) - flying is the phase plate past GARAGE (HOLDING on the stand, or the pilot's phase), no roll-out shot,
+    //  not the shed, no boot cover (the roll-out's own trip screen); a Go every 15 s while not (it skips the cinematic)
+    const FLY = "(()=>{const B=document.body.classList,ph=((document.getElementById('phName')||{}).textContent||'').trim();return !B.contains('rollShot')&&!B.contains('mode-ws')&&(!window.BOOT||BOOT.state==='gone')&&!!ph&&!/GARAGE/i.test(ph);})()";
+    for (let a = 0, tGo = 0; a < 240 && !flying; a++) { if (a - tGo >= 15 || a === 0) { tGo = a; await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); } await sleep(1000); flying = await ev(FLY); }
+    if (!flying) throw new Error('never flying in 240 s (phase ' + await ev("((document.getElementById('phName')||{}).textContent||'').trim()+' '+document.body.className") + ') - not shot');
+    { const un = await ev(UNHOLD).catch(() => ''); if (un) console.log('  after the Go: ' + un); }
+    console.log('  seed: ' + (process.env.SEED === '1' ? 'the Cub wip' : 'none') + '; gpu: ' + await ev("(()=>{try{const g=WORLD.renderer.getContext(),d=g.getExtension('WEBGL_debug_renderer_info');return d?g.getParameter(d.UNMASKED_RENDERER_WEBGL):'?';}catch(e){return 'ERR '+e.message;}})()").catch(e => e.message) + '; sim t over 1 s: ' + await ev("new Promise(r=>{const s=FLIGHT_PROBE.sim(),t0=s.t;setTimeout(()=>r((FLIGHT_PROBE.sim().t-t0).toFixed(2)),1000);})").catch(e => e.message));
+    console.log('  flying: ' + await ev("((document.getElementById('phName')||{}).textContent||'').trim()"));
     for (let i = 0; i < 150; i++) { const bs = await ev("window.BOOT ? BOOT.state : 'none'"); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
     const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
     for (let i = 0; i < 20; i++) { const n = await ev(KEEP); await sleep(500); if (!n && i > 4) break; }
@@ -134,7 +162,19 @@ async function runPage(page) {
     if (JS) console.log('  js: ' + await ev('(()=>{' + JS + '})()').catch(e => 'ERR ' + e.message));
     // the UI out of the picture: the world and the aeroplane alone
     await ev("(()=>{['ui','devPanel','hud','rail'].forEach(i=>{const e=document.getElementById(i);if(e)e.style.visibility='hidden';});document.querySelectorAll('.card,.panel,#phase,#hud,.toast,button').forEach(e=>e.style.visibility='hidden');return 1;})()").catch(() => 0);
-    const tag = path.basename(page, '.html'), cap = async name => { const png = await cmd('Page.captureScreenshot', { format: 'png' }); fs.mkdirSync(OUT, { recursive: true }); const file = path.join(OUT, name); fs.writeFileSync(file, Buffer.from(png.result.data, 'base64')); return file; };
+    let MISS = 0; const tag = path.basename(page, '.html'), cap = async name => {
+      // (13 Nov, the 14:15 stills blank on master 23ce68c1f too: the page drew - rAF 58/s, a place within 5 m - but the CDP
+      //  screenshot showed only the page's #cfe0ec behind the canvas; LOOK-1's t51 rig read real frames by gl.readPixels right after
+      //  FLYDIY_AA.render) - the frame read the same way, its alpha forced opaque; the CDP screenshot only if that grab fails
+      const un = await ev(UNHOLD).catch(() => ''); if (un) console.log('  ' + un);
+      let b64 = await ev(GRAB).catch(() => null);
+      if (!b64) { MISS++; console.log('  MISS ' + MISS + ' on ' + name);
+        if (MISS === 1) { console.log('  WHY: ' + await ev(WHY).catch(e => e.message)); console.log('  draws in 1 s: ' + await ev(COUNT).catch(e => e.message)); }
+        if (MISS >= 2) throw new Error('TWO MISSES - stopped (RIG-PROCEDURE 4)');
+        return null; }
+      fs.mkdirSync(OUT, { recursive: true }); const file = path.join(OUT, name); const buf = Buffer.from(b64, 'base64'); fs.writeFileSync(file, buf);
+      if (buf.length < 20000) console.log('  WARNING ' + name + ' is ' + buf.length + ' bytes - one colour? (a blank frame)');
+      return file; };
     for (let si = 0; si < AS.length; si++) { frame(AS[si]); let first = true;
     for (const vk of VIEW_KEYS) {
       const V = VIEWS[vk]; if (!V) continue;
@@ -161,15 +201,15 @@ async function runPage(page) {
       // (the low-sun views: the orbit's az from the sun's own - across it, or the eye between the Cub and the sun, looking toward it)
       if (V.sun) { const sa = await ev(`(() => { const W = FLIGHT_PROBE.world && FLIGHT_PROBE.world(), dd = (W && W.day) || (window.DAY_CLOCK && DAY_CLOCK.day && DAY_CLOCK.day()), L = dd && dd.sun;   // (07_day: the sun in the world frame) return L ? Math.atan2(L.z !== undefined ? L.z : L[2], L.x !== undefined ? L.x : L[0]) : 'null'; })()`).catch(() => 'null');
         if (typeof sa === 'number') V.cam[0] = V.sun === 'toward' ? sa + Math.PI : sa + Math.PI / 2; else console.log('  ' + vk + ': no sun direction on the page, az ' + V.cam[0]); }
-      await ev(`FLIGHT_PROBE.camSet(${V.cam.join(',')})`);
+      await ev(`__eyeOrbit(${V.cam.join(',')})`);
       await ev(FRAMES(!out.length ? 400 : first ? 240 : 120)); first = false;
       if (V.splash) {   // roll: 6 m/s down the strip, run, freeze two frames as the wheels go through
         const tg = "document.getElementById('bPause').click()";
         await ev(`FLIGHT_PROBE.place({ dv: [${D[0] * 6}, 0, ${D[1] * 6}] })`);
-        for (const [k, ms] of [[1, 1500], [2, 450]]) { await ev(tg); await sleep(ms); await ev(tg); await ev(`FLIGHT_PROBE.camSet(${V.cam.join(',')})`); await ev(FRAMES(4));
+        for (const [k, ms] of [[1, 1500], [2, 450]]) { await ev(tg); await sleep(ms); await ev(tg); await ev(`__eyeOrbit(${V.cam.join(',')})`); await ev(FRAMES(4));
           const fk = await cap((AS.length > 1 ? STRIPS[si] + '_' : '') + 'splash' + k + '_' + tag + '.png'); console.log('  splash ' + k + ' -> ' + fk); out.push({ page, strip: STRIPS[si], view: 'splash' + k, file: fk }); }
         continue; }
-      await ev(`FLIGHT_PROBE.camSet(${V.cam.join(',')})`); await ev(FRAMES(10));
+      await ev(`__eyeOrbit(${V.cam.join(',')})`); await ev(FRAMES(10));
       const pre = AS.length > 1 ? STRIPS[si] + '_' + vk : vk + '_' + tag;
       const file = await cap(pre + '.png');
       console.log('  ' + vk + ' @' + where + ' -> ' + file);

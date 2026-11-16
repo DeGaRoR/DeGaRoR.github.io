@@ -23,7 +23,7 @@ const [FILE, OUT] = pos;
 if (!FILE || !OUT) { console.error('usage: node tools/lattice_overlay.js <build.json> <out-prefix> [--views side,top,front] [--crop z0,z1,y0,y1] [--w px]'); process.exit(2); }
 const VIEWS = opt('views', 'side,top,front');
 // 1. the pictures, and the frames quickshot used
-const qa = [path.join(T, 'quickshot.js'), FILE, OUT, '--views', VIEWS, '--w', opt('w', '1400')];
+const qa = [path.join(T, 'quickshot.js'), FILE, OUT, '--views', VIEWS, '--w', opt('w', '1400'), '--parts'];   // (the part-colour view: geometry under the lattice)
 if (opt('crop', null)) qa.push('--crop', opt('crop'));
 const qs = cp.execFileSync(process.execPath, qa, { cwd: ROOT, maxBuffer: 1 << 26 }).toString();
 const frames = {};

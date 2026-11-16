@@ -199,6 +199,22 @@ var WEATHER_UI = (function () {
                  'topped by the cloud base — the lift a glider circles in. THE SEA BREEZE is the coast’s own ' +
                  'wind: it blows onshore through the afternoon, dies under cloud, and reverses overnight.');
 
+    // ---- the ground (SNOW-MUD LADDER, 15 Nov) -------------------------------------
+    // the weather strips' rung - dirt / firm mud / soft mud, grass and sand dry / wet - follows the soil's water (the rain of
+    // the last four days, the sun and the wind since); this holds every one of them on a rung for a test (world.setGround,
+    // the physics worker's world too). The fixed looks (dirt, mud, grass (wet) ...) never move
+    head('the ground');
+    { const w = worldNow(), cur = w && w.groundForce ? w.groundForce : '';
+      H.pills(host, [{ label: 'the weather', value: '', title: 'The weather strips follow the soil: rain makes mud, sun and wind dry it' },
+                     { label: 'dry', value: 'dry', title: 'Every weather strip dry: dirt, dry grass, dry sand' },
+                     { label: 'firm mud', value: 'firm', title: 'Every weather strip wet: firm mud, wet grass, wet sand' },
+                     { label: 'soft mud', value: 'soft', title: 'Every weather strip soaked: soft mud, wet grass, wet sand' }],
+        o => o.value === cur, o => { const w2 = worldNow(); if (w2 && w2.setGround) w2.setGround(o.value || null); refresh(); });
+      const R = w && w.soilNow ? w.soilNow() : null;
+      H.note(host, 'The strips drawn "(weather)" climb a ladder with the soil\'s water (' + (R ? (R.wet * 100).toFixed(0) + ' % now' : '—') +
+                   '): dirt, then firm mud, then soft mud - the ruts deeper, the ground darker, the wheels slower; grass and sand wet or dry (wet sand is firmer).');
+    }
+
     // ---- the air --------------------------------------------------------------
     head('the air');
     H.range(host, 'temperature', -25, 40, 1, () => (d.oatC != null ? d.oatC : 15),

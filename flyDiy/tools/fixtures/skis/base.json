@@ -1,0 +1,56 @@
+{
+ "what": "skis-base",
+ "note": "GATE SKIS section 1: the no-ski witnesses (tools/_skis_bytes.js: def, shakedown sheet, 300 flown steps) by the core BEFORE the skis (origin/master 6a8d705c, train L40a; re-blessed at the rebase from 23ce68c1 / L39b). Re-bless in a base worktree with node tools/_skis_check.js --bless when a chantier landing before this one moves them.",
+ "base": "6a8d705c",
+ "builds": {
+  "builds/cub_2026-09-20_corrected.json": {
+   "def": "b4e1cd06bbbb",
+   "sh": "0bb2d356194d",
+   "sim": "ad8f08d2a7c6",
+   "nodes": 97,
+   "ski": false
+  },
+  "builds/jodel_2026-09-20_corrected.json": {
+   "def": "c14c1a3de222",
+   "sh": "0c86bafeadd5",
+   "sim": "b8f978a94328",
+   "nodes": 115,
+   "ski": false
+  },
+  "bugReports/cessnaMetal (1).json": {
+   "def": "f1b5d089bca2",
+   "sh": "7d84db242bc1",
+   "sim": "5cddbb102aef",
+   "nodes": 107,
+   "ski": false
+  },
+  "bugReports/cessnaFloatsWOrks.json": {
+   "def": "5d75a11f0af4",
+   "sh": "0b2004839e88",
+   "sim": "37a24324f81a",
+   "nodes": 134,
+   "ski": false
+  },
+  "tools/fixtures/build_v7_ultralight_2026-09-05.json": {
+   "def": "3ae5ed756987",
+   "sh": "30d11f2496d5",
+   "sim": "697dcd96ca67",
+   "nodes": 123,
+   "ski": false
+  },
+  "builds/candidates/superpetrel_V4_1.json": {
+   "def": "3bd0d3827b05",
+   "sh": "2ce04a6e2562",
+   "sim": "72e1a8ea9db0",
+   "nodes": 184,
+   "ski": false
+  },
+  "builds/candidates/carbon_cub_ss.json": {
+   "def": "6bdb9564bf26",
+   "sh": "7a234296cec4",
+   "sim": "c3927c0d945e",
+   "nodes": 95,
+   "ski": false
+  }
+ }
+}
