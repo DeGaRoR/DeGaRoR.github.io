@@ -47,7 +47,11 @@ var RAIN_FX = (function () {
   const MAX_ROOFS = 8;
 
   const VERT = [
-    // (a three ShaderMaterial, GLSL3: three declares position, viewMatrix, projectionMatrix and maps varying / gl_FragColor)
+    // (a three ShaderMaterial, GLSL3: three declares position, viewMatrix, projectionMatrix and maps varying)
+    // THE DEPTH CONVENTION (the soft run, 16 Nov eve: no streak drew): the renderer is reversed-z where EXT_clip_control is, else
+    // LOGARITHMIC (app.js) - a custom shader must take three's logdepthbuf chunks as dust.js and spray.js do, or it fails the depth test
+    '#include <common>',
+    '#include <logdepthbuf_pars_vertex>',
     'uniform vec3 uCam;',                 // the eye (world)
     'uniform vec4 uBoxA[3];',             // per box: L, the first instance id, the drawn count, the count at full rain
     'uniform vec3 uOff[3];',              // per box: (the fall + the wind's drift) - the eye, wrapped into [0, L) on the CPU
@@ -96,6 +100,7 @@ var RAIN_FX = (function () {
     '  vec4 c = mix(c0, c1, position.y);',
     '  c.xy += nrm * position.x * c.w;',
     '  gl_Position = c;',
+    '  #include <logdepthbuf_vertex>',
     // the fades: near the eye, at the box's edge (the wrap never pops), and the box's share of the rain
     '  float edge = 1.0 - smoothstep(0.30 * L, 0.5 * L, max(abs(p.x), max(abs(p.y), abs(p.z))));',
     '  float near = smoothstep(uPx.w, 2.0 * uPx.w, dist);',
@@ -106,6 +111,8 @@ var RAIN_FX = (function () {
     // (GLSL3 on a three ShaderMaterial: no gl_FragColor of its own - declared here, like clouds.js GLSL3_OUT; the soft compile check, 16 Nov eve)
     'layout(location = 0) out highp vec4 rainC;',
     '#define gl_FragColor rainC',
+    '#include <common>',
+    '#include <logdepthbuf_pars_fragment>',
     'uniform vec3 uSun, uSunCol, uSkyCol, uLampPos, uLampDir, uLampCol;',
     'uniform vec4 uLook;',                 // opacity, ambient, back, backPow
     'uniform vec2 uLampCone;',             // cos of the cone's half angle, the lamp's range (m)
@@ -113,6 +120,7 @@ var RAIN_FX = (function () {
     'varying float vA;',
     'varying vec3 vDir;',
     'void main() {',
+    '  #include <logdepthbuf_fragment>',
     '  if (vA <= 0.0) discard;',
     '  float across = 1.0 - vQ.x * vQ.x;',                         // the drop's profile across (no texture)
     '  float along = smoothstep(0.0, 0.25, vQ.y) * (1.0 - smoothstep(0.6, 1.0, vQ.y));',

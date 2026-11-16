@@ -112,6 +112,11 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
      '7d the program: no texture, no sampler; made by MATLIB (GLSL3, the drops from gl_InstanceID)');
   ok(RF.VERT.indexOf('uCabinInv') > 0 && RF.VERT.indexOf('uRoofA[') > 0 && RF.VERT.indexOf('uLen.y') > 0 && RF.VERT.indexOf('uLen.z') > 0 && RF.VERT.indexOf('uPx.z') > 0,
      '7e each streak: cut in the cabin box and under a roof, clamped in the world and on screen, at least minPx wide');
+  // 7g the depth convention and the output (the soft run, 16 Nov eve: the program did not link, then no streak drew): three's
+  //    logdepthbuf chunks in both stages (the renderer is logarithmic where reversed-z is missing), its own GLSL3 output declared
+  ok(['#include <logdepthbuf_pars_vertex>', '#include <logdepthbuf_vertex>'].every(t => RF.VERT.indexOf(t) >= 0) && ['#include <logdepthbuf_pars_fragment>', '#include <logdepthbuf_fragment>'].every(t => RF.FRAG.indexOf(t) >= 0)
+     && RF.VERT.indexOf('#include <logdepthbuf_vertex>') > RF.VERT.indexOf('gl_Position = c;') && RF.FRAG.indexOf('out highp vec4 rainC') >= 0 && RF.FRAG.indexOf('#define gl_FragColor rainC') >= 0,
+     '7g the streaks take the log-depth chunks (after the final gl_Position) and declare their GLSL3 output');
   // 7f LAZY: the page makes it only when the eye's rain is above 0 and the tier is not off; ?rain=0 never makes it
   const sy = APP.slice(APP.indexOf('function syncRainFx(dt) {'), APP.indexOf("window.RAIN_LIVE ="));
   const guard = sy.indexOf("if (!(R > 0) || tier === 'off'"), make = sy.indexOf('RAIN_FX.make(THREE)');
