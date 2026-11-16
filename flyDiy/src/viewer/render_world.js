@@ -5987,8 +5987,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const lakeM = () => (grassField && grassField.lakeMargin ? grassField.lakeMargin() : 0.3);
           const wetBy = (x, z, h, lake) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z); return wy !== null && Number.isFinite(wy) && wy > h - (lake && wy > 0.05 ? lakeM() : 0.3); };
           const landBy = (x, z, lake) => { const h = world.terrainH(x, z), wl = world.waterH(x, z); if (h < 0.3 || wl > h - (lake && wl > 0.05 ? lakeM() : 0.3) || wetBy(x, z, h, lake)) return false;
-            const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK; };
-          const okAt = (x, z) => landBy(x, z, false), okLake = (x, z) => landBy(x, z, true);
+            // (GRASS-ON-GREEN 16 Nov, A0's audit: SNOW-MUD's grass weather strip resolves to GRASS_WET when the soil is wet - still grass,
+            //  its tufts stay; mud, snow and wet sand stay bare. GRASS_WET is undefined before SNOW-MUD: the compare is then never true)
+            const s = world.surface(x, z); return s === world.SURFACE.GRASS || s === world.SURFACE.FOREST_FLOOR || s === world.SURFACE.SCREE || s === world.SURFACE.ROCK || s === world.SURFACE.GRASS_WET; };
+          // (GRASS-ON-GREEN 16 Nov: a strip box's margin / a shoulder that gives way to the island's ground under the grass law `hard`
+          //  - world.marginGrassAt - grows the grass field's grass, never the first ring's rocks, bushes or flowers: an overrun stays clear)
+          const okAt = (x, z) => landBy(x, z, false) && !(world.marginGrassAt && world.marginGrassAt(x, z)), okLake = (x, z) => landBy(x, z, true);
           // THE COVER'S QUERY (v1.17): the world's coverAt with `col` added - the linear colour the PAVEMENT
           // draws there (the class's base set mean, graded as the shader grades it: what the eye sees), so a
           // tuft on a band or a grass road takes its own ground's colour; null where no pavement is drawn
@@ -6013,7 +6017,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;
             const c = world.coverAt ? world.coverAt(x, z) : null; return !(c && c.kill >= 1); };
           grassField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'grass',
-            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt });
+            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt,
+            groundSetsAt: (x, z, code) => { const SPA = groundApi.splat ? groundApi.splat() : null; return SPA && SPA.setsAt ? SPA.setsAt(x, z, code) : null; } });   // (16 Nov: the grass by the texture drawn)
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))

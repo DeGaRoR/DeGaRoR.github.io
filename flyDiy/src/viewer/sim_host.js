@@ -399,7 +399,7 @@ const SIM_HOST_AP_SKIP = ['nav', 'sheet'];
 // ---- THE WORLD'S OPS (G815): the page world's registry and day calls, replayed on this one. The page's
 // obstacle ids map to this registry's own (a record the page's makeWorld made - the settle buildings - has
 // the same id here: the same record, the same order). Returns true when the world changed (the version).
-const SIM_HOST_WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setSea', 'setGround'];
+const SIM_HOST_WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setGrassSides', 'setSea', 'setGround'];
 const simHostIsWorldOp = c => !!c && (c.cmd === 'obst' || c.cmd === 'world' || c.cmd === 'premises');
 function simHostWorldOp(world, c) {
   if (!world) return false;

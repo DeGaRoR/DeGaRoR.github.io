@@ -316777,6 +316777,21 @@ re-cooked (premises, city, map, fleet; mt_strip 0 spots):
   the site's own branch): the runner gave FAIL at 1800.1 s with no failing row. Its wall wants a look when the trains merge.
   NOT RUN: FRAMECOST / the parked cook (GPU), the full tier, SKISFLY (SKIS's), the stills.
 
+## GRASS-ON-GREEN (LOOK-1, 15-16 Nov 2026; the user: "Everything green should get some grass")
+- The grass law (27_premises GRASS_SIDES): hard 1 = an undrawn gravel margin is the ground, in the look AND to the wheels
+  (20_world giveWay). world.setGrassSides replays it live, and the physics worker gets it (sim_link WORLD_FNS, sim_host
+  SIM_HOST_WORLD_FNS, worldMsg opts.grassSides into makeWorld). Page override: window.FLYDIY_GRASS_HARD (a string or a
+  number only; until 16 Nov the page read `false` there and shipped hard 0 - GRASSSIDES 6 runs the line in a page scope).
+- mowBand 1 (was 6): the user's purple bands at Cabin Strip were grass mown to 8 cm; the 16 Nov shoot measured mowBand 1
+  changing 37 % of them and 2 % elsewhere. LOOK ONLY. trackW 2.7: past it a trail strip's surface is the ground (look and
+  wheels), set to DIRT-STRIP's tw_ski track edge 1.098 + grTrackW + grTrackFade, + 0.3 m - keep the two paired.
+- cover_ring.js field dials (all in the F9 world editor): green / greenDens / greenLo / greenSpan (grass on green-drawn
+  ground), feather, texGrass, cutFloor (OFF by default: on everywhere they grow grass on sea-coded bands, GREENGRASS 5c /
+  COVER 8g), weeds / weedsH / weedsD (the forest-edge band; inert without ctx.edgeD, MOUNTAIN-VEG's L40f union).
+- The look (tuft height, variety, darkness) is unchanged until the user picks: https://claude.ai/artifact/7GmMNHx6tkQDMUnreY3Am8
+- Gates: GREENGRASS (the field), GRASSSIDES (the law, the worker, the page override). Tools: the false-colour probe and
+  page builder in flydiy-notes evidence-2026-10-18/2026-11-16/grass-on-green/false-mon (README).
+
 ## FLIGHT-SCRIPT (Pilot, 15 Nov 2026; the user via A0: scripted flights in steps with a deep log)
 - tools/flight_script.js: one scenario JSON (plane list:N, from/to, day game|calm, persona, steps {do, until, capS, allow}), the NODE runner through the game's own host (_tour_lib gameHost); one JSONL per run (run / sample 1 Hz / say / step with solver ms / end). A failed step stops the run with its WHY. The page runner (page_rig.js, frame ms per step) follows Thu 19 Nov.
 - The library tools/flight_scripts/: home_circuit (F-HCSN), east_point (the Cub, CALM: on the game's day it diverts, said), strip_jumbo (the Jodel), altiport (the Cub), float_circuit (B-CESF list:4). All five pass on 58c681347.

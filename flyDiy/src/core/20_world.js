@@ -9,6 +9,9 @@
 // ============================================================
 function makeWorld(seed, opts) {
   const SEED = seed | 0;                     // undefined -> 0: no-arg callers get the validated world
+  // GRASS-ON-GREEN (16 Nov): the premises' grass law as the page has it (the worker's world - sim_link worldMsg opts.grassSides),
+  // set before anything asks the surface: `hard` is the look AND the wheels' ground (giveWay below), the two threads must agree
+  if (opts && opts.grassSides && typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.grassSides) PREMISES_GEN.grassSides(opts.grassSides);
   // THE ISLAND (W2, 2026-09-14): a world source from data (28_island.js). With
   // it, the data's ground stands in for the noise, its cover grid for the
   // classifier, its canopy for the trees' size, its square for the domain;
@@ -654,7 +657,46 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     }
     return -1;
   };
+  // GRASS-ON-GREEN (LOOK-1 with DIRT-STRIP, 16 Nov; the user: "green ground without grass looks bad"; WYSIWYG): THE MARGIN GIVES WAY.
+  // The registry box's MARGIN past the declared strip (its 20 m ends and 6 m sides - the overrun included, on purpose) and a
+  // premises gravel SHOULDER are the wheels' gravel but are drawn as the island's own ground. Under the premises' grass law
+  // `hard` (27_premises GRASS_SIDES - ONE dial for the look and the surface, so they never disagree) such a point with nothing
+  // DRAWN on it (no pavement's kill - a drawn running surface of any class, mud and sand included, a road's band - and not a
+  // grass strip's own running surface) answers the island's ground: grass where the island is grass, and the grass field grows
+  // there. The declared running box itself keeps its surface (G130: the registry's declaration wins on the strip).
+  const hardOn = () => typeof PREMISES_GEN !== 'undefined' && !!PREMISES_GEN.grassHard && PREMISES_GEN.grassHard();   // (27_premises is its own scope: through its API)
+  const drawnAt = (x, z) => { const c = coverAt(x, z); return !!(c && (c.kill >= 1 || c.surf)); };
+  // the point is in SOME strip box's margin AND in NO strip's declared running box (DIRT-STRIP's review: where boxes overlap or abut,
+  // a point on strip B's own running box may sit in A's margin - a declared, undrawn B has no kill to save it)
+  const regMargin = (x, z) => {
+    let inMargin = false;
+    for (const a of aerodromes) {
+      if (a.surface == null) continue;
+      if (a.kind === 'meadow') { const dx = x - a.x, dz = z - a.z; if (dx * dx + dz * dz <= a.r * a.r) return false; continue; }
+      const c = CORE_MATH.cos(a.hdg), s = CORE_MATH.sin(a.hdg), u = (x - a.x) * c + (z - a.z) * s, v = -(x - a.x) * s + (z - a.z) * c;
+      if (Math.abs(u) <= a.len / 2 && Math.abs(v) <= a.wid / 2) return false;
+      if (Math.abs(u) <= a.len / 2 + 20 && Math.abs(v) <= a.wid / 2 + 6) inMargin = true;
+    }
+    return inMargin;
+  };
+  const inRunBox = (x, z) => { for (const a of aerodromes) { if (a.surface == null || a.kind === 'meadow') continue;
+    const c = CORE_MATH.cos(a.hdg), s = CORE_MATH.sin(a.hdg), u = (x - a.x) * c + (z - a.z) * s, v = -(x - a.x) * s + (z - a.z) * c;
+    if (Math.abs(u) <= a.len / 2 && Math.abs(v) <= a.wid / 2) return true; } return false; };
+  // -> the island's own class where the margin / a shoulder gives way, else -1. Only a NATURAL class takes over (grass, the forest
+  // floor, scree, rock): where the island calls the airfield built-up (HOME, w2: PAVED) the declared gravel stays
+  function giveWay(x, z) {
+    if (!ISL || !hardOn()) return -1;
+    if (inRunBox(x, z)) return -1;   // (never on any strip's declared running box - the shoulders' branch too)
+    let cand;
+    if (PM) { const s = PM.surfaceAt(x, z); cand = s >= 0 ? !!(PM.shoulderAt && PM.shoulderAt(x, z)) : (regSurf(x, z) >= 0 && regMargin(x, z)); }
+    else cand = regSurf(x, z) >= 0 && regMargin(x, z);
+    if (!cand || drawnAt(x, z)) return -1;
+    let g; try { g = islandGround(x, z); } catch (e) { return -1; }   // (a query during the world's own build: the declared surface)
+    return (g === SURFACE.GRASS || g === SURFACE.FOREST_FLOOR || g === SURFACE.SCREE || g === SURFACE.ROCK) ? g : -1;
+  }
+  const marginGrassAt = (x, z) => giveWay(x, z) >= 0;
   const aeroSurfRaw = (x, z) => {
+    if (giveWay(x, z) >= 0) return -1;   // (the margin gives way: the island's ground - islandSurface answers it)
     if (PM) { const s = PM.surfaceAt(x, z); if (s >= 0) return s; }   // a premises surface (an apron, a strip, a road) answers first
     const r = regSurf(x, z);
     return r >= 0 ? r : AERO.surfaceAt(x, z);
@@ -1280,13 +1322,16 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     soilNow, surfaceNow, setGround, get groundForce() { return groundForce; },
     wxAt: (x, z) => { const s = aeroSurfRaw(x, z); return s >= 20 && s <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(s, soilNow()) : null; },   // a weather strip's rung here (null off one)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
-    TILE, tile, aerodromes, settlements: SET.settlements,
+    TILE, tile, aerodromes, marginGrassAt, settlements: SET.settlements,   // marginGrassAt: GRASS-ON-GREEN (16 Nov) the margin gives way
     treesNear, canopyH,
     // G1481 (WOODLAND): whether the solver tests the woodland's cylinders (world.trees). True in a world no viewer
     // stands on (the gates, a replay); the game's viewer draws the fill in their place and turns them off - the
     // page's world and the worker's (sim_link 'wsolid') - so nothing the aeroplane can hit goes undrawn
     woodSolid: true,
     setWoodSolid(on) { this.woodSolid = !!on; return this.woodSolid; },
+    // GRASS-ON-GREEN (16 Nov): the premises' grass law, live - the editor's rows call THIS, so sim_link replays it on the worker's
+    // world (WORLD_FNS): `hard` and the clears move the wheels' ground (giveWay), not only the look. () reads
+    setGrassSides(o) { return typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.grassSides ? PREMISES_GEN.grassSides(o) : null; },
     // THE OBSTACLES (G433): the registry of solid things the solver pushes out of (29_obstacles.js) -
     // the settlements' own buildings stand in it from the start as plain boxes; the viewer adds what
     // it stands (houses, props, cars, parked aeroplanes) and moves the traffic

@@ -62,7 +62,7 @@
 // ============================================================
 const SIM_LINK = (() => {
   'use strict';
-  const WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setSea', 'setGround'];
+  const WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setGrassSides', 'setSea', 'setGround'];   // setGrassSides: GRASS-ON-GREEN, the grass law is the wheels' ground too
   // the pilot's fields assigned whole (never merged into the page's objects: a site or a plan may be shared)
   const AP_WHOLE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'report', 'drawn'];   // G2120: the drawn route's state, whole
   const AP_SKIP = ['route', 'nav', 'sheet'];
@@ -252,7 +252,7 @@ const SIM_LINK = (() => {
     function worldMsg() {
       const isl = W.ISLAND_BOOT;
       return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null, ground: world.groundForce || null,   // (SNOW-MUD LADDER: the ground's dev override)
-               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER, flat: !!world.flat },   // G3790: the test field's flat world, the same on the worker
+               opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER, flat: !!world.flat, grassSides: typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.grassSides ? PREMISES_GEN.grassSides() : null },   // grassSides: GRASS-ON-GREEN, the page's grass law (look + wheels) on the worker's world   // G3790: the test field's flat world, the same on the worker
                fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT } : null, boot: null };
     }
     function prewarm() {
