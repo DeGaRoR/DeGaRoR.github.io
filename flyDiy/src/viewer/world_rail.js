@@ -1131,7 +1131,7 @@
   // and recolour (the materials' editor). Kept as the other ground rows are: the splat's own store (flydiy.ground.splat.v1),
   // the export's `splat` block and its changes against the recipe; 'reset the rock' puts the recipe's numbers back.
   const ROCK_KEYS = ['rocks', 'rockHLo', 'rockHHi', 'rockBias', 'rockOff', 'rockK', 'rockJoint', 'rockJointSoil', 'rockJointDirt', 'rockHollow',
-    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar', 'rockSlabTone', 'rockSlabTilt', 'rockRing', 'rockRingReach', 'rockLift', 'rockAmp', 'rockProud', 'rockBoulders', 'rockScatter', 'rockMacro', 'rockBoulderTone', 'rockBoulderCon'];
+    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar', 'rockSlabTone', 'rockSlabTilt', 'rockRing', 'rockRingReach', 'rockLift', 'rockAmp', 'rockProud', 'rockBoulders', 'rockScatter', 'rockMacro', 'rockBoulderTone', 'rockBoulderCon', 'rockGrassMatch', 'rockWeather'];
   function buildRock(body) {
     const sp = SP();
     if (!sp || sp.knobs().rocks === undefined) { note(body, 'the island’s own rock is not in this build'); return; }
@@ -1168,6 +1168,11 @@
     range(Rg, 'bare stone', 0.3, 1.6, 0.02, kn('rockRough'), ss('rockRough'), v => 'x' + v.toFixed(2), RK.rockRough);
     range(Rg, 'the green', 0.5, 1, 0.01, kn('rockGreenRough'), ss('rockGreenRough'), null, RK.rockGreenRough);
     note(Rg, 'bare stone: x the tiles’ own roughness maps (under 1 glossier); the green and the moss stay matte. The filtering’s sheen still scales the lot.');
+    const Bl = sec(body, 'the blend with the grass', true, 'the rock\u2019s value and hue against the grass around it');
+    range(Bl, 'value to the grass', 0, 1.5, 0.05, kn('rockGrassMatch'), ss('rockGrassMatch'), null, RK.rockGrassMatch);
+    range(Bl, 'weathering film', 0, 1, 0.02, kn('rockWeather'), ss('rockWeather'), null, RK.rockWeather);
+    liveNote(Bl, () => { const b = sp.rockBlend ? sp.rockBlend() : null; return b ? 'the rock x' + b[0].toFixed(2) + ' (its value), the film ' + Math.round(b[4] * 100) + ' % of the grass\u2019s hue' : ''; });
+    note(Bl, 'the bench v1 drew its green lighter and warmer than the game\u2019s graded grass; \u2018value to the grass\u2019 scales the rock (the ground\u2019s, the outcrops\u2019 and the boulders\u2019) by the ratio of the two grasses\u2019 values to this power - 0 v1\u2019s rock as it was, 1 v1\u2019s proportion to its grass exactly. The film tints the stone toward the grass\u2019s hue (algae, lichen, dirt). The grass itself: its own grade under TYPES.');
     const Mi = sec(body, 'micro detail and fades', false, 'close up and far away');
     toggle(Mi, 'micro detail', () => sp.knobs().rockMicro, v => { sp.set({ rockMicro: v ? 1 : 0 }); changed(); });
     range(Mi, 'micro brightness', 0, 1, 0.02, kn('rockMicroK'), ss('rockMicroK'), null, RK.rockMicroK);

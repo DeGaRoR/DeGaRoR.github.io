@@ -36,7 +36,7 @@ var ROCK_RING = (() => {
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });   // (the cover lies 0.15 m proud of the ground: it wins the depth test)
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { uSplat: U.uSplat, uSplatN: U.uSplatN, uSGrade: U.uSGrade, uSLum: U.uSLum, uSFilt: U.uSFilt,
-        uRL: L.uRL, uRK: L.uRK, uRFade: L.uRFade, uRB: L.uRB, uRMean: L.uRMean, uRT: L.uRT });
+        uRL: L.uRL, uRK: L.uRK, uRFade: L.uRFade, uRB: L.uRB, uRMean: L.uRMean, uRT: L.uRT, uTrW: U.uTrW, uTrS: U.uTrS });
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nattribute vec4 aR0, aR1; attribute vec3 aDisp; uniform vec4 uRFade;\nvarying vec4 vR0, vR1; varying vec3 vRW; varying vec3 vRN;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n' +
@@ -62,6 +62,7 @@ vec3 gRN = vec3(0.0); float gRR = 0.9; float gRB = 0.0;   // (gRB 1: a boulder -
 uniform vec4 uRB;   // the boulders: the cliff photo's scale (m), its raw mean luminance, the slab's mean luminance; the micro's mean luminance
 uniform vec3 uRMean;   // the slab's raw mean colour (linear): the boulders' tone
 uniform vec4 uRT;   // the boulders: tone (x), contrast (v1 2)
+uniform vec4 uTrW, uTrS;   // the splat's blend with the grass: the film (hue, amount), the value match (uTrS.w) - the ground's rock and the boulders alike
 struct Smp { vec4 c; vec4 n; };
 float rH1(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 vec2 rH2(vec2 p){ return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
@@ -120,6 +121,7 @@ Smp rBoulder(vec3 P, vec3 N){
   // the contrast v1's x2 by default, the rail's 'boulder contrast')
   vec4 sg = uSGrade[int(uRL.x + 0.5)]; vec3 tone = uRMean * sg.rgb; tone = mix(vec3(rLuma(tone)), tone, sg.a);
   o.c.rgb = tone * max(1.0 + (rl - 1.0) * uRT.y, 0.05) * vR0.rgb * 0.9 * uRT.x;
+  o.c.rgb *= mix(vec3(1.0), uTrW.rgb, uTrW.a) * uTrS.w;   // (the blend with the grass: as the ground's rock)
   float h = col.a;
   o.c.rgb *= mix(1.0, 0.75, clamp(vR1.x * 2.5, 0.0, 1.0));   // the crease
   float up = smoothstep(0.62, 0.92, N.y);

@@ -367,6 +367,7 @@ const SPLAT_GROUND = (() => {
   uniform vec4 uTrG;             // the green: amount, its roughness, its saturation, the bare stone's roughness (x the tile's)
   uniform vec4 uTrF;             // the micro detail from / to (m), the joints gone by (m), the wet streaks
   uniform vec4 uTrS;             // the slab -> face split under the dial: from / full by (deg); the micro photo's raw mean luminance
+  uniform vec4 uTrW;             // the rock's film: the grass's hue (rgb, over its luminance), its amount (the weathering); uTrS.w the value match
   uniform vec4 uTrM;             // the micro detail: brightness strength, normal strength; the NDVI's pull on the exposure, its midpoint
   // R1 RIDES THE MATERIAL CHAIN (A0's box, 16 Nov: the first R1's own sample chain - 7 more inlined sFetch - linked every ground
   // program ~15 s slower). The tiles are the rock codes' own sets (push() points codes 6 / 12 at them under the dial: hex, the
@@ -509,6 +510,7 @@ const SPLAT_GROUND = (() => {
     }
     mult = mix(mult, gTrMA.rgb * 1.5, gTrIn);   // (the macro texture where it lies: v1's own, a pixel at a time)
     o.c.rgb *= mult;
+    o.c.rgb *= mix(vec3(1.0), uTrW.rgb, uTrW.a) * uTrS.w;   // THE BLEND WITH THE GRASS (16 Nov, the user: "a value issue"): the rock's value in proportion to the game's grass, a film of its hue
     { float hN = mix(rg ? vRX.y : 0.0, gTrMB.a, gTrIn), wh = max(rg ? 1.0 : 0.0, gTrIn);   // the macro's height into the blend's (v1)
       o.c.a = mix(o.c.a, clamp(o.c.a * 0.6 + hN * 0.6 - 0.1, 0.0, 1.0), wh); }
     if (!rg) o.n.xyz += vec3(gTrMB.r * 2.0 - 1.0, 0.0, gTrMB.g * 2.0 - 1.0) * gTrIn;   // its normal off the relief (v1: on the displaced mesh the geometry IS it)
@@ -548,7 +550,7 @@ const SPLAT_GROUND = (() => {
 #endif
     Smp o; o.c = vec4(0.5, 0.5, 0.5, 0.5); o.n = vec4(0.0, 0.0, 0.0, 0.8);
     if (A.x < 0.0) { gSOut = o; return pass == 0; }
-    float ang = A.w > 0.5 ? seaAng : 0.0;
+    float ang = A.w > 1.5 ? 1e-4 : (A.w > 0.5 ? seaAng : 0.0);   // (2: PLAIN - never turned, no hex: R1's face tile, its streaks; v1 drew it plain - the hex chopped them into chevrons)
     float period = max(M.x, 0.5) * 6.0, sharp = M.y * 2.0;   // 2x (4x cut the sets into hard blotches once lit in the game)
 #ifdef SPLAT_ONE
     float m1 = 0.0, m2 = 0.0;
@@ -1219,7 +1221,7 @@ const SPLAT_GROUND = (() => {
       // R1: the island's own rock (sTrExpo, sTrPost; the tiles ride the rock codes' sets)
       uTrOn: { value: 0 }, uTrL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uTrK: { value: new THREE.Vector4(400, 1200, 1, 0.5) },
       uTrE: { value: new THREE.Vector4(250, 760, 0.3, 0.08) }, uTrMeanS: { value: new THREE.Vector4(0.3, 0.27, 0.2, 1) }, uTrS: { value: new THREE.Vector4(42, 58, 0, 0) },
-      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) },
+      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) }, uTrW: { value: new THREE.Vector4(1, 1, 1, 0) },
       uTrMT: { value: null }, uTrMR: { value: [V4(), V4(), V4()] }, uTrMX: { value: V4() },   // the macro texture (rock_ring.js fills it)
     };
     let ready = false;
@@ -1300,10 +1302,19 @@ const SPLAT_GROUND = (() => {
           // box, 16 Nov: "fade to a textured far set, not a mean"), its first set named explicitly (an absent far would take the slab)
           for (const [c, L, m] of [[6, L4[0], slabM], [12, face, faceM]]) {
             const row = R.codes[c] || {}, far0 = (row.far && row.far[0]) || (row.tex && row.tex[0]), fs0 = (row.farScale && row.farScale[0]) || (row.scale && row.scale[0]) || m;
-            U.uSMatA.value[c].set(L, -1, -1, 0); U.uSMatS.value[c].set(m, 1, 1, 0);
+            U.uSMatA.value[c].set(L, -1, -1, c === 12 && L === L4[1] ? 2 : 0); U.uSMatS.value[c].set(m, 1, 1, 0);
             U.uSMatF.value[c].set(far0 ? LIB.indexOf(far0) : L, -1, -1, 0); U.uSMatFS.value[c].set(far0 && LIB.indexOf(far0) >= 0 ? fs0 : m, 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
         }
-        { const mc = lib(T4[2]).mean || [0.2, 0.2, 0.2]; U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), 0.2126 * mc[0] + 0.7152 * mc[1] + 0.0722 * mc[2], 0); }
+        { const mc = lib(T4[2]).mean || [0.2, 0.2, 0.2]; U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), 0.2126 * mc[0] + 0.7152 * mc[1] + 0.0722 * mc[2], 1); }
+        // THE BLEND WITH THE GRASS (16 Nov, the user: "the new grass is a lot darker than the grass you had used ... the rock would
+        // need to be modified in proportion"): v1's bench drew its green as grassRock x (0.78, 1, 0.62); the game grades it by the
+        // imagery (~0.26 / 0.47 / 0.90: half v1's value, bluer). The rock's value follows the ratio to the power rockGrassMatch
+        // (0 = v1's rock as is, 1 = v1's proportion exactly); rockWeather lays a film of the grass's hue on it
+        { const gm = lib(T4[3]).mean, gG = L4[3] >= 0 ? U.uSGrade.value[L4[3]] : null, lu = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+          if (gm && gG) { let gc = [gm[0] * gG.x, gm[1] * gG.y, gm[2] * gG.z]; const l0 = lu(gc); gc = gc.map(v => l0 + (v - l0) * gG.w);
+            const lg = Math.max(lu(gc), 1e-4), ratio = Math.min(2, Math.max(0.2, lg / Math.max(lu([gm[0] * 0.78, gm[1], gm[2] * 0.62]), 1e-4)));
+            U.uTrS.value.w = Math.pow(ratio, kv('rockGrassMatch', 0.5));
+            U.uTrW.value.set(...gc.map(v => Math.min(1.6, Math.max(0.5, v / lg))), kv('rockWeather', 0.25)); } }
         U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.72));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
         U.uTrE.value.set(kv('rockHLo', 250), kv('rockHHi', 760), kv('rockBias', 0.3), kv('rockOff', 0.08));
         const mS = lib(T4[0]).mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded
@@ -1401,7 +1412,8 @@ const SPLAT_GROUND = (() => {
         { const l = near < 1.5 && far < 1.5; if (l !== lean) { lean = l; if (api.onInspect) api.onInspect(); } }   // (G2075: the lean program re-keys)
         const K = R.knobs; U.uSDist.value.x = BLEND.from || K.detailFrom; U.uSDist.value.y = BLEND.to || K.detailTo; return [near, far, U.uSDist.value.x, U.uSDist.value.y]; },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
-      trond: () => trondKeys(),   // R1's four sets: slab, face, micro (+ the boulders), green
+      trond: () => trondKeys(),
+      rockBlend: () => [U.uTrS.value.w, U.uTrW.value.x, U.uTrW.value.y, U.uTrW.value.z, U.uTrW.value.w],   // the value match, the film's hue and amount (the rail's note, the ring's boulders)   // R1's four sets: slab, face, micro (+ the boulders), green
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
         for (const k in o) c[k] = o[k]; grow(); push(); save(R); return api.code(i); },
       grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R.grade[k] || {}),
