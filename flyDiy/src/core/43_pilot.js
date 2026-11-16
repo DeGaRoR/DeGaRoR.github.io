@@ -872,7 +872,7 @@ function makePilot(sim, def, world, opts) {
   // G1936: the forward slip on a short final (FINAL, below) - its amount 0..1, its side, said once
   let slipK = 0, slipSg = 1, slipSaid = false;
   // G3472 (T-P1 SLIP-BETA): the slip's rudder, this airframe's (eased off a sideslip past A.betaSlip); the last time it slipped
-  let slipDr = null, slipLastT = -1e9;
+  let slipDr = null, slipLastT = -1e9, wlK = 1, wlSaid = false;
   // G3471 (T-P1 BOUNCE): the time off the ground in this hop of the roll-out, and the hop judged a bounce (flown, not rolled)
   let bounceT = 0, bounceOn = false;
   // G3473 (T-P1 PLAN-KEPT): the autopilot given back in the air (ap.reEngage) - the arrival judged from here once
@@ -2879,6 +2879,19 @@ function makePilot(sim, def, world, opts) {
         slipDr = clamp(slipDr + (spiral ? -0.4 : calmS ? (P3_ ? 0.25 : 0.08) : 0) * dt, 0.15, dr0);
         c.dr = (1 - slipK) * c.dr + slipK * slipSg * slipDr;
       } else if (slipK === 0) slipDr = null;
+      ap.slip = slipK > 0 ? { k: slipK, sg: slipSg, dr: slipDr } : null;   // (the slip, published: flight_script's samples, the controls strip)
+      // WINGS-LEVEL (A0 16 Nov): LOW ON THE FINAL AND IN THE FLARE THE RUDDER GIVES WAY TO THE WINGS. A sideslip rolls the aeroplane
+      // by its dihedral effect (Clb); where that roll is more than the aileron holds - the stick on its stop against the bank, the
+      // bank past 6 deg - a pilot takes the foot off and lets the nose weathercock into the air, the sideslip and its roll go with
+      // it. The refit Cessna (Clb -0.075, Roskam's C172 about -0.09) went from 21 deg of bank on the aileron's stop to its back
+      // in tw_ski's flare with the decrab's rudder held on -0.35 (-18 deg of sideslip). The rudder's share (wlK) is wound down at
+      // 3 /s while the aileron is pinned so, given back at 1 /s once it has room; under wlAgl (30 m) in FINAL / FLARE, airborne
+      if (P3_ && onG === 0 && (ap.phase === 'FINAL' || ap.phase === 'FLARE') && aglG < (A.wlAgl ?? 30)) {
+        const aW = Math.abs(c.da) / SERVO_GAINS.daMax;
+        const pinned = aW > 0.9 && c.da * ph < 0 && Math.abs(ph) > 0.10;
+        wlK = clamp(wlK + (pinned ? -3 : aW < 0.7 ? 1 : 0) * dt, 0, 1);
+        if (wlK < 1) { c.dr *= wlK; if (!wlSaid && wlK < 0.5) { wlSaid = true; say('wings-level', 'the rudder eased off: the aileron on its stop against ' + Math.round(Math.abs(ph) * 57.3) + ' deg of bank (' + Math.round(beta * 57.3) + ' deg of sideslip)'); } }
+      } else { wlK = 1; if (ap.phase !== 'FINAL' && ap.phase !== 'FLARE') wlSaid = false; }
       // G381.1: POWER WHEN THE ELEVATOR RUNS OUT. On the approach and in the
       // flare, an aeroplane whose elevator sits on its nose-up stop cannot
       // hold the slope or the hold-off at idle — the drawn-tail Caravan-alike
@@ -5213,6 +5226,15 @@ function makePilot(sim, def, world, opts) {
         {
           const eE = (V * V - iasF * iasF) / (2 * 9.81) + above;
           const hOff = (A.flareK ?? 1.3) * A.flareAgl + 0.6 * V;
+          // WINGS-LEVEL (A0 16 Nov; the refit Cessna, Clb -0.041 -> -0.075, capsized in tw_ski's flare): THE SLIP IS ARMED AND LET GO
+          // ON THE HEIGHT OVER THE STRIP, NOT OVER THE GROUND UNDER THE AEROPLANE. tw_ski stands on a plateau over a valley: over the
+          // valley aglG read 80+ m with the strip ~20 m under the wheels, so the slip armed 5 s before the flare, came in at its full
+          // 0.80 of rudder (23 deg of sideslip) and was let go in the last 1.5 s - the flare began with the nose 22 deg off the runway
+          // and the decrab's rudder on its other stop (-18 deg of sideslip). The old airframe held its wings on 0.11 of aileron; the
+          // refit's doubled dihedral effect rolled it 21 deg on the aileron's stop, then onto its back. hSl: the lower of the two
+          // heights. A NEW slip also needs slipLead (8 s) of descent before it is let go (3 s in, 1.5 s out, and time to work)
+          const hSl = Math.min(aglG, cg[1] - aimAlt() - (gearH ?? restH0));
+          const slipRoom = slipK > 0 || !P3_ || hSl - hOff > (A.slipLead ?? 8) * Math.max(1, -vcg[1]);
           p3Closed = P3_ && ap.shortFld && fLDG <= 0 && aglG > hOff;
           // (G3914: a flapless aeroplane on a long strip slips only in the last 80 m. Anywhere on final, the Caravan-alike and the four-engine card slipped 2.5 km out for +3 to +6 m the
           // idle was already losing, then went round twice 15 m off the centreline; without it both land first try)
@@ -5221,11 +5243,11 @@ function makePilot(sim, def, world, opts) {
           // slope and slipped only 600 s later (the arm waited for the capture or for leaving the path). slipHigh (15 m) is far above
           // G3914's few metres (the Caravan-alike's +3 to +6 slipped 2.5 km out and went round): those still wait as before
           const slipHi = P3_ && above > (A.slipHigh ?? 15);
-          if ((slipHi || ((ap.shortFld || (PRA && PRF.slip) || (P3_ && fLDG <= 0 && aglG < 80)) && (slopeCaptured || (P3_ && above > 4 && !onPathF)))) && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2) && (!P3_ || Math.abs(SV.ph) < 0.17 || slipK > 0)) {   // (G3914: the wings level first)
+          if ((slipHi || ((ap.shortFld || (PRA && PRF.slip) || (P3_ && fLDG <= 0 && aglG < 80)) && (slopeCaptured || (P3_ && above > 4 && !onPathF)))) && hSl > hOff && slipRoom && c.thr < 0.10 && eE > (A.slipArm ?? 2) && (!P3_ || Math.abs(SV.ph) < 0.17 || slipK > 0)) {   // (G3914: the wings level first)
             if (slipK === 0) slipSg = SV.crossWind(F) >= 0 ? 1 : -1;
             slipK = Math.min(1, slipK + dt / 3);
             if (!slipSaid) { slipSaid = true; say('slip', slipHi && !ap.shortFld ? 'high on the final (' + Math.round(above) + ' m over the slope at idle) — slipping it down' : 'high on energy on the short final (+' + eE.toFixed(1) + ' m at idle) — slipping it down'); }
-          } else slipK = Math.max(0, slipK - dt / (aglG > hOff && eE > 0.5 ? 6 : 1.5));
+          } else slipK = Math.max(0, slipK - dt / (hSl > hOff && eE > 0.5 ? 6 : 1.5));
         }
         // P0.5: the slope and the level before it are two references of the one law
         // (G3914: the elevator cannot hold the reference in a slip - the same Cub, 20.6 m/s on 0.35-0.41 of it for 19.2 - and asking it anyway winds the pitch up)
