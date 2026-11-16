@@ -189,6 +189,11 @@ const COWL_ROWS = [
     { k: 'cylProfile', label: 'cylinders: profile', lo: 0, hi: 1, step: 1, names: ['straight barrel', 'spindle (full over the heads)'], when: 'P.cylOn>0' },
     { k: 'cylFront', label: 'cylinders: front radius (x full)', lo: 0.2, hi: 1, step: 0.01, when: 'P.cylOn>0&&P.cylProfile>0' },
     { k: 'cylInlet', label: 'cylinders: inlet in the front', lo: 0, hi: 1, step: 1, when: 'P.cylOn>0&&P.cylProfile>0' },
+    // (the user, 16 Nov: "I also need controls for the inside duct part")
+    { k: 'cylLipT', label: 'cylinders: inlet lip thickness (x front radius)', lo: 0.03, hi: 0.35, step: 0.005, when: 'P.cylOn>0&&P.cylProfile>0&&P.cylInlet>0' },
+    { k: 'cylDuctLen', label: 'cylinders: duct depth (x front radius)', lo: 0.1, hi: 4, step: 0.05, when: 'P.cylOn>0&&P.cylProfile>0&&P.cylInlet>0' },
+    { k: 'cylDuctEnd', label: 'cylinders: duct end size (x the throat)', lo: 0.2, hi: 1.2, step: 0.01, when: 'P.cylOn>0&&P.cylProfile>0&&P.cylInlet>0' },
+    { k: 'cylDuctBack', label: 'cylinders: duct back wall', lo: 0, hi: 1, step: 1, names: ['open', 'closed'], when: 'P.cylOn>0&&P.cylProfile>0&&P.cylInlet>0' },
     { k: 'cylVert', label: 'cylinders: height (x the width)', lo: 0.3, hi: 1.5, step: 0.01, when: 'P.cylOn>0' },
     { k: 'cylSq', label: 'cylinders: section (round → square)', lo: 0, hi: 1, step: 0.01, when: 'P.cylOn>0' },
     { k: 'cutSpan', label: 'cut-out span (horseshoe)', lo: 0, hi: 200, step: 1 },
