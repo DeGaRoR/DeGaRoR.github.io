@@ -1409,7 +1409,30 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // that ring - the C pillar's included, the box clamp being the auto rule's; absent, the rule above, unchanged
     const strutAt = S.bracing && S.bracing.strutAt != null ? +S.bracing.strutAt : null;
     const iStrutRing = strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox);
-    const strutRoot = F[iStrutRing][opposeTag + sd];
+    let strutRoot = F[iStrutRing][opposeTag + sd];
+    // A-POST STRUT (16 Nov, the 172, the user: "the anchor of the strut on the body should be at the base of the cabin
+    // pillar ... that has the windscreen ... a very valid place to put a strut"): S.bracing.strutFoot (metres aft of the
+    // firewall - the join writes the A post's station when the strut is picked onto it) stands the foot at its own
+    // station on the lower longeron - a node between the two rings around it, tied to both and to the upper longeron
+    // of the aft one (stand-ins: no mass, the longeron already bills its tube). Absent: the ring, as always
+    const SFT = S.bracing && S.bracing.strutFoot > 0 ? +S.bracing.strutFoot : 0;
+    if (SFT > 0) {
+      let i0 = 0;
+      ST.forEach((s2, i) => { if (s2.x <= SFT) i0 = i; });
+      const i1 = Math.min(ST.length - 1, i0 + 1), la = F[i0][opposeTag + sd], lb = F[i1][opposeTag + sd];
+      const tt = ST[i1].x > ST[i0].x ? Math.max(0, Math.min(1, (SFT - ST[i0].x) / (ST[i1].x - ST[i0].x))) : 0;
+      if (tt < 0.03) strutRoot = la;
+      else if (tt > 0.97) strutRoot = lb;
+      else {
+        const pa = P[la], pb = P[lb];
+        const nf = N(pa[0] + (pb[0] - pa[0]) * tt, pa[1] + (pb[1] - pa[1]) * tt, pa[2] + (pb[2] - pa[2]) * tt, 'SFT' + sd);
+        const up = F[i1][(opposeTag === 'B' ? 'T' : 'B') + sd];
+        B(nf, la, 'fus', false, 'inner', false, { noMass: true });
+        B(nf, lb, 'fus', false, 'inner', false, { noMass: true });
+        if (up != null) B(nf, up, 'fus', false, 'inner', false, { noMass: true });
+        strutRoot = nf;
+      }
+    }
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in

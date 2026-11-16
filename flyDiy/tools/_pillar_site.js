@@ -34,7 +34,8 @@
 // strut's foot 0.15 m ahead of its node, on the pilot door's bottom; the float strut roots 0.4 m and 0.2 m from theirs,
 // one of them on the pilot door's skin). A foot drawn on the pillar rides the node it loads (app.js nearNode): WYSIWYG.
 // A mid pillar (M<i>) and the windscreen post (A) have no frame ring: they are sites for hardware (a handle's latch,
-// a step, a strap), not for a primary load, and `frame` says so.
+// a step, a strap), not for a primary load, and `frame` says so - except the A post a lift strut is PICKED onto
+// (windscreenPost: A-POST STRUT, 16 Nov), which the frame gives the strut's own node.
 'use strict';
 (function () {
 
@@ -164,6 +165,20 @@ function pillarsOf(mesh, R, FS) {
   return v;
 }
 
+// A-POST STRUT (16 Nov, the 172, the user: "there is a structural pillar over there. It's the one that is doing the A
+// pillar of the window ... a very valid place to put a strut"): the windscreen post off the windscreen frame's own ring
+// pair (wsAft -> wsFront, at the waist), carrying the lift strut's own frame node (61_gen_frame: bracing.strutFoot, the
+// join's) - read only when a strut is PICKED onto the A post, so every other record stays as it was. -> the record, or null
+function windscreenPost(R, FS) {
+  FS = FS || 1;
+  const { by } = bandsOf(R);
+  const za = ringZ(by.wsAft), zb = ringZ(by.wsFront);
+  if (za == null || zb == null || !(Math.abs(zb - za) > 1e-4)) return null;
+  const ya = ringYs(by.wsAft) || [0, 0], yb = ringYs(by.wsFront) || ya;
+  const z0 = Math.min(za, zb) * FS, z1 = Math.max(za, zb) * FS, zc = 0.5 * (z0 + z1);
+  return { key: 'A', label: 'windscreen (A) post', z0, z1, zc, zNode: zc, rings: ['wsAft', 'wsFront'], frame: 'A',
+           yLo: Math.min(ya[0], yb[0]) * FS, yHi: Math.max(ya[1], yb[1]) * FS };
+}
 // the pillar a station stands on, or the nearest one within `reach` (metres); `frame` true: only a pillar with a
 // physics ring (a primary load's)
 function onPillar(PS, z, opt) {
@@ -629,7 +644,7 @@ function swingLine(d) {
          (on.length ? ', on the closed door: ' + on.join(', ') : '');
 }
 
-const API = { SWING_CATS, SWING_RED_MM, SWING_STOP, inDoorZY, doorSwingReport, swingLine, catOf, pillarsOf, onPillar, pillarOfFrame, frameStations, strutRootStation, floatRootStations, inDoor, swingSweep, sceneObstacles, axesOf, ptTri, rot, bandsOf };
+const API = { windscreenPost, SWING_CATS, SWING_RED_MM, SWING_STOP, inDoorZY, doorSwingReport, swingLine, catOf, pillarsOf, onPillar, pillarOfFrame, frameStations, strutRootStation, floatRootStations, inDoor, swingSweep, sceneObstacles, axesOf, ptTri, rot, bandsOf };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PILLAR_SITE = API;
 })();
