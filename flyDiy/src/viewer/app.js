@@ -351,6 +351,7 @@
   // steps - and the hand's write before EVERY step put its own brake back, so a parked aeroplane flown by hand rolled
   // (inline and in the worker alike). The hand's write reads the knob now, as a floor on both mains
   if (INP && INP.parkFrom) INP.parkFrom(() => !!(CK && CK.park));
+  if (INP && INP.skiFrom) INP.skiFrom(() => (sim && sim.out && typeof sim.out.ski === 'number') ? sim.out.ski : null);   // SKIS
   const scene = new THREE.Scene();
 
   // THE FAR PLANE (G401, the user: "it is unacceptable that a mountain disappears
@@ -2735,6 +2736,8 @@
   // of the very fiche the sim is running, so it must be that object and not a
   // second call to the builder.
   function buildModel(key, curDef) {
+    // SKIS: the weight the gear layer sizes a new ski for (its rows at 0: the core's pDesign rule)
+    try { if (curDef && curDef.parts && curDef.parts.designGross > 0) window.FLYDIY_LAST_GROSS = curDef.parts.designGross; } catch (e) {}
     // the generated model is never cached — the whole point is that a slider
     // rebuilds it. Everything else decodes once and is kept forever.
     if (key !== 'gen' && modelCache[key]) return modelCache[key];
@@ -3199,7 +3202,10 @@
     const gearMechTags = [];                  // RETRACT GM3: [obj, part name] - a brace's links, an actuator's body and rod
     const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
     const leverRigs = [];                     // WILGA-GEAR: the trailing-link legs' rigid parts, each on three nodes
+    const skiRigs = [];                       // SKIS: each ski rigid on its axle node, pitched about it (sim.out.skiPitch)
+    const skiLinks = [];                      // SKIS: the rigging runs, each a line from its airframe fitting to its ski's lug
     let castorRig = null;
+    const pc6Rigs = [];                       // PC6-OLEO: the PC-6 tailwheel's collar, V arms (castorTc / Tu / Tl)
     let gearSwingRig = null;                  // RETRACT-1: the swing groups (null: a fixed build, nothing moves)
     let gearMechRig = null;                   // RETRACT GM3: the one kinematics (null: an older snapshot - the swing alone)
     if (data.cage && Array.isArray(data.parts)) {
@@ -3825,6 +3831,41 @@
           grp.add(pg);
           gearMechTags.push([pg, pt.name]);
         }
+        else if (/^ski[LRT]$/.test(pt.kind)) {
+          // SKIS (13 Nov): THE SKI RIDES ITS AXLE NODE as its wheel does (drawn place + the node's travel) and turns about
+          // the axle by the solver's pitch (on the ground along the surface, in the air the rigged incidence); a wheel-ski
+          // slides by out.skiDy (its selector); the tail / nose ski rides inside the castor (below: it yaws with its wheel)
+          const u = pt.kind.slice(3), idx = u === 'T' ? nodeOf.tw : nodeOf[u === 'L' ? 'mainsL' : 'mainsR'];
+          if (idx != null) {
+            if (pg.position && pg.position.set) pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+            grp.add(pg);
+            gearTags.push([pg, u]);
+            const km = (curDef.refs.mains || []).indexOf(idx);
+            skiRigs.push({ obj: pg, idx, unit: u, k: km >= 0 ? km : 2, pivot: pt.pivot, rest0: nodeRest(idx), child: false });
+          }
+        }
+        else if (pt.kind === 'skiLink' && pt.pin && pt.tip) {
+          // SKIS: A RIGGING RUN (the front spring and cable, the aft check cable) - the G239 contract: every vertex takes its
+          // share t along the line pin -> tip of the tip's travel; the pin is on the airframe, the tip on its ski (below)
+          grp.add(pg);
+          const dx = pt.tip[0] - pt.pin[0], dy = pt.tip[1] - pt.pin[1], dz = pt.tip[2] - pt.pin[2], L2 = dx * dx + dy * dy + dz * dz || 1;
+          pg.traverse(o => {
+            if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+            const pa = o.geometry.attributes.position, base = pa.array.slice(), W = new Float32Array(pa.count);
+            for (let i = 0; i < pa.count; i++)
+              W[i] = Math.max(0, Math.min(1, ((base[i*3] - pt.pin[0]) * dx + (base[i*3+1] - pt.pin[1]) * dy + (base[i*3+2] - pt.pin[2]) * dz) / L2));
+            skiLinks.push({ posAttr: pa, base, w: W, tip: pt.tip, ski: pt.ski });
+          });
+        }
+        else if ((pt.kind === 'castorTc' || pt.kind === 'castorTu' || pt.kind === 'castorTl') && nodeOf.tw != null && pt.tab) {
+          // PC6-OLEO: a part of the PC-6 tailwheel's mechanism, posed each frame off the wheel node's travel up the
+          // strut's axis and the steering (the rig below the castor's)
+          if (pg.position && pg.position.set) pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          gearTags.push([pg, 'T']);
+          pc6Rigs.push({ obj: pg, kind: pt.kind, pivot: pt.pivot, top: pt.top, axis: pt.axis, pinAxis: pt.pinAxis, tab: pt.tab,
+                         idx: nodeOf.tw, rest0: nodeRest(nodeOf.tw) });
+        }
         else if (pt.kind === 'castorT' && nodeOf.tw != null) {
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
@@ -3856,6 +3897,11 @@
             castorRig.axle[1] - castorRig.pivot[1],
             castorRig.axle[2] - castorRig.pivot[2]);
         twWheel.child = true;              // the castor drives its position
+      }
+      // SKIS: the tail / nose ski inside the castor too (its place relative to the swivel's pivot)
+      for (const sr of skiRigs) if (sr.unit === 'T' && castorRig && castorRig.obj.add) {
+        castorRig.obj.add(sr.obj); sr.child = true;
+        sr.rel = [sr.pivot[0] - castorRig.pivot[0], sr.pivot[1] - castorRig.pivot[1], sr.pivot[2] - castorRig.pivot[2]];
       }
       // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE SWING. A retractable build's snapshot carries
       // gearSwing (_cage_join.js: per unit the hinge, the axis in the true frame, the angle); each unit's parts - the
@@ -4272,11 +4318,14 @@
                         floatRigs: floatRigs.length ? floatRigs : null,   // H2 (G389)
                         stretchRigs: stretchRigs.length ? stretchRigs : null,
                         leverRigs: leverRigs.length ? leverRigs : null,              // WILGA-GEAR
+                        skiRigs: skiRigs.length ? skiRigs : null,                    // SKIS
+                        skiLinks: skiLinks.length && skiRigs.length ? skiLinks.map(l => Object.assign(l, { rig: skiRigs.find(r => r.unit === l.ski) || null })).filter(l => l.rig) : null,
                         surfParts: surfParts.length ? surfParts : null,
                         linkRigs: linkRigs.length ? linkRigs : null,   // G239
                         ctlMoves: ctlMoves.length ? ctlMoves : null,   // G240
                         picks: picks.length ? picks : null,            // G318
                         castorRig,
+                        pc6Rigs: pc6Rigs.length ? pc6Rigs : null,     // PC6-OLEO
                         gearSwingRig,                                  // RETRACT-1
                         gearMechRig,                                   // RETRACT GM3
                         surfaces: data.surfaces,
@@ -4492,6 +4541,7 @@
     // about the CG (the tilt is a few mrad: the pivot's height moves the drawn wheels by mm)
     model.grp.matrix.premultiply(SINK_M.fromArray(groundSinkMatrix(SINK_V, cg[0], cg[1], cg[2], SINK_A)));
   }
+  let PC6Q = null;                           // PC6-OLEO: the mechanism rig's scratch quaternions and vectors
   function poseModel(catchUp) {
     // a generated model keeps posing in Frame mode: mode 2 hides the covering
     // and shows the tube truss, which is still the same rigged mesh
@@ -4831,6 +4881,33 @@
       }
       w.prev = [sim.p[i3], sim.p[i3 + 1], sim.p[i3 + 2]];
       poseRigid(w.obj);                               // G357: in the true frame
+    }
+    // SKIS: each ski on its axle node, turned about the axle by the solver's pitch (nose up +), a wheel-ski slid by its
+    // selector (out.skiDy: + lower than drawn); inside the castor the tail ski's place is its offset from the swivel
+    if (model.skiRigs) {
+      const so = sim.out || {};
+      for (const sr of model.skiRigs) {
+        if (!sr.obj.position || !sr.obj.position.set) continue;      // smoke stub
+        const dy = so.skiDy ? +so.skiDy[sr.k] || 0 : 0, ph = so.skiPitch ? +so.skiPitch[sr.k] || 0 : 0;
+        if (sr.child) sr.obj.position.set(sr.rel[0], sr.rel[1] - dy, sr.rel[2]);
+        else { const L = nodeLocal(sr.idx);
+               sr.obj.position.set(sr.pivot[0] + L[0] - sr.rest0[0], sr.pivot[1] + L[1] - sr.rest0[1] - dy, sr.pivot[2] + L[2] - sr.rest0[2]); }
+        if (sr.obj.rotation) sr.obj.rotation.z = -ph;
+        if (!sr.child) poseRigid(sr.obj);
+        sr.ph = ph; sr.dy = dy;
+      }
+      // ...and their rigging runs: the lug turned about the axle with its ski, carried by the axle node and the selector
+      if (model.skiLinks) for (const lk of model.skiLinks) {
+        const sr = lk.rig; if (!lk.posAttr || !lk.posAttr.array || sr.child) continue;
+        const L = nodeLocal(sr.idx), R9 = conjRot([0, 0, 1], -(sr.ph || 0), M9);
+        const qx = lk.tip[0] - sr.pivot[0], qy = lk.tip[1] - sr.pivot[1], qz = lk.tip[2] - sr.pivot[2];
+        const tx = R9[0] * qx + R9[1] * qy + R9[2] * qz - qx + L[0] - sr.rest0[0];
+        const ty = R9[3] * qx + R9[4] * qy + R9[5] * qz - qy + L[1] - sr.rest0[1] - (sr.dy || 0);
+        const tz = R9[6] * qx + R9[7] * qy + R9[8] * qz - qz + L[2] - sr.rest0[2];
+        const b = lk.base, o = lk.posAttr.array, W = lk.w;
+        for (let i = 0; i < W.length; i++) { o[i*3] = b[i*3] + W[i] * tx; o[i*3+1] = b[i*3+1] + W[i] * ty; o[i*3+2] = b[i*3+2] + W[i] * tz; }
+        lk.posAttr.needsUpdate = true;
+      }
     }
     // G58.3: the LEGS stretch toward their axle — each vertex moves by its
     // nearness-weight times the node's travel since rest, so the airframe
@@ -5184,6 +5261,39 @@
           c.obj.quaternion.setFromAxisAngle(vY, -sA * up);
         }
         poseRigid(c.obj);                             // G357: in the true frame
+      }
+    }
+    // PC6-OLEO: THE PC-6 TAILWHEEL'S MECHANISM. The slider (the piston, its fork, the wheel) is the castor above: the
+    // wheel node's travel and the steering. The collar turns only; the V's upper arm turns and swings on the collar's
+    // pin by phi; its lower bands ride the axle (the slider's travel), turn, and swing about it by psi - phi and psi the
+    // drawing's own table (castorUnit, the scissor solved over the stroke) at the stroke the wheel node reads: its travel
+    // up the strut's axis from the drawn, relaxed place. Every pin stays a pin at every stroke and every steering angle
+    if (model.pc6Rigs) {
+      const so = typeof sim !== 'undefined' && sim && sim.out, tst = so && so.twState ? so.twState[0] : 0;
+      const tws = (def && def.params && typeof def.params.twSteer === 'number') ? def.params.twSteer : 0.5;
+      const sA = tst === 1 && so.twAng ? so.twAng[0] : (tst === 2 || tst === 3) ? 0 : tws * (link.dr || 0);
+      const Q = PC6Q || (PC6Q = { y: new THREE.Quaternion(), r: new THREE.Quaternion(), a: new THREE.Vector3(), b: new THREE.Vector3(), o: new THREE.Vector3() });
+      for (const r of model.pc6Rigs) {
+        if (!r.obj.position || !r.obj.quaternion) continue;
+        const L = nodeLocal(r.idx), d = [L[0] - r.rest0[0], L[1] - r.rest0[1], L[2] - r.rest0[2]];
+        const up = r.axis[1] < 0 ? -1 : 1;
+        const comp = Math.max(0, (d[0] * r.axis[0] + d[1] * r.axis[1] + d[2] * r.axis[2]) * up);   // the travel up the strut (its axis points down)
+        const tb = r.tab, n = tb.comp.length - 1, cM = tb.comp[n] || 1e-9, f = Math.min(n, Math.max(0, comp / cM * n));
+        const i0 = Math.min(n - 1, Math.floor(f)), w = f - i0, lerp = A => A[i0] + (A[i0 + 1] - A[i0]) * w;
+        Q.a.set(r.axis[0], r.axis[1], r.axis[2]);
+        Q.y.setFromAxisAngle(Q.a, -sA * up);
+        // the part's place: the collar and the arm at their pivots turned about the strut with the steering; the bands at
+        // the relaxed axle turned likewise, then carried with the wheel's travel
+        Q.o.set(r.pivot[0] - r.top[0], r.pivot[1] - r.top[1], r.pivot[2] - r.top[2]).applyQuaternion(Q.y);
+        const carry = r.kind === 'castorTl';
+        r.obj.position.set(r.top[0] + Q.o.x + (carry ? d[0] : 0), r.top[1] + Q.o.y + (carry ? d[1] : 0), r.top[2] + Q.o.z + (carry ? d[2] : 0));
+        if (r.kind === 'castorTc') r.obj.quaternion.copy(Q.y);
+        else {
+          Q.b.set(r.pinAxis[0], r.pinAxis[1], r.pinAxis[2]);
+          Q.r.setFromAxisAngle(Q.b, lerp(r.kind === 'castorTu' ? tb.phi : tb.psi));
+          r.obj.quaternion.copy(Q.y).multiply(Q.r);
+        }
+        poseRigid(r.obj);
       }
     }
     { const oB = [O[0] + oR[0], O[1] + oR[1], oR[2]];
@@ -9199,9 +9309,18 @@
     }
     gearHandSeen = h;
   }
+  // SKIS: THE WHEEL-SKIS' KEY UNDER THE AUTOPILOT - the same rule as the gear's: a press flips them from where they are
+  let skiHandSeen = null;
+  function skiKeyUnderAP() {
+    if (manual || !INP || typeof INP.ski !== 'function' || !sim.ctl || !('ski' in sim.ctl)) { skiHandSeen = null; return; }
+    const h = INP.ski();
+    if (skiHandSeen !== null && h !== skiHandSeen) sim.ctl.ski = h === null ? null : h;
+    skiHandSeen = h;
+  }
   function scriptView(dt) {
     if (!started) { setRail(null); return; }
     gearKeyUnderAP();
+    skiKeyUnderAP();
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);

@@ -1,7 +1,7 @@
 {
  "what": "flydiy-thumbs",
  "v": 1,
- "baked": "2026-11-14",
+ "baked": "2026-11-16",
  "view": "profile/0.9/480x240",
  "thumbs": {
   "list:25": "list_25.webp",
@@ -50,6 +50,8 @@
   "cand:tigermoth_2026-10.json": "cand_tigermoth_2026-10.webp",
   "cand:ugly_bi.json": "cand_ugly_bi.webp",
   "cand:cub_fittings_hand_2026-10.json": "cand_cub_fittings_hand_2026-10.webp",
-  "list:41": "list_41.webp"
+  "list:41": "list_41.webp",
+  "cand:pc6_drafting_2026-11-11.json": "cand_pc6_drafting_2026-11-11.webp",
+  "cand:pc6_floats_2026-11-13.json": "cand_pc6_floats_2026-11-13.webp"
  }
 }

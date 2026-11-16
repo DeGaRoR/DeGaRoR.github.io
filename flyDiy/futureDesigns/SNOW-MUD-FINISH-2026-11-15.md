@@ -169,7 +169,80 @@ FLOWN ON SKIS: the PC-6 on skis on powder, with SKIS' fixture (tools/fixtures/sk
 and switches on, asserting that it gets off, the moment SKIS lands. The observatory's final test (PC-6 + skis + snow) is that
 row in the world.
 
-SKIS' optional `fresh` on rows 9 and 10 is now the base law itself. Kept on their rows it reads the same; it can go.
+SKIS' optional `fresh` on rows 9 and 10: my first note here said it "reads the same" kept on the virgin rows. It did not
+(SKIS, 15 Nov): their sole adds the fresh top to the row's own sinkage, so on the virgin rows the law counted twice, and the
+Carbon Cub's skis sank 20.5 cm and never lifted off. SKIS fixed it on claude/skis-pc6 (a809ac6ae): the fresh top applies
+only over a row stiffer than itself, so it is off on 9 and 10. Their ruts are 29.7 / 18.3 / 11.5 cm and the Cub is off in
+89 m; SNOWFLY passes merged (the PC-6 on skis off powder in 53 m). A wheel-ski's tyre pays groundBullWheel at its own rut in
+SKIS' ski pass.
+
+## 6. IN MUD A SMALL WHEEL STRUGGLES (the user, 15 Nov; GATE WHEELSIZE, core, ~45 s)
+
+The user: "for the mud, there I would expect small wheels to struggle more than large wheels, would that be right? Maybe we
+can test that too". Yes, by the law already in: in the rigid regime the drag goes as sqrt(z / D), and a smaller, narrower or
+harder tyre sinks deeper (its load over its footprint). The gate flies it. The Cub (list:1) with only its main wheels changed
+(gear.wheelR, cage.whProfile): full power from rest, heading held, to 0.9 Vs.
+
+| main wheels | grass | soft mud: penalty (time / grass) | sinkage at rest on soft mud |
+|---|---|---|---|
+| 0.15 m standard | 61 m | STUCK | 8.5 cm |
+| 0.22 m standard (as built) | 63 m | x1.40 | 3.3 cm |
+| 0.30 m standard | 68 m | x1.18 | 1.6 cm |
+| 0.36 m tundra | 74 m | x1.12 | 0.6 cm |
+
+Firm mud is every wheel's ground (penalty under x1.15, never growing with the wheel). Grass is the control: the runs stay
+within 25 % of one another (a bigger wheel's own mass and drag).
+
+## 7. ON STONES A BIG SOFT WHEEL SWALLOWS WHAT A SMALL HARD ONE CLIMBS (the user, 15 Nov; GATE ROUGHWHEEL, core, ~100 s)
+
+The user: "does a large tundra wheel help on a bumpy road with stones? Normally we should have one". It did not.
+
+THE FINDING. The solver read the ground at ONE POINT under each node. A wheel met a stone when its axle stood over it: a step
+of the stone's whole height in one substep, whatever the wheel. No stone cost any wheel any speed (a 26 cm stone: 100 % kept).
+On the strip's own field the 0.36 m tundra wheel jolted HARDER than the 0.15 m one (peaks 14.2 against 12.3 m/s^2).
+
+THE MODEL: the TANDEM CAM (Schmeitz & Pacejka, "A semi-empirical three-dimensional model of the pneumatic tyre rolling over
+arbitrarily uneven road surfaces", Vehicle System Dynamics 41, 2004; Zegelaar's thesis, TU Delft 1998), in 30_solver:
+- Only on a bumpy strip: `world.roughAt(x, z)` is true on a micro strip's box grown a metre (27_premises roughAt).
+- Two cams of the tyre's radius R, one footprint length l apart. l is the carcass's own: tyreFootprint's 4A / (pi b), the
+  soft law's footprint. That is 0.15 m on the 0.15 m wheel, 0.23 m on the stock 0.22 m, 0.31 m on 0.30 m, 0.46 m on the tundra.
+- Each cam rides the profile: the highest of h(x + s u) less the rim's rise R - sqrt(R^2 - s^2), |s| < 0.95 R, along the
+  wheel's heading u (and the profile under the cam's own centre, so a flat road reads flat to the bit).
+- The axle's ground is the cams' MEAN. The road's effective slope is their DIFFERENCE over l, and the stone pushes the wheel
+  back along u by it (Fn x slope, capped at 3).
+- So a stone shorter than the footprint lifts the axle by about half its height and over the footprint's length. A hole
+  narrower than the footprint is bridged.
+
+WHY NOT A RIGID ARC ALONE. Tried first: the highest point under the rigid rim. On the strip's stones (paraboloid caps,
+56 deg flanks at the foot, R <= 0.27 m: the biggest stands 20 cm proud), every wheel climbs the same flank. And the work
+to lift the aeroplane over a stone, m g H, is the same for every rigid wheel. So the rigid arc made the stone an obstacle
+but did not separate the wheels. The real tundra advantage is the tyre ENVELOPING the stone, and that is what the tandem
+cam carries.
+
+THE COST. The ground is read ONCE A FRAME per wheel on the strip: a profile along u every 5 cm over the cams' reach and the
+frame's travel the way the wheel rolls (envFrame). The substeps take the cams off it, arithmetic only. That is 49 reads a frame
+on the 0.15 m wheels, 76 on the tundra at 10 m/s (`out.envN`): under 2 a substep, against the solver's own ground reads
+per node per substep. Off a bumpy strip it is one roughAt compare a wheel a frame; a world without roughAt (every stub,
+every gate's flat world) reads nothing, the bytes as before.
+
+THE RESULT (the Cub; one of the strip's stones under each main, 6 m ahead, from rest at a fixed throttle; the share of its
+speed a wheel keeps over the stone, and the CG's peak vertical acceleration there):
+
+| stone, throttle | 0.15 m | 0.22 m (built) | 0.30 m | 0.36 m tundra |
+|---|---|---|---|---|
+| 15 cm, 0.3 | STOPPED | 33 %, 5.2 | 49 %, 4.0 | 61 %, 4.3 |
+| 20 cm (the strip's biggest), 0.4 | 25 %, 11.1 | 48 %, 10.7 | 61 %, 9.1 | 74 %, 7.7 |
+| 15 cm, 0.3, the OLD point read | 100 %, 10.3 | 100 %, 10.6 | 100 %, 11.0 | 100 %, 10.8 |
+
+At a 10 m/s taxi over a row of 15 cm stones, the jolt falls 13.2 / 12.9 / 11.5 / 10.1 m/s^2 and the gear's peak strain
+8.40 / 8.16 / 7.51 / 7.42 %.
+
+NOT CLAIMED, a garage gap for the DIRT session: a softer ride on the strip's LUMPS (1.8-3.5 m waves). No tyre filters a wave
+longer than its footprint, so the rms is the same for every wheel (~2.0 m/s^2 at chaos 0.8), as it should be. But the peak
+there still grows with the wheel (10.3 on the 0.15 m, 12.9 on the tundra). The solver's ground spring scales with the node's
+mass (KGn = 1.5e4 x m above 6 kg), so a heavier wheel rides STIFFER (9e4 N/m on the 0.15 m wheel, 2.8e5 on the tundra), and
+a low-pressure carcass's vertical rate is nowhere. A carcass's vertical rate (beside TYRE_SOFT) is the row to build. It moves
+every fixture that rolls, so it belongs to a session that owns the ground's calibration.
 
 ## Gates
 
@@ -181,3 +254,5 @@ SKIS' optional `fresh` on rows 9 and 10 is now the base law itself. Kept on thei
 | SNOWMUDFX | core | ~1 s | 7 red |
 | SNOWFLY | full | ~9 min | - |
 | SOFTGROUND | core | ~2 min | re-recorded fixture |
+| WHEELSIZE | core | ~45 s | - (the table's order is the check) |
+| ROUGHWHEEL | core | ~100 s | the old point read fails A |

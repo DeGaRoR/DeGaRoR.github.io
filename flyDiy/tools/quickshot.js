@@ -93,6 +93,8 @@ const WPX = +opt('w', 1400);
 const MARKS = opt('marks', '');
 const FLAT = argv.includes('--flat');                 // GR: the old flat facets (the default shades smoothly)
 const SH = require(path.join(ROOT, 'tools', '_scene_headless.js'));
+// --pc6comp m: the PC-6 tailwheel drawn compressed by that much from its relaxed pose (PC6-OLEO, a preview only)
+if (opt('pc6comp', null) != null) { process.env.PC6_COMP = String(+opt('pc6comp', 0)); global.window = global.window || {}; global.window.PC6_COMP = +opt('pc6comp', 0); }
 let spec, doc = null;
 if (KEY) {
   const BJ = require(path.join(ROOT, 'tools', '_bake_joined.js')), LB = require(path.join(ROOT, 'tools', '_load_build.js'));

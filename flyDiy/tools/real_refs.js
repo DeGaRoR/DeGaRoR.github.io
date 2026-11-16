@@ -165,6 +165,21 @@ const REFS = {
       TO:    { v: [200 * FT, 250 * FT], tol: 0.05, kg: 'unknown', flaps: 0, surface: 'grass', src: '200 / 250 ft' },
       LDG:   { v: 300 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: '300 ft' },
     } },
+  // PILATUS PC-6/B2-H4 TURBO PORTER (FIT-PROCEDURE, the drafting table 11-16 Nov; tools/drafting/refs/pc6.json - the type
+  // certificate prevails). The factsheet's figures are ISA, the STOL technique; its TO50 / LDG50 state no weight.
+  // Vs0 (96 km/h, 52 KEAS at gross, full flap) is the factsheet's too - no indicator for it here: it is the card's note
+  pc6: {
+    name: 'Pilatus PC-6/B2-H4 Turbo Porter (PT6A-27, 550 shp)', mtow: 2800, empty: 1250, fuelL: 484, S: 30.15,
+    src: 'FOCA TCDS F 56-10 issue 7 (the B2-H4 column) + Pilatus factsheet "PC-6 The world\'s leading STOL" (ISA): 2800 kg, 30.15 m2, flaps 28 / 38 deg, Vs1 58 KEAS / Vs0 52 KEAS at gross, climb 5.13 m/s, max cruise 125 KTAS, TO50 440 m, LDG50 315 m',
+    poh: { vr: 1.10, vy: 1.30, flapTO: 28, flapLDG: 38, brake: 0.7, note: 'the STOL technique (the factsheet\'s): rotate near the take-off flap\'s stall, full flap and firm braking to land' },
+    rows: {
+      empty: { v: 1250, tol: 0.08, src: 'basic operating 1250 kg, "depends on configuration" (factsheet)' },
+      Vs1:   { v: 58 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: '58 KEAS at gross (factsheet)' },
+      Vmax:  { v: 125 * KT, tol: 0.10, kg: 'unknown', src: 'max cruise 125 KTAS, altitude not stated (factsheet) - max continuous power, read as the full-power level speed' },
+      roc:   { v: 5.13, tol: 0.05, kg: 'gross', src: '1010 fpm, 5.13 m/s at gross (factsheet)' },
+      TO50:  { v: 440, tol: 0.10, kg: 'unknown', flaps: 28, surface: 'unknown', src: 'over 15 m, STOL technique, ISA (factsheet)' },
+      LDG50: { v: 315, tol: 0.10, kg: 'unknown', flaps: 38, surface: 'unknown', src: 'from 15 m, STOL technique, ISA (factsheet)' },
+    } },
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -295,6 +310,9 @@ Object.assign(REFS, {
 //   specs: engine (name), hp (per engine), nE, propD (m), blades, empty, mtow (kg), fuelL, seats
 // ---------------------------------------------------------------------------------------------------------------------
 const GEO = {
+  pc6:      { dims: { span: 15.87, length: 10.9, height: 3.2, S: 30.15, cRoot: 1.9, cTip: 1.9, hSpan: 5.13, track: 3.0 },
+              specs: { engine: 'P&WC PT6A-27', hp: 550, nE: 1, propD: [2.515, 2.565], blades: 3, empty: 1250, mtow: 2800, fuelL: [484, 644], seats: 11 },
+              src: 'FOCA TCDS F 56-10 issue 7 (the B2-H4 column) + Pilatus factsheet (tools/drafting/refs/pc6.json)', lengthNote: 'overall; the height static, tail down' },
   cub:      { dims: { span: 10.74, length: 6.83, height: 2.03, S: 16.6, cRoot: 1.60, cTip: 1.60, hSpan: 2.90, track: 1.83 },
               specs: { engine: 'Continental A-65', hp: 65, nE: 1, propD: 1.83, blades: 2, empty: 345, mtow: 550, fuelL: 45, seats: 2 },
               src: 'J-3 type sheet (perf_study REAL.cub.dims)' },
@@ -365,6 +383,9 @@ for (const k in GEO) if (REFS[k]) Object.assign(REFS[k], { dims: GEO[k].dims, sp
 // check both sides; null = no list row (jodel_geo, the floats Cessnas, the Ruckus). Where the row's file differs from
 // `file` (the Cub 1 / Jodel 2 / PA-18 25 / Petrel 41) or its blob does, see reports/REAL-FIGURES-CANON.md.
 const PLANES = {
+  // FIT-PROCEDURE (16 Nov): the drafting table's PC-6 on its oleo tailwheel (PC6-OLEO: the 30.5 kg tail gear, CG 7.7 cm aft)
+  pc6:      { listRow: 57, label: 'Pilatus PC-6/B2-H4 Turbo Porter (the drafting table, the oleo tailwheel; candidate)', short: 'PC-6 Turbo Porter', file: 'builds/candidates/pc6_drafting_2026-11-11.json', ref: 'pc6', group: 'turboprop',
+              note: 'fitted to the TCDS and the three-view (DRAFTING_TABLE.md); the factsheet Vs0 96 km/h (full flap, gross) has no indicator' },
   cub:      { listRow: 1, label: 'Piper Cub (official)', short: 'Piper Cub', file: 'builds/cub_2026-09-20_corrected.json', ref: 'cub', official: true },
   // (the user, 9 Nov: the J-3's chord, 1.60 m; the shipped file is the calibration datum of 105 checks, so the candidate
   // stands in the report in its place until the user promotes it)
