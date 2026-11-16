@@ -358,7 +358,7 @@ const SPLAT_GROUND = (() => {
   uniform vec4 uTrL;             // the layers: slab, face, cliff (the micro detail), grassRock (the green)
   uniform vec4 uTrK;             // the far fade from / full by (m), the micro detail on, brightness
   uniform vec4 uTrE;             // the exposure: height window lo / hi (m), the raster's rock weight, the offset
-  uniform vec4 uTrMeanS;         // the slab's mean colour (linear rgb, graded): the far fade's
+  uniform vec4 uTrMeanS;         // the slab's mean colour (linear rgb, graded): the far fade's (off by default: the far set carries the distance)
   uniform vec4 uTrJ;             // the joints: density (x the network's frequency), the soil they hold (exposure cut), their dirt, the hollows' dirt
   uniform vec4 uTrG;             // the green: amount, its roughness, its saturation, the bare stone's roughness (x the tile's)
   uniform vec4 uTrF;             // the micro detail from / to (m), the joints gone by (m), the wet streaks
@@ -377,20 +377,21 @@ const SPLAT_GROUND = (() => {
   // ONE JOINT SET: warped parallel lines S apart, open in segments along them, widened to the pixel and faded by the same ratio
   float sTrLine(vec2 xz, float th, float S, float wid, float seed){
     vec2 nn = vec2(cos(th), sin(th)), pp = vec2(-nn.y, nn.x);
-    float c = dot(xz, pp) + (gVnoise(xz / 140.0 + seed) - 0.5) * 0.9 * S;
+    float c = dot(xz, pp) + (gVnoise(xz / 260.0 + seed) - 0.5) * 0.35 * S;   // (a gentle warp: slab edges run straight)
     float b = floor(c / S), dm = abs(c - (b + 0.5) * S);
-    float op = smoothstep(0.42, 0.62, gVnoise(vec2(dot(xz, nn) / 90.0, b * 1.37 + seed)));
+    float op = smoothstep(0.40, 0.55, gVnoise(vec2(dot(xz, nn) / 240.0, b * 1.37 + seed))) * step(0.4, sTrH1(b * 2.3 + seed));   // (long open runs; 6 lines in 10)
     float w = wid * (0.7 + 0.9 * sTrH1(b + seed)), we = max(w, gTrPx * 0.9);
     return op * (w / we) * (1.0 - smoothstep(0.3, 1.0, dm / we));
   }
-  // THE NETWORK: two sets (150 and 60 deg, ~18 m apart x the density), gone by uTrF.z (a line under a pixel only fizzes)
+  // THE NETWORK: the slabs' edges - two sets (150 and 60 deg, ~38 / 46 m apart x the density: sparse, long, straight - A0's box,
+  // 16 Nov), gone by uTrF.z (a line under a pixel only fizzes)
   float sTrJoints(vec2 xz){
 #ifdef GS_TRLITE
     return 0.0;
 #else
     float d = distance(vWPi, cameraPosition); if (d > uTrF.z) return 0.0;
     vec2 q = xz * uTrJ.x;
-    return max(sTrLine(q, 2.618, 18.0, 0.45, 1.3), sTrLine(q, 1.047, 21.0, 0.40, 4.1) * 0.8) * (1.0 - smoothstep(uTrF.z * 0.5, uTrF.z, d));
+    return max(sTrLine(q, 2.618, 38.0, 0.55, 1.3), sTrLine(q, 1.047, 46.0, 0.5, 4.1) * 0.85) * (1.0 - smoothstep(uTrF.z * 0.5, uTrF.z, d));
 #endif
   }
   // THE EXPOSURE: the share of rock that shows, from the raster's own rock share r - rock on the high, convex, steep ground,
@@ -415,6 +416,7 @@ const SPLAT_GROUND = (() => {
   // tile's cracks - its low texels - and what faces the sky; the ground's own grassRock, desaturated), the roughness, brightness
   Smp sTrPost(Smp o, vec3 P, float slope){
     vec3 nG = gTrN; float d = distance(P, cameraPosition); vec2 xz = P.xz;
+    o.n.xyz /= max(uSNrm.x, 1e-3);   // (the tiles' relief is at its own scale: sSplat multiplies every set's by nrmK, 3 - made for the aerials' weak normals; x3 here drew every groove black)
     { float fd = 0.8 * smoothstep(uTrK.x, max(uTrK.y, uTrK.x + 1.0), d); o.c.rgb = mix(o.c.rgb, uTrMeanS.rgb, fd); o.n.xyz *= 1.0 - fd; }
     float fx = nG.x * nG.x, fz = nG.z * nG.z;
 #ifndef GS_TRLITE
@@ -441,11 +443,13 @@ const SPLAT_GROUND = (() => {
       mult = mix(mult, vec3(0.45, 0.45, 0.42), st * uTrF.w); }
     o.c.rgb *= mult;
     float hm = o.c.a;
+    float ck = 1.0 - smoothstep(0.10, 0.36, hm);
+    o.c.rgb *= 1.0 + ck * 0.7;   // (the tile's grooves: dirt, not black - A0's box: "a dense dark crack web")
     float n2g = mix(gVnoise(xz / 1.7 - 9.4), 0.5, smoothstep(150.0, 600.0, d));
     float vegM = clamp(jf + hollow * 0.6 + (1.0 - smoothstep(14.0, 30.0, slope)) * 0.55 + edgeR * 0.6, 0.0, 1.0) * (0.55 + 0.45 * gVnoise(xz / 21.0 + 5.0));
-    float crackM = 1.0 - smoothstep(0.10, 0.32, hm);
+    float crackM = ck;
     float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * gVnoise(xz / 7.0 + 3.1));
-    float Gv = clamp((vegM * 1.15 + crackM * 0.6 + up * 0.55) * uTrG.x, 0.0, 1.0) * (0.55 + 0.6 * n2g);
+    float Gv = clamp((vegM * 1.15 + crackM * 0.9 + up * 0.55) * uTrG.x, 0.0, 1.0) * (0.55 + 0.6 * n2g);
     float gw = clamp((Gv * 1.35 - hm) * 3.0, 0.0, 1.0);
     if (gw > 0.003) {
       vec3 gr = texture(uSplat, vec3(xz / 5.0, uTrL.w), uSFilt.x).rgb;
@@ -1213,9 +1217,12 @@ const SPLAT_GROUND = (() => {
         U.uTrOn.value = on ? 1 : 0;
         if (on) {
           const slabM = kv('rockSlabM', 16), faceM = kv('rockFaceM', 24), face = kv('rockFaceTile', 0) > 0.5 ? L4[1] : L4[0];
+          // NEAR only: the far triplet stays the recipe's (its aerial / stretched photographs read as rock from altitude - A0's
+          // box, 16 Nov: "fade to a textured far set, not a mean"), its first set named explicitly (an absent far would take the slab)
           for (const [c, L, m] of [[6, L4[0], slabM], [12, face, faceM]]) {
+            const row = R.codes[c] || {}, far0 = (row.far && row.far[0]) || (row.tex && row.tex[0]), fs0 = (row.farScale && row.farScale[0]) || (row.scale && row.scale[0]) || m;
             U.uSMatA.value[c].set(L, -1, -1, 0); U.uSMatS.value[c].set(m, 1, 1, 0);
-            U.uSMatF.value[c].set(L, -1, -1, 0); U.uSMatFS.value[c].set(m, 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
+            U.uSMatF.value[c].set(far0 ? LIB.indexOf(far0) : L, -1, -1, 0); U.uSMatFS.value[c].set(far0 && LIB.indexOf(far0) >= 0 ? fs0 : m, 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
         }
         U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), 0, 0);
         U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.5));

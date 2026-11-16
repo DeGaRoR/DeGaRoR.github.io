@@ -49,8 +49,8 @@ function ROCK_BIAS(Hf, sea, N, hx0, hz0, hdx, hdz, gx0, gz0, cs, W2, H2) {
       out[j * W2 + i] = Math.round(Math.min(1, Math.max(0, (b + 0.6) / 0.8)) * 255); } }
   return out;
 }
-// the job: { done, out } - the worker fills it; ROCK_STATS { biasWorkerMs (inside the worker), biasMainMs (the post here + the
-// copy back), biasWorker: true }. null = no worker (the step makes it on the main thread)
+// the job: { done, out, onDone } - the worker fills it and calls onDone (the tint's late write); ROCK_STATS { biasWorkerMs (inside
+// the worker), biasMainMs (the post here + the copy back), biasWorker: true }. null = no worker (the step makes it on the main thread)
 function rockBiasStart(world, BUD) {
   try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
   if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return null;
@@ -63,9 +63,10 @@ function rockBiasStart(world, BUD) {
       '  const out = ROCK_BIAS(a.H, a.sea, a.N, a.hx0, a.hz0, a.hdx, a.hdz, a.gx0, a.gz0, a.cs, a.W2, a.H2);\n' +
       '  postMessage({ out, ms: performance.now() - t }, [out.buffer]); };';
     const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url);
-    const fail = why => { console.warn('rock bias worker: ' + why + ' - made on the main thread'); job.done = true; job.out = null; try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); };
+    const fail = why => { console.warn('rock bias worker: ' + why + ' - made on the main thread'); job.done = true; job.out = null; try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); if (job.onDone) job.onDone(); };
     w.onmessage = e => { const t1 = performance.now(); job.out = e.data.out; job.done = true; w.terminate(); URL.revokeObjectURL(url);
-      if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWorker: true, biasWorkerMs: Math.round(e.data.ms), biasWallMs: Math.round(t1 - t0), biasMainMs: Math.round(job.postMs + (performance.now() - t1)), biasGrid: g.N, tint: [W2, H2] }); };
+      if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWorker: true, biasWorkerMs: Math.round(e.data.ms), biasWallMs: Math.round(t1 - t0), biasMainMs: Math.round(job.postMs + (performance.now() - t1)), biasGrid: g.N, tint: [W2, H2] });
+      if (job.onDone) job.onDone(); };
     w.onerror = e => fail(e && e.message || 'error');
     const H = Float32Array.from(g.H), sea = g.sea ? Uint8Array.from(g.sea) : null;
     w.postMessage({ H, sea, N: g.N, hx0: g.x0, hz0: g.z0, hdx: g.dx, hdz: g.dz, gx0: IG.x0, gz0: IG.z0, cs: IG.cell * (half ? 2 : 1), W2, H2 }, [H.buffer].concat(sea ? [sea.buffer] : []));
@@ -1969,26 +1970,37 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
       // ROCK-STUDY R1: THE TERRAIN BIAS IN THE TINT'S ALPHA (it was 255 and never read - no new texture, no sampler): made by
-      // ROCK_BIAS (below the file's steps) IN A WORKER started at the build's first line (rockBiasJob) - the box read it at 246 ms
-      // on the main thread (A0, 16 Nov). Waited for here, a yield at a time, if it is not in yet (ROCK_STATS.biasWaitMs); no
-      // Worker (node, a gate's stub): made here. ?rocks=0: never asked for (the alpha stays 255: no rock reads it).
-      let rockBiasA = null;
-      if (rockBiasJob) { const t0w = (typeof performance !== 'undefined') ? performance.now() : 0;
-        while (!rockBiasJob.done) yield 'rock bias';
-        rockBiasA = rockBiasJob.out;
-        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWaitMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0w) }); }
+      // ROCK_BIAS (above the steps) IN A WORKER started at the build's first line (rockBiasJob) - the box read it at 246 ms on the
+      // main thread (A0, 16 Nov). The step does not wait (A0's box: the wait was 0.86 s under the link's contention): if it is not
+      // in yet, the tint goes up with a NEUTRAL alpha (191 = bias 0) and the bias is written in when it lands - the tint re-derived
+      // and re-uploaded once (ROCK_STATS.biasLateMs, the main thread's part). No Worker (node, a gate's stub): made here, now.
+      // ?rocks=0: never asked for (the alpha stays 255: no rock reads it).
+      let rockBiasA = null, rockLate = false;
+      if (rockBiasJob) { if (rockBiasJob.done) rockBiasA = rockBiasJob.out; else rockLate = true; }
       const rockBias = () => {
         if (rockBiasA) return rockBiasA;
+        if (rockLate) return null;   // (in flight: the neutral alpha meanwhile - tintRGBA)
         try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
         const g = world.hydro && world.hydro.grids; if (!g || !g.H || !g.N) return null;
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
         rockBiasA = ROCK_BIAS(Float32Array.from(g.H), g.sea || null, g.N, g.x0, g.z0, g.dx, g.dz, ISLA.grid.x0, ISLA.grid.z0, ISLA.grid.cell * (IHALF ? 2 : 1), W2, H2);
         if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0), biasWorker: false, biasGrid: g.N, tint: [W2, H2] });
         return rockBiasA; };
-      const tintRGBA = () => { const o = rgbTexels(ISLA.tint), a = rockBias(); if (a) for (let k = 0, j = 3; k < a.length; k++, j += 4) o[j] = a[k]; return o; };
+      const tintRGBA = () => { const o = rgbTexels(ISLA.tint), a = rockBias();
+        if (a) for (let k = 0, j = 3; k < a.length; k++, j += 4) o[j] = a[k];
+        else if (rockLate) for (let j = 3; j < o.length; j += 4) o[j] = 191;
+        return o; };
       const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
+      if (rockLate) rockBiasJob.onDone = () => {   // the bias lands: written into the tint (its bytes, or re-derived if the upload dropped them)
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+        rockLate = false; rockBiasA = rockBiasJob.out;   // (null: the worker failed - rockBias() makes it here)
+        const a = rockBias(), d = tintTex.image && tintTex.image.data;
+        if (a && d) for (let k = 0, j = 3; k < a.length; k++, j += 4) d[j] = a[k];
+        else tintTex.image.data = tintRGBA();
+        tintTex.needsUpdate = true;
+        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasLateMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0) }); };
       function dataTex1() { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; }
       // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
       const W_SLOTS = [{ 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }, { 60: 0, 80: 1, 90: 2, 100: 3 }];
