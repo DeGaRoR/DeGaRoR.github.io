@@ -15,6 +15,16 @@ const scene = new THREE.Scene(), SKY = new THREE.Color(0x9fb7d0); scene.backgrou
 const camera = new THREE.PerspectiveCamera(50, W / H, 2, 9000);
 scene.add(new THREE.HemisphereLight(0xbcd2ee, 0x4a4636, 1.1));
 const sun = new THREE.DirectionalLight(0xfff1dc, 3.0); scene.add(sun); scene.add(sun.target);
+// the sky probe (the bench v1's, ?trond): the game's near ring is a Standard material lit by a PMREM sky probe - a gradient sky
+// pre-filtered, at 0.55, the hemisphere lowered to 0.6. ?env=0 without
+if (Q.get('env') !== '0') { const sky = new THREE.Scene();
+  const sm = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'varying vec3 vD; void main(){ float y = vD.y; vec3 zen = vec3(0.25, 0.42, 0.75), hor = vec3(0.75, 0.82, 0.9), gnd = vec3(0.08, 0.09, 0.06);'
+      + ' vec3 c = y > 0.0 ? mix(hor, zen, pow(y, 0.6)) : mix(hor * 0.5, gnd, smoothstep(0.0, 0.25, -y)); gl_FragColor = vec4(c, 1.0); }' });
+  sky.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), sm));
+  const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(sky, 0.02).texture; pm.dispose();
+  if ('environmentIntensity' in scene) scene.environmentIntensity = 0.55;
+  scene.children.filter(o => o.isHemisphereLight).forEach(h => { h.intensity = 0.6; }); }
 sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 1.5;
 // ---- the heights (world x, z) ----
 const hIJ = (i, j) => HT[Math.min(N - 1, Math.max(0, j)) * N + Math.min(N - 1, Math.max(0, i))];
@@ -113,17 +123,29 @@ const view = name => { const [e, t] = (VIEWS[name] || VIEWS.face)();
   return { eye: e.map(v => +v.toFixed(1)), target: t.map(v => +v.toFixed(1)) }; };
 // ---- ready: the arrays built, the program linked ----
 while (!SPL.api.ready()) await new Promise(r => setTimeout(r, 100));
+// ---- THE ROCK RING (src/viewer/rock_ring.js, the game's module): the outcrops round the eye, built in its worker. The bench's
+// inputs: the 5 m heights (hXZ), the 10 m type and NDVI (gpatch), the patch's own 5 m D8 flow (v1's). ?ring=0 off
+let RING = null;
+if (Q.get('rocks') !== '0' && Q.get('ring') !== '0' && typeof ROCK_RING !== 'undefined') {
+  const fL = PJ.layout.find(l => l.name === 'flow'), FLW = new Uint8Array(PB, fL.off, fL.len);
+  const TTg = new Uint8Array(gw * gh), NDg = new Uint8Array(gw * gh); for (let k = 0; k < gw * gh; k++) { TTg[k] = Bs[k * 2 + 1]; NDg[k] = Bs[k * 2]; }
+  RING = ROCK_RING.make(THREE, { scene, world: null, camera, splat: SPL, terrainH: hXZ,
+    isla: { grid: { x0: GJ.x0, z0: GJ.z0, w: gw, h: gh, cell: GJ.cell }, ttype: TTg, ndvi: NDg },
+    flow: { g: FLW, N, x0: PJ.x0 - ST / 2, z0: PJ.z0 - ST / 2, dx: ST } });
+}
 const buildMs = Math.round(performance.now() - T0);
 view(Q.get('view') || 'face');
+let RSTAT = null; if (RING) { const t = performance.now(); RSTAT = await RING.whenIdle(); RSTAT.wallMs = Math.round(performance.now() - t); }
 const gl = renderer.getContext(), t1 = performance.now(); renderer.render(scene, camera); gl.finish(); const firstMs = Math.round(performance.now() - t1);
 const prog = renderer.info.programs.find(p => p.name && /MeshStandard/.test(p.name)) || renderer.info.programs[0];
 const errs = []; renderer.debug.onShaderError = (g, p, vs, fs) => errs.push(String(g.getProgramInfoLog(p) || '') + String(g.getShaderInfoLog(fs) || ''));
 // the sampler units the ground program declares (three's own + the hook's + the splat's): every 'uniform ... samplerX a, b;' name
 const samplers = (FS.match(/uniform\s+(?:\w+\s+)?sampler\w*\s+[^;]+;/g) || []).reduce((n, d) => n + d.replace(/^.*sampler\w*\s+/, '').split(',').length, 0);
-window.GB = { ready: true, buildMs, firstMs, fsLen: FS.length, samplers, linked: !!(prog && gl.getProgramParameter(prog.program, gl.LINK_STATUS)),
+window.GB = { ready: true, ring: RSTAT, buildMs, firstMs, fsLen: FS.length, samplers, linked: !!(prog && gl.getProgramParameter(prog.program, gl.LINK_STATUS)),
   layers: SPL.api.layers(), trOn: SPL.uniforms.uTrOn ? SPL.uniforms.uTrOn.value : -1, view,
   eyes: Object.fromEntries(Object.keys(VIEWS).map(k => { const [e, t] = VIEWS[k](); return [k, { pos: e.map(v => +v.toFixed(1)), target: t.map(v => +v.toFixed(1)) }]; })),
   render: () => { renderer.render(scene, camera); gl.finish(); },
+  viewRing: async name => { view(name); if (RING) { const t = performance.now(); const st = await RING.whenIdle(); st.wallMs = Math.round(performance.now() - t); return st; } return null; },
   measure: n => { const a = []; for (let i = 0; i < n; i++) { const t = performance.now(); renderer.render(scene, camera); gl.finish(); a.push(performance.now() - t); } a.sort((x, y) => x - y); return { median: +a[a.length >> 1].toFixed(1) }; },
   rocks: v => SPL.api.rocks(v), errs, fs: () => FS };
 })().catch(e => { window.GB = { error: String(e && e.stack || e) }; console.error(e); });
