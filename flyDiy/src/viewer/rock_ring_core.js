@@ -74,10 +74,13 @@ function ROCK_RING_CORE_FACTORY() {
     const fid = A[2] * 7919 + B[2] * 104729 + Cj[2] * 13 + D[2] * 1009;
     const lift = (hash2(fid, 11, S) - 0.42) * 3.2, edgeF = ss(0, 10, dm) * ss(0, 4, dm2);
     let hgt = 0.9 * Math.pow(ss(0, 14, dm), 0.7) + lift * edgeF;
-    const groove = Math.max(A[3] * (1 - ss(0.3, 1, A[0] / wA)) * (0.6 + 0.9 * hash2(A[1], 2, S)),
-                            oB * (1 - ss(0.3, 1, B[0] / wB)) * (0.5 + 0.8 * hash2(B[1], 3, S)),
-                            oC * (1 - ss(0.3, 1, Cj[0] / wC)) * (0.35 + 0.5 * hash2(Cj[1], 4, S)),
-                            oD * (1 - ss(0.3, 1, D[0] / wD)) * (0.3 + 0.45 * hash2(D[1], 5, S)));
+    // (K.px, the macro TEXTURE's texel: a groove narrower than it widens to it and fades by the same ratio - its share of the texel
+    // kept, as v1's 0.78 m texture's mips averaged it; without, a 2-4 m texel caught a 1 m line or missed it: no lines far away)
+    const px = K.px || 0, gl = (o, d, w) => { const we = Math.max(w, px * 0.75); return o * (1 - ss(0.3, 1, d / we)) * (w / we); };
+    const groove = Math.max(gl(A[3], A[0], wA) * (0.6 + 0.9 * hash2(A[1], 2, S)),
+                            gl(oB, B[0], wB) * (0.5 + 0.8 * hash2(B[1], 3, S)),
+                            gl(oC, Cj[0], wC) * (0.35 + 0.5 * hash2(Cj[1], 4, S)),
+                            gl(oD, D[0], wD) * (0.3 + 0.45 * hash2(D[1], 5, S)));
     hgt -= groove;
     hgt += (fbm(x, z, 192, S + 30, 3) - 0.5) * 1.1 + (fbm(x, z, 768, S + 34, 2) - 0.5) * 0.35;
     const steep = ss(38, 55, slope);
@@ -246,7 +249,20 @@ function ROCK_RING_CORE_FACTORY() {
       : subs.map((S, i) => [i, S.h / Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2])]).sort((a, b) => b[1] - a[1]).slice(0, 4).map(a => a[0]);
     // the scatter draws the BOULDERS and the BLOCKS (the user: "proper boulders" - the slab archetype is a plate)
     const pick = subs.some(S => S.arch) ? subs.map((S, i) => [i, S.arch]).filter(a => a[1] !== 'slab').map(a => a[0]) : subs.map((S, i) => i);
-    return { subs, blocky, pick };
+    // THE FOOTPRINT (16 Nov, the user: "very little of them in game"): v1 scattered the tree pack's scanned paving blocks, whose
+    // width runs 1.4-3.6 x their height (capped at 2.6 by the law's kxz); the closed kit's rocks are ~1.4 x. Same count, same
+    // heights, a third of the ground covered. So a closed rock takes the WIDTH of the scan v1 would have drawn (the same hash):
+    // the 13 scans' width / height, and the big class's four blockiest.
+    const proc = subs.some(S => S.arch);
+    const bwOf = S => Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2]) / Math.max(S.h, 0.02);
+    return { subs, blocky, pick, bwV1: proc ? [1.70, 2.25, 2.29, 2.37, 2.99, 3.43, 2.78, 2.98, 1.42, 3.57, 1.68, 3.39, 2.02] : null,
+      bwV1Big: proc ? [1.42, 1.68, 1.70, 2.02] : null, bwOf };
+  }
+  // the width over height a rock is drawn at (v1's scan for a closed kit; its own for a scanned one) and the stretch it needs
+  function footOf(kit, S, big, r1) {
+    const own = kit.bwOf(S), L = kit.bwV1 ? (big ? kit.bwV1Big : kit.bwV1) : null;
+    const bw = L ? L[Math.floor(((r1 * 7.31) % 1) * L.length) % L.length] : own;   // (its own draw of the hash: not tied to the shape's)
+    return { bw, wf: bw / own };
   }
   // the 20 m curvature's std on Mount Ardent (tools/rock_study export_patch: 1.45 m) - the law's z-score, a constant of the island
   const CZSD = 1.45;
@@ -289,7 +305,7 @@ function ROCK_RING_CORE_FACTORY() {
       if (!bigOK || hh(Math.round(jx * 7), Math.round(jz * 7), 3) >= p * 9) continue;
       const r1 = hh(Math.round(jx * 13), Math.round(jz * 13), 5), r2 = hh(Math.round(jx * 13), Math.round(jz * 13), 6), r3 = hh(Math.round(jx * 13), Math.round(jz * 13), 7);
       const hT = 2.5 + 2.5 * r2, S = kit.subs[kit.blocky[Math.floor(r1 * kit.blocky.length) % kit.blocky.length]];
-      const bw = Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2]) / Math.max(S.h, 0.02), rr2 = 0.4 * bw * hT;
+      const { bw, wf } = footOf(kit, S, true, r1), rr2 = 0.4 * bw * hT;
       const c = lat(Y, jx, jz), gxp = (lat(Y, jx + rr2, jz) - lat(Y, jx - rr2, jz)) / (2 * rr2), gzp = (lat(Y, jx, jz + rr2) - lat(Y, jx, jz - rr2)) / (2 * rr2), G = Math.hypot(gxp, gzp);
       const kS = hT / Math.max(S.h, 0.02), kxz = Math.min(1, 2.6 / bw), bury = 0.3 + 0.15 * r3, yB = c - 0.2 * G * rr2 - hT * bury;
       let nxl = -gxp, nyl = 1, nzl = -gzp; const nl = Math.hypot(nxl, nyl, nzl); nxl /= nl; nyl /= nl; nzl /= nl;
@@ -298,7 +314,7 @@ function ROCK_RING_CORE_FACTORY() {
       const kx = al > 1e-6 ? ax / al : 1, kz = al > 1e-6 ? az / al : 0;
       const rot = (vx, vy, vz) => { const x1 = vx * cy + vz * sy, z1 = -vx * sy + vz * cy, y1 = vy, dot = kx * x1 + kz * z1, crx = -kz * y1, cry = kz * x1 - kx * z1, crz = kx * y1;
         return [x1 * ct + crx * st2 + kx * dot * (1 - ct), y1 * ct + cry * st2, z1 * ct + crz * st2 + kz * dot * (1 - ct)]; };
-      const sx = kS * kxz * (0.8 + 0.4 * r3), sy2 = kS, sz = kS * kxz * (0.8 + 0.4 * r2);
+      const sx = kS * kxz * wf * (0.8 + 0.4 * r3), sy2 = kS, sz = kS * kxz * wf * (0.8 + 0.4 * r2);
       const L = S.rungs[dP < 600 ? 1 : 2], vk = 0.85 + 0.3 * r3;   // (v1's ladder: 7^3 to 600 m, then 4^3)
       for (let v = 0; v < L.nv; v++) { const p0 = rot(L.pos[v * 3] * sx, L.pos[v * 3 + 1] * sy2, L.pos[v * 3 + 2] * sz); RB.pos.push(jx + p0[0], yB + p0[1], jz + p0[2]);
         const n0 = rot(L.nor[v * 3] / sx, L.nor[v * 3 + 1] / sy2, L.nor[v * 3 + 2] / sz), q2 = Math.hypot(n0[0], n0[1], n0[2]) || 1; RB.nor.push(n0[0] / q2, n0[1] / q2, n0[2] / q2);
@@ -307,6 +323,51 @@ function ROCK_RING_CORE_FACTORY() {
     }
     const B = RB.idx.length ? { pos: Float32Array.from(RB.pos), nor: Float32Array.from(RB.nor), attr: Float32Array.from(RB.attr), idx: Uint32Array.from(RB.idx), nv: RB.pos.length / 3 } : null;
     return { pos: new Float32Array(0), disp: new Float32Array(0), nor: new Float32Array(0), idx: new Uint32Array(0), attr: new Float32Array(0), nv: 0, nt: 0, B, boulders: B ? B.idx.length / 3 : 0, ms: Date.now() - t0, n };
+  }
+  // ---- THE MACRO TEXTURE (the bench v1's trond_gen macro: its 2560^2 texture at 0.78 m over the patch - macro_mult (the colour
+  // multiplier / 1.5), macro_rock (the exposure), macro_nh (the height's normal x z, the green's chance, the height)): the
+  // ground read it a PIXEL at a time, so the far rock stayed a fine mosaic broken by the joints' lines, its mips averaging it.
+  // The game's first port carried it per relief VERTEX only (1.25 m, to 450 m) and fell back beyond to a procedural stand-in
+  // faded to the tile's mean: the user's "patchy, pixely" far ground with no big lines (16 Nov). Here one tile of it, T x T
+  // texels at st m (the texel's centre), from the same inputs as a chunk:
+  //   macroTile({ x0, z0, C, st, M, hs, nh, H, R, V, F, K }) -> { A: Uint8Array T*T*4 (mult r g b / 1.5, expo), B: (nx, nz as
+  //   0..1, veg, height (h + 2.04) / 5.27 - v1's range), T, ms }
+  // Where the map has no rock within ~30 m the exposure is 0 (the relief's own rule: a chunk with no rock share builds none).
+  function macroTile(inp) {
+    const t0 = Date.now(), K = Object.assign({}, inp.K || {}, { px: inp.st });
+    const { x0, z0, C, M, hs, nh, H, R, V, F } = inp, st = inp.st;
+    const bil = (A, x, z) => { const fx = Math.min(nh - 1.001, Math.max(0, (x - (x0 - M)) / hs)), fz = Math.min(nh - 1.001, Math.max(0, (z - (z0 - M)) / hs));
+      const i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, k = j * nh + i;
+      return (A[k] * (1 - u) + A[k + 1] * u) * (1 - v) + (A[k + nh] * (1 - u) + A[k + nh + 1] * u) * v; };
+    // the map's rock dilated ~30 m on the input lattice (a max filter, two passes)
+    const Rd = (() => { const r = Math.max(1, Math.round(30 / hs)), t = new Float32Array(nh * nh), o = new Float32Array(nh * nh);
+      for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { let m = 0; for (let k = -r; k <= r; k++) { const q = R[j * nh + Math.min(nh - 1, Math.max(0, i + k))]; if (q > m) m = q; } t[j * nh + i] = m; }
+      for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { let m = 0; for (let k = -r; k <= r; k++) { const q = t[Math.min(nh - 1, Math.max(0, j + k)) * nh + i]; if (q > m) m = q; } o[j * nh + i] = m; }
+      return o; })();
+    const T = Math.round(C / st), mg = Math.max(3, Math.ceil(9 / st)), n = T + 2 * mg, X = i => x0 + (i - mg + 0.5) * st, Z = j => z0 + (j - mg + 0.5) * st;   // (the work margin: the blurs' 4 m; the 20 m curvature reads the INPUT lattice, M >= 24)
+    const Y = new Float32Array(n * n), Rr = new Float32Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; Y[k] = bil(H, X(i), Z(j)); Rr[k] = bil(R, X(i), Z(j)); }
+    const Ys = blur(Y, n, Math.max(1, Math.round(4 / st))), Rb = blur(Rr, n, Math.max(1, Math.round(3 / st)));
+    const tmp = new Float32Array(8), slope = new Float32Array(n * n), dn = new Float32Array(n * n * 2), cz = new Float32Array(n * n), fl = new Float32Array(n * n), nd = new Float32Array(n * n);
+    const hgt = new Float32Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i;
+      const gx = (Ys[j * n + Math.min(n - 1, i + 1)] - Ys[j * n + Math.max(0, i - 1)]) / ((Math.min(n - 1, i + 1) - Math.max(0, i - 1)) * st);
+      const gz = (Ys[Math.min(n - 1, j + 1) * n + i] - Ys[Math.max(0, j - 1) * n + i]) / ((Math.min(n - 1, j + 1) - Math.max(0, j - 1)) * st);
+      const gl = Math.max(Math.hypot(gx, gz), 1e-4); slope[k] = Math.atan(Math.hypot(gx, gz)) * 57.2958; dn[k * 2] = -gx / gl; dn[k * 2 + 1] = -gz / gl;
+      cz[k] = (bil(H, X(i), Z(j)) - 0.25 * (bil(H, X(i) - 20, Z(j)) + bil(H, X(i) + 20, Z(j)) + bil(H, X(i), Z(j) - 20) + bil(H, X(i), Z(j) + 20))) / CZSD;
+      fl[k] = bil(F, X(i), Z(j)); nd[k] = bil(V, X(i), Z(j));
+      macroAt(X(i), Z(j), Y[k], slope[k], Rb[k], cz[k], fl[k], nd[k], 0, [dn[k * 2], dn[k * 2 + 1]], K, tmp); hgt[k] = tmp[0]; }
+    // pass 2: the hollows from the height's ~4 m Laplacian (the chunk's), the colour, the green, the exposure; out on the tile
+    const hb = blur(hgt, n, Math.max(1, Math.round(2 / st)));
+    const A = new Uint8Array(T * T * 4), B = new Uint8Array(T * T * 4), b8 = v => Math.max(0, Math.min(255, Math.round(v * 255)));
+    for (let b = 0; b < T; b++) for (let a = 0; a < T; a++) { const i = a + mg, j = b + mg, k = j * n + i, o = (b * T + a) * 4;
+      macroAt(X(i), Z(j), Y[k], slope[k], Rb[k], cz[k], fl[k], nd[k], hgt[k] - hb[k], [dn[k * 2], dn[k * 2 + 1]], K, tmp);
+      const none = bil(Rd, X(i), Z(j)) <= 0.001, ex = none ? 0 : tmp[5], veg = none ? 1 : tmp[4];
+      A[o] = b8(tmp[1] / 1.5); A[o + 1] = b8(tmp[2] / 1.5); A[o + 2] = b8(tmp[3] / 1.5); A[o + 3] = b8(ex);
+      // the height's normal (v1: central differences over the texel)
+      const hx = (hgt[j * n + i + 1] - hgt[j * n + i - 1]) / (2 * st), hz = (hgt[(j + 1) * n + i] - hgt[(j - 1) * n + i]) / (2 * st), l = Math.hypot(hx, 1, hz);
+      B[o] = b8(-hx / l * 0.5 + 0.5); B[o + 1] = b8(-hz / l * 0.5 + 0.5); B[o + 2] = b8(veg); B[o + 3] = b8((hgt[k] + 2.04) / 5.27); }
+    return { A, B, T, ms: Date.now() - t0 };
   }
   function chunk(inp, kit) {
     if (Math.abs(inp.C / (inp.step || 1.25) - Math.round(inp.C / (inp.step || 1.25))) > 1e-6 || Math.abs(inp.M / inp.hs - Math.round(inp.M / inp.hs)) > 1e-6 || Math.abs(inp.C / inp.hs - Math.round(inp.C / inp.hs)) > 1e-6)
@@ -436,7 +497,7 @@ function ROCK_RING_CORE_FACTORY() {
         // the eye's reach by size: small blocks to 250 m, mid to 450 m (the ring), the big ones to its edge
         const dP = Math.hypot(jx - eye[0], jz - eye[1]); if (dP > (hT < 1.5 ? 250 : (inp.reach || 450))) continue;   // (beyond the reach: the far layer's)
         const S = big ? kit.subs[kit.blocky[Math.floor(r1 * kit.blocky.length) % kit.blocky.length]] : kit.subs[kit.pick[Math.floor(r1 * kit.pick.length) % kit.pick.length]];
-        const bw = Math.max(S.bb[3] - S.bb[0], S.bb[5] - S.bb[2]) / Math.max(S.h, 0.02);
+        const { bw, wf } = footOf(kit, S, big, r1);
         let c = 0, G = 0, rmin = 0, rr2 = 0, gxp = 0, gzp = 0;
         for (let pass = 0; pass < 2; pass++) {
           rr2 = 0.4 * bw * hT; c = surfY(jx, jz);
@@ -461,7 +522,7 @@ function ROCK_RING_CORE_FACTORY() {
           // Rodrigues about k = (kx, 0, kz): v ct + (k x v) st + k (k . v)(1 - ct)
           const dot = kx * x1 + kz * z1, crx = -kz * y1, cry = kz * x1 - kx * z1, crz = kx * y1;
           return [x1 * ct + crx * st2 + kx * dot * (1 - ct), y1 * ct + cry * st2, z1 * ct + crz * st2 + kz * dot * (1 - ct)]; };
-        const sx = kS * kxz * (0.8 + 0.4 * r3), sy2 = kS, sz = kS * kxz * (0.8 + 0.4 * r2);
+        const sx = kS * kxz * wf * (0.8 + 0.4 * r3), sy2 = kS, sz = kS * kxz * wf * (0.8 + 0.4 * r2);
         const L = S.rungs[rung], vk = 0.85 + 0.3 * r3;
         for (let v = 0; v < L.nv; v++) {
           const p0 = rot(L.pos[v * 3] * sx, L.pos[v * 3 + 1] * sy2, L.pos[v * 3 + 2] * sz);
@@ -480,7 +541,7 @@ function ROCK_RING_CORE_FACTORY() {
     const B = RB.idx.length ? { pos: Float32Array.from(RB.pos), nor: Float32Array.from(RB.nor), attr: Float32Array.from(RB.attr), idx: Uint32Array.from(RB.idx), nv: RB.pos.length / 3 } : null;
     return { pos, disp, nor, idx: Uint32Array.from(idx), attr, nv, nt: idx.length / 3, B, boulders: B ? B.idx.length / 3 : 0, ms: Date.now() - t0, n };
   }
-  return { chunk, kitPrep, procKit, macroAt, medium, jset, fbm, hh, vn2, ss, flowGrid, CZSD };
+  return { chunk, macroTile, kitPrep, procKit, macroAt, medium, jset, fbm, hh, vn2, ss, flowGrid, CZSD };
 }
 var ROCK_RING_CORE = ROCK_RING_CORE_FACTORY();
 // the worker's text (rock_ring.js): the factory's own source - one copy of the law

@@ -1111,7 +1111,7 @@
   // and recolour (the materials' editor). Kept as the other ground rows are: the splat's own store (flydiy.ground.splat.v1),
   // the export's `splat` block and its changes against the recipe; 'reset the rock' puts the recipe's numbers back.
   const ROCK_KEYS = ['rocks', 'rockHLo', 'rockHHi', 'rockBias', 'rockOff', 'rockK', 'rockJoint', 'rockJointSoil', 'rockJointDirt', 'rockHollow',
-    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar', 'rockSlabTone', 'rockSlabTilt', 'rockRing', 'rockRingReach', 'rockLift', 'rockAmp', 'rockProud', 'rockBoulders', 'rockScatter'];
+    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar', 'rockSlabTone', 'rockSlabTilt', 'rockRing', 'rockRingReach', 'rockLift', 'rockAmp', 'rockProud', 'rockBoulders', 'rockScatter', 'rockMacro', 'rockBoulderTone', 'rockBoulderCon'];
   function buildRock(body) {
     const sp = SP();
     if (!sp || sp.knobs().rocks === undefined) { note(body, 'the island’s own rock is not in this build'); return; }
@@ -1157,6 +1157,11 @@
     range(Mi, 'far fade from', 0, 3000, 25, kn('rockFarFrom'), ss('rockFarFrom'), v => v + ' m', RK.rockFarFrom);
     range(Mi, 'far fade full by', 50, 6000, 25, kn('rockFarTo'), ss('rockFarTo'), v => v + ' m', RK.rockFarTo);
     note(Mi, 'micro: the cliff photograph’s grain over the tiles (one read, the dominant plane) near the eye. Far fade: the tiles give way to their mean colour, so their large patterns never repeat across a far ridge.');
+    toggle(Mi, 'macro texture', () => sp.knobs().rockMacro, v => { sp.set({ rockMacro: v ? 1 : 0 }); changed(); });
+    liveNote(Mi, () => { const R = W.ROCK_RING_LIVE; if (!R) return 'no ring in this world'; const m = R.stat().macro; if (!m) return 'no macro texture';
+      const lv = m.rects.map((r, L) => r[2] > r[0] ? ['1 m', '2 m', '4 m'][L] + ' +-' + Math.round((r[2] - r[0]) / 2) + ' m' : null).filter(Boolean);
+      return 'macro: ' + m.tiles + ' tiles, ' + (lv.length ? lv.join(', ') : 'filling') + (m.queued ? ', ' + m.queued + ' queued' : '') + ', worker ' + m.workerMs + ' ms'; });
+    note(Mi, 'macro texture: the bench v1’s macro (the joints’ lines, the formations, the colour zones, the exposure, the green’s chance) as a texture round the eye - 1 m to 500 m, 2 m to 1 km, 4 m to 2 km - read a pixel at a time: the far rock’s mosaic and its big lines. Off: the procedural stand-in beyond the outcrops.');
     // the outcrops as geometry round the eye and the boulders seated on them (rock_ring.js) - splat knobs, the ring reads them
     const Rg2 = sec(body, 'outcrops and boulders', true, 'the rock as geometry round the eye');
     toggle(Rg2, 'outcrops', () => sp.knobs().rockRing, v => { sp.set({ rockRing: v ? 1 : 0 }); changed(); });
@@ -1166,14 +1171,25 @@
     range(Rg2, 'stand-off', 0, 1, 0.01, kn('rockProud'), ss('rockProud'), v => v.toFixed(2) + ' m', RK.rockProud);
     toggle(Rg2, 'boulders', () => sp.knobs().rockBoulders, v => { sp.set({ rockBoulders: v ? 1 : 0 }); changed(); });
     range(Rg2, 'boulder density', 0, 4, 0.05, kn('rockScatter'), ss('rockScatter'), v => 'x' + v.toFixed(2), RK.rockScatter);
+    range(Rg2, 'boulder tone', 0.2, 2, 0.02, kn('rockBoulderTone'), ss('rockBoulderTone'), v => 'x' + v.toFixed(2), RK.rockBoulderTone);
+    range(Rg2, 'boulder contrast', 0, 4, 0.05, kn('rockBoulderCon'), ss('rockBoulderCon'), v => 'x' + v.toFixed(2), RK.rockBoulderCon);
     liveNote(Rg2, () => { const R = W.ROCK_RING_LIVE; if (!R) return 'no ring in this world'; const t = R.stat();
       return t.chunks + ' chunks, ' + (t.tris / 1e6).toFixed(2) + ' M tris (boulders ' + (t.boulderTris / 1e6).toFixed(2) + ' M), worker ' + t.workerMs + ' ms, main ' + t.mainMs + ' ms'; });
     note(Rg2, 'the outcrops rise out of the 5 m ground by the macro\u2019s relief and the Blender masses, within reach of the eye; the boulders sit on them (v1\u2019s placement). Every change rebuilds the ring in its worker.');
     const acts = $('div', 'wr-acts'); E.appendChild(acts);
-    button(acts, 'reset the rock', () => { const o = {}; for (const k of ROCK_KEYS) if (RK[k] !== undefined) o[k] = RK[k]; sp.set(o); sp.rocks(!!o.rocks); changed(); open('cliffs', true); });
-    for (const k of ['trondSlab', 'trondFace']) if (sp.layers().includes(k) || sp.library().some(x => x.key === k)) {
-      const f = sec(body, k === 'trondSlab' ? 'the slab tile: grade and recolour' : 'the face tile: grade and recolour', false, (k === 'trondSlab' ? 'gentle rock' : 'steep faces') + ', ' + ((sp.library().find(x => x.key === k) || {}).metres || '?') + ' m repeat');
-      setEditor(f, k); }
+    button(acts, 'reset the rock', () => { const o = {}; for (const k of ROCK_KEYS) if (RK[k] !== undefined) o[k] = RK[k]; sp.set(o); sp.rocks(!!o.rocks); sp.setCode(6, { trond: ['trondSlab', 'trondFace', 'cliff', 'grassRock'] }); changed(); open('cliffs', true); });
+    // THE ROCK'S TEXTURES (16 Nov, the user: "integrated with the existing system ... so I can tune or change these textures myself"):
+    // the four sets R1 wears - code 6's row (persisted and exported with the codes) - each picked from the library and graded /
+    // recoloured with the materials' own editor (the same grade the codes' sets take)
+    const T4 = () => (sp.trond ? sp.trond() : ['trondSlab', 'trondFace', 'cliff', 'grassRock']);
+    const Tx = sec(body, 'the rock\u2019s textures', true, 'the sets the rock wears: pick, grade, recolour');
+    const libOpts = () => sp.library().map(x => [x.key, x.key + (x.metres ? '  (' + x.metres + ' m)' : '')]);
+    const ROLES = [['slab', 'gentle rock (the slab)'], ['face', 'steep faces'], ['micro', 'micro detail + boulders'], ['green', 'the green in the rock']];
+    ROLES.forEach(([, label], i) => select(Tx, label, libOpts(), () => T4()[i], v => { const t = T4(); t[i] = v; sp.setCode(6, { trond: t }); open('cliffs', true); }));
+    note(Tx, 'the slab and the face are the rock\u2019s own tiles (the trondhjemite); the micro set\u2019s photograph is the close-up grain and the boulders\u2019 stone; the green is the grass the rock grows. Each is a library set: its grade and recolour below are the materials\u2019 own (they show wherever that set is worn).');
+    T4().forEach((k, i) => { if (!(sp.layers().includes(k) || sp.library().some(x => x.key === k))) return;
+      const f = sec(body, ROLES[i][1] + ': ' + k + ' - grade and recolour', false, ((sp.library().find(x => x.key === k) || {}).metres || '?') + ' m repeat');
+      setEditor(f, k); });
   }
 
   // ---- CLIFFS ----

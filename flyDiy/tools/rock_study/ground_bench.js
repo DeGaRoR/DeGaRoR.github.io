@@ -146,12 +146,13 @@ if (Q.get('rocks') !== '0' && Q.get('ring') !== '0' && typeof ROCK_RING !== 'und
     const kk = kj.kits.find(k => k.name === 'rocks');
     KIT = kk.subjects.map(s => { const p = s.parts[0];
       return { h: s.h, bb: s.bb, pos: new Float32Array(kb, p.pos, p.nv * 3).slice(), nor: new Float32Array(kb, p.nrm, p.nv * 3).slice(), idx: Uint32Array.from(p.wide ? new Uint32Array(kb, p.idx, p.nt * 3) : new Uint16Array(kb, p.idx, p.nt * 3)) }; }); }
-  RING = ROCK_RING.make(THREE, { scene, world: null, camera, splat: SPL, groundMat: mat, groundU: gU, terrainH: hXZ, kit: KIT,
+  RING = ROCK_RING.make(THREE, { scene, world: null, camera, splat: SPL, groundMat: mat, groundU: gU, terrainH: hXZ, kit: KIT, bounds: [PJ.x0, PJ.z0, PJ.x0 + PJ.size, PJ.z0 + PJ.size],
     isla: { grid: { x0: GJ.x0, z0: GJ.z0, w: gw, h: gh, cell: GJ.cell }, ttype: TTg, ndvi: NDg },
     flow: { g: FLW, N, x0: PJ.x0 - ST / 2, z0: PJ.z0 - ST / 2, dx: ST } });
 }
 const buildMs = Math.round(performance.now() - T0);
 view(Q.get('view') || 'face');
+if (RING && Q.get('relief') === '0') { const o = RING.update; RING.update = () => { o(); RING.group.children.forEach(m => { if (m.material === mat) m.visible = false; }); }; }   // (?relief=0: the boulders alone - a check)
 let RSTAT = null; if (RING) { const t = performance.now(); RSTAT = await RING.whenIdle(); RSTAT.wallMs = Math.round(performance.now() - t); }
 const gl = renderer.getContext(), t1 = performance.now(); renderer.render(scene, camera); gl.finish(); const firstMs = Math.round(performance.now() - t1);
 const prog = renderer.info.programs.find(p => p.name && /MeshStandard/.test(p.name)) || renderer.info.programs[0];

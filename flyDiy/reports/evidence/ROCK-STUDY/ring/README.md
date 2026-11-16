@@ -1,5 +1,43 @@
 # ROCK-STUDY: the island's rock, delivered whole (material + relief ring + boulders)
 
+## Update 16 Nov, night: v1's macro TEXTURE, the boulders' footprint, the rock's textures in the editor
+
+**Why the far render was patchy (the user: "terribly patchy, unacceptably downgraded").** v1's ground read its macro (the
+joints' lines, the formations, the colour zones, the exposure, the green's chance, the height) from a 2560^2 TEXTURE at
+0.78 m, a pixel at a time, mip-filtered with distance. It also faded the tiles to their mean from 400 to 1200 m, which only
+works because that texture keeps the variation. The first port carried the macro per relief VERTEX only (1.25 m, to 450 m).
+Beyond that it fell back to a procedural stand-in under the same fade, which gave flat, blotchy patches and no lines.
+
+- **The macro texture, ported** (`rock_ring_core.macroTile`, `rock_ring.js` MT, `splat_ground.js` sTrMac / sTrE).
+  - v1's law per texel, in a worker of its own.
+  - Three levels round the eye, in ONE texture array (+1 sampler on the near ring and fine programs: 14 on the lean program,
+    measured):
+    - 1 m to +-512 m;
+    - 2 m to +-1 km;
+    - 4 m to +-2 km.
+  - v1's channels: mult / 1.5 + exposure; normal x z, green, height.
+  - Toroidal: a move of the eye recomputes only the tiles that enter.
+  - The vote takes its exposure (v1: the macro over the raster), and sTrPost its colour, green, height and normal. On the
+    relief it replaces the vertex values.
+  - The joint grooves widen to the texel at the coarse levels and keep their share, as v1's mips averaged them.
+  - About 19 s of worker time fills all three levels, nearest first. The lite programs (outer ring, premises) are untouched.
+- **The boulders' count (the user: "very little of them in game. Do you have the same sort of settings?").**
+  - The settings ARE v1's: the same law, x1.25, and the same reach by size (small 250 m, mid 450 m, big to 2 km).
+  - The difference was the shape. v1 drew the tree pack's scanned paving blocks, 1.4-3.6 x as wide as tall (capped at 2.6).
+    The closed procedural rocks are ~1.4 x. Same count, about a third of the ground covered.
+  - A closed rock now takes the width of the scan v1 would have drawn.
+- **The editor (the user: "part of the editor ... so I can tune or change these textures myself").**
+  - F9 > rock & cliffs > "the rock's textures" picks the four sets R1 wears from the library: slab, face, micro + the
+    boulders' stone, the green. They are stored on code 6's row, so they persist and export with the codes.
+  - Each set has the materials' own grade and recolour editor.
+  - The boulders follow the slab's grade, with their own 'boulder tone' and 'boulder contrast' rows.
+  - The 'macro texture' toggle carries a live note showing each level's coverage.
+
+Cost of the macro texture: 1024^2 x 6 layers RGBA8 = 24 MB of CPU copy (the layer uploads) and ~32 MB on the GPU with mips. On
+the phone tier it is unmeasured and wants the perf round (a 512^2 level set is the obvious cut).
+
+Still open: the joint lines read softer than v1's past ~500 m. Our 2 m level is coarser than v1's 0.78 m texture at that range.
+
 ## Update 16 Nov, evening: the faithful v1 port (the user: "go for faithful V1 implementation")
 
 - **The relief wears the ground's own material**, as v1's skirt did.

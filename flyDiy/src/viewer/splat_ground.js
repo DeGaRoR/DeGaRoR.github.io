@@ -83,6 +83,9 @@ const SPLAT_GROUND = (() => {
     R.macroExpSaved = !!(sv0 && sv0.knobs && sv0.knobs.macroExp);   // an override sticks; else the auto value (make)
     return R;
   };
+  // R1's four sets (code 6's row: slab, face, micro + the boulders' photograph, green) - the rail picks them, the export carries them
+  const TROND_DEF = ['trondSlab', 'trondFace', 'cliff', 'grassRock'];
+  const trondOf = R => { const t = R && R.codes && R.codes[6] && R.codes[6].trond; return Array.isArray(t) && t.length === 4 ? t.map((k, i) => k || TROND_DEF[i]) : TROND_DEF.slice(); };
   const save = R => { try { localStorage.setItem('flydiy.ground.splat.v1', JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade, on: R.on })); } catch (e) {} };
 
   // ---- the GLSL: the bench's splat, on the game's fields ----------------------
@@ -416,6 +419,34 @@ const SPLAT_GROUND = (() => {
     e *= 1.0 - smoothstep(0.58, 0.68, gVnoise(xz / 4.4 - 9.1)) * (0.55 + 0.45 * fine) * (0.4 + 0.6 * dk);
     return e;
   }
+  // THE MACRO TEXTURE (16 Nov, the user: "I'm really missing your macro textures" - the far ground "patchy, pixely"): the bench
+  // v1's macro (trond_gen: the colour multiplier, the exposure, the green's chance, the height and its normal), which v1's
+  // ground read A PIXEL AT A TIME over its patch; rock_ring.js computes it round the eye in three levels (1 / 2 / 4 m to
+  // +-0.5 / 1 / 2 km) of one array, toroidal (uv = xz / the level's extent): uTrMR[L] the valid square, uTrMX (extents, on).
+  // Read once a pixel in the vote (sTrMac: two reads a level, the finest valid level first, the next under its edge's fade);
+  // where it lies the macro IS the rock's exposure (v1: the macro over the raster) and sTrPost's colour, green and height
+  uniform highp sampler2DArray uTrMT; uniform vec4 uTrMR[3]; uniform vec4 uTrMX;
+  vec4 gTrMA = vec4(0.0), gTrMB = vec4(0.0); float gTrIn = 0.0;
+  float sTrMacW(vec2 xz, vec4 R){ vec2 d = min(xz - R.xy, R.zw - xz); return smoothstep(0.0, 0.06 * (R.z - R.x) + 1.0, min(d.x, d.y)); }
+  float sTrMac(vec2 xz){
+#ifdef GS_TRLITE
+    return 0.0;
+#else
+    gTrMA = vec4(0.0); gTrMB = vec4(0.0); gTrIn = 0.0;
+    if (uTrMX.w < 0.5) return 0.0;
+    float w0 = sTrMacW(xz, uTrMR[0]), w1 = (1.0 - w0) * sTrMacW(xz, uTrMR[1]), w2 = (1.0 - w0 - w1) * sTrMacW(xz, uTrMR[2]);
+    if (w0 > 0.0) { vec2 u = xz / uTrMX.x; gTrMA += texture(uTrMT, vec3(u, 0.0)) * w0; gTrMB += texture(uTrMT, vec3(u, 1.0)) * w0; }
+    if (w1 > 0.0) { vec2 u = xz / uTrMX.y; gTrMA += texture(uTrMT, vec3(u, 2.0)) * w1; gTrMB += texture(uTrMT, vec3(u, 3.0)) * w1; }
+    if (w2 > 0.0) { vec2 u = xz / uTrMX.z; gTrMA += texture(uTrMT, vec3(u, 4.0)) * w2; gTrMB += texture(uTrMT, vec3(u, 5.0)) * w2; }
+    gTrIn = w0 + w1 + w2; if (gTrIn > 0.0) { gTrMA /= gTrIn; gTrMB /= gTrIn; }
+    return gTrIn;
+#endif
+  }
+  // the exposure a pixel: the macro texture's where it lies (mw), else the relief vertex's, else the procedural law
+  float sTrE(float r, vec2 xz, float slope, vec2 uv, float mw){
+    float e0 = mw > 0.999 ? 0.0 : (vRM.w > 1.5 ? vRX.x : sTrExpo(r, xz, slope, uv));
+    return mix(e0, gTrMA.a, mw);
+  }
   // THE ROCK CANDIDATE'S SAMPLE, AFTER THE CHAIN: the far fade to the slab's mean, the micro detail (the 'cliff' photograph at
   // its own 6.86 m: brightness over its mean and its normal, biplanar - the top and the dominant side), the macro colour
   // (weathering zones, the joints' dirt, the hollows, the outcrop's margin, wet streaks), the green (the macro's chance, the
@@ -476,13 +507,17 @@ const SPLAT_GROUND = (() => {
       float st = smoothstep(0.55, 0.85, gVnoise(vec2((fx > fz ? P.z : P.x) / 2.2, P.y / 26.0)) * 0.7 + hollow * 0.45) * smoothstep(38.0, 55.0, slope);
       mult = mix(mult, vec3(0.38, 0.38, 0.34), st * uTrF.w);
     }
+    mult = mix(mult, gTrMA.rgb * 1.5, gTrIn);   // (the macro texture where it lies: v1's own, a pixel at a time)
     o.c.rgb *= mult;
-    if (rg) o.c.a = clamp(o.c.a * 0.6 + vRX.y * 0.6 - 0.1, 0.0, 1.0);   // the macro's height into the blend's (v1)
+    { float hN = mix(rg ? vRX.y : 0.0, gTrMB.a, gTrIn), wh = max(rg ? 1.0 : 0.0, gTrIn);   // the macro's height into the blend's (v1)
+      o.c.a = mix(o.c.a, clamp(o.c.a * 0.6 + hN * 0.6 - 0.1, 0.0, 1.0), wh); }
+    if (!rg) o.n.xyz += vec3(gTrMB.r * 2.0 - 1.0, 0.0, gTrMB.g * 2.0 - 1.0) * gTrIn;   // its normal off the relief (v1: on the displaced mesh the geometry IS it)
     // THE GREEN (v1): the macro's chance, the tile's cracks (its low texels; on the relief the masses' crevices too) and what faces
     // the sky, broken by two noises, filling the LOW texels first; the ground's own grass set read from above, moss where thin
     float hm = o.c.a;
     float n1g = gVnoise(xz / 7.0 + 3.1), n2g = gVnoise(xz / 1.7 - 9.4);
     float vegM = rg ? vRM.w - 2.0 : clamp(jf + hollow * 0.6 + (1.0 - smoothstep(14.0, 30.0, slope)) * 0.55 + edgeR * 0.6, 0.0, 1.0) * (0.55 + 0.45 * gVnoise(xz / 21.0 + 5.0));
+    vegM = mix(vegM, gTrMB.b, gTrIn);
     float crackM = 1.0 - smoothstep(0.10, 0.32, hm);
     if (rg) { crackM = max(crackM, vRX.z * 0.9); o.c.rgb *= mix(1.0, 0.55, vRX.z) * (0.9 + 0.2 * vRX.w); }   // the masses' crevices darker, each mass its own tone
     float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * n1g);
@@ -672,10 +707,11 @@ const SPLAT_GROUND = (() => {
     if (uTrOn > 0.5) {
       float r = (k0 == 6 ? v0 : 0.0) + (k1 == 6 ? v1 : 0.0) + (k2 == 6 ? v2 : 0.0) + (k3 == 6 ? v3 : 0.0) + (k4 == 6 ? v4 : 0.0);
       gTrR0 = r; gTrR = r;
-      bool rgv = vRM.w > 1.5;   // a relief vertex: the macro's exposure IS the rock (v1: the macro texture over the raster), a slot made if the raster had none
+      float mw = sTrMac(xz);
+      bool rgv = vRM.w > 1.5 || mw > 0.0;   // a relief vertex or the macro texture: the macro's exposure IS the rock (v1: the macro over the raster), a slot made if the raster had none
       if (rgv && r <= 0.02) { if (k4 < 0) { k4 = 6; v4 = 0.0; } else if (k3 < 0) { k3 = 6; v3 = 0.0; } r = 0.0; }
       if (r > 0.02 || rgv) {
-        float e = rgv ? vRX.x : sTrExpo(r, xz, slope, uv), ko = (1.0 - e) / max(1.0 - r, 1e-3);
+        float e = sTrE(r, xz, slope, uv, mw), ko = (1.0 - e) / max(1.0 - r, 1e-3);
         v0 = k0 == 6 ? e : v0 * ko; v1 = k1 == 6 ? e : v1 * ko; v2 = k2 == 6 ? e : v2 * ko; v3 = k3 == 6 ? e : v3 * ko; v4 = k4 == 6 ? e : v4 * ko;
         float fr = 1.0 - r < 1e-3 ? 1.0 - e : 0.0;
         if (fr > 0.0) {   // (a kernel all rock fills from k0: the last two slots are free - fewer lines in the program than a search)
@@ -764,9 +800,10 @@ const SPLAT_GROUND = (() => {
     // R1: THE EXPOSURE (the lean path's twin, above)
     if (uTrOn > 0.5) {
       float r = w[6]; gTrR0 = r; gTrR = r;
-      bool rgv = vRM.w > 1.5;
+      float mw = sTrMac(xz);
+      bool rgv = vRM.w > 1.5 || mw > 0.0;
       if (r > 0.02 || rgv) {
-        float e = rgv ? vRX.x : sTrExpo(r, xz, slope, uv), ko = (1.0 - e) / max(1.0 - r, 1e-3);
+        float e = sTrE(r, xz, slope, uv, mw), ko = (1.0 - e) / max(1.0 - r, 1e-3);
         for (int i = 0; i < uSNCode; i++) if (i != 6) w[i] *= ko;
         w[6] = e;
         if (1.0 - r < 1e-3) { w[8] += (1.0 - e) * 0.7; w[2] += (1.0 - e) * 0.3; }
@@ -1099,6 +1136,7 @@ const SPLAT_GROUND = (() => {
     // ?splat=0: the ground without the splat's code at all (a clean A/B, and the compile-time control)
     try { if (/[?&]splat=0/.test(location.search)) return null; } catch (e) {}
     const R = load();
+    const trondKeys = () => trondOf(R);
     const BLEND = { from: 0, to: 0 };   // the GRAPHICS row's detail fade (0 = the recipe's), kept over a knob re-apply
     if (R.knobs.albedoNorm === undefined) R.knobs.albedoNorm = RECIPE.knobs.albedoNorm === undefined ? 1 : RECIPE.knobs.albedoNorm;
     R.norm = isla ? normGains(isla, R) : {};
@@ -1122,7 +1160,7 @@ const SPLAT_GROUND = (() => {
       if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
       const keys = new Set();
       // R1: the island's own rock - its two tiles, the micro detail's photograph and the green's grass - where the map has rock
-      if (seen[6] && R.knobs.rocks) for (const k of ['trondSlab', 'trondFace', 'cliff', 'grassRock']) keys.add(k);
+      if (seen[6] && R.knobs.rocks) for (const k of trondKeys()) keys.add(k);
       for (let c = 0; c < 32; c++) { const m = seen[c] && R.codes[c]; if (!m) continue;
         for (const k of (m.tex || []).concat(m.far || [])) if (k) keys.add(k); }
       return keys;
@@ -1182,6 +1220,7 @@ const SPLAT_GROUND = (() => {
       uTrOn: { value: 0 }, uTrL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uTrK: { value: new THREE.Vector4(400, 1200, 1, 0.5) },
       uTrE: { value: new THREE.Vector4(250, 760, 0.3, 0.08) }, uTrMeanS: { value: new THREE.Vector4(0.3, 0.27, 0.2, 1) }, uTrS: { value: new THREE.Vector4(42, 58, 0, 0) },
       uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) },
+      uTrMT: { value: null }, uTrMR: { value: [V4(), V4(), V4()] }, uTrMX: { value: V4() },   // the macro texture (rock_ring.js fills it)
     };
     let ready = false;
     const push = () => {
@@ -1250,7 +1289,7 @@ const SPLAT_GROUND = (() => {
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
       // R1: the rock's layers (all four in the arrays, or the dial stays off); under the dial the rock codes WEAR the tiles (the
       // per-code rows written above are overwritten for 6 and 12: the chain samples them - no fetch of R1's own); the knobs
-      { const L4 = ['trondSlab', 'trondFace', 'cliff', 'grassRock'].map(k => LIB.indexOf(k)), lib = k => SPLAT_TEX_SETS.find(x => x.key === k) || {};
+      { const T4 = trondKeys(), L4 = T4.map(k => LIB.indexOf(k)), lib = k => SPLAT_TEX_SETS.find(x => x.key === k) || {};
         const kv = (k, d) => (K[k] === undefined ? d : +K[k]);   // (the world rail's 'rock & cliffs' rows)
         U.uTrL.value.set(L4[0], L4[1], L4[2], L4[3]);
         const on = !!(ready && K.rocks && L4.every(i => i >= 0));
@@ -1264,10 +1303,10 @@ const SPLAT_GROUND = (() => {
             U.uSMatA.value[c].set(L, -1, -1, 0); U.uSMatS.value[c].set(m, 1, 1, 0);
             U.uSMatF.value[c].set(far0 ? LIB.indexOf(far0) : L, -1, -1, 0); U.uSMatFS.value[c].set(far0 && LIB.indexOf(far0) >= 0 ? fs0 : m, 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
         }
-        { const mc = (SPLAT_TEX_SETS.find(x => x.key === 'cliff') || {}).mean || [0.2, 0.2, 0.2]; U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), 0.2126 * mc[0] + 0.7152 * mc[1] + 0.0722 * mc[2], 0); }
+        { const mc = lib(T4[2]).mean || [0.2, 0.2, 0.2]; U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), 0.2126 * mc[0] + 0.7152 * mc[1] + 0.0722 * mc[2], 0); }
         U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.72));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
         U.uTrE.value.set(kv('rockHLo', 250), kv('rockHHi', 760), kv('rockBias', 0.3), kv('rockOff', 0.08));
-        const mS = lib('trondSlab').mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded
+        const mS = lib(T4[0]).mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded
         if (mS) U.uTrMeanS.value.set(mS[0] * (gS ? gS.x : 1), mS[1] * (gS ? gS.y : 1), mS[2] * (gS ? gS.z : 1), 1);
         U.uTrJ.value.set(kv('rockJoint', 1), kv('rockJointSoil', 0.7), kv('rockJointDirt', 0.85), kv('rockHollow', 0.5));
         U.uTrG.value.set(kv('rockGreen', 1), kv('rockGreenRough', 0.97), kv('rockGreenSat', 1), kv('rockRough', 1));
@@ -1358,6 +1397,7 @@ const SPLAT_GROUND = (() => {
         { const l = near < 1.5 && far < 1.5; if (l !== lean) { lean = l; if (api.onInspect) api.onInspect(); } }   // (G2075: the lean program re-keys)
         const K = R.knobs; U.uSDist.value.x = BLEND.from || K.detailFrom; U.uSDist.value.y = BLEND.to || K.detailTo; return [near, far, U.uSDist.value.x, U.uSDist.value.y]; },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
+      trond: () => trondKeys(),   // R1's four sets: slab, face, micro (+ the boulders), green
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
         for (const k in o) c[k] = o[k]; grow(); push(); save(R); return api.code(i); },
       grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R.grade[k] || {}),
