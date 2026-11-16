@@ -78,6 +78,14 @@
    "moved": [
     "pc6"
    ]
+  },
+  {
+   "date": "2026-11-16",
+   "reason": "PC6-MTOW (A0 16 Nov): the PC-6 cards carry the TCDS's fuel - a 492 L Jet A-1 wing-root tank (spec.energy) in place of the generic 124 L nose tank (empty 1075 -> 1181 kg with the tank's hardware: inside the factsheet's band; fuel 99 -> 394 kg); real_check's MTOW case for pc6 is its own loading (PLANES.pc6.mtowCase: the freight at the cabin front, CG 38 % MAC, the TCDS's aft limit)",
+   "core": "1bfda2da2dcd2dd8",
+   "moved": [
+    "pc6"
+   ]
   }
  ],
  "planes": {
@@ -142,12 +150,12 @@
   "pc6": {
    "stamp": {
     "file": "builds/candidates/pc6_drafting_2026-11-11.json",
-    "blob": "303df6c1af1b8ccfbedb3faf3723bd3f546d8c30",
+    "blob": "7f25edb31dc15d68205f7f9d559b7b9433945161",
     "core": "1bfda2da2dcd2dd8"
    },
    "facts": {
-    "empty": 1075.18,
-    "fuelKg": 99.2
+    "empty": 1180.5,
+    "fuelKg": 393.6
    },
    "dims": {
     "S": 30.3117,
@@ -156,44 +164,44 @@
     "cRoot": 1.91,
     "cTip": 1.91,
     "hSpan": 5.14269,
-    "height": 3.66703,
+    "height": 3.66464,
     "length": 10.83,
     "span": 15.94,
     "track": 3
    },
    "cases": {
     "min": {
-     "mass": 1169.98,
-     "Vs": 68.3606,
-     "V75": 253.577,
-     "Vmax": 270.024,
-     "roc": 17.7081,
-     "LD": 11.5356,
-     "TOgrass": 48,
-     "cgMAC": 38.9121,
-     "sm": 11.2666
+     "mass": 1348.9,
+     "Vs": 73.2743,
+     "V75": 253.361,
+     "Vmax": 275.615,
+     "roc": 15.1593,
+     "LD": 11.5319,
+     "TOgrass": 68,
+     "cgMAC": 42.5958,
+     "sm": 6.89178
     },
     "typ": {
-     "mass": 1204.78,
-     "Vs": 69.3698,
-     "V75": 253.475,
-     "Vmax": 274.011,
-     "roc": 17.155,
-     "LD": 11.5356,
-     "TOgrass": 51,
-     "cgMAC": 36.9989,
-     "sm": 13.3106
+     "mass": 1457.3,
+     "Vs": 76.1616,
+     "V75": 252.954,
+     "Vmax": 275.346,
+     "roc": 13.9017,
+     "LD": 11.5319,
+     "TOgrass": 76,
+     "cgMAC": 41.7499,
+     "sm": 7.9661
     },
     "mtow": {
      "mass": 2800,
-     "Vs": 105.754,
-     "V75": 244.032,
-     "Vmax": 269.501,
-     "roc": 5.95079,
-     "LD": 11.5356,
-     "TOgrass": 343,
-     "cgMAC": 77.5213,
-     "sm": -17.535
+     "Vs": 105.57,
+     "V75": 244.271,
+     "Vmax": 269.764,
+     "roc": 5.95011,
+     "LD": 11.5319,
+     "TOgrass": 342,
+     "cgMAC": 38.1904,
+     "sm": 17.0208
     }
    }
   },

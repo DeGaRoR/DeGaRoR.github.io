@@ -1024,6 +1024,30 @@
    "litres": 492,
    "tank": "wing"
   },
+  "energy": {
+   "kind": "fuel",
+   "fuel": "jetA",
+   "cell": "lifepo4",
+   "kWh": 0,
+   "vessel": null,
+   "finish": null,
+   "hue": 0,
+   "tint": null,
+   "vessels": [
+    {
+     "bay": "wingRoot",
+     "capacity": 492,
+     "along": null,
+     "lv": null,
+     "rot": 0,
+     "form": "box",
+     "finish": null,
+     "hue": null,
+     "tint": null,
+     "dims": null
+    }
+   ]
+  },
   "systems": {
    "fit": "ifr"
   },
