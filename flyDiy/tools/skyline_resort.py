@@ -63,9 +63,13 @@ def runway(old, elev):
     r = dict(old)
     tn = lambda v: int(v) if v == int(v) else v          # the ends as 0 and 1, as the editor writes them
     prof = [[tn(R((LEN - a) / LEN, 4)), R(h - elev)] for a, h in PROF_MSL]
-    # the shoulder (the grade's falloff) 30 -> 8 m and the band 6 -> 2 m: scaled to the 6 m strip (18 m: 30 / 6), a narrow cut -
-    # and the parking terrace beside it keeps its own grade (a 30 m shoulder pulled it 0.4 m toward the strip: not flat)
-    r.update({'len': LEN, 'wid': WID, 'c': C, 'profile': prof, 'band': 2, 'falloff': 8})
+    # the shoulder (the grade's falloff) 30 -> 12 m, as on the 9 m strip: the parking terrace beside it keeps its own grade (a
+    # 30 m shoulder pulled it 0.4 m toward the strip: not flat), and the near level's 2 m mesh stays on the ground past the 6 m
+    # strip's edges (GATE TERRAINMATCH: an 8 m shoulder left a pocket 158.9 mm deep 0.5 m out; 12 m stays inside the edge's
+    # 7 + 2 cm). THE BAND (the pavement's cut-grass band) 6 -> 0: the user's "6 meters only of runway, hopefully mainly used
+    # by the tracks" and DIRT-STRIP's tundra round the worn lanes - past the strip only the 1 m mow band and its blend, then
+    # the wild grass (GATE GRASSSIDES 3: 5 m off the centreline wild)
+    r.update({'len': LEN, 'wid': WID, 'c': C, 'profile': prof, 'band': 0, 'falloff': 12})
     # THE TURN ON THE APRON (the user, 16 Nov: "you run uphill when it's flat, and there's actually a huge apron next to the
     # cabin car station where you can easily maneuver ... You should always reach the flat part, and there normally you would
     # expect to have something a bit wider to be able to turn and park"). The apron is the summit platform (tw_t_platform,
