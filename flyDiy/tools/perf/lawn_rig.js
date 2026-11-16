@@ -112,6 +112,12 @@ const CABIN = { eye: [2696.3, 197.03, -15925.44], yp: [Math.atan2(-0.4062, 0.913
       if (LATEST && Date.now() > LATEST) { log('the GPU was not free by ' + opt('latest') + ': the slot is skipped'); process.exit(4); }
       if (UNTIL && Date.now() > UNTIL - 20 * 60e3) { log('the GPU never came free before ' + opt('until') + ' - 20 min: stop'); process.exit(4); }
       log('the GPU is held: ' + s.trim().replace(/\n/g, ' | ')); await sleep(15000); }
+    // THE CPU RULE (the user via A0, 17 Nov, after two thermal shutdowns: "keep CPU loads towards 80 %"): wait while the box's CPU
+    // load is over --maxLoad % (60), inside the same --latest cut-off
+    const MAXL = +opt('maxLoad', 60), load = () => { try { return +execSync('powershell -NoProfile -Command "(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average"', { encoding: 'utf8' }).trim(); } catch (e) { return NaN; } };
+    for (let L = load(); L > MAXL; L = load()) {
+      if (LATEST && Date.now() > LATEST) { log('CPU load ' + L + ' % over ' + MAXL + ' % until ' + opt('latest') + ': the slot is skipped'); process.exit(4); }
+      log('CPU load ' + L + ' % > ' + MAXL + ' %: waiting'); await sleep(15000); }
     execSync('bash "' + BOX + '" take gpu GRASS-CARDS "lawn variants x eyes + GPU timer"', { stdio: 'inherit' }); took = true;
   }
   const capS = UNTIL ? Math.max(120, Math.floor((UNTIL - Date.now()) / 1000) - 90) : +opt('cap', 2500);
