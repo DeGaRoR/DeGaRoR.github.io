@@ -316693,3 +316693,36 @@ HOUSEWORKER: green in this battery (it was Game's one red on its stack).
 STANDING (L40c's, unchanged): FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT GLIDE UNIFY DESTTO TREECRASH DMGCERT DMGGEAR WILGAGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGWALL DMGDAMP DMGTYRE DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY WINGROWS DESIGNCHECK JOINPARITY ENGINE PARTS POD DMGPOD CANDIDATES NAMES NODUMMY ENERGYBASE TANKMOUNT ENGTORQUE FLEX LOAD ENGCONFIG.
 
 COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); after 143 s (programs 501 -> 508, world 26.1, settle 17.4, shader compile 46.2 + 11.8 s): +5 s, 7 more programs. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+
+## CESSNA-REFIT (16 Nov) - list:50 refitted to the 172 three-view (FLAGSHIP; the user: "consider this final")
+THE PLANE: builds/cessna172r_2026-11-08.json (list:50, F-HCSN), its cage refitted on the drafting table to the user's
+172 three-view (private, never committed), at subdivision level 2, every value a garage row. Written by
+tools/_rejoin_build.js (the page's own join re-measures the whole build); the crew layer's rows (pilotWho, copWho, dum*)
+and the retired rows the headless join drops are carried over as they were. Before -> after (genShakedown; the
+snapshots' own measure): mass 1019 -> 1006 kg, empty 666 -> 654, take-off 332 -> 356 m, cruise 183 -> 186 km/h, range
+1176 -> 1194 km, Vs 24.7 -> 25.0 m/s, ClMax clean 1.61 -> 1.55, climb 3.70 -> 3.82 m/s, static margin 0.21 -> 0.31,
+CG 36 -> 23 % MAC (the wing and nose moved in the fit; the cabin keeps 4 seats). CONTRACT_DESIGNS / FREIGHT_CARDS /
+PROCURE re-written by tools/snapshots.js --write: only the c172 rows moved (its own commit, droppable).
+WHAT CHANGED ON THE AEROPLANE: the cabin frame (roof, pillars, windscreen a U from above, glazed to the waist), the wing
+seat and thickness, the single strut on the windscreen (A) post, the cowl fitted on the true thrust line with a level
+bottom and a short chin scoop on the keel, the faceted wheel fairings, the drawn windows (door, bulged passenger,
+top-projected rear panes), lower and reclined rear seats, the padded headliner, one landing-light bay in the LEFT
+wing at 3.75 m, the 1956 livery (white / red cheat line / polished belly, silver wings and stabs, red tips).
+NEW GARAGE ROWS (all ABSENT at default - a build without them draws the same bytes):
+- windscreen: wsToWaist, wsShoulder / wsShoulderX / wsShoulderTop (shoulder columns: a U not a V), wsShoulderBase (the
+  forward share at the screen's base - a shoulder pushed forward over a deck that curves down hung the screen's corner
+  outside the skin: the lip the user found)
+- frame: bulkAt, pillarFollow, aftFloorDy; windows: {paxWin,win2,win3,winRowMore}Proj (projected from the top: a
+  rear pane on a taper)
+- strut: bracing.strutFoot (61_gen_frame: the A-post foot node on the lower longeron, three noMass ties; the join
+  writes it when the strut picks the A post - _pillar_site windscreenPost)
+- cowl: keelLevel (the bottom line leaves the firewall level); engine: eng_cylK (the cylinders' drawn reach, LATENT 1.85)
+- fairings: s{1,2}FairNose / FairH / FairStyle (faceted, pointed) / FairKick (tail upsweep)
+- lights: li_baySide (the bay in both wings, the port one or the starboard one; one bay holds the landing lamp)
+- headliner: hdlDepth - the CAR session's rows (claude/fly-diy-car-build-uu6e6w c51f995ae + 697cbb7b9), applied here
+  unchanged so the Cessna can wear it; the same hunks as the car branch's
+FIXES: the door's inner panel stops under a window DRAWN on the door (_shoulder_gen panelBuild: a knife pane is not
+band glass; it covered the new pilot window from inside); the light layer's taxi lamp only where a second bay exists.
+NOT DONE: the floats Cessna (c172f, bugReports/cessnaFloatsWOrks.json) and every other Cessna copy keep the old body -
+the one-Cessna integration waits for REAL-FIGURES' verdict (the user, 15 Nov); the red cheat line (a side box
+projection) also paints the cabin's inner lining (shows through the windows); the door shape (bottom 10-15 cm high).
