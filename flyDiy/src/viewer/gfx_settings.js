@@ -464,6 +464,13 @@
       const F = { full: { off: false, near: 15, reach: 90, aglFull: 27, aglOff: 90, aglPre: 150, tufts: 70 }, lean: { off: false, near: 8, reach: 50, aglFull: 15, aglOff: 50, aglPre: 110, tufts: 42 }, off: { off: true } }[S.cover];
       if (F) { fld.set(F); applied.field = S.cover; }
     }
+    // THE LAWN (GRASS-CARDS): the mown ground's cards by the same column - full: its own reach and density; lean: half the reach, 40 %
+    // of the cards (the phone's and the laptop's); off: none (the field then keeps the cut ground's tufts, as before the lawn)
+    const lwn = W.TREE_FILL && W.TREE_FILL.lawn ? W.TREE_FILL.lawn() : null;
+    if (lwn && lwn.set && applied.lawn !== S.cover) {
+      const L = { full: { off: false, reach: 40, near: 10, dens: 150 }, lean: { off: false, reach: 20, near: 6, dens: 60 }, off: { off: true } }[S.cover];
+      if (L) { lwn.set(L); applied.lawn = S.cover; if (fld && fld.replant) fld.replant(); }
+    }
     const PR = world && world.premises;
     if (PR && PR.streamState && applied.build !== S.build) { PR.streamState.reach = budget().townReach; applied.build = S.build; }   // G1230: the town's stream to the budget's reach (down: at once)
     if (PR && PR.hlod && PR.detail && applied.scenery !== S.scenery) {

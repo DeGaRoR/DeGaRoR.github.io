@@ -77,7 +77,7 @@
     for (let k = 0; k < T.length; k++) seen[T[k]] = 1;
     if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
     if (seen[1]) seen[18] = 1;   // G3430: a lake's shore band is 18 LAKESHORE (28c_biomes SHORE; the cover ring's)
-    const names = new Set(['grass_dry']);
+    const names = new Set(['grass_dry', 'grass_plates']);   // grass_plates: the lawn's cards (GRASS-CARDS, cover_ring layer 'lawn'; 1.3 KB + three 512x256 maps)
     for (let c = 0; c < 256; c++) { if (!seen[c]) continue;
       const m = B.mixAt(c), M = m && B.mixOf(m); if (M && M.species) for (const sp of Object.keys(M.species)) names.add(sp); }
     for (const c of PACK.collections) if (c.kind === 'rock' || c.kind === 'debris' || c.kind === 'cliff') names.add(c.name);
