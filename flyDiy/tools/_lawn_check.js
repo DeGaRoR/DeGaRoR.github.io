@@ -15,6 +15,7 @@
 //   6. the tiers nest: a cell planted for a far eye is a subset of the same cell planted near (every card kept far is kept near)
 //   7. the instrument lawnAt(x, z): cards / m2 and the length at a point, 0 on the wild and on the kill
 //   8. off: nothing planted (the GRAPHICS row's `off`)
+//   9. never in drawn water: a pond across the mown strip plants no card in it (A0 17 Nov, LOOKS 5)
 //   node tools/_lawn_check.js   -> "GATE LAWN: PASS|FAIL"
 'use strict';
 const path = require('path');
@@ -53,7 +54,7 @@ function rings(o) {
   const MIX = { grassland: { species: { grass_reed: { proportion: 1, density: 0.48 } }, forest: { cover: 1 } } };
   const BIO = { mixAt: () => 'grassland', mixOf: k => MIX[k] || null, knobs: () => ({}) };
   BIO.edgeOn = false;
-  const world = { terrainH: () => 0, waterH: () => -10, island: null };
+  const world = { terrainH: () => 0, waterH: (x, z) => (o.pond && z > 30 && z < 40 ? 0.1 : -10), island: null };   // (o.pond: drawn water over z 30..40, over the mown strip)
   const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(o.ex || 10, 2, o.ez || 8); camera.lookAt(30, 0, 8); camera.updateMatrixWorld();
   B.load(path.join('src', 'viewer', 'cover_ring.js'));
   const coverAt = coverOf(o);
@@ -123,6 +124,9 @@ if (A) {
     const C = far.lawn.get().cell, key = p => p[0].toFixed(4) + ',' + p[1].toFixed(4), N = new Set(near.lp.map(key));
     const sub = far.lp.every(p => N.has(key(p)));
     ok(sub && far.lp.length <= near.lp.length, '6 the tiers nest: every card a far tier keeps, the whole stream keeps', far.lp.length + ' of ' + near.lp.length); } }
+// 9 never in drawn water (A0 17 Nov, L40e's LOOKS 5): a pond across the mown strip plants no card in it
+{ const W = run({ pond: true }); if (W) { const wet = W.lp.filter(p => p[0] >= 0 && p[0] <= 20 && p[1] > 30.5 && p[1] < 39.5).length, dry = W.lp.filter(p => p[0] >= 0 && p[0] <= 20 && p[1] > 20 && p[1] < 29).length;
+  ok(wet === 0 && dry > 1000, '9 no card in drawn water across the mown strip (the dry metres either side keep theirs)', 'wet ' + wet + ', dry ' + dry); } }
 // 8 off
 { const O = run({ lawn: { off: true } }); if (O) ok(O.lp.length === 0, '8 off (the GRAPHICS row): no card', O.lp.length); }
 

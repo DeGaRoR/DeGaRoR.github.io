@@ -182,7 +182,7 @@ var COVER_RING = (() => {
   const LAWN_ON = false;   // the study's: OFF until the user picks a variant (the page), then the pick's default
   const LAWN_DEF = { cell: 8, block: 4, reach: 40, near: 10, taper: 1, aglFull: 20, aglOff: 70, aglPre: 110, budgetMs: 2, preBudgetMs: 1, maxCells: 600,
     dens: 150, cutH: 0.08, cutSigma: 0.2, tallH: 0.2, tallSigma: 0.3, stripH: 0.06, stripSigma: 0.15, lean: 1, hRef: 0.08, sizeFade: 1, sizeMax: 1.5,
-    colour: 1, match: 1, vary: 0.06, tier: 1, trunc: 1, minCut: 0.05, green: 0, texGrass: 0, weeds: 0, root: 0 };
+    colour: 1, match: 1, vary: 0.06, tier: 1, trunc: 1, minCut: 0.05, lawnWet: 0.3, green: 0, texGrass: 0, weeds: 0, root: 0 };   // lawnWet: a square's ground over the drawn water it needs (m)
   const LAWN_SPECIES = ['grass_plates'];
   const LAWN_BUF = { cap: 0, xs: [], col: [], rand: [] };   // buildLawn's scratch (emitField copies out of it)
   const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
@@ -978,6 +978,9 @@ var COVER_RING = (() => {
         if (!nq) continue;
         const g = colOn ? G.colB(xa + 0.5, za + 0.5) : null;
         const h00 = G.hAt(xa, za), h10 = G.hAt(xa + 1, za), h01 = G.hAt(xa, za + 1), h11 = G.hAt(xa + 1, za + 1);
+        // NEVER IN DRAWN WATER (A0 17 Nov, L40e's LOOKS 5: grass in a lake's margin): a square whose lowest corner stands within
+        // lawnWet of the water drawn at its centre plants nothing (a mown bank keeps its cards to the dry metre)
+        if (world.waterH) { const w = world.waterH(xa + 0.5, za + 0.5); if (Number.isFinite(w) && w > mmin(h00, h10, h01, h11) - S.lawnWet) continue; }
         for (let q = 0; q < nq; q++) {
           const kq = base + imul(q + 1, 0x632be5ab);
           const rand = hq(kq, 1) * I32;
@@ -1562,7 +1565,7 @@ var COVER_RING = (() => {
         if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again
         if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
-        const PLANT = LAWN ? ['cell', 'dens', 'cutH', 'cutSigma', 'tallH', 'tallSigma', 'stripH', 'stripSigma', 'lean', 'hRef', 'sizeMax', 'colour', 'match', 'vary', 'tier', 'trunc', 'minCut', 'lakeMargin']
+        const PLANT = LAWN ? ['cell', 'dens', 'cutH', 'cutSigma', 'tallH', 'tallSigma', 'stripH', 'stripSigma', 'lean', 'hRef', 'sizeMax', 'colour', 'match', 'vary', 'tier', 'trunc', 'minCut', 'lawnWet', 'lakeMargin']
                     : FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'tallH', 'tallSigma', 'minH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD', 'green', 'greenDens', 'greenLo', 'greenSpan', 'feather', 'cutFloor', 'texGrass']
                             : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'castMinDebris', 'trunc'];
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },

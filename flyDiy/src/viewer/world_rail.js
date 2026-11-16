@@ -1115,6 +1115,7 @@
         range(Lw, 'size fade: reference', 0.02, 0.4, 0.005, () => lw.get().hRef, ls('hRef'), v => Math.round(v * 100) + ' cm', DL.hRef);
         range(Lw, 'AGL full', 5, 200, 1, () => lw.get().aglFull, ls('aglFull'), v => v + ' m', DL.aglFull);
         range(Lw, 'AGL off', 10, 300, 5, () => lw.get().aglOff, ls('aglOff'), v => v + ' m', DL.aglOff);
+        range(Lw, 'by water: ground over the water', 0, 1, 0.05, () => lw.get().lawnWet, ls('lawnWet'), v => v.toFixed(2) + ' m', DL.lawnWet);
         range(Lw, 'colour: level to the ground', 0, 4, 0.01, () => lw.get().match, ls('match'), v => 'x' + v.toFixed(2), DL.match);
         range(Lw, 'colour: card to card', 0, 1, 0.01, () => lw.get().vary, ls('vary'), v => '±' + Math.round(v * 100) + ' %', DL.vary);
         liveNote(Lw, () => { const st = lw.stat(); return st ? st.live + ' cells, ' + st.instances + ' cards held, ' + (st.submitted || 0) + ' drawn in ' + (st.draws || 0) + ' draws · ' + st.lastMs.toFixed(1) + ' ms last cell' : ''; });
