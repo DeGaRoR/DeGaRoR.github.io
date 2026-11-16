@@ -44,6 +44,7 @@ const SHAPES = {
   moulded:  { aspect: [1.40, 1.00, 0.80], fill: 0.86, form: 'box'  },
   bladder:  { aspect: [1.60, 1.00, 0.58], fill: 0.80, form: 'box'  },
   packCase: { aspect: [2.00, 1.40, 0.36], fill: 0.94, form: 'box'  },
+  waterPoly:{ aspect: [1.30, 1.00, 0.90], fill: 0.86, form: 'box'  },   // WATER TANKS: a rotomoulded blue tank, near cubic
   wet:      { aspect: [1, 1, 1],          fill: 1.00, form: 'bay'  },
 };
 

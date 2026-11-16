@@ -682,7 +682,8 @@ if (SHOW) for (const s of seen)
         /spec\.energy = M\.energy/.test(jn),
     'join: the vessels ride the join into the build beside the finish');
   const ui = fs.readFileSync(path.join(__dirname, '_cage_ui.js'), 'utf8');
-  check(/CAGE_ENERGY\.fromSpec\(spec && spec\.energy\)/.test(ui),
+  // (WATER TANKS: the same call hands the spec's water section as its third argument - the water tanks ride the load too)
+  check(/CAGE_ENERGY\.fromSpec\(spec && spec\.energy(\)|, undefined, spec \? \(spec\.water \|\| null\) : null\))/.test(ui),
     'load: a loaded build seeds the energy panel, unconditionally');
   // THE LOOK CROSSES THE JOIN TOO (2026-09-04, user: "the fuel tank material
   // does not seem to make it in game - red in the editor, white in the flight

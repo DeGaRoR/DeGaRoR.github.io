@@ -245,7 +245,16 @@ const GEN_VESSELS = {
   //  is: the cells' packK (0.70) already counts some of the case and the BMS)
   packCase:{ name: 'Pack case',        holds: 'battery',
              shapeK: 6.2, kgM2: 4.1, fixed: 3.0, fixedKWh: 10, fixedMin: 0.3, priceM2: 2300, priceFixed: 300 },
+  // WATER TANKS (the user, 15 Nov: "we need to be able to put tanks, and fill them with water ... reuse the fuel tank
+  // mechanism, but give it another appearance ... out of plastic this time, maybe blue plastic"): rotomoulded blue
+  // polyethylene, a water bowser's or a crop sprayer's hopper - the moulded row's skin, lighter fittings (a cap, a vent
+  // and the outlet's valve: no sender, no fuel-rated drain). INFERRED, as the moulded row is
+  waterPoly: { name: 'Water tank (blue polyethylene)', holds: 'water',
+               shapeK: 6.8, kgM2: 2.2, fixed: 0.5, priceM2: 380, priceFixed: 60 },
 };
+// WHAT A WATER TANK HOLDS (the ballast today; later what is sprayed): kg a litre, and the outlet that empties it - a
+// plain round hole in the tank's floor, its valve the pilot's (GEN_RULES.water, 60_gen_spec)
+const GEN_WATER = { water: { name: 'Water', kgL: 1.0 } };
 
 // The volume a vessel needs, and what it and its contents weigh. ONE function,
 // so the editor's readout, the ledger and the gate cannot disagree.
@@ -254,12 +263,17 @@ const GEN_VESSELS = {
 // Returns litres of INSTALLED VOLUME (what has to fit in a bay), the vessel's
 // own mass, the contents' mass, and what the pair costs.
 function genVesselResolve(kind, capacity, vesselKey, mediumKey) {
-  const battery = kind === 'battery';
+  const battery = kind === 'battery', water = kind === 'water';
   const V = Math.max(0, capacity || 0);
   const ves = GEN_VESSELS[vesselKey] ||
-              (battery ? GEN_VESSELS.packCase : GEN_VESSELS.alu);
+              (battery ? GEN_VESSELS.packCase : water ? GEN_VESSELS.waterPoly : GEN_VESSELS.alu);
   let litres, contents, mediumPrice;
-  if (battery) {
+  if (water) {
+    // (WATER: litres of water, full; the fill is the loading's - 61_gen_frame bills capacity x fill)
+    litres = V;
+    contents = V * ((GEN_WATER[mediumKey] || GEN_WATER.water).kgL);
+    mediumPrice = 0;
+  } else if (battery) {
     const cell = GEN_CELLS[mediumKey] || GEN_CELLS.lifepo4;
     const packWhKg = cell.WhKg * cell.packK;
     const packWhL  = cell.WhL  * cell.packK;

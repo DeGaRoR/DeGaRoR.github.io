@@ -35,6 +35,20 @@ const KT = 1.852, MPH = 1.609344, FPM = 0.00508, FT = 0.3048, LB = 0.45359237;
 // THE REAL AEROPLANES
 // ---------------------------------------------------------------------------------------------------------------------
 const REFS = {
+  // ROLLADEN-SCHNEIDER LS4 (the Standard Class sailplane, 1980; the LS4-a / -b's 2 x 85 L of water and 525 kg; the
+  // user 16 Nov: "add the LS4 to the candidate lists proudly"). Wikipedia (the LS4's own specifications): 15 m, 10.5 m2,
+  // AR 21.4, 238 kg empty, 472 kg max (the LS4; 525 the LS4-b's flight manual), best glide 40.5 at 100 km/h, min sink
+  // 0.61 m/s at 75 km/h, stall 68 km/h, VNE 270, 140 L of water (the LS4-a +15 L a wing). An unpowered aeroplane: no
+  // climb, no take-off run, no top speed. The L/D row WAITS FOR THE DRAG STUDY (ours ~19: the body's drag build-up).
+  ls4: {
+    name: 'Rolladen-Schneider LS4 (LS4-b)', mtow: 525, empty: 238, fuelL: 0, S: 10.5,
+    src: 'Wikipedia (Rolladen-Schneider LS4): 15 m, 10.5 m2, 238 kg empty, 472 kg (LS4) / 525 kg (LS4-b, the flight manual), L/D 40.5 at 100 km/h, min sink 0.61 m/s at 75 km/h, stall 68 km/h, VNE 270 km/h, 140 L water (+15 L a wing on the LS4-a)',
+    poh: { vr: 1.10, vy: 1.30, flapTO: 0, flapLDG: 0, brake: 0.3, note: 'a sailplane: no flaps (the airbrakes on the approach), launched by winch or aerotow - no engine' },
+    rows: {
+      empty: { v: 238, tol: 0.05, src: '238 kg (Wikipedia)' },
+      Vs1:   { v: 68, tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 68 km/h (Wikipedia; the weight unstated)' },
+      LD:    { v: 40.5, tol: 0.10, kg: 'unknown', src: 'best glide 40.5 at 100 km/h (Wikipedia) - WAITING FOR THE DRAG STUDY' },
+    } },
   // PIPER J-3C-65 CUB. The 1940s Piper sheet does not state the weight its figures were flown at; the usual reading is
   // gross (1220 lb), but a club J-3 is mostly flown solo from the rear seat. The surface is unstated: a grass type.
   cub: {
@@ -460,6 +474,9 @@ const PLANES = {
   stearman: { listRow: 9, label: 'Stearman-alike (candidate)', file: 'builds/candidates/stearman_2026-10.json', ref: 'stearman', group: 'biplane' },
   tigermoth:{ supersededBy: 'tigermothm', label: 'Tiger Moth-alike (candidate)', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
   camel:    { supersededBy: 'camelm', label: 'Camel-alike (candidate)', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
+  // THE LS4-ALIKE (the Archaeopteryx branch, 16 Nov): the card's build against the LS4-b
+  ls4:      { listRow: 91, label: 'LS4-alike (candidate)', file: 'builds/candidates/ls4_2026-11.json', ref: 'ls4', group: 'glider',
+              note: 'engineless, 170 L of water, airbrakes, CS-22 strength: 230 kg empty against 238; its glide waits for the drag study' },
   birdman:  { dropped: 'the user 8 Nov: not needed (it is the Chinook as first built)', label: 'Birdman (candidate: the Chinook as found)', file: 'builds/candidates/birdman.json', ref: 'chinook', group: 'ultralight',
               note: 'the user\'s birdman.json before the 21 Sep corrections (the official Chinook is its corrected file)' },
   skymaster:{ dropped: 'the user 8 Nov: not wanted in the set', label: 'Skymaster-alike (archetype card)', card: 'skymaster', ref: 'skymaster', group: 'archetype',
