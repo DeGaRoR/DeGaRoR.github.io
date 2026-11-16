@@ -317116,3 +317116,12 @@ cover inert while it is up. Pointer and phone could not reach the button; the ke
 RED on master 6/7 (nothing landed for 20 s, 0 renders), GREEN with the guard. The 19 Go-pressing gates: 15 PASS; the 4 reds
 are master's, same checks by name (BOOTLIFT hard - "hard timeout" at 2 virtual s on master too, an owner's look; FRAMECOST,
 ROUNDTRIP, SIMWORKER-EDGES NaN bounding sphere).
+DIRT-FAULTS / LOOK 3 + WORLD-EDITOR KEYS (DIRT-STRIP, 16 Nov, ready/dirt-faults on fb8fb633b): the user 15 Nov - the pale glitchy
+sheets on the bumpy strips go (a hazard mound and a crown no longer painted pale, no painted grass on the mound or the edges) and
+the grass strip (Skyline) draws its tundra only round the worn lanes, faded into the ground (was opaque over the whole width). Every
+new value is a look key (A0 for the user: hand-tunable in F9): sfMound 0.3, sfCrownLift 0.06, sfGrassK 0.25, sfPudMirror 0.02 m,
+grTrackW 0.3 m, grTrackFade 1 m (two row texels uLookS/uLookG; RUNWAYS + PAVEMENT list them), DUST.LOOK.splashRate 160. The
+drawn trail ends ~2.4 m from the centreline (1.098 + grTrackW + grTrackFade): LOOK-1's GRASS-ON-GREEN trackW 2.7 is paired with it.
+GPU 16 Nov 11:13 (RTX 3080): compile clean, 0 page errors; stills evidence/dirt-strip-2026-11-09/mon + mon-knobs. Gates: PAVEMENT
+MICRO DUST LOOKS LIGHT PREMISES GROUNDLIB SPLAT TERRAINMATCH CONTACT ASSETS SCENERYED PASS; DMGSCAR (2J trunk gouge) and MEDIA
+(career_core 654 KB > 640) red on master the same, by name.
