@@ -83,6 +83,8 @@ const P={
   lobeStream:0, lobeNose:0.94, lobeTail:0.04,
   // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
   lidRW:null, lidRTop:null, lidRBot:null,
+  // PROPER-COWLS: the head cylinders, merged into the skin (cylOn 0 = none)
+  cylOn:0, cylAz:0, cylOff:0.3, cylR:0.12, cylZ0:0.1, cylZ1:0.4, cylNose:0.1, cylTail:0.15, cylRin:0, cylOffIn:null, cylBlend:0.03,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
   // chin scoop
   // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
@@ -530,12 +532,53 @@ function rampAt(th,z){
   const wa=Math.pow(Math.cos(a/half*Math.PI/2),2), u=clamp(z/Math.max(1e-3,P.exCutLen),0,1);
   return -P.exRampH*wa*Math.pow(1-u,1.5);
 }
+/* THE HEAD CYLINDERS, MERGED (PROPER-COWLS, the user, 9 Nov, the Carbon Cub: "keep the base cowl shapes unaltered ...
+   and add 2 cylinders on the sides, engulfing the heads, then cut and merge"). Two bodies of revolution, mirrored, their
+   axes parallel to the cowl's at azimuth cylAz (0 = the flank), cylOff from the spine: radius cylR between the stations
+   cylZ0 and cylZ1 (metres from the firewall), a round front cap over cylNose, an aft taper over cylTail down to cylRin
+   (sunk in the skin). The skin is the UNION: along each ray from the spine, the farther of the cowl and the cylinder -
+   the cut where they meet is the crease. cylOn 0 (absent) = nothing, to the bit. */
+function cylRad(z){
+  const z0=+P.cylZ0, z1=+P.cylZ1, R=+P.cylR, rin=+P.cylRin||0;
+  if(z>z1){ const u=(z-z1)/Math.max(1e-3,+P.cylNose); return u>=1?0:R*Math.sqrt(Math.max(0,1-u*u)); }
+  if(z<z0){ const u=(z0-z)/Math.max(1e-3,+P.cylTail); if(u>=1) return 0; const w=u*u*(3-2*u); return R+(rin-R)*w; }
+  return R;
+}
+// (the taper SINKS: the axis slides in to cylOffIn over the same length, so the shrinking body ends inside the skin -
+// with its axis outside the skin a cone would end in a spike; null = cylOff)
+function cylOffAt(z){
+  const off=+P.cylOff, oi=(P.cylOffIn==null)?off:+P.cylOffIn, z0=+P.cylZ0;
+  if(z>=z0) return off;
+  const u=Math.min(1,(z0-z)/Math.max(1e-3,+P.cylTail)), w=u*u*(3-2*u);
+  return off+(oi-off)*w;
+}
+function cylMerge(x,y,cy,z){
+  if(!(+P.cylOn>0)||!(+P.cylR>0)) return null;
+  const R=cylRad(z); if(!(R>0)) return null;
+  const dx=x, dy=y-cy, rc=Math.hypot(dx,dy)||1e-9, ux=dx/rc, uy=dy/rc;
+  const a=+P.cylAz*DEG, off=cylOffAt(z);
+  // THE MERGE IS FILLETED (cylBlend, metres): a smooth maximum of the two radii - the cut rounds over cylBlend instead of a
+  // knife edge (a hard crease, drawn on the skin's grid, read as a saw), as a real cowl's joined panels do
+  const k=Math.max(0,+P.cylBlend||0);
+  let best=rc;
+  for(const sg of [1,-1]){
+    const ax=sg*Math.cos(a)*off, ay=Math.sin(a)*off;         // the axis, about the spine
+    const b=ux*ax+uy*ay, c2=ax*ax+ay*ay-R*R, disc=b*b-c2;
+    if(disc<0) continue;
+    const sFar=b+Math.sqrt(disc);
+    const u=k>0 ? 0.5*(best+sFar+Math.sqrt((sFar-best)*(sFar-best)+k*k)) : Math.max(best,sFar);
+    if(u>best) best=u;
+  }
+  return best>rc+1e-6 ? [ux*best, cy+uy*best] : null;
+}
 function surfPoint(th,z){
   const s=sectionAtZ(z);
   let [x,y]=sectPt(th,s);
   const d=lobeAt(th,z);
   if(d){const L=Math.hypot(x,y)||1; x+=x/L*d; y+=y/L*d;}
-  return [x, s.cy+y+exitAt(th,z)+rampAt(th,z)];
+  const yy=s.cy+y+exitAt(th,z)+rampAt(th,z);
+  if(+P.cylOn>0){ const m=cylMerge(x,yy,s.cy,z); if(m) return m; }
+  return [x, yy];
 }
 /* implicit: <1 inside the section at that z (lobes ignored — they live on the barrel flanks) */
 function sectF(x,y,z){
@@ -598,7 +641,9 @@ function prepareMesh(){
   }
   // (a radial's helmets - lobeN 3+ - want three samples across each one's spread, or they draw as facets)
   const nHelm=(P.lobeN>=3&&P.lobeAmp>0)?Math.ceil(360/Math.max(3,P.lobeSig/3)*Math.min(1,d)):0;
-  AZ=equalise(w,Math.max(28,Math.round(60*d),Math.min(240,nHelm)),M).map(u=>u*TAU);
+  // (merged head cylinders: their crease and round caps want three times the samples)
+  const nCyl=(+P.cylOn>0&&+P.cylR>0)?Math.round(360*Math.min(1,d)):0;
+  AZ=equalise(w,Math.max(28,Math.round(60*d),Math.min(240,nHelm),nCyl),M).map(u=>u*TAU);
 
   // --- stations: weighted by turning of the deck meridian ---
   const MZ=480, mp=[];
@@ -611,7 +656,7 @@ function prepareMesh(){
     let dt=Math.abs(t2-t1); if(dt>Math.PI)dt=TAU-dt;
     wz[i]=0.15*seg+Math.sqrt(dt*seg*ze*0.3);
   }
-  ZS=equalise(wz,Math.max(12,Math.round(26*d)),MZ).map(u=>u*ze);
+  ZS=equalise(wz,Math.max(12,Math.round(26*d),(+P.cylOn>0&&+P.cylR>0)?Math.round(120*Math.min(1,d)):0),MZ).map(u=>u*ze);
   ZS.push(ze);
   seamOn2=true;
 
