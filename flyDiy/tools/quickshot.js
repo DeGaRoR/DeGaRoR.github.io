@@ -528,7 +528,7 @@ function raster(project, Wd, H, bg) {
         const f2 = fl ? [w0_ * fl[0] + w1_ * fl[2] + w2_ * fl[4], w0_ * fl[1] + w1_ * fl[3] + w2_ * fl[5]] : null;
         const c3 = decalMix([r, g, b], [kx, ky, kz], nk, f2, DK.cls, DK.ok); r = c3[0]; g = c3[1]; b = c3[2];
       }
-      let R, G, Bc;
+      let R, G, Bc, mq = null, mlm = lam, msp = 0;   // (GROUND-FX --mud: the normal, the light and the highlight the pixel was lit with)
       if (tn) {
         let qx = w0_ * tn[0] + w1_ * tn[3] + w2_ * tn[6], qy = w0_ * tn[1] + w1_ * tn[4] + w2_ * tn[7], qz = w0_ * tn[2] + w1_ * tn[5] + w2_ * tn[8];
         const ql = Math.hypot(qx, qy, qz) || 1; qx *= sgf / ql; qy *= sgf / ql; qz *= sgf / ql;
@@ -537,6 +537,7 @@ function raster(project, Wd, H, bg) {
         const hx = L[0] / Ll + vd[0], hy = L[1] / Ll + vd[1], hz = L[2] / Ll + vd[2], hl = Math.hypot(hx, hy, hz) || 1;
         const sp = Math.pow(Math.abs((qx * hx + qy * hy + qz * hz) / hl), 24) * 0.18;
         const lm = 0.32 + 0.68 * dl;
+        mq = [qx, qy, qz]; mlm = lm; msp = sp;
         R = r * lm + 255 * sp * r / 255; G = g * lm + 255 * sp * g / 255; Bc = b * lm + 255 * sp * b / 255;
         if (PARTS && !tc) { R = r * lm + 255 * sp; G = g * lm + 255 * sp; Bc = b * lm + 255 * sp; }
         if (PARTS && tc) { const vr = w0_ * tc[0] + w1_ * tc[3] + w2_ * tc[6], vg = w0_ * tc[1] + w1_ * tc[4] + w2_ * tc[7], vb = w0_ * tc[2] + w1_ * tc[5] + w2_ * tc[8];
@@ -544,7 +545,9 @@ function raster(project, Wd, H, bg) {
       } else { R = r * lam; G = g * lam; Bc = b * lam; }
       R = Math.min(255, R); G = Math.min(255, G); Bc = Math.min(255, Bc);
       if (glass) { const a = t.al; img[i * 3] = img[i * 3] * (1 - a) + R * a; img[i * 3 + 1] = img[i * 3 + 1] * (1 - a) + G * a; img[i * 3 + 2] = img[i * 3 + 2] * (1 - a) + Bc * a; }
-      else { img[i * 3] = R; img[i * 3 + 1] = G; img[i * 3 + 2] = Bc; }
+      else { img[i * 3] = R; img[i * 3 + 1] = G; img[i * 3 + 2] = Bc;
+        // GROUND-FX --mud: the computed mud and dust at this pixel (a face drawn flat by the face's normal: the skin painted too)
+        if (MUDF) { const q = mq || [nx / nl, ny / nl, nz / nl]; mudPix(img, i, t, w0_, w1_, w2_, q[0], q[1], q[2], mlm, msp); } }
     }
   } };
   pass(false); pass(true);
