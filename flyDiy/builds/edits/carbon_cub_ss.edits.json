@@ -21,7 +21,19 @@
   "wgCons": 7,
   "wgSpan": 10.44,
   "wgChord": 1.6,
-  "wgChordTip": 1.6
+  "wgChordTip": 1.6,
+  "cw_apMode": 0,
+  "cw_bulgeOn": 1,
+  "cw_bulgeR": 0.176,
+  "cw_bulgeOut": 0.22,
+  "cw_bulgeAz": 9,
+  "cw_bulgeZ": 1.04,
+  "cw_bulgeNose": 0.6,
+  "cw_bulgeRound": 1.1,
+  "cw_bulgeLen": 0.285,
+  "cw_bulgeTail": 0.27,
+  "cw_bulgeInR": 0.08,
+  "cw_bulgeInDepth": 0.12
  },
  "prop": {
   "D": 2.03,

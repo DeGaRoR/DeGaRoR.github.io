@@ -796,7 +796,72 @@ function fitHelmets(spec, o) {
   return o;
 }
 
-module.exports = { SHAPE, FACE, typeOf, measure, rowsFor, finish, aftSection };
+// THE HEAD BULGES, FITTED TO THE DRAWN HEADS (CARBON-CUB-BULGES, the user, 16 Nov: "the huge protrusions these cubs
+// have for matching their large cylinder heads"; "the global cowl size shouldn't be touched, it's only these
+// protrusions that need to be added"). The cowl's own rows are kept; only the bulge rows are written. Every drawn vertex
+// standing through the cowl (clear.js, all round, the exhaust aside), the left folded onto the right: the dome's circle
+// is the least circle holding them all (12 mm over each), its axis level along the thrust line; the full part spans
+// the heads' stations, the dome's base sits at the front heads' front and the tail dives back into the cowl over its
+// own length; then rebuilt and probed until nothing pokes (the radius grows about the same axis).
+function fitBulges(spec, o, opt) {
+  const C = require('./clear.js'), THREE = SH.context().THREE, MARGIN = 0.012;
+  opt = opt || {};
+  o = Object.assign({}, o, { cw_bulgeOn: 0 });
+  const m = measure(spec, o), CW = m.W.COWL_GEN, ze = CW.zEnd();
+  const c = C.clearance(m.S, THREE, { all: true });
+  if (!c || !c.n || c.worst < 0.002) { o._bulges = c ? c.worst : null; return o; }
+  // the heads: what pokes through a FLANK (beyond 0.75 of the skin's half-width at its station); anything else that
+  // pokes (a top fitting, a lead) is not a bulge's to cover - it is reported, not hidden
+  const flank = ([x, y, z]) => Math.abs(x) >= 0.75 * CW.skinRayR(0, Math.min(z, ze));
+  const pts = c.pts.filter(flank).map(([x, y, z, d]) => ({ x: Math.abs(x), y, z, d }));
+  if (!pts.length) { o._bulges = 0; o._bulgeFit = { barePoke: c.worst, none: 'nothing pokes through a flank' }; return o; }
+  // the least enclosing circle in x, y (Welzl's, iterative; the points shuffled)
+  const P2 = pts.map(p => [p.x, p.y]);
+  for (let i = P2.length - 1; i > 0; i--) { const j = Math.floor((Math.sin(i * 12.9898) * 43758.5453 % 1 + 1) % 1 * (i + 1)); [P2[i], P2[j]] = [P2[j], P2[i]]; }
+  const circ2 = (a, b) => ({ x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, r: Math.hypot(a[0] - b[0], a[1] - b[1]) / 2 });
+  const circ3 = (a, b, q) => {
+    const bx = b[0] - a[0], by = b[1] - a[1], cx = q[0] - a[0], cy = q[1] - a[1], D = 2 * (bx * cy - by * cx);
+    if (Math.abs(D) < 1e-12) return null;
+    const ux = (cy * (bx * bx + by * by) - by * (cx * cx + cy * cy)) / D, uy = (bx * (cx * cx + cy * cy) - cx * (bx * bx + by * by)) / D;
+    return { x: a[0] + ux, y: a[1] + uy, r: Math.hypot(ux, uy) };
+  };
+  const inC = (k, p) => k && Math.hypot(p[0] - k.x, p[1] - k.y) <= k.r + 1e-9;
+  let K = null;
+  for (let i = 0; i < P2.length; i++) {
+    if (inC(K, P2[i])) continue;
+    K = { x: P2[i][0], y: P2[i][1], r: 0 };
+    for (let j = 0; j < i; j++) {
+      if (inC(K, P2[j])) continue;
+      K = circ2(P2[i], P2[j]);
+      for (let k = 0; k < j; k++) { if (inC(K, P2[k])) continue; K = circ3(P2[i], P2[j], P2[k]) || K; }
+    }
+  }
+  const zs = pts.map(p => p.z).sort((a, b) => a - b), zMin = zs[0], zMax = zs[zs.length - 1];
+  const R = K.r + MARGIN, nose = opt.nose || 1;
+  // the dome's base at the front heads' front (the dome itself ahead of them), the full part back over the rear heads
+  const zc = zMax + 0.5 * MARGIN, zF = zc + R * nose, z0 = Math.max(0.01, zMin - MARGIN);
+  const zRef = Math.min(zc, ze), cy0 = CW.spineY(zRef);
+  const az = Math.atan2(K.y - cy0, K.x) * 180 / Math.PI;
+  const rs = CW.skinRayR(az * Math.PI / 180, zRef), rc = Math.hypot(K.x, K.y - cy0);
+  const tail = Math.max(0.04, Math.min(2 * R, 0.7 * (z0 - (CW.aftStart ? CW.aftStart() : 0))));
+  Object.assign(o, { cw_bulgeOn: 1, cw_bulgeR: +R.toFixed(4), cw_bulgeOut: +(rc + R - rs).toFixed(4), cw_bulgeAz: +az.toFixed(1),
+    cw_bulgeZ: +(zF / ze).toFixed(4), cw_bulgeNose: nose, cw_bulgeRound: opt.round || 1, cw_bulgeLen: +(zc - z0).toFixed(4),
+    cw_bulgeTail: +tail.toFixed(4), cw_bulgeInR: +((opt.inlet != null ? opt.inlet : 0.45) * R).toFixed(4), cw_bulgeInDepth: +(0.8 * R).toFixed(4) });
+  let left = null, other = 0;
+  for (let pass = 0; pass < 5; pass++) {
+    const k = C.clearance(measure(spec, o).S, THREE, { all: true });
+    const kp = k ? k.pts.filter(flank) : [];
+    left = kp.reduce((w, q) => Math.max(w, q[3]), 0); other = k ? k.pts.filter(q => !flank(q)).reduce((w, q) => Math.max(w, q[3]), 0) : 0;
+    if (left < 0.002) break;
+    const g = left + 0.004;                                     // grow about the same axis
+    o.cw_bulgeR = +(o.cw_bulgeR + g).toFixed(4); o.cw_bulgeOut = +(o.cw_bulgeOut + g).toFixed(4);
+  }
+  o._bulges = left;
+  o._bulgeFit = { circle: { x: +K.x.toFixed(3), y: +K.y.toFixed(3), r: +K.r.toFixed(3) }, zMin: +zMin.toFixed(3), zMax: +zMax.toFixed(3), barePoke: c.worst, left, elsewhere: +other.toFixed(4) };
+  return o;
+}
+
+module.exports = { SHAPE, FACE, typeOf, measure, rowsFor, finish, aftSection, fitBulges };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);
@@ -807,6 +872,16 @@ if (require.main === module) {
   const spec = j.spec || j;
   if (arg('radialR')) RADIAL_R = +arg('radialR');
   if (argv.includes('--roundCheeks')) ROUND_CHEEKS = true;
+  // --bulges: the build's own cowl kept (size, length, section, cheeks), only the HEAD BULGES fitted to the drawn heads
+  // (CARBON-CUB-BULGES); --nose=k --round=k --inlet=k (the inlet's radius x the dome's) shape them
+  if (argv.includes('--bulges')) {
+    const o = fitBulges(spec, {}, { nose: +arg('nose', 1), round: +arg('round', 1), inlet: +arg('inlet', 0.45) });
+    const fit = o._bulgeFit, left = o._bulges; delete o._bulgeFit; delete o._bulges;
+    const s2 = JSON.parse(JSON.stringify(spec)); s2.cage = Object.assign({}, s2.cage, o);
+    fs.writeFileSync(OUT, JSON.stringify(j.spec ? Object.assign({}, j, { spec: s2 }) : s2));
+    console.log(JSON.stringify({ out: OUT, bulges: true, bulgeFit: fit, left, over: o }));
+    process.exit(0);
+  }
   // --cheeksOnly: the build's own cowl kept, only its cheeks refitted (streamlined, off the drawn heads)
   if (argv.includes('--cheeksOnly')) {
     const o = fitCheeksStream(spec, {}), fit = o._cheekFit, left = o._cheeks; delete o._cheekFit; delete o._cheeks;

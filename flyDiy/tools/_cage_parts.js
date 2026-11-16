@@ -1002,6 +1002,7 @@ const CAGE_PARTS = [
                                    'cw_sqAftTop', 'cw_sqAftBot',
                                    'cw_wAftTop', 'cw_wAftBot', 'cw_waistF']],   // CABIN-CRAFT: the width by level; PROPER-COWLS: the front's waist
       ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillL', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
+      ['head bulges', ['cw_bulgeOn', 'cw_bulgeR', 'cw_bulgeOut', 'cw_bulgeAz', 'cw_bulgeZ', 'cw_bulgeNose', 'cw_bulgeRound', 'cw_bulgeLen', 'cw_bulgeTail', 'cw_bulgeInR', 'cw_bulgeInDepth']],   // CARBON-CUB-BULGES
       ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
                      'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',

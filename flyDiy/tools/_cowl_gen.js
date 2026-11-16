@@ -84,6 +84,16 @@ const P={
   // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
   lidRW:null, lidRTop:null, lidRBot:null,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
+  // CARBON-CUB-BULGES (the user, 16 Nov: "the huge protrusions these cubs have for matching their large cylinder
+  // heads"): THE HEAD BULGES - a pair of round domes, one each flank, standing out of the cowl's line over the heads,
+  // a round cooling inlet on each face (buildBulges). Off by default: every cowl drawn before them is drawn to the bit.
+  // bulgeR the dome's radius (m); bulgeOut its crest's standout over the cowl's line (m); bulgeAz its azimuth round the
+  // spine (deg, 0 the flank, + up); bulgeZ its front's station (x the cowl's length, 1 = the nose ring); bulgeNose the
+  // dome's length (x bulgeR, 1 = a hemisphere); bulgeRound its fullness (1 round, more = blunter face); bulgeLen the
+  // full-size length behind the dome (m); bulgeTail the run aft over which it dives back into the cowl (m); bulgeInR
+  // the face's opening radius (m, 0 = closed); bulgeInDepth its duct's depth (m)
+  bulgeOn:0, bulgeR:0.1, bulgeOut:0.12, bulgeAz:10, bulgeZ:1.05, bulgeNose:1, bulgeRound:1, bulgeLen:0.2, bulgeTail:0.2,
+  bulgeInR:0, bulgeInDepth:0.1,
   // chin scoop
   // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
   // ENGINE-COOLING (12 Nov, the user: "let's have at least a top scoop"): scoopTop 1 puts it on the cowl's TOP
@@ -252,6 +262,7 @@ function angDiff(a,b){let d=(a-b)%TAU; if(d>Math.PI)d-=TAU; if(d<-Math.PI)d+=TAU
 
 /* ============================ SURFACE DEFINITION ============================ */
 const SEG=112;
+let BULGE;                                         // the head bulges' geometry, read once per build (bulgeGeom)
 const zEnd=()=>P.cowlLen+P.lidLen;
 function lidRadius(){ return P.lidMode===1 ? P.spinR+P.lidGap : P.lidR; }
 /* THE NOSE RING'S OWN SHAPE (PROPER-COWLS, the user, 8 Nov, the Tiger Moth: "you put the prop straight on the engine
@@ -343,6 +354,7 @@ const eKeelH   =()=>P.inheritStub?P.stubKeelH:P.keelH;
 const eWaist   =()=>P.inheritStub?P.stubWaist:P.waist;
 
 function prepareLid(){
+  BULGE=undefined;                                 // (the head bulges are re-read off this cowl: bulgeGeom)
   const cl=Math.max(P.cowlLen,1e-4), ze=zEnd(), L=Math.max(P.lidLen,1e-4), lr=lidRadius();
   const a0=P.aftW, h0=P.aftH, a1=P.aftW*P.taperW, h1=P.aftH*P.taperH;
   const sa=(a1-a0)/cl, sh=(h1-h0)/cl;
@@ -580,6 +592,7 @@ function equalise(w,N,M){
   return out;
 }
 function prepareMesh(){
+  BULGE=undefined;
   const d=clamp(P.detail,0.35,2), ze=zEnd();
   seamOn2=false;                                   // tables ignore the seam step
 
@@ -1282,6 +1295,138 @@ function buildGills(group,mats){
   }
 }
 
+/* ---- THE HEAD BULGES (CARBON-CUB-BULGES, the user, 16 Nov: "the huge protrusions these cubs have for matching
+   their large cylinder heads ... I did not manage to get the bulging options to do what I wanted"; "the global cowl
+   size shouldn't be touched, it's only these protrusions that need to be added, and the inlets need to be more or less
+   in front of those") -------------------------------------------------------------------------------------------------
+   The cheeks (lobeN / lobeAmp) push the skin out along its own normal, a Gaussian round the section: a bump as wide as
+   it is tall at best, and the more it stands out the more of the cowl it takes with it (the ogival fit on the Carbon
+   Cub's heads widened the whole nose). A Carbon Cub's cheek is a body of its own: a round dome on each flank, straight
+   along the thrust line, standing far out of the cowl's line, its face carrying a round inlet just behind the
+   propeller, and running aft over the heads before it dives back into the cowl.
+   SO IT IS ITS OWN SOLID, laid over the cowl's skin (the skin itself is not touched, so the cowl's size, length and
+   section stay exactly what their rows say): a body of revolution about an axis parallel to the cowl's, its section a
+   circle all along -
+     the DOME     bulgeNose x bulgeR long ahead of the full part, its profile a superellipse (bulgeRound 1 = an
+                  ellipse; a hemisphere at bulgeNose 1), cut open at the face by the INLET (bulgeInR) with a rolled lip
+                  and a dark duct bulgeInDepth deep;
+     the FULL PART  bulgeLen of constant radius over the heads;
+     the TAIL     bulgeTail long, the radius easing to 0.8 bulgeR while the axis dives under the skin, so the dome
+                  meets the cowl smoothly and the end stays inside it.
+   Placed by its crest: bulgeAz round the spine and bulgeOut over the skin's own line at the dome's base. The left one
+   is the right one mirrored. bulgeRayR gives the body's outer reach on any ray from the spine (the clearance probe and
+   the cooling's heads read it), bulgeGeom the frame. Display; the openings are counted as the face's (coolOpenings). */
+function skinRayR(a,z){
+  // the skin's distance from the spine along the ray at the geometric angle a (rad, 0 = starboard), station z
+  const cy=spineY(z), N=144, ang=th=>{const p=surfPoint(th,z); return Math.abs(angDiff(Math.atan2(p[1]-cy,p[0]),a));};
+  let best=0, bd=9;
+  for(let k=0;k<N;k++){ const d=ang(k/N*TAU); if(d<bd){bd=d; best=k/N*TAU;} }
+  let lo=best-TAU/N, hi=best+TAU/N;
+  for(let i=0;i<28;i++){ const m1=lo+(hi-lo)/3, m2=hi-(hi-lo)/3; if(ang(m1)<ang(m2)) hi=m2; else lo=m1; }
+  const p=surfPoint(0.5*(lo+hi),z);
+  return Math.hypot(p[0],p[1]-cy);
+}
+function bulgeGeom(){
+  if(BULGE!==undefined) return BULGE;
+  BULGE=null;
+  if(!(P.bulgeOn>0) || !(P.bulgeR>0)) return null;
+  const ze=zEnd(), R=clamp(+P.bulgeR,0.02,0.4), Lf=R*clamp(+P.bulgeNose,0.2,3);
+  const zF=clamp(+P.bulgeZ,0.1,1.6)*ze, zc=zF-Lf;                       // the front, the dome's base
+  const zLo=aftStart()+0.006;
+  const z0=Math.max(zLo, Math.min(zc, zc-Math.max(0,+P.bulgeLen||0)));   // the full part's aft end
+  const zA=Math.max(zLo, z0-Math.max(0.01,+P.bulgeTail||0));           // the tail's end
+  const az=P.bulgeAz*DEG, zR=clamp(zc,0,ze);
+  const rs=skinRayR(az,zR), rc=rs+(+P.bulgeOut||0)-R;                    // the axis' distance from the spine
+  const cx=rc*Math.cos(az), cy=spineY(zR)+rc*Math.sin(az);
+  const rA=0.8*R, rcA=Math.min(rc, skinRayR(az,zA)-rA-0.006);            // the tail's end: under the skin
+  const cxA=rcA*Math.cos(az), cyA=spineY(zA)+rcA*Math.sin(az);
+  const n=2*clamp(+P.bulgeRound||1,0.3,3);
+  const rIn=Math.max(0,Math.min(+P.bulgeInR||0, 0.8*R)), lipT=rIn>0?clamp(0.2*rIn,0.004,0.012):0;
+  const prof=u=>R*Math.pow(Math.max(0,1-Math.pow(clamp(u,0,1),n)),1/n);
+  // the dome stops where its radius is the lip's outer one: the inlet's face
+  const uL=rIn>0?Math.pow(Math.max(0,1-Math.pow(Math.min(0.999,(rIn+lipT)/R),n)),1/n):1;
+  const at=z=>{                                                          // the right body's section at z, or null
+    if(z>zc+uL*Lf+1e-9 || z<zA-1e-9) return null;
+    if(z>=zc) return {x:cx, y:cy, r:prof((z-zc)/Math.max(1e-4,Lf))};
+    if(z>=z0) return {x:cx, y:cy, r:R};
+    const s=smooth(clamp((z0-z)/Math.max(1e-4,z0-zA),0,1));
+    return {x:lerp(cx,cxA,s), y:lerp(cy,cyA,s), r:lerp(R,rA,s)};
+  };
+  BULGE={R, Lf, zF, zc, z0, zA, az, cx, cy, cxA, cyA, rA, n, rIn, lipT, uL, zL:zc+uL*Lf, prof, at};
+  return BULGE;
+}
+// the bulges' outer reach along the ray from the spine at the geometric angle a, station z (-Infinity: the ray misses
+// them)
+function bulgeRayR(a,z){
+  const G=bulgeGeom(); if(!G) return -Infinity;
+  const s=G.at(z); if(!s || !(s.r>0)) return -Infinity;
+  const cy0=spineY(z), ux=Math.cos(a), uy=Math.sin(a);
+  let best=-Infinity;
+  for(const side of [1,-1]){
+    const qx=side*s.x, qy=s.y-cy0, b=ux*qx+uy*qy, disc=b*b-(qx*qx+qy*qy-s.r*s.r);
+    if(disc>=0) best=Math.max(best, b+Math.sqrt(disc));
+  }
+  return best;
+}
+// inside a bulge's body? (the cooling's heads: a head under a bulge is not in the wind)
+function inBulge(x,y,z){
+  const G=bulgeGeom(); if(!G) return false;
+  const s=G.at(z); if(!s) return false;
+  return Math.hypot(Math.abs(x)-s.x, y-s.y)<s.r;
+}
+function buildBulges(group,mats){
+  const G=bulgeGeom(); if(!G) return;
+  const d=clamp(P.detail,0.35,2), NP=Math.max(24,Math.round(48*d));
+  // the stations: the tail (closing), the full part, the dome (clustered toward its front)
+  const zs=[];
+  const KT=Math.max(6,Math.round(12*d)), KD=Math.max(8,Math.round(16*d));
+  if(G.z0>G.zA+1e-4) for(let k=0;k<KT;k++) zs.push(G.zA+(G.z0-G.zA)*k/KT);
+  if(G.zc>G.z0+1e-4){ const KF=Math.max(2,Math.round((G.zc-G.z0)/0.04)); for(let k=0;k<KF;k++) zs.push(G.z0+(G.zc-G.z0)*k/KF); }
+  for(let k=0;k<=KD;k++) zs.push(G.zc+G.uL*G.Lf*Math.sin(k/KD*Math.PI/2));
+  // a mesh from rows of points (each row a closed loop), wound so its faces look away from `ref(i,j)` (a point inside)
+  const loft=(rows,mat,ref,inward)=>{
+    const S=rows[0].length, pos=[], idx=[];
+    for(const r of rows) for(const p of r) pos.push(p[0],p[1],p[2]);
+    for(let i=0;i<rows.length-1;i++) for(let j=0;j<S;j++){
+      const j2=(j+1)%S, a=i*S+j, b=i*S+j2, c=(i+1)*S+j2, e=(i+1)*S+j;
+      for(const t of [[a,b,c],[a,c,e]]){
+        const A=pos.slice(3*t[0],3*t[0]+3), B=pos.slice(3*t[1],3*t[1]+3), C=pos.slice(3*t[2],3*t[2]+3);
+        const u=[B[0]-A[0],B[1]-A[1],B[2]-A[2]], v=[C[0]-A[0],C[1]-A[1],C[2]-A[2]];
+        const g=[u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]];
+        const o=ref(i,j), m=[(A[0]+B[0]+C[0])/3-o[0],(A[1]+B[1]+C[1])/3-o[1],(A[2]+B[2]+C[2])/3-o[2]];
+        const dot=g[0]*m[0]+g[1]*m[1]+g[2]*m[2];
+        if((dot<0)!==!!inward) idx.push(t[0],t[2],t[1]); else idx.push(t[0],t[1],t[2]);
+      }
+    }
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); geo.setIndex(idx); geo.computeVertexNormals();
+    const m=new THREE.Mesh(geo,mat); m.name='cowlBulge'; group.add(m); return m;
+  };
+  const ring=(sd,x,y,z,r)=>{ const out=[]; for(let j=0;j<NP;j++){ const f=j/NP*TAU; out.push([sd*(x+r*Math.cos(f)),y+r*Math.sin(f),z]); } return out; };
+  for(const sd of [1,-1]){
+    const secs=zs.map(z=>{ const s=G.at(Math.min(z,G.zL)); return {z, x:s?s.x:G.cx, y:s?s.y:G.cy, r:s?Math.max(s.r,1e-4):1e-4}; });
+    // the outer skin: from the tail's closed end to the dome's front (or the inlet's lip)
+    const rows=[];
+    { const s0=secs[0]; rows.push(ring(sd,s0.x,s0.y,s0.z-0.3*s0.r,1e-4)); }   // the tail's end, closed (inside the cowl)
+    for(const s of secs) rows.push(ring(sd,s.x,s.y,s.z,s.r));
+    const axisAt=(i)=>{ const s=secs[Math.max(0,Math.min(secs.length-1,i-1))]; return [sd*s.x, s.y, Math.min(s.z, G.zc-0.5*G.R)]; };
+    if(!(G.rIn>0)){ rows.push(ring(sd,G.cx,G.cy,G.zc+G.Lf,1e-4)); loft(rows,mats.skin,axisAt); continue; }
+    // THE INLET: the dome rolls over a lip (half a round of lipT, forward then in) into a duct of the cowl's dark
+    // interior, closed bulgeInDepth back by a dark disc
+    const zL=G.zL, K=Math.max(5,Math.round(8*d)), lip=[];
+    for(let k=1;k<=K;k++){ const a=k/K*Math.PI;                             // from the outer edge, over the front, in
+      lip.push([G.rIn+0.5*G.lipT*(1+Math.cos(a)), zL+0.5*G.lipT*Math.sin(a)]); }
+    const kC=Math.floor(K/2);                                                 // the crest: paint to it, primer beyond
+    for(let k=0;k<=kC;k++){ const [r,z]=lip[k]; rows.push(ring(sd,G.cx,G.cy,z,r)); }
+    loft(rows,mats.skin,axisAt);
+    const D=Math.max(0.02,+P.bulgeInDepth||0.1), duct=[];
+    for(let k=kC;k<lip.length;k++){ const [r,z]=lip[k]; duct.push(ring(sd,G.cx,G.cy,z,r)); }
+    const NDk=4; for(let k=1;k<=NDk;k++) duct.push(ring(sd,G.cx,G.cy,zL-D*k/NDk,G.rIn*(1-0.08*k/NDk)));
+    duct.push(ring(sd,G.cx,G.cy,zL-D,1e-4));                                  // the duct's floor
+    loft(duct,innerMat(mats),()=>[sd*G.cx,G.cy,zL-0.5*D],true);
+  }
+}
+
 /* one camloc: a shallow disc standing proud of the skin, with a slot in it.
    The slot is what makes it read as a fastener rather than a rivet, and it is
    two triangles. */
@@ -1898,6 +2043,8 @@ function coolOpenings(aps){
   }
   if(P.exitGap>0) out.exit=Math.max(0,+P.aftW||0)*P.exitGap;
   if(P.gillOn>0){ const F=gillsFit(); if(F.ok) out.gills=2*Math.max(2,Math.round(P.gillN))*Math.max(0.002,P.gillLip)*F.H*0.8; }
+  // (CARBON-CUB-BULGES: the head bulges' inlets face the air as the face's do)
+  { const G=bulgeGeom(); if(G&&G.rIn>0) out.face+=2*Math.PI*G.rIn*G.rIn; }
   for(const k of ['face','scoop','scoopAlt','nacInlet','exit','gills']) out[k]=+out[k].toFixed(5);
   return out;
 }
@@ -1922,12 +2069,13 @@ function coolHeads(R, toCowl){
       if(!toCowl){ out+=dA; continue; }
       const q=toCowl(s*r+px*t, c*r+py*t, z);
       if(q[2]<0) continue;
-      if(q[2]>ze||sectF(q[0],q[1],q[2])>=1) out+=dA;
+      // (CARBON-CUB-BULGES: a head under a bulge is housed)
+      if((q[2]>ze||sectF(q[0],q[1],q[2])>=1) && !inBulge(q[0],q[1],q[2])) out+=dA;
     }
   }
   return { out:+out.toFixed(5), all:+all.toFixed(5) };
 }
 
-const COWL_API = { coolOpenings, coolHeads, gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { coolOpenings, coolHeads, gillsFit, buildGills, bulgeGeom, bulgeRayR, inBulge, buildBulges, skinRayR, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

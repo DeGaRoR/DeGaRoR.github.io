@@ -84,6 +84,20 @@ const COWL_ROWS = [
     { k: 'gillLip', label: 'hood height (m)', lo: 0.003, hi: 0.03, step: 0.0005, when: 'P.gillOn>0' },
     { k: 'gillT', label: 'panel thickness (m)', lo: 0.0015, hi: 0.012, step: 0.0005, when: 'P.gillOn>0' },
   ] },
+  // ---- CARBON-CUB-BULGES (16 Nov): the head bulges, a dome over the heads, each flank with its inlet ----
+  { id: 'g_bulge', name: 'Head bulges', rows: [
+    { k: 'bulgeOn', label: 'head bulges (a round dome over the heads, each flank)', lo: 0, hi: 1, step: 1 },
+    { k: 'bulgeR', label: 'dome radius (m)', lo: 0.03, hi: 0.3, step: 0.002, when: 'P.bulgeOn>0' },
+    { k: 'bulgeOut', label: 'stands out of the cowl line by (m)', lo: 0, hi: 0.3, step: 0.002, when: 'P.bulgeOn>0' },
+    { k: 'bulgeAz', label: 'height round the axis (deg, 0 = the flank, + up)', lo: -60, hi: 60, step: 0.5, when: 'P.bulgeOn>0' },
+    { k: 'bulgeZ', label: 'face station (x the cowl length, 1 = the nose ring)', lo: 0.3, hi: 1.4, step: 0.005, when: 'P.bulgeOn>0' },
+    { k: 'bulgeNose', label: 'dome length (x its radius, 1 = a half sphere)', lo: 0.2, hi: 2.5, step: 0.01, when: 'P.bulgeOn>0' },
+    { k: 'bulgeRound', label: 'dome fullness (1 = round, more = blunter face)', lo: 0.5, hi: 2.5, step: 0.01, when: 'P.bulgeOn>0' },
+    { k: 'bulgeLen', label: 'full-size length behind the dome (m)', lo: 0, hi: 0.8, step: 0.005, when: 'P.bulgeOn>0' },
+    { k: 'bulgeTail', label: 'tail, back into the cowl over (m)', lo: 0.02, hi: 0.8, step: 0.005, when: 'P.bulgeOn>0' },
+    { k: 'bulgeInR', label: 'face inlet radius (m, 0 = closed)', lo: 0, hi: 0.2, step: 0.001, when: 'P.bulgeOn>0' },
+    { k: 'bulgeInDepth', label: 'inlet duct depth (m)', lo: 0.02, hi: 0.3, step: 0.005, when: 'P.bulgeOn>0&&P.bulgeInR>0' },
+  ] },
   // ---- PROPER-COWLS: the way out at the bottom of the aft edge ----
   { id: 'g_exit', name: 'Air and exhaust exit', rows: [
     { k: 'exitGap', label: 'bottom lowered under the firewall\'s (m)', lo: 0, hi: 0.08, step: 0.002 },

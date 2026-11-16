@@ -78,7 +78,9 @@ for (const g of ROWS) {
 const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
   faceRing: 0, waistF: null,
   exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopHold: 0, scoopWFit: 0, scoopTaperH: 1, scoopTaperW: 1, scoopRev: 0, scoopTop: 0, scoopAft: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
-  gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004, tailHold: 0, inletBand: 0 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)   // (PETREL-LS: tailHold, the tail cone's held height; inletBand, the inlet's even band)
+  gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004, tailHold: 0, inletBand: 0,
+  // CARBON-CUB-BULGES (16 Nov): the head bulges - absent at their defaults (off), no saved build gains a key
+  bulgeOn: 0, bulgeR: 0.1, bulgeOut: 0.12, bulgeAz: 10, bulgeZ: 1.05, bulgeNose: 1, bulgeRound: 1, bulgeLen: 0.2, bulgeTail: 0.2, bulgeInR: 0, bulgeInDepth: 0.1 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)   // (PETREL-LS: tailHold, the tail cone's held height; inletBand, the inlet's even band)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
@@ -1577,6 +1579,7 @@ function cowlPlace(ctx, again) {
   // with a bench that may predate them.
   if (CW.buildDetail) CW.buildDetail(cowl, M);
   if (CW.buildGills) CW.buildGills(cowl, M);          // PROPER-COWLS: the side gills (off unless gillOn)
+  if (CW.buildBulges) CW.buildBulges(cowl, M);        // CARBON-CUB-BULGES: the head bulges (off unless bulgeOn)
   // THE INSIDE OF THE SHELL (G243.1, the user, with the back faces of the
   // barrel ringed on a screenshot: "I meant the inside faces of the cowl").
   // Every skin mesh gets a TWIN in the interior's material, BackSide, so

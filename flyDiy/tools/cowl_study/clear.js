@@ -38,6 +38,8 @@ function clearance(S, THREE, opts) {
       r[j] = Math.max(r[j], Math.hypot(p[0], p[1] - cy));
     }
     // an angular bin no sample landed in reads 0: take the nearer filled neighbours' (the outline is continuous)
+    // (CARBON-CUB-BULGES: the head bulges are their own bodies over the skin - their outer reach on the same ray)
+    if (CW.bulgeRayR) for (let j = 0; j < N; j++) { const b = CW.bulgeRayR(j / N * 2 * Math.PI, zz); if (b > r[j]) r[j] = b; }
     for (let pass = 0; pass < 3; pass++) for (let j = 0; j < N; j++) if (!r[j]) {
       let a = 0, b = 0;
       for (let d = 1; d < 12 && !a; d++) a = r[(j - d + N) % N];
