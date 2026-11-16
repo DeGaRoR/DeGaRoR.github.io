@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: fd8bb878a28eecf7
+// body-sha256: 245957ffa746b554
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -4346,6 +4346,9 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 // ============================================================
 function makeWorld(seed, opts) {
   const SEED = seed | 0;                     // undefined -> 0: no-arg callers get the validated world
+  // GRASS-ON-GREEN (16 Nov): the premises' grass law as the page has it (the worker's world - sim_link worldMsg opts.grassSides),
+  // set before anything asks the surface: `hard` is the look AND the wheels' ground (giveWay below), the two threads must agree
+  if (opts && opts.grassSides && typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.grassSides) PREMISES_GEN.grassSides(opts.grassSides);
   // THE ISLAND (W2, 2026-09-14): a world source from data (28_island.js). With
   // it, the data's ground stands in for the noise, its cover grid for the
   // classifier, its canopy for the trees' size, its square for the domain;
@@ -4991,7 +4994,46 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     }
     return -1;
   };
+  // GRASS-ON-GREEN (LOOK-1 with DIRT-STRIP, 16 Nov; the user: "green ground without grass looks bad"; WYSIWYG): THE MARGIN GIVES WAY.
+  // The registry box's MARGIN past the declared strip (its 20 m ends and 6 m sides - the overrun included, on purpose) and a
+  // premises gravel SHOULDER are the wheels' gravel but are drawn as the island's own ground. Under the premises' grass law
+  // `hard` (27_premises GRASS_SIDES - ONE dial for the look and the surface, so they never disagree) such a point with nothing
+  // DRAWN on it (no pavement's kill - a drawn running surface of any class, mud and sand included, a road's band - and not a
+  // grass strip's own running surface) answers the island's ground: grass where the island is grass, and the grass field grows
+  // there. The declared running box itself keeps its surface (G130: the registry's declaration wins on the strip).
+  const hardOn = () => typeof PREMISES_GEN !== 'undefined' && !!PREMISES_GEN.grassHard && PREMISES_GEN.grassHard();   // (27_premises is its own scope: through its API)
+  const drawnAt = (x, z) => { const c = coverAt(x, z); return !!(c && (c.kill >= 1 || c.surf)); };
+  // the point is in SOME strip box's margin AND in NO strip's declared running box (DIRT-STRIP's review: where boxes overlap or abut,
+  // a point on strip B's own running box may sit in A's margin - a declared, undrawn B has no kill to save it)
+  const regMargin = (x, z) => {
+    let inMargin = false;
+    for (const a of aerodromes) {
+      if (a.surface == null) continue;
+      if (a.kind === 'meadow') { const dx = x - a.x, dz = z - a.z; if (dx * dx + dz * dz <= a.r * a.r) return false; continue; }
+      const c = CORE_MATH.cos(a.hdg), s = CORE_MATH.sin(a.hdg), u = (x - a.x) * c + (z - a.z) * s, v = -(x - a.x) * s + (z - a.z) * c;
+      if (Math.abs(u) <= a.len / 2 && Math.abs(v) <= a.wid / 2) return false;
+      if (Math.abs(u) <= a.len / 2 + 20 && Math.abs(v) <= a.wid / 2 + 6) inMargin = true;
+    }
+    return inMargin;
+  };
+  const inRunBox = (x, z) => { for (const a of aerodromes) { if (a.surface == null || a.kind === 'meadow') continue;
+    const c = CORE_MATH.cos(a.hdg), s = CORE_MATH.sin(a.hdg), u = (x - a.x) * c + (z - a.z) * s, v = -(x - a.x) * s + (z - a.z) * c;
+    if (Math.abs(u) <= a.len / 2 && Math.abs(v) <= a.wid / 2) return true; } return false; };
+  // -> the island's own class where the margin / a shoulder gives way, else -1. Only a NATURAL class takes over (grass, the forest
+  // floor, scree, rock): where the island calls the airfield built-up (HOME, w2: PAVED) the declared gravel stays
+  function giveWay(x, z) {
+    if (!ISL || !hardOn()) return -1;
+    if (inRunBox(x, z)) return -1;   // (never on any strip's declared running box - the shoulders' branch too)
+    let cand;
+    if (PM) { const s = PM.surfaceAt(x, z); cand = s >= 0 ? !!(PM.shoulderAt && PM.shoulderAt(x, z)) : (regSurf(x, z) >= 0 && regMargin(x, z)); }
+    else cand = regSurf(x, z) >= 0 && regMargin(x, z);
+    if (!cand || drawnAt(x, z)) return -1;
+    let g; try { g = islandGround(x, z); } catch (e) { return -1; }   // (a query during the world's own build: the declared surface)
+    return (g === SURFACE.GRASS || g === SURFACE.FOREST_FLOOR || g === SURFACE.SCREE || g === SURFACE.ROCK) ? g : -1;
+  }
+  const marginGrassAt = (x, z) => giveWay(x, z) >= 0;
   const aeroSurfRaw = (x, z) => {
+    if (giveWay(x, z) >= 0) return -1;   // (the margin gives way: the island's ground - islandSurface answers it)
     if (PM) { const s = PM.surfaceAt(x, z); if (s >= 0) return s; }   // a premises surface (an apron, a strip, a road) answers first
     const r = regSurf(x, z);
     return r >= 0 ? r : AERO.surfaceAt(x, z);
@@ -5617,13 +5659,16 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     soilNow, surfaceNow, setGround, get groundForce() { return groundForce; },
     wxAt: (x, z) => { const s = aeroSurfRaw(x, z); return s >= 20 && s <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(s, soilNow()) : null; },   // a weather strip's rung here (null off one)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
-    TILE, tile, aerodromes, settlements: SET.settlements,
+    TILE, tile, aerodromes, marginGrassAt, settlements: SET.settlements,   // marginGrassAt: GRASS-ON-GREEN (16 Nov) the margin gives way
     treesNear, canopyH,
     // G1481 (WOODLAND): whether the solver tests the woodland's cylinders (world.trees). True in a world no viewer
     // stands on (the gates, a replay); the game's viewer draws the fill in their place and turns them off - the
     // page's world and the worker's (sim_link 'wsolid') - so nothing the aeroplane can hit goes undrawn
     woodSolid: true,
     setWoodSolid(on) { this.woodSolid = !!on; return this.woodSolid; },
+    // GRASS-ON-GREEN (16 Nov): the premises' grass law, live - the editor's rows call THIS, so sim_link replays it on the worker's
+    // world (WORLD_FNS): `hard` and the clears move the wheels' ground (giveWay), not only the look. () reads
+    setGrassSides(o) { return typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.grassSides ? PREMISES_GEN.grassSides(o) : null; },
     // THE OBSTACLES (G433): the registry of solid things the solver pushes out of (29_obstacles.js) -
     // the settlements' own buildings stand in it from the start as plain boxes; the viewer adds what
     // it stands (houses, props, cars, parked aeroplanes) and moves the traffic
@@ -11198,11 +11243,13 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 //             and fade, then `roadMow` m of mown verge. The answer gains `cut` (0..1: how mown the grass is here) and `surf`
 //             (1 on a grass strip's running surface) - the heights are the viewer's (cover_ring.js: the cut grass's length).
 // Live dials (the editor's PREMISES > grass rows; the world look saves them): PREMISES_GEN.grassSides(o) sets, () reads.
-// `hard` (the user's call, default 0): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
+// `hard` (the user's call - default 1 since 15 Nov, look AND surface: 20_world giveWay): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 6, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 0 };   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 6, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 3.8 };   // trackW 3.8: tw_ski's narrow drawn track (DIRT-STRIP dirt-look-3) - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
+// (GRASS-ON-GREEN 16 Nov) a gate's or a rig's override of the one dial for the margin's look AND surface: FLYDIY_GRASS_HARD=1 (node env or window)
+try { const v = (typeof window !== 'undefined' && window.FLYDIY_GRASS_HARD != null) ? window.FLYDIY_GRASS_HARD : (typeof process !== 'undefined' && process.env && process.env.FLYDIY_GRASS_HARD); if (v != null && v !== '' && isFinite(+v)) GRASS_SIDES.hard = Math.max(0, +v); } catch (e) {}
 function grassSides(o) {
   if (o && typeof o === 'object') for (const k in o) {
     if (!(k in GRASS_SIDES_DEF)) continue;
@@ -13793,7 +13840,12 @@ function compose(rec0, world, opts) {
       let k = 0, c = 0;
       if (clr) { k = 1; if (k > kill) kill = k; continue; }
       if (d >= 0) {   // ON the pavement: bare, but a grass strip's surface is cut grass and a grass road / polygon worn grass (40 %, cut)
-        if (it.cls === 'grass') { if (it.kind === 'strip') { if (G.stripGrass > 0) { c = 1; surf = 1; k = trailKill(it, lx, lz); } else k = 1; } else { k = 0.6; c = 1; } }
+        if (it.cls === 'grass') { if (it.kind === 'strip') { if (G.stripGrass > 0) {
+            // (GRASS-ON-GREEN with DIRT-STRIP, 16 Nov) a trail strip drawn NARROW (pavement.js: opaque to ~1.8 m from the centreline, gone
+            // by ~3.8 m - claude/dirt-look-3): past `trackW` m from the centreline its surface draws the ground, so the grass is the
+            // wild grass there, not the 7 cm cut (0 = the whole running surface cut, as before)
+            const vT = G.trackW > 0 && it.d && it.e0 ? Math.abs((lx - it.e0[0]) * it.d[1] - (lz - it.e0[1]) * it.d[0]) : 0;
+            if (vT > G.trackW) { c = 0; surf = 0; k = 0; } else { c = 1; surf = 1; k = trailKill(it, lx, lz); } } else k = 1; } else { k = 0.6; c = 1; } }
         else k = 1;
         if (it.soft && d < 1 && it.cls !== 'grass') boost = Math.max(boost, 0.5 * (1 - d));
       } else if (aero) {
@@ -14479,7 +14531,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, grassHard: () => GRASS_SIDES.hard > 0, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
