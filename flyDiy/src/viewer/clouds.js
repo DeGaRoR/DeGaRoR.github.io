@@ -846,6 +846,8 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     // 11 m detail jittered); continuous through a day, a jump at the date's roll
     drift[0] = drifts[0][0]; drift[1] = drifts[0][1];
     const wx = winds[0][0], wz = winds[0][1];   // the first deck's wind (the veil's is scaled from it)
+    // RAIN (step 1, 16 Nov): the local rain at the eye - what the near rain, the glass, the sound and the airframe's wash read
+    if (camera && camera.position) rainEye = rainAt(camera.position.x, camera.position.z, camera.position.y); else rainEye = rainAt(0, 0, 0);
     // the light: the sun's transmittance at the layer's middle, the sky's irradiance at its top, the ground's light below
     const midKm = (lay.base + lay.thick * 0.5) / 1000, topKm = lay.top / 1000;
     const sun = day.sun, moon = day.moon, A = (typeof ATMO !== 'undefined') ? ATMO : null;
@@ -1174,7 +1176,26 @@ ${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
     try { r.setRenderTarget(t); quad.material = marchMat; r.render(fsScene, fsCam); } finally { r.setRenderTarget(prev); t.dispose(); }
     return true;
   }
-  const API = { S, init, install, inject, update, draw, composite, warmList, warmDraw, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
+  // RAIN (step 1, LOOK-1, 16 Nov 2026; RAIN-STUDY-2026-11-16 section 3.0): the rain rate 0..1 at (x, z, h) from the DRAWN decks -
+  // the same fitted maps and drifts the march samples, so you fly into the shower you saw. Each deck's A channel (its rain
+  // potential) x the day's rain, read up-wind below the base (the shafts slant: the wind at the base, not the 1.5 x the
+  // clouds ride); the wettest deck wins. A dry day reads nothing and returns 0. With the cloud pass off (a phone tier) there
+  // is no drawn deck to rain from: the day's rain, uniform.
+  let rainEye = 0;
+  const _rw = [0, 0];
+  function rainAt(x, z, h) {
+    const r = dayRef && +dayRef.rain > 0 ? Math.min(1, +dayRef.rain) : 0;
+    if (!r) return 0;
+    if (S.mode === 'off' || !maps.length || typeof CLOUD_FIELD === 'undefined' || !CLOUD_FIELD.rainAt) return r;
+    let best = 0;
+    for (let i = 0; i < lays.length && i < maps.length; i++) {
+      const l = lays[i]; if (!(l.cover > 0.003)) continue;
+      _rw[0] = winds[i][0] / 1.5; _rw[1] = winds[i][1] / 1.5;
+      const v = CLOUD_FIELD.rainAt(maps[i], l, x, z, h, { rain: r, drift: drifts[i], wind: _rw }); if (v > best) best = v;
+    }
+    return best;
+  }
+  const API = { S, init, rainAt, get rain() { return rainEye; }, install, inject, update, draw, composite, warmList, warmDraw, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();

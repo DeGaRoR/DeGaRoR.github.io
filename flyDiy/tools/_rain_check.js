@@ -1,0 +1,84 @@
+// ============================================================
+// GATE RAIN - the rain field (RAIN step 1, LOOK-1, 16 Nov 2026; the user: "a proper, very optimized job", never "a
+// couple of particles"; flydiy-notes/studies/RAIN-STUDY-2026-11-16.md section 3.0)
+//   src/core/08_cloud_field.js  (the weather map's A channel = the rain potential; rainAt)
+//
+// What is held:
+//   1. A DRY DAY IS DRY: rain 0 (or missing) gives 0 at every point, sampling nothing; the map has no rain input, so its
+//      bytes are the same whatever the day's rain (the march, the shadow and every reader of R/G/B see the same map).
+//   2. WHO RAINS: fair-weather cumulus and altocumulus never; the stratiform decks (st, sc, as) under their whole sheet,
+//      k x coverage exactly; the convective decks (cu, cb) only in the dense, tall columns (none where coverage x
+//      height is low, full where it is high), a cumulonimbus readier than a cumulus.
+//   3. IN [0, 1], DETERMINISTIC: the A channel never leaves [0, 1]; the same (seed, cover, type) gives the same A to the bit.
+//   4. THE RATE SCALES WITH THE DAY: rainAt's mean over the map is d.rain x the mean potential (linear, 0.25 / 0.5 / 1).
+//   6. THE DRAWN DECKS RAIN (clouds.js, static): CLOUDS.rainAt reads the same fitted maps and drifts as the march, returns
+//      0 before sampling on a dry day, falls back to the day's rain with the cloud pass off; CLOUDS.rain is the eye's.
+//   5. THE SHAFTS SLANT: below the base rainAt reads the map UP-WIND by wind x (base - h) / vFall; at the base no shift;
+//      no wind no shift; above the deck's top 0.
+// Run: node tools/_rain_check.js   (contract: one final `GATE RAIN: ...`)
+// ============================================================
+'use strict';
+const F = require('../src/core/08_cloud_field.js');
+let fails = 0, checks = 0;
+const ok = (c, what, detail) => { checks++; if (!c) fails++; console.log((c ? '  ok    ' : '  FAIL  ') + what + (detail != null ? '  (' + detail + ')' : '')); };
+const N = 96;
+const mapOf = (type, cover, seed) => F.weatherMap({ seed: seed || 11, cover, type, N });
+const lay = (type, base) => ({ type, base: base || 1000, thick: F.TYPES[type].thick, top: (base || 1000) + F.TYPES[type].thick });
+const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a texel centre: sample() reads it exactly
+
+// 1 A DRY DAY IS DRY
+{ let worst = 0;
+  for (const t of F.TYPE_ORDER) { const m = mapOf(t, 0.7), L = lay(t);
+    for (let k = 0; k < 400; k++) { const x = (k * 9973) % m.span, z = (k * 7919) % m.span;
+      for (const o of [{ rain: 0 }, {}, null, { rain: -1 }, { rain: NaN }]) worst = Math.max(worst, F.rainAt(m, L, x, z, 300, o)); } }
+  ok(worst === 0, '1a rain 0, missing, negative or NaN: 0 everywhere, every type', 'worst ' + worst);
+  const a = mapOf('cb', 0.5), b = mapOf('cb', 0.5); let same = a.data.length === b.data.length;
+  for (let k = 0; k < a.data.length && same; k++) if (a.data[k] !== b.data[k]) same = false;
+  ok(same && F.weatherMap.length <= 1, '1b the map takes no rain: its bytes are a function of (seed, cover, type) alone'); }
+
+// 2 WHO RAINS
+{ for (const t of ['cuh', 'ac']) { const m = mapOf(t, 0.8); let mx = 0; for (let k = 0; k < N * N; k++) mx = Math.max(mx, m.data[k * 4 + 3]); ok(mx === 0, '2a ' + t + ' (' + F.TYPES[t].label + ') never rains', 'max A ' + mx); }
+  for (const t of ['st', 'sc', 'as']) { const m = mapOf(t, 0.6), K = F.RAIN_OF[t].k; let err = 0, wet = 0;
+    for (let k = 0; k < N * N; k++) { err = Math.max(err, Math.abs(m.data[k * 4 + 3] - K * m.data[k * 4])); if (m.data[k * 4 + 3] > 0) wet++; }
+    ok(err < 1e-6 && wet > N * N * 0.5, '2b ' + t + ' rains under its whole sheet: A = ' + K + ' x coverage', 'err ' + err.toExponential(1) + ', ' + Math.round(100 * wet / N / N) + ' % of the map wet'); }
+  for (const t of ['cu', 'cb']) { const m = mapOf(t, 0.6), R = F.RAIN_OF[t]; let low = 0, high = 0, nh = 0;
+    for (let k = 0; k < N * N; k++) { const ch = m.data[k * 4] * m.data[k * 4 + 1], A = m.data[k * 4 + 3];
+      if (ch <= R.lo) low = Math.max(low, A); if (ch >= R.hi) { nh++; high = Math.max(high, 1 - A); } }
+    ok(low === 0 && high < 1e-6 && nh > 0, '2c ' + t + ' rains only in the dense, tall columns: none at coverage x height <= ' + R.lo + ', full at >= ' + R.hi, nh + ' full texels'); }
+  const fr = t => { const m = mapOf(t, 0.5); let n = 0; for (let k = 0; k < N * N; k++) if (m.data[k * 4 + 3] > 0) n++; return n / N / N; };
+  ok(fr('cb') > fr('cu'), '2d a cumulonimbus rains over more of the map than a cumulus at the same cover', (100 * fr('cb')).toFixed(0) + ' % vs ' + (100 * fr('cu')).toFixed(0) + ' %'); }
+
+// 3 IN [0, 1], DETERMINISTIC
+{ let out = 0; for (const t of F.TYPE_ORDER) for (const c of [0, 0.3, 1]) { const m = mapOf(t, c); for (let k = 0; k < N * N; k++) { const A = m.data[k * 4 + 3]; if (!(A >= 0 && A <= 1)) out++; } }
+  ok(out === 0, '3a the A channel stays in [0, 1] for every type, cover 0 / 0.3 / 1', out + ' outside');
+  const z = mapOf('sc', 0); let any = 0; for (let k = 0; k < N * N; k++) any += z.data[k * 4 + 3];
+  ok(any === 0, '3b no cloud, no rain (cover 0)'); }
+
+// 4 THE RATE SCALES WITH THE DAY
+{ const m = mapOf('sc', 0.6), L = lay('sc'); let pot = 0; for (let k = 0; k < N * N; k++) pot += m.data[k * 4 + 3]; pot /= N * N;
+  const mean = r => { let s = 0; for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const p = at(m, i, j); s += F.rainAt(m, L, p[0], p[1], 500, { rain: r }); } return s / N / N; };
+  const r = [0.25, 0.5, 1].map(mean);
+  ok(Math.abs(r[0] - 0.25 * pot) < 1e-6 && Math.abs(r[1] - 0.5 * pot) < 1e-6 && Math.abs(r[2] - pot) < 1e-6, '4 the mean rate is d.rain x the mean potential (rain 0.25 / 0.5 / 1)', r.map(v => v.toFixed(4)).join(' / ') + ' of ' + pot.toFixed(4)); }
+
+// 5 THE SHAFTS SLANT
+{ const m = mapOf('cb', 0.6), L = lay('cb', 1200), wind = [8, -3], v = F.VFALL;
+  let i = 0, j = 0; for (let k = 0; k < N * N; k++) if (m.data[k * 4 + 3] > 0.5) { i = k % N; j = (k / N) | 0; break; }
+  const P = at(m, i, j), h = 400, t = (L.base - h) / v, Q = [P[0] + wind[0] * t, P[1] + wind[1] * t];   // the point whose rain left the base above P
+  const a = F.rainAt(m, L, Q[0], Q[1], h, { rain: 1, wind }), b = F.sample(m, P[0], P[1])[3];
+  ok(Math.abs(a - b) < 1e-6, '5a below the base the rain is read up-wind by wind x (base - h) / vFall', 'at ' + h + ' m: ' + a.toFixed(4) + ' = the base column ' + b.toFixed(4) + ', ' + (Math.hypot(wind[0], wind[1]) * t).toFixed(0) + ' m of slant');
+  ok(Math.abs(F.rainAt(m, L, P[0], P[1], L.base, { rain: 1, wind }) - b) < 1e-6 && Math.abs(F.rainAt(m, L, P[0], P[1], 0, { rain: 1 }) - b) < 1e-6, '5b at the base, or with no wind: no shift');
+  ok(F.rainAt(m, L, P[0], P[1], L.top + 1, { rain: 1, wind }) === 0 && F.rainAt(m, L, P[0], P[1], (L.base + L.top) / 2, { rain: 1 }) === b, '5c above the deck none; inside it the potential');
+  const D = [1234, -567]; ok(Math.abs(F.rainAt(m, L, P[0] - D[0], P[1] - D[1], 900, { rain: 1, drift: D }) - b) < 1e-6, "5d the deck's drift moves the rain with the cloud"); }
+
+// 6 THE DRAWN DECKS RAIN (static; plain text searches, no regex escapes)
+{ const fsx = require('fs'), px = require('path'), C = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'clouds.js'), 'utf8');
+  const head = 'function rainAt(x, z, h) {', a = C.indexOf(head), fn = a < 0 ? '' : C.slice(a, C.indexOf('return best;', a) + 12);
+  const dry = fn.indexOf('if (!r) return 0;'), read = fn.indexOf('CLOUD_FIELD.rainAt(maps[i], l, x, z, h, { rain: r, drift: drifts[i], wind: _rw })');
+  ok(dry > 0 && read > dry, '6a CLOUDS.rainAt: a dry day returns 0 before any map is read');
+  const off = fn.indexOf("S.mode === 'off'");
+  ok(read > 0 && off > 0 && fn.indexOf('return r;', off) > off && fn.indexOf('return r;', off) < read, "6b it reads the drawn decks (the fitted maps, their drifts); the cloud pass off: the day's rain, uniform");
+  ok(C.indexOf('rainEye = rainAt(camera.position.x, camera.position.z, camera.position.y)') > 0 && C.indexOf('get rain() { return rainEye; }') > 0 && C.indexOf('S, init, rainAt,') > 0,
+     "6c CLOUDS.rain is the eye's local rain, updated each frame; CLOUDS.rainAt is public"); }
+
+console.log('GATE RAIN: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
+process.exit(fails ? 1 : 0);
