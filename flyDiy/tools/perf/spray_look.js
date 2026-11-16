@@ -3,7 +3,7 @@
 // water, frozen, and the side spray shot from four eyes - for the user, who judged the old arches "a first draft".
 //
 //   node tools/perf/spray_look.js --before http://localhost:8584/flyDiy/dev.html?world=jolene&gfx=gamer
-//        --after http://localhost:8583/flyDiy/dev.html?world=jolene&gfx=gamer [--build bugReports/cessnaFloats.json]
+//        --after http://localhost:8583/flyDiy/dev.html?world=jolene&gfx=gamer [--build bugReports/cessnaFloatsWOrks.json]
 //        [--speed 14] [--out screenshots/spray_look] [--wait 2500]
 // One headless boot a side: the Cessna on floats rolled out - the game puts a float build on the SEA lane and its pilot runs the
 // take-off from the lane's spawn (rollout_perf's G790 notes) - a 5 m/s sea; the run left to the pilot until the hull makes --speed
@@ -21,7 +21,7 @@ const WP = require('./water_places.js');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const SIDES = [['before', opt('before', null)], ['after', opt('after', null)]].filter(s => s[1]);
-const BUILD = opt('build', 'bugReports/cessnaFloats.json');
+const BUILD = opt('build', 'bugReports/cessnaFloatsWOrks.json');
 const SPEED = +opt('speed', 14), WAIT = +opt('wait', 2500), FRAMES = +opt('frames', 0);   // (G2837b) --frames N: N frames of the spray MOVING (the GIF's)
 const OUT = path.resolve(opt('out', 'screenshots/spray_look'));
 const VIEWS = [['side', 22, 0, 2.5], ['rear', 28, -1, 5], ['front', 30, 1, 2], ['close', 10, 0, 1.5]];   // [name, distance, fore(+)/aft(-)/abeam(0), eye height over the water]

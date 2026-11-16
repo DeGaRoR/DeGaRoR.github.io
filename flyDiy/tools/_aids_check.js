@@ -4,8 +4,8 @@
 // ruled (3 Nov: D1 the float step, the float reserve and the prop clearance refuse; D3 the elevator and the flare are
 // commercial; D5 a float build's take-off is the hydroplane test's).
 //
-//   THE TWIN (_2)   the user's twin-boom pusher on floats as first built (tools/fixtures/aids/twin_busher_floats_2.json,
-//                   a copy of builds/candidates/review/Twin_busher_floats_2.json): unstable (pitch.sm fails, safe tier),
+//   THE TWIN (_2)   the user's twin-boom pusher on floats as first built (tools/fixtures/test_copies/Twin_busher_floats_2.json,
+//                   a copy of tools/fixtures/test_copies/Twin_busher_floats_2.json): unstable (pitch.sm fails, safe tier),
 //                   the step AHEAD of the CG (aid.step fails, safe: it refuses - D1), the floats under
 //                   1.8 x, the prop near the flaps down; the first key issue is the margin and its remedy is sized by the
 //                   rebuilt levers (the wing aft 0.4-0.8 m: the user moved it 0.45 m and swept the tips); the floats
@@ -34,7 +34,7 @@ const joined = f => { const B = BJ.bakeJoined(rd(f)); PO = C.genAidPropOff(B.W &
 const r2 = v => Math.round(v * 100) / 100;
 
 console.log('THE TWIN (_2): what would have helped');
-const J2 = joined('tools/fixtures/aids/twin_busher_floats_2.json');
+const J2 = joined('tools/fixtures/test_copies/Twin_busher_floats_2.json');
 const PO2 = PO, def2 = C.buildGen(J2), sh2 = C.genShakedown(def2, { corners: false }), A2 = C.genDesignAids(def2, sh2, { propOff: PO2 });
 const row = (rows, id) => rows.find(r => r.id === id) || {};
 const all2 = sh2.design.rows.concat(A2.rows);

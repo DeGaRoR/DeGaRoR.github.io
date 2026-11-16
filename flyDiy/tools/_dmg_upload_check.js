@@ -36,7 +36,7 @@ const { spawnSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json' };
 
 // ---- the GL shadow: the bytes of every buffer as three uploaded them ----
 // (a Proxy over the recording GL - its own Proxy has no set trap, a method cannot be replaced on it - handed to the page by

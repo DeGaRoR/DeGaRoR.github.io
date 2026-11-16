@@ -4,7 +4,7 @@
 //
 //   node tools/_serve.js 8450 &        (or any server over the repo root)
 //   node tools/stol_shots.js --url http://localhost:8450/flyDiy/dev.html \
-//        --build tools/fixtures/stol_cub_kit.json --compare cub \
+//        --build tools/fixtures/test_copies/stol_cub_kit.json --compare cub \
 //        --out screenshots/stol-2026-10-22/cubkit [--views q,s,f,le,tip,panel,air] [--wait 15000] [--log]
 //
 // For each build (the kit, then --compare's stock aeroplane): the page booted, the build put through the garage's
@@ -34,7 +34,7 @@ const URL = opt('url', 'http://localhost:8450/flyDiy/dev.html');
 // file; the page then loads it through ITS door (GARAGE_SPEC.set), exactly as the shelf does
 const LB = require(path.join(__dirname, '_load_build.js'));
 const fileFor = x => (x && LB.VALIDATED[x]) ? LB.VALIDATED[x].build : x;
-const BUILDS = [opt('build', 'tools/fixtures/stol_cub_kit.json'), fileFor(opt('compare', null))].filter(Boolean);
+const BUILDS = [opt('build', 'tools/fixtures/test_copies/stol_cub_kit.json'), fileFor(opt('compare', null))].filter(Boolean);
 const OUT = opt('out', 'screenshots/stol-shots');
 const VIEWS = opt('views', 'q,s,f,le,tip,panel,air').split(',');
 const WAIT = +opt('wait', 15000);

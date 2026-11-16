@@ -18,7 +18,7 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const ROOT = path.resolve(__dirname, '..'), REPO = path.resolve(ROOT, '..');
 const OUT = path.resolve(ROOT, opt('out', 'reports/evidence/DMG-SCUFF/scuffbench'));
 const [W, H] = opt('size', '960x540').split('x').map(Number);
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json', jodel: 'builds/jodel_2026-09-20_corrected.json' };
 const which = opt('builds', 'cub,metal').split(',');
 const VIEWS = opt('views', 'overview,under,nose,belly,wing,pane').split(',');
 function findPlaywright() {

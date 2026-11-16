@@ -15,7 +15,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined ? argv[i + 1] : d; };
 const ROOT = path.join(__dirname, '..');
 const C = require(path.resolve(opt('core', path.join(__dirname, 'flight_core.js'))));
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json',
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'builds/cessna172r_2026-11-08.json',
                  jodel: 'builds/jodel_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
 const WANT = opt('builds', 'cub,metal,floats').split(',');
 const world = C.makeWorld();

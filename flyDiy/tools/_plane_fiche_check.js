@@ -242,6 +242,24 @@ async function run(S) {
     ok(/s\.TOWater \? 'on water: ' \+ s\.TOWater : num\(s\.TORun, 'm'\)/.test(FB), 'FICHE-WATER: the board prints the water row');
     ok(/lift: off \? \{ t: r\.lift\.t, dist: r\.lift\.dist, V: r\.lift\.V \} : null,/.test(BE), 'FICHE-WATER: the hydroplane verdict carries the lift-off as numbers');
   }
+  {   // FLAPLESS-SAID (FLAGSHIP 13 Nov): a build genTrim could not land as built says so - the shakedown's landing key, the sheet's
+      // rows, the fiche's words (numbers() on a stub sheet) and the board's rows
+    ok(/if \(g\.landsFlapless\) L\.flapless = true;/.test(S.GB) && /if \(g\.apprTrimFail != null\) L\.trimFail = g\.apprTrimFail;/.test(S.GB) && /if \(Object\.keys\(L\)\.length\) out\.landing = L;/.test(S.GB),
+      'FLAPLESS-SAID: the shakedown carries genTrim\'s landing verdict, and only when there is one');
+    ok(/if \(Lg\.flapless\) R\('landing flaps'/.test(S.AP) && /if \(Lg\.trimFail != null\) R\('approach trim'/.test(S.AP), 'FLAPLESS-SAID: the shakedown sheet prints it');
+    ok(/\.\.\.\(s\.landing \? \[\['lands', s\.landing\]\] : \[\]\)/.test(FB) && /\.\.\.\(s\.trimFail \? \[\['approach trim', s\.trimFail\]\] : \[\]\)/.test(FB), 'FLAPLESS-SAID: the fiche board prints it');
+    const i0 = F.indexOf('  function numbers('), i1 = F.indexOf('\n  // ---- the draw', i0);
+    let numbersOf = null; const cx = { JSON, Math, String }; cx.window = cx;
+    try { numbersOf = vm.runInNewContext('(function () {\n' + F.slice(i0, i1) + '\nreturn numbers; })()', cx); } catch (e) { numbersOf = null; }
+    if (typeof numbersOf === 'function') {
+      const at = landing => { cx.FLYDIY_POD = { shake: () => Object.assign({ empty: 600, mass: 820, TORun: 300 }, landing ? { landing } : {}) }; cx.BENCH_STATE = () => ({ results: {} });
+        const d = numbersOf({ gear: { type: 'tricycle' }, cage: {}, engines: [], cabin: {} }, { len: () => 1 }, 't'); return (d && d.specs) || {}; };
+      const plain = at(null), none = at({ flapless: true, trimFail: 0.266 }), part = at({ partial: 0.6, full: 1 });
+      ok(!plain.landing && !plain.trimFail, 'FLAPLESS-SAID: a build that lands as built says nothing');
+      ok(/without its flap/.test(none.landing || '') && none.trimFail === 'out of reach', 'FLAPLESS-SAID: flapless + trim out of reach: both said on the fiche');
+      ok(/^60 % flap/.test(part.landing || '') && !part.trimFail, 'FLAPLESS-SAID: a partial notch: its share said');
+    } else fails.push('FLAPLESS-SAID: numbers() does not load');
+  }
   // ---- THE PAGES (the registry, run on a stub page)
   {
     const Wp = {}, ctx = { window: Wp, document: {}, console, setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {}, Promise, URL: {} };
@@ -305,7 +323,8 @@ async function run(S) {
 (async () => {
   const S = { F: rd('src/viewer/plane_fiche.js'), B: rd('tools/build.js'), FB: rd('src/viewer/fiche_board.js'), BE: rd('src/viewer/bench.js'),
               G: rd('src/viewer/garage.js'), CD: rd('src/viewer/card_drag.js'), N: rd('src/core/01_names.js'), M: rd('src/viewer/fiche_mass.js'),
-              IDX: JSON.parse(rd('media/fiches/index.json')), LISTS: JSON.parse(rd('builds/lists/plane_lists.json')) };
+              IDX: JSON.parse(rd('media/fiches/index.json')), LISTS: JSON.parse(rd('builds/lists/plane_lists.json')),
+              GB: rd('src/core/64_gen_build.js'), AP: rd('src/viewer/app.js') };
   const F = S.F, FB = S.FB;
   const base = await run(S);
   if (!SELF) {
@@ -362,6 +381,10 @@ async function run(S) {
     ['FICHE-WATER: a hull on its land figure', 'F', F.replace(' || +(spec.cage && spec.cage.hullOn) > 0', '')],
     ['FICHE-WATER: the board prints the land figure', 'FB', FB.replace("s.TOWater ? 'on water: ' + s.TOWater : num(s.TORun, 'm')", "num(s.TORun, 'm')")],
     ['FICHE-WATER: no lift numbers', 'BE', S.BE.replace('lift: off ? { t: r.lift.t, dist: r.lift.dist, V: r.lift.V } : null,', '')],
+    ['FLAPLESS-SAID: the shakedown keeps it quiet', 'GB', S.GB.replace('if (Object.keys(L).length) out.landing = L;', '')],
+    ['FLAPLESS-SAID: the sheet does not print it', 'AP', S.AP.replace("if (Lg.flapless) R('landing flaps'", "if (0) R('landing flaps'")],
+    ['FLAPLESS-SAID: the fiche drops the words', 'F', F.replace("if (s.landing.flapless) data.specs.landing = 'without its flap (the flap will not trim)';", '')],
+    ['FLAPLESS-SAID: the board drops the rows', 'FB', FB.replace("...(s.landing ? [['lands', s.landing]] : []), ", '')],
     ['PAGES: the log shown', 'FB', FB.replace("hidden: p.hidden != null ? !!p.hidden : p.id === 'log'", 'hidden: !!p.hidden')],
     ['PAGES: an unknown id first', 'FB', FB.replace('return SLOTS.filter(i => k.includes(i)).concat(k.filter(i => !SLOTS.includes(i)));', 'return k.filter(i => !SLOTS.includes(i)).concat(SLOTS.filter(i => k.includes(i)));')],
     ['PAGES: a throwing visible() shows its button', 'FB', FB.replace('try { return !!p.visible(rec, ctx); } catch (e) { return false; }', 'try { return !!p.visible(rec, ctx); } catch (e) { return true; }')],

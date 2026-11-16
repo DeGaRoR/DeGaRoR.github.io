@@ -32,7 +32,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const ROOT = path.join(__dirname, '..');
 const PAGES = opt('pages', 'index_before.html,index.html').split(',');
-const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json', cessna: 'bugReports/cessnaMetal (1).json', floats: 'bugReports/cessnaFloatsWOrks.json' };
+const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json', cessna: 'builds/cessna172r_2026-11-08.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
 const BUILD_KEYS = opt('builds', 'cub,jodel,cessna,floats').split(',');
 // the resting CG over terrainH (G1540's: the Cub 1.095, the Jodel 1.016, the metal Cessna 1.100; the floats on the water 1.0)
 const REST = { cub: 1.095, jodel: 1.016, cessna: 1.100, floats: 1.0 };

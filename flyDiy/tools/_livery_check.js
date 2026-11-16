@@ -7,7 +7,7 @@
 // THE REPORT (the user): "at some point, tests were loading the cessna, then
 // the default plane came back, but with the cessna livery, the metallic paint,
 // but still the original plane's color." Reproduced in headless Chrome before
-// anything was changed: load bugReports/cessnaMetal (1).json, drop the
+// anything was changed: load builds/cessna172r_2026-11-08.json, drop the
 // working build, reload — the default aeroplane booted in its OWN colour
 // (the colour is `spec.paint`, which the finish does not carry) under the
 // Cessna's metal flake on twelve sections and its two metallic markings, and
@@ -230,7 +230,7 @@ function state(pg, spec) {
 }
 
 // ---- the builds ---------------------------------------------------------------
-const A_ENV = JSON.parse(rd('bugReports/cessnaMetal (1).json'));
+const A_ENV = JSON.parse(rd('builds/cessna172r_2026-11-08.json'));
 const SPEC_A = CORE.genNormaliseSpec(A_ENV.spec);
 const SPEC_B = CORE.genNormaliseSpec({});                          // the default plane: no cage
 // ...with a finish of its own. Laid on the NORMALISED default: a bare
@@ -242,6 +242,11 @@ const SPEC_B2 = Object.assign(CORE.genNormaliseSpec({}), { finish: {
 // key-order-free JSON, for "the same finish"
 const canon = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)
   ? Object.keys(x).sort().reduce((o, q) => { o[q] = x[q]; return o; }, {}) : x));
+// ONE-CESSNA (15 Nov): the finish a spec CARRIES as the page reads it - a pre-G345 build's legacy `finish.wear` at 0 means
+// no wear (aeroweather.js aeroWxMacroFromSpec: age = flight = 0) and the page writes deviations only, nothing at zero, so
+// it is not carried back; any other wear stays as written (a wear the page lost is still red). THE Cessna, list:50, carries
+// wear: 0 in its file
+const finishRead = f => { if (!f || f.wear !== 0 || f.weather) return f || null; const g = Object.assign({}, f); delete g.wear; return g; };
 const consOfSpec = s => (s.cage && s.cage.intCons != null ? s.cage.intCons : 2);
 
 // LIVERY-5: the slot arithmetic, off the module (9 slots: 5 layers, the registration and its wing copy, the strip,
@@ -303,9 +308,9 @@ function run(SRC) {
     const p2 = page(SRC, store, 1, consOfSpec(S2)); p2.seed(S2);
     // ABSOLUTE, not only against a clean load (which runs the same seed and
     // would share its fault): the aeroplane's own finish arrived, whole
-    check(canon(p2.ED.finishToSpec()) === canon(S2.finish || null),
+    check(canon(p2.ED.finishToSpec()) === canon(finishRead(S2.finish)),
           tag + ': the second aeroplane holds exactly the finish its spec carries',
-          canon(p2.ED.finishToSpec()).slice(0, 140) + ' vs ' + canon(S2.finish || null).slice(0, 140));
+          canon(p2.ED.finishToSpec()).slice(0, 140) + ' vs ' + canon(finishRead(S2.finish)).slice(0, 140));
     cmp(tag, state(p2, S2), clean(S2));
   }
   // 1b THE PATTERNS REACH THE BLOCK (G2870) ------------------------------------
@@ -343,8 +348,8 @@ function run(SRC) {
       const store = browser();
       const p1 = page(SRC, store, 1, consOfSpec(S1)); p1.seed(S1); state(p1, S1);
       const p2 = page(SRC, store, 1, consOfSpec(S2)); p2.seed(S2);
-      check(canon(p2.ED.finishToSpec()) === canon(S2.finish || null), tag + ': the second aeroplane holds exactly its finish',
-            canon(p2.ED.finishToSpec()) + ' vs ' + canon(S2.finish || null));
+      check(canon(p2.ED.finishToSpec()) === canon(finishRead(S2.finish)), tag + ': the second aeroplane holds exactly its finish',
+            canon(p2.ED.finishToSpec()) + ' vs ' + canon(finishRead(S2.finish)));
       cmp(tag, state(p2, S2), clean(S2));
     }
     const pg = page(SRC, browser(), 1, consOfSpec(SPEC_Q)); pg.seed(SPEC_Q);

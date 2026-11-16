@@ -20,7 +20,7 @@ const PORT = +opt('port', 0), UDD = opt('udd', null);
 if (!PORT || !UDD) { console.error('garage_lag_same: --port and --udd are required'); process.exit(2); }
 const REPO = path.resolve(__dirname, '..', '..', '..');
 const TREE = opt('tree', 'flyDiy');
-const BUILDS = { cub: { label: 'Cub', build: 'tools/perf/garage_lag_cub_wip.json' }, metal: MB.BUILDS.metal };
+const BUILDS = { cub: { label: 'Cub', build: 'tools/fixtures/test_copies/garage_lag_cub_wip.json' }, metal: MB.BUILDS.metal };
 const WANT = opt('builds', 'cub,metal').split(',');
 const ONLY = opt('only', null) ? new Set(opt('only').split(',')) : null;
 const OUT = path.resolve(opt('out', path.join(__dirname, 'garage_lag_same_' + Date.now() + '.json')));
