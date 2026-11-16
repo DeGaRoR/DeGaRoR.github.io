@@ -441,7 +441,13 @@ function ROCK_RING_CORE_FACTORY() {
     for (let b = 0; b < me; b++) for (let a = 0; a < me; a++) { const k = ke(a, b), q = b * me + a, eX = eXe[q];
       const tg = Math.tan(slope[k] / 57.2958), gx = -dn[k * 2] * tg, gz = -dn[k * 2 + 1] * tg, l = Math.hypot(gx, 1, gz);
       nrmD[q * 3] = -gx / l; nrmD[q * 3 + 1] = 1 / l; nrmD[q * 3 + 2] = -gz / l;
-      dd[q] = mac[k * 7] * Math.min(1, eX * 3) + eX * (lift + amp * 0.6 * zc[q]) + (K.proud === undefined ? 0.15 : K.proud) * cvD[q] - sink * (1 - cvD[q]); }   // (under the cover: 0.3 m proud - the ground's 5 m TRIANGLES stand up to that over the bilinear DEM the ring follows; outside it, sunk)
+      // THE FLOOR (16 Nov, the user's ground-level 'sheet'): the macro's grooves and hollows go to -2 m, but the skin only ADDS to the
+      // ground (the terrain is drawn under it, uncut: a discard would cost every ground pixel its early-Z) - where the relief dipped
+      // under the ground the ground stood over it as a lid, the boulders seated in the dip beneath. Under the cover the relief
+      // never goes below the ground: a smooth max at 0 (k 0.2 m, no crease); a deep groove is flat-bottomed at the ground, its
+      // colour (the macro's dirt and green) still the gully's
+      const rel = mac[k * 7] * Math.min(1, eX * 3) + eX * (lift + amp * 0.6 * zc[q]), relF = 0.5 * (rel + Math.sqrt(rel * rel + 0.04));
+      dd[q] = rel + (relF - rel) * cvD[q] + (K.proud === undefined ? 0.15 : K.proud) * cvD[q] - sink * (1 - cvD[q]); }   // (under the cover: 0.3 m proud - the ground's 5 m TRIANGLES stand up to that over the bilinear DEM the ring follows; outside it, sunk)
     const PX = (a, b, c) => { const q = b * me + a, k = ke(a, b); return c === 0 ? X(a + i0 - E) + nrmD[q * 3] * dd[q] : c === 1 ? Y[k] + nrmD[q * 3 + 1] * dd[q] : Z(b + i0 - E) + nrmD[q * 3 + 2] * dd[q]; };
     // the chunk's own vertices: those of cells where the smoothed exposure shows rock
     const vid = new Int32Array(m1 * m1).fill(-1), cellOn = new Uint8Array((m1 - 1) * (m1 - 1));
