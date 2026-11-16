@@ -415,7 +415,11 @@ function placeExtras(A, o, L) {
       const cxC = Math.abs(xP) >= clr ? xP : (xP > 0 ? clr : -clr);
       const zc = (A.dashAftZ != null ? A.dashAftZ : L.zFace) + 0.015;
       const top = A.dashTopAt ? A.dashTopAt(cxC, w / 2, zc - 0.02, zc + 0.02) : (A.dashTop != null ? A.dashTop : yTop + PAN_INSET);
-      if (Math.abs(cxC) + w / 2 <= (A.halfW || xLim + 0.05) && isFinite(top)) {
+      // (16 Nov 2026, the LS4's moulded hood: a cradle that would stand through the canopy is no place - the glass
+      //  over its footprint (the crew's ceilAt), with 8 mm to spare, else the unit is named, not drawn)
+      const ceil = A.ceilAt ? A.ceilAt(cxC, w / 2 + 0.01, zc - 0.06, zc + 0.06, top) : null;
+      const under = ceil == null || top + 0.012 + h + 0.008 <= ceil;
+      if (under && Math.abs(cxC) + w / 2 <= (A.halfW || xLim + 0.05) && isFinite(top)) {
         L.screens.push({ k: S.k, cx: cxC, cy: top + 0.012 + h / 2, w, h, sw: +S.sw || w * 0.8, sh: +S.sh || h * 0.75,
                          coaming: true, z: zc, top });
         continue;

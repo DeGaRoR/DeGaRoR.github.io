@@ -3331,8 +3331,18 @@ const ARCHETYPES = [
                     gearRetAct: 2, gearFold: 0, gearFoldNose: 0, gearRetFrac: 1, gearWellCut: 0, gearDoors: 2,
                     gearLegDoor: 1, gearNacFit: 1, gearNacPod: 0, gearShort: 0, gearShortNose: 0, gearKneeDoor: 0,
                     gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0, gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0,
-                    gnTwist: 0, seatType: 11, seatZ: -0.15, seatH: 0, seatRake: 42, seatGap: 0.285, consoleOn: 1,
-                    stickY: -0.095, pedalZ: 0.965, pedalH: 0.27, pedalSpread: 0.09, pilElbows: 0, pilRecline: 6,
+                    gnTwist: 0, seatType: 11, seatH: 0, seatGap: 0.285, pedalH: 0.27, pedalSpread: 0.09, pilElbows: 0,
+                    pilRecline: 6,
+                    // THE PILOT LYING BACK (the user 16 Nov: "the pilot is still sitting a little forward. In the
+                    // pictures, the head is really at the back of the canopy ... ensure that the pedals and the controls
+                    // and all that stuff do not poke through"): the seat 0.44 m aft of the cabin's aft ring (the mirrored
+                    // section - nothing holds it in the cabin), its back at 50 deg, the boards 25 mm up off the keel; the
+                    // head in the canopy's rear third, 3 cm under the glass; the stick between the knees (aft, its pivot
+                    // inside the belly), the feet on the pedals under the panel; no throttle (an engineless glider) and so
+                    // the airbrakes' blue handle on the LEFT wall in the left hand; no centre console. Every crew part
+                    // inside the skin (the cut and the poke check: scratchpad tools, HANDOVER 16 Nov)
+                    seatZ: -0.44, seatRake: 50, floorLift: 0.025, consoleOn: 0, ctlThr: 3,
+                    stickZ: -0.15, stickY: -0.015, stickLen: 0.36, pedalZ: 0.96,
                     noseDome: 0.3, s1Sink: 0.5, finZ: -0.25, s1Ul: 1, hgHorn: 0, hgFamily: 2, towHook: 2, certCat: 2, brkHold: 4,
                     wgBrake: 1, wgBrakeAt: 0.3, wgBrakeLen: 0.16, wgBrakeH: 0.2,
                     },
