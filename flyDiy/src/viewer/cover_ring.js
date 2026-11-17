@@ -1055,6 +1055,7 @@ var COVER_RING = (() => {
         const gk = G.at(x, z);
         if (!G.ok[gk] || G.shore[gk] || G.kind[gk] === 1 || G.kind[gk] === 3 || G.cut[gk] > 0.05 || G.kill[gk] > 0.01) continue;
         if (!weed && G.bush[gk]) continue;   // a strip's own bush clearance
+        if (!weed && ctx.rockExpoAt && ctx.rockExpoAt(x, z) > 0.5) continue;   // (18 Nov: not on the stone)
         if (!weed && G.mix[gk] === 'subalpine') continue;   // the user 16 Nov: "I don't want deciduous over there": the edge's bushes are all deciduous
         const S0 = weed ? WD : SH; if (!S0.out.length) continue;
         let r = hsh(ix0 + i * 31, iz0 + i * 17) * S0.tot, pick = S0.out[0]; for (const e of S0.out) { r -= e[2]; if (r <= 0) { pick = e; break; } }
@@ -1200,7 +1201,8 @@ var COVER_RING = (() => {
             if (blotch && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
             const gk = G.at(x, z);
             if (!G.ok[gk] || (band ? !G.shore[gk] : (G.mix[gk] !== centreMix || G.shore[gk]))) continue;
-            if ((isShrub || tallCard) && G.bush[gk]) continue;   // G1385: a strip's own clearance with `bushes` keeps the tall vegetation out (and a shaped bush's cards, MOUNTAIN-VEG)
+            if ((isShrub || tallCard) && G.bush[gk]) continue;
+            if ((isShrub || shapedOf(c)) && ctx.rockExpoAt && ctx.rockExpoAt(x, z) > 0.5) continue;   // (18 Nov, the user's yes: the bushes grow in the rock's greenery, never on the stone itself)   // G1385: a strip's own clearance with `bushes` keeps the tall vegetation out (and a shaped bush's cards, MOUNTAIN-VEG)
             // the cover's query: nothing on a pavement (kill), more on a border (boost), a plot's lawn or
             // meadow or nothing instead of the biome's rows (the LAWN row is planted below, on its own)
             if (G.kind[gk] === 1 || G.kind[gk] === 3) continue;
