@@ -1142,6 +1142,10 @@ body.fl2.mode-fly #mapEntry { display:none !important; }
 .flCornB svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round; }
 body.fl2.mode-fly .flCornB { display:inline-flex; }
 body.fl2 .flCornB[hidden], body.shot .flCornB, body.rollShot .flCornB, body.premOpen .flCornB, body.sceneryMode .flCornB { display:none !important; }
+/* TOW-LAUNCH: driving, the aeroplane's own verbs and notes are off - its bench notice, Skip to line-up (the corner and the
+   verb), Fly the circuit, the arrival card, the telemetry (the drive mode's card, map and picker stay: drive_mode.js) */
+body.driveMode #flNotice, body.driveMode #bSkip, body.driveMode #bGo, body.driveMode .flCornB, body.driveMode #arrCard,
+body.driveMode #telp { display:none !important; }
 #flMmB { top:18px; right:22px; }
 /* G3648 / G3741 photo mode: nothing on the screen but the camera button - pressed again it takes the picture and the
    interface comes back (Esc: back without one); the back button of the shed's screenshot mode is not needed here */
