@@ -384,7 +384,8 @@ function flyOut(C, W, I, def, a, s, opt) {
   }
   const D = sim.damage ? sim.damage() : null;
   return { air, t, phases, minWing: minW, at, overMin, overAt, contacts, cWhat, trunkHits: sim.trunkHits ? sim.trunkHits() : 0, crashed: !!(D && D.crashed), track, span: 2 * half,
-           outcome: ap.report.outcome, declined: ((ap.report.verdicts || []).find(v => v.code === 'takeoff-declined') || {}).note || null };
+           outcome: ap.report.outcome, declined: ((ap.report.verdicts || []).find(v => v.code === 'takeoff-declined') || {}).note || null,
+           rejected: ((ap.report.verdicts || []).find(v => v.code === 'rejected-takeoff') || {}).note || null };   // (DARE: the roll's own reject, said)
 }
 const fmtWhat = s => (s ? s.tag + ' ' + s.id : 'nothing');
 

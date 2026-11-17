@@ -207,8 +207,20 @@ function knownCubRoll(b, L2) {
   if (!ks.length || !ks.every(k => k === 'ground-loop' || k === 'off-strip') || D.breaks || D.crashed || L2.landedOn !== 'w2') return null;
   return "the user's Cub's roll-out on 02/20 after East Point (G2540 #3, OWED G3075, accepted by the user 13 Oct): " + L2.faults.map(f => f.k + ': ' + f.note).join('; ');
 }
+let TOUR_W = null;   // (DARE: section 5's world, for knownRed's short-strip rule)
 function knownRed(b, L2, R) {
   { const kc = knownCubRoll(b, L2); if (kc) return kc; }
+  // DARE (the user, 17 Nov: "The autopilot can go and crash, but it shouldn't decline too politely ... tests measure who can"): A SHORT
+  // STRIP TRIED, ITS OUTCOME SAID. The final no longer refuses a short strip and diverts (43 'strip-short ... landing it short-field');
+  // the Cub into East Point (150 m, 5 m/s behind on its one way in) lands there and ground-loops off the box at 8.3 m/s. Known ONLY
+  // while it is exactly that: landed on its own To (a strip under 300 m), the faults ground-loop / off-strip and nothing else, no yield,
+  // no break, no crash - the roll-out's tracking on a short strip is Pilot's owed item (pilot-dare, ROLL-OUT TRACKING), named here
+  {
+    const aT = TOUR_W && TOUR_W.aerodromes ? TOUR_W.aerodromes.find(q => q.id === L2.to) : null, D3 = L2.damage || {};
+    const only3 = L2.faults.length && L2.faults.every(f => f.k === 'ground-loop' || f.k === 'off-strip');
+    if (aT && aT.len < 300 && L2.landedOn === L2.to && only3 && !D3.yields && !D3.breaks && !D3.crashed)
+      return 'tried (the user\'s dare): landed on ' + L2.to + ' (' + aT.len + ' m) and ' + L2.faults.map(f => f.k + ' (' + f.note + ')').join(', ') + '; no yield, no break, no crash - ROLL-OUT TRACKING, Pilot\'s owed';
+  }
   // G3077 (TORQUE-RETUNE-66): ...AND THE USER'S CUB, THE SAME WATER. With its roll-out straight on 02/20 again (G3075's loop gone:
   // 131 m, 0.1 m off the centreline) the Cub stops on the strip, and its propeller meets the same cover-grid water on the old
   // concrete in the last metres (t 1024 of the leg flown alone, 3060 in the tour) - ISLAND-TOUR G1971's, the C172's finding:
@@ -258,6 +270,7 @@ if (!STRIPS) {
     const B = TR.BUILDS[J.b], order = TR.ORDERS[B.tour].split(',');
     const def = TR.defOf(C, PT, B.key);
     const TW = TR.tourWorld(C, IN, fs);
+    TOUR_W = TW.W;
     const t0 = Date.now();
     // G1970 (ISLAND-TOUR-2): THE GAME'S FLIGHT - TOUR-REAL (G2065) flew this tour in the game and node's was not it (a calm
     // day, the file's 45 L, a pilot with no shakedown): the worker's host, the game's day ticked, the load door's aeroplane
