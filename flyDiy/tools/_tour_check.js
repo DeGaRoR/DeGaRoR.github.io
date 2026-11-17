@@ -218,7 +218,10 @@ function knownRed(b, L2, R) {
   {
     const aT = TOUR_W && TOUR_W.aerodromes ? TOUR_W.aerodromes.find(q => q.id === L2.to) : null, D3 = L2.damage || {};
     const only3 = L2.faults.length && L2.faults.every(f => f.k === 'ground-loop' || f.k === 'off-strip');
-    if (aT && aT.len < 300 && L2.landedOn === L2.to && only3 && !D3.yields && !D3.breaks && !D3.crashed)
+    // (ONLY where the dare acted - the short final said 'strip-short' and landed instead of diverting: a short strip's roll-out off the box
+    //  on any other landing - the 6 m Skyline's from w3 - stays the red it is)
+    const dare3 = (L2.verdicts || []).some(v => /^strip-short/.test(v));
+    if (dare3 && aT && aT.len < 300 && L2.landedOn === L2.to && only3 && !D3.yields && !D3.breaks && !D3.crashed)
       return 'tried (the user\'s dare): landed on ' + L2.to + ' (' + aT.len + ' m) and ' + L2.faults.map(f => f.k + ' (' + f.note + ')').join(', ') + '; no yield, no break, no crash - ROLL-OUT TRACKING, Pilot\'s owed';
   }
   // G3077 (TORQUE-RETUNE-66): ...AND THE USER'S CUB, THE SAME WATER. With its roll-out straight on 02/20 again (G3075's loop gone:
