@@ -54,7 +54,9 @@ const D = PG.GRASS_SIDES_DEF;
   ok(band.kill === 0 && band.cut === 1 && mow.kill === 0 && mow.cut === 1, "3 'sides': cut grass across the 40 m band and the " + G.mowBand + ' m mow band past it', '+30 m cut ' + band.cut + ', +' + (H.band + G.mowBand - 1) + ' m cut ' + mow.cut);
   ok(!wild.cut && (wild.kill || 0) === 0, "3 'sides': wild past the blend", '+' + (H.band + G.mowBand + G.mowBlend + 2) + ' m cut ' + (wild.cut || 0));
   // (16 Nov: inside tw_ski's NARROW drawn track - trackW 2.7 m from the centreline since 16 Nov, DIRT-STRIP's L40e track - so 2.5 m off it)
-  const surf = q(across(S, -6.5)), soft = q(across(W3, 1)), wildT = q(across(S, -4));
+  // (SKYLINE-RESORT 17 Nov: the probes by their distance from the CENTRELINE - 2.5 m and 5 m off it, as the rows say - not from the
+  //  edge of an 18 m strip: tw_ski is 6 m wide since 16 Nov. On 18 m they are the same points as before: -6.5 and -4 from the edge)
+  const surf = q(across(S, 2.5 - S.wid / 2)), soft = q(across(W3, 1)), wildT = q(across(S, 5 - S.wid / 2));
   ok(surf.kill === 0 && surf.surf === 1 && surf.cut === 1, "3 'sides': the grass strip's running surface is cut grass (surf 1)", 'tw_ski kill ' + surf.kill + ' surf ' + surf.surf);
   // (DIRT-STRIP 10 Nov, the user: "vegetation grows on the ruts") the trail's wheel lanes bare: a few tufts on a main lane (the fleet's
   //  mean half-track 1.098 m), fewer than everywhere else, the tail wheel's lane down the middle thinned less, none 5 m out

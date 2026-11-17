@@ -317280,3 +317280,142 @@ AFB-0220-B2 + BUMPINESS + TOP PADS (DIRT-STRIP, 17 Nov, ready/afb-0220-b2 on L40
 - Gates: AFB0220 MICRO TERRAINMATCH PREMCOOK PAVEMENT MAPBAKE MEDIA PREMISES CITYCOOK CONTRACTS RWYTREES STRIPGROUND
   PILOTCANFLY PASS; master's, same names on a plain L40e export: ALTIPORT 2+3, TAXICLEAR 1, UNIFY EMERG, SCENERYED 15, NAMES.
   GPU 17 Nov 04:45: 11 stills, page HiqVXKM1G3GyGK3T4MkpRe.
+
+## SKYLINE-RESORT (13-17 Nov 2026, cloud session for A0; claude/skyline-resort-1..5 -> claude/ready/skyline-resort-2, on L40e 2157a2f98, for L40f): SKYLINE ALTIPORT AS A PROJECT
+
+THE USER (13 Nov): the ski station's top (tw_ski) becomes the Jolene Aero Club's summer altiport - recreational flying, gliders
+(launched by a PUSH only: no car tow, no winch), small planes; a restaurant and a place to store aeroplanes beside the flattened
+part; later a glider hangar. The strip "much too wide and much too long, probably 2 times for each"; then (16 Nov) "make it the limit for the cessna in
+terms of length. Width should be even smaller. Make it 6 meters only of runway, hopefully mainly used by the tracks then". DATA ONLY (no code): every
+entry is ordinary editor data, written into tools/fixtures/island_jolene.json by **tools/skyline_resort.py** (idempotent: an id it
+owns is replaced, else appended; `--check` says whether the fixture is as written - re-run it on a rebased fixture). No story text.
+
+THE FRAME the script writes in: the strip's axis, d = (cos -1.0472, sin -1.0472) uphill, n = (-d.z, d.x); P(a, c) = the top end
+(352.00, -7872.00) - a d + c n (a metres DOWN from the top, c across, + away from the tram station).
+
+1 THE STRIP, BEFORE -> AFTER (tw_ski, grass, altiport, landed uphill over end 0):
+  - before: 380 x 18 m, c (257.00, -7707.46), threshold (162.00, -7542.91) 679.6 m, top (352.00, -7872.01) 708.8 m, rise 29.3 m
+    (10 % at the threshold, 1 % over a 68 m top), shoulder 30 m, band 6; a stage vary resort 0-2: 320 m, c (272.0, -7733.44)
+  - after: 280 x 6 m at EVERY stage (the 320 -> 380 m step is gone), c (282.00, -7750.76), low end / threshold (212.00,
+    -7629.52) 689.8 m, top (352.00, -7872.00) 708.8 m (unchanged: the platform, the stand (310.4, -7844)); rise 19.1 m - the
+    top as composed (~1 % over the top 60 m, the ease, 9 % by 190 m down), then the old 380 m strip's own line on down (10 %):
+    profile [[0, -15.54], [0.3214, -6.54], [0.5714, -0.3], [0.75, 2.77], [0.8929, 3.39], [1, 3.52]] on elev 705.30 (T1 at the
+    new centre); shoulder 30 -> 12 m (an 8 m one left a 158.9 mm pocket in the near level's mesh past the edge, GATE
+    TERRAINMATCH), band 6 -> 0 (no cut-grass band: past the strip the 1 m mow band, then wild grass - the user's "mainly used
+    by the tracks" and DIRT-STRIP's tundra round the worn lanes). The tired station (resort 0): `vary` sock false, ties
+    false; the deal (resort 1) puts them back. (13-16 Nov it was 190 x 9: the old strip's upper half.)
+  - THE LENGTH = THE CESSNA'S LIMIT, FLOWN (scratchpad harness on the game host: the 8 kt / 250 deg day, damage on; the canon
+    C172 F-HCSN on FLAGSHIP's refit card, claude/cessna-refit-l40d 3f7decee0, as built: pilot + 1 pax + 40 kg, 1067 kg, sheet
+    LDGrun 242 m, TORun 412 m flat; variant fixtures with the strip extended down the old line). Lined up AT THE TOP END (the
+    centreline 8 m down, nose downhill - Pilot's L40f line-up) it releases 5.7 m down, lifts off 228 m and is 2.5 m up 269 m
+    down at every length: 260 m -> 24 m past the end, 270 m -> 1 m inside, 280 m -> 11 m inside, 300 m -> 31 m. Dispatch
+    (LDGrun <= len) accepts it from 242 m. 280 m = the take-off limit + 11 m (A0's go, 16 Nov). The uphill landing set no
+    length: on L40e (+ the refit) it lands on master's 380 x 18 (sink 1.32 m/s, 19.8 m/s, run 109 m, 0 faults); on 280 x 6 it
+    stops ON the strip 35.6 m below the top but arrives fast (24.9 m/s, run 170 m) and the roll leaves the 6 m box (GATE
+    ALTIPORT's off-strip) - FOR PILOT: the roll-out's tracking on a 6 m strip and the fast arrival. The Cub and the Jodel land
+    clean on 280 x 6 (0.7 / 1.0 m off the centreline, stopped 38 m below the top)
+  - THE STRIP'S LEAST WIDTH 8 -> 6 m (CORE, ae63541e1): the record's law refused a strip under 8 m (DIRT-STRIP 47522596e;
+    GATE PREMISES 14a / STAGES 1-2 red at 6 m). One constant now, PREMISES_GEN.STRIP_MIN_WID = 6, in issues() (a strip, a
+    varied strip) and the overlap / profile-warning filters; the editor's width slider starts at it. Composition never
+    filtered on the width
+  - THE APRON AND THE WAY OUT (the user 16 Nov: "you run uphill when it's flat, and there's actually a huge apron next to the
+    cabin car station where you can easily maneuver ... You should always reach the flat part, and there normally you would
+    expect to have something a bit wider to be able to turn and park"): the apron is the summit platform (tw_t_platform, gravel,
+    level 708.70 m), a -2..92 m down from the top end, 9..50 m across on the station side, beside the strip's flat top with the
+    6 m shoulder between at the strip's level (708.5-708.9); past the top end the ridge falls away (702 m 10 m out). Measured
+    against the cooked solids: the tram station's structure crosses it (a 14..34, c -48..-16), so its free parts are the top
+    (a -2..10, the whole width, 10-23 m to the nearest solid) and the stand's (a 38..58), joined by the corridor beside the
+    strip. tw_ski.taxiOut: stand (45, -22) -> P(40, -4) (328.54, -7839.36) -> P(6, -4) (345.54, -7868.81) -> P(2, -12)
+    (340.61, -7876.27) -> P(8, 0) (348.00, -7865.08), the line-up 8 m below the top end. The wingtip (5.5 m) never under
+    4.4 m from a solid; the C172's turn on the spot (6.3 m sweep, GP_PARKED_FOOT [5.5, 1.5, 6.1]) clears by 9.2 m at P(6, -4)
+    and 5.3 m at P(2, -12). TODAY'S autopilot still holds where its own run fits (~69 m down): the Cub leaves with 118 m to
+    spare, the C172 runs out ('out of runway: -4 m left') - PENDING PILOT'S L40f top-end line-up, which builds on this route
+  - the physics: the stage's runway is composed like any (terrainH, surfaceAt) at the load / roll-out (76_stages' queue);
+    GATE STAGES 2 now asserts 280 x 6 m and the top end at (352.00, -7872.00) at every value, and the bare strip below resort:1
+  - THE AUTOPILOT: nothing to change in 43_pilot.js - it reads `len` and the composed ground (judgeHeld's grade, the
+    altiport's slope-line flare, landHdg from the profile's ends). At 280 m dispatch accepts every land build (the metal C172's
+    LDGrun 249 m included); the take-off from the top and the landing roll on 6 m are Pilot's L40f work (above)
+  - THE CONTRACT LAW'S ALTIPORT CREDIT (Game's YES 14 Nov at 0.75, YES 17 Nov at 0.85): CONTRACT_FIT.altiK (73_contracts.js)
+    multiplies contractTakeoffM when the field is an altiport (left downhill). FLOWN by GATE ALTIPORT 5 on 280 x 6 (the game's
+    pilot and day, 709 m, contract load, brake release - 69 m below the top, today's line-up - to 2.5 m up): the Cub + 1 pax
+    122.7 m = 0.511 of the flat law (240 m); the metal Cessna + 2 pax + 40 kg (+184 kg, its baggage cap) 201.1 m = 0.806
+    (249 m). 0.85 sits above both (Game: 0.75 under-predicted the Cessna's roll; on the 190 m strip, 0.528 / 0.635, the ground
+    falling past its low end had flattered the 2.5 m point). THE LIMIT, named in the comment: one constant for tw_ski, w4
+    (216 m gravel, ~21 %) and mt_strip (Ardent, 210 m snow); a gentler grade needs a / (a + g x grade). 0.75 -> 0.85 moved
+    no tw_ski / w4 offer (field.03, resort.01/02/03/05, clients.01/03: the same doers); at mt_strip the Jodel's empty law
+    goes 200 -> 227 m of 210 (no stage flies there today) - FOR GAME
+  - GATE ALTIPORT 4 (A0 + Game 14 Nov): a SAID dispatch refusal passes ('strip-too-short ... not going there', no ROLL, no
+    damage); at 280 m the metal Cessna (LDGrun 249) is no longer refused and flies the leg - its verdict in GATES. Rows 2/3
+    stay master's own reds
+  - GATE TAXICLEAR 11c (A0's call 15 Nov, option (a)): L40c's CANON-C172-GATES flies the canon F-HCSN (386 m flat take-off,
+    ~290 m with altiK) - placed on the apron it rejects 5 s into the roll ('will not reach Vr: 1.30 m/s^2 needs 168 m more,
+    126 m left') and stops on the strip, nothing touched; with that rule off (a scratch core) it ran off the low end and broke
+    up 50 m down the hill. 11c's CALIBRATION pose re-found (79de27821): the apron's way out keeps the blind Cub off the
+    station from the old CAL_C (28 m down: wing on its edge, 0 contacts); re-searched as its comment says, CAL_C = 14 m down,
+    12 m toward the station, the same heading (334.61, -7865.88): into the station, 4 contacts. The row holds THAT rejection for F-HCSN on a strip < 300 m (190 m then, 280 m now) (said, ABORT, STOPPED on the strip); the
+    Cub's row is unchanged (airborne). OWED TO PILOT: "go/no-go misses the altiport credit case" - L40d's go/no-go declines at
+    the HOLD at Jumbo Mine / East Point but rolls here; once it declines at the hold, 11c holds that refusal (as ALTIPORT 4)
+  - FOR PILOT (A0 passed it on, L40f): leaving Skyline the autopilot lines up 30-109 m below the top end (0.25-0.3 of the strip)
+  - CONTRACT_FIELDS.tw_ski (72_contract_data.js) follows the record: x 282, z -7751, len 280 (GATE CONTRACTS: byte-equal to
+    contractFieldsOf; its selftest's drift row reads the new line). scenery_ship_afb19.json: fieldPatches.tw_ski (len, wid, c,
+    profile, band, falloff) - the user's AFB (19) save still has the old strip (GATE SCENERYED 15)
+2 THE FOOT-LAUNCH PAD (resort 1): tw_y_launch (surface 5) + tw_m_launch (concrete, band 0.3) = P(0..72, +6.5..+8.5): 2 m of
+  concrete from the top end down the flat top and ~12 m into the slope, beside the strip on the side away from the station
+  (corners (357.63, -7868.76) (321.63, -7806.40) (323.36, -7805.40) (359.36, -7867.76)); ground, no solid
+3 THE FOOTPATHS (resort 1, roads cls track, look dirt, 1.6 m, ungraded): tw_p_ridge (the ridge walk north along the west flank to
+  the old lower slope, the ski piste: (275.86, -7820.12) .. (190.63, -7676.50)), tw_p_launch (round the top end to the pad:
+  (331.37, -7849.27) .. (358.99, -7869.12)), tw_p_lookout (down the east flank: (323.73, -7804.04) .. (320.98, -7758.28));
+  signposts = billboards with the enamel plate (rwy:<text>, w 0.9): RIDGE (273.56, -7819.14), LAUNCH (324.96, -7802.17),
+  LOOKOUT (322.15, -7755.30), PISTE (189.03, -7679.73)
+4 THE TREES AND THE ROCKS (every stage): cover polygons (ttype, code null) of the tree system - `veg` 'new' (fir x2, spruce x1.5,
+  pine 0.8, dead conifer 0.25, shrub 1; 70 trees/ha, under 6): the island's own fill plants them (LODs, impostors); the
+  aerodrome's tree box still keeps the strip clear (polyGround: treeAeroBlocked). Groves tw_k_grove_e (365.4, -7789.2),
+  _w (246.9, -7890.0), _nw (225.5, -7786.9), _se (425.7, -7901.6), _sw (331.3, -7956.1), _le (298.1, -7611.6), _lw
+  (153.4, -7695.1) - the flanks, never the ridge's top, the approach or the way out. LARGE ROCKS: veg 'biome' scree (the tree
+  pack's rock subjects at size 22, the cover ring's) on tw_k_rocks_e (357.4, -7828.4), _n (229.9, -7756.6), _s (386.4, -7885.6),
+  _ne (345.8, -7791.3)
+5 THE RESTAURANT AND THE PARKING AREA (resort 2): the Summit Lodge (house/cafe, already resort 2+; its building site sg_k_lodge
+  resort 1) + tw_m_terrace (concrete, P(72.5..82, -30.5..-39), centre (283.3, -7822.5)) with three tables, five chairs, two
+  planters and two people (tw_o21..o32, existing props). THE PARKING AREA tw_t_park + tw_y_park + tw_m_park = P(92.5..128,
+  -12.75..-29.25), centre (278.7, -7787.0), on the ridge north of the platform (the old strip's west half): the ground falls
+  ~7 % there (> STAND_PAD.grade 2 %), so it is TERRAFORMED - a ramp (slope 4.5 % toward the top, level across; 707.0 m at its
+  uphill edge) so a parked box's corners stay inside FLEET_SPOT.flatTol; gravel, `parking` { gap 2, max 2 } (the design-refs
+  shape, PARKING-AREA). On claude/stand-pad (the fill): 2 spots, park:tw_m_park:0 (276.6, -7783.5) and :1 (283.2, -7794.9), ry
+  1.047. On master the `parking` key is inert (tw_ski cooks 0 spots, as before).
+6 THE GLIDER HANGAR: its building site sg_k_glider (kit 'build', 20 x 12, resort 2 only) and tw_s_summit/glider (hangar/club
+  hangar cut to a glider: HW 9.5, HD 5.5, EAVE 4.4 - 19 m of door for a 15-18 m span; resort 3+) at (262.38, -7759.78), yaw
+  1.0472: the door toward the strip, P(142, -21.5), 14 m off the centreline (door at c -15.5); its own ground block (704.6 m)
+- STAGES: resort 0 the tired station (the strip, no sock/ties; station, patrol cabin, pilot hut, groomer's garage, shed, outhouse)
+  - 1 the deal (the strip's sock and tie-downs, the launch pad, the paths and signs; the lodge's building site) - 2 the summer
+  altiport (the Summit Lodge, the terrace, the parking area; the glider hangar's building site) - 3 the glider hangar. Every band
+  edge is an existing STAGE_REVEALS row (resort:1..3, world true). OWED TO THE GAME COORDINATOR (not edited here - theirs): the
+  STAGE_REVEALS comments (resort:3 "the altiport lengthened, 320 m -> 380 m" is now the glider hangar) and the trk.resort.1..3
+  captions to the new steps; tools/jolene_stages.json's tw_ski row and tools/jolene_parts/tramway.json's strip were brought to the
+  fixture (jolene_author.py no longer reproduces the fixture: it is the editor's since rev 26)
+- MAPBAKE'S BUDGET 20 -> 20.5 KB gzipped (8ee889b96, A0's call; the user's "a size budget never holds their content back"):
+  master L40e's infra 20 416 B, the three summit footpaths bring it to 20 531 B.
+- RE-COOKED (on L40e, with 280 x 6, shoulder 12, band 0 and the way out): the premises (node tools/premises_cook.js --island jolene), the fleet pack (fleet_spots.js --cook), the map
+  (map_bake.js). The parked cook needs the GPU (A0 at the train). Since stand-pad (L40c) the `parking` key is live: tw_ski
+  cooks 2 spots. Rebased L39b -> L40a -> L40c -> L40d -> L40e: each time master's fixture + cooks taken, skyline_resort.py re-applied
+  (--check: as written), re-cooked, rebuilt; the stale career_core removed with its rebuild (GATE BUILT)
+- WHAT COST SUNDAY: the session's git commits were refused overnight by the cloud session's auto-mode permission classifier
+  (twice, 14 Nov evening: "Destructive or Unwanted Actions", then "Unsanctioned Communication") on an ordinary local commit
+  of the rebuilt outputs; nothing could be committed or pushed until the user said "go ahead, commit and push" at 17:35 UTC
+  Sun - past the 17:00 ready, so Skyline left L40d for L40e; L40e then dropped it on a real fixture conflict (tonight's snow / mud / observatory /
+  grass / dirt refs), so it rides L40f. Then the session's 06:00 Mon wake-up never fired. Owed to the
+  user: an allow rule for git commit / git push in this repo's cloud sessions, so a gated ready is not held by a prompt
+- GATES: on claude/skyline-resort-5 (L40e 2157a2f98 + Skyline), node tools/run_gates.js --no-build, this cloud container (4 CPUs):
+  PASS: STAGES PREMISES PREMCOOK PREMRASTER STRIPSURF STRIPGROUND GRASSSIDES GAMEPREM TERRAINMATCH TREES TREEHIT SCENERY
+  WORLD MEDIA MAPBAKE (20.5 KB pin) COOKWAIT CONTRACTS ECON MISSIONS PROJECTS STORY ROUTES PROCURE FREIGHT CERTGATES PILOTS
+  UISMOKE STORESPOT BUILT; PARKED alone with NODE_OPTIONS=--max-old-space-size=8192 (the parked cook is a build behind -
+  the GPU cook, A0's - so the page captures live and ran out of node's 2 GB default heap here; unmodified L40e, its cook
+  current, passes at the default). ALTIPORT 1, 4 (the metal Cessna at 280 m) and 5 (altiK 0.85) green; TAXICLEAR 11c green
+  (the canon Cessna's said rejection, the re-found calibration)
+  RED, MASTER'S OWN (the same rows on unmodified 2157a2f98, run here): TAXICLEAR 1 (archaeopteryx footprint), ALTIPORT 2 and
+  3's calibration row (the doctored arrival's guard), NAMES ("Alaska", LIVERY-STICKERS)
+  RED, THIS BRANCH'S, PENDING PILOT'S L40f: ALTIPORT 3 "the airframe whole" - the doctored arrival (tw_ski's record 250 m low,
+  the go-arounds spent) brings the Cub in unstabilised; its roll-out ground loop (ALTIPORT 1's KNOWN fault on this uphill
+  strip in the 8 kt westerly) leaves the 6 m strip and it breaks up (master's 18 m strip contains the same excursion). The
+  6 m strip's roll-out tracking is Pilot's L40f item (with the refit Cessna's off-strip roll, above)
+  NOT RUN HERE: RWYTREES (every row ok but past the runner's 1800 s on master too in this container), SCENERYED 20b / LAZY
+  (master's own here on L40a / L40c / L40d)
