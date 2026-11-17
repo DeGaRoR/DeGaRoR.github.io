@@ -551,6 +551,7 @@ const GATES = [
   // G585: the cover ring's rocks and debris as batches - the same instances, reach and thresholds, a draw per batch
   { id: 'COVER', file: '_cover_check.js', tier: 'core' },   // G585 the batches; G2561 the count truncation (the picture to the pixel); G2563 the grass field (tufts, lengths, colour, tiers)
   { id: 'WORLDRAIL', file: '_world_rail_check.js', tier: 'core' },   // WORLD-RAIL-VEG: the world editor's vegetation rows move their settings, the look keeps them
+  { id: 'TREEPACKJS', file: '_treepackjs_check.js', tier: 'core' },   // MOUNTAIN-VEG 17 Nov: the page's trees_pack.js = the json's (tools/tree_pack_js.py)
   { id: 'GRASSSIDES', file: '_grass_sides_check.js', tier: 'core' },   // GRASS-DENSE G2565: the premises' grass laws by the runways ('today' unchanged, the pave half never moves, 'sides' cut / bare / wild)
   // GRASS ON GREEN (LOOK-1 15 Nov; the user: 'everything green should get some grass'): the field grows on ground that draws green
   // (greenOf on the ground's colour), never on a runway's kill, mud, snow or the sea - on the real ring over the fake GL
