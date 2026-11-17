@@ -1165,6 +1165,8 @@
       range(Gf, 'clumps: cell', 1, 12, 0.5, () => fl.get().clumpM, fs('clumpM'), v => v + ' m', D.clumpM);
       range(Gf, 'clumps: amount', 0, 0.8, 0.02, () => fl.get().clumpAmp, fs('clumpAmp'), null, D.clumpAmp);
       range(Gf, 'bare patches', 0, 1, 0.05, () => fl.get().blotch, fs('blotch'), null, D.blotch);
+      // (17 Nov, the user: the dead grass "almost black. It's not believable"): a tuft coloured by dark ground is lifted to this floor
+      range(Gf, 'darkest tuft', 0, 0.2, 0.005, () => fl.get().minAlb || 0, fs('minAlb'), v => v ? v.toFixed(3) + ' (linear)' : 'off', D.minAlb);
       range(Gf, 'cards a tuft', 1, 8, 1, () => fl.get().cards, fs('cards'), null, D.cards);
       range(Gf, 'tuft shapes (draws)', 1, 6, 1, () => fl.get().variants, fs('variants'), null, D.variants);
       range(Gf, 'block (cells a side)', 1, 6, 1, () => fl.get().block, fs('block'), v => v + ' (' + v * 16 + ' m)', D.block);

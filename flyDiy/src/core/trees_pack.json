@@ -1740,9 +1740,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": 0.035,
-    "sat": 0.66,
-    "light": 1.22,
+    "hue": -0.03,
+    "sat": 0.8,
+    "light": 0.7,
     "bark": 1,
     "alpha": 0
    },
@@ -4557,9 +4557,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": -0.03,
+    "hue": -0.05,
     "sat": 0.38,
-    "light": 1.42,
+    "light": 0.75,
     "bark": 1,
     "alpha": 0.4
    },
@@ -4700,9 +4700,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": -0.097,
+    "hue": -0.117,
     "sat": 1,
-    "light": 0.877,
+    "light": 0.55,
     "bark": 1,
     "alpha": 0.4
    },
@@ -4789,9 +4789,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": -0.001,
+    "hue": -0.021,
     "sat": 1,
-    "light": 1.26,
+    "light": 0.68,
     "bark": 1,
     "alpha": 0.4
    },
@@ -4878,9 +4878,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": -0.009,
+    "hue": -0.029,
     "sat": 0.62,
-    "light": 1.3,
+    "light": 0.7,
     "bark": 1,
     "alpha": 0.4
    },
@@ -9372,8 +9372,8 @@
     "implight": 1,
     "noTint": 1,
     "vary": 0.06,
-    "root": 0.6,
-    "rootH": 0.5,
+    "root": 0.9,
+    "rootH": 0.9,
     "size": 1.9,
     "shape": "crown",
     "aspects": [
@@ -9384,7 +9384,12 @@
     "density": 0.02,
     "patch": 8,
     "patchShare": 0.5,
-    "crownH": 1.3
+    "crownH": 1.3,
+    "mul": [
+     0.42,
+     0.5,
+     0.5
+    ]
    },
    "tint": {
     "hue": 0,
@@ -9422,15 +9427,20 @@
     "implight": 1,
     "noTint": 1,
     "vary": 0.06,
-    "root": 0.6,
-    "rootH": 0.5,
+    "root": 0.9,
+    "rootH": 0.9,
     "size": 1.4,
     "shape": "carpet",
     "aspect": 1.455,
     "density": 0.02,
     "patch": 6,
     "patchShare": 0.5,
-    "crownH": 1.3
+    "crownH": 1.3,
+    "mul": [
+     0.42,
+     0.5,
+     0.5
+    ]
    },
    "tint": {
     "hue": 0,
@@ -9467,8 +9477,8 @@
     "implight": 1,
     "noTint": 1,
     "vary": 0.06,
-    "root": 0.6,
-    "rootH": 0.5,
+    "root": 0.9,
+    "rootH": 0.9,
     "size": 1.3,
     "shape": "carpet",
     "aspects": [
@@ -9479,7 +9489,12 @@
     "density": 0.01,
     "patch": 6,
     "patchShare": 0.4,
-    "crownH": 1.3
+    "crownH": 1.3,
+    "mul": [
+     0.42,
+     0.5,
+     0.5
+    ]
    },
    "tint": {
     "hue": 0,
@@ -9517,8 +9532,8 @@
     "implight": 1,
     "noTint": 1,
     "vary": 0.06,
-    "root": 0.6,
-    "rootH": 0.5,
+    "root": 0.9,
+    "rootH": 0.9,
     "size": 1.1,
     "shape": "carpet",
     "tilt": 70,
@@ -9527,7 +9542,12 @@
     "density": 0.03,
     "patch": 10,
     "patchShare": 0.6,
-    "crownH": 1.3
+    "crownH": 1.3,
+    "mul": [
+     0.42,
+     0.5,
+     0.5
+    ]
    },
    "tint": {
     "hue": 0,
@@ -12169,10 +12189,10 @@
       "patchShare": 0.75
      },
      "flower_fireweed": {
-      "proportion": 0.3,
-      "density": 0.04,
+      "proportion": 0.6,
+      "density": 0.16,
       "patch": 8,
-      "patchShare": 0.5
+      "patchShare": 0.65
      }
     },
     "forest": {

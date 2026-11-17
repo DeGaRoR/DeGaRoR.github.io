@@ -221,7 +221,7 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
   const coverAt = (x, z) => (x > 20 && x < 44 && z > -20 && z < 20) ? { kill: 0, boost: 0, kind: null, cls: 'concrete', cut: 1, surf: 0 } : null;
   const CR = ctx.COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer: 'grass',
     biomeAt: () => 'grassland', codeAt: (opts && opts.codeAt) || (() => 2), okAt: () => true, coverAt, groundMeanAt: () => GM.slice() });
-  CR.set({ on: true, budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0 });   // (the field ships off: FIELD_ON)
+  CR.set({ on: true, budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0, minAlb: 0 });   // (8c the plain colour law; 8h the darkest tuft's floor)   // (the field ships off: FIELD_ON)
   for (let i = 0; i < 4; i++) CR.update();
   return { B, THREE, R, CR, scene, camera, ctx, g, GM };
 }
@@ -256,6 +256,15 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
        '8b cut where the premises say (' + S.cutH + ' m, uniform), the meadow about its 0.30 m', cutH.length + ' cut, median ' + (cutH.length ? med(cutH).toFixed(3) : '-') + '; ' + wildH.length + ' wild, median ' + (wildH.length ? med(wildH).toFixed(3) : '-'));
     // (c) the colour: the ground's over the tinted texel (no texel mean in node: 0.4), within the tuft-to-tuft swing
     ok(cols.length > 0 && cols.every(c => [0, 1, 2].every(k => Math.abs(c[k] / (Fd.GM[k] / 0.4 * S.match) - 1) <= S.vary + 1e-6)), '8c each tuft wears the ground\'s drawn colour (x match over the tinted texel)', cols.length + ' tufts');
+    // (h) THE DARKEST TUFT (17 Nov, the user: the dead grass "almost black"): with the floor at 0.1, every tuft's albedo (x the texel mean
+    // 0.4) is lifted above the ground's own (0.0545 x match here) and stays at or under the floor
+    { const lum = c => 0.4 * (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]), raw = cols.map(lum);
+      Fd.CR.set({ minAlb: 0.1 }); for (let i = 0; i < 4; i++) Fd.CR.update();
+      const L = []; Fd.CR.root.traverse(o => { if (o.isInstancedMesh && o.userData.coverKind === 'cover') for (let i = 0; i < (o.userData.n === undefined ? o.count : o.userData.n); i++) L.push(lum([o.instanceColor.array[i * 3], o.instanceColor.array[i * 3 + 1], o.instanceColor.array[i * 3 + 2]])); });
+      const rMax = raw.length ? Math.max(...raw) : NaN, lMin = L.length ? Math.min(...L) : NaN, lMax = L.length ? Math.max(...L) : NaN;
+      ok(L.length > 0 && lMin > rMax * 1.1 && lMax <= 0.1 + 1e-6, '8h the darkest tuft: a tuft coloured by dark ground is lifted toward the floor and never past it',
+         'ground at most ' + rMax.toFixed(4) + ' -> ' + lMin.toFixed(4) + '..' + lMax.toFixed(4) + ' (floor 0.1), ' + L.length + ' tufts');
+      Fd.CR.set({ minAlb: 0 }); for (let i = 0; i < 4; i++) Fd.CR.update(); }
     // (d) the tiers: from 60 m up the cells hold a prefix; down at 2 m they are planted again and only ADD
     const keyOf = (m, i) => m.instanceMatrix.array[i * 16 + 12].toFixed(4) + ',' + m.instanceMatrix.array[i * 16 + 14].toFixed(4);
     const posSet = () => { const s = new Set(); Fd.CR.root.traverse(o => { if (o.isInstancedMesh) for (let i = 0; i < o.userData.n; i++) s.add(keyOf(o, i)); }); return s; };
@@ -294,10 +303,10 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
       let others = 0, othersOk = 0; Bt.R.render(Bt.scene, Bt.camera);
       Bt.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.material || !o.material.userData.fade || o.userData.coverKind === 'cover') return;
         const p = Bt.R.properties.get(o.material); others++; const k = o.userData.coverKind, u = p && p.uniforms && p.uniforms.uRoot;
-        if (u && u !== a0 && ((k === 'rock' || k === 'debris' || k === 'shrub') ? u.value.x === 0 : true)) othersOk++; });
+        if (u && u !== a0 && ((k === 'rock' || k === 'debris') ? u.value.x === 0 : k === 'shrub' ? Math.abs(u.value.x - 0.6) < 1e-6 : true)) othersOk++; });   // (17 Nov: the bushes MID)
       const fsOk = Fd.B.links.some(l => l.fs && l.fs.indexOf('diffuseColor.rgb *= min(vRoot, 1.0);') >= 0 && l.vs && l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y') >= 0 && l.vs.indexOf('if (uRoot.w > 0.0) { float _rk = smoothstep(') > l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y'));   // (12 Nov: the key AFTER the law, or the law overwrites it)
       ok(a0 && Math.abs(x0 - 0.6) < 1e-6 && x1 === 0.5 && Math.abs(x2 - 0.6) < 1e-6 && others > 0 && othersOk === others && fsOk && kwOk,
-         '8f the root gradient: the reed reads the field\'s uRoot (0.6 -> 0.5 -> 0.6 live), every other faded material its own (rocks and bushes identity - the user 10 Nov: no shade on bushes), the vertex law in the program with the field keyed by colour',
+         '8f the root gradient: the reed reads the field\'s uRoot (0.6 -> 0.5 -> 0.6 live), every other faded material its own (rocks identity; the bushes MID since the 17 Nov review), the vertex law in the program with the field keyed by colour',
          'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others right, key weight ' + (+kw).toFixed(3)); }
   }
 }

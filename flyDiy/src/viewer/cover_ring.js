@@ -161,7 +161,9 @@ var COVER_RING = (() => {
   // (the key's weight, fieldKeyW, is in the ring: it needs the ring's tintMean)
   const ROOT_LEVEL = { low: [0.5, 0.7], mid: [0.6, 0.8], high: [0.95, 1.3] };   // (22:20, the user: the fade over half the height was what read too light - LOW fades out at 70 %, MID at 80 %, the darkness kept)
   const ROOT_SPECIES = { grass_dry: 'high', flower_fireweed: 'high', flower_bunchberry: 'high', flower_foam: 'high', grass_scan: 'mid', grass_plates: 'mid', grass_reed: 'mid' };
-  const ROOT_KIND = { cover: ROOT_LEVEL.low, flower: ROOT_LEVEL.low };
+  // (17 Nov, the user's review: "apply the bottom-up gradient that we have applied to everything" - on ALL the little bushes: the
+  // shrub kind takes MID, the 10 Nov "bushes: none" verdict superseded)
+  const ROOT_KIND = { cover: ROOT_LEVEL.low, flower: ROOT_LEVEL.low, shrub: ROOT_LEVEL.mid };
   const ROOT_SP = new Map();
   const rootOf = (c, kind, top) => {
     let u = ROOT_SP.get(c.name);
@@ -199,7 +201,8 @@ var COVER_RING = (() => {
     shingle:       { h: 0.30, sigma: 0.35, dens: 0.1, fill: 1 },            // shingle (11): the upper shore's tufts
     // 19 SUBALPINE (the user 16 Nov: "not fields of grass ... patches of bushes, weeds, moss carpets, and a lot rocks"): the grass in
     // patches (fieldPatch m, over fieldShare of the ground), the rest left to the shrub cards, the flowers and the stones
-    subalpine:     { h: 0.30, sigma: 0.35, dens: 0.6, fieldPatch: 9, fieldShare: 0.45 },
+    // (17 Nov, the user's review: "You would expect to see that with some lush grass there. That is just not there") lush over most of it
+    subalpine:     { h: 0.50, sigma: 0.35, dens: 1.1, fieldPatch: 12, fieldShare: 0.75 },
   };
   const FIELD_MEADOW = FIELD_TYPES.grassland;
   // GRASS ON GREEN (LOOK-1 15 Nov; the user: "everything green should get some grass ... Flight simulator would spawn grass on
@@ -278,7 +281,7 @@ var COVER_RING = (() => {
           rootKey: true,           // VEG-ROOT 11 Nov (the user, "by colour per tuft"): a brown/yellow tuft HIGH, a green one this row (MID)
           root: 0.6, rootH: 0.8,   // (VEG-ROOT 10 Nov ~21:30: the field is grass_reed, MID; 22:20 its fade to 80 %) G2571: the root gradient's strength (0 = none) and the share of the tuft's height it fades out by (VEG-ROOT 9 Nov: on, the cover's row)
           lakeMargin: 0.03,      // G2572: how far ABOVE a lake's water the ground must stand for a tuft (m; render_world okAt; the sea keeps 0.3)
-          tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
+          tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1, minAlb: 0.06,
           colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1,
           green: 1, greenDens: 0.8, greenLo: 1.05, greenSpan: 0.3,   // GRASS ON GREEN (15 Nov): green 0 = today's (the A/B)
           feather: 0,
@@ -949,6 +952,12 @@ var COVER_RING = (() => {
           let M = mats.get(mat); if (!M) mats.set(mat, M = tintMean(mat));
           const g = G.colB(x, z), j = (1 + (rJ * 2 - 1) * S.vary) * S.match;
           col = [Math.min(3, g[0] / M[0] * j), Math.min(3, g[1] / M[1] * j), Math.min(3, g[2] / M[2] * j)];
+          // THE DARKEST TUFT (17 Nov, the user: the dead grass "too dark and desaturated ... almost black. It's not believable"): the tuft's
+          // albedo (its multiplier x the picture's mean) under minAlb (linear luminance) is blended toward the picture's own colour at
+          // that floor - the dark muskeg soil no longer paints black grass; 0 = off
+          if (S.minAlb > 0) { const L = 0.2126 * col[0] * M[0] + 0.7152 * col[1] * M[1] + 0.0722 * col[2] * M[2];
+            if (L < S.minAlb) { const t = Math.min(1, 1 - L / S.minAlb) * 0.8, Lt = 0.2126 * M[0] + 0.7152 * M[1] + 0.0722 * M[2], s0 = S.minAlb / Math.max(1e-4, Lt);
+              col = col.map(v => v * (1 - t) + s0 * t); } }
         } else {   // the sets' means x lift (G551), the A/B
           const place = c.place || {}, l = place.lift === undefined ? 1 : place.lift, k3 = gk * 3, j = 1 + (rJ * 2 - 1) * S.vary;
           col = lifted([G.col[k3], G.col[k3 + 1], G.col[k3 + 2]], l).map(v => v * j);
@@ -1163,7 +1172,7 @@ var COVER_RING = (() => {
                 const h = hsh(Math.round(x * 7.3) + 11, Math.round(z * 6.1) - 7), a = place.hueTurn[0] + h * (place.hueTurn[1] - place.hueTurn[0]);
                 col = GF.hueTurn(col, a * Math.PI / 180).map(v => Math.max(0, v));
               }
-            } else if (noTint && !isShrub && vary) { const j = 1 + (RR() * 2 - 1) * vary; col = [j, j, j];
+            } else if (noTint && !isShrub && vary) { const j = 1 + (RR() * 2 - 1) * vary, mu = place.mul || [1, 1, 1]; col = [j * mu[0], j * mu[1], j * mu[2]];   // place.mul: an untinted picture's own colour (17 Nov: the shrub cards half as bright, less yellow)
               // an untinted species' small hue swing (G3430, the user 27 Oct: "don't color them as the ground", the reeds on their
               // own hue/sat/light and "a small variation per instance"): the multiplier that turns place.hueRef (the tinted texel's
               // mean, relative) by hueTurn [lo, hi] degrees - a grey multiplier has no hue to turn; the tuft's own hash, as above
@@ -1548,7 +1557,7 @@ var COVER_RING = (() => {
         if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again
         if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
-        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD', 'green', 'greenDens', 'greenLo', 'greenSpan', 'feather', 'cutFloor', 'texGrass']
+        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD', 'green', 'greenDens', 'greenLo', 'greenSpan', 'feather', 'cutFloor', 'texGrass', 'minAlb']
                             : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'castMinDebris', 'trunc'];
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
       species: () => (FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)
