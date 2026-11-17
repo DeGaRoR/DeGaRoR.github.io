@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 6ccbbb2bf3eac17b
+// body-sha256: 5e02a4d17c8eb5f5
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -59043,9 +59043,9 @@ function playerClosedSheds(doc) {
       if (!P.closedShed || S[id] || !shell || typeof SHELLS === 'undefined' || !SHELLS[shell]) continue;
       const dims = hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) });
       if (Number.isFinite(P.closedStage)) dims.stage = P.closedStage;   // (DERELICT-HANGAR: the plot's building as it stands unbought)
-      // ...and in a career, at its story track's stage (closedTrack: the track's value -> the building's stage)
-      const T = P.closedTrack, tr = (T && typeof stageTracksOf === 'function') ? stageTracksOf(doc) : null;
-      if (T && tr && Array.isArray(T.stages) && T.stages.length) dims.stage = T.stages[Math.max(0, Math.min(T.stages.length - 1, tr[T.track] || 0))];
+      // ...and at its story track's stage (closedTrack: the track's value -> the building's stage); the sandbox at the track's
+      // last (restoreTrack: SANDBOX = THE FINAL STAGE, the user 17 Nov)
+      if (P.closedTrack && Array.isArray(P.closedTrack.stages) && P.closedTrack.stages.length && typeof stageTracksOf === 'function') dims.stage = restoreTrack(doc, P);
       out.push({ id, base: aero, shell, dims, closed: true });
     }
   }
@@ -59079,9 +59079,14 @@ function restorePlot(doc, id) {
 }
 const restoreNow = (doc, now) => (typeof now === 'number' && isFinite(now) ? now
   : typeof routeNow === 'function' ? routeNow(doc) : ((doc && doc.clock) || 0));
+// SANDBOX = THE FINAL STAGE (the user 17 Nov via A0: "in the sandbox mode, the default scenery should be with everything
+// constructed ... to reconstruct the step of construction, you just have to remove"): no tracks (stageTracksOf null: the
+// sandbox, every track at its max) is the track's LAST stage - the old hangar restored; a career reads its track's value
 const restoreTrack = (doc, P) => {
-  const T = P && P.closedTrack, tr = (T && typeof stageTracksOf === 'function') ? stageTracksOf(doc) : null;
-  return T && tr && Array.isArray(T.stages) && T.stages.length ? T.stages[Math.max(0, Math.min(T.stages.length - 1, tr[T.track] || 0))] : 0;
+  const T = P && P.closedTrack, has = !!(T && Array.isArray(T.stages) && T.stages.length);
+  if (!has || typeof stageTracksOf !== 'function') return 0;
+  const tr = stageTracksOf(doc);
+  return tr ? T.stages[Math.max(0, Math.min(T.stages.length - 1, tr[T.track] || 0))] : T.stages[T.stages.length - 1];
 };
 // the stage a held building stands at: its own (dims.stage; absent = an older document's, restored) or the story's, the higher
 function restoreStage(doc, id) {
