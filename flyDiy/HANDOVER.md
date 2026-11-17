@@ -317222,3 +317222,18 @@ KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes 
   PROCURE, SNAPSHOTS: PASS; PC6 MECHANISM: PASS. PARTS (canClear, 1508 vs 1509) and CANDIDATES (jodel_geo,
   superpetrel_V4_1): red on bare L40e master the same rows.
 - Also: the fitting lessons (futureDesigns/lessons/FIT-PROCEDURE-fitting.md, docs).
+## PC6-MASS (FIT-PROCEDURE, 17 Nov) - claude/fit-procedure-pc6-l40f on claude/fit-procedure-pc6-l40e (L40e 2157a2f98)
+- REAL-FIGURES' verdict on the PC-6: REPLACE WITH NAMED COSTS; the user: "Definitely lighten the tail wheel". The empty CG
+  was aft (MIN 43 %, TYP 42 % MAC; TCDS 11-38 % at 1450 kg).
+- THE TAIL GEAR 46.9 -> ~27 kg: (a) billed once - the strut's fittings (clamps, plates, truss tubes, doublers) are the
+  frame's gear-class members: the bill lists them at 'frame' (not on the nodes) and the members bill half the class's
+  tube (opt.massK; stiffness and damping unchanged). opt.noMass was tried: the light tail nodes broke a tail member in
+  the stand's pivot on powder (GATE SKISARDENT). (b) sourced - the wheel group at a 14 in heavy tailwheel assembly,
+  17.4 lb / 7.9 kg (McFarlane / LGW XPM1-3-8, XPM1-5); the guard at the PC-6's debris guard 2.7 kp (TCDS F 56-10 2.96
+  item 15); the oleo strut as drawn (no published figure).
+- THE PROPELLER: aluminium blades (cw_material 3 -> 2), the TCDS's Hartzell HC-B3TN-3D: +16.5 kg at the nose.
+- RESULT: CG MIN 36 %, TYP 36 %, MTOW 35 % MAC, every load inside the envelope; empty 1178 kg. The sources are in the four
+  PC-6 cards' ref.history. The fuselage (199 kg) and the tail (61 kg) are unchanged: no source found, every load inside.
+- GATES (one process): SUBSTEP, TAKEOFF, TAILWHEEL, MASS, PLANELISTS, REALBAND (pc6 alone), DRAFTING, JOIN, GEAR,
+  PLANEFICHE, PRICE, PROCURE, SNAPSHOTS, SKISARDENT 4/4 (master: the packed take-off breaks up) PASS; PC6 MECHANISM PASS.
+  STOL, SKIS, PARTS, CANDIDATES: red on bare L40e master the same rows.
