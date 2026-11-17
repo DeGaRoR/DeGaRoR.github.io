@@ -1202,7 +1202,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
     if (!ready || !renderer) return null;
     const out = {};
     if (rt) { const px = new Uint16Array(4 * 16 * 16); renderer.readRenderTargetPixels(rt, (rtW >> 1) - 8, (rtH >> 1) - 8, 16, 16, px);
-      let a = 0, c = 0; for (let i = 0; i < 256; i++) { a += px[i * 4 + 3]; c += px[i * 4]; } out.marchA = a / 256; out.marchR = c / 256; }
+      let a = 0, c = 0, g = 0, b = 0; for (let i = 0; i < 256; i++) { a += px[i * 4 + 3]; c += px[i * 4]; g += px[i * 4 + 1]; b += px[i * 4 + 2]; } out.marchA = a / 256; out.marchR = c / 256; out.marchG = g / 256; out.marchB = b / 256; }   // (RAIN 12c: G and B - the overcast's hue, read straight from the march)
     const px = new Float32Array(4 * PROBE_N * PROBE_N);
     for (const [k, w] of [['noise', 0], ['detail', 1], ['weather', 2], ['depth', 3], ['shadow', 4]]) {
       probeRead(renderer, w, px);
