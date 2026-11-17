@@ -393,6 +393,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   function floorsChanged(f) {
     for (const r of [coverRing, grassField, rockLayer]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
   }
+  // ROCK-STUDY: rockExpoAt(x, z) - the island's baked exposure at a point, for the planters (MOUNTAIN-VEG, 17 Nov: no tree on bare rock):
+  // 0..1 as the ground thresholds v1's field (without its per-pixel noise), -1 while the bake is in flight, 0 with no rock within ~30 m
+  let rockExpoAt = () => 0;
   let rockRing = null, rockGroundMat = null;   // ROCK-STUDY: (rockGroundMat: the near ring's material - the relief wears it)
   // the island's rock as geometry round the eye (rock_ring.js; set with the cover ring)
   let rockLayer = null;   // MOUNTAIN-VEG 17 Nov: the rocks' own ring (cover_ring.js layer 'rocks': the bigger rocks further out)
@@ -2014,6 +2017,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         else tintTex.image.data = tintRGBA();
         tintTex.needsUpdate = true;
         if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasLateMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0) }); };
+      rockExpoAt = (x, z) => {   // (bilinear over the bake's bytes as the shader's linear read: byte (field + 0.3) / 1.5, 0 = none)
+        const a = rockBiasA; if (!a) return rockLate ? -1 : 0;
+        const cs = IG.cell * (IHALF ? 2 : 1), fx = (x - IG.x0) / cs - 0.5, fz = (z - IG.z0) / cs - 0.5, i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
+        const b = (ii, jj) => a[Math.min(H2 - 1, Math.max(0, jj)) * W2 + Math.min(W2 - 1, Math.max(0, ii))];
+        const q = ((b(i, j) * (1 - u) + b(i + 1, j) * u) * (1 - v) + (b(i, j + 1) * (1 - u) + b(i + 1, j + 1) * u) * v) / 255;
+        if (q < 0.004) return 0;
+        const t = Math.min(1, Math.max(0, (q * 1.5 - 0.3 - 0.40) / 0.12)); return t * t * (3 - 2 * t); };
       function dataTex1() { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; }
       // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
       const W_SLOTS = [{ 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }, { 60: 0, 80: 1, 90: 2, 100: 3 }];
