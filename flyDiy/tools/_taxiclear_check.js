@@ -363,8 +363,21 @@ for (const seed of [0, 1, 6, 12, 42]) {
   // b: the calibration - the altiport's game pose, the planner blind
   const tw = WI.aerodromes.find(q => q.id === 'tw_ski'), nv = WI.aerodromes.find(q => q.id === 'nv_strip');
   const POSE = { x: 335.69, z: -7843.75, hdg: -1.05 };
+  // (SKYLINE-RESORT 13 Nov: the altiport halved, 380 x 18 -> 190 x 9 m. The game's stop of 8 Oct above, on the old strip's
+  //  centreline 32.6 m from its top, now leaves the station's corner 3.5 m outside the narrower strip: no route from it meets
+  //  the station, blind or seeing, so the two CALIBRATIONS lost their subject (the flights below still fly that stop). Each
+  //  calibration flies the nearest pose that still reproduces the game's collision, searched with planAt / flyTurn over the
+  //  apron 20-80 m from the top, 0-9 m toward the station, 3 headings; no single pose does both now:
+  //  CAL_B (38 m from the top, 5 m toward the station): blind, drawn 6.5 m clear and driven 3.2 m into the station; seeing, a
+  //  turn on the spot. CAL_C (28 m, 7 m toward it): the blind Cub flown (taxiPivAll false) into the station, 13 contacts)
+  // (SKYLINE-RESORT 17 Nov: the 280 x 6 m strip's way out runs up the apron round the tram station's structure (tw_ski.taxiOut,
+  //  the wingtip >= 4.4 m from every solid), so from 28 m the blind Cub now stops with its wing on the station's edge, 0 node
+  //  contacts. Re-searched as this row flies it (dBl: taxiPivAll false, every land strip's solids in the world; a 14-34 m
+  //  from the top, c -10..-14 toward the station, 3 headings): CAL_C 18 m down, 10 m toward it, nose 0.5 rad further round
+  //  (-1.55) - the blind Cub into the station, 17 contacts at t 2 s (6 poses of the search hit; this the strongest that drives)
+  const CAL_B = { x: 328.67, z: -7841.60, hdg: -1.05 }, CAL_C = { x: 334.34, z: -7861.42, hdg: -1.55 };
   if (SHD.take()) {
-    const r0 = L.planAt(C, WI, IX, LB[0].def, tw, nv, POSE, { blindPilot: true }), r1 = L.planAt(C, WI, IX, LB[0].def, tw, nv, POSE);
+    const r0 = L.planAt(C, WI, IX, LB[0].def, tw, nv, CAL_B, { blindPilot: true }), r1 = L.planAt(C, WI, IX, LB[0].def, tw, nv, CAL_B);
     check(!r0.turn && r0.drawn.d >= L.MARGIN && r0.driven.d < 0 && /station$/.test(r0.driven.what || ''), '11b calibration: the altiport pose, the pilot blind: the route the game flew - drawn ' + L.MARGIN + ' m clear, driven into the tram station',
       r0.ids + ' | drawn ' + fmt(r0.drawn) + ', driven ' + fmt(r0.driven));
     check(r1.turn && !r1.roll, '11b the altiport pose, the pilot seeing: the turn on the spot there', r1.ids + ' | disc ' + (r1.disc ? fmt(r1.disc) : '-'));
@@ -389,9 +402,22 @@ for (const seed of [0, 1, 6, 12, 42]) {
       F = L.flyTurn(C, WI, IX, B.def, Fl.a, WI.aerodromes.find(q => q.id === 'w2'), Fl.pose, { tMax: 150 });
       console.log('  11c ' + B.name.padEnd(16) + ' declines East Point (' + why + ') - flown to 02/20');
     }
-    // the altiport's 380 m is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
+    // the altiport's 280 m (SKYLINE-RESORT: 380 m, then 190 m, then the C172's limit) is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
     // there is the roll's own call (G531: a short field's reserve), printed
-    if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
+    // SKYLINE-RESORT (A0's call, 15 Nov): THE CANON CESSNA DOES NOT LEAVE THE 190 m ALTIPORT. F-HCSN (CANON-C172-GATES) needs
+    // a 386 m take-off on the flat - ~290 m with CONTRACT_FIT.altiK - and is refused tw_ski at dispatch (its 237-249 m landing
+    // run). Placed on the apron here it lines up 30 m below the top end and rejects 5 s into the roll ('will not reach Vr:
+    // 1.30 m/s^2 needs 168 m more, 126 m left'); with that rule off (a scratch core) it ran off the low end on its wheels and
+    // broke up 50 m down the hill - the rejection is right. Held: the rejection SAID, stopped ON the strip, nothing touched (the
+    // rows below). OWED TO PILOT: "go/no-go misses the altiport credit case" - L40d's go/no-go declines at the HOLD elsewhere
+    // (Jumbo Mine for the Cessna, East Point for the Jodel) but rolls here; when it declines at the hold, this row holds that
+    if (Fl.a === tw && !F.air && B.key === METAL && tw.len < 300) {
+      const rj = F.verdicts.find(v => /^rejected-takeoff/.test(v)), p = F.track[F.track.length - 1];
+      const ux = Math.cos(tw.hdg), uz = Math.sin(tw.hdg), along = (p[0] - tw.x) * ux + (p[1] - tw.z) * uz, lat = -(p[0] - tw.x) * uz + (p[1] - tw.z) * ux;
+      check(!!rj && F.phases.includes('ABORT') && p[2] === 'STOPPED' && Math.abs(along) <= tw.len / 2 && Math.abs(lat) <= (tw.wid || 9) / 2 + 1,
+        tag + ': the altiport (' + tw.len + ' m) too short for it from where it lines up - the take-off rejected, said, and stopped on the strip',
+        (rj || 'no rejection said') + ' | ' + F.phases.join('>') + ', stopped ' + along.toFixed(1) + ' m along / ' + lat.toFixed(1) + ' m across the strip (len ' + tw.len + ')');
+    } else if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     // PILOT-GONOGO (the user's ruling, 13 Nov - row 9's): the Cessna alone may end this taxi at the HOLD, lined up, with the take-off
     // declined and said with its numbers (the go / no-go's 'needs N m, M m of strip - too short'); the taxi to the run is what this
     // row holds, and a hold reached is that run reached. Any other build, or a decline without its numbers, still asks the roll
@@ -406,7 +432,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
     // (ap.taxiPivAll false, an instrument's): with every taildragger's pivot the blind Cub turned round short of the tram
     // station, 4.2-4.6 m off it, and the instrument's control had nothing to see; measured: that pivot, not the wheel's law)
     const dBl = Object.assign({}, LB[0].def, { params: Object.assign({}, LB[0].def.params, { ap: Object.assign({}, LB[0].def.params.ap, { taxiPivAll: false }) }) });
-    const F = L.flyTurn(C, WI, IX, dBl, tw, nv, POSE, { blindPilot: true, tMax: 30 });
+    const F = L.flyTurn(C, WI, IX, dBl, tw, nv, CAL_C, { blindPilot: true, tMax: 30 });
     check(F.contacts > 0 && /station/.test(F.at || '') && F.minWing < 0.5, '11c calibration: the Cub from the altiport apron, the pilot blind: into the tram station', F.contacts + ' node contacts (' + F.cWhat + '), the wing ' + F.minWing.toFixed(2) + ' m (' + F.at + '), crashed ' + F.crashed);
   }
   console.log('  11 the turn-around' + SHD.tag + ' in ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');

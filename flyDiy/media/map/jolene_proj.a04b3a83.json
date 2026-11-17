@@ -150,17 +150,17 @@
    "id": "tw_ski",
    "name": "Skyline Altiport",
    "kind": "strip",
-   "x": 257,
-   "z": -7707.46,
+   "x": 282,
+   "z": -7750.76,
    "hdg": -1.0472,
-   "len": 380,
-   "wid": 18,
+   "len": 280,
+   "wid": 6,
    "surface": {
     "key": "grass",
     "word": "grass",
     "cls": "grass"
    },
-   "elev": 696,
+   "elev": 705,
    "altiport": true
   },
   {
@@ -1986,6 +1986,42 @@
      "1101,859 1088,859 1094,877 1099,884 1103,886 1111,886 1115,882 1115,867 1119,868",
      "1101,859 1100,860 1094,860 1094,859 1091,859 1091,858 1089,858 1089,859 1088,859 1088,860 1089,860 1089,863 1090,863 1090,865 1091,866 1091,868 1092,868 1092,871 1093,872 1093,874 1094,874 1094,877 1095,877 1095,879 1096,879 1096,880 1097,881 1097,882 1098,882 1098,883 1099,883 1099,884 1101,884 1101,885 1103,885 1103,886 1111,886 1111,885 1112,885 1112,884 1113,884 1113,883 1114,883 1114,882 1115,882 1115,867 1118,867 1118,868 1119,868"
     ]
+   },
+   {
+    "id": "tw_p_ridge",
+    "cls": "track",
+    "look": "dirt",
+    "w": 1.6,
+    "main": false,
+    "p": [
+     "940,1598 933,1610",
+     "940,1598 939,1602 933,1610",
+     "940,1598 939,1602 933,1610"
+    ]
+   },
+   {
+    "id": "tw_p_launch",
+    "cls": "track",
+    "look": "dirt",
+    "w": 1.6,
+    "main": false,
+    "p": [
+     "944,1596 947,1594",
+     "944,1596 945,1594 947,1594",
+     "944,1596 945,1594 947,1594"
+    ]
+   },
+   {
+    "id": "tw_p_lookout",
+    "cls": "track",
+    "look": "dirt",
+    "w": 1.6,
+    "main": false,
+    "p": [
+     "944,1600 943,1603",
+     "944,1600 943,1603",
+     "944,1600 943,1603"
+    ]
    }
   ],
   "zones": [
@@ -2628,6 +2664,11 @@
     "r": "941,1598,1,1,0"
    },
    {
+    "id": "tw_s_summit/glider",
+    "key": "hangar/club hangar",
+    "r": "939,1603,21,13,120"
+   },
+   {
     "id": "tw_s_valley/station",
     "key": "house/tram base station",
     "r": "790,1590,42,20,2"
@@ -2943,9 +2984,15 @@
   }
  },
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
+<<<<<<<< HEAD:flyDiy/media/map/jolene_proj.a04b3a83.json
  "img": "media/map/jolene_map.2ac7711e.png",
  "imgBytes": 715194,
  "imgHash": "2ac7711e",
+========
+ "img": "media/map/jolene_map.72c18ebd.png",
+ "imgBytes": 715166,
+ "imgHash": "72c18ebd",
+>>>>>>>> 2023c6df5:flyDiy/media/map/jolene_proj.b3ddc51f.json
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
