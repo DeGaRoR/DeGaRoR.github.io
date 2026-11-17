@@ -140,6 +140,12 @@ const CASES = [
       canL: 0.086, rpm: 5000, fwW: 0.60, fwH: 0.55 } },
   { name: 'E-811 housed liquid', spec: { arch: 'electric', eStyle: 2,
       canD: 0.268, canL: 0.19, rpm: 2500, liquid: 1, fwW: 0.70, fwH: 0.65 } },
+  // PROPER-COWLS (9 Nov): the same motor in a pod as tight as itself, its plate THE NACELLE'S FIREWALL (fwShape, the
+  // pod's section - an ellipse 0.40 x 0.38 here): the inverter behind the plate, the phase cables through it in
+  // grommets, the coolant hoses inside the outline - every artery still lands on its parts
+  { name: 'E-811 in its nacelle (fwShape)', spec: { arch: 'electric', eStyle: 2,
+      canD: 0.268, canL: 0.19, rpm: 2500, liquid: 1, fwW: 0.40, fwH: 0.38,
+      fwShape: Array.from({ length: 48 }, (_, k) => [0.20 * Math.cos(k / 48 * 2 * Math.PI), 0.19 * Math.sin(k / 48 * 2 * Math.PI)]) } },
   // THE TURBOPROP (2026-09-05): the two presets, and a bare one without
   // stacks or a plate
   { name: 'PT6A-114A (turboprop)', spec: { arch: 'turbine', tCanD: 0.40,

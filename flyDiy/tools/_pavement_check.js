@@ -695,7 +695,7 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   // (c) THE LOOK: 9 knobs x 3 surface types, every one a KNOB row with its default inside its range; a class's look
   // through lookOf; the defaults draw the plain surface (multipliers 1, the edge zone's side)
   const K = {}; for (const row of P.KNOBS) if (row.length > 1) K[row[0]] = row;
-  const okK = P.LOOK_KEYS.length === 30 + 2 &&   // + G2570's two grass-strip keys (grMatch, grMowA)
+  const okK = P.LOOK_KEYS.length === 30 + 2 + 6 &&   // + G2570's two grass-strip keys (grMatch, grMowA) + DIRT-STRIP look 3's six (16 Nov)
     P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
   verdict(okK, `the runway look: ${P.LOOK_KEYS.length} knobs (${Object.keys(P.LOOK_GROUPS).join(', ')} x 10), each a KNOBS row, its default in range`);
   // (G3018) THE SATURATION knob: 1 is today's grading exactly (the look carries 1, the graded mean the same bits), 0 is grey
@@ -737,11 +737,17 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
     // its tundra over its width (the island's grey-green split into moss / sedge / bearberry / lichen / earth) and fades it out over a
     // ragged side, the tracks in it; the ground no longer shows through a hole round the tracks. THE OWNER'S RE-PIN, A0 13 Nov:
     // the same strength, the new law - the alpha law and the tundra mix are read in GLSL.map as the old law was)
+    // (THE OWNER'S RE-PIN, DIRT-STRIP 15 Nov, the user on Skyline: "the track is too wide, and the sides have to do too heavy lifting
+    // ... the surrounding texture keep penetrating the sides until the ruts ... or simply reducing the width of the track to only
+    // include a couple of meters of side track": the drawn tundra stands round the worn lanes only, ~2 m of ragged fade into the
+    // ground under it, the strip's torn side its cap - the same strength, the new law, read in GLSL.map)
     const law = P.GLSL.map.indexOf('if (grassy && !road && uMacro.w > 0.0) {') >= 0 && P.GLSL.map.indexOf('col = mix(col, tun, tunK);') >= 0
-      && P.GLSL.map.indexOf('gPavA = mix(gPavA, max(soil, smoothstep(-0.9 * shW, 0.2 * shW, dE + 1.6 * shW * (m4 - 0.5) + 0.8 * (m2 - 0.5))) * gPavA, uMacro.w);') >= 0;
+      && P.GLSL.map.indexOf('float trackA = 1.0 - smoothstep(0.0, uLookG.y, tReach);') >= 0
+      && P.GLSL.map.indexOf('float sideA = smoothstep(-0.9 * shW, 0.2 * shW, dE + 1.6 * shW * (m4 - 0.5) + 0.8 * (m2 - 0.5));') >= 0
+      && P.GLSL.map.indexOf('gPavA = mix(gPavA, max(soil, min(trackA, sideA)) * gPavA, uMacro.w);') >= 0;
     verdict(P.RECIPE.grMatch === 1 && P.groundColor('grass', mr) === null && P.opaqueDepth('grass', 9, mr, 'strip') === Infinity && MU.uMacro.value.w === 1
       && Math.abs(MU.uStain.value.w - P.RECIPE.grMowA) < 1e-9 && P.RECIPE.grMowA <= 0.2 && law && P.LOOK_KEYS.indexOf('grMatch') >= 0 && P.LOOK_KEYS.indexOf('grMowA') >= 0,
-      `a grass strip is a trail through its own drawn tundra (grMatch ${P.RECIPE.grMatch}): not sunk, its tufts the ground's colour, the tundra drawn over its width and faded out over a ragged side, the tracks in it - two look keys, the law in GLSL.map`);
+      `a grass strip is a trail through its own drawn tundra (grMatch ${P.RECIPE.grMatch}): not sunk, its tufts the ground's colour, the tundra drawn round the worn lanes and faded into the ground over a ragged ~2 m, the tracks in it - two look keys, the law in GLSL.map`);
     P.dispose(mm); }
   P.dispose(m);
 }

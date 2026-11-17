@@ -11,7 +11,7 @@
 //
 //   node tools/phone_still.js --out reports/evidence/MOBILE-GARAGE-1/phone            (-> phone_portrait.jpg, phone_landscape.jpg, phone.json)
 //        [--size 390x844] [--dpr 3] [--page index.html|dev.html] [--q 'k=v'] [--checks] [--secs 1800]
-//        [--build default|<file.json>] [--desktop --size 1600x900]
+//        [--build default|<file.json>] [--desktop --size 1600x900] [--view interior] [--js '<body>']   (the editor camera's framing; page code before the stills)
 //        [--trunk]   the same mobile emulation WITHOUT the phone profile: today's whole game at a phone's size (the
 //                    baseline the phone's heap and bytes are read against; one still, no checks)
 //   -> one line `PHONE_STILL {json}`: the boot (the steps that ran, the seconds), the world's bytes on the wire (0 on
@@ -116,6 +116,19 @@ async function run(o) {
     const frames = async n => { const f0 = await page.evaluate(() => window.__softFrames || 0); await until(n + ' frames', new Function('return (window.__softFrames || 0) >= ' + (f0 + n)), 500); };
     await frames(3);
     R.heap.garage = await heapNow();
+    // --view <name>: the top bar's views button pressed until its title names that framing (the editor camera's presets:
+    // '3/4 front', 'side', 'plan', 'nose', 'interior' - the interior only with a pilot); the stills are then taken from it
+    if (o.view) {
+      let got = false;
+      for (let i = 0; i < 7 && !got; i++) {
+        got = await page.evaluate(v => { const b = document.querySelector('#edQuick [data-q=views]'); return !!b && (b.title || '').startsWith('View: ' + v); }, o.view);
+        if (!got) { await page.evaluate(() => { const b = document.querySelector('#edQuick [data-q=views]'); if (b) b.click(); }); await sleep(600); }
+      }
+      log('view', o.view + (got ? '' : ' (not reached)'));
+      await frames(40);                                  // the camera's glide to the framing
+    }
+    // --js "<body>": a function body run in the page before the stills (its return value logged)
+    if (o.js) { log('js', JSON.stringify(await page.evaluate(new Function(o.js)))); await frames(3); }
     const shot = async name => { const f = o.out + '_' + name + '.jpg'; fs.mkdirSync(path.dirname(path.resolve(f)), { recursive: true });
       await page.screenshot({ path: f, type: 'jpeg', quality: 82, timeout: o.secs * 1000 }); log('still', f); return f; };
     if (o.desktop) { R.stills = [await shot('desktop')]; }
@@ -303,7 +316,7 @@ let OUT = null; const argvOut = () => OUT;
 
 function parse() {
   return { size: opt('size', '390x844').split('x').map(Number), dpr: +opt('dpr', 3), page: opt('page', 'index.html'), q: opt('q', ''),
-    checks: flag('checks'), trunk: flag('trunk'), secs: +opt('secs', 1800), build: opt('build', 'default'), desktop: flag('desktop'),
+    checks: flag('checks'), trunk: flag('trunk'), secs: +opt('secs', 1800), build: opt('build', 'default'), desktop: flag('desktop'), view: opt('view', null), js: opt('js', null),
     out: opt('out', path.join(REPO, 'flyDiy', 'reports', 'evidence', 'MOBILE-GARAGE-1', 'phone')), json: opt('json', null) };
 }
 if (require.main === module) {

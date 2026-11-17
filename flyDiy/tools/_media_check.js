@@ -208,7 +208,10 @@ const DATA_BUDGET_KB = 400;
 // MEDIA-BUDGET (A0 2 Nov, rule b): 512 -> 640. Red since L28a: 444 KB (L28-0) -> 553 KB (L28a: missions p1 - 73c_mission_run.js
 // +454 lines, demo_p1.json +799, 74_career / 79_story / 73_contracts / 72_accept; all career CODE and mission data) -> 556.9 KB
 // (L29f) -> 567.1 KB (L29g, belly-pod-2's 75_career_wire / 76_freight / 76_procure). 640 = that + ~70 KB of headroom.
-const CAREER_BUDGET_KB = 640;   // was 512
+// MEDIA-BUDGET (L40d, 15 Nov; the user 14 Oct: no page-size work, MEDIA only stays green - raise it and say so): 640 -> 720.
+// 617.1 KB on L40c -> 654.3 KB on L40d: +37 KB of career code and mission data (MISSION-PACKS 73b_missions + the story's
+// 79_story / 74_career + TUTORIAL-LOCK), all career-only, lazy (never in index.html). 720 = that + ~66 KB of headroom.
+const CAREER_BUDGET_KB = 720;   // was 640 (512 before 2 Nov)
 // G3070 (ROUTE-LAZY): the drawn route's drawing is its own file too (route_draw.<h8>.js, fetched on first demand or at
 // boot for an armed route), measured beside index.html and never counted in it. Its tripwire: 31 KB at the split (12
 // Oct, route_draw.js as train 44 landed it); past this, something heavy is riding the drawing.

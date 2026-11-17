@@ -28,7 +28,7 @@ async function load(o) {
   const ctx = vm.createContext(g);
   vm.runInContext('var window = globalThis; window.window = window;', ctx);
   g.ASSET_FETCH = rel => Promise.resolve(readGeo(rel));
-  for (const f of ['matlib.js', 'props.js', 'plume.js', 'animals.js', 'animal_run.js']) {
+  for (const f of ['matlib.js', 'props.js', 'plume.js', 'wakes.js', 'animals.js', 'animal_run.js']) {
     const text = f === 'animal_run.js' && o.runText != null ? o.runText : fs.readFileSync(path.join(ROOT, 'src', 'viewer', f), 'utf8');
     vm.runInContext(text, ctx, { filename: f });
   }

@@ -386,6 +386,13 @@ const GATES = [
   // static deflection at gross, a 23.725-style limit drop with no bottoming and the reserve drop, no pogo, the trailing
   // arc, a broken leg drops, the drawn leg = the physics leg through the game's load chain, nothing else moved
   { id: 'WILGAGEAR', file: '_wilga_gear_check.js', tier: 'core', weight: 1, wall: 150 },
+  // SKIS (13 Nov): the generic ski gear - absent is as today (the core before the skis, to the bit), the spec, mass /
+  // price / drag, what is drawn flies, the area sets the pressure, no brakes on straight skis, the wheel-ski's selector, the
+  // belly pod on the Carbon Cub end to end (tools/_skis_check.js; futureDesigns/SKIS-2026-11-13.md); SKISFLY the two
+  // validation planes' circuits on the powder layer (and the PC-6 on its wheels)
+  { id: 'SKIS', file: '_skis_check.js', tier: 'core', wall: 240 },
+  { id: 'SKISFLY', file: '_skis_check.js', argv: ['--fly'], tier: 'full', wall: 900 },
+  { id: 'SKISARDENT', file: '_skis_ardent.js', argv: ['--gate'], tier: 'full', wall: 1500 },   // SKIS-PC6: the PC-6 on its wheel-skis at the Ardent altiport (needs OBSERVATORY-SITE's mt_strip)
   // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
   // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
   // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round
@@ -637,6 +644,9 @@ const GATES = [
   // back) — B's finish, every section's material and the marking block equal
   // a clean load of B; the pool key covers every dial
   { id: 'LIVERY', file: '_livery_check.js', tier: 'core' },
+  // LIVERY-MANAGER (the user 13 Nov): a plane's saved liveries - the cert key blind to them and seeing the paint job, a swap
+  // never moving the airframe or its masses, the library's operations, the envelope latent. ~10 s
+  { id: 'LIVERYSET', file: '_liveryset_check.js', argv: ['--selftest'], tier: 'core', wall: 30 },
   // LIVERY-TEXT (9 Nov): six text pieces a plane in six faces fetched on first use - the slots, the pages, the stand-in
   // and the arrival, no synthesised style, the official builds unchanged, the files and their licences
   { id: 'LIVERYTEXT', file: '_livery_text_check.js', tier: 'core' },
@@ -736,6 +746,8 @@ const GATES = [
   { id: 'FRAMES', file: '_frames_check.js', tier: 'core' },   // T2.1: the frames — corpus identity, locality, follow, migration, profile
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
   { id: 'DRAFTING', file: 'drafting/dt_check.js', tier: 'core', wall: 6 },   // FIT-PROCEDURE: the drafting table's own checks and the PC-6 fitted to its reference (4 s)
+  { id: 'QSPARITY', file: '_qsparity_check.js', tier: 'core', weight: 3, wall: 40 },   // QUICKSHOT-ONE 15 Nov: the table and quickshot measure the same PC-6 (frame, every key measurement, the score), --sheet writes the projection; the garage's level 2 and the load door's moves said (~15 s, three quickshot children)
+  { id: 'QSCUT', file: '_qscut_check.js', tier: 'core', weight: 1, wall: 20 },   // 16 Nov, the user: "cut views with the pilot and the controls shown": quickshot --cut side on the Cub draws the pilot, seats, controls, panel and the sheet's dash whole, the rest clipped with a section line (~13 s, one quickshot child)
   { id: 'WORKBENCH', file: '_workbench_check.js', tier: 'core', wall: 1 },   // A0 15 Nov: the workbench's rows and skills name tools that exist
   { id: 'COMMITHYGIENE', file: '_commit_hygiene.js', tier: 'core', wall: 2 },   // A0 15 Nov: no built files in source commits, HANDOVER CRs, line endings, final newlines, index chunks, the exports union
   // WINDOWS-FREE (2026-10-27): the free quad window - an unplaced quad is its rectangle, the Cub's quad rear window cut
@@ -1204,6 +1216,12 @@ const GATES = [
   // THE MISSION PROPS (MISSIONS-PROPS): tools/_mission_gen.js - the air-race pylon, the balloon column, the ring, the marker
   // flag, the tie-down spot, the site's stages; their strike dimensions are the core's (73c MISSION_PROP_DIMS)
   { id: 'MISSIONPROPS', file: '_mission_props_check.js', tier: 'core' },
+  // MISSIONS-LIVE (13 Nov): A MISSION IN FLIGHT - src/viewer/mission_live.js over the real core with the demo pack in use:
+  // the demo gates mission flown by a scripted path (the page's frames, the tracker's 4 Hz) passes every gate in order, a
+  // missed gate reported, a strike's penalty, the rally's splits recorded, each through the stop record and careerOnStop;
+  // the drawing headless on three.js (mounted only while armed, the beacon on the next objective, the done ones hidden,
+  // gone at end); the page's wiring. ~2 s. `--selftest`: 9 doctored rules, each red
+  { id: 'MISSIONLIVE', file: '_mission_live_check.js', tier: 'core' },
   // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
   // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village
   // unmoved, the altiport and East Point by their stage); MILL-TAXI's census at every stage with the kits' solids; never

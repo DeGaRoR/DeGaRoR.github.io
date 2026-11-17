@@ -102,6 +102,9 @@ const MANIFEST = {
     // world's registry (20_ makes it), the solver's push-out (30_), the viewer
     // stands and takes down the shapes; pure.
     '29_obstacles.js',
+    // THE SKIS (SKIS, 13 Nov): the ski gear's rules and its soft-ground law (the SNOW-MUD interface: world.soft); the
+    // frame resolves a ski from it, the drag prices it, the solver's ground pass runs it; pure
+    '29c_ski.js',
     '30_solver.js',
     // THE ELECTRICAL BUS (the panel arc, session 4): pure, read by the
     // cockpit and the gates; after the solver only by kinship
@@ -197,6 +200,9 @@ const MANIFEST = {
     // THE FICHE'S PHYSICS PAGES (PHYSICS-PAGES): readouts of the load test, the bench to destruction, the drag build-up,
     // the electrics and the tanks for the fiche's pages - no physics of its own; after the certificate it reads
     '66c_gen_fiche_pages.js',
+    // THE LIVERIES (LIVERY-MANAGER, the user 13 Nov): a plane's saved liveries - what one holds (paint but its job,
+    // finish but its wear), wearing one, the library's operations, what the save's envelope carries; pure
+    '66c_livery.js',
     // THE PLAYER (HANGARS S1): the player's property as one document — its
     // own version and migrator walk beside the spec's (G105: state that is
     // not the aeroplane costs no spec version). References 26_'s default kit
@@ -363,7 +369,7 @@ const MANIFEST = {
     // render_world.js and render_premises.js are the two hosts that make a
     // runner, and both ask for window.ANIMAL_RUN at call time, so the refs
     // landing after the inlined viewer is soon enough.
-    ['src/viewer', 'plume.js'], ['src/viewer', 'animals.js'], ['src/viewer', 'animal_run.js'],
+    ['src/viewer', 'plume.js'], ['src/viewer', 'wakes.js'], ['src/viewer', 'animals.js'], ['src/viewer', 'animal_run.js'],   // wakes.js (SWIMMERS, 15 Nov): the surface layer the swimmers' hulls write, before the runner that makes one
     ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
     ['src/viewer', 'tex_means.js'],   // HLOD-MEANS: the shipped albedo maps' means (tools/tex_means.py) - render_premises meanOf reads them
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
@@ -441,7 +447,12 @@ const MANIFEST = {
          ['src/viewer', 'crowd.js'],
          // LIVERY-STICKERS (9 Nov): THE TWELVE ALASKA MARKS' GEOMETRY (tools/livery_marks_prep.js) - fetched by aeroskin.js
          // the first time a livery sticker is drawn (aeroVinylGeo), never by an aeroplane that wears none
-         ['src/viewer', 'livery_marks.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
+         ['src/viewer', 'livery_marks.js'],
+         // MISSIONS-LIVE (13 Nov): A MISSION IN FLIGHT - the tracker's page half and its drawing (mission_live.js) and the
+         // mission props (tools/_mission_gen.js: the pylon, the balloon column, the ring, the flag, the tie-down spot; it
+         // reads TOWER_GEN, inlined above) - fetched by app.js missionLiveArm at the first departure with an accepted
+         // mission that has places; never by the sandbox
+         ['tools', '_mission_gen.js'], ['src/viewer', 'mission_live.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
   // its own file and the build publishes the content-versioned URLs as window.FLYDIY_AUDIO_SRC (stem -> url, in both
@@ -657,8 +668,8 @@ const MANIFEST = {
     // first open, so its position only has to precede the two callers.
     // new_plane.js before design_flow.js (NEW-PLANE): the full-screen new-aeroplane chooser (window.NEW_PLANE) -
     // design_flow's openBirth hands the NEW button to it; fleet_screen.js beside it (FLEET, the user 13 Nov): the full-screen
-    // fleet (window.FLEET_SCREEN) - garage.js's LOAD and the All planes door open it
-              'new_plane.js', 'fleet_screen.js', 'start_chooser.js', 'design_flow.js', 'balance.js', 'pattern_vis.js',
+    // fleet (window.FLEET_SCREEN) - garage.js's LOAD and the All planes door open it; livery_ui.js = LIVERY-MANAGER
+              'new_plane.js', 'fleet_screen.js', 'start_chooser.js', 'design_flow.js', 'livery_ui.js', 'balance.js', 'pattern_vis.js',
     // route_lazy.js before app.js (G3070 ROUTE-LAZY over G2120 ROUTE-DRAW): window.ROUTE_DRAW, the drawn route's door -
     // app.js attaches it and calls it as it called the drawing; the drawing itself (route_draw.js: the map's draw mode,
     // its gestures, the panel, the profile strip) is MANIFEST.routeDraw, its own file beside the page, run on first

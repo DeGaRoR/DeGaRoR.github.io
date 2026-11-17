@@ -8,7 +8,8 @@
 //   sheet pixels:         the blueprint image as loaded, x right, y down
 // A VIEW on the sheet maps view metres to sheet pixels: px = o + R(rot) . diag(k, -k) . (X, Y)
 //   o = the sheet pixel of the view's origin (the spinner's tip; for the front view, the hub), k = pixels a metre,
-//   rot = 0 / 90 / 180 / 270 degrees (the drawing's own turn of that view), flip = mirror across the view's X axis.
+//   rot = the drawing's own turn of that view, degrees (quarter turns exact; any other angle also tilts the view about
+//   its pivot `rotAt`: tiltOf below), flip = mirror across the view's X axis, ky = the sheet's vertical px / m (absent = k).
 (function (root) {
   'use strict';
   const VIEWS = ['side', 'top', 'front'];
@@ -29,21 +30,68 @@
     return [s, h, -a];                               // front: seen from ahead
   }
   function rotM(rot, flip) {
-    const r = ((rot || 0) % 360 + 360) % 360;
+    const r = ((Math.round((rot || 0) / 90) * 90) % 360 + 360) % 360;     // the QUARTER part of the turn, exact
     const c = Math.round(Math.cos(r * Math.PI / 180)), sn = Math.round(Math.sin(r * Math.PI / 180));
     const f = flip ? -1 : 1;
     // screen: X right, Y up -> pixels y down; then the drawing's turn (clockwise on screen)
     return [c, -sn * f, sn, c * f];   // applied to (X, -Y)
   }
+  // THE FREE TILT (15 Nov, FLAGSHIP's Cessna fit: a brochure's side view is drawn 4.8 deg off, along its 26'11" line):
+  // `rot` is any angle in degrees. Its nearest quarter turn is rotM's (exact); the rest, the tilt (within +-45 deg),
+  // turns the view about its PIVOT, clockwise on the sheet like rot. The pivot: `rotAt` absent = the view's origin
+  // (ox, oy); `rotAt: [px, py]` a sheet pixel; `rotAt: { mark: 'name', at: [px, py] }` a named mark (setTilt copies the
+  // mark's pixel into `at`, so every runner - the page's worker included - maps a view from the view alone). With a pivot
+  // off the origin, (ox, oy) is where the origin sits BEFORE the tilt. The tilt acts in the drawing's own metres, inside
+  // the sheet's two scales: p = P + K . Rf . K^-1 . (p0 - P), K = diag(k, ky), p0 the untilted pixel.
+  function tiltOf(V) {
+    const t = (V.rot || 0) - Math.round((V.rot || 0) / 90) * 90;
+    if (Math.abs(t) < 1e-12) return null;
+    const P = V.rotAt == null ? [V.ox, V.oy] : Array.isArray(V.rotAt) ? V.rotAt : V.rotAt.at;
+    if (!P || !isFinite(P[0]) || !isFinite(P[1])) throw new Error('view rotAt ' + JSON.stringify(V.rotAt) + ' has no pixel: DT_CORE.setTilt(ref, view, deg, mark) places it');
+    return { c: Math.cos(t * Math.PI / 180), s: Math.sin(t * Math.PI / 180), P, k: V.k, ky: V.ky || V.k };
+  }
+  // THE SHEET'S OWN TWO SCALES (13 Nov, the Skymaster): a scanned or resized sheet is often stretched one way - the 337's
+  // reads 100.3 px/m across (29 ft 10 in) and 97.4 down (9 ft 4 in), and its top view, length running DOWN the page,
+  // came out 3-6 % short. `k` is the sheet's horizontal pixels per metre, `ky` its vertical (absent = k, as before):
+  // both act on the SHEET's axes, after the drawing's turn
   function toPx(V, X, Y) {
-    const M = rotM(V.rot, V.flip), k = V.k, x = X * k, y = -Y * k;
-    return [V.ox + M[0] * x + M[1] * y, V.oy + M[2] * x + M[3] * y];
+    const M = rotM(V.rot, V.flip), k = V.k, ky = V.ky || V.k, x = X, y = -Y;
+    const p = [V.ox + k * (M[0] * x + M[1] * y), V.oy + ky * (M[2] * x + M[3] * y)];
+    const T = tiltOf(V); if (!T) return p;
+    const u = (p[0] - T.P[0]) / T.k, w = (p[1] - T.P[1]) / T.ky;
+    return [T.P[0] + T.k * (T.c * u - T.s * w), T.P[1] + T.ky * (T.s * u + T.c * w)];
   }
   function fromPx(V, px, py) {
-    const M = rotM(V.rot, V.flip), k = V.k, dx = px - V.ox, dy = py - V.oy;
+    const T = tiltOf(V);
+    if (T) { const u = (px - T.P[0]) / T.k, w = (py - T.P[1]) / T.ky;
+      px = T.P[0] + T.k * (T.c * u + T.s * w); py = T.P[1] + T.ky * (-T.s * u + T.c * w); }
+    const M = rotM(V.rot, V.flip), dx = (px - V.ox) / V.k, dy = (py - V.oy) / (V.ky || V.k);
     const det = M[0] * M[3] - M[1] * M[2];
     const x = (M[3] * dx - M[1] * dy) / det, y = (-M[2] * dx + M[0] * dy) / det;
-    return [x / k, -y / k];
+    return [x, -y];
+  }
+  // a view's turn set to `deg` about a named mark (its first point) or, with no mark, about the view's origin: the
+  // mark's metres before and after are the same sheet point (the drawing turns round it)
+  function setTilt(ref, view, deg, mark) {
+    const V = ref.views[view];
+    if (!mark) { V.rot = deg; delete V.rotAt; return V; }
+    const m = ref.marks && ref.marks[mark];
+    if (!m || !m.pts || !m.pts.length) throw new Error('setTilt: no mark ' + mark);
+    const at = [m.pts[0][0], m.pts[0][1]], mm = fromPx(V, at[0], at[1]);
+    V.rot = deg; V.rotAt = { mark, at };
+    // the untilted origin re-placed so the mark's metres land on its pixel before the tilt (the tilt then keeps it there)
+    const q = toPx(Object.assign({}, V, { rotAt: undefined, rot: Math.round(deg / 90) * 90 }), mm[0], mm[1]);
+    V.ox += at[0] - q[0]; V.oy += at[1] - q[1];
+    return V;
+  }
+  // the view's origin put ON a sheet pixel (the page's "place the origin" click): with a tilt about a pivot off the
+  // origin, (ox, oy) is the untilted place, so the click is turned back first
+  function placeOrigin(V, px, py) {
+    const T = tiltOf(V);
+    if (!T || V.rotAt == null) { V.ox = px; V.oy = py; return V; }
+    const u = (px - T.P[0]) / T.k, w = (py - T.P[1]) / T.ky;
+    V.ox = T.P[0] + T.k * (T.c * u + T.s * w); V.oy = T.P[1] + T.ky * (-T.s * u + T.c * w);
+    return V;
   }
 
   // ---- the raster: the plane's parts drawn into a view's pixel grid, front-most part a pixel ------------------
@@ -319,30 +367,33 @@
     if (rMax) put('prop.dia', 2 * rMax);
     const cowl = extent(T, Pt, S(['cowl']));
     if (cowl) put('body.front', cowl.lo[0]);
-    // the wheels: the gear's lowest parts, fore half (mains) and aft half (tail or nose wheel)
+    // the wheels: the MAINS are the gear off the centreline (a side's tyre, starboard), the third wheel the gear ON it -
+    // a tail wheel when it is aft of the mains, a nose wheel when ahead (13 Nov, the Skymaster: the fore / aft halves
+    // of the body read a tricycle's nose wheel as the mains and its mains as a tail wheel)
     const gear = extent(T, Pt, S(['gear']));
     if (gear && body) {
-      const mid = (body.lo[0] + body.hi[0]) / 2;
-      const fore = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05);
+      const SIDE = 0.2, ON = 0.1;
+      const fore = extent(T, Pt, S(['gear']), (a, h, s) => s > SIDE);
+      let ac = null;
       if (fore) {
-        const w = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05 && h < fore.lo[1] + 0.7);
-        const tyre = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05 && h < fore.lo[1] + 0.12);
-        if (w && tyre) {
-          const ac = (tyre.lo[0] + tyre.hi[0]) / 2;
-          // the tyre's diameter: the gear's points within 4 cm (fore / aft) of the wheel's centre, top to bottom
-          const col = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05 && Math.abs(a - ac) < 0.04 && h < fore.lo[1] + 1.2);
+        const tyre = extent(T, Pt, S(['gear']), (a, h, s) => s > SIDE && h < fore.lo[1] + 0.12);
+        if (tyre) {
+          ac = (tyre.lo[0] + tyre.hi[0]) / 2;
           put('wheel.a', ac); put('wheel.bottom', fore.lo[1]);
           // the tyre's diameter from its chord a little above the ground (the legs above it never reach that low):
           // a circle's chord c at height y from its bottom gives D = c^2 / (4 y) + y
-          const y = 0.06, ch = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05 && h < fore.lo[1] + y);
+          const y = 0.06, ch = extent(T, Pt, S(['gear']), (a, h, s) => s > SIDE && h < fore.lo[1] + y);
           if (ch) { const c = ch.hi[0] - ch.lo[0]; put('wheel.dia', c * c / (4 * y) + y); }
           put('track', 2 * (tyre.lo[2] + tyre.hi[2]) / 2);
         }
       }
-      const aft = extent(T, Pt, S(['gear']), (a, h, s) => a > mid);
-      if (aft) { put('tailwheel.a', (aft.lo[0] + aft.hi[0]) / 2); put('tailwheel.bottom', aft.lo[1]); }
-      const nose = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && Math.abs(s) < 0.05);
-      if (nose && !(fore && Math.abs(nose.lo[1] - fore.lo[1]) > 0.5)) { /* a nose wheel reads here when there is one */ }
+      const third = extent(T, Pt, S(['gear']), (a, h, s) => Math.abs(s) < ON);
+      if (third) {
+        const low = extent(T, Pt, S(['gear']), (a, h, s) => Math.abs(s) < ON && h < third.lo[1] + 0.12);
+        const at = low ? (low.lo[0] + low.hi[0]) / 2 : (third.lo[0] + third.hi[0]) / 2;
+        if (ac == null || at > ac) { put('tailwheel.a', at); put('tailwheel.bottom', third.lo[1]); }
+        else { put('nosewheel.a', at); put('nosewheel.bottom', third.lo[1]); }
+      }
     }
     put('height', all.hi[1] - all.lo[1]);
     // PROBES: a point marked on the drawing's OUTLINE is compared with ours at the same height (or station): the part
@@ -470,6 +521,8 @@
     ['wheel.bottom',     'main wheel bottom',            'm',  0.01,   { mark: 'wheel.bottom', view: 'side', c: 'Y' }],
     ['wheel.dia',        'main wheel diameter',          'm',  0.02,   { mark: 'wheel.dia', view: 'side', c: 'dist' }],
     ['track',            'track',                        'm',  0.01,   { fig: 'geometry.track' }],
+    ['nosewheel.a',      'nose wheel, aft',              'm',  0.03,   { mark: 'nosewheel', view: 'side', c: 'X' }],
+    ['nosewheel.bottom', 'nose wheel bottom',            'm',  0.02,   { mark: 'nosewheel.bottom', view: 'side', c: 'Y' }],
     ['tailwheel.a',      'tail wheel, aft',              'm',  0.03,   { mark: 'tailwheel', view: 'side', c: 'X' }],
     ['tailwheel.bottom', 'tail wheel bottom',            'm',  0.02,   { mark: 'tailwheel.bottom', view: 'side', c: 'Y' }],
   ];
@@ -576,7 +629,7 @@
     return out;
   }
 
-  const api = { VIEWS, PARTS, PID, COLOURS, FUSE, proj, toPx, fromPx, raster, edges, slice, extent, components,
+  const api = { VIEWS, PARTS, PID, COLOURS, FUSE, proj, toPx, fromPx, setTilt, placeOrigin, raster, edges, slice, extent, components,
     measure, windows, KM, markValue, figValue, refProfiles, refWindows, compare, stations, probes, shapeFill, folds, insideShows, trace, lineCompare, lineRows };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DT_CORE = api;

@@ -112,7 +112,9 @@ function check(D, o) {
     yes(/iA\.w > 5\.5/.test(V) && /iPos \+ vec3\(cr \* c\.x - sr \* c\.y, 0\.035/.test(V), 'D the splat lies in the ground\'s plane');
     yes(/uniform vec3 uCol\[9\]/.test(V) && /mix\(uG, 0\.8, vSnow\)/.test(F) && /alpha erosion/.test(F), 'D nine class colours, snow\'s own phase, the splat\'s erosion');
     const a = o.src.app;
-    yes(/const DUST_SURF = \[[^\]]*'snow', 'powder', 'slush', 'mud', 'mud'\]/.test(a) && /DUST_BY_CODE\[q\.cls\]/.test(a) && /let sink = SWd \? \(SWd\[k < nM \? k : 2\] \|\| 0\) : 0, ski = null;/.test(a) && /sink = SKs\[k\] > 0 \? SKs\[k\] : 0/.test(a), 'D app.js maps 8-12, lets the code decide under the pavement\'s snow / mud, hands each contact its OWN sinkage (a wheel\'s softW, a ski unit\'s skiSink)');
+    // (A0 16 Nov, L40e trial: the LADDER appends codes 13 wet grass / 14 wet sand after 8-12, so the list no longer ENDS at 12's
+    // 'mud' - the check still asks 8-12 in place, in order)
+    yes(/const DUST_SURF = \[[^\]]*'snow', 'powder', 'slush', 'mud', 'mud'[\],]/.test(a) && /DUST_BY_CODE\[q\.cls\]/.test(a) && /let sink = SWd \? \(SWd\[k < nM \? k : 2\] \|\| 0\) : 0, ski = null;/.test(a) && /sink = SKs\[k\] > 0 \? SKs\[k\] : 0/.test(a), 'D app.js maps 8-12, lets the code decide under the pavement\'s snow / mud, hands each contact its OWN sinkage (a wheel\'s softW, a ski unit\'s skiSink)');
     yes(/data-v="7"[^>]*>Powder/.test(o.src.bench) && /data-v="5"[^>]*>Mud/.test(o.src.bench), 'D the bench lists the soft surfaces');
   }
   return fail;

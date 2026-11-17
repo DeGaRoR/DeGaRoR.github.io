@@ -68,6 +68,8 @@ const CLASSES = {
   "Cessna 172 on floats (draft)": ["wip", "builds/cessna172r_floats_2026-11-08.json", "F-HCSF"],
   "Spitfire": ["wip", "shape:spitfire", ""],
   "Skymaster": ["wip", "shape:skymaster", ""],
+  "PC-6 Turbo Porter": ["wip", "builds/candidates/pc6_drafting_2026-11-11.json", "HB-FDY"],
+  "PC-6 on Wiplines": ["wip", "builds/candidates/pc6_floats_2026-11-13.json", "PT-ZPO"],
   // (the Ruckus x2 join as reproductions with REAL-FIGURES' cards - Solo 103 = ruckus_std, Back-Country = ruckus_2026-11-09;
   //  the Spitfire and the Skymaster: shape rows, the chooser's shapes - no file, a registration at birth)
 };
@@ -81,6 +83,7 @@ const named = [];
 const RF = require('./real_refs.js').PLANES;
 // planes REAL-FIGURES may test before their rows land (A0 12 Nov: named, never a red train): file -> why
 const PENDING = {
+  'builds/archaeopteryx_2026-11-10.json': 'the Archaeopteryx, HB-WXA (the user 15 Nov 10:00: under Reproductions; REAL-FIGURES tests it, real_refs PLANES.archaeo) - FLAGSHIP adds its Reproductions row (L40e), sets PLANES.archaeo.listRow to it and drops this entry in the same commit',
   // (REAL-CANON, 12 Nov: the Ruckus rows landed as 53 / 54; the struts card is a test plane in review/, not a PLANES row)
   'builds/candidates/jodel_geo.json': 'the Jodel D112 to the D.112 drawings and its 60 L tank (REAL-FIGURES canon): it REPLACES list:2 (the user 13 Nov, "ok default": one Jodel, like the Cessna) - FLAGSHIP re-points list:2 and drops this entry in the same commit (L40c)',
 };
