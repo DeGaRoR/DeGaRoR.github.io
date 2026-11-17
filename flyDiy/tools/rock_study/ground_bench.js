@@ -164,6 +164,7 @@ if (Q.get('rocks') !== '0' && Q.get('ring') !== '0' && typeof ROCK_RING !== 'und
 }
 const buildMs = Math.round(performance.now() - T0);
 view(Q.get('view') || 'face');
+if (Q.get('base') === '0') ground.visible = false;   // (?base=0: the base ground hidden - a check, which object a surface is)
 if (RING && Q.get('relief') === '0') { const o = RING.update; RING.update = () => { o(); RING.group.children.forEach(m => { if (m.material === mat) m.visible = false; }); }; }   // (?relief=0: the boulders alone - a check)
 let RSTAT = null; if (RING) { const t = performance.now(); RSTAT = await RING.whenIdle(); RSTAT.wallMs = Math.round(performance.now() - t); }
 // ?hang=1: the relief's OPEN EDGES - a vertex on a chunk's side, next to a chunk that has no skin, standing over the ground (the
