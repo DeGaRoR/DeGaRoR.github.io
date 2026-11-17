@@ -375,7 +375,8 @@ const SPLAT_GROUND = (() => {
   // pixel) and sTrPost on a rock candidate's sample (the macro colour, the joints, the green, the micro detail, the far fade):
   // ALU and three plain texture reads (the green's colour, the micro's colour + normal). GS_TRLITE (the outer ring, the premises
   // patch: render_world) leaves the micro and the joints out.
-  float gTrR0 = 0.0, gTrR = 0.0, gTrBias = 0.0, gTrJ = 0.0;   // the raster's rock share, the exposed share, the terrain bias, the joints
+  float gTrR0 = 0.0, gTrR = 0.0, gTrBias = 0.0, gTrJ = 0.0;
+  float gTrGw = 0.0;   // the GRASS's share of the rock's sample (sTrPost's green): the macro tint keeps it (below, the macro in the near ground)   // the raster's rock share, the exposed share, the terrain bias, the joints
   float gTrBand = 0.0, gTrCell = 0.5, gTrCell2 = 0.5;   // the last joint line's band (sTrLine), the slab's two hashes (sTrJoints)
   float gTrPx = 0.0;   // the pixel's footprint on the ground (m): the joints' anti-alias, taken where the flow is uniform (sSplat)
   vec3 gTrN = vec3(0.0, 1.0, 0.0);                            // the smooth normal (sSplat's nGeo)
@@ -510,7 +511,7 @@ const SPLAT_GROUND = (() => {
     }
     mult = mix(mult, gTrMA.rgb * 1.5, gTrIn);   // (the macro texture where it lies: v1's own, a pixel at a time)
     o.c.rgb *= mult;
-    o.c.rgb *= mix(vec3(1.0), uTrW.rgb, uTrW.a) * uTrS.w;   // THE BLEND WITH THE GRASS (16 Nov, the user: "a value issue"): the rock's value in proportion to the game's grass, a film of its hue
+    o.c.rgb *= mix(vec3(1.0), uTrW.rgb, uTrW.a) * uTrS.w;   // (uTrW.rgb is neutral now: the film is the imagery's tint, laid on in the macro step below)   // THE BLEND WITH THE GRASS (16 Nov, the user: "a value issue"): the rock's value in proportion to the game's grass, a film of its hue
     { float hN = mix(rg ? vRX.y : 0.0, gTrMB.a, gTrIn), wh = max(rg ? 1.0 : 0.0, gTrIn);   // the macro's height into the blend's (v1)
       o.c.a = mix(o.c.a, clamp(o.c.a * 0.6 + hN * 0.6 - 0.1, 0.0, 1.0), wh); }
     if (!rg) o.n.xyz += vec3(gTrMB.r * 2.0 - 1.0, 0.0, gTrMB.g * 2.0 - 1.0) * gTrIn;   // its normal off the relief (v1: on the displaced mesh the geometry IS it)
@@ -531,6 +532,7 @@ const SPLAT_GROUND = (() => {
       gr *= uSGrade[int(uTrL.w + 0.5)].rgb;   // (the game's own grass, graded as the game grades it - the user: "use the same textures as the game already uses": the green in the rock is the grass around it)
       vec3 green = mix(vec3(0.045, 0.058, 0.022) * (0.8 + 0.6 * n2g), gr, smoothstep(0.3, 0.8, Gv));
       green = mix(vec3(gLuma(green)), green, uTrG.z);   // (the green's saturation: 1 = the bench v1's)
+      gTrGw = max(gTrGw, gw);
       o.c.rgb = mix(o.c.rgb, green, gw); o.n.xyz *= 1.0 - 0.6 * gw; o.n.w = mix(o.n.w, uTrG.y, gw); o.c.a = mix(o.c.a, 0.2, gw);
     }
     o.n.w = clamp(o.n.w * uTrG.w, 0.02, 1.0);   // the bare stone's roughness (the tile's maps x the dial)
@@ -955,7 +957,7 @@ const SPLAT_GROUND = (() => {
     // brightness wearing that texture. macroNear (uSDist2.y) is still how much of the detail's own colour gives way.
     // (SHORES-2 G1957: AND ON ANY FACE - the macro is a 10 m image read from above: down a steep face it is one colour per
     // column, a vertical streak (it2, sea_rocky: green fingers down the rock wherever the bank's weight thinned))
-    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * (1.0 - 0.7 * max(gSBankM, smoothstep(30.0, 48.0, slope))) * (1.0 - gTrR)); }   // (a third kept: the face takes the land's hue, not a dark outline from the air)
+    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * (1.0 - 0.7 * max(gSBankM, smoothstep(30.0, 48.0, slope))) * (1.0 - gTrR * (1.0 - max(gTrGw, uTrW.a)))); }   // (R1: the macro gives way to the STONE, not to the grass growing in it - the user, 17 Nov: "the grass inside the rock ... quite olive rather than green": untinted, it was the photograph's olive beside the tinted heath)   // (a third kept: the face takes the land's hue, not a dark outline from the air)
     // THE WATERLINE IS WET (SHORES G1500): the bank's first metres over a lake - the shelf the carve leaves - darken toward a
     // wet margin (a submerged grain keeps ~0.55 of its albedo, water.js G799's number) and take a little gloss
     // (SHORES-2 G1956: its line broken by the noise; and THE SEA'S, by height over the water - the bank's foot, a ragged band)
@@ -1314,7 +1316,10 @@ const SPLAT_GROUND = (() => {
           if (gm && gG) { let gc = [gm[0] * gG.x, gm[1] * gG.y, gm[2] * gG.z]; const l0 = lu(gc); gc = gc.map(v => l0 + (v - l0) * gG.w);
             const lg = Math.max(lu(gc), 1e-4), ratio = Math.min(2, Math.max(0.2, lg / Math.max(lu([gm[0] * 0.78, gm[1], gm[2] * 0.62]), 1e-4)));
             U.uTrS.value.w = Math.pow(ratio, kv('rockGrassMatch', 0.5));
-            U.uTrW.value.set(...gc.map(v => Math.min(1.6, Math.max(0.5, v / lg))), kv('rockWeather', 0.25)); } }
+            // THE FILM IS THE LAND'S OWN TINT (17 Nov, the user's far shot: the rock area khaki beside green grass): the grass set's
+            // graded hue is itself olive - the open heath is green by the imagery's macro tint - so the film is that tint, laid on
+            // the stone by rockWeather in the macro step (sSplat); its hue here stays neutral (the boulders take the value match alone)
+            U.uTrW.value.set(1, 1, 1, kv('rockWeather', 0.25)); } }
         U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.72));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
         U.uTrE.value.set(kv('rockHLo', 250), kv('rockHHi', 760), kv('rockBias', 0.3), kv('rockOff', 0.08));
         const mS = lib(T4[0]).mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded

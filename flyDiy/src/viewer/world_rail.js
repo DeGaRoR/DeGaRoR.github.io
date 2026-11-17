@@ -1172,7 +1172,7 @@
     range(Bl, 'value to the grass', 0, 1.5, 0.05, kn('rockGrassMatch'), ss('rockGrassMatch'), null, RK.rockGrassMatch);
     range(Bl, 'weathering film', 0, 1, 0.02, kn('rockWeather'), ss('rockWeather'), null, RK.rockWeather);
     liveNote(Bl, () => { const b = sp.rockBlend ? sp.rockBlend() : null; return b ? 'the rock x' + b[0].toFixed(2) + ' (its value), the film ' + Math.round(b[4] * 100) + ' % of the grass\u2019s hue' : ''; });
-    note(Bl, 'the bench v1 drew its green lighter and warmer than the game\u2019s graded grass; \u2018value to the grass\u2019 scales the rock (the ground\u2019s, the outcrops\u2019 and the boulders\u2019) by the ratio of the two grasses\u2019 values to this power - 0 v1\u2019s rock as it was, 1 v1\u2019s proportion to its grass exactly. The film tints the stone toward the grass\u2019s hue (algae, lichen, dirt). The grass itself: its own grade under TYPES.');
+    note(Bl, 'the bench v1 drew its green lighter and warmer than the game\u2019s graded grass; \u2018value to the grass\u2019 scales the rock (the ground\u2019s, the outcrops\u2019 and the boulders\u2019) by the ratio of the two grasses\u2019 values to this power - 0 v1\u2019s rock as it was, 1 v1\u2019s proportion to its grass exactly. The film lays the land\u2019s own colour on the stone - the imagery\u2019s tint, as the open grass wears it (algae, lichen, dirt); the grass growing in the rock always wears it. The grass itself: its own grade under TYPES.');
     const Mi = sec(body, 'micro detail and fades', false, 'close up and far away');
     toggle(Mi, 'micro detail', () => sp.knobs().rockMicro, v => { sp.set({ rockMicro: v ? 1 : 0 }); changed(); });
     range(Mi, 'micro brightness', 0, 1, 0.02, kn('rockMicroK'), ss('rockMicroK'), null, RK.rockMicroK);
