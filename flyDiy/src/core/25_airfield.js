@@ -626,7 +626,7 @@ function standFor(site, dims, groundAt) {
 // painted aim0/aim1 stay the different thing siteRunway says they are. `gs`
 // null = the aircraft's own slope; a number is the editor's future
 // declaration, flown if shallower than the aircraft's.
-const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
+const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12, GP_ALTI_R = 6;   // GP_ALTI_R: ALTI-TOP, an altiport's turn onto its centreline at the top (sitePattern)
 const GP_LANE_ROUGH = 1.0;   // STRIP-LANE: a rough strip's backtrack lane, m off its centreline (sitePattern)
 
 // ---- THE PARKED AEROPLANES, AND THE WAY OUT ROUND THEM (G710) ----------------
@@ -880,6 +880,31 @@ function sitePattern(aero, site, opts) {
     }
     link(prev1, c1); link(c1, 'l1a');
     routes.out[1] = [st].concat(ids1, [c1]).concat(routes.back[1]);
+    // ALTI-TOP (the user via A0, 17 Nov: "you roll up top, you park over there, you maneuver ... you come at the border of the
+    // steep hill, and then you go" - every gear): AN ALTIPORT'S WAY OUT ENDS WHERE ITS RECORD ENDS IT, LINED UP DOWNHILL. Its
+    // declared taxiOut runs to the top (tw_ski, SKYLINE-RESORT 9160acf21: the stand -> up the apron -> the reversal ON THE
+    // APRON -> the line-up 8 m below the top end); the downhill direction's route went on into the generic lane U-turn near
+    // the top and the hold a quarter-ish in (110 x kIn: 70 m down on 280 m) - the reversal on the 6 m strip, and the run
+    // begun on the slope (the C172 ran out and crashed). When the way out meets the centreline within 40 m of the top end,
+    // the downhill route is the record's apron points, a corner ON the centreline (up to 4 m above the record's line-up
+    // point, never within 2 m of the end) turned on a 6 m radius (GP_ALTI_R: the C172's wheels steer it), and the hold
+    // 3 m past where that turn meets the centreline - the line-up ~10 m below the top end
+    if (aero && aero.altiport && typeof aero.landHdg === 'number') {
+      const upV = [CORE_MATH.cos(aero.landHdg), CORE_MATH.sin(aero.landHdg)];
+      const Td = (d[0] * -upV[0] + d[1] * -upV[1]) >= 0 ? 0 : 1, dn = Td === 0 ? d : [-d[0], -d[1]], Et = ends[Td];
+      const sTop = (ex - Et.x) * dn[0] + (ez - Et.z) * dn[1];
+      if (sTop > 0 && sTop < 40) {
+        const sV = Math.max(2, sTop - 4), V = at(Et.x, Et.z, dn, sV);
+        const Pl = nodes.find(q => q.id === (ids.length ? ids[ids.length - 1] : st));
+        const vx = V[0] - Pl.x, vz = V[1] - Pl.z, vl = Math.hypot(vx, vz) || 1e-9;
+        const th = Math.acos(Math.max(-1, Math.min(1, (vx * dn[0] + vz * dn[1]) / vl)));
+        const sH = sV + GP_ALTI_R * Math.tan(Math.min(1.4, th / 2)) + 3;
+        const tv = add('topV', V, 'taxi', { r: GP_ALTI_R });
+        const th2 = add('holdT', at(Et.x, Et.z, dn, sH), 'hold', { hdg: Math.atan2(dn[1], dn[0]) });
+        link(prev, tv); link(tv, th2);
+        routes.out[Td] = [st].concat(ids, [tv, th2]);
+      }
+    }
   } else if (aero.spawn) {
     // a generated strip: the spawn identity is 35 m in from end0
     const sp = add('spawn', [aero.spawn[0], aero.spawn[1]], 'stand',
