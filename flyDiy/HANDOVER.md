@@ -317202,3 +317202,28 @@ NEW REDS (named, owners fix in L40f):
 - BENCHTIME: 2 bench checks at 6.0-6.5 s vs 6.0 under the train's load (timing).
 LOAD TIME (cold, RTX 3080, ledger): L40d 143 s -> L40e 215 s (205 s re-measured on a quiet box): world 26 -> 40-51 s, settle 17 -> 22-27 s, shader compile 58 -> 67-93 s. LANDED WITH THE COST NAMED (the user's rule); suspects: subalpine (+7-14 % trees, walk), grass-on-green, animals on land (31 drawn), the ground ladder. First item of the perf round; bisect owed.
 KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes evict grit on low tiers (GROUND-FX splash-budget L40f); MEDIA career_core 720 KB budget (Game).
+
+## HANGAR-OUTDOORS - THE ROOM'S OWN OUTDOORS BACK (THE CAPTURE OFF), THE SANDBOX IN THE CLUB, THE SANDBOX = THE FINAL STAGE (Game, 17 Nov 2026)
+The user (17 Nov, a demo, via A0): the sandbox "put me into the new big garage ... I want to keep in the club hangar"; the
+hangar backdrop (HANGAR-VIEW's six-face world capture drawn on a distance mesh) "as soon as it moves, it's completely stretched
+... a huge glitch". And the rule the same night: "in the sandbox mode, the default scenery should be with everything constructed
+... to reconstruct the step of construction, you just have to remove".
+- app.js hviewOff: the capture OFF unless ?hview=1 (a test opt-in only); the room's own outdoors (hangar.js G123: the field,
+  the strip, the slab, the kerbs, the tufts, the furniture, the plot pad) under the live sky and clouds. GATE HANGARVIEW 3m
+  re-pinned. hangar_view.js stays as the opt-in; retiring the module is next round once the user is happy with the scene.
+- app.js playerLoad: the SANDBOX opens in the club at HOME at every start (a saved `here` - the last go-there, a restored
+  HOME.2 - is not where the game starts; one console.info line). A career keeps its own `here` (the story moves it).
+- 71_player_bases restoreTrack: the sandbox (doc.mode !== 'career', RESTORE's own test, and no tracks) stands a restoration
+  track at its LAST stage - HOME.2 restored (stage 3), bought or not, whatever an old save says; a career reads its field
+  track (none yet: the derelict, stage 0). The step-by-step restoration is a career's now (the sandbox has nothing left to
+  restore). GATE GAMEPREM re-pinned (673 checks).
+- GATES on L40e 2157a2f98: the hangar set green; DESTTO 1 shard of 3 and ROUNDTRIP (6) red = master's (land_L40d_gates.log).
+- FRAMECOST (A0: NO re-baseline - a real L40e regression for the perf round to bisect; this A/B is its first evidence): 50
+  rows red on this branch, 52 with the capture's old default ON - the same stand / taxi rises both ways, so the L40e world's,
+  not the hangar's: cub stand draws.main 914 -> 1144, taxi 844 -> 1382, taxi tris.main 13.04 M -> 15.22 M, taxi programs
+  81.5 -> 100.5, stand bytes.texSubImage2D 54.6 KB -> 1.20 MB, taxi uniform4fv 626 -> 3731; the cessna alike (stand 925 ->
+  1163, taxi 854 -> 1401, tris 13.16 M -> 15.40 M); boot garage:compile links 5 -> 42, rollout:landing terrainH 0 -> 199 k
+  and grHeight 0 -> 184 k. The capture OFF itself only REMOVES work: the garage landing step's bufferData 1.32 MB -> 84 KB.
+- STEP 2 (claude/hangar-outdoors-2, after the user's look): the user's elements on the kept outdoors - the world's aprons in
+  'concreteD', low-poly cars at the club, tree cards all round from the world's own impostor sheets (render_world
+  treeSideSheet), the Shed's dirt, tyre marks and wooded hill; and the large hangar's four wall options (?hwall=a|b|c|d).
