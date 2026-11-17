@@ -330,6 +330,7 @@ if (!STRIPS) {
     const B = TR.BUILDS.cub, order = ['HOME', 'nv_strip', 'mn_strip'];
     const def = TR.defOf(C, PT, B.key);
     const TW = TR.tourWorld(C, IN, fs);
+    TOUR_W = TW.W;   // (DARE: knownRed's short-strip rule reads it - this section runs in its own shard)
     const t0 = Date.now();
     // G3914: the two legs apart: the arrival diverts, so the departure is flown from East Point's stand (the same take-off, the strip's named way out)
     const R = TR.flyTour(C, TW.W, def, order.slice(0, 2), Object.assign({ game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null }, EP_DIVERT));
@@ -341,6 +342,9 @@ if (!STRIPS) {
     // at the gate and refuses at the first approach instead of twice round: the reason in the player's words, landed and
     // stopped on the strip it diverted to, no other fault (_tour_lib L.declined)
     else if (L1 && L1.declined) { const why = (L1.verdicts.find(v => v.startsWith('strip-too-short')) || ''); check(/too short|short-field stop/.test(why) && L1.landedOn === L1.declined, '6 ' + B.name + ' HOME > nv_strip: the To refused with its reason said - landed and stopped on ' + L1.declined + ' with no fault', why + ' ' + JSON.stringify(L1.arr.landing)); console.log('  DECLINED 6 ' + B.name + ' HOME > nv_strip: ' + why + ' -> ' + L1.declined); }
+    // DARE (the user, 17 Nov): the final no longer refuses East Point - the tailwind's short final is flown ('strip-short' said) and its
+    // outcome is the roll-out's: KNOWN on knownRed's short-strip terms (landed on nv_strip, ground-loop / off-strip only, no damage)
+    else if (L1 && !L1.ok && knownRed('cub', L1, R)) console.log('  KNOWN 6 ' + B.name + ' HOME > nv_strip: ' + knownRed('cub', L1, R));
     else check(L1 && L1.ok && L1.landedOn === 'nv_strip', '6 ' + B.name + ' HOME > nv_strip: lands at East Point and stops on it, no fault', L1 ? (L1.faults.map(f => f.k + ': ' + f.note).join('; ') || 'td ' + JSON.stringify(L1.arr.landing)) : '-');
     // G2450 (EAST-POINT-DEPART): the arrival over the ridge 3.9 km out is planned to come down (the circuit joined when the
     // straight-in cannot), so the first approach lands - TOUR-REAL's and ISLAND-TOUR-2's went round 'high on the slope'
