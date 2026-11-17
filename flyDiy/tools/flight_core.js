@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 84473b77081c434a
+// body-sha256: 0e94f8c537de58da
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -13731,7 +13731,7 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) continue;
     const L = RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass, cls = L.cls || 'grass', band = paveBand(r, cls, false), reach = band + PAVE_FADE + 6;
     const E = runwayEnds(r);
-    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', id: r.id, cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt' });
+    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', id: r.id, cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt', band0: r.band === 0 });   // band0: the record SAYS band 0 (GRASS-EDGE-FIX)
   }
   for (const rd of roadObjs) {
     if (rd.runway || rd.ribbon === false) continue;
@@ -13889,7 +13889,10 @@ function compose(rec0, world, opts) {
     if (cell) for (const it of cell) {
       const d = dEdgeOf(it, lx, lz), out = -d;
       const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
-      const mow = (aero && it.soft ? it.band * G.softBandK : it.band) + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);   // (GRASS TO THE EDGE: a soft strip's band x softBandK)
+      // (GRASS-EDGE-FIX, 17 Nov, A0 with SKYLINE-RESORT: a strip whose record SAYS band 0 - tw_ski - asks for no cut band at all: no mow
+      //  band and no blend, the wild grass from its drawn edge; every other soft strip keeps the 1.5 m tall band)
+      const b0 = it.kind === 'strip' && it.band0;
+      const mow = b0 ? 0 : (aero && it.soft ? it.band * G.softBandK : it.band) + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);   // (GRASS TO THE EDGE: a soft strip's band x softBandK)
       const v0 = aero ? mow + G.mowBlend : it.band;   // where the verge's bump starts
       const clr = it.clear >= 0 && out <= it.clear;   // (v1.36, G2918: a road's own clearing - bare)
       if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE && !clr) continue;
@@ -13907,7 +13910,7 @@ function compose(rec0, world, opts) {
         if (it.soft && d < 1 && it.cls !== 'grass') boost = Math.max(boost, 0.5 * (1 - d));
       } else if (aero) {
         if (out <= (it.soft ? G.softClear : G.sideClear)) k = 1;
-        else c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
+        else if (!b0) c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
       } else {   // an ordinary road: today's band and fade, then its mown verge
         k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
         if (it.cls === 'grass') k *= 0.6;
