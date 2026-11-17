@@ -154,7 +154,9 @@
     while (body.firstChild) body.removeChild(body.firstChild);
     const L = inp.state().listening;
     for (const [g, title] of GROUPS) {
-      const acts = inp.ACTIONS.filter(a => a.group === g && (!a.lab || labOn()));
+      // GEAR-LEVER: the gear handle is listed off the lab too whenever the aeroplane flown has a gear that retracts
+      // (app.js hudGear publishes it: out.gear is a number) - a fixed build keeps the old list
+      const acts = inp.ACTIONS.filter(a => a.group === g && (!a.lab || labOn() || (a.id === 'gear' && window.FLYDIY_GEAR_RETRACTS === true)));
       if (!acts.length) continue;
       body.appendChild(el('h3', null, title));
       if (LIVE[g]) { const lv = el('div', 'live'); lv.dataset.g = g; lv.textContent = LIVE[g](inp.state()); body.appendChild(lv); }
