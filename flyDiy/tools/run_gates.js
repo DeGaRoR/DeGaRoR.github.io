@@ -1223,6 +1223,11 @@ const GATES = [
   // `--selftest`: 37 doctored rules, each red (~25 min)
   { id: 'MISSIONS', file: '_missions_check.js', tier: 'core', wall: 45 },
   { id: 'PROJECTS', file: '_projects_check.js', tier: 'core', wall: 15 },   // PROJECTS (13 Nov): a pack's projects - steps, works, site states, abilities (73b_missions.js, 74_career.js)
+  // MISSION-FEASIBILITY: the harness that flies every mission the game's way (tools/mission_feas.js, mission_feas_lib.js:
+  // the career stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop) held on three demo
+  // missions (tools/fixtures/missionfeas/demo.json): one feasible - flown, stand to stand -, one infeasible on purpose
+  // (900 kg), one broken on purpose (a bad place id); and the rig places nothing itself (no shortcut). ~8-10 min
+  { id: 'MISSIONFEAS', file: '_missionfeas_check.js', tier: 'full', weight: 1, wall: 600, timeout: 1800_000 },
   // THE MISSION PROPS (MISSIONS-PROPS): tools/_mission_gen.js - the air-race pylon, the balloon column, the ring, the marker
   // flag, the tie-down spot, the site's stages; their strike dimensions are the core's (73c MISSION_PROP_DIMS)
   { id: 'MISSIONPROPS', file: '_mission_props_check.js', tier: 'core' },
