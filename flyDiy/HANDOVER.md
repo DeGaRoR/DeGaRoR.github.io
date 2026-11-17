@@ -316804,6 +316804,17 @@ re-cooked (premises, city, map, fleet; mt_strip 0 spots):
 - NOT RUN on a page yet: the --gpu half of this version (A0: the node gate is enough for the ready). INFRAME uses
   camera.matrixWorldInverse / projectionMatrix as last drawn; a sim on the worker without cgPos falls back to camGet, said so.
 
+## GRASS TO THE EDGE (LOOK-1, 16-17 Nov 2026; the user: "wild grass coming close up", then "taller grass on the strip side and the wild
+## grass I validated", then "no grass should be smaller than 30 cm I think, even mown")
+- 27_premises GRASS_SIDES: softBandK 0 - a SOFT strip's (gravel, dirt, grass, snow) own cut band x this (1 = before: w1 4 m, w4
+  14.5 m), so the wild grass runs to its drawn edge; mowBand 1.5 m - the band past it, whose cut answers `tall` in coverAt. The paved
+  fields (HOME, w2: 40 m) and the aprons keep their mown bands. townLawn 1 (0 = no lawn on town plots: a dial to measure the cost).
+- cover_ring.js grass field: minH 0.30 m (F9 "shortest grass") floors every MOWN height (not the wild height, not a grass strip's
+  running surface stripH); tallH 0.40 / tallSigma 0.3 for the cut beside a soft strip (the `tall` array, read like `cut`).
+- All look only: the wheels never read the cut. GRASSSIDES 7-8, GREENGRASS 11, COVER 8b, PAVEMENT (town lawn), LOOKS 5 (the okAt pin
+  takes the marginGrassAt term). Pictures + cost: https://claude.ai/artifact/7GmMNHx6tkQDMUnreY3Am8 (Tue 11:00: tufts +9 %, frame
+  time within noise). GRASS-CARDS (claude/grass-cards) puts cards on the cut ground and can lower minH under them.
+
 ## FLIGHT-SCRIPT (Pilot, 15 Nov 2026; the user via A0: scripted flights in steps with a deep log)
 - tools/flight_script.js: one scenario JSON (plane list:N, from/to, day game|calm, persona, steps {do, until, capS, allow}), the NODE runner through the game's own host (_tour_lib gameHost); one JSONL per run (run / sample 1 Hz / say / step with solver ms / end). A failed step stops the run with its WHY. The page runner (page_rig.js, frame ms per step) follows Thu 19 Nov.
 - The library tools/flight_scripts/: home_circuit (F-HCSN), east_point (the Cub, CALM: on the game's day it diverts, said), strip_jumbo (the Jodel), altiport (the Cub), float_circuit (B-CESF list:4). All five pass on 58c681347.

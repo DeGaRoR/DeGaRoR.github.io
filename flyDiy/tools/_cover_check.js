@@ -252,8 +252,9 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
       ((x > 21 && x < 43 && z > -19 && z < 19) ? cutH : (Math.hypot(x, z) < 5) ? wildH : []).push(hOf(m, i));
       cols.push([m.instanceColor.array[i * 3], m.instanceColor.array[i * 3 + 1], m.instanceColor.array[i * 3 + 2]]); }
     const med = a => a.slice().sort((p, q) => p - q)[a.length >> 1];
-    ok(cutH.length > 20 && cutH.every(h => h > S.cutH * Math.exp(-2.6 * S.cutSigma) && h < S.cutH * Math.exp(2.6 * S.cutSigma)) && Math.abs(med(wildH) / 0.30 - 1) < 0.15,
-       '8b cut where the premises say (' + S.cutH + ' m, uniform), the meadow about its 0.30 m', cutH.length + ' cut, median ' + (cutH.length ? med(cutH).toFixed(3) : '-') + '; ' + wildH.length + ' wild, median ' + (wildH.length ? med(wildH).toFixed(3) : '-'));
+    const Hc = Math.max(S.minH || 0, S.cutH);   // (16 Nov eve, the user: "no grass should be smaller than 30 cm" - the mown height is floored at minH)
+    ok(cutH.length > 20 && cutH.every(h => h > Hc * Math.exp(-2.6 * S.cutSigma) && h < Hc * Math.exp(2.6 * S.cutSigma)) && Math.abs(med(wildH) / 0.30 - 1) < 0.15,
+       '8b cut where the premises say (' + Hc + ' m: cutH ' + S.cutH + ' floored at minH ' + S.minH + ', uniform), the meadow about its 0.30 m', cutH.length + ' cut, median ' + (cutH.length ? med(cutH).toFixed(3) : '-') + '; ' + wildH.length + ' wild, median ' + (wildH.length ? med(wildH).toFixed(3) : '-'));
     // (c) the colour: the ground's over the tinted texel (no texel mean in node: 0.4), within the tuft-to-tuft swing
     ok(cols.length > 0 && cols.every(c => [0, 1, 2].every(k => Math.abs(c[k] / (Fd.GM[k] / 0.4 * S.match) - 1) <= S.vary + 1e-6)), '8c each tuft wears the ground\'s drawn colour (x match over the tinted texel)', cols.length + ' tufts');
     // (h) THE DARKEST TUFT (17 Nov, the user: the dead grass "almost black"): with the floor at 0.1, every tuft's albedo (x the texel mean

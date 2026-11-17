@@ -1230,7 +1230,10 @@
       toggle(Gf, 'colour: the ground as drawn', () => fl.get().colour, v => fl.set({ colour: v ? 1 : 0 }));
       range(Gf, 'colour: level to the ground', 0, 4, 0.01, () => fl.get().match, fs('match'), v => 'x' + v.toFixed(2), D.match);
       range(Gf, 'colour: tuft to tuft', 0, 1, 0.01, () => fl.get().vary, fs('vary'), v => '±' + Math.round(v * 100) + ' %', D.vary);
+      range(Gf, 'shortest grass (every mown height)', 0, 1, 0.01, () => fl.get().minH, fs('minH'), v => (v > 0 ? v.toFixed(2) + ' m' : 'no floor'), D.minH);
       range(Gf, 'cut grass: length', 0, 1, 0.01, () => fl.get().cutH, fs('cutH'), v => v.toFixed(2) + ' m', D.cutH);
+      range(Gf, 'cut beside bush strips: length', 0, 1, 0.01, () => fl.get().tallH, fs('tallH'), v => v.toFixed(2) + ' m', D.tallH);
+      range(Gf, 'cut beside bush strips: variety', 0, 1, 0.01, () => fl.get().tallSigma, fs('tallSigma'), v => v.toFixed(2), D.tallSigma);
       range(Gf, 'cut grass: spread', 0, 0.5, 0.01, () => fl.get().cutSigma, fs('cutSigma'), null, D.cutSigma);
       range(Gf, 'cut grass: density x', 0, 6, 0.05, () => fl.get().cutDens, fs('cutDens'), null, D.cutDens);
       range(Gf, 'grass runway: length', 0, 1, 0.01, () => fl.get().stripH, fs('stripH'), v => v.toFixed(2) + ' m', D.stripH);
@@ -1256,7 +1259,9 @@
           o => P.grassSides().law === o.v, o => { gsSet({ law: o.v }); replantGrass(); });
         range(S2, 'bare past a paved edge', 0, 10, 0.1, () => P.grassSides().sideClear, gs('sideClear'), v => v.toFixed(1) + ' m', D2.sideClear);
         range(S2, 'bare past a soft edge', 0, 10, 0.1, () => P.grassSides().softClear, gs('softClear'), v => v.toFixed(1) + ' m', D2.softClear);
-        range(S2, 'mown past the band', 0, 60, 1, () => P.grassSides().mowBand, gs('mowBand'), v => v + ' m', D2.mowBand);
+        range(S2, 'bush strips: their own cut band', 0, 1, 0.05, () => P.grassSides().softBandK, gs('softBandK'), v => (v > 0 ? 'x ' + v.toFixed(2) : 'none: wild to the edge'), D2.softBandK);
+        range(S2, 'the slight cut band past it', 0, 60, 0.5, () => P.grassSides().mowBand, gs('mowBand'), v => v + ' m', D2.mowBand);
+        toggle(S2, 'town lawns (houses, shops, parks)', () => P.grassSides().townLawn > 0, v => gs('townLawn')(v ? 1 : 0));
         range(S2, 'cut to wild over', 0, 20, 0.5, () => P.grassSides().mowBlend, gs('mowBlend'), v => v + ' m', D2.mowBlend);
         range(S2, 'a road’s mown verge', 0, 10, 0.5, () => P.grassSides().roadMow, gs('roadMow'), v => v + ' m', D2.roadMow);
         toggle(S2, 'grass on a grass runway', () => P.grassSides().stripGrass, v => { gsSet({ stripGrass: v ? 1 : 0 }); replantGrass(); });
