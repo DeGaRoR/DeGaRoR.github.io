@@ -207,8 +207,23 @@ function knownCubRoll(b, L2) {
   if (!ks.length || !ks.every(k => k === 'ground-loop' || k === 'off-strip') || D.breaks || D.crashed || L2.landedOn !== 'w2') return null;
   return "the user's Cub's roll-out on 02/20 after East Point (G2540 #3, OWED G3075, accepted by the user 13 Oct): " + L2.faults.map(f => f.k + ': ' + f.note).join('; ');
 }
+let TOUR_W = null;   // (DARE: section 5's world, for knownRed's short-strip rule)
 function knownRed(b, L2, R) {
   { const kc = knownCubRoll(b, L2); if (kc) return kc; }
+  // DARE (the user, 17 Nov: "The autopilot can go and crash, but it shouldn't decline too politely ... tests measure who can"): A SHORT
+  // STRIP TRIED, ITS OUTCOME SAID. The final no longer refuses a short strip and diverts (43 'strip-short ... landing it short-field');
+  // the Cub into East Point (150 m, 5 m/s behind on its one way in) lands there and ground-loops off the box at 8.3 m/s. Known ONLY
+  // while it is exactly that: landed on its own To (a strip under 300 m), the faults ground-loop / off-strip and nothing else, no yield,
+  // no break, no crash - the roll-out's tracking on a short strip is Pilot's owed item (pilot-dare, ROLL-OUT TRACKING), named here
+  {
+    const aT = TOUR_W && TOUR_W.aerodromes ? TOUR_W.aerodromes.find(q => q.id === L2.to) : null, D3 = L2.damage || {};
+    const only3 = L2.faults.length && L2.faults.every(f => f.k === 'ground-loop' || f.k === 'off-strip');
+    // (ONLY where the dare acted - the short final said 'strip-short' and landed instead of diverting: a short strip's roll-out off the box
+    //  on any other landing - the 6 m Skyline's from w3 - stays the red it is)
+    const dare3 = (L2.verdicts || []).some(v => /^strip-short/.test(v));
+    if (dare3 && aT && aT.len < 300 && L2.landedOn === L2.to && only3 && !D3.yields && !D3.breaks && !D3.crashed)
+      return 'tried (the user\'s dare): landed on ' + L2.to + ' (' + aT.len + ' m) and ' + L2.faults.map(f => f.k + ' (' + f.note + ')').join(', ') + '; no yield, no break, no crash - ROLL-OUT TRACKING, Pilot\'s owed';
+  }
   // G3077 (TORQUE-RETUNE-66): ...AND THE USER'S CUB, THE SAME WATER. With its roll-out straight on 02/20 again (G3075's loop gone:
   // 131 m, 0.1 m off the centreline) the Cub stops on the strip, and its propeller meets the same cover-grid water on the old
   // concrete in the last metres (t 1024 of the leg flown alone, 3060 in the tour) - ISLAND-TOUR G1971's, the C172's finding:
@@ -258,6 +273,7 @@ if (!STRIPS) {
     const B = TR.BUILDS[J.b], order = TR.ORDERS[B.tour].split(',');
     const def = TR.defOf(C, PT, B.key);
     const TW = TR.tourWorld(C, IN, fs);
+    TOUR_W = TW.W;
     const t0 = Date.now();
     // G1970 (ISLAND-TOUR-2): THE GAME'S FLIGHT - TOUR-REAL (G2065) flew this tour in the game and node's was not it (a calm
     // day, the file's 45 L, a pilot with no shakedown): the worker's host, the game's day ticked, the load door's aeroplane
@@ -317,6 +333,7 @@ if (!STRIPS) {
     const B = TR.BUILDS.cub, order = ['HOME', 'nv_strip', 'mn_strip'];
     const def = TR.defOf(C, PT, B.key);
     const TW = TR.tourWorld(C, IN, fs);
+    TOUR_W = TW.W;   // (DARE: knownRed's short-strip rule reads it - this section runs in its own shard)
     const t0 = Date.now();
     // G3914: the two legs apart: the arrival diverts, so the departure is flown from East Point's stand (the same take-off, the strip's named way out)
     const R = TR.flyTour(C, TW.W, def, order.slice(0, 2), Object.assign({ game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null }, EP_DIVERT));
@@ -328,6 +345,9 @@ if (!STRIPS) {
     // at the gate and refuses at the first approach instead of twice round: the reason in the player's words, landed and
     // stopped on the strip it diverted to, no other fault (_tour_lib L.declined)
     else if (L1 && L1.declined) { const why = (L1.verdicts.find(v => v.startsWith('strip-too-short')) || ''); check(/too short|short-field stop/.test(why) && L1.landedOn === L1.declined, '6 ' + B.name + ' HOME > nv_strip: the To refused with its reason said - landed and stopped on ' + L1.declined + ' with no fault', why + ' ' + JSON.stringify(L1.arr.landing)); console.log('  DECLINED 6 ' + B.name + ' HOME > nv_strip: ' + why + ' -> ' + L1.declined); }
+    // DARE (the user, 17 Nov): the final no longer refuses East Point - the tailwind's short final is flown ('strip-short' said) and its
+    // outcome is the roll-out's: KNOWN on knownRed's short-strip terms (landed on nv_strip, ground-loop / off-strip only, no damage)
+    else if (L1 && !L1.ok && knownRed('cub', L1, R)) console.log('  KNOWN 6 ' + B.name + ' HOME > nv_strip: ' + knownRed('cub', L1, R));
     else check(L1 && L1.ok && L1.landedOn === 'nv_strip', '6 ' + B.name + ' HOME > nv_strip: lands at East Point and stops on it, no fault', L1 ? (L1.faults.map(f => f.k + ': ' + f.note).join('; ') || 'td ' + JSON.stringify(L1.arr.landing)) : '-');
     // G2450 (EAST-POINT-DEPART): the arrival over the ridge 3.9 km out is planned to come down (the circuit joined when the
     // straight-in cannot), so the first approach lands - TOUR-REAL's and ISLAND-TOUR-2's went round 'high on the slope'

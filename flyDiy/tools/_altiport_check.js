@@ -182,10 +182,19 @@ if (SHD.take()) {
   if (dispatch) check(true, id + ': the altiport REFUSED AT DISPATCH, said (190 m < its 249 m landing run) - never flown', R.says.find(v => v.startsWith('strip-too-short')));
   else check(said('vref-raised'), id + ': the finding\'s case - the load door\'s build, the elevator ran out on the approach (vref-raised)');
   const D = R.damage || {};
-  check(!D.yields && !D.breaks && !D.dented && !D.over && !L.faults.some(f => /^(prop-strike|crash|yield|break|dent|ground-loop|off-strip|obstacle|trunk)$/.test(f.k)), id + ': undamaged - no yield, no break, no dent, no prop strike, no ground loop, no off-strip',
+  // DARE (the user, 17 Nov): the final no longer refuses the altiport (43 'strip-short ... landing it short-field, no margin'); in that
+  // committed path the roll-out's off-strip / ground-loop are the OUTCOME, said below as KNOWN - never a yield, a break, a dent or a crash
+  const dareShort = said('strip-short');
+  check(!D.yields && !D.breaks && !D.dented && !D.over && !L.faults.some(f => (dareShort ? /^(prop-strike|crash|yield|break|dent|obstacle|trunk)$/ : /^(prop-strike|crash|yield|break|dent|ground-loop|off-strip|obstacle|trunk)$/).test(f.k)), id + ': undamaged - no yield, no break, no dent, no prop strike, no ground loop, no off-strip',
     JSON.stringify({ yields: D.yields, breaks: D.breaks, dented: !!D.dented, over: !!D.over }) + '; ' + (L.faults.map(f => f.k + ': ' + f.note).join('; ') || 'no fault'));
   if (dispatch) { /* (the refusal's row above; no flight, no flare, no landing to judge) */ }
-  else if (said('strip-too-short')) {
+  else if (dareShort) {
+    // DARE: TRIED, THE OUTCOME SAID. The case's elevator still cannot hold Vref (said above) and the one way in still carries the wind
+    // behind; landed committed on the altiport, it is held to not breaking (the row above) and its roll-out is printed for what it is
+    check(L.landedOn === 'tw_ski', id + ': tried (the user\'s dare) - the short final said and landed on Skyline Altiport, not diverted', (R.says.find(v => v.startsWith('strip-short')) || '') + ' | landed on ' + L.landedOn);
+    console.log('  KNOWN ' + id + ': tried, landed committed - ' + (L.faults.map(f => f.k + ': ' + f.note).join('; ') || 'no fault') + ' (td ' + JSON.stringify(ld) + ')' +
+      (R.finalAt ? '; the final begun at ' + R.finalAt.h + ' m MSL - row 2\'s finding (the final begun low at tw_ski)' : '') + ' - ROLL-OUT TRACKING + the vref-raised elevator, owed');
+  } else if (said('strip-too-short')) {
     const atTw = R.flares.filter(f => f.d < 2000);
     check(L.landedOn && L.landedOn !== 'tw_ski' && ld.onStrip === true && L.faults.every(f => f.k === 'diverted'), id + ': the altiport REFUSED, said - landed and stopped on the strip diverted to',
       (R.says.find(v => v.startsWith('strip-too-short')) || '') + ' | landed on ' + L.landedOn + ', ' + JSON.stringify(ld) + ', faults ' + (L.faults.map(f => f.k).join(',') || 'none'));

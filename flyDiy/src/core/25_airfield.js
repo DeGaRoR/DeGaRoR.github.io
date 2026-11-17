@@ -431,12 +431,15 @@ function siteScoreDirections(model, wind, lim, pref, oneWay) {
       // a tailwind past 2.5 m/s (the 5 kt of every POH) costs 30 per m/s more: 5 m/s down the strip weighs as much as an approach at its limit
       if (hw < -2.5) { sc -= 30 * (-2.5 - hw); why.push('tailwind'); }
     }
-    if (land && D.grade < 0) { sc -= 60 * -D.grade; why.push('downhill ' + (D.grade * 100).toFixed(1) + '%'); }
+    // UPHILL (the user, 17 Nov: on a sloped strip land uphill, leave downhill; DIRT-STRIP's bump matrix: the Cub landed w6 downhill and ran
+    // 124 m past the end, the Carbon Cub uphill stopped in 72 m): past 1 % the slope outweighs the wind - 1500 a unit of grade (2 %: 30
+    // points, 10 m/s of headwind at 3 a m/s); only a real tailwind (its own 30 a m/s past 2.5) turns the landing round. Under 1 % as before
+    if (land && D.grade < 0) { sc -= (-D.grade > 0.01 ? 1500 : 60) * -D.grade; why.push('downhill ' + (D.grade * 100).toFixed(1) + '%'); }
     // B.6: never downhill into a strip under 1.5 x the landing run; the strip itself shorter than the run is said either way
     if (land && lim.LDGrun && D.grade < -0.005 && model.R.len < 1.5 * lim.LDGrun) { sc -= 1000; why.push('downhill on a short strip'); }
     if (land && lim.LDGrun && model.R.len < 1.15 * lim.LDGrun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.LDGrun) + ' m run');
     if (!land && lim.TORun && model.R.len < 1.15 * lim.TORun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.TORun) + ' m take-off');
-    if (!land && D.grade > 0) { sc -= 60 * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }
+    if (!land && D.grade > 0) { sc -= (D.grade > 0.01 ? 1500 : 60) * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }   // UPHILL: and left downhill, the same weight
     if (land && reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
     else if (land && reqGs > gsNom) { sc -= 100 * (reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
     // PILOT-UNIFY (the user, 13 Nov: the Jodel must take off from Jumbo Mine): A CLIMB-OUT PAST THE AEROPLANE'S IS GRADED. Both of
@@ -626,7 +629,7 @@ function standFor(site, dims, groundAt) {
 // painted aim0/aim1 stay the different thing siteRunway says they are. `gs`
 // null = the aircraft's own slope; a number is the editor's future
 // declaration, flown if shallower than the aircraft's.
-const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
+const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12, GP_ALTI_R = 6;   // GP_ALTI_R: ALTI-TOP, an altiport's turn onto its centreline at the top (sitePattern)
 const GP_LANE_ROUGH = 1.0;   // STRIP-LANE: a rough strip's backtrack lane, m off its centreline (sitePattern)
 
 // ---- THE PARKED AEROPLANES, AND THE WAY OUT ROUND THEM (G710) ----------------
@@ -771,7 +774,7 @@ function sitePattern(aero, site, opts) {
   // struck one with its propeller. A strip whose aerodrome carries `micro` (chaos > 0) gets the lane GP_LANE_ROUGH off the
   // centreline and its U-turn made there, inside the band (the follower pivots what the wheels cannot steer, as at HOME);
   // a strip without - every strip but the bumpy ones - keeps its lane to the bit
-  const rough = !!(aero && aero.micro && +aero.micro.chaos > 0);
+  const rough = !!(aero && aero.micro && +aero.micro.chaos > 0) && !(aero && aero.altiport);   // ALTI-ROUGH (17 Nov): an altiport keeps its own way out (43_pilot stripRoughOf)
   const lane = rough ? Math.min(GP_LANE_ROUGH, R.half - 2.5) : Math.min(GP_LANE, R.half - 2.5);
   const ends = [R.end0, R.end1];
   // A SHORT STRIP'S NODES (G527): the hold 110 m in and the U-turn 27-90 m in are a long runway's - on a
@@ -880,6 +883,31 @@ function sitePattern(aero, site, opts) {
     }
     link(prev1, c1); link(c1, 'l1a');
     routes.out[1] = [st].concat(ids1, [c1]).concat(routes.back[1]);
+    // ALTI-TOP (the user via A0, 17 Nov: "you roll up top, you park over there, you maneuver ... you come at the border of the
+    // steep hill, and then you go" - every gear): AN ALTIPORT'S WAY OUT ENDS WHERE ITS RECORD ENDS IT, LINED UP DOWNHILL. Its
+    // declared taxiOut runs to the top (tw_ski, SKYLINE-RESORT 9160acf21: the stand -> up the apron -> the reversal ON THE
+    // APRON -> the line-up 8 m below the top end); the downhill direction's route went on into the generic lane U-turn near
+    // the top and the hold a quarter-ish in (110 x kIn: 70 m down on 280 m) - the reversal on the 6 m strip, and the run
+    // begun on the slope (the C172 ran out and crashed). When the way out meets the centreline within 40 m of the top end,
+    // the downhill route is the record's apron points, a corner ON the centreline (up to 4 m above the record's line-up
+    // point, never within 2 m of the end) turned on a 6 m radius (GP_ALTI_R: the C172's wheels steer it), and the hold
+    // 3 m past where that turn meets the centreline - the line-up ~10 m below the top end
+    if (aero && aero.altiport && typeof aero.landHdg === 'number') {
+      const upV = [CORE_MATH.cos(aero.landHdg), CORE_MATH.sin(aero.landHdg)];
+      const Td = (d[0] * -upV[0] + d[1] * -upV[1]) >= 0 ? 0 : 1, dn = Td === 0 ? d : [-d[0], -d[1]], Et = ends[Td];
+      const sTop = (ex - Et.x) * dn[0] + (ez - Et.z) * dn[1];
+      if (sTop > 0 && sTop < 40) {
+        const sV = Math.max(2, sTop - 4), V = at(Et.x, Et.z, dn, sV);
+        const Pl = nodes.find(q => q.id === (ids.length ? ids[ids.length - 1] : st));
+        const vx = V[0] - Pl.x, vz = V[1] - Pl.z, vl = Math.hypot(vx, vz) || 1e-9;
+        const th = Math.acos(Math.max(-1, Math.min(1, (vx * dn[0] + vz * dn[1]) / vl)));
+        const sH = sV + GP_ALTI_R * Math.tan(Math.min(1.4, th / 2)) + 3;
+        const tv = add('topV', V, 'taxi', { r: GP_ALTI_R });
+        const th2 = add('holdT', at(Et.x, Et.z, dn, sH), 'hold', { hdg: Math.atan2(dn[1], dn[0]) });
+        link(prev, tv); link(tv, th2);
+        routes.out[Td] = [st].concat(ids, [tv, th2]);
+      }
+    }
   } else if (aero.spawn) {
     // a generated strip: the spawn identity is 35 m in from end0
     const sp = add('spawn', [aero.spawn[0], aero.spawn[1]], 'stand',
@@ -962,7 +990,7 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
     // THE PILOT'S CALL (12 Nov, its yes in writing): nobody steers that U-turn - a taildragger pivots on the centreline
     // (STRIP-LANE 2), a tricycle turns in the turnaround pad and rejoins inside it (planDeparture trikePad, '@u0'); the 1 m
     // lane is what cured the Jodel's w3 stone strike, so the U-turn is not reshaped
-    const rough = !!(aero && aero.micro && +aero.micro.chaos > 0);
+    const rough = !!(aero && aero.micro && +aero.micro.chaos > 0) && !(aero && aero.altiport);   // ALTI-ROUGH: as sitePattern
     const wideEnough = R.half - 2.5 >= Rmin && !rough;
     if (Rmin > 0 && wideEnough && P.rMin < 1.05 * Rmin)
       out.push(what + ' has a ' + P.rMin.toFixed(1) + ' m corner, under the aeroplane’s ' + Rmin.toFixed(1) + ' m');
