@@ -433,6 +433,13 @@ const PLANES = {
               // cabin floor's front (the first row's station, +3050 mm: TCDS 2.52 'the entire cabin may be used as freight space')
               mtowCase: { topAt: [0, 1], label: 'every seat, the wing tanks full, the rest as freight at the cabin front' },
               note: 'fitted to the TCDS and the three-view (DRAFTING_TABLE.md); the factsheet Vs0 96 km/h (full flap, gross) has no indicator' },
+  // PC-6 ON WIPLINE 6100 AMPHIBIANS (FIT-PROCEDURE, 17 Nov; the user: "we're gonna benchmark the PC6 and the one with
+  // floats ... we didn't find good figures, so we just checked the weight of the floats"): a BENCHMARK, not a validation -
+  // no published PC-6 float figures; it reads the land type's reference (the TCDS's limits hold on floats), both halves
+  // flown, and the type's own MTOW loading (PLANES.pc6's: the freight at the cabin front)
+  pc6f:     { listRow: 58, label: 'Pilatus PC-6 on Wipline 6100 amphibious floats (benchmark: the land reference; no float figures published)', short: 'PC-6 on Wiplines', file: 'builds/candidates/pc6_floats_2026-11-13.json', ref: 'pc6', group: 'seaplane', water: true, land: true,
+              mtowCase: { topAt: [0, 1], label: 'every seat, the wing tanks full, the rest as freight at the cabin front' },
+              note: 'the drafting table\'s PC-6 on Wiplines (the floats\' weight checked against Wipline\'s 6100 figures); a benchmark beside the land PC-6' },
   cub:      { listRow: 1, label: 'Piper Cub (official)', short: 'Piper Cub', file: 'builds/cub_2026-09-20_corrected.json', ref: 'cub', official: true },
   // (the user, 9 Nov: the J-3's chord, 1.60 m; the shipped file is the calibration datum of 105 checks, so the candidate
   // stands in the report in its place until the user promotes it)
