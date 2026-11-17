@@ -416,7 +416,6 @@ const SPLAT_GROUND = (() => {
     // macro texture's soft levels are (sTrMac): the same mosaic past the texture's 2 km, in the far tier and the outer ring
     float a = texture2D(uGTint, uv).a;
     gTrBias = 0.0;
-    gTrJ = sTrJoints(xz);
     if (a < 0.004) return 0.0;
     float d = distance(vWPi, cameraPosition), dk = 1.0 - smoothstep(900.0, 2500.0, d), fine = gVnoise(xz / 8.0 + 11.3);
     float E = a * 1.5 - 0.3 + (fine - 0.5) * 0.5 + (gVnoise(xz / 3.2 + 4.1) - 0.5) * 0.35 * dk, sw = 0.04 + 5.4e-5 * d;
@@ -431,13 +430,13 @@ const SPLAT_GROUND = (() => {
   // Read once a pixel in the vote (sTrMac: two reads a level, the finest valid level first, the next under its edge's fade);
   // where it lies the macro IS the rock's exposure (v1: the macro over the raster) and sTrPost's colour, green and height
   uniform highp sampler2DArray uTrMT; uniform vec4 uTrMR[4]; uniform vec4 uTrMX;   // (uTrMX: the extents of the levels 0-2, on; the 4th's is twice the 3rd's)
-  vec4 gTrMA = vec4(0.0), gTrMB = vec4(0.0); float gTrIn = 0.0;
+  vec4 gTrMA = vec4(0.0), gTrMB = vec4(0.0); float gTrIn = 0.0, gTrSoft = 0.0;
   float sTrMacW(vec2 xz, vec4 R){ vec2 d = min(xz - R.xy, R.zw - xz); return smoothstep(0.0, 0.06 * (R.z - R.x) + 1.0, min(d.x, d.y)); }
   float sTrMac(vec2 xz){
 #ifdef GS_TRLITE
     return 0.0;
 #else
-    gTrMA = vec4(0.0); gTrMB = vec4(0.0); gTrIn = 0.0;
+    gTrMA = vec4(0.0); gTrMB = vec4(0.0); gTrIn = 0.0; gTrSoft = 0.0;
     if (uTrMX.w < 0.5) return 0.0;
     float w0 = sTrMacW(xz, uTrMR[0]), w1 = (1.0 - w0) * sTrMacW(xz, uTrMR[1]), w2 = (1.0 - w0 - w1) * sTrMacW(xz, uTrMR[2]), w3 = (1.0 - w0 - w1 - w2) * sTrMacW(xz, uTrMR[3]);
     vec4 a0 = vec4(0.0), b0 = vec4(0.0), aS = vec4(0.0), bS = vec4(0.0);
@@ -456,7 +455,7 @@ const SPLAT_GROUND = (() => {
       float e = smoothstep(0.46 - sw, 0.46 + sw, E);
       e *= 1.0 - clamp(smoothstep(0.56, 0.63, gVnoise(xz / 4.9 + 2.2)) + smoothstep(0.6, 0.66, gVnoise(xz / 2.0 - 7.7)) * 0.8, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.3, 0.7, fine)) * (0.4 + 0.6 * dk);
       aS.a = e; bS.b = max(bS.b, 1.0 - e); }
-    gTrMA = (a0 * w0 + aS * wS) / gTrIn; gTrMB = (b0 * w0 + bS * wS) / gTrIn;
+    gTrMA = (a0 * w0 + aS * wS) / gTrIn; gTrMB = (b0 * w0 + bS * wS) / gTrIn; gTrSoft = wS / gTrIn;
     return gTrIn;
 #endif
   }
@@ -529,7 +528,8 @@ const SPLAT_GROUND = (() => {
       float st = smoothstep(0.55, 0.85, gVnoise(vec2((fx > fz ? P.z : P.x) / 2.2, P.y / 26.0)) * 0.7 + hollow * 0.45) * smoothstep(38.0, 55.0, slope);
       mult = mix(mult, vec3(0.38, 0.38, 0.34), st * uTrF.w);
     }
-    mult = mix(mult, gTrMA.rgb * 1.5, mtw);   // (the macro texture where it lies: v1's own, a pixel at a time)
+    mult = mix(mult, gTrMA.rgb * 1.5, mtw);
+    mult = mix(mult, vec3(0.40, 0.38, 0.30), jf * uTrJ.z * mtw * gTrSoft);   // (the soft levels' joints: the pixel's own lines, as the exposure's cut above)   // (the macro texture where it lies: v1's own, a pixel at a time)
     o.c.rgb *= mult;
     o.c.rgb *= mix(vec3(1.0), uTrW.rgb, uTrW.a) * uTrS.w;   // (uTrW.rgb is neutral now: the film is the imagery's tint, laid on in the macro step below)   // THE BLEND WITH THE GRASS (16 Nov, the user: "a value issue"): the rock's value in proportion to the game's grass, a film of its hue
     { float hN = mix(rg ? vRX.y : 0.0, gTrMB.a, mtw), wh = max(rg ? 1.0 : 0.0, mtw);   // the macro's height into the blend's (v1)
@@ -736,6 +736,10 @@ const SPLAT_GROUND = (() => {
       bool rgv = vRM.w > 1.5 || mw > 0.0;   // a relief vertex or the macro texture: the macro's exposure IS the rock (v1: the macro over the raster), a slot made if the raster had none
       if (rgv && r <= 0.02) { if (k4 < 0) { k4 = 6; v4 = 0.0; } else if (k3 < 0) { k3 = 6; v3 = 0.0; } r = 0.0; }
       if (r > 0.02 || rgv) {
+        // (17 Nov, the user: "still no detail texture" far away - v1's stone is POLYGONS: its exposure cut by the joints' soil at every
+        // distance (its 0.78 m texture); the soft levels (2-8 m) and the map's field had no joints past 900 m - soft blotches. The joints
+        // are drawn here once a pixel (widened to the pixel, faded by the same ratio: sTrLine) and cut the soft share's exposure)
+        gTrJ = sTrJoints(xz); gTrMA.a *= 1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y * gTrSoft;
         float e = sTrE(r, xz, slope, uv, mw), ko = (1.0 - e) / max(1.0 - r, 1e-3);
         v0 = k0 == 6 ? e : v0 * ko; v1 = k1 == 6 ? e : v1 * ko; v2 = k2 == 6 ? e : v2 * ko; v3 = k3 == 6 ? e : v3 * ko; v4 = k4 == 6 ? e : v4 * ko;
         float fr = 1.0 - r < 1e-3 ? 1.0 - e : 0.0;
@@ -831,6 +835,10 @@ const SPLAT_GROUND = (() => {
       float mw = sTrMac(xz);
       bool rgv = vRM.w > 1.5 || mw > 0.0;
       if (r > 0.02 || rgv) {
+        // (17 Nov, the user: "still no detail texture" far away - v1's stone is POLYGONS: its exposure cut by the joints' soil at every
+        // distance (its 0.78 m texture); the soft levels (2-8 m) and the map's field had no joints past 900 m - soft blotches. The joints
+        // are drawn here once a pixel (widened to the pixel, faded by the same ratio: sTrLine) and cut the soft share's exposure)
+        gTrJ = sTrJoints(xz); gTrMA.a *= 1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y * gTrSoft;
         float e = sTrE(r, xz, slope, uv, mw), ko = (1.0 - e) / max(1.0 - r, 1e-3);
         for (int i = 0; i < uSNCode; i++) if (i != 6 && i != 12) w[i] *= ko;
         w[6] = e * (1.0 - sCliff); w[12] = e * sCliff;
