@@ -767,7 +767,7 @@
    "cw_shaftLen": 0.3,
    "cw_bladeN": 3,
    "cw_propD": 2.54,
-   "cw_material": 3,
+   "cw_material": 2,
    "cw_rpm": 2400,
    "cw_tas": 205,
    "cw_power": 160,
@@ -1053,7 +1053,7 @@
   },
   "prop": {
    "blades": 3,
-   "material": "carbon",
+   "material": "alu",
    "pitch": "climb",
    "D": 2.7
   },
@@ -1572,6 +1572,30 @@
     "who": "session",
     "step": "fit",
     "line": "the user: keep the 30 cm tail end (5 and 10 cm broke a tail member in the water round trip: the drawn width also sets the flown tail frame) {\"frTailTopW\":0.204,\"tailHalfW\":0.204,\"frTailBotW\":0.204}"
+   },
+   {
+    "date": "2026-11-17T02:30",
+    "who": "session",
+    "step": "fit",
+    "line": "r16 (16 Nov, the user): the windscreen base back to the three-view and the user's bulge B - flat in the middle, rounded on the sides (FLAGSHIP's shoulder rows) {\"wsBaseBow\":0.25,\"wsBaseLift\":0.17,\"wsCeilBow\":0.78,\"wsShoulder\":1,\"wsShoulderX\":0.85,\"wsShoulderTop\":0.7,\"wsShoulderBase\":0.3}"
+   },
+   {
+    "date": "2026-11-17T02:30",
+    "who": "session",
+    "step": "source",
+    "line": "the fuel (TCDS F 56-10 issue 7, 2.23: 2 wing tanks at +3790 mm, 130 US gal): a 492 L Jet A-1 tank in the wing-root bay (spec.energy), in place of the generic 124 L nose tank; the MTOW loading for the checks: every seat, the tanks full, the rest as freight at the cabin's front (TCDS 2.52) - CG 38 % MAC at 2800 kg (2.44: 32-38 %)"
+   },
+   {
+    "date": "2026-11-17T02:30",
+    "who": "session",
+    "step": "source",
+    "line": "the tail gear's mass (REAL-FIGURES' verdict, the user: 'definitely lighten the tail wheel'): the strut's fittings billed once (the clamps, plates, truss tubes and doublers ARE the frame's members: they carry them at half the gear class's tube, and the bill no longer puts them on the nodes too - billed twice, ~15 kg at the tail); the wheel group (wheel, tyre, fork, crosshead, V arms, steering) at a 14 in heavy tailwheel assembly's 17.4 lb / 7.9 kg (McFarlane / Landing Gear Works XPM1-3-8, XPM1-5: Cessna 180/185, T188C; the PC-6's own is the same class, a 5.00-4 tyre, Beringer STC-002); the guard at the PC-6's own debris guard, Dwg. 112.35.06.213, 2.7 kp at +9850 mm (TCDS 2.96 item 15); the oleo strut and its fittings as drawn (no published figure found). The tail gear 46.9 -> ~27 kg"
+   },
+   {
+    "date": "2026-11-17T02:30",
+    "who": "session",
+    "step": "source",
+    "line": "the propeller's blades (TCDS F 56-10: the Hartzell HC-B3TN-3D - aluminium blades): carbon -> aluminium 2025-T6, +16.5 kg at the nose {\"cw_material\":2}. With the tail gear: CG MIN 36 %, TYP 36 %, MTOW 35 % MAC (the TCDS envelope: 11-38 % at 1450 kg, 32-38 % at 2800), empty 1179 kg (factsheet band 1150-1350)"
    }
   ],
   "gaps": []
