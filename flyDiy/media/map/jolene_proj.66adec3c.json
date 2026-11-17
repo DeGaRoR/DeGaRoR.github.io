@@ -2984,15 +2984,9 @@
   }
  },
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
-<<<<<<<< HEAD:flyDiy/media/map/jolene_proj.a04b3a83.json
- "img": "media/map/jolene_map.2ac7711e.png",
- "imgBytes": 715194,
- "imgHash": "2ac7711e",
-========
- "img": "media/map/jolene_map.72c18ebd.png",
- "imgBytes": 715166,
- "imgHash": "72c18ebd",
->>>>>>>> 2023c6df5:flyDiy/media/map/jolene_proj.b3ddc51f.json
+ "img": "media/map/jolene_map.60a4de14.png",
+ "imgBytes": 715234,
+ "imgHash": "60a4de14",
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
