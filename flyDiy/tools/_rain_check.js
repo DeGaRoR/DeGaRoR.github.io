@@ -149,5 +149,14 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
   const WR = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'world_rail.js'), 'utf8');
   ok(['rainExt', 'rainLight', 'rainKm', 'rainSteps'].every(k => WR.indexOf("cs('" + k + "')") > 0 && WR.indexOf("'" + k + "'") > 0), '9f the shafts\' four dials are in the world editor\'s rain block and THE LOOK'); }
 
+// 10 THE DROPS ON THE GLASS (RAIN step 2 prototype, aeroweather.js + aeroskin.js + app.js, static; the look is the user's call)
+{ const fsx = require('fs'), px = require('path'), AW = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'aeroweather.js'), 'utf8'),
+    AS = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'aeroskin.js'), 'utf8'), APP = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  const b0 = AW.indexOf('    if (uRainG.x > 0.0) {'), blk = b0 < 0 ? '' : AW.slice(b0, AW.indexOf('roughnessFactor = mix(roughnessFactor, 0.02, aeroRainD);', b0));
+  ok(b0 > 0 && blk.indexOf('texture') < 0 && AW.indexOf('uRainG: { value: new THREE.Vector4(0, 0, 0, 1) },') > 0, '10a the drops are cells in the glass program, gated by the wetness (0 = dry: skipped), no texture, no sampler');
+  ok(blk.indexOf('vec3(0.0, 1.0, 0.0) * (rAir * 3.0) + uRainF.xyz * (1.0 - rAir)') > 0 && blk.indexOf('rF - rN * dot(rF, rN)') > 0, '10b the flow: the airflow (craft +y, aft) blended with gravity by airspeed, projected on the pane');
+  ok(AS.indexOf('if (aeroRainD > 0.0) {') > 0 && APP.indexOf('glassRainFrame(dt, R, RAIN_Q === 0);') > 0 && APP.indexOf('AEROWX.aeroWxSetRain(THREE, glassWet, V, RAIN_ST.t, g);') > 0,
+     '10c the glass shades them; the page sets the wetness (rises in rain, dries after), the airspeed and gravity each frame; ?rain=0 keeps the glass dry'); }
+
 console.log('GATE RAIN: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

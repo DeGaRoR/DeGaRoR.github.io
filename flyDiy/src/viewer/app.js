@@ -8358,10 +8358,26 @@
   const RAIN_Q = (() => { try { const m = /[?&]rain=([0-9.]+)/.exec(location.search || ''); return m ? +m[1] : null; } catch (e) { return null; } })();
   let rainFx = null;
   const RAIN_ST = { t: 0, last: null, vel: [0, 0, 0], vp: null, cabInv: null, light: null, why: 'dry' };
+  // RAIN ON THE GLASS (step 2 prototype, 17 Nov): the glass's wetness rises in rain (~6 s) and dries out of it (~60 s), handed to the glass
+  // program with the airspeed, the clock and gravity in craft space (world down through the shared uCraftInv) - the drops' flow
+  let glassWet = 0;
+  const _gDown = [0, 0, -1];
+  function glassRainFrame(dt, R, off) {
+    if (typeof AEROWX === 'undefined' || !AEROWX.aeroWxSetRain) return;
+    const target = off ? 0 : (R > 0 ? R : 0);
+    if (dt > 0) { glassWet += (target - glassWet) * Math.min(1, dt / (target > glassWet ? 6 : 60)); if (target === 0 && glassWet < 0.002) glassWet = 0; }
+    if (!(glassWet > 0) && !(target > 0)) { AEROWX.aeroWxSetRain(THREE, 0, 0, 0, null); return; }
+    let g = null;
+    try { const U = window.AEROSKIN && AEROSKIN.aeroSharedU ? AEROSKIN.aeroSharedU(THREE) : null;
+      if (U && U.uCraftInv) { const e = U.uCraftInv.value.elements, x = -e[4], y = -e[5], z = -e[6], n = Math.hypot(x, y, z) || 1; _gDown[0] = x / n; _gDown[1] = y / n; _gDown[2] = z / n; g = _gDown; } } catch (err) {}
+    const V = sim && sim.cgVel ? Math.hypot.apply(null, sim.cgVel()) : 0;
+    AEROWX.aeroWxSetRain(THREE, glassWet, V, RAIN_ST.t, g);
+  }
   function syncRainFx(dt) {
     const R = typeof CLOUDS !== 'undefined' && CLOUDS.ready ? CLOUDS.rain : 0, G = window.GFX && window.GFX.get ? window.GFX.get() : null;
     const pick = RAIN_Q === 0 ? 'off' : ((G && G.rain) || 'auto');
     const tier = pick === 'auto' ? (G && /^(laptop|potato|retro)$/.test(G.preset || '') ? 'lean' : 'full') : pick;   // auto: lean on the light presets
+    glassRainFrame(dt, R, RAIN_Q === 0);   // the drops on the glass (the streaks' tier does not switch them; ?rain=0 does)
     if (!rainFx) {
       if (!(R > 0) || tier === 'off' || typeof RAIN_FX === 'undefined' || !THREE.InstancedBufferGeometry) { RAIN_ST.why = R > 0 ? 'off (' + tier + ')' : 'dry'; return; }
       rainFx = RAIN_FX.make(THREE); scene.add(rainFx.mesh);
@@ -8387,7 +8403,7 @@
       viewport: [S.vp.x, S.vp.y], cabin: cockpit ? { inv: S.cabInv, half: RAIN_FX.LOOK.cabinHalf } : null });
     S.why = rainFx.drawn ? 'drawn' : (R > 0 ? 'off (' + tier + ')' : 'dry');
   }
-  if (typeof window !== 'undefined') window.RAIN_LIVE = { get fx() { return rainFx; }, get st() { return RAIN_ST; }, get q() { return RAIN_Q; } };
+  if (typeof window !== 'undefined') window.RAIN_LIVE = { get fx() { return rainFx; }, get st() { return RAIN_ST; }, get q() { return RAIN_Q; }, get glassWet() { return glassWet; } };
   function syncFloats() {
     for (const m of floatMeshes) {
       const fx = m.userData.fx, F = fx.F, W = fx.out.W;
@@ -21495,8 +21511,8 @@
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
-    if (!inGarage) syncRainFx(running ? fdt : 0); else if (rainFx) rainFx.mesh.visible = false;   // RAIN: the streaks round the eye (made the first time it rains)
     mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane
+    if (!inGarage) syncRainFx(running ? fdt : 0); else if (rainFx) rainFx.mesh.visible = false;   // RAIN: the streaks round the eye (made the first time it rains)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets
