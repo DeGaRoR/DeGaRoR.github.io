@@ -393,7 +393,7 @@ const CAGE_PARTS = [
     place: { at: 'on the cabin front ring' },
     groups: [
       // (the windscreen frame is the CABIN's again - G1321.2)
-      ['shape', ['wsBaseBow', 'wsCeilBow']],
+      ['shape', ['wsBaseBow', 'wsCeilBow', 'wsToWaist', 'wsShoulder', 'wsShoulderX', 'wsShoulderTop', 'wsShoulderBase']],
       // the bubble canopy IS the screen's own continuation (2026-09-04)
       ['bubble canopy', ['bubble', 'bubH', 'bubAt', 'bubW',
                          'canLoops', '_viewLoops', 'bubH2', 'bubAt2', 'bubW2', 'bubH3',

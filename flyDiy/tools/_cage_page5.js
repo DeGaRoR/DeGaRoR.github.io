@@ -632,6 +632,16 @@ window.CAGE_PAGE = {
         // (wsRun / wsTopOff are the windscreen frame's waist / top fore-aft)
         ['wsBaseBow', 'base bow',       0.00, 1.20, 0.01],
         ['wsCeilBow', 'ceiling bow',    0.00, 0.60, 0.005],
+        // WS-TO-WAIST (15 Nov, the 172): the windscreen's strip under the glass (its waistband) glazed down to the waist
+        ['wsToWaist', 'windscreen reaches', 0, 1, 1, ['the waistband', 'the waist (no strip)'], { absent: 0 }],
+        // WS-SHOULDER (15 Nov, the 172: "a V ... the original is very much a U"): a shoulder column each side of the
+        // screen - how far forward it comes (0 = on the straight pillar-to-centre line, 1 = level with the centre: a
+        // flat front), and how far out it sits (a fraction of the pillar's half-width)
+        ['wsShoulder',  'shoulders forward', 0, 1, 0.01, { absent: 0 }],
+        ['wsShoulderX', 'shoulders out',     0.30, 0.95, 0.01, { when: P => +P.wsShoulder > 0, absent: 0.65 }],
+        ['wsShoulderTop', 'shoulders at the top x', 0, 1, 0.01, { when: P => +P.wsShoulder > 0, absent: 1 }],
+        // (16 Nov) how far forward at the screen's BASE (absent 1: full) - 0 keeps the base corner on the deck
+        ['wsShoulderBase', 'shoulders at the base x', 0, 1, 0.01, { when: P => +P.wsShoulder > 0, absent: 1 }],
         // G2770 (the user: "the bubble glass option is misleading. It's more
         // like an additional adjourning, that should be hidden in real canopy
         // bubble mode"): the row hides under a bubble canopy (its value kept)

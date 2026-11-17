@@ -105,7 +105,9 @@ function runQuick(keys, jobs) {
   const bad = errs.concat(compare(now, base));
   if (has('selftest')) {
     const red = (name, b) => { if (!b.length) bad.push('selftest: not red on ' + name); else console.log('  selftest red on ' + name + ': ' + b[0].slice(0, 110)); };
-    const k0 = Object.keys(now)[0], cl = o => JSON.parse(JSON.stringify(o));
+    // (the planted errors go on the LIGHTEST live plane: the empty mass's tolerance is relative (0.5 %), so a 5 kg plant
+    // on whichever plane came first - the PC-6, 1178 kg, once it ran first - sat inside it; PC6F 17 Nov)
+    const k0 = Object.keys(now).sort((a, b) => ((now[a].facts || {}).empty || 1e9) - ((now[b].facts || {}).empty || 1e9))[0], cl = o => JSON.parse(JSON.stringify(o));
     let n = cl(now); const c0 = Object.keys(n[k0].cases)[0];
     n[k0].cases[c0].Vs *= 1.02; red('a stall speed 2 % up', compare(n, now));
     n = cl(now); n[k0].facts.empty += 5; red('the empty mass 5 kg up', compare(n, now));

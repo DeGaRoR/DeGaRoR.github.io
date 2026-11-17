@@ -2030,6 +2030,27 @@ const PC6_USD = { 'oleo cylinder': 1900, 'oleo charge (oil, gas valve, seals)': 
   'steering collar and ears': 450, 'crosshead (forged)': 350, 'fork legs and axle': 300,
   'V upper arm and hinge pin (forged alloy)': 500, 'V bands (2, forged alloy)': 350,
   'steering arm, cables and springs': 300, 'mudguard, strap and doubler': 250 };
+// PC6-MASS (REAL-FIGURES' verdict, 17 Nov: "lighten the tail gear to a SOURCED real assembly mass"). THE SOURCES:
+//  - THE WHEEL GROUP (the wheel and tyre, the fork and axle, the crosshead, the V's arms, the steering arm): a 14 in
+//    heavy tailwheel assembly - wheel, tyre, fork, swivel and steering - weighs 17.4 lb, 7.9 kg (McFarlane / Landing
+//    Gear Works XPM1-3-8 and XPM1-5, FAA-PMA; eligible on the Cessna 180/185 and the T188C AgTruck). The PC-6's own
+//    tailwheel is the same class (a 5.00-4 tyre, ~14 in: Beringer's PC-6 kit STC-002). The drawn parts keep their
+//    shares and are scaled so the group with the wheel and tyre (the frame's row, 60_gen_spec wheelTwKg - the same rule
+//    here) weighs the assembly's 7.9 kg.
+//  - THE GUARD: the PC-6's own tail wheel debris guard, Dwg. 112.35.06.213, 2.7 kp at +9850 mm (TCDS F 56-10 issue 7,
+//    2.96 Optional Equipment, item 15).
+//  - THE STRUT AND ITS FITTINGS (the cylinder, the piston, the charge, the collar, the clamps, the truss): no published
+//    figure was found - billed as drawn (their sizes, their materials).
+const PC6_SRC = { groupKg: 7.9, guardKg: 2.7,
+  group: ['crosshead (forged)', 'fork legs and axle', 'V upper arm and hinge pin (forged alloy)', 'V bands (2, forged alloy)', 'steering arm, cables and springs'] };
+function pc6Source(bill, R) {
+  const wheel = 2.0 * Math.pow(Math.max(0.03, R) / 0.10, 1.5);   // (60_gen_spec GEN_RULES.wheelTwKg)
+  const grp = bill.filter(b => PC6_SRC.group.includes(b.part)), drawn = grp.reduce((s, b) => s + b.kg, 0);
+  const k = drawn > 0 ? Math.max(0, PC6_SRC.groupKg - wheel) / drawn : 1;
+  for (const b of grp) { b.drawnKg = b.kg; b.kg *= k; b.src = 'McFarlane XPM1-5 14 in assembly 17.4 lb (the group with the wheel)'; }
+  for (const b of bill) if (b.part === 'mudguard, strap and doubler') { b.drawnKg = b.kg; b.kg = PC6_SRC.guardKg; b.src = 'TCDS F 56-10 2.96-15: debris guard 2.7 kp'; }
+  return bill;
+}
 function pc6Price(bill) { for (const b of bill) b.usd = PC6_USD[b.part] || 0; return bill; }
 function pcSecPlate(a, b, r) {               // a rounded rectangle, a along the sweep's reference, b across, corners r
   const out = [], A = 3, ha = Math.max(1e-4, a / 2 - r), hb = Math.max(1e-4, b / 2 - r);
@@ -2981,7 +3002,7 @@ function legTailwheel(bags, AF, P, st) {
       const clampKg = 2 * (Math.PI * (D + 0.013) * 0.0065 * 0.9 * D * RH.steel            // the band
                           + 2 * pcBar(0.06, 0.9 * D, 0.005, RH.alloy)                      // two cheeks
                           + pcBar(2.0 * D, 2.8 * D, 0.006, RH.alloy) + 0.12);              // the base plate, lugs, bolts
-      bill.push({ part: 'clamps and bulkhead plates (2)', at: 'cyl', kg: clampKg, usd: 0 });
+      bill.push({ part: 'clamps and bulkhead plates (2)', at: 'frame', kg: clampKg, usd: 0 });
     }
     // THE STABILISER (fixed): the node ahead and low, its two tubes to the belly (each foot the skin's own point with a
     // doubler: "make these robust, it's a generic option"), its link aft and up to a band on the CYLINDER's foot - the
@@ -3018,8 +3039,8 @@ function legTailwheel(bags, AF, P, st) {
       // its bill: the three 4130 tubes (1.2 mm wall), the doublers, the clevises, the link's band, the node
       {
         const L3 = ends.map(e => Math.hypot(...sub(H, e)));
-        pc6Rec.bill.push({ part: 'stabiliser tubes (3, 4130)', at: 'stab', kg: pcTube(0.48 * D, 0.0012, L3[0] + L3[1], PC6_RHO.steel) + pcTube(0.52 * D, 0.0012, L3[2], PC6_RHO.steel), usd: 0 });
-        pc6Rec.bill.push({ part: 'belly doublers, clevises, link band', at: 'stab', kg: 2 * pcBar(2.4 * D, 1.7 * D, 0.006, PC6_RHO.alloy) + 3 * 0.09 + 0.25, usd: 0 });
+        pc6Rec.bill.push({ part: 'stabiliser tubes (3, 4130)', at: 'frame', kg: pcTube(0.48 * D, 0.0012, L3[0] + L3[1], PC6_RHO.steel) + pcTube(0.52 * D, 0.0012, L3[2], PC6_RHO.steel), usd: 0 });
+        pc6Rec.bill.push({ part: 'belly doublers, clevises, link band', at: 'frame', kg: 2 * pcBar(2.4 * D, 1.7 * D, 0.006, PC6_RHO.alloy) + 3 * 0.09 + 0.25, usd: 0 });
       }
       const welded = Math.round(+P.twNode || 0) !== 1;
       ends.forEach((e, i) => { const d = nrm(sub(H, e));
@@ -3144,9 +3165,11 @@ function legTailwheel(bags, AF, P, st) {
   // must not move; `tip` is the castor's swivel top. The join pins both.
   if (pc6Rec && u.pc6 && u.pc6.bill) {
     for (const b of u.pc6.bill) pc6Rec.bill.push(b);
+    pc6Source(pc6Rec.bill, st.R);
     pc6Price(pc6Rec.bill);
     const sumAt = a => pc6Rec.bill.filter(b => b.at === a).reduce((s, b) => s + b.kg, 0);
-    pc6Rec.kgCyl = sumAt('cyl'); pc6Rec.kgSlider = sumAt('slider'); pc6Rec.kgStab = sumAt('stab');
+    // (PC6-MASS: the 'frame' parts - the fittings - are the frame's members' own mass, not put on the nodes again)
+    pc6Rec.kgCyl = sumAt('cyl'); pc6Rec.kgSlider = sumAt('slider'); pc6Rec.kgStab = sumAt('stab'); pc6Rec.kgFrame = sumAt('frame');
     pc6Rec.usd = pc6Rec.bill.reduce((s, b) => s + b.usd, 0);
     for (const b of pc6Rec.bill) { b.kg = Math.round(b.kg * 1000) / 1000; }
   }
