@@ -38,11 +38,20 @@ const FIX = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.j
 // the field on w7 against the bare island, as before
 const world = J => IN.islandWorld('jolene', { premises: JSON.stringify(J) });
 {
-  const VET = { w3: 0.2, w8: 0.4 };
+  // (AFB-0220, 13 Nov, Pilot via A0: xw_rough - Jolene 02/20's rough lane, firm mud - at 0.55 VETTED "for the stock build, Cub, C172
+  //  (list:50) and Jodel only (the four tools/afb0220_ap_probe.js flew); a card that hasn't flown it isn't vetted")
+  //  (A0's RULING, 13 Nov: on its firm mud the C172 REJECTS a take-off off the lane - ROLL > ABORT > STOPPED, no damage - and lands
+  //  there fine off w2: correct behaviour for the STOL-practice side, the same rule as the TAIL / TOUR refusals; GATE AFB0220 10)
+  // (BUMPINESS, the user 16 Nov ~23:00 - the owner's re-pin, DIRT-STRIP: red marks on the Jolene Airstrips table, a dot = 0.2 chaos,
+  //  "dirt runways come with a default 2 as base bumpiness"; then 17 Nov: "test the strips with the new settings, especially the
+  //  harshest ones" - flown on flight_script.js 17 Nov 01:00-02:30, Cub / Jodel / C172 refit / Carbon Cub SS on w4 0.2, w7 0.4,
+  //  w1 0.6, w6 0.8: the Cub clears 0.2-0.6, the Carbon Cub SS clears 0.8, the Jodel and the C172 fail some - the user's wish: "we
+  //  just measure, and we hope that some can't"; page SvVC49X8qU65hMUy1Gixah). HOME stays flat; xw_rough keeps its 0.55
+  const VET = { w1: 0.6, w2: 0.4, w3: 0.2, w4: 0.2, w5: 0.4, w6: 0.8, w7: 0.4, w8: 0.6, mn_strip: 0.4, nv_strip: 0.4, tw_ski: 0.2, mt_strip: 0.2, xw_rough: 0.55 };
   const recs = FIX.layers.runways.filter(r => r.micro).map(r => r.id + ':' + r.micro.chaos).sort().join(', ');
   world(FIX); const pub = [...SM.live.values()].flat().map(s => s.id).sort().join(', ');
   const want = Object.keys(VET).sort().map(k => k + ':' + VET[k]).join(', ');
-  verdict(recs === want && pub === Object.keys(VET).sort().join(', '), `Jolene as shipped is bumpy on the Pilot-vetted strips only: ${recs || 'none'} in the record (want ${want}), ${pub || 'none'} published; the mine strip and the rest flat`);
+  verdict(recs === want && pub === Object.keys(VET).sort().join(', '), `Jolene as shipped is bumpy at the user's marks (16 Nov) only: ${recs || 'none'} in the record (want ${want}), ${pub || 'none'} published; the mine strip and the rest flat`);
 }
 const FIX0 = JSON.parse(JSON.stringify(FIX)); for (const r of FIX0.layers.runways) delete r.micro;
 const withMicro = (id, micro) => { const J = JSON.parse(JSON.stringify(FIX0)); const r = J.layers.runways.find(q => q.id === id); r.micro = micro; return J; };
