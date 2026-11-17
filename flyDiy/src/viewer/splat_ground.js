@@ -367,7 +367,7 @@ const SPLAT_GROUND = (() => {
   uniform vec4 uTrG;             // the green: amount, its roughness, its saturation, the bare stone's roughness (x the tile's)
   uniform vec4 uTrF;             // the micro detail from / to (m), the joints gone by (m), the wet streaks
   uniform vec4 uTrS;             // the slab -> face split under the dial: from / full by (deg); the micro photo's raw mean luminance
-  uniform vec4 uTrX;             // the grass in the rock: its share of the macro tint x (the open heath's = 1)
+  uniform vec4 uTrX;             // the grass in the rock: its share of the macro tint x (the open heath's = 1), its brightness
   uniform vec4 uTrW;             // the rock's film: the grass's hue (rgb, over its luminance), its amount (the weathering); uTrS.w the value match
   uniform vec4 uTrM;             // the micro detail: brightness strength, normal strength; the NDVI's pull on the exposure, its midpoint
   // R1 RIDES THE MATERIAL CHAIN (A0's box, 16 Nov: the first R1's own sample chain - 7 more inlined sFetch - linked every ground
@@ -553,6 +553,7 @@ const SPLAT_GROUND = (() => {
       vec3 green = mix(vec3(0.045, 0.058, 0.022) * (0.8 + 0.6 * n2g), gr, smoothstep(0.3, 0.8, Gv));
       green = mix(vec3(gLuma(green)), green, uTrG.z);   // (the green's saturation: 1 = the bench v1's)
       gTrGw = max(gTrGw, gw);
+      green *= uTrX.y;   // (17 Nov, IN THE GAME: the green in the rock 2.3 x v1's moss under the game's light - its brightness, rockGreenK)
       o.c.rgb = mix(o.c.rgb, green, gw); o.n.xyz *= 1.0 - 0.6 * gw; o.n.w = mix(o.n.w, uTrG.y, gw); o.c.a = mix(o.c.a, 0.2, gw);
     }
     o.n.w = clamp(o.n.w * uTrG.w, 0.02, 1.0);   // the bare stone's roughness (the tile's maps x the dial)
@@ -1244,7 +1245,7 @@ const SPLAT_GROUND = (() => {
       // R1: the island's own rock (sTrExpo, sTrPost; the tiles ride the rock codes' sets)
       uTrOn: { value: 0 }, uTrL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uTrK: { value: new THREE.Vector4(400, 1200, 1, 0.5) },
       uTrE: { value: new THREE.Vector4(250, 760, 0.3, 0.08) }, uTrMeanS: { value: new THREE.Vector4(0.3, 0.27, 0.2, 1) }, uTrS: { value: new THREE.Vector4(42, 58, 0, 0) },
-      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) }, uTrW: { value: new THREE.Vector4(1, 1, 1, 0) }, uTrX: { value: new THREE.Vector4(1, 0, 0, 0) },
+      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) }, uTrW: { value: new THREE.Vector4(1, 1, 1, 0) }, uTrX: { value: new THREE.Vector4(1, 0.6, 0, 0) },
       uTrMT: { value: null }, uTrMR: { value: [V4(), V4(), V4(), V4()] }, uTrMX: { value: V4() },   // the macro texture (rock_ring.js fills it)
     };
     let ready = false;
@@ -1346,8 +1347,8 @@ const SPLAT_GROUND = (() => {
             // graded hue is itself olive - the open heath is green by the imagery's macro tint - so the film is that tint, laid on
             // the stone by rockWeather in the macro step (sSplat); its hue here stays neutral (the boulders take the value match alone)
             U.uTrW.value.set(1, 1, 1, kv('rockWeather', 0.25)); } }
-        U.uTrX.value.set(Math.min(1 / Math.max(K.macroNear || 0.5, 0.05), kv('rockGreenTint', 1)), 0, 0, 0);   // (capped: the tint's whole, 1, at most)
-        U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 2500), kv('rockMicro', 1), kv('rockK', 0.72));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
+        U.uTrX.value.set(Math.min(1 / Math.max(K.macroNear || 0.5, 0.05), kv('rockGreenTint', 1)), kv('rockGreenK', 0.6), 0, 0);   // (capped: the tint's whole, 1, at most)
+        U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 2500), kv('rockMicro', 1), kv('rockK', 0.45));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
         U.uTrE.value.set(kv('rockHLo', 250), kv('rockHHi', 760), kv('rockBias', 0.3), kv('rockOff', 0.08));
         const mS = lib(T4[0]).mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded
         if (mS) U.uTrMeanS.value.set(mS[0] * (gS ? gS.x : 1), mS[1] * (gS ? gS.y : 1), mS[2] * (gS ? gS.z : 1), 1);

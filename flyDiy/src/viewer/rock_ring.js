@@ -471,7 +471,7 @@ Smp rRock(vec3 P, vec3 nG){
       // dim) is kept as luminance only. Anchors: the vertex's common / fog_vertex, the fragment's common, color_fragment,
       // normal_fragment_maps, roughnessmap_fragment (map_fragment and the vertex's begin / project are fadeInject's)
       skin(sh) {
-        Object.assign(sh.uniforms, { uSplat: U.uSplat, uSplatN: U.uSplatN, uSGrade: U.uSGrade, uSFilt: U.uSFilt, uRL: L.uRL, uTrS: U.uTrS });
+        Object.assign(sh.uniforms, { uSplat: U.uSplat, uSplatN: U.uSplatN, uSGrade: U.uSGrade, uSFilt: U.uSFilt, uRL: L.uRL, uTrS: U.uTrS, uTrK: U.uTrK, uTrX: U.uTrX });
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vRkW, vRkN;')
           .replace('#include <fog_vertex>', '#include <fog_vertex>\n  { vec4 rkP = vec4(transformed, 1.0); vec3 rkN = objectNormal;\n' +
@@ -479,7 +479,7 @@ Smp rRock(vec3 P, vec3 nG){
             '#ifdef USE_INSTANCING\n    rkP = instanceMatrix * rkP; rkN = mat3(instanceMatrix) * rkN;\n#endif\n' +
             '    vRkW = (modelMatrix * rkP).xyz; vRkN = normalize(mat3(modelMatrix) * rkN); }');
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform highp sampler2DArray uSplat, uSplatN; uniform vec4 uSGrade[24]; uniform vec4 uSFilt, uRL, uTrS;\n' +
+          .replace('#include <common>', '#include <common>\nuniform highp sampler2DArray uSplat, uSplatN; uniform vec4 uSGrade[24]; uniform vec4 uSFilt, uRL, uTrS, uTrK, uTrX;\n' +
             'varying vec3 vRkW, vRkN; vec3 gRkN = vec3(0.0, 1.0, 0.0); float gRkR = 0.8;\n' +
             'vec4 rkC(float L, vec2 uv){ vec4 c = texture(uSplat, vec3(uv, L), uSFilt.x); c.rgb *= c.rgb; return c; }\n' +
             'vec4 rkN(float L, vec2 uv){ return texture(uSplatN, vec3(uv, L), uSFilt.x); }')
@@ -489,12 +489,12 @@ Smp rRock(vec3 P, vec3 nG){
             '    vec4 nx = rkN(uRL.x, P.zy), ny = rkN(uRL.x, P.xz + 0.37), nz = rkN(uRL.x, P.xy + 0.71);\n' +
             '    vec4 g = uSGrade[int(uRL.x + 0.5)]; c.rgb *= g.rgb; c.rgb = mix(vec3(dot(c.rgb, vec3(0.2126, 0.7152, 0.0722))), c.rgb, g.a);\n' +
             '    float m = dot(rkC(uRL.z, Q.zy).rgb * w.x + rkC(uRL.z, Q.xz).rgb * w.y + rkC(uRL.z, Q.xy).rgb * w.z, vec3(0.2126, 0.7152, 0.0722)) / max(uTrS.z, 1e-3);\n' +
-            '    c.rgb *= mix(1.0, clamp(m, 0.35, 2.2), 0.65) * 0.9 * uTrS.w;\n' +
+            '    c.rgb *= mix(1.0, clamp(m, 0.35, 2.2), 0.65) * 0.9 * uTrS.w * uTrK.w / 0.72;\n' +
             '    vec3 tX = nx.xyz * 2.0 - 1.0, tY = ny.xyz * 2.0 - 1.0, tZ = nz.xyz * 2.0 - 1.0;\n' +
             '    gRkN = normalize(vec3(tX.xy + N.zy, abs(tX.z) * N.x).zyx * w.x + vec3(tY.xy + N.xz, abs(tY.z) * N.y).xzy * w.y + vec3(tZ.xy + N.xy, abs(tZ.z) * N.z) * w.z);\n' +
             '    gRkR = clamp(nx.a * w.x + ny.a * w.y + nz.a * w.z, 0.3, 1.0);\n' +
             '    float up = smoothstep(0.62, 0.92, N.y);\n' +
-            '    if (up > 0.01 && uRL.w >= 0.0) { vec3 gr = rkC(uRL.w, vRkW.xz / 5.0).rgb * uSGrade[int(uRL.w + 0.5)].rgb; float mk = clamp((up * 0.95 - c.a) * 3.0, 0.0, 1.0) * 0.85; c.rgb = mix(c.rgb, gr, mk); gRkR = mix(gRkR, 0.97, mk); }\n' +
+            '    if (up > 0.01 && uRL.w >= 0.0) { vec3 gr = rkC(uRL.w, vRkW.xz / 5.0).rgb * uSGrade[int(uRL.w + 0.5)].rgb * uTrX.y * uTrK.w / 0.72; float mk = clamp((up * 0.95 - c.a) * 3.0, 0.0, 1.0) * 0.85; c.rgb = mix(c.rgb, gr, mk); gRkR = mix(gRkR, 0.97, mk); }\n' +
             '    float tone = 1.0;\n' +
             '#if defined( USE_COLOR_ALPHA )\n    tone = dot(vColor.rgb, vec3(0.2126, 0.7152, 0.0722));\n#elif defined( USE_COLOR )\n    tone = dot(vColor, vec3(0.2126, 0.7152, 0.0722));\n#endif\n' +
             '    diffuseColor.rgb = c.rgb * tone; }')
