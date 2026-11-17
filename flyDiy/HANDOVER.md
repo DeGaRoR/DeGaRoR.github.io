@@ -317202,3 +317202,135 @@ NEW REDS (named, owners fix in L40f):
 - BENCHTIME: 2 bench checks at 6.0-6.5 s vs 6.0 under the train's load (timing).
 LOAD TIME (cold, RTX 3080, ledger): L40d 143 s -> L40e 215 s (205 s re-measured on a quiet box): world 26 -> 40-51 s, settle 17 -> 22-27 s, shader compile 58 -> 67-93 s. LANDED WITH THE COST NAMED (the user's rule); suspects: subalpine (+7-14 % trees, walk), grass-on-green, animals on land (31 drawn), the ground ladder. First item of the perf round; bisect owed.
 KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes evict grit on low tiers (GROUND-FX splash-budget L40f); MEDIA career_core 720 KB budget (Game).
+
+## GEAR-LEVER - THE DASH GEAR SELECTOR (THE ARROW'S), ITS LAMPS AND HORN; THE AMPHIBIAN'S BLUE / GREEN AND ITS ADVISORY; THE AMPHIBIOUS FLOATS FLOWN (13 Nov 2026, cloud, GEAR-LEVER for A0; claude/ready/gear-lever 811d2eae5 off L39b never landed - RE-LANDED 17 Nov as claude/ready/gear-lever-2 off master 2157a2f98 = L40e)
+The user's rulings (8 Nov, via A0): a Piper Arrow (PA-28R)-style lever, a wheel-shaped knob in an UP / DOWN gate; three greens
+(one per leg, down and locked, together), a red IN TRANSIT; all dark up; the horn and the red together when the throttle is back
+with the gear not down, or the selector up on the ground; no press-to-test in v1; the lever only on a build whose gear retracts;
+placed by systems.look.gear. And (13 Nov) the amphibious floats use the SAME lever, with the real amphibian's advisory: BLUE = wheels
+UP (water), GREEN = DOWN (runway), "gear is UP for water landing" / "gear is DOWN for runway landing" (Wipline's advisory).
+- THE LAYOUT (tools/_panel_gen.js placeGear, called at the head of placeExtras so the GPS and the breakers place around it):
+  o.gearLever { at, n, amph } - asked ONLY by a build whose gear retracts (_cage_panel gearLeverOf: the gear layer's own
+  GEAR_RETRACTABLE, now window.CAGE_GEAR_RETRACTABLE, or floats with fltAmph); a fixed gear's layout carries no `gear` key and is
+  byte for byte what it was. The unit: the gate 24 x 66 mm (GEAR_GATE), its UP / DOWN tapes over and under it, the lamps'
+  column 30 mm to the side toward the panel's middle (gearLamps: a red over the greens - nose + L + R on a tricycle, LN RN L R on a
+  quadricycle - and an amphibian's blues under the greens). PLACES (systems.look.gear, absent at the default): 'throttle' (low,
+  beside the throttle: the crew publishes A.thrX - the push-pull's collar, the console's line, else the wall's side), 'pilot',
+  'centre', 'copilot'. ALWAYS ON THE PLATE: inside the outline inset, clear of every dial, switch, screen and keep-out; the score
+  the distance from the wanted x plus half the height over the plate's foot; nowhere -> 'gear' in extraOverflow (the column names
+  it; the key and the PFD lamps remain). The look row 'gear selector' shows on a retracting build only.
+- THE DRAWING (_cage_panel.js gearLeverAt): a black escutcheon (four bars round a 7 x 44 slot, a dark well), the lever pivoting
+  30 mm inside the dash on a lateral axis, its arm out through the slot to the KNOB, A LITTLE WHEEL - a black tyre (r 12.7 mm) on a
+  white hub, its axle across the cockpit; law 'gear' (k 0.5 rad), drawn down (or up with the preview row gearPos < 0.5). Each lamp
+  a bezel ring and a domed lens; the lens is a lamp CUP keyed gearG (0x38ff5c) / gearR (0xff2a18) / gearB (0x3a86ff), x3 the
+  socket's level (lampK 3) - the join buckets each key with its colour as the light layer's cups. The UP / DOWN words are the
+  'geartape' material (panelSet: the join buckets it, the flight rebuilds it, material('geartape')).
+- IN FLIGHT (src/viewer/cockpit.js): law 'gear' poses the lever off the HANDLE (ctl.gear: the hand's, the key's or the AP's) - the
+  lever is where the pilot put it, the lamps say where the gear is; a pick pad on the knob; a click throws it to its other end, a
+  drag up / down (20 px) sets UP / DOWN - both through the same door as the gear key (INP.fire('gear'); under the AP app.js's
+  gearKeyUnderAP). CK.gearLamp: off out.gear on the bus (the master on and the bus alive, else dark) - GREEN down and locked
+  (> 0.98), RED in transit or with the warning, BLUE (an amphibian's only, out.gearAmph) up and stowed (< 0.02). In the shed the
+  lever throws the gear's preview (gearPos), as the light switches work there (G305).
+- ONE WARNING LAW (30_solver gearWarnOf, exported): a retractable gear not down and locked with the throttle back (< 0.25) or the
+  flap past the approach (> 0.35), in the air; ON THE GROUND (the squat switch) the selector UP; an AMPHIBIAN never (its gear is
+  rightly up on a water approach: the advisory speaks instead); 0 with no out.gear. audio_params gearWarn calls it (its inline line
+  the same law for a rig without the core) and the red lamp reads it: GATE RETRACT 9 holds the two equal over 240 states.
+- THE ADVISORY (30_solver gearAdvisoryOf, exported; GEAR_ADV ARM 1.30 / REARM 1.55 x Vs [inferred: a pattern]): an amphibian's
+  only (out.gearAmph - the solver writes it on a parts.amph build with a retraction, the key only then); armed in the air past
+  1.55 Vs, once an approach slowing through 1.3 Vs and not climbing, it says 'up' / 'down' / 'transit'; any surface (the squat
+  switch, a wet hull) disarms it - a take-off run never speaks. app.js hudGear shows "gear is UP for water landing" / "gear is DOWN
+  for runway landing" on the PFD's gear line for 6 s (warn-coloured) and publishes window.FLYDIY_GEAR_ADVISORY; the PFD's lamps
+  go BLUE up on an amphibian (flight.css .gl.b). No voice yet (named below).
+- THE KEY OFF THE LAB: the controls panel lists the gear handle whenever the flown build retracts (app.js publishes
+  window.FLYDIY_GEAR_RETRACTS off out.gear; input_panel's lab filter lets 'gear' through then); a fixed build's list is the old one.
+- AMPH-FLOATS - THE AMPHIBIOUS FLOATS FLY (the backlog's AMPHIB-FLOATS; WIPLINE_AMPHIB.dKg was never read, no plane flew them):
+  - _cage_float.js amphib records the wheels in the float's own frame before the rigging's incidence (rec.amph.local: the axles
+    down and stowed, the tyres, mainN, dKg); the join writes gear.floats.amph { main, nose, rM, rN, wM, wN, mainN, kg, est } and
+    gear.retract { time 12 [inferred], act hydraulic, emerg pump (Wipline's hand pump), lift: each axle's drawn rise } - ONLY on
+    fltAmph; clampSpec keeps the retract on floats WITH the record, drops it on plain floats (GATE RETRACT 1).
+  - 61_gen_frame: a wheel node at each axle on each float (turned by the rigging), radius the tyre's, four members to the nearest
+    station and IN the float's rigid cluster; the system's weight on the axles (the mains 0.70 of a float's, the nose 0.30;
+    a row with no dKg: 0.5 of the hulls [inferred off the published rows, 0.3-0.9]); the refs are the WHEELS (the hull
+    amphibian's rule): mains = the main axles (AXLEL / AXLER), tw = the port bow's wheel, tw2 = the starboard's; parts.amph.
+  - 62_gen_aero: the float wheels' drag in the body row (gear-down design numbers) and as the retraction's own cdA (0.25 m2 on the
+    6100); the bows' wheels steer as a nose wheel (twSteer -0.35).
+  - 30_solver: tw2 retracts with tw (the squat switch reads its raised plane); AN AMPHIBIAN'S TYRES IN THE WATER (amphWheelWater:
+    the wet body's bluff plate, Cd 1.0 / 1.2, its displaced volume, the slam cap) on the tyre's EXPOSED part only (the drop below
+    its stowed place, GH x pos: stowed flush, none) - amphibious floats only for now (AW_ON): the Super Petrel's (validated) water
+    runs keep their numbers until its baselines are re-blessed with it.
+  - 25_airfield stripGear: floats with their wheels' record and a retraction are 'amphibian' (land and water).
+  - 43_pilot (AMPHF_TO): an amphibian on floats takes off from the water WHEELS UP - the run holds idle (its clock held) until the
+    wheels are stowed. The hull amphibian's run is untouched.
+  - THE MASS: the 6100's 189.6 kg (Wipaire: 418 lb, the pair over the seaplane's) is read, on the four axles; the airframe sizes to
+    the heavier gross (+31 to +38 kg of structure, the gauge pass). THE PC-6 CARD (builds/candidates/pc6_floats_2026-11-13.json,
+    claude/fit-procedure-floats) carries the amphibian's weight in its hull row (fltMass 159.1, the user's +407 kg over the
+    wheels): with this landed the system would count twice. fltMass 64.3 keeps the user's total (re-joined: 2070.4 kg against
+    2068.7 with the old recipe) - FIT-PROCEDURE's card to change when both land (A0).
+    (L40e, 17 Nov: the card is on master (9403785d4) - CHANGED HERE: fltMass 159.1 -> 64.3, a line in its ref.history. Re-joined:
+    master 2075.0 kg; this branch at 159.1 2308.0 (twice); at 64.3 2075.0 - the same aeroplane's weight, now on its axles.)
+- FLOWN (tools: scratchpad amph_fly.js on a worktree of this branch + claude/fit-procedure-floats e7655dee, the PC-6 re-joined
+  through _rejoin_build with fltMass 64.3; calm, the expert):
+  - STANDS on its four wheels on land: 3 contacts (the pair + the bows), the keels 0.17 m clear, pitch 0.7 deg; the selector up on
+    the ground: the gear held down (squat), the warning law 0 (an amphibian: no horn), out.gearAmph 1.
+  - THE RUNWAY (HOME -> HOME): lift-off 13.0 s on the wheels, the gear up through 38 -> 85 m (11.6 s), down on the downwind, the
+    advisory 'gear is DOWN for runway landing' at 125 m on final, touchdown 315.7 s on the wheels at 28.2 m/s, STOPPED; 0 breaks.
+  - THE WATER (SEA -> SEA): the wheels come up first (11.8 s, the run held at idle), lift-off 28.5 s (16.7 s of run; the same
+    aeroplane without its wheels' record 18.9 s), the advisory 'gear is UP for water landing' at 128 m, alighted wheels up at
+    28.0 m/s; 0 breaks.
+  - LAND TO SEA (HOME -> SEA): off the runway on the wheels at 13.0 s, the gear up at 85 m, 'gear is UP for water landing'
+    at 129 m, alighted wheels up at 27.8 m/s, STOPPED; 0 breaks.
+  - THE HAZARD, WHEELS DOWN ON THE WATER (the handle held down from the climb, SEA -> SEA): GUMPS went round twice ('the wheels
+    are not up for the water'; the advisory said 'gear is DOWN for runway landing' each time), the third approach alighted
+    wheels down at 26.5 m/s and NOSED OVER - pitch -88.7 deg, 'capsized', crashed, 10 breaks.
+  - THE HAZARD, WHEELS UP ON THE RUNWAY (the handle held up, the emergency extension disarmed as GATE RETRACT 6 does): two
+    go-arounds, the third alighted on the FLOAT KEELS at 24.9 m/s and slid to a stop on them (the scar's scrape, no prop strike,
+    0 breaks, at rest 9.6 deg bow down) - the belly landing on the keels.
+  - THE RAMP (a 3.3 % beach 856 m from the SEA lane, bearing 115 deg; wheels down, 0.35 power, the heading held): taxied in at
+    4.2 m/s, the wheels found the beach 13 m out, crept up it (0.1 m/s: the beach's rolling resistance at that power) and stood
+    dry on its four wheels at 94.6 s, 7 m short of the waterline; 0 breaks. (The hull amphibian's ramp limit - the hull grounds
+    first - does not apply: the float wheels stand 0.8 R under the keels.)
+  - Before stripGear's line every "land" flight alighted on the SEA lane (the pilot read the PC-6 as a pure seaplane) - fixed.
+- THE PILOT'S WATER-TAXI RULE (FIT-PROCEDURE 215df945 on claude/pilot-unify, not on master): it releases the brake and holds a
+  throttle floor on `sim.hydro` - ANY float build, not a WET hull: an amphibian on land would taxi with no brake and 0.12 power
+  minimum. Gate it on a wet hull (sim.hydro.floats.some(fx => fx.wet > 0.05)) before it lands with the amphibian; told A0.
+  On master 43_pilot reads sim.hydro as water in several land laws too (taxiCap 0.5, deWater, the humps): an amphibian on land flies
+  them; the runway take-off and landing above are on master's laws with that.
+- RE-LANDED ON L40e (17 Nov, A0: "rebase onto 2157a2f98, rebuild, re-run your gates"): the source commit cherry-picked onto
+  master; seven files conflicted with TAIL-RETRACT (a taildragger's mains and the ultralight monowheel retract, the tailwheel
+  fixed) and SKIS (the ski contacts, the PC-6's wheel-ski selector and its add-on box): every hunk kept both - the solver's
+  retracting wheels are master's (mains, the tw unless fixedTw / tail) + the quadricycle's tw2 (never on a tail retract); clampSpec's
+  retract types gain AMPH_FLOATS; the retraction's cdA reads the float wheels' first, then master's taildragger mains; the pick
+  pads, the poses and the picks list ski AND gear; the panel's ski box and the gear selector both (the ski box's own ending
+  restored: git had matched it with the selector's). NEW for master's retracts: ONE GREEN PER RETRACTING LEG - a taildragger's two
+  mains (its tailwheel stays down: no lamp), the monowheel's one, a tricycle's three, amphibious floats' four (gearLeverOf: the
+  join's own tricycle test off the gear layer's contacts; gearLamps n 1 / 2 / 3 / 4; GATE PANEL row).
+- GATES ON L40e (17 Nov, this branch, --jobs=4): PANEL, INPUT, INSTANT, RETRACT, DASH, FLOATS, SEAPLANE, HYDRODYN, UISMOKE,
+  SKINMAT, LIGHT, DESIGN, ELEC, SURF, TAILWHEEL, PLANELISTS (the card) PASS; AUDIO PASS alone (under the 4-job load its
+  RADIO_BUDGET read 78296 B of heap growth over 100 000 frames and the self-test then refused - alone 7048 B: a load-sensitive
+  measurement; master's own direct run read the same 78296 B under load). Red, MASTER'S (the same check names and numbers on a
+  clean 2157a2f98 copy): JOINPARITY 2 (the Jodel node = page 470.666 / 469.732 kg; five tools fly a validated build raw), SKIS 4
+  (cub, jodel, superpetrel_V4_1, carbon_cub_ss: def hashes off the base - identical on master), SAVE 2 (the saved file and the
+  load lose one row: skiPos - identical on master). The PC-6 re-flown on L40e's card (fltMass 64.3, 2075 kg): stands on its four wheels (keels
+  0.17 m clear); the runway circuit lifts off at 13.0 s, the wheels up at 85 m, 'gear is DOWN for runway landing' at 125 m, touches
+  down on the wheels at 315.5 s; the water circuit holds idle 11.8 s for the wheels up, lifts off at 28.6 s, 'gear is UP for water
+  landing' at 128 m, alights wheels up; 0 breaks - the 13 Nov numbers within 0.1 s. GATE COMMITHYGIENE before the push.
+- GATES (13 Nov, on L39b, 4 cores beside the flights): PANEL (+ the selector's rows: absent on a fixed build, on the plate and
+  clear at the four places, each the nearest to its line, the lamp sets, a full plate; the lever and the lamps in flight: the
+  pose off the handle, the click, every lamp state, the warning law, the advisory), INPUT, INSTANT, RETRACT (+ section 1: the
+  amphibious floats' spec, refs, mass and retraction; section 9: the selector up on the ground, no horn on an amphibian, the horn's
+  law = gearWarnOf over 240 states), DASH, FLOATS, SEAPLANE, HYDRODYN PASS; and AUDIO, UISMOKE, SKINMAT, LIGHT, SAVE, DESIGN,
+  ELEC, SURF PASS. JOINPARITY: 2 FAIL - master's own, identical on a clean master worktree (the Jodel node = page 469.173 /
+  468.238 kg; large_hangar_shot.js / large_hangar_store_shot.js fly a validated build raw). Not run: --all (the DELIVERY verdict:
+  A0's train), PILOT / STOL / POD / ACCEPT (43_pilot and the solver changes are gated on an amphibian's floats: no build in those
+  batteries has one).
+- OPEN: the float wheels DRAWN folding in flight (the snapshot's float wheels stand as the garage drew them - the preview's
+  position; the plan: name the amphib's main / nose meshes, PARTS.others kinds 'amphM' / 'amphN' with the trunnion hinge and the
+  nose's turn-then-slide, an app.js rig like gearSwingRig off out.gear); the advisory's VOICE; the bus -> gearPower; the hull
+  amphibian's tyres in the water (AW_ON) and its take-off wheels up, with its baselines; press-to-test (v2); the Wipline 6100's
+  cycle time (12 s inferred).
+- STILLS OWED (A0's GPU slot; day and night, the pilot's eye): (1) a retracting tourer (ttail + gearRetract) on the ramp, the
+  lever down, three greens; (2) the same in the climb, the lever up, the lamps dark - and in transit, the red; (3) night, short
+  final, the greens at the night's exposure (the lamp level x3 to judge); (4) the four places - throttle, pilot, centre, copilot -
+  the panel from the seat; (5) the Super Petrel on the water, the lever up, the blues; (6) the PC-6 on Wiplines: on the water
+  (blues), on the runway (greens), on final with the advisory on the PFD; (7) the selector up on the ground - the red (the horn's
+  moment, no sound in a still).
