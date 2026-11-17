@@ -317275,3 +317275,11 @@ dope (0.42 grey, near white in sun) over the entire surface.
 OWED (Deform, L40g): fabric is never stripped whole - its bare dope only along the slide's streaks and gouges and over
 the structure it rides on (the ribs / stringers press the cloth into the ground), the rest scuffed and soiled; no
 chip-merging cover on fabric. Then the same three-way stills to the user before the ready.
+THE USER'S DIRECTION (17 Nov, after the A/B): "the real thing is the dents and the dirt and everything that would scratch
+it would probably leave dark marks, and not simply a scratch off hyper clean like this ... it tries to do too much. It
+gets too much coverage. What we really needed was some streaks to show that a part which has been thrown on the ground
+would have like dark streaks." So the scuff's REDESIGN (L40g): DARK STREAKS along the slide on the side that touched
+(asphalt / rubber / soil / grime ground in), their density with the slide's work, never a whole panel; no stripping to
+silver dope, primer or bare alloy (at most a few thin bright scratches inside the dark streaks on metal); the dents, the
+fabric's creases, the torn band and the soft ground's soil / grass stain kept; the chip-merging cover and the EXTREME
+layer gone. Stills (same wreck, before / after) to the user before the ready.
