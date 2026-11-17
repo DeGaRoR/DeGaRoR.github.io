@@ -988,6 +988,9 @@ const SPLAT_GROUND = (() => {
       float wsea = step(1e-3, uSBank2.w) * (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd) * smoothstep(-0.8, -0.1, vWPi.y)
                  * (1.0 - smoothstep(wsH * 0.25, wsH, vWPi.y + bn * wsH * 0.9));
       col *= (1.0 - 0.45 * wet) * (1.0 - 0.3 * wsea); gSRough = mix(gSRough, min(gSRough, 0.45), wet); }   // (the sea's band darkens only: any gloss on its steep face caught the sun as a white line at the foot, it2/it3)
+#ifdef GS_TRDBG
+    return vec3(gTrR, mw, gTrR0);   // (ROCK-STUDY's probe strip 'trdbg': red the rock's share after the exposure, green the far tier's weight, blue the raster's rock)
+#endif
     return mix(col, mac, mw * (1.0 - gTrR));   // (R1, 17 Nov: the far tier dissolves the ground into the map's colour - never the ROCK: "nothing should have the macro pattern fade")
   }
 `;
@@ -1201,7 +1204,7 @@ const SPLAT_GROUND = (() => {
     // GROUND-COST G2075: THE STRIPS - parts of the ground's program cut at COMPILE time (#define GS_<NAME>), a measuring tool
     // (tools/perf/ground_cost.js): ?gstrip=vote4,nohex,... at the load or api.strip([...]) live (the programs re-key: a cold
     // compile each). Empty by default: no define, the key unchanged - the production programs are the same text.
-    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|nrmcut|notrond|trlite)$/;   // (notrond / trlite: R1's text out / its lite text - the box's bisect)
+    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|nrmcut|notrond|trlite|trdbg)$/;   // (notrond / trlite: R1's text out / its lite text - the box's bisect)
     let strips = [];
     try { const m = /[?&]gstrip=([^&]*)/.exec(location.search); if (m) strips = decodeURIComponent(m[1]).split(',').filter(x => GS_OK.test(x)); } catch (e) {}
     const grow = () => {

@@ -496,7 +496,7 @@ Smp rRock(vec3 P, vec3 nG){
             '    float up = smoothstep(0.62, 0.92, N.y);\n' +
             '    if (up > 0.01 && uRL.w >= 0.0) { vec3 gr = rkC(uRL.w, vRkW.xz / 5.0).rgb * uSGrade[int(uRL.w + 0.5)].rgb * uTrX.y * uTrK.w / 0.72; float mk = clamp((up * 0.95 - c.a) * 3.0, 0.0, 1.0) * 0.85; c.rgb = mix(c.rgb, gr, mk); gRkR = mix(gRkR, 0.97, mk); }\n' +
             '    float tone = 1.0;\n' +
-            '#if defined( USE_COLOR_ALPHA )\n    tone = dot(vColor.rgb, vec3(0.2126, 0.7152, 0.0722));\n#elif defined( USE_COLOR )\n    tone = dot(vColor, vec3(0.2126, 0.7152, 0.0722));\n#endif\n' +
+            '#if defined( USE_COLOR ) || defined( USE_COLOR_ALPHA )\n    tone = dot(vColor.rgb, vec3(0.2126, 0.7152, 0.0722));\n#endif\n' +
             '    diffuseColor.rgb = c.rgb * tone; }')
           .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n  if (uRL.x >= 0.0) normal = normalize((viewMatrix * vec4(gRkN, 0.0)).xyz);')
           .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  if (uRL.x >= 0.0) roughnessFactor = gRkR;');
