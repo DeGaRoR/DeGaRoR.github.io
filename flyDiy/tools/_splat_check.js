@@ -156,6 +156,7 @@ function checkRecipe(G, splatSrc, quiet) {
     if (r.para !== undefined && !(num(r.para) && r.para >= 0 && r.para <= 2)) w(`para ${r.para} outside 0..2`);
     if (r.wet !== undefined && !(num(r.wet) && r.wet >= 0 && r.wet <= 1)) w(`wet ${r.wet} outside 0..1`);
     if (r.poolScale !== undefined && !(num(r.poolScale) && r.poolScale > 0)) w('poolScale not positive');
+    if (r.trond !== undefined) { if (c !== 6) w('trond (R1\'s sets) belongs to the rock (6)'); else if (!Array.isArray(r.trond) || r.trond.length !== 4) w('trond is not four sets (slab, face, micro, green)'); else r.trond.forEach((k, j) => { if (!LIB.has(k)) w(`trond ${['slab', 'face', 'micro', 'green'][j]} '${k}' not in the library`); }); }
   }
   say(!bad.length, `every code's row well-formed and naming library sets${bad.length ? ' - ' + bad.join('; ') : ''}`);
   const K = R.knobs, kb = [];
@@ -168,6 +169,14 @@ function checkRecipe(G, splatSrc, quiet) {
   if (!(K.cliffLo < K.cliffHi)) kb.push('cliffLo >= cliffHi'); if (!(K.oldLo < K.oldHi)) kb.push('oldLo >= oldHi'); if (!(K.denseLo < K.denseHi)) kb.push('denseLo >= denseHi');
   if (!(K.detailFrom < K.detailTo)) kb.push('detailFrom >= detailTo'); if (!(K.macroFrom < K.macroTo)) kb.push('macroFrom >= macroTo');
   if (K.para !== 0) kb.push(`para ${K.para}: the parallax stays OFF until real displacement maps (G438.1)`);
+  // ROCK-STUDY R1: the island's own rock (sTrond / sTrExpo) - the dial, the exposure, the joints, the green, the roughness, the fades
+  if (K.rocks !== undefined) {
+    rng('rocks', 0, 1); rng('rockHLo', -100, 3000); rng('rockHHi', -100, 3000); rng('rockBias', 0, 1); rng('rockOff', -1, 1); rng('rockMicro', 0, 1); rng('rockK', 0.1, 3);
+    rng('rockJoint', 0.1, 8); rng('rockJointSoil', 0, 1); rng('rockJointDirt', 0, 1); rng('rockHollow', 0, 1); rng('rockGreen', 0, 4); rng('rockGreenRough', 0, 1); rng('rockWet', 0, 1); rng('rockRough', 0.1, 3);
+    rng('rockMicroK', 0, 1); rng('rockMicroN', 0, 3); rng('rockMicroFrom', 0, 5000); rng('rockMicroTo', 0, 5000); rng('rockFarFrom', 0, 20000); rng('rockFarTo', 0, 20000); rng('rockNdvi', 0, 3); rng('rockNdviMid', -1, 1); rng('rockSlabM', 1, 200); rng('rockFaceM', 1, 200); rng('rockFaceTile', 0, 1); rng('rockFaceLo', 0, 89); rng('rockFaceHi', 1, 90); rng('rockGreenSat', 0, 2); rng('rockJointFar', 0, 5000); rng('rockSlabTone', 0, 1); rng('rockSlabTilt', 0, 1); rng('rockRing', 0, 1); rng('rockRingReach', 50, 2000); rng('rockLift', 0, 5); rng('rockAmp', 0, 6); rng('rockProud', 0, 2); rng('rockBoulders', 0, 1); rng('rockScatter', 0, 10); rng('rockMacro', 0, 1); rng('rockBoulderTone', 0, 4); rng('rockBoulderCon', 0, 6); rng('rockGrassMatch', 0, 1.5); rng('rockWeather', 0, 1); rng('rockGreenTint', 0, 4);
+    if (!(K.rockFaceLo < K.rockFaceHi)) kb.push('rockFaceLo >= rockFaceHi');
+    if (!(K.rockHLo < K.rockHHi)) kb.push('rockHLo >= rockHHi'); if (!(K.rockMicroFrom < K.rockMicroTo)) kb.push('rockMicroFrom >= rockMicroTo'); if (!(K.rockFarFrom < K.rockFarTo)) kb.push('rockFarFrom >= rockFarTo');
+  }
   say(!kb.length, `knobs in range, the split pairs ordered, the parallax off${kb.length ? ' - ' + kb.join('; ') : ''}`);
   const gb = [];
   for (const k in R.grade) { const g = R.grade[k];
@@ -253,7 +262,20 @@ function checkShader(G, splice, quiet) {
     const body = f => { const i = glsl.indexOf(f); if (i < 0) return ''; let d = 0, k = glsl.indexOf('{', i); const k0 = k;
       for (; k < glsl.length; k++) { if (glsl[k] === '{') d++; else if (glsl[k] === '}' && --d === 0) break; } return glsl.slice(k0, k); };
     say(!/\bfor\s*\(/.test(['bool sMatPass(', 'Smp sTriplet(', 'Smp sSet(', 'Smp sTile(', 'Smp sFetch('].map(body).join('')), 'no loop inside the sample chain (nested in the candidate loop it costs the GPU)'); }
-  say(/sRGBTransferEOTF/.test(glsl), 'the colour array decoded in the shader (no sRGB array upload: GL 1281)');
+  say(/o\.c\.rgb = sRGBTransferEOTF\(vec4\(o\.c\.rgb, 1\.0\)\)\.rgb;/.test(glsl), 'the colour array decoded in the shader (no sRGB array upload: GL 1281) - in the fetch itself (R1\'s green decodes its own too)');
+  // ROCK-STUDY R1 RIDES THE CHAIN (A0's box, 16 Nov: its own sample chain, 7 more inlined sFetch, linked every ground program
+  // ~15 s slower): the tiles are the rock codes' sets; R1's own functions call nothing of the chain, its post runs once a
+  // program (in the candidate loop), its exposure once (in the vote), and reads at most three plain textures
+  if (/Smp sTrPost\(/.test(glsl)) for (const [nm, tx] of [['full', glsl], ['lean', lean]]) {
+    const bodyOf = sig => { const i = tx.indexOf(sig); if (i < 0) return ''; let d = 0, k = tx.indexOf('{', i); const k0 = k;
+      for (; k < tx.length; k++) { if (tx[k] === '{') d++; else if (tx[k] === '}' && --d === 0) break; } return tx.slice(k0, k); };
+    const own = ['Smp sTrPost(', 'float sTrExpo(', 'float sTrJoints(', 'float sTrLine('].map(bodyOf).join('\n');
+    const sites = (t, fn) => (t.match(new RegExp('\\b' + fn + '\\(', 'g')) || []).length;
+    const chain = ['sFetch', 'sTile', 'sSet', 'sTriplet', 'sMatPass'].filter(f => sites(own, f));
+    const reads = sites(bodyOf('Smp sTrPost('), 'texture');
+    say(!chain.length && sites(tx, 'sTrPost') === 2 && sites(tx, 'sTrExpo') === 2 && reads <= 3 && !/\bfor\s*\(/.test(own),
+      `R1 (${nm}): the rock rides the material chain - its own functions call none of it${chain.length ? ' (CALLS ' + chain.join(', ') + ')' : ''}, sTrPost once, sTrExpo once, no loop, ${reads} plain texture reads in the post (<=3)`);
+  }
   say(!/\bout\s+(Smp|vec4|vec3|float)\s+\w+\s*[,)]/.test(glsl), 'no `out` parameter on the sample chain (one struct through it)');
   say(/struct Smp \{ vec4 c; vec4 n; \};/.test(glsl), 'the one struct Smp { c, n }');
   say(/gSRough = mix\(clamp\(max\(nrm\.a, min\(1\.0, uSFilt\.y \* sqrt\(gSPixM\)\)\), 0\.05, 1\.0\), 1\.0, mw\);/.test(glsl) && /roughnessFactor = 1\.0 - \(1\.0 - gSRough\) \* uSNrm\.y;/.test(splice.glslRough), 'the sets\' roughness reaches roughnessFactor (the Standard ring), faded to matte at the macro range, the sheen knob its lever, widened by the pixel\'s footprint (the specular AA, 2026-09-24)');
@@ -477,6 +499,7 @@ function checkMineral(quiet) {
     if (seen.has(0)) seen.add(4); if (seen.has(1)) seen.add(3); seen.delete(0); seen.delete(1);
     for (const [a, d] of [[6, 12], [8, 13], [7, 14]]) if (seen.has(a)) seen.add(d);
     const need = new Set(); for (const c of seen) { const r = SP.api.code(c); if (r) for (const k of (r.tex || []).concat(r.far || [])) if (k) need.add(k); }
+    if (seen.has(6) && SP.api.knobs().rocks) for (const k of (SP.api.trond ? SP.api.trond() : ['trondSlab', 'trondFace', 'cliff', 'grassRock'])) need.add(k);   // (ROCK-STUDY R1: the island's rock, where the map has rock)
     const lost = [...need].filter(k => !L.includes(k)), extra = L.filter(k => !need.has(k));
     say(!lost.length && !extra.length && L.length < lib.length && L.every((k, i) => i === 0 || lib.indexOf(L[i - 1]) < lib.indexOf(k)),
         `the arrays hold the ${L.length} of ${lib.length} sets Jolene's codes name, in the library's order (not built: ${lib.filter(k => !L.includes(k)).join(', ')})` + (lost.length ? '; MISSING ' + lost.join(', ') : '') + (extra.length ? '; EXTRA ' + extra.join(', ') : ''));
@@ -606,9 +629,11 @@ async function checkGPU() {
     g = clone(); g.RECIPE.codes[11].far[0] = 'nothing';                       verdict(!checkRecipe(g, splatSrc, true), 'a far slot naming no set is caught');
     g = clone(); g.RECIPE.knobs.cliffLo = 50;                                 verdict(!checkRecipe(g, splatSrc, true), 'a split pair out of order is caught');
     g = clone(); g.RECIPE.knobs.para = 0.5;                                   verdict(!checkRecipe(g, splatSrc, true), 'the parallax turned on is caught');
+    g = clone(); g.RECIPE.knobs.rockFarTo = 100;                              verdict(!checkRecipe(g, splatSrc, true), 'the rock\'s far fade out of order is caught (R1)');
     g = clone(); g.RECIPE.grade.mud = { gain: 'brown', sat: 1 };              verdict(!checkRecipe(g, splatSrc, true), 'a grade gain that is not a hex is caught');
     g = clone(); g.RECIPE.library.push(['extra', 3]); for (let i = 0; i < 8; i++) g.RECIPE.library.push(['x' + i, 1]);
                                                                               verdict(!checkRecipe(g, splatSrc, true), 'a library past NLIB is caught');
+    g = clone(); g.RECIPE.codes[6].trond = ['trondSlab', 'granite', 'cliff', 'grassRock']; verdict(!checkRecipe(g, splatSrc, true), 'R1\'s sets naming a set outside the library are caught');
     g = clone(); delete g.RECIPE.codes[9];                                    verdict(!checkRecipe(g, splatSrc, true), 'a missing code row is caught');
     verdict(!checkManifest(G, manifest.replace('{"key":"rocksA"', '{"key":"rocksZ"'), ROOT, true), 'a manifest out of the library\'s order is caught');
     verdict(!checkManifest(G, manifest.replace(/beach_diff_512\.[0-9a-f]{8}/, 'beach_diff_512.deadbeef'), ROOT, true), 'a manifest naming a file the store lacks is caught');

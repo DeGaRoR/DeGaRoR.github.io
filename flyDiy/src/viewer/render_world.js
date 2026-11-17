@@ -19,11 +19,71 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const g = buildWorldSceneSteps(scene, world, renderer, camera, shedDims);
   for (;;) { const r = g.next(); if (r.done) return r.value; }
 }
+// ROCK-STUDY R1: THE ROCK'S TERRAIN BIAS (splat_ground sTrExpo reads it in the tint's alpha). The exposure wants the
+// ground's convexity (a ridge is bare) and its drainage (a valley line holds soil): both from the hydrology's own 1024^2
+// heights (world.hydro.grids.H, ~38 m; its accumulation is all 1 in the island's 'map' mode, so the drainage is the 300 m
+// CONCAVITY - a valley is a concave line), two box blurs: the 76 m Laplacian (convex +) and the 300 m concavity, each over its
+// land std; bias = 0.20 x clamp(0.45 z_convex) - 0.35 x smoothstep(0.6, 1.6, z_valley), stored as (bias + 0.6) / 0.8, bilinear
+// onto the tint's grid (W2 x H2 cells of cs metres from gx0, gz0). Self-contained: its source text is the worker's.
+function ROCK_BIAS(Hf, sea, N, hx0, hz0, hdx, hdz, gx0, gz0, cs, W2, H2) {
+  const n = N * N;
+  const box = (src, r) => { const tmp = new Float32Array(n), out = new Float32Array(n), w = 2 * r + 1;
+    for (let y = 0; y < N; y++) { let acc = 0; const o = y * N;
+      for (let k = -r; k <= r; k++) acc += src[o + Math.min(N - 1, Math.max(0, k))];
+      for (let x = 0; x < N; x++) { tmp[o + x] = acc / w; acc += src[o + Math.min(N - 1, x + r + 1)] - src[o + Math.max(0, x - r)]; } }
+    for (let x = 0; x < N; x++) { let acc = 0;
+      for (let k = -r; k <= r; k++) acc += tmp[Math.min(N - 1, Math.max(0, k)) * N + x];
+      for (let y = 0; y < N; y++) { out[y * N + x] = acc / w; acc += tmp[Math.min(N - 1, y + r + 1) * N + x] - tmp[Math.max(0, y - r) * N + x]; } }
+    return out; };
+  const b2 = box(Hf, 2), b8 = box(box(Hf, 4), 4);
+  let sL = 0, sC = 0, m = 0;
+  for (let k = 0; k < n; k += 7) { if (sea && sea[k]) continue; const l = Hf[k] - b2[k], c = b8[k] - Hf[k]; sL += l * l; sC += c * c; m++; }
+  const zL = 1 / Math.max(1e-3, Math.sqrt(sL / Math.max(1, m))), zC = 1 / Math.max(1e-3, Math.sqrt(sC / Math.max(1, m)));
+  const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const B = new Float32Array(n);
+  for (let k = 0; k < n; k++) B[k] = 0.20 * Math.min(1, Math.max(-1, (Hf[k] - b2[k]) * zL * 0.45)) - 0.35 * ss(0.6, 1.6, (b8[k] - Hf[k]) * zC);
+  const out = new Uint8Array(W2 * H2);
+  for (let j = 0; j < H2; j++) { const fz = (gz0 + (j + 0.5) * cs - hz0) / hdz - 0.5, z0 = Math.max(0, Math.min(N - 2, Math.floor(fz))), v = Math.min(1, Math.max(0, fz - z0));
+    for (let i = 0; i < W2; i++) { const fx = (gx0 + (i + 0.5) * cs - hx0) / hdx - 0.5, x0 = Math.max(0, Math.min(N - 2, Math.floor(fx))), u = Math.min(1, Math.max(0, fx - x0)), k = z0 * N + x0;
+      const b = (B[k] * (1 - u) + B[k + 1] * u) * (1 - v) + (B[k + N] * (1 - u) + B[k + N + 1] * u) * v;
+      out[j * W2 + i] = Math.round(Math.min(1, Math.max(0, (b + 0.6) / 0.8)) * 255); } }
+  return out;
+}
+// the job: { done, out, onDone } - the worker fills it and calls onDone (the tint's late write); ROCK_STATS { biasWorkerMs (inside
+// the worker), biasMainMs (the post here + the copy back), biasWorker: true }. null = no worker (the step makes it on the main thread)
+function rockBiasStart(world, BUD) {
+  try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
+  if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return null;
+  const I = world.island, g = world.hydro && world.hydro.grids;
+  if (!I || !I.albedo || !I.grid || !I.tint || !g || !g.H || !g.N) return null;
+  const IG = I.grid, half = !!(BUD && BUD.islandHalf), W2 = half ? Math.ceil(IG.w / 2) : IG.w, H2 = half ? Math.ceil(IG.h / 2) : IG.h;
+  const t0 = performance.now(), job = { done: false, out: null };
+  try {
+    const hasCore = typeof ROCK_RING_CORE_SRC !== 'undefined';
+    const src = (hasCore ? ROCK_RING_CORE_SRC + '\n' : '') + 'const ROCK_BIAS = ' + ROCK_BIAS.toString() + ';\nonmessage = e => { const a = e.data, t = performance.now();\n' +
+      '  const out = ROCK_BIAS(a.H, a.sea, a.N, a.hx0, a.hz0, a.hdx, a.hdz, a.gx0, a.gz0, a.cs, a.W2, a.H2);\n' +
+      '  const flow = (typeof ROCK_RING_CORE !== "undefined") ? ROCK_RING_CORE.flowGrid(a.H, a.N, a.hdx * a.hdx / 25) : null;\n' +
+      '  postMessage({ out, flow, ms: performance.now() - t }, [out.buffer].concat(flow ? [flow.buffer] : [])); };';
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url);
+    const fail = why => { console.warn('rock bias worker: ' + why + ' - made on the main thread'); job.done = true; job.out = null; try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); if (job.onDone) job.onDone(); };
+    w.onmessage = e => { const t1 = performance.now(); job.out = e.data.out; job.flow = e.data.flow ? { g: e.data.flow, N: g.N, x0: g.x0, z0: g.z0, dx: g.dx } : null; job.done = true; w.terminate(); URL.revokeObjectURL(url);
+      if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWorker: true, biasWorkerMs: Math.round(e.data.ms), biasWallMs: Math.round(t1 - t0), biasMainMs: Math.round(job.postMs + (performance.now() - t1)), biasGrid: g.N, tint: [W2, H2] });
+      if (job.onDone) job.onDone(); };
+    w.onerror = e => fail(e && e.message || 'error');
+    const H = Float32Array.from(g.H), sea = g.sea ? Uint8Array.from(g.sea) : null;
+    w.postMessage({ H, sea, N: g.N, hx0: g.x0, hz0: g.z0, hdx: g.dx, hdz: g.dz, gx0: IG.x0, gz0: IG.z0, cs: IG.cell * (half ? 2 : 1), W2, H2 }, [H.buffer].concat(sea ? [sea.buffer] : []));
+    job.postMs = performance.now() - t0;
+  } catch (e) { console.warn('rock bias worker: ' + (e && e.message || e)); return null; }
+  return job;
+}
 function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // G1230 (MEM-BUDGET): the build budget of the player's preset (gfx_settings.js BUDGETS) - what this build makes and
   // holds; null (a gate's stub, no GFX): everything at full
   const BUD = (typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function') ? window.GFX.budget() : null;
   const BUILT = { done: false, q: [] };
+  // ROCK-STUDY R1: the rock's terrain bias, in a worker from here (the 'island ground' step waits for it): null = made on the
+  // main thread there (no Worker), or not at all (?rocks=0, no island, no hydrology)
+  const rockBiasJob = rockBiasStart(world, BUD);
   const afterBuild = fn => { if (BUILT.done) fn(); else BUILT.q.push(fn); };
   // (12 Nov, FIT-PROCEDURE: under r186's MANAGED colour, Color(hex) already decodes sRGB - the second conversion drew
   // every world colour twice decoded; convert only when management is off, the 'as authored' step: once in either mode)
@@ -330,6 +390,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   function floorsChanged(f) {
     for (const r of [coverRing, grassField]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
   }
+  let rockRing = null, rockGroundMat = null;   // ROCK-STUDY: (rockGroundMat: the near ring's material - the relief wears it)
+  // the island's rock as geometry round the eye (rock_ring.js; set with the cover ring)
   let coverRing = null, grassField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -1912,10 +1974,38 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const pk2 = (r, g0) => { const make = () => { const g = typeof g0 === 'function' ? g0() : g0;   // (a function: made with the texels - G2075's flagged type)
         const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
-      const tintRGBA = () => rgbTexels(ISLA.tint);
+      // ROCK-STUDY R1: THE TERRAIN BIAS IN THE TINT'S ALPHA (it was 255 and never read - no new texture, no sampler): made by
+      // ROCK_BIAS (above the steps) IN A WORKER started at the build's first line (rockBiasJob) - the box read it at 246 ms on the
+      // main thread (A0, 16 Nov). The step does not wait (A0's box: the wait was 0.86 s under the link's contention): if it is not
+      // in yet, the tint goes up with a NEUTRAL alpha (191 = bias 0) and the bias is written in when it lands - the tint re-derived
+      // and re-uploaded once (ROCK_STATS.biasLateMs, the main thread's part). No Worker (node, a gate's stub): made here, now.
+      // ?rocks=0: never asked for (the alpha stays 255: no rock reads it).
+      let rockBiasA = null, rockLate = false;
+      if (rockBiasJob) { if (rockBiasJob.done) rockBiasA = rockBiasJob.out; else rockLate = true; }
+      const rockBias = () => {
+        if (rockBiasA) return rockBiasA;
+        if (rockLate) return null;   // (in flight: the neutral alpha meanwhile - tintRGBA)
+        try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
+        const g = world.hydro && world.hydro.grids; if (!g || !g.H || !g.N) return null;
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+        rockBiasA = ROCK_BIAS(Float32Array.from(g.H), g.sea || null, g.N, g.x0, g.z0, g.dx, g.dz, ISLA.grid.x0, ISLA.grid.z0, ISLA.grid.cell * (IHALF ? 2 : 1), W2, H2);
+        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0), biasWorker: false, biasGrid: g.N, tint: [W2, H2] });
+        return rockBiasA; };
+      const tintRGBA = () => { const o = rgbTexels(ISLA.tint), a = rockBias();
+        if (a) for (let k = 0, j = 3; k < a.length; k++, j += 4) o[j] = a[k];
+        else if (rockLate) for (let j = 3; j < o.length; j += 4) o[j] = 191;
+        return o; };
       const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
+      if (rockLate) rockBiasJob.onDone = () => {   // the bias lands: written into the tint (its bytes, or re-derived if the upload dropped them)
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+        rockLate = false; rockBiasA = rockBiasJob.out;   // (null: the worker failed - rockBias() makes it here)
+        const a = rockBias(), d = tintTex.image && tintTex.image.data;
+        if (a && d) for (let k = 0, j = 3; k < a.length; k++, j += 4) d[j] = a[k];
+        else tintTex.image.data = tintRGBA();
+        tintTex.needsUpdate = true;
+        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasLateMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0) }); };
       function dataTex1() { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; }
       // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
       const W_SLOTS = [{ 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }, { 60: 0, 80: 1, 90: 2, 100: 3 }];
@@ -1952,6 +2042,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // THE ROCK MAP (rock_map.js): the rocks' top view over 2 km round the eye, read where the cover ring's meshes have faded
         uRockMap: { value: (() => { const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; })() },
         uRockRect: { value: new THREE.Vector4(0, 0, 1, 0) }, uRockFade: { value: new THREE.Vector4(50, 220, 0.5, 1) },
+        uRingF: { value: new THREE.Vector4(0.55, 450, 90, 0) },   // ROCK-STUDY: the relief's fold (rock_ring.js sets it)
       });
       GROUND.on = true;
       classWeights();   // a saved stack that starts at the class layer asks for them now
@@ -2009,18 +2100,26 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // object of the LAST compile: a plain compile's set (no uSplat / uSplatN) left the reused lean program's array samplers on
         // unit 0, where a 2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn (GROUND-COST, 6 Oct)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
-        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '');   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
+        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '')
+          + (side === 0 && SP ? '#define GS_TRLITE 1\n' : '');   // ROCK-STUDY R1: the outer ring and the premises patch - the rock's micro and joints out   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nuniform vec4 uTier;\nattribute float aPav; varying float vPav;\n' +
+            // ROCK-STUDY: the RELIEF's vertices (rock_ring.js) carry the macro (aRM, aRX) and their offset (aRD); on the ground's own
+            // meshes the attributes are absent (aRM.w reads 1: not a relief vertex). The relief folds back under the ground toward
+            // the ring's reach (uRingF: sink, reach, band)
+            'attribute vec4 aRM, aRX; attribute vec3 aRD; varying vec4 vRM, vRX; uniform vec4 uRingF;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
           .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (side > 0 ? '\nobjectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;\n' +
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') +
+            'vRM = aRM; vRX = aRX; if (aRM.w > 1.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n' +
+            '  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\n' +
+            'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;\n' +
             // G2115 (TERRAIN-MATCH): UNDER THE CONTACT TIER (ground_tier.js) a vertex more than a cell inside its square goes uTier.w
             // under - every triangle it is in lies inside the square, under the tier (translation-only model matrices: the patch's
             // blocks, the tiles). Off (uTier.z 0) for every material but the patch's and the fine tiles' (TIER_U)
             '{ vec2 tD = abs(vWPi.xz - uTier.xy); if (max(tD.x, tD.y) < uTier.z) { transformed.y -= uTier.w; vWPi.y -= uTier.w; } }');
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\n' +
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\nvarying vec4 vRM, vRX;\n' +
             (rock ? 'uniform sampler2D uRockMap; uniform vec4 uRockRect, uRockFade;\n' : '') +
             'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\n' +
             'uniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
@@ -2071,7 +2170,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             (SP ? (full ? SP.glslCommonFull : SP.glslCommon) : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             // the fine disc's edge: one of the two surfaces per pixel, decided before any of the ground's cost
-            (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
+            (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z && vRM.w < 1.5) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
             // THE DEEP BED IS NOT PAINTED (PERF 2026-09-23): 25 m under the sea's level the water in front of it is
             // opaque to 1 - exp(-0.3 x 25) = 99.9 % at its clearest (water.js: alpha = 1 - exp(-opa D), opa >= 0.3),
@@ -2213,6 +2312,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     }
     groundApi = {
       splat: () => (SPL ? SPL.api : null),
+      splatFull: () => SPL,   // ROCK-STUDY: the whole splat (its uniforms: the rock ring's material reads its arrays)
       fine: () => fineRing,   // the fine disc's state (tiles, radius, off) for the rigs and F8
       tier: () => groundTier,   // G2115: the contact tier (its dials S, mode, centre, stats) for the rigs and F8
       ringLod: () => ringLod,   // the inner ring's chunks: tolPx / minQuads / rimE dials, stats (PERF 2026-09-23)
@@ -2422,7 +2522,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const gMatTwin = islandGroundHook ? worldLambert({ map: tex }) : gMat;
     innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
     // the close grain is the analytic ground's; an island's ground is the live stack
-    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; islandKeyed(gMat, 'island-ring');
+    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; islandKeyed(gMat, 'island-ring'); rockGroundMat = gMat;
       gMatTwin.onBeforeCompile = islandGroundHook0; islandKeyed(gMatTwin, 'island-twin'); }   // (the hooks share one source text: the keys keep the programs apart)
     else gMat.onBeforeCompile = sh => {
       if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
@@ -6104,6 +6204,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
+          // ROCK-STUDY: THE ISLAND'S ROCK AS GEOMETRY (rock_ring.js): the outcrops round the eye, built in a worker from the ground's
+          // own heights, the map's types and NDVI and the drainage (the bias worker's D8), with the 'rocks' collection's boulders
+          // seated on them; their own material (the splat's arrays). ?rocks=0 none, ?ring=0 the ring off (the cost A/B)
+          if (typeof ROCK_RING !== 'undefined' && world.island && groundApi.splatFull && groundApi.splatFull()) {
+            let rocksOn = true; try { if (/[?&]rocks=0/.test(location.search)) rocksOn = false; } catch (e) {}
+            if (rocksOn) try {
+              const kit = null;   // (the boulders are the PROCEDURAL kit, closed rocks - rock_ring_core procKit; the pack's scans are open shells)
+              let flowSync = null;
+              const flowOf = () => { if (rockBiasJob && rockBiasJob.flow) return rockBiasJob.flow;
+                if (!flowSync && typeof ROCK_RING_CORE !== 'undefined' && world.hydro && world.hydro.grids) { const hg = world.hydro.grids;
+                  flowSync = { g: ROCK_RING_CORE.flowGrid(Float32Array.from(hg.H), hg.N, hg.dx * hg.dx / 25), N: hg.N, x0: hg.x0, z0: hg.z0, dx: hg.dx }; }
+                return flowSync; };
+              // THE PHONE TIER (A0's brief): the GRAPHICS row's lean ground builds the ring at 2.5 m within 250 m, no micro detail; plain: no ring
+              const gq = (typeof window !== 'undefined' && window.GFX && window.GFX.get) ? window.GFX.get().ground : null;
+              const K = gq === 'lean' ? { step: 2.5, reachCap: 250, reach: 250, micro: 0 } : {};
+              if (gq !== 'plain') rockRing = ROCK_RING.make(THREE, { scene, world, camera, splat: groundApi.splatFull(), groundMat: rockGroundMat, groundU, terrainH: (x, z) => world.terrainH(x, z), keep: world.terrainKeep ? ((x, z) => world.terrainKeep(x, z)) : null, isla: world.island, flow: flowOf, kit, K });
+              if (typeof window !== 'undefined') window.ROCK_RING_LIVE = rockRing;
+            } catch (e) { console.warn('rock ring: ' + (e && e.message)); }
+          }
           // G1460 (SOFT-GPU) THE MENU'S ROWS REACH THE RING. GFX.onWorld (app.js worldBuilt) ran before this block made
           // the ring, and nothing applies the menu again: the cover row never reached it - potato's 'off' drew the full
           // ring (reach 220, density 2: ~30 M triangles a frame, 3-9 MINUTES a frame on SwiftShader). The same is true on
@@ -7881,6 +8000,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
     }
     if (farLod && farLod.resinkSteps) yield* farLod.resinkSteps(bb); else if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
+    try { if (rockRing && rockRing.invalidate) rockRing.invalidate(bb); } catch (e) {}   // (a boot-time call may come before rockRing's line) ROCK-STUDY: the rock's chunks and macro tiles under the edit (the terraforming's keep)
   }
   // G2063 (TOWN-GEO): THE TOWN'S PATCH AND ROADS, AS THE EYE NEARS IT. With the town on, the boot builds the premises' ground
   // and roads as the town-off page does (Metlakatla is 9 km from HOME: its patch and roads were ~3.5 s of the garage
@@ -7990,6 +8110,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     lodUpdate(cg);
     if (FRw) FRw.push(FRw.S.cover);
     if (coverRing) coverRing.update();
+    if (rockRing) rockRing.update();
     if (grassField) grassField.update();
     if (FRw) FRw.pop();
     if (standCards) standCards.update((isFinite(uCam.value.x) && (uCam.value.x || uCam.value.y || uCam.value.z)) ? [uCam.value.x, uCam.value.y, uCam.value.z] : cg);   // G2930: the eye (the fill's ring is the eye's too)

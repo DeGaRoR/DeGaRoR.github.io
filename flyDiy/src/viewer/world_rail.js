@@ -18,7 +18,8 @@
 //   FILTERING  tiling, blending, distance, the texture filtering (mip bias, anisotropy, the normal's fade,
 //              specular anti-alias, the detail's contrast)
 //   VEGETATION the fill's rule and the cover ring
-//   CLIFFS     the photoscanned cliff faces and the rocks at distance
+//   CLIFFS     'rock & cliffs': the island's own rock (ROCK-STUDY R1: the splat's rock* knobs and the trondhjemite tiles'
+//              grade), the photoscanned cliff faces and the rocks at distance
 //   SCENERY    the scenery editor (premises_ui.js, the old "world editor") and the maps
 //   EXPORT     every setting in one JSON, the changes against the defaults, import, reset
 //
@@ -551,7 +552,7 @@
     { k: 'library', label: 'materials', title: 'The ground sets side by side, each set’s grade and recolour', build: buildLibrary },
     { k: 'filter', label: 'filtering', title: 'Tiling, blending, distance, texture filtering', build: buildFilter },
     { k: 'veg', label: 'vegetation', title: 'The fill’s rule, the cover ring, the trees’ colour', build: buildVeg },
-    { k: 'cliffs', label: 'cliffs', title: 'The photoscanned cliffs and the rocks at distance', build: buildCliffs },
+    { k: 'cliffs', label: 'rock & cliffs', title: 'The island\u2019s own rock (its tiles, exposure, joints, green, roughness, fades), the photoscanned cliffs and the rocks at distance', build: buildCliffs },
     { k: 'runway', label: 'runways', title: 'The runways\u2019 and roads\u2019 look per surface type: the surface, the wear, the sides', build: buildRunway },
     { k: 'scenery', label: 'air & map', title: 'The air while you work and the maps (the scenery editor and the test mode are the left rail\u2019s DEV)', build: buildScenery },
     { k: 'file', label: 'export', title: 'Export, import, the changes against the defaults, reset', build: buildFile },
@@ -1234,8 +1235,101 @@
     }
   }
 
+  // ---- THE ISLAND'S OWN ROCK (ROCK-STUDY R1) ----
+  // the splat's rock* knobs (28b RECIPE.knobs: every one a uniform, no program re-keys) and the two trondhjemite tiles' grade
+  // and recolour (the materials' editor). Kept as the other ground rows are: the splat's own store (flydiy.ground.splat.v1),
+  // the export's `splat` block and its changes against the recipe; 'reset the rock' puts the recipe's numbers back.
+  const ROCK_KEYS = ['rocks', 'rockHLo', 'rockHHi', 'rockBias', 'rockOff', 'rockK', 'rockJoint', 'rockJointSoil', 'rockJointDirt', 'rockHollow',
+    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar', 'rockSlabTone', 'rockSlabTilt', 'rockRing', 'rockRingReach', 'rockLift', 'rockAmp', 'rockProud', 'rockBoulders', 'rockScatter', 'rockMacro', 'rockBoulderTone', 'rockBoulderCon', 'rockGrassMatch', 'rockWeather', 'rockGreenTint'];
+  function buildRock(body) {
+    const sp = SP();
+    if (!sp || sp.knobs().rocks === undefined) { note(body, 'the island’s own rock is not in this build'); return; }
+    const RK = (typeof GROUND_FIELDS !== 'undefined' ? GROUND_FIELDS.RECIPE.knobs : {}), kn = k => () => sp.knobs()[k], ss = k => v => { sp.set({ [k]: v }); changed(); };
+    const E = sec(body, 'the island’s rock', true, 'trondhjemite on the rock and cliff types');
+    toggle(E, 'the island’s rock', () => sp.rocks(), v => { sp.rocks(!!v); sp.set({ rocks: v ? 1 : 0 }); changed(); });
+    note(E, 'off: the recipe’s rock and cliff sets as before (?rocks=0 at the load does the same, without the terrain bias).');
+    range(E, 'brightness', 0.3, 2, 0.02, kn('rockK'), ss('rockK'), null, RK.rockK);
+    range(E, 'rock shows from', 0, 1200, 10, kn('rockHLo'), ss('rockHLo'), v => v + ' m', RK.rockHLo);
+    range(E, '... fully by', 0, 1600, 10, kn('rockHHi'), ss('rockHHi'), v => v + ' m', RK.rockHHi);
+    range(E, 'the map’s rock weight', 0, 1, 0.01, kn('rockBias'), ss('rockBias'), null, RK.rockBias);
+    range(E, 'exposure threshold', -0.3, 0.5, 0.01, kn('rockOff'), ss('rockOff'), null, RK.rockOff);
+    range(E, 'the imagery\u2019s green', 0, 1.5, 0.02, kn('rockNdvi'), ss('rockNdvi'), null, RK.rockNdvi);
+    range(E, '... green from NDVI', 0.3, 0.95, 0.01, kn('rockNdviMid'), ss('rockNdviMid'), v => v.toFixed(2), RK.rockNdviMid);
+    range(E, 'slab tile', 2, 80, 0.5, kn('rockSlabM'), ss('rockSlabM'), v => v + ' m', RK.rockSlabM);
+    range(E, 'steep tile', 2, 80, 0.5, kn('rockFaceM'), ss('rockFaceM'), v => v + ' m', RK.rockFaceM);
+    pills(row(E, 'on the steep faces'), [{ label: 'slab', v: 0 }, { label: 'face tile', v: 1 }], o => (sp.knobs().rockFaceTile | 0) === o.v, o => { sp.set({ rockFaceTile: o.v }); changed(); });
+    range(E, 'steep from', 10, 80, 1, kn('rockFaceLo'), ss('rockFaceLo'), v => v + '\u00b0', RK.rockFaceLo);
+    range(E, '... fully by', 11, 89, 1, kn('rockFaceHi'), ss('rockFaceHi'), v => v + '\u00b0', RK.rockFaceHi);
+    note(E, 'the exposure: how much of the map’s rock shows bare - high, steep, convex ground and the map’s own rock share, less the hollows and the valleys (the terrain bias). A higher threshold shows less bare rock.');
+    const J = sec(body, 'joints, green and wet', false, 'the crack network and what grows in it');
+    range(J, 'joint density', 0.25, 4, 0.05, kn('rockJoint'), ss('rockJoint'), v => 'x' + v.toFixed(2), RK.rockJoint);
+    range(J, 'slab tone swing', 0, 0.8, 0.01, kn('rockSlabTone'), ss('rockSlabTone'), null, RK.rockSlabTone);
+    range(J, 'slab tilt', 0, 0.3, 0.005, kn('rockSlabTilt'), ss('rockSlabTilt'), null, RK.rockSlabTilt);
+    range(J, 'soil in the joints', 0, 1, 0.02, kn('rockJointSoil'), ss('rockJointSoil'), null, RK.rockJointSoil);
+    range(J, 'joint dirt', 0, 1, 0.02, kn('rockJointDirt'), ss('rockJointDirt'), null, RK.rockJointDirt);
+    range(J, 'hollow dirt', 0, 1, 0.02, kn('rockHollow'), ss('rockHollow'), null, RK.rockHollow);
+    range(J, 'green in the cracks', 0, 2.5, 0.05, kn('rockGreen'), ss('rockGreen'), v => 'x' + v.toFixed(2), RK.rockGreen);
+    range(J, 'wet streaks', 0, 1, 0.02, kn('rockWet'), ss('rockWet'), null, RK.rockWet);
+    range(J, 'green\u2019s saturation', 0, 1.5, 0.02, kn('rockGreenSat'), ss('rockGreenSat'), null, RK.rockGreenSat);
+    range(J, 'joints gone by', 0, 2000, 10, kn('rockJointFar'), ss('rockJointFar'), v => v ? v + ' m' : 'off', RK.rockJointFar);
+    note(J, 'joint density x2 halves the spacing of the two joint sets; the soil they hold cuts the bare rock along them, their dirt darkens them. The green fills the joints, the hollows, the benches and the tile’s own cracks.');
+    const Rg = sec(body, 'roughness', false, 'bare stone glossier than the green');
+    range(Rg, 'bare stone', 0.3, 1.6, 0.02, kn('rockRough'), ss('rockRough'), v => 'x' + v.toFixed(2), RK.rockRough);
+    range(Rg, 'the green', 0.5, 1, 0.01, kn('rockGreenRough'), ss('rockGreenRough'), null, RK.rockGreenRough);
+    note(Rg, 'bare stone: x the tiles’ own roughness maps (under 1 glossier); the green and the moss stay matte. The filtering’s sheen still scales the lot.');
+    const Bl = sec(body, 'the blend with the grass', true, 'the rock\u2019s value and hue against the grass around it');
+    range(Bl, 'value to the grass', 0, 1.5, 0.05, kn('rockGrassMatch'), ss('rockGrassMatch'), null, RK.rockGrassMatch);
+    range(Bl, 'weathering film', 0, 1, 0.02, kn('rockWeather'), ss('rockWeather'), null, RK.rockWeather);
+    range(Bl, 'grass tint', 0, 2, 0.05, kn('rockGreenTint'), ss('rockGreenTint'), v => 'x' + v.toFixed(2), RK.rockGreenTint);
+    liveNote(Bl, () => { const b = sp.rockBlend ? sp.rockBlend() : null; return b ? 'the rock x' + b[0].toFixed(2) + ' (its value), the film ' + Math.round(b[4] * 100) + ' % of the grass\u2019s hue' : ''; });
+    note(Bl, 'the bench v1 drew its green lighter and warmer than the game\u2019s graded grass; \u2018value to the grass\u2019 scales the rock (the ground\u2019s, the outcrops\u2019 and the boulders\u2019) by the ratio of the two grasses\u2019 values to this power - 0 v1\u2019s rock as it was, 1 v1\u2019s proportion to its grass exactly. The film lays the land\u2019s own colour on the stone - the imagery\u2019s tint, as the open grass wears it (algae, lichen, dirt); the grass growing in the rock always wears it. The grass itself: its own grade under TYPES.');
+    const Mi = sec(body, 'micro detail and fades', false, 'close up and far away');
+    toggle(Mi, 'micro detail', () => sp.knobs().rockMicro, v => { sp.set({ rockMicro: v ? 1 : 0 }); changed(); });
+    range(Mi, 'micro brightness', 0, 1, 0.02, kn('rockMicroK'), ss('rockMicroK'), null, RK.rockMicroK);
+    range(Mi, 'micro relief', 0, 1.5, 0.02, kn('rockMicroN'), ss('rockMicroN'), null, RK.rockMicroN);
+    range(Mi, 'micro fades', 0, 600, 5, kn('rockMicroFrom'), ss('rockMicroFrom'), v => v + ' m', RK.rockMicroFrom);
+    range(Mi, 'micro gone by', 10, 1000, 5, kn('rockMicroTo'), ss('rockMicroTo'), v => v + ' m', RK.rockMicroTo);
+    range(Mi, 'far fade from', 0, 3000, 25, kn('rockFarFrom'), ss('rockFarFrom'), v => v + ' m', RK.rockFarFrom);
+    range(Mi, 'far fade full by', 50, 6000, 25, kn('rockFarTo'), ss('rockFarTo'), v => v + ' m', RK.rockFarTo);
+    note(Mi, 'micro: the cliff photograph’s grain over the tiles (one read, the dominant plane) near the eye. Far fade: the tiles give way to their mean colour, so their large patterns never repeat across a far ridge.');
+    toggle(Mi, 'macro texture', () => sp.knobs().rockMacro, v => { sp.set({ rockMacro: v ? 1 : 0 }); changed(); });
+    liveNote(Mi, () => { const R = W.ROCK_RING_LIVE; if (!R) return 'no ring in this world'; const m = R.stat().macro; if (!m) return 'no macro texture';
+      const lv = m.rects.map((r, L) => r[2] > r[0] ? ['1 m', '2 m', '4 m'][L] + ' +-' + Math.round((r[2] - r[0]) / 2) + ' m' : null).filter(Boolean);
+      return 'macro: ' + m.tiles + ' tiles, ' + (lv.length ? lv.join(', ') : 'filling') + (m.queued ? ', ' + m.queued + ' queued' : '') + ', worker ' + m.workerMs + ' ms'; });
+    note(Mi, 'macro texture: the bench v1’s macro (the joints’ lines, the formations, the colour zones, the exposure, the green’s chance) as a texture round the eye - 1 m to 500 m, 2 m to 1 km, 4 m to 2 km - read a pixel at a time: the far rock’s mosaic and its big lines. Off: the procedural stand-in beyond the outcrops.');
+    // the outcrops as geometry round the eye and the boulders seated on them (rock_ring.js) - splat knobs, the ring reads them
+    const Rg2 = sec(body, 'outcrops and boulders', true, 'the rock as geometry round the eye');
+    toggle(Rg2, 'outcrops', () => sp.knobs().rockRing, v => { sp.set({ rockRing: v ? 1 : 0 }); changed(); });
+    range(Rg2, 'reach', 100, 1200, 10, kn('rockRingReach'), ss('rockRingReach'), v => v + ' m', RK.rockRingReach);
+    range(Rg2, 'outcrop lift', 0, 3, 0.05, kn('rockLift'), ss('rockLift'), v => v.toFixed(2) + ' m', RK.rockLift);
+    range(Rg2, 'masses', 0, 4, 0.05, kn('rockAmp'), ss('rockAmp'), v => v.toFixed(2) + ' m', RK.rockAmp);
+    range(Rg2, 'stand-off', 0, 1, 0.01, kn('rockProud'), ss('rockProud'), v => v.toFixed(2) + ' m', RK.rockProud);
+    toggle(Rg2, 'boulders', () => sp.knobs().rockBoulders, v => { sp.set({ rockBoulders: v ? 1 : 0 }); changed(); });
+    range(Rg2, 'boulder density', 0, 4, 0.05, kn('rockScatter'), ss('rockScatter'), v => 'x' + v.toFixed(2), RK.rockScatter);
+    range(Rg2, 'boulder tone', 0.2, 2, 0.02, kn('rockBoulderTone'), ss('rockBoulderTone'), v => 'x' + v.toFixed(2), RK.rockBoulderTone);
+    range(Rg2, 'boulder contrast', 0, 4, 0.05, kn('rockBoulderCon'), ss('rockBoulderCon'), v => 'x' + v.toFixed(2), RK.rockBoulderCon);
+    liveNote(Rg2, () => { const R = W.ROCK_RING_LIVE; if (!R) return 'no ring in this world'; const t = R.stat();
+      return t.chunks + ' chunks, ' + (t.tris / 1e6).toFixed(2) + ' M tris (boulders ' + (t.boulderTris / 1e6).toFixed(2) + ' M), worker ' + t.workerMs + ' ms, main ' + t.mainMs + ' ms'; });
+    note(Rg2, 'the outcrops rise out of the 5 m ground by the macro\u2019s relief and the Blender masses, within reach of the eye; the boulders sit on them (v1\u2019s placement). Every change rebuilds the ring in its worker.');
+    const acts = $('div', 'wr-acts'); E.appendChild(acts);
+    button(acts, 'reset the rock', () => { const o = {}; for (const k of ROCK_KEYS) if (RK[k] !== undefined) o[k] = RK[k]; sp.set(o); sp.rocks(!!o.rocks); sp.setCode(6, { trond: ['trondSlab', 'trondFace', 'cliff', 'grassRock'] }); changed(); open('cliffs', true); });
+    // THE ROCK'S TEXTURES (16 Nov, the user: "integrated with the existing system ... so I can tune or change these textures myself"):
+    // the four sets R1 wears - code 6's row (persisted and exported with the codes) - each picked from the library and graded /
+    // recoloured with the materials' own editor (the same grade the codes' sets take)
+    const T4 = () => (sp.trond ? sp.trond() : ['trondSlab', 'trondFace', 'cliff', 'grassRock']);
+    const Tx = sec(body, 'the rock\u2019s textures', true, 'the sets the rock wears: pick, grade, recolour');
+    const libOpts = () => sp.library().map(x => [x.key, x.key + (x.metres ? '  (' + x.metres + ' m)' : '')]);
+    const ROLES = [['slab', 'gentle rock (the slab)'], ['face', 'steep faces'], ['micro', 'micro detail + boulders'], ['green', 'the green in the rock']];
+    ROLES.forEach(([, label], i) => select(Tx, label, libOpts(), () => T4()[i], v => { const t = T4(); t[i] = v; sp.setCode(6, { trond: t }); open('cliffs', true); }));
+    note(Tx, 'the slab and the face are the rock\u2019s own tiles (the trondhjemite); the micro set\u2019s photograph is the close-up grain and the boulders\u2019 stone; the green is the grass the rock grows. Each is a library set: its grade and recolour below are the materials\u2019 own (they show wherever that set is worn).');
+    T4().forEach((k, i) => { if (!(sp.layers().includes(k) || sp.library().some(x => x.key === k))) return;
+      const f = sec(body, ROLES[i][1] + ': ' + k + ' - grade and recolour', false, ((sp.library().find(x => x.key === k) || {}).metres || '?') + ' m repeat');
+      setEditor(f, k); });
+  }
+
   // ---- CLIFFS ----
   function buildCliffs(body) {
+    buildRock(body);
     const A = sec(body, 'where the coastal scans belong', true);
     note(A, 'the photoscanned SMALL coastal rocks (coast_land_rocks, coast_rocks, sand_rocks) are stones: they are species of the biomes (TYPES > biome > stones; the shingle biome plants them by the sea, "shore" keeps them there) and the rock map carries them into the distance. The CLIFF faces are not: they are placed by the ground’s own geometry - the steepest slopes, turned to the contour, sunk into the hill - not by a biome’s density, so they keep this section.');
     const P = PACK();
