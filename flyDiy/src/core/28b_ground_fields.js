@@ -180,7 +180,7 @@ const GROUND_FIELDS = (() => {
       // THE ROCK RING (rock_ring.js): the outcrops as geometry round the eye - on, its reach (m), the outcrops' lift and the Blender
       // masses' amplitude (m), the cover's stand-off over the ground (m), the boulders on and their density (x v1's law)
       rockRing: 1, rockRingReach: 450, rockLift: 0.6, rockAmp: 1.5, rockProud: 0.15, rockBoulders: 1, rockScatter: 1.25, rockMacro: 1, rockBoulderTone: 1, rockBoulderCon: 2, rockGrassMatch: 0.5, rockWeather: 0.25, rockGreenTint: 1,   // (17 Nov, in game: "the grass color is now too green" - the tint back to the heath's, the film to 0.25)
-      rockSlabM: 16, rockFaceM: 24, rockFaceTile: 1, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 1, rockJointFar: 5000, rockSlabTone: 0, rockSlabTilt: 0,   // (17 Nov, the user: "nothing should have the macro pattern fade" - the lines held to 5 km, the tiles' fade to their mean spread to 2.5 km: the texture shows through)
+      rockSlabM: 16, rockFaceM: 24, rockFaceTile: 1, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 1, rockJointFar: 900, rockSlabTone: 0, rockSlabTilt: 0,   // (17 Nov, the user: "nothing should have the macro pattern fade" - the tiles' fade to their mean spread to 2.5 km: the texture shows through)
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;

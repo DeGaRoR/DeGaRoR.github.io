@@ -1352,7 +1352,7 @@ const SPLAT_GROUND = (() => {
         if (mS) U.uTrMeanS.value.set(mS[0] * (gS ? gS.x : 1), mS[1] * (gS ? gS.y : 1), mS[2] * (gS ? gS.z : 1), 1);
         U.uTrJ.value.set(kv('rockJoint', 1), kv('rockJointSoil', 0.7), kv('rockJointDirt', 0.85), kv('rockHollow', 0.5));
         U.uTrG.value.set(kv('rockGreen', 1), kv('rockGreenRough', 0.97), kv('rockGreenSat', 1), kv('rockRough', 1));
-        U.uTrF.value.set(kv('rockMicroFrom', 60), kv('rockMicroTo', 180), kv('rockJointFar', 5000), kv('rockWet', 0.75));
+        U.uTrF.value.set(kv('rockMicroFrom', 60), kv('rockMicroTo', 180), kv('rockJointFar', 900), kv('rockWet', 0.75));
         U.uTrM.value.set(kv('rockMicroK', 0.65), kv('rockMicroN', 0.6), kv('rockNdvi', 0), kv('rockNdviMid', 0.74)); }
     };
     push();
