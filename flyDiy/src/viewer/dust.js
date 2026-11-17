@@ -149,6 +149,10 @@
     // lump off a plough (ballistic); DROP (5) a mud / slush drop, 1-5 mm (its terminal speed 6-8 m/s: a little drag); SPLAT
     // the landed mud: splatLife s, its wet gloss gone by splatDry of it, eroded away over the last half
     driftDrag: 2.5, dropDrag: 0.35, clumpDrag: 0.12, splatLife: 22, splatDry: 0.4, splatMax: 0.18, projMax: 220, projUp: 5,
+    // THE SPLASH BUDGET (GROUND-FX 16 Nov, A0's review of DIRT-STRIP's 160 drops/s): the grit ring overwrites its next slot, live
+    // or not - every puddle splash of every wheel shares splashShare x the ring a second (phone 64, potato 96, retro 160, gamer
+    // 280 /s), so the splashes alone never wrap it in under 1 / splashShare = 2.5 s: no flying grit or clod (life <= 1.8 s) evicted
+    splashShare: 0.4,
     z0: 0.03,                        // m: the strip's roughness length for the log wind
     // the wheels
     wheelK: 0.075, wheelV0: 2.0,     // optical m^2 a second per (m/s over V0)^2 at fines 1, dry (AP-42: per metre ~linear in speed, so ~V^2 a second;
@@ -198,7 +202,7 @@
            seed: new Float32Array(T.splat || 0), sp: new Float32Array(T.splat || 0), next: 0, n: T.splat || 0, live: 0 },
       src: new Map(),      // a source's current puff: key -> { i, gen }
       genN: 1,
-      wasOn: [], stats: { emitted: 0, merged: 0, absorbed: 0 }, kAir: L.kAir, kz: L.kz, rvTop: L.rvMax,
+      wasOn: [], stats: { emitted: 0, merged: 0, absorbed: 0, refused: 0 }, splashK: 1, splashDem: 0, splashRoom: 0, kAir: L.kAir, kz: L.kz, rvTop: L.rvMax,
     };
     return sys;
   }
@@ -254,8 +258,14 @@
     return F ? F[0] * Math.exp(-t / F[1]) + (1 - F[0]) * Math.exp(-t / F[2]) : L.coarse * Math.exp(-t / L.tauCoarse) + (1 - L.coarse) * Math.exp(-t / L.linger); };
   const lingerOf = c => (CLS[CLASSES[c]] && CLS[CLASSES[c]].fall ? CLS[CLASSES[c]].fall[2] : L.linger);
   const curMass = (P, i) => P.m0[i] * decay(P.age[i], P.cls[i]);
+  const EVICT_LOOK = 8;
   function emitGrit(sys, kind, x, y, z, vx, vy, vz, s, cls) {
-    const G = sys.G, q = G.next; G.next = (G.next + 1) % G.n;
+    // (GROUND-FX 16 Nov) a live one is never overwritten: the next dead slot within EVICT_LOOK of the ring's head takes it,
+    // none - the new one is refused (a full ring takes no more, as the splats': nothing in flight pops); GATE DUST 4b
+    const G = sys.G; let q = G.next, k = 0;
+    while (G.age[q] < G.life[q] && ++k < EVICT_LOOK) q = (q + 1) % G.n;
+    if (G.age[q] < G.life[q]) { sys.stats.refused++; return; }
+    G.next = (q + 1) % G.n;
     G.p[q * 3] = x; G.p[q * 3 + 1] = y; G.p[q * 3 + 2] = z; G.v[q * 3] = vx; G.v[q * 3 + 1] = vy; G.v[q * 3 + 2] = vz;
     G.s[q] = s; G.age[q] = 0; G.life[q] = kind === 2 ? 1.6 : kind < 2 ? 1.2 : kind === 3 ? 0.35 + 0.35 * rnd() : kind === 4 ? 1.8 : 1.5; G.kind[q] = kind; G.cls[q] = cls; G.seed[q] = rnd();   // (SNOW-MUD: 3 drift, 4 clump, 5 drop)
   }
@@ -422,6 +432,10 @@
   function sources(sys, st, env, dt) {
     if (!(dt > 0)) return;
     const K = env.k != null ? env.k : 1;
+    // THE SPLASH BUDGET: last frame's asked splash rate (all wheels) over the budget scales every wheel alike this frame (a
+    // fair share, both sides spray); the room (this frame's budget, its fraction carried) is the hard cap behind it
+    { const B = L.splashShare * sys.G.n; sys.splashK = sys.splashDem > B ? B / sys.splashDem : 1; sys.splashDem = 0;
+      sys.splashRoom = B * dt + Math.max(0, Math.min(1, sys.splashRoom)); }
     // ---- the wheels ----
     const W = st.wheels || [];
     for (let k = 0; k < W.length; k++) {
@@ -465,8 +479,7 @@
           w.vz * (0.25 + 0.35 * sp) + (rnd() - 0.5) * 1.2, kind === 2 ? 0.015 + 0.02 * rnd() : 0.006 + 0.012 * rnd(), ci);
       }
       // a PUDDLE: the tyre parts the water - brown water thrown out both sides and up
-      // (DIRT-STRIP 13 Nov: ~1 drop a frame read as no spray at all) ~160 drops a second a wheel at 6 m/s in 2 cm, by rate
-      if (pud > 0.01 && V > 2) { const r = LOOK.splashRate * Math.min(1.5, V / 6) * Math.min(1, pud / 0.02) * K * dt; let n = Math.floor(r); if (rnd() < r - n) n++; for (let j = 0; j < n; j++) splashDrop(sys, w, V, ci); }
+      splashRun(sys, w, V, pud, dt, K, ci);
     }
     // ---- the props: the slipstream's wall jet ----
     const PR = st.props || [];
@@ -524,7 +537,7 @@
       const at = SKI ? (rnd() - 0.3) * SKI.L * 0.6 : 0;          // (a ski parts the mud along its fore half)
       one(rnd() < 0.25 ? 2 : 5, w.x + ux * (toe + at) + lx * side * half, w.y + 0.02, w.z + uz * (toe + at) + lz * side * half, ux * f + lx * o, up, uz * f + lz * o);
     }
-    if (pud > 0.01 && V > 2) { const N = Math.min(12, V * 0.6 * Math.min(1, pud / 0.04)) * dt * 3; for (let j = 0; j < N; j++) splashDrop(sys, w, V, ci); }
+    splashRun(sys, w, V, pud, dt, K, ci);   // (GROUND-FX 16 Nov: the mud's and the slush's puddles spray at the same rate as the dirt's)
   }
   // ---- SNOW-MUD: POWDER'S PLOUGH - a sinking tyre (or a ski's toe) pushes the snow ahead aside: CLUMPS (kind 4, 1-4 cm,
   // white, ballistic) thrown to the sides and forward, and the fines it breaks up a cloud (a puff topped up, x the sinkage)
@@ -545,6 +558,17 @@
     const n = Math.round(Math.min(50, 10 * vs * Math.min(1, depth / 0.03)));
     for (let j = 0; j < n; j++) { const a = rnd() * 6.2832, sp = (0.8 + 2 * rnd()) * Math.min(2.5, vs);
       emitGrit(sys, 2, w.x, w.y + 0.05, w.z, w.vx * 0.4 + Math.cos(a) * sp, 1 + 2.2 * rnd() * Math.min(2, vs), w.vz * 0.4 + Math.sin(a) * sp, 0.01 + 0.02 * rnd(), ci); }
+  }
+  // THE PUDDLE SPRAY (DIRT-STRIP 13 Nov: ~1 drop a frame read as no spray at all): ~LOOK.splashRate drops a second a wheel
+  // at 6 m/s in 2 cm (x speed to 1.5, x depth), every class's puddle; within the splash budget (sources' head: the fair
+  // scale, then the room)
+  function splashRun(sys, w, V, pud, dt, K, ci) {
+    if (!(pud > 0.01 && V > 2)) return;
+    const want = LOOK.splashRate * Math.min(1.5, V / 6) * Math.min(1, pud / 0.02) * K;
+    sys.splashDem += want;
+    const r = want * sys.splashK * dt; let n = Math.floor(r); if (rnd() < r - n) n++;
+    n = Math.min(n, Math.floor(sys.splashRoom)); sys.splashRoom -= n;
+    for (let j = 0; j < n; j++) splashDrop(sys, w, V, ci);
   }
   function splashDrop(sys, w, V, ci) {
     const ux = w.vx / V, uz = w.vz / V, side = rnd() < 0.5 ? -1 : 1, so = (0.15 + 0.25 * rnd()) * V;
