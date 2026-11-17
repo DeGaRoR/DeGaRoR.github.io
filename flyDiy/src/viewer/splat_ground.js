@@ -393,7 +393,7 @@ const SPLAT_GROUND = (() => {
     return (a + (b - a) * u) * (1.0 - v) + (c + (d - c) * u) * v; }
   // fbm_at: n cells over 2048 m, gain 0.5 - an octave whose cell is under ~1.5 pixels is its mean (0.5): no fizz, no moire
   float sTrFbm(vec2 xz, float n, int seed, int oct){ float sm = 0.0, a = 1.0, w = 0.0, f = n / 2048.0;
-    for (int o = 0; o < 3; o++) { if (o >= oct) break; float k = smoothstep(0.35, 0.75, gTrPx * f);
+    for (int o = 0; o < 3; o++) { if (o >= oct) break; float k = smoothstep(0.6, 1.5, gTrPx * f);
       sm += a * mix(sTrVn(xz.x * f, xz.y * f, seed * 31 + o), 0.5, k); w += a; a *= 0.5; f *= 2.0; } return sm / w; }
   vec4 gTrJs = vec4(0.0); float gTrJw = 0.0;   // jset's result: (distance to the nearest line, its index, the band, open) + its width
   void sTrJset(vec2 xz, float th, float smin, float smax, int seed, float warpA, float shift){
