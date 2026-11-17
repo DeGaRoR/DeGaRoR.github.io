@@ -199,7 +199,16 @@ window.GB = { ready: true, ring: RSTAT, buildMs, firstMs, fsLen: FS.length, samp
   layers: SPL.api.layers(), trOn: SPL.uniforms.uTrOn ? SPL.uniforms.uTrOn.value : -1, view,
   eyes: Object.fromEntries(Object.keys(VIEWS).map(k => { const [e, t] = VIEWS[k](); return [k, { pos: e.map(v => +v.toFixed(1)), target: t.map(v => +v.toFixed(1)) }]; })),
   render: () => { renderer.render(scene, camera); gl.finish(); },
-  viewRing: async name => { view(name); if (RING) { const t = performance.now(); const st = await RING.whenIdle(); st.wallMs = Math.round(performance.now() - t); return st; } return null; },
+  viewRing: async name => { view(name); if (RING) { const t = performance.now(); const st = await RING.whenIdle(); st.wallMs = Math.round(performance.now() - t);
+    // THE EYE ON THE ROCK (16 Nov): a low eye (ground, flare) was placed over the BASE terrain - on rock the relief stands 1-3 m over
+    // it and the eye sat under the skin (single-sided: seen through from beneath, its far part a 'sheet'). It stands on the relief's
+    // surface now (the highest shown relief vertex within 1.5 m), as an aircraft will once the rock has its physics; the lift logged
+    if (name === 'ground' || name === 'flare') { const e = camera.position; let top = -1e9;
+      for (const m of RING.group.children) { if (m.material !== mat || !m.geometry.attributes.aRD) continue; const P = m.geometry.attributes.position.array, D = m.geometry.attributes.aRD.array;
+        for (let v = 0; v < P.length / 3; v++) { if (Math.abs(P[v * 3] - e.x) > 1.5 || Math.abs(P[v * 3 + 2] - e.z) > 1.5) continue; top = Math.max(top, P[v * 3 + 1] + D[v * 3 + 1]); } }
+      const want = (name === 'ground' ? 2.2 : 4) + top, base = hXZ(e.x, e.z); st.eyeUnderRock = +(top - base).toFixed(2);
+      if (e.y < want) { const dy = want - e.y; e.y = want; camera.updateMatrixWorld(); st.eyeLift = +dy.toFixed(2); console.log('EYE ' + name + ' was ' + dy.toFixed(2) + ' m under the rock (the relief ' + (top - base).toFixed(2) + ' m over the base): lifted'); } }
+    return st; } return null; },
   measure: n => { const a = []; for (let i = 0; i < n; i++) { const t = performance.now(); renderer.render(scene, camera); gl.finish(); a.push(performance.now() - t); } a.sort((x, y) => x - y); return { median: +a[a.length >> 1].toFixed(1) }; },
   rocks: v => SPL.api.rocks(v), errs, fs: () => FS };
 })().catch(e => { window.GB = { error: String(e && e.stack || e) }; console.error(e); });
