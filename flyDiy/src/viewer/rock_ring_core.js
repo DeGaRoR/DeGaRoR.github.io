@@ -386,6 +386,45 @@ function ROCK_RING_CORE_FACTORY() {
       B[o] = b8(-hx / l * 0.5 + 0.5); B[o + 1] = b8(-hz / l * 0.5 + 0.5); B[o + 2] = b8(veg); B[o + 3] = b8((hgt[k] + 2.04) / 5.27); }
     return { A, B, T, ms: Date.now() - t0 };
   }
+  // ---- THE ISLAND'S MAP CARRIES THE MACRO (17 Nov, the user: "nothing in the game should have the macro pattern fade ... it
+  // should be almost baked into the image map of the map"): v1's law over the WHOLE island at the map's own texel (the tint's,
+  // 10 or 20 m), the exposure's FIELD (Ef's coarse part, the joints' soil, the gate as a fall - the soft macro levels' encoding)
+  // into the tint's alpha (render_world: the terrain bias's byte, which this replaces). Every ground program reads that map - the
+  // near ring past the macro texture's 2 km, its far tier, the outer ring - and splat_ground sTrExpo thresholds it a pixel at a
+  // time with v1's fine terms as noise: the mosaic to the horizon. In the rock-bias worker at boot; texels with no rock within
+  // ~30 m skip the law (most of the island).
+  //   bakeIsland({ H, N, hx0, hz0, hdx, flow (Uint8 N*N, log2 acc / 14 x 255), TT (the 10 m type grid), ND (ndvi bytes), IGw, IGh,
+  //               IGx0, IGz0, IGcell, gx0, gz0, cs, W2, H2, K }) -> Uint8Array W2*H2 ((q + 0.3) / 1.5 x 255; 0 = no rock)
+  function bakeIsland(a) {
+    const { H, N, hx0, hz0, hdx, flow, TT, ND, IGw, IGh, IGx0, IGz0, IGcell, gx0, gz0, cs, W2, H2 } = a, K = Object.assign({}, a.K || {}, { px: cs });
+    const bilH = (x, z) => { const fx = Math.min(N - 1.001, Math.max(0, (x - hx0) / hdx - 0.5)), fz = Math.min(N - 1.001, Math.max(0, (z - hz0) / hdx - 0.5)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, k = j * N + i;
+      return (H[k] * (1 - u) + H[k + 1] * u) * (1 - v) + (H[k + N] * (1 - u) + H[k + N + 1] * u) * v; };
+    const bilF = (x, z) => { if (!flow) return 0.3; const fx = Math.min(N - 1.001, Math.max(0, (x - hx0) / hdx - 0.5)), fz = Math.min(N - 1.001, Math.max(0, (z - hz0) / hdx - 0.5)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, k = j * N + i;
+      return ((flow[k] * (1 - u) + flow[k + 1] * u) * (1 - v) + (flow[k + N] * (1 - u) + flow[k + N + 1] * u) * v) / 255; };
+    // the map's rock (10 m, 'is it 6'), dilated ~30 m (the gate), and its bilinear share
+    const n = IGw * IGh, rk = new Uint8Array(n); for (let k = 0; k < n; k++) rk[k] = (TT[k] & 127) === 6 ? 1 : 0;
+    const r3 = Math.max(1, Math.round(30 / IGcell)), t = new Uint8Array(n), dil = new Uint8Array(n);
+    for (let j = 0; j < IGh; j++) { const o = j * IGw; for (let i = 0; i < IGw; i++) { let m = 0; for (let q = Math.max(0, i - r3); q <= Math.min(IGw - 1, i + r3) && !m; q++) m = rk[o + q]; t[o + i] = m; } }
+    for (let i = 0; i < IGw; i++) for (let j = 0; j < IGh; j++) { let m = 0; for (let q = Math.max(0, j - r3); q <= Math.min(IGh - 1, j + r3) && !m; q++) m = t[q * IGw + i]; dil[j * IGw + i] = m; }
+    const shareR = (x, z) => { const fx = (x - IGx0) / IGcell - 0.5, fz = (z - IGz0) / IGcell - 0.5, i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
+      const at = (p, q) => (p < 0 || q < 0 || p >= IGw || q >= IGh) ? 0 : rk[q * IGw + p];
+      return (at(i, j) * (1 - u) + at(i + 1, j) * u) * (1 - v) + (at(i, j + 1) * (1 - u) + at(i + 1, j + 1) * u) * v; };
+    const out = new Uint8Array(W2 * H2), tmp = new Float32Array(10), e2 = hdx;
+    let ran = 0;
+    for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) {
+      const x = gx0 + (i + 0.5) * cs, z = gz0 + (j + 0.5) * cs;
+      const gi = Math.min(IGw - 1, Math.max(0, Math.floor((x - IGx0) / IGcell))), gj = Math.min(IGh - 1, Math.max(0, Math.floor((z - IGz0) / IGcell)));
+      if (!dil[gj * IGw + gi]) continue;   // (no rock within ~30 m: the gate's fall - the field 'none', byte 0)
+      const Y = bilH(x, z), gx = (bilH(x + e2, z) - bilH(x - e2, z)) / (2 * e2), gz = (bilH(x, z + e2) - bilH(x, z - e2)) / (2 * e2), gl = Math.max(Math.hypot(gx, gz), 1e-4);
+      const slope = Math.atan(Math.hypot(gx, gz)) * 57.2958;
+      const cz = (Y - 0.25 * (bilH(x - 20, z) + bilH(x + 20, z) + bilH(x, z - 20) + bilH(x, z + 20))) / CZSD;
+      const r = shareR(x, z), nd = ND ? ND[gj * IGw + gi] / 255 * 2 - 1 : 0.5;
+      macroAt(x, z, Y, slope, r, cz, bilF(x, z), nd, 0, [-gx / gl, -gz / gl], K, tmp); ran++;
+      const q = tmp[8] - 0.12 * tmp[6];
+      out[j * W2 + i] = Math.max(1, Math.min(255, Math.round((q + 0.3) / 1.5 * 255)));
+    }
+    out.ran = ran; return out;
+  }
   function chunk(inp, kit) {
     if (Math.abs(inp.C / (inp.step || 1.25) - Math.round(inp.C / (inp.step || 1.25))) > 1e-6 || Math.abs(inp.M / inp.hs - Math.round(inp.M / inp.hs)) > 1e-6 || Math.abs(inp.C / inp.hs - Math.round(inp.C / inp.hs)) > 1e-6)
       throw new Error('rock ring: chunk ' + inp.C + ' / margin ' + inp.M + ' must be whole multiples of the step and the input lattice (a crack between chunks)');
@@ -575,7 +614,7 @@ function ROCK_RING_CORE_FACTORY() {
     const B = RB.idx.length ? { pos: Float32Array.from(RB.pos), nor: Float32Array.from(RB.nor), attr: Float32Array.from(RB.attr), idx: Uint32Array.from(RB.idx), nv: RB.pos.length / 3 } : null;
     return { pos, disp, nor, idx: Uint32Array.from(idx), attr, nv, nt: idx.length / 3, B, boulders: B ? B.idx.length / 3 : 0, ms: Date.now() - t0, n };
   }
-  return { chunk, macroTile, kitPrep, procKit, macroAt, medium, jset, fbm, hh, vn2, ss, flowGrid, CZSD };
+  return { chunk, macroTile, bakeIsland, kitPrep, procKit, macroAt, medium, jset, fbm, hh, vn2, ss, flowGrid, CZSD };
 }
 var ROCK_RING_CORE = ROCK_RING_CORE_FACTORY();
 // the worker's text (rock_ring.js): the factory's own source - one copy of the law

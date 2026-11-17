@@ -77,6 +77,8 @@
     for (let k = 0; k < T.length; k++) seen[T[k]] = 1;
     if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
     if (seen[1]) seen[18] = 1;   // G3430: a lake's shore band is 18 LAKESHORE (28c_biomes SHORE; the cover ring's)
+    // MOUNTAIN-VEG: heath, scrub and dense scrub above the height ramp are 19 SUBALPINE (28c_biomes subCode; off by ?subalpine=0)
+    if (B.SUBALPINE && B.subOn !== false && (seen[2] || seen[7] || seen[14])) seen[B.SUBALPINE] = 1;
     const names = new Set(['grass_dry']);
     for (let c = 0; c < 256; c++) { if (!seen[c]) continue;
       const m = B.mixAt(c), M = m && B.mixOf(m); if (M && M.species) for (const sp of Object.keys(M.species)) names.add(sp); }

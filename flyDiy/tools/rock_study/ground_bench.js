@@ -10,6 +10,7 @@ const hL = PJ.layout.find(l => l.name === 'h'), HT = new Float32Array(PB, hL.off
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H); renderer.setPixelRatio(1); document.body.appendChild(renderer.domElement);
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; renderer.outputColorSpace = THREE.SRGBColorSpace;
+{ const T = { cineon: THREE.CineonToneMapping, aces: THREE.ACESFilmicToneMapping, agx: THREE.AgXToneMapping }[new URLSearchParams(location.search).get('tone')]; if (T) renderer.toneMapping = T; }   // ?tone=cineon: the GAME's curve (gfx_settings COLOUR, the colour ruling)
 renderer.shadowMap.enabled = Q.get('shadows') !== '0'; renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene(), SKY = new THREE.Color(0x9fb7d0); scene.background = SKY; scene.fog = new THREE.FogExp2(SKY.clone(), 0.00022);
 const camera = new THREE.PerspectiveCamera(50, W / H, 2, 9000);
@@ -42,6 +43,13 @@ const Bs = u8(L.B[0], L.B[1]), TT = new Uint8Array(gw * gh); for (let k = 0; k <
 const oc = SPLAT_GROUND.oneCode(TT, gw, gh), B2 = new Uint8Array(gw * gh * 2); for (let k = 0; k < TT.length; k++) { B2[k * 2] = Bs[k * 2]; B2[k * 2 + 1] = oc[k]; }
 const packB = dataTex(B2, THREE.RGFormat); packB.unpackAlignment = 1;
 const T4 = new Uint8Array(u8(L.T[0], L.T[1])); if (Q.get('rocks') === '0') for (let k = 3; k < T4.length; k += 4) T4[k] = 255;   // (the game skips the bias on ?rocks=0)
+// THE MAP CARRIES THE MACRO (17 Nov): the game's tint alpha is v1's exposure field baked over the island (rock_ring_core bakeIsland,
+// render_world's boot worker); the bench bakes its patch the same way - its 5 m heights, its D8 flow, the 10 m types and NDVI
+if (Q.get('rocks') !== '0' && typeof ROCK_RING_CORE !== 'undefined' && ROCK_RING_CORE.bakeIsland) {
+  const fL0 = PJ.layout.find(l => l.name === 'flow'), ND0 = new Uint8Array(gw * gh); for (let k = 0; k < gw * gh; k++) ND0[k] = Bs[k * 2];
+  const bk = ROCK_RING_CORE.bakeIsland({ H: HT, N, hx0: PJ.x0 - ST / 2, hz0: PJ.z0 - ST / 2, hdx: ST, flow: fL0 ? new Uint8Array(PB, fL0.off, fL0.len) : null, TT, ND: ND0,
+    IGw: gw, IGh: gh, IGx0: GJ.x0, IGz0: GJ.z0, IGcell: GJ.cell, gx0: GJ.x0, gz0: GJ.z0, cs: GJ.cell, W2: gw, H2: gh });
+  for (let k = 0; k < gw * gh; k++) T4[k * 4 + 3] = bk[k]; }
 const tint = dataTex(T4); tint.colorSpace = THREE.SRGBColorSpace;
 const gU = { uGTint: { value: tint }, uGPackA: { value: dataTex(new Uint8Array(u8(L.A[0], L.A[1]))) }, uGPackB: { value: packB },
   uGGrid: { value: new THREE.Vector4(GJ.x0, GJ.z0, gw * GJ.cell, gh * GJ.cell) },
@@ -54,13 +62,14 @@ const isla = { ttype: Uint8Array.from(IS.ttype), albedo: Uint8Array.from(IS.albe
 const T0 = performance.now();
 const LEAN = Q.get('lean') === '1', STRIP = (Q.get('gstrip') || '').split(',').filter(Boolean);
 const SPL = SPLAT_GROUND.make(gU, isla, { lean: LEAN });
+{ const bq = Q.get('blend'); if (bq && SPL.api.blend) SPL.api.blend(...bq.split(',').map(Number)); }   // ?blend=1,1,100,400: a GRAPHICS row's blend (gamer's 'lean far' fades at 100-400 m)
 { const kq = Q.get('k'); if (kq) { const o = {}; for (const kv of kq.split(',')) { const [k, v] = kv.split(':'); o[k] = +v; } SPL.api.set(o); } }   // ?k=rockOff:0.2,rockGreen:1.4
 // ---- the hook: render_world islandGroundHookFor(0, false)'s production text ----
 let FS = '';
 const hook = sh => {
   Object.assign(sh.uniforms, gU, SPL.uniforms);
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nvarying float vPav;\nattribute vec4 aRM, aRX; attribute vec3 aRD; varying vec4 vRM, vRX; uniform vec4 uRingF;\n')
-    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRM = aRM; vRX = aRX; if (aRM.w > 1.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\nvWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = 0.0;\n');
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRM = aRM; vRX = aRX; if (aRM.w > 1.5 && aRM.w < 3.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\nvWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = 0.0;\n');
   sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\nvarying vec4 vRM, vRX;\n' +
     'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\nuniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
     'float gLake(vec2 uv){ return texture2D(uGPackA, uv).a; }\n' +
@@ -164,7 +173,15 @@ if (Q.get('rocks') !== '0' && Q.get('ring') !== '0' && typeof ROCK_RING !== 'und
 }
 const buildMs = Math.round(performance.now() - T0);
 view(Q.get('view') || 'face');
-if (Q.get('base') === '0') ground.visible = false;   // (?base=0: the base ground hidden - a check, which object a surface is)
+if (Q.get('base') === '0') ground.visible = false;
+// ?skintest=1: ring.skin(sh) on another session's kind of mesh (MOUNTAIN-VEG's scanned rocks: MATLIB 'std', instanced, an instance
+// colour) - 24 rocks along the slope eye's target, a compile and a look check beside the ring's own boulders
+if (RING && Q.get('skintest') === '1' && RING.skin) {
+  const sm = MATLIB.make(THREE, 'std', { roughness: 1, metalness: 0 }); sm.onBeforeCompile = sh => RING.skin(sh); sm.customProgramCacheKey = () => 'rockskin-test';
+  const geo0 = new THREE.IcosahedronGeometry(1.6, 2), im = new THREE.InstancedMesh(geo0, sm, 24), M4 = new THREE.Matrix4(), Cc = new THREE.Color();
+  const [tx, tz] = sl2; for (let i = 0; i < 24; i++) { const x = tx - 30 + (i % 6) * 12, z = tz - 20 + Math.floor(i / 6) * 12, y = hXZ(x, z) + 0.6;
+    M4.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(1 + (i % 3) * 0.4, 0.7 + (i % 2) * 0.3, 1.2)); im.setMatrixAt(i, M4); im.setColorAt(i, Cc.setScalar(0.8 + 0.4 * ((i * 7) % 5) / 4)); }
+  im.castShadow = im.receiveShadow = true; scene.add(im); }   // (?base=0: the base ground hidden - a check, which object a surface is)
 if (RING && Q.get('relief') === '0') { const o = RING.update; RING.update = () => { o(); RING.group.children.forEach(m => { if (m.material === mat) m.visible = false; }); }; }   // (?relief=0: the boulders alone - a check)
 let RSTAT = null; if (RING) { const t = performance.now(); RSTAT = await RING.whenIdle(); RSTAT.wallMs = Math.round(performance.now() - t); }
 // ?hang=1: the relief's OPEN EDGES - a vertex on a chunk's side, next to a chunk that has no skin, standing over the ground (the

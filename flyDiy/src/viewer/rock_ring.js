@@ -240,6 +240,29 @@ Smp rRock(vec3 P, vec3 nG){
     // ground's vertex stage folds it back toward the reach); the BOULDERS wear the bench v1's rock material (this file's)
     const unmesh = c => { for (const k of ['mesh', 'bmesh']) if (c[k]) { group.remove(c[k]); ST.verts -= c[k].geometry.attributes.position.count; ST.tris -= c[k].geometry.index.count / 3; c[k].geometry.dispose(); c[k] = null; }
       ST.boulderTris -= c.boulders || 0; c.boulders = 0; };
+    // A CHUNK'S BOULDERS (17 Nov, IN THE GAME: the user, "the mesh rocks are much too white ... the weathering has not gone through"):
+    // their own material (the bench v1's rockMat) never took the rock's later work - its value to the grass, its film, the game's
+    // light through the ground's chain. With the ground's material (ctx.groundMat) they wear the ROCK itself: aRM.w 4 marks a
+    // boulder (splat_ground: rock whatever the ground round it, its own tone, no macro sampled under it, no fold), aRM.rgb its tone
+    // (v1: 0.9 x its own), aRX = (exposure 1, its height in the rock as the blend's, its creases (moss and shade), its hash).
+    // One program fewer to link. Without the ground's material (a bench without it): the ring's own, as before
+    const boulderMesh = B => { const g = new THREE.BufferGeometry(), nb = B.nv;
+      g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(B.nor, 3));
+      g.setIndex(new THREE.BufferAttribute(B.idx, 1));
+      const a0 = new Float32Array(nb * 4), a1 = new Float32Array(nb * 4);
+      if (ctx.groundMat) {
+        for (let v = 0; v < nb; v++) { const o = v * 8, vk = B.attr[o] * 0.9;
+          a0[v * 4] = vk; a0[v * 4 + 1] = vk; a0[v * 4 + 2] = vk * 0.97; a0[v * 4 + 3] = 4;
+          a1[v * 4] = 1; a1[v * 4 + 1] = 0.35 + 0.5 * B.attr[o + 3]; a1[v * 4 + 2] = Math.min(1, B.attr[o + 4] * 0.6); a1[v * 4 + 3] = B.attr[o + 5]; }
+        g.setAttribute('aRM', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aRX', new THREE.BufferAttribute(a1, 4));
+        g.setAttribute('aRD', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
+      } else {
+        for (let v = 0; v < nb; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = B.attr[v * 8 + k]; a1[v * 4 + k] = B.attr[v * 8 + 4 + k]; }
+        g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4));
+        g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
+      }
+      g.computeBoundingSphere();
+      const m = new THREE.Mesh(g, ctx.groundMat || mat); m.castShadow = m.receiveShadow = true; return m; };
     const place = (key, r) => {
       const c = chunks.get(key); if (!c) return;
       const t0 = performance.now();
@@ -256,14 +279,7 @@ Smp rRock(vec3 P, vec3 nG){
         g.computeBoundingSphere();
         const m = new THREE.Mesh(g, ctx.groundMat || mat); m.castShadow = m.receiveShadow = true; group.add(m); c.mesh = m; ST.verts += nv; ST.tris += r.nt; }
       if (r.B) {
-        const B = r.B, g = new THREE.BufferGeometry(), nb = B.nv;
-        g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(B.nor, 3));
-        g.setIndex(new THREE.BufferAttribute(B.idx, 1)); g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
-        const a0 = new Float32Array(nb * 4), a1 = new Float32Array(nb * 4);
-        for (let v = 0; v < nb; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = B.attr[v * 8 + k]; a1[v * 4 + k] = B.attr[v * 8 + 4 + k]; }
-        g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4));
-        g.computeBoundingSphere();
-        const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; group.add(m); c.bmesh = m;
+        const B = r.B, m = boulderMesh(B), nb = B.nv; group.add(m); c.bmesh = m;
         ST.verts += nb; ST.tris += B.idx.length / 3; c.boulders = B.idx.length / 3; ST.boulderTris = (ST.boulderTris || 0) + c.boulders; }
       if (!r.nv && !r.B) c.empty = true;
       ST.built++; ST.workerMs += r.ms; ST.workerLast = r.ms; ST.mainMs += performance.now() - t0;
@@ -313,13 +329,7 @@ Smp rRock(vec3 P, vec3 nG){
       else farPlace(key, ROCK_RING_CORE.chunk(inp, KIT0 || (KIT0 = ROCK_RING_CORE.kitPrep(ctx.kit || null)))); };
     const farPlace = (key, r) => { const c = farChunks.get(key); if (!c) return; const t0 = performance.now();
       unmesh(c);
-      if (r.B) { const B = r.B, g = new THREE.BufferGeometry(), nb = B.nv;
-        g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(B.nor, 3));
-        g.setIndex(new THREE.BufferAttribute(B.idx, 1)); g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
-        const a0 = new Float32Array(nb * 4), a1 = new Float32Array(nb * 4);
-        for (let v = 0; v < nb; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = B.attr[v * 8 + k]; a1[v * 4 + k] = B.attr[v * 8 + 4 + k]; }
-        g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4)); g.computeBoundingSphere();
-        const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; group.add(m); c.bmesh = m;
+      if (r.B) { const B = r.B, m = boulderMesh(B), nb = B.nv; group.add(m); c.bmesh = m;
         ST.verts += nb; ST.tris += B.idx.length / 3; c.boulders = B.idx.length / 3; ST.boulderTris = (ST.boulderTris || 0) + c.boulders; ST.farBoulderTris = (ST.farBoulderTris || 0) + c.boulders; }
       else c.empty = true;
       ST.workerMs += r.ms; ST.mainMs += performance.now() - t0; };
@@ -341,17 +351,20 @@ Smp rRock(vec3 P, vec3 nG){
     // lands in the same texels (uv = xz / the level's extent, repeat), so a move of the eye recomputes only the tiles that enter;
     // the shader reads a level inside its VALID square (uTrMR: the tiles done round its centre), the finest first, faded at the
     // edges. Tiles in a worker of their own (the ring's chunks keep theirs), nearest first.
-    const MTN = 1024, MTT = 8, MTL = [{ st: 1, hs: 2.5, M: 25 }, { st: 2, hs: 5, M: 30 }, { st: 4, hs: 10, M: 40 }];
+    // (17 Nov, the user: the far view must hold the bench's look - "keep the bar high": a fourth level, 8 m to +-4 km, so every far eye
+    // reads the macro texture itself; the map's bake carries it past that)
+    const MTN = 1024, MTT = 8, MTL = [{ st: 1, hs: 2.5, M: 25 }, { st: 2, hs: 5, M: 30 }, { st: 4, hs: 10, M: 40 }, { st: 8, hs: 20, M: 60 }], MTLAY = MTL.length * 2;
     MTL.forEach(l => { l.T = MTN / MTT * l.st; l.ext = MTN * l.st; l.res = new Map(); l.c = null; });
     const MT = { on: !!(U.uTrMT && U.uTrMR && U.uTrMX), tex: null, data: null, queue: [], inflight: new Map(), dirty: new Set(), lastUp: 0, built: 0, ms: 0, kSig: '' };
-    let mworker = null;
+    const mworkers = [];   // (17 Nov, in game: a rig grabbed ~6 s after placing the eye - one worker filled the three levels in ~20-30 s; a pool, nearest tiles first)
     if (MT.on) {
-      MT.data = new Uint8Array(MTN * MTN * 4 * 6);
-      MT.tex = new THREE.DataArrayTexture(MT.data, MTN, MTN, 6); MT.tex.format = THREE.RGBAFormat; MT.tex.type = THREE.UnsignedByteType;
+      MT.data = new Uint8Array(MTN * MTN * 4 * MTLAY);
+      MT.tex = new THREE.DataArrayTexture(MT.data, MTN, MTN, MTLAY); MT.tex.format = THREE.RGBAFormat; MT.tex.type = THREE.UnsignedByteType;
       MT.tex.wrapS = MT.tex.wrapT = THREE.RepeatWrapping; MT.tex.minFilter = THREE.LinearMipmapLinearFilter; MT.tex.magFilter = THREE.LinearFilter;
       MT.tex.generateMipmaps = true; MT.tex.anisotropy = 4; MT.tex.needsUpdate = true;
       U.uTrMT.value = MT.tex;
-      try { if (worker) mworker = new Worker(URL.createObjectURL(new Blob([workerSrc()], { type: 'text/javascript' }))); } catch (e) { mworker = null; }
+      const NW = S.reachCap ? 1 : Math.max(1, Math.min(3, ((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4) - 2));   // (the phone tier: one)
+      try { if (worker) { const url = URL.createObjectURL(new Blob([workerSrc()], { type: 'text/javascript' })); for (let k = 0; k < NW; k++) mworkers.push(new Worker(url)); } } catch (e) { }
     }
     const mtKey = () => [S.ndvi, S.ndviMid, S.off, S.hLo, S.hHi, S.jointDirt, S.wet].join(',');
     const mtInputs = (L, tx, tz) => {
@@ -392,9 +405,10 @@ Smp rRock(vec3 P, vec3 nG){
           MT.queue.sort((a, b) => a[0] - b[0]); }
       });
       // a tile a frame to the worker (two in flight); the main thread's part is the inputs (~4-6 k samples)
-      while (MT.queue.length && MT.inflight.size < 2) { const [, L, tx, tz] = MT.queue.shift();
+      let sent = 0;   // (at most two tiles' inputs a frame: ~3-5 ms of the main thread each)
+      while (MT.queue.length && MT.inflight.size < 2 * Math.max(1, mworkers.length) && sent++ < 2) { const [, L, tx, tz] = MT.queue.shift();
         const t0 = performance.now(), inp = mtInputs(L, tx, tz); ST.mainMs += performance.now() - t0;
-        if (mworker) { inp.id = ++seq; MT.inflight.set(inp.id, [L, tx, tz, MT.kSig]); mworker.postMessage(inp, [inp.H.buffer, inp.R.buffer, inp.V.buffer, inp.F.buffer]); }
+        if (mworkers.length) { inp.id = ++seq; MT.inflight.set(inp.id, [L, tx, tz, MT.kSig]); mworkers[inp.id % mworkers.length].postMessage(inp, [inp.H.buffer, inp.R.buffer, inp.V.buffer, inp.F.buffer]); }
         else { mtPut(L, tx, tz, ROCK_RING_CORE.macroTile(inp)); break; } }
       // the upload: the touched layers, at most every 250 ms (the mips are regenerated with them)
       const now = performance.now();
@@ -402,9 +416,10 @@ Smp rRock(vec3 P, vec3 nG){
         for (const layer of MT.dirty) MT.tex.addLayerUpdate(layer); MT.dirty.clear(); MT.tex.needsUpdate = true;
         MTL.forEach((l, L) => { const r = mtRect(L); U.uTrMR.value[L].set(r[0], r[1], r[2], r[3]); }); }
     };
-    if (mworker) mworker.onmessage = e => { const q = MT.inflight.get(e.data.id); MT.inflight.delete(e.data.id); if (!q || q[3] !== MT.kSig) return;
+    const onMT = e => { const q = MT.inflight.get(e.data.id); MT.inflight.delete(e.data.id); if (!q || q[3] !== MT.kSig) return;
       const l = MTL[q[0]]; if (!l.c || Math.abs(q[1] - l.c[0] + 0.5) > MTT / 2 || Math.abs(q[2] - l.c[1] + 0.5) > MTT / 2) return;   // (the window moved on)
       mtPut(q[0], q[1], q[2], e.data.m); };
+    for (const w of mworkers) w.onmessage = onMT;
     const ring = {
       update() {
         const rk = sync(), on = S.on && rk && SP.api.ready && SP.api.ready(); group.visible = !!on;
@@ -445,8 +460,48 @@ Smp rRock(vec3 P, vec3 nG){
         built: ST.built, boulderTris: ST.boulderTris || 0, farChunks: [...farChunks.values()].filter(c => c.bmesh).length, farBoulderTris: ST.farBoulderTris || 0, workerMs: Math.round(ST.workerMs), workerLastMs: ST.workerLast, mainMs: Math.round(ST.mainMs), worker: !!worker,
         macro: MT.on ? { tiles: MT.built, queued: MT.queue.length, inflight: MT.inflight.size, workerMs: Math.round(MT.ms), rects: MTL.map((l, L) => mtRect(L)) } : null }),
       whenIdle: () => new Promise(res => { const tick = () => { ring.update(); if (!queue.length && !inflight.size && !(S.farOn !== 0 && farQueue.length) && !(MT.on && S.macro !== 0 && (MT.queue.length || MT.inflight.size || MT.dirty.size))) res(ring.stat()); else setTimeout(tick, 30); }; tick(); }),
-      dispose() { for (const k of [...chunks.keys()]) drop(k); ctx.scene.remove(group); mat.dispose(); if (worker) worker.terminate(); if (mworker) mworker.terminate(); if (MT.tex) { MT.tex.dispose(); U.uTrMX.value.w = 0; } },
+      dispose() { for (const k of [...chunks.keys()]) drop(k); ctx.scene.remove(group); mat.dispose(); if (worker) worker.terminate(); for (const w of mworkers) w.terminate(); if (MT.tex) { MT.tex.dispose(); U.uTrMX.value.w = 0; } },
       material: mat, group,
+      // THE ROCK'S SKIN FOR ANOTHER SESSION'S MESHES (17 Nov; the user, via MOUNTAIN-VEG: "keep your independent meshes ... the
+      // materials and texture should be shared"): MOUNTAIN-VEG's cover_ring wraps its scanned rocks' material (MATLIB 'std',
+      // batched in the game, instanced in the gates; trees.js fadeInject already in it) as onBeforeCompile = sh => { prev(sh);
+      // ring.skin(sh); } - and they wear THIS rock: the slab tile triplanar in world space through its grade, the cliff photo's
+      // grain, the boulders' tone (0.9) x the value to the grass (uTrS.w), moss on what faces up in the game's grass, the slab's
+      // normal and roughness - the uniforms shared with the ground, so a rail change moves both. Their instance colour (a per-rock
+      // dim) is kept as luminance only. Anchors: the vertex's common / fog_vertex, the fragment's common, color_fragment,
+      // normal_fragment_maps, roughnessmap_fragment (map_fragment and the vertex's begin / project are fadeInject's)
+      skin(sh) {
+        Object.assign(sh.uniforms, { uSplat: U.uSplat, uSplatN: U.uSplatN, uSGrade: U.uSGrade, uSFilt: U.uSFilt, uRL: L.uRL, uTrS: U.uTrS, uTrK: U.uTrK, uTrX: U.uTrX });
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nvarying vec3 vRkW, vRkN;')
+          .replace('#include <fog_vertex>', '#include <fog_vertex>\n  { vec4 rkP = vec4(transformed, 1.0); vec3 rkN = objectNormal;\n' +
+            '#ifdef USE_BATCHING\n    rkP = batchingMatrix * rkP; rkN = mat3(batchingMatrix) * rkN;\n#endif\n' +
+            '#ifdef USE_INSTANCING\n    rkP = instanceMatrix * rkP; rkN = mat3(instanceMatrix) * rkN;\n#endif\n' +
+            '    vRkW = (modelMatrix * rkP).xyz; vRkN = normalize(mat3(modelMatrix) * rkN); }');
+        sh.fragmentShader = sh.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform highp sampler2DArray uSplat, uSplatN; uniform vec4 uSGrade[24]; uniform vec4 uSFilt, uRL, uTrS, uTrK, uTrX;\n' +
+            'varying vec3 vRkW, vRkN; vec3 gRkN = vec3(0.0, 1.0, 0.0); float gRkR = 0.8;\n' +
+            'vec4 rkC(float L, vec2 uv){ vec4 c = texture(uSplat, vec3(uv, L), uSFilt.x); c.rgb *= c.rgb; return c; }\n' +
+            'vec4 rkN(float L, vec2 uv){ return texture(uSplatN, vec3(uv, L), uSFilt.x); }')
+          .replace('#include <color_fragment>', '#include <color_fragment>\n  if (uRL.x >= 0.0) {\n' +
+            '    vec3 N = normalize(vRkN), w = pow(abs(N), vec3(4.0)); w /= w.x + w.y + w.z; vec3 P = vRkW / 16.0, Q = vRkW / 6.86;\n' +
+            '    vec4 c = rkC(uRL.x, P.zy) * w.x + rkC(uRL.x, P.xz + 0.37) * w.y + rkC(uRL.x, P.xy + 0.71) * w.z;\n' +
+            '    vec4 nx = rkN(uRL.x, P.zy), ny = rkN(uRL.x, P.xz + 0.37), nz = rkN(uRL.x, P.xy + 0.71);\n' +
+            '    vec4 g = uSGrade[int(uRL.x + 0.5)]; c.rgb *= g.rgb; c.rgb = mix(vec3(dot(c.rgb, vec3(0.2126, 0.7152, 0.0722))), c.rgb, g.a);\n' +
+            '    float m = dot(rkC(uRL.z, Q.zy).rgb * w.x + rkC(uRL.z, Q.xz).rgb * w.y + rkC(uRL.z, Q.xy).rgb * w.z, vec3(0.2126, 0.7152, 0.0722)) / max(uTrS.z, 1e-3);\n' +
+            '    c.rgb *= mix(1.0, clamp(m, 0.35, 2.2), 0.65) * 0.9 * uTrS.w * uTrK.w / 0.72;\n' +
+            '    vec3 tX = nx.xyz * 2.0 - 1.0, tY = ny.xyz * 2.0 - 1.0, tZ = nz.xyz * 2.0 - 1.0;\n' +
+            '    gRkN = normalize(vec3(tX.xy + N.zy, abs(tX.z) * N.x).zyx * w.x + vec3(tY.xy + N.xz, abs(tY.z) * N.y).xzy * w.y + vec3(tZ.xy + N.xy, abs(tZ.z) * N.z) * w.z);\n' +
+            '    gRkR = clamp(nx.a * w.x + ny.a * w.y + nz.a * w.z, 0.3, 1.0);\n' +
+            '    float up = smoothstep(0.62, 0.92, N.y);\n' +
+            '    if (up > 0.01 && uRL.w >= 0.0) { vec3 gr = rkC(uRL.w, vRkW.xz / 5.0).rgb * uSGrade[int(uRL.w + 0.5)].rgb * uTrX.y * uTrK.w / 0.72; float mk = clamp((up * 0.95 - c.a) * 3.0, 0.0, 1.0) * 0.85; c.rgb = mix(c.rgb, gr, mk); gRkR = mix(gRkR, 0.97, mk); }\n' +
+            '    float tone = 1.0;\n' +
+            '#if defined( USE_COLOR ) || defined( USE_COLOR_ALPHA )\n    tone = dot(vColor.rgb, vec3(0.2126, 0.7152, 0.0722));\n#endif\n' +
+            '    diffuseColor.rgb = c.rgb * tone; }')
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n  if (uRL.x >= 0.0) normal = normalize((viewMatrix * vec4(gRkN, 0.0)).xyz);')
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  if (uRL.x >= 0.0) roughnessFactor = gRkR;');
+        return sh;
+      },
     };
     // the fade's eye x: a uniform of its own (uRFade carries sink, reach, band, eye z)
     const uEyeX = { value: 0 };
