@@ -67,6 +67,11 @@
   // GRASS-ON-GREEN (16 Nov): the grass law SET through the world (world.setGrassSides) - sim_link replays it on the physics worker's
   // world, so the look and the wheels' ground never split (`hard`, the clears: 20_world giveWay)
   const gsSet = o => { const w = W.FLIGHT_PROBE && W.FLIGHT_PROBE.world && W.FLIGHT_PROBE.world(); return w && w.setGrassSides ? w.setGrassSides(o) : GSD().grassSides(o); };
+  // SNOW-MUD LADDER (A0 for the user, 16 Nov: every new world setting editable here): the ground's weather ladder (07f GROUND_WX) -
+  // set THROUGH THE WORLD (world.setGroundLadder), so the physics worker's world takes the same (sim_link replays it)
+  const GWX = () => (typeof GROUND_WX !== 'undefined' && GROUND_WX.ladder ? GROUND_WX : null);
+  const WLD = () => { const fp = W.FLIGHT_PROBE; return (fp && fp.world && fp.world()) || null; };
+  const ladderSet = o => { const w = WLD(); if (w && w.setGroundLadder) w.setGroundLadder(o); else if (GWX()) GWX().ladder(o); };
   const replantGrass = () => { const t = TF(); if (!t) return; const r = t.cover && t.cover(), f = t.grass && t.grass(); if (r) r.replant(); if (f) f.replant(); };
   const CLF = () => { const g = G(); return (g && g.cliffs && g.cliffs()) || null; };
   // THE RUNWAY LOOK (G1394, RUNWAY-LOOK): the pavement module's live overlay (PAVEMENT.look) - per surface type, the
@@ -125,7 +130,7 @@
   const pretty = name => name.replace(/\.glb$/, '').replace(/_trees_pack_lods_gameready|realistic_|_-_free_download/g, '').replace(/_/g, ' ');
 
   // ---- THE DEFAULTS, for the diff (taken at load, before any look is put back) ------------------
-  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, grass: null, gsides: null, env: null, cliffs: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null, bioKnobs: null, shrubCards: null };
+  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, grass: null, gsides: null, ladder: null, env: null, cliffs: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null, bioKnobs: null, shrubCards: null };
   const tintsNow = () => { const L = W.TREE_LEAF, o = {}; if (L && L.collections) for (const col of L.collections()) o[col.name] = clone(col.tint || {}); return o; };
   // G1385 (EDITOR-VEG): the grass's and the bushes' own masters (trees.js KIND_MASTER: cover, shrub)
   const kindTintNow = () => { const L = W.TREE_LEAF; if (!L || !L.kinds) return null; const o = {}; for (const k of L.kinds()) o[k] = L.kindMaster(k); return o; };
@@ -139,6 +144,7 @@
     if (RKS() && !DEF.rockLayer) DEF.rockLayer = clone(RKS().get());
     if (FLD() && !DEF.grass) { DEF.grass = fieldNow(); DEF.grassOn = !!FLD().get().on; }
     if (GSD() && !DEF.gsides) DEF.gsides = clone(GSD().GRASS_SIDES_DEF);
+    if (GWX() && !DEF.ladder) DEF.ladder = clone(GWX().LADDER_DEF);
     const c = CLF(); if (c && !DEF.cliffs) DEF.cliffs = clone(c.get());
     if (WF() && WF().envAlbedo && DEF.env === null) DEF.env = WF().envAlbedo();
     const L = W.TREE_LEAF; if (L && L.collections && !DEF.tints) { DEF.tints = tintsNow(); if (L.master) DEF.leafMaster = clone(L.master()); }
@@ -170,6 +176,7 @@
     if (FLD()) { o.grass = fieldNow(); o.grassOn = !!FLD().get().on; }
     if (RKS()) o.rockLayer = RKS().get();   // (the switch apart: the look keeps the user's choice)
     if (GSD()) o.gsides = GSD().grassSides();
+    if (GWX()) o.ladder = GWX().ladder();
     const c = CLF(); if (c) o.cliffs = c.get();
     const L = W.TREE_LEAF; if (L && L.collections) { o.tints = tintsNow(); if (L.master) o.leafMaster = clone(L.master()); }
     if (L && L.kinds) o.kindTint = kindTintNow();
@@ -190,7 +197,7 @@
       if (map || mixes) o.biomes = Object.assign({}, map ? { map } : {}, mixes ? { mixes } : {}); }
     put('ring', deltaOf(N.ring, DEF.ring)); put('cliffs', deltaOf(N.cliffs, DEF.cliffs));
     put('bioKnobs', deltaOf(N.bioKnobs, DEF.bioKnobs)); put('shrubCards', deltaOf(N.shrubCards, DEF.shrubCards));
-    put('grass', deltaOf(N.grass, DEF.grass)); put('gsides', deltaOf(N.gsides, DEF.gsides));
+    put('grass', deltaOf(N.grass, DEF.grass)); put('gsides', deltaOf(N.gsides, DEF.gsides)); put('ladder', deltaOf(N.ladder, DEF.ladder));
     if (N.grassOn !== undefined && DEF.grassOn !== undefined && N.grassOn !== DEF.grassOn) o.grassOn = N.grassOn;
     put('tints', deltaOf(N.tints, DEF.tints)); put('leafMaster', deltaOf(N.leafMaster, DEF.leafMaster)); put('kindTint', deltaOf(N.kindTint, DEF.kindTint)); put('treeMix', deltaOf(N.treeMix, DEF.treeMix));
     if (N.runway && Object.keys(N.runway).length) o.runway = N.runway;   // the overlay IS a delta (over the premises' look)
@@ -242,6 +249,7 @@
     if (o.grassOn !== undefined && FLD() && !!FLD().get().on !== !!o.grassOn && t && t.field) t.field(!!o.grassOn);
     const fl = FLD(); if (fl && o.grass) { const cur = fieldNow(), d = deltaOf(Object.assign({}, cur, o.grass), cur); if (d) { delete d.on; delete d.off; fl.set(d); } }
     if (GSD() && o.gsides) { const cur = GSD().grassSides(), d = deltaOf(Object.assign({}, cur, o.gsides), cur); if (d) { gsSet(d); replantGrass(); } }
+    if (GWX() && (o.ladder || full)) { const cur = GWX().ladder(), want = Object.assign({}, full ? DEF.ladder || GWX().LADDER_DEF : cur, o.ladder || {}), d = deltaOf(want, cur); if (d) ladderSet(d); }   // (SNOW-MUD LADDER)
     const c = CLF(); if (c && o.cliffs) { const d = deltaOf(Object.assign({}, c.get(), o.cliffs), c.get()); if (d) c.set(d); }
     const L = W.TREE_LEAF;
     if (L && o.tints && L.tintOf) { const cur = tintsNow(); for (const n in o.tints) if (!same(Object.assign({}, cur[n], o.tints[n]), cur[n])) L.tintOf(n, o.tints[n]); }
@@ -281,6 +289,7 @@
         speciesSize: 'render_world.js SP_SIZE (new)',
         bioKnobs: 'src/core/28c_biomes.js KNOBS (sub*: the subalpine, edge*: the forest edge); subOn / edgeOn: the dials (?subalpine=0, ?forestedge=0)',
         shrubCards: "tools/_trees_tuning.json the species' place (size, bend, lean, tilt, upright) and tint.alpha, then python tools/tree_prep.py", tints: 'tools/_trees_tuning.json per-collection tint',
+        ladder: 'src/core/07f_ground_wx.js LADDER_DEF (the ground\'s weather ladder: rungs, wear, darkening, film, the override\'s water)',
         leafMaster: 'src/viewer/trees.js MASTER', kindTint: 'src/viewer/trees.js KIND_MASTER (cover = the grass, shrub = the bushes)',
         runway: "the premises' rec.pavement (the editor's PAVEMENT section, runway look) or src/viewer/pavement.js RECIPE (pv / sf / gr keys)",
         groundfx: 'dust: src/viewer/dust.js LOOK / L / CLS; wx: src/viewer/aeroweather.js AERO_MUD; gd: src/viewer/ground_deposit.js K / PBR / DEF / SP (the key is handle:path)',
@@ -305,6 +314,7 @@
     if (DEF.ring && out.ring) ch.push(...diff(DEF.ring, out.ring, 'ring'));
     if (DEF.grass && out.grass) ch.push(...diff(DEF.grass, out.grass, 'grass'));
     if (DEF.gsides && out.gsides) ch.push(...diff(DEF.gsides, out.gsides, 'gsides'));
+    if (DEF.ladder && out.ladder) ch.push(...diff(DEF.ladder, out.ladder, 'ladder'));
     if (DEF.cliffs && out.cliffs) ch.push(...diff(DEF.cliffs, out.cliffs, 'cliffs'));
     if (DEF.bioKnobs && out.bioKnobs) ch.push(...diff(DEF.bioKnobs, out.bioKnobs, 'bioKnobs'));
     if (DEF.shrubCards && out.shrubCards) ch.push(...diff(DEF.shrubCards, out.shrubCards, 'shrubCards'));
@@ -594,6 +604,32 @@
       }
     }
     button(body, 'back to the premises\u2019 look', () => { P.look(null, null); saveLook(); open('runway', true); });
+    ladderRows(body);
+  }
+  // THE WEATHER LADDER (SNOW-MUD, 15-16 Nov): the strips drawn "(weather)" - dirt, grass, sand - climb with the soil's water (the
+  // last four days' rain, sun and wind): dirt to firm mud to soft mud, grass and sand dry to wet. Their thresholds, how much the
+  // ruts and holes deepen or firm on each rung, how much darker and shinier the ground goes, and the water the weather panel's
+  // 'the ground' override holds. Live (the wheels, the drawn strips and their dust), kept in the look, exported, reset here
+  function ladderRows(body) {
+    const X = GWX();
+    if (!X) return;
+    const S = sec(body, 'weather ladder', false, 'dirt / grass / sand (weather): the rungs, the ruts, the colour'), D = DEF.ladder || X.LADDER_DEF, Rg = X.LADDER_RANGE;
+    const r = (label, k, step, f) => range(S, label, Rg[k][0], Rg[k][1], step, () => X.ladder()[k], v => ladderSet({ [k]: +v }), f || (v => (+v).toFixed(2)), D[k]);
+    const pct = v => Math.round(+v * 100) + ' %', x = v => 'x' + (+v).toFixed(2);
+    note(S, 'the rung: a dirt strip\u2019s mud (0 dry .. 1 soaked) and a grass or sand strip\u2019s water decide it');
+    r('firm mud from (mud)', 'mudFirm', 0.01); r('soft mud from (mud)', 'mudSoft', 0.01);
+    r('wet grass from (water)', 'grassWet', 0.01); r('wet sand from (water)', 'sandWet', 0.01);
+    note(S, 'the ruts, holes and lumps on a bumpy strip, on each rung (1 = as the strip was made)');
+    r('ruts: dry dirt', 'wearDirtDry', 0.01, x); r('ruts: firm mud', 'wearDirtFirm', 0.01, x); r('ruts: soft mud', 'wearDirtSoft', 0.01, x); r('ruts: wet sand', 'wearSandWet', 0.01, x);
+    note(S, 'how much darker the ground goes soaked (the dust and mud it throws follow), and its wet shine');
+    r('darker: dirt', 'darkDirt', 0.01, pct); r('darker: grass', 'darkGrass', 0.01, pct); r('darker: sand', 'darkSand', 0.01, pct);
+    r('shine: dirt', 'filmDirt', 0.01); r('shine: grass', 'filmGrass', 0.01); r('shine: sand', 'filmSand', 0.01);
+    note(S, 'the soil\u2019s water the weather panel\u2019s \u2018the ground\u2019 override holds');
+    r('override: dry', 'forceDry', 0.01); r('override: firm mud', 'forceFirm', 0.01); r('override: soft mud', 'forceSoft', 0.01);
+    liveNote(S, () => { const w = WLD(), R = w && w.soilNow ? w.soilNow() : null; if (!R) return 'no soil on this page';
+      const nm = { 0: 'dry grass', 6: 'dry dirt', 7: 'dry sand', 11: 'firm mud', 12: 'soft mud', 13: 'wet grass', 14: 'wet sand' };
+      return 'now: the soil\u2019s water ' + (R.wet * 100).toFixed(0) + ' %' + (w.groundForce ? ' (held: ' + w.groundForce + ')' : '') + ' - dirt (weather) is ' + nm[X.resolve(20, R)] + ', grass ' + nm[X.resolve(21, R)] + ', sand ' + nm[X.resolve(22, R)]; });
+    button(S, 'back to the shipped ladder', () => { ladderSet(null); saveLook(); open('runway', true); });
   }
 
   // ---- COVERAGE ----
@@ -1513,6 +1549,7 @@
     const R = sec(body, 'reset', false, 'back to the shipped look');
     const ra = $('div', 'wr-acts'); R.appendChild(ra);
     button(ra, 'the ground sets', () => { if (confirm('Reset the ground sets, their recolours and the filtering?')) { SP() && SP().reset(); dropGraded(); open('file', true); } });
+    if (GWX()) button(ra, 'the weather ladder', () => { ladderSet(null); saveLook(); open('file', true); });   // (SNOW-MUD LADDER)
     if (GFXL()) button(ra, 'the ground fx', () => { if (confirm('Reset the dust and the mud (ground fx) to the shipped values?')) { GFXL().reset(); saveLook(); open('file', true); } });
     button(ra, 'everything (reloads)', () => { if (!confirm('Reset the whole world look and reload?')) return;
       try { for (const k of [LOOK_KEY, 'flydiy.ground.splat.v1', 'flydiy.ground.stack']) localStorage.removeItem(k); } catch (e) {} location.reload(); });
