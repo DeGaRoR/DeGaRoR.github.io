@@ -346,9 +346,10 @@ async function runPage(S, opt) {
       const st = S.steps[si], phases = [], w0 = Date.now();
       let s = await rig.J(ST);
       await frames();   // (the step's frames start here)
-      const t0 = s ? s.t : 0;
+      let t0 = s ? s.t : 0;
       if (st.do === 'start') { await rig.fly(); s = await rig.J(ST); }
-      else if (st.do === 'leg') { const r = await setSel('selDest', st.to); const ok = await rig.ev('window.FLIGHT_PROBE.nextLeg()'); say('  leg to ' + st.to + ': ' + r + (ok ? '' : ' (no Fly on)')); }
+      else if (st.do === 'leg') { const r = await setSel('selDest', st.to); const ok = await rig.ev('window.FLIGHT_PROBE.nextLeg()'); say('  leg to ' + st.to + ': ' + r + (ok ? '' : ' (no Fly on)'));
+        s = await rig.J(ST); t0 = s ? s.t : 0; }   // (a leg is a new pilot: its clock restarts at 0, the step's with it)
       else if (st.do === 'lift') await rig.ev(`window.FLIGHT_PROBE.place({ by: [0, ${+st.by}, 0] })`);
       else if (st.do === 'board') { if (!s) failed = { step: si, name: st.name, why: { what: 'not ready to board: no sim / pilot on the page' } }; }
       const U = st.until || null, al = new Set(st.allow || []), cap = st.capS || 0;
