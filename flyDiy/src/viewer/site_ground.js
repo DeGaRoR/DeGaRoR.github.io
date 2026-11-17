@@ -52,7 +52,10 @@ function siteGroundTex(THREE, img, srgb, tile, aniso) {
 // caller falls back to whatever it drew by hand, exactly as the floor does
 function siteGroundMaps(THREE, key, tile, aniso) {
   const SETS = (typeof SITE_TEX_SETS !== 'undefined') ? SITE_TEX_SETS : null;
-  const set = SETS && SETS[key];
+  // HANGAR-OUTDOORS (17 Nov): a key the site library lacks is read from the PAVEMENT library - the world's own ground sets
+  // (the dirt road's 'dirtS', the apron's 'concreteD'), so the room and the world wear the same texture
+  const PAV = (typeof PAVEMENT_TEX_SETS !== 'undefined') ? PAVEMENT_TEX_SETS : null;
+  const set = (SETS && SETS[key]) || (PAV && PAV[key]);
   if (!set) return null;
   return {
     map: siteGroundTex(THREE, set.diff, true, tile, aniso),
