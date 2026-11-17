@@ -431,12 +431,15 @@ function siteScoreDirections(model, wind, lim, pref, oneWay) {
       // a tailwind past 2.5 m/s (the 5 kt of every POH) costs 30 per m/s more: 5 m/s down the strip weighs as much as an approach at its limit
       if (hw < -2.5) { sc -= 30 * (-2.5 - hw); why.push('tailwind'); }
     }
-    if (land && D.grade < 0) { sc -= 60 * -D.grade; why.push('downhill ' + (D.grade * 100).toFixed(1) + '%'); }
+    // UPHILL (the user, 17 Nov: on a sloped strip land uphill, leave downhill; DIRT-STRIP's bump matrix: the Cub landed w6 downhill and ran
+    // 124 m past the end, the Carbon Cub uphill stopped in 72 m): past 1 % the slope outweighs the wind - 1500 a unit of grade (2 %: 30
+    // points, 10 m/s of headwind at 3 a m/s); only a real tailwind (its own 30 a m/s past 2.5) turns the landing round. Under 1 % as before
+    if (land && D.grade < 0) { sc -= (-D.grade > 0.01 ? 1500 : 60) * -D.grade; why.push('downhill ' + (D.grade * 100).toFixed(1) + '%'); }
     // B.6: never downhill into a strip under 1.5 x the landing run; the strip itself shorter than the run is said either way
     if (land && lim.LDGrun && D.grade < -0.005 && model.R.len < 1.5 * lim.LDGrun) { sc -= 1000; why.push('downhill on a short strip'); }
     if (land && lim.LDGrun && model.R.len < 1.15 * lim.LDGrun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.LDGrun) + ' m run');
     if (!land && lim.TORun && model.R.len < 1.15 * lim.TORun) why.push('strip ' + Math.round(model.R.len) + ' m for a ' + Math.round(lim.TORun) + ' m take-off');
-    if (!land && D.grade > 0) { sc -= 60 * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }
+    if (!land && D.grade > 0) { sc -= (D.grade > 0.01 ? 1500 : 60) * D.grade; why.push('uphill ' + (D.grade * 100).toFixed(1) + '%'); }   // UPHILL: and left downhill, the same weight
     if (land && reqGs > gsMax) { sc -= 1000; why.push('approach needs ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
     else if (land && reqGs > gsNom) { sc -= 100 * (reqGs - gsNom) / Math.max(1e-3, gsMax - gsNom); why.push('steeper approach ' + (Math.atan(reqGs) * 57.3).toFixed(1) + ' deg'); }
     // PILOT-UNIFY (the user, 13 Nov: the Jodel must take off from Jumbo Mine): A CLIMB-OUT PAST THE AEROPLANE'S IS GRADED. Both of

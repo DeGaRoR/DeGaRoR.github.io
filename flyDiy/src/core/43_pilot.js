@@ -3097,24 +3097,17 @@ function makePilot(sim, def, world, opts) {
       heldJudged = ap.shortFld ? 'short' : 'normal';
       const room = sEnd - ap.xAim - fl;
       if (heldJudged === 'short' && room < (RC_ ? (A.stopShortK ?? 0.84) * (0.8 * (need - Vg) + Vg) : needS) && dAim > 0) {   // (G3491: the stop at full brakes)
-        heldJudged = 'refused';
-        say('strip-too-short', (to.name || to.id) + ': ' + (tVAdapt > 0.5 ? 'the elevator holds ' : 'the approach flies ') + Vtd.toFixed(1) + ' m/s' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s of wind behind on its one way in)' : '') + ', the short-field stop from it needs ' + r0(needS) +
-            ' m, ' + r0(Math.max(0, room)) + ' m are left past the aim and the float - not landing there');
-        // the nearest strip this gear lands on with the room (its own surface, its grade unknown: level) - else committed, said
-        let best = null, bd = Infinity;
-        for (const a of (world.aerodromes || [])) {
-          if (a === to || a.surface === 4 || !(a.len > 0)) continue;
-          if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;
-          if (a.len - Math.max(60, 0.12 * a.len) - 3 * Vtd < 1.15 * stopOn(a, 0, Vtd)) continue;
-          const dd = Math.hypot(a.x - cg[0], a.z - cg[2]);
-          if (dd < bd) { bd = dd; best = a; }
-        }
-        if (!best) { committed = true; say('committed-landing', 'no strip in reach has the room - landing ' + (to.name || to.id) + ' short-field'); return false; }
-        goAround('the strip is too short for ' + Vtd.toFixed(1) + ' m/s');
-        say('divert', 'diverting to ' + (best.name || best.id) + ' (' + r0(best.len) + ' m, ' + (bd / 1000).toFixed(1) + ' km): ' + (to.name || to.id) + ' is too short for the speed this aeroplane holds');
-        ap.route = { from: ap.route.to, to: best }; ap.xc = true; ap.gaN = 0; committed = false; ap.diverting = true;
-        ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap.route.from, best));
-        return true;
+        // DARE (the user via A0, 17 Nov: 'The autopilot shouldn't decline too easily ... it can go and crash, but it shouldn't decline
+        // too politely ... You don't refuse it'): THE SHORT FINAL IS FLOWN, NOT REFUSED. The held speed's stop not fitting the room past
+        // the aim was a go-around and a diversion ('not landing there' - the Cub at East Point from HOME, 17.3 m/s with 5 m/s behind:
+        // 187 m needed, 73 m left, to w8); now it is said with its numbers and landed short-field, the brakes from the touch. The
+        // strip's end is the outcome. (The dispatch's strip-too-short - a destination never planned on a strip shorter than the
+        // sheet's run - stays: A0's default (i))
+        heldJudged = 'short';
+        say('strip-short', (to.name || to.id) + ': ' + (tVAdapt > 0.5 ? 'the elevator holds ' : 'the approach flies ') + Vtd.toFixed(1) + ' m/s' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s of wind behind on its one way in)' : '') + ', the short-field stop from it needs ' + r0(needS) +
+            ' m, ' + r0(Math.max(0, room)) + ' m are left past the aim and the float - landing it short-field, no margin');
+        committed = true;
+        return false;
       }
       return false;
     };
@@ -3132,7 +3125,10 @@ function makePilot(sim, def, world, opts) {
       // 81 m in, stopped 74 m past it). A pilot diverts: the nearest strip this gear lands on with room for the
       // landing run (1.6 x the sheet's, 450 m at least), said, flown as a cross-country from here
       // (G3491: with A.rc, a strip the last approach was judged to fit is not diverted from - the third is committed)
-      if (ap.shortFld && ap.gaN >= 2 && world && world.aerodromes && !(RC_ && fitLast)) {
+      // DARE (the user, 17 Nov): ...AND TWICE ROUND IS NOT A DIVERSION. The third arrival is committed (canGA: two go-arounds), said
+      // 'committed-unstable' if it is unstable - the Jodel's 'twice round Cabin Strip - diverting to New Community' was a polite decline.
+      // G1936's diversion stays only behind ap's gaDivert (no card sets it)
+      if (A.gaDivert === true && ap.shortFld && ap.gaN >= 2 && world && world.aerodromes && !(RC_ && fitLast)) {
         const need = Math.max(450, 1.6 * ((sheetOf() && sheetOf().LDGrun) || 0));
         let best = null, bd = Infinity;
         for (const a of world.aerodromes) {
@@ -4249,11 +4245,14 @@ function makePilot(sim, def, world, opts) {
               const runS = left + ((!trike && (fr.len || 1100) < 300 && behS - spS >= 20) ? behS - spS : 0);
               // (only a TAILWIND makes it a no-go here: in calm air or into wind the roll's own call judges, as before -
               // the sheet's run is a chart's, conservative against the roll it measures: GATE LINEUP's East Point skip)
-              if (needW > left && hw < -0.5) noFit = { needW, hw, toRun };
+              // DARE (the user, 17 Nov; A0's default at 09:00 on refusals (ii)/(iii), the user not answering): THE HOLD DOES NOT DECLINE.
+              // A tailwind's wait-then-decline and the 1.3x 'clearly out of reach' decline (the C172 at Jumbo Mine) are behind ap's holdDecline
+              // (no card sets it): it rolls, and the roll's own law (the reject when Vr is out of reach) is a pilot doing its best
+              if (A.holdDecline === true && needW > left && hw < -0.5) noFit = { needW, hw, toRun };
               // ...AND A RUN CLEARLY OUT OF REACH IN ANY WIND IS DECLINED AT ONCE, SAID: over 1.3 x the run it will have (the Cub at East
               // Point, 131 m of chart for 112 ahead - 1.17 - lifts off 104 m in: the roll judges that; F-HCSN at Jumbo Mine, 328 for 200
               // - 1.64 - aborted at 78 s, 'will not reach Vr'). Waiting changes nothing but a tailwind: declined now, with its numbers
-              else if (needW > 1.3 * runS) noFit = { needW, hw, toRun, hard: true, kS, grS, crrS, runS };
+              else if (A.holdDecline === true && needW > 1.3 * runS) noFit = { needW, hw, toRun, hard: true, kS, grS, crrS, runS };
             }
           }
           if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && noFit && noFit.hard) {
