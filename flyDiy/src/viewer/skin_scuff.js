@@ -604,39 +604,42 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
         float wAl = w1 + w2;                               // the share of the faces the slide runs along (streaks, gouges)
         float soil = dR.w;
         float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
-        // MAX WEATHERING. fade + chalk: the colour washed toward its own grey, paler, the varnish gone
-        col = mix(col, mix(col, vec3(lum), 0.45) * 1.10 + 0.015, wxM * 0.75);
-        rgh = mix(rgh, max(rgh, 0.80), wxM);
-        // dust and dirt over it, mottled (the weathering's dirt colour, never shiny)
-        float dCov = wxM * clamp(0.20 + 0.55 * gm + 0.25 * gb, 0.0, 1.0) * (0.55 + 0.45 * xtr);
-        col = mix(col, uDmgCol[1].rgb, dCov * 0.65);
+        // THE USER (17 Nov, the Cub's wings drawn white - the A/B: this block): "the real thing is the dents and the dirt
+        // ... dark marks, and not simply a scratch off hyper clean ... it gets too much coverage. What we really needed was
+        // some streaks" - and "strip a little bit of paint out of there and then do the streak". So the face is dulled a
+        // little (its varnish), the dirt mottled thinly, and the SLIDE draws STREAKS along itself on the faces it ran along:
+        // each a narrow band worn to the substrate with the ground's dark grime in its middle; their share of the face grows
+        // with the slide's work, a quarter at most. No whole-panel chalk, chips merged or stripping (the extreme layer gone)
+        col = mix(col, mix(col, vec3(lum), 0.25), wxM * 0.35);
+        rgh = mix(rgh, max(rgh, 0.72), wxM * 0.6);
+        float dCov = wxM * smoothstep(0.55, 0.9, 0.55 * gm + 0.45 * gb) * (0.45 + 0.35 * xtr);
+        col = mix(col, uDmgCol[1].rgb * 0.8, dCov * 0.45);
         rgh = mix(rgh, max(rgh, uDmgCol[1].w), dCov);
-        met *= 1.0 - dCov * 0.8;
-        // chips by count - at max one 6 cm cell in sixteen with a 6-10 mm chip (the weathering's own full), then denser
-        // and larger until they merge into flaking
-        // (the chips and the weathering's scratches by count: dmgScrPat, ch and scr)
-        // EXTREME: the paint ground off in STREAKS along the slide (the stretched field's high ground), primer on metal,
-        // the silver dope on fabric
-        float gOff = smoothstep(0.66 - 0.34 * xtr, 0.73 - 0.34 * xtr, gS1 * w1 + gS2 * w2 + 0.5 * w0) * xtr * wAl;
-        // ...and THE GOUGES along the slide: two lattices, 1.2 and 2.1 cm across, 0.5 and 0.8 m along (dmgScrPat)
+        met *= 1.0 - dCov * 0.6;
+        // the streak field: the stretched field's high ground along the slide (dmgScrPat's gS), on the faces the slide ran
+        // along only (wAl), its threshold lowered as the work grows: a few at a rub, about a quarter of the face at most
         float gK = sCoh * smoothstep(0.15, 0.45, sc);
+        float sF = (gS1 * w1 + gS2 * w2) / max(wAl, 1e-3);
+        float thS = 0.86 - 0.16 * smoothstep(0.2, 1.0, sc);
+        float band = smoothstep(thS - 0.07, thS - 0.03, sF) * wAl * sCoh * wxM;   // worn to the substrate, a little wider
+        float dark = smoothstep(thS - 0.01, thS + 0.04, sF) * wAl * sCoh * wxM;   // the ground's grime ground into it
         float gg = (gg1 * w1 + gg2 * w2) * gK;
         float gDeep = gg * smoothstep(0.6, 1.0, xtr) * (gH1 * w1 + gH2 * w2);
-        // what shows: metal - bare alloy, a primer ring round the patches; fabric - the silver dope, the raw weave in a
-        // gouge's core; wood - raw grain
         vec3 bare = mix(dSub, vec3(0.42, 0.43, 0.44), dFab);
-        vec3 prim = mix(uDmgCol[0].rgb, vec3(0.42, 0.43, 0.44), dFab + dWood);
-        col = mix(col, prim, gOff * 0.85);
-        rgh = mix(rgh, max(rgh, 0.85), gOff);
-        met = mix(met, 0.0, gOff);
-        float bareCov = clamp(max(max(ch, scr), gg), 0.0, 1.0);
-        col = mix(col, bare, bareCov);
-        met = mix(met, mix(dSubM, 0.30, dFab) * (1.0 - soil), bareCov);
-        rgh = mix(rgh, mix(dSubR * 0.75, 0.55, dFab), bareCov);
-        // a deep gouge: the raw weave through the dope; on metal a dark groove packed with grime, bright lips beside it
-        col = mix(col, mix(uDmgCol[3].rgb * 1.6, vec3(0.50, 0.45, 0.34), dFab + dWood), gDeep * 0.85);
+        col = mix(col, bare, band * 0.85);
+        met = mix(met, mix(dSubM, 0.30, dFab), band * 0.85);
+        rgh = mix(rgh, mix(dSubR * 0.75, 0.6, dFab), band);
+        vec3 grime = mix(uDmgCol[3].rgb * 1.3, uDmgCol[1].rgb * 0.55, 0.35 + 0.3 * gb);
+        col = mix(col, grime, dark * 0.85);
+        rgh = mix(rgh, 0.92, dark);
+        met *= 1.0 - dark;
+        // a few bright scratches inside the dark on metal (the alloy through the grime), sparse
+        col = mix(col, dSub * 1.1, dMet * dark * smoothstep(0.75, 0.9, scr) * 0.6);
+        // a deep gouge: a dark groove packed with grime (the raw weave on fabric, dark)
+        col = mix(col, mix(uDmgCol[3].rgb * 1.6, vec3(0.50, 0.45, 0.34) * 0.7, dFab + dWood), gDeep * 0.85);
         rgh = mix(rgh, 0.95, gDeep);
         met *= 1.0 - gDeep;
+        float bareCov = max(band, dark);
         // the ground packed in the gouges: soil from soft ground, grass juice, dust on hard ground
         float stain = (0.35 + 0.65 * soil) * smoothstep(0.2, 0.8, sc) * (0.4 + 0.6 * gm);
         col = mix(col, mix(uDmgCol[1].rgb, uDmgCol[2].rgb, soil * (0.35 + 0.4 * gb)), stain * (0.10 + 0.45 * gg));
