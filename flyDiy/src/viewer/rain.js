@@ -188,6 +188,10 @@ var RAIN_FX = (function () {
       uLook: { value: V4() },
     };
     const M = MATLIB.make(THREE, 'shader', { glslVersion: THREE.GLSL3, vertexShader: VERT, fragmentShader: FRAG, uniforms: U,
+      // DoubleSide (17 Nov 02:00, THE cause of "no pixel" on SwiftShader AND the RTX): the quad's winding follows the streak's
+      // direction on screen - a falling drop's tail points up, its side left, the triangles wind clockwise and three's default
+      // FrontSide culled every one; every debug quad drawn right / up (counter-clockwise) drew
+      side: THREE.DoubleSide,
       transparent: true, depthWrite: false, depthTest: true, blending: THREE.CustomBlending,
       blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor });
     M.toneMapped = true; M.name = 'rain';

@@ -117,6 +117,7 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
   ok(['#include <logdepthbuf_pars_vertex>', '#include <logdepthbuf_vertex>'].every(t => RF.VERT.indexOf(t) >= 0) && ['#include <logdepthbuf_pars_fragment>', '#include <logdepthbuf_fragment>'].every(t => RF.FRAG.indexOf(t) >= 0)
      && RF.VERT.indexOf('#include <logdepthbuf_vertex>') > RF.VERT.indexOf('gl_Position = projectionMatrix * vec4(vp, 1.0);') && RF.VERT.indexOf('gl_Position = projectionMatrix * vec4(vp, 1.0);') > 0 && RF.FRAG.indexOf('out highp vec4 rainC') >= 0 && RF.FRAG.indexOf('#define gl_FragColor rainC') >= 0,
      '7g the streaks take the log-depth chunks (after the final gl_Position) and declare their GLSL3 output');
+  ok(SRC.indexOf('side: THREE.DoubleSide,') > 0, '7h the streak quads are drawn DOUBLE-SIDED: their winding follows the streak on screen (a falling drop winds clockwise - FrontSide culled every one, 17 Nov)');
   // 7f LAZY: the page makes it only when the eye's rain is above 0 and the tier is not off; ?rain=0 never makes it
   const sy = APP.slice(APP.indexOf('function syncRainFx(dt) {'), APP.indexOf("window.RAIN_LIVE ="));
   const guard = sy.indexOf("if (!(R > 0) || tier === 'off'"), make = sy.indexOf('RAIN_FX.make(THREE)');
