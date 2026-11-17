@@ -10,6 +10,7 @@ const hL = PJ.layout.find(l => l.name === 'h'), HT = new Float32Array(PB, hL.off
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H); renderer.setPixelRatio(1); document.body.appendChild(renderer.domElement);
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; renderer.outputColorSpace = THREE.SRGBColorSpace;
+{ const T = { cineon: THREE.CineonToneMapping, aces: THREE.ACESFilmicToneMapping, agx: THREE.AgXToneMapping }[new URLSearchParams(location.search).get('tone')]; if (T) renderer.toneMapping = T; }   // ?tone=cineon: the GAME's curve (gfx_settings COLOUR, the colour ruling)
 renderer.shadowMap.enabled = Q.get('shadows') !== '0'; renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene(), SKY = new THREE.Color(0x9fb7d0); scene.background = SKY; scene.fog = new THREE.FogExp2(SKY.clone(), 0.00022);
 const camera = new THREE.PerspectiveCamera(50, W / H, 2, 9000);
