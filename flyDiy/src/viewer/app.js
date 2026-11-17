@@ -1418,7 +1418,7 @@
         roomSite = ps.plot ? ps.site : undefined;
       }
       hangar = genHangarBuild(THREE, shed.dims || undefined,
-        { home: roomHome,
+        { home: roomHome, aprons: hoAprons(),   // HANGAR-OUTDOORS: the world's aprons (the premises' paved surface polygons) for the room's wide apron
           kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit, workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
       hangarScene.add(hangar.group);
       hviewAttach();   // G3630 (HANGAR-VIEW): the world's view out of the door, if one of this room stands
@@ -1468,6 +1468,14 @@
                                             shellRec.skin[k]));
         const saved = shed.parts || {};
         for (const k in saved) hangar.setPart(k, saved[k]);
+        // HANGAR-OUTDOORS item 3 (the user 17 Nov via A0, the large hangar's walls: "far too tiled, not interesting ... a little
+        // weathering ... maybe red corrugated steel"): ?hwall=a|b|c|d dresses them with one of the four options on the user's page
+        // - a red / galvanised / olive coat over the room's own drawn sheeting (seams, laps, rain streaks, rust at the foot, the
+        // corrugation's normal), d the timber planks. A dev dial: the pick becomes SHELLS.works.skin and the dial goes
+        const hwOpt = { a: { set: 'baked', paint: 0xc4483a, rough: 1.2, nrm: 1.3 }, b: { set: 'baked', paint: null, rough: 1, nrm: 1.2 },
+                        c: { set: 'baked', paint: 0x8a9168, rough: 1.3, nrm: 1.2 }, d: { set: 'planks09', tile: 3, rough: 1.4, nrm: 1.2, paint: null } };
+        const hw = /[?&]hwall=([a-d])\b/.exec(location.search || '');
+        if (hw && shed.shell === 'works') for (const k of ['wallSides', 'wallBack']) hangar.setPart(k, hwOpt[hw[1]]);
       }
       // the daylight card fed the bake as the door's big soft source;
       // with a real sky standing outside, the EYE gets the mountains
@@ -1512,6 +1520,17 @@
   // HANGAR-OUTDOORS (the user 17 Nov via A0, of the captured view: "as soon as it moves, it's completely stretched ... a huge
   // glitch"): OFF again - the room's own outdoors (the site's apron, strip and field: real geometry, right from any eye) under
   // the live sky and clouds; ?hview=1 keeps the capture as an opt-in for tests only
+  // HANGAR-OUTDOORS (the user 17 Nov via A0): the room's outdoors take the world's aprons (the island record's paved surface
+  // polygons, world metres) and, once the world's trees are baked, its impostor sheets as tree cards (hangar.treesFrom)
+  function hoAprons() {
+    try { const L = world && world.premises && world.premises.rec && world.premises.rec.layers;
+      return ((L && L.surface) || []).filter(e => e && (e.apron || e.surface === 5) && Array.isArray(e.poly) && e.poly.length > 2).map(e => e.poly); } catch (e) { return []; }
+  }
+  let hoTry = 0;
+  function hoTreesTick() {
+    if (!hangar || !hangar.treesFrom || hangar.treesDone || !WF || !WF.treeSideSheet || (++hoTry % 20)) return;
+    try { const S = WF.treeSideSheet({ max: 4 }); if (S && hangar.treesFrom(S)) hangar.treesDone = true; } catch (e) { hangar.treesDone = true; console.warn('flyDiy: the room trees -', e && e.message); }
+  }
   const hviewOff = () => { try { return !/[?&]hview=1\b/.test(location.search || ''); } catch (e) { return true; } };
   function hviewSize() {
     const G = window.GFX; if (G && G.soft && G.soft()) return 0;
@@ -21553,7 +21572,8 @@
     let framePresented = true;
     // G2070 (GARAGE-LAPTOP): the shed's shadow maps from their cached static depth + the casters that move (shed_shadow.js);
     // out of the shed its static depths are let go
-    if (inShed) hviewTick(); else if (!inGarage) hviewFlight();   // G3630 (HANGAR-VIEW): a face a frame when a new view is wanted
+    if (inShed) hviewTick(); else if (!inGarage) hviewFlight();
+    if (inShed) hoTreesTick();   // HANGAR-OUTDOORS: the room's tree cards, once the world's sheets are baked   // G3630 (HANGAR-VIEW): a face a frame when a new view is wanted
     const shedSh = inShed && !studioOn && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
     if ((!inGarage || studioOn) && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();   // (G3726: no shed in the studio)
     if (aa) framePresented = aa.render(inGarage && !introAt ? garageScene() : scene, camera) !== 'held';
