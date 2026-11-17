@@ -24,7 +24,7 @@
 var ROCK_RING = (() => {
   // (chunk and margin are WHOLE multiples of the 1.25 m step and the 2.5 m input lattice: 64 m left every chunk's last column
   // 0.25 m short of its neighbour's first - a crack - and phased each chunk's inputs differently)
-  const DEF = { on: 1, farOn: 1, farReach: 2000, reach: 450, chunk: 62.5, step: 1.25, M: 37.5, hs: 2.5, lift: 0.6, amp: 1.5, unit: 12, sink: 0.35, perFrame: 2, fadeBand: 90, macro: 1 };
+  const DEF = { on: 1, farOn: 1, farReach: 2000, reach: 450, chunk: 62.5, step: 1.25, M: 37.5, hs: 2.5, lift: 0.6, amp: 1.5, unit: 12, sink: 0.35, perFrame: 2, fadeBand: 90, macro: 1, softGate: 1 };
   const workerSrc = () => {
     const core = (typeof ROCK_RING_CORE_SRC !== 'undefined') ? ROCK_RING_CORE_SRC : null;
     return core + '\nlet KIT = ROCK_RING_CORE.kitPrep(null);\nonmessage = e => { if (e.data.kit) { KIT = ROCK_RING_CORE.kitPrep(e.data.kit); return; } if (e.data.mt) { const m = ROCK_RING_CORE.macroTile(e.data); postMessage({ id: e.data.id, m }, [m.A.buffer, m.B.buffer]); return; } const r = ROCK_RING_CORE.chunk(e.data, KIT); postMessage({ id: e.data.id, r }, [r.pos.buffer, r.disp.buffer, r.nor.buffer, r.idx.buffer, r.attr.buffer]); };';
@@ -366,13 +366,13 @@ Smp rRock(vec3 P, vec3 nG){
       const NW = S.reachCap ? 1 : Math.max(1, Math.min(3, ((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4) - 2));   // (the phone tier: one)
       try { if (worker) { const url = URL.createObjectURL(new Blob([workerSrc()], { type: 'text/javascript' })); for (let k = 0; k < NW; k++) mworkers.push(new Worker(url)); } } catch (e) { }
     }
-    const mtKey = () => [S.ndvi, S.ndviMid, S.off, S.hLo, S.hHi, S.jointDirt, S.wet].join(',');
+    const mtKey = () => [S.ndvi, S.ndviMid, S.off, S.hLo, S.hHi, S.jointDirt, S.wet, S.softGate].join(',');
     const mtInputs = (L, tx, tz) => {
       const l = MTL[L], C = l.T, M = l.M, hs = l.hs, x0 = tx * C, z0 = tz * C, nh = Math.round((C + 2 * M) / hs) + 1, n = nh * nh;
       const H = new Float32Array(n), R = new Float32Array(n), V = new Float32Array(n), Fl = new Float32Array(n);
       for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const x = x0 - M + i * hs, z = z0 - M + j * hs, k = j * nh + i;
         H[k] = ctx.terrainH(x, z); R[k] = share(x, z, 6); V[k] = ndvi(x, z); Fl[k] = flow(x, z); }
-      return { mt: 1, soft: L > 0, x0, z0, C, st: l.st, M, hs, nh, H, R, V, F: Fl, KP: keepGrid(x0, z0, M, hs, nh), K: { ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet } };
+      return { mt: 1, soft: L > 0, x0, z0, C, st: l.st, M, hs, nh, H, R, V, F: Fl, KP: keepGrid(x0, z0, M, hs, nh), K: { ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet, softGate: S.softGate } };
     };
     const mtPut = (L, tx, tz, m) => {   // a tile's texels into its slot of the level's two layers
       const l = MTL[L], T = m.T, ox = (((tx % MTT) + MTT) % MTT) * T, oz = (((tz % MTT) + MTT) % MTT) * T;

@@ -379,7 +379,7 @@ function ROCK_RING_CORE_FACTORY() {
       // coarse part, the joints' soil folded in, the gate as a fall) at (q + 0.3) / 1.5; splat_ground's sTrMac adds the fine terms and
       // thresholds a pixel at a time - crisp edges at any texel (a distance field's trick); the green's chance (B.b) is veg0 there
       let veg;
-      if (inp.soft) { const q = tmp[8] - 0.12 * tmp[6] - (1 - g) * 1.2; A[o + 3] = b8((q + 0.3) / 1.5); veg = tmp[9]; }
+      if (inp.soft) { const q = tmp[8] - 0.12 * tmp[6] - (1 - g) * 1.2 * (K.softGate === undefined ? 1 : K.softGate); A[o + 3] = b8((q + 0.3) / 1.5); veg = tmp[9]; }
       else { const ex = tmp[5] * g; A[o + 3] = b8(ex); veg = Math.max(tmp[4], 1 - ex); }
       // the height's normal (v1: central differences over the texel)
       const hx = (hgt[j * n + i + 1] - hgt[j * n + i - 1]) / (2 * st), hz = (hgt[(j + 1) * n + i] - hgt[(j - 1) * n + i]) / (2 * st), l = Math.hypot(hx, 1, hz);
