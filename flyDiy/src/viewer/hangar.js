@@ -2011,11 +2011,11 @@ if (!EXT) {
     }
     // THE SHED'S GROUND: dirt out of the door, a half disc 38 m, its rim fading into the grass over 9 m; a slight variation
     // (the macro); two tyre marks from the door out across it
-    const HILL = { on: HOK === 'shed', r0: 52, r1: 205, a: 1.95 };
+    const HILL = { on: HOK === 'shed', r0: 60, r1: 220, a: 1.95 };   // (15:20 stills: at r0 52 and 0.38 a metre the door saw only grass and trunks)
     const hillH = (r, a) => {   // the wooded hill's height (m over the field): a rising hemicircle with waves along it
       if (!HILL.on || r <= HILL.r0) return 0;
       const t = Math.min(1, (r - HILL.r0) / 30), side = Math.max(0, Math.min(1, (HILL.a - Math.abs(a)) / 0.4));
-      const base = (r - HILL.r0) * 0.38 + 7 * Math.sin(a * 2.3 + 0.7) + 4 * Math.sin(a * 5.1 + 1.9) + 3 * Math.sin(r * 0.045 + a * 3);
+      const base = (r - HILL.r0) * 0.22 + 7 * Math.sin(a * 2.3 + 0.7) + 4 * Math.sin(a * 5.1 + 1.9) + 3 * Math.sin(r * 0.045 + a * 3);
       return Math.max(0, base) * t * side * side * (3 - 2 * side);
     };
     if (HOK === 'shed') {
