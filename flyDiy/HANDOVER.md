@@ -317953,3 +317953,15 @@ DISINTEGRATING. Keep the breaking, of course, but more bending before it breaks.
   Cessna's pod folds its hangers and stays on to 7 m/s; the tear-off asserted on the Jodel), DMGPAGEW (any verdict that
   broke members), DMGFABRIC (the hop row on the metal Cessna, whose trunk0 still tears ties). Fixed by it: DMGWALL, and
   DMGINTEGRITY's engine-through-the-firewall row. The damage set's other reds are master's own rows.
+
+## DMG-UPLOAD - the fold's owed upload is not a stale buffer (Deform, Tue 17 Nov 2026, for L40f after JOINT-TETHER)
+claude/ready/dmg-upload on claude/ready/joint-tether. GATE DMGUPLOAD went red on L40e (the metal Cessna: fold:flownBaked
+position 3960 / normal 108 "STALE after crash -> the shed -> roll-out"); the bisect's first red is the animals-swim merge
+063250330 (its frame work moved the order). Measured in the node page: after the roll-out the metal fold walked with the
+model hidden up its parents on every frame and was NEVER DRAWN (onBeforeRender 0 times over 20 frames - the near view draws
+through its members' own buffers); its stale mark held (flown_bake's G1862/G2352 debt, paid at the next shown walk). No
+frame showed a ghost. flown_bake.js: the fold's userData.flownMerge.pending() (read-only: stale || a whole upload owed);
+GATE DMGUPLOAD: a stale fold buffer its fold still owes is reported OWED, not stale - a debt LOST (the mark not made, the
+whole upload dropped) stays red. Metal 0 stale (2 owed), the Cub 0.
+OWED (Deform): `node tools/_dmg_upload_check.js --selftest` does NOT go red on L40e master 2157a2f98 either (aswas / noowe:
+0 fold buffers stale) - the negative check lost its staging since L40e, before this change; to re-stage on a fold that draws.

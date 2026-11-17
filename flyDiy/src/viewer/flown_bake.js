@@ -1169,6 +1169,9 @@
       // covers it); three's upload callback pays the debt. window.FLYDIY_FOLD_NOOWE = true: as before (the A/B, the selftest)
       let oweP = false, oweN = false;
       aP.onUploadCallback = () => { oweP = false; }; aN.onUploadCallback = () => { oweN = false; };
+      // (DMGUPLOAD 17 Nov: what the fold still OWES the GPU - a stale mark not yet paid (walked unshown) or a whole upload asked
+      // and not yet made: its next shown walk / draw pays it. GATE DMGUPLOAD reads it - read-only)
+      mesh.userData.flownMerge.pending = () => stale || oweP || oweN;
       mesh.updateMatrixWorld = function (force) {
         ranges.length = 0;
         let nd = 0;

@@ -67,7 +67,7 @@ function shadowGL() {
 }
 // every drawn attribute / index of the flown model against its GPU copy -> the stale ones
 function staleOf(W, S) {
-  const m = W.FLIGHT_PROBE.model(), out = [], seen = new Set(), CL = {}, CK = {}; let checked = 0, never = 0;
+  const m = W.FLIGHT_PROBE.model(), out = [], owed = [], seen = new Set(), CL = {}, CK = {}; let checked = 0, never = 0;
   if (!m || !m.grp) return { none: true };
   m.grp.traverse(o => {
     if (!o.isMesh || !o.geometry) return;
@@ -82,10 +82,16 @@ function staleOf(W, S) {
       if (!sh || sh.length !== cpu.length) { out.push({ mesh: o.name || o.type, cls, attr: k, why: 'size ' + (sh && sh.length) + ' vs ' + cpu.length }); continue; }
       let bad = 0, first = -1; const es = a.array.BYTES_PER_ELEMENT || 4;
       for (let i = 0; i < cpu.length; i += es) { let d = false; for (let j = 0; j < es; j++) if (sh[i + j] !== cpu[i + j]) { d = true; break; } if (d) { bad++; if (first < 0) first = i / es; } }
+      // (17 Nov: a fold that still OWES its upload - stale-marked or a whole asked, flown_bake pending() - is not stale: its next
+      // shown walk pays it. L40e's metal Cessna: its fold walked with the model hidden up its parents through the roll-out
+      // and was never drawn (the near view draws through its members' own buffers), the mark held, 3 960 positions owed.
+      // The bug is a debt LOST - the mark not made (D4b) or the whole upload dropped (G2352): no pending, still red)
+      const fm = cls === 'fold' && o.userData.flownMerge;
+      if (bad && fm && fm.pending && fm.pending()) { owed.push({ mesh: o.name || o.type, attr: k, elements: bad }); continue; }
       if (bad) out.push({ mesh: o.name || o.type, cls, attr: k, elements: bad, of: cpu.length / es, first, version: a.version });
     }
   });
-  return { checked, never, stale: out, classes: CL, checkedBy: CK };
+  return { checked, never, owed, stale: out, classes: CL, checkedBy: CK };
 }
 
 // ============================================================ THE CHILD: one build, one page
@@ -235,7 +241,7 @@ function judge(R, say) {
   if (!R.live0) { bad('the first roll-out never went live under the worker'); return f; }
   const st = X => X && X.stale ? X.stale : [];
   say('  ' + R.key + ': fresh - ' + (R.fresh.checked || 0) + ' drawn buffers checked, ' + st(R.fresh).length + ' stale; the crash ' + JSON.stringify(R.crash)
-      + '; after the shed and the roll-out (live ' + R.live1 + ') - ' + (R.after.checked || 0) + ' checked, ' + st(R.after).length + ' STALE; uploads ' + JSON.stringify(R.gl) + '; drawn meshes by class ' + JSON.stringify(R.after.classes || {}) + '; the flown bake ' + JSON.stringify(R.bake || null));
+      + '; after the shed and the roll-out (live ' + R.live1 + ') - ' + (R.after.checked || 0) + ' checked, ' + st(R.after).length + ' STALE (' + ((R.after.owed || []).length) + ' owed by their fold, paid at its next shown walk: ' + JSON.stringify((R.after.owed || []).slice(0, 2)) + '); uploads ' + JSON.stringify(R.gl) + '; drawn meshes by class ' + JSON.stringify(R.after.classes || {}) + '; the flown bake ' + JSON.stringify(R.bake || null));
   for (const s of st(R.after).slice(0, 12)) say('      stale: ' + JSON.stringify(s));
   say('  ' + R.key + ' THE ROLL-OUT SHOT: fresh - ' + JSON.stringify(R.shot0) + '; after the crash - ' + JSON.stringify(R.shot1) + ' (the shot’s wreck resets ' + R.rollResets + ')');
   if (R.damage !== false && R.shot1 && R.shot1.shot && R.shot1.worst > 0.3) bad('THE ROLL-OUT SHOT POSED THE WRECK after the crash: its nodes ' + R.shot1.worst + ' m off the aeroplane as built (fresh ' + (R.shot0 && R.shot0.worst) + ' m)');
