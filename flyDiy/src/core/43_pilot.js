@@ -4561,7 +4561,10 @@ function makePilot(sim, def, world, opts) {
           // later 'rejected-takeoff: out of runway, 183 m left' and aborted - two calls that contradict). Past the point of stopping the
           // reject stops nothing; once the commit is said, a later Vr estimate (a bumpy strip's acceleration is noisy) never rejects - the
           // user's DARE (17 Nov): it goes, and the end of the strip is the outcome
-          if (!committedTO && dVr > left - (ap.route.from.altiport ? 0 : resv))   // GTRAM: an altiport's low end falls away (the rule above)
+          // ...BUT A STOP THAT STILL FITS IS A PILOT DOING ITS BEST (the user, 17 Nov: "Rejected take-offs mid-roll are fine when the pilot sees
+          // it can't reach Vr"): after the commit, the reject stays open while the stop from here fits in the strip ahead (DIRT-STRIP 17 Nov:
+          // with the commit closing it, TAXICLEAR 11c's C172 on Skyline's 280 m ran on off the low end and crashed instead of stopping)
+          if ((!committedTO || stopDist(gsOf(V)) <= left) && dVr > left - (ap.route.from.altiport ? 0 : resv))   // GTRAM: an altiport's low end falls away (the rule above)
             reject = 'out of runway: ' + Math.round(left) + ' m left, Vr in ' + (isFinite(dVr) ? Math.round(dVr) + ' m' : 'no distance (not accelerating)') +
                      ', V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
           else if (!committedTO) {
