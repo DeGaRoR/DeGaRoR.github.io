@@ -1696,7 +1696,7 @@
     },
     "water_lily": {
      "proportion": 1,
-     "density": 0.18,
+     "density": 0.5,
      "patch": 7,
      "patchShare": 0.45,
      "onWater": [
@@ -3041,14 +3041,21 @@
    "alpha": 0.4,
    "kind": "cover",
    "credit": {
-    "author": "flyDiy (procedural, MOUNTAIN-VEG 17 Nov 2026)",
-    "license": "own work",
-    "source": "tools: generated",
+    "author": "supplied by the user (17 Nov 2026), sliced by tools/lily_prep.py",
+    "license": "user-supplied",
+    "source": "the user's lily-pad sheets (kept out of git)",
     "title": "Water lily pads"
    },
-   "licence": "own work",
+   "licence": "user-supplied",
    "maps": [
-    "../assets/vegetation/flowers/water_lily.png"
+    "../assets/vegetation/flowers/water_lily_a.png",
+    "../assets/vegetation/flowers/water_lily_b.png",
+    "../assets/vegetation/flowers/water_lily_c.png",
+    "../assets/vegetation/flowers/water_lily_d.png",
+    "../assets/vegetation/flowers/water_lily_e.png",
+    "../assets/vegetation/flowers/water_lily_f.png",
+    "../assets/vegetation/flowers/water_lily_g.png",
+    "../assets/vegetation/flowers/water_lily_h.png"
    ],
    "sink": 0,
    "proportion": 1,
@@ -3059,14 +3066,25 @@
    "vary": 0.08,
    "root": 0,
    "rootH": 0.5,
-   "size": 2.2,
+   "size": 1,
    "shape": "float",
    "aspect": 1,
    "mul": [
-    0.75,
+    0.7,
     0.85,
-    0.75
-   ]
+    0.95
+   ],
+   "aspects": [
+    0.75,
+    0.62,
+    1.19,
+    0.56,
+    0.85,
+    1.69,
+    1.69,
+    1.71
+   ],
+   "sizeVar": 0.2
   }
  },
  "biomes": {
