@@ -317227,3 +317227,22 @@ KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes 
   - THE POLES ARE TRUNKS TOO (TREE_HITS.pole, opt-in trunk: true): a pole prop alone (its columns, the nodes) let the aeroplane by; the wing 3.5 m past one is now held 3.6 m past its line. GATE AFB0220 row 4 passes 'gen:<name>' keys the page builds (the winch lands with this); the splice touches only its own ids (xw_rough, xw_a_*, xw_o_*, xw_t_*: the winch's xw_winch* survive).
   - GATES on claude/afb-0220-b-mud (L40a + snow-mud + this), each its last run, every cook re-made first: PASS AFB0220 (39) MICRO CONTRACTS TAXICLEAR MAPBAKE RWYLIGHTS RWYTREES (uncapped: the runner's 1800 s cap cut it twice under load) PREMISES PREMCOOK CITYCOOK TERRAINMATCH UISMOKE STAGES LINEUP ROUTE PROFILE TREEHIT TREES OBSTACLE HITBOX (alone; red once on its timing row under load) WORLDRENDER (alone; one load red) PAVEMENT LOOKS STRIPGROUND SNOWMUDFX SOFTGROUND SITE GRASSSIDES BUILT. RED, NOT THIS BRANCH'S: NAMES ('Alaska' in livery_marks.js / aeroskin.js - L40a's stickers, red on clean 6a8d705c) and SCENERYED 20b (Metlakatla put back 2.8-3.2 s > 2.5 s - red on clean 6a8d705c on this box too). Not run: the full tier (--all), FRAMECOST (GPU).
   - THE WINCH stays its own branch (claude/afb-0220-winch fd55d8f0, on the unlanded winch branch): A0 merges it; GATE AFB0220 row 4 passes its gen:winch props and the splice leaves its xw_winch* in place.
+
+AFB-0220-B2 + BUMPINESS + TOP PADS (DIRT-STRIP, 17 Nov, ready/afb-0220-b2 on L40e 2157a2f98; A0's ruling 06:45):
+- 02/20 version B (the user's pick: the clean 3-5 m concrete core, the crumble, the firm-mud lane 02R/20L) replayed from
+  ready/afb-0220-b c68c85afb (dropped from L40d): 13 source commits, unions kept both sides (17 runways: mt_strip AND xw_rough;
+  RWYTREES 14 boxes; 27_premises' surface range = master's line), B's part re-spliced, re-cooked. No winch.
+- BUMPINESS (the user 16 Nov, red marks on the Jolene Airstrips table, a dot = 0.2 chaos): w1 0.6, w2 0.4 (in B's W2_PATCH), w3 0.2,
+  w4 0.2, w5 0.4, w6 0.8, w7 0.4, w8 0.6, mn_strip 0.4, nv_strip 0.4, tw_ski 0.2, mt_strip 0.2, HOME flat; the save's strips via
+  fieldPatches; a new editor strip is born at 0.4. Flown first (17 Nov bump trials, page SvVC49X8qU65hMUy1Gixah): the Cub clears
+  0.2-0.6, the Carbon Cub SS clears 0.8, the Jodel and the C172 fail some - the user's wish.
+- TOP PADS (the user: "always reach the flat part ... wider to turn and park"): w4's stand on its pad a30 past end 0 + a taxiOut;
+  w3 a 40 x 40 m gravel turn pad past its top end (its stand stays at the village).
+- NAMED COSTS (A0 accepted): +1.16 M / +1.39 M triangles within 3 km of HOME (the bump refinement; perf round: distance LOD);
+  a 10 cm seam where a road rim crosses w6; the cooked raster 11 cm off inside a bumpy strip (6 cm elsewhere).
+- PILOT'S, re-pin owed: TAXICLEAR 11b x2, 11c, 12 - 43_pilot's stripRoughOf (micro.chaos > 0) switches tw_ski and mn_strip to the
+  rough-strip plan, so three calibrations' known-bad paths moved, and 11b "the turn on the spot" at the altiport pose is a real
+  change Pilot checks (the user's altiport technique: must not stay broken).
+- Gates: AFB0220 MICRO TERRAINMATCH PREMCOOK PAVEMENT MAPBAKE MEDIA PREMISES CITYCOOK CONTRACTS RWYTREES STRIPGROUND
+  PILOTCANFLY PASS; master's, same names on a plain L40e export: ALTIPORT 2+3, TAXICLEAR 1, UNIFY EMERG, SCENERYED 15, NAMES.
+  GPU 17 Nov 04:45: 11 stills, page HiqVXKM1G3GyGK3T4MkpRe.
