@@ -1238,6 +1238,8 @@
         range(Lw, 'grass runway: length', 0.02, 0.3, 0.005, () => lw.get().stripH, ls('stripH'), v => Math.round(v * 100) + ' cm', DL.stripH);
         range(Lw, 'grass runway: spread', 0, 0.6, 0.01, () => lw.get().stripSigma, ls('stripSigma'), null, DL.stripSigma);
         toggle(Lw, 'leaning cards too', () => lw.get().lean, v => lw.set({ lean: v ? 1 : 0 }));
+        // (17 Nov: 40 cm cards read as dark blocks in the tall band beside bush strips - off, that band is the field's validated tufts)
+        toggle(Lw, 'cards in the tall band beside bush strips', () => lw.get().tallCards, v => { lw.set({ tallCards: v ? 1 : 0 }); replantGrass(); });
         range(Lw, 'full to', 1, 40, 1, () => lw.get().near, ls('near'), v => v + ' m', DL.near);
         range(Lw, 'gone at', 5, 120, 1, () => lw.get().reach, ls('reach'), v => v + ' m', DL.reach);
         range(Lw, 'taper', 0, 2, 0.05, () => lw.get().taper, ls('taper'), null, DL.taper);

@@ -181,7 +181,7 @@
     // A FREE ROW (the desktop presets stay as train 31 shipped them - GATE GFX 10, the user's rule): 'auto' picks the rung by the
     // preset (LAWN_OF), a player's own pick is kept
     { k: 'lawn', label: 'mown grass', free: true, def: 'auto', steps: [
-        { v: 'auto',  label: 'auto', why: 'by the graphics preset: dense on gamer and ultra, lawn on current and retro, near on potato and laptop (the phones)' },
+        { v: 'auto',  label: 'auto', why: 'by the graphics preset: dense on gamer and ultra, lawn on current and retro, off on potato and laptop (the phones)' },
         { v: 'D',     label: 'dense', why: 'cards 10 cm tall, 300 a square metre, to 20 m: the lawn at its best (gamer, ultra)' },
         { v: 'B',     label: 'lawn', why: 'cards 8 cm tall, 150 a square metre, to 40 m: a little lighter, farther (current, retro)' },
         { v: 'phone', label: 'near', why: 'the dense lawn to 12 m only: the phone\u2019s and the laptop\u2019s' },
@@ -460,7 +460,9 @@
     phone: { off: false, dens: 300, cutH: 0.10, reach: 12, near: 4, cell: 4, block: 8, lean: 1 },
     off:   { off: true } };
   // 'auto': the rung by the preset (the user 17 Nov: "D -> B -> phone"; a custom mix takes its build preset's)
-  const LAWN_OF = { ultra: 'D', gamer: 'D', current: 'B', retro: 'B', potato: 'phone', laptop: 'phone' };
+  // (potato / laptop - the phones - 'off': the 12:40 slot 17 Nov - on their PLAIN ground the cards take the textured ground's colour,
+  //  pale and pixelated against the olive, with a hard line at 12 m; owed to perf week: the cards in the plain ground's colour)
+  const LAWN_OF = { ultra: 'D', gamer: 'D', current: 'B', retro: 'B', potato: 'off', laptop: 'off' };
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
     if (W.FLYDIY_PACE && applied.fps !== S.fps) { W.FLYDIY_PACE.set(S.fps); applied.fps = S.fps; }   // G586: the frame cap

@@ -63,7 +63,7 @@ function rings(o) {
   let lawn = null;
   const base = { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, biomeAt: () => 'grassland', codeAt: () => 2,
     okAt: () => true, coverAt, groundMeanAt: () => GRASS.slice() };
-  const field = ctx.COVER_RING.make(THREE, Object.assign({}, base, { layer: 'grass', lawnOn: () => !!(lawn && lawn.get().on && !lawn.get().off) }));
+  const field = ctx.COVER_RING.make(THREE, Object.assign({}, base, { layer: 'grass', lawnOn: () => !!(lawn && lawn.get().on && !lawn.get().off), lawnTall: () => (lawn ? +lawn.get().tallCards || 0 : 0) }));
   lawn = ctx.COVER_RING.make(THREE, Object.assign({}, base, { scene: new THREE.Scene(), layer: 'lawn' }));
   const common = { budgetMs: 1e9, blockBudget: 1e9, grow: 0, reach: 60, near: 10, tier: 0 };
   field.set(Object.assign({ on: true, tufts: 12, blotch: 0, green: 0, minH: 0.3 }, common, o.field || {}));
@@ -121,7 +121,10 @@ if (A) {
 { const T = run({ tall: true }), U = run({ surf: true });
   const hOf = R => { const hs = []; for (const m of R.lawn.root.children.flatMap(g => g.children || [])) { if (!m.isInstancedMesh || !m.count) continue; m.geometry.computeBoundingBox();
     const top = m.geometry.boundingBox.max.y, a = m.instanceMatrix.array; for (let i = 0; i < m.count; i++) hs.push(a[i * 16 + 5] * top); } return hs.reduce((s, v) => s + v, 0) / Math.max(1, hs.length); };
-  if (T) { const S = T.lawn.get(); ok(Math.abs(hOf(T) / S.tallH - 1) < 0.2, '3b a tall cut (beside a soft strip) stands at tallH (' + S.tallH + ' m)', hOf(T).toFixed(3)); }
+  if (T) { const tf = T.fp.filter(p => p[0] >= 1 && p[0] <= 19).length, inBand = T.lp.filter(p => p[0] >= 0 && p[0] <= 24).length;   // (the band itself; the pavement's 1 m ramp reads its own node)
+    ok(inBand === 0 && tf > 100, '3b the tall band beside a soft strip stays the field\'s tufts (tallCards 0: 40 cm cards read as dark blocks, 17 Nov)', inBand + ' cards in the band, ' + tf + ' tufts'); }
+  const T1 = run({ tall: true, lawn: { tallCards: 1 } });
+  if (T1) { const S = T1.lawn.get(); ok(T1.lp.length > 1000 && Math.abs(hOf(T1) / S.tallH - 1) < 0.2 && T1.fp.filter(p => p[0] >= 1 && p[0] <= 19).length === 0, '3b2 tallCards 1: cards at tallH (' + S.tallH + ' m) and no tuft there', hOf(T1).toFixed(3)); }
   if (U) { const S = U.lawn.get(); ok(Math.abs(hOf(U) / S.stripH - 1) < 0.15, '3c a grass strip\'s surface stands at stripH (' + S.stripH + ' m)', hOf(U).toFixed(3)); } }
 // 6 the tiers nest: the cell planted for a far eye is a subset of the near one
 { const near = run({ lawn: { tier: 0 } }), far = run({ lawn: { tier: 1 }, ex: 10, ez: 8 });
@@ -142,7 +145,7 @@ if (A) {
   const of = /const LAWN_OF = (\{[^}]*\})/.exec(src), lad = /const LAWN_LADDER = (\{[\s\S]*?\n    off:\s*\{ off: true \} \})/.exec(src);
   const obj = t => Function('return (' + t + ')')();
   const O = of ? obj(of[1]) : {}, L = lad ? obj(lad[1]) : {};
-  ok(O.ultra === 'D' && O.gamer === 'D' && O.current === 'B' && O.retro === 'B' && O.potato === 'phone' && O.laptop === 'phone', '10a auto: D on ultra / gamer, B on current / retro, the phone rung on potato / laptop', JSON.stringify(O));
+  ok(O.ultra === 'D' && O.gamer === 'D' && O.current === 'B' && O.retro === 'B' && O.potato === 'off' && O.laptop === 'off', '10a auto: D on ultra / gamer, B on current / retro, off on potato / laptop (the phones: 17 Nov 12:40, the cards do not match their plain ground)', JSON.stringify(O));
   ok(L.D && L.D.dens === 300 && L.D.cutH === 0.10 && L.D.reach === 20 && L.B && L.B.dens === 150 && L.B.cutH === 0.08 && L.B.reach === 40 && L.phone && L.phone.reach < L.D.reach && L.off && L.off.off === true,
     '10b the rungs: D 300 / 10 cm / 20 m, B 150 / 8 cm / 40 m, the phone nearer than D, off', JSON.stringify({ D: L.D, B: L.B, phone: L.phone }));
   ok(/\{ k: 'lawn', label: 'mown grass', free: true, def: 'auto'/.test(src), "10c the row is free with 'auto' its default (the desktop presets as train 31 shipped them)"); }

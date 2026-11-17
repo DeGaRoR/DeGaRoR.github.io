@@ -6097,6 +6097,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           grassField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'grass',
             GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt, edgeD,   // edgeD: FOREST-EDGE's distance, for the field's weeds band (LOOK-1)
             lawnOn: () => !!(lawnField && lawnField.get().on && !lawnField.get().off),   // GRASS-CARDS: the cut ground is the lawn's while it is on
+            lawnTall: () => (lawnField ? +lawnField.get().tallCards || 0 : 0),   // (the tall band beside a soft strip: the field's tufts unless the lawn's tallCards)
             groundSetsAt: (x, z, code) => { const SPA = groundApi.splat ? groundApi.splat() : null; return SPA && SPA.setsAt ? SPA.setsAt(x, z, code) : null; } });   // (16 Nov: the grass by the texture drawn)
           // THE LAWN (GRASS-CARDS, 16 Nov): the mown ground's own ring - the bench's grass cards (grass_plates) on coverAt's cut, the
           // field's land test and colour; the field steps aside under it (lawnOn above)

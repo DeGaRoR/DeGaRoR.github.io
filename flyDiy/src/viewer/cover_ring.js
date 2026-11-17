@@ -184,7 +184,7 @@ var COVER_RING = (() => {
   const LAWN_ON = true;   // ON (GRASS-CARDS 17 Nov, the user: "d is best looking" - the top rung D; the GRAPHICS row 'mown grass' picks the rung per preset; ?lawn=0 the A/B)
   const LAWN_DEF = { cell: 4, block: 8, reach: 20, near: 6, taper: 1, aglFull: 20, aglOff: 70, aglPre: 110, budgetMs: 2, preBudgetMs: 1, maxCells: 600,
     dens: 300, cutH: 0.10, cutSigma: 0.2, tallH: 0.4, tallSigma: 0.3,   /* tallH 0.4: grass-edge's tall band (the user: 'taller grass on the strip side') */ stripH: 0.06, stripSigma: 0.15, lean: 1, hRef: 0.08, sizeFade: 1, sizeMax: 1.5,
-    colour: 1, match: 1, vary: 0.06, tier: 1, trunc: 1, minCut: 0.05, lawnWet: 0.3, green: 0, texGrass: 0, weeds: 0, root: 0 };   // lawnWet: a square's ground over the drawn water it needs (m)
+    colour: 1, match: 1, vary: 0.06, tier: 1, trunc: 1, minCut: 0.05, lawnWet: 0.3, tallCards: 0, green: 0, texGrass: 0, weeds: 0, root: 0 };   // lawnWet: a square's ground over the drawn water it needs (m)
   const LAWN_SPECIES = ['grass_plates'];
   const LAWN_BUF = { cap: 0, xs: [], col: [], rand: [] };   // buildLawn's scratch (emitField copies out of it)
   const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
@@ -942,7 +942,7 @@ var COVER_RING = (() => {
       const tl = G.tall ? G.tall[k] : 0, T = T0 || FIELD_MEADOW, hw = T.h * S.hK * (1 + (S.weedsH - 1) * wd), hc = surf ? S.stripH : Math.max(S.minH, S.cutH + (S.tallH - S.cutH) * tl);
       return { mix: G.mix[k], code: G.code[k], ok, kill: +kill.toFixed(3), cut: +cut.toFixed(3), tall: +tl.toFixed(3), surf: !!surf, cls: !!G.cls[k], kind,
         green: G.green ? +G.green[k].toFixed(3) : 0, col: [G.col[k * 3], G.col[k * 3 + 1], G.col[k * 3 + 2]],
-        dType: dT, dGreen: +dG.toFixed(3), dTex: +dX.toFixed(3), weed: +wd.toFixed(3), perM2: live ? +(S.on ? S.tufts * d * cutF * wD * (1 - kill) * (1 + boost) * (ctx.lawnOn && ctx.lawnOn() ? 1 - cut : 1) : 0).toFixed(2) : 0,
+        dType: dT, dGreen: +dG.toFixed(3), dTex: +dX.toFixed(3), weed: +wd.toFixed(3), perM2: live ? +(S.on ? S.tufts * d * cutF * wD * (1 - kill) * (1 + boost) * (ctx.lawnOn && ctx.lawnOn() ? 1 - cut * (1 - (G.tall ? G.tall[k] : 0) * (1 - (ctx.lawnTall ? +ctx.lawnTall() || 0 : 0))) : 1) : 0).toFixed(2) : 0,
         h: +(hw + (hc - hw) * cut).toFixed(3), why: !S.on ? 'field off' : !ok ? 'land test' : kill >= 1 ? 'kill' : kind === 1 ? 'lawn' : kind === 3 ? 'none' : !(d > 0) ? 'no row, not green' : cut > 0.5 ? 'mown' : 'wild' };
     }
     function buildField(cx, cz, dTier, born) {
@@ -951,7 +951,7 @@ var COVER_RING = (() => {
       const R = rng((hsh(cx, cz) * 4294967295) >>> 0);
       const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz, dTier, born, field: true };
       cells.set(cellKey(cx, cz), cell); markBlock(cx, cz);
-      const lawnTake = !!(ctx.lawnOn && ctx.lawnOn());   // GRASS-CARDS: the mown ground is the lawn's while it is on (keep x (1 - cut) below)
+      const lawnTake = !!(ctx.lawnOn && ctx.lawnOn()), lawnTall = ctx.lawnTall ? +ctx.lawnTall() || 0 : 0;   // GRASS-CARDS: the mown ground is the lawn's while it is on (keep x (1 - cut) below)
       const c = speciesOf()[0], P = c ? protosOf(c) : [];
       if (!P.length || !BIO) { STAT.lastMs = performance.now() - t0; return cell; }
       for (const p of P) for (const q of p.parts) if (LEAF.fadeOwn) LEAF.fadeOwn(q.mat, FSET);
@@ -1003,7 +1003,9 @@ var COVER_RING = (() => {
         if (S.blotch > 0) keep *= 1 - S.blotch * (0.5 + 0.5 * vnoise(x, z, blotchM, 4242)) * (1 - cut);
         keep *= (1 - kill) * (1 + boost) / (1 + G.bmax);
         if (T.fieldPatch > 0 && T.fieldShare < 1) keep *= smooth(-0.06, 0.06, T.fieldShare - vnoise(x, z, T.fieldPatch, 515));   // the type's grass patches
-        if (lawnTake) keep *= 1 - cut;   // (the stream is drawn the same: the wild grass is today's tuft for tuft)
+        // (the stream is drawn the same: the wild grass is today's tuft for tuft). The TALL band beside a soft strip stays the field's
+        // tufts (GRASS-CARDS 17 Nov: 40 cm cards read as dark blocks there; the user validated the tufts) unless the lawn's tallCards
+        if (lawnTake) keep *= 1 - cut * (1 - tl * (1 - lawnTall));
         if (rA >= keep) continue;
         // THE LENGTH (GRASS-STUDY §4.4): the type's median x a lognormal x the clump field (wild); cut: its own length, uniform
         let nz = Math.sqrt(-2 * Math.log(Math.max(1e-9, rH1))) * Math.cos(6.2831853 * rH2); nz = Math.max(-2.5, Math.min(2.5, nz));
@@ -1129,6 +1131,7 @@ var COVER_RING = (() => {
           const kind = fk >= 0 ? F.kind[fk] : G.kind[gk], ok = fk >= 0 ? F.ok[fk] : G.ok[gk];
           if (!ok || kind === 1 || kind === 3) continue;
           const surf = fk >= 0 ? F.surf[fk] : G.surf[gk], tl = fk >= 0 ? (F.tall ? F.tall[fk] : 0) : (G.tall ? G.tall[gk] : 0);
+          if (tl > 0 && hq(kq, 6) * I32 >= 1 - tl * (1 - S.tallCards)) continue;   // the tall band: the field's tufts (tallCards 0), or cards
           const hn = hq(kq, 4), r1 = mmax(1e-5, ((hn >>> 16) + 0.5) * I16), r2 = (hn & 0xffff) * I16;
           let nz = msqrt(-2 * mlog(r1)) * mcos(6.2831853 * r2); nz = mmax(-2.5, mmin(2.5, nz));
           const h = surf ? S.stripH * mexp(S.stripSigma * nz)
@@ -1158,7 +1161,7 @@ var COVER_RING = (() => {
       const surf = fk >= 0 ? F.surf[fk] : G.surf[gk], tl = fk >= 0 ? (F.tall ? F.tall[fk] : 0) : (G.tall ? G.tall[gk] : 0);
       const live = !!ok && kill < 1 && kind !== 1 && kind !== 3 && cut > (+S.minCut || 0);
       return { cut: +cut.toFixed(3), kill: +kill.toFixed(3), surf: !!surf, tall: +tl.toFixed(3), kind, ok: !!ok,
-        perM2: live && S.on ? +(S.dens * cut * (1 - kill)).toFixed(2) : 0, h: surf ? S.stripH : +(S.cutH + (S.tallH - S.cutH) * tl).toFixed(3) };
+        perM2: live && S.on ? +(S.dens * cut * (1 - kill) * (1 - tl * (1 - S.tallCards))).toFixed(2) : 0, h: surf ? S.stripH : +(S.cutH + (S.tallH - S.cutH) * tl).toFixed(3) };
     }
 
     // ---- FOREST-EDGE's band (the user 16 Nov: "a ramp of tree sizes on the surroundings, then bushes"; the spec of 25 Oct:
@@ -1774,7 +1777,7 @@ var COVER_RING = (() => {
         if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again
         if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
-        const PLANT = LAWN ? ['cell', 'dens', 'cutH', 'cutSigma', 'tallH', 'tallSigma', 'stripH', 'stripSigma', 'lean', 'hRef', 'sizeMax', 'colour', 'match', 'vary', 'tier', 'trunc', 'minCut', 'lawnWet', 'lakeMargin']
+        const PLANT = LAWN ? ['cell', 'dens', 'cutH', 'cutSigma', 'tallH', 'tallSigma', 'stripH', 'stripSigma', 'lean', 'hRef', 'sizeMax', 'colour', 'match', 'vary', 'tier', 'trunc', 'minCut', 'lawnWet', 'tallCards', 'lakeMargin']
                     : FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'tallH', 'tallSigma', 'minH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD', 'green', 'greenDens', 'greenLo', 'greenSpan', 'feather', 'cutFloor', 'texGrass', 'minAlb']
                             : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'castMinDebris', 'trunc', 'rockSplit'];   // (rockSplit: the rocks' own ring's split, 17 Nov)
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
