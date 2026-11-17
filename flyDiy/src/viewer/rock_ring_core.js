@@ -311,7 +311,7 @@ function ROCK_RING_CORE_FACTORY() {
       const clus = ss(0.40, 0.70, vn3(jx / 40, 0, jz / 40));
       const rocky = Math.max(cR, cS) * ss(18, 26, sl) * (1 - ss(44, 50, sl)) * clus * (1 - cF);
       const edge = (cR > 0.12 && cR < 0.88 ? 1 : 0) * (1 - ss(40, 50, sl)) * (1 - cF) * (0.4 + 0.6 * clus);
-      const p = (talus * 0.33 + rocky * 0.055 + edge * 0.13) * mul;
+      const p = (talus * 0.33 + rocky * 0.055 + edge * 0.13) * mul; if (inp.KP && bil(inp.KP, jx, jz) < 0.9) continue;   // (no boulder on graded ground: a strip, a pad - the terraforming's keep)
       const bigOK = clus > 0.55 && hh(Math.round(jx * 5), Math.round(jz * 5), 9) < 0.07;
       if (!bigOK || hh(Math.round(jx * 7), Math.round(jz * 7), 3) >= p * 9) continue;
       const r1 = hh(Math.round(jx * 13), Math.round(jz * 13), 5), r2 = hh(Math.round(jx * 13), Math.round(jz * 13), 6), r3 = hh(Math.round(jx * 13), Math.round(jz * 13), 7);
@@ -369,7 +369,7 @@ function ROCK_RING_CORE_FACTORY() {
     const A = new Uint8Array(T * T * 4), B = new Uint8Array(T * T * 4), b8 = v => Math.max(0, Math.min(255, Math.round(v * 255)));
     for (let b = 0; b < T; b++) for (let a = 0; a < T; a++) { const i = a + mg, j = b + mg, k = j * n + i, o = (b * T + a) * 4;
       macroAt(X(i), Z(j), Y[k], slope[k], Rb[k], cz[k], fl[k], nd[k], hgt[k] - hb[k], [dn[k * 2], dn[k * 2 + 1]], K, tmp);
-      const g = gateOf(bil(Rd, X(i), Z(j))), ex = tmp[5] * g, veg = Math.max(tmp[4], 1 - ex);
+      const g = gateOf(bil(Rd, X(i), Z(j))) * (inp.KP ? bil(inp.KP, X(i), Z(j)) : 1), ex = tmp[5] * g, veg = Math.max(tmp[4], 1 - ex);
       A[o] = b8(tmp[1] / 1.5); A[o + 1] = b8(tmp[2] / 1.5); A[o + 2] = b8(tmp[3] / 1.5); A[o + 3] = b8(ex);
       // the height's normal (v1: central differences over the texel)
       const hx = (hgt[j * n + i + 1] - hgt[j * n + i - 1]) / (2 * st), hz = (hgt[(j + 1) * n + i] - hgt[(j - 1) * n + i]) / (2 * st), l = Math.hypot(hx, 1, hz);
@@ -415,8 +415,8 @@ function ROCK_RING_CORE_FACTORY() {
       macroAt(X(i), Z(j), Y[k], slope[k], Rb[k], cz[k], fl[k], bil(V, X(i), Z(j)), hgt[k] - hb[k], [dn[k * 2], dn[k * 2 + 1]], K, tmp);
       for (let c = 0; c < 6; c++) mac[k * 7 + c] = tmp[c]; mac[k * 7 + 6] = tmp[7]; }
     // the exposure SMOOTHED over ~5 m (the geometry's mask: read raw, every speck stood up as a tooth - the bench)
-    { const Rd = rockDil(R, nh, hs);   // THE ROCK GATE (above): the exposure - the geometry's and the colour's - x it
-      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i, g = gateOf(bil(Rd, X(i), Z(j)));
+    { const Rd = rockDil(R, nh, hs), KP = inp.KP;   // THE ROCK GATE (above) x THE TERRAFORMING's keep (rock_ring keepGrid): the exposure - the geometry's and the colour's - x them
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i, g = gateOf(bil(Rd, X(i), Z(j))) * (KP ? bil(KP, X(i), Z(j)) : 1);
         if (g < 1) { mac[k * 7 + 6] *= g; mac[k * 7 + 5] *= g; mac[k * 7 + 4] = Math.max(mac[k * 7 + 4], 1 - mac[k * 7 + 5]); } } }
     const ex = new Float32Array(n * n); for (let k = 0; k < n * n; k++) ex[k] = mac[k * 7 + 6];
     const MC = {}; const mac7 = c => MC[c] || (MC[c] = (() => { const o = new Float32Array(n * n); for (let k = 0; k < n * n; k++) o[k] = mac[k * 7 + c]; return o; })());
@@ -511,7 +511,7 @@ function ROCK_RING_CORE_FACTORY() {
         const clus = ss(0.40, 0.70, vn3(jx / 40, 0, jz / 40));
         const rocky = Math.max(cR, cS) * ss(18, 26, sl) * (1 - ss(44, 50, sl)) * clus * (1 - cF);
         const edge = (cR > 0.12 && cR < 0.88 ? 1 : 0) * (1 - ss(40, 50, sl)) * (1 - cF) * (0.4 + 0.6 * clus);
-        const p = (talus * 0.33 + rocky * 0.055 + edge * 0.13) * mul;
+        const p = (talus * 0.33 + rocky * 0.055 + edge * 0.13) * mul; if (inp.KP && bil(inp.KP, jx, jz) < 0.9) continue;   // (no boulder on graded ground: a strip, a pad - the terraforming's keep)
         const rr = hh(Math.round(jx * 7), Math.round(jz * 7), 3);
         if (rr >= p) continue;
         const big = clus > 0.55 && hh(Math.round(jx * 5), Math.round(jz * 5), 9) < 0.07, isTalus = talus > rocky * 0.16;

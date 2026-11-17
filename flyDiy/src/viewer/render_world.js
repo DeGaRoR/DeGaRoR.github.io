@@ -6160,7 +6160,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
               // THE PHONE TIER (A0's brief): the GRAPHICS row's lean ground builds the ring at 2.5 m within 250 m, no micro detail; plain: no ring
               const gq = (typeof window !== 'undefined' && window.GFX && window.GFX.get) ? window.GFX.get().ground : null;
               const K = gq === 'lean' ? { step: 2.5, reachCap: 250, reach: 250, micro: 0 } : {};
-              if (gq !== 'plain') rockRing = ROCK_RING.make(THREE, { scene, world, camera, splat: groundApi.splatFull(), groundMat: rockGroundMat, groundU, terrainH: (x, z) => world.terrainH(x, z), isla: world.island, flow: flowOf, kit, K });
+              if (gq !== 'plain') rockRing = ROCK_RING.make(THREE, { scene, world, camera, splat: groundApi.splatFull(), groundMat: rockGroundMat, groundU, terrainH: (x, z) => world.terrainH(x, z), keep: world.terrainKeep ? ((x, z) => world.terrainKeep(x, z)) : null, isla: world.island, flow: flowOf, kit, K });
               if (typeof window !== 'undefined') window.ROCK_RING_LIVE = rockRing;
             } catch (e) { console.warn('rock ring: ' + (e && e.message)); }
           }
@@ -7936,6 +7936,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
     }
     if (farLod && farLod.resinkSteps) yield* farLod.resinkSteps(bb); else if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
+    try { if (rockRing && rockRing.invalidate) rockRing.invalidate(bb); } catch (e) {}   // (a boot-time call may come before rockRing's line) ROCK-STUDY: the rock's chunks and macro tiles under the edit (the terraforming's keep)
   }
   // G2063 (TOWN-GEO): THE TOWN'S PATCH AND ROADS, AS THE EYE NEARS IT. With the town on, the boot builds the premises' ground
   // and roads as the town-off page does (Metlakatla is 9 km from HOME: its patch and roads were ~3.5 s of the garage

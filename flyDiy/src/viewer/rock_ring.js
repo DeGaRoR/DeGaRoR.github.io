@@ -220,13 +220,20 @@ Smp rRock(vec3 P, vec3 nG){
       return ((F.g[k] * (1 - u) + F.g[k + 1] * u) * (1 - v) + (F.g[k + F.N] * (1 - u) + F.g[k + F.N + 1] * u) * v) / 255; };
     // the LOD band of a chunk at d m: [rung of its boulders, small blocks on] - a chunk rebuilds when the eye moves it across one
     const band = d => d < 200 ? 0 : (d < 250 ? 1 : 2);
+    // THE TERRAFORMING (17 Nov, the user: "a runway there ... should follow the terraforming rules"): the share of NATURAL ground
+    // the premises keep (world.terrainKeep: 1 untouched, 0 graded) on the inputs' lattice - the rock's exposure, relief and boulders
+    // x it; null (no work in the worker) where nothing is terraformed
+    const keepAt = typeof ctx.keep === 'function' ? ctx.keep : null;
+    const keepGrid = (x0, z0, M, hs, nh) => { if (!keepAt) return null; const K = new Float32Array(nh * nh); let any = false;
+      for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const v = keepAt(x0 - M + i * hs, z0 - M + j * hs); K[j * nh + i] = v; if (v < 0.999) any = true; }
+      return any ? K : null; };
     const inputs = (x0, z0, d) => {
       const C = S.chunk, M = S.M, hs = S.hs, nh = Math.round((C + 2 * M) / hs) + 1, n = nh * nh;
       const H = new Float32Array(n), R = new Float32Array(n), V = new Float32Array(n), Fl = new Float32Array(n), Sc = new Float32Array(n), Fo = new Float32Array(n); let any = 0;
       for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const x = x0 - M + i * hs, z = z0 - M + j * hs, k = j * nh + i;
         H[k] = ctx.terrainH(x, z); R[k] = share(x, z, 6); V[k] = ndvi(x, z); Fl[k] = flow(x, z); Sc[k] = share(x, z, 5); Fo[k] = Math.max(share(x, z, 8), share(x, z, 13)); if (R[k] > 0) any = 1; }
       const b = band(d), cam = ctx.camera.position;
-      return any ? { x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, rung: b === 0 ? 0 : 1, eye: [cam.x, cam.z], reach: S.reach, step: S.step, K: { lift: S.lift, amp: S.amp, unit: S.unit, sink: S.sink, ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet, scatter: S.scatter, boulders: S.boulders, proud: S.proud } } : null;
+      return any ? { x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, KP: keepGrid(x0, z0, M, hs, nh), rung: b === 0 ? 0 : 1, eye: [cam.x, cam.z], reach: S.reach, step: S.step, K: { lift: S.lift, amp: S.amp, unit: S.unit, sink: S.sink, ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet, scatter: S.scatter, boulders: S.boulders, proud: S.proud } } : null;
     };
     // a chunk's two meshes: the RELIEF wears the GROUND'S OWN material (ctx.groundMat - the near ring's: every type's PBR sets,
     // height-blended, the rock among them; the bench v1's skirt wore the ground's), its macro in aRM / aRX, its offset in aRD (the
@@ -297,7 +304,7 @@ Smp rRock(vec3 P, vec3 nG){
       const H = new Float32Array(n), R = new Float32Array(n), V = new Float32Array(n), Fl = new Float32Array(n), Sc = new Float32Array(n), Fo = new Float32Array(n); let any = 0;
       for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const x = x0 - M + i * hs, z = z0 - M + j * hs, k = j * nh + i;
         H[k] = ctx.terrainH(x, z); R[k] = share(x, z, 6); V[k] = ndvi(x, z); Fl[k] = flow(x, z); Sc[k] = share(x, z, 5); Fo[k] = Math.max(share(x, z, 8), share(x, z, 13)); if (R[k] > 0 || Sc[k] > 0) any = 1; }
-      return any ? { far: true, x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, step: FAR.step, eye: [cam.x, cam.z], reach: S.reach, farReach: S.farReach || 2000,
+      return any ? { far: true, x0, z0, C, M, hs, nh, H, R, V, F: Fl, Sc, Fo, KP: keepGrid(x0, z0, M, hs, nh), step: FAR.step, eye: [cam.x, cam.z], reach: S.reach, farReach: S.farReach || 2000,
         K: { off: S.off, hLo: S.hLo, hHi: S.hHi, scatter: S.scatter, ndvi: S.ndvi, ndviMid: S.ndviMid } } : null; };
     const farBuild = (key, x0, z0) => { const c = farChunks.get(key), cam = ctx.camera.position; c.eye = [cam.x, cam.z];
       const t0 = performance.now(), inp = farInputs(x0, z0); ST.mainMs += performance.now() - t0;
@@ -352,7 +359,7 @@ Smp rRock(vec3 P, vec3 nG){
       const H = new Float32Array(n), R = new Float32Array(n), V = new Float32Array(n), Fl = new Float32Array(n);
       for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const x = x0 - M + i * hs, z = z0 - M + j * hs, k = j * nh + i;
         H[k] = ctx.terrainH(x, z); R[k] = share(x, z, 6); V[k] = ndvi(x, z); Fl[k] = flow(x, z); }
-      return { mt: 1, x0, z0, C, st: l.st, M, hs, nh, H, R, V, F: Fl, K: { ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet } };
+      return { mt: 1, x0, z0, C, st: l.st, M, hs, nh, H, R, V, F: Fl, KP: keepGrid(x0, z0, M, hs, nh), K: { ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet } };
     };
     const mtPut = (L, tx, tz, m) => {   // a tile's texels into its slot of the level's two layers
       const l = MTL[L], T = m.T, ox = (((tx % MTT) + MTT) % MTT) * T, oz = (((tz % MTT) + MTT) % MTT) * T;
@@ -379,7 +386,7 @@ Smp rRock(vec3 P, vec3 nG){
           for (const key of [...l.res.keys()]) { const [a, b] = key.split(',').map(Number); if (a < c[0] - MTT / 2 || a >= c[0] + MTT / 2 || b < c[1] - MTT / 2 || b >= c[1] + MTT / 2) l.res.delete(key); }
           MT.queue = MT.queue.filter(q => q[1] !== L || (q[2] >= c[0] - MTT / 2 && q[2] < c[0] + MTT / 2 && q[3] >= c[1] - MTT / 2 && q[3] < c[1] + MTT / 2));
           for (let j = -MTT / 2; j < MTT / 2; j++) for (let i = -MTT / 2; i < MTT / 2; i++) { const tx = c[0] + i, tz = c[1] + j, key = tx + ',' + tz;
-            if (l.res.has(key) || MT.queue.some(q => q[1] === L && q[2] === tx && q[3] === tz) || [...MT.inflight.values()].some(q => q[0] === L && q[1] === tx && q[2] === tz)) continue;
+            if (l.res.has(key) || MT.queue.some(q => q[1] === L && q[2] === tx && q[3] === tz) || [...MT.inflight.values()].some(q => q[0] === L && q[1] === tx && q[2] === tz && q[3] !== 'stale')) continue;
             const dmin = Math.hypot(Math.max(0, Math.abs((tx + 0.5) * l.T - cam.x) - l.T / 2), Math.max(0, Math.abs((tz + 0.5) * l.T - cam.z) - l.T / 2));
             MT.queue.push([dmin * (1 + 0.15 * L), L, tx, tz]); }
           MT.queue.sort((a, b) => a[0] - b[0]); }
@@ -420,6 +427,15 @@ Smp rRock(vec3 P, vec3 nG){
         if (S.farOn !== 0) { if (!(ring._f = (ring._f || 0) + 1) || ring._f % 20 === 0) farUpdate(cam);
           if (!queue.length && n < S.perFrame && inflight.size < 4 && farQueue.length) { const [, key, x0, z0] = farQueue.shift(); if (farChunks.has(key)) farBuild(key, x0, z0); } }
       },
+      // a premises edit's box (render_world refreshGround): the chunks, the far chunks and the macro tiles it touches rebuild
+      // (their old meshes and texels stand until the new land); a worker's answer for one of them already in flight is dropped
+      invalidate(bb) { if (!bb) return; const hit = (x0, z0, C, m) => !(x0 + C < bb.x0 - m || x0 > bb.x1 + m || z0 + C < bb.z0 - m || z0 > bb.z1 + m);
+        for (const [key, c] of chunks) if (hit(c.x0, c.z0, S.chunk, S.M)) { c.band = undefined; c.empty = false; if (!queue.some(q => q[1] === key)) queue.unshift([0, key, c.x0, c.z0]); }
+        for (const [id, key] of inflight) { const c = chunks.get(key) || farChunks.get(key.slice(2)); if (c && hit(c.x0, c.z0, key.startsWith('f:') ? FAR.C : S.chunk, 40)) inflight.set(id, 'stale'); }
+        for (const [key, c] of farChunks) if (hit(c.x0, c.z0, FAR.C, FAR.M)) { c.eye = null; if (!farQueue.some(q => q[1] === key)) farQueue.unshift([0, key, c.x0, c.z0]); }
+        MTL.forEach((l, L) => { for (const key of [...l.res.keys()]) { const [a, b] = key.split(',').map(Number); if (hit(a * l.T, b * l.T, l.T, l.M)) l.res.delete(key); } l.c = null; });
+        for (const [id, q] of MT.inflight) { const l = MTL[q[0]]; if (hit(q[1] * l.T, q[2] * l.T, l.T, l.M)) MT.inflight.set(id, [q[0], q[1], q[2], 'stale']); }
+        ST.invalidated = (ST.invalidated || 0) + 1; },
       get: () => Object.assign({}, S),
       set(o) { const rebuild = ['chunk', 'step', 'lift', 'amp', 'unit', 'sink', 'proud', 'scatter', 'boulders', 'ndvi', 'ndviMid', 'off', 'hLo', 'hHi', 'jointDirt', 'wet', 'M', 'hs'].some(k => k in o && o[k] !== S[k]);
         Object.assign(S, o); if (rebuild) { for (const k of [...chunks.keys()]) drop(k); queue.length = 0; } if (rebuild || 'reach' in o) cx0 = cz0 = NaN; return ring.get(); },
