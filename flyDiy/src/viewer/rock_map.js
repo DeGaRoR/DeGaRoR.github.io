@@ -53,9 +53,10 @@ var ROCK_MAP = (() => {
       // it, and the next part linked the same program again - the census: 30 links of 2 programs in one roll-out.
       // Now one material per (map, cut), all alive until the atlas is drawn: the two programs link once each
       const kinds = new Map();
-      const spriteMat = (map, cut) => {
-        const key = (map ? map.uuid : '-') + '|' + (cut > 0 ? cut : 0);
+      const spriteMat = (map, cut, card) => {
+        const key = (map ? map.uuid : '-') + '|' + (cut > 0 ? cut : 0) + (card ? '|card' : '');
         let m = kinds.get(key);
+        if (card) { if (!m) { m = MATLIB.make(THREE, 'basic', { map: map || null, toneMapped: false, alphaTest: card, side: THREE.DoubleSide }); kinds.set(key, m); } return m; }   // a shrub card: a picture, its alpha cut (the bushes' far tier, 17 Nov)
         if (!m) {
           m = new THREE.MeshBasicMaterial({ map: map || null, toneMapped: false });
           if (cut > 0) { const uCut = { value: cut }; m.onBeforeCompile = sh => { sh.uniforms.uCut = uCut;
@@ -68,8 +69,11 @@ var ROCK_MAP = (() => {
       };
       for (const { c, P } of protos) for (const p of P) {
         if (k >= perRow * perRow) break;
-        const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || 1);
-        const meshes = p.parts.map(part => new THREE.Mesh(part.geo, spriteMat(part.mat.map, cut)));
+        const card = p.kind === 'cover' ? ((c.tint && c.tint.alpha > 0) ? +c.tint.alpha : 0.3) : 0;
+        // a card's footprint from its geometry (built at unit size: the instance scale carries place.size)
+        const bbR = () => { let r = 0; for (const part of p.parts) { const g = part.geo; if (!g.boundingBox) g.computeBoundingBox(); const b = g.boundingBox; r = Math.max(r, -b.min.x, b.max.x, -b.min.z, b.max.z); } return r || 1; };
+        const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || (card ? bbR() : 1));
+        const meshes = p.parts.map(part => new THREE.Mesh(part.geo, spriteMat(part.mat.map, cut, card)));
         sc.clear(); meshes.forEach(m => sc.add(m));
         // from above: right = +x, up = -z (the world's north), the footprint [-r0, r0]
         cam.left = -r0; cam.right = r0; cam.top = r0; cam.bottom = -r0; cam.updateProjectionMatrix();

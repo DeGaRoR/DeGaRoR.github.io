@@ -291,7 +291,8 @@ var COVER_RING = (() => {
           cutFloor: 0,
           weeds: 1, weedsH: 1.8, weedsD: 1.3,   // (16 Nov, FOREST-EDGE with MOUNTAIN-VEG) the wild grass taller + denser in the weeds band outside a forest's edge (ctx.edgeD; inert without it)
           texGrass: 0 }   // (16 Nov) the density floor by the texture drawn: texGrass x SET_GRASS over the near sets' weights (0 = today)   // (16 Nov; the user: "maybe you have a cut grass setting that does not work") a MOWN node's density floor, whatever the type it is cut from (0 = today: the type's, 0.2 by a forest strip)   // (16 Nov) the density blended across class boundaries, 0..1 - off until the user's frame says (the A/B)
-      : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true,
+      : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, farBush: 6,   // farBush: the bushes' far tier, n cards a sprite (0 = off; 17 Nov)
+        aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true,
           aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140, trunc: 1 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     // THE FIELD SHIPS OFF until its cost is cut (A0, train 43: the dials early, the field behind its editor switch - VEGETATION > the
     // grass field > 'the field'; the world look keeps the user's choice). ?grassfield=1 / 0 forces it for a rig; FIELD_ON the default
@@ -756,6 +757,19 @@ var COVER_RING = (() => {
       const out = [];
       for (const c of speciesOf()) { if (!rockish(c)) continue; const row = M.species && M.species[c.name]; if (!row) continue;
         placeRocks(c, row, F, G, centreMix, cx, cz, C, (p, x, y, z, s, yaw, col) => out.push({ p, x, z, s, yaw, col })); }
+      // THE BUSHES' FAR TIER (17 Nov, the user: "Bushes should almost be visible as far as the trees"): the shaped cards of the mix
+      // on the same beds the ring plants them (bedKeep), their own stream, farK as one sprite sqrt(farK) wider, their own colour
+      if (S.farBush > 0) for (const c of speciesOf()) { if (!shapedOf(c)) continue; const row = M.species && M.species[c.name]; if (!row) continue;
+        const place = c.place || {}, P = protosOf(c); if (!P.length) continue;
+        const per = (row.density !== undefined ? row.density : (place.density || 0)) * (F.cover === undefined ? 1 : F.cover) * S.density; if (!(per > 0)) continue;
+        const K = Math.max(1, +S.farBush), patch = row.patch !== undefined ? row.patch : (place.patch || 0), share = place.patchShare || row.patchShare || 0.35;
+        const bedFrac = patch ? Math.min(1, 0.25 * share) : 1, sSeed = hashStr(c.name), n = Math.round(per * C * C / K * (patch ? 1 / bedFrac : 1));
+        const Rq = rng((((hsh(cx + 7, cz - 7) * 4294967295) >>> 0) ^ sSeed ^ 0x5eed) >>> 0), mu = place.mul || [1, 1, 1];
+        for (let i = 0; i < n; i++) { const x = x0 + Rq() * C, z = z0 + Rq() * C, r1 = Rq(), r2 = Rq(), r3 = Rq();
+          if (patch && !(bedKeep(x, z, patch, sSeed % 1000, bedFrac) >= r1)) continue;
+          const gk = G.at(x, z); if (!G.ok[gk] || G.mix[gk] !== centreMix || G.kind[gk] === 1 || G.kind[gk] === 3 || G.cut[gk] > 0.05 || G.bush[gk]) continue;
+          out.push({ p: draw(P, r2), x, z, s: (place.size || 1) * Math.sqrt(K) * (0.85 + 0.3 * r3), yaw: r3 * 6.2831853, col: mu }); }
+      }
       return out;
     }
 
@@ -1602,7 +1616,7 @@ var COVER_RING = (() => {
       nodeAt: (x, z) => { const C = S.cell, cx = Math.floor(x / C), cz = Math.floor(z / C), G = subGrid(cx * C, cz * C, C), k = G.at(x, z);
         return { cell: [cx, cz], mix: G.mix[k], code: G.code[k], ok: !!G.ok[k], kill: +G.kill[k].toFixed(3), cls: G.cls[k], kind: G.kind[k], boost: +G.boost[k].toFixed(3),
           cut: +G.cut[k].toFixed(3), green: G.green ? +G.green[k].toFixed(3) : null, col: [G.col[k * 3], G.col[k * 3 + 1], G.col[k * 3 + 2]].map(v => +v.toFixed(4)) }; },
-      rockProtos: () => speciesOf().filter(rockish).map(c => ({ c, P: protosOf(c) })),   // the sprites' subjects (rocks and debris)
+      rockProtos: () => speciesOf().filter(c => rockish(c) || (S.farBush > 0 && shapedOf(c))).map(c => ({ c, P: protosOf(c) })),   // (+ the shaped shrub cards: the bushes' far tier, 17 Nov)   // the sprites' subjects (rocks and debris)
       stat: () => Object.assign({}, STAT, { by: Object.assign({}, STAT.by) }),   // a copy of the tally too (a shallow copy shared it)
       dispose: () => { api.replant(); for (const bm of batches.values()) { root.remove(bm); bm.dispose(); } batches.clear(); scene.remove(root); },
     };
