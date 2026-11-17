@@ -824,13 +824,16 @@ const SPLAT_GROUND = (() => {
 #ifndef GS_NOTROND
     // R1: THE EXPOSURE (the lean path's twin, above)
     if (uTrOn > 0.5) {
-      float r = w[6]; gTrR0 = r; gTrR = r;
+      // (17 Nov, IN THE GAME: the cliff (12) was split off the rock above, BEFORE this - the exposure rewrote the slab's part alone
+      // and a face over uTrS.y kept its whole share as the face tile: no mosaic, no green on any steep face (Skyline's face, the
+      // summit's bowl at A0's far eye) - the lean path splits after the exposure. Here the exposure takes the rock whole, then splits)
+      float r = w[6] + w[12]; gTrR0 = r; gTrR = r;
       float mw = sTrMac(xz);
       bool rgv = vRM.w > 1.5 || mw > 0.0;
       if (r > 0.02 || rgv) {
         float e = sTrE(r, xz, slope, uv, mw), ko = (1.0 - e) / max(1.0 - r, 1e-3);
-        for (int i = 0; i < uSNCode; i++) if (i != 6) w[i] *= ko;
-        w[6] = e;
+        for (int i = 0; i < uSNCode; i++) if (i != 6 && i != 12) w[i] *= ko;
+        w[6] = e * (1.0 - sCliff); w[12] = e * sCliff;
         if (1.0 - r < 1e-3) { w[8] += (1.0 - e) * 0.7; w[2] += (1.0 - e) * 0.3; }
         gTrR = e;
       }
