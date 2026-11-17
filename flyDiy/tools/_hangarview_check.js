@@ -88,9 +88,10 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   ok(!('userData' in new THREE.WebGLRenderTarget(4, 4)) && !/\.userData\b/.test(hvCode) && /capLin === lin/.test(hvCode),
     '3l the capture target\'s mode is kept in the view (capLin), never on a target\'s userData (three r' + THREE.REVISION + ' has none: the boot\'s first face threw)');
   // RE-PINNED 10 Nov (HVIEW-ON, the user ~20:55 via A0: ON by default with the scenery train; the redesign 'C' landed in L37a):
-  // the view is ON by default, ?hview=0 turns it off (was HVIEW-OFF, 8 Nov: off until the redesign)
-  ok(/const hviewOff = \(\) => \{ try \{ return \/\[\?&\]hview=0\\b\/\.test\(location\.search \|\| ''\); \} catch \(e\) \{ return true; \} \};/.test(app),
-    '3m the view is ON by default, off only with ?hview=0 (HVIEW-ON, 10 Nov: the user, with the scenery train)');
+  // HANGAR-OUTDOORS (the user 17 Nov via A0: the captured view stretches as the eye moves - "a huge glitch"): OFF by default,
+  // the room's own outdoors under the live sky; ?hview=1 keeps the capture as a test opt-in (was HVIEW-ON 10 Nov, HVIEW-OFF 8 Nov)
+  ok(app.includes("const hviewOff = () => { try { return !/[?&]hview=1\\b/.test(location.search || ''); } catch (e) { return true; } };"),
+    '3m the view is OFF by default, on only with ?hview=1 (HANGAR-OUTDOORS, 17 Nov: the user)');
   // GARAGE-CLOUDS (8 Nov, the cloud bisect): the noise volume is baked by CLOUDS.draw (the world's pass) only, so a boot into the garage
   // marched an empty noise - the room's cloud layer blank on every master back to 22 Oct. The shed's day bakes it itself
   const cl = src('src/viewer/clouds.js');
