@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5b46dded741a27fa
+// body-sha256: 5d48a4fa0092ae0d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -5654,6 +5654,11 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
     terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
+    // ROCK-STUDY (17 Nov, the user: "a runway there with terraforming ... should follow the terraforming rules"): how much of the
+    // NATURAL ground the premises keep at (x, z) - 1 untouched, 0 graded flat - read off the composer itself: its modifiers are
+    // blends, affine in the ground under them (terrainH's lakebed note), so a metre more of base ground comes through as (1 - w).
+    // Exact to every modifier's own falloff; the rock (its exposure, relief, boulders - rock_ring) is multiplied by it
+    terrainKeep: (x, z) => { if (!PM) return 1; const h0 = baseH(x, z), f = h => (PM.terrainFast ? PM.terrainFast(x, z, h) : PM.terrainH(x, z, h)); const k = f(h0 + 1) - f(h0); return k >= 1 ? 1 : (k <= 0 ? 0 : k); },
     roughAt: (x, z) => !!(PM && PM.roughAt && PM.roughAt(x, z)),   // (SNOW-MUD: on a bumpy strip's box - the wheel's envelope, 30_solver)
     // (SNOW-MUD LADDER: the soil's water this world reads, a weather code's rung now, the dev override - 07f GROUND_WX)
     soilNow, surfaceNow, setGround, get groundForce() { return groundForce; },
