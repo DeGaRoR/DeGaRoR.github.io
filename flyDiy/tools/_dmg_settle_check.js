@@ -108,7 +108,7 @@ if (argv[0] === '--build') {
       // the measure, every EVERY frames and the last
       if (f % EVERY === 0 || f === SECS * 60 - 1) {
         const pc = D.pc || new Int32Array(n), pcs = new Map();
-        for (let i = 0; i < n; i++) { let o = pcs.get(pc[i]); if (!o) pcs.set(pc[i], o = { ids: [], node: Infinity, nodeAt: -1, cover: Infinity, coverSec: null, any: Infinity, anySec: null, v: 0, M: 0 });
+        for (let i = 0; i < n; i++) { let o = pcs.get(pc[i]); if (!o) pcs.set(pc[i], o = { ids: [], node: Infinity, nodeAt: -1, cover: Infinity, coverSec: null, any: Infinity, anySec: null, free: Infinity, v: 0, M: 0 });
           // (a wheel stands on its LOADED tyre: 30_solver's rC carries its static deflection, at most 5 cm - G661)
           o.ids.push(i); const y = sim.p[i * 3 + 1] - (sim.r[i] - so(i)) - ELEV - (wheel.has(i) ? Math.min(0.05, Math.max(0, sim.p[i * 3 + 1] - sim.r[i] - ELEV)) : 0);
           if (y < o.node) { o.node = y; o.nodeAt = i; }
@@ -117,11 +117,12 @@ if (argv[0] === '--build') {
           for (let t = 0; t < R.nt; t++) { if (R.dead && R.dead[t]) continue;
             for (let e = 0; e < 3; e++) { const v = ix[t * 3 + e], o = pcs.get(R.vp ? R.vp[v] : 0); if (!o) continue; const y = R.w[v * 3 + 1] - ELEV;
               if (y < o.any) { o.any = y; o.anySec = (g.sec || g.key) + (g.layer[v] ? ':' + g.layer[v] : ''); }
+              if (!(R.held && R.held[t]) && y < o.free) o.free = y;   // (G4103: a covering HELD across by its cover tie - the physics holds it - rides no loose piece)
               if (g.cv[v] === SB.INH.cover && y < o.cover) { o.cover = y; o.coverSec = g.sec || g.key; } } } });
         const row = { t: +sim.t.toFixed(2), pieces: [] };
         for (const [q, o] of pcs) row.pieces.push({ q, label: label(o.ids), n: o.ids.length, M: +o.M.toFixed(1), tags: [...new Set(o.ids.map(i => def.nodes[i].tag || '-'))].slice(0, 6).join(','),
           node: +o.node.toFixed(4), nodeTag: def.nodes[o.nodeAt].tag || '', cover: Number.isFinite(o.cover) ? +o.cover.toFixed(4) : null, coverSec: o.coverSec,
-          any: Number.isFinite(o.any) ? +o.any.toFixed(4) : null, anySec: o.anySec, v: +o.v.toFixed(3), core: o.ids.includes(core) });
+          any: Number.isFinite(o.any) ? +o.any.toFixed(4) : null, anySec: o.anySec, free: Number.isFinite(o.free) ? +o.free.toFixed(4) : null, v: +o.v.toFixed(3), core: o.ids.includes(core) });
         row.bodies = W.bodies.map(B => bodyAt(B, env));
         series.push(row);
       }
@@ -221,7 +222,7 @@ const cm = x => x == null ? '-' : (x * 100).toFixed(1);
       yes(det.every(p => p.v < 0.05), k + ' ' + c.id + ': every detached piece still at ' + e.t + ' s (fastest ' + Math.max(0, ...det.map(p => p.v)).toFixed(3) + ' m/s)');
       yes(det.every(p => p.node <= X_UP && p.node >= -X_DN), k + ' ' + c.id + ': every detached piece\'s lowest node on the ground (' + det.map(p => cm(p.node)).join(', ') + ' cm; within +' + X_UP * 100 + ' / -' + X_DN * 100 + ')');
       yes(det.every(p => p.cover == null || (p.cover <= Y_UP && p.cover >= -Y_DN)), k + ' ' + c.id + ': every detached piece\'s covering ON the ground, not over it (' + det.map(p => cm(p.cover)).join(', ') + ' cm; within +' + Y_UP * 100 + ' / -' + Y_DN * 100 + ')');
-      const loose = e.pieces.filter(p => !p.core && p.n < SB.LOOSE_N && p.any != null);
+      const loose = e.pieces.filter(p => !p.core && p.n < SB.LOOSE_N && p.free != null);   // (G4103: what rides it, not a covering its tie holds across - the Cub's stab fabric over HR-HF once the kinks' tethers left HF alone)
       if (r.bug) yes(loose.every(p => p.any <= DEB), k + ' ' + c.id + ': the islands left riding a loose node lie on the ground (their lowest drawn ' + loose.map(p => cm(p.any)).join(', ') + ' cm)');
       else {
         yes(loose.length === 0, k + ' ' + c.id + ': no island rides a loose piece (' + loose.length + '): each went as a body');
