@@ -359,7 +359,7 @@ Smp rRock(vec3 P, vec3 nG){
       const H = new Float32Array(n), R = new Float32Array(n), V = new Float32Array(n), Fl = new Float32Array(n);
       for (let j = 0; j < nh; j++) for (let i = 0; i < nh; i++) { const x = x0 - M + i * hs, z = z0 - M + j * hs, k = j * nh + i;
         H[k] = ctx.terrainH(x, z); R[k] = share(x, z, 6); V[k] = ndvi(x, z); Fl[k] = flow(x, z); }
-      return { mt: 1, x0, z0, C, st: l.st, M, hs, nh, H, R, V, F: Fl, KP: keepGrid(x0, z0, M, hs, nh), K: { ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet } };
+      return { mt: 1, soft: L > 0, x0, z0, C, st: l.st, M, hs, nh, H, R, V, F: Fl, KP: keepGrid(x0, z0, M, hs, nh), K: { ndvi: S.ndvi, ndviMid: S.ndviMid, off: S.off, hLo: S.hLo, hHi: S.hHi, jointDirt: S.jointDirt, wet: S.wet } };
     };
     const mtPut = (L, tx, tz, m) => {   // a tile's texels into its slot of the level's two layers
       const l = MTL[L], T = m.T, ox = (((tx % MTT) + MTT) % MTT) * T, oz = (((tz % MTT) + MTT) % MTT) * T;

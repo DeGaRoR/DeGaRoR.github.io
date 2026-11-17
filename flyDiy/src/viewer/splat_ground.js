@@ -367,6 +367,7 @@ const SPLAT_GROUND = (() => {
   uniform vec4 uTrG;             // the green: amount, its roughness, its saturation, the bare stone's roughness (x the tile's)
   uniform vec4 uTrF;             // the micro detail from / to (m), the joints gone by (m), the wet streaks
   uniform vec4 uTrS;             // the slab -> face split under the dial: from / full by (deg); the micro photo's raw mean luminance
+  uniform vec4 uTrX;             // the grass in the rock: its share of the macro tint x (the open heath's = 1)
   uniform vec4 uTrW;             // the rock's film: the grass's hue (rgb, over its luminance), its amount (the weathering); uTrS.w the value match
   uniform vec4 uTrM;             // the micro detail: brightness strength, normal strength; the NDVI's pull on the exposure, its midpoint
   // R1 RIDES THE MATERIAL CHAIN (A0's box, 16 Nov: the first R1's own sample chain - 7 more inlined sFetch - linked every ground
@@ -437,10 +438,22 @@ const SPLAT_GROUND = (() => {
     gTrMA = vec4(0.0); gTrMB = vec4(0.0); gTrIn = 0.0;
     if (uTrMX.w < 0.5) return 0.0;
     float w0 = sTrMacW(xz, uTrMR[0]), w1 = (1.0 - w0) * sTrMacW(xz, uTrMR[1]), w2 = (1.0 - w0 - w1) * sTrMacW(xz, uTrMR[2]);
-    if (w0 > 0.0) { vec2 u = xz / uTrMX.x; gTrMA += texture(uTrMT, vec3(u, 0.0)) * w0; gTrMB += texture(uTrMT, vec3(u, 1.0)) * w0; }
-    if (w1 > 0.0) { vec2 u = xz / uTrMX.y; gTrMA += texture(uTrMT, vec3(u, 2.0)) * w1; gTrMB += texture(uTrMT, vec3(u, 3.0)) * w1; }
-    if (w2 > 0.0) { vec2 u = xz / uTrMX.z; gTrMA += texture(uTrMT, vec3(u, 4.0)) * w2; gTrMB += texture(uTrMT, vec3(u, 5.0)) * w2; }
-    gTrIn = w0 + w1 + w2; if (gTrIn > 0.0) { gTrMA /= gTrIn; gTrMB /= gTrIn; }
+    vec4 a0 = vec4(0.0), b0 = vec4(0.0), aS = vec4(0.0), bS = vec4(0.0);
+    if (w0 > 0.0) { vec2 u = xz / uTrMX.x; a0 = texture(uTrMT, vec3(u, 0.0)); b0 = texture(uTrMT, vec3(u, 1.0)); }
+    if (w1 > 0.0) { vec2 u = xz / uTrMX.y; aS += texture(uTrMT, vec3(u, 2.0)) * w1; bS += texture(uTrMT, vec3(u, 3.0)) * w1; }
+    if (w2 > 0.0) { vec2 u = xz / uTrMX.z; aS += texture(uTrMT, vec3(u, 4.0)) * w2; bS += texture(uTrMT, vec3(u, 5.0)) * w2; }
+    float wS = w1 + w2; gTrIn = w0 + wS; if (gTrIn <= 0.0) return 0.0;
+    // THE SOFT LEVELS (2 / 4 m, past the relief's reach - the user, 17 Nov: "low definition, high pixels"): they hold the exposure's
+    // FIELD (rock_ring_core macroTile soft), not the decision - it is thresholded HERE, a pixel at a time, with v1's fine terms
+    // added as value noise at their own cells (the 8 / 3.2 m mottle, the 4.9 / 2 m green speckles) and the edge widened with the
+    // distance (an anti-aliased threshold, not a shimmer): crisp edges at any texel, no memory, no read
+    if (wS > 0.0) { aS /= wS; bS /= wS;
+      float d = distance(vWPi, cameraPosition), dk = 1.0 - smoothstep(900.0, 2500.0, d), fine = gVnoise(xz / 8.0 + 11.3);
+      float E = aS.a * 1.5 - 0.3 + (fine - 0.5) * 0.5 + (gVnoise(xz / 3.2 + 4.1) - 0.5) * 0.35 * dk, sw = 0.04 + 5.4e-5 * d;
+      float e = smoothstep(0.46 - sw, 0.46 + sw, E);
+      e *= 1.0 - clamp(smoothstep(0.56, 0.63, gVnoise(xz / 4.9 + 2.2)) + smoothstep(0.6, 0.66, gVnoise(xz / 2.0 - 7.7)) * 0.8, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.3, 0.7, fine)) * (0.4 + 0.6 * dk);
+      aS.a = e; bS.b = max(bS.b, 1.0 - e); }
+    gTrMA = (a0 * w0 + aS * wS) / gTrIn; gTrMB = (b0 * w0 + bS * wS) / gTrIn;
     return gTrIn;
 #endif
   }
@@ -957,7 +970,7 @@ const SPLAT_GROUND = (() => {
     // brightness wearing that texture. macroNear (uSDist2.y) is still how much of the detail's own colour gives way.
     // (SHORES-2 G1957: AND ON ANY FACE - the macro is a 10 m image read from above: down a steep face it is one colour per
     // column, a vertical streak (it2, sea_rocky: green fingers down the rock wherever the bank's weight thinned))
-    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * mix((1.0 - 0.7 * max(gSBankM, smoothstep(30.0, 48.0, slope))) * (1.0 - gTrR * (1.0 - uTrW.a)), 1.0, gTrGw)); }   // (R1: the macro gives way to the STONE, not to the grass growing in it - the grass's share takes the tint IN FULL, as the open heath (the face's
+    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * mix((1.0 - 0.7 * max(gSBankM, smoothstep(30.0, 48.0, slope))) * (1.0 - gTrR * (1.0 - uTrW.a)), uTrX.x, gTrGw)); }   // (R1: the macro gives way to the STONE, not to the grass growing in it - the grass's share takes the tint IN FULL, as the open heath (the face's
     // 70 % cut is for a 10 m image streaking down a whole face, not a patch of grass in it) - the user, 17 Nov: "the grass inside the rock ... quite olive rather than green": untinted, it was the photograph's olive beside the tinted heath)   // (a third kept: the face takes the land's hue, not a dark outline from the air)
     // THE WATERLINE IS WET (SHORES G1500): the bank's first metres over a lake - the shelf the carve leaves - darken toward a
     // wet margin (a submerged grain keeps ~0.55 of its albedo, water.js G799's number) and take a little gloss
@@ -1224,7 +1237,7 @@ const SPLAT_GROUND = (() => {
       // R1: the island's own rock (sTrExpo, sTrPost; the tiles ride the rock codes' sets)
       uTrOn: { value: 0 }, uTrL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uTrK: { value: new THREE.Vector4(400, 1200, 1, 0.5) },
       uTrE: { value: new THREE.Vector4(250, 760, 0.3, 0.08) }, uTrMeanS: { value: new THREE.Vector4(0.3, 0.27, 0.2, 1) }, uTrS: { value: new THREE.Vector4(42, 58, 0, 0) },
-      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) }, uTrW: { value: new THREE.Vector4(1, 1, 1, 0) },
+      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) }, uTrW: { value: new THREE.Vector4(1, 1, 1, 0) }, uTrX: { value: new THREE.Vector4(1.4, 0, 0, 0) },
       uTrMT: { value: null }, uTrMR: { value: [V4(), V4(), V4()] }, uTrMX: { value: V4() },   // the macro texture (rock_ring.js fills it)
     };
     let ready = false;
@@ -1320,7 +1333,8 @@ const SPLAT_GROUND = (() => {
             // THE FILM IS THE LAND'S OWN TINT (17 Nov, the user's far shot: the rock area khaki beside green grass): the grass set's
             // graded hue is itself olive - the open heath is green by the imagery's macro tint - so the film is that tint, laid on
             // the stone by rockWeather in the macro step (sSplat); its hue here stays neutral (the boulders take the value match alone)
-            U.uTrW.value.set(1, 1, 1, kv('rockWeather', 0.25)); } }
+            U.uTrW.value.set(1, 1, 1, kv('rockWeather', 0.35)); } }
+        U.uTrX.value.set(Math.min(1 / Math.max(K.macroNear || 0.5, 0.05), kv('rockGreenTint', 1.4)), 0, 0, 0);   // (capped: the tint's whole, 1, at most)
         U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.72));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
         U.uTrE.value.set(kv('rockHLo', 250), kv('rockHHi', 760), kv('rockBias', 0.3), kv('rockOff', 0.08));
         const mS = lib(T4[0]).mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded

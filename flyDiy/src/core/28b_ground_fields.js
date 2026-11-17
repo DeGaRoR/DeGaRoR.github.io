@@ -179,7 +179,7 @@ const GROUND_FIELDS = (() => {
       // notes were a coordinator's, not the user's, and are dropped)
       // THE ROCK RING (rock_ring.js): the outcrops as geometry round the eye - on, its reach (m), the outcrops' lift and the Blender
       // masses' amplitude (m), the cover's stand-off over the ground (m), the boulders on and their density (x v1's law)
-      rockRing: 1, rockRingReach: 450, rockLift: 0.6, rockAmp: 1.5, rockProud: 0.15, rockBoulders: 1, rockScatter: 1.25, rockMacro: 1, rockBoulderTone: 1, rockBoulderCon: 2, rockGrassMatch: 0.5, rockWeather: 0.25,
+      rockRing: 1, rockRingReach: 450, rockLift: 0.6, rockAmp: 1.5, rockProud: 0.15, rockBoulders: 1, rockScatter: 1.25, rockMacro: 1, rockBoulderTone: 1, rockBoulderCon: 2, rockGrassMatch: 0.5, rockWeather: 0.35, rockGreenTint: 1.4,
       rockSlabM: 16, rockFaceM: 24, rockFaceTile: 1, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 1, rockJointFar: 900, rockSlabTone: 0, rockSlabTilt: 0,
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },

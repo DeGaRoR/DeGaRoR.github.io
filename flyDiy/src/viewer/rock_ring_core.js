@@ -113,6 +113,9 @@ function ROCK_RING_CORE_FACTORY() {
     expo *= 1 - Math.min(1, ss(0.56, 0.63, sp1) + ss(0.6, 0.66, sp2) * 0.8) * (0.55 + 0.45 * ss(0.3, 0.7, fine));
     const veg = Math.min(1, Math.max(veg0, 1 - expo));
     out[0] = hgt; out[1] = mr; out[2] = mg; out[3] = mb; out[4] = veg; out[5] = expo; out[6] = jf;
+    // (the SOFT macro levels' field: Ef without its fine terms - the 8 / 3.2 m mottle and the speckles, which a 2-4 m texel cannot
+    // hold; the shader adds them as noise and thresholds per pixel - and the green's own chance before the exposure takes it)
+    if (out.length > 9) { out[8] = Ef - (fine - 0.5) * 0.5 - (ufine - 0.5) * 0.35; out[9] = veg0; }
     return out;
   }
   // ---- the medium relief: the user's Blender 'Cliff-Rock' height path (the bench's medium(), node for node) ----------
@@ -355,7 +358,7 @@ function ROCK_RING_CORE_FACTORY() {
     const Y = new Float32Array(n * n), Rr = new Float32Array(n * n);
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; Y[k] = bil(H, X(i), Z(j)); Rr[k] = bil(R, X(i), Z(j)); }
     const Ys = blur(Y, n, Math.max(1, Math.round(4 / st))), Rb = blur(Rr, n, Math.max(1, Math.round(3 / st)));
-    const tmp = new Float32Array(8), slope = new Float32Array(n * n), dn = new Float32Array(n * n * 2), cz = new Float32Array(n * n), fl = new Float32Array(n * n), nd = new Float32Array(n * n);
+    const tmp = new Float32Array(10), slope = new Float32Array(n * n), dn = new Float32Array(n * n * 2), cz = new Float32Array(n * n), fl = new Float32Array(n * n), nd = new Float32Array(n * n);
     const hgt = new Float32Array(n * n);
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i;
       const gx = (Ys[j * n + Math.min(n - 1, i + 1)] - Ys[j * n + Math.max(0, i - 1)]) / ((Math.min(n - 1, i + 1) - Math.max(0, i - 1)) * st);
@@ -369,8 +372,15 @@ function ROCK_RING_CORE_FACTORY() {
     const A = new Uint8Array(T * T * 4), B = new Uint8Array(T * T * 4), b8 = v => Math.max(0, Math.min(255, Math.round(v * 255)));
     for (let b = 0; b < T; b++) for (let a = 0; a < T; a++) { const i = a + mg, j = b + mg, k = j * n + i, o = (b * T + a) * 4;
       macroAt(X(i), Z(j), Y[k], slope[k], Rb[k], cz[k], fl[k], nd[k], hgt[k] - hb[k], [dn[k * 2], dn[k * 2 + 1]], K, tmp);
-      const g = gateOf(bil(Rd, X(i), Z(j))) * (inp.KP ? bil(inp.KP, X(i), Z(j)) : 1), ex = tmp[5] * g, veg = Math.max(tmp[4], 1 - ex);
-      A[o] = b8(tmp[1] / 1.5); A[o + 1] = b8(tmp[2] / 1.5); A[o + 2] = b8(tmp[3] / 1.5); A[o + 3] = b8(ex);
+      const g = gateOf(bil(Rd, X(i), Z(j))) * (inp.KP ? bil(inp.KP, X(i), Z(j)) : 1);
+      A[o] = b8(tmp[1] / 1.5); A[o + 1] = b8(tmp[2] / 1.5); A[o + 2] = b8(tmp[3] / 1.5);
+      // THE SOFT LEVELS (inp.soft: 2 and 4 m, past the relief's reach - 17 Nov, the user's red circle: "low definition, high pixels"):
+      // a texel held the exposure DECIDED (rock or green), so a 4 m texel's bilinear stretch drew blobs. They hold the FIELD (Ef's
+      // coarse part, the joints' soil folded in, the gate as a fall) at (q + 0.3) / 1.5; splat_ground's sTrMac adds the fine terms and
+      // thresholds a pixel at a time - crisp edges at any texel (a distance field's trick); the green's chance (B.b) is veg0 there
+      let veg;
+      if (inp.soft) { const q = tmp[8] - 0.12 * tmp[6] - (1 - g) * 1.2; A[o + 3] = b8((q + 0.3) / 1.5); veg = tmp[9]; }
+      else { const ex = tmp[5] * g; A[o + 3] = b8(ex); veg = Math.max(tmp[4], 1 - ex); }
       // the height's normal (v1: central differences over the texel)
       const hx = (hgt[j * n + i + 1] - hgt[j * n + i - 1]) / (2 * st), hz = (hgt[(j + 1) * n + i] - hgt[(j - 1) * n + i]) / (2 * st), l = Math.hypot(hx, 1, hz);
       B[o] = b8(-hx / l * 0.5 + 0.5); B[o + 1] = b8(-hz / l * 0.5 + 0.5); B[o + 2] = b8(veg); B[o + 3] = b8((hgt[k] + 2.04) / 5.27); }
