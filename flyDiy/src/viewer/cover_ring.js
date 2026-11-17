@@ -161,7 +161,9 @@ var COVER_RING = (() => {
   // (the key's weight, fieldKeyW, is in the ring: it needs the ring's tintMean)
   const ROOT_LEVEL = { low: [0.5, 0.7], mid: [0.6, 0.8], high: [0.95, 1.3] };   // (22:20, the user: the fade over half the height was what read too light - LOW fades out at 70 %, MID at 80 %, the darkness kept)
   const ROOT_SPECIES = { grass_dry: 'high', flower_fireweed: 'high', flower_bunchberry: 'high', flower_foam: 'high', grass_scan: 'mid', grass_plates: 'mid', grass_reed: 'mid' };
-  const ROOT_KIND = { cover: ROOT_LEVEL.low, flower: ROOT_LEVEL.low };
+  // (17 Nov, the user's review: "apply the bottom-up gradient that we have applied to everything" - on ALL the little bushes: the
+  // shrub kind takes MID, the 10 Nov "bushes: none" verdict superseded)
+  const ROOT_KIND = { cover: ROOT_LEVEL.low, flower: ROOT_LEVEL.low, shrub: ROOT_LEVEL.mid };
   const ROOT_SP = new Map();
   const rootOf = (c, kind, top) => {
     let u = ROOT_SP.get(c.name);
@@ -197,6 +199,13 @@ var COVER_RING = (() => {
     shore:         { h: 0.45, sigma: 0.35, dens: 0.15, fill: 1 },           // sand (4): dune grass inland of the beach
     scree:         { h: 0.15, sigma: 0.30, dens: 0.2, fill: 1 },            // scree (5): short tufts between the stones
     shingle:       { h: 0.30, sigma: 0.35, dens: 0.1, fill: 1 },            // shingle (11): the upper shore's tufts
+    // 19 SUBALPINE (the user 16 Nov: "not fields of grass ... patches of bushes, weeds, moss carpets, and a lot rocks"): the grass in
+    // patches (fieldPatch m, over fieldShare of the ground), the rest left to the shrub cards, the flowers and the stones
+    // (17 Nov, the user's review: "You would expect to see that with some lush grass there. That is just not there") lush over most of it
+    subalpine:     { h: 0.50, sigma: 0.35, dens: 1.1, fieldPatch: 12, fieldShare: 0.75 },
+    // 18 LAKESHORE (the user 17 Nov, the floatplane lake: "Tall, lush grass is what strikes me first"): tall, dense, lifted toward a lush
+    // green over the ground's colour (tint, a multiplier) and never dark (its own floor over the field's minAlb)
+    lakeshore:     { h: 0.85, sigma: 0.30, dens: 1.8, tint: [0.85, 1.25, 0.75], minAlb: 0.10 },
   };
   const FIELD_MEADOW = FIELD_TYPES.grassland;
   // GRASS ON GREEN (LOOK-1 15 Nov; the user: "everything green should get some grass ... Flight simulator would spawn grass on
@@ -266,8 +275,17 @@ var COVER_RING = (() => {
     // to its own reach by its own fade set (trees.js fadeSet, with the size fade), and planted by TIERS (a cell keeps the
     // prefix of its candidate stream its nearest distance can show). The first ring then leaves the grass to it (ctx.owned).
     const FIELD = ctx.layer === 'grass';
-    const FSET = FIELD && LEAF.fadeSet ? LEAF.fadeSet() : null;
-    const S = FIELD
+    // THE ROCKS' OWN RING (MOUNTAIN-VEG 17 Nov; the user: "rock should be visible for a little while ... yours maybe don't have to go
+    // that far, but have to go a bit further"): ctx.layer 'rocks' plants the rock rows ALONE (no debris, no cover, no shrub), on the
+    // first ring's own 32 m cells and stream (placeRocks: the same rocks, the same places - and the rock map's sprites under them),
+    // keeping the BIG ones (the model's height x its scale >= rockSplit m) out to its own reach and height cut, on its own fade set;
+    // the first ring then keeps the small ones (render_world sets its rockSplit while this ring runs): no rock is drawn twice
+    const ROCKS = ctx.layer === 'rocks';
+    const FSET = (FIELD || ROCKS) && LEAF.fadeSet ? LEAF.fadeSet() : null;
+    const S = ROCKS
+      ? { on: true, cell: 32, reach: 380, near: 140, taper: 0.5, aglFull: 200, aglOff: 450, aglPre: 520, preBudgetMs: 1, density: 2, shrubs: 0, rocks: 1, rockSplit: 0.45,
+          rockSkin: 1, farBush: 0, budgetMs: 2, maxCells: 1000, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true, lead: 4, grow: 0.8, growNear: 140, trunc: 1 }
+      : FIELD
       ? { on: true, cell: 16, reach: 90, near: 15, taper: 1, aglFull: 27, aglOff: 90, density: 1, shrubs: 0, rocks: 0, budgetMs: 3, maxCells: 1400, blockBudget: 4, debrisKinds: 4, castMinH: 99, batch: false,
           aglPre: 150, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 60,
           // (G2567, the box 11 Oct 11:03 TIMED, cost3/: 2 tuft shapes + the size fade capped at 1.0 + 70 tufts / m2 - the forest view
@@ -275,7 +293,7 @@ var COVER_RING = (() => {
           rootKey: true,           // VEG-ROOT 11 Nov (the user, "by colour per tuft"): a brown/yellow tuft HIGH, a green one this row (MID)
           root: 0.6, rootH: 0.8,   // (VEG-ROOT 10 Nov ~21:30: the field is grass_reed, MID; 22:20 its fade to 80 %) G2571: the root gradient's strength (0 = none) and the share of the tuft's height it fades out by (VEG-ROOT 9 Nov: on, the cover's row)
           lakeMargin: 0.03,      // G2572: how far ABOVE a lake's water the ground must stand for a tuft (m; render_world okAt; the sea keeps 0.3)
-          tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
+          tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1, minAlb: 0.06,
           colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, tallH: 0.4, tallSigma: 0.3, minH: 0.3,   // tallH: the cut beside a soft strip (GRASS TO THE EDGE, the user: "taller grass on the strip side"); minH: THE SHORTEST GRASS - a floor on every mown height (the user, 16 Nov eve: "no grass should be smaller than 30 cm I think, even mown"; 0 = as before); a grass strip's running surface (stripH) is the runway's, not floored
           stripH: 0.07, stripDens: 1,
           green: 1, greenDens: 0.8, greenLo: 1.05, greenSpan: 0.3,   // GRASS ON GREEN (15 Nov): green 0 = today's (the A/B)
@@ -283,10 +301,12 @@ var COVER_RING = (() => {
           cutFloor: 0,
           weeds: 1, weedsH: 1.8, weedsD: 1.3,   // (16 Nov, FOREST-EDGE with MOUNTAIN-VEG) the wild grass taller + denser in the weeds band outside a forest's edge (ctx.edgeD; inert without it)
           texGrass: 0 }   // (16 Nov) the density floor by the texture drawn: texGrass x SET_GRASS over the near sets' weights (0 = today)   // (16 Nov; the user: "maybe you have a cut grass setting that does not work") a MOWN node's density floor, whatever the type it is cut from (0 = today: the type's, 0.2 by a forest strip)   // (16 Nov) the density blended across class boundaries, 0..1 - off until the user's frame says (the A/B)
-      : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true,
+      : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, farBush: 3, rockSkin: 1,   // rockSkin: the rocks wear the rock ring's boulder skin when it runs (17 Nov; 0 = their scans' pictures)   // farBush: the bushes' far tier, n cards a sprite (0 = off; 17 Nov: 6 -> 3, a finer grain - the user: "smooth out rather than looking like blotches")
+        aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true,
           aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140, trunc: 1 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     // THE FIELD SHIPS OFF until its cost is cut (A0, train 43: the dials early, the field behind its editor switch - VEGETATION > the
     // grass field > 'the field'; the world look keeps the user's choice). ?grassfield=1 / 0 forces it for a rig; FIELD_ON the default
+    if (ROCKS) { try { const m = /[?&]rocklayer=([01])/.exec(location.search); if (m) S.on = m[1] === '1'; } catch (e) {} }   // ?rocklayer=0: the rocks as before (the first ring's, to 220 m)
     if (FIELD) { S.on = FIELD_ON; try { const m = /[?&]grassfield=([01])/.exec(location.search); if (m) S.on = m[1] === '1'; } catch (e) {} }
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // cellKey(cx, cz) -> { n, parts, inst, by, cx, cz, box }
@@ -301,9 +321,26 @@ var COVER_RING = (() => {
     // ---- the prototypes: every species of the kinds the ring plants, built once ------
     // (debris - the logs, sticks and stumps of vegetation/branches - is the rock machinery on its own density: F.debris)
     // (the field plants FIELD_SPECIES alone; the first ring every cover kind but what the field holds while it is on - ctx.owned)
-    const speciesOf = () => (pack ? pack.collections : []).filter(c => FIELD ? FIELD_SPECIES.includes(c.name)
-      : ['cover', 'shrub', 'rock', 'debris'].includes(c.kind) && !(ctx.owned && ctx.owned(c.name)));
+    const SHAPES = ['carpet', 'cluster', 'crown', 'float'];   // the shaped cards' shapes (shapedCards below; 'float': one flat quad on the water, the lily pads - 17 Nov)
+    const shapedOf = c => !!(c.maps && c.place && SHAPES.includes(c.place.shape));
+    // ?alpshrubs=0 (MOUNTAIN-VEG): the shaped species left out - the A/B of their cost (the subalpine mix plants the rest as before)
+    let SHAPED_ON = true; try { const m = /[?&]alpshrubs=([01])/.exec(location.search); if (m) SHAPED_ON = m[1] === '1'; } catch (e) {}
+    const speciesOf = () => (pack ? pack.collections : []).filter(c => ROCKS ? c.kind === 'rock' : FIELD ? FIELD_SPECIES.includes(c.name)
+      : ['cover', 'shrub', 'rock', 'debris'].includes(c.kind) && !(ctx.owned && ctx.owned(c.name)) && (SHAPED_ON || !shapedOf(c)));
     const rockish = c => c.kind === 'rock' || c.kind === 'debris';
+    // THE ROCK SKIN (MOUNTAIN-VEG 17 Nov; the user: "keep your models, which are good and different ... and texture them using the
+    // method of the rocks there"): a rock's material (not the debris) takes the ROCK RING's boulder look - rock_ring.js skin(sh): the
+    // game's 'cliff' photograph triplanar, toned to the ground's rock, moss on what looks up, the foot darker - with that ring's LIVE
+    // uniforms, so a tune of the rock ring's boulders reaches these too. Inert without the rock ring (window.ROCK_RING_LIVE, set by
+    // render_world when ROCK-STUDY's ring runs); the ring may come up after these materials compile, so update() recompiles them
+    // when it appears (or goes). S.rockSkin 0 = the scans' own pictures (the A/B)
+    const skinMats = new Set(); let skinLive = null;
+    const skinRing = () => { if (!S.rockSkin) return null; const R = (typeof window !== 'undefined') ? window.ROCK_RING_LIVE : null; return R && R.skin ? R : null; };
+    function rockSkin(mat) {
+      skinMats.add(mat); const prev = mat.onBeforeCompile, key0 = mat.customProgramCacheKey;
+      mat.onBeforeCompile = sh => { if (prev) prev(sh); const R = skinRing(); if (R) R.skin(sh); };
+      mat.customProgramCacheKey = () => (key0 ? key0() : '') + (skinRing() ? '-rockskin' : '');
+    }
     const measureMean = mat => {   // the map's mean lightness (HSL l of the sRGB mean over the kept texels) - the bench's measureMats
       const img = mat.map && mat.map.image; if (!img || !img.width) return;
       try {
@@ -334,13 +371,70 @@ var COVER_RING = (() => {
       g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
       return g;
     }
-    const flowerMat = url => {
+    // THE SHAPED CARDS (MOUNTAIN-VEG, the user 15 Nov: "something between the basic cross and the full bush geometry ... a few
+    // angled cards, possibly with breaks in them"; picked on the shrub bench the same night: the CARPET for the heath and the
+    // low shrubs, the CLUSTER + CROWN for the big grey-red thicket). A picture species whose `place.shape` names one of these is
+    // built here instead of flowerCards; the shapes are the bench's (cardInto / shapeGeo of the MOUNTAIN-VEG page) at unit
+    // height. Each card is a grid of quads bent along its height; the normals point into the upper half and lean halfway to
+    // the sky (the bench's uUp 0.5), and the material keeps them on both faces (shapedMat) - a card tilted past 45 degrees
+    // shows its back to the sky half the time, and three's back-face flip would draw it black from above.
+    const CARD_DEF = { bend: 0.22, lean: 0.18, tilt: 60, upright: 0.85 };
+    function cardInto(G, o) {
+      const rows = o.rows || 1, base = G.pos.length / 3, ax = Math.cos(o.yaw), az = Math.sin(o.yaw), nx = -az, nz = ax, tl = o.tilt || 0;
+      const u0 = o.u0 === undefined ? 0 : o.u0, u1 = o.u1 === undefined ? 1 : o.u1, v0 = o.v0 || 0, v1 = o.v1 === undefined ? 1 : o.v1;
+      for (let r = 0; r <= rows; r++) for (let c = 0; c <= 1; c++) {
+        const t = r / rows, s = c - 0.5;
+        const out = (o.lean || 0) * t * Math.cos(tl) + Math.sin(tl) * t + (o.bend || 0) * t * t;
+        const y = (o.y0 || 0) + o.h * t * Math.cos(tl) * Math.cos(Math.atan(o.lean || 0) * 0.5);
+        G.pos.push(o.cx + ax * s * o.w + nx * out * o.h, y, o.cz + az * s * o.w + nz * out * o.h);
+        G.uv.push(u0 + (s + 0.5) * (u1 - u0), 1 - (v0 + t * (v1 - v0)));   // the picture's top row is v = 0 (flipY false)
+      }
+      for (let r = 0; r < rows; r++) { const a = base + r * 2, b = a + 1, d = a + 2, e = d + 1; G.idx.push(a, b, e, a, e, d); }
+    }
+    function shapedCards(shape, W, seed, pl) {
+      const r = rng(seed), G = { pos: [], uv: [], idx: [] }, B = pl.bend === undefined ? CARD_DEF.bend : +pl.bend, L = pl.lean === undefined ? CARD_DEF.lean : +pl.lean;
+      if (shape === 'float') {   // the water plants (17 Nov): one flat quad, its picture from above, W wide and as deep, a hair over the water (W = place.aspects[v]: the user's lily slices carry their own width in metres at size 1, tools/lily_prep.py)
+        const h = W / 2; G.pos.push(-h, 0.012, -h, h, 0.012, -h, h, 0.012, h, -h, 0.012, h); G.uv.push(0, 0, 1, 0, 1, 1, 0, 1); G.idx.push(0, 2, 1, 0, 3, 2);
+      } else if (shape === 'cluster' || shape === 'crown') {
+        cardInto(G, { cx: 0, cz: 0, yaw: r() * Math.PI, w: W * 0.8, h: 1, y0: -0.04, rows: 2, bend: B * 0.5 });
+        for (let k = 0; k < 5; k++) {
+          const a = k * 2 * Math.PI / 5 + r() * 0.4, u0 = [0, 0.2, 0.4, 0.1, 0.3][k];
+          cardInto(G, { cx: Math.cos(a) * 0.2 * W, cz: Math.sin(a) * 0.2 * W, yaw: a + Math.PI / 2, w: W * 0.6, h: 0.7 + r() * 0.2, y0: -0.04, rows: 2, lean: L + 0.1, bend: B, u0, u1: u0 + 0.6, v0: 0, v1: 0.75 + r() * 0.25 });
+        }
+        if (shape === 'crown') for (let k = 0; k < 3; k++) { const a = k * 2 * Math.PI / 3 + 0.5 + r() * 0.3;
+          cardInto(G, { cx: Math.cos(a) * 0.08 * W, cz: Math.sin(a) * 0.08 * W, yaw: a + Math.PI / 2, w: W * 0.55, h: 0.5, y0: 0.38, rows: 2, lean: 1.1, bend: 0.2, u0: 0.2, u1: 0.8, v0: 0.4, v1: 1 }); }
+      } else {   // 'carpet': 4 cards tilted past 45 degrees in a rosette (seen from above) and 2 upright ones (its volume)
+        const tl = (pl.tilt === undefined ? CARD_DEF.tilt : +pl.tilt) * Math.PI / 180, up = pl.upright === undefined ? CARD_DEF.upright : +pl.upright;
+        for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + r() * 0.5;
+          cardInto(G, { cx: Math.cos(a) * 0.06 * W, cz: Math.sin(a) * 0.06 * W, yaw: a + Math.PI / 2, w: W * 0.75, h: 1.1, y0: -0.02, rows: 3, tilt: tl, bend: -B * 0.6 }); }
+        const a0 = r() * Math.PI;
+        for (let k = 0; k < 2; k++) cardInto(G, { cx: 0, cz: 0, yaw: a0 + k * Math.PI / 2, w: W * 0.7, h: up, y0: -0.03, rows: 1 });
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(G.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(G.uv, 2)); g.setIndex(G.idx);
+      g.computeVertexNormals();
+      const N = g.getAttribute('normal');
+      for (let i = 0; i < N.count; i++) { let x = N.getX(i), y = N.getY(i), z = N.getZ(i); if (y < 0) { x = -x; y = -y; z = -z; } y += 1; const l = Math.hypot(x, y, z) || 1; N.setXYZ(i, x / l, y / l, z / l); }
+      g.computeBoundingBox(); g.computeBoundingSphere();
+      return g;
+    }
+    const flowerMat = (url, c) => {
       let t = flowerTex.get(url);
       if (!t) { t = new THREE.TextureLoader().load(url); t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.anisotropy = 4; flowerTex.set(url, t); }
-      const m = MATLIB.make(THREE, 'cut', { map: t, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
+      // a shaped species' own cut (the user 15 Nov: "they would all need the alpha fairly low"): its tint's alpha; a flower keeps 0.5
+      const cut = c && shapedOf(c) && c.tint && c.tint.alpha > 0 ? +c.tint.alpha : 0.5;
+      const m = MATLIB.make(THREE, 'cut', { map: t, alphaTest: cut, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 1, metalness: 0 });
       // no normal override (the bench has none): upHook forced the object normal up on this
       // DoubleSide card, which three flips to (0,-1,0) on the back face - half of every flower dark
-      LEAF.fadeHook(m); if (LEAF.flowerHook) LEAF.flowerHook(m); return m;   // G2566: the flowers' colour (VEGETATION > the flowers' colour)
+      LEAF.fadeHook(m); if (LEAF.flowerHook) LEAF.flowerHook(m);   // G2566: the flowers' colour (VEGETATION > the flowers' colour)
+      if (c && shapedOf(c)) {   // the shaped cards' normals hold on both faces (see shapedCards): three's back-face flip undone, as a leaf's crown (trees.js uCrownN)
+        const prev = m.onBeforeCompile;
+        m.onBeforeCompile = sh => { if (prev) prev(sh);
+          sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nif (faceDirection < 0.0) { normal = -normal; nonPerturbedNormal = normal; }'); };
+        const key = m.customProgramCacheKey ? m.customProgramCacheKey() : '';
+        m.customProgramCacheKey = () => key + '-shaped';
+      }
+      return m;
     };
     // VEG-ROOT: a flower's cards are built at unit height, the picture's top at 0.95 (flowerCards)
     const flowerRoot = (m, c) => { m.userData.uRoot = rootOf(c, 'flower', 0.95); return m; };
@@ -349,7 +443,11 @@ var COVER_RING = (() => {
       if (P) return P;
       P = [];
       const place = c.place || {};
-      if (c.maps && c.maps.length) {                         // a flower: its pictures on cards
+      if (c.maps && c.maps.length && shapedOf(c)) {          // a shaped species (MOUNTAIN-VEG): its pictures on the bench's shapes
+        c.maps.forEach((url, v) => { const asp = (place.aspects && place.aspects[v]) || place.aspect || 1, geo = shapedCards(place.shape, asp, hashStr(c.name) + v * 977, place);
+          const m = flowerMat(url, c); m.userData.uRoot = rootOf(c, 'flower', geo.boundingBox.max.y);   // VEG-ROOT on its own top (place.root / rootH win)
+          P.push({ key: c.name + '|' + v, w: 1 / c.maps.length, kind: 'cover', h: place.size || 1, noTint: true, parts: [{ geo, mat: m }], tris: geo.index.count / 3 }); });
+      } else if (c.maps && c.maps.length) {                  // a flower: its pictures on cards
         c.maps.forEach((url, v) => P.push({ key: c.name + '|' + v, w: 1 / c.maps.length, kind: 'cover', h: place.size || 1, noTint: true,
                                             // built at UNIT height: the instance scale carries `size`, in metres, once -
                                             // as the bench (flowerCards(t.size) and a jitter). Built at size AND scaled by
@@ -391,7 +489,8 @@ var COVER_RING = (() => {
                   sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockY; uniform float uCut;')
                     .replace('#include <map_fragment>', 'if (vRockY < uCut) discard;' + String.fromCharCode(10) + '#include <map_fragment>'); };
               }
-              LEAF.fadeHook(mat); if (place.cut > 0) mat.customProgramCacheKey = () => 'fade-rockcut';
+              LEAF.fadeHook(mat, ROCKS ? FSET : null); if (place.cut > 0) mat.customProgramCacheKey = () => 'fade-rockcut';   // (the rocks' ring: its own fade set)
+              if (c.kind === 'rock') rockSkin(mat);   // (17 Nov: the rock ring's boulder skin, when it runs - below)
             } else {
               LEAF.fadeHook(mat, FIELD ? FSET : null);   // (the field's own fade set: its reach, its size fade)
               // NO NORMAL OVERRIDE ON A COVER - the bench has none (tools/_trees.html builds a
@@ -502,6 +601,8 @@ var COVER_RING = (() => {
         }
         code[k] = cd; mix[k] = BIO.mixHere ? BIO.mixHere(cd, x, z) : (cd < 0 ? null : BIO.mixAt(cd)); bush[k] = bushOff && bushOff(x, z) ? 1 : 0; ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
         if (!FIELD && ok[k] && BIO.shoreHere && BIO.shoreHere(x, z)) { shore[k] = 1; nShore++; }
+        // the grass field on the lake's band takes the lakeshore's own type (17 Nov, the user's lush lake borders: tall, dense, green)
+        if (FIELD && ok[k] && BIO.SHORE !== undefined && BIO.shoreHere && BIO.shoreHere(x, z)) { const sm = BIO.mixAt(BIO.SHORE); if (sm) mix[k] = sm; }
         let cv = null; try { cv = ctx.coverAt ? ctx.coverAt(x, z) : null; } catch (e) { cv = null; }
         if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0; cls[k] = cv.cls ? 1 : 0; cut[k] = cv.cut || 0; surf[k] = cv.surf ? 1 : 0; tall[k] = cv.tall || 0;
           if (cv.grass) { lawnH[k] = cv.grass.h || 0.12; lawnD[k] = cv.grass.density === undefined ? 1 : cv.grass.density; }
@@ -610,6 +711,15 @@ var COVER_RING = (() => {
           const lap = (world.terrainH(x + rr, z) + world.terrainH(x - rr, z) + world.terrainH(x, z + rr) + world.terrainH(x, z - rr)) / 4 - y0;
           if (Rq() > (1 - row.hollow) + row.hollow * smooth(0, 0.35, lap)) continue;
         }
+        // THE EXPOSED GROUND (the user 16 Nov: the mountain tops are "patches of bushes, weeds, moss carpets, and a lot rocks ... identify
+        // where it would be likely to have quite a few rocks dispersed"): `exposed` keeps a rock by how bare the soil likely is - a knob or
+        // a ridge (the ground CONVEX over 8 m: the Laplacian under 0) or a slope (the gradient over 8 m) - 0 keeps all, 1 only there
+        if (row.exposed > 0 && !floats) {
+          const r8 = 8, y0 = world.terrainH(x, z), hx1 = world.terrainH(x + r8, z), hx0 = world.terrainH(x - r8, z), hz1 = world.terrainH(x, z + r8), hz0 = world.terrainH(x, z - r8);
+          const lap = (hx1 + hx0 + hz1 + hz0) / 4 - y0, sl = Math.hypot(hx1 - hx0, hz1 - hz0) / (2 * r8);
+          const L = Math.max(smooth(0.05, 0.6, -lap), smooth(0.25, 0.7, sl));
+          if (Rq() > (1 - row.exposed) + row.exposed * L) continue;
+        }
         const gk = G.at(x, z);
         if (G.mix[gk] !== centreMix) continue;
         // NOTHING LIES ON A PAVEMENT (2026-09-22; G502's rule, kept whole, asked PER PIECE). A log has no
@@ -674,6 +784,19 @@ var COVER_RING = (() => {
       const out = [];
       for (const c of speciesOf()) { if (!rockish(c)) continue; const row = M.species && M.species[c.name]; if (!row) continue;
         placeRocks(c, row, F, G, centreMix, cx, cz, C, (p, x, y, z, s, yaw, col) => out.push({ p, x, z, s, yaw, col })); }
+      // THE BUSHES' FAR TIER (17 Nov, the user: "Bushes should almost be visible as far as the trees"): the shaped cards of the mix
+      // on the same beds the ring plants them (bedKeep), their own stream, farK as one sprite sqrt(farK) wider, their own colour
+      if (S.farBush > 0) for (const c of speciesOf()) { if (!shapedOf(c)) continue; const row = M.species && M.species[c.name]; if (!row) continue;
+        const place = c.place || {}, P = protosOf(c); if (!P.length) continue;
+        const per = (row.density !== undefined ? row.density : (place.density || 0)) * (F.cover === undefined ? 1 : F.cover) * S.density; if (!(per > 0)) continue;
+        const K = Math.max(1, +S.farBush), patch = row.patch !== undefined ? row.patch : (place.patch || 0), share = place.patchShare || row.patchShare || 0.35;
+        const bedFrac = patch ? Math.min(1, 0.25 * share) : 1, sSeed = hashStr(c.name), n = Math.round(per * C * C / K * (patch ? 1 / bedFrac : 1));
+        const Rq = rng((((hsh(cx + 7, cz - 7) * 4294967295) >>> 0) ^ sSeed ^ 0x5eed) >>> 0), mu = place.mul || [1, 1, 1];
+        for (let i = 0; i < n; i++) { const x = x0 + Rq() * C, z = z0 + Rq() * C, r1 = Rq(), r2 = Rq(), r3 = Rq();
+          if (patch && !(bedKeep(x, z, patch, sSeed % 1000, bedFrac) >= r1)) continue;
+          const gk = G.at(x, z); if (!G.ok[gk] || G.mix[gk] !== centreMix || G.kind[gk] === 1 || G.kind[gk] === 3 || G.cut[gk] > 0.05 || G.bush[gk]) continue;
+          out.push({ p: draw(P, r2), x, z, s: (place.size || 1) * Math.sqrt(K) * (0.85 + 0.3 * r3), yaw: r3 * 6.2831853, col: mu }); }
+      }
       return out;
     }
 
@@ -765,7 +888,8 @@ var COVER_RING = (() => {
         if (row || (M && D.fill)) { const F = M.forest || {}, R0 = row || {}, pick = (k, d) => (R0[k] !== undefined ? R0[k] : (F[k] !== undefined ? F[k] : (D[k] !== undefined ? D[k] : d)));
           // (a bare biome's `forest.cover` is 0 - its own flowers' and the old patches' - so the field's own density stands there)
           const cov = (R0.dens !== undefined || D.fill) ? 1 : (F.cover === undefined ? 1 : F.cover);
-          T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * cov, clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp) }; }
+          T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * cov, clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp),
+                fieldPatch: pick('fieldPatch', 0), fieldShare: pick('fieldShare', 1), tint: pick('tint', null), minAlb: pick('minAlb', 0) }; }   // MOUNTAIN-VEG: the type's grass patches (the subalpine), its colour lift and floor (the lakeshore)
         types.set(mix, T); return T; };
     }
     // THE FIELD AT A POINT (the instrument, 16 Nov - the false-colour frame): what the field plants at (x, z) by the same rules as
@@ -856,6 +980,7 @@ var COVER_RING = (() => {
         let keep = dC * (cut > 0 ? 1 + ((surf ? S.stripDens : S.cutDens) - 1) * cut : 1) * (1 + (wMax - 1) * wd) / (dmax * cutMax * wMax);
         if (S.blotch > 0) keep *= 1 - S.blotch * (0.5 + 0.5 * vnoise(x, z, blotchM, 4242)) * (1 - cut);
         keep *= (1 - kill) * (1 + boost) / (1 + G.bmax);
+        if (T.fieldPatch > 0 && T.fieldShare < 1) keep *= smooth(-0.06, 0.06, T.fieldShare - vnoise(x, z, T.fieldPatch, 515));   // the type's grass patches
         if (rA >= keep) continue;
         // THE LENGTH (GRASS-STUDY §4.4): the type's median x a lognormal x the clump field (wild); cut: its own length, uniform
         let nz = Math.sqrt(-2 * Math.log(Math.max(1e-9, rH1))) * Math.cos(6.2831853 * rH2); nz = Math.max(-2.5, Math.min(2.5, nz));
@@ -873,6 +998,14 @@ var COVER_RING = (() => {
           let M = mats.get(mat); if (!M) mats.set(mat, M = tintMean(mat));
           const g = G.colB(x, z), j = (1 + (rJ * 2 - 1) * S.vary) * S.match;
           col = [Math.min(3, g[0] / M[0] * j), Math.min(3, g[1] / M[1] * j), Math.min(3, g[2] / M[2] * j)];
+          // THE DARKEST TUFT (17 Nov, the user: the dead grass "too dark and desaturated ... almost black. It's not believable"): the tuft's
+          // albedo (its multiplier x the picture's mean) under minAlb (linear luminance) is blended toward the picture's own colour at
+          // that floor - the dark muskeg soil no longer paints black grass; 0 = off
+          if (T.tint) col = [col[0] * T.tint[0], col[1] * T.tint[1], col[2] * T.tint[2]];   // a type's colour lift (the lakeshore's lush green)
+          const mA = Math.max(S.minAlb || 0, T.minAlb || 0);
+          if (mA > 0) { const L = 0.2126 * col[0] * M[0] + 0.7152 * col[1] * M[1] + 0.0722 * col[2] * M[2];
+            if (L < mA) { const t = Math.min(1, 1 - L / mA) * 0.8, Lt = 0.2126 * M[0] + 0.7152 * M[1] + 0.0722 * M[2], s0 = mA / Math.max(1e-4, Lt);
+              col = col.map(v => v * (1 - t) + s0 * t); } }
         } else {   // the sets' means x lift (G551), the A/B
           const place = c.place || {}, l = place.lift === undefined ? 1 : place.lift, k3 = gk * 3, j = 1 + (rJ * 2 - 1) * S.vary;
           col = lifted([G.col[k3], G.col[k3 + 1], G.col[k3 + 2]], l).map(v => v * j);
@@ -895,6 +1028,76 @@ var COVER_RING = (() => {
       cell.box = [x0, yLo - 1, z0, x0 + C, yHi + 2, z0 + C];
       STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs);
       return cell;
+    }
+
+    // ---- FOREST-EDGE's band (the user 16 Nov: "a ramp of tree sizes on the surroundings, then bushes"; the spec of 25 Oct:
+    // shrubs 3-0 m outside the forest, weeds 6-3 m outside; 28c_biomes KNOBS edge*). ctx.edgeD is the tree fill's signed distance
+    // to the forest's edge (+ in). Its own stream (the points' hashes), so the cell's R() - every other species - is untouched; the
+    // cover's land tests (a strip's bush clearance, a lawn, a pavement, the mown sides, the lake band); none on a cell far from an edge
+    // the bushes: the user 16 Nov eve - "you may use the new cards as bushes ... don't put everything in everything": the lowland
+    // edge takes the blueberry and the Elliottia cards (no Cassiope: subalpine) with today's raspberry and sapling meshes
+    // (17 Nov, the user: the ferns "almost better used in the forest biome, particularly on the borders": the fern joins the weeds)
+    const EDGE_SHRUB = [['alp_vaccinium', 1], ['alp_elliottia', 0.7], ['raspberry', 0.6], ['sapling_deciduous', 0.6]], EDGE_WEED = [['flower_fireweed', 1], ['flower_foam', 0.7], ['reed_marsh', 1.2]];
+    function edgeBand(G, x0, z0, C, push, cell) {
+      // past the outward band's trees (28c edgeBandAt): bushes from edgeShrubIn x its local reach R out to R + edgeShrubOut, the
+      // weeds from there to R + edgeWeedOut (d < 0 outside)
+      const K = BIO.knobs(), D = ctx.edgeD, reach = C * 0.75 + (BIO.edgeReachMax ? BIO.edgeReachMax() : 0) + K.edgeWeedOut;
+      if ([[0.5, 0.5], [0, 0], [1, 0], [0, 1], [1, 1]].every(([u, v]) => Math.abs(D(x0 + u * C, z0 + v * C)) > reach)) return;
+      const cols = speciesOf(), set = L => { const out = []; let tot = 0;
+        for (const [n, w] of L) { const c = cols.find(q => q.name === n), P = c && protosOf(c); if (P && P.length) { out.push([c, P, w]); tot += w; } }
+        return { out, tot }; };
+      const SH = set(EDGE_SHRUB), WD = set(EDGE_WEED);
+      const nS = Math.round(K.edgeShrubDens * C * C), nW = Math.round(K.edgeWeedDens * C * C);   // drawn over the cell, kept in their band: the density there
+      const ix0 = Math.round(x0), iz0 = Math.round(z0);
+      for (let i = 0; i < nS + nW; i++) {
+        const weed = i >= nS, x = x0 + hsh(ix0 + i * 7919, iz0 - 31) * C, z = z0 + hsh(ix0 - 17, iz0 + i * 104729) * C;
+        const d = D(x, z), R = BIO.edgeReachAt ? BIO.edgeReachAt(x, z) : 0, o = -d;
+        if (weed ? (o < R + K.edgeShrubOut || o > R + K.edgeWeedOut) : (o < K.edgeShrubIn * R || o > R + K.edgeShrubOut)) continue;
+        const gk = G.at(x, z);
+        if (!G.ok[gk] || G.shore[gk] || G.kind[gk] === 1 || G.kind[gk] === 3 || G.cut[gk] > 0.05 || G.kill[gk] > 0.01) continue;
+        if (!weed && G.bush[gk]) continue;   // a strip's own bush clearance
+        if (!weed && G.mix[gk] === 'subalpine') continue;   // the user 16 Nov: "I don't want deciduous over there": the edge's bushes are all deciduous
+        const S0 = weed ? WD : SH; if (!S0.out.length) continue;
+        let r = hsh(ix0 + i * 31, iz0 + i * 17) * S0.tot, pick = S0.out[0]; for (const e of S0.out) { r -= e[2]; if (r <= 0) { pick = e; break; } }
+        const [c, P] = pick, place = c.place || {}, p = draw(P, hsh(ix0 + i * 13, iz0 - i * 7)), rr = hsh(ix0 - i * 11, iz0 + i * 23);
+        const j = 1 + (hsh(ix0 + i * 5, iz0 + i * 3) * 2 - 1) * 0.12;
+        let s;
+        if (!weed && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0)   // the bush's own range, smaller the further out
+          s = (place.hMin + rr * (place.hMax - place.hMin)) * (0.75 + 0.25 * Math.max(0, Math.min(1, (R + K.edgeShrubOut - o) / Math.max(1, R + K.edgeShrubOut - K.edgeShrubIn * R)))) / p.h0;
+        else s = (place.size || 1) * (0.8 + 0.35 * rr);
+        push(p, x, world.terrainH(x, z) - (place.sink || 0), z, s, hsh(ix0 + i * 3, iz0 - i * 5) * Math.PI * 2, [j, j, j], 0, 0);
+        STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1; STAT.edge = (STAT.edge || 0) + 1;
+      }
+    }
+
+    // ---- THE WATER PLANTS (17 Nov, the user's floatplane lake: "the addition of some water plants could really blend things together")
+    // The lakeshore mix's rows with `onWater` [from, to] (metres out from the drawn line: ctx.lakeSD, + in the lake) and `depth` [lo, hi]
+    // (the water over the bed: ctx.waterY - terrainH) are planted on the shallow lake, in beds (bedKeep), at the water's drawn level -
+    // the ring's own land test (G.ok) refuses water, so they have this planter of their own; their own stream (the cell's untouched)
+    function waterBand(G, x0, z0, C, push, cell) {
+      const sm = BIO.SHORE !== undefined ? BIO.mixAt(BIO.SHORE) : null, M = sm && BIO.mixOf(sm); if (!M || !M.species) return;
+      const rows = []; for (const c of speciesOf()) { const row = M.species[c.name]; if (row && Array.isArray(row.onWater) && shapedOf(c)) rows.push([c, row]); }
+      if (!rows.length) return;
+      const far = Math.max(...rows.map(([, r]) => r.onWater[1])) + C * 0.75, D = ctx.lakeSD;
+      if ([[0.5, 0.5], [0, 0], [1, 0], [0, 1], [1, 1]].every(([u, v]) => { const d = D(x0 + u * C, z0 + v * C); return d < -C * 0.75 || d > far; })) return;
+      const ix0 = Math.round(x0), iz0 = Math.round(z0);
+      for (const [c, row] of rows) {
+        const place = c.place || {}, P = protosOf(c); if (!P.length) continue;
+        const per = (row.density || 0) * S.density; if (!(per > 0)) continue;
+        const patch = row.patch || 0, share = row.patchShare || 0.35, bedFrac = patch ? Math.min(1, 0.25 * share) : 1, sSeed = hashStr(c.name);
+        const n = Math.round(per * C * C * (patch ? 1 / bedFrac : 1)), Rw = rng((((hsh(ix0 + 3, iz0 - 3) * 4294967295) >>> 0) ^ sSeed ^ 0x3a7e) >>> 0), mu = place.mul || [1, 1, 1];
+        const dep = row.depth || [0.05, 2];
+        for (let i = 0; i < n; i++) {
+          const x = x0 + Rw() * C, z = z0 + Rw() * C, r1 = Rw(), r2 = Rw(), r3 = Rw();
+          const d = D(x, z); if (d < row.onWater[0] || d > row.onWater[1]) continue;
+          if (patch && !(bedKeep(x, z, patch, sSeed % 1000, bedFrac) >= r1)) continue;
+          const wy = ctx.waterY(x, z); if (wy === null || !Number.isFinite(wy)) continue;
+          const depth = wy - world.terrainH(x, z); if (depth < dep[0] || depth > dep[1]) continue;
+          const s = (place.size || 1) * (0.7 + 0.6 * r2), j = 1 + (r3 * 2 - 1) * (place.vary || 0.06);
+          push(draw(P, r3), x, wy, z, s, r2 * Math.PI * 2, [j * mu[0], j * mu[1], j * mu[2]], 0, 0);
+          STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1; STAT.water = (STAT.water || 0) + 1;
+        }
+      }
     }
 
     // ---- one cell -------------------------------------------------------------------
@@ -920,7 +1123,7 @@ var COVER_RING = (() => {
       const push = (p, x, y, z, s, yaw, col, tx, tz) => { if (SCR.n && scarCut(p.kind, x, z)) { STAT.scarSkip++; return; } if (ctx.floorAt && ctx.floorAt(x, z)) { STAT.floorSkip++; return; } let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw, tx || 0, tz || 0); if (col) it.col.push(col[0], col[1], col[2]); };
       // THE LAWN (a plot's, kind 1): the dry tuft short and dense - the height from the plot's rule (0.10-0.15 m),
       // LAWN_D tufts a m2 x the rule's density factor - on the lawn nodes alone, the biome's rows skip them
-      if (G.lawn > 0) {
+      if (G.lawn > 0 && !ROCKS) {
         const c = speciesOf().find(q => q.name === 'grass_dry');
         const P = c && protosOf(c);
         if (P && P.length) {
@@ -950,14 +1153,17 @@ var COVER_RING = (() => {
         const blotchAt = (x, z, seed) => (GF && GF.blotch) ? GF.blotch(x, z, seed) : 1 - blotch * vnoise(x, z, blotchM, seed % 1000);
         for (const c of speciesOf()) {
           const row = M.species && M.species[c.name]; if (!row) continue;
+          if (row.onWater) continue;   // a water plant (17 Nov): the water band plants it, on the lake, never on the land
           const place = c.place || {};
           const P = protosOf(c); if (!P.length) continue;
           if (c.kind === 'cover' && LEAF.fadeOwn) for (const p of P) for (const q of p.parts) LEAF.fadeOwn(q.mat, null);   // (the reed back from the field: the shared fade)
           const sSeed = hashStr(c.name);
-          const isRock = rockish(c), isShrub = c.kind === 'shrub';
+          const isRock = rockish(c), isShrub = c.kind === 'shrub', tallCard = shapedOf(c) && (place.size || 0) >= 0.8;
           if (isRock) {   // the rocks and the debris: their own stream, shared with the rock map (placeRocks above)
             if (band) continue;   // (the lake shore's band: its tufts, flowers and bushes; the stones stay the centre's)
-            const made = placeRocks(c, row, F, G, centreMix, cx, cz, C, push);
+            // (the split with the rocks' own ring: that ring keeps the big rocks, this one the small - by the rock's height in metres)
+            const split = c.kind === 'rock' && (ROCKS || S.rockSplit > 0) ? S.rockSplit : 0;
+            const made = placeRocks(c, row, F, G, centreMix, cx, cz, C, !split ? push : (p, x, y, z, s, yaw, col, tx, tz) => { if (((p.h0 || 1) * s >= split) === ROCKS) push(p, x, y, z, s, yaw, col, tx, tz); });
             if (made) { STAT.by[c.name] = (STAT.by[c.name] || 0) + made; cell.by[c.name] = (cell.by[c.name] || 0) + made; }
             continue;
           }
@@ -995,7 +1201,7 @@ var COVER_RING = (() => {
             if (blotch && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
             const gk = G.at(x, z);
             if (!G.ok[gk] || (band ? !G.shore[gk] : (G.mix[gk] !== centreMix || G.shore[gk]))) continue;
-            if (isShrub && G.bush[gk]) continue;   // G1385: a strip's own clearance with `bushes` keeps the tall vegetation out
+            if ((isShrub || tallCard) && G.bush[gk]) continue;   // G1385: a strip's own clearance with `bushes` keeps the tall vegetation out (and a shaped bush's cards, MOUNTAIN-VEG)
             // the cover's query: nothing on a pavement (kill), more on a border (boost), a plot's lawn or
             // meadow or nothing instead of the biome's rows (the LAWN row is planted below, on its own)
             if (G.kind[gk] === 1 || G.kind[gk] === 3) continue;
@@ -1048,7 +1254,7 @@ var COVER_RING = (() => {
                 const h = hsh(Math.round(x * 7.3) + 11, Math.round(z * 6.1) - 7), a = place.hueTurn[0] + h * (place.hueTurn[1] - place.hueTurn[0]);
                 col = GF.hueTurn(col, a * Math.PI / 180).map(v => Math.max(0, v));
               }
-            } else if (noTint && !isShrub && vary) { const j = 1 + (RR() * 2 - 1) * vary; col = [j, j, j];
+            } else if (noTint && !isShrub && vary) { const j = 1 + (RR() * 2 - 1) * vary, mu = place.mul || [1, 1, 1]; col = [j * mu[0], j * mu[1], j * mu[2]];   // place.mul: an untinted picture's own colour (17 Nov: the shrub cards half as bright, less yellow)
               // an untinted species' small hue swing (G3430, the user 27 Oct: "don't color them as the ground", the reeds on their
               // own hue/sat/light and "a small variation per instance"): the multiplier that turns place.hueRef (the tinted texel's
               // mean, relative) by hueTurn [lo, hi] degrees - a grey multiplier has no hue to turn; the tuft's own hash, as above
@@ -1070,6 +1276,8 @@ var COVER_RING = (() => {
           }
         }
       }
+      if (!ROCKS && ctx.edgeD && BIO.edgeOn) edgeBand(G, x0, z0, C, push, cell);   // FOREST-EDGE: the bushes and weeds on the open side of an edge
+      if (!ROCKS && ctx.lakeSD && ctx.waterY && S.water !== false) waterBand(G, x0, z0, C, push, cell);   // THE WATER PLANTS: the lily pads on the shallow lake
       // the meshes: one InstancedMesh per prototype part
       const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
       let yLo = Infinity, yHi = -Infinity; for (const it of items.values()) for (let i = 1; i < it.xs.length; i += 7) { if (it.xs[i] < yLo) yLo = it.xs[i]; if (it.xs[i] > yHi) yHi = it.xs[i]; }
@@ -1307,6 +1515,7 @@ var COVER_RING = (() => {
     let queue = [];
     const EYE = { x: NaN, z: NaN, t: 0, vx: 0, vz: 0 };   // the eye's ground velocity, smoothed (the lead)
     function update() {
+      { const live = skinRing(); if (live !== skinLive) { skinLive = live; for (const m of skinMats) m.needsUpdate = true; } }   // (the rock skin: on when the rock ring is)
       if (!S.on || S.off || !pack || !BIO) { if (root.visible) root.visible = false; return; }   // (S.off: the GRAPHICS row's 'off' - the field's own `on` is the A/B)
       const ex = camera.position.x, ez = camera.position.z, gy = world.terrainH(ex, ez);
       const agl = Math.max(0, camera.position.y - gy); STAT.agl = agl;
@@ -1432,15 +1641,24 @@ var COVER_RING = (() => {
         if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again
         if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
-        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'tallH', 'tallSigma', 'minH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD', 'green', 'greenDens', 'greenLo', 'greenSpan', 'feather', 'cutFloor', 'texGrass']
-                            : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'castMinDebris', 'trunc'];
+        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'tallH', 'tallSigma', 'minH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD', 'green', 'greenDens', 'greenLo', 'greenSpan', 'feather', 'cutFloor', 'texGrass', 'minAlb']
+                            : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'castMinDebris', 'trunc', 'rockSplit'];   // (rockSplit: the rocks' own ring's split, 17 Nov)
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
       species: () => (FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)
+      layer: ROCKS ? 'rocks' : FIELD ? 'grass' : 'cover',
       fadeSet: () => FSET,   // the field's own fade uniforms (null: the shared set) - GATE COVER reads them
       lakeMargin: () => (FIELD ? Math.max(0, +S.lakeMargin || 0) : 0.3),   // G2572: render_world okAt reads it (both rings), no copy a call
       field: FIELD,
       fieldAt, fieldAtReset: () => FA.clear(),   // (16 Nov) the instrument: what the field plants at a point, and why
       replant: () => { FA.clear(); for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
+      // WORLD-RAIL-VEG: a shaped species re-built (the world editor's alpine shrub rows moved its pack row's place - size, aspect,
+      // bend, lean, tilt, upright - or its cut, tint.alpha): its prototypes dropped (geometry and material; the picture is kept),
+      // the ring replanted. A shaped card is a per-block InstancedMesh (kind cover, never batched), so nothing else holds them
+      reshape: name => { const old = protos.get(name); if (!old) return false; protos.delete(name); api.replant();
+        for (const p of old) for (const q of p.parts) { if (q.geo && q.geo.dispose) q.geo.dispose(); if (q.mat && q.mat.dispose) q.mat.dispose(); }
+        return true; },
+      shapes: () => (FIELD || !pack ? [] : pack.collections).filter(shapedOf).map(c => c.name),   // the shaped species (the editor's rows; none on the grass field)
+      cardDef: () => Object.assign({}, CARD_DEF),   // the shaped cards' defaults where a species' place says nothing
       // SHED-FLOOR: only the cells a box touches (a shed stood or came down: render_world floorsChanged) - dropped, so the
       // ring plants them again on its budget, nearest first, with what the land test now says
       replantBox: (x0, z0, x1, z1) => { const C = S.cell; let n = 0;
@@ -1461,7 +1679,7 @@ var COVER_RING = (() => {
       nodeAt: (x, z) => { const C = S.cell, cx = Math.floor(x / C), cz = Math.floor(z / C), G = subGrid(cx * C, cz * C, C), k = G.at(x, z);
         return { cell: [cx, cz], mix: G.mix[k], code: G.code[k], ok: !!G.ok[k], kill: +G.kill[k].toFixed(3), cls: G.cls[k], kind: G.kind[k], boost: +G.boost[k].toFixed(3),
           cut: +G.cut[k].toFixed(3), green: G.green ? +G.green[k].toFixed(3) : null, col: [G.col[k * 3], G.col[k * 3 + 1], G.col[k * 3 + 2]].map(v => +v.toFixed(4)) }; },
-      rockProtos: () => speciesOf().filter(rockish).map(c => ({ c, P: protosOf(c) })),   // the sprites' subjects (rocks and debris)
+      rockProtos: () => speciesOf().filter(c => rockish(c) || (S.farBush > 0 && shapedOf(c))).map(c => ({ c, P: protosOf(c) })),   // (+ the shaped shrub cards: the bushes' far tier, 17 Nov)   // the sprites' subjects (rocks and debris)
       stat: () => Object.assign({}, STAT, { by: Object.assign({}, STAT.by) }),   // a copy of the tally too (a shallow copy shared it)
       dispose: () => { api.replant(); for (const bm of batches.values()) { root.remove(bm); bm.dispose(); } batches.clear(); scene.remove(root); },
     };

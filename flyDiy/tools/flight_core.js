@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 279c6bec03421eb6
+// body-sha256: 9486a51f3de06167
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -11246,7 +11246,7 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 // `hard` (the user's call - default 1 since 15 Nov, look AND surface: 20_world giveWay): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 1.5, softBandK: 0, townLawn: 1, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 2.7 };   // GRASS TO THE EDGE (16 Nov eve, the user: "the best looking is ... wild grass coming close up. Then maybe we could extend with a slight band of cut grass, but I think not even necessary"): softBandK 0 - a SOFT strip's (gravel, dirt, grass, snow) own cut band x this (1 = as before: w1's 4 m, w4's 14.5 m), so the wild grass runs to its drawn edge; mowBand 1.5 m - the slight cut band past it (the user's refinement, 16 Nov eve: "taller grass on the strip side and the wild grass I validated" - a soft strip's cut answers `tall`, drawn at the field's tallH 20 cm, not the lawn's 8 cm); the paved fields (HOME, w2: 40 m) and the aprons keep their mown bands. LOOK ONLY   // mowBand 1 (was 6; 16 Nov, the user's purple bands at the Cabin Strip: the 7 cm mown band hid the grass there - the Monday shoot's mowBand 1 changed 37 % of the purple, 2 % elsewhere; LOOK ONLY, the wheels never read it)   // trackW 2.7: tw_ski's drawn track ends 1.098 + grTrackW 0.3 + grTrackFade 1.0 = 2.4 m out (DIRT-STRIP's L40e ready, 16 Nov) + 0.3 - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 1, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 2.7 };   // mowBand 1 (was 6; 16 Nov, the user's purple bands at the Cabin Strip: the 7 cm mown band hid the grass there - the Monday shoot's mowBand 1 changed 37 % of the purple, 2 % elsewhere; LOOK ONLY, the wheels never read it)   // trackW 2.7: tw_ski's drawn track ends 1.098 + grTrackW 0.3 + grTrackFade 1.0 = 2.4 m out (DIRT-STRIP's L40e ready, 16 Nov) + 0.3 - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 // (GRASS-ON-GREEN 16 Nov) a gate's or a rig's override of the one dial for the margin's look AND surface: FLYDIY_GRASS_HARD=1 (node env or window)
 // (16 Nov, the page boot: with no process the old `a && b` read FALSE, +false = 0 - the page shipped hard 0 while every node gate saw 1.
@@ -11349,14 +11349,7 @@ function paveBand(entry, cls, isRoad) {
 // the lawn row's own; a zone's `rules.grass` overrides its kind's
 const ZONE_GRASS = { residential: { kind: 'lawn', h: 0.12, density: 1 }, commercial: { kind: 'lawn', h: 0.15, density: 0.8 }, park: { kind: 'lawn', h: 0.1, density: 1.2 },
   industrial: { kind: 'none' }, harbour: { kind: 'none' }, airfield: { kind: 'meadow' }, forest: { kind: 'meadow' }, clear: { kind: 'meadow' } };
-// TOWN LAWNS (16 Nov eve, the user via A0: they "can be anything"; then "if it's cheap it's OK and no exception then" - so the lawn stays,
-// townLawn 1, and the dial is there to MEASURE its cost): GRASS_SIDES.townLawn 0 turns a residential / commercial / park plot's lawn into NONE marked `town` (withPlot lets a road's mown verge
-// through); 1 = the lawn as before. A zone's own rules.grass wins either way
-const TOWN_LAWN = { residential: 1, commercial: 1, park: 1 };
-function zoneGrass(zone) {
-  const k = zone && zone.kind, base = TOWN_LAWN[k] && !(GRASS_SIDES.townLawn > 0) ? { kind: 'none', town: true } : ZONE_GRASS[k];
-  return Object.assign({}, base || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {});
-}
+function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind] || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {}); }
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
 // ONE SURFACE (the user, 18 Oct): what a road's wheels feel (its own `surface`, else its class's - the composer's rule) and
 // whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
@@ -13813,7 +13806,6 @@ function compose(rec0, world, opts) {
         let wy = lawnWater.get(p.zone); if (wy === undefined) lawnWater.set(p.zone, wy = zoneWaterYOf(world, F, zoneOf(p.zone), -Infinity));
         if (isFinite(wy) && O.localH(lx, lz) < wy + 0.3) break;
       }
-      if (g.kind === 'none' && g.town && cut > 0) break;   // TOWN LAWNS: a road's mown verge on a town plot keeps its grass (the biome's, cut)
       kind = g.kind; grass = g; break;
     }
     if (kind === 'lawn' && kill < 1) kill = 0;
@@ -13838,11 +13830,11 @@ function compose(rec0, world, opts) {
   // cut across the band and the mow band, wild past the blend; a grass strip's surface cut; a road as today plus a mown verge
   function coverSides(lx, lz, cell) {
     const G = GRASS_SIDES, VERGE = PAVE_FADE + 6;
-    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity, tall = 0;
+    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity;
     if (cell) for (const it of cell) {
       const d = dEdgeOf(it, lx, lz), out = -d;
       const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
-      const mow = (aero && it.soft ? it.band * G.softBandK : it.band) + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);   // (GRASS TO THE EDGE: a soft strip's band x softBandK)
+      const mow = it.band + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);
       const v0 = aero ? mow + G.mowBlend : it.band;   // where the verge's bump starts
       const clr = it.clear >= 0 && out <= it.clear;   // (v1.36, G2918: a road's own clearing - bare)
       if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE && !clr) continue;
@@ -13869,11 +13861,8 @@ function compose(rec0, world, opts) {
       if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * CORE_MATH.sin(Math.PI * (out - v0) / VERGE));
       if (k > kill) kill = k;
       if (c > cut) cut = c;
-      if (c > 0 && aero && it.soft && d < 0 && c > tall) tall = c;   // GRASS TO THE EDGE: the band beside a soft strip is cut TALL
     }
-    const R = withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
-    if (R && tall > 0 && kill < 1) R.tall = tall;
-    return R;
+    return withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
   }
 
   // G1542 (GROUND-LATTICE): A ROAD'S RIBBON ENDS SQUARE (pavement.js roadGeometry: s from 0 to the length, the rows
@@ -15327,6 +15316,7 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 //                     The COVER RING's band (tufts, flowers, bushes); the trees keep their own code's mix
 //     B.density(name) the mix's trees per m2 (its `count` in its `radius`)
 //     B.set(code, mixName) / B.export()   F8's handle
+//     B.setKnobs(o) / B.tuned() / B.ground   the world editor's knobs over KNOBS (WORLD-RAIL-VEG), the splat's live knobs
 //     B.SUBALPINE / B.subOn / B.subCode(code, h, n, r2) / B.subKeep(h, ridgeDh) / B.subAt / B.keepAt
 //                     19 SUBALPINE (MOUNTAIN-VEG, 15 Nov 2026): heath (2) and scrub (7, 14) above a height ramp take the
 //                     subalpine mix - a VEGETATION code like 18: the GROUND keeps its own code (codeAt, the splat, the
@@ -15341,13 +15331,41 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 // ===========================================================================
 'use strict';
 const BIOMES = (() => {
-  const KNOBS = { cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5, shoreReach: 12, shoreJit: 0.35,
+  // shoreReach 12 -> 16 m (17 Nov, the user's lush lake borders: the band of tall grass, bushes and birch wider)
+  const KNOBS = { cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5, shoreReach: 16, shoreJit: 0.35,
     // 19 SUBALPINE (the user, 15 Nov: "In reality, there are little trees growing almost up to the summits, in most green zones.
     // Only the real high summits have no trees, or the top of the ridges, and these ones have lush grass formations"). The
     // tree fill gated heath by the canopy map, which reads under 0.5 m on subalpine ground (it cannot see a tree under ~2 m):
     // Skyline and Mount Ardent went bare from ~550 m (tools/veg_bench.js). The ramp 450 -> 600 m (+-40 m by a 140 m noise),
     // thinning to 15 % between 800 and 1 000 m (the real high summits: Ardent's cap; Skyline tops out at ~710 m and keeps its trees round the altiport) and to 35 % where a point stands 8 m over its surroundings (four taps at 110 m)
-    subH0: 450, subH1: 600, subJit: 40, subTop0: 800, subTop1: 1000, subTopKeep: 0.15, subRidgeDh: 8, subRidgeKeep: 0.35 };   // shoreSlope: the bank's bankLo unless set
+    // 16 Nov eve, the user: "the sub-alpine vegetation is a little too sparse ... a little more density": the ramp 420 -> 540 m and
+    // the ridge keeps 60 % (the bench: Skyline's 550-700 m bands are 44-100 % ridge, so the ridge share WAS the summit's density -
+    // ~90 trees / ha against the forest's 170-190 below; with the mix's clump gap 0.3 -> 0.15)
+    // (17 Nov, the user: "a slight gradient for the trees ... a little too many at the very top, where the bushes should be more prominent"):
+    // the thinning starts at 560 m, not 800 (Skyline's 700 m top keeps ~60 %, its ridges ~37 %; Ardent's cap still 15 %)
+    subH0: 420, subH1: 540, subJit: 40, subTop0: 560, subTop1: 860, subTopKeep: 0.15, subRidgeDh: 8, subRidgeKeep: 0.6,
+    // FOREST-EDGE (the user 16 Nov: "the sides of the forested areas often show the forest ground with no trees in them anymore
+    // ... What would be much better is to have a ramp of tree sizes on the surroundings, then bushes"; their spec of 25 Oct:
+    // young 0-6 m inside, medium 6-20 m, full beyond, never under x0.7). The canopy map ramps over ~50 m at an edge (its deep
+    // value only 40-60 m in, tools/veg_bench.js --edge), and the fill read it as is: the first 10 m stood at 50-57 % of the
+    // points and half the interior's height. Inside the edge the tree takes the interior's canopy (the tallest of 16 taps at
+    // 30 and 45 m) x the ramp - edgeMin at the edge, edgeMid at edgeYoung, 1 at edgeFull, edgeOutK at edgeOut, where the map's
+    // own takes over - and the NDVI's thinning is lifted to edgeFull, handed back by edgeOut. The field: edgeCell m cells,
+    // edgeTile m tiles with an edgeMargin m margin
+    // edgeIn: that INSIDE ramp on (1) or off (0, the default since the user's read of the bench, 16 Nov eve: "I have the feeling
+    // it made the deep forest denser" - it filled and grew the first 60 m in; the forest now stays as it is inside)
+    edgeIn: 0, edgeYoung: 6, edgeFull: 20, edgeMin: 0.72, edgeMid: 0.85, edgeOut: 60, edgeOutK: 0.75, edgeCell: 6, edgeTile: 192, edgeMargin: 48,
+    // THE OUTWARD BAND (the user, 16 Nov eve, on the inside ramp's bench: "I don't feel like it added a gradient or extended wooded
+    // zones as I expected"; the widths and the clumps below are MOUNTAIN-VEG's defaults, each a knob): outside the forest's drawn edge the fill plants the WOOD's own trees (its mix, read 10 m in) out to a reach that wanders
+    // edgeReach m x (1 +- edgeReachVar) over a edgeReachM m noise; the share planted falls from edgeTreeDens at the line to 0 at
+    // the reach (^edgeFall), the ground between clumps (a edgeClumpM m noise, edgeClump of it) left bare; a tree's size from
+    // edgeSizeIn x the wood's canopy at the line to edgeSizeOut (a sapling) at the reach
+    edgeReach: 30, edgeReachVar: 0.5, edgeReachM: 70, edgeTreeDens: 0.9, edgeFall: 1.2, edgeClump: 0.35, edgeClumpM: 14,
+    edgeSizeIn: 0.7, edgeSizeOut: 0.22,
+    // then the cover ring's EDGE BAND past the trees (the user's 25 Oct numbers, now measured from the band's own reach R):
+    // bushes from edgeShrubIn x R out to R + edgeShrubOut at edgeShrubDens a m2, the weeds (fireweed, foam flower) from there to
+    // R + edgeWeedOut at edgeWeedDens a m2; the grass field's weeds are LOOK-1's
+    edgeShrubIn: 0.5, edgeShrubOut: 3, edgeWeedOut: 6, edgeShrubDens: 0.2, edgeWeedDens: 0.25 };   // shoreSlope: the bank's bankLo unless set
   // 18 LAKESHORE (G3430, the user 25 Oct: "a proper biome with its mask, and we can paint it and everything, like the
   // other"): a VEGETATION code - the band along the drawn lakes is its mask, a premises polygon paints it (or erases it)
   // like any biome; the ground under it stays its own code's (no splat row: NCODE 17)
@@ -15357,6 +15375,11 @@ const BIOMES = (() => {
   // shrubs, holly, raspberry and the odd birch that had been left orphaned when 7 and 14 were re-pointed.
   const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees', 18: 'lake shore', 19: 'subalpine' };
   const smooth = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / Math.max(1e-6, hi - lo))); return t * t * (3 - 2 * t); };
+  // a value noise of our own (the outward edge band's reach and clumps; the fill and the cover ring read it the same)
+  const hsh = (a, b) => { let h = (a * 374761393 + b * 668265263 + 1013904223) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  const vnoise = (x, z, cell, seed) => { const fx = x / cell, fz = z / cell, ix = Math.floor(fx), iz = Math.floor(fz), tx = fx - ix, tz = fz - iz;
+    const sx = tx * tx * (3 - 2 * tx), sz = tz * tz * (3 - 2 * tz), n = (a, b) => hsh(a * 7 + seed * 131, b * 13 + seed * 17);
+    return (n(ix, iz) * (1 - sx) + n(ix + 1, iz) * sx) * (1 - sz) + (n(ix, iz + 1) * (1 - sx) + n(ix + 1, iz + 1) * sx) * sz; };
   function make(pack, opts) {
     const src = (pack && pack.biomes) || {};
     const B = {
@@ -15366,8 +15389,25 @@ const BIOMES = (() => {
       knobs: () => {
         if (B.held) return B.held;   // a walk's snapshot (hold below)
         const R = (typeof GROUND_FIELDS !== 'undefined' && GROUND_FIELDS && GROUND_FIELDS.RECIPE) ? GROUND_FIELDS.RECIPE.knobs : null;
-        return Object.assign({}, KNOBS, R || {}, (opts && opts.knobs) || {});
+        // the ground's LIVE knobs (B.ground: the renderer's splat, which the world editor's split sliders move - the recipe's
+        // copy above never moves), then the caller's, then the world editor's own (B.user, setKnobs)
+        const L = B.ground ? B.ground() : null;
+        return Object.assign({}, KNOBS, R || {}, L || {}, (opts && opts.knobs) || {}, B.user);
       },
+      // THE WORLD EDITOR'S KNOBS (WORLD-RAIL-VEG 16 Nov, the user: every world setting editable for hand-tuning): setKnobs(o)
+      // merges o over the rest (null or undefined values drop a key back to the default; setKnobs(null) drops them all);
+      // `subOn` and `edgeOn` in o are the dials. kver counts the field's changes (edgeField re-lays its cells on one). The caller
+      // replants (TREE_FILL.setKnobs); tuned() is the editor's own: what the world look saves
+      ground: null, user: {}, kver: 0,
+      setKnobs: o => {
+        if (o === null) B.user = {};
+        else for (const k in (o || {})) {
+          if (k === 'subOn' || k === 'edgeOn') { B[k] = !!o[k]; continue; }
+          if (o[k] === null || o[k] === undefined || !isFinite(+o[k])) delete B.user[k]; else B.user[k] = +o[k];
+        }
+        B.held = null; if (o === null || ['edgeCell', 'edgeTile', 'edgeMargin'].some(k => k in (o || {}))) B.kver++; return B.tuned();
+      },
+      tuned: () => Object.assign({}, B.user, { subOn: B.subOn !== false, edgeOn: B.edgeOn !== false }),
       // HOLD (MOUNTAIN-VEG 16 Nov): knobs() merges three objects per call, and the per-point rules (subCode, subKeep) made it the
       // walk's top cost (5 of 11 s in veg_bench's Cabin window). A caller that runs many points in one synchronous pass holds a
       // snapshot for it - hold(true) before, hold(false) after (the editor's live knobs reach the next pass)
@@ -15393,6 +15433,52 @@ const BIOMES = (() => {
       const K = B.knobs();
       return (1 - (1 - K.subTopKeep) * smooth(K.subTop0, K.subTop1, h)) * (ridgeDh > K.subRidgeDh ? K.subRidgeKeep : 1);
     };
+    // FOREST-EDGE (KNOBS edge*): the signed distance to the forest's edge (+ in, - out, m) over `isForest(x, z)` - a chamfer
+    // field per tile, cached, read bilinear; the renderer's tree fill and tools/veg_bench.js build it on the same test
+    B.edgeOn = true;
+    B.edgeField = isForest => {
+      let K, c, T, M, n, ver = -1; const cache = new Map();
+      const lay = () => { K = B.knobs(); c = K.edgeCell; T = K.edgeTile; M = Math.ceil(K.edgeMargin / c); n = Math.round(T / c) + 2 * M; cache.clear(); ver = B.kver; };   // (again on a setKnobs: the cell, the tile, the margin)
+      lay();
+      const build = (ti, tj) => {
+        const ox = ti * T - M * c, oz = tj * T - M * c, F = new Uint8Array(n * n), Din = new Float32Array(n * n), Dout = new Float32Array(n * n), BIG = 1e6, a = c, b = c * Math.SQRT2;
+        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; F[k] = isForest(ox + (i + 0.5) * c, oz + (j + 0.5) * c) ? 1 : 0; Din[k] = F[k] ? BIG : 0; Dout[k] = F[k] ? 0 : BIG; }
+        for (const D of [Din, Dout]) {
+          for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; if (!D[k]) continue; let v = D[k];
+            if (i > 0) v = Math.min(v, D[k - 1] + a); if (j > 0) { v = Math.min(v, D[k - n] + a); if (i > 0) v = Math.min(v, D[k - n - 1] + b); if (i < n - 1) v = Math.min(v, D[k - n + 1] + b); } D[k] = v; }
+          for (let j = n - 1; j >= 0; j--) for (let i = n - 1; i >= 0; i--) { const k = j * n + i; if (!D[k]) continue; let v = D[k];
+            if (i < n - 1) v = Math.min(v, D[k + 1] + a); if (j < n - 1) { v = Math.min(v, D[k + n] + a); if (i < n - 1) v = Math.min(v, D[k + n + 1] + b); if (i > 0) v = Math.min(v, D[k + n - 1] + b); } D[k] = v; } }
+        const S = new Float32Array(n * n); for (let k = 0; k < S.length; k++) S[k] = F[k] ? Din[k] - c / 2 : -(Dout[k] - c / 2);
+        return { ox, oz, S };
+      };
+      const at = (x, z) => {
+        if (ver !== B.kver) lay();
+        const ti = Math.floor(x / T), tj = Math.floor(z / T), key = ti * 100003 + tj;
+        let t = cache.get(key); if (!t) { if (cache.size > 512) cache.clear(); t = build(ti, tj); cache.set(key, t); }
+        const u = (x - t.ox) / c - 0.5, v = (z - t.oz) / c - 0.5, i = Math.max(0, Math.min(n - 2, Math.floor(u))), j = Math.max(0, Math.min(n - 2, Math.floor(v)));
+        const fu = u - i, fv = v - j, k = j * n + i, S = t.S;
+        return (S[k] * (1 - fu) + S[k + 1] * fu) * (1 - fv) + (S[k + n] * (1 - fu) + S[k + n + 1] * fu) * fv;
+      };
+      at.clear = () => cache.clear();
+      return at;
+    };
+    // the canopy a tree d m inside the edge stands at (null: the map's own): `canIn` the interior's, read by the caller
+    B.edgeRamp = d => { const K = B.knobs();
+      return d < K.edgeYoung ? K.edgeMin + (K.edgeMid - K.edgeMin) * Math.max(0, d) / K.edgeYoung
+        : d < K.edgeFull ? K.edgeMid + (1 - K.edgeMid) * (d - K.edgeYoung) / (K.edgeFull - K.edgeYoung)
+        : 1 - (1 - K.edgeOutK) * Math.min(1, (d - K.edgeFull) / (K.edgeOut - K.edgeFull)); };
+    // the share of the NDVI's thinning lifted at d (1 to edgeFull, 0 at edgeOut)
+    B.edgeLift = d => { const K = B.knobs(); return d >= K.edgeOut ? 0 : d < K.edgeFull ? 1 : 1 - (d - K.edgeFull) / (K.edgeOut - K.edgeFull); };
+    // the interior's canopy round a point: the tallest of 16 taps, 8 directions at 30 and 45 m
+    // THE OUTWARD BAND (KNOBS edgeReach..edgeSizeOut): the reach at a point (the band's irregular line), and a point d m from
+    // the edge (d < 0: outside) -> { p: the share planted, k: the size over the wood's canopy, t: 0 at the line .. 1 at the reach }
+    // or null past it. reachMax: the furthest it can go (the ring's and the field's margins)
+    B.edgeReachAt = (x, z) => { const K = B.knobs(); return K.edgeReach * (1 + K.edgeReachVar * (2 * vnoise(x, z, K.edgeReachM, 91) - 1)); };
+    B.edgeReachMax = () => { const K = B.knobs(); return K.edgeReach * (1 + K.edgeReachVar); };
+    B.edgeBandAt = (d, x, z) => { if (!(d < 0)) return null; const K = B.knobs(), R = B.edgeReachAt(x, z), t = -d / Math.max(1, R); if (t >= 1) return null;
+      const keep = smooth(K.edgeClump - 0.12, K.edgeClump + 0.12, vnoise(x, z, K.edgeClumpM, 37));
+      return { p: K.edgeTreeDens * Math.pow(1 - t, K.edgeFall) * keep, k: K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * Math.pow(t, 0.8), t, R }; };
+    B.edgeCanIn = (canopyAt, x, z) => { let m = 0; for (const L of [30, 45]) for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; m = Math.max(m, canopyAt(x + Math.cos(a) * L, z + Math.sin(a) * L)); } return m; };
     B.shoreHere = (x, z) => { if (!B.shore || !B.mixAt(SHORE)) return false; if (B.over && B.over(x, z) !== undefined) return false; return !!B.shore(x, z); };
     B.mixAt = code => { const m = B.map[code]; return (m && B.mixes[m]) ? m : null; };
     B.mixOf = name => B.mixes[name] || null;
