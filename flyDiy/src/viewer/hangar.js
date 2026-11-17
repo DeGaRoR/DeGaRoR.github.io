@@ -2027,7 +2027,8 @@ if (!EXT) {
         const al = Math.max(0, Math.min(1, (RD - r) / FD)) * (0.85 + 0.15 * Math.sin(x * 0.31 + z * 0.17));
         pos.push(x, Y_FIELD + 0.006, z); uv.push(x, -z); col.push(1, 1, 1, al);
       }
-      for (let j = 0; j < NR; j++) for (let i = 0; i < NA; i++) { const a = j * (NA + 1) + i, b = a + 1, c2 = a + NA + 1, d2 = c2 + 1; idx.push(a, b, c2, b, d2, c2); }
+      // (wound to face UP: the angle runs +z out of the door, the radius -x - a, c2, b; 15:00 stills: the other way it was culled)
+      for (let j = 0; j < NR; j++) for (let i = 0; i < NA; i++) { const a = j * (NA + 1) + i, b = a + 1, c2 = a + NA + 1, d2 = c2 + 1; idx.push(a, c2, b, b, c2, d2); }
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
       g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex(idx); g.computeVertexNormals();
@@ -2056,7 +2057,7 @@ if (!EXT) {
         const x = -r * Math.cos(a), z = r * Math.sin(a);
         hp.push(x, Y_FIELD - 0.01 + hillH(r, a), z); hu.push(x, -z);
       }
-      for (let j = 0; j < HR; j++) for (let i = 0; i < HA; i++) { const a = j * (HA + 1) + i, b = a + 1, c2 = a + HA + 1, d2 = c2 + 1; hi.push(a, b, c2, b, d2, c2); }
+      for (let j = 0; j < HR; j++) for (let i = 0; i < HA; i++) { const a = j * (HA + 1) + i, b = a + 1, c2 = a + HA + 1, d2 = c2 + 1; hi.push(a, c2, b, b, c2, d2); }   // (face up, as the dirt)
       const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(hp, 3)); hg.setAttribute('uv', new THREE.Float32BufferAttribute(hu, 2));
       hg.setIndex(hi); hg.computeVertexNormals();
       const hm = new THREE.Mesh(hg, M.hill); hm.name = 'room:hill'; hm.receiveShadow = true; put(hm);
