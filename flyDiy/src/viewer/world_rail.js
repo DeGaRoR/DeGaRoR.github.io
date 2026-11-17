@@ -1162,7 +1162,7 @@
     range(J, 'green in the cracks', 0, 2.5, 0.05, kn('rockGreen'), ss('rockGreen'), v => 'x' + v.toFixed(2), RK.rockGreen);
     range(J, 'wet streaks', 0, 1, 0.02, kn('rockWet'), ss('rockWet'), null, RK.rockWet);
     range(J, 'green\u2019s saturation', 0, 1.5, 0.02, kn('rockGreenSat'), ss('rockGreenSat'), null, RK.rockGreenSat);
-    range(J, 'joints gone by', 0, 2000, 10, kn('rockJointFar'), ss('rockJointFar'), v => v ? v + ' m' : 'off', RK.rockJointFar);
+    range(J, 'joints gone by', 0, 5000, 25, kn('rockJointFar'), ss('rockJointFar'), v => v ? v + ' m' : 'off', RK.rockJointFar);
     note(J, 'joint density x2 halves the spacing of the two joint sets; the soil they hold cuts the bare rock along them, their dirt darkens them. The green fills the joints, the hollows, the benches and the tile’s own cracks.');
     const Rg = sec(body, 'roughness', false, 'bare stone glossier than the green');
     range(Rg, 'bare stone', 0.3, 1.6, 0.02, kn('rockRough'), ss('rockRough'), v => 'x' + v.toFixed(2), RK.rockRough);

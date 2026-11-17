@@ -410,16 +410,18 @@ const SPLAT_GROUND = (() => {
   // less the valleys and the hollows (the tint's alpha: the terrain bias) and where the imagery sees green (pack B's NDVI, 10 m:
   // Ardent's rock cells are mostly vegetated, median 0.79); a mosaic of 40 / 8 m, speckles of green at 3-5 m, the joints' soil
   float sTrExpo(float r, vec2 xz, float slope, vec2 uv){
-    gTrBias = texture2D(uGTint, uv).a * 0.8 - 0.6;
+    // THE ISLAND'S MAP CARRIES THE MACRO (17 Nov, the user: "nothing in the game should have the macro pattern fade ... almost baked
+    // into the image map of the map"): the tint's alpha is v1's exposure FIELD over the whole island (rock_ring_core bakeIsland, at
+    // the map's texel; 0 = no rock within ~30 m) - thresholded here a pixel at a time with v1's fine terms as noise, exactly as the
+    // macro texture's soft levels are (sTrMac): the same mosaic past the texture's 2 km, in the far tier and the outer ring
+    float a = texture2D(uGTint, uv).a;
+    gTrBias = 0.0;
     gTrJ = sTrJoints(xz);
-    float nd = texture2D(uGPackB, uv).r * 2.0 - 1.0;
-    float dk = 1.0 - smoothstep(900.0, 2500.0, distance(vWPi, cameraPosition));
-    float fine = gVnoise(xz / 8.0);
-    float E = 0.42 * smoothstep(uTrE.x, uTrE.y, vWPi.y) + 0.22 * smoothstep(22.0, 48.0, slope) + gTrBias + uTrE.z * r - uTrE.w
-            - uTrM.z * smoothstep(uTrM.w - 0.2, uTrM.w + 0.2, nd)
-            + (gVnoise(xz / 43.0 + 3.7) - 0.5) * 0.5 + (fine - 0.5) * 0.45 + (gVnoise(xz / 3.2) - 0.5) * 0.35 * dk;
-    float e = smoothstep(0.40, 0.52, E) * (1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y);
-    e *= 1.0 - smoothstep(0.58, 0.68, gVnoise(xz / 4.4 - 9.1)) * (0.55 + 0.45 * fine) * (0.4 + 0.6 * dk);
+    if (a < 0.004) return 0.0;
+    float d = distance(vWPi, cameraPosition), dk = 1.0 - smoothstep(900.0, 2500.0, d), fine = gVnoise(xz / 8.0 + 11.3);
+    float E = a * 1.5 - 0.3 + (fine - 0.5) * 0.5 + (gVnoise(xz / 3.2 + 4.1) - 0.5) * 0.35 * dk, sw = 0.04 + 5.4e-5 * d;
+    float e = smoothstep(0.46 - sw, 0.46 + sw, E) * (1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y);
+    e *= 1.0 - clamp(smoothstep(0.56, 0.63, gVnoise(xz / 4.9 + 2.2)) + smoothstep(0.6, 0.66, gVnoise(xz / 2.0 - 7.7)) * 0.8, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.3, 0.7, fine)) * (0.4 + 0.6 * dk);
     return e;
   }
   // THE MACRO TEXTURE (16 Nov, the user: "I'm really missing your macro textures" - the far ground "patchy, pixely"): the bench
@@ -980,7 +982,7 @@ const SPLAT_GROUND = (() => {
       float wsea = step(1e-3, uSBank2.w) * (1.0 - smoothstep(0.6 * bR, bR, sd)) * step(-8.0, sd) * smoothstep(-0.8, -0.1, vWPi.y)
                  * (1.0 - smoothstep(wsH * 0.25, wsH, vWPi.y + bn * wsH * 0.9));
       col *= (1.0 - 0.45 * wet) * (1.0 - 0.3 * wsea); gSRough = mix(gSRough, min(gSRough, 0.45), wet); }   // (the sea's band darkens only: any gloss on its steep face caught the sun as a white line at the foot, it2/it3)
-    return mix(col, mac, mw);
+    return mix(col, mac, mw * (1.0 - gTrR));   // (R1, 17 Nov: the far tier dissolves the ground into the map's colour - never the ROCK: "nothing should have the macro pattern fade")
   }
 `;
   // in the map_fragment block, right after the stack's t (before the water and the shore)
@@ -1340,13 +1342,13 @@ const SPLAT_GROUND = (() => {
             // the stone by rockWeather in the macro step (sSplat); its hue here stays neutral (the boulders take the value match alone)
             U.uTrW.value.set(1, 1, 1, kv('rockWeather', 0.25)); } }
         U.uTrX.value.set(Math.min(1 / Math.max(K.macroNear || 0.5, 0.05), kv('rockGreenTint', 1)), 0, 0, 0);   // (capped: the tint's whole, 1, at most)
-        U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.72));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
+        U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 2500), kv('rockMicro', 1), kv('rockK', 0.72));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
         U.uTrE.value.set(kv('rockHLo', 250), kv('rockHHi', 760), kv('rockBias', 0.3), kv('rockOff', 0.08));
         const mS = lib(T4[0]).mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded
         if (mS) U.uTrMeanS.value.set(mS[0] * (gS ? gS.x : 1), mS[1] * (gS ? gS.y : 1), mS[2] * (gS ? gS.z : 1), 1);
         U.uTrJ.value.set(kv('rockJoint', 1), kv('rockJointSoil', 0.7), kv('rockJointDirt', 0.85), kv('rockHollow', 0.5));
         U.uTrG.value.set(kv('rockGreen', 1), kv('rockGreenRough', 0.97), kv('rockGreenSat', 1), kv('rockRough', 1));
-        U.uTrF.value.set(kv('rockMicroFrom', 60), kv('rockMicroTo', 180), kv('rockJointFar', 900), kv('rockWet', 0.75));
+        U.uTrF.value.set(kv('rockMicroFrom', 60), kv('rockMicroTo', 180), kv('rockJointFar', 5000), kv('rockWet', 0.75));
         U.uTrM.value.set(kv('rockMicroK', 0.65), kv('rockMicroN', 0.6), kv('rockNdvi', 0), kv('rockNdviMid', 0.74)); }
     };
     push();

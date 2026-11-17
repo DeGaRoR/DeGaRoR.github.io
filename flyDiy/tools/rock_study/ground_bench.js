@@ -43,6 +43,13 @@ const Bs = u8(L.B[0], L.B[1]), TT = new Uint8Array(gw * gh); for (let k = 0; k <
 const oc = SPLAT_GROUND.oneCode(TT, gw, gh), B2 = new Uint8Array(gw * gh * 2); for (let k = 0; k < TT.length; k++) { B2[k * 2] = Bs[k * 2]; B2[k * 2 + 1] = oc[k]; }
 const packB = dataTex(B2, THREE.RGFormat); packB.unpackAlignment = 1;
 const T4 = new Uint8Array(u8(L.T[0], L.T[1])); if (Q.get('rocks') === '0') for (let k = 3; k < T4.length; k += 4) T4[k] = 255;   // (the game skips the bias on ?rocks=0)
+// THE MAP CARRIES THE MACRO (17 Nov): the game's tint alpha is v1's exposure field baked over the island (rock_ring_core bakeIsland,
+// render_world's boot worker); the bench bakes its patch the same way - its 5 m heights, its D8 flow, the 10 m types and NDVI
+if (Q.get('rocks') !== '0' && typeof ROCK_RING_CORE !== 'undefined' && ROCK_RING_CORE.bakeIsland) {
+  const fL0 = PJ.layout.find(l => l.name === 'flow'), ND0 = new Uint8Array(gw * gh); for (let k = 0; k < gw * gh; k++) ND0[k] = Bs[k * 2];
+  const bk = ROCK_RING_CORE.bakeIsland({ H: HT, N, hx0: PJ.x0 - ST / 2, hz0: PJ.z0 - ST / 2, hdx: ST, flow: fL0 ? new Uint8Array(PB, fL0.off, fL0.len) : null, TT, ND: ND0,
+    IGw: gw, IGh: gh, IGx0: GJ.x0, IGz0: GJ.z0, IGcell: GJ.cell, gx0: GJ.x0, gz0: GJ.z0, cs: GJ.cell, W2: gw, H2: gh });
+  for (let k = 0; k < gw * gh; k++) T4[k * 4 + 3] = bk[k]; }
 const tint = dataTex(T4); tint.colorSpace = THREE.SRGBColorSpace;
 const gU = { uGTint: { value: tint }, uGPackA: { value: dataTex(new Uint8Array(u8(L.A[0], L.A[1]))) }, uGPackB: { value: packB },
   uGGrid: { value: new THREE.Vector4(GJ.x0, GJ.z0, gw * GJ.cell, gh * GJ.cell) },
