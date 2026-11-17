@@ -8399,7 +8399,9 @@
   function gdBuild() {
     const U = gdU(), h = gdCell();
     if (!U || !U.uGdDim || !model || !model.grp || !(h > 0) || typeof GROUND_DEPOSIT === 'undefined') return null;
-    const t0 = performance.now(), gat = gdGather(U);
+    // (the bake PARKS the live meshes - the slot's first grid saw 3686 cells of the Cub's 12457, no legs, no wheels: gathered
+    // with them put back, FLOWN_BAKE.withKept)
+    const t0 = performance.now(), FBk = window.FLOWN_BAKE && window.FLOWN_BAKE.withKept, gat = FBk ? FBk(() => gdGather(U)) : gdGather(U);
     if (!gat.tris.length) return null;
     const G = GROUND_DEPOSIT.make(gat.tris, gat.part, { h, zLow: gat.zLow });
     if (!G) return null;

@@ -573,6 +573,8 @@ uniform vec4 uWxN;
 function aeroGdFs(P, N, cone) {
   return `
   float gdMudK = 0.0;
+#define GD_TERM 1
+#ifndef GD_OFF
   if (uGdDim.w > 0.5) {
     vec3 gdP = ` + P + `, gdN = ` + N + `;
     float gdC = 0.0, gdD = 0.0, gdW = 0.0;
@@ -604,7 +606,7 @@ function aeroGdFs(P, N, cone) {
     float gdR = uGdRain.x * mix(uGdRain.w, 1.0, clamp(gdN.z, 0.0, 1.0));
     diffuseColor.rgb = mix(diffuseColor.rgb, uGdDustC.rgb, gdD);
     roughnessFactor = mix(roughnessFactor, uGdPbr.z, gdD);
-    diffuseColor.rgb = mix(diffuseColor.rgb, uGdMudC.rgb * (0.55 + 0.45 * (1.0 - gdW)), gdM);
+    diffuseColor.rgb = mix(diffuseColor.rgb, uGdMudC.rgb * (0.7 + 0.3 * (1.0 - gdW)), gdM);   // (wet: 0.7 of the dry colour - the slot's 0.55 read near-black)
     roughnessFactor = mix(roughnessFactor, mix(uGdPbr.x, uGdPbr.y, 1.0 - gdW), gdM);
     diffuseColor.rgb *= 1.0 - uGdRain.y * gdR * (0.6 + 0.4 * max(gdM, gdD));
     roughnessFactor = clamp(mix(roughnessFactor, roughnessFactor * (1.0 - uGdRain.z), gdR), 0.03, 1.0);
@@ -617,6 +619,7 @@ function aeroGdFs(P, N, cone) {
     vec3 gdGrad = sign(gdDet) * (dFdx(gdH) * gdR1 + dFdy(gdH) * gdR2);
     normal = normalize(abs(gdDet) * normal - gdGrad);
   }
+#endif
 `;
 }
 
@@ -1473,6 +1476,9 @@ const AERO_WX_CC_FS = `
   // is scuffed rough by the same film
   material.clearcoat *= 1.0 - aeroWxDirt;
   material.clearcoatRoughness = min(1.0, max(material.clearcoatRoughness, max(aeroWxCov, aeroWxDirt) * uWxR.y));
+#ifdef GD_TERM
+  material.clearcoat *= 1.0 - gdMudK;   // GROUND-FX: no varnish over the mud or the film (the glass has no term: no GD_TERM)
+#endif
 #endif
   // DIRT-MATTE, THE BASE LOBE (Standard and Physical alike): a dusty surface has no grazing mirror - its grains
   // shadow each other, so the Fresnel rise to white at a low sun is taken down with the dirt, and the

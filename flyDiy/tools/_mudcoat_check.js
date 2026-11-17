@@ -138,6 +138,12 @@ function liveTerm(W, o) {
   // the live shader: the same term at the surface pass's tail, its uniforms declared
   yes(/gdSpatter\(gdP\)/.test(W.AERO_WX_SURF_FS) && W.AERO_WX_SURF_FS.lastIndexOf('float gdMudK') > W.AERO_WX_SURF_FS.lastIndexOf('uWxDbg') && !/uGdMudC\.w > 0\.0/.test(W.AERO_WX_SURF_FS)
       && /uniform highp sampler3D tGdMud;/.test(W.AERO_WX_PARS_FS), 'F the live shader carries the same term (the cone drawn by its layers, not twice)');
+  // the slot's lessons (17 Nov): the atlas bake never takes the term (GD_OFF before the live hook's), no varnish over the mud
+  // in the live shader either (GD_TERM), and the grid gathered with the parked live meshes put back (withKept)
+  const fbText = o.fbSrc || fs.readFileSync(fbPath, 'utf8');
+  yes(/sh\.fragmentShader = '#define GD_OFF\\nuniform float uFbOut;/.test(fbText) && /#ifndef GD_OFF/.test(W.AERO_WX_SURF_FS) && /#ifdef GD_TERM\n  material\.clearcoat \*= 1\.0 - gdMudK;/.test(W.AERO_WX_CC_FS),
+    'F the atlas bake never freezes the term (GD_OFF); the live shader\'s clear coat goes with the mud (GD_TERM)');
+  if (o.src) yes(/FBk \? FBk\(\(\) => gdGather\(U\)\) : gdGather\(U\)/.test(o.src), 'F the grid gathered with the bake\'s parked live meshes put back (FLOWN_BAKE.withKept: the slot saw 3686 of 12457 cells)');
   // the JS mirror at a fragment's point: a plate, mud arriving up at its middle -> the underside takes it, the top none
   const T = [], part = [];
   for (let i = 0; i < 10; i++) for (let j = 0; j < 10; j++) { const x = i * 0.1 - 0.5, y = j * 0.1 - 0.5;
@@ -183,6 +189,8 @@ if (SELF) {
   doctor('the bake binds copies', () => {}, { src, fbSrc: fb.replace('if (GW) for (const k of GD_KEYS) if (d[k]) sh.uniforms[k] = d[k];', 'if (GW) for (const k of GD_KEYS) if (d[k]) sh.uniforms[k] = { value: d[k].value };') });
   doctor('the skin never dries', () => { GDm.RAIN.tDry = 1e9; }); GDm.RAIN.tDry = 600;
   doctor('the live term not stepped', () => {}, { src: src.replace('gdFrame(running ? fdt : 0);', '') });
+  doctor('the bake freezes the term', () => {}, { src, fbSrc: fb.replace("sh.fragmentShader = '#define GD_OFF\\nuniform float uFbOut;", "sh.fragmentShader = 'uniform float uFbOut;") });
+  doctor('the grid misses the parked meshes', () => {}, { src: src.replace('gat = FBk ? FBk(() => gdGather(U)) : gdGather(U);', 'gat = gdGather(U);') });
   doctor('both muds drawn', () => {}, { src: src.replace('AEROWX.aeroWxSetMud(THREE, GDX.G ? 0 : mudCoat);', 'AEROWX.aeroWxSetMud(THREE, mudCoat);') });
   console.log('GATE MUDCOAT selftest: ' + (bad.length ? 'FAIL (' + bad.join(', ') + ' stayed green)' : 'PASS (every doctored law went red)'));
   process.exit(bad.length ? 1 : 0);

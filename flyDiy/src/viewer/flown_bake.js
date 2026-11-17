@@ -291,7 +291,7 @@
       if (h) h.call(this, sh, r);
       sh.uniforms.uFbOut = FB_U.uFbOut;
       sh.vertexShader = 'attribute vec2 aFbUv;\nvarying vec2 vFbUv;\n' + sh.vertexShader.replace(/\}\s*$/, BAKE_VS + '}\n');
-      sh.fragmentShader = 'uniform float uFbOut;\nvarying vec2 vFbUv;\n' + sh.fragmentShader.replace(/\}\s*$/, BAKE_FS + '}\n');
+      sh.fragmentShader = '#define GD_OFF\nuniform float uFbOut;\nvarying vec2 vFbUv;\n' + sh.fragmentShader.replace(/\}\s*$/, BAKE_FS + '}\n');   // (GD_OFF: GROUND-FX's live mud / rain term never bakes into the atlas)
     };
     w.toString = () => 'flown.bake|' + FB.V + '|' + (h ? h.toString() : '');
     WRAP.set(h, w);
