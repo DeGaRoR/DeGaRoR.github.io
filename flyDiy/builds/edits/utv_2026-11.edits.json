@@ -1,0 +1,235 @@
+{
+ "cage": {
+  "seatLayout": 1,
+  "paxCount": 0,
+  "propOn": 0,
+  "spinOn": 0,
+  "finOn": 0,
+  "rodOn": 0,
+  "boomTwin": 1,
+  "taperOn": 1,
+  "stMount": 3,
+  "stX": 0,
+  "stCant": 0,
+  "wgPos": 2,
+  "wgSpan": 2.2,
+  "wgChord": 1.0,
+  "wgChordTip": 1.0,
+  "wgBrace": 1,
+  "boomX": 0.46,
+  "boomLen": 1.35,
+  "boomIncl": 0,
+  "boomWf": 0.12,
+  "boomHf": 0.16,
+  "boomWa": 0.12,
+  "boomHa": 0.16,
+  "boomNoseLen": 0,
+  "boomTailCap": 0,
+  "stSpan": 1.0,
+  "stChord": 1.15,
+  "s1Leg": 1,
+  "s1Z": 2.45,
+  "s1X": 0.72,
+  "s1R": 0.34,
+  "s1Drop": 0.1,
+  "s2Leg": 3,
+  "s2R": 0.34,
+  "stSharpTip": 3,
+  "stSharpAft": 3,
+  "stSharpBase": 3,
+  "stSharpLE": 3,
+  "stTipZ": 0.6,
+  "stTipY": -0.33,
+  "stAftZ": 0,
+  "stAftY": -0.3,
+  "stBaseZ": 0,
+  "stBaseY": 0,
+  "stMidY": -0.2,
+  "stUY": 0,
+  "stLEZ": 0,
+  "stShoulderZ": 0.5,
+  "stTopY": 0,
+  "stTERoot": 0,
+  "stTEU": 0,
+  "stTEMid": 0,
+  "stThick": 0.09,
+  "wingOn": 0,
+  "boomBodyZ": 1.35,
+  "boomBodyY": -0.45,
+  "halfW": 0.92,
+  "roofHalfW": 0.8,
+  "boomTailLen": 0.05,
+  "cw_cowlLen": 0.45,
+  "stZ": 0.45,
+  "accAerials": 0,
+  "accInstr": 0,
+  "fitNose": 0,
+  "cw_aftW": 0.6,
+  "cw_aftH": 0.345,
+  "cw_taperW": 0.92,
+  "cw_taperH": 0.92,
+  "cw_sqAftTop": 0.35,
+  "cw_sqFrontTop": 0.35,
+  "cw_sqAftBot": 0.7,
+  "cw_sqFrontBot": 0.7,
+  "cw_lidMode": 0,
+  "cw_lobeN": 0,
+  "stCut": 0,
+  "stThickTE": 0.09,
+  "s2Z": 0.87,
+  "stShoulderY": 0.3,
+  "keelY": -0.92,
+  "aftKeelY": -0.92,
+  "tailKeelY": -0.92,
+  "frPostBotY": -0.92,
+  "frCabBotY": -0.92,
+  "stRootFwd": -0.205,
+  "stSharpShoulder": 3,
+  "twBoomOut": 0.26,
+  "stOver": 0.13,
+  "frWinBotY": -0.92,
+  "rearWinOn": 1,
+  "rearWinY": 0.515,
+  "rearWinH": 0.628,
+  "rearWinW": 1.25,
+  "rearWinR": 0.06,
+  "intBulk": 0,
+  "whProfile": 2,
+  "whRim": 1,
+  "whRimD": 0.62,
+  "whWide": 1.1,
+  "whTread": 1,
+  "extRelief": 1,
+  "extReliefH": 0.016,
+  "bumpR": 1,
+  "bumpStyle": 1,
+  "bumpH": 0.06,
+  "bumpFin": 1,
+  "hitchOn": 1,
+  "bumpY": 0.05,
+  "bumpW": 0.95,
+  "ctlStick": 1,
+  "hdlOn": 1,
+  "wallTrimOn": 1,
+  "isCar": 1,
+  "carDrive": 1,
+  "carChassisKg": 150
+ },
+ "wings": {
+  "span": 2.2,
+  "chord": 1.0,
+  "position": "low",
+  "tip": "square"
+ },
+ "meta": {
+  "name": "Ranch Hand",
+  "reg": "RH 2"
+ },
+ "paint": {
+  "job": "full",
+  "sweep": 0,
+  "base": 15722191,
+  "trim": 2829616,
+  "gloss": 0.45,
+  "regX": 0.3
+ },
+ "finish": {
+  "sections": {
+   "body": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "ceilingLoop": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "floorLoop": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "pillarCabin": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "pillarFront": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "pillarPassenger": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "pillarTail": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "pillarTaper": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "pillarWindow": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "taper": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "waistband": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "cowlSkin": {
+    "tint": 13218700,
+    "metal": 0.35,
+    "rough": 0.42
+   },
+   "boomSkin": {
+    "tint": 2829616,
+    "metal": 0.2,
+    "rough": 0.6
+   },
+   "stabSkin": {
+    "tint": 2829616,
+    "metal": 0.2,
+    "rough": 0.6
+   },
+   "gearLeg": {
+    "tint": 2829616,
+    "metal": 0.2,
+    "rough": 0.6
+   }
+  },
+  "decals": {
+   "m1On": 1,
+   "m1Pat": 0,
+   "m1A": 2829616,
+   "m1B": 2829616,
+   "m1D": 2829616,
+   "m1Tgt": 0,
+   "m1Mode": 1,
+   "m1L": -1.9,
+   "m1C": -0.42,
+   "m1W": 2.0,
+   "m1H": 0.42,
+   "regOutOn": 0,
+   "regH": 0.09,
+   "regL": 0.35,
+   "regC": -0.35,
+   "regCol": 1908514
+  },
+  "wear": 0
+ },
+ "_what": "CAR-4 (the user 12 Nov: 'use the double boom to emulate a chassis ... the stabilizer ... a bed ... the cabin with a tiny engine, a nose almost non-existing'): a utility side-by-side from the Cub-alike - its cabin widened to two seats abreast, no wing (the twin booms rooted on the body: boomBodyZ / boomBodyY, the new rows), the booms the chassis rails, the stab the bed, the rear wheels on the booms, the front pair under a short cowl over the A-65; 4WD; it drives, it does not fly"
+}

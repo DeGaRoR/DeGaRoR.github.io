@@ -163,11 +163,14 @@ function specPathOk(pathStr) {
   // THE MARKING KIT (2026-09-04): finish is null in GEN_DEFAULT by design (the
   // factory finish), and its decals are AERO_DEC_DEF's fields — the kit's
   // three layers are m1..m3 + a field name. An archetype may carry a recipe.
-  if (/^finish.decals.m[123][A-Z][A-Za-z]*$/.test(pathStr)) return true;
+  // (CAR-1: the kit has five layers since LIVERY-5 and six text pieces since LIVERY-TEXT - aeroskin.js AERO_KIT_LAYERS /
+  // AERO_TXT_N; this yardstick still said three and none)
+  if (/^finish.decals.m[1-5][A-Z][A-Za-z]*$/.test(pathStr)) return true;
+  if (/^finish.decals.t[1-6][A-Z][A-Za-z]*$/.test(pathStr)) return true;
   // the registration's own fields (its text is meta.reg), and a section's paint (finish.sections.<section>.tint / .fin:
   // the liveries, 27 Oct) on a section the skin knows
   if (/^finish.decals.reg[A-Z][A-Za-z]*$/.test(pathStr)) return true;
-  const sm = /^finish.sections.([A-Za-z0-9]+).(tint|fin)$/.exec(pathStr);
+  const sm = /^finish.sections.([A-Za-z0-9]+).(tint|fin|metal|rough)$/.exec(pathStr);   // (CAR-1: + the metal / rough dials, the metal Cessna's)
   if (sm) return SKIN_SECTIONS.has(sm[1]);
   if (pathStr === 'meta.reg') return true;
   let node = CORE.GEN_DEFAULT;
