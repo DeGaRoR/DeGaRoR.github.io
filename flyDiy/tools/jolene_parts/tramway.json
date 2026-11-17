@@ -174,8 +174,8 @@
    {
     "id": "tw_ski",
     "name": "Skyline Altiport",
-    "len": 380,
-    "wid": 18,
+    "len": 280,
+    "wid": 6,
     "surface": 0,
     "look": "grass",
     "slope": 0,
@@ -188,7 +188,7 @@
      false,
      false
     ],
-    "falloff": 30,
+    "falloff": 12,
     "site": null,
     "pattern": null,
     "stand": {
@@ -198,41 +198,78 @@
     },
     "taxiOut": [
      [
-      329.47,
-      -7832.99
+      328.54,
+      -7839.36
+     ],
+     [
+      345.54,
+      -7868.81
+     ],
+     [
+      340.61,
+      -7876.27
+     ],
+     [
+      348.0,
+      -7865.08
      ]
     ],
     "profile": [
      [
       0,
-      -15.96
+      -15.54
      ],
      [
-      0.55,
-      4.94
+      0.3214,
+      -6.54
      ],
      [
-      0.82,
-      12.6
+      0.5714,
+      -0.3
+     ],
+     [
+      0.75,
+      2.77
+     ],
+     [
+      0.8929,
+      3.39
      ],
      [
       1,
-      13.3
+      3.52
      ]
     ],
     "approach": 0,
     "hangar": null,
     "circuit": null,
-    "band": 6,
+    "band": 0,
     "pav": {
      "marks": "none"
     },
     "altiport": true,
     "c": [
-     257,
-     -7707.46
+     282.0,
+     -7750.76
     ],
-    "hdg": -1.0472
+    "hdg": -1.0472,
+    "stage": {
+     "track": "resort",
+     "show": [
+      0,
+      null
+     ],
+     "vary": [
+      {
+       "show": [
+        0,
+        0
+       ],
+       "sock": false,
+       "ties": false
+      }
+     ]
+    }
    }
   ],
   "zones": [

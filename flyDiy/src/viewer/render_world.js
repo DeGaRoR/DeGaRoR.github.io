@@ -8330,7 +8330,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const R = world.soilNow(); if (!R) return;
     if (PAV.groundWxTick) PAV.groundWxTick(THREE, c => GROUND_WX.state(c, R));   // the aprons, pads and roads of a weather look
     for (const W of WXG) {
-      const st = GROUND_WX.state(W.code, R), key = st.rung + ':' + Math.round(st.S * 50);
+      const st = GROUND_WX.state(W.code, R), key = st.rung + ':' + Math.round(st.S * 50) + ':' + GROUND_WX.version;   // (the ladder's numbers moved: re-apply)
       if (key === W.key) continue;
       W.key = key;
       PAV.setGroundWx(THREE, W.part, st);

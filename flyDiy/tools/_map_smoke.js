@@ -195,10 +195,15 @@ module.exports = function mapSmoke(html, phone) {
   // close up at Jolene AFB: both runways at true scale with the designators their names carry
   const HOMEp = M.places.find(p => p.id === 'HOME');
   for (const id of HOMEp.aeros) {
-    const a = M.aeros[id], d = MM.designators(a).slice().sort().join('/'), named = /(\d{2}\/\d{2})$/.exec(a.name)[1];
+    // (AFB-0220: a parallel strip's name carries its side - 'Jolene AFB 02R/20L' - as map_menu baseName reads it; the digits are
+    //  its heading's all the same)
+    const a = M.aeros[id], d = MM.designators(a).slice().sort().join('/'), mN = /(\d{2})[LRC]?\/(\d{2})[LRC]?$/.exec(a.name), named = mN ? [mN[1], mN[2]].sort().join('/') : '(none in "' + a.name + '")';
     need(d === named, a.id + '\'s designators ' + d + ' are not its name\'s ' + named);
     const g = (new RegExp('<g class="mmRwy" data-place="HOME" data-rwy="' + id + '"[\\s\\S]*?</g>').exec(o8.svg) || [''])[0];
-    need(g && MM.designators(a).every(n => g.includes('>' + n + '</text>')) && (g.match(/<line /g) || []).length >= 9, id + ' is not drawn close up with its centreline, threshold bars and designators');
+    // (AFB-0220: Jolene's rough lane is firm mud - a soft strip draws its two dashed edge lines, as map_menu does every gravel /
+    //  grass strip; a paved one its centreline and threshold bars)
+    const paved = a.surface.key === 'concrete' || a.surface.key === 'asphalt', nL = (g.match(/<line /g) || []).length, nE = (g.match(/stroke-dasharray="2 7"/g) || []).length;
+    need(g && MM.designators(a).every(n => g.includes('>' + n + '</text>')) && (paved ? nL >= 9 : nE === 2), id + ' is not drawn close up with its designators and ' + (paved ? 'its centreline and threshold bars' : 'its two edge lines (' + a.surface.key + ')'));
   }
   for (const a of Object.values(M.aeros)) if (/\d{2}\/\d{2}$/.test(a.name)) need(MM.designators(a).slice().sort().join('/') === /(\d{2}\/\d{2})$/.exec(a.name)[1], a.id + ' designators');
   const wet = MM.overlayOf(M, st, pack, { s: 2.4, fit, tx: 800 - ((360 - pack.x0) / 12) * 2.4, ty: 450 - ((-3661 - pack.z0) / 12) * 2.4 });
@@ -212,7 +217,7 @@ module.exports = function mapSmoke(html, phone) {
   say('the map: a badge per place at the fit (' + o1.bs + ' px), names + ' + o2.n.hot + ' hotspots from the second step (' + o2.bs + ' px), rings + counts + places + runway facts closer (' + o3.bs + ' px), close up every runway at true scale (Jolene AFB 13/31 and 02/20 with their designators; the lane buoyed, the gravel edge-marked); the open contract ringed in its type colour');
   // (G2435) THE INFRASTRUCTURE by zoom band, over the projection's infra
   const IF = pack.infra, inf = k => MM.infraOf(pack, { s: fit * k, fit });
-  need(IF && IF.roads.length === 117 &&   // A0 12 Oct: the re-baked map carries the road graph (train 47) + the user's rev27 roads (was 76); rev 28 (G3020): -r_airport -r_strip +r39..r45; JOLENE-FOLD (AFB 19, 25 Oct): +r46 +r47
+  need(IF && IF.roads.length === 120 &&   // A0 12 Oct: the re-baked map carries the road graph (train 47) + the user's rev27 roads (was 76); rev 28 (G3020): -r_airport -r_strip +r39..r45; JOLENE-FOLD (AFB 19, 25 Oct): +r46 +r47; SKYLINE-RESORT (13 Nov): +tw_p_ridge +tw_p_launch +tw_p_lookout (the summit's footpaths)
     IF.zones.length >= 10 && IF.links.length === 1, 'the projection carries no infra (roads, zones, the tram)');
   const mainN = IF.roads.filter(r => r.main).length, nH = IF.houses.split(' ').length;
   const i1 = inf(1), i2 = inf(2), i3 = inf(3), i8 = inf(8);

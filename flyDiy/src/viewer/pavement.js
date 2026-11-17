@@ -1982,7 +1982,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     for (const m of MATS) {
       const c = m.userData && m.userData.pavWx; if (!c || m.userData.pavWxOwned) continue;
       const st = stateOf(c); if (!st) continue;
-      const key = st.rung + ':' + Math.round(st.S * 50); if (m.userData.pavWxKey === key) continue;
+      const key = st.rung + ':' + Math.round(st.S * 50) + ':' + (typeof GROUND_WX !== 'undefined' ? GROUND_WX.version : 0); if (m.userData.pavWxKey === key) continue;
       m.userData.pavWxKey = key; setGroundWx(THREE, m, st);
     }
   }
