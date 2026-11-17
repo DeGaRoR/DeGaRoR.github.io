@@ -382,6 +382,37 @@ const SPLAT_GROUND = (() => {
   float gTrPx = 0.0;   // the pixel's footprint on the ground (m): the joints' anti-alias, taken where the flow is uniform (sSplat)
   vec3 gTrN = vec3(0.0, 1.0, 0.0);                            // the smooth normal (sSplat's nGeo)
   float sTrH1(float n){ return fract(sin(n * 127.1 + 311.7) * 43758.5453); }
+  // ---- V1'S OWN NOISE, EXACT (17 Nov, the user far away: "still no detail texture"): rock_ring_core's hh / vn2 / fbm / jset, bit for
+  // bit (the 32-bit hash in uint: Math.imul's low bits), so the pixel draws the very joints and fine terms the macro texture's 1 m level
+  // holds - past its 500 m, every distance. Each octave and each line under the pixel gives way to its mean (sTrFbm's px, jset's we)
+  float sTrHh(int x, int y, int z){
+    uint h = (uint(x) * 0x27d4eb2du) ^ ((uint(y) + 0x632be5abu) * 0x165667b1u) ^ ((uint(z) + 0x7f4a7c15u) * 0x9e3779b1u);
+    h ^= h >> 16u; h *= 0x85ebca6bu; h ^= h >> 13u; h *= 0xc2b2ae35u; h ^= h >> 16u; return float(h) * 2.3283064e-10; }
+  float sTrVn(float x, float y, int s){ float X = floor(x), Y = floor(y), u = x - X, v = y - Y; u = u * u * (3.0 - 2.0 * u); v = v * v * (3.0 - 2.0 * v);
+    int i = int(X), j = int(Y); float a = sTrHh(i, j, s), b = sTrHh(i + 1, j, s), c = sTrHh(i, j + 1, s), d = sTrHh(i + 1, j + 1, s);
+    return (a + (b - a) * u) * (1.0 - v) + (c + (d - c) * u) * v; }
+  // fbm_at: n cells over 2048 m, gain 0.5 - an octave whose cell is under ~1.5 pixels is its mean (0.5): no fizz, no moire
+  float sTrFbm(vec2 xz, float n, int seed, int oct){ float sm = 0.0, a = 1.0, w = 0.0, f = n / 2048.0;
+    for (int o = 0; o < 3; o++) { if (o >= oct) break; float k = smoothstep(0.35, 0.75, gTrPx * f);
+      sm += a * mix(sTrVn(xz.x * f, xz.y * f, seed * 31 + o), 0.5, k); w += a; a *= 0.5; f *= 2.0; } return sm / w; }
+  vec4 gTrJs = vec4(0.0); float gTrJw = 0.0;   // jset's result: (distance to the nearest line, its index, the band, open) + its width
+  void sTrJset(vec2 xz, float th, float smin, float smax, int seed, float warpA, float shift){
+    float nx = cos(th), nz = sin(th);
+    float c = xz.x * -nz + xz.y * nx + (sTrFbm(xz, 16.0, seed, 3) - 0.5) * 2.0 * warpA + (sTrFbm(xz, 64.0, seed + 1, 2) - 0.5) * 0.5 * warpA + shift;
+    float t = xz.x * nx + xz.y * nz, S = (smin + smax) * 0.5, J = (smax - smin) / S * 0.5, b = floor(c / S);
+    float best = 1e9, li = 0.0, lo = -1e9;
+    for (int k = 0; k < 4; k++) { float kk = b - 1.0 + float(k), pp = (kk + (sTrHh(int(kk), 0, seed + 2) - 0.5) * J) * S, dd = abs(c - pp);
+      if (dd < best) { best = dd; li = kk; } if (pp <= c && pp > lo) lo = pp; }
+    float op = smoothstep(0.45, 0.6, sTrVn(t / 160.0 + li * 13.1, 0.5, seed + 3));
+    gTrJs = vec4(best, li, floor(lo / S + 0.5), op); gTrJw = 0.8 + 1.7 * sTrHh(int(li), 1, seed); }
+  float sTrGl(float o, float d, float w){ float we = max(w, gTrPx * 0.75); return o * (1.0 - smoothstep(0.3, 1.0, d / we)) * (w / we); }
+  // v1's fine terms on a field E (the soft levels' and the map's: Ef without them) -> the exposure, as macroAt: the 8 / 3.2 m mottle,
+  // the threshold, then the 4.9 / 2 m speckles of green (the joints' cut is the vote's, after)
+  float sTrFineE(float E, vec2 xz, float d){
+    float fine = sTrFbm(xz, 256.0, 78, 3), ufine = sTrFbm(xz, 640.0, 79, 2), sw = 0.04 + 2.5e-5 * d;
+    float e = smoothstep(0.46 - sw, 0.46 + sw, E + (fine - 0.5) * 0.5 + (ufine - 0.5) * 0.35);
+    float sp1 = sTrFbm(xz, 420.0, 80, 3), sp2 = sTrFbm(xz, 1000.0, 81, 2);
+    return e * (1.0 - min(1.0, smoothstep(0.56, 0.63, sp1) + smoothstep(0.6, 0.66, sp2) * 0.8) * (0.55 + 0.45 * smoothstep(0.3, 0.7, fine))); }
   // ONE JOINT SET: warped parallel lines S apart, open in segments along them, widened to the pixel and faded by the same ratio
   float sTrLine(vec2 xz, float th, float S, float wid, float seed){
     vec2 nn = vec2(cos(th), sin(th)), pp = vec2(-nn.y, nn.x);
@@ -399,11 +430,17 @@ const SPLAT_GROUND = (() => {
 #else
     float d = distance(vWPi, cameraPosition); if (d > uTrF.z) return 0.0;
     vec2 q = xz * uTrJ.x;
-    // the bench v1's network: two regional sets (150 and 60 deg, ~24 / 25 m) and two secondary (105, 15 deg; ~6.75 / 8.25 m)
-    float jA = sTrLine(q, 2.618, 24.0, 0.65, 1.3), bA = gTrBand, jB = sTrLine(q, 1.047, 25.0, 0.65, 4.1);
-    gTrCell = sTrH1(bA * 12.9898 + gTrBand * 78.233); gTrCell2 = sTrH1(bA * 39.346 + gTrBand * 11.135 + 0.7);   // (the slab between the two sets' lines)
-    float jC = sTrLine(q, 1.833, 6.75, 0.26, 7.9) * 0.6, jD = sTrLine(q, 0.262, 8.25, 0.23, 9.7) * 0.55;
-    return max(max(jA, jB), max(jC, jD)) * (1.0 - smoothstep(uTrF.z * 0.5, uTrF.z, d));
+    // (17 Nov: v1's network itself - macroAt's four jsets, the regional 150 / 60 deg and the secondary 105 / 15 deg, their open runs and
+    // their gating by the bands - the very lines of the macro texture's 1 m level, so the pattern runs on past it unchanged)
+    sTrJset(q, 2.6179939, 10.0, 30.0, 8, 22.0, 0.0); vec4 A = gTrJs; float wA = gTrJw * 0.65;
+    sTrJset(q, 1.0471976, 12.0, 38.0, 18, 18.0, sTrHh(int(A.z), 5, 7) * 150.0); vec4 B = gTrJs; float wB = gTrJw * 0.65;
+    sTrJset(q, 1.8325957, 3.5, 10.0, 28, 6.0, sTrHh(int(A.z) * 7 + int(B.z), 7, 7) * 80.0); vec4 C = gTrJs; float wC = gTrJw * 0.4;
+    sTrJset(q, 0.2617994, 4.5, 12.0, 38, 6.0, sTrHh(int(B.z) * 5 + int(A.z), 8, 7) * 80.0); vec4 D = gTrJs; float wD = gTrJw * 0.35;
+    float oB = B.w * step(sTrHh(int(A.z) * 97 + int(B.y), 6, 7), 0.65), oC = C.w * step(sTrHh(int(A.z) * 31 + int(C.y), 9, 7), 0.7), oD = D.w * step(sTrHh(int(B.z) * 17 + int(D.y), 10, 7), 0.6);
+    float g = max(max(sTrGl(A.w, A.x, wA) * (0.6 + 0.9 * sTrHh(int(A.y), 2, 7)), sTrGl(oB, B.x, wB) * (0.5 + 0.8 * sTrHh(int(B.y), 3, 7))),
+                  max(sTrGl(oC, C.x, wC) * (0.35 + 0.5 * sTrHh(int(C.y), 4, 7)), sTrGl(oD, D.x, wD) * (0.3 + 0.45 * sTrHh(int(D.y), 5, 7))));
+    gTrBand = B.z; gTrCell = sTrHh(int(A.z), int(B.z), 12); gTrCell2 = sTrHh(int(A.z), int(B.z), 13);   // (the slab between the two regional sets' lines)
+    return g * (1.0 - smoothstep(uTrF.z * 0.5, uTrF.z, d));
 #endif
   }
   // THE EXPOSURE: the share of rock that shows, from the raster's own rock share r - rock on the high, convex, steep ground,
@@ -417,11 +454,8 @@ const SPLAT_GROUND = (() => {
     float a = texture2D(uGTint, uv).a;
     gTrBias = 0.0;
     if (a < 0.004) return 0.0;
-    float d = distance(vWPi, cameraPosition), dk = 1.0 - smoothstep(900.0, 2500.0, d), fine = gVnoise(xz / 8.0 + 11.3);
-    float E = a * 1.5 - 0.3 + (fine - 0.5) * 0.5 + (gVnoise(xz / 3.2 + 4.1) - 0.5) * 0.35 * dk, sw = 0.04 + 5.4e-5 * d;
-    float e = smoothstep(0.46 - sw, 0.46 + sw, E) * (1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y);
-    e *= 1.0 - clamp(smoothstep(0.56, 0.63, gVnoise(xz / 4.9 + 2.2)) + smoothstep(0.6, 0.66, gVnoise(xz / 2.0 - 7.7)) * 0.8, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.3, 0.7, fine)) * (0.4 + 0.6 * dk);
-    return e;
+    float d = distance(vWPi, cameraPosition);
+    return sTrFineE(a * 1.5 - 0.3, xz, d) * (1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y);   // (v1's fine terms, exact: sTrFineE)
   }
   // THE MACRO TEXTURE (16 Nov, the user: "I'm really missing your macro textures" - the far ground "patchy, pixely"): the bench
   // v1's macro (trond_gen: the colour multiplier, the exposure, the green's chance, the height and its normal), which v1's
@@ -450,10 +484,7 @@ const SPLAT_GROUND = (() => {
     // added as value noise at their own cells (the 8 / 3.2 m mottle, the 4.9 / 2 m green speckles) and the edge widened with the
     // distance (an anti-aliased threshold, not a shimmer): crisp edges at any texel, no memory, no read
     if (wS > 0.0) { aS /= wS; bS /= wS;
-      float d = distance(vWPi, cameraPosition), dk = 1.0 - smoothstep(900.0, 2500.0, d), fine = gVnoise(xz / 8.0 + 11.3);
-      float E = aS.a * 1.5 - 0.3 + (fine - 0.5) * 0.5 + (gVnoise(xz / 3.2 + 4.1) - 0.5) * 0.35 * dk, sw = 0.04 + 5.4e-5 * d;
-      float e = smoothstep(0.46 - sw, 0.46 + sw, E);
-      e *= 1.0 - clamp(smoothstep(0.56, 0.63, gVnoise(xz / 4.9 + 2.2)) + smoothstep(0.6, 0.66, gVnoise(xz / 2.0 - 7.7)) * 0.8, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.3, 0.7, fine)) * (0.4 + 0.6 * dk);
+      float e = sTrFineE(aS.a * 1.5 - 0.3, xz, distance(vWPi, cameraPosition));   // (v1's fine terms, exact: the 1 m level's own pattern past it)
       aS.a = e; bS.b = max(bS.b, 1.0 - e); }
     gTrMA = (a0 * w0 + aS * wS) / gTrIn; gTrMB = (b0 * w0 + bS * wS) / gTrIn; gTrSoft = wS / gTrIn;
     return gTrIn;
