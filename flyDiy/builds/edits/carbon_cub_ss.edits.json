@@ -198,9 +198,9 @@
   },
   "wear": 0.05,
   "decals": {
-   "regH": 0.16,
-   "regL": 3.55,
-   "regC": -0.06,
+   "regH": 0.2,
+   "regL": 3.75,
+   "regC": -0.035,
    "regW": 1,
    "regLock": 1,
    "imgW": 0.15,
