@@ -9569,12 +9569,12 @@
    "file": null,
    "kind": "cover",
    "credit": {
-    "author": "flyDiy (procedural, MOUNTAIN-VEG 17 Nov 2026)",
-    "license": "own work",
-    "source": "tools: generated",
+    "author": "supplied by the user (17 Nov 2026), sliced by tools/lily_prep.py",
+    "license": "user-supplied",
+    "source": "the user's lily-pad sheets (kept out of git)",
     "title": "Water lily pads"
    },
-   "licence": "own work",
+   "licence": "user-supplied",
    "licenceOk": true,
    "place": {
     "sink": 0,
@@ -9586,15 +9586,26 @@
     "vary": 0.08,
     "root": 0,
     "rootH": 0.5,
-    "size": 2.2,
+    "size": 1,
     "shape": "float",
     "aspect": 1,
     "crownH": 1.3,
     "mul": [
-     0.75,
+     0.7,
      0.85,
-     0.75
-    ]
+     0.95
+    ],
+    "aspects": [
+     0.75,
+     0.62,
+     1.19,
+     0.56,
+     0.85,
+     1.69,
+     1.69,
+     1.71
+    ],
+    "sizeVar": 0.2
    },
    "tint": {
     "hue": 0,
@@ -9604,7 +9615,14 @@
     "alpha": 0.4
    },
    "maps": [
-    "media/tex/flowers/water_lily.50afd29a.png"
+    "media/tex/flowers/water_lily_a.a8c06fca.png",
+    "media/tex/flowers/water_lily_b.139390ae.png",
+    "media/tex/flowers/water_lily_c.98bc49ad.png",
+    "media/tex/flowers/water_lily_d.56532fda.png",
+    "media/tex/flowers/water_lily_e.ae8643e3.png",
+    "media/tex/flowers/water_lily_f.83a38d91.png",
+    "media/tex/flowers/water_lily_g.777d2c46.png",
+    "media/tex/flowers/water_lily_h.b9d4f7dd.png"
    ],
    "bin": null,
    "bytes": 0,
@@ -12146,7 +12164,7 @@
      },
      "water_lily": {
       "proportion": 1,
-      "density": 0.18,
+      "density": 0.5,
       "patch": 7,
       "patchShare": 0.45,
       "onWater": [
