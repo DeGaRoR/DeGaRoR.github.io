@@ -528,7 +528,11 @@ function makePilot(sim, def, world, opts) {
   const runNeeded = () => ST.needK * (0.85 * (A.TORun ?? 500) + stopDist(A.VRot || 18) + reserveOf());
   // STRIP-LANE: a strip whose aerodrome carries `micro` (chaos > 0, DIRT-STRIP's bumps and stones) - its turns are made on
   // the centreline, in the rolled band (planDeparture, TAXI's pivots, LINEUP)
-  const stripRoughOf = a => !!(a && a.micro && +a.micro.chaos > 0);
+  // ALTI-ROUGH (the user's bumps on tw_ski 0.2, afb-0220-b2, 17 Nov; A0: 'the turn on the spot on Skyline's apron is the user's own altiport
+  // technique - must not stay broken'): AN ALTIPORT IS NEVER PLANNED AS A ROUGH STRIP. STRIP-LANE 2's rules (the centreline lane, the
+  // turn on the centreline, the U-turn pads) keep a bush strip's wheels off the stones along its edges; an altiport is left and
+  // turned the user's way - up to the flat top, the turn on its apron (ALTI-TOP, GTRAM) - whatever its surface's chaos
+  const stripRoughOf = a => !!(a && a.micro && +a.micro.chaos > 0 && !a.altiport);
 
   // ---- frames -------------------------------------------------------------
   // The landing/departure frame is the test pilot's: origin td + 450 u so the
