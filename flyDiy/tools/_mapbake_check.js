@@ -145,7 +145,9 @@ function check(o) {
 
   console.log('THE BUDGET');
   ok(png.length <= 2 * 1024 * 1024, 'the picture ' + (png.length / 1024).toFixed(0) + ' KB <= 2048 KB');
-  ok(projBuf.length <= 96 * 1024, 'the projection ' + (projBuf.length / 1024).toFixed(1) + ' KB <= 96 KB');   // (G3014: 64 -> 96 KB, the user's accepted growth - see its budget above)
+  // (AFB-0220-B3, DIRT-STRIP integrating, A0 17 Nov: 96 -> 100 KB - the merged island's projection 96.2 KB: 02/20's 17th runway and its
+  //  dressing, SKYLINE-RESORT's footpaths and resort, the vegetation rail together; a named growth for A0's ruling, as G3014's was)
+  ok(projBuf.length <= 100 * 1024, 'the projection ' + (projBuf.length / 1024).toFixed(1) + ' KB <= 100 KB');   // (G3014: 64 -> 96 KB, the user's accepted growth - see its budget above; AFB-0220-B3: 100)
   ok(img.w <= 4096 && img.h <= 4096 && img.w * img.h * 4 <= 32 * 1024 * 1024, 'phone-safe: ' + img.w + ' x ' + img.h + ' px, ' + (img.w * img.h * 4 / 1048576).toFixed(1) + ' MB decoded');
   ok(files.length === 3 && files.includes(path.basename(pack.img)) && files.includes(path.basename(pack.proj)) && pack.art && files.includes(path.basename(pack.art.img)),
     'media/map/ holds the three files the pack names (' + files.join(', ') + ')');

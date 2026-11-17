@@ -222,7 +222,9 @@ console.log('G. the world editor (A0 for the user, 16 Nov: every new world setti
   const pick = r => ['w6', 'w8'].map(id => { const w = r.layers.runways.find(q => q.id === id); return w.look + '/' + w.surface + (w.micro ? '/' + w.micro.chaos : ''); }).join(' ');
   const e1 = PG.envelope('jolene', PG.unwrap(JTXT).rec), r2 = W.premises && W.premises.rec, e2 = r2 ? PG.envelope('jolene', r2) : null;
   const p1 = pick(PG.unwrap(e1).rec), p2 = e2 ? pick(PG.unwrap(e2).rec) : '-';
-  yes(p1 === 'dirtwx/20 dirtwx/20/0.4' && p2 === p1, 'the editor\'s save keeps the ladder on w6 and w8 (saved, composed, saved again)', p1 + ' | ' + p2);
+  // (BUMPINESS, the user 16 Nov - re-pinned by DIRT-STRIP integrating AFB-0220-B3: the user's red marks put w6 at chaos 0.8 and w8 at 0.6;
+  //  the ladder itself is unchanged - look dirtwx, surface 20 on both, kept through save / compose / save)
+  yes(p1 === 'dirtwx/20/0.8 dirtwx/20/0.6' && p2 === p1, 'the editor\'s save keeps the ladder on w6 and w8 (saved, composed, saved again)', p1 + ' | ' + p2);
   // the shipped scenery's manifest names the change (SCENERYED 15: the save is the user's, byte for byte; the ladder a field patch after the ship)
   const MF = JSON.parse(src('tools/fixtures/scenery_ship_afb19.json'));
   yes(['w6', 'w8'].every(id => MF.fieldPatches[id] && MF.fieldPatches[id].look === 'dirtwx' && MF.fieldPatches[id].surface === 20) && /SNOW-MUD LADDER/.test(MF.fieldPatchesWhyLadder || ''),
