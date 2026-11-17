@@ -317419,3 +317419,15 @@ THE FRAME the script writes in: the strip's axis, d = (cos -1.0472, sin -1.0472)
   6 m strip's roll-out tracking is Pilot's L40f item (with the refit Cessna's off-strip roll, above)
   NOT RUN HERE: RWYTREES (every row ok but past the runner's 1800 s on master too in this container), SCENERYED 20b / LAZY
   (master's own here on L40a / L40c / L40d)
+
+AFB-0220-B3 - THE FIXTURE CLUSTER (DIRT-STRIP integrating, A0 17 Nov 12:00 trial; replaces snow-mud-rail, afb-0220-b2 and
+skyline-resort-2 in L40f): master + world-rail-veg 840b233ca + snow-mud-rail afe531569 + afb-0220-b2 08f350211 + skyline-resort-2
+2023c6df5, merged in that order. world_rail.js: DEF / put / the doc map unioned (veg's bioKnobs + shrubCards and SNOW-MUD's ladder).
+The fixtures merged SEMANTICALLY (an id-keyed three-way JSON merge in the files' own json.dumps form, not text): island_jolene.json
+0 entries touched by both sides, none lost (tw_ski = SKYLINE's 280 x 6 + the bumpiness 0.2/23); scenery_ship_afb19.json the same
+(SNOW-MUD's w6/w8 ladder patches - master's SCENERYED 15 red gone - the strips' micro, w4's stand, SKYLINE's tw_ski + its taxiOut
+now named). Re-cooked with the fixtures' tools, rebuilt. Re-pins named for A0: MUDLADDER w6/w8 at the user's 0.8/0.6; TERRAINMATCH
++144 patch triangles from the merged layers; MAPBAKE's projection 96 -> 100 KB (96.2 KB). Gates: AFB0220 SCENERYED PREMISES
+PREMCOOK MAPBAKE TERRAINMATCH STRIPGROUND MICRO WORLDRAIL COVER MUDLADDER SNOWMUDFX PASS; ALTIPORT 2+3 and TAXICLEAR 1 master's;
+TAXICLEAR 11b and 12 green once pilot-altiport (ALTI-ROUGH) merges (tested locally); TAXICLEAR 11c - the C172 from the 280 m
+altiport crashes instead of rejecting the take-off - see the train note.
