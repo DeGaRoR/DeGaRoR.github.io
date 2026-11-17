@@ -143,6 +143,10 @@ function liveTerm(W, o) {
   const fbText = o.fbSrc || fs.readFileSync(fbPath, 'utf8');
   yes(/sh\.fragmentShader = '#define GD_OFF\\nuniform float uFbOut;/.test(fbText) && /#ifndef GD_OFF/.test(W.AERO_WX_SURF_FS) && /#ifdef GD_TERM\n  material\.clearcoat \*= 1\.0 - gdMudK;/.test(W.AERO_WX_CC_FS),
     'F the atlas bake never freezes the term (GD_OFF); the live shader\'s clear coat goes with the mud (GD_TERM)');
+  // the 16:05 re-shoot (17 Nov): the scuffed program passed the GPU's 16 texture units with the term's two samplers - it
+  // compiles the term out (GD_OFF), so its unit count is master's
+  { const sc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'skin_scuff.js'), 'utf8');
+    yes(/const def = '#define DMG_SCUFF 1\\n#define GD_OFF 1\\n'/.test(o.scuffSrc || sc), 'F the scuffed program compiles the term out (GD_OFF: under the 16 texture units, as master)'); }
   if (o.src) yes(/FBk \? FBk\(\(\) => gdGather\(U\)\) : gdGather\(U\)/.test(o.src), 'F the grid gathered with the bake\'s parked live meshes put back (FLOWN_BAKE.withKept: the slot saw 3686 of 12457 cells)');
   // the JS mirror at a fragment's point: a plate, mud arriving up at its middle -> the underside takes it, the top none
   const T = [], part = [];
@@ -191,6 +195,7 @@ if (SELF) {
   doctor('the live term not stepped', () => {}, { src: src.replace('gdFrame(running ? fdt : 0);', '') });
   doctor('the bake freezes the term', () => {}, { src, fbSrc: fb.replace("sh.fragmentShader = '#define GD_OFF\\nuniform float uFbOut;", "sh.fragmentShader = 'uniform float uFbOut;") });
   doctor('the grid misses the parked meshes', () => {}, { src: src.replace('gat = FBk ? FBk(() => gdGather(U)) : gdGather(U);', 'gat = gdGather(U);') });
+  doctor('the scuff keeps the term', () => {}, { src, scuffSrc: fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'skin_scuff.js'), 'utf8').replace('#define GD_OFF 1', '') });
   doctor('both muds drawn', () => {}, { src: src.replace('AEROWX.aeroWxSetMud(THREE, GDX.G ? 0 : mudCoat);', 'AEROWX.aeroWxSetMud(THREE, mudCoat);') });
   console.log('GATE MUDCOAT selftest: ' + (bad.length ? 'FAIL (' + bad.join(', ') + ' stayed green)' : 'PASS (every doctored law went red)'));
   process.exit(bad.length ? 1 : 0);
