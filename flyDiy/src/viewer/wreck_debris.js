@@ -280,12 +280,28 @@
     if (!W.bodies.length) return 0;
     W.acc = Math.min(W.acc + Math.max(0, dt), 0.25);
     let n = 0;
+    // (G4103, JOINT-TETHER: the kinks' tethers hold a wreck that slides on after a part has come to rest - the metal
+    // Cessna's pane slept at 1.95 s in front of a cabin still moving, which then stood over it: a cabin bay is solid only
+    // once still (G1862.1), and a sleeping part was never pushed. A sleeper with a corner inside a still bay wakes, to be
+    // pushed out through its nearest wall as any other)
+    if (env.solid && W.acc >= DT) for (const B of W.bodies) if (B.asleep && !B.solidChk) { B.solidChk = true; if (!B.sunk && !(B.age > LIFE) && inSolid(B, env)) { B.asleep = false; B.tRest = 0; } }
     while (W.acc >= DT) { W.acc -= DT; W.t += DT; n++; for (const B of W.bodies) if (!B.asleep) sub(B, env); }
     for (const B of W.bodies) if (B.asleep && B.floats && B.wet && env.water) {   // a floating piece rides the surface
       const h = env.water(B.x[0], B.x[2]); if (h != null && Number.isFinite(h)) B.x[1] = h + B.draft;
     }
     return n;
   }
+  // a body's corner more than a centimetre inside a solid (still) cabin bay
+  function inSolid(B, env) {
+    const R = rotOf(B.q, _R);
+    for (const pl of B.pts) {
+      const H = env.solid(B.x[0] + R[0] * pl[0] + R[1] * pl[1] + R[2] * pl[2], B.x[1] + R[3] * pl[0] + R[4] * pl[1] + R[5] * pl[2], B.x[2] + R[6] * pl[0] + R[7] * pl[1] + R[8] * pl[2]);
+      if (H && H.d > 0.01) return true;
+    }
+    return false;
+  }
+  // (G4103) the cabin's solid wanted: a body awake, or one asleep not yet read against a still cabin (step marks it)
+  function needSolid(W) { return W.bodies.some(B => !B.asleep || !B.solidChk); }
   function sub(B, env) {
     const R = rotOf(B.q, _R);
     // gravity, the medium's drag and (in water) its buoyancy: the body's centre below the surface
@@ -384,7 +400,7 @@
     // the bed unseen)
     if (wet && !B.floats && hw - B.x[1] > SUNK + Math.max(B.hi[0] - B.lo[0], B.hi[1] - B.lo[1], B.hi[2] - B.lo[2]) / 2) B.sunk = true;
     if (B.tRest > REST_T || B.age > LIFE || B.sunk) {
-      B.asleep = true; B.v[0] = B.v[1] = B.v[2] = 0; B.w[0] = B.w[1] = B.w[2] = 0;
+      B.asleep = true; B.solidChk = false; B.v[0] = B.v[1] = B.v[2] = 0; B.w[0] = B.w[1] = B.w[2] = 0;
       B.draft = hw != null && Number.isFinite(hw) ? B.x[1] - hw : 0;
     }
   }
@@ -680,7 +696,7 @@
 
   const API = { wireEnds, wireTube, G, DT, CRUSH, TORN, KICK, SPIN, MU, BOUNCE, REST_V, REST_W, REST_T, LIFE, E_BEND, E_BREAK, CURL0, CURL1, CURL_S0, DENT0, DENT1, EYE_CLEAR, EYE_VOL,
     WET_K, CUT0, CUT1, TWIST, isMetal, CURL_B, DRV_RANK, fromDrive,
-    rng, hash, carry, plan, watcher, watch, leaves, fit, release, step, rotOf, clearance, heal, solidOf, strike, support, held, inHull2, groundPlane, SUP_TOL, SUP_IN, SUP_N, azOf, bladeFrame, bladeOf, curlBlades, dentSpinner,
+    rng, hash, carry, plan, watcher, watch, leaves, fit, release, step, rotOf, clearance, heal, solidOf, needSolid, strike, support, held, inHull2, groundPlane, SUP_TOL, SUP_IN, SUP_N, azOf, bladeFrame, bladeOf, curlBlades, dentSpinner,
     bays, depth, vol, cabin, crushed };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.WRECK_DEBRIS = API;
