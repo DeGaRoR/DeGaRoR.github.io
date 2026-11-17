@@ -31,7 +31,7 @@
 var ROCK_MAP = (() => {
   function make(THREE, ctx) {
     const { renderer, world, cover, camera, gU } = ctx;
-    const S = { on: true, half: 1000, px: 2048, recentre: 350, cell: 32, budgetMs: 3, slot: 256, off: (typeof location !== 'undefined' && /[?&]rockmap=0/.test(location.search)) };
+    const S = { on: true, half: 1000, px: 2048, recentre: 350, cell: 32, budgetMs: 3, slot: 256, bushOpacity: 0.45, off: (typeof location !== 'undefined' && /[?&]rockmap=0/.test(location.search)) };
     const STAT = { planned: 0, rocks: 0, renders: 0, sprites: 0, lastPlanMs: 0 };
     const plans = new Map();          // 'cx,cz' -> records | null
     let cx0 = NaN, cz0 = NaN, dirty = false, ready = false, complete = false;
@@ -53,9 +53,12 @@ var ROCK_MAP = (() => {
       // it, and the next part linked the same program again - the census: 30 links of 2 programs in one roll-out.
       // Now one material per (map, cut), all alive until the atlas is drawn: the two programs link once each
       const kinds = new Map();
-      const spriteMat = (map, cut) => {
-        const key = (map ? map.uuid : '-') + '|' + (cut > 0 ? cut : 0);
+      const spriteMat = (map, cut, card) => {
+        const key = (map ? map.uuid : '-') + '|' + (cut > 0 ? cut : 0) + (card ? '|card' : '');
         let m = kinds.get(key);
+        // a shrub card: a picture, its SOFT alpha kept (17 Nov, the user on the far bushes: "they should fade better, they should smooth
+        // out rather than looking like blotches" - a cut made every sprite a hard-edged blot)
+        if (card) { if (!m) { m = MATLIB.make(THREE, 'basic', { map: map || null, toneMapped: false, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide }); kinds.set(key, m); } return m; }
         if (!m) {
           m = new THREE.MeshBasicMaterial({ map: map || null, toneMapped: false });
           if (cut > 0) { const uCut = { value: cut }; m.onBeforeCompile = sh => { sh.uniforms.uCut = uCut;
@@ -68,8 +71,11 @@ var ROCK_MAP = (() => {
       };
       for (const { c, P } of protos) for (const p of P) {
         if (k >= perRow * perRow) break;
-        const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || 1);
-        const meshes = p.parts.map(part => new THREE.Mesh(part.geo, spriteMat(part.mat.map, cut)));
+        const card = p.kind === 'cover' ? ((c.tint && c.tint.alpha > 0) ? +c.tint.alpha : 0.3) : 0;
+        // a card's footprint from its geometry (built at unit size: the instance scale carries place.size)
+        const bbR = () => { let r = 0; for (const part of p.parts) { const g = part.geo; if (!g.boundingBox) g.computeBoundingBox(); const b = g.boundingBox; r = Math.max(r, -b.min.x, b.max.x, -b.min.z, b.max.z); } return r || 1; };
+        const place = c.place || {}, cut = place.cut || 0, r0 = Math.max(0.05, p.r0 || (card ? bbR() : 1));
+        const meshes = p.parts.map(part => new THREE.Mesh(part.geo, spriteMat(part.mat.map, cut, card)));
         sc.clear(); meshes.forEach(m => sc.add(m));
         // from above: right = +x, up = -z (the world's north), the footprint [-r0, r0]
         cam.left = -r0; cam.right = r0; cam.top = r0; cam.bottom = -r0; cam.updateProjectionMatrix();
@@ -97,6 +103,9 @@ var ROCK_MAP = (() => {
     // ONE MATERIAL FOR EVERY SPRITE OF THE MAP (G584): they were identical, made per species and disposed at every
     // rebuild - so a recentre let the program go and linked it again
     const mapMat = new THREE.MeshBasicMaterial({ map: ATLAS.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.05 });
+    // the bushes' sprites (17 Nov): at a partial opacity (S.bushOpacity), so a lone sprite is a faint tint and only where they gather
+    // does the ground take the bushes' colour - the beds fade out as they thin, no hard patch
+    const mapMatBush = MATLIB.make(THREE, 'basic', { map: ATLAS.texture, transparent: true, opacity: S.bushOpacity, depthTest: false, depthWrite: false, toneMapped: false, alphaTest: 0.01 });
     function rebuild() {
       for (const m of meshes) { mapScene.remove(m); m.geometry.dispose(); }
       meshes = [];
@@ -108,7 +117,7 @@ var ROCK_MAP = (() => {
         const sl = slots.get(pk); if (!sl) continue;
         const g = quad.clone();
         const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, sl.u0 + uv.getX(i) * sl.du, sl.v0 + uv.getY(i) * sl.dv);
-        const m = new THREE.InstancedMesh(g, mapMat, recs.length);
+        const m = new THREE.InstancedMesh(g, (sl.proto && sl.proto.kind === 'cover') ? mapMatBush : mapMat, recs.length);
         let anyCol = false;
         for (let i = 0; i < recs.length; i++) { const r = recs[i];
           Q.setFromAxisAngle(UP, r.yaw); V.set(r.x, 0, r.z); SC.set(2 * sl.r0 * r.s, 1, 2 * sl.r0 * r.s);
@@ -182,7 +191,8 @@ var ROCK_MAP = (() => {
       const aglK = st.aglK === undefined ? 1 : st.aglK;
       gU.uRockFade.value.set(cs.near || 50, cs.reach || 220, cs.taper === undefined ? 0.5 : cs.taper, (cs.rocks === 0 ? 0 : aglK));
     }
-    const api = { get: () => Object.assign({}, S), stat: () => Object.assign({ plans: plans.size }, STAT), set: o => { Object.assign(S, o || {}); complete = false; return api.get(); },
+    const api = { get: () => Object.assign({}, S), stat: () => Object.assign({ plans: plans.size }, STAT),
+      set: o => { Object.assign(S, o || {}); complete = false; if (o && o.bushOpacity !== undefined) { mapMatBush.opacity = +S.bushOpacity; dirty = true; } return api.get(); },
       // B9 (G1020): the map's programs, to compile before its first render (the one loading): its sprites are
       // instanced, with and without an instance colour - two programs that linked on the first flight frames
       warm: () => { const g = new THREE.Scene(), a = new THREE.InstancedMesh(quad, mapMat, 1), b = new THREE.InstancedMesh(quad, mapMat, 1);

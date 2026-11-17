@@ -710,7 +710,7 @@ def bake_textures(g, bin_, used, stem):
 # builds its cards. A generated species (`gen`, the dead stick) is skipped - it
 # needs the bench's generator at runtime (owed).
 FLOWERS = os.path.join(ASSETS, 'vegetation', 'flowers')
-PLACE_SKIP = {'file', 'subjects', 'parts', 'snags', 'kind', 'maps', 'gen', 'material', 'keepTop', 'ship',
+PLACE_SKIP = {'file', 'subjects', 'parts', 'snags', 'kind', 'maps', 'gen', 'material', 'keepTop', 'ship', 'credit', 'licence',
               'hue', 'sat', 'light', 'bark', 'alpha', 'stick'}
 GROUP_KEYS = ('trees', 'shrubs', 'cover', 'billboards', 'rocks')
 
@@ -923,10 +923,11 @@ def main():
             stem = safe(key) if key != a['name'] else fstem
             place = {k: v for k, v in t.items() if k not in PLACE_SKIP}
             place['crownH'] = view_crown_h
+            # a species' own credit (17 Nov: a picture made here, the water lily) wins over its file's
             entry = {'name': key, 'file': a['name'], 'kind': sp['kind'],
-                     'credit': a.get('credit'),
-                     'licence': (a.get('licence') or {}).get('text'),
-                     'licenceOk': (a.get('licence') or {}).get('ok'),
+                     'credit': t.get('credit') or a.get('credit'),
+                     'licence': t.get('licence') or (a.get('licence') or {}).get('text'),
+                     'licenceOk': True if t.get('credit') else (a.get('licence') or {}).get('ok'),
                      'place': place,
                      'tint': {k: t.get(k) for k in ('hue', 'sat', 'light', 'bark', 'alpha') if k in t}}
             if sp.get('maps'):

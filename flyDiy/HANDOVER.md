@@ -316804,6 +316804,17 @@ re-cooked (premises, city, map, fleet; mt_strip 0 spots):
 - NOT RUN on a page yet: the --gpu half of this version (A0: the node gate is enough for the ready). INFRAME uses
   camera.matrixWorldInverse / projectionMatrix as last drawn; a sim on the worker without cgPos falls back to camGet, said so.
 
+## GRASS TO THE EDGE (LOOK-1, 16-17 Nov 2026; the user: "wild grass coming close up", then "taller grass on the strip side and the wild
+## grass I validated", then "no grass should be smaller than 30 cm I think, even mown")
+- 27_premises GRASS_SIDES: softBandK 0 - a SOFT strip's (gravel, dirt, grass, snow) own cut band x this (1 = before: w1 4 m, w4
+  14.5 m), so the wild grass runs to its drawn edge; mowBand 1.5 m - the band past it, whose cut answers `tall` in coverAt. The paved
+  fields (HOME, w2: 40 m) and the aprons keep their mown bands. townLawn 1 (0 = no lawn on town plots: a dial to measure the cost).
+- cover_ring.js grass field: minH 0.30 m (F9 "shortest grass") floors every MOWN height (not the wild height, not a grass strip's
+  running surface stripH); tallH 0.40 / tallSigma 0.3 for the cut beside a soft strip (the `tall` array, read like `cut`).
+- All look only: the wheels never read the cut. GRASSSIDES 7-8, GREENGRASS 11, COVER 8b, PAVEMENT (town lawn), LOOKS 5 (the okAt pin
+  takes the marginGrassAt term). Pictures + cost: https://claude.ai/artifact/7GmMNHx6tkQDMUnreY3Am8 (Tue 11:00: tufts +9 %, frame
+  time within noise). GRASS-CARDS (claude/grass-cards) puts cards on the cut ground and can lower minH under them.
+
 ## FLIGHT-SCRIPT (Pilot, 15 Nov 2026; the user via A0: scripted flights in steps with a deep log)
 - tools/flight_script.js: one scenario JSON (plane list:N, from/to, day game|calm, persona, steps {do, until, capS, allow}), the NODE runner through the game's own host (_tour_lib gameHost); one JSONL per run (run / sample 1 Hz / say / step with solver ms / end). A failed step stops the run with its WHY. The page runner (page_rig.js, frame ms per step) follows Thu 19 Nov.
 - The library tools/flight_scripts/: home_circuit (F-HCSN), east_point (the Cub, CALM: on the game's day it diverts, said), strip_jumbo (the Jodel), altiport (the Cub), float_circuit (B-CESF list:4). All five pass on 58c681347.
@@ -316842,6 +316853,38 @@ HOUSEWORKER: green in this battery (it was Game's one red on its stack).
 STANDING (L40c's, unchanged): FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT GLIDE UNIFY DESTTO TREECRASH DMGCERT DMGGEAR WILGAGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGWALL DMGDAMP DMGTYRE DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY WINGROWS DESIGNCHECK JOINPARITY ENGINE PARTS POD DMGPOD CANDIDATES NAMES NODUMMY ENERGYBASE TANKMOUNT ENGTORQUE FLEX LOAD ENGCONFIG.
 
 COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); after 143 s (programs 501 -> 508, world 26.1, settle 17.4, shader compile 46.2 + 11.8 s): +5 s, 7 more programs. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+
+## MOUNTAIN-VEG - THE SUBALPINE, ITS SHRUB CARDS, THE FOREST EDGES (15-16 Nov 2026; the user: "our mountain tops are too bare"; A0's GO)
+- 19 SUBALPINE (claude/ready/subalpine = claude/mountain-veg f1a92634b, L40e): heath / scrub / dense scrub above a 450-600 m ramp
+  take the `subalpine` mix (28c_biomes subCode / subKeep, render_world's BIO.subAt / keepAt hooks, the walk + stand cards + mixHere;
+  codeAt and the splat untouched); thinned on the high summits and the ridge tops; ?subalpine=0. BIOMES.hold: the knobs once a
+  pass (knobs() per point was 5 of 11 s of the walk).
+- THE SHRUB CARDS (claude/subalpine-shrubs, rides after the subalpine): picture species with place.shape carpet / cluster / crown
+  (cover_ring shapedCards; the user's picks on the shrub bench 15 Nov night: carpet for all, cluster + crown for the 2 m grey-red
+  thicket, cut 0.3, Cassiope as wide as the others); alp_greyred / alp_vaccinium / alp_elliottia / alp_cassiope; ?alpshrubs=0.
+  The pictures: the user's sprites through tools/card_prep.py, baked by tree_prep.py --only (TREE_ASSETS = a folder holding
+  vegetation/flowers/<name>.png). treeReachOf reaches code 19 (derived, not in the ttype grid).
+- FOREST-EDGE (claude/forest-edge, for Thu 19 Nov): the trees' size ramp inside a forest's edge (28c edgeField / edgeRamp /
+  edgeLift / edgeCanIn; walkRows + stand cards) and the bushes + weeds band outside (cover_ring edgeBand, GATE COVER 9);
+  ?forestedge=0. The grass field's weeds band is LOOK-1's (the field's ctx carries edgeD).
+- The tool: tools/veg_bench.js (WORKBENCH row; card cards/veg_bench.md): --subalpine 0, --forestedge 0, --edge <areas>.
+- THE WORLD EDITOR (F9, world_rail.js; the user 16 Nov: every world setting editable there) - claude/world-rail-veg, on top of
+  forest-edge + the shrubs: TYPES > subalpine (code 19: the ramp, the thinning, the dial), VEGETATION > the forest edge (the ramp,
+  the band, the field, the dial), a shaped species' card rows (cut, height, bend, lean, tilt, upright: cover_ring reshape). The
+  knobs: BIOMES.setKnobs / tuned (the look's bioKnobs; TREE_FILL.knobs replants); the planters read the splat's LIVE knobs
+  (BIOMES.ground - the split sliders never moved them). GATE WORLDRAIL holds the rows: a new world setting adds its line there.
+- 16 NOV EVENING, THE USER'S CALLS (all in claude/world-rail-veg for L40f): the subalpine "a little too sparse ... the forest
+  conifers, about 50-70% the size ... I don't want deciduous over there" -> the mix is the forest's conifers at canopyFloor 6
+  (7-9.5 m; the median forest conifer 11.7 m), no shrub_deciduous, the edge band's bushes skip it, ridge keep 0.6, clump 0.15,
+  ramp 420-540 m, the shrub cards x4. The forest edge "made the deep forest denser" -> the inside ramp is OFF (edgeIn 0) and an
+  OUTWARD BAND plants the wood's own trees outside its line (28c edgeBandAt / edgeReachAt: reach 30 m +-50 %, clumps, 0.7 ->
+  sapling; render_world walkRows: a band point refused falls back to the ground's rule; the record's canopy EDGE_CAN + size so the
+  build sizes it under the island's floor). The muskeg "higher density when there are trees ... subject to the forest border" ->
+  forest.clumpEdge (the clump fades outward) + forest.extra (a second tree in a clump). The shrub cards as bushes in every biome,
+  each its own set (my ecology default, a question on the page). Bench home: trees +51 % (muskeg extra +33, band 17.5). GAP: the
+  far stand cards do not draw the band. veg_bench mirrors it all; GATE COVER 9 holds the band's new geometry.
+- BACKLOG: the flowers and the subalpine shrubs carry simple_grass_chunks' CC-BY credit (3dhdscan) but they are the user's own
+  art - fix tree_prep's credit source (a species' own `credit` in the tuning, or none for the user's pictures).
 
 - WHEEL SIZE IN MUD AND ON STONES (the user, 15 Nov: "small wheels should struggle more than large wheels ... maybe we can test that too" and "does a large tundra wheel help on a bumpy road with stones? Normally we should have one"), on claude/ready/snow-mud-finish (futureDesigns/SNOW-MUD-FINISH-2026-11-15.md sections 6-7). GATE WHEELSIZE (core ~45 s): the Cub's main wheels 0.15 / 0.22 (built) / 0.30 m standard and 0.36 m tundra, full power from rest - on soft mud the 0.15 m is STUCK and the penalty falls x1.40 / x1.18 / x1.12, the sinkage 8.5 / 3.3 / 1.6 / 0.6 cm; firm mud is every wheel's ground; grass the control. THE STONES: the solver read the ground at ONE POINT under each node - a stone was a step under the axle, no stone cost any wheel speed, and the tundra jolted harder. 30_solver now rides THE TANDEM CAM on a bumpy strip only (world.roughAt: a micro strip's box, 27_premises roughAt; Schmeitz & Pacejka VSD 2004): two cams of the tyre's radius one footprint apart (tyreFootprint's 4A / pi b: 0.15 m on the 0.15 m wheel, 0.46 m on the tundra), the axle's ground their mean, the stone's push-back their difference over the footprint. The ground is read once a frame per wheel on the strip (a 5 cm profile, 49-76 reads a frame, out.envN); a world without roughAt reads nothing (flat ground: the same bits, checked). GATE ROUGHWHEEL (core ~100 s): against the strip's own stones (STRIP_MICRO's paraboloid caps) the 0.15 m wheel STOPS at a 15 cm stone at 0.3 power where the others cross keeping 33 / 49 / 61 %; over the strip's biggest (20 cm) at 0.4 power they keep 25 / 48 / 61 / 74 % and the jolt falls 11.1 -> 7.7 m/s^2; at a 10 m/s taxi over 15 cm stones the jolt 13.2 -> 10.1 and the gear's strain 8.40 -> 7.42 %; the old point read fails it (the self-test). GARAGE GAP for the DIRT session: the ride on the strip's LUMPS is not softer on a big wheel (no tyre filters a 2-3 m wave - right - but the peak still grows with the wheel): the solver's ground spring scales with the node's mass (KGn), so the tundra rides STIFFER (2.8e5 against 9e4 N/m); a carcass's vertical rate beside TYRE_SOFT is the row to build, and it moves every rolling fixture. CORRECTION to DEEP SNOW above: "SKIS' soles read the same" was wrong - SKIS' fresh top double-counted on the virgin rows; SKIS fixed it at a809ac6ae (ruts 29.7 / 18.3 / 11.5 cm, the Cub off in 89 m, the PC-6 on skis off powder in 53 m).
 
