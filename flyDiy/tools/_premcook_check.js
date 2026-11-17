@@ -107,15 +107,23 @@ ok(OC.rasterCooked && OC.rasterCooked.taken === mine.length && OC.rasterCooked.s
 let s = 20260927; const rnd = () => { s = (Math.imul(s, 1103515245) + 12345) >>> 0; return s / 4294967296; };
 const S = OC.rasterCell, Fr = OC.frame;
 {
-  let worstL = 0, n = 0; const errs = []; let worstA = null;
+  let worstL = 0, n = 0; const errs = []; let worstA = null, worstM = null;
+  // (BUMPINESS, the user 16 Nov - DIRT-STRIP's NAMED COST: every unpaved strip bumpy at the user's marks; the cooked raster's grid cannot
+  //  hold a bump's sharp rim - w2's 0.4 lifts the ground 14 cm within 1.7 m at (890, -798) - so a point INSIDE a bumpy strip's box keeps
+  //  its own worst, bounded 12 cm; everywhere else PREMRASTER's 6 cm stands, as before)
+  const bumpy = JSON.parse(fixture).layers.runways.filter(r => r.micro && +r.micro.chaos > 0 && r.c).map(r => ({ c: r.c, cs: Math.cos(r.hdg || 0), sn: Math.sin(r.hdg || 0), hl: r.len / 2, hw: r.wid / 2 }));
+  const inBumpy = (lx, lz) => bumpy.some(b => { const dx = lx - b.c[0], dz = lz - b.c[1]; return Math.abs(dx * b.cs + dz * b.sn) <= b.hl && Math.abs(-dx * b.sn + dz * b.cs) <= b.hw; });
   for (const c of mine) for (let k = 0; k < 1200; k++) {
-    const w = Fr.toWorld((c.c[0] + rnd()) * S, (c.c[1] + rnd()) * S);
+    const lx = (c.c[0] + rnd()) * S, lz = (c.c[1] + rnd()) * S, w = Fr.toWorld(lx, lz), onMicro = inBumpy(lx, lz);
     const hc = WC.terrainH(w[0], w[1]), hl = WL.terrainH(w[0], w[1]), ha = WL.terrainHExact ? WL.terrainHExact(w[0], w[1]) : OL.terrainH(w[0], w[1], WL.premises.base.terrainH(w[0], w[1]));   // (the analytic ground, carved as terrainH carves: 20_world terrainHExact - PREMRASTER's reference)
-    worstL = Math.max(worstL, Math.abs(hc - hl)); const d = Math.abs(hc - ha); errs.push(d); if (!worstA || d > worstA.d) worstA = { d, x: w[0], z: w[1] }; n++;
+    worstL = Math.max(worstL, Math.abs(hc - hl)); const d = Math.abs(hc - ha); errs.push(d);
+    if (onMicro) { if (!worstM || d > worstM.d) worstM = { d, x: w[0], z: w[1] }; } else if (!worstA || d > worstA.d) worstA = { d, x: w[0], z: w[1] };
+    n++;
   }
   errs.sort((a, b) => a - b); const q = f => errs[Math.floor(f * (errs.length - 1))];
   ok(worstL <= 5e-5, 'under the cooked cells the ground is the lazy raster\'s: worst ' + (worstL * 1000).toFixed(4) + ' mm on ' + n + ' points');
-  ok(q(0.99) <= 0.002 && q(0.999) <= 0.01 && worstA.d <= 0.06, '...and the analytic ground\'s within PREMRASTER\'s tolerances: p99 ' + (q(0.99) * 1000).toFixed(2) + ' mm, p99.9 ' + (q(0.999) * 1000).toFixed(1) + ' mm, worst ' + (worstA.d * 1000).toFixed(1) + ' mm at (' + worstA.x.toFixed(1) + ', ' + worstA.z.toFixed(1) + '))');
+  if (worstM) console.log('     inside a bumpy strip: worst ' + (worstM.d * 1000).toFixed(1) + ' mm at (' + worstM.x.toFixed(1) + ', ' + worstM.z.toFixed(1) + ') (<= 120 mm: the bumpiness\'s named cost)');
+  ok(q(0.99) <= 0.002 && q(0.999) <= 0.01 && worstA.d <= 0.06 && (!worstM || worstM.d <= 0.12), '...and the analytic ground\'s within PREMRASTER\'s tolerances: p99 ' + (q(0.99) * 1000).toFixed(2) + ' mm, p99.9 ' + (q(0.999) * 1000).toFixed(1) + ' mm, worst ' + (worstA.d * 1000).toFixed(1) + ' mm at (' + worstA.x.toFixed(1) + ', ' + worstA.z.toFixed(1) + '))');
   const R = OC.raster;
   ok(R.baked === 0 && R.decoded > 0, 'nothing baked under the cook, only decoded (' + R.decoded + ' tiles decoded in ' + R.decodeMs.toFixed(0) + ' ms, ' + (R.decodeMs / Math.max(1, R.decoded)).toFixed(3) + ' ms a tile; ' + R.baked + ' baked)');
   const RL = OL.raster;
