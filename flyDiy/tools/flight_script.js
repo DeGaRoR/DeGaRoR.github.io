@@ -8,7 +8,7 @@
 //          _tour_lib.js gameHost builds it: the page's placement off the walked stand, the garage's shakedown, the game's
 //          day ticked every step, the 'start' and 'leg' commands app.js posts) on Jolene with every solid thing near a strip
 //          (_tour_lib tourWorld) - fast, for tests (GATE FLIGHTSCRIPT)
-//   page   the game on the GPU through page_rig.js (LOOK-1) - frame times per step, for the perf round (to come, Thu)
+//   page   the game on the GPU through page_rig.js (LOOK-1) - frame times per step, for the perf round (runPage, 17 Nov; v1 from HOME)
 //
 // THE SCENARIO (JSON; the library in tools/flight_scripts/):
 //   { "name": "home_circuit", "what": "...",
@@ -51,7 +51,7 @@
 //   node tools/flight_script.js home_circuit                 a library scenario (tools/flight_scripts/<name>.json)
 //   node tools/flight_script.js path/to/scenario.json        any scenario file
 //   node tools/flight_script.js --list                       the library
-//   options: --out <dir> · --log <file.jsonl> · --quiet · --runner node (default; 'page' from Thu)
+//   options: --out <dir> · --log <file.jsonl> · --quiet · --runner node (default) | page (the GPU, in A0's slot: --cap S --size WxH --repo <a tree to serve>)
 //   exit 0 = every step passed, 1 = a step failed (the WHY printed and logged), 2 = a bad scenario
 // AS A MODULE: const FS = require('./flight_script.js'); const R = FS.runNode(scenario, { log: file, quiet: true });
 //   R = { ok, steps: [...], failed: { step, why } | null, t, wall, log }
@@ -287,7 +287,121 @@ function runNode(S, opt) {
   return R;
 }
 
-module.exports = { loadScenario, checkScenario, planeOf, runNode, LIB };
+// ---- the page runner (FLIGHT-SCRIPT page, Pilot 17 Nov; RIG-PROCEDURE.md + page_rig.js, in A0's GPU slot) -----------------
+// THE SAME SCENARIO IN THE GAME ON THE GPU, a player's way: the plane is the garage's working build (its card file seeded as
+// flydiy.wip before the first load - LOGGED, RIG-PROCEDURE 2), the conditions / the To / the persona set on the brief's own
+// writers (#selCond, #selDest, #selPersona: one element per decision), 'start' is Go until flying (page_rig fly), 'leg' is the
+// brief's To then the page's own Fly on (FLIGHT_PROBE.nextLeg), 'lift' is FLIGHT_PROBE.place({ by }). The conditions and the
+// faults are read off the page every ~0.25 s of wall clock (the sim runs at the game's pace); each step adds the FRAME TIMES
+// (an in-page rAF sampler: n, p50, p99, max, the frames over 50 ms) - the perf round's per-step numbers. v1: the From is
+// the garage's field (HOME on Jolene); a scenario from elsewhere is refused, said. The log is the node runner's JSONL
+// (runner 'page'), with 'frames' on every step line
+async function runPage(S, opt) {
+  const o = opt || {};
+  const bad = checkScenario(S);
+  if (bad.length) throw new Error('bad scenario ' + (S.name || '') + ': ' + bad.join('; '));
+  if (S.from !== 'HOME') throw new Error('the page runner (v1) starts at the garage\'s field, HOME - this scenario starts at ' + S.from);
+  const say = o.quiet ? () => {} : (s => console.log(s));
+  const out = o.log || path.join(o.out || 'D:/Dev/pilot_runs/flight_script', (S.name || 'scenario') + '_page_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.jsonl');
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  const fd = fs.openSync(out, 'w');
+  const J = obj => fs.writeSync(fd, JSON.stringify(obj) + '\n');
+  const P = planeOf(S.plane);
+  const card = fs.readFileSync(P.key, 'utf8');
+  const PR = require(path.join(T, 'page_rig.js'));
+  const wall0 = Date.now();
+  const rig = await PR.start(Object.assign({ cap: o.cap || 900, size: o.size || '1600x900', seed: { 'flydiy.wip': card } }, o.repo ? { repo: o.repo } : {}, { log: o.quiet ? (() => {}) : (t => say('  rig ' + t)) }));
+  const R = { ok: false, steps: [], failed: null, t: 0, wall: 0, log: out };
+  try {
+    J({ type: 'run', scenario: S.name, what: S.what || null, runner: 'page', plane: P.name, build: P.file, from: S.from, to: S.to || S.from,
+        persona: S.persona || 'expert', seeded: 'flydiy.wip <- ' + P.file, gpu: rig.gpu, bootS: rig.bootS, sha: gitSha(), at: new Date().toISOString() });
+    say('flight_script (page): ' + S.name + ' - ' + P.name + ' (seeded as the working build), ' + S.from + ' > ' + (S.to || S.from) + ' | gpu ' + rig.gpu + ', boot ' + rig.bootS + ' s | log ' + out);
+    // the brief, a player's way: the writers set, their own change handlers run
+    const setSel = (id, v) => rig.ev(`(() => { const s = document.getElementById(${JSON.stringify(id)}); if (!s) return 'no #' + ${JSON.stringify(id)};
+      if (![...s.options].some(o => o.value === ${JSON.stringify(v)})) return 'no option ' + ${JSON.stringify(v)}; s.value = ${JSON.stringify(v)};
+      s.dispatchEvent(new Event('change', { bubbles: true })); return 'ok'; })()`);
+    const brief = [];
+    if (S.day === 'calm') brief.push('cond ' + await setSel('selCond', 'calm'));
+    if (S.persona) brief.push('persona ' + await setSel('selPersona', S.persona));
+    brief.push('to ' + await setSel('selDest', (S.to && S.to !== S.from) ? S.to : 'CIRCUIT'));
+    say('  the brief: ' + brief.join(', '));
+    // the frame sampler (rAF intervals, ms), read and emptied per step
+    await rig.ev(`(() => { if (window.__FSF) return 1; const F = window.__FSF = { d: [], last: 0 }; const f = t => { if (F.last) F.d.push(t - F.last); F.last = t; requestAnimationFrame(f); }; requestAnimationFrame(f); return 1; })()`);
+    const ST = `(() => { const P = window.FLIGHT_PROBE, ap = P && P.ap(), s = P && P.sim(); if (!ap || !s) return null; const cg = s.cgPos(), v = s.cgVel ? s.cgVel() : [0, 0, 0];
+      const D = P.damage ? P.damage() : null, W = P.world ? P.world() : null;
+      const w = (typeof flightWhere === 'function' && W) ? flightWhere(W, cg[0], cg[2]) : null;
+      const dec = ap.report && ap.report.outcome === 'declined' ? (((ap.report.verdicts || []).find(q => q.code === 'takeoff-declined') || {}).note || 'declined') : null;
+      return { t: ap.t, ph: ap.phase, agl: P.agl ? P.agl() : null, cg: cg.map(x => Math.round(x * 10) / 10), Vg: Math.hypot(v[0], v[2]), vs: v[1],
+               where: w && w.aero ? w.aero.id : null, over: P.over ? !!P.over() : false, crashed: !!(D && (D.crashed || D.over)), dmg: D ? (D.reason || D.verdict || null) : null,
+               declined: dec, nV: ((ap.report && ap.report.verdicts) || []).length,
+               said: ((ap.report && ap.report.verdicts) || []).slice(-3).map(q => q.code + '@' + Math.round(q.t) + (q.note ? ': ' + String(q.note).slice(0, 160) : '')) }; })()`;
+    const frames = async () => {
+      const d = await rig.J(`(() => { const F = window.__FSF; const d = F ? F.d.splice(0) : []; return d; })()`) || [];
+      if (!d.length) return null;
+      const s = d.slice().sort((a, b) => a - b), q = p => s[Math.min(s.length - 1, Math.floor(p * s.length))];
+      return { n: d.length, p50: r1(q(0.5)), p99: r1(q(0.99)), max: r1(s[s.length - 1]), over50: d.filter(x => x > 50).length };
+    };
+    let failed = null;
+    for (let si = 0; si < S.steps.length && !failed; si++) {
+      const st = S.steps[si], phases = [], w0 = Date.now();
+      let s = await rig.J(ST);
+      await frames();   // (the step's frames start here)
+      const t0 = s ? s.t : 0;
+      if (st.do === 'start') { await rig.fly(); s = await rig.J(ST); }
+      else if (st.do === 'leg') { const r = await setSel('selDest', st.to); const ok = await rig.ev('window.FLIGHT_PROBE.nextLeg()'); say('  leg to ' + st.to + ': ' + r + (ok ? '' : ' (no Fly on)')); }
+      else if (st.do === 'lift') await rig.ev(`window.FLIGHT_PROBE.place({ by: [0, ${+st.by}, 0] })`);
+      else if (st.do === 'board') { if (!s) failed = { step: si, name: st.name, why: { what: 'not ready to board: no sim / pilot on the page' } }; }
+      const U = st.until || null, al = new Set(st.allow || []), cap = st.capS || 0;
+      const miss = x => {
+        const m = [];
+        if (!x) return ['the page has no sim'];
+        if (U.phase != null) { const L = [].concat(U.phase); if (!L.includes(x.ph)) m.push('phase ' + x.ph + ', wants ' + L.join('|')); }
+        if (U.agl != null && !(x.agl >= U.agl)) m.push('AGL ' + x.agl + ' m, wants >= ' + U.agl);
+        if (U.stoppedAt != null && !(x.ph === 'STOPPED' && x.where === U.stoppedAt)) m.push(x.ph !== 'STOPPED' ? 'not STOPPED (' + x.ph + ')' : 'stopped on ' + (x.where || 'no strip') + ', wants ' + U.stoppedAt);
+        if (U.declined && !x.declined) m.push('no take-off declined');
+        return m;
+      };
+      const fault = x => {
+        if (!x) return null;
+        if (x.crashed) return 'the damage ended the flight: ' + (x.dmg || 'crashed');
+        if (x.ph === 'ABORT') return 'the take-off was rejected (ABORT)';
+        if (x.declined && !al.has('declined') && !(U && U.declined)) return 'the take-off was declined: ' + x.declined;
+        return null;
+      };
+      let m = U ? miss(s) : [];
+      while (!failed && m.length) {
+        if (s && s.t - t0 >= cap) { failed = { step: si, name: st.name, why: { what: 'the cap: ' + cap + ' s passed with ' + m.join('; '), phase: s.ph, said: s.said, pos: s.cg, where: s.where } }; break; }
+        if (Date.now() - w0 > (cap * 3 + 120) * 1000) { failed = { step: si, name: st.name, why: { what: 'the wall clock: ' + Math.round((Date.now() - w0) / 1000) + ' s for a ' + cap + ' s step (the sim not advancing?)', why: await rig.why() } }; break; }
+        await new Promise(r => setTimeout(r, 250));
+        s = await rig.J(ST);
+        if (s && phases[phases.length - 1] !== s.ph) phases.push(s.ph);
+        const f = fault(s);
+        if (f) { failed = { step: si, name: st.name, why: { what: f, phase: s.ph, said: s.said, pos: s.cg, where: s.where } }; break; }
+        m = miss(s);
+      }
+      const fr = await frames();
+      const rec = { type: 'step', i: si, name: st.name, do: st.do || null, ok: !failed, t0: r1(t0), t1: s ? r1(s.t) : null, phases,
+                    end: s ? { ph: s.ph, pos: s.cg, agl: s.agl, where: s.where } : null, said: s ? s.said : [], frames: fr, wallS: r1((Date.now() - w0) / 1000), why: failed ? failed.why : null };
+      J(rec); R.steps.push(rec);
+      say('  ' + (rec.ok ? 'ok  ' : 'FAIL') + ' ' + String(si + 1).padStart(2) + ' ' + st.name.padEnd(26) + ' t ' + rec.t0 + ' > ' + rec.t1 + ' s' + (phases.length ? '  ' + phases.join('>') : '') +
+          (fr ? '  | frames ' + fr.n + ', p50 ' + fr.p50 + ' ms, p99 ' + fr.p99 + ', max ' + fr.max + ', ' + fr.over50 + ' over 50 ms' : ''));
+      if (failed) { say('       WHY: ' + failed.why.what); for (const v of failed.why.said || []) say('       said ' + v); }
+    }
+    R.failed = failed; R.ok = !failed;
+  } catch (e) {
+    R.failed = { step: -1, name: 'rig', why: { what: String(e && e.message || e), why: e && e.why || null } }; R.ok = false;
+    say('FAIL the rig: ' + R.failed.why.what);
+  } finally {
+    R.wall = Date.now() - wall0;
+    J({ type: 'end', ok: R.ok, passed: R.steps.filter(r => r.ok).length, of: S.steps.length, wallMs: R.wall, failed: R.failed ? { step: R.failed.step, name: R.failed.name, what: R.failed.why.what } : null });
+    fs.closeSync(fd);
+    await rig.close();
+  }
+  say((R.ok ? 'PASS' : 'FAIL') + ' ' + S.name + ' (page): ' + R.steps.filter(r => r.ok).length + ' of ' + S.steps.length + ' steps, ' + (R.wall / 1000).toFixed(0) + ' s wall');
+  return R;
+}
+
+module.exports = { loadScenario, checkScenario, planeOf, runNode, runPage, LIB };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);
@@ -301,12 +415,17 @@ if (require.main === module) {
     process.exit(argv.length ? 0 : 2);
   }
   const runner = opt('runner', 'node');
-  if (runner !== 'node') { console.error('the ' + runner + ' runner is not built yet (the page runner: Thu 19 Nov)'); process.exit(2); }
+  if (runner !== 'node' && runner !== 'page') { console.error('flight_script: --runner node | page'); process.exit(2); }
   let S;
   try { S = loadScenario(argv.find(a => !a.startsWith('--') && argv[argv.indexOf(a) - 1] !== '--out' && argv[argv.indexOf(a) - 1] !== '--log' && argv[argv.indexOf(a) - 1] !== '--runner')); }
   catch (e) { console.error('flight_script: ' + e.message); process.exit(2); }
   const bad = checkScenario(S);
   if (bad.length) { console.error('flight_script: bad scenario ' + S.name + ':\n  ' + bad.join('\n  ')); process.exit(2); }
-  const R = runNode(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), every: opt('every', undefined) });
-  process.exit(R.ok ? 0 : 1);
+  if (runner === 'page') {   // (A GPU RUN NEEDS A0's SLOT: boxlock.sh take gpu first, RIG-PROCEDURE 1)
+    runPage(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), cap: +opt('cap', 900), size: opt('size', undefined), repo: opt('repo', undefined) })
+      .then(R => process.exit(R.ok ? 0 : 1), e => { console.error('flight_script (page): ' + (e && e.message || e)); process.exit(2); });
+  } else {
+    const R = runNode(S, { out: opt('out', undefined), log: opt('log', undefined), quiet: argv.includes('--quiet'), every: opt('every', undefined) });
+    process.exit(R.ok ? 0 : 1);
+  }
 }
