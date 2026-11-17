@@ -379,7 +379,7 @@ function ROCK_RING_CORE_FACTORY() {
       // coarse part, the joints' soil folded in, the gate as a fall) at (q + 0.3) / 1.5; splat_ground's sTrMac adds the fine terms and
       // thresholds a pixel at a time - crisp edges at any texel (a distance field's trick); the green's chance (B.b) is veg0 there
       let veg;
-      if (inp.soft) { const q = tmp[8] - 0.12 * tmp[6] - (1 - g) * 1.2; A[o + 3] = b8((q + 0.3) / 1.5); veg = tmp[9]; }
+      if (inp.soft) { const q = tmp[8] - 0.12 * tmp[6] - (1 - g) * 1.2 * (K.softGate === undefined ? 1 : K.softGate); A[o + 3] = b8((q + 0.3) / 1.5); veg = tmp[9]; }
       else { const ex = tmp[5] * g; A[o + 3] = b8(ex); veg = Math.max(tmp[4], 1 - ex); }
       // the height's normal (v1: central differences over the texel)
       const hx = (hgt[j * n + i + 1] - hgt[j * n + i - 1]) / (2 * st), hz = (hgt[(j + 1) * n + i] - hgt[(j - 1) * n + i]) / (2 * st), l = Math.hypot(hx, 1, hz);
@@ -614,7 +614,28 @@ function ROCK_RING_CORE_FACTORY() {
     const B = RB.idx.length ? { pos: Float32Array.from(RB.pos), nor: Float32Array.from(RB.nor), attr: Float32Array.from(RB.attr), idx: Uint32Array.from(RB.idx), nv: RB.pos.length / 3 } : null;
     return { pos, disp, nor, idx: Uint32Array.from(idx), attr, nv, nt: idx.length / 3, B, boulders: B ? B.idx.length / 3 : 0, ms: Date.now() - t0, n };
   }
-  return { chunk, macroTile, bakeIsland, kitPrep, procKit, macroAt, medium, jset, fbm, hh, vn2, ss, flowGrid, CZSD };
+  // ---- THE EXPOSURE AT A POINT, EXACT (17 Nov, the user: trees "just directly on the rocks ... no larger exclusion zones" and "publish
+  // the greenery over rocks map ... so bushes can grow there"): the island's baked field E (bakeIsland's, without its fine terms) + v1's
+  // fine terms, the threshold, the joints' soil and the speckles - macroAt's law at full detail, the very pattern the ground draws
+  // (splat_ground's sTrFineE / sTrJoints are this, bit for bit). -> [the stone's share at the point 0..1, the rock zone 0..1]
+  function expoAt(x, z, E) {
+    const S = 7, fine = fbm(x, z, 256, S + 71, 3), ufine = fbm(x, z, 640, S + 72, 2);
+    let e = ss(0.42, 0.50, E + (fine - 0.5) * 0.5 + (ufine - 0.5) * 0.35);
+    const zone = ss(0.30, 0.42, E);
+    if (e > 0) {
+      const A = jset(x, z, 150, 10, 30, S + 1, 22), B = jset(x, z, 60, 12, 38, S + 11, 18, hash2(A[2], 5, S) * 150);
+      const Cj = jset(x, z, 105, 3.5, 10, S + 21, 6, hash2(A[2] * 7 + B[2], 7, S) * 80), D = jset(x, z, 15, 4.5, 12, S + 31, 6, hash2(B[2] * 5 + A[2], 8, S) * 80);
+      const oB = B[3] * (hash2(A[2] * 97 + B[1], 6, S) < 0.65 ? 1 : 0), oC = Cj[3] * (hash2(A[2] * 31 + Cj[1], 9, S) < 0.7 ? 1 : 0), oD = D[3] * (hash2(B[2] * 17 + D[1], 10, S) < 0.6 ? 1 : 0);
+      const gl = (o, d, w) => o * (1 - ss(0.3, 1, d / w));
+      const groove = Math.max(gl(A[3], A[0], A[4] * 0.65) * (0.6 + 0.9 * hash2(A[1], 2, S)), gl(oB, B[0], B[4] * 0.65) * (0.5 + 0.8 * hash2(B[1], 3, S)),
+                              gl(oC, Cj[0], Cj[4] * 0.4) * (0.35 + 0.5 * hash2(Cj[1], 4, S)), gl(oD, D[0], D[4] * 0.35) * (0.3 + 0.45 * hash2(D[1], 5, S)));
+      e *= 1 - Math.min(1, groove / 0.5) * 0.7;
+      const sp1 = fbm(x, z, 420, S + 73, 3), sp2 = fbm(x, z, 1000, S + 74, 2);
+      e *= 1 - Math.min(1, ss(0.56, 0.63, sp1) + ss(0.6, 0.66, sp2) * 0.8) * (0.55 + 0.45 * ss(0.3, 0.7, fine));
+    }
+    return [e, zone];
+  }
+  return { expoAt, chunk, macroTile, bakeIsland, kitPrep, procKit, macroAt, medium, jset, fbm, hh, vn2, ss, flowGrid, CZSD };
 }
 var ROCK_RING_CORE = ROCK_RING_CORE_FACTORY();
 // the worker's text (rock_ring.js): the factory's own source - one copy of the law

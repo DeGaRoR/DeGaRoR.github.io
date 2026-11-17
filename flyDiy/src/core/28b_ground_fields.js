@@ -172,7 +172,7 @@ const GROUND_FIELDS = (() => {
       // the world rail's 'rock & cliffs' rows: the joints' density / soil / dirt, the hollows' dirt, the green's amount and
       // roughness, the wet streaks, the bare stone's roughness (x the tiles'), the micro detail's strengths and fade, the far fade
       rockJoint: 1, rockJointSoil: 0.7, rockJointDirt: 0.85, rockHollow: 0.5, rockGreen: 1, rockGreenRough: 0.97, rockWet: 0.75, rockRough: 1,
-      rockMicroK: 0.65, rockMicroN: 0.6, rockMicroFrom: 60, rockMicroTo: 180, rockFarFrom: 400, rockFarTo: 2500,
+      rockMicroK: 0.65, rockMicroN: 0.6, rockMicroFrom: 60, rockMicroTo: 180, rockFarFrom: 400, rockFarTo: 2500, rockFarScale: 2.5,
       rockNdvi: 0, rockNdviMid: 0.74,   // the imagery's NDVI (pack B) takes the exposure down where the map's rock is green
       // the tiles as the rock codes' sets (slab m, steep m, the face tile on the steep split or the slab, the split's degrees), the
       // green's saturation, the joints gone by (m: v1's joints were a texture, its mips blurred them into tone past ~500 m; the
@@ -181,7 +181,7 @@ const GROUND_FIELDS = (() => {
       // THE ROCK RING (rock_ring.js): the outcrops as geometry round the eye - on, its reach (m), the outcrops' lift and the Blender
       // masses' amplitude (m), the cover's stand-off over the ground (m), the boulders on and their density (x v1's law)
       rockRing: 1, rockRingReach: 450, rockLift: 0.6, rockAmp: 1.5, rockProud: 0.15, rockBoulders: 1, rockScatter: 1.25, rockMacro: 1, rockBoulderTone: 1, rockBoulderCon: 2, rockGrassMatch: 0.5, rockWeather: 0.25, rockGreenTint: 1, rockGreenK: 0.6,   // (17 Nov, in game: "the grass color is now too green" - the tint back to the heath's, the film to 0.25)
-      rockSlabM: 16, rockFaceM: 24, rockFaceTile: 1, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 1, rockJointFar: 900, rockSlabTone: 0, rockSlabTilt: 0,   // (17 Nov, the user: "nothing should have the macro pattern fade" - the tiles' fade to their mean spread to 2.5 km: the texture shows through)
+      rockSlabM: 16, rockFaceM: 24, rockFaceTile: 1, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 1, rockJointFar: 3000, rockSlabTone: 0, rockSlabTilt: 0,   // (17 Nov, the user: "nothing should have the macro pattern fade" - the tiles' fade to their mean spread to 2.5 km: the texture shows through)
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;

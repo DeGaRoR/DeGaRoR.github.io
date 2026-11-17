@@ -157,7 +157,7 @@ const view = name => { const [e, t] = (VIEWS[name] || VIEWS.face)();
 while (!SPL.api.ready()) await new Promise(r => setTimeout(r, 100));
 // ---- THE ROCK RING (src/viewer/rock_ring.js, the game's module): the outcrops round the eye, built in its worker. The bench's
 // inputs: the 5 m heights (hXZ), the 10 m type and NDVI (gpatch), the patch's own 5 m D8 flow (v1's). ?ring=0 off
-let RING = null;
+let RING = null;   // (?rs=key:value,... - the ring's own settings, RING.set)
 if (Q.get('rocks') !== '0' && Q.get('ring') !== '0' && typeof ROCK_RING !== 'undefined') {
   const fL = PJ.layout.find(l => l.name === 'flow'), FLW = new Uint8Array(PB, fL.off, fL.len);
   const TTg = new Uint8Array(gw * gh), NDg = new Uint8Array(gw * gh); for (let k = 0; k < gw * gh; k++) { TTg[k] = Bs[k * 2 + 1]; NDg[k] = Bs[k * 2]; }
@@ -170,6 +170,7 @@ if (Q.get('rocks') !== '0' && Q.get('ring') !== '0' && typeof ROCK_RING !== 'und
   RING = ROCK_RING.make(THREE, { scene, world: null, camera, splat: SPL, groundMat: mat, groundU: gU, terrainH: hXZ, kit: KIT, bounds: [PJ.x0, PJ.z0, PJ.x0 + PJ.size, PJ.z0 + PJ.size],
     isla: { grid: { x0: GJ.x0, z0: GJ.z0, w: gw, h: gh, cell: GJ.cell }, ttype: TTg, ndvi: NDg },
     flow: { g: FLW, N, x0: PJ.x0 - ST / 2, z0: PJ.z0 - ST / 2, dx: ST } });
+  { const rq = Q.get('rs'); if (rq && RING && RING.set) { const o = {}; for (const kv of rq.split(',')) { const [k, v] = kv.split(':'); o[k] = +v; } RING.set(o); } }
 }
 const buildMs = Math.round(performance.now() - T0);
 view(Q.get('view') || 'face');
