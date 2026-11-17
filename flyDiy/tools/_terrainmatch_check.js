@@ -231,6 +231,9 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
   //  +1 164 732, HOME taxi +1 388 258 triangles (02/20's 1758 m band at 0.4 pays most: the length pays, not the chaos). Listed for the
   //  perf week with xw_rough's: a distance LOD on the bump refinement
   const BUMPINESS = { 'HOME stand': 1164732, 'HOME taxi': 1388258 };
+  // + AFB-0220-B3's merge (DIRT-STRIP integrating, A0 17 Nov: world-rail-veg + snow-mud-rail + skyline-resort-2 with the above): the
+  //  premises patch +144 triangles at both views (patch 398176 -> 398320 stand, 382288 -> 382432 taxi; the pavement unchanged)
+  for (const k in BUMPINESS) BUMPINESS[k] += 144;
   const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + PAV0['HOME stand'], 'HOME taxi': (PATCH0 || {})['HOME taxi'] + PAV0['HOME taxi'] }, gamer: { 'HOME stand': 1222208 + PAV0['HOME stand'], 'HOME taxi': 1304000 + PAV0['HOME taxi'] } };
   // RE-TAKEN 9 Nov (HOME-LAYOUT, A0's call), THE TWO "HOME stand" ROWS ONLY: SCENERY - the user's validated HOME layout moved the
   // start's stand (the medium hangar's) 60 m along the row, and this row measures within 3 km OF THE STAND: the same eye 60 m
