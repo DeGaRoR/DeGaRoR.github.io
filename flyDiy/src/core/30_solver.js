@@ -1401,6 +1401,9 @@ function makeSim(def, world) {
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
     const inGear = grpOf[bi] >= 0 && gearGrp[grpOf[bi]] === 1;
     if (b.kink && !inGear) { FLR[nFlr++] = bi; DMG.floors++; nPost = nFlr + nTieL; }  // G1813: the crushed member stays a floor (G2040: nPost; GEAR-FALLS: a gear joint's leaves with its leg, it props nothing)
+    // (G4103: and holds no tether - its tether lives in the floor pass, which never walks it: a gear member's tether
+    // stayed live past any length, joining a fallen leg to the wreck it lay 40 m from - the 17 Nov nose-down stills)
+    else if (b.tt === 1) { b.tt = 0; DMG.tether--; }
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
     // (GEAR-FALLS: a wire snapping is damage, not a crash - structural's 'a bracing wire snapped'; the leg stands)
     if (gearWire[bi]) { if (how !== 'group') DMG.wires++; }
