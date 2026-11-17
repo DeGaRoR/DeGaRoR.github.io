@@ -317459,3 +317459,14 @@ now named). Re-cooked with the fixtures' tools, rebuilt. Re-pins named for A0: M
 PREMCOOK MAPBAKE TERRAINMATCH STRIPGROUND MICRO WORLDRAIL COVER MUDLADDER SNOWMUDFX PASS; ALTIPORT 2+3 and TAXICLEAR 1 master's;
 TAXICLEAR 11b and 12 green once pilot-altiport (ALTI-ROUGH) merges (tested locally); TAXICLEAR 11c - the C172 from the 280 m
 altiport crashes instead of rejecting the take-off - see the train note.
+
+MUD (DIRT-STRIP, 17 Nov, ready/mud on L40e 2157a2f98; the user's mud asks via GROUND-FX: "the bumps on mud", "denser, natural tyre
+marks"): on a strip with mud - a weather rung's pavWxSt.mud (SNOW-MUD's ladder: w6, w8) or a fixed mud class (1) - the tyre marks
+are denser (+4 passes, +4 fresh, 16 at most), deeper, dark and wet (a fresh one glistens), old passes hold, the lugs pressed harder;
+the micro relief is drawn sharper. pavement.js only; no mud = drawn exactly as before (GATE PAVEMENT's new row). F9 RUNWAYS keys
+sfMudMarks / sfMudBump (1). The FELT relief is the same on every device (SNOW-MUD's wear deepens it with the mud); the settings tier
+scales only what is drawn: GFX ground 'plain' (potato, laptop = the phones) 0.35, 'lean' (retro) 0.65, else 1. uLookG.z = the
+marks' strength on the strip: GROUND-FX's hook for the aeroplane's own marks (after 4b, before 10b; its layer after the perf round).
+Not in it: 0.5 puddles on a fixed mud-class strip (no shipped strip has one). GPU 17 Nov 07:50: w8 dry vs forced soft mud,
+evidence/dirt-strip-2026-11-09/tue-mud. Gates: PAVEMENT MUDLADDER STRIPGROUND SNOWMUDFX DUST MICRO LIGHT GROUNDLIB SPLAT CONTACT
+ASSETS PREMISES TERRAINMATCH PASS; LOOKS 5 (the cover ring by drawn water) red on master the same.
