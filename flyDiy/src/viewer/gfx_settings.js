@@ -492,8 +492,10 @@
     const lwn = W.TREE_FILL && W.TREE_FILL.lawn ? W.TREE_FILL.lawn() : null;
     const rung = S.lawn === 'auto' || !S.lawn ? (LAWN_OF[S.preset] || LAWN_OF[S.build] || 'B') : S.lawn;
     if (lwn && lwn.set && applied.lawn !== rung) {
-      const L = LAWN_LADDER[rung];
-      if (L) { lwn.set(L); applied.lawn = rung; if (fld && fld.replant) fld.replant(); }
+      const L = LAWN_LADDER[rung], on = () => !!(lwn.get().on && !lwn.get().off), was = on();
+      // (the field replants only when the lawn turns on or off - it leaves the cut ground to it; a replant at every apply was the
+      //  roll-out's +40 frustum tests / +516 GL calls, FRAMECOST 17 Nov: the world's first apply re-planted the whole field)
+      if (L) { lwn.set(L); applied.lawn = rung; if (on() !== was && fld && fld.replant) fld.replant(); }
     }
     const PR = world && world.premises;
     if (PR && PR.streamState && applied.build !== S.build) { PR.streamState.reach = budget().townReach; applied.build = S.build; }   // G1230: the town's stream to the budget's reach (down: at once)

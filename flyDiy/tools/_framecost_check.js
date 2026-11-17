@@ -81,7 +81,12 @@ const ALLOW = [
   // (claude/grass-cards on L40e + grass-edge, 17 Nov 06:30): the stand +8 (Cub) / +10 (Cessna) grHeight, the only counter the lawn
   // alone turns red. Its other rises ride keys already red from L40e / grass-edge: stand draws.main +21, taxi draws.main +30, taxi
   // uniform1f +12, stand terrainH +4.5; and it LOWERS the taxi's triangles by 4.8 M and the roll-out's ground lookups by 48 000
-  { key: 'stand/world.grHeight', build: '*', rise: 12, why: 'the lawn ring (grass cards on the mown ground) asks the ground under its squares', g: 'G4180' },
+  // (17 Nov 13:10, on grass-edge-2 with the D default - 4 m cells: lawn ON vs OFF on one tree, +13 Cub / +15 Cessna over the baseline 17 / 15)
+  { key: 'stand/world.grHeight', build: '*', rise: 16, why: 'the lawn ring (grass cards on the mown ground) asks the ground under its squares', g: 'G4180' },
+  // ...and the cards' own models in the reachable catalogue (trees.js treeReachOf: grass_plates, 6 models, 3 maps of 512x256) are warmed
+  // and parked with the roll-out like every species: the landing step's +40 frustum tests (lawn ON and OFF alike, absent on untouched
+  // grass-edge-2 fc7583c8c; its +39 draws / +516 GL calls ride keys grass-edge-2 already turns red), the stand's +70 KB of map uploads
+  { key: 'boot/rollout:landing/three.frustumTests', build: '*', rise: 48, why: 'the grass cards (grass_plates) warmed with the reachable catalogue at the roll-out', g: 'G4180' },
   // G3774 (DMG-LOOKS ON BY DEFAULT, the user 10 Nov: "absolutely no reason not to"): the member pools and their slot
   // textures parked with the world (worldSettle) - measured OFF (?dmglook=0) vs ON on one build (Deform 10 Nov 22:08):
   // the Cub's boot +10 GL calls in garage:images and +11 in garage:worldCompile, +2 MiB; no draw, program or frame
