@@ -686,10 +686,12 @@ function buildPedals(g, A, P, sx) {
 const engLevers = P => (P && +P.engOn) ? ({ 3: 2, 4: 2, 5: 3, 6: 4 })[Math.round(+P.engMount || 0)] || 1 : 1;
 const twinEngines = P => engLevers(P) > 1;
 const moreLevers = (P, dxOf) => { const o = []; for (let i = 2; i < engLevers(P); i++) o.push(['edCtl_throttle' + (i + 1), 'thr' + i, dxOf(i)]); return o; };
-function buildThrottleWall(g0, A, P, sx, onFace) {
+function buildThrottleWall(g0, A, P, sx, onFace, at) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
-  const zT = A.zBack + 0.40;
-  const yT = A.floorAt(zT) + 0.42;
+  // `at` (THROTTLE-SHOULDER): the cage pass's own station and height for a lever on the shoulder's face (metres,
+  // before the rows' shift); `at.noPlate`: a wall lever with the flange only (no shoulder where one was asked)
+  const zT = at && at.z != null ? at.z : A.zBack + 0.40;
+  const yT = at && at.y != null ? at.y : A.floorAt(zT) + 0.42;
   // on the wall itself (G318: 0.9 x halfW was 4 cm inboard of the door's skin)
   // — or ON THE SHOULDER'S FACE (G344, ctlThr 4): the cage pass measured the
   // leg's inboard face at this station and handed it over; the quadrant
@@ -703,7 +705,7 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
   const KW = window.GEAR_KIT;
   if (KW) {
     const q = KW.Bag(), slot = KW.Bag(), fr = KW.Bag();
-    if (onFace == null) {
+    if (onFace == null && !(at && at.noPlate)) {
       KW.sweep(q, [[wx, yT, zT], [wx + inb * 0.008, yT, zT]], () => [[-0.10, -0.065], [0.10, -0.065], [0.10, 0.045], [0.06, 0.065], [-0.06, 0.065], [-0.10, 0.045]], true, [0, 1, 0]);
       for (let i = 0; i < 9; i++) {
         const a = (i / 8) * THR_ARC * 1.15 - 0.05;
@@ -1306,6 +1308,18 @@ function buildShoulderFurniture(g0, A, P, mesh, pilot) {
 // THE FUEL SELECTOR: a round plate on the left wall ahead of the seat, four
 // positions round it, a flat pointer handle on a hub — OFF aft, then R, L,
 // BOTH forward, the order the user's tape reads.
+// THE WALL UNDER A PLATE (THROTTLE-SHOULDER, the user 16 Nov, a dark corner circled on the Carbon Cub's cabin side): a flat
+// plate seated on the wall at its centre stands out where the wall curves in under it (below the waist: the trim wheel's
+// plate 1 mm proud of the skin, read as a black triangle). Seat it on the innermost wall over its footprint, 3 mm in.
+function wallUnder(A, sd, y, z, dz, yb, yt) {
+  if (!A.wallAt) return null;
+  let m = Infinity;
+  for (const [dy, dd] of [[0, 0], [yb, -dz], [yb, dz], [yt, -dz], [yt, dz], [yb, 0], [yt, 0]]) {
+    const w = Math.abs(A.wallAt(sd, y + dy, z + dd) || 0);
+    if (w > 0 && w < m) m = w;
+  }
+  return isFinite(m) ? sd * (m - 0.003) : null;
+}
 function buildFuelSelector(gRoot, A, P, sx, seat) {
   const K = window.GEAR_KIT;
   if (!K) return null;
@@ -1323,6 +1337,7 @@ function buildFuelSelector(gRoot, A, P, sx, seat) {
     if (Math.min(A.tubeDist([wx, y, z]), A.tubeDist([wx, y + 0.06, z])) > 0.05) break;
     z -= 0.06; y = A.floorAt(z) + 0.26; wx = wxAt();
   }
+  { const wu = wallUnder(A, sd, y, z, 0.036, -0.036, 0.036); if (wu != null) wx = wu; }
   const c = [wx + inb * 0.010, y, z];
   const pl = K.Bag(), dots = K.Bag();
   K.revolve(pl, [wx + inb * 0.002, y, z], [inb, 0, 0], [[0.036, 0], [0.036, 0.006], [0.030, 0.008], [0, 0.008]], 32, false);
@@ -1358,6 +1373,7 @@ function buildTrimWheel(gRoot, A, P, sx, seat) {
   const wxAt = () => (A.wallAt ? A.wallAt(sd, y, z) : sd * Math.max(0.2, A.halfW * 0.90));
   let wx = wxAt();
   if (A.tubeDist) for (let i = 0; i < 4 && A.tubeDist([wx, y, z]) < R + 0.02; i++) { z -= 0.06; wx = wxAt(); }   // off the frame
+  { const wu = wallUnder(A, sd, y, z, 0.040, -0.030, 0.060); if (wu != null) wx = wu; }
   const br = K.Bag();
   K.sweep(br, [[wx, y, z], [wx + inb * 0.006, y, z]],
     () => [[-0.040, -0.030], [0.040, -0.030], [0.040, 0.060], [-0.040, 0.060]], true, [0, 1, 0]);          // the wall plate
@@ -3205,8 +3221,15 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   if (thrMode === 4 || thrMode === 5) {
     const L = mesh && mesh.shoulder && mesh.shoulder.lever;
     if (L && L.mode === 'slot' && thrMode === 5) thr = buildThrottleSlot(tg, A, P, L);
-    else if (L && L.mode === 'face' && thrMode === 4) thr = buildThrottleWall(tg, A, P, pilot.x, L.wall * A.k);
-    else thr = buildThrottleWall(tg, A, P, pilot.x);
+    else if (L && L.mode === 'face' && thrMode === 4)
+      thr = buildThrottleWall(tg, A, P, pilot.x, L.wall * A.k,
+                              { y: L.plateY * A.k - (+P.thrY || 0), z: L.plateZ * A.k - (+P.thrZ || 0) });
+    else {
+      // (THROTTLE-SHOULDER) no shoulder at the throttle's station: the wall lever on its flange, never the 20 cm cast
+      // plate that stood through the Cubs' skin
+      if (typeof console !== 'undefined') console.warn('throttle: no shoulder at the throttle station - the wall lever on its flange');
+      thr = buildThrottleWall(tg, A, P, pilot.x, null, { noPlate: true });
+    }
   }
   st1.thr = thr;
   // G442.1 (A3, the playtest: "the throttle over the metal toggles"): THE

@@ -10271,7 +10271,13 @@ function cageSpec(P) {
     const mode = Math.round(+P.ctlThr || 0), ps = P.planeScale || 1;
     if (mode === 4 || mode === 5)
       S.shoulder.throttle = { mode: mode === 4 ? 'face' : 'slot', side: 1,
-                              dz: (0.40 + (+P.seatZ || 0) + (+P.thrZ || 0)) / ps,
+                              // (THROTTLE-SHOULDER, the user 16 Nov: the crew's station is the ring's waist + 0.05 m + seatZ, the lever
+                              // 0.40 m ahead of it - all metres, so the 0.05 is over planeScale too, not added in cage units)
+                              dz: (0.45 + (+P.seatZ || 0) + (+P.thrZ || 0)) / ps,
+                              // the ring the crew's station stands off: a rear-seat pilot's (crewPilotRear's rule) bay 1 aft ring
+                              ring: (() => { const bays = Math.max(0, Math.round(+P.paxCount || 0));
+                                return (Math.round(+P.pilotRear || 0) > 0 && bays >= 1 && Math.round(+P.seatLayout || 0) !== 1 && !+P.mirror)
+                                  ? 'pilPaxB' + ((bays - 1) || '') : 'pilCabB'; })(),
                               dy: (+P.thrY || 0) / ps, dx: (+P.thrX || 0) / ps,
                               len: (P.thrLen != null ? +P.thrLen : 0.16) / ps };
   }
@@ -10980,8 +10986,9 @@ function cageShoulder(m, S) {
   // the crew layer to draw; 'slot' cuts the leg, 'face' only seats a plate
   let lever = null;
   if (SH.throttle && SG.shoulderLever) try {
-    const R = cageResolve(S), cabB = R.rings.find(r => r.name === 'pilCabB');
-    const zT = (cabB ? cabB.lv.waist.z : 0) + 0.05 + SH.throttle.dz;
+    const R = cageResolve(S), rn = SH.throttle.ring || 'pilCabB';
+    const cabB = R.rings.find(r => r.name === rn) || R.rings.find(r => r.name === 'pilCabB');
+    const zT = (cabB ? cabB.lv.waist.z : 0) + SH.throttle.dz;
     lever = SG.shoulderLever(m, S, o, { cageResolve }, Object.assign({ z: zT }, SH.throttle));
     if (lever && lever.mode === 'slot') o.lever = lever;
   } catch (e) { lever = null; }
