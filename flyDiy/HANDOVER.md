@@ -317202,3 +317202,16 @@ NEW REDS (named, owners fix in L40f):
 - BENCHTIME: 2 bench checks at 6.0-6.5 s vs 6.0 under the train's load (timing).
 LOAD TIME (cold, RTX 3080, ledger): L40d 143 s -> L40e 215 s (205 s re-measured on a quiet box): world 26 -> 40-51 s, settle 17 -> 22-27 s, shader compile 58 -> 67-93 s. LANDED WITH THE COST NAMED (the user's rule); suspects: subalpine (+7-14 % trees, walk), grass-on-green, animals on land (31 drawn), the ground ladder. First item of the perf round; bisect owed.
 KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes evict grit on low tiers (GROUND-FX splash-budget L40f); MEDIA career_core 720 KB budget (Game).
+
+## PERF-BENCH - THE IN-GAME BENCHMARK BUTTON (Game, 17 Nov 2026; PERF-WEEK-METHOD-2026-11-14 line 18; claude/bench-button)
+- The game menu's "Benchmark" row opens a card (src/viewer/perf_bench.js, window.FLYDIY_PERFBENCH): Pilot's scenarios
+  (tools/flight_scripts/index.json {name, what, file}, else the library) run IN THE PAGE with flight_script.js runPage's
+  rules and Pilot's step kinds (skip, camera orbit/pan360/chase/cockpit/free, weather, time, dest, shed, rollout, wait with
+  until.s; minimap and load said skipped until the page has their API); the plane seeded as the working build (flydiy.wip)
+  and the page reloaded with the run armed in sessionStorage, so the boot is timed (the loading screen's frames, long
+  tasks, the first contact to the garage); the garage steps (the editor's sliders input-to-frame, every game-menu row opened
+  and closed); an optional crash lag (2 m under the ground, 6 s of frames). The phone profile runs the garage steps.
+- ONE LOG (Pilot's PERF-TRACE-FORMAT.md): every step is FLIGHT_REC.mark('seg:<name>'), 'seg:end' at the end, the run said
+  once as FLIGHT_REC.event('bench', ...runner 'ingame'), and FLIGHT_REC.save() downloads the recorder's log; Pilot's
+  tools/perf_trace.js makes the report. With ?rec=0 the summary JSON is downloaded instead. The card keeps the last summary.
+- GATE PERFBENCH (20 checks, --selftest 5 breaks red). GPU check in the page: pending a slot (scratchpad stills/pb_check.js).
