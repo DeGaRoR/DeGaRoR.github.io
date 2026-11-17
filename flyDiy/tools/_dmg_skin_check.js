@@ -257,16 +257,24 @@ if (argv[0] === '--build') {
     // step on until the inline sets have held still for a whole window (8 frames > SIM_DMG_SET_S), at most 4 s, then
     // flush the host's last send as before - the claim is 'equal once the window has passed', not 'equal at an
     // arbitrary end frame'
-    { let still = 0, prev = stI.set.slice();
-      for (let j = 0; j < 240 && still < 8; j++) {
+    // (G4103: and again while the flush saw the inline sets move - a wreck quiet for a whole window may yield again: the
+    // metal Cessna's nose-in under the kinks' tethers, still from 3.15 s, then a burst of yields at 4.17-4.23 s inside
+    // the 7 flush frames - the host's send held by its window, rightly, past the gate's end. The claim stands: equal
+    // once a window has passed with the inline still; within the same 4 s cap)
+    { let still = 0, prev = stI.set.slice(), j = 0;
+      const one = () => {
         simW.step(1 / 60); simI.step(1 / 60);
         const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI);
         const m2 = H.meta(); if (m2.dmgB) SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB)));
         const same = stI.set.length === prev.length && stI.set.every((x, i) => x === prev[i]);
-        still = same ? still + 1 : 0; prev = stI.set.slice();
+        still = same ? still + 1 : 0; prev = stI.set.slice(); j++;
+      };
+      for (;;) {
+        while (j < 240 && still < 8) one();
+        const s0 = still; for (let q = 0; q < 7; q++) one();
+        if (still >= s0 + 7 || j >= 240) break;
       }
       S.settleSteps = still; }
-    for (let j = 0; j < 7; j++) { simW.step(1 / 60); simI.step(1 / 60); const PI = SH.simDmgHop(simI, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI); const m2 = H.meta(); if (m2.dmgB) SV.simViewDmgApply(stW, v8.deserialize(v8.serialize(m2.dmgB))); }
     S.setsEnd = stI.set.every((x, i) => x === stW.set[i]);
     S.flushLost = S.settleSteps >= 8 && !S.setsEnd;   // (G2640, Deform's welcome: unequal after the inline held still a whole window = the host's trailing flush lost)
     for (const r of recs) { S.removedG += r.RG.removed; S.tornG += r.RG.torn; S.removedC += r.RC.removed; S.tornC += r.RC.torn; }
