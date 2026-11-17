@@ -317227,3 +317227,15 @@ hangar backdrop (HANGAR-VIEW's six-face world capture drawn on a distance mesh) 
 - STEP 2 (claude/hangar-outdoors-2, after the user's look): the user's elements on the kept outdoors - the world's aprons in
   'concreteD', low-poly cars at the club, tree cards all round from the world's own impostor sheets (render_world
   treeSideSheet), the Shed's dirt, tyre marks and wooded hill; and the large hangar's four wall options (?hwall=a|b|c|d).
+
+## HANGAR-OUTDOORS-2 - THE USER'S ELEMENTS ON THE ROOM'S OUTDOORS (Game, 17 Nov 2026; claude/ready/hangar-outdoors-2)
+- Trees all round each room from the world's own impostor sheets (render_world treeSideSheet: the level side tile of up to 4
+  baked species, tinted, one strip; hangar.treesFrom: one InstancedMesh a species facing the room's centre; app.js
+  hoTreesTick), the club's five low-poly cars (plain meshes - the room's merge bakes direct children only), the Shed's dirt
+  ('dirtS'), two tyre marks and a wooded hill (foot 60 m, 0.22 a metre; the polar grids wound a, c2, b to face up). GPU
+  stills 17 Nov 14:50 / 15:20 / 15:25 on the page VdkuhWogfjRQ3hzm5wZpmV; garage frame 7-10 ms median.
+- OPEN (next round, a GPU slot): (1) the wide apron (opts.aprons = the island's paved surface polygons, 'concreteD' at
+  Y_AW 7.5 mm over the field) does not show - check hoAprons' count on the page, then the height; (2) the large hangar's
+  wall options: its visible walls are DERELICT_GEN stage 3's own (concWall / sheet*), not PARTS wallSides - the ?hwall
+  dial (setPart paint) dresses hidden parts; make the four options (red corrugated weathered = default, galvanised, olive,
+  timber) on the generator's materials, show them, the user picks.
