@@ -1,0 +1,47 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_crash_cub",
+ "what": "THE USER'S CRASHES (l.11): the cub off HOME, put into the ground from its climb - the crash and its aftermath measured",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "HOME",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "take-off",
+   "do": "start",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "DOWNWIND",
+     "ENROUTE"
+    ],
+    "agl": 40
+   },
+   "capS": 400
+  },
+  {
+   "name": "the crash",
+   "do": "lift",
+   "by": -45,
+   "until": {
+    "s": 12
+   },
+   "capS": 30,
+   "allow": [
+    "crash",
+    "yield",
+    "dent",
+    "prop-strike"
+   ]
+  },
+  {
+   "name": "orbit the wreck",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 15,
+   "dist": 20
+  }
+ ]
+}

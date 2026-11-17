@@ -9457,6 +9457,7 @@
                           setManual, manual: () => manual, input: () => INP,     // G200
                           nextLeg: () => (flNextLeg ? (flNextLeg(), true) : false),   // G820 (C1c): Fly on's own chain, for a rig that cannot fly a circuit first
                           over: () => flightOver,                               // G820: the card's latch (an ending, G130)
+                          panel: (k, on) => flPanel(k, on),                     // PERF-BENCH (17 Nov): a rig opens a panel as the player does (the minimap: 'map')
                           damage: () => flDmg,                                  // G1470: the crash's verdict (the worker's under it)
                           structural: () => flStructural(),                     // DMG-D4b (train 41): the aeroplane's integrity (GAME's career reads it)
                           arrival: td => { const A = flArrival(td); return { arrived: !!A.t, damaged: A.damaged, structural: A.S }; },   // (GATE rows: the certificate's rule)

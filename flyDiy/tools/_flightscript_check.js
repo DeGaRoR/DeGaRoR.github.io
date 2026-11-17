@@ -22,7 +22,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flightscript-'));
 const readLog = f => fs.readFileSync(f, 'utf8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch (e) { return { bad: l.slice(0, 80) }; } });
 try {
   // 1 the library
-  const names = fs.readdirSync(FS.LIB).filter(f => f.endsWith('.json')).map(f => f.replace(/\.json$/, ''));
+  const names = fs.readdirSync(FS.LIB).filter(f => f.endsWith('.json') && f !== 'index.json').map(f => f.replace(/\.json$/, ''));   // (index.json: the list Game's in-game Benchmark button reads, not a scenario; the perf scenarios are in perf/)
   check(names.includes('home_circuit') && names.length >= 5, '1 the library holds the home circuit and the standard flights', names.join(', '));
   for (const n of names) {
     const S = FS.loadScenario(n), bad = FS.checkScenario(S);

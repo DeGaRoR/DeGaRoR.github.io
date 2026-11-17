@@ -1,0 +1,27 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_cub_long_grass",
+ "what": "THE USER'S Cub taxi in the long grass (l.11): Cabin Strip's meadow, a minute of taxi on the grass",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "w1",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "taxi in the grass",
+   "do": "start",
+   "until": {
+    "s": 60
+   },
+   "capS": 90
+  },
+  {
+   "name": "grass orbit",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 15,
+   "dist": 12
+  }
+ ]
+}
