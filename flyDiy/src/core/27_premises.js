@@ -68,8 +68,9 @@ const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways',
 // AREA { id, kind: 'sound', poly, key, on }: `key` an ambience bed (amb.*), `on` true = the bed at full there (fading out
 // over the bed's own reach), false = the bed silenced there (coming back over the same reach). How far a bed carries is
 // the ambience's (AMBIENCE_MODEL.REACH), never the record's.
-const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12 };
-const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND', 'SNOW_PACKED', 'SNOW_POWDER', 'SNOW_WET', 'MUD_FIRM', 'MUD_SOFT'];
+const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12, GRASS_WET: 13, SAND_WET: 14,
+                  DIRT_WX: 20, GRASS_WX: 21, SAND_WX: 22 };   // (SNOW-MUD LADDER, 15 Nov: the wet rungs; 20-22 a weather look's code, resolved by 07f GROUND_WX)
+const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND', 'SNOW_PACKED', 'SNOW_POWDER', 'SNOW_WET', 'MUD_FIRM', 'MUD_SOFT', 'GRASS_WET', 'SAND_WET'];   // (the weather codes 20-22 are named by their look)
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
 const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
 // THE CATEGORIES (G393, the asset session): the seven words every generator's catOf answers with, the
@@ -806,7 +807,8 @@ function migrate(rec) {
 // An area that felt HARD (paved / gravel / sand: no tree, no plot) and now feels soft keeps them out - its exclude gains trees and
 // plots (A0 for the user: the feel follows the look, no new trees grow in). Idempotent: a converted record converts to itself.
 // (SNOW-MUD, 13 Nov: a snow or mud strip or apron is a worked surface too - no tree grows on it, no plot is cut into it)
-const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND, SURFACE.SNOW_PACKED, SURFACE.SNOW_POWDER, SURFACE.SNOW_WET, SURFACE.MUD_FIRM, SURFACE.MUD_SOFT];
+const FEEL_HARD = [SURFACE.PAVED, SURFACE.GRAVEL, SURFACE.SAND, SURFACE.SNOW_PACKED, SURFACE.SNOW_POWDER, SURFACE.SNOW_WET, SURFACE.MUD_FIRM, SURFACE.MUD_SOFT,
+                   SURFACE.SAND_WET, SURFACE.DIRT_WX, SURFACE.SAND_WX];   // (LADDER: a wet or weather dirt / sand is worked ground too)
 function feelFollowsLook(r) {
   const feelOf = k => { const L = k && RUNWAY_LOOKS[k]; return L && L.surface !== null && L.surface !== undefined ? +L.surface : null; };
   for (const w of r.layers.runways) if (w && w.look && +w.surface !== SURFACE.WATER) { const f = feelOf(w.look); if (f !== null && (w.surface === undefined || w.surface === null ? SURFACE.GRASS : +w.surface) !== f) w.surface = f; }
@@ -1415,6 +1417,15 @@ const RUNWAY_LOOKS = {
   slush:    { name: 'snow (wet)',     surface: SURFACE.SNOW_WET,    set: 'brushed', cls: 'snow', preset: null },
   mud:      { name: 'mud (firm)',     surface: SURFACE.MUD_FIRM,    set: 'dirt',    cls: 'mud',  preset: null },
   softmud:  { name: 'mud (soft)',     surface: SURFACE.MUD_SOFT,    set: 'dirt',    cls: 'mud',  preset: null },
+  // SNOW-MUD LADDER (15 Nov, the user: "these 3 options, and maybe an auto setting? So we can keep doing tests, or mark a
+  // runway as always dry or muddy, and let some evolve with the weather"): the wet rungs as fixed looks, and the WEATHER
+  // looks - their feel a weather code (20-22) the world resolves to the rung the soil's water puts it on (07f GROUND_WX),
+  // their drawing their class's, tinted and worn by the same rung (pavement.js setGroundWx, STRIP_MICRO wear)
+  wetgrass: { name: 'grass (wet)',     surface: SURFACE.GRASS_WET,   set: null,      cls: 'grass', preset: null },
+  wetsand:  { name: 'sand (wet)',      surface: SURFACE.SAND_WET,    set: 'dry',     cls: 'sand',  preset: null },
+  dirtwx:   { name: 'dirt (weather)',  surface: SURFACE.DIRT_WX,     set: 'dirt',    cls: 'dirt',  preset: null, wx: true },
+  grasswx:  { name: 'grass (weather)', surface: SURFACE.GRASS_WX,    set: null,      cls: 'grass', preset: null, wx: true },
+  sandwx:   { name: 'sand (weather)',  surface: SURFACE.SAND_WX,     set: 'dry',     cls: 'sand',  preset: null, wx: true },
 };
 const ROAD_LOOK = { gravel: 'gravel', paved: 'asphalt', track: 'grass', path: 'grass' };
 // THE BAND a pavement class draws beside itself when the entry says nothing (metres; a road's is
@@ -1463,11 +1474,15 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 //             and fade, then `roadMow` m of mown verge. The answer gains `cut` (0..1: how mown the grass is here) and `surf`
 //             (1 on a grass strip's running surface) - the heights are the viewer's (cover_ring.js: the cut grass's length).
 // Live dials (the editor's PREMISES > grass rows; the world look saves them): PREMISES_GEN.grassSides(o) sets, () reads.
-// `hard` (the user's call, default 0): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
+// `hard` (the user's call - default 1 since 15 Nov, look AND surface: 20_world giveWay): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 6, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 0 };   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 1, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 2.7 };   // mowBand 1 (was 6; 16 Nov, the user's purple bands at the Cabin Strip: the 7 cm mown band hid the grass there - the Monday shoot's mowBand 1 changed 37 % of the purple, 2 % elsewhere; LOOK ONLY, the wheels never read it)   // trackW 2.7: tw_ski's drawn track ends 1.098 + grTrackW 0.3 + grTrackFade 1.0 = 2.4 m out (DIRT-STRIP's L40e ready, 16 Nov) + 0.3 - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
+// (GRASS-ON-GREEN 16 Nov) a gate's or a rig's override of the one dial for the margin's look AND surface: FLYDIY_GRASS_HARD=1 (node env or window)
+// (16 Nov, the page boot: with no process the old `a && b` read FALSE, +false = 0 - the page shipped hard 0 while every node gate saw 1.
+//  Only a string or a number is an override)
+try { const v = (typeof window !== 'undefined' && window.FLYDIY_GRASS_HARD != null) ? window.FLYDIY_GRASS_HARD : (typeof process !== 'undefined' && process.env ? process.env.FLYDIY_GRASS_HARD : undefined); if ((typeof v === 'string' || typeof v === 'number') && v !== '' && isFinite(+v)) GRASS_SIDES.hard = Math.max(0, +v); } catch (e) {}
 function grassSides(o) {
   if (o && typeof o === 'object') for (const k in o) {
     if (!(k in GRASS_SIDES_DEF)) continue;
@@ -2917,7 +2932,8 @@ function compose(rec0, world, opts) {
     if (typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.on(r.micro)) {
       let grade = 0; for (let a = 0; a <= r.len; a += 3) grade = Math.max(grade, Math.abs(pr.slopeAt(a)));
       const MM = makeModifier({ id: r.id + ':micro', kind: 'micro', strip: { c: r.c, hdg: r.hdg, len: r.len, wid: r.wid }, micro: r.micro, grade: +grade.toFixed(4) }, F.y0);
-      if (MM) { microMods.push(MM); microStrips.push({ id: r.id, f: MM.field }); }
+      // (SNOW-MUD LADDER: a weather look's code rides along - its worn relief is scaled by its rung on the composed ground, wearDelta)
+      if (MM) { microMods.push(MM); const L = RUNWAY_LOOKS[r.look]; microStrips.push({ id: r.id, f: MM.field, wx: L && L.wx ? +L.surface : 0 }); }
     }
   }
   // (DIRT-STRIP) the micro strips published for STRIP_MICRO.at / puddleAt in the WORLD frame (the island's: nothing when none)
@@ -3641,6 +3657,52 @@ function compose(rec0, world, opts) {
       for (let i = 0; i < cell.length; i++) h = cell[i].apply(lx, lz, h);
       return h;
     },
+    // ROUGH GROUND (SNOW-MUD, 15 Nov: the wheel's envelope, 30_solver): whether (x, z) lies on a bumpy strip's box, grown a
+    // metre - where a wheel reads the ground under its arc, not under its axle; false off every micro strip (one compare)
+    // SNOW-MUD LADDER (15 Nov): THE WEATHER STRIPS' WORN RELIEF - on a bumpy strip whose look follows the weather (07f
+    // GROUND_WX), what its rung adds to the composed ground: (scale(code) - 1) x the field's wearAt (26b), the scale the
+    // world's (its soil now). null off every such strip (the world's terrainH then memoises as before); wxMicroN their count
+    get wxMicroN() { let n = 0; for (const q of microStrips) if (q.wx) n++; return n; },
+    wearDelta(x, z, scale) {
+      let lx = NaN, lz = 0;
+      for (let k = 0; k < microStrips.length; k++) {
+        const q = microStrips[k]; if (!q.wx) continue;
+        if (lx !== lx) { const dx = x - F.anchor.x, dz = z - F.anchor.z; lx = dx * F.c - dz * F.s; lz = dx * F.s + dz * F.c; }   // (no weather strip: no transform)
+        const b = q.f.bbox;
+        if (lx < b.x0 || lx > b.x1 || lz < b.z0 || lz > b.z1) continue;
+        const sc = scale(q.wx);
+        return sc === 1 ? 0 : (sc - 1) * q.f.wearAt(lx, lz);
+      }
+      return null;
+    },
+    // the bound of |wearDelta| over a world rectangle (the ground's ceiling widens by it): maxScaleDev x the field's wearBound
+    wearBoundRect(ax, az, bx, bz, dev) {
+      let B = 0;
+      for (const q of microStrips) {
+        if (!q.wx) continue;
+        const b = q.f.bbox, c = [[ax, az], [bx, az], [ax, bz], [bx, bz]].map(([x, z]) => { const dx = x - F.anchor.x, dz = z - F.anchor.z; return [dx * F.c - dz * F.s, dx * F.s + dz * F.c]; });
+        const x0 = Math.min(...c.map(p => p[0])), x1 = Math.max(...c.map(p => p[0])), z0 = Math.min(...c.map(p => p[1])), z1 = Math.max(...c.map(p => p[1]));
+        if (x1 < b.x0 || x0 > b.x1 || z1 < b.z0 || z0 > b.z1) continue;
+        B = Math.max(B, dev * q.f.wearBound);
+      }
+      return B;
+    },
+    // a weather strip's code by its runway id (0: none, or not bumpy) - the renderer's re-drape
+    wxMicroOf(id) { for (const q of microStrips) if (q.id === id) return q.wx || 0; return 0; },
+    wearAtWorld(x, z, id) {
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      for (const q of microStrips) if (q.id === id) return q.f.wearAt(lx, lz);
+      return 0;
+    },
+    roughAt(x, z) {
+      if (!microStrips.length) return false;
+      const dx = x - F.anchor.x, dz = z - F.anchor.z, lx = dx * F.c - dz * F.s, lz = dx * F.s + dz * F.c;
+      for (let k = 0; k < microStrips.length; k++) {
+        const b = microStrips[k].f.bbox;
+        if (lx >= b.x0 - 1 && lx <= b.x1 + 1 && lz >= b.z0 - 1 && lz <= b.z1 + 1) return true;
+      }
+      return false;
+    },
     // THE STONES' BODIES (DIRT-STRIP, 26b stoneUV): a bumpy strip's stones, added ON the composed ground by the world's
     // terrainH - not baked in the raster (its 0.25 m lattice would flatten a 14-54 cm stone by up to 13 cm); 0 off them
     stonesAt(x, z) {
@@ -4011,7 +4073,12 @@ function compose(rec0, world, opts) {
       let k = 0, c = 0;
       if (clr) { k = 1; if (k > kill) kill = k; continue; }
       if (d >= 0) {   // ON the pavement: bare, but a grass strip's surface is cut grass and a grass road / polygon worn grass (40 %, cut)
-        if (it.cls === 'grass') { if (it.kind === 'strip') { if (G.stripGrass > 0) { c = 1; surf = 1; k = trailKill(it, lx, lz); } else k = 1; } else { k = 0.6; c = 1; } }
+        if (it.cls === 'grass') { if (it.kind === 'strip') { if (G.stripGrass > 0) {
+            // (GRASS-ON-GREEN with DIRT-STRIP, 16 Nov) a trail strip drawn NARROW (pavement.js: opaque to ~1.8 m from the centreline, gone
+            // by ~3.8 m - claude/dirt-look-3): past `trackW` m from the centreline its surface draws the ground, so the grass is the
+            // wild grass there, not the 7 cm cut (0 = the whole running surface cut, as before)
+            const vT = G.trackW > 0 && it.d && it.e0 ? Math.abs((lx - it.e0[0]) * it.d[1] - (lz - it.e0[1]) * it.d[0]) : 0;
+            if (vT > G.trackW) { c = 0; surf = 0; k = 0; } else { c = 1; surf = 1; k = trailKill(it, lx, lz); } } else k = 1; } else { k = 0.6; c = 1; } }
         else k = 1;
         if (it.soft && d < 1 && it.cls !== 'grass') boost = Math.max(boost, 0.5 * (1 - d));
       } else if (aero) {
@@ -4467,7 +4534,9 @@ function issues(rec0) {
     if (Math.abs((+a.level || 0) - (+b.level || 0)) < 0.01) continue;
     if (polysOverlap(a.poly, b.poly)) out.push('terrain ' + a.id + ' and ' + b.id + ': two flattens at different levels overlap');
   }
-  for (const s of rec.layers.surface) if (!(s.surface >= 0 && s.surface <= 7)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
+  // (OBSERVATORY-3, 15 Nov: SNOW-MUD's soft codes 8-12 placed by an old-style surface polygon too, as their design says -
+  //  the bound read the hard codes' 0..7; now every code the SURFACE enum names)
+  for (const s of rec.layers.surface) if (!(Number.isInteger(+s.surface) && +s.surface >= 0 && +s.surface < SURFACE_NAMES.length)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
   const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
   // (t53 OPTION C, 13 Oct: rev 28's 02/20 ENDS on 13/31 - a T, the user's geometry): a strip one of whose ends lies inside the
@@ -4697,7 +4766,7 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, grassHard: () => GRASS_SIDES.hard > 0, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
   polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,

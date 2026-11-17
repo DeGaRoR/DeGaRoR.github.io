@@ -69,9 +69,17 @@
     try { if (PAGE.post) PAGE.post({ scene, spec: built.spec, mesh: built.sheet, P, stat: { textContent: '' } }); }
     catch (e) { errors.push('post: ' + (e && e.message || e)); }
     scene.updateMatrixWorld(true);
+    const r = collect(W, scene, built.sheet, FS);
+    return { P, spec: built.spec, tris: r.tris, parts: r.parts, frame: r.frame, ms: Date.now() - t0, errors };
+  }
+  // THE TABLE'S READING OF A DRAWN SCENE (QUICKSHOT-ONE: quickshot.js --sheet hands its own scene here, so the picture
+  // and the score are the table's rules on the geometry quickshot draws): the sheet's faces and the outline's layers,
+  // part-tagged, in the table frame. scene: the garage's world (x span, y up, z fore); sheet: the cage sheet in cage
+  // units; FS: the sheet's metres a unit
+  function collect(W, scene, sh, FS) {
+    const THREE = W.THREE;
     // ---- collect, in the garage's world (x span, y up, z fore) ----
     const xyz = [], pid = [];
-    const sh = built.sheet;
     for (const f of sh.F) {
       if (f.v.length < 3) continue;
       // the INSIDE is kept as its own part: never measured, but a check of its own - seen from outside, it is a hole
@@ -113,7 +121,7 @@
       tris[i + 1] = xyz[i + 1] - hubY;      // h: above the thrust line
       tris[i + 2] = xyz[i];                 // s: span
     }
-    return { P, spec: built.spec, tris, parts: Uint8Array.from(pid), frame: { tipZ, hubY, FS }, ms: Date.now() - t0, errors };
+    return { tris, parts: Uint8Array.from(pid), frame: { tipZ, hubY, FS } };
   }
 
   // THE GARAGE'S OWN ROW DEFINITIONS: every [key, label, min, max, step, opts] row in the page's trees, by key
@@ -134,7 +142,7 @@
     return out;
   }
 
-  const api = { PARTS, PID, birth, build, rowDefs };
+  const api = { PARTS, PID, birth, build, collect, rowDefs };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DT_BUILD = api;
 })(typeof self !== 'undefined' ? self : this);

@@ -165,6 +165,33 @@ const REFS = {
       TO:    { v: [200 * FT, 250 * FT], tol: 0.05, kg: 'unknown', flaps: 0, surface: 'grass', src: '200 / 250 ft' },
       LDG:   { v: 300 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'grass', src: '300 ft' },
     } },
+  // PILATUS PC-6/B2-H4 TURBO PORTER (FIT-PROCEDURE, the drafting table 11-16 Nov; tools/drafting/refs/pc6.json - the type
+  // certificate prevails). The factsheet's figures are ISA, the STOL technique; its TO50 / LDG50 state no weight.
+  // Vs0 (96 km/h, 52 KEAS at gross, full flap) is the factsheet's too - no indicator for it here: it is the card's note
+  pc6: {
+    name: 'Pilatus PC-6/B2-H4 Turbo Porter (PT6A-27, 550 shp)', mtow: 2800, empty: 1250, fuelL: 484, S: 30.15,
+    src: 'FOCA TCDS F 56-10 issue 7 (the B2-H4 column) + Pilatus factsheet "PC-6 The world\'s leading STOL" (ISA): 2800 kg, 30.15 m2, flaps 28 / 38 deg, Vs1 58 KEAS / Vs0 52 KEAS at gross, climb 5.13 m/s, max cruise 125 KTAS, TO50 440 m, LDG50 315 m',
+    // THE TRAIL (PC6-TRAIL, 16 Nov): the sources as tools/drafting/refs/pc6.json locked them (FIT-PROCEDURE's "references"
+    // step, 2026-11-11: "variant locked; TCDS, factsheet, TAR"). That file keeps the TCDS's and the factsheet's titles and
+    // issues, not their links: noUrl says so, and no link is guessed here
+    variant: 'Pilatus PC-6/B2-H4 Turbo-Porter (the H4 index, SB 149A 1985: MTOW 2800 kg, extended composite tips, span 15.87 m) on the P&WC PT6A-27, 550 shp, Hartzell HC-B3TN-3D three-blade',
+    sources: {
+      tcds:      { what: 'FOCA Type Certificate Data Sheet F 56-10, issue 7, 20 Sep 2006 (PC-6 series, the B2-H4 column): MTOW 2800 kg, 30.15 m2, the PT6A-27 at 550 shp, fuel, seats, flaps',
+                   quality: 'typeSheet', read: '2026-11-11', noUrl: 'tools/drafting/refs/pc6.json records the TCDS by number, issue and date, not its link' },
+      factsheet: { what: 'Pilatus factsheet "PC-6 The world\'s leading STOL" (the PC-6/B2-H4, ISA): basic operating 1250 kg, Vs1 58 KEAS / Vs0 52 KEAS at gross, climb 1010 fpm, max cruise 125 KTAS, TO50 440 m, LDG50 315 m (STOL technique)',
+                   quality: 'maker', read: '2026-11-11', noUrl: 'tools/drafting/refs/pc6.json records the factsheet by title, not its link' },
+      tar:       { what: 'CAA New Zealand Type Acceptance Report TAR 1/21B/14 Rev 1, 8 Sep 2023 (the PC-6 series accepted on the FOCA TC)',
+                   quality: 'typeSheet', read: '2026-11-11', url: 'https://www.aviation.govt.nz/assets/aircraft/type-acceptance-reports/Pilatus_PC-6.pdf' },
+    },
+    poh: { vr: 1.10, vy: 1.30, flapTO: 28, flapLDG: 38, brake: 0.7, note: 'the STOL technique (the factsheet\'s): rotate near the take-off flap\'s stall, full flap and firm braking to land' },
+    rows: {
+      empty: { v: 1250, tol: 0.08, src: 'basic operating 1250 kg, "depends on configuration" (factsheet)', from: 'factsheet' },
+      Vs1:   { v: 58 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: '58 KEAS at gross (factsheet)', from: 'factsheet' },
+      Vmax:  { v: 125 * KT, tol: 0.10, kg: 'unknown', src: 'max cruise 125 KTAS, altitude not stated (factsheet) - max continuous power, read as the full-power level speed', from: 'factsheet' },
+      roc:   { v: 5.13, tol: 0.05, kg: 'gross', src: '1010 fpm, 5.13 m/s at gross (factsheet)', from: 'factsheet' },
+      TO50:  { v: 440, tol: 0.10, kg: 'unknown', flaps: 28, surface: 'unknown', src: 'over 15 m, STOL technique, ISA (factsheet)', from: 'factsheet' },
+      LDG50: { v: 315, tol: 0.10, kg: 'unknown', flaps: 38, surface: 'unknown', src: 'from 15 m, STOL technique, ISA (factsheet)', from: 'factsheet' },
+    } },
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -214,6 +241,35 @@ Object.assign(REFS, {
       LD:    { v: 4.6, tol: 0.10, kg: 'unknown', src: 'L/D 4.6 at 35 mph (the drag polar CD 0.13 + 0.088 CL^2)' },
       TO:    { v: 350 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '350 ft' },
       LDG:   { v: 300 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '300 ft' },
+    } },
+  // RUPPERT ARCHAEOPTERYX (Ruppert Composite, Switzerland; the foot-launched microlift glider, HB-WXA). The figures are the
+  // GLIDER's (the 2005 type; the maker's and the encyclopedia's): the build carries an electric pusher as the Electeryx
+  // does, whose drive (~18 kg, futureDesigns/archaeopteryx/STUDY.md section 2) no source weighs - so the empty row is
+  // the glider's, and the build reads heavy against it by the drive at least. Climb and take-off are the electric
+  // version's (one thin source). Read 15 Nov 2026 through search excerpts (the pages themselves are outside this
+  // session's network): what the excerpts state is what is written here.
+  archaeo: {
+    name: 'Ruppert Archaeopteryx (foot-launched glider; the build: an electric pusher, as the Electeryx)', mtow: 191, empty: 54, fuelL: 0, S: 12.8,
+    variant: 'Ruppert Composite Archaeopteryx, the 2005 glider (13.6 m); the electric drive is the Electeryx\'s, unweighed',
+    sources: {
+      wiki:  { what: 'Wikipedia "Ruppert Archaeopteryx", Specifications (from the Sailplane Directory, the maker\'s site and flight manual): span 13.6 m, empty 54 kg, gross 160 kg, max take-off 191 kg, L/D 28, min sink 0.50 m/s, stall 30-39 km/h, cruise 57 km/h, VNE 130 km/h; pilot 55-100 kg',
+               quality: 'encyclopedia', read: '2026-11-15', url: 'https://en.wikipedia.org/wiki/Ruppert_Archaeopteryx' },
+      maker: { what: 'Ruppert Composite, archaeopteryx.ch: "the lightest sailplane in the World (61 kg | 134 lbs)", glide ratio 28, sink 0.5 m/s | 98 fpm',
+               quality: 'maker', read: '2026-11-15', url: 'http://www.archaeopteryx.ch/en/index.php' },
+      fai:   { what: 'FAI CIAM Flyer 3/2011, "The flying capabilities of the Archaeopteryx": unladen 54 kg, span 13.6 m',
+               quality: 'review', read: '2026-11-15', url: 'https://www.fai.org/sites/default/files/documents/ciam-flyer_3-2011-email.pdf' },
+      ostiv: { what: 'Hesselbarth & Ruppert, "Experiences with the Archaeopteryx", OSTIV 2015: the 54 kg empty includes the 6.7 kg cockpit cladding and the 5.5 kg parachute',
+               quality: 'review', read: '2026-11-15', url: 'https://www.pa.op.dlr.de/ostiv/Activities/2015Hesselbarth.pdf' },
+      elec:  { what: 'the Electeryx (search excerpt): take-off roll 50 m, climb 2.5 m/s fully charged, 11 min at full throttle',
+               quality: 'thin', read: '2026-11-15', url: 'https://all-aero.com/2025/03/28/ruppert-composite-archaeopteryx' },
+    },
+    poh: { vr: 1.15, vy: 1.30, flapTO: 0, flapLDG: 0, brake: 0.3, note: 'no handbook speeds in the sources: the cub\'s ratios; its flaps are glide-path brakes (45-70 deg), not lift flaps' },
+    rows: {
+      empty: { v: 54, tol: 0.15, src: '54 kg, parachute and cladding in (the maker now says 61 kg: tol 15 %); the GLIDER\'s', from: ['wiki', 'fai', 'ostiv'] },
+      Vs1:   { v: [30, 39], tol: 0.10, kg: 'unknown', flaps: 'unknown', src: 'stall 30-39 km/h (light to heavy pilot)', from: 'wiki' },
+      LD:    { v: 28, tol: 0.10, kg: 'unknown', src: 'glide ratio 28', from: ['wiki', 'maker'] },
+      roc:   { v: 2.5, tol: 0.20, kg: 'unknown', src: '2.5 m/s fully charged (the Electeryx)', from: 'elec' },
+      TO:    { v: 50, tol: 0.20, kg: 'unknown', flaps: 'unknown', surface: 'unknown', src: 'take-off roll 50 m (the Electeryx)', from: 'elec' },
     } },
   // SOPWITH CAMEL F.1 (Clerget 9B 130 hp). Weights and dimensions agree across sources; the speed is one database's
   // (185 km/h) and the climb is not found stated as a rate: no climb row.
@@ -295,6 +351,9 @@ Object.assign(REFS, {
 //   specs: engine (name), hp (per engine), nE, propD (m), blades, empty, mtow (kg), fuelL, seats
 // ---------------------------------------------------------------------------------------------------------------------
 const GEO = {
+  pc6:      { dims: { span: 15.87, length: 10.9, height: 3.2, S: 30.15, cRoot: 1.9, cTip: 1.9, hSpan: 5.13, track: 3.0 },
+              specs: { engine: 'P&WC PT6A-27', hp: 550, nE: 1, propD: [2.515, 2.565], blades: 3, empty: 1250, mtow: 2800, fuelL: [484, 644], seats: 11 },
+              src: 'FOCA TCDS F 56-10 issue 7 (the B2-H4 column) + Pilatus factsheet (tools/drafting/refs/pc6.json)', lengthNote: 'overall; the height static, tail down' },
   cub:      { dims: { span: 10.74, length: 6.83, height: 2.03, S: 16.6, cRoot: 1.60, cTip: 1.60, hSpan: 2.90, track: 1.83 },
               specs: { engine: 'Continental A-65', hp: 65, nE: 1, propD: 1.83, blades: 2, empty: 345, mtow: 550, fuelL: 45, seats: 2 },
               src: 'J-3 type sheet (perf_study REAL.cub.dims)' },
@@ -344,6 +403,9 @@ const GEO = {
   stearman: { dims: { span: 9.80, length: [7.39, 7.54], height: [2.79, 2.95], heightAs: 'level', S: [27.6, 27.7] },
               specs: { engine: 'Continental R-670 / W-670', hp: 220, nE: 1, blades: 2, empty: [876, 878], mtow: [1195, 1232], fuelL: 174, seats: 2 },
               src: 'PT-17 (search extracts above); fuel 46 US gal (THIN)' },
+  archaeo:  { dims: { span: 13.6, S: 12.8 },
+              specs: { engine: 'electric pusher (the Electeryx\'s ~10.5 kW)', hp: 14, nE: 1, empty: 54, mtow: 191, fuelL: 0, seats: 1 },
+              src: 'Wikipedia (span 13.6 m, 12.8 m2, AR 14.5; futureDesigns/archaeopteryx/STUDY.md section 1); the motor 10.5 kW (Wikipedia, via the study)' },
   carboncub:{ dims: { span: 10.36, S: 16.6 },
               specs: { engine: 'CubCrafters CC340', hp: 180, nE: 1, blades: 2, empty: 408, mtow: 599, fuelL: 91, seats: 2 },
               src: 'Carbon Cub SS: 34 ft span (Wikipedia CC11-160), wing area as the Cub family (THIN); 1320 lb / 900 lb / 24 gal' },
@@ -365,6 +427,9 @@ for (const k in GEO) if (REFS[k]) Object.assign(REFS[k], { dims: GEO[k].dims, sp
 // check both sides; null = no list row (jodel_geo, the floats Cessnas, the Ruckus). Where the row's file differs from
 // `file` (the Cub 1 / Jodel 2 / PA-18 25 / Petrel 41) or its blob does, see reports/REAL-FIGURES-CANON.md.
 const PLANES = {
+  // FIT-PROCEDURE (16 Nov): the drafting table's PC-6 on its oleo tailwheel (PC6-OLEO: the 30.5 kg tail gear, CG 7.7 cm aft)
+  pc6:      { listRow: 57, label: 'Pilatus PC-6/B2-H4 Turbo Porter (the drafting table, the oleo tailwheel; candidate)', short: 'PC-6 Turbo Porter', file: 'builds/candidates/pc6_drafting_2026-11-11.json', ref: 'pc6', group: 'turboprop',
+              note: 'fitted to the TCDS and the three-view (DRAFTING_TABLE.md); the factsheet Vs0 96 km/h (full flap, gross) has no indicator' },
   cub:      { listRow: 1, label: 'Piper Cub (official)', short: 'Piper Cub', file: 'builds/cub_2026-09-20_corrected.json', ref: 'cub', official: true },
   // (the user, 9 Nov: the J-3's chord, 1.60 m; the shipped file is the calibration datum of 105 checks, so the candidate
   // stands in the report in its place until the user promotes it)
@@ -400,6 +465,7 @@ const PLANES = {
   skymaster:{ dropped: 'the user 8 Nov: not wanted in the set', label: 'Skymaster-alike (archetype card)', card: 'skymaster', ref: 'skymaster', group: 'archetype',
               note: 'an engine-configuration archetype, never hand-authored to the type: a light check' },
   // PETREL-LS (10 Nov): the V4.2, fitted round by round to the maker's three LS drawings (reports/evidence/PETREL-LS-2026-11-10)
+  archaeo:  { listRow: null, label: 'Ruppert Archaeopteryx, HB-WXA (the Archaeopteryx study, 10 Nov; an electric pusher)', short: 'Archaeopteryx', file: 'builds/archaeopteryx_2026-11-10.json', ref: 'archaeo', group: 'ultralight' },
   petrel42: { listRow: 41, label: 'Super Petrel V4.2 (fitted to the maker\'s LS drawings, 10 Nov)', short: 'Super Petrel', file: 'builds/candidates/superpetrel_V4_2.json', ref: 'petrel', water: true, land: true, group: 'seaplane' },
   petrelL:  { label: 'Super Petrel V4.1, land (claude/seaplanes-merge; PROVISIONAL)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', land: true, supersededBy: 'petrel42',
               branch: 'claude/seaplanes-merge', provisional: true, note: 'not flyable on water on that branch yet: land figures only, to redo once it flies' },

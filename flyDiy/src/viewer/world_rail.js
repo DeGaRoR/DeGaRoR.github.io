@@ -59,6 +59,9 @@
   const FLD = () => { const t = TF(); return (t && t.grass && t.grass()) || null; };
   const fieldNow = () => { const f = FLD(); if (!f) return null; const o = clone(f.get()); delete o.on; delete o.off; return o; };
   const GSD = () => (W.PREMISES_GEN && W.PREMISES_GEN.grassSides ? W.PREMISES_GEN : null);
+  // GRASS-ON-GREEN (16 Nov): the grass law SET through the world (world.setGrassSides) - sim_link replays it on the physics worker's
+  // world, so the look and the wheels' ground never split (`hard`, the clears: 20_world giveWay)
+  const gsSet = o => { const w = W.FLIGHT_PROBE && W.FLIGHT_PROBE.world && W.FLIGHT_PROBE.world(); return w && w.setGrassSides ? w.setGrassSides(o) : GSD().grassSides(o); };
   const replantGrass = () => { const t = TF(); if (!t) return; const r = t.cover && t.cover(), f = t.grass && t.grass(); if (r) r.replant(); if (f) f.replant(); };
   const CLF = () => { const g = G(); return (g && g.cliffs && g.cliffs()) || null; };
   // THE RUNWAY LOOK (G1394, RUNWAY-LOOK): the pavement module's live overlay (PAVEMENT.look) - per surface type, the
@@ -224,7 +227,7 @@
       for (const k in want) if (cur && !same(cur[k], want[k])) d[k] = want[k]; if (Object.keys(d).length) shapeSet(n, d); }
     if (o.grassOn !== undefined && FLD() && !!FLD().get().on !== !!o.grassOn && t && t.field) t.field(!!o.grassOn);
     const fl = FLD(); if (fl && o.grass) { const cur = fieldNow(), d = deltaOf(Object.assign({}, cur, o.grass), cur); if (d) { delete d.on; delete d.off; fl.set(d); } }
-    if (GSD() && o.gsides) { const cur = GSD().grassSides(), d = deltaOf(Object.assign({}, cur, o.gsides), cur); if (d) { GSD().grassSides(d); replantGrass(); } }
+    if (GSD() && o.gsides) { const cur = GSD().grassSides(), d = deltaOf(Object.assign({}, cur, o.gsides), cur); if (d) { gsSet(d); replantGrass(); } }
     const c = CLF(); if (c && o.cliffs) { const d = deltaOf(Object.assign({}, c.get(), o.cliffs), c.get()); if (d) c.set(d); }
     const L = W.TREE_LEAF;
     if (L && o.tints && L.tintOf) { const cur = tintsNow(); for (const n in o.tints) if (!same(Object.assign({}, cur[n], o.tints[n]), cur[n])) L.tintOf(n, o.tints[n]); }
@@ -1173,19 +1176,36 @@
       range(Gf, 'cut grass: density x', 0, 6, 0.05, () => fl.get().cutDens, fs('cutDens'), null, D.cutDens);
       range(Gf, 'grass runway: length', 0, 1, 0.01, () => fl.get().stripH, fs('stripH'), v => v.toFixed(2) + ' m', D.stripH);
       range(Gf, 'grass runway: density x', 0, 6, 0.05, () => fl.get().stripDens, fs('stripDens'), null, D.stripDens);
+      // GRASS-ON-GREEN (15-16 Nov; the user: "everything green should get some grass", "grass covers more of the transition"): each
+      // replants the field (cover_ring PLANT)
+      toggle(Gf, 'grass on green ground', () => fl.get().green, v => fl.set({ green: v ? 1 : 0 }));
+      range(Gf, 'green ground: density floor', 0, 2, 0.05, () => fl.get().greenDens, fs('greenDens'), null, D.greenDens);
+      range(Gf, 'green ground: from green/red', 0.6, 2, 0.01, () => fl.get().greenLo, fs('greenLo'), v => v.toFixed(2), D.greenLo);
+      range(Gf, 'green ground: full over', 0.02, 1, 0.01, () => fl.get().greenSpan, fs('greenSpan'), v => '+' + v.toFixed(2), D.greenSpan);
+      range(Gf, 'feather across class edges', 0, 1, 0.05, () => fl.get().feather, fs('feather'), v => Math.round(v * 100) + ' %', D.feather);
+      range(Gf, 'by the texture drawn (rocks+grass ...)', 0, 2, 0.05, () => fl.get().texGrass, fs('texGrass'), null, D.texGrass);
+      range(Gf, 'mown grass: density floor', 0, 2, 0.05, () => fl.get().cutFloor, fs('cutFloor'), null, D.cutFloor);
+      // FOREST-EDGE (16 Nov, with MOUNTAIN-VEG): the weeds band 6-3 m outside a forest's edge (BIOMES knobs edgeWeedOut / edgeShrubOut)
+      range(Gf, 'forest edge weeds', 0, 1, 0.05, () => fl.get().weeds, fs('weeds'), v => Math.round(v * 100) + ' %', D.weeds);
+      range(Gf, 'forest edge weeds: height x', 1, 3, 0.05, () => fl.get().weedsH, fs('weedsH'), v => 'x' + v.toFixed(2), D.weedsH);
+      range(Gf, 'forest edge weeds: density x', 1, 3, 0.05, () => fl.get().weedsD, fs('weedsD'), v => 'x' + v.toFixed(2), D.weedsD);
       liveNote(Gf, () => { const st = fl.stat(); return st ? 'under the eye: ' + (st.mixAt || 'no biome') + ' · ' + st.live + ' cells, ' + st.instances + ' tufts held, ' + (st.submitted || 0) + ' drawn · ' + st.lastMs.toFixed(1) + ' ms last cell' : ''; });
       const P = GSD();
       if (P) {
-        const S2 = sec(body, 'the grass by the runways', false, 'what grows on and beside a strip, a taxiway, an apron'), gs = k => v => { P.grassSides({ [k]: v }); replantGrass(); }, D2 = DEF.gsides || {};
+        const S2 = sec(body, 'the grass by the runways', false, 'what grows on and beside a strip, a taxiway, an apron'), gs = k => v => { gsSet({ [k]: v }); replantGrass(); }, D2 = DEF.gsides || {};
         pills(row(S2, 'the law'), [{ label: 'today', v: 'today', title: 'bare over the pavement and its whole band, a 6 m fade' }, { label: 'by what is drawn', v: 'sides', title: 'bare on the pavement and its drawn side, cut over the band and the mow band, wild past it' }],
-          o => P.grassSides().law === o.v, o => { P.grassSides({ law: o.v }); replantGrass(); });
+          o => P.grassSides().law === o.v, o => { gsSet({ law: o.v }); replantGrass(); });
         range(S2, 'bare past a paved edge', 0, 10, 0.1, () => P.grassSides().sideClear, gs('sideClear'), v => v.toFixed(1) + ' m', D2.sideClear);
         range(S2, 'bare past a soft edge', 0, 10, 0.1, () => P.grassSides().softClear, gs('softClear'), v => v.toFixed(1) + ' m', D2.softClear);
         range(S2, 'mown past the band', 0, 60, 1, () => P.grassSides().mowBand, gs('mowBand'), v => v + ' m', D2.mowBand);
         range(S2, 'cut to wild over', 0, 20, 0.5, () => P.grassSides().mowBlend, gs('mowBlend'), v => v + ' m', D2.mowBlend);
         range(S2, 'a road’s mown verge', 0, 10, 0.5, () => P.grassSides().roadMow, gs('roadMow'), v => v + ' m', D2.roadMow);
-        toggle(S2, 'grass on a grass runway', () => P.grassSides().stripGrass, v => { P.grassSides({ stripGrass: v ? 1 : 0 }); replantGrass(); });
-        toggle(S2, 'grass on gravel drawn as ground', () => P.grassSides().hard, v => { P.grassSides({ hard: v ? 1 : 0 }); replantGrass(); });
+        toggle(S2, 'grass on a grass runway', () => P.grassSides().stripGrass, v => { gsSet({ stripGrass: v ? 1 : 0 }); replantGrass(); });
+        // (16 Nov) `hard` is the look AND the wheels' ground: the airfield's undrawn gravel margin and shoulders roll as the island's own
+        // natural ground (grass, forest floor, scree, rock) and grow its grass
+        toggle(S2, 'undrawn gravel margin = the ground (look + wheels)', () => P.grassSides().hard, v => { gsSet({ hard: v ? 1 : 0 }); replantGrass(); });
+        // (16 Nov) a trail strip's cut grass on its drawn track only: wild past this many metres from the centreline (0 = the whole strip)
+        range(S2, 'trail strip: cut track half-width', 0, 15, 0.1, () => P.grassSides().trackW, gs('trackW'), v => (v > 0 ? v.toFixed(1) + ' m' : 'off'), D2.trackW);
         note(S2, 'the band is the premises entry’s (PREMISES > runway > band); the lengths of the cut grass are the grass field’s (above)');
       }
     }

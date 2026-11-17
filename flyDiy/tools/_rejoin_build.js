@@ -55,4 +55,6 @@ function leaves(o, pre, out) { for (const k in o) { const v = o[k]; const p = pr
 const A = leaves(raw.spec, '', {}), B = leaves(J, '', {});
 let n = 0; for (const k of new Set([...Object.keys(A), ...Object.keys(B)])) { if (A[k] !== B[k]) { n++; if (n <= 60) console.log('  ', k, A[k] && A[k].slice(0, 60), '->', B[k] && B[k].slice(0, 60)); } }
 console.log('leaves differing', n);
-if (outFile) fs.writeFileSync(outFile, JSON.stringify(Object.assign({}, raw, { spec: J, name: (E => E)(raw.name) })));
+// COMMIT HYGIENE: an existing file keeps ITS OWN end (a final newline or none); a new file ends with one
+if (outFile) { const eol = fs.existsSync(outFile) ? (/\n$/.test(fs.readFileSync(outFile, 'utf8')) ? '\n' : '') : '\n';
+  fs.writeFileSync(outFile, JSON.stringify(Object.assign({}, raw, { spec: J, name: (E => E)(raw.name) })) + eol); }

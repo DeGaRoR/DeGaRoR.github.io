@@ -135,7 +135,10 @@
       // (G2665 NIGHT-OPS) the window, each runway lit / unlit, the moon (75_ careerNightLine's facts; null: no window)
       night: c.night && typeof c.night.line === 'string' ? { line: c.night.line, night: !!c.night.night, open: !!c.night.open, moon: c.night.moonWords || '' } : null,
       // (G2742 STORY-PAGE, Q1) held while the story runs: the row stands greyed, its Track off
-      held: c.held === true })).filter(c => prov[c.provider]);
+      held: c.held === true,
+      // (MISSIONS-LIVE) a mission's places (75_ careerMapContract's markers, 73c missionMarkers): drawn for the open and the
+      // tracked contract (3d.)
+      markers: Array.isArray(c.markers) ? c.markers.filter(m => m && typeof m === 'object').map(m => JSON.parse(JSON.stringify(m))) : [] })).filter(c => prov[c.provider]);
     let fleet = (raw.fleet || []).map(f => ({ slot: f.slot, name: f.name || f.slot, where: Object.assign({ kind: 'none', aero: null, hangar: null }, f.where || {}), cert: f.cert ? Object.assign({}, f.cert) : null,
                                               certLine: typeof f.certLine === 'string' ? f.certLine : '' }));
     if (live && live.fleet && Object.keys(live.fleet).length) {
@@ -788,6 +791,37 @@
       html += '<span class="mmRtPlane" style="left:' + n1(px) + 'px;top:' + n1(py) + 'px" role="img" aria-label="' + esc(r.plane + ' on its route ' + baseName(a.name) + ' – ' + baseName(b.name) + ', flown by ' + r.pilotName) + '">✈</span>';
       n.rlines++; n.rplanes++;
     }
+    // 3b'. (MISSIONS-LIVE, 13 Nov) THE MISSION'S PLACES - the open and the tracked contract's markers (73c missionMarkers):
+    //     a gate its two posts and the line between them, a ring a hoop across its heading, a point its circle (true radius,
+    //     at least a dot), a tie-down spot a square, a site a diamond; numbered in mission order (a rally checkpoint's split
+    //     beside it: "cp2 · 32 s" - never the rally's route); the next one bright, the later ones dim, the done ones grey
+    for (const c of lit) for (const m of (c.markers || [])) {
+      if (m.kind === 'field') continue;
+      const pts = m.kind === 'gate' && Array.isArray(m.posts) ? m.posts : (typeof m.x === 'number' && typeof m.z === 'number' ? [[m.x, m.z]] : null);
+      if (!pts) continue;
+      const col = m.state === 'next' ? '#e0652a' : m.state === 'done' ? '#8a8378' : '#c98a5e', op = m.state === 'done' ? 0.45 : m.state === 'later' ? 0.7 : 1;
+      let g = '';
+      const cx = pts.reduce((a, p) => a + X(p[0]), 0) / pts.length, cy = pts.reduce((a, p) => a + Y(p[1]), 0) / pts.length;
+      if (m.kind === 'gate') {
+        const A = pts[0], B = pts[1];
+        g += '<line x1="' + n1(X(A[0])) + '" y1="' + n1(Y(A[1])) + '" x2="' + n1(X(B[0])) + '" y2="' + n1(Y(B[1])) + '" stroke="' + col + '" stroke-width="2"/>';
+        for (const P of pts) g += '<circle cx="' + n1(X(P[0])) + '" cy="' + n1(Y(P[1])) + '" r="3.5" fill="' + col + '" stroke="#fff" stroke-width="1"/>';
+      } else if (m.kind === 'ring') {
+        const rr = Math.max(4, (m.r || 8) * near), a = typeof m.dir === 'number' ? m.dir * Math.PI / 180 : 0;
+        const ux = Math.cos(a), uy = Math.sin(a);   // across the heading (the hoop as seen from above)
+        g += '<line x1="' + n1(cx - ux * rr) + '" y1="' + n1(cy - uy * rr) + '" x2="' + n1(cx + ux * rr) + '" y2="' + n1(cy + uy * rr) + '" stroke="' + col + '" stroke-width="3" stroke-linecap="round"/>';
+        g += '<circle cx="' + n1(cx) + '" cy="' + n1(cy) + '" r="' + n1(rr) + '" fill="none" stroke="' + col + '" stroke-width="1" stroke-dasharray="2 3"/>';
+      } else if (m.kind === 'pt') {
+        const rr = Math.max(4, (m.r || 0) * near);
+        g += '<circle cx="' + n1(cx) + '" cy="' + n1(cy) + '" r="' + n1(rr) + '" fill="' + col + '" fill-opacity=".14" stroke="' + col + '" stroke-width="1.5" stroke-dasharray="' + (m.do === 'photo' ? '1 3' : '5 3') + '"/>';
+      } else if (m.kind === 'spot') g += '<rect x="' + n1(cx - 4) + '" y="' + n1(cy - 4) + '" width="8" height="8" fill="' + col + '" stroke="#fff" stroke-width="1"/>';
+      else if (m.kind === 'site') g += '<path d="M' + n1(cx) + ' ' + n1(cy - 6) + 'L' + n1(cx + 6) + ' ' + n1(cy) + 'L' + n1(cx) + ' ' + n1(cy + 6) + 'L' + n1(cx - 6) + ' ' + n1(cy) + 'Z" fill="' + col + '" stroke="#fff" stroke-width="1"/>';
+      svg += '<g class="mmMs ' + esc(m.state || '') + '" opacity="' + op + '">' + g + '</g>';
+      const t = (m.n != null ? m.n : '') + (m.split != null ? ' · ' + m.label + ' · ' + m.split + ' s' : ''), lw = t.length * 6.6 + 8;
+      boxes.push([cx + 7, cy - 18, cx + 7 + lw, cy - 2]);
+      html += '<span class="mmMsN' + (m.state === 'next' ? ' next' : '') + '" style="left:' + n1(cx + 7) + 'px;top:' + n1(cy - 18) + 'px;opacity:' + op + '" role="img" aria-label="' + esc('mission place ' + m.n + ': ' + (m.label || m.kind)) + '">' + esc(t) + '</span>';
+      n.msMarks = (n.msMarks || 0) + 1;
+    }
     // 3c. (G3523) THE LAYERS: what another part of the game draws on this map (AP-HONEST G3560s: the autopilot's route),
     //     over the routes and under the places, so a badge stays a tap. Each is draw(ctx) -> { svg?, html?, boxes? } or
     //     nothing, with ctx = { X, Y (world x / z in metres -> screen px), zr (1 = the whole island), near (screen px per
@@ -1216,6 +1250,8 @@
 #mapScreen .mmHotN.b{transform:translate(-50%,calc(var(--hs,22px) / 2 + 2px))}
 #mapScreen .mmZone{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:1.5px dashed rgba(232,243,223,.7);pointer-events:none}
 #mapScreen .mmRtPlane{position:absolute;transform:translate(-50%,-50%);font-size:14px;line-height:20px;padding:0 4px;border-radius:5px;background:#1f5f7a;color:#f4efe6;border:1px solid #0e2f3d;pointer-events:none}
+#mapScreen .mmMsN{position:absolute;font:600 11px/16px 'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;padding:0 4px;border-radius:4px;background:rgba(30,27,24,.72);color:#f4efe6;white-space:nowrap;pointer-events:none}
+#mapScreen .mmMsN.next{background:#e0652a;color:#221f1b}
 #mapScreen .mmPlane{position:absolute;transform:translate(-50%,-50%);font-size:14px;line-height:20px;padding:0 4px;border-radius:5px;background:var(--ed-acc);color:var(--ed-acc-ink);border:1px solid var(--ed-acc-ink);pointer-events:none}
 #mapScreen .mmPlane.many b{font:600 12px/20px 'IBM Plex Sans',sans-serif;margin-left:3px}
 #mapScreen .mmGar{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;pointer-events:auto;display:grid;place-items:center;padding:0;border:0;background:transparent;cursor:pointer}

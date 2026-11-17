@@ -26,6 +26,9 @@
 //      H5 a head that comes up from the grass takes at least 0.6 s (the SPAN rule)
 //   L  THE WHOLE ANIMAL, FAR OUT: the moving skin is drawn until the animal is 6 px long at 1080p, the baked static
 //      cuts (untouched) only past that, and a walk / swim just inside poses the skin every frame
+//   S  THE SWIMMERS: a pod for 6 min - upright (no roll or pitch past 49 deg), the members surface with the leader,
+//      breaths in series of 2-5 between deep dives, no wake while the whole pod is under, a wake when it surfaces,
+//      no turn tighter than 1.8 lengths; and the wake layer alone: under / over the surface nothing, crossing a trail
 //   C  THE CONTROL: the same H2 with the motion rules off (animals.js MOTION: ease, span, pace) must break LIMIT -
 //      the check can see the fault it is there for
 //   $  THE COST: R.tick's wall time per frame for the herds (median / p99, printed, never gated: a wall clock under
@@ -66,7 +69,7 @@ function viewerContext() {
   const ctx = vm.createContext(g);
   vm.runInContext('var window = globalThis; window.window = window;', ctx);
   g.ASSET_FETCH = rel => Promise.resolve(readGeo(rel));
-  for (const f of ['matlib.js', 'props.js', 'plume.js', 'animals.js', 'animal_run.js'])
+  for (const f of ['matlib.js', 'props.js', 'plume.js', 'wakes.js', 'animals.js', 'animal_run.js'])
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', f), 'utf8'), ctx, { filename: f });
   const SRC = path.join(ROOT, 'src', 'animals');
   for (const f of JSON.parse(fs.readFileSync(path.join(SRC, 'animals_index.json'), 'utf8')))
@@ -348,6 +351,250 @@ async function levelsCheck(g) {
   if (M && a0) { M.far = false; const d = AN.farDist(a0, 0, AN.levels(a0.key)[0].dist); M.far = true;
     check(d < PX6(a0.length), 'L the control: with the rule off the static cut still starts at 6 px - the check cannot see the fault'); }
 }
+// S: THE SWIMMERS (SWIMMERS, 15 Nov 2026; the user: "they put themselves on their back, there is no interaction with
+// the water, so no wake ... generate wakes when they are crossing the surface and not when they are further down")
+async function swimmers(g) {
+  const AN = g.ANIMALS, AR = g.ANIMAL_RUN;
+  if (!g.WAKES) { check(false, 'S the wake layer (wakes.js) did not load'); return; }
+  for (const a of AN.list('sea')) {
+    const k = a.key, S = a.sea, orca = (S.cycle || 60) < 70, n = orca ? 4 : 2;
+    await AN.warm(k);
+    const R = AR.make(THREE, { scene: new THREE.Group(), ground: () => -200, waterH: () => 0 });
+    R.sync([{ id: 'sw' + k, key: k, x: 0, z: 0, n, r: orca ? 300 : 600 }]);
+    const W = R.wakes();
+    if (!check(!!W, 'S ' + k + ': no wake layer made for a pod')) continue;
+    const objs = R.root.children.filter(o => /^animal:/.test(o.name));
+    const U = new THREE.Vector3();
+    const flt = S.float, beam = S.beam;
+    let maxPts = 0, minUp = 9, deepWake = 0, deepEx = '', tight = 0, tightEx = '', wakeMs = [];
+    const ups = objs.map(() => []), was = objs.map(() => false), hdPrev = [], posPrev = [];
+    const series = []; let cur = 0, deep = false;
+    const N = 30 * 60 * 6;
+    for (let i = 0; i < N; i++) {
+      const np0 = W.stats.points;
+      R.tick(DT);
+      wakeMs.push(W.stats.ms); if (W.stats.points > maxPts) maxPts = W.stats.points;
+      const L = R.list();
+      // S4: a NEW trail point only while some body of the pod crosses the surface (its depth within its own height)
+      const fresh = W.probe().filter(p => p.age < DT * 0.5);
+      if (fresh.length && !L.some(o => o.depth < flt + beam * 1.2)) { deepWake += fresh.length; if (!deepEx) deepEx = 't ' + f2(i * DT) + ' s, depths ' + L.map(o => f2(o.depth)).join('/'); }
+      objs.forEach((o, j) => {
+        U.set(0, 1, 0).applyQuaternion(o.quaternion); minUp = Math.min(minUp, U.y);
+        const up = L[j].depth < flt + beam * 0.2;
+        if (up && !was[j]) ups[j].push(i * DT);
+        was[j] = up;
+        // S6: the path's radius over a second: ground covered over heading turned
+        if (i % 30 === 0) {
+          if (hdPrev[j] !== undefined) {
+            let dh = L[j].hd - hdPrev[j]; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI;
+            const ds = Math.hypot(L[j].x - posPrev[j][0], L[j].z - posPrev[j][1]);
+            if (Math.abs(dh) > 0.01 && ds / Math.abs(dh) < 1.8 * a.length * (L[j].size || 1)) { tight++; if (!tightEx) tightEx = 'R ' + f2(ds / Math.abs(dh)) + ' m at ' + f2(i * DT) + ' s'; }
+          }
+          hdPrev[j] = L[j].hd; posPrev[j] = [L[j].x, L[j].z];
+        }
+      });
+      // S3: the leader's breaths between two deep dives (a surfacing counted once, at its start)
+      const d0 = L[0].depth;
+      if (d0 > S.depth * 0.7) { if (!deep && cur) series.push(cur); deep = true; cur = 0; }
+      else if (ups[0].length && ups[0][ups[0].length - 1] === i * DT) { deep = false; cur++; }
+    }
+    // S2: every leader surfacing is matched by every member within 6 s
+    let missed = 0, missEx = '';
+    for (const t of ups[0]) if (t < N * DT - 10) for (let j = 1; j < objs.length; j++)
+      if (!ups[j].some(u => Math.abs(u - t) < 6)) { missed++; if (!missEx) missEx = 'member ' + j + ' at ' + f2(t) + ' s'; }
+    const pts = maxPts;
+    wakeMs.sort((x, y) => x - y);
+    say('S ' + k + ' (pod of ' + n + ', 6 min): leader surfacings ' + ups[0].length + ', series ' + series.join(',') + ' | members missed ' + missed +
+        ' | min up.y ' + f2(minUp) + ' | wake points (most at once) ' + pts + ', points off a deep pod ' + deepWake + ' | wakes.step median ' + (wakeMs[wakeMs.length >> 1] || 0).toFixed(3) + ' ms p99 ' + (wakeMs[Math.floor(wakeMs.length * 0.99)] || 0).toFixed(3) + ' ms');
+    check(minUp > 0.65, 'S1 ' + k + ': the body rolls or pitches past 49 deg (up.y ' + f2(minUp) + ')');
+    check(ups[0].length >= 3, 'S2 ' + k + ': the leader surfaced only ' + ups[0].length + ' times in 6 min');
+    check(missed === 0, 'S2 ' + k + ': a member does not surface with its leader', missed + ', first ' + missEx);
+    check(series.length > 0 && series.every(c => c >= 2 && c <= 5), 'S3 ' + k + ': breaths do not come in series of 2-5 between deep dives', series.join(','));
+    check(deepWake === 0, 'S4 ' + k + ': a wake is dropped while the whole pod is under (a wake without a crossing)', deepWake + ', first ' + deepEx);
+    check(pts > 0 || ups[0].length === 0, 'S5 ' + k + ': the pod surfaced and left no wake');
+    check(tight === 0, 'S6 ' + k + ': a turn tighter than 1.8 body lengths', tight + ', first ' + tightEx);
+    R.dispose();
+  }
+  // S7 THE SEABED: a whale pod over a 12 m shelf never dives into the bed; S8 THE WATER'S LIST: the bodies handed to the
+  // water (ctx.submerged, else WATER.setSubmerged): at most 12 capsules, every body's trunk first, nearest first, then the
+  // heads and tail stocks of the nearest while the budget lasts (16 Nov: a body seen through the sea whole, not its middle)
+  {
+    const a = AN.reg('whale') || AN.list('sea')[0], k = a.key, S = a.sea;
+    const eye = { x: 0, y: 50, z: 0 };
+    let lists = 0, bad = '', worst = 0, most = 0;
+    const R = AR.make(THREE, { scene: new THREE.Group(), ground: () => -12, waterH: () => 0, eye: () => eye,
+      submerged: L => { lists++; most = Math.max(most, L.length); if (L.length > 12) bad = bad || 'a list of ' + L.length;
+        const nb = R.list().filter(o => o.depth > 0 && o.shown).length, nt = Math.min(nb, 12);
+        if (L.length < nt) bad = bad || L.length + ' capsules for ' + nb + ' bodies under';
+        for (let i = 1; i < nt; i++) if (L[i].d2 < L[i - 1].d2) bad = bad || 'the trunks not nearest first';
+        for (const q of L) if (!(q.r > 0 && q.h >= 0 && Math.abs(Math.hypot(q.ax, q.ay, q.az) - 1) < 1e-3 && Number.isFinite(q.x + q.y + q.z))) bad = bad || 'a capsule malformed'; } });
+    R.sync([{ id: 'shelf', key: k, x: 0, z: 0, n: 8, r: 400 }]);
+    for (let i = 0; i < 30 * 240; i++) { R.tick(DT); for (const o of R.list()) worst = Math.max(worst, o.depth - (12 - S.beam * (o.size || 1) * 0.5)); }
+    say('S7/S8 ' + k + ' x8 over a 12 m shelf, 4 min: the closest to the bed ' + f2(-worst) + ' m above (bed less half its own beam), ' + lists + ' lists to the water, ' + most + ' capsules at most');
+    check(worst <= 1e-3, 'S7 ' + k + ': a swimmer dives into the seabed', f2(worst) + ' m past bed less half its beam');
+    check(lists > 0 && !bad, 'S8 the bodies handed to the water', bad || 'none handed');
+    check(most > 8, 'S8 the nearest bodies handed whole (head and tail stock beside the trunk)', most + ' capsules at most for 8 bodies');
+    R.dispose();
+  }
+  // S12 THE GUARD (16 Nov, A0 on the slot-3 cost: +3.6 ms over open sea with every swimmer hidden): the water's capsule
+  // loop gets nothing while the runner is hidden up its parents or every trunk is under 2 px from the eye
+  {
+    const a = AN.reg('orca') || AN.list('sea')[0], k = a.key;
+    const eye = { x: 0, y: 30, z: 0 }, scene = new THREE.Group();
+    let last = -1;
+    const R = AR.make(THREE, { scene, ground: () => -40, waterH: () => 0, eye: () => eye, submerged: L => { last = L.length; } });
+    R.sync([{ id: 'guard', key: k, x: 0, z: 0, n: 4, r: 60 }]);
+    let near = 0;
+    for (let i = 0; i < 60 * 60; i++) { R.tick(DT); near = Math.max(near, last); }
+    scene.visible = false; let hid = 0;
+    for (let i = 0; i < 60 * 20; i++) { R.tick(DT); hid = Math.max(hid, last); }
+    scene.visible = true; eye.x = 6000; let far = 0;
+    for (let i = 0; i < 60 * 20; i++) { R.tick(DT); far = Math.max(far, last); }
+    say('S12 the guard: ' + near + ' capsules near, ' + hid + ' hidden, ' + far + ' at 6 km');
+    check(near > 0, 'S12 a pod under the near eye is handed to the water', near + ' capsules');
+    check(hid === 0, 'S12 a hidden runner hands the water nothing (uWSubN 0)', hid + ' capsules');
+    check(far === 0, 'S12 a pod under 2 px hands the water nothing (uWSubN 0)', far + ' capsules');
+    R.dispose();
+  }
+  // S9 THE CORE (the first GPU slot, 15 Nov: a capsule centred on the pivot at half the beam spilled past the skin and the
+  // water opened onto the clear colour - a turquoise lozenge round every orca): each sea animal's trunk capsule
+  // (ANIMALS.seaCore) exists, is thinner than half its beam, and both caps lie inside the model's own box (bb - pivot)
+  for (const a of AN.list('sea')) {
+    const H = AN.place(THREE, a.key, {}), C = H.core, bb = a.bb, pv = a.pivot || [0, 0, 0];
+    let why = '';
+    if (!C) why = 'none fitted';
+    else {
+      const ylo = bb[1] - pv[1], yhi = bb[4] - pv[1], zlo = bb[2] - pv[2], zhi = bb[5] - pv[2];
+      if (!(C.r > 0.1 * a.sea.beam && C.r < 0.5 * a.sea.beam)) why = 'radius ' + f2(C.r) + ' vs beam ' + a.sea.beam;
+      else if (!(C.cy - C.r > ylo && C.cy + C.r < yhi)) why = 'out of the box vertically';
+      else if (!(C.cz - C.h - C.r > zlo && C.cz + C.h + C.r < zhi)) why = 'out of the box along the body';
+    }
+    say('S9 ' + a.key + ': the trunk capsule ' + (C ? 'centre y ' + f2(C.cy) + ' z ' + f2(C.cz) + ', r ' + f2(C.r) + ', half-length ' + f2(C.h) : '-') + ' m');
+    check(!why, 'S9 ' + a.key + ': the trunk capsule', why);
+    // S9 the head and the tail stock (16 Nov): two sections, each inside the box, thinner than the trunk, and on the bone
+    // that carries its skin - its ends in that bone's frame land back on the section's own at rest
+    let sw = '';
+    const segs = C && C.seg || [];
+    if (segs.length !== 2) sw = segs.length + ' sections fitted';
+    H.obj.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(H.obj.matrixWorld).invert(), M = new THREE.Matrix4(), v = new THREE.Vector3();
+    for (const sg of segs) {
+      const ylo = bb[1] - pv[1], yhi = bb[4] - pv[1], zlo = bb[2] - pv[2], zhi = bb[5] - pv[2];
+      for (const e of [sg.a, sg.b]) if (!(e[1] - sg.r > ylo && e[1] + sg.r < yhi && e[2] - sg.r > zlo && e[2] + sg.r < zhi)) sw = sw || 'a section out of the box';
+      if (!(sg.r > 0 && sg.r <= C.r * 1.01)) sw = sw || 'a section r ' + f2(sg.r) + ' past the trunk ' + f2(C.r);
+      if (sg.A) {
+        const bone = H.inst.meshes[sg.mi].skeleton.bones[sg.bi];
+        M.multiplyMatrices(inv, bone.matrixWorld);
+        const d = v.fromArray(sg.A).applyMatrix4(M).distanceTo(new THREE.Vector3().fromArray(sg.a));
+        if (d > 1e-3) sw = sw || 'the bone frame misses its section by ' + f2(d) + ' m';
+      }
+      say('S9 ' + a.key + ': a section z ' + f2(sg.a[2]) + '..' + f2(sg.b[2]) + ', r ' + f2(sg.r) + (sg.A ? ', on bone ' + H.inst.meshes[sg.mi].skeleton.bones[sg.bi].name : ', rigid'));
+    }
+    if (!segs.some(sg => sg.A && sg.a[2] < C.cz)) sw = sw || 'the tail stock on no bone';
+    check(!sw, 'S9 ' + a.key + ': the head and the tail stock', sw);
+  }
+  // F1 FAR, NOT GONE (the user 15 Nov: "From the starting place of the cabin strip, all animals should show"): a land herd
+  // 2 km off stays DRAWN - on the ground, frozen (not stepped), parked out of the matrix walk; the eye coming back steps it
+  {
+    const k = AN.reg('elk') ? 'elk' : AN.list('land')[0].key;
+    const eye = { x: 0, y: 30, z: 0 }, GR = (x, z) => 20 + 0.01 * x;
+    const R = AR.make(THREE, { scene: new THREE.Group(), ground: GR, waterH: () => -Infinity, eye: () => eye });
+    R.sync([{ id: 'far', key: k, x: 2000, z: 0, n: 6, r: 40 }]);
+    for (let i = 0; i < 60; i++) R.tick(DT);
+    const L0 = R.list();
+    for (let i = 0; i < 120; i++) R.tick(DT);
+    const L1 = R.list();
+    let why = '';
+    if (R.stats.far !== L1.length) why = R.stats.far + ' of ' + L1.length + ' counted far';
+    L1.forEach((o, i) => {
+      if (!o.shown) why = why || 'one hidden';
+      if (Math.hypot(o.x - L0[i].x, o.z - L0[i].z) > 1e-6) why = why || 'one moved while far';
+      if (Math.abs(o.y - GR(o.x, o.z)) > 1e-3) why = why || 'one off the ground by ' + f2(o.y - GR(o.x, o.z));
+    });
+    eye.x = 1990;
+    for (let i = 0; i < 300; i++) R.tick(DT);
+    const L2 = R.list(), moved = L2.filter((o, i) => Math.hypot(o.x - L1[i].x, o.z - L1[i].z) > 1e-3 || o.clip).length;
+    if (R.stats.far !== 0 || R.stats.shown !== L2.length) why = why || 'back in reach: ' + R.stats.shown + ' stepped, ' + R.stats.far + ' far';
+    say('F1 ' + k + ' x' + L1.length + ' at 2 km: ' + (why || 'all shown, frozen on the ground') + '; back in reach ' + R.stats.shown + ' stepped, ' + moved + ' with a clip or moved');
+    check(!why, 'F1 a land herd past its reach is drawn frozen on the ground', why);
+    R.dispose();
+  }
+  // S4 directly: the layer itself - a hull 10 m down, one at the surface, one in the air
+  const W = g.WAKES.make(THREE, { waterH: () => 0 });
+  for (let i = 0; i < 60; i++) {
+    W.hull('deep', { x: i * 0.1 * 3, z: 0, hd: 0, speed: 3, beam: 2, length: 8, top: -9, bottom: -11 });
+    W.hull('air', { x: i * 0.1 * 3, z: 50, hd: 0, speed: 3, beam: 2, length: 8, top: 12, bottom: 10 });
+    W.step(0.1);
+  }
+  check(W.stats.points === 0, 'S4 the layer: a hull under or over the surface leaves a wake', String(W.stats.points));
+  for (let i = 0; i < 60; i++) { W.hull('surf', { x: 0, z: i * 0.3, hd: 0, speed: 3, beam: 2, length: 8, top: 0.8, bottom: -1.2 }); W.step(0.1); }
+  check(W.stats.points > 5 && W.stats.verts > 0, 'S4 the layer: a hull crossing the surface leaves no wake', W.stats.points + ' points, ' + W.stats.verts + ' verts');
+  W.ring(0, 0, 2, 1); W.step(0.1);
+  check(W.stats.rings === 1, 'S4 the layer: a breach ring is not drawn');
+  W.dispose();
+  // S10 THE SLICKS (16 Nov): a breath leaves a glassy patch handed to the water, larger than its ring, gone after its life;
+  // ten at once hand over the strongest SLICK_N
+  {
+    let last = [], most = 0;
+    const W2 = g.WAKES.make(THREE, { waterH: () => 0, slicks: L => { last = L.map(q => ({ ...q })); most = Math.max(most, L.length); } });
+    const K = g.WAKES.K;
+    W2.ring(5, 5, 2, 1);
+    for (let i = 0; i < 30; i++) W2.step(0.1);
+    const s3 = last[0];
+    check(last.length === 1 && s3.k > 0.3 && s3.r > 2, 'S10 a breath leaves a slick for the water', JSON.stringify(last));
+    for (let i = 0; i < (K.SLICK_LIFE + 2) * 10; i++) W2.step(0.1);
+    check(last.length === 0, 'S10 a slick outlives its life', last.length + ' left');
+    for (let i = 0; i < 10; i++) W2.ring(i * 20, 0, 2, 0.5 + i * 0.05);
+    for (let i = 0; i < 20; i++) W2.step(0.1);
+    check(most === K.SLICK_N && last.every(q => q.k >= 0.5 * K.SLICK_K * Math.min(1, 1.9 / 1.5) * 0.5), 'S10 ten slicks: the strongest ' + K.SLICK_N + ' handed', most + ' at most');
+    say('S10 the slick: ' + (s3 ? 'r ' + f2(s3.r) + ' m, k ' + f2(s3.k) + ' at 3 s' : '-') + '; ' + most + ' handed of 10');
+    W2.dispose();
+    // S12 the slicks' guard: none while the layer is hidden up its parents, none under 3 px from the eye
+    const par = new THREE.Group(), se = { x: 0, y: 20, z: 0 };
+    const W3 = g.WAKES.make(THREE, { parent: par, waterH: () => 0, eye: () => se, slicks: L => { last = L.length; } });
+    W3.ring(0, 30, 2, 1);
+    for (let i = 0; i < 20; i++) W3.step(0.1);
+    const sNear = last;
+    par.visible = false; for (let i = 0; i < 5; i++) W3.step(0.1);
+    const sHid = last;
+    par.visible = true; se.x = 5000; for (let i = 0; i < 5; i++) W3.step(0.1);
+    const sFar = last;
+    check(sNear === 1 && sHid === 0 && sFar === 0, 'S12 a slick handed only while shown and over 3 px', 'near ' + sNear + ', hidden ' + sHid + ', at 5 km ' + sFar);
+    W3.dispose();
+  }
+  // S11 THE BLOW IS WATER (16 Nov; the user: "the water effects are quite rough" - the chimney's grey smoke as a blow): the
+  // swimmers fire plume.js's mist - white, camera-facing droplet clouds lit by the key light - which builds, patches its
+  // shader where it means to, rises to its height in a second, and is gone after its life; the chimney's own preset untouched
+  {
+    const PL = g.PLUME, K = PL && PL.PRESETS.mist;
+    let why = '';
+    if (!K || K.kind !== 'mist') why = 'no mist preset';
+    else {
+      const M = PL.make(THREE, Object.assign({}, K, { rise: 9 }));
+      const sh = { uniforms: {}, vertexShader: 'void main() {\n#include <begin_vertex>\n#include <project_vertex>\n}', fragmentShader: 'void main() {\n#include <color_fragment>\n}' };
+      M.mat.onBeforeCompile(sh);
+      if (M.mat.name !== 'plume-mist') why = 'the mist built as ' + M.mat.name;
+      else if (!/mvPosition\.xy \+= aQuad \* rad/.test(sh.vertexShader) || /#include <project_vertex>/.test(sh.vertexShader)) why = 'the billboard did not patch';
+      else if (!sh.uniforms.uSun || !/vScat/.test(sh.fragmentShader)) why = 'no forward scatter';
+      else if (M.mesh.geometry.index.count !== K.n * 6) why = M.mesh.geometry.index.count / 6 + ' quads for ' + K.n;
+      M.fire(0, 0, 0, 6, 0); M.step(1);
+      const bs = M.mesh.geometry.boundingSphere, far = 6 * (K.life + K.delay);   // (a 10 m/s wind: the cloud 30 m downwind)
+      if (!why && !(Math.abs(bs.center.x - far / 2) < far * 0.1 && bs.radius >= far / 2)) why = 'the cull sphere does not follow the drift (' + f2(bs.center.x) + ', r ' + f2(bs.radius) + ')';
+      const top = 9 * (1 - Math.exp(-1 / K.tau));
+      if (!why && !(M.alive && M.mesh.visible && top > 0.9 * 9)) why = 'not up at 1 s (' + f2(top) + ' m)';
+      M.step(K.life + K.delay);
+      if (!why && (M.alive || M.mesh.visible)) why = 'alive after its life';
+      M.dispose();
+    }
+    const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'animal_run.js'), 'utf8');
+    if (!why && !/PRESETS\.mist/.test(src)) why = 'the swimmers still fire the smoke';
+    const ch = PL && PL.PRESETS.chimney;
+    if (!why && !(ch && ch.n === 9 && ch.rise === 3.2 && ch.spread === 1.15 && !ch.kind)) why = 'the chimney preset moved';
+    say('S11 the blow: ' + (why || 'mist, ' + K.n + ' droplet clouds, up in ' + K.tau + ' s, gone after ' + (K.life + K.delay).toFixed(1) + ' s'));
+    check(!why, 'S11 the blow is water (plume.js mist)', why);
+  }
+}
+
 async function directed(g) {
   const AN = g.ANIMALS, M = AN.MOTION;
   const k = AN.reg('doe') ? 'doe' : AN.list('land')[0].key, a = AN.reg(k);
@@ -404,6 +651,7 @@ async function directed(g) {
     say('H2 every transition the machine makes, from three points: the head\'s worst frame ' + f2(T2.worst) + ' deg (' + T2.worstEx + ')');
     check(T2.worst <= LIMIT, 'H2 a transition jumps the head more than ' + LIMIT + ' deg in a frame', f2(T2.worst) + ': ' + T2.worstEx);
   } catch (e) { check(false, 'H2 the transitions threw', e && (e.stack || e.message)); }
+  try { await swimmers(g); } catch (e) { check(false, 'S the swimmers threw', e && (e.stack || e.message)); }
   try { await levelsCheck(g); } catch (e) { check(false, 'L the levels threw', e && (e.stack || e.message)); }
   try {
     const BT = await bodyTransitions(g);

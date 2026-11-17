@@ -16,10 +16,11 @@
 //
 // A. THE ABSENT CASE. The eight hard rows are the numbers they were (frozen here, literally); a world whose surface is
 //    0 rolls bit for bit as a world with no surface at all; and the stock build and its tricycle, rolled and braked on
-//    every legacy code, end bit for bit where origin/master left them - 23ce68c1, re-recorded at 6a8d705c4 off master's own core (tools/fixtures/softground_legacy_rolls
+//    every legacy code, end bit for bit where origin/master left them - 23ce68c1, re-recorded at 6a8d705c4 and at 6ccacc63c (L40d: the physics canon) off master's own core (tools/fixtures/softground_legacy_rolls
 //    .json: read off master BEFORE this change). The solver writes out.softZ / softF only on a frame that met a layer.
 // B. THE TABLES. 13 rows, each soft row with a layer (k, n, zMax, a ski pair kinetic < breakout); GROUND_SKI_MU names
-//    every code (water none); the side tables keyed by the code have 13 entries (TW_SKID_MU, GEN_DRIVE.turfS,
+//    every code (water none); the side tables keyed by the code have 15 entries - 0-12, and the LADDER's (15 Nov) wet grass 13
+//    and wet sand 14; the weather codes 20-22 read their dry rung's row where nothing resolves them (TW_SKID_MU, GEN_DRIVE.turfS,
 //    SCAR_SURF, STRIP_ENUM_SURF, the enum's names, the vehicle's, the dust's and the audio's in the viewer).
 // C. SINKING WITH PRESSURE. On every soft layer: more load sinks deeper and drags more per newton; a narrower, a
 //    smaller wheel the same; a tundra carcass less than a standard, a slim more; never deeper than the layer. A plate
@@ -110,15 +111,15 @@ function run(o) {
   }
 
   // B. the tables
-  check(Object.keys(GS).length === 13, 'B 13 surface rows', Object.keys(GS).length);
+  check(Object.keys(GS).length === 18 && [...Array(15).keys()].every(c => Array.isArray(GS[c])) && GS[20] === GS[6] && GS[21] === GS[0] && GS[22] === GS[7], 'B 15 surface rows (0-14) and the weather codes 20-22 on their dry rung\'s', Object.keys(GS).join(' '));
   for (const c of SOFT) {
     const S = GSO[c], R = GS[c];
     check(R && R.length === 3 && R[0] > 0 && R[1] > 0 && R[1] < 0.5 && R[2] > 0 && R[2] <= LEGACY[0][2], 'B the soft row ' + c + ' has a base: rolling, brakes under paved\'s, a side grip', JSON.stringify(R));
     check(S && S.k > 0 && S.n > 0 && S.zMax > 0 && S.zMax <= 0.5 && Array.isArray(S.ski) && S.ski[0] > 0 && S.ski[1] > S.ski[0], 'B the layer ' + c + ' (k, n, zMax, a ski pair kinetic < breakout)', JSON.stringify(S));
   }
-  for (let c = 0; c < 13; c++) check(c === 4 ? o.GROUND_SKI_MU[c] === null : (Array.isArray(o.GROUND_SKI_MU[c]) && o.GROUND_SKI_MU[c][0] < o.GROUND_SKI_MU[c][1]), 'B the ski\'s friction on ' + c, JSON.stringify(o.GROUND_SKI_MU[c]));
+  for (let c = 0; c < 15; c++) check(c === 4 ? o.GROUND_SKI_MU[c] === null : (Array.isArray(o.GROUND_SKI_MU[c]) && o.GROUND_SKI_MU[c][0] < o.GROUND_SKI_MU[c][1]), 'B the ski\'s friction on ' + c, JSON.stringify(o.GROUND_SKI_MU[c]));
   check(o.GROUND_SKI_MU[8][0] <= 0.05 && o.GROUND_SKI_MU[8][0] < o.GROUND_SKI_MU[0][0], 'B a ski slides on packed snow (<= 0.05, SKI-REFERENCES 4.6) and better than on grass');
-  for (const [nm, len] of o.sideTables) check(len === 13, 'B ' + nm + ' has 13 entries', len);
+  for (const [nm, len] of o.sideTables) check(len === 15, 'B ' + nm + ' has 15 entries', len);
 
   // C. sinking with pressure (every soft layer)
   const W = (S, cls, D, N) => { const fp = C.tyreFootprint(cls, D); const F = wheel(S, N, fp[0], D, fp[1]); return { F, r: F / N, z: SINK.z, cap: SINK.cap }; };
@@ -187,7 +188,8 @@ function run(o) {
   const PG = C.PREMISES_GEN, LK = PG.RUNWAY_LOOKS;
   const want = { snow: 8, powder: 9, slush: 10, mud: 11, softmud: 12 };
   for (const k in want) check(LK[k] && +LK[k].surface === want[k] && (LK[k].cls === 'snow' || LK[k].cls === 'mud'), 'E the look ' + k + ' feels ' + want[k] + ' and draws a soft class', JSON.stringify(LK[k]));
-  check(PG.SURFACE_NAMES.length === 13 && Object.keys(PG.SURFACE).length === 13 && PG.SURFACE_NAMES.every((n, i) => PG.SURFACE[n] === i), 'E the premises enum and its names: 13, in order');
+  check(PG.SURFACE_NAMES.length === 15 && Object.keys(PG.SURFACE).length === 18 && PG.SURFACE_NAMES.every((n, i) => PG.SURFACE[n] === i) && PG.SURFACE.DIRT_WX === 20 && PG.SURFACE.GRASS_WX === 21 && PG.SURFACE.SAND_WX === 22,
+    'E the premises enum and its names: 15, in order, and the weather codes 20-22');
   check(PG.PAVE_BAND.snow > 0 && PG.PAVE_BAND.mud > 0, 'E the soft classes have their band');
   const sS = o.stripSurface;
   for (const k of ['snow', 'powder', 'slush']) check(sS({ premises: true, look: k }).key === 'snow', 'E a ' + k + ' strip reads snow');
@@ -208,7 +210,7 @@ function sideTables() {
   const dustSurf = /const DUST_SURF = \[([^\]]*)\]/.exec(app);
   return [
     ['TW_SKID_MU', Object.keys(C.TW_SKID_MU).length], ['GEN_DRIVE.turfS', C.GEN_DRIVE.turfS.length], ['SCAR_SURF', C.SCAR_SURF.length],
-    ['STRIP_ENUM_SURF (via stripSurface)', [...Array(13).keys()].filter(c => C.stripSurface({ surface: c }).key).length],
+    ['STRIP_ENUM_SURF (via stripSurface)', [...Array(15).keys()].filter(c => C.stripSurface({ surface: c }).key).length],
     ['30_solver SCUFF_SOFT', arrLen(sv, /const SCUFF_SOFT = \[([^\]]*)\]/)],
     ['app.js DUST_SURF', dustSurf ? dustSurf[1].split(',').length : -1],
     ['app.js DUST_SURF -> dust classes', dustSurf ? dustSurf[1].split(',').map(s => s.trim().replace(/'/g, '')).filter(k => k === '-1' || DUST.CLASSES.indexOf(k) >= 0 || k === 'paved').length : -1],

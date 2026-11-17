@@ -1505,9 +1505,9 @@ Radio Jolene's talk (`media/audio/voice/`, 352 takes, 35 minutes), rendered offl
 
 ## Livery lettering faces (`media/fonts/`, fetched on first use)
 
-Six typefaces for the text pieces of a livery (LIVERY-TEXT, 9 Nov 2026), all from github.com/google/fonts and all
-under the **SIL Open Font License 1.1**; each family's licence is kept verbatim beside its files
-(`media/fonts/OFL-<family>.txt`).
+Seven typefaces for the text pieces of a livery (LIVERY-TEXT, 9 Nov 2026; Saira Condensed 16 Nov 2026), all
+from github.com/google/fonts and all under the **SIL Open Font License 1.1**; each family's licence is kept verbatim
+beside its files (`media/fonts/OFL-<family>.txt`).
 
 - **Barlow Condensed** (SemiBold, Bold and their italics) — Copyright 2017 The Barlow Project Authors
   (https://github.com/jpt/barlow).
@@ -1520,10 +1520,12 @@ under the **SIL Open Font License 1.1**; each family's licence is kept verbatim 
   "Stardos Stencil".
 - **Alfa Slab One** — Copyright 2016 The Alfa Slab One Project Authors (http://www.jmsole.cl), with Reserved Font
   Name "Alfa Slab".
+- **Saira Condensed** (Bold) — Copyright 2016 The Saira Project Authors (omnibus.type@gmail.com), with Reserved Font
+  Name "Saira".
 
 Modifications, as the licence asks to be stated: Barlow Condensed, Jost and Great Vibes are **subset** (Basic Latin,
 Latin-1, Latin Extended-A, common punctuation; hinting removed; Jost instanced at 500 and 700) and converted to WOFF2
-by `fontTools` (the cutter is kept in the project notes beside the faces' study). The three families with a Reserved
+by `fontTools` (the cutter is kept in the project notes beside the faces' study). The four families with a Reserved
 Font Name are **not modified**: their original files ship whole, only wrapped as WOFF 1.0 by
 `tools/livery_fonts_prep.js`, which proves every table unwraps to the original bytes. The IBM Plex faces the game
 already uses (`vendor/fonts/`) are also OFL 1.1, Copyright IBM Corp.

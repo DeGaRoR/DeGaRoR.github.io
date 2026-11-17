@@ -65,6 +65,12 @@ const DEF = {
   twR: 0.10, twSpringLen: 0.52, twSpringDrop: 0.30, twSpringW: 0.052,
   twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
   twLegDrop: 0.10, twSteer: 0, twSteerVis: 1,
+  // PC6-TAILWHEEL (15 Nov, the user: "a different, much more robust back wheel ... mounted vertically on the aft back of
+  // the fuselage"): the tailwheel's STYLE - 0 the leaf spring (as ever), 1 a stout vertical POST under the tail's aft end,
+  // a trailing ARM from its foot to the castor, a SHOCK closing the V between them and a GUARD triangle ahead of the
+  // tyre (the Pilatus PC-6's). The castor and the wheel stand where the leaf spring put them: the same contact, so the
+  // flight is the spring's. Every row ABSENT AT ITS DEFAULT (_cage_gen CAGE_DEFAULT_ABSENT, the core's GEN_LEVER_ROW_OFF)
+  twStyle: 0, twPostLen: 0.28, twPostD: 0.07, twGuard: 1, twNode: 0,
 };
 // EVERY LEG OPTION EXISTS PER STATION. The flat keys above are the base
 // values; each station gets its own copy (s1_beamW, s2_beamW, ...) so the
@@ -138,6 +144,12 @@ const LEG_ROWS = {
     ['twLegDrop', 'swivel drop', 0.03, 0.60, 0.005],
     ['twSteer', 'steer angle', -40, 40, 1],
     ['twSteerVis', 'springs+chains', 0, 1, 1],
+    // PC6-TAILWHEEL: the oleo style (the DEF note above); its three rows with it (the fork, the V horn and the guard are the castor's)
+    ['twStyle', 'tailwheel style', 0, 1, 1, ['leaf spring', 'oleo strut, trailing leg (PC-6)']],
+    ['twPostLen', 'oleo length', 0.10, 1.20, 0.005],
+    ['twPostD', 'oleo cylinder', 0.03, 0.14, 0.002],
+    ['twGuard', 'stabiliser truss', 0, 1, 1],
+    ['twNode', 'truss node', 0, 1, 1, ['welded', 'bolted gussets']],
     // G330: the rudder-horn rows are gone — the horn is the RUDDER'S (G326,
     // the hinge layer draws it at the rudder's foot); the castor's own
     // picture, kept for a bench without that layer, uses fixed offsets

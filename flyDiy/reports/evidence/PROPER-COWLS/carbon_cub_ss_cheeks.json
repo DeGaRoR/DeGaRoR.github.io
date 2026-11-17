@@ -1,0 +1,13 @@
+{
+ "what": "PROPER-COWLS (9 Nov): the Carbon Cub SS (claude/real-figures-3 builds/candidates/carbon_cub_ss.json) - its own cowl kept, the cheeks refitted streamlined off the drawn heads (node tools/cowl_study/straight.js <build> <out> --cheeksOnly): these rows over its cage. Bare cowl: the heads 17 cm through; with these: 0 mm. Needs the lobeStream / lobeNose / lobeTail generator rows (this branch).",
+ "rows": {
+  "cw_lobeAmp": 0.2139,
+  "cw_lobeT": 0.773,
+  "cw_lobeAz": 10.7,
+  "cw_lobeSig": 51,
+  "cw_lobeTSig": 0.192,
+  "cw_lobeStream": 1,
+  "cw_lobeNose": 0.995,
+  "cw_lobeTail": 0.04
+ }
+}

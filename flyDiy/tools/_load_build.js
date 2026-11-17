@@ -197,6 +197,9 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   // the editor's P before the first build (_cage_eng.js CAGE_ENG_APPLY_PRESET, the birth flow's door) and its index set
   let ENG_PENDING = (AFTERS.find(a => /^engPreset:/.test(a)) || '').slice(10) || null;
   if (W.CAGE_ENERGY && W.CAGE_ENERGY.fromSpec) W.CAGE_ENERGY.fromSpec(spec.energy);
+  // (SKIS, 13 Nov: the belly pod comes with the aeroplane, as applySpec has it between the energy and the panel - the
+  // load door left it out, and every headless look drew the Carbon Cub's pod as nothing)
+  if (W.CAGE_POD && W.CAGE_POD.fromSpec) W.CAGE_POD.fromSpec(spec);
   if (W.CAGE_PANEL && W.CAGE_PANEL.fromSpec) W.CAGE_PANEL.fromSpec(spec.systems);
   // THE FLOWN AEROPLANE'S CG, model frame (app.js publishes it as FLYDIY_CG_MODEL whenever it builds the aeroplane,
   // and the energy layer's balance job whenever it answers): the float layer stands its step 12 deg aft of it

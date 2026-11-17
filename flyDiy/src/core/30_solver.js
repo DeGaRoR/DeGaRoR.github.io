@@ -152,6 +152,12 @@ function makeSim(def, world) {
   // and the orifice. null on every other build - one compare a substep, nothing else (no beam changes shape)
   const OLEO = (def.parts && def.parts.lever && def.parts.lever.sides)
     ? def.parts.lever.sides.map(q => ({ a: q.u, b: q.h, O: q.O, s: 0, sd: 0, F: 0, sMax: 0, fMax: 0 })) : null;
+  // PC6-OLEO: THE TELESCOPIC TAIL STRUT (61_gen_frame parts.twOleo): the wheel TW rides the line of the cylinder's two
+  // anchors (TOA top, TOB foot) - along it the oleo's law (62c gearOleoF on the designed O; s = Lx less the wheel's
+  // drop below the foot, + compressed), across it the piston's bearing (kLat, cLat), each reaction on the two anchors
+  // by the lever rule (the force's line through the wheel: momentum and moment kept). null on every other build
+  const TELE = (def.parts && def.parts.twOleo && def.parts.twOleo.O)
+    ? Object.assign({ s: 0, sd: 0, F: 0, sMax: 0, fMax: 0, bottomed: 0 }, def.parts.twOleo) : null;
   // THE TUBE (G294): RIGID CLUSTERS, shape-matched every substep. A group of
   // nodes (a twin boom's) is pulled onto the best-fit rigid transform of
   // its rest shape — Müller's shape matching: the mass-weighted centre,
@@ -484,7 +490,7 @@ function makeSim(def, world) {
   // floor, sand: the stain). `scN` counts the substeps that slid (the hop's signature). Zeroed by reset()
   DMG.sW = new Float64Array(DMG_ON ? n : 0); DMG.sD = new Float64Array(DMG_ON ? n * 3 : 0);
   DMG.sN = new Float64Array(DMG_ON ? n * 3 : 0); DMG.sG = new Float64Array(DMG_ON ? n : 0); DMG.scN = 0; DMG.scW = 0;
-  const SCUFF_SOFT = [1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1];   // GROUND_SURF's classes: 0 grass, 3 forest floor, 7 sand; SNOW-MUD: 8-12 snow and mud
+  const SCUFF_SOFT = [1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1];   // (LADDER: 13 wet grass, 14 wet sand - soft)   // GROUND_SURF's classes: 0 grass, 3 forest floor, 7 sand; SNOW-MUD: 8-12 snow and mud
   function scuffAdd(i, w, dx, dy, dz, ix, iy, iz, soft) {
     const i3 = i * 3;
     DMG.sW[i] += w; DMG.scW += w; DMG.scN++;
@@ -1600,6 +1606,152 @@ function makeSim(def, world) {
   }
   // the effective contact radius: a wheel node's plane rises with the wheel (rC itself is the reset's, untouched)
   const rCe = i => (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]);
+  // SKIS (13 Nov, 29c_ski.js): THE SKI CONTACTS - null without skis (the ground pass never asks: every build without
+  // gear.ski flies its old lines, to the bit). Each main's and the third unit's node carries up to two ELEMENTS below
+  // it: the ski's bottom (hS) and, on a wheel-ski or a penetration ski, the tyre's (hT). Each element meets the ground
+  // by its own law: on hard ground the node's own spring (KGn); on SNOW-MUD's soft layer (the SURFACE code's GROUND_SOFT
+  // row) its RUT deepens to SNOW-MUD's sinkage of the load over the element's own area (29c SKI_SOFT: the moving datum) -
+  // so a small ski on a heavy aeroplane sinks, its rut's compaction and bulldozing hold it back, and past the hump it planes. A ski slides (its bottom's mu, no brake: the
+  // brake reaches the tyre element only), grips sideways with its edges, and the tail / nose ski steers with its wheel.
+  // ctl.ski: the wheel-ski's selector (1 down, 0 up; a reset picks the surface's - down on a soft layer).
+  const SKI = typeof skiSimMake === 'function' ? skiSimMake(def, n) : null;
+  function skiSetHeights() {
+    for (const c of SKI.C) { c.hS = skiHeight(SKI, c); rC[c.node] = c.kind === 'plain' ? c.hS : Math.max(c.hS, c.hT); }
+  }
+  function skiStep(dtF) {
+    if (SKI.time > 0) {
+      // the selector: the pilot's (ctl.ski 1 / 0), or with none the surface's - down over a soft layer under the mains,
+      // up over a hard one (the pilot looking where he will land); a reset snaps to it (the aeroplane parked as set)
+      let want = ctl.ski;
+      if (want !== 0 && want !== 1) {
+        const i3 = SKI.C[0].node * 3, sc0 = world && world.surface ? world.surface(p[i3], p[i3+2]) : -1;
+        want = sc0 >= SOFT_MIN && GROUND_SOFT[sc0] && GROUND_SOFT[sc0].skis ? 1 : 0;   // (the snow under the mains: the rows a ski belongs on)
+      }
+      if (SKI.snap) {   // (the airframe lowered with it: the reset stood it on the skis-down contact)
+        SKI.pos = want; SKI.snap = false; skiSetHeights();
+        // THE MAINS ONTO THEIR NEW CONTACT, THE THIRD CONTACT STAYS (15 Nov): dy is the mains' gap over the ground at the new
+        // contact radius, MEASURED (the game's placement stands the aeroplane on its tyres, a gate's reset on the skis
+        // down: neither is assumed), and the airframe turns rigidly about the tail / nose contact (the horizontal axis
+        // square to the line from it to the mains) until the mains have come down by it. A uniform drop of the ski's
+        // travel pushed the PC-6's mains 6 cm into the ground at its stand and the tail skid with them (38 yields)
+        const M = def.refs.mains, tw = def.refs && def.refs.tw != null && def.refs.tw >= 0 ? def.refs.tw : -1;
+        let dy = 0;
+        if (world && M && M.length === 2) {
+          for (const i of M) dy += 0.5 * (p[i*3+1] - world.terrainH(p[i*3], p[i*3+2]) - rC[i]);
+          if (dy > -1e-4 && dy < 1e-4) dy = 0;
+        }
+        if (dy !== 0 && tw >= 0 && M && M.length === 2) {
+          const px = p[tw*3], py = p[tw*3+1], pz = p[tw*3+2];
+          const dx = 0.5 * (p[M[0]*3] + p[M[1]*3]) - px, dz = 0.5 * (p[M[0]*3+2] + p[M[1]*3+2]) - pz, L = hyp2(dx, dz) || 1e-9;
+          const ax = -dz / L, az = dx / L, th = -dy / L, cs = CORE_MATH.cos(th), sn = CORE_MATH.sin(th);
+          for (let i = 0; i < n; i++) {   // Rodrigues, the axis (ax, 0, az) through the third contact
+            const rx = p[i*3] - px, ry = p[i*3+1] - py, rz = p[i*3+2] - pz, dot = ax * rx + az * rz;
+            const cx = -az * ry, cy = az * rx - ax * rz, cz = ax * ry;   // axis x r
+            p[i*3]   = px + rx * cs + cx * sn + ax * dot * (1 - cs);
+            p[i*3+1] = py + ry * cs + cy * sn;
+            p[i*3+2] = pz + rz * cs + cz * sn + az * dot * (1 - cs);
+          }
+        } else if (dy !== 0) for (let i = 0; i < n; i++) p[i*3+1] -= dy;
+      }
+      const d = Math.max(-dtF / SKI.time, Math.min(dtF / SKI.time, want - SKI.pos));
+      if (d !== 0) { SKI.pos += d; if (SKI.pos > 1) SKI.pos = 1; else if (SKI.pos < 0) SKI.pos = 0; skiSetHeights(); }
+    }
+    // THE SKI'S PITCH ABOUT ITS AXLE (what the drawing shows; the contact acts through the pivot): on the ground it lies on
+    // the surface along its heading; in the air the bungee holds the toe up against the check cable (+inc to the body),
+    // the swing a 0.3 s lag; never past the safety cable (droop) nor the check cable
+    bodyAxes();
+    const thB = Math.asin(Math.max(-1, Math.min(1, -xAft[1])));          // the body's pitch, nose up +
+    const hx = -xAft[0], hz = -xAft[2], hL = hyp2(hx, hz) || 1e-9;
+    const a = Math.min(1, dtF / 0.3);
+    for (const c of SKI.C) {
+      const i3 = c.node * 3;
+      let tgt = SKI.inc;
+      if (c.on) {
+        const gh = world ? world.terrainH : null;
+        const s = gh ? (gh(p[i3] + 0.5 * hx / hL, p[i3+2] + 0.5 * hz / hL) - gh(p[i3] - 0.5 * hx / hL, p[i3+2] - 0.5 * hz / hL)) : 0;
+        tgt = Math.atan(s) - thB;
+      }
+      if (tgt > SKI.inc) tgt = SKI.inc; else if (tgt < SKI.droop) tgt = SKI.droop;
+      c.pitch += (tgt - c.pitch) * a;
+    }
+    out.ski = SKI.pos; out.skiPitch = SKI.C.map(c => c.pitch); out.skiSink = SKI.C.map(c => c.z);
+    out.skiLoad = SKI.C.map(c => c.load); out.skiDy = SKI.C.map(c => c.hS - c.hS0);
+  }
+  // the ground pass for a ski node (i, its contact c): both elements' normal force, the SKI's share applied here with its
+  // own laws (the sole's sliding - no brake -, its edges' side grip, the plough of everything sunk); returns the TYRE's
+  // share (0: none), which the wheel pass below rolls, brakes and steers as any wheel (twLine for a tail ski's wheel)
+  let skiSoft = false;                                // this node's tyre on a soft layer is the ski's (the wheel pass adds no sink)
+  function skiGround(c, i, i3, gy, dt) {
+    const sc = world && world.surface ? world.surface(p[i3], p[i3+2]) : -1;
+    const SO = sc >= SOFT_MIN ? GROUND_SOFT[sc] : undefined, SX = SO !== undefined && SO.skis ? SO : undefined;   // (SX: the row's ski fields)
+    skiSoft = SO !== undefined;
+    const dS = gy + c.hS - p[i3+1], dT = c.kind === 'plain' ? -1 : gy + c.hT - p[i3+1];   // (the wheel pass's own arithmetic: a tyre element is its wheel, bit for bit)
+    let hx = -xAft[0], hz = -xAft[2];
+    if (c.third) { const s = P_.twSteer * ctl.dr, cs = CORE_MATH.cos(s), sn_ = CORE_MATH.sin(s);
+                   const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs; hx = nx; hz = nz; }
+    const hL = hyp2(hx, hz) || 1e-9; hx /= hL; hz /= hL;
+    const lx = -hz, lz = hx, vr_ = v[i3]*hx + v[i3+2]*hz, vl = v[i3]*lx + v[i3+2]*lz;
+    let FS = 0, FT = 0, Rp = 0, zMax = 0;
+    if (SO !== undefined) {
+      // SNOW-MUD'S LAYER: each element on the node's spring from its rut's floor; the rut deepens to the layer's sinkage
+      // of that load (groundSinkPlate over the sole's area, groundSinkWheel for the tyre), plastic, never past zMax
+      const S = SKI_SOFT.at(SO, SX, vr_);
+      SKI_SOFT.relax(c.eS, vr_, dt); SKI_SOFT.relax(c.eT, vr_, dt);
+      if (dS > c.eS.zc) {
+        FS = KGn[i] * (dS - c.eS.zc);
+        SKI_SOFT.sink(c.eS, SKI_SOFT.plate(SO, SX, FS, c.A, c.W, vr_), dt);
+      }
+      if (FS > 0 || dS > 0) { Rp += SKI_SOFT.resist(S, SX, c.W, c.eS.zc, true); zMax = c.eS.zc; }
+      if (dT > c.eT.zc) {
+        FT = KGn[i] * (dT - c.eT.zc);
+        if (SKW[i] === 0) softWheel(i, !c.third);
+        groundSinkWheel(S, FT, SKW[i], SKDIA[i], SKA[i]); SKI_SOFT.sink(c.eT, GROUND_SINK.z, dt);
+      }
+      if (FT > 0 || dT > 0) {
+        Rp += SKI_SOFT.resist(S, SX, SKW[i], c.eT.zc, false); if (c.eT.zc > zMax) zMax = c.eT.zc;
+        // (DEEP SNOW: the tyre through the ski shoves the snow ahead as SNOW-MUD's wheel does - groundBullWheel on a row
+        //  with `bull`, at the tyre's own rut; the sole has its plough and planing instead)
+        if (SO.bull && c.eT.zc > 0) Rp += groundBullWheel(SO, c.eT.zc, SKW[i], SKDIA[i], vr_);
+      }
+      if (!softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; out.softW = SOFTW; softLive = true; }   // (SNOW-MUD's readouts, opened as their wheel branch opens them; a posed ski writes no softW slot - their rule)
+      if (zMax > out.softZ) out.softZ = zMax;
+      out.softF += Rp;
+    } else {
+      if (dS > 0) FS = KGn[i] * dS;
+      if (dT > 0) FT = KGn[i] * dT;
+    }
+    c.z = zMax;
+    const Fs = FS + FT;
+    if (!(Fs > 0)) { c.fnS = c.fnT = 0; c.load = 0; c.on = 0; return 0; }
+    let Fn = Fs - CGn[i] * v[i3+1];
+    if (Fn < 0) Fn = 0;
+    // (an element that does not touch carries exactly nothing: Fn - Fn FS / FS can be an ulp over zero, and a straight
+    // ski's tyre share must be none - else the wheel pass brakes it)
+    const fS = FT > 0 ? (FS > 0 ? Fn * FS / Fs : 0) : Fn, fT = FT > 0 ? Fn - fS : 0;
+    c.fnS = fS; c.fnT = fT; c.load = Fn; c.on = 1;
+    if (!(fS > 0) && !(Rp > 0)) return fT;
+    if (out.gndDump) out.gndPitch -= (p[i3] - out.gndCgx) * fS;
+    f[i3+1] += fS;
+    cIy += fS * dt;
+    // along: the sole sliding (GROUND_SKI_MU: its breakout under 0.3 m/s; no brake reaches it) and the plough of every
+    // sunk element
+    const avr = Math.abs(vr_), MU = (sc >= 0 && GROUND_SKI_MU[sc]) || (sc === 4 ? SKI_WATER_MU : GROUND_SKI_MU[0]);
+    let mS = MU[0];
+    if (SKI.alu && SX !== undefined && mS < SKI_ALU_MU[0]) mS = SKI_ALU_MU[0];
+    if (avr < 0.3) { const m0 = SKI.alu && SX !== undefined ? SKI_ALU_MU[1] : MU[1]; if (m0 > mS) mS = m0; }
+    let kR = mS * fS / Math.max(avr, 0.2) + Rp / Math.max(avr, 0.3);
+    if (kR > m[i] / dt) kR = m[i] / dt;
+    // across: the ski's edges and runners (Coulomb, a 0.15 m/s drift - "sideways drift in turns is normal")
+    const lS = SX !== undefined ? SX.lat : (SKI_LAT[sc] != null ? SKI_LAT[sc] : SKI_LAT[0]);
+    // (its side force builds with the slip angle - the runners and edges as a keel, SKI_RULES.cn per radian - up to the
+    // Coulomb limit: the tyre's own law, G1844, with a ski's slope; a bang-bang edge gave no yaw damping on a take-off)
+    let kL = lS * fS / Math.max(Math.abs(vl), 0.15, avr * lS / SKI_RULES.cn) + 0.5 * Rp / Math.max(avr, 0.3);
+    if (kL > m[i] / dt) kL = m[i] / dt;
+    f[i3]   -= kR*vr_*hx + kL*vl*lx;
+    f[i3+2] -= kR*vr_*hz + kL*vl*lz;
+    return fT;
+  }
+
   function gearStep(dtF) {
     // the squat switch: any wheel within 3 cm of its (effective) ground
     let wow = false;
@@ -2650,6 +2802,15 @@ function makeSim(def, world) {
     // A Jodel's wing that came off rested on its lower caps, its drawn covering 12 cm over the ground; flight never
     // reaches the ground with these nodes, and the law (K, C, friction) is unchanged
     for (let i = 0; i < n; i++) rC[i] = r[i] - (def.nodes[i].so || 0);
+    // PC6-OLEO: the telescopic tail strut starts at its STATIC stroke (the charge's: the wheel up its axis by sSt from the
+    // drawn, fully extended place) - the rest pose is the parked one; airborne, the gas extends it to the drawing
+    if (TELE !== null) {
+      const T = TELE, w3 = T.tw * 3, a3 = T.oa * 3, b3 = T.ob * 3;
+      let ux = p[a3] - p[b3], uy = p[a3 + 1] - p[b3 + 1], uz = p[a3 + 2] - p[b3 + 2];
+      const Lu = hyp3(ux, uy, uz) || 1e-9, sS = T.O.sSt || 0;
+      p[w3] += ux / Lu * sS; p[w3 + 1] += uy / Lu * sS; p[w3 + 2] += uz / Lu * sS;
+      T.s = sS; T.sd = 0; T.F = 0; T.sMax = sS; T.fMax = 0; T.bottomed = 0;
+    }
     {
       const M = (def.refs && def.refs.mains) || [], tw = def.refs ? def.refs.tw : null, W = totalM * 9.81;
       if (M.length) {
@@ -2663,6 +2824,14 @@ function makeSim(def, world) {
         if (hasTw) { rC[tw] = r[tw] + def0(tw, sT / nT); if (nT === 2) rC[TW2] = r[TW2] + def0(TW2, sT / nT); }
         if (TWL) twSize(sT * W / nT);                          // G3800: the tail contact's law sized off its static load
       }
+    }
+    // SKIS: each contact's elements off the node's own contact radius (the tyre's, G661's share in it; a plain ski's
+    // pedestal), the drawn ski's height (skis down), and the selector back to the surface's at the first step
+    if (SKI !== null) {
+      ctl.ski = null; SKI.snap = SKI.time > 0;
+      for (const c of SKI.C) { c.hT = rC[c.node]; c.R = r[c.node]; c.eS.zc = c.eT.zc = 0; c.pitch = 0; c.on = 0; c.z = 0; c.load = 0; }
+      SKI.pos = 1; for (const c of SKI.C) c.hS0 = skiHeight(SKI, c);
+      skiSetHeights();
     }
     for (const b of beams) {
       b.L0 = hyp3(p[b.b*3]-p[b.a*3], p[b.b*3+1]-p[b.a*3+1], p[b.b*3+2]-p[b.a*3+2]);
@@ -3516,6 +3685,72 @@ function makeSim(def, world) {
   const TW_ARC = TW_SCOTT.arc;
   // (MONOWHEEL: a NOSE skid flies the skid's law too - twMode 4 on a nose unit; a nose wheel stays the rudder's, 0)
   const TWM = (TW1 >= 0 && (P_.twSteer > 0 || P_.twMode === 4)) ? (P_.twMode || 1) : 0;
+  // ROUGH GROUND (SNOW-MUD, 15 Nov - the user: "does a large tundra wheel help on a bumpy road with stones?"): THE TYRE'S
+  // ENVELOPE. The ground was read at one point under each node, so a wheel met a stone when its AXLE was over it - a 0.15 m
+  // wheel and a 0.36 m tundra wheel took the same step, and no stone cost any wheel speed. On a bumpy strip (world.roughAt:
+  // a micro strip's box) a rolling wheel now reads the EFFECTIVE ROAD of the TANDEM CAM (Schmeitz & Pacejka, Vehicle System
+  // Dynamics 2004; Zegelaar 1998): two cams of the tyre's radius R, one footprint length l apart (tyreFootprint's, 4A / pi b:
+  // the carcass's - 0.51 D standard, 0.64 D tundra), each riding the profile (the highest of h(x + s u) less the rim's rise
+  // R - sqrt(R^2 - s^2), |s| < 0.95 R, along the heading u). The axle's ground is their MEAN and the road's effective slope
+  // their DIFFERENCE over l, by which the stone pushes back along u (capped at ENV_TC). A stone shorter than the footprint
+  // lifts the axle by about half its height and over the footprint's length - the soft long tundra print swallows what a
+  // small hard wheel climbs whole; a hole narrower than it is bridged. THE COST: the ground is read ONCE A FRAME per wheel
+  // on the strip, a profile along u every ENV_DS over the cams and the frame's travel (envFrame); the substeps take the cams
+  // off it, arithmetic only. Off a bumpy strip one roughAt compare a wheel a frame; on a world without roughAt nothing at
+  // all: the bytes as before
+  const WHL = [];
+  // (SKIS: a ski node is not a wheel here - its sole and its tyre element read the point probe under the node, as
+  //  agreed with SNOW-MUD: def.refs.skis' nodes stay out of the tandem cam)
+  const SKN = new Set(((def.refs && def.refs.skis) || []).map(u => u && u.nodes && u.nodes[0]));
+  for (const i of (def.refs && def.refs.mains) || []) if (i >= 0 && i < n && !SKN.has(i)) WHL.push(i);
+  if (TWM !== 4) { if (TW1 >= 0 && !SKN.has(TW1)) WHL.push(TW1); if (TW2 >= 0 && !SKN.has(TW2)) WHL.push(TW2); }
+  const ENV_TC = 3, ENV_NEAR = 0.6, ENV_DS = 0.05, ENV_M = 160, ENV_Q2 = 0.95 * 0.95;
+  const ENVK = new Int8Array(n).fill(-1); WHL.forEach((i, k) => { ENVK[i] = k; });
+  const ENVL = new Uint8Array(WHL.length), ENVO = new Float64Array(WHL.length * 7), ENVH = new Float64Array(WHL.length * ENV_M);
+  const nMainW = ((def.refs && def.refs.mains) || []).filter(i => i >= 0 && i < n && !SKN.has(i)).length;   // (the mains in WHL: they lead it)
+  let envLive = false;
+  out.envW = 0; out.envN = 0;                         // (the wheel-substeps the cams rode, and the ground reads, a frame)
+  // once a frame: each wheel near a bumpy strip's ground samples its profile (origin, heading, first offset, spacing, count)
+  function envFrame(RGH, dtFrame) {
+    envLive = false;
+    const gH = world.terrainH;
+    let axesOk = false, ux = 0, uz = 0;
+    for (let k = 0; k < WHL.length; k++) {
+      ENVL[k] = 0;
+      const i = WHL[k], i3 = i * 3, x0 = p[i3], z0 = p[i3+2], R = rC[i];
+      if ((GR !== null && !(GR.pos > 0.98)) || !RGH(x0, z0)) continue;
+      if (p[i3+1] - R - gH(x0, z0) > ENV_NEAR + 2 * Math.max(0, -v[i3+1]) * dtFrame) continue;
+      if (!axesOk) { bodyAxes(); const hl = hyp2(xAft[0], xAft[2]) || 1; ux = -xAft[0] / hl; uz = -xAft[2] / hl; axesOk = true; }
+      if (SKW[i] === 0) softWheel(i, k < nMainW);     // (the carcass's footprint: the soft layer's own, sized once)
+      const lf = Math.max(ENV_DS, 4 * SKA[i] / (Math.PI * SKW[i]));
+      // the window: the cams' reach about the axle, stretched the way the wheel rolls by the frame's travel (and a margin)
+      const reach = R + 0.5 * lf + ENV_DS, tr = 1.25 * (v[i3] * ux + v[i3+2] * uz) * dtFrame;
+      const s0 = -reach + (tr < 0 ? tr : 0), span = 2 * reach + Math.abs(tr) + 0.25 * Math.abs(hyp2(v[i3], v[i3+2]) * dtFrame);
+      let ds = ENV_DS, N = Math.ceil(span / ds) + 1;
+      if (N > ENV_M) { N = ENV_M; ds = span / (N - 1); }
+      const o = k * 7, b = k * ENV_M;
+      ENVO[o] = x0; ENVO[o+1] = z0; ENVO[o+2] = ux; ENVO[o+3] = uz; ENVO[o+4] = s0; ENVO[o+5] = ds; ENVO[o+6] = lf;
+      for (let j = 0; j < N; j++) { const s = s0 + j * ds; ENVH[b + j] = gH(x0 + s * ux, z0 + s * uz); }
+      out.envN += N;
+      for (let j = N; j < ENV_M; j++) ENVH[b + j] = ENVH[b + N - 1];   // (past the window: its last reading)
+      ENVL[k] = 1; envLive = true;
+    }
+  }
+  // one cam of radius R centred at c along wheel k's profile: the highest of the profile less the rim's rise
+  function envCam(k, c, R) {
+    const o = k * 7, b = k * ENV_M, ds = ENVO[o+5], R2 = R * R;
+    let j = Math.ceil((c - 0.95 * R) / ds), j1 = Math.floor((c + 0.95 * R) / ds), best = -Infinity;
+    // (the profile under the cam's own centre, interpolated, no rise: a flat road reads exactly flat)
+    const jc = Math.floor(c / ds);
+    if (jc >= 0 && jc + 1 < ENV_M) { const f = c / ds - jc, h0 = ENVH[b + jc], h1 = ENVH[b + jc + 1]; best = f === 0 ? h0 : h0 + f * (h1 - h0); }
+    if (j < 0) j = 0; if (j1 > ENV_M - 1) j1 = ENV_M - 1;
+    for (; j <= j1; j++) {
+      const sq = j * ds - c, s2 = sq * sq; if (s2 > ENV_Q2 * R2) continue;
+      const h = ENVH[b + j] - (R - Math.sqrt(R2 - s2));
+      if (h > best) best = h;
+    }
+    return best;
+  }
   const TWL = TWM ? { m: TWM, k: 0, trail: 0, Mf: 0, E: TW_SCOTT.E,
     st: [0, 0], ang: [0, 0], df: [0, 0], F: [0, 0], ff: [0, 0], fMax: [0, 0] } : null;
   if (TWL) out.twState = [0, 0], out.twAng = [0, 0], out.twF = [0, 0], out.twFmax = TWL.fMax;
@@ -3951,6 +4186,49 @@ function makeSim(def, world) {
       if (F > Q.fMax) Q.fMax = F;
     }
   }
+  // PC6-OLEO: the telescope's pass - the strut's axis u up from the foot to the top anchor, the wheel's offset r from the
+  // foot: its drop along -u (the stroke) and its offset across (the bearing)
+  function telePass(dt) {
+    const T = TELE, w3 = T.tw * 3, a3 = T.oa * 3, b3 = T.ob * 3;
+    let ux = p[a3] - p[b3], uy = p[a3 + 1] - p[b3 + 1], uz = p[a3 + 2] - p[b3 + 2];
+    const Lu = hyp3(ux, uy, uz) || 1e-9; ux /= Lu; uy /= Lu; uz /= Lu;
+    const rx = p[w3] - p[b3], ry = p[w3 + 1] - p[b3 + 1], rz = p[w3 + 2] - p[b3 + 2], ru = rx * ux + ry * uy + rz * uz;
+    const vx = v[w3] - v[b3], vy = v[w3 + 1] - v[b3 + 1], vz = v[w3 + 2] - v[b3 + 2], vu = vx * ux + vy * uy + vz * uz;
+    const s = T.O.Lx + ru, sd = vu, mw = m[T.tw], mb = m[T.ob];
+    const F = gearOleoF(T.O, s, sd, dt, mw * mb / (mw + mb));          // + pushes the wheel down the axis
+    // the bearing: the wheel's offset across the axis and its speed across it, pulled back to the line
+    const qx = rx - ru * ux, qy = ry - ru * uy, qz = rz - ru * uz, wx = vx - vu * ux, wy = vy - vu * uy, wz = vz - vu * uz;
+    const lx = -T.kLat * qx - T.cLat * wx, ly = -T.kLat * qy - T.cLat * wy, lz = -T.kLat * qz - T.cLat * wz;
+    const fx = -F * ux + lx, fy = -F * uy + ly, fz = -F * uz + lz;
+    f[w3] += fx; f[w3 + 1] += fy; f[w3 + 2] += fz;
+    // the reactions: the axial on the foot; the bearing's by the lever rule along the cylinder (tau: the wheel's place
+    // along TOB -> TOA, negative below the foot - a cantilever, the top anchor pulled the other way)
+    const tau = ru / Lu, kb = 1 - tau, ka = tau;
+    f[b3] += F * ux - kb * lx; f[b3 + 1] += F * uy - kb * ly; f[b3 + 2] += F * uz - kb * lz;
+    f[a3] += -ka * lx; f[a3 + 1] += -ka * ly; f[a3 + 2] += -ka * lz;
+    T.s = s; T.sd = sd; T.F = F;
+    if (s > T.sMax) T.sMax = s;
+    if (F > T.fMax) T.fMax = F;
+  }
+  // ...and its bottom stop, as the Wilga's: past S the wheel put back to S along the axis against the foot (mass-
+  // weighted), its closing speed taken out - the load then goes into the cylinder's clamps
+  function teleStop() {
+    const T = TELE, w3 = T.tw * 3, a3 = T.oa * 3, b3 = T.ob * 3;
+    let ux = p[a3] - p[b3], uy = p[a3 + 1] - p[b3 + 1], uz = p[a3 + 2] - p[b3 + 2];
+    const Lu = hyp3(ux, uy, uz) || 1e-9; ux /= Lu; uy /= Lu; uz /= Lu;
+    const ru = (p[w3] - p[b3]) * ux + (p[w3 + 1] - p[b3 + 1]) * uy + (p[w3 + 2] - p[b3 + 2]) * uz;
+    const ex = T.O.Lx + ru - T.O.S;
+    if (!(ex > 0)) return;
+    const mw = m[T.tw], mb = m[T.ob], ww = mb / (mw + mb), wb = mw / (mw + mb);
+    p[w3] -= ux * ex * ww; p[w3 + 1] -= uy * ex * ww; p[w3 + 2] -= uz * ex * ww;
+    p[b3] += ux * ex * wb; p[b3 + 1] += uy * ex * wb; p[b3 + 2] += uz * ex * wb;
+    const vc = (v[w3] - v[b3]) * ux + (v[w3 + 1] - v[b3 + 1]) * uy + (v[w3 + 2] - v[b3 + 2]) * uz;
+    if (vc > 0) {
+      v[w3] -= ux * vc * ww; v[w3 + 1] -= uy * vc * ww; v[w3 + 2] -= uz * vc * ww;
+      v[b3] += ux * vc * wb; v[b3 + 1] += uy * vc * wb; v[b3 + 2] += uz * vc * wb;
+    }
+    T.bottomed++;
+  }
   // WILGA-GEAR: THE BOTTOM STOP, AS A CONSTRAINT (after the step's integration, as the clusters' projection is): a strut
   // past its stroke S has its eyes put back to S along their line, mass-weighted (the pair's centre unmoved), and their
   // closing speed taken out (inelastic, momentum kept) - the load then goes into the steel leg and arm, as on the real
@@ -3997,6 +4275,7 @@ function makeSim(def, world) {
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
     if (OLEO !== null) oleoPass(dt);                 // WILGA-GEAR: the trailing-link legs' struts
+    if (TELE !== null) telePass(dt);                 // PC6-OLEO: the telescopic tail strut
     if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
       if (nFlr) floorPass();                         // G1813: the kinked members' floors
       if (nTieL) tiePass();                          // G2040 (DMG-FABRIC): the covering's ties
@@ -4006,7 +4285,7 @@ function makeSim(def, world) {
     const gH = world ? world.terrainH : null;
     for (let i = 0; i < n; i++) {
       const i3 = i*3;
-      let gy;
+      let gy, tcE = 0, kE = -1;
       if (coneLive) {
         const dx = p[i3] - gcx[i], dz = p[i3+2] - gcz[i];
         const c = p[i3+1] - rC[i] - gcy[i] - GROUND_CONE_EPS;
@@ -4015,14 +4294,26 @@ function makeSim(def, world) {
       } else if (hbLive && p[i3+1] - rC[i] > hbH && p[i3] >= hbX0 && p[i3] <= hbX1 && p[i3+2] >= hbZ0 && p[i3+2] <= hbZ1) {
         out.gndSkipped++; continue;
       } else { gy = gH ? gH(p[i3], p[i3+2]) : 0; if (hbLive) out.gndSampled++; }
-      const pen = gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
+      if (envLive && (kE = ENVK[i]) >= 0 && ENVL[kE]) {   // ROUGH GROUND: the tandem cam off the frame's profile
+        const o = kE * 7, lf = ENVO[o+6];
+        const a = (p[i3] - ENVO[o]) * ENVO[o+2] + (p[i3+2] - ENVO[o+1]) * ENVO[o+3] - ENVO[o+4];   // the axle along the profile
+        const hF = envCam(kE, a + 0.5 * lf, rC[i]), hR = envCam(kE, a - 0.5 * lf, rC[i]);
+        gy = 0.5 * (hF + hR); out.envW++;
+        tcE = (hF - hR) / lf; if (tcE > ENV_TC) tcE = ENV_TC; else if (tcE < -ENV_TC) tcE = -ENV_TC;
+      }
+      // SKIS: a ski node's elements meet the ground by their own law; what comes back is the tyre's share for the wheel pass
+      let FnT = null;
+      if (SKI !== null && SKI.of[i] >= 0) { FnT = skiGround(SKI.C[SKI.of[i]], i, i3, gy, dt); if (!(FnT > 0)) continue; }
+      else skiSoft = false;
+      const pen = FnT !== null ? 1 : gy + (GR !== null && GW[i] ? rC[i] - GR.lift * GH[i] : rC[i]) - p[i3+1];   // RETRACT-1: the plane rises with the wheel
       if (pen <= 0) continue;
       if (NOSE_G[i]) noseGnd = true;                 // G1470: the nose on the ground - the prop has struck it
-      let Fn = KGn[i] * pen - CGn[i] * v[i3+1];
+      let Fn = FnT !== null ? FnT : KGn[i] * pen - CGn[i] * v[i3+1];
       if (out.gndDump) out.gndPitch -= (p[i3] - out.gndCgx) * Fn;
 
       if (Fn < 0) Fn = 0;
       f[i3+1] += Fn;
+      if (tcE !== 0) { f[i3] -= Fn * tcE * ENVO[kE*7+2]; f[i3+2] -= Fn * tcE * ENVO[kE*7+3]; }   // ROUGH GROUND: the stone pushes back by its angle
       cIy += Fn * dt;                                // G1470: the contact impulse (the impact's g, below)
       const isMain = def.refs.mains.includes(i), isTW = i === TW1 || (TW2 >= 0 && i === TW2);
       const twQ = isTW && i === TW2 ? 1 : 0;   // G3800: which tail contact (a twin boom's two)
@@ -4054,7 +4345,7 @@ function makeSim(def, world) {
         // SNOW-MUD: A SOFT LAYER (GROUND_SOFT, the codes past the hard ones) - the tyre sinks by its load over its footprint
         // and pays the trench it compacts (groundSinkWheel: Bekker's rigid wheel, the tyre flattening at its own pressure,
         // never deeper than the layer), added to the rolling coefficient as F / N. On every hard surface: this compare only
-        if (sc >= SOFT_MIN && Fn > 0) {
+        if (sc >= SOFT_MIN && Fn > 0 && !skiSoft) {      // (SKIS: a ski node's tyre sank in its own rut, its plough paid there)
           const SO = GROUND_SOFT[sc];
           if (SO !== undefined) {
             if (SKW[i] === 0) softWheel(i, isMain);
@@ -4205,6 +4496,7 @@ function makeSim(def, world) {
     if (clusterFresh) { for (const C of clusters) clusterRest(C); clusterFresh = false; }
     integrate(dt);
     if (OLEO !== null) oleoStop();                   // WILGA-GEAR: a bottomed strut stops on steel
+    if (TELE !== null) teleStop();                   // PC6-OLEO: ...and the tail's
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
     for (const C of clusters) { if (C.off) continue; shapeMatch(C, dt); twistHold(C, dt); }
@@ -4227,12 +4519,14 @@ function makeSim(def, world) {
     const dt = dtFrame / sub;
     if (softLive) { out.softZ = 0; out.softF = 0; SOFTW[0] = SOFTW[1] = SOFTW[2] = SOFTW[3] = 0; softLive = false; }   // SNOW-MUD: the soft layer's readouts (out.softZ / softF) are the frame's
     if (GR !== null) gearStep(dtFrame);              // RETRACT-1: the gear moves once a frame
+    if (SKI !== null) skiStep(dtFrame);              // SKIS: the wheel-ski's selector and the skis' pitch
     aicFresh = true;
     rigFresh = true;               // G1885: the frame's first substep sums the second moments
     // the cone's frame-start samples (a bound the world declares, else off)
     const S = coneOn && world ? world.slopeMax : undefined;
     coneLive = typeof S === 'number' && Number.isFinite(S) && S >= 0;
-    out.gndSampled = 0; out.gndSkipped = 0;
+    out.gndSampled = 0; out.gndSkipped = 0; out.envW = 0; out.envN = 0;
+    if (world && typeof world.roughAt === 'function') envFrame(world.roughAt, dtFrame);   // ROUGH GROUND: the wheels' profiles
     if (coneLive) {
       coneS2 = S * S;
       const gH = world.terrainH;
@@ -4551,6 +4845,8 @@ function makeSim(def, world) {
            // WILGA-GEAR: the trailing-link legs' struts - null on every other build; per side { s (m, + compressed), sd
            // (m/s), F (N), S (the stroke), sMax / fMax since the last oleoPeak(true) }
            oleo: () => (OLEO === null ? null : OLEO.map(Q => ({ s: Q.s, sd: Q.sd, F: Q.F, S: Q.O.S, sMax: Q.sMax, fMax: Q.fMax, bottomed: Q.bottomed || 0 }))),
+           // PC6-OLEO: the telescopic tail strut's state (null without one): s, sd, F, S, sMax / fMax, bottomed
+           twOleo: () => (TELE === null ? null : { s: TELE.s, sd: TELE.sd, F: TELE.F, S: TELE.O.S, sSt: TELE.O.sSt, sMax: TELE.sMax, fMax: TELE.fMax, bottomed: TELE.bottomed }),
            oleoPeak: clear => { if (OLEO !== null && clear) for (const Q of OLEO) { Q.sMax = Q.s; Q.fMax = Q.F; Q.bottomed = 0; } },
            gearPower: on => { if (GR !== null) GR.power = !!on; },
            gearEmergency: () => { if (GR !== null) { GR.emerg = true; ctl.gear = 1; } } };
