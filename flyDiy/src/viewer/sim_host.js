@@ -344,6 +344,9 @@ function simDmgHop(sim, hop, coreNode, win) {
     out = simDmgScuff(sim, Object.assign(out || {}, { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) }));   // G2001: + wb / sl
     if (D.how) { out.hw = D.broken.map(bi => D.how[bi]); out.bd = simDmgBends(sim); }   // G3770
     if (D.tieN) { const TY = simDmgTies(sim); out.ty = TY.ty; out.tt = TY.tt; }   // G2040 (DMG-FABRIC)
+    // G4103 (JOINT-TETHER): the kinked members whose tether still holds - the page draws them whole, bent (sim_view.js);
+    // only once a tether has been made: before, no key at all
+    if (D.tether) { const th = []; sim.beams.forEach((b, bi) => { if (b.broken && b.tt === 1) th.push(bi); }); out.th = th; }
   } else if (sg[1] !== hop.sS && !(sim.t - hop.t < W)) {
     hop.sS = sg[1]; hop.t = sim.t; hop.sF = sg[3]; hop.tF = sim.t;
     out = simDmgScuff(sim, Object.assign(out || {}, { sS: sg[1], st: simDmgSets(sim) }));   // G2001: + wb / sl
