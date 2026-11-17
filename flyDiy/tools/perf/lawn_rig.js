@@ -44,6 +44,11 @@ const CFG = {
   // the final (the 12:40 slot): what SHIPS - the build's own defaults, nothing set - and the same build with the lawn off (?lawn=0's A/B)
   ship:   { label: 'shipped (the build defaults)', field: {}, lawn: {} },
   off:    { label: 'shipped, lawn off', field: {}, lawn: null },
+  // the ladder (the user 17 Nov: "d is best looking. Maybe a ladder D -> B -> B phone? B phone looks bad"): B as the desktop rung,
+  // and two phone candidates - D's look to 12 m (P1) and the same with the three upright plates alone (P2: half the draws)
+  Bl:     { label: 'B rung: 8 cm, 150 cards/m2 to 40 m', field: {}, lawn: { dens: 150, cutH: 0.08, reach: 40, near: 10, cell: 8, block: 4, lean: 1 } },
+  P1:     { label: 'phone P1: D look to 12 m', field: {}, lawn: { dens: 300, cutH: 0.10, reach: 12, near: 4, cell: 4, block: 8, lean: 1 } },
+  P2:     { label: 'phone P2: D look to 12 m, upright cards only', field: {}, lawn: { dens: 300, cutH: 0.10, reach: 12, near: 4, cell: 4, block: 8, lean: 0 } },
 };
 
 // the page's instrument: the lawn's and the field's draws counted (and timed with --gpu), the rings idle, the eyes

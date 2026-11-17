@@ -15,7 +15,8 @@
 //   6. the tiers nest: a cell planted for a far eye is a subset of the same cell planted near (every card kept far is kept near)
 //   7. the instrument lawnAt(x, z): cards / m2 and the length at a point, 0 on the wild and on the kill
 //   8. off: nothing planted (the GRAPHICS row's `off`)
-//   0. the shipped default: on, B (8 cm, 150 / m2), the tall band 40 cm
+//   0. the shipped default: on, D (10 cm, 300 / m2 to 20 m), the tall band 40 cm
+//   10. the ladder: the GRAPHICS row 'mown grass' (free, auto: D / B / phone by preset) and its rungs
 //   9. never in drawn water: a pond across the mown strip plants no card in it (A0 17 Nov, LOOKS 5)
 //   node tools/_lawn_check.js   -> "GATE LAWN: PASS|FAIL"
 'use strict';
@@ -77,7 +78,7 @@ const run = o => { try { return rings(o); } catch (e) { ok(false, 'the rings pla
 const A = run({});
 if (A) {
   // 0 the shipped default (17 Nov, variant B on the page): on, 8 cm, 150 cards / m2, the tall band at grass-edge's 40 cm
-  ok(A.def.on === true && A.def.dens === 150 && A.def.cutH === 0.08 && A.def.tallH === 0.4, '0 the default: the lawn ON, B (8 cm, 150 / m2), the tall band 40 cm', JSON.stringify({ on: A.def.on, dens: A.def.dens, cutH: A.def.cutH, tallH: A.def.tallH }));
+  ok(A.def.on === true && A.def.dens === 300 && A.def.cutH === 0.10 && A.def.reach === 20 && A.def.tallH === 0.4, '0 the default: the lawn ON, D (10 cm, 300 / m2 to 20 m: the user 17 Nov "d is best looking"), the tall band 40 cm', JSON.stringify({ on: A.def.on, dens: A.def.dens, cutH: A.def.cutH, reach: A.def.reach, tallH: A.def.tallH }));
   const st = A.lawn.stat(), by = st.by || {}, lp = A.lp;
   // 1 only grass_plates, only on the cut
   ok(Object.keys(by).length === 1 && by.grass_plates > 0, '1a the lawn plants grass_plates alone', JSON.stringify(by));
@@ -133,6 +134,18 @@ if (A) {
   ok(wet === 0 && dry > 1000, '9 no card in drawn water across the mown strip (the dry metres either side keep theirs)', 'wet ' + wet + ', dry ' + dry); } }
 // 8 off
 { const O = run({ lawn: { off: true } }); if (O) ok(O.lp.length === 0, '8 off (the GRAPHICS row): no card', O.lp.length); }
+
+// 10 THE LADDER (the user 17 Nov: "d is best looking. Maybe a ladder D -> B -> B phone?"): the GRAPHICS row 'mown grass' is a FREE
+// row (the desktop presets untouched), 'auto' by default, picking D on ultra / gamer, B on current / retro, the phone's on potato /
+// laptop; the rungs' dials as shipped
+{ const src = require('fs').readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8');
+  const of = /const LAWN_OF = (\{[^}]*\})/.exec(src), lad = /const LAWN_LADDER = (\{[\s\S]*?\n    off:\s*\{ off: true \} \})/.exec(src);
+  const obj = t => Function('return (' + t + ')')();
+  const O = of ? obj(of[1]) : {}, L = lad ? obj(lad[1]) : {};
+  ok(O.ultra === 'D' && O.gamer === 'D' && O.current === 'B' && O.retro === 'B' && O.potato === 'phone' && O.laptop === 'phone', '10a auto: D on ultra / gamer, B on current / retro, the phone rung on potato / laptop', JSON.stringify(O));
+  ok(L.D && L.D.dens === 300 && L.D.cutH === 0.10 && L.D.reach === 20 && L.B && L.B.dens === 150 && L.B.cutH === 0.08 && L.B.reach === 40 && L.phone && L.phone.reach < L.D.reach && L.off && L.off.off === true,
+    '10b the rungs: D 300 / 10 cm / 20 m, B 150 / 8 cm / 40 m, the phone nearer than D, off', JSON.stringify({ D: L.D, B: L.B, phone: L.phone }));
+  ok(/\{ k: 'lawn', label: 'mown grass', free: true, def: 'auto'/.test(src), "10c the row is free with 'auto' its default (the desktop presets as train 31 shipped them)"); }
 
 console.log('GATE LAWN: ' + (fails ? 'FAIL' : 'PASS'));
 process.exit(fails ? 1 : 0);
