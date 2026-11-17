@@ -204,6 +204,26 @@ Smp rRock(vec3 P, vec3 nG){
     const SP = ctx.splat, U = SP.uniforms, LIB = () => SP.api.layers();
     const L = { uRB: { value: new THREE.Vector4(3.43, 0.2, 0.25, 0) }, uRMean: { value: new THREE.Vector3(0.3, 0.27, 0.22) }, uRL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uRK: { value: new THREE.Vector4(16, 24, 1, 1) }, uRFade: { value: new THREE.Vector4(0.6, S.reach, S.fadeBand, 0) }, uRT: { value: new THREE.Vector4(1, 2, 0, 0) } };
     const mat = material(THREE, U, L);
+    // THE SKIN (MOUNTAIN-VEG 17 Nov; the user: "keep your models, which are good and different ... and texture them using the method of
+    // the rocks there"): the boulder's look (rBoulder: the 'cliff' photograph triplanar, toned to the slab, moss on what looks up, the
+    // foot darker) on ANOTHER material's program - the cover ring's scanned rocks, instanced or batched - with THIS ring's live uniforms,
+    // so a tune of the boulders here reaches them too. Per instance: a tone 0.9-1.1 by its position's hash, the foot = its height over
+    // its own origin (m), no crease; the instance colour is left out (the skin is the colour). cover_ring.js calls ring.skin(sh) in its
+    // rock materials' onBeforeCompile (window.ROCK_RING_LIVE); without the layers (uRL.z < 0) the rock keeps its own picture
+    const SKIN_VS = '{ mat4 sk = modelMatrix;\n#ifdef USE_BATCHING\n  sk = sk * batchingMatrix;\n#endif\n#ifdef USE_INSTANCING\n  sk = sk * instanceMatrix;\n#endif\n' +
+      '  vec3 sw = (sk * vec4(transformed, 1.0)).xyz, so = (sk * vec4(0.0, 0.0, 0.0, 1.0)).xyz; float shh = fract(sin(dot(so.xz, vec2(12.9898, 78.233))) * 43758.5453);\n' +
+      '  vRW = sw; vRN = normalize(mat3(sk) * objectNormal); vR0 = vec4(vec3(0.9 + 0.2 * shh), max(sw.y - so.y, 0.0)); vR1 = vec4(0.0, shh, 2.0, 0.0); }';
+    function skin(sh) {
+      Object.assign(sh.uniforms, { uSplat: U.uSplat, uSplatN: U.uSplatN, uSGrade: U.uSGrade, uSLum: U.uSLum, uSFilt: U.uSFilt, uTrW: U.uTrW, uTrS: U.uTrS,
+        uRL: L.uRL, uRK: L.uRK, uRB: L.uRB, uRMean: L.uRMean, uRT: L.uRT });
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec4 vR0, vR1; varying vec3 vRW; varying vec3 vRN;')
+        .replace('#include <fog_vertex>', '#include <fog_vertex>\n' + SKIN_VS);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + GLSL)
+        .replace('#include <map_fragment>', '#include <map_fragment>\n  if (uRL.z >= 0.0) { Smp rk = rBoulder(vRW, normalize(vRN)); diffuseColor.rgb = rk.c.rgb; gRN = rk.n.xyz; gRR = rk.n.w; gRB = 1.0; }')
+        .replace('#include <color_fragment>', 'if (gRB < 0.5) {\n#include <color_fragment>\n}')
+        .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n  if (gRB > 0.5) normal = normalize((viewMatrix * vec4(gRN, 0.0)).xyz);')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  if (gRB > 0.5) roughnessFactor = gRR;');
+    }
     const group = new THREE.Group(); group.name = 'rock-ring'; ctx.scene.add(group);
     const chunks = new Map(), queue = [], inflight = new Map();
     const ST = { built: 0, workerMs: 0, workerLast: 0, mainMs: 0, verts: 0, tris: 0 };
@@ -453,6 +473,7 @@ Smp rRock(vec3 P, vec3 nG){
     const ob = mat.onBeforeCompile; mat.onBeforeCompile = sh => { ob(sh); sh.uniforms.uREyeX = uEyeX;
       sh.vertexShader = sh.vertexShader.replace('uniform vec4 uRFade;', 'uniform vec4 uRFade; uniform float uREyeX;').replace('distance(wp.xz, uRFade.xw)', 'distance(wp.xz, vec2(uREyeX, uRFade.w))'); };
     const up0 = ring.update; ring.update = () => { up0(); uEyeX.value = ctx.camera.position.x; };
+    ring.skin = skin;   // (MOUNTAIN-VEG: the cover ring's rocks wear the boulders' look)
     return ring;
   }
   return { make, DEF };
