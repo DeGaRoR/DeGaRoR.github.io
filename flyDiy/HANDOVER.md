@@ -317260,3 +317260,18 @@ GATE DMGUPLOAD: a stale fold buffer its fold still owes is reported OWED, not st
 whole upload dropped) stays red. Metal 0 stale (2 owed), the Cub 0.
 OWED (Deform): `node tools/_dmg_upload_check.js --selftest` does NOT go red on L40e master 2157a2f98 either (aswas / noowe:
 0 fold buffers stale) - the negative check lost its staging since L40e, before this change; to re-stage on a fold that draws.
+
+## SCUFF-WING - the Cub's wing panels drawn WHITE after a slide: the scuff's fabric scrape overreaches (Deform, 17 Nov 2026)
+The user (17 Nov, on the joint-tether stills, circled): "some part of your wings there on the cub have become completely
+white ... there's no way a panel would have been stripped clean of its paint like this over the whole surface."
+Measured (GPU slot 18:20, page_rig, joint-tether 68762a9b9, the Cub nose-down and the tree at 100 km/h, the same wreck
+and eyes three ways - flydiy-notes/evidence/scuff-white-2026-11-17/cub_nosedown_scuff_ab.jpg): ALL ON - the wings white
+/ silver; FLYDIY_SCUFF_SHOW(false) - yellow again; the crash-look cut copies hidden as well - no further change. It is
+the SCUFF (skin_scuff.js), not the cut copies, and it is master's (the 17 Nov master stills show it too).
+Why: a node's scrape sI = 1 - exp(-slideWork / scrapeW 60 J) saturates past ~25 cm of slide, so a wing that slid
+metres puts every node at 1; a place takes its nodes' weighted scrape (only the facing gates it), so the whole panel
+reads full; at full the shader's chips merge (bareCov) and the EXTREME streaks (gOff) cover it - on fabric the silver
+dope (0.42 grey, near white in sun) over the entire surface.
+OWED (Deform, L40g): fabric is never stripped whole - its bare dope only along the slide's streaks and gouges and over
+the structure it rides on (the ribs / stringers press the cloth into the ground), the rest scuffed and soiled; no
+chip-merging cover on fabric. Then the same three-way stills to the user before the ready.
