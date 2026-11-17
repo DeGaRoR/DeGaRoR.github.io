@@ -166,7 +166,9 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
   ok(C.indexOf('hf * uShape.x * (1.0 - 0.85 * ovcOf(li))') > 0 && C.indexOf('(1.0 - 0.7 * ovcOf(li) * smoothstep(600.0, 4000.0, uLayerA[li].y) * (1.0 - h))') > 0,
      '11b an overcast\'s base stays solid (the erosion fades) and its underside darkens with the deck\'s thickness');
   const WR = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'world_rail.js'), 'utf8');
-  ok(WR.indexOf("cs('overcast')") > 0 && WR.indexOf("overcast: 'overcast'") > 0, '11c the dial is in the world editor\'s rain block and THE LOOK'); }
+  ok(WR.indexOf("cs('overcast')") > 0 && WR.indexOf("overcast: 'overcast'") > 0, '11c the dial is in the world editor\'s rain block and THE LOOK');
+  ok(C.indexOf('if (ovG > 0.0) ambC = mix(ambC, dot(ambC, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.96, 0.98, 1.04), ovG);') > 0 && C.indexOf('Ls += ambC * (0.5 + 0.5 * exp(-upOD))') > 0,
+     '11d an overcast\'s ambient keeps its luminance and loses the clear dome\'s blue (the storm\'s base read as the blue sky, 17 Nov)'); }
 
 console.log('GATE RAIN: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

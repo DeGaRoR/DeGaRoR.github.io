@@ -350,7 +350,13 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
           // the sky's light: dimmed under a deck above (to half at most - the sides see round it), and inside the
           // cloud by the depth toward the sun (the sun's march, a proxy for the depth under the top: a core is
           // darker than a fringe - the flat grey underside had no such gradation), never below a third
-          Ls += mix(uAmbBot, uAmbTop, h) * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z))
+          // THE OVERCAST'S GREY (RAIN 12, 17 Nov): the sky's light is BLUE (the clear dome's irradiance), and a full deck's underside lit by it
+          // alone - the sun spent inside 4 km of cloud - read as the blue sky itself (the shoot: the pass covered 99.9 %, the eye saw blue).
+          // Under a full deck no blue dome lights the base: the light is the deck's own, scattered down through it - neutral. So at
+          // ovcOf the ambient keeps its luminance and loses its hue (a breath of cool left); a fair or broken sky is untouched
+          vec3 ambC = mix(uAmbBot, uAmbTop, h); float ovG = ovcOf(li);
+          if (ovG > 0.0) ambC = mix(ambC, dot(ambC, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.96, 0.98, 1.04), ovG);
+          Ls += ambC * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z))
                 * (1.0 - 0.7 * ovcOf(li) * smoothstep(600.0, 4000.0, uLayerA[li].y) * (1.0 - h));   // THE OVERCAST: the underside of a thick, full deck is dark
           float a = 1.0 - Tstep;
           col += T * Ls * a;
