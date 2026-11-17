@@ -18,7 +18,7 @@ const srv = http.createServer((q, r) => { const p = path.join(REPO, decodeURICom
   await new Promise(r => srv.listen(0, r)); const port = srv.address().port; fs.mkdirSync(OUT, { recursive: true });
   const RES = { cases: {} };
   for (const rk of (opt('rocks', '0,1')).split(',').map(Number)) {
-    const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+    const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-watchdog'] });
     const page = await browser.newPage({ viewport: { width: W, height: H } }), logs = [];
     page.on('console', m => logs.push(m.type() + ': ' + m.text())); page.on('pageerror', e => logs.push('pageerror: ' + e.message));
     await page.goto(`http://localhost:${port}/flyDiy/tools/rock_study/ground_bench.html?rocks=${rk}&${opt('qs', '')}&view=${VIEWS[0]}&w=${W}&h=${H}`);
