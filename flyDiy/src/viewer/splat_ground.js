@@ -770,7 +770,7 @@ const SPLAT_GROUND = (() => {
         // (17 Nov, the user: "still no detail texture" far away - v1's stone is POLYGONS: its exposure cut by the joints' soil at every
         // distance (its 0.78 m texture); the soft levels (2-8 m) and the map's field had no joints past 900 m - soft blotches. The joints
         // are drawn here once a pixel (widened to the pixel, faded by the same ratio: sTrLine) and cut the soft share's exposure)
-        gTrJ = sTrJoints(xz); gTrMA.a *= 1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y * gTrSoft;
+        if (mw < 0.999 || gTrSoft > 0.0) { gTrJ = sTrJoints(xz); gTrMA.a *= 1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y * gTrSoft; }   // (the 1 m level holds its own)
         float e = sTrE(r, xz, slope, uv, mw), ko = (1.0 - e) / max(1.0 - r, 1e-3);
         v0 = k0 == 6 ? e : v0 * ko; v1 = k1 == 6 ? e : v1 * ko; v2 = k2 == 6 ? e : v2 * ko; v3 = k3 == 6 ? e : v3 * ko; v4 = k4 == 6 ? e : v4 * ko;
         float fr = 1.0 - r < 1e-3 ? 1.0 - e : 0.0;
@@ -869,7 +869,7 @@ const SPLAT_GROUND = (() => {
         // (17 Nov, the user: "still no detail texture" far away - v1's stone is POLYGONS: its exposure cut by the joints' soil at every
         // distance (its 0.78 m texture); the soft levels (2-8 m) and the map's field had no joints past 900 m - soft blotches. The joints
         // are drawn here once a pixel (widened to the pixel, faded by the same ratio: sTrLine) and cut the soft share's exposure)
-        gTrJ = sTrJoints(xz); gTrMA.a *= 1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y * gTrSoft;
+        if (mw < 0.999 || gTrSoft > 0.0) { gTrJ = sTrJoints(xz); gTrMA.a *= 1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y * gTrSoft; }   // (the 1 m level holds its own)
         float e = sTrE(r, xz, slope, uv, mw), ko = (1.0 - e) / max(1.0 - r, 1e-3);
         for (int i = 0; i < uSNCode; i++) if (i != 6 && i != 12) w[i] *= ko;
         w[6] = e * (1.0 - sCliff); w[12] = e * sCliff;
