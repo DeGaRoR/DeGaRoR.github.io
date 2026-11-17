@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 0e94f8c537de58da
+// body-sha256: 04b5e5e3e5cd73b5
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -5689,6 +5689,11 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
     terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
+    // ROCK-STUDY (17 Nov, the user: "a runway there with terraforming ... should follow the terraforming rules"): how much of the
+    // NATURAL ground the premises keep at (x, z) - 1 untouched, 0 graded flat - read off the composer itself: its modifiers are
+    // blends, affine in the ground under them (terrainH's lakebed note), so a metre more of base ground comes through as (1 - w).
+    // Exact to every modifier's own falloff; the rock (its exposure, relief, boulders - rock_ring) is multiplied by it
+    terrainKeep: (x, z) => { if (!PM) return 1; const h0 = baseH(x, z), f = h => (PM.terrainFast ? PM.terrainFast(x, z, h) : PM.terrainH(x, z, h)); const k = f(h0 + 1) - f(h0); return k >= 1 ? 1 : (k <= 0 ? 0 : k); },
     roughAt: (x, z) => !!(PM && PM.roughAt && PM.roughAt(x, z)),   // (SNOW-MUD: on a bumpy strip's box - the wheel's envelope, 30_solver)
     // (SNOW-MUD LADDER: the soil's water this world reads, a weather code's rung now, the dev override - 07f GROUND_WX)
     soilNow, surfaceNow, setGround, setGroundLadder, get groundForce() { return groundForce; },
@@ -11284,7 +11289,7 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 // `hard` (the user's call - default 1 since 15 Nov, look AND surface: 20_world giveWay): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 1.5, softBandK: 0, townLawn: 1, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 2.7 };   // GRASS TO THE EDGE (16 Nov eve, the user: "the best looking is ... wild grass coming close up. Then maybe we could extend with a slight band of cut grass, but I think not even necessary"): softBandK 0 - a SOFT strip's (gravel, dirt, grass, snow) own cut band x this (1 = as before: w1's 4 m, w4's 14.5 m), so the wild grass runs to its drawn edge; mowBand 1.5 m - the slight cut band past it (the user's refinement, 16 Nov eve: "taller grass on the strip side and the wild grass I validated" - a soft strip's cut answers `tall`, drawn at the field's tallH 20 cm, not the lawn's 8 cm); the paved fields (HOME, w2: 40 m) and the aprons keep their mown bands. LOOK ONLY   // mowBand 1 (was 6; 16 Nov, the user's purple bands at the Cabin Strip: the 7 cm mown band hid the grass there - the Monday shoot's mowBand 1 changed 37 % of the purple, 2 % elsewhere; LOOK ONLY, the wheels never read it)   // trackW 2.7: tw_ski's drawn track ends 1.098 + grTrackW 0.3 + grTrackFade 1.0 = 2.4 m out (DIRT-STRIP's L40e ready, 16 Nov) + 0.3 - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 1, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 2.7 };   // mowBand 1 (was 6; 16 Nov, the user's purple bands at the Cabin Strip: the 7 cm mown band hid the grass there - the Monday shoot's mowBand 1 changed 37 % of the purple, 2 % elsewhere; LOOK ONLY, the wheels never read it)   // trackW 2.7: tw_ski's drawn track ends 1.098 + grTrackW 0.3 + grTrackFade 1.0 = 2.4 m out (DIRT-STRIP's L40e ready, 16 Nov) + 0.3 - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 // (GRASS-ON-GREEN 16 Nov) a gate's or a rig's override of the one dial for the margin's look AND surface: FLYDIY_GRASS_HARD=1 (node env or window)
 // (16 Nov, the page boot: with no process the old `a && b` read FALSE, +false = 0 - the page shipped hard 0 while every node gate saw 1.
@@ -11387,14 +11392,7 @@ function paveBand(entry, cls, isRoad) {
 // the lawn row's own; a zone's `rules.grass` overrides its kind's
 const ZONE_GRASS = { residential: { kind: 'lawn', h: 0.12, density: 1 }, commercial: { kind: 'lawn', h: 0.15, density: 0.8 }, park: { kind: 'lawn', h: 0.1, density: 1.2 },
   industrial: { kind: 'none' }, harbour: { kind: 'none' }, airfield: { kind: 'meadow' }, forest: { kind: 'meadow' }, clear: { kind: 'meadow' } };
-// TOWN LAWNS (16 Nov eve, the user via A0: they "can be anything"; then "if it's cheap it's OK and no exception then" - so the lawn stays,
-// townLawn 1, and the dial is there to MEASURE its cost): GRASS_SIDES.townLawn 0 turns a residential / commercial / park plot's lawn into NONE marked `town` (withPlot lets a road's mown verge
-// through); 1 = the lawn as before. A zone's own rules.grass wins either way
-const TOWN_LAWN = { residential: 1, commercial: 1, park: 1 };
-function zoneGrass(zone) {
-  const k = zone && zone.kind, base = TOWN_LAWN[k] && !(GRASS_SIDES.townLawn > 0) ? { kind: 'none', town: true } : ZONE_GRASS[k];
-  return Object.assign({}, base || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {});
-}
+function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind] || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {}); }
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
 // ONE SURFACE (the user, 18 Oct): what a road's wheels feel (its own `surface`, else its class's - the composer's rule) and
 // whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
@@ -13731,7 +13729,7 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) continue;
     const L = RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass, cls = L.cls || 'grass', band = paveBand(r, cls, false), reach = band + PAVE_FADE + 6;
     const E = runwayEnds(r);
-    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', id: r.id, cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt', band0: r.band === 0 });   // band0: the record SAYS band 0 (GRASS-EDGE-FIX)
+    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', id: r.id, cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt' });
   }
   for (const rd of roadObjs) {
     if (rd.runway || rd.ribbon === false) continue;
@@ -13860,7 +13858,6 @@ function compose(rec0, world, opts) {
         let wy = lawnWater.get(p.zone); if (wy === undefined) lawnWater.set(p.zone, wy = zoneWaterYOf(world, F, zoneOf(p.zone), -Infinity));
         if (isFinite(wy) && O.localH(lx, lz) < wy + 0.3) break;
       }
-      if (g.kind === 'none' && g.town && cut > 0) break;   // TOWN LAWNS: a road's mown verge on a town plot keeps its grass (the biome's, cut)
       kind = g.kind; grass = g; break;
     }
     if (kind === 'lawn' && kill < 1) kill = 0;
@@ -13885,14 +13882,11 @@ function compose(rec0, world, opts) {
   // cut across the band and the mow band, wild past the blend; a grass strip's surface cut; a road as today plus a mown verge
   function coverSides(lx, lz, cell) {
     const G = GRASS_SIDES, VERGE = PAVE_FADE + 6;
-    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity, tall = 0;
+    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity;
     if (cell) for (const it of cell) {
       const d = dEdgeOf(it, lx, lz), out = -d;
       const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
-      // (GRASS-EDGE-FIX, 17 Nov, A0 with SKYLINE-RESORT: a strip whose record SAYS band 0 - tw_ski - asks for no cut band at all: no mow
-      //  band and no blend, the wild grass from its drawn edge; every other soft strip keeps the 1.5 m tall band)
-      const b0 = it.kind === 'strip' && it.band0;
-      const mow = b0 ? 0 : (aero && it.soft ? it.band * G.softBandK : it.band) + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);   // (GRASS TO THE EDGE: a soft strip's band x softBandK)
+      const mow = it.band + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);
       const v0 = aero ? mow + G.mowBlend : it.band;   // where the verge's bump starts
       const clr = it.clear >= 0 && out <= it.clear;   // (v1.36, G2918: a road's own clearing - bare)
       if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE && !clr) continue;
@@ -13910,7 +13904,7 @@ function compose(rec0, world, opts) {
         if (it.soft && d < 1 && it.cls !== 'grass') boost = Math.max(boost, 0.5 * (1 - d));
       } else if (aero) {
         if (out <= (it.soft ? G.softClear : G.sideClear)) k = 1;
-        else if (!b0) c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
+        else c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
       } else {   // an ordinary road: today's band and fade, then its mown verge
         k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
         if (it.cls === 'grass') k *= 0.6;
@@ -13919,11 +13913,8 @@ function compose(rec0, world, opts) {
       if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * CORE_MATH.sin(Math.PI * (out - v0) / VERGE));
       if (k > kill) kill = k;
       if (c > cut) cut = c;
-      if (c > 0 && aero && it.soft && d < 0 && c > tall) tall = c;   // GRASS TO THE EDGE: the band beside a soft strip is cut TALL
     }
-    const R = withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
-    if (R && tall > 0 && kill < 1) R.tall = tall;
-    return R;
+    return withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
   }
 
   // G1542 (GROUND-LATTICE): A ROAD'S RIBBON ENDS SQUARE (pavement.js roadGeometry: s from 0 to the length, the rows
@@ -15101,7 +15092,8 @@ const GROUND_FIELDS = (() => {
       3:  { tex: ['mud', null, null], scale: [3, 15, 0], far: ['mud', null, null], farScale: [1.25, 0, 0], mix: [25, 3, 0.08, 0], vary: [8, 0.2, 15], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: "muskeg should just be mud with nothing in it" (the lush lawn out)
       4:  { tex: ['beach', null, null], scale: [9.5, 0, 0], far: [null, null, null], farScale: [0, 0, 0], mix: [28, 0.9, 0, 0], vary: [2, 0.06, 20], para: 0.3, orient: 'sea' },
       5:  { tex: ['rocksG', null, null], scale: [41.5, 90, 0], far: [null, null, null], farScale: [90, 0, 0], mix: [30, 3, 0, 0], vary: [3, 0.1, 20], para: 1 },
-      6:  { tex: ['cliff', null, null], scale: [71.5, 79, 0], far: [null, null, null], farScale: [79, 90, 0], mix: [60, 3, 0, 0], vary: [3, 0.1, 40], para: 1 },
+      6:  { tex: ['cliff', null, null], scale: [71.5, 79, 0], far: [null, null, null], farScale: [79, 90, 0], mix: [60, 3, 0, 0], vary: [3, 0.1, 40], para: 1,
+            trond: ['trondSlab', 'trondFace', 'cliff', 'grassRock'] },   // (R1, the island's own rock: the sets it wears under the dial - the slab, the face, the micro detail + the boulders' photograph, the green; the world rail's 'rock & cliffs' picks them)
       7:  { tex: ['mud', 'grassRock', 'rockyA'], scale: [3, 15.04, 90], far: ['grassRock', 'rockyA', null], farScale: [15, 90, 0], mix: [30, 3, 0.05, -0.25], vary: [10, 0.18, 25], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: the scrub IS the muskeg - mud with pools (the procedure ported from 3), the moor's sets under a cloud mask, 100 trees/ha   // the user, 2026-09-21: the bush was a lawn (grass + lush); the moor instead
       // THE FOREST FLOOR NEAR THE EYE (the user, 3 Nov 2026, on GROUND-LOOK G2611): 17.5 m on all three forest floors - forest (8), old forest (13) and the town's (16) - near set A of the aerial floor itself, the aerial set stays at 81 m (same photograph, so the near -> far fade carries no colour change). Tune in F8 > types > detail sets A.
       8:  { tex: ['forestAir', 'mud', null],   scale: [17.5, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.3, 0],     vary: [6, 0.15, 30], para: 0.3 },   // the user, 2026-09-21: the forest ground is aerial rock 04
@@ -15159,6 +15151,24 @@ const GROUND_FIELDS = (() => {
       // stands over the other two channels, so moss and leaf in a rock photograph warm up and the boulders
       // in the same photograph do not move at all. 0.4 moves the greenest texel about 3 %.
       vegLush: 0.2,   // pudWet: how dark the margin's wet ground goes (1 = dry, 0 = black); both pudRim and pudFar scale with distance and are 0 at the eye
+      // THE ISLAND'S OWN ROCK (ROCK-STUDY R1, splat_ground sTrond / sTrExpo): rocks 1 = on (?rocks=0 off at the load; api.rocks()
+      // live, a uniform); the exposure's height window (m: the rock shows from rockHLo, fully by rockHHi - Ardent's 250-760),
+      // the raster's rock weight in it and its offset; the PBR micro detail on; the rock's brightness
+      rocks: 1, rockHLo: 250, rockHHi: 760, rockBias: 0.30, rockOff: 0.08, rockMicro: 1, rockK: 0.45,   // (17 Nov, IN THE GAME at the matched near eye: the stone 1.6 x v1's value under the game's light and Cineon - 0.72 -> 0.45)
+     
+      // the world rail's 'rock & cliffs' rows: the joints' density / soil / dirt, the hollows' dirt, the green's amount and
+      // roughness, the wet streaks, the bare stone's roughness (x the tiles'), the micro detail's strengths and fade, the far fade
+      rockJoint: 1, rockJointSoil: 0.7, rockJointDirt: 0.85, rockHollow: 0.5, rockGreen: 1, rockGreenRough: 0.97, rockWet: 0.75, rockRough: 1,
+      rockMicroK: 0.65, rockMicroN: 0.6, rockMicroFrom: 60, rockMicroTo: 180, rockFarFrom: 400, rockFarTo: 2500,
+      rockNdvi: 0, rockNdviMid: 0.74,   // the imagery's NDVI (pack B) takes the exposure down where the map's rock is green
+      // the tiles as the rock codes' sets (slab m, steep m, the face tile on the steep split or the slab, the split's degrees), the
+      // green's saturation, the joints gone by (m: v1's joints were a texture, its mips blurred them into tone past ~500 m; the
+      // procedural lines fade out the same way) - ALL AT THE BENCH v1'S VALUES (the user's reference; 17 Nov: the v2-v4 look
+      // notes were a coordinator's, not the user's, and are dropped)
+      // THE ROCK RING (rock_ring.js): the outcrops as geometry round the eye - on, its reach (m), the outcrops' lift and the Blender
+      // masses' amplitude (m), the cover's stand-off over the ground (m), the boulders on and their density (x v1's law)
+      rockRing: 1, rockRingReach: 450, rockLift: 0.6, rockAmp: 1.5, rockProud: 0.15, rockBoulders: 1, rockScatter: 1.25, rockMacro: 1, rockBoulderTone: 1, rockBoulderCon: 2, rockGrassMatch: 0.5, rockWeather: 0.25, rockGreenTint: 1, rockGreenK: 0.6,   // (17 Nov, in game: "the grass color is now too green" - the tint back to the heath's, the film to 0.25)
+      rockSlabM: 16, rockFaceM: 24, rockFaceTile: 1, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 1, rockJointFar: 900, rockSlabTone: 0, rockSlabTilt: 0,   // (17 Nov, the user: "nothing should have the macro pattern fade" - the tiles' fade to their mean spread to 2.5 km: the texture shows through)
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
@@ -15175,7 +15185,9 @@ const GROUND_FIELDS = (() => {
              // lush's at 88 (blue-green) against the moor's 40-48; the gain pulls the green channel down - grass to hue ~45 at value 0.39, lush to ~50 at 0.29
              grass: { gain: '#ffc8a0', sat: 0.75, gloss: 0.3 }, lush: { gain: '#ffb890', sat: 0.7, gloss: 0.35 }, dirt: { gain: '#ffffff', sat: 1, gloss: 0.5 },
              // THE ROCK GRADES (the user, 2026-10-03, F8 world look): cliff and the two rock sets toned down and hue-selected
-             rocksB: { gain: '#adadad', sat: 0, gloss: 0.5, grass: 1, hue: 58, contrast: 1.42, selHue: 124, selWidth: 48, selShift: -66, selSat: 1.26, selLight: 0.9, selSoft: 0.5 }, rocksG: { gain: '#a1a1a1', sat: 1, gloss: 1, grass: 1, hue: 2, contrast: 1, selHue: 150, selWidth: 22, selShift: 15, selSat: 1.04, selLight: 1.08, selSoft: 0.7 } },
+             rocksB: { gain: '#adadad', sat: 0, gloss: 0.5, grass: 1, hue: 58, contrast: 1.42, selHue: 124, selWidth: 48, selShift: -66, selSat: 1.26, selLight: 0.9, selSoft: 0.5 }, rocksG: { gain: '#a1a1a1', sat: 1, gloss: 1, grass: 1, hue: 2, contrast: 1, selHue: 150, selWidth: 22, selShift: 15, selSat: 1.04, selLight: 1.08, selSoft: 0.7 },
+             // (ROCK-STUDY R1: the trondhjemite's own colour and roughness, as baked - no grade)
+             trondSlab: { gain: '#ffffff', sat: 0.8, gloss: 1 }, trondFace: { gain: '#ffffff', sat: 0.8, gloss: 1 } },   // (the tiles raw as the bench v1's, a touch greyer: the user, 16 Nov - "greyer indeed, but not as much, and not as dim")
     // the library, in LAYER ORDER (the texture arrays are built in this order; a code's set is its index here):
     // assets/splat (splat_tex_import.py, Poly Haven CC0) then the lot's five (ambientCG CC0, lot_tex_prep.js's tiles)
     library: [
@@ -15184,6 +15196,11 @@ const GROUND_FIELDS = (() => {
       ['lush', 2.4], ['grass', 2.4], ['pebble', 4.5], ['dry', 2.2], ['dirt', 1.8],
       ['coastA', 19.94], ['coastSand', 15.2],   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): appended, never inserted - a set's index is its layer
       ['darkRock', 2.0],   // the bank's face (SHORES-2 G1955): Poly Haven dark_rock_02, CC0 (Amal Kumar), 2.0 m
+      // THE ISLAND'S OWN ROCK (ROCK-STUDY R1, 17 Nov 2026): trondhjemite, baked by tools/rock_study/trond_gen.py --assets (no
+      // photograph; one height field per material, its colour / normal / roughness read off it, weathered) - the slab (rock
+      // under ~50 deg, +v DOWNHILL: the joint network with its T-junctions) and the face (cliffs: sheets, flutes, streaks).
+      // Drawn by splat_ground's sTrond on the rock codes (6, 12) when the rock dial is on (?rocks=0 off)
+      ['trondSlab', 16.0], ['trondFace', 24.0],
     ],
   };
   // ---- PER TERRAIN-TYPE CODE: the ground's arguments to the fields ---------

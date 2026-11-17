@@ -20,6 +20,8 @@
 //   VEGETATION the fill's rule and the cover ring
 //   CLIFFS     'rock & cliffs': the island's own rock (ROCK-STUDY R1: the splat's rock* knobs and the trondhjemite tiles'
 //              grade), the photoscanned cliff faces and the rocks at distance
+//   GROUND FX  the dust and the mud (groundfx_look.js): the clouds, the rates, the sizes, each surface's throw and colour,
+//              the mud on the aeroplane (the coat, the computed deposit, the drying), the rain on the aeroplane
 //   SCENERY    the scenery editor (premises_ui.js, the old "world editor") and the maps
 //   EXPORT     every setting in one JSON, the changes against the defaults, import, reset
 //
@@ -79,6 +81,9 @@
   // THE RUNWAY LOOK (G1394, RUNWAY-LOOK): the pavement module's live overlay (PAVEMENT.look) - per surface type, the
   // surface's and the side's colour, the wear, the side's width and blend; over every pavement's own (the premises')
   const PVL = () => (W.PAVEMENT && W.PAVEMENT.look ? W.PAVEMENT : null);
+  // GROUND-FX (the user, 16 Nov via A0: "every new world setting editable in the world editor ... dust and mud particles
+  // count"): the knobs' table and their get / set / delta over dust.js, aeroweather.js and ground_deposit.js
+  const GFXL = () => W.GROUNDFX_LOOK || null;
   const RMAP = () => { const g = G(); return (g && g.rockMap && g.rockMap()) || null; };
   const ready = () => !!(WF() && G() && G().on && G().on());
 
@@ -183,6 +188,7 @@
     if (L && L.kinds) o.kindTint = kindTintNow();
     if (W.TREE_MIX) o.treeMix = { furnished: W.TREE_MIX.furnished, spread: W.TREE_MIX.spread };
     if (PVL()) o.runway = PVL().look();
+    if (GFXL()) o.groundfx = GFXL().now();
     return o;
   };
   const lookDelta = () => {
@@ -203,6 +209,7 @@
     if (N.lawnOn !== undefined && DEF.lawnOn !== undefined && N.lawnOn !== DEF.lawnOn) o.lawnOn = N.lawnOn;
     put('tints', deltaOf(N.tints, DEF.tints)); put('leafMaster', deltaOf(N.leafMaster, DEF.leafMaster)); put('kindTint', deltaOf(N.kindTint, DEF.kindTint)); put('treeMix', deltaOf(N.treeMix, DEF.treeMix));
     if (N.runway && Object.keys(N.runway).length) o.runway = N.runway;   // the overlay IS a delta (over the premises' look)
+    if (GFXL()) { const d = GFXL().delta(); if (Object.keys(d).length) o.groundfx = d; }   // (against the shipped knobs)
     return o;
   };
   const saveLook = () => { clearTimeout(saveT); saveT = setTimeout(() => { const d = lookDelta(); if (Object.keys(d).length) lsSet(LOOK_KEY, d); else { try { localStorage.removeItem(LOOK_KEY); } catch (e) {} } }, 250); };
@@ -210,6 +217,7 @@
   const applyLook = (o, full) => {
     if (!o) return;
     if (PVL() && (o.runway || full)) { if (full) PVL().look(null, null); if (o.runway) PVL().look(null, o.runway); }
+    if (GFXL() && (o.groundfx || full)) GFXL().apply(o.groundfx || {}, full);   // (plain values: no rebuild, the draw reads them each frame)
     const g = G();
     if (g && o.ground) { const q = g.get(), d = {}; for (const k in o.ground) if (q[k] !== o.ground[k]) d[k] = o.ground[k]; if (Object.keys(d).length) g.set(d); }
     if (o.stack && g) { const S = g.stack(); o.stack.forEach((l, i) => { if (S[i] && (S[i].on !== l.on || S[i].mode !== l.mode || S[i].op !== l.op)) g.setLayer(i, { on: l.on, mode: l.mode, op: l.op }); }); }
@@ -294,6 +302,7 @@
         ladder: 'src/core/07f_ground_wx.js LADDER_DEF (the ground\'s weather ladder: rungs, wear, darkening, film, the override\'s water)',
         leafMaster: 'src/viewer/trees.js MASTER', kindTint: 'src/viewer/trees.js KIND_MASTER (cover = the grass, shrub = the bushes)',
         runway: "the premises' rec.pavement (the editor's PAVEMENT section, runway look) or src/viewer/pavement.js RECIPE (pv / sf / gr keys)",
+        groundfx: 'dust: src/viewer/dust.js LOOK / L / CLS; wx: src/viewer/aeroweather.js AERO_MUD; gd: src/viewer/ground_deposit.js K / PBR / DEF / SP (the key is handle:path)',
       },
       splat: sp ? sp.state() : null,
       stack: g ? g.stack() : null,
@@ -327,6 +336,8 @@
     if (DEF.leafMaster && out.leafMaster) ch.push(...diff(DEF.leafMaster, out.leafMaster, 'leafMaster'));
     if (DEF.kindTint && out.kindTint) ch.push(...diff(DEF.kindTint, out.kindTint, 'kindTint'));
     if (out.runway) for (const k in out.runway) ch.push({ path: 'runway.' + k, was: PVL().RECIPE[k], now: out.runway[k] });
+    if (GFXL() && out.groundfx) { const D = GFXL().defaults(), d = GFXL().delta(), js = v => (Array.isArray(v) ? JSON.stringify(v) : v);
+      for (const k in d) ch.push({ path: 'groundfx.' + k, was: js(D[k]), now: js(d[k]) }); }
     out.changes = ch;
     return out;
   };
@@ -569,6 +580,7 @@
     veg: 'M9 15.4V8.2|M9 8.2C9 5.6 7 4.2 5 4.6c.4 2.6 2 4 4 3.6Z|M9 10.4c0-2.6 2-4 4-3.6-.4 2.6-2 4-4 3.6Z|M3.6 15.4h10.8',
     cliffs: 'M2 15l4-9 3 4 2-3 5 8Z|M6 6l1 3',
     runway: 'M6 2.5h6l2 13H4Z|M9 4v2|M9 8v2|M9 12v2',
+    groundfx: 'M2.5 14.5c1.2-2.4 3.4-2.4 4.6 0 1.2-2.4 3.4-2.4 4.6 0 .9-1.6 2.3-1.9 3.3-.9|M4.5 10a1 1 0 1 0 2 0 1 1 0 1 0-2 0|M8.2 6.4a1.3 1.3 0 1 0 2.6 0 1.3 1.3 0 1 0-2.6 0|M12.4 9.6a.9.9 0 1 0 1.8 0 .9.9 0 1 0-1.8 0',
     scenery: 'M9 16.2s-5-4.6-5-8.3a5 5 0 0 1 10 0c0 3.7-5 8.3-5 8.3Z|M9 9.7a1.9 1.9 0 1 0 0-3.8 1.9 1.9 0 0 0 0 3.8Z',
     file: 'M5 2.5h6l3 3v10H5Z|M11 2.5v3h3|M7.5 10.5 9.5 12.5 12 8.5',
   };
@@ -580,6 +592,7 @@
     { k: 'veg', label: 'vegetation', title: 'The fill’s rule, the cover ring, the trees’ colour', build: buildVeg },
     { k: 'cliffs', label: 'rock & cliffs', title: 'The island\u2019s own rock (its tiles, exposure, joints, green, roughness, fades), the photoscanned cliffs and the rocks at distance', build: buildCliffs },
     { k: 'runway', label: 'runways', title: 'The runways\u2019 and roads\u2019 look per surface type: the surface, the wear, the sides', build: buildRunway },
+    { k: 'groundfx', label: 'ground fx', title: 'The dust and the mud: the clouds, how much each source throws, the sizes, each surface, the mud on the aeroplane', build: buildGroundFx },
     { k: 'scenery', label: 'air & map', title: 'The air while you work and the maps (the scenery editor and the test mode are the left rail\u2019s DEV)', build: buildScenery },
     { k: 'file', label: 'export', title: 'Export, import, the changes against the defaults, reset', build: buildFile },
   ];
@@ -1470,6 +1483,30 @@
     }
   }
 
+  // ---- GROUND FX (GROUND-FX, the user 16 Nov via A0) ----
+  // every knob of the dust and the mud, live: groundfx_look.js's table over the objects that hold them (dust.js reads its
+  // LOOK and its laws every frame and every emission; the coat every step) - saved with the look, in the export, reset here
+  function buildGroundFx(body) {
+    const X = GFXL();
+    if (!X) { note(body, 'no ground FX on this page (groundfx_look.js is not loaded)'); return; }
+    note(body, 'the dust clouds, the grit, the mud’s clods and splats, and the mud on the aeroplane - live, saved with the look and in the export. Double-click a name: back to its shipped value. The surface cards scale the rates per ground; a surface’s colour is used where the drawn ground hands none in (or with “colour from the ground” off).');
+    liveNote(body, () => { const f = W.DUST_FX && W.DUST_FX.fx, s = f && f.sys; return s ? s.P.live + ' puffs, ' + s.G.live + ' grit, clods and drops (' + s.tierName + ' pools: ' + s.P.n + ' / ' + s.G.n + '), ' + (f.ms || 0).toFixed(2) + ' ms a frame' : 'no dust system yet (it is made the first time the aeroplane rolls on a dusty or muddy surface)'; });
+    const D = X.defaults();
+    const dg = st => (st < 0.001 ? 4 : st < 0.01 ? 3 : st < 1 ? 2 : 0);
+    for (const g of X.groups()) {
+      const S = sec(body, g.cls ? 'on ' + g.title : g.title, !!g.open, g.sub);
+      for (const r of g.rows) {
+        const id = r[0], kind = X.kindOf(id);
+        if (kind === 'switch') toggle(S, r[1], () => X.get(id), v => X.set(id, !!v));
+        else if (kind === 'colour') colour(S, r[1], () => X.hexOf(X.get(id)), h => X.set(id, X.linOf(h)));
+        else range(S, r[1], r[2], r[3], r[4], () => X.get(id), v => X.set(id, v), v => fmt(+v, dg(r[4])) + (r[5] || ''), D[id]);
+      }
+      if (g.k === 'deposit') note(S, 'the computed coat (the throw marched against the aeroplane’s own shape) - drawn in the page from GROUND-FX’s Thursday ready; the reach and the strengths apply to the next grid made');
+    }
+    const acts = $('div', 'wr-acts'); body.appendChild(acts);
+    button(acts, 'back to the shipped ground FX', () => { X.reset(); saveLook(); open('groundfx', true); });
+  }
+
   // ---- SCENERY ----
   // G760 (the rails regrouped, the user: "The world editor does not belong there"): the scenery editor (the
   // premises editor, what was called the world editor) and the scenery mode (the test mode without physics)
@@ -1555,6 +1592,7 @@
     const ra = $('div', 'wr-acts'); R.appendChild(ra);
     button(ra, 'the ground sets', () => { if (confirm('Reset the ground sets, their recolours and the filtering?')) { SP() && SP().reset(); dropGraded(); open('file', true); } });
     if (GWX()) button(ra, 'the weather ladder', () => { ladderSet(null); saveLook(); open('file', true); });   // (SNOW-MUD LADDER)
+    if (GFXL()) button(ra, 'the ground fx', () => { if (confirm('Reset the dust and the mud (ground fx) to the shipped values?')) { GFXL().reset(); saveLook(); open('file', true); } });
     button(ra, 'everything (reloads)', () => { if (!confirm('Reset the whole world look and reload?')) return;
       try { for (const k of [LOOK_KEY, 'flydiy.ground.splat.v1', 'flydiy.ground.stack']) localStorage.removeItem(k); } catch (e) {} location.reload(); });
     note(R, 'the biomes, the vegetation and the layers come back from the payload at the next boot; "everything" clears this browser’s look and reloads');

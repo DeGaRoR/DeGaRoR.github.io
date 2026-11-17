@@ -181,7 +181,7 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 // L37b (A0 10 Nov, under the user's 8 Nov "decide" and the 14 Oct no-page-size-work rule): 5.5 -> 6.0. Red at 5.54 MiB gz
 // with L37b's code (forest mist, the season presets, the fiche, star sky, livery text, wing structure, Wilga gear): all code,
 // nothing inlined by mistake (data: 118 KB, the same fonts). The cost, named: a first load is ~5.5 MiB on the wire today.
-const WIRE_BUDGET_MIB = 6.0;   // was 5.5 (A0 8 Nov)   // was 5.0 (A0 2 Nov)   // was 4.6 (the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB"). - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
+const WIRE_BUDGET_MIB = 6.5;   // was 6.0 (GROUND-FX 17 Nov: L40e at the line, the live mud + rain term +71 KB gz; the user 14 Oct: no page-size work, raise the budget and say so)   // was 5.5 (A0 8 Nov)   // was 5.0 (A0 2 Nov)   // was 4.6 (the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB"). - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit

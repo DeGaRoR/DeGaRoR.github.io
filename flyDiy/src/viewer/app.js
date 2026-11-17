@@ -8242,7 +8242,7 @@
       mudCoat = AEROWX.aeroMudStep(mudCoat, dt, { mud: M.length ? mud / M.length : 0, V: Math.hypot(v[0], v[2]), sink: o.softZ > 0 ? o.softZ : 0,
         rain: soilNow ? soilNow.rainNow : 0, water: !!(WC && WC.water) || o.hydroWet > 0 });
     }
-    AEROWX.aeroWxSetMud(THREE, mudCoat);
+    AEROWX.aeroWxSetMud(THREE, GDX.G ? 0 : mudCoat);   // (GROUND-FX: with the computed grid the live term draws the mud; the cone stays the fallback)
   }
   function dustMake() {
     if (dustFx || DUST_Q === 0 || typeof DUST === 'undefined' || !THREE.InstancedBufferGeometry) return dustFx;
@@ -8348,6 +8348,187 @@
     F.ms = performance.now() - t0;
   }
   if (typeof window !== 'undefined') window.DUST_FX = { get fx() { return dustFx; }, make: () => dustMake() };
+  // ---- GROUND-FX (16 Nov 2026): THE MUD ON THE AEROPLANE, COMPUTED FROM ITS GEOMETRY, live (ground_deposit.js; the design
+  // futureDesigns/GROUND-FX-2026-11-15.md sections 3 and 7). THE USER, 15 Nov: "projecting on the right places, as a function
+  // of the actual plane geometry". THE GRID: the flown aeroplane's own meshes in craft space (uCraftInv x each mesh's world),
+  // a tyre told by the weathering's wheels (uWxW: a triangle inside a tyre's drum is its source, not a target), made once an
+  // aeroplane - while it is PARKED (under 0.5 m/s for half a second: the ~0.2 s it costs is not a hitch in motion), or after
+  // 1.5 s rolling on mud if it never stopped - on the retro and gamer tiers (the phone's two: the cone coat, no 3-D
+  // textures). EACH FRAME: the dust pool's clods and drops marched against it (collide: they stick and die), the live
+  // puffs' rays (dustRays: the film). EVERY 5 s while it is wet, raining or in water: wash (rain washes and re-wets, water
+  // fast, the mud dries). EVERY 0.25 s when it changed: the dirty box smoothed and the two 3-D textures written. RAIN ON
+  // THE SKIN (THE USER via A0, 16 Nov): the skin's wetness (GROUND_DEPOSIT.rainStep on the day's rain; water wets it). The
+  // live term (aeroweather aeroGdFs, in the live shader AND the bake's FB_HOOK) reads the shared block written here.
+  // window.FLYDIY_GD: the rigs' and the gates' handle - get(), build(), roll({ scen, T }) a canned mud or dust run in the
+  // page (the node mud_roll's loop on the aeroplane's own wheels), clear(), the costs.
+  const GDX = { G: null, key: null, parkT: 0, mudT: 0, tMud: null, tFw: null, bMud: null, bFw: null, upT: 0, washT: 0, ver: -1,
+                lit: null, rainW: 0, ms: 0, msGrid: 0, msUp: 0, hits: 0, force: null };
+  const gdU = () => (window.AEROSKIN && window.AEROSKIN.aeroSharedU ? window.AEROSKIN.aeroSharedU(THREE) : null);
+  function gdCell() {
+    const G = window.GFX && window.GFX.get ? window.GFX.get() : null, t = (G && (G.build || G.preset)) || 'gamer';
+    if (t === 'laptop' || t === 'potato' || t === 'phone') return 0;
+    return t === 'retro' || t === 'current' ? 0.1 : GROUND_DEPOSIT.DEF.h;
+  }
+  function gdGather(U) {
+    const inv = U.uCraftInv.value, M4 = new THREE.Matrix4(), v = new THREE.Vector3(), T = [], part = [];
+    const WW = U.uWxW.value, WD = U.uWxWd.value, nW = Math.round(U.uWxN.value.y);
+    const A = [0, 0, 0], B = [0, 0, 0], C = [0, 0, 0];
+    model.grp.updateMatrixWorld(true);
+    model.grp.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      if (/^edVessel_|^edFuel_|^edCrew|^edWellGhost/.test(o.name || '')) return;
+      const m = Array.isArray(o.material) ? o.material[0] : o.material, ud = m && m.userData;
+      if (!m || (ud && (ud.flownBaked || ud.aeroFinish === 'glass')) || (m.transparent && m.opacity < 0.3)) return;   // (the bake's folds share the live meshes' arrays)
+      const g = o.geometry, P = g.attributes.position, R = g.attributes.aRest, ix = g.index, n = ix ? ix.count : P.count;
+      M4.multiplyMatrices(inv, o.matrixWorld);
+      const at = (i, out) => { const k = ix ? ix.getX(i) : i;
+        if (R && R.getW(k) > 1.5) v.set(R.getX(k), R.getY(k), R.getZ(k)); else v.set(P.getX(k), P.getY(k), P.getZ(k));
+        v.applyMatrix4(M4); out[0] = v.x; out[1] = v.y; out[2] = v.z; };
+      for (let i = 0; i + 2 < n; i += 3) {
+        at(i, A); at(i + 1, B); at(i + 2, C);
+        const cx = (A[0] + B[0] + C[0]) / 3, cy = (A[1] + B[1] + C[1]) / 3, cz = (A[2] + B[2] + C[2]) / 3;
+        let p = 1;
+        for (let j = 0; j < nW; j++) { const w = WW[j], Rr = Math.max(w.w, 0.05), hw = Math.max(WD[j].x, 0.02);
+          if (Math.abs(cx - w.x) <= hw * 1.4 && Math.hypot(cy - w.y, cz - (w.z + Rr)) <= Rr * 1.08) { p = 2; break; } }
+        T.push(A[0], A[1], A[2], B[0], B[1], B[2], C[0], C[1], C[2]); part.push(p);
+      }
+    });
+    let zLow = Infinity; for (let j = 0; j < nW; j++) zLow = Math.min(zLow, WW[j].z);
+    return { tris: Float32Array.from(T), part: Uint8Array.from(part), zLow: isFinite(zLow) ? zLow : null };
+  }
+  function gdBuild() {
+    const U = gdU(), h = gdCell();
+    if (!U || !U.uGdDim || !model || !model.grp || !(h > 0) || typeof GROUND_DEPOSIT === 'undefined') return null;
+    // (the bake PARKS the live meshes - the slot's first grid saw 3686 cells of the Cub's 12457, no legs, no wheels: gathered
+    // with them put back, FLOWN_BAKE.withKept)
+    const t0 = performance.now(), FBk = window.FLOWN_BAKE && window.FLOWN_BAKE.withKept, gat = FBk ? FBk(() => gdGather(U)) : gdGather(U);
+    if (!gat.tris.length) return null;
+    const G = GROUND_DEPOSIT.make(gat.tris, gat.part, { h, zLow: gat.zLow });
+    if (!G) return null;
+    const mk = (data, fmt) => { const t = new THREE.Data3DTexture(data, G.nx, G.ny, G.nz); t.format = fmt; t.type = THREE.UnsignedByteType;
+      t.minFilter = t.magFilter = THREE.LinearFilter; t.wrapS = t.wrapT = t.wrapR = THREE.ClampToEdgeWrapping; t.unpackAlignment = 1; t.generateMipmaps = false; t.needsUpdate = true; return t; };
+    gdDispose();
+    GDX.G = G; GDX.bMud = new Uint8Array(G.N * 4); GDX.bFw = new Uint8Array(G.N * 2);
+    GDX.tMud = mk(GDX.bMud, THREE.RGBAFormat); GDX.tFw = mk(GDX.bFw, THREE.RGFormat);
+    GDX.ver = G.ver; GDX.lit = null; GDX.msGrid = performance.now() - t0;
+    U.tGdMud.value = GDX.tMud; U.tGdFw.value = GDX.tFw;
+    U.uGdBox.value.set(G.o[0], G.o[1], G.o[2], G.h); U.uGdDim.value.set(G.nx, G.ny, G.nz, 2);
+    return G;
+  }
+  function gdDispose() {
+    const U = gdU();
+    if (GDX.tMud) GDX.tMud.dispose(); if (GDX.tFw) GDX.tFw.dispose();
+    GDX.G = null; GDX.tMud = GDX.tFw = GDX.bMud = GDX.bFw = null; GDX.lit = null;
+    if (U && U.tGdMud) { U.tGdMud.value = null; U.tGdFw.value = null; }
+  }
+  // the dirty box smoothed and the bytes written (the box's z slabs, two cells either side: the blur's reach)
+  function gdUpload() {
+    const G = GDX.G, d = G.dirty, t0 = performance.now();
+    if (d[3] >= d[0]) {
+      const L = GDX.lit || (GDX.lit = [d[0], d[1], d[2], d[3], d[4], d[5]]);
+      for (let a = 0; a < 3; a++) { L[a] = Math.min(L[a], d[a]); L[a + 3] = Math.max(L[a + 3], d[a + 3]); }
+    }
+    GROUND_DEPOSIT.smooth(G, d[3] >= d[0] ? d : null);
+    const k0 = Math.max(0, (d[3] >= d[0] ? d[2] : 0) - 4), k1 = Math.min(G.nz - 1, (d[3] >= d[0] ? d[5] : G.nz - 1) + 4), S = G.nx * G.ny;
+    const C = G.cov, C2 = G.cov2, bm = GDX.bMud, bf = GDX.bFw;
+    for (let c = k0 * S, e = (k1 + 1) * S; c < e; c++) {
+      const q = c * 4;
+      bm[q] = 255 * C[q] + 0.5; bm[q + 1] = 255 * C[q + 1] + 0.5; bm[q + 2] = 255 * C[q + 2] + 0.5; bm[q + 3] = 255 * C[q + 3] + 0.5;
+      bf[c * 2] = 255 * C2[c * 2] + 0.5; bf[c * 2 + 1] = 255 * C2[c * 2 + 1] + 0.5;
+    }
+    GDX.tMud.needsUpdate = true; GDX.tFw.needsUpdate = true;
+    d[0] = G.nx; d[1] = G.ny; d[2] = G.nz; d[3] = d[4] = d[5] = -1;
+    GDX.ver = G.ver; GDX.msUp = performance.now() - t0;
+  }
+  function gdFrame(dt) {
+    const U = gdU();
+    if (!U || !U.uGdDim || typeof GROUND_DEPOSIT === 'undefined') return;
+    if (inGarage || !sim || !def) { U.uGdDim.value.w = 0; return; }
+    const t0 = performance.now();
+    if (def !== GDX.key) { GDX.key = def; gdDispose(); GDX.parkT = GDX.mudT = 0; GDX.rainW = 0; }
+    const v = sim.cgVel ? sim.cgVel() : [0, 0, 0], V = Math.hypot(v[0], v[1], v[2]);
+    const o = sim.out || {}, water = o.hydroWet > 0 || !!(typeof sim.wheelContacts === 'function' && (sim.wheelContacts() || {}).water);
+    // the grid: once an aeroplane, parked (or after 1.5 s rolling on mud)
+    if (!GDX.G && dt > 0 && model && gdCell() > 0) {
+      GDX.parkT = V < 0.5 ? GDX.parkT + dt : 0;
+      if (mudCoat > 0.002) GDX.mudT += dt;
+      if (GDX.parkT > 0.5 || GDX.mudT > 1.5) { GDX.parkT = GDX.mudT = -1e9; gdBuild(); }
+    }
+    const G = GDX.G, PB = GROUND_DEPOSIT.PBR, SPp = GROUND_DEPOSIT.SP, RN = GROUND_DEPOSIT.RAIN;
+    if (G && dt > 0) {
+      const F = dustFx, inv = U.uCraftInv.value.elements;
+      if (F && F.sys.G.live) {
+        const sc = world && world.surface && typeof sim.cgPos === 'function' ? (() => { const c = sim.cgPos(); return world.surface(c[0], c[2]); })() : 0;
+        const wet = sc === 11 || sc === 12 ? 1 : soilNow ? Math.max(0.3, soilNow.wet || 0) : 0.5;
+        GDX.hits += GROUND_DEPOSIT.collide(G, F.sys.G, inv, v, dt, wet, 1);
+      }
+      if (F && F.sys.P.live && V < 60) GROUND_DEPOSIT.dustRays(G, F.sys.P, inv, v, (x, y, z) => (DUST.slipAt(F.sys.props, x, y, z) ? DUST.SL : null), dt, 1);
+      GDX.washT += dt;
+      const rain = soilNow ? soilNow.rainNow || 0 : 0;
+      if (GDX.washT >= 5 && GDX.lit && (rain > 0 || water || G.mass > 0 || G.dustMass > 0)) {
+        GROUND_DEPOSIT.wash(G, GDX.washT, rain, water ? G.o[2] + 0.4 : null);
+        const L = GDX.lit; G.dirty[0] = L[0]; G.dirty[1] = L[1]; G.dirty[2] = L[2]; G.dirty[3] = L[3]; G.dirty[4] = L[4]; G.dirty[5] = L[5];   // (the washed cells are the ones that ever held any)
+        GDX.washT = 0;
+      } else if (GDX.washT >= 5) GDX.washT = 0;
+      GDX.upT += dt;
+      if (GDX.upT >= 0.25 && G.ver !== GDX.ver) { GDX.upT = 0; gdUpload(); }
+    }
+    // the skin's rain (water wets it as a shower does), and the block every frame (the rail's knobs move it at once)
+    if (dt > 0) GDX.rainW = GROUND_DEPOSIT.rainStep(GDX.rainW, dt, water ? 1 : soilNow ? soilNow.rainNow || 0 : 0);
+    U.uGdRain.value.set(GDX.rainW, RN.darken, RN.gloss, RN.sides);
+    U.uGdPbr.value.set(PB.roughWet, PB.roughDry, PB.roughDust, PB.bump);
+    U.uGdSp.value.set(SPp.fx, SPp.fy, SPp.ff, SPp.ffy); U.uGdSp2.value.set(SPp.sh, SPp.w, SPp.edge, SPp.spread);
+    if (typeof DUST !== 'undefined') { const mc = DUST.CLS.mud.col, dc = DUST.CLS.dirt.col;
+      U.uGdMudC.value.set(mc[0], mc[1], mc[2], G ? 0 : mudCoat); U.uGdDustC.value.set(dc[0], dc[1], dc[2], PB.dustTop); }
+    else U.uGdMudC.value.w = G ? 0 : mudCoat;
+    U.uGdDim.value.w = G ? 2 : (mudCoat > 0.002 || GDX.rainW > 0.002 ? 1 : 0);
+    if (GDX.force != null) U.uGdDim.value.w = GDX.force;            // (the rigs' A/B: 0 the term off, 2 on)
+    GDX.ms = performance.now() - t0;
+  }
+  // a canned run in the page (the rigs: the mud on THIS aeroplane without a minute of taxiing): the node mud_roll's loop on
+  // a private dust system - the aeroplane's own wheels (uWxW) rolling aft-to-fore in craft space at its rest attitude, the
+  // prop's wash from the nose; scen 'mud' (soft mud, 4 cm sinkage), 'heavy' (8 cm), 'dust' (a dry dirt strip's clouds)
+  function gdRoll(o) {
+    o = Object.assign({ scen: 'mud', T: 20, vTaxi: 4, tTaxi: 6, vMax: 22, dt: 1 / 60 }, o || {});
+    const U = gdU(), G = GDX.G || gdBuild();
+    if (!G || typeof DUST === 'undefined') return null;
+    const SC = { mud: { cls: 'mud', sink: 0.04, wet: 1 }, heavy: { cls: 'mud', sink: 0.08, wet: 1 }, dust: { cls: 'dirt', sink: 0, wet: 0 } }[o.scen] || { cls: 'mud', sink: 0.04, wet: 1 };
+    const WW = U.uWxW.value, nW = Math.round(U.uWxN.value.y), nE = Math.round(U.uWxN.value.x);
+    if (!nW) return null;
+    const sys = DUST.makeSystem('gamer'), ci = DUST.CLASSES.indexOf(SC.cls);
+    const env = { groundH: () => 0, cls: () => ci, wet: () => SC.wet, puddle: () => 0, wind: null, k: 1 };
+    const st = { wheels: [], props: [], wing: { span: 10, W: 5000, V: 0, rho: 1.225, tips: [[0, 0, 0], [0, 0, 0]] } };
+    // THE ATTITUDE AT REST (mud_roll's): the ground through the mains (the lowest pair) and the third contact - a
+    // tail-dragger sits nose-up (a about x); craft (x lat, y aft, z up) -> the run's world (x, y up, z forward, the
+    // aeroplane at s along it): y' = (y - ym) cos a + (z - zm) sin a, z' = -(y - ym) sin a + (z - zm) cos a; world (x, z', s - y')
+    const Wc = []; for (let j = 0; j < nW; j++) Wc.push(WW[j]);
+    const zm = Math.min(...Wc.map(w => w.z)), mains = Wc.filter(w => w.z < zm + 0.05), third = Wc.find(w => mains.indexOf(w) < 0);
+    const ym = mains.reduce((q, w) => q + w.y, 0) / mains.length;
+    const a = third && Math.abs(third.y - ym) > 0.3 ? Math.atan((third.z - zm) / (third.y - ym)) : 0, ca = Math.cos(a), sa = Math.sin(a);
+    const toW = (x, y, z, s) => { const yp = (y - ym) * ca + (z - zm) * sa, zp = -(y - ym) * sa + (z - zm) * ca; return [x, zp, s - yp]; };
+    // its inverse, column-major (THREE's): cx = wx; cy = ym + (s - wz) cos a - wy sin a; cz = zm + (s - wz) sin a + wy cos a
+    const e = new Float32Array(16); e[0] = 1; e[5] = -sa; e[9] = -ca; e[6] = ca; e[10] = -sa; e[15] = 1;
+    const eng = nE > 0 ? U.uWxA.value[0] : null;
+    let s = 0, hits = 0; const N = Math.round(o.T / o.dt), t0 = performance.now();
+    for (let f = 0; f < N; f++) {
+      const t = f * o.dt, V = t < o.tTaxi ? o.vTaxi * Math.min(1, t / 1.5) : o.vTaxi + (o.vMax - o.vTaxi) * Math.min(1, (t - o.tTaxi) / (o.T - o.tTaxi));
+      s += V * o.dt; e[13] = ym + s * ca; e[14] = zm + s * sa;
+      st.wheels.length = 0;
+      for (let j = 0; j < nW; j++) { const w = WW[j], p = toW(w.x, w.y, w.z, s); st.wheels.push({ key: j, x: p[0], y: 0, z: p[2], vx: 0, vy: 0, vz: V, on: p[1] < 0.05, R: Math.max(w.w, 0.1), brake: 0, sink: SC.sink, ski: null }); }
+      st.props.length = 0;
+      if (eng) { const p = toW(eng.x, eng.y, eng.z, s), q = toW(eng.x, eng.y - 1, eng.z, s), wash = Math.sqrt(V * V + 2 * 1200 / (1.225 * 2.84)) - V;
+        st.props.push({ x: p[0], y: p[1], z: p[2], ax: q[0] - p[0], ay: q[1] - p[1], az: q[2] - p[2], R: 0.95, wash }); }
+      DUST.sources(sys, st, env, o.dt); DUST.step(sys, o.dt, env);
+      hits += GROUND_DEPOSIT.collide(G, sys.G, e, [0, 0, V], o.dt, SC.wet, 1);
+      GROUND_DEPOSIT.dustRays(G, sys.P, e, [0, 0, V], (x, y, z) => (DUST.slipAt(sys.props, x, y, z) ? DUST.SL : null), o.dt, 1);
+    }
+    gdUpload(); GDX.hits += hits;
+    return { hits, mass: G.mass, dustMass: G.dustMass, coat: GROUND_DEPOSIT.total(G), ms: Math.round(performance.now() - t0), grid: [G.nx, G.ny, G.nz], msGrid: Math.round(GDX.msGrid) };
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_GD = { get: () => GDX, build: () => gdBuild(), roll: o => gdRoll(o),
+    clear: () => { if (GDX.G) { GROUND_DEPOSIT.clear(GDX.G); GDX.lit = null; GDX.G.dirty[0] = 0; GDX.G.dirty[1] = 0; GDX.G.dirty[2] = 0; GDX.G.dirty[3] = GDX.G.nx - 1; GDX.G.dirty[4] = GDX.G.ny - 1; GDX.G.dirty[5] = GDX.G.nz - 1; gdUpload(); } },
+    rain: w => { GDX.rainW = Math.max(0, Math.min(1, +w || 0)); return GDX.rainW; },
+    force: v => { GDX.force = v == null ? null : +v; return GDX.force; } };
   function syncFloats() {
     for (const m of floatMeshes) {
       const fx = m.userData.fx, F = fx.F, W = fx.out.W;
@@ -21456,6 +21637,7 @@
     if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     mudCoatFrame(running ? fdt : 0);                               // SNOW-MUD FINISH: the mud the wheels throw onto the aeroplane
+    gdFrame(running ? fdt : 0);                                    // GROUND-FX: the mud computed from the geometry, the dust film, the rain on the skin
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets
