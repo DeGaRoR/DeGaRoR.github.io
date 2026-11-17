@@ -110,7 +110,7 @@ console.log('THE HEADS (measured against the drawn cowl; a bare engine\'s figure
 {
   // (TUTORIAL-CUBS 13 Nov: list:26 Client Cub became the validated J-3, its cowl covers its heads; the heads-out card is
   // kept as it stood on L40c, a fixture for this row)
-  const CC = card('tools/fixtures/cool_heads_out_cub.json'), Kc = coolOf(CC.def), rc = rowOf(CC.def, 'cool.climb');
+  const CC = card('tools/fixtures/test_copies/cool_heads_out_cub.json'), Kc = coolOf(CC.def), rc = rowOf(CC.def, 'cool.climb');
   ok(CC.spec.cooling.headsOut > 0.03 && Math.abs(Kc.bareA - CC.spec.cooling.headsOut) < 1e-9 && rc && rc.level === 'pass',
      'the old Client Cub (fixture cool_heads_out_cub): its heads poke through the drawn skin (' + r3(CC.spec.cooling.headsOut) + ' m2), counted, the row passes (' + (rc && rc.value) + ')');
   ok(CUB.spec.cooling.headsOut === 0 && CUB.spec.cooling.headsAll > 0.1, 'list:1 Cub: its cowl covers its heads (0 of ' + r3(CUB.spec.cooling.headsAll) + ' m2 out)');

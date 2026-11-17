@@ -206,6 +206,9 @@ function stand(S, bad) {
 // THE FILES (CANON-CLEAN): the tracked plane files against the list. files: [path], read: path -> text (injected: the selftest)
 const TEST_COPIES = 'tools/fixtures/test_copies/';
 const HELD = { 'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'the career\'s twin floatplane (CONTRACT_DESIGNS.twinf) - until the career flies list:27' };
+// a file the career reads BY NAME, the same aeroplane as a list row's (declared, not a copy): the Client Cub's base - src/core/79_story.js
+// storyClientSpec unfinishes it (TUTORIAL-CUBS, L40d); the list's row 1 flies the validated Cub in its own file
+const SAME_HELD = { 'builds/cub_2026-09-20.json': 'the Client Cub base (src/core/79_story.js, TUTORIAL-CUBS)' };
 function canonFiles(L, files, read) {
   const bad = [], crypto = require('crypto');
   const canon = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, kk) => (o[kk] = x[kk], o), {}) : x));
@@ -218,9 +221,10 @@ function canonFiles(L, files, read) {
     planes.push(fl);
     const o = {}; for (const k of Object.keys(s)) if (!['meta', 'paint', 'finish', 'v', 'decals'].includes(k)) o[k] = s[k];
     const h = crypto.createHash('sha1').update(canon(o)).digest('hex');
-    if (seen[h]) bad.push('files: ' + fl + ' is the same aeroplane as ' + seen[h] + ' (one plane, one file)'); else seen[h] = fl;
+    if (seen[h] && !SAME_HELD[fl] && !SAME_HELD[seen[h]]) bad.push('files: ' + fl + ' is the same aeroplane as ' + seen[h] + ' (one plane, one file)'); else if (!seen[h]) seen[h] = fl;
   }
-  const rowFiles = new Set(L.planes.filter(r => r.file).map(r => r.file));
+  // (a story row's STAGES are its files too: the Client Cub's upgraded / floats stages, TUTORIAL-CUBS)
+  const rowFiles = new Set(L.planes.filter(r => r.file).map(r => r.file).concat(...L.planes.map(r => Array.isArray(r.stages) ? r.stages : [])));
   for (const fl of planes) if (!rowFiles.has(fl)) bad.push('files: ' + fl + ' is a plane file on no list row (a test copy lives in ' + TEST_COPIES + ' with its row)');
   const code = files.filter(fl => /^(src|tools)\/.*\.(js|mjs|cjs|sh|py)$/.test(fl) && fl !== 'tools/flight_core.js' && fl !== 'tools/_planelists_check.js').map(read).join('\n');
   for (const r of L.planes.filter(r => r.file && ['legacy', 'archive'].includes(r.list))) {
