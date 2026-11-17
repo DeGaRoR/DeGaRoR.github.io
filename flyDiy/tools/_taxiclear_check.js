@@ -472,7 +472,12 @@ if (BASE) {
     const a = WI.aerodromes.find(q => q.id === 'mn_strip'), s = C.siteOf('mn_strip'), p = s.plots.find(q => q.id === 'mn_strip');
     const fake = Object.assign({}, s, { plots: [Object.assign({}, p, { stand: { x: 7274, z: -15201, hdg: -1.7326 }, taxiOut: [[7266, -15250], [7259.5, -15320]] })] });
     const PS = C.playerPlotSite(fake, 'mn_strip', null), B = VB.find(b => b.dims.half >= 5.49);
-    const P = C.sitePattern(a, PS.site, { half: B.dims.half }), r = L.censusSite(C, IX, a, P, B.dims.half + L.MARGIN);
+    // (the user's bumps on mn_strip, afb-0220-b2 17 Nov: a strip with micro is patterned on the rough lane, which keeps this
+    //  way 8.68 m off the street's buildings - MILL-TAXI's fault no longer exists in it. The CALIBRATION is of the census, not
+    //  of the bumps: it is patterned on the strip without its micro, the lane MILL-TAXI faulted on, and must still read < 4 m.
+    //  The plots' own rows above keep the strip as it is)
+    const aCal = Object.assign({}, a, { micro: null });
+    const P = C.sitePattern(aCal, PS.site, { half: B.dims.half }), r = L.censusSite(C, IX, aCal, P, B.dims.half + L.MARGIN);
     const worst = r.routes.reduce((m, q) => Math.min(m, q.worst.d), Infinity);
     check(worst < 4, '12 calibration: a way of its own for the mine\'s shed comes inside 4 m of a building (MILL-TAXI\'s fault)', worst.toFixed(2) + ' m');
     const aw = WI.aerodromes.find(q => q.id === 'w3'), sw = C.siteOf('w3'), hut = SH.find(q => /s_strip\/hut$/.test(q.id));
