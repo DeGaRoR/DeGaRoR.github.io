@@ -11817,6 +11817,10 @@
     const L = stTutLockV, t = ev && ev.target;
     if (!L || !t || typeof t.closest !== 'function') return;
     if (t.closest('#stTim, #stIntro, [id^="boot"]')) return;
+    // TUTORIAL-MENU (17 Nov, the page check of TUTORIAL-LOCK's "skip tutorial = a choice at the start, later a menu item"): the
+    // GAME MENU is the player's way out - its pill and its panel (resume, the options, "Skip the tutorial", the main menu) are
+    // never held; before this the menu's skip row could only be reached by FLYDIY_MENU.act, never by a click
+    if (t.closest('#gmMenu, #gmPanel')) return;
     // (the shared card drag, card_drag.js FLYDIY_DRAG - the user's rule of 25 Oct: every in-game card draggable: a press
     // or a double-click on a card's handle moves the card, never a control in it; its clicks stay held)
     if ((ev.type === 'pointerdown' || ev.type === 'dblclick') && t.closest('.cdHandle') && !t.closest('button, a, input, select, textarea, label, [data-nodrag]')) return;

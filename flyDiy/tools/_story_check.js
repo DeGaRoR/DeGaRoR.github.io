@@ -828,6 +828,9 @@ async function tutorRun() {
   // the shared card drag (FLYDIY_DRAG): a press on a card's handle moves the card, its clicks and buttons stay held
   ok(!held(tgt('.cdHandle'), 'pointerdown') && !held(tgt('.cdHandle'), 'dblclick') && held(tgt('.cdHandle'), 'click') && held(tgt('.cdHandle', 'button'), 'pointerdown') && held(tgt('.cdHandle', '[data-nodrag]'), 'pointerdown'),
      "a card's drag handle takes its press (the card moves) while a step stands; a click on it, or a control inside it, is still held");
+  // TUTORIAL-MENU (17 Nov, the page check: the menu's "Skip the tutorial" row could not be clicked during the tutorial)
+  ok(!held(tgt('#gmMenu')) && !held(tgt('#gmPanel')) && !held(tgt('#gmPanel'), 'pointerdown') && !held(tgt('#gmMenu'), 'keydown'),
+     'the game menu - its pill and its panel (resume, Skip the tutorial, the main menu) - is never held: the way out stays a click away');
   press('tnext'); e = tim();
   ok(/fresh coat/.test(e.innerHTML) && e.className === 'tut' && !/data-tim="tnext"/.test(e.innerHTML) && X.lock() && X.lock().allow === '#edWrap',
      'the paint step: no Next, the band on its accent edge, the finish panel the one control allowed', X.lock() && X.lock().allow);
