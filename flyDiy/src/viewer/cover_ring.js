@@ -393,7 +393,7 @@ var COVER_RING = (() => {
     function shapedCards(shape, W, seed, pl) {
       const r = rng(seed), G = { pos: [], uv: [], idx: [] }, B = pl.bend === undefined ? CARD_DEF.bend : +pl.bend, L = pl.lean === undefined ? CARD_DEF.lean : +pl.lean;
       if (shape === 'float') {   // the water plants (17 Nov): one flat quad, its picture from above, W wide and as deep, a hair over the water (W = place.aspects[v]: the user's lily slices carry their own width in metres at size 1, tools/lily_prep.py)
-        const h = W / 2; G.pos.push(-h, 0.012, -h, h, 0.012, -h, h, 0.012, h, -h, 0.012, h); G.uv.push(0, 0, 1, 0, 1, 1, 0, 1); G.idx.push(0, 2, 1, 0, 3, 2);
+        const h = W / 2, y = 0.05; G.pos.push(-h, y, -h, h, y, -h, h, y, h, -h, y, h);   // (17 Nov 16:00: 0.012 m lost to the lake quad's depth - 9 782 pads planted, one seen) G.uv.push(0, 0, 1, 0, 1, 1, 0, 1); G.idx.push(0, 2, 1, 0, 3, 2);
       } else if (shape === 'cluster' || shape === 'crown') {
         cardInto(G, { cx: 0, cz: 0, yaw: r() * Math.PI, w: W * 0.8, h: 1, y0: -0.04, rows: 2, bend: B * 0.5 });
         for (let k = 0; k < 5; k++) {
@@ -1246,6 +1246,10 @@ var COVER_RING = (() => {
             if (!noTint && !isShrub) {
               col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);
               if (vary) { const j = 1 + (RR() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
+              // THE DARKEST TUFT here too (17 Nov 16:00, the user's "almost black" grass at the forest's edge: the field's floor never reached the
+              // first ring's tufts, coloured by the dark forest-floor ground): under minAlb (linear luminance, 0.06 as the field) toward grey at it
+              { const mA = S.minAlb === undefined ? 0.06 : S.minAlb, L = 0.2126 * col[0] + 0.7152 * col[1] + 0.0722 * col[2];
+                if (mA > 0 && L < mA) { const t = Math.min(1, 1 - L / mA) * 0.8; col = col.map(v => v * (1 - t) + mA * t); } }
               // a species' own hue swing (G3430, the user: "random colouration"): place.hueTurn [lo, hi] degrees about the grey
               // axis, from the tuft's own hash so the cell's stream R() - every other species' tufts - is untouched; the
               // lake-shore fern runs green -> yellow -> bronze (negative is toward red)

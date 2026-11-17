@@ -6222,6 +6222,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // THE ROCKS' OWN RING (MOUNTAIN-VEG 17 Nov; the user: "rock should be visible for a little while"): the rock rows' bigger
           // rocks out to its own reach and height cut; the cover ring keeps the small ones (rockSync: its split, and the skin both wear)
           rockLayer = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'rocks', GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt });
+          // (17 Nov 16:15, A0 for the L40f train: no frame time measured yet and ~2-4x the rocks drawn - the shipped dials lower than the
+          // ring's own 380 m / 140 m / 0.45 m: gone at 300 m, full to 100 m, rocks 0.6 m and up; the F9 rail keeps every dial for the user)
+          rockLayer.set({ reach: 300, near: 100, rockSplit: 0.6 });
           rockSync();
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground

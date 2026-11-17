@@ -365,7 +365,7 @@
   // which they had called a little too dark WHEN IT WAS A SILHOUETTE; at the same luma with the
   // albedo intact it is the look that was wanted all along, which is the whole lesson of G548.
   // TREE_LEAF.tint({ light }) moves it live; TREE_LEAF.master() only READS it.
-  const MASTER = { hue: 0.045, sat: 1.2, light: 0.42 * 1.38 };   // x 1.38: the user's F8 world look (2026-10-03, the environment albedo baked into the leaves' default)
+  const MASTER = { hue: 0.045, sat: 1.2, light: 0.42 * 1.38 * 0.85 };   // x 1.38: the user's F8 world look (2026-10-03, the environment albedo baked into the leaves' default); x 0.85: the user 17 Nov ("0,85 for trees looks OK" - the trees were brighter than the ground they stand on; models and stand-ins together)
   // THE GRASS AND THE BUSHES HAVE A MASTER EACH (G1385 EDITOR-VEG, the user: "We are missing coloration options for
   // the grass and bushes in the world editor"). A kind's master rides ON TOP of what that kind rode before - a SHRUB
   // on MASTER (the trees'), a COVER on the bench's committed COVER_BASE (sat 1.58, light 1.12, G551: the cover ring
