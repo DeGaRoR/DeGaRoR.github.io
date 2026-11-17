@@ -215,7 +215,7 @@ function checkManifest(G, text, rootDir, quiet) {
   say(rows.every(r => r.px === 512), 'every set at 512');
   say(rows.every(r => r.mean.length === 3 && r.mean.every(v => num(v) && v >= 0 && v <= 1)), 'a mean colour per set, linear 0..1');
   const missing = [];
-  for (const r of rows) for (const f of r.files) { if (!/^media\/tex\/ground\/\w+_(diff|nor_gl|height|rough)_512\.[0-9a-f]{8}\.jpg$/.test(f)) missing.push(f + ' (not a store path)'); else if (!fs.existsSync(path.join(rootDir, f))) missing.push(f); }
+  for (const r of rows) for (const f of r.files) { if (!/^media\/tex\/ground\/\w+_((diff|nor_gl|height|rough)_512\.[0-9a-f]{8}\.jpg|nor_gl_512\.[0-9a-f]{8}\.webp)$/.test(f))   /* (a normal map may be WebP: GATE ASSETS AS2 - media_lib's normal role; ground_sets.json norWebp) */ missing.push(f + ' (not a store path)'); else if (!fs.existsSync(path.join(rootDir, f))) missing.push(f); }
   for (const r of rows) { const f = r.layers; if (!/^media\/tex\/ground\/\w+_layers_512\.[0-9a-f]{8}\.gz\.bin$/.test(f)) missing.push(f + ' (not a cooked layer file)'); else if (!fs.existsSync(path.join(rootDir, f))) missing.push(f); }
   say(!missing.length, `four maps + the cooked layers per set present under media/tex/ground/ (${rows.length * 5})${missing.length ? ' - missing ' + missing.slice(0, 4).join(', ') + (missing.length > 4 ? ' ...' : '') : ''}`);
   say(!/data:/.test(text), 'no data: URI in the manifest');

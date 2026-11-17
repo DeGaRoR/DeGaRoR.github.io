@@ -33,7 +33,7 @@ var ROCK_RING = (() => {
   // fall line about its own vertex, the face plain on the side planes, blended by slope 42-58 deg; the 'cliff' photograph's
   // micro detail (biplanar, out by 180 m); the macro colour, the green and the crevices from the vertex attributes
   function material(THREE, U, L) {
-    const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });   // (the cover lies 0.15 m proud of the ground: it wins the depth test)
+    const m = MATLIB.make(THREE, 'std', { roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });   // (GATE ASSETS AS4a: a material is MATLIB's)   // (the cover lies 0.15 m proud of the ground: it wins the depth test)
     m.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, { uSplat: U.uSplat, uSplatN: U.uSplatN, uSGrade: U.uSGrade, uSLum: U.uSLum, uSFilt: U.uSFilt,
         uRL: L.uRL, uRK: L.uRK, uRFade: L.uRFade, uRB: L.uRB, uRMean: L.uRMean, uRT: L.uRT, uTrW: U.uTrW, uTrS: U.uTrS });
