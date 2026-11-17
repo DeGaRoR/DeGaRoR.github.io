@@ -143,16 +143,20 @@ const CONTRACT_FIT = {
   surf: { concrete: 1.0, asphalt: 1.0, paved: 1.0, gravel: 1.1, dirt: 1.1, sand: 1.25, grass: 1.15, snow: 1.3, water: 1.0 },
   bulkSeats: 4,
   rangeUse: 0.75,
-  // ALTIPORT CREDIT (SKYLINE-RESORT 13-14 Nov; Game: yes, 14 Nov via A0): an altiport is left downhill whatever the wind
-  // (43_pilot GTRAM), so its take-off run is the flat run x altiK. FLOWN (GATE ALTIPORT 5: the game's pilot and day on the
-  // 190 m tw_ski, 709 m, brake release to 2.5 m as genTORunAt ends it, at the contract's load): the Cub + 1 passenger 126.9 m,
-  // 0.528 of the flat law's run (240 m); the metal Cessna + 2 passengers + 40 kg (184 kg of the 200 aboard - its baggage caps)
-  // 158.4 m, 0.635 of 249 m. 0.75 is above both: the cautious end, no density-altitude term (the flown run has it).
-  // THE LIMIT, named: ONE constant for every f.alti row - tw_ski (190 m grass, ~9 % at its threshold) and w4 ('strip 9', 216 m
-  // gravel, steeper: ~21 % on average, so a larger credit there and 0.75 cautious). A gentler altiport grade needs its own
-  // factor, a / (a + g x grade) on the aeroplane's mean roll acceleration a - next round. Without it the halved Skyline had no
-  // doer for resort.01 / 02 / 05 and clients.01 (GATE CONTRACTS / ECON red)
-  altiK: 0.75,
+  // ALTIPORT CREDIT (SKYLINE-RESORT 13-17 Nov; Game: yes 14 Nov at 0.75, yes 17 Nov at 0.85, via A0): an altiport is left
+  // downhill whatever the wind (43_pilot GTRAM), so its take-off run is the flat run x altiK. FLOWN (GATE ALTIPORT 5: the game's
+  // pilot and day, 709 m, brake release to 2.5 m up as genTORunAt ends it, at the contract's load) ON THE 280 x 6 m tw_ski
+  // (17 Nov), released where today's pilot lines up, 69 m below the top end: the Cub + 1 passenger 122.7 m, 0.511 of the flat
+  // law's run (240 m); the metal Cessna + 2 passengers + 40 kg (184 kg of the 200 aboard - its baggage caps) 201.1 m, 0.806 of
+  // 249 m. 0.85 is above both (Game: 0.75 under-predicted the Cessna's measured roll - offers would be built on a number too
+  // kind). (On the 190 m strip, 14 Nov: 0.528 / 0.635 - the ground fell away past its low end and flattered the 2.5 m point.)
+  // No density-altitude term: the flown run has it.
+  // THE LIMIT, named: ONE constant for every f.alti row - tw_ski (280 m grass, ~1 % top then 9-10 %), w4 ('strip 9', 216 m
+  // gravel, steeper: ~21 % on average - cautious there) and mt_strip (Ardent, 210 m snow, L40d). A gentler or steeper altiport
+  // needs its own factor, a / (a + g x grade) on the aeroplane's mean roll acceleration a - next round. 0.75 -> 0.85 moved no
+  // tw_ski / w4 offer (every stage's doers the same); at mt_strip the Jodel's empty law goes 200 -> 227 m of 210 (no stage
+  // flies there today)
+  altiK: 0.85,
 };
 
 // ---- THE PAY (§12.3 as amended by G-COST: net, no running costs) -----------------------------------------
