@@ -61,6 +61,10 @@
   const rkSet = o => { const t = TF(); if (t && t.rockLayerSet) t.rockLayerSet(o); };
   const FLD = () => { const t = TF(); return (t && t.grass && t.grass()) || null; };
   const fieldNow = () => { const f = FLD(); if (!f) return null; const o = clone(f.get()); delete o.on; delete o.off; return o; };
+  // GRASS-CARDS (16 Nov): the lawn (cover_ring.js layer 'lawn') - the mown ground's grass cards; its dials are the look's `lawn`, its
+  // switch `lawnOn` (as the field's)
+  const LWN = () => { const t = TF(); return (t && t.lawn && t.lawn()) || null; };
+  const lawnNow = () => { const f = LWN(); if (!f) return null; const o = clone(f.get()); delete o.on; delete o.off; return o; };
   const GSD = () => (W.PREMISES_GEN && W.PREMISES_GEN.grassSides ? W.PREMISES_GEN : null);
   // GRASS-ON-GREEN (16 Nov): the grass law SET through the world (world.setGrassSides) - sim_link replays it on the physics worker's
   // world, so the look and the wheels' ground never split (`hard`, the clears: 20_world giveWay)
@@ -125,7 +129,7 @@
   const pretty = name => name.replace(/\.glb$/, '').replace(/_trees_pack_lods_gameready|realistic_|_-_free_download/g, '').replace(/_/g, ' ');
 
   // ---- THE DEFAULTS, for the diff (taken at load, before any look is put back) ------------------
-  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, grass: null, gsides: null, ladder: null, env: null, cliffs: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null, bioKnobs: null, shrubCards: null };
+  const DEF = { biomes: null, ground: null, stack: null, island: null, ring: null, grass: null, lawn: null, gsides: null, ladder: null, env: null, cliffs: null, tints: null, leafMaster: null, kindTint: null, treeMix: null, fillDensity: null, thin: null, bioKnobs: null, shrubCards: null };
   const tintsNow = () => { const L = W.TREE_LEAF, o = {}; if (L && L.collections) for (const col of L.collections()) o[col.name] = clone(col.tint || {}); return o; };
   // G1385 (EDITOR-VEG): the grass's and the bushes' own masters (trees.js KIND_MASTER: cover, shrub)
   const kindTintNow = () => { const L = W.TREE_LEAF; if (!L || !L.kinds) return null; const o = {}; for (const k of L.kinds()) o[k] = L.kindMaster(k); return o; };
@@ -138,6 +142,7 @@
     const r = RING(); if (r && !DEF.ring) DEF.ring = clone(r.get());
     if (RKS() && !DEF.rockLayer) DEF.rockLayer = clone(RKS().get());
     if (FLD() && !DEF.grass) { DEF.grass = fieldNow(); DEF.grassOn = !!FLD().get().on; }
+    if (LWN() && !DEF.lawn) { DEF.lawn = lawnNow(); DEF.lawnOn = !!LWN().get().on; }
     if (GSD() && !DEF.gsides) DEF.gsides = clone(GSD().GRASS_SIDES_DEF);
     if (GWX() && !DEF.ladder) DEF.ladder = clone(GWX().LADDER_DEF);
     const c = CLF(); if (c && !DEF.cliffs) DEF.cliffs = clone(c.get());
@@ -169,6 +174,7 @@
     const r = RING(); if (r) o.ring = r.get();
     if (r && r.shapes) o.shrubCards = shapesNow();
     if (FLD()) { o.grass = fieldNow(); o.grassOn = !!FLD().get().on; }
+    if (LWN()) { o.lawn = lawnNow(); o.lawnOn = !!LWN().get().on; }
     if (RKS()) o.rockLayer = RKS().get();   // (the switch apart: the look keeps the user's choice)
     if (GSD()) o.gsides = GSD().grassSides();
     if (GWX()) o.ladder = GWX().ladder();
@@ -193,6 +199,8 @@
     put('bioKnobs', deltaOf(N.bioKnobs, DEF.bioKnobs)); put('shrubCards', deltaOf(N.shrubCards, DEF.shrubCards));
     put('grass', deltaOf(N.grass, DEF.grass)); put('gsides', deltaOf(N.gsides, DEF.gsides)); put('ladder', deltaOf(N.ladder, DEF.ladder));
     if (N.grassOn !== undefined && DEF.grassOn !== undefined && N.grassOn !== DEF.grassOn) o.grassOn = N.grassOn;
+    put('lawn', deltaOf(N.lawn, DEF.lawn));
+    if (N.lawnOn !== undefined && DEF.lawnOn !== undefined && N.lawnOn !== DEF.lawnOn) o.lawnOn = N.lawnOn;
     put('tints', deltaOf(N.tints, DEF.tints)); put('leafMaster', deltaOf(N.leafMaster, DEF.leafMaster)); put('kindTint', deltaOf(N.kindTint, DEF.kindTint)); put('treeMix', deltaOf(N.treeMix, DEF.treeMix));
     if (N.runway && Object.keys(N.runway).length) o.runway = N.runway;   // the overlay IS a delta (over the premises' look)
     return o;
@@ -240,6 +248,8 @@
     { const rk = RKS(); if (rk && o.rockLayer) { const d = deltaOf(Object.assign({}, rk.get(), o.rockLayer), rk.get()); if (d) { delete d.off; rkSet(d); } } }
     if (o.grassOn !== undefined && FLD() && !!FLD().get().on !== !!o.grassOn && t && t.field) t.field(!!o.grassOn);
     const fl = FLD(); if (fl && o.grass) { const cur = fieldNow(), d = deltaOf(Object.assign({}, cur, o.grass), cur); if (d) { delete d.on; delete d.off; fl.set(d); } }
+    if (o.lawnOn !== undefined && LWN() && !!LWN().get().on !== !!o.lawnOn && t && t.lawnOn) t.lawnOn(!!o.lawnOn);
+    const lw = LWN(); if (lw && o.lawn) { const cur = lawnNow(), d = deltaOf(Object.assign({}, cur, o.lawn), cur); if (d) { delete d.on; delete d.off; lw.set(d); } }
     if (GSD() && o.gsides) { const cur = GSD().grassSides(), d = deltaOf(Object.assign({}, cur, o.gsides), cur); if (d) { gsSet(d); replantGrass(); } }
     if (GWX() && (o.ladder || full)) { const cur = GWX().ladder(), want = Object.assign({}, full ? DEF.ladder || GWX().LADDER_DEF : cur, o.ladder || {}), d = deltaOf(want, cur); if (d) ladderSet(d); }   // (SNOW-MUD LADDER)
     const c = CLF(); if (c && o.cliffs) { const d = deltaOf(Object.assign({}, c.get(), o.cliffs), c.get()); if (d) c.set(d); }
@@ -304,6 +314,7 @@
     if (DEF.island && out.island) ch.push(...diff(DEF.island, out.island, 'island'));
     if (DEF.ring && out.ring) ch.push(...diff(DEF.ring, out.ring, 'ring'));
     if (DEF.grass && out.grass) ch.push(...diff(DEF.grass, out.grass, 'grass'));
+    if (DEF.lawn && out.lawn) ch.push(...diff(DEF.lawn, out.lawn, 'lawn'));
     if (DEF.gsides && out.gsides) ch.push(...diff(DEF.gsides, out.gsides, 'gsides'));
     if (DEF.ladder && out.ladder) ch.push(...diff(DEF.ladder, out.ladder, 'ladder'));
     if (DEF.cliffs && out.cliffs) ch.push(...diff(DEF.cliffs, out.cliffs, 'cliffs'));
@@ -1251,6 +1262,32 @@
       range(Gf, 'forest edge weeds', 0, 1, 0.05, () => fl.get().weeds, fs('weeds'), v => Math.round(v * 100) + ' %', D.weeds);
       range(Gf, 'forest edge weeds: height x', 1, 3, 0.05, () => fl.get().weedsH, fs('weedsH'), v => 'x' + v.toFixed(2), D.weedsH);
       range(Gf, 'forest edge weeds: density x', 1, 3, 0.05, () => fl.get().weedsD, fs('weedsD'), v => 'x' + v.toFixed(2), D.weedsD);
+      // GRASS-CARDS (16 Nov; the user: "all mown grass needs to be addressed through grass cards"): the mown ground's own ring
+      const lw = LWN();
+      if (lw) {
+        const Lw = sec(Gf, 'mown grass: the cards', true, 'the bench’s grass cards (grass_plates) on every mown band, apron, verge and grass runway'), ls = k => v => lw.set({ [k]: v }), DL = DEF.lawn || {};
+        toggle(Lw, 'mown grass as cards (off: the field’s short tufts)', () => lw.get().on, v => { const t = TF(); if (t && t.lawnOn) t.lawnOn(!!v); });
+        range(Lw, 'cards / m² (fully mown)', 0, 600, 5, () => lw.get().dens, ls('dens'), v => v + ' cards', DL.dens);
+        range(Lw, 'mown length', 0.02, 0.4, 0.005, () => lw.get().cutH, ls('cutH'), v => Math.round(v * 100) + ' cm', DL.cutH);
+        range(Lw, 'mown length: spread', 0, 0.6, 0.01, () => lw.get().cutSigma, ls('cutSigma'), null, DL.cutSigma);
+        range(Lw, 'beside bush strips: length', 0.02, 0.6, 0.005, () => lw.get().tallH, ls('tallH'), v => Math.round(v * 100) + ' cm', DL.tallH);
+        range(Lw, 'beside bush strips: spread', 0, 0.6, 0.01, () => lw.get().tallSigma, ls('tallSigma'), null, DL.tallSigma);
+        range(Lw, 'grass runway: length', 0.02, 0.3, 0.005, () => lw.get().stripH, ls('stripH'), v => Math.round(v * 100) + ' cm', DL.stripH);
+        range(Lw, 'grass runway: spread', 0, 0.6, 0.01, () => lw.get().stripSigma, ls('stripSigma'), null, DL.stripSigma);
+        toggle(Lw, 'leaning cards too', () => lw.get().lean, v => lw.set({ lean: v ? 1 : 0 }));
+        // (17 Nov: 40 cm cards read as dark blocks in the tall band beside bush strips - off, that band is the field's validated tufts)
+        toggle(Lw, 'cards in the tall band beside bush strips', () => lw.get().tallCards, v => { lw.set({ tallCards: v ? 1 : 0 }); replantGrass(); });
+        range(Lw, 'full to', 1, 40, 1, () => lw.get().near, ls('near'), v => v + ' m', DL.near);
+        range(Lw, 'gone at', 5, 120, 1, () => lw.get().reach, ls('reach'), v => v + ' m', DL.reach);
+        range(Lw, 'taper', 0, 2, 0.05, () => lw.get().taper, ls('taper'), null, DL.taper);
+        range(Lw, 'size fade: reference', 0.02, 0.4, 0.005, () => lw.get().hRef, ls('hRef'), v => Math.round(v * 100) + ' cm', DL.hRef);
+        range(Lw, 'AGL full', 5, 200, 1, () => lw.get().aglFull, ls('aglFull'), v => v + ' m', DL.aglFull);
+        range(Lw, 'AGL off', 10, 300, 5, () => lw.get().aglOff, ls('aglOff'), v => v + ' m', DL.aglOff);
+        range(Lw, 'by water: ground over the water', 0, 1, 0.05, () => lw.get().lawnWet, ls('lawnWet'), v => v.toFixed(2) + ' m', DL.lawnWet);
+        range(Lw, 'colour: level to the ground', 0, 4, 0.01, () => lw.get().match, ls('match'), v => 'x' + v.toFixed(2), DL.match);
+        range(Lw, 'colour: card to card', 0, 1, 0.01, () => lw.get().vary, ls('vary'), v => '±' + Math.round(v * 100) + ' %', DL.vary);
+        liveNote(Lw, () => { const st = lw.stat(); return st ? st.live + ' cells, ' + st.instances + ' cards held, ' + (st.submitted || 0) + ' drawn in ' + (st.draws || 0) + ' draws · ' + st.lastMs.toFixed(1) + ' ms last cell' : ''; });
+      }
       liveNote(Gf, () => { const st = fl.stat(); return st ? 'under the eye: ' + (st.mixAt || 'no biome') + ' · ' + st.live + ' cells, ' + st.instances + ' tufts held, ' + (st.submitted || 0) + ' drawn · ' + st.lastMs.toFixed(1) + ' ms last cell' : ''; });
       const P = GSD();
       if (P) {

@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: d547dc165028513d
+// body-sha256: 84473b77081c434a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -1362,6 +1362,7 @@ var GAME_NAMES = {
     w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
     mt_strip: 'Ardent Altiport',              // (OBSERVATORY-SITE 13 Nov: the observatory's strip on Mount Ardent's north-east spur, landed uphill)
+    xw_rough: 'Jolene AFB 02R/20L',           // (AFB-0220, 13 Nov: 02/20's bumpy firm-mud lane, right of the old concrete band landing 02 - STOL practice; the map's place is Jolene AFB's)
   },
 };
 
@@ -2899,7 +2900,7 @@ var SOIL_WET = (function () {
 //          a shade, its aprons and the island around it do not darken), and the dirt toward the mud's own colour by its
 //          mud (the pavement's 'mud' class) - and the dust or the mud a wheel throws takes THAT colour (app.js)
 //   gloss  wet ground shines a little (the pavement's wet film, uWet.x)
-// A DEV OVERRIDE (world.setGround: 'dry' | 'firm' | 'soft' | null - the soil's water held at 0.05 / 0.7 / 0.95 for
+// A DEV OVERRIDE (world.setGround: 'dry' | 'firm' | 'soft' | null - the soil's water held at forceDry / Firm / Soft for
 // every reader: the wheels, the drawn ground, the dust and the puddles; replayed on the physics worker as setDay is)
 // and the fixed looks keep every test on a known rung. GATE MUDLADDER.
 // ============================================================
@@ -2909,14 +2910,44 @@ var GROUND_WX = (function () {
   const DRY = Object.freeze({ 20: 6, 21: 0, 22: 7 });            // a weather code's dry rung (and what a tree, a plot, a map reads)
   const CLS = Object.freeze({ 20: 'dirt', 21: 'grass', 22: 'sand' });
   const GRASS_WET = 13, SAND_WET = 14;
-  const STEP = Object.freeze({ mudFirm: 0.25, mudSoft: 0.75, grassWet: 0.5, sandWet: 0.45 });
-  // the worn relief's scale by rung (dirt: dry / firm / soft; grass: dry / wet; sand: dry / wet)
-  const WEAR = Object.freeze({ dirt: [0.85, 1.0, 1.3], grass: [1.0, 1.0], sand: [1.0, 0.9] });
-  // the drawn ground's darkening at saturation, x S (multiplier 1 - k S), and its film (the pavement's uWet.x) x S
-  const DARK = Object.freeze({ dirt: 0.30, grass: 0.12, sand: 0.10 });
-  const FILM = Object.freeze({ dirt: 0.35, grass: 0.10, sand: 0.20 });
-  // the dev override's water (every class): the three rungs' middles
-  const FORCE = Object.freeze({ dry: 0.05, firm: 0.70, soft: 0.95 });
+  // THE LADDER'S NUMBERS (A0 for the user, 16 Nov: "every new world setting must be editable in the WORLD EDITOR"): one flat
+  // table, the shipped values in LADDER_DEF, the live ones set by ladder(o) - the world rail's 'weather ladder' rows (world_rail.js
+  // RUNWAYS), kept in THE LOOK and its export, reset there; the physics worker's world takes the same through
+  // world.setGroundLadder (sim_link / sim_host replay it, as setDay). `version` counts the sets (the drawn strips re-apply on it).
+  //   mudFirm / mudSoft     the dirt's mud (SOIL_WET's smoothstep(0.55, 0.9, S)) at which firm mud, then soft mud, begins
+  //   grassWet / sandWet    the class's water S at which grass, sand are wet
+  //   wear*                 the worn relief's scale (the ruts, the holes, the lumps) on that rung
+  //   dark*                 the drawn ground's darkening at saturation (x S);  film*: its wet film (x S)
+  //   forceDry / Firm / Soft  the dev override's held water (every class) - the rungs' middles
+  const LADDER_DEF = Object.freeze({ mudFirm: 0.25, mudSoft: 0.75, grassWet: 0.5, sandWet: 0.45,
+    wearDirtDry: 0.85, wearDirtFirm: 1.0, wearDirtSoft: 1.3, wearSandWet: 0.9,
+    darkDirt: 0.30, darkGrass: 0.12, darkSand: 0.10, filmDirt: 0.35, filmGrass: 0.10, filmSand: 0.20,
+    forceDry: 0.05, forceFirm: 0.70, forceSoft: 0.95 });
+  // each knob's range (the rail's sliders and the setter's clamp)
+  const LADDER_RANGE = Object.freeze({ mudFirm: [0, 1], mudSoft: [0, 1], grassWet: [0, 1], sandWet: [0, 1],
+    wearDirtDry: [0.3, 2], wearDirtFirm: [0.3, 2], wearDirtSoft: [0.3, 2.5], wearSandWet: [0.3, 2],
+    darkDirt: [0, 0.6], darkGrass: [0, 0.4], darkSand: [0, 0.4], filmDirt: [0, 1], filmGrass: [0, 1], filmSand: [0, 1],
+    forceDry: [0, 1], forceFirm: [0, 1], forceSoft: [0, 1] });
+  const LD = Object.assign({}, LADDER_DEF);
+  let version = 0;
+  // ladder() -> a copy of the live numbers; ladder(o) sets the keys it names (clamped to their range; mudSoft never under
+  // mudFirm); ladder(null) -> the shipped ones. Returns the live copy
+  function ladder(o) {
+    if (o === null) { Object.assign(LD, LADDER_DEF); version++; }
+    else if (o && typeof o === 'object') {
+      let n = 0;
+      for (const k in o) { if (!(k in LADDER_DEF)) continue; const v = +o[k]; if (!Number.isFinite(v)) continue; const R = LADDER_RANGE[k], c = v < R[0] ? R[0] : v > R[1] ? R[1] : v; if (LD[k] !== c) { LD[k] = c; n++; } }
+      if (LD.mudSoft < LD.mudFirm) { LD.mudSoft = LD.mudFirm; n++; }
+      if (n) version++;
+    }
+    return Object.assign({}, LD);
+  }
+  // the live numbers in the shapes state() reads (views over LD, not copies)
+  const STEP = { get mudFirm() { return LD.mudFirm; }, get mudSoft() { return LD.mudSoft; }, get grassWet() { return LD.grassWet; }, get sandWet() { return LD.sandWet; } };
+  const WEAR = { get dirt() { return [LD.wearDirtDry, LD.wearDirtFirm, LD.wearDirtSoft]; }, grass: [1, 1], get sand() { return [1, LD.wearSandWet]; } };
+  const DARK = { get dirt() { return LD.darkDirt; }, get grass() { return LD.darkGrass; }, get sand() { return LD.darkSand; } };
+  const FILM = { get dirt() { return LD.filmDirt; }, get grass() { return LD.filmGrass; }, get sand() { return LD.filmSand; } };
+  const FORCE = Object.freeze({ dry: 'forceDry', firm: 'forceFirm', soft: 'forceSoft' });   // a level -> its knob
   const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
   const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
   const is = c => c === 20 || c === 21 || c === 22;
@@ -2940,11 +2971,11 @@ var GROUND_WX = (function () {
       const m = smooth(0.55, 0.9, S); o.mud = m;
       o.rung = m < STEP.mudFirm ? 0 : m < STEP.mudSoft ? 1 : 2;
       o.code = o.rung === 0 ? DRY[code] : o.rung === 1 ? 11 : 12;
-      o.wear = WEAR.dirt[o.rung];
+      o.wear = o.rung === 0 ? LD.wearDirtDry : o.rung === 1 ? LD.wearDirtFirm : LD.wearDirtSoft;
     } else if (code === WX.GRASS) {
-      o.rung = S < STEP.grassWet ? 0 : 1; o.code = o.rung ? GRASS_WET : DRY[code]; o.wear = WEAR.grass[o.rung];
+      o.rung = S < STEP.grassWet ? 0 : 1; o.code = o.rung ? GRASS_WET : DRY[code]; o.wear = 1;
     } else {
-      o.rung = S < STEP.sandWet ? 0 : 1; o.code = o.rung ? SAND_WET : DRY[code]; o.wear = WEAR.sand[o.rung];
+      o.rung = S < STEP.sandWet ? 0 : 1; o.code = o.rung ? SAND_WET : DRY[code]; o.wear = o.rung ? LD.wearSandWet : 1;
     }
     o.dark = DARK[o.cls] * S; o.film = FILM[o.cls] * S;
     return o;
@@ -2953,11 +2984,12 @@ var GROUND_WX = (function () {
   // a forced soil (the dev override): SOIL_WET's shape, every class at the rung's water
   const FR = { wet: 0, cls: { dirt: 0, sand: 0, gravel: 0, grass: 0 }, rainNow: 0, hoursDry: 96, mud: 0, src: 'ground' };
   function forced(level) {
-    const v = FORCE[level]; if (v === undefined) return null;
+    const k = FORCE[level]; if (k === undefined) return null; const v = LD[k];
     FR.wet = v; for (const k in FR.cls) FR.cls[k] = v; FR.mud = smooth(0.55, 0.9, v); FR.hoursDry = v > 0.3 ? 0 : 96;
     return FR;
   }
-  return { WX, DRY, CLS, GRASS_WET, SAND_WET, STEP, WEAR, DARK, FILM, FORCE, is, lookClass, dryOf, water, state, resolve, forced };
+  return { WX, DRY, CLS, GRASS_WET, SAND_WET, STEP, WEAR, DARK, FILM, FORCE, LADDER_DEF, LADDER_RANGE, ladder, get version() { return version; },
+    is, lookClass, dryOf, water, state, resolve, forced };
 })();
 // ============================================================
 // THE CLOUD FIELD (CLOUDS C1, 2026-09-15) — the weather map, the height
@@ -5061,6 +5093,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   function surfaceNow(code) { return code >= 20 && code <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.resolve(code, soilNow()) : code; }
   // the dev override: 'dry' | 'firm' | 'soft' (the soil's water held for every reader), null = the weather's. sim_link replays it
   // on the physics worker's world (as setDay)
+  // the ladder's numbers (07f GROUND_WX.ladder: the rungs' thresholds, the wear, the darkening, the film, the override's water) -
+  // the world rail's 'weather ladder' rows; through the world so the physics worker's takes the same (sim_link replays it)
+  function setGroundLadder(o) { return typeof GROUND_WX !== 'undefined' ? GROUND_WX.ladder(o === undefined ? {} : o) : null; }
   function setGround(level) { groundForce = level && typeof GROUND_WX !== 'undefined' && GROUND_WX.FORCE[level] !== undefined ? level : null; }
   const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear, aeroSurf: aeroSurfAll });
 
@@ -5656,7 +5691,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
     roughAt: (x, z) => !!(PM && PM.roughAt && PM.roughAt(x, z)),   // (SNOW-MUD: on a bumpy strip's box - the wheel's envelope, 30_solver)
     // (SNOW-MUD LADDER: the soil's water this world reads, a weather code's rung now, the dev override - 07f GROUND_WX)
-    soilNow, surfaceNow, setGround, get groundForce() { return groundForce; },
+    soilNow, surfaceNow, setGround, setGroundLadder, get groundForce() { return groundForce; },
     wxAt: (x, z) => { const s = aeroSurfRaw(x, z); return s >= 20 && s <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(s, soilNow()) : null; },   // a weather strip's rung here (null off one)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, marginGrassAt, settlements: SET.settlements,   // marginGrassAt: GRASS-ON-GREEN (16 Nov) the margin gives way
@@ -9840,6 +9875,9 @@ const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways',
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12, GRASS_WET: 13, SAND_WET: 14,
                   DIRT_WX: 20, GRASS_WX: 21, SAND_WX: 22 };   // (SNOW-MUD LADDER, 15 Nov: the wet rungs; 20-22 a weather look's code, resolved by 07f GROUND_WX)
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND', 'SNOW_PACKED', 'SNOW_POWDER', 'SNOW_WET', 'MUD_FIRM', 'MUD_SOFT', 'GRASS_WET', 'SAND_WET'];   // (the weather codes 20-22 are named by their look)
+// (SNOW-MUD LADDER, A0 16 Nov: a wheels property on a weather code read '?') a code's name, the weather codes' included
+const SURFACE_WX_NAMES = { 20: 'DIRT_WX', 21: 'GRASS_WX', 22: 'SAND_WX' };
+const surfaceName = c => SURFACE_NAMES[+c] || SURFACE_WX_NAMES[+c] || null;
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
 const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
 // THE CATEGORIES (G393, the asset session): the seven words every generator's catOf answers with, the
@@ -10865,7 +10903,7 @@ function stageIssues(rec0, maxes) {
         // a varied strip is still a strip: 150 m, 8 m wide, its profile inside the pilot's (or the altiport's) limits
         if (kind === 'runway' && e && q) {
           const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
-          if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
+          if (!(r.len >= 150) || !(r.wid >= STRIP_MIN_WID)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by ' + STRIP_MIN_WID + ' m');
           else for (const pi of profileCheck(r).refuse) out.push(what + ' vary[' + i + ']: ' + pi);
         }
       });
@@ -11403,6 +11441,11 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // A plot on a WATER field is a slipway: its shed stands on the shore, its `stand` on the water off the slip. A plot is a
 // PLACE, not a building: the world stands a shed on it only while the player holds it (GAME §R GQ8).
 const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, plots: null, circuit: null, band: null, pav: null, altiport: false };
+// SKYLINE-RESORT (the user 16 Nov: "Width should be even smaller. Make it 6 meters only of runway, hopefully mainly used by the
+// tracks then"): THE LEAST WIDTH OF A STRIP - 6 m (8 m before, DIRT-STRIP's). The record's law (issues(): a strip, a varied strip;
+// the overlap and the profile warnings read the same strips); composition never filtered on it. The editor's width slider
+// starts at it (premises_ui.js)
+const STRIP_MIN_WID = 6;
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -12604,7 +12647,7 @@ function areaLabel(a) {
   if (a && a.name) return a.name;
   if (P.draw && P.draw.look && RUNWAY_LOOKS[P.draw.look]) return (RUNWAY_LOOKS[P.draw.look].name || P.draw.look).toLowerCase() + (P.marks ? ' (' + P.marks.kind + ')' : '');
   if (P.draw && P.draw.set) return P.draw.set + ' ground';
-  if (P.wheels) return (SURFACE_NAMES[+P.wheels.surface] || 'surface').toLowerCase() + (P.wheels.apron ? ' apron' : ' area');
+  if (P.wheels) return (surfaceName(P.wheels.surface) || 'surface').toLowerCase() + (P.wheels.apron ? ' apron' : ' area');
   if (P.terraform) return P.terraform.kind === 'raise' ? 'raise / lower' : P.terraform.kind === 'ramp' ? 'slope' : 'flat';
   if (P.cover) return 'vegetation';
   if (P.exclude) return 'no ' + ((P.exclude.what || ['trees']).join(', ') || 'trees');
@@ -13443,6 +13486,10 @@ function compose(rec0, world, opts) {
       let lx = NaN, lz = 0;
       for (let k = 0; k < microStrips.length; k++) {
         const q = microStrips[k]; if (!q.wx) continue;
+        // (A0's L40e trial: SCENERYED 20b's compose read every terrainH through the rotation - the box in WORLD axes first, once)
+        if (!q.wb) { const b = q.f.bbox, P = [[b.x0, b.z0], [b.x1, b.z0], [b.x0, b.z1], [b.x1, b.z1]].map(p => F.toWorld(p[0], p[1]));
+          q.wb = [Math.min(...P.map(p => p[0])), Math.min(...P.map(p => p[1])), Math.max(...P.map(p => p[0])), Math.max(...P.map(p => p[1]))]; }
+        if (x < q.wb[0] || x > q.wb[2] || z < q.wb[1] || z > q.wb[3]) continue;
         if (lx !== lx) { const dx = x - F.anchor.x, dz = z - F.anchor.z; lx = dx * F.c - dz * F.s; lz = dx * F.s + dz * F.c; }   // (no weather strip: no transform)
         const b = q.f.bbox;
         if (lx < b.x0 || lx > b.x1 || lz < b.z0 || lz > b.z1) continue;
@@ -14172,7 +14219,7 @@ function compose(rec0, world, opts) {
     O.records.objects = [];
     for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
-      O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob)));   // (G3001: the placer's scale reaches the built prop - it was dropped here)
+      O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob), ob.trunk === true ? { trunk: true } : {}));   // (AFB-0220: a pole that is a trunk too - 29_obstacles TREE_HITS.pole)   // (G3001: the placer's scale reaches the built prop - it was dropped here)
     }
     // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
     // `n` animals of the species `key` living within `r` metres of (x, z). One
@@ -14270,7 +14317,7 @@ function issues(rec0) {
   const plotIds = new Set();   // G2310: plot ids are hangar ids - unique in the record
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
-    else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
+    else if (!(r.wid >= STRIP_MIN_WID)) out.push('runway ' + r.id + ': a strip is at least ' + STRIP_MIN_WID + ' m wide');
     else for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).refuse) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
@@ -14318,7 +14365,7 @@ function issues(rec0) {
   //  the bound read the hard codes' 0..7; now every code the SURFACE enum names)
   for (const s of rec.layers.surface) if (!(Number.isInteger(+s.surface) && +s.surface >= 0 && +s.surface < SURFACE_NAMES.length)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
-  const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
+  const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= STRIP_MIN_WID).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
   // (t53 OPTION C, 13 Oct: rev 28's 02/20 ENDS on 13/31 - a T, the user's geometry): a strip one of whose ends lies inside the
   //  other's box while its other end lies outside, at more than 20 deg to it, meets it - not a stack (G3016: both ends
   //  inside, or side by side, stays an issue)
@@ -14401,7 +14448,7 @@ function curvTol(O, F, lx, lz, c, world) {
 // limits (profileCheck's `warn`). The ship, the gates and the loaders read issues(); a warning ships.
 function warnings(rec0) {
   const rec = expandAreas(normalise(rec0)), out = [];
-  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= 8) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
+  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= STRIP_MIN_WID) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
   return out;
 }
 function checks(rec0, world, opts) {
@@ -14546,10 +14593,10 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, grassHard: () => GRASS_SIDES.hard > 0, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { SURFACE_WX_NAMES, surfaceName, PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, grassHard: () => GRASS_SIDES.hard > 0, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, STRIP_MIN_WID, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
@@ -16186,7 +16233,38 @@ const TREE_HITS = (() => {
     };
     return api;
   }
-  return { make, trunkOf, CELL, STRIDE };
+  // AFB-0220 (the user 13 Nov: fallen trees, stumps, boulders "with REAL COLLISION ... the damage system reacts as it does to
+  // trees"): A LYING PIECE (a fallen trunk, a branch heap, a stump, a boulder - the tree pack's debris and rock subjects,
+  // placed as record trees) is no upright trunk: its trunk's cylinder would be a post at its middle. Its hitbox is a CHAIN of
+  // low upright cylinders down its LONG AXIS - this set's own shape, so the solver meets it as it meets a trunk (every beam,
+  // the tree-crash law). bb: the subject's box in its model frame [x0, y0, z0, x1, y1, z1]; s its drawn size; sticks: a
+  // branch heap (mostly air: the radius 0.45 of the footprint's half width, the top 0.6 of its height) or a solid piece (0.9,
+  // 0.9); x, z, foot: where it stands (world; foot = its drawn foot's y); yaw: three's rotation.y (local x -> (cos, -sin),
+  // local z -> (sin, cos)). The radius is held to 0.2..2.0 m, the top to 0.3 m at least, the cylinders one radius apart and
+  // the end ones a radius inside the box's ends, 48 at most. -> [[x, z, y0, r, y1], ...]
+  function lying(bb, s, sticks, x, z, foot, yaw) {
+    if (!bb) return [];
+    s = s || 1;
+    const ex = (bb[3] - bb[0]) * s, ez = (bb[5] - bb[2]) * s, hgt = (bb[4] - bb[1]) * s;
+    const alongX = ex >= ez, L = alongX ? ex : ez, wMin = alongX ? ez : ex, k = sticks ? 0.45 : 0.9;
+    const r = Math.max(0.2, Math.min(2.0, 0.5 * wMin * k)), top = Math.max(0.3, hgt * (sticks ? 0.6 : 0.9));
+    const c = Math.cos(yaw || 0), sn = Math.sin(yaw || 0), cx = (bb[0] + bb[3]) / 2 * s, cz = (bb[2] + bb[5]) / 2 * s;
+    const half = Math.max(0, L / 2 - r), n = Math.min(48, Math.max(1, Math.ceil(2 * half / r) + 1)), out = [];
+    for (let i = 0; i < n; i++) {
+      const q = n === 1 ? 0 : -half + 2 * half * i / (n - 1), lx = cx + (alongX ? q : 0), lz = cz + (alongX ? 0 : q);
+      out.push([x + lx * c + lz * sn, z - lx * sn + lz * c, foot, r, foot + top]);
+    }
+    return out;
+  }
+  // AFB-0220: A POLE THAT IS A TRUNK TOO. A placed prop is solid by its drawn mesh (render_premises hitAdd: the OBSTACLES column
+  // grid, met by the airframe's NODES) - a 0.3 m pole stands between a wing's nodes and the wing goes by it: measured, the
+  // stock build taxied at a pole_b head-on rolled on past it (6 node contacts), its wing 2.5-4.5 m out met nothing. A pole prop
+  // whose record says `trunk: true` is ALSO a trunk cylinder (met by the BEAMS, as a tree is: the wing bends or breaks on it).
+  // The section is the pole's own, not the crossarm's: r 0.16 m, 6.13 m tall (src/pier/pier_yard.js's pole rows). Opt-in by
+  // the record: every pole on the island (Metlakatla's 40) as a trunk is one line here, the town's call. -> [x, z, y0, r, y1]
+  const POLES = { pole_a: { r: 0.16, h: 6.13 }, pole_b: { r: 0.16, h: 6.13 }, pole_c: { r: 0.16, h: 6.13 } };
+  function pole(key, x, z, y0, s) { const P = POLES[key]; if (!P) return null; s = s > 0 ? s : 1; return [x, z, y0, P.r * s, y0 + P.h * s]; }
+  return { make, trunkOf, lying, pole, POLES, CELL, STRIDE };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { OBSTACLES, TREE_HITS };
 // ============================================================
@@ -60152,7 +60230,7 @@ const CONTRACT_FIELDS = {
   mk_sea:   { id: 'mk_sea',   name: GAME_NAMES.fields.mk_sea,          x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
   mn_strip: { id: 'mn_strip', name: GAME_NAMES.fields.mn_strip,        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
   nv_strip: { id: 'nv_strip', name: GAME_NAMES.fields.nv_strip,        x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
-  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
+  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 282,   z: -7751,  len: 280,  surf: 'grass', alti: true, lit: true },
   // (G3014, the user 12 Oct: 'add them' - their rev 26 strips 10 and 11, contracts may land there)
   w5:       { id: 'w5',       name: GAME_NAMES.fields.w5,        x: 3055,  z: -2837,  len: 310,  surf: 'gravel', lit: true, glide: 'papi' },
   w6:       { id: 'w6',       name: GAME_NAMES.fields.w6,        x: -4172, z: -22110, len: 312,  surf: 'dirt', lit: true },
@@ -60166,6 +60244,8 @@ const CONTRACT_FIELDS = {
   // (OBSERVATORY-SITE 13 Nov: the observatory's altiport on Mount Ardent, 210 m landed uphill to 1 039 m - in no provider's
   //  fields yet: the Game coordinator joins it to the jobs; OBSERVATORY-2 15 Nov: SNOW-MUD's powder - surf 'snow', skis)
   mt_strip: { id: 'mt_strip', name: GAME_NAMES.fields.mt_strip,      x: 9317,  z: -5962,  len: 210,  surf: 'snow', alti: true, lit: true },
+  // (AFB-0220, 13 Nov: 02/20 divided - the bumpy firm-mud lane east of the old concrete band; contracts may land there - STOL work)
+  xw_rough: { id: 'xw_rough', name: GAME_NAMES.fields.xw_rough,  x: 634,   z: -167,   len: 1000, surf: 'mud', lit: true },   // (firm mud, the user 13 Nov)
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -60874,6 +60954,20 @@ const CONTRACT_FIT = {
   surf: { concrete: 1.0, asphalt: 1.0, paved: 1.0, gravel: 1.1, dirt: 1.1, sand: 1.25, grass: 1.15, snow: 1.3, water: 1.0 },
   bulkSeats: 4,
   rangeUse: 0.75,
+  // ALTIPORT CREDIT (SKYLINE-RESORT 13-17 Nov; Game: yes 14 Nov at 0.75, yes 17 Nov at 0.85, via A0): an altiport is left
+  // downhill whatever the wind (43_pilot GTRAM), so its take-off run is the flat run x altiK. FLOWN (GATE ALTIPORT 5: the game's
+  // pilot and day, 709 m, brake release to 2.5 m up as genTORunAt ends it, at the contract's load) ON THE 280 x 6 m tw_ski
+  // (17 Nov), released where today's pilot lines up, 69 m below the top end: the Cub + 1 passenger 122.7 m, 0.511 of the flat
+  // law's run (240 m); the metal Cessna + 2 passengers + 40 kg (184 kg of the 200 aboard - its baggage caps) 201.1 m, 0.806 of
+  // 249 m. 0.85 is above both (Game: 0.75 under-predicted the Cessna's measured roll - offers would be built on a number too
+  // kind). (On the 190 m strip, 14 Nov: 0.528 / 0.635 - the ground fell away past its low end and flattered the 2.5 m point.)
+  // No density-altitude term: the flown run has it.
+  // THE LIMIT, named: ONE constant for every f.alti row - tw_ski (280 m grass, ~1 % top then 9-10 %), w4 ('strip 9', 216 m
+  // gravel, steeper: ~21 % on average - cautious there) and mt_strip (Ardent, 210 m snow, L40d). A gentler or steeper altiport
+  // needs its own factor, a / (a + g x grade) on the aeroplane's mean roll acceleration a - next round. 0.75 -> 0.85 moved no
+  // tw_ski / w4 offer (every stage's doers the same); at mt_strip the Jodel's empty law goes 200 -> 227 m of 210 (no stage
+  // flies there today)
+  altiK: 0.85,
 };
 
 // ---- THE PAY (§12.3 as amended by G-COST: net, no running costs) -----------------------------------------
@@ -61444,7 +61538,7 @@ function contractGearOk(gear, f) {
 // the loaded take-off distance on a field (the certificate's toM, (W/W0)^2, the surface's factor)
 function contractTakeoffM(design, loadKg, f) {
   const W0 = design.massKg, W = W0 + Math.max(0, loadKg || 0);
-  return design.toM * (W / W0) * (W / W0) * ((f && CONTRACT_FIT.surf[f.surf]) || 1.2);
+  return design.toM * (W / W0) * (W / W0) * ((f && CONTRACT_FIT.surf[f.surf]) || 1.2) * (f && f.alti ? CONTRACT_FIT.altiK : 1);
 }
 const ctCapKg = D => Math.max(0, D.seats - 1) * CONTRACT_FIT.occKg + (D.bagKg || 0);
 // one sub, one design -> { ok, why }

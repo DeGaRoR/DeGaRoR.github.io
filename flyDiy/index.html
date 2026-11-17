@@ -4864,7 +4864,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='e6b7176103ea';window.FLYDIY_BUILD_DATE='2026-11-17T10:47:20.078Z';</script>
+<script>window.FLYDIY_BUILD='2a6b2b9d7cd5';window.FLYDIY_BUILD_DATE='2026-11-17T15:46:31.798Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -4921,6 +4921,7 @@ var GAME_NAMES = {
     w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
     mt_strip: 'Ardent Altiport',              // (OBSERVATORY-SITE 13 Nov: the observatory's strip on Mount Ardent's north-east spur, landed uphill)
+    xw_rough: 'Jolene AFB 02R/20L',           // (AFB-0220, 13 Nov: 02/20's bumpy firm-mud lane, right of the old concrete band landing 02 - STOL practice; the map's place is Jolene AFB's)
   },
 };
 
@@ -11806,7 +11807,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
 <script>
 (function () {
   window.FLYDIY_CAREER_WANT = function () { return /[?&](career|map|freight)=1(&|$)/.test(location.search || '') || window.FLYDIY_MODE === 'career'; };
-  var SRC = window.FLYDIY_CAREER_SRC = "career_core.4bfd0a1c.js";
+  var SRC = window.FLYDIY_CAREER_SRC = "career_core.95354005.js";
   var mode = window.FLYDIY_WELCOME ? Promise.resolve(window.FLYDIY_WELCOME).then(null, function () {}) : Promise.resolve();
   var load = window.FLYDIY_CAREER_LOAD = mode.then(function () {
     if (!window.FLYDIY_CAREER_WANT()) return false;
@@ -13202,6 +13203,7 @@ var GAME_NAMES = {
     w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
     mt_strip: 'Ardent Altiport',              // (OBSERVATORY-SITE 13 Nov: the observatory's strip on Mount Ardent's north-east spur, landed uphill)
+    xw_rough: 'Jolene AFB 02R/20L',           // (AFB-0220, 13 Nov: 02/20's bumpy firm-mud lane, right of the old concrete band landing 02 - STOL practice; the map's place is Jolene AFB's)
   },
 };
 
@@ -14739,7 +14741,7 @@ var SOIL_WET = (function () {
 //          a shade, its aprons and the island around it do not darken), and the dirt toward the mud's own colour by its
 //          mud (the pavement's 'mud' class) - and the dust or the mud a wheel throws takes THAT colour (app.js)
 //   gloss  wet ground shines a little (the pavement's wet film, uWet.x)
-// A DEV OVERRIDE (world.setGround: 'dry' | 'firm' | 'soft' | null - the soil's water held at 0.05 / 0.7 / 0.95 for
+// A DEV OVERRIDE (world.setGround: 'dry' | 'firm' | 'soft' | null - the soil's water held at forceDry / Firm / Soft for
 // every reader: the wheels, the drawn ground, the dust and the puddles; replayed on the physics worker as setDay is)
 // and the fixed looks keep every test on a known rung. GATE MUDLADDER.
 // ============================================================
@@ -14749,14 +14751,44 @@ var GROUND_WX = (function () {
   const DRY = Object.freeze({ 20: 6, 21: 0, 22: 7 });            // a weather code's dry rung (and what a tree, a plot, a map reads)
   const CLS = Object.freeze({ 20: 'dirt', 21: 'grass', 22: 'sand' });
   const GRASS_WET = 13, SAND_WET = 14;
-  const STEP = Object.freeze({ mudFirm: 0.25, mudSoft: 0.75, grassWet: 0.5, sandWet: 0.45 });
-  // the worn relief's scale by rung (dirt: dry / firm / soft; grass: dry / wet; sand: dry / wet)
-  const WEAR = Object.freeze({ dirt: [0.85, 1.0, 1.3], grass: [1.0, 1.0], sand: [1.0, 0.9] });
-  // the drawn ground's darkening at saturation, x S (multiplier 1 - k S), and its film (the pavement's uWet.x) x S
-  const DARK = Object.freeze({ dirt: 0.30, grass: 0.12, sand: 0.10 });
-  const FILM = Object.freeze({ dirt: 0.35, grass: 0.10, sand: 0.20 });
-  // the dev override's water (every class): the three rungs' middles
-  const FORCE = Object.freeze({ dry: 0.05, firm: 0.70, soft: 0.95 });
+  // THE LADDER'S NUMBERS (A0 for the user, 16 Nov: "every new world setting must be editable in the WORLD EDITOR"): one flat
+  // table, the shipped values in LADDER_DEF, the live ones set by ladder(o) - the world rail's 'weather ladder' rows (world_rail.js
+  // RUNWAYS), kept in THE LOOK and its export, reset there; the physics worker's world takes the same through
+  // world.setGroundLadder (sim_link / sim_host replay it, as setDay). `version` counts the sets (the drawn strips re-apply on it).
+  //   mudFirm / mudSoft     the dirt's mud (SOIL_WET's smoothstep(0.55, 0.9, S)) at which firm mud, then soft mud, begins
+  //   grassWet / sandWet    the class's water S at which grass, sand are wet
+  //   wear*                 the worn relief's scale (the ruts, the holes, the lumps) on that rung
+  //   dark*                 the drawn ground's darkening at saturation (x S);  film*: its wet film (x S)
+  //   forceDry / Firm / Soft  the dev override's held water (every class) - the rungs' middles
+  const LADDER_DEF = Object.freeze({ mudFirm: 0.25, mudSoft: 0.75, grassWet: 0.5, sandWet: 0.45,
+    wearDirtDry: 0.85, wearDirtFirm: 1.0, wearDirtSoft: 1.3, wearSandWet: 0.9,
+    darkDirt: 0.30, darkGrass: 0.12, darkSand: 0.10, filmDirt: 0.35, filmGrass: 0.10, filmSand: 0.20,
+    forceDry: 0.05, forceFirm: 0.70, forceSoft: 0.95 });
+  // each knob's range (the rail's sliders and the setter's clamp)
+  const LADDER_RANGE = Object.freeze({ mudFirm: [0, 1], mudSoft: [0, 1], grassWet: [0, 1], sandWet: [0, 1],
+    wearDirtDry: [0.3, 2], wearDirtFirm: [0.3, 2], wearDirtSoft: [0.3, 2.5], wearSandWet: [0.3, 2],
+    darkDirt: [0, 0.6], darkGrass: [0, 0.4], darkSand: [0, 0.4], filmDirt: [0, 1], filmGrass: [0, 1], filmSand: [0, 1],
+    forceDry: [0, 1], forceFirm: [0, 1], forceSoft: [0, 1] });
+  const LD = Object.assign({}, LADDER_DEF);
+  let version = 0;
+  // ladder() -> a copy of the live numbers; ladder(o) sets the keys it names (clamped to their range; mudSoft never under
+  // mudFirm); ladder(null) -> the shipped ones. Returns the live copy
+  function ladder(o) {
+    if (o === null) { Object.assign(LD, LADDER_DEF); version++; }
+    else if (o && typeof o === 'object') {
+      let n = 0;
+      for (const k in o) { if (!(k in LADDER_DEF)) continue; const v = +o[k]; if (!Number.isFinite(v)) continue; const R = LADDER_RANGE[k], c = v < R[0] ? R[0] : v > R[1] ? R[1] : v; if (LD[k] !== c) { LD[k] = c; n++; } }
+      if (LD.mudSoft < LD.mudFirm) { LD.mudSoft = LD.mudFirm; n++; }
+      if (n) version++;
+    }
+    return Object.assign({}, LD);
+  }
+  // the live numbers in the shapes state() reads (views over LD, not copies)
+  const STEP = { get mudFirm() { return LD.mudFirm; }, get mudSoft() { return LD.mudSoft; }, get grassWet() { return LD.grassWet; }, get sandWet() { return LD.sandWet; } };
+  const WEAR = { get dirt() { return [LD.wearDirtDry, LD.wearDirtFirm, LD.wearDirtSoft]; }, grass: [1, 1], get sand() { return [1, LD.wearSandWet]; } };
+  const DARK = { get dirt() { return LD.darkDirt; }, get grass() { return LD.darkGrass; }, get sand() { return LD.darkSand; } };
+  const FILM = { get dirt() { return LD.filmDirt; }, get grass() { return LD.filmGrass; }, get sand() { return LD.filmSand; } };
+  const FORCE = Object.freeze({ dry: 'forceDry', firm: 'forceFirm', soft: 'forceSoft' });   // a level -> its knob
   const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
   const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
   const is = c => c === 20 || c === 21 || c === 22;
@@ -14780,11 +14812,11 @@ var GROUND_WX = (function () {
       const m = smooth(0.55, 0.9, S); o.mud = m;
       o.rung = m < STEP.mudFirm ? 0 : m < STEP.mudSoft ? 1 : 2;
       o.code = o.rung === 0 ? DRY[code] : o.rung === 1 ? 11 : 12;
-      o.wear = WEAR.dirt[o.rung];
+      o.wear = o.rung === 0 ? LD.wearDirtDry : o.rung === 1 ? LD.wearDirtFirm : LD.wearDirtSoft;
     } else if (code === WX.GRASS) {
-      o.rung = S < STEP.grassWet ? 0 : 1; o.code = o.rung ? GRASS_WET : DRY[code]; o.wear = WEAR.grass[o.rung];
+      o.rung = S < STEP.grassWet ? 0 : 1; o.code = o.rung ? GRASS_WET : DRY[code]; o.wear = 1;
     } else {
-      o.rung = S < STEP.sandWet ? 0 : 1; o.code = o.rung ? SAND_WET : DRY[code]; o.wear = WEAR.sand[o.rung];
+      o.rung = S < STEP.sandWet ? 0 : 1; o.code = o.rung ? SAND_WET : DRY[code]; o.wear = o.rung ? LD.wearSandWet : 1;
     }
     o.dark = DARK[o.cls] * S; o.film = FILM[o.cls] * S;
     return o;
@@ -14793,11 +14825,12 @@ var GROUND_WX = (function () {
   // a forced soil (the dev override): SOIL_WET's shape, every class at the rung's water
   const FR = { wet: 0, cls: { dirt: 0, sand: 0, gravel: 0, grass: 0 }, rainNow: 0, hoursDry: 96, mud: 0, src: 'ground' };
   function forced(level) {
-    const v = FORCE[level]; if (v === undefined) return null;
+    const k = FORCE[level]; if (k === undefined) return null; const v = LD[k];
     FR.wet = v; for (const k in FR.cls) FR.cls[k] = v; FR.mud = smooth(0.55, 0.9, v); FR.hoursDry = v > 0.3 ? 0 : 96;
     return FR;
   }
-  return { WX, DRY, CLS, GRASS_WET, SAND_WET, STEP, WEAR, DARK, FILM, FORCE, is, lookClass, dryOf, water, state, resolve, forced };
+  return { WX, DRY, CLS, GRASS_WET, SAND_WET, STEP, WEAR, DARK, FILM, FORCE, LADDER_DEF, LADDER_RANGE, ladder, get version() { return version; },
+    is, lookClass, dryOf, water, state, resolve, forced };
 })();
 // ============================================================
 // THE CLOUD FIELD (CLOUDS C1, 2026-09-15) — the weather map, the height
@@ -16901,6 +16934,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   function surfaceNow(code) { return code >= 20 && code <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.resolve(code, soilNow()) : code; }
   // the dev override: 'dry' | 'firm' | 'soft' (the soil's water held for every reader), null = the weather's. sim_link replays it
   // on the physics worker's world (as setDay)
+  // the ladder's numbers (07f GROUND_WX.ladder: the rungs' thresholds, the wear, the darkening, the film, the override's water) -
+  // the world rail's 'weather ladder' rows; through the world so the physics worker's takes the same (sim_link replays it)
+  function setGroundLadder(o) { return typeof GROUND_WX !== 'undefined' ? GROUND_WX.ladder(o === undefined ? {} : o) : null; }
   function setGround(level) { groundForce = level && typeof GROUND_WX !== 'undefined' && GROUND_WX.FORCE[level] !== undefined ? level : null; }
   const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear, aeroSurf: aeroSurfAll });
 
@@ -17496,7 +17532,7 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
     roughAt: (x, z) => !!(PM && PM.roughAt && PM.roughAt(x, z)),   // (SNOW-MUD: on a bumpy strip's box - the wheel's envelope, 30_solver)
     // (SNOW-MUD LADDER: the soil's water this world reads, a weather code's rung now, the dev override - 07f GROUND_WX)
-    soilNow, surfaceNow, setGround, get groundForce() { return groundForce; },
+    soilNow, surfaceNow, setGround, setGroundLadder, get groundForce() { return groundForce; },
     wxAt: (x, z) => { const s = aeroSurfRaw(x, z); return s >= 20 && s <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(s, soilNow()) : null; },   // a weather strip's rung here (null off one)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, marginGrassAt, settlements: SET.settlements,   // marginGrassAt: GRASS-ON-GREEN (16 Nov) the margin gives way
@@ -21680,6 +21716,9 @@ const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways',
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12, GRASS_WET: 13, SAND_WET: 14,
                   DIRT_WX: 20, GRASS_WX: 21, SAND_WX: 22 };   // (SNOW-MUD LADDER, 15 Nov: the wet rungs; 20-22 a weather look's code, resolved by 07f GROUND_WX)
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND', 'SNOW_PACKED', 'SNOW_POWDER', 'SNOW_WET', 'MUD_FIRM', 'MUD_SOFT', 'GRASS_WET', 'SAND_WET'];   // (the weather codes 20-22 are named by their look)
+// (SNOW-MUD LADDER, A0 16 Nov: a wheels property on a weather code read '?') a code's name, the weather codes' included
+const SURFACE_WX_NAMES = { 20: 'DIRT_WX', 21: 'GRASS_WX', 22: 'SAND_WX' };
+const surfaceName = c => SURFACE_NAMES[+c] || SURFACE_WX_NAMES[+c] || null;
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
 const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
 // THE CATEGORIES (G393, the asset session): the seven words every generator's catOf answers with, the
@@ -22705,7 +22744,7 @@ function stageIssues(rec0, maxes) {
         // a varied strip is still a strip: 150 m, 8 m wide, its profile inside the pilot's (or the altiport's) limits
         if (kind === 'runway' && e && q) {
           const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
-          if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
+          if (!(r.len >= 150) || !(r.wid >= STRIP_MIN_WID)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by ' + STRIP_MIN_WID + ' m');
           else for (const pi of profileCheck(r).refuse) out.push(what + ' vary[' + i + ']: ' + pi);
         }
       });
@@ -23243,6 +23282,11 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // A plot on a WATER field is a slipway: its shed stands on the shore, its `stand` on the water off the slip. A plot is a
 // PLACE, not a building: the world stands a shed on it only while the player holds it (GAME §R GQ8).
 const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, plots: null, circuit: null, band: null, pav: null, altiport: false };
+// SKYLINE-RESORT (the user 16 Nov: "Width should be even smaller. Make it 6 meters only of runway, hopefully mainly used by the
+// tracks then"): THE LEAST WIDTH OF A STRIP - 6 m (8 m before, DIRT-STRIP's). The record's law (issues(): a strip, a varied strip;
+// the overlap and the profile warnings read the same strips); composition never filtered on it. The editor's width slider
+// starts at it (premises_ui.js)
+const STRIP_MIN_WID = 6;
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -24444,7 +24488,7 @@ function areaLabel(a) {
   if (a && a.name) return a.name;
   if (P.draw && P.draw.look && RUNWAY_LOOKS[P.draw.look]) return (RUNWAY_LOOKS[P.draw.look].name || P.draw.look).toLowerCase() + (P.marks ? ' (' + P.marks.kind + ')' : '');
   if (P.draw && P.draw.set) return P.draw.set + ' ground';
-  if (P.wheels) return (SURFACE_NAMES[+P.wheels.surface] || 'surface').toLowerCase() + (P.wheels.apron ? ' apron' : ' area');
+  if (P.wheels) return (surfaceName(P.wheels.surface) || 'surface').toLowerCase() + (P.wheels.apron ? ' apron' : ' area');
   if (P.terraform) return P.terraform.kind === 'raise' ? 'raise / lower' : P.terraform.kind === 'ramp' ? 'slope' : 'flat';
   if (P.cover) return 'vegetation';
   if (P.exclude) return 'no ' + ((P.exclude.what || ['trees']).join(', ') || 'trees');
@@ -25283,6 +25327,10 @@ function compose(rec0, world, opts) {
       let lx = NaN, lz = 0;
       for (let k = 0; k < microStrips.length; k++) {
         const q = microStrips[k]; if (!q.wx) continue;
+        // (A0's L40e trial: SCENERYED 20b's compose read every terrainH through the rotation - the box in WORLD axes first, once)
+        if (!q.wb) { const b = q.f.bbox, P = [[b.x0, b.z0], [b.x1, b.z0], [b.x0, b.z1], [b.x1, b.z1]].map(p => F.toWorld(p[0], p[1]));
+          q.wb = [Math.min(...P.map(p => p[0])), Math.min(...P.map(p => p[1])), Math.max(...P.map(p => p[0])), Math.max(...P.map(p => p[1]))]; }
+        if (x < q.wb[0] || x > q.wb[2] || z < q.wb[1] || z > q.wb[3]) continue;
         if (lx !== lx) { const dx = x - F.anchor.x, dz = z - F.anchor.z; lx = dx * F.c - dz * F.s; lz = dx * F.s + dz * F.c; }   // (no weather strip: no transform)
         const b = q.f.bbox;
         if (lx < b.x0 || lx > b.x1 || lz < b.z0 || lz > b.z1) continue;
@@ -26012,7 +26060,7 @@ function compose(rec0, world, opts) {
     O.records.objects = [];
     for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
-      O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob)));   // (G3001: the placer's scale reaches the built prop - it was dropped here)
+      O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob), ob.trunk === true ? { trunk: true } : {}));   // (AFB-0220: a pole that is a trunk too - 29_obstacles TREE_HITS.pole)   // (G3001: the placer's scale reaches the built prop - it was dropped here)
     }
     // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
     // `n` animals of the species `key` living within `r` metres of (x, z). One
@@ -26110,7 +26158,7 @@ function issues(rec0) {
   const plotIds = new Set();   // G2310: plot ids are hangar ids - unique in the record
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
-    else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
+    else if (!(r.wid >= STRIP_MIN_WID)) out.push('runway ' + r.id + ': a strip is at least ' + STRIP_MIN_WID + ' m wide');
     else for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).refuse) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
@@ -26158,7 +26206,7 @@ function issues(rec0) {
   //  the bound read the hard codes' 0..7; now every code the SURFACE enum names)
   for (const s of rec.layers.surface) if (!(Number.isInteger(+s.surface) && +s.surface >= 0 && +s.surface < SURFACE_NAMES.length)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
-  const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
+  const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= STRIP_MIN_WID).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
   // (t53 OPTION C, 13 Oct: rev 28's 02/20 ENDS on 13/31 - a T, the user's geometry): a strip one of whose ends lies inside the
   //  other's box while its other end lies outside, at more than 20 deg to it, meets it - not a stack (G3016: both ends
   //  inside, or side by side, stays an issue)
@@ -26241,7 +26289,7 @@ function curvTol(O, F, lx, lz, c, world) {
 // limits (profileCheck's `warn`). The ship, the gates and the loaders read issues(); a warning ships.
 function warnings(rec0) {
   const rec = expandAreas(normalise(rec0)), out = [];
-  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= 8) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
+  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= STRIP_MIN_WID) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
   return out;
 }
 function checks(rec0, world, opts) {
@@ -26386,10 +26434,10 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, grassHard: () => GRASS_SIDES.hard > 0, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { SURFACE_WX_NAMES, surfaceName, PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, grassHard: () => GRASS_SIDES.hard > 0, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, STRIP_MIN_WID, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
@@ -28026,7 +28074,38 @@ const TREE_HITS = (() => {
     };
     return api;
   }
-  return { make, trunkOf, CELL, STRIDE };
+  // AFB-0220 (the user 13 Nov: fallen trees, stumps, boulders "with REAL COLLISION ... the damage system reacts as it does to
+  // trees"): A LYING PIECE (a fallen trunk, a branch heap, a stump, a boulder - the tree pack's debris and rock subjects,
+  // placed as record trees) is no upright trunk: its trunk's cylinder would be a post at its middle. Its hitbox is a CHAIN of
+  // low upright cylinders down its LONG AXIS - this set's own shape, so the solver meets it as it meets a trunk (every beam,
+  // the tree-crash law). bb: the subject's box in its model frame [x0, y0, z0, x1, y1, z1]; s its drawn size; sticks: a
+  // branch heap (mostly air: the radius 0.45 of the footprint's half width, the top 0.6 of its height) or a solid piece (0.9,
+  // 0.9); x, z, foot: where it stands (world; foot = its drawn foot's y); yaw: three's rotation.y (local x -> (cos, -sin),
+  // local z -> (sin, cos)). The radius is held to 0.2..2.0 m, the top to 0.3 m at least, the cylinders one radius apart and
+  // the end ones a radius inside the box's ends, 48 at most. -> [[x, z, y0, r, y1], ...]
+  function lying(bb, s, sticks, x, z, foot, yaw) {
+    if (!bb) return [];
+    s = s || 1;
+    const ex = (bb[3] - bb[0]) * s, ez = (bb[5] - bb[2]) * s, hgt = (bb[4] - bb[1]) * s;
+    const alongX = ex >= ez, L = alongX ? ex : ez, wMin = alongX ? ez : ex, k = sticks ? 0.45 : 0.9;
+    const r = Math.max(0.2, Math.min(2.0, 0.5 * wMin * k)), top = Math.max(0.3, hgt * (sticks ? 0.6 : 0.9));
+    const c = Math.cos(yaw || 0), sn = Math.sin(yaw || 0), cx = (bb[0] + bb[3]) / 2 * s, cz = (bb[2] + bb[5]) / 2 * s;
+    const half = Math.max(0, L / 2 - r), n = Math.min(48, Math.max(1, Math.ceil(2 * half / r) + 1)), out = [];
+    for (let i = 0; i < n; i++) {
+      const q = n === 1 ? 0 : -half + 2 * half * i / (n - 1), lx = cx + (alongX ? q : 0), lz = cz + (alongX ? 0 : q);
+      out.push([x + lx * c + lz * sn, z - lx * sn + lz * c, foot, r, foot + top]);
+    }
+    return out;
+  }
+  // AFB-0220: A POLE THAT IS A TRUNK TOO. A placed prop is solid by its drawn mesh (render_premises hitAdd: the OBSTACLES column
+  // grid, met by the airframe's NODES) - a 0.3 m pole stands between a wing's nodes and the wing goes by it: measured, the
+  // stock build taxied at a pole_b head-on rolled on past it (6 node contacts), its wing 2.5-4.5 m out met nothing. A pole prop
+  // whose record says `trunk: true` is ALSO a trunk cylinder (met by the BEAMS, as a tree is: the wing bends or breaks on it).
+  // The section is the pole's own, not the crossarm's: r 0.16 m, 6.13 m tall (src/pier/pier_yard.js's pole rows). Opt-in by
+  // the record: every pole on the island (Metlakatla's 40) as a trunk is one line here, the town's call. -> [x, z, y0, r, y1]
+  const POLES = { pole_a: { r: 0.16, h: 6.13 }, pole_b: { r: 0.16, h: 6.13 }, pole_c: { r: 0.16, h: 6.13 } };
+  function pole(key, x, z, y0, s) { const P = POLES[key]; if (!P) return null; s = s > 0 ? s : 1; return [x, z, y0, P.r * s, y0 + P.h * s]; }
+  return { make, trunkOf, lying, pole, POLES, CELL, STRIDE };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { OBSTACLES, TREE_HITS };
 // ============================================================
@@ -72538,7 +72617,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='d547dc165028';window.FLYDIY_BUILD='e6b7176103ea';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=d627c4b0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='84473b77081c';window.FLYDIY_BUILD='2a6b2b9d7cd5';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=d627c4b0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -72585,7 +72664,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 (function () {
-  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=6e4eebf9","_navaid_gen":"tools/_navaid_gen.js?v=130193d7","_meteo_gen":"tools/_meteo_gen.js?v=dfea6b31","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=15127070","world_rail":"src/viewer/world_rail.js?v=22296f2d","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=53c25ee1","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=2e0b8354","story_intro":"src/viewer/story_intro.js?v=816a6e70","map_pack":"src/viewer/map_pack.js?v=213033fc","map_menu":"src/viewer/map_menu.js?v=b2c23026","freight_load":"src/viewer/freight_load.js?v=38ada808","freight_strap":"src/viewer/freight_strap.js?v=409b8090","crowd":"src/viewer/crowd.js?v=ba5b4c86","livery_marks":"src/viewer/livery_marks.js?v=d66a0572","_mission_gen":"tools/_mission_gen.js?v=7d29e5c7","mission_live":"src/viewer/mission_live.js?v=c929c815"}, got = {}, busy = 0;
+  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=6e4eebf9","_navaid_gen":"tools/_navaid_gen.js?v=130193d7","_meteo_gen":"tools/_meteo_gen.js?v=dfea6b31","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=cb49afc6","world_rail":"src/viewer/world_rail.js?v=7020a343","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=53c25ee1","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=2e0b8354","story_intro":"src/viewer/story_intro.js?v=816a6e70","map_pack":"src/viewer/map_pack.js?v=18c652b8","map_menu":"src/viewer/map_menu.js?v=b2c23026","freight_load":"src/viewer/freight_load.js?v=38ada808","freight_strap":"src/viewer/freight_strap.js?v=409b8090","crowd":"src/viewer/crowd.js?v=ba5b4c86","livery_marks":"src/viewer/livery_marks.js?v=d66a0572","_mission_gen":"tools/_mission_gen.js?v=7d29e5c7","mission_live":"src/viewer/mission_live.js?v=c929c815"}, got = {}, busy = 0;
   window.FLYDIY_LAZY_SRC = SRC;
   var lazy = window.FLYDIY_LAZY = function (names) {
     return Promise.all([].concat(names).map(function (n) {
@@ -175424,7 +175503,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     for (const m of MATS) {
       const c = m.userData && m.userData.pavWx; if (!c || m.userData.pavWxOwned) continue;
       const st = stateOf(c); if (!st) continue;
-      const key = st.rung + ':' + Math.round(st.S * 50); if (m.userData.pavWxKey === key) continue;
+      const key = st.rung + ':' + Math.round(st.S * 50) + ':' + (typeof GROUND_WX !== 'undefined' ? GROUND_WX.version : 0); if (m.userData.pavWxKey === key) continue;
       m.userData.pavWxKey = key; setGroundWx(THREE, m, st);
     }
   }
@@ -180115,7 +180194,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TREE_PACK;
     if (seen[1]) seen[18] = 1;   // G3430: a lake's shore band is 18 LAKESHORE (28c_biomes SHORE; the cover ring's)
     // MOUNTAIN-VEG: heath, scrub and dense scrub above the height ramp are 19 SUBALPINE (28c_biomes subCode; off by ?subalpine=0)
     if (B.SUBALPINE && B.subOn !== false && (seen[2] || seen[7] || seen[14])) seen[B.SUBALPINE] = 1;
-    const names = new Set(['grass_dry']);
+    const names = new Set(['grass_dry', 'grass_plates']);   // grass_plates: the lawn's cards (GRASS-CARDS, cover_ring layer 'lawn'; 1.3 KB + three 512x256 maps)
     for (let c = 0; c < 256; c++) { if (!seen[c]) continue;
       const m = B.mixAt(c), M = m && B.mixOf(m); if (M && M.species) for (const sp of Object.keys(M.species)) names.add(sp); }
     for (const c of PACK.collections) if (c.kind === 'rock' || c.kind === 'debris' || c.kind === 'cliff') names.add(c.name);
@@ -181044,6 +181123,16 @@ var COVER_RING = (() => {
     set: (kind, x, y) => { let n = 0; for (const [nm, u] of ROOT_SP) if (kind === 'all' || u.kind === kind || nm === kind) {
       if (x != null) u.value.x = Math.max(0, Math.min(1, +x)); if (y != null) u.value.y = Math.max(0.01, +y); n++; } return n; },
   };
+  // THE LAWN'S DEFAULTS (GRASS-CARDS; the ring's dials over the field's). dens: cards / m2 where the ground is fully cut; cutH / cutSigma
+  // the mown length and its lognormal spread; tallH / tallSigma the cut beside a soft strip (coverAt `tall`); stripH a grass strip's
+  // running surface; lean: the three leaning plates drawn too (1) or the upright three alone (0); reach / near: the fade's (m); hRef the
+  // size fade's reference length (LOOK-1: never the reed's 0.3 - an 8 cm card would fade at the eye)
+  const LAWN_ON = true;   // ON (GRASS-CARDS 17 Nov, the user: "d is best looking" - the top rung D; the GRAPHICS row 'mown grass' picks the rung per preset; ?lawn=0 the A/B)
+  const LAWN_DEF = { cell: 4, block: 8, reach: 20, near: 6, taper: 1, aglFull: 20, aglOff: 70, aglPre: 110, budgetMs: 2, preBudgetMs: 1, maxCells: 600,
+    dens: 300, cutH: 0.10, cutSigma: 0.2, tallH: 0.4, tallSigma: 0.3,   /* tallH 0.4: grass-edge's tall band (the user: 'taller grass on the strip side') */ stripH: 0.06, stripSigma: 0.15, lean: 1, hRef: 0.08, sizeFade: 1, sizeMax: 1.5,
+    colour: 1, match: 1, vary: 0.06, tier: 1, trunc: 1, minCut: 0.05, lawnWet: 0.3, tallCards: 0, green: 0, texGrass: 0, weeds: 0, root: 0 };   // lawnWet: a square's ground over the drawn water it needs (m)
+  const LAWN_SPECIES = ['grass_plates'];
+  const LAWN_BUF = { cap: 0, xs: [], col: [], rand: [] };   // buildLawn's scratch (emitField copies out of it)
   const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
   // (the size fade's ceiling is the field's `sizeMax`: a tuft taller than the reference reaches at most sizeMax x the reach - trees.js FADE_VS uFadeSizeMax)
   const FIELD_TYPES = {
@@ -181141,7 +181230,15 @@ var COVER_RING = (() => {
     // cut beside and on the runways (the premises' coverAt `cut` / `surf`), in the ground's drawn colour (ctx.groundMeanAt),
     // to its own reach by its own fade set (trees.js fadeSet, with the size fade), and planted by TIERS (a cell keeps the
     // prefix of its candidate stream its nearest distance can show). The first ring then leaves the grass to it (ctx.owned).
-    const FIELD = ctx.layer === 'grass';
+    // THE LAWN (GRASS-CARDS, 16 Nov; the user: "when the grass is really small, they look just like little dots ... all mown grass needs
+    // to be addressed through grass cards"): ctx.layer 'lawn' is a THIRD ring of this file, the field's machinery (its own S, fade set,
+    // reach, tiers, blocks), planting the bench's crossed-blade cards `grass_plates` (realtime_grass.glb: 6 plates of 6 triangles, MASK,
+    // a 2.2 m strip of blades 0.87 m tall) on the MOWN ground alone - coverAt's `cut` (the paved fields' bands, the aprons, the verges,
+    // the field-wide cut, the tall band beside a soft strip, a grass strip's running surface), at the mown lengths with no floor (a
+    // card 8 cm tall is a 20 cm strip of ~40 blades: a sward, not a dot). The grass field leaves the cut ground to it while it is on
+    // (ctx.lawnOn there: keep x (1 - cut)); the wild grass and the town plots' lawns are untouched. buildLawn below
+    const LAWN = ctx.layer === 'lawn';
+    const FIELD = ctx.layer === 'grass' || LAWN;
     // THE ROCKS' OWN RING (MOUNTAIN-VEG 17 Nov; the user: "rock should be visible for a little while ... yours maybe don't have to go
     // that far, but have to go a bit further"): ctx.layer 'rocks' plants the rock rows ALONE (no debris, no cover, no shrub), on the
     // first ring's own 32 m cells and stream (placeRocks: the same rocks, the same places - and the rock map's sprites under them),
@@ -181174,7 +181271,10 @@ var COVER_RING = (() => {
     // THE FIELD SHIPS OFF until its cost is cut (A0, train 43: the dials early, the field behind its editor switch - VEGETATION > the
     // grass field > 'the field'; the world look keeps the user's choice). ?grassfield=1 / 0 forces it for a rig; FIELD_ON the default
     if (ROCKS) { try { const m = /[?&]rocklayer=([01])/.exec(location.search); if (m) S.on = m[1] === '1'; } catch (e) {} }   // ?rocklayer=0: the rocks as before (the first ring's, to 220 m)
-    if (FIELD) { S.on = FIELD_ON; try { const m = /[?&]grassfield=([01])/.exec(location.search); if (m) S.on = m[1] === '1'; } catch (e) {} }
+    if (FIELD && !LAWN) { S.on = FIELD_ON; try { const m = /[?&]grassfield=([01])/.exec(location.search); if (m) S.on = m[1] === '1'; } catch (e) {} }
+    // the lawn's own dials over the field's (its cards a square metre of FULLY cut ground, the mown lengths, a short reach - a card is
+    // small - and the size fade's reference at the lawn's own length, so an 8 cm card is drawn to the whole reach). ?lawn=1 / 0 forces it
+    if (LAWN) { Object.assign(S, LAWN_DEF, { on: LAWN_ON }); try { const m = /[?&]lawn=([01])/.exec(location.search); if (m) S.on = m[1] === '1'; } catch (e) {} }
     const pack = (typeof TREE_PACK !== 'undefined') ? TREE_PACK : null;
     const cells = new Map();            // cellKey(cx, cz) -> { n, parts, inst, by, cx, cz, box }
     // G603 (A1-STAND): a cell's key is a NUMBER - update() asked the map for ~290 cells a frame by a fresh 'cx,cz'
@@ -181183,7 +181283,7 @@ var COVER_RING = (() => {
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
     const STAT = { built: 0, lastMs: 0, maxMs: 0, live: 0, queued: 0, instances: 0, agl: 0, mixAt: null, by: {}, scarSkip: 0, floorSkip: 0 };
     let flowerTex = new Map();
-    const root = new THREE.Group(); root.name = 'coverRing'; scene.add(root);
+    const root = new THREE.Group(); root.name = LAWN ? 'coverRingLawn' : 'coverRing'; scene.add(root);   // (water.js skips /^coverRing/: both)
 
     // ---- the prototypes: every species of the kinds the ring plants, built once ------
     // (debris - the logs, sticks and stumps of vegetation/branches - is the rock machinery on its own density: F.debris)
@@ -181192,7 +181292,7 @@ var COVER_RING = (() => {
     const shapedOf = c => !!(c.maps && c.place && SHAPES.includes(c.place.shape));
     // ?alpshrubs=0 (MOUNTAIN-VEG): the shaped species left out - the A/B of their cost (the subalpine mix plants the rest as before)
     let SHAPED_ON = true; try { const m = /[?&]alpshrubs=([01])/.exec(location.search); if (m) SHAPED_ON = m[1] === '1'; } catch (e) {}
-    const speciesOf = () => (pack ? pack.collections : []).filter(c => ROCKS ? c.kind === 'rock' : FIELD ? FIELD_SPECIES.includes(c.name)
+    const speciesOf = () => (pack ? pack.collections : []).filter(c => ROCKS ? c.kind === 'rock' : LAWN ? LAWN_SPECIES.includes(c.name) : FIELD ? FIELD_SPECIES.includes(c.name)
       : ['cover', 'shrub', 'rock', 'debris'].includes(c.kind) && !(ctx.owned && ctx.owned(c.name)) && (SHAPED_ON || !shapedOf(c)));
     const rockish = c => c.kind === 'rock' || c.kind === 'debris';
     // THE ROCK SKIN (MOUNTAIN-VEG 17 Nov; the user: "keep your models, which are good and different ... and texture them using the
@@ -181399,7 +181499,7 @@ var COVER_RING = (() => {
         }
         // THE FIELD'S TUFTS: the patches' cards in groups of S.cards, the three median ones the variants (tuftsOf above); one
         // material (the patches share the reed's), h0 the tuft's own top in the model's units (the height a scale is asked for)
-        if (FIELD && c.kind === 'cover' && P.length && P[0].parts.length) {
+        if (FIELD && !LAWN && c.kind === 'cover' && P.length && P[0].parts.length) {
           const mat = P[0].parts[0].mat, T = tuftsOf(THREE, P.map(p => p.parts[0].geo), Math.max(1, S.cards | 0), Math.max(1, S.variants | 0));   // (`variants`: the draws a block - each is one)
           P.length = 0;
           T.forEach((t, i) => P.push({ key: c.name + '|tuft' + i, w: 1 / T.length, kind: 'cover', h: t.top, h0: t.top, parts: [{ geo: t.geo, mat }], size: 1, r0: 1, tris: t.tris }));
@@ -181788,7 +181888,7 @@ var COVER_RING = (() => {
       const tl = G.tall ? G.tall[k] : 0, T = T0 || FIELD_MEADOW, hw = T.h * S.hK * (1 + (S.weedsH - 1) * wd), hc = surf ? S.stripH : Math.max(S.minH, S.cutH + (S.tallH - S.cutH) * tl);
       return { mix: G.mix[k], code: G.code[k], ok, kill: +kill.toFixed(3), cut: +cut.toFixed(3), tall: +tl.toFixed(3), surf: !!surf, cls: !!G.cls[k], kind,
         green: G.green ? +G.green[k].toFixed(3) : 0, col: [G.col[k * 3], G.col[k * 3 + 1], G.col[k * 3 + 2]],
-        dType: dT, dGreen: +dG.toFixed(3), dTex: +dX.toFixed(3), weed: +wd.toFixed(3), perM2: live ? +(S.on ? S.tufts * d * cutF * wD * (1 - kill) * (1 + boost) : 0).toFixed(2) : 0,
+        dType: dT, dGreen: +dG.toFixed(3), dTex: +dX.toFixed(3), weed: +wd.toFixed(3), perM2: live ? +(S.on ? S.tufts * d * cutF * wD * (1 - kill) * (1 + boost) * (ctx.lawnOn && ctx.lawnOn() ? 1 - cut * (1 - (G.tall ? G.tall[k] : 0) * (1 - (ctx.lawnTall ? +ctx.lawnTall() || 0 : 0))) : 1) : 0).toFixed(2) : 0,
         h: +(hw + (hc - hw) * cut).toFixed(3), why: !S.on ? 'field off' : !ok ? 'land test' : kill >= 1 ? 'kill' : kind === 1 ? 'lawn' : kind === 3 ? 'none' : !(d > 0) ? 'no row, not green' : cut > 0.5 ? 'mown' : 'wild' };
     }
     function buildField(cx, cz, dTier, born) {
@@ -181797,6 +181897,7 @@ var COVER_RING = (() => {
       const R = rng((hsh(cx, cz) * 4294967295) >>> 0);
       const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz, dTier, born, field: true };
       cells.set(cellKey(cx, cz), cell); markBlock(cx, cz);
+      const lawnTake = !!(ctx.lawnOn && ctx.lawnOn()), lawnTall = ctx.lawnTall ? +ctx.lawnTall() || 0 : 0;   // GRASS-CARDS: the mown ground is the lawn's while it is on (keep x (1 - cut) below)
       const c = speciesOf()[0], P = c ? protosOf(c) : [];
       if (!P.length || !BIO) { STAT.lastMs = performance.now() - t0; return cell; }
       for (const p of P) for (const q of p.parts) if (LEAF.fadeOwn) LEAF.fadeOwn(q.mat, FSET);
@@ -181848,6 +181949,9 @@ var COVER_RING = (() => {
         if (S.blotch > 0) keep *= 1 - S.blotch * (0.5 + 0.5 * vnoise(x, z, blotchM, 4242)) * (1 - cut);
         keep *= (1 - kill) * (1 + boost) / (1 + G.bmax);
         if (T.fieldPatch > 0 && T.fieldShare < 1) keep *= smooth(-0.06, 0.06, T.fieldShare - vnoise(x, z, T.fieldPatch, 515));   // the type's grass patches
+        // (the stream is drawn the same: the wild grass is today's tuft for tuft). The TALL band beside a soft strip stays the field's
+        // tufts (GRASS-CARDS 17 Nov: 40 cm cards read as dark blocks there; the user validated the tufts) unless the lawn's tallCards
+        if (lawnTake) keep *= 1 - cut * (1 - tl * (1 - lawnTall));
         if (rA >= keep) continue;
         // THE LENGTH (GRASS-STUDY §4.4): the type's median x a lognormal x the clump field (wild); cut: its own length, uniform
         let nz = Math.sqrt(-2 * Math.log(Math.max(1e-9, rH1))) * Math.cos(6.2831853 * rH2); nz = Math.max(-2.5, Math.min(2.5, nz));
@@ -181881,6 +181985,10 @@ var COVER_RING = (() => {
         let it = items.get(p); if (!it) { it = { p, xs: [], col: [], rand: [] }; items.set(p, it); }
         it.xs.push(x, G.hAt(x, z), z, h / p.h0, rY * 6.2831853, 0, 0); it.col.push(col[0], col[1], col[2]); it.rand.push(rand);
       }
+      return emitField(cell, items, c, G, x0, z0, C, t0);
+    }
+    // the cell's instances written out, per prototype (the field's and the lawn's): the matrices, the colours, the fade's rands, the box
+    function emitField(cell, items, c, G, x0, z0, C, t0) {
       let yLo = Infinity, yHi = -Infinity;
       for (const it of items.values()) {
         const k = it.xs.length / 7, mm = new Float32Array(k * 16); let smax = 0;
@@ -181893,8 +182001,113 @@ var COVER_RING = (() => {
       }
       if (!isFinite(yLo)) { yLo = yHi = G.hAt(x0 + C / 2, z0 + C / 2); }
       cell.box = [x0, yLo - 1, z0, x0 + C, yHi + 2, z0 + C];
-      STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs);
+      STAT.built++; STAT.lastMs = performance.now() - t0; STAT.maxMs = Math.max(STAT.maxMs, STAT.lastMs); STAT.sumMs = (STAT.sumMs || 0) + STAT.lastMs;
       return cell;
+    }
+
+    // ---- THE LAWN'S CELL (GRASS-CARDS) -----------------------------------------------------------------------------------
+    // the cut 1 m squares of a 16 m cell (the premises' fine lattice by a pavement, the 4 m nodes elsewhere), each planted with
+    // round(dens x its most-cut corner + a rand) candidates from the cell's own stream - a square with no cut draws nothing, so a
+    // cell of wild ground costs its sub-grid alone. A candidate stands by its own corner's cut (the band's soft edge thins the cards
+    // as the field's (1 - cut) brings the tufts in), never where the field would not: off the land test, a kill of 1, a plot (the
+    // first ring's lawn), a 'none' zone, a shed's floor. Its length: a grass strip's surface stripH, the tall band beside a soft strip
+    // tallH, else cutH - each x its own lognormal; the card's scale is that over its plate's top. The tiers nest as the field's do
+    // (every candidate draws its nine numbers whatever is kept)
+    function buildLawn(cx, cz, dTier, born) {
+      const t0 = performance.now();
+      const C = S.cell, x0 = cx * C, z0 = cz * C;
+      const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz, dTier, born, field: true };
+      cells.set(cellKey(cx, cz), cell); markBlock(cx, cz);
+      const c = speciesOf()[0], P0 = c ? protosOf(c) : [];
+      if (!P0.length || !BIO) { STAT.lastMs = performance.now() - t0; return cell; }
+      for (const p of P0) for (const q of p.parts) if (LEAF.fadeOwn) LEAF.fadeOwn(q.mat, FSET);
+      // the three upright plates (top 0.87 m) and, with `lean`, the three leaning copies (the scene's .001 nodes, top ~0.53 m)
+      const up = P0.filter(p => p.h0 > 0.75), P = S.lean || !up.length ? P0 : up;
+      fieldH0 = P.reduce((a, p) => a + p.h0, 0) / P.length;
+      const G = subGrid(x0, z0, C), F = G.fine;
+      let anyCut = false; for (let k = 0; k < G.N * G.N && !anyCut; k++) if (G.cut[k] > 0) anyCut = true;
+      if (F) for (let k = 0; k < F.cut.length && !anyCut; k++) if (F.cut[k] > 0) anyCut = true;
+      if (!anyCut || !(S.dens > 0)) { STAT.lastMs = performance.now() - t0; return cell; }
+      const cutAt = (x, z) => F ? F.cut[F.at(x, z)] : G.cut[G.at(x, z)], killAt = (x, z) => F ? F.kill[F.at(x, z)] : G.kill[G.at(x, z)];
+      const band = bandNow(), tierOn = S.tier && dTier > 0, mc = Math.max(0, +S.minCut || 0);
+      const tierMax = tierOn ? keepD(dTier / Math.max(1, 1 + (S.sizeMax - 1) * S.sizeFade)) * (1 + band) * 1.05 : 2;
+      // THE CANDIDATES ARE HASHED, NOT STREAMED (the cost, 16 Nov: a fully mown cell is ~38 000 cards at dens 150): candidate q of the
+      // square (xa, za) draws its numbers from its own integer hash, so a card the tier leaves out costs one hash and is the same card
+      // from any eye (the tiers nest as the field's do). Per square, once: the cut and kill corners, the ground's colour (at its
+      // centre: the imagery is 10 m, the nodes 4 m) and its four heights; per card only what is its own
+      const imul = Math.imul, mmin = Math.min, mmax = Math.max, mfloor = Math.floor, msqrt = Math.sqrt, mlog = Math.log, mcos = Math.cos, mexp = Math.exp;   // (the loop's own: ~10 000 cards a cell)
+      const items = new Map(), cols = [];
+      for (const p of P) cols.push(tintMean(p.parts[0].mat));
+      // one 32-bit hash per draw, two 16-bit numbers out of most of them (u / v, the keep test / the plate, the normal's pair, the
+      // jitter / the yaw); the fade's threshold `rand` keeps all 32 bits
+      const hq = (k, n) => { let h = imul(k ^ imul(n, 0x27d4eb2d), 0x9e3779b1); h ^= h >>> 15; h = imul(h, 0x85ebca77); h ^= h >>> 13; h = imul(h, 0xc2b2ae3d); return (h ^ (h >>> 16)) >>> 0; };
+      const I16 = 1 / 65536, I32 = 1 / 4294967296;
+      const NF = F ? F.NF : 0, colOn = S.colour && ctx.groundMeanAt, np = P.length, vary = S.vary, match = S.match;
+      // the cell's scratch, per plate (typed, grown once and kept: a fully mown 8 m cell is ~10 000 cards at dens 150)
+      const cap = Math.ceil(S.dens * C * C * 1.1 / np) + 64, LB = LAWN_BUF;
+      if (LB.cap < cap) { LB.cap = cap; LB.xs = []; LB.col = []; LB.rand = []; }
+      const nOf = new Int32Array(np);
+      for (let v = 0; v < np; v++) { if (!LB.xs[v]) { LB.xs[v] = new Float32Array(LB.cap * 7); LB.col[v] = new Float32Array(LB.cap * 3); LB.rand[v] = new Float32Array(LB.cap); } }
+      for (let j = 0; j < C; j++) for (let i = 0; i < C; i++) {
+        const xa = x0 + i, za = z0 + j;
+        const c00 = cutAt(xa, za), c10 = cutAt(xa + 1, za), c01 = cutAt(xa, za + 1), c11 = cutAt(xa + 1, za + 1), cm = mmax(c00, c10, c01, c11);
+        if (!(cm > mc)) continue;
+        const k00 = killAt(xa, za), k10 = killAt(xa + 1, za), k01 = killAt(xa, za + 1), k11 = killAt(xa + 1, za + 1);
+        if (mmin(k00, k10, k01, k11) >= 1) continue;
+        const base = (imul(xa | 0, 73856093) ^ imul(za | 0, 19349663) ^ 0x5bd1e995) | 0;
+        const nq = mfloor(S.dens * cm + hq(base, 0x3ff) * I32);
+        if (!nq) continue;
+        const g = colOn ? G.colB(xa + 0.5, za + 0.5) : null;
+        const h00 = G.hAt(xa, za), h10 = G.hAt(xa + 1, za), h01 = G.hAt(xa, za + 1), h11 = G.hAt(xa + 1, za + 1);
+        // NEVER IN DRAWN WATER (A0 17 Nov, L40e's LOOKS 5: grass in a lake's margin): a square whose lowest corner stands within
+        // lawnWet of the water drawn at its centre plants nothing (a mown bank keeps its cards to the dry metre)
+        if (world.waterH) { const w = world.waterH(xa + 0.5, za + 0.5); if (Number.isFinite(w) && w > mmin(h00, h10, h01, h11) - S.lawnWet) continue; }
+        for (let q = 0; q < nq; q++) {
+          const kq = base + imul(q + 1, 0x632be5ab);
+          const rand = hq(kq, 1) * I32;
+          if (rand >= tierMax) continue;
+          const huv = hq(kq, 2), u = (huv >>> 16) * I16, v = (huv & 0xffff) * I16, x = xa + u, z = za + v;
+          // the cut and the kill BETWEEN the square's corners (a card is never planted by its nearest node alone: half a metre onto
+          // the paving, the gate's 1b) - the pavement's edge is a 1 m ramp of thinning cards
+          const cut = (c00 * (1 - u) + c10 * u) * (1 - v) + (c01 * (1 - u) + c11 * u) * v; if (!(cut > mc)) continue;
+          const kill = (k00 * (1 - u) + k10 * u) * (1 - v) + (k01 * (1 - u) + k11 * u) * v;
+          const hkp = hq(kq, 3);
+          if ((hkp >>> 16) * I16 >= cut / cm * (1 - kill)) continue;   // its own cut over the square's (the band's soft edge) and the kill (a trail's thinned lanes)
+          const fk = F ? (j + (v >= 0.5 ? 1 : 0)) * NF + i + (u >= 0.5 ? 1 : 0) : -1, gk = fk >= 0 ? 0 : G.at(x, z);
+          const kind = fk >= 0 ? F.kind[fk] : G.kind[gk], ok = fk >= 0 ? F.ok[fk] : G.ok[gk];
+          if (!ok || kind === 1 || kind === 3) continue;
+          const surf = fk >= 0 ? F.surf[fk] : G.surf[gk], tl = fk >= 0 ? (F.tall ? F.tall[fk] : 0) : (G.tall ? G.tall[gk] : 0);
+          if (tl > 0 && hq(kq, 6) * I32 >= 1 - tl * (1 - S.tallCards)) continue;   // the tall band: the field's tufts (tallCards 0), or cards
+          const hn = hq(kq, 4), r1 = mmax(1e-5, ((hn >>> 16) + 0.5) * I16), r2 = (hn & 0xffff) * I16;
+          let nz = msqrt(-2 * mlog(r1)) * mcos(6.2831853 * r2); nz = mmax(-2.5, mmin(2.5, nz));
+          const h = surf ? S.stripH * mexp(S.stripSigma * nz)
+                         : (S.cutH + (S.tallH - S.cutH) * tl) * mexp((S.cutSigma + (S.tallSigma - S.cutSigma) * tl) * nz);
+          const pv = mmin(np - 1, ((hkp & 0xffff) * np) >>> 16), p = P[pv];
+          if (tierOn && rand >= keepD(dTier / mmax(0.05, 1 + (mmin(S.sizeMax, mmax(0.05, (h / p.h0) / (S.hRef / fieldH0))) - 1) * S.sizeFade)) * (1 + band) * 1.05) continue;
+          if (ctx.floorAt && ctx.floorAt(x, z)) { STAT.floorSkip++; continue; }
+          const hj = hq(kq, 5), jit = 1 + ((hj >>> 16) * I16 * 2 - 1) * vary;
+          const n = nOf[pv]++, X = LB.xs[pv], o = n * 7;
+          X[o] = x; X[o + 1] = (h00 * (1 - u) + h10 * u) * (1 - v) + (h01 * (1 - u) + h11 * u) * v; X[o + 2] = z; X[o + 3] = h / p.h0; X[o + 4] = (hj & 0xffff) * I16 * 6.2831853; X[o + 5] = 0; X[o + 6] = 0;
+          LB.rand[pv][n] = rand;
+          const CO = LB.col[pv], o3 = n * 3;
+          if (g) { const M = cols[pv], jj = jit * match; CO[o3] = mmin(3, g[0] / M[0] * jj); CO[o3 + 1] = mmin(3, g[1] / M[1] * jj); CO[o3 + 2] = mmin(3, g[2] / M[2] * jj); }
+          else { const k3 = (fk >= 0 ? G.at(x, z) : gk) * 3; CO[o3] = G.col[k3] * jit; CO[o3 + 1] = G.col[k3 + 1] * jit; CO[o3 + 2] = G.col[k3 + 2] * jit; }
+        }
+      }
+      for (let v = 0; v < np; v++) if (nOf[v]) items.set(P[v], { p: P[v], xs: LB.xs[v].subarray(0, nOf[v] * 7), col: LB.col[v].subarray(0, nOf[v] * 3), rand: LB.rand[v].subarray(0, nOf[v]) });
+      return emitField(cell, items, c, G, x0, z0, C, t0);
+    }
+    // THE LAWN AT A POINT (the instrument): its cards a square metre and the length it draws there, by buildLawn's rules
+    function lawnAt(x, z) {
+      if (!LAWN || !BIO) return null;
+      const C = S.cell, cx = Math.floor(x / C), cz = Math.floor(z / C), key = cellKey(cx, cz);
+      let E = FA.get(key); if (!E) { if (FA.size > 4096) FA.clear(); E = { G: subGrid(cx * C, cz * C, C) }; FA.set(key, E); }
+      const G = E.G, F = G.fine, fk = F ? F.at(x, z) : -1, gk = G.at(x, z);
+      const cut = fk >= 0 ? F.cut[fk] : G.cut[gk], kill = fk >= 0 ? F.kill[fk] : G.kill[gk], kind = fk >= 0 ? F.kind[fk] : G.kind[gk], ok = fk >= 0 ? F.ok[fk] : G.ok[gk];
+      const surf = fk >= 0 ? F.surf[fk] : G.surf[gk], tl = fk >= 0 ? (F.tall ? F.tall[fk] : 0) : (G.tall ? G.tall[gk] : 0);
+      const live = !!ok && kill < 1 && kind !== 1 && kind !== 3 && cut > (+S.minCut || 0);
+      return { cut: +cut.toFixed(3), kill: +kill.toFixed(3), surf: !!surf, tall: +tl.toFixed(3), kind, ok: !!ok,
+        perM2: live && S.on ? +(S.dens * cut * (1 - kill) * (1 - tl * (1 - S.tallCards))).toFixed(2) : 0, h: surf ? S.stripH : +(S.cutH + (S.tallH - S.cutH) * tl).toFixed(3) };
     }
 
     // ---- FOREST-EDGE's band (the user 16 Nov: "a ramp of tree sizes on the surroundings, then bushes"; the spec of 25 Oct:
@@ -181970,6 +182183,7 @@ var COVER_RING = (() => {
     // ---- one cell -------------------------------------------------------------------
     function buildCell(cx, cz, dTier, born) {
       if (BIO && BIO.hold && !BIO.held) { BIO.hold(true); try { return buildCell(cx, cz, dTier, born); } finally { BIO.hold(false); } }   // the biomes' knobs once a pass (28c hold)
+      if (LAWN) return buildLawn(cx, cz, dTier || 0, born);
       if (FIELD) return buildField(cx, cz, dTier || 0, born);
       const t0 = performance.now();
       STAT.building = cx + ',' + cz;
@@ -182301,6 +182515,7 @@ var COVER_RING = (() => {
         m.renderOrder = -1;   // occluders before the ground (render_world.js ORDER_NOTE)
         m.castShadow = list[0].cast; m.receiveShadow = true;
         m.userData.coverKind = list[0].kind;   // cover / shrub / rock / debris: the instruments' read (PERF 2026-09-23)
+        if (LAWN) m.userData.lawn = true;      // GRASS-CARDS: the lawn's draws apart (the cost rig, tools/perf/lawn_rig.js)
         m.instanceMatrix.needsUpdate = true;
         b.group.add(m); b.meshes.push(m);
       }
@@ -182390,7 +182605,7 @@ var COVER_RING = (() => {
       const t = now();
       LEAF.fade(S.near, S.reach, S.taper, aglK, FSET);   // (the field: its own set, and its size fade; the first ring: the shared one)
       if (FIELD && LEAF.fadeSize) LEAF.fadeSize(S.sizeFade, S.hRef / Math.max(1e-6, fieldH0), FSET, S.sizeMax);
-      if (FIELD) ROOT_U.value.set(Math.max(0, Math.min(1, +S.root || 0)), Math.max(0.01, +S.rootH || 0.4), fieldH0, S.rootKey ? fieldKeyW() : 0);   // (w: the field by colour, 11 Nov)   // G2571 (live: a uniform)
+      if (FIELD && !LAWN) ROOT_U.value.set(Math.max(0, Math.min(1, +S.root || 0)), Math.max(0.01, +S.rootH || 0.4), fieldH0, S.rootKey ? fieldKeyW() : 0);   // (w: the field by colour, 11 Nov)   // G2571 (live: a uniform)
       if (LEAF.grow) LEAF.grow(t, null, S.grow);
       { const dt = t - EYE.t;
         if (dt > 0 && dt < 0.5 && isFinite(EYE.x)) { const a = Math.min(1, dt / 0.5); EYE.vx += ((ex - EYE.x) / dt - EYE.vx) * a; EYE.vz += ((ez - EYE.z) / dt - EYE.vz) * a; }
@@ -182508,15 +182723,16 @@ var COVER_RING = (() => {
         if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again
         if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
-        const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'tallH', 'tallSigma', 'minH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD', 'green', 'greenDens', 'greenLo', 'greenSpan', 'feather', 'cutFloor', 'texGrass', 'minAlb']
+        const PLANT = LAWN ? ['cell', 'dens', 'cutH', 'cutSigma', 'tallH', 'tallSigma', 'stripH', 'stripSigma', 'lean', 'hRef', 'sizeMax', 'colour', 'match', 'vary', 'tier', 'trunc', 'minCut', 'lawnWet', 'tallCards', 'lakeMargin']
+                    : FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'tallH', 'tallSigma', 'minH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc', 'weeds', 'weedsH', 'weedsD', 'green', 'greenDens', 'greenLo', 'greenSpan', 'feather', 'cutFloor', 'texGrass', 'minAlb']
                             : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'castMinDebris', 'trunc', 'rockSplit'];   // (rockSplit: the rocks' own ring's split, 17 Nov)
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
-      species: () => (FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)
-      layer: ROCKS ? 'rocks' : FIELD ? 'grass' : 'cover',
+      species: () => (LAWN ? LAWN_SPECIES.slice() : FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)
+      layer: ROCKS ? 'rocks' : LAWN ? 'lawn' : FIELD ? 'grass' : 'cover',
       fadeSet: () => FSET,   // the field's own fade uniforms (null: the shared set) - GATE COVER reads them
       lakeMargin: () => (FIELD ? Math.max(0, +S.lakeMargin || 0) : 0.3),   // G2572: render_world okAt reads it (both rings), no copy a call
-      field: FIELD,
-      fieldAt, fieldAtReset: () => FA.clear(),   // (16 Nov) the instrument: what the field plants at a point, and why
+      field: FIELD, lawn: LAWN,
+      fieldAt: LAWN ? lawnAt : fieldAt, fieldAtReset: () => FA.clear(),   // (16 Nov) the instrument: what the field plants at a point, and why
       replant: () => { FA.clear(); for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
       // WORLD-RAIL-VEG: a shaped species re-built (the world editor's alpine shrub rows moved its pack row's place - size, aspect,
       // bend, lean, tilt, upright - or its cut, tint.alpha): its prototypes dropped (geometry and material; the picture is kept),
@@ -182552,7 +182768,7 @@ var COVER_RING = (() => {
     };
     return api;
   }
-  return { make, FIELD_TYPES, FIELD_SPECIES, greenOf, SET_GRASS };   // greenOf: GRASS ON GREEN (GATE GREENGRASS) // (the field's table: the biome card's defaults, world_rail)
+  return { make, FIELD_TYPES, FIELD_SPECIES, greenOf, SET_GRASS, LAWN_DEF, LAWN_SPECIES };   // greenOf: GRASS ON GREEN (GATE GREENGRASS) // (the field's table: the biome card's defaults, world_rail)
 })();
 if (typeof window !== 'undefined') window.COVER_RING = COVER_RING;
 </script>
@@ -183909,12 +184125,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     return false;
   };
   function floorsChanged(f) {
-    for (const r of [coverRing, grassField, rockLayer]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
+    for (const r of [coverRing, grassField, lawnField, rockLayer]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
   }
   let rockLayer = null;   // MOUNTAIN-VEG 17 Nov: the rocks' own ring (cover_ring.js layer 'rocks': the bigger rocks further out)
   // the cover ring keeps the rocks under the rocks' ring's split while that ring runs (0: all of them, as before), and wears its skin switch
-  const rockSync = () => { if (!coverRing) return; const on = !!(rockLayer && rockLayer.get().on); coverRing.set({ rockSplit: on ? rockLayer.get().rockSplit : 0, rockSkin: rockLayer ? rockLayer.get().rockSkin : 1 }); };
-  let coverRing = null, grassField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
+  let coverRing = null, grassField = null, lawnField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
@@ -189678,7 +189893,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const c = world.coverAt ? world.coverAt(x, z) : null; return !(c && c.kill >= 1); };
           grassField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'grass',
             GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt, edgeD,   // edgeD: FOREST-EDGE's distance, for the field's weeds band (LOOK-1)
+            lawnOn: () => !!(lawnField && lawnField.get().on && !lawnField.get().off),   // GRASS-CARDS: the cut ground is the lawn's while it is on
+            lawnTall: () => (lawnField ? +lawnField.get().tallCards || 0 : 0),   // (the tall band beside a soft strip: the field's tufts unless the lawn's tallCards)
             groundSetsAt: (x, z, code) => { const SPA = groundApi.splat ? groundApi.splat() : null; return SPA && SPA.setsAt ? SPA.setsAt(x, z, code) : null; } });   // (16 Nov: the grass by the texture drawn)
+          // THE LAWN (GRASS-CARDS, 16 Nov): the mown ground's own ring - the bench's grass cards (grass_plates) on coverAt's cut, the
+          // field's land test and colour; the field steps aside under it (lawnOn above)
+          lawnField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'lawn',
+            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt });
           // THE ROCKS' OWN RING (MOUNTAIN-VEG 17 Nov; the user: "rock should be visible for a little while"): the rock rows' bigger
           // rocks out to its own reach and height cut; the cover ring keeps the small ones (rockSync: its split, and the skin both wear)
           rockLayer = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'rocks', GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt });
@@ -189712,7 +189933,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const grew = treeReach(treeReachOf(world, BIO));
         if (!grew.length) return splatGrew;
         treeSettled = null;
-        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); }))
+        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (lawnField) lawnField.replant(); if (rockLayer) rockLayer.replant(); }))
           .catch(e => console.warn('trees: the grown catalogue did not settle (' + (e && e.message) + ')'));
         return true;
       };
@@ -189743,6 +189964,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // G2563: the grass field (cover_ring.js, layer 'grass'). field(on) switches it: off gives the reed back to the cover ring
           // (today's patches - the A/B), and both replant
           grass: () => grassField,
+          lawn: () => lawnField,   // GRASS-CARDS: the lawn ring's handle (get/set/stat/fieldAt)
+          // the lawn on / off: the field replants too (it leaves the cut ground to the lawn, or takes it back)
+          lawnOn: on => { if (!lawnField) return false; if (on !== undefined && !!on !== !!lawnField.get().on) { lawnField.set({ on: !!on }); lawnField.replant(); if (grassField) grassField.replant(); } return !!lawnField.get().on; },
           // the rocks' own ring (MOUNTAIN-VEG 17 Nov): rockLayerSet(o) sets it and keeps the cover ring's split and skin in step
           rockLayer: () => rockLayer,
           rockLayerSet: o => { if (!rockLayer || !o) return null; const re = ('on' in o && !!o.on !== !!rockLayer.get().on) || ('rockSplit' in o && o.rockSplit !== rockLayer.get().rockSplit);
@@ -189787,14 +190011,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // G3040 (BIOME-PAINT, SCENERY-ED-2): the ground's packed terrain type re-derived after the stamp moved - theirs,
             // declared with the build's top-level lets; nothing here when it is not (yet) there
             if (typeof groundTtypeRefresh === 'function') groundTtypeRefresh();
-            if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return true; },
+            if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (lawnField) lawnField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return true; },
           exRegions: () => Array.from(exPlanted.values()),
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
-            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return value; },
+            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (lawnField) lawnField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return value; },
           // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
           speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; staleAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
@@ -191583,6 +191807,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (FRw) FRw.push(FRw.S.cover);
     if (coverRing) coverRing.update();
     if (grassField) grassField.update();
+    if (lawnField) lawnField.update();
     if (rockLayer) rockLayer.update();
     if (FRw) FRw.pop();
     if (standCards) standCards.update((isFinite(uCam.value.x) && (uCam.value.x || uCam.value.y || uCam.value.z)) ? [uCam.value.x, uCam.value.y, uCam.value.z] : cg);   // G2930: the eye (the fill's ring is the eye's too)
@@ -191772,7 +191997,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const R = world.soilNow(); if (!R) return;
     if (PAV.groundWxTick) PAV.groundWxTick(THREE, c => GROUND_WX.state(c, R));   // the aprons, pads and roads of a weather look
     for (const W of WXG) {
-      const st = GROUND_WX.state(W.code, R), key = st.rung + ':' + Math.round(st.S * 50);
+      const st = GROUND_WX.state(W.code, R), key = st.rung + ':' + Math.round(st.S * 50) + ':' + GROUND_WX.version;   // (the ladder's numbers moved: re-apply)
       if (key === W.key) continue;
       W.key = key;
       PAV.setGroundWx(THREE, W.part, st);
@@ -192099,7 +192324,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const TF = typeof window !== 'undefined' ? window.TREE_FILL : null;   // (the fill block's handle on its rings - this object's own closure does not reach them)
       // the GRASS FIELD only (L20d's strict gate: a first-ring cell - 32 m, its shrubs, rocks and debris - inside a 6 ms slice was a
       // 490 ms task on the Cub's round trip 2; the reveal frame's own cost was the field's cell - the first ring was planted by then)
-      const rings = [TF && TF.grass ? TF.grass() : null];
+      const rings = [TF && TF.grass ? TF.grass() : null, TF && TF.lawn ? TF.lawn() : null];   // (GRASS-CARDS: the lawn's cells too)
       for (const e of eyes || []) for (const R of rings) {
         if (!R || !R.plantNear) continue;
         const left = ms - (performance.now() - t0); if (left <= 0) return { built, done: false };
@@ -218671,7 +218896,7 @@ const SIM_HOST_AP_SKIP = ['nav', 'sheet'];
 // ---- THE WORLD'S OPS (G815): the page world's registry and day calls, replayed on this one. The page's
 // obstacle ids map to this registry's own (a record the page's makeWorld made - the settle buildings - has
 // the same id here: the same record, the same order). Returns true when the world changed (the version).
-const SIM_HOST_WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setGrassSides', 'setSea', 'setGround'];
+const SIM_HOST_WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setGrassSides', 'setSea', 'setGround', 'setGroundLadder'];
 const simHostIsWorldOp = c => !!c && (c.cmd === 'obst' || c.cmd === 'world' || c.cmd === 'premises');
 function simHostWorldOp(world, c) {
   if (!world) return false;
@@ -218720,6 +218945,7 @@ function simHostMakeWorld(CORE, W, onWorld) {
   const world = CORE.makeWorld(W.seed || 0, wo);
   if (W.day) world.setDay(W.day);
   if (W.ground && world.setGround) world.setGround(W.ground);   // (SNOW-MUD LADDER: the page's ground override)
+  if (W.ladder && world.setGroundLadder) world.setGroundLadder(W.ladder);   // (and the ladder's numbers, the world rail's)
   world.__simV = 0;
   if (onWorld) onWorld(world);   // G815: the ops that came before the world (the page's registry so far)
   return world;
@@ -218730,6 +218956,7 @@ function makeSimHost(CORE, init, keptWorld) {
   if (!world) world = simHostMakeWorld(CORE, W, init.onWorld);
   else if (init.day) world.setDay(init.day);   // G815: a kept world takes the page's day at each new flight
   if (keptWorld && world.setGround && 'ground' in init) world.setGround(init.ground || null);   // (LADDER: and its ground override)
+  if (world.setGroundLadder && init.ladder) world.setGroundLadder(init.ladder);
   // G820 (C1c): THE SAME SIM ACROSS FLIGHTS OF ONE BUILD, as the page keeps its own (fullReset, the skip, the shed's
   // round trip reset and re-place ONE sim object; a new build makes a new one). A reset is not a new sim: sim.out (the
   // airspeed, the wind, easK - read by the pilot's first update before the first step, when a flight starts `started`,
@@ -219853,7 +220080,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { makeSimV
 // ============================================================
 const SIM_LINK = (() => {
   'use strict';
-  const WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setGrassSides', 'setSea', 'setGround'];   // setGrassSides: GRASS-ON-GREEN, the grass law is the wheels' ground too
+  const WORLD_FNS = ['setDay', 'setWeather', 'setWind', 'setGrassSides', 'setSea', 'setGround', 'setGroundLadder'];   // setGrassSides: GRASS-ON-GREEN, the grass law is the wheels' ground too
   // the pilot's fields assigned whole (never merged into the page's objects: a site or a plan may be shared)
   const AP_WHOLE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'report', 'drawn'];   // G2120: the drawn route's state, whole
   const AP_SKIP = ['route', 'nav', 'sheet'];
@@ -220042,7 +220269,7 @@ const SIM_LINK = (() => {
     // (which B8B9 made instant: no screen) does not hold the stand for it. The registry so far goes first.
     function worldMsg() {
       const isl = W.ISLAND_BOOT;
-      return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null, ground: world.groundForce || null,   // (SNOW-MUD LADDER: the ground's dev override)
+      return { premises: o.premises ? o.premises() : null, seed: 0, day: world.day ? world.day.spec() : null, ground: world.groundForce || null, ladder: typeof GROUND_WX !== 'undefined' ? GROUND_WX.ladder() : null,   // (SNOW-MUD LADDER: the ground's dev override, the ladder's numbers)
                opts: { groundRaster: !!W.FLYDIY_GROUND_RASTER, flat: !!world.flat, grassSides: typeof PREMISES_GEN !== 'undefined' && PREMISES_GEN.grassSides ? PREMISES_GEN.grassSides() : null },   // grassSides: GRASS-ON-GREEN, the page's grass law (look + wheels) on the worker's world   // G3790: the test field's flat world, the same on the worker
                fetch: isl ? { base: host.base, name: isl.id, hydro: isl.hydro, raster: !!W.FLYDIY_GROUND_RASTER, variant: W.FLYDIY_TOWN ? (W.FLYDIY_TOWN.all ? 'town' : 'default') : W.FLYDIY_TOWN_VARIANT } : null, boot: null };
     }
@@ -220127,7 +220354,7 @@ const SIM_LINK = (() => {
       let shake = null;
       try { shake = S.shake ? S.shake() : null; } catch (e) { shake = null; }
       const m = { cmd: 'init', spec: S.genSpec ? JSON.parse(JSON.stringify(S.genSpec)) : null, place,
-                  pilot: { kind: S.pilotChoice || 'auto', profile: S.pilotProfile || undefined, shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null, ground: world.groundForce || null,
+                  pilot: { kind: S.pilotChoice || 'auto', profile: S.pilotProfile || undefined, shakedown: shake, nav: true }, withV: true, day: world.day ? world.day.spec() : null, ground: world.groundForce || null, ladder: typeof GROUND_WX !== 'undefined' ? GROUND_WX.ladder() : null,
                   damage: typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : null };   // G1898: the page's ?damage
       // G2400 (FREIGHT-STRAP): the load the page's sim carries (sim.setFreight at the roll-out), flown there too; absent
       // with none (the init message as it always was)
@@ -225470,6 +225697,18 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
     // hides them - nothing is rebuilt, so it is free either way.
     // THE TWO ROWS THE LOW TIERS NEEDED (G570, 2026-09-24): what the frame costs since the town and the ground's cover -
     // the cover ring's rocks, debris and shrubs (~1 600 draws at the stand with their shadows) and the premises' houses
+    // GRASS-CARDS (G4180; the user 17 Nov: "d is best looking. Maybe a ladder D -> B -> B phone?"): THE MOWN GRASS'S LADDER - the
+    // bench's grass cards on every mown band, apron, verge and grass strip (cover_ring layer 'lawn'), its own row so the phone's
+    // preset (laptop: ground cover off) can still have it. off = no cards: the mown ground keeps the field's short tufts where
+    // the ground cover row has them (none on the laptop / potato presets)
+    // A FREE ROW (the desktop presets stay as train 31 shipped them - GATE GFX 10, the user's rule): 'auto' picks the rung by the
+    // preset (LAWN_OF), a player's own pick is kept
+    { k: 'lawn', label: 'mown grass', free: true, def: 'auto', steps: [
+        { v: 'auto',  label: 'auto', why: 'by the graphics preset: dense on gamer and ultra, lawn on current and retro, off on potato and laptop (the phones)' },
+        { v: 'D',     label: 'dense', why: 'cards 10 cm tall, 300 a square metre, to 20 m: the lawn at its best (gamer, ultra)' },
+        { v: 'B',     label: 'lawn', why: 'cards 8 cm tall, 150 a square metre, to 40 m: a little lighter, farther (current, retro)' },
+        { v: 'phone', label: 'near', why: 'the dense lawn to 12 m only: the phone\u2019s and the laptop\u2019s' },
+        { v: 'off',   label: 'off', why: 'no cards: the short grass tufts of the ground cover row, or bare ground where that row is off' } ] },
     { k: 'cover', label: 'ground cover', steps: [
         { v: 'full', label: 'full', why: 'rocks, debris and shrubs to 220 m, their shadows from 35 cm' },
         { v: 'lean', label: 'lean', why: 'to 120 m, half as dense, shadows only from 1 m: about a third of the draws' },
@@ -225737,6 +225976,16 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
 
   // ---- applying: each option to its handle, only when the world has it -----
   let applied = {};                          // what the handles currently hold
+  // the mown grass row's rungs (cover_ring layer 'lawn' dials; GRASS-CARDS G4180) - the 12:40 slot's phone pick replaces `phone`
+  const LAWN_LADDER = {
+    D:     { off: false, dens: 300, cutH: 0.10, reach: 20, near: 6, cell: 4, block: 8, lean: 1 },
+    B:     { off: false, dens: 150, cutH: 0.08, reach: 40, near: 10, cell: 8, block: 4, lean: 1 },
+    phone: { off: false, dens: 300, cutH: 0.10, reach: 12, near: 4, cell: 4, block: 8, lean: 1 },
+    off:   { off: true } };
+  // 'auto': the rung by the preset (the user 17 Nov: "D -> B -> phone"; a custom mix takes its build preset's)
+  // (potato / laptop - the phones - 'off': the 12:40 slot 17 Nov - on their PLAIN ground the cards take the textured ground's colour,
+  //  pale and pixelated against the olive, with a hard line at 12 m; owed to perf week: the cards in the plain ground's colour)
+  const LAWN_OF = { ultra: 'D', gamer: 'D', current: 'B', retro: 'B', potato: 'off', laptop: 'off' };
   const apply = () => {
     const AA = W.FLYDIY_AA, world = W.WORLD, rig = W.WORLD_RIG;
     if (W.FLYDIY_PACE && applied.fps !== S.fps) { W.FLYDIY_PACE.set(S.fps); applied.fps = S.fps; }   // G586: the frame cap
@@ -225759,6 +226008,17 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
     if (fld && fld.set && applied.field !== S.cover) {
       const F = { full: { off: false, near: 15, reach: 90, aglFull: 27, aglOff: 90, aglPre: 150, tufts: 70 }, lean: { off: false, near: 8, reach: 50, aglFull: 15, aglOff: 50, aglPre: 110, tufts: 42 }, off: { off: true } }[S.cover];
       if (F) { fld.set(F); applied.field = S.cover; }
+    }
+    // THE LAWN (GRASS-CARDS, G4180): the mown grass row's ladder (the user 17 Nov: D -> B -> the phone's). D: 10 cm, 300 cards / m2 to
+    // 20 m on 4 m cells (a cell's build stays small at that density); B: 8 cm, 150 / m2 to 40 m on 8 m cells; phone: D's look to 12 m;
+    // off: none (the field then keeps the cut ground's tufts). The field replants with it (it leaves the cut ground to the lawn)
+    const lwn = W.TREE_FILL && W.TREE_FILL.lawn ? W.TREE_FILL.lawn() : null;
+    const rung = S.lawn === 'auto' || !S.lawn ? (LAWN_OF[S.preset] || LAWN_OF[S.build] || 'B') : S.lawn;
+    if (lwn && lwn.set && applied.lawn !== rung) {
+      const L = LAWN_LADDER[rung], on = () => !!(lwn.get().on && !lwn.get().off), was = on();
+      // (the field replants only when the lawn turns on or off - it leaves the cut ground to it; a replant at every apply was the
+      //  roll-out's +40 frustum tests / +516 GL calls, FRAMECOST 17 Nov: the world's first apply re-planted the whole field)
+      if (L) { lwn.set(L); applied.lawn = rung; if (on() !== was && fld && fld.replant) fld.replant(); }
     }
     const PR = world && world.premises;
     if (PR && PR.streamState && applied.build !== S.build) { PR.streamState.reach = budget().townReach; applied.build = S.build; }   // G1230: the town's stream to the budget's reach (down: at once)
@@ -225928,7 +226188,7 @@ if (typeof window !== 'undefined') window.ROUTE_DRAW = ROUTE_DRAW;
   const GROUPS = [
     { k: 'perf', label: 'performance', sub: 'the preset, the frame rate, the scale, the smoothing', rows: ['fps', 'scale', 'aa', 'drawDist'] },
     { k: 'light', label: 'light & shadows', sub: 'the shadows, the light rig, the exposure, the tone curve', rows: ['shadows', 'canopy', 'lighting', 'exposure', 'tone', 'compositing', 'colour'] },
-    { k: 'terrain', label: 'terrain & vegetation', sub: 'the ground, the forest, the cover', rows: ['terrain', 'ground', 'density', 'bands', 'sway', 'cover'] },
+    { k: 'terrain', label: 'terrain & vegetation', sub: 'the ground, the forest, the cover', rows: ['terrain', 'ground', 'density', 'bands', 'sway', 'cover', 'lawn'] },
     { k: 'water', label: 'water', sub: 'the sea and its reflections', rows: ['water', 'mirror'] },
     { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'fmist', 'glare'] },
     { k: 'post', label: 'post-fx', sub: 'the passes over the finished frame', rows: ['bloom', 'look', 'lens', 'rays', 'ao', 'eye'] },
@@ -246428,14 +246688,14 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="src/viewer/powerline.js?v=7d3258d9"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=963127d6"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=34b712b3"></script>
-<script type="text/x-flydiy" src="src/viewer/fleet_spots_pack.js?v=20bfc0f0"></script>
+<script type="text/x-flydiy" src="src/viewer/fleet_spots_pack.js?v=60ef92ea"></script>
 <script type="text/x-flydiy" src="src/viewer/fleet_stand.js?v=b930f29e"></script>
 <script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=135e5495"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=762a8693"></script>
 <script type="text/x-flydiy" src="src/viewer/premises_build.js?v=3981b3a2"></script>
 <script type="text/x-flydiy" src="src/viewer/house_tarr.js?v=d61510c6"></script>
 <script type="text/x-flydiy" src="src/viewer/town_ring.js?v=a1919302"></script>
-<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=458da711"></script>
+<script type="text/x-flydiy" src="src/viewer/render_premises.js?v=b139cf67"></script>
 <script type="text/x-flydiy">
 (() => {
   // THE LOADING SCREEN (LOADING S1, 2026-09-14): src/viewer/boot.js ran before

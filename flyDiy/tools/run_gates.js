@@ -556,6 +556,7 @@ const GATES = [
   // GRASS ON GREEN (LOOK-1 15 Nov; the user: 'everything green should get some grass'): the field grows on ground that draws green
   // (greenOf on the ground's colour), never on a runway's kill, mud, snow or the sea - on the real ring over the fake GL
   { id: 'GREENGRASS', file: '_greengrass_check.js', tier: 'core' },
+  { id: 'LAWN', file: '_lawn_check.js', tier: 'core' },   // GRASS-CARDS (16 Nov): all mown grass as the bench's grass cards (cover_ring layer 'lawn'); the field steps aside, the wild grass untouched
   // G1010-G1014: the frame's WORK, counted and ratcheted - the page itself in node (dev.html's scripts, the real three on
   // a recording GL, a virtual clock): per-frame draws, uniform / buffer uploads, matrix updates, callbacks, frustum tests,
   // terrainH at the stand and the taxi (the Cub, the metal Cessna) and per boot step; tools/perf/framecost_baseline.json.
