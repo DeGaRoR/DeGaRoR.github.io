@@ -1,16 +1,16 @@
 {
  "what": "join-parity-page",
- "at": "2026-11-15T04:43:39.973Z",
+ "at": "2026-11-17T02:23:29.160Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "adb632a3f1aa677facc38ec26af3b53dfa093ca0",
+ "chainSig": "d53535bf5ba8653c9097f6af355177ad7bb247d2",
  "builds": {
   "cub": {
    "file": "builds/cub_2026-09-20_corrected.json",
    "page": {
     "n": 97,
     "nb": 404,
-    "mass": 475.74760786056004,
-    "build": "11193a934954"
+    "mass": 477.2991557172329,
+    "build": "521ee5a3e743"
    },
    "spec": {
     "cage": {
@@ -136,6 +136,11 @@
      "rodY": 0,
      "rodD": 0.12,
      "rodIncl": 0,
+     "rodRootAft": 0,
+     "rodSocket": 0,
+     "rodSocketLen": 0.12,
+     "rodSocketGap": 0.012,
+     "rodSocketWall": 0.33,
      "boomTwin": 0,
      "boomX": 1.2,
      "boomWf": 0.16,
@@ -159,6 +164,7 @@
      "aeroAftTip": 0.5,
      "aeroAftShape": 0,
      "aeroAftEdge": 0.6,
+     "aeroAftOver": 0,
      "crestH": 0,
      "crestAt": 0.55,
      "crestLoops": 1,
@@ -514,6 +520,7 @@
      "whCap": 1,
      "whValve": 1,
      "whBrake": 0,
+     "brkHold": 0,
      "whSlick": 0,
      "whBulge": 1,
      "beamAng": 62,
@@ -634,6 +641,8 @@
      "bpStrutK": 1,
      "bpCabDraw": 1,
      "bpCabPylon": 0,
+     "bpPylonZ": 0,
+     "bpPylonLen": 0,
      "wingOn": 1,
      "wgSpan": 10.7,
      "wgChord": 1.7,
@@ -1182,7 +1191,7 @@
      },
      "seatsX": [
       0.6202989600000002,
-      2.00283456
+      2.03253456
      ],
      "seats": 2,
      "occupied": [
@@ -1397,7 +1406,9 @@
      "interplaneAt": 0.62,
      "wires": "both",
      "cabane": "N",
-     "struts": 2
+     "struts": 2,
+     "section": null,
+     "jury": null
     },
     "tail": {
      "type": "conventional",
@@ -1480,49 +1491,49 @@
     "finish": {
      "sections": {
       "body": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "waistband": {
-       "tint": 2500134
+       "tint": 328965
       },
       "ceilingLoop": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "pillarFront": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "pillarCabin": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "floorLoop": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "gearLeg": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "pillarWindow": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "dummy2": {
-       "tint": 6083612
+       "tint": 1812483
       },
       "pillarPassenger": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "pillarTail": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "joint": {
-       "tint": 7368816
+       "tint": 2697513
       },
       "wingTip": {
        "tint": 0
       },
       "finRud": {
-       "tint": 16764160
+       "tint": 16751616
       },
       "spinner": {
-       "tint": 3684408
+       "tint": 657930
       }
      },
      "weather": {
@@ -1534,7 +1545,7 @@
       "regL": 3.66,
       "regC": 0.012,
       "regCol": 1315860,
-      "regW": 1.1577380952380953,
+      "regW": 1.0669763513513515,
       "m1Pat": 3,
       "m1A": 1315860,
       "m1B": 16765568,
@@ -1581,8 +1592,8 @@
          0.915,
          0.878,
          0.83,
-         0.691,
-         0.685
+         0.681,
+         0.663
         ]
        },
        "finish": null,
@@ -1595,6 +1606,24 @@
     "outfit": {
      "seats": "sling",
      "trim": "bare"
+    },
+    "cooling": {
+     "face": 0.05675,
+     "scoop": 0.00654,
+     "scoopAlt": 0,
+     "scoopRev": 0,
+     "nacInlet": 0,
+     "exit": 0,
+     "gills": 0,
+     "units": [
+      {
+       "aft": 0,
+       "k": 1,
+       "turned": 0
+      }
+     ],
+     "headsOut": 0,
+     "headsAll": 0.15727
     }
    }
   },
@@ -1603,8 +1632,8 @@
    "page": {
     "n": 115,
     "nb": 502,
-    "mass": 468.23848175197276,
-    "build": "11193a934954"
+    "mass": 469.73153516465726,
+    "build": "521ee5a3e743"
    },
    "spec": {
     "cage": {
@@ -1730,6 +1759,11 @@
      "rodY": 0,
      "rodD": 0.12,
      "rodIncl": 0,
+     "rodRootAft": 0,
+     "rodSocket": 0,
+     "rodSocketLen": 0.12,
+     "rodSocketGap": 0.012,
+     "rodSocketWall": 0.33,
      "boomTwin": 0,
      "boomX": 1.2,
      "boomWf": 0.16,
@@ -1753,6 +1787,7 @@
      "aeroAftTip": 0.5,
      "aeroAftShape": 0,
      "aeroAftEdge": 0.6,
+     "aeroAftOver": 0,
      "crestH": 0,
      "crestAt": 0.55,
      "crestLoops": 1,
@@ -2108,6 +2143,7 @@
      "whCap": 1,
      "whValve": 1,
      "whBrake": 0,
+     "brkHold": 0,
      "whSlick": 0,
      "whBulge": 1,
      "beamAng": 62,
@@ -2228,6 +2264,8 @@
      "bpStrutK": 1,
      "bpCabDraw": 1,
      "bpCabPylon": 0,
+     "bpPylonZ": 0,
+     "bpPylonLen": 0,
      "wingOn": 1,
      "wgSpan": 8.3,
      "wgChord": 1.8,
@@ -2986,7 +3024,9 @@
      "interplaneAt": 0.62,
      "wires": "both",
      "cabane": "N",
-     "struts": 2
+     "struts": 2,
+     "section": null,
+     "jury": null
     },
     "tail": {
      "type": "conventional",
@@ -3069,58 +3109,58 @@
     "finish": {
      "sections": {
       "body": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "waistband": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "ceilingLoop": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "pillarFront": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "pillarCabin": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "floorLoop": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "gearLeg": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "pillarWindow": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "dummy2": {
-       "tint": 14065948
+       "tint": 11229955
       },
       "pillarPassenger": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "pillarTail": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "joint": {
-       "tint": 7368816
+       "tint": 2697513
       },
       "wingTip": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "finRud": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "spinner": {
-       "tint": 8134444
+       "tint": 3343110
       },
       "pillarTaper": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "taper": {
-       "tint": 15854296
+       "tint": 14733999
       },
       "wingSkin": {
-       "tint": 15854296
+       "tint": 14733999
       }
      },
      "weather": {
@@ -3132,7 +3172,7 @@
       "regL": 2.5,
       "regC": 0.3,
       "regCol": 8134444,
-      "regW": 1.6207056561638329,
+      "regW": 1.5743994140625002,
       "m1On": 1,
       "m1Pat": 2,
       "m1A": 8134444,
@@ -3190,6 +3230,24 @@
     "outfit": {
      "seats": "sling",
      "trim": "light"
+    },
+    "cooling": {
+     "face": 0.15845,
+     "scoop": 0.02182,
+     "scoopAlt": 0.02182,
+     "scoopRev": 0,
+     "nacInlet": 0,
+     "exit": 0,
+     "gills": 0,
+     "units": [
+      {
+       "aft": 0,
+       "k": 1,
+       "turned": 0
+      }
+     ],
+     "headsOut": 0,
+     "headsAll": 0.15727
     }
    }
   },
@@ -8001,8 +8059,8 @@
    "page": {
     "n": 184,
     "nb": 845,
-    "mass": 581.0007799429092,
-    "build": "290dff7bc287"
+    "mass": 584.188366022455,
+    "build": "521ee5a3e743"
    },
    "spec": {
     "cage": {
@@ -8195,6 +8253,7 @@
      "aeroAftTip": 0.5,
      "aeroAftShape": 0,
      "aeroAftEdge": 0.6,
+     "aeroAftOver": 0,
      "crestH": 0,
      "crestAt": 0.55,
      "crestLoops": 1,
@@ -9376,8 +9435,8 @@
      "seatY": 0.1,
      "seatPitch": 0.86,
      "seatsX": [
-      0.42409999999999964,
-      0.42409999999999964
+      0.5180999999999997,
+      0.5180999999999997
      ],
      "seats": 2,
      "occupied": [
@@ -9777,11 +9836,11 @@
      "sections": {
       "float": {
        "fin": "composite",
-       "tint": 14870507,
+       "tint": 12766420,
        "metal": 1
       },
       "spat": {
-       "tint": 13734731,
+       "tint": 10701330,
        "metal": 1
       }
      },
