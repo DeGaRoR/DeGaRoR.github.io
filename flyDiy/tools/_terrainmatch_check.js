@@ -49,6 +49,13 @@ const ALLOW = [
   { id: 'nv_strip lane', p95: 10, why: 'nv_meadow (as nv_strip stand)' },
   { id: 'mn_strip overrun start', p95: 8, why: 'mn_main across its 18 m on the cut past the end: rows across 3 m (REFINE.roadV off: 13 k more over Jolene)' },
   { id: 'w3 overrun start', worst: 45, why: 'r5\'s rim where r40\'s square end meets its side: G1001\'s side lift over a sliver pavedAt names r40\'s (so the site\'s edge filter keeps it); the 0.42 m pit under r40\'s cap past that end is gone (27_premises pastJoinedEnd, 2 Nov)' },
+  // (BUMPINESS, the user 16 Nov ~23:00: every strip at the user's red marks, a dot = 0.2 chaos - A NAMED COST, DIRT-STRIP, for A0's
+  //  ruling as w3 / w8 / xw_rough were: a bumpy ribbon draped over its own bumps leaves mm between its rows and terrainH)
+  { id: 'w2 strip', p95: 8, worst: 60, why: "BUMPINESS: 02/20's band at chaos 0.4 (the user 16 Nov), its 1758 m ribbon draped over the bumps; worst 55.5 mm at (567.5, -45.2) on the crumble's dirt apron, which is not refined to the bumps" },
+  { id: 'xw_rough overrun start', worst: 40, why: "BUMPINESS: w2 bumpy beside the lane (the user 16 Nov): 34.7 mm on its dirt apron at (861.6, -702.7)" },
+  { id: 'nv_strip strip', p95: 12, why: "BUMPINESS: nv_strip at chaos 0.4 (the user 16 Nov) under nv_meadow's 2 m grass grid (as nv_strip stand)" },
+  { id: 'w5 strip', p95: 6, why: "BUMPINESS: w5 at chaos 0.4 (the user 16 Nov) under the user's grass apron a11~d at its 2 m grid (as w5 overrun end)" },
+  { id: 'w6 strip', worst: 105, why: "BUMPINESS: w6 at chaos 0.8 (the user 16 Nov): 100.9 mm where a road's rim crosses it at (-4248.7, -22120.2) - the road is not draped over the strip's bumps (a visible seam; listed for the roads' owner)" },
   { id: 'w5 overrun end', p95: 15, worst: 50, why: 'a11~d: the user\'s grass apron across it at its 2 m grid, as nv_meadow (pavement.js REFINE: grass polygons not refined - translucent, the patch seen through it); its gravel apron within 27 mm (2 Nov, master d1a754b94)' },
 ];
 const allow = id => ALLOW.find(a => a.id === id) || {};
@@ -218,6 +225,12 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
   //  in its clear - GATE RWYLIGHTS); master's own slack at the HOME-taxi view (~37 k) takes part of it
   const AFB_DRESS = 201360;
   const XW_ROUGH = 764192; for (const k in PAV0) PAV0[k] += XW_ROUGH + AFB_DRESS;
+  // + THE BUMPINESS, A NAMED COST (DIRT-STRIP; the user 16 Nov ~23:00, red marks on the Jolene Airstrips table: w2 0.4, w1 0.6, w5 0.4,
+  //  w6 0.8, w7 0.4, w8 0.6, mn_strip / nv_strip 0.4, w4 / tw_ski / mt_strip 0.2): every bumpy ribbon drawn refined to its bumps as
+  //  w3 / w8 / xw_rough are - within 3 km of the two views, measured on afb-0220-b2 3ac6200cf (patch_census + ground_drawn): HOME stand
+  //  +1 164 732, HOME taxi +1 388 258 triangles (02/20's 1758 m band at 0.4 pays most: the length pays, not the chaos). Listed for the
+  //  perf week with xw_rough's: a distance LOD on the bump refinement
+  const BUMPINESS = { 'HOME stand': 1164732, 'HOME taxi': 1388258 };
   const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + PAV0['HOME stand'], 'HOME taxi': (PATCH0 || {})['HOME taxi'] + PAV0['HOME taxi'] }, gamer: { 'HOME stand': 1222208 + PAV0['HOME stand'], 'HOME taxi': 1304000 + PAV0['HOME taxi'] } };
   // RE-TAKEN 9 Nov (HOME-LAYOUT, A0's call), THE TWO "HOME stand" ROWS ONLY: SCENERY - the user's validated HOME layout moved the
   // start's stand (the medium hangar's) 60 m along the row, and this row measures within 3 km OF THE STAND: the same eye 60 m
@@ -225,6 +238,7 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
   // went down and keep their pins. Rebased on L37a: the user's bumps (BUMPS above) ride on top, as on every other row
   if (POT === 6) BASE.potato['HOME stand'] = 1207886 + BUMPS + XW_ROUGH + AFB_DRESS;
   BASE.gamer['HOME stand'] = 1957246 + BUMPS + XW_ROUGH + AFB_DRESS;   // (+ AFB-0220's named costs above)
+  for (const pr in BASE) for (const k in BUMPINESS) BASE[pr][k] += BUMPINESS[k];   // (+ the bumpiness, named above)
   const C = require(path.join(T, 'flight_core.js')), home = C.siteOf('HOME'), tp = home.taxiOut, m = tp[Math.floor(tp.length / 2)];
   const views = { 'HOME stand': [home.stand.x, home.stand.z], 'HOME taxi': m };
   const pav = {}; for (const [k, [x, z]] of Object.entries(views)) { let t = 0; for (const M of GD.MESHES) { const cx = (M.box[0] + M.box[2]) / 2, cz = (M.box[1] + M.box[3]) / 2; if (Math.hypot(cx - x, cz - z) < 3000) t += M.idx.length / 3; } pav[k] = t; }

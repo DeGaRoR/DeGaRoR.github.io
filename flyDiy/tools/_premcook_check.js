@@ -115,7 +115,7 @@ const S = OC.rasterCell, Fr = OC.frame;
   }
   errs.sort((a, b) => a - b); const q = f => errs[Math.floor(f * (errs.length - 1))];
   ok(worstL <= 5e-5, 'under the cooked cells the ground is the lazy raster\'s: worst ' + (worstL * 1000).toFixed(4) + ' mm on ' + n + ' points');
-  ok(q(0.99) <= 0.002 && q(0.999) <= 0.01 && worstA.d <= 0.06, '...and the analytic ground\'s within PREMRASTER\'s tolerances: p99 ' + (q(0.99) * 1000).toFixed(2) + ' mm, p99.9 ' + (q(0.999) * 1000).toFixed(1) + ' mm, worst ' + (worstA.d * 1000).toFixed(1) + ' mm');
+  ok(q(0.99) <= 0.002 && q(0.999) <= 0.01 && worstA.d <= 0.06, '...and the analytic ground\'s within PREMRASTER\'s tolerances: p99 ' + (q(0.99) * 1000).toFixed(2) + ' mm, p99.9 ' + (q(0.999) * 1000).toFixed(1) + ' mm, worst ' + (worstA.d * 1000).toFixed(1) + ' mm at (' + worstA.x.toFixed(1) + ', ' + worstA.z.toFixed(1) + '))');
   const R = OC.raster;
   ok(R.baked === 0 && R.decoded > 0, 'nothing baked under the cook, only decoded (' + R.decoded + ' tiles decoded in ' + R.decodeMs.toFixed(0) + ' ms, ' + (R.decodeMs / Math.max(1, R.decoded)).toFixed(3) + ' ms a tile; ' + R.baked + ' baked)');
   const RL = OL.raster;
