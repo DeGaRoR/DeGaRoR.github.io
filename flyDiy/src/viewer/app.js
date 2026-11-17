@@ -6378,7 +6378,7 @@
     wreckScraps(D, vel);                                             // G2046
     wreckWires(D);                                                   // G2016
     // (G1862.1: the live cabin bays of the core are solid to the bodies while any moves - a pane does not settle in the cabin)
-    WK.env.solid = WK.W.bodies.some(B => !B.asleep) ? WD.solidOf(sim.p, (WK.bays || (WK.bays = WD.bays(def))).filter(B => B.n.every(i => !D.pc || D.pc[i] === 0)), vel) : null;
+    WK.env.solid = WD.needSolid(WK.W) ? WD.solidOf(sim.p, (WK.bays || (WK.bays = WD.bays(def))).filter(B => B.n.every(i => !D.pc || D.pc[i] === 0)), vel) : null;
     WD.step(WK.W, dtS, WK.env);
     for (const B of WK.W.bodies) if (B.obj) {
       const R = WD.rotOf(B.q, wreckR);

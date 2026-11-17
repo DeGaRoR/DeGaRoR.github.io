@@ -451,7 +451,7 @@ function makeSim(def, world) {
                 gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0, wires: 0,
                 // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
                 // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
-                groups: [], floors: 0, cracks: 0, rag: [], armedN: 0,
+                groups: [], floors: 0, tether: 0, tetherT: 0, cracks: 0, rag: [], armedN: 0,
                 // DMG-D1b: the body frame's refs parted (G1821: when, which node), the strips split / dropped (G1820)
                 brokeUp: null, stripsSplit: 0, stripsDropped: 0 };
   // G2357 (DMG-SCAR, 34_scar.js): THE GROUND'S SCAR - the contacts of a crash recorded (read, never pushed: the bits are the
@@ -556,7 +556,7 @@ function makeSim(def, world) {
   // the pieces now: live members (a kink floor pushes only, a SUPPORT limiter only touches: neither holds), clusters still on
   function pieces() {
     for (let i = 0; i < n; i++) ufP[i] = i;
-    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.broken) continue; const x = ufFind(b.a), y = ufFind(b.b); if (x !== y) ufP[x] = y; }
+    for (let bi = 0; bi < nb; bi++) { const b = beams[bi]; if (b.broken && b.tt !== 1) continue; const x = ufFind(b.a), y = ufFind(b.b); if (x !== y) ufP[x] = y; }   // (G4103: a live tether joins)
     for (const C of clusters) if (!C.off) { const r0 = ufFind(C.idx[0]); for (const i of C.idx) { const x = ufFind(i); if (x !== r0) ufP[x] = r0; } }
     return ufFind;
   }
@@ -826,6 +826,8 @@ function makeSim(def, world) {
   // while it is not empty
   const FLR = new Int32Array(nb);
   let nFlr = 0;
+  const TETH = DMG_ON && typeof GEN_DMG_TETHER !== 'undefined' && GEN_DMG_TETHER.on !== false;   // G4103 (JOINT-TETHER)
+  let tetherTorn = 0; const TTQ = [];   // (G4103: the members whose tethers tore this pass, their groups judged after it)
   // G1898.4 (coordinator, perf): ONE hook in substep() for the floors (D1a) and the limiters (D1b) - set at the frame's
   // start (after armFrame) and on a break, read once a substep; two checks there cost the metal Cessna ~1 %
   let postLive = 0;
@@ -870,7 +872,7 @@ function makeSim(def, world) {
       const Dt = R ? Math.sqrt(GEN_CRASH_TUBE_DT * b.A / Math.PI) : 0;
       b.mp = R && R.ty ? R.ty * b.A * Dt / Math.PI : Infinity;
       b.thf = R ? R.thf : 0;
-      b.rgN = 0; b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
+      b.rgN = 0; b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0; b.tt = 0;
       if (R) dmgMember(bi, b, R);                    // G1811-G1814 (DMG-D1a): Euler, the seams, wood's ragged break
       if (PHY && R) { PHY[bi * 4] = b.fy0; PHY[bi * 4 + 1] = b.fu; PHY[bi * 4 + 2] = b.fc0; PHY[bi * 4 + 3] = R.ty * b.A; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.Lr = 0; b.broken = false; b.kB = 0; b.cB = 0; b.yielded = false;
@@ -1359,10 +1361,10 @@ function makeSim(def, world) {
       const b = beams[bi];
       if (b.broken) { b.k = b.kB; b.c = b.cB; b.broken = false; }
       b.fyM = b.fy0; FY[bi] = b.fy0; FC[bi] = b.fc0; b.ep = 0; b.ec = 0; b.dOn = false; b.dk = 0; b.ks = 0;
-      b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0;
+      b.rgS = 0; b.rgD = 0; b.kink = false; b.Lf = 0; b.Ff = 0; b.tt = 0;
     }
     nFlr = 0; postLive = 0; nPost = 0; nTie = 0; nTieL = 0; tieOf.clear(); if (COV) { for (const D of covDone) D.clear(); DMG.tieN = 0; DMG.tieT = 0; DMG.tieBorn = 0; DMG.tieFirstT = null; }
-    grpDone.fill(0); grpLost.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
+    grpDone.fill(0); grpLost.fill(0); DMG.groups.length = 0; DMG.floors = 0; DMG.tether = 0; DMG.tetherT = 0; DMG.cracks = 0; DMG.rag.length = 0; DMG.armedN = 0;
     for (let i = 0; i < n; i++) { nodeDeg[i] = nodeDeg0[i]; orphan[i] = 0; }
     if (DMG_ON) clReset();          // G1840 (DMG-D3): every cluster as built, every cut whole
     for (const C of clusters) { C.off = false; C.dirty = false; }
@@ -1399,6 +1401,9 @@ function makeSim(def, world) {
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
     const inGear = grpOf[bi] >= 0 && gearGrp[grpOf[bi]] === 1;
     if (b.kink && !inGear) { FLR[nFlr++] = bi; DMG.floors++; nPost = nFlr + nTieL; }  // G1813: the crushed member stays a floor (G2040: nPost; GEAR-FALLS: a gear joint's leaves with its leg, it props nothing)
+    // (G4103: and holds no tether - its tether lives in the floor pass, which never walks it: a gear member's tether
+    // stayed live past any length, joining a fallen leg to the wreck it lay 40 m from - the 17 Nov nose-down stills)
+    else if (b.tt === 1) { b.tt = 0; DMG.tether--; }
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
     // (GEAR-FALLS: a wire snapping is damage, not a crash - structural's 'a bracing wire snapped'; the leg stands)
     if (gearWire[bi]) { if (how !== 'group') DMG.wires++; }
@@ -1423,7 +1428,7 @@ function makeSim(def, world) {
       else {
         const G0 = DGR[g].t0; let cap = 0;
         for (let q = 0; q < G0.length; q++) { const f = beams[G0[q]].fu; cap += f < Infinity ? f : 0; }
-        grpLost[g] += b.fu < Infinity ? b.fu : 0;
+        grpLost[g] += Math.max(0, (b.fu < Infinity ? b.fu : 0) - tetherKeep(b));   // (G4103: a tethered kink still pulls - the joint lost only the rest; its tether's tear the rest, tetherGroups)
         rel = !(cap > 0) || grpLost[g] >= GEN_DMG_GROUP.rel * cap * (1 - 1e-9);
       }
     }
@@ -1495,7 +1500,7 @@ function makeSim(def, world) {
         b.ks += dL; b.dk = Math.sqrt(2 * b.Lr * b.kt * b.ks); kinkCaps(bi); hingeCheck(bi);
       } else {
         b.ec += dL / b.Lr;
-        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; beamBreak(bi, 'kink'); }   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
+        if (b.ec >= b.ecu) { b.kink = true; b.Lf = L; b.Ff = fc; if (TETH && tetherKind(b)) { b.Lt = L; b.tt = 1; DMG.tether++; } beamBreak(bi, 'kink'); }   // (G4103: and its tether)   // G1813: kinked - a floor at its crushed length (G1898.6: its crush force kept)
       }
     }
     noteSet(bi);
@@ -4036,6 +4041,7 @@ function makeSim(def, world) {
       const b = beams[FLR[q]], a3 = b.a*3, b3 = b.b*3;
       let dx = p[b3]-p[a3], dy = p[b3+1]-p[a3+1], dz = p[b3+2]-p[a3+2];
       const L = hyp3(dx, dy, dz) || 1e-9;
+      if (b.tt === 1 && L > b.Lt) { tetherPull(b, a3, b3, dx / L, dy / L, dz / L, L); if (b.tt !== 1) TTQ.push(FLR[q]); continue; }   // G4103: the tether
       if (L >= b.Lf) continue;
       dx /= L; dy /= L; dz /= L;
       let Fb = b.kB * (L - b.Lf) + b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
@@ -4047,6 +4053,57 @@ function makeSim(def, world) {
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
+  }
+  // G4103 (JOINT-TETHER): a kinked member's tether (60_gen_spec GEN_DMG_TETHER): 1 a ductile tube or sheet, 2 wood, 0 none
+  function tetherKind(b) {
+    const R = b.mat ? GEN_CRASH[b.mat] : null;
+    if (!R || !(b.Lr > 0)) return 0;
+    return R.etu > 0 ? 1 : b.mat === 'wood' ? 2 : 0;
+  }
+  // its pull: kB (L - Lt) to its cap - a fold opening (L under its rest length) at rFold x its crush force, then the
+  // creased wall's share of its strength - plastic past the cap (Lt follows: the stored energy at most F^2 / 2 kB); torn
+  // once past its rest length by what its material has left: the piece event again
+  // the share of its strength a live tether still carries (the group's count: a joint whose kinked members still pull
+  // has not lost them - the user 13 Nov: "more bending, less disintegrating", within the physics: joints tear late)
+  function tetherKeep(b) {
+    if (b.tt !== 1) return 0;
+    // (a DUCTILE member only: a folded tube's wall still carries its tension, but crushed spruce has lost its joint - its
+    // tether holds the splinters together, it is no strength: the Jodel's certificate read BROKE AT 9.54 g with 104 of
+    // its wing's members broken from 6.01 g while the crushed caps were counted kept, GATE DMGCERT 17 Nov)
+    const k = tetherKind(b), fu = b.fu < Infinity ? b.fu : 0;
+    return k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;
+  }
+  // after a pass: a torn tether's joint has now lost the rest of that member - its group judged again (G1894's third)
+  function tetherGroups() {
+    brkDepth++;
+    for (const bi of TTQ) {
+      const b = beams[bi], g = grpOf[bi];
+      if (g < 0 || grpDone[g] || gearGrp[g]) continue;
+      const fu = b.fu < Infinity ? b.fu : 0, k = tetherKind(b);
+      grpLost[g] += k === 1 ? GEN_DMG_TETHER.rDuct * fu : 0;   // (wood was counted lost whole at its kink: tetherKeep)
+      const G0 = DGR[g].t0; let cap = 0;
+      for (let q = 0; q < G0.length; q++) { const f2 = beams[G0[q]].fu; cap += f2 < Infinity ? f2 : 0; }
+      if (cap > 0 && grpLost[g] < GEN_DMG_GROUP.rel * cap * (1 - 1e-9)) continue;
+      grpDone[g] = 1; DMG.groups.push({ grp: g, key: DGR[g].key, seam: b.seam || null, by: bi, cls: b.cls, t: simT, how: 'tether' });
+      if (grpCut[g] >= 0) cutPart(grpCut[g], 'member', 0);
+      for (const j of grpAll[g]) beamBreak(j, 'group');
+    }
+    TTQ.length = 0;
+    --brkDepth;
+  }
+  function tetherPull(b, a3, b3, dx, dy, dz, L) {
+    const T = GEN_DMG_TETHER, k = tetherKind(b), R = GEN_CRASH[b.mat];
+    if (L > b.Lr * (1 + (k === 1 ? T.eDuct * R.etu : 0))) { b.tt = 0; DMG.tetherT++; tetherTorn = 1; return; }
+    const fu = b.fu < Infinity ? b.fu : 0;
+    const Fm = k === 2 ? T.rWood * fu : L < b.Lr && b.Ff > 0 ? T.rFold * b.Ff : T.rDuct * fu;
+    let F = b.kB * (L - b.Lt);
+    if (F > Fm) { F = Fm; b.Lt = L - Fm / b.kB; }
+    // (and the member's own damper, as its floor's: a folded tube's wall rubs - a piece hung on its tether comes to rest)
+    F += b.cB * ((v[b3]-v[a3])*dx + (v[b3+1]-v[a3+1])*dy + (v[b3+2]-v[a3+2])*dz);
+    if (F > Fm) F = Fm;
+    if (!(F > 0)) return;
+    f[a3]+=F*dx; f[a3+1]+=F*dy; f[a3+2]+=F*dz;
+    f[b3]-=F*dx; f[b3+1]-=F*dy; f[b3+2]-=F*dz;
   }
   // G1822: the SUPPORT limiters - push only, below their closing length (walked in a frame armed or after a break)
   function suppPass() {
@@ -4299,7 +4356,7 @@ function makeSim(def, world) {
     if (OLEO !== null) oleoPass(dt);                 // WILGA-GEAR: the trailing-link legs' struts
     if (TELE !== null) telePass(dt);                 // PC6-OLEO: the telescopic tail strut
     if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
-      if (nFlr) floorPass();                         // G1813: the kinked members' floors
+      if (nFlr) { floorPass(); if (tetherTorn) { tetherTorn = 0; if (TTQ.length) tetherGroups(); compEvent(); } }   // G1813: the kinked members' floors (G4103: a tether torn - the pieces again)
       if (nTieL) tiePass();                          // G2040 (DMG-FABRIC): the covering's ties
       if (nSup && (armed || DMG.breaks)) suppPass(); // G1822: the SUPPORT limiters
     }

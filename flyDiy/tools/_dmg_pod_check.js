@@ -15,7 +15,7 @@
 //    stall on the probe's CLmax 1.9; GEAR UP: the wheels' contact radii pulled 0.6 m into the wells - the stand-in for a
 //    retracted or collapsed gear, which the generator does not model): on the wheels at 1.5 m/s the pod is never
 //    touched; gear up at 1.5 m/s it is CRUSHED (members set, the group holding) and its freight AT RISK; gear up at
-//    5 m/s it is TORN OFF at its fittings (the group broken, its 16 hangers) and its freight LOST - in the integrity
+//    5 m/s it is CRUSHED, its hangers folded and held by their tethers (G4103 - the Jodel tears its pod off) - in the integrity
 //    record's words (sim.damage().structural: damaged, why = the pod's own, not "the landing gear broke"). The Jodel
 //    gear up at 1.5 m/s: torn off (its light gross sizes light fittings - reported). Twice the same verdict to the bit.
 //    RE-PINNED 17 Nov 2026 (Deform, train L40f; A0: the reason in the gate file): the hard row 3 -> 5 m/s. ENGINE-LUMP
@@ -96,11 +96,16 @@ function runChecks(C, quiet) {
   ok(rDown.P.state === 'clean' && !rDown.P.touched && !rDown.S.damaged, 'on its wheels at 1.5 m/s: the pod never touched, the aeroplane whole');
   ok(rUp15.P.state === 'crushed' && rUp15.P.freight === 'at risk' && !rUp15.P.torn && rUp15.P.members.set > 0, 'gear up at 1.5 m/s: CRUSHED, its freight at risk, the fittings holding');
   ok(rUp15.S.damaged && rUp15.S.pod && /belly pod crushed/.test(rUp15.S.why || ''), 'gear up at 1.5 m/s: the integrity record says the pod (' + rUp15.S.why + ')');
-  ok(rUp30.P.state === 'torn off' && rUp30.P.freight === 'lost' && rUp30.D.groups.some(g => g.key === 'pod:mount') && rUp30.P.members.broken >= 16,
-     'gear up at 5 m/s: TORN OFF at its fittings (the group, its 16 hangers), its freight lost');
-  ok(rUp30.S.damaged && /belly pod torn off/.test(rUp30.S.why || '') && !/landing gear/.test(rUp30.S.why || ''), 'gear up at 5 m/s: the record\'s words are the pod\'s, never "the landing gear broke" (' + rUp30.S.why + ')');
+  // (G4103, JOINT-TETHER: the pod pushed up into the belly FOLDS its 4130 hangers - kinked, each keeps its tension tether
+  // (half its strength, to +30 % of its travel), so the group counts only what they cannot carry and the pod stays on,
+  // crushed and dragged: the metal Cessna's holds to 7 m/s, measured (3-7 m/s: 5-7 hangers kinked, the group holding).
+  // The tear-off and its words are the Jodel's below - its light fittings tear at 1.5 m/s with the tethers too)
+  ok(rUp30.P.state === 'crushed' && rUp30.P.freight === 'at risk' && !rUp30.P.torn && !rUp30.D.groups.some(g => g.key === 'pod:mount') && rUp30.P.members.broken > 0,
+     'gear up at 5 m/s: CRUSHED, its hangers folded and held by their tethers (' + rUp30.P.members.broken + ' kinked), the group holding, its freight at risk');
+  ok(rUp30.S.damaged && /belly pod crushed/.test(rUp30.S.why || '') && !/landing gear/.test(rUp30.S.why || ''), 'gear up at 5 m/s: the record\'s words are the pod\'s, never "the landing gear broke" (' + rUp30.S.why + ')');
   ok(rUp30.sig === rUp30b.sig && JSON.stringify(rUp30.P) === JSON.stringify(rUp30b.P), 'twice the same landing, the same verdict to the bit');
-  ok(rJ.P.state === 'torn off', 'the Jodel gear up at 1.5 m/s: torn off (its light gross sizes light fittings)');
+  ok(rJ.P.state === 'torn off' && rJ.P.freight === 'lost' && rJ.D.groups.some(g => g.key === 'pod:mount'), 'the Jodel gear up at 1.5 m/s: TORN OFF at its fittings (its light gross sizes light fittings), its freight lost');
+  ok(rJ.S.damaged && /belly pod torn off/.test(rJ.S.why || '') && !/landing gear/.test(rJ.S.why || ''), 'the Jodel torn off: the record\'s words are the pod\'s, never "the landing gear broke" (' + rJ.S.why + ')');
   ok(!('pod' in rNone.D) && JSON.stringify(Object.keys(rNone.S)) === JSON.stringify(['damaged', 'broken', 'separated', 'why']), 'no pod: no DMG.pod, the integrity record\'s keys as they were');
 
   // ===== C. THE SCRAPE =====

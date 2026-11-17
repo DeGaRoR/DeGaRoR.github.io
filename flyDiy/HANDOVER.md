@@ -317929,3 +317929,27 @@ first-parent bisect over the trains (scratchpad bisect.sh; a row's regex where t
   * the Cub's 5 m/s crosswind roll-out (swing <= 15 deg): moved by L36d's merge of claude/ready/pilot-notch-2
     3e2602e8f (the row holds on the proper-cowls merge 2e1eac16e before it, red only on the taxi turns): the swing 31.8 deg since - the roll-out is flown by THE
     PILOT, so its landing law moved the row, not the tyre's. Standing; Pilot judges whether the swing is meant.
+
+## JOINT-TETHER (G4103) - A KINKED TUBE STILL HOLDS, JOINTS TEAR LATE (Deform, 13-17 Nov 2026, for L40f after DEFORM-L40A-REDS)
+The user (13 Nov, the tether stills): "the direction is definitely better; keep moving that way: MORE BENDING, LESS
+DISINTEGRATING. Keep the breaking, of course, but more bending before it breaks." Within the physics:
+- 30_solver: a member that kinks (compression past ecu) keeps a TENSION TETHER by its material (60_gen_spec GEN_DMG_TETHER:
+  ductile - the fold reopens at rFold x its crush force while shorter than rest, then rDuct 0.5 x fu, torn past
+  Lr (1 + eDuct 0.5 x etu); wood - rWood 0.25 x fu, torn at Lr; carbon - none). It lives in the floor pass (pulled, damped
+  as its floor, torn there); a live tether (b.tt === 1) JOINS pieces (pieces(), sim_host simDmgPieces, every gate's own
+  union-find that counts pieces). A kinked GEAR member holds none (GEAR-FALLS keeps it out of the floor pass: its tether
+  stayed live at 32.8 x its length, a fallen leg joined to the wreck).
+- Joints tear late: a group (G1894's third) counts a tethered DUCTILE kink as losing only fu - keep; its tear adds the rest
+  and the group is judged again (tetherGroups, DMG.groups how 'tether'). Crushed wood counts lost whole (its tether holds
+  the splinters, it is no strength: the Jodel's certificate read BROKE AT 9.54 g before).
+- The page: a held kink keeps its skin, drawn whole and bent (the hop's `th` = the live tethers; sim_view drops them from
+  the page's broken list, kept in the order the page saw the breaks); a member broken while the wreck is ONE piece is drawn
+  CUT through (G4102 ran only on a parted wreck: those triangles were dropped along their own edges). A debris part asleep
+  inside a cabin that came to rest over it is woken and pushed out (WRECK_DEBRIS.needSolid).
+- Measured: TREECRASH pieces medians cub/trunk0 9.5 -> 5, jodel/trunk0 13 -> 8, metal/trunk0 14 -> 8, mount / cowl off
+  unchanged; the Cub nose-down no longer BREAKS UP (stills 17 Nov, flydiy-notes/evidence/joint-tether-2026-11-17/).
+- Gates re-stated, each reason in its file: TREECRASH (re-pinned, tether-aware pieces), DMGSKIN (the end flush settles
+  again past a late burst of yields), DMGSETTLE (a covering its tie holds across rides no loose piece), DMGPOD (the metal
+  Cessna's pod folds its hangers and stays on to 7 m/s; the tear-off asserted on the Jodel), DMGPAGEW (any verdict that
+  broke members), DMGFABRIC (the hop row on the metal Cessna, whose trunk0 still tears ties). Fixed by it: DMGWALL, and
+  DMGINTEGRITY's engine-through-the-firewall row. The damage set's other reds are master's own rows.
