@@ -180,7 +180,10 @@ var AUDIO_PARAMS = (function () {
     s[I.thrMaster] = thr;
     s[I.flap] = num(ctl.flap, 0); s[I.brake] = num(ctl.brake, 0);
     s[I.de] = num(ctl.de, 0); s[I.da] = num(ctl.da, 0); s[I.dr] = num(ctl.dr, 0);
-    { const g = o.gear; s[I.gearWarn] = (typeof g === 'number' && g <= 0.98 && !(o.gearWow > 0) && (thr < 0.25 || s[I.flap] > 0.35)) ? 1 : 0; }   // RETRACT-1
+    // RETRACT-1 / GEAR-LEVER: the core's one law (30_solver gearWarnOf: the dash's red lamp reads the same); the
+    // inline line is the same law for a node rig without the core
+    { const g = o.gear; s[I.gearWarn] = typeof gearWarnOf === 'function' ? gearWarnOf(o, ctl)
+        : (typeof g === 'number' && !(o.gearAmph > 0) && (o.gearWow > 0 ? ctl.gear === 0 : g <= 0.98 && (thr < 0.25 || s[I.flap] > 0.35))) ? 1 : 0; }
     // the stall alpha at this flap: toward the measured landing stall over the landing notch, else the polar's delta
     const st = out.stall, fl = s[I.flap];
     s[I.aStall] = st[0] <= 0 ? 0 : st[2] > 0 ? st[0] + (st[1] - st[0]) * Math.min(1, fl / st[2]) : st[0] - st[3] * fl;

@@ -880,7 +880,7 @@
    "fltPlan": 1.5141740036010738,
    "fltStern": 0.5,
    "fltFlare": 4,
-   "fltMass": 159.1,
+   "fltMass": 64.3,
    "fltZ": 0.59,
    "fltDrop": 1.75,
    "fltInc": 3,
@@ -1596,6 +1596,12 @@
     "who": "session",
     "step": "source",
     "line": "the propeller's blades (TCDS F 56-10: the Hartzell HC-B3TN-3D - aluminium blades): carbon -> aluminium 2025-T6, +16.5 kg at the nose {\"cw_material\":2}. With the tail gear: CG MIN 36 %, TYP 36 %, MTOW 35 % MAC (the TCDS envelope: 11-38 % at 1450 kg, 32-38 % at 2800), empty 1179 kg (factsheet band 1150-1350)"
+   },
+   {
+    "date": "2026-11-17T12:00",
+    "who": "session",
+    "step": "fit",
+    "line": "GEAR-LEVER (17 Nov): the core now reads the amphibian system's weight itself (WIPLINE_AMPHIB 6100 dKg 189.6 kg, on the four axles, gear.floats.amph) - the hull mass row drops to the seaplane's share so the user's +407 kg stays counted once: re-joined 2075.0 kg, as at 159.1 before {\"fltMass\":64.3}"
    }
   ],
   "gaps": []
