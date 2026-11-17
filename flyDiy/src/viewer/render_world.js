@@ -61,8 +61,9 @@ function rockBiasStart(world, BUD) {
   try {
     const hasCore = typeof ROCK_RING_CORE_SRC !== 'undefined';
     const src = (hasCore ? ROCK_RING_CORE_SRC + '\n' : '') + 'const ROCK_BIAS = ' + ROCK_BIAS.toString() + ';\nonmessage = e => { const a = e.data, t = performance.now();\n' +
-      '  const out = ROCK_BIAS(a.H, a.sea, a.N, a.hx0, a.hz0, a.hdx, a.hdz, a.gx0, a.gz0, a.cs, a.W2, a.H2);\n' +
       '  const flow = (typeof ROCK_RING_CORE !== "undefined") ? ROCK_RING_CORE.flowGrid(a.H, a.N, a.hdx * a.hdx / 25) : null;\n' +
+      // (17 Nov: THE MAP CARRIES THE MACRO - v1's exposure field over the island, rock_ring_core bakeIsland, in the bias's byte)
+      '  const out = (flow && a.TT && ROCK_RING_CORE.bakeIsland) ? ROCK_RING_CORE.bakeIsland({ H: a.H, N: a.N, hx0: a.hx0, hz0: a.hz0, hdx: a.hdx, flow, TT: a.TT, ND: a.ND, IGw: a.IGw, IGh: a.IGh, IGx0: a.IGx0, IGz0: a.IGz0, IGcell: a.IGcell, gx0: a.gx0, gz0: a.gz0, cs: a.cs, W2: a.W2, H2: a.H2 }) : new Uint8Array(a.W2 * a.H2);\n' +
       '  postMessage({ out, flow, ms: performance.now() - t }, [out.buffer].concat(flow ? [flow.buffer] : [])); };';
     const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url);
     const fail = why => { console.warn('rock bias worker: ' + why + ' - made on the main thread'); job.done = true; job.out = null; try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); if (job.onDone) job.onDone(); };
@@ -71,7 +72,9 @@ function rockBiasStart(world, BUD) {
       if (job.onDone) job.onDone(); };
     w.onerror = e => fail(e && e.message || 'error');
     const H = Float32Array.from(g.H), sea = g.sea ? Uint8Array.from(g.sea) : null;
-    w.postMessage({ H, sea, N: g.N, hx0: g.x0, hz0: g.z0, hdx: g.dx, hdz: g.dz, gx0: IG.x0, gz0: IG.z0, cs: IG.cell * (half ? 2 : 1), W2, H2 }, [H.buffer].concat(sea ? [sea.buffer] : []));
+    const TT = I.ttype ? Uint8Array.from(I.ttype) : null, ND = I.ndvi ? Uint8Array.from(I.ndvi) : null;   // (the bake's: the 10 m type and NDVI)
+    w.postMessage({ H, sea, N: g.N, hx0: g.x0, hz0: g.z0, hdx: g.dx, hdz: g.dz, gx0: IG.x0, gz0: IG.z0, cs: IG.cell * (half ? 2 : 1), W2, H2, TT, ND, IGw: IG.w, IGh: IG.h, IGx0: IG.x0, IGz0: IG.z0, IGcell: IG.cell },
+      [H.buffer].concat(sea ? [sea.buffer] : [], TT ? [TT.buffer] : [], ND ? [ND.buffer] : []));
     job.postMs = performance.now() - t0;
   } catch (e) { console.warn('rock bias worker: ' + (e && e.message || e)); return null; }
   return job;
@@ -1991,12 +1994,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
         const g = world.hydro && world.hydro.grids; if (!g || !g.H || !g.N) return null;
         const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
-        rockBiasA = ROCK_BIAS(Float32Array.from(g.H), g.sea || null, g.N, g.x0, g.z0, g.dx, g.dz, ISLA.grid.x0, ISLA.grid.z0, ISLA.grid.cell * (IHALF ? 2 : 1), W2, H2);
+        rockBiasA = (typeof ROCK_RING_CORE !== 'undefined' && ROCK_RING_CORE.bakeIsland && ISLA.ttype)   // (no Worker: the island's macro bake here - v1's field, the shader's encoding)
+          ? ROCK_RING_CORE.bakeIsland({ H: Float32Array.from(g.H), N: g.N, hx0: g.x0, hz0: g.z0, hdx: g.dx, flow: ROCK_RING_CORE.flowGrid(Float32Array.from(g.H), g.N, g.dx * g.dx / 25), TT: ISLA.ttype, ND: ISLA.ndvi, IGw: ISLA.grid.w, IGh: ISLA.grid.h, IGx0: ISLA.grid.x0, IGz0: ISLA.grid.z0, IGcell: ISLA.grid.cell, gx0: ISLA.grid.x0, gz0: ISLA.grid.z0, cs: ISLA.grid.cell * (IHALF ? 2 : 1), W2, H2 })
+          : new Uint8Array(W2 * H2);
         if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0), biasWorker: false, biasGrid: g.N, tint: [W2, H2] });
         return rockBiasA; };
       const tintRGBA = () => { const o = rgbTexels(ISLA.tint), a = rockBias();
         if (a) for (let k = 0, j = 3; k < a.length; k++, j += 4) o[j] = a[k];
-        else if (rockLate) for (let j = 3; j < o.length; j += 4) o[j] = 191;
+        else if (rockLate) for (let j = 3; j < o.length; j += 4) o[j] = 0;   // (the bake in flight: 'no field' - the macro texture near the eye meanwhile)
         return o; };
       const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
@@ -2114,7 +2119,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
           .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (side > 0 ? '\nobjectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
           .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') +
-            'vRM = aRM; vRX = aRX; if (aRM.w > 1.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n' +
+            'vRM = aRM; vRX = aRX; if (aRM.w > 1.5 && aRM.w < 3.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n' +
             '  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\n' +
             'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;\n' +
             // G2115 (TERRAIN-MATCH): UNDER THE CONTACT TIER (ground_tier.js) a vertex more than a cell inside its square goes uTier.w

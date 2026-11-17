@@ -1260,7 +1260,7 @@
   // and recolour (the materials' editor). Kept as the other ground rows are: the splat's own store (flydiy.ground.splat.v1),
   // the export's `splat` block and its changes against the recipe; 'reset the rock' puts the recipe's numbers back.
   const ROCK_KEYS = ['rocks', 'rockHLo', 'rockHHi', 'rockBias', 'rockOff', 'rockK', 'rockJoint', 'rockJointSoil', 'rockJointDirt', 'rockHollow',
-    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar', 'rockSlabTone', 'rockSlabTilt', 'rockRing', 'rockRingReach', 'rockLift', 'rockAmp', 'rockProud', 'rockBoulders', 'rockScatter', 'rockMacro', 'rockBoulderTone', 'rockBoulderCon', 'rockGrassMatch', 'rockWeather', 'rockGreenTint'];
+    'rockGreen', 'rockGreenRough', 'rockWet', 'rockRough', 'rockMicro', 'rockMicroK', 'rockMicroN', 'rockMicroFrom', 'rockMicroTo', 'rockFarFrom', 'rockFarTo', 'rockNdvi', 'rockNdviMid', 'rockSlabM', 'rockFaceM', 'rockFaceTile', 'rockFaceLo', 'rockFaceHi', 'rockGreenSat', 'rockJointFar', 'rockSlabTone', 'rockSlabTilt', 'rockRing', 'rockRingReach', 'rockLift', 'rockAmp', 'rockProud', 'rockBoulders', 'rockScatter', 'rockMacro', 'rockBoulderTone', 'rockBoulderCon', 'rockGrassMatch', 'rockWeather', 'rockGreenTint', 'rockGreenK'];
   function buildRock(body) {
     const sp = SP();
     if (!sp || sp.knobs().rocks === undefined) { note(body, 'the island’s own rock is not in this build'); return; }
@@ -1291,7 +1291,7 @@
     range(J, 'green in the cracks', 0, 2.5, 0.05, kn('rockGreen'), ss('rockGreen'), v => 'x' + v.toFixed(2), RK.rockGreen);
     range(J, 'wet streaks', 0, 1, 0.02, kn('rockWet'), ss('rockWet'), null, RK.rockWet);
     range(J, 'green\u2019s saturation', 0, 1.5, 0.02, kn('rockGreenSat'), ss('rockGreenSat'), null, RK.rockGreenSat);
-    range(J, 'joints gone by', 0, 2000, 10, kn('rockJointFar'), ss('rockJointFar'), v => v ? v + ' m' : 'off', RK.rockJointFar);
+    range(J, 'joints gone by', 0, 5000, 25, kn('rockJointFar'), ss('rockJointFar'), v => v ? v + ' m' : 'off', RK.rockJointFar);
     note(J, 'joint density x2 halves the spacing of the two joint sets; the soil they hold cuts the bare rock along them, their dirt darkens them. The green fills the joints, the hollows, the benches and the tile’s own cracks.');
     const Rg = sec(body, 'roughness', false, 'bare stone glossier than the green');
     range(Rg, 'bare stone', 0.3, 1.6, 0.02, kn('rockRough'), ss('rockRough'), v => 'x' + v.toFixed(2), RK.rockRough);
@@ -1301,6 +1301,7 @@
     range(Bl, 'value to the grass', 0, 1.5, 0.05, kn('rockGrassMatch'), ss('rockGrassMatch'), null, RK.rockGrassMatch);
     range(Bl, 'weathering film', 0, 1, 0.02, kn('rockWeather'), ss('rockWeather'), null, RK.rockWeather);
     range(Bl, 'grass tint', 0, 2, 0.05, kn('rockGreenTint'), ss('rockGreenTint'), v => 'x' + v.toFixed(2), RK.rockGreenTint);
+    range(Bl, 'green brightness', 0.2, 1.5, 0.02, kn('rockGreenK'), ss('rockGreenK'), v => 'x' + v.toFixed(2), RK.rockGreenK);
     liveNote(Bl, () => { const b = sp.rockBlend ? sp.rockBlend() : null; return b ? 'the rock x' + b[0].toFixed(2) + ' (its value), the film ' + Math.round(b[4] * 100) + ' % of the grass\u2019s hue' : ''; });
     note(Bl, 'the bench v1 drew its green lighter and warmer than the game\u2019s graded grass; \u2018value to the grass\u2019 scales the rock (the ground\u2019s, the outcrops\u2019 and the boulders\u2019) by the ratio of the two grasses\u2019 values to this power - 0 v1\u2019s rock as it was, 1 v1\u2019s proportion to its grass exactly. The film lays the land\u2019s own colour on the stone - the imagery\u2019s tint, as the open grass wears it (algae, lichen, dirt); the grass growing in the rock always wears it. The grass itself: its own grade under TYPES.');
     const Mi = sec(body, 'micro detail and fades', false, 'close up and far away');
@@ -1314,9 +1315,9 @@
     note(Mi, 'micro: the cliff photograph’s grain over the tiles (one read, the dominant plane) near the eye. Far fade: the tiles give way to their mean colour, so their large patterns never repeat across a far ridge.');
     toggle(Mi, 'macro texture', () => sp.knobs().rockMacro, v => { sp.set({ rockMacro: v ? 1 : 0 }); changed(); });
     liveNote(Mi, () => { const R = W.ROCK_RING_LIVE; if (!R) return 'no ring in this world'; const m = R.stat().macro; if (!m) return 'no macro texture';
-      const lv = m.rects.map((r, L) => r[2] > r[0] ? ['1 m', '2 m', '4 m'][L] + ' +-' + Math.round((r[2] - r[0]) / 2) + ' m' : null).filter(Boolean);
+      const lv = m.rects.map((r, L) => r[2] > r[0] ? ['1 m', '2 m', '4 m', '8 m'][L] + ' +-' + Math.round((r[2] - r[0]) / 2) + ' m' : null).filter(Boolean);
       return 'macro: ' + m.tiles + ' tiles, ' + (lv.length ? lv.join(', ') : 'filling') + (m.queued ? ', ' + m.queued + ' queued' : '') + ', worker ' + m.workerMs + ' ms'; });
-    note(Mi, 'macro texture: the bench v1’s macro (the joints’ lines, the formations, the colour zones, the exposure, the green’s chance) as a texture round the eye - 1 m to 500 m, 2 m to 1 km, 4 m to 2 km - read a pixel at a time: the far rock’s mosaic and its big lines. Off: the procedural stand-in beyond the outcrops.');
+    note(Mi, 'macro texture: the bench v1’s macro (the joints’ lines, the formations, the colour zones, the exposure, the green’s chance) as a texture round the eye - 1 m to 500 m, 2 m to 1 km, 4 m to 2 km, 8 m to 4 km - read a pixel at a time: the far rock’s mosaic and its big lines. Off: the procedural stand-in beyond the outcrops.');
     // the outcrops as geometry round the eye and the boulders seated on them (rock_ring.js) - splat knobs, the ring reads them
     const Rg2 = sec(body, 'outcrops and boulders', true, 'the rock as geometry round the eye');
     toggle(Rg2, 'outcrops', () => sp.knobs().rockRing, v => { sp.set({ rockRing: v ? 1 : 0 }); changed(); });

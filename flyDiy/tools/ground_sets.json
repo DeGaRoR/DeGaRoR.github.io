@@ -1113,7 +1113,8 @@
      "assets/splat/trondSlab/height_512.jpg"
     ]
    },
-   "cook": true
+   "cook": true,
+   "norWebp": true
   },
   "trondFace": {
    "src": {
@@ -1130,7 +1131,8 @@
      "assets/splat/trondFace/height_512.jpg"
     ]
    },
-   "cook": true
+   "cook": true,
+   "norWebp": true
   }
  },
  "libs": {
