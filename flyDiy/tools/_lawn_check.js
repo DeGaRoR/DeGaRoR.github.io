@@ -15,6 +15,7 @@
 //   6. the tiers nest: a cell planted for a far eye is a subset of the same cell planted near (every card kept far is kept near)
 //   7. the instrument lawnAt(x, z): cards / m2 and the length at a point, 0 on the wild and on the kill
 //   8. off: nothing planted (the GRAPHICS row's `off`)
+//   0. the shipped default: on, B (8 cm, 150 / m2), the tall band 40 cm
 //   9. never in drawn water: a pond across the mown strip plants no card in it (A0 17 Nov, LOOKS 5)
 //   node tools/_lawn_check.js   -> "GATE LAWN: PASS|FAIL"
 'use strict';
@@ -65,15 +66,18 @@ function rings(o) {
   lawn = ctx.COVER_RING.make(THREE, Object.assign({}, base, { scene: new THREE.Scene(), layer: 'lawn' }));
   const common = { budgetMs: 1e9, blockBudget: 1e9, grow: 0, reach: 60, near: 10, tier: 0 };
   field.set(Object.assign({ on: true, tufts: 12, blotch: 0, green: 0, minH: 0.3 }, common, o.field || {}));
+  const def = lawn.get();   // the shipped defaults, before the gate's own dials
   lawn.set(Object.assign({ on: o.lawnOn !== false }, common, o.lawn || {}));
   for (let i = 0; i < 4; i++) { field.update(); lawn.update(); }
   const pts = R => { const c = R.census(), a = []; for (let i = 0; i < c.length; i += 3) a.push([c[i + 1], c[i + 2]]); return a; };
-  return { field, lawn, fp: pts(field), lp: pts(lawn), THREE, B, CR: ctx.COVER_RING };
+  return { field, lawn, def, fp: pts(field), lp: pts(lawn), THREE, B, CR: ctx.COVER_RING };
 }
 const run = o => { try { return rings(o); } catch (e) { ok(false, 'the rings plant: ' + (e && e.stack || e).toString().slice(0, 400)); return null; } };
 
 const A = run({});
 if (A) {
+  // 0 the shipped default (17 Nov, variant B on the page): on, 8 cm, 150 cards / m2, the tall band at grass-edge's 40 cm
+  ok(A.def.on === true && A.def.dens === 150 && A.def.cutH === 0.08 && A.def.tallH === 0.4, '0 the default: the lawn ON, B (8 cm, 150 / m2), the tall band 40 cm', JSON.stringify({ on: A.def.on, dens: A.def.dens, cutH: A.def.cutH, tallH: A.def.tallH }));
   const st = A.lawn.stat(), by = st.by || {}, lp = A.lp;
   // 1 only grass_plates, only on the cut
   ok(Object.keys(by).length === 1 && by.grass_plates > 0, '1a the lawn plants grass_plates alone', JSON.stringify(by));

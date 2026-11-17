@@ -179,9 +179,9 @@ var COVER_RING = (() => {
   // the mown length and its lognormal spread; tallH / tallSigma the cut beside a soft strip (coverAt `tall`); stripH a grass strip's
   // running surface; lean: the three leaning plates drawn too (1) or the upright three alone (0); reach / near: the fade's (m); hRef the
   // size fade's reference length (LOOK-1: never the reed's 0.3 - an 8 cm card would fade at the eye)
-  const LAWN_ON = false;   // the study's: OFF until the user picks a variant (the page), then the pick's default
+  const LAWN_ON = true;   // ON (GRASS-CARDS 17 Nov: variant B, 8 cm, 150 cards / m2 - page NfFjULHhqZg4itbvcgQBAS; ?lawn=0 the A/B)
   const LAWN_DEF = { cell: 8, block: 4, reach: 40, near: 10, taper: 1, aglFull: 20, aglOff: 70, aglPre: 110, budgetMs: 2, preBudgetMs: 1, maxCells: 600,
-    dens: 150, cutH: 0.08, cutSigma: 0.2, tallH: 0.2, tallSigma: 0.3, stripH: 0.06, stripSigma: 0.15, lean: 1, hRef: 0.08, sizeFade: 1, sizeMax: 1.5,
+    dens: 150, cutH: 0.08, cutSigma: 0.2, tallH: 0.4, tallSigma: 0.3,   /* tallH 0.4: grass-edge's tall band (the user: 'taller grass on the strip side') */ stripH: 0.06, stripSigma: 0.15, lean: 1, hRef: 0.08, sizeFade: 1, sizeMax: 1.5,
     colour: 1, match: 1, vary: 0.06, tier: 1, trunc: 1, minCut: 0.05, lawnWet: 0.3, green: 0, texGrass: 0, weeds: 0, root: 0 };   // lawnWet: a square's ground over the drawn water it needs (m)
   const LAWN_SPECIES = ['grass_plates'];
   const LAWN_BUF = { cap: 0, xs: [], col: [], rand: [] };   // buildLawn's scratch (emitField copies out of it)

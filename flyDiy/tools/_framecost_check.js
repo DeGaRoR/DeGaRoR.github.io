@@ -76,6 +76,12 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G4180 (GRASS-CARDS, the user 16 Nov: "all mown grass needs to be addressed through grass cards"; variant B on by default, page
+  // NfFjULHhqZg4itbvcgQBAS): the lawn ring's cells ask the ground's height at their squares - measured lawn ON vs OFF on one tree
+  // (claude/grass-cards on L40e + grass-edge, 17 Nov 06:30): the stand +8 (Cub) / +10 (Cessna) grHeight, the only counter the lawn
+  // alone turns red. Its other rises ride keys already red from L40e / grass-edge: stand draws.main +21, taxi draws.main +30, taxi
+  // uniform1f +12, stand terrainH +4.5; and it LOWERS the taxi's triangles by 4.8 M and the roll-out's ground lookups by 48 000
+  { key: 'stand/world.grHeight', build: '*', rise: 12, why: 'the lawn ring (grass cards on the mown ground) asks the ground under its squares', g: 'G4180' },
   // G3774 (DMG-LOOKS ON BY DEFAULT, the user 10 Nov: "absolutely no reason not to"): the member pools and their slot
   // textures parked with the world (worldSettle) - measured OFF (?dmglook=0) vs ON on one build (Deform 10 Nov 22:08):
   // the Cub's boot +10 GL calls in garage:images and +11 in garage:worldCompile, +2 MiB; no draw, program or frame
