@@ -388,7 +388,15 @@ function ROCK_RING_CORE_FACTORY() {
     // the work lattice: the chunk + its margin at st
     const n = Math.round((C + 2 * M) / st) + 1, X = i => x0 - M + i * st, Z = j => z0 - M + j * st;
     const Y = new Float32Array(n * n), Rr = new Float32Array(n * n);
-    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; Y[k] = bil(H, X(i), Z(j)); Rr[k] = bil(R, X(i), Z(j)); }
+    // THE BASE IS THE DRAWN GROUND (16 Nov, the user's ground-level 'sheet'): the game's fine tiles (render_world FINE: within
+    // 700 m, so under the whole ring) draw terrainH at a 5 m grid aligned to 5 m, each cell cut by the diagonal (i, j+1)-(i+1, j);
+    // the relief followed the BILINEAR surface between the nodes, and on rough ground a triangle stood up to a quarter of the
+    // cell's twist over it (0.5-1 m on Ardent) - the drawn ground's triangles poked through the skin as flat green lids. The
+    // skin's base is now those triangles exactly (every 5 m node is a point of the 2.5 m input lattice: no new sample)
+    const tri5 = (x, z) => { const gx = x / 5, gz = z / 5, i = Math.floor(gx), j = Math.floor(gz), u = gx - i, v = gz - j, x0g = i * 5, z0g = j * 5;
+      const a = bil(H, x0g, z0g), b = bil(H, x0g, z0g + 5), d = bil(H, x0g + 5, z0g);
+      return u + v <= 1 ? a * (1 - u - v) + b * v + d * u : bil(H, x0g + 5, z0g + 5) * (u + v - 1) + b * (1 - u) + d * (1 - v); };
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; Y[k] = tri5(X(i), Z(j)); Rr[k] = bil(R, X(i), Z(j)); }
     const Ys = blur(Y, n, Math.max(1, Math.round(4 / st))), Rb = blur(Rr, n, Math.max(1, Math.round(3 / st)));
     // pass 1: the macro (lap 0), its height; pass 2 the hollows from that height's 4 m Laplacian - the colour and the green
     const mac = new Float32Array(n * n * 7), tmp = new Float32Array(8), slope = new Float32Array(n * n), dn = new Float32Array(n * n * 2);

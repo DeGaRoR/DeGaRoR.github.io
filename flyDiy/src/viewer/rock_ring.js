@@ -423,6 +423,8 @@ Smp rRock(vec3 P, vec3 nG){
       get: () => Object.assign({}, S),
       set(o) { const rebuild = ['chunk', 'step', 'lift', 'amp', 'unit', 'sink', 'proud', 'scatter', 'boulders', 'ndvi', 'ndviMid', 'off', 'hLo', 'hHi', 'jointDirt', 'wet', 'M', 'hs'].some(k => k in o && o[k] !== S[k]);
         Object.assign(S, o); if (rebuild) { for (const k of [...chunks.keys()]) drop(k); queue.length = 0; } if (rebuild || 'reach' in o) cx0 = cz0 = NaN; return ring.get(); },
+      // the chunks' states by key (cx,cz in chunk units): 'mesh' | 'empty' (no rock: no skin) | 'blank' (built, no vertex) | 'queued' (a check's)
+      chunkStates: () => { const o = {}; for (const [k, c] of chunks) o[k] = c.mesh ? 'mesh' : (c.empty ? 'empty' : (c.band !== undefined ? 'blank' : 'queued')); return o; },
       stat: () => ({ chunks: [...chunks.values()].filter(c => c.mesh).length, queued: queue.length, inflight: inflight.size, verts: ST.verts, tris: ST.tris,
         built: ST.built, boulderTris: ST.boulderTris || 0, farChunks: [...farChunks.values()].filter(c => c.bmesh).length, farBoulderTris: ST.farBoulderTris || 0, workerMs: Math.round(ST.workerMs), workerLastMs: ST.workerLast, mainMs: Math.round(ST.mainMs), worker: !!worker,
         macro: MT.on ? { tiles: MT.built, queued: MT.queue.length, inflight: MT.inflight.size, workerMs: Math.round(MT.ms), rects: MTL.map((l, L) => mtRect(L)) } : null }),

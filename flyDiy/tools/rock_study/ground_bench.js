@@ -116,7 +116,7 @@ for (let z = PJ.cz - 400; z <= PJ.cz + 400; z += 10) for (let x = PJ.cx - 400; x
 // face (slope under 9 deg, the map's rock over 0.3), approached from the south-west down a 4 deg path - 450 m out, 120 m out, the flare
 let ld = null;   // (the gentlest ground under 12 deg with the map's rock within 60 m of it - a strip a bush plane could take - nearest the face)
 for (let z = PJ.cz - 450; z <= PJ.cz + 450; z += 10) for (let x = PJ.cx - 450; x <= PJ.cx + 450; x += 10) {
-  const sv = slope(x, z); if (sv > 12) continue; const s9 = Math.max(slope(x + 40, z), slope(x - 40, z), slope(x, z + 40), slope(x, z - 40)); if (s9 > 16) continue;
+  const sv = slope(x, z); if (sv > 16) continue; const s9 = Math.max(slope(x + 40, z), slope(x - 40, z), slope(x, z + 40), slope(x, z - 40)); if (s9 > 22) continue;
   let rk = codeAt(x, z); for (const [ox, oz] of [[60, 0], [-60, 0], [0, 60], [0, -60], [42, 42], [-42, 42], [42, -42], [-42, -42]]) rk = Math.max(rk, codeAt(x + ox, z + oz)); if (rk < 0.3) continue;
   const sc = sv + Math.hypot(x - best[0], z - best[1]) / 60; if (!ld || sc < ld[2]) ld = [x, z, sc]; }
 console.log('LANDING ' + (ld ? 'at ' + ld[0] + ', ' + ld[1] + ' slope ' + slope(ld[0], ld[1]).toFixed(1) : 'none - the face'));
@@ -168,16 +168,24 @@ if (RING && Q.get('relief') === '0') { const o = RING.update; RING.update = () =
 let RSTAT = null; if (RING) { const t = performance.now(); RSTAT = await RING.whenIdle(); RSTAT.wallMs = Math.round(performance.now() - t); }
 // ?hang=1: the relief's OPEN EDGES - a vertex on a chunk's side, next to a chunk that has no skin, standing over the ground (the
 // 'sheet' seen at eye level): counted and the worst reported to the console (ground_shot keeps the logs)
-if (RING && Q.get('hang') === '1') { const C = 62.5, built = new Set(), meshes = RING.group.children.filter(m => m.material === mat && m.geometry.attributes.aRD);
-  for (const m of meshes) { m.geometry.computeBoundingBox(); const b = m.geometry.boundingBox; built.add(Math.round((b.min.x + 1) / C) + ',' + Math.round((b.min.z + 1) / C)); }
-  let n = 0, open = 0, worst = 0;
+if (RING && Q.get('hang') === '1') { const C = 62.5, CS = RING.chunkStates(), meshes = RING.group.children.filter(m => m.material === mat && m.geometry.attributes.aRD);
+  let n = 0, open = 0, worst = null; const why = {};
   for (const m of meshes) { const P = m.geometry.attributes.position.array, D = m.geometry.attributes.aRD.array;
-    for (let v = 0; v < P.length / 3; v++) { const x = P[v * 3], z = P[v * 3 + 2], fx = x / C - Math.round(x / C), fz = z / C - Math.round(z / C);
-      const onX = Math.abs(fx) < 1e-3, onZ = Math.abs(fz) < 1e-3; if (!onX && !onZ) continue; n++;
-      const cx = Math.floor(x / C), cz = Math.floor(z / C), nb = onX ? [[Math.round(x / C) - 1, cz], [Math.round(x / C), cz]] : [[cx, Math.round(z / C) - 1], [cx, Math.round(z / C)]];
-      if (nb.every(k => built.has(k[0] + ',' + k[1]))) continue;
-      const h = P[v * 3 + 1] + D[v * 3 + 1] - hXZ(x, z); if (h > 0.05) { open++; worst = Math.max(worst, h); } } }
-  console.log('HANG built ' + built.size + ' chunks, edge vertices ' + n + ', OPEN over the ground ' + open + ', worst ' + worst.toFixed(2) + ' m'); }
+    for (let v = 0; v < P.length / 3; v++) { const x = P[v * 3], z = P[v * 3 + 2], ox = Math.abs(x / C - Math.round(x / C)) < 1e-4, oz = Math.abs(z / C - Math.round(z / C)) < 1e-4; if (!ox && !oz) continue; n++;
+      const h = P[v * 3 + 1] + D[v * 3 + 1] - hXZ(x, z); if (h <= 0.05) continue;
+      const nbs = []; if (ox) nbs.push([Math.round(x / C) - 1, Math.floor(z / C)], [Math.round(x / C), Math.floor(z / C)]); if (oz) nbs.push([Math.floor(x / C), Math.round(z / C) - 1], [Math.floor(x / C), Math.round(z / C)]);
+      const miss = nbs.map(k => k[0] + ',' + k[1]).filter(k => CS[k] !== 'mesh'); if (!miss.length) continue;
+      open++; for (const k of miss) why[CS[k] || 'absent'] = (why[CS[k] || 'absent'] || 0) + 1;
+      if (!worst || h > worst.h) worst = { h: +h.toFixed(2), x: +x.toFixed(1), z: +z.toFixed(1), miss: miss.map(k => k + ':' + (CS[k] || 'absent')), dEye: Math.round(Math.hypot(x - camera.position.x, z - camera.position.z)) }; } }
+  // LIDS: a relief vertex meant to show (not sunk: its offset over -0.2 m) that lies UNDER the drawn ground's triangle (this mesh's
+  // 5 m grid, the (i, j+1)-(i+1, j) diagonal - the game's fine tiles' cut): the ground covers the skin there
+  const triB = (x, z) => { const gx = (x - PJ.x0) / ST, gz = (z - PJ.z0) / ST, i = Math.floor(gx), j = Math.floor(gz), u = gx - i, v = gz - j;
+    return u + v <= 1 ? hIJ(i, j) * (1 - u - v) + hIJ(i, j + 1) * v + hIJ(i + 1, j) * u : hIJ(i + 1, j + 1) * (u + v - 1) + hIJ(i, j + 1) * (1 - u) + hIJ(i + 1, j) * (1 - v); };
+  let shown = 0, lids = 0, deep = 0;
+  for (const m of meshes) { const P = m.geometry.attributes.position.array, D = m.geometry.attributes.aRD.array;
+    for (let v = 0; v < P.length / 3; v++) { if (D[v * 3 + 1] <= -0.2) continue; shown++; const x = P[v * 3], z = P[v * 3 + 2], u = triB(x, z) - (P[v * 3 + 1] + D[v * 3 + 1]); if (u > 0.02) { lids++; deep = Math.max(deep, u); } } }
+  console.log('LIDS relief vertices shown ' + shown + ', under the drawn ground ' + lids + ', the deepest ' + deep.toFixed(2) + ' m');
+  console.log('HANG chunks ' + Object.keys(CS).length + ' (' + meshes.length + ' meshes), edge vertices ' + n + ', OPEN over the ground ' + open + ', the missing neighbour ' + JSON.stringify(why) + ', worst ' + JSON.stringify(worst)); }
 const gl = renderer.getContext(), t1 = performance.now(); renderer.render(scene, camera); gl.finish(); const firstMs = Math.round(performance.now() - t1);
 const prog = renderer.info.programs.find(p => p.name && /MeshStandard/.test(p.name)) || renderer.info.programs[0];
 const errs = []; renderer.debug.onShaderError = (g, p, vs, fs) => errs.push(String(g.getProgramInfoLog(p) || '') + String(g.getShaderInfoLog(fs) || ''));
