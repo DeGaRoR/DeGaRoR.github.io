@@ -317202,3 +317202,14 @@ NEW REDS (named, owners fix in L40f):
 - BENCHTIME: 2 bench checks at 6.0-6.5 s vs 6.0 under the train's load (timing).
 LOAD TIME (cold, RTX 3080, ledger): L40d 143 s -> L40e 215 s (205 s re-measured on a quiet box): world 26 -> 40-51 s, settle 17 -> 22-27 s, shader compile 58 -> 67-93 s. LANDED WITH THE COST NAMED (the user's rule); suspects: subalpine (+7-14 % trees, walk), grass-on-green, animals on land (31 drawn), the ground ladder. First item of the perf round; bisect owed.
 KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes evict grit on low tiers (GROUND-FX splash-budget L40f); MEDIA career_core 720 KB budget (Game).
+
+MUD (DIRT-STRIP, 17 Nov, ready/mud on L40e 2157a2f98; the user's mud asks via GROUND-FX: "the bumps on mud", "denser, natural tyre
+marks"): on a strip with mud - a weather rung's pavWxSt.mud (SNOW-MUD's ladder: w6, w8) or a fixed mud class (1) - the tyre marks
+are denser (+4 passes, +4 fresh, 16 at most), deeper, dark and wet (a fresh one glistens), old passes hold, the lugs pressed harder;
+the micro relief is drawn sharper. pavement.js only; no mud = drawn exactly as before (GATE PAVEMENT's new row). F9 RUNWAYS keys
+sfMudMarks / sfMudBump (1). The FELT relief is the same on every device (SNOW-MUD's wear deepens it with the mud); the settings tier
+scales only what is drawn: GFX ground 'plain' (potato, laptop = the phones) 0.35, 'lean' (retro) 0.65, else 1. uLookG.z = the
+marks' strength on the strip: GROUND-FX's hook for the aeroplane's own marks (after 4b, before 10b; its layer after the perf round).
+Not in it: 0.5 puddles on a fixed mud-class strip (no shipped strip has one). GPU 17 Nov 07:50: w8 dry vs forced soft mud,
+evidence/dirt-strip-2026-11-09/tue-mud. Gates: PAVEMENT MUDLADDER STRIPGROUND SNOWMUDFX DUST MICRO LIGHT GROUNDLIB SPLAT CONTACT
+ASSETS PREMISES TERRAINMATCH PASS; LOOKS 5 (the cover ring by drawn water) red on master the same.
