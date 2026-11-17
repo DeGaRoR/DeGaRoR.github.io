@@ -1195,7 +1195,7 @@
   // (src/viewer/rain.js LOOK) - numbers only, live (the next frame reads them), kept in THE LOOK, exported, reset with it.
   // Where it rains is the day's (the left rail's WEATHER: the rain and the clouds); the readout says what the eye has now.
   const RAIN_KEYS = ['opacity', 'exposure', 'maxLen', 'maxNdc', 'width', 'minPx', 'ambient', 'back', 'backPow', 'vFall', 'nearFade', 'cockpitK', 'cockpitV'];
-  const SHAFT_KEYS = { shaftExt: 'rainExt', shaftLight: 'rainLight', shaftKm: 'rainKm', shaftSteps: 'rainSteps' };   // the shafts' dials: CLOUDS.S (the march)
+  const SHAFT_KEYS = { shaftExt: 'rainExt', shaftLight: 'rainLight', shaftKm: 'rainKm', shaftSteps: 'rainSteps', overcast: 'overcast' };   // the shafts' dials: CLOUDS.S (the march)
   function rainNow() { const L = W.RAIN_FX && W.RAIN_FX.LOOK, C = W.CLOUDS && W.CLOUDS.S, o = {}; if (L) for (const k of RAIN_KEYS) o[k] = L[k];
     if (C) for (const k in SHAFT_KEYS) if (typeof C[SHAFT_KEYS[k]] === 'number') o[k] = C[SHAFT_KEYS[k]]; return o; }
   function rainSet(o) { const L = W.RAIN_FX && W.RAIN_FX.LOOK, C = W.CLOUDS && W.CLOUDS.S; if (!o) return;
@@ -1225,6 +1225,7 @@
       range(R, 'shafts: sky light', 0, 2, 0.05, () => CS.rainLight, cs('rainLight'), null, D.shaftLight);
       range(R, 'shafts: reach', 2, 60, 1, () => CS.rainKm, cs('rainKm'), v => v.toFixed(0) + ' km', D.shaftKm);
       range(R, 'shafts: steps', 2, 8, 1, () => CS.rainSteps, cs('rainSteps'), v => v.toFixed(0), D.shaftSteps);
+      range(R, 'overcast: solid, dark base', 0, 1, 0.05, () => CS.overcast, cs('overcast'), null, D.overcast);
     }
     liveNote(R, () => { const Q = W.RAIN_LIVE, C = W.CLOUDS; const fx = Q && Q.fx; return 'here: rain ' + (C && C.ready ? C.rain.toFixed(2) : '-') + ', ' + (Q ? Q.st.why : '-') + (fx ? ', ' + fx.drawn + ' drops (' + fx.tier + ')' : ''); });
     note(R, 'where and how hard it rains is the day\u2019s: the left rail\u2019s WEATHER. The tier is GRAPHICS > sky > rain; ?rain=0 switches the streaks off.');

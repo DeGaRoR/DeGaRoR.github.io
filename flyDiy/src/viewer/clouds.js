@@ -48,7 +48,8 @@
 // ============================================================
 var CLOUDS = (function () {
   'use strict';
-  const S = { rainExt: 1, rainLight: 0.6, rainKm: 30, rainSteps: 6,   // RAIN step 1c (16 Nov): the shafts' density (x the 07d law), the sky light in them, their reach (km), the steps (lean 4)
+  const S = { overcast: 1,   // THE OVERCAST (17 Nov): a deck at cover >= 0.85 - a solid base, darker under its thickness (0 = as before)
+    rainExt: 1, rainLight: 0.6, rainKm: 30, rainSteps: 6,   // RAIN step 1c (16 Nov): the shafts' density (x the 07d law), the sky light in them, their reach (km), the steps (lean 4)
     mode: 'half', steps: 48, lightSteps: 5, sigma: 0.08, seed: 7, base: 0, thick: 0, driftK: 1, powder: 0.6, ambK: 1, sunK: 1,   // period 0 = the type's (A6)
               detail: 0.55, g: 0.75, period: 0, detailPeriod: 700, ms: 0.5, bakeSlices: 6, maxKm: 60, curl: 0.3,
               shadow: 0.8, shadowSoft: 0.6, shadowSteps: 12, shadowEvery: 2, upsample: 1, shimmer: 0, driftWrap: 1, depthCopy: 1, columnK: 0.15, jitter: 0.6, depthK: 1, probeMoveM: 400, shadowHold: 1, noiseMips: 0, temporal: 1, tBlend: 0.1, tGamma: 1, tSub: 1, tLod: 0.5, hemiUnderCloud: 0.7, inShed: false, veil: 1, veilKm: 9, inCloud: 1,
@@ -139,8 +140,11 @@ var CLOUDS = (function () {
     uniform vec4 uGlob;             // sigma (/m at full density), the map's span (m), detail period (m), the deck count
     uniform vec4 uLayerA[MAXL];     // per deck: base (m), thickness (m), on (1 / 0), the base noise's period (m)
     uniform vec4 uProfA[MAXL];      // per deck: bot, top, erode (the worley fbm's share subtracted from the base), coverage gain
-    uniform vec4 uDriftA[MAXL];     // per deck: drift x, drift z (m, the wind at the deck x the clock), 0, 0
-    uniform vec4 uShape;            // detail strength, curl, 0, 0
+    uniform vec4 uDriftA[MAXL];     // per deck: drift x, drift z (m, the wind at the deck x the clock), the deck's cover (THE OVERCAST, 17 Nov), 0
+    uniform vec4 uShape;            // detail strength, curl, the overcast's strength (17 Nov), 0
+    // THE OVERCAST (17 Nov; the user: "the cloud coverage is not there" - a storm's cb 98 % drew a wispy, pale-blue base that read as
+    // cirrus over a blue sky): how overcast deck li is, 0 below cover 0.85 (fair and broken skies untouched), x the dial
+    float ovcOf(int li) { return smoothstep(0.85, 1.0, uDriftA[li].z) * uShape.z; }
     // THE NOISE'S LEVELS (LOOK-1 2a, the study's C4): both 3D textures carry mips, and a ray has no useful derivatives, so every read names its
     // level. The main march sets these from the pixel's footprint; the shadow, the sky fit and the probes stay at level 0, as they were
     float gLodB = 0.0, gLodD = 0.0;
@@ -166,7 +170,7 @@ var CLOUDS = (function () {
       float hf = dn.r * 0.625 + dn.g * 0.25 + dn.b * 0.125;
       hf = mix(hf, 1.0 - hf, clamp(h * 8.0, 0.0, 1.0));           // wispy at the bottom, billowy above
       hf = mix(hf, 0.5, smoothstep(0.5, 2.5, gLodD));             // beyond the texel the erosion goes to its mean (what the levels converge on): the far cloud keeps its mass and loses the alias
-      return remap(base, hf * uShape.x, 1.0, 0.0, 1.0);
+      return remap(base, hf * uShape.x * (1.0 - 0.85 * ovcOf(li)), 1.0, 0.0, 1.0);   // (an overcast's base stays solid: the erosion fades out)
     }`;
 
   // ---- the march --------------------------------------------------------------
@@ -346,7 +350,8 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
           // the sky's light: dimmed under a deck above (to half at most - the sides see round it), and inside the
           // cloud by the depth toward the sun (the sun's march, a proxy for the depth under the top: a core is
           // darker than a fringe - the flat grey underside had no such gradation), never below a third
-          Ls += mix(uAmbBot, uAmbTop, h) * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z));
+          Ls += mix(uAmbBot, uAmbTop, h) * (0.5 + 0.5 * exp(-upOD)) * (0.35 + 0.65 * exp(-odS * uDials2.z))
+                * (1.0 - 0.7 * ovcOf(li) * smoothstep(600.0, 4000.0, uLayerA[li].y) * (1.0 - h));   // THE OVERCAST: the underside of a thick, full deck is dark
           float a = 1.0 - Tstep;
           col += T * Ls * a;
           tw += T * a * t; tsum += T * a;
@@ -878,7 +883,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
       const per = q => map.span / Math.max(1, Math.round(map.span / q));
       LA[o] = l.base; LA[o + 1] = l.thick; LA[o + 2] = l.cover > 0.003 ? 1 : 0; LA[o + 3] = per(S.period > 0 ? S.period : T.period);
       PA[o] = T.bot; PA[o + 1] = T.top; PA[o + 2] = T.erode * S.erodeK; PA[o + 3] = S.calCover ? coverGain[i] : S.covGain;
-      DA[o] = wrapSpan(drifts[i][0], map.span); DA[o + 1] = wrapSpan(drifts[i][1], map.span); DA[o + 2] = 0; DA[o + 3] = 0;   // G1050: wrapped (below)
+      DA[o] = wrapSpan(drifts[i][0], map.span); DA[o + 1] = wrapSpan(drifts[i][1], map.span); DA[o + 2] = l.cover; DA[o + 3] = 0;   // G1050: wrapped (below); z the deck's cover (THE OVERCAST)
     }
     U.uGlob.value.set(S.sigma, map.span, map.span / Math.max(1, Math.round(map.span / S.detailPeriod)), L.length);   // the detail's period divides the span too
     // the clock's seconds for the drift: the day's UT seconds plus a per-date offset (97 days' worth wraps) - a
@@ -912,7 +917,7 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
       U.uScale.value = A.U.scale.value;
     } else { U.uSunCol.value.set(1, 1, 1); U.uAmbTop.value.set(0.2, 0.25, 0.35); U.uAmbBot.value.set(0.1, 0.1, 0.1); }
     U.uSteps.value.set(S.steps, S.lightSteps); U.uDials.value.set(S.powder, S.g, S.ms, S.maxKm); U.uDials2.value.set(S.jitter, S.shadowSoft, S.ambDepth, 0);
-    U.uShape.value.set(S.detail, S.curl, 0, 0);
+    U.uShape.value.set(S.detail, S.curl, S.overcast, 0);
     if (U.uRain.value) {
       const G = typeof window !== 'undefined' && window.GFX && window.GFX.get ? window.GFX.get() : null, q = typeof location !== 'undefined' && /[?&]rain=0(?![.0-9]*[1-9])/.test(location.search || '');
       const tier = G && G.rain === 'off' ? 'off' : (G && (G.rain === 'lean' || (G.rain !== 'full' && /^(laptop|potato|retro)$/.test(G.preset || ''))) ? 'lean' : 'full');
