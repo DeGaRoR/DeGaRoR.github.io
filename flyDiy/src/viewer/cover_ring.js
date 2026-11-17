@@ -203,6 +203,9 @@ var COVER_RING = (() => {
     // patches (fieldPatch m, over fieldShare of the ground), the rest left to the shrub cards, the flowers and the stones
     // (17 Nov, the user's review: "You would expect to see that with some lush grass there. That is just not there") lush over most of it
     subalpine:     { h: 0.50, sigma: 0.35, dens: 1.1, fieldPatch: 12, fieldShare: 0.75 },
+    // 18 LAKESHORE (the user 17 Nov, the floatplane lake: "Tall, lush grass is what strikes me first"): tall, dense, lifted toward a lush
+    // green over the ground's colour (tint, a multiplier) and never dark (its own floor over the field's minAlb)
+    lakeshore:     { h: 0.85, sigma: 0.30, dens: 1.8, tint: [0.85, 1.25, 0.75], minAlb: 0.10 },
   };
   const FIELD_MEADOW = FIELD_TYPES.grassland;
   // GRASS ON GREEN (LOOK-1 15 Nov; the user: "everything green should get some grass ... Flight simulator would spawn grass on
@@ -570,6 +573,8 @@ var COVER_RING = (() => {
         }
         code[k] = cd; mix[k] = BIO.mixHere ? BIO.mixHere(cd, x, z) : (cd < 0 ? null : BIO.mixAt(cd)); bush[k] = bushOff && bushOff(x, z) ? 1 : 0; ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
         if (!FIELD && ok[k] && BIO.shoreHere && BIO.shoreHere(x, z)) { shore[k] = 1; nShore++; }
+        // the grass field on the lake's band takes the lakeshore's own type (17 Nov, the user's lush lake borders: tall, dense, green)
+        if (FIELD && ok[k] && BIO.SHORE !== undefined && BIO.shoreHere && BIO.shoreHere(x, z)) { const sm = BIO.mixAt(BIO.SHORE); if (sm) mix[k] = sm; }
         let cv = null; try { cv = ctx.coverAt ? ctx.coverAt(x, z) : null; } catch (e) { cv = null; }
         if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0; cls[k] = cv.cls ? 1 : 0; cut[k] = cv.cut || 0; surf[k] = cv.surf ? 1 : 0;
           if (cv.grass) { lawnH[k] = cv.grass.h || 0.12; lawnD[k] = cv.grass.density === undefined ? 1 : cv.grass.density; }
@@ -843,7 +848,7 @@ var COVER_RING = (() => {
           // (a bare biome's `forest.cover` is 0 - its own flowers' and the old patches' - so the field's own density stands there)
           const cov = (R0.dens !== undefined || D.fill) ? 1 : (F.cover === undefined ? 1 : F.cover);
           T = { h: pick('h', 0.3), sigma: pick('sigma', 0.35), dens: pick('dens', 1) * cov, clumpM: pick('clumpM', S.clumpM), clumpAmp: pick('clumpAmp', S.clumpAmp),
-                fieldPatch: pick('fieldPatch', 0), fieldShare: pick('fieldShare', 1) }; }   // MOUNTAIN-VEG: the type's grass patches (the subalpine)
+                fieldPatch: pick('fieldPatch', 0), fieldShare: pick('fieldShare', 1), tint: pick('tint', null), minAlb: pick('minAlb', 0) }; }   // MOUNTAIN-VEG: the type's grass patches (the subalpine), its colour lift and floor (the lakeshore)
         types.set(mix, T); return T; };
     }
     // THE FIELD AT A POINT (the instrument, 16 Nov - the false-colour frame): what the field plants at (x, z) by the same rules as
@@ -955,8 +960,10 @@ var COVER_RING = (() => {
           // THE DARKEST TUFT (17 Nov, the user: the dead grass "too dark and desaturated ... almost black. It's not believable"): the tuft's
           // albedo (its multiplier x the picture's mean) under minAlb (linear luminance) is blended toward the picture's own colour at
           // that floor - the dark muskeg soil no longer paints black grass; 0 = off
-          if (S.minAlb > 0) { const L = 0.2126 * col[0] * M[0] + 0.7152 * col[1] * M[1] + 0.0722 * col[2] * M[2];
-            if (L < S.minAlb) { const t = Math.min(1, 1 - L / S.minAlb) * 0.8, Lt = 0.2126 * M[0] + 0.7152 * M[1] + 0.0722 * M[2], s0 = S.minAlb / Math.max(1e-4, Lt);
+          if (T.tint) col = [col[0] * T.tint[0], col[1] * T.tint[1], col[2] * T.tint[2]];   // a type's colour lift (the lakeshore's lush green)
+          const mA = Math.max(S.minAlb || 0, T.minAlb || 0);
+          if (mA > 0) { const L = 0.2126 * col[0] * M[0] + 0.7152 * col[1] * M[1] + 0.0722 * col[2] * M[2];
+            if (L < mA) { const t = Math.min(1, 1 - L / mA) * 0.8, Lt = 0.2126 * M[0] + 0.7152 * M[1] + 0.0722 * M[2], s0 = mA / Math.max(1e-4, Lt);
               col = col.map(v => v * (1 - t) + s0 * t); } }
         } else {   // the sets' means x lift (G551), the A/B
           const place = c.place || {}, l = place.lift === undefined ? 1 : place.lift, k3 = gk * 3, j = 1 + (rJ * 2 - 1) * S.vary;

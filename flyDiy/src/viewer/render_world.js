@@ -5697,6 +5697,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
                 const cd = pm !== undefined ? -1 : BIO.subAt(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);   // (19 SUBALPINE: the vegetation's code)
                 mixHere = pm !== undefined ? pm : BIO.mixAt(cd);   // (BIO.mixHere, with the polygon read once)
                 kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
+                // 18 LAKESHORE's trees (17 Nov, the user's lush lake borders: "the deciduous trees we have (le bouleau etait bien) in the
+                // mix"): on the lake's band (BIO.shoreHere) the lakeshore mix plants when it has a stand of its own (forest.count)
+                if (pm === undefined && BIO.shoreHere && BIO.SHORE !== undefined) { const sm = BIO.mixAt(BIO.SHORE), sF = sm && BIO.mixOf(sm).forest;
+                  if (sF && sF.count > 0 && BIO.shoreHere(x, z)) { mixHere = sm; kind = Math.min(1, BIO.density(sm) * spc * spc * FILL.island.biomeGain); } }
                 if (cd === BIO.SUBALPINE && kind > 0 && BIO.keepAt) kind *= BIO.keepAt(cd, x, z, world.terrainH(x, z));   // 19: the summits and the ridge tops thin
               } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
               if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted (a polygon's mix stands as itself)

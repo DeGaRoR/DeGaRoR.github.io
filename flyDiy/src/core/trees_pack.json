@@ -12048,14 +12048,38 @@
       "patch": 4
      },
      "shrub_deciduous": {
-      "proportion": 0.3
+      "proportion": 0.8
+     },
+     "birch": {
+      "proportion": 1,
+      "dead": 0.03
+     },
+     "ash": {
+      "proportion": 0.25,
+      "dead": 0.03
+     },
+     "spruce_tree.glb": {
+      "proportion": 0.3,
+      "dead": 0.04
+     },
+     "raspberry": {
+      "proportion": 0.6
+     },
+     "sapling_deciduous": {
+      "proportion": 0.8
+     },
+     "alp_elliottia": {
+      "proportion": 1,
+      "density": 0.03,
+      "patch": 6,
+      "patchShare": 0.5
      }
     },
     "forest": {
      "ground": "plane",
-     "count": 0,
+     "count": 700,
      "radius": 220,
-     "under": 2,
+     "under": 12,
      "cover": 1,
      "reach": 220,
      "wet": 0,
@@ -12069,8 +12093,10 @@
      "ttype": 1,
      "spread": 0.2,
      "coverSpread": 0.3,
-     "canopyFloor": 0,
-     "debris": 10
+     "canopyFloor": 8,
+     "debris": 10,
+     "clump": 0.45,
+     "clumpM": 16
     }
    },
    "subalpine": {
