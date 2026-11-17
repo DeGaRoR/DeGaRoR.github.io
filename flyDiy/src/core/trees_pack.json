@@ -10550,6 +10550,12 @@
       "density": 0.01,
       "patch": 6,
       "patchShare": 0.4
+     },
+     "reed_marsh": {
+      "proportion": 1,
+      "density": 0.05,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11385,6 +11391,12 @@
       "density": 0.012,
       "patch": 6,
       "patchShare": 0.4
+     },
+     "reed_marsh": {
+      "proportion": 1,
+      "density": 0.05,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11525,6 +11537,12 @@
      "alp_vaccinium": {
       "proportion": 1,
       "density": 0.008,
+      "patch": 6,
+      "patchShare": 0.4
+     },
+     "reed_marsh": {
+      "proportion": 1,
+      "density": 0.03,
       "patch": 6,
       "patchShare": 0.4
      }
@@ -11674,6 +11692,12 @@
       "proportion": 1,
       "density": 0.015,
       "patch": 8,
+      "patchShare": 0.4
+     },
+     "reed_marsh": {
+      "proportion": 1,
+      "density": 0.03,
+      "patch": 6,
       "patchShare": 0.4
      }
     },

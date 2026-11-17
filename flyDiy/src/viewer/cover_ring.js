@@ -995,7 +995,8 @@ var COVER_RING = (() => {
     // cover's land tests (a strip's bush clearance, a lawn, a pavement, the mown sides, the lake band); none on a cell far from an edge
     // the bushes: the user 16 Nov eve - "you may use the new cards as bushes ... don't put everything in everything": the lowland
     // edge takes the blueberry and the Elliottia cards (no Cassiope: subalpine) with today's raspberry and sapling meshes
-    const EDGE_SHRUB = [['alp_vaccinium', 1], ['alp_elliottia', 0.7], ['raspberry', 0.6], ['sapling_deciduous', 0.6]], EDGE_WEED = [['flower_fireweed', 1], ['flower_foam', 0.7]];
+    // (17 Nov, the user: the ferns "almost better used in the forest biome, particularly on the borders": the fern joins the weeds)
+    const EDGE_SHRUB = [['alp_vaccinium', 1], ['alp_elliottia', 0.7], ['raspberry', 0.6], ['sapling_deciduous', 0.6]], EDGE_WEED = [['flower_fireweed', 1], ['flower_foam', 0.7], ['reed_marsh', 1.2]];
     function edgeBand(G, x0, z0, C, push, cell) {
       // past the outward band's trees (28c edgeBandAt): bushes from edgeShrubIn x its local reach R out to R + edgeShrubOut, the
       // weeds from there to R + edgeWeedOut (d < 0 outside)
