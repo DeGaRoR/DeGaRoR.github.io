@@ -391,10 +391,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     return false;
   };
   function floorsChanged(f) {
-    for (const r of [coverRing, grassField]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
+    for (const r of [coverRing, grassField, rockLayer]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
   }
   let rockRing = null, rockGroundMat = null;   // ROCK-STUDY: (rockGroundMat: the near ring's material - the relief wears it)
   // the island's rock as geometry round the eye (rock_ring.js; set with the cover ring)
+  let rockLayer = null;   // MOUNTAIN-VEG 17 Nov: the rocks' own ring (cover_ring.js layer 'rocks': the bigger rocks further out)
+  // the cover ring keeps the rocks under the rocks' ring's split while that ring runs (0: all of them, as before), and wears its skin switch
+  const rockSync = () => { if (!coverRing) return; const on = !!(rockLayer && rockLayer.get().on); coverRing.set({ rockSplit: on ? rockLayer.get().rockSplit : 0, rockSkin: rockLayer ? rockLayer.get().rockSkin : 1 }); };
   let coverRing = null, grassField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -5072,9 +5075,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     };
     const prefOf = key => SPECIES_PREF[String(key).split('|')[0]] || null;
     const speciesWeight = (entry, i, x, z, h, g) => {
+      // a mix row's own altitude band (17 Nov, the user: "small conifers up to a certain point, then only the dwarf pines trees, then
+      // the bushes and grass only"): [lo, hi, fade] - the weight fades to 0 over `fade` m outside it
+      let a = 1; if (entry.alt) { const [lo, hi, f] = entry.alt, fd = Math.max(1, f || 40); a = h < lo ? Math.max(0, 1 - (lo - h) / fd) : h > hi ? Math.max(0, 1 - (h - hi) / fd) : 1; if (a <= 0) return 0; }
       const P = prefOf(entry.key);
-      if (!P) return entry.w;
-      let w = entry.w;
+      if (!P) return entry.w * a;
+      let w = entry.w * a;
       const [lo, hi] = P.alt;
       const out = h < lo ? lo - h : h > hi ? h - hi : 0;
       w *= Math.max(0.25, 1 - out / 60 * 0.75);
@@ -5091,6 +5097,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const g = at ? groundAt(x, z, h) : null;
       let tot = 0;
       for (let i = 0; i < pool.length; i++) tot += poolW[i] = at ? speciesWeight(pool[i], i, x, z, h, g) : pool[i].w;
+      if (!(tot > 0)) return -1;   // every species out of its altitude band here: no tree (the caller's gi -1)
       let acc = r * tot;
       for (let i = 0; i < pool.length; i++) { acc -= poolW[i]; if (acc <= 0) return i; }
       return pool.length - 1;
@@ -5107,7 +5114,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (M && M.species) for (const [sp, o] of Object.entries(M.species)) {
         const subs = []; shapes.forEach((H, gi) => { if (H.key && H.key.split('|')[0] === sp) subs.push(gi); });
         const w = ((o && o.proportion !== undefined) ? o.proportion : 1) / Math.max(1, subs.length);
-        if (w > 0) for (const gi of subs) P.push({ key: shapes[gi].key, w, gi, dead: (o && o.dead !== undefined) ? +o.dead : -1 });   // dead: the mix's snag share, -1 none (G1975)
+        if (w > 0) for (const gi of subs) P.push({ key: shapes[gi].key, w, gi, dead: (o && o.dead !== undefined) ? +o.dead : -1, alt: (o && Array.isArray(o.alt)) ? o.alt : null });   // dead: the mix's snag share, -1 none (G1975); alt: the row's altitude band (17 Nov)
       }
       byMix.set(mixName, P);
       return P;
@@ -5179,6 +5186,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // summits, and a ridge top - the point's height over the mean of four taps at 110 m (read for a subalpine point only)
     if (BIO) {
       try { if (/[?&]subalpine=0/.test(location.search)) BIO.subOn = false; } catch (e) {}
+      // WORLD-RAIL-VEG: the biomes read the splat's LIVE knobs (the world editor's cliff / old-forest / dense-scrub split moves
+      // those; the recipe's copy never moved, so the planters kept the shipped split)
+      BIO.ground = () => { const sp = groundApi.splat ? groundApi.splat() : null; return sp && sp.knobsLive ? sp.knobsLive() : null; };
       BIO.subAt = (code, x, z) => (!BIO.subOn || !(code === 2 || code === 7 || code === 14)) ? code
         : BIO.subCode(code, world.terrainH(x, z), vnoise(x, z, 140, 61), hsh(Math.floor(x * 0.731), Math.floor(z * 0.731) + 97));
       BIO.keepAt = (code, x, z, h) => {
@@ -5187,6 +5197,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         return BIO.subKeep(h, h - m);
       };
     }
+    // FOREST-EDGE (the user 16 Nov; 28c_biomes KNOBS edge*): the signed distance to the forest's edge over the trees' own ground
+    // (FOREST_FLOOR, no strip) - a tree inside it stands at the interior's canopy x the size ramp (walkRows). ?forestedge=0 = before
+    const EDGE_CAN = 1000;   // a fill record's canopy over this is an edge tree's own (EDGE_CAN + canopy x its size): the build sizes it under the island's floor
+    const edgeD = (BIO && BIO.edgeField && islRule && ISLC) ? BIO.edgeField((x, z) => world.treeGround(x, z) === world.SURFACE.FOREST_FLOOR && !world.treeAeroBlocked(x, z)) : null;
+    if (edgeD) { try { if (/[?&]forestedge=0/.test(location.search)) BIO.edgeOn = false; } catch (e) {} }
     const biomeAt = (x, z, r) => BIO.mixHere(codeAt(x, z, r), x, z);
     // 18 LAKESHORE's MASK (G3430, BIOMES.SHORE): the land within shoreReach m of a drawn lake's line - drawnLakeSD, the
     // splat's own lsd field (+ inside, m) - its edge broken by shoreJit x the reach on a 17 m noise, under the bank's slope
@@ -5744,16 +5759,40 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
+          const x0r = x, z0r = z;
           const pm = ISLC ? polyMix(x, z, BIO) : undefined;   // G2935: a polygon's own mix (undefined: no polygon speaks)
-          if (!forestHere(x, z) && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
+          const fh = forestHere(x, z);
+          if (!fh && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
           if (premTreeEx(x, z)) continue;   // the world editor's "no trees" (G527)
           if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
           // above `full`, a ramp between - and rides with the record to size it.
-          let can = 0, mixHere = null, floored = false;
+          let can = 0, mixHere = null, floored = false, lift = 0, ksz = 1, MFx = null;   // ksz < 1: an edge tree, at ksz x its wood's canopy (EDGE_CAN)
+          let band = null;
           if (ISLC) {
             can = ISLC.canopyAt(x, z);
+            // FOREST-EDGE: inside the edge the interior's canopy x the ramp (young, medium, full), the NDVI's thinning lifted -
+            // only with edgeIn (off by default since the user's read, 16 Nov eve: it made the deep forest denser)
+            if (edgeD && BIO.edgeOn && fh && pm === undefined && BIO.knobs().edgeIn) { const d = edgeD(x, z);
+              if (d < BIO.knobs().edgeOut) { lift = BIO.edgeLift(d); can = Math.max(can, BIO.edgeCanIn(ISLC.canopyAt, x, z) * BIO.edgeRamp(d)); } }
+            // THE OUTWARD BAND (the user 16 Nov eve: the ramp did not "extend wooded zones" - a gradient outward): outside the
+            // forest's ground, within the band's wandering reach (28c edgeBandAt), the WOOD's own trees - its mix read 10 m in
+            // along the distance field's gradient - planted at the band's share, sized ksz of the wood's canopy (0.7 at the
+            // line to a sapling at the reach), in clumps; past the reach the open ground's own rule as before
+            if (edgeD && BIO.edgeOn && !fh && pm === undefined && BIO.edgeBandAt) { const d = edgeD(x, z);
+              if (d < 0 && d > -BIO.edgeReachMax()) band = BIO.edgeBandAt(d, x, z); }
+          }
+          // a band point that its draw refuses (or with no wood behind it) falls back to the open ground's own rule below - the
+          // band only adds trees (the same hash: planted where it is under the larger of the two shares)
+          if (band && (hsh(ix + 13, iz + 29) > band.p || world.treeAeroBlocked(x, z))) band = null;
+          if (band) {
+            const d = edgeD(x, z), gx0 = edgeD(x + 6, z) - edgeD(x - 6, z), gz0 = edgeD(x, z + 6) - edgeD(x, z - 6), gl = Math.hypot(gx0, gz0) || 1;
+            const xi = x + gx0 / gl * (-d + 10), zi = z + gz0 / gl * (-d + 10);
+            const mI = BIO.mixAt(BIO.subAt(codeAt(xi, zi, hsh(ix + 21, iz + 23)), xi, zi)), MF = mI ? BIO.mixOf(mI).forest : null;
+            if (MF && MF.count > 0) { mixHere = mI; can = Math.max(BIO.edgeCanIn(ISLC.canopyAt, xi, zi), MF.canopyFloor || 0, 4); ksz = band.k; } else band = null;
+          }
+          if (band) { /* the band's tree: planted below */ } else if (ISLC) {
             // THE RULE (G406, the user: "with the crazy amount of layers we have, we
             // should be able to be quite clever"): the TERRAIN TYPE says what kind of
             // stand can be here (forest full, scrub half, muskeg a stunted few, heath
@@ -5770,6 +5809,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
                 const cd = pm !== undefined ? -1 : BIO.subAt(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);   // (19 SUBALPINE: the vegetation's code)
                 mixHere = pm !== undefined ? pm : BIO.mixAt(cd);   // (BIO.mixHere, with the polygon read once)
                 kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
+                // 18 LAKESHORE's trees (17 Nov, the user's lush lake borders: "the deciduous trees we have (le bouleau etait bien) in the
+                // mix"): on the lake's band (BIO.shoreHere) the lakeshore mix plants when it has a stand of its own (forest.count)
+                if (pm === undefined && BIO.shoreHere && BIO.SHORE !== undefined) { const sm = BIO.mixAt(BIO.SHORE), sF = sm && BIO.mixOf(sm).forest;
+                  if (sF && sF.count > 0 && BIO.shoreHere(x, z)) { mixHere = sm; kind = Math.min(1, BIO.density(sm) * spc * spc * FILL.island.biomeGain); } }
                 if (cd === BIO.SUBALPINE && kind > 0 && BIO.keepAt) kind *= BIO.keepAt(cd, x, z, world.terrainH(x, z));   // 19: the summits and the ridge tops thin
               } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
               if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted (a polygon's mix stands as itself)
@@ -5784,26 +5827,43 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
                 // islands"): a mix may say forest.clump (the share of its ground left bare, 0..1) and clumpM (the
                 // island's size, m) - a value noise at that cell keeps the top 1 - clump of the ground and the
                 // trees stand at the grid's density inside it, nothing outside
-                if (MF && MF.clump > 0 && vnoise(x, z, MF.clumpM || 30, 41) < MF.clump) continue; }
+                // THE MUSKEG'S CLUMPS (the user 16 Nov eve: "the muskegs have really too little tree density ... higher density when
+                // there are trees, and therefore subject to the forest border as well"): forest.clumpEdge (noise units, 0 = the old cut-out
+                // island) fades a clump outward - the share falls from clumpEdgeDens to 0, the size from edgeSizeIn to edgeSizeOut
+                // (28c) - and forest.extra plants a second tree at that share of the points inside a clump (MFx: read below)
+                // (17 Nov, the user: "the occasional conifer, maybe clustered in pockets") forest.clumpUp [h0, h1, clump at h1]: the bare share rises with the altitude
+                const clH = (MF && MF.clumpUp) ? MF.clump + (MF.clumpUp[2] - MF.clump) * (t => t * t * (3 - 2 * t))(Math.max(0, Math.min(1, (world.terrainH(x, z) - MF.clumpUp[0]) / Math.max(1, MF.clumpUp[1] - MF.clumpUp[0])))) : (MF ? MF.clump : 0);
+                if (MF && clH > 0) { const v = vnoise(x, z, MF.clumpM || 30, 41);
+                  if (v < clH) { const ce = BIO.edgeOn ? (MF.clumpEdge || 0) : 0, t = ce > 0 ? (clH - v) / ce : 1; if (t >= 1) continue;
+                    if (hsh(ix + 51, iz + 53) > (MF.clumpEdgeDens === undefined ? 0.8 : MF.clumpEdgeDens) * Math.pow(1 - t, 1.4)) continue;
+                    const K = BIO.knobs(); ksz = K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * Math.pow(t, 0.8); }
+                  else MFx = MF; } }
               if (kind <= 0.0) continue; }
             // a floored mix is at its count: the map's ramp and vigour said "nothing here" and the mix overrules them
             let p = floored ? 1 : (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
-            if (ISLC.ndvi && !floored) { const nd = ISLC.ndvi[ISLC.cellAt(x, z)] / 127 - 1; p *= Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); }
+            if (ISLC.ndvi && !floored) { const nd = ISLC.ndvi[ISLC.cellAt(x, z)] / 127 - 1, f = Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); p *= f + (1 - f) * lift; }
             { const d = 8, gx2 = ISLC.terrainH ? 0 : 0; const s2 = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
               if (s2 > 0.7) p *= 0.33; }
             p *= kind;
             if (p < 1 && hsh(ix + 13, iz + 29) > p) continue;
           }
+          const canR = ksz < 1 ? EDGE_CAN + can * ksz : can;
+          const reps = (MFx && MFx.extra > 0 && hsh(ix + 61, iz + 67) < MFx.extra) ? 2 : 1;
+          for (let rp = 0; rp < reps; rp++) {
+          const jx = rp ? ix + 977 : ix, jz = rp ? iz + 541 : iz;
+          const x = rp ? x0r + (hsh(ix + 71, iz + 73) - 0.5) * spc * 0.9 : x0r, z = rp ? z0r + (hsh(ix + 79, iz + 83) - 0.5) * spc * 0.9 : z0r;
+          if (rp && (premTreeEx(x, z) || world.treeAeroBlocked(x, z) || !(forestHere(x, z) || (BIO && openHere(x, z))))) continue;   // the second tree's own spot: the runways' clearances and the ground's rule, as its lattice point (GATE RWYTREES 7)
           const ti = nearTree(x, z);
           const h = world.terrainH(x, z);
-          const sp = (ti >= 0 && hsh(ix + 3, iz + 5) < 0.88) ? world.trees[ti].sp
-                                                             : (hsh(ix + 9, iz + 1) * 5) | 0;
+          const sp = (ti >= 0 && hsh(jx + 3, jz + 5) < 0.88) ? world.trees[ti].sp
+                                                             : (hsh(jx + 9, jz + 1) * 5) | 0;
           let gi;
           let md = -1;   // the mix's snag share for this species (G1975: -1 none, the collection's then)
-          if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); const E = P.length ? P[poolPick(P, hsh(ix + 11, iz + 17), x, z, h)] : null; gi = E ? E.gi : -1; if (gi < 0) continue; md = E.dead; }
-          else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
-          recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can, md);   // FILL_REC floats a tree
-          if (PROBE) PROBE.push(x, z, forestHere(x, z) ? 1 : 0);
+          if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); const E = P.length ? P[poolPick(P, hsh(jx + 11, jz + 17), x, z, h)] : null; gi = E ? E.gi : -1; if (gi < 0) continue; md = E.dead; }
+          else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(jx + 11, jz + 17), x, z, h) : (sp < 2 ? 0 : 1);
+          recs[gi].push(x, h, z, sp, hsh(jx + 2, jz + 8), canR, md);   // FILL_REC floats a tree
+          if (PROBE) PROBE.push(x, z, fh ? 1 : 0);
+          }
         }
       }
       // one chunk, whole, in this frame - the teleport's path and the gate's
@@ -5901,6 +5961,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // spread as jitter; elsewhere the collection's size
             if (can < 0) { (rec.town || (rec.town = new Uint8Array(n)))[i] = 1; rec.townN = (rec.townN || 0) + 1; }   // TOWN-1
             const s = can < 0 ? -can   // TOWN-1: a town tree, at its record's own size
+              : (can >= EDGE_CAN && SH.h)   // FOREST-EDGE's outward band / a grove's fade: its wood's canopy x the band's size, under the island's floor (a sapling)
+              ? Math.max(0.1, Math.min(FILL.island.max, (can - EDGE_CAN) * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
               : (ISLC && can > 0 && SH.h)
               ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
               : SH.white ? sizeOf(SH.size, w)
@@ -6129,7 +6191,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
             return SPA.meanAt(x, z, code, Math.atan(sl) * 180 / Math.PI); };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
+            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, edgeD, lakeSD: (x, z) => drawnLakeSD(x, z), waterY: (x, z) => waterDrawY(x, z), owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
@@ -6139,13 +6201,17 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;
             const c = world.coverAt ? world.coverAt(x, z) : null; return !(c && c.kill >= 1); };
           grassField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'grass',
-            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt,
+            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt, edgeD,   // edgeD: FOREST-EDGE's distance, for the field's weeds band (LOOK-1)
             groundSetsAt: (x, z, code) => { const SPA = groundApi.splat ? groundApi.splat() : null; return SPA && SPA.setsAt ? SPA.setsAt(x, z, code) : null; } });   // (16 Nov: the grass by the texture drawn)
+          // THE ROCKS' OWN RING (MOUNTAIN-VEG 17 Nov; the user: "rock should be visible for a little while"): the rock rows' bigger
+          // rocks out to its own reach and height cut; the cover ring keeps the small ones (rockSync: its split, and the skin both wear)
+          rockLayer = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'rocks', GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt });
+          rockSync();
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
+                                                    ttypeAt, codeAt, forestHere, openHere, edgeD, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
@@ -6189,7 +6255,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const grew = treeReach(treeReachOf(world, BIO));
         if (!grew.length) return splatGrew;
         treeSettled = null;
-        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); }))
+        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); }))
           .catch(e => console.warn('trees: the grown catalogue did not settle (' + (e && e.message) + ')'));
         return true;
       };
@@ -6220,6 +6286,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // G2563: the grass field (cover_ring.js, layer 'grass'). field(on) switches it: off gives the reed back to the cover ring
           // (today's patches - the A/B), and both replant
           grass: () => grassField,
+          // the rocks' own ring (MOUNTAIN-VEG 17 Nov): rockLayerSet(o) sets it and keeps the cover ring's split and skin in step
+          rockLayer: () => rockLayer,
+          rockLayerSet: o => { if (!rockLayer || !o) return null; const re = ('on' in o && !!o.on !== !!rockLayer.get().on) || ('rockSplit' in o && o.rockSplit !== rockLayer.get().rockSplit);
+            rockLayer.set(o); rockSync(); if (re) { rockLayer.replant(); if (coverRing) coverRing.replant(); } return rockLayer.get(); },
           field: on => { if (!grassField) return false; if (on !== undefined && !!on !== !!grassField.get().on) { grassField.set({ on: !!on }); grassField.replant(); if (coverRing) coverRing.replant(); } return !!grassField.get().on; },
           stands: () => standCards,   // the far forest's handle: get/set/stat/root
           // L6 (the GROUND strip on the flight rail): what is under a point - the terrain-type
@@ -6231,11 +6301,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const tt = ttypeAt(x, z); if (tt < 0) return null;
             const d = 8, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
             const slopeDeg = Math.atan(sl) * 180 / Math.PI, canopy = ISLC.canopyAt(x, z);
-            const code = BIO.codeOf(tt, slopeDeg, canopy, 0.5);
+            const code0 = BIO.codeOf(tt, slopeDeg, canopy, 0.5), code = BIO.subAt ? BIO.subAt(code0, x, z) : code0;   // 19 SUBALPINE: the walk's own derivation (the probe read heath / scrub up there)
             const k = ISLC.cellAt ? ISLC.cellAt(x, z) : -1;
             return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixHere(code, x, z), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
           },
+          // WORLD-RAIL-VEG (the world editor's TYPES > subalpine and VEGETATION > forest edge): the biomes' knobs over the defaults
+          // (BIOMES.setKnobs: the subalpine's ramp and thinning, the forest edge's ramp and band, the dials) - one replant for the
+          // lot, as setMix. knobs() with no argument reads them (tuned: the editor's own, with the dials)
+          knobs: o => { if (!BIO) return null; if (o === undefined) return BIO.tuned();
+            const r = BIO.setKnobs(o); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return r; },
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
@@ -6255,14 +6330,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // G3040 (BIOME-PAINT, SCENERY-ED-2): the ground's packed terrain type re-derived after the stamp moved - theirs,
             // declared with the build's top-level lets; nothing here when it is not (yet) there
             if (typeof groundTtypeRefresh === 'function') groundTtypeRefresh();
-            if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
+            if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return true; },
           exRegions: () => Array.from(exPlanted.values()),
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
-            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return value; },
+            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return value; },
           // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
           speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; staleAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
@@ -8053,6 +8128,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (coverRing) coverRing.update();
     if (rockRing) rockRing.update();
     if (grassField) grassField.update();
+    if (rockLayer) rockLayer.update();
     if (FRw) FRw.pop();
     if (standCards) standCards.update((isFinite(uCam.value.x) && (uCam.value.x || uCam.value.y || uCam.value.z)) ? [uCam.value.x, uCam.value.y, uCam.value.z] : cg);   // G2930: the eye (the fill's ring is the eye's too)
     if (rockMap) rockMap.update();   // the rocks' far tier follows the eye (rock_map.js)

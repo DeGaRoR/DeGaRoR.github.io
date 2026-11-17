@@ -16,6 +16,7 @@
 //   4. SHADOWS FROM 0.35 m. No prototype under castMinH (0.35 m since 2026-10-03, 0.5 since G585) casts, in either path.
 //   5. NOTHING LEAKS. The eye leaves and comes back: cells drop and replant, the batches hold exactly the live
 //      cells' instances (a dropped cell's ids are reused without switching anybody else's).
+//   (7-9: the count truncation, the grass field, the forest edge's band; 10: the world editor's vegetation knobs - below)
 //   6. THE FADE READS THE BATCH. The batched program takes aRand from the colour's alpha after <color_vertex>,
 //      the instanced one reads its attribute.
 //
@@ -220,7 +221,7 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
   const coverAt = (x, z) => (x > 20 && x < 44 && z > -20 && z < 20) ? { kill: 0, boost: 0, kind: null, cls: 'concrete', cut: 1, surf: 0 } : null;
   const CR = ctx.COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer: 'grass',
     biomeAt: () => 'grassland', codeAt: (opts && opts.codeAt) || (() => 2), okAt: () => true, coverAt, groundMeanAt: () => GM.slice() });
-  CR.set({ on: true, budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0 });   // (the field ships off: FIELD_ON)
+  CR.set({ on: true, budgetMs: 1e9, blockBudget: 1e9, grow: 0, tufts: 12, reach: 60, near: 10, blotch: 0, minAlb: 0 });   // (8c the plain colour law; 8h the darkest tuft's floor)   // (the field ships off: FIELD_ON)
   for (let i = 0; i < 4; i++) CR.update();
   return { B, THREE, R, CR, scene, camera, ctx, g, GM };
 }
@@ -255,6 +256,15 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
        '8b cut where the premises say (' + S.cutH + ' m, uniform), the meadow about its 0.30 m', cutH.length + ' cut, median ' + (cutH.length ? med(cutH).toFixed(3) : '-') + '; ' + wildH.length + ' wild, median ' + (wildH.length ? med(wildH).toFixed(3) : '-'));
     // (c) the colour: the ground's over the tinted texel (no texel mean in node: 0.4), within the tuft-to-tuft swing
     ok(cols.length > 0 && cols.every(c => [0, 1, 2].every(k => Math.abs(c[k] / (Fd.GM[k] / 0.4 * S.match) - 1) <= S.vary + 1e-6)), '8c each tuft wears the ground\'s drawn colour (x match over the tinted texel)', cols.length + ' tufts');
+    // (h) THE DARKEST TUFT (17 Nov, the user: the dead grass "almost black"): with the floor at 0.1, every tuft's albedo (x the texel mean
+    // 0.4) is lifted above the ground's own (0.0545 x match here) and stays at or under the floor
+    { const lum = c => 0.4 * (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]), raw = cols.map(lum);
+      Fd.CR.set({ minAlb: 0.1 }); for (let i = 0; i < 4; i++) Fd.CR.update();
+      const L = []; Fd.CR.root.traverse(o => { if (o.isInstancedMesh && o.userData.coverKind === 'cover') for (let i = 0; i < (o.userData.n === undefined ? o.count : o.userData.n); i++) L.push(lum([o.instanceColor.array[i * 3], o.instanceColor.array[i * 3 + 1], o.instanceColor.array[i * 3 + 2]])); });
+      const rMax = raw.length ? Math.max(...raw) : NaN, lMin = L.length ? Math.min(...L) : NaN, lMax = L.length ? Math.max(...L) : NaN;
+      ok(L.length > 0 && lMin > rMax * 1.1 && lMax <= 0.1 + 1e-6, '8h the darkest tuft: a tuft coloured by dark ground is lifted toward the floor and never past it',
+         'ground at most ' + rMax.toFixed(4) + ' -> ' + lMin.toFixed(4) + '..' + lMax.toFixed(4) + ' (floor 0.1), ' + L.length + ' tufts');
+      Fd.CR.set({ minAlb: 0 }); for (let i = 0; i < 4; i++) Fd.CR.update(); }
     // (d) the tiers: from 60 m up the cells hold a prefix; down at 2 m they are planted again and only ADD
     const keyOf = (m, i) => m.instanceMatrix.array[i * 16 + 12].toFixed(4) + ',' + m.instanceMatrix.array[i * 16 + 14].toFixed(4);
     const posSet = () => { const s = new Set(); Fd.CR.root.traverse(o => { if (o.isInstancedMesh) for (let i = 0; i < o.userData.n; i++) s.add(keyOf(o, i)); }); return s; };
@@ -293,10 +303,10 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
       let others = 0, othersOk = 0; Bt.R.render(Bt.scene, Bt.camera);
       Bt.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.material || !o.material.userData.fade || o.userData.coverKind === 'cover') return;
         const p = Bt.R.properties.get(o.material); others++; const k = o.userData.coverKind, u = p && p.uniforms && p.uniforms.uRoot;
-        if (u && u !== a0 && ((k === 'rock' || k === 'debris' || k === 'shrub') ? u.value.x === 0 : true)) othersOk++; });
+        if (u && u !== a0 && ((k === 'rock' || k === 'debris') ? u.value.x === 0 : k === 'shrub' ? Math.abs(u.value.x - 0.6) < 1e-6 : true)) othersOk++; });   // (17 Nov: the bushes MID)
       const fsOk = Fd.B.links.some(l => l.fs && l.fs.indexOf('diffuseColor.rgb *= min(vRoot, 1.0);') >= 0 && l.vs && l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y') >= 0 && l.vs.indexOf('if (uRoot.w > 0.0) { float _rk = smoothstep(') > l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y'));   // (12 Nov: the key AFTER the law, or the law overwrites it)
       ok(a0 && Math.abs(x0 - 0.6) < 1e-6 && x1 === 0.5 && Math.abs(x2 - 0.6) < 1e-6 && others > 0 && othersOk === others && fsOk && kwOk,
-         '8f the root gradient: the reed reads the field\'s uRoot (0.6 -> 0.5 -> 0.6 live), every other faded material its own (rocks and bushes identity - the user 10 Nov: no shade on bushes), the vertex law in the program with the field keyed by colour',
+         '8f the root gradient: the reed reads the field\'s uRoot (0.6 -> 0.5 -> 0.6 live), every other faded material its own (rocks identity; the bushes MID since the 17 Nov review), the vertex law in the program with the field keyed by colour',
          'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others right, key weight ' + (+kw).toFixed(3)); }
   }
 }
@@ -311,5 +321,219 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
     const nl = inBand(L), ns = inBand(S0);
     ok(nl > 0 && ns === 0, '8g a lake-coded bank grows grass (the nearest land code), a sea-coded band none', nl + ' tufts on the lake band, ' + ns + ' on the sea band'); } }
 
+// 9 FOREST-EDGE's BAND (the user 16 Nov; the spec of 25 Oct): on the open side of a forest edge the ring plants the edge's bushes
+// from 1 m in to 3 m out and its weeds from 3 to 6 m out, on their own hashes (every other species' instances the same as with
+// the band off), and nothing of it with BIOMES.edgeOn false. A straight edge at x = 60 (the forest east of it)
+function edgeRing(on) {
+  const B = boot(), { THREE, ctx } = B;
+  B.load(path.join('src', 'viewer', 'trees.js'));
+  const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
+  const cols = [{ name: 'raspberry', kind: 'shrub', place: { hMin: 0.6, hMax: 1.4 } }, { name: 'flower_fireweed', kind: 'cover', place: { size: 1.2 } },
+    { name: 'tuft', kind: 'cover', place: { density: 0.3, size: 0.3 } }];
+  const H = { raspberry: 1, flower_fireweed: 1.2, tuft: 0.4 }, built = new Map();
+  const treeList = () => cols.map(c => ({ key: c.name + '_m', col: c, sub: { bb: [-0.5, 0, -0.5, 0.5, H[c.name], 0.5], h: H[c.name] } }));
+  const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const n = key.replace(/_m$/, ''), g = new THREE.BoxGeometry(1, H[n], 1); g.translate(0, H[n] / 2, 0);
+    const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial({ map: t }) }] }; built.set(key, b); return b; };
+  ctx.TREE_PACK = { collections: cols };
+  const K = { edgeShrubIn: 0.5, edgeShrubOut: 3, edgeWeedOut: 6, edgeShrubDens: 0.2, edgeWeedDens: 0.25 };   // the outward trees' reach R = 10 m here
+  const mix = { species: { tuft: { density: 0.3 } }, forest: { cover: 1, reach: 220 } };
+  const BIO = { mixAt: () => 'mix', mixOf: () => mix, knobs: () => K, edgeOn: on, edgeReachAt: () => 10, edgeReachMax: () => 15 };
+  const world = { terrainH: () => 0, waterH: () => -10, island: null };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(40, 3, 0); camera.lookAt(80, 0, 0); camera.updateMatrixWorld();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const CR = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null,
+    biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true, edgeD: (x, z) => x - 60 });
+  CR.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });
+  for (let i = 0; i < 4; i++) CR.update();
+  const xs = { shrub: [], cover: [] };
+  CR.root.traverse(o => { if (!o.isInstancedMesh) return; const M = o.instanceMatrix.array, k = o.userData.coverKind, h = (o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox)).max.y;
+    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) (xs[k] || (xs[k] = [])).push([M[i * 16 + 12], h]); });
+  return xs;
+}
+{ let on = null, off = null;
+  try { on = edgeRing(true); off = edgeRing(false); } catch (e) { ok(false, '9 the edge band plants', (e && e.message || String(e)).slice(0, 200)); }
+  if (on && off) {
+    const sh = on.shrub || [], weeds = (on.cover || []).filter(([x, h]) => h > 1), tuftsOn = (on.cover || []).filter(([x, h]) => h < 1).length, tuftsOff = (off.cover || []).filter(([x, h]) => h < 1).length;
+    const shOk = sh.length > 20 && sh.every(([x]) => x >= 47 - 1e-6 && x <= 55 + 1e-6), wdOk = weeds.length > 20 && weeds.every(([x]) => x >= 44 - 1e-6 && x <= 47 + 1e-6);   // the edge at x 60, R 10: bushes 5-13 m out, weeds 13-16
+    ok(shOk && wdOk && !(off.shrub || []).length && !(off.cover || []).some(([x, h]) => h > 1) && tuftsOn === tuftsOff,
+       '9 FOREST-EDGE: past the outward trees (R 10 m) the bushes stand from 5 to 13 m out, the weeds from 13 to 16 m out, nothing with the band off, the cell\'s other species untouched',
+       sh.length + ' bushes in x ' + (sh.length ? Math.min(...sh.map(e => e[0])).toFixed(1) + '..' + Math.max(...sh.map(e => e[0])).toFixed(1) : '-') + ', ' + weeds.length + ' weeds in x ' +
+       (weeds.length ? Math.min(...weeds.map(e => e[0])).toFixed(1) + '..' + Math.max(...weeds.map(e => e[0])).toFixed(1) : '-') + '; tufts ' + tuftsOn + ' / ' + tuftsOff + ' off'); } }
+
+// 10 THE WORLD EDITOR'S VEGETATION KNOBS (WORLD-RAIL-VEG 16 Nov, the user: every new world setting editable in the world editor):
+//   a. BIOMES.setKnobs lays the editor's knobs over the shipped (and drops them back), the dials ride it, tuned() is what the look saves;
+//   b. the planters read the ground's LIVE knobs (BIOMES.ground: the splat the editor's split sliders move) under the editor's own;
+//   c. the edge's distance field re-lays its cells when the editor moves the cell / tile / margin, and only then;
+//   d. the cover ring's reshape re-builds a shaped species' cards from its pack row (the alpine shrubs' rows), and nothing else's
+{
+  const BIOMES = require(path.join(__dirname, '..', 'src', 'core', '28c_biomes.js'));
+  const B = BIOMES.make({ biomes: { map: { 2: 'heath', 19: 'subalpine' }, mixes: { heath: { species: {} }, subalpine: { species: {} } } } });
+  const K0 = B.knobs();
+  const t1 = B.setKnobs({ subH0: 300, edgeMin: 0.8, subOn: false });
+  const aOk = B.knobs().subH0 === 300 && B.knobs().edgeMin === 0.8 && B.subOn === false && t1.subH0 === 300 && t1.subOn === false && t1.edgeOn === true && !('subOn' in B.user);
+  B.setKnobs({ subH0: null, subOn: true }); const aBack = B.knobs().subH0 === K0.subH0 && B.knobs().edgeMin === 0.8 && B.subOn === true;
+  B.setKnobs(null); const aNull = B.knobs().edgeMin === K0.edgeMin && !Object.keys(B.user).length;
+  ok(aOk && aBack && aNull, '10a the biomes\' knobs: the editor\'s over the shipped, back by null, the dials apart', 'subH0 ' + K0.subH0 + ' -> 300 -> ' + B.knobs().subH0 + ', edgeMin ' + B.knobs().edgeMin);
+  // b: rock at 25 degrees is cliff only when the split starts under 25
+  const r0 = B.codeOf(6, 25, 0, 0.5); B.ground = () => ({ cliffLo: 10, cliffHi: 20 }); const r1 = B.codeOf(6, 25, 0, 0.5);
+  B.setKnobs({ cliffLo: 30, cliffHi: 40 }); const r2 = B.codeOf(6, 25, 0, 0.5); B.setKnobs(null); B.ground = null;
+  ok(r0 === 6 && r1 === 12 && r2 === 6, '10b the split: the ground\'s live knobs reach the planters, the editor\'s own over them', 'shipped ' + r0 + ', live split ' + r1 + ', editor ' + r2);
+  // c
+  let calls = 0; const at = B.edgeField((x, z) => { calls++; return x > 60; });
+  const d6 = at(70, 0), n6 = calls; calls = 0; at(80, 0); const nSame = calls;
+  B.setKnobs({ subH0: 500 }); calls = 0; at(70, 0); const nSub = calls; B.setKnobs({ subH0: null });
+  B.setKnobs({ edgeCell: 2 }); calls = 0; const d2 = at(70, 0), n2 = calls; B.setKnobs(null);
+  const want = c => { const M = Math.ceil(K0.edgeMargin / c), n = Math.round(K0.edgeTile / c) + 2 * M; return n * n; };
+  ok(n6 === want(6) && nSame === 0 && nSub === 0 && n2 === want(2) && Math.abs(d6 - 10) < 3.1 && Math.abs(d2 - 10) < 1.1,
+     '10c the edge field re-lays on a cell / tile / margin move, and only then', 'cell 6: ' + n6 + ' reads, d ' + d6.toFixed(2) + '; another knob ' + nSub + ' reads; cell 2: ' + n2 + ' reads, d ' + d2.toFixed(2));
+}
+{ let res = null;
+  try {
+    const Bt = boot(), { THREE, ctx } = Bt;
+    // a picture species needs an <img> (three's TextureLoader): a stand-in that never loads
+    ctx.document = { createElementNS: () => ({ style: {}, addEventListener() {}, removeEventListener() {}, setAttribute() {} }) };
+    Bt.load(path.join('src', 'viewer', 'trees.js'));
+    const cols = [{ name: 'alp', kind: 'cover', maps: ['alp.png'], place: { shape: 'carpet', size: 1, density: 0.5 }, tint: { alpha: 0.3 } },
+      { name: 'tuft', kind: 'cover', place: { density: 0.3, size: 0.3 } }];
+    const built = new Map();
+    const treeList = () => [{ key: 'tuft_m', col: cols[1], sub: { bb: [-0.5, 0, -0.5, 0.5, 0.4, 0.5], h: 0.4 } }];
+    const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const g = new THREE.BoxGeometry(1, 0.4, 1); g.translate(0, 0.2, 0);
+      const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial() }] }; built.set(key, b); return b; };
+    ctx.TREE_PACK = { collections: cols };
+    const mix = { species: { alp: { density: 0.5 }, tuft: { density: 0.3 } }, forest: { cover: 1, reach: 220 } };
+    const BIO = { mixAt: () => 'mix', mixOf: () => mix };
+    const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(0, 3, 0); camera.lookAt(60, 0, 0); camera.updateMatrixWorld();
+    Bt.load(path.join('src', 'viewer', 'cover_ring.js'));
+    const CR = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world: { terrainH: () => 0, waterH: () => -10, island: null }, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null,
+      biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true });
+    CR.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });
+    const grow = () => { for (let i = 0; i < 4; i++) CR.update(); };
+    // the shaped species' meshes are the ones on its picture (a texture map); the tufts' have none
+    const census = () => { const o = { geos: new Set(), alp: 0, tuft: 0, cut: null, top: 0 };
+      CR.root.traverse(m => { if (!m.isInstancedMesh) return; const n = m.userData.n === undefined ? m.count : m.userData.n; if (!n) return;
+        if (!m.material.map) { o.tuft += n; return; }
+        o.alp += n; o.geos.add(m.geometry.attributes.position); o.cut = m.material.alphaTest;
+        const P = m.geometry.attributes.position; let top = 0; for (let i = 0; i < P.count; i++) top = Math.max(top, P.getY(i)); o.top = top; });
+      return o; };
+    grow(); const a = census();
+    cols[0].tint.alpha = 0.12; cols[0].place.tilt = 30; const r = CR.reshape('alp'); grow(); const b = census();
+    res = { a, b, r, shapes: CR.shapes(), none: CR.reshape('nope') };
+  } catch (e) { ok(false, '10d the shaped cards re-build', (e && e.message || String(e)).slice(0, 200)); }
+  if (res) {
+    const { a, b } = res, aG = [...a.geos], bG = [...b.geos];
+    ok(res.r && !res.none && res.shapes.join() === 'alp' && a.alp > 0 && b.alp === a.alp && a.tuft === b.tuft && a.cut === 0.3 && b.cut === 0.12 && !bG.some(g => aG.includes(g)) && Math.abs(a.top - b.top) > 1e-3,
+       '10d the cover ring\'s reshape: a shaped species\' cards re-built from its row (cut, tilt), the same instances, every other species as it was',
+       a.alp + ' -> ' + b.alp + ' cards, cut ' + a.cut + ' -> ' + b.cut + ', top ' + a.top.toFixed(3) + ' -> ' + b.top.toFixed(3) + ', tufts ' + a.tuft + ' / ' + b.tuft + ', shapes [' + res.shapes.join() + ']'); } }
+
+
+// 11 THE ALPINE GROUND (MOUNTAIN-VEG, the user 16 Nov: the mountain tops are "patches of bushes, weeds, moss carpets, and a lot rocks
+// ... identify where it would be likely to have quite a few rocks dispersed"): a rock row's `exposed` keeps its rocks where the soil is
+// likely bare - on a ridge (x < 60 here: the ground convex) - and drops most of them on the flat (x > 60); exposed 0 keeps both alike
+function rockRing(exposed) {
+  const B = boot(), { THREE, ctx } = B;
+  B.load(path.join('src', 'viewer', 'trees.js'));
+  const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
+  const cols = [{ name: 'rocks', kind: 'rock', place: {} }];
+  const built = new Map();
+  const treeList = () => cols.map(c => ({ key: c.name + '_m', col: c, sub: { bb: [-0.5, 0, -0.5, 0.5, 0.6, 0.5], h: 0.6 } }));
+  const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const g = new THREE.BoxGeometry(1, 0.6, 1); g.translate(0, 0.3, 0);
+    const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial({ map: t }) }] }; built.set(key, b); return b; };
+  ctx.TREE_PACK = { collections: cols };
+  const mix = { species: { rocks: { proportion: 1, exposed } }, forest: { cover: 1, reach: 220, rocks: 60 } };
+  const BIO = { mixAt: () => 'mix', mixOf: () => mix, knobs: () => ({}), edgeOn: false };
+  // x < 60: a ridge running along z (a parabola across x, period 24 m: convex on its crests), x > 60: flat
+  const ridge = (x, z) => x < 60 ? -0.06 * Math.pow(((x % 24) + 24) % 24 - 12, 2) : 0;
+  const world = { terrainH: ridge, waterH: () => -10, island: null };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(60, 3, 0); camera.lookAt(60, 0, 40); camera.updateMatrixWorld();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const CR = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null,
+    biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true });
+  CR.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });
+  for (let i = 0; i < 4; i++) CR.update();
+  const xs = [];
+  CR.root.traverse(o => { if (!o.isInstancedMesh || o.userData.coverKind !== 'rock') return; const M = o.instanceMatrix.array;
+    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) xs.push(M[i * 16 + 12]); });
+  const band = (lo, hi) => xs.filter(x => x >= lo && x < hi).length;
+  return { ridge: band(0, 60), flat: band(60, 120) };
+}
+{ let a = null, b = null;
+  try { a = rockRing(0); b = rockRing(0.85); } catch (e) { ok(false, '11 the exposed rocks plant', (e && e.message || String(e)).slice(0, 200)); }
+  if (a && b) ok(a.ridge > 20 && a.flat > 20 && Math.abs(a.ridge - a.flat) / a.flat < 0.35 && b.ridge > 0.55 * a.ridge && b.flat < 0.35 * a.flat,
+    '11 THE ALPINE GROUND: a rock row\'s exposed keeps its rocks on the ridge and drops most on the flat; exposed 0 keeps both alike',
+    'exposed 0: ridge ' + a.ridge + ', flat ' + a.flat + ' | exposed 0.85: ridge ' + b.ridge + ', flat ' + b.flat); }
+
+// 12 THE WATER PLANTS (MOUNTAIN-VEG, the user 17 Nov: "the addition of some water plants could really blend things together"): the
+// lakeshore's rows with onWater are planted by the water band ON the lake - in their band out from the drawn line, in their depth, at
+// the water's level - and never by the land's loop
+function waterRing() {
+  const B = boot(), { THREE, ctx } = B;
+  ctx.document = { createElementNS: () => ({ style: {}, addEventListener() {}, removeEventListener() {}, setAttribute() {} }) };
+  B.load(path.join('src', 'viewer', 'trees.js'));
+  const cols = [{ name: 'water_lily', kind: 'cover', maps: ['lily.png'], place: { shape: 'float', size: 2, aspect: 1, vary: 0.06 }, tint: { alpha: 0.4 } },
+    { name: 'tuft', kind: 'cover', place: { density: 0.3, size: 0.3 } }];
+  const built = new Map();
+  const treeList = () => [{ key: 'tuft_m', col: cols[1], sub: { bb: [-0.5, 0, -0.5, 0.5, 0.4, 0.5], h: 0.4 } }];
+  const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const g = new THREE.BoxGeometry(1, 0.4, 1); g.translate(0, 0.2, 0);
+    const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial() }] }; built.set(key, b); return b; };
+  ctx.TREE_PACK = { collections: cols };
+  const shore = { species: { water_lily: { proportion: 1, density: 0.3, patch: 0, onWater: [1, 14], depth: [0.08, 1.8] }, tuft: { density: 0.3 } }, forest: { cover: 1 } };
+  const land = { species: { tuft: { density: 0.3 } }, forest: { cover: 1, reach: 220 } };
+  const BIO = { SHORE: 18, mixAt: c => (c === 18 ? 'shore' : 'land'), mixOf: m => (m === 'shore' ? shore : land), knobs: () => ({}), edgeOn: false, shoreHere: x => x > 54 && x < 60 };
+  // the lake from x 60 (the drawn line), its bed 0.1 m deeper a metre out, the water at 0
+  const world = { terrainH: x => (x > 60 ? -(x - 60) * 0.1 : (60 - x) * 0.05), waterH: () => -10, island: null };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(50, 3, 0); camera.lookAt(90, 0, 0); camera.updateMatrixWorld();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const CR = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null,
+    biomeAt: () => 'land', codeAt: () => 1, okAt: x => x < 60, lakeSD: x => x - 60, waterY: x => (x > 59 ? 0 : null) });
+  CR.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });
+  for (let i = 0; i < 4; i++) CR.update();
+  const lily = [];
+  CR.root.traverse(o => { if (!o.isInstancedMesh || o.userData.coverKind !== 'cover' || !(o.material && o.material.map)) return; const M = o.instanceMatrix.array;
+    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) lily.push([M[i * 16 + 12], M[i * 16 + 13]]); });
+  return { lily, stat: CR.stat ? CR.stat() : {} };
+}
+{ let r = null;
+  try { r = waterRing(); } catch (e) { ok(false, '12 the water plants plant', (e && e.message || String(e)).slice(0, 200)); }
+  if (r) { const L = r.lily, xs = L.map(p => p[0]), ys = L.map(p => p[1]);
+    // depth 0.08-1.8 m on a 0.1 m/m bed: x 60.8-78; the band 1-14 m out: x 61-74
+    ok(L.length > 20 && xs.every(x => x >= 61 - 1e-6 && x <= 74 + 1e-6) && ys.every(y => Math.abs(y) < 1e-6),
+       '12 THE WATER PLANTS: the lily pads stand on the lake, 1-14 m out from the drawn line within their depth, at the water\'s level - none on the land',
+       L.length + ' pads, x ' + (L.length ? Math.min(...xs).toFixed(1) + '..' + Math.max(...xs).toFixed(1) : '-') + ', y ' + (L.length ? Math.min(...ys).toFixed(3) + '..' + Math.max(...ys).toFixed(3) : '-')); } }
+// 13 THE ROCKS' OWN RING (MOUNTAIN-VEG, the user 17 Nov: "rock should be visible for a little while ... a bit further"): layer
+// 'rocks' plants the rock rows' rocks at least rockSplit m tall (the model's height x its scale) on the cover ring's own cells and
+// stream, and the cover ring under that split keeps the rest: together EXACTLY the cover ring's rocks alone - no rock twice, none lost
+function splitRings() {
+  const B = boot(), { THREE, ctx } = B;
+  B.load(path.join('src', 'viewer', 'trees.js'));
+  const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
+  const cols = [{ name: 'rocks', kind: 'rock', place: {} }, { name: 'sticks', kind: 'debris', place: {} }];
+  const built = new Map();
+  const treeList = () => cols.map(c => ({ key: c.name + '_m', col: c, sub: { bb: [-0.5, 0, -0.5, 0.5, 0.6, 0.5], h: 0.6 } }));
+  const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const g = new THREE.BoxGeometry(1, 0.6, 1); g.translate(0, 0.3, 0);
+    const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial({ map: t }) }] }; built.set(key, b); return b; };
+  ctx.TREE_PACK = { collections: cols };
+  const mix = { species: { rocks: { proportion: 1 }, sticks: { proportion: 1 } }, forest: { cover: 1, reach: 220, rocks: 30, debris: 10 } };
+  const BIO = { mixAt: () => 'mix', mixOf: () => mix, knobs: () => ({}), edgeOn: false };
+  const world = { terrainH: () => 0, waterH: () => -10, island: null };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(0, 3, 0); camera.lookAt(0, 0, 40); camera.updateMatrixWorld();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const ring = (layer, split) => { const R = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer,
+      biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true });
+    R.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0, maxCells: 1e5, rockSplit: split }); for (let i = 0; i < 4; i++) R.update();
+    const o = { rock: [], debris: 0, layer: R.layer };
+    R.root.traverse(m => { if (!m.isInstancedMesh) return; const M = m.instanceMatrix.array, n = m.userData.n === undefined ? m.count : m.userData.n;
+      for (let i = 0; i < n; i++) { const x = M[i * 16 + 12], z = M[i * 16 + 14]; if (Math.abs(x) > 150 || Math.abs(z) > 150) continue;
+        if (m.userData.coverKind === 'rock') o.rock.push(x.toFixed(3) + ',' + z.toFixed(3) + ',' + Math.hypot(M[i * 16 + 4], M[i * 16 + 5], M[i * 16 + 6]).toFixed(4)); else o.debris++; } });
+    return o; };
+  return { all: ring(undefined, 0), small: ring(undefined, 0.6), big: ring('rocks', 0.6) };
+}
+{ let r = null;
+  try { r = splitRings(); } catch (e) { ok(false, '13 the rocks’ own ring plants', (e && e.message || String(e)).slice(0, 200)); }
+  if (r) { const A = new Set(r.all.rock), S = new Set(r.small.rock), G = new Set(r.big.rock);
+    const both = [...S].filter(k => G.has(k)).length, lost = [...A].filter(k => !S.has(k) && !G.has(k)).length, extra = [...S, ...G].filter(k => !A.has(k)).length;
+    const bigOk = r.big.rock.every(k => +k.split(',')[2] * 0.6 >= 0.6 - 1e-3), smallOk = r.small.rock.every(k => +k.split(',')[2] * 0.6 < 0.6 + 1e-3);
+    ok(A.size > 100 && S.size > 20 && G.size > 20 && !both && !lost && !extra && bigOk && smallOk && r.big.debris === 0 && r.small.debris > 0 && r.big.layer === 'rocks',
+       '13 THE ROCKS’ OWN RING: it plants the rocks at least rockSplit m tall (no debris), the cover ring the smaller ones - together exactly the cover ring’s rocks alone',
+       'alone ' + A.size + ' | small ' + S.size + ' + big ' + G.size + ', twice ' + both + ', lost ' + lost + ', extra ' + extra + ', debris ' + r.small.debris + ' / ' + r.big.debris); } }
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
