@@ -60,7 +60,7 @@ const uv = (x, z) => { const dx = x - E2.end0[0], dz = z - E2.end0[1]; return [d
 console.log('1. the splice');
 {
   let r = null;
-  for (const py of ['python3', 'python', 'py']) { const q = cp.spawnSync(py, [path.join(T, 'afb0220_splice.py'), '--check'], { encoding: 'utf8' }); if (!q.error) { r = q; break; } }
+  for (const py of ['python3', 'python', 'py']) { const q = cp.spawnSync(py, [path.join(T, 'afb0220_splice.py'), '--check'], { encoding: 'utf8' }); if (!q.error && !/Microsoft Store|App execution aliases/.test((q.stderr || '') + (q.stdout || ''))) { r = q; break; } }   // (Windows' python3 stub is no Python: the next name)
   yes(!!r && r.status === 0, 'the shipped fixture and scenery_ship_afb19.json are the part, byte for byte', r ? (r.stdout || r.stderr || '').trim().slice(0, 200) : 'NO PYTHON on this box (python3 / python / py): the splice check cannot run - install Python 3');
 }
 
@@ -154,7 +154,9 @@ console.log('4. the assets');
 console.log('5. the ground (the island composed in node)');
 const IN = require(path.join(T, 'island_node.js'));
 const t0 = Date.now();
-const W = IN.islandWorld('jolene', { premises: (() => { const J = JSON.parse(FIXTXT); delete J.layers.runways.find(r => r.id === 'xw_rough').micro; return JSON.stringify(J); })() });
+// (BUMPINESS, the user 16 Nov: w2 - the band - now bumpy at 0.4 too) the lane is laid on the band's GRADE: both strips' micro bumps
+// are taken off for the reading, as the lane's own always were
+const W = IN.islandWorld('jolene', { premises: (() => { const J = JSON.parse(FIXTXT); for (const id of ['xw_rough', 'w2']) delete J.layers.runways.find(r => r.id === id).micro; return JSON.stringify(J); })() });
 const tCompose = Date.now() - t0;
 const P = (u, v) => [E2.end0[0] + D[0] * u + N[0] * v, E2.end0[1] + D[1] * u + N[1] * v];
 const H = (u, v) => W.terrainH(...P(u, v)), wet = (x, z) => W.waterH && W.waterH(x, z) > W.terrainH(x, z);
@@ -303,17 +305,18 @@ console.log('9. the cost (static: what the part draws; FRAMECOST measures the fr
 }
 
 // ---- 10 --------------------------------------------------------------------------------------------------------------
-// THE MUD LANE AND THE C172 (A0's RULING, 13 Nov: keep chaos 0.55 + firm mud - the STOL-practice side): the pilot's own circuit
-// off xw_rough with the C172 REJECTS its take-off (said, no damage) and stops on the lane; flown off w2 onto it, it lands on the
-// lane's centreline and stops, undamaged. tools/afb0220_ap_probe.js, the composed island, every bump (two children, ~3 min)
+// THE MUD LANE AND THE C172 (A0's RULING, 13 Nov: keep chaos 0.55 + firm mud - the STOL-practice side). RE-PINNED 17 Nov (DIRT-STRIP,
+// carrying the ready; the user 16-17 Nov: "dare, don't decline" - the autopilot tries, never declines politely; on L40e's pilot the
+// C172 no longer rejects): the pilot's own circuit off xw_rough with the C172 TAKES OFF, flies the circuit and lands back on the lane,
+// stopped on it, no damage; flown off w2 onto it, it lands on the lane's centreline and stops, undamaged. tools/afb0220_ap_probe.js, the composed island, every bump (two children, ~3 min)
 console.log('10. the C172 on the mud lane (the pilot, the composed island)');
 {
   const probe = args => cp.spawnSync(process.execPath, [path.join(T, 'afb0220_ap_probe.js')].concat(args), { encoding: 'utf8', maxBuffer: 64 << 20, timeout: 1200000 });
   const off = probe(['arch:c172', 'xw_rough']), on = probe(['arch:c172', 'w2', 'xw_rough']);
   const line = (r, k) => ((r.stdout || '').split('\n').find(l => l.indexOf(k) >= 0) || '').trim();
   const phOff = line(off, 'phases'), endOff = line(off, 'end:'), dmgOff = line(off, 'damage:');
-  yes(/ABORT/.test(phOff) && /STOPPED/.test(phOff) && !/LIFTOFF/.test(phOff) && /ON xw_rough/.test(endOff) && /none crashed, 0 members/.test(dmgOff),
-    'the C172 rejects the take-off from the mud lane, said, and stops on it (' + phOff.replace(/^.*phases /, '') + '; ' + endOff.replace(/^end: /, '') + '; ' + dmgOff.replace(/^damage: /, '') + ')', (off.stderr || '').slice(-200));
+  yes(/LIFTOFF/.test(phOff) && /STOPPED/.test(phOff) && /ON xw_rough/.test(endOff) && /none crashed, 0 members/.test(dmgOff),
+    'the C172 dares the mud lane: takes off, flies the circuit and stops back on it, undamaged (' + phOff.replace(/^.*phases /, '') + '; ' + endOff.replace(/^end: /, '') + '; ' + dmgOff.replace(/^damage: /, '') + ')', (off.stderr || '').slice(-200));
   const phOn = line(on, 'phases'), td = line(on, 'touchdown:'), dmgOn = line(on, 'damage:'), vOn = line(on, 'verdict:');
   yes(/STOPPED/.test(phOn) && /ON xw_rough'S CENTRELINE/.test(vOn) && /none crashed, 0 members/.test(dmgOn),
     'flown off w2 onto the mud lane, the C172 lands fine (' + td.replace(/^touchdown: /, '') + '; ' + dmgOn.replace(/^damage: /, '') + ')', (on.stderr || '').slice(-200));
