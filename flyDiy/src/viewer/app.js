@@ -15032,6 +15032,7 @@
     // PREM-S2: a flight walked away from (the shed door mid-flight) still flew its time - the clock, nothing moves
     if (!inGarage && started && flSlot && !flEnded) playerFlightEnd('abandoned');
     inGarage = true; started = false; running = true;
+    { const cs = $('ctlStrip'); if (cs) cs.hidden = true; }   // CONTROLS-STRIP: the shed has no hands on the controls
     try { fsGarage(); } catch (e) {}   // G2400 (FREIGHT-STRAP): the shed weighs the build (its rigs); the load drawn on the stand
     // THE MODE FOLLOWS THE GARAGE, not the editor's boot (G86). It hung off
     // openEditor at first, which returns early when the cage editor cannot
@@ -17408,6 +17409,66 @@
     if (R.gearU) R.gearU.textContent = lab;
     if (RD.gear) RD.gear.classList.toggle('warn', !locked && !up);
   }
+  // THE CONTROLS STRIP (CONTROLS-STRIP, the user 16 Nov: variant A of flydiy design 4AziskHN - "it is instructive to watch
+  // what the autopilot does with the stick"). What the hands are doing, from sim.ctl as the solver takes it: the stick
+  // (da right, de back = the dot DOWN, as a pilot pulls it), its last 0.4 s as four fading dots, the hand trim's arrow
+  // (input.js, +-TRIM_MAX 0.5), the rudder as the pedal (-dr, the readout's sign), the toe brakes (the solver's
+  // clamp(brake + side x brakeD), port -1), the throttle, the flaps (ctl.flap 0..1), and the gear lamp on a retractable
+  // only (out.gear a number, hudGear's rule). Amber while the autopilot flies, white by hand (`manual`), one class.
+  // Called from hud() (every 0.1 s, 10 Hz); every live mark moves by its transform alone and a text or a class is
+  // written only when it changes - no layout, no new render pass. Graphics > interface > controls strip hides it.
+  const CS = { el: null, E: null, k: {}, trail: [], ap: null };
+  function ctlStrip() {
+    const el = CS.el || (CS.el = $('ctlStrip'));
+    if (!el) return;
+    const G = window.GFX && window.GFX.get ? window.GFX.get() : null;
+    const on = !!(sim && sim.ctl && started && !inGarage) && !(G && G.ctlstrip === 'off');
+    if (el.hidden === on) el.hidden = !on;   // (aria-hidden stays: the strip shows what the panel and the PFD already say)
+    if (!on) { CS.trail.length = 0; return; }
+    const E = CS.E || (CS.E = { tag: $('csTag'), trimT: $('csTrimT'), trim: $('csTrim'), dot: $('csDot'), tr: el.querySelectorAll('.csTr'),
+      rud: $('csRud'), toeL: $('csToeL'), toeR: $('csToeR'), thr: $('csThr'), thrT: $('csThrT'), flap: $('csFlap'), flapT: $('csFlapT'),
+      gearC: $('csGearC'), gear: $('csGear'), gearT: $('csGearT') });
+    const c = sim.ctl, o = sim.out || {}, K = CS.k;
+    const cl = (v, a, b) => Math.max(a, Math.min(b, +v || 0));
+    const put = (key, node, v) => { if (node && K[key] !== v) { K[key] = v; node.style.transform = v; } };
+    const txt = (key, node, v) => { if (node && K[key] !== v) { K[key] = v; node.textContent = v; } };
+    const ap = !manual;
+    if (CS.ap !== ap) { CS.ap = ap; el.classList.toggle('ap', ap); el.classList.toggle('hand', !ap); if (E.tag) E.tag.textContent = ap ? 'AP' : 'HAND'; }
+    // the stick: 25 px a full throw, the trail the last four ticks (0.1 .. 0.4 s), the newest the brightest
+    const sx = cl(c.da, -1, 1) * 25, sy = cl(c.de, -1, 1) * 25;
+    put('dot', E.dot, 'translate(' + sx.toFixed(1) + 'px,' + sy.toFixed(1) + 'px)');
+    const T = CS.trail, OP = [0.45, 0.3, 0.18, 0.08];
+    for (let i = 0; i < E.tr.length; i++) {
+      const p = T[i], n = E.tr[i];
+      put('tr' + i, n, p ? 'translate(' + p[0].toFixed(1) + 'px,' + p[1].toFixed(1) + 'px)' : 'translate(0px,0px)');
+      const op = p ? String(OP[i] || 0) : '0';
+      if (K['tro' + i] !== op) { K['tro' + i] = op; n.style.opacity = op; }
+    }
+    T.unshift([sx, sy]); if (T.length > E.tr.length) T.length = E.tr.length;
+    // the hand trim (input.js): on the stick's own scale, an arrow at the box's side; nose up reads as the pull does
+    const tr = typeof c.trim === 'number' ? cl(c.trim / 0.5, -1, 1) : 0;
+    put('trim', E.trim, 'translateY(' + (tr * 25).toFixed(1) + 'px)');
+    const tp = Math.round(Math.abs(tr) * 100);
+    txt('trimT', E.trimT, tp === 0 ? 'TRIM 0' : 'TRIM ' + (tr > 0 ? 'up ' : 'dn ') + tp);
+    put('rud', E.rud, 'translateX(' + (cl(-c.dr, -1, 1) * 28).toFixed(1) + 'px)');
+    const bk = cl(c.brake, 0, 1), bd = cl(c.brakeD, -1, 1);
+    put('toeL', E.toeL, 'scaleX(' + cl(bk - bd, 0, 1).toFixed(2) + ')');
+    put('toeR', E.toeR, 'scaleX(' + cl(bk + bd, 0, 1).toFixed(2) + ')');
+    const th = cl(c.thr, 0, 1);
+    put('thr', E.thr, 'scaleY(' + th.toFixed(3) + ')');
+    txt('thrT', E.thrT, Math.round(th * 100) + ' %');
+    const fl = cl(c.flap, 0, 1);
+    put('flap', E.flap, 'scaleY(' + fl.toFixed(3) + ')');
+    txt('flapT', E.flapT, fl < 0.02 ? 'UP' : fl > 0.98 ? 'FULL' : Math.round(fl * 100) + ' %');
+    // the gear: a retractable's only (out.gear a number) - green locked down, dark up, red between
+    const gOn = typeof o.gear === 'number';
+    if (E.gearC && E.gearC.hidden === gOn) E.gearC.hidden = !gOn;
+    if (gOn) {
+      const g = o.gear, lamp = g > 0.98 ? 'g' : g < 0.02 ? '' : 'r';
+      if (K.lamp !== lamp && E.gear) { K.lamp = lamp; E.gear.className = 'csLamp' + (lamp ? ' ' + lamp : ''); }
+      txt('gearT', E.gearT, g > 0.98 ? 'DOWN' : g < 0.02 ? 'UP' : 'MOVING');
+    }
+  }
   // the netto's state: a 3 s needle and a 20 s ring, as a vario has
   let nettoF = 0, nettoI = 0;
   const nettoRing = new Float64Array(20 * 60);
@@ -17467,6 +17528,7 @@
     hudEnergy();
     hudWind();
     hudGear();
+    ctlStrip();                 // CONTROLS-STRIP: the hands, bottom centre (10 Hz, transforms only)
     if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
     if (CAREER_DEV) careerFrame(cg);                     // G2320 (CAREER-WIRE): the aerodromes passed (a survey's evidence)
     // NO GREEN: ok is simply the ink, and warn is only ever used against a

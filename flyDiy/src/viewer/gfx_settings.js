@@ -213,6 +213,12 @@
     { k: 'poles', label: 'power lines', steps: [
         { v: 'on',  label: 'on', why: 'utility poles every ~34 m along one verge, the cable strung between them, a street lamp on every second one' },
         { v: 'off', label: 'off', why: 'no poles and no cable' } ] },
+    // THE CONTROLS STRIP (CONTROLS-STRIP, the user 16 Nov: variant A, "on by default, a switch in Graphics > Interface"):
+    // the stick, the rudder, the brakes, the throttle, the flaps (and the gear) at the bottom of the flight screen
+    // (app.js ctlStrip). `free`: not a picture's - no preset sets it, picking it never makes the preset 'custom'
+    { k: 'ctlstrip', label: 'controls strip', free: true, def: 'on', steps: [
+        { v: 'on',  label: 'on', why: 'the stick, the rudder, the toe brakes, the throttle, the flaps and the gear at the bottom of the screen - amber while the autopilot flies, white by hand (the default)' },
+        { v: 'off', label: 'off', why: 'no strip: the controls are read on the panel alone' } ] },
     // THE WATER (H6, G460): the one material's two tiers
     { k: 'water', label: 'water', steps: [
         { v: 'simple', label: 'simple', why: 'the swell’s shading and the sun’s glitter; no ripple tile, no lifted surface, no foam' },
@@ -670,6 +676,8 @@
     { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'fmist', 'glare'] },
     { k: 'post', label: 'post-fx', sub: 'the passes over the finished frame', rows: ['bloom', 'look', 'lens', 'rays', 'ao', 'eye'] },
     { k: 'town', label: 'town', sub: 'which towns, their detail, the road furniture', rows: ['town', 'scenery', 'rails', 'poles'] },
+    // CONTROLS-STRIP (the user 16 Nov): the eighth fold - what the screen shows over the flight, not the picture's
+    { k: 'ui', label: 'interface', sub: 'what the screen shows over the flight', rows: ['ctlstrip'] },
   ];
   const OPT = {}; for (const o of OPTIONS) OPT[o.k] = o;
 
