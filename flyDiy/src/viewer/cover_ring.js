@@ -310,7 +310,7 @@ var COVER_RING = (() => {
     // ---- the prototypes: every species of the kinds the ring plants, built once ------
     // (debris - the logs, sticks and stumps of vegetation/branches - is the rock machinery on its own density: F.debris)
     // (the field plants FIELD_SPECIES alone; the first ring every cover kind but what the field holds while it is on - ctx.owned)
-    const SHAPES = ['carpet', 'cluster', 'crown'];   // the shaped cards' shapes (shapedCards below)
+    const SHAPES = ['carpet', 'cluster', 'crown', 'float'];   // the shaped cards' shapes (shapedCards below; 'float': one flat quad on the water, the lily pads - 17 Nov)
     const shapedOf = c => !!(c.maps && c.place && SHAPES.includes(c.place.shape));
     // ?alpshrubs=0 (MOUNTAIN-VEG): the shaped species left out - the A/B of their cost (the subalpine mix plants the rest as before)
     let SHAPED_ON = true; try { const m = /[?&]alpshrubs=([01])/.exec(location.search); if (m) SHAPED_ON = m[1] === '1'; } catch (e) {}
@@ -369,7 +369,9 @@ var COVER_RING = (() => {
     }
     function shapedCards(shape, W, seed, pl) {
       const r = rng(seed), G = { pos: [], uv: [], idx: [] }, B = pl.bend === undefined ? CARD_DEF.bend : +pl.bend, L = pl.lean === undefined ? CARD_DEF.lean : +pl.lean;
-      if (shape === 'cluster' || shape === 'crown') {
+      if (shape === 'float') {   // the water plants (17 Nov): one flat quad, its picture from above, W wide and as deep, a hair over the water
+        const h = W / 2; G.pos.push(-h, 0.012, -h, h, 0.012, -h, h, 0.012, h, -h, 0.012, h); G.uv.push(0, 0, 1, 0, 1, 1, 0, 1); G.idx.push(0, 2, 1, 0, 3, 2);
+      } else if (shape === 'cluster' || shape === 'crown') {
         cardInto(G, { cx: 0, cz: 0, yaw: r() * Math.PI, w: W * 0.8, h: 1, y0: -0.04, rows: 2, bend: B * 0.5 });
         for (let k = 0; k < 5; k++) {
           const a = k * 2 * Math.PI / 5 + r() * 0.4, u0 = [0, 0.2, 0.4, 0.1, 0.3][k];
@@ -1043,6 +1045,36 @@ var COVER_RING = (() => {
       }
     }
 
+    // ---- THE WATER PLANTS (17 Nov, the user's floatplane lake: "the addition of some water plants could really blend things together")
+    // The lakeshore mix's rows with `onWater` [from, to] (metres out from the drawn line: ctx.lakeSD, + in the lake) and `depth` [lo, hi]
+    // (the water over the bed: ctx.waterY - terrainH) are planted on the shallow lake, in beds (bedKeep), at the water's drawn level -
+    // the ring's own land test (G.ok) refuses water, so they have this planter of their own; their own stream (the cell's untouched)
+    function waterBand(G, x0, z0, C, push, cell) {
+      const sm = BIO.SHORE !== undefined ? BIO.mixAt(BIO.SHORE) : null, M = sm && BIO.mixOf(sm); if (!M || !M.species) return;
+      const rows = []; for (const c of speciesOf()) { const row = M.species[c.name]; if (row && Array.isArray(row.onWater) && shapedOf(c)) rows.push([c, row]); }
+      if (!rows.length) return;
+      const far = Math.max(...rows.map(([, r]) => r.onWater[1])) + C * 0.75, D = ctx.lakeSD;
+      if ([[0.5, 0.5], [0, 0], [1, 0], [0, 1], [1, 1]].every(([u, v]) => { const d = D(x0 + u * C, z0 + v * C); return d < -C * 0.75 || d > far; })) return;
+      const ix0 = Math.round(x0), iz0 = Math.round(z0);
+      for (const [c, row] of rows) {
+        const place = c.place || {}, P = protosOf(c); if (!P.length) continue;
+        const per = (row.density || 0) * S.density; if (!(per > 0)) continue;
+        const patch = row.patch || 0, share = row.patchShare || 0.35, bedFrac = patch ? Math.min(1, 0.25 * share) : 1, sSeed = hashStr(c.name);
+        const n = Math.round(per * C * C * (patch ? 1 / bedFrac : 1)), Rw = rng((((hsh(ix0 + 3, iz0 - 3) * 4294967295) >>> 0) ^ sSeed ^ 0x3a7e) >>> 0), mu = place.mul || [1, 1, 1];
+        const dep = row.depth || [0.05, 2];
+        for (let i = 0; i < n; i++) {
+          const x = x0 + Rw() * C, z = z0 + Rw() * C, r1 = Rw(), r2 = Rw(), r3 = Rw();
+          const d = D(x, z); if (d < row.onWater[0] || d > row.onWater[1]) continue;
+          if (patch && !(bedKeep(x, z, patch, sSeed % 1000, bedFrac) >= r1)) continue;
+          const wy = ctx.waterY(x, z); if (wy === null || !Number.isFinite(wy)) continue;
+          const depth = wy - world.terrainH(x, z); if (depth < dep[0] || depth > dep[1]) continue;
+          const s = (place.size || 1) * (0.7 + 0.6 * r2), j = 1 + (r3 * 2 - 1) * (place.vary || 0.06);
+          push(draw(P, r3), x, wy, z, s, r2 * Math.PI * 2, [j * mu[0], j * mu[1], j * mu[2]], 0, 0);
+          STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1; STAT.water = (STAT.water || 0) + 1;
+        }
+      }
+    }
+
     // ---- one cell -------------------------------------------------------------------
     function buildCell(cx, cz, dTier, born) {
       if (BIO && BIO.hold && !BIO.held) { BIO.hold(true); try { return buildCell(cx, cz, dTier, born); } finally { BIO.hold(false); } }   // the biomes' knobs once a pass (28c hold)
@@ -1096,6 +1128,7 @@ var COVER_RING = (() => {
         const blotchAt = (x, z, seed) => (GF && GF.blotch) ? GF.blotch(x, z, seed) : 1 - blotch * vnoise(x, z, blotchM, seed % 1000);
         for (const c of speciesOf()) {
           const row = M.species && M.species[c.name]; if (!row) continue;
+          if (row.onWater) continue;   // a water plant (17 Nov): the water band plants it, on the lake, never on the land
           const place = c.place || {};
           const P = protosOf(c); if (!P.length) continue;
           if (c.kind === 'cover' && LEAF.fadeOwn) for (const p of P) for (const q of p.parts) LEAF.fadeOwn(q.mat, null);   // (the reed back from the field: the shared fade)
@@ -1217,6 +1250,7 @@ var COVER_RING = (() => {
         }
       }
       if (ctx.edgeD && BIO.edgeOn) edgeBand(G, x0, z0, C, push, cell);   // FOREST-EDGE: the bushes and weeds on the open side of an edge
+      if (ctx.lakeSD && ctx.waterY && S.water !== false) waterBand(G, x0, z0, C, push, cell);   // THE WATER PLANTS: the lily pads on the shallow lake
       // the meshes: one InstancedMesh per prototype part
       const T = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), SC = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
       let yLo = Infinity, yHi = -Infinity; for (const it of items.values()) for (let i = 1; i < it.xs.length; i += 7) { if (it.xs[i] < yLo) yLo = it.xs[i]; if (it.xs[i] > yHi) yHi = it.xs[i]; }

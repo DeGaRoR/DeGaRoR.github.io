@@ -1693,6 +1693,20 @@
      "density": 0.03,
      "patch": 6,
      "patchShare": 0.5
+    },
+    "water_lily": {
+     "proportion": 1,
+     "density": 0.18,
+     "patch": 7,
+     "patchShare": 0.45,
+     "onWater": [
+      1,
+      14
+     ],
+     "depth": [
+      0.08,
+      1.8
+     ]
     }
    },
    "forest": {
@@ -3017,6 +3031,41 @@
     0.42,
     0.5,
     0.5
+   ]
+  },
+  "water_lily": {
+   "hue": 0,
+   "sat": 1,
+   "light": 1,
+   "bark": 1,
+   "alpha": 0.4,
+   "kind": "cover",
+   "credit": {
+    "author": "flyDiy (procedural, MOUNTAIN-VEG 17 Nov 2026)",
+    "license": "own work",
+    "source": "tools: generated",
+    "title": "Water lily pads"
+   },
+   "licence": "own work",
+   "maps": [
+    "../assets/vegetation/flowers/water_lily.png"
+   ],
+   "sink": 0,
+   "proportion": 1,
+   "dead": 0,
+   "impa": 6,
+   "implight": 1,
+   "noTint": 1,
+   "vary": 0.08,
+   "root": 0,
+   "rootH": 0.5,
+   "size": 2.2,
+   "shape": "float",
+   "aspect": 1,
+   "mul": [
+    0.75,
+    0.85,
+    0.75
    ]
   }
  },

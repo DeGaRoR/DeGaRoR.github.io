@@ -461,5 +461,43 @@ function rockRing(exposed) {
   if (a && b) ok(a.ridge > 20 && a.flat > 20 && Math.abs(a.ridge - a.flat) / a.flat < 0.35 && b.ridge > 0.55 * a.ridge && b.flat < 0.35 * a.flat,
     '11 THE ALPINE GROUND: a rock row\'s exposed keeps its rocks on the ridge and drops most on the flat; exposed 0 keeps both alike',
     'exposed 0: ridge ' + a.ridge + ', flat ' + a.flat + ' | exposed 0.85: ridge ' + b.ridge + ', flat ' + b.flat); }
+
+// 12 THE WATER PLANTS (MOUNTAIN-VEG, the user 17 Nov: "the addition of some water plants could really blend things together"): the
+// lakeshore's rows with onWater are planted by the water band ON the lake - in their band out from the drawn line, in their depth, at
+// the water's level - and never by the land's loop
+function waterRing() {
+  const B = boot(), { THREE, ctx } = B;
+  ctx.document = { createElementNS: () => ({ style: {}, addEventListener() {}, removeEventListener() {}, setAttribute() {} }) };
+  B.load(path.join('src', 'viewer', 'trees.js'));
+  const cols = [{ name: 'water_lily', kind: 'cover', maps: ['lily.png'], place: { shape: 'float', size: 2, aspect: 1, vary: 0.06 }, tint: { alpha: 0.4 } },
+    { name: 'tuft', kind: 'cover', place: { density: 0.3, size: 0.3 } }];
+  const built = new Map();
+  const treeList = () => [{ key: 'tuft_m', col: cols[1], sub: { bb: [-0.5, 0, -0.5, 0.5, 0.4, 0.5], h: 0.4 } }];
+  const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const g = new THREE.BoxGeometry(1, 0.4, 1); g.translate(0, 0.2, 0);
+    const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial() }] }; built.set(key, b); return b; };
+  ctx.TREE_PACK = { collections: cols };
+  const shore = { species: { water_lily: { proportion: 1, density: 0.3, patch: 0, onWater: [1, 14], depth: [0.08, 1.8] }, tuft: { density: 0.3 } }, forest: { cover: 1 } };
+  const land = { species: { tuft: { density: 0.3 } }, forest: { cover: 1, reach: 220 } };
+  const BIO = { SHORE: 18, mixAt: c => (c === 18 ? 'shore' : 'land'), mixOf: m => (m === 'shore' ? shore : land), knobs: () => ({}), edgeOn: false, shoreHere: x => x > 54 && x < 60 };
+  // the lake from x 60 (the drawn line), its bed 0.1 m deeper a metre out, the water at 0
+  const world = { terrainH: x => (x > 60 ? -(x - 60) * 0.1 : (60 - x) * 0.05), waterH: () => -10, island: null };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(50, 3, 0); camera.lookAt(90, 0, 0); camera.updateMatrixWorld();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const CR = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null,
+    biomeAt: () => 'land', codeAt: () => 1, okAt: x => x < 60, lakeSD: x => x - 60, waterY: x => (x > 59 ? 0 : null) });
+  CR.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0 });
+  for (let i = 0; i < 4; i++) CR.update();
+  const lily = [];
+  CR.root.traverse(o => { if (!o.isInstancedMesh || o.userData.coverKind !== 'cover' || !(o.material && o.material.map)) return; const M = o.instanceMatrix.array;
+    for (let i = 0, n = o.userData.n === undefined ? o.count : o.userData.n; i < n; i++) lily.push([M[i * 16 + 12], M[i * 16 + 13]]); });
+  return { lily, stat: CR.stat ? CR.stat() : {} };
+}
+{ let r = null;
+  try { r = waterRing(); } catch (e) { ok(false, '12 the water plants plant', (e && e.message || String(e)).slice(0, 200)); }
+  if (r) { const L = r.lily, xs = L.map(p => p[0]), ys = L.map(p => p[1]);
+    // depth 0.08-1.8 m on a 0.1 m/m bed: x 60.8-78; the band 1-14 m out: x 61-74
+    ok(L.length > 20 && xs.every(x => x >= 61 - 1e-6 && x <= 74 + 1e-6) && ys.every(y => Math.abs(y) < 1e-6),
+       '12 THE WATER PLANTS: the lily pads stand on the lake, 1-14 m out from the drawn line within their depth, at the water\'s level - none on the land',
+       L.length + ' pads, x ' + (L.length ? Math.min(...xs).toFixed(1) + '..' + Math.max(...xs).toFixed(1) : '-') + ', y ' + (L.length ? Math.min(...ys).toFixed(3) + '..' + Math.max(...ys).toFixed(3) : '-')); } }
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
