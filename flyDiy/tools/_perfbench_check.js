@@ -55,7 +55,7 @@ function run(B) {
   // 3
   const d = [16, 17, 16, 17, 16, 120, 16, 17, 60, 16];
   const S = PB._stats(d);
-  ok(S && S.n === 10 && S.p50 === 17 && S.max === 120 && S.over50 === 2 && S.over100 === 1 && S.even === 80 && PB._stats([]) === null, '3 the frames: n, p50 (the runner rule, element n/2), max, over 50 / 100, 80 % even', JSON.stringify(S));
+  ok(S && S.n === 10 && S.p50 === 17 && S.max === 120 && S.over50 === 2 && S.over100 === 1 && S.orange35 === 2 && S.freeze250 === 0 && S.over1s === 0 && S.even === 80 && PB._stats([]) === null, '3 the frames: n, p50 (the runner rule, element n/2), max, over 50 / 100, 80 % even', JSON.stringify(S));
   // 4
   const LIBm = /const LIB = \[([^\]]+)\]/.exec(src), LIB = LIBm ? LIBm[1].split(',').map(x => x.trim().replace(/'/g, '')) : [];
   const lists = JSON.parse(rd('builds/lists/plane_lists.json'));

@@ -51,11 +51,14 @@ var FLYDIY_PERFBENCH = (function () {
       F.lt.push({ at: Math.round(e.startTime), ms: Math.round(e.duration), name: e.name, by: (e.attribution || []).map(a => [a.containerType, a.containerName || a.containerSrc || a.name].filter(Boolean).join(' ')).join('; ') || null }); })
       .observe({ type: 'longtask', buffered: true }); } catch (e) {}
   }
-  // the stats of a list of frame intervals: the share of EVEN frames is the user's target 4 (within 1.5x the median)
+  // the stats of a list of frame intervals: the share of EVEN frames is the user's target 4 (within 1.5x the median); the
+  // counts on the game meter's own lines as Codex's flightlog_evidence.js reads them (CODEX review, 17 Nov): orange > 35 ms,
+  // over 100, freezes >= 250, over 1 s
   function stats(d) {
     if (!d || !d.length) return null;
     const s = d.slice().sort((a, b) => a - b), q = p => s[Math.min(s.length - 1, Math.floor(p * s.length))], med = q(0.5);
-    return { n: d.length, p50: r1(med), p99: r1(q(0.99)), max: r1(s[s.length - 1]), over50: d.filter(x => x > 50).length, over100: d.filter(x => x > 100).length,
+    return { n: d.length, p50: r1(med), p99: r1(q(0.99)), max: r1(s[s.length - 1]), orange35: d.filter(x => x > 35).length, over50: d.filter(x => x > 50).length, over100: d.filter(x => x > 100).length,
+             freeze250: d.filter(x => x >= 250).length, over1s: d.filter(x => x > 1000).length,
              even: r1(100 * d.filter(x => x <= 1.5 * med).length / d.length), fps: r1(1000 / med) };
   }
   const takeFrames = () => stats(F.d.splice(0));
@@ -127,7 +130,10 @@ var FLYDIY_PERFBENCH = (function () {
     let gpu = null; try { const g = W.FLYDIY_RENDERER && FLYDIY_RENDERER.getContext(), d = g && g.getExtension('WEBGL_debug_renderer_info'); gpu = d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : null; } catch (e) {}
     let preset = null; try { const b = W.GFX && GFX.budget ? GFX.budget() : null; preset = b ? b.preset : null; } catch (e) {}
     let prof = null; try { prof = W.PROFILE && PROFILE.name ? (typeof PROFILE.name === 'function' ? PROFILE.name() : PROFILE.name) : null; } catch (e) {}
-    return { ua: navigator.userAgent, gpu, preset, profile: prof, garageOnly: garageOnly(), screen: [screen.width, screen.height], dpr: W.devicePixelRatio || 1,
+    // (CODEX's test plan: the settings and the viewport fixed and RECORDED; cold vs warm kept apart - the load's source)
+    let canvas = null; try { const c = W.FLYDIY_RENDERER && FLYDIY_RENDERER.domElement; canvas = c ? [c.width, c.height] : null; } catch (e) {}
+    let load = null; try { const nv = performance.getEntriesByType('navigation')[0]; load = { sw: !!(navigator.serviceWorker && navigator.serviceWorker.controller), transferKB: nv ? Math.round(nv.transferSize / 1024) : null, type: nv ? nv.type : null }; } catch (e) {}
+    return { ua: navigator.userAgent, gpu, preset, profile: prof, garageOnly: garageOnly(), screen: [screen.width, screen.height], canvas, load, dpr: W.devicePixelRatio || 1,
              cores: navigator.hardwareConcurrency || null, memGB: navigator.deviceMemory || null, build: W.FLYDIY_BUILD || null };
   }
 
