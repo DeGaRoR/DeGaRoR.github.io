@@ -42,6 +42,18 @@
 //     call (144 inlined fetches were a 110-220 s COLD compile), and a loop of
 //     sets nested in the candidate loop drew the ground 1.5-2x slower (GATE SPLAT 3);
 //   - no ?: on a struct (WebGL refuses it: the ground drew flat grey).
+// THE ISLAND'S OWN ROCK (ROCK-STUDY R1, Nov 2026; futureDesigns/ROCK-STUDY-2026-11.md, reports/evidence/ROCK-STUDY/r1): under
+// the dial (uTrOn, ?rocks=0 off) the rock codes WEAR the trondhjemite tiles as their own sets - push() points code 6 at the
+// SLAB (trondSlab, 16 m) and code 12 (the steep split, 42-58 deg under the dial) at the slab at 24 m, or the FACE tile
+// (rockFaceTile) - so the hex tiling, the triplanar, the far set, the grade and the recolour are the material chain's, with
+// no fetch site of their own. R1's own text: THE EXPOSURE (sTrExpo, in the vote, once a pixel) rewrites the vote's rock share -
+// rock on the high, convex, steep ground and where the imagery is not green (NDVI), vegetation down the drainage and in every
+// pocket, a 3-40 m mosaic; its terrain bias rides the TINT's alpha (render_world ROCK_BIAS, in a worker); and sTrPost on a
+// rock candidate's sample: the far fade to the slab's mean, the PBR micro detail (the 'cliff' layer at 6.86 m, one plain
+// read on the dominant plane), the macro colour (zones, two joint sets' dirt, hollows, the margin, wet streaks), the green
+// growth (the ground's grassRock, desaturated) filling the low texels first, the roughness. No new sampler; three plain
+// texture reads (GS_TRLITE: one - the outer ring and the premises patch, no micro, no joints). The first R1 (its own sample
+// chain, 7 more inlined sFetch) linked every ground program ~15 s slower on D3D11 (A0's box, 16 Nov).
 'use strict';
 const SPLAT_GROUND = (() => {
   // NCODE is the WIDTH of the per-code uniform arrays, so it must exceed the highest
@@ -67,9 +79,13 @@ const SPLAT_GROUND = (() => {
       if (sv) { if (sv.codes) for (const k in sv.codes) R.codes[k] = Object.assign(R.codes[k] || {}, sv.codes[k]);
         if (sv.knobs) Object.assign(R.knobs, sv.knobs); if (sv.grade) R.grade = sv.grade; if (sv.on !== undefined) R.on = sv.on; } } catch (e) {}
     if (R.on === undefined) R.on = 1;
+    try { if (/[?&]rocks=0/.test(location.search)) R.knobs.rocks = 0; } catch (e) {}   // R1: the rock dial off at the load (not saved)
     R.macroExpSaved = !!(sv0 && sv0.knobs && sv0.knobs.macroExp);   // an override sticks; else the auto value (make)
     return R;
   };
+  // R1's four sets (code 6's row: slab, face, micro + the boulders' photograph, green) - the rail picks them, the export carries them
+  const TROND_DEF = ['trondSlab', 'trondFace', 'cliff', 'grassRock'];
+  const trondOf = R => { const t = R && R.codes && R.codes[6] && R.codes[6].trond; return Array.isArray(t) && t.length === 4 ? t.map((k, i) => k || TROND_DEF[i]) : TROND_DEF.slice(); };
   const save = R => { try { localStorage.setItem('flydiy.ground.splat.v1', JSON.stringify({ codes: R.codes, knobs: R.knobs, grade: R.grade, on: R.on })); } catch (e) {} };
 
   // ---- the GLSL: the bench's splat, on the game's fields ----------------------
@@ -340,6 +356,202 @@ const SPLAT_GROUND = (() => {
     float deep = rim > 0.001 ? smoothstep(rim, 1.0, m) : 1.0;
     gSPoolM = m; gSPoolD = deep;
   }
+  // ---- THE ISLAND'S OWN ROCK (R1): see the header ------------------------------------------------------------------
+  // (vRM, vRX: the relief's macro - rock_ring.js - DECLARED BY THE HOST's hook, render_world's: (0,0,0,1) on the ground's own meshes)
+  uniform float uTrOn;           // the dial: 1 = the trondhjemite on the rock codes, 0 = the recipe's sets (?rocks=0)
+  uniform vec4 uTrL;             // the layers: slab, face, cliff (the micro detail), grassRock (the green)
+  uniform vec4 uTrK;             // the far fade from / full by (m), the micro detail on, brightness
+  uniform vec4 uTrE;             // the exposure: height window lo / hi (m), the raster's rock weight, the offset
+  uniform vec4 uTrMeanS;         // the slab's mean colour (linear rgb, graded): the far fade's (off by default: the far set carries the distance)
+  uniform vec4 uTrJ;             // the joints: density (x the network's frequency), the soil they hold (exposure cut), their dirt, the hollows' dirt
+  uniform vec4 uTrG;             // the green: amount, its roughness, its saturation, the bare stone's roughness (x the tile's)
+  uniform vec4 uTrF;             // the micro detail from / to (m), the joints gone by (m), the wet streaks
+  uniform vec4 uTrS;             // the slab -> face split under the dial: from / full by (deg); the micro photo's raw mean luminance
+  uniform vec4 uTrX;             // the grass in the rock: its share of the macro tint x (the open heath's = 1)
+  uniform vec4 uTrW;             // the rock's film: the grass's hue (rgb, over its luminance), its amount (the weathering); uTrS.w the value match
+  uniform vec4 uTrM;             // the micro detail: brightness strength, normal strength; the NDVI's pull on the exposure, its midpoint
+  // R1 RIDES THE MATERIAL CHAIN (A0's box, 16 Nov: the first R1's own sample chain - 7 more inlined sFetch - linked every ground
+  // program ~15 s slower). The tiles are the rock codes' own sets (push() points codes 6 / 12 at them under the dial: hex, the
+  // triplanar, the far set, the grade and recolour are the chain's); R1's own text is the exposure in the vote (sTrExpo, once a
+  // pixel) and sTrPost on a rock candidate's sample (the macro colour, the joints, the green, the micro detail, the far fade):
+  // ALU and three plain texture reads (the green's colour, the micro's colour + normal). GS_TRLITE (the outer ring, the premises
+  // patch: render_world) leaves the micro and the joints out.
+  float gTrR0 = 0.0, gTrR = 0.0, gTrBias = 0.0, gTrJ = 0.0;
+  float gTrGw = 0.0;   // the GRASS's share of the rock's sample (sTrPost's green): the macro tint keeps it (below, the macro in the near ground)   // the raster's rock share, the exposed share, the terrain bias, the joints
+  float gTrBand = 0.0, gTrCell = 0.5, gTrCell2 = 0.5;   // the last joint line's band (sTrLine), the slab's two hashes (sTrJoints)
+  float gTrPx = 0.0;   // the pixel's footprint on the ground (m): the joints' anti-alias, taken where the flow is uniform (sSplat)
+  vec3 gTrN = vec3(0.0, 1.0, 0.0);                            // the smooth normal (sSplat's nGeo)
+  float sTrH1(float n){ return fract(sin(n * 127.1 + 311.7) * 43758.5453); }
+  // ONE JOINT SET: warped parallel lines S apart, open in segments along them, widened to the pixel and faded by the same ratio
+  float sTrLine(vec2 xz, float th, float S, float wid, float seed){
+    vec2 nn = vec2(cos(th), sin(th)), pp = vec2(-nn.y, nn.x);
+    float c = dot(xz, pp) + (gVnoise(xz / 260.0 + seed) - 0.5) * 0.35 * S;   // (a gentle warp: slab edges run straight)
+    float b = floor(c / S), dm = abs(c - (b + 0.5) * S); gTrBand = b;
+    float op = smoothstep(0.40, 0.55, gVnoise(vec2(dot(xz, nn) / 240.0, b * 1.37 + seed))) * step(0.4, sTrH1(b * 2.3 + seed));   // (long open runs; 6 lines in 10)
+    float w = wid * (0.7 + 0.9 * sTrH1(b + seed)), we = max(w, gTrPx * 0.9);
+    return op * (w / we) * (1.0 - smoothstep(0.3, 1.0, dm / we));
+  }
+  // THE NETWORK: the slabs' edges - two sets (150 and 60 deg, ~38 / 46 m apart x the density: sparse, long, straight - A0's box,
+  // 16 Nov), gone by uTrF.z (a line under a pixel only fizzes)
+  float sTrJoints(vec2 xz){
+#ifdef GS_TRLITE
+    return 0.0;
+#else
+    float d = distance(vWPi, cameraPosition); if (d > uTrF.z) return 0.0;
+    vec2 q = xz * uTrJ.x;
+    // the bench v1's network: two regional sets (150 and 60 deg, ~24 / 25 m) and two secondary (105, 15 deg; ~6.75 / 8.25 m)
+    float jA = sTrLine(q, 2.618, 24.0, 0.65, 1.3), bA = gTrBand, jB = sTrLine(q, 1.047, 25.0, 0.65, 4.1);
+    gTrCell = sTrH1(bA * 12.9898 + gTrBand * 78.233); gTrCell2 = sTrH1(bA * 39.346 + gTrBand * 11.135 + 0.7);   // (the slab between the two sets' lines)
+    float jC = sTrLine(q, 1.833, 6.75, 0.26, 7.9) * 0.6, jD = sTrLine(q, 0.262, 8.25, 0.23, 9.7) * 0.55;
+    return max(max(jA, jB), max(jC, jD)) * (1.0 - smoothstep(uTrF.z * 0.5, uTrF.z, d));
+#endif
+  }
+  // THE EXPOSURE: the share of rock that shows, from the raster's own rock share r - rock on the high, convex, steep ground,
+  // less the valleys and the hollows (the tint's alpha: the terrain bias) and where the imagery sees green (pack B's NDVI, 10 m:
+  // Ardent's rock cells are mostly vegetated, median 0.79); a mosaic of 40 / 8 m, speckles of green at 3-5 m, the joints' soil
+  float sTrExpo(float r, vec2 xz, float slope, vec2 uv){
+    gTrBias = texture2D(uGTint, uv).a * 0.8 - 0.6;
+    gTrJ = sTrJoints(xz);
+    float nd = texture2D(uGPackB, uv).r * 2.0 - 1.0;
+    float dk = 1.0 - smoothstep(900.0, 2500.0, distance(vWPi, cameraPosition));
+    float fine = gVnoise(xz / 8.0);
+    float E = 0.42 * smoothstep(uTrE.x, uTrE.y, vWPi.y) + 0.22 * smoothstep(22.0, 48.0, slope) + gTrBias + uTrE.z * r - uTrE.w
+            - uTrM.z * smoothstep(uTrM.w - 0.2, uTrM.w + 0.2, nd)
+            + (gVnoise(xz / 43.0 + 3.7) - 0.5) * 0.5 + (fine - 0.5) * 0.45 + (gVnoise(xz / 3.2) - 0.5) * 0.35 * dk;
+    float e = smoothstep(0.40, 0.52, E) * (1.0 - clamp(gTrJ / 0.5, 0.0, 1.0) * uTrJ.y);
+    e *= 1.0 - smoothstep(0.58, 0.68, gVnoise(xz / 4.4 - 9.1)) * (0.55 + 0.45 * fine) * (0.4 + 0.6 * dk);
+    return e;
+  }
+  // THE MACRO TEXTURE (16 Nov, the user: "I'm really missing your macro textures" - the far ground "patchy, pixely"): the bench
+  // v1's macro (trond_gen: the colour multiplier, the exposure, the green's chance, the height and its normal), which v1's
+  // ground read A PIXEL AT A TIME over its patch; rock_ring.js computes it round the eye in three levels (1 / 2 / 4 m to
+  // +-0.5 / 1 / 2 km) of one array, toroidal (uv = xz / the level's extent): uTrMR[L] the valid square, uTrMX (extents, on).
+  // Read once a pixel in the vote (sTrMac: two reads a level, the finest valid level first, the next under its edge's fade);
+  // where it lies the macro IS the rock's exposure (v1: the macro over the raster) and sTrPost's colour, green and height
+  uniform highp sampler2DArray uTrMT; uniform vec4 uTrMR[3]; uniform vec4 uTrMX;
+  vec4 gTrMA = vec4(0.0), gTrMB = vec4(0.0); float gTrIn = 0.0;
+  float sTrMacW(vec2 xz, vec4 R){ vec2 d = min(xz - R.xy, R.zw - xz); return smoothstep(0.0, 0.06 * (R.z - R.x) + 1.0, min(d.x, d.y)); }
+  float sTrMac(vec2 xz){
+#ifdef GS_TRLITE
+    return 0.0;
+#else
+    gTrMA = vec4(0.0); gTrMB = vec4(0.0); gTrIn = 0.0;
+    if (uTrMX.w < 0.5) return 0.0;
+    float w0 = sTrMacW(xz, uTrMR[0]), w1 = (1.0 - w0) * sTrMacW(xz, uTrMR[1]), w2 = (1.0 - w0 - w1) * sTrMacW(xz, uTrMR[2]);
+    vec4 a0 = vec4(0.0), b0 = vec4(0.0), aS = vec4(0.0), bS = vec4(0.0);
+    if (w0 > 0.0) { vec2 u = xz / uTrMX.x; a0 = texture(uTrMT, vec3(u, 0.0)); b0 = texture(uTrMT, vec3(u, 1.0)); }
+    if (w1 > 0.0) { vec2 u = xz / uTrMX.y; aS += texture(uTrMT, vec3(u, 2.0)) * w1; bS += texture(uTrMT, vec3(u, 3.0)) * w1; }
+    if (w2 > 0.0) { vec2 u = xz / uTrMX.z; aS += texture(uTrMT, vec3(u, 4.0)) * w2; bS += texture(uTrMT, vec3(u, 5.0)) * w2; }
+    float wS = w1 + w2; gTrIn = w0 + wS; if (gTrIn <= 0.0) return 0.0;
+    // THE SOFT LEVELS (2 / 4 m, past the relief's reach - the user, 17 Nov: "low definition, high pixels"): they hold the exposure's
+    // FIELD (rock_ring_core macroTile soft), not the decision - it is thresholded HERE, a pixel at a time, with v1's fine terms
+    // added as value noise at their own cells (the 8 / 3.2 m mottle, the 4.9 / 2 m green speckles) and the edge widened with the
+    // distance (an anti-aliased threshold, not a shimmer): crisp edges at any texel, no memory, no read
+    if (wS > 0.0) { aS /= wS; bS /= wS;
+      float d = distance(vWPi, cameraPosition), dk = 1.0 - smoothstep(900.0, 2500.0, d), fine = gVnoise(xz / 8.0 + 11.3);
+      float E = aS.a * 1.5 - 0.3 + (fine - 0.5) * 0.5 + (gVnoise(xz / 3.2 + 4.1) - 0.5) * 0.35 * dk, sw = 0.04 + 5.4e-5 * d;
+      float e = smoothstep(0.46 - sw, 0.46 + sw, E);
+      e *= 1.0 - clamp(smoothstep(0.56, 0.63, gVnoise(xz / 4.9 + 2.2)) + smoothstep(0.6, 0.66, gVnoise(xz / 2.0 - 7.7)) * 0.8, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.3, 0.7, fine)) * (0.4 + 0.6 * dk);
+      aS.a = e; bS.b = max(bS.b, 1.0 - e); }
+    gTrMA = (a0 * w0 + aS * wS) / gTrIn; gTrMB = (b0 * w0 + bS * wS) / gTrIn;
+    return gTrIn;
+#endif
+  }
+  // the exposure a pixel: the macro texture's where it lies (mw), else the relief vertex's, else the procedural law
+  float sTrE(float r, vec2 xz, float slope, vec2 uv, float mw){
+    float e0 = mw > 0.999 ? 0.0 : (vRM.w > 1.5 ? vRX.x : sTrExpo(r, xz, slope, uv));
+    return mix(e0, gTrMA.a, mw);
+  }
+  // THE ROCK CANDIDATE'S SAMPLE, AFTER THE CHAIN: the far fade to the slab's mean, the micro detail (the 'cliff' photograph at
+  // its own 6.86 m: brightness over its mean and its normal, biplanar - the top and the dominant side), the macro colour
+  // (weathering zones, the joints' dirt, the hollows, the outcrop's margin, wet streaks), the green (the macro's chance, the
+  // tile's cracks - its low texels - and what faces the sky; the ground's own grassRock, desaturated), the roughness, brightness
+  // the micro detail's hex read (the splat's sTile): three rotated, offset taps on a triangle lattice, height-blended - one read
+  // site (sTrTapM), inlined three times a plane; no 'out' on the sample chain (these are R1's own functions)
+  vec2 sTrVst(vec2 v){ return vec2(v.x + 0.5 * v.y, v.y * 0.8660254) * 0.5; }
+  vec4 gTrMC = vec4(0.0), gTrMN = vec4(0.0), gTrHN = vec4(0.0);   // (the hex read's normal: a global - no 'out' on the chain)
+  void sTrTapM(vec2 uv){ gTrMC = texture(uSplat, vec3(uv, uTrL.z), uSFilt.x); gTrMC.rgb *= gTrMC.rgb; gTrMN = texture(uSplatN, vec3(uv, uTrL.z), uSFilt.x); }
+  vec4 sTrHexM(vec2 st){
+    vec2 sk = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (st * 2.0);
+    vec2 base = floor(sk); vec3 t = vec3(fract(sk), 0.0); t.z = 1.0 - t.x - t.y;
+    float s = step(0.0, -t.z), s2 = 2.0 * s - 1.0;
+    vec3 w = vec3(-t.z * s2, s - t.y * s2, s - t.x * s2);
+    vec2 V1 = base + vec2(s, s), V2 = base + vec2(s, 1.0 - s), V3 = base + vec2(1.0 - s, s);
+    vec2 r1 = sHash2(V1), r2 = sHash2(V2), r3 = sHash2(V3);
+    float a1 = r1.x * 6.2832, a2 = r2.x * 6.2832, a3 = r3.x * 6.2832;
+    sTrTapM(mat2(cos(a1), sin(a1), -sin(a1), cos(a1)) * (st - sTrVst(V1)) + r1 * 7.3); vec4 c1 = gTrMC, n1 = gTrMN;
+    sTrTapM(mat2(cos(a2), sin(a2), -sin(a2), cos(a2)) * (st - sTrVst(V2)) + r2 * 7.3); vec4 c2 = gTrMC, n2 = gTrMN;
+    sTrTapM(mat2(cos(a3), sin(a3), -sin(a3), cos(a3)) * (st - sTrVst(V3)) + r3 * 7.3); vec4 c3 = gTrMC, n3 = gTrMN;
+    vec3 h = sHweights3(c1.a, w.x, c2.a, w.y, c3.a, w.z, 0.2);
+    gTrHN = n1 * h.x + n2 * h.y + n3 * h.z; return c1 * h.x + c2 * h.y + c3 * h.z; }
+  Smp sTrPost(Smp o, vec3 P, float slope){
+    vec3 nG = gTrN; float d = distance(P, cameraPosition); vec2 xz = P.xz;
+    o.n.xyz /= max(uSNrm.x, 1e-3);   // (the tiles' relief is at its own scale: sSplat multiplies every set's by nrmK, 3 - made for the aerials' weak normals; x3 here drew every groove black)
+    { float fd = 0.8 * smoothstep(uTrK.x, max(uTrK.y, uTrK.x + 1.0), d); o.c.rgb = mix(o.c.rgb, uTrMeanS.rgb, fd); o.n.xyz *= 1.0 - fd; }
+    float fx = nG.x * nG.x, fz = nG.z * nG.z;
+    bool rg = vRM.w > 1.5;   // a RELIEF vertex (rock_ring.js): the macro is its own (the bench v1's macro texture, per vertex)
+#ifndef GS_TRLITE
+    // THE PBR MICRO DETAIL (the bench v1's): the 'cliff' photograph at its natural 6.86 m, HEX-tiled and TRIPLANAR on the smooth
+    // normal (weights ^8) - its luminance over its raw mean modulates the colour, its normal is added (x0.6); out by 60-180 m
+    float kd = (1.0 - smoothstep(uTrF.x, max(uTrF.y, uTrF.x + 1.0), d)) * step(0.5, uTrK.z);
+    if (kd > 0.01) {
+      vec2 a8 = pow(vec2(length(nG.xz), abs(nG.y)), vec2(8.0)); vec2 h2 = nG.xz * nG.xz; h2 *= h2;
+      float f8 = h2.y / max(h2.x + h2.y, 1e-8); vec3 tw = vec3(a8.x * (1.0 - f8), a8.y, a8.x * f8) / max(a8.x + a8.y, 1e-6);
+      vec4 tc = vec4(0.0); vec3 tn = vec3(0.0);
+      if (tw.y > 0.01) { tc += sTrHexM(xz / 6.86) * tw.y; vec2 q = gTrHN.xy * 2.0 - 1.0; tn += vec3(q.x, 0.0, q.y) * tw.y; }
+      if (tw.x > 0.01) { tc += sTrHexM(P.zy / 6.86) * tw.x; vec2 q = gTrHN.xy * 2.0 - 1.0; tn += vec3(0.0, q.y, q.x) * tw.x; }
+      if (tw.z > 0.01) { tc += sTrHexM(P.xy / 6.86) * tw.z; vec2 q = gTrHN.xy * 2.0 - 1.0; tn += vec3(q.x, q.y, 0.0) * tw.z; }
+      float rel = clamp(gLuma(tc.rgb) / max(uTrS.z, 1e-3), 0.35, 2.2);
+      o.c.rgb *= mix(1.0, rel, uTrM.x * kd);
+      o.n.xyz += tn * uTrM.y * kd;
+      o.c.a = mix(o.c.a, o.c.a * 0.75 + tc.a * 0.25, kd);
+    }
+#endif
+    // THE MACRO: on a relief vertex the worker's (v1's own law: zones, the film, the joints' dirt, the hollows, the margin, the wet
+    // streaks); elsewhere its procedural stand-in (the far ground)
+    float jf = clamp(gTrJ / 0.5, 0.0, 1.0), hollow = clamp(-gTrBias * 2.0, 0.0, 1.0);
+    float edgeR = smoothstep(0.15, 0.35, gTrR0) * (1.0 - smoothstep(0.45, 0.8, gTrR0));
+    vec3 mult;
+    if (rg) mult = vRM.rgb;
+    else {
+      mult = vec3(0.55 + 0.40 * smoothstep(0.3, 0.75, gVnoise(xz / 170.0 + 1.3)));
+      mult = mix(mult, mult * vec3(1.06, 1.0, 0.9), smoothstep(0.6, 0.8, gVnoise(xz / 340.0 + 7.0)) * 0.7);
+      mult = mix(mult, vec3(0.40, 0.38, 0.30), jf * uTrJ.z);
+      mult = mix(mult, vec3(0.55, 0.50, 0.40), hollow * uTrJ.w);
+      mult = mix(mult, vec3(0.50, 0.46, 0.36), edgeR * 0.7);
+      float st = smoothstep(0.55, 0.85, gVnoise(vec2((fx > fz ? P.z : P.x) / 2.2, P.y / 26.0)) * 0.7 + hollow * 0.45) * smoothstep(38.0, 55.0, slope);
+      mult = mix(mult, vec3(0.38, 0.38, 0.34), st * uTrF.w);
+    }
+    mult = mix(mult, gTrMA.rgb * 1.5, gTrIn);   // (the macro texture where it lies: v1's own, a pixel at a time)
+    o.c.rgb *= mult;
+    o.c.rgb *= mix(vec3(1.0), uTrW.rgb, uTrW.a) * uTrS.w;   // (uTrW.rgb is neutral now: the film is the imagery's tint, laid on in the macro step below)   // THE BLEND WITH THE GRASS (16 Nov, the user: "a value issue"): the rock's value in proportion to the game's grass, a film of its hue
+    { float hN = mix(rg ? vRX.y : 0.0, gTrMB.a, gTrIn), wh = max(rg ? 1.0 : 0.0, gTrIn);   // the macro's height into the blend's (v1)
+      o.c.a = mix(o.c.a, clamp(o.c.a * 0.6 + hN * 0.6 - 0.1, 0.0, 1.0), wh); }
+    if (!rg) o.n.xyz += vec3(gTrMB.r * 2.0 - 1.0, 0.0, gTrMB.g * 2.0 - 1.0) * gTrIn;   // its normal off the relief (v1: on the displaced mesh the geometry IS it)
+    // THE GREEN (v1): the macro's chance, the tile's cracks (its low texels; on the relief the masses' crevices too) and what faces
+    // the sky, broken by two noises, filling the LOW texels first; the ground's own grass set read from above, moss where thin
+    float hm = o.c.a;
+    float n1g = gVnoise(xz / 7.0 + 3.1), n2g = gVnoise(xz / 1.7 - 9.4);
+    float vegM = rg ? vRM.w - 2.0 : clamp(jf + hollow * 0.6 + (1.0 - smoothstep(14.0, 30.0, slope)) * 0.55 + edgeR * 0.6, 0.0, 1.0) * (0.55 + 0.45 * gVnoise(xz / 21.0 + 5.0));
+    vegM = mix(vegM, gTrMB.b, gTrIn);
+    float crackM = 1.0 - smoothstep(0.10, 0.32, hm);
+    if (rg) { crackM = max(crackM, vRX.z * 0.9); o.c.rgb *= mix(1.0, 0.55, vRX.z) * (0.9 + 0.2 * vRX.w); }   // the masses' crevices darker, each mass its own tone
+    float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * n1g);
+    float Gv = clamp((vegM * 1.15 + crackM * 0.6 + up * 0.55) * uTrG.x, 0.0, 1.0) * (0.55 + 0.6 * n2g);
+    float gw = clamp((Gv * 1.35 - hm) * 3.0, 0.0, 1.0);
+    if (gw > 0.003) {
+      vec3 gr = texture(uSplat, vec3(xz / 5.0, uTrL.w), uSFilt.x).rgb;
+      gr *= gr;   // (sRGB -> linear, the square: a green's colour, not a set's texel)
+      gr *= uSGrade[int(uTrL.w + 0.5)].rgb;   // (the game's own grass, graded as the game grades it - the user: "use the same textures as the game already uses": the green in the rock is the grass around it)
+      vec3 green = mix(vec3(0.045, 0.058, 0.022) * (0.8 + 0.6 * n2g), gr, smoothstep(0.3, 0.8, Gv));
+      green = mix(vec3(gLuma(green)), green, uTrG.z);   // (the green's saturation: 1 = the bench v1's)
+      gTrGw = max(gTrGw, gw);
+      o.c.rgb = mix(o.c.rgb, green, gw); o.n.xyz *= 1.0 - 0.6 * gw; o.n.w = mix(o.n.w, uTrG.y, gw); o.c.a = mix(o.c.a, 0.2, gw);
+    }
+    o.n.w = clamp(o.n.w * uTrG.w, 0.02, 1.0);   // the bare stone's roughness (the tile's maps x the dial)
+    o.c.rgb *= uTrK.w;
+    return o;
+  }
   Smp gSNear, gSFar, gSOut;
   bool sMatPass(int i, int pass, vec3 P, vec3 tw, float seaAng, float fw, float slope){
     vec4 A = uSMatA[i]; vec4 S = uSMatS[i]; vec4 M = uSMatM[i];
@@ -353,7 +565,7 @@ const SPLAT_GROUND = (() => {
 #endif
     Smp o; o.c = vec4(0.5, 0.5, 0.5, 0.5); o.n = vec4(0.0, 0.0, 0.0, 0.8);
     if (A.x < 0.0) { gSOut = o; return pass == 0; }
-    float ang = A.w > 0.5 ? seaAng : 0.0;
+    float ang = A.w > 1.5 ? 1e-4 : (A.w > 0.5 ? seaAng : 0.0);   // (2: PLAIN - never turned, no hex: R1's face tile, its streaks; v1 drew it plain - the hex chopped them into chevrons)
     float period = max(M.x, 0.5) * 6.0, sharp = M.y * 2.0;   // 2x (4x cut the sets into hard blotches once lit in the game)
 #ifdef SPLAT_ONE
     float m1 = 0.0, m2 = 0.0;
@@ -399,6 +611,7 @@ const SPLAT_GROUND = (() => {
   // THE SPLAT: macro = the stack's colour (lit by the game's sun after)
   vec3 sSplat(vec3 macro, vec3 nGeo, vec3 nTri, float canopy, vec2 uv, float sd, float lsd){
     gSN = vec3(0.0); gSRough = 0.9;
+    gTrN = nGeo; gTrR0 = 0.0; gTrR = 0.0; gTrJ = 0.0; gTrBias = 0.0; gTrPx = length(fwidth(vWPi.xz)) * uTrJ.x;
 #ifdef GS_FLAT
     return macro;
 #endif
@@ -460,7 +673,7 @@ const SPLAT_GROUND = (() => {
         else if (k0 < 0) { k0 = 4; v0 = sea; } else if (k1 < 0) { k1 = 4; v1 = sea; } else if (k2 < 0) { k2 = 4; v2 = sea; } else if (k3 < 0) { k3 = 4; v3 = sea; } else if (k4 < 0) { k4 = 4; v4 = sea; } } }
     float lakeM = 0.0;
     if (uSLakeE.y > 0.5) lakeM = smoothstep(-uSLakeE.x * 0.5, uSLakeE.x * 0.5, lsd);
-    float sCliff = smoothstep(uSSplit.x, uSSplit.y, slope);
+    float sCliff = uTrOn > 0.5 ? smoothstep(uTrS.x, uTrS.y, slope) : smoothstep(uSSplit.x, uSSplit.y, slope);   // (R1: the rock's own slab -> face split)
     float sOld   = smoothstep(uSSplit.z, uSSplit.w, canopy);
     float sDense = smoothstep(uSSplit2.x, uSSplit2.y, canopy);
     // THE CARVED BANK IS ROCK WHERE IT IS STEEP (SHORES G1500, the user 2026-10-04: the lake banks "read as steep, stretched
@@ -505,6 +718,26 @@ const SPLAT_GROUND = (() => {
       if (mv > 0.0) { if (k0 < 0) { k0 = 1; v0 = mv; } else if (k1 < 0) { k1 = 1; v1 = mv; } else if (k2 < 0) { k2 = 1; v2 = mv; } else if (k3 < 0) { k3 = 1; v3 = mv; } else if (k4 < 0) { k4 = 1; v4 = mv; }
  }   // (all five full - 0.03 % of kernels: the share is dropped, the blend normalises by what it keeps)
     }
+#ifndef GS_NOTROND
+    // R1: THE EXPOSURE rewrites the rock slot's share where the raster has rock (sTrExpo); the others scale to make room, and a
+    // kernel all rock hands what it frees to heath (2) and forest (8) - new slots if they are not there
+    if (uTrOn > 0.5) {
+      float r = (k0 == 6 ? v0 : 0.0) + (k1 == 6 ? v1 : 0.0) + (k2 == 6 ? v2 : 0.0) + (k3 == 6 ? v3 : 0.0) + (k4 == 6 ? v4 : 0.0);
+      gTrR0 = r; gTrR = r;
+      float mw = sTrMac(xz);
+      bool rgv = vRM.w > 1.5 || mw > 0.0;   // a relief vertex or the macro texture: the macro's exposure IS the rock (v1: the macro over the raster), a slot made if the raster had none
+      if (rgv && r <= 0.02) { if (k4 < 0) { k4 = 6; v4 = 0.0; } else if (k3 < 0) { k3 = 6; v3 = 0.0; } r = 0.0; }
+      if (r > 0.02 || rgv) {
+        float e = sTrE(r, xz, slope, uv, mw), ko = (1.0 - e) / max(1.0 - r, 1e-3);
+        v0 = k0 == 6 ? e : v0 * ko; v1 = k1 == 6 ? e : v1 * ko; v2 = k2 == 6 ? e : v2 * ko; v3 = k3 == 6 ? e : v3 * ko; v4 = k4 == 6 ? e : v4 * ko;
+        float fr = 1.0 - r < 1e-3 ? 1.0 - e : 0.0;
+        if (fr > 0.0) {   // (a kernel all rock fills from k0: the last two slots are free - fewer lines in the program than a search)
+          if (k4 < 0) { k4 = 8; v4 = fr * 0.7; } if (k3 < 0) { k3 = 2; v3 = fr * 0.3; }
+        }
+        gTrR = e;
+      }
+    }
+#endif
 #else
     float w[${NCODE}]; for (int i = 0; i < uSNCode; i++) w[i] = 0.0;
     vec2 g = (p - uGGrid.xy) / uGCell - 0.5;
@@ -544,7 +777,7 @@ const SPLAT_GROUND = (() => {
     // the bed paint and the surface quad do the water (a voteless cell fell back to the stack's pale blue - the
     // stair-step band round every lake)
     w[3] += w[1]; w[1] = 0.0;
-    float sCliff = smoothstep(uSSplit.x, uSSplit.y, slope);
+    float sCliff = uTrOn > 0.5 ? smoothstep(uTrS.x, uTrS.y, slope) : smoothstep(uSSplit.x, uSSplit.y, slope);   // (R1: the rock's own slab -> face split)
     float sOld   = smoothstep(uSSplit.z, uSSplit.w, canopy);
     float sDense = smoothstep(uSSplit2.x, uSSplit2.y, canopy);
     w[12] = w[6] * sCliff; w[6] *= 1.0 - sCliff;
@@ -580,6 +813,21 @@ const SPLAT_GROUND = (() => {
       gSBankM = bankZ * smoothstep(uSBank.y - 4.0 - uSBank2.x, uSBank.y + 4.0, sj);   // the macro gives way as the rock comes
       for (int i = 2; i < uSNCode; i++) if (i != 5 && i != 6 && i != 12) { w[1] += w[i] * gSBank; w[i] *= 1.0 - gSBank; }   // (the bank rides slot 1: BANK_SLOT)
     }
+#ifndef GS_NOTROND
+    // R1: THE EXPOSURE (the lean path's twin, above)
+    if (uTrOn > 0.5) {
+      float r = w[6]; gTrR0 = r; gTrR = r;
+      float mw = sTrMac(xz);
+      bool rgv = vRM.w > 1.5 || mw > 0.0;
+      if (r > 0.02 || rgv) {
+        float e = sTrE(r, xz, slope, uv, mw), ko = (1.0 - e) / max(1.0 - r, 1e-3);
+        for (int i = 0; i < uSNCode; i++) if (i != 6) w[i] *= ko;
+        w[6] = e;
+        if (1.0 - r < 1e-3) { w[8] += (1.0 - e) * 0.7; w[2] += (1.0 - e) * 0.3; }
+        gTrR = e;
+      }
+    }
+#endif
 #endif
 #ifdef GS_NOCOAST
     float seaAng = uSBeachRot;
@@ -643,6 +891,9 @@ const SPLAT_GROUND = (() => {
 #endif
       if (wt >= 0.004 && wt > wmin && sMatPass(code, j - code * 2, vWPi, tw, seaAng, fw, slope)) {
         Smp m = gSOut;
+#ifndef GS_NOTROND
+        if (uTrOn > 0.5 && (code == 6 || code == 12)) m = sTrPost(m, vWPi, slope);   // R1
+#endif
         if (W0 == wmin) { C0 = m.c; N0 = m.n; W0 = wt; R0 = gSRel; }
         else if (W1 == wmin) { C1 = m.c; N1 = m.n; W1 = wt; R1 = gSRel; }
         else if (W2 == wmin) { C2 = m.c; N2 = m.n; W2 = wt; R2 = gSRel; }
@@ -680,6 +931,9 @@ const SPLAT_GROUND = (() => {
       int i = j / 2;
       if (w[i] >= 0.004 && n < uSNCand && sMatPass(i, j - i * 2, vWPi, tw, seaAng, fw, slope)) {
         Smp m = gSOut;
+#ifndef GS_NOTROND
+        if (uTrOn > 0.5 && (i == 6 || i == 12)) m = sTrPost(m, vWPi, slope);   // R1
+#endif
         C[n] = m.c; NN[n] = m.n; Wt[n] = w[i]; Rl[n] = gSRel; ma = max(ma, m.c.a + w[i]); n++;
       }
     }
@@ -716,7 +970,8 @@ const SPLAT_GROUND = (() => {
     // brightness wearing that texture. macroNear (uSDist2.y) is still how much of the detail's own colour gives way.
     // (SHORES-2 G1957: AND ON ANY FACE - the macro is a 10 m image read from above: down a steep face it is one colour per
     // column, a vertical streak (it2, sea_rocky: green fingers down the rock wherever the bank's weight thinned))
-    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * (1.0 - 0.7 * max(gSBankM, smoothstep(30.0, 48.0, slope)))); }   // (a third kept: the face takes the land's hue, not a dark outline from the air)
+    if (uSDist2.y > 0.0) { float lc = gLuma(col); vec3 tinted = mac * mix(lc / max(gLuma(mac), 1e-3), rel, uSDist2.w); col = mix(col, tinted, uSDist2.y * mix((1.0 - 0.7 * max(gSBankM, smoothstep(30.0, 48.0, slope))) * (1.0 - gTrR * (1.0 - uTrW.a)), uTrX.x, gTrGw)); }   // (R1: the macro gives way to the STONE, not to the grass growing in it - the grass's share takes the tint IN FULL, as the open heath (the face's
+    // 70 % cut is for a 10 m image streaking down a whole face, not a patch of grass in it) - the user, 17 Nov: "the grass inside the rock ... quite olive rather than green": untinted, it was the photograph's olive beside the tinted heath)   // (a third kept: the face takes the land's hue, not a dark outline from the air)
     // THE WATERLINE IS WET (SHORES G1500): the bank's first metres over a lake - the shelf the carve leaves - darken toward a
     // wet margin (a submerged grain keeps ~0.55 of its albedo, water.js G799's number) and take a little gloss
     // (SHORES-2 G1956: its line broken by the noise; and THE SEA'S, by height over the water - the bank's foot, a ragged band)
@@ -899,6 +1154,7 @@ const SPLAT_GROUND = (() => {
     // ?splat=0: the ground without the splat's code at all (a clean A/B, and the compile-time control)
     try { if (/[?&]splat=0/.test(location.search)) return null; } catch (e) {}
     const R = load();
+    const trondKeys = () => trondOf(R);
     const BLEND = { from: 0, to: 0 };   // the GRAPHICS row's detail fade (0 = the recipe's), kept over a knob re-apply
     if (R.knobs.albedoNorm === undefined) R.knobs.albedoNorm = RECIPE.knobs.albedoNorm === undefined ? 1 : RECIPE.knobs.albedoNorm;
     R.norm = isla ? normGains(isla, R) : {};
@@ -921,6 +1177,8 @@ const SPLAT_GROUND = (() => {
       if (seen[0]) seen[4] = 1; if (seen[1]) seen[3] = 1; seen[0] = seen[1] = 0;
       if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
       const keys = new Set();
+      // R1: the island's own rock - its two tiles, the micro detail's photograph and the green's grass - where the map has rock
+      if (seen[6] && R.knobs.rocks) for (const k of trondKeys()) keys.add(k);
       for (let c = 0; c < 32; c++) { const m = seen[c] && R.codes[c]; if (!m) continue;
         for (const k of (m.tex || []).concat(m.far || [])) if (k) keys.add(k); }
       return keys;
@@ -935,7 +1193,7 @@ const SPLAT_GROUND = (() => {
     // GROUND-COST G2075: THE STRIPS - parts of the ground's program cut at COMPILE time (#define GS_<NAME>), a measuring tool
     // (tools/perf/ground_cost.js): ?gstrip=vote4,nohex,... at the load or api.strip([...]) live (the programs re-key: a cold
     // compile each). Empty by default: no define, the key unchanged - the production programs are the same text.
-    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|nrmcut)$/;
+    const GS_OK = /^(flat|nohex|notri|nocoast|norecol|nosrgb|nonrm|nograde|nopools|nobank|noibl|nostack|hexfar|cand4|nrmcut|notrond|trlite)$/;   // (notrond / trlite: R1's text out / its lite text - the box's bisect)
     let strips = [];
     try { const m = /[?&]gstrip=([^&]*)/.exec(location.search); if (m) strips = decodeURIComponent(m[1]).split(',').filter(x => GS_OK.test(x)); } catch (e) {}
     const grow = () => {
@@ -976,6 +1234,11 @@ const SPLAT_GROUND = (() => {
       uSSeam: { value: new THREE.Vector2() }, uSNrm: { value: new THREE.Vector2() }, uSLakeE: { value: new THREE.Vector2(1, 1) },
       uSBank: { value: V4() }, uSBank2: { value: V4() }, uSBankLip: { value: 0 },
       uSBeachRot: { value: 0 }, uSNCode: { value: NCODE }, uSNCand: { value: 8 }, uSNSlot: { value: NCODE * 2 }, uSVoteR: { value: 2 },
+      // R1: the island's own rock (sTrExpo, sTrPost; the tiles ride the rock codes' sets)
+      uTrOn: { value: 0 }, uTrL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uTrK: { value: new THREE.Vector4(400, 1200, 1, 0.5) },
+      uTrE: { value: new THREE.Vector4(250, 760, 0.3, 0.08) }, uTrMeanS: { value: new THREE.Vector4(0.3, 0.27, 0.2, 1) }, uTrS: { value: new THREE.Vector4(42, 58, 0, 0) },
+      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) }, uTrW: { value: new THREE.Vector4(1, 1, 1, 0) }, uTrX: { value: new THREE.Vector4(1.4, 0, 0, 0) },
+      uTrMT: { value: null }, uTrMR: { value: [V4(), V4(), V4()] }, uTrMX: { value: V4() },   // the macro texture (rock_ring.js fills it)
     };
     let ready = false;
     const push = () => {
@@ -1042,6 +1305,44 @@ const SPLAT_GROUND = (() => {
       U.uSBankLip.value = (K.bankReach || 0) > 0 ? (K.bankLip || 0) : 0;   // G1959 (off with the bank)
       U.uSBeachRot.value = K.beachRot * Math.PI / 180;
       U.uSplatOn.value = (ready && R.on) ? 1 : 0;
+      // R1: the rock's layers (all four in the arrays, or the dial stays off); under the dial the rock codes WEAR the tiles (the
+      // per-code rows written above are overwritten for 6 and 12: the chain samples them - no fetch of R1's own); the knobs
+      { const T4 = trondKeys(), L4 = T4.map(k => LIB.indexOf(k)), lib = k => SPLAT_TEX_SETS.find(x => x.key === k) || {};
+        const kv = (k, d) => (K[k] === undefined ? d : +K[k]);   // (the world rail's 'rock & cliffs' rows)
+        U.uTrL.value.set(L4[0], L4[1], L4[2], L4[3]);
+        const on = !!(ready && K.rocks && L4.every(i => i >= 0));
+        U.uTrOn.value = on ? 1 : 0;
+        if (on) {
+          const slabM = kv('rockSlabM', 16), faceM = kv('rockFaceM', 24), face = kv('rockFaceTile', 1) > 0.5 ? L4[1] : L4[0];
+          // NEAR only: the far triplet stays the recipe's (its aerial / stretched photographs read as rock from altitude - A0's
+          // box, 16 Nov: "fade to a textured far set, not a mean"), its first set named explicitly (an absent far would take the slab)
+          for (const [c, L, m] of [[6, L4[0], slabM], [12, face, faceM]]) {
+            const row = R.codes[c] || {}, far0 = (row.far && row.far[0]) || (row.tex && row.tex[0]), fs0 = (row.farScale && row.farScale[0]) || (row.scale && row.scale[0]) || m;
+            U.uSMatA.value[c].set(L, -1, -1, c === 12 && L === L4[1] ? 2 : 0); U.uSMatS.value[c].set(m, 1, 1, 0);
+            U.uSMatF.value[c].set(far0 ? LIB.indexOf(far0) : L, -1, -1, 0); U.uSMatFS.value[c].set(far0 && LIB.indexOf(far0) >= 0 ? fs0 : m, 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
+        }
+        { const mc = lib(T4[2]).mean || [0.2, 0.2, 0.2]; U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), 0.2126 * mc[0] + 0.7152 * mc[1] + 0.0722 * mc[2], 1); }
+        // THE BLEND WITH THE GRASS (16 Nov, the user: "the new grass is a lot darker than the grass you had used ... the rock would
+        // need to be modified in proportion"): v1's bench drew its green as grassRock x (0.78, 1, 0.62); the game grades it by the
+        // imagery (~0.26 / 0.47 / 0.90: half v1's value, bluer). The rock's value follows the ratio to the power rockGrassMatch
+        // (0 = v1's rock as is, 1 = v1's proportion exactly); rockWeather lays a film of the grass's hue on it
+        { const gm = lib(T4[3]).mean, gG = L4[3] >= 0 ? U.uSGrade.value[L4[3]] : null, lu = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+          if (gm && gG) { let gc = [gm[0] * gG.x, gm[1] * gG.y, gm[2] * gG.z]; const l0 = lu(gc); gc = gc.map(v => l0 + (v - l0) * gG.w);
+            const lg = Math.max(lu(gc), 1e-4), ratio = Math.min(2, Math.max(0.2, lg / Math.max(lu([gm[0] * 0.78, gm[1], gm[2] * 0.62]), 1e-4)));
+            U.uTrS.value.w = Math.pow(ratio, kv('rockGrassMatch', 0.5));
+            // THE FILM IS THE LAND'S OWN TINT (17 Nov, the user's far shot: the rock area khaki beside green grass): the grass set's
+            // graded hue is itself olive - the open heath is green by the imagery's macro tint - so the film is that tint, laid on
+            // the stone by rockWeather in the macro step (sSplat); its hue here stays neutral (the boulders take the value match alone)
+            U.uTrW.value.set(1, 1, 1, kv('rockWeather', 0.35)); } }
+        U.uTrX.value.set(Math.min(1 / Math.max(K.macroNear || 0.5, 0.05), kv('rockGreenTint', 1.4)), 0, 0, 0);   // (capped: the tint's whole, 1, at most)
+        U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.72));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
+        U.uTrE.value.set(kv('rockHLo', 250), kv('rockHHi', 760), kv('rockBias', 0.3), kv('rockOff', 0.08));
+        const mS = lib(T4[0]).mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded
+        if (mS) U.uTrMeanS.value.set(mS[0] * (gS ? gS.x : 1), mS[1] * (gS ? gS.y : 1), mS[2] * (gS ? gS.z : 1), 1);
+        U.uTrJ.value.set(kv('rockJoint', 1), kv('rockJointSoil', 0.7), kv('rockJointDirt', 0.85), kv('rockHollow', 0.5));
+        U.uTrG.value.set(kv('rockGreen', 1), kv('rockGreenRough', 0.97), kv('rockGreenSat', 1), kv('rockRough', 1));
+        U.uTrF.value.set(kv('rockMicroFrom', 60), kv('rockMicroTo', 180), kv('rockJointFar', 900), kv('rockWet', 0.75));
+        U.uTrM.value.set(kv('rockMicroK', 0.65), kv('rockMicroN', 0.6), kv('rockNdvi', 0), kv('rockNdviMid', 0.74)); }
     };
     push();
     // ---- THE GROUND'S COLOUR AS DRAWN, ON THE CPU (GRASS-DENSE G2562; GRASS-STUDY §4.5.1, agreed with GROUND-LOOK G2610) ------
@@ -1114,11 +1415,15 @@ const SPLAT_GROUND = (() => {
       knobsLive: () => R.knobs,   // REVEAL-HITCH: the live knobs, read only - a per-sample reader (render_world poolAt) copied them every call
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
-      meanAt: (x, z, code, slopeDeg) => meanAt(x, z, code, slopeDeg),
+      meanAt: (x, z, code, slopeDeg) => meanAt(x, z, code, slopeDeg),   // GRASS-DENSE G2562: the ground's colour as drawn, less its texture (below)
       // GRASS-ON-GREEN (16 Nov; the user: 'several ground layers use the same texture'): the near sets drawn at a point of code
       // `code` and their weights, as meanAt blends them (tex[0] alone at the lean blend; else the A | B pair by the fields' mask)
       setsAt: (x, z, code) => { const m = R.codes[code]; if (!m || !m.tex || !m.tex[0]) return null; if (U.uSNearN.value < 1.5 || !m.tex[1]) return [[m.tex[0], 1]];
         const k = G.mixK(x, z, Math.round(m.mix[0] * 6), 0.52 - m.mix[2], m.mix[1] * 2); return [[m.tex[0], 1 - k], [m.tex[1], k]]; },   // GRASS-DENSE G2562: the ground's colour as drawn, less its texture (below)
+      // R1: the rock dial live (a uniform: no program re-keys); turning it on grows the arrays by the rock's sets if the load had it off
+      // (OFF, the programs carry none of R1's text - GS_NOTROND, keyed ':norock': ?rocks=0 links master's program; a live turn re-keys them once)
+      rocks: v => { if (v === undefined) return !!R.knobs.rocks; const was = !!R.knobs.rocks; R.knobs.rocks = v ? 1 : 0; grow(); push();
+        if (was !== !!R.knobs.rocks && api.onInspect) api.onInspect(); return !!R.knobs.rocks; },
       set: o => { for (const k in o) { if (k === 'on') R.on = o[k] ? 1 : 0; else if (k in R.knobs) R.knobs[k] = +o[k]; } push(); save(R); return api.knobs(); },
       // the sets a type blends and where its near sets give way to the far one (GRAPHICS 'ground blend', PERF 2026-09-23):
       // from / to 0 = the recipe's detailFrom / detailTo. 'lean far' pulls the fade in to 100-400 m: with one far set,
@@ -1127,6 +1432,8 @@ const SPLAT_GROUND = (() => {
         { const l = near < 1.5 && far < 1.5; if (l !== lean) { lean = l; if (api.onInspect) api.onInspect(); } }   // (G2075: the lean program re-keys)
         const K = R.knobs; U.uSDist.value.x = BLEND.from || K.detailFrom; U.uSDist.value.y = BLEND.to || K.detailTo; return [near, far, U.uSDist.value.x, U.uSDist.value.y]; },
       code: i => R.codes[i] ? JSON.parse(JSON.stringify(R.codes[i])) : null,
+      trond: () => trondKeys(),
+      rockBlend: () => [U.uTrS.value.w, U.uTrW.value.x, U.uTrW.value.y, U.uTrW.value.z, U.uTrW.value.w],   // the value match, the film's hue and amount (the rail's note, the ring's boulders)   // R1's four sets: slab, face, micro (+ the boulders), green
       setCode: (i, o) => { const c = R.codes[i] || (R.codes[i] = { tex: [null, null, null], scale: [1, 1, 1], far: [null, null, null], farScale: [0, 0, 0], mix: [30, 3, 0, 0], vary: [0, 0, 20] });
         for (const k in o) c[k] = o[k]; grow(); push(); save(R); return api.code(i); },
       grade: k => Object.assign({ gain: '#ffffff', sat: 1, gloss: 1, grass: 0, hue: 0, contrast: 1, selHue: 0, selWidth: 0, selShift: 0, selSat: 1, selLight: 1, selSoft: 0.5 }, R.grade[k] || {}),
@@ -1138,8 +1445,8 @@ const SPLAT_GROUND = (() => {
       // GROUND-COST G2075: the strips (above) - strip() reads them, strip([..]) sets them and re-keys the host's programs
       strip: v => { if (v === undefined) return strips.slice(); strips = [].concat(v).filter(x => GS_OK.test(x)).sort(); if (api.onInspect) api.onInspect(); return strips.slice(); },
       lean: () => lean,   // G2075: the lean program (one set a type compiled in) - the host keys ':lean' and defines SPLAT_ONE
-      stripKey: () => (strips.length ? ':gs-' + strips.join('-') : ''),
-      stripDefs: () => strips.map(x => '#define GS_' + x.toUpperCase() + ' 1\n').join(''),
+      stripKey: () => (strips.length ? ':gs-' + strips.join('-') : '') + (R.knobs.rocks ? '' : ':norock'),
+      stripDefs: () => strips.map(x => '#define GS_' + x.toUpperCase() + ' 1\n').join('') + (R.knobs.rocks || strips.includes('notrond') ? '' : '#define GS_NOTROND 1\n'),
       plain: v => { if (v === undefined) return plain; v = !!v; if (v === plain) return plain; plain = v; if (!plain) ensure(); if (api.onInspect) api.onInspect(); return plain; },
       onInspect: null,                        // the host's re-key (render_world groundSync)
       // the set's images (the rail's previews): diff / nor / height / rough, lazily-made Images
