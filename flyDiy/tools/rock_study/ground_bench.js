@@ -54,6 +54,7 @@ const isla = { ttype: Uint8Array.from(IS.ttype), albedo: Uint8Array.from(IS.albe
 const T0 = performance.now();
 const LEAN = Q.get('lean') === '1', STRIP = (Q.get('gstrip') || '').split(',').filter(Boolean);
 const SPL = SPLAT_GROUND.make(gU, isla, { lean: LEAN });
+{ const bq = Q.get('blend'); if (bq && SPL.api.blend) SPL.api.blend(...bq.split(',').map(Number)); }   // ?blend=1,1,100,400: a GRAPHICS row's blend (gamer's 'lean far' fades at 100-400 m)
 { const kq = Q.get('k'); if (kq) { const o = {}; for (const kv of kq.split(',')) { const [k, v] = kv.split(':'); o[k] = +v; } SPL.api.set(o); } }   // ?k=rockOff:0.2,rockGreen:1.4
 // ---- the hook: render_world islandGroundHookFor(0, false)'s production text ----
 let FS = '';

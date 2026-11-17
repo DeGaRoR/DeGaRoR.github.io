@@ -344,14 +344,15 @@ Smp rRock(vec3 P, vec3 nG){
     const MTN = 1024, MTT = 8, MTL = [{ st: 1, hs: 2.5, M: 25 }, { st: 2, hs: 5, M: 30 }, { st: 4, hs: 10, M: 40 }];
     MTL.forEach(l => { l.T = MTN / MTT * l.st; l.ext = MTN * l.st; l.res = new Map(); l.c = null; });
     const MT = { on: !!(U.uTrMT && U.uTrMR && U.uTrMX), tex: null, data: null, queue: [], inflight: new Map(), dirty: new Set(), lastUp: 0, built: 0, ms: 0, kSig: '' };
-    let mworker = null;
+    const mworkers = [];   // (17 Nov, in game: a rig grabbed ~6 s after placing the eye - one worker filled the three levels in ~20-30 s; a pool, nearest tiles first)
     if (MT.on) {
       MT.data = new Uint8Array(MTN * MTN * 4 * 6);
       MT.tex = new THREE.DataArrayTexture(MT.data, MTN, MTN, 6); MT.tex.format = THREE.RGBAFormat; MT.tex.type = THREE.UnsignedByteType;
       MT.tex.wrapS = MT.tex.wrapT = THREE.RepeatWrapping; MT.tex.minFilter = THREE.LinearMipmapLinearFilter; MT.tex.magFilter = THREE.LinearFilter;
       MT.tex.generateMipmaps = true; MT.tex.anisotropy = 4; MT.tex.needsUpdate = true;
       U.uTrMT.value = MT.tex;
-      try { if (worker) mworker = new Worker(URL.createObjectURL(new Blob([workerSrc()], { type: 'text/javascript' }))); } catch (e) { mworker = null; }
+      const NW = S.reachCap ? 1 : Math.max(1, Math.min(3, ((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4) - 2));   // (the phone tier: one)
+      try { if (worker) { const url = URL.createObjectURL(new Blob([workerSrc()], { type: 'text/javascript' })); for (let k = 0; k < NW; k++) mworkers.push(new Worker(url)); } } catch (e) { }
     }
     const mtKey = () => [S.ndvi, S.ndviMid, S.off, S.hLo, S.hHi, S.jointDirt, S.wet].join(',');
     const mtInputs = (L, tx, tz) => {
@@ -392,9 +393,10 @@ Smp rRock(vec3 P, vec3 nG){
           MT.queue.sort((a, b) => a[0] - b[0]); }
       });
       // a tile a frame to the worker (two in flight); the main thread's part is the inputs (~4-6 k samples)
-      while (MT.queue.length && MT.inflight.size < 2) { const [, L, tx, tz] = MT.queue.shift();
+      let sent = 0;   // (at most two tiles' inputs a frame: ~3-5 ms of the main thread each)
+      while (MT.queue.length && MT.inflight.size < 2 * Math.max(1, mworkers.length) && sent++ < 2) { const [, L, tx, tz] = MT.queue.shift();
         const t0 = performance.now(), inp = mtInputs(L, tx, tz); ST.mainMs += performance.now() - t0;
-        if (mworker) { inp.id = ++seq; MT.inflight.set(inp.id, [L, tx, tz, MT.kSig]); mworker.postMessage(inp, [inp.H.buffer, inp.R.buffer, inp.V.buffer, inp.F.buffer]); }
+        if (mworkers.length) { inp.id = ++seq; MT.inflight.set(inp.id, [L, tx, tz, MT.kSig]); mworkers[inp.id % mworkers.length].postMessage(inp, [inp.H.buffer, inp.R.buffer, inp.V.buffer, inp.F.buffer]); }
         else { mtPut(L, tx, tz, ROCK_RING_CORE.macroTile(inp)); break; } }
       // the upload: the touched layers, at most every 250 ms (the mips are regenerated with them)
       const now = performance.now();
@@ -402,9 +404,10 @@ Smp rRock(vec3 P, vec3 nG){
         for (const layer of MT.dirty) MT.tex.addLayerUpdate(layer); MT.dirty.clear(); MT.tex.needsUpdate = true;
         MTL.forEach((l, L) => { const r = mtRect(L); U.uTrMR.value[L].set(r[0], r[1], r[2], r[3]); }); }
     };
-    if (mworker) mworker.onmessage = e => { const q = MT.inflight.get(e.data.id); MT.inflight.delete(e.data.id); if (!q || q[3] !== MT.kSig) return;
+    const onMT = e => { const q = MT.inflight.get(e.data.id); MT.inflight.delete(e.data.id); if (!q || q[3] !== MT.kSig) return;
       const l = MTL[q[0]]; if (!l.c || Math.abs(q[1] - l.c[0] + 0.5) > MTT / 2 || Math.abs(q[2] - l.c[1] + 0.5) > MTT / 2) return;   // (the window moved on)
       mtPut(q[0], q[1], q[2], e.data.m); };
+    for (const w of mworkers) w.onmessage = onMT;
     const ring = {
       update() {
         const rk = sync(), on = S.on && rk && SP.api.ready && SP.api.ready(); group.visible = !!on;
@@ -445,7 +448,7 @@ Smp rRock(vec3 P, vec3 nG){
         built: ST.built, boulderTris: ST.boulderTris || 0, farChunks: [...farChunks.values()].filter(c => c.bmesh).length, farBoulderTris: ST.farBoulderTris || 0, workerMs: Math.round(ST.workerMs), workerLastMs: ST.workerLast, mainMs: Math.round(ST.mainMs), worker: !!worker,
         macro: MT.on ? { tiles: MT.built, queued: MT.queue.length, inflight: MT.inflight.size, workerMs: Math.round(MT.ms), rects: MTL.map((l, L) => mtRect(L)) } : null }),
       whenIdle: () => new Promise(res => { const tick = () => { ring.update(); if (!queue.length && !inflight.size && !(S.farOn !== 0 && farQueue.length) && !(MT.on && S.macro !== 0 && (MT.queue.length || MT.inflight.size || MT.dirty.size))) res(ring.stat()); else setTimeout(tick, 30); }; tick(); }),
-      dispose() { for (const k of [...chunks.keys()]) drop(k); ctx.scene.remove(group); mat.dispose(); if (worker) worker.terminate(); if (mworker) mworker.terminate(); if (MT.tex) { MT.tex.dispose(); U.uTrMX.value.w = 0; } },
+      dispose() { for (const k of [...chunks.keys()]) drop(k); ctx.scene.remove(group); mat.dispose(); if (worker) worker.terminate(); for (const w of mworkers) w.terminate(); if (MT.tex) { MT.tex.dispose(); U.uTrMX.value.w = 0; } },
       material: mat, group,
     };
     // the fade's eye x: a uniform of its own (uRFade carries sink, reach, band, eye z)

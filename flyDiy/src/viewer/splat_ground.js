@@ -1237,7 +1237,7 @@ const SPLAT_GROUND = (() => {
       // R1: the island's own rock (sTrExpo, sTrPost; the tiles ride the rock codes' sets)
       uTrOn: { value: 0 }, uTrL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uTrK: { value: new THREE.Vector4(400, 1200, 1, 0.5) },
       uTrE: { value: new THREE.Vector4(250, 760, 0.3, 0.08) }, uTrMeanS: { value: new THREE.Vector4(0.3, 0.27, 0.2, 1) }, uTrS: { value: new THREE.Vector4(42, 58, 0, 0) },
-      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) }, uTrW: { value: new THREE.Vector4(1, 1, 1, 0) }, uTrX: { value: new THREE.Vector4(1.4, 0, 0, 0) },
+      uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) }, uTrW: { value: new THREE.Vector4(1, 1, 1, 0) }, uTrX: { value: new THREE.Vector4(1, 0, 0, 0) },
       uTrMT: { value: null }, uTrMR: { value: [V4(), V4(), V4()] }, uTrMX: { value: V4() },   // the macro texture (rock_ring.js fills it)
     };
     let ready = false;
@@ -1316,10 +1316,15 @@ const SPLAT_GROUND = (() => {
           const slabM = kv('rockSlabM', 16), faceM = kv('rockFaceM', 24), face = kv('rockFaceTile', 1) > 0.5 ? L4[1] : L4[0];
           // NEAR only: the far triplet stays the recipe's (its aerial / stretched photographs read as rock from altitude - A0's
           // box, 16 Nov: "fade to a textured far set, not a mean"), its first set named explicitly (an absent far would take the slab)
+          // THE FAR SET IS THE ROCK ITSELF (17 Nov, IN THE GAME: the user, "a white carpet ... the detail is lost"): the desktop's
+          // default row ('gamer': ground 'lean far', gfx_settings blend(3, 1, 100, 400)) hands a type's near sets to its ONE far set
+          // between 100 and 400 m - and the rock's far set was the recipe's ('cliff', the Poly Haven photograph at 79 m, graded grey
+          // and x2 contrast): from 100 m the trondhjemite turned into it (the bench, lean, never did). The far set is now the rock's
+          // own tile at 2.5 x its scale (v1 had only its tiles and the macro): any row's fade stays in the same stone, R1's far
+          // fade and the macro carry the distance
           for (const [c, L, m] of [[6, L4[0], slabM], [12, face, faceM]]) {
-            const row = R.codes[c] || {}, far0 = (row.far && row.far[0]) || (row.tex && row.tex[0]), fs0 = (row.farScale && row.farScale[0]) || (row.scale && row.scale[0]) || m;
             U.uSMatA.value[c].set(L, -1, -1, c === 12 && L === L4[1] ? 2 : 0); U.uSMatS.value[c].set(m, 1, 1, 0);
-            U.uSMatF.value[c].set(far0 ? LIB.indexOf(far0) : L, -1, -1, 0); U.uSMatFS.value[c].set(far0 && LIB.indexOf(far0) >= 0 ? fs0 : m, 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
+            U.uSMatF.value[c].set(L, -1, -1, 0); U.uSMatFS.value[c].set(m * 2.5, 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
         }
         { const mc = lib(T4[2]).mean || [0.2, 0.2, 0.2]; U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), 0.2126 * mc[0] + 0.7152 * mc[1] + 0.0722 * mc[2], 1); }
         // THE BLEND WITH THE GRASS (16 Nov, the user: "the new grass is a lot darker than the grass you had used ... the rock would
@@ -1333,8 +1338,8 @@ const SPLAT_GROUND = (() => {
             // THE FILM IS THE LAND'S OWN TINT (17 Nov, the user's far shot: the rock area khaki beside green grass): the grass set's
             // graded hue is itself olive - the open heath is green by the imagery's macro tint - so the film is that tint, laid on
             // the stone by rockWeather in the macro step (sSplat); its hue here stays neutral (the boulders take the value match alone)
-            U.uTrW.value.set(1, 1, 1, kv('rockWeather', 0.35)); } }
-        U.uTrX.value.set(Math.min(1 / Math.max(K.macroNear || 0.5, 0.05), kv('rockGreenTint', 1.4)), 0, 0, 0);   // (capped: the tint's whole, 1, at most)
+            U.uTrW.value.set(1, 1, 1, kv('rockWeather', 0.25)); } }
+        U.uTrX.value.set(Math.min(1 / Math.max(K.macroNear || 0.5, 0.05), kv('rockGreenTint', 1)), 0, 0, 0);   // (capped: the tint's whole, 1, at most)
         U.uTrK.value.set(kv('rockFarFrom', 400), kv('rockFarTo', 1200), kv('rockMicro', 1), kv('rockK', 0.72));   // (0.72 = 1 / the ground's uGLight 1.38: the bench v1's brightness)
         U.uTrE.value.set(kv('rockHLo', 250), kv('rockHHi', 760), kv('rockBias', 0.3), kv('rockOff', 0.08));
         const mS = lib(T4[0]).mean, gS = L4[0] >= 0 ? U.uSGrade.value[L4[0]] : null;   // the far fade's colour: the slab's mean, graded
