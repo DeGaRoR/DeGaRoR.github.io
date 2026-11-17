@@ -129,8 +129,9 @@ function plantAt(ix, iz) {
   if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);
   if (mix && pm) { const MF = BIO.mixOf(mix).forest; floored = true; can = Math.max(can, (MF && MF.canopyFloor) || 0, 12); }
   if (mix) { const MF = BIO.mixOf(mix).forest; if (MF && MF.canopyFloor > can) { can = MF.canopyFloor; floored = true; }
-    if (MF && MF.clump > 0) { const v = vnoise(x, z, MF.clumpM || 30, 41);
-      if (v < MF.clump) { const ce = EDGEON ? (MF.clumpEdge || 0) : 0, t = ce > 0 ? (MF.clump - v) / ce : 1;
+    const clH = (MF && MF.clumpUp) ? MF.clump + (MF.clumpUp[2] - MF.clump) * (t => t * t * (3 - 2 * t))(Math.max(0, Math.min(1, (h - MF.clumpUp[0]) / Math.max(1, MF.clumpUp[1] - MF.clumpUp[0])))) : (MF ? MF.clump : 0);   // render_world: clumpUp
+    if (MF && clH > 0) { const v = vnoise(x, z, MF.clumpM || 30, 41);
+      if (v < clH) { const ce = EDGEON ? (MF.clumpEdge || 0) : 0, t = ce > 0 ? (clH - v) / ce : 1;
         if (t >= 1 || hsh(ix + 51, iz + 53) > (MF.clumpEdgeDens === undefined ? 0.8 : MF.clumpEdgeDens) * Math.pow(1 - t, 1.4)) return { r: R.CLUMP, x, z, h, code, mix, can };
         const K = BIO.knobs(); ksz = K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * Math.pow(t, 0.8); }
       else MFx = MF; } }
@@ -142,12 +143,14 @@ function plantAt(ix, iz) {
   p *= kind;
   if (p < 1 && hsh(ix + 13, iz + 29) > p) return { r: p0 <= 0 ? R.CANOPY : R.THIN, x, z, h, code, mix, can, p };
   const P0 = { r: R.PLANT, x, z, h, code, mix, can, ksz, sp: pickSpecies(mix, hsh(ix + 11, iz + 17), h) };
+  if (!P0.sp && KIND_TREES(mix)) return { r: R.THIN, x, z, h, code, mix, can };   // out of every species' altitude band
   if (MFx && MFx.extra > 0 && hsh(ix + 61, iz + 67) < MFx.extra) {   // the clump's second tree
     const x2 = x + (hsh(ix + 71, iz + 73) - 0.5) * SPC * 0.9, z2 = z + (hsh(ix + 79, iz + 83) - 0.5) * SPC * 0.9;
     if (!premTreeEx(x2, z2)) P0.extra = { r: R.PLANT, x: x2, z: z2, h: H(x2, z2), code, mix, can, ksz: 1, sp: pickSpecies(mix, hsh(ix + 977 + 11, iz + 541 + 17), h) }; }
   return P0;
 }
 
+const KIND_TREES = mix => { const M = BIO.mixOf(mix); return !!(M && M.species && Object.keys(M.species).some(k => KIND[k] === 'tree' || KIND[k] === 'dead')); };
 // the species, by the mix's proportions and the fill's altitude bands (SPECIES_PREF) - not the per-subject patches
 const SPECIES_PREF = { 'cedar_tree.glb': [0, 90], 'realistic_fir_trees_pack_lods_gameready.glb': [0, 160], 'fir_tree_georgeous.glb': [30, 220],
   'spruce_tree.glb': [70, 320], 'larch_tree.glb': [150, 460] };
@@ -159,8 +162,10 @@ function pickSpecies(mix, r, h) {
   for (const [sp, o] of Object.entries(M.species)) { if (KIND[sp] !== 'tree' && KIND[sp] !== 'dead') continue;
     let w = (o && o.proportion !== undefined) ? o.proportion : 1; const b = SPECIES_PREF[sp];
     if (b) { const out = h < b[0] ? b[0] - h : h > b[1] ? h - b[1] : 0; w *= Math.max(0.25, 1 - out / 60 * 0.75); }
-    pool.push([sp, w]); }
+    if (o && Array.isArray(o.alt)) { const [lo, hi, f] = o.alt, fd = Math.max(1, f || 40); w *= h < lo ? Math.max(0, 1 - (lo - h) / fd) : h > hi ? Math.max(0, 1 - (h - hi) / fd) : 1; }   // render_world speciesWeight: a row's altitude band
+    if (w > 0) pool.push([sp, w]); }
   let tot = 0; for (const e of pool) tot += e[1]; let a = r * tot;
+  if (!(tot > 0)) return null;   // every species out of its band: no tree
   for (const e of pool) { a -= e[1]; if (a <= 0) return e[0]; }
   return pool.length ? pool[pool.length - 1][0] : null;
 }

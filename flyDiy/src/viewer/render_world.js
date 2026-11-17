@@ -4967,9 +4967,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     };
     const prefOf = key => SPECIES_PREF[String(key).split('|')[0]] || null;
     const speciesWeight = (entry, i, x, z, h, g) => {
+      // a mix row's own altitude band (17 Nov, the user: "small conifers up to a certain point, then only the dwarf pines trees, then
+      // the bushes and grass only"): [lo, hi, fade] - the weight fades to 0 over `fade` m outside it
+      let a = 1; if (entry.alt) { const [lo, hi, f] = entry.alt, fd = Math.max(1, f || 40); a = h < lo ? Math.max(0, 1 - (lo - h) / fd) : h > hi ? Math.max(0, 1 - (h - hi) / fd) : 1; if (a <= 0) return 0; }
       const P = prefOf(entry.key);
-      if (!P) return entry.w;
-      let w = entry.w;
+      if (!P) return entry.w * a;
+      let w = entry.w * a;
       const [lo, hi] = P.alt;
       const out = h < lo ? lo - h : h > hi ? h - hi : 0;
       w *= Math.max(0.25, 1 - out / 60 * 0.75);
@@ -4986,6 +4989,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const g = at ? groundAt(x, z, h) : null;
       let tot = 0;
       for (let i = 0; i < pool.length; i++) tot += poolW[i] = at ? speciesWeight(pool[i], i, x, z, h, g) : pool[i].w;
+      if (!(tot > 0)) return -1;   // every species out of its altitude band here: no tree (the caller's gi -1)
       let acc = r * tot;
       for (let i = 0; i < pool.length; i++) { acc -= poolW[i]; if (acc <= 0) return i; }
       return pool.length - 1;
@@ -5002,7 +5006,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (M && M.species) for (const [sp, o] of Object.entries(M.species)) {
         const subs = []; shapes.forEach((H, gi) => { if (H.key && H.key.split('|')[0] === sp) subs.push(gi); });
         const w = ((o && o.proportion !== undefined) ? o.proportion : 1) / Math.max(1, subs.length);
-        if (w > 0) for (const gi of subs) P.push({ key: shapes[gi].key, w, gi, dead: (o && o.dead !== undefined) ? +o.dead : -1 });   // dead: the mix's snag share, -1 none (G1975)
+        if (w > 0) for (const gi of subs) P.push({ key: shapes[gi].key, w, gi, dead: (o && o.dead !== undefined) ? +o.dead : -1, alt: (o && Array.isArray(o.alt)) ? o.alt : null });   // dead: the mix's snag share, -1 none (G1975); alt: the row's altitude band (17 Nov)
       }
       byMix.set(mixName, P);
       return P;
@@ -5719,8 +5723,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
                 // there are trees, and therefore subject to the forest border as well"): forest.clumpEdge (noise units, 0 = the old cut-out
                 // island) fades a clump outward - the share falls from clumpEdgeDens to 0, the size from edgeSizeIn to edgeSizeOut
                 // (28c) - and forest.extra plants a second tree at that share of the points inside a clump (MFx: read below)
-                if (MF && MF.clump > 0) { const v = vnoise(x, z, MF.clumpM || 30, 41);
-                  if (v < MF.clump) { const ce = BIO.edgeOn ? (MF.clumpEdge || 0) : 0, t = ce > 0 ? (MF.clump - v) / ce : 1; if (t >= 1) continue;
+                // (17 Nov, the user: "the occasional conifer, maybe clustered in pockets") forest.clumpUp [h0, h1, clump at h1]: the bare share rises with the altitude
+                const clH = (MF && MF.clumpUp) ? MF.clump + (MF.clumpUp[2] - MF.clump) * (t => t * t * (3 - 2 * t))(Math.max(0, Math.min(1, (world.terrainH(x, z) - MF.clumpUp[0]) / Math.max(1, MF.clumpUp[1] - MF.clumpUp[0])))) : (MF ? MF.clump : 0);
+                if (MF && clH > 0) { const v = vnoise(x, z, MF.clumpM || 30, 41);
+                  if (v < clH) { const ce = BIO.edgeOn ? (MF.clumpEdge || 0) : 0, t = ce > 0 ? (clH - v) / ce : 1; if (t >= 1) continue;
                     if (hsh(ix + 51, iz + 53) > (MF.clumpEdgeDens === undefined ? 0.8 : MF.clumpEdgeDens) * Math.pow(1 - t, 1.4)) continue;
                     const K = BIO.knobs(); ksz = K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * Math.pow(t, 0.8); }
                   else MFx = MF; } }

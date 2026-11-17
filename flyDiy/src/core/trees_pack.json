@@ -12103,34 +12103,74 @@
     "species": {
      "realistic_fir_trees_pack_lods_gameready.glb": {
       "proportion": 3,
-      "dead": 0.03
+      "dead": 0.03,
+      "alt": [
+       0,
+       590,
+       50
+      ]
      },
      "spruce_tree.glb": {
       "proportion": 2,
-      "dead": 0.04
+      "dead": 0.04,
+      "alt": [
+       0,
+       590,
+       50
+      ]
      },
      "fir_tree_georgeous.glb": {
       "proportion": 1.5,
-      "dead": 0.03
+      "dead": 0.03,
+      "alt": [
+       0,
+       590,
+       50
+      ]
      },
      "larch_tree.glb": {
       "proportion": 0.5,
-      "dead": 0.04
+      "dead": 0.04,
+      "alt": [
+       0,
+       590,
+       50
+      ]
      },
      "cedar_tree.glb": {
       "proportion": 0.4,
-      "dead": 0.04
+      "dead": 0.04,
+      "alt": [
+       0,
+       590,
+       50
+      ]
      },
      "pine_georgeous.glb": {
-      "proportion": 1,
-      "dead": 0
+      "proportion": 1.6,
+      "dead": 0,
+      "alt": [
+       540,
+       760,
+       40
+      ]
      },
      "pine_evolveduk.glb": {
-      "proportion": 1,
-      "dead": 0
+      "proportion": 2.2,
+      "dead": 0,
+      "alt": [
+       540,
+       760,
+       40
+      ]
      },
      "dead_conifer": {
-      "proportion": 0.3
+      "proportion": 0.3,
+      "alt": [
+       0,
+       760,
+       60
+      ]
      },
      "rocks": {
       "proportion": 1.2,
@@ -12238,10 +12278,15 @@
      "ttype": 2,
      "coverSpread": 0.1,
      "canopyFloor": 6,
-     "clump": 0.15,
-     "clumpM": 24,
+     "clump": 0.25,
+     "clumpM": 40,
      "debris": 15,
-     "rockMap": 1
+     "rockMap": 1,
+     "clumpUp": [
+      600,
+      760,
+      0.8
+     ]
     }
    }
   },
