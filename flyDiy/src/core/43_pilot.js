@@ -4163,7 +4163,7 @@ function makePilot(sim, def, world, opts) {
         // flat run before the slope
         const altiM = trikeMerge && !!ap.route.from.altiport;
         engage('TAXI', 'DE', 'TAXI', { dr: SV.taxiRudder(0, 0.45), de: A.taxiDe ?? 0.30,
-                                        gsp: alig > 0.5 && !trikeMerge ? 4.5 : altiM ? (A.altiWalk ?? 1.2) : 2.4 });
+                                        gsp: alig > 0.5 && !trikeMerge && !(!trike && stripRoughOf(ap.route.from)) ? 4.5 : altiM ? (A.altiWalk ?? 1.2) : 2.4 });   // (TAIL-DOWN: a taildragger lines up on a rough strip at a walk, not 4.5 m/s - East Point's Cub)
         ap.trackHold = true;
         setStatus('lining up on the centreline', [
           cond('off centre', Math.abs(sCr), 8, Math.abs(sCr) < 8, 'm'),
@@ -4190,9 +4190,15 @@ function makePilot(sim, def, world, opts) {
           ap.targetDir = [CORE_MATH.cos(hF), 0, CORE_MATH.sin(hF)];
           dr = SV.taxiRudder(0, 0.85);
         }
-        engage('TAXI', 'DE', 'SET', { dr, de: A.taxiDe ?? 0.30, thr: 0 });
-        c.brake = 0.7; c.da = groundAil(0, 0.25);
-        setStatus('braking to a standstill', [cond('ground speed', Vg, 0.3, Vg < 0.3, 'm/s')]);
+        // TAIL-DOWN BRAKING (DIRT-STRIP's bump matrix, 17 Nov: the user's Cub on East Point at 0.4 chaos rolled LINEUP at 4.7 m/s with
+        // its tail coming up - pitch +8 -> -5 deg - and STOP's 0.7 of brake from there nosed it over, -23 deg in a second, the propeller
+        // into the ground): A TAILDRAGGER BRAKES WITH THE STICK BACK, AND EASES THE BRAKES WHILE ITS TAIL IS UP. Its three-point taxi
+        // attitude is +7 to +9 deg; under tailUpTh (+1.7 deg) the tail is rising: the stick full back (deBack), the brakes at 0.15
+        // until the tail is down again - a normal stop never reaches it
+        const tailUpB = !trike && th < (A.tailUpTh ?? 0.03);
+        engage('TAXI', 'DE', 'SET', { dr, de: tailUpB ? (A.deBack ?? 0.8) : (A.taxiDe ?? 0.30), thr: 0 });
+        c.brake = tailUpB ? 0.15 : 0.7; c.da = groundAil(0, 0.25);
+        setStatus(tailUpB ? 'easing the brakes: the tail is up - stick back' : 'braking to a standstill', [cond('ground speed', Vg, 0.3, Vg < 0.3, 'm/s')]);
         if (Vg < 0.3 || phaseT > 30) go('HOLD');
         break;
       }
