@@ -1843,7 +1843,7 @@ const WATER = (() => {
   // OFF SWITCH: ?glint=0 (a rig's A/B) = master to the bit; WATER.glint.<key> live.
   const GLINT = { vis: 1, gain: 1, calm: 0.3, cap: 6 };
   const GLINT_OFF = typeof location !== 'undefined' && /[?&]glint=0/.test(location.search || '');
-  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, direct: 1, dK: 1, dJit: 0.3, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
+  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, direct: 1, dK: 1, dJit: 1, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;

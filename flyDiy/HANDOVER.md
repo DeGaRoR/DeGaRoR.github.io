@@ -317470,3 +317470,9 @@ marks' strength on the strip: GROUND-FX's hook for the aeroplane's own marks (af
 Not in it: 0.5 puddles on a fixed mud-class strip (no shipped strip has one). GPU 17 Nov 07:50: w8 dry vs forced soft mud,
 evidence/dirt-strip-2026-11-09/tue-mud. Gates: PAVEMENT MUDLADDER STRIPGROUND SNOWMUDFX DUST MICRO LIGHT GROUNDLIB SPLAT CONTACT
 ASSETS PREMISES TERRAINMATCH PASS; LOOKS 5 (the cover ring by drawn water) red on master the same.
+
+## STAR-V4-DEFAULT - the reflected stars' default is the scattered sparkle (NIGHT-LOOK, 16 Nov)
+- why: the user 16 Nov on the STAR-DIRECT page: "Stars finally right. V4 looks right." (v4 = direct, jitter 1).
+- src/viewer/water.js: NIGHT_SEA.dJit 0.3 -> 1. The other looks stay as settings: WATER.nightSea.dJit 0 = clean points,
+  0.3 = the L40e glints, direct 0 = the L38b look. No gate pins dJit. No new stills: page_rig variant v4_direct_jit1
+  (flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/direct/) is this exact setting.
