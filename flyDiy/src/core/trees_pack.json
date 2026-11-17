@@ -1740,9 +1740,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": 0.035,
-    "sat": 0.66,
-    "light": 1.22,
+    "hue": -0.04,
+    "sat": 1.0,
+    "light": 0.55,
     "bark": 1,
     "alpha": 0
    },
@@ -2040,9 +2040,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": -0.14,
-    "sat": 0.61,
-    "light": 1,
+    "hue": -0.06,
+    "sat": 0.95,
+    "light": 0.34,
     "bark": 1,
     "alpha": 0.1
    },
@@ -4557,9 +4557,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": -0.03,
+    "hue": -0.05,
     "sat": 0.38,
-    "light": 1.42,
+    "light": 0.75,
     "bark": 1,
     "alpha": 0.4
    },
@@ -4700,9 +4700,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": -0.097,
+    "hue": -0.117,
     "sat": 1,
-    "light": 0.877,
+    "light": 0.55,
     "bark": 1,
     "alpha": 0.4
    },
@@ -4789,9 +4789,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": -0.001,
+    "hue": -0.021,
     "sat": 1,
-    "light": 1.26,
+    "light": 0.68,
     "bark": 1,
     "alpha": 0.4
    },
@@ -4878,9 +4878,9 @@
     "crownH": 1.3
    },
    "tint": {
-    "hue": -0.009,
+    "hue": -0.029,
     "sat": 0.62,
-    "light": 1.3,
+    "light": 0.7,
     "bark": 1,
     "alpha": 0.4
    },
@@ -9351,6 +9351,282 @@
      "snag": []
     }
    ]
+  },
+  {
+   "name": "alp_greyred",
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "3dhdscan (https://sketchfab.com/3dhdscan)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60",
+    "title": "Simple grass chunks"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "noTint": 1,
+    "vary": 0.06,
+    "root": 0.9,
+    "rootH": 0.9,
+    "size": 1.9,
+    "shape": "crown",
+    "aspects": [
+     1.118,
+     0.961
+    ],
+    "aspect": 1.04,
+    "density": 0.02,
+    "patch": 8,
+    "patchShare": 0.5,
+    "crownH": 1.3,
+    "mul": [
+     0.42,
+     0.5,
+     0.5
+    ]
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.3
+   },
+   "maps": [
+    "media/tex/flowers/alp_greyred_round.b9f50dc3.png",
+    "media/tex/flowers/alp_greyred_tall.e5806f44.png"
+   ],
+   "bin": null,
+   "bytes": 0,
+   "subjects": [],
+   "materials": {}
+  },
+  {
+   "name": "alp_vaccinium",
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "3dhdscan (https://sketchfab.com/3dhdscan)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60",
+    "title": "Simple grass chunks"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "noTint": 1,
+    "vary": 0.06,
+    "root": 0.9,
+    "rootH": 0.9,
+    "size": 1.4,
+    "shape": "carpet",
+    "aspect": 1.455,
+    "density": 0.02,
+    "patch": 6,
+    "patchShare": 0.5,
+    "crownH": 1.3,
+    "mul": [
+     0.42,
+     0.5,
+     0.5
+    ]
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.3
+   },
+   "maps": [
+    "media/tex/flowers/alp_vaccinium.7337f8d5.png"
+   ],
+   "bin": null,
+   "bytes": 0,
+   "subjects": [],
+   "materials": {}
+  },
+  {
+   "name": "alp_elliottia",
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "3dhdscan (https://sketchfab.com/3dhdscan)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60",
+    "title": "Simple grass chunks"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "noTint": 1,
+    "vary": 0.06,
+    "root": 0.9,
+    "rootH": 0.9,
+    "size": 1.3,
+    "shape": "carpet",
+    "aspects": [
+     0.91,
+     1.61
+    ],
+    "aspect": 1.26,
+    "density": 0.01,
+    "patch": 6,
+    "patchShare": 0.4,
+    "crownH": 1.3,
+    "mul": [
+     0.42,
+     0.5,
+     0.5
+    ]
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.3
+   },
+   "maps": [
+    "media/tex/flowers/alp_elliottia_tall.7765e604.png",
+    "media/tex/flowers/alp_elliottia_low.32a6d1d6.png"
+   ],
+   "bin": null,
+   "bytes": 0,
+   "subjects": [],
+   "materials": {}
+  },
+  {
+   "name": "alp_cassiope",
+   "file": "simple_grass_chunks.glb",
+   "kind": "cover",
+   "credit": {
+    "author": "3dhdscan (https://sketchfab.com/3dhdscan)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60",
+    "title": "Simple grass chunks"
+   },
+   "licence": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "noTint": 1,
+    "vary": 0.06,
+    "root": 0.9,
+    "rootH": 0.9,
+    "size": 1.1,
+    "shape": "carpet",
+    "tilt": 70,
+    "upright": 0.3,
+    "aspect": 2.016,
+    "density": 0.03,
+    "patch": 10,
+    "patchShare": 0.6,
+    "crownH": 1.3,
+    "mul": [
+     0.42,
+     0.5,
+     0.5
+    ]
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.3
+   },
+   "maps": [
+    "media/tex/flowers/alp_cassiope.5fae9be0.png"
+   ],
+   "bin": null,
+   "bytes": 0,
+   "subjects": [],
+   "materials": {}
+  },
+  {
+   "name": "water_lily",
+   "file": null,
+   "kind": "cover",
+   "credit": {
+    "author": "supplied by the user (17 Nov 2026), sliced by tools/lily_prep.py",
+    "license": "user-supplied",
+    "source": "the user's lily-pad sheets (kept out of git)",
+    "title": "Water lily pads"
+   },
+   "licence": "user-supplied",
+   "licenceOk": true,
+   "place": {
+    "sink": 0,
+    "proportion": 1,
+    "dead": 0,
+    "impa": 6,
+    "implight": 1,
+    "noTint": 1,
+    "vary": 0.08,
+    "root": 0,
+    "rootH": 0.5,
+    "size": 1,
+    "shape": "float",
+    "aspect": 1,
+    "crownH": 1.3,
+    "mul": [
+     0.7,
+     0.85,
+     0.95
+    ],
+    "aspects": [
+     0.75,
+     0.62,
+     1.19,
+     0.56,
+     0.85,
+     1.69,
+     1.69,
+     1.71
+    ],
+    "sizeVar": 0.2
+   },
+   "tint": {
+    "hue": 0,
+    "sat": 1,
+    "light": 1,
+    "bark": 1,
+    "alpha": 0.4
+   },
+   "maps": [
+    "media/tex/flowers/water_lily_a.a8c06fca.png",
+    "media/tex/flowers/water_lily_b.139390ae.png",
+    "media/tex/flowers/water_lily_c.98bc49ad.png",
+    "media/tex/flowers/water_lily_d.56532fda.png",
+    "media/tex/flowers/water_lily_e.ae8643e3.png",
+    "media/tex/flowers/water_lily_f.83a38d91.png",
+    "media/tex/flowers/water_lily_g.777d2c46.png",
+    "media/tex/flowers/water_lily_h.b9d4f7dd.png"
+   ],
+   "bin": null,
+   "bytes": 0,
+   "materials": {}
   }
  ],
  "materials": {
@@ -10332,6 +10608,18 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.75
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.01,
+      "patch": 6,
+      "patchShare": 0.4
+     },
+     "reed_marsh": {
+      "proportion": 1,
+      "density": 0.05,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -10443,6 +10731,12 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.75
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.008,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -10590,6 +10884,18 @@
       "density": 0.1,
       "patch": 8,
       "patchShare": 0.8
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.03,
+      "patch": 6,
+      "patchShare": 0.5
+     },
+     "alp_greyred": {
+      "proportion": 1,
+      "density": 0.03,
+      "patch": 8,
+      "patchShare": 0.5
      }
     },
     "forest": {
@@ -10612,7 +10918,10 @@
      "canopyFloor": 3.5,
      "clump": 0.55,
      "clumpM": 28,
-     "debris": 131
+     "debris": 131,
+     "clumpEdge": 0.12,
+     "clumpEdgeDens": 0.8,
+     "extra": 0.6
     }
    },
    "grassland": {
@@ -10707,6 +11016,18 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.6
+     },
+     "alp_greyred": {
+      "proportion": 1,
+      "density": 0.01,
+      "patch": 8,
+      "patchShare": 0.4
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.008,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -10829,6 +11150,18 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.75
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.02,
+      "patch": 6,
+      "patchShare": 0.5
+     },
+     "alp_elliottia": {
+      "proportion": 1,
+      "density": 0.015,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11116,6 +11449,18 @@
       "size": 1.1,
       "h": 0.49,
       "dens": 0.2
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.012,
+      "patch": 6,
+      "patchShare": 0.4
+     },
+     "reed_marsh": {
+      "proportion": 1,
+      "density": 0.05,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11252,6 +11597,18 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.75
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.008,
+      "patch": 6,
+      "patchShare": 0.4
+     },
+     "reed_marsh": {
+      "proportion": 1,
+      "density": 0.03,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11388,6 +11745,24 @@
       "density": 0.48,
       "patch": 0,
       "size": 0.75
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.02,
+      "patch": 6,
+      "patchShare": 0.5
+     },
+     "alp_greyred": {
+      "proportion": 1,
+      "density": 0.015,
+      "patch": 8,
+      "patchShare": 0.4
+     },
+     "reed_marsh": {
+      "proportion": 1,
+      "density": 0.03,
+      "patch": 6,
+      "patchShare": 0.4
      }
     },
     "forest": {
@@ -11761,14 +12136,52 @@
       "patch": 4
      },
      "shrub_deciduous": {
-      "proportion": 0.3
+      "proportion": 0.8
+     },
+     "birch": {
+      "proportion": 1,
+      "dead": 0.03
+     },
+     "ash": {
+      "proportion": 0.25,
+      "dead": 0.03
+     },
+     "spruce_tree.glb": {
+      "proportion": 0.3,
+      "dead": 0.04
+     },
+     "raspberry": {
+      "proportion": 0.6
+     },
+     "sapling_deciduous": {
+      "proportion": 0.8
+     },
+     "alp_elliottia": {
+      "proportion": 1,
+      "density": 0.03,
+      "patch": 6,
+      "patchShare": 0.5
+     },
+     "water_lily": {
+      "proportion": 1,
+      "density": 0.5,
+      "patch": 7,
+      "patchShare": 0.45,
+      "onWater": [
+       1,
+       14
+      ],
+      "depth": [
+       0.08,
+       1.8
+      ]
      }
     },
     "forest": {
      "ground": "plane",
-     "count": 0,
+     "count": 700,
      "radius": 220,
-     "under": 2,
+     "under": 12,
      "cover": 1,
      "reach": 220,
      "wet": 0,
@@ -11782,56 +12195,115 @@
      "ttype": 1,
      "spread": 0.2,
      "coverSpread": 0.3,
-     "canopyFloor": 0,
-     "debris": 10
+     "canopyFloor": 8,
+     "debris": 10,
+     "clump": 0.45,
+     "clumpM": 16
     }
    },
    "subalpine": {
     "species": {
-     "pine_evolveduk.glb": {
+     "realistic_fir_trees_pack_lods_gameready.glb": {
       "proportion": 3,
-      "dead": 0
-     },
-     "pine_georgeous.glb": {
-      "proportion": 2,
-      "dead": 0
+      "dead": 0.03,
+      "alt": [
+       0,
+       590,
+       50
+      ]
      },
      "spruce_tree.glb": {
-      "proportion": 1.5,
-      "dead": 0.04
+      "proportion": 2,
+      "dead": 0.04,
+      "alt": [
+       0,
+       590,
+       50
+      ]
      },
-     "realistic_fir_trees_pack_lods_gameready.glb": {
+     "fir_tree_georgeous.glb": {
       "proportion": 1.5,
-      "dead": 0.04
+      "dead": 0.03,
+      "alt": [
+       0,
+       590,
+       50
+      ]
+     },
+     "larch_tree.glb": {
+      "proportion": 0.5,
+      "dead": 0.04,
+      "alt": [
+       0,
+       590,
+       50
+      ]
+     },
+     "cedar_tree.glb": {
+      "proportion": 0.4,
+      "dead": 0.04,
+      "alt": [
+       0,
+       590,
+       50
+      ]
+     },
+     "pine_georgeous.glb": {
+      "proportion": 1.6,
+      "dead": 0,
+      "alt": [
+       540,
+       760,
+       40
+      ]
+     },
+     "pine_evolveduk.glb": {
+      "proportion": 2.2,
+      "dead": 0,
+      "alt": [
+       540,
+       760,
+       40
+      ]
      },
      "dead_conifer": {
-      "proportion": 0.3
-     },
-     "shrub_deciduous": {
-      "proportion": 1
+      "proportion": 0.3,
+      "alt": [
+       0,
+       760,
+       60
+      ]
      },
      "rocks": {
-      "proportion": 1,
+      "proportion": 1.2,
       "size": 14,
-      "tint": 0.7
+      "tint": 0.7,
+      "exposed": 0.85,
+      "cluster": 1
      },
      "sand_rocks_small_01": {
       "proportion": 0.6,
       "size": 0.4,
       "bury": 0.3,
-      "tint": 0.6
+      "tint": 0.6,
+      "exposed": 0.85,
+      "cluster": 1
      },
      "coast_rocks_05": {
       "proportion": 0.4,
       "size": 0.6,
       "bury": 0.3,
-      "tint": 0.6
+      "tint": 0.6,
+      "exposed": 0.85,
+      "cluster": 1
      },
      "coast_land_rocks_03": {
       "proportion": 0.3,
       "size": 0.35,
       "bury": 0.35,
-      "tint": 0.6
+      "tint": 0.6,
+      "exposed": 0.85,
+      "cluster": 1
      },
      "dry_branches_medium_01.glb": {
       "proportion": 0.1,
@@ -11856,9 +12328,39 @@
      },
      "flower_bunchberry": {
       "proportion": 0.3,
-      "density": 0.2,
+      "density": 0.3,
       "patch": 5,
       "patchShare": 0.5
+     },
+     "alp_greyred": {
+      "proportion": 1,
+      "density": 0.08,
+      "patch": 8,
+      "patchShare": 0.6
+     },
+     "alp_vaccinium": {
+      "proportion": 1,
+      "density": 0.08,
+      "patch": 6,
+      "patchShare": 0.6
+     },
+     "alp_elliottia": {
+      "proportion": 1,
+      "density": 0.04,
+      "patch": 6,
+      "patchShare": 0.4
+     },
+     "alp_cassiope": {
+      "proportion": 1,
+      "density": 0.12,
+      "patch": 10,
+      "patchShare": 0.75
+     },
+     "flower_fireweed": {
+      "proportion": 0.6,
+      "density": 0.16,
+      "patch": 8,
+      "patchShare": 0.65
      }
     },
     "forest": {
@@ -11874,13 +12376,19 @@
      "blotch": 0.4,
      "blotchM": 18,
      "coverNear": 50,
-     "rocks": 18,
+     "rocks": 90,
      "ttype": 2,
      "coverSpread": 0.1,
-     "canopyFloor": 4,
-     "clump": 0.3,
-     "clumpM": 24,
-     "debris": 15
+     "canopyFloor": 6,
+     "clump": 0.25,
+     "clumpM": 40,
+     "debris": 15,
+     "rockMap": 1,
+     "clumpUp": [
+      600,
+      760,
+      0.8
+     ]
     }
    }
   },
