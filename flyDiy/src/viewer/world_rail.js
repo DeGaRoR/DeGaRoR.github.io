@@ -1185,9 +1185,9 @@
     note(Mi, 'micro: the cliff photograph’s grain over the tiles (one read, the dominant plane) near the eye. Far fade: the tiles give way to their mean colour, so their large patterns never repeat across a far ridge.');
     toggle(Mi, 'macro texture', () => sp.knobs().rockMacro, v => { sp.set({ rockMacro: v ? 1 : 0 }); changed(); });
     liveNote(Mi, () => { const R = W.ROCK_RING_LIVE; if (!R) return 'no ring in this world'; const m = R.stat().macro; if (!m) return 'no macro texture';
-      const lv = m.rects.map((r, L) => r[2] > r[0] ? ['1 m', '2 m', '4 m'][L] + ' +-' + Math.round((r[2] - r[0]) / 2) + ' m' : null).filter(Boolean);
+      const lv = m.rects.map((r, L) => r[2] > r[0] ? ['1 m', '2 m', '4 m', '8 m'][L] + ' +-' + Math.round((r[2] - r[0]) / 2) + ' m' : null).filter(Boolean);
       return 'macro: ' + m.tiles + ' tiles, ' + (lv.length ? lv.join(', ') : 'filling') + (m.queued ? ', ' + m.queued + ' queued' : '') + ', worker ' + m.workerMs + ' ms'; });
-    note(Mi, 'macro texture: the bench v1’s macro (the joints’ lines, the formations, the colour zones, the exposure, the green’s chance) as a texture round the eye - 1 m to 500 m, 2 m to 1 km, 4 m to 2 km - read a pixel at a time: the far rock’s mosaic and its big lines. Off: the procedural stand-in beyond the outcrops.');
+    note(Mi, 'macro texture: the bench v1’s macro (the joints’ lines, the formations, the colour zones, the exposure, the green’s chance) as a texture round the eye - 1 m to 500 m, 2 m to 1 km, 4 m to 2 km, 8 m to 4 km - read a pixel at a time: the far rock’s mosaic and its big lines. Off: the procedural stand-in beyond the outcrops.');
     // the outcrops as geometry round the eye and the boulders seated on them (rock_ring.js) - splat knobs, the ring reads them
     const Rg2 = sec(body, 'outcrops and boulders', true, 'the rock as geometry round the eye');
     toggle(Rg2, 'outcrops', () => sp.knobs().rockRing, v => { sp.set({ rockRing: v ? 1 : 0 }); changed(); });

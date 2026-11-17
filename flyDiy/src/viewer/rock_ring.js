@@ -351,13 +351,15 @@ Smp rRock(vec3 P, vec3 nG){
     // lands in the same texels (uv = xz / the level's extent, repeat), so a move of the eye recomputes only the tiles that enter;
     // the shader reads a level inside its VALID square (uTrMR: the tiles done round its centre), the finest first, faded at the
     // edges. Tiles in a worker of their own (the ring's chunks keep theirs), nearest first.
-    const MTN = 1024, MTT = 8, MTL = [{ st: 1, hs: 2.5, M: 25 }, { st: 2, hs: 5, M: 30 }, { st: 4, hs: 10, M: 40 }];
+    // (17 Nov, the user: the far view must hold the bench's look - "keep the bar high": a fourth level, 8 m to +-4 km, so every far eye
+    // reads the macro texture itself; the map's bake carries it past that)
+    const MTN = 1024, MTT = 8, MTL = [{ st: 1, hs: 2.5, M: 25 }, { st: 2, hs: 5, M: 30 }, { st: 4, hs: 10, M: 40 }, { st: 8, hs: 20, M: 60 }], MTLAY = MTL.length * 2;
     MTL.forEach(l => { l.T = MTN / MTT * l.st; l.ext = MTN * l.st; l.res = new Map(); l.c = null; });
     const MT = { on: !!(U.uTrMT && U.uTrMR && U.uTrMX), tex: null, data: null, queue: [], inflight: new Map(), dirty: new Set(), lastUp: 0, built: 0, ms: 0, kSig: '' };
     const mworkers = [];   // (17 Nov, in game: a rig grabbed ~6 s after placing the eye - one worker filled the three levels in ~20-30 s; a pool, nearest tiles first)
     if (MT.on) {
-      MT.data = new Uint8Array(MTN * MTN * 4 * 6);
-      MT.tex = new THREE.DataArrayTexture(MT.data, MTN, MTN, 6); MT.tex.format = THREE.RGBAFormat; MT.tex.type = THREE.UnsignedByteType;
+      MT.data = new Uint8Array(MTN * MTN * 4 * MTLAY);
+      MT.tex = new THREE.DataArrayTexture(MT.data, MTN, MTN, MTLAY); MT.tex.format = THREE.RGBAFormat; MT.tex.type = THREE.UnsignedByteType;
       MT.tex.wrapS = MT.tex.wrapT = THREE.RepeatWrapping; MT.tex.minFilter = THREE.LinearMipmapLinearFilter; MT.tex.magFilter = THREE.LinearFilter;
       MT.tex.generateMipmaps = true; MT.tex.anisotropy = 4; MT.tex.needsUpdate = true;
       U.uTrMT.value = MT.tex;

@@ -430,7 +430,7 @@ const SPLAT_GROUND = (() => {
   // +-0.5 / 1 / 2 km) of one array, toroidal (uv = xz / the level's extent): uTrMR[L] the valid square, uTrMX (extents, on).
   // Read once a pixel in the vote (sTrMac: two reads a level, the finest valid level first, the next under its edge's fade);
   // where it lies the macro IS the rock's exposure (v1: the macro over the raster) and sTrPost's colour, green and height
-  uniform highp sampler2DArray uTrMT; uniform vec4 uTrMR[3]; uniform vec4 uTrMX;
+  uniform highp sampler2DArray uTrMT; uniform vec4 uTrMR[4]; uniform vec4 uTrMX;   // (uTrMX: the extents of the levels 0-2, on; the 4th's is twice the 3rd's)
   vec4 gTrMA = vec4(0.0), gTrMB = vec4(0.0); float gTrIn = 0.0;
   float sTrMacW(vec2 xz, vec4 R){ vec2 d = min(xz - R.xy, R.zw - xz); return smoothstep(0.0, 0.06 * (R.z - R.x) + 1.0, min(d.x, d.y)); }
   float sTrMac(vec2 xz){
@@ -439,12 +439,13 @@ const SPLAT_GROUND = (() => {
 #else
     gTrMA = vec4(0.0); gTrMB = vec4(0.0); gTrIn = 0.0;
     if (uTrMX.w < 0.5) return 0.0;
-    float w0 = sTrMacW(xz, uTrMR[0]), w1 = (1.0 - w0) * sTrMacW(xz, uTrMR[1]), w2 = (1.0 - w0 - w1) * sTrMacW(xz, uTrMR[2]);
+    float w0 = sTrMacW(xz, uTrMR[0]), w1 = (1.0 - w0) * sTrMacW(xz, uTrMR[1]), w2 = (1.0 - w0 - w1) * sTrMacW(xz, uTrMR[2]), w3 = (1.0 - w0 - w1 - w2) * sTrMacW(xz, uTrMR[3]);
     vec4 a0 = vec4(0.0), b0 = vec4(0.0), aS = vec4(0.0), bS = vec4(0.0);
     if (w0 > 0.0) { vec2 u = xz / uTrMX.x; a0 = texture(uTrMT, vec3(u, 0.0)); b0 = texture(uTrMT, vec3(u, 1.0)); }
     if (w1 > 0.0) { vec2 u = xz / uTrMX.y; aS += texture(uTrMT, vec3(u, 2.0)) * w1; bS += texture(uTrMT, vec3(u, 3.0)) * w1; }
     if (w2 > 0.0) { vec2 u = xz / uTrMX.z; aS += texture(uTrMT, vec3(u, 4.0)) * w2; bS += texture(uTrMT, vec3(u, 5.0)) * w2; }
-    float wS = w1 + w2; gTrIn = w0 + wS; if (gTrIn <= 0.0) return 0.0;
+    if (w3 > 0.0) { vec2 u = xz / (uTrMX.z * 2.0); aS += texture(uTrMT, vec3(u, 6.0)) * w3; bS += texture(uTrMT, vec3(u, 7.0)) * w3; }
+    float wS = w1 + w2 + w3; gTrIn = w0 + wS; if (gTrIn <= 0.0) return 0.0;
     // THE SOFT LEVELS (2 / 4 m, past the relief's reach - the user, 17 Nov: "low definition, high pixels"): they hold the exposure's
     // FIELD (rock_ring_core macroTile soft), not the decision - it is thresholded HERE, a pixel at a time, with v1's fine terms
     // added as value noise at their own cells (the 8 / 3.2 m mottle, the 4.9 / 2 m green speckles) and the edge widened with the
@@ -1244,7 +1245,7 @@ const SPLAT_GROUND = (() => {
       uTrOn: { value: 0 }, uTrL: { value: new THREE.Vector4(-1, -1, -1, -1) }, uTrK: { value: new THREE.Vector4(400, 1200, 1, 0.5) },
       uTrE: { value: new THREE.Vector4(250, 760, 0.3, 0.08) }, uTrMeanS: { value: new THREE.Vector4(0.3, 0.27, 0.2, 1) }, uTrS: { value: new THREE.Vector4(42, 58, 0, 0) },
       uTrJ: { value: new THREE.Vector4(1, 0.7, 0.6, 0.5) }, uTrG: { value: new THREE.Vector4(1, 0.97, 0.6, 1) }, uTrF: { value: new THREE.Vector4(60, 180, 450, 0.2) }, uTrM: { value: new THREE.Vector4(0.65, 0.6, 0, 0.74) }, uTrW: { value: new THREE.Vector4(1, 1, 1, 0) }, uTrX: { value: new THREE.Vector4(1, 0, 0, 0) },
-      uTrMT: { value: null }, uTrMR: { value: [V4(), V4(), V4()] }, uTrMX: { value: V4() },   // the macro texture (rock_ring.js fills it)
+      uTrMT: { value: null }, uTrMR: { value: [V4(), V4(), V4(), V4()] }, uTrMX: { value: V4() },   // the macro texture (rock_ring.js fills it)
     };
     let ready = false;
     const push = () => {
