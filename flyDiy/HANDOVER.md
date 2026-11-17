@@ -316804,6 +316804,24 @@ re-cooked (premises, city, map, fleet; mt_strip 0 spots):
 - NOT RUN on a page yet: the --gpu half of this version (A0: the node gate is enough for the ready). INFRAME uses
   camera.matrixWorldInverse / projectionMatrix as last drawn; a sim on the worker without cgPos falls back to camGet, said so.
 
+## RAIN (LOOK-1, 16-17 Nov 2026; the user: "a proper, very optimized job"; flydiy-notes/studies/RAIN-STUDY-2026-11-16.md)
+- THE FIELD: 08_cloud_field weather map A = each deck's rain POTENTIAL (st / sc / as: k x coverage; cu / cb: the dense tall
+  columns; cuh, ac never); the day's d.rain multiplies it at use - a dry day is bit-identical. CLOUD_FIELD.rainAt reads it up-wind
+  below the base (wind x (base - h) / 6.5 m/s); CLOUDS.rainAt / CLOUDS.rain (the eye's) from the drawn decks. The plan rains on
+  ~23 % of days (sc 96, cu 52, st 20 of 730).
+- THE STREAKS: src/viewer/rain.js - one instanced quad, the drops from gl_InstanceID in 3 camera-wrapped boxes (11 / 27 / 61 m), a
+  streak along the drop's velocity RELATIVE TO THE EYE, built in VIEW space, DOUBLE-SIDED (the winding follows the streak: FrontSide
+  culled every one), three's logdepthbuf chunks, its own GLSL3 output; cut in the cockpit's dry box and under setRoofs boxes (the
+  premises' list not wired yet). MADE LAZILY: a dry day never compiles it. GRAPHICS row 'rain' (free, auto = lean on laptop /
+  potato / retro). ?rain=0 off. Traps met: a vector ?: and the NDC width construction drew nothing on SwiftShader - kept out.
+- THE SHAFTS + THE VEIL: clouds.js rainSeg, the ray under the lowest base in the march (6 steps, lean 4), the 07d law; screen march
+  only (gPix > 0); uRain.x 0 when dry. THE OVERCAST: a deck at cover >= 0.85 keeps a solid base and darkens with its thickness
+  (ovcOf, S.overcast; the user: "the cloud coverage is not there" - the storm drew a wispy pale base); below 0.85 untouched.
+- THE GLASS (step 2 PROTOTYPE): drops in the glass program (aeroweather AERO_WX_GLASS_FS, gated by uRainG.x, the wetness app.js
+  glassRainFrame raises in rain / dries after), the flow airflow + gravity projected on the pane. Its look is not done.
+- F9 > air & map > the rain: every RAIN_FX.LOOK number + the shafts' and the overcast's dials, in THE LOOK. GATE RAIN 1-11 (node);
+  pictures: https://claude.ai/artifact/PHDYPwCxjBBEzXcvtfywfw. Not done: roofs, the landing light's cone, ground rings / splashes.
+
 ## FLIGHT-SCRIPT (Pilot, 15 Nov 2026; the user via A0: scripted flights in steps with a deep log)
 - tools/flight_script.js: one scenario JSON (plane list:N, from/to, day game|calm, persona, steps {do, until, capS, allow}), the NODE runner through the game's own host (_tour_lib gameHost); one JSONL per run (run / sample 1 Hz / say / step with solver ms / end). A failed step stops the run with its WHY. The page runner (page_rig.js, frame ms per step) follows Thu 19 Nov.
 - The library tools/flight_scripts/: home_circuit (F-HCSN), east_point (the Cub, CALM: on the game's day it diverts, said), strip_jumbo (the Jodel), altiport (the Cub), float_circuit (B-CESF list:4). All five pass on 58c681347.
