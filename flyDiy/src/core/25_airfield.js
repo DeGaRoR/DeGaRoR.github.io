@@ -771,7 +771,7 @@ function sitePattern(aero, site, opts) {
   // struck one with its propeller. A strip whose aerodrome carries `micro` (chaos > 0) gets the lane GP_LANE_ROUGH off the
   // centreline and its U-turn made there, inside the band (the follower pivots what the wheels cannot steer, as at HOME);
   // a strip without - every strip but the bumpy ones - keeps its lane to the bit
-  const rough = !!(aero && aero.micro && +aero.micro.chaos > 0);
+  const rough = !!(aero && aero.micro && +aero.micro.chaos > 0) && !(aero && aero.altiport);   // ALTI-ROUGH (17 Nov): an altiport keeps its own way out (43_pilot stripRoughOf)
   const lane = rough ? Math.min(GP_LANE_ROUGH, R.half - 2.5) : Math.min(GP_LANE, R.half - 2.5);
   const ends = [R.end0, R.end1];
   // A SHORT STRIP'S NODES (G527): the hold 110 m in and the U-turn 27-90 m in are a long runway's - on a
@@ -987,7 +987,7 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
     // THE PILOT'S CALL (12 Nov, its yes in writing): nobody steers that U-turn - a taildragger pivots on the centreline
     // (STRIP-LANE 2), a tricycle turns in the turnaround pad and rejoins inside it (planDeparture trikePad, '@u0'); the 1 m
     // lane is what cured the Jodel's w3 stone strike, so the U-turn is not reshaped
-    const rough = !!(aero && aero.micro && +aero.micro.chaos > 0);
+    const rough = !!(aero && aero.micro && +aero.micro.chaos > 0) && !(aero && aero.altiport);   // ALTI-ROUGH: as sitePattern
     const wideEnough = R.half - 2.5 >= Rmin && !rough;
     if (Rmin > 0 && wideEnough && P.rMin < 1.05 * Rmin)
       out.push(what + ' has a ' + P.rMin.toFixed(1) + ' m corner, under the aeroplane’s ' + Rmin.toFixed(1) + ' m');
