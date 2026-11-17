@@ -1338,7 +1338,7 @@ const SPLAT_GROUND = (() => {
           // fade and the macro carry the distance
           for (const [c, L, m] of [[6, L4[0], slabM], [12, face, faceM]]) {
             U.uSMatA.value[c].set(L, -1, -1, c === 12 && L === L4[1] ? 2 : 0); U.uSMatS.value[c].set(m, 1, 1, 0);
-            U.uSMatF.value[c].set(L, -1, -1, 0); U.uSMatFS.value[c].set(m * 2.5, 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
+            U.uSMatF.value[c].set(L, -1, -1, 0); U.uSMatFS.value[c].set(m * kv('rockFarScale', 2.5), 1, 1, 0); U.uSVary.value[c].set(0, 0, 20, 0); }
         }
         { const mc = lib(T4[2]).mean || [0.2, 0.2, 0.2]; U.uTrS.value.set(kv('rockFaceLo', 42), kv('rockFaceHi', 58), 0.2126 * mc[0] + 0.7152 * mc[1] + 0.0722 * mc[2], 1); }
         // THE BLEND WITH THE GRASS (16 Nov, the user: "the new grass is a lot darker than the grass you had used ... the rock would
