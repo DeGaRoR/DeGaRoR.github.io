@@ -5823,6 +5823,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           const fh = forestHere(x, z);
           if (!fh && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
           if (premTreeEx(x, z)) continue;   // the world editor's "no trees" (G527)
+          if (rockExpoAt(x, z) > 0.5) continue;   // MOUNTAIN-VEG 18 Nov, the user's yes (via ROCK-STUDY): no tree directly ON the stone (no larger zone; -1 while the bake runs = as today)
           if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
@@ -5911,7 +5912,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           for (let rp = 0; rp < reps; rp++) {
           const jx = rp ? ix + 977 : ix, jz = rp ? iz + 541 : iz;
           const x = rp ? x0r + (hsh(ix + 71, iz + 73) - 0.5) * spc * 0.9 : x0r, z = rp ? z0r + (hsh(ix + 79, iz + 83) - 0.5) * spc * 0.9 : z0r;
-          if (rp && (premTreeEx(x, z) || world.treeAeroBlocked(x, z) || !(forestHere(x, z) || (BIO && openHere(x, z))))) continue;   // the second tree's own spot: the runways' clearances and the ground's rule, as its lattice point (GATE RWYTREES 7)
+          if (rp && (premTreeEx(x, z) || rockExpoAt(x, z) > 0.5 || world.treeAeroBlocked(x, z) || !(forestHere(x, z) || (BIO && openHere(x, z))))) continue;   // the second tree's own spot: the runways' clearances and the ground's rule, as its lattice point (GATE RWYTREES 7)
           const ti = nearTree(x, z);
           const h = world.terrainH(x, z);
           const sp = (ti >= 0 && hsh(jx + 3, jz + 5) < 0.88) ? world.trees[ti].sp
@@ -6250,7 +6251,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
             return SPA.meanAt(x, z, code, Math.atan(sl) * 180 / Math.PI); };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, edgeD, lakeSD: (x, z) => drawnLakeSD(x, z), waterY: (x, z) => waterDrawY(x, z), owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
+            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, edgeD, rockExpoAt: (x, z) => rockExpoAt(x, z), lakeSD: (x, z) => drawnLakeSD(x, z), waterY: (x, z) => waterDrawY(x, z), owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
