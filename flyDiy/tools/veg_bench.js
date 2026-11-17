@@ -146,7 +146,7 @@ function plantAt(ix, iz) {
   if (!P0.sp && KIND_TREES(mix)) return { r: R.THIN, x, z, h, code, mix, can };   // out of every species' altitude band
   if (MFx && MFx.extra > 0 && hsh(ix + 61, iz + 67) < MFx.extra) {   // the clump's second tree
     const x2 = x + (hsh(ix + 71, iz + 73) - 0.5) * SPC * 0.9, z2 = z + (hsh(ix + 79, iz + 83) - 0.5) * SPC * 0.9;
-    if (!premTreeEx(x2, z2)) P0.extra = { r: R.PLANT, x: x2, z: z2, h: H(x2, z2), code, mix, can, ksz: 1, sp: pickSpecies(mix, hsh(ix + 977 + 11, iz + 541 + 17), h) }; }
+    const g2 = W.treeGround(x2, z2); if (!premTreeEx(x2, z2) && !W.treeAeroBlocked(x2, z2) && (g2 === S.FOREST_FLOOR || g2 === S.GRASS) && !wet(x2, z2, H(x2, z2))) P0.extra = { r: R.PLANT, x: x2, z: z2, h: H(x2, z2), code, mix, can, ksz: 1, sp: pickSpecies(mix, hsh(ix + 977 + 11, iz + 541 + 17), h) }; }
   return P0;
 }
 

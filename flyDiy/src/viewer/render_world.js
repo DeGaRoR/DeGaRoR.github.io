@@ -5744,7 +5744,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           for (let rp = 0; rp < reps; rp++) {
           const jx = rp ? ix + 977 : ix, jz = rp ? iz + 541 : iz;
           const x = rp ? x0r + (hsh(ix + 71, iz + 73) - 0.5) * spc * 0.9 : x0r, z = rp ? z0r + (hsh(ix + 79, iz + 83) - 0.5) * spc * 0.9 : z0r;
-          if (rp && premTreeEx(x, z)) continue;
+          if (rp && (premTreeEx(x, z) || world.treeAeroBlocked(x, z) || !(forestHere(x, z) || (BIO && openHere(x, z))))) continue;   // the second tree's own spot: the runways' clearances and the ground's rule, as its lattice point (GATE RWYTREES 7)
           const ti = nearTree(x, z);
           const h = world.terrainH(x, z);
           const sp = (ti >= 0 && hsh(jx + 3, jz + 5) < 0.88) ? world.trees[ti].sp
