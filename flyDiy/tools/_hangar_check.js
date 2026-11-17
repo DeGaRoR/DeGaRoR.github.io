@@ -595,10 +595,11 @@ function runB(mutSrcH) {
   let api = null, err = null;
   try {
     // hangarLayout rides in (G2315): the room reads its layout's light from it, as the page does
-    api = new Function('THREE', 'document', 'window', 'console', 'hangarLayout',
+    // (HANGAR-OUTDOORS 17 Nov: MATLIB rides in as the page has it - the outdoors' new materials are made through it, GATE ASSETS)
+    api = new Function('THREE', 'document', 'window', 'console', 'hangarLayout', 'MATLIB',
       '"use strict";\n' + srcH +
       '\nreturn { genHangarBuild, genHangarSupported };')(
-      T, doc, {}, { log() {}, warn() {}, info() {}, error() {} }, CORE.hangarLayout);
+      T, doc, {}, { log() {}, warn() {}, info() {}, error() {} }, CORE.hangarLayout, require(path.join(__dirname, '..', 'src', 'viewer', 'matlib.js')));
   } catch (e) { err = e; }
   if (!ok(!err, 'hangar.js evaluates under the stub' +
           (err ? ' (' + err.message + ')' : ''))) return;

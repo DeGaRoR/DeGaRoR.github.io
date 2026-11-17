@@ -526,6 +526,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uBarkL = { value: IMPK.barkLit };   // and its own tier gain (in place of uILit)
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
+  let treeSideSheet = () => null, TSS = null;   // HANGAR-OUTDOORS: the room's tree cards (the tree block assigns it)
   let sheetMean = () => null;         // G3180 (CARD-MATCH): an atlas's mean linear albedo, read back (tree block)
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
   // instance outside its band, and the impostor bake draws the same material
@@ -3795,6 +3796,55 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // targets back (TREE-IMPORT.md §6: every one of its six faults presented
     // as "the impostor is wrong" and none looked like its cause).
     treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
+    // HANGAR-OUTDOORS (the user 17 Nov via A0: "a couple of trees ... using our impostor systems. We don't even have to have
+    // the real one, just the impostors"): THE ROOM'S TREES ARE THESE SHEETS. One side view a species - the horizontal tile of
+    // its baked sheet (the hemi-octahedral grid's cell (0, IMP_G - 1): the tree seen level from -z, upright), copied out of
+    // IMPA's array into one small strip (a tile a species, side by side) with the species' own tint (TINT_GLSL's hue, sat
+    // and light, as the impostor material applies them at draw time - the bake leaves them out). Made once, on the first ask
+    // after the trees baked, from what the world already holds: no tree is loaded or baked for it (the garage pays a quad
+    // pass a species and a strip of a few hundred KB). -> { tex, list: [{ u0, u1, cy, diam, key }] } | null (no sheets yet)
+    treeSideSheet = o => {
+      if (TSS) return TSS;
+      if (!canBake || !IMPA.col || !IMPA.used) return null;
+      const want = Math.max(1, Math.min(6, (o && o.max) || 4)), pick = [], seen = new Set();
+      for (const a of ATLAS.values()) {
+        if (!a || !(a.layer >= 0) || a.refused || !a.tex || !a.key || a.series !== 'rungs' || seen.has(a.key)) continue;
+        if (/dead|snag|stump|shrub|bush/i.test(a.key)) continue;    // the wall is living trees
+        seen.add(a.key); pick.push(a); if (pick.length >= want) break;
+      }
+      if (!pick.length) return null;
+      const T = IMP_TILE, K = pick.length;
+      const rt = new THREE.WebGLRenderTarget(T * K, T, { depthBuffer: false, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
+      rt.texture.colorSpace = THREE.SRGBColorSpace;
+      const U = { uCol: { value: IMPA.col }, uLayer: { value: 0 }, uTile: { value: new THREE.Vector4(0, (IMP_G - 1) / IMP_G, 1 / IMP_G, 0) },
+                  uHue: { value: 0 }, uSat: { value: 1 }, uLight: { value: 1 } };
+      const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), MATLIB.make(THREE, 'shader', { uniforms: U,
+        vertexShader: 'varying vec2 vU; void main() { vU = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+        fragmentShader: ['precision highp sampler2DArray;', 'uniform sampler2DArray uCol;', 'uniform float uLayer, uHue, uSat, uLight;', 'uniform vec4 uTile;', 'varying vec2 vU;',
+          'void main() {', '  vec4 c = texture(uCol, vec3(uTile.xy + vU * uTile.z, uLayer));', '  vec4 diffuseColor = c;',
+          '  float uFlat = 1.0, uFlatMean = 0.0;',
+          (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tintGlsl) ? TREE_LEAF.tintGlsl : '',
+          '  gl_FragColor = vec4(diffuseColor.rgb, c.a);', '}'].join('\n'),
+        depthTest: false, depthWrite: false, toneMapped: false, blending: THREE.NoBlending }));
+      q.frustumCulled = false;
+      const sc = new THREE.Scene(); sc.add(q);
+      const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const pRT = renderer.getRenderTarget(), pVP = renderer.getViewport(new THREE.Vector4()), pAC = renderer.autoClear;
+      const pCol = renderer.getClearColor(new THREE.Color()), pA = renderer.getClearAlpha();
+      renderer.setRenderTarget(rt); renderer.autoClear = false; renderer.setClearColor(0x000000, 0); renderer.clear(true, false, false);
+      const list = [];
+      pick.forEach((a, k) => {
+        const t = IMPA.tintU[a.layer];
+        U.uLayer.value = a.layer; U.uHue.value = t ? t.uHue.value : 0; U.uSat.value = t ? t.uSat.value : 1; U.uLight.value = t ? (t.uLightB || t.uLight).value : 1;
+        renderer.setViewport(k * T, 0, T, T); renderer.render(sc, cam);
+        list.push({ u0: k / K, u1: (k + 1) / K, cy: a.cy, diam: a.diam, key: a.key });
+      });
+      renderer.setRenderTarget(pRT); renderer.setViewport(pVP); renderer.autoClear = pAC; renderer.setClearColor(pCol, pA);
+      q.geometry.dispose(); q.material.dispose();
+      rt.texture.userData = Object.assign(rt.texture.userData || {}, { shared: 'treeSideSheet' });   // the room never disposes it
+      TSS = { tex: rt.texture, list, rt };
+      return TSS;
+    };
     // G3180 (CARD-MATCH, the user 13 Oct: "a color/value shift has developed between the far cards for the trees and the
     // impostors ... we also need a mechanism to keep them in sync"): ONE SHEET'S MEAN - the linear albedo of its drawn texels
     // (alpha at the series' own cut; the bytes are sRGB, decoded here), [r, g, b, texels] or null; one readback (atlas.read),
@@ -8698,6 +8748,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
            shell: o => shellDial(o),   // G600: { merge, castMin } -> the shed re-stood, its mesh count
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            treeAtlases,   // the impostor sheets by subject, readable (tools/imp_audit.js)
+           treeSideSheet: o => treeSideSheet(o),   // HANGAR-OUTDOORS: one side view a species, for the room's tree cards
            // the world's own light panel — the same shape the shed exposes, so
            // one piece of UI can drive either room
            lightSwitches: worldSwitch ? worldSwitch.list() : [],
