@@ -317202,3 +317202,25 @@ NEW REDS (named, owners fix in L40f):
 - BENCHTIME: 2 bench checks at 6.0-6.5 s vs 6.0 under the train's load (timing).
 LOAD TIME (cold, RTX 3080, ledger): L40d 143 s -> L40e 215 s (205 s re-measured on a quiet box): world 26 -> 40-51 s, settle 17 -> 22-27 s, shader compile 58 -> 67-93 s. LANDED WITH THE COST NAMED (the user's rule); suspects: subalpine (+7-14 % trees, walk), grass-on-green, animals on land (31 drawn), the ground ladder. First item of the perf round; bisect owed.
 KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes evict grit on low tiers (GROUND-FX splash-budget L40f); MEDIA career_core 720 KB budget (Game).
+
+## DEFORM-L40A-REDS - the damage reds after L40a-L40e, split by bisect (Deform, Tue 17 Nov 2026, for L40f)
+claude/ready/deform-l40a-reds on master 2157a2f98 (L40e). Each split ran its gate alone in a tree of its own, one core,
+first-parent bisect over the trains (scratchpad bisect.sh; a row's regex where the gate is red at both ends).
+- DMGPOD (gear-up belly landing, the metal Cessna): RE-PINNED, the hard row 3 -> 5 m/s, the reason in the gate file.
+  Moved by ENGINE-LUMP (L40a merge 154c03927; 835efe122 the crankcase a damped lump, abbffb87b the nose's push on its CG):
+  gen-brakes 3c4865e3d PASS, engine-lump FAIL. The pod now breaks 5 of its 16 hangers at 3 and 3.5 m/s (one short of the
+  group's third), torn off at 4, 5, 6 m/s (4.5 crushed: 4 is the edge). A meant move: nothing for the owner to do.
+- DMGWALL (metal nosein, the wall out past 1 mm 2.6 % > 2 %): red on L40e master, PASS with JOINT-TETHER (G4103) - fixed
+  there, no re-pin.
+- DMGUPLOAD (metal: STALE GPU BUFFERS after crash -> the shed -> roll-out, fold:flownBaked.position 3960 / normal 108):
+  L40e's merge of claude/ready/animals-swim 063250330 is the first bad (pc6-trail f31d8631a PASS, canon-reds 0553e4bf2 and
+  descent-2 3dced70be FAIL after it). animals-swim touches no flown-bake code (animal_run, animals, plume, wakes, water):
+  its frame's new work exposes a hole in flown_bake.js's owed whole upload (G2352) - a real ghost on the stand, not a pin.
+  OWED: Deform looks after the L40f readies; ANIMALS for the frame-order side if it is theirs.
+- DMGTYRE: NOT an L40a red - red on L39b 23ce68c1f with the same rows.
+  * the taxi turns (Jodel R x0.78, metal Cessna x0.66 against the old law's radius; band 0.80-1.10): red at least since
+    pilot-45's merge of master a69f31fda (mid-Oct, FAIL (2)); the older trees between the gate's birth 436424be8 (5 Oct)
+    and it did not run the gate to a verdict - its first red is not found. Standing; the tyre law's owners judge it.
+  * the Cub's 5 m/s crosswind roll-out (swing <= 15 deg): moved by L36d's merge of claude/ready/pilot-notch-2
+    3e2602e8f (the row holds on the proper-cowls merge 2e1eac16e before it, red only on the taxi turns): the swing 31.8 deg since - the roll-out is flown by THE
+    PILOT, so its landing law moved the row, not the tyre's. Standing; Pilot judges whether the swing is meant.
