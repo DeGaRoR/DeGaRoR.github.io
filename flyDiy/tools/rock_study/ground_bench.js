@@ -173,7 +173,15 @@ if (Q.get('rocks') !== '0' && Q.get('ring') !== '0' && typeof ROCK_RING !== 'und
 }
 const buildMs = Math.round(performance.now() - T0);
 view(Q.get('view') || 'face');
-if (Q.get('base') === '0') ground.visible = false;   // (?base=0: the base ground hidden - a check, which object a surface is)
+if (Q.get('base') === '0') ground.visible = false;
+// ?skintest=1: ring.skin(sh) on another session's kind of mesh (MOUNTAIN-VEG's scanned rocks: MATLIB 'std', instanced, an instance
+// colour) - 24 rocks along the slope eye's target, a compile and a look check beside the ring's own boulders
+if (RING && Q.get('skintest') === '1' && RING.skin) {
+  const sm = MATLIB.make(THREE, 'std', { roughness: 1, metalness: 0 }); sm.onBeforeCompile = sh => RING.skin(sh); sm.customProgramCacheKey = () => 'rockskin-test';
+  const geo0 = new THREE.IcosahedronGeometry(1.6, 2), im = new THREE.InstancedMesh(geo0, sm, 24), M4 = new THREE.Matrix4(), Cc = new THREE.Color();
+  const [tx, tz] = sl2; for (let i = 0; i < 24; i++) { const x = tx - 30 + (i % 6) * 12, z = tz - 20 + Math.floor(i / 6) * 12, y = hXZ(x, z) + 0.6;
+    M4.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(1 + (i % 3) * 0.4, 0.7 + (i % 2) * 0.3, 1.2)); im.setMatrixAt(i, M4); im.setColorAt(i, Cc.setScalar(0.8 + 0.4 * ((i * 7) % 5) / 4)); }
+  im.castShadow = im.receiveShadow = true; scene.add(im); }   // (?base=0: the base ground hidden - a check, which object a surface is)
 if (RING && Q.get('relief') === '0') { const o = RING.update; RING.update = () => { o(); RING.group.children.forEach(m => { if (m.material === mat) m.visible = false; }); }; }   // (?relief=0: the boulders alone - a check)
 let RSTAT = null; if (RING) { const t = performance.now(); RSTAT = await RING.whenIdle(); RSTAT.wallMs = Math.round(performance.now() - t); }
 // ?hang=1: the relief's OPEN EDGES - a vertex on a chunk's side, next to a chunk that has no skin, standing over the ground (the
