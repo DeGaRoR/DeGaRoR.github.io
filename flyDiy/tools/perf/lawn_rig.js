@@ -41,6 +41,9 @@ const CFG = {
   C:      { label: 'C: 12 cm, 150 cards/m2', field: { minH: 0.3 }, lawn: { cutH: 0.12, dens: 150, reach: 40, near: 10 } },
   D:      { label: 'D: 10 cm, 300 cards/m2, 20 m reach', field: { minH: 0.3 }, lawn: { cutH: 0.10, dens: 300, reach: 20, near: 6 } },
   phone:  { label: 'phone: B at 60 cards/m2, 20 m reach', field: { minH: 0.3 }, lawn: { cutH: 0.08, dens: 60, reach: 20, near: 6 } },
+  // the final (the 12:40 slot): what SHIPS - the build's own defaults, nothing set - and the same build with the lawn off (?lawn=0's A/B)
+  ship:   { label: 'shipped (the build defaults)', field: {}, lawn: {} },
+  off:    { label: 'shipped, lawn off', field: {}, lawn: null },
 };
 
 // the page's instrument: the lawn's and the field's draws counted (and timed with --gpu), the rings idle, the eyes
