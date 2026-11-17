@@ -369,9 +369,10 @@ for (const seed of [0, 1, 6, 12, 42]) {
   //  turn on the spot. CAL_C (28 m, 7 m toward it): the blind Cub flown (taxiPivAll false) into the station, 13 contacts)
   // (SKYLINE-RESORT 17 Nov: the 280 x 6 m strip's way out runs up the apron round the tram station's structure (tw_ski.taxiOut,
   //  the wingtip >= 4.4 m from every solid), so from 28 m the blind Cub now stops with its wing on the station's edge, 0 node
-  //  contacts. Re-searched as before (a 14-30 m from the top, c -8..-12 toward the station, 4 headings, flyTurn blind): CAL_C
-  //  14 m down, 12 m toward it, the same heading - the blind Cub into the station, 4 contacts, at t 12 s)
-  const CAL_B = { x: 328.67, z: -7841.60, hdg: -1.05 }, CAL_C = { x: 334.61, z: -7865.88, hdg: -1.05 };
+  //  contacts. Re-searched as this row flies it (dBl: taxiPivAll false, every land strip's solids in the world; a 14-34 m
+  //  from the top, c -10..-14 toward the station, 3 headings): CAL_C 18 m down, 10 m toward it, nose 0.5 rad further round
+  //  (-1.55) - the blind Cub into the station, 17 contacts at t 2 s (6 poses of the search hit; this the strongest that drives)
+  const CAL_B = { x: 328.67, z: -7841.60, hdg: -1.05 }, CAL_C = { x: 334.34, z: -7861.42, hdg: -1.55 };
   if (SHD.take()) {
     const r0 = L.planAt(C, WI, IX, LB[0].def, tw, nv, CAL_B, { blindPilot: true }), r1 = L.planAt(C, WI, IX, LB[0].def, tw, nv, CAL_B);
     check(!r0.turn && r0.drawn.d >= L.MARGIN && r0.driven.d < 0 && /station$/.test(r0.driven.what || ''), '11b calibration: the altiport pose, the pilot blind: the route the game flew - drawn ' + L.MARGIN + ' m clear, driven into the tram station',
