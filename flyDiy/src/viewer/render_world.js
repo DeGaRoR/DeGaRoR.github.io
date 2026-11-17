@@ -2116,7 +2116,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
           .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (side > 0 ? '\nobjectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
           .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') +
-            'vRM = aRM; vRX = aRX; if (aRM.w > 1.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n' +
+            'vRM = aRM; vRX = aRX; if (aRM.w > 1.5 && aRM.w < 3.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n' +
             '  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\n' +
             'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;\n' +
             // G2115 (TERRAIN-MATCH): UNDER THE CONTACT TIER (ground_tier.js) a vertex more than a cell inside its square goes uTier.w

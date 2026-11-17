@@ -69,7 +69,7 @@ let FS = '';
 const hook = sh => {
   Object.assign(sh.uniforms, gU, SPL.uniforms);
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nvarying float vPav;\nattribute vec4 aRM, aRX; attribute vec3 aRD; varying vec4 vRM, vRX; uniform vec4 uRingF;\n')
-    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRM = aRM; vRX = aRX; if (aRM.w > 1.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\nvWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = 0.0;\n');
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRM = aRM; vRX = aRX; if (aRM.w > 1.5 && aRM.w < 3.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\nvWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = 0.0;\n');
   sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\nvarying vec4 vRM, vRX;\n' +
     'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\nuniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
     'float gLake(vec2 uv){ return texture2D(uGPackA, uv).a; }\n' +

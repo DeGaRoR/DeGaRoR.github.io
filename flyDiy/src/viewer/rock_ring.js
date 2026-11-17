@@ -240,6 +240,29 @@ Smp rRock(vec3 P, vec3 nG){
     // ground's vertex stage folds it back toward the reach); the BOULDERS wear the bench v1's rock material (this file's)
     const unmesh = c => { for (const k of ['mesh', 'bmesh']) if (c[k]) { group.remove(c[k]); ST.verts -= c[k].geometry.attributes.position.count; ST.tris -= c[k].geometry.index.count / 3; c[k].geometry.dispose(); c[k] = null; }
       ST.boulderTris -= c.boulders || 0; c.boulders = 0; };
+    // A CHUNK'S BOULDERS (17 Nov, IN THE GAME: the user, "the mesh rocks are much too white ... the weathering has not gone through"):
+    // their own material (the bench v1's rockMat) never took the rock's later work - its value to the grass, its film, the game's
+    // light through the ground's chain. With the ground's material (ctx.groundMat) they wear the ROCK itself: aRM.w 4 marks a
+    // boulder (splat_ground: rock whatever the ground round it, its own tone, no macro sampled under it, no fold), aRM.rgb its tone
+    // (v1: 0.9 x its own), aRX = (exposure 1, its height in the rock as the blend's, its creases (moss and shade), its hash).
+    // One program fewer to link. Without the ground's material (a bench without it): the ring's own, as before
+    const boulderMesh = B => { const g = new THREE.BufferGeometry(), nb = B.nv;
+      g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(B.nor, 3));
+      g.setIndex(new THREE.BufferAttribute(B.idx, 1));
+      const a0 = new Float32Array(nb * 4), a1 = new Float32Array(nb * 4);
+      if (ctx.groundMat) {
+        for (let v = 0; v < nb; v++) { const o = v * 8, vk = B.attr[o] * 0.9;
+          a0[v * 4] = vk; a0[v * 4 + 1] = vk; a0[v * 4 + 2] = vk * 0.97; a0[v * 4 + 3] = 4;
+          a1[v * 4] = 1; a1[v * 4 + 1] = 0.35 + 0.5 * B.attr[o + 3]; a1[v * 4 + 2] = Math.min(1, B.attr[o + 4] * 0.6); a1[v * 4 + 3] = B.attr[o + 5]; }
+        g.setAttribute('aRM', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aRX', new THREE.BufferAttribute(a1, 4));
+        g.setAttribute('aRD', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
+      } else {
+        for (let v = 0; v < nb; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = B.attr[v * 8 + k]; a1[v * 4 + k] = B.attr[v * 8 + 4 + k]; }
+        g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4));
+        g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
+      }
+      g.computeBoundingSphere();
+      const m = new THREE.Mesh(g, ctx.groundMat || mat); m.castShadow = m.receiveShadow = true; return m; };
     const place = (key, r) => {
       const c = chunks.get(key); if (!c) return;
       const t0 = performance.now();
@@ -256,14 +279,7 @@ Smp rRock(vec3 P, vec3 nG){
         g.computeBoundingSphere();
         const m = new THREE.Mesh(g, ctx.groundMat || mat); m.castShadow = m.receiveShadow = true; group.add(m); c.mesh = m; ST.verts += nv; ST.tris += r.nt; }
       if (r.B) {
-        const B = r.B, g = new THREE.BufferGeometry(), nb = B.nv;
-        g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(B.nor, 3));
-        g.setIndex(new THREE.BufferAttribute(B.idx, 1)); g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
-        const a0 = new Float32Array(nb * 4), a1 = new Float32Array(nb * 4);
-        for (let v = 0; v < nb; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = B.attr[v * 8 + k]; a1[v * 4 + k] = B.attr[v * 8 + 4 + k]; }
-        g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4));
-        g.computeBoundingSphere();
-        const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; group.add(m); c.bmesh = m;
+        const B = r.B, m = boulderMesh(B), nb = B.nv; group.add(m); c.bmesh = m;
         ST.verts += nb; ST.tris += B.idx.length / 3; c.boulders = B.idx.length / 3; ST.boulderTris = (ST.boulderTris || 0) + c.boulders; }
       if (!r.nv && !r.B) c.empty = true;
       ST.built++; ST.workerMs += r.ms; ST.workerLast = r.ms; ST.mainMs += performance.now() - t0;
@@ -313,13 +329,7 @@ Smp rRock(vec3 P, vec3 nG){
       else farPlace(key, ROCK_RING_CORE.chunk(inp, KIT0 || (KIT0 = ROCK_RING_CORE.kitPrep(ctx.kit || null)))); };
     const farPlace = (key, r) => { const c = farChunks.get(key); if (!c) return; const t0 = performance.now();
       unmesh(c);
-      if (r.B) { const B = r.B, g = new THREE.BufferGeometry(), nb = B.nv;
-        g.setAttribute('position', new THREE.BufferAttribute(B.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(B.nor, 3));
-        g.setIndex(new THREE.BufferAttribute(B.idx, 1)); g.setAttribute('aDisp', new THREE.BufferAttribute(new Float32Array(nb * 3), 3));
-        const a0 = new Float32Array(nb * 4), a1 = new Float32Array(nb * 4);
-        for (let v = 0; v < nb; v++) for (let k = 0; k < 4; k++) { a0[v * 4 + k] = B.attr[v * 8 + k]; a1[v * 4 + k] = B.attr[v * 8 + 4 + k]; }
-        g.setAttribute('aR0', new THREE.BufferAttribute(a0, 4)); g.setAttribute('aR1', new THREE.BufferAttribute(a1, 4)); g.computeBoundingSphere();
-        const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; group.add(m); c.bmesh = m;
+      if (r.B) { const B = r.B, m = boulderMesh(B), nb = B.nv; group.add(m); c.bmesh = m;
         ST.verts += nb; ST.tris += B.idx.length / 3; c.boulders = B.idx.length / 3; ST.boulderTris = (ST.boulderTris || 0) + c.boulders; ST.farBoulderTris = (ST.farBoulderTris || 0) + c.boulders; }
       else c.empty = true;
       ST.workerMs += r.ms; ST.mainMs += performance.now() - t0; };

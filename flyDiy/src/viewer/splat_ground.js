@@ -461,6 +461,7 @@ const SPLAT_GROUND = (() => {
   }
   // the exposure a pixel: the macro texture's where it lies (mw), else the relief vertex's, else the procedural law
   float sTrE(float r, vec2 xz, float slope, vec2 uv, float mw){
+    if (vRM.w > 3.5) return 1.0;   // (a BOULDER - rock_ring.js, vRM.w 4: rock, whatever the ground round it)
     float e0 = mw > 0.999 ? 0.0 : (vRM.w > 1.5 ? vRX.x : sTrExpo(r, xz, slope, uv));
     return mix(e0, gTrMA.a, mw);
   }
@@ -492,6 +493,9 @@ const SPLAT_GROUND = (() => {
     { float fd = 0.8 * smoothstep(uTrK.x, max(uTrK.y, uTrK.x + 1.0), d); o.c.rgb = mix(o.c.rgb, uTrMeanS.rgb, fd); o.n.xyz *= 1.0 - fd; }
     float fx = nG.x * nG.x, fz = nG.z * nG.z;
     bool rg = vRM.w > 1.5;   // a RELIEF vertex (rock_ring.js): the macro is its own (the bench v1's macro texture, per vertex)
+    // A BOULDER (vRM.w 4, 17 Nov, the user: "the mesh rocks are much too white ... the weathering has not gone through"): drawn with
+    // the ground's own material so it wears the rock's whole look - its tone is its vertex's, not the ground's macro under it
+    float mtw = vRM.w > 3.5 ? 0.0 : gTrIn;
 #ifndef GS_TRLITE
     // THE PBR MICRO DETAIL (the bench v1's): the 'cliff' photograph at its natural 6.86 m, HEX-tiled and TRIPLANAR on the smooth
     // normal (weights ^8) - its luminance over its raw mean modulates the colour, its normal is added (x0.6); out by 60-180 m
@@ -524,18 +528,18 @@ const SPLAT_GROUND = (() => {
       float st = smoothstep(0.55, 0.85, gVnoise(vec2((fx > fz ? P.z : P.x) / 2.2, P.y / 26.0)) * 0.7 + hollow * 0.45) * smoothstep(38.0, 55.0, slope);
       mult = mix(mult, vec3(0.38, 0.38, 0.34), st * uTrF.w);
     }
-    mult = mix(mult, gTrMA.rgb * 1.5, gTrIn);   // (the macro texture where it lies: v1's own, a pixel at a time)
+    mult = mix(mult, gTrMA.rgb * 1.5, mtw);   // (the macro texture where it lies: v1's own, a pixel at a time)
     o.c.rgb *= mult;
     o.c.rgb *= mix(vec3(1.0), uTrW.rgb, uTrW.a) * uTrS.w;   // (uTrW.rgb is neutral now: the film is the imagery's tint, laid on in the macro step below)   // THE BLEND WITH THE GRASS (16 Nov, the user: "a value issue"): the rock's value in proportion to the game's grass, a film of its hue
-    { float hN = mix(rg ? vRX.y : 0.0, gTrMB.a, gTrIn), wh = max(rg ? 1.0 : 0.0, gTrIn);   // the macro's height into the blend's (v1)
+    { float hN = mix(rg ? vRX.y : 0.0, gTrMB.a, mtw), wh = max(rg ? 1.0 : 0.0, mtw);   // the macro's height into the blend's (v1)
       o.c.a = mix(o.c.a, clamp(o.c.a * 0.6 + hN * 0.6 - 0.1, 0.0, 1.0), wh); }
-    if (!rg) o.n.xyz += vec3(gTrMB.r * 2.0 - 1.0, 0.0, gTrMB.g * 2.0 - 1.0) * gTrIn;   // its normal off the relief (v1: on the displaced mesh the geometry IS it)
+    if (!rg) o.n.xyz += vec3(gTrMB.r * 2.0 - 1.0, 0.0, gTrMB.g * 2.0 - 1.0) * mtw;   // its normal off the relief (v1: on the displaced mesh the geometry IS it)
     // THE GREEN (v1): the macro's chance, the tile's cracks (its low texels; on the relief the masses' crevices too) and what faces
     // the sky, broken by two noises, filling the LOW texels first; the ground's own grass set read from above, moss where thin
     float hm = o.c.a;
     float n1g = gVnoise(xz / 7.0 + 3.1), n2g = gVnoise(xz / 1.7 - 9.4);
-    float vegM = rg ? vRM.w - 2.0 : clamp(jf + hollow * 0.6 + (1.0 - smoothstep(14.0, 30.0, slope)) * 0.55 + edgeR * 0.6, 0.0, 1.0) * (0.55 + 0.45 * gVnoise(xz / 21.0 + 5.0));
-    vegM = mix(vegM, gTrMB.b, gTrIn);
+    float vegM = rg ? (vRM.w > 3.5 ? 0.0 : vRM.w - 2.0) : clamp(jf + hollow * 0.6 + (1.0 - smoothstep(14.0, 30.0, slope)) * 0.55 + edgeR * 0.6, 0.0, 1.0) * (0.55 + 0.45 * gVnoise(xz / 21.0 + 5.0));
+    vegM = mix(vegM, gTrMB.b, mtw);
     float crackM = 1.0 - smoothstep(0.10, 0.32, hm);
     if (rg) { crackM = max(crackM, vRX.z * 0.9); o.c.rgb *= mix(1.0, 0.55, vRX.z) * (0.9 + 0.2 * vRX.w); }   // the masses' crevices darker, each mass its own tone
     float up = smoothstep(0.80, 0.96, nG.y) * (0.35 + 0.65 * n1g);
