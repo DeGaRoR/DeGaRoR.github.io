@@ -168,7 +168,9 @@ const at = (m, i, j) => [(i + 0.5) / N * m.span, (j + 0.5) / N * m.span];   // a
   const WR = fsx.readFileSync(px.join(__dirname, '..', 'src', 'viewer', 'world_rail.js'), 'utf8');
   ok(WR.indexOf("cs('overcast')") > 0 && WR.indexOf("overcast: 'overcast'") > 0, '11c the dial is in the world editor\'s rain block and THE LOOK');
   ok(C.indexOf('if (ovG > 0.0) ambC = mix(ambC, dot(ambC, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.96, 0.98, 1.04), ovG);') > 0 && C.indexOf('Ls += ambC * (0.5 + 0.5 * exp(-upOD))') > 0,
-     '11d an overcast\'s ambient keeps its luminance and loses the clear dome\'s blue (the storm\'s base read as the blue sky, 17 Nov)'); }
+     '11d an overcast\'s ambient keeps its luminance and loses the clear dome\'s blue (the storm\'s base read as the blue sky, 17 Nov)');
+  ok(C.indexOf('if (n > 0) { float ovA = ovcOf(ord[0]); if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }') > C.indexOf('gTm = tm;') && C.indexOf('gTm = tm;') > 0 && C.indexOf('if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }\n      if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001));') > 0,
+     '11e on a full deck the haze is taken at the deck\'s entry, not kilometres inside it (the opaque storm deck read blue, 18:05 shoot); a fair sky keeps the mean distance'); }
 
 console.log('GATE RAIN: ' + (fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

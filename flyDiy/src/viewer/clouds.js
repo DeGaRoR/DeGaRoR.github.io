@@ -372,6 +372,12 @@ ${FM_A ? FM_MARCH : ''}      if (rainOn && (n == 0 || r0 <= s0[0])) { rainSeg(o,
       float tm = tsum > 0.0 ? tw / tsum : s0[0];
       gTm = tm;
       vec3 c = col / max(alpha, 1e-4);
+      // THE OVERCAST'S AIR (RAIN 12b, 17 Nov; the 18:05 shoot: the storm deck OPAQUE at the screen's centre, alpha 0.997, and still blue):
+      // the haze was taken at the cloud's MEAN distance - kilometres deep in a 4 km deck whose thin base lets the eye in - so the clear
+      // sky's blue in-scatter of kilometres of air was laid over a cloud that IS that air. The clear air ends at the deck: on a full deck
+      // (ovcOf) the haze is taken at the first deck's entry (after gTm: the history keeps the cloud's mean distance). Every fair and
+      // broken sky keeps the mean distance, exactly as it was
+      if (n > 0) { float ovA = ovcOf(ord[0]); if (ovA > 0.0) tm = mix(tm, s0[0], ovA); }
       if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001)); c = c * ap.a + ap.rgb; c = mistApply(c * uScale, d, tm, o.y) / uScale; }
       return vec4(c * uScale, alpha);
     }`;
