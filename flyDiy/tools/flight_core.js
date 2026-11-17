@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 6ccbbb2bf3eac17b
+// body-sha256: a82b431a67f43c50
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -47160,7 +47160,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const OB = N(twX + u[0] * hd, twY + u[1] * hd, 0, 'TOB'), OA = N(twX + u[0] * (hd + Lc), twY + u[1] * (hd + Lc), 0, 'TOA');
     // (steel fittings, not a spring: the gear class's k, a tenth of its damper - the Wilga's leg and arm, R.lever.cMul;
     // kMul 8 or the class's full damper on the light tail-post nodes cost 40 % more substeps)
-    const KC = { cMul: R.lever.cMul };
+    // PC6-MASS (REAL-FIGURES' verdict, 17 Nov): these members ARE the strut's and the truss's fittings (the clamps, the
+    // bulkhead plates, the stabiliser tubes, the doublers): the drawing's bill lists them at 'frame' and puts none of
+    // them on the nodes below, and the members bill their own mass at half the gear class's tube (opt.massK - mass and
+    // bill only, the stiffness and the damping as before; ~7.7 kg, the bill's drawn hardware 7.9). Before, both billed
+    // the same steel (~23 kg at the tail, 370 % MAC). (Weightless members - opt.noMass - left the tail nodes too light for
+    // the stand's pivot: a tail member broke taxiing at 0.7 m/s on powder, GATE SKISARDENT)
+    const KC = { cMul: R.lever.cMul, massK: 0.5 };
     for (const q of [TPB, TPT, last.BL, last.BR]) B(OB, q, 'gear', false, 'inner', undefined, KC);
     for (const q of [TPT, TPB, last.TL, last.TR]) B(OA, q, 'gear', false, 'inner', undefined, KC);
     B(OA, OB, 'gear', false, 'leg', undefined, KC);                      // the cylinder
