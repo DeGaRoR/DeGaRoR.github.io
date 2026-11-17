@@ -407,6 +407,8 @@ async function runPage(S, opt) {
       };
       let m = U ? miss(s) : [];
       while (!failed && m.length) {
+        // (the slot's own deadline: 45 s before the rig's hard cap the run stops, said, and still pulls the log and writes the report)
+        if (Date.now() > wall0 + ((o.cap || 900) - 45) * 1000) { failed = { step: si, name: st.name, why: { what: 'the slot time: stopped 45 s before the hard cap, the log kept', phase: s && s.ph } }; break; }
         if (s && s.t - t0 >= cap) { failed = { step: si, name: st.name, why: { what: 'the cap: ' + cap + ' s passed with ' + m.join('; '), phase: s.ph, said: s.said, pos: s.cg, where: s.where } }; break; }
         if (Date.now() - w0 > (cap * 3 + 120) * 1000) { failed = { step: si, name: st.name, why: { what: 'the wall clock: ' + Math.round((Date.now() - w0) / 1000) + ' s for a ' + cap + ' s step (the sim not advancing?)', why: await rig.why() } }; break; }
         await new Promise(r => setTimeout(r, 250));
