@@ -740,7 +740,9 @@ function run(mut) {
       // DERELICT-HANGAR: HOME.2 (the real hangar's 44 m hall: HW 22), not held, stands the large hangar derelict (stage 0); held, it leaves the closed list and its
       // dims name no stage (the restored hangar, unless the story names one)
       const h2 = csAll.find(x => x.id === 'HOME.2');
-      ok(!!h2 && h2.shell === 'works' && h2.closed === true && h2.dims.stage === 0 && h2.dims.HW === 22, 'CLOSED-SHED: HOME.2 unheld stands the large hangar derelict (stage 0)', J(h2));
+      // RE-PINNED 17 Nov (SANDBOX = THE FINAL STAGE, the user via A0: "in the sandbox mode, the default scenery should be with
+      // everything constructed"): the sandbox stands it RESTORED (stage 3); the derelict is the career's (the field track's 0)
+      ok(!!h2 && h2.shell === 'works' && h2.closed === true && h2.dims.stage === 3 && h2.dims.HW === 22, 'CLOSED-SHED: HOME.2 unheld, in the sandbox, stands the large hangar restored (stage 3: the final stage)', J(h2));
       // ...and in a career, at the field track's stage (A0 9 Nov: the old wartime hangar's repair IS the field track's
       // story): RE-PINNED 10 Nov (HOME-DERELICT, the user via A0: "the 4 phases"): the track has 3 steps, each its own stage -
       // 0 derelict, 1 made safe, 2 roofed, 3 restored (was 0 / 1 / 2 -> stages 0 / 2 / 3: stage 1 never showed)
@@ -751,8 +753,8 @@ function run(mut) {
       }
       const hH = R.playerAcquire(sb, 'HOME', 'HOME.2', 'works', 'own');
       // (RESTORE, A0 13 Nov: held, it keeps the stage it was bought at - restored step by step, see RESTORE below)
-      ok(!hH.ok || (!R.playerClosedSheds(hH.doc).some(x => x.id === 'HOME.2') && R.hangarDims(hH.doc.sheds['HOME.2']).stage === 0),
-         'CLOSED-SHED: HOME.2 held leaves the closed list, at the stage it stood (the sandbox: derelict)', J(hH.ok && hH.doc.sheds['HOME.2']));
+      ok(!hH.ok || (!R.playerClosedSheds(hH.doc).some(x => x.id === 'HOME.2') && R.hangarDims(hH.doc.sheds['HOME.2']).stage === 3),
+         'CLOSED-SHED: HOME.2 held leaves the closed list, at the stage it stood (the sandbox: restored, the final stage)', J(hH.ok && hH.doc.sheds['HOME.2']));
       ok(!R.playerClosedSheds(h3).some(x => x.id === 'w3' || x.id === 'SEA' || x.id === 'mk_sea' || x.id === 'tw_ski'), 'CLOSED-SHED: an unflagged plot stands nothing (only the mine is flagged)');
     }
     ok(/function standShed\(dims\) \{[\s\S]{0,400}shedNode = shedNodeAt\(SITE\.hangar, dims\);/.test(R.__rw), 'S3 identity: HOME\'s shed is standShed\'s own build, undressed (no third argument)');
@@ -775,19 +777,25 @@ function run(mut) {
   {
     const T0 = 1e9, DAY = 86400;
     const sb0 = R.playerNormalise(R.playerMigrate(R.playerDefault()));
-    const a = R.playerAcquire(sb0, 'HOME', 'HOME.2', 'works', 'own');
-    ok(a.ok && a.doc.sheds['HOME.2'].dims.stage === 0, 'RESTORE: the old hangar is bought as it stands (derelict, stage 0)', a.why);
-    ok(R.playerWorldSheds(a.doc).find(s => s.id === 'HOME.2').dims.stage === 0, 'RESTORE: the world stands it at its stage');
+    // RE-PINNED 17 Nov (SANDBOX = THE FINAL STAGE): the sandbox buys it restored; the mechanics below run on a career's
+    // purchase (derelict, the track's first stage) and on a sandbox document that holds it derelict (an older save)
+    const aS = R.playerAcquire(sb0, 'HOME', 'HOME.2', 'works', 'own');
+    ok(aS.ok && aS.doc.sheds['HOME.2'].dims.stage === 3 && R.playerRestoreState(aS.doc, 'HOME.2', T0).next === null, 'RESTORE: the sandbox buys the old hangar restored (the final stage: nothing to restore)', J(aS.ok && R.playerRestoreState(aS.doc, 'HOME.2', T0)));
+    const crA = clone(sb0); crA.mode = 'career'; crA.wallet = 5e6;
+    const aC = R.playerAcquire(crA, 'HOME', 'HOME.2', 'works', 'own');
+    ok(aC.ok && aC.doc.sheds['HOME.2'].dims.stage === 0, 'RESTORE: a career buys the old hangar as it stands (derelict, stage 0)', aC.why);
+    const a = aS.ok ? { ok: true, doc: clone(aS.doc) } : aS; if (a.ok) a.doc.sheds['HOME.2'].dims.stage = 0;   // the sandbox document holding it derelict
+    ok(aC.ok && R.playerWorldSheds(aC.doc).find(s => s.id === 'HOME.2').dims.stage === 0, 'RESTORE: the world stands it at its stage (a career: derelict)');
+    ok(a.ok && R.playerWorldSheds(a.doc).find(s => s.id === 'HOME.2').dims.stage === 3 && R.playerRestoreState(a.doc, 'HOME.2', T0).stage === 3,
+       'RESTORE: in the sandbox the old hangar stands restored whatever a saved document says (the final stage)', J(a.ok && R.playerRestoreState(a.doc, 'HOME.2', T0)));
     const club = R.playerAcquire(sb0, 'HOME', 'HOME.2', 'club', 'own');
     ok(club.ok && R.playerRestoreState(club.doc, 'HOME.2') === null && !Number.isFinite(club.doc.sheds['HOME.2'].dims.stage), 'RESTORE: another shell on the plot is a new building - nothing to restore');
     ok(R.playerRestoreState(sb0, 'HOME') === null, 'RESTORE: a plot without a restoration track has none');
-    const s0 = R.playerRestoreState(a.doc, 'HOME.2', T0);
+    const s0 = R.playerRestoreState(aC.doc, 'HOME.2', T0);
     ok(s0 && s0.stage === 0 && s0.word === 'derelict' && s0.next && s0.next.to === 1 && s0.next.word === 'made safe' && s0.next.price > 0 && s0.next.days > 0 && !s0.works && s0.why === '',
        'RESTORE: the card - derelict, the next step (made safe) with its price and days', J(s0));
-    // the sandbox: free and at once, step by step to restored, then nothing more
-    let d = a.doc; const seen = [];
-    for (let i = 0; i < 3; i++) { const r = R.playerRestoreStart(d, 'HOME.2', T0); if (!r.ok) break; d = r.doc; seen.push(d.sheds['HOME.2'].dims.stage); }
-    ok(eq(seen, [1, 2, 3]) && d.wallet === a.doc.wallet && !d.sheds['HOME.2'].restore, 'RESTORE: the sandbox restores at once and free, one stage a step', J(seen));
+    // (RE-PINNED 17 Nov: the sandbox no longer restores step by step - it stands at the final stage; the steps are a career's)
+    const d = aS.doc;
     const fin = R.playerRestoreStart(d, 'HOME.2', T0);
     refused(fin, d, d, 'RESTORE: a restored building');
     // the career: paid at the start, finished when its days are up, one step at a time

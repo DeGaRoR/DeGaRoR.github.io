@@ -1390,13 +1390,14 @@ function restorePlot(doc, id) {
 const restoreNow = (doc, now) => (typeof now === 'number' && isFinite(now) ? now
   : typeof routeNow === 'function' ? routeNow(doc) : ((doc && doc.clock) || 0));
 // SANDBOX = THE FINAL STAGE (the user 17 Nov via A0: "in the sandbox mode, the default scenery should be with everything
-// constructed ... to reconstruct the step of construction, you just have to remove"): no tracks (stageTracksOf null: the
-// sandbox, every track at its max) is the track's LAST stage - the old hangar restored; a career reads its track's value
+// constructed ... to reconstruct the step of construction, you just have to remove"): the SANDBOX (no tracks, doc.mode not
+// 'career') is the track's LAST stage - the old hangar restored; a career reads its track's value (none yet: the first)
 const restoreTrack = (doc, P) => {
   const T = P && P.closedTrack, has = !!(T && Array.isArray(T.stages) && T.stages.length);
   if (!has || typeof stageTracksOf !== 'function') return 0;
   const tr = stageTracksOf(doc);
-  return tr ? T.stages[Math.max(0, Math.min(T.stages.length - 1, tr[T.track] || 0))] : T.stages[T.stages.length - 1];
+  if (tr) return T.stages[Math.max(0, Math.min(T.stages.length - 1, tr[T.track] || 0))];
+  return doc && doc.mode === 'career' ? T.stages[0] : T.stages[T.stages.length - 1];   // (the sandbox: doc.mode !== 'career', as RESTORE reads it)
 };
 // the stage a held building stands at: its own (dims.stage; absent = an older document's, restored) or the story's, the higher
 function restoreStage(doc, id) {
