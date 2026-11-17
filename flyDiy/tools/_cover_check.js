@@ -499,5 +499,41 @@ function waterRing() {
     ok(L.length > 20 && xs.every(x => x >= 61 - 1e-6 && x <= 74 + 1e-6) && ys.every(y => Math.abs(y) < 1e-6),
        '12 THE WATER PLANTS: the lily pads stand on the lake, 1-14 m out from the drawn line within their depth, at the water\'s level - none on the land',
        L.length + ' pads, x ' + (L.length ? Math.min(...xs).toFixed(1) + '..' + Math.max(...xs).toFixed(1) : '-') + ', y ' + (L.length ? Math.min(...ys).toFixed(3) + '..' + Math.max(...ys).toFixed(3) : '-')); } }
+// 13 THE ROCKS' OWN RING (MOUNTAIN-VEG, the user 17 Nov: "rock should be visible for a little while ... a bit further"): layer
+// 'rocks' plants the rock rows' rocks at least rockSplit m tall (the model's height x its scale) on the cover ring's own cells and
+// stream, and the cover ring under that split keeps the rest: together EXACTLY the cover ring's rocks alone - no rock twice, none lost
+function splitRings() {
+  const B = boot(), { THREE, ctx } = B;
+  B.load(path.join('src', 'viewer', 'trees.js'));
+  const t = new THREE.Texture(); t.image = { width: 4, height: 4 };
+  const cols = [{ name: 'rocks', kind: 'rock', place: {} }, { name: 'sticks', kind: 'debris', place: {} }];
+  const built = new Map();
+  const treeList = () => cols.map(c => ({ key: c.name + '_m', col: c, sub: { bb: [-0.5, 0, -0.5, 0.5, 0.6, 0.5], h: 0.6 } }));
+  const treeBuild = (T, key) => { if (built.has(key)) return built.get(key); const g = new THREE.BoxGeometry(1, 0.6, 1); g.translate(0, 0.3, 0);
+    const b = { parts: [{ geo: g, mat: new THREE.MeshStandardMaterial({ map: t }) }] }; built.set(key, b); return b; };
+  ctx.TREE_PACK = { collections: cols };
+  const mix = { species: { rocks: { proportion: 1 }, sticks: { proportion: 1 } }, forest: { cover: 1, reach: 220, rocks: 30, debris: 10 } };
+  const BIO = { mixAt: () => 'mix', mixOf: () => mix, knobs: () => ({}), edgeOn: false };
+  const world = { terrainH: () => 0, waterH: () => -10, island: null };
+  const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.5, 5000); camera.position.set(0, 3, 0); camera.lookAt(0, 0, 40); camera.updateMatrixWorld();
+  B.load(path.join('src', 'viewer', 'cover_ring.js'));
+  const ring = (layer, split) => { const R = ctx.COVER_RING.make(THREE, { scene: new THREE.Scene(), world, camera, treeBuild, treeList, LEAF: ctx.TREE_LEAF, BIO, GF: null, layer,
+      biomeAt: () => 'mix', codeAt: () => 1, okAt: () => true });
+    R.set({ batch: false, budgetMs: 1e9, blockBudget: 1e9, grow: 0, maxCells: 1e5, rockSplit: split }); for (let i = 0; i < 4; i++) R.update();
+    const o = { rock: [], debris: 0, layer: R.layer };
+    R.root.traverse(m => { if (!m.isInstancedMesh) return; const M = m.instanceMatrix.array, n = m.userData.n === undefined ? m.count : m.userData.n;
+      for (let i = 0; i < n; i++) { const x = M[i * 16 + 12], z = M[i * 16 + 14]; if (Math.abs(x) > 150 || Math.abs(z) > 150) continue;
+        if (m.userData.coverKind === 'rock') o.rock.push(x.toFixed(3) + ',' + z.toFixed(3) + ',' + Math.hypot(M[i * 16 + 4], M[i * 16 + 5], M[i * 16 + 6]).toFixed(4)); else o.debris++; } });
+    return o; };
+  return { all: ring(undefined, 0), small: ring(undefined, 0.6), big: ring('rocks', 0.6) };
+}
+{ let r = null;
+  try { r = splitRings(); } catch (e) { ok(false, '13 the rocks’ own ring plants', (e && e.message || String(e)).slice(0, 200)); }
+  if (r) { const A = new Set(r.all.rock), S = new Set(r.small.rock), G = new Set(r.big.rock);
+    const both = [...S].filter(k => G.has(k)).length, lost = [...A].filter(k => !S.has(k) && !G.has(k)).length, extra = [...S, ...G].filter(k => !A.has(k)).length;
+    const bigOk = r.big.rock.every(k => +k.split(',')[2] * 0.6 >= 0.6 - 1e-3), smallOk = r.small.rock.every(k => +k.split(',')[2] * 0.6 < 0.6 + 1e-3);
+    ok(A.size > 100 && S.size > 20 && G.size > 20 && !both && !lost && !extra && bigOk && smallOk && r.big.debris === 0 && r.small.debris > 0 && r.big.layer === 'rocks',
+       '13 THE ROCKS’ OWN RING: it plants the rocks at least rockSplit m tall (no debris), the cover ring the smaller ones - together exactly the cover ring’s rocks alone',
+       'alone ' + A.size + ' | small ' + S.size + ' + big ' + G.size + ', twice ' + both + ', lost ' + lost + ', extra ' + extra + ', debris ' + r.small.debris + ' / ' + r.big.debris); } }
 console.log('GATE COVER: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);

@@ -57,6 +57,8 @@
   // GRASS-DENSE G2566: the grass field (cover_ring.js layer 'grass') and the premises' law for the grass by the runways
   // (27_premises.js GRASS_SIDES) - their dials are the look's: `grass` (the field's, less its on/off - the A/B and the GRAPHICS
   // row's) and `gsides`
+  const RKS = () => { const t = TF(); return (t && t.rockLayer && t.rockLayer()) || null; };   // MOUNTAIN-VEG 17 Nov: the rocks' own ring
+  const rkSet = o => { const t = TF(); if (t && t.rockLayerSet) t.rockLayerSet(o); };
   const FLD = () => { const t = TF(); return (t && t.grass && t.grass()) || null; };
   const fieldNow = () => { const f = FLD(); if (!f) return null; const o = clone(f.get()); delete o.on; delete o.off; return o; };
   const GSD = () => (W.PREMISES_GEN && W.PREMISES_GEN.grassSides ? W.PREMISES_GEN : null);
@@ -129,6 +131,7 @@
     const g = G(); if (g && !DEF.ground) { DEF.ground = clone(g.get()); DEF.stack = clone(g.stack()); }
     const t = TF(); if (t && t.island && !DEF.island) { DEF.island = clone(t.island()); DEF.fillDensity = t.get ? t.get() : null; DEF.thin = t.thin ? t.thin() : null; }
     const r = RING(); if (r && !DEF.ring) DEF.ring = clone(r.get());
+    if (RKS() && !DEF.rockLayer) DEF.rockLayer = clone(RKS().get());
     if (FLD() && !DEF.grass) { DEF.grass = fieldNow(); DEF.grassOn = !!FLD().get().on; }
     if (GSD() && !DEF.gsides) DEF.gsides = clone(GSD().GRASS_SIDES_DEF);
     const c = CLF(); if (c && !DEF.cliffs) DEF.cliffs = clone(c.get());
@@ -159,7 +162,8 @@
     if (t && t.knobs) o.bioKnobs = t.knobs();
     const r = RING(); if (r) o.ring = r.get();
     if (r && r.shapes) o.shrubCards = shapesNow();
-    if (FLD()) { o.grass = fieldNow(); o.grassOn = !!FLD().get().on; }   // (the switch apart: the look keeps the user's choice)
+    if (FLD()) { o.grass = fieldNow(); o.grassOn = !!FLD().get().on; }
+    if (RKS()) o.rockLayer = RKS().get();   // (the switch apart: the look keeps the user's choice)
     if (GSD()) o.gsides = GSD().grassSides();
     const c = CLF(); if (c) o.cliffs = c.get();
     const L = W.TREE_LEAF; if (L && L.collections) { o.tints = tintsNow(); if (L.master) o.leafMaster = clone(L.master()); }
@@ -226,6 +230,7 @@
     const r = RING(); if (r && o.ring) { const d = deltaOf(Object.assign({}, r.get(), o.ring), r.get()); if (d) r.set(d); }
     if (r && r.shapes && (o.shrubCards || full)) for (const n of r.shapes()) { const want = Object.assign({}, full && DEF.shrubCards ? DEF.shrubCards[n] : {}, (o.shrubCards || {})[n] || {}), cur = shapeNow(n), d = {};
       for (const k in want) if (cur && !same(cur[k], want[k])) d[k] = want[k]; if (Object.keys(d).length) shapeSet(n, d); }
+    { const rk = RKS(); if (rk && o.rockLayer) { const d = deltaOf(Object.assign({}, rk.get(), o.rockLayer), rk.get()); if (d) { delete d.off; rkSet(d); } } }
     if (o.grassOn !== undefined && FLD() && !!FLD().get().on !== !!o.grassOn && t && t.field) t.field(!!o.grassOn);
     const fl = FLD(); if (fl && o.grass) { const cur = fieldNow(), d = deltaOf(Object.assign({}, cur, o.grass), cur); if (d) { delete d.on; delete d.off; fl.set(d); } }
     if (GSD() && o.gsides) { const cur = GSD().grassSides(), d = deltaOf(Object.assign({}, cur, o.gsides), cur); if (d) { gsSet(d); replantGrass(); } }
@@ -1139,6 +1144,21 @@
       const Fe = sec(body, 'the edge’s distance field', false, 'how the edge is measured');
       bk(Fe, 'cell', 'edgeCell', 2, 24, 1, m); bk(Fe, 'tile', 'edgeTile', 64, 512, 16, m); bk(Fe, 'margin', 'edgeMargin', 12, 120, 6, m);
       note(Fe, 'the distance to the edge is measured on cells of this size, a tile at a time, seeing an edge up to the margin past the tile’s side (further out a point counts as deep in the wood). A finer cell follows the edge closer and costs more to build; each move here re-measures.');
+    }
+    // THE ROCKS' OWN RING (MOUNTAIN-VEG 17 Nov; the user: "rock should be visible for a little while ... yours maybe don't have to go
+    // that far, but have to go a bit further"; and their texture: "the approach of coloring them with the same texture as the ground")
+    const rk = RKS();
+    if (rk) {
+      const Gr = sec(body, 'the rocks’ own ring', false, 'the bigger rocks, further out'), D = DEF.rockLayer || {}, rs = k => v => rkSet({ [k]: v });
+      toggle(Gr, 'the rocks’ ring (off: every rock in the cover ring, to its reach)', () => rk.get().on, v => rkSet({ on: !!v }));
+      toggle(Gr, 'the rock ring’s skin (off: the scans’ own pictures)', () => !!rk.get().rockSkin, v => rkSet({ rockSkin: v ? 1 : 0 }));
+      range(Gr, 'a rock this tall or more', 0, 2, 0.05, () => rk.get().rockSplit, rs('rockSplit'), v => v.toFixed(2) + ' m', D.rockSplit);
+      range(Gr, 'full to', 20, 400, 5, () => rk.get().near, rs('near'), v => v + ' m', D.near);
+      range(Gr, 'gone at', 100, 900, 10, () => rk.get().reach, rs('reach'), v => v + ' m', D.reach);
+      range(Gr, 'taper', 0, 2, 0.05, () => rk.get().taper, rs('taper'), null, D.taper);
+      range(Gr, 'AGL full', 20, 600, 10, () => rk.get().aglFull, rs('aglFull'), v => v + ' m', D.aglFull);
+      range(Gr, 'AGL off', 50, 1000, 10, () => rk.get().aglOff, rs('aglOff'), v => v + ' m', D.aglOff);
+      note(Gr, 'the rock rows’ rocks at least this tall (the model’s height x its scale) are planted by a ring of their own, out to “gone at” and seen up to “AGL off” over the ground; the cover ring keeps the smaller ones near the eye. The same rocks in the same places either way. The skin: the rock ring’s boulder look (the ground’s rock photograph, moss on top), tuned with that ring; off, the scanned rocks’ own pictures.');
     }
     // THE GRASS FIELD (GRASS-DENSE G2566; the user: "the parameters touched will be implemented in the editor, so I can further
     // tune things myself"): every number the field plants and fades by, and the law the premises answer by beside the runways.

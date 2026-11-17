@@ -388,10 +388,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     return false;
   };
   function floorsChanged(f) {
-    for (const r of [coverRing, grassField]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
+    for (const r of [coverRing, grassField, rockLayer]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
   }
   let rockRing = null, rockGroundMat = null;   // ROCK-STUDY: (rockGroundMat: the near ring's material - the relief wears it)
   // the island's rock as geometry round the eye (rock_ring.js; set with the cover ring)
+  let rockLayer = null;   // MOUNTAIN-VEG 17 Nov: the rocks' own ring (cover_ring.js layer 'rocks': the bigger rocks further out)
+  // the cover ring keeps the rocks under the rocks' ring's split while that ring runs (0: all of them, as before), and wears its skin switch
+  const rockSync = () => { if (!coverRing) return; const on = !!(rockLayer && rockLayer.get().on); coverRing.set({ rockSplit: on ? rockLayer.get().rockSplit : 0, rockSkin: rockLayer ? rockLayer.get().rockSkin : 1 }); };
   let coverRing = null, grassField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -6195,6 +6198,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           grassField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'grass',
             GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt, edgeD,   // edgeD: FOREST-EDGE's distance, for the field's weeds band (LOOK-1)
             groundSetsAt: (x, z, code) => { const SPA = groundApi.splat ? groundApi.splat() : null; return SPA && SPA.setsAt ? SPA.setsAt(x, z, code) : null; } });   // (16 Nov: the grass by the texture drawn)
+          // THE ROCKS' OWN RING (MOUNTAIN-VEG 17 Nov; the user: "rock should be visible for a little while"): the rock rows' bigger
+          // rocks out to its own reach and height cut; the cover ring keeps the small ones (rockSync: its split, and the skin both wear)
+          rockLayer = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'rocks', GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt });
+          rockSync();
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
@@ -6243,7 +6250,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const grew = treeReach(treeReachOf(world, BIO));
         if (!grew.length) return splatGrew;
         treeSettled = null;
-        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); }))
+        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); }))
           .catch(e => console.warn('trees: the grown catalogue did not settle (' + (e && e.message) + ')'));
         return true;
       };
@@ -6274,6 +6281,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // G2563: the grass field (cover_ring.js, layer 'grass'). field(on) switches it: off gives the reed back to the cover ring
           // (today's patches - the A/B), and both replant
           grass: () => grassField,
+          // the rocks' own ring (MOUNTAIN-VEG 17 Nov): rockLayerSet(o) sets it and keeps the cover ring's split and skin in step
+          rockLayer: () => rockLayer,
+          rockLayerSet: o => { if (!rockLayer || !o) return null; const re = ('on' in o && !!o.on !== !!rockLayer.get().on) || ('rockSplit' in o && o.rockSplit !== rockLayer.get().rockSplit);
+            rockLayer.set(o); rockSync(); if (re) { rockLayer.replant(); if (coverRing) coverRing.replant(); } return rockLayer.get(); },
           field: on => { if (!grassField) return false; if (on !== undefined && !!on !== !!grassField.get().on) { grassField.set({ on: !!on }); grassField.replant(); if (coverRing) coverRing.replant(); } return !!grassField.get().on; },
           stands: () => standCards,   // the far forest's handle: get/set/stat/root
           // L6 (the GROUND strip on the flight rail): what is under a point - the terrain-type
@@ -6294,7 +6305,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // (BIOMES.setKnobs: the subalpine's ramp and thinning, the forest edge's ramp and band, the dials) - one replant for the
           // lot, as setMix. knobs() with no argument reads them (tuned: the editor's own, with the dials)
           knobs: o => { if (!BIO) return null; if (o === undefined) return BIO.tuned();
-            const r = BIO.setKnobs(o); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return r; },
+            const r = BIO.setKnobs(o); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return r; },
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
@@ -6314,14 +6325,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // G3040 (BIOME-PAINT, SCENERY-ED-2): the ground's packed terrain type re-derived after the stamp moved - theirs,
             // declared with the build's top-level lets; nothing here when it is not (yet) there
             if (typeof groundTtypeRefresh === 'function') groundTtypeRefresh();
-            if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
+            if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return true; },
           exRegions: () => Array.from(exPlanted.values()),
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
-            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return value; },
+            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return value; },
           // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
           speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; staleAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
@@ -8112,6 +8123,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (coverRing) coverRing.update();
     if (rockRing) rockRing.update();
     if (grassField) grassField.update();
+    if (rockLayer) rockLayer.update();
     if (FRw) FRw.pop();
     if (standCards) standCards.update((isFinite(uCam.value.x) && (uCam.value.x || uCam.value.y || uCam.value.z)) ? [uCam.value.x, uCam.value.y, uCam.value.z] : cg);   // G2930: the eye (the fill's ring is the eye's too)
     if (rockMap) rockMap.update();   // the rocks' far tier follows the eye (rock_map.js)
