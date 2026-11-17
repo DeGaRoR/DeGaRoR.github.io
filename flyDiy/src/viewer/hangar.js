@@ -2019,7 +2019,7 @@ if (!EXT) {
       return Math.max(0, base) * t * side * side * (3 - 2 * side);
     };
     if (HOK === 'shed') {
-      M.dirtOut = gmat('dirt', 2, grassAlb, { roughness: 0.97, transparent: true, depthWrite: false, vertexColors: true });
+      M.dirtOut = gmat('dirtS', 3, grassAlb, { roughness: 0.97, transparent: true, depthWrite: false, vertexColors: true });
       macroise(M.dirtOut, 25, 0.45);
       const NR = 24, NA = 48, RD = 38, FD = 9, pos = [], uv = [], col = [], idx = [];
       for (let j = 0; j <= NR; j++) for (let i = 0; i <= NA; i++) {
