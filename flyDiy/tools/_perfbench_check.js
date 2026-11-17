@@ -23,6 +23,7 @@ function run(B) {
   if (B === 'disarm') src = src.replace('ss.del(KEY);   // (never two runs', '/* */;   // (never two runs');
   const PB = new Function('window', 'module', src + '\nreturn FLYDIY_PERFBENCH;')({}, undefined);
   if (B === 'even') { const s0 = PB._stats; PB._stats = d => { const r = s0(d); if (r) r.even = 100; return r; }; }
+  if (B === 'cold') src = src.replace('if (A.pass === 1) { A.pass = 2;', 'if (false) { A.pass = 2;');
   if (B === 'seg') src = src.replace("seg(st.name);", '/* */');
   if (B === 'stopped') { const m0 = PB._miss; PB._miss = (U, x) => m0(Object.assign({}, U, { stoppedAt: undefined }), x); }
   // 1
@@ -69,13 +70,24 @@ function run(B) {
     if (!file || !fs.existsSync(path.join(ROOT, file))) bad.push(n + ': the plane ' + s.plane + ' has no card file');
   }
   ok(LIB.length >= 5 && !bad.length, '4 the default library: ' + LIB.length + ' scenarios, each with steps and a card file', bad.join('; '));
+  // 6 THE LOADS (the user via A0): three numbers, cold and warm, each split into phases; the targets
+  ok(/L\.toGarage = Object\.assign\(verdict\(tg - from\)/.test(src) && /L\.toWorld = Object\.assign\(verdict\(t1 - m\.t\)/.test(src) && /L\.worldToGarage = Object\.assign\(verdict\(t1 - m\.t\)/.test(src),
+     '6 the three loads: TIME-TO-GARAGE, TIME-TO-WORLD, WORLD-TO-GARAGE');
+  ok(/if \(A\.pass === 1\) \{ A\.pass = 2; ss\.set\(KEY, A\);[^\n]*location\.reload\(\); return null; \}/.test(src) && /tr\.loads = \{ cold: A\.loads\[0\] \|\| null, warm: A\.loads\[1\] \|\| null/.test(src),
+     '6 cold AND warm: a second launch with the cache kept');
+  ok(/const LOAD_TARGET_MS = 30000, GARAGE_AIM_MS = 20000;/.test(src) && /W\.__pbClick = nowMs\(\); b\.click\(\);/.test(src), '6 the targets (garage ~20 s, nothing over 30 s); the time from the welcome menu\'s click');
+  { const m = /const PHASE_OF = (id => [^;]+);/.exec(src); const PO = m ? eval(m[1]) : null;
+    ok(!!PO && PO('compile:cold') === 'shaders' && PO('frames') === 'shaders' && PO('images') === 'assets' && PO('upload') === 'assets' && PO('world') === 'world' && PO('trees') === 'world' &&
+       PO('settle') === 'settle' && PO('bake') === 'impostors' && PO('board') === 'other' && (B !== 'phase' || false),
+       '6 the phases off the loading screen\'s steps: shaders, assets, world, settle, impostors, other');
+    ok(/P\.shaders\.compiled = /.test(src) && /P\.assets\.KB = /.test(src) && /P\.assets\.spanMs = /.test(src), '6 the shaders compiled (programs) and the assets fetched (KB, ms) of each load'); }
   // 5
-  ok(['what:', 'run:', 'device:', 'boot:', 'garage:', 'steps:', 'crash:', 'end:'].every(k => src.includes(k)) && /garage = \{ sliders: await sliders\(say\), menu: await menuRows\(say\) \}/.test(src),
+  ok(['what:', 'run:', 'device:', 'loads:', 'boot:', 'garage:', 'steps:', 'crash:', 'end:'].every(k => src.includes(k)) && /garage = \{ sliders: await sliders\(say\), menu: await menuRows\(say\) \}/.test(src),
      '5 the trace: run, device, boot, garage (sliders, menu), steps, crash, end');
   return { fails, checks };
 }
 if (SELF) {
-  let red = 0; const breaks = ['wire', 'disarm', 'even', 'stopped', 'seg'];
+  let red = 0; const breaks = ['wire', 'disarm', 'even', 'stopped', 'seg', 'cold'];
   for (const b of breaks) { const r = run(b); console.log('  selftest ' + b + ': ' + (r.fails ? 'red (ok)' : 'GREEN')); if (r.fails) red++; }
   const r0 = run(null);
   console.log('GATE PERFBENCH: ' + (red === breaks.length && !r0.fails ? 'PASS' : 'FAIL'));

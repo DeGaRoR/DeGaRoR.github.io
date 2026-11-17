@@ -77,6 +77,63 @@ var FLYDIY_PERFBENCH = (function () {
              where: w && w.aero ? w.aero.id : null, crashed: !!(D && (D.crashed || D.over)), dmg: D ? (D.reason || D.verdict || null) : null, declined: dec,
              said: vv.slice(-3).map(q => q.code + '@' + Math.round(q.t) + (q.note ? ': ' + String(q.note).slice(0, 160) : '')) };
   }
+  // ---- THE LOADS (the user via A0, 17 Nov): TIME-TO-GARAGE (the menu's click -> the garage interactive), TIME-TO-WORLD (Go ->
+  // flying with the world settled), WORLD-TO-GARAGE (back to the shed), COLD and WARM (a second launch, the cache kept); each
+  // split into phases off the loading screen's own log (BOOT.log: its steps with their ms) - the shaders (the compile and the
+  // frames under the overlay, the programs linked), the assets fetched (the resource timings: bytes, ms), the world build, the
+  // settle, the impostor bakes. The user's targets: the garage about 20 s, nothing over 30 s
+  const LOAD_TARGET_MS = 30000, GARAGE_AIM_MS = 20000;
+  const PHASE_OF = id => /^(compile|frames)/.test(id) ? 'shaders' : /^(images|upload)/.test(id) ? 'assets' : /^bake/.test(id) ? 'impostors' : /^settle/.test(id) ? 'settle'
+    : /^(world|town|trees|ring|parking|stages|shed)/.test(id) ? 'world' : 'other';
+  const programs = () => { try { const i = W.FLYDIY_RENDERER && FLYDIY_RENDERER.info; return i && i.programs ? i.programs.length : null; } catch (e) { return null; } };
+  const mark0 = () => ({ t: nowMs(), log: W.BOOT && BOOT.log ? BOOT.log.length : 0, prog: programs() });
+  function phases(m0, t1) {
+    const P = { shaders: { ms: 0, steps: 0 }, assets: { ms: 0, steps: 0 }, world: { ms: 0, steps: 0 }, settle: { ms: 0, steps: 0 }, impostors: { ms: 0, steps: 0 }, other: { ms: 0, steps: 0 } };
+    const L = W.BOOT && BOOT.log ? BOOT.log.slice(m0.log) : [];
+    for (const e of L) if (e.k === 'step' && e.ms > 0) { const p = P[PHASE_OF(String(e.id || ''))]; p.ms += e.ms; p.steps++; }
+    const sh = L.filter(e => e.k === 'shaders').pop();
+    P.shaders.compiled = (programs() != null && m0.prog != null) ? programs() - m0.prog : null;
+    if (sh) P.shaders.bar = { done: sh.done, total: sh.total };
+    let rs = []; try { rs = performance.getEntriesByType('resource').filter(r => r.startTime >= m0.t - 5 && r.startTime <= t1); } catch (e) {}
+    P.assets.fetched = rs.length; P.assets.KB = Math.round(rs.reduce((a, r) => a + (r.transferSize || 0), 0) / 1024);
+    P.assets.bodyKB = Math.round(rs.reduce((a, r) => a + (r.decodedBodySize || r.encodedBodySize || 0), 0) / 1024);
+    P.assets.spanMs = rs.length ? Math.round(Math.max(...rs.map(r => r.responseEnd)) - Math.min(...rs.map(r => r.startTime))) : 0;
+    P.assets.cachedShare = rs.length ? Math.round(100 * rs.filter(r => r.transferSize === 0).length / rs.length) : null;
+    return P;
+  }
+  const verdict = ms => ({ ms: Math.round(ms), s: r1(ms / 1000), ok: ms <= LOAD_TARGET_MS });
+  const bootGone = async (maxS, set) => { for (let i = 0; i < maxS * 4; i++) { if (!W.BOOT || BOOT.state === 'gone') return true; await sleep(250); } return false; };
+  // one launch's three numbers (the cycle needs a world: not on the phone profile)
+  async function loadCycle(A, say) {
+    const L = { pass: A.pass, source: null, toGarage: null, toWorld: null, worldToGarage: null };
+    try { const nv = performance.getEntriesByType('navigation')[0]; L.source = { sw: !!(navigator.serviceWorker && navigator.serviceWorker.controller), transferKB: nv ? Math.round(nv.transferSize / 1024) : null }; } catch (e) {}
+    const from = W.__pbClick != null ? W.__pbClick : 0;   // the welcome menu's click when it showed, else the navigation's start
+    await bootGone(600);
+    const tg = nowMs();
+    L.toGarage = Object.assign(verdict(tg - from), { from: W.__pbClick != null ? 'the menu click' : 'the page load', aimMs: GARAGE_AIM_MS, phases: phases({ t: from, log: 0, prog: 0 }, tg) });
+    say('launch ' + A.pass + ': the garage in ' + L.toGarage.s + ' s (' + L.toGarage.from + ')');
+    if (garageOnly() || !document.getElementById('bGo')) return L;
+    await sleep(3000);
+    // Go -> flying with the world settled (the roll-out screen gone, the sim's clock rising, then two seconds of frames under 100 ms)
+    let m = mark0();
+    const flew = await goUntilFlying();
+    await bootGone(300);
+    for (let i = 0; i < 60; i++) { takeFrames(); await sleep(2000); const fr = takeFrames(); if (fr && fr.max <= 100) break; }
+    let t1 = nowMs();
+    L.toWorld = Object.assign(verdict(t1 - m.t), { flew, phases: phases(m, t1) });
+    say('launch ' + A.pass + ': the world in ' + L.toWorld.s + ' s');
+    await sleep(4000);
+    // back to the shed (the game's own way), the roll-in screen gone and the garage up
+    m = mark0();
+    try { FLYDIY_MENU.act('shed'); } catch (e) {}
+    for (let i = 0; i < 480 && !document.body.classList.contains('garage'); i++) await sleep(250);
+    await bootGone(300);
+    t1 = nowMs();
+    L.worldToGarage = Object.assign(verdict(t1 - m.t), { phases: phases(m, t1) });
+    say('launch ' + A.pass + ': back in the shed in ' + L.worldToGarage.s + ' s');
+    await sleep(2000);
+    return L;
+  }
   function miss(U, x, el) {
     const m = [];
     if (!U) return m;
@@ -142,7 +199,7 @@ var FLYDIY_PERFBENCH = (function () {
   async function run(name, o) {
     o = o || {};
     const e = name && typeof name === 'object' ? name : (name ? { name } : null);
-    const A = { v: V, name: e ? e.name : null, file: e ? fileOf(e) : null, crash: !!o.crash, armedAt: Date.now() };
+    const A = { v: V, name: e ? e.name : null, file: e ? fileOf(e) : null, crash: !!o.crash, armedAt: Date.now(), mode: W.FLYDIY_MODE || 'sandbox' };
     if (e) {
       const S = await getJSON(A.file);
       const P = await planeOf(S.plane);
@@ -156,14 +213,22 @@ var FLYDIY_PERFBENCH = (function () {
   const T = { trace: null };
   async function resume(A) {
     ss.del(KEY);   // (never two runs from one arming: a reload in the run starts nothing)
+    A.pass = A.pass || 1; A.loads = A.loads || [];
     const tr = T.trace = { what: 'flydiy-perfbench', v: V, run: { scenario: A.name, what: A.scenario ? A.scenario.what || null : null, plane: A.plane ? A.plane.name : null,
       build: A.plane ? A.plane.file : null, from: A.scenario ? A.scenario.from : null, to: A.scenario ? (A.scenario.to || A.scenario.from) : null,
-      persona: A.scenario ? (A.scenario.persona || 'expert') : null, at: new Date().toISOString() }, device: null, boot: null, garage: null, steps: [], crash: null, end: null };
+      persona: A.scenario ? (A.scenario.persona || 'expert') : null, at: new Date().toISOString() }, device: null, loads: null, boot: null, garage: null, steps: [], crash: null, end: null };
     const card = ui();
     const say = t => { if (card) card.log(t); };
+    if (card && A.log) for (const l of A.log) card.log(l);
+    const sayK = t => { say(t); (A.log = A.log || []).push(t); };
+    // THE LOADS: launch 1 (as cached as the browser happens to be: its source recorded), then launch 2 (warm: the cache kept)
+    const LD = await loadCycle(A, sayK);
+    A.loads.push(LD);
+    if (A.pass === 1) { A.pass = 2; ss.set(KEY, A); sayK('the second launch (warm)...'); await sleep(1500); location.reload(); return null; }
+    tr.loads = { cold: A.loads[0] || null, warm: A.loads[1] || null, targets: { garageAimMs: GARAGE_AIM_MS, maxMs: LOAD_TARGET_MS },
+                 note: 'cold = the first launch as the browser had it cached (its source: sw / transferKB); a true cold: clear the site\'s cache first' };
     // THE BOOT: the loading screen's frames since eval, the first contact to the garage (ms from the navigation)
-    for (let i = 0; i < 1200 && W.BOOT && BOOT.state && BOOT.state !== 'gone'; i++) await sleep(250);
-    tr.boot = { garageMs: Math.round(nowMs()), loading: takeFrames(), long: takeLong() };
+    tr.boot = { garageMs: A.loads[1] && A.loads[1].toGarage ? A.loads[1].toGarage.ms : Math.round(nowMs()), loading: takeFrames(), long: takeLong() };
     tr.device = device();
     say('boot: the garage at ' + (tr.boot.garageMs / 1000).toFixed(1) + ' s' + (tr.boot.loading ? ', loading-screen frames max ' + tr.boot.loading.max + ' ms' : ''));
     await sleep(3000); takeFrames(); takeLong();
@@ -175,7 +240,7 @@ var FLYDIY_PERFBENCH = (function () {
     seg('end');
     try { W.localStorage.setItem(LAST, JSON.stringify(tr)); } catch (e) {}
     if (recOn()) {
-      try { FLIGHT_REC.event('bench', null, { scenario: A.name, file: A.file, runner: 'ingame', run: tr.run, device: tr.device, boot: tr.boot, garage: tr.garage, crash: tr.crash, end: tr.end,
+      try { FLIGHT_REC.event('bench', null, { scenario: A.name, file: A.file, runner: 'ingame', run: tr.run, device: tr.device, loads: tr.loads, boot: tr.boot, garage: tr.garage, crash: tr.crash, end: tr.end,
         steps: tr.steps.map(x => ({ i: x.i, name: x.name, do: x.do, ok: x.ok, t0: x.t0, t1: x.t1, phases: x.phases, frames: x.frames, why: x.why, worldMs: x.worldMs, kind: x.kind })) }); } catch (e) {}
       try { await FLIGHT_REC.save(); say('done - the flight log is saved (a download): tools/perf_trace.js makes the report'); } catch (e) { say('the log could not be saved: ' + e.message); download(tr); }
     } else { say('the flight recorder is off: the summary is saved instead'); download(tr); }
@@ -328,7 +393,7 @@ var FLYDIY_PERFBENCH = (function () {
       menu: async () => {
         body.textContent = ''; logEl.textContent = '';
         const p = document.createElement('div'); p.style.cssText = 'color:#a89f90;margin-bottom:6px';
-        p.textContent = 'Runs in this page and saves one JSON trace (a download). The page reloads first, to time the loading screen.' + (garageOnly() ? ' This profile boots the garage alone: the garage steps only.' : '');
+        p.textContent = 'Runs in this page: two launches (cold, then warm) timing the garage, the world and the way back to the shed, then the steps; the flight recorder\'s log is saved at the end (a download).' + (garageOnly() ? ' This profile boots the garage alone: the garage steps only.' : '');
         body.appendChild(p);
         body.appendChild(btn('Garage + menus only', () => run(null)));
         if (!garageOnly()) { let L = []; try { L = await list(); } catch (e) {}
@@ -346,6 +411,9 @@ var FLYDIY_PERFBENCH = (function () {
   if (armed && armed.v === V) framesOn();
   if (W.document) {
     let tries = 0;
+    // (an armed run answers the welcome menu itself with the mode it was armed in, and times from that click: TIME-TO-GARAGE)
+    if (armed && armed.v === V) { let wt = 0; const ans = () => { const b = document.querySelector('button.wmode[data-mode="' + (armed.mode || 'sandbox') + '"]');
+      if (b && b.offsetParent && !b.disabled) { W.__pbClick = nowMs(); b.click(); return; } if (++wt < 120 && !W.FLYDIY_MENU) setTimeout(ans, 250); }; setTimeout(ans, 250); }
     const wire = () => {
       if (W.FLYDIY_MENU && FLYDIY_MENU.add) FLYDIY_MENU.add({ k: 'perfbench', label: 'Benchmark', sec: 'Options', before: 'main', act: () => { try { FLYDIY_MENU.close(); } catch (e) {} open(); } });
       else if (++tries < 240) return setTimeout(wire, 500);

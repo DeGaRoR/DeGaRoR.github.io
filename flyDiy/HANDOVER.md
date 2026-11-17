@@ -317214,4 +317214,9 @@ KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes 
 - ONE LOG (Pilot's PERF-TRACE-FORMAT.md): every step is FLIGHT_REC.mark('seg:<name>'), 'seg:end' at the end, the run said
   once as FLIGHT_REC.event('bench', ...runner 'ingame'), and FLIGHT_REC.save() downloads the recorder's log; Pilot's
   tools/perf_trace.js makes the report. With ?rec=0 the summary JSON is downloaded instead. The card keeps the last summary.
-- GATE PERFBENCH (20 checks, --selftest 5 breaks red). GPU check in the page: pending a slot (scratchpad stills/pb_check.js).
+- THE LOADS (the user via A0): TIME-TO-GARAGE (the welcome menu's click, else the page load -> the garage), TIME-TO-WORLD (Go ->
+  flying, the world settled: the roll-out screen gone and 2 s of frames under 100 ms), WORLD-TO-GARAGE (the shed -> the garage up),
+  COLD then WARM (a second launch, the cache kept; the source recorded), each split off BOOT.log: shaders (steps + programs
+  linked), assets (resource timings: count, KB, span, cached share), world, settle, impostors, other; targets ~20 s / 30 s max.
+- GATE PERFBENCH (25 checks, --selftest 6 breaks red; the frame counts on the meter's lines from Codex's flightlog_evidence.js).
+  GPU check in the page: Wed 18 Nov 06:00-06:25 (scratchpad stills/pb_check.js).
