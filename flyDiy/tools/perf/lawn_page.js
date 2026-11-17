@@ -6,17 +6,26 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const argv = process.argv.slice(2), opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
-const IN = path.resolve(opt('in', 'lawn_rig_out')), OUT = path.resolve(opt('out', path.join(IN, 'lawn_page.html'))), DEF = opt('default', 'B'), NOTE = opt('note', '');
-const J = JSON.parse(fs.readFileSync(path.join(IN, 'lawn_rig.json'), 'utf8'));
+// --in dir[:tag],dir2[:tag2] - several rig runs on one page (a tag suffixes that run's eyes: 'phone' -> 'rwyside-phone'); --extra
+// file.html - a section dropped in before the costs (the tier table); --ask / --answer: the question and its default line
+const INS = opt('in', 'lawn_rig_out').split(',').map(x => { const i = x.lastIndexOf(':'); const t = i > 2 ? x.slice(i + 1) : ''; return { dir: path.resolve(i > 2 ? x.slice(0, i) : x), tag: t }; });
+const IN = INS[0].dir, OUT = path.resolve(opt('out', path.join(IN, 'lawn_page.html'))), DEF = opt('default', 'B'), NOTE = opt('note', '');
+const EXTRA = opt('extra', null) ? fs.readFileSync(path.resolve(opt('extra')), 'utf8') : '';
+const J = { gpu: null, frames: null, rows: [] };
+for (const I of INS) { const j = JSON.parse(fs.readFileSync(path.join(I.dir, 'lawn_rig.json'), 'utf8')); J.gpu = J.gpu || j.gpu; J.frames = J.frames || j.frames;
+  for (const r of j.rows) J.rows.push(Object.assign({}, r, { eye: I.tag ? r.eye + '-' + I.tag : r.eye, dir: I.dir })); }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const EYE = { cockpit: 'HOME, from the cockpit at the stand', rwyside: 'HOME, beside the runway (1.8 m up, the mown band)', app10: 'HOME, low pass (10 m over the threshold)', cabin: 'Cabin Strip, your back eye (15 Nov)' };
-const ORDER = ['master', 'edge', 'A', 'B', 'C', 'D', 'phone'];
-const SHORT = { master: 'Today', edge: 'Tue floor (30 cm)', A: 'A', B: 'B', C: 'C', D: 'D', phone: 'Phone' };
+const EYE = { cockpit: 'HOME, from the cockpit at the stand', rwyside: 'HOME, beside the runway (1.8 m up, the mown band)', app10: 'HOME, low pass (10 m over the threshold)', cabin: 'Cabin Strip, your back eye (15 Nov)',
+  'rwyside-phone': 'Phone preset: HOME, beside the runway', 'cabin-phone': 'Phone preset: Cabin Strip' };
+const ORDER = ['master', 'edge', 'A', 'B', 'C', 'D', 'phone', 'ship', 'Bl', 'off', 'P1', 'P2'];
+const SHORT = { master: 'Today', edge: 'Tue floor (30 cm)', A: 'A', B: 'B', C: 'C', D: 'D', phone: 'Phone', ship: 'D (ships)', Bl: 'B', off: 'Lawn off', P1: 'P1', P2: 'P2' };
 const WHAT = { master: 'short tufts, 8 cm (the dots)', edge: 'tufts floored at 30 cm (Tuesday’s stopgap)', A: 'cards, 6 cm, 80 a m²', B: 'cards, 8 cm, 150 a m²',
-  C: 'cards, 12 cm, 150 a m²', D: 'cards, 10 cm, 300 a m², to 20 m', phone: 'B at 60 a m², to 20 m' };
+  C: 'cards, 12 cm, 150 a m²', D: 'cards, 10 cm, 300 a m², to 20 m', phone: 'B at 60 a m², to 20 m',
+  ship: 'cards, 10 cm, 300 a m², to 20 m (gamer, ultra)', Bl: 'cards, 8 cm, 150 a m², to 40 m (current, retro)', off: 'no cards: the tufts, or bare ground on the phone',
+  P1: 'D\u2019s look to 12 m', P2: 'D\u2019s look to 12 m, upright cards only' };
 const SHOW = opt('eyes', null) ? opt('eyes').split(',') : null;   // the eyes on the page (the costs still read every eye)
 const eyes = [...new Set(J.rows.map(r => r.eye))].filter(e => !SHOW || SHOW.includes(e));
-const img = f => { try { return 'data:image/jpeg;base64,' + fs.readFileSync(path.join(IN, f)).toString('base64'); } catch (e) { return null; } };
+const img = (f, dir) => { try { return 'data:image/jpeg;base64,' + fs.readFileSync(path.join(dir || IN, f)).toString('base64'); } catch (e) { return null; } };
 const n1 = v => v == null ? '–' : (+v).toFixed(v < 10 ? 2 : 1);
 const k = v => v == null ? '–' : v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(v);
 // per config: the worst eye's lawn GPU ms, cards drawn, draws; the field's ms beside it; the cell build
@@ -26,16 +35,16 @@ for (const r of J.rows) { const a = agg[r.config] || (agg[r.config] = { ms: 0, i
   a.ms = Math.max(a.ms, L.ms || 0); a.inst = Math.max(a.inst, (L.instK || 0) * 1000); a.draws = Math.max(a.draws, L.draws || 0);
   a.fms = Math.max(a.fms, F.ms || 0); a.all = Math.max(a.all, (L.ms || 0) + (F.ms || 0)); a.cell = Math.max(a.cell, (r.rings && r.rings.lawn && r.rings.lawn.meanMs) || 0); if (r.frame && r.frame.frameGpuMs) a.frame.push(r.frame.frameGpuMs); }
 const cfgs = ORDER.filter(c => agg[c]);
-const fig = r => { const src = r.still ? img(r.still) : null, L = r.cost && r.cost.lawn || {}, pick = r.config === DEF;
+const fig = r => { const src = r.still ? img(r.still, r.dir) : null, L = r.cost && r.cost.lawn || {}, pick = r.config === DEF;
   return `<figure class="shot${pick ? ' pick' : ''}" id="${esc(r.eye + '-' + r.config)}">
   ${src ? `<a class="x" href="#top">close</a><a href="#${esc(r.eye + '-' + r.config)}"><img src="${src}" alt="${esc(SHORT[r.config] + ', ' + EYE[r.eye])}" loading="lazy"></a>` : '<div class="miss">no picture</div>'}
   <figcaption><b>${esc(SHORT[r.config])}</b>${pick ? '<span class="tag">default</span>' : ''}<span class="what">${esc(WHAT[r.config] || r.label)}</span>
-  <span class="num">${r.config === 'master' || r.config === 'edge' ? 'no cards' : `${n1(L.ms)} ms · ${k(Math.round((L.instK || 0) * 1000))} cards · ${L.draws || 0} draws`}</span></figcaption></figure>`; };
+  <span class="num">${r.config === 'master' || r.config === 'edge' || r.config === 'off' ? 'no cards' : `${n1(L.ms)} ms · ${k(Math.round((L.instK || 0) * 1000))} cards · ${L.draws || 0} draws`}</span></figcaption></figure>`; };
 const big = r => r.still ? `<a class="big" id="${esc(r.eye + '-' + r.config)}-big" href="#${esc(r.eye + '-' + r.config)}"><img src="${img(r.still)}" alt=""><span>${esc(SHORT[r.config] + ' · ' + EYE[r.eye])} · tap to close</span></a>` : '';
 const sections = eyes.map(e => `<section class="eye"><h2>${esc(EYE[e] || e)}</h2><div class="grid">${ORDER.map(c => J.rows.find(r => r.eye === e && r.config === c)).filter(Boolean).map(fig).join('')}</div></section>`).join('');
 const bigs = '';   // (a tapped still expands in place: .shot:target - each picture is embedded once)
 const table = `<div class="tw"><table><thead><tr><th>variant</th><th>what it is</th><th class="r">all the grass</th><th class="r">cards only</th><th class="r">cards drawn</th><th class="r">draws</th><th class="r">a cell's build</th></tr></thead><tbody>
-${cfgs.map(c => { const a = agg[c], card = c !== 'master' && c !== 'edge';
+${cfgs.map(c => { const a = agg[c], card = c !== 'master' && c !== 'edge' && c !== 'off';
   return `<tr${c === DEF ? ' class="pick"' : ''}><td><b>${esc(SHORT[c])}</b></td><td>${esc(WHAT[c])}</td><td class="r">${n1(a.all)} ms</td><td class="r">${card ? n1(a.ms) + ' ms' : '–'}</td><td class="r">${card ? k(Math.round(a.inst)) : '–'}</td><td class="r">${card ? a.draws : '–'}</td><td class="r">${card ? n1(a.cell) + ' ms' : '–'}</td></tr>`; }).join('\n')}
 </tbody></table></div>`;
 const html = `<title>Mown Grass Cards</title>
@@ -76,12 +85,13 @@ footer { font-size: 12px; color: var(--mute); display: grid; gap: 4px }
 </style>
 <main id="top">
   <div class="lead">
-    <h1>Mown grass as grass cards</h1>
+    <h1>${esc(opt('h1', 'Mown grass as grass cards'))}</h1>
     <p>You said short grass reads as little dots, never a lawn. Today every mown band is the tall-grass tuft shrunk to 8 cm. This study plants the bench’s grass cards instead (grass_plates: strips of about 40 blades each, never used in the game) on every mown band, apron, verge and grass runway. The wild grass is untouched.</p>
     ${NOTE ? `<p class="mute">${esc(NOTE)}</p>` : ''}
   </div>
-  <div class="ask"><b>Which mown grass should ship?</b><p>Default: <b style="font-size:inherit">${esc(SHORT[DEF])}</b> (${esc(WHAT[DEF])}), the variant that reads as a lawn at the lowest cost. The others stay as settings in the F9 world editor.</p></div>
+  <div class="ask"><b>${esc(opt('ask', 'Which mown grass should ship?'))}</b><p>${opt('answer', null) ? esc(opt('answer')) : 'Default: <b style="font-size:inherit">' + esc(SHORT[DEF]) + '</b> (' + esc(WHAT[DEF]) + '), the variant that reads as a lawn at the lowest cost. The others stay as settings in the F9 world editor.'}</p></div>
   ${sections}
+  ${EXTRA}
   <section class="eye"><h2>What each variant costs</h2><p class="mute">GPU time a frame on the RTX 3080 at 1280×720, the worst eye. “All the grass” is the cards plus the tall grass tufts together: with the cards on, the tufts leave the mown ground, so that column is the fair comparison. A cell is 8 m of ground planted once as you fly or taxi.</p>${table}</section>
   <footer><span>GPU: ${esc(J.gpu || '')}. Frames timed: ${esc(J.frames)}. Built from claude/grass-cards on grass-edge.</span><span>Known limit, wild grass only: the tall tufts decide where to grow from the nearest 1 m point, so they can reach up to half a metre onto a paved edge. The cards read the ground between points and stop at the pavement. The tufts are not changed this week.</span><span>The phone row is the phone’s settings shot on the desktop GPU, not a real phone.</span><span>Tap a picture to see it full size.</span></footer>
 </main>
