@@ -405,6 +405,16 @@
    "massK": 1.293832555077828
   }
  },
+ "e811_installed": {
+  "base": "pipistrel E-811",
+  "dials": {
+   "rpm": 2500,
+   "geared": 0,
+   "liquid": 1,
+   "bmepK": 1.020803648190728,
+   "massK": 1.8306876978868605
+  }
+ },
  "sp260d_class": {
   "base": "SP260D-class",
   "dials": {

@@ -31,7 +31,7 @@ if (!FIN) { console.error('cage fin layer: _fin_gen.js not loaded'); return; }
 // that can disagree. _cage_stab.js reads this same key.
 const finDef = Object.assign({ finOn: 1, finProject: 1, finCut: 0,
   finRudBelow: 0,   // (a rod's rudder down over the rod's height: off)
-  finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6, finVentralZ: 0.08, finVentralTip: 0.35,
+  finVentralOn: 1, finVentralLand: 0, finVentralH: 0.4, finVentralC: 0.6, finVentralZ: 0.08, finVentralTip: 0.35,
   finVentralShape: 0,   // FLOATS-CLASSIC: 0 the swept plate (every build before), 1 the vintage lobe (the EDO plan's)
   finCutGap: 0.012,
   finSolid: 1, finThick: 0.06, finThickTE: 0.015, tailRimN: 4,
@@ -694,11 +694,13 @@ PAGE.post = ctx => {
   // G451: the seaplane's ventral under a single-fin tail — the same sheet
   // on the fuselage's own belly line (finCentreline's `bot`), its trailing
   // edge `finVentralZ` ahead of the tail cap (the tie-down ring's station)
-  const vOn = !!(+P.finVentralOn && (TB || +P.gearFloats)) && !!deck;
+  // FINVENTRAL-LAND (proto 17 Nov, the Virus: "a very little ventral fin at the back, like the sailplanes"): finVentralLand lets a
+  // single-fuselage landplane carry the ventral (absent 0: the twin-boom / float rule as ever)
+  const vOn = !!(+P.finVentralOn && (TB || +P.gearFloats || +P.finVentralLand)) && !!deck;
   if (vOn && !wire) {
     let zAftAll = Infinity;
     if (TB) { for (const v of disp.V) if (v[2] < zAftAll) zAftAll = v[2]; }
-    else zAftAll = deck.z0 + Math.max(0, +P.finVentralZ || 0);
+    else zAftAll = deck.z0 + Math.max(+P.finVentralLand ? -0.3 : 0, +P.finVentralZ || 0);   // FINVENTRAL-LAND: a land ventral may run aft of the cap, under the rudder
     if (isFinite(zAftAll)) {
       // G271 (the user: "the bottom fin is too rough for now. Give it some
       // trailing edge thinning, a proper thin line bevel, and get it higher
@@ -744,7 +746,7 @@ PAGE.post = ctx => {
             const u = u0 + (u1 - u0) * i / NU, z = zAftAll + (1 - u) * cR;
             V.push([0, (1 - v) * yRoot(Math.min(z, zAftAll + 0.18 * cR)) + v * yTipL, z]);
           } else {
-            const u = i / NU, z = zAftAll + u * c;
+            const u = i / NU, z = zAftAll + u * c - v * (+P.finVentralSweep || 0);   // FINVENTRAL-SWEEP (proto 17 Nov): the tip row slid aft (a swept parallelogram); absent / 0 the plate it was
             V.push([0, (1 - v) * yRoot(z) + v * yTip, z]);
           }
         }

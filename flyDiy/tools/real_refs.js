@@ -168,6 +168,27 @@ const REFS = {
   // PILATUS PC-6/B2-H4 TURBO PORTER (FIT-PROCEDURE, the drafting table 11-16 Nov; tools/drafting/refs/pc6.json - the type
   // certificate prevails). The factsheet's figures are ISA, the STOL technique; its TO50 / LDG50 state no weight.
   // Vs0 (96 km/h, 52 KEAS at gross, full flap) is the factsheet's too - no indicator for it here: it is the card's note
+  // ELECTRIC-TRAINER (FLAGSHIP, 18 Nov; the user 17 Nov: the Electric trainer, official, no real names in the game - the
+  // reference keeps its sources): the Virus-type electric two-seater, POH-128 rev B00 (June 2020) and EASA TCDS A.573 issue 13
+  velis: {
+    name: 'Pipistrel Velis Electro (SW 128, E-811 57.6 kW, 2 x 11 kWh)', mtow: 600, empty: 428, fuelL: 0, S: 9.51,
+    src: 'EASA TCDS A.573 issue 13 (section B, SW 128) + POH-128-00-40-001 rev B00: 600 kg, 9.51 m2, Vs1 51 KCAS / Vs0 45 KCAS at 600 kg, climb 647 fpm at 48 kW, VH 93 KCAS at 2300 rpm, TO 240 / 448 m, LDG 183 / 537 m (asphalt, SL ISA)',
+    variant: 'Pipistrel Velis Electro (Virus SW 128): E-811-268MVLC, P-812-164-F3A 3-blade fixed pitch 1.64 m, two PB345V124E-L packs',
+    sources: {
+      tcds: { what: 'EASA Type Certificate Data Sheet A.573 issue 13, 19 Nov 2025 (type Virus SW 121, section B SW 128 Velis Electro): MTOW 600 kg, the E-811, the propeller, the dimensions',
+              quality: 'typeSheet', read: '2026-11-16', noUrl: 'recorded by number, issue and date' },
+      poh:  { what: 'Pipistrel POH-128-00-40-001 rev B00, June 2020 (Velis Electro): sections 1, 2, 5, 6, 7',
+              quality: 'maker', read: '2026-11-16', noUrl: 'recorded by number and revision' },
+    },
+    poh: { vr: 1.10, vy: 1.47, flapTO: 9, flapLDG: 19, brake: 0.7, note: 'flaps +1 to take off (lift-off 50 KIAS), flaps +2 to land at 60 KIAS, power cut, brakes 1 s after touchdown' },
+    rows: {
+      empty: { v: 428, tol: 0.05, src: 'design empty 428 kg (POH 1-5)', from: 'poh' },
+      Vs1:   { v: 51 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: '51 KCAS power off, flaps 0, 600 kg (POH 5-8)', from: 'poh' },
+      Vmax:  { v: 93 * KT, tol: 0.10, kg: 'gross', src: 'VH 93 KCAS at 2300 rpm, max continuous (POH 5-12) - rpm-limited, not the full-power level speed', from: 'poh' },
+      roc:   { v: 3.29, tol: 0.08, kg: 'gross', src: '647 fpm at VY 75 KIAS, 48 kW MCP, 600 kg (POH 5-11)', from: 'poh' },
+      TO50:  { v: 448, tol: 0.10, kg: 'gross', flaps: 9, surface: 'paved', src: 'over 50 ft, MPTOP 50 kW, flaps +1, asphalt, SL ISA (POH 5-9)', from: 'poh' },
+      LDG50: { v: 537, tol: 0.10, kg: 'gross', flaps: 19, surface: 'paved', src: 'from 50 ft, flaps +2, power cut, asphalt, SL ISA (POH 5-17)', from: 'poh' },
+    } },
   pc6: {
     name: 'Pilatus PC-6/B2-H4 Turbo Porter (PT6A-27, 550 shp)', mtow: 2800, empty: 1250, fuelL: 484, S: 30.15,
     src: 'FOCA TCDS F 56-10 issue 7 (the B2-H4 column) + Pilatus factsheet "PC-6 The world\'s leading STOL" (ISA): 2800 kg, 30.15 m2, flaps 28 / 38 deg, Vs1 58 KEAS / Vs0 52 KEAS at gross, climb 5.13 m/s, max cruise 125 KTAS, TO50 440 m, LDG50 315 m',
@@ -351,6 +372,9 @@ Object.assign(REFS, {
 //   specs: engine (name), hp (per engine), nE, propD (m), blades, empty, mtow (kg), fuelL, seats
 // ---------------------------------------------------------------------------------------------------------------------
 const GEO = {
+  velis:    { dims: { span: 10.71, length: 6.47, height: 2.06, S: 9.51, hSpan: 2.18, track: 1.60 },
+              specs: { engine: 'Pipistrel E-811-268MVLC', hp: 77, nE: 1, propD: 1.64, blades: 3, empty: 428, mtow: 600, seats: 2 },
+              src: 'EASA TCDS A.573 issue 13 section B + POH-128 rev B00 (1-5, 7-8, 7-25)', lengthNote: 'overall (TCDS SW 128)' },
   pc6:      { dims: { span: 15.87, length: 10.9, height: 3.2, S: 30.15, cRoot: 1.9, cTip: 1.9, hSpan: 5.13, track: 3.0 },
               specs: { engine: 'P&WC PT6A-27', hp: 550, nE: 1, propD: [2.515, 2.565], blades: 3, empty: 1250, mtow: 2800, fuelL: [484, 644], seats: 11 },
               src: 'FOCA TCDS F 56-10 issue 7 (the B2-H4 column) + Pilatus factsheet (tools/drafting/refs/pc6.json)', lengthNote: 'overall; the height static, tail down' },
@@ -427,6 +451,9 @@ for (const k in GEO) if (REFS[k]) Object.assign(REFS[k], { dims: GEO[k].dims, sp
 // check both sides; null = no list row (jodel_geo, the floats Cessnas, the Ruckus). Where the row's file differs from
 // `file` (the Cub 1 / Jodel 2 / PA-18 25 / Petrel 41) or its blob does, see reports/REAL-FIGURES-CANON.md.
 const PLANES = {
+  // ELECTRIC-TRAINER (FLAGSHIP, 18 Nov): the user's official Electric trainer (row 61), its outside off the Virus three-view
+  etrainer: { listRow: 61, label: 'Electric trainer (a Virus-type electric two-seater; the drafting table + POH-128)', short: 'Electric trainer', file: 'builds/candidates/electric_trainer.json', ref: 'velis',
+              note: 'the outside fitted to the type three-view at level 2; the drive, packs and cabin from POH-128; its wing buckles at 3.5 g in the sandbag test (REF_MATCH section 7)' },
   // FIT-PROCEDURE (16 Nov): the drafting table's PC-6 on its oleo tailwheel (PC6-OLEO: the 30.5 kg tail gear, CG 7.7 cm aft)
   pc6:      { listRow: 57, label: 'Pilatus PC-6/B2-H4 Turbo Porter (the drafting table, the oleo tailwheel; candidate)', short: 'PC-6 Turbo Porter', file: 'builds/candidates/pc6_drafting_2026-11-11.json', ref: 'pc6', group: 'turboprop',
               // PC6-MTOW (A0 16 Nov): the type's own MTOW loading - every seat, the 492 L wing tank full, the rest as freight on the

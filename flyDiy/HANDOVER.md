@@ -318138,6 +318138,42 @@ KNIFE corpus re-recorded (A0, L40e's one new red): IDENTITY moved on the Cub fam
 
 **THROTTLE-SHOULDER (PROPER-COWLS, the user 16 Nov: "the throttle should be placed through the shoulder, and it currently can't do that properly, the big panel sticks out" - then "Yes" to fixing it and moving the Cubs).** (1) _cage_gen.js: the throttle's request (ctlThr 4/5) carries the crew's station in metres (0.45 + seatZ + thrZ over planeScale; the 0.05 was added in cage units, 1.6 cm off at planeScale 0.68) and the ring it stands off: a rear-seat pilot's bay-1 aft ring (crewPilotRear's rule), else pilCabB as before. (2) _shoulder_gen.js: the slot lever's length is the thrLen row's (pivot to knob, at least the old 45 mm through the face); absent = the old fixed reach. (3) _cage_crew.js: ctlThr 4 seats its flange at the cage pass's own measured height and station (plateY / plateZ, less the rows' shift the crew adds itself); with no shoulder at the station (4 or 5) the wall lever stands on its flange only, never the 20 x 13 cm cast plate that stood through the Cubs' skin, and the page warns. (4) _cage_crew.js wallUnder: the trim wheel's and the fuel selector's wall plates seat on the innermost wall over their footprint, 3 mm in (the trim plate stood 1 mm proud of the Carbon Cub's lower wall: the user's circled black corner; now 7 mm inside). The STOL Cub (stol_cub_showcase) ctlThr 0 -> 5; the certified J-3-chord card and the stock Piper Cub keep 0 (ctlThr is in the certificate). Physics unchanged (STOL Cub: same numbers, same spec hash). NOTE the cause of the user's "big panel": the garage page I published loaded tools/_cage8.html's old list, without _shoulder_gen.js, so every ctlThr 5 fell back to the cast plate; the page now loads build.js's own editor list. SHOULDER CREWSEATS CREWLOAD DASH PANEL CABIN EDBUGS SKIN FRAMES DMGMEMBERS COMMITHYGIENE green (CREWLOAD's retry clock red once under 4 jobs, green alone); PARTS CANDIDATES JOINPARITY ENGCONFIG fail as on the base (digests line for line).
 
+## ELECTRIC-TRAINER - the official Electric trainer (FLAGSHIP, 17-18 Nov 2026, claude/ready/electric-trainer off master 5f33d6bb7 = L40G)
+
+The user (17 Nov): "send this as-is ... for inclusion as an official plane. We'll call it the electric trainer. We'll do the
+thermal engine version later." No real names on it (the user). Plane-list row 61, reproduction, F-WETR,
+`builds/candidates/electric_trainer.json`: a Virus-type two-seat electric trainer, the outside fitted on the drafting table
+to the type's three-view at level 2 (the blueprint is private), the drive, packs, cabin and lights (none) from the type's
+electric flight manual. Its reference block (`ref`) carries the figures and their sources.
+
+THE GENERATOR ROWS IT NEEDS (each absent / 0 at its default - no other build moves - except where said):
+`frLeanCap`; `boomRound` / `boomRoundAt`; `wsStraight` (the glass's centre line straight base -> top; `wsBaseCrown` unused);
+`finVentralLand` / `finVentralSweep` (a ventral without floats / twin booms); `s2Inline` (the steered nose oleo's fork in the
+strut's line, its shroud stopped above the tyre / spat); `wgTipTE` (the tip bow's trailing edge straight); `seatStickCut`
+(the carbon bucket's stick notch); `dashBack`'s range to 0.80.
+A NEW ENGINE, APPENDED (no saved index moves): preset 47 'pipistrel E-811 installed' -> registry `e811_installed` (53 kg,
+liquid: motor + controller + both coolant loops + HV cabling, POH-128 7-12..7-17; dial point pinned in
+engine_dial_points.json) - `e811_velis` (30 kg) is untouched, so the LS4 and the e-trainer archetype do not move.
+CHANGES THAT MOVE OTHER BUILDS: BEAM-FLAT (every beam leg: the blade thin from the front, wide from the side - the user,
+"fixed once and for all"; drawing only); the electric liquid loop's heat share 0.11 -> 0.15 (the packs; liquid electrics
+only - none flew before this one); DASH-BAND (a `wsToWaist`
+build whose glass base bows high now gets its dash - the trace widens to two fifths only when the fifth finds < 4 edges);
+LINER-NGON (the composite liner lines the knife's n-gons round a drawn window - it stopped in steps).
+TOOLS: `perf_study --build=... --door` loads the build through `_load_build` (WITHOUT IT A DRAFTING-TABLE FILE FLIES ITS
+STALE SAVED WING - this card flew the base's 9.0 m wing until found), a `velis` reference row; quickshot `QS_VESSELS=1`
+draws the build's packs; quickshot no longer paints `pillarWindow` as glass; the liquid electric drive draws its radiator
+(the `rad*` rows), pumps and HV box on the stand.
+
+WHERE IT STANDS (bench at 600 kg, --door): empty 420 / 428 kg, CG 28 % MAC (25.2-32.6), margin 21 %, stall 90 / 94 km/h,
+Vs0 83 / 83, climb 3.5 / 3.3 m/s, 75 % level speed 173 / 170 km/h, take-off roll 232 (flown 283) / 240 m, endurance at
+20 kW ~64 / 62 min, cooling climb margin 1.8 (front ring + chin scoop).
+OWED, NAMED: (1) THE WING BUCKLES at 3.5 g in the sandbag test (the front spar kinks; 4.2 g in carbon) against +4 limit /
+6 ultimate: the cantilever box is not sized to its root moment - the same gap breaks the Tiger Moth (5.3 g), Stearman
+(4.0), motorglider (5.25) archetypes (REF_MATCH section 7, OPEN). It flies circuits; hard manoeuvres break it.
+(2) THE LANDING ROLL is long: 443 m flown (normal pilot) / 183 POH; the short-field pass does not finish its landing.
+(3) glide 12.4 / 15 (parasite CdS 0.41, the bare main gear the largest share); (4) no continuous rpm limit (top speed
+193 / 172; REF_MATCH section 7); (5) the windscreen base arc has small kinks (few control points). The thermal variant later.
+
 ## L40g BONUS (A0, Tue 17 Nov 22:15 train, pushed ~01:10 Wed; after the L40f scenery train, the user: autopilot/crash/planes as a bonus)
 TAKEN (14): tutorial-menu-click, mission-feas, tow-launch-l40f-2 (on afb-0220-b3-2), controls-strip, pilot-dare-2 (ALTI-TOP + no altiport decline + COMMITTED + ALTI-ROUGH + no polite divert + uphill + tail-down taxi), flight-script-page, deform-l40a-reds, joint-tether, dmg-upload, flagship-tools, pc6-l40f (tail gear sourced, alu prop, gear lever + amphibian floats, PLANES.pc6f), carbon-cub-final-2, throttle-shoulder, reg-jost (Jost Bold + reg placement).
 DROPPED -> L40h: ls4-2 (real conflict with tow-launch in 60_gen_spec.js / _cage_gen.js / _gear_page.js: REAL-FIGURES re-merges on master).

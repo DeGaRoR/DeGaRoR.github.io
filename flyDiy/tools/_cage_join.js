@@ -70,6 +70,7 @@ const CAGE_JOIN_ENGINES = {
   // TWO MORE ORPHANS (2026-09-05, found by GATE ENGID's new row): the two
   // certified-class electrics flew as an A-65 under their own names
   'pipistrel E-811': 'e811_velis',
+  'pipistrel E-811 installed': 'e811_installed',   // (ELECTRIC-TRAINER 18 Nov: the motor with its coolant loops and HV cabling)
   'SP260D-class': 'sp260d_class',
   // the turboprops (2026-09-05) — a preset without a row here flies as an
   // A-65 through the fallback below, which is the four-orphan trap
@@ -249,6 +250,9 @@ function cageJoinSpec(P, M, T) {
                 full: +P.wgTipFull > 1 ? +P.wgTipFull : null } : null } : {}),
       // TIP-SKID (60_gen_spec GEN_TIP_SKID): the wingtip skid, its shoe's depth under the skin - absent when off (no key
       // moves the hash of a wing without one)
+      // TIP-TE (proto 17 Nov, the Virus: "at the trailing edge, at the tip, the wing seems to go a little forward"): the bow's
+      // chord closes from the leading edge only by this share (1: the trailing edge runs straight to the tip) - absent = none
+      ...(+P.wgTipTE > 0 ? { tipTE: Math.min(1, +P.wgTipTE) } : {}),
       ...(+P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {}),
       // THE HUB (the rod rooted in the centre section): the centre's rows and the first bay's loop cuts the rod's hump
       // is shaped on (_cage_wing hubHump) - the same keys the wing layer draws with
