@@ -1,0 +1,34 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_load_mtow",
+ "what": "THE USER'S LOADS (a): the Cessna 172 loaded mtow (passengers + baggage into the seeded card), HOME's circuit",
+ "plane": "list:50",
+ "from": "HOME",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "load mtow",
+   "do": "load",
+   "preset": "mtow"
+  },
+  {
+   "name": "taxi + take-off (mtow)",
+   "do": "start",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "DOWNWIND"
+    ]
+   },
+   "capS": 400
+  },
+  {
+   "name": "circuit + landing (mtow)",
+   "until": {
+    "stoppedAt": "HOME"
+   },
+   "capS": 900
+  }
+ ]
+}

@@ -1,0 +1,69 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_float_plane",
+ "what": "THE USER'S FLOAT PLANE (l.10): the same camera moves, take off from the bay (SEA), land at Cedar Harbour (mk_sea, by Metlakatla), interior / exterior",
+ "plane": "builds/pa18_floats_2026-10-23.json",
+ "from": "SEA",
+ "to": "mk_sea",
+ "steps": [
+  {
+   "name": "start on the water",
+   "do": "start",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "ENROUTE",
+     "INBOUND"
+    ]
+   },
+   "capS": 400
+  },
+  {
+   "name": "orbit 360",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 20,
+   "dist": 18
+  },
+  {
+   "name": "interior",
+   "do": "camera",
+   "view": "cockpit",
+   "s": 15
+  },
+  {
+   "name": "back outside",
+   "do": "camera",
+   "view": "chase",
+   "s": 5
+  },
+  {
+   "name": "en route",
+   "do": "wait",
+   "until": {
+    "phase": [
+     "FINAL",
+     "FLARE"
+    ]
+   },
+   "capS": 1200
+  },
+  {
+   "name": "landing on the water",
+   "until": {
+    "stoppedAt": "mk_sea"
+   },
+   "capS": 600
+  },
+  {
+   "name": "orbit on the water",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 15,
+   "dist": 15
+  }
+ ]
+}
