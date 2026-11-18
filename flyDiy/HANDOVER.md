@@ -318150,3 +318150,26 @@ NEW REDS (named; owners fix next):
 - SLOPE: the user's Cub at tw_ski 280 x 6 off-strip (the 6 m roll-out: Pilot's ROLL-OUT TRACKING, owed).
 - TERRAINMATCH: potato tier pavement within 3 km +2 % (tow's joined roads) - TOW-LAUNCH.
 - TOW: the archaeopteryx circuit row (the card's pitch instability, its owner's).
+
+## PERF-BENCH - THE IN-GAME BENCHMARK BUTTON (Game, 17 Nov 2026; PERF-WEEK-METHOD-2026-11-14 line 18; claude/bench-button)
+- The game menu's "Benchmark" row opens a card (src/viewer/perf_bench.js, window.FLYDIY_PERFBENCH): Pilot's scenarios
+  (tools/flight_scripts/index.json {name, what, file}, else the library) run IN THE PAGE with flight_script.js runPage's
+  rules and Pilot's step kinds (skip, camera orbit/pan360/chase/cockpit/free, weather, time, dest, shed, rollout, wait with
+  until.s; minimap and load said skipped until the page has their API); the plane seeded as the working build (flydiy.wip)
+  and the page reloaded with the run armed in sessionStorage, so the boot is timed (the loading screen's frames, long
+  tasks, the first contact to the garage); the garage steps (the editor's sliders input-to-frame, every game-menu row opened
+  and closed); an optional crash lag (2 m under the ground, 6 s of frames). The phone profile runs the garage steps.
+- ONE LOG (Pilot's PERF-TRACE-FORMAT.md): every step is FLIGHT_REC.mark('seg:<name>'), 'seg:end' at the end, the run said
+  once as FLIGHT_REC.event('bench', ...runner 'ingame'), and FLIGHT_REC.save() downloads the recorder's log; Pilot's
+  tools/perf_trace.js makes the report. With ?rec=0 the summary JSON is downloaded instead. The card keeps the last summary.
+- THE LOADS (the user via A0): TIME-TO-GARAGE (the welcome menu's click, else the page load -> the garage), TIME-TO-WORLD (Go ->
+  flying, the world settled: the roll-out screen gone and 2 s of frames under 100 ms), WORLD-TO-GARAGE (the shed -> the garage up),
+  COLD then WARM (a second launch, the cache kept; the source recorded), each split off BOOT.log: shaders (steps + programs
+  linked), assets (resource timings: count, KB, span, cached share), world, settle, impostors, other; targets ~20 s / 30 s max.
+- GATE PERFBENCH (25 checks, --selftest 6 breaks red; the frame counts on the meter's lines from Codex's flightlog_evidence.js).
+  GPU CHECK (18 Nov, RTX 3080, gamer): 03:45 one miss (the menu step clicked update/clean rows that reload the page: now an
+  allowlist; the progress kept in sessionStorage). 06:00: the card, the menu row and the WHOLE garage run (two launches, sliders,
+  menu rows, the marks seg:*, the bench event, the log saved) checked; the scenario run reached its garage steps when the slot's
+  cap came - its flight is NOT GPU-checked yet. First numbers: TIME-TO-GARAGE 129 s cold / 149 s warm (shaders 61 s, 583
+  programs; world 34 s; settle 15 s), TIME-TO-WORLD 8 s; garage sliders 400-530 ms input-to-frame (target 100); the menu's
+  Studio row 5.6 s. WORLD-TO-GARAGE read 125 s = a timeout (the run waited on body.garage; fixed: body.mode-ws) - re-measure.
