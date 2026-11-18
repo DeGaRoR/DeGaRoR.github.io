@@ -218,7 +218,8 @@ var FLYDIY_PERFBENCH = (function () {
       build: A.plane ? A.plane.file : null, from: A.scenario ? A.scenario.from : null, to: A.scenario ? (A.scenario.to || A.scenario.from) : null,
       persona: A.scenario ? (A.scenario.persona || 'expert') : null, at: new Date().toISOString() }, device: null, loads: null, boot: null, garage: null, steps: [], crash: null, end: null };
     const card = ui();
-    const say = t => { if (card) card.log(t); };
+    const PROG = 'flydiy.perfbench.progress';
+    const say = t => { if (card) card.log(t); try { const p = JSON.parse(W.sessionStorage.getItem(PROG) || '[]'); p.push(new Date().toISOString().slice(11, 19) + ' ' + t); W.sessionStorage.setItem(PROG, JSON.stringify(p.slice(-200))); } catch (e) {} };
     if (card && A.log) for (const l of A.log) card.log(l);
     const sayK = t => { say(t); (A.log = A.log || []).push(t); };
     // THE LOADS: launch 1 (as cached as the browser happens to be: its source recorded), then launch 2 (warm: the cache kept)
@@ -272,9 +273,11 @@ var FLYDIY_PERFBENCH = (function () {
   async function menuRows(say) {
     const M = W.FLYDIY_MENU, R = [];
     if (!M || !M.open) return R;
-    const SKIP = new Set(['resume', 'main', 'mainYes', 'mainNo', 'back', 'skipTut', 'testflight', 'shed', 'perfbench', 'dest']);
+    // an ALLOWLIST (18 Nov 03:45: the menu also holds rows that reload or clean the page - updcheck, updclean - and a reload after the
+    // run's disarm ends it silently): the game's own pages and panels, never an update, a clean, the log, the full screen or the exits
+    const SAFE = new Set(['map', 'contracts', 'controls', 'graphics', 'sound', 'cards', 'gCamera', 'gDisplay', 'gNight', 'gLegend', 'gStudio']);
     M.open(); await sleep(600);
-    const keys = [...document.querySelectorAll('#gmPanel [data-g]')].map(b => b.dataset.g).filter(k => !SKIP.has(k));
+    const keys = [...document.querySelectorAll('#gmPanel [data-g]')].map(b => b.dataset.g).filter(k => SAFE.has(k));
     M.close();
     for (const k of keys) {
       await sleep(500); takeFrames(); takeLong();

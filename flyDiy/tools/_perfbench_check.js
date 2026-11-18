@@ -81,6 +81,9 @@ function run(B) {
        PO('settle') === 'settle' && PO('bake') === 'impostors' && PO('board') === 'other' && (B !== 'phase' || false),
        '6 the phases off the loading screen\'s steps: shaders, assets, world, settle, impostors, other');
     ok(/P\.shaders\.compiled = /.test(src) && /P\.assets\.KB = /.test(src) && /P\.assets\.spanMs = /.test(src), '6 the shaders compiled (programs) and the assets fetched (KB, ms) of each load'); }
+  { const m = /const SAFE = new Set\((\[[^\]]+\])\);/.exec(src); const SA = m ? JSON.parse(m[1].replace(/'/g, '"')) : null;
+    ok(!!SA && SA.includes('graphics') && !['updcheck', 'updclean', 'log', 'fullscreen', 'main', 'resume', 'perfbench', 'testflight', 'skipTut'].some(k => SA.includes(k)) && src.includes('.filter(k => SAFE.has(k))'),
+       '6 the menu step opens an ALLOWLIST of the game own pages (never an update, a clean, the log, the full screen or an exit: 18 Nov 03:45)'); }
   // 5
   ok(['what:', 'run:', 'device:', 'loads:', 'boot:', 'garage:', 'steps:', 'crash:', 'end:'].every(k => src.includes(k)) && /garage = \{ sliders: await sliders\(say\), menu: await menuRows\(say\) \}/.test(src),
      '5 the trace: run, device, boot, garage (sliders, menu), steps, crash, end');
