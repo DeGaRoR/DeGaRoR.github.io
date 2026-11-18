@@ -691,16 +691,20 @@ function cageJoinSpec(P, M, T) {
   // PILLAR-ANCHORS P4: a picked strut pillar's station; a pick returned to auto CLEARS the one the game's spec holds
   // (the garage's merge keeps a key the export leaves out). A build that never picked states nothing: its spec is
   // byte for byte what it was
+  // ONE-CESSNA (18 Nov, GATE PILLAR IDENTITY): only a pick RETURNED TO AUTO clears. A pick still set whose drawing did
+  // not run this time (the pillar snap off: the pick is read through it) keeps the station its build states - the
+  // flown spec is the build's own with the snap on or off (the 172 states its A post's strutFoot 0.6851 in its file)
+  const pilPicked = Math.round(+P.wgStrutPil || 0) > 0;
   if (spec.bracing) {
     if (typeof M.strutAt === 'number' && isFinite(M.strutAt)) spec.bracing.strutAt = M.strutAt;
-    else {
+    else if (!pilPicked) {
       let had = false;
       try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutAt != null); } catch (e) {}
       if (had) spec.bracing.strutAt = null;
     }
     // A-POST STRUT (16 Nov): the A post's station, stated and cleared the same way
     if (typeof M.strutFoot === 'number' && isFinite(M.strutFoot)) spec.bracing.strutFoot = M.strutFoot;
-    else {
+    else if (!pilPicked) {
       let had = false;
       try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutFoot != null); } catch (e) {}
       if (had) spec.bracing.strutFoot = null;

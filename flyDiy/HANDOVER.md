@@ -318223,14 +318223,27 @@ dismissed cessnaF's); _planelists_check.js back to LF (COMMITHYGIENE).
 NAMED, NOT HELD (A0's rule for this train):
 - CONTRACTS (8): minedock.02 / minedock.03 / resort.05 stage 0 not flyable by the three base designs at the refit's real
   357 m take-off - ACCEPTED by the user (17 Nov: "a stock Cessna should not be able to clear all stages ... drop it").
-- CLIP: c172 nav lamp 35.7 mm into the wing tip (allow 17.8), the nose strut edLegT 21.1 mm into the fuselage, the elevator
-  hinges 1.8-2.0 mm into the stab skin - the refit's geometry; owner FLAGSHIP (a lamp / strut / hinge seat pass).
-- LIVERY (8): the B-CESS test copy's two markings / finish round-trips (the copy's legacy finish) - owner FLAGSHIP / CANON.
-- PILLAR: IDENTITY metal Cessna - the flown spec differs with the snap on / off on the B-CESS test copy - owner FLAGSHIP.
-- PHYSPAGES (1): list:50's DESTROY physics page (no shape / nothing broken) - re-bake owed (fiche_physics_bake --only list:50).
-- PLANELISTS: CANON-CLEAN's file rules read files master gained since: the two PC-6 livery studies are one aeroplane
-  (FIT-PROCEDURE), builds/candidates/buggy / roadster have no row (CARS), tools/fixtures/trailer_hull_classic_pylon.json
-  has no row (TOW-LAUNCH) - each owner gives a row, a test_copies home or SAME_HELD.
+FIXED 18 Nov (the user 11:20: "Fix the two tests pointing at the old metal Cessna ... do everything clean"):
+- CLIP: the elevator end hinges off the stab skin (hgOutSt 0.075, hgSize 0.9 on the card, C172-CLIP's rows) and the belly
+  panel off the main leg (acc_inspBelly_lv -0.3); DECLARED with the user's words (18 Nov, on the picture): the wingtip pod
+  half sunk in the refit tip, 35.7 mm ("looking good actually, and probably realistic"), and the nose strut 21.1 mm into the
+  fuselage (20.0 -> 22.0: the oleo rides up into the cowl, anchored high on the firewall). OWED (garage gap, the user: "if
+  easy"): a skin opening where the strut passes and the oleo's top anchored on the firewall.
+- LIVERY: list:50's finish written as the page writes it (13 decal keys at their defaults dropped from the card: the look
+  is the same by definition); the check counts the markings (list:50 wears 6, the bug report's copy 2: at least 2) and
+  reads the bench's memory on a section the Cessna wears in metal (its wing, not its white body).
+- PILLAR IDENTITY: a SOURCE fix - the join cleared a picked strut station (the 172's A post, bracing.strutFoot 0.6851 in
+  its file) whenever the snap was off; only a pick returned to auto clears now (_cage_join.js). Snap on: unchanged.
+- PHYSPAGES: a SOURCE fix - the destroy page took its shape only when a part let go; list:50 kinks 18 wing members at
+  7.40 g and keeps every part, so it is drawn at its first break (66c_gen_fiche_pages.js; the Cub and the twin, which
+  lose parts, are drawn as before); list:50's physics fiche re-baked.
+- PLANELISTS: cars skip the plane-file rule by their spec (cage.isCar: the Dune Bug, the roadster); the trailer's flying
+  boat moved to tools/fixtures/test_copies/ with its row (list:96, GATE TRAILER's path follows). STILL RED: the two PC-6
+  livery cards are one aeroplane - owner the livery session (fold them into the PC-6's liveries).
+OPEN for the user: list:50 draws T-RUEX (the user's own reg, 16 Nov, commit 2c83f3569) while its list row, the fiche
+  index and PLANELISTS' pin say F-HCSN - A0 asked for F-HCSN; the card is unchanged until the user says which.
+NOTED (Deform's stills, A0 18 Nov): in the tree at 100 km/h list:50's left wing folds steeply UP at the root.
+STILL NAMED:
 - JOINPARITY: list:50's node vs page mass 1061.70 / 1061.80 kg (the Jodel's master red, the same 0.1 kg class) and its
   engine nodes' finding (-0.604 m both, the join's -0.6035); master's two reds unchanged.
 - STOL / ENGCONFIG / ALTIPORT / CANDIDATES / ENGINE / WINGROWS / NAMES: red on master 5f33d6bb7 as here (ALTIPORT case 4

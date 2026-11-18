@@ -303,7 +303,9 @@ function run(SRC) {
     if (S1 === SPEC_A) {
       const metal = Object.values(st1.mats).filter(s => /MK1/.test(s)).length;
       check(metal >= 10, tag + ': the Cessna wears its metal flake when loaded (the fingerprint can see it)', metal + ' sections');
-      check(/n2 /.test(st1.dec), tag + ': ...and its two markings', st1.dec.slice(0, 40));
+      // ONE-CESSNA (18 Nov): THE Cessna (list:50) wears six markings, the bug report's copy wore two - at least its two
+      // metallic ones (a marking block that loaded nothing would read n0)
+      check(+(st1.dec.match(/^n(\d+) /) || [0, 0])[1] >= 2, tag + ': ...and its markings (its two metallic ones among them)', st1.dec.slice(0, 40));
     }
     const p2 = page(SRC, store, 1, consOfSpec(S2)); p2.seed(S2);
     // ABSOLUTE, not only against a clean load (which runs the same seed and
@@ -413,8 +415,11 @@ function run(SRC) {
           JSON.stringify(game.ED.finishToSpec()).slice(0, 160));
     const bench = page(SRC, store, 0, 2);
     const bf = bench.ED.finishToSpec();
-    check(!!(bf && bf.sections && bf.sections.body && bf.sections.body.metal === 1),
-          'a BENCH page still gets its memory back from the pref', JSON.stringify(bf).slice(0, 120));
+    // ONE-CESSNA (18 Nov): a section the Cessna really wears in metal - the bug report's copy had a metal body, THE
+    // Cessna (list:50) a white one with metal wings and struts
+    const metSec = Object.keys((SPEC_A.finish && SPEC_A.finish.sections) || {}).find(k => SPEC_A.finish.sections[k].metal === 1);
+    check(!!(metSec && bf && bf.sections && bf.sections[metSec] && bf.sections[metSec].metal === 1),
+          'a BENCH page still gets its memory back from the pref (' + metSec + ' in metal)', JSON.stringify(bf).slice(0, 120));
   }
 
   // 3 THE POOL ---------------------------------------------------------------------

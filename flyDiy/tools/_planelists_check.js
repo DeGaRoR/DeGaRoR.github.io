@@ -218,6 +218,9 @@ function canonFiles(L, files, read) {
     let j; try { j = JSON.parse(read(fl)); } catch (e) { continue; }
     const s = j && (j.spec || j);
     if (!s || typeof s !== 'object' || Array.isArray(s) || !Array.isArray(s.wings) || !(s.cage || s.engines)) continue;
+    // ONE-CESSNA (18 Nov, A0): a CAR is not a plane file - it is saved in the garage's format (wings and all) and drives
+    // on the ground vehicle shell; its spec says so (cage.isCar: the Dune Bug, the roadster), never its name
+    if (s.cage && +s.cage.isCar > 0) continue;
     planes.push(fl);
     const o = {}; for (const k of Object.keys(s)) if (!['meta', 'paint', 'finish', 'v', 'decals'].includes(k)) o[k] = s[k];
     const h = crypto.createHash('sha1').update(canon(o)).digest('hex');
