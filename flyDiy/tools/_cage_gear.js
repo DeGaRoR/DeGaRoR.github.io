@@ -202,6 +202,12 @@ const station = (i, name) => [name, [
   ['s' + i + 'FairTail', 'tail droplet ×', 0.70, 1.60, 0.01, fairOn(i)],
   ['s' + i + 'FairRake', 'fairing rake °', -25, 25, 1, fairOn(i)],
   ['s' + i + 'FairW',   'fairing width ×', 0.80, 1.50, 0.01, fairOn(i)],
+  // SPAT-NOSE-DEPTH (15 Nov, the 172): the nose's reach ahead of the axle and the shell's depth (absent 1: as built)
+  ['s' + i + 'FairNose', 'fairing nose length ×', 0.70, 1.80, 0.01, Object.assign({ absent: 1 }, fairOn(i))],
+  ['s' + i + 'FairH',    'fairing depth ×',       0.70, 1.50, 0.01, Object.assign({ absent: 1 }, fairOn(i))],
+  // FAIR-FACET (16 Nov, the 172): the alternative shell - pointed and bevelled - and the tail swept up behind the tyre
+  ['s' + i + 'FairStyle', 'fairing style', 0, 1, 1, ['rounded', 'faceted, pointed'], Object.assign({ absent: 0 }, fairOn(i))],
+  ['s' + i + 'FairKick',  'tail upsweep (× tyre radius)', 0, 0.8, 0.01, Object.assign({ absent: 0 }, fairOn(i))],
   // the leg's own streamline shroud, without buying the wheel a spat.
   // Hidden on trousers (they already shroud the leg) and on the castor
   // (its spring shroud is the trouser state's own).
@@ -209,6 +215,10 @@ const station = (i, name) => [name, [
    { when: P => +P['s' + i + 'On'] && noRet(P)
              && (Math.round(P['s' + i + 'Fair'] || 0) < 2 || !noLever(P, i))
              && !(i === 2 && Math.round(P.s2Leg) === 3) }],
+  // LEG-FAIR-TO (the user 15 Nov, the C172 refit): the leg fairing down into the wheel pant, as on the real spring-steel
+  // gear (with a pant only). Absent at 0: above the wheel, as before
+  ['s' + i + 'LegFairTo', 'leg fairing reaches', 0, 1, 1, ['above the wheel', 'into the wheel pant'],
+   { when: P => +P['s' + i + 'On'] && noRet(P) && Math.round(+P['s' + i + 'LegFair'] || 0) > 0 && Math.round(+P['s' + i + 'Fair'] || 0) === 1, absent: 0 }],
   ...legRows(i),
 ]];
 
@@ -2737,6 +2747,42 @@ const dispose = o => {
   if (o.parent) o.parent.remove(o);
 };
 
+// NOSE-ON-COWL (15 Nov): the airframe contract ahead of the body, read off the cowl layer's drawn shells
+// (window.CAGE_COWL_SHELLS, built by _cage_cowl.js's post just before this one): every mesh under them, in the scene's
+// frame (metres, the frame the body table is in), sliced like the body (GEAR_GEN.meshAirframe). The composite answers
+// with the cowl for a station ahead of the body's front, the body otherwise; null pieces give the body back unchanged.
+function cowlTable() {
+  const sh = typeof window !== 'undefined' && window.CAGE_COWL_SHELLS;
+  if (!sh || !sh.length || !GG.meshAirframe || typeof THREE === 'undefined') return null;
+  const V = [], F = [], q = new THREE.Vector3();
+  for (const s of sh) {
+    if (!s || !s.traverse) continue;
+    let root = s; while (root.parent) root = root.parent;
+    root.updateMatrixWorld(true);
+    s.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      const pos = o.geometry.attributes.position, base = V.length, idx = o.geometry.index;
+      for (let i = 0; i < pos.count; i++) { q.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); V.push([q.x, q.y, q.z]); }
+      if (idx) for (let i = 0; i + 2 < idx.count; i += 3) F.push([base + idx.getX(i), base + idx.getX(i + 1), base + idx.getX(i + 2)]);
+      else for (let i = 0; i + 2 < pos.count; i += 3) F.push([base + i, base + i + 1, base + i + 2]);
+    });
+  }
+  return F.length ? GG.meshAirframe(V, F) : null;
+}
+let cowlAF = null;
+function withCowl(AF) {
+  if (!AF) return AF;
+  if (cowlAF === null) cowlAF = cowlTable() || false;
+  const AC = cowlAF;
+  if (!AC || !(AC.z1 > AF.z1 + 1e-3)) return AF;
+  const pick = z => (z > AF.z1 ? AC : AF);
+  return Object.assign(Object.create(AF), {
+    z1: AC.z1,
+    surf: (z, a) => pick(z).surf(z, a), keelAt: z => pick(z).keelAt(z), halfWAt: z => pick(z).halfWAt(z),
+    heightAt: z => pick(z).heightAt(z), cyAt: z => pick(z).cyAt(z), nrmAt: (z, a) => pick(z).nrmAt(z, a),
+    solidAt: (z, a) => (z > AF.z1 ? true : AF.solidAt(z, a)),
+  });
+}
 const prevPost = PAGE.post;
 // WILGA-GEAR: THE LEG FAIRING'S ROOT, FITTED TO THE BODY (the user, 10 Nov: "where the leg meets the fuselage, to have a
 // fairing that fits" - as the engine's and the cabane's pylons do): the boot (_gear_gen leverBoot) trims itself on the
@@ -2756,10 +2802,18 @@ PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
+  cowlAF = null;                                     // (NOSE-ON-COWL: this build's cowl, read fresh)
   if (!P.gearOn) return;
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
-  const AF = GG.cageAirframe(mesh, FS);
+  const AFbody = GG.cageAirframe(mesh, FS);
+  // NOSE-ON-COWL (the user 15 Nov, the C172 refit: "I'm not sure that a front wheel can anchor on a cowl now. We would need
+  // that. Real aircrafts would actually anchor it on the firewall and let it through the cowl. I think we can simply fit
+  // to the cowl for now, ensure that the fixations can stick to it"): AHEAD OF THE BODY'S FRONT (the firewall) the airframe
+  // is the cowl's drawn shells (the cowl layer's post runs first and publishes them), so a leg standing there roots on the
+  // cowl's skin instead of on the body's clamped end section. Behind the firewall the body's table answers, to the bit; no
+  // cowl drawn or nothing ahead of the body: the body alone, as before.
+  const AF = withCowl(AFbody);
   if (!AF) { if (stat) stat.textContent += '  ·  gear: no skin to stand on'; return; }
   // THE LEGS STAND ON THE DRAWN SKIN (G304, the fitment study P2): the
   // table the contract interpolates is ±3.5 mm off across a crease (the
@@ -2768,7 +2822,9 @@ PAGE.post = ctx => {
   // the whole body — the same contract with an exact radius — is what the
   // leg builders draw against; the table is still what is PUBLISHED
   // (CAGE_GEAR.AF: solidAt, open, the fitting sites every other layer asks).
-  const AFx = GG.exactAirframe ? GG.exactAirframe(AF) : AF;
+  // (NOSE-ON-COWL: the exact skin is the body's - strutSkin runs over the body mesh - and the cowl's table serves ahead of it)
+  const AFx = AF === AFbody ? (GG.exactAirframe ? GG.exactAirframe(AF) : AF)
+    : withCowl(GG.exactAirframe ? GG.exactAirframe(AFbody) : AFbody);
 
   group = new THREE.Group();
   // NAMED for the editor (G76/G77): the part table says which layer a
@@ -3222,7 +3278,8 @@ PAGE.post = ctx => {
       const wu = wheelProxy(st.leg === 3 ? null : lb);
       // the fairing's instruments ride the station (G133)
       const fOpt = { full: st.fair === 2, skirt: st.fairSkirt,
-                     tail: st.fairTail, rake: st.fairRake, width: st.fairW };
+                     tail: st.fairTail, rake: st.fairRake, width: st.fairW, nose: st.fairNose, depth: st.fairH,
+                     style: st.fairStyle, kick: st.fairKick };
       // NEW-SHAPES-1 (the Camel, 27 Oct): a biplane's V bolts to the fuselage's lower longerons, ahead of and under
       // the lower plane - the low-wing rule below would root it on that plane. `s<i>Root` 1 says the fuselage.
       const bm = boomMount(st, sgn);             // G3800: a twin boom's tailwheel on its boom

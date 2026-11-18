@@ -1853,9 +1853,14 @@ const wingPost = ctx => {
     // by the SIGN of the span coordinate gives each side its own hole, its own
     // lens and its own bound — and makes the two switchable apart, which the
     // single class could never be.
+    // CESSNA-REFIT (16 Nov, the user: "an option for having a single one, because I think that's what the Cessna has"):
+    // li_baySide picks the wing the bay is cut in - 0 (absent) both, 1 the R bay alone (+x: the PORT wing), 2 the L (starboard); the other
+    // wing keeps its skin (and the light layer, placing a lamp per bay it finds, fits none there)
     if (bayRows && vs && bayRows.has(Math.round(az * 1e4)) &&
-        uOf(vs) < BAY.chord)
-      return toBody(cen)[2] >= 0 ? 'lampR' : 'lampL';
+        uOf(vs) < BAY.chord) {
+      const sdB = toBody(cen)[2] >= 0 ? 'lampR' : 'lampL', one = Math.round(+P.li_baySide || 0);
+      if (!(one === 1 && sdB === 'lampL') && !(one === 2 && sdB === 'lampR')) return sdB;
+    }
     if (az <= zRoot + 1e-3) return 'centre';
     if (tipOn && az >= tipZ - 1e-3) return 'tip';
     return 'main';
@@ -2606,7 +2611,10 @@ const wingPost = ctx => {
         // the join writes that ring's station into bracing.strutAt and the frame roots the strut there (WYSIWYG
         // still: the drawing and the load on the one ring). 0 = auto: the frame's own rule, read back
         const pick = ['', 'A', 'B', 'C'][Math.round(+P.wgStrutPil || 0)] || '';
-        const picked = pick ? PSx.pillars.find(q => q.key === pick && q.frame) : null;
+        let picked = pick ? PSx.pillars.find(q => q.key === pick && q.frame) : null;
+        // A-POST STRUT (16 Nov, the 172): the A post off the windscreen frame's rings, a structural pillar - its own
+        // frame node (the join writes its station into bracing.strutFoot; 61_gen_frame stands the node there)
+        if (!picked && pick === 'A' && PSm.windscreenPost) picked = PSm.windscreenPost(CG2.cageResolve(spec), FS);
         if (pick && !picked) pilWhy = 'the ' + pick + ' pillar carries no frame ring here - auto';
         if (picked) { pil = picked; STRUT_PIL = { key: picked.key, zNode: picked.zNode }; }
         else {

@@ -28,6 +28,11 @@
 //   Skymaster, WIP) is a chooser shape that exists, its registration given at its birth; new_plane.js opens both (GATE NEWPLANE
 //   runs the flow).
 //
+// THE FILES (CANON-CLEAN, the user 12 Nov ~23:59: "get rid of the other copies ... once and for all"): every tracked plane
+//   file (a JSON whose spec has wings) is a list row's file - reports/ aside, the evidence; a test plane's (legacy, archive) file
+//   lives in tools/fixtures/test_copies/ (HELD: the career's file, until the career moves) and some tool or gate reads it; no two
+//   plane files are the same aeroplane (paint, finish, name and registration aside); a deleted row keeps its number, no file.
+//
 //   node tools/_planelists_check.js [--selftest]  -> "GATE PLANELISTS: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -53,7 +58,7 @@ const CLASSES = {
   "Camel-alike": ["reproduction", "builds/candidates/camel_2026-10.json", "B6313"],
   "Rufus": ["story", "builds/rufus_2026-10-18_certified.json", "N47RF"],
   "Client Cub": ["story", "builds/cub_2026-09-20.json", "N1938J"],
-  "Cessna 172 (career)": ["story", "bugReports/cessnaMetal (1).json", "B-CESS"],
+  // ("Cessna 172 (career)", list:40 B-CESS: retired by the user 13 Nov, "one official Cessna" - list:50; now a test copy)
   "Cessna 172 floats (career)": ["story", "bugReports/cessnaFloatsWOrks.json", "B-CESF"],
   "Twin busher floats 4b": ["original", "builds/candidates/Twin_busher_floats_4b.json", "F-FORE"],
   "Ultralight twin on floats": ["original", "builds/candidates/build_v7_ultralight_2026-09-05_floats.json", "F-JTWF"],
@@ -100,7 +105,7 @@ function listRows(lists, index, thumbs, exists, contractFiles, refs = RF, archKe
     if (nums.has(p.n)) bad.push('number ' + p.n + ' twice'); nums.add(p.n);
     if (!p.name || names.has(p.name)) bad.push('name missing or twice: ' + id); names.add(p.name);
     if (!ALL.includes(p.list)) bad.push(id + ': no class (' + p.list + ')');
-    if ((p.file ? 1 : 0) + (p.stock ? 1 : 0) + (p.gen ? 1 : 0) + (p.shape ? 1 : 0) !== 1) bad.push(id + ': not exactly one door');
+    if ((p.file ? 1 : 0) + (p.stock ? 1 : 0) + (p.gen ? 1 : 0) + (p.shape ? 1 : 0) !== (p.deleted ? 0 : 1)) bad.push(id + ': not exactly one door' + (p.deleted ? ' (a deleted row has none)' : ''));
     if (p.shape && (p.list !== 'wip' || !archKeys.includes(p.shape))) bad.push(id + ': shape ' + p.shape + ' is not a WIP row of a chooser shape that exists');
     if (p.alike && (!p.file || !PLAYER.includes(p.list) || ALIKES[p.alike] !== p.name || !archKeys.includes(p.alike))) bad.push(id + ': alike ' + p.alike + ' is not the chooser\'s shape for this plane');
     if (p.file) {
@@ -198,6 +203,37 @@ function stand(S, bad) {
   return bad;
 }
 
+// THE FILES (CANON-CLEAN): the tracked plane files against the list. files: [path], read: path -> text (injected: the selftest)
+const TEST_COPIES = 'tools/fixtures/test_copies/';
+const HELD = { 'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'the career\'s twin floatplane (CONTRACT_DESIGNS.twinf) - until the career flies list:27' };
+// a file the career reads BY NAME, the same aeroplane as a list row's (declared, not a copy): the Client Cub's base - src/core/79_story.js
+// storyClientSpec unfinishes it (TUTORIAL-CUBS, L40d); the list's row 1 flies the validated Cub in its own file
+const SAME_HELD = { 'builds/cub_2026-09-20.json': 'the Client Cub base (src/core/79_story.js, TUTORIAL-CUBS)' };
+function canonFiles(L, files, read) {
+  const bad = [], crypto = require('crypto');
+  const canon = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, kk) => (o[kk] = x[kk], o), {}) : x));
+  const planes = [], seen = {};
+  for (const fl of files) {
+    if (!/\.json$/.test(fl) || /^reports\//.test(fl) || /^(package|version)\.json$/.test(fl)) continue;
+    let j; try { j = JSON.parse(read(fl)); } catch (e) { continue; }
+    const s = j && (j.spec || j);
+    if (!s || typeof s !== 'object' || Array.isArray(s) || !Array.isArray(s.wings) || !(s.cage || s.engines)) continue;
+    planes.push(fl);
+    const o = {}; for (const k of Object.keys(s)) if (!['meta', 'paint', 'finish', 'v', 'decals'].includes(k)) o[k] = s[k];
+    const h = crypto.createHash('sha1').update(canon(o)).digest('hex');
+    if (seen[h] && !SAME_HELD[fl] && !SAME_HELD[seen[h]]) bad.push('files: ' + fl + ' is the same aeroplane as ' + seen[h] + ' (one plane, one file)'); else if (!seen[h]) seen[h] = fl;
+  }
+  // (a story row's STAGES are its files too: the Client Cub's upgraded / floats stages, TUTORIAL-CUBS)
+  const rowFiles = new Set(L.planes.filter(r => r.file).map(r => r.file).concat(...L.planes.map(r => Array.isArray(r.stages) ? r.stages : [])));
+  for (const fl of planes) if (!rowFiles.has(fl)) bad.push('files: ' + fl + ' is a plane file on no list row (a test copy lives in ' + TEST_COPIES + ' with its row)');
+  const code = files.filter(fl => /^(src|tools)\/.*\.(js|mjs|cjs|sh|py)$/.test(fl) && fl !== 'tools/flight_core.js' && fl !== 'tools/_planelists_check.js').map(read).join('\n');
+  for (const r of L.planes.filter(r => r.file && ['legacy', 'archive'].includes(r.list))) {
+    if (!r.file.startsWith(TEST_COPIES) && !HELD[r.file]) bad.push('files: test plane ' + r.n + ' ' + r.name + ' reads ' + r.file + ', outside ' + TEST_COPIES);
+    if (r.file.startsWith(TEST_COPIES) && !code.includes(path.basename(r.file))) bad.push('files: test copy ' + r.file + ' - no tool or gate reads it (delete it)');
+  }
+  return bad;
+}
+
 (async () => {
   const LF = 'builds/lists/plane_lists.json', IX = 'builds/candidates/index.json';
   const lists = read(LF), index = read(IX);
@@ -208,7 +244,9 @@ function stand(S, bad) {
   const coreDir = path.join(ROOT, 'src', 'core');
   const S = { garage: read('src/viewer/garage.js'), fleet: read('src/viewer/fleet_screen.js'), np: read('src/viewer/new_plane.js'), css: read('src/viewer/editor.css'), app: read('src/viewer/app.js'),
     core: fs.readdirSync(coreDir).filter(f => /\.js$/.test(f)).map(f => fs.readFileSync(path.join(coreDir, f), 'utf8')).join('\n') };
-  const bad = listRows(lists, index, thumbs, exists, contractFiles).concat(await pageRows(S));
+  const TRACKED = require('child_process').execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64e6 }).split('\n').filter(Boolean);
+  const readC = new Map(), readT = fl => { if (!readC.has(fl)) { let v = ''; try { v = fs.readFileSync(path.join(ROOT, fl), 'utf8'); } catch (e) {} readC.set(fl, v); } return readC.get(fl); };
+  const bad = listRows(lists, index, thumbs, exists, contractFiles).concat(await pageRows(S)).concat(canonFiles(JSON.parse(lists), TRACKED, readT));
   const L = JSON.parse(lists).planes;
   console.log('GATE PLANELISTS - ' + L.length + ' rows: ' + ALL.map(k => k + ' ' + L.filter(p => p.list === k).length).join(', '));
   for (const n of named) console.log('  NAMED ' + n);
@@ -222,7 +260,7 @@ function stand(S, bad) {
     await red('a test plane back on a player class', rows(edit(o => { o.planes.find(p => p.n === 3).list = 'reproduction'; })));
     await red('a reproduction off to legacy', rows(edit(o => { o.planes.find(p => p.n === 9).list = 'legacy'; })));
     await red('one plane on two rows', rows(edit(o => { o.planes.find(p => p.n === 48).file = 'builds/cub_2026-09-20_corrected.json'; })));
-    await red('a hidden test plane back on the rack', rows(lists, index.replace('"hide": "legacy", ', '')));
+    await red('a hidden next version back on the rack', rows(lists, index.replace('"hide": "next", ', '')));
     await red('the Client Cub row off the story (bare again)', rows(edit(o => { o.planes.find(p => p.n === 26).over.paint = { job: 'bare' }; })));
     await red('a player plane reading review/', rows(edit(o => { o.planes.find(p => p.n === 38).file = 'builds/candidates/review/stol_cub_kit.json'; })));
     await red('a Market file gone', listRows(lists, index, thumbs, f => f !== contractFiles[0] && exists(f), contractFiles));
@@ -234,13 +272,16 @@ function stand(S, bad) {
     await red('R2 undone', pageRows(Object.assign({}, S, { app: S.app.replace('!!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen())', 'false') })));
     const rf = fn => { const o = Object.assign({}, RF); fn(o); return o; };
     await red('canon (a): a reproduction REAL-FIGURES does not test', listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.jodel = Object.assign({}, o.jodel, { dropped: 'selftest' }); })), /^canon: reproduction Jodel/);
-    { const n0 = named.length; const r = await listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.selftest = { file: 'builds/candidates/ruckus_2026-11-09.json' }; }));
-      const ok = !r.some(m => /ruckus_2026-11-09/.test(m)) && named.slice(n0).some(m => /pending/.test(m)); named.length = n0;
+    // (CANON-CLEAN 15 Nov: the break plants its OWN pending entry - the Ruckus has its rows, jodel_geo its row 90: nothing real is
+    //  pending, and a break that leans on the day's list goes inert)
+    { const n0 = named.length, PF = 'builds/candidates/selftest_pending.json'; PENDING[PF] = 'selftest';
+      const r = await listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.selftest = { file: PF }; })); delete PENDING[PF];
+      const ok = !r.some(m => /selftest_pending/.test(m)) && named.slice(n0).some(m => /selftest_pending\.json - pending/.test(m)); named.length = n0;
       console.log('  selftest canon (a): a pending Ruckus is named, not red: ' + (ok ? 'ok' : 'WRONG')); if (!ok) bad.push('selftest: a pending plane turned red or went unnamed'); }
     await red('canon (a): a plane REAL-FIGURES tests on no row', listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.selftest = { file: 'builds/selftest_x.json' }; })), /^canon: REAL-FIGURES tests builds\/selftest_x/);
     await red('canon (b): two player planes, one registration', rows(edit(o => { o.planes.find(p => p.n === 13).reg = 'N340SS'; })), /^canon: registration N340SS/);
     await red('canon (b): a player plane without its registration', rows(edit(o => { delete o.planes.find(p => p.n === 6).reg; })), /^canon: Twin busher floats 4b has no registration/);
-    await red('canon (c): "Metal" back on a player plane', rows(edit(o => { o.planes.find(p => p.n === 40).name = 'Metal Cessna'; })), /^canon: a player plane named Metal/);
+    await red('canon (c): "Metal" back on a player plane', rows(edit(o => { o.planes.find(p => p.n === 50).name = 'Metal Cessna'; })), /^canon: a player plane named Metal/);
     await red('canon (c): a test plane not called a test copy', rows(edit(o => { o.planes.find(p => p.n === 5).name = 'B-CESS'; })), /^canon: test plane 5 /);
     await red('chooser: a shape opening two rows', rows(edit(o => { o.planes.find(p => p.n === 3).alike = 'cub'; })), /^chooser: the cub shape opens 2 rows/);
     await red('chooser: a real plane without its shape', rows(edit(o => { delete o.planes.find(p => p.n === 9).alike; })), /^chooser: the stearman shape opens 0 rows/);
@@ -248,6 +289,13 @@ function stand(S, bad) {
     await red('chooser: a shape row of a shape that does not exist', rows(edit(o => { o.planes.find(p => p.n === 55).shape = 'nope'; })), /shape nope is not a WIP row/);
     await red('chooser: a shape row with a file too', rows(edit(o => { o.planes.find(p => p.n === 56).file = 'builds/cub_2026-09-20.json'; })), /^56 Skymaster: not exactly one door/);
     await red('chooser: the shape tile builds the shape again', pageRows(Object.assign({}, S, { np: S.np.replace('else realTile(b, a, real, () => generateCard(a));', "else b.addEventListener('click', () => generateCard(a));") })), /authored shape with a real plane/);
+    { const L0 = JSON.parse(lists), plain = TRACKED.filter(fl => !/^reports\//.test(fl));
+      const tc = L0.planes.find(r => r.file && r.file.startsWith(TEST_COPIES));
+      await red('files: a plane file on no row', canonFiles(L0, plain.concat(['builds/stray_selftest.json']), fl => (fl === 'builds/stray_selftest.json' ? readT('builds/cub_2026-09-20_corrected.json').replace('"name"', '"nm"') : readT(fl))), /stray_selftest\.json is a plane file on no list row|same aeroplane/);
+      await red('files: two files, one aeroplane', canonFiles(L0, plain.concat(['builds/dup_selftest.json']), fl => (fl === 'builds/dup_selftest.json' ? readT('builds/jodel_2026-09-20_corrected.json') : readT(fl))), /dup_selftest\.json is the same aeroplane as/);
+      if (tc) { const L1 = JSON.parse(lists); L1.planes.find(r => r.n === tc.n).file = 'builds/' + path.basename(tc.file);
+        await red('files: a test plane outside test_copies', canonFiles(L1, plain, readT), /reads builds\/.*outside tools\/fixtures\/test_copies/); }
+      if (tc) await red('files: a test copy nobody reads', canonFiles(L0, plain, fl => (/^(src|tools)\//.test(fl) ? readT(fl).split(path.basename(tc.file)).join('x.json') : readT(fl))), /no tool or gate reads it/); }
     await red('the floats draft shown to a player before its file lands', pageRows(Object.assign({}, S, { garage: S.garage.replace('labOk(p) && !p.rides))', 'labOk(p)))') })), /rides another branch/);
   }
   for (const b of bad) console.log('  FAIL ' + b);

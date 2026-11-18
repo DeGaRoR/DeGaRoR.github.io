@@ -318132,6 +318132,81 @@ UP (water), GREEN = DOWN (runway), "gear is UP for water landing" / "gear is DOW
   the panel from the seat; (5) the Super Petrel on the water, the lever up, the blues; (6) the PC-6 on Wiplines: on the water
   (blues), on the runway (greens), on final with the advisory on the PFD; (7) the selector up on the ground - the red (the horn's
   moment, no sound in a still).
+The stack claude/real-canon (= claude/tail-retract-canon) on master L40a: PHYS-SCALE, STRUT-OPTIONS, the RUCKUS pieces,
+PETREL-LS, THE CANON, TAIL-RETRACT, PETREL-FRAME, TAIL-LATENT, ELEC-SYSTEMS; PHYSICS_V 9. flyDiy/REAL-CANON-READY.md
+places every red of the full battery (316) against the base. Re-pinned with their reasons (the stack's deliberate
+physics): WINGSPLIT, ENERGYBASE (carbon left at master's), PROCURE, FREIGHT, JOINPARITY's page fixture (re-captured with
+node tools/join_parity_page.js --only twinFloats / --only petrel: the twin floatplane's masses, the V4.1's FIN-MOUNT bars).
+Stack reds with causes: CANDIDATES (+V4.1, +jodel_geo), DMGINTEGRITY (knife edge), DMGGEAR (the V4.1's tail tie),
+FRAMECOST / PARKED (the parked cook is stale: re-cook on a GPU after the train's build), BENCH (the Rufus stamp is V 7).
+
+
+## CANON-CLEAN phase 1 + FLAPLESS-SAID (FLAGSHIP, Sat 14 Nov, for the integration batch) - one file per plane (the user 12 Nov ~23:59: "land the official list of planes and get rid of the other copies ... once and for all")
+
+- THE RULE: a plane is its list row (builds/lists/plane_lists.json); never copy a plane file; a test plane lives ONLY in tools/fixtures/test_copies/ with its "Test copy: ..." row (legacy), and only while some gate or tool reads it. Name a plane by its row: "list:50 Cessna 172".
+- THE CLEAN (inventory: https://claude.ai/artifact/Bj8g1fVPZAcSyi3ctoWBde, master 23ce68c1f): test copies MOVED to tools/fixtures/test_copies/ (same bytes, same file names; every reader re-pointed, a path change only); copies of a list plane DELETED and their readers re-pointed to the list plane's file; files nobody read DELETED. A list row whose file went keeps its number with a `deleted` note; a test copy without a row got one (from 60: 53/54 the Ruckus, 55/56 the chooser's shapes, 57-59 free). HELD: tools/fixtures/build_v7_ultralight_2026-09-05.json, the career's twin floatplane (CONTRACT_DESIGNS.twinf), until the career flies list:27. reports/ (the evidence) is not touched.
+- GATE PLANELISTS - THE FILES: every tracked plane file (a JSON whose spec has wings) is a list row's file (reports/ aside); a test plane's file lives in test_copies/ (HELD aside) and some tool or gate reads it; no two plane files are the same aeroplane (paint, finish, name, registration aside); a deleted row has no door. 4 selftest breaks.
+- FLAPLESS-SAID (A0 13 Nov, out of the list:40 read: genTrim says "say so in the shakedown" and nothing did): genShakedown carries `landing` {flapless, partial, full, trimFail} only when genTrim could not land the build as built; the shakedown sheet prints "landing flaps" / "approach trim", the fiche "lands" / "approach trim". GATE PLANEFICHE: the four places, numbers() on a stub sheet, 4 breaks.
+- The Cessna copies are ONE-CESSNA's (the user 13 Nov ~00:40: "one official Cessna" = list:50): its ready re-points them and deletes them; this one moves only what is still there.
+
+
+## ONE-CESSNA (FLAGSHIP, Sun 15 Nov, for L40d, on real-canon 123c7b63f) - one official Cessna (the user 13 Nov ~00:40: "There's one official Cessna, none other is worth flying or benchmarking against, and even in the story, it should just be replaced")
+
+- L40d order (A0): real-canon, then canon-clean, then onecessna; claude/ready/canon-clean and claude/ready/onecessna are the same head (parts 1-6 on 123c7b63f).
+- THE CESSNA is list:50, Cessna 172 F-HCSN, builds/cessna172r_2026-11-08.json. Every tool and gate that read a Cessna copy reads it (part 1: 106 files, a path change only; part 5: real-canon's new GATE STRUTOPT, whose Cessna case has no pins). The floats Cessna stays list:4 (bugReports/cessnaFloatsWOrks.json) until list:52 is ready; the Wipline fixture's readers read list:4. The load door's VALIDATED.metal is list:50.
+- list:40 B-CESS (the metal Cessna) is RETIRED from the career: CONTRACT_DESIGNS.c172 builds list:50 and says "Cessna 172". NO SAVE MIGRATION (the user 13 Nov: "there are no players, that's just me"): an owned B-CESS airframe keeps its spec; new purchases, contracts, the story and the starter get list:50.
+- B-CESS is kept ONLY as "Test copy: B-CESS" (tools/fixtures/test_copies/cessnaMetal (1).json, row 40 legacy) because three gates test ITS finding: TOUR's c172fx comparison (Pilot), GATE CESSNAVREF's finding case and GATE ALTIPORT case 4 (the load door's build lands flapless, the elevator runs out on the final). CESSNAVREF's control is list:50. When those findings are retired, delete the copy and its row's file.
+- Still test copies (named, each with its reader): list:3 (WILGAGEAR's Wilga-class host), list:64 (WIPLINE's Wipline record), list:70 (DMGPOD's pod variant - to be rebuilt from list:50 by tools/pod_fixture.js), list:51/60 (REAL-FIGURES' c172rf float props - theirs to retire), row 88 Super Petrel V4.1 (the gates' Super Petrel since row 41 is V4.2), row 89 the Ruckus struts card (STRUTOPT's).
+- THE MEASURES FOLLOW IT: tools/snapshots.js --write on real-canon's core (A0 15 Nov: land as measured, the user's canon is real figures) - CONTRACT_DESIGNS.c172 MTOW 880 -> 1019 kg, empty 662 -> 666 kg, take-off 144 -> 332 m, cruise 177 -> 183 km/h, range 91 -> 1176 km, tank 26.5 -> 224.7 L, cost 137572 -> 121998; FREIGHT_CARDS.c172 (its hold) and PROCURE's meridian c172 effects with it; the other designs moved 1-2 kg with real-canon's core and are re-measured with them. A Cessna contract now needs a 332 m strip: fewer Cessna strips. TECH_DESIGNS.c172 re-derived (list:50 flies a custom engine: fam:piston); techKeysOfModel lets a stock engine option replace a custom engine's key.
+- Gate pins moved for list:50 (each said in its file): STOL's baseline (builds.metal alone, re-captured on real-canon's core), ENGCONFIG (one Cessna row, pinned on real-canon's core), LIVERY (a legacy finish.wear of exactly 0 is no wear: the page drops it), PHYSPAGES (side picture 800 px), FREIGHT (the stacking scenario's drum 0.45 m: list:50's cabin top closes lower), PLANELISTS (two selftest breaks re-aimed), JOINPARITY (frames_shot / fiche_reference_bake declared; the page capture re-taken on this base - the Jodel's node vs page 0.93 kg stays red as on real-canon's own capture of 04:43Z).
+- LIST:50'S OWN FINDINGS, landed as NAMED REDS (A0 15 Nov: never hidden behind B-CESS; A0 tells the owners after L40d): CLIP (the nav lamp 35.7 mm into the wing, the nose leg edLegT 24.8 mm into the fuselage, the elevator hinges into the fuselage, the tail tie-down into the rudder) - REAL-FIGURES; DMGSETTLE (metal trunk-0 / trunk-2.5: pieces still moving at 15 s) - Deform; PODEDITOR (the C172's default pod red), POD (c172 pod datums not the join's) and DMGPOD (gear up: crushed, where B-CESS's pod tore off) - Game; POD's c172/metal certificate digests - owed a re-bless from a base worktree. CONTRACTS: three mission stages (minedock.02/03, resort.05 stage 0) no validated design flies and the C172 no longer takes two into the mine street - they leaned on B-CESS's 144 m take-off, which was not real; list:50 needs 332 m - owner STORY REVAMP; the career stays on list:50 (A0 15 Nov 10:45).
+- Plane rows: 85-87 (next) Archaeopteryx, the PC-6 drafting card, LS4 - plane files with no row, the user places them (A0 asks); 90 (next) jodel_geo, "replaces row 2".
+- ONE JODEL (list:2 -> builds/candidates/jodel_geo.json) is NOT here: its own chain for L40e (Mon 19:00), readies by Mon 17:00 (A0 15 Nov).
+## CESSNA-REFIT (16 Nov) - list:50 refitted to the 172 three-view (FLAGSHIP; the user: "consider this final")
+THE PLANE: builds/cessna172r_2026-11-08.json (list:50, F-HCSN), its cage refitted on the drafting table to the user's
+172 three-view (private, never committed), at subdivision level 2, every value a garage row. Written by
+tools/_rejoin_build.js (the page's own join re-measures the whole build); the crew layer's rows (pilotWho, copWho, dum*)
+and the retired rows the headless join drops are carried over as they were. Before -> after (genShakedown; the
+snapshots' own measure): mass 1019 -> 1006 kg, empty 666 -> 654, take-off 332 -> 356 m, cruise 183 -> 186 km/h, range
+1176 -> 1194 km, Vs 24.7 -> 25.0 m/s, ClMax clean 1.61 -> 1.55, climb 3.70 -> 3.82 m/s, static margin 0.21 -> 0.31,
+CG 36 -> 23 % MAC (the wing and nose moved in the fit; the cabin keeps 4 seats). CONTRACT_DESIGNS / FREIGHT_CARDS /
+PROCURE re-written by tools/snapshots.js --write: only the c172 rows moved (its own commit, droppable).
+WHAT CHANGED ON THE AEROPLANE: the cabin frame (roof, pillars, windscreen a U from above, glazed to the waist), the wing
+seat and thickness, the single strut on the windscreen (A) post, the cowl fitted on the true thrust line with a level
+bottom and a short chin scoop on the keel, the faceted wheel fairings, the drawn windows (door, bulged passenger,
+top-projected rear panes), lower and reclined rear seats, the padded headliner, one landing-light bay in the LEFT
+wing at 3.75 m, the 1956 livery (white / red cheat line / polished belly, silver wings and stabs, red tips).
+NEW GARAGE ROWS (all ABSENT at default - a build without them draws the same bytes):
+- windscreen: wsToWaist, wsShoulder / wsShoulderX / wsShoulderTop (shoulder columns: a U not a V), wsShoulderBase (the
+  forward share at the screen's base - a shoulder pushed forward over a deck that curves down hung the screen's corner
+  outside the skin: the lip the user found)
+- frame: bulkAt, pillarFollow, aftFloorDy; windows: {paxWin,win2,win3,winRowMore}Proj (projected from the top: a
+  rear pane on a taper)
+- strut: bracing.strutFoot (61_gen_frame: the A-post foot node on the lower longeron, three noMass ties; the join
+  writes it when the strut picks the A post - _pillar_site windscreenPost)
+- cowl: keelLevel (the bottom line leaves the firewall level); engine: eng_cylK (the cylinders' drawn reach, LATENT 1.85)
+- fairings: s{1,2}FairNose / FairH / FairStyle (faceted, pointed) / FairKick (tail upsweep)
+- lights: li_baySide (the bay in both wings, the port one or the starboard one; one bay holds the landing lamp)
+- headliner: hdlDepth - the CAR session's rows (claude/fly-diy-car-build-uu6e6w c51f995ae + 697cbb7b9), applied here
+  unchanged so the Cessna can wear it; the same hunks as the car branch's
+FIXES: the door's inner panel stops under a window DRAWN on the door (_shoulder_gen panelBuild: a knife pane is not
+band glass; it covered the new pilot window from inside); the light layer's taxi lamp only where a second bay exists.
+NOT DONE: the floats Cessna (c172f, bugReports/cessnaFloatsWOrks.json) and every other Cessna copy keep the old body -
+the one-Cessna integration waits for REAL-FIGURES' verdict (the user, 15 Nov); the red cheat line (a side box
+projection) also paints the cabin's inner lining (shows through the windows); the door shape (bottom 10-15 cm high).
+TOUCH-UP (the user, same day): the screen bulge sat too high and the cowl top had a corner at the nose ring - wsCeilBow 0.88 -> 0.70
+and wsBaseBow 0.65 -> 0.85 (the screen line back on the drawing with wsShoulderBase 0.4 kept: no lip), cw_lidLen 0.095 -> 0.17
+and cw_lidRound 0.06 -> 0.2 (the top line one smooth rise from the ring to the firewall, measured per pixel column). Registration T-RUEX.
+CLIP (A0, same day): the 172 nose strut (edLegT) inside the refit cowl, 434.9 mm at every pose, is a DECLARED gap in
+tools/_clip_check.js (c172 x cageLayer:cowl, cap 436 mm) beside the fuselage one - the same strut, the same reason, the refit cowl
+now encloses it. Its own commit: revert it if REAL-FIGURES' read of the three-view says otherwise.
+NOSE HUMP + ROUND SPINNER OPENING (the user, 16 Nov): the cowl top climbed back before the nose bowl - with deckFall the bend's
+second point was still aimed at the firewall's height. _cowl_gen.js: with deckLevel and deckFall > 0 the top line is drawn AS SEEN, one
+convex cubic (straight on the fall to deckShoulder, deckRound 0 = the chord to the ring .. 1 = the fall carried on), the spine taken
+back out; deckFall 0 is untouched (only the 172 sets it). Refit to the three-view at level 2, the firewall end pinned to the body:
+deckH 1.17 -> 1.1763, deckFall 0.17 -> 0.0594, deckShoulder 0.92 -> 0.6227, deckRound 0.15 -> 0; the slope now steepens from 0.06 at the
+firewall to 0.36 at the ring, within 5 mm of the drawing. The centre opening was a diamond (cw_apSq 0 = n 1): apSq 0.5, apH 0.12 -> 0.113
+(a circle). Figures move < 0.1 %. Gates: COWL CLIP COOL CAGEFIT BLUEPRINT pass; KNIFE / TAXICLEAR pack / REALBAND c172v2 the known reds.
 
 **CARBON CUB SS, the final (the user 16 Nov: "I updated the drawn windows slightly"; A0: claude/carbon-cub-final for L40f).** The aft window's six rows from the user's garage export: paxWinR2 / R3 (the aft corners) 0.14 / 0.07 -> 0.45 / 0.45; the aft quad corners Q2 (0.12, 0.545) -> (0.6581, 0.7101), Q3 (0.12, 0.205) -> (0.4437, 0.2485). The export's whSlick 0 and s1_shockKind 0 are the page's older state (it predates this morning's tyres and bungees) and were not taken. On ed28bdf6d (the L40e ready) + claude/ready/carbon-cub-livery de66150c7 (the colour-restore pictures); thumb + hero rebaked.
 KNIFE corpus re-recorded (A0, L40e's one new red): IDENTITY moved on the Cub family (client_cub_floats, client_cub_upgraded, cub_2026-09-20, cub_2026-09-20_corrected: sheet 20942/16762 -> 21054/16874) and on bugReports flydiy-build (3)/(4) (13558/11310 -> 13654/11406). The cause is MEANT: carbon-cub-cowl's nose longeron (_cage_gen.js hugRun, the user: "tubular structural elements poking through the nose section ... on all cubs"), +7 tube segments a side in the nose bay. Every drawn-window loop is identical to the record; with hugRun switched off the old corpus passes (checked). tools/fixtures/knife_corpus.json rewritten by node tools/_knife_check.js --record on L40e master + this branch.

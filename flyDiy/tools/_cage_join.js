@@ -698,6 +698,13 @@ function cageJoinSpec(P, M, T) {
       try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutAt != null); } catch (e) {}
       if (had) spec.bracing.strutAt = null;
     }
+    // A-POST STRUT (16 Nov): the A post's station, stated and cleared the same way
+    if (typeof M.strutFoot === 'number' && isFinite(M.strutFoot)) spec.bracing.strutFoot = M.strutFoot;
+    else {
+      let had = false;
+      try { const G = typeof window !== 'undefined' && window.GARAGE_SPEC && window.GARAGE_SPEC.get(); had = !!(G && G.bracing && G.bracing.strutFoot != null); } catch (e) {}
+      if (had) spec.bracing.strutFoot = null;
+    }
   }
   // ...and each seat's mass (SEATS, 2026-11-02), written only when a drawn seat weighs other than the outfit's row:
   // a cabin of tube & sling seats (3.0 kg, the `sling` row every save bills) keeps its spec - and its certificate -
@@ -1692,7 +1699,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // the foot on it; the frame roots the strut on the ring nearest it)
       {
         const CW = window.CAGE_WING;
-        if (fwOk && CW && CW.strutPil && isFinite(CW.strutPil.zNode)) M.strutAt = +(zFw - CW.strutPil.zNode).toFixed(4);
+        if (fwOk && CW && CW.strutPil && isFinite(CW.strutPil.zNode)) {
+          // A-POST STRUT (16 Nov, the 172): the A post carries no cabin ring - its station is the strut's OWN node's
+          // (bracing.strutFoot), not a ring the frame snaps to (strutAt)
+          if (CW.strutPil.key === 'A') M.strutFoot = +(zFw - CW.strutPil.zNode).toFixed(4);
+          else M.strutAt = +(zFw - CW.strutPil.zNode).toFixed(4);
+        }
       }
       // PILLAR-ANCHORS (2026-11-02): THE DOOR-SWING CHECK'S ANSWER, a note per door that is RED (under 20 mm of
       // clearance somewhere in its 0-90 deg swing). The sweep is ~1 s a door, so the join never runs it (export is

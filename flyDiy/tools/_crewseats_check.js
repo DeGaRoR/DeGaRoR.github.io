@@ -37,7 +37,7 @@ const fs = require('fs');
 const path = require('path');
 const T = __dirname, ROOT = path.join(T, '..');
 
-const BUILD = 'bugReports/cessnaMetal (1).json';     // CONTRACT_DESIGNS.c172 / _load_build VALIDATED.metal
+const BUILD = 'builds/cessna172r_2026-11-08.json';     // CONTRACT_DESIGNS.c172 / _load_build VALIDATED.metal
 const CASES = {
   N: null,
   P: { pax: [{ i: 1, key: null }, { i: 2, key: null }], empty: [], out: [3] },

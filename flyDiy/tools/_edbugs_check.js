@@ -130,7 +130,7 @@ check(/G2782/.test(rd('_light_check.js')) && /made\.filter\(m => \/level\\\(P\/\
 // ---- 5. THE TAIL CONE'S ZONE, and 3. THE MOSQUITO'S SHOULDER ------------------
 {
   const G = require('./_cage_gen.js');
-  const mosq = JSON.parse(rd('fixtures/repro/mosquito.json'));
+  const mosq = JSON.parse(rd('fixtures/test_copies/mosquito.json'));
   const cases = [
     ['stock', {}],
     ['mirrored pod', { mirror: 1 }],
@@ -157,7 +157,7 @@ check(/G2782/.test(rd('_light_check.js')) && /made\.filter\(m => \/level\\\(P\/\
 {
   const G = require('./_cage_gen.js');
   const SG = require('./_shoulder_gen.js');
-  const mosq = JSON.parse(rd('fixtures/repro/mosquito.json'));
+  const mosq = JSON.parse(rd('fixtures/test_copies/mosquito.json'));
   const cases = [
     ['the Mosquito', mosq.spec.cage],
     ['mirrored pod', { intOn: 1, cutParts: 1, mirror: 1 }],
