@@ -400,16 +400,6 @@
   "dials": {
    "rpm": 2500,
    "geared": 0,
-   "liquid": 0,
-   "bmepK": 1.3270447426479466,
-   "massK": 1.293832555077828
-  }
- },
- "e811_installed": {
-  "base": "pipistrel E-811",
-  "dials": {
-   "rpm": 2500,
-   "geared": 0,
    "liquid": 1,
    "bmepK": 1.020803648190728,
    "massK": 1.8306876978868605

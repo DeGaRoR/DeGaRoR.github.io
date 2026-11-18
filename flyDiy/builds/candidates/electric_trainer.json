@@ -716,7 +716,7 @@
    "w2AilSpan": 0.38,
    "w2AilChord": 0.22,
    "engOn": 1,
-   "engPreset": 47,
+   "engPreset": 34,
    "engPower": 1,
    "engDetail": 0.8,
    "eng_screws": 1,
@@ -1217,7 +1217,7 @@
   },
   "engines": [
    {
-    "type": "e811_installed",
+    "type": "e811_velis",
     "mount": "nose",
     "place": {
      "dx": 0,

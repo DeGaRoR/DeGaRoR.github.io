@@ -734,19 +734,14 @@ const POWERPLANTS = {
     engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2400 },
     prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 1264, kV2: 0.1756 },
   },
+  // ELECTRIC-TRAINER (18 Nov; the user: "the radiators, the pumps, the coolant, everything, the cabling ... should just be
+  // part of the engine"; "we have to modify the existing E811"): the E-811 AS INSTALLED - motor 23 kg + H300C controller
+  // 8.1 kg + the motor and battery coolant loops (6.3 L, two radiators, two pumps, tanks, hoses) + the HV junction box and
+  // cabling (POH-128 7-12..7-17; the loops and cabling DERIVED): 53 kg, liquid (was 30 kg, air: the motor and controller
+  // only). The cards that carry it: the LS4 (unpowered: engOn 0, no mass), the e-trainer archetype (follows)
   e811_velis: {
-    price: 28000,
-    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2500 },
-    prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 1231, kV2: 0.1477 },
-  },
-  // ELECTRIC-TRAINER (18 Nov; the user: "the radiators, the pumps, the coolant, everything, the cabling ... part of the
-  // engine"): the E-811 AS INSTALLED in its type - motor 23 kg + H300C controller 8.1 kg + the motor and battery coolant
-  // loops (6.3 L, two radiators, two pumps, tanks, hoses) + the HV junction box and cabling (POH-128 7-12..7-17; the loops
-  // and cabling DERIVED): 53 kg, liquid. A ROW OF ITS OWN: e811_velis (the bare motor, 30 kg) is left as every card
-  // that flies it was built on (the LS4, the e-trainer archetype)
-  e811_installed: {
     price: 31500,
-    engine: { name: 'Pipistrel E-811 installed (coolant loops, HV cabling)', mass: 53.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'liquid', rpm: 2500 },
+    engine: { name: 'Pipistrel E-811 (certified)', mass: 53.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'liquid', rpm: 2500 },
     prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 1231, kV2: 0.1477 },
   },
   sp260d_class: {
@@ -987,7 +982,7 @@ const GEN_ENG_CG = {
   w670_hs2b: 0.15, r755_hs2b: 0.16, m14p_v530: 0.14, r1340_hs12d40: 0.16,
   r985_hs2b20: 0.15, r1830_hs23e50: 0.16, merlin66_rotol4: 0.63,
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
-  fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19, e811_installed: 0.19,
+  fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
   sp260d_class: 0.31, emrax268_carbon: 0.14,
   pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71, pt6a27_hartzell3: 0.61,   // (the -27: measured on its preset, 0.606 - GATE ENGID's bench)
   pt6a60a_hartzell4: 0.78,

@@ -202,9 +202,6 @@ const PRESETS = {
     rpm: 5000, volts: 400, fwW: 0.60, fwH: 0.55 },
   'pipistrel E-811': { arch: 'electric', eStyle: 2, canD: 0.268, canL: 0.19,
     rpm: 2500, volts: 345, liquid: 1, fwW: 0.70, fwH: 0.65 },
-  // ELECTRIC-TRAINER (18 Nov): the same motor drawn as installed - the liquid stand carries its radiator, pumps and HV box
-  'pipistrel E-811 installed': { arch: 'electric', eStyle: 2, canD: 0.268, canL: 0.19,
-    rpm: 2500, volts: 345, liquid: 1, fwW: 0.70, fwH: 0.65 },
   'SP260D-class': { arch: 'electric', eStyle: 2, canD: 0.418, canL: 0.30,
     rpm: 2500, volts: 580, liquid: 1, fwW: 0.85, fwH: 0.80 },
   // the 268 (2026-09-05): 268 x 91 published, the pancake style, 470 V
@@ -493,7 +490,7 @@ const CUSTOM_ENGINE = 'custom engine';
 // THE SAVED ORDER, ONE KEEPER (NEW-SHAPES-1): the names engPreset indexes - the catalogue as it stood when the custom
 // engine took slot 41, the custom engine, then every preset added since (PRESETS_AFTER_CUSTOM, in the order added).
 // Every list that turns an index into an engine or back reads this, never Object.keys(PRESETS) on its own.
-const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66', 'rotax 916 iS', 'rotax 912 iS', 'P&W PT6A-27', 'pipistrel E-811 installed'];
+const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66', 'rotax 916 iS', 'rotax 912 iS', 'P&W PT6A-27'];
 function presetNames() {
   const all = Object.keys(PRESETS).filter(n => n !== 'bare engine');
   return all.filter(n => !PRESETS_AFTER_CUSTOM.includes(n)).concat([CUSTOM_ENGINE],

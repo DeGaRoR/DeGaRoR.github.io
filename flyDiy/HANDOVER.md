@@ -318151,9 +318151,9 @@ THE GENERATOR ROWS IT NEEDS (each absent / 0 at its default - no other build mov
 `finVentralLand` / `finVentralSweep` (a ventral without floats / twin booms); `s2Inline` (the steered nose oleo's fork in the
 strut's line, its shroud stopped above the tyre / spat); `wgTipTE` (the tip bow's trailing edge straight); `seatStickCut`
 (the carbon bucket's stick notch); `dashBack`'s range to 0.80.
-A NEW ENGINE, APPENDED (no saved index moves): preset 47 'pipistrel E-811 installed' -> registry `e811_installed` (53 kg,
-liquid: motor + controller + both coolant loops + HV cabling, POH-128 7-12..7-17; dial point pinned in
-engine_dial_points.json) - `e811_velis` (30 kg) is untouched, so the LS4 and the e-trainer archetype do not move.
+THE E-811 IS THE INSTALLED MOTOR (the user, 18 Nov: "we have to modify the existing E811"): `e811_velis` 30 -> 53 kg,
+liquid (motor + controller + both coolant loops + HV cabling, POH-128 7-12..7-17; its dial point re-pinned). It also
+rides the LS4 (unpowered, engOn 0: no mass, measured unchanged) and the e-trainer archetype (follows; the archetypes go).
 CHANGES THAT MOVE OTHER BUILDS: BEAM-FLAT (every beam leg: the blade thin from the front, wide from the side - the user,
 "fixed once and for all"; drawing only); the electric liquid loop's heat share 0.11 -> 0.15 (the packs; liquid electrics
 only - none flew before this one); DASH-BAND (a `wsToWaist`
