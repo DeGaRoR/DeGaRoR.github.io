@@ -280,7 +280,10 @@ console.log('6. COVERAT - what the cover ring may plant');
   verdict(far === null, 'the far field answers null');
   const plot = O.records.plots.find(p => p.kind === 'residential');
   const inP = plot && at(plot.front[0] + plot.n[0] * (plot.depth * 0.5), plot.front[1] + plot.n[1] * (plot.depth * 0.5));
-  verdict(inP && inP.kind === 'lawn' && inP.grass && inP.grass.h > 0 && inP.kill === 0, `a residential plot's middle: ${JSON.stringify(inP)}`);
+  // (TOWN LAWNS, 16 Nov eve, the user via A0: town lawns "can be anything" - none by default, GRASS_SIDES.townLawn 1 = the lawn as before)
+  verdict(inP && inP.kind === 'lawn' && inP.grass && inP.grass.h > 0 && inP.kill === 0, `a residential plot's middle (townLawn 1, the default): ${JSON.stringify(inP)}`);
+  PG.grassSides({ townLawn: 0 }); const inP0 = plot && at(plot.front[0] + plot.n[0] * (plot.depth * 0.5), plot.front[1] + plot.n[1] * (plot.depth * 0.5)); PG.grassSides({ townLawn: 1 });
+  verdict(inP0 && inP0.kind === 'none' && inP0.grass && inP0.grass.town, `townLawn 0 (the cost measure): no lawn: ${JSON.stringify(inP0)}`);
   verdict(PG.zoneGrass({ kind: 'industrial' }).kind === 'none' && PG.zoneGrass({ kind: 'residential', rules: { grass: { kind: 'meadow' } } }).kind === 'meadow', 'the zone rule: industrial none, an override wins');
   const rd = w0.roadNet.roads.find(r => r.cls === 'road'), q = w0.coverAt(rd.pts[2][0], rd.pts[2][1]), h0 = w0.coverAt(-520, 0);
   verdict(q && q.kill === 1 && q.cls === 'gravel', `the analytic road: ${JSON.stringify(q)}`);
@@ -692,9 +695,19 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   // (c) THE LOOK: 9 knobs x 3 surface types, every one a KNOB row with its default inside its range; a class's look
   // through lookOf; the defaults draw the plain surface (multipliers 1, the edge zone's side)
   const K = {}; for (const row of P.KNOBS) if (row.length > 1) K[row[0]] = row;
-  const okK = P.LOOK_KEYS.length === 30 + 2 + 6 &&   // + G2570's two grass-strip keys (grMatch, grMowA) + DIRT-STRIP look 3's six (16 Nov)
+  const okK = P.LOOK_KEYS.length === 30 + 2 + 6 + 2 &&   // + G2570's two grass-strip keys (grMatch, grMowA) + DIRT-STRIP look 3's six (16 Nov) + MUD's two (L40f)
     P.LOOK_KEYS.every(k => K[k] && P.RECIPE[k] >= K[k][2] && P.RECIPE[k] <= K[k][3]);
   verdict(okK, `the runway look: ${P.LOOK_KEYS.length} knobs (${Object.keys(P.LOOK_GROUPS).join(', ')} x 10), each a KNOBS row, its default in range`);
+  // (MUD, DIRT-STRIP L40f) a strip's mud drives its marks (uLookG.z, GROUND-FX's hook) and drawn relief (.w) and adds passes; no mud
+  // (dry, a weather rung at mud 0, the rung taken off, another class) draws exactly as before
+  { const lib2 = P.library(THREE, P.keysFor(['dirt', 'mud'])), md = P.make(THREE, { lib: lib2, cls: 'dirt' }), U = md.uniforms;
+    const s = () => [U.uRoad.value.x, U.uRoad.value.y, U.uLookG.value.z, U.uLookG.value.w];
+    const dry = s(); P.setGroundWx(THREE, md, { dark: 0.3, mud: 0, film: 0, wear: 1 }); const wx0 = s();
+    P.setGroundWx(THREE, md, { dark: 0.6, mud: 1, film: 0.2, wear: 1.3 }); const wet = s(); P.setGroundWx(THREE, md, null); const off = s();
+    const mc = P.make(THREE, { lib: lib2, cls: 'mud' }).uniforms, mcl = [mc.uRoad.value.x, mc.uLookG.value.z];
+    const same = (a, b) => a.every((x, i) => x === b[i]);
+    verdict(dry[2] === 0 && dry[3] === 0 && same(dry, wx0) && same(dry, off) && wet[2] === 1 && wet[3] === 1 && wet[0] === Math.min(16, dry[0] + 4) && wet[1] === Math.min(16, dry[1] + 4) && mcl[1] === 1,
+      `mud: a dirt strip's marks / relief / passes dry ${JSON.stringify(dry)}, a rung at mud 0 the same, at mud 1 ${JSON.stringify(wet)}, the rung off ${JSON.stringify(off)}; a fixed mud class's marks ${mcl[1]}`); }
   // (G3018) THE SATURATION knob: 1 is today's grading exactly (the look carries 1, the graded mean the same bits), 0 is grey
   { const lk = P.lookOf('concrete'), lk0 = P.lookOf('concrete', Object.assign({}, P.RECIPE, { pvSat: 0 }));
     verdict(lk.sat === 1 && lk0.sat === 0 && ['pvSat', 'sfSat', 'grSat'].every(k => P.RECIPE[k] === 1), `the surface saturation: 1 by default for every type (${lk.sat}), 0 read (${lk0.sat})`);

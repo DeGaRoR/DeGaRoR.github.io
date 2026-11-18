@@ -528,7 +528,11 @@ function makePilot(sim, def, world, opts) {
   const runNeeded = () => ST.needK * (0.85 * (A.TORun ?? 500) + stopDist(A.VRot || 18) + reserveOf());
   // STRIP-LANE: a strip whose aerodrome carries `micro` (chaos > 0, DIRT-STRIP's bumps and stones) - its turns are made on
   // the centreline, in the rolled band (planDeparture, TAXI's pivots, LINEUP)
-  const stripRoughOf = a => !!(a && a.micro && +a.micro.chaos > 0);
+  // ALTI-ROUGH (the user's bumps on tw_ski 0.2, afb-0220-b2, 17 Nov; A0: 'the turn on the spot on Skyline's apron is the user's own altiport
+  // technique - must not stay broken'): AN ALTIPORT IS NEVER PLANNED AS A ROUGH STRIP. STRIP-LANE 2's rules (the centreline lane, the
+  // turn on the centreline, the U-turn pads) keep a bush strip's wheels off the stones along its edges; an altiport is left and
+  // turned the user's way - up to the flat top, the turn on its apron (ALTI-TOP, GTRAM) - whatever its surface's chaos
+  const stripRoughOf = a => !!(a && a.micro && +a.micro.chaos > 0 && !a.altiport);
 
   // ---- frames -------------------------------------------------------------
   // The landing/departure frame is the test pilot's: origin td + 450 u so the
@@ -915,6 +919,9 @@ function makePilot(sim, def, world, opts) {
   // water over its terrain). Every other build - a fixed gear, a land retract - is untouched (AMPHG false)
   const AMPHG = GEAR && !!(def.parts && def.parts.amph);
   const SKISEL = !!(def.parts && def.parts.ski && def.parts.ski.kind === 'retract' && sim.ctl && 'ski' in sim.ctl);   // SKIS-PC6: a hydraulic wheel-ski
+  // GEAR-LEVER: an amphibian on FLOATS (the take-off from the water waits for the wheels up; the hull amphibian keeps its
+  // validated run)
+  const AMPHF_TO = AMPHG && !!(def.spec && def.spec.gear && def.spec.gear.type === 'floats');
   // (no destination - a glide with nowhere picked: null, and the surface under the aeroplane decides)
   const gearWetDest = () => { const to = ap.route && ap.route.to; return to ? !!(to.surface === 4 || to.water || to.kind === 'water') : null; };
   const gearWetUnder = (x, z) => { try { return typeof world.waterH === 'function' && typeof world.terrainH === 'function' && world.waterH(x, z) > world.terrainH(x, z) + 0.2; } catch (e) { return false; } };
@@ -2210,6 +2217,15 @@ function makePilot(sim, def, world, opts) {
       const from = ap.route.from;
       const ux = CORE_MATH.cos(from.hdg), uz = CORE_MATH.sin(from.hdg);
       const onC = (x, z) => { const s = (x - from.x) * ux + (z - from.z) * uz; return [from.x + ux * s, from.z + uz * s]; };
+      // ALTI-LINEUP: where HOLD's backtrack takes a taildragger on an altiport under 300 m - the turn's spot at the upper end (8 m or more
+      // of strip behind the pose): applied to EVERY answer below, so the skip is the taxi's end, never a different start (LINEUP w4)
+      const topQ = (q, how, tD) => {
+        if (!trike && !sim.hydro && from.altiport && (from.len || 1100) < 300 && tD) {
+          const spot = pivRoom(), behind = (q[0] - from.x) * tD[0] + (q[1] - from.z) * tD[1] + from.len / 2;
+          if (behind - spot >= 8) return [[from.x - tD[0] * (from.len / 2 - spot), from.z - tD[1] * (from.len / 2 - spot)], 'backtrack'];
+        }
+        return [q, how];
+      };
       // ALREADY ON THE LINE: a start on the spawn identity (a strip with no stand - the game rolls from it
       // with no taxi at all) is lined up along the nose with HOLD's own run ahead (the need, capped at 0.7
       // of the strip). planDeparture's uncapped need would send a 340 m strip's spawn round to the far
@@ -2220,19 +2236,22 @@ function makePilot(sim, def, world, opts) {
         const ahead = (from.len || 0) / 2 - sg * al;
         if (Math.abs(cr) <= Math.min(8, (from.wid || 30) / 2 - 1) && Math.abs(al) <= (from.len || 0) / 2
             && sg * (nose[0] * ux + nose[1] * uz) > 0.9 && ahead >= Math.min(runNeeded(), 0.7 * (from.len || 1100))) {
-          const q = onC(cg[0], cg[2]);
-          return { x: q[0], z: q[1], hdg: Math.atan2(sg * uz, sg * ux), from: from.id || 'HOME', how: 'lined' };
+          const [q, how] = topQ(onC(cg[0], cg[2]), 'lined', [sg * ux, sg * uz]);
+          return { x: q[0], z: q[1], hdg: Math.atan2(sg * uz, sg * ux), from: from.id || 'HOME', how };
         }
       }
       const next = planDeparture(cg, nose);
       const t = ap.takeoffDir;
       let q, how;
       if (next === 'STOP') { q = onC(cg[0], cg[2]); how = 'lined'; }
-      else if (ap.path && ap.path.pts && ap.path.pts.length) { const e = ap.path.pts[ap.path.pts.length - 1]; q = [e.x, e.z]; how = 'hold'; }
+      else if (ap.path && ap.path.pts && ap.path.pts.length) {
+        const e = ap.path.pts[ap.path.pts.length - 1]; q = [e.x, e.z]; how = 'hold';
+      }
       else {
         const tg = (ap.taxiPath && ap.taxiPath.length) ? ap.taxiPath[ap.taxiPath.length - 1] : ap.taxiTgt;
         q = onC(tg[0], tg[1]); how = ap.taxiPath ? 'taxiOut' : 'backtrack';
       }
+      [q, how] = topQ(q, how, t);
       return { x: q[0], z: q[1], hdg: Math.atan2(t[1], t[0]), from: from.id || 'HOME', how };
     } finally { Object.assign(ap, keep); }
   };
@@ -2310,7 +2329,7 @@ function makePilot(sim, def, world, opts) {
     if (ap.trackHold) {
       const L = ap.phase === 'ROLL' || ap.phase === 'ROLLOUT' || ap.phase === 'ABORT' ? (A.lookRoll ?? 25)
               : ap.phase === 'FINAL' || ap.phase === 'FLARE' ? lookA
-              : (ap.phase === 'LINEUP' && trike && ap.route && ap.route.from && (ap.route.from.len || 1100) < 300) ? 20   // G1949: a tricycle's line-up after its turn on a short strip merges in metres (150 m of look: 2 deg toward a centreline 6 m away)
+              : (ap.phase === 'LINEUP' && trike && ap.route && ap.route.from && (ap.route.from.len || 1100) < 300) ? (ap.route.from.altiport ? (A.altiLook ?? 10) : 20)   // G1949: a tricycle's line-up after its turn on a short strip merges in metres (150 m of look: 2 deg toward a centreline 6 m away); ALTI-LINEUP: on an altiport in 10 (below)
               : (ap.phase === 'LINEUP' && SWIV) ? 60   // G3578: a full swivel's line-up merges on its own circle (the DC-3's 58 m at the line-up's rudder; 150 m crawled 5 m in 30 s)
               : lookC;
       const fx = ap.dirX * L, fz = -sCr;
@@ -3081,24 +3100,17 @@ function makePilot(sim, def, world, opts) {
       heldJudged = ap.shortFld ? 'short' : 'normal';
       const room = sEnd - ap.xAim - fl;
       if (heldJudged === 'short' && room < (RC_ ? (A.stopShortK ?? 0.84) * (0.8 * (need - Vg) + Vg) : needS) && dAim > 0) {   // (G3491: the stop at full brakes)
-        heldJudged = 'refused';
-        say('strip-too-short', (to.name || to.id) + ': ' + (tVAdapt > 0.5 ? 'the elevator holds ' : 'the approach flies ') + Vtd.toFixed(1) + ' m/s' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s of wind behind on its one way in)' : '') + ', the short-field stop from it needs ' + r0(needS) +
-            ' m, ' + r0(Math.max(0, room)) + ' m are left past the aim and the float - not landing there');
-        // the nearest strip this gear lands on with the room (its own surface, its grade unknown: level) - else committed, said
-        let best = null, bd = Infinity;
-        for (const a of (world.aerodromes || [])) {
-          if (a === to || a.surface === 4 || !(a.len > 0)) continue;
-          if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;
-          if (a.len - Math.max(60, 0.12 * a.len) - 3 * Vtd < 1.15 * stopOn(a, 0, Vtd)) continue;
-          const dd = Math.hypot(a.x - cg[0], a.z - cg[2]);
-          if (dd < bd) { bd = dd; best = a; }
-        }
-        if (!best) { committed = true; say('committed-landing', 'no strip in reach has the room - landing ' + (to.name || to.id) + ' short-field'); return false; }
-        goAround('the strip is too short for ' + Vtd.toFixed(1) + ' m/s');
-        say('divert', 'diverting to ' + (best.name || best.id) + ' (' + r0(best.len) + ' m, ' + (bd / 1000).toFixed(1) + ' km): ' + (to.name || to.id) + ' is too short for the speed this aeroplane holds');
-        ap.route = { from: ap.route.to, to: best }; ap.xc = true; ap.gaN = 0; committed = false; ap.diverting = true;
-        ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap.route.from, best));
-        return true;
+        // DARE (the user via A0, 17 Nov: 'The autopilot shouldn't decline too easily ... it can go and crash, but it shouldn't decline
+        // too politely ... You don't refuse it'): THE SHORT FINAL IS FLOWN, NOT REFUSED. The held speed's stop not fitting the room past
+        // the aim was a go-around and a diversion ('not landing there' - the Cub at East Point from HOME, 17.3 m/s with 5 m/s behind:
+        // 187 m needed, 73 m left, to w8); now it is said with its numbers and landed short-field, the brakes from the touch. The
+        // strip's end is the outcome. (The dispatch's strip-too-short - a destination never planned on a strip shorter than the
+        // sheet's run - stays: A0's default (i))
+        heldJudged = 'short';
+        if (!ap.stripShortSaid) { ap.stripShortSaid = true; say('strip-short', (to.name || to.id) + ': ' + (tVAdapt > 0.5 ? 'the elevator holds ' : 'the approach flies ') + Vtd.toFixed(1) + ' m/s' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s of wind behind on its one way in)' : '') + ', the short-field stop from it needs ' + r0(needS) +
+            ' m, ' + r0(Math.max(0, room)) + ' m are left past the aim and the float - landing it short-field, no margin'); }   // (once an approach: the judge reads every step)
+        committed = true;
+        return false;
       }
       return false;
     };
@@ -3106,7 +3118,7 @@ function makePilot(sim, def, world, opts) {
       const fitLast = heldJudged === 'short' || heldJudged === 'normal';   // G3491: the last approach judged landable
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
-      go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0; heldSeed = !!ap.vHeld; heldJudged = null; heldTail = null;
+      go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0; heldSeed = !!ap.vHeld; heldJudged = null; heldTail = null; ap.stripShortSaid = false;
       // G2460: A GO-AROUND IS ANOTHER CIRCUIT - the watchdog's patience with it (the Wipline C172's ham-fist went round
       // twice, unstabilised, and was 'out of patience' at 600 s in BASE of the third circuit it then landed from)
       ap.budget = Math.max(ap.budget, ap.t + 400);
@@ -3116,7 +3128,10 @@ function makePilot(sim, def, world, opts) {
       // 81 m in, stopped 74 m past it). A pilot diverts: the nearest strip this gear lands on with room for the
       // landing run (1.6 x the sheet's, 450 m at least), said, flown as a cross-country from here
       // (G3491: with A.rc, a strip the last approach was judged to fit is not diverted from - the third is committed)
-      if (ap.shortFld && ap.gaN >= 2 && world && world.aerodromes && !(RC_ && fitLast)) {
+      // DARE (the user, 17 Nov): ...AND TWICE ROUND IS NOT A DIVERSION. The third arrival is committed (canGA: two go-arounds), said
+      // 'committed-unstable' if it is unstable - the Jodel's 'twice round Cabin Strip - diverting to New Community' was a polite decline.
+      // G1936's diversion stays only behind ap's gaDivert (no card sets it)
+      if (A.gaDivert === true && ap.shortFld && ap.gaN >= 2 && world && world.aerodromes && !(RC_ && fitLast)) {
         const need = Math.max(450, 1.6 * ((sheetOf() && sheetOf().LDGrun) || 0));
         let best = null, bd = Infinity;
         for (const a of world.aerodromes) {
@@ -4144,8 +4159,14 @@ function makePilot(sim, def, world, opts) {
           break;
         }
         const trikeMerge = trikePiv && ap.stopAfterLineup;   // G1949: (below)
+        // ALTI-LINEUP (SKYLINE-RESORT via A0, 16 Nov: "lines up 30-47 m below the top end"): ON AN ALTIPORT THE MERGE IS WALKED.
+        // The C172 on Skyline's 190 x 9 m strip (d48b4501a) set its turn up 6.2 m from the upper end, swung 3.8 m off the
+        // centreline in the pivot and walked back to it at 2.4 m/s on a 20 m look - downhill, 18 m of the flat top gone and
+        // the hold 29.5 m down. On an altiport the walk is 1.2 m/s on a 10 m look (ap's altiLook): every metre there is the
+        // flat run before the slope
+        const altiM = trikeMerge && !!ap.route.from.altiport;
         engage('TAXI', 'DE', 'TAXI', { dr: SV.taxiRudder(0, 0.45), de: A.taxiDe ?? 0.30,
-                                        gsp: alig > 0.5 && !trikeMerge ? 4.5 : 2.4 });
+                                        gsp: alig > 0.5 && !trikeMerge && !(!trike && stripRoughOf(ap.route.from)) ? 4.5 : altiM ? (A.altiWalk ?? 1.2) : 2.4 });   // (TAIL-DOWN: a taildragger lines up on a rough strip at a walk, not 4.5 m/s - East Point's Cub)
         ap.trackHold = true;
         setStatus('lining up on the centreline', [
           cond('off centre', Math.abs(sCr), 8, Math.abs(sCr) < 8, 'm'),
@@ -4172,9 +4193,15 @@ function makePilot(sim, def, world, opts) {
           ap.targetDir = [CORE_MATH.cos(hF), 0, CORE_MATH.sin(hF)];
           dr = SV.taxiRudder(0, 0.85);
         }
-        engage('TAXI', 'DE', 'SET', { dr, de: A.taxiDe ?? 0.30, thr: 0 });
-        c.brake = 0.7; c.da = groundAil(0, 0.25);
-        setStatus('braking to a standstill', [cond('ground speed', Vg, 0.3, Vg < 0.3, 'm/s')]);
+        // TAIL-DOWN BRAKING (DIRT-STRIP's bump matrix, 17 Nov: the user's Cub on East Point at 0.4 chaos rolled LINEUP at 4.7 m/s with
+        // its tail coming up - pitch +8 -> -5 deg - and STOP's 0.7 of brake from there nosed it over, -23 deg in a second, the propeller
+        // into the ground): A TAILDRAGGER BRAKES WITH THE STICK BACK, AND EASES THE BRAKES WHILE ITS TAIL IS UP. Its three-point taxi
+        // attitude is +7 to +9 deg; under tailUpTh (+1.7 deg) the tail is rising: the stick full back (deBack), the brakes at 0.15
+        // until the tail is down again - a normal stop never reaches it
+        const tailUpB = !trike && th < (A.tailUpTh ?? 0.03);
+        engage('TAXI', 'DE', 'SET', { dr, de: tailUpB ? (A.deBack ?? 0.8) : (A.taxiDe ?? 0.30), thr: 0 });
+        c.brake = tailUpB ? 0.15 : 0.7; c.da = groundAil(0, 0.25);
+        setStatus(tailUpB ? 'easing the brakes: the tail is up - stick back' : 'braking to a standstill', [cond('ground speed', Vg, 0.3, Vg < 0.3, 'm/s')]);
         if (Vg < 0.3 || phaseT > 30) go('HOLD');
         break;
       }
@@ -4203,6 +4230,10 @@ function makePilot(sim, def, world, opts) {
           let noFit = null;
           {
             const SH_ = sheetOf(), toRun = SH_ && SH_.TORun, fr = ap.route.from;
+            // DARE (the user via A0, 17 Nov: "The autopilot shouldn't decline too easily ... it can go and crash, but it shouldn't
+            // decline too politely ... You come at the border of the steep hill, and then you go ... You don't refuse it"): AN
+            // ALTIPORT IS NEVER DECLINED HERE. Lined up at the top (ALTI-TOP, 25_airfield sitePattern), it goes; the roll's own
+            // law (the reject when Vr is out of reach, GTRAM: no reserve, the low end falls away) is a pilot doing its best
             if (toRun > 0 && !sim.hydro && fr.surface !== 4 && !fr.altiport) {
               const tD = ap.takeoffDir || [F.ux * ap.dirX, F.uz * ap.dirX];
               const hw = -((o_.windX || 0) * tD[0] + (o_.windZ || 0) * tD[1]), vr0 = A.VRot || 18;
@@ -4223,16 +4254,19 @@ function makePilot(sim, def, world, opts) {
               const runS = left + ((!trike && (fr.len || 1100) < 300 && behS - spS >= 20) ? behS - spS : 0);
               // (only a TAILWIND makes it a no-go here: in calm air or into wind the roll's own call judges, as before -
               // the sheet's run is a chart's, conservative against the roll it measures: GATE LINEUP's East Point skip)
-              if (needW > left && hw < -0.5) noFit = { needW, hw, toRun };
+              // DARE (the user, 17 Nov; A0's default at 09:00 on refusals (ii)/(iii), the user not answering): THE HOLD DOES NOT DECLINE.
+              // A tailwind's wait-then-decline and the 1.3x 'clearly out of reach' decline (the C172 at Jumbo Mine) are behind ap's holdDecline
+              // (no card sets it): it rolls, and the roll's own law (the reject when Vr is out of reach) is a pilot doing its best
+              if (A.holdDecline === true && needW > left && hw < -0.5) noFit = { needW, hw, toRun };
               // ...AND A RUN CLEARLY OUT OF REACH IN ANY WIND IS DECLINED AT ONCE, SAID: over 1.3 x the run it will have (the Cub at East
               // Point, 131 m of chart for 112 ahead - 1.17 - lifts off 104 m in: the roll judges that; F-HCSN at Jumbo Mine, 328 for 200
               // - 1.64 - aborted at 78 s, 'will not reach Vr'). Waiting changes nothing but a tailwind: declined now, with its numbers
-              else if (needW > 1.3 * runS) noFit = { needW, hw, toRun, hard: true, kS, grS, crrS, runS };
+              else if (A.holdDecline === true && needW > 1.3 * runS) noFit = { needW, hw, toRun, hard: true, kS, grS, crrS, runS };
             }
           }
           if ((lined || (holdN >= 2 && onStrip && alig > 0.95)) && noFit && noFit.hard) {
             say('takeoff-declined', 'not taking off from ' + (ap.route.from.name || ap.route.from.id) + ': the take-off run needs ' + Math.round(noFit.needW) + ' m, ' + Math.round(noFit.runS) + ' m of strip' +
-                (noFit.grS > 0.005 ? ', ' + (noFit.grS * 100).toFixed(1) + ' % uphill' : '') + (noFit.crrS > CRR + 0.005 ? ', a soft surface' : '') + (noFit.hw < -0.5 ? ', ' + (-noFit.hw).toFixed(1) + ' m/s of tailwind' : '') + ' - too short for this aeroplane');
+                (noFit.grS > 0.005 ? ', ' + (noFit.grS * 100).toFixed(1) + ' % uphill' : noFit.grS < -0.005 ? ', ' + (-noFit.grS * 100).toFixed(1) + ' % downhill' : '') + (noFit.crrS > CRR + 0.005 ? ', a soft surface' : '') + (noFit.hw < -0.5 ? ', ' + (-noFit.hw).toFixed(1) + ' m/s of tailwind' : '') + ' - too short for this aeroplane');
             ap.report.outcome = ap.report.outcome || 'declined';
             go('STOPPED');
             break;
@@ -4254,12 +4288,17 @@ function makePilot(sim, def, world, opts) {
           // lined up at the hold whose take-off does not fit ahead (0.85 of the sheet's run + the reserve: the roll's own
           // arithmetic) and with 20 m or more to gain taxis back along the centreline to the turn's spot at the end (G2811's
           // taxi point and pivot spot) and lines up there: the whole strip. Once a departure; the Cub (185 of 200) is unchanged
-          if (!trike && !ap.holdBack && onStrip && alig > 0.95 && isFinite(RgMin) && !sim.hydro && !ap.route.from.altiport &&
+          // ALTI-LINEUP (SKYLINE-RESORT via A0, 16 Nov): ...AND AN ALTIPORT'S TOP IS ALWAYS TAKEN. Its first metres are the flat
+          // top (Skyline: ~60 m at ~1 %, then 9-10 %): a run begun at the taxi graph's hold 47 m down began on the slope. Under
+          // 300 m, a taildragger at an altiport's hold with 8 m or more of strip behind it to gain backtracks to the upper end
+          // whatever its run needs (lineupPose, the skip, places it there too). A tricycle cannot turn toward a point behind it
+          // on a strip this narrow (TAXI's pivot is a taildragger's): its hold stays the graph's - OWED
+          if (!trike && !ap.holdBack && onStrip && alig > 0.95 && isFinite(RgMin) && !sim.hydro &&
               (ap.route.from.len || 1100) < 300 && ap.takeoffDir) {
             const fr = ap.route.from, tD = ap.takeoffDir, spot = pivRoom();
             const behind = (cg[0] - fr.x) * tD[0] + (cg[2] - fr.z) * tD[1] + fr.len / 2;   // the strip behind the aeroplane
             const fitTO = 0.85 * (A.TORun ?? 500) + reserveOf();
-            if (fitTO > left && behind - spot >= 20) {
+            if ((fitTO > left || fr.altiport) && behind - spot >= (fr.altiport ? 8 : 20)) {
               ap.holdBack = true; ap.path = null; ap.taxiPath = null; ap.stopAfterLineup = true; holdN = 0;
               const sEnd = fr.len / 2 - spot;
               ap.taxiTgt = [fr.x - tD[0] * sEnd, fr.z - tD[1] * sEnd];
@@ -4337,6 +4376,10 @@ function makePilot(sim, def, world, opts) {
           // 20.9 m/s), the Wipline C172 unchanged (27.7 m/s, 345 m). Back stick through the hump changed nothing
           // (G396.4 measured why it is neutral)
           if (sim.hydro) { if (rollS0 === null) thrRollW = 0; thrRollW = Math.min(capT, thrRollW + dt / (A.waterThrRampS ?? 4)); thrRoll = thrRollW; }
+          // GEAR-LEVER (AMPH-FLOATS): AN AMPHIBIAN'S FLOATS TAKE OFF FROM THE WATER WHEELS UP - the checklist's "gear UP for
+          // water" before the power (Wipline's advisory says it): the run waits at idle, its clock held, until the wheels
+          // are stowed (the gear block above has asked for them). Every other build: nothing here
+          if (AMPHF_TO && sim.hydro.floats.some(fx => fx.wet > 0.05) && !(sim.gear() && sim.gear().up)) { thrRoll = 0; thrRollW = 0; phaseT = 0; }
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
@@ -4521,7 +4564,14 @@ function makePilot(sim, def, world, opts) {
           // 17.3 of 18.7 m/s with 217 m left, the C172 at 19.3 of 20.4 with
           // 249 m — both a second from flying
           const dVr = accF > 0.02 ? (gsOf(vr) ** 2 - gsOf(V) ** 2) / (2 * accF) : Infinity;   // (G2450: over the ground)
-          if (dVr > left - (ap.route.from.altiport ? 0 : resv))   // GTRAM: an altiport's low end falls away (the rule above)
+          // COMMITTED IS COMMITTED (DIRT-STRIP's bump matrix, 17 Nov: the refit C172 on w6 said 'committed-takeoff' at 10.6 s, then 0.6 s
+          // later 'rejected-takeoff: out of runway, 183 m left' and aborted - two calls that contradict). Past the point of stopping the
+          // reject stops nothing; once the commit is said, a later Vr estimate (a bumpy strip's acceleration is noisy) never rejects - the
+          // user's DARE (17 Nov): it goes, and the end of the strip is the outcome
+          // ...BUT A STOP THAT STILL FITS IS A PILOT DOING ITS BEST (the user, 17 Nov: "Rejected take-offs mid-roll are fine when the pilot sees
+          // it can't reach Vr"): after the commit, the reject stays open while the stop from here fits in the strip ahead (DIRT-STRIP 17 Nov:
+          // with the commit closing it, TAXICLEAR 11c's C172 on Skyline's 280 m ran on off the low end and crashed instead of stopping)
+          if ((!committedTO || stopDist(gsOf(V)) <= left) && dVr > left - (ap.route.from.altiport ? 0 : resv))   // GTRAM: an altiport's low end falls away (the rule above)
             reject = 'out of runway: ' + Math.round(left) + ' m left, Vr in ' + (isFinite(dVr) ? Math.round(dVr) + ' m' : 'no distance (not accelerating)') +
                      ', V=' + V.toFixed(1) + ' of ' + vr.toFixed(1) + ' needed';
           else if (!committedTO) {

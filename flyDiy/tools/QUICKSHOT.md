@@ -28,6 +28,7 @@ node tools/quickshot.js --key camel /tmp/camel --views q                 # an ar
 node tools/quickshot.js my_build.json /tmp/try --over '{"halfW": 0.6}' --parts   # try a slider, geometry only
 node tools/quickshot.js --key ttail /tmp/tt --views front,side --over '{"gearRetract":1}' --gear 0.5 --parts   # the gear half up
 node tools/quickshot.js builds/candidates/pc6_drafting_2026-11-11.json /tmp/pc6 --sheet pc6_3view.png   # on the drawing
+node tools/quickshot.js builds/cub_2026-09-20_corrected.json /tmp/mud --views qb,qr,bottom --mud 20   # GROUND-FX: the mud a 20 s soft-mud run leaves (tools/mud_roll.js)
 ```
 
 Writes `<out-prefix>_<view>.png`. Views:

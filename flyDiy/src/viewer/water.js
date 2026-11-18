@@ -183,7 +183,12 @@ const WATER = (() => {
         if (float(i) >= uWSubN) break;
         vec3 c = uWSubA[i].xyz, ax = uWSubB[i].xyz * uWSubB[i].w;
         vec2 hit = wCapsule(wp, rd, c - ax, c + ax, uWSubA[i].w);
-        if (hit.x > 0.0) best = min(best, mix(wD, hit.x * -rd.y, smoothstep(0.05, 0.6, hit.y)));
+        // THE RIM (16 Nov eve, the user on the slot-3 stills: "the transparency seems random", the capsule's hard outline):
+        // the sea's transmission falls as exp(-depth), so a linear mix of the column (40 m of bed to 1 m of body) went dark
+        // as soon as the mix left 1 - the window was the capsule's core with a hard edge. The cube of the rim's weight
+        // spreads the fade over the whole rim: 0.8 of the way in, the column is the body's plus 1 % of the rest.
+        float wo = 1.0 - smoothstep(0.0, 0.85, hit.y), bd = hit.x * -rd.y;
+        if (hit.x > 0.0) best = min(best, bd + (wD - bd) * wo * wo * wo);
       }
       return best;
     }
@@ -195,7 +200,7 @@ const WATER = (() => {
         float d = length(xz - q.xy) / max(q.z, 0.1);
         if (d < 1.4) {
           float tear = texture2D(uWDetail, xz / 9.0 + vec2(0.53, 0.19)).a;
-          s = max(s, q.w * (1.0 - smoothstep(0.45, 1.0, d * (0.75 + 0.5 * tear))));
+          s = max(s, q.w * (1.0 - smoothstep(0.3, 1.0, d * (0.85 + 0.3 * tear))));   // a soft edge, torn a little
         }
       }
       return s;
@@ -363,10 +368,12 @@ const WATER = (() => {
         vec4 wRow = wB == 0 ? mix(uWBody[1], uWBody[0], wK) : uWBody[wB];
         vec3 wS = wGerstnerS(vWP.xz, wFp) * wRow.x;
         vec4 wDet = detailNormal(vWP.xz, wFp); wDet.xy *= wRow.y;
-        float wSl = uWSlickN > 0.5 ? 0.85 * wSlick(vWP0.xz) : 0.0;   // SWIMMERS: a whale's slick (none: no cost)
+        // SWIMMERS: a whale's slick (none: no cost). Slot 3: at 0.85 the patch went mirror-flat and read as a white blob in
+        // the horizon's sky; 0.55 calms the ripple, keeps a little of the sub-pixel roughness (a satin, not a mirror)
+        float wSl = uWSlickN > 0.5 ? 0.55 * wSlick(vWP0.xz) : 0.0;
         wDet.xy *= 1.0 - wSl;
         vec4 wIn = wInter(vWP.xz);
-        float wSig = uWWave.w > 0.5 ? wSigma2(wFp) * (1.0 - wSl) : 0.0;
+        float wSig = uWWave.w > 0.5 ? wSigma2(wFp) * (1.0 - 0.7 * wSl) : 0.0;
         // foam: the fold's crests, the tile's crests where the fold is high, the shore's lap, the field's own
         float wFoam = 0.0;
         if (uWMisc.w > 0.5) {
@@ -1843,7 +1850,7 @@ const WATER = (() => {
   // OFF SWITCH: ?glint=0 (a rig's A/B) = master to the bit; WATER.glint.<key> live.
   const GLINT = { vis: 1, gain: 1, calm: 0.3, cap: 6 };
   const GLINT_OFF = typeof location !== 'undefined' && /[?&]glint=0/.test(location.search || '');
-  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, direct: 1, dK: 1, dJit: 0.3, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
+  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, direct: 1, dK: 1, dJit: 1, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;

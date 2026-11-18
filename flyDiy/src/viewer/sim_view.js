@@ -86,14 +86,23 @@ function simViewDmgTies(D, P) {
 function simViewDmgApply(D, P) {
   if (!P) return D;
   if (P.br) {
-    D.br = P.br.slice(); D.broken.fill(0);
+    // G4103 (JOINT-TETHER): a kinked member its tether still holds (P.th) is no break for the page - its tube drawn whole
+    // and bent, the skin over it kept (creased by its nodes, not cut or dropped); its tether torn, it joins the list. The
+    // list stays in the order the page saw the breaks (it only grows within a crash: skin_break.js event reads past evBr)
+    const held = P.th && P.th.length ? new Set(P.th) : null;
+    if (held || D.held) {
+      const vis = held ? P.br.filter(bi => !held.has(bi)) : P.br, now = new Set(vis), keep = D.br.filter(bi => now.has(bi)), had = new Set(keep);
+      D.br = keep.concat(vis.filter(bi => !had.has(bi)));
+    } else D.br = P.br.slice();
+    D.held = held ? P.th.slice() : null;
+    D.broken.fill(0);
     for (const bi of D.br) if (bi >= 0 && bi < D.nb) D.broken[bi] = 1;
     D.pc = P.pc ? Int32Array.from(P.pc) : null;
     let k = 0; if (D.pc) for (let i = 0; i < D.pc.length; i++) if (D.pc[i] > k) k = D.pc[i];
     D.nPc = k + 1; D.vB++; D.sB = P.sB;
     simViewDmgTies(D, P);                           // G2040
     if (P.hw) { const H = D.how && D.how.length === D.nb ? D.how : (D.how = new Uint8Array(D.nb)); H.fill(0);   // G3770
-      for (let j = 0; j < D.br.length && j < P.hw.length; j++) if (D.br[j] >= 0 && D.br[j] < D.nb) H[D.br[j]] = P.hw[j]; }
+      for (let j = 0; j < P.br.length && j < P.hw.length; j++) if (P.br[j] >= 0 && P.br[j] < D.nb && D.broken[P.br[j]]) H[P.br[j]] = P.hw[j]; }   // (P.hw in P.br's order; G4103: a held member has no break code)
     else if (!D.br.length) D.how = null;
   }
   if (P.bd) { const M = new Map(); for (let j = 0; j + 4 < P.bd.length; j += 5) M.set(P.bd[j], { kt1: P.bd[j + 1], dk: P.bd[j + 2], nx: P.bd[j + 3], nz: P.bd[j + 4] });

@@ -632,6 +632,16 @@ window.CAGE_PAGE = {
         // (wsRun / wsTopOff are the windscreen frame's waist / top fore-aft)
         ['wsBaseBow', 'base bow',       0.00, 1.20, 0.01],
         ['wsCeilBow', 'ceiling bow',    0.00, 0.60, 0.005],
+        // WS-TO-WAIST (15 Nov, the 172): the windscreen's strip under the glass (its waistband) glazed down to the waist
+        ['wsToWaist', 'windscreen reaches', 0, 1, 1, ['the waistband', 'the waist (no strip)'], { absent: 0 }],
+        // WS-SHOULDER (15 Nov, the 172: "a V ... the original is very much a U"): a shoulder column each side of the
+        // screen - how far forward it comes (0 = on the straight pillar-to-centre line, 1 = level with the centre: a
+        // flat front), and how far out it sits (a fraction of the pillar's half-width)
+        ['wsShoulder',  'shoulders forward', 0, 1, 0.01, { absent: 0 }],
+        ['wsShoulderX', 'shoulders out',     0.30, 0.95, 0.01, { when: P => +P.wsShoulder > 0, absent: 0.65 }],
+        ['wsShoulderTop', 'shoulders at the top x', 0, 1, 0.01, { when: P => +P.wsShoulder > 0, absent: 1 }],
+        // (16 Nov) how far forward at the screen's BASE (absent 1: full) - 0 keeps the base corner on the deck
+        ['wsShoulderBase', 'shoulders at the base x', 0, 1, 0.01, { when: P => +P.wsShoulder > 0, absent: 1 }],
         // G2770 (the user: "the bubble glass option is misleading. It's more
         // like an additional adjourning, that should be hidden in real canopy
         // bubble mode"): the row hides under a bubble canopy (its value kept)
@@ -1176,6 +1186,14 @@ window.CAGE_PAGE = {
       // (the drawn windows moved to '4b · drawn windows', T2.2)
       ['doorPax',   'pax doors',       0, 1, 1,
        { when: P => +P.paxCount > 0 }],
+      // CAR-4: a window in the rearmost wall, looking aft (absent = none); its sizes as a side window's
+      ['rearWinOn', 'rear window', 0, 1, 1],
+      ['rearWinW', 'rear window width', 0.1, 2.0, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
+      ['rearWinH', 'rear window height', 0.05, 1.2, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
+      ['rearWinY', 'rear window centre height', -1.0, 1.2, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
+      ['rearWinR', 'rear window corner radius', 0, 0.3, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
+      ['rearWinN', 'rear windows (one / a pair)', 1, 2, 1, { when: P => +P.rearWinOn }],
+      ['rearWinGap', 'rear pair centre to centre', 0.1, 2.0, 0.005, { when: P => +P.rearWinOn && +P.rearWinN === 2, dim: 'len' }],
       // (12 Nov, FIT-PROCEDURE) doors on the front bays only: 0 = every bay (as always)
       ['doorPaxFront', 'pax doors: front bays only (0 = all)', 0, 12, 1,
        { when: P => +P.paxCount > 0 && +P.doorPax > 0, absent: 0 }],
@@ -1195,6 +1213,7 @@ window.CAGE_PAGE = {
       ['paxOpen4',  'bay 4 open at the top', 0, 1, 1, ['closed', 'open'], { when: P => +P.paxCount >= 4 }],
       // (G3573: a COUNT, 0-48 - rows x the row's seats - filled from the bay's first row (by its aft ring) forward, each row from the aisle out; the old
       // dropdown's 0-3 are the same numbers)
+      ['paxSeatBays', 'bays with seats (from the front)', 0, 4, 1, { when: P => +P.paxCount > 0 }],   // CAR-3: absent = all
       ['paxOcc1',   'bay 1 seated',    0, 48, 1,
        { when: P => +P.crewOn && +P.paxCount >= 1 }],
       ['paxOcc2',   'bay 2 seated',    0, 48, 1,
@@ -1252,6 +1271,12 @@ window.CAGE_PAGE = {
       // holds the root to BOOM_REACH ahead of the wing's own leading edge at the boom's station (_cage_wing.js)
       ['boomDz',    'fore / aft (from the trailing edge)', -3.5, 1.0, 0.005,
        { when: P => +P.boomTwin, dim: 'len' }],
+      // CAR-4 (the user, 12 Nov: "use the double boom to emulate a chassis"): with the WING OFF the booms root on the
+      // body - the station (cage z, metres, forward positive) and the axis height; absent = no booms without a wing
+      ['boomBodyZ', 'root station on the body (no wing)', -2.0, 6.0, 0.005,
+       { when: P => +P.boomTwin && !+P.wingOn, dim: 'len' }],
+      ['boomBodyY', 'root height on the body (no wing)', -1.2, 1.0, 0.005,
+       { when: P => +P.boomTwin && !+P.wingOn, dim: 'len' }],
       // G267: THE LOFT (the user: "their vertical and horizontal thickness
       // at fore and aft ends", "their profile (square, round)", each end
       // "profiled ... from ogival to conical" with "the type of cap")
@@ -1323,6 +1348,9 @@ window.CAGE_PAGE = {
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn }],
       ['aeroAftEdge', 'aero aft edge (of the base)', 0.05, 1.5, 0.01,
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn && +P.aeroAftShape }],
+      // CAR-1: the tube drawn or not (0: the pod alone, ended by the aero aft - a car's trunk)
+      ['rodOn',     'rod tube',        0, 1, 1, ['off', 'on'],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin }],
       ['rodY',      'rod height',     -1.5, 0.9, 0.005,   // (HULL-B20: -1.5 - a rod under a deep hull's disc)
        { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len' }],
       ['rodD',      'rod diameter',    0.04, 0.32, 0.002,

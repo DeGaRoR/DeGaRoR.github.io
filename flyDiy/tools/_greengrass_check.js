@@ -142,5 +142,16 @@ ok(bareB.length === 0, '3 a bare type on brown (dry) ground: none', bareB.length
   const F = field(o), w = F.CR.fieldAt(35.5, 0), x = F.CR.fieldAt(20, 0);
   ok(w && w.weed > 0.9 && x && x.weed === 0 && w.perM2 > x.perM2 * 1.2, '10d fieldAt reports the band (weed 1 at 4.5 m out, 0 at 20 m)', JSON.stringify([w && [w.weed, w.perM2, w.h], x && [x.weed, x.perM2, x.h]])); }
 
+// 11 GRASS TO THE EDGE (16 Nov eve, the user: "taller grass on the strip side"): a cut the premises mark TALL (beside a soft strip)
+//    stands at tallH, the plain cut (a paved field's lawn) at cutH - fieldAt's height, the same node otherwise
+{ const lawn = { kill: 0, boost: 0, kind: null, cls: 'gravel', cut: 1, surf: 0 };
+  const F = field({ col: LIB.lush, mixAt: () => 'grassland', coverAt: (x) => (x < 20 ? Object.assign({}, lawn) : Object.assign({ tall: 1 }, lawn)) });
+  const a = F.CR.fieldAt(10, 0), b = F.CR.fieldAt(30, 0), S = F.CR.get();
+  ok(a && b && Math.abs(a.h - Math.max(S.minH, S.cutH)) < 1e-6 && Math.abs(b.h - Math.max(S.minH, S.tallH)) < 1e-6 && b.tall === 1 && a.tall === 0 && S.tallH > S.minH && S.minH === 0.3,
+     '11 a TALL cut stands at tallH (' + S.tallH + ' m), a lawn at the shortest grass (minH ' + S.minH + ' m, the user: "no grass should be smaller than 30 cm")', 'lawn h ' + (a && a.h) + ', tall h ' + (b && b.h));
+  const F0 = field({ col: LIB.lush, mixAt: () => 'grassland', set: { minH: 0 }, coverAt: (x) => (x < 20 ? Object.assign({}, lawn) : Object.assign({ tall: 1 }, lawn)) });
+  const a0 = F0.CR.fieldAt(10, 0);
+  ok(a0 && Math.abs(a0.h - F0.CR.get().cutH) < 1e-6, '11b minH 0: the lawn back at cutH (' + F0.CR.get().cutH + ' m)', 'h ' + (a0 && a0.h)); }
+
 console.log(fails ? `GATE GREENGRASS: FAIL (${fails})` : 'GATE GREENGRASS: PASS');
 process.exit(fails ? 1 : 0);

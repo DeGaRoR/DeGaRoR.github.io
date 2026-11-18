@@ -781,7 +781,10 @@ vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, ou
       for (const k in U) sh.uniforms[k] = U[k];
       if (W) { W.mats.add(this); if (!W.on) return; }
       const obj = kind !== 'baked';
-      const def = '#define DMG_SCUFF 1\n' + (obj ? '#define DMG_OBJ 1\n' : '');
+      // (GD_OFF, GROUND-FX 17 Nov: the live mud / rain term's two 3-D samplers took the scuffed program past the GPU's 16
+      // texture units - the 16:05 re-shoot's link error, VALIDATE_STATUS false; compiled out here, the unit count is
+      // master's again: a scuffed part draws no computed mud or rain)
+      const def = '#define DMG_SCUFF 1\n#define GD_OFF 1\n' + (obj ? '#define DMG_OBJ 1\n' : '');
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', def + AERO_DMG_VS_PARS + '#include <common>')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + AERO_DMG_VS_MAIN);

@@ -1,0 +1,196 @@
+{
+ "cases": {
+  "rocks0": {
+   "buildMs": 398,
+   "firstMs": 166,
+   "fsLen": 89631,
+   "samplers": 13,
+   "linked": true,
+   "layers": [
+    "beach",
+    "rocksB",
+    "mud",
+    "cliff",
+    "rocksG",
+    "rockyA",
+    "grassRock",
+    "forestAir",
+    "snowAir",
+    "grass",
+    "dirt",
+    "coastA",
+    "coastSand"
+   ],
+   "trOn": 0,
+   "eyes": {
+    "face": {
+     "pos": [
+      9727.5,
+      843.1,
+      -4788.2
+     ],
+     "target": [
+      9780,
+      793.1,
+      -5020
+     ]
+    },
+    "near": {
+     "pos": [
+      9762.8,
+      798.1,
+      -4910.7
+     ],
+     "target": [
+      9780,
+      798.1,
+      -5020
+     ]
+    },
+    "high": {
+     "pos": [
+      9380.4,
+      1369.9,
+      -4596.3
+     ],
+     "target": [
+      9807.6,
+      769.9,
+      -5073.3
+     ]
+    },
+    "far": {
+     "pos": [
+      8640,
+      1175.1,
+      -4590
+     ],
+     "target": [
+      9490,
+      815.1,
+      -5440
+     ]
+    },
+    "top": {
+     "pos": [
+      9780.1,
+      1488.1,
+      -5019.9
+     ],
+     "target": [
+      9780,
+      788.1,
+      -5020
+     ]
+    }
+   },
+   "errs": [],
+   "ms": {
+    "face": 0.9,
+    "near": 0.7,
+    "high": 0.4,
+    "far": 0.2
+   },
+   "logs": [
+    "log: splat: the sets normalised to the imagery (gain r/g/b): grassRock 0.26/0.47/0.90, mud 0.50/0.50/0.50, beach 0.50/0.50/0.50, rocksG 1.00/1.00/1.00, cliff 1.00/1.00/1.00, rockyA 1.00/1.00/1.00, forestAir 1.00/1.00/1.00, snowAir 2.50/2.50/2.50, dirt 0.73/0.73/0.73, coastA 1.30/1.30/1.30, coastSand 1.33/1.33/1.33, rocksB 1.00/1.00/1.00, grass 0.35/0.36/0.67"
+   ]
+  },
+  "rocks1": {
+   "buildMs": 435,
+   "firstMs": 124,
+   "fsLen": 89610,
+   "samplers": 13,
+   "linked": true,
+   "layers": [
+    "beach",
+    "rocksB",
+    "mud",
+    "cliff",
+    "rocksG",
+    "rockyA",
+    "grassRock",
+    "forestAir",
+    "snowAir",
+    "grass",
+    "dirt",
+    "coastA",
+    "coastSand",
+    "trondSlab",
+    "trondFace"
+   ],
+   "trOn": 1,
+   "eyes": {
+    "face": {
+     "pos": [
+      9727.5,
+      843.1,
+      -4788.2
+     ],
+     "target": [
+      9780,
+      793.1,
+      -5020
+     ]
+    },
+    "near": {
+     "pos": [
+      9762.8,
+      798.1,
+      -4910.7
+     ],
+     "target": [
+      9780,
+      798.1,
+      -5020
+     ]
+    },
+    "high": {
+     "pos": [
+      9380.4,
+      1369.9,
+      -4596.3
+     ],
+     "target": [
+      9807.6,
+      769.9,
+      -5073.3
+     ]
+    },
+    "far": {
+     "pos": [
+      8640,
+      1175.1,
+      -4590
+     ],
+     "target": [
+      9490,
+      815.1,
+      -5440
+     ]
+    },
+    "top": {
+     "pos": [
+      9780.1,
+      1488.1,
+      -5019.9
+     ],
+     "target": [
+      9780,
+      788.1,
+      -5020
+     ]
+    }
+   },
+   "errs": [],
+   "ms": {
+    "face": 0.7,
+    "near": 0.3,
+    "high": 0.4,
+    "far": 0.2
+   },
+   "logs": [
+    "log: splat: the sets normalised to the imagery (gain r/g/b): grassRock 0.26/0.47/0.90, mud 0.50/0.50/0.50, beach 0.50/0.50/0.50, rocksG 1.00/1.00/1.00, cliff 1.00/1.00/1.00, rockyA 1.00/1.00/1.00, forestAir 1.00/1.00/1.00, snowAir 2.50/2.50/2.50, dirt 0.73/0.73/0.73, coastA 1.30/1.30/1.30, coastSand 1.33/1.33/1.33, rocksB 1.00/1.00/1.00, grass 0.35/0.36/0.67"
+   ]
+  }
+ }
+}

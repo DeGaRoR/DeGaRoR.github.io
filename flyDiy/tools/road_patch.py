@@ -26,6 +26,8 @@ for rid, q in P.get('roads', {}).items():
                 return o
         return p
     r['pts'] = [keep(p) for p in q['pts']]
+    if 'tan' in q:   # (TOW-LAUNCH road_join_drawn.js: a spline's handles, a null beside an inserted point)
+        r['tan'] = q['tan']
     if q.get('nodes'):
         r['nodes'] = q['nodes']
     elif 'nodes' in r:

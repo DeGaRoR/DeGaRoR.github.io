@@ -724,6 +724,9 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
   function surfaceNow(code) { return code >= 20 && code <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.resolve(code, soilNow()) : code; }
   // the dev override: 'dry' | 'firm' | 'soft' (the soil's water held for every reader), null = the weather's. sim_link replays it
   // on the physics worker's world (as setDay)
+  // the ladder's numbers (07f GROUND_WX.ladder: the rungs' thresholds, the wear, the darkening, the film, the override's water) -
+  // the world rail's 'weather ladder' rows; through the world so the physics worker's takes the same (sim_link replays it)
+  function setGroundLadder(o) { return typeof GROUND_WX !== 'undefined' ? GROUND_WX.ladder(o === undefined ? {} : o) : null; }
   function setGround(level) { groundForce = level && typeof GROUND_WX !== 'undefined' && GROUND_WX.FORCE[level] !== undefined ? level : null; }
   const B = makeBiomes({ terrainH, waterOf: waterAt, distW: HYD.distW, SURFACE, salt: SALT, roadNear: SET.roadNear, aeroSurf: aeroSurfAll });
 
@@ -1317,9 +1320,14 @@ const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED:
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
     terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
     stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
+    // ROCK-STUDY (17 Nov, the user: "a runway there with terraforming ... should follow the terraforming rules"): how much of the
+    // NATURAL ground the premises keep at (x, z) - 1 untouched, 0 graded flat - read off the composer itself: its modifiers are
+    // blends, affine in the ground under them (terrainH's lakebed note), so a metre more of base ground comes through as (1 - w).
+    // Exact to every modifier's own falloff; the rock (its exposure, relief, boulders - rock_ring) is multiplied by it
+    terrainKeep: (x, z) => { if (!PM) return 1; const h0 = baseH(x, z), f = h => (PM.terrainFast ? PM.terrainFast(x, z, h) : PM.terrainH(x, z, h)); const k = f(h0 + 1) - f(h0); return k >= 1 ? 1 : (k <= 0 ? 0 : k); },
     roughAt: (x, z) => !!(PM && PM.roughAt && PM.roughAt(x, z)),   // (SNOW-MUD: on a bumpy strip's box - the wheel's envelope, 30_solver)
     // (SNOW-MUD LADDER: the soil's water this world reads, a weather code's rung now, the dev override - 07f GROUND_WX)
-    soilNow, surfaceNow, setGround, get groundForce() { return groundForce; },
+    soilNow, surfaceNow, setGround, setGroundLadder, get groundForce() { return groundForce; },
     wxAt: (x, z) => { const s = aeroSurfRaw(x, z); return s >= 20 && s <= 22 && typeof GROUND_WX !== 'undefined' ? GROUND_WX.state(s, soilNow()) : null; },   // a weather strip's rung here (null off one)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, marginGrassAt, settlements: SET.settlements,   // marginGrassAt: GRASS-ON-GREEN (16 Nov) the margin gives way

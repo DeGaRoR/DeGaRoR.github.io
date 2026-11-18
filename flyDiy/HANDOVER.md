@@ -316804,6 +316804,17 @@ re-cooked (premises, city, map, fleet; mt_strip 0 spots):
 - NOT RUN on a page yet: the --gpu half of this version (A0: the node gate is enough for the ready). INFRAME uses
   camera.matrixWorldInverse / projectionMatrix as last drawn; a sim on the worker without cgPos falls back to camGet, said so.
 
+## GRASS TO THE EDGE (LOOK-1, 16-17 Nov 2026; the user: "wild grass coming close up", then "taller grass on the strip side and the wild
+## grass I validated", then "no grass should be smaller than 30 cm I think, even mown")
+- 27_premises GRASS_SIDES: softBandK 0 - a SOFT strip's (gravel, dirt, grass, snow) own cut band x this (1 = before: w1 4 m, w4
+  14.5 m), so the wild grass runs to its drawn edge; mowBand 1.5 m - the band past it, whose cut answers `tall` in coverAt. The paved
+  fields (HOME, w2: 40 m) and the aprons keep their mown bands. townLawn 1 (0 = no lawn on town plots: a dial to measure the cost).
+- cover_ring.js grass field: minH 0.30 m (F9 "shortest grass") floors every MOWN height (not the wild height, not a grass strip's
+  running surface stripH); tallH 0.40 / tallSigma 0.3 for the cut beside a soft strip (the `tall` array, read like `cut`).
+- All look only: the wheels never read the cut. GRASSSIDES 7-8, GREENGRASS 11, COVER 8b, PAVEMENT (town lawn), LOOKS 5 (the okAt pin
+  takes the marginGrassAt term). Pictures + cost: https://claude.ai/artifact/7GmMNHx6tkQDMUnreY3Am8 (Tue 11:00: tufts +9 %, frame
+  time within noise). GRASS-CARDS (claude/grass-cards) puts cards on the cut ground and can lower minH under them.
+
 ## FLIGHT-SCRIPT (Pilot, 15 Nov 2026; the user via A0: scripted flights in steps with a deep log)
 - tools/flight_script.js: one scenario JSON (plane list:N, from/to, day game|calm, persona, steps {do, until, capS, allow}), the NODE runner through the game's own host (_tour_lib gameHost); one JSONL per run (run / sample 1 Hz / say / step with solver ms / end). A failed step stops the run with its WHY. The page runner (page_rig.js, frame ms per step) follows Thu 19 Nov.
 - The library tools/flight_scripts/: home_circuit (F-HCSN), east_point (the Cub, CALM: on the game's day it diverts, said), strip_jumbo (the Jodel), altiport (the Cub), float_circuit (B-CESF list:4). All five pass on 58c681347.
@@ -316842,6 +316853,38 @@ HOUSEWORKER: green in this battery (it was Game's one red on its stack).
 STANDING (L40c's, unchanged): FLIGHTREC GEN RADIALDIV TAXICLEAR ALTIPORT GLIDE UNIFY DESTTO TREECRASH DMGCERT DMGGEAR WILGAGEAR DMGCLUSTERS DMGINST DMGINTEGRITY DMGWALL DMGDAMP DMGTYRE DMGFABRIC DMGSCAR DMGDETERMINISM FRAMECOST ROUNDTRIP SHADOWSKY WINGROWS DESIGNCHECK JOINPARITY ENGINE PARTS POD DMGPOD CANDIDATES NAMES NODUMMY ENERGYBASE TANKMOUNT ENGTORQUE FLEX LOAD ENGCONFIG.
 
 COLD LOAD (before/after every train, the user 14 Nov): before 138 s (L40c); after 143 s (programs 501 -> 508, world 26.1, settle 17.4, shader compile 46.2 + 11.8 s): +5 s, 7 more programs. Ledger D:/Dev/flydiy-notes/COLD-LOAD-LEDGER.md.
+
+## MOUNTAIN-VEG - THE SUBALPINE, ITS SHRUB CARDS, THE FOREST EDGES (15-16 Nov 2026; the user: "our mountain tops are too bare"; A0's GO)
+- 19 SUBALPINE (claude/ready/subalpine = claude/mountain-veg f1a92634b, L40e): heath / scrub / dense scrub above a 450-600 m ramp
+  take the `subalpine` mix (28c_biomes subCode / subKeep, render_world's BIO.subAt / keepAt hooks, the walk + stand cards + mixHere;
+  codeAt and the splat untouched); thinned on the high summits and the ridge tops; ?subalpine=0. BIOMES.hold: the knobs once a
+  pass (knobs() per point was 5 of 11 s of the walk).
+- THE SHRUB CARDS (claude/subalpine-shrubs, rides after the subalpine): picture species with place.shape carpet / cluster / crown
+  (cover_ring shapedCards; the user's picks on the shrub bench 15 Nov night: carpet for all, cluster + crown for the 2 m grey-red
+  thicket, cut 0.3, Cassiope as wide as the others); alp_greyred / alp_vaccinium / alp_elliottia / alp_cassiope; ?alpshrubs=0.
+  The pictures: the user's sprites through tools/card_prep.py, baked by tree_prep.py --only (TREE_ASSETS = a folder holding
+  vegetation/flowers/<name>.png). treeReachOf reaches code 19 (derived, not in the ttype grid).
+- FOREST-EDGE (claude/forest-edge, for Thu 19 Nov): the trees' size ramp inside a forest's edge (28c edgeField / edgeRamp /
+  edgeLift / edgeCanIn; walkRows + stand cards) and the bushes + weeds band outside (cover_ring edgeBand, GATE COVER 9);
+  ?forestedge=0. The grass field's weeds band is LOOK-1's (the field's ctx carries edgeD).
+- The tool: tools/veg_bench.js (WORKBENCH row; card cards/veg_bench.md): --subalpine 0, --forestedge 0, --edge <areas>.
+- THE WORLD EDITOR (F9, world_rail.js; the user 16 Nov: every world setting editable there) - claude/world-rail-veg, on top of
+  forest-edge + the shrubs: TYPES > subalpine (code 19: the ramp, the thinning, the dial), VEGETATION > the forest edge (the ramp,
+  the band, the field, the dial), a shaped species' card rows (cut, height, bend, lean, tilt, upright: cover_ring reshape). The
+  knobs: BIOMES.setKnobs / tuned (the look's bioKnobs; TREE_FILL.knobs replants); the planters read the splat's LIVE knobs
+  (BIOMES.ground - the split sliders never moved them). GATE WORLDRAIL holds the rows: a new world setting adds its line there.
+- 16 NOV EVENING, THE USER'S CALLS (all in claude/world-rail-veg for L40f): the subalpine "a little too sparse ... the forest
+  conifers, about 50-70% the size ... I don't want deciduous over there" -> the mix is the forest's conifers at canopyFloor 6
+  (7-9.5 m; the median forest conifer 11.7 m), no shrub_deciduous, the edge band's bushes skip it, ridge keep 0.6, clump 0.15,
+  ramp 420-540 m, the shrub cards x4. The forest edge "made the deep forest denser" -> the inside ramp is OFF (edgeIn 0) and an
+  OUTWARD BAND plants the wood's own trees outside its line (28c edgeBandAt / edgeReachAt: reach 30 m +-50 %, clumps, 0.7 ->
+  sapling; render_world walkRows: a band point refused falls back to the ground's rule; the record's canopy EDGE_CAN + size so the
+  build sizes it under the island's floor). The muskeg "higher density when there are trees ... subject to the forest border" ->
+  forest.clumpEdge (the clump fades outward) + forest.extra (a second tree in a clump). The shrub cards as bushes in every biome,
+  each its own set (my ecology default, a question on the page). Bench home: trees +51 % (muskeg extra +33, band 17.5). GAP: the
+  far stand cards do not draw the band. veg_bench mirrors it all; GATE COVER 9 holds the band's new geometry.
+- BACKLOG: the flowers and the subalpine shrubs carry simple_grass_chunks' CC-BY credit (3dhdscan) but they are the user's own
+  art - fix tree_prep's credit source (a species' own `credit` in the tuning, or none for the user's pictures).
 
 - WHEEL SIZE IN MUD AND ON STONES (the user, 15 Nov: "small wheels should struggle more than large wheels ... maybe we can test that too" and "does a large tundra wheel help on a bumpy road with stones? Normally we should have one"), on claude/ready/snow-mud-finish (futureDesigns/SNOW-MUD-FINISH-2026-11-15.md sections 6-7). GATE WHEELSIZE (core ~45 s): the Cub's main wheels 0.15 / 0.22 (built) / 0.30 m standard and 0.36 m tundra, full power from rest - on soft mud the 0.15 m is STUCK and the penalty falls x1.40 / x1.18 / x1.12, the sinkage 8.5 / 3.3 / 1.6 / 0.6 cm; firm mud is every wheel's ground; grass the control. THE STONES: the solver read the ground at ONE POINT under each node - a stone was a step under the axle, no stone cost any wheel speed, and the tundra jolted harder. 30_solver now rides THE TANDEM CAM on a bumpy strip only (world.roughAt: a micro strip's box, 27_premises roughAt; Schmeitz & Pacejka VSD 2004): two cams of the tyre's radius one footprint apart (tyreFootprint's 4A / pi b: 0.15 m on the 0.15 m wheel, 0.46 m on the tundra), the axle's ground their mean, the stone's push-back their difference over the footprint. The ground is read once a frame per wheel on the strip (a 5 cm profile, 49-76 reads a frame, out.envN); a world without roughAt reads nothing (flat ground: the same bits, checked). GATE ROUGHWHEEL (core ~100 s): against the strip's own stones (STRIP_MICRO's paraboloid caps) the 0.15 m wheel STOPS at a 15 cm stone at 0.3 power where the others cross keeping 33 / 49 / 61 %; over the strip's biggest (20 cm) at 0.4 power they keep 25 / 48 / 61 / 74 % and the jolt falls 11.1 -> 7.7 m/s^2; at a 10 m/s taxi over 15 cm stones the jolt 13.2 -> 10.1 and the gear's strain 8.40 -> 7.42 %; the old point read fails it (the self-test). GARAGE GAP for the DIRT session: the ride on the strip's LUMPS is not softer on a big wheel (no tyre filters a 2-3 m wave - right - but the peak still grows with the wheel): the solver's ground spring scales with the node's mass (KGn), so the tundra rides STIFFER (2.8e5 against 9e4 N/m); a carcass's vertical rate beside TYRE_SOFT is the row to build, and it moves every rolling fixture. CORRECTION to DEEP SNOW above: "SKIS' soles read the same" was wrong - SKIS' fresh top double-counted on the virgin rows; SKIS fixed it at a809ac6ae (ruts 29.7 / 18.3 / 11.5 cm, the Cub off in 89 m, the PC-6 on skis off powder in 53 m).
 
@@ -317202,6 +317245,911 @@ NEW REDS (named, owners fix in L40f):
 - BENCHTIME: 2 bench checks at 6.0-6.5 s vs 6.0 under the train's load (timing).
 LOAD TIME (cold, RTX 3080, ledger): L40d 143 s -> L40e 215 s (205 s re-measured on a quiet box): world 26 -> 40-51 s, settle 17 -> 22-27 s, shader compile 58 -> 67-93 s. LANDED WITH THE COST NAMED (the user's rule); suspects: subalpine (+7-14 % trees, walk), grass-on-green, animals on land (31 drawn), the ground ladder. First item of the perf round; bisect owed.
 KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes evict grit on low tiers (GROUND-FX splash-budget L40f); MEDIA career_core 720 KB budget (Game).
+
+## GRASS-CARDS - ALL MOWN GRASS AS GRASS CARDS (G4180, 17 Nov 2026)
+The user, 16 Nov: "when the grass is really small, they look just like little dots ... all mown grass needs to be addressed through grass cards" (the bench's, never used).
+- THE CARDS: grass_plates (realtime_grass.glb, mfhscoobydoo CC-BY): 6 plates of 6 tris, MASK, a 2.2 m strip of ~40 blades; in treeReachOf (trees.js) since this change.
+- THE RING: cover_ring.js layer 'lawn' (render_world lawnField; TREE_FILL.lawn / lawnOn): the field's machinery with its own S (LAWN_DEF), fade set (reach 40, near 10, hRef 0.08), 8 m cells x 4 a block. Plants ONLY on coverAt's cut (bands, aprons, verges, field-wide cut, the tall band beside soft strips at tallH 0.4, a grass strip's surface at stripH). Cut and kill read BILINEARLY inside each 1 m square (the field's nearest-node read reaches half a metre onto paving - a known limit of the reed path, not changed). No card within lawnWet 0.3 m of drawn water. Candidates hashed per square (tiers nest; ~5-7 ms a fully mown cell in node).
+- THE FIELD STEPS ASIDE: grassField keeps x (1 - cut) while the lawn is on (ctx.lawnOn); the wild grass is identical tuft for tuft (GATE LAWN 4b). minH (grass-edge's 30 cm floor) stays the reed path's.
+- DEFAULT: ON, variant B (8 cm, 150 cards / m2) - page https://claude.ai/artifact/NfFjULHhqZg4itbvcgQBAS (17 Nov 06:00 slot, 4 variants + today + grass-edge). ?lawn=0 the A/B. GFX cover column: full 40 m / 150; lean (phone, laptop) 20 m / 60; off none. F9: VEGETATION > the grass field > 'mown grass: the cards' + world look keys lawn / lawnOn.
+- COST (RTX 3080, 1280x720, beside HOME's runway, cards + tufts): B 1.45 ms vs grass-edge's floor 2.51 ms vs today's 8 cm tufts 0.80 ms; phone setting 0.35 ms.
+- FRAMECOST (lawn ON vs OFF on one tree, L40e + grass-edge): stand draws.main +21, taxi +30, taxi uniform1f +12, stand terrainH +4.5, stand world.grHeight +8 / +10 = ALLOW G4180 (the only key the lawn alone turns red; reason in _framecost_check.js); taxi triangles -4.8 M, roll-out ground lookups -48 000. The red keys are the same with the lawn on or off.
+- GATE LAWN (tools/_lawn_check.js, core): 0 the default, 1 only grass_plates only on the cut, 1c the pavement's edge, 2 dens x cut, 3 lengths (cut / tall / strip), 4 the field steps aside + the wild unchanged, 5 lawn off, 6 tiers nest, 7 lawnAt, 8 off, 9 never in drawn water.
+- RIGS: tools/perf/lawn_rig.js (page_rig.js; configs x eyes, lawn / field GPU ms; --at / --latest / --until / --maxLoad), tools/perf/lawn_page.js (the user's page from the rig's dir).
+- UPDATE 17 Nov 13:30 (supersedes 'DEFAULT: ON, variant B' above): the user, ~06:45: "d is best looking. Maybe a ladder D -> B -> B phone? B phone looks bad TBH".
+  The lawn's default is D (10 cm, 300 cards / m2, to 20 m, 4 m cells x 8 a block; ~2-3 ms a fully mown cell in node). GRAPHICS > terrain & vegetation > 'mown grass' is a FREE row (default 'auto'; the desktop presets stay as train 31 shipped them - GATE GFX 10): auto = D on ultra / gamer, B (8 cm, 150 / m2, to 40 m) on current / retro, OFF on potato / laptop (the phones' preset). Rungs D / B / near (D's look to 12 m) / off by hand. gfx_settings LAWN_LADDER / LAWN_OF.
+  PHONES OFF (the 12:40 slot, ?gfx=laptop): the phone preset draws its ground PLAIN; the cards take the textured ground's colour (groundMeanAt), so they read pale and pixelated with a hard line at 12 m. OWED, perf week: the cards in the plain ground's colour. The phones' presets have no ground cover at all, so their mown ground stays bare (today's).
+  THE TALL BAND beside a soft strip stays the field's tufts (lawn tallCards 0, F9 'cards in the tall band beside bush strips'): at 40 cm the cards read as dark blocks at Cabin Strip. The field keeps x (1 - cut x (1 - tall x (1 - tallCards))).
+  COST (12:40, RTX 3080, 1280x720, beside HOME's runway, cards + tufts): D as shipped 1.93 ms vs the lawn off (grass-edge's 30 cm tufts) 2.70 ms; B 1.41 ms. Phone preset: the near rung 0.43 ms (18 draws), upright-only 0.40 ms (9 draws).
+  BASE: claude/ready/grass-edge-2 fc7583c8c (grass-edge + world-rail-veg): the lawn ring sits beside world-rail-veg's rocks ring (cover_ring layer 'rocks') - a ring knows LAWN / FIELD / ROCKS; api layer 'lawn'.
+  Pages: https://claude.ai/artifact/NfFjULHhqZg4itbvcgQBAS (v1 the study, v2 the ladder). Evidence: flydiy-notes/evidence/grass-cards-2026-11-17{,-final,-final-phone}.
+- SNOW-MUD RAIL (A0 for the user, 16 Nov: "every new world setting must be editable in the WORLD EDITOR ... for hand-tuning"), on claude/snow-mud-rail (a fast-forward of claude/snow-mud-ladder): F9 > RUNWAYS > 'weather ladder' - the 17 numbers of 07f GROUND_WX (LADDER_DEF / LADDER_RANGE: the rungs' thresholds, the ruts by rung, the darkening, the shine, the override's water), set through world.setGroundLadder (the physics worker takes them: replayed, handed at a flight's start), kept in THE LOOK as a delta, exported with "where", reset ('the weather ladder'). The drawn strips and aprons re-apply on GROUND_WX.version. PREMISES_GEN.surfaceName names the weather codes (a wheels property on one read '?'); render_world landBy takes GRASS_WET (a grass (weather) strip keeps its tufts). GATE MUDLADDER G (54 checks). MERGE NOTE: LOOK-1's grass-on-green giveWay goes into 20_world aeroSurfRaw.
+## AFB-0220 - JOLENE 02/20, THE DERELICT CROSSWIND STRIP: A NARROW BAND, A ROUGH LANE, A CRASH PLAYGROUND, THE FOREST TAKING OVER (13 Nov 2026, cloud, AFB-0220 for A0; claude/afb-0220-strip -> claude/ready/afb-0220)
+- THE ASK (the user 13 Nov via A0): 02/20 "an UNMAINTAINED, DEGRADED strip divided into several runways" - a narrow central band of the old concrete (straight: the Aero Club's spot landing, the plane-vs-car drag race), one side very bumpy but landable (STOL), the other a crash playground ("plenty of EXOTIC stuff to crash into ... REAL COLLISION and damage interaction"), further out the forest taking over; "look GOOD and NATURALLY OVERGROWN", a GRADUAL surface change, no hard lines; performance-wary assets; TREES ONLY THROUGH THE TREE SYSTEM. The user's satellite capture of the real strip: futureDesigns/refs/AFB-0220-real-runway-satellite.webp (this is it a few years on).
+- THE SOURCE: tools/jolene_parts/afb0220.py (prefix xw_, the strip's own frame: u along from the NE end, v + west), spliced into the shipped fixture IN PLACE by tools/afb0220_splice.py (ED-2's rule since G3663: the file's json.dumps form, every other byte kept, idempotent; --check for the gate). w2 itself is the user's entry: its change ships as scenery_ship_afb19.json fieldPatches.w2 (+ fieldPatchesWhyAfb0220) - a re-ship applies it again. No rev bump (ED-2's practice): a player's saved WIP world of rev 23 shadows the change in their own browser - A0 / the user decide whether to bump.
+- THE LAYOUT (v, metres): CENTRAL BAND w2 15 m (was 45; band 40 -> 1.5, falloff 60 -> 8, pav crackK 1 mossK 1 patchK 0.3 paintAge 1.2 wet 0.6 laneW 5), 1757.8 m straight; ROUGH LANE xw_rough 'Jolene AFB 02/20 rough side' east of it, v -8.25..-26.25 (0.75 m between the boxes - issues() refuses two strips' boxes overlapping), 18 x 1000 m (u 330-1330), look dirt, surface 6, micro chaos 0.55 seed 20, falloff 6, sock false, ties false, profile laid on the band's heights by tools/afb0220_measure.js (0 mm at the five points; its falloff 6 m stops 2.25 m short of the band's centreline - 10 m moved the band too); the PLAYGROUND west, v 7.5..~55 (the DEM's own pond comes back beside the band at u ~1430 now its grade stops 8 m out: the beaver pond; the second at (241, 599) is LOOKS 2's declared north end); scrub v 42..58 / -27..-48, wood to v 100 / -95 (from u 90: w2's tie-down rings stay clear).
+- THE GROUND'S CHANGE: a west dirt floor whose inner edge wanders 0.5-4.5 m ONTO the concrete; eleven dirt drifts over the band (blobs, z 2, a few across it whole); east verges gone to dirt where the lane is not; every dirt edge the soft class's torn edge (~8 m); the concrete's own moss / cracks / patches at their worst; the grass to its edge (band 1.5). Heaved slabs: eight `raise` areas 0.25-0.55 m, feather 0.4 m, wearing worn concrete off the grid (u 338-424, v 16-32) - a step in the ground the gear meets. Two side tracks into the east scrub to clearings (the satellite's).
+- THE PLAYGROUND (west; every prop an existing baked one with its LODs, a repeated key instanced): the BONEYARD u ~190 (starfighter - the F-104G photoscan - nose into the scrub, a tyre stack, drums); the PLOUGH u ~375 (loader_wreck, blade down, among the slabs); the FUEL DUMP u ~560 (auto_flatbed_cabover standing in for the bowser - no bowser asset - seven drum_steel, bin_metal_rust, pallets_three); the OLD POWER LINE u ~715 (two pole_b, the middle one gone); the TRAILER CAMP u ~880 (auto_semi_box across the old shoulder, car_crashed, camp_firepit); the BLOWDOWN u ~1045 (four fallen trees + a trunk, four stumps, two snags); the SLIDE u ~1225 (three boulder groups + machine_loader_rusty mid-clearance); the BEAVER POND u ~1380-1490 (the lodge - the big branch heap at 0.4 - in the DEM's water, a trunk and a fallen tree into it, chewed stumps, two drowned snags); the JUNK CORNER u ~1590 (auto_sedan_rusty, pallets, a tyre); COLLAPSED FENCE LINES along v ~52 (fifteen fence_old in broken runs - the user's AFB-NO-FENCES rule of 26 Oct held fences off the WWII site; this ask wants collapsed ones). The turnaround's young trees (28 m+ off the extended centreline, 5.3 m at most) and saplings on the east verge near 13/31 (the satellite's bushes). Not built, named: a toppled windsock mast (props turn only about y - the lane has no windsock instead), old runway lights (no asset), a mud surface (claude/snow-mud-surfaces not on master: the lane is wet dirt, pav.wet 0.7 - swap its look when it lands).
+- TREES ONLY THROUGH THE TREE SYSTEM: the forest = four vegetation areas (cover.veg 'new', density 45 / 190 a hectare, the pack's spruce / cedar / fir / pine / birch, snags, saplings, shrubs, the forest-floor litter as the user's a16 plants it); the snags and young trees = placed record trees (the forest fill draws them); the FALLEN TREES, STUMPS, THE LODGE AND THE BOULDERS = placed record trees naming the pack's DEBRIS / ROCK subjects (lowpoly_sticks stick_03/04/05/06/07/11, dead_tree_trunk_02, tree_stump_01, coast_rocks_05, sand_rocks_small_01, coast_land_rocks_03). No mesh tree, no log prop.
+- THE CODE (two small changes): (1) 29_obstacles.js TREE_HITS.lying(bb, size, sticks, x, z, foot, yaw): a lying piece's hitbox, a CHAIN of low upright cylinders down its long axis (r 0.45 / 0.9 of the footprint's half width for a branch heap / a solid piece, held 0.2..2 m; top 0.6 / 0.9 of its height; one radius apart; 48 at most) - TREE_HITS' own shape, so the solver meets it as a trunk (every beam, the tree-crash law); (2) render_premises.js: a record tree whose key is a debris / rock subject (groundPiece) registers that chain in hitTrees instead of an upright trunk, and is drawn by the premises' instanced cells (treeCells, the G556 path made a function) because the forest fill draws trees only (it counted them as townMiss and drew nothing); a single-rung ladder is built once, not per band.
+- AUTOPILOT (43_pilot.js untouched; tools/afb0220_ap_probe.js, the composed island, every bump): the stock build's circuit off w2 touches down 0.04 m off the centreline, the CG at most 0.09 m off it to the stop - ON THE CENTRAL BAND; off xw_rough 0.07 m / 0.10 m - on the lane's.
+- GATE AFB0220 (new, core, ~25 s; tools/_afb0220_check.js): the splice current; the band / the lane (parallel, 0.75 m apart, long enough, bumps on, issues() clean, the band straight with no terraform on it); the clearances (nothing on the band or the lane; nothing over 0.5 m tall within 18 m of the centreline - a DC-3's half span off the band's edge, 3.5 m to spare; past the ends only the turnaround's young trees); the assets (every prop baked, every heavy one LODed, every tree key the pack's and of its role's kind, every species a collection, no tree a prop); the ground (the lane on the band to 2 cm; the lane dry; the band dry but LOOKS 2's north end; every prop dry; the lodge in the pond); THE PROPS COLLIDE (each rasterised from its own triangles at 0.5 m, in an OBSTACLES registry: inside pushed out, 2 m clear untouched); THE GROUND PIECES COLLIDE (TREE_HITS.lying: the middle hit, past the end / over the top clear; the longest fallen tree 14.3 m of chain); THE SOLVER MEETS THEM (the stock build taxied at a fallen trunk across its track: stopped; at the boulder group: stopped, a fuselage member broken, a crash; at the crashed car (OBSTACLES): a 10 g impact, a crash; with nothing there it rolls through); THE COST (41 props, 14 keys, 162 k triangles at full detail, 22 instanced batches; 40 tree-system pieces 60 k, the ground pieces 9 cells / 18 batches; ~3 000 planted trees on 20.8 ha through the fill's rungs and impostors; nothing ticks).
+- COOKS RE-MADE (node): premises_cook.js --island jolene (21 raster cells, one place cell, the two terrain-type files; content-addressed), fleet_spots.js --cook (xw_rough has none: ties false). Not re-made here: the parked cook (GPU, the train's), the map pack (map_bake.js - the map draws w2 at its old 45 m until re-baked: A0).
+- A PARALLEL SESSION, SAME CHIP: another AFB-0220 session pushed claude/afb-0220-strip (4427f722, 16:53: an 18 m band, 'w2r' 02R/20L in SNOW-MUD's firm mud - snow-mud merged -, a `debris` object kind in a new 26c_wild.js, the winch merged in as kind 'winch', its own GATE AFB0220 and futureDesigns/AFB-0220-2026-11-13.md). This variant was found after its first push was refused and lives on claude/afb-0220-b-strip (no ready ref pushed: A0 picks one, or takes pieces - TREE_HITS.lying + the cells' ground pieces, the splice, the probe).
+- GATES on claude/afb-0220-b-strip (--jobs=2, 19 gates, 3051 s): PASS AFB0220 PROFILE WORLDRENDER TREES TREEHIT GRASSSIDES LOOKS SITE PREMISES OBSTACLE PAVEMENT STAGES NAMES STRIPGROUND PREMCOOK (run alone after the cook). RED, named: SCENERYED 1 (20b, Metlakatla put back 2968 ms > 2500: a timing row, red on the untouched winch base too - not this change); and FOUR OF THIS CHANGE's, each a pin of the old 02/20, not yet re-pinned: MICRO ("bumpy on the Pilot-vetted strips only": xw_rough's chaos 0.55 is not Pilot-vetted - Pilot's call), CONTRACTS 3 (CONTRACT_FIELDS must mirror every runway: xw_rough is not declared in 72_contract_data nor in the gear rule's table), RWYTREES 3 (row 1 the clearances' list and row 9 the own-clear strips' list want xw_rough named; row 7 'map nearer than today on every side' loses w2 L - the vegetation areas plant 02/20's sides in both modes), RWYLIGHTS 2 (its crossing case needs one of 13/31's edge lights on 02/20's pavement: none on a 15 m band - the row should build its own case). Not run: the full tier, FRAMECOST (GPU), UISMOKE, BUILT, TAXICLEAR, LINEUP, TOUR, DESTTO, ROUTE.
+- THE WINCH (claude/afb-0220-winch fd55d8f0, stacked on claude/sailplane-launch-study-176kdv): TWO winches as editor objects {kind 'prop', key 'gen:winch'} (render_premises buildGenProp: WINCH_GEN built lazily, WINCH_WX after placement, hitAdd 'prop' 0.5), 25.5 m off 13/31's centreline on the NE side (1.5 m off the paving), xw_winch13 (-359.51, 136.34, yaw 0.8552) and xw_winch31 (-209.03, 267.17, yaw -2.2864), each 1000 m of cable from its end's start 60 m in; winchStart's reach 25 -> 30 m off the centreline (25 stood the van on the paving) and only a winch facing the glider, the nearest; 13 materials, every one a MATLIB MeshStandardMaterial; GATE WINCH PASS (5 new PLACED rows), ASSETS red (the base's _cowl_gen.js line). Its own HANDOVER entry is on that branch (the base had flattened HANDOVER.md to LF).
+- SNOW-MUD (the user 13 Nov: "if we develop snow, maybe we just develop mud"; the observatory's altiport, the community field), claude/ready/snow-mud: five soft SURFACE codes, placed ONLY by a record (the premises looks `snow` `powder` `slush` `mud` `softmud` - the strip SURFACE pills and the area DRAW select list them by themselves): 8 SNOW_PACKED, 9 SNOW_POWDER, 10 SNOW_WET, 11 MUD_FIRM, 12 MUD_SOFT. PHYSICS (00_registry): GROUND_SURF 8-12 = the firm base (Raymer 17.1, ICAO GRF bands); GROUND_SOFT = the LAYER, Bekker p = k z^n with its depth zMax, k FIT so the stock wheel reads the operational rules (soft field +20-50 %, powder / wet snow 2-3 x or no-go); the tyre presses its load over its FOOTPRINT (TYRE_SOFT / tyreFootprint: carcass width and rated deflection on the wheel's own diameter) and flattens rather than press harder; groundSinkWheel's compaction drag F / N is added to the wheel's rolling coefficient (30_solver, a soft code only: one integer compare on every hard one). Heavier, narrower, smaller, softer all sink and drag more; tundra tyres float. SKIS' INTERFACE: groundSinkPlate (a plate's sink and plough), GROUND_SKI_MU (kinetic / breakout per code, SKI-REFERENCES 4.1/4.6), GROUND_SINK (z, p, F, cap) - futureDesigns/SNOW-MUD-2026-11-13.md section 3. Readouts sim.out.softZ / softF exist only on a frame that met a layer. RUNS (stock taildragger to 0.9 Vs, x grass): packed 0.95, powder 1.87, wet 1.49, firm mud 1.10, soft mud 1.55; tundra 0.94-1.32; the tricycle's small nose wheel STUCK in powder, wet snow, soft mud (stick back frees it from soft mud, slowly). LOOK: pavement classes `snow` (RECOLOURS fine grain to snow per slot through the existing grade uniforms - no new uniform or program; the far tier, surfaceColor and the dust follow) and `mud` (the library's mudAir / tracksM, a wet film always); the shader's `grassy` is class 5 alone now; dust classes `mud` (clods) and `snow` (white powder), their water their own; GROUND_ALBEDO, AF_SURF / AF_ROUGH (the worklet's row bound is the table's length), VEH_SURF, SCAR_SURF, turfS, SCUFF_SOFT, TW_SKID_MU carry 8-12. A snow / mud area keeps trees and plots out (FEEL_HARD). CUTS: the contact does not move down (the sink is a drag and a readout); no speed effect (no slush planing, no ski lift); one power law per layer (a light ski sinks only cm into powder - a two-regime snow is SKIS' to add if its gates need it). GATES: SOFTGROUND (new, core ~100 s, --selftest 9/9 red, --bless): the eight hard rows frozen, 16 legacy rolls BIT-IDENTICAL to master 23ce68c1 (tools/fixtures/softground_legacy_rolls.json), sinking with pressure, the runs, the vocabulary; HONEST's exact row count 8 -> 13. PICTURED (the pavement bench, headless Chromium on SwiftShader): the snow strip white with its tread imprints; the mud strip re-based on plain dirt recoloured to wet clay (aerial mud's tyre fans everywhere and a sky-pink film on the first still).
+
+- SNOW-MUD FX (the user 13 Nov: "a professional looking particle system ... first a literature scouting ... snow clouds, particularly in the powder snow ... mud doesn't have a cloud, but it should have projection, maybe inspired by what we have for the water"), claude/ready/snow-mud: futureDesigns/SNOW-MUD-FX-2026-11-13.md (the scout's sources, the decision, as built, what the stills taught). ONE SYSTEM: the dust's (dust.js), one draw and one program, its pools and its overdraw budget. Four soft classes (mud 5, packed snow 6, powder 7, slush 8) with their own laws on the class row (lum, fall, g, drift, plough, rise, proj; absent on the dust's five, which fly and draw as before - GATE DUST 52/52). SNOW: powder lifts at a low threshold (u*t 0.07-0.25 m/s, Pomeroy & Gray), clouds ~2.4 x dirt at a run-up, billows up (rise) and SETTLES in seconds (fall); packed snow drifts (a saltation skin of sparkling streaks under 15 cm) and hardly clouds; snow puffs scatter forward (g 0.8) with a multiple-scattering fill and a blue shade; powder's plough throws clumps off a sinking wheel (the solver's out.softZ, handed in as wheels[k].sink). MUD / SLUSH: never a cloud; clods (6-24 mm, tumbling, lumpy-lit) and drop clusters from the touchdown's spin-up, the tread (v^2/R over the adhesion: held at a walk, shed at speed - aeroplane wheels are not driven, no rooster tail), the bow wave (x the sinkage) and the prop wash; their rise held to 5 m/s (~1.3 m); landed ones SPLAT (5-18 cm, wet then drying, alpha-eroded, a ring per tier that never overwrites a fresh one). THE BENCH (tools/_dust.html): was broken on master (no matlib.js - MATLIB is not defined); fixed, + Mud / Packed snow / Powder / Wet snow, a Wheel camera, ?scen=&cls=&cam=&sun=&t=&still=1 for stills; the stills drove six fixes (the doc's list: dark backlit snow, flat cloud, invisible mud, sparkler streaks, ember clods, the mud pavement). GATE SNOWMUDFX (new, core, ~1 s, --selftest 7/7 red). NOT DONE: no full-screen whiteout fog inside a cloud; no mud on the airframe from a roll on mud (aeroweather's BUSH is career wear); per-wheel sinkage (the frame's deepest serves all).
+- THE USER'S CHOICE (13 Nov ~19:00 via A0: this variant is the base, "a lot better"; mud from SNOW-MUD on the sides; the clean concrete "between 3 and 5 metres, so you can put the wheels"; the rest crumbled with gradual transitions) - claude/afb-0220-b-mud, merged with claude/snow-mud-surfaces (ae0c1260) and origin/master 6a8d705c (L40a; 30_solver: L40a's brakes' hold under snow-mud's soft-layer sink, 90_node_exports the union), every cook re-made on it (premises, city, fleet spots, map).
+  - w2 unchanged as a record (15 m old concrete; its aerodrome, contracts, gear rules). Dressed: the crumble (dirt, |v| <= ~10 - over w2's edge lights at |v| 9, which stand flush in it (GATE RWYLIGHTS: a light in a pavement's 3 m clear is left out), z 2) and the clean CORE ('worn', 3.07-4.96 m across, a paved polygon's crisp chipped edge where a soft edge's noise would close it; GATE AFB0220 holds it at 340 stations), both CUT EVERY 36 m (79 segments; the core's ends read as its slab joints); 26 remnant slabs either side. The lane 'Jolene AFB 02R/20L' (renamed: map_menu's place is Jolene AFB's when the name ends in designators) is FIRM MUD (look 'mud', surface 11); the playground floor SOFT MUD and the east verges FIRM MUD as the ground's own 'mud' SET (draw.set + wheels 12 / 11: painted, no mesh), the verges 60 m short of the lane's ends.
+  - THE COST, FOUND AND NAMED: pavement.js polyGeometry draws a WORLD-axis 2 m grid over a polygon's whole bounding box - a 1.7 km polygon lying diagonal was ~570 k triangles. Pavement within 3 km of HOME's stand: 4 947 874 -> 1 653 960. Named in GATE TERRAINMATCH by A0's ruling (the user's "ship with the cost named and listed"): XW_ROUGH 764 192 (the lane's micro-refined bumps; chaos 0.4 would be 662 656, 600 m 422 664 - the length pays) + AFB_DRESS 201 360 (the crumble, core and remnants). PERF WEEK, KNOWN ISSUE: a distance LOD on the strip bumps' refinement (xw_rough 764 k, w3 / w8 225 k); and polyGeometry's whole-box grid (any long diagonal polygon pays its box).
+  - GATE MICRO: VET + xw_rough 0.55 (Pilot via A0: the stock build, Cub, C172, Jodel only). A0's RULING: on the firm mud the C172 REJECTS a take-off off the lane (ROLL > ABORT > STOPPED, no damage, stopped on it) and lands there fine off w2 - correct for the STOL side; GATE AFB0220 10 flies both (tools/afb0220_ap_probe.js [build] [from] [dest]). Pilot's owed list: the Jodel's ~19 m east swerve on w2's rollout (master's own).
+  - RE-PINS WITH THEIR REASONS: CONTRACTS (16 runways; xw_rough firm mud), TAXICLEAR (16; a ties:false field stands none by its word), MAPBAKE (16), RWYLIGHTS (the crossing seen: w2's 8 lights on HOME, flush), RWYTREES rows 1 / 9 (+ xw_rough) and 7 (as near where the record plants its own), UISMOKE's map rows (a parallel strip's designators; a soft strip's edge lines), SOFTGROUND re-blessed on L40a (its brakes' hold moved 7 of 16 hard rolls by cm). tools/terrain_match.js samples each runway off its own stream: tw_ski's overrun end reads its real worst 34.2 mm (master's 29.6 was the shared stream's luck) - an ALLOW at 40, a RE-PIN, NOT A FIX, master's own rim.
+  - THE POLES ARE TRUNKS TOO (TREE_HITS.pole, opt-in trunk: true): a pole prop alone (its columns, the nodes) let the aeroplane by; the wing 3.5 m past one is now held 3.6 m past its line. GATE AFB0220 row 4 passes 'gen:<name>' keys the page builds (the winch lands with this); the splice touches only its own ids (xw_rough, xw_a_*, xw_o_*, xw_t_*: the winch's xw_winch* survive).
+  - GATES on claude/afb-0220-b-mud (L40a + snow-mud + this), each its last run, every cook re-made first: PASS AFB0220 (39) MICRO CONTRACTS TAXICLEAR MAPBAKE RWYLIGHTS RWYTREES (uncapped: the runner's 1800 s cap cut it twice under load) PREMISES PREMCOOK CITYCOOK TERRAINMATCH UISMOKE STAGES LINEUP ROUTE PROFILE TREEHIT TREES OBSTACLE HITBOX (alone; red once on its timing row under load) WORLDRENDER (alone; one load red) PAVEMENT LOOKS STRIPGROUND SNOWMUDFX SOFTGROUND SITE GRASSSIDES BUILT. RED, NOT THIS BRANCH'S: NAMES ('Alaska' in livery_marks.js / aeroskin.js - L40a's stickers, red on clean 6a8d705c) and SCENERYED 20b (Metlakatla put back 2.8-3.2 s > 2.5 s - red on clean 6a8d705c on this box too). Not run: the full tier (--all), FRAMECOST (GPU).
+  - THE WINCH stays its own branch (claude/afb-0220-winch fd55d8f0, on the unlanded winch branch): A0 merges it; GATE AFB0220 row 4 passes its gen:winch props and the splice leaves its xw_winch* in place.
+
+AFB-0220-B2 + BUMPINESS + TOP PADS (DIRT-STRIP, 17 Nov, ready/afb-0220-b2 on L40e 2157a2f98; A0's ruling 06:45):
+- 02/20 version B (the user's pick: the clean 3-5 m concrete core, the crumble, the firm-mud lane 02R/20L) replayed from
+  ready/afb-0220-b c68c85afb (dropped from L40d): 13 source commits, unions kept both sides (17 runways: mt_strip AND xw_rough;
+  RWYTREES 14 boxes; 27_premises' surface range = master's line), B's part re-spliced, re-cooked. No winch.
+- BUMPINESS (the user 16 Nov, red marks on the Jolene Airstrips table, a dot = 0.2 chaos): w1 0.6, w2 0.4 (in B's W2_PATCH), w3 0.2,
+  w4 0.2, w5 0.4, w6 0.8, w7 0.4, w8 0.6, mn_strip 0.4, nv_strip 0.4, tw_ski 0.2, mt_strip 0.2, HOME flat; the save's strips via
+  fieldPatches; a new editor strip is born at 0.4. Flown first (17 Nov bump trials, page SvVC49X8qU65hMUy1Gixah): the Cub clears
+  0.2-0.6, the Carbon Cub SS clears 0.8, the Jodel and the C172 fail some - the user's wish.
+- TOP PADS (the user: "always reach the flat part ... wider to turn and park"): w4's stand on its pad a30 past end 0 + a taxiOut;
+  w3 a 40 x 40 m gravel turn pad past its top end (its stand stays at the village).
+- NAMED COSTS (A0 accepted): +1.16 M / +1.39 M triangles within 3 km of HOME (the bump refinement; perf round: distance LOD);
+  a 10 cm seam where a road rim crosses w6; the cooked raster 11 cm off inside a bumpy strip (6 cm elsewhere).
+- PILOT'S, re-pin owed: TAXICLEAR 11b x2, 11c, 12 - 43_pilot's stripRoughOf (micro.chaos > 0) switches tw_ski and mn_strip to the
+  rough-strip plan, so three calibrations' known-bad paths moved, and 11b "the turn on the spot" at the altiport pose is a real
+  change Pilot checks (the user's altiport technique: must not stay broken).
+- Gates: AFB0220 MICRO TERRAINMATCH PREMCOOK PAVEMENT MAPBAKE MEDIA PREMISES CITYCOOK CONTRACTS RWYTREES STRIPGROUND
+  PILOTCANFLY PASS; master's, same names on a plain L40e export: ALTIPORT 2+3, TAXICLEAR 1, UNIFY EMERG, SCENERYED 15, NAMES.
+  GPU 17 Nov 04:45: 11 stills, page HiqVXKM1G3GyGK3T4MkpRe.
+
+## SKYLINE-RESORT (13-17 Nov 2026, cloud session for A0; claude/skyline-resort-1..5 -> claude/ready/skyline-resort-2, on L40e 2157a2f98, for L40f): SKYLINE ALTIPORT AS A PROJECT
+
+THE USER (13 Nov): the ski station's top (tw_ski) becomes the Jolene Aero Club's summer altiport - recreational flying, gliders
+(launched by a PUSH only: no car tow, no winch), small planes; a restaurant and a place to store aeroplanes beside the flattened
+part; later a glider hangar. The strip "much too wide and much too long, probably 2 times for each"; then (16 Nov) "make it the limit for the cessna in
+terms of length. Width should be even smaller. Make it 6 meters only of runway, hopefully mainly used by the tracks then". DATA ONLY (no code): every
+entry is ordinary editor data, written into tools/fixtures/island_jolene.json by **tools/skyline_resort.py** (idempotent: an id it
+owns is replaced, else appended; `--check` says whether the fixture is as written - re-run it on a rebased fixture). No story text.
+
+THE FRAME the script writes in: the strip's axis, d = (cos -1.0472, sin -1.0472) uphill, n = (-d.z, d.x); P(a, c) = the top end
+(352.00, -7872.00) - a d + c n (a metres DOWN from the top, c across, + away from the tram station).
+
+1 THE STRIP, BEFORE -> AFTER (tw_ski, grass, altiport, landed uphill over end 0):
+  - before: 380 x 18 m, c (257.00, -7707.46), threshold (162.00, -7542.91) 679.6 m, top (352.00, -7872.01) 708.8 m, rise 29.3 m
+    (10 % at the threshold, 1 % over a 68 m top), shoulder 30 m, band 6; a stage vary resort 0-2: 320 m, c (272.0, -7733.44)
+  - after: 280 x 6 m at EVERY stage (the 320 -> 380 m step is gone), c (282.00, -7750.76), low end / threshold (212.00,
+    -7629.52) 689.8 m, top (352.00, -7872.00) 708.8 m (unchanged: the platform, the stand (310.4, -7844)); rise 19.1 m - the
+    top as composed (~1 % over the top 60 m, the ease, 9 % by 190 m down), then the old 380 m strip's own line on down (10 %):
+    profile [[0, -15.54], [0.3214, -6.54], [0.5714, -0.3], [0.75, 2.77], [0.8929, 3.39], [1, 3.52]] on elev 705.30 (T1 at the
+    new centre); shoulder 30 -> 12 m (an 8 m one left a 158.9 mm pocket in the near level's mesh past the edge, GATE
+    TERRAINMATCH), band 6 -> 0 (no cut-grass band: past the strip the 1 m mow band, then wild grass - the user's "mainly used
+    by the tracks" and DIRT-STRIP's tundra round the worn lanes). The tired station (resort 0): `vary` sock false, ties
+    false; the deal (resort 1) puts them back. (13-16 Nov it was 190 x 9: the old strip's upper half.)
+  - THE LENGTH = THE CESSNA'S LIMIT, FLOWN (scratchpad harness on the game host: the 8 kt / 250 deg day, damage on; the canon
+    C172 F-HCSN on FLAGSHIP's refit card, claude/cessna-refit-l40d 3f7decee0, as built: pilot + 1 pax + 40 kg, 1067 kg, sheet
+    LDGrun 242 m, TORun 412 m flat; variant fixtures with the strip extended down the old line). Lined up AT THE TOP END (the
+    centreline 8 m down, nose downhill - Pilot's L40f line-up) it releases 5.7 m down, lifts off 228 m and is 2.5 m up 269 m
+    down at every length: 260 m -> 24 m past the end, 270 m -> 1 m inside, 280 m -> 11 m inside, 300 m -> 31 m. Dispatch
+    (LDGrun <= len) accepts it from 242 m. 280 m = the take-off limit + 11 m (A0's go, 16 Nov). The uphill landing set no
+    length: on L40e (+ the refit) it lands on master's 380 x 18 (sink 1.32 m/s, 19.8 m/s, run 109 m, 0 faults); on 280 x 6 it
+    stops ON the strip 35.6 m below the top but arrives fast (24.9 m/s, run 170 m) and the roll leaves the 6 m box (GATE
+    ALTIPORT's off-strip) - FOR PILOT: the roll-out's tracking on a 6 m strip and the fast arrival. The Cub and the Jodel land
+    clean on 280 x 6 (0.7 / 1.0 m off the centreline, stopped 38 m below the top)
+  - THE STRIP'S LEAST WIDTH 8 -> 6 m (CORE, ae63541e1): the record's law refused a strip under 8 m (DIRT-STRIP 47522596e;
+    GATE PREMISES 14a / STAGES 1-2 red at 6 m). One constant now, PREMISES_GEN.STRIP_MIN_WID = 6, in issues() (a strip, a
+    varied strip) and the overlap / profile-warning filters; the editor's width slider starts at it. Composition never
+    filtered on the width
+  - THE APRON AND THE WAY OUT (the user 16 Nov: "you run uphill when it's flat, and there's actually a huge apron next to the
+    cabin car station where you can easily maneuver ... You should always reach the flat part, and there normally you would
+    expect to have something a bit wider to be able to turn and park"): the apron is the summit platform (tw_t_platform, gravel,
+    level 708.70 m), a -2..92 m down from the top end, 9..50 m across on the station side, beside the strip's flat top with the
+    6 m shoulder between at the strip's level (708.5-708.9); past the top end the ridge falls away (702 m 10 m out). Measured
+    against the cooked solids: the tram station's structure crosses it (a 14..34, c -48..-16), so its free parts are the top
+    (a -2..10, the whole width, 10-23 m to the nearest solid) and the stand's (a 38..58), joined by the corridor beside the
+    strip. tw_ski.taxiOut: stand (45, -22) -> P(40, -4) (328.54, -7839.36) -> P(6, -4) (345.54, -7868.81) -> P(2, -12)
+    (340.61, -7876.27) -> P(8, 0) (348.00, -7865.08), the line-up 8 m below the top end. The wingtip (5.5 m) never under
+    4.4 m from a solid; the C172's turn on the spot (6.3 m sweep, GP_PARKED_FOOT [5.5, 1.5, 6.1]) clears by 9.2 m at P(6, -4)
+    and 5.3 m at P(2, -12). TODAY'S autopilot still holds where its own run fits (~69 m down): the Cub leaves with 118 m to
+    spare, the C172 runs out ('out of runway: -4 m left') - PENDING PILOT'S L40f top-end line-up, which builds on this route
+  - the physics: the stage's runway is composed like any (terrainH, surfaceAt) at the load / roll-out (76_stages' queue);
+    GATE STAGES 2 now asserts 280 x 6 m and the top end at (352.00, -7872.00) at every value, and the bare strip below resort:1
+  - THE AUTOPILOT: nothing to change in 43_pilot.js - it reads `len` and the composed ground (judgeHeld's grade, the
+    altiport's slope-line flare, landHdg from the profile's ends). At 280 m dispatch accepts every land build (the metal C172's
+    LDGrun 249 m included); the take-off from the top and the landing roll on 6 m are Pilot's L40f work (above)
+  - THE CONTRACT LAW'S ALTIPORT CREDIT (Game's YES 14 Nov at 0.75, YES 17 Nov at 0.85): CONTRACT_FIT.altiK (73_contracts.js)
+    multiplies contractTakeoffM when the field is an altiport (left downhill). FLOWN by GATE ALTIPORT 5 on 280 x 6 (the game's
+    pilot and day, 709 m, contract load, brake release - 69 m below the top, today's line-up - to 2.5 m up): the Cub + 1 pax
+    122.7 m = 0.511 of the flat law (240 m); the metal Cessna + 2 pax + 40 kg (+184 kg, its baggage cap) 201.1 m = 0.806
+    (249 m). 0.85 sits above both (Game: 0.75 under-predicted the Cessna's roll; on the 190 m strip, 0.528 / 0.635, the ground
+    falling past its low end had flattered the 2.5 m point). THE LIMIT, named in the comment: one constant for tw_ski, w4
+    (216 m gravel, ~21 %) and mt_strip (Ardent, 210 m snow); a gentler grade needs a / (a + g x grade). 0.75 -> 0.85 moved
+    no tw_ski / w4 offer (field.03, resort.01/02/03/05, clients.01/03: the same doers); at mt_strip the Jodel's empty law
+    goes 200 -> 227 m of 210 (no stage flies there today) - FOR GAME
+  - GATE ALTIPORT 4 (A0 + Game 14 Nov): a SAID dispatch refusal passes ('strip-too-short ... not going there', no ROLL, no
+    damage); at 280 m the metal Cessna (LDGrun 249) is no longer refused and flies the leg - its verdict in GATES. Rows 2/3
+    stay master's own reds
+  - GATE TAXICLEAR 11c (A0's call 15 Nov, option (a)): L40c's CANON-C172-GATES flies the canon F-HCSN (386 m flat take-off,
+    ~290 m with altiK) - placed on the apron it rejects 5 s into the roll ('will not reach Vr: 1.30 m/s^2 needs 168 m more,
+    126 m left') and stops on the strip, nothing touched; with that rule off (a scratch core) it ran off the low end and broke
+    up 50 m down the hill. 11c's CALIBRATION pose re-found (79de27821): the apron's way out keeps the blind Cub off the
+    station from the old CAL_C (28 m down: wing on its edge, 0 contacts); re-searched as its comment says, CAL_C = 14 m down,
+    12 m toward the station, the same heading (334.61, -7865.88): into the station, 4 contacts. The row holds THAT rejection for F-HCSN on a strip < 300 m (190 m then, 280 m now) (said, ABORT, STOPPED on the strip); the
+    Cub's row is unchanged (airborne). OWED TO PILOT: "go/no-go misses the altiport credit case" - L40d's go/no-go declines at
+    the HOLD at Jumbo Mine / East Point but rolls here; once it declines at the hold, 11c holds that refusal (as ALTIPORT 4)
+  - FOR PILOT (A0 passed it on, L40f): leaving Skyline the autopilot lines up 30-109 m below the top end (0.25-0.3 of the strip)
+  - CONTRACT_FIELDS.tw_ski (72_contract_data.js) follows the record: x 282, z -7751, len 280 (GATE CONTRACTS: byte-equal to
+    contractFieldsOf; its selftest's drift row reads the new line). scenery_ship_afb19.json: fieldPatches.tw_ski (len, wid, c,
+    profile, band, falloff) - the user's AFB (19) save still has the old strip (GATE SCENERYED 15)
+2 THE FOOT-LAUNCH PAD (resort 1): tw_y_launch (surface 5) + tw_m_launch (concrete, band 0.3) = P(0..72, +6.5..+8.5): 2 m of
+  concrete from the top end down the flat top and ~12 m into the slope, beside the strip on the side away from the station
+  (corners (357.63, -7868.76) (321.63, -7806.40) (323.36, -7805.40) (359.36, -7867.76)); ground, no solid
+3 THE FOOTPATHS (resort 1, roads cls track, look dirt, 1.6 m, ungraded): tw_p_ridge (the ridge walk north along the west flank to
+  the old lower slope, the ski piste: (275.86, -7820.12) .. (190.63, -7676.50)), tw_p_launch (round the top end to the pad:
+  (331.37, -7849.27) .. (358.99, -7869.12)), tw_p_lookout (down the east flank: (323.73, -7804.04) .. (320.98, -7758.28));
+  signposts = billboards with the enamel plate (rwy:<text>, w 0.9): RIDGE (273.56, -7819.14), LAUNCH (324.96, -7802.17),
+  LOOKOUT (322.15, -7755.30), PISTE (189.03, -7679.73)
+4 THE TREES AND THE ROCKS (every stage): cover polygons (ttype, code null) of the tree system - `veg` 'new' (fir x2, spruce x1.5,
+  pine 0.8, dead conifer 0.25, shrub 1; 70 trees/ha, under 6): the island's own fill plants them (LODs, impostors); the
+  aerodrome's tree box still keeps the strip clear (polyGround: treeAeroBlocked). Groves tw_k_grove_e (365.4, -7789.2),
+  _w (246.9, -7890.0), _nw (225.5, -7786.9), _se (425.7, -7901.6), _sw (331.3, -7956.1), _le (298.1, -7611.6), _lw
+  (153.4, -7695.1) - the flanks, never the ridge's top, the approach or the way out. LARGE ROCKS: veg 'biome' scree (the tree
+  pack's rock subjects at size 22, the cover ring's) on tw_k_rocks_e (357.4, -7828.4), _n (229.9, -7756.6), _s (386.4, -7885.6),
+  _ne (345.8, -7791.3)
+5 THE RESTAURANT AND THE PARKING AREA (resort 2): the Summit Lodge (house/cafe, already resort 2+; its building site sg_k_lodge
+  resort 1) + tw_m_terrace (concrete, P(72.5..82, -30.5..-39), centre (283.3, -7822.5)) with three tables, five chairs, two
+  planters and two people (tw_o21..o32, existing props). THE PARKING AREA tw_t_park + tw_y_park + tw_m_park = P(92.5..128,
+  -12.75..-29.25), centre (278.7, -7787.0), on the ridge north of the platform (the old strip's west half): the ground falls
+  ~7 % there (> STAND_PAD.grade 2 %), so it is TERRAFORMED - a ramp (slope 4.5 % toward the top, level across; 707.0 m at its
+  uphill edge) so a parked box's corners stay inside FLEET_SPOT.flatTol; gravel, `parking` { gap 2, max 2 } (the design-refs
+  shape, PARKING-AREA). On claude/stand-pad (the fill): 2 spots, park:tw_m_park:0 (276.6, -7783.5) and :1 (283.2, -7794.9), ry
+  1.047. On master the `parking` key is inert (tw_ski cooks 0 spots, as before).
+6 THE GLIDER HANGAR: its building site sg_k_glider (kit 'build', 20 x 12, resort 2 only) and tw_s_summit/glider (hangar/club
+  hangar cut to a glider: HW 9.5, HD 5.5, EAVE 4.4 - 19 m of door for a 15-18 m span; resort 3+) at (262.38, -7759.78), yaw
+  1.0472: the door toward the strip, P(142, -21.5), 14 m off the centreline (door at c -15.5); its own ground block (704.6 m)
+- STAGES: resort 0 the tired station (the strip, no sock/ties; station, patrol cabin, pilot hut, groomer's garage, shed, outhouse)
+  - 1 the deal (the strip's sock and tie-downs, the launch pad, the paths and signs; the lodge's building site) - 2 the summer
+  altiport (the Summit Lodge, the terrace, the parking area; the glider hangar's building site) - 3 the glider hangar. Every band
+  edge is an existing STAGE_REVEALS row (resort:1..3, world true). OWED TO THE GAME COORDINATOR (not edited here - theirs): the
+  STAGE_REVEALS comments (resort:3 "the altiport lengthened, 320 m -> 380 m" is now the glider hangar) and the trk.resort.1..3
+  captions to the new steps; tools/jolene_stages.json's tw_ski row and tools/jolene_parts/tramway.json's strip were brought to the
+  fixture (jolene_author.py no longer reproduces the fixture: it is the editor's since rev 26)
+- MAPBAKE'S BUDGET 20 -> 20.5 KB gzipped (8ee889b96, A0's call; the user's "a size budget never holds their content back"):
+  master L40e's infra 20 416 B, the three summit footpaths bring it to 20 531 B.
+- RE-COOKED (on L40e, with 280 x 6, shoulder 12, band 0 and the way out): the premises (node tools/premises_cook.js --island jolene), the fleet pack (fleet_spots.js --cook), the map
+  (map_bake.js). The parked cook needs the GPU (A0 at the train). Since stand-pad (L40c) the `parking` key is live: tw_ski
+  cooks 2 spots. Rebased L39b -> L40a -> L40c -> L40d -> L40e: each time master's fixture + cooks taken, skyline_resort.py re-applied
+  (--check: as written), re-cooked, rebuilt; the stale career_core removed with its rebuild (GATE BUILT)
+- WHAT COST SUNDAY: the session's git commits were refused overnight by the cloud session's auto-mode permission classifier
+  (twice, 14 Nov evening: "Destructive or Unwanted Actions", then "Unsanctioned Communication") on an ordinary local commit
+  of the rebuilt outputs; nothing could be committed or pushed until the user said "go ahead, commit and push" at 17:35 UTC
+  Sun - past the 17:00 ready, so Skyline left L40d for L40e; L40e then dropped it on a real fixture conflict (tonight's snow / mud / observatory /
+  grass / dirt refs), so it rides L40f. Then the session's 06:00 Mon wake-up never fired. Owed to the
+  user: an allow rule for git commit / git push in this repo's cloud sessions, so a gated ready is not held by a prompt
+- GATES: on claude/skyline-resort-5 (L40e 2157a2f98 + Skyline), node tools/run_gates.js --no-build, this cloud container (4 CPUs):
+  PASS: STAGES PREMISES PREMCOOK PREMRASTER STRIPSURF STRIPGROUND GRASSSIDES GAMEPREM TERRAINMATCH TREES TREEHIT SCENERY
+  WORLD MEDIA MAPBAKE (20.5 KB pin) COOKWAIT CONTRACTS ECON MISSIONS PROJECTS STORY ROUTES PROCURE FREIGHT CERTGATES PILOTS
+  UISMOKE STORESPOT BUILT; PARKED alone with NODE_OPTIONS=--max-old-space-size=8192 (the parked cook is a build behind -
+  the GPU cook, A0's - so the page captures live and ran out of node's 2 GB default heap here; unmodified L40e, its cook
+  current, passes at the default). ALTIPORT 1, 4 (the metal Cessna at 280 m) and 5 (altiK 0.85) green; TAXICLEAR 11c green
+  (the canon Cessna's said rejection, the re-found calibration)
+  RED, MASTER'S OWN (the same rows on unmodified 2157a2f98, run here): TAXICLEAR 1 (archaeopteryx footprint), ALTIPORT 2 and
+  3's calibration row (the doctored arrival's guard), NAMES ("Alaska", LIVERY-STICKERS)
+  RED, THIS BRANCH'S, PENDING PILOT'S L40f: ALTIPORT 3 "the airframe whole" - the doctored arrival (tw_ski's record 250 m low,
+  the go-arounds spent) brings the Cub in unstabilised; its roll-out ground loop (ALTIPORT 1's KNOWN fault on this uphill
+  strip in the 8 kt westerly) leaves the 6 m strip and it breaks up (master's 18 m strip contains the same excursion). The
+  6 m strip's roll-out tracking is Pilot's L40f item (with the refit Cessna's off-strip roll, above)
+  NOT RUN HERE: RWYTREES (every row ok but past the runner's 1800 s on master too in this container), SCENERYED 20b / LAZY
+  (master's own here on L40a / L40c / L40d)
+
+AFB-0220-B3 - THE FIXTURE CLUSTER (DIRT-STRIP integrating, A0 17 Nov 12:00 trial; replaces snow-mud-rail, afb-0220-b2 and
+skyline-resort-2 in L40f): master + world-rail-veg 840b233ca + snow-mud-rail afe531569 + afb-0220-b2 08f350211 + skyline-resort-2
+2023c6df5, merged in that order. world_rail.js: DEF / put / the doc map unioned (veg's bioKnobs + shrubCards and SNOW-MUD's ladder).
+The fixtures merged SEMANTICALLY (an id-keyed three-way JSON merge in the files' own json.dumps form, not text): island_jolene.json
+0 entries touched by both sides, none lost (tw_ski = SKYLINE's 280 x 6 + the bumpiness 0.2/23); scenery_ship_afb19.json the same
+(SNOW-MUD's w6/w8 ladder patches - master's SCENERYED 15 red gone - the strips' micro, w4's stand, SKYLINE's tw_ski + its taxiOut
+now named). Re-cooked with the fixtures' tools, rebuilt. Re-pins named for A0: MUDLADDER w6/w8 at the user's 0.8/0.6; TERRAINMATCH
++144 patch triangles from the merged layers; MAPBAKE's projection 96 -> 100 KB (96.2 KB). Gates: AFB0220 SCENERYED PREMISES
+PREMCOOK MAPBAKE TERRAINMATCH STRIPGROUND MICRO WORLDRAIL COVER MUDLADDER SNOWMUDFX PASS; ALTIPORT 2+3 and TAXICLEAR 1 master's;
+TAXICLEAR 11b and 12 green once pilot-altiport (ALTI-ROUGH) merges (tested locally); TAXICLEAR 11c - the C172 from the 280 m
+altiport crashes instead of rejecting the take-off - see the train note.
+
+MUD (DIRT-STRIP, 17 Nov, ready/mud on L40e 2157a2f98; the user's mud asks via GROUND-FX: "the bumps on mud", "denser, natural tyre
+marks"): on a strip with mud - a weather rung's pavWxSt.mud (SNOW-MUD's ladder: w6, w8) or a fixed mud class (1) - the tyre marks
+are denser (+4 passes, +4 fresh, 16 at most), deeper, dark and wet (a fresh one glistens), old passes hold, the lugs pressed harder;
+the micro relief is drawn sharper. pavement.js only; no mud = drawn exactly as before (GATE PAVEMENT's new row). F9 RUNWAYS keys
+sfMudMarks / sfMudBump (1). The FELT relief is the same on every device (SNOW-MUD's wear deepens it with the mud); the settings tier
+scales only what is drawn: GFX ground 'plain' (potato, laptop = the phones) 0.35, 'lean' (retro) 0.65, else 1. uLookG.z = the
+marks' strength on the strip: GROUND-FX's hook for the aeroplane's own marks (after 4b, before 10b; its layer after the perf round).
+Not in it: 0.5 puddles on a fixed mud-class strip (no shipped strip has one). GPU 17 Nov 07:50: w8 dry vs forced soft mud,
+evidence/dirt-strip-2026-11-09/tue-mud. Gates: PAVEMENT MUDLADDER STRIPGROUND SNOWMUDFX DUST MICRO LIGHT GROUNDLIB SPLAT CONTACT
+ASSETS PREMISES TERRAINMATCH PASS; LOOKS 5 (the cover ring by drawn water) red on master the same.
+
+## STAR-V4-DEFAULT - the reflected stars' default is the scattered sparkle (NIGHT-LOOK, 16 Nov)
+- why: the user 16 Nov on the STAR-DIRECT page: "Stars finally right. V4 looks right." (v4 = direct, jitter 1).
+- src/viewer/water.js: NIGHT_SEA.dJit 0.3 -> 1. The other looks stay as settings: WATER.nightSea.dJit 0 = clean points,
+  0.3 = the L40e glints, direct 0 = the L38b look. No gate pins dJit. No new stills: page_rig variant v4_direct_jit1
+  (flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/direct/) is this exact setting.
+
+## HANGAR-OUTDOORS - THE ROOM'S OWN OUTDOORS BACK (THE CAPTURE OFF), THE SANDBOX IN THE CLUB, THE SANDBOX = THE FINAL STAGE (Game, 17 Nov 2026)
+The user (17 Nov, a demo, via A0): the sandbox "put me into the new big garage ... I want to keep in the club hangar"; the
+hangar backdrop (HANGAR-VIEW's six-face world capture drawn on a distance mesh) "as soon as it moves, it's completely stretched
+... a huge glitch". And the rule the same night: "in the sandbox mode, the default scenery should be with everything constructed
+... to reconstruct the step of construction, you just have to remove".
+- app.js hviewOff: the capture OFF unless ?hview=1 (a test opt-in only); the room's own outdoors (hangar.js G123: the field,
+  the strip, the slab, the kerbs, the tufts, the furniture, the plot pad) under the live sky and clouds. GATE HANGARVIEW 3m
+  re-pinned. hangar_view.js stays as the opt-in; retiring the module is next round once the user is happy with the scene.
+- app.js playerLoad: the SANDBOX opens in the club at HOME at every start (a saved `here` - the last go-there, a restored
+  HOME.2 - is not where the game starts; one console.info line). A career keeps its own `here` (the story moves it).
+- 71_player_bases restoreTrack: the sandbox (doc.mode !== 'career', RESTORE's own test, and no tracks) stands a restoration
+  track at its LAST stage - HOME.2 restored (stage 3), bought or not, whatever an old save says; a career reads its field
+  track (none yet: the derelict, stage 0). The step-by-step restoration is a career's now (the sandbox has nothing left to
+  restore). GATE GAMEPREM re-pinned (673 checks).
+- GATES on L40e 2157a2f98: the hangar set green; DESTTO 1 shard of 3 and ROUNDTRIP (6) red = master's (land_L40d_gates.log).
+- FRAMECOST (A0: NO re-baseline - a real L40e regression for the perf round to bisect; this A/B is its first evidence): 50
+  rows red on this branch, 52 with the capture's old default ON - the same stand / taxi rises both ways, so the L40e world's,
+  not the hangar's: cub stand draws.main 914 -> 1144, taxi 844 -> 1382, taxi tris.main 13.04 M -> 15.22 M, taxi programs
+  81.5 -> 100.5, stand bytes.texSubImage2D 54.6 KB -> 1.20 MB, taxi uniform4fv 626 -> 3731; the cessna alike (stand 925 ->
+  1163, taxi 854 -> 1401, tris 13.16 M -> 15.40 M); boot garage:compile links 5 -> 42, rollout:landing terrainH 0 -> 199 k
+  and grHeight 0 -> 184 k. The capture OFF itself only REMOVES work: the garage landing step's bufferData 1.32 MB -> 84 KB.
+- STEP 2 (claude/hangar-outdoors-2, after the user's look): the user's elements on the kept outdoors - the world's aprons in
+  'concreteD', low-poly cars at the club, tree cards all round from the world's own impostor sheets (render_world
+  treeSideSheet), the Shed's dirt, tyre marks and wooded hill; and the large hangar's four wall options (?hwall=a|b|c|d).
+
+## HANGAR-OUTDOORS-2 - THE USER'S ELEMENTS ON THE ROOM'S OUTDOORS (Game, 17 Nov 2026; claude/ready/hangar-outdoors-2)
+- Trees all round each room from the world's own impostor sheets (render_world treeSideSheet: the level side tile of up to 4
+  baked species, tinted, one strip; hangar.treesFrom: one InstancedMesh a species facing the room's centre; app.js
+  hoTreesTick), the club's five low-poly cars (plain meshes - the room's merge bakes direct children only), the Shed's dirt
+  ('dirtS'), two tyre marks and a wooded hill (foot 60 m, 0.22 a metre; the polar grids wound a, c2, b to face up). GPU
+  stills 17 Nov 14:50 / 15:20 / 15:25 on the page VdkuhWogfjRQ3hzm5wZpmV; garage frame 7-10 ms median.
+- OPEN (next round, a GPU slot): (1) the wide apron (opts.aprons = the island's paved surface polygons, 'concreteD' at
+  Y_AW 7.5 mm over the field) does not show - check hoAprons' count on the page, then the height; (2) the large hangar's
+  wall options: its visible walls are DERELICT_GEN stage 3's own (concWall / sheet*), not PARTS wallSides - the ?hwall
+  dial (setPart paint) dresses hidden parts; make the four options (red corrugated weathered = default, galvanised, olive,
+  timber) on the generator's materials, show them, the user picks.
+
+## L40f SCENERY (A0, Tue 17 Nov 2026, 19:00 train; the user: scenery first, credits ~90 %)
+TAKEN (13): world-rail-veg 89e977121 (subalpine, outward forest edge, muskeg, shrub cards, lush lake shore, water lilies, far bushes, rocks' own ring, trees x0.85, tree pack baked into trees_pack.js), rock-study 2bb678080 (the rock in game, desktop cliff split fix, v1 noise + joints), afb-0220-b3-2 cd504541e (world-rail-veg + snow-mud-rail + afb-0220-b2 + skyline-resort-2, fixtures merged by id + re-cooked), grass-edge-2b fc7583c8c, grass-cards-2b 2f59ced9c (mown grass ladder D/B/off), grass-edge-fix 63b5c27f6 (band-0 strips get no mow band), mud 84483b9a7, splash-budget ee45dace5, ground-fx-3 eaffe088c (mud/dust + scuff texture-unit guard), star-v4-default, animals-polish, hangar-outdoors 8d46a95fb (capture off, own 3D outdoors, sandbox in the club, HOME.2 restored in the sandbox), hangar-outdoors-2 b646530be (trees, cars, the Shed's hill).
+NOT IN IT: rain (overcast not fixed -> L40g); autopilot / crash / planes / tow / tutorial / missions -> the bonus train (l40g-bonus.refs).
+BATTERY: 319 PASS / 59 FAIL. FIXED vs L40e: BENCHTIME DMGUPLOAD HONEST LOOKS SCENERYED.
+NEW REDS (named; owners fix next):
+- CONTACT / PREMRASTER: 02/20's band over other pavement (25749 of 38764 points); raster vs analytic ground worst 140 mm (w6 grade), the LRU sweep - DIRT-STRIP (b3).
+- RWYLIGHTS: tw_ski keeps 17 of 24 lights on its 6 m strip - SKYLINE-RESORT (in b3).
+- TREES: the census' unreached list now lacks grass_plates (the lawn reaches it) - GRASS-CARDS.
+- LAKEBED (1): a cloud stale-depth row - LOOK-1.
+- STAGES (19) / STORAGE (1): pod / stage rows on the merged scenery - Game.
+- COMMITHYGIENE: cub-family IDENTITY sheet rows - the owner of the cub sheet change (CANON / AIRCRAFT-LOOKS) to confirm.
+- BUILT: a ref's stale (built) commit 5d0d5ab8d (rebuilt by this train).
+COSTS NAMED: cold load 205-215 s on L40e (the perf round's package 1); the vegetation's shadow triangles x2.2-2.6 at HOME (85-90 % the forest-edge band); the rocks' ring +2 draws; the bumps +1.2-1.4 M tris within 3 km; MEDIA first-load budget 6.5 MiB.
+## CAR-1 - THE FIRST CAR: A 1930s BOAT-TAIL ROADSTER DRAWN IN THE GARAGE FROM THE TIGER MOTH, DRIVEN ON THE AI CAR'S PHYSICS (12 Nov 2026, cloud - node + quickshot only; branch claude/fly-diy-car-build-uu6e6w off master 1f5b8219)
+
+The user (12 Nov): "build a car in Fly DIY ... one of these 1930 cars ... start from the Flying Moth ... get rid of the
+propeller, get rid of the wings, reuse the mechanics that we have for powering the wheels from the engine, because we
+already have an AI car that reuses this physics ... four wheels and directional wheels ... the front face of these old
+cars ... avoid having to do wheel wells ... no boom at all, an aeropod instead, and that would be the trunk ... quick shot
+rendering of your progress." THE DOCUMENT: futureDesigns/CAR-1-2026-11.md (what landed, the numbers, the 7 garage gaps,
+the next steps).
+
+- **THE CARD `roadster`** (`tools/_cage_design.js`, after the Spitfire WIP, `blocked` as it is - out of the birth list
+  and the flying gates): the Tiger Moth-alike's measured body rows; no wing / fin / stab / blades / cone / tube; rod-and-pod
+  with the AERO AFT as the boat-tail trunk; a 1.2 m bonnet the body's width (`cw_taperW 1.05`) ending in a tall square
+  radiator opening (the cowl's own inlet, `cw_apMode 1`, `cw_apSq 0.9`); the Argus As 10C inverted V8 (`engY 0.05`: its
+  banks inside the bonnet, only the exhaust stubs out of its side); FOUR WHEELS - the mains the rear axle, the THIRD
+  STATION AS A PAIR (`s2X 0.68`: the gear layer already draws any non-tailwheel station off the centreline as a pair, and
+  the stance reads the extreme contacts) - 0.72 m open wheels on spring-blade stubs, no wells, no fairings. The card must
+  carry the Moth's nose-section rows (`aeroWsLen/aeroLen/aeroTip*/aeroDroop`): without them the class's long closed nose
+  cone grows ahead of the firewall and the engine hangs in front of it (the first bake did exactly that).
+- **TWO ROWS, DEFAULT ON (every build unchanged):** `rodOn` (Boom > rod; `S.rod.bare` -> `emitRodFree` returns and
+  `_cage_access.js` rodSite places nothing on the missing tube) and `spinOn` (Engine; the cone's mesh - `propOn` only ever
+  gated the blades).
+- **THE PHYSICS IS THE VEHICLE SHELL (G2940), NOT makeSim** (its ground pass drives nothing and steers one third wheel;
+  the generator always builds wings). `tools/car_sheet.js` MEASURES the drawing into the shell's sheet: the four drawn
+  contacts (CAGE_GEAR.contacts), the body (CAGE_GEAR.AF + the layers inside the track), the mass from the build's own
+  LEDGER less wings / bracing / tail plus a 120 kg CHASSIS (a gap), the CG along the car from the ledger's moments placed
+  by the mains' measured station (zFw = z(rear axle) + gear.x), the engine row's power x 0.85; a tune (drums, leaf springs,
+  cross-plies) scaled to the mass; the drive test. Written: `src/cars/car_roadster.json` (sheet + tune, generated).
+  Measured: wb 2.90 m, track 1.50 m, 691 kg (56 % front), 150 kW at the wheels; 0-100 km/h 7.9 s, 237 km/h at 40 s, 100-0
+  in 50.4 m straight, turning circle 10.0 m both ways, a 0.54 g lane change back to -0.9 deg. **THE FIRST STANCE SPUN**: axles
+  at 3.05 / 0.15 stood it 64 % on its nose (the V8 ahead of the firewall), the driven rear's tyres filled their friction
+  ellipse at a third of the throttle and a 0.9 g lane change went round (heading 0 -> 161 -> -132 deg) while the first LANE
+  row said 'upright' - the row now prints the heading excursion and its end. The front axle under the radiator (3.35 / 0.45)
+  is the period's and holds.
+- **NOT DONE (CAR-1-2026-11.md §2-3):** the drawn front wheels do not yaw (one castor unit per centred station only); no
+  chassis ledger row; the join's aeroplane spec still holds one third wheel; car legs and fenders; side-by-side seats; no
+  drive mode in the page (vehicle.js is still outside the bundle); no GATE CAR yet.
+- Pictures: quickshot (`node tools/quickshot.js --key roadster <out> --views side,q,front,top`).
+- **THE USER'S REVIEW (same day, all card rows; futureDesigns/CAR-1-2026-11.md §1 "The user's review"):** one seat (the
+  Camel's single cockpit; the trunk 1.9 m, the rear axle 0.55); every line straight (one keel / roof / waist width, the
+  nose section's pinch and droop off); the bonnet ONE section to the radiator (it had swelled forward: 1.05 x and a squarer
+  front than the fit's firewall); its widest line at the body's waistline (`cw_waist` 0.05 -> 0.28, which also hid the body
+  showing past it head-on); the waist cut LEVEL (PROPER-COWLS' `partLevel`, at `partY 0.25` - the parameter split ran
+  diagonally once the waist moved); louvres (the side gills) under it; the Argus replaced by the custom engine on its V8
+  layout at a 3.6 L car V8's bore and stroke, 3000 rpm (86 kW, 89 kg by the aero engine model - a gap: no car-engine
+  family; the custom's own defaults are a twin, so the card pins arch / cyl / vee / aim / exhaust); the suspension a
+  wishbone (the swinging link, feet on the body's lower side) with a coil-over up to the body's SIDE (`shockAng 90`,
+  `linkX 0` - the Cub's crossed X had put the tops under the belly). Sheet: 521 kg, 47 % front, 73 kW at the wheels,
+  0-100 km/h 6.5 s, 187 km/h, 100-0 in 48.1 m, circle 9.7 m, the 0.57 g lane change back to -0.9 deg.
+- **THE SECOND REVIEW (waist + pillars), MEASURED** (station-by-station samples of CAGE_GEAR.AF against the cowl's
+  vertices; CAR-1-2026-11.md "The second review"): the birth fit had overwritten the bonnet's firewall waist (-0.59) -
+  `fitNose 0`, the firewall section set from the body's measured one, waist 0.263 = y 0.162 m (the body's) fore and aft,
+  the level cut on it (`partY 0`); squareness searched against the body's section (top 0.38 / bottom 0.92, 7-8 mm mean);
+  the head lobes off; `frWinBotY` -0.494 -> -0.481 (the bottom's 1 cm step at the front pillar - NOT the keel's reference:
+  -0.56 dropped it 5.5 cm) and `crPillar` / `crFrame` 0 (the ring creases' folds). After: bottom -0.415 +- 0.001 m, top
+  0.499, the bonnet 0.398 wide all along.
+- **THE THIRD REVIEW** (CAR-1-2026-11.md "The third review"): `whRimD` (new row, absent = as before; card 0.64 spoked);
+  a tail tank ('behind the cabin' bay; 42 % front); the livery in livery rows only (metallic blue body, polished bonnet,
+  copper cheat line and pinstripes, roundel 7, "La Belle Étoile" in Great Vibes) - the markings run aft from the
+  FIREWALL; the bonnet takes no marking at its stations (a gap: the nose is not its own section); the driver seated
+  (`cabOcc 1`); `gillUp` (new cowl row, absent = as before) places the louvres by height - the band was reckoned in a
+  crowded angle; a car dash (custom fit, metric, centred) and the yoke; saved as builds/candidates/roadster_2026-11.json
+  (`car_sheet.js --save`) with rows in the pool index and the plane lists (candidates, n 50). Phone renders by
+  tools/plane_shot.js. Car: 540 kg, 42 % front, 0-100 6.0 s, lane change back to -1.1 deg.
+- **THE FOURTH REVIEW**: the bonnet's tip off-white - a SIDE-projected marking; side / plan markings live in the craft's
+  frame (along = aft from the craft root, the garage's -z), not the field's (aft from the firewall). GATE DESIGN's livery
+  yardstick updated to the live kit (m1-m5, t1-t6, metal / rough). The list thumbnail baked. Gates on the final card
+  (28 + the re-checks): all PASS but **TANKMOUNT (owed: the tail tank 12 mm through the boat tail's skin, whatever its
+  size, form or seat - kept, the deck form is the likely cure)** and LIVERY (master's two standing reds, the Cub's strut).
+- **THE FIFTH REVIEW**: the face - the opening fills the off-white shell, a rolled lip as its surround, and two new opt-in
+  cowl parts (`grilleOn` / `capOn`, _cowl_gen.js buildGrille / buildCap, absent = off): chrome bars cut to the opening, a
+  cross bar and a dark core; a radiator cap on the top line. The name in English: "Lady Luck".
+- **THE SIXTH REVIEW**: headlamps (`lampOn`, cowl, shells in the body's livery section), the grille's race number
+  (`grilleNum`, seven-segment geometry - quickshot's front view mirrors the page: the page's +x is the car's left), the
+  bonnet blue with a polished shorter shell (`cw_seamPos 0.81`), the front axle at the radiator (wb 3.20 m), a spare
+  wheel (`spareOn`, gear layer: the rearmost wheel copied onto the flank). All new rows absent = as before.
+- **THE SEVENTH REVIEW**: the race number 28 painted ON a fine open grille (bars cut where the sticker's edges cross them,
+  each piece the colour over it; `grilleRows` new, absent 0) - no panel in the opening; the spare wheel measured in the gear
+  group's own frame (a world box had put it on the ground in the page, under the pitched mount).
+- **THE EIGHTH REVIEW**: the spare wheel mounted (_cage_gear.js spareBuild): hubcap out (the spare side's own road wheel,
+  else the other turned), no brake, seated 34 mm off the flank over its whole height; a flange-and-stub carrier with a
+  chrome hub nut; a leather strap swept round the tyre's crown to a bracket and D-ring, its buckle modelled (frame,
+  roller, tongue, keeper, punched tail).
+- **THE NINTH REVIEW**: the spare drawn fresh (GG.wheel, no cap, no brake); its strap holds the whole wheel - bracket, crown,
+  wall, rim, the disc's measured face, a buckle low on the disc, a tab on the central spike under a wing nut; `whWide`
+  (new, absent 1) - 0.80 m wheels at 80 % width; the front mounts behind the polished shell (`s2Z 3.45`, `s2AxZ 0.30`).
+- **CAR-2 - A DUNE BUGGY FROM RUFUS (12 Nov, the user: "another style of car ... a buggy from Rufus?")**: no new code; a
+  rejoin of builds/rufus_2026-10-18_certified.json with builds/edits/buggy_2026-11.edits.json (tools/_rejoin_build.js):
+  wing, fin, stab, prop, spinner and rod off, the boom style 1 pod with a short aero tail, the Rotax 912 kept EXPOSED IN
+  FRONT (`engMount 0`: the pusher mount left the engine floating behind the pod), four tundra wheels on swinging-link
+  wishbones and coil-overs (rear s1Z 1.62, front s2Z 2.78 + s2AxZ 0.5, track 1.64 m, r 0.36-0.38). In the page Rufus's
+  open tube frame (`skinOn 0`) IS the roll cage. Saved as builds/candidates/buggy_2026-11.json ("Dune Bug", reg 7; the
+  pool index, plane lists n 51, thumb cand_buggy_2026-11.webp); sheet src/cars/car_buggy.json: wb 1.86 m, 415 kg, 47 %
+  front, 51 kW at the wheels, 0-100 5.9 s, 166 km/h, braking 0.79 g, lane change back to -0.5 / -0.9 deg. Leftovers: the
+  aero-tail stub behind the seat reads as a black hub; the interior view (`i`) finds no dash framing on this pod.
+- **CAR-3 - THE FIELD WAGON, A GLIDER TUG FROM THE C172 (12 Nov; the user: "a car that looks more or less like a car ... able
+  to pull the glider ... a real cabin ... a utility vehicle"; then the Dodge Power Wagon carryall as the reference, "two
+  passenger sections", "the outline projection", "the cowl ... a square base")**: builds/edits/utility_2026-11.edits.json
+  over builds/cessna172r_2026-11-08.json (tools/_rejoin_build.js). The pilot section and TWO passenger bays (paxCount 2,
+  a door and a window each), ending flat at the aft bulkhead, the roof level to the end; matched to the user's three-view
+  with tools/outline.js (the target traced off the drawing, scaled on the 126 in wheelbase): planeScale 0.90, wheelbase
+  3.20 m, 0.45 m tyres, front axle under the hood (s2AxZ 1.3), the cab widened (halfW 1.0), the nose ring squared
+  (noseCrown 0.1, frNoseTopW/BotW, frNoseTopY 0.37) and the bonnet a square section fitted to it (car_lines --build: within
+  ~4 cm), the windscreen stood up (wsRun 0.5). A 6.0 L custom V8, 4WD (spec.meta.car), 1080 kg: 0-100 5.0 s, and
+  AUTOTOW: a 450 kg glider LAUNCHES off the paved strip (the climb at 5.3 kN held at 112 km/h); not off grass (mu 0.55:
+  ~1.5 t would). Leftovers: the front legs reach 0.8 m from the firewall (a diagonal strut in view: legs mount on the
+  body only - a gap), a black fitting on the rear wall. Not yet in the pool (the build regenerates from its edits).
+- **CAR-3 TOOLS**: src/vehicle/vehicle.js a TOW LINE (ctl.tow N, towEl, towDir; absent = no rope - GATE VEHICLE PASS);
+  tools/car_sheet.js 4WD and the chassis mass from spec.meta.car ({drive:'4wd', chassisKg}), TOW and AUTOTOW rows, the
+  ledger's datum on the MAINS' station (not the rear axle - CAR-4's mains are its front pair); tools/car_lines.js --build.
+- **CAR-4 - THE RANCH HAND, A UTV FROM THE CUB (the user: "use the double boom to emulate a chassis ... the stabilizer ...
+  a bed ... a tiny engine")**: builds/edits/utv_2026-11.edits.json over builds/cub_2026-09-20_corrected.json. NEW ROWS
+  boomBodyZ / boomBodyY (_cage_wing.js drawBooms, the boom drawing lifted out of wingPost; _cage_page5.js, _cage_parts.js):
+  twin booms with the WING OFF root on the body (the core holds a wing to 6.5 m span, so it cannot be buried); absent =
+  as before. The booms are the chassis rails, the stab (squared planform) the bed, the rear wheels on the booms (s2Leg 3),
+  the front pair under a short bonnet over the A-65; two seats abreast (halfW 0.92); 4WD, 539 kg, 0-100 7.2 s. It cannot
+  launch a glider (39 kW at the wheels: a launch needs ~150 kW, the physics, not the build).
+- **CAR-3, THE USER'S VAN REVIEW (same day: "flat bottom ... a lot wider ... the nose section almost nothing, 10 cm max ...
+  a smaller engine, the bonnet the same width, less length and height ... a flat back like a van")**: every frame's
+  bottom on one keel (keelY / aftKeelY / tailKeelY / fr*BotY -1.0, frNoseBotY -1.22: the floor flat at -0.91 m
+  +- 5 mm); 1.98 m wide (halfW 1.1, roofHalfW 1.05); the roof lowered (roofY 0.9); the nose 0.11 m (noseLen 0.12); the
+  windscreen base brought down onto the bonnet (wsBaseLift -0.35); the back square (aftRoofY / tailRoofY at the roof,
+  tailHalfW = the body - the tail section had dropped to 0.40 m: the "pointy" back); a full-width bonnet (cw_aftW 0.99,
+  0.8 m long, top 0.12 m, its bottom on the floor line) over a 4.0 L V8 (177 kW); the front axle under it (wb 2.50 m).
+  1018 kg, 37 % front, 0-100 5.8 s; AUTOTOW off paved: LAUNCHES (97 km/h held). OPEN: a dark wedge between the bonnet
+  and the driver's door low down (the 0.11 m nose ring and the door's deep cut), the front shock's top showing at the
+  door's front edge, the livery band higher on the bonnet than on the body, a black fitting with a hub on the rear wall
+  (the page's, not the headless scene's).
+- **CAR-3, MATCHED TO THE POWER WAGON BY SECTIONS (the user: "project to scale ... match the sections and global dimensions
+  before the detail"; the scale from the user's 4.72 m length and 2.07 m height = 0.01044 m/px - the drawing's wheelbase
+  then reads 2.90 m, not the 114 in quoted; the user marked six sections on the overlay)**: NEW TOOLS tools/blueprint_overlay.py
+  (the quickshot side view, semi-transparent, over the scaled drawing, registered on the tail and the ground, a 0.5 m
+  grid) and tools/car_stations.js (the build's section stations in metres off the cage's rings). NEW ROWS paxLenLast (the
+  REARMOST bay's own length - the bays are laid from the aft end; absent = paxLen) and doorPaxN (doors on the first N
+  bays from the FRONT; absent = all); cw_lampIn (lamps seated in the face's side inlets, apMode 2/3; absent = on stalks -
+  built, not yet used). Sections from the aft end, target / built: bay 2 1.33 / 1.33, bay 1 to 2.30 / 2.30, cabin to the
+  windscreen base 3.18 / 3.19, nose to the firewall 3.43 / 3.44, bonnet 0.79 straight + 0.24 face to 4.46 / 4.47; the floor
+  raised 0.16 m (keel -0.82), the roof at 2.07 m, the wheels on the drawing's, 1035 kg, still LAUNCHES off paved.
+- **CAR-3, THE USER'S SECTIONS, READ RIGHT (12 Nov, the user's coloured overlay: cowl - nose - cabin with the angled A
+  pillar - pax 1 - pax 2)**: the overlay was registered on a fitting on the rear wall, not the body (0.1 m off) -
+  blueprint_overlay.py now takes the rear-most BODY column (>= 30 % of the fullest column) and the drawing's body rear
+  wall (437 px, not the bumper). The windscreen rows reset to the C172's (wsRun 0.655 = the drawing's A-pillar run,
+  0.59 m) and the cowl face reset clean (no lid rise, lidLen 0.06 at lidShoulder 0.92 - the C172's 0.24 m lid was a
+  dome). Stations from the body's aft end, the user's red lines / built: pax 2 1.25 / 1.251, pax 1 to 2.18 / 2.181, the
+  windscreen top 2.45 / 2.451, the A-pillar foot 3.04 / 3.040, the firewall 3.34 / 3.340, the cowl face 4.38 / 4.37
+  (pilotLen 0.2, paxLen 0.933, paxLenLast 1.29, noseLen 0.333, cw_cowlLen 0.97). The detail (grille, lamps in inlets,
+  windows on the doors, fairings, the front suspension) is next, after the user's look.
+- **CAR-3, THE USER'S ROUND (cabin +40 cm, the firewall top and bonnet line -15 cm, the nose and cowl lengths kept, every
+  windscreen crown / bubble / bow at 0, the rear wheel 20 cm and the front wheel 15 cm forward)**: pilotLen 0.644 (the
+  cabin 0.86 -> 1.26 m; the body grows aft in the garage's frame), wsBaseBow / wsCeilBow / bubble / noseCrown / dashCrown
+  0, the bonnet top 0.352 -> 0.193 (frNoseTopY 0.2, cw_aftH 0.473; its bottom on the floor line), the rear axle 1.02 m
+  from the rear wall (s1Z 0.5), the front 0.25 m behind the bonnet face (s2AxZ 1.15). The body's own corner rounding
+  (topRound / botRound) left as it was.
+- **CAR-3, THE NEXT ROUND (the user: the waist +12 cm, the nose's sharpness relaxed, no suspension fairings, the front wheel
+  30 cm back, the windows wider and back in line with the drawing, the bonnet face at 70 % of its width)**: waistY 0.258
+  (+0.133 cage = +12 cm), crNoseCap 1.5 / noseTip 0.1 (were 3 / 0.25), s1LegFair / s2LegFair 0, s2AxZ 0.85, cw_taperW 0.7.
+  THE WINDOWS: one row cannot give the drawing's two widths, and the old pair straddled the B pillar and the bay seam - now
+  one window per bay on two rows: row 1 (bay 1) paxWinZ 1.587 / W 0.633, row 2 (bay 2) win2Z 0.438 / W 0.78; a window's z
+  is its FRONT edge (tools/car_stations.js prints them). UTV: the nose and bonnet restored to the matched version (the
+  user), the bed on the Twin busher's straight-stab planform rows.
+- **CAR-4, THE UTV ROUND (the user: the rear track equal to the front's, the front the reference; the bed square, as wide as
+  the cab, overhanging the booms; the cab's bottom flat)**: NEW ROW twBoomOut (_cage_gear.js boomMount, _gear_page.js,
+  _cage_parts.js): the twin booms' wheels that far outboard of the booms (absent 0 = under the boom) - 0.26 m, both tracks
+  1.44 m; the bed stOver 0.13 m past the booms (its edge at the cab's 0.62 m half-width) and stTipZ 0.6 (the tip's leading
+  edge forward: the bed's sides straight, no flare toward the cab); frWinBotY -0.92 (the cab's floor flat at -0.63 m to
+  the nose, the nose itself the user's chosen one). 536 kg, 71 % front, 0-100 7.0 s. Gates PARTS / CAGEFIT / DESIGN PASS.
+- **CAR-3, THE NEXT ROUND (the user: the windscreen run -5 cm, the cabin +5 cm, the pilot window sill -10 cm, the bonnet
+  face's top -10 cm; both rendered; the suspension anchors placed clean)**: wsRun 0.60, pilotLen 0.70, frPostWaistY /
+  frCabWaistY 0.147 (the cab frames' waist -0.111 cage = -10 cm; the bays keep waistY 0.258), the bonnet's front top
+  -10 cm by a height taper (cw_taperH 0.894, cw_faceRise -0.15 - deckH lowers the whole lid, deckSweep only the last
+  0.2 m). THE SUSPENSION: the front legs hung 0.85 m behind their axle (a long diagonal link) - mounted at s2Z 3.1 (the
+  last station where the floor is flat: at 3.2 the nose's underside rises and the wheel lifted 0.44 m, 2 wheels on the
+  ground), s2AxZ 0.6; the shock tops at 45-50 deg round the section (s1_ / s2_shockAng; at 90 they climbed the door and
+  broke through the bonnet line), the front's 15 cm aft (s2_shockZ -0.15). 1025 kg, 46 % front, LAUNCHES off paved.
+- **CAR-4, THE UTV'S REAR WINDOW (the user: "a back window ... aligned with the main windows")**: NEW ROWS rearWinOn / W /
+  H / Y / R (_cage_gen.js cageSpec S.rearWin, cageRearCut in both sheet paths after the side windows; _cage_page5.js,
+  _cage_parts.js; absent = none): the knife's own frame (the wells' API: n0 straight aft, the outline in the rearmost
+  wall's plane) and a NEW knife option `only(f, V)` (_knife_gen.js: an excluded face is never cut; absent = all facing
+  faces) - without it the aft projection opened every aft-facing face along the body. The UTV's: y 0.201-0.829 cage = the
+  side glass's sill and head exactly, 1.25 wide, r 0.06. Gates KNIFE / PARTS / CAGEFIT / DESIGN / COWL PASS. Behind the
+  glass stands the interior aft bulkhead (intBulk 1, 6 cm inside) - the window reads dark.
+- **CAN THE UTV TOW**: on the ground yes (a glider on its wheel: lift-off speed in 6.8 s on paved), a launch no - 39 kW at
+  the wheels holds 3 kN at 44 km/h at most; an auto-tow climb needs ~5 kN at ~95 km/h (~150 kW). The wagon is the tug.
+- **CAR-3, THE RESET (the user: "come back to really simpler settings ... keep the pillars and the global proportions")**:
+  the wagon's edits rebuilt from 165 rows to the essentials (the old set kept in the session's scratch, not the repo):
+  the pillars (pilotLen, paxLen, paxLenLast, noseLen, wsRun), the proportions (planeScale, halfW, roofHalfW, roofY), ONE
+  floor (every frame's bottom -0.82: -0.745 m end to end), ONE roof (frPaxTopY / aftRoofY / tailRoofY = roofY: level at
+  0.914 m, it had fallen 12 cm aft), ONE waist (waistY 0.147 - the per-frame waists were the kinked sill), the
+  windscreen flat (crowns / bows 0), noseKeelSq 1 (cherry-picked from FIT-PROCEDURE f04a18ef: the nose's bottom corners
+  square - the bonnet meets it within 16 mm on the sides and bottom), no drawn windows, no passenger doors, the bonnet /
+  engine / wheels / legs as they were. THE THINGS THROUGH THE BACK: the rod's bolted socket (drawn with the rod off -
+  _cage_gen.js now skips it when S.rod.bare), the rear bay's two seats (their reclined backs 12 cm through the wall - NEW
+  ROW paxSeatBays, _cage_crew.js: only the first N bays from the front carry seats, absent = all; the wagon's 1), the tank
+  (aftCabin -> nose bay), and the C172's avionics (the roadster's car systems). Found with a probe through _load_build.js
+  (the page's own scene): the seats are not in the headless scene. 1012 kg, 53 % front; AUTOTOW off paved now holds 79
+  km/h (short of the 90 pass mark: the tank's move took weight off the rear - ballast in the load bay is the cure to try).
+- **CAR-3/4, THE BACKS (the user: "the backside is what we're gonna see for all tows ... give that a little bit of love")**:
+  rearWinN / rearWinGap (a PAIR of rear windows; absent = one) - the wagon's two in the side glass's band (0.305-0.823
+  cage), 0.80 wide, 0.95 apart. The UTV: intBulk 0 (its window looks into the cab) and the roadster's wheel model (whProfile
+  2 slim, whRim 1 spoked, whRimD 0.62, whWide 1.1, its tread kept). NEW ASSEMBLY bumpF / bumpR (+ bumpY / bumpGap / bumpW /
+  bumpH / bumpFin / bumpGuards / hitchOn; _cage_gear.js bumperBuild, _gear_page.js, _cage_parts.js; absent = none): a
+  1940s blade (convex face between rolled lips, swept along the width, the ends wrapping 75 deg back round the corners),
+  teardrop overriders, bracket arms with gussets and bolts; the rear one a ribbed step pad and THE HITCH - a square
+  receiver tube with its collar and cross plate, the drawbar, the drop plate and shelf, a 50 mm ball on its neck and nut,
+  the cross pin with head and clip ring, two safety-chain loops. The ball's centre is window.CAGE_GEAR_HITCH; car_sheet
+  writes it as sheet.hitch (the rope pulls there). The front bumper's station is the bonnet's own rows (AF.z1 + cowlLen +
+  lidLen) - a scene lookup of the cowl group missed it in the page. THE TUG'S BALLAST: the 4WD splits the drive equally per
+  wheel (no differential), so a front-heavy tug spins its light rears on the climb - 150 kg in the load bay (spec.cargo,
+  _rejoin_build.js now carries E.cargo): 1249 kg, 36 % front, AUTOTOW LAUNCHES (97 km/h held).
+- **CAR-4, THE REAR WALL'S BAS-RELIEF ON THE OUTSIDE (the user: "build the ability of printing the bas-relief on the
+  visible backside")**: NEW ROWS extRelief (1 pressed beads / 2 rolled / 3 framed panel, the aft bulkhead's own three) and
+  extReliefH (_cage_gen.js cageRearRelief, after cageInterior in both sheet paths; rows in _gear_page.js, claimed in
+  _cage_parts.js; absent = none): raised beads on the rear wall's outside, clipped to its outline (the hull of its
+  aft-facing skin faces, inset), stepping round the rear windows, the faces tagged with the wall's own skin material so the
+  sheet paints them (a gear-layer mesh drew white: the section material is not reachable there). Both cars: beads, 16 mm.
+  The UTV's take its 'cloth' (the Cub's fabric skin) and read darker than the wood grain. The wagon's aft bulkhead off too.
+- **CAR-3/4, THE DOORS, THE LIGHT BUMPER, THE ROUND'S FIXES (12 Nov)**: extRelief 4 'rear doors' (_cage_gen.js
+  cageRearRelief): a square-cornered frame up into the roof's rounding (to 88 % of the wall's width, as wide as the wall
+  is there), the split down the middle, published on the sheet as m.rearDoors; _cage_gear.js rearDoorHardware hangs the
+  garage's own butt hinges (HINGE_GEN.buttHinge, the cabin doors') two per door on the outer edges and a T-handle with its
+  escutcheon at the split - a picture, the doors do not swing yet (a real cut door needs the rear wall's faces split
+  along the outline: owed). bumpStyle 1 'light tube' (a round section, no overriders or step, round arms, a 50 mm
+  receiver) - the UTV's, black, at the booms' tail ends (on twin booms the rear bumper rides CAGE_BOOMS.zTip). THE PINCH
+  between the bonnet and the windscreen: the A-pillar's foot sat under the bonnet line - wsBaseLift 0.06 levels the deck.
+  ctlStick 1 (the yoke) on the van, the UTV and the buggy; hdlOn / wallTrimOn (the roof lining) on the van and the UTV.
+  The rear wall's rows grouped in the tree under Structure & skin > 'rear wall (outside)' (rear windows, the relief).
+- **CAR-3, THE REAR DOORS NUDGED (the user: "3 cm up with the door and 3 cm outward with the contour")**: NEW ROWS
+  extDoorTop / extDoorOut (metres, absent 0; the 'rear wall (outside)' group): the outline's top up and its sides out;
+  the hinges follow (they read m.rearDoors). The van: 0.03 / 0.03.
+- **CAR-3, THE VAN'S OWN WHEELS AND FRONT (12 Nov)**: whProfile 3 'military lug (1940s)' (_gear_gen.js TYRE[3]: a
+  9.00-16 on a 16" rim - a torus taller and narrower than the tundra; MIL_LUG chevrons, the two halves meeting across the
+  crown: bushLugs takes a lug table and a `stagger`) and whRim 3 'steel disc + lock ring' (a dished pressed disc with a
+  stamped ring, the split lock ring on the flange with its notch); both on the usual wheel rows, absent = as before. The
+  van: whProfile 3, whRim 3, 8 nuts, a domed cap, whRimD 0.50. The bonnet's bottom line 10 cm up (cw_keelH 0.79) and the
+  front bumper up over it (NEW ROW bumpYF, the front's own height; absent = bumpY): 0.12.
+  OWED (the user): THE GRILLE - a wide horizontal grid over the top half of the bonnet face, not as wide as the car; two
+  side inlets with a lip each, the headlamps in them (cw_lampIn, built, unused yet).
+- **CAR, THE CAR FLAG AND THE CAR PART (12 Nov; the user: "mark them as cars ... an option ... as a player ... a new car
+  section ... the controls very specific to cars")**: NEW ROWS isCar (always shown: "this build is a car"), carDrive (0
+  rear / 1 all four), carChassisKg (_gear_page.js; absent = an aeroplane, nothing changes); a top-level part 'Car'
+  (_cage_parts.js) holds them with the bumpers and hitch and the spare wheel (moved out of 'Wheels & tyres'; their
+  switches show with isCar or once set). tools/car_sheet.js reads carDrive / carChassisKg over the older spec.meta.car.
+  THE AUDIT - kept GENERAL (a plane can use them): rearWin* (rear windows), extRelief* / extDoor* (the rear wall's outside
+  relief and rear doors), boomBodyZ/Y (twin booms without a wing), twBoomOut, paxLenLast, doorPaxN, paxSeatBays,
+  cw_lampIn, whProfile 3 / whRim 3 (the military tyre, the steel disc), noseKeelSq; CAR-ONLY (the Car part): isCar,
+  carDrive, carChassisKg, bump*, hitchOn, spare*; and outside the garage, tools/car_sheet.js's tune (brakes, springs,
+  tyres, the driveline) and the vehicle shell's tow line. All four cars carry isCar 1 (the roadster's card, the buggy,
+  the van 4WD 280 kg, the UTV 4WD 150 kg). NOT YET: what the GAME does with isCar (the hidden wing and prop still fly) -
+  waiting on the TOW-LAUNCH session (its drive mode, claude/tow-launch-phase1) for the seam: a build's sheet + its own
+  meshes as the drive mode's rig.
+- **CAR-3, THE INTERIOR, THE WHEEL WELLS, THE NARROWER NOSE (12 Nov; the user: "bigger seats ... 2 rows of seats in the
+  back ... 3 seats in a row ... cut the fuselage at the shape of the wheel and do a little wheel well in it ... at the
+  back I would really like that we try this wheel well thing ... for the nose, just do minor adjustment")**: the seats
+  (e4c37cc1): seatType/paxSeatType 5 (executive), paxAbreast 3, paxSeatBays 2, paxSeatZ 0.2, seatGap 0.64; the rear
+  doors' edges +5 cm out (extDoorOut 0.08), the rear bumper +5 cm up (bumpY 0.05). NEW ROWS archOn (0 none / 1 rear /
+  2 front / 3 both) and archGap (the clearance round the tyre, m; default 0.04), in the Car part's 'wheel arches' group
+  (_gear_page.js). THE CUT (_cage_gear.js, the end of the gear layer): for each picked axle, a side well per wheel
+  through the retractable-gear knife path (window.CAGE_GEAR.cutsSide, mode 'box', applied by _cage_ui.js wellApply
+  and by quickshot) - its outline an arc of radius R + gap round the hub from the body's bottom edge, its floor
+  (ceil) the tyre's inner face less the gap, so the hole is lined and closed, not a see-through slot; absent = no cut.
+  The van: archOn 1, archGap 0.05, the rear track in (s1X 0.82) so the rear tyres sit inside the arches. THE FRONT
+  (minor, as asked): noseW 0.8 and cw_aftW 0.87 (a narrower nose and bonnet, the cowl-nose joint within ~5 mm except
+  the top corner, -107 mm), the front track in (s2X 0.88; tracks 1.76 m front, 1.64 m rear) - the front tyres still
+  stand a little proud of the bonnet, as the user allowed. car_sheet: 1268 kg, 35.5 % front, AUTOTOW still LAUNCHES.
+  STILL OWED: THE GRILLE (above).
+- **CAR x TOW-LAUNCH, THE MERGE (12 Nov; the user: "you have my go-ahead for merging you two branches ... it keeps the
+  towing part, but ... you keep the whole car part, including the AI and everything that it has done ... keep its car
+  model integrated with our physics ... in case our self-made cars do not look good enough, we default back to these")**:
+  origin/claude/tow-launch-phase1 (40c06bf7) merged into claude/fly-diy-car-build-uu6e6w. THE SPLIT: the CAR-BUILD
+  session owns the car - src/vehicle/vehicle.js, vehicle_drive.js, vehicle_island.js (the AI driver and its roads),
+  src/viewer/drive_mode.js, src/cars/* (the conquer car: the drive mode's default rig, on vehicle.js's physics),
+  tools/drive_shot.js, the road-join tools, GATE VEHICLE and DRIVE-TRIP; TOW-LAUNCH keeps the towing - tow.js,
+  trailer.js, trailer_model.js, the glider launches / circuit / altiport push start (43_pilot.js), GATE TOW, TRAILER.
+  THE CONFLICT: vehicle.js - TOW-LAUNCH's kept (the scratch-slot substep, car.extF); CAR-3's ctl.tow / towEl / towDir
+  dropped, tools/car_sheet.js's TOW and AUTOTOW rows pull through car.extF (same digits: the van holds 97 km/h);
+  vehicleDef gains `hitch` from sheet.hitch (undefined without one - no digit moves). For tow.js (TOW-LAUNCH's):
+  `o.hitch || car.def.hitch || ...` so a garage car's drawn ball is the rope's point. NEXT (CAR): DM.vehicleSource =
+  { sheet, tune, buildRig(THREE) } - the conquer car the default, a garage car (its own meshes, its car_sheet) an option.
+- **CAR-3, THE VAN'S FACE (12 Nov; the user: "go do something elegant in the front of the van" - the grille owed since:
+  "a wide horizontal grid on the top half of the bonnet face, not as wide as the car, two side inlets with lips holding
+  the headlamps")**: NEW ROW cw_apLift 'inlets up / down (the engine stays)' (_cowl_rows.js, 'inlets' group;
+  _cowl_gen.js apertureList; ABSENT_AT 0 = as before): it lifts the main inlet and the pair ALONE - apOffY also moves the
+  spinner's and the engine's axis (axisXY, _cage_eng.js), so a grille raised with it put the engine through the bonnet
+  top (seen as two dark marks on the lid). The lamp seated in an inlet (lampIn) now turns its bowl BACK into the face as
+  a chrome reflector, the glass bulging forward of the rim (it turned forward over the lens and read as a white ball;
+  only lampIn changes - the proud lamps on stalks draw as before). The van: apMode 3, the main inlet 0.64 x 0.16 m
+  (apW 0.32, apH 0.08, apSq 0.75), apLift 0.40 (the top half of the face, the engine where it was: apOffY 0), a rolled
+  lip (lipMode 1), the grille five horizontal rows on two uprights set 2 cm back (grilleN 2, grilleRows 5, grilleBar
+  0.014), ductLen 0.05; the pair round (pairSq 0.5 - 0 is a diamond), pairX 0.47, r 0.105, level with the grille
+  (pairY 0), the headlamps in them (lampOn, lampIn, lampBack 0.03). A radiator cap tried and left off (a dark knob).
+
+## TOW-LAUNCH SLOPE - THE GROUND PUSHES ALONG ITS NORMAL (13 Nov, for A0; claude/tow-launch-slope-reaction off L39b 23ce68c1f)
+- THE BUG (the user: "a real nasty bug ... everything should roll"): 30_solver.js pushed every contact node STRAIGHT UP and kept every friction in the horizontal plane, so a slope never pulled anything downhill. The motorglider set on Skyline Altiport (tw_ski, ~9 % grass) never moved; pushed to 4.4 m/s it slowed at g Crr (0.47 m/s2) as on flat ground.
+- THE FIX (30_solver.js, the ground pass only): a contact reads the terrain's normal off a forward difference (GROUND_SLOPE_D 0.25 m), its spring and damper push along it (the penetration stays the vertical one: O(grade^2)), the wheel's rolling / side / brake friction, the tail skid and the scrape live in the tangent plane. THE HOLD: on a slope a wheel under 0.2 m/s is static friction - it takes the tangential force its node carries up to the creep Coulomb limit (Crr N unbraked, (Crr + brake mu) N braked, the side mu across), so a parked aeroplane holds on a grade under Crr and rolls at g (sin - Crr cos) over it. A contact whose difference is exactly zero (the analytic HOME, every graded pad and stand) takes master's lines: FLAT GROUND IS BIT-IDENTICAL (sim.p after 20 s parked at the analytic HOME and at Jolene's HOME stand, and after 25 s of powered turning taxi on the analytic HOME: 0 of 315 coordinates differ). Jolene's HOME runway is NOT flat (0.44 % along): there the aeroplane now feels it (2 mm after 20 s parked).
+- THE NORMAL ONCE A FRAME: the normal is cached per node for the frame (snFrame, bumped by step()) and re-read when the node has run 12.5 cm; terrainH a frame on the tw_ski roll 13 561 -> 12 847 (master 12 841). Typed arrays, no allocation.
+- THE COST, MEASURED THE SAME WAY BOTH SIDES (probe: the same 600 recorded states stepped one frame each by master's core and the branch's, one process, interleaved blocks, 11 passes, process CPU time): free roll on tw_ski master 16.96 / branch 16.60 ms a frame (-2.1 %), parked braked on 9 % 13.89 / 13.83 (-0.5 %), parked at Jolene HOME 13.14 / 13.32 (+1.4 %) - inside the passes' spread; without the frame cache the branch read +3.5 / +4.6 / +6.5 %. The earlier "+28 % on tw_ski" (13.27 vs 16.99 ms) compared a rolling aeroplane (branch) with a parked one (master never rolled there): the motion costs it (aero, AIC), not the contact.
+- GATE AUDIO SP_BUDGET (the earlier branch run's "roll-out shot +138 B a frame"): a FLAKE under parallel load, not reproducible and not the solver's - the measured window runs AUDIO.update on a stub sim (FLOWN is makeSim(def, null): no world, the flat lines). 6 runs a side under the same load: 176 376 B over 10 000 frames (17.64 B a frame, the room mode 7.22) on BOTH, every run, 0 failures.
+- GATE SLOPE (new, core, ~1 min, tools/_slope_check.js): the motorglider at tw_ski, engine off - the free roll from rest a = g (sin - Crr cos) (0.397 against 0.401 m/s2, -1 %), pushed uphill at 4.4 m/s it slows at g (sin + Crr cos) (-1.356 against -1.354) and rolls back, parked on 3 % without a brake it holds (0.06 cm in 8 s), braked on 9 % it holds (0.10 cm), across 9 % without a brake the side grip holds (1.46 cm in 8 s: the castoring tailwheel yaws the tail ~0.1 deg in 8 s - left as the tailwheel's own law).
+- RE-PINNED: GATE LINEUP's start (poseFor / taxiRoll) is seated on the true ground as the game places it (seatOnGround, G700). The raw spawn identity on w4 (no stand, 6.5 % downhill) buried the Cub's tailwheel 33 cm: the tail was thrown to -15.7 deg and master's "rest -5.2 cm" was read with the tail 0.8 m in the air; with the normal push the same throw noses the Cub over there (-44 deg). Seated: master w4 rest +0.1 cm, the branch 0.0 cm; every other row moves by tenths of a cm.
+- tow.js slopePull (TOW-LAUNCH's page push and GATE TOW's ALTIPORT row, not on master) is now REDUNDANT: the solver pulls downhill itself. It stays until the merge removes it (A0's side), so the two slopes must not both reach one aeroplane once both are in.
+- PUSHED WITHOUT THE FULL BATTERY (A0's call, 13 Nov: the core battery is ~16 h of wall on the cloud box; train L40b runs every gate on its own box). The targeted branch-vs-master comparison of the ground gates was run side by side.
+- TRAP (named, not fixed here - 39c_placement is not this change's): placeAtAerodrome without seatOnGround on a sloped strip (the spawn identity) drops the aeroplane onto a buried third wheel; on a downhill spawn with the ground's slope now real, a taildragger can go over its nose. The game seats (app.js applyRoute); a gate that spawns raw on Jolene's sloped strips is the place to look first if one goes red on this change.
+
+### TOW-LAUNCH L40d (15 Nov) - the set on L40c, and the cars' decision
+
+- claude/tow-launch-l40d = claude/tow-launch-l40c-3 merged onto master 58c681347 (L40c), then (baked), then (built).
+  43_pilot.js is the Pilot's, verbatim (it holds every TOW-LAUNCH hook). The solver's slope hold sits before master's
+  skid branch (isTW || SKD[i]). GEN_CAGE_ROW_NEUTRAL = master's rows plus rodOn / spinOn.
+- THE MILITARY LUG TYRE IS whProfile 4 (MONOWHEEL's bicycle wheel took 3 first): _cage_design, _gear_gen TYRE[4],
+  _gear_page 0..4, the van's edits. The core reads 4 as a standard tyre, as it read the car branch's 3: the van's
+  physics did not move. The car session has been told.
+- THE CARS (the user via A0, 15 Nov: "let's exclusively use our own ... the van ... the speedster is just a little
+  easter egg ... we don't use the external 3d pickup model"), CORRECTED the same day: "Keep the pickup in game for
+  now, just not defaults. We'll remove once the built cars are fully proven." NOT in L40d: it goes as
+  claude/cars-own for L40e. The van is the stock, default and tow car; the roadster the easter egg; the Conquer
+  pickup STAYS selectable (its sheet, meshes, packs and sound kept), the default nowhere. The swap of the default
+  (drive_mode.js, the vehicle files, app.js's DRIVE section, vehicles.json) is the CAR session's. TOW-LAUNCH's half:
+  GATE TOW and TRAILER default to the van's sheet with every moved figure named, the Conquer kept as a second car's
+  rows; tow.js / trailer.js hook to the car's drawn ball (def.hitch) and keep the Conquer's fallback.
+
+#### READY NOTE - claude/tow-launch-l40d (15 Nov)
+
+- slope-fix: inside (claude/tow-launch-slope-reaction 9c059baf4 is an ancestor); no separate slope-fix-l40d.
+- THE LUG TYRE whProfile 3 -> 4, THE VAN'S PHYSICS DON'T MOVE: no gate builds the van, so measured directly
+  (scratch probe: a car spec, the cage's whProfile set, buildGen, then a 4 s roll). On l40d's core whProfile 4
+  builds a def byte-identical to the standard tyre (0), with the same mass and the same 4 s roll; on l40c-3's core,
+  3 was byte-identical to 0 too. Left at 3, the van would take the bicycle wheel's laws (-47.6 kg).
+- GATES on l40d (--no-build after the build, 4 jobs): PASS STOL, BENCH, SNAPSHOTS, TRAILER, UISMOKE, DRIVE-TRIP,
+  MONOWHEEL, GEAR, HUB, MAPBAKE, PREMCOOK, CITYCOOK. RED, each run on master 58c681347 too:
+  - POD: pod off, "the whole def / the shakedown sheet is the base's bytes" on all six builds. The measured hashes
+    are identical on master: master's (_pod_base.json wants master's re-pin).
+  - SCENERYED: 20b only (Metlakatla compose 3334 ms vs 2500 ms). Master fails it too: timing.
+  - GLIDE: CIRCUIT archaeopteryx (motor off) capsizes. Master fails it too.
+  - UNIFY: EMERG (C172 list:50 to Cannery) and ARCH. Both fail on master with identical text.
+  - TOW (TOW-LAUNCH's gate, no master row): CIRCUIT archaeopteryx - "released at 1 m; rejected-takeoff". Every
+    other row passes (LAUNCH, GLIDE, RELEASE, WEAK, AUTOPILOT, CIRCUIT motorglider, ALTIPORT, PERF, PAGE; alone,
+    ~25 min - in a 4-job battery it can hit the 1800 s wall). The cause is L40c's Archaeopteryx card (the monowheel):
+    l40d builds it as master does (only the neutral rodOn / spinOn echo differs; same mass, same rest). On the
+    line it pitches 23 deg nose down as the line takes up and rolls onto its side at 6 s (bank -88 deg) - the ground
+    handling that capsizes it on master's GLIDE / UNIFY landings. TOW-LAUNCH's follow-up (L40e): a wing runner and a
+    monowheel ground roll in tow.js's hands.
+
+### TOW-LAUNCH L40e (15 Nov) - the CG release, the wing runner, the release drawn
+
+The user via A0: "you should have them towed from an anchor at their main wheel position, just forward of it. That's
+more realistic and may avoid nose over. Do the 3d anchor properly and professionally."
+- THE PULL: tow.js towHookNodes - the build's own CG release (refs.towHook, 61_gen_frame's node 0.25 m ahead of the
+  main axle) or, unfitted, the same belly site (the keel node or a corner ring's bottom pair). The old finder
+  (towNoseNodes, the aerotow's nose) had picked the Archaeopteryx's NOSEWHEEL. 30_solver gains sim.refs() (read-only,
+  no physics change), so the page's towHookNodes(sim) finds the release itself.
+- THE HANDS (tow.js makeTowHands): a WING RUNNER at the right tip to 6 m/s (<= 200 N on the tip); on the wheel a
+  firmer, damped roll; the rudder damped by the heading's rate (undamped, the nose swung 4.6 deg either side and on
+  one tall wheel each swing's tyre force rolled the glider); on the line the angle of attack held (6 deg under 15 m,
+  9 above).
+- THE GAME'S BUILD (A0 for the Archaeopteryx's owner, 15 Nov): GATE TOW and TRAILER now build every glider through the
+  load door (_load_build.js gameSpecFull: the join measured, then genMigrateSpec), as the game flies it. The raw bake
+  had no mast: the Archaeopteryx's wing sat on the soft pod's poles. MY EARLIER NOTE HERE WAS WRONG - its "in-air roll
+  with the controls frozen" was that harness build; joined, it holds its bank within ~1 deg for 7 s.
+- THE TAKE-UP (GATE TOW TAKEUP, joined builds; at rest / the lowest pitch to 10 m/s (under its base: the lower of the
+  rest attitude and the horizon) / the worst bank to 10 m/s; then to the lift-off):
+    Archaeopteryx  rests at -8.4 deg on its nose skid
+                   CG release:  -11.1 (2.7 under) / bank 2.0;  to the lift-off 6.6 deg bank (7.4 s at 16.7 m/s)
+                   nose hook:   -9.3 (0.9 under) / bank 2.7;   to the lift-off 9.0 deg bank (8.8 s at 17.1 m/s)
+                   l40d (the unjoined build, the "nose" its nosewheel, the old hands): -23 deg, on its side at 6 s
+    motorglider    rests at 5.3 deg; CG release 0.0 under / 0.0 bank (lift-off 11.5 s at 23.0 m/s); nose hook 0.0 /
+                   0.0 (13.4 s at 24.0 m/s)
+- MOVED FIGURES (GATE TOW, the joined motorglider, 273 kg): LAUNCH lift-off 11.5 s at 23.0 m/s, 139 m down; released
+  at 364 m (was 278 m on the nose hook, raw bake), the line 4.72 kN at most; CIRCUIT downwind 404 m out, glide ratio
+  13.8, landed 835 m in; ALTIPORT now a direct glide (597 m) and final, landed 1859 m in, 47 m left.
+- STILL RED: TOW CIRCUIT archaeopteryx (joined). The take-up is clean; it lifts off at 16.7 m/s and pitches up
+  16 -> 61 -> 71 deg within 2 s with the elevator FULL nose-down, the weak link breaking at 6 kN, then capsizes: the
+  card's pitch instability (static margin -11.6 %, A0's figure), the owner's with the user. A CG release pulls below
+  the CG, so an unstable glider cannot be held on it - the hands already give it the full down elevator.
+- THE GARAGE (towHook 2): _gear_gen towRelease, drawn by _cage_gear at the main axle + GEN_RULES.towHook.cg.ahead -
+  the doubler (fitPad: painted, four bolts), the housing lofted on the skin (open forward, a rolled lip, a dark throat
+  26 mm deep), the steel jaw and its pin; its tail kept 2 cm clear of the main tyre. Quickshot close-ups: side,
+  bottom, qb (--key archaeopteryx --around 0,-0.45,1.76,0.22).
+- THE ROPE'S END: tow.js towRingRig(THREE) - the Tost ring pair and the rope's spliced eye, posed at the release's jaw.
+  Its three call sites are in drive_mode.js's tow section (towStart / towDraw / towStop): asked of the CAR session
+  (its file).
+- GATES: TOW (above), GEAR, HUB, CLIP, CAGEFIT pass. STOL's draw fingerprint is the core's wing (not the gear layer).
+
+## DEFORM-L40A-REDS - the damage reds after L40a-L40e, split by bisect (Deform, Tue 17 Nov 2026, for L40f)
+claude/ready/deform-l40a-reds on master 2157a2f98 (L40e). Each split ran its gate alone in a tree of its own, one core,
+first-parent bisect over the trains (scratchpad bisect.sh; a row's regex where the gate is red at both ends).
+- DMGPOD (gear-up belly landing, the metal Cessna): RE-PINNED, the hard row 3 -> 5 m/s, the reason in the gate file.
+  Moved by ENGINE-LUMP (L40a merge 154c03927; 835efe122 the crankcase a damped lump, abbffb87b the nose's push on its CG):
+  gen-brakes 3c4865e3d PASS, engine-lump FAIL. The pod now breaks 5 of its 16 hangers at 3 and 3.5 m/s (one short of the
+  group's third), torn off at 4, 5, 6 m/s (4.5 crushed: 4 is the edge). A meant move: nothing for the owner to do.
+- DMGWALL (metal nosein, the wall out past 1 mm 2.6 % > 2 %): red on L40e master, PASS with JOINT-TETHER (G4103) - fixed
+  there, no re-pin.
+- DMGUPLOAD (metal: STALE GPU BUFFERS after crash -> the shed -> roll-out, fold:flownBaked.position 3960 / normal 108):
+  L40e's merge of claude/ready/animals-swim 063250330 is the first bad (pc6-trail f31d8631a PASS, canon-reds 0553e4bf2 and
+  descent-2 3dced70be FAIL after it). animals-swim touches no flown-bake code (animal_run, animals, plume, wakes, water):
+  its frame's new work exposes a hole in flown_bake.js's owed whole upload (G2352) - a real ghost on the stand, not a pin.
+  OWED: Deform looks after the L40f readies; ANIMALS for the frame-order side if it is theirs.
+- DMGTYRE: NOT an L40a red - red on L39b 23ce68c1f with the same rows.
+  * the taxi turns (Jodel R x0.78, metal Cessna x0.66 against the old law's radius; band 0.80-1.10): red at least since
+    pilot-45's merge of master a69f31fda (mid-Oct, FAIL (2)); the older trees between the gate's birth 436424be8 (5 Oct)
+    and it did not run the gate to a verdict - its first red is not found. Standing; the tyre law's owners judge it.
+  * the Cub's 5 m/s crosswind roll-out (swing <= 15 deg): moved by L36d's merge of claude/ready/pilot-notch-2
+    3e2602e8f (the row holds on the proper-cowls merge 2e1eac16e before it, red only on the taxi turns): the swing 31.8 deg since - the roll-out is flown by THE
+    PILOT, so its landing law moved the row, not the tyre's. Standing; Pilot judges whether the swing is meant.
+
+## JOINT-TETHER (G4103) - A KINKED TUBE STILL HOLDS, JOINTS TEAR LATE (Deform, 13-17 Nov 2026, for L40f after DEFORM-L40A-REDS)
+The user (13 Nov, the tether stills): "the direction is definitely better; keep moving that way: MORE BENDING, LESS
+DISINTEGRATING. Keep the breaking, of course, but more bending before it breaks." Within the physics:
+- 30_solver: a member that kinks (compression past ecu) keeps a TENSION TETHER by its material (60_gen_spec GEN_DMG_TETHER:
+  ductile - the fold reopens at rFold x its crush force while shorter than rest, then rDuct 0.5 x fu, torn past
+  Lr (1 + eDuct 0.5 x etu); wood - rWood 0.25 x fu, torn at Lr; carbon - none). It lives in the floor pass (pulled, damped
+  as its floor, torn there); a live tether (b.tt === 1) JOINS pieces (pieces(), sim_host simDmgPieces, every gate's own
+  union-find that counts pieces). A kinked GEAR member holds none (GEAR-FALLS keeps it out of the floor pass: its tether
+  stayed live at 32.8 x its length, a fallen leg joined to the wreck).
+- Joints tear late: a group (G1894's third) counts a tethered DUCTILE kink as losing only fu - keep; its tear adds the rest
+  and the group is judged again (tetherGroups, DMG.groups how 'tether'). Crushed wood counts lost whole (its tether holds
+  the splinters, it is no strength: the Jodel's certificate read BROKE AT 9.54 g before).
+- The page: a held kink keeps its skin, drawn whole and bent (the hop's `th` = the live tethers; sim_view drops them from
+  the page's broken list, kept in the order the page saw the breaks); a member broken while the wreck is ONE piece is drawn
+  CUT through (G4102 ran only on a parted wreck: those triangles were dropped along their own edges). A debris part asleep
+  inside a cabin that came to rest over it is woken and pushed out (WRECK_DEBRIS.needSolid).
+- Measured: TREECRASH pieces medians cub/trunk0 9.5 -> 5, jodel/trunk0 13 -> 8, metal/trunk0 14 -> 8, mount / cowl off
+  unchanged; the Cub nose-down no longer BREAKS UP (stills 17 Nov, flydiy-notes/evidence/joint-tether-2026-11-17/).
+- Gates re-stated, each reason in its file: TREECRASH (re-pinned, tether-aware pieces), DMGSKIN (the end flush settles
+  again past a late burst of yields), DMGSETTLE (a covering its tie holds across rides no loose piece), DMGPOD (the metal
+  Cessna's pod folds its hangers and stays on to 7 m/s; the tear-off asserted on the Jodel), DMGPAGEW (any verdict that
+  broke members), DMGFABRIC (the hop row on the metal Cessna, whose trunk0 still tears ties). Fixed by it: DMGWALL, and
+  DMGINTEGRITY's engine-through-the-firewall row. The damage set's other reds are master's own rows.
+
+## DMG-UPLOAD - the fold's owed upload is not a stale buffer (Deform, Tue 17 Nov 2026, for L40f after JOINT-TETHER)
+claude/ready/dmg-upload on claude/ready/joint-tether. GATE DMGUPLOAD went red on L40e (the metal Cessna: fold:flownBaked
+position 3960 / normal 108 "STALE after crash -> the shed -> roll-out"); the bisect's first red is the animals-swim merge
+063250330 (its frame work moved the order). Measured in the node page: after the roll-out the metal fold walked with the
+model hidden up its parents on every frame and was NEVER DRAWN (onBeforeRender 0 times over 20 frames - the near view draws
+through its members' own buffers); its stale mark held (flown_bake's G1862/G2352 debt, paid at the next shown walk). No
+frame showed a ghost. flown_bake.js: the fold's userData.flownMerge.pending() (read-only: stale || a whole upload owed);
+GATE DMGUPLOAD: a stale fold buffer its fold still owes is reported OWED, not stale - a debt LOST (the mark not made, the
+whole upload dropped) stays red. Metal 0 stale (2 owed), the Cub 0.
+OWED (Deform): `node tools/_dmg_upload_check.js --selftest` does NOT go red on L40e master 2157a2f98 either (aswas / noowe:
+0 fold buffers stale) - the negative check lost its staging since L40e, before this change; to re-stage on a fold that draws.
+## PC6-WINDSCREEN + PC6-SHOULDERS + PC6-MTOW (FIT-PROCEDURE, 16 Nov) - claude/fit-procedure-pc6-l40e on L40e 2157a2f98
+- THE SCREEN (the user, 16 Nov): the base bow back to the three-view (wsBaseBow 0.63 -> 0.25, wsBaseLift 0.125 -> 0.17),
+  then the user's bulge B: wsCeilBow 0.78 over FLAGSHIP's shoulder columns (wsShoulder 1, X 0.85, Top 0.7, Base 0.3:
+  flat in the middle, rounded on the sides, the glass wrapping round its upper corners as on the user's photographs; the
+  base low, no lip at the cowl's corner). On the four PC-6 cards (drafting, floats, the two livery studies).
+- FLAGSHIP's WS-SHOULDER generator hunks taken ALONE (A0: not the Cessna before REAL-FIGURES' verdict), byte-identical
+  to claude/cessna-refit-l40d 78bd48de6 (_cage_gen.js six hunks, _cage_page5.js the rows, _cage_parts.js the 'shape'
+  group): they carry wsToWaist with its dash fix (shared hunks) and an inert S.pillarFollow line. Every row absent at
+  default. merge-tree with cessna-refit-l40d: the three sources auto-merge.
+- THE FUEL AND THE MTOW LOADING (A0, for REAL-FIGURES' retest): spec.energy on the four cards - a 492 L Jet A-1 tank in
+  the wing-root bay (TCDS 2.23), not the generic nose tank; empty 1181 kg (the factsheet's band). tools/real_check.js
+  takes an opt-in PLANES row `mtowCase` (seats, fuel, the top-up as freight at seat stations `topAt`); PLANES.pc6: every
+  seat, the tanks full, the rest at the cabin front: CG 38 % MAC at 2800 kg (TCDS 2.44: 32-38 %). Other planes as before.
+- real_check pc6 (full): inside - empty, Vs1, roc (game), TO50 (POH, game), LDG50 (POH); near - Vmax, roc (POH);
+  outside - roc (airframe), LDG50 (game: flap 0.60, td 115 km/h at MTOW). NAMED, not tuned: the EMPTY CG IS AFT (MIN 43 %,
+  TYP 42 % MAC; the TCDS's 11-38 % at 1450 kg) - the tail oleo, the tank's hardware, no nose ballast row: the user's call.
+- GATES (box, L40e): TAILWHEEL, MASS, PLANELISTS, REALBAND (re-written: pc6 alone), DRAFTING, JOIN, GEAR, PLANEFICHE, PRICE,
+  PROCURE, SNAPSHOTS: PASS; PC6 MECHANISM: PASS. PARTS (canClear, 1508 vs 1509) and CANDIDATES (jodel_geo,
+  superpetrel_V4_1): red on bare L40e master the same rows.
+- Also: the fitting lessons (futureDesigns/lessons/FIT-PROCEDURE-fitting.md, docs).
+## PC6-MASS (FIT-PROCEDURE, 17 Nov) - claude/fit-procedure-pc6-l40f on claude/fit-procedure-pc6-l40e (L40e 2157a2f98)
+- REAL-FIGURES' verdict on the PC-6: REPLACE WITH NAMED COSTS; the user: "Definitely lighten the tail wheel". The empty CG
+  was aft (MIN 43 %, TYP 42 % MAC; TCDS 11-38 % at 1450 kg).
+- THE TAIL GEAR 46.9 -> ~27 kg: (a) billed once - the strut's fittings (clamps, plates, truss tubes, doublers) are the
+  frame's gear-class members: the bill lists them at 'frame' (not on the nodes) and the members bill half the class's
+  tube (opt.massK; stiffness and damping unchanged). opt.noMass was tried: the light tail nodes broke a tail member in
+  the stand's pivot on powder (GATE SKISARDENT). (b) sourced - the wheel group at a 14 in heavy tailwheel assembly,
+  17.4 lb / 7.9 kg (McFarlane / LGW XPM1-3-8, XPM1-5); the guard at the PC-6's debris guard 2.7 kp (TCDS F 56-10 2.96
+  item 15); the oleo strut as drawn (no published figure).
+- THE PROPELLER: aluminium blades (cw_material 3 -> 2), the TCDS's Hartzell HC-B3TN-3D: +16.5 kg at the nose.
+- RESULT: CG MIN 36 %, TYP 36 %, MTOW 35 % MAC, every load inside the envelope; empty 1178 kg. The sources are in the four
+  PC-6 cards' ref.history. The fuselage (199 kg) and the tail (61 kg) are unchanged: no source found, every load inside.
+- GATES (one process): SUBSTEP, TAKEOFF, TAILWHEEL, MASS, PLANELISTS, REALBAND (pc6 alone), DRAFTING, JOIN, GEAR,
+  PLANEFICHE, PRICE, PROCURE, SNAPSHOTS, SKISARDENT 4/4 (master: the packed take-off breaks up) PASS; PC6 MECHANISM PASS.
+  STOL, SKIS, PARTS, CANDIDATES: red on bare L40e master the same rows.
+
+## GEAR-LEVER - THE DASH GEAR SELECTOR (THE ARROW'S), ITS LAMPS AND HORN; THE AMPHIBIAN'S BLUE / GREEN AND ITS ADVISORY; THE AMPHIBIOUS FLOATS FLOWN (13 Nov 2026, cloud, GEAR-LEVER for A0; claude/ready/gear-lever 811d2eae5 off L39b never landed - RE-LANDED 17 Nov as claude/ready/gear-lever-2 off master 2157a2f98 = L40e)
+The user's rulings (8 Nov, via A0): a Piper Arrow (PA-28R)-style lever, a wheel-shaped knob in an UP / DOWN gate; three greens
+(one per leg, down and locked, together), a red IN TRANSIT; all dark up; the horn and the red together when the throttle is back
+with the gear not down, or the selector up on the ground; no press-to-test in v1; the lever only on a build whose gear retracts;
+placed by systems.look.gear. And (13 Nov) the amphibious floats use the SAME lever, with the real amphibian's advisory: BLUE = wheels
+UP (water), GREEN = DOWN (runway), "gear is UP for water landing" / "gear is DOWN for runway landing" (Wipline's advisory).
+- THE LAYOUT (tools/_panel_gen.js placeGear, called at the head of placeExtras so the GPS and the breakers place around it):
+  o.gearLever { at, n, amph } - asked ONLY by a build whose gear retracts (_cage_panel gearLeverOf: the gear layer's own
+  GEAR_RETRACTABLE, now window.CAGE_GEAR_RETRACTABLE, or floats with fltAmph); a fixed gear's layout carries no `gear` key and is
+  byte for byte what it was. The unit: the gate 24 x 66 mm (GEAR_GATE), its UP / DOWN tapes over and under it, the lamps'
+  column 30 mm to the side toward the panel's middle (gearLamps: a red over the greens - nose + L + R on a tricycle, LN RN L R on a
+  quadricycle - and an amphibian's blues under the greens). PLACES (systems.look.gear, absent at the default): 'throttle' (low,
+  beside the throttle: the crew publishes A.thrX - the push-pull's collar, the console's line, else the wall's side), 'pilot',
+  'centre', 'copilot'. ALWAYS ON THE PLATE: inside the outline inset, clear of every dial, switch, screen and keep-out; the score
+  the distance from the wanted x plus half the height over the plate's foot; nowhere -> 'gear' in extraOverflow (the column names
+  it; the key and the PFD lamps remain). The look row 'gear selector' shows on a retracting build only.
+- THE DRAWING (_cage_panel.js gearLeverAt): a black escutcheon (four bars round a 7 x 44 slot, a dark well), the lever pivoting
+  30 mm inside the dash on a lateral axis, its arm out through the slot to the KNOB, A LITTLE WHEEL - a black tyre (r 12.7 mm) on a
+  white hub, its axle across the cockpit; law 'gear' (k 0.5 rad), drawn down (or up with the preview row gearPos < 0.5). Each lamp
+  a bezel ring and a domed lens; the lens is a lamp CUP keyed gearG (0x38ff5c) / gearR (0xff2a18) / gearB (0x3a86ff), x3 the
+  socket's level (lampK 3) - the join buckets each key with its colour as the light layer's cups. The UP / DOWN words are the
+  'geartape' material (panelSet: the join buckets it, the flight rebuilds it, material('geartape')).
+- IN FLIGHT (src/viewer/cockpit.js): law 'gear' poses the lever off the HANDLE (ctl.gear: the hand's, the key's or the AP's) - the
+  lever is where the pilot put it, the lamps say where the gear is; a pick pad on the knob; a click throws it to its other end, a
+  drag up / down (20 px) sets UP / DOWN - both through the same door as the gear key (INP.fire('gear'); under the AP app.js's
+  gearKeyUnderAP). CK.gearLamp: off out.gear on the bus (the master on and the bus alive, else dark) - GREEN down and locked
+  (> 0.98), RED in transit or with the warning, BLUE (an amphibian's only, out.gearAmph) up and stowed (< 0.02). In the shed the
+  lever throws the gear's preview (gearPos), as the light switches work there (G305).
+- ONE WARNING LAW (30_solver gearWarnOf, exported): a retractable gear not down and locked with the throttle back (< 0.25) or the
+  flap past the approach (> 0.35), in the air; ON THE GROUND (the squat switch) the selector UP; an AMPHIBIAN never (its gear is
+  rightly up on a water approach: the advisory speaks instead); 0 with no out.gear. audio_params gearWarn calls it (its inline line
+  the same law for a rig without the core) and the red lamp reads it: GATE RETRACT 9 holds the two equal over 240 states.
+- THE ADVISORY (30_solver gearAdvisoryOf, exported; GEAR_ADV ARM 1.30 / REARM 1.55 x Vs [inferred: a pattern]): an amphibian's
+  only (out.gearAmph - the solver writes it on a parts.amph build with a retraction, the key only then); armed in the air past
+  1.55 Vs, once an approach slowing through 1.3 Vs and not climbing, it says 'up' / 'down' / 'transit'; any surface (the squat
+  switch, a wet hull) disarms it - a take-off run never speaks. app.js hudGear shows "gear is UP for water landing" / "gear is DOWN
+  for runway landing" on the PFD's gear line for 6 s (warn-coloured) and publishes window.FLYDIY_GEAR_ADVISORY; the PFD's lamps
+  go BLUE up on an amphibian (flight.css .gl.b). No voice yet (named below).
+- THE KEY OFF THE LAB: the controls panel lists the gear handle whenever the flown build retracts (app.js publishes
+  window.FLYDIY_GEAR_RETRACTS off out.gear; input_panel's lab filter lets 'gear' through then); a fixed build's list is the old one.
+- AMPH-FLOATS - THE AMPHIBIOUS FLOATS FLY (the backlog's AMPHIB-FLOATS; WIPLINE_AMPHIB.dKg was never read, no plane flew them):
+  - _cage_float.js amphib records the wheels in the float's own frame before the rigging's incidence (rec.amph.local: the axles
+    down and stowed, the tyres, mainN, dKg); the join writes gear.floats.amph { main, nose, rM, rN, wM, wN, mainN, kg, est } and
+    gear.retract { time 12 [inferred], act hydraulic, emerg pump (Wipline's hand pump), lift: each axle's drawn rise } - ONLY on
+    fltAmph; clampSpec keeps the retract on floats WITH the record, drops it on plain floats (GATE RETRACT 1).
+  - 61_gen_frame: a wheel node at each axle on each float (turned by the rigging), radius the tyre's, four members to the nearest
+    station and IN the float's rigid cluster; the system's weight on the axles (the mains 0.70 of a float's, the nose 0.30;
+    a row with no dKg: 0.5 of the hulls [inferred off the published rows, 0.3-0.9]); the refs are the WHEELS (the hull
+    amphibian's rule): mains = the main axles (AXLEL / AXLER), tw = the port bow's wheel, tw2 = the starboard's; parts.amph.
+  - 62_gen_aero: the float wheels' drag in the body row (gear-down design numbers) and as the retraction's own cdA (0.25 m2 on the
+    6100); the bows' wheels steer as a nose wheel (twSteer -0.35).
+  - 30_solver: tw2 retracts with tw (the squat switch reads its raised plane); AN AMPHIBIAN'S TYRES IN THE WATER (amphWheelWater:
+    the wet body's bluff plate, Cd 1.0 / 1.2, its displaced volume, the slam cap) on the tyre's EXPOSED part only (the drop below
+    its stowed place, GH x pos: stowed flush, none) - amphibious floats only for now (AW_ON): the Super Petrel's (validated) water
+    runs keep their numbers until its baselines are re-blessed with it.
+  - 25_airfield stripGear: floats with their wheels' record and a retraction are 'amphibian' (land and water).
+  - 43_pilot (AMPHF_TO): an amphibian on floats takes off from the water WHEELS UP - the run holds idle (its clock held) until the
+    wheels are stowed. The hull amphibian's run is untouched.
+  - THE MASS: the 6100's 189.6 kg (Wipaire: 418 lb, the pair over the seaplane's) is read, on the four axles; the airframe sizes to
+    the heavier gross (+31 to +38 kg of structure, the gauge pass). THE PC-6 CARD (builds/candidates/pc6_floats_2026-11-13.json,
+    claude/fit-procedure-floats) carries the amphibian's weight in its hull row (fltMass 159.1, the user's +407 kg over the
+    wheels): with this landed the system would count twice. fltMass 64.3 keeps the user's total (re-joined: 2070.4 kg against
+    2068.7 with the old recipe) - FIT-PROCEDURE's card to change when both land (A0).
+    (L40e, 17 Nov: the card is on master (9403785d4) - CHANGED HERE: fltMass 159.1 -> 64.3, a line in its ref.history. Re-joined:
+    master 2075.0 kg; this branch at 159.1 2308.0 (twice); at 64.3 2075.0 - the same aeroplane's weight, now on its axles.)
+- FLOWN (tools: scratchpad amph_fly.js on a worktree of this branch + claude/fit-procedure-floats e7655dee, the PC-6 re-joined
+  through _rejoin_build with fltMass 64.3; calm, the expert):
+  - STANDS on its four wheels on land: 3 contacts (the pair + the bows), the keels 0.17 m clear, pitch 0.7 deg; the selector up on
+    the ground: the gear held down (squat), the warning law 0 (an amphibian: no horn), out.gearAmph 1.
+  - THE RUNWAY (HOME -> HOME): lift-off 13.0 s on the wheels, the gear up through 38 -> 85 m (11.6 s), down on the downwind, the
+    advisory 'gear is DOWN for runway landing' at 125 m on final, touchdown 315.7 s on the wheels at 28.2 m/s, STOPPED; 0 breaks.
+  - THE WATER (SEA -> SEA): the wheels come up first (11.8 s, the run held at idle), lift-off 28.5 s (16.7 s of run; the same
+    aeroplane without its wheels' record 18.9 s), the advisory 'gear is UP for water landing' at 128 m, alighted wheels up at
+    28.0 m/s; 0 breaks.
+  - LAND TO SEA (HOME -> SEA): off the runway on the wheels at 13.0 s, the gear up at 85 m, 'gear is UP for water landing'
+    at 129 m, alighted wheels up at 27.8 m/s, STOPPED; 0 breaks.
+  - THE HAZARD, WHEELS DOWN ON THE WATER (the handle held down from the climb, SEA -> SEA): GUMPS went round twice ('the wheels
+    are not up for the water'; the advisory said 'gear is DOWN for runway landing' each time), the third approach alighted
+    wheels down at 26.5 m/s and NOSED OVER - pitch -88.7 deg, 'capsized', crashed, 10 breaks.
+  - THE HAZARD, WHEELS UP ON THE RUNWAY (the handle held up, the emergency extension disarmed as GATE RETRACT 6 does): two
+    go-arounds, the third alighted on the FLOAT KEELS at 24.9 m/s and slid to a stop on them (the scar's scrape, no prop strike,
+    0 breaks, at rest 9.6 deg bow down) - the belly landing on the keels.
+  - THE RAMP (a 3.3 % beach 856 m from the SEA lane, bearing 115 deg; wheels down, 0.35 power, the heading held): taxied in at
+    4.2 m/s, the wheels found the beach 13 m out, crept up it (0.1 m/s: the beach's rolling resistance at that power) and stood
+    dry on its four wheels at 94.6 s, 7 m short of the waterline; 0 breaks. (The hull amphibian's ramp limit - the hull grounds
+    first - does not apply: the float wheels stand 0.8 R under the keels.)
+  - Before stripGear's line every "land" flight alighted on the SEA lane (the pilot read the PC-6 as a pure seaplane) - fixed.
+- THE PILOT'S WATER-TAXI RULE (FIT-PROCEDURE 215df945 on claude/pilot-unify, not on master): it releases the brake and holds a
+  throttle floor on `sim.hydro` - ANY float build, not a WET hull: an amphibian on land would taxi with no brake and 0.12 power
+  minimum. Gate it on a wet hull (sim.hydro.floats.some(fx => fx.wet > 0.05)) before it lands with the amphibian; told A0.
+  On master 43_pilot reads sim.hydro as water in several land laws too (taxiCap 0.5, deWater, the humps): an amphibian on land flies
+  them; the runway take-off and landing above are on master's laws with that.
+- RE-LANDED ON L40e (17 Nov, A0: "rebase onto 2157a2f98, rebuild, re-run your gates"): the source commit cherry-picked onto
+  master; seven files conflicted with TAIL-RETRACT (a taildragger's mains and the ultralight monowheel retract, the tailwheel
+  fixed) and SKIS (the ski contacts, the PC-6's wheel-ski selector and its add-on box): every hunk kept both - the solver's
+  retracting wheels are master's (mains, the tw unless fixedTw / tail) + the quadricycle's tw2 (never on a tail retract); clampSpec's
+  retract types gain AMPH_FLOATS; the retraction's cdA reads the float wheels' first, then master's taildragger mains; the pick
+  pads, the poses and the picks list ski AND gear; the panel's ski box and the gear selector both (the ski box's own ending
+  restored: git had matched it with the selector's). NEW for master's retracts: ONE GREEN PER RETRACTING LEG - a taildragger's two
+  mains (its tailwheel stays down: no lamp), the monowheel's one, a tricycle's three, amphibious floats' four (gearLeverOf: the
+  join's own tricycle test off the gear layer's contacts; gearLamps n 1 / 2 / 3 / 4; GATE PANEL row).
+- GATES ON L40e (17 Nov, this branch, --jobs=4): PANEL, INPUT, INSTANT, RETRACT, DASH, FLOATS, SEAPLANE, HYDRODYN, UISMOKE,
+  SKINMAT, LIGHT, DESIGN, ELEC, SURF, TAILWHEEL, PLANELISTS (the card) PASS; AUDIO PASS alone (under the 4-job load its
+  RADIO_BUDGET read 78296 B of heap growth over 100 000 frames and the self-test then refused - alone 7048 B: a load-sensitive
+  measurement; master's own direct run read the same 78296 B under load). Red, MASTER'S (the same check names and numbers on a
+  clean 2157a2f98 copy): JOINPARITY 2 (the Jodel node = page 470.666 / 469.732 kg; five tools fly a validated build raw), SKIS 4
+  (cub, jodel, superpetrel_V4_1, carbon_cub_ss: def hashes off the base - identical on master), SAVE 2 (the saved file and the
+  load lose one row: skiPos - identical on master). The PC-6 re-flown on L40e's card (fltMass 64.3, 2075 kg): stands on its four wheels (keels
+  0.17 m clear); the runway circuit lifts off at 13.0 s, the wheels up at 85 m, 'gear is DOWN for runway landing' at 125 m, touches
+  down on the wheels at 315.5 s; the water circuit holds idle 11.8 s for the wheels up, lifts off at 28.6 s, 'gear is UP for water
+  landing' at 128 m, alights wheels up; 0 breaks - the 13 Nov numbers within 0.1 s. GATE COMMITHYGIENE before the push.
+- GATES (13 Nov, on L39b, 4 cores beside the flights): PANEL (+ the selector's rows: absent on a fixed build, on the plate and
+  clear at the four places, each the nearest to its line, the lamp sets, a full plate; the lever and the lamps in flight: the
+  pose off the handle, the click, every lamp state, the warning law, the advisory), INPUT, INSTANT, RETRACT (+ section 1: the
+  amphibious floats' spec, refs, mass and retraction; section 9: the selector up on the ground, no horn on an amphibian, the horn's
+  law = gearWarnOf over 240 states), DASH, FLOATS, SEAPLANE, HYDRODYN PASS; and AUDIO, UISMOKE, SKINMAT, LIGHT, SAVE, DESIGN,
+  ELEC, SURF PASS. JOINPARITY: 2 FAIL - master's own, identical on a clean master worktree (the Jodel node = page 469.173 /
+  468.238 kg; large_hangar_shot.js / large_hangar_store_shot.js fly a validated build raw). Not run: --all (the DELIVERY verdict:
+  A0's train), PILOT / STOL / POD / ACCEPT (43_pilot and the solver changes are gated on an amphibian's floats: no build in those
+  batteries has one).
+- OPEN: the float wheels DRAWN folding in flight (the snapshot's float wheels stand as the garage drew them - the preview's
+  position; the plan: name the amphib's main / nose meshes, PARTS.others kinds 'amphM' / 'amphN' with the trunnion hinge and the
+  nose's turn-then-slide, an app.js rig like gearSwingRig off out.gear); the advisory's VOICE; the bus -> gearPower; the hull
+  amphibian's tyres in the water (AW_ON) and its take-off wheels up, with its baselines; press-to-test (v2); the Wipline 6100's
+  cycle time (12 s inferred).
+- STILLS OWED (A0's GPU slot; day and night, the pilot's eye): (1) a retracting tourer (ttail + gearRetract) on the ramp, the
+  lever down, three greens; (2) the same in the climb, the lever up, the lamps dark - and in transit, the red; (3) night, short
+  final, the greens at the night's exposure (the lamp level x3 to judge); (4) the four places - throttle, pilot, centre, copilot -
+  the panel from the seat; (5) the Super Petrel on the water, the lever up, the blues; (6) the PC-6 on Wiplines: on the water
+  (blues), on the runway (greens), on final with the advisory on the PFD; (7) the selector up on the ground - the red (the horn's
+  moment, no sound in a still).
+
+**CARBON CUB SS, the final (the user 16 Nov: "I updated the drawn windows slightly"; A0: claude/carbon-cub-final for L40f).** The aft window's six rows from the user's garage export: paxWinR2 / R3 (the aft corners) 0.14 / 0.07 -> 0.45 / 0.45; the aft quad corners Q2 (0.12, 0.545) -> (0.6581, 0.7101), Q3 (0.12, 0.205) -> (0.4437, 0.2485). The export's whSlick 0 and s1_shockKind 0 are the page's older state (it predates this morning's tyres and bungees) and were not taken. On ed28bdf6d (the L40e ready) + claude/ready/carbon-cub-livery de66150c7 (the colour-restore pictures); thumb + hero rebaked.
+KNIFE corpus re-recorded (A0, L40e's one new red): IDENTITY moved on the Cub family (client_cub_floats, client_cub_upgraded, cub_2026-09-20, cub_2026-09-20_corrected: sheet 20942/16762 -> 21054/16874) and on bugReports flydiy-build (3)/(4) (13558/11310 -> 13654/11406). The cause is MEANT: carbon-cub-cowl's nose longeron (_cage_gen.js hugRun, the user: "tubular structural elements poking through the nose section ... on all cubs"), +7 tube segments a side in the nose bay. Every drawn-window loop is identical to the record; with hugRun switched off the old corpus passes (checked). tools/fixtures/knife_corpus.json rewritten by node tools/_knife_check.js --record on L40e master + this branch.
+
+**THROTTLE-SHOULDER (PROPER-COWLS, the user 16 Nov: "the throttle should be placed through the shoulder, and it currently can't do that properly, the big panel sticks out" - then "Yes" to fixing it and moving the Cubs).** (1) _cage_gen.js: the throttle's request (ctlThr 4/5) carries the crew's station in metres (0.45 + seatZ + thrZ over planeScale; the 0.05 was added in cage units, 1.6 cm off at planeScale 0.68) and the ring it stands off: a rear-seat pilot's bay-1 aft ring (crewPilotRear's rule), else pilCabB as before. (2) _shoulder_gen.js: the slot lever's length is the thrLen row's (pivot to knob, at least the old 45 mm through the face); absent = the old fixed reach. (3) _cage_crew.js: ctlThr 4 seats its flange at the cage pass's own measured height and station (plateY / plateZ, less the rows' shift the crew adds itself); with no shoulder at the station (4 or 5) the wall lever stands on its flange only, never the 20 x 13 cm cast plate that stood through the Cubs' skin, and the page warns. (4) _cage_crew.js wallUnder: the trim wheel's and the fuel selector's wall plates seat on the innermost wall over their footprint, 3 mm in (the trim plate stood 1 mm proud of the Carbon Cub's lower wall: the user's circled black corner; now 7 mm inside). The STOL Cub (stol_cub_showcase) ctlThr 0 -> 5; the certified J-3-chord card and the stock Piper Cub keep 0 (ctlThr is in the certificate). Physics unchanged (STOL Cub: same numbers, same spec hash). NOTE the cause of the user's "big panel": the garage page I published loaded tools/_cage8.html's old list, without _shoulder_gen.js, so every ctlThr 5 fell back to the cast plate; the page now loads build.js's own editor list. SHOULDER CREWSEATS CREWLOAD DASH PANEL CABIN EDBUGS SKIN FRAMES DMGMEMBERS COMMITHYGIENE green (CREWLOAD's retry clock red once under 4 jobs, green alone); PARTS CANDIDATES JOINPARITY ENGCONFIG fail as on the base (digests line for line).
+
+## L40g BONUS (A0, Tue 17 Nov 22:15 train, pushed ~01:10 Wed; after the L40f scenery train, the user: autopilot/crash/planes as a bonus)
+TAKEN (14): tutorial-menu-click, mission-feas, tow-launch-l40f-2 (on afb-0220-b3-2), controls-strip, pilot-dare-2 (ALTI-TOP + no altiport decline + COMMITTED + ALTI-ROUGH + no polite divert + uphill + tail-down taxi), flight-script-page, deform-l40a-reds, joint-tether, dmg-upload, flagship-tools, pc6-l40f (tail gear sourced, alu prop, gear lever + amphibian floats, PLANES.pc6f), carbon-cub-final-2, throttle-shoulder, reg-jost (Jost Bold + reg placement).
+DROPPED -> L40h: ls4-2 (real conflict with tow-launch in 60_gen_spec.js / _cage_gen.js / _gear_page.js: REAL-FIGURES re-merges on master).
+BATTERY: 302 PASS / 59 FAIL. FIXED vs L40f: BUILT DMGPOD DMGSCAR DMGWALL KNIFE.
+NEW REDS (named; owners fix next):
+- ACCEPT / WINGSTRUCT: "build.js loads it with the viewer" + the HUD leg-tick order (controls-strip / gear-lever in app.js) - Pilot + GEAR-LEVER.
+- ASSETS: media/thumbs/index.json names cand_cub_fittings_hand_2026-10.webp (not on disk) + index.html +0.54 MiB over one build's 0.3 - AIRCRAFT-LOOKS / FLAGSHIP (thumbs union).
+- DESIGN: canClear row 1566 vs 1567 (the PARTS canClear base red, now surfacing in DESIGN) - FIT-PROCEDURE / PARTS owner.
+- OBSTACLE / ROUGHWHEEL: wall rebound under 1/3 throttle; 0.15 m wheel stops at a 15 cm stone (contact changes) - Deform (joint-tether) / Pilot to bisect.
+- SLOPE: the user's Cub at tw_ski 280 x 6 off-strip (the 6 m roll-out: Pilot's ROLL-OUT TRACKING, owed).
+- TERRAINMATCH: potato tier pavement within 3 km +2 % (tow's joined roads) - TOW-LAUNCH.
+- TOW: the archaeopteryx circuit row (the card's pitch instability, its owner's).
 
 ## PERF-BENCH - THE IN-GAME BENCHMARK BUTTON (Game, 17 Nov 2026; PERF-WEEK-METHOD-2026-11-14 line 18; claude/bench-button)
 - The game menu's "Benchmark" row opens a card (src/viewer/perf_bench.js, window.FLYDIY_PERFBENCH): Pilot's scenarios

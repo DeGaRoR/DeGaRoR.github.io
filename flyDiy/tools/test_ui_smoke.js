@@ -862,6 +862,32 @@ try {
     frames(30);
     console.log(`one To: taxiing ${how1}, on a leg ${how2}, stopped ${how3} from ${where.kind} ${where.id} (the From derived), the aeroplane never moved`);
   }
+  // ---- TOW-LAUNCH (13 Nov): THE SANDBOX'S START CHOOSER's API (window.FLYDIY_START, Game draws the chooser) - run, not read:
+  //      the sandbox has it, the vehicle kind is the page's (VEHICLE_KIND), a powered plane's starts are the aerodromes its gear
+  //      may use (and no glider launch), its destinations the circuit and the fields, a go() outside the garage refused ----
+  {
+    const S = sandbox.window.FLYDIY_START, W = sandbox.window.FLIGHT_PROBE.world();
+    if (!S || ['available', 'vehicle', 'powered', 'starts', 'destinations', 'go'].some(k => typeof S[k] !== 'function')) throw new Error('window.FLYDIY_START is missing or incomplete (the start chooser)');
+    // (vehicle_kind.js rides the RENDER block beside garage.js, not executed here: the artifact must carry it, and its own
+    //  source is given to the sandbox as the page's block would)
+    if (!/root\.VEHICLE_KIND = vehicleKind;/.test(html)) throw new Error('index.html does not carry window.VEHICLE_KIND (src/viewer/vehicle_kind.js, eager)');
+    if (typeof sandbox.window.VEHICLE_KIND !== 'function') sandbox.window.VEHICLE_KIND = require(path.join(__dirname, '..', 'src', 'viewer', 'vehicle_kind.js')).vehicleKind;
+    if (!S.available() || S.vehicle() !== 'plane' || !S.powered()) throw new Error('FLYDIY_START in the sandbox: available ' + S.available() + ', ' + S.vehicle() + ', powered ' + S.powered());
+    const st = await S.starts(), modes = new Set(st.map(x => x.mode)), land = W.aerodromes.filter(a => a.kind !== 'meadow' && a.kind !== 'water');
+    if (!st.length || [...modes].some(m => m !== 'field' && m !== 'water' && m !== 'trailer') || !land.every(a => st.some(x => x.id === a.id && x.ok)))
+      throw new Error('FLYDIY_START.starts() for a powered plane: ' + JSON.stringify(st.map(x => x.mode + ':' + x.id + (x.ok ? '' : '!'))));
+    const ds = await S.destinations(land[0].id);
+    if (!ds.length || ds[0].id !== 'CIRCUIT' || !land.every(a => ds.some(x => x.id === a.id))) throw new Error('FLYDIY_START.destinations(): ' + JSON.stringify(ds.map(x => x.id)));
+    // (go() takes what starts() gives: every start's id parses back to its own mode; a bare field id and 'field:<id>' are
+    //  the same start - Game's browser check: a bare 'w3' read as mode 'w' and rolled out at HOME)
+    if (typeof S.parse !== 'function') throw new Error('FLYDIY_START.parse is missing');
+    const badP = st.filter(x => { const q = S.parse(x.id); return q.mode !== x.mode || (x.mode === 'field' || x.mode === 'water') && q.id !== x.id; });
+    const w = land.find(a => a.id !== 'HOME') || land[0], pb = S.parse(w.id), pp = S.parse('field:' + w.id), wat = W.aerodromes.find(a => a.kind === 'water');
+    if (badP.length || pb.mode !== 'field' || pb.id !== w.id || pp.mode !== 'field' || pp.id !== w.id || (wat && S.parse(wat.id).mode !== 'water') || S.parse('nonsense').mode !== null)
+      throw new Error('FLYDIY_START.parse: ' + JSON.stringify({ badP: badP.map(x => x.id), pb, pp, water: wat && S.parse(wat.id) }));
+    let refused = null; try { await S.go({ start: land[0].id, to: 'CIRCUIT' }); } catch (e) { refused = e.message; }
+    console.log('the start chooser (FLYDIY_START): a powered plane, ' + st.filter(x => x.ok).length + ' of ' + st.length + ' starts usable (' + [...modes].join(', ') + '), ' + ds.length + ' destinations; every start\'s id parses back to its mode (bare field ids too); go() ' + (refused ? 'refused out of the garage ("' + refused + '")' : 'ran'));
+  }
   // ---- G3078 FLOATS-FIX: THE PLAYER'S TO SURVIVES A FIT ----
   // A To this build may not fly (a water lane, on wheels) is FITTED to the circuit for the flight, but the player's choice
   // (`want`) is kept through every refit and saved, so the floats build gets Metlakatla back (the user's route to mk_sea
@@ -1319,6 +1345,35 @@ try {
       if (!AP.autopilot()) throw new Error('FLYDIY_AP.set(true) did not give the aeroplane back');
       if (!/^Autopilot: ON/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' on the autopilot');
       console.log('the autopilot toggle (G3325): in sight, on by default, handed over and back');
+    }
+    // CONTROLS-STRIP (the user 16 Nov, variant A): the hands at the bottom of the flight screen - shown in flight by
+    // default, amber/AP on the autopilot and white/HAND by hand, its marks moved by transforms off sim.ctl, the gear cell
+    // only on a retractable, and Graphics > interface > controls strip turning it off and back on
+    {
+      const AP = sandbox.window.FLYDIY_AP, G = sandbox.window.GFX, s = sandbox.window.FLIGHT_PROBE.sim();
+      frames(12);
+      const cs = els['ctlStrip'];
+      if (!cs) throw new Error('#ctlStrip was never asked for (app.js ctlStrip, CONTROLS-STRIP)');
+      if (cs.hidden) throw new Error('#ctlStrip is hidden in flight (CONTROLS-STRIP: on by default)');
+      if (!cs.classList.contains('ap') || els['csTag'].textContent !== 'AP') throw new Error('#ctlStrip is not amber/AP on the autopilot (tag ' + JSON.stringify(els['csTag'].textContent) + ')');
+      const tf = els['csDot'] && els['csDot'].style.transform;
+      if (!/^translate\(-?\d+(\.\d)?px,-?\d+(\.\d)?px\)$/.test(tf || '')) throw new Error('the stick dot is not moved by its transform (' + JSON.stringify(tf) + ')');
+      const thrT = els['csThrT'].textContent, want = Math.round(Math.max(0, Math.min(1, s.ctl.thr || 0)) * 100) + ' %';
+      if (!/^\d+ %$/.test(thrT)) throw new Error('the strip\'s throttle reads ' + JSON.stringify(thrT));
+      if (!/^scaleY\(/.test(els['csThr'].style.transform || '')) throw new Error('the throttle bar is not scaled by its transform');
+      const retract = typeof (s.out && s.out.gear) === 'number';
+      if (els['csGearC'].hidden === retract) throw new Error('the gear cell is ' + (retract ? 'hidden on a retractable' : 'shown on a fixed gear'));
+      AP.set(false); frames(12);
+      if (cs.classList.contains('ap') || !cs.classList.contains('hand') || els['csTag'].textContent !== 'HAND') throw new Error('#ctlStrip did not turn white/HAND by hand');
+      AP.set(true); frames(12);
+      if (!cs.classList.contains('ap')) throw new Error('#ctlStrip did not turn amber again when the autopilot took it back');
+      if (!G || !G.GROUPS.some(g => g.k === 'ui' && g.rows.includes('ctlstrip'))) throw new Error('Graphics has no interface fold with the controls strip');
+      G.set('ctlstrip', 'off'); frames(12);
+      if (!cs.hidden) throw new Error('#ctlStrip still shown with Graphics > interface > controls strip off');
+      G.set('ctlstrip', 'on'); frames(12);
+      if (cs.hidden) throw new Error('#ctlStrip did not come back with the switch on');
+      console.log('the controls strip (CONTROLS-STRIP): in flight by default, AP amber / HAND white, transforms only, throttle ' + thrT +
+                  ' (ctl ' + want + '), gear cell ' + (retract ? 'shown (retractable)' : 'hidden (fixed gear)') + ', the interface switch off and on');
     }
   }
 

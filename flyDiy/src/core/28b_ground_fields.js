@@ -105,7 +105,8 @@ const GROUND_FIELDS = (() => {
       3:  { tex: ['mud', null, null], scale: [3, 15, 0], far: ['mud', null, null], farScale: [1.25, 0, 0], mix: [25, 3, 0.08, 0], vary: [8, 0.2, 15], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: "muskeg should just be mud with nothing in it" (the lush lawn out)
       4:  { tex: ['beach', null, null], scale: [9.5, 0, 0], far: [null, null, null], farScale: [0, 0, 0], mix: [28, 0.9, 0, 0], vary: [2, 0.06, 20], para: 0.3, orient: 'sea' },
       5:  { tex: ['rocksG', null, null], scale: [41.5, 90, 0], far: [null, null, null], farScale: [90, 0, 0], mix: [30, 3, 0, 0], vary: [3, 0.1, 20], para: 1 },
-      6:  { tex: ['cliff', null, null], scale: [71.5, 79, 0], far: [null, null, null], farScale: [79, 90, 0], mix: [60, 3, 0, 0], vary: [3, 0.1, 40], para: 1 },
+      6:  { tex: ['cliff', null, null], scale: [71.5, 79, 0], far: [null, null, null], farScale: [79, 90, 0], mix: [60, 3, 0, 0], vary: [3, 0.1, 40], para: 1,
+            trond: ['trondSlab', 'trondFace', 'cliff', 'grassRock'] },   // (R1, the island's own rock: the sets it wears under the dial - the slab, the face, the micro detail + the boulders' photograph, the green; the world rail's 'rock & cliffs' picks them)
       7:  { tex: ['mud', 'grassRock', 'rockyA'], scale: [3, 15.04, 90], far: ['grassRock', 'rockyA', null], farScale: [15, 90, 0], mix: [30, 3, 0.05, -0.25], vary: [10, 0.18, 25], para: 0.2, wet: 0.32, poolScale: 3 },   // the user, 2026-09-21: the scrub IS the muskeg - mud with pools (the procedure ported from 3), the moor's sets under a cloud mask, 100 trees/ha   // the user, 2026-09-21: the bush was a lawn (grass + lush); the moor instead
       // THE FOREST FLOOR NEAR THE EYE (the user, 3 Nov 2026, on GROUND-LOOK G2611): 17.5 m on all three forest floors - forest (8), old forest (13) and the town's (16) - near set A of the aerial floor itself, the aerial set stays at 81 m (same photograph, so the near -> far fade carries no colour change). Tune in F8 > types > detail sets A.
       8:  { tex: ['forestAir', 'mud', null],   scale: [17.5, 3, 0],   far: ['forestAir', null, null],           farScale: [81, 0, 0],   mix: [20, 3, -0.3, 0],     vary: [6, 0.15, 30], para: 0.3 },   // the user, 2026-09-21: the forest ground is aerial rock 04
@@ -163,6 +164,24 @@ const GROUND_FIELDS = (() => {
       // stands over the other two channels, so moss and leaf in a rock photograph warm up and the boulders
       // in the same photograph do not move at all. 0.4 moves the greenest texel about 3 %.
       vegLush: 0.2,   // pudWet: how dark the margin's wet ground goes (1 = dry, 0 = black); both pudRim and pudFar scale with distance and are 0 at the eye
+      // THE ISLAND'S OWN ROCK (ROCK-STUDY R1, splat_ground sTrond / sTrExpo): rocks 1 = on (?rocks=0 off at the load; api.rocks()
+      // live, a uniform); the exposure's height window (m: the rock shows from rockHLo, fully by rockHHi - Ardent's 250-760),
+      // the raster's rock weight in it and its offset; the PBR micro detail on; the rock's brightness
+      rocks: 1, rockHLo: 250, rockHHi: 760, rockBias: 0.30, rockOff: 0.08, rockMicro: 1, rockK: 0.45,   // (17 Nov, IN THE GAME at the matched near eye: the stone 1.6 x v1's value under the game's light and Cineon - 0.72 -> 0.45)
+     
+      // the world rail's 'rock & cliffs' rows: the joints' density / soil / dirt, the hollows' dirt, the green's amount and
+      // roughness, the wet streaks, the bare stone's roughness (x the tiles'), the micro detail's strengths and fade, the far fade
+      rockJoint: 1, rockJointSoil: 0.7, rockJointDirt: 0.85, rockHollow: 0.5, rockGreen: 1, rockGreenRough: 0.97, rockWet: 0.75, rockRough: 1,
+      rockMicroK: 0.65, rockMicroN: 0.6, rockMicroFrom: 60, rockMicroTo: 180, rockFarFrom: 400, rockFarTo: 2500, rockFarScale: 2.5,
+      rockNdvi: 0, rockNdviMid: 0.74,   // the imagery's NDVI (pack B) takes the exposure down where the map's rock is green
+      // the tiles as the rock codes' sets (slab m, steep m, the face tile on the steep split or the slab, the split's degrees), the
+      // green's saturation, the joints gone by (m: v1's joints were a texture, its mips blurred them into tone past ~500 m; the
+      // procedural lines fade out the same way) - ALL AT THE BENCH v1'S VALUES (the user's reference; 17 Nov: the v2-v4 look
+      // notes were a coordinator's, not the user's, and are dropped)
+      // THE ROCK RING (rock_ring.js): the outcrops as geometry round the eye - on, its reach (m), the outcrops' lift and the Blender
+      // masses' amplitude (m), the cover's stand-off over the ground (m), the boulders on and their density (x v1's law)
+      rockRing: 1, rockRingReach: 450, rockLift: 0.6, rockAmp: 1.5, rockProud: 0.15, rockBoulders: 1, rockScatter: 1.25, rockMacro: 1, rockBoulderTone: 1, rockBoulderCon: 2, rockGrassMatch: 0.5, rockWeather: 0.25, rockGreenTint: 1, rockGreenK: 0.6,   // (17 Nov, in game: "the grass color is now too green" - the tint back to the heath's, the film to 0.25)
+      rockSlabM: 16, rockFaceM: 24, rockFaceTile: 1, rockFaceLo: 42, rockFaceHi: 58, rockGreenSat: 1, rockJointFar: 3000, rockSlabTone: 0, rockSlabTilt: 0,   // (17 Nov, the user: "nothing should have the macro pattern fade" - the tiles' fade to their mean spread to 2.5 km: the texture shows through)
       para: 0, paraSteps: 10,   // the parallax (bench only, 2026-09-21): OFF - on the aerial sets it smears, on the detail sets it is invisible without real displacement maps
     },
     // the mild grade per set (the sheet's numbers, tools/splat_sheet.py): a gain and a saturation, never a recolour;
@@ -179,7 +198,9 @@ const GROUND_FIELDS = (() => {
              // lush's at 88 (blue-green) against the moor's 40-48; the gain pulls the green channel down - grass to hue ~45 at value 0.39, lush to ~50 at 0.29
              grass: { gain: '#ffc8a0', sat: 0.75, gloss: 0.3 }, lush: { gain: '#ffb890', sat: 0.7, gloss: 0.35 }, dirt: { gain: '#ffffff', sat: 1, gloss: 0.5 },
              // THE ROCK GRADES (the user, 2026-10-03, F8 world look): cliff and the two rock sets toned down and hue-selected
-             rocksB: { gain: '#adadad', sat: 0, gloss: 0.5, grass: 1, hue: 58, contrast: 1.42, selHue: 124, selWidth: 48, selShift: -66, selSat: 1.26, selLight: 0.9, selSoft: 0.5 }, rocksG: { gain: '#a1a1a1', sat: 1, gloss: 1, grass: 1, hue: 2, contrast: 1, selHue: 150, selWidth: 22, selShift: 15, selSat: 1.04, selLight: 1.08, selSoft: 0.7 } },
+             rocksB: { gain: '#adadad', sat: 0, gloss: 0.5, grass: 1, hue: 58, contrast: 1.42, selHue: 124, selWidth: 48, selShift: -66, selSat: 1.26, selLight: 0.9, selSoft: 0.5 }, rocksG: { gain: '#a1a1a1', sat: 1, gloss: 1, grass: 1, hue: 2, contrast: 1, selHue: 150, selWidth: 22, selShift: 15, selSat: 1.04, selLight: 1.08, selSoft: 0.7 },
+             // (ROCK-STUDY R1: the trondhjemite's own colour and roughness, as baked - no grade)
+             trondSlab: { gain: '#ffffff', sat: 0.8, gloss: 1 }, trondFace: { gain: '#ffffff', sat: 0.8, gloss: 1 } },   // (the tiles raw as the bench v1's, a touch greyer: the user, 16 Nov - "greyer indeed, but not as much, and not as dim")
     // the library, in LAYER ORDER (the texture arrays are built in this order; a code's set is its index here):
     // assets/splat (splat_tex_import.py, Poly Haven CC0) then the lot's five (ambientCG CC0, lot_tex_prep.js's tiles)
     library: [
@@ -188,6 +209,11 @@ const GROUND_FIELDS = (() => {
       ['lush', 2.4], ['grass', 2.4], ['pebble', 4.5], ['dry', 2.2], ['dirt', 1.8],
       ['coastA', 19.94], ['coastSand', 15.2],   // the rocky beach (TERRAIN FOLLOW-UP 4, 2026-09-21): appended, never inserted - a set's index is its layer
       ['darkRock', 2.0],   // the bank's face (SHORES-2 G1955): Poly Haven dark_rock_02, CC0 (Amal Kumar), 2.0 m
+      // THE ISLAND'S OWN ROCK (ROCK-STUDY R1, 17 Nov 2026): trondhjemite, baked by tools/rock_study/trond_gen.py --assets (no
+      // photograph; one height field per material, its colour / normal / roughness read off it, weathered) - the slab (rock
+      // under ~50 deg, +v DOWNHILL: the joint network with its T-junctions) and the face (cliffs: sheets, flutes, streaks).
+      // Drawn by splat_ground's sTrond on the rock codes (6, 12) when the rock dial is on (?rocks=0 off)
+      ['trondSlab', 16.0], ['trondFace', 24.0],
     ],
   };
   // ---- PER TERRAIN-TYPE CODE: the ground's arguments to the fields ---------

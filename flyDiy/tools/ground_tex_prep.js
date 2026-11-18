@@ -41,7 +41,7 @@
 require('./_core_math_global.js');   // (T41b: CORE_MATH before a core file required alone - 00_registry's)
 const fs = require('fs');
 const path = require('path');
-const { writeMedia, flatConst, pruneMedia, BASE_DECL, mediaRel } = require('./_media_lib.js');
+const { writeMedia, flatConst, pruneMedia, BASE_DECL, mediaRel, encodeTex } = require('./_media_lib.js');
 const { cookLayers } = require('./array_cook.js');
 const G = require('../src/core/28b_ground_fields.js');
 
@@ -92,7 +92,13 @@ for (const key of Object.keys(T.sets)) {
     const buf = src.c ? null : fs.readFileSync(src.f);
     const c = src.c || flatConst(buf);
     if (c) { row[m] = c; row['_' + m] = null; row['_c' + m] = c; continue; }
-    row[m] = REPORT ? mediaRel(SUB, `${key}_${STEM[m]}_${PX}`, 'jpg', buf) : writeMedia(SUB, `${key}_${STEM[m]}_${PX}`, 'jpg', buf);
+    // A SET'S NORMAL MAP AS WebP (ROCK-STUDY, 17 Nov; GATE ASSETS AS2 jpgNormal: "media_lib's `normal` role writes WebP"): a set
+    // with `norWebp` ships its plain-texture normal map through encodeTex's normal role (WebP q92) - the editors' previews and the
+    // plain-texture consumers read it, and the COOK reads that shipped file (so a box without assets/ cooks the same planes)
+    if (m === 'nor' && s.norWebp) { const e = encodeTex(buf, 'normal', PX);
+      row[m] = REPORT ? mediaRel(SUB, `${key}_${STEM[m]}_${PX}`, e.ext, e.data) : writeMedia(SUB, `${key}_${STEM[m]}_${PX}`, e.ext, e.data);
+      if (!REPORT) { row['_' + m] = path.join(ROOT, row[m]); emitted.push(row[m]); continue; } }   // (the cook reads the SHIPPED WebP: every box - with assets/ or without - cooks the same planes; GATE GROUNDLIB 4)
+    else row[m] = REPORT ? mediaRel(SUB, `${key}_${STEM[m]}_${PX}`, 'jpg', buf) : writeMedia(SUB, `${key}_${STEM[m]}_${PX}`, 'jpg', buf);
     row['_' + m] = src.f;
     emitted.push(row[m]);
   }

@@ -246,9 +246,13 @@ for (const seed of [0, 1, 6, 12, 42]) {
     // be able to do it, and the JODEL must be able to do it"): THE CESSNA'S ROW ALONE passes on a take-off DECLINED AT THE HOLD, said
     // with its numbers (43_pilot.js HOLD's go / no-go: 'not taking off from ...: the take-off run needs N m, M m of strip - too short');
     // an abort mid-roll (the old 'will not reach Vr' at 78 s) stays red, and the Cub's and the Jodel's rows ask the take-off as before
-    const cessDecl = B.key === METAL && !F.air && F.outcome === 'declined' && /needs \d+ m, \d+ m of strip/.test(F.declined || '') && /too short/.test(F.declined || '') && !F.phases.includes('ROLL');
-    check(F.air || cessDecl, '9 ' + B.name + ' taxied from the mill and took off' + (B.key === METAL ? ', or declined at the hold with its reason said (the user, 13 Nov)' : ''),
-      't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>') + (F.declined ? ' | ' + F.declined : ''));
+    // DARE (the user, 17 Nov: 'it can go and crash, but it shouldn't decline too politely'): the hold no longer declines (43 holdDecline):
+    // THE CESSNA TRIES - it rolls, and either flies or the roll's own law rejects it, SAID with its numbers ('will not reach Vr ...') and
+    // stopped (the row below: nothing touched, not crashed). A decline at the hold is red now; the Cub's and the Jodel's rows ask the take-off
+    const cessTried = B.key === METAL && !F.air && F.phases.includes('ROLL') && F.phases.includes('ABORT') && !!F.rejected && !F.declined;
+    check(F.air || cessTried, '9 ' + B.name + ' taxied from the mill and took off' + (B.key === METAL ? ', or tried and rejected on the roll, its reason said (the user\'s dare, 17 Nov)' : ''),
+      't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>') + (F.rejected ? ' | ' + F.rejected : '') + (F.declined ? ' | declined: ' + F.declined : ''));
+    if (cessTried) console.log('  KNOWN 9 ' + B.name + ' from the mill: tried, rejected on the roll - ' + F.rejected);
     check(F.contacts === 0 && F.trunkHits === 0 && !F.crashed, '9 ' + B.name + ' touched nothing', F.contacts + ' node contacts' + (F.cWhat ? ' (' + F.cWhat + ')' : '') + ', ' + F.trunkHits + ' trunk hits, crashed ' + F.crashed);
     check(F.minWing >= wingNeed(B, F.at), '9 ' + B.name + ' wing kept ' + wingNeed(B, F.at) + ' m off every footprint', F.minWing.toFixed(2) + ' m, ' + F.at);
     console.log('  ' + B.name.padEnd(15) + ' span ' + F.span.toFixed(1) + ' m from the mill: ' + (F.air ? 'airborne' : 'NOT airborne') + ' at ' + F.t.toFixed(0) + ' s, the wing ' + F.minWing.toFixed(2) + ' m off the nearest footprint (' + F.at + ')' + (Number.isFinite(F.overMin) ? '; flew over a footprint ' + F.overMin.toFixed(1) + ' m above its top (' + F.overAt + ')' : '') + ', ' + F.contacts + ' contacts, ' + F.trunkHits + ' trunk hits');
@@ -266,12 +270,15 @@ for (const seed of [0, 1, 6, 12, 42]) {
   foots.default = { half: C.GP_PARKED_DEFAULT[0], fwd: C.GP_PARKED_DEFAULT[1], aft: C.GP_PARKED_DEFAULT[2] };
   const t0 = Date.now(), SC = L.spotCensus(C, WI, IX, VB, foots);
   // (G3014: the user's rev 26 shipped strips 10 and 11 (w5, w6) - ten runways; the count is the shipped record's)
-  const NRW = 16;   // (rev 27: w7, the North East strip; rev 28: w4 strip 9, w8 strip 13; G3097: w1 the Cabin Strip; CABIN-LAKE: cb_sea; OBSERVATORY-SITE: mt_strip)
+  const NRW = 17;   // (rev 27: w7, the North East strip; rev 28: w4 strip 9, w8 strip 13; G3097: w1 the Cabin Strip; CABIN-LAKE: cb_sea; OBSERVATORY-SITE: mt_strip; AFB-0220: xw_rough)
   check(WI.aerodromes.length === NRW && SC.per.length === NRW, '10 Jolene\'s ' + NRW + ' runways', SC.per.map(p => p.id).join(' '));
   for (const p of SC.per) {
     // a field with no room stands no spot (never a bad one): every candidate it had was refused by a rule
     const refused = Object.values(p.why).reduce((a, b) => a + b, 0);
-    check(p.n >= 1 || refused >= 20, '10 ' + p.id + (p.n ? ' has tie-down spots' : ' has no room: every candidate refused by the rules'), p.n + ' (' + p.kinds + '); refused: ' + JSON.stringify(p.why));
+    // (AFB-0220: a field whose record says `ties: false` - 27_premises stageAero, 02/20's unmaintained rough lane - stands none by its own
+    //  word: fleetSpots answers { stage: 1 } and nothing else)
+    const tiesOff = p.n === 0 && p.why && p.why.stage === 1 && Object.keys(p.why).length === 1;
+    check(p.n >= 1 || refused >= 20 && !tiesOff || tiesOff, '10 ' + p.id + (p.n ? ' has tie-down spots' : tiesOff ? ' has none: its record says ties: false' : ' has no room: every candidate refused by the rules'), p.n + ' (' + p.kinds + '); refused: ' + JSON.stringify(p.why));
     check(p.same, '10 ' + p.id + ' spots are deterministic (the same list on a second call)');
   }
   check(SC.per.filter(p => p.n >= 1).length >= 6 && SC.per.reduce((a, p) => a + p.n, 0) >= 50, '10 the fleet has room on six or more of the ' + NRW + ' runways', SC.per.filter(p => p.n >= 1).length + ' runways, ' + SC.per.reduce((a, p) => a + p.n, 0) + ' spots');
@@ -360,8 +367,21 @@ for (const seed of [0, 1, 6, 12, 42]) {
   // b: the calibration - the altiport's game pose, the planner blind
   const tw = WI.aerodromes.find(q => q.id === 'tw_ski'), nv = WI.aerodromes.find(q => q.id === 'nv_strip');
   const POSE = { x: 335.69, z: -7843.75, hdg: -1.05 };
+  // (SKYLINE-RESORT 13 Nov: the altiport halved, 380 x 18 -> 190 x 9 m. The game's stop of 8 Oct above, on the old strip's
+  //  centreline 32.6 m from its top, now leaves the station's corner 3.5 m outside the narrower strip: no route from it meets
+  //  the station, blind or seeing, so the two CALIBRATIONS lost their subject (the flights below still fly that stop). Each
+  //  calibration flies the nearest pose that still reproduces the game's collision, searched with planAt / flyTurn over the
+  //  apron 20-80 m from the top, 0-9 m toward the station, 3 headings; no single pose does both now:
+  //  CAL_B (38 m from the top, 5 m toward the station): blind, drawn 6.5 m clear and driven 3.2 m into the station; seeing, a
+  //  turn on the spot. CAL_C (28 m, 7 m toward it): the blind Cub flown (taxiPivAll false) into the station, 13 contacts)
+  // (SKYLINE-RESORT 17 Nov: the 280 x 6 m strip's way out runs up the apron round the tram station's structure (tw_ski.taxiOut,
+  //  the wingtip >= 4.4 m from every solid), so from 28 m the blind Cub now stops with its wing on the station's edge, 0 node
+  //  contacts. Re-searched as this row flies it (dBl: taxiPivAll false, every land strip's solids in the world; a 14-34 m
+  //  from the top, c -10..-14 toward the station, 3 headings): CAL_C 18 m down, 10 m toward it, nose 0.5 rad further round
+  //  (-1.55) - the blind Cub into the station, 17 contacts at t 2 s (6 poses of the search hit; this the strongest that drives)
+  const CAL_B = { x: 328.67, z: -7841.60, hdg: -1.05 }, CAL_C = { x: 334.34, z: -7861.42, hdg: -1.55 };
   if (SHD.take()) {
-    const r0 = L.planAt(C, WI, IX, LB[0].def, tw, nv, POSE, { blindPilot: true }), r1 = L.planAt(C, WI, IX, LB[0].def, tw, nv, POSE);
+    const r0 = L.planAt(C, WI, IX, LB[0].def, tw, nv, CAL_B, { blindPilot: true }), r1 = L.planAt(C, WI, IX, LB[0].def, tw, nv, CAL_B);
     check(!r0.turn && r0.drawn.d >= L.MARGIN && r0.driven.d < 0 && /station$/.test(r0.driven.what || ''), '11b calibration: the altiport pose, the pilot blind: the route the game flew - drawn ' + L.MARGIN + ' m clear, driven into the tram station',
       r0.ids + ' | drawn ' + fmt(r0.drawn) + ', driven ' + fmt(r0.driven));
     check(r1.turn && !r1.roll, '11b the altiport pose, the pilot seeing: the turn on the spot there', r1.ids + ' | disc ' + (r1.disc ? fmt(r1.disc) : '-'));
@@ -386,9 +406,22 @@ for (const seed of [0, 1, 6, 12, 42]) {
       F = L.flyTurn(C, WI, IX, B.def, Fl.a, WI.aerodromes.find(q => q.id === 'w2'), Fl.pose, { tMax: 150 });
       console.log('  11c ' + B.name.padEnd(16) + ' declines East Point (' + why + ') - flown to 02/20');
     }
-    // the altiport's 380 m is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
+    // the altiport's 280 m (SKYLINE-RESORT: 380 m, then 190 m, then the C172's limit) is left by every one; Jumbo Mine's 250 m is held to its taxi (the roll begun) - the take-off
     // there is the roll's own call (G531: a short field's reserve), printed
-    if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
+    // SKYLINE-RESORT (A0's call, 15 Nov): THE CANON CESSNA DOES NOT LEAVE THE 190 m ALTIPORT. F-HCSN (CANON-C172-GATES) needs
+    // a 386 m take-off on the flat - ~290 m with CONTRACT_FIT.altiK - and is refused tw_ski at dispatch (its 237-249 m landing
+    // run). Placed on the apron here it lines up 30 m below the top end and rejects 5 s into the roll ('will not reach Vr:
+    // 1.30 m/s^2 needs 168 m more, 126 m left'); with that rule off (a scratch core) it ran off the low end on its wheels and
+    // broke up 50 m down the hill - the rejection is right. Held: the rejection SAID, stopped ON the strip, nothing touched (the
+    // rows below). OWED TO PILOT: "go/no-go misses the altiport credit case" - L40d's go/no-go declines at the HOLD elsewhere
+    // (Jumbo Mine for the Cessna, East Point for the Jodel) but rolls here; when it declines at the hold, this row holds that
+    if (Fl.a === tw && !F.air && B.key === METAL && tw.len < 300) {
+      const rj = F.verdicts.find(v => /^rejected-takeoff/.test(v)), p = F.track[F.track.length - 1];
+      const ux = Math.cos(tw.hdg), uz = Math.sin(tw.hdg), along = (p[0] - tw.x) * ux + (p[1] - tw.z) * uz, lat = -(p[0] - tw.x) * uz + (p[1] - tw.z) * ux;
+      check(!!rj && F.phases.includes('ABORT') && p[2] === 'STOPPED' && Math.abs(along) <= tw.len / 2 && Math.abs(lat) <= (tw.wid || 9) / 2 + 1,
+        tag + ': the altiport (' + tw.len + ' m) too short for it from where it lines up - the take-off rejected, said, and stopped on the strip',
+        (rj || 'no rejection said') + ' | ' + F.phases.join('>') + ', stopped ' + along.toFixed(1) + ' m along / ' + lat.toFixed(1) + ' m across the strip (len ' + tw.len + ')');
+    } else if (Fl.a === tw) check(F.air, tag + ': airborne', 't ' + F.t.toFixed(0) + ' s, ' + F.phases.join('>'));
     // PILOT-GONOGO (the user's ruling, 13 Nov - row 9's): the Cessna alone may end this taxi at the HOLD, lined up, with the take-off
     // declined and said with its numbers (the go / no-go's 'needs N m, M m of strip - too short'); the taxi to the run is what this
     // row holds, and a hold reached is that run reached. Any other build, or a decline without its numbers, still asks the roll
@@ -403,7 +436,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
     // (ap.taxiPivAll false, an instrument's): with every taildragger's pivot the blind Cub turned round short of the tram
     // station, 4.2-4.6 m off it, and the instrument's control had nothing to see; measured: that pivot, not the wheel's law)
     const dBl = Object.assign({}, LB[0].def, { params: Object.assign({}, LB[0].def.params, { ap: Object.assign({}, LB[0].def.params.ap, { taxiPivAll: false }) }) });
-    const F = L.flyTurn(C, WI, IX, dBl, tw, nv, POSE, { blindPilot: true, tMax: 30 });
+    const F = L.flyTurn(C, WI, IX, dBl, tw, nv, CAL_C, { blindPilot: true, tMax: 30 });
     check(F.contacts > 0 && /station/.test(F.at || '') && F.minWing < 0.5, '11c calibration: the Cub from the altiport apron, the pilot blind: into the tram station', F.contacts + ' node contacts (' + F.cWhat + '), the wing ' + F.minWing.toFixed(2) + ' m (' + F.at + '), crashed ' + F.crashed);
   }
   console.log('  11 the turn-around' + SHD.tag + ' in ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s');
@@ -472,7 +505,12 @@ if (BASE) {
     const a = WI.aerodromes.find(q => q.id === 'mn_strip'), s = C.siteOf('mn_strip'), p = s.plots.find(q => q.id === 'mn_strip');
     const fake = Object.assign({}, s, { plots: [Object.assign({}, p, { stand: { x: 7274, z: -15201, hdg: -1.7326 }, taxiOut: [[7266, -15250], [7259.5, -15320]] })] });
     const PS = C.playerPlotSite(fake, 'mn_strip', null), B = VB.find(b => b.dims.half >= 5.49);
-    const P = C.sitePattern(a, PS.site, { half: B.dims.half }), r = L.censusSite(C, IX, a, P, B.dims.half + L.MARGIN);
+    // (the user's bumps on mn_strip, afb-0220-b2 17 Nov: a strip with micro is patterned on the rough lane, which keeps this
+    //  way 8.68 m off the street's buildings - MILL-TAXI's fault no longer exists in it. The CALIBRATION is of the census, not
+    //  of the bumps: it is patterned on the strip without its micro, the lane MILL-TAXI faulted on, and must still read < 4 m.
+    //  The plots' own rows above keep the strip as it is)
+    const aCal = Object.assign({}, a, { micro: null });
+    const P = C.sitePattern(aCal, PS.site, { half: B.dims.half }), r = L.censusSite(C, IX, aCal, P, B.dims.half + L.MARGIN);
     const worst = r.routes.reduce((m, q) => Math.min(m, q.worst.d), Infinity);
     check(worst < 4, '12 calibration: a way of its own for the mine\'s shed comes inside 4 m of a building (MILL-TAXI\'s fault)', worst.toFixed(2) + ' m');
     const aw = WI.aerodromes.find(q => q.id === 'w3'), sw = C.siteOf('w3'), hut = SH.find(q => /s_strip\/hut$/.test(q.id));

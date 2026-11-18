@@ -38,6 +38,12 @@
 //      stored reference (tools/fixtures/treecrash_ensemble_ref.json): a REGRESSION only when it MOVES - a two-sided
 //      Mann-Whitney rank test at p < 0.01 (_treecrash_lib rankTest). A deliberate change of the physics moves it: rewrite
 //      the reference (--write-ref) and say so in the HANDOVER.
+//      RE-PINNED 17 Nov 2026, 08:5x on the final G4103 (JOINT-TETHER, on L40e master 2157a2f98 - which had itself moved it since the last pin:
+//      L40d's train log reads cub/trunk0 work and jodel/trunk0 broken + pieces MOVED): a kinked tube keeps a tension tether
+//      and joints tear late, and the census counts pieces by the pieces' rule (a live tether joins). Medians old -> new:
+//      pieces cub/trunk0 9.5 -> 5, cub/trunk25 4 -> 2, jodel/trunk0 13 -> 8, jodel/trunk25 5 -> 5, metal/trunk0 14 -> 8,
+//      metal/trunk25 5 -> 5; broken cub/trunk0 117.5 -> 122, metal/trunk0 150.5 -> 111.5, metal/trunk25 33 -> 49; work
+//      jodel/trunk0 19724 -> 17344 J; mount and cowl off unchanged (the user, 13 Nov: "more bending, less disintegrating")
 // Run: node tools/_treecrash_check.js [--ens N] [--write-ref]   (one final `GATE TREECRASH: PASS|FAIL`; the builds in
 // parallel child processes)
 'use strict';

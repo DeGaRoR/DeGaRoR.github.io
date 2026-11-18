@@ -175,7 +175,9 @@ const RP = read('render_premises.js'), RW = read('render_world.js'), WA = read('
       // lakeMargin by a lake - and the drawn water's test wetBy, the same field and waterDrawY; the sea's 0.3 m in both)
       ok(RW.includes('if (h < 0.3 || wl > h - (lake && wl > 0.05 ? lakeM() : 0.3) || wetBy(x, z, h, lake)) return false;')
          && RW.includes('const wetBy = (x, z, h, lake) => { if (drawnLakeSD(x, z) <= -1) return false; const wy = waterDrawY(x, z);')
-         && RW.includes('const okAt = (x, z) => landBy(x, z, false), okLake = (x, z) => landBy(x, z, true);') && RW.includes('drawnLakeSD = lakeRsd;'),
+         // (GRASS-ON-GREEN 3, 31e26b5c6: okAt also refuses the margin grass - `&& !(world.marginGrassAt(...))` only REMOVES points, so
+         // the drawn-water refusal through landBy stands; the pin checks the landBy half and that nothing is OR'd onto it)
+         && /const okAt = \(x, z\) => landBy\(x, z, false\)( && !\(world\.marginGrassAt && world\.marginGrassAt\(x, z\)\))?, okLake = \(x, z\) => landBy\(x, z, true\);/.test(RW) && RW.includes('drawnLakeSD = lakeRsd;'),
          '5 the cover ring refuses the drawn water (wetBy: the drawn lakes\' field and waterDrawY; the first ring at 0.3 m, the grass field at lakeMargin by a lake)');
       console.log('GATE LOOKS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
       process.exit(fails ? 1 : 0);

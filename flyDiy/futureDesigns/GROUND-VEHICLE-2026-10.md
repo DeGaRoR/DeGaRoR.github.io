@@ -292,3 +292,224 @@ unchanged: the HANDOVER block lists them.
    (`world.roadNet`) as a second source.
 5. **The worker.** The physics worker hosts a vehicle like an aeroplane (`snap` / `unsnap` exist).
 6. **The boat** (§2): the `hull` and `thrust` providers, the yaw-rate steering, the water graph.
+
+---
+
+## 9. TOW-LAUNCH phase 1 (2026-11-11): the car drives HOME -> Cedar Harbour
+
+The user (11 Nov): "see a car DRIVE, in the game, from HOME to Metlakatla" (Cedar Harbour), with "a LITTLE UI ... REUSE
+THE PLANE'S UI". Branch `claude/tow-launch-phase1`. What landed against §8:
+
+| §8 step | as built |
+|---|---|
+| 1 the bundle | a LAZY pack, not MANIFEST.core: `tools/build.js` MANIFEST.lazy carries `src/cars/cars_car.js` + `cars_lods.js`, `src/vehicle/vehicle.js`, `vehicle_drive.js`, `vehicle_island.js` and `src/viewer/drive_mode.js`, fetched on the first ask to drive. `tools/flight_core.js` is byte-identical, the first load carries none of it, GATE VEHICLE's BITS row holds unchanged. The substep's vectors are scratch slots (bit-identical outputs; young-gen GCs 442 -> 211 per 6000 frames) |
+| 2 the page | `drive_mode.js` (the car, its rig, its words) + app.js's `DRIVE` switch beside SCENERY (the solver held, the aeroplane off the stage) and `driveOn()` hooks: the loop's step, the chase's target / heading / distance, `hud()` (the PFD's ias / alt / vs cells re-labelled km/h, km to go, gear; the rail's phase word and status line), `drawMap()` (the car's arrow, the road ahead, the U-turn's moves, the way come), `flTrip()` (the top bar), `planSet()` (the To picker), `gmHold()` (Pause), `fullReset()` (Restart), the view key (chase / orbit). Entry: the menu's "Drive the pickup" row; `?drive=1` |
+| 3 the To picker | the flight's `#selDest`, refilled with the car's places (`FLYDIY_DEST_REFILL`), the aeroplane's again on leaving |
+| 4 the road graph | `vehicle_island.js` `vehIslandSpec(O.roadGraph(), ...)`: the premises graph as the driver's; DRAWN CROSSINGS and T's joined vehicle-side (no scenery edited; `report.joins`); spans whose line misses their junctions rebuilt off the record's waypoints (`report.rebuilt`, the bug below); the places: every field (its stand) and the town hall, on the car's network within 600 m |
+| 5 the worker | NOT yet: the car steps on the main thread (0.10-0.11 ms a frame on Jolene). Next |
+
+**U-turns without aprons.** Jolene carries no roadside apron. `vehRoadGraph` adds `G.turns`: every JUNCTION (3+ roads)
+and every ROAD END; the U-turn there is planned in a corridor of its own - `vehClearGrid`: the road bands round the point
+(each road's half width less the distance to its centreline, a 0.2 m grid) and the HARD GROUND (`world.surface` PAVED /
+GRAVEL at 1 m, a chamfer distance) - so the car backs into a side street, or turns on an airfield's apron at a road's end.
+The planner sweeps such a site ONCE per candidate with its clearance recorded (an apron keeps its three-margin search,
+GATE VEHICLE unchanged): mean 59 ms a site, 361 ms the worst (a site where nothing fits). `route()` ranks the U-turns
+(the nearest 12 priced; a junction costs 40 m more than an apron) and `plan()` tries them in turn, falling back on the
+long way.
+
+**Findings.**
+- HOME's road r3 CROSSES the town's mk_sa01 at (-2857.9, -8473.4), 7 m before r3's end, with no junction: without the
+  vehicle-side join HOME and Cedar Harbour are two graphs. The user's to trace in the editor if wanted (the join then
+  becomes a junction and the vehicle's join a no-op).
+- 27_premises.js `O.roadGraph()`: a straight street's junction waypoints on a straight span are dropped from its drawn
+  line (`straightOf`), so the graph's nearest-drawn-point search maps a junction to the next real vertex - 283 of Jolene's
+  spans missed their nodes by up to 60 m, some were a single point. Rebuilt in the adapter; the core fix (use `wp` when
+  `straightOf` thinned the line) belongs to the premises.
+- THE TOWN IS OFF BY DEFAULT in the page (G590 TOWN_OFF: Graphics > Town, or `?town=1`): its streets go with it, so the
+  car cannot reach Cedar Harbour unless the town is on. The To picker lists it greyed and says why.
+- The town's 90 deg single-waypoint corners: cross-track 1.95 m at most there (the open road 0.2 m rms); the body's corner
+  0.48 m past a road's edge at the worst sample (a junction's corner, inside the crossing street).
+- Graded streets meeting at different levels make 0.25 m creases: the sheet's lower collision box (one box, overhangs
+  included) touches by 4 mm. A finer proxy (a bumper box) is the cure, not a gate bound.
+
+**GATE DRIVE-TRIP** (`tools/_drive_trip_check.js`, core, ~25 s): GRAPH / TRIP / PERF / TOWNOFF / PAGE. The trip: facing
+away at HOME -> a back-in U-turn at the road's end on HOME's apron; 4 km on, a new To behind (HOME) -> a nose-in U-turn at
+the r2/r5 junction; then Cedar Harbour again -> a U-turn at r2/r21; ARRIVED 0.65 m from the town hall's stop after 13.7 km
+(21.3 min, 63 km/h at most), the manoeuvres tracked within 3 cm, never STUCK.
+
+---
+
+## 10. TOW-LAUNCH phase 2 (2026-11-12): the roads joined, the runways
+
+**The roads joined in the record** (the user: "join the roads"): `tools/road_join_drawn.js` + `tools/road_join_level.js`
+(then `tools/road_patch.py`, which now carries `tan`). Joins on the DRAWN lines (road_review --join reads the waypoint
+chords: on a spline 8 m off the curve, it dragged r1 21 m and r35 26 m): crossings (a shared waypoint in both), overruns
+(a crossing within 15 m of a free end: the end trimmed back onto it - r3 ran 8.2 m past mk_sa01), T's (an end within 2.5 m
+moved onto the street), ends to ends, gaps to 15 m (one extension waypoint; a spline's old end fixed at its own handle,
+its curve kept exactly). LEVEL: a junction levels its roads to ONE height (27_premises G2950), so a join that moves the
+composed ground more than 1 m within 15 m is refused - 4 pairs meet at different heights (mk_r_airport|r3 5.5 m: the old
+airport road runs beside and below r3; mk_sc41|r3 2.6 m; r24|r2 2.1 m: the car hit the step it made; r47|r46 1.0 m). 50
+junctions; the drawn lines move 1.7 m at most (r4), the HOME road r2 0.16 m.
+
+**The runways** (vehicle_island.js, vehicle-side): each runway a road down its centreline; each taxi route (the
+aeroplane's own, the site's `taxiOut` / `taxiOut1`) a road from the stand to where it meets the runway; the stand LINKED to
+the nearest road over drivable ground (HOME -> r39 68 m); a runway's end on another's pavement joined (02/20 on 13/31, 13.6 m
+off its centreline); every runway end a destination ('Jolene AFB 13/31 · runway 31', the number its end gives). STEEP
+STRETCHES (> 45 % over 6 m) are closed to the router: Fishing Village's only approach, r40, ends in a 5 m bank under the
+strip's terrace (68 %) - its To answers 'none' instead of a car driven into it (a scenery finding). `vehIslandFromWorld`
+is the one recipe (the gate, the page). `vehFaceToward`: a trip sets off facing its route (no U-turn - one is for a new To
+behind). A corner over 45 deg on dense vertices (a junction's turn, r5 -> r40 121 deg) gets real legs before its fillet.
+GATE DRIVE-TRIP rows GRAPH (the record's own junctions), PLAIN, RUNWAY.
+
+## 11. TOW-LAUNCH phase 3 (2026-11-12): the glider auto-tow
+
+`src/vehicle/tow.js` (lazy): the LINE - tension-only, k = EA / L0 (400 m, EA 1 MN: 2.5 kN/m), damping for zeta 0.5 on the
+glider's mass, a weak link (6 kN) - between the car's hitch (its rear bumper) and the glider's nose hook (the most forward
+centre-plane node of the lower half and its neighbours: any build). Through the solver's own `sim.onSubstep` +
+`sim.impulse` (no solver change; the glider study's mechanism); the car's hitch read at the frame's start, extrapolated
+through the frame; the frame's mean pull back to the car as `car.extF` (vehicle.js; unset, the spike's digits). RELEASE:
+the top of the launch (the line slack above 30 m, or its angle no higher than 4 s ago), the car stopped, the weak link,
+the pilot's key. `makeTowHands`: the gate's hands (signs from the study's flown probe).
+
+GATE TOW (core, ~1 min): the motorglider archetype, engine off (sim.setEngine key 'off'), on 400 m behind the Conquer at
+28 m/s down Jolene AFB 13/31: lift-off 14.9 s / 25.9 m/s / 207 m down the runway, released at the top at 275 m, 3.8 kN at
+most; then 15 s of glide; the key at 100 m; a 1.2 kN weak link breaks; +1.0-1.3 ms on the glider's frame.
+
+THE PAGE (the user, 12 Nov: "when you select something without an engine, then by default we are getting in a glider
+tow mode ... we start at the start line with the cable and the car"): app.js `towWanted()` - def.params.nEngines 0 (the
+engineless card, when it lands), the card's `motorOff` (the flag proposed to the Archaeopteryx session), or `?tow=1`.
+Once the flight starts: Skip to line-up's placement (the start line), every engine's key off, by hand (`setManual(true,
+'tow')`), the lazy pack, `DRIVE_MODE.towStart` lays the car 398 m ahead on the centreline and the line; the car sets off 3 s
+into the run; the line drawn sagging; R (or the plate) releases; the words on the flight's notice plate; Restart lays it
+out again. A tow flight flies INLINE (sim_link.js eligible: the line acts in the page's substeps); every other flight keeps
+the worker. `?towhands=1`: the gate's hands fly it (a rig's; a player without a stick's).
+Open: the Archaeopteryx card (its branch rewrites the gear and the core); a glider circuit / landing pattern after the
+release (GLIDE -> FLARE exists); the winch (a fixed drum: the same line with a fixed anchor).
+
+## 12. TOW-LAUNCH phase 4 (2026-11-12): the launch trailer
+
+The brief: "FLOATPLANES / BOATPLANES launched FROM A TRAILER pulled by the car down a runway", "the up-only cradle under
+the floats or hull, the latch, the take-off on a runway (an exception to the floats-need-water rule)"; the user (12 Nov):
+"include the modeling of an appropriate trailer; professional quality modeling".
+
+`src/vehicle/trailer.js` (lazy, pure): the glider study's probe_trailer made a module, on the tow line's mechanism
+(`sim.onSubstep` + `sim.impulse`: no solver change, no moving ground - the solver's static ground is untouched).
+- THE FIT (`trailerFit`): pads on the build's own keel nodes - each float's two lowest keel stations (the hydro's rec.K,
+  fore and aft of the step), or a hull's keel (two, the rollers) and its frames' bottom corners fore and aft (four, the
+  bunks; the wing-tip floats ride clear). CHOSEN on the build's frame, READ on the cradle's: the cradle holds it 6 deg
+  nose-up (a launch dolly's attitude: on a level cradle the wing sat at 1 deg and 1.45 VRot lifted a quarter of the
+  weight - measured), the CG 0.25 m ahead of the axles (the tongue), the drawbar long enough for the nose to clear the ball
+  by 1.4 m (4.2 m at least).
+- THE TRAILER (`makeTrailer`): kinematic behind the car's ball (the tractrix of a two-wheeled trailer: its tyres do not
+  slip), on the ground under its wheels; 420 kg; its loads back to the car each frame as `car.extF` from its own
+  equations (along: m a = H + R - Crr N; up and sideways: the moments about the axles) - the cradle's reaction summed over
+  the aeroplane's substeps.
+- THE CRADLE (`makeCradle`): each pad a spring-damper (1.5 cm under its share) that PUSHES UP ONLY and holds in the
+  bunk's plane by its carpet (mu 0.6), the bow pad a stop forward; THE LATCH shut holds it fore and aft and sideways
+  (a 7 kN strap, its load the net over 0.1 s) and OPENS when the bunks carry under 10 % of the weight for 0.25 s (the
+  study's rule: the wing carries it); the bunks stay under it (an aborted run keeps the plane on its trailer).
+- THE RUN (`makeTrailerLaunch`): loaded -> opened -> clear (the keel 5 m over the bunks: the car eases off and stops) or
+  abort (no lift-off 20 s at the car's speed: it stops, the plane on its bunks). The car's speed 1.6 VRot (genAP's).
+- `makeTrailerHands`: the gate's hands - the power in as the speed comes (a pylon's thrust line tips a boat onto its bow
+  at full power from rest: measured -36 deg), the cradle's attitude held, the pull at 1.05 VRot, off the bunks the
+  attitude by the speed (level in ground effect to 1.3 Vs, then the climb's).
+
+`src/vehicle/trailer_model.js` (lazy): THE TRAILER DRAWN, fitted to the same fit - a hot-dip galvanised tandem-axle
+launch trailer: C-channel rails (125 x 50 x 4, open inward) under the floats (either side of a hull's keel) and cross
+members, an A-frame of 100 x 50 box with a centre tongue, gussets, a cast ball coupling drawn from its side profile (its
+lever, grip, lock, a breakaway ring), two safety chains drooped to the ball, the jockey wheel stowed on its clamp, the
+lighting cable clipped along the left rail to its plug; two rubber-torsion axles on U-bolted brackets, trailing arms,
+four 185R14C tyres (three grooves) on pressed-steel 5-stud wheels (vent holes, nuts, chrome caps, drums), a spare under
+the rear, tandem mudguards with rolled lips, tread tops, stays and rubber flaps; a light board with two combination
+lamps, triangle reflectors, a blank plate board and its lamp, amber side and white front reflectors. THE CRADLE: per
+float two carpeted timber bunks at the float's deadrise on swivel brackets and posts off saddle plates, a bow stop post
+(a rubber V-block, its brace) carrying the latch (the release hook, its red lever) and the yellow strap to the bow eye -
+drawn while the latch is shut; a hull: keel rollers on their brackets, two chine bunks, a winch post (V-roller, drum,
+gear case, crank). The car's half (`buildTowHitch`): the ball mount in the pickup's receiver. 33k triangles, 16-17 draw
+calls (one mesh a material, the wheels 4 InstancedMesh x 5), built in 25-65 ms; a frame's update: one matrix, 20
+instance matrices.
+
+GATE TRAILER (core, ~2 min): FIT (4 pads on the two float keels, 100 % on the bunks at rest, 2.6 cm at the most loaded,
+the ball 872 N - 9.6 % of the train, the nose 2.0 m behind the ball), FLOATS (the Twin-582 floatplane: the latch opens
+10 s on at 22.9 m/s - 1.3 VRot - 131 m down 13/31, off the bunks at 13 s, 222 m up at 48 s; the car stopped 386 m down,
+the ball 1.5 kN at most), HULL (the classic-V flying boat off the Cessna-on-floats build, fixture
+trailer_hull_classic_pylon.json: open at 26.8 m/s, 183 m down; 232 m up), JOINED (the floatplane as the game loads it,
+through the garage's chain: nothing broken on its bunks), HOLD (idle, the car under VRot: abandoned 20 s on
+and stopped, the plane on its bunks, the latch shut), PERF (the cradle: no measurable cost on the floatplane's frame -
+10.1 ms on the trailer against 10.6 standing on its floats on the runway; the trailer 10 us), MODEL (the counts above, in
+node with three.js r186), PAGE (drive_mode.js RUN in node on the island: the drive mode, the glider tow and the trailer
+started, stepped, drawn, worded and stopped; app.js's wiring).
+
+THE PAGE: the menu's "Launch from the trailer" on a float or hull build (or `?trailer=1`) - a restart that lays the
+car at the end of the runway nearest the aeroplane (Jolene's 13/31 from HOME's waters), the plane settled on its keels
+behind it and seated, the trailer drawn, the car's ball mount on its rig; by hand (`setManual(true, 'trailer')`); the
+car sets off as the player opens the throttle; the words on the notice plate ("trailer launch": the speed, the cradle's
+share, "pull at"); "Back to the water" undoes it. INLINE (the cradle acts in the page's substeps, sim_link.js's eligible).
+`?towhands=1`: the gate's hands fly it.
+FOUND ON THE WAY: phase 2's graph rewrite of drive_mode.js had deleted buildRig / poseRig / placeNear / placeName - the
+page's drive and tow modes threw on entry; restored, and PAGE now runs the modes in node so a missing function fails a
+gate, not the player.
+FOUND BY THE PAGE RIG (12 Nov): in the game the floatplane broke up on its bunks in the first step ("the fuselage parted")
+- the seat projected the build onto the solver's axes, which are read off the nose / tail / up nodes and are NOT square on
+the game's joined build: a shear, 20 members broken. The seat's frame is now made orthonormal; the launch rows fail on
+any member broken and JOINED seats the game's own build. (The flying boat's axes were skewed too: its launch improved.)
+Open: the pilot's ROLL on a cradle (the autopilot's take-off from the trailer); landing back on the trailer (out of
+scope); the trailer at the other aerodromes' strips (the runway nearest is taken; HOME's first).
+
+### 12.1 The roll-out's choice and the autopilot (12 Nov)
+The user: "it should be easily accessible from the garage. Maybe when you click on rollout, it gives you the two
+options", and "the autopilot should be able to fly everything".
+- ROLL OUT on a float or hull build opens a small chooser over the verb (#edLaunch): ON THE WATER (the base's water
+  lane, as always) or FROM THE TRAILER (behind the car on 13/31); the pick is TRAILER.want, the roll-out goes on. The
+  menu row stays for the flight.
+- THE LAUNCH'S AUTOPILOT (app.js LAUNCH): with the autopilot on, the launch's own hands (trailer.js / tow.js, the gates'
+  flown ones) fly the roll, the lift-off and the climb off the bunks or up the line, the pilot held off by the hand's
+  mode; once clear (the trailer: off its bunks and 20 m up; the tow: 2 s after the release) setManual(false) hands the
+  flight to THE PILOT (ap.reEngage at CLIMB). By hand, the player flies it as before.
+- 43_pilot.js (a core change, meant): A GLIDER - every engine's key off, or none - is flown as a starved aeroplane is,
+  from the moment it is airborne: GLIDE to the nearest field inside its cone, the flare it knows; no forced landing
+  stamped. Measured: the motorglider released at 275 m glides home and lands, CLIMB -> GLIDE -> FLARE -> ROLLOUT ->
+  STOPPED, sink 0.3 m/s - but 170-200 m BESIDE 13/31 (the glide aims at the field's point, not into a circuit: a
+  glider's circuit and its approach are the next piece). The floatplane off the trailer: the pilot from 18 s / 20 m,
+  CLIMB -> ENROUTE, and it plans its landing on water (floats: water only).
+- GATES: TRAILER AUTOPILOT, TOW AUTOPILOT (the handover, the game's pilot flying on); TRAILER PAGE (the chooser, the
+  hands, the handover). ENGCONFIG's reds (the quad never wings-level, three saved cards differ, the Chinook's hash) are
+  identical on the commit before the pilot change - not this one's.
+
+### 12.2 The glider's circuit (12 Nov)
+The user: "do the glider circuit next ... test it with the e-glider with the engine removed". 43_pilot.js GLIDE, for a
+glider (every engine's key off, or none) that reaches a field: the arrival's own landing there (planArrival via
+landWayFrom: the way, the aim, the circuit's side) flown on energy (gliderCircuitPlan + the GLIDE stages):
+- key (the downwind's start, 0.8 W upwind of the aim, W out; W = 0.6 the powered offset, 220-420 m) -> burn (circles
+  outboard of it while the height is over the key's) -> downwind -> base (turned where the height over the aim just covers
+  base + final at the glide ratio FLOWN: ground speed over sink, 6 s, x 0.9, + 20 m, the flare's float of 10 s at the
+  approach speed taken off) -> final (the centreline at the approach speed, the landing flap while high) -> FLARE as any
+  landing. Too low for the key: direct, onto a short final. Far from any field: the straight glide as before.
+- Tuning measured on the motorglider: the sheet's fallback 12 x 0.6 brought it 160 m high and 2.2 km in; flown ratio x 0.8
+  + 30 m: 860 m past the aim; x 0.9 + 20 m: 530; with the float: 377 m past the aim.
+- GATE TOW CIRCUIT: the motorglider (released 275 m: burn, downwind 134 m, base 78, final 48; on the runway 890 m in,
+  9.8 m off the centreline, sink 0.37 m/s, 1118 m left) and the Archaeopteryx card as it stands, motor off (364 m:
+  on the runway 794 m in, 8.5 m off, 1343 m left).
+- Open: the aim is still 280-380 m short of where it touches (no airbrakes in the model; a slip on the glider's final
+  would trim it); a wind's drift on the downwind; a circuit joined from far (the key's approach is a straight line).
+
+### 12.3 The altiport push start (12 Nov)
+The user: "if you would just slightly push the glider, it should be able to take off on its own very easily ... from there
+it could probably try and land on Jolene, or at least the village strip". Skyline Altiport (tw_ski, 696 m, 380 m of grass,
+flat for its top 95 m, ~10 % below, the ground falling away past its low end).
+- FOUND: THE SOLVER'S GROUND PUSHES STRAIGHT UP (30_solver.js: f[y] += Fn, the friction horizontal) - a slope never rolls
+  an aeroplane downhill; pushed off on the 10 % the glider stopped in 13 s, and set down there it never moves. Every
+  sloped strip shares it (a landing uphill gets no braking from the slope, a take-off downhill no help). Making the
+  ground push along its normal is a core change with every anchored ground gate to re-pin - THE USER'S CALL.
+- Meanwhile tow.js slopePull: a launch down a slope adds the slope's pull (g x the grade along the roll, on every
+  node's mass, while a wheel is on the ground). With it: pushed 400 N for 4 s at the slope's head, the motorglider rolls
+  to 22.4 m/s and lifts off over the edge 225 m down (18.9 s); the hands to 30 m, then the pilot.
+- 43_pilot: A GLIDER GOES WHERE IT WAS SENT - the route's To when the cone reaches it (0.9 the sheet's L/D or a glider's
+  15 over that field's height: set off for the goal), else the nearest on 0.7 (the field just left skipped when the flight
+  was going elsewhere); from 12 s the final glide is checked at the ratio flown and diverts (or glides ahead). The
+  circuit's 'direct' waits for the glide to be measured and goes back to the key when the glide proves better; a final
+  100 m too high (400 m out at least) goes round from the key.
+- Measured: to Jolene (7.6 km, 12:1) - downwind 163 m, base 97, final 71; on the runway 952 m in, 5.3 m off the
+  centreline, 1 km left (GATE TOW ALTIPORT). To the Fishing Village Strip (5.1 km) - on its 543 m, 277 m in, 14 m off,
+  78 m left.
+- Open: the page has no push-start yet (a base at the altiport and the launch's choice); the slope in the solver.
