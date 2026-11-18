@@ -89,8 +89,9 @@ function sourceRows(S) {
   const need = (src, re, what) => { if (!re.test(S[src])) bad.push(src + ': ' + what); };
   need('garage', /const CAND_DIR = 'builds\/candidates\/'/, 'the pool is read from builds/candidates/');
   need('garage', /fetch\(CAND_DIR \+ 'index\.json'\)/, 'the index is fetched from the repo folder');
-  need('garage', /const loadCandidate = c => fetch\(CAND_DIR \+ encodeURIComponent\(c\.file\)\)[\s\S]{0,200}?loadSpec\(g\.spec, ''\)/,
-    'a candidate opens unnamed, with no plaque and an empty log (loadSpec(spec, ""))');
+  // PC6-LIVERIES (18 Nov): and with the card's own liveries, if it carries any (loadSpec's 6th argument)
+  need('garage', /const loadCandidate = c => fetch\(CAND_DIR \+ encodeURIComponent\(c\.file\)\)[\s\S]{0,400}?loadSpec\(g\.spec, '', null, null, null, lvOf\(g\)\)/,
+    'a candidate opens unnamed, with no plaque and an empty log, wearing its own liveries (loadSpec(spec, "", null, null, null, lvOf(g)))');
   // FLEET (13 Nov): the pool is the Fleet's All planes group 'Candidates: built here, not yet certified', its tiles open it
   need('fleet', /'Candidates: built here, not yet certified'/, "the Fleet's pool group (PLANE-LIST: 'built here, not yet certified')");
   need('fleet', /g\.candidates\(\)\.then\(l => \{ cands = l/, 'the Fleet reads the pool through the garage');
