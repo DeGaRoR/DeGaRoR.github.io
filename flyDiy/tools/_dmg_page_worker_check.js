@@ -126,7 +126,10 @@ function judge(R, say) {
   // 2 the row
   // (the worker's crash verdict - FLIGHT_PROBE.damage(), the worker's under it (G1470): 'broke up: ...' only on the damage
   // layer's breaks (G1832) - is independent of the mirror's damage state)
-  const wv = R.end && R.end.verdict ? R.end.verdict.reason : null, wb = !!(wv && /^broke up/.test(wv));
+  // (G4103, JOINT-TETHER: the kinks' tethers hold the Cub together through this 30 m/s trunk - its verdict is now "a fus
+  // member broke", not "broke up: the fuselage parted"; either is the worker's crash breaking members, which is the row's
+  // staging claim - the page's 96 breaks, its records and its debris are asserted below as before)
+  const wv = R.end && R.end.verdict ? R.end.verdict.reason : null, wb = !!(wv && /^broke up|member broke/.test(wv));
   if (!wb) bad('the worker\'s crash broke nothing (its verdict ' + JSON.stringify(wv) + ') - the staging, not the mirror');
   if (!(R.page && R.page.br > 0)) bad('THE PAGE HOLDS NO BREAK under the worker (FLYDIY_DMG_STATE().br empty all the crash; the worker\'s verdict ' + JSON.stringify(wv) + ')');
   // 3 the page's consumers

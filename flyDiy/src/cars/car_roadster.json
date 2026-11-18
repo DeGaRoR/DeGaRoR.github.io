@@ -1,0 +1,215 @@
+{
+ "car": "roadster",
+ "authored": "MEASURED off the garage drawing by tools/car_sheet.js (CAR-1); the mass, the CG height and the inertia are ESTIMATES (the ledger less the wings and tail, plus a chassis; 40 % of the body height; a uniform box)",
+ "frame": "+x forward, y up, +z right; metres; x = the garage z, z = the garage x, y over the ground under the tyres",
+ "wheels": {
+  "FL": {
+   "centre": [
+    3.75,
+    0.4,
+    -0.75
+   ],
+   "radius": 0.4,
+   "width": 0.128,
+   "side": "left",
+   "steered": true
+  },
+  "FR": {
+   "centre": [
+    3.75,
+    0.4,
+    0.75
+   ],
+   "radius": 0.4,
+   "width": 0.128,
+   "side": "right",
+   "steered": true
+  },
+  "RL": {
+   "centre": [
+    0.55,
+    0.4682,
+    -0.75
+   ],
+   "radius": 0.4,
+   "width": 0.128,
+   "side": "left",
+   "steered": false
+  },
+  "RR": {
+   "centre": [
+    0.55,
+    0.4682,
+    0.75
+   ],
+   "radius": 0.4,
+   "width": 0.128,
+   "side": "right",
+   "steered": false
+  }
+ },
+ "wheelbase": 3.2,
+ "track": {
+  "front": 1.5,
+  "rear": 1.5
+ },
+ "ground": 0,
+ "box": {
+  "lo": [
+   -0.338,
+   0.072,
+   -0.666
+  ],
+  "hi": [
+   4.076,
+   1.485,
+   0.684
+  ]
+ },
+ "collision": {
+  "boxes": [
+   {
+    "name": "body",
+    "lo": [
+     -0.338,
+     0.12,
+     -0.666
+    ],
+    "hi": [
+     4.076,
+     1.485,
+     0.684
+    ]
+   }
+  ]
+ },
+ "estimates": {
+  "mass_kg": 542.9,
+  "cg": [
+   1.7757,
+   0.5588,
+   0
+  ],
+  "inertia_kgm2": [
+   172.8,
+   964.1,
+   971.9
+  ],
+  "ledger": [
+   [
+    "fuselage",
+    35.6
+   ],
+   [
+    "engines",
+    109.8
+   ],
+   [
+    "gear",
+    65.5
+   ],
+   [
+    "cabin",
+    80
+   ],
+   [
+    "vessel",
+    5.2
+   ],
+   [
+    "fuel",
+    36
+   ],
+   [
+    "panel",
+    2.2
+   ],
+   [
+    "elec",
+    16.5
+   ],
+   [
+    "outfit",
+    23.2
+   ],
+   [
+    "furnish",
+    4
+   ],
+   [
+    "paint",
+    5
+   ],
+   [
+    "cargo",
+    40
+   ]
+  ],
+  "chassis": {
+   "kg": 120,
+   "note": "GAP: a ladder frame, two beam axles, the steering box and the differential - no garage row (a 1930s light car's, ~110-140 kg); placed at the wheelbase's middle, axle height"
+  },
+  "firewall_z": 2.366
+ },
+ "engine": {
+  "type": "custom",
+  "name": "custom V 8-cyl 3.6 L",
+  "powerW": 86078.6757159642,
+  "mass": 89.25959923754675,
+  "driveline": {
+   "eta": 0.85,
+   "note": "a manual gearbox and a live rear axle: ~85 % of the crank power at the wheels"
+  }
+ },
+ "drive": "rwd",
+ "tune": {
+  "drive": {
+   "wheels": [
+    "RL",
+    "RR"
+   ],
+   "P": 73167,
+   "F0": 3994,
+   "Frev": 2397,
+   "vRev": 6,
+   "engBrake": 160,
+   "tc": 0.85
+  },
+  "brake": {
+   "F": 4261,
+   "front": 0.6,
+   "abs": 0.8,
+   "hand": [
+    "RL",
+    "RR"
+   ],
+   "handF": 1331
+  },
+  "steer": {
+   "wheels": [
+    "FL",
+    "FR"
+   ],
+   "innerDeg": 36,
+   "ackermann": 1,
+   "rate": 0.9
+  },
+  "susp": {
+   "bump": 0.07,
+   "droop": 0.09,
+   "hz": [
+    1.6,
+    1.8
+   ],
+   "zeta": 0.35,
+   "kStop": 150000
+  },
+  "tyre": {
+   "Ca": 9,
+   "u0": 1.5
+  },
+  "aero": {
+   "CdA": 0.8
+  }
+ }
+}

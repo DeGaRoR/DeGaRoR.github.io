@@ -109,7 +109,10 @@ function infraCheck(proj, rec, O, C) {
   // (G3014, ACCEPTED BY NAME - the user 12 Oct, "accept the map data at 18.2 KB compressed (budget 20 KB): yes" (12 Oct 21:33, via A0): their strips, roads and zones grew the projection; 48 / 16 -> 72 / 20 KB)
   // (JOLENE-FOLD 25 Oct, A0: raw 72 -> 76 KB for the user's own scenery - AFB (19) adds ~2.5 KB of map; the user ruled "no
   //  gz-KB work", a size budget never holds their content back)
-  ok(raw <= 76 * 1024 && gz <= 20 * 1024, 'its budget: ' + (raw / 1024).toFixed(1) + ' KB raw <= 76 KB, ' + (gz / 1024).toFixed(1) + ' KB gzipped <= 20 KB (sha8 ' + require('./_media_lib.js').sha8(Buffer.from(JSON.stringify(I))) + ')');
+  // (SKYLINE-RESORT 17 Nov, A0: gz 20 -> 20.5 KB, re-pinned by name for the user's content - "a size budget never holds their
+  //  content back" (the user, JOLENE-FOLD above): master L40e 2157a2f98's infra is 20 416 B gzipped, Skyline's three summit
+  //  footpaths (tw_p_ridge / _launch / _lookout, already the fewest points) bring it to 20 531 B)
+  ok(raw <= 76 * 1024 && gz <= 20.5 * 1024, 'its budget: ' + (raw / 1024).toFixed(1) + ' KB raw <= 76 KB, ' + (gz / 1024).toFixed(1) + ' KB gzipped <= 20.5 KB (sha8 ' + require('./_media_lib.js').sha8(Buffer.from(JSON.stringify(I))) + ')');
   return W;
 }
 
@@ -138,11 +141,13 @@ function check(o) {
       rc.per[a.id] + ' px for ' + expect.toFixed(1) + ' px of true area');
   }
   // (G3014: the user's rev 26 / 27 strips w5, w6, w7 shipped - eleven; G3020 rev 28: w4 strip 9, w8 strip 13 - thirteen)
-  ok(proj.aerodromes.length === 16, 'the 16 runways are in the projection (' + proj.aerodromes.map(a => a.id).join(', ') + ')');   // (CABIN-LAKE: + cb_sea; OBSERVATORY-SITE: + mt_strip)
+  ok(proj.aerodromes.length === 17, 'the 17 runways are in the projection (' + proj.aerodromes.map(a => a.id).join(', ') + ')');   // (CABIN-LAKE: + cb_sea; OBSERVATORY-SITE: + mt_strip; AFB-0220: + xw_rough)
 
   console.log('THE BUDGET');
   ok(png.length <= 2 * 1024 * 1024, 'the picture ' + (png.length / 1024).toFixed(0) + ' KB <= 2048 KB');
-  ok(projBuf.length <= 96 * 1024, 'the projection ' + (projBuf.length / 1024).toFixed(1) + ' KB <= 96 KB');   // (G3014: 64 -> 96 KB, the user's accepted growth - see its budget above)
+  // (AFB-0220-B3, DIRT-STRIP integrating, A0 17 Nov: 96 -> 100 KB - the merged island's projection 96.2 KB: 02/20's 17th runway and its
+  //  dressing, SKYLINE-RESORT's footpaths and resort, the vegetation rail together; a named growth for A0's ruling, as G3014's was)
+  ok(projBuf.length <= 100 * 1024, 'the projection ' + (projBuf.length / 1024).toFixed(1) + ' KB <= 100 KB');   // (G3014: 64 -> 96 KB, the user's accepted growth - see its budget above; AFB-0220-B3: 100)
   ok(img.w <= 4096 && img.h <= 4096 && img.w * img.h * 4 <= 32 * 1024 * 1024, 'phone-safe: ' + img.w + ' x ' + img.h + ' px, ' + (img.w * img.h * 4 / 1048576).toFixed(1) + ' MB decoded');
   ok(files.length === 3 && files.includes(path.basename(pack.img)) && files.includes(path.basename(pack.proj)) && pack.art && files.includes(path.basename(pack.art.img)),
     'media/map/ holds the three files the pack names (' + files.join(', ') + ')');

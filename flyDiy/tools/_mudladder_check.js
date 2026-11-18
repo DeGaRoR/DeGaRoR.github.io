@@ -27,6 +27,9 @@
 // E. THE COLOUR: the drawn ground's multiplier is the projections' (PAVEMENT.groundWxColor = surfaceColor x groundWxMult), a
 //    soaked dirt strip IS the mud's colour, the sand darkens by 10 % at most; the page wires it (app.js, render_world.js).
 // F. THE OVERRIDE REACHES THE WORKER: setGround is replayed (sim_link / sim_host) and handed at a flight's start.
+// G. THE WORLD EDITOR (A0 for the user, 16 Nov): the ladder's 17 numbers editable - world.setGroundLadder moves the rungs, the
+//    ruts and the override's water at once, clamped, null resets; the worker takes them; the rail's block, its look, export
+//    and reset; the editor names the weather codes; a wet grass strip keeps its tufts.
 'use strict';
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
@@ -178,10 +181,54 @@ console.log('E. the colour');
 console.log('F. the override reaches the worker');
 {
   const sl = src('src/viewer/sim_link.js'), sh = src('src/viewer/sim_host.js');
-  yes(/'setSea', 'setGround'\]/.test(sl) && /'setSea', 'setGround'\]/.test(sh), 'setGround is replayed on the physics worker\'s world (as setDay)');
+  yes(/'setSea', 'setGround'[,\]]/.test(sl) && /'setSea', 'setGround'[,\]]/.test(sh), 'setGround is replayed on the physics worker\'s world (as setDay)');
   yes(/ground: world\.groundForce/.test(sl) && /world\.setGround\(W\.ground\)/.test(sh), 'and handed at a flight\'s start');
   const W3 = C.makeWorld(0, {}); W3.setGround('soft'); const k = W3.soilNow(); W3.setGround('bogus');
   yes(k && k.cls.dirt === 0.95 && W3.groundForce === null, 'a bad level lets go (the weather\'s)');
+}
+
+console.log('G. the world editor (A0 for the user, 16 Nov: every new world setting editable in the world rail)');
+{
+  const D = G.LADDER_DEF, v0 = G.version;
+  yes(Object.isFrozen(D) && Object.keys(D).length === 17 && Object.keys(D).every(k => G.LADDER_RANGE[k] && D[k] >= G.LADDER_RANGE[k][0] && D[k] <= G.LADDER_RANGE[k][1]), 'the ladder\'s 17 numbers, each with its range, the shipped ones inside it');
+  const R = soil(0.7);
+  yes(G.resolve(20, R) === 11, 'shipped: S 0.7 is firm mud');
+  W.setGroundLadder({ mudFirm: 0.9 });
+  yes(G.resolve(20, R) === 6 && G.version > v0, 'world.setGroundLadder moves the rung (firm mud from 0.9: S 0.7 is dirt) and counts a version');
+  W.setGroundLadder({ mudSoft: 0.1, bogus: 3, darkSand: 9 });
+  const L = G.ladder();
+  yes(L.mudSoft === L.mudFirm && !('bogus' in L) && L.darkSand === G.LADDER_RANGE.darkSand[1], 'clamped: soft mud never under firm, an unknown key ignored, a value held to its range', JSON.stringify({ mudFirm: L.mudFirm, mudSoft: L.mudSoft, darkSand: L.darkSand }));
+  W.setGroundLadder(null);
+  yes(JSON.stringify(G.ladder()) === JSON.stringify(D) && G.resolve(20, R) === 11, 'null: back to the shipped ladder');
+  // the wear knob reaches the ground the wheels stand on (the showcase's box), and the override's water its knob
+  const a = A('w8'), c = Math.cos(a.hdg), s2 = Math.sin(a.hdg), O = W.premises.overlay;
+  let q = null, wq = 0; for (let u = -150; u <= 150 && !q; u += 0.37) { const p = [a.x + c * u - s2 * 1.1, a.z + s2 * u + c * 1.1], w = O.wearAtWorld(p[0], p[1], 'w8'); if (w < -0.01) { q = p; wq = w; } }
+  W.setGround('soft'); const h13 = W.terrainH(q[0], q[1]); W.setGroundLadder({ wearDirtSoft: 1.6 }); const h16 = W.terrainH(q[0], q[1]);
+  yes(Math.abs(h16 - h13 - 0.3 * wq) < 1e-9, 'the soft-mud ruts knob (1.3 -> 1.6) deepens the showcase\'s trough by 0.3 x its worn relief, at once', ((h13 - h16) * 1000).toFixed(1) + ' mm');
+  W.setGroundLadder({ forceSoft: 0.7 }); const Rf = W.soilNow();
+  yes(Rf.cls.dirt === 0.7 && W.surface(a.x, a.z) === 11, 'the override\'s water is a knob (\'soft\' held at 0.7 instead: the strip is firm mud)');
+  W.setGroundLadder(null); W.setGround(null);
+  const sl = src('src/viewer/sim_link.js'), sh = src('src/viewer/sim_host.js'), wr = src('src/viewer/world_rail.js'), pu = src('src/viewer/premises_ui.js'), rw2 = src('src/viewer/render_world.js');
+  yes(/'setGround', 'setGroundLadder'\]/.test(sl) && /'setGround', 'setGroundLadder'\]/.test(sh) && /ladder: typeof GROUND_WX/.test(sl) && /world\.setGroundLadder\(W\.ladder\)/.test(sh), 'the ladder reaches the physics worker: replayed, and handed at a flight\'s start');
+  yes(/function ladderRows\(body\)/.test(wr) && /ladderRows\(body\);/.test(wr) && /w\.setGroundLadder\(o\)/.test(wr), 'the world rail\'s RUNWAYS carries a \'weather ladder\' block, set through the world');
+  yes(/o\.ladder = GWX\(\)\.ladder\(\)/.test(wr) && /put\('ladder', deltaOf\(N\.ladder, DEF\.ladder\)\)/.test(wr) && /ladderSet\(d\)/.test(wr), 'kept in THE LOOK (the delta against the shipped) and put back at boot / import');
+  yes(/diff\(DEF\.ladder, out\.ladder, 'ladder'\)/.test(wr) && /ladder: 'src\/core\/07f_ground_wx\.js LADDER_DEF/.test(wr) && /'the weather ladder', \(\) => \{ ladderSet\(null\)/.test(wr), 'exported (its changes and where they go) and reset');
+  yes(/GROUND_WX\.version/.test(rw2) && /GROUND_WX\.version/.test(src('src/viewer/pavement.js')), 'the drawn strips and aprons re-apply when the numbers move (the version in their keys)');
+  const PG = C.PREMISES_GEN;
+  yes(PG.surfaceName(20) === 'DIRT_WX' && PG.surfaceName(13) === 'GRASS_WET' && !/PG\.SURFACE_NAMES\[\+/.test(pu) && /SURFACE_WX_NAMES/.test(pu), 'the editor names a weather code (a wheels property on one no longer reads \'?\') and offers it');
+  yes(/s === world\.SURFACE\.GRASS_WET/.test(rw2), 'a wet grass strip keeps its tufts (the cover\'s landBy takes GRASS_WET)');
+  // the editor's save keeps the ladder (A0, 16 Nov: "If a save in the editor drops or rewrites the ladder on w6/w8, their edits
+  // break the ladder"): the record through envelope / unwrap, composed, and saved again - w6 and w8 still dirt (weather), w8's bumps
+  const pick = r => ['w6', 'w8'].map(id => { const w = r.layers.runways.find(q => q.id === id); return w.look + '/' + w.surface + (w.micro ? '/' + w.micro.chaos : ''); }).join(' ');
+  const e1 = PG.envelope('jolene', PG.unwrap(JTXT).rec), r2 = W.premises && W.premises.rec, e2 = r2 ? PG.envelope('jolene', r2) : null;
+  const p1 = pick(PG.unwrap(e1).rec), p2 = e2 ? pick(PG.unwrap(e2).rec) : '-';
+  // (BUMPINESS, the user 16 Nov - re-pinned by DIRT-STRIP integrating AFB-0220-B3: the user's red marks put w6 at chaos 0.8 and w8 at 0.6;
+  //  the ladder itself is unchanged - look dirtwx, surface 20 on both, kept through save / compose / save)
+  yes(p1 === 'dirtwx/20/0.8 dirtwx/20/0.6' && p2 === p1, 'the editor\'s save keeps the ladder on w6 and w8 (saved, composed, saved again)', p1 + ' | ' + p2);
+  // the shipped scenery's manifest names the change (SCENERYED 15: the save is the user's, byte for byte; the ladder a field patch after the ship)
+  const MF = JSON.parse(src('tools/fixtures/scenery_ship_afb19.json'));
+  yes(['w6', 'w8'].every(id => MF.fieldPatches[id] && MF.fieldPatches[id].look === 'dirtwx' && MF.fieldPatches[id].surface === 20) && /SNOW-MUD LADDER/.test(MF.fieldPatchesWhyLadder || ''),
+    'the scenery ship\'s manifest carries the ladder as a field patch on w6 and w8, with its why');
 }
 
 console.log('  (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s, ' + checks + ' checks)');

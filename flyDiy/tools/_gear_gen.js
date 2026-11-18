@@ -187,6 +187,10 @@ const TYRE = {
   2: { hw: 0.29, bead: 0.46, bulge: 1.00, bulgeAt: 0.84, crown: 0.02 },
   // MONOWHEEL: the bicycle wheel (wheelCycle draws it): a narrow tube tyre on a big thin rim
   3: { hw: 0.10, bead: 0.82, bulge: 1.00, bulgeAt: 0.90, crown: 0.02 },
+  // CAR-3 (the user, 12 Nov: "proper tires for our van ... a 1940s Power Wagon, American ... its own wheels"): the
+  // military lug tyre - a 9.00-16 on a 16" rim (bead 0.46 of the tyre's radius), taller and narrower than the tundra,
+  // its chevron lugs (MIL_LUG) meeting across the crown (4 since L40d: MONOWHEEL's bicycle took 3 first)
+  4: { hw: 0.27, bead: 0.46, bulge: 1.00, bulgeAt: 0.80, crown: 0.03, torus: 1, beadW: 0.80, faceW: 0.70, mil: 1 },
 };
 // the torus section, [radius, axial] from one bead round the crown to the
 // other: an ellipse whose outer extremity is R and whose inner side passes
@@ -214,8 +218,11 @@ function tyreTorus(R, rb, zb, b, grooveAt) {
 // leaning `lean` rad round the wheel over its run, so a pair reads as a chevron; `w` its width along the circumference
 // and `h` its height off the carcass, both of R. Drawing only.
 const BUSH_LUG = { N: 20, ph0: 0.05, ph1: 1.20, lean: 0.10, w: 0.11, h: 0.016, steps: 6 };
-function bushLugs(T, TT, R, at) {
-  const L = BUSH_LUG, H = R * L.h, sink = R * 0.004;
+// CAR-3: the military (NDT) tread - chevrons: the two halves of a lug start at the crown's centre line together (no
+// half-pitch stagger), lean back hard and run down onto the shoulder
+const MIL_LUG = { N: 16, ph0: 0.0, ph1: 1.0, lean: 0.11, w: 0.16, h: 0.022, steps: 7, stagger: 0 };
+function bushLugs(T, TT, R, at, LL) {
+  const L = LL || BUSH_LUG, H = R * L.h, sink = R * 0.004;
   // the carcass point at section angle ph, `dh` off it along the section's normal, at wheel angle an
   const P = (ph, dh, an) => {
     const nr = TT.b * Math.cos(ph), nz = TT.a * Math.sin(ph), nl = Math.hypot(nr, nz) || 1;
@@ -228,7 +235,7 @@ function bushLugs(T, TT, R, at) {
   const V = p => ({ p, i: T.v(p) });
   for (const s of [-1, 1])
     for (let k = 0; k < L.N; k++) {
-      const an0 = 2 * Math.PI * (k + (s > 0 ? 0.5 : 0)) / L.N;
+      const an0 = 2 * Math.PI * (k + (s > 0 ? (L.stagger == null ? 0.5 : L.stagger) : 0)) / L.N;
       const st = [];
       for (let j = 0; j <= L.steps; j++) {
         const u = j / L.steps, ph = s * (L.ph0 + (L.ph1 - L.ph0) * u);
@@ -389,8 +396,14 @@ function wheel(bags, ctr, axis, R, opt) {
   const pN = Math.round(P.whProfile || 0), slick = Math.round(+P.whSlick || 0);
   const lugV = pN === 1 && (slick === 2 || !!(TYRE_LOOK.on && TYRE_LOOK.lugs));
   const L = TYRE_LOOK.on || lugV ? tyreLook(R, pN, { lugs: lugV }) : null;
-  const prof = L ? Object.assign({}, prof0, { hw: L.wd, bead: L.rimD }) : prof0;
-  const hw = R * prof.hw, bead = R * prof.bead;
+  const prof1 = L ? Object.assign({}, prof0, { hw: L.wd, bead: L.rimD }) : prof0;
+  // CAR-1 (the user, 12 Nov: "can we increase the rim size? I'm OK for a new slider"): THE RIM'S DIAMETER, a fraction of
+  // the wheel's (whRimD; absent = the carcass's own bead, every saved wheel byte for byte) - a car's 18" wire wheel
+  // under a 28" tyre is ~0.64, an aeroplane's 5" hub under a 15" tyre ~0.42. The hub's parts scale with it (Rh below)
+  const rimD = +P.whRimD > 0 ? Math.max(0.25, Math.min(0.85, +P.whRimD)) : null;
+  const prof = rimD ? Object.assign({}, prof1, { bead: rimD }) : prof1;
+  // CAR-1 (the user: "a little bigger and a little narrower"): whWide, the tyre's width x the carcass's (absent = 1)
+  const hw = R * prof.hw * (+P.whWide > 0 ? Math.max(0.5, Math.min(1.5, +P.whWide)) : 1), bead = R * prof.bead;
   const half = hw * 0.70;                    // the crown band
   const beadH = hw * (prof.beadW || 0.90);   // where the tyre meets the rim
   const face = hw * (prof.faceW || 0.74);    // THE RIM IS INSET (user)
@@ -467,7 +480,7 @@ function wheel(bags, ctr, axis, R, opt) {
     revolve(T, ctr, ax, TT.pts.map(([r, z]) => [r, z]), 44);
     wallAt = r => { const u = (r - TT.rc) / TT.a; return Math.abs(u) < 1 ? TT.b * Math.sqrt(1 - u * u) : beadH; };
     if (L && L.tread === 'lugs') tyreLugs(T, (r, z, th) => at(r, z, th), TT, L, R);   // whSlick 2 (G3851b)
-    else if (!slick) bushLugs(T, TT, R, at);
+    else if (!slick) bushLugs(T, TT, R, at, prof.mil ? MIL_LUG : BUSH_LUG);
   } else revolve(T, ctr, ax, flank(-1).concat(crown, flank(1).reverse()), 44);
   if (!prof.torus && !L) for (const s of [-1, 1])
     for (const rr of [0.62, 0.70]) {
@@ -484,7 +497,7 @@ function wheel(bags, ctr, axis, R, opt) {
   // G3851: in the proposal EVERY carcass's hub follows its rim (the rim is a real 4-6" wheel), and the small parts
   // have floors and ceilings in metres, so an 8 cm tailwheel still shows a bolt, a valve and a brake you can read,
   // and a 35" tundra's hub stays a 10" wheel's
-  const Rh = (prof.torus || L) ? R * prof.bead / 0.42 : R;
+  const Rh = (prof.torus || L || rimD) ? R * prof.bead / 0.42 : R;
   const q = (v, lo, hi) => L ? clamp(v, lo, hi) : v;
   const rimK = Math.round(P.whRim == null ? 0 : P.whRim);
   const bolts0 = Math.max(3, Math.round(P.whBolts == null ? 6 : P.whBolts));
@@ -538,6 +551,15 @@ function wheel(bags, ctr, axis, R, opt) {
         sweep(Hb, resample([a0, a1], 4),
               () => secBlade(Rh * 0.10, Rh * 0.030), true, ax);
       }
+    } else if (rimK === 3) {                 // CAR-3: PRESSED STEEL DISC + LOCK RING (a 1940s truck's split-rim wheel)
+      // the dished disc: the hub boss, a stamped stiffening ring, the dish out to the rim's well
+      revolve(Hb, ctr, ax, [[Rh * 0.15, hf * 0.86], [Rh * 0.19, hf * 1.00], [Rh * 0.235, hf * 1.00], [Rh * 0.25, hf * 0.93],
+        [Rh * 0.275, hf * 0.93], [Rh * 0.29, hf * 0.99], [Rh * 0.305, hf * 0.93], [bead * 0.99, hf * 0.70]], 44);
+      // the split lock ring on the outer flange: a rolled band standing proud of the rim's lip
+      revolve(Hb, ctr, ax, [[bead * 1.10, hf * 1.04], [bead * 1.17, hf * 1.06], [bead * 1.18, hf * 1.00],
+        [bead * 1.11, hf * 0.98]], 44, true);
+      // its split: a notch tab across the ring
+      taper(bags.dark, at(bead * 1.10, hf * 1.05, 0.4), at(bead * 1.19, hf * 1.05, 0.4), Rh * 0.010, Rh * 0.010, 6);
     } else {                                 // CAST DISC: solid, dished
       revolve(Hb, ctr, ax, [[Rh * 0.16, hf * 0.80], [Rh * 0.24, hf * 1.00],
         [Rh * 0.32, hf * 0.96], [bead * 0.99, hf * 0.72]], 38);
@@ -1129,6 +1151,87 @@ function fitPad(bags, AF, z, ang, L, W, opt) {
         bolt(bags.alloy, off(p, n, (opt.thick || 0.006)), n, 0.011, 0.010);
       }
   }
+}
+
+// THE TOW RELEASE (the user via A0, 15 Nov: "you should have them towed from an anchor at their main wheel position,
+// just forward of it ... Do the 3d anchor properly and professionally"). A CG release in its belly housing - the Tost
+// Europa G 88 class GEN_RULES.towHook.cg names - on the keel (ang 0) at `z`, the station 61_gen_frame builds the
+// release's node at (`ahead` of the main axle). Generated on the surface, like every fitting here:
+//   THE DOUBLER   the plate the housing bolts through (fitPad: painted with the aeroplane, four bolt heads)
+//   THE HOUSING   a blister lofted ON the skin - each section a superellipse in the belly's own frame at its station
+//                 (fitFrame), so it follows the keel's curve - blunt and OPEN at the front (the ring's way in: the line
+//                 pulls forward and down), its width and depth easing to the skin aft (a faired tail, no step)
+//   THE THROAT    the mouth's lip (a rolled edge, steel) and its recess (dark): the release's body in the dark inside
+//   THE JAW       the hook's claw across the throat (a bright steel bar, its bight forward: the ring hangs in it), its
+//                 pivot pin through the throat's walls
+// opt: { fore, aft (the housing's reach ahead of and behind the jaw, m), W (its width), D (its depth below the skin) }. Returns the jaw's point (where
+// the line's ring sits) and the frame there - the page hangs the rope's rings on it.
+function towRelease(bags, AF, z, opt) {
+  opt = opt || {};
+  // (the mouth `fore` ahead of the jaw's station; the faired tail `aft` behind it - the caller clears it of the main
+  //  wheel: a monowheel's sunk tyre stands 5 cm behind the release on the Archaeopteryx)
+  const W = opt.W || 0.072, D = opt.D || 0.034, fore = opt.fore || 0.06, aft = Math.max(0.025, opt.aft == null ? 0.11 : opt.aft);
+  const zF = z + fore, zA = z - aft, L = fore + aft;
+  const steel = bags.steel || bags.alloy, chrome = bags.chrome || bags.alloy, dark = bags.dark || steel;
+  fitPad(bags, AF, z + (fore - aft) / 2 + 0.008, 0, L + 0.03, W + 0.04, { thick: 0.003 });
+  const EXP = 2.6, NS = 18, NR = 14;
+  // the section's half-width and depth at t (0 the mouth, 1 the tail): a swell just aft of the mouth, a cosine tail
+  const wOf = t => (W / 2) * (t < 0.18 ? 0.92 + 0.08 * Math.sin(Math.PI / 2 * t / 0.18) : Math.max(0.06, Math.max(0, Math.cos(Math.PI / 2 * Math.min(1, (t - 0.18) / 0.82))) ** 0.8));
+  const dOf = t => D * (t < 0.18 ? 0.94 + 0.06 * Math.sin(Math.PI / 2 * t / 0.18) : Math.max(0.03, Math.max(0, Math.cos(Math.PI / 2 * Math.min(1, (t - 0.18) / 0.82))) ** 1.15));
+  const se = (c, e) => Math.sign(c) * Math.abs(c) ** (2 / e);
+  // a section: from one skin edge round the belly to the other (phi 0..pi), in the frame at its station
+  const ring = (zz, w, d, inset) => {
+    const F = fitFrame(AF, zz, 0), out = [];
+    for (let k = 0; k <= NS; k++) {
+      const ph = Math.PI * k / NS, u = se(Math.cos(ph), EXP), v = se(Math.sin(ph), EXP);
+      const x = (w - inset) * u, y = Math.max(0, (d - inset) * v) - 0.0012;   // (sunk 1.2 mm into the skin at the edges: no seam)
+      out.push(add(add(F.p, mul(F.side, x)), mul(F.n, y)));
+    }
+    return { pts: out, F };
+  };
+  // orient a quad outward from an inside point (the loft's own winding cannot be trusted on a mirrored belly frame)
+  const oq = (bag, ia, ib, ic, id, P, inside) => {
+    const a = P[0], b = P[1], c = P[2];
+    const nn = crs(sub(b, a), sub(c, a)), m = mul(add(add(a, b), add(c, P[3])), 0.25);
+    if (dot(nn, sub(m, inside)) >= 0) bag.quad(ia, ib, ic, id); else bag.quad(id, ic, ib, ia);
+  };
+  // THE HOUSING'S SHELL: rings from the mouth (t 0) to the tail (t 1), the tail closed on the skin
+  const rings = [];
+  for (let i = 0; i <= NR; i++) { const t = i / NR, zz = zF - (zF - zA) * t; rings.push(ring(zz, wOf(t), dOf(t), 0)); }
+  const ids = rings.map(r => r.pts.map(q => steel.v(q)));
+  for (let i = 0; i < NR; i++) {
+    const inside = add(rings[i].F.p, mul(rings[i].F.n, 0.3 * dOf(i / NR)));
+    for (let k = 0; k < NS; k++)
+      oq(steel, ids[i][k], ids[i][k + 1], ids[i + 1][k + 1], ids[i + 1][k],
+         [rings[i].pts[k], rings[i].pts[k + 1], rings[i + 1].pts[k + 1], rings[i + 1].pts[k]], inside);
+  }
+  { const r = rings[NR], tip = steel.v(off(r.F.p, r.F.n, -0.001)), inside = off(r.F.p, r.F.n, 0.004);
+    for (let k = 0; k < NS; k++) { const a = r.pts[k], b = r.pts[k + 1], nn = crs(sub(b, a), sub(r.F.p, a));
+      if (dot(nn, sub(a, inside)) >= 0) steel.tri(ids[NR][k], ids[NR][k + 1], tip); else steel.tri(tip, ids[NR][k + 1], ids[NR][k]); } }
+  // THE MOUTH: the lip (a rolled edge, 2.5 mm, steel) to the throat's opening, the throat recessed 26 mm (dark), its back
+  const w0 = wOf(0), d0 = dOf(0), lip = 0.0045;
+  const mouthIn = ring(zF - 0.003, w0, d0, lip), throatEnd = ring(zF - 0.026, w0 * 0.92, d0 * 0.92, lip);
+  const outerI = ids[0], inI = mouthIn.pts.map(q => steel.v(q));
+  const inside0 = add(rings[0].F.p, mul(rings[0].F.n, 0.45 * d0));
+  for (let k = 0; k < NS; k++)   // (the lip's face looks forward)
+    oq(steel, outerI[k], outerI[k + 1], inI[k + 1], inI[k], [rings[0].pts[k], rings[0].pts[k + 1], mouthIn.pts[k + 1], mouthIn.pts[k]], off(inside0, rings[0].F.fore, -0.05));
+  const tA = mouthIn.pts.map(q => dark.v(q)), tB = throatEnd.pts.map(q => dark.v(q));
+  const axisIn = add(rings[0].F.p, mul(rings[0].F.n, 0.45 * d0));
+  for (let k = 0; k < NS; k++)   // (the throat's walls look inward, toward its axis)
+  { const P4 = [mouthIn.pts[k], mouthIn.pts[k + 1], throatEnd.pts[k + 1], throatEnd.pts[k]], nn = crs(sub(P4[1], P4[0]), sub(P4[2], P4[0]));
+    if (dot(nn, sub(axisIn, P4[0])) >= 0) dark.quad(tA[k], tA[k + 1], tB[k + 1], tB[k]); else dark.quad(tB[k], tB[k + 1], tA[k + 1], tA[k]); }
+  { // the back wall: a fan, facing forward (seen through the mouth)
+    const c = dark.v(add(throatEnd.F.p, mul(throatEnd.F.n, 0.4 * d0)));
+    for (let k = 0; k < NS; k++) { const a = throatEnd.pts[k], b = throatEnd.pts[k + 1], nn = crs(sub(b, a), sub(add(throatEnd.F.p, mul(throatEnd.F.n, 0.4 * d0)), a));
+      if (dot(nn, throatEnd.F.fore) >= 0) dark.tri(tB[k], tB[k + 1], c); else dark.tri(c, tB[k + 1], tB[k]); } }
+  // THE JAW: a 7 mm steel bar bent to a claw across the throat - from its pivot up in the housing, down and forward to
+  // the bight just inside the mouth, back up to its tip - and the pivot pin through the throat's walls
+  const F0 = fitFrame(AF, zF - 0.012, 0), J = (a, dn) => add(add(F0.p, mul(F0.fore, a)), mul(F0.n, dn * d0));
+  const claw = [J(-0.012, 0.22), J(-0.004, 0.42), J(0.006, 0.62), J(0.006, 0.80), J(-0.004, 0.86), J(-0.012, 0.74)];
+  sweep(chrome, fillet(claw, 0.004, 4), () => secRound(0.0035, 10), true);
+  const pin = J(-0.012, 0.22);
+  tube(chrome, add(pin, mul(F0.side, -w0 * 0.82)), add(pin, mul(F0.side, w0 * 0.82)), 0.0028, 10);
+  return { ring: J(0.002, 0.82), F: F0 };
 }
 
 // G133: WHERE A LEG MEETS THE AEROPLANE IS NOW A CHOICE. `st.mount`, when
@@ -1927,6 +2030,27 @@ const PC6_USD = { 'oleo cylinder': 1900, 'oleo charge (oil, gas valve, seals)': 
   'steering collar and ears': 450, 'crosshead (forged)': 350, 'fork legs and axle': 300,
   'V upper arm and hinge pin (forged alloy)': 500, 'V bands (2, forged alloy)': 350,
   'steering arm, cables and springs': 300, 'mudguard, strap and doubler': 250 };
+// PC6-MASS (REAL-FIGURES' verdict, 17 Nov: "lighten the tail gear to a SOURCED real assembly mass"). THE SOURCES:
+//  - THE WHEEL GROUP (the wheel and tyre, the fork and axle, the crosshead, the V's arms, the steering arm): a 14 in
+//    heavy tailwheel assembly - wheel, tyre, fork, swivel and steering - weighs 17.4 lb, 7.9 kg (McFarlane / Landing
+//    Gear Works XPM1-3-8 and XPM1-5, FAA-PMA; eligible on the Cessna 180/185 and the T188C AgTruck). The PC-6's own
+//    tailwheel is the same class (a 5.00-4 tyre, ~14 in: Beringer's PC-6 kit STC-002). The drawn parts keep their
+//    shares and are scaled so the group with the wheel and tyre (the frame's row, 60_gen_spec wheelTwKg - the same rule
+//    here) weighs the assembly's 7.9 kg.
+//  - THE GUARD: the PC-6's own tail wheel debris guard, Dwg. 112.35.06.213, 2.7 kp at +9850 mm (TCDS F 56-10 issue 7,
+//    2.96 Optional Equipment, item 15).
+//  - THE STRUT AND ITS FITTINGS (the cylinder, the piston, the charge, the collar, the clamps, the truss): no published
+//    figure was found - billed as drawn (their sizes, their materials).
+const PC6_SRC = { groupKg: 7.9, guardKg: 2.7,
+  group: ['crosshead (forged)', 'fork legs and axle', 'V upper arm and hinge pin (forged alloy)', 'V bands (2, forged alloy)', 'steering arm, cables and springs'] };
+function pc6Source(bill, R) {
+  const wheel = 2.0 * Math.pow(Math.max(0.03, R) / 0.10, 1.5);   // (60_gen_spec GEN_RULES.wheelTwKg)
+  const grp = bill.filter(b => PC6_SRC.group.includes(b.part)), drawn = grp.reduce((s, b) => s + b.kg, 0);
+  const k = drawn > 0 ? Math.max(0, PC6_SRC.groupKg - wheel) / drawn : 1;
+  for (const b of grp) { b.drawnKg = b.kg; b.kg *= k; b.src = 'McFarlane XPM1-5 14 in assembly 17.4 lb (the group with the wheel)'; }
+  for (const b of bill) if (b.part === 'mudguard, strap and doubler') { b.drawnKg = b.kg; b.kg = PC6_SRC.guardKg; b.src = 'TCDS F 56-10 2.96-15: debris guard 2.7 kp'; }
+  return bill;
+}
 function pc6Price(bill) { for (const b of bill) b.usd = PC6_USD[b.part] || 0; return bill; }
 function pcSecPlate(a, b, r) {               // a rounded rectangle, a along the sweep's reference, b across, corners r
   const out = [], A = 3, ha = Math.max(1e-4, a / 2 - r), hb = Math.max(1e-4, b / 2 - r);
@@ -2878,7 +3002,7 @@ function legTailwheel(bags, AF, P, st) {
       const clampKg = 2 * (Math.PI * (D + 0.013) * 0.0065 * 0.9 * D * RH.steel            // the band
                           + 2 * pcBar(0.06, 0.9 * D, 0.005, RH.alloy)                      // two cheeks
                           + pcBar(2.0 * D, 2.8 * D, 0.006, RH.alloy) + 0.12);              // the base plate, lugs, bolts
-      bill.push({ part: 'clamps and bulkhead plates (2)', at: 'cyl', kg: clampKg, usd: 0 });
+      bill.push({ part: 'clamps and bulkhead plates (2)', at: 'frame', kg: clampKg, usd: 0 });
     }
     // THE STABILISER (fixed): the node ahead and low, its two tubes to the belly (each foot the skin's own point with a
     // doubler: "make these robust, it's a generic option"), its link aft and up to a band on the CYLINDER's foot - the
@@ -2915,8 +3039,8 @@ function legTailwheel(bags, AF, P, st) {
       // its bill: the three 4130 tubes (1.2 mm wall), the doublers, the clevises, the link's band, the node
       {
         const L3 = ends.map(e => Math.hypot(...sub(H, e)));
-        pc6Rec.bill.push({ part: 'stabiliser tubes (3, 4130)', at: 'stab', kg: pcTube(0.48 * D, 0.0012, L3[0] + L3[1], PC6_RHO.steel) + pcTube(0.52 * D, 0.0012, L3[2], PC6_RHO.steel), usd: 0 });
-        pc6Rec.bill.push({ part: 'belly doublers, clevises, link band', at: 'stab', kg: 2 * pcBar(2.4 * D, 1.7 * D, 0.006, PC6_RHO.alloy) + 3 * 0.09 + 0.25, usd: 0 });
+        pc6Rec.bill.push({ part: 'stabiliser tubes (3, 4130)', at: 'frame', kg: pcTube(0.48 * D, 0.0012, L3[0] + L3[1], PC6_RHO.steel) + pcTube(0.52 * D, 0.0012, L3[2], PC6_RHO.steel), usd: 0 });
+        pc6Rec.bill.push({ part: 'belly doublers, clevises, link band', at: 'frame', kg: 2 * pcBar(2.4 * D, 1.7 * D, 0.006, PC6_RHO.alloy) + 3 * 0.09 + 0.25, usd: 0 });
       }
       const welded = Math.round(+P.twNode || 0) !== 1;
       ends.forEach((e, i) => { const d = nrm(sub(H, e));
@@ -3041,9 +3165,11 @@ function legTailwheel(bags, AF, P, st) {
   // must not move; `tip` is the castor's swivel top. The join pins both.
   if (pc6Rec && u.pc6 && u.pc6.bill) {
     for (const b of u.pc6.bill) pc6Rec.bill.push(b);
+    pc6Source(pc6Rec.bill, st.R);
     pc6Price(pc6Rec.bill);
     const sumAt = a => pc6Rec.bill.filter(b => b.at === a).reduce((s, b) => s + b.kg, 0);
-    pc6Rec.kgCyl = sumAt('cyl'); pc6Rec.kgSlider = sumAt('slider'); pc6Rec.kgStab = sumAt('stab');
+    // (PC6-MASS: the 'frame' parts - the fittings - are the frame's members' own mass, not put on the nodes again)
+    pc6Rec.kgCyl = sumAt('cyl'); pc6Rec.kgSlider = sumAt('slider'); pc6Rec.kgStab = sumAt('stab'); pc6Rec.kgFrame = sumAt('frame');
     pc6Rec.usd = pc6Rec.bill.reduce((s, b) => s + b.usd, 0);
     for (const b of pc6Rec.bill) { b.kg = Math.round(b.kg * 1000) / 1000; }
   }
@@ -3300,6 +3426,6 @@ window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
-                    fitPad, legBeam, legLink, legOleo, castorUnit, steerRun, pc6Scissor, pc6CompMax, pc6PistonRun, PC6_RAKE,
+                    fitPad, towRelease, legBeam, legLink, legOleo, castorUnit, steerRun, pc6Scissor, pc6CompMax, pc6PistonRun, PC6_RAKE,
                     legTailwheel, legTipWheel, legLever, leverRowsOf, Bag };
 })();

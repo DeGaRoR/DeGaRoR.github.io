@@ -463,6 +463,20 @@ function cageJoinSpec(P, M, T) {
       if (typeof M.floats.x === 'number' && isFinite(M.floats.x)) spec.gear.floats.x = M.floats.x;
       if (typeof M.floats.preset === 'string') spec.gear.floats.preset = M.floats.preset;
       if (M.floats.style === 'edo') spec.gear.floats.style = 'edo';   // FLOATS-CLASSIC (a Wipline names none)
+      // AMPH-FLOATS (GEAR-LEVER, 13 Nov; the backlog's AMPHIB-FLOATS): THE AMPHIBIAN'S WHEELS REACH THE PHYSICS - a
+      // quadricycle, a nose wheel in each bow and the mains (single or dual) aft of each step, as drawn (the float
+      // layer's amphib, in the float's own frame), the system's weight (Wipaire's, 32_hydro WIPLINE_AMPHIB dKg: the pair
+      // over the seaplane's; a row with none, estimated - est), and the retraction: Wipline's electro-hydraulic pump,
+      // its hand pump the emergency; the cycle 12 s [inferred: no Wipaire figure], the lift each axle's drawn rise.
+      // Written only on an amphibian: every float build keeps its spec to the bit
+      const AL = M.floats.amph;
+      if (AL && Array.isArray(AL.main) && Array.isArray(AL.nose)) {
+        const r4 = v => +(+v).toFixed(4);
+        spec.gear.floats.amph = { main: AL.main.map(r4), nose: AL.nose.map(r4), rM: r4(AL.rM), rN: r4(AL.rN), wM: r4(AL.wM), wN: r4(AL.wN),
+                                  mainN: AL.mainN === 2 ? 2 : 1, ...(AL.dKg != null ? { kg: +AL.dKg } : {}), ...(AL.est ? { est: 1 } : {}) };
+        spec.gear.retract = { time: 12, act: 'hydraulic', emerg: 'pump',
+                              lift: { mains: r4(Math.max(0, AL.mainUp[1] - AL.main[1])), nose: r4(Math.max(0, AL.noseUp[1] - AL.nose[1])) } };
+      }
     }
     // HULL-B2: the boat's measured lines ride the gear record as the floats' do
     if (M.hull) spec.gear.hull = Object.assign({ sta: M.hull.sta, x: M.hull.x, y: M.hull.y, steps: M.hull.steps, tips: M.hull.tips }, M.hull.spon ? { spon: M.hull.spon } : {});
@@ -1264,7 +1278,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   // the editor's inner (pitch) mount — the frame every capture and every
   // layer-bounds measurement is taken in (shared by snapshot and measure)
   const edMount = () => {
-    let g = window.CAGE_WING && window.CAGE_WING.group;
+    // (CAR-1: a wingless build - a car - has no wing layer: the gear layer's group sits under the same mount)
+    let g = (window.CAGE_WING && window.CAGE_WING.group) || (window.CAGE_GEAR && window.CAGE_GEAR.group);
     while (g && g.parent && !g.parent.isScene &&
            g.parent.parent && !g.parent.parent.isScene) g = g.parent;
     return g;
@@ -1649,6 +1664,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         if (CF && CF.P && +P.gearFloats) {
           M.floats = Object.assign({}, CF.P, {
             x: fwOk ? zFw - CF.zStep : null, y: CF.keelY - yD, track: CF.track, volDeck: CF.vol });
+          // AMPH-FLOATS (GEAR-LEVER): the amphibian's wheels as the float layer drew them (its own frame)
+          if (+P.fltAmph && CF.amph && CF.amph.local) M.floats.amph = CF.amph.local;
           if (!fwOk) NOTES.push('floats: no firewall anchor — the step station keeps the rule');
         }
       }
@@ -2350,7 +2367,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   // Published so `_cage_ui.js` reads it rather than keeping a second walk
   // that can drift (it passed the ROOM's origin, 2.59 m away).
   const joinMount = () => {
-    let g = window.CAGE_WING && window.CAGE_WING.group;
+    // (CAR-1: a wingless build - a car - has no wing layer: the gear layer's group sits under the same mount)
+    let g = (window.CAGE_WING && window.CAGE_WING.group) || (window.CAGE_GEAR && window.CAGE_GEAR.group);
     while (g && g.parent && !g.parent.isScene &&
            g.parent.parent && !g.parent.parent.isScene) g = g.parent;
     return g;                        // edSitP: the inner (pitch) mount

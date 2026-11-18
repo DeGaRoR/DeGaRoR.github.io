@@ -198,9 +198,9 @@
   },
   "wear": 0.05,
   "decals": {
-   "regH": 0.16,
-   "regL": 3.55,
-   "regC": -0.06,
+   "regH": 0.2,
+   "regL": 3.75,
+   "regC": -0.035,
    "regW": 1,
    "regLock": 1,
    "imgW": 0.15,
@@ -220,7 +220,7 @@
    "m1Rot": 0,
    "m1Tgt": 0,
    "m1Mode": 1,
-   "regFont": 2,
+   "regFont": 0,
    "wregOn": 0,
    "wregH": 0.55,
    "wregL": 2.6,
@@ -287,10 +287,7 @@
    "m4Tgt": 0,
    "m4Mode": 1,
    "m4Flip": 0,
-   "m4Fit": 0,
-   "regFace": "saira",
-   "regB": 1,
-   "regI": 0
+   "m4Fit": 0
   },
   "glass": {
    "opacity": 0.35,

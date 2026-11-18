@@ -20,7 +20,7 @@ Each tool has a skill in `.claude/skills/workbench-*` that loads its procedure w
 | Scripted flights (steps + deep log) | `flyDiy/tools/flight_script.js` (Pilot, coming Tue) | node runner for tests, page runner for perf | node / GPU | cards/flight_script.md |
 | Fit a plane to its blueprints (rows, searches, the score; `--png` is quickshot's `--sheet`, GATE QSPARITY holds the two to one measurement) | `flyDiy/tools/drafting/table.js` | `node flyDiy/tools/drafting/table.js check <plane.json> [--sheet img --png prefix]` | node | workbench-quick-render, ../DRAFTING_TABLE.md |
 | Real-figure validation | `flyDiy/tools/real_report.js` (+ real_refs.js, real_check.js) | `node flyDiy/tools/real_report.js` | node | ../FIT_AND_VALIDATE.md |
-| Vegetation of an island area: where trees stand, which rule refuses them, before/after of a biome edit | `flyDiy/tools/veg_bench.js` | `node flyDiy/tools/veg_bench.js --out <dir> [--areas skyline,ardent,cabin,north] [--subalpine 0]` | node | cards/veg_bench.md |
+| Vegetation of an island area: where trees stand, which rule refuses them, before/after of a biome edit | `flyDiy/tools/veg_bench.js` | `node flyDiy/tools/veg_bench.js --out <dir> [--areas skyline,ardent,cabin,north,home] [--subalpine 0] [--forestedge 0] [--edge <areas>]` | node | cards/veg_bench.md |
 | Build the game files | `flyDiy/tools/build.js` | `node flyDiy/tools/build.js` (after any src edit, BEFORE judging a gate) | node | workbench-commit |
 | Career snapshots of the validated builds | `flyDiy/tools/snapshots.js` | `--write` after a build edit, `--check` = GATE SNAPSHOTS | node | header |
 | Load time | `flyDiy/tools/boot_perf.js` | `node flyDiy/tools/boot_perf.js --url <dev.html> --cold` (A0's coldload.sh wraps it) | GPU, in a slot | workbench-box |

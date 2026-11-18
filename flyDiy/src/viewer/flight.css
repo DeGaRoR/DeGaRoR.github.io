@@ -275,6 +275,56 @@
 /* G1370 (UI-LAYER): the verbs wait for the reveal - none of them during the roll-out shot (app.js rollShotUi) */
 body.rollShot #flActs { display:none !important; }
 
+/* ---- THE CONTROLS STRIP (CONTROLS-STRIP, the user 16 Nov: variant A) - bottom centre, ~200 x 100, read THROUGH:
+   a lighter glass than the plates that carry a decision, and NO backdrop blur (a blur over the WebGL canvas is a
+   compositor pass every frame - the strip costs nothing it does not draw). Every live mark moves by its transform
+   alone (app.js ctlStrip, 10 Hz); the amber/white is one class on the strip (.ap / .hand). */
+#ui #ctlStrip { position:absolute; left:50%; bottom:18px; transform:translateX(-50%); z-index:5;
+  display:flex; align-items:flex-end; gap:16px; padding:9px 14px 8px; border-radius:10px;
+  background:rgba(30,27,24,.36); border:1px solid var(--ed-border); pointer-events:none;
+  font:500 11px/1 'IBM Plex Sans', system-ui, sans-serif; font-variant-numeric:tabular-nums;
+  color:var(--ed-ink); text-shadow:0 1px 2px rgba(0,0,0,.5); --cs:#f4efe6; }
+#ui #ctlStrip[hidden] { display:none; }
+#ui #ctlStrip.ap { --cs:#ffb257; }
+body.rollShot #ctlStrip { display:none !important; }
+#ctlStrip i, #ctlStrip b { display:block; font-style:normal; }
+#ctlStrip .csSide { align-self:stretch; display:flex; flex-direction:column; justify-content:space-between; align-items:flex-start; }
+#ctlStrip .csTag { padding:3px 6px; border-radius:5px; font-size:9px; font-weight:600; letter-spacing:.14em;
+  border:1px solid rgba(244,239,230,.5); color:var(--cs); }
+#ctlStrip.ap .csTag { border-color:rgba(255,178,87,.75); }
+#ctlStrip .csLab { font-size:8.5px; letter-spacing:.16em; color:var(--ed-faint); white-space:nowrap; }
+#ctlStrip .csMid { display:flex; flex-direction:column; gap:6px; align-items:center; }
+#ctlStrip .csStick { position:relative; width:60px; height:60px; border-radius:6px; border:1px solid rgba(255,248,236,.24);
+  background:rgba(0,0,0,.14); box-sizing:border-box; }
+#ctlStrip .csAx { position:absolute; background:rgba(255,248,236,.14); }
+#ctlStrip .csAxV { left:29px; top:4px; bottom:4px; width:1px; }
+#ctlStrip .csAxH { top:29px; left:4px; right:4px; height:1px; }
+#ctlStrip .csTrim { position:absolute; left:-6px; top:25px; width:0; height:0; border-top:4px solid transparent;
+  border-bottom:4px solid transparent; border-left:5px solid var(--ed-dim); }
+#ctlStrip .csTr { position:absolute; left:26px; top:26px; width:6px; height:6px; border-radius:3px; background:var(--cs); opacity:0; }
+#ctlStrip .csDot { position:absolute; left:24px; top:24px; width:10px; height:10px; border-radius:5px; background:var(--cs);
+  box-shadow:0 0 0 1px rgba(0,0,0,.45); }
+#ctlStrip .csRud { position:relative; width:60px; height:4px; border-radius:2px; background:rgba(0,0,0,.3); }
+#ctlStrip .csRudC { position:absolute; left:29.5px; top:-2px; width:1px; height:8px; background:rgba(255,248,236,.3); }
+#ctlStrip .csRudM { position:absolute; left:28.5px; top:-3px; width:3px; height:10px; border-radius:1px; background:var(--cs); }
+#ctlStrip .csToe { display:flex; gap:8px; }
+#ctlStrip .csToe > i { position:relative; width:26px; height:3px; border-radius:2px; background:rgba(0,0,0,.3); overflow:hidden; }
+#ctlStrip .csToe b { position:absolute; inset:0; background:var(--cs); transform:scaleX(0); transform-origin:left center; }
+#ctlStrip .csToe > i + i b { transform-origin:right center; }
+#ctlStrip .csCol { display:flex; flex-direction:column; gap:5px; align-items:center; min-width:30px; }
+#ctlStrip .csCol[hidden] { display:none; }
+#ctlStrip .csBar { position:relative; width:8px; height:60px; border-radius:3px; background:rgba(0,0,0,.3); overflow:hidden; }
+#ctlStrip .csBar b { position:absolute; inset:0; background:var(--cs); transform:scaleY(0); transform-origin:center bottom; }
+#ctlStrip .csFlapBar b { background:var(--ed-dim); transform-origin:center top; }
+#ctlStrip .csNum { font-size:11px; font-weight:500; white-space:nowrap; }
+#ctlStrip .csLamp { width:10px; height:10px; border-radius:5px; margin:25px 0; background:rgba(0,0,0,.3);
+  box-shadow:0 0 0 1px rgba(255,248,236,.24); }
+#ctlStrip .csLamp.g { background:#7fc77a; }
+#ctlStrip .csLamp.r { background:#e0614f; }
+/* the phone (the user's pick: A at 85 %, the numbers dropped) - on html.phone only, the desktop's pixels untouched */
+html.phone #ui #ctlStrip { bottom:10px; transform:translateX(-50%) scale(.85); transform-origin:center bottom; gap:13px; padding:7px 11px 6px; }
+html.phone #ctlStrip .csNum, html.phone #ctlStrip #csTrimT { display:none; }
+
 #ui .verb { font:500 12px/1 'IBM Plex Sans'; letter-spacing:.1em;
   text-transform:uppercase; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
@@ -525,6 +575,8 @@ body.rollShot #flActs { display:none !important; }
   background:#2b3138; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12); }
 #ui .rd b .gl.g { background:#35c46a; box-shadow:0 0 6px rgba(53,196,106,0.7); }
 #ui .rd b .gl.r { background:#e04a33; box-shadow:0 0 6px rgba(224,74,51,0.7); }
+/* GEAR-LEVER: an amphibian's wheels up - blue (Wipline's advisory: water) */
+#ui .rd b .gl.b { background:#3a86ff; box-shadow:0 0 6px rgba(58,134,255,0.7); }
 
 #ui .rd[hidden] { display:none; }
 
@@ -1142,6 +1194,10 @@ body.fl2.mode-fly #mapEntry { display:none !important; }
 .flCornB svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round; }
 body.fl2.mode-fly .flCornB { display:inline-flex; }
 body.fl2 .flCornB[hidden], body.shot .flCornB, body.rollShot .flCornB, body.premOpen .flCornB, body.sceneryMode .flCornB { display:none !important; }
+/* TOW-LAUNCH: driving, the aeroplane's own verbs and notes are off - its bench notice, Skip to line-up (the corner and the
+   verb), Fly the circuit, the arrival card, the telemetry (the drive mode's card, map and picker stay: drive_mode.js) */
+body.driveMode #flNotice, body.driveMode #bSkip, body.driveMode #bGo, body.driveMode .flCornB, body.driveMode #arrCard,
+body.driveMode #telp { display:none !important; }
 #flMmB { top:18px; right:22px; }
 /* G3648 / G3741 photo mode: nothing on the screen but the camera button - pressed again it takes the picture and the
    interface comes back (Esc: back without one); the back button of the shed's screenshot mode is not needed here */

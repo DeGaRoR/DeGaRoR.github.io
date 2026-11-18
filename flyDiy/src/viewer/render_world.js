@@ -19,11 +19,74 @@ function buildWorldScene(scene, world, renderer, camera, shedDims) {
   const g = buildWorldSceneSteps(scene, world, renderer, camera, shedDims);
   for (;;) { const r = g.next(); if (r.done) return r.value; }
 }
+// ROCK-STUDY R1: THE ROCK'S TERRAIN BIAS (splat_ground sTrExpo reads it in the tint's alpha). The exposure wants the
+// ground's convexity (a ridge is bare) and its drainage (a valley line holds soil): both from the hydrology's own 1024^2
+// heights (world.hydro.grids.H, ~38 m; its accumulation is all 1 in the island's 'map' mode, so the drainage is the 300 m
+// CONCAVITY - a valley is a concave line), two box blurs: the 76 m Laplacian (convex +) and the 300 m concavity, each over its
+// land std; bias = 0.20 x clamp(0.45 z_convex) - 0.35 x smoothstep(0.6, 1.6, z_valley), stored as (bias + 0.6) / 0.8, bilinear
+// onto the tint's grid (W2 x H2 cells of cs metres from gx0, gz0). Self-contained: its source text is the worker's.
+function ROCK_BIAS(Hf, sea, N, hx0, hz0, hdx, hdz, gx0, gz0, cs, W2, H2) {
+  const n = N * N;
+  const box = (src, r) => { const tmp = new Float32Array(n), out = new Float32Array(n), w = 2 * r + 1;
+    for (let y = 0; y < N; y++) { let acc = 0; const o = y * N;
+      for (let k = -r; k <= r; k++) acc += src[o + Math.min(N - 1, Math.max(0, k))];
+      for (let x = 0; x < N; x++) { tmp[o + x] = acc / w; acc += src[o + Math.min(N - 1, x + r + 1)] - src[o + Math.max(0, x - r)]; } }
+    for (let x = 0; x < N; x++) { let acc = 0;
+      for (let k = -r; k <= r; k++) acc += tmp[Math.min(N - 1, Math.max(0, k)) * N + x];
+      for (let y = 0; y < N; y++) { out[y * N + x] = acc / w; acc += tmp[Math.min(N - 1, y + r + 1) * N + x] - tmp[Math.max(0, y - r) * N + x]; } }
+    return out; };
+  const b2 = box(Hf, 2), b8 = box(box(Hf, 4), 4);
+  let sL = 0, sC = 0, m = 0;
+  for (let k = 0; k < n; k += 7) { if (sea && sea[k]) continue; const l = Hf[k] - b2[k], c = b8[k] - Hf[k]; sL += l * l; sC += c * c; m++; }
+  const zL = 1 / Math.max(1e-3, Math.sqrt(sL / Math.max(1, m))), zC = 1 / Math.max(1e-3, Math.sqrt(sC / Math.max(1, m)));
+  const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const B = new Float32Array(n);
+  for (let k = 0; k < n; k++) B[k] = 0.20 * Math.min(1, Math.max(-1, (Hf[k] - b2[k]) * zL * 0.45)) - 0.35 * ss(0.6, 1.6, (b8[k] - Hf[k]) * zC);
+  const out = new Uint8Array(W2 * H2);
+  for (let j = 0; j < H2; j++) { const fz = (gz0 + (j + 0.5) * cs - hz0) / hdz - 0.5, z0 = Math.max(0, Math.min(N - 2, Math.floor(fz))), v = Math.min(1, Math.max(0, fz - z0));
+    for (let i = 0; i < W2; i++) { const fx = (gx0 + (i + 0.5) * cs - hx0) / hdx - 0.5, x0 = Math.max(0, Math.min(N - 2, Math.floor(fx))), u = Math.min(1, Math.max(0, fx - x0)), k = z0 * N + x0;
+      const b = (B[k] * (1 - u) + B[k + 1] * u) * (1 - v) + (B[k + N] * (1 - u) + B[k + N + 1] * u) * v;
+      out[j * W2 + i] = Math.round(Math.min(1, Math.max(0, (b + 0.6) / 0.8)) * 255); } }
+  return out;
+}
+// the job: { done, out, onDone } - the worker fills it and calls onDone (the tint's late write); ROCK_STATS { biasWorkerMs (inside
+// the worker), biasMainMs (the post here + the copy back), biasWorker: true }. null = no worker (the step makes it on the main thread)
+function rockBiasStart(world, BUD) {
+  try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
+  if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return null;
+  const I = world.island, g = world.hydro && world.hydro.grids;
+  if (!I || !I.albedo || !I.grid || !I.tint || !g || !g.H || !g.N) return null;
+  const IG = I.grid, half = !!(BUD && BUD.islandHalf), W2 = half ? Math.ceil(IG.w / 2) : IG.w, H2 = half ? Math.ceil(IG.h / 2) : IG.h;
+  const t0 = performance.now(), job = { done: false, out: null };
+  try {
+    const hasCore = typeof ROCK_RING_CORE_SRC !== 'undefined';
+    const src = (hasCore ? ROCK_RING_CORE_SRC + '\n' : '') + 'const ROCK_BIAS = ' + ROCK_BIAS.toString() + ';\nonmessage = e => { const a = e.data, t = performance.now();\n' +
+      '  const flow = (typeof ROCK_RING_CORE !== "undefined") ? ROCK_RING_CORE.flowGrid(a.H, a.N, a.hdx * a.hdx / 25) : null;\n' +
+      // (17 Nov: THE MAP CARRIES THE MACRO - v1's exposure field over the island, rock_ring_core bakeIsland, in the bias's byte)
+      '  const out = (flow && a.TT && ROCK_RING_CORE.bakeIsland) ? ROCK_RING_CORE.bakeIsland({ H: a.H, N: a.N, hx0: a.hx0, hz0: a.hz0, hdx: a.hdx, flow, TT: a.TT, ND: a.ND, IGw: a.IGw, IGh: a.IGh, IGx0: a.IGx0, IGz0: a.IGz0, IGcell: a.IGcell, gx0: a.gx0, gz0: a.gz0, cs: a.cs, W2: a.W2, H2: a.H2 }) : new Uint8Array(a.W2 * a.H2);\n' +
+      '  postMessage({ out, flow, ms: performance.now() - t }, [out.buffer].concat(flow ? [flow.buffer] : [])); };';
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), w = new Worker(url);
+    const fail = why => { console.warn('rock bias worker: ' + why + ' - made on the main thread'); job.done = true; job.out = null; try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); if (job.onDone) job.onDone(); };
+    w.onmessage = e => { const t1 = performance.now(); job.out = e.data.out; job.flow = e.data.flow ? { g: e.data.flow, N: g.N, x0: g.x0, z0: g.z0, dx: g.dx } : null; job.done = true; w.terminate(); URL.revokeObjectURL(url);
+      if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasWorker: true, biasWorkerMs: Math.round(e.data.ms), biasWallMs: Math.round(t1 - t0), biasMainMs: Math.round(job.postMs + (performance.now() - t1)), biasGrid: g.N, tint: [W2, H2] });
+      if (job.onDone) job.onDone(); };
+    w.onerror = e => fail(e && e.message || 'error');
+    const H = Float32Array.from(g.H), sea = g.sea ? Uint8Array.from(g.sea) : null;
+    const TT = I.ttype ? Uint8Array.from(I.ttype) : null, ND = I.ndvi ? Uint8Array.from(I.ndvi) : null;   // (the bake's: the 10 m type and NDVI)
+    w.postMessage({ H, sea, N: g.N, hx0: g.x0, hz0: g.z0, hdx: g.dx, hdz: g.dz, gx0: IG.x0, gz0: IG.z0, cs: IG.cell * (half ? 2 : 1), W2, H2, TT, ND, IGw: IG.w, IGh: IG.h, IGx0: IG.x0, IGz0: IG.z0, IGcell: IG.cell },
+      [H.buffer].concat(sea ? [sea.buffer] : [], TT ? [TT.buffer] : [], ND ? [ND.buffer] : []));
+    job.postMs = performance.now() - t0;
+  } catch (e) { console.warn('rock bias worker: ' + (e && e.message || e)); return null; }
+  return job;
+}
 function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // G1230 (MEM-BUDGET): the build budget of the player's preset (gfx_settings.js BUDGETS) - what this build makes and
   // holds; null (a gate's stub, no GFX): everything at full
   const BUD = (typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function') ? window.GFX.budget() : null;
   const BUILT = { done: false, q: [] };
+  // ROCK-STUDY R1: the rock's terrain bias, in a worker from here (the 'island ground' step waits for it): null = made on the
+  // main thread there (no Worker), or not at all (?rocks=0, no island, no hydrology)
+  const rockBiasJob = rockBiasStart(world, BUD);
   const afterBuild = fn => { if (BUILT.done) fn(); else BUILT.q.push(fn); };
   // (12 Nov, FIT-PROCEDURE: under r186's MANAGED colour, Color(hex) already decodes sRGB - the second conversion drew
   // every world colour twice decoded; convert only when management is off, the 'as authored' step: once in either mode)
@@ -328,9 +391,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     return false;
   };
   function floorsChanged(f) {
-    for (const r of [coverRing, grassField]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
+    for (const r of [coverRing, grassField, lawnField, rockLayer]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
   }
-  let coverRing = null, grassField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
+  // ROCK-STUDY: rockExpoAt(x, z) - the island's baked exposure at a point, for the planters (MOUNTAIN-VEG, 17 Nov: no tree on bare rock):
+  // 0..1 as the ground thresholds v1's field (without its per-pixel noise), -1 while the bake is in flight, 0 with no rock within ~30 m
+  let rockExpoAt = () => 0;
+  let rockRing = null, rockGroundMat = null;   // ROCK-STUDY: (rockGroundMat: the near ring's material - the relief wears it)
+  // the island's rock as geometry round the eye (rock_ring.js; set with the cover ring)
+  let rockLayer = null;   // MOUNTAIN-VEG 17 Nov: the rocks' own ring (cover_ring.js layer 'rocks': the bigger rocks further out)
+  // the cover ring keeps the rocks under the rocks' ring's split while that ring runs (0: all of them, as before), and wears its skin switch
+  let coverRing = null, grassField = null, lawnField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
   let lodUpdate = () => {};           // W17 tree LOD: chunk meshes on/off by tier (tree block)
@@ -456,6 +526,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         uBarkL = { value: IMPK.barkLit };   // and its own tier gain (in place of uILit)
   // the audit's list of baked impostor sheets (assigned where the atlas cache lives, below)
   let treeAtlases = () => [];
+  let treeSideSheet = () => null, TSS = null;   // HANGAR-OUTDOORS: the room's tree cards (the tree block assigns it)
   let sheetMean = () => null;         // G3180 (CARD-MATCH): an atlas's mean linear albedo, read back (tree block)
   // THE BAKE SWITCHES THE BANDS OFF. A rung's material collapses every
   // instance outside its band, and the impostor bake draws the same material
@@ -1912,10 +1983,47 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const pk2 = (r, g0) => { const make = () => { const g = typeof g0 === 'function' ? g0() : g0;   // (a function: made with the texels - G2075's flagged type)
         const d = new Uint8Array(n * 2); for (let k = 0, j = 0; k < n; k++, j += 2) { d[j] = r ? r[k] : 0; d[j + 1] = g ? g[k] : 0; } return d; };
         const t = dataTex(make()); t.format = THREE.RGFormat; t.unpackAlignment = 1; return gpuOnly(t, make); };
-      const tintRGBA = () => rgbTexels(ISLA.tint);
+      // ROCK-STUDY R1: THE TERRAIN BIAS IN THE TINT'S ALPHA (it was 255 and never read - no new texture, no sampler): made by
+      // ROCK_BIAS (above the steps) IN A WORKER started at the build's first line (rockBiasJob) - the box read it at 246 ms on the
+      // main thread (A0, 16 Nov). The step does not wait (A0's box: the wait was 0.86 s under the link's contention): if it is not
+      // in yet, the tint goes up with a NEUTRAL alpha (191 = bias 0) and the bias is written in when it lands - the tint re-derived
+      // and re-uploaded once (ROCK_STATS.biasLateMs, the main thread's part). No Worker (node, a gate's stub): made here, now.
+      // ?rocks=0: never asked for (the alpha stays 255: no rock reads it).
+      let rockBiasA = null, rockLate = false;
+      if (rockBiasJob) { if (rockBiasJob.done) rockBiasA = rockBiasJob.out; else rockLate = true; }
+      const rockBias = () => {
+        if (rockBiasA) return rockBiasA;
+        if (rockLate) return null;   // (in flight: the neutral alpha meanwhile - tintRGBA)
+        try { if (/[?&]rocks=0/.test(location.search)) return null; } catch (e) {}
+        const g = world.hydro && world.hydro.grids; if (!g || !g.H || !g.N) return null;
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+        rockBiasA = (typeof ROCK_RING_CORE !== 'undefined' && ROCK_RING_CORE.bakeIsland && ISLA.ttype)   // (no Worker: the island's macro bake here - v1's field, the shader's encoding)
+          ? ROCK_RING_CORE.bakeIsland({ H: Float32Array.from(g.H), N: g.N, hx0: g.x0, hz0: g.z0, hdx: g.dx, flow: ROCK_RING_CORE.flowGrid(Float32Array.from(g.H), g.N, g.dx * g.dx / 25), TT: ISLA.ttype, ND: ISLA.ndvi, IGw: ISLA.grid.w, IGh: ISLA.grid.h, IGx0: ISLA.grid.x0, IGz0: ISLA.grid.z0, IGcell: ISLA.grid.cell, gx0: ISLA.grid.x0, gz0: ISLA.grid.z0, cs: ISLA.grid.cell * (IHALF ? 2 : 1), W2, H2 })
+          : new Uint8Array(W2 * H2);
+        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0), biasWorker: false, biasGrid: g.N, tint: [W2, H2] });
+        return rockBiasA; };
+      const tintRGBA = () => { const o = rgbTexels(ISLA.tint), a = rockBias();
+        if (a) for (let k = 0, j = 3; k < a.length; k++, j += 4) o[j] = a[k];
+        else if (rockLate) for (let j = 3; j < o.length; j += 4) o[j] = 0;   // (the bake in flight: 'no field' - the macro texture near the eye meanwhile)
+        return o; };
       const tintTex = gpuOnly(new THREE.DataTexture(tintRGBA(), W2, H2, THREE.RGBAFormat, THREE.UnsignedByteType), tintRGBA);
       tintTex.colorSpace = THREE.SRGBColorSpace; tintTex.magFilter = tintTex.minFilter = THREE.LinearFilter;
       tintTex.generateMipmaps = false; tintTex.flipY = false; tintTex.anisotropy = MAX_ANISO; tintTex.needsUpdate = true;
+      if (rockLate) rockBiasJob.onDone = () => {   // the bias lands: written into the tint (its bytes, or re-derived if the upload dropped them)
+        const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+        rockLate = false; rockBiasA = rockBiasJob.out;   // (null: the worker failed - rockBias() makes it here)
+        const a = rockBias(), d = tintTex.image && tintTex.image.data;
+        if (a && d) for (let k = 0, j = 3; k < a.length; k++, j += 4) d[j] = a[k];
+        else tintTex.image.data = tintRGBA();
+        tintTex.needsUpdate = true;
+        if (typeof window !== 'undefined') window.ROCK_STATS = Object.assign(window.ROCK_STATS || {}, { biasLateMs: Math.round(((typeof performance !== 'undefined') ? performance.now() : 0) - t0) }); };
+      rockExpoAt = (x, z) => {   // (bilinear over the bake's bytes as the shader's linear read: byte (field + 0.3) / 1.5, 0 = none)
+        const a = rockBiasA; if (!a) return rockLate ? -1 : 0;
+        const cs = IG.cell * (IHALF ? 2 : 1), fx = (x - IG.x0) / cs - 0.5, fz = (z - IG.z0) / cs - 0.5, i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
+        const b = (ii, jj) => a[Math.min(H2 - 1, Math.max(0, jj)) * W2 + Math.min(W2 - 1, Math.max(0, ii))];
+        const q = ((b(i, j) * (1 - u) + b(i + 1, j) * u) * (1 - v) + (b(i, j + 1) * (1 - u) + b(i + 1, j + 1) * u) * v) / 255;
+        if (q < 0.004) return 0;
+        const t = Math.min(1, Math.max(0, (q * 1.5 - 0.3 - 0.40) / 0.12)); return t * t * (3 - 2 * t); };
       function dataTex1() { const t = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; }
       // the eight class weight fields (the bench's): one-hot per group, LINEAR - a blur of weights is a smooth field
       const W_SLOTS = [{ 10: 0, 20: 1, 30: 2, 40: 3, 50: 3 }, { 60: 0, 80: 1, 90: 2, 100: 3 }];
@@ -1952,6 +2060,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // THE ROCK MAP (rock_map.js): the rocks' top view over 2 km round the eye, read where the cover ring's meshes have faded
         uRockMap: { value: (() => { const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType); t.needsUpdate = true; return t; })() },
         uRockRect: { value: new THREE.Vector4(0, 0, 1, 0) }, uRockFade: { value: new THREE.Vector4(50, 220, 0.5, 1) },
+        uRingF: { value: new THREE.Vector4(0.55, 450, 90, 0) },   // ROCK-STUDY: the relief's fold (rock_ring.js sets it)
       });
       GROUND.on = true;
       classWeights();   // a saved stack that starts at the class layer asks for them now
@@ -2009,18 +2118,26 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // object of the LAST compile: a plain compile's set (no uSplat / uSplatN) left the reused lean program's array samplers on
         // unit 0, where a 2D map is bound - GL_INVALID_OPERATION on every ground draw, nothing drawn (GROUND-COST, 6 Oct)
         Object.assign(sh.uniforms, gU, SPL ? SPL.uniforms : {});
-        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '');   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
+        const GSD = (SPL && SPL.api.stripDefs ? SPL.api.stripDefs() : '') + (SP && SP.api.lean && SP.api.lean() ? '#define SPLAT_ONE 1\n' : '')
+          + (side === 0 && SP ? '#define GS_TRLITE 1\n' : '');   // ROCK-STUDY R1: the outer ring and the premises patch - the rock's micro and joints out   // GROUND-COST G2075: the measuring strips ('' in production) and the lean program's define
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nuniform vec4 uTier;\nattribute float aPav; varying float vPav;\n' +
+            // ROCK-STUDY: the RELIEF's vertices (rock_ring.js) carry the macro (aRM, aRX) and their offset (aRD); on the ground's own
+            // meshes the attributes are absent (aRM.w reads 1: not a relief vertex). The relief folds back under the ground toward
+            // the ring's reach (uRingF: sink, reach, band)
+            'attribute vec4 aRM, aRX; attribute vec3 aRD; varying vec4 vRM, vRX; uniform vec4 uRingF;\n' +
             (side > 0 ? 'attribute float aCoarse; attribute vec3 aCoarseN;\nfloat fineK(){ return 1.0 - smoothstep(uFine.z - uFine.w, uFine.z, distance(position.xz, uFine.xy)); }\n' : ''))
           .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>' + (side > 0 ? '\nobjectNormal = normalize(mix(aCoarseN, objectNormal, fineK()));' : ''))
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') + 'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;\n' +
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (side > 0 ? 'transformed.y = mix(aCoarse, transformed.y, fineK());\n' : '') +
+            'vRM = aRM; vRX = aRX; if (aRM.w > 1.5 && aRM.w < 3.5) { float rf = 1.0 - smoothstep(uRingF.y - uRingF.z, uRingF.y, distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz));\n' +
+            '  transformed += aRD * rf - vec3(0.0, uRingF.x * (1.0 - rf), 0.0); }\n' +
+            'vWPi = (modelMatrix * vec4(transformed, 1.0)).xyz; vPav = aPav;\n' +
             // G2115 (TERRAIN-MATCH): UNDER THE CONTACT TIER (ground_tier.js) a vertex more than a cell inside its square goes uTier.w
             // under - every triangle it is in lies inside the square, under the tier (translation-only model matrices: the patch's
             // blocks, the tiles). Off (uTier.z 0) for every material but the patch's and the fine tiles' (TIER_U)
             '{ vec2 tD = abs(vWPi.xz - uTier.xy); if (max(tD.x, tD.y) < uTier.z) { transformed.y -= uTier.w; vWPi.y -= uTier.w; } }');
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\n' +
+          .replace('#include <common>', '#include <common>\nvarying vec3 vWPi;\nuniform vec4 uFine;\nvarying float vPav;\nvarying vec4 vRM, vRX;\n' +
             (rock ? 'uniform sampler2D uRockMap; uniform vec4 uRockRect, uRockFade;\n' : '') +
             'uniform sampler2D uGTint, uGPackA, uGPackB, uGW1, uGW2; uniform vec4 uGGrid;\n' +
             'uniform float uGBlur, uGWobble, uGWaterMap, uGCell;\n' +
@@ -2071,7 +2188,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             (SP ? (full ? SP.glslCommonFull : SP.glslCommon) : ''))
           .replace('#include <map_fragment>', '#include <map_fragment>\n' +
             // the fine disc's edge: one of the two surfaces per pixel, decided before any of the ground's cost
-            (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
+            (side < 0 ? 'if (uFine.z > 0.0 && distance(vWPi.xz, uFine.xy) < uFine.z && vRM.w < 1.5) discard;\n' : side > 0 ? 'if (distance(vWPi.xz, uFine.xy) > uFine.z) discard;\n' : '') +
             '{ vec2 guv = (vWPi.xz - uGGrid.xy) / uGGrid.zw;\n' +
             // THE DEEP BED IS NOT PAINTED (PERF 2026-09-23): 25 m under the sea's level the water in front of it is
             // opaque to 1 - exp(-0.3 x 25) = 99.9 % at its clearest (water.js: alpha = 1 - exp(-opa D), opa >= 0.3),
@@ -2213,6 +2330,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     }
     groundApi = {
       splat: () => (SPL ? SPL.api : null),
+      splatFull: () => SPL,   // ROCK-STUDY: the whole splat (its uniforms: the rock ring's material reads its arrays)
       fine: () => fineRing,   // the fine disc's state (tiles, radius, off) for the rigs and F8
       tier: () => groundTier,   // G2115: the contact tier (its dials S, mode, centre, stats) for the rigs and F8
       ringLod: () => ringLod,   // the inner ring's chunks: tolPx / minQuads / rimE dials, stats (PERF 2026-09-23)
@@ -2422,7 +2540,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const gMatTwin = islandGroundHook ? worldLambert({ map: tex }) : gMat;
     innerPatchShared = { mat: gMatTwin, half: INNER, uv: islandUV || ((x, z) => [(x + INNER) / (2 * INNER), 1 - (z + INNER) / (2 * INNER)]) };
     // the close grain is the analytic ground's; an island's ground is the live stack
-    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; islandKeyed(gMat, 'island-ring');
+    if (islandGroundHook) { gMat.onBeforeCompile = islandGroundHook; islandKeyed(gMat, 'island-ring'); rockGroundMat = gMat;
       gMatTwin.onBeforeCompile = islandGroundHook0; islandKeyed(gMatTwin, 'island-twin'); }   // (the hooks share one source text: the keys keep the programs apart)
     else gMat.onBeforeCompile = sh => {
       if (typeof ATMO !== 'undefined') ATMO.inject(sh);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
@@ -3678,6 +3796,55 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // targets back (TREE-IMPORT.md §6: every one of its six faults presented
     // as "the impostor is wrong" and none looked like its cause).
     treeAtlases = () => { const out = []; ATLAS.forEach(a => out.push(a)); return out; };
+    // HANGAR-OUTDOORS (the user 17 Nov via A0: "a couple of trees ... using our impostor systems. We don't even have to have
+    // the real one, just the impostors"): THE ROOM'S TREES ARE THESE SHEETS. One side view a species - the horizontal tile of
+    // its baked sheet (the hemi-octahedral grid's cell (0, IMP_G - 1): the tree seen level from -z, upright), copied out of
+    // IMPA's array into one small strip (a tile a species, side by side) with the species' own tint (TINT_GLSL's hue, sat
+    // and light, as the impostor material applies them at draw time - the bake leaves them out). Made once, on the first ask
+    // after the trees baked, from what the world already holds: no tree is loaded or baked for it (the garage pays a quad
+    // pass a species and a strip of a few hundred KB). -> { tex, list: [{ u0, u1, cy, diam, key }] } | null (no sheets yet)
+    treeSideSheet = o => {
+      if (TSS) return TSS;
+      if (!canBake || !IMPA.col || !IMPA.used) return null;
+      const want = Math.max(1, Math.min(6, (o && o.max) || 4)), pick = [], seen = new Set();
+      for (const a of ATLAS.values()) {
+        if (!a || !(a.layer >= 0) || a.refused || !a.tex || !a.key || a.series !== 'rungs' || seen.has(a.key)) continue;
+        if (/dead|snag|stump|shrub|bush/i.test(a.key)) continue;    // the wall is living trees
+        seen.add(a.key); pick.push(a); if (pick.length >= want) break;
+      }
+      if (!pick.length) return null;
+      const T = IMP_TILE, K = pick.length;
+      const rt = new THREE.WebGLRenderTarget(T * K, T, { depthBuffer: false, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
+      rt.texture.colorSpace = THREE.SRGBColorSpace;
+      const U = { uCol: { value: IMPA.col }, uLayer: { value: 0 }, uTile: { value: new THREE.Vector4(0, (IMP_G - 1) / IMP_G, 1 / IMP_G, 0) },
+                  uHue: { value: 0 }, uSat: { value: 1 }, uLight: { value: 1 } };
+      const q = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), MATLIB.make(THREE, 'shader', { uniforms: U,
+        vertexShader: 'varying vec2 vU; void main() { vU = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+        fragmentShader: ['precision highp sampler2DArray;', 'uniform sampler2DArray uCol;', 'uniform float uLayer, uHue, uSat, uLight;', 'uniform vec4 uTile;', 'varying vec2 vU;',
+          'void main() {', '  vec4 c = texture(uCol, vec3(uTile.xy + vU * uTile.z, uLayer));', '  vec4 diffuseColor = c;',
+          '  float uFlat = 1.0, uFlatMean = 0.0;',
+          (typeof TREE_LEAF !== 'undefined' && TREE_LEAF.tintGlsl) ? TREE_LEAF.tintGlsl : '',
+          '  gl_FragColor = vec4(diffuseColor.rgb, c.a);', '}'].join('\n'),
+        depthTest: false, depthWrite: false, toneMapped: false, blending: THREE.NoBlending }));
+      q.frustumCulled = false;
+      const sc = new THREE.Scene(); sc.add(q);
+      const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const pRT = renderer.getRenderTarget(), pVP = renderer.getViewport(new THREE.Vector4()), pAC = renderer.autoClear;
+      const pCol = renderer.getClearColor(new THREE.Color()), pA = renderer.getClearAlpha();
+      renderer.setRenderTarget(rt); renderer.autoClear = false; renderer.setClearColor(0x000000, 0); renderer.clear(true, false, false);
+      const list = [];
+      pick.forEach((a, k) => {
+        const t = IMPA.tintU[a.layer];
+        U.uLayer.value = a.layer; U.uHue.value = t ? t.uHue.value : 0; U.uSat.value = t ? t.uSat.value : 1; U.uLight.value = t ? (t.uLightB || t.uLight).value : 1;
+        renderer.setViewport(k * T, 0, T, T); renderer.render(sc, cam);
+        list.push({ u0: k / K, u1: (k + 1) / K, cy: a.cy, diam: a.diam, key: a.key });
+      });
+      renderer.setRenderTarget(pRT); renderer.setViewport(pVP); renderer.autoClear = pAC; renderer.setClearColor(pCol, pA);
+      q.geometry.dispose(); q.material.dispose();
+      rt.texture.userData = Object.assign(rt.texture.userData || {}, { shared: 'treeSideSheet' });   // the room never disposes it
+      TSS = { tex: rt.texture, list, rt };
+      return TSS;
+    };
     // G3180 (CARD-MATCH, the user 13 Oct: "a color/value shift has developed between the far cards for the trees and the
     // impostors ... we also need a mechanism to keep them in sync"): ONE SHEET'S MEAN - the linear albedo of its drawn texels
     // (alpha at the series' own cut; the bytes are sRGB, decoded here), [r, g, b, texels] or null; one readback (atlas.read),
@@ -4967,9 +5134,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     };
     const prefOf = key => SPECIES_PREF[String(key).split('|')[0]] || null;
     const speciesWeight = (entry, i, x, z, h, g) => {
+      // a mix row's own altitude band (17 Nov, the user: "small conifers up to a certain point, then only the dwarf pines trees, then
+      // the bushes and grass only"): [lo, hi, fade] - the weight fades to 0 over `fade` m outside it
+      let a = 1; if (entry.alt) { const [lo, hi, f] = entry.alt, fd = Math.max(1, f || 40); a = h < lo ? Math.max(0, 1 - (lo - h) / fd) : h > hi ? Math.max(0, 1 - (h - hi) / fd) : 1; if (a <= 0) return 0; }
       const P = prefOf(entry.key);
-      if (!P) return entry.w;
-      let w = entry.w;
+      if (!P) return entry.w * a;
+      let w = entry.w * a;
       const [lo, hi] = P.alt;
       const out = h < lo ? lo - h : h > hi ? h - hi : 0;
       w *= Math.max(0.25, 1 - out / 60 * 0.75);
@@ -4986,6 +5156,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const g = at ? groundAt(x, z, h) : null;
       let tot = 0;
       for (let i = 0; i < pool.length; i++) tot += poolW[i] = at ? speciesWeight(pool[i], i, x, z, h, g) : pool[i].w;
+      if (!(tot > 0)) return -1;   // every species out of its altitude band here: no tree (the caller's gi -1)
       let acc = r * tot;
       for (let i = 0; i < pool.length; i++) { acc -= poolW[i]; if (acc <= 0) return i; }
       return pool.length - 1;
@@ -5002,7 +5173,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (M && M.species) for (const [sp, o] of Object.entries(M.species)) {
         const subs = []; shapes.forEach((H, gi) => { if (H.key && H.key.split('|')[0] === sp) subs.push(gi); });
         const w = ((o && o.proportion !== undefined) ? o.proportion : 1) / Math.max(1, subs.length);
-        if (w > 0) for (const gi of subs) P.push({ key: shapes[gi].key, w, gi, dead: (o && o.dead !== undefined) ? +o.dead : -1 });   // dead: the mix's snag share, -1 none (G1975)
+        if (w > 0) for (const gi of subs) P.push({ key: shapes[gi].key, w, gi, dead: (o && o.dead !== undefined) ? +o.dead : -1, alt: (o && Array.isArray(o.alt)) ? o.alt : null });   // dead: the mix's snag share, -1 none (G1975); alt: the row's altitude band (17 Nov)
       }
       byMix.set(mixName, P);
       return P;
@@ -5074,6 +5245,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // summits, and a ridge top - the point's height over the mean of four taps at 110 m (read for a subalpine point only)
     if (BIO) {
       try { if (/[?&]subalpine=0/.test(location.search)) BIO.subOn = false; } catch (e) {}
+      // WORLD-RAIL-VEG: the biomes read the splat's LIVE knobs (the world editor's cliff / old-forest / dense-scrub split moves
+      // those; the recipe's copy never moved, so the planters kept the shipped split)
+      BIO.ground = () => { const sp = groundApi.splat ? groundApi.splat() : null; return sp && sp.knobsLive ? sp.knobsLive() : null; };
       BIO.subAt = (code, x, z) => (!BIO.subOn || !(code === 2 || code === 7 || code === 14)) ? code
         : BIO.subCode(code, world.terrainH(x, z), vnoise(x, z, 140, 61), hsh(Math.floor(x * 0.731), Math.floor(z * 0.731) + 97));
       BIO.keepAt = (code, x, z, h) => {
@@ -5082,6 +5256,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         return BIO.subKeep(h, h - m);
       };
     }
+    // FOREST-EDGE (the user 16 Nov; 28c_biomes KNOBS edge*): the signed distance to the forest's edge over the trees' own ground
+    // (FOREST_FLOOR, no strip) - a tree inside it stands at the interior's canopy x the size ramp (walkRows). ?forestedge=0 = before
+    const EDGE_CAN = 1000;   // a fill record's canopy over this is an edge tree's own (EDGE_CAN + canopy x its size): the build sizes it under the island's floor
+    const edgeD = (BIO && BIO.edgeField && islRule && ISLC) ? BIO.edgeField((x, z) => world.treeGround(x, z) === world.SURFACE.FOREST_FLOOR && !world.treeAeroBlocked(x, z)) : null;
+    if (edgeD) { try { if (/[?&]forestedge=0/.test(location.search)) BIO.edgeOn = false; } catch (e) {} }
     const biomeAt = (x, z, r) => BIO.mixHere(codeAt(x, z, r), x, z);
     // 18 LAKESHORE's MASK (G3430, BIOMES.SHORE): the land within shoreReach m of a drawn lake's line - drawnLakeSD, the
     // splat's own lsd field (+ inside, m) - its edge broken by shoreJit x the reach on a 17 m noise, under the bank's slope
@@ -5639,16 +5818,40 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           if (hsh(ix, iz + 31) < 0.1) continue;
           const x = cx * CH + (gx + 0.5) * spc + (hsh(ix + 7, iz) - 0.5) * spc * 1.6;
           const z = cz * CH + (gz + 0.5) * spc + (hsh(ix, iz + 7) - 0.5) * spc * 1.6;
+          const x0r = x, z0r = z;
           const pm = ISLC ? polyMix(x, z, BIO) : undefined;   // G2935: a polygon's own mix (undefined: no polygon speaks)
-          if (!forestHere(x, z) && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
+          const fh = forestHere(x, z);
+          if (!fh && !(BIO && openHere(x, z)) && !(pm && polyGround(x, z))) continue;  // the forest's rule (the bake's too), the biome's open ground, or a polygon's mix
           if (premTreeEx(x, z)) continue;   // the world editor's "no trees" (G527)
           if (fillPoolAt && ISLC && ISLC.ttype) { const t7 = ttypeAt(x, z); if ((t7 === 3 || t7 === 7) && fillPoolAt(x, z) > 0.5) continue; }   // not in a puddle
           // THE MAP'S COVERAGE (W2, 2026-09-14): on an island the canopy height
           // says how much of the grid stands - nothing below `from`, everything
           // above `full`, a ramp between - and rides with the record to size it.
-          let can = 0, mixHere = null, floored = false;
+          let can = 0, mixHere = null, floored = false, lift = 0, ksz = 1, MFx = null;   // ksz < 1: an edge tree, at ksz x its wood's canopy (EDGE_CAN)
+          let band = null;
           if (ISLC) {
             can = ISLC.canopyAt(x, z);
+            // FOREST-EDGE: inside the edge the interior's canopy x the ramp (young, medium, full), the NDVI's thinning lifted -
+            // only with edgeIn (off by default since the user's read, 16 Nov eve: it made the deep forest denser)
+            if (edgeD && BIO.edgeOn && fh && pm === undefined && BIO.knobs().edgeIn) { const d = edgeD(x, z);
+              if (d < BIO.knobs().edgeOut) { lift = BIO.edgeLift(d); can = Math.max(can, BIO.edgeCanIn(ISLC.canopyAt, x, z) * BIO.edgeRamp(d)); } }
+            // THE OUTWARD BAND (the user 16 Nov eve: the ramp did not "extend wooded zones" - a gradient outward): outside the
+            // forest's ground, within the band's wandering reach (28c edgeBandAt), the WOOD's own trees - its mix read 10 m in
+            // along the distance field's gradient - planted at the band's share, sized ksz of the wood's canopy (0.7 at the
+            // line to a sapling at the reach), in clumps; past the reach the open ground's own rule as before
+            if (edgeD && BIO.edgeOn && !fh && pm === undefined && BIO.edgeBandAt) { const d = edgeD(x, z);
+              if (d < 0 && d > -BIO.edgeReachMax()) band = BIO.edgeBandAt(d, x, z); }
+          }
+          // a band point that its draw refuses (or with no wood behind it) falls back to the open ground's own rule below - the
+          // band only adds trees (the same hash: planted where it is under the larger of the two shares)
+          if (band && (hsh(ix + 13, iz + 29) > band.p || world.treeAeroBlocked(x, z))) band = null;
+          if (band) {
+            const d = edgeD(x, z), gx0 = edgeD(x + 6, z) - edgeD(x - 6, z), gz0 = edgeD(x, z + 6) - edgeD(x, z - 6), gl = Math.hypot(gx0, gz0) || 1;
+            const xi = x + gx0 / gl * (-d + 10), zi = z + gz0 / gl * (-d + 10);
+            const mI = BIO.mixAt(BIO.subAt(codeAt(xi, zi, hsh(ix + 21, iz + 23)), xi, zi)), MF = mI ? BIO.mixOf(mI).forest : null;
+            if (MF && MF.count > 0) { mixHere = mI; can = Math.max(BIO.edgeCanIn(ISLC.canopyAt, xi, zi), MF.canopyFloor || 0, 4); ksz = band.k; } else band = null;
+          }
+          if (band) { /* the band's tree: planted below */ } else if (ISLC) {
             // THE RULE (G406, the user: "with the crazy amount of layers we have, we
             // should be able to be quite clever"): the TERRAIN TYPE says what kind of
             // stand can be here (forest full, scrub half, muskeg a stunted few, heath
@@ -5665,6 +5868,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
                 const cd = pm !== undefined ? -1 : BIO.subAt(codeAt(x, z, hsh(ix + 21, iz + 23)), x, z);   // (19 SUBALPINE: the vegetation's code)
                 mixHere = pm !== undefined ? pm : BIO.mixAt(cd);   // (BIO.mixHere, with the polygon read once)
                 kind = mixHere ? Math.min(1, BIO.density(mixHere) * spc * spc * FILL.island.biomeGain) : 0;
+                // 18 LAKESHORE's trees (17 Nov, the user's lush lake borders: "the deciduous trees we have (le bouleau etait bien) in the
+                // mix"): on the lake's band (BIO.shoreHere) the lakeshore mix plants when it has a stand of its own (forest.count)
+                if (pm === undefined && BIO.shoreHere && BIO.SHORE !== undefined) { const sm = BIO.mixAt(BIO.SHORE), sF = sm && BIO.mixOf(sm).forest;
+                  if (sF && sF.count > 0 && BIO.shoreHere(x, z)) { mixHere = sm; kind = Math.min(1, BIO.density(sm) * spc * spc * FILL.island.biomeGain); } }
                 if (cd === BIO.SUBALPINE && kind > 0 && BIO.keepAt) kind *= BIO.keepAt(cd, x, z, world.terrainH(x, z));   // 19: the summits and the ridge tops thin
               } else kind = tt === 8 ? 1.0 : tt === 7 ? 0.5 : tt === 3 ? 0.12 : tt === 2 ? 0.04 : 0.0;
               if ((tt === 3 || tt === 2) && !pm) can = Math.min(can, 3.0);        // the bog's and the heath's are stunted (a polygon's mix stands as itself)
@@ -5679,26 +5886,43 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
                 // islands"): a mix may say forest.clump (the share of its ground left bare, 0..1) and clumpM (the
                 // island's size, m) - a value noise at that cell keeps the top 1 - clump of the ground and the
                 // trees stand at the grid's density inside it, nothing outside
-                if (MF && MF.clump > 0 && vnoise(x, z, MF.clumpM || 30, 41) < MF.clump) continue; }
+                // THE MUSKEG'S CLUMPS (the user 16 Nov eve: "the muskegs have really too little tree density ... higher density when
+                // there are trees, and therefore subject to the forest border as well"): forest.clumpEdge (noise units, 0 = the old cut-out
+                // island) fades a clump outward - the share falls from clumpEdgeDens to 0, the size from edgeSizeIn to edgeSizeOut
+                // (28c) - and forest.extra plants a second tree at that share of the points inside a clump (MFx: read below)
+                // (17 Nov, the user: "the occasional conifer, maybe clustered in pockets") forest.clumpUp [h0, h1, clump at h1]: the bare share rises with the altitude
+                const clH = (MF && MF.clumpUp) ? MF.clump + (MF.clumpUp[2] - MF.clump) * (t => t * t * (3 - 2 * t))(Math.max(0, Math.min(1, (world.terrainH(x, z) - MF.clumpUp[0]) / Math.max(1, MF.clumpUp[1] - MF.clumpUp[0])))) : (MF ? MF.clump : 0);
+                if (MF && clH > 0) { const v = vnoise(x, z, MF.clumpM || 30, 41);
+                  if (v < clH) { const ce = BIO.edgeOn ? (MF.clumpEdge || 0) : 0, t = ce > 0 ? (clH - v) / ce : 1; if (t >= 1) continue;
+                    if (hsh(ix + 51, iz + 53) > (MF.clumpEdgeDens === undefined ? 0.8 : MF.clumpEdgeDens) * Math.pow(1 - t, 1.4)) continue;
+                    const K = BIO.knobs(); ksz = K.edgeSizeIn + (K.edgeSizeOut - K.edgeSizeIn) * Math.pow(t, 0.8); }
+                  else MFx = MF; } }
               if (kind <= 0.0) continue; }
             // a floored mix is at its count: the map's ramp and vigour said "nothing here" and the mix overrules them
             let p = floored ? 1 : (can - FILL.island.from) / Math.max(0.5, FILL.island.full - FILL.island.from);
-            if (ISLC.ndvi && !floored) { const nd = ISLC.ndvi[ISLC.cellAt(x, z)] / 127 - 1; p *= Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); }
+            if (ISLC.ndvi && !floored) { const nd = ISLC.ndvi[ISLC.cellAt(x, z)] / 127 - 1, f = Math.max(0.25, Math.min(1, (nd - 0.3) / 0.35)); p *= f + (1 - f) * lift; }
             { const d = 8, gx2 = ISLC.terrainH ? 0 : 0; const s2 = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
               if (s2 > 0.7) p *= 0.33; }
             p *= kind;
             if (p < 1 && hsh(ix + 13, iz + 29) > p) continue;
           }
+          const canR = ksz < 1 ? EDGE_CAN + can * ksz : can;
+          const reps = (MFx && MFx.extra > 0 && hsh(ix + 61, iz + 67) < MFx.extra) ? 2 : 1;
+          for (let rp = 0; rp < reps; rp++) {
+          const jx = rp ? ix + 977 : ix, jz = rp ? iz + 541 : iz;
+          const x = rp ? x0r + (hsh(ix + 71, iz + 73) - 0.5) * spc * 0.9 : x0r, z = rp ? z0r + (hsh(ix + 79, iz + 83) - 0.5) * spc * 0.9 : z0r;
+          if (rp && (premTreeEx(x, z) || world.treeAeroBlocked(x, z) || !(forestHere(x, z) || (BIO && openHere(x, z))))) continue;   // the second tree's own spot: the runways' clearances and the ground's rule, as its lattice point (GATE RWYTREES 7)
           const ti = nearTree(x, z);
           const h = world.terrainH(x, z);
-          const sp = (ti >= 0 && hsh(ix + 3, iz + 5) < 0.88) ? world.trees[ti].sp
-                                                             : (hsh(ix + 9, iz + 1) * 5) | 0;
+          const sp = (ti >= 0 && hsh(jx + 3, jz + 5) < 0.88) ? world.trees[ti].sp
+                                                             : (hsh(jx + 9, jz + 1) * 5) | 0;
           let gi;
           let md = -1;   // the mix's snag share for this species (G1975: -1 none, the collection's then)
-          if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); const E = P.length ? P[poolPick(P, hsh(ix + 11, iz + 17), x, z, h)] : null; gi = E ? E.gi : -1; if (gi < 0) continue; md = E.dead; }
-          else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(ix + 11, iz + 17), x, z, h) : (sp < 2 ? 0 : 1);
-          recs[gi].push(x, h, z, sp, hsh(ix + 2, iz + 8), can, md);   // FILL_REC floats a tree
-          if (PROBE) PROBE.push(x, z, forestHere(x, z) ? 1 : 0);
+          if (SHAPE.real && mixHere) { const P = biomePool(mixHere, SHAPE.list); const E = P.length ? P[poolPick(P, hsh(jx + 11, jz + 17), x, z, h)] : null; gi = E ? E.gi : -1; if (gi < 0) continue; md = E.dead; }
+          else gi = SHAPE.real ? poolPick(SHAPE.list, hsh(jx + 11, jz + 17), x, z, h) : (sp < 2 ? 0 : 1);
+          recs[gi].push(x, h, z, sp, hsh(jx + 2, jz + 8), canR, md);   // FILL_REC floats a tree
+          if (PROBE) PROBE.push(x, z, fh ? 1 : 0);
+          }
         }
       }
       // one chunk, whole, in this frame - the teleport's path and the gate's
@@ -5796,6 +6020,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // spread as jitter; elsewhere the collection's size
             if (can < 0) { (rec.town || (rec.town = new Uint8Array(n)))[i] = 1; rec.townN = (rec.townN || 0) + 1; }   // TOWN-1
             const s = can < 0 ? -can   // TOWN-1: a town tree, at its record's own size
+              : (can >= EDGE_CAN && SH.h)   // FOREST-EDGE's outward band / a grove's fade: its wood's canopy x the band's size, under the island's floor (a sapling)
+              ? Math.max(0.1, Math.min(FILL.island.max, (can - EDGE_CAN) * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
               : (ISLC && can > 0 && SH.h)
               ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
               : SH.white ? sizeOf(SH.size, w)
@@ -6024,7 +6250,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
             return SPA.meanAt(x, z, code, Math.atan(sl) * 180 / Math.PI); };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
+            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, edgeD, lakeSD: (x, z) => drawnLakeSD(x, z), waterY: (x, z) => waterDrawY(x, z), owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
@@ -6034,17 +6260,49 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;
             const c = world.coverAt ? world.coverAt(x, z) : null; return !(c && c.kill >= 1); };
           grassField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'grass',
-            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt,
+            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt, edgeD,   // edgeD: FOREST-EDGE's distance, for the field's weeds band (LOOK-1)
+            lawnOn: () => !!(lawnField && lawnField.get().on && !lawnField.get().off),   // GRASS-CARDS: the cut ground is the lawn's while it is on
+            lawnTall: () => (lawnField ? +lawnField.get().tallCards || 0 : 0),   // (the tall band beside a soft strip: the field's tufts unless the lawn's tallCards)
             groundSetsAt: (x, z, code) => { const SPA = groundApi.splat ? groundApi.splat() : null; return SPA && SPA.setsAt ? SPA.setsAt(x, z, code) : null; } });   // (16 Nov: the grass by the texture drawn)
+          // THE LAWN (GRASS-CARDS, 16 Nov): the mown ground's own ring - the bench's grass cards (grass_plates) on coverAt's cut, the
+          // field's land test and colour; the field steps aside under it (lawnOn above)
+          lawnField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'lawn',
+            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt });
+          // THE ROCKS' OWN RING (MOUNTAIN-VEG 17 Nov; the user: "rock should be visible for a little while"): the rock rows' bigger
+          // rocks out to its own reach and height cut; the cover ring keeps the small ones (rockSync: its split, and the skin both wear)
+          rockLayer = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'rocks', GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt });
+          // (17 Nov 16:15, A0 for the L40f train: no frame time measured yet and ~2-4x the rocks drawn - the shipped dials lower than the
+          // ring's own 380 m / 140 m / 0.45 m: gone at 300 m, full to 100 m, rocks 0.6 m and up; the F9 rail keeps every dial for the user)
+          rockLayer.set({ reach: 300, near: 100, rockSplit: 0.6 });
+          rockSync();
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
             standCards = STAND_CARDS.make(THREE, { scene, world, ISLC, BIO, FILL, treeBuild, chunkBounds, bakeImpostorAtlas, impostorMat, tintUniformsOf,
-                                                    ttypeAt, codeAt, forestHere, openHere, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
+                                                    ttypeAt, codeAt, forestHere, openHere, edgeD, vnoise, hsh, U_NOTHIN, treesSettled, rdy: RDY && RDY.U, rdyMin: RDY && RDY.minIn, polyMix, polyGround, POLY_CAN, sheetMean, composeCardAtlas });   // composeCardAtlas: G3184, the card from its species' sheets   // sheetMean: G3180, the card matched to its species' sheets   // rdy: G2930, the cards stand in for an unbuilt fill
           // THE ROCK MAP (rock_map.js): the rocks' far tier, on the island's ground programs (gU.uRockMap)
           if (typeof ROCK_MAP !== 'undefined' && groundU && groundU.uRockMap && renderer && renderer.setRenderTarget) rockMap = ROCK_MAP.make(THREE, { renderer, world, cover: coverRing, camera, gU: groundU });
           // THE CLIFFS (cliffs.js, 2026-09-22): the photoscanned faces stood in the island's own steep ground, once at boot
           if (typeof CLIFFS !== 'undefined' && world.island) { try { cliffs = CLIFFS.make(THREE, { scene, world, treeBuild, treeList, LEAF: TREE_LEAF, pack: TREE_PACK }); cliffs.build(); } catch (e) { console.warn('cliffs: ' + (e && e.message)); } }
+          // ROCK-STUDY: THE ISLAND'S ROCK AS GEOMETRY (rock_ring.js): the outcrops round the eye, built in a worker from the ground's
+          // own heights, the map's types and NDVI and the drainage (the bias worker's D8), with the 'rocks' collection's boulders
+          // seated on them; their own material (the splat's arrays). ?rocks=0 none, ?ring=0 the ring off (the cost A/B)
+          if (typeof ROCK_RING !== 'undefined' && world.island && groundApi.splatFull && groundApi.splatFull()) {
+            let rocksOn = true; try { if (/[?&]rocks=0/.test(location.search)) rocksOn = false; } catch (e) {}
+            if (rocksOn) try {
+              const kit = null;   // (the boulders are the PROCEDURAL kit, closed rocks - rock_ring_core procKit; the pack's scans are open shells)
+              let flowSync = null;
+              const flowOf = () => { if (rockBiasJob && rockBiasJob.flow) return rockBiasJob.flow;
+                if (!flowSync && typeof ROCK_RING_CORE !== 'undefined' && world.hydro && world.hydro.grids) { const hg = world.hydro.grids;
+                  flowSync = { g: ROCK_RING_CORE.flowGrid(Float32Array.from(hg.H), hg.N, hg.dx * hg.dx / 25), N: hg.N, x0: hg.x0, z0: hg.z0, dx: hg.dx }; }
+                return flowSync; };
+              // THE PHONE TIER (A0's brief): the GRAPHICS row's lean ground builds the ring at 2.5 m within 250 m, no micro detail; plain: no ring
+              const gq = (typeof window !== 'undefined' && window.GFX && window.GFX.get) ? window.GFX.get().ground : null;
+              const K = gq === 'lean' ? { step: 2.5, reachCap: 250, reach: 250, micro: 0 } : {};
+              if (gq !== 'plain') rockRing = ROCK_RING.make(THREE, { scene, world, camera, splat: groundApi.splatFull(), groundMat: rockGroundMat, groundU, terrainH: (x, z) => world.terrainH(x, z), keep: world.terrainKeep ? ((x, z) => world.terrainKeep(x, z)) : null, isla: world.island, flow: flowOf, kit, K });
+              if (typeof window !== 'undefined') window.ROCK_RING_LIVE = rockRing;
+            } catch (e) { console.warn('rock ring: ' + (e && e.message)); }
+          }
           // G1460 (SOFT-GPU) THE MENU'S ROWS REACH THE RING. GFX.onWorld (app.js worldBuilt) ran before this block made
           // the ring, and nothing applies the menu again: the cover row never reached it - potato's 'off' drew the full
           // ring (reach 220, density 2: ~30 M triangles a frame, 3-9 MINUTES a frame on SwiftShader). The same is true on
@@ -6065,7 +6323,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const grew = treeReach(treeReachOf(world, BIO));
         if (!grew.length) return splatGrew;
         treeSettled = null;
-        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); }))
+        treeSettle().then(() => afterBuild(() => { biomePools.clear(); plantWoodland(); if (setShapes()) evictAll(); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (lawnField) lawnField.replant(); if (rockLayer) rockLayer.replant(); }))
           .catch(e => console.warn('trees: the grown catalogue did not settle (' + (e && e.message) + ')'));
         return true;
       };
@@ -6096,6 +6354,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // G2563: the grass field (cover_ring.js, layer 'grass'). field(on) switches it: off gives the reed back to the cover ring
           // (today's patches - the A/B), and both replant
           grass: () => grassField,
+          lawn: () => lawnField,   // GRASS-CARDS: the lawn ring's handle (get/set/stat/fieldAt)
+          // the lawn on / off: the field replants too (it leaves the cut ground to the lawn, or takes it back)
+          lawnOn: on => { if (!lawnField) return false; if (on !== undefined && !!on !== !!lawnField.get().on) { lawnField.set({ on: !!on }); lawnField.replant(); if (grassField) grassField.replant(); } return !!lawnField.get().on; },
+          // the rocks' own ring (MOUNTAIN-VEG 17 Nov): rockLayerSet(o) sets it and keeps the cover ring's split and skin in step
+          rockLayer: () => rockLayer,
+          rockLayerSet: o => { if (!rockLayer || !o) return null; const re = ('on' in o && !!o.on !== !!rockLayer.get().on) || ('rockSplit' in o && o.rockSplit !== rockLayer.get().rockSplit);
+            rockLayer.set(o); rockSync(); if (re) { rockLayer.replant(); if (coverRing) coverRing.replant(); } return rockLayer.get(); },
           field: on => { if (!grassField) return false; if (on !== undefined && !!on !== !!grassField.get().on) { grassField.set({ on: !!on }); grassField.replant(); if (coverRing) coverRing.replant(); } return !!grassField.get().on; },
           stands: () => standCards,   // the far forest's handle: get/set/stat/root
           // L6 (the GROUND strip on the flight rail): what is under a point - the terrain-type
@@ -6107,11 +6372,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const tt = ttypeAt(x, z); if (tt < 0) return null;
             const d = 8, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
             const slopeDeg = Math.atan(sl) * 180 / Math.PI, canopy = ISLC.canopyAt(x, z);
-            const code = BIO.codeOf(tt, slopeDeg, canopy, 0.5);
+            const code0 = BIO.codeOf(tt, slopeDeg, canopy, 0.5), code = BIO.subAt ? BIO.subAt(code0, x, z) : code0;   // 19 SUBALPINE: the walk's own derivation (the probe read heath / scrub up there)
             const k = ISLC.cellAt ? ISLC.cellAt(x, z) : -1;
             return { tt, code, name: BIO.names[code] || String(code), mix: BIO.mixHere(code, x, z), canopy, slopeDeg,
                      ndvi: (ISLC.ndvi && k >= 0) ? ISLC.ndvi[k] / 127 - 1 : null };
           },
+          // WORLD-RAIL-VEG (the world editor's TYPES > subalpine and VEGETATION > forest edge): the biomes' knobs over the defaults
+          // (BIOMES.setKnobs: the subalpine's ramp and thinning, the forest edge's ramp and band, the dials) - one replant for the
+          // lot, as setMix. knobs() with no argument reads them (tuned: the editor's own, with the dials)
+          knobs: o => { if (!BIO) return null; if (o === undefined) return BIO.tuned();
+            const r = BIO.setKnobs(o); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return r; },
           setBiome: (code, mix) => { if (!BIO) return null; const r = BIO.set(code, mix); biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); reachRefresh(); return r; },
           reach: () => reachRefresh(),   // G908: re-read what the map can reach (after a premises re-stamp); true when it grew
           // G1385: after a premises edit (app.js onRebuilt) - the cover polygons' vegetation re-read; replants only when it changed
@@ -6131,14 +6401,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // G3040 (BIOME-PAINT, SCENERY-ED-2): the ground's packed terrain type re-derived after the stamp moved - theirs,
             // declared with the build's top-level lets; nothing here when it is not (yet) there
             if (typeof groundTtypeRefresh === 'function') groundTtypeRefresh();
-            if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return true; },
+            if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (lawnField) lawnField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return true; },
           exRegions: () => Array.from(exPlanted.values()),
           // L4 (the F8 biomes fold): one number of one mix moved live - a species row's
           // proportion / dead / density / patch / size, or the forest's count / under / rocks /
           // blotch - the fill re-pools and replants, the ring replants; the export carries it
           setMix: (name, path, value) => { if (!BIO) return null; const M = BIO.mixOf(name); if (!M) return null;
             let o = M; for (let i = 0; i < path.length - 1; i++) { if (o[path[i]] === undefined || o[path[i]] === null) o[path[i]] = {}; o = o[path[i]]; }
-            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); reachRefresh(); return value; },
+            o[path[path.length - 1]] = value; biomePools.clear(); staleAll(); if (standCards && standCards.restale) standCards.restale(null); if (coverRing) coverRing.replant(); if (grassField) grassField.replant(); if (lawnField) lawnField.replant(); if (rockLayer) rockLayer.replant(); reachRefresh(); return value; },
           // the world rail's tree cards: one species' size multiplier over the canopy's (1 = the map's), all biomes; replants
           speciesSize: (name, k) => { if (k !== undefined) { if (+k === 1 || !(+k > 0)) delete SP_SIZE[name]; else SP_SIZE[name] = +k; staleAll(); } return SP_SIZE[name] || 1; },
           speciesSizes: () => Object.assign({}, SP_SIZE),
@@ -7817,6 +8087,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (ringLod) ringLod.rebuild();   // the ring's chunks are subsamples of it
     }
     if (farLod && farLod.resinkSteps) yield* farLod.resinkSteps(bb); else if (farLod && farLod.resink) farLod.resink(bb);   // the far tier under a premises past the ring (G527)
+    try { if (rockRing && rockRing.invalidate) rockRing.invalidate(bb); } catch (e) {}   // (a boot-time call may come before rockRing's line) ROCK-STUDY: the rock's chunks and macro tiles under the edit (the terraforming's keep)
   }
   // G2063 (TOWN-GEO): THE TOWN'S PATCH AND ROADS, AS THE EYE NEARS IT. With the town on, the boot builds the premises' ground
   // and roads as the town-off page does (Metlakatla is 9 km from HOME: its patch and roads were ~3.5 s of the garage
@@ -7926,7 +8197,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     lodUpdate(cg);
     if (FRw) FRw.push(FRw.S.cover);
     if (coverRing) coverRing.update();
+    if (rockRing) rockRing.update();
     if (grassField) grassField.update();
+    if (lawnField) lawnField.update();
+    if (rockLayer) rockLayer.update();
     if (FRw) FRw.pop();
     if (standCards) standCards.update((isFinite(uCam.value.x) && (uCam.value.x || uCam.value.y || uCam.value.z)) ? [uCam.value.x, uCam.value.y, uCam.value.z] : cg);   // G2930: the eye (the fill's ring is the eye's too)
     if (rockMap) rockMap.update();   // the rocks' far tier follows the eye (rock_map.js)
@@ -8115,7 +8389,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const R = world.soilNow(); if (!R) return;
     if (PAV.groundWxTick) PAV.groundWxTick(THREE, c => GROUND_WX.state(c, R));   // the aprons, pads and roads of a weather look
     for (const W of WXG) {
-      const st = GROUND_WX.state(W.code, R), key = st.rung + ':' + Math.round(st.S * 50);
+      const st = GROUND_WX.state(W.code, R), key = st.rung + ':' + Math.round(st.S * 50) + ':' + GROUND_WX.version;   // (the ladder's numbers moved: re-apply)
       if (key === W.key) continue;
       W.key = key;
       PAV.setGroundWx(THREE, W.part, st);
@@ -8442,7 +8716,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const TF = typeof window !== 'undefined' ? window.TREE_FILL : null;   // (the fill block's handle on its rings - this object's own closure does not reach them)
       // the GRASS FIELD only (L20d's strict gate: a first-ring cell - 32 m, its shrubs, rocks and debris - inside a 6 ms slice was a
       // 490 ms task on the Cub's round trip 2; the reveal frame's own cost was the field's cell - the first ring was planted by then)
-      const rings = [TF && TF.grass ? TF.grass() : null];
+      const rings = [TF && TF.grass ? TF.grass() : null, TF && TF.lawn ? TF.lawn() : null];   // (GRASS-CARDS: the lawn's cells too)
       for (const e of eyes || []) for (const R of rings) {
         if (!R || !R.plantNear) continue;
         const left = ms - (performance.now() - t0); if (left <= 0) return { built, done: false };
@@ -8474,6 +8748,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
            shell: o => shellDial(o),   // G600: { merge, castMin } -> the shed re-stood, its mesh count
            treeLod: { near: uNear, cam: uCam, lit: uILit }, renderer,
            treeAtlases,   // the impostor sheets by subject, readable (tools/imp_audit.js)
+           treeSideSheet: o => treeSideSheet(o),   // HANGAR-OUTDOORS: one side view a species, for the room's tree cards
            // the world's own light panel — the same shape the shed exposes, so
            // one piece of UI can drive either room
            lightSwitches: worldSwitch ? worldSwitch.list() : [],

@@ -503,6 +503,22 @@ const GEN_DAMAGE_DEFAULT = true;
 //     like it loses a connection, a wheel, a leg"): NOT a wheel's gear. One load member of a leg or a tailwheel, severed or
 //     kinked, lets its joint go whole (30_solver gearGrp); its wires only snap. A float's struts keep the third.
 const GEN_DMG_GROUP = { rel: 1 / 3 };
+// G4103 (JOINT-TETHER; the user 13 Nov: "usually a couple of large parts stay together" - a direction; the PHYSICS sets
+// the numbers): A KINKED MEMBER STILL HOLDS what its material keeps. A member crushed past its kink (G1813) kept only its
+// floor (push): its pull was gone, so a buckled longeron parted the fuselage as if cut. A buckled tube is FOLDED, not
+// severed - its wall is still one piece. It now keeps a TETHER, tension only, PLASTIC (it stretches, never springs back:
+// G1898.6's lesson), by its material (GEN_CRASH row):
+//   - a ductile tube or sheet (etu > 0: 4130, 6061, 2024): pulled, the fold OPENS first - at the force that folded it
+//     (`rFold` x its kept crush force Ff: the hinge's plastic collapse load, the same mechanism run back) - until it is
+//     straight again (its rest length Lr); then the creased wall carries `rDuct` x its strength (a fold's crease takes a
+//     thin wall's outer fibre to ~t / 2r ~ 50 % strain against the 8-12 % elongation: cracked through on the fold's
+//     outer half, the rest whole) and tears after `eDuct` x its uniform elongation (what the crease left);
+//   - spruce (wood): crushed through, its fibres are kinked in a band (Wood Handbook ch. 5, compression failures: brash
+//     in tension); tension is brittle (etu 0) - `rWood` x its strength, torn once back at its rest length;
+//   - a laminate (carbon, etu 0, not wood): crushed is delaminated - no tether.
+// While it holds, its two ends are ONE piece (pieces(): the verdict, the strips, the drawing's unparted kink); its tear is
+// a parting (the piece event again).
+const GEN_DMG_TETHER = { on: true, rFold: 1, rDuct: 0.5, eDuct: 0.5, rWood: 0.25 };
 // G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK - a cover tie per pair of frame nodes a covered panel spans
 // once the frame under it has parted (the solver's tieEvent; 61_gen_frame parts.dmg.cover the panels). The covering is
 // a MEMBRANE: tension only, no compression, no bending; slack until stretched past the length the covering has between
@@ -3429,7 +3445,7 @@ function genEngPropD0(S, e0, PP0) {
 const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
                                finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
                                ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0, aeroAftOver: 0, instPod: 0, towHook: 0, canClear: 0,
-                               brkHold: 0, wgStrutSec: 0, wgJury: 0 };
+                               brkHold: 0, wgStrutSec: 0, wgJury: 0, rodOn: 1, spinOn: 1 };   // (CAR, 12 Nov: the boom's rod and the spinner's cone, ON by default - every build as it was - absent from every key at 1; GATE STOL found them moving the six validated builds' keys at the TOW-LAUNCH x CAR merge)
 // STRUT-OPTIONS (2026-11-10): THE LIFT STRUT'S OPTIONS - the figures the frame (61_gen_frame, the jury strut's members)
 // and the aero (62_gen_aero genStrutOptCdA, the drag of a round strut and of the jury) read. None is read by a build
 // without bracing.section / bracing.jury.
@@ -6286,6 +6302,15 @@ function clampSpec(spec) {
     f.inc = genClamp(f.inc == null ? 0 : f.inc, -5, 10);   // G396.3: the keel's incidence, deg, bow down positive (0: measured no unstick gain at 3 or 5 on the card, and the fixture's approach went around at 3 — a row, not a default)
     f.x = f.x == null ? null : genClamp(f.x, -3, big ? 12 : 6);
     f.y = f.y == null ? null : genClamp(f.y, big ? -4.5 : -2.5, 0.5);
+    // AMPH-FLOATS (GEAR-LEVER, 13 Nov): THE AMPHIBIAN'S WHEELS (the join's, as drawn: the float's own frame, x aft of
+    // the step, y up from its keel) - a nose wheel in each bow, the mains aft of each step; their tyres, the mains'
+    // count, the system's kg over the seaplane's (absent: the frame estimates it). The key only on an amphibian
+    if (f.amph && typeof f.amph === 'object' && Array.isArray(f.amph.main) && Array.isArray(f.amph.nose)) {
+      const a = f.amph, xy = v => [genClamp(+v[0] || 0, -0.8 * f.L, f.L), genClamp(+v[1] || 0, -1.5, 1.5)];
+      f.amph = { main: xy(a.main), nose: xy(a.nose), rM: genClamp(+a.rM || 0.18, 0.08, 0.6), rN: genClamp(+a.rN || 0.12, 0.05, 0.5),
+                 wM: genClamp(+a.wM || 0.13, 0.04, 0.4), wN: genClamp(+a.wN || 0.10, 0.03, 0.4), mainN: a.mainN === 2 ? 2 : 1,
+                 ...(a.kg != null && isFinite(+a.kg) ? { kg: genClamp(+a.kg, 5, 1500) } : {}), ...(a.est ? { est: 1 } : {}) };
+    } else delete f.amph;
   } else S.gear.floats = null;
   // HULL-B2: THE BOAT'S MEASURED LINES (the join's cageHullTable): rows { x, yk, b, yc, bd, yd } in the water's frame
   // (x aft of the step, y up from its keel, metres), plus the step keel's place (x aft of the firewall, y over the keel
@@ -6339,7 +6364,9 @@ function clampSpec(spec) {
   // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
   // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
   // TAIL-RETRACT (2026-11-09): ...and a taildragger's MAINS (the DC-3's into its nacelles): its tailwheel stays down, fixed
-  if (S.gear.retract && typeof S.gear.retract === 'object' && (S.gear.type === 'tricycle' || S.gear.type === 'taildragger' || (S.gear.mono && S.gear.ul))) {   // (the ultralight monowheel: its main alone, the tail wheel fixed)
+  // (AMPH-FLOATS: an amphibian's floats retract their wheels too - floats with gear.floats.amph; never plain floats)
+  const AMPH_FLOATS = S.gear.type === 'floats' && !!(S.gear.floats && S.gear.floats.amph);
+  if (S.gear.retract && typeof S.gear.retract === 'object' && (S.gear.type === 'tricycle' || S.gear.type === 'taildragger' || (S.gear.mono && S.gear.ul) || AMPH_FLOATS)) {   // (the ultralight monowheel: its main alone, the tail wheel fixed)
     const r = S.gear.retract;
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';

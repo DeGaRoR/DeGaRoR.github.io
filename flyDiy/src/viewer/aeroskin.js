@@ -1794,8 +1794,13 @@ const AERO_TXT_FACES = [
   { key: 'plexmono', name: 'IBM Plex Mono', fam: 'IBM Plex Mono', r: 400, b: 600, it: false, track: 8,
     why: 'the registration\'s face: a legal marking, even letters', files: null, miss: '' },
 ];
-// the registration's four old rows as faces (regFont 0-3): what a registration wears until its builder picks a face
-const AERO_DEC_FONT_FACE = [{ face: 'plexmono', b: 1 }, { face: 'plexmono', b: 0 }, { face: 'plexsans', b: 1 }, { face: 'plexsans', b: 0 }];
+// the registration's four old rows as faces (regFont 0-3): what a registration wears until its builder picks a face.
+// REG-JOST (the user 16 Nov via A0: "I don't like the computer like font, can you remove it and change the planes using
+// it?" - then, of the four faces on a sheet, "the last one is good, just bold"): IBM Plex Mono is gone from every
+// registration. Rows 0 (the default, every plane that never picked a face) and 1 draw Jost, its bold 700 and its 500,
+// through the pieces' path (`swap`); rows 2-3 (IBM Plex Sans) still draw exactly as before. No build file changes.
+const AERO_DEC_FONT_FACE = [{ face: 'jost', b: 1, swap: 1, name: 'Jost bold' }, { face: 'jost', b: 0, swap: 1, name: 'Jost' },
+                            { face: 'plexsans', b: 1, name: 'Plex sans bold' }, { face: 'plexsans', b: 0, name: 'Plex sans light' }];
 const aeroTxtFace = k => AERO_TXT_FACES.find(f => f.key === k) || AERO_TXT_FACES[0];
 // the style asked for that the face SHIPS: bold where a bold exists, italic where an italic does - never synthesised
 function aeroTxtStyle(F, b, i) {
@@ -3321,9 +3326,9 @@ function aeroDecalsFor(THREE, D, opts) {
   const onOf = t => AERO_DEC_ON[Math.max(0, Math.min(AERO_DEC_ON.length - 1, +t || 0))];
   const modeOf = m => AERO_DEC_MODES[Math.max(0, Math.min(2, +m || 0))];
   // LIVERY-TEXT: the registration is a text piece with a fixed role - a face picked (regFace), a slant or an italic
-  // draws it through the pieces' path; untouched, the old row (regFont) draws it exactly as before
+  // draws it through the pieces' path; untouched, the old row (regFont) draws it as before - rows 0-1 in Jost (REG-JOST)
   const rf = AERO_DEC_FONT_FACE[Math.max(0, Math.min(3, Math.round(+D.regFont || 0)))];
-  const regFontArg = (D.regFace || +D.regSl || +D.regI)
+  const regFontArg = (D.regFace || +D.regSl || +D.regI || rf.swap)
     ? { face: D.regFace || rf.face, b: D.regFace ? +D.regB : rf.b, i: +D.regI || 0, sl: +D.regSl || 0 } : D.regFont;
   const aspect = aeroDecalText(THREE, 0, opts.reg || D.reg || 'F-PGAR',
                    D.regCol != null ? D.regCol : trim,
@@ -5941,7 +5946,7 @@ if (typeof window !== 'undefined')
                       aeroDecalsFor, aeroApplySpecDecals, AERO_DEC_DEF,
                       aeroDecalText,
                       aeroAtlas, aeroPageRect, AERO_MAXD, AERO_ATLAS_N,
-                      AERO_DEC_FONTS,
+                      AERO_DEC_FONTS, AERO_DEC_FONT_FACE,
                       AERO_TXT_FACES, AERO_TXT_N, AERO_TXT_MAX, AERO_TXT_PAGES, AERO_TXT_LDEF, AERO_TXT_FIELDS, aeroTxtClean, aeroTxtStyle, aeroTxtFont,   // LIVERY-TEXT
                       AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0, AERO_KIT_PAGES, AERO_FLAGS,
                       AERO_KIT_LDEF, AERO_KIT_FIELDS,
@@ -5964,7 +5969,7 @@ if (typeof module !== 'undefined')
   module.exports = { AERO_FINISH, AERO_ROLE, AERO_BY_CONS, AERO_LINER,
                      AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin, GLASS_MATS, aeroGlassMat,
                      aeroLinear, AERO_TEX, AERO_MAXD, AERO_ATLAS_N,
-                     aeroPageRect, AERO_DEC_FONTS,
+                     aeroPageRect, AERO_DEC_FONTS, AERO_DEC_FONT_FACE,
                      AERO_TXT_FACES, AERO_TXT_N, AERO_TXT_MAX, AERO_TXT_PAGES, AERO_TXT_LDEF, AERO_TXT_FIELDS, aeroTxtClean, aeroTxtStyle, aeroTxtFont,   // LIVERY-TEXT
                      AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K, aeroHardFinish,
                      // AERO_DEC_DEF is exported to node so a gate can prove the

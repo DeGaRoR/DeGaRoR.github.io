@@ -207,6 +207,7 @@ const OUTDOOR = [];
 const outdoor = m => { OUTDOOR.push(m); return ground(m); };
 let ROOM_POLISH = null;   // G3534: what the room's polish stood (hangar.polish)
 let POLISH_OUT = null;    // G3534b: its pieces outside the walls, drawn only while the eye stands outside (polishFollow)
+let HO_TREES = null;     // HANGAR-OUTDOORS: the tree cards' places (the outdoors plant them; treesFrom stands the cards)
 let ROOM_PAD = null;      // HANGAR-VIEW C: the plot's ground pad (under room:polish) - outdoors, so the world's view stands in for it
 
 // THE SEED IS RESETTABLE, and it has to be (G123). The canvas sheets below are
@@ -1938,6 +1939,161 @@ if (!EXT) {
   field.position.set(FCX, Y_FIELD, FCZ);
   field.receiveShadow = true;
   put(field);
+
+  // ---- HANGAR-OUTDOORS (the user 17 Nov via A0, the plan the user validated) ------------------------------------------
+  // "what we see outside of the hangar is the apron ... a couple of trees, and then we would be good" - and "start from the
+  // existing 3D scene and add my elements, or replace if needed". The room's own outdoors above STAYS (the field, the
+  // strip, the slab, the kerbs, the tufts, the furniture); on top, by room:
+  //   the club and the big hangar (HOME): the WORLD'S APRONS (the premises' paved surface polygons near the shed - y_pad,
+  //     af_y_park on Jolene: opts.aprons, the island record's) in the apron set the ground library names for it
+  //     ('concreteD', "dirty concrete - taxiway / apron"), under the strip and over the field; a few low-poly cars at the
+  //     far edge (the club only); a WALL OF TREES all round - the world's own impostor sheets (treesFrom, app.js hands
+  //     them in once the world has baked them), closer behind the hangar (the big one is open at the back)
+  //   the Shed (w1): dirt in front of the door with a slight variation and a couple of tyre marks; a wavy wooded hill
+  //     filling the view - a hill of the field's grass, darker, rising in a hemicircle, trees in rows up it
+  // REPLACED (the page names it too): nothing is removed; the field's grass is covered where an apron or the Shed's dirt
+  // lies, and the hill stands where the field was flat.
+  {
+    const HOK = SHELL === 'field' ? 'shed' : SHELL === 'works' ? 'big' : 'club';
+    let hs = 0x2f6b1d + HOK.length * 7919;
+    const hr = () => ((hs = (Math.imul(hs, 1664525) + 1013904223) >>> 0) / 4294967296);
+    const yRoll = (x, z) => { const r = Math.hypot(x, z); return r > R0 ? -KDROP * (r - R0) * (r - R0) : 0; };
+    const Y_AW = (Y_STRIP + Y_FIELD) / 2;   // the wide apron: over the field, under the strip
+    const inPoly = (P, x, z) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, zi] = P[i], [xj, zj] = P[j];
+      if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi + 1e-12) + xi) c = !c; } return c; };
+    const APR = [];
+    // the strip as a band in the local frame (trees and the hill keep off it): its centre segment and half width
+    const stripBand = (() => { if (!(R && SITE)) return null;
+      const a = LP(R.end0.x, R.end0.z), b = LP(R.end0.x + R.dx * R.len, R.end0.z + R.dz * R.len);
+      return { ax: a.x, az: a.z, bx: b.x, bz: b.z, half: (R.wid || 20) / 2 + 12 }; })();
+    const onStrip = (x, z) => { const S = stripBand; if (!S) return false;
+      const vx = S.bx - S.ax, vz = S.bz - S.az, L2 = vx * vx + vz * vz || 1, t = Math.max(0, Math.min(1, ((x - S.ax) * vx + (z - S.az) * vz) / L2));
+      return Math.hypot(x - S.ax - t * vx, z - S.az - t * vz) < S.half; };
+    if (HOK !== 'shed' && HGR) {
+      for (const poly of (opts && Array.isArray(opts.aprons)) ? opts.aprons : []) {
+        if (!Array.isArray(poly) || poly.length < 3) continue;
+        const loc = poly.map(p => { const q = LP(p[0], p[1]); return [q.x, q.z]; });
+        if (loc.some(([x, z]) => Math.hypot(x, z) < 420)) APR.push(loc);
+      }
+      if (!APR.length) APR.push([[-HD - 150, -110], [-HD + 0.4, -110], [-HD + 0.4, 110], [-HD - 150, 110]]);   // no record: out of the door
+      M.apronWide = gmat('concreteD', 3, concAlb, { roughness: 0.93, metalness: 0.02 });
+      macroise(M.apronWide, 60, 0.35);
+      for (const loc of APR) {
+        const sh = new THREE.Shape(loc.map(([x, z]) => new THREE.Vector2(x, -z)));
+        const geo = new THREE.ShapeGeometry(sh); geo.rotateX(-Math.PI / 2);
+        const p = geo.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, Y_AW + yRoll(p.getX(i), p.getZ(i)));
+        geo.computeVertexNormals();
+        const m = new THREE.Mesh(geo, M.apronWide); m.name = 'room:apronWide'; m.receiveShadow = true; put(m);
+      }
+    }
+    // THE CARS (the club): very low poly - a body, a cabin, a dark sill - at the apron's far edge, in a loose row
+    const CARS = [];
+    if (HOK === 'club') {
+      const cols = [0x8c2b22, 0x2f4a6b, 0xd8d4c8, 0x3d4a3a, 0x6b6660];
+      const bodyG = new THREE.BoxGeometry(4.3, 0.72, 1.76), cabG = new THREE.BoxGeometry(2.3, 0.62, 1.56), sillG = new THREE.BoxGeometry(4.0, 0.34, 1.66);
+      cabG.translate(-0.25, 0, 0);
+      const dark = MATLIB.shared(THREE, 'std', { color: new THREE.Color(0x1d1c1b), roughness: 0.8, metalness: 0.1 }, 'hoCar');
+      const glass = MATLIB.shared(THREE, 'std', { color: new THREE.Color(0x2b3238), roughness: 0.15, metalness: 0.4 }, 'hoCar');
+      for (const m of [dark, glass]) outdoor(m);
+      // the far edge: the apron's farthest out of the door (the most negative x), 10 m back from it
+      let fx = -HD - 120; for (const P of APR) for (const [x] of P) fx = Math.min(fx, x);
+      const ex = Math.max(fx + 10, -HD - 170);
+      for (let i = 0; i < 5; i++) {
+        const z = -34 + i * 15 + (hr() - 0.5) * 5, x = ex + (hr() - 0.5) * 4, yaw = Math.PI / 2 + (hr() - 0.5) * 0.5, y = Y_AW + yRoll(x, z);
+        const paint = MATLIB.shared(THREE, 'std', { color: new THREE.Color(cols[i]), roughness: 0.45, metalness: 0.35 }, 'hoCar'); outdoor(paint);
+        // three plain meshes, each placed itself (the room's merge bakes its direct meshes: no group in between)
+        for (const [g, m, dy] of [[bodyG, paint, 0.70], [cabG, glass, 1.39], [sillG, dark, 0.17]]) {
+          const o = new THREE.Mesh(g, m); o.name = 'room:car'; o.position.set(x, y + dy, z); o.rotation.y = yaw;
+          o.castShadow = false; o.receiveShadow = true; put(o);
+        }
+        CARS.push([x, z]);
+      }
+    }
+    // THE SHED'S GROUND: dirt out of the door, a half disc 38 m, its rim fading into the grass over 9 m; a slight variation
+    // (the macro); two tyre marks from the door out across it
+    const HILL = { on: HOK === 'shed', r0: 60, r1: 220, a: 1.95 };   // (15:20 stills: at r0 52 and 0.38 a metre the door saw only grass and trunks)
+    const hillH = (r, a) => {   // the wooded hill's height (m over the field): a rising hemicircle with waves along it
+      if (!HILL.on || r <= HILL.r0) return 0;
+      const t = Math.min(1, (r - HILL.r0) / 30), side = Math.max(0, Math.min(1, (HILL.a - Math.abs(a)) / 0.4));
+      const base = (r - HILL.r0) * 0.22 + 7 * Math.sin(a * 2.3 + 0.7) + 4 * Math.sin(a * 5.1 + 1.9) + 3 * Math.sin(r * 0.045 + a * 3);
+      return Math.max(0, base) * t * side * side * (3 - 2 * side);
+    };
+    if (HOK === 'shed') {
+      M.dirtOut = gmat('dirtS', 3, grassAlb, { roughness: 0.97, transparent: true, depthWrite: false, vertexColors: true });
+      macroise(M.dirtOut, 25, 0.45);
+      const NR = 24, NA = 48, RD = 38, FD = 9, pos = [], uv = [], col = [], idx = [];
+      for (let j = 0; j <= NR; j++) for (let i = 0; i <= NA; i++) {
+        const r = RD * j / NR, a = -1.75 + 3.5 * i / NA, x = -HD - 0.3 - r * Math.cos(a), z = r * Math.sin(a);
+        const al = Math.max(0, Math.min(1, (RD - r) / FD)) * (0.85 + 0.15 * Math.sin(x * 0.31 + z * 0.17));
+        pos.push(x, Y_FIELD + 0.006, z); uv.push(x, -z); col.push(1, 1, 1, al);
+      }
+      // (wound to face UP: the angle runs +z out of the door, the radius -x - a, c2, b; 15:00 stills: the other way it was culled)
+      for (let j = 0; j < NR; j++) for (let i = 0; i < NA; i++) { const a = j * (NA + 1) + i, b = a + 1, c2 = a + NA + 1, d2 = c2 + 1; idx.push(a, c2, b, b, c2, d2); }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex(idx); g.computeVertexNormals();
+      const dm = new THREE.Mesh(g, M.dirtOut); dm.name = 'room:dirt'; dm.receiveShadow = true; dm.renderOrder = 2; put(dm);
+      // the tyre marks: two dark ribbons a track apart, out of the door with a slight bend, fading out
+      const tyre = MATLIB.make(THREE, 'std', { color: new THREE.Color(0x2e261e), roughness: 1, metalness: 0, transparent: true, opacity: 0.42, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, vertexColors: true });
+      outdoor(tyre);
+      for (const off of [-1.0, 1.0]) {
+        const P = [], C = [], I = [], N = 30;
+        for (let k = 0; k <= N; k++) {
+          const s = k / N, x = -HD - 0.5 - s * 32, zc = off + 2.4 * s * s, w = 0.16, fade = Math.min(1, (1 - s) * 3) * Math.min(1, s * 12);
+          P.push(x, Y_FIELD + 0.012, zc - w, x, Y_FIELD + 0.012, zc + w); C.push(1, 1, 1, fade, 1, 1, 1, fade);
+          if (k < N) { const a = 2 * k; I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+        }
+        const tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); tg.setAttribute('color', new THREE.Float32BufferAttribute(C, 4));
+        tg.setIndex(I); tg.computeVertexNormals();
+        const tm = new THREE.Mesh(tg, tyre); tm.name = 'room:tyres'; tm.receiveShadow = true; tm.renderOrder = 3; put(tm);
+      }
+      // the wooded hill: a polar grid over the hemicircle out of the door, the field's grass a shade darker
+      M.hill = gmat('grass005', 2, grassAlb, { roughness: 0.97, color: 0x7d8b6e });
+      macroise(M.hill, 70, 0.5);
+      const HR = 32, HA = 66, hp = [], hu = [], hi = [];
+      for (let j = 0; j <= HR; j++) for (let i = 0; i <= HA; i++) {
+        const r = HILL.r0 - 6 + (HILL.r1 - HILL.r0 + 6) * j / HR, a = -HILL.a + 2 * HILL.a * i / HA;
+        const x = -r * Math.cos(a), z = r * Math.sin(a);
+        hp.push(x, Y_FIELD - 0.01 + hillH(r, a), z); hu.push(x, -z);
+      }
+      for (let j = 0; j < HR; j++) for (let i = 0; i < HA; i++) { const a = j * (HA + 1) + i, b = a + 1, c2 = a + HA + 1, d2 = c2 + 1; hi.push(a, c2, b, b, c2, d2); }   // (face up, as the dirt)
+      const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(hp, 3)); hg.setAttribute('uv', new THREE.Float32BufferAttribute(hu, 2));
+      hg.setIndex(hi); hg.computeVertexNormals();
+      const hm = new THREE.Mesh(hg, M.hill); hm.name = 'room:hill'; hm.receiveShadow = true; put(hm);
+    }
+    // THE TREES' PLACES (the cards come later: treesFrom). Room frame, the door at -x; a card faces the room's centre
+    const T = HO_TREES = { list: [], built: null };
+    const plant = (x, z, y, sc) => {
+      if (onStrip(x, z)) return;
+      for (const P of APR) if (inPoly(P, x, z)) return;
+      for (const [cx, cz] of CARS) if (Math.hypot(x - cx, z - cz) < 9) return;
+      T.list.push({ x, z, y, s: sc, k: Math.floor(hr() * 97), yaw: Math.atan2(-x, -z) });
+    };
+    if (HOK === 'shed') {
+      for (let r = HILL.r0 + 6; r <= HILL.r1 - 12; r += 9) {
+        const n = Math.ceil(2 * HILL.a * r / 6.5);
+        for (let i = 0; i < n; i++) {
+          const a = -HILL.a + 0.15 + (2 * HILL.a - 0.3) * (i + hr() * 0.8) / n, rr2 = r + (hr() - 0.5) * 5;
+          const h = hillH(rr2, a); if (h <= 0.5 && rr2 > HILL.r0 + 10) continue;
+          plant(-rr2 * Math.cos(a), rr2 * Math.sin(a), Y_FIELD + h - 0.3, 0.85 + hr() * 0.5);
+        }
+      }
+    } else {
+      // all round: far in front (past the aprons), nearer at the back; three loose rows
+      const front = 175, back = HOK === 'big' ? HD + 26 : HD + 55;
+      for (let row = 0; row < 3; row++) {
+        const n = 260 + row * 30;
+        for (let i = 0; i < n; i++) {
+          const a = (i + hr() * 0.7) / n * Math.PI * 2, cx = Math.cos(a);   // a = 0: out of the door (-x)
+          const k = Math.max(0, Math.min(1, (cx + 0.35) / 0.7)), k2 = k * k * (3 - 2 * k);
+          const r = back + (front - back) * k2 + row * 9 + (hr() - 0.5) * 6;
+          const x = -r * cx, z = r * Math.sin(a);
+          plant(x, z, Y_FIELD + yRoll(x, z) - 0.2, 0.85 + hr() * 0.55);
+        }
+      }
+    }
+  }
 
   // ---- THE STRIP ----------------------------------------------------------
   if (R && SITE) {
@@ -4087,8 +4243,8 @@ for (const k in PARTS) {
   const p = PARTS[k], m = p.mat;
   p.baked = { map: m.map || null, nor: m.normalMap || null,
     rough: m.roughnessMap || null, rough0: m.roughness,
-    ns: m.normalScale ? m.normalScale.clone() : null };
-  p.state = { set: 'baked', tile: p.tile, rough: 1, nrm: 1 };
+    ns: m.normalScale ? m.normalScale.clone() : null, color: m.color ? m.color.clone() : null };
+  p.state = { set: 'baked', tile: p.tile, rough: 1, nrm: 1, paint: null };
   p.cache = {};
 }
 const partTex = (img, srgb) => {
@@ -4115,8 +4271,12 @@ const setPart = (key, st) => {
     if (+st.tile > 0) s.tile = Math.max(0.25, Math.min(12, +st.tile));
     if (+st.rough >= 0) s.rough = Math.max(0, Math.min(2, +st.rough));
     if (+st.nrm >= 0) s.nrm = Math.max(0, Math.min(2, +st.nrm));
+    // HANGAR-OUTDOORS (item 3, the large hangar's walls): a PAINT over the set - a colour the sheet's albedo is multiplied by
+    // (null: the material's own, as baked)
+    if (st.paint === null || Number.isFinite(+st.paint)) s.paint = st.paint === null ? null : +st.paint;
   }
   const m = p.mat;
+  if (m.color && p.baked.color) { if (s.paint === null || s.paint === undefined) m.color.copy(p.baked.color); else m.color.setHex(s.paint); }
   if (s.set === 'baked') {
     m.map = p.baked.map; m.normalMap = p.baked.nor;
     m.roughnessMap = p.baked.rough;
@@ -4513,6 +4673,33 @@ return {
   // G3630 (HANGAR-VIEW): THE ROOM'S OWN OUTDOORS OFF while the world's view out of the door stands in (hangar_view.js):
   // the sky sphere and the outdoors' span (the field, the strip, the slab, the kerbs, the tufts, the furniture); the
   // polish on the room's own walls (HANGARS-LOOK's 'room:polish') stays. on: true puts them back
+  // HANGAR-OUTDOORS: THE TREE CARDS, stood once the world hands in its sheets (render_world treeSideSheet: one side view a
+  // species, the world's own impostor bakes) - one InstancedMesh a species over the places the outdoors planted, each card
+  // facing the room's centre (the eye stays in the room; the trees stand 50-200 m out: real geometry, right from any eye),
+  // its normal tipped toward the sky so the sun and the sky light it as the field is lit. -> true when stood
+  treesFrom: S => {
+    const T = HO_TREES;
+    if (!T || T.built || !S || !S.tex || !Array.isArray(S.list) || !S.list.length || !T.list.length) return false;
+    const grp = new THREE.Group(); grp.name = 'room:trees'; grp.userData.outdoor = true;
+    const mat = MATLIB.make(THREE, 'std', { map: S.tex, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 1, metalness: 0, envMapIntensity: 0.45, fog: false });
+    outdoor(mat);
+    const byK = S.list.map(() => []);
+    for (const t of T.list) byK[t.k % S.list.length].push(t);
+    const q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3(), M4 = new THREE.Matrix4();
+    S.list.forEach((sp, k) => {
+      const L = byK[k]; if (!L.length || !(sp.diam > 0)) return;
+      const geo = new THREE.PlaneGeometry(sp.diam, sp.diam); geo.translate(0, sp.cy, 0);
+      const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, sp.u0 + uv.getX(i) * (sp.u1 - sp.u0));
+      const nr = geo.attributes.normal; for (let i = 0; i < nr.count; i++) nr.setXYZ(i, 0, 0.72, 0.69);
+      const im = new THREE.InstancedMesh(geo, mat, L.length); im.name = 'room:trees:' + (sp.key || k);
+      L.forEach((t, i) => { e.set(0, t.yaw, 0); q.setFromEuler(e); p.set(t.x, t.y, t.z); sc.setScalar(t.s); M4.compose(p, q, sc); im.setMatrixAt(i, M4); });
+      im.instanceMatrix.needsUpdate = true; im.castShadow = false; im.receiveShadow = false; im.frustumCulled = false;
+      grp.add(im);
+    });
+    grp.visible = !viewOut; G.add(grp); T.built = grp;
+    return true;
+  },
+  treesPlanned: () => (HO_TREES ? HO_TREES.list.length : 0),
   outdoorsShow: (on, keepSky) => {
     viewOut = on === false; skyLive = viewOut && !!keepSky;
     for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut;

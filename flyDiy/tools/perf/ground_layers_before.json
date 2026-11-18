@@ -1,7 +1,7 @@
 {
- "base": "a3aa44c",
- "chrome": "Chrome/141.0.7390.37",
- "made": "tools/ground_layers_chrome.js",
+ "base": "accepted by node tools/_groundlib_check.js --update (2026-11-17); the Chrome proof of the migration: git log tools/perf/ground_layers_before.json",
+ "chrome": "",
+ "made": "tools/_groundlib_check.js --update",
  "layer": "SHA-256 of the 512x512 RGBA8 layer as the old code packed it in the page",
  "splat": {
   "beach": {
@@ -83,6 +83,14 @@
   "darkRock": {
    "A": "bbe4fea0b472d4acee1a4c2978adf3f251dfe60384db5dfb41dbf4bebedfd7a1",
    "N": "05619f4009c6b6f902248a657f9a4979471f9edc129a4fb5062eaf79a9b1e65c"
+  },
+  "trondSlab": {
+   "A": "f00d0d4dea8ef6a1142b0dea8b98b9790cfbfea06200f9a5a5ef2d52c9806a5a",
+   "N": "275c6b28aee7aecd55fe54b73aa25941232b4a56c66c88bf768bca86c627aa0c"
+  },
+  "trondFace": {
+   "A": "f4528be9cc627532d1ec24168b652f53d9073bd628133c8a2e558ba14bd571cd",
+   "N": "f240e5acf323f81a99f9b0b2bd20541e487eecdb9e2342651a5499c7257d9876"
   }
  },
  "pavement": {
@@ -427,6 +435,18 @@
     "nor": "79c2bb5b3d76dd69d2f0fa9d116600436a32569b0ba1ad64670e73db13489e84",
     "rough": "1cde0b23be763c84288f6ba5bb19d452ac727ee82b6456408bab320552c2131c",
     "height": "3be0402202ea8ec8cf5deaa3e551f07ea428907279adf7159a15cf885a1a68c9"
+   },
+   "trondSlab": {
+    "diff": "7dcabc90c2db8dbd0a1e18e73dc302e5d6fdb1307b99b41f975bbf3b8fa9fad7",
+    "nor": "90d7160de852bd4f98f90a83d74b06214da62c364a5a202f4c5ebd18c464f1b1",
+    "rough": "507810c6257c597edbb5691c1ed0dfe220d35a7a7320bff5275455e1880f3aa9",
+    "height": "54aa8d2ef3ae27b4c835925736884627637e00e767bdb1ae2ba73175640df24f"
+   },
+   "trondFace": {
+    "diff": "aa20604d48715bae61270eb4d22e501270c4c189c484389b1b00a18dfffdc792",
+    "nor": "74349ab1f6754a52d08f3968ae554a225ac077f9b2fd46448d86653ae9af27d5",
+    "rough": "3fb6a6cda41da5c525310966f88354c05ae9dd1e820b7650bb849ffa4d6fed81",
+    "height": "0bd8052c1d88437e0a9ebfbe130936de43ad5815807a168b64695d6290520581"
    }
   },
   "pavement": {

@@ -33,7 +33,7 @@
 //          a shade, its aprons and the island around it do not darken), and the dirt toward the mud's own colour by its
 //          mud (the pavement's 'mud' class) - and the dust or the mud a wheel throws takes THAT colour (app.js)
 //   gloss  wet ground shines a little (the pavement's wet film, uWet.x)
-// A DEV OVERRIDE (world.setGround: 'dry' | 'firm' | 'soft' | null - the soil's water held at 0.05 / 0.7 / 0.95 for
+// A DEV OVERRIDE (world.setGround: 'dry' | 'firm' | 'soft' | null - the soil's water held at forceDry / Firm / Soft for
 // every reader: the wheels, the drawn ground, the dust and the puddles; replayed on the physics worker as setDay is)
 // and the fixed looks keep every test on a known rung. GATE MUDLADDER.
 // ============================================================
@@ -43,14 +43,44 @@ var GROUND_WX = (function () {
   const DRY = Object.freeze({ 20: 6, 21: 0, 22: 7 });            // a weather code's dry rung (and what a tree, a plot, a map reads)
   const CLS = Object.freeze({ 20: 'dirt', 21: 'grass', 22: 'sand' });
   const GRASS_WET = 13, SAND_WET = 14;
-  const STEP = Object.freeze({ mudFirm: 0.25, mudSoft: 0.75, grassWet: 0.5, sandWet: 0.45 });
-  // the worn relief's scale by rung (dirt: dry / firm / soft; grass: dry / wet; sand: dry / wet)
-  const WEAR = Object.freeze({ dirt: [0.85, 1.0, 1.3], grass: [1.0, 1.0], sand: [1.0, 0.9] });
-  // the drawn ground's darkening at saturation, x S (multiplier 1 - k S), and its film (the pavement's uWet.x) x S
-  const DARK = Object.freeze({ dirt: 0.30, grass: 0.12, sand: 0.10 });
-  const FILM = Object.freeze({ dirt: 0.35, grass: 0.10, sand: 0.20 });
-  // the dev override's water (every class): the three rungs' middles
-  const FORCE = Object.freeze({ dry: 0.05, firm: 0.70, soft: 0.95 });
+  // THE LADDER'S NUMBERS (A0 for the user, 16 Nov: "every new world setting must be editable in the WORLD EDITOR"): one flat
+  // table, the shipped values in LADDER_DEF, the live ones set by ladder(o) - the world rail's 'weather ladder' rows (world_rail.js
+  // RUNWAYS), kept in THE LOOK and its export, reset there; the physics worker's world takes the same through
+  // world.setGroundLadder (sim_link / sim_host replay it, as setDay). `version` counts the sets (the drawn strips re-apply on it).
+  //   mudFirm / mudSoft     the dirt's mud (SOIL_WET's smoothstep(0.55, 0.9, S)) at which firm mud, then soft mud, begins
+  //   grassWet / sandWet    the class's water S at which grass, sand are wet
+  //   wear*                 the worn relief's scale (the ruts, the holes, the lumps) on that rung
+  //   dark*                 the drawn ground's darkening at saturation (x S);  film*: its wet film (x S)
+  //   forceDry / Firm / Soft  the dev override's held water (every class) - the rungs' middles
+  const LADDER_DEF = Object.freeze({ mudFirm: 0.25, mudSoft: 0.75, grassWet: 0.5, sandWet: 0.45,
+    wearDirtDry: 0.85, wearDirtFirm: 1.0, wearDirtSoft: 1.3, wearSandWet: 0.9,
+    darkDirt: 0.30, darkGrass: 0.12, darkSand: 0.10, filmDirt: 0.35, filmGrass: 0.10, filmSand: 0.20,
+    forceDry: 0.05, forceFirm: 0.70, forceSoft: 0.95 });
+  // each knob's range (the rail's sliders and the setter's clamp)
+  const LADDER_RANGE = Object.freeze({ mudFirm: [0, 1], mudSoft: [0, 1], grassWet: [0, 1], sandWet: [0, 1],
+    wearDirtDry: [0.3, 2], wearDirtFirm: [0.3, 2], wearDirtSoft: [0.3, 2.5], wearSandWet: [0.3, 2],
+    darkDirt: [0, 0.6], darkGrass: [0, 0.4], darkSand: [0, 0.4], filmDirt: [0, 1], filmGrass: [0, 1], filmSand: [0, 1],
+    forceDry: [0, 1], forceFirm: [0, 1], forceSoft: [0, 1] });
+  const LD = Object.assign({}, LADDER_DEF);
+  let version = 0;
+  // ladder() -> a copy of the live numbers; ladder(o) sets the keys it names (clamped to their range; mudSoft never under
+  // mudFirm); ladder(null) -> the shipped ones. Returns the live copy
+  function ladder(o) {
+    if (o === null) { Object.assign(LD, LADDER_DEF); version++; }
+    else if (o && typeof o === 'object') {
+      let n = 0;
+      for (const k in o) { if (!(k in LADDER_DEF)) continue; const v = +o[k]; if (!Number.isFinite(v)) continue; const R = LADDER_RANGE[k], c = v < R[0] ? R[0] : v > R[1] ? R[1] : v; if (LD[k] !== c) { LD[k] = c; n++; } }
+      if (LD.mudSoft < LD.mudFirm) { LD.mudSoft = LD.mudFirm; n++; }
+      if (n) version++;
+    }
+    return Object.assign({}, LD);
+  }
+  // the live numbers in the shapes state() reads (views over LD, not copies)
+  const STEP = { get mudFirm() { return LD.mudFirm; }, get mudSoft() { return LD.mudSoft; }, get grassWet() { return LD.grassWet; }, get sandWet() { return LD.sandWet; } };
+  const WEAR = { get dirt() { return [LD.wearDirtDry, LD.wearDirtFirm, LD.wearDirtSoft]; }, grass: [1, 1], get sand() { return [1, LD.wearSandWet]; } };
+  const DARK = { get dirt() { return LD.darkDirt; }, get grass() { return LD.darkGrass; }, get sand() { return LD.darkSand; } };
+  const FILM = { get dirt() { return LD.filmDirt; }, get grass() { return LD.filmGrass; }, get sand() { return LD.filmSand; } };
+  const FORCE = Object.freeze({ dry: 'forceDry', firm: 'forceFirm', soft: 'forceSoft' });   // a level -> its knob
   const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
   const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
   const is = c => c === 20 || c === 21 || c === 22;
@@ -74,11 +104,11 @@ var GROUND_WX = (function () {
       const m = smooth(0.55, 0.9, S); o.mud = m;
       o.rung = m < STEP.mudFirm ? 0 : m < STEP.mudSoft ? 1 : 2;
       o.code = o.rung === 0 ? DRY[code] : o.rung === 1 ? 11 : 12;
-      o.wear = WEAR.dirt[o.rung];
+      o.wear = o.rung === 0 ? LD.wearDirtDry : o.rung === 1 ? LD.wearDirtFirm : LD.wearDirtSoft;
     } else if (code === WX.GRASS) {
-      o.rung = S < STEP.grassWet ? 0 : 1; o.code = o.rung ? GRASS_WET : DRY[code]; o.wear = WEAR.grass[o.rung];
+      o.rung = S < STEP.grassWet ? 0 : 1; o.code = o.rung ? GRASS_WET : DRY[code]; o.wear = 1;
     } else {
-      o.rung = S < STEP.sandWet ? 0 : 1; o.code = o.rung ? SAND_WET : DRY[code]; o.wear = WEAR.sand[o.rung];
+      o.rung = S < STEP.sandWet ? 0 : 1; o.code = o.rung ? SAND_WET : DRY[code]; o.wear = o.rung ? LD.wearSandWet : 1;
     }
     o.dark = DARK[o.cls] * S; o.film = FILM[o.cls] * S;
     return o;
@@ -87,9 +117,10 @@ var GROUND_WX = (function () {
   // a forced soil (the dev override): SOIL_WET's shape, every class at the rung's water
   const FR = { wet: 0, cls: { dirt: 0, sand: 0, gravel: 0, grass: 0 }, rainNow: 0, hoursDry: 96, mud: 0, src: 'ground' };
   function forced(level) {
-    const v = FORCE[level]; if (v === undefined) return null;
+    const k = FORCE[level]; if (k === undefined) return null; const v = LD[k];
     FR.wet = v; for (const k in FR.cls) FR.cls[k] = v; FR.mud = smooth(0.55, 0.9, v); FR.hoursDry = v > 0.3 ? 0 : 96;
     return FR;
   }
-  return { WX, DRY, CLS, GRASS_WET, SAND_WET, STEP, WEAR, DARK, FILM, FORCE, is, lookClass, dryOf, water, state, resolve, forced };
+  return { WX, DRY, CLS, GRASS_WET, SAND_WET, STEP, WEAR, DARK, FILM, FORCE, LADDER_DEF, LADDER_RANGE, ladder, get version() { return version; },
+    is, lookClass, dryOf, water, state, resolve, forced };
 })();

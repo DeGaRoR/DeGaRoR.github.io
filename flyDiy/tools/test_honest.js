@@ -72,8 +72,11 @@ function checkSurface(o) {
   // has a row, the directions read like the ground they name, and water is
   // the violent one: a wheel in a lake is not on a lawn.
   // (SNOW-MUD, 13 Nov: + the five soft rows, 8-12 - GATE SOFTGROUND holds the eight here to their numbers)
-  check(o.rows === 13, 'surface: all eight ground classes and the five soft ones carry a row (' +
-    o.rows + ')');
+  // (SNOW-MUD LADDER, 15-16 Nov: + the wet rungs 13 wet grass, 14 wet sand - their own rows; the WEATHER codes 20-22 a weather
+  //  look feels are resolved to a rung by the world (07f GROUND_WX) and, unresolved, read their dry rung's row - the same row
+  //  object, so they add no ground class: 15 classes, each its own row, and the three weather codes on dirt's, grass's, sand's)
+  check(o.rows === 15 && o.wxDry !== false, 'surface: all eight ground classes, the five soft ones and the two wet rungs carry a row (' +
+    o.rows + '), the weather codes their dry rung\'s (' + o.wxDry + ')');
   check(o.screeCRR > o.grassCRR * 2 && o.waterCRR > o.screeCRR
         && o.waterBrake === 0,
     'surface: scree rolls hard, water harder, and brakes do NOTHING in water');
@@ -262,7 +265,8 @@ const world0 = makeWorld();
 const pavedRec = world0.aerodromes.find(a => a.surface === 5);
 if (!pavedRec) { console.log('GATE HONEST: FAIL (no paved strip in the registry)'); process.exit(1); }
 checkSurface({ grass: rollDist('HOME'), paved: rollDist(pavedRec.id),
-  rows: Object.keys(GROUND_SURF).length,
+  rows: Object.keys(GROUND_SURF).filter(k => +k < 20 && Array.isArray(GROUND_SURF[k]) && GROUND_SURF[k].length === 3).length,
+  wxDry: GROUND_SURF[20] === GROUND_SURF[6] && GROUND_SURF[21] === GROUND_SURF[0] && GROUND_SURF[22] === GROUND_SURF[7],
   grassCRR: GROUND_SURF[0][0], screeCRR: GROUND_SURF[2][0],
   waterCRR: GROUND_SURF[4][0], waterBrake: GROUND_SURF[4][1],
   scree: rollOn(2), water: rollOn(4), grassStub: rollOn(0) });

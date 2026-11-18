@@ -538,6 +538,99 @@ function aeroWxGrungeTex(THREE) {
 }
 
 // ---------------------------------------------------------------------------
+// GROUND-FX (16 Nov 2026): THE LIVE TERM - the mud, the dust film, the wetness and the rain on the skin, ONE term spliced
+// into BOTH the live shader (the tail of AERO_WX_SURF_FS) and flown_bake.js's FB_HOOK, so the hybrid band crosses without a
+// jump (futureDesigns/GROUND-FX-2026-11-15.md section 7: the bake froze the weathering at roll-out and dropped the live mud
+// coat; this term reads its uniforms every frame). It is ground_deposit.js's own arithmetic (sample / look / spatter /
+// erode / pbrAt): the two textures trilinear at the craft point, each arrival x how squarely the face meets it, eroded by
+// the spatter, then the PBR - albedo toward the mud (darker wet) and the dust, roughness wet-glossy / dry-matte / dust,
+// the bump on the screen derivatives. RAIN ON THE SKIN (THE USER via A0, 16 Nov: "upward faces darker + glossier in rain,
+// drying after"): the skin's wetness (the page's law: ground_deposit RAIN) darkens and glosses what faces up, the sides
+// by uGdRain.w. With no grid (the phone's tiers, floats, before the grid is made) the CONE COAT (aeroWxSetMud's m, the
+// wheel mud cone's own envelope) is the bake's fallback - the live shader draws that one through its layers already.
+// One uniform branch (uGdDim.w): off, the term costs a compare.
+const AERO_GD_PARS = `
+uniform highp sampler3D tGdMud;
+uniform highp sampler3D tGdFw;
+uniform vec4 uGdBox; uniform vec4 uGdDim; uniform vec4 uGdMudC; uniform vec4 uGdDustC;
+uniform vec4 uGdPbr; uniform vec4 uGdRain; uniform vec4 uGdSp; uniform vec4 uGdSp2;
+float gdHs(vec3 p) { return fract(sin(p.x * 127.1 + p.y * 311.7 + p.z * 74.7) * 43758.5453); }
+float gdVn(vec3 x) {
+  vec3 i = floor(x), f = x - i; f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(gdHs(i), gdHs(i + vec3(1, 0, 0)), f.x), mix(gdHs(i + vec3(0, 1, 0)), gdHs(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(gdHs(i + vec3(0, 0, 1)), gdHs(i + vec3(1, 0, 1)), f.x), mix(gdHs(i + vec3(0, 1, 1)), gdHs(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+float gdSpatter(vec3 p) {
+  vec3 a = vec3(p.x * uGdSp.x + p.y * uGdSp2.x, p.y * uGdSp.y + (p.x + p.z) * 1.3, p.z * uGdSp.x - p.y * uGdSp2.x * 0.7);
+  vec3 b = vec3(p.x * uGdSp.z + p.y * 2.1 + 31.7, p.y * uGdSp.w + (p.x - p.z) * 3.1 - 7.3, p.z * uGdSp.z - p.y * 1.7 + 11.1);
+  float n = uGdSp2.y * gdVn(a) + (1.0 - uGdSp2.y) * gdVn(b);
+  return clamp(0.5 + (n - 0.5) * uGdSp2.w, 0.0, 1.0);
+}
+float gdFace(float d) { return d > 0.0 ? min(1.0, d * 1.15) : 0.0; }
+`;
+// the bake has none of the live block: the cone's wheels and its count, declared for the term's fallback
+const AERO_GD_PARS_FB = `
+uniform vec4 uWxW[6];
+uniform vec4 uWxWd[6];
+uniform vec4 uWxN;
+` + AERO_GD_PARS;
+// the term, on the craft point P and the craft normal N (face-corrected) of the shader it is spliced into; cone: the
+// fallback coat drawn here (the bake) or not (the live shader: its layers draw it). Leaves gdMudK (the mud or film drawn)
+// at main's scope for the clear coat.
+function aeroGdFs(P, N, cone) {
+  return `
+  float gdMudK = 0.0;
+#define GD_TERM 1
+#ifndef GD_OFF
+  if (uGdDim.w > 0.5) {
+    vec3 gdP = ` + P + `, gdN = ` + N + `;
+    float gdC = 0.0, gdD = 0.0, gdW = 0.0;
+    vec3 gdUvw = (gdP - uGdBox.xyz) / (uGdBox.w * uGdDim.xyz);
+    float gdIn = step(1.5, uGdDim.w) * step(0.0, min(gdUvw.x, min(gdUvw.y, gdUvw.z))) * step(max(gdUvw.x, max(gdUvw.y, gdUvw.z)), 1.0);
+    if (gdIn > 0.5) {
+      vec4 c4 = textureLod(tGdMud, gdUvw, 0.0); vec2 f2 = textureLod(tGdFw, gdUvw, 0.0).rg;
+      gdC = 1.0 - (1.0 - c4.x * gdFace(-gdN.z)) * (1.0 - c4.y * gdFace(-gdN.y)) * (1.0 - c4.z * gdFace(gdN.x)) * (1.0 - c4.w * gdFace(-gdN.x));
+      gdD = f2.x; gdW = f2.y;
+    }` + (cone ? `
+    if (uGdMudC.w > 0.0) {
+      float gcm = 0.0;
+      for (int j = 0; j < 6; ++j) {
+        if (float(j) >= uWxN.y) break;
+        vec3 q = gdP - uWxW[j].xyz;
+        float R = max(uWxW[j].w, 0.05), hw = max(uWxWd[j].x, 0.02), len = max(uWxWd[j].z, 0.1);
+        float t = clamp(q.y / len, 0.0, 1.0);
+        float la = q.x / (hw * (1.0 + 2.5 * t)), lat = exp(-la * la);   // (no pow of a negative base)
+        float zTop = 0.25 + R * (1.5 + 6.0 * t);
+        float hz = smoothstep(zTop + 0.20, zTop - 0.05, q.z) * smoothstep(-0.35, -0.05, q.z);
+        gcm += lat * hz * (1.0 - 0.7 * t) * smoothstep(0.0, 0.05, q.y / len) * uWxWd[j].y;
+      }
+      float gfc = max(clamp(-gdN.z, 0.0, 1.0), max(0.7 * clamp(-gdN.y, 0.0, 1.0), 0.35 * abs(gdN.x)));
+      gdC = max(gdC, clamp(gcm, 0.0, 1.0) * gfc * uGdMudC.w); gdW = max(gdW, 0.6 * uGdMudC.w);
+    }` : '') + `
+    float gdS = gdSpatter(gdP);
+    float gdM = gdC > 0.003 ? smoothstep(gdS - uGdSp2.z, gdS + uGdSp2.z, gdC) : 0.0;
+    gdD *= (gdN.z > 0.3 ? uGdDustC.w : 1.0) * (1.0 - 0.5 * gdM);
+    float gdR = uGdRain.x * mix(uGdRain.w, 1.0, clamp(gdN.z, 0.0, 1.0));
+    diffuseColor.rgb = mix(diffuseColor.rgb, uGdDustC.rgb, gdD);
+    roughnessFactor = mix(roughnessFactor, uGdPbr.z, gdD);
+    diffuseColor.rgb = mix(diffuseColor.rgb, uGdMudC.rgb * (0.7 + 0.3 * (1.0 - gdW)), gdM);   // (wet: 0.7 of the dry colour - the slot's 0.55 read near-black)
+    roughnessFactor = mix(roughnessFactor, mix(uGdPbr.x, uGdPbr.y, 1.0 - gdW), gdM);
+    diffuseColor.rgb *= 1.0 - uGdRain.y * gdR * (0.6 + 0.4 * max(gdM, gdD));
+    roughnessFactor = clamp(mix(roughnessFactor, roughnessFactor * (1.0 - uGdRain.z), gdR), 0.03, 1.0);
+    gdMudK = max(gdM, gdD);
+    // the bump: the mud's thickness, 4 mm at full x uGdPbr.w (three's bump idiom, as the chips' and the spatter's)
+    float gdH = 0.004 * uGdPbr.w * gdM * (0.35 + 0.65 * gdC) * (0.75 + 0.25 * (1.0 - gdW) * gdS);
+    vec3 gdSx = dFdx(-vViewPosition), gdSy = dFdy(-vViewPosition);
+    vec3 gdR1 = cross(gdSy, nonPerturbedNormal), gdR2 = cross(nonPerturbedNormal, gdSx);
+    float gdDet = dot(gdSx, gdR1);
+    vec3 gdGrad = sign(gdDet) * (dFdx(gdH) * gdR1 + dFdy(gdH) * gdR2);
+    normal = normalize(abs(gdDet) * normal - gdGrad);
+  }
+#endif
+`;
+}
+
+// ---------------------------------------------------------------------------
 // THE UNIFORMS
 // ---------------------------------------------------------------------------
 // The SHARED block: spread into aeroskin's aeroSharedU0, so one write reaches
@@ -570,6 +663,18 @@ function aeroWxSharedU(THREE) {
     // m/s, z the clock s, w the look's gain; uRainF xyz gravity in craft space (down), w the drop cells per metre
     uRainG: { value: new THREE.Vector4(0, 0, 0, 1) },
     uRainF: { value: new THREE.Vector4(0, 0, -1, 45) },
+    // GROUND-FX (16 Nov): THE LIVE TERM's block (AERO_GD_PARS below; app.js gdFrame writes it) - the deposit's two 3-D
+    // textures (null: three binds its empty one), the grid's box, the colours, the PBR and the rain on the skin
+    tGdMud:  { value: null },                                 // RGBA8: the mud's cover by arrival (up, aft, port, starboard)
+    tGdFw:   { value: null },                                 // RG8: the dust film's cover, the mud's wetness
+    uGdBox:  { value: new THREE.Vector4(0, 0, 0, 1) },        // xyz the grid's origin (craft m), w the cell (m)
+    uGdDim:  { value: new THREE.Vector4(1, 1, 1, 0) },        // xyz the cells; w 0 off, 1 the term without a grid, 2 the grid
+    uGdMudC: { value: new THREE.Vector4(0.16, 0.12, 0.085, 0) },   // the mud's linear colour, w the cone coat (no grid: the bake's fallback)
+    uGdDustC: { value: new THREE.Vector4(0.42, 0.33, 0.24, 0.35) }, // the dust's linear colour, w a top face's share of the film
+    uGdPbr:  { value: new THREE.Vector4(0.25, 0.9, 0.95, 1) },     // x rough wet mud, y rough dry mud, z rough dust, w the bump
+    uGdRain: { value: new THREE.Vector4(0, 0.3, 0.6, 0.35) },      // x the skin's wetness now, y darken, z gloss, w the sides' share
+    uGdSp:   { value: new THREE.Vector4(22, 7, 70, 20) },          // the spatter (ground_deposit SP): fx fy ff ffy
+    uGdSp2:  { value: new THREE.Vector4(0.9, 0.55, 0.12, 2.08) },  // sh w edge spread
   };
   AERO_WX.U = U;
   aeroWxLabLoad();
@@ -793,7 +898,7 @@ const AERO_WX_UNPACK = AERO_WX_LAYERS.map((L, i) =>
   '  float wx_' + L.k + ' = uWxL[' + (i >> 2) + '].' + 'xyzw'[i & 3] + ' * wxK;').join('\n');
 
 // declared in the fragment prelude of every aeroskin AND glass program
-const AERO_WX_PARS_FS = `
+const AERO_WX_PARS_FS = AERO_GD_PARS + `
 #define AEROWX_NL 7
 #define AEROWX_NE 4
 #define AEROWX_NW 6
@@ -1369,7 +1474,7 @@ const AERO_WX_SURF_FS = `
     }
   }
 }
-`;
+` + aeroGdFs('vCraftPos', 'normalize(vCraftNrm) * faceDirection', false);   // GROUND-FX: the live term (the cone coat drawn by the layers above)
 
 // after lights_physical_fragment: the clear coat falls with the cover
 const AERO_WX_CC_FS = `
@@ -1384,6 +1489,9 @@ const AERO_WX_CC_FS = `
   // is scuffed rough by the same film
   material.clearcoat *= 1.0 - aeroWxDirt;
   material.clearcoatRoughness = min(1.0, max(material.clearcoatRoughness, max(aeroWxCov, aeroWxDirt) * uWxR.y));
+#ifdef GD_TERM
+  material.clearcoat *= 1.0 - gdMudK;   // GROUND-FX: no varnish over the mud or the film (the glass has no term: no GD_TERM)
+#endif
 #endif
   // DIRT-MATTE, THE BASE LOBE (Standard and Physical alike): a dusty surface has no grazing mirror - its grains
   // shadow each other, so the Fresnel rise to white at a low sun is taken down with the dirt, and the
@@ -1509,6 +1617,7 @@ const AEROWX_API = {
   aeroWxSetDebug, aeroWxSetSources, aeroWxCraftOf, aeroWxSetSpiral, AERO_WX_SPIRAL_DEF,
   aeroWxLabGet, aeroWxLabSet, aeroWxLabReset, aeroWxLabResetRow, aeroWxLabExport, AERO_WX_LAB_KEY, AERO_WX_KNOB_RANGE,
   AERO_WX_PARS_FS, AERO_WX_SURF_FS, AERO_WX_CC_FS, AERO_WX_GLASS_FS,
+  AERO_GD_PARS, AERO_GD_PARS_FB, aeroGdFs,
   AERO_WX_GTINT_VS, AERO_WX_GTINT_FS,
 };
 if (typeof window !== 'undefined') window.AEROWX = AEROWX_API;

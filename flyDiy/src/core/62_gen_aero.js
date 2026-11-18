@@ -1890,6 +1890,13 @@ function genParams(S, fr, strips) {
   }
   cda.fusCdA[0] += gearCdA;
   cda.drag.gear = gearCdA;
+  // AMPH-FLOATS (GEAR-LEVER): AN AMPHIBIAN'S FLOAT WHEELS IN THE STREAM - four tyres (the mains single or dual) at the
+  // bare tyre's Cd on diameter x width, and four short legs; in the body row like every gear (the design numbers are
+  // the gear-DOWN aeroplane's) and the retraction's own cdA (30_solver takes it off as the wheels come up). Only an
+  // amphibian: every other build adds nothing
+  const AFw = S.gear.type === 'floats' && S.gear.floats && S.gear.floats.amph && S.gear.retract ? S.gear.floats.amph : null;
+  const amphCdA = AFw ? 2 * (0.55 * 2 * AFw.rM * AFw.wM * (AFw.mainN || 1) + 0.55 * 2 * AFw.rN * AFw.wN) + 4 * 1.0 * 0.30 * 0.05 : 0;
+  if (AFw) { cda.fusCdA[0] += amphCdA; cda.drag.amph = amphCdA; }
   // THE NACELLES (G179.5, the user: "add the nacelle drag for wing-mounted
   // engines"). A nose engine is inside the frontal area the fuselage row
   // already prices; every other mount hangs its engine in the airstream and
@@ -2125,7 +2132,7 @@ function genParams(S, fr, strips) {
     tailEta: GEN_RULES.tailEta == null ? 1 : GEN_RULES.tailEta,
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
-    twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
+    twSteer: S.gear.type === 'tricycle' || AFw ? -0.35 : 0.5,   // (AMPH-FLOATS: the bows' nose wheels steer as a tricycle's)
     // THE BRAKES' HOLD (GEN_BRAKES): the most a main's brake holds, N - the key only when the build has brakes chosen
     ...(genBrakeOf(S) ? { brakeN: genBrakeOf(S).perWheelN } : {}),
     // G3800 (TAILWHEELS): a taildragger's tail contact, 30_solver twLine's law: 2 lockable, 3 fixed, 4 skid - the key
@@ -2139,7 +2146,7 @@ function genParams(S, fr, strips) {
     // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)
     ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg, ...(S.gear.type === 'taildragger' ? { fixedTw: true } : {}),
                                        // (TAIL-RETRACT: a taildragger's mains only - its tailwheel and its lift struts stay out)
-                                       cdA: S.gear.type === 'taildragger' ? genGearCdAMains(S) : (cda.drag.gear || 0),
+                                       cdA: AFw ? amphCdA : S.gear.type === 'taildragger' ? genGearCdAMains(S) : (cda.drag.gear || 0),   // (AMPH-FLOATS: the float wheels' own)
                                        ...(S.gear.type === 'taildragger' ? { tail: true } : {}),
                                        // G1: the fraction (1 unless partial) and the measured lift (null: the frame's rule)
                                        frac: S.gear.retract.frac || 1, lift: S.gear.retract.lift || null } } : {}),

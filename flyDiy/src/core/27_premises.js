@@ -71,6 +71,9 @@ const LAYERS = ['terrain', 'surface', 'material', 'exclude', 'roads', 'runways',
 const SURFACE = { GRASS: 0, ROCK: 1, SCREE: 2, FOREST_FLOOR: 3, WATER: 4, PAVED: 5, GRAVEL: 6, SAND: 7, SNOW_PACKED: 8, SNOW_POWDER: 9, SNOW_WET: 10, MUD_FIRM: 11, MUD_SOFT: 12, GRASS_WET: 13, SAND_WET: 14,
                   DIRT_WX: 20, GRASS_WX: 21, SAND_WX: 22 };   // (SNOW-MUD LADDER, 15 Nov: the wet rungs; 20-22 a weather look's code, resolved by 07f GROUND_WX)
 const SURFACE_NAMES = ['GRASS', 'ROCK', 'SCREE', 'FOREST_FLOOR', 'WATER', 'PAVED', 'GRAVEL', 'SAND', 'SNOW_PACKED', 'SNOW_POWDER', 'SNOW_WET', 'MUD_FIRM', 'MUD_SOFT', 'GRASS_WET', 'SAND_WET'];   // (the weather codes 20-22 are named by their look)
+// (SNOW-MUD LADDER, A0 16 Nov: a wheels property on a weather code read '?') a code's name, the weather codes' included
+const SURFACE_WX_NAMES = { 20: 'DIRT_WX', 21: 'GRASS_WX', 22: 'SAND_WX' };
+const surfaceName = c => SURFACE_NAMES[+c] || SURFACE_WX_NAMES[+c] || null;
 const ROAD_CLS = { gravel: SURFACE.GRAVEL, paved: SURFACE.PAVED, track: SURFACE.GRASS, path: SURFACE.GRASS };
 const ZONE_KINDS = ['residential', 'commercial', 'industrial', 'harbour', 'park', 'airfield', 'forest', 'clear'];
 // THE CATEGORIES (G393, the asset session): the seven words every generator's catOf answers with, the
@@ -1096,7 +1099,7 @@ function stageIssues(rec0, maxes) {
         // a varied strip is still a strip: 150 m, 8 m wide, its profile inside the pilot's (or the altiport's) limits
         if (kind === 'runway' && e && q) {
           const r = Object.assign({}, RUNWAY_DEF, e, q); delete r.stage; delete r.show;
-          if (!(r.len >= 150) || !(r.wid >= 8)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by 8 m');
+          if (!(r.len >= 150) || !(r.wid >= STRIP_MIN_WID)) out.push(what + ' vary[' + i + ']: a strip is at least 150 m by ' + STRIP_MIN_WID + ' m');
           else for (const pi of profileCheck(r).refuse) out.push(what + ' vary[' + i + ']: ' + pi);
         }
       });
@@ -1477,7 +1480,7 @@ const PAVE_SIDE_SOFT = 7.9;   // G1395: a soft / grass pavement's: the torn edge
 // `hard` (the user's call - default 1 since 15 Nov, look AND surface: 20_world giveWay): grass where the PHYSICS says gravel or paved but nothing hard is DRAWN - a runway's gravel
 // shoulder polygons (y_sh*: 46 m beside 13/31 and 02/20) and the declared strip box's margin, drawn as the island's ground since
 // G660. 1 grows the cut grass there (the eye's WYSIWYG); the surface itself (friction) is not touched. Read by the viewer's okAt.
-const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 1, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 2.7 };   // mowBand 1 (was 6; 16 Nov, the user's purple bands at the Cabin Strip: the 7 cm mown band hid the grass there - the Monday shoot's mowBand 1 changed 37 % of the purple, 2 % elsewhere; LOOK ONLY, the wheels never read it)   // trackW 2.7: tw_ski's drawn track ends 1.098 + grTrackW 0.3 + grTrackFade 1.0 = 2.4 m out (DIRT-STRIP's L40e ready, 16 Nov) + 0.3 - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
+const GRASS_SIDES_DEF = { law: 'sides', sideClear: 0, softClear: 0.3, mowBand: 1.5, softBandK: 0, townLawn: 1, mowBlend: 1, roadMow: 1, stripGrass: 1, hard: 1, trackW: 2.7 };   // GRASS TO THE EDGE (16 Nov eve, the user: "the best looking is ... wild grass coming close up. Then maybe we could extend with a slight band of cut grass, but I think not even necessary"): softBandK 0 - a SOFT strip's (gravel, dirt, grass, snow) own cut band x this (1 = as before: w1's 4 m, w4's 14.5 m), so the wild grass runs to its drawn edge; mowBand 1.5 m - the slight cut band past it (the user's refinement, 16 Nov eve: "taller grass on the strip side and the wild grass I validated" - a soft strip's cut answers `tall`, drawn at the field's tallH 20 cm, not the lawn's 8 cm); the paved fields (HOME, w2: 40 m) and the aprons keep their mown bands. LOOK ONLY   // mowBand 1 (was 6; 16 Nov, the user's purple bands at the Cabin Strip: the 7 cm mown band hid the grass there - the Monday shoot's mowBand 1 changed 37 % of the purple, 2 % elsewhere; LOOK ONLY, the wheels never read it)   // trackW 2.7: tw_ski's drawn track ends 1.098 + grTrackW 0.3 + grTrackFade 1.0 = 2.4 m out (DIRT-STRIP's L40e ready, 16 Nov) + 0.3 - THE SAME TRAIN   // hard 1: THE USER 15 Nov eve, "Default on: margin turns grass, go ahead" (GRASS-ON-GREEN: look AND surface)   // G2939: the user's look, 12 Oct (sideClear was PAVE_SIDE 1.8)
 const GRASS_SIDES = Object.assign({}, GRASS_SIDES_DEF);
 // (GRASS-ON-GREEN 16 Nov) a gate's or a rig's override of the one dial for the margin's look AND surface: FLYDIY_GRASS_HARD=1 (node env or window)
 // (16 Nov, the page boot: with no process the old `a && b` read FALSE, +false = 0 - the page shipped hard 0 while every node gate saw 1.
@@ -1580,7 +1583,14 @@ function paveBand(entry, cls, isRoad) {
 // the lawn row's own; a zone's `rules.grass` overrides its kind's
 const ZONE_GRASS = { residential: { kind: 'lawn', h: 0.12, density: 1 }, commercial: { kind: 'lawn', h: 0.15, density: 0.8 }, park: { kind: 'lawn', h: 0.1, density: 1.2 },
   industrial: { kind: 'none' }, harbour: { kind: 'none' }, airfield: { kind: 'meadow' }, forest: { kind: 'meadow' }, clear: { kind: 'meadow' } };
-function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind] || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {}); }
+// TOWN LAWNS (16 Nov eve, the user via A0: they "can be anything"; then "if it's cheap it's OK and no exception then" - so the lawn stays,
+// townLawn 1, and the dial is there to MEASURE its cost): GRASS_SIDES.townLawn 0 turns a residential / commercial / park plot's lawn into NONE marked `town` (withPlot lets a road's mown verge
+// through); 1 = the lawn as before. A zone's own rules.grass wins either way
+const TOWN_LAWN = { residential: 1, commercial: 1, park: 1 };
+function zoneGrass(zone) {
+  const k = zone && zone.kind, base = TOWN_LAWN[k] && !(GRASS_SIDES.townLawn > 0) ? { kind: 'none', town: true } : ZONE_GRASS[k];
+  return Object.assign({}, base || { kind: 'meadow' }, (zone && zone.rules && zone.rules.grass) || {});
+}
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
 // ONE SURFACE (the user, 18 Oct): what a road's wheels feel (its own `surface`, else its class's - the composer's rule) and
 // whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
@@ -1627,6 +1637,11 @@ function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD
 // A plot on a WATER field is a slipway: its shed stands on the shore, its `stand` on the water off the slip. A plot is a
 // PLACE, not a building: the world stands a shed on it only while the player holds it (GAME §R GQ8).
 const RUNWAY_DEF = { name: 'strip', len: 480, wid: 24, surface: SURFACE.GRASS, look: 'grass', slope: 0, crossfall: 0, disp: [0, 0], papi: [true, true], falloff: null, site: null, pattern: null, stand: null, taxiOut: null, taxiOut1: null, profile: null, approach: null, hangar: null, plots: null, circuit: null, band: null, pav: null, altiport: false };
+// SKYLINE-RESORT (the user 16 Nov: "Width should be even smaller. Make it 6 meters only of runway, hopefully mainly used by the
+// tracks then"): THE LEAST WIDTH OF A STRIP - 6 m (8 m before, DIRT-STRIP's). The record's law (issues(): a strip, a varied strip;
+// the overlap and the profile warnings read the same strips); composition never filtered on it. The editor's width slider
+// starts at it (premises_ui.js)
+const STRIP_MIN_WID = 6;
 const HANGAR_DIMS = { HW: 15, HD: 12.5, EAVE: 7.0 };   // hangar.js's own defaults; the player's sliders override them at the roll-out (playerShedDims)
 function runwayIsWater(r) { return +r.surface === SURFACE.WATER; }
 
@@ -2828,7 +2843,7 @@ function areaLabel(a) {
   if (a && a.name) return a.name;
   if (P.draw && P.draw.look && RUNWAY_LOOKS[P.draw.look]) return (RUNWAY_LOOKS[P.draw.look].name || P.draw.look).toLowerCase() + (P.marks ? ' (' + P.marks.kind + ')' : '');
   if (P.draw && P.draw.set) return P.draw.set + ' ground';
-  if (P.wheels) return (SURFACE_NAMES[+P.wheels.surface] || 'surface').toLowerCase() + (P.wheels.apron ? ' apron' : ' area');
+  if (P.wheels) return (surfaceName(P.wheels.surface) || 'surface').toLowerCase() + (P.wheels.apron ? ' apron' : ' area');
   if (P.terraform) return P.terraform.kind === 'raise' ? 'raise / lower' : P.terraform.kind === 'ramp' ? 'slope' : 'flat';
   if (P.cover) return 'vegetation';
   if (P.exclude) return 'no ' + ((P.exclude.what || ['trees']).join(', ') || 'trees');
@@ -3009,7 +3024,23 @@ function compose(rec0, world, opts) {
         jAt.push([jid, sj, isEnd]);
         if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) continue;
         const H = JH.get(jid).h;
-        for (let k = 0; k < dense.length; k++) { const d = Math.abs(s[k] - sj); if (d >= 14) continue; const u = d <= 7 ? 0 : (d - 7) / 7, w = u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
+        // (TOW-LAUNCH, 12 Nov: THE EASE AS LONG AS THE CLIMB. Over a fixed 7 m a road leaving its junction 3 m under its own
+        // grade climbed 3 m in 7 m - r40, Fishing Village's approach, a 50-68 % step no car could take (it stopped one dead).
+        // Each side's ease now runs over the length its height difference needs at the road's own steepest (its bed's
+        // grade, its `grade`, else 12 %; a smoothstep's steepest is 1.5 x its mean): never under 7 m, so a junction whose
+        // roads meet near level - every one before - is eased as it was, to the bit)
+        const gJ = BED ? BED.grade : (+r.grade > 0 ? +r.grade : 0.12);
+        const hAt = sv => { let k = 0; while (k + 2 < s.length && s[k + 1] < sv) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sv - s[k]) / L)) : hs[k]; };
+        // (ONLY where the 7 m ease is a STEP - its steepest, 1.5 dh / 7, over 30 %: a road no car climbs (Fishing Village's
+        //  r40 at r5, 5 m: 107 %). The first cut stretched every ease over the bed's grade - 114 of the 139 junctions
+        //  moved, 0.2-3.7 m (the island gates' triage, 12 Nov); a junction a car takes as it is keeps the 7 m to the bit)
+        // (a stretched ease is an EVEN ramp - linear, its slope the height over the length - and never longer than the road
+        //  leaves it: to the far end's own 7 m level approach)
+        const sEnd = s[s.length - 1];
+        const easeOf = sg => { const far = sj + sg * 14; if (far < 0 || far > sEnd) return 7; const dh = Math.abs(hAt(far) - H); if (1.5 * dh / 7 <= 0.30) return 7;
+          const room = (sg > 0 ? sEnd - sj : sj) - 14; return Math.max(7, Math.min(80, room, dh / gJ)); };
+        const eN = easeOf(-1), eP = easeOf(1);
+        for (let k = 0; k < dense.length; k++) { const dd = s[k] - sj, d = Math.abs(dd), E = dd < 0 ? eN : eP; if (d >= 7 + E) continue; const u = d <= 7 ? 0 : (d - 7) / E, w = E > 7 ? u : u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
       }
       jAt.s = s;
     }
@@ -3667,6 +3698,10 @@ function compose(rec0, world, opts) {
       let lx = NaN, lz = 0;
       for (let k = 0; k < microStrips.length; k++) {
         const q = microStrips[k]; if (!q.wx) continue;
+        // (A0's L40e trial: SCENERYED 20b's compose read every terrainH through the rotation - the box in WORLD axes first, once)
+        if (!q.wb) { const b = q.f.bbox, P = [[b.x0, b.z0], [b.x1, b.z0], [b.x0, b.z1], [b.x1, b.z1]].map(p => F.toWorld(p[0], p[1]));
+          q.wb = [Math.min(...P.map(p => p[0])), Math.min(...P.map(p => p[1])), Math.max(...P.map(p => p[0])), Math.max(...P.map(p => p[1]))]; }
+        if (x < q.wb[0] || x > q.wb[2] || z < q.wb[1] || z > q.wb[3]) continue;
         if (lx !== lx) { const dx = x - F.anchor.x, dz = z - F.anchor.z; lx = dx * F.c - dz * F.s; lz = dx * F.s + dz * F.c; }   // (no weather strip: no transform)
         const b = q.f.bbox;
         if (lx < b.x0 || lx > b.x1 || lz < b.z0 || lz > b.z1) continue;
@@ -3908,7 +3943,7 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) continue;
     const L = RUNWAY_LOOKS[r.look] || RUNWAY_LOOKS.grass, cls = L.cls || 'grass', band = paveBand(r, cls, false), reach = band + PAVE_FADE + 6;
     const E = runwayEnds(r);
-    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', id: r.id, cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt' });
+    addCov(polyBBox(runwayBox(r, reach)), { kind: 'strip', id: r.id, cls, band, halfW: r.wid / 2, len: r.len, e0: E.end0, d: E.d, soft: cls !== 'concrete' && cls !== 'asphalt', band0: r.band === 0 });   // band0: the record SAYS band 0 (GRASS-EDGE-FIX)
   }
   for (const rd of roadObjs) {
     if (rd.runway || rd.ribbon === false) continue;
@@ -4037,6 +4072,7 @@ function compose(rec0, world, opts) {
         let wy = lawnWater.get(p.zone); if (wy === undefined) lawnWater.set(p.zone, wy = zoneWaterYOf(world, F, zoneOf(p.zone), -Infinity));
         if (isFinite(wy) && O.localH(lx, lz) < wy + 0.3) break;
       }
+      if (g.kind === 'none' && g.town && cut > 0) break;   // TOWN LAWNS: a road's mown verge on a town plot keeps its grass (the biome's, cut)
       kind = g.kind; grass = g; break;
     }
     if (kind === 'lawn' && kill < 1) kill = 0;
@@ -4061,11 +4097,14 @@ function compose(rec0, world, opts) {
   // cut across the band and the mow band, wild past the blend; a grass strip's surface cut; a road as today plus a mown verge
   function coverSides(lx, lz, cell) {
     const G = GRASS_SIDES, VERGE = PAVE_FADE + 6;
-    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity;
+    let kill = 0, boost = 0, cut = 0, surf = 0, cls = null, best = -Infinity, tall = 0;
     if (cell) for (const it of cell) {
       const d = dEdgeOf(it, lx, lz), out = -d;
       const aero = it.kind === 'strip' || it.kind === 'poly' || (it.kind === 'road' && !!(it.road && it.road.taxiway));
-      const mow = it.band + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);
+      // (GRASS-EDGE-FIX, 17 Nov, A0 with SKYLINE-RESORT: a strip whose record SAYS band 0 - tw_ski - asks for no cut band at all: no mow
+      //  band and no blend, the wild grass from its drawn edge; every other soft strip keeps the 1.5 m tall band)
+      const b0 = it.kind === 'strip' && it.band0;
+      const mow = b0 ? 0 : (aero && it.soft ? it.band * G.softBandK : it.band) + (aero ? G.mowBand : G.roadMow), blend = Math.max(1e-6, G.mowBlend);   // (GRASS TO THE EDGE: a soft strip's band x softBandK)
       const v0 = aero ? mow + G.mowBlend : it.band;   // where the verge's bump starts
       const clr = it.clear >= 0 && out <= it.clear;   // (v1.36, G2918: a road's own clearing - bare)
       if (out > Math.max(v0, it.band + PAVE_FADE) + VERGE && !clr) continue;
@@ -4083,7 +4122,7 @@ function compose(rec0, world, opts) {
         if (it.soft && d < 1 && it.cls !== 'grass') boost = Math.max(boost, 0.5 * (1 - d));
       } else if (aero) {
         if (out <= (it.soft ? G.softClear : G.sideClear)) k = 1;
-        else c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
+        else if (!b0) c = out <= mow ? 1 : Math.max(0, 1 - (out - mow) / blend);
       } else {   // an ordinary road: today's band and fade, then its mown verge
         k = out <= it.band ? 1 : Math.max(0, 1 - (out - it.band) / PAVE_FADE);
         if (it.cls === 'grass') k *= 0.6;
@@ -4092,8 +4131,11 @@ function compose(rec0, world, opts) {
       if (out > v0 && out < v0 + VERGE) boost = Math.max(boost, 0.7 * CORE_MATH.sin(Math.PI * (out - v0) / VERGE));
       if (k > kill) kill = k;
       if (c > cut) cut = c;
+      if (c > 0 && aero && it.soft && d < 0 && c > tall) tall = c;   // GRASS TO THE EDGE: the band beside a soft strip is cut TALL
     }
-    return withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
+    const R = withPlot(lx, lz, kill, boost, cls, kill >= 1 ? 0 : cut, kill >= 1 ? 0 : surf);
+    if (R && tall > 0 && kill < 1) R.tall = tall;
+    return R;
   }
 
   // G1542 (GROUND-LATTICE): A ROAD'S RIBBON ENDS SQUARE (pavement.js roadGeometry: s from 0 to the length, the rows
@@ -4392,7 +4434,7 @@ function compose(rec0, world, opts) {
     O.records.objects = [];
     for (const ob of rec.layers.objects) if (ob.kind === 'prop' || ob.kind === 'billboard' || ob.kind === 'aircraft') {
       if (!ob.key) { O.records.issues.push(ob.kind + ' ' + ob.id + ': no key'); continue; }
-      O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob)));   // (G3001: the placer's scale reaches the built prop - it was dropped here)
+      O.records.objects.push(Object.assign({ id: ob.id, kind: ob.kind, key: ob.key, x: ob.x, z: ob.z, yaw: +ob.yaw || 0, y: O.localH(ob.x, ob.z) + (+ob.dy || 0), w: +ob.w || 3.6, on: ob.on || 'ground' }, objScale(ob), ob.trunk === true ? { trunk: true } : {}));   // (AFB-0220: a pole that is a trunk too - 29_obstacles TREE_HITS.pole)   // (G3001: the placer's scale reaches the built prop - it was dropped here)
     }
     // THE ANIMALS (contract v1.17, 2026-09-22): a HOTSPOT, not an individual -
     // `n` animals of the species `key` living within `r` metres of (x, z). One
@@ -4490,7 +4532,7 @@ function issues(rec0) {
   const plotIds = new Set();   // G2310: plot ids are hangar ids - unique in the record
   for (const r of rec.layers.runways) {
     if (!r.c || !(r.len >= 150)) out.push('runway ' + r.id + ': a strip is at least 150 m');
-    else if (!(r.wid >= 8)) out.push('runway ' + r.id + ': a strip is at least 8 m wide');
+    else if (!(r.wid >= STRIP_MIN_WID)) out.push('runway ' + r.id + ': a strip is at least ' + STRIP_MIN_WID + ' m wide');
     else for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).refuse) out.push(i);
     if (r.look !== undefined && r.look !== null && !RUNWAY_LOOKS[r.look]) out.push('runway ' + r.id + ': unknown look ' + r.look);
     if (r.approach !== undefined && r.approach !== null && r.approach !== 0 && r.approach !== 1) out.push('runway ' + r.id + ': approach is 0, 1 or null');
@@ -4538,7 +4580,7 @@ function issues(rec0) {
   //  the bound read the hard codes' 0..7; now every code the SURFACE enum names)
   for (const s of rec.layers.surface) if (!(Number.isInteger(+s.surface) && +s.surface >= 0 && +s.surface < SURFACE_NAMES.length)) out.push('surface ' + s.id + ': unknown surface ' + s.surface);
   // two strips whose boxes overlap: the later one re-grades the earlier across its profile - a mistake, not a fixed point
-  const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= 8).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
+  const rws = rec.layers.runways.filter(r => r.c && r.len >= 150 && r.wid >= STRIP_MIN_WID).map(r => Object.assign({}, RUNWAY_DEF, r)).filter(r => !runwayIsWater(r));
   // (t53 OPTION C, 13 Oct: rev 28's 02/20 ENDS on 13/31 - a T, the user's geometry): a strip one of whose ends lies inside the
   //  other's box while its other end lies outside, at more than 20 deg to it, meets it - not a stack (G3016: both ends
   //  inside, or side by side, stays an issue)
@@ -4621,7 +4663,7 @@ function curvTol(O, F, lx, lz, c, world) {
 // limits (profileCheck's `warn`). The ship, the gates and the loaders read issues(); a warning ships.
 function warnings(rec0) {
   const rec = expandAreas(normalise(rec0)), out = [];
-  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= 8) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
+  for (const r of rec.layers.runways) if (r.c && r.len >= 150 && r.wid >= STRIP_MIN_WID) for (const i of profileCheck(Object.assign({}, RUNWAY_DEF, r)).warn) out.push(i);
   return out;
 }
 function checks(rec0, world, opts) {
@@ -4766,10 +4808,10 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, grassHard: () => GRASS_SIDES.hard > 0, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { SURFACE_WX_NAMES, surfaceName, PREMISES_V, LAYERS, STAND_PAD, standPadOf, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, grassHard: () => GRASS_SIDES.hard > 0, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, STRIP_MIN_WID, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,

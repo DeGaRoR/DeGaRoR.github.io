@@ -206,6 +206,10 @@ const GATES = [
   // onto the hold, at every land aerodrome of both worlds; the take-off roll completes (the Cub default and
   // the user's aluminium C172 at Jolene HOME); the skip's roll begins where the taxi's did (~4.5 min)
   { id: 'LINEUP', file: '_lineup_check.js', tier: 'core', wall: 270 },
+  // TOW-LAUNCH SLOPE: the ground pushes along its normal - the motorglider at Skyline Altiport (tw_ski, ~9 % grass),
+  // engine off: it rolls downhill at g (sin - Crr cos), pushed uphill it slows at g (sin + Crr cos) and rolls back,
+  // parked under Crr (3 %) it holds, braked on 9 % it holds, across 9 % its side grip holds (~1 min)
+  { id: 'SLOPE', file: '_slope_check.js', tier: 'core', wall: 60 },
   // G3800 TAILWHEELS: the tail contact's four laws (the steerable Scott kind's pivot and re-lock, a brake-free 180 deg,
   // no breakout on the autopilot's runway; the lockable DC-3 locked straight and pivoting unlocked; the skid's stop; the
   // fixed wheel), a twin boom's wheel a boom, the inverted V on its tip wheels flying HOME's circuit, its controls'
@@ -249,6 +253,15 @@ const GATES = [
   // Conquer's sheet as a generic vehicle, flat / brake / reverse / airborne / turn / 10 % hill, a 300 m traced road
   // followed, U-turns at a gravel apron off a re-route, one of the world's roads out and back, the path traps; ~15 s
   { id: 'VEHICLE', file: '_vehicle_check.js', tier: 'core', wall: 15 },
+  // TOW-LAUNCH phase 1: THE CAR DRIVES FROM HOME TO CEDAR HARBOUR on Jolene as shipped - the island's road graph as the
+  // driver's (drawn crossings joined vehicle-side, no scenery edited), facing away at the start, two re-routes behind,
+  // three U-turns at a road's end and at junctions (no drawn apron on Jolene), the body on the road; ~20 s
+  { id: 'DRIVE-TRIP', file: '_drive_trip_check.js', tier: 'core', wall: 25 },
+  // TOW-LAUNCH phase 3: THE GLIDER AUTO-TOW - the motorglider (engine off) on 400 m of line behind the Conquer down Jolene
+  // AFB's 13/31 (src/vehicle/tow.js: the line through sim.onSubstep + sim.impulse, no solver change): lift-off, the climb,
+  // the release at the top, the glide; the pilot's key; a weak link that breaks; the line's cost a frame; ~1 min
+  { id: 'TOW', file: '_tow_check.js', tier: 'core', wall: 900 },
+  { id: 'TRAILER', file: '_trailer_check.js', tier: 'core', wall: 140 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },
@@ -551,10 +564,13 @@ const GATES = [
   { id: 'PROGRAMS', file: '_program_check.js', tier: 'core' },
   // G585: the cover ring's rocks and debris as batches - the same instances, reach and thresholds, a draw per batch
   { id: 'COVER', file: '_cover_check.js', tier: 'core' },   // G585 the batches; G2561 the count truncation (the picture to the pixel); G2563 the grass field (tufts, lengths, colour, tiers)
+  { id: 'WORLDRAIL', file: '_world_rail_check.js', tier: 'core' },   // WORLD-RAIL-VEG: the world editor's vegetation rows move their settings, the look keeps them
+  { id: 'TREEPACKJS', file: '_treepackjs_check.js', tier: 'core' },   // MOUNTAIN-VEG 17 Nov: the page's trees_pack.js = the json's (tools/tree_pack_js.py)
   { id: 'GRASSSIDES', file: '_grass_sides_check.js', tier: 'core' },   // GRASS-DENSE G2565: the premises' grass laws by the runways ('today' unchanged, the pave half never moves, 'sides' cut / bare / wild)
   // GRASS ON GREEN (LOOK-1 15 Nov; the user: 'everything green should get some grass'): the field grows on ground that draws green
   // (greenOf on the ground's colour), never on a runway's kill, mud, snow or the sea - on the real ring over the fake GL
   { id: 'GREENGRASS', file: '_greengrass_check.js', tier: 'core' },
+  { id: 'LAWN', file: '_lawn_check.js', tier: 'core' },   // GRASS-CARDS (16 Nov): all mown grass as the bench's grass cards (cover_ring layer 'lawn'); the field steps aside, the wild grass untouched
   // G1010-G1014: the frame's WORK, counted and ratcheted - the page itself in node (dev.html's scripts, the real three on
   // a recording GL, a virtual clock): per-frame draws, uniform / buffer uploads, matrix updates, callbacks, frustum tests,
   // terrainH at the stand and the taxi (the Cub, the metal Cessna) and per boot step; tools/perf/framecost_baseline.json.
@@ -1067,6 +1083,12 @@ const GATES = [
   // mud (faster deeper in, faster at speed), rain and water wash it; drawn through the wheel mud / belly / depression layers
   // over the macros', none at nought; app.js's wiring (~8 s; --selftest, --show)
   { id: 'MUDCOAT', file: '_mudcoat_check.js', tier: 'core', wall: 20 },
+  // GROUND-FX (15 Nov): THE MUD ON THE AEROPLANE FROM ITS GEOMETRY - the drawn build voxelised (ground_deposit.js), dust.js's own
+  // clods marched against it on a 20 s soft-mud run (tools/mud_roll.js): the stock Cub's legs, belly and tail-wheel fork and the
+  // C172's legs and fairings hold mud, the wing tops, windscreen, cowl and fuselage tops none, a leg's lee under a third of its
+  // front; rain and water wash it; seeded (~12 s; --selftest, --show)
+  { id: 'MUDDEPOSIT', file: '_muddeposit_check.js', tier: 'core', wall: 45 },
+  { id: 'GFXLOOK', file: '_gfxlook_check.js', tier: 'core', wall: 10 },   // GROUND-FX: the dust and the mud in the world editor (16 Nov)
   // SNOW-MUD FINISH (15 Nov): THE CUB, THE C172 (list:50) AND THE PC-6 FLOWN ON MUD - the pilot's circuits from HOME on
   // grass, firm and soft mud (take-off roll, landing roll, outcome) and the stuck limits (soft mud's k scaled down, full power
   // from rest); the table printed. Three child processes; ~9 min - the full tier's, as the archetype sweeps
@@ -1100,6 +1122,7 @@ const GATES = [
   // builders' attributes, the markings recorded off sitePaintStrip, the hook rules, the recipe (~5 s)
   { id: 'PAVEMENT', file: '_pavement_check.js', tier: 'core' },
   { id: 'MICRO', file: '_micro_check.js', tier: 'core', wall: 60 },   // DIRT-STRIP: a bush strip's micro-height - off is bit-identical, the ISO 8608 field, terrainH and the drawn ribbon carry it, the Cub rides it
+  { id: 'AFB0220', file: '_afb0220_check.js', tier: 'core', wall: 480 },   // AFB-0220: Jolene 02/20 the derelict strip - the band, the rough lane, the playground's props and ground pieces colliding (OBSTACLES, TREE_HITS.lying, the solver), the cost
   // G1091 (POLISH-2): THE TREES BY THE RUNWAYS - the three variants (?rwytrees=today|map|mapx): the map's nearest TREE cell
   // against the nearest collidable tree per runway side, nothing on paving, the one rule the woodland and the fill share,
   // the ground paths and a 5 % surface in 'map' (core, ~1 min); under --all the fill's own trees in the page harness per
@@ -1214,6 +1237,11 @@ const GATES = [
   // `--selftest`: 37 doctored rules, each red (~25 min)
   { id: 'MISSIONS', file: '_missions_check.js', tier: 'core', wall: 45 },
   { id: 'PROJECTS', file: '_projects_check.js', tier: 'core', wall: 15 },   // PROJECTS (13 Nov): a pack's projects - steps, works, site states, abilities (73b_missions.js, 74_career.js)
+  // MISSION-FEASIBILITY: the harness that flies every mission the game's way (tools/mission_feas.js, mission_feas_lib.js:
+  // the career stand, the taxi, the take-off, the landing, the taxi in, the load, the career's stop) held on three demo
+  // missions (tools/fixtures/missionfeas/demo.json): one feasible - flown, stand to stand -, one infeasible on purpose
+  // (900 kg), one broken on purpose (a bad place id); and the rig places nothing itself (no shortcut). ~8-10 min
+  { id: 'MISSIONFEAS', file: '_missionfeas_check.js', tier: 'full', weight: 1, wall: 600, timeout: 1800_000 },
   // THE MISSION PROPS (MISSIONS-PROPS): tools/_mission_gen.js - the air-race pylon, the balloon column, the ring, the marker
   // flag, the tie-down spot, the site's stages; their strike dimensions are the core's (73c MISSION_PROP_DIMS)
   { id: 'MISSIONPROPS', file: '_mission_props_check.js', tier: 'core' },

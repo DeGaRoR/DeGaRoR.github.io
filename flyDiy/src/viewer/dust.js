@@ -102,6 +102,10 @@
     //   EDDIES  (Ghost of Tsushima's curl noise on particles; Chen et al. 1999's turbulent wake stage): the puffs ride a
     //       divergence-free swirl field of the surface layer, so a trail breaks into lobes and gaps instead of a smooth tube
     v2: true,
+    // THE DRAWN SIZES (GROUND-FX, the world editor's Ground FX section, the user 16 Nov via A0: "every new world setting
+    // editable"): the grit and drift, and the clods, drops and clumps, drawn this many times their thrown size - the look
+    // only (the throw, its flight and the deposit on the aeroplane keep the thrown size)
+    gritSize: 1, clodSize: 1,
   };
   // ?dustlook=0: the 9 Nov look (the class rows, the full density, the 4x lobe) - the before/after's lever
   try { if (typeof location !== 'undefined' && /[?&]dustlook=0/.test(location.search || '')) { LOOK.dens = 1; LOOK.fwdMax = 4; LOOK.ground = false; LOOK.v2 = false; } } catch (e) {}
@@ -148,7 +152,12 @@
     // SNOW-MUD: the new kinds' laws. DRIFT (3) a saltating streak: 0.3-0.7 s, drag-held near the ground; CLUMP (4) a snow
     // lump off a plough (ballistic); DROP (5) a mud / slush drop, 1-5 mm (its terminal speed 6-8 m/s: a little drag); SPLAT
     // the landed mud: splatLife s, its wet gloss gone by splatDry of it, eroded away over the last half
-    driftDrag: 2.5, dropDrag: 0.35, clumpDrag: 0.12, splatLife: 22, splatDry: 0.4, splatMax: 0.18, projMax: 220, projUp: 5,
+    driftDrag: 2.5, dropDrag: 0.35, clumpDrag: 0.12, splatLife: 22, splatDry: 0.4, splatMax: 0.18, projMax: 220, projUp: 5, treadCone: 0.58, projHeavy: 0.7,   // (GROUND-FX: a heavy throw's rise cap x (1 + 0.7): 8.5 m/s, ~3.7 m - the stab and the fin)
+    slipK: 1.0,                      // GROUND-FX: the prop's slipstream as the air the thrown kinds and the puffs ride (the user: "also of the engine")
+    // THE SPLASH BUDGET (GROUND-FX 16 Nov, A0's review of DIRT-STRIP's 160 drops/s): the grit ring overwrites its next slot, live
+    // or not - every puddle splash of every wheel shares splashShare x the ring a second (phone 64, potato 96, retro 160, gamer
+    // 280 /s), so the splashes alone never wrap it in under 1 / splashShare = 2.5 s: no flying grit or clod (life <= 1.8 s) evicted
+    splashShare: 0.4,
     z0: 0.03,                        // m: the strip's roughness length for the log wind
     // the wheels
     wheelK: 0.075, wheelV0: 2.0,     // optical m^2 a second per (m/s over V0)^2 at fines 1, dry (AP-42: per metre ~linear in speed, so ~V^2 a second;
@@ -174,7 +183,10 @@
   };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
-  const rnd = Math.random;
+  let rnd = Math.random;
+  // GROUND-FX: the weight the next emitted grit carries (a source whose throw the pool budget clips sets it to wanted / drawn,
+  // so the deposit on the aeroplane is the real throw's, however few are drawn); 1 otherwise
+  let wEmit = 1;   // (GROUND-FX: DUST.random(fn) seeds it for a node run - GATE MUDDEPOSIT's determinism; the page never sets it)
 
   // ================================================================================================================
   // THE SYSTEM
@@ -191,14 +203,14 @@
            into: new Int32Array(NP).fill(-1), intoGen: new Uint32Array(NP), mt: new Float32Array(NP), mI: new Float32Array(NP), aI: new Float32Array(NP), vI: new Float32Array(NP), n: NP, live: 0 },
       // grit + mud: position, velocity, size, age, life, kind (0 grit, 2 mud), class
       G: { p: new Float32Array(NG * 3), v: new Float32Array(NG * 3), s: new Float32Array(NG), age: new Float32Array(NG).fill(9), life: new Float32Array(NG).fill(1),
-           kind: new Uint8Array(NG), cls: new Uint8Array(NG), seed: new Float32Array(NG), next: 0, n: NG, live: 0 },
+           kind: new Uint8Array(NG), cls: new Uint8Array(NG), seed: new Float32Array(NG), w: new Float32Array(NG).fill(1), next: 0, n: NG, live: 0 },   // (GROUND-FX: w, the real throw a drawn one stands for - the deposit's weight)
       // SNOW-MUD: the splats - a landed clod or drop lying on the ground (position, size, age, class, seed, the landing's
       // speed for its fingers), a ring of T.splat
       S: { p: new Float32Array((T.splat || 0) * 3), s: new Float32Array(T.splat || 0), age: new Float32Array(T.splat || 0).fill(1e9), cls: new Uint8Array(T.splat || 0),
            seed: new Float32Array(T.splat || 0), sp: new Float32Array(T.splat || 0), next: 0, n: T.splat || 0, live: 0 },
       src: new Map(),      // a source's current puff: key -> { i, gen }
       genN: 1,
-      wasOn: [], stats: { emitted: 0, merged: 0, absorbed: 0 }, kAir: L.kAir, kz: L.kz, rvTop: L.rvMax,
+      wasOn: [], stats: { emitted: 0, merged: 0, absorbed: 0, refused: 0 }, splashK: 1, splashDem: 0, splashRoom: 0, kAir: L.kAir, kz: L.kz, rvTop: L.rvMax,
     };
     return sys;
   }
@@ -254,10 +266,16 @@
     return F ? F[0] * Math.exp(-t / F[1]) + (1 - F[0]) * Math.exp(-t / F[2]) : L.coarse * Math.exp(-t / L.tauCoarse) + (1 - L.coarse) * Math.exp(-t / L.linger); };
   const lingerOf = c => (CLS[CLASSES[c]] && CLS[CLASSES[c]].fall ? CLS[CLASSES[c]].fall[2] : L.linger);
   const curMass = (P, i) => P.m0[i] * decay(P.age[i], P.cls[i]);
+  const EVICT_LOOK = 8;
   function emitGrit(sys, kind, x, y, z, vx, vy, vz, s, cls) {
-    const G = sys.G, q = G.next; G.next = (G.next + 1) % G.n;
+    // (GROUND-FX 16 Nov) a live one is never overwritten: the next dead slot within EVICT_LOOK of the ring's head takes it,
+    // none - the new one is refused (a full ring takes no more, as the splats': nothing in flight pops); GATE DUST 4b
+    const G = sys.G; let q = G.next, k = 0;
+    while (G.age[q] < G.life[q] && ++k < EVICT_LOOK) q = (q + 1) % G.n;
+    if (G.age[q] < G.life[q]) { sys.stats.refused++; return; }
+    G.next = (q + 1) % G.n;
     G.p[q * 3] = x; G.p[q * 3 + 1] = y; G.p[q * 3 + 2] = z; G.v[q * 3] = vx; G.v[q * 3 + 1] = vy; G.v[q * 3 + 2] = vz;
-    G.s[q] = s; G.age[q] = 0; G.life[q] = kind === 2 ? 1.6 : kind < 2 ? 1.2 : kind === 3 ? 0.35 + 0.35 * rnd() : kind === 4 ? 1.8 : 1.5; G.kind[q] = kind; G.cls[q] = cls; G.seed[q] = rnd();   // (SNOW-MUD: 3 drift, 4 clump, 5 drop)
+    G.w[q] = wEmit; G.s[q] = s; G.age[q] = 0; G.life[q] = kind === 2 ? 1.6 : kind < 2 ? 1.2 : kind === 3 ? 0.35 + 0.35 * rnd() : kind === 4 ? 1.8 : 1.5; G.kind[q] = kind; G.cls[q] = cls; G.seed[q] = rnd();   // (SNOW-MUD: 3 drift, 4 clump, 5 drop)
   }
   // SNOW-MUD: a landed clod or drop becomes a SPLAT, flat on the ground: its size the drop's spread by its landing speed
   // (a faster hit spreads wider - capped), the ring's oldest re-used
@@ -297,6 +315,29 @@
   // ---- step(sys, dt, env): integrate both pools, merge the old puffs ---------------------------------------------
   const WV = [0, 0, 0];
   const MERGE = new Map();
+  // GROUND-FX: THE SLIPSTREAM as air (the user, 15 Nov: the dirt goes back "also of the engine, because the engine itself is
+  // making a lot of this dirt"): the round jet propJet already draws - aft of the disc, radius R + s tan(8 deg), speed wash R / r
+  // (its momentum held) - as the AIR's velocity in the ground's frame, so a clod, a drop, a puff in it is carried aft over the
+  // belly to the tail; out to 40 m, soft-edged. Out: SL [x, y, z]; returns 0 outside every jet
+  const SL = [0, 0, 0];
+  function slipAt(props, x, y, z) {
+    SL[0] = SL[1] = SL[2] = 0;
+    if (!props || !props.length || !(L.slipK > 0)) return 0;
+    let any = 0;
+    const tn = Math.tan(L.jetHalf);
+    for (let k = 0; k < props.length; k++) {
+      const pr = props[k], wash = pr.wash || 0;
+      if (wash < 1) continue;
+      const ax = -pr.ax, ay = -pr.ay, az = -pr.az, dx = x - pr.x, dy = y - pr.y, dz = z - pr.z;
+      const s = dx * ax + dy * ay + dz * az;
+      if (s < 0 || s > 40) continue;
+      const rx = dx - ax * s, ry = dy - ay * s, rz = dz - az * s, r2 = rx * rx + ry * ry + rz * rz, R = pr.R || 0.9, rS = R + s * tn;
+      if (r2 > rS * rS) continue;
+      const u = wash * R / rS * 0.85 * L.slipK * (1 - smooth(0.7 * rS, rS, Math.sqrt(r2)));
+      SL[0] += ax * u; SL[1] += ay * u; SL[2] += az * u; any = 1;
+    }
+    return any;
+  }
   function step(sys, dt, env) {
     if (!(dt > 0)) return;
     sys.t += dt;
@@ -327,8 +368,9 @@
       // V2: the eddies (a young puff still rides its source's jet: the swirl comes in over the jet's decay)
       let ex = 0, ez = 0, ey = 0;
       if (LOOK.v2 && L.eddyU > 0) { eddyAt(x, z, sys.t, (L.eddyU + L.eddyUWind * spd10) * (1 - Math.exp(-a / L.jetTau)), EDDY); ex = EDDY[0]; ez = EDDY[1]; ey = EDDY[2]; }
-      P.v[i * 3] += (WV[0] + ex - P.v[i * 3]) * dr;
-      P.v[i * 3 + 2] += (WV[1] + ez - P.v[i * 3 + 2]) * dr;
+      const sl = sys.props ? slipAt(sys.props, x, P.p[i * 3 + 1], z) : 0;   // (GROUND-FX: the prop's blast blows the cloud aft)
+      P.v[i * 3] += (WV[0] + ex + (sl ? SL[0] : 0) - P.v[i * 3]) * dr;
+      P.v[i * 3 + 2] += (WV[1] + ez + (sl ? SL[2] : 0) - P.v[i * 3 + 2]) * dr;
       // the vertical: its own momentum dies, and the centre settles toward the dome's (ground + domeK rv)
       const yT = g + L.domeK * rv;
       P.v[i * 3 + 1] += (-(P.p[i * 3 + 1] - yT) * 0.4 + ey - P.v[i * 3 + 1]) * dr;
@@ -345,7 +387,10 @@
       G.age[q] += dt;
       const kd = G.kind[q];
       const dr = 1 - (kd === 2 ? L.mudDrag : kd === 0 ? L.gritDrag : kd === 5 ? L.dropDrag : kd === 3 ? L.driftDrag : L.clumpDrag) * dt;
-      G.v[q * 3] *= dr; G.v[q * 3 + 2] *= dr; G.v[q * 3 + 1] = G.v[q * 3 + 1] * dr - 9.81 * dt;
+      // GROUND-FX: the drag relaxes toward the AIR - still, or the prop's slipstream (a drop over the belly is blown aft)
+      if (sys.props && slipAt(sys.props, G.p[q * 3], G.p[q * 3 + 1], G.p[q * 3 + 2])) {
+        G.v[q * 3] = SL[0] + (G.v[q * 3] - SL[0]) * dr; G.v[q * 3 + 2] = SL[2] + (G.v[q * 3 + 2] - SL[2]) * dr; G.v[q * 3 + 1] = SL[1] + (G.v[q * 3 + 1] - SL[1]) * dr - 9.81 * dt;
+      } else { G.v[q * 3] *= dr; G.v[q * 3 + 2] *= dr; G.v[q * 3 + 1] = G.v[q * 3 + 1] * dr - 9.81 * dt; }
       G.p[q * 3] += G.v[q * 3] * dt; G.p[q * 3 + 1] += G.v[q * 3 + 1] * dt; G.p[q * 3 + 2] += G.v[q * 3 + 2] * dt;
       if (G.age[q] > 0.05 && G.v[q * 3 + 1] < 0) {
         const gy = gH ? gH(G.p[q * 3], G.p[q * 3 + 2]) : 0;
@@ -421,7 +466,12 @@
   const utK = S => Math.sqrt(1 + 1.21 * Math.pow(Math.max(0, S - 0.05) * 30, 0.68));
   function sources(sys, st, env, dt) {
     if (!(dt > 0)) return;
+    sys.props = st.props || null;   // (GROUND-FX: the slipstream step's particles ride)
     const K = env.k != null ? env.k : 1;
+    // THE SPLASH BUDGET: last frame's asked splash rate (all wheels) over the budget scales every wheel alike this frame (a
+    // fair share, both sides spray); the room (this frame's budget, its fraction carried) is the hard cap behind it
+    { const B = L.splashShare * sys.G.n; sys.splashK = sys.splashDem > B ? B / sys.splashDem : 1; sys.splashDem = 0;
+      sys.splashRoom = B * dt + Math.max(0, Math.min(1, sys.splashRoom)); }
     // ---- the wheels ----
     const W = st.wheels || [];
     for (let k = 0; k < W.length; k++) {
@@ -465,8 +515,7 @@
           w.vz * (0.25 + 0.35 * sp) + (rnd() - 0.5) * 1.2, kind === 2 ? 0.015 + 0.02 * rnd() : 0.006 + 0.012 * rnd(), ci);
       }
       // a PUDDLE: the tyre parts the water - brown water thrown out both sides and up
-      // (DIRT-STRIP 13 Nov: ~1 drop a frame read as no spray at all) ~160 drops a second a wheel at 6 m/s in 2 cm, by rate
-      if (pud > 0.01 && V > 2) { const r = LOOK.splashRate * Math.min(1.5, V / 6) * Math.min(1, pud / 0.02) * K * dt; let n = Math.floor(r); if (rnd() < r - n) n++; for (let j = 0; j < n; j++) splashDrop(sys, w, V, ci); }
+      splashRun(sys, w, V, pud, dt, K, ci);
     }
     // ---- the props: the slipstream's wall jet ----
     const PR = st.props || [];
@@ -494,6 +543,13 @@
     const wf = SKI ? Math.max(1, SKI.W / 0.25) : 1, toe = SKI ? (SKI.fwd > 0 ? SKI.fwd : 0.45 * SKI.L) : R * 0.6, half = SKI ? 0.5 * SKI.W : 0.08;
     const ux = V > 0.3 ? w.vx / V : 1, uz = V > 0.3 ? w.vz / V : 0, lx = -uz, lz = ux;
     let room = Math.ceil(L.projMax * dt * K * Math.min(1, sys.G.n / 400));   // (a smaller tier's pool: fewer, not a ring that eats its own)
+    // GROUND-FX: what the tyre would throw this frame (the tread's and the bow wave's expected counts) over what the budget
+    // draws: each drawn one carries the rest as its weight. HEAVY (fast, deep, the user 15 Nov: "if there's really a lot, it
+    // can splatter even further"): the release's rise cap grows with the speed and the sinkage
+    const gT0 = V * V / R / 9.81, expT = SKI ? 0 : PJ.tread * smooth(PJ.adh, PJ.adh * 3, gT0) * V * (0.4 + sk) * K * dt;
+    const expB = sk > 0.05 ? PJ.bow * sk * wf * Math.min(V, 15) / 15 * K * dt : 0;
+    const wPrev = wEmit; wEmit = Math.max(1, (expT + expB) / Math.max(1, room));
+    const heavy = smooth(10, 25, V) * sk, upCap = L.projUp * (1 + L.projHeavy * heavy);
     // (the stills, 13 Nov: drops of their true 1-5 mm drew under a pixel and vanished - a DROP is a CLUSTER of them as the eye
     // reads a spray, 1.2-3.5 cm, the way every game draws spray; a clod its 6-24 mm lump)
     const sizeOf = kind => kind === 2 ? 0.006 * Math.exp(1.4 * rnd()) : 0.012 * Math.exp(1.05 * rnd());
@@ -512,10 +568,10 @@
     if (!SKI) {
     const gT = V * V / R / 9.81, shed = smooth(PJ.adh, PJ.adh * 3, gT), early = smooth(PJ.adh * 3, PJ.adh * 30, gT);
     for (let j = n(PJ.tread * shed * V * (0.4 + sk) * K * dt); j > 0; j--) {
-      const phi = 0.25 + rnd() * (0.4 + 1.2 * (1 - early)), keep = 0.4 + 0.3 * rnd(), cs = Math.cos(phi), sn = Math.sin(phi), la = (rnd() - 0.5) * 0.16 * V;
+      const phi = 0.25 + rnd() * (0.4 + 1.2 * (1 - early)), keep = 0.4 + 0.3 * rnd(), cs = Math.cos(phi), sn = Math.sin(phi), la = (rnd() + rnd() - 1) * L.treadCone * V * keep;   // (GROUND-FX, 15 Nov: a tyre's spray is a CONE, not a sheet - +-30 deg about the release, peaked at its middle; the old +-4 deg missed the belly between a wide track)
       const hx = -sn * R, hy = R - cs * R;                         // the point round the tyre: behind the hub, above the contact
       one(pick(), w.x + ux * hx + lx * (rnd() - 0.5) * 0.1, w.y + hy, w.z + uz * hx + lz * (rnd() - 0.5) * 0.1,
-        ux * V * (1 - cs) * keep + lx * la, Math.min(L.projUp, V * sn * keep), uz * V * (1 - cs) * keep + lz * la);   // (a lump's rise held: the mud reaches the legs and the wing's underside, ~1.3 m)
+        ux * V * (1 - cs) * keep + lx * la, Math.min(upCap, V * sn * keep), uz * V * (1 - cs) * keep + lz * la);   // (a lump's rise held: the mud reaches the legs and the wing's underside, ~1.3 m)
     }
     }
     // THE BOW WAVE
@@ -524,7 +580,8 @@
       const at = SKI ? (rnd() - 0.3) * SKI.L * 0.6 : 0;          // (a ski parts the mud along its fore half)
       one(rnd() < 0.25 ? 2 : 5, w.x + ux * (toe + at) + lx * side * half, w.y + 0.02, w.z + uz * (toe + at) + lz * side * half, ux * f + lx * o, up, uz * f + lz * o);
     }
-    if (pud > 0.01 && V > 2) { const N = Math.min(12, V * 0.6 * Math.min(1, pud / 0.04)) * dt * 3; for (let j = 0; j < N; j++) splashDrop(sys, w, V, ci); }
+    splashRun(sys, w, V, pud, dt, K, ci);   // (GROUND-FX 16 Nov: the mud's and the slush's puddles spray at the same rate as the dirt's)
+    wEmit = wPrev;
   }
   // ---- SNOW-MUD: POWDER'S PLOUGH - a sinking tyre (or a ski's toe) pushes the snow ahead aside: CLUMPS (kind 4, 1-4 cm,
   // white, ballistic) thrown to the sides and forward, and the fines it breaks up a cloud (a puff topped up, x the sinkage)
@@ -545,6 +602,17 @@
     const n = Math.round(Math.min(50, 10 * vs * Math.min(1, depth / 0.03)));
     for (let j = 0; j < n; j++) { const a = rnd() * 6.2832, sp = (0.8 + 2 * rnd()) * Math.min(2.5, vs);
       emitGrit(sys, 2, w.x, w.y + 0.05, w.z, w.vx * 0.4 + Math.cos(a) * sp, 1 + 2.2 * rnd() * Math.min(2, vs), w.vz * 0.4 + Math.sin(a) * sp, 0.01 + 0.02 * rnd(), ci); }
+  }
+  // THE PUDDLE SPRAY (DIRT-STRIP 13 Nov: ~1 drop a frame read as no spray at all): ~LOOK.splashRate drops a second a wheel
+  // at 6 m/s in 2 cm (x speed to 1.5, x depth), every class's puddle; within the splash budget (sources' head: the fair
+  // scale, then the room)
+  function splashRun(sys, w, V, pud, dt, K, ci) {
+    if (!(pud > 0.01 && V > 2)) return;
+    const want = LOOK.splashRate * Math.min(1.5, V / 6) * Math.min(1, pud / 0.02) * K;
+    sys.splashDem += want;
+    const r = want * sys.splashK * dt; let n = Math.floor(r); if (rnd() < r - n) n++;
+    n = Math.min(n, Math.floor(sys.splashRoom)); sys.splashRoom -= n;
+    for (let j = 0; j < n; j++) splashDrop(sys, w, V, ci);
   }
   function splashDrop(sys, w, V, ci) {
     const ux = w.vx / V, uz = w.vz / V, side = rnd() < 0.5 ? -1 : 1, so = (0.15 + 0.25 * rnd()) * V;
@@ -572,8 +640,10 @@
       const PJ = C.proj;
       if (u > PJ.wash) { const hl = Math.hypot(ax, az) || 1, fx = ax / hl, fz = az / hl, gy = gH ? gH(hx, hz) : g0;
         let r = PJ.washK * (u - PJ.wash) * K * dt, N = Math.min(Math.ceil(L.projMax * dt), Math.floor(r) + (rnd() < r % 1 ? 1 : 0));
+        const wPrev = wEmit; wEmit = N > 0 ? Math.max(1, r / N) : 1;
         for (let j = 0; j < N; j++) { const la = (rnd() - 0.5) * 2 * rS, k = 0.25 + 0.25 * rnd();
-          emitGrit(sys, 5, hx - fz * la, gy + 0.03, hz + fx * la, fx * u * k, 0.6 + 1.6 * rnd(), fz * u * k, 0.01 + 0.015 * rnd(), ci); } }
+          emitGrit(sys, 5, hx - fz * la, gy + 0.03, hz + fx * la, fx * u * k, 0.6 + 1.6 * rnd(), fz * u * k, 0.01 + 0.015 * rnd(), ci); }
+        wEmit = wPrev; }
       return;
     }
     if (u <= ut || (env.puddle && env.puddle(hx, hz) > 0.01)) return;
@@ -1022,7 +1092,7 @@
     g.instanceCount = 0;
     const bt = billow(128), tex = new THREE.DataTexture(bt.data, bt.N, bt.N, THREE.RGBAFormat);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.needsUpdate = true;
-    const colV = CLASSES.map(k => new THREE.Vector3(CLS[k].col[0], CLS[k].col[1], CLS[k].col[2]));
+    const colV = CLASSES.map(k => new THREE.Vector3(CLS[k].col[0], CLS[k].col[1], CLS[k].col[2])), gotGround = new Uint8Array(CLASSES.length);
     // V2: the six-way atlases, shared by every batch. THE PAGE LOADS THEM SHIPPED (tools/dust_atlas_bake.js: two images
     // under media/tex/dust, decoded off the main thread - the bake is ~1 s, never paid at load); node, or a page without
     // the table (the bench), bakes here. Until both images are in, the puffs draw the 9 Nov way (uV2 0).
@@ -1059,6 +1129,10 @@
       mesh, material: mat, sys, cover: 0, drawn: 0,
       sync(camera, light) {
         const P = sys.P, G = sys.G, e = camera.matrixWorldInverse.elements, pm = camera.projectionMatrix.elements, p00 = pm[0], p11 = pm[5];
+        // the look's knobs read every frame (the world editor's Ground FX section moves them live): the density, the backlit
+        // cap, and a class's own colour where no drawn ground handed one in (or the look's "colour from the ground" is off)
+        mat.uniforms.uDens.value = LOOK.dens; mat.uniforms.uFwdMax.value = LOOK.fwdMax;
+        for (let ci = 0; ci < colV.length; ci++) if (!LOOK.ground || !gotGround[ci]) { const c = CLS[CLASSES[ci]].col; colV[ci].set(c[0], c[1], c[2]); }
         let m = 0;
         for (let i = 0; i < P.n; i++) if (P.age[i] >= 0 && P.tau[i] >= L.tauMin) {
           const x = P.p[i * 3], y = P.p[i * 3 + 1], z = P.p[i * 3 + 2];
@@ -1136,7 +1210,7 @@
             const q = j - P.n;
             pos[w * 3] = G.p[q * 3]; pos[w * 3 + 1] = G.p[q * 3 + 1]; pos[w * 3 + 2] = G.p[q * 3 + 2];
             vel[w * 3] = G.v[q * 3]; vel[w * 3 + 1] = G.v[q * 3 + 1]; vel[w * 3 + 2] = G.v[q * 3 + 2];
-            A[w * 4] = G.age[q] / G.life[q]; A[w * 4 + 1] = G.s[q]; A[w * 4 + 2] = G.seed[q]; A[w * 4 + 3] = G.kind[q];
+            A[w * 4] = G.age[q] / G.life[q]; A[w * 4 + 1] = G.s[q] * (G.kind[q] === 0 || G.kind[q] === 3 ? LOOK.gritSize : LOOK.clodSize); A[w * 4 + 2] = G.seed[q]; A[w * 4 + 3] = G.kind[q];
             B[w * 4] = 1; B[w * 4 + 1] = -1e4; B[w * 4 + 2] = G.cls[q]; B[w * 4 + 3] = 0;
             Cs[w * 2] = 1; Cs[w * 2 + 1] = 1;
           }
@@ -1157,13 +1231,14 @@
         return w;
       },
       // the dust of class ci takes this ground's colour (linear rgb of the drawn surface; albedoFrom's lift and range)
-      setGround(ci, rgb) { const c = albedoFrom(rgb, ci), v = colV[ci]; if (!c || !v) return false; v.set(c[0], c[1], c[2]); return true; },
+      setGround(ci, rgb) { const c = albedoFrom(rgb, ci), v = colV[ci]; if (!c || !v) return false; v.set(c[0], c[1], c[2]); gotGround[ci] = 1; return true; },
       dispose() { g.dispose(); mat.dispose(); tex.dispose(); texA.dispose(); texB.dispose(); },
     };
     return api;
   }
 
-  const DUST = { makeSystem, step, sources, make, emitPuff, emitGrit, billow, sixWay, eddyAt, albedoFrom, LOOK, CLASSES, CLS, TIERS, TIER_OF, L, dryK, utK, GLSL: { vert: VERT, frag: FRAG } };
+  const random = fn => { rnd = typeof fn === 'function' ? fn : Math.random; };
+  const DUST = { makeSystem, step, sources, make, random, slipAt, SL, emitPuff, emitGrit, billow, sixWay, eddyAt, albedoFrom, LOOK, CLASSES, CLS, TIERS, TIER_OF, L, dryK, utK, GLSL: { vert: VERT, frag: FRAG } };
   if (typeof window !== 'undefined') window.DUST = DUST;
   if (typeof module !== 'undefined' && module.exports) module.exports = DUST;
 })();
