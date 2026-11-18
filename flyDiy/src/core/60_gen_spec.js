@@ -518,7 +518,11 @@ const GEN_DMG_GROUP = { rel: 1 / 3 };
 //   - a laminate (carbon, etu 0, not wood): crushed is delaminated - no tether.
 // While it holds, its two ends are ONE piece (pieces(): the verdict, the strips, the drawing's unparted kink); its tear is
 // a parting (the piece event again).
-const GEN_DMG_TETHER = { on: true, rFold: 1, rDuct: 0.5, eDuct: 0.5, rWood: 0.25 };
+// (G4104, the user 18 Nov on the electric trainer's nose-down: "a wing exploding into panels that end up perfectly cut ...
+// these things are really getting torn" - the real composite wrecks keep their wings, a spar broken and the skin torn round
+// it: a cracked laminate still holds by its FIBRES, rComp x its strength, torn once stretched eComp past its length at the
+// crack - the fibres pulled out of the matrix)
+const GEN_DMG_TETHER = { on: true, rFold: 1, rDuct: 0.5, eDuct: 0.5, rWood: 0.25, rComp: 0.2, eComp: 0.04 };
 // G2040-G2043 (DMG-FABRIC): THE COVERING HOLDS THE WRECK - a cover tie per pair of frame nodes a covered panel spans
 // once the frame under it has parted (the solver's tieEvent; 61_gen_frame parts.dmg.cover the panels). The covering is
 // a MEMBRANE: tension only, no compression, no bending; slack until stretched past the length the covering has between

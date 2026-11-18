@@ -317283,3 +317283,15 @@ would have like dark streaks." So the scuff's REDESIGN (L40g): DARK STREAKS alon
 silver dope, primer or bare alloy (at most a few thin bright scratches inside the dark streaks on metal); the dents, the
 fabric's creases, the torn band and the soft ground's soil / grass stain kept; the chip-merging cover and the EXTREME
 layer gone. Stills (same wreck, before / after) to the user before the ready.
+
+## COMPOSITE-FIBRE (G4104) - a cracked laminate holds by its fibres (Deform, 18 Nov 2026, WIP for L40g)
+The user (18 Nov, the electric trainer's nose-down, with 5 real composite wreck photos): the wing "exploding into panels
+that end up perfectly cut ... these things are really getting torn"; the real wrecks keep their wings (a spar broken, the
+skin torn round it), the fuselage / cockpit crushed, at most cut in half. 30_solver: carbon / glass members (tetherKind 3)
+keep a tension tether at their crack - their own crack in tension or a bend's core / fold, or a crushed (kinked) laminate;
+not a joint letting go, a part cut, the gear - GEN_DMG_TETHER.rComp 0.2 x fu, torn once stretched eComp 0.04 past its
+length at the crack (b.Lb); the joints count it as keeping rComp (tetherKeep / tetherGroups). Checked in node only: every
+live tether within 1.03 x its length (a first cut left the kinked carbon's Lb unset: 7.4 x, fixed); the Super Petrel
+tree100 1 piece (95 %), nosedown 4 big pieces (top 42 %) on one run - yesterday's 2 (59 %), the nose-down's spread is
+wide. OWED: the gates (DMGCOMPOSITE first, then the damage set), the electric trainer's crash stills (its branch
+electric-trainer-2 merged with this), and the composite skin torn ragged at a crack if the stills still show clean cuts.
