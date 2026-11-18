@@ -27,8 +27,6 @@
     { "file": "sailPlane.json", "name": "Sailplane", "note": "the user's export - work in progress (PLANE-LIST, the user 10 Nov); moved from review/", "from": "the user" },
     { "file": "pc6_drafting_2026-11-11.json", "name": "PC-6 Turbo Porter", "note": "the Pilatus PC-6/B2-H4 fitted on the drafting table (DRAFTING_TABLE.md, rounds 1-15) on its oleo tailwheel (twStyle 1, PC6-OLEO) - work in progress, REAL-FIGURES pending", "from": "FIT-PROCEDURE" },
     { "file": "pc6_floats_2026-11-13.json", "name": "PC-6 on Wipline 6100", "note": "the PC-6 on Wipline 6100 amphibious floats (+407 kg, the 30 cm tail end) - work in progress", "from": "FIT-PROCEDURE" },
-    { "file": "pc6_livery_alpengluehn_2026-11-13.json", "hide": "next", "name": "PC-6 (Alpengluehn)", "note": "a PC-6 livery study (paint only)", "from": "FIT-PROCEDURE" },
-    { "file": "pc6_livery_nordwind_2026-11-13.json", "hide": "next", "name": "PC-6 (Nordwind)", "note": "a PC-6 livery study (paint only)", "from": "FIT-PROCEDURE" },
     { "file": "electric_trainer.json", "name": "Electric trainer", "note": "the official Electric trainer (plane list row 61; the user 17 Nov): a Virus-type electric two-seater", "from": "FLAGSHIP" }
   ]
 }
