@@ -84,6 +84,7 @@ function run(B) {
   { const m = /const SAFE = new Set\((\[[^\]]+\])\);/.exec(src); const SA = m ? JSON.parse(m[1].replace(/'/g, '"')) : null;
     ok(!!SA && SA.includes('graphics') && !['updcheck', 'updclean', 'log', 'fullscreen', 'main', 'resume', 'perfbench', 'testflight', 'skipTut'].some(k => SA.includes(k)) && src.includes('.filter(k => SAFE.has(k))'),
        '6 the menu step opens an ALLOWLIST of the game own pages (never an update, a clean, the log, the full screen or an exit: 18 Nov 03:45)'); }
+  ok(!src.includes("contains('garage')") && src.includes("for (let i = 0; i < 480 && !document.body.classList.contains('mode-ws'); i++)"), '6 back in the shed = body.mode-ws (the workshop screen; there is no body.garage)');
   // 5
   ok(['what:', 'run:', 'device:', 'loads:', 'boot:', 'garage:', 'steps:', 'crash:', 'end:'].every(k => src.includes(k)) && /garage = \{ sliders: await sliders\(say\), menu: await menuRows\(say\) \}/.test(src),
      '5 the trace: run, device, boot, garage (sliders, menu), steps, crash, end');

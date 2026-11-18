@@ -317219,4 +317219,9 @@ KNOWN COSTS: open sea +~5 ms with swimmers in view (ANIMALS fix L40f); splashes 
   COLD then WARM (a second launch, the cache kept; the source recorded), each split off BOOT.log: shaders (steps + programs
   linked), assets (resource timings: count, KB, span, cached share), world, settle, impostors, other; targets ~20 s / 30 s max.
 - GATE PERFBENCH (25 checks, --selftest 6 breaks red; the frame counts on the meter's lines from Codex's flightlog_evidence.js).
-  GPU check in the page: Wed 18 Nov 06:00-06:25 (scratchpad stills/pb_check.js).
+  GPU CHECK (18 Nov, RTX 3080, gamer): 03:45 one miss (the menu step clicked update/clean rows that reload the page: now an
+  allowlist; the progress kept in sessionStorage). 06:00: the card, the menu row and the WHOLE garage run (two launches, sliders,
+  menu rows, the marks seg:*, the bench event, the log saved) checked; the scenario run reached its garage steps when the slot's
+  cap came - its flight is NOT GPU-checked yet. First numbers: TIME-TO-GARAGE 129 s cold / 149 s warm (shaders 61 s, 583
+  programs; world 34 s; settle 15 s), TIME-TO-WORLD 8 s; garage sliders 400-530 ms input-to-frame (target 100); the menu's
+  Studio row 5.6 s. WORLD-TO-GARAGE read 125 s = a timeout (the run waited on body.garage; fixed: body.mode-ws) - re-measure.

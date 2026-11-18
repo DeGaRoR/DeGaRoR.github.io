@@ -123,10 +123,11 @@ var FLYDIY_PERFBENCH = (function () {
     L.toWorld = Object.assign(verdict(t1 - m.t), { flew, phases: phases(m, t1) });
     say('launch ' + A.pass + ': the world in ' + L.toWorld.s + ' s');
     await sleep(4000);
-    // back to the shed (the game's own way), the roll-in screen gone and the garage up
+    // back to the shed (the game's own way), the roll-in screen gone and the garage up (body.mode-ws: the workshop screen - setMode;
+    // the 18 Nov 06:00 check waited on a body.garage that is never set and timed out at 120 s)
     m = mark0();
     try { FLYDIY_MENU.act('shed'); } catch (e) {}
-    for (let i = 0; i < 480 && !document.body.classList.contains('garage'); i++) await sleep(250);
+    for (let i = 0; i < 480 && !document.body.classList.contains('mode-ws'); i++) await sleep(250);
     await bootGone(300);
     t1 = nowMs();
     L.worldToGarage = Object.assign(verdict(t1 - m.t), { phases: phases(m, t1) });
@@ -338,8 +339,8 @@ var FLYDIY_PERFBENCH = (function () {
       case 'weather': return setSel('selCond', st.cond) === 'ok' ? '' : 'no such conditions: ' + st.cond;
       case 'dest': return setSel('selDest', st.to) === 'ok' ? '' : 'no such destination: ' + st.to;
       case 'time': { try { W.DAY_CLOCK.set({ localHours: +st.hour }); return ''; } catch (e) { return 'the clock: ' + e.message; } }
-      case 'shed': { try { FLYDIY_MENU.act('shed'); } catch (e) {} for (let i = 0; i < 120 && !document.body.classList.contains('garage'); i++) await sleep(500);
-        return document.body.classList.contains('garage') ? '' : 'not back in the shed'; }
+      case 'shed': { try { FLYDIY_MENU.act('shed'); } catch (e) {} for (let i = 0; i < 120 && !document.body.classList.contains('mode-ws'); i++) await sleep(500);
+        return document.body.classList.contains('mode-ws') ? '' : 'not back in the shed'; }
       case 'rollout': return (await goUntilFlying()) ? '' : 'the roll-out did not reach a flight';
       case 'camera': {
         if (!P || !P.camMode) return 'no camera API';
