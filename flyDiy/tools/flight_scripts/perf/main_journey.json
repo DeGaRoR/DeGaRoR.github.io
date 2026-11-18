@@ -92,14 +92,14 @@
    "capS": 45
   },
   {
-   "name": "fog",
+   "name": "gale",
    "do": "weather",
-   "cond": "fog"
+   "cond": "gale"
   },
   {
-   "name": "rain",
+   "name": "thermal",
    "do": "weather",
-   "cond": "rain"
+   "cond": "thermal"
   },
   {
    "name": "clear again",
