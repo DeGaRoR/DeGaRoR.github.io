@@ -52,6 +52,7 @@ const CLASSES = {
   "Tiger Moth-alike": ["reproduction", "builds/candidates/tigermoth_2026-10.json", "T7230"],
   "Camel-alike": ["reproduction", "builds/candidates/camel_2026-10.json", "B6313"],
   "LS4-alike": ["reproduction", "builds/candidates/ls4_2026-11.json", "D-4LS4"],   // (the user 16 Nov: "add the LS4 to the candidate lists proudly")
+  "Electric trainer": ["reproduction", "builds/candidates/electric_trainer.json", "F-WETR"],
   "Rufus": ["story", "builds/rufus_2026-10-18_certified.json", "N47RF"],
   "Client Cub": ["story", "builds/cub_2026-09-20.json", "N1938J"],
   "Cessna 172 (career)": ["story", "bugReports/cessnaMetal (1).json", "B-CESS"],

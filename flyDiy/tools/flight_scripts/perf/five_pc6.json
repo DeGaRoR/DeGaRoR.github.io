@@ -1,0 +1,51 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_five_pc6",
+ "what": "THE USER'S FIVE PLANES (l.12): the pc6 from the start line, take off, turn to Metlakatla (w7), camera changes and orbits incl. inside",
+ "plane": "builds/candidates/pc6_drafting_2026-11-11.json",
+ "from": "HOME",
+ "to": "w7",
+ "steps": [
+  {
+   "name": "start + take-off",
+   "do": "start",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "ENROUTE",
+     "INBOUND"
+    ]
+   },
+   "capS": 400
+  },
+  {
+   "name": "turn to Metlakatla",
+   "do": "wait",
+   "until": {
+    "s": 30
+   },
+   "capS": 45
+  },
+  {
+   "name": "orbit 360",
+   "do": "camera",
+   "view": "orbit",
+   "sweep": 360,
+   "s": 20,
+   "dist": 20
+  },
+  {
+   "name": "interior",
+   "do": "camera",
+   "view": "cockpit",
+   "s": 12
+  },
+  {
+   "name": "back outside",
+   "do": "camera",
+   "view": "chase",
+   "s": 5
+  }
+ ]
+}

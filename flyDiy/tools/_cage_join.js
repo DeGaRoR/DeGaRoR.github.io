@@ -249,6 +249,9 @@ function cageJoinSpec(P, M, T) {
                 full: +P.wgTipFull > 1 ? +P.wgTipFull : null } : null } : {}),
       // TIP-SKID (60_gen_spec GEN_TIP_SKID): the wingtip skid, its shoe's depth under the skin - absent when off (no key
       // moves the hash of a wing without one)
+      // TIP-TE (proto 17 Nov, the Virus: "at the trailing edge, at the tip, the wing seems to go a little forward"): the bow's
+      // chord closes from the leading edge only by this share (1: the trailing edge runs straight to the tip) - absent = none
+      ...(+P.wgTipTE > 0 ? { tipTE: Math.min(1, +P.wgTipTE) } : {}),
       ...(+P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {}),
       // AIRBRAKES (GEN_RULES.airbrake): the boxes' span and the plate's height - absent when off
       ...(+P.wgBrake ? { airbrake: { z0: P.wgBrakeAt != null ? +P.wgBrakeAt : 0.30,

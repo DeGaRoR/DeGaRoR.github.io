@@ -277,6 +277,8 @@ the body aft for exactly this reason.
 | a square cowl's split line opens to a dark wedge in its default mode (`cw_partLevel` 0: the width is in the section's parameter) | the answer exists: `cw_partLevel` 1; OPEN: make it the default for a boxy section |
 | the float rigging's FRONT STRUT station: it rises from the float's front deck fitting (the Wipline 2350 parts-manual stations); the PC-6 float sheet draws it ~0.9 m further forward and no row moved it (`fltFrontRing` 1 only stands it upright) | CLOSED 13 Nov: `fltRigFwd` (the fitting moved forward: the drawing, gear.floats.rigFwd and the flown truss together), and `fltLadder` (the step rails) |
 | the fin flag: no Brazil (or Bahamas) in AERO_FLAGS - the yellow PC-6 on Wiplines flies without its fin flag; a rhombus primitive draws Brazil | OPEN (13 Nov) |
+| THE CANTILEVER BOX IS NOT SIZED TO ITS ROOT MOMENT (the Electric trainer, 17 Nov): a cantilever wing's box caps are the wing material's fixed section, whatever the span and the weight (the braced biplane spar IS sized by its moment, `trussSparK`), so a long or heavy cantilever buckles in the sandbag test (target 5.7 g): the Electric trainer 3.5 g (glass) / 4.2 g (carbon), Stearman 4.0, motorglider 5.25, Tiger Moth 5.3 (and the strut twinBush 4.9). Fix: size the caps from the root moment, held at today's section where it passes | OPEN (fleet-wide: moves mass / CG / handling of the long cantilevers; its own branch) |
+| a continuous rpm limit below the rated (the Velis-type E-811: MTOP 2500 rpm 90 s, continuous 2300): `eng_rpmMax` is a 5-min MAXIMUM above the rated, so level speed runs 12 % over the manual's VH | OPEN |
 
 ## 8. The Camel log (27 Oct 2026)
 

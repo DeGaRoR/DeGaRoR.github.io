@@ -1,0 +1,42 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_takeoff_eastpoint",
+ "what": "THE USER'S TAKE-OFFS (l.11): the user's Cub off nv_strip (the start chooser): the taxi, the line-up and the take-off",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "nv_strip",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "taxi + line-up (nv_strip)",
+   "do": "start",
+   "until": {
+    "phase": [
+     "ROLL",
+     "LIFTOFF",
+     "CLIMB"
+    ]
+   },
+   "capS": 300
+  },
+  {
+   "name": "take-off (nv_strip)",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "ENROUTE",
+     "INBOUND"
+    ]
+   },
+   "capS": 200
+  },
+  {
+   "name": "climb-out",
+   "do": "wait",
+   "until": {
+    "s": 20
+   },
+   "capS": 30
+  }
+ ]
+}

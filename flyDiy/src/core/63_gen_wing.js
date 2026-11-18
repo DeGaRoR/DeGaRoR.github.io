@@ -853,9 +853,16 @@ function genWingInto(def, out) {
         const linR = PP.xRat(zs0) + (PP.xRat(zs1) - PP.xRat(zs0)) * t;
         pF[0] += PP.xFat(z) - lin; pR[0] += PP.xRat(z) - linR;
       }
+      // TIP-TE (proto 17 Nov): the bow's chord closes from the leading edge only - both spar points slid aft along the
+      // chord by tipTE x (1 - sparF) x (the joint's chord - this one), so the trailing edge holds its line to the tip
+      const cZ = PP.chordAt(z);
+      if (W.tipTE > 0 && W.tipR > 1e-6 && z > W.tipZ + 1e-6) {
+        const cJ = PP.chordAt(W.tipZ), d = genV3.norm(genV3.sub(pR, pF)), s2 = W.tipTE * (1 - sparF) * (cJ - cZ);
+        for (const q of [pF, pR]) { q[0] += d[0] * s2; q[1] += d[1] * s2; q[2] += d[2] * s2; }
+      }
       return { pF, pR,
                wF: [[F0, 1-t], [F1, t]], wR: [[R0, 1-t], [R1, t]],
-               chord: PP.chordAt(z) };
+               chord: cZ };
     };
     const secAt = (z, a, b, n, pts) => {
       const f = frameAt(z);

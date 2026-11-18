@@ -8,7 +8,7 @@
 //          _tour_lib.js gameHost builds it: the page's placement off the walked stand, the garage's shakedown, the game's
 //          day ticked every step, the 'start' and 'leg' commands app.js posts) on Jolene with every solid thing near a strip
 //          (_tour_lib tourWorld) - fast, for tests (GATE FLIGHTSCRIPT)
-//   page   the game on the GPU through page_rig.js (LOOK-1) - frame times per step, for the perf round (runPage, 17 Nov; v1 from HOME)
+//   page   the game on the GPU through page_rig.js (LOOK-1) - frame times per step, for the perf round (runPage, 17 Nov; any From via the start chooser)
 //
 // THE SCENARIO (JSON; the library in tools/flight_scripts/):
 //   { "name": "home_circuit", "what": "...",
@@ -69,9 +69,10 @@ function loadScenario(arg) {
   S.file = f;
   return S;
 }
-const DO = new Set(['board', 'start', 'leg', 'lift']);
-const UNTIL = new Set(['phase', 'agl', 'engine', 'stoppedAt', 'declined']);
-const ALLOW = new Set(['yield', 'prop-strike', 'dent', 'declined']);
+const DO = new Set(['board', 'start', 'leg', 'lift', 'skip', 'camera', 'weather', 'time', 'dest', 'minimap', 'load', 'shed', 'rollout', 'wait']);
+const PAGE_ONLY = new Set(['skip', 'camera', 'weather', 'time', 'dest', 'minimap', 'load', 'shed', 'rollout']);   // (PERF-TRACE-FORMAT.md: the node runner says it skips them)
+const UNTIL = new Set(['phase', 'agl', 'engine', 'stoppedAt', 'declined', 's']);
+const ALLOW = new Set(['yield', 'prop-strike', 'dent', 'declined', 'crash']);   // ('crash': the benchmark's CRASHES - the crash is the segment)
 function checkScenario(S) {
   const bad = [];
   if (!S.plane) bad.push('no plane');
@@ -143,7 +144,7 @@ function runNode(S, opt) {
       ', day ' + (day === null ? 'calm' : day ? 'given' : 'the game\'s') + ' | log ' + out);
 
   const dt = 1 / 60, EVERY = Math.max(dt, +(opt.every || 1));   // --every S: the samples' period (1 s; 0.1 to read a flare)
-  let t = 0, vSaid = 0, failed = null, curFrom = S.from;
+  let t = 0, vSaid = 0, failed = null, curFrom = S.from, stepT0 = 0;
   const D0 = sim.damage ? JSON.parse(JSON.stringify(sim.damage())) : { yields: 0, breaks: 0 };
   // the state every condition and sample reads
   const state = () => {
@@ -169,6 +170,7 @@ function runNode(S, opt) {
       if (s.ph !== 'STOPPED' || at !== U.stoppedAt) miss.push(s.ph !== 'STOPPED' ? 'not STOPPED (' + s.ph + ')' : 'stopped on ' + (at || 'no strip') + ', wants ' + U.stoppedAt);
     }
     if (U.declined && !declinedSaid(s.ap)) miss.push('no take-off declined');
+    if (U.s != null && !(t - stepT0 >= U.s)) miss.push((t - stepT0).toFixed(1) + ' s of ' + U.s);
     return miss;
   };
   // the faults that end a step whatever it waits for (unless allowed)
@@ -176,7 +178,8 @@ function runNode(S, opt) {
     const al = new Set(st.allow || []);
     if (!isFinite(s.cg[0]) || !isFinite(s.cg[1])) return 'the solver went NaN';
     const Dm = sim.damage ? sim.damage() : null;
-    if (Dm && (Dm.over || Dm.crashed)) return 'the damage ended the flight: ' + (Dm.reason || 'crashed');
+    if (Dm && (Dm.over || Dm.crashed) && !al.has('crash')) return 'the damage ended the flight: ' + (Dm.reason || 'crashed');
+    if (Dm && (Dm.over || Dm.crashed)) return null;   // (an allowed crash: nothing after it is a fault)
     if (Dm && Dm.breaks > (D0.breaks || 0)) return (Dm.breaks - (D0.breaks || 0)) + ' member(s) broke';
     if (Dm && Dm.yields > (D0.yields || 0) && !al.has('yield')) return (Dm.yields - (D0.yields || 0)) + ' member(s) yielded' + (Dm.firstYield ? ' (first: ' + JSON.stringify(Dm.firstYield) + ')' : '');
     if (Dm && Dm.propStrike && !D0.propStrike && !al.has('prop-strike')) return 'the propeller struck' + (Dm.propAt ? ' (' + Dm.propAt.what + ', t ' + r1(Dm.propAt.t) + ')' : '');
@@ -214,6 +217,7 @@ function runNode(S, opt) {
   const results = [];
   for (let si = 0; si < S.steps.length && !failed; si++) {
     const st = S.steps[si], t0 = t, phases = [], said = [], ms = [];
+    stepT0 = t;
     const vFrom = (H.ap.report && H.ap.report.verdicts || []).length;
     let s = state();
     // the step's action
@@ -224,7 +228,8 @@ function runNode(S, opt) {
       if (sim.fuel && !(sim.fuel.litres > 0)) m.push('no fuel');
       if (Dm && (Dm.breaks || Dm.crashed)) m.push('damaged before the flight');
       if (m.length) failed = { step: si, name: st.name, why: why(st, s, 'not ready to board: ' + m.join(', ')) };
-    } else if (st.do === 'start') H.queueCmd({ cmd: 'start' });
+    } else if (PAGE_ONLY.has(st.do)) say('  (node: "' + st.do + '" is a page step - skipped)');
+    else if (st.do === 'start') H.queueCmd({ cmd: 'start' });
     else if (st.do === 'lift') {
       for (let i = 0; i < sim.n; i++) sim.p[i * 3 + 1] += st.by;   // (sim_host simHostPlace's own move: every node, the speeds kept)
       s = state();
@@ -300,14 +305,22 @@ async function runPage(S, opt) {
   const o = opt || {};
   const bad = checkScenario(S);
   if (bad.length) throw new Error('bad scenario ' + (S.name || '') + ': ' + bad.join('; '));
-  if (S.from !== 'HOME') throw new Error('the page runner (v1) starts at the garage\'s field, HOME - this scenario starts at ' + S.from);
+  // (a From other than HOME starts through the game's own start chooser - the sandbox's Fly from X, window.FLYDIY_START.go)
   const say = o.quiet ? () => {} : (s => console.log(s));
   const out = o.log || path.join(o.out || 'D:/Dev/pilot_runs/flight_script', (S.name || 'scenario') + '_page_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.jsonl');
   fs.mkdirSync(path.dirname(out), { recursive: true });
   const fd = fs.openSync(out, 'w');
   const J = obj => fs.writeSync(fd, JSON.stringify(obj) + '\n');
   const P = planeOf(S.plane);
-  const card = fs.readFileSync(P.key, 'utf8');
+  let card = fs.readFileSync(P.key, 'utf8');
+  // LOAD (PERF-TRACE-FORMAT: pax + cargo): a 'load' step BEFORE the start loads the seeded card as the contracts load it (ALTIPORT 5's
+  // way: the seats filled, the baggage); a load later in the journey is refused, said (v1)
+  const iStart = S.steps.findIndex(x => x.do === 'start'), loads = S.steps.filter((x, i) => x.do === 'load' && (iStart < 0 || i < iStart));
+  if (loads.length) { const L = loads[loads.length - 1], j = JSON.parse(card), sp = j.spec || j, occ = ((sp.cabin && sp.cabin.occupied) || [1, 1]).length;
+    const PR0 = { light: [0, 0], typical: [1, 20], mtow: [Math.max(0, occ - 1), 60] }[L.preset] || [L.pax || 0, L.cargoKg || 0];
+    const pax = Math.min(PR0[0], Math.max(0, occ - 1)); sp.cabin = Object.assign({}, sp.cabin, { pax, occupied: Array.from({ length: occ }, (_, i) => i <= pax ? 1 : 0), baggage: PR0[1] });
+    sp.cage = Object.assign({}, sp.cage, { cabOcc: pax > 0 ? 1 : (sp.cage && sp.cage.cabOcc) || 0 }); for (let k = 1; k <= pax; k++) sp.cage['paxOcc' + k] = 1;
+    card = JSON.stringify(j); say('  load: ' + pax + ' passenger(s), ' + PR0[1] + ' kg of baggage (' + (L.preset || 'given') + ') into the seeded card'); }
   const PR = require(path.join(T, 'page_rig.js'));
   const wall0 = Date.now();
   const rig = await PR.start(Object.assign({ cap: o.cap || 900, size: o.size || '1600x900', seed: { 'flydiy.wip': card } }, o.repo ? { repo: o.repo } : {}, { log: o.quiet ? (() => {}) : (t => say('  rig ' + t)) }));
@@ -325,6 +338,14 @@ async function runPage(S, opt) {
     if (S.persona) brief.push('persona ' + await setSel('selPersona', S.persona));
     brief.push('to ' + await setSel('selDest', (S.to && S.to !== S.from) ? S.to : 'CIRCUIT'));
     say('  the brief: ' + brief.join(', '));
+    // the benchmark's own record in the flight recorder's log (PERF-TRACE-FORMAT section 2)
+    await rig.ev(`(() => { try { window.FLIGHT_REC.event('bench', null, null, ${JSON.stringify(JSON.stringify({ scenario: S.name, runner: 'page', file: path.basename(S.file || ''), sha: gitSha(), steps: S.steps }))}); return 1; } catch (e) { return String(e); } })()`);
+    // the camera's moves in-page (a rAF loop: one call a step, not one a frame over CDP)
+    await rig.ev(`(() => { if (window.__FSB) return 1; window.__FSB = { sweep(view, deg, s, dist) { const P = window.FLIGHT_PROBE; return new Promise(res => {
+      const t0 = performance.now(), d = dist || 18; if (view === 'pan360') P.camMode('free'); else P.camMode(view === 'orbit' ? 'orbit' : view);
+      const c0 = P.sim().cgPos(); const f = () => { const k = Math.min(1, (performance.now() - t0) / (s * 1000)), a = (deg || 0) * Math.PI / 180 * k;
+        if (view === 'orbit') P.camSet(a, 0.25, d); else if (view === 'pan360') P.devFree(c0[0], c0[1] + 8, c0[2], a, 0);
+        if (k < 1) requestAnimationFrame(f); else res(1); }; requestAnimationFrame(f); }); } }; return 1; })()`);
     // the frame sampler (rAF intervals, ms), read and emptied per step
     await rig.ev(`(() => { if (window.__FSF) return 1; const F = window.__FSF = { d: [], last: 0 }; const f = t => { if (F.last) F.d.push(t - F.last); F.last = t; requestAnimationFrame(f); }; requestAnimationFrame(f); return 1; })()`);
     const ST = `(() => { const P = window.FLIGHT_PROBE, ap = P && P.ap(), s = P && P.sim(); if (!ap || !s) return null; const cg = s.cgPos(), v = s.cgVel ? s.cgVel() : [0, 0, 0];
@@ -347,7 +368,21 @@ async function runPage(S, opt) {
       let s = await rig.J(ST);
       await frames();   // (the step's frames start here)
       let t0 = s ? s.t : 0;
-      if (st.do === 'start') { await rig.fly(); s = await rig.J(ST); }
+      await rig.ev(`(() => { try { window.FLIGHT_REC.mark(${JSON.stringify('seg:' + st.name)}); } catch (e) {} return 1; })()`);
+      if (st.do === 'start' && S.from !== 'HOME') {
+        const goJs = '(() => { try { const G = window.FLYDIY_START; if (!G || !G.go) return "no start chooser"; G.go({ start: "field:' + S.from + '", to: ' + JSON.stringify(S.to && S.to !== S.from ? S.to : null) + ' }); return "ok"; } catch (e) { return String(e); } })()';
+        say('  start from ' + S.from + ': ' + await rig.ev(goJs));
+        await new Promise(r => setTimeout(r, 4000)); rig.flying = false; await rig.fly(); s = await rig.J(ST);
+      }
+      else if (st.do === 'start' || st.do === 'rollout') { rig.flying = false; await rig.fly(); s = await rig.J(ST); }
+      else if (st.do === 'skip') say('  skip: ' + await rig.ev(`(() => { const b = document.getElementById('bSkip'); if (b && !b.hidden && !b.disabled) { b.click(); return 'skipped'; } return 'no skip offered'; })()`));
+      else if (st.do === 'camera') { await rig.ev(`window.__FSB.sweep(${JSON.stringify(st.view || 'chase')}, ${+(st.sweep || 0)}, ${+(st.s || 5)}, ${st.dist == null ? 'null' : +st.dist})`, ((+(st.s || 5)) + 30) * 1000); }
+      else if (st.do === 'weather') say('  weather ' + st.cond + ': ' + await setSel('selCond', st.cond));
+      else if (st.do === 'time') say('  time ' + st.hour + ' h: ' + await rig.ev(`(() => { try { window.DAY_CLOCK.set({ localHours: ${+st.hour} }); return 'ok'; } catch (e) { return String(e); } })()`));
+      else if (st.do === 'dest') say('  destination ' + st.to + ': ' + await setSel('selDest', st.to));
+      else if (st.do === 'minimap') say('  minimap ' + (st.open !== false ? 'open' : 'closed') + ': ' + await rig.ev(`(() => { try { window.FLIGHT_PROBE.panel('map', ${st.open !== false}); return 'ok'; } catch (e) { return String(e); } })()`));
+      else if (st.do === 'shed') say('  back to the shed: ' + await rig.ev(`(() => { const b = document.getElementById('bHangar2'); if (b) { b.click(); return 'ok'; } return 'no shed button'; })()`));
+      else if (st.do === 'load') { if (si > iStart && iStart >= 0) failed = { step: si, name: st.name, why: { what: 'a load in the journey is not built yet (v1: loads go before the start)' } }; }
       else if (st.do === 'leg') { const r = await setSel('selDest', st.to); const ok = await rig.ev('window.FLIGHT_PROBE.nextLeg()'); say('  leg to ' + st.to + ': ' + r + (ok ? '' : ' (no Fly on)'));
         s = await rig.J(ST); t0 = s ? s.t : 0; }   // (a leg is a new pilot: its clock restarts at 0, the step's with it)
       else if (st.do === 'lift') await rig.ev(`window.FLIGHT_PROBE.place({ by: [0, ${+st.by}, 0] })`);
@@ -360,17 +395,20 @@ async function runPage(S, opt) {
         if (U.agl != null && !(x.agl >= U.agl)) m.push('AGL ' + x.agl + ' m, wants >= ' + U.agl);
         if (U.stoppedAt != null && !(x.ph === 'STOPPED' && x.where === U.stoppedAt)) m.push(x.ph !== 'STOPPED' ? 'not STOPPED (' + x.ph + ')' : 'stopped on ' + (x.where || 'no strip') + ', wants ' + U.stoppedAt);
         if (U.declined && !x.declined) m.push('no take-off declined');
+        if (U.s != null && !((Date.now() - w0) / 1000 >= U.s)) m.push(((Date.now() - w0) / 1000).toFixed(0) + ' s of ' + U.s);
         return m;
       };
       const fault = x => {
         if (!x) return null;
-        if (x.crashed) return 'the damage ended the flight: ' + (x.dmg || 'crashed');
+        if (x.crashed) return al.has('crash') ? null : 'the damage ended the flight: ' + (x.dmg || 'crashed');
         if (x.ph === 'ABORT') return 'the take-off was rejected (ABORT)';
         if (x.declined && !al.has('declined') && !(U && U.declined)) return 'the take-off was declined: ' + x.declined;
         return null;
       };
       let m = U ? miss(s) : [];
       while (!failed && m.length) {
+        // (the slot's own deadline: 45 s before the rig's hard cap the run stops, said, and still pulls the log and writes the report)
+        if (Date.now() > wall0 + ((o.cap || 900) - 45) * 1000) { failed = { step: si, name: st.name, why: { what: 'the slot time: stopped 45 s before the hard cap, the log kept', phase: s && s.ph } }; break; }
         if (s && s.t - t0 >= cap) { failed = { step: si, name: st.name, why: { what: 'the cap: ' + cap + ' s passed with ' + m.join('; '), phase: s.ph, said: s.said, pos: s.cg, where: s.where } }; break; }
         if (Date.now() - w0 > (cap * 3 + 120) * 1000) { failed = { step: si, name: st.name, why: { what: 'the wall clock: ' + Math.round((Date.now() - w0) / 1000) + ' s for a ' + cap + ' s step (the sim not advancing?)', why: await rig.why() } }; break; }
         await new Promise(r => setTimeout(r, 250));
@@ -389,6 +427,16 @@ async function runPage(S, opt) {
       if (failed) { say('       WHY: ' + failed.why.what); for (const v of failed.why.said || []) say('       said ' + v); }
     }
     R.failed = failed; R.ok = !failed;
+    // the flight recorder's log, pulled whole (PERF-TRACE-FORMAT section 3) and the report made from it
+    try {
+      await rig.ev(`(() => { try { window.FLIGHT_REC.mark('seg:end'); } catch (e) {} window.__FSLOG = window.FLIGHT_REC.rec.logParts().join(''); return window.__FSLOG.length; })()`);
+      const n = await rig.J('window.__FSLOG.length'), CH = 4e6, logFile = out.replace(/\.jsonl$/, '') + '.flightlog.json', fdL = fs.openSync(logFile, 'w');
+      for (let a = 0; a < n; a += CH) fs.writeSync(fdL, await rig.ev(`window.__FSLOG.slice(${a}, ${a + CH})`, 60000));
+      fs.closeSync(fdL);
+      const PT = require(path.join(T, 'perf_trace.js')), rep0 = PT.trace(JSON.parse(fs.readFileSync(logFile, 'utf8')), { scenario: S.name, scenarioFile: path.basename(S.file || ''), runner: 'page', logFile });
+      const trFile = out.replace(/\.jsonl$/, '') + '.perftrace.json'; fs.writeFileSync(trFile, JSON.stringify(rep0, null, 1)); R.trace = trFile;
+      say('  the report: ' + trFile + ' (' + rep0.segments.length + ' segments, ' + rep0.stutters.length + ' frames over 50 ms)');
+    } catch (e) { say('  (the flight log could not be pulled: ' + (e && e.message || e) + ')'); }
   } catch (e) {
     R.failed = { step: -1, name: 'rig', why: { what: String(e && e.message || e), why: e && e.why || null } }; R.ok = false;
     say('FAIL the rig: ' + R.failed.why.what);

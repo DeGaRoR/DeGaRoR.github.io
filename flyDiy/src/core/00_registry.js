@@ -734,9 +734,14 @@ const POWERPLANTS = {
     engine: { name: 'EMRAX 228 / 55 kW', mass: 19.5, powerW: 55000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2400 },
     prop:   { name: '3-pale composite 1.65 m', D: 1.65, Tstatic: 1264, kV2: 0.1756 },
   },
+  // ELECTRIC-TRAINER (18 Nov; the user: "the radiators, the pumps, the coolant, everything, the cabling ... should just be
+  // part of the engine"; "we have to modify the existing E811"): the E-811 AS INSTALLED - motor 23 kg + H300C controller
+  // 8.1 kg + the motor and battery coolant loops (6.3 L, two radiators, two pumps, tanks, hoses) + the HV junction box and
+  // cabling (POH-128 7-12..7-17; the loops and cabling DERIVED): 53 kg, liquid (was 30 kg, air: the motor and controller
+  // only). The cards that carry it: the LS4 (unpowered: engOn 0, no mass), the e-trainer archetype (follows)
   e811_velis: {
-    price: 28000,
-    engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2500 },
+    price: 31500,
+    engine: { name: 'Pipistrel E-811 (certified)', mass: 53.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'liquid', rpm: 2500 },
     prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 1231, kV2: 0.1477 },
   },
   sp260d_class: {
@@ -812,7 +817,10 @@ const POWERPLANTS = {
 const GEN_ENG_THERMO = {
   four:     { sfcKgKWh: 0.30, eta: null, cool: { air: 0.45, liquid: 0.42 } },
   two:      { sfcKgKWh: 0.50, eta: null, cool: { air: 0.55, liquid: 0.50 } },
-  electric: { sfcKgKWh: 0,    eta: 0.90, cool: { air: 0.11, liquid: 0.11 } },
+  // (VELIS-INSTALL, proto 17 Nov, the user: "a simple yet accurate thermal model for the electric engine ... mostly a kW
+  // load"): an air-cooled motor rejects its own and its controller's loss, 11 % of the shaft (the E-811's 89 %, POH-128
+  // 7-12); a LIQUID-cooled drive's loops also carry the packs' - ~2 % of a ~64 kW draw at take-off, 1.3 kW - 15 %
+  electric: { sfcKgKWh: 0,    eta: 0.90, cool: { air: 0.11, liquid: 0.15 } },
   // A TURBINE (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md §1): a PT6
   // burns 0.33-0.37 kg/kWh at rated power (the classic 0.55-0.60 lb/shp-h);
   // the heat leaves BY THE PIPE and the cowl only cools the oil — ~5 % of

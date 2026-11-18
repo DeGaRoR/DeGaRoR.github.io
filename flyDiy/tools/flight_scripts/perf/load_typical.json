@@ -1,0 +1,34 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_load_typical",
+ "what": "THE USER'S LOADS (a): the Cessna 172 loaded typical (passengers + baggage into the seeded card), HOME's circuit",
+ "plane": "list:50",
+ "from": "HOME",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "load typical",
+   "do": "load",
+   "preset": "typical"
+  },
+  {
+   "name": "taxi + take-off (typical)",
+   "do": "start",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "DOWNWIND"
+    ]
+   },
+   "capS": 400
+  },
+  {
+   "name": "circuit + landing (typical)",
+   "until": {
+    "stoppedAt": "HOME"
+   },
+   "capS": 900
+  }
+ ]
+}

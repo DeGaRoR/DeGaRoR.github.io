@@ -1,0 +1,34 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_load_light",
+ "what": "THE USER'S LOADS (a): the Cessna 172 loaded light (passengers + baggage into the seeded card), HOME's circuit",
+ "plane": "list:50",
+ "from": "HOME",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "load light",
+   "do": "load",
+   "preset": "light"
+  },
+  {
+   "name": "taxi + take-off (light)",
+   "do": "start",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "DOWNWIND"
+    ]
+   },
+   "capS": 400
+  },
+  {
+   "name": "circuit + landing (light)",
+   "until": {
+    "stoppedAt": "HOME"
+   },
+   "capS": 900
+  }
+ ]
+}

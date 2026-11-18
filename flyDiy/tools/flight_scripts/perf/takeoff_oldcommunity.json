@@ -1,0 +1,42 @@
+{
+ "day": "game",
+ "persona": "expert",
+ "name": "perf_takeoff_oldcommunity",
+ "what": "THE USER'S TAKE-OFFS (l.11): the user's Cub off w6 (the start chooser): the taxi, the line-up and the take-off",
+ "plane": "builds/cub_2026-09-20_corrected.json",
+ "from": "w6",
+ "to": "HOME",
+ "steps": [
+  {
+   "name": "taxi + line-up (w6)",
+   "do": "start",
+   "until": {
+    "phase": [
+     "ROLL",
+     "LIFTOFF",
+     "CLIMB"
+    ]
+   },
+   "capS": 300
+  },
+  {
+   "name": "take-off (w6)",
+   "until": {
+    "phase": [
+     "CLIMB",
+     "ENROUTE",
+     "INBOUND"
+    ]
+   },
+   "capS": 200
+  },
+  {
+   "name": "climb-out",
+   "do": "wait",
+   "until": {
+    "s": 20
+   },
+   "capS": 30
+  }
+ ]
+}

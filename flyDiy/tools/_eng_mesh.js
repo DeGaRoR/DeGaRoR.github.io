@@ -1425,6 +1425,36 @@ const EM = (() => {
         : [-1, 0, 1].map(i => [i * 0.16 * cR, 0.58 * cR, zCB - 0.24 * cR]);
       ports.phase = phase; ports.escPhase = escPhase;
       ports.lugs = lugs; ports.fwPts = fwPts;
+      // VELIS-INSTALL (proto 17 Nov, the user: "attach to the engine directly, same options as normal radiators, can be
+      // moved around the engine with parameters, so they can fit in the cowl"): a liquid-cooled electric drive's own
+      // loop hardware ON ITS STAND - the radiator (the combustion radiator's rows: radW / radH / radD its size, radX /
+      // radY / radZ its place - here about the stand's middle, under the motor at the defaults), a pump pair behind it
+      // and the HV junction box on the stand's side. Mesh only: their mass is the row's (the installed E-811)
+      if (P.liquid && fwPlane !== false) {
+        const zMid = 0.5 * (zAft + zFw);
+        const rW = P.radW * cR, rH = P.radH * cR, rD = P.radD * cR;
+        const rC = [P.radX * cR, (P.radY - 0.55) * cR - 1.2 * cR, zMid + (P.radZ - 0.55) * cR];
+        part('radiator');
+        prism([rC[0], rC[1], 0], Z, X, Y, roundRect(rW, rH, 0.10 * cR),
+              rC[2] - rD / 2, rC[2] + rD / 2, ENGM_MAT.air, true, true, 0.05 * cR);
+        const nS = Math.max(6, Math.round(rW / (0.06 * cR)));
+        part('radCore', 'box', nS);
+        for (let i2 = 0; i2 < nS; i2++) {
+          const x2 = rC[0] - rW * 0.42 + (i2 + 0.5) / nS * rW * 0.84;
+          prism([x2, rC[1], 0], Z, X, Y,
+                [[-0.014 * cR, -rH * 0.36], [0.014 * cR, -rH * 0.36], [0.014 * cR, rH * 0.36], [-0.014 * cR, rH * 0.36]],
+                rC[2] + rD / 2 - 0.008 * cR, rC[2] + rD / 2 + 0.035 * cR, ENGM_MAT.mark, true, true);
+        }
+        for (const sx2 of [-1, 1]) {
+          part('coolPump', 'tube');
+          const pc = [rC[0] + sx2 * 0.35 * rW, rC[1], rC[2] - rD / 2 - 0.30 * cR];
+          lathe(pc, [1, 0, 0], frameOf([1, 0, 0]), [{ t: -0.22 * cR, r: 0.18 * cR }, { t: 0.22 * cR, r: 0.18 * cR }],
+                ENGM_MAT.carb, true, true, S.detail);
+        }
+        part('hvJunction');
+        prism([1.05 * cR, 0.15 * cR, 0], Z, X, Y, roundRect(0.45 * cR, 0.75 * cR, 0.06 * cR),
+              zMid - 0.40 * cR, zMid + 0.40 * cR, ENGM_MAT.esc, true, true, 0.03 * cR);
+      }
       if (P.leads && escOn) {
         for (let i = 0; i < 3; i++) {
           part('phase' + i, 'tube');

@@ -1031,7 +1031,7 @@ const SPLAT_GROUND = (() => {
                  * (1.0 - smoothstep(wsH * 0.25, wsH, vWPi.y + bn * wsH * 0.9));
       col *= (1.0 - 0.45 * wet) * (1.0 - 0.3 * wsea); gSRough = mix(gSRough, min(gSRough, 0.45), wet); }   // (the sea's band darkens only: any gloss on its steep face caught the sun as a white line at the foot, it2/it3)
 #ifdef GS_TRDBG
-    return vec3(gTrR, mw, gTrR0);   // (ROCK-STUDY's probe strip 'trdbg': red the rock's share after the exposure, green the far tier's weight, blue the raster's rock)
+    return vec3(gTrR, gTrGw, mw);   // (ROCK-STUDY's probe strip 'trdbg': red the rock's share after the exposure, green the grass's share inside the rock's sample, blue the far tier's weight)
 #endif
     return mix(col, mac, mw * (1.0 - gTrR));   // (R1, 17 Nov: the far tier dissolves the ground into the map's colour - never the ROCK: "nothing should have the macro pattern fade")
   }
