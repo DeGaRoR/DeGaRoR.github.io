@@ -59,8 +59,6 @@
     {"n":36,"list":"archive","name":"Twin busher floats 4","file":"builds/candidates/review/Twin_busher_floats_4.json"},
     {"n":37,"list":"archive","name":"Stock sailplane","stock":"sailplane","thumb":"stock:sailplane","note":"stock preset"},
     {"n":57,"list":"wip","name":"PC-6 Turbo Porter","reg":"HB-FDY","file":"builds/candidates/pc6_drafting_2026-11-11.json","thumb":"cand:pc6_drafting_2026-11-11.json","note":"the drafting table's PC-6 (FIT-PROCEDURE) - REAL-FIGURES pending"},
-    {"n":58,"list":"wip","name":"PC-6 on Wiplines","reg":"PT-ZPO","file":"builds/candidates/pc6_floats_2026-11-13.json","thumb":"cand:pc6_floats_2026-11-13.json","note":"the drafting table's PC-6 (FIT-PROCEDURE) - REAL-FIGURES pending"},
-    {"n":59,"list":"next","name":"PC-6 (Alpengluehn)","reg":"HB-FAG","file":"builds/candidates/pc6_livery_alpengluehn_2026-11-13.json","note":"a PC-6 livery study (paint only; the PC-6 Turbo Porter's next look)"},
-    {"n":60,"list":"next","name":"PC-6 (Nordwind)","reg":"D-FNWD","file":"builds/candidates/pc6_livery_nordwind_2026-11-13.json","note":"a PC-6 livery study (paint only; the PC-6 Turbo Porter's next look)"}
+    {"n":58,"list":"wip","name":"PC-6 on Wiplines","reg":"PT-ZPO","file":"builds/candidates/pc6_floats_2026-11-13.json","thumb":"cand:pc6_floats_2026-11-13.json","note":"the drafting table's PC-6 (FIT-PROCEDURE) - REAL-FIGURES pending"}
   ]
 }
