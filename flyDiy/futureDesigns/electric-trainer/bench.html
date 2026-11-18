@@ -1,0 +1,109 @@
+<title>Electric Trainer Bench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: one reading column; a flight-test card header, then the indicator table, then mass & balance, then the open gaps */
+:root {
+  --bg: #f3f5f6; --panel: #ffffff; --fg: #17232b; --muted: #5b6b75; --rule: #d5dde1;
+  --teal: #1f8f9e; --navy: #163a5a;
+  --ok: #2f7d4f; --ok-bg: #e2f2e8; --warn: #9a6a00; --warn-bg: #fbf0d6; --bad: #b23a2e; --bad-bg: #f8e1de;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f171c; --panel: #16222a; --fg: #e3eaee; --muted: #93a4ae; --rule: #2a3a44;
+  --teal: #4cc0cf; --navy: #8fb6dc;
+  --ok: #7fd3a1; --ok-bg: #173226; --warn: #f0c35c; --warn-bg: #352a10; --bad: #f08a7e; --bad-bg: #3a1c19; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f171c; --panel: #16222a; --fg: #e3eaee; --muted: #93a4ae; --rule: #2a3a44;
+  --teal: #4cc0cf; --navy: #8fb6dc;
+  --ok: #7fd3a1; --ok-bg: #173226; --warn: #f0c35c; --warn-bg: #352a10; --bad: #f08a7e; --bad-bg: #3a1c19; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; }
+.wrap { max-width: 900px; margin: 0 auto; padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+header { display: grid; gap: 6px; border-left: 6px solid var(--teal); padding-left: 14px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 700; font-size: 40px; line-height: 1; margin: 0; color: var(--navy); text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 24px; margin: 0 0 10px; color: var(--navy); }
+p { margin: 0; max-width: 65ch; }
+.muted { color: var(--muted); font-size: 13px; }
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+td.n { font-family: var(--mono); text-align: right; white-space: nowrap; }
+th.n { text-align: right; }
+.pill { display: inline-block; font-family: var(--mono); font-size: 12px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.ok { color: var(--ok); background: var(--ok-bg); } .warn { color: var(--warn); background: var(--warn-bg); } .bad { color: var(--bad); background: var(--bad-bg); }
+.note { color: var(--muted); font-size: 13px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+</style>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Flight bench · 17 Nov · sea level ISA · 600 kg (MTOW)</span>
+    <h1>Electric Trainer Bench</h1>
+    <p class="muted">The Virus-type electric card against the type's flight manual (POH-128, SW 128). Measured by the game's own physics: a probe pass for speeds and climb, a flown pass by the test pilot for take-off and landing.</p>
+  </header>
+
+  <section class="panel">
+    <h2>Performance against the manual</h2>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Indicator</th><th class="n">Ours</th><th class="n">Manual</th><th class="n">Gap</th><th>Status</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>Stall, flaps up (km/h)</td><td class="n">90</td><td class="n">94</td><td class="n">−4 %</td><td><span class="pill ok">close</span></td><td class="note">Power off, 600 kg</td></tr>
+        <tr><td>Stall, landing flaps (km/h)</td><td class="n">83</td><td class="n">83</td><td class="n">0 %</td><td><span class="pill ok">match</span></td><td class="note"></td></tr>
+        <tr><td>Climb rate (m/s)</td><td class="n">3.5</td><td class="n">3.3</td><td class="n">+7 %</td><td><span class="pill ok">close</span></td><td class="note">Flown: 3.1 m/s. Manual at 48 kW continuous</td></tr>
+        <tr><td>Level speed, ~75 % power (km/h)</td><td class="n">173</td><td class="n">170</td><td class="n">+2 %</td><td><span class="pill ok">close</span></td><td class="note">Manual VH 93 kt at 2300 rpm</td></tr>
+        <tr><td>Top speed (km/h)</td><td class="n">193</td><td class="n">172</td><td class="n">+12 %</td><td><span class="pill warn">fast</span></td><td class="note">The real one is held at 2300 rpm continuous; ours is not rpm-limited</td></tr>
+        <tr><td>Best glide ratio</td><td class="n">12.4</td><td class="n">15</td><td class="n">−17 %</td><td><span class="pill bad">draggy</span></td><td class="note">Parasite drag about 20 % high; main gear the largest share</td></tr>
+        <tr><td>Take-off roll (m)</td><td class="n">232 / 283</td><td class="n">240</td><td class="n">−3 % / +18 %</td><td><span class="pill warn">mixed</span></td><td class="note">Formula / flown by the pilot</td></tr>
+        <tr><td>Take-off over 15 m (m)</td><td class="n">328</td><td class="n">448</td><td class="n">−27 %</td><td><span class="pill warn">short</span></td><td class="note">Formula; the manual flies 57 kt to 50 ft</td></tr>
+        <tr><td>Landing roll (m)</td><td class="n">443</td><td class="n">183</td><td class="n">+142 %</td><td><span class="pill bad">long</span></td><td class="note">Normal technique, light braking. The short-field pass did not finish</td></tr>
+        <tr><td>Endurance at 20 kW (min, to empty)</td><td class="n">~64</td><td class="n">62</td><td class="n">+3 %</td><td><span class="pill ok">close</span></td><td class="note">Manual: 52 min + 10 min reserve, from 100 % charge, climb to 1500 ft included. Ours: 21.4 kWh at 20 kW, climb not counted</td></tr>
+        <tr><td>Endurance at cruise (min)</td><td class="n">30</td><td class="n">31 + 10</td><td class="n">—</td><td><span class="pill ok">close</span></td><td class="note">Ours at 163 km/h (~42 kW); manual at 35 kW. The training figure of ~50 min is a circuit profile with reserve</td></tr>
+        <tr><td>Landing over 15 m (m)</td><td class="n">916</td><td class="n">537</td><td class="n">+71 %</td><td><span class="pill bad">long</span></td><td class="note">Same flight</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel">
+      <h2>Mass and balance</h2>
+      <div class="scroll">
+      <table>
+        <tbody>
+          <tr><td>Empty mass</td><td class="n">420 kg</td><td class="n">428</td></tr>
+          <tr><td>Wing area</td><td class="n">9.6 m²</td><td class="n">9.51</td></tr>
+          <tr><td>Span</td><td class="n">10.70 m</td><td class="n">10.71</td></tr>
+          <tr><td>CG, two aboard</td><td class="n">28 % MAC</td><td class="n">25.2–32.6</td></tr>
+          <tr><td>Stability margin</td><td class="n">21 % MAC</td><td class="n">5–20</td></tr>
+          <tr><td>Batteries</td><td class="n">2 × 11 kWh</td><td class="n">2 × 11</td></tr>
+          <tr><td>Motor, installed</td><td class="n">57.6 kW, 53 kg</td><td class="n">57.6 kW</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>What changed today</h2>
+      <ul>
+        <li>The bench was flying the base aeroplane's old wing (9.0 m span). It now loads the card through the game's own load door, so the fitted 10.7 m wing flies.</li>
+        <li>Cooling system and HV cabling are part of the motor assembly: 8.6 kW of heat, climb cooling margin 1.8.</li>
+        <li>Packs at the manual's places: behind the firewall and behind the cabin.</li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Open gaps</h2>
+    <ul>
+      <li><span class="pill bad">wing</span> The cantilever wing buckles in the sandbag test at 3.5 g with the glass structure (4.2 g in carbon). The real limit is +4 g, ultimate 6 g. It flies normal circuits; it would break in hard manoeuvres.</li>
+      <li><span class="pill bad">landing</span> Landing roll more than twice the manual's: the test pilot brakes lightly, and the short-field pass did not complete.</li>
+      <li><span class="pill warn">drag</span> Glide 12.4 against 15: parasite drag about 0.41 m² against roughly 0.33 m² implied by the manual.</li>
+      <li><span class="pill warn">rpm</span> No continuous rpm limit, so top speed runs 12 % over the manual's VH.</li>
+    </ul>
+  </section>
+</div>
