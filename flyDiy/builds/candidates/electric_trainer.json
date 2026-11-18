@@ -1883,7 +1883,7 @@
   "sources": {
    "tcds": "EASA TCDS A.573 issue 13, 19 Nov 2025 (type Virus SW 121: section A SW 121, B SW 128 Velis Electro, D SW 121A Explorer) - the authority",
    "poh": "Pipistrel POH-121A-00-40-050 rev C01 (Explorer)",
-   "poh128": "Pipistrel POH-128-00-40-001 rev B00, June 2020 (Velis Electro)",
+   "poh128": "Pipistrel POH-128-00-40-001 rev B00, June 2020 (Velis Electro, SW 128): the electric aeroplane the card flies - its performance, mass and CG figures",
    "sheet": "POH-121A-00-40-050 p.12 (1.4 THREE VIEW DRAWING): shaded renders, no dimension lines; each view scaled by a TCDS figure"
   },
   "figures": {
@@ -1956,31 +1956,17 @@
     "unit": "kg",
     "src": "tcds"
    },
-   "specs.mzfw": {
-    "v": 555,
-    "unit": "kg",
-    "src": "tcds"
-   },
    "specs.empty": {
-    "v": 371,
+    "v": 428,
     "unit": "kg",
-    "src": "poh",
-    "cond": "POH 1-5: typical empty weight (minimum)"
+    "src": "poh128",
+    "cond": "POH-128 1-5: design empty weight"
    },
    "specs.power": {
-    "v": 73.5,
+    "v": 57.6,
     "unit": "kW",
-    "src": "tcds",
-    "cond": "5800 rpm max 5 min; MCP 69 kW / 5500"
-   },
-   "specs.fuel": {
-    "v": [
-     99,
-     100
-    ],
-    "unit": "L",
-    "src": "tcds",
-    "cond": "99 usable of 100, two 50 L wing tanks at +215 mm"
+    "src": "poh128",
+    "cond": "E-811-268MVLC: MTOP 57.6 kW (90 s), MCP 49.2 kW (POH-128 2-4)"
    },
    "specs.seats": {
     "v": 2,
@@ -1988,92 +1974,112 @@
     "cond": "side by side, arms 370 mm"
    },
    "specs.baggage": {
-    "v": 25,
+    "v": 0,
     "unit": "kg",
-    "src": "tcds",
-    "cond": "port side aft of the door, arm 1160 mm"
+    "src": "poh128",
+    "cond": "no baggage (POH-128 2-6)"
    },
    "specs.cg": {
     "v": [
-     25,
-     35
+     25.2,
+     32.6
     ],
     "unit": "%MAC",
-    "src": "tcds",
-    "cond": "267-356 mm aft of the datum; 27.5 % fwd at 600 kg (POH)"
+    "src": "poh128",
+    "cond": "269-336 mm aft of the datum, with crew (POH-128 2-6)"
    },
    "specs.datum": {
     "v": "wing leading edge at the root",
     "src": "tcds"
    },
    "specs.flaps": {
-    "v": "-5 / 0 / +9.5 / +20 deg (flaperons)",
-    "src": "poh",
-    "cond": "POH 7-8"
+    "v": "0 / +9 / +19 deg",
+    "src": "poh128",
+    "cond": "POH-128 7-8"
    },
    "perf.Vs1": {
-    "v": 53,
-    "unit": "KIAS",
-    "src": "poh",
-    "cond": "600 kg, fwd CG, flaps 0"
+    "v": 51,
+    "unit": "KCAS",
+    "src": "poh128",
+    "cond": "power off, flaps 0, 600 kg (POH-128 5-8)"
    },
    "perf.Vs0": {
-    "v": 47,
-    "unit": "KIAS",
-    "src": "poh",
-    "cond": "600 kg, flaps +2"
+    "v": 45,
+    "unit": "KCAS",
+    "src": "poh128",
+    "cond": "power off, flaps +2, 600 kg"
    },
    "perf.roc": {
-    "v": 1050,
+    "v": 647,
     "unit": "ft/min",
-    "src": "poh",
-    "cond": "600 kg, VY 78 KIAS, SL ISA"
+    "src": "poh128",
+    "cond": "VY 75 KIAS, MCP 48 kW, 600 kg, SL ISA (POH-128 5-11)"
    },
    "perf.cruise": {
-    "v": 132,
-    "unit": "KTAS",
-    "src": "poh",
-    "cond": "75 %, 6000 ft"
+    "v": 93,
+    "unit": "KCAS",
+    "src": "poh128",
+    "cond": "VH at 2300 rpm (36 kW), 600 kg, SL ISA - rpm-limited (POH-128 5-12)"
    },
    "perf.TO": {
-    "v": 160,
+    "v": 240,
     "unit": "m",
-    "src": "poh",
-    "cond": "ground roll, 600 kg, flaps +1, dry paved, SL ISA"
+    "src": "poh128",
+    "cond": "ground roll, MPTOP 50 kW, flaps +1, asphalt, 600 kg, SL ISA (POH-128 5-9)"
    },
    "perf.TO50": {
-    "v": 320,
+    "v": 448,
     "unit": "m",
-    "src": "poh",
-    "cond": "same"
+    "src": "poh128",
+    "cond": "same, over 50 ft"
    },
    "perf.LDG": {
-    "v": 260,
+    "v": 183,
     "unit": "m",
-    "src": "poh",
-    "cond": "ground roll, 600 kg, flaps +2, airbrakes half"
+    "src": "poh128",
+    "cond": "ground roll, flaps +2, power cut, 60 KIAS at 50 ft, asphalt, 600 kg (POH-128 5-17)"
    },
    "perf.LDG50": {
-    "v": 445,
+    "v": 537,
     "unit": "m",
-    "src": "poh",
-    "cond": "same"
+    "src": "poh128",
+    "cond": "same, from 50 ft"
    },
    "perf.VNE": {
-    "v": 163,
-    "unit": "KTAS",
-    "src": "tcds"
+    "v": 108,
+    "unit": "KIAS",
+    "src": "poh128",
+    "cond": "POH-128 2-3"
    },
    "perf.VFE": {
     "v": 81,
     "unit": "KIAS",
-    "src": "tcds"
+    "src": "poh128",
+    "cond": "flaps +1; 65 at +2 (POH-128 2-3)"
    },
    "perf.glide": {
     "v": 15,
     "unit": ":1",
-    "src": "poh",
-    "cond": "70 KIAS, 600 kg"
+    "src": "poh128",
+    "cond": "70 KIAS, 600 kg (POH-128 3-19)"
+   },
+   "specs.battery": {
+    "v": [
+     2,
+     11
+    ],
+    "unit": "packs x kWh",
+    "src": "poh128",
+    "cond": "two PB345V124E-L, 11 kWh each at 23 C (POH-128 7-14): front ahead of the cabin, rear behind it"
+   },
+   "perf.endurance": {
+    "v": [
+     52,
+     10
+    ],
+    "unit": "min",
+    "src": "poh128",
+    "cond": "at 20 kW from 100 % charge, 1500 ft, + 10 min reserve (POH-128 5-14)"
    }
   },
   "image": {
