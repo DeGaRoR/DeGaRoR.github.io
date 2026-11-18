@@ -176,7 +176,7 @@ const REFS = {
     variant: 'Pipistrel Velis Electro (Virus SW 128): E-811-268MVLC, P-812-164-F3A 3-blade fixed pitch 1.64 m, two PB345V124E-L packs',
     sources: {
       tcds: { what: 'EASA Type Certificate Data Sheet A.573 issue 13, 19 Nov 2025 (type Virus SW 121, section B SW 128 Velis Electro): MTOW 600 kg, the E-811, the propeller, the dimensions',
-              quality: 'typeSheet', read: '2026-11-16', noUrl: 'recorded by number, issue and date' },
+              quality: 'typeSheet', read: '2026-11-16', url: 'https://www.easa.europa.eu/en/downloads/20704/en' },
       poh:  { what: 'Pipistrel POH-128-00-40-001 rev B00, June 2020 (Velis Electro): sections 1, 2, 5, 6, 7',
               quality: 'maker', read: '2026-11-16', noUrl: 'recorded by number and revision' },
     },
@@ -186,8 +186,13 @@ const REFS = {
       Vs1:   { v: 51 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: '51 KCAS power off, flaps 0, 600 kg (POH 5-8)', from: 'poh' },
       Vmax:  { v: 93 * KT, tol: 0.10, kg: 'gross', src: 'VH 93 KCAS at 2300 rpm, max continuous (POH 5-12) - rpm-limited, not the full-power level speed', from: 'poh' },
       roc:   { v: 3.29, tol: 0.08, kg: 'gross', src: '647 fpm at VY 75 KIAS, 48 kW MCP, 600 kg (POH 5-11)', from: 'poh' },
+      // (REAL-FIGURES, 18 Nov: the ground rolls and the glide - the take-off roll is the pilot-light physics evidence, the
+      //  glide the drag sprint's; the figures as the proto row carried them off POH-128)
+      TO:    { v: 240, tol: 0.05, kg: 'gross', flaps: 9, surface: 'paved', src: 'ground roll 240 m, MPTOP 50 kW, flaps +1, asphalt, SL ISA (POH 5-9)', from: 'poh' },
       TO50:  { v: 448, tol: 0.10, kg: 'gross', flaps: 9, surface: 'paved', src: 'over 50 ft, MPTOP 50 kW, flaps +1, asphalt, SL ISA (POH 5-9)', from: 'poh' },
+      LDG:   { v: 183, tol: 0.05, kg: 'gross', flaps: 19, surface: 'paved', src: 'ground roll 183 m, flaps +2, power cut, asphalt, SL ISA (POH 5-17)', from: 'poh' },
       LDG50: { v: 537, tol: 0.10, kg: 'gross', flaps: 19, surface: 'paved', src: 'from 50 ft, flaps +2, power cut, asphalt, SL ISA (POH 5-17)', from: 'poh' },
+      LD:    { v: 15, tol: 0.10, kg: 'gross', src: 'best glide 15:1 (POH): the propeller as the POH flies it - not prop-free until windmilling is modelled', from: 'poh' },
     } },
   pc6: {
     name: 'Pilatus PC-6/B2-H4 Turbo Porter (PT6A-27, 550 shp)', mtow: 2800, empty: 1250, fuelL: 484, S: 30.15,
