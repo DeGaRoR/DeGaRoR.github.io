@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 52b8d5194656781e
+// body-sha256: 0c710ab072de84c1
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -741,6 +741,16 @@ const POWERPLANTS = {
     engine: { name: 'Pipistrel E-811 (certified)', mass: 30.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2500 },
     prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 1231, kV2: 0.1477 },
   },
+  // ELECTRIC-TRAINER (18 Nov; the user: "the radiators, the pumps, the coolant, everything, the cabling ... part of the
+  // engine"): the E-811 AS INSTALLED in its type - motor 23 kg + H300C controller 8.1 kg + the motor and battery coolant
+  // loops (6.3 L, two radiators, two pumps, tanks, hoses) + the HV junction box and cabling (POH-128 7-12..7-17; the loops
+  // and cabling DERIVED): 53 kg, liquid. A ROW OF ITS OWN: e811_velis (the bare motor, 30 kg) is left as every card
+  // that flies it was built on (the LS4, the e-trainer archetype)
+  e811_installed: {
+    price: 31500,
+    engine: { name: 'Pipistrel E-811 installed (coolant loops, HV cabling)', mass: 53.0, powerW: 57600, aspiration: 'electric', family: 'electric', cooling: 'liquid', rpm: 2500 },
+    prop:   { name: 'composite fixe 1.64 m', D: 1.64, Tstatic: 1231, kV2: 0.1477 },
+  },
   sp260d_class: {
     price: 90000,
     engine: { name: 'SP260D-class 260 kW', mass: 68.0, powerW: 260000, aspiration: 'electric', family: 'electric', cooling: 'air', rpm: 2500 },
@@ -814,7 +824,10 @@ const POWERPLANTS = {
 const GEN_ENG_THERMO = {
   four:     { sfcKgKWh: 0.30, eta: null, cool: { air: 0.45, liquid: 0.42 } },
   two:      { sfcKgKWh: 0.50, eta: null, cool: { air: 0.55, liquid: 0.50 } },
-  electric: { sfcKgKWh: 0,    eta: 0.90, cool: { air: 0.11, liquid: 0.11 } },
+  // (VELIS-INSTALL, proto 17 Nov, the user: "a simple yet accurate thermal model for the electric engine ... mostly a kW
+  // load"): an air-cooled motor rejects its own and its controller's loss, 11 % of the shaft (the E-811's 89 %, POH-128
+  // 7-12); a LIQUID-cooled drive's loops also carry the packs' - ~2 % of a ~64 kW draw at take-off, 1.3 kW - 15 %
+  electric: { sfcKgKWh: 0,    eta: 0.90, cool: { air: 0.11, liquid: 0.15 } },
   // A TURBINE (2026-09-05, futureDesigns/TURBOPROP-2026-09-05.md §1): a PT6
   // burns 0.33-0.37 kg/kWh at rated power (the classic 0.55-0.60 lb/shp-h);
   // the heat leaves BY THE PIPE and the cowl only cools the oil — ~5 % of
@@ -976,7 +989,7 @@ const GEN_ENG_CG = {
   w670_hs2b: 0.15, r755_hs2b: 0.16, m14p_v530: 0.14, r1340_hs12d40: 0.16,
   r985_hs2b20: 0.15, r1830_hs23e50: 0.16, merlin66_rotol4: 0.63,
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
-  fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
+  fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19, e811_installed: 0.19,
   sp260d_class: 0.31, emrax268_carbon: 0.14,
   pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71, pt6a27_hartzell3: 0.61,   // (the -27: measured on its preset, 0.606 - GATE ENGID's bench)
   pt6a60a_hartzell4: 0.78,
@@ -52529,9 +52542,16 @@ function genWingInto(def, out) {
         const linR = PP.xRat(zs0) + (PP.xRat(zs1) - PP.xRat(zs0)) * t;
         pF[0] += PP.xFat(z) - lin; pR[0] += PP.xRat(z) - linR;
       }
+      // TIP-TE (proto 17 Nov): the bow's chord closes from the leading edge only - both spar points slid aft along the
+      // chord by tipTE x (1 - sparF) x (the joint's chord - this one), so the trailing edge holds its line to the tip
+      const cZ = PP.chordAt(z);
+      if (W.tipTE > 0 && W.tipR > 1e-6 && z > W.tipZ + 1e-6) {
+        const cJ = PP.chordAt(W.tipZ), d = genV3.norm(genV3.sub(pR, pF)), s2 = W.tipTE * (1 - sparF) * (cJ - cZ);
+        for (const q of [pF, pR]) { q[0] += d[0] * s2; q[1] += d[1] * s2; q[2] += d[2] * s2; }
+      }
       return { pF, pR,
                wF: [[F0, 1-t], [F1, t]], wR: [[R0, 1-t], [R1, t]],
-               chord: PP.chordAt(z) };
+               chord: cZ };
     };
     const secAt = (z, a, b, n, pts) => {
       const f = frameAt(z);
@@ -70038,7 +70058,7 @@ const TECH_TABLE = {
   'eng:hirth508_wood': 2, 'eng:argus10c_wood': 2, 'eng:w670_hs2b': 2, 'eng:r755_hs2b': 2, 'eng:m14p_v530': 2,
   'eng:r985_hs2b20': 2, 'eng:r1340_hs12d40': 2, 'eng:r1830_hs23e50': 2, 'eng:merlin66_rotol4': 2,
   'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3, 'eng:rotax912is_warp': 2,
-  'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
+  'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:e811_installed': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
   'eng:fes_folding_100': 3, 'eng:outrunner2212_9x47': 3, 'eng:outrunner3548_12x6': 3, 'eng:outrunner6374_18x10': 3,
   'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3, 'eng:pt6a27_hartzell3': 3,
   'cfg:twin': 2,
