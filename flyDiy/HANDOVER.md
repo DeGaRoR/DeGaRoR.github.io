@@ -318213,6 +318213,29 @@ KNIFE corpus re-recorded (A0, L40e's one new red): IDENTITY moved on the Cub fam
 
 **THROTTLE-SHOULDER (PROPER-COWLS, the user 16 Nov: "the throttle should be placed through the shoulder, and it currently can't do that properly, the big panel sticks out" - then "Yes" to fixing it and moving the Cubs).** (1) _cage_gen.js: the throttle's request (ctlThr 4/5) carries the crew's station in metres (0.45 + seatZ + thrZ over planeScale; the 0.05 was added in cage units, 1.6 cm off at planeScale 0.68) and the ring it stands off: a rear-seat pilot's bay-1 aft ring (crewPilotRear's rule), else pilCabB as before. (2) _shoulder_gen.js: the slot lever's length is the thrLen row's (pivot to knob, at least the old 45 mm through the face); absent = the old fixed reach. (3) _cage_crew.js: ctlThr 4 seats its flange at the cage pass's own measured height and station (plateY / plateZ, less the rows' shift the crew adds itself); with no shoulder at the station (4 or 5) the wall lever stands on its flange only, never the 20 x 13 cm cast plate that stood through the Cubs' skin, and the page warns. (4) _cage_crew.js wallUnder: the trim wheel's and the fuel selector's wall plates seat on the innermost wall over their footprint, 3 mm in (the trim plate stood 1 mm proud of the Carbon Cub's lower wall: the user's circled black corner; now 7 mm inside). The STOL Cub (stol_cub_showcase) ctlThr 0 -> 5; the certified J-3-chord card and the stock Piper Cub keep 0 (ctlThr is in the certificate). Physics unchanged (STOL Cub: same numbers, same spec hash). NOTE the cause of the user's "big panel": the garage page I published loaded tools/_cage8.html's old list, without _shoulder_gen.js, so every ctlThr 5 fell back to the cast plate; the page now loads build.js's own editor list. SHOULDER CREWSEATS CREWLOAD DASH PANEL CABIN EDBUGS SKIN FRAMES DMGMEMBERS COMMITHYGIENE green (CREWLOAD's retry clock red once under 4 jobs, green alone); PARTS CANDIDATES JOINPARITY ENGCONFIG fail as on the base (digests line for line).
 
+## ONE-CESSNA ON L40h - claude/ready/one-cessna on master 5f33d6bb7 (FLAGSHIP, Wed 18 Nov; the user via A0 10:10: "the new Cessna is tested, right? We can go with it")
+
+claude/one-cessna (ONE-CESSNA + CANON-CLEAN + the refitted 172, list:50) merged onto L40G; the measures re-written on the
+merged tree (snapshots.js --write, stamp bbe167bccb509e42); REALBAND re-pinned (c172v2 moved alone: the refit); the join
+parity page re-captured for list:50 (`node tools/join_parity_page.js --only metal`: the refit is meant - n 117 / nb 492 now
+match); the REALREFS lint skips a DROPPED reference's file (CANON-CLEAN deleted builds/cessna172_floats_2026-11.json, the
+dismissed cessnaF's); _planelists_check.js back to LF (COMMITHYGIENE).
+NAMED, NOT HELD (A0's rule for this train):
+- CONTRACTS (8): minedock.02 / minedock.03 / resort.05 stage 0 not flyable by the three base designs at the refit's real
+  357 m take-off - ACCEPTED by the user (17 Nov: "a stock Cessna should not be able to clear all stages ... drop it").
+- CLIP: c172 nav lamp 35.7 mm into the wing tip (allow 17.8), the nose strut edLegT 21.1 mm into the fuselage, the elevator
+  hinges 1.8-2.0 mm into the stab skin - the refit's geometry; owner FLAGSHIP (a lamp / strut / hinge seat pass).
+- LIVERY (8): the B-CESS test copy's two markings / finish round-trips (the copy's legacy finish) - owner FLAGSHIP / CANON.
+- PILLAR: IDENTITY metal Cessna - the flown spec differs with the snap on / off on the B-CESS test copy - owner FLAGSHIP.
+- PHYSPAGES (1): list:50's DESTROY physics page (no shape / nothing broken) - re-bake owed (fiche_physics_bake --only list:50).
+- PLANELISTS: CANON-CLEAN's file rules read files master gained since: the two PC-6 livery studies are one aeroplane
+  (FIT-PROCEDURE), builds/candidates/buggy / roadster have no row (CARS), tools/fixtures/trailer_hull_classic_pylon.json
+  has no row (TOW-LAUNCH) - each owner gives a row, a test_copies home or SAME_HELD.
+- JOINPARITY: list:50's node vs page mass 1061.70 / 1061.80 kg (the Jodel's master red, the same 0.1 kg class) and its
+  engine nodes' finding (-0.604 m both, the join's -0.6035); master's two reds unchanged.
+- STOL / ENGCONFIG / ALTIPORT / CANDIDATES / ENGINE / WINGROWS / NAMES: red on master 5f33d6bb7 as here (ALTIPORT case 4
+  the metal Cessna's tw_ski arrival, STOL's joined-spec rows also list the metal / floats / twin floats here).
+
 ## L40g BONUS (A0, Tue 17 Nov 22:15 train, pushed ~01:10 Wed; after the L40f scenery train, the user: autopilot/crash/planes as a bonus)
 TAKEN (14): tutorial-menu-click, mission-feas, tow-launch-l40f-2 (on afb-0220-b3-2), controls-strip, pilot-dare-2 (ALTI-TOP + no altiport decline + COMMITTED + ALTI-ROUGH + no polite divert + uphill + tail-down taxi), flight-script-page, deform-l40a-reds, joint-tether, dmg-upload, flagship-tools, pc6-l40f (tail gear sourced, alu prop, gear lever + amphibian floats, PLANES.pc6f), carbon-cub-final-2, throttle-shoulder, reg-jost (Jost Bold + reg placement).
 DROPPED -> L40h: ls4-2 (real conflict with tow-launch in 60_gen_spec.js / _cage_gen.js / _gear_page.js: REAL-FIGURES re-merges on master).
